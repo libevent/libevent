@@ -54,6 +54,7 @@
 #endif
 
 #include "event.h"
+#include "evsignal.h"
 
 extern struct event_list signalqueue;
 
@@ -74,12 +75,12 @@ evsignal_init(sigset_t *evsigmask)
 int
 evsignal_add(sigset_t *evsigmask, struct event *ev)
 {
-	int signal;
+	int evsignal;
 	
 	if (ev->ev_events & (EV_READ|EV_WRITE))
 		errx(1, "%s: EV_SIGNAL incompatible use", __func__);
-	signal = EVENT_SIGNAL(ev);
-	sigaddset(evsigmask, signal);
+	evsignal = EVENT_SIGNAL(ev);
+	sigaddset(evsigmask, evsignal);
 	
 	return (0);
 }
@@ -91,10 +92,10 @@ evsignal_add(sigset_t *evsigmask, struct event *ev)
 int
 evsignal_del(sigset_t *evsigmask, struct event *ev)
 {
-	int signal;
+	int evsignal;
 
-	signal = EVENT_SIGNAL(ev);
-	sigdelset(evsigmask, signal);
+	evsignal = EVENT_SIGNAL(ev);
+	sigdelset(evsigmask, evsignal);
 	needrecalc = 1;
 
 	return (sigaction(EVENT_SIGNAL(ev),(struct sigaction *)SIG_DFL, NULL));

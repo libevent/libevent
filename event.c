@@ -33,6 +33,12 @@
 #include "config.h"
 #endif
 
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
+#include "misc.h"
+#endif
 #include <sys/types.h>
 #include <sys/tree.h>
 #ifdef HAVE_SYS_TIME_H
@@ -43,7 +49,9 @@
 #include <sys/queue.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <errno.h>
 #include <string.h>
 #include <err.h>
@@ -70,6 +78,9 @@ extern struct eventop epollops;
 #ifdef HAVE_WORKING_KQUEUE
 extern struct eventop kqops;
 #endif
+#ifdef WIN32
+extern struct eventop win32ops;
+#endif
 
 /* In order of preference */
 struct eventop *eventops[] = {
@@ -85,6 +96,9 @@ struct eventop *eventops[] = {
 #ifdef HAVE_SELECT
 	&selectops,
 #endif
+#ifdef WIN32
+	&win32ops,
+#endif
 	NULL
 };
 
@@ -98,6 +112,9 @@ int event_gotsig;		/* Set in signal handler */
 /* Prototypes */
 void	event_queue_insert(struct event *, int);
 void	event_queue_remove(struct event *, int);
+int	event_haveevents(void);
+void	event_process_active(void);
+void	timeout_insert(struct event *);
 
 static RB_HEAD(event_tree, event) timetree;
 static struct event_list activequeue;
@@ -176,7 +193,7 @@ event_process_active(void)
 		while (ncalls) {
 			ncalls--;
 			ev->ev_ncalls = ncalls;
-			(*ev->ev_callback)(ev->ev_fd, ev->ev_res, ev->ev_arg);
+			(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
 		}
 	}
 }
@@ -259,7 +276,12 @@ event_set(struct event *ev, int fd, short events,
 {
 	ev->ev_callback = callback;
 	ev->ev_arg = arg;
+#ifdef WIN32
+	ev->ev_fd = (HANDLE)fd;
+	ev->overlap.hEvent = ev;
+#else
 	ev->ev_fd = fd;
+#endif
 	ev->ev_events = events;
 	ev->ev_flags = EVLIST_INIT;
 	ev->ev_ncalls = 0;

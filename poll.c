@@ -68,7 +68,7 @@ struct pollop {
 	struct pollfd *event_set;
 	struct event **event_back;
 	sigset_t evsigmask;
-} pop;
+} pollop;
 
 void *poll_init	(void);
 int poll_add		(void *, struct event *);
@@ -92,11 +92,11 @@ poll_init(void)
 	if (getenv("EVENT_NOPOLL"))
 		return (NULL);
 
-	memset(&pop, 0, sizeof(pop));
+	memset(&pollop, 0, sizeof(pollop));
 
-	evsignal_init(&pop.evsigmask);
+	evsignal_init(&pollop.evsigmask);
 
-	return (&pop);
+	return (&pollop);
 }
 
 /*
