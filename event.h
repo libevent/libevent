@@ -47,6 +47,7 @@ extern "C" {
 #define EV_READ		0x02
 #define EV_WRITE	0x04
 #define EV_SIGNAL	0x08
+#define EV_PERSIST	0x10	/* Persistant event */
 
 /* Fix so that ppl dont have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
@@ -76,6 +77,7 @@ struct event {
 
 	int ev_fd;
 	short ev_events;
+	short ev_ncalls;
 
 	struct timeval ev_timeout;
 
@@ -128,10 +130,17 @@ void timeout_process(void);
 #define timeout_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
 #define timeout_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 
+#define signal_add(ev, tv)		event_add(ev, tv)
+#define signal_set(ev, x, cb, arg)	\
+	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+#define signal_del(ev)			event_del(ev)
+#define signal_pending(ev, tv)		event_pending(ev, EV_SIGNAL, tv)
+#define signal_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+
 void event_set(struct event *, int, short, void (*)(int, short, void *), void *);
 int event_add(struct event *, struct timeval *);
 int event_del(struct event *);
-	void event_active(struct event *, int);
+void event_active(struct event *, int, short);
 
 int event_pending(struct event *, short, struct timeval *);
 

@@ -143,7 +143,8 @@ event_process_active(void)
 	    ev = TAILQ_FIRST(&activequeue)) {
 		event_queue_remove(ev, EVLIST_ACTIVE);
 		
-		(*ev->ev_callback)(ev->ev_fd, ev->ev_res, ev->ev_arg);
+		while (ev->ev_ncalls--)
+			(*ev->ev_callback)(ev->ev_fd, ev->ev_res, ev->ev_arg);
 	}
 }
 
@@ -324,9 +325,10 @@ event_del(struct event *ev)
 }
 
 void
-event_active(struct event *ev, int res)
+event_active(struct event *ev, int res, short ncalls)
 {
 	ev->ev_res = res;
+	ev->ev_ncalls = ncalls;
 	event_queue_insert(ev, EVLIST_ACTIVE);
 }
 
@@ -389,7 +391,7 @@ timeout_process(void)
 
 		LOG_DBG((LOG_MISC, 60, "timeout_process: call %p",
 			 ev->ev_callback));
-		event_active(ev, EV_TIMEOUT);
+		event_active(ev, EV_TIMEOUT, 1);
 	}
 }
 

@@ -41,7 +41,8 @@ main (int argc, char **argv)
 	event_init();
 
 	/* Initalize one event */
-	event_set(&signal_int, SIGINT, EV_SIGNAL, signal_cb, &signal_int);
+	event_set(&signal_int, SIGINT, EV_SIGNAL|EV_PERSIST, signal_cb,
+	    &signal_int);
 
 	event_add(&signal_int, NULL);
 

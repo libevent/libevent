@@ -56,7 +56,7 @@ extern struct event_list signalqueue;
 #define        howmany(x, y)   (((x)+((y)-1))/(y))
 #endif
 
-int evsigcaught[NSIG];
+short evsigcaught[NSIG];
 
 struct selectop {
 	int event_fds;		/* Highest fd in fd set */
@@ -192,8 +192,9 @@ select_dispatch(void *arg, struct timeval *tv)
 		res &= ev->ev_events;
 
 		if (res) {
-			event_del(ev);
-			event_active(ev, res);
+			if (!(ev->ev_events & EV_PERSIST))
+				event_del(ev);
+			event_active(ev, res, 1);
 		} else if (ev->ev_fd > maxfd)
 			maxfd = ev->ev_fd;
 	}
@@ -291,10 +292,15 @@ void
 signal_process(void)
 {
 	struct event *ev;
+	short ncalls;
 
 	TAILQ_FOREACH(ev, &signalqueue, ev_signal_next) {
-		if (evsigcaught[EVENT_SIGNAL(ev)])
-			event_active(ev, EV_SIGNAL);
+		ncalls = evsigcaught[EVENT_SIGNAL(ev)];
+		if (ncalls) {
+			if (!(ev->ev_events & EV_PERSIST))
+				event_del(ev);
+			event_active(ev, EV_SIGNAL, ncalls);
+		}
 	}
 
 	memset(evsigcaught, 0, sizeof(evsigcaught));
