@@ -1,5 +1,6 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
+CFLAGS += -Wall -g -O2
 SUBDIRS = . sample test
 
 EXTRA_DIST = acconfig.h evsignal.h \

@@ -48,12 +48,21 @@
 #include <unistd.h>
 #include <errno.h>
 #include <err.h>
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 
 #ifdef USE_LOG
 #include "log.h"
 #else
 #define LOG_DBG(x)
 #define log_error	warn
+#endif
+
+#ifdef HAVE_INTTYPES_H
+#define INTPTR(x)	(intptr_t)x
+#else
+#define INTPTR(x)	x
 #endif
 
 #include "event.h"
@@ -234,37 +243,16 @@ kq_dispatch(void *arg, struct timeval *tv)
 			which |= EV_WRITE;
 		} else if (events[i].filter == EVFILT_SIGNAL) {
 			which |= EV_SIGNAL;
-		} else
-			events[i].filter = 0;
+		}
 
 		if (!which)
 			continue;
 
+		if (!(ev->ev_events & EV_PERSIST))
+			event_del(ev);
+
 		event_active(ev, which,
 		    ev->ev_events & EV_SIGNAL ? events[i].data : 1);
-	}
-
-	for (i = 0; i < res; i++) {
-		/* XXX */
-		int ncalls, evres;
-
-		if (events[i].flags & EV_ERROR || events[i].filter == NULL)
-			continue;
-
-		ev = (struct event *)events[i].udata;
-		if (ev->ev_events & EV_PERSIST)
-			continue;
-
-		ncalls = 0;
-		if (ev->ev_flags & EVLIST_ACTIVE) {
-			ncalls = ev->ev_ncalls;
-			evres = ev->ev_res;
-		}
-		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
-		event_del(ev);
-
-		if (ncalls)
-			event_active(ev, evres, ncalls);
 	}
 
 	return (0);
@@ -286,7 +274,7 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
-		kev.udata = ev;
+		kev.udata = INTPTR(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
@@ -305,7 +293,7 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
-		kev.udata = ev;
+		kev.udata = INTPTR(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
@@ -320,7 +308,7 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
-		kev.udata = ev;
+		kev.udata = INTPTR(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
