@@ -46,16 +46,10 @@
 #include <errno.h>
 #include <err.h>
 
-#ifdef USE_LOG
-#include "log.h"
-#else
-#define LOG_DBG(x)
-#define log_error(x)	perror(x)
-#endif
-
 #include "event.h"
 #include "event-internal.h"
 #include "evsignal.h"
+#include "log.h"
 
 #ifndef howmany
 #define        howmany(x, y)   (((x)+((y)-1))/(y))
@@ -128,12 +122,12 @@ select_recalc(struct event_base *base, void *arg, int max)
 	fdsz = howmany(sop->event_fds + 1, NFDBITS) * sizeof(fd_mask);
 	if (fdsz > sop->event_fdsz) {
 		if ((readset = realloc(sop->event_readset, fdsz)) == NULL) {
-			log_error("malloc");
+			event_warn("malloc");
 			return (-1);
 		}
 
 		if ((writeset = realloc(sop->event_writeset, fdsz)) == NULL) {
-			log_error("malloc");
+			event_warn("malloc");
 			free(readset);
 			return (-1);
 		}
@@ -179,7 +173,7 @@ select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	if (res == -1) {
 		if (errno != EINTR) {
-			log_error("select");
+			event_warn("select");
 			return (-1);
 		}
 
@@ -188,7 +182,7 @@ select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	} else if (evsignal_caught)
 		evsignal_process();
 
-	LOG_DBG((LOG_MISC, 80, "%s: select reports %d", __func__, res));
+	event_debug(("%s: select reports %d", __func__, res));
 
 	maxfd = 0;
 	for (ev = TAILQ_FIRST(&base->eventqueue); ev != NULL; ev = next) {

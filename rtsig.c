@@ -28,6 +28,7 @@
 #define EVLIST_X_NORT	0x1000	/* Skip RT signals (internal) */
 
 #include "event.h"
+#include "log.h"
 extern struct event_list signalqueue;
 
 struct rtsigop {
@@ -427,7 +428,7 @@ rtsig_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		op->toev = malloc(sizeof(*op->toev) * op->max);
 
 		if (op->poll == NULL || op->toev == NULL)
-			err(1, "%s: malloc");
+			event_err(1, "%s: malloc");
 	}
 
 	return (0);

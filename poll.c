@@ -45,18 +45,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <err.h>
-
-#ifdef USE_LOG
-#include "log.h"
-#else
-#define LOG_DBG(x)
-#define log_error(x)	perror(x)
-#endif
 
 #include "event.h"
 #include "event-internal.h"
 #include "evsignal.h"
+#include "log.h"
 
 extern volatile sig_atomic_t evsignal_caught;
 
@@ -132,13 +125,13 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			pop->event_set = realloc(pop->event_set,
 			    count * sizeof(struct pollfd));
 			if (pop->event_set == NULL) {
-				log_error("realloc");
+                                event_warn("realloc");
 				return (-1);
 			}
 			pop->event_back = realloc(pop->event_back,
 			    count * sizeof(struct event *));
 			if (pop->event_back == NULL) {
-				log_error("realloc");
+				event_warn("realloc");
 				return (-1);
 			}
 			pop->event_count = count;
@@ -177,7 +170,7 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	if (res == -1) {
 		if (errno != EINTR) {
-			log_error("poll");
+                        event_warn("poll");
 			return (-1);
 		}
 
@@ -186,7 +179,7 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	} else if (evsignal_caught)
 		evsignal_process();
 
-	LOG_DBG((LOG_MISC, 80, "%s: poll reports %d", __func__, res));
+	event_debug(("%s: poll reports %d", __func__, res));
 
 	if (res == 0)
 		return (0);

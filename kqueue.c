@@ -44,16 +44,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <err.h>
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
-#endif
-
-#ifdef USE_LOG
-#include "log.h"
-#else
-#define LOG_DBG(x)
-#define log_error	warn
 #endif
 
 #if defined(HAVE_INTTYPES_H) && !defined(__OpenBSD__) && !defined(__FreeBSD__)
@@ -63,6 +55,7 @@
 #endif
 
 #include "event.h"
+#include "log.h"
 
 #define EVLIST_X_KQINKERNEL	0x1000
 
@@ -108,7 +101,7 @@ kq_init(void)
 	/* Initalize the kernel queue */
 	
 	if ((kq = kqueue()) == -1) {
-		log_error("kqueue");
+		event_warn("kqueue");
 		free (kqueueop);
 		return (NULL);
 	}
@@ -152,7 +145,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 		newchange = realloc(kqop->changes,
 				    nevents * sizeof(struct kevent));
 		if (newchange == NULL) {
-			log_error("%s: malloc", __func__);
+			event_warn("%s: malloc", __func__);
 			return (-1);
 		}
 		kqop->changes = newchange;
@@ -165,7 +158,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 		 * the next realloc will pick it up.
 		 */
 		if (newresult == NULL) {
-			log_error("%s: malloc", __func__);
+			event_warn("%s: malloc", __func__);
 			return (-1);
 		}
 		kqop->events = newresult;
@@ -175,7 +168,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 
 	memcpy(&kqop->changes[kqop->nchanges++], kev, sizeof(struct kevent));
 
-	LOG_DBG((LOG_MISC, 70, "%s: fd %d %s%s",
+	event_debug(("%s: fd %d %s%s",
 		 __func__, kev->ident, 
 		 kev->filter == EVFILT_READ ? "EVFILT_READ" : "EVFILT_WRITE",
 		 kev->flags == EV_DELETE ? " (del)" : ""));
@@ -206,14 +199,14 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	kqop->nchanges = 0;
 	if (res == -1) {
 		if (errno != EINTR) {
-			log_error("kevent");
+                        event_warn("kevent");
 			return (-1);
 		}
 
 		return (0);
 	}
 
-	LOG_DBG((LOG_MISC, 80, "%s: kevent reports %d", __func__, res));
+	event_debug(("%s: kevent reports %d", __func__, res));
 
 	for (i = 0; i < res; i++) {
 		int which = 0;

@@ -47,18 +47,11 @@
 #endif
 #include <errno.h>
 #include <string.h>
-#include <err.h>
 #include <assert.h>
-
-#ifdef USE_LOG
-#include "log.h"
-#else
-#define LOG_DBG(x)
-#define log_error(x)	perror(x)
-#endif
 
 #include "event.h"
 #include "event-internal.h"
+#include "log.h"
 
 #ifdef HAVE_SELECT
 extern const struct eventop selectops;
@@ -153,17 +146,12 @@ event_init(void)
 	int i;
 
 	if ((current_base = calloc(1, sizeof(struct event_base))) == NULL)
-		err(1, "%s: calloc");
+		event_err(1, "%s: calloc");
 
 	event_sigcb = NULL;
 	event_gotsig = 0;
 	gettimeofday(&current_base->event_tv, NULL);
 	
-#if defined(USE_LOG) && defined(USE_DEBUG)
-	log_to(stderr);
-	log_debug_cmd(LOG_MISC, 80);
-#endif
-
 	RB_INIT(&current_base->timetree);
 	TAILQ_INIT(&current_base->eventqueue);
 	TAILQ_INIT(&signalqueue);
@@ -176,11 +164,11 @@ event_init(void)
 	}
 
 	if (current_base->evbase == NULL)
-		errx(1, "%s: no event mechanism available", __func__);
+		event_errx(1, "%s: no event mechanism available", __func__);
 
 	if (getenv("EVENT_SHOW_METHOD")) 
-		fprintf(stderr, "libevent using: %s\n",
-		    current_base->evsel->name); 
+		event_msgx("libevent using: %s\n",
+			   current_base->evsel->name);
 
 	/* allocate a single active event queue */
 	event_base_priority_init(current_base, 1);
@@ -214,12 +202,12 @@ event_base_priority_init(struct event_base *base, int npriorities)
 	base->activequeues = (struct event_list **)calloc(base->nactivequeues,
 	    npriorities * sizeof(struct event_list *));
 	if (base->activequeues == NULL)
-		err(1, "%s: calloc", __func__);
+		event_err(1, "%s: calloc", __func__);
 
 	for (i = 0; i < base->nactivequeues; ++i) {
 		base->activequeues[i] = malloc(sizeof(struct event_list));
 		if (base->activequeues[i] == NULL)
-			err(1, "%s: malloc", __func__);
+			event_err(1, "%s: malloc", __func__);
 		TAILQ_INIT(base->activequeues[i]);
 	}
 
@@ -346,10 +334,8 @@ event_base_loop(struct event_base *base, int flags)
 		gettimeofday(&tv, NULL);
 		if (timercmp(&tv, &base->event_tv, <)) {
 			struct timeval off;
-			LOG_DBG((LOG_MISC, 10,
-				    "%s: time is running backwards, corrected",
+			event_debug(("%s: time is running backwards, corrected",
 				    __func__));
-
 			timersub(&base->event_tv, &tv, &off);
 			timeout_correct(base, &off);
 		}
@@ -529,7 +515,7 @@ event_add(struct event *ev, struct timeval *tv)
 	const struct eventop *evsel = base->evsel;
 	void *evbase = base->evbase;
 
-	LOG_DBG((LOG_MISC, 55,
+	event_debug((
 		 "event_add: event: %p, %s%s%scall %p",
 		 ev,
 		 ev->ev_events & EV_READ ? "EV_READ " : " ",
@@ -564,7 +550,7 @@ event_add(struct event *ev, struct timeval *tv)
 		gettimeofday(&now, NULL);
 		timeradd(&now, tv, &ev->ev_timeout);
 
-		LOG_DBG((LOG_MISC, 55,
+		event_debug((
 			 "event_add: timeout in %d seconds, call %p",
 			 tv->tv_sec, ev->ev_callback));
 
@@ -593,7 +579,7 @@ event_del(struct event *ev)
 	const struct eventop *evsel;
 	void *evbase;
 
-	LOG_DBG((LOG_MISC, 80, "event_del: %p, callback %p",
+	event_debug(("event_del: %p, callback %p",
 		 ev, ev->ev_callback));
 
 	/* An event without a base has not been added */
@@ -670,7 +656,7 @@ timeout_next(struct event_base *base, struct timeval *tv)
 	assert(tv->tv_sec >= 0);
 	assert(tv->tv_usec >= 0);
 
-	LOG_DBG((LOG_MISC, 60, "timeout_next: in %d seconds", tv->tv_sec));
+	event_debug(("timeout_next: in %d seconds", tv->tv_sec));
 	return (0);
 }
 
@@ -705,7 +691,7 @@ timeout_process(struct event_base *base)
 		/* delete this event from the I/O queues */
 		event_del(ev);
 
-		LOG_DBG((LOG_MISC, 60, "timeout_process: call %p",
+		event_debug(("timeout_process: call %p",
 			 ev->ev_callback));
 		event_active(ev, EV_TIMEOUT, 1);
 	}
@@ -717,8 +703,8 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 	int docount = 1;
 
 	if (!(ev->ev_flags & queue))
-		errx(1, "%s: %p(fd %d) not on queue %x", __func__,
-		    ev, ev->ev_fd, queue);
+		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
+			   ev, ev->ev_fd, queue);
 
 	if (ev->ev_flags & EVLIST_INTERNAL)
 		docount = 0;
@@ -744,7 +730,7 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 		TAILQ_REMOVE(&base->eventqueue, ev, ev_next);
 		break;
 	default:
-		errx(1, "%s: unknown queue %x", __func__, queue);
+		event_errx(1, "%s: unknown queue %x", __func__, queue);
 	}
 }
 
@@ -758,8 +744,8 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		if (queue & EVLIST_ACTIVE)
 			return;
 
-		errx(1, "%s: %p(fd %d) already on queue %x", __func__,
-		    ev, ev->ev_fd, queue);
+		event_errx(1, "%s: %p(fd %d) already on queue %x", __func__,
+			   ev, ev->ev_fd, queue);
 	}
 
 	if (ev->ev_flags & EVLIST_INTERNAL)
@@ -788,7 +774,7 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		TAILQ_INSERT_TAIL(&base->eventqueue, ev, ev_next);
 		break;
 	default:
-		errx(1, "%s: unknown queue %x", __func__, queue);
+		event_errx(1, "%s: unknown queue %x", __func__, queue);
 	}
 }
 

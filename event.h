@@ -127,6 +127,13 @@ void *event_init(void);
 int event_dispatch(void);
 int event_base_dispatch(struct event_base *);
 
+#define _EVENT_LOG_DEBUG 0
+#define _EVENT_LOG_MSG   1
+#define _EVENT_LOG_WARN  2
+#define _EVENT_LOG_ERR   3
+typedef void (*event_log_cb)(int severity, const char *msg);
+void event_set_log_callback(event_log_cb cb);
+
 /* Associate a different event base with an event */
 int event_base_set(struct event_base *, struct event *);
 

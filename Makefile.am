@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 SUBDIRS = . sample test
 
-EXTRA_DIST = acconfig.h err.c event.h event-internal.h evsignal.h event.3 \
+EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h event.3 \
 	kqueue.c epoll_sub.c epoll.c select.c rtsig.c poll.c signal.c \
 	devpoll.c \
 	sample/Makefile.am sample/Makefile.in sample/event-test.c \
@@ -10,7 +10,7 @@ EXTRA_DIST = acconfig.h err.c event.h event-internal.h evsignal.h event.3 \
 	test/Makefile.am test/Makefile.in test/bench.c test/regress.c \
 	test/test-eof.c test/test-weof.c test/test-time.c \
 	test/test-init.c test/test.sh \
-	compat/err.h compat/sys/queue.h compat/sys/tree.h compat/sys/_time.h \
+	compat/sys/queue.h compat/sys/tree.h compat/sys/_time.h \
 	WIN32-Code WIN32-Code/config.h WIN32-Code/misc.c \
 	WIN32-Code/win32.c WIN32-Code/misc.h \
 	WIN32-Prj WIN32-Prj/event_test WIN32-Prj/event_test/event_test.dsp \
@@ -21,7 +21,7 @@ EXTRA_DIST = acconfig.h err.c event.h event-internal.h evsignal.h event.3 \
 
 lib_LIBRARIES = libevent.a
 
-libevent_a_SOURCES = event.c buffer.c evbuffer.c
+libevent_a_SOURCES = event.c buffer.c evbuffer.c log.c
 libevent_a_LIBADD = @LIBOBJS@
 
 include_HEADERS = event.h
