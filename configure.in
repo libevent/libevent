@@ -2,8 +2,9 @@ dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
-AM_INIT_AUTOMAKE(libevent,0.7a)
+AM_INIT_AUTOMAKE(libevent,0.7b)
 AM_CONFIG_HEADER(config.h)
+AM_MAINTAINER_MODE
 
 dnl Initialize prefix.
 if test "$prefix" = "NONE"; then
@@ -61,15 +62,61 @@ needsignal=no
 haveselect=no
 AC_CHECK_FUNCS(select, [haveselect=yes], )
 if test "x$haveselect" = "xyes" ; then
-	AC_LIBOBJ([select])
+	AC_LIBOBJ(select)
 	needsignal=yes
 fi
 
 havepoll=no
+havertsig=no
 AC_CHECK_FUNCS(poll, [havepoll=yes], )
 if test "x$havepoll" = "xyes" ; then
-	AC_LIBOBJ([poll])
+	AC_LIBOBJ(poll)
 	needsignal=yes
+
+	AC_CHECK_FUNCS(sigtimedwait, [havertsig=yes], )
+fi
+if test "x$havertsig" = "xyes" ; then
+	AC_MSG_CHECKING(for F_SETSIG in fcntl.h)
+	AC_EGREP_CPP(yes,
+[
+#define _GNU_SOURCE
+#include <fcntl.h>
+#ifdef F_SETSIG
+yes
+#endif
+],	[ AC_MSG_RESULT(yes) ], [ AC_MSG_RESULT(no); havertsig=no])
+fi
+if test "x$havertsig" = "xyes" ; then
+	AC_DEFINE(HAVE_RTSIG, 1, [Define if your system supports POSIX realtime signals])
+	AC_LIBOBJ(rtsig)
+	AC_MSG_CHECKING(for working rtsig on pipes)
+	AC_TRY_RUN(
+[
+#define _GNU_SOURCE
+#include <fcntl.h>
+#include <signal.h>
+#include <unistd.h>
+
+int sigio()
+{
+	exit(0);
+}
+
+int main()
+{
+	int fd[2];
+
+	pipe(fd);
+	signal(SIGIO, sigio);
+	fcntl(fd[0], F_SETOWN, getpid());
+	fcntl(fd[0], F_SETSIG, SIGIO);
+	fcntl(fd[0], F_SETFL, fcntl(fd[0], F_GETFL) | O_ASYNC);
+	write(fd[1], "", 1);
+	return 1;
+}
+],	[ AC_MSG_RESULT(yes)
+	  AC_DEFINE(HAVE_WORKING_RTSIG, 1, [Define if realtime signals work on pipes])],
+	AC_MSG_RESULT(no))
 fi
 
 haveepoll=no
@@ -77,7 +124,7 @@ AC_CHECK_FUNCS(epoll_ctl, [haveepoll=yes], )
 if test "x$haveepoll" = "xyes" ; then
 	AC_DEFINE(HAVE_EPOLL, 1,
 		[Define if your system supports the epoll system calls])
-	AC_LIBOBJ([epoll])
+	AC_LIBOBJ(epoll)
 	needsignal=yes
 fi
 
@@ -134,7 +181,7 @@ main(int argc, char **argv)
 }, [AC_MSG_RESULT(yes)
     AC_DEFINE(HAVE_WORKING_KQUEUE, 1,
 		[Define if kqueue works correctly with pipes])
-    AC_LIBOBJ([kqueue])], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+    AC_LIBOBJ(kqueue)], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
 	fi
 fi
 
@@ -167,13 +214,13 @@ main(int argc, char **argv)
     AC_DEFINE(HAVE_EPOLL, 1,
 	[Define if your system supports the epoll system calls])
     needsignal=yes
-    AC_LIBOBJ([epoll_sub])
-    AC_LIBOBJ([epoll])], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+    AC_LIBOBJ(epoll_sub)
+    AC_LIBOBJ(epoll)], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
 	fi
 fi
 
 if test "x$needsignal" = "xyes" ; then
-	AC_LIBOBJ([signal])
+	AC_LIBOBJ(signal)
 fi
 
 AC_REPLACE_FUNCS(err)
