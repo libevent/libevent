@@ -85,7 +85,7 @@ static void
 bufferevent_writecb(int fd, short event, void *arg)
 {
 	struct bufferevent *bufev = arg;
-	int res;
+	int res = 0;
 	short what = EVBUFFER_WRITE;
 
 	if (event == EV_TIMEOUT) {
@@ -93,29 +93,33 @@ bufferevent_writecb(int fd, short event, void *arg)
 		goto error;
 	}
 
-	res = evbuffer_write(bufev->input, fd);
-	if (res == -1) {
-		if (errno == EAGAIN || errno == EINTR)
-			goto reschedule;
-		/* error case */
-		what |= EVBUFFER_ERROR;
-	} else if (res == 0) {
-		/* eof case */
-		what |= EVBUFFER_EOF;
+	if (EVBUFFER_LENGTH(bufev->output)) {
+	    res = evbuffer_write(bufev->output, fd);
+	    if (res == -1) {
+		    if (errno == EAGAIN || errno == EINTR)
+			    goto reschedule;
+		    /* error case */
+		    what |= EVBUFFER_ERROR;
+	    } else if (res == 0) {
+		    /* eof case */
+		    what |= EVBUFFER_EOF;
+	    }
+	    if (res <= 0)
+		    goto error;
 	}
 
-	if (res <= 0)
-		goto error;
+	if (EVBUFFER_LENGTH(bufev->output) != 0)
+		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
 
 	/* Invoke the user callback if our buffer is drained */
 	if (EVBUFFER_LENGTH(bufev->output) == 0)
 		(*bufev->writecb)(bufev, bufev->cbarg);
 
+	return;
+
  reschedule:
-	/* Do not call if we call user callback before, we may be deleted */
-	if (EVBUFFER_LENGTH(bufev->output) != 0) {
+	if (EVBUFFER_LENGTH(bufev->output) != 0)
 		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
-	}
 	return;
 
  error:

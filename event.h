@@ -175,6 +175,7 @@ struct evbuffer {
 	size_t off;
 };
 
+/* Just for error reporting - use other constants otherwise */
 #define EVBUFFER_READ		0x01
 #define EVBUFFER_WRITE		0x02
 #define EVBUFFER_EOF		0x10
