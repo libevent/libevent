@@ -129,6 +129,9 @@ void *event_init(void);
 int event_dispatch(void);
 int event_base_dispatch(struct event_base *);
 
+/* Associate a different event base with an event */
+int event_base_set(struct event_base *, struct event *);
+
 #define EVLOOP_ONCE	0x01
 #define EVLOOP_NONBLOCK	0x02
 int event_loop(int);

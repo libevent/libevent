@@ -73,7 +73,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/time.h>
 .Fd #include <event.h>
-.Ft void
+.Ft "struct event_base *"
 .Fn "event_init"
 .Ft int
 .Fn "event_dispatch"
@@ -398,6 +398,17 @@ By default,
 .Nm libevent
 assigns the middle priority to all events unless their priority
 is explicitly set.
+.Pp
+.Sh THREAD SAFE EVENTS
+.Nm Libevent
+has experimental support for thread-safe events.
+When initializing the library via
+.Fn event_init ,
+an event base is returned.
+This event base can be used in conjunction with calls to
+.Fn event_base_set
+and
+.Fn event_base_dispatch .
 .Pp
 .Sh BUFFERED EVENTS
 .Nm libevent
