@@ -67,6 +67,8 @@ struct devpollop {
 	int nevents;
 	int dpfd;
 	sigset_t evsigmask;
+	struct pollfd *changes;
+	int nchanges;
 };
 
 void *devpoll_init	(void);
@@ -85,6 +87,42 @@ struct eventop devpollops = {
 };
 
 #define NEVENT	32000
+
+static int
+devpoll_commit(struct devpollop *devpollop)
+{
+	/*
+	 * Due to a bug in Solaris, we have to use pwrite with an offset of 0.
+	 * Write is limited to 2GB of data, until it will fail.
+	 */
+	if (pwrite(devpollop->dpfd, devpollop->changes,
+		sizeof(struct pollfd) * devpollop->nchanges, 0) == -1)
+		return(-1);
+
+	devpollop->nchanges = 0;
+	return(0);
+}
+
+static int
+devpoll_queue(struct devpollop *devpollop, int fd, int events) {
+	struct pollfd *pfd;
+
+	if (devpollop->nchanges >= devpollop->nevents) {
+		/*
+		 * Change buffer is full, must commit it to /dev/poll before 
+		 * adding more 
+		 */
+		if (devpoll_commit(devpollop) != 0)
+			return(-1);
+	}
+
+	pfd = &devpollop->changes[devpollop->nchanges++];
+	pfd->fd = fd;
+	pfd->events = events;
+	pfd->revents = 0;
+
+	return(0);
+}
 
 void *
 devpoll_init(void)
@@ -131,6 +169,15 @@ devpoll_init(void)
 	}
 	devpollop->nfds = nfiles;
 
+	devpollop->changes = calloc(nfiles, sizeof(struct pollfd));
+	if (devpollop->changes == NULL) {
+		free(devpollop->fds);
+		free(devpollop->events);
+		free(devpollop);
+		close(dpfd);
+		return (NULL);
+	}
+
 	evsignal_init(&devpollop->evsigmask);
 
 	return (devpollop);
@@ -174,6 +221,9 @@ devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	if (evsignal_deliver(&devpollop->evsigmask) == -1)
 		return (-1);
+
+	if (devpollop->nchanges)
+		devpoll_commit(devpollop);
 
 	timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 
@@ -245,7 +295,6 @@ int
 devpoll_add(void *arg, struct event *ev)
 {
 	struct devpollop *devpollop = arg;
-	struct pollfd dpev;
 	struct evdevpoll *evdp;
 	int fd, events;
 
@@ -260,28 +309,32 @@ devpoll_add(void *arg, struct event *ev)
 	}
 	evdp = &devpollop->fds[fd];
 
-	events = 0;
-	if (evdp->evread != NULL) {
-		events |= POLLIN;
-	}
-	if (evdp->evwrite != NULL) {
-		events |= POLLOUT;
-	}
-
-	if (ev->ev_events & EV_READ)
-		events |= POLLIN;
-	if (ev->ev_events & EV_WRITE)
-		events |= POLLOUT;
-
-	dpev.fd = fd;
-	dpev.events = events;
-	dpev.revents = 0;
-	/*
-	 * Due to a bug in Solaris, we have to use pwrite with an offset of 0.
-	 * Write is limited to 2GB of data, until it will fail.
+	/* 
+	 * It's not necessary to OR the existing read/write events that we
+	 * are currently interested in with the new event we are adding.
+	 * The /dev/poll driver ORs any new events with the existing events
+	 * that it has cached for the fd.
 	 */
-	if (pwrite(devpollop->dpfd, &dpev, sizeof(dpev), 0) == -1)
-			return (-1);
+
+	events = 0;
+	if (ev->ev_events & EV_READ) {
+		if (evdp->evread && evdp->evread != ev) {
+		   /* There is already a different read event registered */
+		   return(-1);
+		}
+		events |= POLLIN;
+	}
+
+	if (ev->ev_events & EV_WRITE) {
+		if (evdp->evwrite && evdp->evwrite != ev) {
+		   /* There is already a different write event registered */
+		   return(-1);
+		}
+		events |= POLLOUT;
+	}
+
+	if (devpoll_queue(devpollop, fd, events) != 0)
+		return(-1);
 
 	/* Update events responsible */
 	if (ev->ev_events & EV_READ)
@@ -296,9 +349,8 @@ int
 devpoll_del(void *arg, struct event *ev)
 {
 	struct devpollop *devpollop = arg;
-	struct pollfd dpev;
 	struct evdevpoll *evdp;
-	int fd, events, op;
+	int fd, events;
 	int needwritedelete = 1, needreaddelete = 1;
 
 	if (ev->ev_events & EV_SIGNAL)
@@ -315,23 +367,32 @@ devpoll_del(void *arg, struct event *ev)
 	if (ev->ev_events & EV_WRITE)
 		events |= POLLOUT;
 
+	/*
+	 * The only way to remove an fd from the /dev/poll monitored set is
+	 * to use POLLREMOVE by itself.  This removes ALL events for the fd 
+	 * provided so if we care about two events and are only removing one 
+	 * we must re-add the other event after POLLREMOVE.
+	 */
+
+	if (devpoll_queue(devpollop, fd, POLLREMOVE) != 0)
+		return(-1);
+
 	if ((events & (POLLIN|POLLOUT)) != (POLLIN|POLLOUT)) {
+		/*
+		 * We're not deleting all events, so we must resubmit the
+		 * event that we are still interested in if one exists.
+		 */
+
 		if ((events & POLLIN) && evdp->evwrite != NULL) {
+			/* Deleting read, still care about write */
+			devpoll_queue(devpollop, fd, POLLOUT);
 			needwritedelete = 0;
-			events = POLLOUT;
 		} else if ((events & POLLOUT) && evdp->evread != NULL) {
+			/* Deleting write, still care about read */
+			devpoll_queue(devpollop, fd, POLLIN);
 			needreaddelete = 0;
-			events = POLLIN;
 		}
 	}
-
-	dpev.fd = fd;
-	/* dpev.events = events | POLLREMOVE; */
-	dpev.events = POLLREMOVE;
-	dpev.revents = 0;
-
-	if (pwrite(devpollop->dpfd, &dpev, sizeof(dpev), 0) == -1)
-		return (-1);
 
 	if (needreaddelete)
 		evdp->evread = NULL;

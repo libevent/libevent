@@ -606,6 +606,40 @@ test_priorities(int npriorities)
 	cleanup_test();
 }
 
+static void
+test_multiple_cb(int fd, short event, void *arg)
+{
+	if (event & EV_READ)
+		test_ok |= 1;
+	else if (event & EV_WRITE)
+		test_ok |= 2;
+}
+
+void
+test_multiple_events_for_same_fd(void)
+{
+   struct event e1, e2;
+
+   setup_test("Multiple events for same fd: ");
+
+   event_init();
+   event_set(&e1, pair[0], EV_READ, test_multiple_cb, NULL);
+   event_add(&e1, NULL);
+   event_set(&e2, pair[0], EV_WRITE, test_multiple_cb, NULL);
+   event_add(&e2, NULL);
+   event_loop(EVLOOP_ONCE);
+   event_del(&e2);
+   write(pair[1], TEST1, strlen(TEST1)+1);
+   event_loop(EVLOOP_ONCE);
+   event_del(&e1);
+   
+   if (test_ok != 3)
+	   test_ok = 0;
+
+   cleanup_test();
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -645,6 +679,8 @@ main (int argc, char **argv)
 	test_priorities(1);
 	test_priorities(2);
 	test_priorities(3);
+
+	test_multiple_events_for_same_fd();
 
 	return (0);
 }
