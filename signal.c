@@ -80,7 +80,7 @@ static void evsignal_cb(int fd, short what, void *arg)
 
 	n = read(fd, signals, sizeof(signals));
 	if (n == -1)
-		err(1, "%s: read");
+		err(1, "%s: read", __func__);
 	event_add(ev, NULL);
 }
 
