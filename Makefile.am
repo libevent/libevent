@@ -11,7 +11,7 @@ libevent_a_LIBADD = @LIBOBJS@
 
 include_HEADERS = event.h
 
-INCLUDES = -Icompat
+INCLUDES = -I/usr/include -Icompat
 
 man_MANS = event.3
 
