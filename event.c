@@ -214,7 +214,7 @@ event_loop(int flags)
 		gettimeofday(&tv, NULL);
 		if (timercmp(&tv, &event_tv, <)) {
 			struct timeval off;
-			LOG_DBG((LOG_MIST, 10,
+			LOG_DBG((LOG_MISC, 10,
 				    "%s: time is running backwards, corrected",
 				    __func__));
 
