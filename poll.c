@@ -92,6 +92,10 @@ struct eventop pollops = {
 void *
 poll_init(void)
 {
+	/* Disable kqueue when this environment variable is set */
+	if (getenv("EVENT_NOPOLL"))
+		return (NULL);
+
 	memset(&pop, 0, sizeof(pop));
 
 	evsignal_init(&pop.evsigmask);

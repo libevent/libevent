@@ -133,6 +133,9 @@ event_init(void)
 		evbase = evsel->init();
 	}
 
+	if (evbase == NULL)
+		errx(1, "%s: no event mechanism available", __func__);
+
 #if defined(USE_LOG) && defined(USE_DEBUG)
 	log_to(stderr);
 	log_debug_cmd(LOG_MISC, 80);

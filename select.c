@@ -96,6 +96,10 @@ struct eventop selectops = {
 void *
 select_init(void)
 {
+	/* Disable kqueue when this environment variable is set */
+	if (getenv("EVENT_NOSELECT"))
+		return (NULL);
+
 	memset(&sop, 0, sizeof(sop));
 
 	evsignal_init(&sop.evsigmask);
