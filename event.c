@@ -236,6 +236,8 @@ event_set(struct event *ev, int fd, short events,
 	ev->ev_fd = fd;
 	ev->ev_events = events;
 	ev->ev_flags = EVLIST_INIT;
+	ev->ev_ncalls = 0;
+	ev->ev_pncalls = NULL;
 }
 
 /*
