@@ -1,3 +1,5 @@
+/*	$OpenBSD: event.h,v 1.4 2002/07/12 18:50:48 provos Exp $	*/
+
 /*
  * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -125,11 +127,11 @@ int timeout_next(struct timeval *);
 void timeout_correct(struct timeval *);
 void timeout_process(void);
 
-#define timeout_add(ev, tv)		event_add(ev, tv)
-#define timeout_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
-#define timeout_del(ev)			event_del(ev)
-#define timeout_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
-#define timeout_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+#define evtimer_add(ev, tv)		event_add(ev, tv)
+#define evtimer_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
+#define evtimer_del(ev)			event_del(ev)
+#define evtimer_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
+#define evtimer_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 
 #define signal_add(ev, tv)		event_add(ev, tv)
 #define signal_set(ev, x, cb, arg)	\

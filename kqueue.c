@@ -1,3 +1,5 @@
+/*	$OpenBSD: kqueue.c,v 1.5 2002/07/10 14:41:31 art Exp $	*/
+
 /*
  * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -36,6 +38,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -236,7 +239,7 @@ kq_dispatch(void *arg, struct timeval *tv)
 
 	for (i = 0; i < res; i++) {
 		/* XXX */
-		int ncalls, res;
+		int ncalls, evres;
 
 		if (events[i].flags & EV_ERROR || events[i].filter == NULL)
 			continue;
@@ -248,13 +251,13 @@ kq_dispatch(void *arg, struct timeval *tv)
 		ncalls = 0;
 		if (ev->ev_flags & EVLIST_ACTIVE) {
 			ncalls = ev->ev_ncalls;
-			res = ev->ev_res;
+			evres = ev->ev_res;
 		}
 		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
 		event_del(ev);
 
 		if (ncalls)
-			event_active(ev, res, ncalls);
+			event_active(ev, evres, ncalls);
 	}
 
 	return (0);
@@ -292,7 +295,9 @@ kq_add(void *arg, struct event *ev)
  		memset(&kev, 0, sizeof(kev));
 		kev.ident = ev->ev_fd;
 		kev.filter = EVFILT_READ;
-		kev.flags = EV_ADD | EV_ONESHOT;
+		kev.flags = EV_ADD;
+		if (!(ev->ev_events & EV_PERSIST))
+			kev.filter |= EV_ONESHOT;
 		kev.udata = ev;
 		
 		if (kq_insert(kqop, &kev) == -1)
@@ -305,7 +310,9 @@ kq_add(void *arg, struct event *ev)
  		memset(&kev, 0, sizeof(kev));
 		kev.ident = ev->ev_fd;
 		kev.filter = EVFILT_WRITE;
-		kev.flags = EV_ADD | EV_ONESHOT;
+		kev.flags = EV_ADD;
+		if (!(ev->ev_events & EV_PERSIST))
+			kev.filter |= EV_ONESHOT;
 		kev.udata = ev;
 		
 		if (kq_insert(kqop, &kev) == -1)

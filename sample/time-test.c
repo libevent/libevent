@@ -44,7 +44,7 @@ main (int argc, char **argv)
 	event_init();
 
 	/* Initalize one event */
-	timeout_set(&timeout, timeout_cb, &timeout);
+	evtimer_set(&timeout, timeout_cb, &timeout);
 
 	timerclear(&tv);
 	tv.tv_sec = 2;
