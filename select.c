@@ -60,6 +60,7 @@ extern struct event_list signalqueue;
 #endif
 
 short evsigcaught[NSIG];
+volatile sig_atomic_t signal_caught = 0;
 
 struct selectop {
 	int event_fds;		/* Highest fd in fd set */
@@ -180,7 +181,8 @@ select_dispatch(void *arg, struct timeval *tv)
 
 		signal_process();
 		return (0);
-	}
+	} else if (signal_caught)
+		signal_process();
 
 	LOG_DBG((LOG_MISC, 80, __FUNCTION__": select reports %d",
 		 res));
@@ -260,6 +262,7 @@ static void
 signal_handler(int sig)
 {
 	evsigcaught[sig]++;
+	signal_caught = 1;
 }
 
 int
@@ -307,5 +310,6 @@ signal_process(void)
 	}
 
 	memset(evsigcaught, 0, sizeof(evsigcaught));
+	signal_caught = 0;
 }
 
