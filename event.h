@@ -89,6 +89,8 @@ struct event {
 
 	struct timeval ev_timeout;
 
+	int ev_pri;		/* smaller numbers are higher priority */
+
 	void (*ev_callback)(int, short, void *arg);
 	void *ev_arg;
 
@@ -167,6 +169,11 @@ int event_pending(struct event *, short, struct timeval *);
 #define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 #endif
 
+/* These functions deal with event priorities */
+
+int	event_priority_init(int);
+int	event_priority_set(struct event *, int);
+
 /* These functions deal with buffering input and output */
 
 struct evbuffer {
@@ -220,6 +227,7 @@ struct bufferevent {
 
 struct bufferevent *bufferevent_new(int fd,
     evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg);
+int bufferevent_priority_set(struct bufferevent *bufev, int pri);
 void bufferevent_free(struct bufferevent *bufev);
 int bufferevent_write(struct bufferevent *bufev, void *data, size_t size);
 int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf);

@@ -225,6 +225,17 @@ bufferevent_new(int fd, evbuffercb readcb, evbuffercb writecb,
 	return (bufev);
 }
 
+int
+bufferevent_priority_set(struct bufferevent *bufev, int priority)
+{
+	if (event_priority_set(&bufev->ev_read, priority) == -1)
+		return (-1);
+	if (event_priority_set(&bufev->ev_write, priority) == -1)
+		return (-1);
+
+	return (0);
+}
+
 void
 bufferevent_free(struct bufferevent *bufev)
 {

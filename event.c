@@ -113,7 +113,8 @@ const struct eventop *eventops[] = {
 
 const struct eventop *evsel;
 void *evbase;
-static int event_count;
+static int event_count;			/* counts number of total events */
+static int event_count_active;		/* counts number of active events */
 
 /* Handle signals - This is a deprecated interface */
 int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
@@ -128,7 +129,11 @@ int		event_haveevents(void);
 static void	event_process_active(void);
 
 static RB_HEAD(event_tree, event) timetree;
-static struct event_list activequeue;
+
+/* active event management */
+static struct event_list **activequeues;
+static int nactivequeues;
+
 struct event_list signalqueue;
 struct event_list eventqueue;
 static struct timeval event_tv;
@@ -168,7 +173,6 @@ event_init(void)
 
 	RB_INIT(&timetree);
 	TAILQ_INIT(&eventqueue);
-	TAILQ_INIT(&activequeue);
 	TAILQ_INIT(&signalqueue);
 	
 	evbase = NULL;
@@ -183,6 +187,41 @@ event_init(void)
 
 	if (getenv("EVENT_SHOW_METHOD")) 
 		fprintf(stderr, "libevent using: %s\n", evsel->name); 
+
+	/* allocate a single active event queue */
+	event_priority_init(1);
+}
+
+int
+event_priority_init(int npriorities)
+{
+	int i;
+
+	if (event_count_active)
+		return (-1);
+
+	if (nactivequeues && npriorities != nactivequeues) {
+		for (i = 0; i < nactivequeues; ++i) {
+			free(activequeues[i]);
+		}
+		free(activequeues);
+	}
+
+	/* Allocate our priority queues */
+	nactivequeues = npriorities;
+	activequeues = (struct event_list **)calloc(nactivequeues,
+	    npriorities * sizeof(struct event_list *));
+	if (activequeues == NULL)
+		err(1, "%s: calloc", __func__);
+
+	for (i = 0; i < nactivequeues; ++i) {
+		activequeues[i] = malloc(sizeof(struct event_list));
+		if (activequeues[i] == NULL)
+			err(1, "%s: malloc", __func__);
+		TAILQ_INIT(activequeues[i]);
+	}
+
+	return (0);
 }
 
 int
@@ -191,14 +230,31 @@ event_haveevents(void)
 	return (event_count > 0);
 }
 
+/*
+ * Active events are stored in priority queues.  Lower priorities are always
+ * process before higher priorities.  Low priority events can starve high
+ * priority ones.
+ */
+
 static void
 event_process_active(void)
 {
 	struct event *ev;
+	struct event_list *activeq = NULL;
+	int i;
 	short ncalls;
 
-	for (ev = TAILQ_FIRST(&activequeue); ev;
-	    ev = TAILQ_FIRST(&activequeue)) {
+	if (!event_count_active)
+		return;
+
+	for (i = 0; i < nactivequeues; ++i) {
+		if (TAILQ_FIRST(activequeues[i]) != NULL) {
+			activeq = activequeues[i];
+			break;
+		}
+	}
+
+	for (ev = TAILQ_FIRST(activeq); ev; ev = TAILQ_FIRST(activeq)) {
 		event_queue_remove(ev, EVLIST_ACTIVE);
 		
 		/* Allows deletes to work */
@@ -276,7 +332,7 @@ event_loop(int flags)
 		}
 		event_tv = tv;
 
-		if (!(flags & EVLOOP_NONBLOCK))
+		if (!event_count_active && !(flags & EVLOOP_NONBLOCK))
 			timeout_next(&tv);
 		else
 			timerclear(&tv);
@@ -292,9 +348,9 @@ event_loop(int flags)
 
 		timeout_process();
 
-		if (TAILQ_FIRST(&activequeue)) {
+		if (event_count_active) {
 			event_process_active();
-			if (flags & EVLOOP_ONCE)
+			if (!event_count_active && (flags & EVLOOP_ONCE))
 				done = 1;
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
@@ -382,6 +438,27 @@ event_set(struct event *ev, int fd, short events,
 	ev->ev_flags = EVLIST_INIT;
 	ev->ev_ncalls = 0;
 	ev->ev_pncalls = NULL;
+
+	/* by default, we put new events into the middle priority */
+	ev->ev_pri = nactivequeues/2;
+}
+
+/*
+ * Set's the priority of an event - if an event is already scheduled
+ * changing the priority is going to fail.
+ */
+
+int
+event_priority_set(struct event *ev, int pri)
+{
+	if (ev->ev_flags & EVLIST_ACTIVE)
+		return (-1);
+	if (pri < 0 || pri >= nactivequeues)
+		return (-1);
+
+	ev->ev_pri = pri;
+
+	return (0);
 }
 
 /*
@@ -587,17 +664,24 @@ timeout_process(void)
 void
 event_queue_remove(struct event *ev, int queue)
 {
+	int docount = 1;
+
 	if (!(ev->ev_flags & queue))
 		errx(1, "%s: %p(fd %d) not on queue %x", __func__,
 		    ev, ev->ev_fd, queue);
 
-	if (!(ev->ev_flags & EVLIST_INTERNAL))
+	if (ev->ev_flags & EVLIST_INTERNAL)
+		docount = 0;
+
+	if (docount)
 		event_count--;
 
 	ev->ev_flags &= ~queue;
 	switch (queue) {
 	case EVLIST_ACTIVE:
-		TAILQ_REMOVE(&activequeue, ev, ev_active_next);
+		if (docount)
+			event_count_active--;
+		TAILQ_REMOVE(activequeues[ev->ev_pri], ev, ev_active_next);
 		break;
 	case EVLIST_SIGNAL:
 		TAILQ_REMOVE(&signalqueue, ev, ev_signal_next);
@@ -616,17 +700,29 @@ event_queue_remove(struct event *ev, int queue)
 void
 event_queue_insert(struct event *ev, int queue)
 {
-	if (ev->ev_flags & queue)
+	int docount = 1;
+
+	if (ev->ev_flags & queue) {
+		/* Double insertion is possible for active events */
+		if (queue & EVLIST_ACTIVE)
+			return;
+
 		errx(1, "%s: %p(fd %d) already on queue %x", __func__,
 		    ev, ev->ev_fd, queue);
+	}
 
-	if (!(ev->ev_flags & EVLIST_INTERNAL))
+	if (ev->ev_flags & EVLIST_INTERNAL)
+		docount = 0;
+
+	if (docount)
 		event_count++;
 
 	ev->ev_flags |= queue;
 	switch (queue) {
 	case EVLIST_ACTIVE:
-		TAILQ_INSERT_TAIL(&activequeue, ev, ev_active_next);
+		if (docount)
+			event_count_active++;
+		TAILQ_INSERT_TAIL(activequeues[ev->ev_pri], ev,ev_active_next);
 		break;
 	case EVLIST_SIGNAL:
 		TAILQ_INSERT_TAIL(&signalqueue, ev, ev_signal_next);

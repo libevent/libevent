@@ -40,6 +40,8 @@
 .Nm event_once ,
 .Nm event_pending ,
 .Nm event_initialized ,
+.Nm event_priority_init ,
+.Nm event_priority_set ,
 .Nm evtimer_set ,
 .Nm evtimer_add ,
 .Nm evtimer_del
@@ -91,6 +93,10 @@
 .Fn "event_pending" "struct event *ev" "short event" "struct timeval *tv"
 .Ft int
 .Fn "event_initialized" "struct event *ev"
+.Ft int
+.Fn "event_priority_init" "int npriorities"
+.Ft int
+.Fn "event_priority_set" "struct event *ev" "int priority"
 .Ft void
 .Fn "evtimer_set" "struct event *ev" "void (*fn)(int, short, void *)" "void *arg"
 .Ft void
@@ -367,6 +373,31 @@ By setting the environment variable
 .Va EVENT_SHOW_METHOD ,
 .Nm libevent
 displays the kernel notification method that it uses.
+.Pp
+.Sh EVENT PRIORITIES
+By default
+.Nm libevent
+schedules all active events with the same priority.
+However, sometime it is desirable to process some events with a higher
+priority than others.
+For that reason,
+.Nm libevent
+supports strict priority queues.
+Active events with a lower priority are always processed before events
+with a higher priority.
+.Pp
+The number of different priorities can be set initially with the
+.Fn event_priority_init
+function.
+This function should be called before the first call to
+.Fn event_dispatch .
+The
+.Fn event_priority_set
+function can be used to assign a priority to an event.
+By default,
+.Nm libevent
+assigns the middle priority to all events unless their priority
+is explicitly set.
 .Pp
 .Sh BUFFERED EVENTS
 .Nm libevent
