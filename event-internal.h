@@ -37,9 +37,6 @@ struct event_base {
 	int event_count;		/* counts number of total events */
 	int event_count_active;	/* counts number of active events */
 
-	/* Handle signals - This is a deprecated interface */
-	int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
-	int event_gotsig;		/* Set in signal handler */
 	int event_gotterm;		/* Set to terminate loop */
 
 	/* active event management */

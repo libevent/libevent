@@ -115,6 +115,10 @@ struct event_list signalqueue;
 
 struct event_base *current_base = NULL;
 
+/* Handle signals - This is a deprecated interface */
+int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
+int event_gotsig;		/* Set in signal handler */
+
 /* Prototypes */
 static void	event_queue_insert(struct event_base *, struct event *, int);
 static void	event_queue_remove(struct event_base *, struct event *, int);
@@ -153,8 +157,8 @@ event_init(void)
 	if ((current_base = calloc(1, sizeof(struct event_base))) == NULL)
 		err(1, "%s: calloc");
 
-	current_base->event_sigcb = NULL;
-	current_base->event_gotsig = 0;
+	event_sigcb = NULL;
+	event_gotsig = 0;
 	gettimeofday(&current_base->event_tv, NULL);
 	
 #if defined(USE_LOG) && defined(USE_DEBUG)
@@ -328,10 +332,11 @@ event_base_loop(struct event_base *base, int flags)
 			break;
 		}
 
-		while (base->event_gotsig) {
-			base->event_gotsig = 0;
-			if (base->event_sigcb) {
-				res = (*base->event_sigcb)();
+		/* You cannot use this interface for multi-threaded apps */
+		while (event_gotsig) {
+			event_gotsig = 0;
+			if (event_sigcb) {
+				res = (*event_sigcb)();
 				if (res == -1) {
 					errno = EINTR;
 					return (-1);
@@ -600,7 +605,7 @@ event_del(struct event *ev)
 
 	/* An event without a base has not been added */
 	if (ev->ev_base == NULL)
-		return;
+		return (-1);
 
 	base = ev->ev_base;
 	evsel = base->evsel;
