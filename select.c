@@ -75,7 +75,7 @@ struct selectop {
 
 void evsignal_init(sigset_t *);
 void evsignal_process(void);
-int evsignal_recalc(void);
+int evsignal_recalc(sigset_t *);
 int evsignal_deliver(void);
 int evsignal_add(sigset_t *, struct event *);
 int evsignal_del(sigset_t *, struct event *);
@@ -154,7 +154,7 @@ select_recalc(void *arg, int max)
 		sop->event_fdsz = fdsz;
 	}
 
-	return (evsignal_recalc());
+	return (evsignal_recalc(&sop->evsigmask));
 }
 
 int
@@ -180,7 +180,7 @@ select_dispatch(void *arg, struct timeval *tv)
 	res = select(sop->event_fds + 1, sop->event_readset, 
 	    sop->event_writeset, NULL, tv);
 
-	if (evsignal_recalc() == -1)
+	if (evsignal_recalc(&sop->evsigmask) == -1)
 		return (-1);
 
 	if (res == -1) {
@@ -246,8 +246,6 @@ int
 select_del(void *arg, struct event *ev)
 {
 	struct selectop *sop = arg;
-
-	int signal;
 
 	if (!(ev->ev_events & EV_SIGNAL))
 		return (0);
