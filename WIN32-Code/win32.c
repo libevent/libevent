@@ -30,6 +30,7 @@
 #include <windows.h>
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/tree.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,10 +46,9 @@
 #endif
 
 #include "event.h"
+#include "event-internal.h"
 
-extern struct event_list timequeue;
-extern struct event_list eventqueue;
-extern struct event_list addqueue;
+extern struct event_base *current_base;
 extern struct event_list signalqueue;
 
 #define NEVENT		64
@@ -118,7 +118,7 @@ win32_dispatch(void *arg, struct timeval *tv)
 	struct event *ev;
 	int evres;
 
-	TAILQ_FOREACH(ev, &eventqueue, ev_next) {
+	TAILQ_FOREACH(ev, &current_base->eventqueue, ev_next) {
 		res = WaitForSingleObject(ev->ev_fd, timeval_to_ms(tv));
 
 		if(res == WAIT_TIMEOUT || res == WAIT_FAILED) {
