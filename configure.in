@@ -54,9 +54,16 @@ dnl Checks for library functions.
 AC_CHECK_FUNCS(gettimeofday)
 
 AC_SUBST(LIBOBJS)
+haveselect=no
 AC_CHECK_FUNCS(select, [haveselect=yes], )
 if test "x$haveselect" = "xyes" ; then
 	LIBOBJS="$LIBOBJS select.o"
+fi
+
+neederr=no
+AC_CHECK_FUNCS(warnx, , [neederr=yes])
+if test $neederr = yes; then
+   LIBOBJS="$LIBOBJS err.o"
 fi
 
 havekqueue=no
