@@ -423,14 +423,14 @@ event_once(int fd, short events,
 	if ((eonce = calloc(1, sizeof(struct event_once))) == NULL)
 		return (-1);
 
+	eonce->cb = callback;
+	eonce->arg = arg;
+
 	if (events == EV_TIMEOUT) {
 		if (tv == NULL) {
 			timerclear(&etv);
 			tv = &etv;
 		}
-
-		eonce->cb = callback;
-		eonce->arg = arg;
 
 		evtimer_set(&eonce->ev, event_once_cb, eonce);
 	} else if (events & (EV_READ|EV_WRITE)) {
