@@ -290,6 +290,10 @@ kq_add(void *arg, struct event *ev)
  		memset(&kev, 0, sizeof(kev));
 		kev.ident = ev->ev_fd;
 		kev.filter = EVFILT_READ;
+#ifdef NOTE_EOF
+		/* Make it behave like select() and poll() */
+		kev.fflags = NOTE_EOF;
+#endif
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
