@@ -133,6 +133,12 @@ void timeout_process(void);
 #define evtimer_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
 #define evtimer_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 
+#define timeout_add(ev, tv)		event_add(ev, tv)
+#define timeout_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
+#define timeout_del(ev)			event_del(ev)
+#define timeout_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
+#define timeout_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+
 #define signal_add(ev, tv)		event_add(ev, tv)
 #define signal_set(ev, x, cb, arg)	\
 	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
