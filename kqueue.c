@@ -218,16 +218,37 @@ kq_dispatch(void *arg, struct timeval *tv)
 			which |= EV_WRITE;
 		} else if (events[i].filter == EVFILT_SIGNAL) {
 			which |= EV_SIGNAL;
-		}
+		} else
+			events[i].filter = 0;
 
-		if (which) {
-			if (!(ev->ev_events & EV_PERSIST)) {
-				ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
-				event_del(ev);
-			}
-			event_active(ev, which,
-			    ev->ev_events & EV_SIGNAL ? events[i].data : 1);
+		if (!which)
+			continue;
+
+		event_active(ev, which,
+		    ev->ev_events & EV_SIGNAL ? events[i].data : 1);
+	}
+
+	for (i = 0; i < res; i++) {
+		/* XXX */
+		int ncalls, res;
+
+		if (events[i].flags & EV_ERROR || events[i].filter == NULL)
+			continue;
+
+		ev = events[i].udata;
+		if (ev->ev_events & EV_PERSIST)
+			continue;
+
+		ncalls = 0;
+		if (ev->ev_flags & EVLIST_ACTIVE) {
+			ncalls = ev->ev_ncalls;
+			res = ev->ev_res;
 		}
+		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
+		event_del(ev);
+
+		if (ncalls)
+			event_active(ev, res, ncalls);
 	}
 
 	return (0);

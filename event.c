@@ -343,6 +343,12 @@ event_del(struct event *ev)
 void
 event_active(struct event *ev, int res, short ncalls)
 {
+	/* We get different kinds of events, add them together */
+	if (ev->ev_flags & EVLIST_ACTIVE) {
+		ev->ev_res |= res;
+		return;
+	}
+
 	ev->ev_res = res;
 	ev->ev_ncalls = ncalls;
 	ev->ev_pncalls = NULL;
