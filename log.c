@@ -37,6 +37,10 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -47,7 +51,7 @@
 #include <sys/tree.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else 
+#else
 #include <sys/_time.h>
 #endif
 #include <stdio.h>
@@ -56,6 +60,8 @@
 #include <string.h>
 #include <errno.h>
 #include "event.h"
+
+#include "log.h"
 
 static void _warn_helper(int severity, int log_errno, const char *fmt,
                          va_list ap);

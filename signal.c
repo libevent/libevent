@@ -56,10 +56,6 @@ static short evsigcaught[NSIG];
 static int needrecalc;
 volatile sig_atomic_t evsignal_caught = 0;
 
-void evsignal_process(void);
-int evsignal_recalc(sigset_t *);
-int evsignal_deliver(sigset_t *);
-
 static struct event ev_signal;
 static int ev_signal_pair[2];
 static int ev_signal_added;
