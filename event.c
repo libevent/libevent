@@ -1,7 +1,5 @@
-/*	$OpenBSD: event.c,v 1.2 2002/06/25 15:50:15 mickey Exp $	*/
-
 /*
- * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2000-2004 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,16 +106,18 @@ const struct eventop *eventops[] = {
 const struct eventop *evsel;
 void *evbase;
 
-/* Handle signals */
+/* Handle signals - This is a deprecated interface */
 int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
 int event_gotsig;		/* Set in signal handler */
+int event_gotterm;		/* Set to terminate loop */
 
 /* Prototypes */
-void	event_queue_insert(struct event *, int);
-void	event_queue_remove(struct event *, int);
-int	event_haveevents(void);
-void	event_process_active(void);
-void	timeout_insert(struct event *);
+void		event_queue_insert(struct event *, int);
+void		event_queue_remove(struct event *, int);
+int		event_haveevents(void);
+void		timeout_insert(struct event *);
+
+static void	event_process_active(void);
 
 static RB_HEAD(event_tree, event) timetree;
 static struct event_list activequeue;
@@ -180,7 +180,7 @@ event_haveevents(void)
 	    TAILQ_FIRST(&signalqueue) || TAILQ_FIRST(&activequeue));
 }
 
-void
+static void
 event_process_active(void)
 {
 	struct event *ev;
@@ -201,10 +201,26 @@ event_process_active(void)
 	}
 }
 
+/*
+ * Wait continously for events.  We exit only if no events are left.
+ */
+
 int
 event_dispatch(void)
 {
 	return (event_loop(0));
+}
+
+static void
+event_loopexit_cb(int fd, short what, void *arg)
+{
+	event_gotterm = 1;
+}
+
+int
+event_loopexit(struct timeval *tv)
+{
+	return (event_once(-1, EV_TIMEOUT, event_loopexit_cb, NULL, tv));
 }
 
 int
@@ -219,6 +235,12 @@ event_loop(int flags)
 
 	done = 0;
 	while (!done) {
+		/* Terminate the loop if we have been asked to */
+		if (event_gotterm) {
+			event_gotterm = 0;
+			done = 1;
+		}
+
 		while (event_gotsig) {
 			event_gotsig = 0;
 			if (event_sigcb) {
@@ -314,11 +336,11 @@ event_once(int fd, short events,
 		eonce->cb = callback;
 		eonce->arg = arg;
 
-		evtimer_set(&eonce->ev, event_once_cb, &eonce);
+		evtimer_set(&eonce->ev, event_once_cb, eonce);
 	} else if (events & (EV_READ|EV_WRITE)) {
 		events &= EV_READ|EV_WRITE;
 
-		event_set(&eonce->ev, fd, events, event_once_cb, &eonce);
+		event_set(&eonce->ev, fd, events, event_once_cb, eonce);
 	} else {
 		/* Bad event combination */
 		return (-1);

@@ -33,6 +33,7 @@
 .Nm event_init ,
 .Nm event_dispatch ,
 .Nm event_loop ,
+.Nm event_loopexit ,
 .Nm event_set ,
 .Nm event_add ,
 .Nm event_del ,
@@ -59,6 +60,8 @@
 .Fn "event_dispatch"
 .Ft int
 .Fn "event_loop" "int flags"
+.Ft int
+.Fn "event_loopexit" "struct timeval *tv"
 .Ft void
 .Fn "event_set" "struct event *ev" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg"
 .Ft int
@@ -146,6 +149,11 @@ events.  The flags
 and
 .Va EVLOOP_NONBLOCK
 are recognized.
+The
+.Nm event_loopexit
+function allows the loop to be terminated after some amount of time
+has passed.
+The parameter indicates the time after which the loop should terminate.
 .Pp
 It is the responsibility of the caller to provide these functions with
 pre-allocated event structures.

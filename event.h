@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2000-2004 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,6 +126,7 @@ int event_dispatch(void);
 #define EVLOOP_ONCE	0x01
 #define EVLOOP_NONBLOCK	0x02
 int event_loop(int);
+int event_loopexit(struct timeval *);	/* Causes the loop to exit */
 
 int timeout_next(struct timeval *);
 void timeout_correct(struct timeval *);
@@ -174,12 +175,54 @@ struct evbuffer {
 	size_t off;
 };
 
+#define EVBUFFER_READ		0x01
+#define EVBUFFER_WRITE		0x02
+#define EVBUFFER_EOF		0x10
+#define EVBUFFER_ERROR		0x20
+#define EVBUFFER_TIMEOUT	0x40
+
+struct bufferevent;
+typedef void (*evbuffercb)(struct bufferevent *, void *);
+typedef void (*everrorcb)(struct bufferevent *, short what, void *);
+
+struct bufferevent {
+	struct event ev_read;
+	struct event ev_write;
+
+	struct evbuffer *input;
+	struct evbuffer *output;
+
+	evbuffercb readcb;
+	evbuffercb writecb;
+	everrorcb errorcb;
+	void *cbarg;
+
+	int timeout_read;	/* in seconds */
+	int timeout_write;	/* in seconds */
+
+	short enabled;	/* events that are currently enabled */
+};
+
+struct bufferevent *bufferevent_new(int fd,
+    evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg);
+int bufferevent_write(struct bufferevent *bufev, void *data, size_t size);
+int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf);
+size_t bufferevent_read(struct bufferevent *bufev, void *data, size_t size);
+int bufferevent_enable(struct bufferevent *bufev, short event);
+int bufferevent_disable(struct bufferevent *bufev, short event);
+void bufferevent_settimeout(struct bufferevent *bufev,
+    int timeout_read, int timeout_write);
+
 #define EVBUFFER_LENGTH(x)	(x)->off
+#define EVBUFFER_DATA(x)	(x)->buffer
+#define EVBUFFER_INPUT(x)	(x)->input
+#define EVBUFFER_OUTPUT(x)	(x)->output
 
 struct evbuffer *evbuffer_new(void);
 void evbuffer_free(struct evbuffer *);
-void evbuffer_add(struct evbuffer *, u_char *, size_t);
-void evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
+void evbuffer_free(struct evbuffer *);
+int evbuffer_add(struct evbuffer *, u_char *, size_t);
+int evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
 int evbuffer_add_printf(struct evbuffer *, char *fmt, ...);
 void evbuffer_drain(struct evbuffer *, size_t);
 int evbuffer_write(struct evbuffer *, int);
