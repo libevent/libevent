@@ -249,7 +249,7 @@ int
 epoll_add(void *arg, struct event *ev)
 {
 	struct epollop *epollop = arg;
-	struct epoll_event epev;
+	struct epoll_event epev = {0, {0}};
 	struct evepoll *evep;
 	int fd, op, events;
 
@@ -297,7 +297,7 @@ int
 epoll_del(void *arg, struct event *ev)
 {
 	struct epollop *epollop = arg;
-	struct epoll_event epev;
+	struct epoll_event epev = {0, {0}};
 	struct evepoll *evep;
 	int fd, events, op;
 	int needwritedelete = 1, needreaddelete = 1;
