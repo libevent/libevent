@@ -45,7 +45,7 @@ fifo_read(int fd, short event, void *arg)
 		return;
 	}
 
-	buf[dwBytesRead + 1] = '\0';
+	buf[dwBytesRead] = '\0';
 #else
 	len = read(fd, buf, sizeof(buf) - 1);
 

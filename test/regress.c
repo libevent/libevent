@@ -25,20 +25,29 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef WIN32
+#include <winsock2.h>
+#include <windows.h>
+#endif
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
+#ifndef WIN32
 #include <sys/socket.h>
 #include <sys/signal.h>
+#include <unistd.h>
+#endif
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 
 #include <event.h>
@@ -232,9 +241,13 @@ setup_test(char *name)
 int
 cleanup_test(void)
 {
+#ifndef WIN32
 	close(pair[0]);
 	close(pair[1]);
-
+#else
+	CloseHandle((HANDLE)pair[0]);
+	CloseHandle((HANDLE)pair[1]);
+#endif
 	if (test_ok)
 		fprintf(stdout, "OK\n");
 	else {
@@ -382,6 +395,7 @@ test6(void)
 	cleanup_test();
 }
 
+#ifndef WIN32
 void
 test7(void)
 {
@@ -403,6 +417,7 @@ test7(void)
 
 	cleanup_test();
 }
+#endif
 
 void
 test8(void)
@@ -490,6 +505,16 @@ test9(void)
 int
 main (int argc, char **argv)
 {
+#ifdef WIN32
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	int	err;
+ 
+	wVersionRequested = MAKEWORD( 2, 2 );
+ 
+	err = WSAStartup( wVersionRequested, &wsaData );
+#endif
+
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	/* Initalize the event library */
@@ -506,9 +531,9 @@ main (int argc, char **argv)
 	test5();
 
 	test6();
-
+#ifndef WIN32
 	test7();
-
+#endif
 	test8();
 
 	test9();

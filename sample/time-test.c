@@ -4,6 +4,11 @@
  */
 
 #include <sys/types.h>
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <sys/stat.h>
 #ifndef WIN32
 #include <sys/queue.h>
@@ -11,7 +16,9 @@
 #else
 #include <time.h>
 #endif
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>

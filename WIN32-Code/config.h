@@ -16,7 +16,7 @@
 /* #undef u_int8_t */
 
 /* Define if timeradd is defined in <sys/time.h> */
-#define HAVE_TIMERADD 1
+/* #undef HAVE_TIMERADD */
 #ifndef HAVE_TIMERADD
 #define timeradd(tvp, uvp, vvp)           \
   do {                \
@@ -92,13 +92,13 @@
 #define HAVE_SYS_STAT_H 1
 
 /* Define to 1 if you have the <sys/time.h> header file. */
-#define HAVE_SYS_TIME_H 1
+/* #undef HAVE_SYS_TIME_H */
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
-#define HAVE_UNISTD_H 1
+/* #undef HAVE_UNISTD_H */
 
 /* Define to 1 if you have the `warnx' function. */
 #define HAVE_WARNX 1
@@ -129,3 +129,21 @@
 
 /* Version number of package */
 #define VERSION "0.6"
+
+typedef unsigned char u_char;
+
+/* Winsock compatibility */
+#define SHUT_WR SD_SEND
+
+struct timeval;
+struct timezone;
+int gettimeofday(struct timeval *tv, struct timezone *tz);
+
+#define read win_read
+#define write win_write
+
+int win_read(int, void *, unsigned int);
+int win_write(int, void *, unsigned int);
+int socketpair(int d, int type, int protocol, int *sv);
+
+#define __func__ __FILE__

@@ -103,8 +103,11 @@ const struct eventop *eventops[] = {
 	NULL
 };
 
+/* Global state */
+
 const struct eventop *evsel;
 void *evbase;
+static int event_count;
 
 /* Handle signals - This is a deprecated interface */
 int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
@@ -133,7 +136,7 @@ compare(struct event *a, struct event *b)
 		return (1);
 	if (a < b)
 		return (-1);
-	if (a > b)
+	else if (a > b)
 		return (1);
 	return (0);
 }
@@ -152,6 +155,11 @@ event_init(void)
 	event_gotsig = 0;
 	gettimeofday(&event_tv, NULL);
 	
+#if defined(USE_LOG) && defined(USE_DEBUG)
+	log_to(stderr);
+	log_debug_cmd(LOG_MISC, 80);
+#endif
+
 	RB_INIT(&timetree);
 	TAILQ_INIT(&eventqueue);
 	TAILQ_INIT(&activequeue);
@@ -169,18 +177,12 @@ event_init(void)
 
 	if (getenv("EVENT_SHOW_METHOD")) 
 		fprintf(stderr, "libevent using: %s\n", evsel->name); 
-
-#if defined(USE_LOG) && defined(USE_DEBUG)
-	log_to(stderr);
-	log_debug_cmd(LOG_MISC, 80);
-#endif
 }
 
 int
 event_haveevents(void)
 {
-	return (RB_ROOT(&timetree) || TAILQ_FIRST(&eventqueue) ||
-	    TAILQ_FIRST(&signalqueue) || TAILQ_FIRST(&activequeue));
+	return (event_count > 0);
 }
 
 static void
@@ -582,6 +584,9 @@ event_queue_remove(struct event *ev, int queue)
 		errx(1, "%s: %p(fd %d) not on queue %x", __func__,
 		    ev, ev->ev_fd, queue);
 
+	if (!(ev->ev_flags & EVLIST_INTERNAL))
+		event_count--;
+
 	ev->ev_flags &= ~queue;
 	switch (queue) {
 	case EVLIST_ACTIVE:
@@ -607,6 +612,9 @@ event_queue_insert(struct event *ev, int queue)
 	if (ev->ev_flags & queue)
 		errx(1, "%s: %p(fd %d) already on queue %x", __func__,
 		    ev, ev->ev_fd, queue);
+
+	if (!(ev->ev_flags & EVLIST_INTERNAL))
+		event_count++;
 
 	ev->ev_flags |= queue;
 	switch (queue) {

@@ -35,6 +35,7 @@
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
+#include <sys/socket.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,10 +64,39 @@ void evsignal_process(void);
 int evsignal_recalc(sigset_t *);
 int evsignal_deliver(sigset_t *);
 
+static struct event ev_signal;
+static int ev_signal_pair[2];
+static int ev_signal_added;
+
+/* Callback for when the signal handler write a byte to our signaling socket */
+static void evsignal_cb(int fd, short what, void *arg)
+{
+	static char signals[100];
+	struct event *ev = arg;
+	int n;
+
+	n = read(fd, signals, sizeof(signals));
+	if (n == -1)
+		err(1, "%s: read");
+	event_add(ev, NULL);
+}
+
 void
 evsignal_init(sigset_t *evsigmask)
 {
 	sigemptyset(evsigmask);
+
+	/* 
+	 * Our signal handler is going to write to one end of the socket
+	 * pair to wake up our event loop.  The event loop then scans for
+	 * signals that got delivered.
+	 */
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, ev_signal_pair) == -1)
+		err(1, "%s: socketpair", __func__);
+
+	event_set(&ev_signal, ev_signal_pair[1], EV_READ,
+	    evsignal_cb, &ev_signal);
+	ev_signal.ev_flags |= EVLIST_INTERNAL;
 }
 
 int
@@ -103,6 +133,9 @@ evsignal_handler(int sig)
 {
 	evsigcaught[sig]++;
 	evsignal_caught = 1;
+
+	/* Wake up our notification mechanism */
+	write(ev_signal_pair[0], "a", 1);
 }
 
 int
@@ -110,6 +143,11 @@ evsignal_recalc(sigset_t *evsigmask)
 {
 	struct sigaction sa;
 	struct event *ev;
+	
+	if (!ev_signal_added) {
+		ev_signal_added = 1;
+		event_add(&ev_signal, NULL);
+	}
 
 	if (TAILQ_FIRST(&signalqueue) == NULL && !needrecalc)
 		return (0);

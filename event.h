@@ -39,10 +39,11 @@ extern "C" {
 #define EVLIST_INSERTED	0x02
 #define EVLIST_SIGNAL	0x04
 #define EVLIST_ACTIVE	0x08
+#define EVLIST_INTERNAL	0x10
 #define EVLIST_INIT	0x80
 
 /* EVLIST_X_ Private space: 0x1000-0xf000 */
-#define EVLIST_ALL	(0xf000 | 0x8f)
+#define EVLIST_ALL	(0xf000 | 0x9f)
 
 #define EV_TIMEOUT	0x01
 #define EV_READ		0x02
@@ -170,7 +171,9 @@ int event_pending(struct event *, short, struct timeval *);
 
 struct evbuffer {
 	u_char *buffer;
+	u_char *orig_buffer;
 
+	size_t misalign;
 	size_t totallen;
 	size_t off;
 
@@ -233,7 +236,8 @@ void bufferevent_settimeout(struct bufferevent *bufev,
 
 struct evbuffer *evbuffer_new(void);
 void evbuffer_free(struct evbuffer *);
-int evbuffer_add(struct evbuffer *, u_char *, size_t);
+int evbuffer_add(struct evbuffer *, void *, size_t);
+int evbuffer_remove(struct evbuffer *, void *, size_t);
 int evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
 int evbuffer_add_printf(struct evbuffer *, char *fmt, ...);
 void evbuffer_drain(struct evbuffer *, size_t);
