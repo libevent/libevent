@@ -17,6 +17,7 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 
 dnl Checks for libraries.
+AC_CHECK_LIB(socket, socket)
 
 dnl Checks for header files.
 AC_HEADER_STDC

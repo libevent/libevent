@@ -2,7 +2,8 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 SUBDIRS = . sample test
 
-EXTRA_DIST = acconfig.h test/Makefile.in compat/err.h compat/sys/queue.h \
+EXTRA_DIST = acconfig.h evsignal.h \
+	     test/Makefile.in compat/err.h compat/sys/queue.h \
              compat/sys/tree.h compat/sys/_time.h
 
 lib_LIBRARIES = libevent.a
