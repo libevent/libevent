@@ -63,6 +63,48 @@ if test "x$ac_cv_header_sys_time_h" = "xyes"; then
 )
 fi
 
+if test "x$ac_cv_header_sys_time_h" = "xyes"; then
+	AC_MSG_CHECKING(for timercmp in sys/time.h)
+	AC_EGREP_CPP(yes,
+[
+#include <sys/time.h>
+#ifdef timercmp
+ yes
+#endif
+],	[ AC_DEFINE(HAVE_TIMERCMP, 1,
+		[Define if timercmp is defined in <sys/time.h>])
+	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
+)
+fi
+
+if test "x$ac_cv_header_sys_time_h" = "xyes"; then
+	AC_MSG_CHECKING(for timerclear in sys/time.h)
+	AC_EGREP_CPP(yes,
+[
+#include <sys/time.h>
+#ifdef timerclear
+ yes
+#endif
+],	[ AC_DEFINE(HAVE_TIMERCLEAR, 1,
+		[Define if timerclear is defined in <sys/time.h>])
+	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
+)
+fi
+
+if test "x$ac_cv_header_sys_time_h" = "xyes"; then
+	AC_MSG_CHECKING(for timerisset in sys/time.h)
+	AC_EGREP_CPP(yes,
+[
+#include <sys/time.h>
+#ifdef timerisset
+ yes
+#endif
+],	[ AC_DEFINE(HAVE_TIMERISSET, 1,
+		[Define if timerisset is defined in <sys/time.h>])
+	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
+)
+fi
+
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
@@ -276,5 +318,20 @@ AC_TRY_COMPILE([
   AC_DEFINE(socklen_t, unsigned int,
 	[Define to unsigned int if you dont have it])]
 )
+
+AC_MSG_CHECKING([whether our compiler supports __func__])
+AC_TRY_COMPILE([],
+ [void foo() { const char *cp = __func__; }],
+ AC_MSG_RESULT([yes]),
+ AC_MSG_RESULT([no])
+ AC_MSG_CHECKING([whether our compiler supports __FUNCTION__])
+ AC_TRY_COMPILE([],
+   [void foo() { const char *cp = __FUNCTION__; }],
+   AC_MSG_RESULT([yes])
+   AC_DEFINE(__func__, __FUNCTION__,
+         [Define to appropriate substitue if compiler doesnt have __func__]),
+   AC_MSG_RESULT([no])
+   AC_DEFINE(__func__, __FILE__,
+         [Define to appropriate substitue if compiler doesnt have __func__])))
 
 AC_OUTPUT(Makefile test/Makefile sample/Makefile)

@@ -16,15 +16,7 @@
 /* Define if timeradd is defined in <sys/time.h> */
 #undef HAVE_TIMERADD
 #ifndef HAVE_TIMERADD
-#undef timerclear
-#undef timerisset
-#undef timercmp
-#define	timerclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
-#define	timerisset(tvp)		((tvp)->tv_sec || (tvp)->tv_usec)
-#define	timercmp(tvp, uvp, cmp)						\
-	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
-	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
-	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#undef timersub
 #define timeradd(tvp, uvp, vvp)						\
 	do {								\
 		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
@@ -45,6 +37,26 @@
 	} while (0)
 #endif /* !HAVE_TIMERADD */
 
+#undef HAVE_TIMERCLEAR
+#ifndef HAVE_TIMERCLEAR
+#define	timerclear(tvp)	(tvp)->tv_sec = (tvp)->tv_usec = 0
+#endif
+
+#undef HAVE_TIMERCMP
+#ifndef HAVE_TIMERCMP
+#undef timercmp
+#define	timercmp(tvp, uvp, cmp)						\
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
+	 ((tvp)->tv_usec cmp (uvp)->tv_usec) :				\
+	 ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#endif
+
+#undef HAVE_TIMERISSET
+#ifndef HAVE_TIMERISSET
+#undef timerisset
+#define	timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
+#endif
+
 /* Define if TAILQ_FOREACH is defined in <sys/queue.h> */
 #undef HAVE_TAILQFOREACH
 #ifndef HAVE_TAILQFOREACH
@@ -62,3 +74,6 @@
 	(listelm)->field.tqe_prev = &(elm)->field.tqe_next;		\
 } while (0)
 #endif /* TAILQ_FOREACH */
+
+/* Define to __FUNCTION__ or __file__ if your compiler doesn't have __func__ */
+#undef __func__
