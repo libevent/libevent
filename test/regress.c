@@ -49,6 +49,7 @@ static char wbuf[4096];
 static char rbuf[4096];
 static int woff;
 static int roff;
+static int usepersist;
 static struct timeval tset;
 static struct timeval tcalled;
 
@@ -104,10 +105,13 @@ multiple_write_cb(int fd, short event, void *arg)
 
 	if (woff >= sizeof(wbuf)) {
 		shutdown(pair[0], SHUT_WR);
+		if (usepersist)
+			event_del(ev);
 		return;
 	}
 
-	event_add(ev, NULL);
+	if (!usepersist)
+		event_add(ev, NULL);
 }
 
 void
@@ -121,11 +125,15 @@ multiple_read_cb(int fd, short event, void *arg)
 		fprintf(stderr, "%s: read\n", __func__);
 		return;
 	}
-	if (len == 0)
+	if (len == 0) {
+		if (usepersist)
+			event_del(ev);
 		return;
+	}
 
 	roff += len;
-	event_add(ev, NULL);
+	if (!usepersist)
+		event_add(ev, NULL);
 }
 
 void
@@ -205,7 +213,7 @@ main (int argc, char **argv)
 	event_init();
 
 	/* Very simple read test */
-	setup_test("Simple read :");
+	setup_test("Simple read: ");
 	
 	write(pair[0], TEST1, strlen(TEST1)+1);
 	shutdown(pair[0], SHUT_WR);
@@ -227,14 +235,36 @@ main (int argc, char **argv)
 
 	/* Multiple read and write test */
 	setup_test("Multiple read/write: ");
+	memset(rbuf, 0, sizeof(rbuf));
 	for (i = 0; i < sizeof(wbuf); i++)
 		wbuf[i] = i;
 
 	roff = woff = 0;
+	usepersist = 0;
 
 	event_set(&ev, pair[0], EV_WRITE, multiple_write_cb, &ev);
 	event_add(&ev, NULL);
 	event_set(&ev2, pair[1], EV_READ, multiple_read_cb, &ev2);
+	event_add(&ev2, NULL);
+	event_dispatch();
+
+	if (roff == woff)
+		test_ok = memcmp(rbuf, wbuf, sizeof(wbuf)) == 0;
+
+	cleanup_test();
+
+	/* Multiple read and write test with persist */
+	setup_test("Persist read/write: ");
+	memset(rbuf, 0, sizeof(rbuf));
+	for (i = 0; i < sizeof(wbuf); i++)
+		wbuf[i] = i;
+
+	roff = woff = 0;
+	usepersist = 1;
+
+	event_set(&ev, pair[0], EV_WRITE|EV_PERSIST, multiple_write_cb, &ev);
+	event_add(&ev, NULL);
+	event_set(&ev2, pair[1], EV_READ|EV_PERSIST, multiple_read_cb, &ev2);
 	event_add(&ev2, NULL);
 	event_dispatch();
 
