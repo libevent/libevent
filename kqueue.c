@@ -278,7 +278,7 @@ kq_add(void *arg, struct event *ev)
 		kev.filter = EVFILT_SIGNAL;
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
-			kev.filter |= EV_ONESHOT;
+			kev.flags |= EV_ONESHOT;
 		kev.udata = ev;
 		
 		if (kq_insert(kqop, &kev) == -1)
@@ -297,7 +297,7 @@ kq_add(void *arg, struct event *ev)
 		kev.filter = EVFILT_READ;
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
-			kev.filter |= EV_ONESHOT;
+			kev.flags |= EV_ONESHOT;
 		kev.udata = ev;
 		
 		if (kq_insert(kqop, &kev) == -1)
@@ -312,7 +312,7 @@ kq_add(void *arg, struct event *ev)
 		kev.filter = EVFILT_WRITE;
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
-			kev.filter |= EV_ONESHOT;
+			kev.flags |= EV_ONESHOT;
 		kev.udata = ev;
 		
 		if (kq_insert(kqop, &kev) == -1)
