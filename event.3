@@ -356,11 +356,11 @@ adds
 .Va EV_PERSIST .
 .Pp
 It is possible to disable support for
-.Va epoll , kqueue , poll
+.Va epoll , kqueue , devpoll, poll
 or
 .Va select
 by setting the environment variable
-.Va EVENT_NOEPOLL , EVENT_NOKQUEUE , EVENT_NOPOLL
+.Va EVENT_NOEPOLL , EVENT_NOKQUEUE , EVENT_NODEVPOLL, EVENT_NOPOLL
 or
 .Va EVENT_NOSELECT .
 By setting the environment variable
