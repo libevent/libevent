@@ -2,6 +2,7 @@
 
 setup () {
 	 export EVENT_NOKQUEUE=yes
+	 export EVENT_NODEVPOLL=yes
 	 export EVENT_NOPOLL=yes
 	 export EVENT_NOSELECT=yes
 	 export EVENT_NOEPOLL=yes
@@ -51,6 +52,11 @@ echo "Running tests:"
 setup
 unset EVENT_NOKQUEUE
 echo "KQUEUE"
+test
+
+setup
+unset EVENT_NODEVPOLL
+echo "DEVPOLL"
 test
 
 setup

@@ -75,8 +75,10 @@ simple_read_cb(int fd, short event, void *arg)
 	len = read(fd, buf, sizeof(buf));
 
 	if (len) {
-		if (!called)
-			event_add(arg, NULL);
+		if (!called) {
+			if (event_add(arg, NULL) == -1)
+				exit(1);
+		}
 	} else if (called == 1)
 		test_ok = 1;
 
@@ -122,8 +124,10 @@ multiple_write_cb(int fd, short event, void *arg)
 		return;
 	}
 
-	if (!usepersist)
-		event_add(ev, NULL);
+	if (!usepersist) {
+		if (event_add(ev, NULL) == -1)
+			exit(1);
+	}
 }
 
 void
@@ -142,8 +146,10 @@ multiple_read_cb(int fd, short event, void *arg)
 	}
 
 	roff += len;
-	if (!usepersist)
-		event_add(ev, NULL);
+	if (!usepersist) {
+		if (event_add(ev, NULL) == -1) 
+			exit(1);
+	}
 }
 
 void
@@ -194,7 +200,8 @@ combined_read_cb(int fd, short event, void *arg)
 		return;
 
 	both->nread += len;
-	event_add(&both->ev, NULL);
+	if (event_add(&both->ev, NULL) == -1)
+		exit(1);
 }
 
 void
@@ -217,7 +224,8 @@ combined_write_cb(int fd, short event, void *arg)
 	}
 
 	both->nread -= len;
-	event_add(&both->ev, NULL);
+	if (event_add(&both->ev, NULL) == -1)
+		exit(1);
 }
 
 /* Test infrastructure */
@@ -278,7 +286,8 @@ test1(void)
 	shutdown(pair[0], SHUT_WR);
 
 	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
-	event_add(&ev, NULL);
+	if (event_add(&ev, NULL) == -1)
+		exit(1);
 	event_dispatch();
 
 	cleanup_test();
@@ -293,7 +302,8 @@ test2(void)
 	setup_test("Simple write: ");
 	
 	event_set(&ev, pair[0], EV_WRITE, simple_write_cb, &ev);
-	event_add(&ev, NULL);
+	if (event_add(&ev, NULL) == -1)
+		exit(1);
 	event_dispatch();
 
 	cleanup_test();
@@ -315,9 +325,11 @@ test3(void)
 	usepersist = 0;
 
 	event_set(&ev, pair[0], EV_WRITE, multiple_write_cb, &ev);
-	event_add(&ev, NULL);
+	if (event_add(&ev, NULL) == -1)
+		exit(1);
 	event_set(&ev2, pair[1], EV_READ, multiple_read_cb, &ev2);
-	event_add(&ev2, NULL);
+	if (event_add(&ev2, NULL) == -1)
+		exit(1);
 	event_dispatch();
 
 	if (roff == woff)
@@ -342,9 +354,11 @@ test4(void)
 	usepersist = 1;
 
 	event_set(&ev, pair[0], EV_WRITE|EV_PERSIST, multiple_write_cb, &ev);
-	event_add(&ev, NULL);
+	if (event_add(&ev, NULL) == -1)
+		exit(1);
 	event_set(&ev2, pair[1], EV_READ|EV_PERSIST, multiple_read_cb, &ev2);
-	event_add(&ev2, NULL);
+	if (event_add(&ev2, NULL) == -1)
+		exit(1);
 	event_dispatch();
 
 	if (roff == woff)
@@ -371,10 +385,14 @@ test5(void)
 	event_set(&w1.ev, pair[0], EV_WRITE, combined_write_cb, &w1);
 	event_set(&r2.ev, pair[1], EV_READ, combined_read_cb, &r2);
 	event_set(&w2.ev, pair[1], EV_WRITE, combined_write_cb, &w2);
-	event_add(&r1.ev, NULL);
-	event_add(&w1.ev, NULL);
-	event_add(&r2.ev, NULL);
-	event_add(&w2.ev, NULL);
+	if (event_add(&r1.ev, NULL) == -1)
+		exit(1);
+	if (event_add(&w1.ev, NULL))
+		exit(1);
+	if (event_add(&r2.ev, NULL))
+		exit(1);
+	if (event_add(&w2.ev, NULL))
+		exit(1);
 
 	event_dispatch();
 

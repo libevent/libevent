@@ -76,6 +76,9 @@ extern const struct eventop epollops;
 #ifdef HAVE_WORKING_KQUEUE
 extern const struct eventop kqops;
 #endif
+#ifdef HAVE_DEVPOLL
+extern const struct eventop devpollops;
+#endif
 #ifdef WIN32
 extern const struct eventop win32ops;
 #endif
@@ -87,6 +90,9 @@ const struct eventop *eventops[] = {
 #endif
 #ifdef HAVE_EPOLL
 	&epollops,
+#endif
+#ifdef HAVE_DEVPOLL
+	&devpollops,
 #endif
 #ifdef HAVE_RTSIG
 	&rtsigops,
