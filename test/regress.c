@@ -233,6 +233,14 @@ setup_test(char *name)
 		exit(1);
 	}
 
+#ifdef HAVE_FCNTL
+        if (fcntl(pair[0], F_SETFL, O_NONBLOCK) == -1)
+                warn("fcntl(O_NONBLOCK)");
+
+        if (fcntl(pair[1], F_SETFL, O_NONBLOCK) == -1)
+                warn("fcntl(O_NONBLOCK)");
+#endif
+
 	test_ok = 0;
 	called = 0;
 	return (0);
@@ -452,7 +460,7 @@ test8(void)
 void
 readcb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bev->input) == 4096) {
+	if (EVBUFFER_LENGTH(bev->input) == 8333) {
 		bufferevent_disable(bev, EV_READ);
 		test_ok++;
 	}
@@ -475,7 +483,7 @@ void
 test9(void)
 {
 	struct bufferevent *bev1, *bev2;
-	char buffer[4096];
+	char buffer[8333];
 	int i;
 
 	setup_test("Bufferevent: ");
