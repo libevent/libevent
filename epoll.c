@@ -45,6 +45,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <err.h>
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
 
 #ifdef USE_LOG
 #include "log.h"
@@ -92,6 +95,15 @@ struct eventop epollops = {
 	epoll_dispatch
 };
 
+#ifdef HAVE_SETFD
+#define FD_CLOSEONEXEC(x) do { \
+        if (fcntl(x, F_SETFD, 1) == -1) \
+                warn("fcntl(%d, F_SETFD)", x); \
+} while (0)
+#else
+#define FD_CLOSEONEXEC(x)
+#endif
+
 #define NEVENT	32000
 
 void *
@@ -116,6 +128,8 @@ epoll_init(void)
 		log_error("epoll_create");
 		return (NULL);
 	}
+
+	FD_CLOSEONEXEC(epfd);
 
 	epollop.epfd = epfd;
 

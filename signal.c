@@ -43,6 +43,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <err.h>
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
 
 #ifdef USE_LOG
 #include "log.h"
@@ -81,6 +84,15 @@ static void evsignal_cb(int fd, short what, void *arg)
 	event_add(ev, NULL);
 }
 
+#ifdef HAVE_SETFD
+#define FD_CLOSEONEXEC(x) do { \
+        if (fcntl(x, F_SETFD, 1) == -1) \
+                warn("fcntl(%d, F_SETFD)", x); \
+} while (0)
+#else
+#define FD_CLOSEONEXEC(x)
+#endif
+
 void
 evsignal_init(sigset_t *evsigmask)
 {
@@ -93,6 +105,9 @@ evsignal_init(sigset_t *evsigmask)
 	 */
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, ev_signal_pair) == -1)
 		err(1, "%s: socketpair", __func__);
+
+	FD_CLOSEONEXEC(ev_signal_pair[0]);
+	FD_CLOSEONEXEC(ev_signal_pair[1]);
 
 	event_set(&ev_signal, ev_signal_pair[1], EV_READ,
 	    evsignal_cb, &ev_signal);

@@ -33,7 +33,7 @@ AC_CHECK_LIB(socket, socket)
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(stdarg.h inttypes.h stdint.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/ioctl.h sys/devpoll.h)
+AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/ioctl.h sys/devpoll.h)
 if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
 	AC_EGREP_CPP(yes,
@@ -70,6 +70,18 @@ AC_HEADER_TIME
 
 dnl Checks for library functions.
 AC_CHECK_FUNCS(gettimeofday vasprintf fcntl)
+
+AC_MSG_CHECKING(for F_SETFD in fcntl.h)
+AC_EGREP_CPP(yes,
+[
+#define _GNU_SOURCE
+#include <fcntl.h>
+#ifdef F_SETFD
+yes
+#endif
+],	[ AC_DEFINE(HAVE_SETFD, 1,
+	      [Define if F_SETFD is defined in <fcntl.h>])
+	  AC_MSG_RESULT(yes) ], AC_MSG_RESULT(no))
 
 needsignal=no
 haveselect=no
