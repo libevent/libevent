@@ -38,6 +38,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <err.h>
 
 #ifdef USE_LOG
 #include "log.h"
@@ -68,6 +69,7 @@ struct selectop {
 
 void signal_process(void);
 int signal_recalc(void);
+int signal_deliver(void);
 
 void *select_init	(void);
 int select_add		(void *, struct event *);

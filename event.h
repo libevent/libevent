@@ -78,6 +78,7 @@ struct event {
 	int ev_fd;
 	short ev_events;
 	short ev_ncalls;
+	short *ev_pncalls;	/* Allows deletes in callback */
 
 	struct timeval ev_timeout;
 

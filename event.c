@@ -138,13 +138,20 @@ void
 event_process_active(void)
 {
 	struct event *ev;
+	short ncalls;
 
 	for (ev = TAILQ_FIRST(&activequeue); ev;
 	    ev = TAILQ_FIRST(&activequeue)) {
 		event_queue_remove(ev, EVLIST_ACTIVE);
 		
-		while (ev->ev_ncalls--)
+		/* Allows deletes to work */
+		ncalls = ev->ev_ncalls;
+		ev->ev_pncalls = &ncalls;
+		while (ncalls) {
+			ncalls--;
+			ev->ev_ncalls = ncalls;
 			(*ev->ev_callback)(ev->ev_fd, ev->ev_res, ev->ev_arg);
+		}
 	}
 }
 
@@ -307,6 +314,12 @@ event_del(struct event *ev)
 
 	assert(!(ev->ev_flags & ~EVLIST_ALL));
 
+	/* See if we are just active executing this event in a loop */
+	if (ev->ev_ncalls && ev->ev_pncalls) {
+		/* Abort loop */
+		*ev->ev_pncalls = 0;
+	}
+
 	if (ev->ev_flags & EVLIST_TIMEOUT)
 		event_queue_remove(ev, EVLIST_TIMEOUT);
 
@@ -329,6 +342,7 @@ event_active(struct event *ev, int res, short ncalls)
 {
 	ev->ev_res = res;
 	ev->ev_ncalls = ncalls;
+	ev->ev_pncalls = NULL;
 	event_queue_insert(ev, EVLIST_ACTIVE);
 }
 
