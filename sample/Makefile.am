@@ -1,7 +1,8 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
 LDADD = -L.. -levent
-CPPFPLAGS = -I..
+CPPFPLAGS = -I.. 
+CFLAGS = -I../compat
 
 noinst_PROGRAMS = event-test time-test signal-test
 
