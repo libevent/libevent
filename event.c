@@ -725,7 +725,8 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 	ev->ev_flags &= ~queue;
 	switch (queue) {
 	case EVLIST_ACTIVE:
-		base->event_count_active--;
+		if (docount)
+			base->event_count_active--;
 		TAILQ_REMOVE(base->activequeues[ev->ev_pri],
 		    ev, ev_active_next);
 		break;

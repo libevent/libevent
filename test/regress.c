@@ -622,7 +622,6 @@ test_multiple_events_for_same_fd(void)
 
    setup_test("Multiple events for same fd: ");
 
-   event_init();
    event_set(&e1, pair[0], EV_READ, test_multiple_cb, NULL);
    event_add(&e1, NULL);
    event_set(&e2, pair[0], EV_WRITE, test_multiple_cb, NULL);
