@@ -1,7 +1,7 @@
-/*	$OpenBSD: select.c,v 1.2 2002/06/25 15:50:15 mickey Exp $	*/
+/*	$OpenBSD: poll.c,v 1.2 2002/06/25 15:50:15 mickey Exp $	*/
 
 /*
- * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
+ * Copyright 2000-2003 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,50 +58,45 @@
 
 extern struct event_list eventqueue;
 
-#ifndef howmany
-#define        howmany(x, y)   (((x)+((y)-1))/(y))
-#endif
-
 extern volatile sig_atomic_t evsignal_caught;
 
-struct selectop {
-	int event_fds;		/* Highest fd in fd set */
-	int event_fdsz;
-	fd_set *event_readset;
-	fd_set *event_writeset;
+struct pollop {
+	int event_count;		/* Highest number alloc */
+	struct pollfd *event_set;
+	struct event **event_back;
 	sigset_t evsigmask;
-} sop;
+} pop;
 
 void evsignal_init(sigset_t *);
 void evsignal_process(void);
-int evsignal_recalc(void);
+int evsignal_recalc(sigset_t *);
 int evsignal_deliver(void);
 int evsignal_add(sigset_t *, struct event *);
 int evsignal_del(sigset_t *, struct event *);
 
-void *select_init	(void);
-int select_add		(void *, struct event *);
-int select_del		(void *, struct event *);
-int select_recalc	(void *, int);
-int select_dispatch	(void *, struct timeval *);
+void *poll_init	(void);
+int poll_add		(void *, struct event *);
+int poll_del		(void *, struct event *);
+int poll_recalc	(void *, int);
+int poll_dispatch	(void *, struct timeval *);
 
-struct eventop selectops = {
-	"select",
-	select_init,
-	select_add,
-	select_del,
-	select_recalc,
-	select_dispatch
+struct eventop pollops = {
+	"poll",
+	poll_init,
+	poll_add,
+	poll_del,
+	poll_recalc,
+	poll_dispatch
 };
 
 void *
-select_init(void)
+poll_init(void)
 {
-	memset(&sop, 0, sizeof(sop));
+	memset(&pop, 0, sizeof(pop));
 
-	evsignal_init(&sop.evsigmask);
+	evsignal_init(&pop.evsigmask);
 
-	return (&sop);
+	return (&pop);
 }
 
 /*
@@ -109,77 +105,79 @@ select_init(void)
  */
 
 int
-select_recalc(void *arg, int max)
+poll_recalc(void *arg, int max)
 {
-	struct selectop *sop = arg;
-	fd_set *readset, *writeset;
-	struct event *ev;
-	int fdsz;
+	struct pollop *pop = arg;
 
-	if (sop->event_fds < max)
-		sop->event_fds = max;
-
-	if (!sop->event_fds) {
-		TAILQ_FOREACH(ev, &eventqueue, ev_next)
-			if (ev->ev_fd > sop->event_fds)
-				sop->event_fds = ev->ev_fd;
-	}
-
-	fdsz = howmany(sop->event_fds + 1, NFDBITS) * sizeof(fd_mask);
-	if (fdsz > sop->event_fdsz) {
-		if ((readset = realloc(sop->event_readset, fdsz)) == NULL) {
-			log_error("malloc");
-			return (-1);
-		}
-
-		if ((writeset = realloc(sop->event_writeset, fdsz)) == NULL) {
-			log_error("malloc");
-			free(readset);
-			return (-1);
-		}
-
-		memset((char *)readset + sop->event_fdsz, 0,
-		    fdsz - sop->event_fdsz);
-		memset((char *)writeset + sop->event_fdsz, 0,
-		    fdsz - sop->event_fdsz);
-
-		sop->event_readset = readset;
-		sop->event_writeset = writeset;
-		sop->event_fdsz = fdsz;
-	}
-
-	return (evsignal_recalc());
+	return (evsignal_recalc(&pop->evsigmask));
 }
 
 int
-select_dispatch(void *arg, struct timeval *tv)
+poll_dispatch(void *arg, struct timeval *tv)
 {
-	int maxfd, res;
+	int res, i, count, sec, nfds;
 	struct event *ev, *next;
-	struct selectop *sop = arg;
+	struct pollop *pop = arg;
 
-	memset(sop->event_readset, 0, sop->event_fdsz);
-	memset(sop->event_writeset, 0, sop->event_fdsz);
-
+	count = pop->event_count;
+	nfds = 0;
 	TAILQ_FOREACH(ev, &eventqueue, ev_next) {
-		if (ev->ev_events & EV_WRITE)
-			FD_SET(ev->ev_fd, sop->event_writeset);
-		if (ev->ev_events & EV_READ)
-			FD_SET(ev->ev_fd, sop->event_readset);
+		if (nfds + 1 >= count) {
+			if (count < 32)
+				count = 32;
+			else
+				count *= 2;
+
+			/* We need more file descriptors */
+			pop->event_set = realloc(pop->event_set,
+			    count * sizeof(struct pollfd));
+			if (pop->event_set == NULL) {
+				log_error("realloc");
+				return (-1);
+			}
+			pop->event_back = realloc(pop->event_back,
+			    count * sizeof(struct event *));
+			if (pop->event_back == NULL) {
+				log_error("realloc");
+				return (-1);
+			}
+			pop->event_count = count;
+		}
+		if (ev->ev_events & EV_WRITE) {
+			struct pollfd *pfd = &pop->event_set[nfds];
+			pfd->fd = ev->ev_fd;
+			pfd->events = POLLOUT;
+			pfd->revents = 0;
+
+			pop->event_back[nfds] = ev;
+
+			nfds++;
+		}
+		if (ev->ev_events & EV_READ) {
+			struct pollfd *pfd = &pop->event_set[nfds];
+
+			pfd->fd = ev->ev_fd;
+			pfd->events = POLLIN;
+			pfd->revents = 0;
+
+			pop->event_back[nfds] = ev;
+
+			nfds++;
+		}
 	}
 
 	if (evsignal_deliver() == -1)
 		return (-1);
 
-	res = select(sop->event_fds + 1, sop->event_readset, 
-	    sop->event_writeset, NULL, tv);
+	sec = tv->tv_sec * 1000 + tv->tv_usec / 1000;
+	res = poll(pop->event_set, nfds, sec);
 
-	if (evsignal_recalc() == -1)
+	if (evsignal_recalc(&pop->evsigmask) == -1)
 		return (-1);
 
 	if (res == -1) {
 		if (errno != EINTR) {
-			log_error("select");
+			log_error("poll");
 			return (-1);
 		}
 
@@ -188,47 +186,41 @@ select_dispatch(void *arg, struct timeval *tv)
 	} else if (evsignal_caught)
 		evsignal_process();
 
-	LOG_DBG((LOG_MISC, 80, __FUNCTION__": select reports %d",
+	LOG_DBG((LOG_MISC, 80, __FUNCTION__": poll reports %d",
 		 res));
 
-	maxfd = 0;
-	for (ev = TAILQ_FIRST(&eventqueue); ev != NULL; ev = next) {
-		next = TAILQ_NEXT(ev, ev_next);
+	if (res == 0)
+		return (0);
 
+	for (i = 0; i < nfds; i++) {
 		res = 0;
-		if (FD_ISSET(ev->ev_fd, sop->event_readset))
-			res |= EV_READ;
-		if (FD_ISSET(ev->ev_fd, sop->event_writeset))
-			res |= EV_WRITE;
+		if (pop->event_set[i].revents & POLLIN)
+			res = EV_READ;
+		else if (pop->event_set[i].revents & POLLOUT)
+			res = EV_WRITE;
+		if (res == 0)
+			continue;
+
+		ev = pop->event_back[i];
 		res &= ev->ev_events;
 
 		if (res) {
 			if (!(ev->ev_events & EV_PERSIST))
 				event_del(ev);
 			event_active(ev, res, 1);
-		} else if (ev->ev_fd > maxfd)
-			maxfd = ev->ev_fd;
+		}	
 	}
-
-	sop->event_fds = maxfd;
 
 	return (0);
 }
 
 int
-select_add(void *arg, struct event *ev)
+poll_add(void *arg, struct event *ev)
 {
-	struct selectop *sop = arg;
+	struct pollop *pop = arg;
 
 	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_add(&sop->evsigmask, ev));
-
-	/* 
-	 * Keep track of the highest fd, so that we can calculate the size
-	 * of the fd_sets for select(2)
-	 */
-	if (sop->event_fds < ev->ev_fd)
-		sop->event_fds = ev->ev_fd;
+		return (evsignal_add(&pop->evsigmask, ev));
 
 	return (0);
 }
@@ -238,14 +230,14 @@ select_add(void *arg, struct event *ev)
  */
 
 int
-select_del(void *arg, struct event *ev)
+poll_del(void *arg, struct event *ev)
 {
-	struct selectop *sop = arg;
+	struct pollop *pop = arg;
 
 	int signal;
 
 	if (!(ev->ev_events & EV_SIGNAL))
 		return (0);
 
-	return (evsignal_del(&sop->evsigmask, ev));
+	return (evsignal_del(&pop->evsigmask, ev));
 }

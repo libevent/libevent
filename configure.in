@@ -20,7 +20,7 @@ dnl Checks for libraries.
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(unistd.h sys/time.h sys/queue.h sys/event.h)
+AC_CHECK_HEADERS(poll.h signal.h unistd.h sys/time.h sys/queue.h sys/event.h)
 if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
 	AC_EGREP_CPP(yes,
@@ -30,7 +30,9 @@ if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
  yes
 #endif
 ],	[AC_MSG_RESULT(yes)
-	 AC_DEFINE(HAVE_TAILQFOREACH) ], AC_MSG_RESULT(no)
+	 AC_DEFINE(HAVE_TAILQFOREACH, 1,
+		[Define if TAILQ_FOREACH is defined in <sys/queue.h>])],
+	AC_MSG_RESULT(no)
 	)
 fi
 
@@ -42,7 +44,8 @@ if test "x$ac_cv_header_sys_time_h" = "xyes"; then
 #ifdef timeradd
  yes
 #endif
-],	[ AC_DEFINE(HAVE_TIMERADD)
+],	[ AC_DEFINE(HAVE_TIMERADD, 1,
+		[Define if timeradd is defined in <sys/time.h>])
 	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
 )
 fi
@@ -53,18 +56,26 @@ AC_HEADER_TIME
 dnl Checks for library functions.
 AC_CHECK_FUNCS(gettimeofday)
 
-AC_SUBST(LIBOBJS)
+needsignal=no
 haveselect=no
 AC_CHECK_FUNCS(select, [haveselect=yes], )
 if test "x$haveselect" = "xyes" ; then
-	LIBOBJS="$LIBOBJS select.o"
+	AC_LIBOBJ([select])
+	needsignal=yes
 fi
 
-neederr=no
-AC_CHECK_FUNCS(warnx, , [neederr=yes])
-if test $neederr = yes; then
-   LIBOBJS="$LIBOBJS err.o"
+havepoll=no
+AC_CHECK_FUNCS(poll, [havepoll=yes], )
+if test "x$havepoll" = "xyes" ; then
+	AC_LIBOBJ([poll])
+	needsignal=yes
 fi
+
+if test "x$needsignal" = "xyes" ; then
+	AC_LIBOBJ([signal])
+fi
+
+AC_REPLACE_FUNCS(err)
 
 havekqueue=no
 if test "x$ac_cv_header_sys_event_h" = "xyes"; then
@@ -117,9 +128,28 @@ main(int argc, char **argv)
 
 	exit(0);
 }, [AC_MSG_RESULT(yes)
-    AC_DEFINE(HAVE_WORKING_KQUEUE)
-    LIBOBJS="$LIBOBJS kqueue.o"], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+    AC_DEFINE(HAVE_WORKING_KQUEUE, 1,
+		[Define if kqueue works correctly with pipes])
+    AC_LIBOBJ([kqueue])], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
 	fi
 fi
+
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_CHECK_TYPE(u_int64_t, unsigned long long)
+AC_CHECK_TYPE(u_int32_t, unsigned int)
+AC_CHECK_TYPE(u_int16_t, unsigned short)
+AC_CHECK_TYPE(u_int8_t, unsigned char)
+
+AC_MSG_CHECKING([for socklen_t])
+AC_TRY_COMPILE([
+ #include <sys/types.h>
+ #include <sys/socket.h>],
+  [socklen_t x;],
+  AC_MSG_RESULT([yes]),
+  [AC_MSG_RESULT([no])
+  AC_DEFINE(socklen_t, unsigned int,
+	[Define to unsigned int if you dont have it])]
+)
 
 AC_OUTPUT(Makefile test/Makefile sample/Makefile)
