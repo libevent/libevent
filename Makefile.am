@@ -11,6 +11,8 @@ libevent_a_LIBADD = @LIBOBJS@
 
 include_HEADERS = event.h
 
+INCLUDES = -Icompat
+
 man_MANS = event.3
 
 DISTCLEANFILES = *~
