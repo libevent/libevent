@@ -314,7 +314,7 @@ epoll_del(void *arg, struct event *ev)
 	epev.events = events;
 	epev.data.ptr = evep;
 
-	if (epoll_ctl(epollop->epfd, op, ev->ev_fd, &epev) == -1)
+	if (epoll_ctl(epollop->epfd, op, ev_fd, &epev) == -1)
 		return (-1);
 
 	if (needreaddelete)
