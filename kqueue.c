@@ -202,7 +202,7 @@ kq_dispatch(void *arg, struct timeval *tv)
 	TIMEVAL_TO_TIMESPEC(tv, &ts);
 
 	res = kevent(kqop->kq, changes, kqop->nchanges,
-		     events, kqop->nevents, &ts);
+	    events, kqop->nevents, &ts);
 	kqop->nchanges = 0;
 	if (res == -1) {
 		if (errno != EINTR) {
