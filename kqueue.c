@@ -155,7 +155,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 		}
 		kqop->changes = newchange;
 
-		newresult = realloc(kqop->changes,
+		newresult = realloc(kqop->events,
 				    nevents * sizeof(struct kevent));
 
 		/*
