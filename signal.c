@@ -55,24 +55,15 @@
 
 #include "event.h"
 
-extern struct event_list timequeue;
-extern struct event_list eventqueue;
 extern struct event_list signalqueue;
 
-short evsigcaught[NSIG];
+static short evsigcaught[NSIG];
+static int needrecalc;
 volatile sig_atomic_t evsignal_caught = 0;
-
-struct selectop {
-	int event_fds;		/* Highest fd in fd set */
-	int event_fdsz;
-	fd_set *event_readset;
-	fd_set *event_writeset;
-	sigset_t evsigmask;
-} sop;
 
 void evsignal_process(void);
 int evsignal_recalc(sigset_t *);
-int evsignal_deliver(void);
+int evsignal_deliver(sigset_t *);
 
 void
 evsignal_init(sigset_t *evsigmask)
@@ -104,6 +95,7 @@ evsignal_del(sigset_t *evsigmask, struct event *ev)
 
 	signal = EVENT_SIGNAL(ev);
 	sigdelset(evsigmask, signal);
+	needrecalc = 1;
 
 	return (sigaction(EVENT_SIGNAL(ev),(struct sigaction *)SIG_DFL, NULL));
 }
@@ -121,13 +113,17 @@ evsignal_recalc(sigset_t *evsigmask)
 	struct sigaction sa;
 	struct event *ev;
 
+	if (TAILQ_FIRST(&signalqueue) == NULL && !needrecalc)
+		return (0);
+	needrecalc = 0;
+
 	if (sigprocmask(SIG_BLOCK, evsigmask, NULL) == -1)
 		return (-1);
 	
 	/* Reinstall our signal handler. */
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = evsignal_handler;
-	sa.sa_mask = sop.evsigmask;
+	sa.sa_mask = *evsigmask;
 	sa.sa_flags |= SA_RESTART;
 	
 	TAILQ_FOREACH(ev, &signalqueue, ev_signal_next) {
@@ -138,9 +134,12 @@ evsignal_recalc(sigset_t *evsigmask)
 }
 
 int
-evsignal_deliver(void)
+evsignal_deliver(sigset_t *evsigmask)
 {
-	return (sigprocmask(SIG_UNBLOCK, &sop.evsigmask, NULL));
+	if (TAILQ_FIRST(&signalqueue) == NULL)
+		return (0);
+
+	return (sigprocmask(SIG_UNBLOCK, evsigmask, NULL));
 	/* XXX - pending signals handled here */
 }
 

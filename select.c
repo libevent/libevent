@@ -56,6 +56,7 @@
 #endif
 
 #include "event.h"
+#include "evsignal.h"
 
 extern struct event_list eventqueue;
 
@@ -72,13 +73,6 @@ struct selectop {
 	fd_set *event_writeset;
 	sigset_t evsigmask;
 } sop;
-
-void evsignal_init(sigset_t *);
-void evsignal_process(void);
-int evsignal_recalc(sigset_t *);
-int evsignal_deliver(void);
-int evsignal_add(sigset_t *, struct event *);
-int evsignal_del(sigset_t *, struct event *);
 
 void *select_init	(void);
 int select_add		(void *, struct event *);
@@ -174,7 +168,7 @@ select_dispatch(void *arg, struct timeval *tv)
 			FD_SET(ev->ev_fd, sop->event_readset);
 	}
 
-	if (evsignal_deliver() == -1)
+	if (evsignal_deliver(&sop->evsigmask) == -1)
 		return (-1);
 
 	res = select(sop->event_fds + 1, sop->event_readset, 

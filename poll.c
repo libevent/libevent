@@ -57,6 +57,7 @@
 #endif
 
 #include "event.h"
+#include "evsignal.h"
 
 extern struct event_list eventqueue;
 
@@ -68,13 +69,6 @@ struct pollop {
 	struct event **event_back;
 	sigset_t evsigmask;
 } pop;
-
-void evsignal_init(sigset_t *);
-void evsignal_process(void);
-int evsignal_recalc(sigset_t *);
-int evsignal_deliver(void);
-int evsignal_add(sigset_t *, struct event *);
-int evsignal_del(sigset_t *, struct event *);
 
 void *poll_init	(void);
 int poll_add		(void *, struct event *);
@@ -172,7 +166,7 @@ poll_dispatch(void *arg, struct timeval *tv)
 		}
 	}
 
-	if (evsignal_deliver() == -1)
+	if (evsignal_deliver(&pop->evsigmask) == -1)
 		return (-1);
 
 	sec = tv->tv_sec * 1000 + tv->tv_usec / 1000;
