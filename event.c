@@ -181,13 +181,19 @@ event_init(void)
 		    current_base->evsel->name); 
 
 	/* allocate a single active event queue */
-	event_priority_init(current_base, 1);
+	event_base_priority_init(current_base, 1);
 
 	return (current_base);
 }
 
 int
-event_priority_init(struct event_base *base, int npriorities)
+event_priority_init(int npriorities)
+{
+  return event_base_priority_init(current_base, npriorities);
+}
+
+int
+event_base_priority_init(struct event_base *base, int npriorities)
 {
 	int i;
 
@@ -272,6 +278,12 @@ event_dispatch(void)
 	return (event_loop(0));
 }
 
+int
+event_base_dispatch(struct event_base *event_base)
+{
+  return (event_base_loop(event_base, 0));
+}
+
 static void
 event_loopexit_cb(int fd, short what, void *arg)
 {
@@ -293,11 +305,11 @@ event_loopexit(struct timeval *tv)
 int
 event_loop(int flags)
 {
-	return event_loop_base(current_base, flags);
+	return event_base_loop(current_base, flags);
 }
 
 int
-event_loop_base(struct event_base *base, int flags)
+event_base_loop(struct event_base *base, int flags)
 {
 	const struct eventop *evsel = base->evsel;
 	void *evbase = base->evbase;

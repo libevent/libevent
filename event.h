@@ -127,11 +127,12 @@ struct eventop {
 
 void *event_init(void);
 int event_dispatch(void);
+int event_base_dispatch(struct event_base *);
 
 #define EVLOOP_ONCE	0x01
 #define EVLOOP_NONBLOCK	0x02
 int event_loop(int);
-int event_loop_base(struct event_base *, int);
+int event_base_loop(struct event_base *, int);
 int event_loopexit(struct timeval *);	/* Causes the loop to exit */
 
 #define evtimer_add(ev, tv)		event_add(ev, tv)
@@ -170,7 +171,8 @@ int event_pending(struct event *, short, struct timeval *);
 
 /* These functions deal with event priorities */
 
-int	event_priority_init(struct event_base *, int);
+int	event_priority_init(int);
+int	event_base_priority_init(struct event_base *, int);
 int	event_priority_set(struct event *, int);
 
 /* These functions deal with buffering input and output */

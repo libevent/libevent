@@ -562,7 +562,7 @@ test_priorities(int npriorities)
 	snprintf(buf, sizeof(buf), "Priorities %d: ", npriorities);
 	setup_test(buf);
 
-	event_priority_init(event_base, npriorities);
+	event_base_priority_init(event_base, npriorities);
 
 	memset(&one, 0, sizeof(one));
 	memset(&two, 0, sizeof(two));
