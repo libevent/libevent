@@ -34,6 +34,8 @@
 .Nm event_dispatch ,
 .Nm event_loop ,
 .Nm event_loopexit ,
+.Nm event_base_loop ,
+.Nm event_base_loopexit ,
 .Nm event_set ,
 .Nm event_add ,
 .Nm event_del ,
@@ -81,6 +83,10 @@
 .Fn "event_loop" "int flags"
 .Ft int
 .Fn "event_loopexit" "struct timeval *tv"
+.Ft int
+.Fn "event_base_loop" "struct event_base *" "int flags"
+.Ft int
+.Fn "event_base_loopexit" "struct event_base *" "struct timeval *tv"
 .Ft void
 .Fn "event_set" "struct event *ev" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg"
 .Ft int
@@ -421,8 +427,10 @@ When initializing the library via
 an event base is returned.
 This event base can be used in conjunction with calls to
 .Fn event_base_set
+.Fn event_base_dispatch ,
+.Fn event_base_loop ,
 and
-.Fn event_base_dispatch .
+.Fn event_base_loopexit .
 .Fn event_base_set 
 should be called after preparing an event with
 .Fn event_set , 

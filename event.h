@@ -142,6 +142,7 @@ int event_base_set(struct event_base *, struct event *);
 int event_loop(int);
 int event_base_loop(struct event_base *, int);
 int event_loopexit(struct timeval *);	/* Causes the loop to exit */
+int event_base_loopexit(struct event_base *, struct timeval *);
 
 #define evtimer_add(ev, tv)		event_add(ev, tv)
 #define evtimer_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)

@@ -290,6 +290,13 @@ event_loopexit(struct timeval *tv)
 		    current_base, tv));
 }
 
+int
+event_base_loopexit(struct event_base *event_base, struct timeval *tv)
+{
+	return (event_once(-1, EV_TIMEOUT, event_loopexit_cb,
+		    event_base, tv));
+}
+
 /* not thread safe */
 
 int
@@ -347,8 +354,10 @@ event_base_loop(struct event_base *base, int flags)
 			timerclear(&tv);
 		
 		/* If we have no events, we just exit */
-		if (!event_haveevents(base))
+		if (!event_haveevents(base)) {
+			event_debug(("%s: no events registered.", __func__));
 			return (1);
+		}
 
 		res = evsel->dispatch(base, evbase, &tv);
 
@@ -368,6 +377,7 @@ event_base_loop(struct event_base *base, int flags)
 			return (-1);
 	}
 
+	event_debug(("%s: asked to terminate loop.", __func__));
 	return (0);
 }
 
@@ -715,8 +725,7 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 	ev->ev_flags &= ~queue;
 	switch (queue) {
 	case EVLIST_ACTIVE:
-		if (docount)
-			base->event_count_active--;
+		base->event_count_active--;
 		TAILQ_REMOVE(base->activequeues[ev->ev_pri],
 		    ev, ev_active_next);
 		break;
