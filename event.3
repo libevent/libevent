@@ -280,9 +280,17 @@ adds
 .Va EV_PERSIST .
 .Pp
 It is possible to disable support for
-.Va kqueue
+.Va epoll , kqueue , poll
+or
+.Va select
 by setting the environment variable
-.Va EVENT_NOKQUEUE .
+.Va EVENT_NOEPOLL , EVENT_NOKQUEUE , EVENT_NOPOLL
+or
+.Va EVENT_NOSELECT .
+By setting the environment variable
+.Va EVENT_SHOW_METHOD ,
+.Nm libevent
+displays the kernel notification method that it uses.
 .Pp
 .Sh RETURN VALUES
 Upon successful completion
