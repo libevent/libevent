@@ -278,7 +278,11 @@ devpoll_add(void *arg, struct event *ev)
 	dpev.fd = fd;
 	dpev.events = events;
 	dpev.revents = 0;
-	if (write(devpollop->dpfd, &dpev, sizeof(dpev)) == -1)
+	/*
+	 * Due to a bug in Solaris, we have to use pwrite with an offset of 0.
+	 * Write is limited to 2GB of data, until it will fail.
+	 */
+	if (pwrite(devpollop->dpfd, &dpev, sizeof(dpev), 0) == -1)
 			return (-1);
 
 	/* Update events responsible */
@@ -327,7 +331,7 @@ devpoll_del(void *arg, struct event *ev)
 	dpev.events = events | POLLREMOVE;
 	dpev.revents = 0;
 
-	if (write(devpollop->dpfd, &dpev, sizeof(dpev)) == -1)
+	if (pwrite(devpollop->dpfd, &dpev, sizeof(dpev), 0) == -1)
 		return (-1);
 
 	if (needreaddelete)
