@@ -122,7 +122,7 @@ int
 poll_dispatch(void *arg, struct timeval *tv)
 {
 	int res, i, count, sec, nfds;
-	struct event *ev, *next;
+	struct event *ev;
 	struct pollop *pop = arg;
 
 	count = pop->event_count;
@@ -192,8 +192,7 @@ poll_dispatch(void *arg, struct timeval *tv)
 	} else if (evsignal_caught)
 		evsignal_process();
 
-	LOG_DBG((LOG_MISC, 80, __FUNCTION__": poll reports %d",
-		 res));
+	LOG_DBG((LOG_MISC, 80, "%s: poll reports %d", __func__, res));
 
 	if (res == 0)
 		return (0);
@@ -239,8 +238,6 @@ int
 poll_del(void *arg, struct event *ev)
 {
 	struct pollop *pop = arg;
-
-	int signal;
 
 	if (!(ev->ev_events & EV_SIGNAL))
 		return (0);

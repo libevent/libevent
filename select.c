@@ -194,8 +194,7 @@ select_dispatch(void *arg, struct timeval *tv)
 	} else if (evsignal_caught)
 		evsignal_process();
 
-	LOG_DBG((LOG_MISC, 80, __FUNCTION__": select reports %d",
-		 res));
+	LOG_DBG((LOG_MISC, 80, "%s: select reports %d", __func__, res));
 
 	maxfd = 0;
 	for (ev = TAILQ_FIRST(&eventqueue); ev != NULL; ev = next) {

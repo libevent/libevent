@@ -47,12 +47,13 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <err.h>
 
 #ifdef USE_LOG
 #include "log.h"
 #else
 #define LOG_DBG(x)
-#define log_error(x)	perror(x)
+#define log_error	warn
 #endif
 
 #include "event.h"
@@ -142,7 +143,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 		newchange = realloc(kqop->changes,
 				    nevents * sizeof(struct kevent));
 		if (newchange == NULL) {
-			log_error(__FUNCTION__": malloc");
+			log_error("%s: malloc", __func__);
 			return (-1);
 		}
 		kqop->changes = newchange;
@@ -155,7 +156,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 		 * the next realloc will pick it up.
 		 */
 		if (newresult == NULL) {
-			log_error(__FUNCTION__": malloc");
+			log_error("%s: malloc", __func__);
 			return (-1);
 		}
 		kqop->events = newchange;
@@ -165,8 +166,8 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 
 	memcpy(&kqop->changes[kqop->nchanges++], kev, sizeof(struct kevent));
 
-	LOG_DBG((LOG_MISC, 70, __FUNCTION__": fd %d %s%s",
-		 kev->ident, 
+	LOG_DBG((LOG_MISC, 70, "%s: fd %d %s%s",
+		 __func__, kev->ident, 
 		 kev->filter == EVFILT_READ ? "EVFILT_READ" : "EVFILT_WRITE",
 		 kev->flags == EV_DELETE ? " (del)" : ""));
 
@@ -203,7 +204,7 @@ kq_dispatch(void *arg, struct timeval *tv)
 		return (0);
 	}
 
-	LOG_DBG((LOG_MISC, 80, __FUNCTION__": kevent reports %d", res));
+	LOG_DBG((LOG_MISC, 80, "%s: kevent reports %d", __func__, res));
 
 	for (i = 0; i < res; i++) {
 		int which = 0;
@@ -225,7 +226,7 @@ kq_dispatch(void *arg, struct timeval *tv)
 			return (-1);
 		}
 
-		ev = events[i].udata;
+		ev = (struct event *)events[i].udata;
 
 		if (events[i].filter == EVFILT_READ) {
 			which |= EV_READ;
@@ -250,7 +251,7 @@ kq_dispatch(void *arg, struct timeval *tv)
 		if (events[i].flags & EV_ERROR || events[i].filter == NULL)
 			continue;
 
-		ev = events[i].udata;
+		ev = (struct event *)events[i].udata;
 		if (ev->ev_events & EV_PERSIST)
 			continue;
 

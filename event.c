@@ -207,7 +207,7 @@ event_loop(int flags)
 			struct timeval off;
 			LOG_DBG((LOG_MIST, 10,
 				    "%s: time is running backwards, corrected",
-				    __FUNCTION__));
+				    __func__));
 
 			timersub(&event_tv, &tv, &off);
 			timeout_correct(&off);
@@ -464,7 +464,7 @@ void
 event_queue_remove(struct event *ev, int queue)
 {
 	if (!(ev->ev_flags & queue))
-		errx(1, "%s: %p(fd %d) not on queue %x", __FUNCTION__,
+		errx(1, "%s: %p(fd %d) not on queue %x", __func__,
 		    ev, ev->ev_fd, queue);
 
 	ev->ev_flags &= ~queue;
@@ -482,7 +482,7 @@ event_queue_remove(struct event *ev, int queue)
 		TAILQ_REMOVE(&eventqueue, ev, ev_next);
 		break;
 	default:
-		errx(1, "%s: unknown queue %x", __FUNCTION__, queue);
+		errx(1, "%s: unknown queue %x", __func__, queue);
 	}
 }
 
@@ -490,7 +490,7 @@ void
 event_queue_insert(struct event *ev, int queue)
 {
 	if (ev->ev_flags & queue)
-		errx(1, "%s: %p(fd %d) already on queue %x", __FUNCTION__,
+		errx(1, "%s: %p(fd %d) already on queue %x", __func__,
 		    ev, ev->ev_fd, queue);
 
 	ev->ev_flags |= queue;
@@ -508,6 +508,6 @@ event_queue_insert(struct event *ev, int queue)
 		TAILQ_INSERT_TAIL(&eventqueue, ev, ev_next);
 		break;
 	default:
-		errx(1, "%s: unknown queue %x", __FUNCTION__, queue);
+		errx(1, "%s: unknown queue %x", __func__, queue);
 	}
 }
