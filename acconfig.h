@@ -16,6 +16,15 @@
 /* Define if timeradd is defined in <sys/time.h> */
 #undef HAVE_TIMERADD
 #ifndef HAVE_TIMERADD
+#undef timerclear
+#undef timerisset
+#undef timercmp
+#define	timerclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
+#define	timerisset(tvp)		((tvp)->tv_sec || (tvp)->tv_usec)
+#define	timercmp(tvp, uvp, cmp)						\
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
+	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
+	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
 #define timeradd(tvp, uvp, vvp)						\
 	do {								\
 		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
