@@ -368,6 +368,47 @@ By setting the environment variable
 .Nm libevent
 displays the kernel notification method that it uses.
 .Pp
+.Sh BUFFERED EVENTS
+.Nm libevent
+provides an abstraction on top of the regular event callbacks.
+This abstraction is called a
+.Va "buffered event" .
+A buffered event provides input and output buffer that get filled
+and drained automatically.
+The user of a buffered event no longer deals directly with the IO,
+but instead is reading from input and writing to outbuf buffers.
+.Pp
+A new bufferevent is created by
+.Fn bufferevent_new .
+The parameter
+.Fa "fd"
+specifies the file descriptor from which data is read and written to.
+This file descriptor is not allowed to be a 
+.Xr pipe 2 .
+The next three parameters are callbacks.
+The read and write callback have the following form
+.Ft void
+.Fn "(*cb)" "struct bufferevent *bufev" "void *arg"
+The argument is specified by the fourth parameter
+.Fa "cbarg" .
+.Pp
+By default the buffered event is read enabled and will try to read
+from the file descriptor.
+The write callback is executed whenever the output buffer is drained
+below the write low watermark which is
+.Va 0
+by default.
+.Pp
+The
+.Fn bufferevent_write
+function can be used to write data to the file descriptor.
+The data is appended to the output buffer and written to the descriptor
+automatically as it becomes available for writing.
+The
+.Fn bufferevent_read
+function is used to read data from the input buffer.
+Both functions return the amount of data written or read.
+.Pp
 .Sh RETURN VALUES
 Upon successful completion
 .Fn event_add
