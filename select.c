@@ -69,7 +69,7 @@ struct selectop {
 	fd_set *event_readset;
 	fd_set *event_writeset;
 	sigset_t evsigmask;
-} sop;
+};
 
 void *select_init	(void);
 int select_add		(void *, struct event *);
@@ -89,15 +89,18 @@ const struct eventop selectops = {
 void *
 select_init(void)
 {
+	struct selectop *sop;
+
 	/* Disable kqueue when this environment variable is set */
 	if (getenv("EVENT_NOSELECT"))
 		return (NULL);
 
-	memset(&sop, 0, sizeof(sop));
+	if (!(sop = calloc(1, sizeof(struct selectop))))
+		return (NULL);
 
-	evsignal_init(&sop.evsigmask);
+	evsignal_init(&sop->evsigmask);
 
-	return (&sop);
+	return (sop);
 }
 
 /*

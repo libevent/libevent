@@ -65,7 +65,7 @@ struct pollop {
 	struct pollfd *event_set;
 	struct event **event_back;
 	sigset_t evsigmask;
-} pollop;
+};
 
 void *poll_init	(void);
 int poll_add		(void *, struct event *);
@@ -85,15 +85,18 @@ struct eventop pollops = {
 void *
 poll_init(void)
 {
+	struct pollop *pollop;
+
 	/* Disable kqueue when this environment variable is set */
 	if (getenv("EVENT_NOPOLL"))
 		return (NULL);
 
-	memset(&pollop, 0, sizeof(pollop));
+        if (!(pollop = calloc(1, sizeof(struct pollop))))
+		return (NULL);
 
-	evsignal_init(&pollop.evsigmask);
+	evsignal_init(&pollop->evsigmask);
 
-	return (&pollop);
+	return (pollop);
 }
 
 /*

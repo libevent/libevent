@@ -74,7 +74,7 @@ struct devpollop {
 	int nevents;
 	int dpfd;
 	sigset_t evsigmask;
-} devpollop;
+};
 
 void *devpoll_init	(void);
 int devpoll_add	(void *, struct event *);
@@ -98,42 +98,49 @@ devpoll_init(void)
 {
 	int dpfd, nfiles = NEVENT;
 	struct rlimit rl;
+	struct devpollop *devpollop;
 
-	/* Disable devpollueue when this environment variable is set */
+	/* Disable devpoll when this environment variable is set */
 	if (getenv("EVENT_NODEVPOLL"))
 		return (NULL);
 
-	memset(&devpollop, 0, sizeof(devpollop));
+	if (!(devpollop = calloc(1, sizeof(struct devpollop))))
+		return (NULL);
 
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
 	    rl.rlim_cur != RLIM_INFINITY)
 		nfiles = rl.rlim_cur;
 
-	/* Initalize the kernel queue */
-
+	/* Initialize the kernel queue */
 	if ((dpfd = open("/dev/poll", O_RDWR)) == -1) {
 		log_error("open: /dev/poll");
+		free(devpollop);
 		return (NULL);
 	}
 
-	devpollop.dpfd = dpfd;
+	devpollop->dpfd = dpfd;
 
-	/* Initalize fields */
-	devpollop.events = malloc(nfiles * sizeof(struct pollfd));
-	if (devpollop.events == NULL)
-		return (NULL);
-	devpollop.nevents = nfiles;
-
-	devpollop.fds = calloc(nfiles, sizeof(struct evdevpoll));
-	if (devpollop.fds == NULL) {
-		free(devpollop.events);
+	/* Initialize fields */
+	devpollop->events = calloc(nfiles, sizeof(struct pollfd));
+	if (devpollop->events == NULL) {
+		free(devpollop);
+		close(dpfd);
 		return (NULL);
 	}
-	devpollop.nfds = nfiles;
+	devpollop->nevents = nfiles;
 
-	evsignal_init(&devpollop.evsigmask);
+	devpollop->fds = calloc(nfiles, sizeof(struct evdevpoll));
+	if (devpollop->fds == NULL) {
+		free(devpollop->events);
+		free(devpollop);
+		close(dpfd);
+		return (NULL);
+	}
+	devpollop->nfds = nfiles;
 
-	return (&devpollop);
+	evsignal_init(&devpollop->evsigmask);
+
+	return (devpollop);
 }
 
 int
@@ -254,7 +261,7 @@ devpoll_add(void *arg, struct event *ev)
 
 	fd = ev->ev_fd;
 	if (fd >= devpollop->nfds) {
-		/* Extent the file descriptor array as necessary */
+		/* Extend the file descriptor array as necessary */
 		if (devpoll_recalc(ev->ev_base, devpollop, fd) == -1)
 			return (-1);
 	}
@@ -326,7 +333,8 @@ devpoll_del(void *arg, struct event *ev)
 	}
 
 	dpev.fd = fd;
-	dpev.events = events | POLLREMOVE;
+	/* dpev.events = events | POLLREMOVE; */
+	dpev.events = POLLREMOVE;
 	dpev.revents = 0;
 
 	if (pwrite(devpollop->dpfd, &dpev, sizeof(dpev), 0) == -1)

@@ -76,7 +76,7 @@ struct epollop {
 	int nevents;
 	int epfd;
 	sigset_t evsigmask;
-} epollop;
+};
 
 void *epoll_init	(void);
 int epoll_add	(void *, struct event *);
@@ -109,12 +109,11 @@ epoll_init(void)
 {
 	int epfd, nfiles = NEVENT;
 	struct rlimit rl;
+	struct epollop *epollop;
 
 	/* Disable epollueue when this environment variable is set */
 	if (getenv("EVENT_NOEPOLL"))
 		return (NULL);
-
-	memset(&epollop, 0, sizeof(epollop));
 
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
 	    rl.rlim_cur != RLIM_INFINITY)
@@ -129,24 +128,30 @@ epoll_init(void)
 
 	FD_CLOSEONEXEC(epfd);
 
-	epollop.epfd = epfd;
+	if (!(epollop = calloc(1, sizeof(struct epollop))))
+		return (NULL);
+
+	epollop->epfd = epfd;
 
 	/* Initalize fields */
-	epollop.events = malloc(nfiles * sizeof(struct epoll_event));
-	if (epollop.events == NULL)
-		return (NULL);
-	epollop.nevents = nfiles;
-
-	epollop.fds = calloc(nfiles, sizeof(struct evepoll));
-	if (epollop.fds == NULL) {
-		free(epollop.events);
+	epollop->events = malloc(nfiles * sizeof(struct epoll_event));
+	if (epollop->events == NULL) {
+		free(epollop);
 		return (NULL);
 	}
-	epollop.nfds = nfiles;
+	epollop->nevents = nfiles;
 
-	evsignal_init(&epollop.evsigmask);
+	epollop->fds = calloc(nfiles, sizeof(struct evepoll));
+	if (epollop->fds == NULL) {
+		free(epollop->events);
+		free(epollop);
+		return (NULL);
+	}
+	epollop->nfds = nfiles;
 
-	return (&epollop);
+	evsignal_init(&epollop->evsigmask);
+
+	return (epollop);
 }
 
 int

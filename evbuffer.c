@@ -150,7 +150,9 @@ bufferevent_writecb(int fd, short event, void *arg)
 	if (EVBUFFER_LENGTH(bufev->output)) {
 	    res = evbuffer_write(bufev->output, fd);
 	    if (res == -1) {
-		    if (errno == EAGAIN || errno == EINTR)
+		    if (errno == EAGAIN ||
+			errno == EINTR ||
+			errno == EINPROGRESS)
 			    goto reschedule;
 		    /* error case */
 		    what |= EVBUFFER_ERROR;

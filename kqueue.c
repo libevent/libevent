@@ -74,7 +74,7 @@ struct kqop {
 	struct kevent *events;
 	int nevents;
 	int kq;
-} kqueueop;
+};
 
 void *kq_init	(void);
 int kq_add	(void *, struct event *);
@@ -96,34 +96,40 @@ void *
 kq_init(void)
 {
 	int kq;
+	struct kqop *kqueueop;
 
 	/* Disable kqueue when this environment variable is set */
 	if (getenv("EVENT_NOKQUEUE"))
 		return (NULL);
 
-	memset(&kqueueop, 0, sizeof(kqueueop));
+	if (!(kqueueop = calloc(1, sizeof(struct kqop))))
+		return (NULL);
 
 	/* Initalize the kernel queue */
 	
 	if ((kq = kqueue()) == -1) {
 		log_error("kqueue");
+		free (kqueueop);
 		return (NULL);
 	}
 
-	kqueueop.kq = kq;
+	kqueueop->kq = kq;
 
 	/* Initalize fields */
-	kqueueop.changes = malloc(NEVENT * sizeof(struct kevent));
-	if (kqueueop.changes == NULL)
-		return (NULL);
-	kqueueop.events = malloc(NEVENT * sizeof(struct kevent));
-	if (kqueueop.events == NULL) {
-		free (kqueueop.changes);
+	kqueueop->changes = malloc(NEVENT * sizeof(struct kevent));
+	if (kqueueop->changes == NULL) {
+		free (kqueueop);
 		return (NULL);
 	}
-	kqueueop.nevents = NEVENT;
+	kqueueop->events = malloc(NEVENT * sizeof(struct kevent));
+	if (kqueueop->events == NULL) {
+		free (kqueueop);
+		free (kqueueop->changes);
+		return (NULL);
+	}
+	kqueueop->nevents = NEVENT;
 
-	return (&kqueueop);
+	return (kqueueop);
 }
 
 int

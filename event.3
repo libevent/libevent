@@ -269,6 +269,20 @@ and
 .Fn event_del
 and does not need to be reinitialized unless the function called and/or
 the argument to it are to be changed.
+However, when an 
+.Fa ev
+structure has been added to libevent using 
+.Fn event_add
+the structure must persist until the event occurs (assuming 
+.Fa EV_PERSIST 
+is not set) or is removed 
+using 
+.Fn event_del .  
+You may not reuse the same
+.Fa ev 
+structure for multiple monitored descriptors; each descriptor 
+needs its own
+.Fa ev .
 .Pp
 The function
 .Fn event_add
@@ -409,6 +423,12 @@ This event base can be used in conjunction with calls to
 .Fn event_base_set
 and
 .Fn event_base_dispatch .
+.Fn event_base_set 
+should be called after preparing an event with
+.Fn event_set , 
+as
+.Fn event_set 
+assigns the provided event to the most recently created event base.
 .Pp
 .Sh BUFFERED EVENTS
 .Nm libevent
