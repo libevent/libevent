@@ -5,13 +5,17 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifndef WIN32
 #include <sys/queue.h>
+#include <unistd.h>
+#else
+#include <time.h>
+#endif
 #include <sys/time.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 
 #include <event.h>
@@ -25,7 +29,7 @@ timeout_cb(int fd, short event, void *arg)
 	struct event *timeout = arg;
 	int newtime = time(NULL);
 
-	printf("%s: called at %d: %d\n", __FUNCTION__, newtime,
+	printf("%s: called at %d: %d\n", __func__, newtime,
 	    newtime - lasttime);
 	lasttime = newtime;
 

@@ -5,14 +5,18 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifndef WIN32
 #include <sys/queue.h>
+#include <unistd.h>
 #include <sys/time.h>
+#else
+#include <windows.h>
+#endif
 #include <signal.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 
 #include <event.h>
@@ -24,11 +28,11 @@ signal_cb(int fd, short event, void *arg)
 {
 	struct event *signal = arg;
 
-	printf("%s: got signal %d\n", __FUNCTION__, EVENT_SIGNAL(signal));
+	printf("%s: got signal %d\n", __func__, EVENT_SIGNAL(signal));
 
 	if (called >= 2)
 		event_del(signal);
-
+	
 	called++;
 }
 
