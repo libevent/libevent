@@ -36,6 +36,7 @@ extern "C" {
 
 #define EVLIST_TIMEOUT	0x01
 #define EVLIST_INSERTED	0x02
+#define EVLIST_SIGNAL	0x04
 #define EVLIST_ACTIVE	0x08
 #define EVLIST_INIT	0x80
 
@@ -45,6 +46,7 @@ extern "C" {
 #define EV_TIMEOUT	0x01
 #define EV_READ		0x02
 #define EV_WRITE	0x04
+#define EV_SIGNAL	0x08
 
 /* Fix so that ppl dont have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
@@ -69,6 +71,7 @@ struct {								\
 struct event {
 	TAILQ_ENTRY (event) ev_next;
 	TAILQ_ENTRY (event) ev_active_next;
+	TAILQ_ENTRY (event) ev_signal_next;
 	RB_ENTRY (event) ev_timeout_node;
 
 	int ev_fd;
@@ -82,6 +85,9 @@ struct event {
 	int ev_res;		/* result passed to event callback */
 	int ev_flags;
 };
+
+#define EVENT_SIGNAL(ev)	ev->ev_fd
+#define EVENT_FD(ev)		ev->ev_fd
 
 #ifdef _EVENT_DEFINED_TQENTRY
 #undef TAILQ_ENTRY
@@ -103,7 +109,7 @@ struct eventop {
 	int (*dispatch)(void *, struct timeval *);
 };
 
-#define TIMEOUT_DEFAULT	5
+#define TIMEOUT_DEFAULT	{0, 250000L}
 
 void event_init(void);
 int event_dispatch(void);

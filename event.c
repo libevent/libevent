@@ -81,6 +81,7 @@ void	event_queue_remove(struct event *, int);
 
 static RB_HEAD(event_tree, event) timetree;
 static struct event_list activequeue;
+struct event_list signalqueue;
 struct event_list eventqueue;
 static struct timeval event_tv;
 
@@ -111,6 +112,7 @@ event_init(void)
 	RB_INIT(&timetree);
 	TAILQ_INIT(&eventqueue);
 	TAILQ_INIT(&activequeue);
+	TAILQ_INIT(&signalqueue);
 	
 	evbase = NULL;
 	for (i = 0; eventops[i] && !evbase; i++) {
@@ -129,7 +131,7 @@ int
 event_haveevents(void)
 {
 	return (RB_ROOT(&timetree) || TAILQ_FIRST(&eventqueue) ||
-	    TAILQ_FIRST(&activequeue));
+	    TAILQ_FIRST(&signalqueue) || TAILQ_FIRST(&activequeue));
 }
 
 void
@@ -286,6 +288,11 @@ event_add(struct event *ev, struct timeval *tv)
 		event_queue_insert(ev, EVLIST_INSERTED);
 
 		return (evsel->add(evbase, ev));
+	} else if ((ev->ev_events & EV_SIGNAL) &&
+	    !(ev->ev_flags & EVLIST_SIGNAL)) {
+		event_queue_insert(ev, EVLIST_SIGNAL);
+
+		return (evsel->add(evbase, ev));
 	}
 
 	return (0);
@@ -308,6 +315,9 @@ event_del(struct event *ev)
 	if (ev->ev_flags & EVLIST_INSERTED) {
 		event_queue_remove(ev, EVLIST_INSERTED);
 		return (evsel->del(evbase, ev));
+	} else if (ev->ev_flags & EVLIST_SIGNAL) {
+		event_queue_remove(ev, EVLIST_SIGNAL);
+		return (evsel->del(evbase, ev));
 	}
 
 	return (0);
@@ -323,12 +333,13 @@ event_active(struct event *ev, int res)
 int
 timeout_next(struct timeval *tv)
 {
+	struct timeval dflt = TIMEOUT_DEFAULT;
+
 	struct timeval now;
 	struct event *ev;
 
 	if ((ev = RB_MIN(event_tree, &timetree)) == NULL) {
-		timerclear(tv);
-		tv->tv_sec = TIMEOUT_DEFAULT;
+		*tv = dflt;
 		return (0);
 	}
 
@@ -419,6 +430,9 @@ event_queue_remove(struct event *ev, int queue)
 	case EVLIST_ACTIVE:
 		TAILQ_REMOVE(&activequeue, ev, ev_active_next);
 		break;
+	case EVLIST_SIGNAL:
+		TAILQ_REMOVE(&signalqueue, ev, ev_signal_next);
+		break;
 	case EVLIST_TIMEOUT:
 		RB_REMOVE(event_tree, &timetree, ev);
 		break;
@@ -441,6 +455,9 @@ event_queue_insert(struct event *ev, int queue)
 	switch (queue) {
 	case EVLIST_ACTIVE:
 		TAILQ_INSERT_TAIL(&activequeue, ev, ev_active_next);
+		break;
+	case EVLIST_SIGNAL:
+		TAILQ_INSERT_TAIL(&signalqueue, ev, ev_signal_next);
 		break;
 	case EVLIST_TIMEOUT:
 		timeout_insert(ev);
