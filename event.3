@@ -376,7 +376,7 @@ This abstraction is called a
 A buffered event provides input and output buffer that get filled
 and drained automatically.
 The user of a buffered event no longer deals directly with the IO,
-but instead is reading from input and writing to outbuf buffers.
+but instead is reading from input and writing to output buffers.
 .Pp
 A new bufferevent is created by
 .Fn bufferevent_new .
@@ -435,3 +435,10 @@ Support for real-time signals is due to Taral.
 The
 .Nm event
 library was written by Niels Provos.
+.Pp
+.Sh BUGS
+This documentation is neither complete nor authorative.
+If you are in doubt about the usage of this API then
+check the source code to find out how it works, write
+up the missing piece of documentation and send it to
+me for inclusion in this man page.
