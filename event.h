@@ -173,6 +173,9 @@ struct evbuffer {
 
 	size_t totallen;
 	size_t off;
+
+	void (*cb)(struct evbuffer *, size_t, size_t, void *);
+	void *cbarg;
 };
 
 /* Just for error reporting - use other constants otherwise */
@@ -186,12 +189,20 @@ struct bufferevent;
 typedef void (*evbuffercb)(struct bufferevent *, void *);
 typedef void (*everrorcb)(struct bufferevent *, short what, void *);
 
+struct event_watermark {
+	size_t low;
+	size_t high;
+};
+
 struct bufferevent {
 	struct event ev_read;
 	struct event ev_write;
 
 	struct evbuffer *input;
 	struct evbuffer *output;
+
+	struct event_watermark wm_read;
+	struct event_watermark wm_write;
 
 	evbuffercb readcb;
 	evbuffercb writecb;
@@ -222,7 +233,6 @@ void bufferevent_settimeout(struct bufferevent *bufev,
 
 struct evbuffer *evbuffer_new(void);
 void evbuffer_free(struct evbuffer *);
-void evbuffer_free(struct evbuffer *);
 int evbuffer_add(struct evbuffer *, u_char *, size_t);
 int evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
 int evbuffer_add_printf(struct evbuffer *, char *fmt, ...);
@@ -230,6 +240,7 @@ void evbuffer_drain(struct evbuffer *, size_t);
 int evbuffer_write(struct evbuffer *, int);
 int evbuffer_read(struct evbuffer *, int, int);
 u_char *evbuffer_find(struct evbuffer *, u_char *, size_t);
+void evbuffer_setcb(struct evbuffer *, void (*)(struct evbuffer *, size_t, size_t, void *), void *);
 
 #ifdef __cplusplus
 }

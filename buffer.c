@@ -88,6 +88,7 @@ int
 evbuffer_add(struct evbuffer *buf, u_char *data, size_t datlen)
 {
 	size_t need = buf->off + datlen;
+	size_t oldoff = buf->off;
 
 	if (buf->totallen < need) {
 		void *newbuf;
@@ -108,19 +109,30 @@ evbuffer_add(struct evbuffer *buf, u_char *data, size_t datlen)
 	memcpy(buf->buffer + buf->off, data, datlen);
 	buf->off += datlen;
 
+	if (datlen && buf->cb != NULL)
+		(*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
+
 	return (0);
 }
 
 void
 evbuffer_drain(struct evbuffer *buf, size_t len)
 {
+	size_t oldoff = buf->off;
+
 	if (len >= buf->off) {
 		buf->off = 0;
-		return;
+		goto done;
 	}
 
 	memmove(buf->buffer, buf->buffer + len, buf->off - len);
 	buf->off -= len;
+
+ done:
+	/* Tell someone about changes in this buffer */
+	if (buf->off != oldoff && buf->cb != NULL)
+		(*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
+
 }
 
 int
@@ -175,4 +187,12 @@ evbuffer_find(struct evbuffer *buffer, u_char *what, size_t len)
 	}
 
 	return (NULL);
+}
+
+void evbuffer_setcb(struct evbuffer *buffer,
+    void (*cb)(struct evbuffer *, size_t, size_t, void *),
+    void *cbarg)
+{
+	buffer->cb = cb;
+	buffer->cbarg = cbarg;
 }

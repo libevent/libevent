@@ -41,12 +41,34 @@ bufferevent_add(struct event *ev, int timeout)
 	return (event_add(ev, ptv));
 }
 
+/* 
+ * This callback is executed when the size of the input buffer changes.
+ * We use it to apply back pressure on the reading side.
+ */
+
+void
+bufferevent_read_pressure_cb(struct evbuffer *buf, size_t old, size_t now,
+    void *arg) {
+	struct bufferevent *bufev = arg;
+	/* 
+	 * If we are below the watermak then reschedule reading if it's
+	 * still enabled.
+	 */
+	if (bufev->wm_read.high == 0 || now < bufev->wm_read.high) {
+		evbuffer_setcb(buf, NULL, NULL);
+
+		if (bufev->enabled & EV_READ)
+			bufferevent_add(&bufev->ev_read, bufev->timeout_read);
+	}
+}
+
 static void
 bufferevent_readcb(int fd, short event, void *arg)
 {
 	struct bufferevent *bufev = arg;
 	int res = 0;
 	short what = EVBUFFER_READ;
+	size_t len;
 
 	if (event == EV_TIMEOUT) {
 		what |= EVBUFFER_TIMEOUT;
@@ -68,6 +90,19 @@ bufferevent_readcb(int fd, short event, void *arg)
 		goto error;
 
 	bufferevent_add(&bufev->ev_read, bufev->timeout_read);
+
+	/* See if this callbacks meets the water marks */
+	len = EVBUFFER_LENGTH(bufev->input);
+	if (bufev->wm_read.low != 0 && len < bufev->wm_read.low)
+		return;
+	if (bufev->wm_read.high != 0 && len > bufev->wm_read.high) {
+		struct evbuffer *buf = bufev->input;
+		event_del(&bufev->ev_read);
+
+		/* Now schedule a callback for us */
+		evbuffer_setcb(buf, bufferevent_read_pressure_cb, bufev);
+		return;
+	}
 
 	/* Invoke the user callback - must always be called last */
 	(*bufev->readcb)(bufev, bufev->cbarg);
@@ -111,8 +146,11 @@ bufferevent_writecb(int fd, short event, void *arg)
 	if (EVBUFFER_LENGTH(bufev->output) != 0)
 		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
 
-	/* Invoke the user callback if our buffer is drained */
-	if (EVBUFFER_LENGTH(bufev->output) == 0)
+	/*
+	 * Invoke the user callback if our buffer is drained or below the
+	 * low watermark.
+	 */
+	if (EVBUFFER_LENGTH(bufev->output) <= bufev->wm_write.low)
 		(*bufev->writecb)(bufev, bufev->cbarg);
 
 	return;
@@ -272,4 +310,27 @@ bufferevent_settimeout(struct bufferevent *bufev,
     int timeout_read, int timeout_write) {
 	bufev->timeout_read = timeout_read;
 	bufev->timeout_write = timeout_write;
+}
+
+/*
+ * Sets the water marks
+ */
+
+void
+bufferevent_setwatermark(struct bufferevent *bufev, short events,
+    size_t lowmark, size_t highmark)
+{
+	if (events & EV_READ) {
+		bufev->wm_read.low = lowmark;
+		bufev->wm_read.high = highmark;
+	}
+
+	if (events & EV_WRITE) {
+		bufev->wm_write.low = lowmark;
+		bufev->wm_write.high = highmark;
+	}
+
+	/* If the watermarks changed then see if we should call read again */
+	bufferevent_read_pressure_cb(bufev->input,
+	    0, EVBUFFER_LENGTH(bufev->input), bufev);
 }

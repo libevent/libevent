@@ -327,6 +327,10 @@ event_once(int fd, short events,
 	struct event_once *eonce;
 	struct timeval etv;
 
+	/* We cannot support signals that just fire once */
+	if (events & EV_SIGNAL)
+		return (-1);
+
 	if ((eonce = calloc(1, sizeof(struct event_once))) == NULL)
 		return (-1);
 
@@ -387,8 +391,10 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 		flags |= ev->ev_res;
 	if (ev->ev_flags & EVLIST_TIMEOUT)
 		flags |= EV_TIMEOUT;
+	if (ev->ev_flags & EVLIST_SIGNAL)
+		flags |= EV_SIGNAL;
 
-	event &= (EV_TIMEOUT|EV_READ|EV_WRITE);
+	event &= (EV_TIMEOUT|EV_READ|EV_WRITE|EV_SIGNAL);
 
 	/* See if there is a timeout that we should report */
 	if (tv != NULL && (flags & event & EV_TIMEOUT))
