@@ -56,7 +56,7 @@
 #define log_error	warn
 #endif
 
-#if defined(HAVE_INTTYPES_H) && !defined(__OpenBSD__)
+#if defined(HAVE_INTTYPES_H) && !defined(__OpenBSD__) && !defined(__FreeBSD__)
 #define INTPTR(x)	(intptr_t)x
 #else
 #define INTPTR(x)	x

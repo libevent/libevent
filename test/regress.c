@@ -535,9 +535,9 @@ main (int argc, char **argv)
 	WORD wVersionRequested;
 	WSADATA wsaData;
 	int	err;
- 
+
 	wVersionRequested = MAKEWORD( 2, 2 );
- 
+
 	err = WSAStartup( wVersionRequested, &wsaData );
 #endif
 
