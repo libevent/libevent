@@ -53,10 +53,10 @@ AC_HEADER_TIME
 dnl Checks for library functions.
 AC_CHECK_FUNCS(gettimeofday)
 
-AC_SUBST(EVSRCS)
+AC_SUBST(LIBOBJS)
 AC_CHECK_FUNCS(select, [haveselect=yes], )
 if test "x$haveselect" = "xyes" ; then
-	EVSRCS="select.c"
+	LIBOBJS="$LIBOBJS select.o"
 fi
 
 havekqueue=no
@@ -111,8 +111,8 @@ main(int argc, char **argv)
 	exit(0);
 }, [AC_MSG_RESULT(yes)
     AC_DEFINE(HAVE_WORKING_KQUEUE)
-    EVSRCS="$EVSRCS kqueue.c"], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+    LIBOBJS="$LIBOBJS kqueue.o"], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
 	fi
 fi
 
-AC_OUTPUT(Makefile test/Makefile)
+AC_OUTPUT(Makefile test/Makefile sample/Makefile)
