@@ -24,9 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -456,12 +454,7 @@ event_set(struct event *ev, int fd, short events,
 
 	ev->ev_callback = callback;
 	ev->ev_arg = arg;
-#ifdef WIN32
-	ev->ev_fd = (HANDLE)fd;
-	ev->overlap.hEvent = ev;
-#else
 	ev->ev_fd = fd;
-#endif
 	ev->ev_events = events;
 	ev->ev_flags = EVLIST_INIT;
 	ev->ev_ncalls = 0;

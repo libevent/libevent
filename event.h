@@ -32,7 +32,10 @@ extern "C" {
 #endif
 
 #ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
+typedef unsigned char u_char;
 #endif
 
 #define EVLIST_TIMEOUT	0x01
@@ -79,12 +82,7 @@ struct event {
 	RB_ENTRY (event) ev_timeout_node;
 
 	struct event_base *ev_base;
-#ifdef WIN32
-	HANDLE ev_fd;
-	OVERLAPPED overlap;
-#else
 	int ev_fd;
-#endif
 	short ev_events;
 	short ev_ncalls;
 	short *ev_pncalls;	/* Allows deletes in callback */

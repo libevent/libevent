@@ -27,6 +27,8 @@
  */
 #include "config.h"
 
+#include <winsock2.h>
+
 #include <windows.h>
 #include <sys/types.h>
 #include <sys/queue.h>
@@ -36,37 +38,49 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <err.h>
+#include <assert.h>
 
-#ifdef USE_LOG
 #include "log.h"
-#else
-#define LOG_DBG(x)
-#define log_error(x)	perror(x)
-#endif
-
 #include "event.h"
 #include "event-internal.h"
 
-extern struct event_base *current_base;
+#define XFREE(ptr) do { if (ptr) free(ptr); } while(0)
+
+extern struct event_list timequeue;
+extern struct event_list addqueue;
 extern struct event_list signalqueue;
 
-#define NEVENT		64
+struct win_fd_set {
+	u_int fd_count;
+	SOCKET fd_array[1];
+};
 
 int evsigcaught[NSIG];
 volatile sig_atomic_t signal_caught = 0;
 /* MSDN says this is required to handle SIGFPE */
-volatile double SIGFPE_REQ = 0.0f; 
+volatile double SIGFPE_REQ = 0.0f;
 
 int signal_handler(int sig);
 void signal_process(void);
 int signal_recalc(void);
 
+struct win32op {
+	int fd_setsz;
+	struct win_fd_set *readset_in;
+	struct win_fd_set *writeset_in;
+	struct win_fd_set *readset_out;
+	struct win_fd_set *writeset_out;
+	struct win_fd_set *exset_out;
+	int n_events;
+	int n_events_alloc;
+	struct event **events;
+};
+
 void *win32_init	(void);
 int win32_insert	(void *, struct event *);
 int win32_del	(void *, struct event *);
-int win32_recalc	(void *, int);
-int win32_dispatch	(void *, struct timeval *);
+int win32_recalc	(struct event_base *base, void *, int);
+int win32_dispatch	(struct event_base *base, void *, struct timeval *);
 
 struct eventop win32ops = {
 	"win32",
@@ -77,67 +91,270 @@ struct eventop win32ops = {
 	win32_dispatch
 };
 
-static int timeval_to_ms(struct timeval *tv)
+#define FD_SET_ALLOC_SIZE(n) ((sizeof(struct win_fd_set) + ((n)-1)*sizeof(SOCKET)))
+
+static int
+realloc_fd_sets(struct win32op *op, size_t new_size)
+{
+	size_t size;
+
+	assert(new_size >= op->readset_in->fd_count &&
+	       new_size >= op->writeset_in->fd_count);
+	assert(new_size >= 1);
+
+	size = FD_SET_ALLOC_SIZE(new_size);
+	if (!(op->readset_in = realloc(op->readset_in, size)))
+		return (-1);
+	if (!(op->writeset_in = realloc(op->writeset_in, size)))
+		return (-1);
+	if (!(op->readset_out = realloc(op->readset_out, size)))
+		return (-1);
+	if (!(op->exset_out = realloc(op->exset_out, size)))
+		return (-1);
+	if (!(op->writeset_out = realloc(op->writeset_out, size)))
+		return (-1);
+	op->fd_setsz = new_size;
+	return (0);
+}
+
+static int
+timeval_to_ms(struct timeval *tv)
 {
 	return ((tv->tv_sec * 1000) + (tv->tv_usec / 1000));
 }
 
+static int
+do_fd_set(struct win32op *op, SOCKET s, int read)
+{
+	unsigned int i;
+	struct win_fd_set *set = read ? op->readset_in : op->writeset_in;
+	for (i=0;i<set->fd_count;++i) {
+		if (set->fd_array[i]==s)
+			return (0);
+	}
+	if (set->fd_count == op->fd_setsz) {
+		if (realloc_fd_sets(op, op->fd_setsz*2))
+			return (-1);
+	}
+	set->fd_array[set->fd_count] = s;
+	return (set->fd_count++);
+}
+
+static int
+do_fd_clear(struct win32op *op, SOCKET s, int read)
+{
+	unsigned int i;
+	struct win_fd_set *set = read ? op->readset_in : op->writeset_in;
+	for (i=0;i<set->fd_count;++i) {
+		if (set->fd_array[i]==s) {
+			if (--set->fd_count != i) {
+				set->fd_array[i] = set->fd_array[set->fd_count];
+			}
+			return (0);
+		}
+	}
+	return (0);
+}
+
+#define NEVENT 64
 void *
 win32_init(void)
 {
-	return (&win32ops);
+	struct win32op *winop;
+	size_t size;
+	if (!(winop = calloc(1, sizeof(struct win32op))))
+		return NULL;
+	winop->fd_setsz = NEVENT;
+	size = FD_SET_ALLOC_SIZE(NEVENT);
+	if (!(winop->readset_in = malloc(size)))
+		goto err;
+	if (!(winop->writeset_in = malloc(size)))
+		goto err;
+	if (!(winop->readset_out = malloc(size)))
+		goto err;
+	if (!(winop->writeset_out = malloc(size)))
+		goto err;
+	if (!(winop->exset_out = malloc(size)))
+		goto err;
+	winop->n_events = 0;
+	winop->n_events_alloc = NEVENT;
+	if (!(winop->events = malloc(NEVENT*sizeof(struct event*))))
+		goto err;
+	winop->readset_in->fd_count = winop->writeset_in->fd_count = 0;
+	winop->readset_out->fd_count = winop->writeset_out->fd_count
+		= winop->exset_out->fd_count = 0;
+
+	return (winop);
+ err:
+        XFREE(winop->readset_in);
+        XFREE(winop->writeset_in);
+        XFREE(winop->readset_out);
+        XFREE(winop->writeset_out);
+        XFREE(winop->exset_out);
+        XFREE(winop->events);
+        XFREE(winop);
+        return (NULL);
 }
 
 int
-win32_recalc(void *arg, int max)
+win32_recalc(struct event_base *base, void *arg, int max)
 {
 	return (signal_recalc());
 }
 
 int
-win32_insert(struct win32op *wop, struct event *ev)
+win32_insert(struct win32op *win32op, struct event *ev)
 {
+	int i;
+
 	if (ev->ev_events & EV_SIGNAL) {
 		if (ev->ev_events & (EV_READ|EV_WRITE))
-			errx(1, "%s: EV_SIGNAL incompatible use",
-			    __func__);
+			event_errx(1, "%s: EV_SIGNAL incompatible use",
+			           __func__);
 		if((int)signal(EVENT_SIGNAL(ev), signal_handler) == -1)
 			return (-1);
 
 		return (0);
 	}
+	if (!(ev->ev_events & (EV_READ|EV_WRITE)))
+		return (0);
+
+	for (i=0;i<win32op->n_events;++i) {
+		if(win32op->events[i] == ev) {
+			event_debug(("%s: Event for %d already inserted.",
+				     __func__, (int)ev->ev_fd));
+			return (0);
+		}
+	}
+	event_debug(("%s: adding event for %d", __func__, (int)ev->ev_fd));
+	if (ev->ev_events & EV_READ) {
+		if (do_fd_set(win32op, ev->ev_fd, 1)<0)
+			return (-1);
+	}
+	if (ev->ev_events & EV_WRITE) {
+		if (do_fd_set(win32op, ev->ev_fd, 0)<0)
+			return (-1);
+	}
+
+	if (win32op->n_events_alloc == win32op->n_events) {
+		size_t sz;
+		win32op->n_events_alloc *= 2;
+		sz = sizeof(struct event*)*win32op->n_events_alloc;
+		if (!(win32op->events = realloc(win32op->events, sz)))
+			return (-1);
+	}
+	win32op->events[win32op->n_events++] = ev;
 
 	return (0);
 }
 
 int
-win32_dispatch(void *arg, struct timeval *tv)
+win32_del(struct win32op *win32op, struct event *ev)
+{
+	int i, found;
+
+	if (ev->ev_events & EV_SIGNAL)
+		return ((int)signal(EVENT_SIGNAL(ev), SIG_IGN));
+
+	found = -1;
+	for (i=0;i<win32op->n_events;++i) {
+		if(win32op->events[i] == ev) {
+			found = i;
+			break;
+		}
+	}
+	if (found < 0) {
+		event_debug(("%s: Unable to remove non-inserted event for %d",
+			     __func__, ev->ev_fd));
+		return (-1);
+	}
+	event_debug(("%s: Removing event for %d", __func__, ev->ev_fd));
+	if (ev->ev_events & EV_READ)
+		do_fd_clear(win32op, ev->ev_fd, 1);
+	if (ev->ev_events & EV_WRITE)
+		do_fd_clear(win32op, ev->ev_fd, 0);
+
+	if (i != --win32op->n_events) {
+		win32op->events[i] = win32op->events[win32op->n_events];
+	}
+
+	return 0;
+}
+
+static void
+fd_set_copy(struct win_fd_set *out, const struct win_fd_set *in)
+{
+	out->fd_count = in->fd_count;
+	memcpy(out->fd_array, in->fd_array, in->fd_count * (sizeof(SOCKET)));
+}
+
+/*
+  static void dump_fd_set(struct win_fd_set *s)
+  {
+  unsigned int i;
+  printf("[ ");
+  for(i=0;i<s->fd_count;++i)
+  printf("%d ",(int)s->fd_array[i]);
+  printf("]\n");
+  }
+*/
+
+int
+win32_dispatch(struct event_base *base, struct win32op *win32op,
+	       struct timeval *tv)
 {
 	int res = 0;
-	struct win32op *wop = arg;
-	struct event *ev;
-	int evres;
+	int i;
+	int fd_count;
 
-	TAILQ_FOREACH(ev, &current_base->eventqueue, ev_next) {
-		res = WaitForSingleObject(ev->ev_fd, timeval_to_ms(tv));
+	fd_set_copy(win32op->readset_out, win32op->readset_in);
+	fd_set_copy(win32op->exset_out, win32op->readset_in);
+	fd_set_copy(win32op->writeset_out, win32op->writeset_in);
 
-		if(res == WAIT_TIMEOUT || res == WAIT_FAILED) {
-			signal_process();
-			return (0);
-		} else if (signal_caught)
-			signal_process();
+	fd_count =
+           (win32op->readset_out->fd_count > win32op->writeset_out->fd_count) ?
+	    win32op->readset_out->fd_count : win32op->writeset_out->fd_count;
 
-		evres = 0;
-		if(ev->ev_events & EV_READ)
-			evres |= EV_READ;
+	if (!fd_count) {
+		/* Windows doesn't like you to call select() with no sockets */
+		Sleep(timeval_to_ms(tv));
+		signal_process();
+		return (0);
+	}
 
-		if(ev->ev_events & EV_WRITE)
-			evres |= EV_WRITE;
-		if(evres) {
-			if(!(ev->ev_events & EV_PERSIST))
-				event_del(ev);
-			event_active(ev, evres, 1);
+	res = select(fd_count,
+		     (struct fd_set*)win32op->readset_out,
+		     (struct fd_set*)win32op->writeset_out,
+		     (struct fd_set*)win32op->exset_out, tv);
+
+	event_debug(("%s: select returned %d", __func__, res));
+
+	if(res <= 0) {
+		signal_process();
+		return res;
+	}
+
+	for (i=0;i<win32op->n_events;++i) {
+		struct event *ev;
+		int got = 0;
+		ev = win32op->events[i];
+		if ((ev->ev_events & EV_READ)) {
+			if (FD_ISSET(ev->ev_fd, win32op->readset_out) ||
+			    FD_ISSET(ev->ev_fd, win32op->exset_out)) {
+				got |= EV_READ;
+			}
 		}
+		if ((ev->ev_events & EV_WRITE)) {
+			if (FD_ISSET(ev->ev_fd, win32op->writeset_out)) {
+				got |= EV_WRITE;
+			}
+		}
+		if (!got)
+			continue;
+		if (!(ev->ev_events & EV_PERSIST)) {
+			event_del(ev);
+		}
+		event_active(ev,got,1);
 	}
 
 	if (signal_recalc() == -1)
@@ -146,13 +363,9 @@ win32_dispatch(void *arg, struct timeval *tv)
 	return (0);
 }
 
-int
-win32_del(struct win32op *arg, struct event *ev)
-{
-	return ((int)signal(EVENT_SIGNAL(ev), SIG_IGN));
-}
 
-static int signal_handler(int sig)
+static int
+signal_handler(int sig)
 {
 	evsigcaught[sig]++;
 	signal_caught = 1;
