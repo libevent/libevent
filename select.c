@@ -175,7 +175,8 @@ select_dispatch(void *arg, struct timeval *tv)
 			log_error("select");
 			return (-1);
 		}
-		
+
+		signal_process();
 		return (0);
 	}
 
@@ -202,8 +203,6 @@ select_dispatch(void *arg, struct timeval *tv)
 	}
 
 	sop->event_fds = maxfd;
-
-	signal_process();
 
 	return (0);
 }
