@@ -21,7 +21,7 @@ EXTRA_DIST = acconfig.h err.c event.h evsignal.h event.3 kqueue.c \
 
 lib_LIBRARIES = libevent.a
 
-libevent_a_SOURCES = event.c buffer.c
+libevent_a_SOURCES = event.c buffer.c evbuffer.c
 libevent_a_LIBADD = @LIBOBJS@
 
 include_HEADERS = event.h

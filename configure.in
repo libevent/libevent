@@ -61,7 +61,7 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_TIME
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(gettimeofday)
+AC_CHECK_FUNCS(gettimeofday vasprintf)
 
 needsignal=no
 haveselect=no

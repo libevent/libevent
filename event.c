@@ -238,7 +238,7 @@ event_loop(int flags)
 		/* Terminate the loop if we have been asked to */
 		if (event_gotterm) {
 			event_gotterm = 0;
-			done = 1;
+			break;
 		}
 
 		while (event_gotsig) {

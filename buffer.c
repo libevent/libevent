@@ -25,22 +25,14 @@
 #endif
 #include <unistd.h>
 
-#undef timeout_pending
-#undef timeout_initialized
-
-#include <event.h>
-
 #include "event.h"
-
-extern int debug;
 
 struct evbuffer *
 evbuffer_new(void)
 {
 	struct evbuffer *buffer;
 	
-	if ((buffer = calloc(1, sizeof(struct evbuffer))) == NULL)
-		err(1, "%s: calloc", __func__);
+	buffer = calloc(1, sizeof(struct evbuffer));
 
 	return (buffer);
 }
@@ -53,11 +45,20 @@ evbuffer_free(struct evbuffer *buffer)
 	free(buffer);
 }
 
-void
+/* 
+ * This is a destructive add.  The data from one buffer moves into
+ * the other buffer.
+ */
+
+int
 evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 {
-	evbuffer_add(outbuf, inbuf->buffer, inbuf->off);
-	evbuffer_drain(inbuf, inbuf->off);
+	int res;
+	res = evbuffer_add(outbuf, inbuf->buffer, inbuf->off);
+	if (res == 0)
+		evbuffer_drain(inbuf, inbuf->off);
+
+	return (res);
 }
 
 int
@@ -73,9 +74,9 @@ evbuffer_add_printf(struct evbuffer *buf, char *fmt, ...)
 		goto end;
 	
 	res = strlen(msg);
-	evbuffer_add(buf, msg, res);
+	if (evbuffer_add(buf, msg, res) == -1)
+		res = -1;
 	free(msg);
-
 
  end:
 	va_end(ap);
@@ -83,19 +84,31 @@ evbuffer_add_printf(struct evbuffer *buf, char *fmt, ...)
 	return (res);
 }
 
-void
+int
 evbuffer_add(struct evbuffer *buf, u_char *data, size_t datlen)
 {
 	size_t need = buf->off + datlen;
 
 	if (buf->totallen < need) {
-		if ((buf->buffer = realloc(buf->buffer, need)) == NULL)
-			err(1, "%s: realloc", __func__);
-		buf->totallen = need;
+		void *newbuf;
+		int length = buf->totallen;
+
+		if (length < 256)
+			length = 256;
+		while (length < need)
+			length <<= 1;
+
+		if ((newbuf = realloc(buf->buffer, length)) == NULL)
+			return (-1);
+
+		buf->buffer = newbuf;
+		buf->totallen = length;
 	}
 
 	memcpy(buf->buffer + buf->off, data, datlen);
 	buf->off += datlen;
+
+	return (0);
 }
 
 void
