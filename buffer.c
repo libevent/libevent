@@ -35,6 +35,10 @@
 #include <sys/time.h>
 #endif
 
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
+
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
@@ -178,6 +182,44 @@ evbuffer_align(struct evbuffer *buf)
 	buf->misalign = 0;
 }
 
+/* Expands the available space in the event buffer to at least datlen */
+
+int
+evbuffer_expand(struct evbuffer *buf, size_t datlen)
+{
+	size_t need = buf->misalign + buf->off + datlen;
+
+	/* If we can fit all the data, then we don't have to do anything */
+	if (buf->totallen >= need)
+		return (0);
+
+	/*
+	 * If the misalignment fulfills our data needs, we just force an
+	 * alignment to happen.  Afterwards, we have enough space.
+	 */
+	if (buf->misalign >= datlen) {
+		evbuffer_align(buf);
+	} else {
+		void *newbuf;
+		size_t length = buf->totallen;
+
+		if (length < 256)
+			length = 256;
+		while (length < need)
+			length <<= 1;
+
+		if (buf->orig_buffer != buf->buffer)
+			evbuffer_align(buf);
+		if ((newbuf = realloc(buf->buffer, length)) == NULL)
+			return (-1);
+
+		buf->orig_buffer = buf->buffer = newbuf;
+		buf->totallen = length;
+	}
+
+	return (0);
+}
+
 int
 evbuffer_add(struct evbuffer *buf, void *data, size_t datlen)
 {
@@ -185,25 +227,8 @@ evbuffer_add(struct evbuffer *buf, void *data, size_t datlen)
 	size_t oldoff = buf->off;
 
 	if (buf->totallen < need) {
-		if (buf->misalign >= datlen) {
-			evbuffer_align(buf);
-		} else {
-			void *newbuf;
-			size_t length = buf->totallen;
-
-			if (length < 256)
-				length = 256;
-			while (length < need)
-				length <<= 1;
-
-			if (buf->orig_buffer != buf->buffer)
-				evbuffer_align(buf);
-			if ((newbuf = realloc(buf->buffer, length)) == NULL)
-				return (-1);
-
-			buf->orig_buffer = buf->buffer = newbuf;
-			buf->totallen = length;
-		}
+		if (evbuffer_expand(buf, datlen) == -1)
+			return (-1);
 	}
 
 	memcpy(buf->buffer + buf->off, data, datlen);
@@ -239,26 +264,44 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 
 }
 
+/*
+ * Reads data from a file descriptor into a buffer.
+ */
+
+#define EVBUFFER_MAX_READ	4096
+
 int
-evbuffer_read(struct evbuffer *buffer, int fd, int howmuch)
+evbuffer_read(struct evbuffer *buf, int fd, int howmuch)
 {
-	u_char inbuf[4096];
-	int n;
+	u_char *p;
+	size_t oldoff = buf->off;
+	int n = EVBUFFER_MAX_READ;
 #ifdef WIN32
 	DWORD dwBytesRead;
 #endif
-	
-	if (howmuch < 0 || howmuch > sizeof(inbuf))
-		howmuch = sizeof(inbuf);
+
+#ifdef FIONREAD
+	if (ioctl(fd, FIONREAD, &n) == -1)
+		n = EVBUFFER_MAX_READ;
+#endif	
+	if (howmuch < 0 || howmuch > n)
+		howmuch = n;
+
+	/* If we don't have FIONREAD, we might waste some space here */
+	if (evbuffer_expand(buf, howmuch) == -1)
+		return (-1);
+
+	/* We can append new data at this point */
+	p = buf->buffer + buf->off;
 
 #ifndef WIN32
-	n = read(fd, inbuf, howmuch);
+	n = read(fd, p, howmuch);
 	if (n == -1)
 		return (-1);
 	if (n == 0)
 		return (0);
 #else
-	n = ReadFile((HANDLE)fd, inbuf, howmuch, &dwBytesRead, NULL);
+	n = ReadFile((HANDLE)fd, p, howmuch, &dwBytesRead, NULL);
 	if (n == 0)
 		return (-1);
 	if (dwBytesRead == 0)
@@ -266,7 +309,11 @@ evbuffer_read(struct evbuffer *buffer, int fd, int howmuch)
 	n = dwBytesRead;
 #endif
 
-	evbuffer_add(buffer, inbuf, n);
+	buf->off += n;
+
+	/* Tell someone about changes in this buffer */
+	if (buf->off != oldoff && buf->cb != NULL)
+		(*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
 
 	return (n);
 }

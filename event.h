@@ -236,6 +236,7 @@ void bufferevent_settimeout(struct bufferevent *bufev,
 
 struct evbuffer *evbuffer_new(void);
 void evbuffer_free(struct evbuffer *);
+int evbuffer_expand(struct evbuffer *, size_t);
 int evbuffer_add(struct evbuffer *, void *, size_t);
 int evbuffer_remove(struct evbuffer *, void *, size_t);
 int evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
