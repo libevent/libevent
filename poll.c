@@ -197,9 +197,9 @@ poll_dispatch(void *arg, struct timeval *tv)
 		if (pop->event_set[i].revents & POLLHUP)
 			pop->event_set[i].revents = POLLIN|POLLOUT;
 		if (pop->event_set[i].revents & POLLIN)
-			res = EV_READ;
-		else if (pop->event_set[i].revents & POLLOUT)
-			res = EV_WRITE;
+			res |= EV_READ;
+		if (pop->event_set[i].revents & POLLOUT)
+			res |= EV_WRITE;
 		if (res == 0)
 			continue;
 
