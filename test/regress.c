@@ -102,13 +102,15 @@ multiple_write_cb(int fd, short event, void *arg)
 	len = write(fd, wbuf + woff, len);
 	if (len == -1) {
 		fprintf(stderr, "%s: write\n", __func__);
+		if (usepersist)
+			event_del(ev);
 		return;
 	}
 
 	woff += len;
 
 	if (woff >= sizeof(wbuf)) {
-		shutdown(pair[0], SHUT_WR);
+		shutdown(fd, SHUT_WR);
 		if (usepersist)
 			event_del(ev);
 		return;
@@ -125,11 +127,9 @@ multiple_read_cb(int fd, short event, void *arg)
 	int len;
 
 	len = read(fd, rbuf + roff, sizeof(rbuf) - roff);
-	if (len == -1) {
+	if (len == -1)
 		fprintf(stderr, "%s: read\n", __func__);
-		return;
-	}
-	if (len == 0) {
+	if (len <= 0) {
 		if (usepersist)
 			event_del(ev);
 		return;
