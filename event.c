@@ -310,6 +310,22 @@ event_add(struct event *ev, struct timeval *tv)
 		if (ev->ev_flags & EVLIST_TIMEOUT)
 			event_queue_remove(ev, EVLIST_TIMEOUT);
 
+		/* Check if it is active due to a timeout.  Rescheduling
+		 * this timeout before the callback can be executed
+		 * removes it from the active list. */
+		if ((ev->ev_flags & EVLIST_ACTIVE) &&
+		    (ev->ev_res & EV_TIMEOUT)) {
+			/* See if we are just active executing this
+			 * event in a loop
+			 */
+			if (ev->ev_ncalls && ev->ev_pncalls) {
+				/* Abort loop */
+				*ev->ev_pncalls = 0;
+			}
+			
+			event_queue_remove(ev, EVLIST_ACTIVE);
+		}
+
 		gettimeofday(&now, NULL);
 		timeradd(&now, tv, &ev->ev_timeout);
 
