@@ -798,3 +798,22 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		errx(1, "%s: unknown queue %x", __func__, queue);
 	}
 }
+
+/* Functions for debugging */
+
+const char *
+event_get_version(void)
+{
+	return (VERSION);
+}
+
+/* 
+ * No thread-safe interface needed - the information should be the same
+ * for all threads.
+ */
+
+const char *
+event_get_method(void)
+{
+	return (current_base->evsel->name);
+}

@@ -172,6 +172,10 @@ int event_pending(struct event *, short, struct timeval *);
 #define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 #endif
 
+/* Some simple debugging functions */
+const char *event_get_version(void);
+const char *event_get_method(void);
+
 /* These functions deal with event priorities */
 
 int	event_priority_init(int);
