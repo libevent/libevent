@@ -96,7 +96,7 @@
 The
 .Nm event
 API provides a mechanism to execute a function when a specific event
-on a file descriptor occurs or after at a given time has passed.
+on a file descriptor occurs or after a given time has passed.
 .Pp
 The
 .Nm event
@@ -106,7 +106,7 @@ before it can be used.
 .Pp
 In order to process events, an application needs to call
 .Fn event_dispatch .
-This functions only returns on error, and should replace the event core
+This function only returns on error, and should replace the event core
 of the application program.
 .Pp
 In order to avoid races in signal handlers, the
@@ -224,7 +224,7 @@ until it has timed out or been removed with
 .Fn event_del .
 If the event in the
 .Fa ev
-argument has already a scheduled timeout, the old timeout will be
+argument already has a scheduled timeout, the old timeout will be
 replaced by the new one.
 .Pp
 The function
