@@ -37,7 +37,7 @@ write_cb(int fd, short event, void *arg)
 		if (!called)
 			event_add(arg, NULL);
 		close(pair[0]);
-	} else if (called == 1):
+	} else if (called == 1)
 		test_okay = 0;
 
 	called++;
