@@ -164,6 +164,12 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 	return (0);
 }
 
+static void
+kq_sighandler(int sig)
+{
+	/* Do nothing here */
+}
+
 int
 kq_dispatch(void *arg, struct timeval *tv)
 {
@@ -275,7 +281,7 @@ kq_add(void *arg, struct event *ev)
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
-		if (signal(nsignal, SIG_IGN) == SIG_ERR)
+		if (signal(nsignal, kq_sighandler) == SIG_ERR)
 			return (-1);
 
 		ev->ev_flags |= EVLIST_X_KQINKERNEL;
@@ -324,7 +330,7 @@ kq_del(void *arg, struct event *ev)
 		int nsignal = EVENT_SIGNAL(ev);
 
  		memset(&kev, 0, sizeof(kev));
-		kev.ident = signal;
+		kev.ident = (int)signal;
 		kev.filter = EVFILT_SIGNAL;
 		kev.flags = EV_DELETE;
 		

@@ -112,7 +112,7 @@ struct eventop {
 	int (*dispatch)(void *, struct timeval *);
 };
 
-#define TIMEOUT_DEFAULT	{0, 250000L}
+#define TIMEOUT_DEFAULT	{5, 0}
 
 void event_init(void);
 int event_dispatch(void);
