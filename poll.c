@@ -166,7 +166,7 @@ poll_dispatch(void *arg, struct timeval *tv)
 	if (evsignal_deliver(&pop->evsigmask) == -1)
 		return (-1);
 
-	sec = tv->tv_sec * 1000 + tv->tv_usec / 1000;
+	sec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 	res = poll(pop->event_set, nfds, sec);
 
 	if (evsignal_recalc(&pop->evsigmask) == -1)

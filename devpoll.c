@@ -177,7 +177,7 @@ devpoll_dispatch(void *arg, struct timeval *tv)
 	if (evsignal_deliver(&devpollop->evsigmask) == -1)
 		return (-1);
 
-	timeout = tv->tv_sec * 1000 + tv->tv_usec / 1000;
+	timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 
 	dvp.dp_fds = devpollop->events;
 	dvp.dp_nfds = devpollop->nevents;

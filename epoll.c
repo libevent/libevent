@@ -189,7 +189,7 @@ epoll_dispatch(void *arg, struct timeval *tv)
 	if (evsignal_deliver(&epollop->evsigmask) == -1)
 		return (-1);
 
-	timeout = tv->tv_sec * 1000 + tv->tv_usec / 1000;
+	timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
 
 	if (evsignal_recalc(&epollop->evsigmask) == -1)

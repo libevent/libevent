@@ -368,7 +368,8 @@ rtsig_dispatch(void *arg, struct timeval *tv)
 	if (!op->cur)
 		return (0);
 
-	res = poll(op->poll, op->cur, tv->tv_sec * 1000 + tv->tv_usec / 1000);
+	res = poll(op->poll, op->cur, tv->tv_sec * 1000 + 
+				      (tv->tv_usec + 999) / 1000);
 	if (res < 0)
 		return (-1);
 
