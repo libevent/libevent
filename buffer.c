@@ -174,7 +174,7 @@ evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen)
 
 /* Adds data to an event buffer */
 
-static __inline void
+static inline void
 evbuffer_align(struct evbuffer *buf)
 {
 	memmove(buf->orig_buffer, buf->buffer, buf->off);
