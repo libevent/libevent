@@ -1,5 +1,3 @@
-/*	$OpenBSD: event.h,v 1.4 2002/07/12 18:50:48 provos Exp $	*/
-
 /*
  * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -153,6 +151,8 @@ void timeout_process(void);
 #define signal_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 
 void event_set(struct event *, int, short, void (*)(int, short, void *), void *);
+int event_once(int, short, void (*)(int, short, void *), void *, struct timeval *);
+
 int event_add(struct event *, struct timeval *);
 int event_del(struct event *);
 void event_active(struct event *, int, short);
@@ -164,6 +164,27 @@ int event_pending(struct event *, short, struct timeval *);
 #else
 #define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 #endif
+
+/* These functions deal with buffering input and output */
+
+struct evbuffer {
+	u_char *buffer;
+
+	size_t totallen;
+	size_t off;
+};
+
+#define EVBUFFER_LENGTH(x)	(x)->off
+
+struct evbuffer *evbuffer_new(void);
+void evbuffer_free(struct evbuffer *);
+void evbuffer_add(struct evbuffer *, u_char *, size_t);
+void evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
+int evbuffer_add_printf(struct evbuffer *, char *fmt, ...);
+void evbuffer_drain(struct evbuffer *, size_t);
+int evbuffer_write(struct evbuffer *, int);
+int evbuffer_read(struct evbuffer *, int, int);
+u_char *evbuffer_find(struct evbuffer *, u_char *, size_t);
 
 #ifdef __cplusplus
 }

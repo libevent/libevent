@@ -36,6 +36,7 @@
 .Nm event_set ,
 .Nm event_add ,
 .Nm event_del ,
+.Nm event_once ,
 .Nm event_pending ,
 .Nm event_initialized ,
 .Nm evtimer_set ,
@@ -64,6 +65,8 @@
 .Fn "event_add" "struct event *ev" "struct timeval *tv"
 .Ft int
 .Fn "event_del" "struct event *ev"
+.Ft int
+.Fn "event_once" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg" "struct timeval *tv"
 .Ft int
 .Fn "event_pending" "struct event *ev" "short event" "struct timeval *tv"
 .Ft int
@@ -233,6 +236,20 @@ will cancel the event in the argument
 .Fa ev .
 If the event has already executed or has never been added
 the call will have no effect.
+.Pp
+The function
+.Fn event_once
+is similiar to
+.Fn event_set .
+However, it schedules a callback to be called exactly once and does not
+require the caller to prepare an
+.Fa event
+structure.
+This function supports
+.Fa EV_TIMEOUT ,
+.Fa EV_READ
+and
+.Fa EV_WRITE .
 .Pp
 The
 .Fn event_pending

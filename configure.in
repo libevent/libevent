@@ -2,7 +2,7 @@ dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
-AM_INIT_AUTOMAKE(libevent,0.7b)
+AM_INIT_AUTOMAKE(libevent,0.7c)
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 
@@ -27,7 +27,7 @@ AC_CHECK_LIB(socket, socket)
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(inttypes.h stdint.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h)
+AC_CHECK_HEADERS(stdarg.h inttypes.h stdint.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h)
 if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
 	AC_EGREP_CPP(yes,

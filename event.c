@@ -273,6 +273,62 @@ event_loop(int flags)
 	return (0);
 }
 
+/* Sets up an event for processing once */
+
+struct event_once {
+	struct event ev;
+
+	void (*cb)(int, short, void *);
+	void *arg;
+};
+
+/* One-time callback, it deletes itself */
+
+static void
+event_once_cb(int fd, short events, void *arg)
+{
+	struct event_once *eonce = arg;
+
+	(*eonce->cb)(fd, events, eonce->arg);
+	free(eonce);
+}
+
+/* Schedules an event once */
+
+int
+event_once(int fd, short events,
+    void (*callback)(int, short, void *), void *arg, struct timeval *tv)
+{
+	struct event_once *eonce;
+	struct timeval etv;
+
+	if ((eonce = calloc(1, sizeof(struct event_once))) == NULL)
+		return (-1);
+
+	if (events == EV_TIMEOUT) {
+		if (tv == NULL) {
+			timerclear(&etv);
+			tv = &etv;
+		}
+
+		eonce->cb = callback;
+		eonce->arg = arg;
+
+		evtimer_set(&eonce->ev, event_once_cb, &eonce);
+	} else if (events & (EV_READ|EV_WRITE)) {
+		events &= EV_READ|EV_WRITE;
+
+		event_set(&eonce->ev, fd, events, event_once_cb, &eonce);
+	} else {
+		/* Bad event combination */
+		return (-1);
+	}
+
+	event_add(&eonce->ev, tv);
+
+	return (0);
+}
+
 void
 event_set(struct event *ev, int fd, short events,
 	  void (*callback)(int, short, void *), void *arg)
@@ -444,6 +500,9 @@ timeout_next(struct timeval *tv)
 	}
 
 	timersub(&ev->ev_timeout, &now, tv);
+
+	assert(tv->tv_sec >= 0);
+	assert(tv->tv_usec >= 0);
 
 	LOG_DBG((LOG_MISC, 60, "timeout_next: in %d seconds", tv->tv_sec));
 	return (0);
