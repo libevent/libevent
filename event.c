@@ -64,6 +64,9 @@ extern struct eventop selectops;
 #ifdef HAVE_POLL
 extern struct eventop pollops;
 #endif
+#ifdef HAVE_EPOLL
+extern struct eventop epollops;
+#endif
 #ifdef HAVE_WORKING_KQUEUE
 extern struct eventop kqops;
 #endif
@@ -72,6 +75,9 @@ extern struct eventop kqops;
 struct eventop *eventops[] = {
 #ifdef HAVE_WORKING_KQUEUE
 	&kqops,
+#endif
+#ifdef HAVE_EPOLL
+	&epollops,
 #endif
 #ifdef HAVE_POLL
 	&pollops,
