@@ -4,8 +4,9 @@ LDADD = -L.. -levent
 CPPFPLAGS = -I.. 
 CFLAGS = -I../compat -Wall @CFLAGS@
 
-noinst_PROGRAMS = test-eof test-weof test-time regress bench
+noinst_PROGRAMS = test-init test-eof test-weof test-time regress bench
 
+test_init_sources = test-init.c
 test_eof_sources = test-eof.c
 test_weof_sources = test-weof.c
 test_time_sources = test-time.c
@@ -16,35 +17,7 @@ DISTCLEANFILES = *~
 
 all:	test
 
-test: test-eof test-weof test-time regress
-	@echo "Running tests:"
-	@echo -n " test-eof: "
-	@if ./test-eof >/dev/null ; \
-	then \
-		echo OKAY ; \
-	else \
-		echo FAILED ; \
-	fi
-	@echo -n " test-weof: "
-	@if ./test-weof >/dev/null ; \
-	then \
-		echo OKAY ; \
-	else \
-		echo FAILED ; \
-	fi
-	@echo -n " test-time: "
-	@if ./test-time >/dev/null ; \
-	then \
-		echo OKAY ; \
-	else \
-		echo FAILED ; \
-	fi
-	@echo -n " regress: "
-	@if ./regress >/dev/null ; \
-	then \
-		echo OKAY ; \
-	else \
-		echo FAILED ; \
-	fi
+test: test-init test-eof test-weof test-time regress
+	@./test.sh
 
-bench test-eof test-weof test-time regress: ../libevent.a
+bench test-init test-eof test-weof test-time regress: ../libevent.a
