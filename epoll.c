@@ -33,6 +33,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <sys/resource.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
@@ -62,7 +63,7 @@ extern struct event_list eventqueue;
 
 extern volatile sig_atomic_t evsignal_caught;
 
-/* due to limitations in the epoll interface, we need to keep track of 
+/* due to limitations in the epoll interface, we need to keep track of
  * all file descriptors outself.
  */
 struct evepoll {
@@ -94,12 +95,13 @@ struct eventop epollops = {
 	epoll_dispatch
 };
 
-#define NEVENT	64
+#define NEVENT	32000
 
 void *
 epoll_init(void)
 {
-	int epfd;
+	int epfd, nfiles = NEVENT;
+	struct rlimit rl;
 
 	/* Disable epollueue when this environment variable is set */
 	if (getenv("EVENT_NOEPOLL"))
@@ -107,9 +109,13 @@ epoll_init(void)
 
 	memset(&epollop, 0, sizeof(epollop));
 
+	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
+	    rl.rlim_cur != RLIM_INFINITY)
+		nfiles = rl.rlim_cur;
+
 	/* Initalize the kernel queue */
-	
-	if ((epfd = epoll_create(NEVENT)) == -1) {
+
+	if ((epfd = epoll_create(nfiles)) == -1) {
 		log_error("epoll_create");
 		return (NULL);
 	}
@@ -117,17 +123,17 @@ epoll_init(void)
 	epollop.epfd = epfd;
 
 	/* Initalize fields */
-	epollop.events = malloc(NEVENT * sizeof(struct epoll_event));
+	epollop.events = malloc(nfiles * sizeof(struct epoll_event));
 	if (epollop.events == NULL)
 		return (NULL);
-	epollop.nevents = NEVENT;
+	epollop.nevents = nfiles;
 
-	epollop.fds = calloc(NEVENT, sizeof(struct evepoll));
+	epollop.fds = calloc(nfiles, sizeof(struct evepoll));
 	if (epollop.fds == NULL) {
 		free(epollop.events);
 		return (NULL);
 	}
-	epollop.nfds = NEVENT;
+	epollop.nfds = nfiles;
 
 	evsignal_init(&epollop.evsigmask);
 
@@ -143,9 +149,9 @@ epoll_recalc(void *arg, int max)
 		struct evepoll *fds;
 		int nfds;
 
-		nfds = 2*epollop->nfds;
-		if (nfds < max)
-			nfds = max;
+		nfds = epollop->nfds;
+		while (nfds < max)
+			nfds <<= 1;
 
 		fds = realloc(epollop->fds, nfds * sizeof(struct evepoll));
 		if (fds == NULL) {
@@ -321,6 +327,6 @@ epoll_del(void *arg, struct event *ev)
 		evep->evread = NULL;
 	if (needwritedelete)
 		evep->evwrite = NULL;
-	
+
 	return (0);
 }
