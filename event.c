@@ -281,14 +281,15 @@ event_add(struct event *ev, struct timeval *tv)
 	if (tv != NULL) {
 		struct timeval now;
 
+		if (ev->ev_flags & EVLIST_TIMEOUT)
+			event_queue_remove(ev, EVLIST_TIMEOUT);
+
 		gettimeofday(&now, NULL);
 		timeradd(&now, tv, &ev->ev_timeout);
 
 		LOG_DBG((LOG_MISC, 55,
 			 "event_add: timeout in %d seconds, call %p",
 			 tv->tv_sec, ev->ev_callback));
-		if (ev->ev_flags & EVLIST_TIMEOUT)
-			event_queue_remove(ev, EVLIST_TIMEOUT);
 
 		event_queue_insert(ev, EVLIST_TIMEOUT);
 	}
