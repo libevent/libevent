@@ -1,0 +1,117 @@
+dnl configure.in for libevent
+dnl Dug Song <dugsong@monkey.org>
+AC_INIT(event.c)
+
+AC_CONFIG_HEADER(config.h)
+
+dnl Initialize prefix.
+if test "$prefix" = "NONE"; then
+   prefix="/usr/local"
+fi
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_RANLIB
+AC_PROG_INSTALL
+AC_PROG_LN_S
+
+dnl Checks for libraries.
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(unistd.h sys/time.h sys/queue.h sys/event.h)
+if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
+	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
+	AC_EGREP_CPP(yes,
+[
+#include <sys/queue.h>
+#ifdef TAILQ_FOREACH
+ yes
+#endif
+],	[AC_MSG_RESULT(yes)
+	 AC_DEFINE(HAVE_TAILQFOREACH) ], AC_MSG_RESULT(no)
+	)
+fi
+
+if test "x$ac_cv_header_sys_time_h" = "xyes"; then
+	AC_MSG_CHECKING(for timeradd in sys/time.h)
+	AC_EGREP_CPP(yes,
+[
+#include <sys/time.h>
+#ifdef timeradd
+ yes
+#endif
+],	[ AC_DEFINE(HAVE_TIMERADD)
+	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
+)
+fi
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_HEADER_TIME
+
+dnl Checks for library functions.
+AC_CHECK_FUNCS(gettimeofday)
+
+AC_SUBST(EVSRCS)
+AC_CHECK_FUNCS(select, [haveselect=yes], )
+if test "x$haveselect" = "xyes" ; then
+	EVSRCS="select.c"
+fi
+
+havekqueue=no
+if test "x$ac_cv_header_sys_event_h" = "xyes"; then
+	AC_CHECK_FUNCS(kqueue, [havekqueue=yes], )
+	if test "x$havekqueue" = "xyes" ; then
+		AC_MSG_CHECKING(for working kqueue)
+		AC_TRY_RUN(
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/event.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+int
+main(int argc, char **argv)
+{
+	int kq;
+	int n;
+	int fd[[2]];
+	struct kevent ev;
+	struct timespec ts;
+	char buf[[8000]];
+
+	if (pipe(fd) == -1)
+		exit(1);
+	if (fcntl(fd[[1]], F_SETFL, O_NONBLOCK) == -1)
+		exit(1);
+
+	while ((n = write(fd[[1]], buf, sizeof(buf))) == sizeof(buf))
+		;
+
+        if ((kq = kqueue()) == -1)
+		exit(1);
+
+	ev.ident = fd[[1]];
+	ev.filter = EVFILT_WRITE;
+	ev.flags = EV_ADD | EV_ENABLE;
+	n = kevent(kq, &ev, 1, NULL, 0, NULL);
+	if (n == -1)
+		exit(1);
+	
+	read(fd[[0]], buf, sizeof(buf));
+
+	ts.tv_sec = 0;
+	ts.tv_nsec = 0;
+	n = kevent(kq, NULL, 0, &ev, 1, &ts);
+	if (n == -1 || n == 0)
+		exit(1);
+
+	exit(0);
+}, [AC_MSG_RESULT(yes)
+    AC_DEFINE(HAVE_WORKING_KQUEUE)
+    EVSRCS="$EVSRCS kqueue.c"], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+	fi
+fi
+
+AC_OUTPUT(Makefile test/Makefile)
