@@ -29,4 +29,7 @@ INCLUDES = -Icompat
 
 man_MANS = event.3
 
+verify: libevent.a
+	cd $(srcdir)/test && make verify	
+
 DISTCLEANFILES = *~

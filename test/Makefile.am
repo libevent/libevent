@@ -15,9 +15,9 @@ bench_sources = bench.c
 
 DISTCLEANFILES = *~
 
-all:	test
-
 test: test-init test-eof test-weof test-time regress
+
+verify: test
 	@./test.sh
 
 bench test-init test-eof test-weof test-time regress: ../libevent.a
