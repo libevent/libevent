@@ -29,7 +29,7 @@ write_cb(int fd, short event, void *arg)
 
 	len = write(fd, test, strlen(test) + 1);
 
-	printf("%s: write %d%s\n", __FUNCTION__,
+	printf("%s: write %d%s\n", __func__,
 	    len, len ? "" : " - means EOF");
 
 	if (len > 0) {

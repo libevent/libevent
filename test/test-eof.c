@@ -27,7 +27,7 @@ read_cb(int fd, short event, void *arg)
 
 	len = read(fd, buf, sizeof(buf));
 
-	printf("%s: read %d%s\n", __FUNCTION__,
+	printf("%s: read %d%s\n", __func__,
 	    len, len ? "" : " - means EOF");
 
 	if (len) {

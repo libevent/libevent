@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 LDADD = -L.. -levent
 CPPFPLAGS = -I.. 
-CFLAGS = -I../compat -g -Wall
+CFLAGS = -I../compat -Wall @CFLAGS@
 
 noinst_PROGRAMS = test-eof test-weof test-time regress bench
 
@@ -47,3 +47,4 @@ test: test-eof test-weof test-time regress
 		echo FAILED ; \
 	fi
 
+bench test-eof test-weof test-time regress: ../libevent.a
