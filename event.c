@@ -591,12 +591,20 @@ event_add(struct event *ev, struct timeval *tv)
 int
 event_del(struct event *ev)
 {
-	struct event_base *base = ev->ev_base;
-	const struct eventop *evsel = base->evsel;
-	void *evbase = base->evbase;
+	struct event_base *base;
+	const struct eventop *evsel;
+	void *evbase;
 
 	LOG_DBG((LOG_MISC, 80, "event_del: %p, callback %p",
 		 ev, ev->ev_callback));
+
+	/* An event without a base has not been added */
+	if (ev->ev_base == NULL)
+		return;
+
+	base = ev->ev_base;
+	evsel = base->evsel;
+	evbase = base->evbase;
 
 	assert(!(ev->ev_flags & ~EVLIST_ALL));
 
