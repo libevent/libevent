@@ -173,7 +173,6 @@ epoll_dispatch(void *arg, struct timeval *tv)
 	struct epollop *epollop = arg;
 	struct epoll_event *events = epollop->events;
 	struct evepoll *evep;
-	struct event *ev;
 	int i, res, timeout;
 
 	if (evsignal_deliver(&epollop->evsigmask) == -1)
@@ -200,32 +199,33 @@ epoll_dispatch(void *arg, struct timeval *tv)
 
 	for (i = 0; i < res; i++) {
 		int which = 0, what;
+		struct event *evread = NULL, *evwrite = NULL;
 
 		evep = (struct evepoll *)events[i].data.ptr;
 		what = events[i].events;
 		if (what & EPOLLIN) {
+			evread = evep->evread;
 			which |= EV_READ;
 		}
 
 		if (what & EPOLLOUT) {
+			evwrite = evep->evwrite;
 			which |= EV_WRITE;
 		}
 
 		if (!which)
 			continue;
 
-		if (which & EV_READ) {
-			ev = evep->evread;
-			if (!(ev->ev_events & EV_PERSIST))
-				event_del(ev);
-			event_active(ev, EV_READ, 1);
-		}
-		if (which & EV_WRITE) {
-			ev = evep->evwrite;
-			if (!(ev->ev_events & EV_PERSIST))
-				event_del(ev);
-			event_active(ev, EV_WRITE, 1);
-		}
+		if (evread != NULL && !(evread->ev_events & EV_PERSIST))
+			event_del(evread);
+		if (evwrite != NULL && evwrite != evread &&
+		    !(evwrite->ev_events & EV_PERSIST))
+			event_del(evwrite);
+
+		if (evread != NULL)
+			event_active(evread, EV_READ, 1);
+		if (evwrite != NULL)
+			event_active(evwrite, EV_WRITE, 1);
 	}
 
 	return (0);
