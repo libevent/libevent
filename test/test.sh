@@ -1,5 +1,6 @@
 #!/bin/sh
-function setup {
+
+setup () {
 	 export EVENT_NOKQUEUE=yes
 	 export EVENT_NOPOLL=yes
 	 export EVENT_NOSELECT=yes
@@ -7,7 +8,7 @@ function setup {
 	 export EVENT_NORTSIG=yes
 }
 
-function test {
+test () {
 	if ! ./test-init 2>/dev/null ;
 	then
 		echo Skipping test
