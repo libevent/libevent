@@ -49,7 +49,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <err.h>
 
 #include <event.h>
 
@@ -245,10 +244,10 @@ setup_test(char *name)
 
 #ifdef HAVE_FCNTL
         if (fcntl(pair[0], F_SETFL, O_NONBLOCK) == -1)
-                warn("fcntl(O_NONBLOCK)");
+		fprintf(stderr, "fcntl(O_NONBLOCK)");
 
         if (fcntl(pair[1], F_SETFL, O_NONBLOCK) == -1)
-                warn("fcntl(O_NONBLOCK)");
+		fprintf(stderr, "fcntl(O_NONBLOCK)");
 #endif
 
 	test_ok = 0;

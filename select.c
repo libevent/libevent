@@ -44,7 +44,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <err.h>
 
 #include "event.h"
 #include "event-internal.h"
