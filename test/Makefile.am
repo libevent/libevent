@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 LDADD = -L.. -levent
 CPPFPLAGS = -I.. 
-CFLAGS = -I../compat -Wall @CFLAGS@
+CFLAGS = -I../compat @CFLAGS@
 
 noinst_PROGRAMS = test-init test-eof test-weof test-time regress bench
 
