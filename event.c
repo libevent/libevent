@@ -546,7 +546,8 @@ timeout_correct(struct timeval *off)
 {
 	struct event *ev;
 
-	/* We can modify the key element of the node without destroying
+	/*
+	 * We can modify the key element of the node without destroying
 	 * the key, beause we apply it to all in the right order.
 	 */
 	RB_FOREACH(ev, event_tree, &timetree)
