@@ -1,5 +1,5 @@
 /*
- * Copyright 2003 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2003, 2004 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -245,19 +245,10 @@ cleanup_test(void)
 	return (0);
 }
 
-int
-main (int argc, char **argv)
+void
+test1(void)
 {
-	struct event ev, ev2;
-	struct timeval tv;
-	struct itimerval itv;
-	struct both r1, r2, w1, w2;
-	int i;
-
-	setvbuf(stdout, NULL, _IONBF, 0);
-
-	/* Initalize the event library */
-	event_init();
+	struct event ev;
 
 	/* Very simple read test */
 	setup_test("Simple read: ");
@@ -270,6 +261,12 @@ main (int argc, char **argv)
 	event_dispatch();
 
 	cleanup_test();
+}
+
+void
+test2(void)
+{
+	struct event ev;
 
 	/* Very simple write test */
 	setup_test("Simple write: ");
@@ -279,6 +276,13 @@ main (int argc, char **argv)
 	event_dispatch();
 
 	cleanup_test();
+}
+
+void
+test3(void)
+{
+	struct event ev, ev2;
+	int i;
 
 	/* Multiple read and write test */
 	setup_test("Multiple read/write: ");
@@ -299,6 +303,13 @@ main (int argc, char **argv)
 		test_ok = memcmp(rbuf, wbuf, sizeof(wbuf)) == 0;
 
 	cleanup_test();
+}
+
+void
+test4(void)
+{
+	struct event ev, ev2;
+	int i;
 
 	/* Multiple read and write test with persist */
 	setup_test("Persist read/write: ");
@@ -319,6 +330,12 @@ main (int argc, char **argv)
 		test_ok = memcmp(rbuf, wbuf, sizeof(wbuf)) == 0;
 
 	cleanup_test();
+}
+
+void
+test5(void)
+{
+	struct both r1, r2, w1, w2;
 
 	setup_test("Combined read/write: ");
 	memset(&r1, 0, sizeof(r1));
@@ -344,7 +361,13 @@ main (int argc, char **argv)
 		test_ok = 1;
 
 	cleanup_test();
-	
+}
+
+void
+test6(void)
+{
+	struct timeval tv;
+	struct event ev;
 
 	setup_test("Simple timeout: ");
 
@@ -357,6 +380,13 @@ main (int argc, char **argv)
 	event_dispatch();
 
 	cleanup_test();
+}
+
+void
+test7(void)
+{
+	struct event ev;
+	struct itimerval itv;
 
 	setup_test("Simple signal: ");
 	signal_set(&ev, SIGALRM, signal_cb, &ev);
@@ -372,6 +402,116 @@ main (int argc, char **argv)
 	signal_del(&ev);
 
 	cleanup_test();
+}
+
+void
+test8(void)
+{
+	struct timeval tv, tv_start, tv_end;
+	struct event ev;
+
+	setup_test("Loop exit: ");
+
+	tv.tv_usec = 0;
+	tv.tv_sec = 60*60*24;
+	evtimer_set(&ev, timeout_cb, NULL);
+	evtimer_add(&ev, &tv);
+
+	tv.tv_usec = 0;
+	tv.tv_sec = 1;
+	event_loopexit(&tv);
+
+	gettimeofday(&tv_start, NULL);
+	event_dispatch();
+	gettimeofday(&tv_end, NULL);
+	timersub(&tv_end, &tv_start, &tv_end);
+
+	evtimer_del(&ev);
+
+	if (tv.tv_sec < 2)
+		test_ok = 1;
+
+	cleanup_test();
+}
+
+void
+readcb(struct bufferevent *bev, void *arg)
+{
+	if (EVBUFFER_LENGTH(bev->input) == 4096) {
+		bufferevent_disable(bev, EV_READ);
+		test_ok++;
+	}
+}
+
+void
+writecb(struct bufferevent *bev, void *arg)
+{
+	if (EVBUFFER_LENGTH(bev->output) == 0)
+		test_ok++;
+}
+
+void
+errorcb(struct bufferevent *bev, short what, void *arg)
+{
+	test_ok = -2;
+}
+
+void
+test9(void)
+{
+	struct bufferevent *bev1, *bev2;
+	char buffer[4096];
+	int i;
+
+	setup_test("Bufferevent: ");
+
+	bev1 = bufferevent_new(pair[0], readcb, writecb, errorcb, NULL);
+	bev2 = bufferevent_new(pair[1], readcb, writecb, errorcb, NULL);
+
+	bufferevent_disable(bev1, EV_READ);
+	bufferevent_enable(bev2, EV_READ);
+
+	for (i = 0; i < sizeof(buffer); i++)
+		buffer[0] = i;
+
+	bufferevent_write(bev1, buffer, sizeof(buffer));
+
+	event_dispatch();
+
+	bufferevent_free(bev1);
+	bufferevent_free(bev2);
+
+	if (test_ok != 2)
+		test_ok = 0;
+
+	cleanup_test();
+}
+
+int
+main (int argc, char **argv)
+{
+	setvbuf(stdout, NULL, _IONBF, 0);
+
+	/* Initalize the event library */
+	event_init();
+
+	test1();
+
+	test2();
+
+	test3();
+
+	test4();
+
+	test5();
+
+	test6();
+
+	test7();
+
+	test8();
+
+	test9();
 
 	return (0);
 }
