@@ -115,7 +115,6 @@ int event_gotterm;		/* Set to terminate loop */
 void		event_queue_insert(struct event *, int);
 void		event_queue_remove(struct event *, int);
 int		event_haveevents(void);
-void		timeout_insert(struct event *);
 
 static void	event_process_active(void);
 
@@ -131,6 +130,10 @@ compare(struct event *a, struct event *b)
 	if (timercmp(&a->ev_timeout, &b->ev_timeout, <))
 		return (-1);
 	else if (timercmp(&a->ev_timeout, &b->ev_timeout, >))
+		return (1);
+	if (a < b)
+		return (-1);
+	if (a > b)
 		return (1);
 	return (0);
 }
@@ -567,31 +570,6 @@ timeout_process(void)
 }
 
 void
-timeout_insert(struct event *ev)
-{
-	struct event *tmp;
-
-	tmp = RB_FIND(event_tree, &timetree, ev);
-
-	if (tmp != NULL) {
-		struct timeval tv;
-		struct timeval add = {0,1};
-
-		/* Find unique time */
-		tv = ev->ev_timeout;
-		do {
-			timeradd(&tv, &add, &tv);
-			tmp = RB_NEXT(event_tree, &timetree, tmp);
-		} while (tmp != NULL && timercmp(&tmp->ev_timeout, &tv, ==));
-
-		ev->ev_timeout = tv;
-	}
-
-	tmp = RB_INSERT(event_tree, &timetree, ev);
-	assert(tmp == NULL);
-}
-
-void
 event_queue_remove(struct event *ev, int queue)
 {
 	if (!(ev->ev_flags & queue))
@@ -632,9 +610,11 @@ event_queue_insert(struct event *ev, int queue)
 	case EVLIST_SIGNAL:
 		TAILQ_INSERT_TAIL(&signalqueue, ev, ev_signal_next);
 		break;
-	case EVLIST_TIMEOUT:
-		timeout_insert(ev);
+	case EVLIST_TIMEOUT: {
+		struct event *tmp = RB_INSERT(event_tree, &timetree, ev);
+		assert(tmp == NULL);
 		break;
+	}
 	case EVLIST_INSERTED:
 		TAILQ_INSERT_TAIL(&eventqueue, ev, ev_next);
 		break;
