@@ -2,8 +2,9 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 SUBDIRS = . sample test
 
-EXTRA_DIST = acconfig.h err.c event.h evsignal.h event.3 kqueue.c \
-	epoll_sub.c epoll.c select.c rtsig.c poll.c signal.c devpoll.c \
+EXTRA_DIST = acconfig.h err.c event.h event-internal.h evsignal.h event.3 \
+	kqueue.c epoll_sub.c epoll.c select.c rtsig.c poll.c signal.c \
+	devpoll.c \
 	sample/Makefile.am sample/Makefile.in sample/event-test.c \
 	sample/signal-test.c sample/time-test.c \
 	test/Makefile.am test/Makefile.in test/bench.c test/regress.c \
