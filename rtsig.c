@@ -285,8 +285,9 @@ rtsig_dispatch(void *arg, struct timeval *tv)
 		signum = sigtimedwait(&op->sigs, &info, &ts);
 
 		if (signum == -1) {
-			if (errno == EAGAIN) break;
-			return errno == EINTR ? 0 : -1;
+			if (errno == EAGAIN)
+				break;
+			return (errno == EINTR ? 0 : -1);
 		}
 
 		ts.tv_sec = ts.tv_nsec = 0;
@@ -381,8 +382,10 @@ rtsig_dispatch(void *arg, struct timeval *tv)
 			int flags = 0;
 			struct event *ev = op->toev[i];
 
-			if (op->poll[i].revents & POLLIN) flags |= EV_READ;
-			if (op->poll[i].revents & POLLOUT) flags |= EV_WRITE;
+			if (op->poll[i].revents & POLLIN)
+				flags |= EV_READ;
+			if (op->poll[i].revents & POLLOUT)
+				flags |= EV_WRITE;
 
 			if (!(ev->ev_events & EV_PERSIST)) {
 				event_del(ev);
@@ -422,6 +425,9 @@ rtsig_dispatch(void *arg, struct timeval *tv)
 		/* We just freed it, we shouldn't have a problem getting it back. */
 		op->poll = malloc(sizeof(*op->poll) * op->max);
 		op->toev = malloc(sizeof(*op->toev) * op->max);
+
+		if (op->poll == NULL || op->toev == NULL)
+			err(1, "%s: malloc");
 	}
 
 	return (0);
