@@ -337,7 +337,7 @@ event_add(struct event *ev, struct timeval *tv)
 	}
 
 	if ((ev->ev_events & (EV_READ|EV_WRITE)) &&
-	    !(ev->ev_flags & EVLIST_INSERTED)) {
+	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE))) {
 		event_queue_insert(ev, EVLIST_INSERTED);
 
 		return (evsel->add(evbase, ev));
