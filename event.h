@@ -36,6 +36,10 @@
 extern "C" {
 #endif
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #define EVLIST_TIMEOUT	0x01
 #define EVLIST_INSERTED	0x02
 #define EVLIST_SIGNAL	0x04
@@ -77,7 +81,12 @@ struct event {
 	TAILQ_ENTRY (event) ev_signal_next;
 	RB_ENTRY (event) ev_timeout_node;
 
+#ifdef WIN32
+	HANDLE ev_fd;
+	OVERLAPPED overlap;
+#else
 	int ev_fd;
+#endif
 	short ev_events;
 	short ev_ncalls;
 	short *ev_pncalls;	/* Allows deletes in callback */
@@ -91,8 +100,8 @@ struct event {
 	int ev_flags;
 };
 
-#define EVENT_SIGNAL(ev)	ev->ev_fd
-#define EVENT_FD(ev)		ev->ev_fd
+#define EVENT_SIGNAL(ev)	(int)ev->ev_fd
+#define EVENT_FD(ev)		(int)ev->ev_fd
 
 #ifdef _EVENT_DEFINED_TQENTRY
 #undef TAILQ_ENTRY
@@ -153,7 +162,11 @@ void event_active(struct event *, int, short);
 
 int event_pending(struct event *, short, struct timeval *);
 
+#ifdef WIN32
+#define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT && (ev)->ev_fd != INVALID_HANDLE_VALUE)
+#else
 #define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+#endif
 
 #ifdef __cplusplus
 }

@@ -193,6 +193,9 @@ poll_dispatch(void *arg, struct timeval *tv)
 
 	for (i = 0; i < nfds; i++) {
 		res = 0;
+		/* If the file gets closed notify */
+		if (pop->event_set[i].revents & POLLHUP)
+			pop->event_set[i].revents = POLLIN|POLLOUT;
 		if (pop->event_set[i].revents & POLLIN)
 			res = EV_READ;
 		else if (pop->event_set[i].revents & POLLOUT)

@@ -90,7 +90,7 @@ int kq_recalc	(void *, int);
 int kq_dispatch	(void *, struct timeval *);
 int kq_insert	(struct kqop *, struct kevent *);
 
-struct eventop kqops = {
+const struct eventop kqops = {
 	"kqueue",
 	kq_init,
 	kq_add,

@@ -67,28 +67,34 @@
 #include "event.h"
 
 #ifdef HAVE_SELECT
-extern struct eventop selectops;
+extern const struct eventop selectops;
 #endif
 #ifdef HAVE_POLL
-extern struct eventop pollops;
+extern const struct eventop pollops;
+#endif
+#ifdef HAVE_RTSIG
+extern const struct eventop rtsigops;
 #endif
 #ifdef HAVE_EPOLL
-extern struct eventop epollops;
+extern const struct eventop epollops;
 #endif
 #ifdef HAVE_WORKING_KQUEUE
-extern struct eventop kqops;
+extern const struct eventop kqops;
 #endif
 #ifdef WIN32
-extern struct eventop win32ops;
+extern const struct eventop win32ops;
 #endif
 
 /* In order of preference */
-struct eventop *eventops[] = {
+const struct eventop *eventops[] = {
 #ifdef HAVE_WORKING_KQUEUE
 	&kqops,
 #endif
 #ifdef HAVE_EPOLL
 	&epollops,
+#endif
+#ifdef HAVE_RTSIG
+	&rtsigops,
 #endif
 #ifdef HAVE_POLL
 	&pollops,
@@ -102,7 +108,7 @@ struct eventop *eventops[] = {
 	NULL
 };
 
-struct eventop *evsel;
+const struct eventop *evsel;
 void *evbase;
 
 /* Handle signals */

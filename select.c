@@ -80,7 +80,7 @@ int select_del		(void *, struct event *);
 int select_recalc	(void *, int);
 int select_dispatch	(void *, struct timeval *);
 
-struct eventop selectops = {
+const struct eventop selectops = {
 	"select",
 	select_init,
 	select_add,
