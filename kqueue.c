@@ -168,7 +168,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 			log_error("%s: malloc", __func__);
 			return (-1);
 		}
-		kqop->events = newchange;
+		kqop->events = newresult;
 
 		kqop->nevents = nevents;
 	}
