@@ -120,26 +120,30 @@ evbuffer_add_printf(struct evbuffer *buf, char *fmt, ...)
 {
 	int res = -1;
 	char *msg;
-#ifdef WIN32
+#ifndef HAVE_VASPRINTF
 	static char buffer[4096];
 #endif
 	va_list ap;
 
 	va_start(ap, fmt);
 
-#ifndef WIN32
+#ifdef HAVE_VASPRINTF
 	if (vasprintf(&msg, fmt, ap) == -1)
 		goto end;
 #else
+#  ifdef WIN32
 	_vsnprintf(buffer, sizeof(buffer) - 1, fmt, ap);
 	buffer[sizeof(buffer)-1] = '\0';
+#  else /* ! WIN32 */
+	vsnprintf(buffer, sizeof(buffer), fmt, ap);
+#  endif
 	msg = buffer;
 #endif
 	
 	res = strlen(msg);
 	if (evbuffer_add(buf, msg, res) == -1)
 		res = -1;
-#ifndef WIN32
+#ifdef HAVE_VASPRINTF
 	free(msg);
 
 end:
