@@ -195,11 +195,17 @@ epoll_dispatch(void *arg, struct timeval *tv)
 	LOG_DBG((LOG_MISC, 80, "%s: epoll_wait reports %d", __func__, res));
 
 	for (i = 0; i < res; i++) {
-		int which = 0, what;
+		int which = 0;
+		int what = events[i].events;
 		struct event *evread = NULL, *evwrite = NULL;
 
 		evep = (struct evepoll *)events[i].data.ptr;
-		what = events[i].events;
+   
+                if (what & EPOLLHUP)
+                        what |= EPOLLIN | EPOLLOUT;
+                else if (what & EPOLLERR)
+                        what |= EPOLLIN | EPOLLOUT;
+
 		if (what & EPOLLIN) {
 			evread = evep->evread;
 			which |= EV_READ;
