@@ -49,7 +49,24 @@
 .Nm signal_add ,
 .Nm signal_del
 .Nm signal_pending ,
-.Nm signal_initialized
+.Nm signal_initialized ,
+.Nm bufferevent_new ,
+.Nm bufferevent_free ,
+.Nm bufferevent_write ,
+.Nm bufferevent_write_buffer ,
+.Nm bufferevent_read ,
+.Nm bufferevent_enable ,
+.Nm bufferevent_disable ,
+.Nm bufferevent_settimeout ,
+.Nm evbuffer_new ,
+.Nm evbuffer_free ,
+.Nm evbuffer_add ,
+.Nm evbuffer_add_buffer ,
+.Nm evbuffer_add_printf ,
+.Nm evbuffer_drain ,
+.Nm evbuffer_write ,
+.Nm evbuffer_read ,
+.Nm evbuffer_find
 .Nd execute a function when a specific event occurs
 .Sh SYNOPSIS
 .Fd #include <sys/time.h>
@@ -94,6 +111,40 @@
 .Fn "signal_pending" "struct event *ev" "struct timeval *tv"
 .Ft int
 .Fn "signal_initialized" "struct event *ev"
+.Ft "struct bufferevent *"
+.Fn "bufferevent_new" "int fd" "evbuffercb readcb" "evbuffercb writecb" "everrorcb" "void *cbarg"
+.Ft void
+.Fn "bufferevent_free" "struct bufferevent *bufev"
+.Ft int
+.Fn "bufferevent_write" "struct bufferevent *bufev" "void *data" "size_t size"
+.Ft int
+.Fn "bufferevent_write_buffer" "struct bufferevent *bufev" "struct evbuffer *buf"
+.Ft size_t
+.Fn "bufferevent_read" "struct bufferevent *bufev" "void *data" "size_t size"
+.Ft int
+.Fn "bufferevent_enable" "struct bufferevent *bufev" "short event"
+.Ft int
+.Fn "bufferevent_disable" "struct bufferevent *bufev" "short event"
+.Ft void
+.Fn "bufferevent_settimeout" "struct bufferevent *bufev" "int timeout_read" "int timeout_write"
+.Ft "struct evbuffer *"
+.Fn "evbuffer_new" "void"
+.Ft void
+.Fn "evbuffer_free" "struct evbuffer *buf"
+.Ft int
+.Fn "evbuffer_add" "struct evbuffer *buf" "u_char *data" "size_t size"
+.Ft int
+.Fn "evbuffer_add_buffer" "struct evbuffer *dst" "struct evbuffer *src"
+.Ft int
+.Fn "evbuffer_add_printf" "struct evbuffer *buf" "char *fmt" "..."
+.Ft void
+.Fn "evbuffer_drain" "struct evbuffer *buf" "size_t size"
+.Ft int
+.Fn "evbuffer_write" "struct evbuffer *buf" "int fd"
+.Ft int
+.Fn "evbuffer_read" "struct evbuffer *buf" "int fd" "int size"
+.Ft "u_char *"
+.Fn "evbuffer_find" "struct evbuffer *buf" "u_char *data" "size_t size"
 .Ft int
 .Fa (*event_sigcb)(void) ;
 .Ft int
