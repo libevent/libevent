@@ -28,7 +28,6 @@
 #define EVLIST_X_NORT	0x1000	/* Skip RT signals (internal) */
 
 #include "event.h"
-extern struct event_list eventqueue;
 extern struct event_list signalqueue;
 
 struct rtsigop {
@@ -122,8 +121,8 @@ activate(struct event *ev, int flags)
 void *rtsig_init(void);
 int rtsig_add(void *, struct event *);
 int rtsig_del(void *, struct event *);
-int rtsig_recalc(void *, int);
-int rtsig_dispatch(void *, struct timeval *);
+int rtsig_recalc(struct event_base *, void *, int);
+int rtsig_dispatch(struct event_base *, void *, struct timeval *);
 
 struct eventop rtsigops = {
     "rtsig",
@@ -251,13 +250,13 @@ rtsig_del(void *arg, struct event *ev)
 }
 
 int
-rtsig_recalc(void *arg, int max)
+rtsig_recalc(struct event_base *base, void *arg, int max)
 {
     return (0);
 }
 
 int
-rtsig_dispatch(void *arg, struct timeval *tv)
+rtsig_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	struct rtsigop *op = (struct rtsigop *) arg;
 	struct timespec ts;
@@ -311,7 +310,7 @@ rtsig_dispatch(void *arg, struct timeval *tv)
 				return (-1);
 			}
 
-			TAILQ_FOREACH(ev, &eventqueue, ev_next)
+			TAILQ_FOREACH(ev, &base->eventqueue, ev_next)
 			    if (!(ev->ev_flags & EVLIST_X_NORT))
 				    poll_add(op, ev);
 
@@ -339,8 +338,8 @@ rtsig_dispatch(void *arg, struct timeval *tv)
 				}
 			}
 
-			for (ev = TAILQ_FIRST(&eventqueue);
-			    flags && ev != TAILQ_END(&eventqueue);
+			for (ev = TAILQ_FIRST(&base->eventqueue);
+			    flags && ev != TAILQ_END(&base->eventqueue);
 			    ev = TAILQ_NEXT(ev, ev_next)) {
 				if (ev->ev_fd == info.si_fd) {
 					if (flags & ev->ev_events) {

@@ -37,6 +37,7 @@
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
+#include <sys/tree.h>
 #include <poll.h>
 #include <signal.h>
 #include <stdio.h>
@@ -54,9 +55,8 @@
 #endif
 
 #include "event.h"
+#include "event-internal.h"
 #include "evsignal.h"
-
-extern struct event_list eventqueue;
 
 extern volatile sig_atomic_t evsignal_caught;
 
@@ -70,8 +70,8 @@ struct pollop {
 void *poll_init	(void);
 int poll_add		(void *, struct event *);
 int poll_del		(void *, struct event *);
-int poll_recalc	(void *, int);
-int poll_dispatch	(void *, struct timeval *);
+int poll_recalc		(struct event_base *, void *, int);
+int poll_dispatch	(struct event_base *, void *, struct timeval *);
 
 struct eventop pollops = {
 	"poll",
@@ -102,7 +102,7 @@ poll_init(void)
  */
 
 int
-poll_recalc(void *arg, int max)
+poll_recalc(struct event_base *base, void *arg, int max)
 {
 	struct pollop *pop = arg;
 
@@ -110,7 +110,7 @@ poll_recalc(void *arg, int max)
 }
 
 int
-poll_dispatch(void *arg, struct timeval *tv)
+poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	int res, i, count, sec, nfds;
 	struct event *ev;
@@ -118,7 +118,7 @@ poll_dispatch(void *arg, struct timeval *tv)
 
 	count = pop->event_count;
 	nfds = 0;
-	TAILQ_FOREACH(ev, &eventqueue, ev_next) {
+	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
 		if (nfds + 1 >= count) {
 			if (count < 32)
 				count = 32;

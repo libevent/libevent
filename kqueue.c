@@ -64,10 +64,6 @@
 
 #include "event.h"
 
-extern struct event_list timequeue;
-extern struct event_list eventqueue;
-extern struct event_list addqueue;
-
 #define EVLIST_X_KQINKERNEL	0x1000
 
 #define NEVENT		64
@@ -83,8 +79,8 @@ struct kqop {
 void *kq_init	(void);
 int kq_add	(void *, struct event *);
 int kq_del	(void *, struct event *);
-int kq_recalc	(void *, int);
-int kq_dispatch	(void *, struct timeval *);
+int kq_recalc	(struct event_base *, void *, int);
+int kq_dispatch	(struct event_base *, void *, struct timeval *);
 int kq_insert	(struct kqop *, struct kevent *);
 
 const struct eventop kqops = {
@@ -131,7 +127,7 @@ kq_init(void)
 }
 
 int
-kq_recalc(void *arg, int max)
+kq_recalc(struct event_base *base, void *arg, int max)
 {
 	return (0);
 }
@@ -188,7 +184,7 @@ kq_sighandler(int sig)
 }
 
 int
-kq_dispatch(void *arg, struct timeval *tv)
+kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	struct kqop *kqop = arg;
 	struct kevent *changes = kqop->changes;

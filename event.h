@@ -71,12 +71,14 @@ struct {								\
 }
 #endif /* !RB_ENTRY */
 
+struct event_base;
 struct event {
 	TAILQ_ENTRY (event) ev_next;
 	TAILQ_ENTRY (event) ev_active_next;
 	TAILQ_ENTRY (event) ev_signal_next;
 	RB_ENTRY (event) ev_timeout_node;
 
+	struct event_base *ev_base;
 #ifdef WIN32
 	HANDLE ev_fd;
 	OVERLAPPED overlap;
@@ -117,23 +119,20 @@ struct eventop {
 	void *(*init)(void);
 	int (*add)(void *, struct event *);
 	int (*del)(void *, struct event *);
-	int (*recalc)(void *, int);
-	int (*dispatch)(void *, struct timeval *);
+	int (*recalc)(struct event_base *, void *, int);
+	int (*dispatch)(struct event_base *, void *, struct timeval *);
 };
 
 #define TIMEOUT_DEFAULT	{5, 0}
 
-void event_init(void);
+void *event_init(void);
 int event_dispatch(void);
 
 #define EVLOOP_ONCE	0x01
 #define EVLOOP_NONBLOCK	0x02
 int event_loop(int);
+int event_loop_base(struct event_base *, int);
 int event_loopexit(struct timeval *);	/* Causes the loop to exit */
-
-int timeout_next(struct timeval *);
-void timeout_correct(struct timeval *);
-void timeout_process(void);
 
 #define evtimer_add(ev, tv)		event_add(ev, tv)
 #define evtimer_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
@@ -171,7 +170,7 @@ int event_pending(struct event *, short, struct timeval *);
 
 /* These functions deal with event priorities */
 
-int	event_priority_init(int);
+int	event_priority_init(struct event_base *, int);
 int	event_priority_set(struct event *, int);
 
 /* These functions deal with buffering input and output */

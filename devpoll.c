@@ -57,8 +57,6 @@
 #include "event.h"
 #include "evsignal.h"
 
-extern struct event_list eventqueue;
-
 extern volatile sig_atomic_t evsignal_caught;
 
 /* due to limitations in the devpoll interface, we need to keep track of
@@ -81,8 +79,8 @@ struct devpollop {
 void *devpoll_init	(void);
 int devpoll_add	(void *, struct event *);
 int devpoll_del	(void *, struct event *);
-int devpoll_recalc	(void *, int);
-int devpoll_dispatch	(void *, struct timeval *);
+int devpoll_recalc	(struct event_base *, void *, int);
+int devpoll_dispatch	(struct event_base *, void *, struct timeval *);
 
 struct eventop devpollops = {
 	"devpoll",
@@ -139,7 +137,7 @@ devpoll_init(void)
 }
 
 int
-devpoll_recalc(void *arg, int max)
+devpoll_recalc(struct event_base *base, void *arg, int max)
 {
 	struct devpollop *devpollop = arg;
 
@@ -166,7 +164,7 @@ devpoll_recalc(void *arg, int max)
 }
 
 int
-devpoll_dispatch(void *arg, struct timeval *tv)
+devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	struct devpollop *devpollop = arg;
 	struct pollfd *events = devpollop->events;
@@ -257,7 +255,7 @@ devpoll_add(void *arg, struct event *ev)
 	fd = ev->ev_fd;
 	if (fd >= devpollop->nfds) {
 		/* Extent the file descriptor array as necessary */
-		if (devpoll_recalc(devpollop, fd) == -1)
+		if (devpoll_recalc(ev->ev_base, devpollop, fd) == -1)
 			return (-1);
 	}
 	evdp = &devpollop->fds[fd];

@@ -63,6 +63,7 @@ static int roff;
 static int usepersist;
 static struct timeval tset;
 static struct timeval tcalled;
+static struct event_base *event_base;
 
 #define TEST1	"this is a test"
 #define SECONDS	1
@@ -561,7 +562,7 @@ test_priorities(int npriorities)
 	snprintf(buf, sizeof(buf), "Priorities %d: ", npriorities);
 	setup_test(buf);
 
-	event_priority_init(npriorities);
+	event_priority_init(event_base, npriorities);
 
 	memset(&one, 0, sizeof(one));
 	memset(&two, 0, sizeof(two));
@@ -621,7 +622,7 @@ main (int argc, char **argv)
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	/* Initalize the event library */
-	event_init();
+	event_base = event_init();
 
 	test1();
 

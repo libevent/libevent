@@ -37,6 +37,7 @@
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
+#include <sys/tree.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,9 +54,8 @@
 #endif
 
 #include "event.h"
+#include "event-internal.h"
 #include "evsignal.h"
-
-extern struct event_list eventqueue;
 
 #ifndef howmany
 #define        howmany(x, y)   (((x)+((y)-1))/(y))
@@ -74,8 +74,8 @@ struct selectop {
 void *select_init	(void);
 int select_add		(void *, struct event *);
 int select_del		(void *, struct event *);
-int select_recalc	(void *, int);
-int select_dispatch	(void *, struct timeval *);
+int select_recalc	(struct event_base *, void *, int);
+int select_dispatch	(struct event_base *, void *, struct timeval *);
 
 const struct eventop selectops = {
 	"select",
@@ -106,7 +106,7 @@ select_init(void)
  */
 
 int
-select_recalc(void *arg, int max)
+select_recalc(struct event_base *base, void *arg, int max)
 {
 	struct selectop *sop = arg;
 	fd_set *readset, *writeset;
@@ -117,7 +117,7 @@ select_recalc(void *arg, int max)
 		sop->event_fds = max;
 
 	if (!sop->event_fds) {
-		TAILQ_FOREACH(ev, &eventqueue, ev_next)
+		TAILQ_FOREACH(ev, &base->eventqueue, ev_next)
 			if (ev->ev_fd > sop->event_fds)
 				sop->event_fds = ev->ev_fd;
 	}
@@ -149,7 +149,7 @@ select_recalc(void *arg, int max)
 }
 
 int
-select_dispatch(void *arg, struct timeval *tv)
+select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	int maxfd, res;
 	struct event *ev, *next;
@@ -158,7 +158,7 @@ select_dispatch(void *arg, struct timeval *tv)
 	memset(sop->event_readset, 0, sop->event_fdsz);
 	memset(sop->event_writeset, 0, sop->event_fdsz);
 
-	TAILQ_FOREACH(ev, &eventqueue, ev_next) {
+	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
 		if (ev->ev_events & EV_WRITE)
 			FD_SET(ev->ev_fd, sop->event_writeset);
 		if (ev->ev_events & EV_READ)
@@ -188,7 +188,7 @@ select_dispatch(void *arg, struct timeval *tv)
 	LOG_DBG((LOG_MISC, 80, "%s: select reports %d", __func__, res));
 
 	maxfd = 0;
-	for (ev = TAILQ_FIRST(&eventqueue); ev != NULL; ev = next) {
+	for (ev = TAILQ_FIRST(&base->eventqueue); ev != NULL; ev = next) {
 		next = TAILQ_NEXT(ev, ev_next);
 
 		res = 0;

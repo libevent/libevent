@@ -59,8 +59,6 @@
 #include "event.h"
 #include "evsignal.h"
 
-extern struct event_list eventqueue;
-
 extern volatile sig_atomic_t evsignal_caught;
 
 /* due to limitations in the epoll interface, we need to keep track of
@@ -83,8 +81,8 @@ struct epollop {
 void *epoll_init	(void);
 int epoll_add	(void *, struct event *);
 int epoll_del	(void *, struct event *);
-int epoll_recalc	(void *, int);
-int epoll_dispatch	(void *, struct timeval *);
+int epoll_recalc	(struct event_base *, void *, int);
+int epoll_dispatch	(struct event_base *, void *, struct timeval *);
 
 struct eventop epollops = {
 	"epoll",
@@ -152,7 +150,7 @@ epoll_init(void)
 }
 
 int
-epoll_recalc(void *arg, int max)
+epoll_recalc(struct event_base *base, void *arg, int max)
 {
 	struct epollop *epollop = arg;
 
@@ -179,7 +177,7 @@ epoll_recalc(void *arg, int max)
 }
 
 int
-epoll_dispatch(void *arg, struct timeval *tv)
+epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	struct epollop *epollop = arg;
 	struct epoll_event *events = epollop->events;
@@ -263,7 +261,7 @@ epoll_add(void *arg, struct event *ev)
 	fd = ev->ev_fd;
 	if (fd >= epollop->nfds) {
 		/* Extent the file descriptor array as necessary */
-		if (epoll_recalc(epollop, fd) == -1)
+		if (epoll_recalc(ev->ev_base, epollop, fd) == -1)
 			return (-1);
 	}
 	evep = &epollop->fds[fd];
