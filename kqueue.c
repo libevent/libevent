@@ -225,6 +225,7 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			if (events[i].data == EBADF ||
 			    events[i].data == ENOENT)
 				continue;
+			errno = events[i].data;
 			return (-1);
 		}
 
