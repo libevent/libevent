@@ -45,6 +45,11 @@
 
 #include "event.h"
 
+/* prototypes */
+
+void bufferevent_setwatermark(struct bufferevent *, short, size_t, size_t);
+void bufferevent_read_pressure_cb(struct evbuffer *, size_t, size_t, void *);
+
 static int
 bufferevent_add(struct event *ev, int timeout)
 {

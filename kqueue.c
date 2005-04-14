@@ -116,8 +116,8 @@ kq_init(void)
 	}
 	kqueueop->events = malloc(NEVENT * sizeof(struct kevent));
 	if (kqueueop->events == NULL) {
-		free (kqueueop);
 		free (kqueueop->changes);
+		free (kqueueop);
 		return (NULL);
 	}
 	kqueueop->nevents = NEVENT;

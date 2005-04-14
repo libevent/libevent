@@ -166,7 +166,7 @@ end:
 int
 evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen)
 {
-	int nread = datlen;
+	size_t nread = datlen;
 	if (nread >= buf->off)
 		nread = buf->off;
 
