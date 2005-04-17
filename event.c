@@ -108,7 +108,7 @@ struct event_base *current_base = NULL;
 
 /* Handle signals - This is a deprecated interface */
 int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
-int event_gotsig;		/* Set in signal handler */
+volatile int event_gotsig;	/* Set in signal handler */
 
 /* Prototypes */
 static void	event_queue_insert(struct event_base *, struct event *, int);
