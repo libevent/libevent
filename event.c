@@ -433,6 +433,7 @@ event_once(int fd, short events,
 		event_set(&eonce->ev, fd, events, event_once_cb, eonce);
 	} else {
 		/* Bad event combination */
+		free(eonce);
 		return (-1);
 	}
 
