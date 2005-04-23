@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
-LDADD = -L.. -levent
+LDADD = ../libevent.la
 CPPFPLAGS = -I.. 
 CFLAGS = -I../compat
 

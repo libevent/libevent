@@ -19,10 +19,11 @@ EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h event.3 \
 	WIN32-Prj/signal_test/signal_test.dsp WIN32-Prj/time_test \
 	WIN32-Prj/time_test/time_test.dsp
 
-lib_LIBRARIES = libevent.a
+lib_LTLIBRARIES = libevent.la
 
-libevent_a_SOURCES = event.c buffer.c evbuffer.c log.c
-libevent_a_LIBADD = @LIBOBJS@
+libevent_la_SOURCES = event.c buffer.c evbuffer.c log.c
+libevent_la_LIBADD = @LTLIBOBJS@
+libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:2:0
 
 include_HEADERS = event.h
 

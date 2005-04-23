@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
-LDADD = -L.. -levent
+LDADD = ../libevent.la
 CPPFPLAGS = -I.. 
 CFLAGS = -I../compat @CFLAGS@
 
@@ -20,4 +20,4 @@ test: test-init test-eof test-weof test-time regress
 verify: test
 	@./test.sh
 
-bench test-init test-eof test-weof test-time regress: ../libevent.a
+bench test-init test-eof test-weof test-time regress: ../libevent.la

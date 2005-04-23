@@ -13,7 +13,6 @@ fi
 
 dnl Checks for programs.
 AC_PROG_CC
-AC_PROG_RANLIB
 AC_PROG_INSTALL
 AC_PROG_LN_S
 
@@ -22,6 +21,13 @@ if test "$GCC" = yes ; then
         CFLAGS="$CFLAGS -Wall"
 fi
 
+AC_PROG_LIBTOOL
+
+dnl   Uncomment "AC_DISABLE_SHARED" to make shared librraries not get
+dnl   built by default.  You can also turn shared libs on and off from 
+dnl   the command line with --enable-shared and --disable-shared.
+dnl AC_DISABLE_SHARED
+AC_SUBST(LIBTOOL_DEPS)
 
 dnl Check for optional stuff
 AC_ARG_WITH(rtsig,
