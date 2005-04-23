@@ -55,8 +55,13 @@ extern volatile sig_atomic_t evsignal_caught;
 
 struct pollop {
 	int event_count;		/* Highest number alloc */
+	int fd_count;                   /* Size of idxplus1_by_fd */
 	struct pollfd *event_set;
-	struct event **event_back;
+	struct event **event_r_back;
+	struct event **event_w_back;
+	int *idxplus1_by_fd; /* Index into event_set by fd; we add 1 so
+			      * that 0 (which is easy to memset) can mean
+			      * "no entry." */
 	sigset_t evsigmask;
 };
 
@@ -108,13 +113,19 @@ poll_recalc(struct event_base *base, void *arg, int max)
 int
 poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
-	int res, i, count, sec, nfds;
+	int res, i, count, fd_count, sec, nfds;
 	struct event *ev;
 	struct pollop *pop = arg;
+	int *idxplus1_by_fd;
 
 	count = pop->event_count;
+	fd_count = pop->fd_count;
+	idxplus1_by_fd = pop->idxplus1_by_fd;
+	memset(idxplus1_by_fd, 0, sizeof(int)*fd_count);
 	nfds = 0;
+
 	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
+		struct pollfd *pfd = NULL;
 		if (nfds + 1 >= count) {
 			if (count < 32)
 				count = 32;
@@ -128,34 +139,61 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
                                 event_warn("realloc");
 				return (-1);
 			}
-			pop->event_back = realloc(pop->event_back,
+			pop->event_r_back = realloc(pop->event_r_back,
 			    count * sizeof(struct event *));
-			if (pop->event_back == NULL) {
+			pop->event_w_back = realloc(pop->event_w_back,
+			    count * sizeof(struct event *));
+			if (pop->event_r_back == NULL ||
+			    pop->event_w_back == NULL) {
 				event_warn("realloc");
 				return (-1);
 			}
 			pop->event_count = count;
 		}
+		if (!(ev->ev_events & (EV_READ|EV_WRITE)))
+			continue;
+		if (ev->ev_fd >= fd_count) {
+			int new_count;
+			if (fd_count < 32)
+				new_count = 32;
+			else
+				new_count = fd_count * 2;
+			while (new_count <= ev->ev_fd)
+				new_count *= 2;
+			idxplus1_by_fd = pop->idxplus1_by_fd =
+			  realloc(pop->idxplus1_by_fd, new_count*sizeof(int));
+			if (idxplus1_by_fd == NULL) {
+				event_warn("realloc");
+				return (-1);
+			}
+			memset(pop->idxplus1_by_fd+sizeof(int)*fd_count,
+			       0, sizeof(int)*(new_count-fd_count));
+			fd_count = pop->fd_count = new_count;
+		}
+		i = idxplus1_by_fd[ev->ev_fd] - 1;
+		if (i >= 0) {
+			pfd = &pop->event_set[i];
+		} else {
+			i = nfds++;
+			pfd = &pop->event_set[i];
+			pop->event_w_back[i] = pop->event_r_back[i] = NULL;
+			pfd->events = 0;
+			idxplus1_by_fd[ev->ev_fd] = i + 1;
+		}
+
 		if (ev->ev_events & EV_WRITE) {
-			struct pollfd *pfd = &pop->event_set[nfds];
 			pfd->fd = ev->ev_fd;
-			pfd->events = POLLOUT;
+			pfd->events |= POLLOUT;
 			pfd->revents = 0;
 
-			pop->event_back[nfds] = ev;
-
-			nfds++;
+			pop->event_w_back[i] = ev;
 		}
 		if (ev->ev_events & EV_READ) {
-			struct pollfd *pfd = &pop->event_set[nfds];
-
 			pfd->fd = ev->ev_fd;
-			pfd->events = POLLIN;
+			pfd->events |= POLLIN;
 			pfd->revents = 0;
 
-			pop->event_back[nfds] = ev;
-
-			nfds++;
+			pop->event_r_back[i] = ev;
 		}
 	}
 
@@ -186,6 +224,7 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	for (i = 0; i < nfds; i++) {
                 int what = pop->event_set[i].revents;
+		struct event *r_ev = NULL, *w_ev = NULL;
 		
 		res = 0;
 
@@ -194,21 +233,27 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			what |= POLLIN|POLLOUT;
                 if (what & POLLERR) 
                         what |= POLLIN|POLLOUT;
-		if (what & POLLIN)
+		if (what & POLLIN) {
 			res |= EV_READ;
-		if (what & POLLOUT)
+			r_ev = pop->event_r_back[i];
+		}
+		if (what & POLLOUT) {
 			res |= EV_WRITE;
+			w_ev = pop->event_w_back[i];
+		}
 		if (res == 0)
 			continue;
 
-		ev = pop->event_back[i];
-		res &= ev->ev_events;
-
-		if (res) {
-			if (!(ev->ev_events & EV_PERSIST))
-				event_del(ev);
-			event_active(ev, res, 1);
-		}	
+		if (r_ev && (res & r_ev->ev_events)) {
+			if (!(r_ev->ev_events & EV_PERSIST))
+				event_del(r_ev);
+			event_active(r_ev, res & r_ev->ev_events, 1);
+		}
+		if (w_ev && w_ev != r_ev && (res & w_ev->ev_events)) {
+			if (!(w_ev->ev_events & EV_PERSIST))
+				event_del(w_ev);
+			event_active(w_ev, res & w_ev->ev_events, 1);
+		}
 	}
 
 	return (0);
