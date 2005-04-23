@@ -261,6 +261,7 @@ void evbuffer_free(struct evbuffer *);
 int evbuffer_expand(struct evbuffer *, size_t);
 int evbuffer_add(struct evbuffer *, void *, size_t);
 int evbuffer_remove(struct evbuffer *, void *, size_t);
+char *evbuffer_readline(struct evbuffer *);
 int evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
 int evbuffer_add_printf(struct evbuffer *, char *fmt, ...);
 void evbuffer_drain(struct evbuffer *, size_t);
