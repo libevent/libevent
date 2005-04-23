@@ -242,6 +242,8 @@ bufferevent_priority_set(struct bufferevent *bufev, int priority)
 	return (0);
 }
 
+/* Closing the file descriptor is the responsibility of the caller */
+
 void
 bufferevent_free(struct bufferevent *bufev)
 {
