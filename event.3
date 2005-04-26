@@ -70,7 +70,8 @@
 .Nm evbuffer_drain ,
 .Nm evbuffer_write ,
 .Nm evbuffer_read ,
-.Nm evbuffer_find
+.Nm evbuffer_find ,
+.Nm evbuffer_readline
 .Nd execute a function when a specific event occurs
 .Sh SYNOPSIS
 .Fd #include <sys/time.h>
@@ -157,6 +158,8 @@
 .Fn "evbuffer_read" "struct evbuffer *buf" "int fd" "int size"
 .Ft "u_char *"
 .Fn "evbuffer_find" "struct evbuffer *buf" "u_char *data" "size_t size"
+.Ft "char *"
+.Fn "evbuffer_readline" "struct evbuffer *buf"
 .Ft int
 .Fa (*event_sigcb)(void) ;
 .Ft int
