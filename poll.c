@@ -166,7 +166,7 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 				event_warn("realloc");
 				return (-1);
 			}
-			memset(pop->idxplus1_by_fd+sizeof(int)*fd_count,
+			memset(pop->idxplus1_by_fd + fd_count,
 			       0, sizeof(int)*(new_count-fd_count));
 			fd_count = pop->fd_count = new_count;
 		}
