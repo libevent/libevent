@@ -333,13 +333,13 @@ epoll_del(void *arg, struct event *ev)
 	epev.events = events;
 	epev.data.ptr = evep;
 
-	if (epoll_ctl(epollop->epfd, op, fd, &epev) == -1)
-		return (-1);
-
 	if (needreaddelete)
 		evep->evread = NULL;
 	if (needwritedelete)
 		evep->evwrite = NULL;
+
+	if (epoll_ctl(epollop->epfd, op, fd, &epev) == -1)
+		return (-1);
 
 	return (0);
 }
