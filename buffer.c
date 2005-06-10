@@ -332,7 +332,7 @@ evbuffer_read(struct evbuffer *buf, int fd, int howmuch)
 #endif
 
 #ifdef FIONREAD
-	if (ioctl(fd, FIONREAD, &n) == -1)
+	if (ioctl(fd, FIONREAD, &n) == -1 || n == 0)
 		n = EVBUFFER_MAX_READ;
 #endif	
 	if (howmuch < 0 || howmuch > n)
