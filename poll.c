@@ -157,7 +157,7 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	if (evsignal_deliver(&pop->evsigmask) == -1)
 		return (-1);
 
-	poll_check_ok();
+	poll_check_ok(pop);
 	sec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 	nfds = pop->nfds;
 	res = poll(pop->event_set, nfds, sec);
