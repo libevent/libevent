@@ -47,7 +47,7 @@ main (int argc, char **argv)
 {
 	struct event ev;
 
-	if (signal(SIGPIPE, SIG_IGN) == SIG_IGN)
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 		return (1);
 
 	if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
