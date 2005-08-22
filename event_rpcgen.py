@@ -115,7 +115,7 @@ class Struct:
                         '{\n'
                         '  struct %s *tmp;\n' % self._name +
                         '  if ((tmp = malloc(sizeof(struct %s))) == NULL) {\n'
-                        '    warn("%%s: malloc", __func__);\n'
+                        '    event_warn("%%s: malloc", __func__);\n'
                         '    return (NULL);\n' % self._name +
                         '  }'
                         )
@@ -603,18 +603,20 @@ class EntryStruct(Entry):
                  '  } else {',
                  '    msg->%s_data = %s_new();' % (name, self._refname),
                  '    if (msg->%s_data == NULL) {' % name,
-                 '      warn("%%s: %s_new()", __func__);' % (self._refname),
+                 '      event_warn("%%s: %s_new()", __func__);' % (
+            self._refname),
                  '      goto error;',
                  '    }',
                  '  }',
                  '  if ((tmp = evbuffer_new()) == NULL) {',
-                 '    warn("%s: evbuffer_new()", __func__);',
+                 '    event_warn("%s: evbuffer_new()", __func__);',
                  '    goto error;',
                  '  }',
                  '  %s_marshal(tmp, value); ' % self._refname,
                  '  if (%s_unmarshal(msg->%s_data, tmp) == -1) {' % (
             self._refname, name ),
-                 '    warnx("%%s: %s_unmarshal", __func__);' % self._refname,
+                 '    event_warnx("%%s: %s_unmarshal", __func__);' % (
+            self._refname),
                  '    goto error;',
                  '  }',
                  '  msg->%s_set = 1;' % name,
@@ -1030,6 +1032,11 @@ def BodyPreamble(name):
         pre += '%s\n' % include
     
     pre += '\n#include "%s"\n\n' % header_file
+
+    pre += 'void event_err(int eval, const char *fmt, ...);\n'
+    pre += 'void event_warn(const char *fmt, ...);\n'
+    pre += 'void event_errx(int eval, const char *fmt, ...)\n;'
+    pre += 'void event_warnx(const char *fmt, ...)\n\n;'
 
     pre += 'static struct evbuffer *_buf;\n\n'
 
