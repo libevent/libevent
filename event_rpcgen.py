@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#
 # Copyright (c) 2005 Niels Provos <provos@citi.umich.edu>
 # All rights reserved.
 #
@@ -89,9 +90,9 @@ class Struct:
             self._name, self._name) +
             'int %s_complete(struct %s *);' % (self._name, self._name)
             )
-        print >>file, ('void tag_marshal_%s(struct evbuffer *, uint8_t, '
+        print >>file, ('void evtag_marshal_%s(struct evbuffer *, uint8_t, '
                        'struct %s *);') % ( self._name, self._name)
-        print >>file, ('int tag_unmarshal_%s(struct evbuffer *, uint8_t, '
+        print >>file, ('int evtag_unmarshal_%s(struct evbuffer *, uint8_t, '
                        'struct %s *);') % ( self._name, self._name)
 
         # Write a setting function of every variable
@@ -185,7 +186,7 @@ class Struct:
                        '{\n'
                        '  uint8_t tag;\n'
                        '  while (EVBUFFER_LENGTH(evbuf) > 0) {\n'
-                       '    if (tag_peek(evbuf, &tag) == -1)\n'
+                       '    if (evtag_peek(evbuf, &tag) == -1)\n'
                        '      return (-1);\n'
                        '    switch (tag) {\n'
                        )
@@ -229,7 +230,7 @@ class Struct:
         # Complete message unmarshaling
         print >>file, (
             'int\n'
-            'tag_unmarshal_%s(struct evbuffer *evbuf, uint8_t need_tag, '
+            'evtag_unmarshal_%s(struct evbuffer *evbuf, uint8_t need_tag, '
             ' struct %s *msg)'
             ) % (self._name, self._name)
         print >>file, (
@@ -239,7 +240,8 @@ class Struct:
             '\n'
             '  struct evbuffer *tmp = evbuffer_new();\n'
             '\n'
-            '  if (tag_unmarshal(evbuf, &tag, tmp) == -1 || tag != need_tag)\n'
+            '  if (evtag_unmarshal(evbuf, &tag, tmp) == -1'
+            ' || tag != need_tag)\n'
             '    goto error;\n'
             '\n'
             '  if (%s_unmarshal(msg, tmp) == -1)\n'
@@ -255,14 +257,14 @@ class Struct:
         # Complete message marshaling
         print >>file, (
             'void\n'
-            'tag_marshal_%s(struct evbuffer *evbuf, uint8_t tag, '
+            'evtag_marshal_%s(struct evbuffer *evbuf, uint8_t tag, '
             'struct %s *msg)\n' % (self._name, self._name) +
             '{\n'
             '  if (_buf == NULL)\n'
             '    _buf = evbuffer_new();\n'
             '  evbuffer_drain(_buf, -1);\n'
             '  %s_marshal(_buf, msg);\n' % self._name +
-            '  tag_marshal(evbuf, tag, EVBUFFER_DATA(_buf), '
+            '  evtag_marshal(evbuf, tag, EVBUFFER_DATA(_buf), '
             'EVBUFFER_LENGTH(_buf));\n'
             '}\n' )
 
@@ -435,7 +437,7 @@ class EntryBytes(Entry):
         return code
         
     def CodeUnmarshal(self, buf, tag_name, var_name):
-        code = [  'if (tag_unmarshal_fixed(%s, %s, ' % (buf, tag_name) +
+        code = [  'if (evtag_unmarshal_fixed(%s, %s, ' % (buf, tag_name) +
                   '%s->%s_data, ' % (var_name, self._name) +
                   'sizeof(%s->%s_data)) == -1)' % (
             var_name, self._name),
@@ -443,7 +445,7 @@ class EntryBytes(Entry):
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name):
-        code = ['tag_marshal(%s, %s, %s->%s_data, sizeof(%s->%s_data));' % (
+        code = ['evtag_marshal(%s, %s, %s->%s_data, sizeof(%s->%s_data));' % (
             buf, tag_name, var_name, self._name, var_name, self._name )]
         return code
 
@@ -476,13 +478,13 @@ class EntryInt(Entry):
         self._ctype = 'uint32_t'
 
     def CodeUnmarshal(self, buf, tag_name, var_name):
-        code = ['if (tag_unmarshal_int(%s, %s, &%s->%s_data) == -1)' % (
+        code = ['if (evtag_unmarshal_int(%s, %s, &%s->%s_data) == -1)' % (
             buf, tag_name, var_name, self._name),
                 '  return (-1);'] 
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name):
-        code = ['tag_marshal_int(%s, %s, %s->%s_data);' % (
+        code = ['evtag_marshal_int(%s, %s, %s->%s_data);' % (
             buf, tag_name, var_name, self._name)]
         return code
 
@@ -515,13 +517,13 @@ class EntryString(Entry):
         return code
         
     def CodeUnmarshal(self, buf, tag_name, var_name):
-        code = ['if (tag_unmarshal_string(%s, %s, &%s->%s_data) == -1)' % (
+        code = ['if (evtag_unmarshal_string(%s, %s, &%s->%s_data) == -1)' % (
             buf, tag_name, var_name, self._name),
                 '  return (-1);']
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name):
-        code = ['tag_marshal_string(%s, %s, %s->%s_data);' % (
+        code = ['evtag_marshal_string(%s, %s, %s->%s_data);' % (
             buf, tag_name, var_name, self._name)]
         return code
 
@@ -643,13 +645,17 @@ class EntryStruct(Entry):
         return code
     
     def CodeUnmarshal(self, buf, tag_name, var_name):
-        code = ['if (tag_unmarshal_%s(%s, %s, %s->%s_data) == -1)' % (
+        code = ['%s->%s_data = %s_new();' % (
+            var_name, self._name, self._refname),
+                'if (%s->%s_data == NULL)' % (var_name, self._name),
+                '  return (-1);',
+                'if (evtag_unmarshal_%s(%s, %s, %s->%s_data) == -1)' % (
             self._refname, buf, tag_name, var_name, self._name),
                 '  return (-1);']
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name):
-        code = ['tag_marshal_%s(%s, %s, %s->%s_data);' % (
+        code = ['evtag_marshal_%s(%s, %s, %s->%s_data);' % (
             self._refname, buf, tag_name, var_name, self._name)]
         return code
 
@@ -713,20 +719,20 @@ class EntryVarBytes(Entry):
         return code
         
     def CodeUnmarshal(self, buf, tag_name, var_name):
-        code = ['if (tag_peek_length(%s, &%s->%s_length) == -1)' % (
+        code = ['if (evtag_peek_length(%s, &%s->%s_length) == -1)' % (
             buf, var_name, self._name),
                 '  return (-1);',
                 'if ((%s->%s_data = malloc(%s->%s_length)) == NULL)' % (
             var_name, self._name, var_name, self._name),
                 '  return (-1);',
-                'if (tag_unmarshal_fixed(%s, %s, %s->%s_data, '
+                'if (evtag_unmarshal_fixed(%s, %s, %s->%s_data, '
                 '%s->%s_length) == -1)' % (
             buf, tag_name, var_name, self._name, var_name, self._name),
                 '  return (-1);']
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name):
-        code = ['tag_marshal(%s, %s, %s->%s_data, %s->%s_length);' % (
+        code = ['evtag_marshal(%s, %s, %s->%s_data, %s->%s_length);' % (
             buf, tag_name, var_name, self._name, var_name, self._name)]
         return code
 
@@ -890,10 +896,27 @@ def GetNextStruct(file):
 
     got_struct = 0
 
+    processed_lines = []
+
+    have_c_comment = 0
     data = ''
     for line in file:
         line_count += 1
         line = line[:-1]
+
+        if not have_c_comment and re.search(r'/\*', line):
+            if re.search(r'/\*.*\*/', line):
+                line = re.sub(r'/\*.*\*/', '', line)
+            else:
+                line = re.sub(r'/\*.*$', '', line)
+                have_c_comment = 1
+
+        if have_c_comment:
+            if not re.search(r'\*/', line):
+                continue
+            have_c_comment = 0
+            line = re.sub(r'^.*\*/', '', line)
+
         line = NormalizeLine(line)
 
         if not line:

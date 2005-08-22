@@ -270,6 +270,46 @@ int evbuffer_read(struct evbuffer *, int, int);
 u_char *evbuffer_find(struct evbuffer *, u_char *, size_t);
 void evbuffer_setcb(struct evbuffer *, void (*)(struct evbuffer *, size_t, size_t, void *), void *);
 
+/* 
+ * Marshaling tagged data - We assume that all tags are inserted in their
+ * numeric order - so that unknown tags will always be higher than the
+ * known ones - and we can just ignore the end of an event buffer.
+ */
+
+void evtag_init(void);
+
+void evtag_marshal(struct evbuffer *evbuf, uint8_t tag, const void *data,
+    uint16_t len);
+
+void encode_int(struct evbuffer *evbuf, uint32_t number);
+
+void evtag_marshal_int(struct evbuffer *evbuf, uint8_t tag, uint32_t integer);
+
+void evtag_marshal_string(struct evbuffer *buf, uint8_t tag,
+    const char *string);
+
+void evtag_marshal_timeval(struct evbuffer *evbuf, uint8_t tag,
+    struct timeval *tv);
+
+void evtag_test(void);
+
+int evtag_unmarshal(struct evbuffer *src, uint8_t *ptag, struct evbuffer *dst);
+int evtag_peek(struct evbuffer *evbuf, uint8_t *ptag);
+int evtag_peek_length(struct evbuffer *evbuf, uint32_t *plength);
+int evtag_consume(struct evbuffer *evbuf);
+
+int evtag_unmarshal_int(struct evbuffer *evbuf, uint8_t need_tag,
+    uint32_t *pinteger);
+
+int evtag_unmarshal_fixed(struct evbuffer *src, uint8_t need_tag, void *data,
+    size_t len);
+
+int evtag_unmarshal_string(struct evbuffer *evbuf, uint8_t need_tag,
+    char **pstring);
+
+int evtag_unmarshal_timeval(struct evbuffer *evbuf, uint8_t need_tag,
+    struct timeval *ptv);
+
 #ifdef __cplusplus
 }
 #endif

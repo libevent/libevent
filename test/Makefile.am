@@ -4,20 +4,27 @@ LDADD = ../libevent.la
 CPPFPLAGS = -I.. 
 CFLAGS = -I../compat @CFLAGS@
 
+EXTRA_DIST = regress.rpc
+
 noinst_PROGRAMS = test-init test-eof test-weof test-time regress bench
 
-test_init_sources = test-init.c
-test_eof_sources = test-eof.c
-test_weof_sources = test-weof.c
-test_time_sources = test-time.c
-regress_sources = regress.c
-bench_sources = bench.c
+BUILT_SOURCES = regress.gen.c regress.gen.h
+test_init_SOURCES = test-init.c
+test_eof_SOURCES = test-eof.c
+test_weof_SOURCES = test-weof.c
+test_time_SOURCES = test-time.c
+regress_SOURCES = regress.c regress.gen.c regress.gen.h
+bench_SOURCES = bench.c
+
+regress.gen.c regress.gen.h: regress.rpc
+	../event_rpcgen.py regress.rpc
 
 DISTCLEANFILES = *~
+CLEANFILES = regress.gen.h regress.gen.c
 
 test: test-init test-eof test-weof test-time regress
 
 verify: test
 	@./test.sh
 
-bench test-init test-eof test-weof test-time regress: ../libevent.la
+bench test-init test-eof test-weof test-time: ../libevent.la

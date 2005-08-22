@@ -52,6 +52,8 @@
 
 #include <event.h>
 
+#include "regress.gen.h"
+
 static int pair[2];
 static int test_ok;
 static int called;
@@ -637,6 +639,146 @@ test_multiple_events_for_same_fd(void)
    cleanup_test();
 }
 
+int decode_int(uint32_t *pnumber, struct evbuffer *evbuf);
+
+#define TEST_MAX_INT	6
+
+void
+evtag_int_test(void)
+{
+	struct evbuffer *tmp = evbuffer_new();
+	uint32_t integers[TEST_MAX_INT] = {
+		0xaf0, 0x1000, 0x1, 0xdeadbeef, 0x00, 0xbef000
+	};
+	uint32_t integer;
+	int i;
+
+	for (i = 0; i < TEST_MAX_INT; i++) {
+		int oldlen, newlen;
+		oldlen = EVBUFFER_LENGTH(tmp);
+		encode_int(tmp, integers[i]);
+		newlen = EVBUFFER_LENGTH(tmp);
+		fprintf(stderr, "\t\tencoded 0x%08x with %d bytes\n",
+		    integers[i], newlen - oldlen);
+	}
+
+	for (i = 0; i < TEST_MAX_INT; i++) {
+		if (decode_int(&integer, tmp) == -1) {
+			fprintf(stderr, "decode %d failed", i);
+			exit(1);
+		}
+		if (integer != integers[i]) {
+			fprintf(stderr, "got %x, wanted %x",
+			    integer, integers[i]);
+			exit(1);
+		}
+	}
+
+	if (EVBUFFER_LENGTH(tmp) != 0) {
+		fprintf(stderr, "trailing data");
+		exit(1);
+	}
+	evbuffer_free(tmp);
+
+	fprintf(stderr, "\t%s: OK\n", __func__);
+}
+
+void
+evtag_fuzz()
+{
+	u_char buffer[4096];
+	struct evbuffer *tmp = evbuffer_new();
+	struct timeval tv;
+	int i, j;
+
+	for (j = 0; j < 100; j++) {
+		for (i = 0; i < sizeof(buffer); i++)
+			buffer[i] = rand();
+		evbuffer_drain(tmp, -1);
+		evbuffer_add(tmp, buffer, sizeof(buffer));
+
+		if (evtag_unmarshal_timeval(tmp, 0, &tv) != -1) {
+			fprintf(stderr, "evtag_unmarshal should have failed");
+			exit(1);
+		}
+	}
+
+	/* Now insert some corruption into the tag length field */
+	evbuffer_drain(tmp, -1);
+	timerclear(&tv);
+	tv.tv_sec = 1;
+	evtag_marshal_timeval(tmp, 0, &tv);
+	evbuffer_add(tmp, buffer, sizeof(buffer));
+
+	EVBUFFER_DATA(tmp)[1] = 0xff;
+	if (evtag_unmarshal_timeval(tmp, 0, &tv) != -1) {
+		fprintf(stderr, "evtag_unmarshal_timeval should have failed");
+		exit(1);
+	}
+
+	evbuffer_free(tmp);
+
+	fprintf(stderr, "\t%s: OK\n", __func__);
+}
+
+void
+evtag_test(void)
+{
+	fprintf(stdout, "Testing Tagging:\n");
+
+	evtag_init();
+	evtag_int_test();
+	evtag_fuzz();
+
+	fprintf(stdout, "OK\n");
+}
+
+void
+rpc_test(void)
+{
+	struct msg *msg, *msg2;
+	struct kill *kill;
+	struct evbuffer *tmp = evbuffer_new();
+
+	fprintf(stdout, "Testing RPC: ");
+
+	msg = msg_new();
+	EVTAG_ASSIGN(msg, from_name, "niels");
+	EVTAG_ASSIGN(msg, to_name, "phoenix");
+
+	if (EVTAG_GET(msg, kill, &kill) == -1) {
+		fprintf(stderr, "Failed to set kill message.\n");
+		exit(1);
+	}
+
+	EVTAG_ASSIGN(kill, weapon, "feather");
+	EVTAG_ASSIGN(kill, action, "tickle");
+
+	if (msg_complete(msg) == -1) {
+		fprintf(stderr, "Failed to make complete message.\n");
+		exit(1);
+	}
+
+	evtag_marshal_msg(tmp, 0, msg);
+
+	msg2 = msg_new();
+	if (evtag_unmarshal_msg(tmp, 0, msg2) == -1) {
+		fprintf(stderr, "Failed to unmarshal message.\n");
+		exit(1);
+	}
+
+	if (!EVTAG_HAS(msg2, from_name) ||
+	    !EVTAG_HAS(msg2, to_name) ||
+	    !EVTAG_HAS(msg2, kill)) {
+		fprintf(stderr, "Missing data structures.\n");
+		exit(1);
+	}
+
+	msg_free(msg);
+	msg_free(msg2);
+
+	fprintf(stdout, "OK\n");
+}
 
 int
 main (int argc, char **argv)
@@ -679,6 +821,10 @@ main (int argc, char **argv)
 	test_priorities(3);
 
 	test_multiple_events_for_same_fd();
+
+	evtag_test();
+
+	rpc_test();
 
 	return (0);
 }

@@ -2,9 +2,11 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 SUBDIRS = . sample test
 
+bin_SCRIPTS = event_rpcgen.py
+
 EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h event.3 \
 	kqueue.c epoll_sub.c epoll.c select.c rtsig.c poll.c signal.c \
-	devpoll.c \
+	devpoll.c event_rpcgen.py \
 	sample/Makefile.am sample/Makefile.in sample/event-test.c \
 	sample/signal-test.c sample/time-test.c \
 	test/Makefile.am test/Makefile.in test/bench.c test/regress.c \
@@ -21,9 +23,9 @@ EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h event.3 \
 
 lib_LTLIBRARIES = libevent.la
 
-libevent_la_SOURCES = event.c buffer.c evbuffer.c log.c
+libevent_la_SOURCES = event.c buffer.c evbuffer.c log.c event_tagging.c
 libevent_la_LIBADD = @LTLIBOBJS@
-libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:2:0
+libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
 
 include_HEADERS = event.h
 
