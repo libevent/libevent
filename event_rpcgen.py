@@ -1035,8 +1035,8 @@ def BodyPreamble(name):
 
     pre += 'void event_err(int eval, const char *fmt, ...);\n'
     pre += 'void event_warn(const char *fmt, ...);\n'
-    pre += 'void event_errx(int eval, const char *fmt, ...)\n;'
-    pre += 'void event_warnx(const char *fmt, ...)\n\n;'
+    pre += 'void event_errx(int eval, const char *fmt, ...);\n'
+    pre += 'void event_warnx(const char *fmt, ...);\n\n'
 
     pre += 'static struct evbuffer *_buf;\n\n'
 
