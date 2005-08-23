@@ -393,7 +393,7 @@ class EntryBytes(Entry):
         self._ctype = 'uint8_t'
 
     def GetDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, %s *);' % (
+        code = [ 'int %s(struct %s *, %s **);' % (
             funcname, self._struct.Name(), self._ctype ) ]
         return code
         
@@ -410,14 +410,13 @@ class EntryBytes(Entry):
     def CodeGet(self):
         name = self._name
         code = [ 'int',
-                 '%s_%s_get(struct %s *msg, %s *value)' % (
+                 '%s_%s_get(struct %s *msg, %s **value)' % (
             self._struct.Name(), name,
             self._struct.Name(), self._ctype),
                  '{',
                  '  if (msg->%s_set != 1)' % name,
                  '    return (-1);',
-                 '  memcpy(value, msg->%s_data, %s);' % (
-            name, self._length),
+                 '  *value = msg->%s_data;' % name,
                  '  return (0);',
                  '}' ]
         return code
@@ -696,6 +695,11 @@ class EntryVarBytes(Entry):
 
         self._ctype = 'uint8_t *'
 
+    def GetDeclaration(self, funcname):
+        code = [ 'int %s(struct %s *, %s *, uint32_t *);' % (
+            funcname, self._struct.Name(), self._ctype ) ]
+        return code
+        
     def AssignDeclaration(self, funcname):
         code = [ 'int %s(struct %s *, %s, uint32_t);' % (
             funcname, self._struct.Name(), self._ctype ) ]
@@ -720,6 +724,21 @@ class EntryVarBytes(Entry):
                  '}' ]
         return code
         
+    def CodeGet(self):
+        name = self._name
+        code = [ 'int',
+                 '%s_%s_get(struct %s *msg, %s *value, uint32_t *plen)' % (
+            self._struct.Name(), name,
+            self._struct.Name(), self._ctype),
+                 '{',
+                 '  if (msg->%s_set != 1)' % name,
+                 '    return (-1);',
+                 '  *value = msg->%s_data;' % name,
+                 '  *plen = msg->%s_length;' % name,
+                 '  return (0);',
+                 '}' ]
+        return code
+
     def CodeUnmarshal(self, buf, tag_name, var_name):
         code = ['if (evtag_peek_length(%s, &%s->%s_length) == -1)' % (
             buf, var_name, self._name),
