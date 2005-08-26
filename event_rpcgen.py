@@ -84,14 +84,14 @@ class Struct:
             'struct %s *%s_new();\n' % (self._name, self._name) +
             'void %s_free(struct %s *);\n' % (self._name, self._name) +
             'void %s_clear(struct %s *);\n' % (self._name, self._name) +
-            'void %s_marshal(struct evbuffer *, struct %s *);\n' % (
+            'void %s_marshal(struct evbuffer *, const struct %s *);\n' % (
             self._name, self._name) +
             'int %s_unmarshal(struct %s *, struct evbuffer *);\n' % (
             self._name, self._name) +
             'int %s_complete(struct %s *);' % (self._name, self._name)
             )
         print >>file, ('void evtag_marshal_%s(struct evbuffer *, uint8_t, '
-                       'struct %s *);') % ( self._name, self._name)
+                       'const struct %s *);') % ( self._name, self._name)
         print >>file, ('int evtag_unmarshal_%s(struct evbuffer *, uint8_t, '
                        'struct %s *);') % ( self._name, self._name)
 
@@ -162,7 +162,7 @@ class Struct:
         # Marshaling
         print >>file, ('void\n'
                        '%s_marshal(struct evbuffer *evbuf, '
-                       'struct %s *tmp)' % (self._name, self._name) +
+                       'const struct %s *tmp)' % (self._name, self._name) +
                        '{')
         for entry in self._entries:
             indent = '  '
@@ -258,7 +258,7 @@ class Struct:
         print >>file, (
             'void\n'
             'evtag_marshal_%s(struct evbuffer *evbuf, uint8_t tag, '
-            'struct %s *msg)\n' % (self._name, self._name) +
+            'const struct %s *msg)\n' % (self._name, self._name) +
             '{\n'
             '  if (_buf == NULL)\n'
             '    _buf = evbuffer_new();\n'
@@ -332,13 +332,13 @@ class Entry:
         return '%s_%s_assign' % (self._struct.Name(), self._name)
     
     def AssignDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, %s);' % (
+        code = [ 'int %s(struct %s *, const %s);' % (
             funcname, self._struct.Name(), self._ctype ) ]
         return code
 
     def CodeAssign(self):
         code = [ 'int',
-                 '%s_%s_assign(struct %s *msg, %s value)' % (
+                 '%s_%s_assign(struct %s *msg, const %s value)' % (
             self._struct.Name(), self._name,
             self._struct.Name(), self._ctype),
                  '{',
@@ -398,7 +398,7 @@ class EntryBytes(Entry):
         return code
         
     def AssignDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, %s *);' % (
+        code = [ 'int %s(struct %s *, const %s *);' % (
             funcname, self._struct.Name(), self._ctype ) ]
         return code
         
@@ -424,7 +424,7 @@ class EntryBytes(Entry):
     def CodeAssign(self):
         name = self._name
         code = [ 'int',
-                 '%s_%s_assign(struct %s *msg, %s *value)' % (
+                 '%s_%s_assign(struct %s *msg, const %s *value)' % (
             self._struct.Name(), name,
             self._struct.Name(), self._ctype),
                  '{',
@@ -502,7 +502,7 @@ class EntryString(Entry):
     def CodeAssign(self):
         name = self._name
         code = [ 'int',
-                 '%s_%s_assign(struct %s *msg, %s value)' % (
+                 '%s_%s_assign(struct %s *msg, const %s value)' % (
             self._struct.Name(), name,
             self._struct.Name(), self._ctype),
                  '{',
@@ -566,7 +566,7 @@ class EntryStruct(Entry):
         return code
         
     def AssignDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, %s *);' % (
+        code = [ 'int %s(struct %s *, const %s *);' % (
             funcname, self._struct.Name(), self._ctype ) ]
         return code
         
@@ -591,7 +591,7 @@ class EntryStruct(Entry):
     def CodeAssign(self):
         name = self._name
         code = [ 'int',
-                 '%s_%s_assign(struct %s *msg, %s *value)' % (
+                 '%s_%s_assign(struct %s *msg, const %s *value)' % (
             self._struct.Name(), name,
             self._struct.Name(), self._ctype),
                  '{',
@@ -701,14 +701,15 @@ class EntryVarBytes(Entry):
         return code
         
     def AssignDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, %s, uint32_t);' % (
+        code = [ 'int %s(struct %s *, const %s, uint32_t);' % (
             funcname, self._struct.Name(), self._ctype ) ]
         return code
         
     def CodeAssign(self):
         name = self._name
         code = [ 'int',
-                 '%s_%s_assign(struct %s *msg, %s value, uint32_t len)' % (
+                 '%s_%s_assign(struct %s *msg, '
+                 'const %s value, uint32_t len)' % (
             self._struct.Name(), name,
             self._struct.Name(), self._ctype),
                  '{',
