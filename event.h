@@ -296,6 +296,7 @@ void evtag_test(void);
 int evtag_unmarshal(struct evbuffer *src, uint8_t *ptag, struct evbuffer *dst);
 int evtag_peek(struct evbuffer *evbuf, uint8_t *ptag);
 int evtag_peek_length(struct evbuffer *evbuf, uint32_t *plength);
+int evtag_payload_length(struct evbuffer *evbuf, uint32_t *plength);
 int evtag_consume(struct evbuffer *evbuf);
 
 int evtag_unmarshal_int(struct evbuffer *evbuf, uint8_t need_tag,

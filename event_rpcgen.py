@@ -260,12 +260,13 @@ class Struct:
             'evtag_marshal_%s(struct evbuffer *evbuf, uint8_t tag, '
             'const struct %s *msg)\n' % (self._name, self._name) +
             '{\n'
-            '  if (_buf == NULL)\n'
-            '    _buf = evbuffer_new();\n'
+            '  struct evbuffer *_buf = evbuffer_new();\n'
+            '  assert(_buf != NULL);\n'
             '  evbuffer_drain(_buf, -1);\n'
             '  %s_marshal(_buf, msg);\n' % self._name +
             '  evtag_marshal(evbuf, tag, EVBUFFER_DATA(_buf), '
             'EVBUFFER_LENGTH(_buf));\n'
+            '  evbuffer_free(_buf);\n'
             '}\n' )
 
 class Entry:
@@ -438,9 +439,13 @@ class EntryBytes(Entry):
     def CodeUnmarshal(self, buf, tag_name, var_name):
         code = [  'if (evtag_unmarshal_fixed(%s, %s, ' % (buf, tag_name) +
                   '%s->%s_data, ' % (var_name, self._name) +
-                  'sizeof(%s->%s_data)) == -1)' % (
+                  'sizeof(%s->%s_data)) == -1) {' % (
             var_name, self._name),
-                  '  return (-1);' ]
+                  '  event_warnx("%%s: failed to unmarshal %s", __func__);' % (
+            self._name ),
+                  '  return (-1);',
+                  '}'
+                  ]
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name):
@@ -477,9 +482,12 @@ class EntryInt(Entry):
         self._ctype = 'uint32_t'
 
     def CodeUnmarshal(self, buf, tag_name, var_name):
-        code = ['if (evtag_unmarshal_int(%s, %s, &%s->%s_data) == -1)' % (
+        code = ['if (evtag_unmarshal_int(%s, %s, &%s->%s_data) == -1) {' % (
             buf, tag_name, var_name, self._name),
-                '  return (-1);'] 
+                  '  event_warnx("%%s: failed to unmarshal %s", __func__);' % (
+            self._name ),
+                '  return (-1);',
+                '}' ] 
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name):
@@ -516,9 +524,13 @@ class EntryString(Entry):
         return code
         
     def CodeUnmarshal(self, buf, tag_name, var_name):
-        code = ['if (evtag_unmarshal_string(%s, %s, &%s->%s_data) == -1)' % (
+        code = ['if (evtag_unmarshal_string(%s, %s, &%s->%s_data) == -1) {' % (
             buf, tag_name, var_name, self._name),
-                '  return (-1);']
+                '  event_warnx("%%s: failed to unmarshal %s", __func__);' % (
+            self._name ),
+                '  return (-1);',
+                '}'
+                ]
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name):
@@ -650,9 +662,13 @@ class EntryStruct(Entry):
             var_name, self._name, self._refname),
                 'if (%s->%s_data == NULL)' % (var_name, self._name),
                 '  return (-1);',
-                'if (evtag_unmarshal_%s(%s, %s, %s->%s_data) == -1)' % (
+                'if (evtag_unmarshal_%s(%s, %s, %s->%s_data) == -1) {' % (
             self._refname, buf, tag_name, var_name, self._name),
-                '  return (-1);']
+                  '  event_warnx("%%s: failed to unmarshal %s", __func__);' % (
+            self._name ),
+                '  return (-1);',
+                '}'
+                ]
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name):
@@ -741,16 +757,20 @@ class EntryVarBytes(Entry):
         return code
 
     def CodeUnmarshal(self, buf, tag_name, var_name):
-        code = ['if (evtag_peek_length(%s, &%s->%s_length) == -1)' % (
+        code = ['if (evtag_payload_length(%s, &%s->%s_length) == -1)' % (
             buf, var_name, self._name),
                 '  return (-1);',
                 'if ((%s->%s_data = malloc(%s->%s_length)) == NULL)' % (
             var_name, self._name, var_name, self._name),
                 '  return (-1);',
                 'if (evtag_unmarshal_fixed(%s, %s, %s->%s_data, '
-                '%s->%s_length) == -1)' % (
+                '%s->%s_length) == -1) {' % (
             buf, tag_name, var_name, self._name, var_name, self._name),
-                '  return (-1);']
+                '  event_warnx("%%s: failed to unmarshal %s", __func__);' % (
+            self._name ),
+                '  return (-1);',
+                '}'
+                ]
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name):
@@ -1057,8 +1077,6 @@ def BodyPreamble(name):
     pre += 'void event_warn(const char *fmt, ...);\n'
     pre += 'void event_errx(int eval, const char *fmt, ...);\n'
     pre += 'void event_warnx(const char *fmt, ...);\n\n'
-
-    pre += 'static struct evbuffer *_buf;\n\n'
 
     return pre
 

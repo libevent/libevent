@@ -210,6 +210,26 @@ evtag_peek_length(struct evbuffer *evbuf, uint32_t *plength)
 }
 
 int
+evtag_payload_length(struct evbuffer *evbuf, uint32_t *plength)
+{
+	struct evbuffer tmp;
+	int res;
+
+	if (EVBUFFER_LENGTH(evbuf) < 2)
+		return (-1);
+
+	tmp = *evbuf;
+	tmp.buffer += 1;
+	tmp.off -= 1;
+
+	res = decode_int_internal(plength, &tmp, 0);
+	if (res == -1)
+		return (-1);
+
+	return (0);
+}
+
+int
 evtag_consume(struct evbuffer *evbuf)
 {
 	uint32_t len;
