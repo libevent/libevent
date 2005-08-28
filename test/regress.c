@@ -738,7 +738,9 @@ rpc_test(void)
 {
 	struct msg *msg, *msg2;
 	struct kill *kill;
+	struct run *run;
 	struct evbuffer *tmp = evbuffer_new();
+	int i;
 
 	fprintf(stdout, "Testing RPC: ");
 
@@ -753,6 +755,15 @@ rpc_test(void)
 
 	EVTAG_ASSIGN(kill, weapon, "feather");
 	EVTAG_ASSIGN(kill, action, "tickle");
+
+	for (i = 0; i < 3; ++i) {
+		run = EVTAG_ADD(msg, run);
+		if (run == NULL) {
+			fprintf(stderr, "Failed to add run message.\n");
+			exit(1);
+		}
+		EVTAG_ASSIGN(run, how, "very fast");
+	}
 
 	if (msg_complete(msg) == -1) {
 		fprintf(stderr, "Failed to make complete message.\n");
@@ -771,6 +782,11 @@ rpc_test(void)
 	    !EVTAG_HAS(msg2, to_name) ||
 	    !EVTAG_HAS(msg2, kill)) {
 		fprintf(stderr, "Missing data structures.\n");
+		exit(1);
+	}
+
+	if (EVTAG_LEN(msg2, run) != 3) {
+		fprintf(stderr, "Wrong number of run messages.\n");
 		exit(1);
 	}
 
