@@ -796,6 +796,10 @@ class EntryVarBytes(Entry):
         code = ['if (evtag_payload_length(%s, &%s->%s_length) == -1)' % (
             buf, var_name, self._name),
                 '  return (-1);',
+                # We do not want DoS opportunities
+                'if (%s->%s_length > EVBUFFER_LENGTH(%s))' % (
+            var_name, self._name, buf),
+                '  return (-1);',
                 'if ((%s->%s_data = malloc(%s->%s_length)) == NULL)' % (
             var_name, self._name, var_name, self._name),
                 '  return (-1);',
