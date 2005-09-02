@@ -658,7 +658,7 @@ evtag_int_test(void)
 		oldlen = EVBUFFER_LENGTH(tmp);
 		encode_int(tmp, integers[i]);
 		newlen = EVBUFFER_LENGTH(tmp);
-		fprintf(stderr, "\t\tencoded 0x%08x with %d bytes\n",
+		fprintf(stdout, "\t\tencoded 0x%08x with %d bytes\n",
 		    integers[i], newlen - oldlen);
 	}
 
@@ -680,7 +680,7 @@ evtag_int_test(void)
 	}
 	evbuffer_free(tmp);
 
-	fprintf(stderr, "\t%s: OK\n", __func__);
+	fprintf(stdout, "\t%s: OK\n", __func__);
 }
 
 void
@@ -718,7 +718,7 @@ evtag_fuzz()
 
 	evbuffer_free(tmp);
 
-	fprintf(stderr, "\t%s: OK\n", __func__);
+	fprintf(stdout, "\t%s: OK\n", __func__);
 }
 
 void
