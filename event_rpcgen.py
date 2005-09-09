@@ -83,7 +83,7 @@ class Struct:
             self.PrintIdented(file, '  ', dcl)
         print >>file, ''
         for entry in self._entries:
-            print >>file, '  uint8_t %s_set;' % entry.Name()
+            print >>file, '  u_int8_t %s_set;' % entry.Name()
         print >>file, '};\n'
 
         print >>file, (
@@ -96,9 +96,9 @@ class Struct:
             self._name, self._name) +
             'int %s_complete(struct %s *);' % (self._name, self._name)
             )
-        print >>file, ('void evtag_marshal_%s(struct evbuffer *, uint8_t, '
+        print >>file, ('void evtag_marshal_%s(struct evbuffer *, u_int8_t, '
                        'const struct %s *);') % ( self._name, self._name)
-        print >>file, ('int evtag_unmarshal_%s(struct evbuffer *, uint8_t, '
+        print >>file, ('int evtag_unmarshal_%s(struct evbuffer *, u_int8_t, '
                        'struct %s *);') % ( self._name, self._name)
 
         # Write a setting function of every variable
@@ -199,7 +199,7 @@ class Struct:
                        ' struct evbuffer *evbuf)\n' % (
             self._name, self._name) +
                        '{\n'
-                       '  uint8_t tag;\n'
+                       '  u_int8_t tag;\n'
                        '  while (EVBUFFER_LENGTH(evbuf) > 0) {\n'
                        '    if (evtag_peek(evbuf, &tag) == -1)\n'
                        '      return (-1);\n'
@@ -248,12 +248,12 @@ class Struct:
         # Complete message unmarshaling
         print >>file, (
             'int\n'
-            'evtag_unmarshal_%s(struct evbuffer *evbuf, uint8_t need_tag, '
+            'evtag_unmarshal_%s(struct evbuffer *evbuf, u_int8_t need_tag, '
             ' struct %s *msg)'
             ) % (self._name, self._name)
         print >>file, (
             '{\n'
-            '  uint8_t tag;\n'
+            '  u_int8_t tag;\n'
             '  int res = -1;\n'
             '\n'
             '  struct evbuffer *tmp = evbuffer_new();\n'
@@ -275,7 +275,7 @@ class Struct:
         # Complete message marshaling
         print >>file, (
             'void\n'
-            'evtag_marshal_%s(struct evbuffer *evbuf, uint8_t tag, '
+            'evtag_marshal_%s(struct evbuffer *evbuf, u_int8_t tag, '
             'const struct %s *msg)\n' % (self._name, self._name) +
             '{\n'
             '  struct evbuffer *_buf = evbuffer_new();\n'
@@ -426,7 +426,7 @@ class EntryBytes(Entry):
         Entry.__init__(self, type, name, tag)
 
         self._length = length
-        self._ctype = 'uint8_t'
+        self._ctype = 'u_int8_t'
 
     def GetDeclaration(self, funcname):
         code = [ 'int %s(struct %s *, %s **);' % (
@@ -439,7 +439,7 @@ class EntryBytes(Entry):
         return code
         
     def Declaration(self):
-        dcl  = ['uint8_t %s_data[%s];' % (self._name, self._length)]
+        dcl  = ['u_int8_t %s_data[%s];' % (self._name, self._length)]
         
         return dcl
 
@@ -514,7 +514,7 @@ class EntryInt(Entry):
         # Init base class
         Entry.__init__(self, type, name, tag)
 
-        self._ctype = 'uint32_t'
+        self._ctype = 'u_int32_t'
 
     def CodeUnmarshal(self, buf, tag_name, var_name):
         code = ['if (evtag_unmarshal_int(%s, %s, &%s->%s_data) == -1) {' % (
@@ -531,7 +531,7 @@ class EntryInt(Entry):
         return code
 
     def Declaration(self):
-        dcl  = ['uint32_t %s_data;' % self._name]
+        dcl  = ['u_int32_t %s_data;' % self._name]
 
         return dcl
 
@@ -745,15 +745,15 @@ class EntryVarBytes(Entry):
         # Init base class
         Entry.__init__(self, type, name, tag)
 
-        self._ctype = 'uint8_t *'
+        self._ctype = 'u_int8_t *'
 
     def GetDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, %s *, uint32_t *);' % (
+        code = [ 'int %s(struct %s *, %s *, u_int32_t *);' % (
             funcname, self._struct.Name(), self._ctype ) ]
         return code
         
     def AssignDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, const %s, uint32_t);' % (
+        code = [ 'int %s(struct %s *, const %s, u_int32_t);' % (
             funcname, self._struct.Name(), self._ctype ) ]
         return code
         
@@ -761,7 +761,7 @@ class EntryVarBytes(Entry):
         name = self._name
         code = [ 'int',
                  '%s_%s_assign(struct %s *msg, '
-                 'const %s value, uint32_t len)' % (
+                 'const %s value, u_int32_t len)' % (
             self._struct.Name(), name,
             self._struct.Name(), self._ctype),
                  '{',
@@ -780,7 +780,7 @@ class EntryVarBytes(Entry):
     def CodeGet(self):
         name = self._name
         code = [ 'int',
-                 '%s_%s_get(struct %s *msg, %s *value, uint32_t *plen)' % (
+                 '%s_%s_get(struct %s *msg, %s *value, u_int32_t *plen)' % (
             self._struct.Name(), name,
             self._struct.Name(), self._ctype),
                  '{',
@@ -842,8 +842,8 @@ class EntryVarBytes(Entry):
         return code
 
     def Declaration(self):
-        dcl  = ['uint8_t *%s_data;' % self._name,
-                'uint32_t %s_length;' % self._name]
+        dcl  = ['u_int8_t *%s_data;' % self._name,
+                'u_int32_t %s_length;' % self._name]
 
         return dcl
 

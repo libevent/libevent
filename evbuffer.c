@@ -74,7 +74,7 @@ bufferevent_read_pressure_cb(struct evbuffer *buf, size_t old, size_t now,
     void *arg) {
 	struct bufferevent *bufev = arg;
 	/* 
-	 * If we are below the watermak then reschedule reading if it's
+	 * If we are below the watermark then reschedule reading if it's
 	 * still enabled.
 	 */
 	if (bufev->wm_read.high == 0 || now < bufev->wm_read.high) {

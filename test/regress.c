@@ -639,7 +639,7 @@ test_multiple_events_for_same_fd(void)
    cleanup_test();
 }
 
-int decode_int(uint32_t *pnumber, struct evbuffer *evbuf);
+int decode_int(u_int32_t *pnumber, struct evbuffer *evbuf);
 
 #define TEST_MAX_INT	6
 
@@ -647,10 +647,10 @@ void
 evtag_int_test(void)
 {
 	struct evbuffer *tmp = evbuffer_new();
-	uint32_t integers[TEST_MAX_INT] = {
+	u_int32_t integers[TEST_MAX_INT] = {
 		0xaf0, 0x1000, 0x1, 0xdeadbeef, 0x00, 0xbef000
 	};
-	uint32_t integer;
+	u_int32_t integer;
 	int i;
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
