@@ -193,7 +193,7 @@ evbuffer_readline(struct evbuffer *buffer)
 		if (data[i] == '\r' || data[i] == '\n')
 			break;
 	}
-	
+
 	if (i == len)
 		return (NULL);
 

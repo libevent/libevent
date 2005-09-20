@@ -46,12 +46,12 @@
 .Nm event_priority_set ,
 .Nm evtimer_set ,
 .Nm evtimer_add ,
-.Nm evtimer_del
+.Nm evtimer_del ,
 .Nm evtimer_pending ,
 .Nm evtimer_initialized ,
 .Nm signal_set ,
 .Nm signal_add ,
-.Nm signal_del
+.Nm signal_del ,
 .Nm signal_pending ,
 .Nm signal_initialized ,
 .Nm bufferevent_new ,
@@ -193,24 +193,26 @@ sets
 to indicate that a signal has been received.
 The application sets
 .Va event_sigcb
-to a callback function.  After the signal handler sets
+to a callback function.
+After the signal handler sets
 .Va event_gotsig ,
 .Nm event_dispatch
-will execute the callback function to process received signals.  The
-callback returns 1 when no events are registered any more.  It can
-return -1 to indicate an error to the
+will execute the callback function to process received signals.
+The callback returns 1 when no events are registered any more.
+It can return -1 to indicate an error to the
 .Nm event
 library, causing
 .Fn event_dispatch
 to terminate with
 .Va errno
 set to
-.Er EINTR.
+.Er EINTR .
 .Pp
 The
 .Nm event_loop
 function provides an interface for single pass execution of pending
-events.  The flags
+events.
+The flags
 .Va EVLOOP_ONCE
 and
 .Va EVLOOP_NONBLOCK
@@ -243,14 +245,14 @@ argument indicating the type of event, and a
 argument given in the
 .Fa arg
 argument.
-The 
+The
 .Fa fd
 indicates the file descriptor that should be monitored for events.
 The events can be either
 .Va EV_READ ,
 .Va EV_WRITE ,
-or both.
-Indicating that an application can read or write from the file descriptor
+or both,
+indicating that an application can read or write from the file descriptor
 respectively without blocking.
 .Pp
 The function
@@ -278,18 +280,18 @@ and
 .Fn event_del
 and does not need to be reinitialized unless the function called and/or
 the argument to it are to be changed.
-However, when an 
+However, when an
 .Fa ev
-structure has been added to libevent using 
+structure has been added to libevent using
 .Fn event_add
-the structure must persist until the event occurs (assuming 
-.Fa EV_PERSIST 
-is not set) or is removed 
-using 
-.Fn event_del .  
+the structure must persist until the event occurs (assuming
+.Fa EV_PERSIST
+is not set) or is removed
+using
+.Fn event_del .
 You may not reuse the same
-.Fa ev 
-structure for multiple monitored descriptors; each descriptor 
+.Fa ev
+structure for multiple monitored descriptors; each descriptor
 needs its own
 .Fa ev .
 .Pp
@@ -297,13 +299,15 @@ The function
 .Fn event_add
 schedules the execution of the
 .Fa ev
-event when the event specified in 
+event when the event specified in
 .Fn event_set
 occurs or in at least the time specified in the
 .Fa tv .
 If
 .Fa tv
-is NULL, no timeout occurs and the function will only be called
+is
+.Dv NULL ,
+no timeout occurs and the function will only be called
 if a matching event occurs on the file descriptor.
 The event in the
 .Fa ev
@@ -335,7 +339,7 @@ require the caller to prepare an
 structure.
 This function supports
 .Fa EV_TIMEOUT ,
-.Fa EV_READ
+.Fa EV_READ ,
 and
 .Fa EV_WRITE .
 .Pp
@@ -346,10 +350,10 @@ function can be used to check if the event specified by
 is pending to run.
 If
 .Va EV_TIMEOUT
-was specified and 
+was specified and
 .Fa tv
 is not
-.Va NULL ,
+.Dv NULL ,
 the expiration time of the event will be returned in
 .Fa tv .
 .Pp
@@ -365,9 +369,8 @@ The functions
 and
 .Fn evtimer_pending
 are abbreviations for common situations where only a timeout is required.
-The file descriptor passed will be -1, and the event type will be
+The file descriptor passed will be \-1, and the event type will be
 .Va EV_TIMEOUT .
-.Pp
 .Pp
 The functions
 .Fn signal_set ,
@@ -385,23 +388,23 @@ adds
 .Va EV_PERSIST .
 .Pp
 It is possible to disable support for
-.Va epoll , kqueue , devpoll, poll
+.Va epoll , kqueue , devpoll , poll
 or
 .Va select
 by setting the environment variable
-.Va EVENT_NOEPOLL , EVENT_NOKQUEUE , EVENT_NODEVPOLL, EVENT_NOPOLL
+.Va EVENT_NOEPOLL , EVENT_NOKQUEUE , EVENT_NODEVPOLL , EVENT_NOPOLL
 or
-.Va EVENT_NOSELECT .
+.Va EVENT_NOSELECT ,
+respectively.
 By setting the environment variable
 .Va EVENT_SHOW_METHOD ,
 .Nm libevent
 displays the kernel notification method that it uses.
-.Pp
 .Sh EVENT PRIORITIES
 By default
 .Nm libevent
 schedules all active events with the same priority.
-However, sometime it is desirable to process some events with a higher
+However, sometimes it is desirable to process some events with a higher
 priority than others.
 For that reason,
 .Nm libevent
@@ -421,7 +424,6 @@ By default,
 .Nm libevent
 assigns the middle priority to all events unless their priority
 is explicitly set.
-.Pp
 .Sh THREAD SAFE EVENTS
 .Nm Libevent
 has experimental support for thread-safe events.
@@ -429,24 +431,23 @@ When initializing the library via
 .Fn event_init ,
 an event base is returned.
 This event base can be used in conjunction with calls to
-.Fn event_base_set
+.Fn event_base_set ,
 .Fn event_base_dispatch ,
 .Fn event_base_loop ,
 and
 .Fn event_base_loopexit .
-.Fn event_base_set 
+.Fn event_base_set
 should be called after preparing an event with
-.Fn event_set , 
+.Fn event_set ,
 as
-.Fn event_set 
+.Fn event_set
 assigns the provided event to the most recently created event base.
-.Pp
 .Sh BUFFERED EVENTS
 .Nm libevent
 provides an abstraction on top of the regular event callbacks.
 This abstraction is called a
 .Va "buffered event" .
-A buffered event provides input and output buffer that get filled
+A buffered event provides input and output buffers that get filled
 and drained automatically.
 The user of a buffered event no longer deals directly with the IO,
 but instead is reading from input and writing to output buffers.
@@ -454,21 +455,21 @@ but instead is reading from input and writing to output buffers.
 A new bufferevent is created by
 .Fn bufferevent_new .
 The parameter
-.Fa "fd"
+.Fa fd
 specifies the file descriptor from which data is read and written to.
-This file descriptor is not allowed to be a 
+This file descriptor is not allowed to be a
 .Xr pipe 2 .
 The next three parameters are callbacks.
-The read and write callback have the following form
+The read and write callback have the following form:
 .Ft void
-.Fn "(*cb)" "struct bufferevent *bufev" "void *arg"
+.Fn "(*cb)" "struct bufferevent *bufev" "void *arg" .
 The argument is specified by the fourth parameter
 .Fa "cbarg" .
 .Pp
 By default the buffered event is read enabled and will try to read
 from the file descriptor.
 The write callback is executed whenever the output buffer is drained
-below the write low watermark which is
+below the write low watermark, which is
 .Va 0
 by default.
 .Pp
@@ -481,19 +482,19 @@ The
 .Fn bufferevent_read
 function is used to read data from the input buffer.
 Both functions return the amount of data written or read.
-.Pp
 .Sh RETURN VALUES
 Upon successful completion
 .Fn event_add
 and
 .Fn event_del
 return 0.
-Otherwise, -1 is returned and the global variable errno is
+Otherwise, \-1 is returned and the global variable errno is
 set to indicate the error.
 .Sh SEE ALSO
-.Xr timeout 9 ,
+.Xr kqueue 2 ,
+.Xr poll 2 ,
 .Xr select 2 ,
-.Xr kqueue 2
+.Xr timeout 9
 .Sh HISTORY
 The
 .Nm event
@@ -508,7 +509,6 @@ Support for real-time signals is due to Taral.
 The
 .Nm event
 library was written by Niels Provos.
-.Pp
 .Sh BUGS
 This documentation is neither complete nor authoritative.
 If you are in doubt about the usage of this API then
