@@ -109,8 +109,14 @@ epoll_init(void)
 		return (NULL);
 
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
-	    rl.rlim_cur != RLIM_INFINITY)
-		nfiles = rl.rlim_cur;
+	    rl.rlim_cur != RLIM_INFINITY) {
+		/*
+		 * Solaris is somewhat retarded - it's important to drop
+		 * backwards compatibility when making changes.  So, don't
+		 * dare to put rl.rlim_cur here.
+		 */
+		nfiles = rl.rlim_cur - 1;
+	}
 
 	/* Initalize the kernel queue */
 
