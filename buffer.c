@@ -124,38 +124,46 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 }
 
 int
-evbuffer_add_printf(struct evbuffer *buf, char *fmt, ...)
+evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
+{
+	char *buffer;
+	size_t space;
+	size_t oldoff = buf->off;
+	int sz;
+
+	for (;;) {
+		buffer = buf->buffer + buf->off;
+		space = buf->totallen - buf->misalign - buf->off;
+
+#ifdef WIN32
+		sz = vsnprintf(buffer, space - 1, fmt, ap);
+		buffer[space - 1] = '\0';
+#else
+		sz = vsnprintf(buffer, space, fmt, ap);
+#endif
+		if (sz == -1)
+			return (-1);
+		if (sz < space) {
+			buf->off += sz;
+			if (buf->cb != NULL)
+				(*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
+			return (sz);
+		}
+		if (evbuffer_expand(buf, sz) == -1)
+			return (-1);
+
+	}
+	/* NOTREACHED */
+}
+
+int
+evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
 {
 	int res = -1;
-	char *msg;
-#ifndef HAVE_VASPRINTF
-	static char buffer[4096];
-#endif
 	va_list ap;
 
 	va_start(ap, fmt);
-
-#ifdef HAVE_VASPRINTF
-	if (vasprintf(&msg, fmt, ap) == -1)
-		goto end;
-#else
-#  ifdef WIN32
-	_vsnprintf(buffer, sizeof(buffer) - 1, fmt, ap);
-	buffer[sizeof(buffer)-1] = '\0';
-#  else /* ! WIN32 */
-	vsnprintf(buffer, sizeof(buffer), fmt, ap);
-#  endif
-	msg = buffer;
-#endif
-	
-	res = strlen(msg);
-	if (evbuffer_add(buf, msg, res) == -1)
-		res = -1;
-#ifdef HAVE_VASPRINTF
-	free(msg);
-
-end:
-#endif
+	res = evbuffer_add_vprintf(buf, fmt, ap);
 	va_end(ap);
 
 	return (res);

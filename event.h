@@ -31,6 +31,8 @@
 extern "C" {
 #endif
 
+#include <stdarg.h>
+
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -263,7 +265,8 @@ int evbuffer_add(struct evbuffer *, void *, size_t);
 int evbuffer_remove(struct evbuffer *, void *, size_t);
 char *evbuffer_readline(struct evbuffer *);
 int evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
-int evbuffer_add_printf(struct evbuffer *, char *fmt, ...);
+int evbuffer_add_printf(struct evbuffer *, const char *fmt, ...);
+int evbuffer_add_vprintf(struct evbuffer *, const char *fmt, va_list ap);
 void evbuffer_drain(struct evbuffer *, size_t);
 int evbuffer_write(struct evbuffer *, int);
 int evbuffer_read(struct evbuffer *, int, int);

@@ -278,7 +278,7 @@ cleanup_test(void)
 }
 
 void
-test1(void)
+test_simpleread(void)
 {
 	struct event ev;
 
@@ -297,7 +297,7 @@ test1(void)
 }
 
 void
-test2(void)
+test_simplewrite(void)
 {
 	struct event ev;
 
@@ -313,7 +313,7 @@ test2(void)
 }
 
 void
-test3(void)
+test_multiple(void)
 {
 	struct event ev, ev2;
 	int i;
@@ -342,7 +342,7 @@ test3(void)
 }
 
 void
-test4(void)
+test_persistent(void)
 {
 	struct event ev, ev2;
 	int i;
@@ -371,7 +371,7 @@ test4(void)
 }
 
 void
-test5(void)
+test_combined(void)
 {
 	struct both r1, r2, w1, w2;
 
@@ -406,7 +406,7 @@ test5(void)
 }
 
 void
-test6(void)
+test_simpletimeout(void)
 {
 	struct timeval tv;
 	struct event ev;
@@ -426,7 +426,7 @@ test6(void)
 
 #ifndef WIN32
 void
-test7(void)
+test_simplesignal(void)
 {
 	struct event ev;
 	struct itimerval itv;
@@ -449,7 +449,7 @@ test7(void)
 #endif
 
 void
-test8(void)
+test_loopexit(void)
 {
 	struct timeval tv, tv_start, tv_end;
 	struct event ev;
@@ -479,6 +479,21 @@ test8(void)
 }
 
 void
+test_evbuffer(void) {
+	setup_test("Evbuffer: ");
+
+	struct evbuffer *evb = evbuffer_new();
+
+	evbuffer_add_printf(evb, "%s/%d", "hello", 1);
+
+	if (EVBUFFER_LENGTH(evb) == 7 &&
+	    strcmp(EVBUFFER_DATA(evb), "hello/1") == 0)
+	    test_ok = 1;
+	
+	cleanup_test();
+}
+
+void
 readcb(struct bufferevent *bev, void *arg)
 {
 	if (EVBUFFER_LENGTH(bev->input) == 8333) {
@@ -501,7 +516,7 @@ errorcb(struct bufferevent *bev, short what, void *arg)
 }
 
 void
-test9(void)
+test_bufferevent(void)
 {
 	struct bufferevent *bev1, *bev2;
 	char buffer[8333];
@@ -814,23 +829,25 @@ main (int argc, char **argv)
 	/* Initalize the event library */
 	event_base = event_init();
 
-	test1();
+	test_simpleread();
 
-	test2();
+	test_simplewrite();
 
-	test3();
+	test_multiple();
 
-	test4();
+	test_persistent();
 
-	test5();
+	test_combined();
 
-	test6();
+	test_simpletimeout();
 #ifndef WIN32
-	test7();
+	test_simplesignal();
 #endif
-	test8();
+	test_loopexit();
 
-	test9();
+	test_evbuffer();
+	
+	test_bufferevent();
 
 	test_priorities(1);
 	test_priorities(2);
