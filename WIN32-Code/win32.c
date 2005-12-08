@@ -135,6 +135,8 @@ do_fd_set(struct win32op *op, SOCKET s, int read)
 	if (set->fd_count == op->fd_setsz) {
 		if (realloc_fd_sets(op, op->fd_setsz*2))
 			return (-1);
+		/* set pointer will have changed and needs reiniting! */
+		set = read ? op->readset_in : op->writeset_in;
 	}
 	set->fd_array[set->fd_count] = s;
 	return (set->fd_count++);
