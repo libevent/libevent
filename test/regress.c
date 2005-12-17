@@ -656,6 +656,49 @@ test_multiple_events_for_same_fd(void)
 
 int decode_int(u_int32_t *pnumber, struct evbuffer *evbuf);
 
+void
+read_once_cb(int fd, short event, void *arg)
+{
+	char buf[256];
+	int len;
+
+	len = read(fd, buf, sizeof(buf));
+
+	if (called) {
+		test_ok = 0;
+	} else if (len) {
+		/* Assumes global pair[0] can be used for writing */
+		write(pair[0], TEST1, strlen(TEST1)+1);
+		test_ok = 1;
+	}
+
+	called++;
+}
+
+void
+test_want_only_once(void)
+{
+	struct event ev;
+	struct timeval tv;
+
+	/* Very simple read test */
+	setup_test("Want read only once: ");
+	
+	write(pair[0], TEST1, strlen(TEST1)+1);
+
+	/* Setup the loop termination */
+	timerclear(&tv);
+	tv.tv_sec = 1;
+	event_loopexit(&tv);
+	
+	event_set(&ev, pair[1], EV_READ, read_once_cb, &ev);
+	if (event_add(&ev, NULL) == -1)
+		exit(1);
+	event_dispatch();
+
+	cleanup_test();
+}
+
 #define TEST_MAX_INT	6
 
 void
@@ -855,6 +898,8 @@ main (int argc, char **argv)
 
 	test_multiple_events_for_same_fd();
 
+	test_want_only_once();
+	
 	evtag_test();
 
 	rpc_test();
