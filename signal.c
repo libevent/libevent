@@ -26,7 +26,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
 
 #include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
@@ -110,12 +112,12 @@ int
 evsignal_add(sigset_t *evsigmask, struct event *ev)
 {
 	int evsignal;
-	
+
 	if (ev->ev_events & (EV_READ|EV_WRITE))
 		event_errx(1, "%s: EV_SIGNAL incompatible use", __func__);
 	evsignal = EVENT_SIGNAL(ev);
 	sigaddset(evsigmask, evsignal);
-	
+
 	return (0);
 }
 
@@ -153,7 +155,7 @@ evsignal_recalc(sigset_t *evsigmask)
 {
 	struct sigaction sa;
 	struct event *ev;
-	
+
 	if (!ev_signal_added) {
 		ev_signal_added = 1;
 		event_add(&ev_signal, NULL);
@@ -165,13 +167,13 @@ evsignal_recalc(sigset_t *evsigmask)
 
 	if (sigprocmask(SIG_BLOCK, evsigmask, NULL) == -1)
 		return (-1);
-	
+
 	/* Reinstall our signal handler. */
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = evsignal_handler;
 	sa.sa_mask = *evsigmask;
 	sa.sa_flags |= SA_RESTART;
-	
+
 	TAILQ_FOREACH(ev, &signalqueue, ev_signal_next) {
 		if (sigaction(EVENT_SIGNAL(ev), &sa, NULL) == -1)
 			return (-1);

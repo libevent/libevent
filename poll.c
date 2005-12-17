@@ -93,7 +93,7 @@ poll_init(void)
 	if (getenv("EVENT_NOPOLL"))
 		return (NULL);
 
-        if (!(pollop = calloc(1, sizeof(struct pollop))))
+	if (!(pollop = calloc(1, sizeof(struct pollop))))
 		return (NULL);
 
 	evsignal_init(&pollop->evsigmask);
