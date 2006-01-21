@@ -34,9 +34,11 @@
 .Nm event_dispatch ,
 .Nm event_loop ,
 .Nm event_loopexit ,
+.Nm event_set ,
+.Nm event_base_dispatch ,
 .Nm event_base_loop ,
 .Nm event_base_loopexit ,
-.Nm event_set ,
+.Nm event_base_set ,
 .Nm event_add ,
 .Nm event_del ,
 .Nm event_once ,
@@ -67,6 +69,7 @@
 .Nm evbuffer_add ,
 .Nm evbuffer_add_buffer ,
 .Nm evbuffer_add_printf ,
+.Nm evbuffer_add_vprintf ,
 .Nm evbuffer_drain ,
 .Nm evbuffer_write ,
 .Nm evbuffer_read ,
@@ -84,12 +87,16 @@
 .Fn "event_loop" "int flags"
 .Ft int
 .Fn "event_loopexit" "struct timeval *tv"
-.Ft int
-.Fn "event_base_loop" "struct event_base *" "int flags"
-.Ft int
-.Fn "event_base_loopexit" "struct event_base *" "struct timeval *tv"
 .Ft void
 .Fn "event_set" "struct event *ev" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg"
+.Ft int
+.Fn "event_base_dispatch" "struct event_base *base"
+.Ft int
+.Fn "event_base_loop" "struct event_base *base" "int flags"
+.Ft int
+.Fn "event_base_loopexit" "struct event_base *base" "struct timeval *tv"
+.Ft int
+.Fn "event_base_set" "struct event_base *base" "struct event *"
 .Ft int
 .Fn "event_add" "struct event *ev" "struct timeval *tv"
 .Ft int
@@ -150,6 +157,8 @@
 .Fn "evbuffer_add_buffer" "struct evbuffer *dst" "struct evbuffer *src"
 .Ft int
 .Fn "evbuffer_add_printf" "struct evbuffer *buf" "char *fmt" "..."
+.Ft int
+.Fn "evbuffer_add_vprintf" "struct evbuffer *buf" "const char *fmt" "va_list ap"
 .Ft void
 .Fn "evbuffer_drain" "struct evbuffer *buf" "size_t size"
 .Ft int
