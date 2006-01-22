@@ -58,7 +58,7 @@ class Struct:
     def PrintTags(self, file):
         """Prints the tag definitions for a structure."""
         print >>file, '/* Tag definition for %s */' % self._name
-        print >>file, 'enum {'
+        print >>file, 'enum %s_ {' % self._name.lower()
         for entry in self._entries:
             print >>file, '  %s=%d,' % (self.EntryTagName(entry),
                                         entry.Tag())

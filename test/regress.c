@@ -39,23 +39,28 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#include <sys/queue.h>
 #ifndef WIN32
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <unistd.h>
 #endif
+#include <netdb.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
-#include <event.h>
+#include "event.h"
+#include "log.h"
+#include "http.h"
 
+#include "regress.h"
 #include "regress.gen.h"
 
-static int pair[2];
-static int test_ok;
+int pair[2];
+int test_ok;
 static int called;
 static char wbuf[4096];
 static char rbuf[4096];
@@ -872,6 +877,8 @@ main (int argc, char **argv)
 	/* Initalize the event library */
 	event_base = event_init();
 
+	http_suite();
+	
 	test_simpleread();
 
 	test_simplewrite();

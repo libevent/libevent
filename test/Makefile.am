@@ -13,7 +13,8 @@ test_init_SOURCES = test-init.c
 test_eof_SOURCES = test-eof.c
 test_weof_SOURCES = test-weof.c
 test_time_SOURCES = test-time.c
-regress_SOURCES = regress.c regress.gen.c regress.gen.h
+regress_SOURCES = regress.c regress.h regress_http.c \
+	regress.gen.c regress.gen.h
 bench_SOURCES = bench.c
 
 regress.gen.c regress.gen.h: regress.rpc

@@ -270,7 +270,7 @@ int evbuffer_add_vprintf(struct evbuffer *, const char *fmt, va_list ap);
 void evbuffer_drain(struct evbuffer *, size_t);
 int evbuffer_write(struct evbuffer *, int);
 int evbuffer_read(struct evbuffer *, int, int);
-u_char *evbuffer_find(struct evbuffer *, u_char *, size_t);
+u_char *evbuffer_find(struct evbuffer *, const u_char *, size_t);
 void evbuffer_setcb(struct evbuffer *, void (*)(struct evbuffer *, size_t, size_t, void *), void *);
 
 /* 
@@ -316,6 +316,44 @@ int evtag_unmarshal_string(struct evbuffer *evbuf, u_int8_t need_tag,
 int evtag_unmarshal_timeval(struct evbuffer *evbuf, u_int8_t need_tag,
     struct timeval *ptv);
 
+/*
+ * Basic support for HTTP serving
+ */
+
+/* Response codes */	
+#define HTTP_OK			200
+#define HTTP_MOVEPERM		301
+#define HTTP_MOVETEMP		302
+#define HTTP_NOTFOUND		404
+
+struct evhttp;
+struct evhttp_request;
+
+/* Start an HTTP server on the specified address and port */
+struct evhttp *evhttp_start(const char *address, u_short port);
+
+void evhttp_free(struct evhttp* http);
+
+/* Set a callback for a specified URI */
+void evhttp_set_cb(struct evhttp *, const char *,
+    void (*)(struct evhttp_request *, void *), void *);
+
+/* Set a callback for all requests that are not caught by specific callbacks */
+void evhttp_set_gencb(struct evhttp *,
+    void (*)(struct evhttp_request *, void *), void *);
+
+void evhttp_send_error(struct evhttp_request *, int, const char *);
+void evhttp_send_reply(struct evhttp_request *, int, const char *,
+    struct evbuffer *);
+
+/* Interfaces for making requests */
+enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
+enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
+
+struct evhttp_request *evhttp_request_new(
+	void (*cb)(struct evhttp_request *, void *), void *arg);
+void evhttp_request_free(struct evhttp_request *req);
+	
 #ifdef __cplusplus
 }
 #endif
