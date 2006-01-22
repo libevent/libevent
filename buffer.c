@@ -149,7 +149,7 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 				(*buf->cb)(buf, oldoff, buf->off, buf->cbarg);
 			return (sz);
 		}
-		if (evbuffer_expand(buf, sz) == -1)
+		if (evbuffer_expand(buf, sz + 1) == -1)
 			return (-1);
 
 	}
@@ -405,7 +405,7 @@ evbuffer_write(struct evbuffer *buffer, int fd)
 }
 
 u_char *
-evbuffer_find(struct evbuffer *buffer, u_char *what, size_t len)
+evbuffer_find(struct evbuffer *buffer, const u_char *what, size_t len)
 {
 	size_t remain = buffer->off;
 	u_char *search = buffer->buffer;
