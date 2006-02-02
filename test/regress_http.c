@@ -134,6 +134,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 			"Content-Type") != NULL)
 			test_ok++;
 		evhttp_request_free(req);
+		bufferevent_disable(bev, EV_READ);
 		event_loopexit(NULL);
 	}
 }
