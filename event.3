@@ -64,6 +64,7 @@
 .Nm bufferevent_enable ,
 .Nm bufferevent_disable ,
 .Nm bufferevent_settimeout ,
+.Nm bufferevent_base_set ,
 .Nm evbuffer_new ,
 .Nm evbuffer_free ,
 .Nm evbuffer_add ,
@@ -147,6 +148,8 @@
 .Fn "bufferevent_disable" "struct bufferevent *bufev" "short event"
 .Ft void
 .Fn "bufferevent_settimeout" "struct bufferevent *bufev" "int timeout_read" "int timeout_write"
+.Ft int
+.Fn "bufferevent_base_set" "struct event_base *base" "struct bufferevent *bufev"
 .Ft "struct evbuffer *"
 .Fn "evbuffer_new" "void"
 .Ft void
@@ -443,14 +446,18 @@ This event base can be used in conjunction with calls to
 .Fn event_base_set ,
 .Fn event_base_dispatch ,
 .Fn event_base_loop ,
+.Fn event_base_loopexit ,
 and
-.Fn event_base_loopexit .
+.Fn bufferevent_base_set .
 .Fn event_base_set
 should be called after preparing an event with
 .Fn event_set ,
 as
 .Fn event_set
 assigns the provided event to the most recently created event base.
+.Fn bufferevent_base_set
+should be called after preparing a bufferevent with
+.Fn bufferevent_new .
 .Sh BUFFERED EVENTS
 .Nm libevent
 provides an abstraction on top of the regular event callbacks.
@@ -472,13 +479,25 @@ The next three parameters are callbacks.
 The read and write callback have the following form:
 .Ft void
 .Fn "(*cb)" "struct bufferevent *bufev" "void *arg" .
+The error callback has the following form:
+.Ft void
+.Fn "(*cb)" "struct bufferevent *bufev" "short what" "void *arg" .
 The argument is specified by the fourth parameter
 .Fa "cbarg" .
+A
+.Fa bufferevent struct
+pointer is returned on success, NULL on error.
 .Pp
-By default the buffered event is read enabled and will try to read
-from the file descriptor.
-The write callback is executed whenever the output buffer is drained
-below the write low watermark, which is
+Once initialized, the bufferevent structure can be used repeatedly with
+bufferevent_enable() and bufferevent_disable().  The flags parameter can
+be a combination of 
+.Va EV_READ
+and
+.Va EV_WRITE .
+When read enabled the bufferevent will try to read from the file 
+descriptor and call the read callback. The write callback is executed
+whenever the output buffer is drained below the write low watermark, 
+which is
 .Va 0
 by default.
 .Pp
@@ -491,6 +510,9 @@ The
 .Fn bufferevent_read
 function is used to read data from the input buffer.
 Both functions return the amount of data written or read.
+.Pp
+If multiple bases are in use, bufferevent_base_set() must be called before
+enabling the bufferevent for the first time.
 .Sh RETURN VALUES
 Upon successful completion
 .Fn event_add

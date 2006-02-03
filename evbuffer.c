@@ -226,7 +226,12 @@ bufferevent_new(int fd, evbuffercb readcb, evbuffercb writecb,
 
 	bufev->cbarg = cbarg;
 
-	bufev->enabled = EV_READ | EV_WRITE;
+	/*
+	 * Set to EV_WRITE so that using bufferevent_write is going to
+	 * trigger a callback.  Reading needs to be explicitly enabled
+	 * because otherwise no data will be available.
+	 */
+	bufev->enabled = EV_WRITE;
 
 	return (bufev);
 }
@@ -371,4 +376,17 @@ bufferevent_setwatermark(struct bufferevent *bufev, short events,
 	/* If the watermarks changed then see if we should call read again */
 	bufferevent_read_pressure_cb(bufev->input,
 	    0, EVBUFFER_LENGTH(bufev->input), bufev);
+}
+
+int
+bufferevent_base_set(struct event_base *base, struct bufferevent *bufev)
+{
+	int res;
+
+	res = event_base_set(base, &bufev->ev_read);
+	if (res == -1)
+		return (res);
+
+	res = event_base_set(base, &bufev->ev_write);
+	return (res);
 }
