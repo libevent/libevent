@@ -802,7 +802,7 @@ evhttp_read_header(int fd, short what, void *arg)
 
 	case EVHTTP_RESPONSE:
 		event_debug(("%s: starting to read body for \"%s\" on %d\n",
-				__func__, req->assoc_req->host, req->fd));
+				__func__, req->remote_host, req->fd));
 		evhttp_get_body(req);
 		break;
 
