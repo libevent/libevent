@@ -92,13 +92,21 @@ bufferevent_readcb(int fd, short event, void *arg)
 	int res = 0;
 	short what = EVBUFFER_READ;
 	size_t len;
+	int howmuch = -1;
 
 	if (event == EV_TIMEOUT) {
 		what |= EVBUFFER_TIMEOUT;
 		goto error;
 	}
 
-	res = evbuffer_read(bufev->input, fd, -1);
+	/*
+	 * If we have a high watermark configured then we don't want to
+	 * read more data than would make us reach the watermark.
+	 */
+	if (bufev->wm_read.high != 0)
+		howmuch = bufev->wm_read.high;
+
+	res = evbuffer_read(bufev->input, fd, howmuch);
 	if (res == -1) {
 		if (errno == EAGAIN || errno == EINTR)
 			goto reschedule;
