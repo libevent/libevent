@@ -103,11 +103,25 @@ struct event {
 #define EVENT_SIGNAL(ev)	(int)ev->ev_fd
 #define EVENT_FD(ev)		(int)ev->ev_fd
 
+/*
+ * Key-Value pairs.  Can be used for HTTP headers but also for
+ * query argument parsing.
+ */
+struct evkeyval {
+	TAILQ_ENTRY(evkeyval) next;
+
+	char *key;
+	char *value;
+};
+
 #ifdef _EVENT_DEFINED_TQENTRY
 #undef TAILQ_ENTRY
+struct event_list;
+struct evkeyvalq;
 #undef _EVENT_DEFINED_TQENTRY
 #else
 TAILQ_HEAD (event_list, event);
+TAILQ_HEAD (evkeyvalq, evkeyval);
 #endif /* _EVENT_DEFINED_TQENTRY */
 #ifdef _EVENT_DEFINED_RBENTRY
 #undef RB_ENTRY
@@ -364,19 +378,6 @@ struct evhttp_request *evhttp_request_new(
 void evhttp_request_free(struct evhttp_request *req);
 
 /* Interfaces for dealing with HTTP headers */
-
-/*
- * Key-Value pairs.  Can be used for HTTP headers but also for
- * query argument parsing.
- */
-struct evkeyval {
-	TAILQ_ENTRY(evkeyval) next;
-
-	char *key;
-	char *value;
-};
-
-TAILQ_HEAD(evkeyvalq, evkeyval);
 
 char *evhttp_find_header(struct evkeyvalq *, const char *);
 void evhttp_remove_header(struct evkeyvalq *, const char *);
