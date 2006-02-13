@@ -82,6 +82,7 @@ http_setup(short *pport)
 	if (port == -1)
 		event_errx(1, "Could not start web server");
 
+	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, NULL);
 
 	*pport = port;
@@ -264,7 +265,7 @@ http_connectcb(struct evhttp_connection *evcon, void *arg)
 	/* Add the information that we care about */
 	evhttp_add_header(req->output_headers, "Host", "somehost");
 	
-	if (evhttp_start_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}

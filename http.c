@@ -177,49 +177,64 @@ evhttp_write_buffer(struct evhttp_request *req, struct evbuffer *buffer,
 	event_add(&req->ev, &tv);
 }
 
+static void
+evhttp_make_header_request(struct evbuffer *buf, struct evhttp_request *req)
+{
+	static char line[1024];
+	const char *method;
+	
+	evhttp_remove_header(req->output_headers, "Accept-Encoding");
+	evhttp_remove_header(req->output_headers, "Proxy-Connection");
+	evhttp_remove_header(req->output_headers, "Connection");
+	evhttp_add_header(req->output_headers, "Connection", "close");
+	req->minor = 0;
+
+	/* Generate request line */
+	method = evhttp_method(req->type);
+	snprintf(line, sizeof(line), "%s %s HTTP/%d.%d\r\n",
+	    method, req->uri, req->major, req->minor);
+	evbuffer_add(buf, line, strlen(line));
+
+	/* Add the content length on a post request if missing */
+	if (req->type == EVHTTP_REQ_POST &&
+	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
+		char size[12];
+		snprintf(size, sizeof(size), "%d",
+		    EVBUFFER_LENGTH(req->buffer));
+		evhttp_add_header(req->output_headers, "Content-Length", size);
+	}
+}
+
+static void
+evhttp_make_header_response(struct evbuffer *buf, struct evhttp_request *req)
+{
+	static char line[1024];
+	snprintf(line, sizeof(line), "HTTP/%d.%d %d %s\r\n",
+	    req->major, req->minor, req->response_code,
+	    req->response_code_line);
+	evbuffer_add(buf, line, strlen(line));
+
+	/* Potentially add headers */
+	if (evhttp_find_header(req->output_headers, "Content-Type") == NULL) {
+		evhttp_add_header(req->output_headers,
+		    "Content-Type", "text/html; charset=ISO-8859-1");
+	}
+}
+
 void
 evhttp_make_header(struct evbuffer *buf, struct evhttp_request *req)
 {
-	char line[1024];
+	static char line[1024];
 	struct evkeyval *header;
-	const char *method;
 
-	/* First we make a few tiny modifications */
+	/*
+	 * Depending if this is a HTTP request or response, we might need to
+	 * add some new headers or remove existing headers.
+	 */
 	if (req->kind == EVHTTP_REQUEST) {
-		evhttp_remove_header(req->output_headers, "Accept-Encoding");
-		evhttp_remove_header(req->output_headers, "Proxy-Connection");
-		evhttp_remove_header(req->output_headers, "Connection");
-		evhttp_add_header(req->output_headers, "Connection", "close");
-		req->minor = 0;
-
-		/* Generate request line */
-		method = evhttp_method(req->type);
-		snprintf(line, sizeof(line), "%s %s HTTP/%d.%d\r\n",
-		    method, req->uri, req->major, req->minor);
-		evbuffer_add(buf, line, strlen(line));
-
-		/* Add the content length on a post request if missing */
-		if (req->type == EVHTTP_REQ_POST &&
-		    evhttp_find_header(req->output_headers,
-			"Content-Length") == NULL) {
-			char size[12];
-			snprintf(size, sizeof(size), "%d",
-			    EVBUFFER_LENGTH(req->buffer));
-			evhttp_add_header(req->output_headers,
-			    "Content-Length", size);
-		}
+		evhttp_make_header_request(buf, req);
 	} else {
-		snprintf(line, sizeof(line), "HTTP/%d.%d %d %s\r\n",
-		    req->major, req->minor, req->response_code,
-		    req->response_code_line);
-		evbuffer_add(buf, line, strlen(line));
-
-		/* Potentially add headers */
-		if (evhttp_find_header(req->output_headers,
-			"Content-Type") == NULL) {
-			evhttp_add_header(req->output_headers,
-			    "Content-Type", "text/html; charset=ISO-8859-1");
-		}
+		evhttp_make_header_response(buf, req);
 	}
 
 	TAILQ_FOREACH(header, req->output_headers, next) {
@@ -230,7 +245,7 @@ evhttp_make_header(struct evbuffer *buf, struct evhttp_request *req)
 	evbuffer_add(buf, "\r\n", 2);
 
 	if (req->kind == EVHTTP_REQUEST) {
-		int len = req->buffer->off;
+		int len = EVBUFFER_LENGTH(req->buffer);
 
 		/* Add the POST data */
 		if (len > 0)
@@ -815,8 +830,12 @@ evhttp_read_header(int fd, short what, void *arg)
 
 /*
  * Creates a TCP connection to the specified port and executes a callback
- * when finished.  Failure of sucess is indicate by the passed connection
+ * when finished.  Failure or sucess is indicate by the passed connection
  * object.
+ *
+ * Although this interface accepts a hostname, it is intended to take
+ * only numeric hostnames so that non-blocking DNS resolution can
+ * happen elsewhere.
  */
 
 struct evhttp_connection *
@@ -865,12 +884,14 @@ evhttp_connect(const char *address, unsigned short port,
 }
 
 /*
- * Don't know if we just want to pass a file descriptor or the evcon object.
- * In theory we might use this to queue requests on the connection object.
+ * Starts an HTTP request on the provided evhttp_connection object.
+ *
+ * In theory we might use this to queue requests on the connection
+ * object.
  */
 
 int
-evhttp_start_request(struct evhttp_connection *evcon,
+evhttp_make_request(struct evhttp_connection *evcon,
     struct evhttp_request *req,
     enum evhttp_cmd_type type, const char *uri)
 {
@@ -896,6 +917,13 @@ evhttp_start_request(struct evhttp_connection *evcon,
 	
 	/* Create the header from the store arguments */
 	evhttp_make_header(evbuf, req);
+
+	/*
+	 * If this was a post request or for other reasons we need to append
+	 * our post data to the request.
+	 */
+	evbuffer_add_buffer(evbuf, req->buffer);
+	   
 
 	/* Schedule the write */
 	req->save_cb = req->cb;
@@ -1022,6 +1050,7 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 
 	TAILQ_INIT(headers);
 
+	/* No arguments - we are done */
 	if (strchr(uri, '?') == NULL)
 		return;
 
