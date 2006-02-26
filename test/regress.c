@@ -754,16 +754,21 @@ evtag_fuzz()
 	struct timeval tv;
 	int i, j;
 
+	int not_failed = 0;
 	for (j = 0; j < 100; j++) {
 		for (i = 0; i < sizeof(buffer); i++)
 			buffer[i] = rand();
 		evbuffer_drain(tmp, -1);
 		evbuffer_add(tmp, buffer, sizeof(buffer));
 
-		if (evtag_unmarshal_timeval(tmp, 0, &tv) != -1) {
-			fprintf(stderr, "evtag_unmarshal should have failed");
-			exit(1);
-		}
+		if (evtag_unmarshal_timeval(tmp, 0, &tv) != -1)
+			not_failed++;
+	}
+
+	/* The majority of decodes should fail */
+	if (not_failed >= 10) {
+		fprintf(stderr, "evtag_unmarshal should have failed");
+		exit(1);
 	}
 
 	/* Now insert some corruption into the tag length field */
