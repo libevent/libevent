@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2004 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2003-2006 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,6 +62,7 @@ extern int test_ok;
 static struct evhttp *http;
 
 void http_basic_cb(struct evhttp_request *req, void *arg);
+void http_post_cb(struct evhttp_request *req, void *arg);
 
 struct evhttp *
 http_setup(short *pport)
@@ -84,6 +85,7 @@ http_setup(short *pport)
 
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, NULL);
+	evhttp_set_cb(myhttp, "/postit", http_post_cb, NULL);
 
 	*pport = port;
 	return (myhttp);
@@ -232,11 +234,6 @@ http_connection_test(void)
 
 	event_dispatch();
 
-	/*
-	 * At this point, we want to schedule a request to the HTTP
-	 * server using our start request method.
-	 */
-
 	evhttp_connection_free(evcon);
 	evhttp_free(http);
 	
@@ -260,6 +257,11 @@ http_connectcb(struct evhttp_connection *evcon, void *arg)
 		exit (1);
 	}
 
+	/*
+	 * At this point, we want to schedule a request to the HTTP
+	 * server using our make request method.
+	 */
+
 	req = evhttp_request_new(http_request_done, NULL);
 
 	/* Add the information that we care about */
@@ -282,8 +284,7 @@ http_request_done(struct evhttp_request *req, void *arg)
 		exit(1);
 	}
 
-	if (evhttp_find_header(req->input_headers,
-		"Content-Type") == NULL) {
+	if (evhttp_find_header(req->input_headers, "Content-Type") == NULL) {
 		fprintf(stderr, "FAILED\n");
 		exit(1);
 	}
@@ -302,9 +303,137 @@ http_request_done(struct evhttp_request *req, void *arg)
 	event_loopexit(NULL);
 }
 
+/*
+ * HTTP POST test.
+ */
+
+void http_connect_forpostcb(struct evhttp_connection *evcon, void *arg);
+
+void
+http_post_test(void)
+{
+	short port = -1;
+	struct evhttp_connection *evcon = NULL;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing HTTP POST Request: ");
+
+	http = http_setup(&port);
+
+	evcon = evhttp_connect("127.0.0.1", port, http_connect_forpostcb, NULL);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
+	
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	
+	fprintf(stdout, "OK\n");
+}
+
+void http_postrequest_done(struct evhttp_request *, void *);
+
+#define POST_DATA "Okay.  Not really printf"
+
+void
+http_connect_forpostcb(struct evhttp_connection *evcon, void *arg)
+{
+	struct evhttp_request *req = NULL;
+
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit (1);
+	}
+
+	/*
+	 * At this point, we want to schedule an HTTP POST request
+	 * server using our make request method.
+	 */
+
+	req = evhttp_request_new(http_postrequest_done, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+	evbuffer_add_printf(req->buffer, POST_DATA);
+	
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/postit") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+}
+
+void
+http_post_cb(struct evhttp_request *req, void *arg)
+{
+	event_debug((stderr, "%s: called\n", __func__));
+
+	/* Yes, we are expecting a post request */
+	if (req->type != EVHTTP_REQ_POST) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	if (EVBUFFER_LENGTH(req->buffer) != strlen(POST_DATA)) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	if (strcmp(EVBUFFER_DATA(req->buffer), POST_DATA)) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	
+	struct evbuffer *evb = evbuffer_new();
+	evbuffer_add_printf(evb, "This is funny");
+
+	evhttp_send_reply(req, HTTP_OK, "Everything is fine", evb);
+
+	evbuffer_free(evb);
+}
+
+void
+http_postrequest_done(struct evhttp_request *req, void *arg)
+{
+	const char *what = "This is funny";
+
+	if (req->response_code != HTTP_OK) {
+	
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (evhttp_find_header(req->input_headers, "Content-Type") == NULL) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (EVBUFFER_LENGTH(req->buffer) != strlen(what)) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+	
+	if (memcmp(EVBUFFER_DATA(req->buffer), what, strlen(what)) != 0) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
+
 void
 http_suite(void)
 {
 	http_basic_test();
 	http_connection_test();
+	http_post_test();
 }

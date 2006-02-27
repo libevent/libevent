@@ -353,7 +353,7 @@ struct evhttp_request;
 struct evhttp *evhttp_start(const char *address, u_short port);
 
 /*
- * Free the previously create HTTP server.  Works only if not requests are
+ * Free the previously create HTTP server.  Works only if no requests are
  * currently being served.
  */
 void evhttp_free(struct evhttp* http);
@@ -376,15 +376,18 @@ enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
 struct evhttp_request *evhttp_request_new(
 	void (*cb)(struct evhttp_request *, void *), void *arg);
 void evhttp_request_free(struct evhttp_request *req);
+const char *evhttp_request_uri(struct evhttp_request *req);
 
 /* Interfaces for dealing with HTTP headers */
 
-char *evhttp_find_header(struct evkeyvalq *, const char *);
-void evhttp_remove_header(struct evkeyvalq *, const char *);
+const char *evhttp_find_header(struct evkeyvalq *, const char *);
+int evhttp_remove_header(struct evkeyvalq *, const char *);
 int evhttp_add_header(struct evkeyvalq *, const char *, const char *);
 void evhttp_clear_headers(struct evkeyvalq *);
 
+/* Miscellaneous utility functions */
 void evhttp_parse_query(const char *uri, struct evkeyvalq *);
+char *evhttp_htmlescape(const char *html);
 #ifdef __cplusplus
 }
 #endif

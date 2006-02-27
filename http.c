@@ -1,7 +1,28 @@
 /*
- * Copyright 2002, 2003, 2005 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2002-2006 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <sys/param.h>
@@ -149,7 +170,8 @@ evhttp_form_response(struct evbuffer *buf, struct evhttp_request *req)
 	evhttp_make_header(buf, req);
 
 	/* Append the response buffer */
-	evbuffer_add(buf, req->buffer->buffer, req->buffer->off);
+	evbuffer_add(buf,
+	    EVBUFFER_DATA(req->buffer), EVBUFFER_LENGTH(req->buffer));
 }
 
 void
@@ -177,6 +199,9 @@ evhttp_write_buffer(struct evhttp_request *req, struct evbuffer *buffer,
 	event_add(&req->ev, &tv);
 }
 
+/*
+ * Create the headers need for an HTTP reply
+ */
 static void
 evhttp_make_header_request(struct evbuffer *buf, struct evhttp_request *req)
 {
@@ -205,6 +230,9 @@ evhttp_make_header_request(struct evbuffer *buf, struct evhttp_request *req)
 	}
 }
 
+/*
+ * Create the headers needed for an HTTP reply
+ */
 static void
 evhttp_make_header_response(struct evbuffer *buf, struct evhttp_request *req)
 {
@@ -249,7 +277,7 @@ evhttp_make_header(struct evbuffer *buf, struct evhttp_request *req)
 
 		/* Add the POST data */
 		if (len > 0)
-			evbuffer_add(buf, req->buffer->buffer, len);
+			evbuffer_add(buf, EVBUFFER_DATA(req->buffer), len);
 	}
 }
 
@@ -339,7 +367,7 @@ evhttp_write(int fd, short what, void *arg)
 		return;
 	}
 
-	if (req->buffer->off != 0) {
+	if (EVBUFFER_LENGTH(req->buffer) != 0) {
 		timerclear(&tv);
 		tv.tv_sec = HTTP_WRITE_TIMEOUT;
 		event_add(&req->ev, &tv);
@@ -580,7 +608,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	return (0);
 }
 
-char *
+const char *
 evhttp_find_header(struct evkeyvalq *headers, const char *key)
 {
 	struct evkeyval *header;
@@ -608,7 +636,12 @@ evhttp_clear_headers(struct evkeyvalq *headers)
 	}
 }
 
-void
+/*
+ * Returns 0,  if the header was successfully removed.
+ * Returns -1, if the header could not be found.
+ */
+
+int
 evhttp_remove_header(struct evkeyvalq *headers, const char *key)
 {
 	struct evkeyval *header;
@@ -619,13 +652,15 @@ evhttp_remove_header(struct evkeyvalq *headers, const char *key)
 	}
 
 	if (header == NULL)
-		return;
+		return (-1);
 
 	/* Free and remove the header that we found */
 	TAILQ_REMOVE(headers, header, next);
 	free(header->key);
 	free(header->value);
 	free(header);
+
+	return (0);
 }
 
 int
@@ -639,10 +674,13 @@ evhttp_add_header(struct evkeyvalq *headers, const char *key, const char *value)
 		return (-1);
 	}
 	if ((header->key = strdup(key)) == NULL) {
+		free(header);
 		event_warn("%s: strdup", __func__);
 		return (-1);
 	}
 	if ((header->value = strdup(value)) == NULL) {
+		free(header->key);
+		free(header);
 		event_warn("%s: strdup", __func__);
 		return (-1);
 	}
@@ -672,7 +710,7 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 	while ((endp = evbuffer_find(buffer, "\r\n", 2)) != NULL) {
 		char *skey, *svalue;
 
-		if (strncmp(buffer->buffer, "\r\n", 2) == 0) {
+		if (strncmp(EVBUFFER_DATA(buffer), "\r\n", 2) == 0) {
 			evbuffer_drain(buffer, 2);
 			/* Last header - Done */
 			done = 1;
@@ -682,17 +720,17 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 		*endp = '\0';
 		endp += 2;
 
-		event_debug(("%s: Got: %s\n", __func__, buffer->buffer));
+		event_debug(("%s: Got: %s\n", __func__, EVBUFFER_DATA(buffer)));
 
 		/* Processing of header lines */
 		if (req->got_firstline == 0) {
 			switch (req->kind) {
 			case EVHTTP_REQUEST:
-				if (evhttp_parse_request_line(req, buffer->buffer) == -1)
+				if (evhttp_parse_request_line(req, EVBUFFER_DATA(buffer)) == -1)
 					return (-1);
 				break;
 			case EVHTTP_RESPONSE:
-				if (evhttp_parse_response_line(req, buffer->buffer) == -1)
+				if (evhttp_parse_response_line(req, EVBUFFER_DATA(buffer)) == -1)
 					return (-1);
 				break;
 			default:
@@ -701,7 +739,7 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 			req->got_firstline = 1;
 		} else {
 			/* Regular header */
-			svalue = buffer->buffer;
+			svalue = EVBUFFER_DATA(buffer);
 			skey = strsep(&svalue, ":");
 			if (svalue == NULL)
 				return (-1);
@@ -713,7 +751,7 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 		}
 
 		/* Move the uncompleted headers forward */
-		evbuffer_drain(buffer, endp - buffer->buffer);
+		evbuffer_drain(buffer, endp - EVBUFFER_DATA(buffer));
 	}
 
 	return (done);
@@ -723,8 +761,8 @@ void
 evhttp_get_body(struct evhttp_request *req)
 {
 	struct timeval tv;
-	char *content_length;
-	char *connection;
+	const char *content_length;
+	const char *connection;
 	struct evkeyvalq *headers = req->input_headers;
 	
 	/* If this is a request without a body, then we are done */
@@ -752,10 +790,10 @@ evhttp_get_body(struct evhttp_request *req)
 		req->ntoread = atoi(content_length);
 
 	event_debug(("%s: bytes to read: %d (in buffer %d)\n",
-			__func__, req->ntoread, req->buffer->off));
+			__func__, req->ntoread, EVBUFFER_LENGTH(req->buffer)));
 	
 	if (req->ntoread > 0)
-		req->ntoread -= req->buffer->off;
+		req->ntoread -= EVBUFFER_LENGTH(req->buffer);
 
 	if (req->ntoread == 0) {
 		(*req->cb)(req, req->cb_arg);
@@ -917,13 +955,6 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	
 	/* Create the header from the store arguments */
 	evhttp_make_header(evbuf, req);
-
-	/*
-	 * If this was a post request or for other reasons we need to append
-	 * our post data to the request.
-	 */
-	evbuffer_add_buffer(evbuf, req->buffer);
-	   
 
 	/* Schedule the write */
 	req->save_cb = req->cb;
@@ -1305,6 +1336,17 @@ evhttp_request_free(struct evhttp_request *req)
 	if (req->buffer != NULL)
 		evbuffer_free(req->buffer);
 	free(req);
+}
+
+/*
+ * Allows for inspection of the request URI
+ */
+
+const char *
+evhttp_request_uri(struct evhttp_request *req) {
+	if (req->uri == NULL)
+		event_debug(("%s: request %p has no uri\n", req));
+	return (req->uri);
 }
 
 /*

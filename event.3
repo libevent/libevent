@@ -75,7 +75,9 @@
 .Nm evbuffer_write ,
 .Nm evbuffer_read ,
 .Nm evbuffer_find ,
-.Nm evbuffer_readline
+.Nm evbuffer_readline ,
+.Nm evhttp_start ,
+.Nm evhttp_free
 .Nd execute a function when a specific event occurs
 .Sh SYNOPSIS
 .Fd #include <sys/time.h>
@@ -172,6 +174,10 @@
 .Fn "evbuffer_find" "struct evbuffer *buf" "u_char *data" "size_t size"
 .Ft "char *"
 .Fn "evbuffer_readline" "struct evbuffer *buf"
+.Ft "struct evhttp *"
+.Fn "evhttp_start" "const char *address" "u_short port"
+.Ft "void"
+.Fn "evhttp_free" "struct evhttp* http"
 .Ft int
 .Fa (*event_sigcb)(void) ;
 .Ft int
@@ -513,6 +519,28 @@ Both functions return the amount of data written or read.
 .Pp
 If multiple bases are in use, bufferevent_base_set() must be called before
 enabling the bufferevent for the first time.
+.Sh NON-BLOCKING HTTP SUPPORT
+.Nm libevent
+provides a very thin HTTP layer that can be used both to host an HTTP
+server and also to make HTTP requests.
+An HTTP server can be created by calling
+.Fn evhttp_start .
+When the HTTP server is no longer used, it can be freed via
+.Fn evhttp_free .
+.Pp
+To be notified of HTTP requests, a user needs to register callbacks with the
+HTTP server.
+This can be done by calling
+.Fn evhttp_set_cb .
+The second argument is the URI for which a callback is being registered.
+The corresponding callback will receive an
+.Va struct evhttp_request
+object that contains all information about the request. 
+.Pp
+This section does not document all the possible function calls, please
+check
+.Va event.h
+for the public interfaces.
 .Sh RETURN VALUES
 Upon successful completion
 .Fn event_add
