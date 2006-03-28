@@ -93,7 +93,7 @@ select_init(void)
 {
 	struct selectop *sop;
 
-	/* Disable kqueue when this environment variable is set */
+	/* Disable select when this environment variable is set */
 	if (getenv("EVENT_NOSELECT"))
 		return (NULL);
 

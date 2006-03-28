@@ -48,6 +48,7 @@
 #include <unistd.h>
 #endif
 #include <errno.h>
+#include <signal.h>
 #include <string.h>
 #include <assert.h>
 
@@ -109,8 +110,8 @@ struct event_list signalqueue;
 struct event_base *current_base = NULL;
 
 /* Handle signals - This is a deprecated interface */
-int (*event_sigcb)(void);	/* Signal callback when gotsig is set */
-volatile int event_gotsig;	/* Set in signal handler */
+int (*event_sigcb)(void);		/* Signal callback when gotsig is set */
+volatile sig_atomic_t event_gotsig;	/* Set in signal handler */
 
 /* Prototypes */
 static void	event_queue_insert(struct event_base *, struct event *, int);

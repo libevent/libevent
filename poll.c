@@ -75,7 +75,7 @@ int poll_del		(void *, struct event *);
 int poll_recalc		(struct event_base *, void *, int);
 int poll_dispatch	(struct event_base *, void *, struct timeval *);
 
-struct eventop pollops = {
+const struct eventop pollops = {
 	"poll",
 	poll_init,
 	poll_add,
@@ -89,7 +89,7 @@ poll_init(void)
 {
 	struct pollop *pollop;
 
-	/* Disable kqueue when this environment variable is set */
+	/* Disable poll when this environment variable is set */
 	if (getenv("EVENT_NOPOLL"))
 		return (NULL);
 
@@ -182,7 +182,7 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		return (0);
 
 	for (i = 0; i < nfds; i++) {
-                int what = pop->event_set[i].revents;
+		int what = pop->event_set[i].revents;
 		struct event *r_ev = NULL, *w_ev = NULL;
 		if (!what)
 			continue;
