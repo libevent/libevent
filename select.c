@@ -131,7 +131,7 @@ check_selectop(struct selectop *sop)
 
 }
 #else
-#define check_selectop(sop)
+#define check_selectop(sop) do {;} while (0)
 #endif
 
 /*

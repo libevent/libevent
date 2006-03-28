@@ -917,7 +917,8 @@ evhttp_connect(const char *address, unsigned short port,
 	return (evcon);
 
  error:
-	evhttp_connection_free(evcon);
+	if (evcon != NULL)
+		evhttp_connection_free(evcon);
 	return (NULL);
 }
 
