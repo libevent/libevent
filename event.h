@@ -135,6 +135,7 @@ struct eventop {
 	int (*del)(void *, struct event *);
 	int (*recalc)(struct event_base *, void *, int);
 	int (*dispatch)(struct event_base *, void *, struct timeval *);
+	void (*dealloc)(void *);
 };
 
 #define TIMEOUT_DEFAULT	{5, 0}
@@ -142,6 +143,7 @@ struct eventop {
 void *event_init(void);
 int event_dispatch(void);
 int event_base_dispatch(struct event_base *);
+void event_base_free(struct event_base *);
 
 #define _EVENT_LOG_DEBUG 0
 #define _EVENT_LOG_MSG   1

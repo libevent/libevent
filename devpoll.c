@@ -76,6 +76,7 @@ int devpoll_add	(void *, struct event *);
 int devpoll_del	(void *, struct event *);
 int devpoll_recalc	(struct event_base *, void *, int);
 int devpoll_dispatch	(struct event_base *, void *, struct timeval *);
+void devpoll_dealloc	(void *);
 
 struct eventop devpollops = {
 	"devpoll",
@@ -83,7 +84,8 @@ struct eventop devpollops = {
 	devpoll_add,
 	devpoll_del,
 	devpoll_recalc,
-	devpoll_dispatch
+	devpoll_dispatch,
+	devpoll_dealloc
 };
 
 #define NEVENT	32000
@@ -400,4 +402,22 @@ devpoll_del(void *arg, struct event *ev)
 		evdp->evwrite = NULL;
 
 	return (0);
+}
+
+void
+devpoll_dealloc(void *arg)
+{
+	struct devpollop *devpollop = arg;
+
+	if (devpollop->fds)
+		free(devpollop->fds);
+	if (devpollop->events)
+		free(devpollop->events);
+	if (devpollop->changes)
+		free(devpollop->changes);
+	if (devpollop->dpfd >= 0)
+		close(devpollop->dpfd);
+
+	memset(devpollop, 0, sizeof(struct devpollop));
+	free(devpollop);
 }

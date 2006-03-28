@@ -75,6 +75,7 @@ int kq_del	(void *, struct event *);
 int kq_recalc	(struct event_base *, void *, int);
 int kq_dispatch	(struct event_base *, void *, struct timeval *);
 int kq_insert	(struct kqop *, struct kevent *);
+void kq_dealloc (void *);
 
 const struct eventop kqops = {
 	"kqueue",
@@ -82,7 +83,8 @@ const struct eventop kqops = {
 	kq_add,
 	kq_del,
 	kq_recalc,
-	kq_dispatch
+	kq_dispatch,
+	kq_dealloc
 };
 
 void *
@@ -393,4 +395,19 @@ kq_del(void *arg, struct event *ev)
 	}
 
 	return (0);
+}
+
+void
+kq_dealloc(void *arg)
+{
+	struct kqop *kqop = arg;
+
+	if (kqop->changes)
+		free(kqop->changes);
+	if (kqop->events)
+		free(kqop->events);
+	if (kqop->kq)
+		close(kqop->kq);
+	memset(kqop, 0, sizeof(struct kqop));
+	free(kqop);
 }

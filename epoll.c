@@ -76,6 +76,7 @@ int epoll_add	(void *, struct event *);
 int epoll_del	(void *, struct event *);
 int epoll_recalc	(struct event_base *, void *, int);
 int epoll_dispatch	(struct event_base *, void *, struct timeval *);
+void epoll_dealloc	(void *);
 
 struct eventop epollops = {
 	"epoll",
@@ -83,7 +84,8 @@ struct eventop epollops = {
 	epoll_add,
 	epoll_del,
 	epoll_recalc,
-	epoll_dispatch
+	epoll_dispatch,
+	epoll_dealloc
 };
 
 #ifdef HAVE_SETFD
@@ -348,4 +350,20 @@ epoll_del(void *arg, struct event *ev)
 		return (-1);
 
 	return (0);
+}
+
+void
+epoll_dealloc(void *arg)
+{
+	struct epollop *epollop = arg;
+
+	if (epollop->fds)
+		free(epollop->fds);
+	if (epollop->events)
+		free(epollop->events);
+	if (epollop->epfd >= 0)
+		close(epollop->epfd);
+
+	memset(epollop, 0, sizeof(struct epollop));
+	free(epollop);
 }

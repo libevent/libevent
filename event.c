@@ -196,6 +196,33 @@ event_init(void)
 	return (current_base);
 }
 
+void
+event_base_free(struct event_base *base)
+{
+	int i;
+
+	if (base == NULL && current_base)
+		base = current_base;
+        if (base == current_base)
+		current_base = NULL;
+
+	assert(base);
+	assert(TAILQ_EMPTY(&base->eventqueue));
+	for (i=0; i < base->nactivequeues; ++i)
+		assert(TAILQ_EMPTY(base->activequeues[i]));
+
+	assert(RB_EMPTY(&base->timetree));
+
+	for (i = 0; i < base->nactivequeues; ++i)
+		free(base->activequeues[i]);
+	free(base->activequeues);
+
+	if (base->evsel->dealloc != NULL)
+		base->evsel->dealloc(base->evbase);
+
+	free(base);
+}
+
 int
 event_priority_init(int npriorities)
 {

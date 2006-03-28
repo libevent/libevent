@@ -76,6 +76,7 @@ int select_add		(void *, struct event *);
 int select_del		(void *, struct event *);
 int select_recalc	(struct event_base *, void *, int);
 int select_dispatch	(struct event_base *, void *, struct timeval *);
+void select_dealloc     (void *);
 
 const struct eventop selectops = {
 	"select",
@@ -83,7 +84,8 @@ const struct eventop selectops = {
 	select_add,
 	select_del,
 	select_recalc,
-	select_dispatch
+	select_dispatch,
+	select_dealloc
 };
 
 static int select_resize(struct selectop *sop, int fdsz);
@@ -349,4 +351,26 @@ select_del(void *arg, struct event *ev)
 
 	check_selectop(sop);
 	return (0);
+}
+
+void
+select_dealloc(void *arg)
+{
+	struct selectop *sop = arg;
+
+	if (sop->event_readset_in)
+		free(sop->event_readset_in);
+	if (sop->event_writeset_in)
+		free(sop->event_writeset_in);
+	if (sop->event_readset_out)
+		free(sop->event_readset_out);
+	if (sop->event_writeset_out)
+		free(sop->event_writeset_out);
+	if (sop->event_r_by_fd)
+		free(sop->event_r_by_fd);
+	if (sop->event_w_by_fd)
+		free(sop->event_w_by_fd);
+
+	memset(sop, 0, sizeof(struct selectop));
+	free(sop);
 }

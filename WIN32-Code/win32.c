@@ -81,6 +81,7 @@ int win32_insert	(void *, struct event *);
 int win32_del	(void *, struct event *);
 int win32_recalc	(struct event_base *base, void *, int);
 int win32_dispatch	(struct event_base *base, void *, struct timeval *);
+void win32_dealloc	(void *);
 
 struct eventop win32ops = {
 	"win32",
@@ -88,7 +89,8 @@ struct eventop win32ops = {
 	win32_insert,
 	win32_del,
 	win32_recalc,
-	win32_dispatch
+	win32_dispatch,
+	win32_dealloc
 };
 
 #define FD_SET_ALLOC_SIZE(n) ((sizeof(struct win_fd_set) + ((n)-1)*sizeof(SOCKET)))
@@ -365,6 +367,27 @@ win32_dispatch(struct event_base *base, struct win32op *win32op,
 	return (0);
 }
 
+void
+win32_dealloc(void *arg)
+{
+	struct win32op *win32op = arg;
+
+	if (win32op->readset_in)
+		free(win32op->readset_in);
+	if (win32op->writeset_in)
+		free(win32op->writeset_in);
+	if (win32op->readset_out)
+		free(win32op->readset_out);
+	if (win32op->writeset_out)
+		free(win32op->writeset_out);
+	if (win32op->exset_out)
+		free(win32op->exset_out);
+	if (win32op->events)
+		free(win32op->events);
+
+	memset(win32op, 0, sizeof(win32op));
+	free(win32op);
+}
 
 static int
 signal_handler(int sig)
