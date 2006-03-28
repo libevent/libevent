@@ -561,7 +561,8 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 	if (tv != NULL && (flags & event & EV_TIMEOUT)) {
 		gettime(&now);
 		timersub(&ev->ev_timeout, &now, &res);
-		gettime(&now);
+		/* correctly remap to real time */
+		gettimeofday(&now, NULL);
 		timeradd(&now, &res, tv);
 	}
 
