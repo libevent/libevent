@@ -117,7 +117,7 @@ AC_C_INLINE
 AC_HEADER_TIME
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(gettimeofday vasprintf fcntl)
+AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime)
 AC_REPLACE_FUNCS(strlcpy)
 
 AC_MSG_CHECKING(for F_SETFD in fcntl.h)
