@@ -63,7 +63,7 @@ class Struct:
             print >>file, '  %s=%d,' % (self.EntryTagName(entry),
                                         entry.Tag())
         print >>file, '  %s_MAX_TAGS' % (self._name.upper())
-        print >>file, '} %s_tags;\n' % (self._name.lower())
+        print >>file, '};\n'
 
     def PrintForwardDeclaration(self, file):
         print >>file, 'struct %s;' % self._name
