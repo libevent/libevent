@@ -54,7 +54,7 @@
 
 #include "event.h"
 #include "log.h"
-#include "http.h"
+#include "http-internal.h"
 
 #include "regress.h"
 #include "regress.gen.h"

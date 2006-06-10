@@ -24,7 +24,7 @@ EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h event.3 \
 lib_LTLIBRARIES = libevent.la
 
 libevent_la_SOURCES = event.c buffer.c evbuffer.c log.c event_tagging.c \
-	 http.c http.h
+	 http.c http-internal.h
 libevent_la_LIBADD = @LTLIBOBJS@
 libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
 
