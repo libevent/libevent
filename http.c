@@ -66,6 +66,7 @@
 #undef timeout_initialized
 
 #include "event.h"
+#include "evhttp.h"
 #include "log.h"
 #include "http-internal.h"
 
@@ -224,7 +225,7 @@ evhttp_make_header_request(struct evbuffer *buf, struct evhttp_request *req)
 	if (req->type == EVHTTP_REQ_POST &&
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		char size[12];
-		snprintf(size, sizeof(size), "%d",
+		snprintf(size, sizeof(size), "%ld",
 		    EVBUFFER_LENGTH(req->buffer));
 		evhttp_add_header(req->output_headers, "Content-Length", size);
 	}

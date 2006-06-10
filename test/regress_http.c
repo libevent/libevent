@@ -53,6 +53,7 @@
 #include <errno.h>
 
 #include "event.h"
+#include "evhttp.h"
 #include "log.h"
 #include "http-internal.h"
 
