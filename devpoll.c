@@ -142,7 +142,7 @@ devpoll_init(void)
 
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
 	    rl.rlim_cur != RLIM_INFINITY)
-		nfiles = rl.rlim_cur;
+		nfiles = rl.rlim_cur - 1;
 
 	/* Initialize the kernel queue */
 	if ((dpfd = open("/dev/poll", O_RDWR)) == -1) {
