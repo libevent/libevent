@@ -2,7 +2,7 @@ dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
-AM_INIT_AUTOMAKE(libevent,1.2)
+AM_INIT_AUTOMAKE(libevent,1.2-rc1)
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 
@@ -39,7 +39,7 @@ AC_CHECK_LIB(socket, socket)
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/ioctl.h sys/devpoll.h)
+AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/ioctl.h sys/devpoll.h port.h)
 if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
 	AC_EGREP_CPP(yes,
@@ -302,6 +302,14 @@ main(int argc, char **argv)
 	fi
 fi
 
+haveeventports=no
+AC_CHECK_FUNCS(port_create, [haveeventports=yes], )
+if test "x$haveeventports" = "xyes" ; then
+	AC_DEFINE(HAVE_EVENT_PORTS, 1,
+		[Define if your system supports event ports])
+	AC_LIBOBJ(evport)
+	needsignal=yes
+fi
 if test "x$needsignal" = "xyes" ; then
 	AC_LIBOBJ(signal)
 fi
@@ -338,5 +346,6 @@ AC_TRY_COMPILE([],
    AC_MSG_RESULT([no])
    AC_DEFINE(__func__, __FILE__,
          [Define to appropriate substitue if compiler doesnt have __func__])))
+
 
 AC_OUTPUT(Makefile test/Makefile sample/Makefile)

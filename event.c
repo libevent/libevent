@@ -56,6 +56,9 @@
 #include "event-internal.h"
 #include "log.h"
 
+#ifdef HAVE_EVENT_PORTS
+extern const struct eventop evportops;
+#endif
 #ifdef HAVE_SELECT
 extern const struct eventop selectops;
 #endif
@@ -80,6 +83,9 @@ extern const struct eventop win32ops;
 
 /* In order of preference */
 const struct eventop *eventops[] = {
+#ifdef HAVE_EVENT_PORTS
+	&evportops,
+#endif
 #ifdef HAVE_WORKING_KQUEUE
 	&kqops,
 #endif

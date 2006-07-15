@@ -6,7 +6,7 @@ bin_SCRIPTS = event_rpcgen.py
 
 EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h event.3 \
 	kqueue.c epoll_sub.c epoll.c select.c rtsig.c poll.c signal.c \
-	devpoll.c event_rpcgen.py \
+	evport.c devpoll.c event_rpcgen.py \
 	sample/Makefile.am sample/Makefile.in sample/event-test.c \
 	sample/signal-test.c sample/time-test.c \
 	test/Makefile.am test/Makefile.in test/bench.c test/regress.c \
