@@ -19,15 +19,32 @@
 
 struct evbuffer;
 struct addrinfo;
+struct evhttp_request;
 
 /* A stupid connection object - maybe make this a bufferevent later */
+
+enum evhttp_connection_state {
+	EVCON_DISCONNECTED,	/* not currently connected not trying either */
+	EVCON_CONNECTING,	/* tries to currently connect */
+	EVCON_CONNECTED		/* connection is established */
+};
 
 struct evhttp_connection {
 	int fd;
 	struct event ev;
-
+	struct evbuffer *input_buffer;
+	struct evbuffer *output_buffer;
+	
 	char *address;
 	u_short port;
+
+	int flags;
+#define EVHTTP_CON_INCOMING	0x0001	/* only one request on it ever */
+#define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
+	
+	enum evhttp_connection_state state;
+
+	TAILQ_HEAD(evcon_requestq, evhttp_request) requests;
 	
 	void (*cb)(struct evhttp_connection *, void *);
 	void *cb_arg;
@@ -36,9 +53,17 @@ struct evhttp_connection {
 enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
 
 struct evhttp_request {
+	TAILQ_ENTRY(evhttp_request) next;
+
+	/* the connection object that this request belongs to */
+	struct evhttp_connection *evcon;
+	int flags;
+#define EVHTTP_REQ_OWN_CONNECTION	0x0001	
+	
 	struct evkeyvalq *input_headers;
 	struct evkeyvalq *output_headers;
 
+	/* xxx: do we still need these? */
 	char *remote_host;
 	u_short remote_port;
 
@@ -54,19 +79,14 @@ struct evhttp_request {
 	int response_code;		/* HTTP Response code */
 	char *response_code_line;	/* Readable response */
 
-	int fd;
-
-	struct event ev;
-
-	struct evbuffer *buffer;
+	struct evbuffer *input_buffer;	/* read data */
 	int ntoread;
+
+	struct evbuffer *output_buffer;	/* outgoing post or data */
 
 	/* Callback */
 	void (*cb)(struct evhttp_request *, void *);
 	void *cb_arg;
-
-	void (*save_cb)(struct evhttp_request *, void *);
-	void *save_cbarg;
 };
 
 struct evhttp_cb {
@@ -87,39 +107,31 @@ struct evhttp {
 	void *gencbarg;
 };
 
+/* resets the connection; can be reused for more requests */
+void evhttp_connection_reset(struct evhttp_connection *);
+
+/* connects if necessary */
+int evhttp_connection_connect(struct evhttp_connection *);
+
+/* notifies the current request that it failed; resets connection */
+void evhttp_connection_fail(struct evhttp_connection *);
+
 void evhttp_get_request(int, struct sockaddr *, socklen_t,
     void (*)(struct evhttp_request *, void *), void *);
-
-/*
- * Starts a connection to the specified address and invokes the callback
- * if everything is fine.
- */
-struct evhttp_connection *evhttp_connect(
-	const char *address, unsigned short port,
-	void (*cb)(struct evhttp_connection *, void *), void *cb_arg);
-
-/* Frees an http connection */
-void evhttp_connection_free(struct evhttp_connection *evcon);
-
-int evhttp_make_request(struct evhttp_connection *evcon,
-    struct evhttp_request *req,
-    enum evhttp_cmd_type type, const char *uri);
 
 int evhttp_hostportfile(char *, char **, u_short *, char **);
 
 int evhttp_parse_lines(struct evhttp_request *, struct evbuffer*);
 
-void evhttp_start_read(struct evhttp_request *);
+void evhttp_start_read(struct evhttp_connection *);
 void evhttp_read_header(int, short, void *);
-void evhttp_make_header(struct evbuffer *, struct evhttp_request *);
+void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
 
-void evhttp_form_response(struct evbuffer *, struct evhttp_request *);
-void evhttp_write_buffer(struct evhttp_request *, struct evbuffer *,
-    void (*)(struct evhttp_request *, void *), void *);
+void evhttp_write_buffer(struct evhttp_connection *,
+    void (*)(struct evhttp_connection *, void *), void *);
 
 /* response sending HTML the data in the buffer */
 void evhttp_response_code(struct evhttp_request *, int, const char *);
 void evhttp_send_page(struct evhttp_request *, struct evbuffer *);
-void evhttp_fail(struct evhttp_request *);
 
 #endif /* _HTTP_H */

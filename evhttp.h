@@ -82,9 +82,32 @@ void evhttp_send_reply(struct evhttp_request *, int, const char *,
 /* Interfaces for making requests */
 enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
 
+/* Creates a new request object that needs to be filled in with the request
+ * parameters.  The callback is executed when the request completed or an
+ * error occurred.
+ */
 struct evhttp_request *evhttp_request_new(
 	void (*cb)(struct evhttp_request *, void *), void *arg);
+
+/* Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
+
+/*
+ * A connection object that can be used to for making HTTP requests.  The
+ * connection object tries to establish the connection when it is given an
+ * http request object.
+ */
+struct evhttp_connection *evhttp_connection_new(
+	const char *address, unsigned short port);
+
+/* Frees an http connection */
+void evhttp_connection_free(struct evhttp_connection *evcon);
+
+/* The connection gets ownership of the request */
+int evhttp_make_request(struct evhttp_connection *evcon,
+    struct evhttp_request *req,
+    enum evhttp_cmd_type type, const char *uri);
+
 const char *evhttp_request_uri(struct evhttp_request *req);
 
 /* Interfaces for dealing with HTTP headers */

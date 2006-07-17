@@ -18,7 +18,7 @@ regress_SOURCES = regress.c regress.h regress_http.c \
 bench_SOURCES = bench.c
 
 regress.gen.c regress.gen.h: regress.rpc
-	../event_rpcgen.py regress.rpc
+	../event_rpcgen.py regress.rpc || echo "No Python installed"
 
 DISTCLEANFILES = *~
 CLEANFILES = regress.gen.h regress.gen.c
