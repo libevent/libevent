@@ -39,7 +39,6 @@
 #include <sys/time.h>
 #endif
 
-#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,6 +47,7 @@
 #include <unistd.h>
 
 #include "event.h"
+#include "log.h"
 
 int decode_int(u_int32_t *pnumber, struct evbuffer *evbuf);
 
@@ -57,7 +57,7 @@ void
 evtag_init()
 {
 	if ((_buf = evbuffer_new()) == NULL)
-		err(1, "%s: malloc", __func__);
+		event_err(1, "%s: malloc", __func__);
 }
 
 /* 
@@ -332,7 +332,7 @@ evtag_unmarshal_string(struct evbuffer *evbuf, u_int8_t need_tag,
 
 	*pstring = calloc(EVBUFFER_LENGTH(_buf) + 1, 1);
 	if (*pstring == NULL)
-		err(1, "%s: calloc", __func__);
+		event_err(1, "%s: calloc", __func__);
 	evbuffer_remove(_buf, *pstring, EVBUFFER_LENGTH(_buf));
 
 	return (0);
