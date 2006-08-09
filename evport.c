@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 2006 Sun Microsystems.
- * All rights reserved.
  * Submitted by David Pacheco (dp.spambait@gmail.com)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,6 +22,11 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * Copyright (c) 2006 Sun Microsystems. All rights reserved.
+ * Use is subject to license terms.
  */
 
 /*
