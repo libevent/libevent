@@ -345,7 +345,7 @@ http_post_test(void)
 	evhttp_free(http);
 	
 	if (test_ok != 1) {
-		fprintf(stdout, "FAILED\n");
+		fprintf(stdout, "FAILED: %d\n", test_ok);
 		exit(1);
 	}
 	
@@ -359,17 +359,21 @@ http_post_cb(struct evhttp_request *req, void *arg)
 
 	/* Yes, we are expecting a post request */
 	if (req->type != EVHTTP_REQ_POST) {
-		fprintf(stdout, "FAILED\n");
+		fprintf(stdout, "FAILED (post type)\n");
 		exit(1);
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(POST_DATA)) {
-		fprintf(stdout, "FAILED\n");
+		fprintf(stdout, "FAILED (length: %d vs %d)\n",
+		    EVBUFFER_LENGTH(req->input_buffer), strlen(POST_DATA));
 		exit(1);
 	}
 
-	if (strcmp(EVBUFFER_DATA(req->input_buffer), POST_DATA)) {
-		fprintf(stdout, "FAILED\n");
+	if (memcmp(EVBUFFER_DATA(req->input_buffer), POST_DATA,
+		strlen(POST_DATA))) {
+		fprintf(stdout, "FAILED (data)\n");
+		fprintf(stdout, "Got :%s\n", EVBUFFER_DATA(req->input_buffer));
+		fprintf(stdout, "Want:%s\n", POST_DATA);
 		exit(1);
 	}
 	
@@ -388,22 +392,23 @@ http_postrequest_done(struct evhttp_request *req, void *arg)
 
 	if (req->response_code != HTTP_OK) {
 	
-		fprintf(stderr, "FAILED\n");
+		fprintf(stderr, "FAILED (response code)\n");
 		exit(1);
 	}
 
 	if (evhttp_find_header(req->input_headers, "Content-Type") == NULL) {
-		fprintf(stderr, "FAILED\n");
+		fprintf(stderr, "FAILED (content type)\n");
 		exit(1);
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
-		fprintf(stderr, "FAILED\n");
+		fprintf(stderr, "FAILED (length %d vs %d)\n",
+		    EVBUFFER_LENGTH(req->input_buffer), strlen(what));
 		exit(1);
 	}
 	
 	if (memcmp(EVBUFFER_DATA(req->input_buffer), what, strlen(what)) != 0) {
-		fprintf(stderr, "FAILED\n");
+		fprintf(stderr, "FAILED (data)\n");
 		exit(1);
 	}
 
