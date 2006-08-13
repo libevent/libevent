@@ -222,8 +222,11 @@
  * with the next probe.
  */
 
-#include "eventdns.h"
-#include "eventdns_tor.h"
+#include <sys/types.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 //#define NDEBUG
 
 #ifndef DNS_USE_CPU_CLOCK_FOR_ID
@@ -258,7 +261,6 @@
 #define _FORTIFY_SOURCE 3
 
 #include <string.h>
-#include <sys/types.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -275,6 +277,8 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdarg.h>
+
+#include "evdns.h"
 
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 255
@@ -298,8 +302,6 @@ typedef unsigned int uint;
 #define u32 uint32_t
 #define u16 uint16_t
 #define u8  uint8_t
-
-#include "eventdns.h"
 
 #define MAX_ADDRS 4  // maximum number of addresses from a single packet
 // which we bother recording
@@ -847,7 +849,7 @@ transaction_id_pick(void) {
 #ifdef DNS_USE_CPU_CLOCK_FOR_ID
 		struct timespec ts;
 		const u16 trans_id = ts.tv_nsec & 0xffff;
-		if (clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &ts)) abort();
+		if (clock_gettime(CLOCK_PROF, &ts)) abort();
 #endif
 
 #ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
