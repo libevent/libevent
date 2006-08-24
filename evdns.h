@@ -46,24 +46,24 @@
 #define DNS_OPTION_MISC 4
 #define DNS_OPTIONS_ALL 7
 
-typedef void (*eventdns_callback_type) (int result, char type, int count, int ttl, void *addresses, void *arg);
+typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, void *addresses, void *arg);
 
-int eventdns_nameserver_add(unsigned long int address);
-int eventdns_count_nameservers(void);
-int eventdns_clear_nameservers_and_suspend(void);
-int eventdns_resume(void);
-int eventdns_nameserver_ip_add(const char *ip_as_string);
-int eventdns_resolve(const char *name, int flags, eventdns_callback_type callback, void *ptr);
-int eventdns_resolv_conf_parse(int flags, const char *);
+int evdns_nameserver_add(unsigned long int address);
+int evdns_count_nameservers(void);
+int evdns_clear_nameservers_and_suspend(void);
+int evdns_resume(void);
+int evdns_nameserver_ip_add(const char *ip_as_string);
+int evdns_resolve(const char *name, int flags, evdns_callback_type callback, void *ptr);
+int evdns_resolv_conf_parse(int flags, const char *);
 #ifdef MS_WINDOWS
-int eventdns_config_windows_nameservers(void);
+int evdns_config_windows_nameservers(void);
 #endif
-void eventdns_search_clear(void);
-void eventdns_search_add(const char *domain);
-void eventdns_search_ndots_set(const int ndots);
+void evdns_search_clear(void);
+void evdns_search_add(const char *domain);
+void evdns_search_ndots_set(const int ndots);
 
-typedef void (*eventdns_debug_log_fn_type)(const char *msg);
-void eventdns_set_log_fn(eventdns_debug_log_fn_type fn);
+typedef void (*evdns_debug_log_fn_type)(const char *msg);
+void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 
 #define DNS_NO_SEARCH 1
 
