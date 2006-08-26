@@ -493,6 +493,8 @@ The argument is specified by the fourth parameter
 A
 .Fa bufferevent struct
 pointer is returned on success, NULL on error.
+Both the read and the write callback may be NULL.
+The error callback has to be always provided.
 .Pp
 Once initialized, the bufferevent structure can be used repeatedly with
 bufferevent_enable() and bufferevent_disable().  The flags parameter can
