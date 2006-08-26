@@ -136,7 +136,8 @@ bufferevent_readcb(int fd, short event, void *arg)
 	}
 
 	/* Invoke the user callback - must always be called last */
-	(*bufev->readcb)(bufev, bufev->cbarg);
+	if (bufev->readcb != NULL)
+		(*bufev->readcb)(bufev, bufev->cbarg);
 	return;
 
  reschedule:
@@ -183,7 +184,8 @@ bufferevent_writecb(int fd, short event, void *arg)
 	 * Invoke the user callback if our buffer is drained or below the
 	 * low watermark.
 	 */
-	if (EVBUFFER_LENGTH(bufev->output) <= bufev->wm_write.low)
+	if (bufev->writecb != NULL &&
+	    EVBUFFER_LENGTH(bufev->output) <= bufev->wm_write.low)
 		(*bufev->writecb)(bufev, bufev->cbarg);
 
 	return;
@@ -203,6 +205,9 @@ bufferevent_writecb(int fd, short event, void *arg)
  * The read callback is invoked whenever we read new data.
  * The write callback is invoked whenever the output buffer is drained.
  * The error callback is invoked on a write/read error or on EOF.
+ *
+ * Both read and write callbacks maybe NULL.  The error callback is not
+ * allowed to be NULL and have to be provided always.
  */
 
 struct bufferevent *
