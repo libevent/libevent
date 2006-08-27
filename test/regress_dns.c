@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2003-2006 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,20 +24,73 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _REGRESS_H_
-#define _REGRESS_H_
 
-#ifdef __cplusplus
-extern "C" {
+#ifdef WIN32
+#include <winsock2.h>
+#include <windows.h>
 #endif
 
-void http_suite(void);
-void http_basic_test(void);
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
-void dns_suite(void);
-	
-#ifdef __cplusplus
+#include <sys/types.h>
+#include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#include <sys/queue.h>
+#ifndef WIN32
+#include <sys/socket.h>
+#include <sys/signal.h>
+#include <unistd.h>
+#endif
+#include <netdb.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
+#include "event.h"
+#include "evdns.h"
+#include "log.h"
+
+static int dns_ok = 0;
+
+void
+dns_gethostbyname_cb(int result, char type, int count, int ttl,
+    void *addresses, void *arg)
+{
+	if (result == DNS_ERR_NONE)
+		dns_ok = 1;
+	event_loopexit(NULL);
 }
-#endif
 
-#endif /* _REGRESS_H_ */
+void
+dns_gethostbyname()
+{
+	fprintf(stdout, "Simple DNS resolve: ");
+	evdns_resolve("www.monkey.org", 0, dns_gethostbyname_cb, NULL);
+	event_dispatch();
+
+	if (dns_ok) {
+		fprintf(stdout, "OK\n");
+	} else {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+}
+
+void
+dns_suite(void)
+{
+#ifdef WIN32
+	evdns_config_windows_nameservers();
+#else
+	evdns_resolv_conf_parse(DNS_OPTIONS_ALL, "/etc/resolv.conf");
+#endif
+	dns_gethostbyname();
+
+	evdns_clear_nameservers_and_suspend();
+}

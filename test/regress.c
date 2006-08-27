@@ -882,6 +882,8 @@ main (int argc, char **argv)
 	event_base = event_init();
 
 	http_suite();
+
+	dns_suite();
 	
 	test_simpleread();
 

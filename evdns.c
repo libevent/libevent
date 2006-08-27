@@ -279,6 +279,7 @@
 #include <stdarg.h>
 
 #include "evdns.h"
+#include "log.h"
 
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 255
@@ -849,7 +850,8 @@ transaction_id_pick(void) {
 #ifdef DNS_USE_CPU_CLOCK_FOR_ID
 		struct timespec ts;
 		const u16 trans_id = ts.tv_nsec & 0xffff;
-		if (clock_gettime(CLOCK_PROF, &ts)) abort();
+		if (clock_gettime(CLOCK_MONOTONIC, &ts))
+			event_err(1, "clock_gettime");
 #endif
 
 #ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
@@ -1037,15 +1039,21 @@ evdns_request_len(const int name_len) {
 //
 // Returns the amount of space used. Negative on error.
 static int
-evdns_request_data_build(const char *const name, const int name_len, const u16 trans_id,
-		const u16 type, const u16 class,
-		u8 *const buf) {
+evdns_request_data_build(const char *const name, const int name_len,
+    const u16 trans_id,	const u16 type, const u16 class,
+    u8 *const buf, size_t buf_len) {
 	int j = 0;  // current offset into buf
 	u16 _t;  // used by the macros
 	u8 *labels;
 	int labels_len;
 
-#define APPEND16(x) do { _t = htons(x); memcpy(buf + j, &_t, 2); j += 2; } while(0);
+#define APPEND16(x) do { \
+  if (j + 2 > buf_len) \
+    return (-1); \
+  _t = htons(x); \
+  memcpy(buf + j, &_t, 2); j += 2; \
+} while(0)
+	
 	APPEND16(trans_id);
 	APPEND16(0x0100);  // standard query, recusion needed
 	APPEND16(1);  // one question
@@ -1054,17 +1062,26 @@ evdns_request_data_build(const char *const name, const int name_len, const u16 t
 	APPEND16(0);  // no additional
 
 	labels = (u8 *) malloc(name_len + 2);
-        if (!labels) return -1;
+        if (labels == NULL)
+		return (-1);
 	labels_len = dnsname_to_labels(labels, name, name_len);
-	if (labels_len < 0) return labels_len;
+	if (labels_len < 0) {
+		free(labels);
+		return (labels_len);
+	}
+	if (j + labels_len > buf_len) {
+		free(labels);
+		return (-1);
+	}
 	memcpy(buf + j, labels, labels_len);
 	j += labels_len;
-
+	free(labels);
+	
 	APPEND16(type);
 	APPEND16(class);
 #undef APPEND16
 
-	return j;
+	return (j);
 }
 
 // this is a libevent callback function which is called when a request
@@ -1396,14 +1413,17 @@ string_num_dots(const char *s) {
 }
 
 static struct request *
-request_new(const char *name, int flags, evdns_callback_type callback, void *ptr) {
-	const char issuing_now = (global_requests_inflight < global_max_requests_inflight) ? 1 : 0;
+request_new(const char *name, int flags,
+    evdns_callback_type callback, void *ptr) {
+	const char issuing_now =
+	    (global_requests_inflight < global_max_requests_inflight) ? 1 : 0;
 
 	const int name_len = strlen(name);
 	const int request_max_len = evdns_request_len(name_len);
 	const u16 trans_id = issuing_now ? transaction_id_pick() : 0xffff;
 	// the request data is alloced in a single block with the header
-	struct request *const req = (struct request *) malloc(sizeof(struct request) + request_max_len);
+	struct request *const req =
+	    (struct request *) malloc(sizeof(struct request) + request_max_len);
 	int rlen;
         (void) flags;
 
@@ -1412,9 +1432,12 @@ request_new(const char *name, int flags, evdns_callback_type callback, void *ptr
 
 	// request data lives just after the header
 	req->request = ((u8 *) req) + sizeof(struct request);
-	req->request_appended = 1;  // denotes that the request data shouldn't be free()ed
-	rlen = evdns_request_data_build(name, name_len, trans_id, TYPE_A, CLASS_INET, req->request);
-	if (rlen < 0) goto err1;
+	// denotes that the request data shouldn't be free()ed
+	req->request_appended = 1;
+	rlen = evdns_request_data_build(name, name_len, trans_id,
+	    TYPE_A, CLASS_INET, req->request, request_max_len);
+	if (rlen < 0)
+		goto err1;
 	req->request_len = rlen;
 	req->trans_id = trans_id;
 	req->tx_count = 0;
@@ -1444,15 +1467,18 @@ request_submit(struct request *const req) {
 }
 
 // exported function
-int evdns_resolve(const char *name, int flags, evdns_callback_type callback, void *ptr) {
+int evdns_resolve(const char *name, int flags,
+    evdns_callback_type callback, void *ptr) {
 	log("Resolve requested for %s", name);
 	if (flags & DNS_QUERY_NO_SEARCH) {
-		struct request *const req = request_new(name, flags, callback, ptr);
-		if (!req) return 1;
+		struct request *const req =
+		    request_new(name, flags, callback, ptr);
+		if (req == NULL)
+			return (1);
 		request_submit(req);
-		return 0;
+		return (0);
 	} else {
-		return search_request_new(name, flags, callback, ptr);
+		return (search_request_new(name, flags, callback, ptr));
 	}
 }
 
