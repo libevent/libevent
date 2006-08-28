@@ -48,6 +48,7 @@
 
 typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, void *addresses, void *arg);
 
+int evdns_init();
 int evdns_nameserver_add(unsigned long int address);
 int evdns_count_nameservers(void);
 int evdns_clear_nameservers_and_suspend(void);

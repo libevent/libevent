@@ -85,11 +85,7 @@ dns_gethostbyname()
 void
 dns_suite(void)
 {
-#ifdef WIN32
-	evdns_config_windows_nameservers();
-#else
-	evdns_resolv_conf_parse(DNS_OPTIONS_ALL, "/etc/resolv.conf");
-#endif
+	evdns_init();
 	dns_gethostbyname();
 
 	evdns_clear_nameservers_and_suspend();

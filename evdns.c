@@ -2027,3 +2027,16 @@ evdns_config_windows_nameservers(void)
 	return load_nameservers_from_registry();
 }
 #endif
+
+int
+evdns_init()
+{
+	int res = 0;
+#ifdef MS_WINDOWS
+	evdns_config_windows_nameservers(void);
+#else
+	res = evdns_resolv_conf_parse(DNS_OPTIONS_ALL, "/etc/resolv.conf");
+#endif
+
+	return (res);
+}
