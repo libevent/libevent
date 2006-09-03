@@ -356,7 +356,7 @@ kq_del(void *arg, struct event *ev)
 		int nsignal = EVENT_SIGNAL(ev);
 
  		memset(&kev, 0, sizeof(kev));
-		kev.ident = (int)signal;
+		kev.ident = nsignal;
 		kev.filter = EVFILT_SIGNAL;
 		kev.flags = EV_DELETE;
 		

@@ -446,7 +446,8 @@ test_simplesignal(void)
 
 	event_dispatch();
  skip_simplesignal:
-	signal_del(&ev);
+	if (signal_del(&ev) == -1)
+		test_ok = 0;
 
 	cleanup_test();
 }
