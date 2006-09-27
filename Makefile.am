@@ -1,6 +1,5 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
-SUBDIRS = . sample test
 
 bin_SCRIPTS = event_rpcgen.py
 
@@ -22,14 +21,30 @@ EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h event.3 \
 
 lib_LTLIBRARIES = libevent.la
 
+if BUILD_WIN32
+
+SUBDIRS = . sample
+SYS_LIBS = -lws2_32
+SYS_SRC = WIN32-Code/misc.c WIN32-Code/win32.c
+SYS_INCLUDES = -IWIN32-Code
+
+else
+
+SUBDIRS = . sample test
+SYS_LIBS =
+SYS_SRC =
+SYS_INCLUDES =
+
+endif
+
 libevent_la_SOURCES = event.c buffer.c evbuffer.c log.c event_tagging.c \
-	 http.c evhttp.h http-internal.h evdns.c evdns.h
-libevent_la_LIBADD = @LTLIBOBJS@
+	 http.c evhttp.h http-internal.h evdns.c evdns.h $(SYS_SRC)
+libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
 
 include_HEADERS = event.h evhttp.h evdns.h
 
-INCLUDES = -Icompat
+INCLUDES = -Icompat $(SYS_INCLUDES)
 
 man_MANS = event.3
 

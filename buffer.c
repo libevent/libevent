@@ -197,7 +197,7 @@ evbuffer_readline(struct evbuffer *buffer)
 	u_char *data = EVBUFFER_DATA(buffer);
 	size_t len = EVBUFFER_LENGTH(buffer);
 	char *line;
-	u_int i;
+	unsigned int i;
 
 	for (i = 0; i < len; i++) {
 		if (data[i] == '\r' || data[i] == '\n')

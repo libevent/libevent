@@ -4,6 +4,12 @@
 #include <sys/timeb.h>
 #include <time.h>
 
+#ifdef __GNUC__
+/*our prototypes for timeval and timezone are in here, just in case the above
+  headers don't have them*/
+#include "misc.h"
+#endif
+
 /****************************************************************************
  *
  * Function: gettimeofday(struct timeval *, struct timezone *)
@@ -17,6 +23,7 @@
  *
  ****************************************************************************/
 
+#ifndef HAVE_GETTIMEOFDAY
 int gettimeofday(struct timeval *tv, struct timezone *tz) {
   struct _timeb tb;
 
@@ -28,6 +35,7 @@ int gettimeofday(struct timeval *tv, struct timezone *tz) {
 	tv->tv_usec = ((int) tb.millitm) * 1000;
 	return 0;
 }
+#endif
 
 int
 win_read(int fd, void *buf, unsigned int length)

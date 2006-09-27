@@ -163,12 +163,20 @@ bufferevent_writecb(int fd, short event, void *arg)
 	if (EVBUFFER_LENGTH(bufev->output)) {
 	    res = evbuffer_write(bufev->output, fd);
 	    if (res == -1) {
+#ifndef WIN32
+/*todo. evbuffer uses WriteFile when WIN32 is set. WIN32 system calls do not
+ *set errno. thus this error checking is not portable*/
 		    if (errno == EAGAIN ||
 			errno == EINTR ||
 			errno == EINPROGRESS)
 			    goto reschedule;
 		    /* error case */
 		    what |= EVBUFFER_ERROR;
+
+#else
+				goto reschedule;
+#endif
+
 	    } else if (res == 0) {
 		    /* eof case */
 		    what |= EVBUFFER_EOF;
