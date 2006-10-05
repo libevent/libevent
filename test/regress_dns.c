@@ -43,6 +43,7 @@
 #ifndef WIN32
 #include <sys/socket.h>
 #include <sys/signal.h>
+#include <netinet/in.h>
 #include <unistd.h>
 #endif
 #include <netdb.h>
@@ -71,7 +72,26 @@ void
 dns_gethostbyname()
 {
 	fprintf(stdout, "Simple DNS resolve: ");
-	evdns_resolve("www.monkey.org", 0, dns_gethostbyname_cb, NULL);
+	dns_ok = 0;
+	evdns_resolve_ipv4("www.monkey.org", 0, dns_gethostbyname_cb, NULL);
+	event_dispatch();
+
+	if (dns_ok) {
+		fprintf(stdout, "OK\n");
+	} else {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+}
+
+void
+dns_gethostbyaddr()
+{
+	struct in_addr in;
+	in.s_addr = htonl(0x7f000001ul); /* 127.0.0.1 */
+	fprintf(stdout, "Simple reverse DNS resolve: ");
+	dns_ok = 0;
+	evdns_resolve_reverse(&in, 0, dns_gethostbyname_cb, NULL);
 	event_dispatch();
 
 	if (dns_ok) {
@@ -87,6 +107,7 @@ dns_suite(void)
 {
 	evdns_init();
 	dns_gethostbyname();
+	dns_gethostbyaddr();
 
-	evdns_clear_nameservers_and_suspend();
+	evdns_shutdown(0);
 }

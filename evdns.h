@@ -36,8 +36,11 @@
 #define DNS_ERR_UNKNOWN 66
 /* Communication with the server timed out */
 #define DNS_ERR_TIMEOUT 67
+/* The request was canceled because the DNS subsystem was shut down. */
+#define DNS_ERR_SHUTDOWN 68
 
 #define DNS_IPv4_A 1
+#define DNS_PTR 2
 
 #define DNS_QUERY_NO_SEARCH 1
 
@@ -48,13 +51,17 @@
 
 typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, void *addresses, void *arg);
 
-int evdns_init();
+int evdns_init(void);
+void evdns_shutdown(int fail_requests);
+const char *evdns_err_to_string(int err);
 int evdns_nameserver_add(unsigned long int address);
 int evdns_count_nameservers(void);
 int evdns_clear_nameservers_and_suspend(void);
 int evdns_resume(void);
 int evdns_nameserver_ip_add(const char *ip_as_string);
-int evdns_resolve(const char *name, int flags, evdns_callback_type callback, void *ptr);
+int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback, void *ptr);
+struct in_addr;
+int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
 int evdns_resolv_conf_parse(int flags, const char *);
 #ifdef MS_WINDOWS
 int evdns_config_windows_nameservers(void);
@@ -63,7 +70,7 @@ void evdns_search_clear(void);
 void evdns_search_add(const char *domain);
 void evdns_search_ndots_set(const int ndots);
 
-typedef void (*evdns_debug_log_fn_type)(const char *msg);
+typedef void (*evdns_debug_log_fn_type)(int is_warning, const char *msg);
 void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 
 #define DNS_NO_SEARCH 1
