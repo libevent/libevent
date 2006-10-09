@@ -82,7 +82,8 @@ void evhttp_send_reply(struct evhttp_request *, int, const char *,
 /* Interfaces for making requests */
 enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
 
-/* Creates a new request object that needs to be filled in with the request
+/* 
+ * Creates a new request object that needs to be filled in with the request
  * parameters.  The callback is executed when the request completed or an
  * error occurred.
  */

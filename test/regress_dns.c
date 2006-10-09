@@ -44,6 +44,7 @@
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #endif
 #include <netdb.h>
@@ -63,8 +64,38 @@ void
 dns_gethostbyname_cb(int result, char type, int count, int ttl,
     void *addresses, void *arg)
 {
-	if (result == DNS_ERR_NONE)
-		dns_ok = 1;
+	dns_ok = 0;
+
+	if (result != DNS_ERR_NONE)
+		goto out;
+
+	fprintf(stderr, "type: %d, count: %d, ttl: %d: ", type, count, ttl);
+
+	switch (type) {
+	case DNS_IPv4_A: {
+		struct in_addr *in_addrs = addresses;
+		int i;
+		/* a resolution that's not valid does not help */
+		if (ttl < 0)
+			goto out;
+		for (i = 0; i < count; ++i)
+			fprintf(stderr, "%s ", inet_ntoa(in_addrs[0]));
+		break;
+	}
+	case DNS_PTR:
+		/* may get at most one PTR */
+		if (count != 1)
+			goto out;
+
+		fprintf(stderr, "%s ", *(char **)addresses);
+		break;
+	default:
+		goto out;
+	}
+
+	dns_ok = 1;
+
+out:
 	event_loopexit(NULL);
 }
 
