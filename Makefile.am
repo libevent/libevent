@@ -3,7 +3,8 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 bin_SCRIPTS = event_rpcgen.py
 
-EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h event.3 \
+EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h evdns.3 \
+	event.3 \
 	kqueue.c epoll_sub.c epoll.c select.c rtsig.c poll.c signal.c \
 	evport.c devpoll.c event_rpcgen.py \
 	sample/Makefile.am sample/Makefile.in sample/event-test.c \
@@ -46,7 +47,7 @@ include_HEADERS = event.h evhttp.h evdns.h
 
 INCLUDES = -Icompat $(SYS_INCLUDES)
 
-man_MANS = event.3
+man_MANS = event.3 evdns.3
 
 verify: libevent.la
 	cd $(srcdir)/test && make verify	
