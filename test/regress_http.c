@@ -364,7 +364,7 @@ http_post_cb(struct evhttp_request *req, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(POST_DATA)) {
-		fprintf(stdout, "FAILED (length: %d vs %d)\n",
+		fprintf(stdout, "FAILED (length: %ld vs %ld)\n",
 		    EVBUFFER_LENGTH(req->input_buffer), strlen(POST_DATA));
 		exit(1);
 	}
@@ -402,7 +402,7 @@ http_postrequest_done(struct evhttp_request *req, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
-		fprintf(stderr, "FAILED (length %d vs %d)\n",
+		fprintf(stderr, "FAILED (length %ld vs %ld)\n",
 		    EVBUFFER_LENGTH(req->input_buffer), strlen(what));
 		exit(1);
 	}
