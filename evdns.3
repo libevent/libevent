@@ -105,17 +105,19 @@ numbers should be unpredictable for spoofing reasons. There are
 three methods for generating them here and you must define exactly
 one of them. In increasing order of preference:
 .Pp
-DNS_USE_GETTIMEOFDAY_FOR_ID:
-  Using the bottom 16 bits of the usec result from gettimeofday. This
-  is a pretty poor solution but should work anywhere.
-DNS_USE_CPU_CLOCK_FOR_ID:
-  Using the bottom 16 bits of the nsec result from the CPU's time
-  counter. This is better, but may not work everywhere. Requires
-  POSIX realtime support and you'll need to link against -lrt on
-  glibc systems at least.
-DNS_USE_OPENSSL_FOR_ID:
-  Uses the OpenSSL RAND_bytes call to generate the data. You must
-  have seeded the pool before making any calls to this library.
+.Bl -tag -width "DNS_USE_GETTIMEOFDAY_FOR_ID" -compact -offset indent
+.It DNS_USE_GETTIMEOFDAY_FOR_ID
+Using the bottom 16 bits of the usec result from gettimeofday. This
+is a pretty poor solution but should work anywhere.
+.It DNS_USE_CPU_CLOCK_FOR_ID
+Using the bottom 16 bits of the nsec result from the CPU's time
+counter. This is better, but may not work everywhere. Requires
+POSIX realtime support and you'll need to link against -lrt on
+glibc systems at least.
+.It DNS_USE_OPENSSL_FOR_ID
+Uses the OpenSSL RAND_bytes call to generate the data. You must
+have seeded the pool before making any calls to this library.
+.El
 .Pp
 The library keeps track of the state of nameservers and will avoid
 them when they go down. Otherwise it will round robin between them.
@@ -148,13 +150,29 @@ evdns_resolve. Searching can also drastically slow down the resolution
 of names.
 .Pp
 To disable searching:
-  1. Never set it up. If you never call evdns_resolv_conf_parse or
-  evdns_search_add then no searching will occur.
-.Pp
-  2. If you do call evdns_resolv_conf_parse then don't pass
-  DNS_OPTION_SEARCH (or DNS_OPTIONS_ALL, which implies it).
-.Pp
-  3. When calling evdns_resolve, pass the DNS_QUERY_NO_SEARCH flag.
+.Bl -enum -compact -offset indent
+.It
+Never set it up. If you never call
+.Fn evdns_resolv_conf_parse,
+.Fn evdns_init,
+or
+.Fn evdns_search_add
+then no searching will occur.
+.It
+If you do call
+.Fn evdns_resolv_conf_parse
+then don't pass
+.Va DNS_OPTION_SEARCH
+(or
+.Va DNS_OPTIONS_ALL,
+which implies it).
+.It
+When calling
+.Fn evdns_resolve,
+pass the
+.Va DNS_QUERY_NO_SEARCH
+flag.
+.El
 .Pp
 The order of searches depends on the number of dots in the name. If the
 number is greater than the ndots setting then the names is first tried
@@ -171,86 +189,95 @@ For example, with ndots set to 1 (the default) and a search domain list of
  Query: www.abc
  Order: www.abc., www.abc.myhome.net
 .Pp
-API reference:
+.Sh API reference
 .Pp
-int evdns_nameserver_add(unsigned long int address)
-  Add a nameserver. The address should be an IP address in
-  network byte order. The type of address is chosen so that
-  it matches in_addr.s_addr.
-  Returns non-zero on error.
+.Bl -tag -width 0123456
+.It Ft int Fn evdns_init
+Initializes support for non-blocking name resolution by calling
+.Fn evdns_resolv_conf_parse
+on UNIX and
+.Fn evdns_config_windows_nameservers
+on Windows.
+.It Ft int Fn evdns_nameserver_add "unsigned long int address"
+Add a nameserver. The address should be an IP address in
+network byte order. The type of address is chosen so that
+it matches in_addr.s_addr.
+Returns non-zero on error.
+.It Ft int Fn evdns_nameserver_ip_add "const char *ip_as_string"
+This wraps the above function by parsing a string as an IP
+address and adds it as a nameserver.
+Returns non-zero on error
+.It Ft int Fn evdns_resolve "const char *name" "int flags" "evdns_callback_type callback" "void *ptr"
+Resolve a name. The name parameter should be a DNS name.
+The flags parameter should be 0, or DNS_QUERY_NO_SEARCH
+which disables searching for this query. (see defn of
+searching above).
 .Pp
-int evdns_nameserver_ip_add(const char *ip_as_string)
-  This wraps the above function by parsing a string as an IP
-  address and adds it as a nameserver.
-  Returns non-zero on error
+The callback argument is a function which is called when
+this query completes and ptr is an argument which is passed
+to that callback function.
 .Pp
-int evdns_resolve(const char *name, int flags,
-	      evdns_callback_type callback,
-	      void *ptr)
-  Resolve a name. The name parameter should be a DNS name.
-  The flags parameter should be 0, or DNS_QUERY_NO_SEARCH
-  which disables searching for this query. (see defn of
-  searching above).
+Returns non-zero on error
+.It Ft void Fn evdns_search_clear
+Clears the list of search domains
+.It Ft void Fn evdns_search_add "const char *domain"
+Add a domain to the list of search domains
+.It Ft void Fn evdns_search_ndots_set "int ndots"
+Set the number of dots which, when found in a name, causes
+the first query to be without any search domain.
+.It Ft int Fn evdns_count_nameservers "void"
+Return the number of configured nameservers (not necessarily the
+number of running nameservers).  This is useful for double-checking
+whether our calls to the various nameserver configuration functions
+have been successful.
+.It Ft int Fn evdns_clear_nameservers_and_suspend "void"
+Remove all currently configured nameservers, and suspend all pending
+resolves.  Resolves will not necessarily be re-attempted until
+evdns_resume() is called.
+.It Ft int Fn evdns_resume "void"
+Re-attempt resolves left in limbo after an earlier call to
+evdns_clear_nameservers_and_suspend().
+.It Ft int Fn evdns_config_windows_nameservers "void"
+Attempt to configure a set of nameservers based on platform settings on
+a win32 host.  Preferentially tries to use GetNetworkParams; if that fails,
+looks in the registry.  Returns 0 on success, nonzero on failure.
+.It Ft int Fn evdns_resolv_conf_parse "int flags" "const char *filename"
+Parse a resolv.conf like file from the given filename.
 .Pp
-  The callback argument is a function which is called when
-  this query completes and ptr is an argument which is passed
-  to that callback function.
+See the man page for resolv.conf for the format of this file.
+The flags argument determines what information is parsed from
+this file:
+.Bl -tag -width "DNS_OPTION_NAMESERVERS" -offset indent -compact -nested
+.It DNS_OPTION_SEARCH
+domain, search and ndots options
+.It DNS_OPTION_NAMESERVERS
+nameserver lines
+.It DNS_OPTION_MISC
+timeout and attempts options
+.It DNS_OPTIONS_ALL
+all of the above
+.El
 .Pp
-  Returns non-zero on error
+The following directives are not parsed from the file:
+  sortlist, rotate, no-check-names, inet6, debug
 .Pp
-void evdns_search_clear()
-  Clears the list of search domains
-.Pp
-void evdns_search_add(const char *domain)
-  Add a domain to the list of search domains
-.Pp
-void evdns_search_ndots_set(int ndots)
-  Set the number of dots which, when found in a name, causes
-  the first query to be without any search domain.
-.Pp
-int evdns_count_nameservers(void)
-  Return the number of configured nameservers (not necessarily the
-  number of running nameservers).  This is useful for double-checking
-  whether our calls to the various nameserver configuration functions
-  have been successful.
-.Pp
-int evdns_clear_nameservers_and_suspend(void)
-  Remove all currently configured nameservers, and suspend all pending
-  resolves.  Resolves will not necessarily be re-attempted until
-  evdns_resume() is called.
-.Pp
-int evdns_resume(void)
-  Re-attempt resolves left in limbo after an earlier call to
-  evdns_clear_nameservers_and_suspend().
-.Pp
-int evdns_config_windows_nameservers(void)
-  Attempt to configure a set of nameservers based on platform settings on
-  a win32 host.  Preferentially tries to use GetNetworkParams; if that fails,
-  looks in the registry.  Returns 0 on success, nonzero on failure.
-.Pp
-int evdns_resolv_conf_parse(int flags, const char *filename)
-  Parse a resolv.conf like file from the given filename.
-.Pp
-  See the man page for resolv.conf for the format of this file.
-  The flags argument determines what information is parsed from
-  this file:
-    DNS_OPTION_SEARCH - domain, search and ndots options
-    DNS_OPTION_NAMESERVERS - nameserver lines
-    DNS_OPTION_MISC - timeout and attempts options
-    DNS_OPTIONS_ALL - all of the above
-  The following directives are not parsed from the file:
-    sortlist, rotate, no-check-names, inet6, debug
-.Pp
-  Returns non-zero on error:
-   0 no errors
-   1 failed to open file
-   2 failed to stat file
-   3 file too large
-   4 out of memory
-   5 short read from file
-.Pp
-Internals:
-.Pp
+Returns non-zero on error:
+.Bl -tag -width "0" -offset indent -compact -nested
+.It 0
+no errors
+.It 1
+failed to open file
+.It 2
+failed to stat file
+.It 3
+file too large
+.It 4
+out of memory
+.It 5
+short read from file
+.El
+.El
+.Sh Internals:
 Requests are kept in two queues. The first is the inflight queue. In
 this queue requests have an allocated transaction id and nameserver.
 They will soon be transmitted if they haven't already been.

@@ -48,7 +48,6 @@
  */
 
 /*
- *
  * Welcome, gentle reader
  *
  * Async DNS lookups are really a whole lot harder than they should be,
