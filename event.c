@@ -459,6 +459,7 @@ event_once(int fd, short events,
 {
 	struct event_once *eonce;
 	struct timeval etv;
+	int res;
 
 	/* We cannot support signals that just fire once */
 	if (events & EV_SIGNAL)
@@ -487,7 +488,11 @@ event_once(int fd, short events,
 		return (-1);
 	}
 
-	event_add(&eonce->ev, tv);
+	res = event_add(&eonce->ev, tv);
+	if (res != 0) {
+		free(eonce);
+		return (res);
+	}
 
 	return (0);
 }
