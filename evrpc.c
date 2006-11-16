@@ -165,10 +165,10 @@ error:
 void
 evrpc_reqstate_free(struct evrpc_req_generic* rpc_state)
 {
-	struct evrpc *rpc = rpc_state->rpc;
-
 	/* clean up all memory */
 	if (rpc_state != NULL) {
+		struct evrpc *rpc = rpc_state->rpc;
+
 		if (rpc_state->request != NULL)
 			rpc->request_free(rpc_state);
 		if (rpc_state->reply != NULL)

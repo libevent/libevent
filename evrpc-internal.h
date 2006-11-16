@@ -29,7 +29,7 @@
 
 struct evrpc;
 
-#define EVRPC_URI_PREFIX ".rpc."
+#define EVRPC_URI_PREFIX "/.rpc."
 
 struct evrpc_base {
 	/* the HTTP server under which we register our RPC calls */
