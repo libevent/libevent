@@ -332,6 +332,11 @@ evhttp_connection_fail(struct evhttp_connection *evcon)
 		 * kill the connection.
 		 */
 		if (evcon->flags & EVHTTP_CON_INCOMING) {
+			/* the callback looks at the uri to determine errors */
+			if (req->uri) {
+				free(req->uri);
+				req->uri = NULL;
+			}
 			(*req->cb)(req, req->cb_arg);
 			return;
 		}
