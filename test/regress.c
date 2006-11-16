@@ -884,6 +884,8 @@ main (int argc, char **argv)
 
 	http_suite();
 
+	rpc_suite();
+
 	dns_suite();
 	
 	test_simpleread();

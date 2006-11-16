@@ -65,7 +65,7 @@ static struct evhttp *http;
 void http_basic_cb(struct evhttp_request *req, void *arg);
 void http_post_cb(struct evhttp_request *req, void *arg);
 
-struct evhttp *
+static struct evhttp *
 http_setup(short *pport)
 {
 	int i;

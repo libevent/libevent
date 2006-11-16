@@ -4,6 +4,7 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 bin_SCRIPTS = event_rpcgen.py
 
 EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h evdns.3 \
+	evrpc.h evrpc-internal.h \
 	event.3 \
 	kqueue.c epoll_sub.c epoll.c select.c rtsig.c poll.c signal.c \
 	evport.c devpoll.c event_rpcgen.py \
@@ -39,7 +40,8 @@ SYS_INCLUDES =
 endif
 
 libevent_la_SOURCES = event.c buffer.c evbuffer.c log.c event_tagging.c \
-	 http.c evhttp.h http-internal.h evdns.c evdns.h $(SYS_SRC)
+	http.c evhttp.h http-internal.h evdns.c evdns.h evrpc.c \
+	evrpc.h evrpc-internal.h $(SYS_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
 

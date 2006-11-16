@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2006 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,22 +24,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _REGRESS_H_
-#define _REGRESS_H_
+#ifndef _EVRPC_INTERNAL_H_
+#define _EVRPC_INTERNAL_H_
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+struct evrpc;
 
-void http_suite(void);
-void http_basic_test(void);
+#define EVRPC_URI_PREFIX ".rpc."
 
-void rpc_suite(void);
+struct evrpc_base {
+	/* the HTTP server under which we register our RPC calls */
+	struct evhttp* http_server;
 
-void dns_suite(void);
-	
-#ifdef __cplusplus
-}
-#endif
+	/* a list of all RPCs registered with us */
+	TAILQ_HEAD(evrpc_list, evrpc) registered_rpcs;
+};
 
-#endif /* _REGRESS_H_ */
+struct evrpc_req_generic;
+void evrpc_reqstate_free(struct evrpc_req_generic* rpc_state);
+
+#endif /* _EVRPC_INTERNAL_H_ */

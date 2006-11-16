@@ -53,6 +53,7 @@ typedef unsigned char u_char;
 #define HTTP_MOVEPERM		301
 #define HTTP_MOVETEMP		302
 #define HTTP_NOTFOUND		404
+#define HTTP_SERVUNAVAIL	503
 
 struct evhttp;
 struct evhttp_request;
@@ -81,6 +82,50 @@ void evhttp_send_reply(struct evhttp_request *, int, const char *,
 
 /* Interfaces for making requests */
 enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
+
+enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
+
+/* 
+ * the request structure that a server receives.
+ * WARNING: expect this structure to change.  I will try to provide
+ * reasonable accessors.
+ */
+struct evhttp_request {
+	TAILQ_ENTRY(evhttp_request) next;
+
+	/* the connection object that this request belongs to */
+	struct evhttp_connection *evcon;
+	int flags;
+#define EVHTTP_REQ_OWN_CONNECTION	0x0001	
+	
+	struct evkeyvalq *input_headers;
+	struct evkeyvalq *output_headers;
+
+	/* xxx: do we still need these? */
+	char *remote_host;
+	u_short remote_port;
+
+	enum evhttp_request_kind kind;
+	enum evhttp_cmd_type type;
+
+	char *uri;			/* uri after HTTP request was parsed */
+
+	char major;			/* HTTP Major number */
+	char minor;			/* HTTP Minor number */
+	
+	int got_firstline;
+	int response_code;		/* HTTP Response code */
+	char *response_code_line;	/* Readable response */
+
+	struct evbuffer *input_buffer;	/* read data */
+	int ntoread;
+
+	struct evbuffer *output_buffer;	/* outgoing post or data */
+
+	/* Callback */
+	void (*cb)(struct evhttp_request *, void *);
+	void *cb_arg;
+};
 
 /* 
  * Creates a new request object that needs to be filled in with the request

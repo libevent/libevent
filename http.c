@@ -1145,7 +1145,7 @@ evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 
 	assert(TAILQ_FIRST(&evcon->requests) == req);
 
-	/* xxx: not sure if we really should expost the data buffer this way */
+	/* xxx: not sure if we really should expose the data buffer this way */
 	evbuffer_add_buffer(req->output_buffer, databuf);
 
 	/* Adds headers to the response */

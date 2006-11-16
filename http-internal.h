@@ -50,45 +50,6 @@ struct evhttp_connection {
 	void *cb_arg;
 };
 
-enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
-
-struct evhttp_request {
-	TAILQ_ENTRY(evhttp_request) next;
-
-	/* the connection object that this request belongs to */
-	struct evhttp_connection *evcon;
-	int flags;
-#define EVHTTP_REQ_OWN_CONNECTION	0x0001	
-	
-	struct evkeyvalq *input_headers;
-	struct evkeyvalq *output_headers;
-
-	/* xxx: do we still need these? */
-	char *remote_host;
-	u_short remote_port;
-
-	enum evhttp_request_kind kind;
-	enum evhttp_cmd_type type;
-
-	char *uri;			/* uri after HTTP request was parsed */
-
-	char major;			/* HTTP Major number */
-	char minor;			/* HTTP Minor number */
-	
-	int got_firstline;
-	int response_code;		/* HTTP Response code */
-	char *response_code_line;	/* Readable response */
-
-	struct evbuffer *input_buffer;	/* read data */
-	int ntoread;
-
-	struct evbuffer *output_buffer;	/* outgoing post or data */
-
-	/* Callback */
-	void (*cb)(struct evhttp_request *, void *);
-	void *cb_arg;
-};
-
 struct evhttp_cb {
 	TAILQ_ENTRY(evhttp_cb) next;
 
