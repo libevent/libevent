@@ -229,6 +229,9 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 		evhttp_add_header(req->output_headers,
 		    "Content-Type", "text/html; charset=ISO-8859-1");
 	}
+	if (evhttp_find_header(req->output_headers, "Connection") == NULL) {
+		evhttp_add_header(req->output_headers, "Connection", "close");
+	}
 }
 
 void
@@ -402,8 +405,17 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 	 * on the connection, so that we can reply to it.
 	 */
 	if (evcon->flags & EVHTTP_CON_OUTGOING) {
+		struct evkeyvalq *headers = req->input_headers;
+		const char *connection;
+
 		TAILQ_REMOVE(&evcon->requests, req, next);
 		req->evcon = NULL;
+
+
+		/* check if we got asked to close the connection */
+		connection = evhttp_find_header(headers, "Connection");
+		if (connection != NULL && strcasecmp(connection, "close") == 0)
+			evhttp_connection_reset(evcon);
 
 		if (TAILQ_FIRST(&evcon->requests) != NULL) {
 			/*
@@ -1119,8 +1131,15 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
-	if (req->flags & EVHTTP_REQ_OWN_CONNECTION)
+	if (req->flags & EVHTTP_REQ_OWN_CONNECTION) {
+		const char *connection =
+		    evhttp_find_header(req->output_headers, "Connection");
+		if (connection == NULL || strcasecmp(connection, "close")) {
+			event_warnx("%s: persistent connection not supported",
+			    __func__);
+		}
 		evhttp_connection_free(evcon);
+	}
 	
 	evhttp_request_free(req);
 }
