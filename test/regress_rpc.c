@@ -56,7 +56,10 @@
 #include "evhttp.h"
 #include "log.h"
 #include "evrpc.h"
+
 #include "regress.gen.h"
+
+extern int test_ok;
 
 static struct evhttp *
 http_setup(short *pport)
@@ -86,7 +89,49 @@ EVRPC_DEFINE(Message, msg, kill);
 void
 MessageCB(EVRPC_STRUCT(Message)* rpc, void *arg)
 {
+	struct kill* kill_reply = rpc->reply;
+
+	/* we just want to fill in some non-sense */
+	EVTAG_ASSIGN(kill_reply, weapon, "dagger");
+	EVTAG_ASSIGN(kill_reply, action, "wave around like an idiot");
+
+	/* no reply to the RPC */
+	EVRPC_REQUEST_DONE(rpc);
 }
+
+static void
+rpc_setup(struct evhttp **phttp, short *pport, struct evrpc_base **pbase)
+{
+	short port;
+	struct evhttp *http = NULL;
+	struct evrpc_base *base = NULL;
+
+	http = http_setup(&port);
+	base = evrpc_init(http);
+	
+	EVRPC_REGISTER(base, "Message", msg, kill, MessageCB, NULL);
+
+	*phttp = http;
+	*pport = port;
+	*pbase = base;
+}
+
+static void
+rpc_postrequest_failure(struct evhttp_request *req, void *arg)
+{
+	if (req->response_code != HTTP_SERVUNAVAIL) {
+	
+		fprintf(stderr, "FAILED (response code)\n");
+		exit(1);
+	}
+
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
+/*
+ * Test a malformed payload submitted as an RPC
+ */
 
 static void
 rpc_basic_test(void)
@@ -94,21 +139,144 @@ rpc_basic_test(void)
 	short port;
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
 
 	fprintf(stdout, "Testing Basic RPC Support: ");
 
-	http = http_setup(&port);
-	base = evrpc_init(http);
+	rpc_setup(&http, &port, &base);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/*
+	 * At this point, we want to schedule an HTTP POST request
+	 * server using our make request method.
+	 */
+
+	req = evhttp_request_new(rpc_postrequest_failure, NULL);
+	if (req == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+	evbuffer_add_printf(req->output_buffer, "Some Nonsense");
 	
-	EVRPC_REGISTER(base, "Message", msg, kill, MessageCB, NULL);
-	
+	if (evhttp_make_request(evcon, req,
+		EVHTTP_REQ_POST,
+		"/.rpc.Message") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	test_ok = 0;
+
 	event_dispatch();
 	
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
 	fprintf(stdout, "OK\n");
+
+	evhttp_free(http);
+}
+
+static void
+rpc_postrequest_done(struct evhttp_request *req, void *arg)
+{
+	struct kill* kill_reply = NULL;
+
+	if (req->response_code != HTTP_OK) {
+	
+		fprintf(stderr, "FAILED (response code)\n");
+		exit(1);
+	}
+
+	kill_reply = kill_new();
+
+	if ((kill_unmarshal(kill_reply, req->input_buffer)) == -1) {
+		fprintf(stderr, "FAILED (unmarshal)\n");
+		exit(1);
+	}
+	
+	kill_free(kill_reply);
+
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
+static void
+rpc_basic_message(void)
+{
+	short port;
+	struct evhttp *http = NULL;
+	struct evrpc_base *base = NULL;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	struct msg *msg;
+
+	fprintf(stdout, "Testing Good RPC Post: ");
+
+	rpc_setup(&http, &port, &base);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/*
+	 * At this point, we want to schedule an HTTP POST request
+	 * server using our make request method.
+	 */
+
+	req = evhttp_request_new(rpc_postrequest_done, NULL);
+	if (req == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/* set up the basic message */
+	msg = msg_new();
+	EVTAG_ASSIGN(msg, from_name, "niels");
+	EVTAG_ASSIGN(msg, to_name, "tester");
+	msg_marshal(req->output_buffer, msg);
+	msg_free(msg);
+
+	if (evhttp_make_request(evcon, req,
+		EVHTTP_REQ_POST,
+		"/.rpc.Message") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	test_ok = 0;
+
+	event_dispatch();
+	
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	fprintf(stdout, "OK\n");
+
+	evhttp_free(http);
 }
 
 void
 rpc_suite(void)
 {
 	rpc_basic_test();
+	rpc_basic_message();
 }

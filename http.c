@@ -932,7 +932,7 @@ evhttp_read_header(int fd, short what, void *arg)
 	res = evhttp_parse_lines(req, evcon->input_buffer);
 	if (res == -1) {
 		/* Error while reading, terminate */
-		event_warnx("%s: bad header lines on %d\n", __func__, fd);
+		event_debug(("%s: bad header lines on %d\n", __func__, fd));
 		evhttp_connection_fail(evcon);
 		return;
 	} else if (res == 0) {
@@ -1190,6 +1190,11 @@ evhttp_response_code(struct evhttp_request *req, int code, const char *reason)
 void
 evhttp_send_page(struct evhttp_request *req, struct evbuffer *databuf)
 {
+	if (!req->major || !req->minor) {
+		req->major = 1;
+		req->minor = 1;
+	}
+	
 	if (req->kind != EVHTTP_RESPONSE)
 		evhttp_response_code(req, 200, "OK");
 

@@ -59,16 +59,25 @@
 #include "log.h"
 
 struct evrpc_base *
-evrpc_init(struct evhttp* http_server)
+evrpc_init(struct evhttp *http_server)
 {
 	struct evrpc_base* base = calloc(1, sizeof(struct evrpc_base));
 	if (base == NULL)
 		return (NULL);
 
+	/* we rely on the tagging sub system */
+	evtag_init();
+
 	TAILQ_INIT(&base->registered_rpcs);
 	base->http_server = http_server;
 
 	return (base);
+}
+
+void
+evrpc_free(struct evrpc_base *base)
+{
+
 }
 
 void evrpc_request_cb(struct evhttp_request *, void *);
@@ -105,6 +114,8 @@ evrpc_register_rpc(struct evrpc_base *base, struct evrpc *rpc,
 	    constructed_uri,
 	    evrpc_request_cb,
 	    rpc);
+	
+	free(constructed_uri);
 
 	return (0);
 }
@@ -128,16 +139,12 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 	rpc_state->request = rpc->request_new();
 	if (rpc_state->request == NULL)
 		goto error;
+
+	rpc_state->rpc = rpc;
+
 	if (rpc->request_unmarshal(
 		    rpc_state->request, req->input_buffer) == -1) {
 		/* we failed to parse the request; that's a bummer */
-		goto error;
-	}
-	if (!rpc->request_complete(rpc_state->request)) {
-		/* 
-		 * we were able to parse the structure but not all required
-		 * fields had been filled in.
-		 */
 		goto error;
 	}
 
@@ -147,7 +154,6 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 	if (rpc_state->reply == NULL)
 		goto error;
 
-	rpc_state->rpc = rpc;
 	rpc_state->http_req = req;
 	rpc_state->done = evrpc_request_done;
 
@@ -170,7 +176,7 @@ evrpc_reqstate_free(struct evrpc_req_generic* rpc_state)
 		struct evrpc *rpc = rpc_state->rpc;
 
 		if (rpc_state->request != NULL)
-			rpc->request_free(rpc_state);
+			rpc->request_free(rpc_state->request);
 		if (rpc_state->reply != NULL)
 			rpc->reply_free(rpc_state->reply);
 		free(rpc_state);
@@ -184,7 +190,7 @@ evrpc_request_done(struct evrpc_req_generic* rpc_state)
 	struct evrpc *rpc = rpc_state->rpc;
 	struct evbuffer* data;
 
-	if (!rpc->reply_complete(rpc_state->reply)) {
+	if (rpc->reply_complete(rpc_state->reply) == -1) {
 		/* the reply was not completely filled in.  error out */
 		goto error;
 	}

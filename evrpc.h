@@ -46,9 +46,6 @@ struct evrpc {
 	/* unmarshals the buffer into the proper request structure */
 	int (*request_unmarshal)(void *, struct evbuffer *);
 
-	/* verifies that the unmarshaled buffer is complete */
-	int (*request_complete)(void *);
-
 	/* creates a new reply structure */
 	void *(*reply_new)(void);
 
@@ -109,9 +106,9 @@ EVRPC_STRUCT(rpcname) {	\
  * after this call has finished.
  */
 #define EVRPC_REQUEST_DONE(rpc_req) do { \
-  struct evrpc_req_generic *req = (struct evrpc_req_generic)(rpc_req); \
-  req->done(req); \
-}
+  struct evrpc_req_generic *_req = (struct evrpc_req_generic *)(rpc_req); \
+  _req->done(_req); \
+} while (0)
   
 
 /* Takes a request object and fills it in with the right magic */
@@ -123,7 +120,6 @@ EVRPC_STRUCT(rpcname) {	\
     (rpc)->request_new = (void *(*)(void))request##_new; \
     (rpc)->request_free = (void (*)(void *))request##_free; \
     (rpc)->request_unmarshal = (int (*)(void *, struct evbuffer *))request##_unmarshal; \
-    (rpc)->request_complete = (int (*)(void *))request##_complete; \
     (rpc)->reply_new = (void *(*)(void))reply##_new; \
     (rpc)->reply_free = (void (*)(void *))reply##_free; \
     (rpc)->reply_complete = (int (*)(void *))reply##_complete; \

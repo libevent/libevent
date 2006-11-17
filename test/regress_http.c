@@ -416,6 +416,57 @@ http_postrequest_done(struct evhttp_request *req, void *arg)
 	event_loopexit(NULL);
 }
 
+void
+http_failure_readcb(struct bufferevent *bev, void *arg)
+{
+	const char *what = "400 Bad Request";
+	if (evbuffer_find(bev->input, what, strlen(what)) != NULL) {
+		test_ok = 2;
+		event_loopexit(NULL);
+	}
+}
+
+/*
+ * Testing that the HTTP server can deal with a malformed request.
+ */
+void
+http_failure_test(void)
+{
+	struct bufferevent *bev;
+	int fd;
+	char *http_request;
+	short port = -1;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing Bad HTTP Request: ");
+
+	http = http_setup(&port);
+	
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, http_failure_readcb, http_writecb,
+	    http_errorcb, NULL);
+
+	http_request = "illegal request\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+	
+	event_dispatch();
+
+	bufferevent_free(bev);
+	close(fd);
+
+	evhttp_free(http);
+	
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	
+	fprintf(stdout, "OK\n");
+}
+
 
 void
 http_suite(void)
@@ -423,4 +474,5 @@ http_suite(void)
 	http_basic_test();
 	http_connection_test();
 	http_post_test();
+	http_failure_test();
 }
