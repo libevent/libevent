@@ -1152,10 +1152,11 @@ evhttp_start_read(struct evhttp_connection *evcon)
 void
 evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 {
+	int need_close;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
-	int need_close = evhttp_is_connection_close(req->input_headers) ||
+	need_close = evhttp_is_connection_close(req->input_headers) ||
 	    evhttp_is_connection_close(req->output_headers);
 
 	evhttp_request_free(req);
