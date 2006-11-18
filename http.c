@@ -1125,6 +1125,13 @@ evhttp_start_read(struct evhttp_connection *evcon)
 	event_add(&evcon->ev, &tv);
 }
 
+static int
+evhttp_is_connection_close(struct evkeyval* headers)
+{
+	const char *connection = evhttp_find_header(headers, "Connection");
+	return (connection != NULL && strcasecmp(connection, "close") == 0);
+}
+
 void
 evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 {
@@ -1132,9 +1139,8 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
 	if (req->flags & EVHTTP_REQ_OWN_CONNECTION) {
-		const char *connection =
-		    evhttp_find_header(req->output_headers, "Connection");
-		if (connection == NULL || strcasecmp(connection, "close")) {
+		if (!evhttp_is_connection_close(req->input_headers) &&
+		    !evhttp_is_connection_close(req->output_headers)) {
 			event_warnx("%s: persistent connection not supported",
 			    __func__);
 		}
