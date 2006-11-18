@@ -102,7 +102,7 @@ struct evhttp_request {
 	struct evkeyvalq *input_headers;
 	struct evkeyvalq *output_headers;
 
-	/* xxx: do we still need these? */
+	/* address of the remote host and the port connection came from */
 	char *remote_host;
 	u_short remote_port;
 
@@ -159,7 +159,7 @@ const char *evhttp_request_uri(struct evhttp_request *req);
 
 /* Interfaces for dealing with HTTP headers */
 
-const char *evhttp_find_header(struct evkeyvalq *, const char *);
+const char *evhttp_find_header(const struct evkeyvalq *, const char *);
 int evhttp_remove_header(struct evkeyvalq *, const char *);
 int evhttp_add_header(struct evkeyvalq *, const char *, const char *);
 void evhttp_clear_headers(struct evkeyvalq *);

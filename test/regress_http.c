@@ -194,7 +194,8 @@ http_basic_test(void)
 
 	http_request =
 	    "GET /test HTTP/1.1\r\n"
-	    "Host: somehost \r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
 	    "\r\n";
 
 	bufferevent_write(bev, http_request, strlen(http_request));

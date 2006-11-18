@@ -30,6 +30,9 @@ enum evhttp_connection_state {
 };
 
 struct evhttp_connection {
+	/* we use tailq only if they were created for an http server */
+	TAILQ_ENTRY(evhttp_connection) next;
+
 	int fd;
 	struct event ev;
 	struct evbuffer *input_buffer;
@@ -43,6 +46,9 @@ struct evhttp_connection {
 #define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
 	
 	enum evhttp_connection_state state;
+
+	/* for server connections, the http server they are connected with */
+	struct evhttp *http_server;
 
 	TAILQ_HEAD(evcon_requestq, evhttp_request) requests;
 	
@@ -63,6 +69,7 @@ struct evhttp {
 	struct event bind_ev;
 
 	TAILQ_HEAD(httpcbq, evhttp_cb) callbacks;
+        TAILQ_HEAD(evconq, evhttp_connection) connections;
 
 	void (*gencb)(struct evhttp_request *req, void *);
 	void *gencbarg;
@@ -77,8 +84,7 @@ int evhttp_connection_connect(struct evhttp_connection *);
 /* notifies the current request that it failed; resets connection */
 void evhttp_connection_fail(struct evhttp_connection *);
 
-void evhttp_get_request(int, struct sockaddr *, socklen_t,
-    void (*)(struct evhttp_request *, void *), void *);
+void evhttp_get_request(struct evhttp *, int, struct sockaddr *, socklen_t);
 
 int evhttp_hostportfile(char *, char **, u_short *, char **);
 
