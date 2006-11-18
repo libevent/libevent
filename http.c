@@ -1190,6 +1190,9 @@ evhttp_send_error(struct evhttp_request *req, int error, const char *reason)
 
 	struct evbuffer *buf = evbuffer_new();
 
+	/* close the connection on error */
+	evhttp_add_header(req->output_headers, "Connection", "close");
+
 	evhttp_response_code(req, error, reason);
 
 	evbuffer_add_printf(buf, fmt, error, reason);

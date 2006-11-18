@@ -163,7 +163,7 @@ http_errorcb(struct bufferevent *bev, short what, void *arg)
 void
 http_basic_cb(struct evhttp_request *req, void *arg)
 {
-	event_debug((stderr, "%s: called\n", __func__));
+	event_debug(("%s: called\n", __func__));
 
 	struct evbuffer *evb = evbuffer_new();
 	evbuffer_add_printf(evb, "This is funny");
@@ -380,7 +380,7 @@ http_post_test(void)
 void
 http_post_cb(struct evhttp_request *req, void *arg)
 {
-	event_debug((stderr, "%s: called\n", __func__));
+	event_debug(("%s: called\n", __func__));
 
 	/* Yes, we are expecting a post request */
 	if (req->type != EVHTTP_REQ_POST) {
@@ -447,6 +447,7 @@ http_failure_readcb(struct bufferevent *bev, void *arg)
 	const char *what = "400 Bad Request";
 	if (evbuffer_find(bev->input, what, strlen(what)) != NULL) {
 		test_ok = 2;
+		bufferevent_disable(bev, EV_READ);
 		event_loopexit(NULL);
 	}
 }
