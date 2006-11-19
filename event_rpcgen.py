@@ -1189,7 +1189,11 @@ def GetNextStruct(file):
 
     have_c_comment = 0
     data = ''
-    for line in file:
+    while 1:
+        line = file.readline()
+        if not line:
+            break
+        
         line_count += 1
         line = line[:-1]
 
@@ -1252,8 +1256,9 @@ def GetNextStruct(file):
         
 
 def Parse(file):
-    """Parses the input file and returns C code and corresponding header
-    file."""
+    """
+    Parses the input file and returns C code and corresponding header file.
+    """
 
     entities = []
 
@@ -1337,8 +1342,8 @@ def main(argv):
 
     filename = argv[1]
 
-    if filename.split('.')[-1] != 'rpc':
-        ext = filename.split('.')[-1]
+    ext = filename.split('.')[-1]
+    if ext != 'rpc':
         print >>sys.stderr, 'Unrecognized file extension: %s' % ext
         sys.exit(1)
 
