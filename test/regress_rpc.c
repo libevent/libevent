@@ -51,6 +51,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "event.h"
 #include "evhttp.h"
@@ -275,9 +276,108 @@ rpc_basic_message(void)
 	evhttp_free(http);
 }
 
+static struct evrpc_pool *
+rpc_pool_with_connection(short port)
+{
+	struct evhttp_connection *evcon;
+	struct evrpc_pool *pool;
+
+	pool = evrpc_pool_new();
+	assert(pool != NULL);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	assert(evcon != NULL);
+
+	evrpc_pool_add_connection(pool, evcon);
+	
+	return (pool);
+}
+
+static void
+GotKillCb(struct msg *msg, struct kill *kill, void *arg)
+{
+	char *weapon;
+	char *action;
+
+	if (EVTAG_GET(kill, weapon, &weapon) == -1) {
+		fprintf(stderr, "get weapon\n");
+		goto done;
+	}
+	if (EVTAG_GET(kill, action, &action) == -1) {
+		fprintf(stderr, "get action\n");
+		goto done;
+	}
+
+	if (strcmp(weapon, "dagger"))
+		goto done;
+
+	if (strcmp(action, "wave around like an idiot"))
+		goto done;
+
+	test_ok += 1;
+done:
+	event_loopexit(NULL);
+}
+
+static void
+rpc_basic_client(void)
+{
+	short port;
+	struct evhttp *http = NULL;
+	struct evrpc_base *base = NULL;
+	struct evrpc_pool *pool = NULL;
+	struct msg *msg;
+	struct kill *kill;
+
+	fprintf(stdout, "Testing RPC Client: ");
+
+	rpc_setup(&http, &port, &base);
+
+	pool = rpc_pool_with_connection(port);
+
+	/* set up the basic message */
+	msg = msg_new();
+	EVTAG_ASSIGN(msg, from_name, "niels");
+	EVTAG_ASSIGN(msg, to_name, "tester");
+
+	kill = kill_new();
+
+	EVRPC_MAKE_REQUEST(Message, msg, kill,  GotKillCb, NULL);
+
+	test_ok = 0;
+
+	event_dispatch();
+	
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED (1)\n");
+		exit(1);
+	}
+
+	/* we do it twice to make sure that reuse works correctly */
+	kill_clear(kill);
+
+	EVRPC_MAKE_REQUEST(Message, msg, kill,  GotKillCb, NULL);
+
+	event_dispatch();
+	
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED (2)\n");
+		exit(1);
+	}
+
+	fprintf(stdout, "OK\n");
+
+	msg_free(msg);
+	kill_free(kill);
+
+	evrpc_pool_free(pool);
+	evhttp_free(http);
+}
+
 void
 rpc_suite(void)
 {
 	rpc_basic_test();
 	rpc_basic_message();
+	rpc_basic_client();
 }

@@ -243,6 +243,13 @@ evrpc_pool_new()
 	return (pool);
 }
 
+static void
+evrpc_request_wrapper_free(struct evrpc_request_wrapper *request)
+{
+	free(request->name);
+	free(request);
+}
+
 void
 evrpc_pool_free(struct evrpc_pool *pool)
 {
@@ -252,8 +259,7 @@ evrpc_pool_free(struct evrpc_pool *pool)
 	while ((request = TAILQ_FIRST(&pool->requests)) != NULL) {
 		TAILQ_REMOVE(&pool->requests, request, next);
 		/* if this gets more complicated we need our own function */
-		free(request->name);
-		free(request);
+		evrpc_request_wrapper_free(request);
 	}
 
 	while ((connection = TAILQ_FIRST(&pool->connections)) != NULL) {
@@ -264,6 +270,11 @@ evrpc_pool_free(struct evrpc_pool *pool)
 	free(pool);
 }
 
+/*
+ * Add a connection to the RPC pool.   A request scheduled on the pool
+ * may use any available connection.
+ */
+
 void
 evrpc_pool_add_connection(struct evrpc_pool *pool,
     struct evhttp_connection *connection) {
@@ -271,7 +282,7 @@ evrpc_pool_add_connection(struct evrpc_pool *pool,
 	TAILQ_INSERT_TAIL(&pool->connections, connection, next);
 
 	/* 
-	 * if we have any requests, pending schedule them with the new
+	 * if we have any requests pending, schedule them with the new
 	 * connections.
 	 */
 
@@ -309,19 +320,32 @@ static int
 evrpc_schedule_request(struct evhttp_connection *connection,
     struct evrpc_request_wrapper *ctx)
 {
-	struct evbuffer *output;
-	struct evhttp_request *req;
-	if ((output = evbuffer_new()) == NULL)
-		goto error;
+	struct evhttp_request *req = NULL;
+	char *uri = NULL;
+	int res = 0;
 
 	if ((req = evhttp_request_new(evrpc_reply_done, ctx)) == NULL)
+		goto error;
+
+	/* serialize the request data into the output buffer */
+	ctx->request_marshal(req->output_buffer, ctx->request);
+
+	uri = evrpc_construct_uri(ctx->name);
+	if (uri == NULL)
+		goto error;
+
+	/* start the request over the connection */
+	res = evhttp_make_request(connection, req, EVHTTP_REQ_POST, uri);
+	free(uri);
+
+	if (res == -1)
 		goto error;
 
 	return (0);
 
 error:
 	(*ctx->cb)(ctx->request, ctx->reply, ctx->cb_arg);
-	free(ctx);
+	evrpc_request_wrapper_free(ctx);
 	return (-1);
 }
 
@@ -354,4 +378,18 @@ static void
 evrpc_reply_done(struct evhttp_request *req, void *arg)
 {
 	struct evrpc_request_wrapper *ctx = arg;
+	int res;
+
+	/* we need to get the reply now */
+	res = ctx->reply_unmarshal(ctx->reply, req->input_buffer);
+	if (res == -1) {
+		/* clear everything that we might have written previously */
+		ctx->reply_clear(ctx->reply);
+	}
+
+	(*ctx->cb)(ctx->request, ctx->reply, ctx->cb_arg);
+	
+	evrpc_request_wrapper_free(ctx);
+
+	/* the http layer owns the request structure */
 }
