@@ -27,6 +27,8 @@
 #ifndef _EVRPC_INTERNAL_H_
 #define _EVRPC_INTERNAL_H_
 
+#include "http-internal.h"
+
 struct evrpc;
 
 #define EVRPC_URI_PREFIX "/.rpc."
@@ -41,5 +43,13 @@ struct evrpc_base {
 
 struct evrpc_req_generic;
 void evrpc_reqstate_free(struct evrpc_req_generic* rpc_state);
+
+/* A pool for holding evhttp_connection objects */
+struct evrpc_pool {
+	struct evconq connections;
+
+	TAILQ_HEAD(evrpc_requestq, evrpc_request_wrapper) requests;
+};
+
 
 #endif /* _EVRPC_INTERNAL_H_ */

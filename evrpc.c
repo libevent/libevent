@@ -36,6 +36,7 @@
 #endif
 #include <sys/types.h>
 #include <sys/tree.h>
+#include <sys/socket.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else 
@@ -89,24 +90,31 @@ void evrpc_request_done(struct evrpc_req_generic*);
  * calls this function.
  */
 
-int
-evrpc_register_rpc(struct evrpc_base *base, struct evrpc *rpc,
-    void (*cb)(struct evrpc_req_generic *, void *), void *cb_arg)
+char *
+evrpc_construct_uri(const char *uri)
 {
 	char *constructed_uri;
 	int constructed_uri_len;
 
-	rpc->cb = cb;
-	rpc->cb_arg = cb_arg;
-
-	constructed_uri_len = strlen(EVRPC_URI_PREFIX) + strlen(rpc->uri) + 1;
+	constructed_uri_len = strlen(EVRPC_URI_PREFIX) + strlen(uri) + 1;
 	if ((constructed_uri = malloc(constructed_uri_len)) == NULL)
 		event_err(1, "%s: failed to register rpc at %s",
-		    __func__, rpc->uri);
+		    __func__, uri);
 	memcpy(constructed_uri, EVRPC_URI_PREFIX, strlen(EVRPC_URI_PREFIX));
-	memcpy(constructed_uri + strlen(EVRPC_URI_PREFIX),
-	    rpc->uri, strlen(rpc->uri));
+	memcpy(constructed_uri + strlen(EVRPC_URI_PREFIX), uri, strlen(uri));
 	constructed_uri[constructed_uri_len - 1] = '\0';
+
+	return (constructed_uri);
+}
+
+int
+evrpc_register_rpc(struct evrpc_base *base, struct evrpc *rpc,
+    void (*cb)(struct evrpc_req_generic *, void *), void *cb_arg)
+{
+	char *constructed_uri = evrpc_construct_uri(rpc->uri);
+
+	rpc->cb = cb;
+	rpc->cb_arg = cb_arg;
 
 	TAILQ_INSERT_TAIL(&base->registered_rpcs, rpc, next);
 
@@ -215,4 +223,135 @@ error:
 	evrpc_reqstate_free(rpc_state);
 	evhttp_send_error(req, HTTP_SERVUNAVAIL, "Service Error");
 	return;
+}
+
+/* Client implementation of RPC site */
+
+static int evrpc_schedule_request(struct evhttp_connection *connection,
+    struct evrpc_request_wrapper *ctx);
+
+struct evrpc_pool *
+evrpc_pool_new()
+{
+	struct evrpc_pool *pool = calloc(1, sizeof(struct evrpc_pool));
+	if (pool == NULL)
+		return (NULL);
+
+	TAILQ_INIT(&pool->connections);
+	TAILQ_INIT(&pool->requests);
+
+	return (pool);
+}
+
+void
+evrpc_pool_free(struct evrpc_pool *pool)
+{
+	struct evhttp_connection *connection;
+	struct evrpc_request_wrapper *request;
+
+	while ((request = TAILQ_FIRST(&pool->requests)) != NULL) {
+		TAILQ_REMOVE(&pool->requests, request, next);
+		/* if this gets more complicated we need our own function */
+		free(request->name);
+		free(request);
+	}
+
+	while ((connection = TAILQ_FIRST(&pool->connections)) != NULL) {
+		TAILQ_REMOVE(&pool->connections, connection, next);
+		evhttp_connection_free(connection);
+	}
+
+	free(pool);
+}
+
+void
+evrpc_pool_add_connection(struct evrpc_pool *pool,
+    struct evhttp_connection *connection) {
+	assert(connection->http_server == NULL);
+	TAILQ_INSERT_TAIL(&pool->connections, connection, next);
+
+	/* 
+	 * if we have any requests, pending schedule them with the new
+	 * connections.
+	 */
+
+	if (TAILQ_FIRST(&pool->requests) != NULL) {
+		struct evrpc_request_wrapper *request = 
+		    TAILQ_FIRST(&pool->requests);
+		TAILQ_REMOVE(&pool->requests, request, next);
+		evrpc_schedule_request(connection, request);
+	}
+}
+
+
+static void evrpc_reply_done(struct evhttp_request *, void *);
+
+/*
+ * Finds a connection object associated with the pool that is currently
+ * idle and can be used to make a request.
+ */
+static struct evhttp_connection *
+evrpc_pool_find_connection(struct evrpc_pool *pool)
+{
+	struct evhttp_connection *connection;
+	TAILQ_FOREACH(connection, &pool->connections, next) {
+		if (TAILQ_FIRST(&connection->requests) == NULL)
+			return (connection);
+	}
+
+	return (NULL);
+}
+
+/*
+ * We assume that the ctx is no longer queued on the pool.
+ */
+static int
+evrpc_schedule_request(struct evhttp_connection *connection,
+    struct evrpc_request_wrapper *ctx)
+{
+	struct evbuffer *output;
+	struct evhttp_request *req;
+	if ((output = evbuffer_new()) == NULL)
+		goto error;
+
+	if ((req = evhttp_request_new(evrpc_reply_done, ctx)) == NULL)
+		goto error;
+
+	return (0);
+
+error:
+	(*ctx->cb)(ctx->request, ctx->reply, ctx->cb_arg);
+	free(ctx);
+	return (-1);
+}
+
+int
+evrpc_make_request(struct evrpc_request_wrapper *ctx)
+{
+	struct evrpc_pool *pool = ctx->pool;
+	struct evhttp_connection *connection;
+
+	/* we better have some available connections on the pool */
+	assert(TAILQ_FIRST(&pool->connections) != NULL);
+
+
+	/* even if a connection might be available, we do FIFO */
+	if (TAILQ_FIRST(&pool->requests) == NULL) {
+		connection = evrpc_pool_find_connection(pool);
+		if (connection != NULL)
+			return evrpc_schedule_request(connection, ctx);
+	}
+
+	/* 
+	 * if no connection is available, we queue the request on the pool,
+	 * the next time a connection is empty, the rpc will be send on that.
+	 */
+	TAILQ_INSERT_TAIL(&pool->requests, ctx, next);
+	return (0);
+}
+
+static void
+evrpc_reply_done(struct evhttp_request *req, void *arg)
+{
+	struct evrpc_request_wrapper *ctx = arg;
 }

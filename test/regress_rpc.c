@@ -84,7 +84,8 @@ http_setup(short *pport)
 	return (myhttp);
 }
 
-EVRPC_DEFINE(Message, msg, kill);
+EVRPC_HEADER(Message, msg, kill);
+EVRPC_GENERATE(Message, msg, kill);
 
 void
 MessageCB(EVRPC_STRUCT(Message)* rpc, void *arg)

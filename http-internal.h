@@ -65,11 +65,14 @@ struct evhttp_cb {
 	void *cbarg;
 };
 
+/* both the http server as well as the rpc system need to queue connections */
+TAILQ_HEAD(evconq, evhttp_connection);
+
 struct evhttp {
 	struct event bind_ev;
 
 	TAILQ_HEAD(httpcbq, evhttp_cb) callbacks;
-        TAILQ_HEAD(evconq, evhttp_connection) connections;
+        struct evconq connections;
 
 	void (*gencb)(struct evhttp_request *req, void *);
 	void *gencbarg;
