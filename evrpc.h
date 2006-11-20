@@ -49,7 +49,7 @@
  *
  * A specific RPC can then be registered with
  *
- * EVRPC_REGISTER(base, "SendCommand", Request, Reply,  FunctionCB, arg);
+ * EVRPC_REGISTER(base, SendCommand, Request, Reply,  FunctionCB, arg);
  *
  * when the server receives an appropriately formatted RPC, the user callback
  * is invokved.   The callback needs to fill in the reply structure.
@@ -185,7 +185,7 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
 /* Takes a request object and fills it in with the right magic */
 #define EVRPC_REGISTER_OBJECT(rpc, name, request, reply) \
   do { \
-    (rpc)->uri = strdup(name); \
+    (rpc)->uri = strdup(#name); \
     if ((rpc)->uri == NULL) \
       event_err(1, "failed to register object"); \
     (rpc)->request_new = (void *(*)(void))request##_new; \

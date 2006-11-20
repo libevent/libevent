@@ -111,7 +111,7 @@ rpc_setup(struct evhttp **phttp, short *pport, struct evrpc_base **pbase)
 	http = http_setup(&port);
 	base = evrpc_init(http);
 	
-	EVRPC_REGISTER(base, "Message", msg, kill, MessageCB, NULL);
+	EVRPC_REGISTER(base, Message, msg, kill, MessageCB, NULL);
 
 	*phttp = http;
 	*pport = port;
