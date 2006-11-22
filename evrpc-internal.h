@@ -48,6 +48,8 @@ void evrpc_reqstate_free(struct evrpc_req_generic* rpc_state);
 struct evrpc_pool {
 	struct evconq connections;
 
+	int timeout;
+
 	TAILQ_HEAD(evrpc_requestq, evrpc_request_wrapper) requests;
 };
 

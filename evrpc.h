@@ -154,6 +154,7 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
 		return (-1);					    \
 	}							    \
 	ctx->pool = pool;					    \
+	ctx->evcon = NULL;					    \
 	ctx->name = strdup(#rpcname);				    \
 	if (ctx->name == NULL) {				    \
 		free(ctx);					    \
@@ -228,6 +229,12 @@ struct evrpc_request_wrapper {
         /* pool on which this rpc request is being made */
         struct evrpc_pool *pool;
 
+        /* connection on which the request is being sent */
+	struct evhttp_connection *evcon;
+
+	/* event for implementing request timeouts */
+	struct event ev_timeout;
+
 	/* the name of the rpc */
 	char *name;
 
@@ -261,5 +268,18 @@ struct evrpc_pool *evrpc_pool_new();
 void evrpc_pool_free(struct evrpc_pool *);
 void evrpc_pool_add_connection(struct evrpc_pool *, 
     struct evhttp_connection *);
+
+/*
+ * Sets the timeout in secs after which a request has to complete.  The
+ * RPC is completely aborted if it does not complete by then.  Setting
+ * the timeout to 0 means that it never timeouts and can be used to
+ * implement callback type RPCs.
+ *
+ * Any connection already in the pool will be updated with the new
+ * timeout.  Connections added to the pool after set_timeout has be
+ * called receive the pool timeout only if no timeout has been set
+ * for the connection itself.
+ */
+void evrpc_pool_set_timeout(struct evrpc_pool *, int timeout_in_secs);
 
 #endif /* _EVRPC_H_ */

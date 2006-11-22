@@ -85,7 +85,8 @@ evrpc_free(struct evrpc_base *base)
 
 }
 
-void evrpc_request_cb(struct evhttp_request *, void *);
+static void evrpc_pool_schedule(struct evrpc_pool *pool);
+static void evrpc_request_cb(struct evhttp_request *, void *);
 void evrpc_request_done(struct evrpc_req_generic*);
 
 /*
@@ -132,7 +133,7 @@ evrpc_register_rpc(struct evrpc_base *base, struct evrpc *rpc,
 	return (0);
 }
 
-void
+static void
 evrpc_request_cb(struct evhttp_request *req, void *arg)
 {
 	struct evrpc *rpc = arg;
@@ -244,6 +245,8 @@ evrpc_pool_new()
 	TAILQ_INIT(&pool->connections);
 	TAILQ_INIT(&pool->requests);
 
+	pool->timeout = -1;
+
 	return (pool);
 }
 
@@ -286,6 +289,13 @@ evrpc_pool_add_connection(struct evrpc_pool *pool,
 	TAILQ_INSERT_TAIL(&pool->connections, connection, next);
 
 	/* 
+	 * unless a timeout was specifically set for a connection,
+	 * the connection inherits the timeout from the pool.
+	 */
+	if (connection->timeout == -1)
+		connection->timeout = pool->timeout;
+
+	/* 
 	 * if we have any requests pending, schedule them with the new
 	 * connections.
 	 */
@@ -298,8 +308,19 @@ evrpc_pool_add_connection(struct evrpc_pool *pool,
 	}
 }
 
+void
+evrpc_pool_set_timeout(struct evrpc_pool *pool, int timeout_in_secs)
+{
+	struct evhttp_connection *evcon;
+	TAILQ_FOREACH(evcon, &pool->connections, next) {
+		evcon->timeout = timeout_in_secs;
+	}
+	pool->timeout = timeout_in_secs;
+}
+
 
 static void evrpc_reply_done(struct evhttp_request *, void *);
+static void evrpc_request_timeout(int, short, void *);
 
 /*
  * Finds a connection object associated with the pool that is currently
@@ -325,6 +346,7 @@ evrpc_schedule_request(struct evhttp_connection *connection,
     struct evrpc_request_wrapper *ctx)
 {
 	struct evhttp_request *req = NULL;
+	struct evrpc_pool *pool = ctx->pool;
 	char *uri = NULL;
 	int res = 0;
 
@@ -337,6 +359,19 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 	uri = evrpc_construct_uri(ctx->name);
 	if (uri == NULL)
 		goto error;
+
+	/* we need to know the connection that we might have to abort */
+	ctx->evcon = connection;
+
+	if (pool->timeout > 0) {
+		/* 
+		 * a timeout after which the whole rpc is going to be aborted.
+		 */
+		struct timeval tv;
+		timerclear(&tv);
+		tv.tv_sec = pool->timeout;
+		evtimer_add(&ctx->ev_timeout, &tv);
+	}
 
 	/* start the request over the connection */
 	res = evhttp_make_request(connection, req, EVHTTP_REQ_POST, uri);
@@ -357,24 +392,21 @@ int
 evrpc_make_request(struct evrpc_request_wrapper *ctx)
 {
 	struct evrpc_pool *pool = ctx->pool;
-	struct evhttp_connection *connection;
+
+	/* initialize the event structure for this rpc */
+	evtimer_set(&ctx->ev_timeout, evrpc_request_timeout, ctx);
 
 	/* we better have some available connections on the pool */
 	assert(TAILQ_FIRST(&pool->connections) != NULL);
-
-
-	/* even if a connection might be available, we do FIFO */
-	if (TAILQ_FIRST(&pool->requests) == NULL) {
-		connection = evrpc_pool_find_connection(pool);
-		if (connection != NULL)
-			return evrpc_schedule_request(connection, ctx);
-	}
 
 	/* 
 	 * if no connection is available, we queue the request on the pool,
 	 * the next time a connection is empty, the rpc will be send on that.
 	 */
 	TAILQ_INSERT_TAIL(&pool->requests, ctx, next);
+
+	evrpc_pool_schedule(pool);
+
 	return (0);
 }
 
@@ -382,10 +414,15 @@ static void
 evrpc_reply_done(struct evhttp_request *req, void *arg)
 {
 	struct evrpc_request_wrapper *ctx = arg;
-	int res;
+	struct evrpc_pool *pool = ctx->pool;
+	int res = -1;
+	
+	/* cancel any timeout we might have scheduled */
+	event_del(&ctx->ev_timeout);
 
 	/* we need to get the reply now */
-	res = ctx->reply_unmarshal(ctx->reply, req->input_buffer);
+	if (req != NULL)
+		res = ctx->reply_unmarshal(ctx->reply, req->input_buffer);
 	if (res == -1) {
 		/* clear everything that we might have written previously */
 		ctx->reply_clear(ctx->reply);
@@ -396,4 +433,33 @@ evrpc_reply_done(struct evhttp_request *req, void *arg)
 	evrpc_request_wrapper_free(ctx);
 
 	/* the http layer owns the request structure */
+
+	/* see if we can schedule another request */
+	evrpc_pool_schedule(pool);
+}
+
+static void
+evrpc_pool_schedule(struct evrpc_pool *pool)
+{
+	struct evrpc_request_wrapper *ctx = TAILQ_FIRST(&pool->requests);
+	struct evhttp_connection *evcon;
+
+	/* if no requests are pending, we have no work */
+	if (ctx == NULL)
+		return;
+
+	if ((evcon = evrpc_pool_find_connection(pool)) != NULL) {
+		TAILQ_REMOVE(&pool->requests, ctx, next);
+		evrpc_schedule_request(evcon, ctx);
+	}
+}
+
+static void
+evrpc_request_timeout(int fd, short what, void *arg)
+{
+	struct evrpc_request_wrapper *ctx = arg;
+	struct evhttp_connection *evcon = ctx->evcon;
+	assert(evcon != NULL);
+
+	evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
 }

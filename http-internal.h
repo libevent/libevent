@@ -50,6 +50,8 @@ struct evhttp_connection {
 	int flags;
 #define EVHTTP_CON_INCOMING	0x0001	/* only one request on it ever */
 #define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
+
+	int timeout;			/* timeout in seconds for events */
 	
 	enum evhttp_connection_state state;
 
