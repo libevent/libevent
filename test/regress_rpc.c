@@ -86,10 +86,13 @@ http_setup(short *pport)
 }
 
 EVRPC_HEADER(Message, msg, kill);
+EVRPC_HEADER(NeverReply, msg, kill);
+
 EVRPC_GENERATE(Message, msg, kill);
+EVRPC_GENERATE(NeverReply, msg, kill);
 
 void
-MessageCB(EVRPC_STRUCT(Message)* rpc, void *arg)
+MessageCb(EVRPC_STRUCT(Message)* rpc, void *arg)
 {
 	struct kill* kill_reply = rpc->reply;
 
@@ -99,6 +102,12 @@ MessageCB(EVRPC_STRUCT(Message)* rpc, void *arg)
 
 	/* no reply to the RPC */
 	EVRPC_REQUEST_DONE(rpc);
+}
+
+void
+NeverReplyCb(EVRPC_STRUCT(NeverReply)* rpc, void *arg)
+{
+	test_ok += 1;
 }
 
 static void
@@ -111,7 +120,8 @@ rpc_setup(struct evhttp **phttp, short *pport, struct evrpc_base **pbase)
 	http = http_setup(&port);
 	base = evrpc_init(http);
 	
-	EVRPC_REGISTER(base, Message, msg, kill, MessageCB, NULL);
+	EVRPC_REGISTER(base, Message, msg, kill, MessageCb, NULL);
+	EVRPC_REGISTER(base, NeverReply, msg, kill, NeverReplyCb, NULL);
 
 	*phttp = http;
 	*pport = port;
@@ -453,6 +463,64 @@ rpc_basic_queued_client(void)
 	evhttp_free(http);
 }
 
+static void
+GotErrorCb(struct msg *msg, struct kill *kill, void *arg)
+{
+	/* should never be complete but just to check */
+	if (kill_complete(kill) == 0)
+		goto done;
+
+	test_ok += 1;
+
+done:
+	event_loopexit(NULL);
+}
+
+static void
+rpc_client_timeout(void)
+{
+	short port;
+	struct evhttp *http = NULL;
+	struct evrpc_base *base = NULL;
+	struct evrpc_pool *pool = NULL;
+	struct msg *msg;
+	struct kill *kill;
+
+	fprintf(stdout, "Testing RPC Client Timeout: ");
+
+	rpc_setup(&http, &port, &base);
+
+	pool = rpc_pool_with_connection(port);
+
+	/* set the timeout to 5 seconds */
+	evrpc_pool_set_timeout(pool, 5);
+
+	/* set up the basic message */
+	msg = msg_new();
+	EVTAG_ASSIGN(msg, from_name, "niels");
+	EVTAG_ASSIGN(msg, to_name, "tester");
+
+	kill = kill_new();
+
+	EVRPC_MAKE_REQUEST(NeverReply, msg, kill,  GotErrorCb, NULL);
+
+	test_ok = 0;
+
+	event_dispatch();
+	
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED (1)\n");
+		exit(1);
+	}
+
+	fprintf(stdout, "OK\n");
+
+	msg_free(msg);
+	kill_free(kill);
+
+	evrpc_pool_free(pool);
+	evhttp_free(http);
+}
 
 void
 rpc_suite(void)
@@ -461,4 +529,5 @@ rpc_suite(void)
 	rpc_basic_message();
 	rpc_basic_client();
 	rpc_basic_queued_client();
+	rpc_client_timeout();
 }
