@@ -34,8 +34,8 @@ extern "C" {
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <winsock2.h>
 #undef WIN32_LEAN_AND_MEAN
-typedef unsigned char u_char;
 #endif
 
 /*
@@ -48,7 +48,7 @@ typedef unsigned char u_char;
  * creating a very simple HTTP server.
  */
 
-/* Response codes */	
+/* Response codes */
 #define HTTP_OK			200
 #define HTTP_MOVEPERM		301
 #define HTTP_MOVETEMP		302

@@ -38,6 +38,7 @@ extern "C" {
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
 typedef unsigned char u_char;
+typedef unsigned short u_short;
 #endif
 
 #define EVLIST_TIMEOUT	0x01
@@ -191,7 +192,7 @@ void event_active(struct event *, int, short);
 int event_pending(struct event *, short, struct timeval *);
 
 #ifdef WIN32
-#define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT && (ev)->ev_fd != INVALID_HANDLE_VALUE)
+#define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT && (ev)->ev_fd != (int)INVALID_HANDLE_VALUE)
 #else
 #define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 #endif

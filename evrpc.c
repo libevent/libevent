@@ -31,15 +31,19 @@
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <winsock2.h>
 #undef WIN32_LEAN_AND_MEAN
 #include "misc.h"
 #endif
+
 #include <sys/types.h>
 #include <sys/tree.h>
+#ifndef WIN32
 #include <sys/socket.h>
+#endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else 
+#else
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>

@@ -32,7 +32,14 @@
 #include "config.h"
 #endif
 
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
+#else
 #include <sys/ioctl.h>
+#endif
+
 #include <sys/tree.h>
 #include <sys/queue.h>
 #ifdef HAVE_SYS_TIME_H
@@ -43,7 +50,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef WIN32
 #include <syslog.h>
+#endif
 #include <unistd.h>
 
 #include "event.h"

@@ -132,7 +132,7 @@ AC_C_INLINE
 AC_HEADER_TIME
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r)
+AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo)
 AC_REPLACE_FUNCS(strlcpy)
 
 if test "x$ac_cv_func_clock_gettime" = "xyes"; then
