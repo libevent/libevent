@@ -398,8 +398,36 @@ evhttp_hostportfile(char *url, char **phost, u_short *pport, char **pfile)
 	return (0);
 }
 
+static int
+evhttp_connection_incoming_fail(struct evhttp_request *req,
+    enum evhttp_connection_error error)
+{
+	switch (error) {
+	case EVCON_HTTP_TIMEOUT:
+	case EVCON_HTTP_EOF:
+		/* 
+		 * these are cases in which we probably should just close
+		 * the connection and actually send a reply.  this case may
+		 * happen when a browser keeps a persistent connection open
+		 * and we timeout on the read.
+		 */
+		return (-1);
+	case EVCON_HTTP_INVALID_HEADER:
+	default:	/* xxx: probably should just error on default */
+		/* the callback looks at the uri to determine errors */
+		if (req->uri) {
+			free(req->uri);
+			req->uri = NULL;
+		}
+		(*req->cb)(req, req->cb_arg);
+	}
+	
+	return (0);
+}
+
 void
-evhttp_connection_fail(struct evhttp_connection *evcon)
+evhttp_connection_fail(struct evhttp_connection *evcon,
+    enum evhttp_connection_error error)
 {
 	struct evhttp_request* req = TAILQ_FIRST(&evcon->requests);
 	assert(req != NULL);
@@ -412,15 +440,11 @@ evhttp_connection_fail(struct evhttp_connection *evcon)
 		 * kill the connection.
 		 */
 		if (evcon->flags & EVHTTP_CON_INCOMING) {
-			/* the callback looks at the uri to determine errors */
-			if (req->uri) {
-				free(req->uri);
-				req->uri = NULL;
-			}
-			(*req->cb)(req, req->cb_arg);
-			return;
+			if (evhttp_connection_incoming_fail(req, error) == 0)
+				return;
+		} else {
+			(*req->cb)(NULL, req->cb_arg);
 		}
-		(*req->cb)(NULL, req->cb_arg);
 	}
 
 	/* reset the connection */
@@ -444,20 +468,20 @@ evhttp_write(int fd, short what, void *arg)
 	int n;
 
 	if (what == EV_TIMEOUT) {
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
 		return;
 	}
 
 	n = evbuffer_write(evcon->output_buffer, fd);
 	if (n == -1) {
 		event_warn("%s: evbuffer_write", __func__);
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
 
 	if (n == 0) {
 		event_warnx("%s: write nothing\n", __func__);
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
 
@@ -529,7 +553,7 @@ evhttp_read(int fd, short what, void *arg)
 	int n;
 
 	if (what == EV_TIMEOUT) {
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
 		return;
 	}
 
@@ -538,7 +562,7 @@ evhttp_read(int fd, short what, void *arg)
 
 	if (n == -1) {
 		event_warn("%s: evbuffer_read", __func__);
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
 
@@ -969,7 +993,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		event_warnx("%s: we got no content length, but the server"
 		    " wants to keep the connection open: %s.\n",
 		    __func__, connection);
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 		return;
 	} else if (content_length == NULL)
 		req->ntoread = -1;
@@ -1005,19 +1029,19 @@ evhttp_read_header(int fd, short what, void *arg)
 
 	if (what == EV_TIMEOUT) {
 		event_warnx("%s: timeout on %d\n", __func__, fd);
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
 		return;
 	}
 
 	n = evbuffer_read(evcon->input_buffer, fd, -1);
 	if (n == 0) {
 		event_warnx("%s: no more data on %d\n", __func__, fd);
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
 	if (n == -1) {
 		event_warnx("%s: bad read on %d\n", __func__, fd);
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
 
@@ -1025,7 +1049,7 @@ evhttp_read_header(int fd, short what, void *arg)
 	if (res == -1) {
 		/* Error while reading, terminate */
 		event_debug(("%s: bad header lines on %d\n", __func__, fd));
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 		return;
 	} else if (res == 0) {
 		/* Need more header lines */
@@ -1051,7 +1075,7 @@ evhttp_read_header(int fd, short what, void *arg)
 
 	default:
 		event_warnx("%s: bad header on %d\n", __func__, fd);
-		evhttp_connection_fail(evcon);
+		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 		break;
 	}
 }
