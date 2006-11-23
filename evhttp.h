@@ -77,6 +77,10 @@ void evhttp_set_cb(struct evhttp *, const char *,
 void evhttp_set_gencb(struct evhttp *,
     void (*)(struct evhttp_request *, void *), void *);
 
+void evhttp_set_timeout(struct evhttp *, int timeout_in_secs);
+
+/* Request/Response functionality */
+
 void evhttp_send_error(struct evhttp_request *, int, const char *);
 void evhttp_send_reply(struct evhttp_request *, int, const char *,
     struct evbuffer *);

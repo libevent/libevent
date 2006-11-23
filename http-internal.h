@@ -50,6 +50,7 @@ struct evhttp_connection {
 	int flags;
 #define EVHTTP_CON_INCOMING	0x0001	/* only one request on it ever */
 #define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
+#define EVHTTP_CON_CLOSEDETECT  0x0004  /* detecting if persistent close */
 
 	int timeout;			/* timeout in seconds for events */
 	
@@ -81,6 +82,8 @@ struct evhttp {
 
 	TAILQ_HEAD(httpcbq, evhttp_cb) callbacks;
         struct evconq connections;
+
+        int timeout;
 
 	void (*gencb)(struct evhttp_request *req, void *);
 	void *gencbarg;
