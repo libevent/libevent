@@ -252,13 +252,29 @@ http_connection_test(void)
 
 	event_dispatch();
 
-	evhttp_connection_free(evcon);
-	evhttp_free(http);
-	
 	if (test_ok != 1) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
+
+	/* try to make another request over the same connection */
+	test_ok = 0;
+	
+	req = evhttp_request_new(http_request_done, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
 	
 	fprintf(stdout, "OK\n");
 }
