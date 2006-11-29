@@ -20,6 +20,7 @@ leading = re.compile(r'^\s+')
 trailing = re.compile(r'\s+$')
 white = re.compile(r'^\s+')
 cppcomment = re.compile(r'\/\/.*$')
+headerdirect = []
 cppdirect = []
 
 # Holds everything that makes a struct
@@ -1224,6 +1225,10 @@ def GetNextStruct(file):
                 cppdirect.append(line)
                 continue
 
+            if re.match(r'^#define', line):
+                headerdirect.append(line)
+                continue
+
             if not re.match(r'^struct %s {$' % _STRUCT_RE,
                             line, re.IGNORECASE):
                 print >>sys.stderr, 'Missing struct on line %d: %s' % (
@@ -1288,6 +1293,12 @@ def HeaderPreamble(name):
         '#ifndef %s\n'
         '#define %s\n\n' ) % (
         name, guard, guard)
+
+    for statement in headerdirect:
+        pre += '%s\n' % statement
+    if headerdirect:
+        pre += '\n'
+
     pre += (
         '#define EVTAG_HAS(msg, member) ((msg)->member##_set == 1)\n'
         '#define EVTAG_ASSIGN(msg, member, args...) '
@@ -1322,8 +1333,8 @@ def BodyPreamble(name):
              '#include <assert.h>\n'
              '#include <event.h>\n\n' )
 
-    for include in cppdirect:
-        pre += '%s\n' % include
+    for statement in cppdirect:
+        pre += '%s\n' % statement
     
     pre += '\n#include "%s"\n\n' % header_file
 
