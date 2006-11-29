@@ -51,11 +51,14 @@
 
 int decode_int(u_int32_t *pnumber, struct evbuffer *evbuf);
 
-static struct evbuffer *_buf;
+static struct evbuffer *_buf;	/* not thread safe */
 
 void
 evtag_init()
 {
+	if (_buf != NULL)
+		return;
+
 	if ((_buf = evbuffer_new()) == NULL)
 		event_err(1, "%s: malloc", __func__);
 }
