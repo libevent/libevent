@@ -52,6 +52,7 @@ typedef unsigned char u_char;
 #define HTTP_OK			200
 #define HTTP_MOVEPERM		301
 #define HTTP_MOVETEMP		302
+#define HTTP_BADREQUEST		400
 #define HTTP_NOTFOUND		404
 
 struct evhttp;

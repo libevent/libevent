@@ -324,13 +324,22 @@ evhttp_connection_fail(struct evhttp_connection *evcon)
 	struct evhttp_request* req = TAILQ_FIRST(&evcon->requests);
 	assert(req != NULL);
 	
-	/* reset the connection */
-	evhttp_connection_reset(evcon);
-
 	if (req->cb != NULL) {
-		/* xxx: maybe we need to pass the request here? */
+		/* 
+		 * we are passing the request object if we have an incoming
+		 * request that somehow needs to be answered.  we need to
+		 * wait for the answer to travel over the wire before we can
+		 * kill the connection.
+		 */
+		if (evcon->flags & EVHTTP_CON_INCOMING) {
+			(*req->cb)(req, req->cb_arg);
+			return;
+		}
 		(*req->cb)(NULL, req->cb_arg);
 	}
+
+	/* reset the connection */
+	evhttp_connection_reset(evcon);
 
 	TAILQ_REMOVE(&evcon->requests, req, next);
 	evhttp_request_free(req);
@@ -1236,6 +1245,11 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 {
 	struct evhttp *http = arg;
 	struct evhttp_cb *cb;
+
+	if (req->uri == NULL) {
+		evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
+		return;
+	}
 
 	/* Test for different URLs */
 	TAILQ_FOREACH(cb, &http->callbacks, next) {
