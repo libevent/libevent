@@ -17,6 +17,12 @@
 #define HTTP_PREFIX		"http://"
 #define HTTP_DEFAULTPORT	80
 
+enum evhttp_connection_error {
+	EVCON_HTTP_TIMEOUT,
+	EVCON_HTTP_EOF,
+	EVCON_HTTP_INVALID_HEADER
+};
+
 struct evbuffer;
 struct addrinfo;
 struct evhttp_request;
@@ -82,7 +88,8 @@ void evhttp_connection_reset(struct evhttp_connection *);
 int evhttp_connection_connect(struct evhttp_connection *);
 
 /* notifies the current request that it failed; resets connection */
-void evhttp_connection_fail(struct evhttp_connection *);
+void evhttp_connection_fail(struct evhttp_connection *,
+    enum evhttp_connection_error error);
 
 void evhttp_get_request(struct evhttp *, int, struct sockaddr *, socklen_t);
 
