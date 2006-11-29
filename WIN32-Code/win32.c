@@ -25,11 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#ifdef _MSC_VER
 #include "config.h"
-
-#include <winsock2.h>
+#else
+/* Avoid the windows/msvc thing. */
+#include "../config.h"
+#endif
 
 #include <windows.h>
+#include <winsock2.h>
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/tree.h>

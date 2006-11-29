@@ -39,6 +39,10 @@
 #include "config.h"
 #endif
 
+#ifdef WIN32
+#include "misc.h"
+#endif
+
 //#define NDEBUG
 
 #ifndef DNS_USE_CPU_CLOCK_FOR_ID
@@ -235,7 +239,7 @@ static u16 transaction_id_pick(void);
 static struct request *request_new(int type, const char *name, int flags, evdns_callback_type callback, void *ptr);
 static void request_submit(struct request *req);
 
-#ifdef MS_WINDOWS
+#if defined(MS_WINDOWS) || defined(WIN32)
 static int
 last_error(int sock)
 {
@@ -1275,7 +1279,7 @@ evdns_nameserver_add(unsigned long int address) {
 
 	ns->socket = socket(PF_INET, SOCK_DGRAM, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
-#ifdef MS_WINDOWS
+#if defined(MS_WINDOWS) || defined(WIN32)
         {
 		u_long nonblocking = 1;
 		ioctlsocket(ns->socket, FIONBIO, &nonblocking);
@@ -1330,7 +1334,8 @@ out1:
 int
 evdns_nameserver_ip_add(const char *ip_as_string) {
 	struct in_addr ina;
-	if (!inet_aton(ip_as_string, &ina)) return 4;
+	if (!inet_aton(ip_as_string, &ina))
+          return 4;
 	return evdns_nameserver_add(ina.s_addr);
 }
 
@@ -1847,7 +1852,7 @@ out1:
 	return err;
 }
 
-#ifdef MS_WINDOWS
+#if defined(MS_WINDOWS) || defined(WIN32)
 // Add multiple nameservers from a space-or-comma-separated list.
 static int
 evdns_nameserver_ip_add_line(const char *ips) {
@@ -2043,8 +2048,8 @@ int
 evdns_init()
 {
 	int res = 0;
-#ifdef MS_WINDOWS
-	evdns_config_windows_nameservers(void);
+#if defined(MS_WINDOWS) || defined(WIN32)
+	evdns_config_windows_nameservers();
 #else
 	res = evdns_resolv_conf_parse(DNS_OPTIONS_ALL, "/etc/resolv.conf");
 #endif

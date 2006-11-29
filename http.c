@@ -38,22 +38,30 @@
 #ifdef HAVE_SYS_IOCCOM_H
 #include <sys/ioccom.h>
 #endif
+
+#ifndef WIN32
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/tree.h>
 #include <sys/wait.h>
+#endif
+
+#include <sys/tree.h>
 #include <sys/queue.h>
 
+#ifndef WIN32
 #include <netinet/in.h>
 #include <netdb.h>
+#endif
 
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef WIN32
 #include <syslog.h>
+#endif
 #include <signal.h>
 #ifdef HAVE_TIME_H
 #include <time.h>
@@ -69,17 +77,65 @@
 #include "log.h"
 #include "http-internal.h"
 
+#ifndef HAVE_GETADDRINFO
+struct addrinfo {
+	int ai_family;
+	int ai_socktype;
+	int ai_protocol;
+	size_t ai_addrlen;
+	struct sockaddr *ai_addr;
+	struct addrinfo *ai_next;
+};
+static int
+fake_getaddrinfo(const char *hostname, struct addrinfo *ai)
+{
+	struct hostent *he;
+	he = gethostbyname(hostname);
+	if (!he)
+		return (-1);
+	ai->ai_family = he->h_addrtype;
+	ai->ai_socktype = SOCK_STREAM;
+	ai->ai_protocol = 0;
+	ai->ai_addrlen = he->h_length;
+	if (NULL == (ai->ai_addr = malloc(ai->ai_addrlen)))
+		return (-1);
+	memcpy(ai->ai_addr, &he->h_addr_list[0], ai->ai_addrlen);
+	ai->ai_next = NULL;
+	return (0);
+}
+static void
+fake_freeaddrinfo(struct addrinfo *ai)
+{
+	free(ai->ai_addr);
+}
+#endif
+
 extern int debug;
 
-static int make_socket_ai(int (*f)(int, const struct sockaddr *, socklen_t),
-    struct addrinfo *);
-static int make_socket(int (*)(int, const struct sockaddr *, socklen_t),
-    const char *, short);
+static int make_socket_ai(int should_bind, struct addrinfo *);
+static int make_socket(int should_bind, const char *, short);
 static void name_from_addr(struct sockaddr *, socklen_t, char **, char **);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
 
 void evhttp_write(int, short, void *);
+
+#ifndef HAVE_STRSEP
+static char *
+strsep(char **s, const char *del)
+{
+	char *d, *tok;
+	if (!s || !*s)
+		return NULL;
+	tok = *s;
+	d = strstr(tok, del);
+	if (d)
+		*s = d + strlen(del);
+	else
+		*s = NULL;
+	return tok;
+}
+#endif
 
 static const char *
 html_replace(char ch)
@@ -206,7 +262,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		char size[12];
 		snprintf(size, sizeof(size), "%ld",
-		    EVBUFFER_LENGTH(req->output_buffer));
+			 (long)EVBUFFER_LENGTH(req->output_buffer));
 		evhttp_add_header(req->output_headers, "Content-Length", size);
 	}
 }
@@ -244,7 +300,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	if (evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		static char len[12];
 		snprintf(len, sizeof(len), "%ld",
-		    EVBUFFER_LENGTH(req->output_buffer));
+			 (long)EVBUFFER_LENGTH(req->output_buffer));
 		evhttp_add_header(req->output_headers, "Content-Length", len);
 	}
 
@@ -593,7 +649,7 @@ evhttp_connectioncb(int fd, short what, void *arg)
 	}
 
 	/* Check if the connection completed */
-	if (getsockopt(evcon->fd, SOL_SOCKET, SO_ERROR, &error,
+	if (getsockopt(evcon->fd, SOL_SOCKET, SO_ERROR, (void*)&error,
 		       &errsz) == -1) {
 		event_warn("%s: getsockopt for \"%s:%d\" on %d",
 		    __func__, evcon->address, evcon->port, evcon->fd);
@@ -1066,7 +1122,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	
 	/* Do async connection to HTTP server */
 	if ((evcon->fd = make_socket(
-		     connect, evcon->address, evcon->port)) == -1) {
+		     0, evcon->address, evcon->port)) == -1) {
 		event_warn("%s: failed to connect to \"%s:%d\"",
 		    __func__, evcon->address, evcon->port);
 		return (-1);
@@ -1378,7 +1434,7 @@ bind_socket(struct evhttp *http, const char *address, u_short port)
 	struct event *ev = &http->bind_ev;
 	int fd;
 
-	if ((fd = make_socket(bind, address, port)) == -1)
+	if ((fd = make_socket(1, address, port)) == -1)
 		return (-1);
 
 	if (listen(fd, 10) == -1) {
@@ -1637,8 +1693,9 @@ evhttp_get_request(struct evhttp *http, int fd,
 static struct addrinfo *
 addr_from_name(char *address)
 {
+#ifdef HAVE_GETADDRINFO
         struct addrinfo ai, *aitop;
-	
+
         memset(&ai, 0, sizeof (ai));
         ai.ai_family = AF_INET;
         ai.ai_socktype = SOCK_RAW;
@@ -1649,12 +1706,17 @@ addr_from_name(char *address)
         }
 
 	return (aitop);
+#else
+	assert(0);
+	return NULL; // XXXXX Use gethostbyname, if this function is ever used.
+#endif
 }
 
 static void
 name_from_addr(struct sockaddr *sa, socklen_t salen,
     char **phost, char **pport)
 {
+#ifdef HAVE_GETNAMEINFO
 	static char ntop[NI_MAXHOST];
 	static char strport[NI_MAXSERV];
 
@@ -1665,16 +1727,18 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 
 	*phost = ntop;
 	*pport = strport;
+#else
+	// XXXX
+#endif
 }
 
 /* Either connect or bind */
 
 static int
-make_socket_ai(int (*f)(int, const struct sockaddr *, socklen_t),
-    struct addrinfo *ai)
+make_socket_ai(int should_bind, struct addrinfo *ai)
 {
         struct linger linger;
-        int fd, on = 1;
+        int fd, on = 1, r;
 	int serrno;
 
         /* Create listen socket */
@@ -1684,6 +1748,12 @@ make_socket_ai(int (*f)(int, const struct sockaddr *, socklen_t),
                 return (-1);
         }
 
+#ifdef WIN32
+	{
+		unsigned long nonblocking = 1;
+		ioctlsocket(fd, FIONBIO, (unsigned long*) &nonblocking);
+	}
+#else
         if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1) {
                 event_warn("fcntl(O_NONBLOCK)");
                 goto out;
@@ -1693,18 +1763,31 @@ make_socket_ai(int (*f)(int, const struct sockaddr *, socklen_t),
                 event_warn("fcntl(F_SETFD)");
                 goto out;
         }
+#endif
 
         setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));
-        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *) &on, sizeof(on));
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&on, sizeof(on));
         linger.l_onoff = 1;
         linger.l_linger = 5;
-        setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
+        setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&linger, sizeof(linger));
 
-        if ((f)(fd, ai->ai_addr, ai->ai_addrlen) == -1) {
+	if (should_bind)
+		r = bind(fd, ai->ai_addr, ai->ai_addrlen);
+	else
+		r = connect(fd, ai->ai_addr, ai->ai_addrlen);
+	if (r == -1) {
+#ifdef WIN32
+		int tmp_error = WSAGetLastError();
+		if (tmp_error != WSAEWOULDBLOCK && tmp_error != WSAEINVAL &&
+		    tmp_error != WSAEINPROGRESS) {
+			goto out;
+		}
+#else
 		if (errno != EINPROGRESS) {
 			goto out;
 		}
-        }
+#endif
+	}
 
 	return (fd);
 
@@ -1716,26 +1799,36 @@ make_socket_ai(int (*f)(int, const struct sockaddr *, socklen_t),
 }
 
 static int
-make_socket(int (*f)(int, const struct sockaddr *, socklen_t),
-    const char *address, short port)
+make_socket(int should_bind, const char *address, short port)
 {
-        struct addrinfo ai, *aitop;
-        char strport[NI_MAXSERV];
 	int fd;
-	
+        struct addrinfo ai, *aitop;
+#ifdef HAVE_GETADDRINFO
+        char strport[NI_MAXSERV];
         memset(&ai, 0, sizeof (ai));
         ai.ai_family = AF_INET;
         ai.ai_socktype = SOCK_STREAM;
-        ai.ai_flags = f != connect ? AI_PASSIVE : 0;
+        ai.ai_flags = should_bind ? AI_PASSIVE : 0;
         snprintf(strport, sizeof (strport), "%d", port);
         if (getaddrinfo(address, strport, &ai, &aitop) != 0) {
                 event_warn("getaddrinfo");
                 return (-1);
         }
-        
-	fd = make_socket_ai(f, aitop);
+#else
+	if (fake_getaddrinfo(address, &ai) < 0) {
+		event_warn("fake_getaddrinfo");
+		return (-1);
+	}
+	aitop = &ai;
+#endif
 
+	fd = make_socket_ai(should_bind, aitop);
+
+#ifdef HAVE_GETADDRINFO
 	freeaddrinfo(aitop);
+#else
+	fake_freeaddrinfo(aitop);
+#endif
 
 	return (fd);
 }
