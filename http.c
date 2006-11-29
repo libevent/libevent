@@ -76,6 +76,8 @@ static int make_socket_ai(int (*f)(int, const struct sockaddr *, socklen_t),
 static int make_socket(int (*)(int, const struct sockaddr *, socklen_t),
     const char *, short);
 static void name_from_addr(struct sockaddr *, socklen_t, char **, char **);
+static int evhttp_associate_new_request_with_connection(
+	struct evhttp_connection *evcon);
 
 void evhttp_write(int, short, void *);
 
@@ -191,8 +193,6 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	
 	evhttp_remove_header(req->output_headers, "Accept-Encoding");
 	evhttp_remove_header(req->output_headers, "Proxy-Connection");
-	evhttp_remove_header(req->output_headers, "Connection");
-	evhttp_add_header(req->output_headers, "Connection", "close");
 	req->minor = 0;
 
 	/* Generate request line */
@@ -209,6 +209,13 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 		    EVBUFFER_LENGTH(req->output_buffer));
 		evhttp_add_header(req->output_headers, "Content-Length", size);
 	}
+}
+
+static int
+evhttp_is_connection_close(struct evkeyvalq* headers)
+{
+	const char *connection = evhttp_find_header(headers, "Connection");
+	return (connection != NULL && strcasecmp(connection, "close") == 0);
 }
 
 /*
@@ -229,7 +236,21 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 		evhttp_add_header(req->output_headers,
 		    "Content-Type", "text/html; charset=ISO-8859-1");
 	}
-	if (evhttp_find_header(req->output_headers, "Connection") == NULL) {
+
+	/* 
+	 * we need to add the content length if the user did not give it,
+	 * this is required for persistent connections to work.
+	 */
+	if (evhttp_find_header(req->output_headers, "Content-Length") == NULL){
+		static char len[12];
+		snprintf(len, sizeof(len), "%ld",
+		    EVBUFFER_LENGTH(req->output_buffer));
+		evhttp_add_header(req->output_headers, "Content-Length", len);
+	}
+
+	/* if the request asked for a close, we send a close, too */
+	if (evhttp_is_connection_close(req->input_headers)) {
+		evhttp_remove_header(req->output_headers, "Connection");
 		evhttp_add_header(req->output_headers, "Connection", "close");
 	}
 }
@@ -405,16 +426,13 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 	 * on the connection, so that we can reply to it.
 	 */
 	if (evcon->flags & EVHTTP_CON_OUTGOING) {
-		struct evkeyvalq *headers = req->input_headers;
-		const char *connection;
-
 		TAILQ_REMOVE(&evcon->requests, req, next);
 		req->evcon = NULL;
 
 
 		/* check if we got asked to close the connection */
-		connection = evhttp_find_header(headers, "Connection");
-		if (connection != NULL && strcasecmp(connection, "close") == 0)
+		if (evhttp_is_connection_close(req->input_headers) ||
+		    evhttp_is_connection_close(req->output_headers))
 			evhttp_connection_reset(evcon);
 
 		if (TAILQ_FIRST(&evcon->requests) != NULL) {
@@ -460,7 +478,7 @@ evhttp_read(int fd, short what, void *arg)
 	}
 
 	n = evbuffer_read(req->input_buffer, fd, req->ntoread);
-	event_debug(("%s: got %d on %d\n", __func__, n, req->fd));
+	event_debug(("%s: got %d on %d\n", __func__, n, fd));
 
 	if (n == -1) {
 		event_warn("%s: evbuffer_read", __func__);
@@ -502,6 +520,11 @@ evhttp_write_connectioncb(struct evhttp_connection *evcon, void *arg)
 void
 evhttp_connection_free(struct evhttp_connection *evcon)
 {
+	if (evcon->http_server != NULL) {
+		struct evhttp *http = evcon->http_server;
+		TAILQ_REMOVE(&http->connections, evcon, next);
+	}
+
 	if (event_initialized(&evcon->ev))
 		event_del(&evcon->ev);
 	
@@ -717,7 +740,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 }
 
 const char *
-evhttp_find_header(struct evkeyvalq *headers, const char *key)
+evhttp_find_header(const struct evkeyvalq *headers, const char *key)
 {
 	struct evkeyval *header;
 
@@ -898,7 +921,8 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		req->ntoread = atoi(content_length);
 
 	event_debug(("%s: bytes to read: %d (in buffer %d)\n",
-			__func__, req->ntoread, EVBUFFER_LENGTH(evcon->buffer)));
+			__func__, req->ntoread,
+		EVBUFFER_LENGTH(evcon->input_buffer)));
 	
 	if (req->ntoread > 0)
 		req->ntoread -= EVBUFFER_LENGTH(evcon->input_buffer);
@@ -1128,20 +1152,26 @@ evhttp_start_read(struct evhttp_connection *evcon)
 void
 evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 {
+	int need_close;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
-	if (req->flags & EVHTTP_REQ_OWN_CONNECTION) {
-		const char *connection =
-		    evhttp_find_header(req->output_headers, "Connection");
-		if (connection == NULL || strcasecmp(connection, "close")) {
-			event_warnx("%s: persistent connection not supported",
-			    __func__);
-		}
-		evhttp_connection_free(evcon);
-	}
-	
+	need_close = evhttp_is_connection_close(req->input_headers) ||
+	    evhttp_is_connection_close(req->output_headers);
+
 	evhttp_request_free(req);
+
+	if ((req->flags & EVHTTP_REQ_OWN_CONNECTION) == 0)
+		return;
+	
+	if (need_close) {
+		evhttp_connection_free(evcon);
+		return;
+	} 
+
+	/* we have a persistent connection; try to accept another request */
+	if (evhttp_associate_new_request_with_connection(evcon) == -1)
+		evhttp_connection_free(evcon);
 }
 
 /*
@@ -1159,6 +1189,9 @@ evhttp_send_error(struct evhttp_request *req, int error, const char *reason)
 	    "</BODY></HTML>\n";
 
 	struct evbuffer *buf = evbuffer_new();
+
+	/* close the connection on error */
+	evhttp_add_header(req->output_headers, "Connection", "close");
 
 	evhttp_response_code(req, error, reason);
 
@@ -1336,8 +1369,7 @@ accept_socket(int fd, short what, void *arg)
 		return;
 	}
 
-	evhttp_get_request(nfd, (struct sockaddr *)&ss, addrlen,
-	    evhttp_handle_request, http);
+	evhttp_get_request(http, nfd, (struct sockaddr *)&ss, addrlen);
 }
 
 static int
@@ -1378,6 +1410,7 @@ evhttp_start(const char *address, u_short port)
 	}
 
 	TAILQ_INIT(&http->callbacks);
+	TAILQ_INIT(&http->connections);
 
 	if (bind_socket(http, address, port) == -1) {
 		free(http);
@@ -1391,11 +1424,17 @@ void
 evhttp_free(struct evhttp* http)
 {
 	struct evhttp_cb *http_cb;
+	struct evhttp_connection *evcon;
 	int fd = http->bind_ev.ev_fd;
 
 	/* Remove the accepting part */
 	event_del(&http->bind_ev);
 	close(fd);
+
+	while ((evcon = TAILQ_FIRST(&http->connections)) != NULL) {
+		/* evhttp_connection_free removes the connection */
+		evhttp_connection_free(evcon);
+	}
 
 	while ((http_cb = TAILQ_FIRST(&http->callbacks)) != NULL) {
 		TAILQ_REMOVE(&http->callbacks, http_cb, next);
@@ -1522,12 +1561,11 @@ evhttp_request_uri(struct evhttp_request *req) {
  * The callback is executed once the whole request has been read.
  */
 
-void
-evhttp_get_request(int fd, struct sockaddr *sa, socklen_t salen,
-    void (*cb)(struct evhttp_request *, void *), void *arg)
+static struct evhttp_connection*
+evhttp_get_request_connection(
+	int fd, struct sockaddr *sa, socklen_t salen)
 {
 	struct evhttp_connection *evcon;
-	struct evhttp_request *req;
 	char *hostname, *portname;
 
 	name_from_addr(sa, salen, &hostname, &portname);
@@ -1536,16 +1574,22 @@ evhttp_get_request(int fd, struct sockaddr *sa, socklen_t salen,
 
 	/* we need a connection object to put the http request on */
 	if ((evcon = evhttp_connection_new(hostname, atoi(portname))) == NULL)
-		return;
+		return (NULL);
 	evcon->flags |= EVHTTP_CON_INCOMING;
 	evcon->state = EVCON_CONNECTED;
 	
-	if ((req = evhttp_request_new(cb, arg)) == NULL) {
-		evhttp_connection_free(evcon);
-		return;
-	}
-
 	evcon->fd = fd;
+
+	return (evcon);
+}
+
+static int
+evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
+{
+	struct evhttp *http = evcon->http_server;
+	struct evhttp_request *req;
+	if ((req = evhttp_request_new(evhttp_handle_request, http)) == NULL)
+		return (-1);
 
 	req->evcon = evcon;	/* the request ends up owning the connection */
 	req->flags |= EVHTTP_REQ_OWN_CONNECTION;
@@ -1554,11 +1598,34 @@ evhttp_get_request(int fd, struct sockaddr *sa, socklen_t salen,
 	
 	req->kind = EVHTTP_REQUEST;
 	
-	if ((req->remote_host = strdup(hostname)) == NULL)
+	if ((req->remote_host = strdup(evcon->address)) == NULL)
 		event_err(1, "%s: strdup", __func__);
-	req->remote_port = atoi(portname);
+	req->remote_port = evcon->port;
 
 	evhttp_start_read(evcon);
+	
+	return (0);
+}
+
+void
+evhttp_get_request(struct evhttp *http, int fd,
+    struct sockaddr *sa, socklen_t salen)
+{
+	struct evhttp_connection *evcon;
+
+	evcon = evhttp_get_request_connection(fd, sa, salen);
+	if (evcon == NULL)
+		return;
+
+	/* 
+	 * if we want to accept more than one request on a connection,
+	 * we need to know which http server it belongs to.
+	 */
+	evcon->http_server = http;
+	TAILQ_INSERT_TAIL(&http->connections, evcon, next);
+	
+	if (evhttp_associate_new_request_with_connection(evcon) == -1)
+		evhttp_connection_free(evcon);
 }
 
 

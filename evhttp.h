@@ -83,6 +83,50 @@ void evhttp_send_reply(struct evhttp_request *, int, const char *,
 /* Interfaces for making requests */
 enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
 
+enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
+
+/* 
+ * the request structure that a server receives.
+ * WARNING: expect this structure to change.  I will try to provide
+ * reasonable accessors.
+ */
+struct evhttp_request {
+	TAILQ_ENTRY(evhttp_request) next;
+
+	/* the connection object that this request belongs to */
+	struct evhttp_connection *evcon;
+	int flags;
+#define EVHTTP_REQ_OWN_CONNECTION	0x0001	
+	
+	struct evkeyvalq *input_headers;
+	struct evkeyvalq *output_headers;
+
+	/* address of the remote host and the port connection came from */
+	char *remote_host;
+	u_short remote_port;
+
+	enum evhttp_request_kind kind;
+	enum evhttp_cmd_type type;
+
+	char *uri;			/* uri after HTTP request was parsed */
+
+	char major;			/* HTTP Major number */
+	char minor;			/* HTTP Minor number */
+	
+	int got_firstline;
+	int response_code;		/* HTTP Response code */
+	char *response_code_line;	/* Readable response */
+
+	struct evbuffer *input_buffer;	/* read data */
+	int ntoread;
+
+	struct evbuffer *output_buffer;	/* outgoing post or data */
+
+	/* Callback */
+	void (*cb)(struct evhttp_request *, void *);
+	void *cb_arg;
+};
+
 /* 
  * Creates a new request object that needs to be filled in with the request
  * parameters.  The callback is executed when the request completed or an
@@ -114,7 +158,7 @@ const char *evhttp_request_uri(struct evhttp_request *req);
 
 /* Interfaces for dealing with HTTP headers */
 
-const char *evhttp_find_header(struct evkeyvalq *, const char *);
+const char *evhttp_find_header(const struct evkeyvalq *, const char *);
 int evhttp_remove_header(struct evkeyvalq *, const char *);
 int evhttp_add_header(struct evkeyvalq *, const char *, const char *);
 void evhttp_clear_headers(struct evkeyvalq *);

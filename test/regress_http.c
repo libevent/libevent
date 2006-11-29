@@ -163,7 +163,7 @@ http_errorcb(struct bufferevent *bev, short what, void *arg)
 void
 http_basic_cb(struct evhttp_request *req, void *arg)
 {
-	event_debug((stderr, "%s: called\n", __func__));
+	event_debug(("%s: called\n", __func__));
 
 	struct evbuffer *evb = evbuffer_new();
 	evbuffer_add_printf(evb, "This is funny");
@@ -194,7 +194,8 @@ http_basic_test(void)
 
 	http_request =
 	    "GET /test HTTP/1.1\r\n"
-	    "Host: somehost \r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
 	    "\r\n";
 
 	bufferevent_write(bev, http_request, strlen(http_request));
@@ -217,14 +218,15 @@ http_basic_test(void)
 void http_request_done(struct evhttp_request *, void *);
 
 void
-http_connection_test(void)
+http_connection_test(int persistent)
 {
 	short port = -1;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	
 	test_ok = 0;
-	fprintf(stdout, "Testing Basic HTTP Connection: ");
+	fprintf(stdout, "Testing Request Connection Pipeline %s: ",
+	    persistent ? "(persistent)" : "");
 
 	http = http_setup(&port);
 
@@ -264,6 +266,13 @@ http_connection_test(void)
 
 	/* Add the information that we care about */
 	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/* 
+	 * if our connections are not supposed to be persistent; request
+	 * a close from the server.
+	 */
+	if (!persistent)
+		evhttp_add_header(req->output_headers, "Connection", "close");
 
 	/* We give ownership of the request to the connection */
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
@@ -371,7 +380,7 @@ http_post_test(void)
 void
 http_post_cb(struct evhttp_request *req, void *arg)
 {
-	event_debug((stderr, "%s: called\n", __func__));
+	event_debug(("%s: called\n", __func__));
 
 	/* Yes, we are expecting a post request */
 	if (req->type != EVHTTP_REQ_POST) {
@@ -438,6 +447,7 @@ http_failure_readcb(struct bufferevent *bev, void *arg)
 	const char *what = "400 Bad Request";
 	if (evbuffer_find(bev->input, what, strlen(what)) != NULL) {
 		test_ok = 2;
+		bufferevent_disable(bev, EV_READ);
 		event_loopexit(NULL);
 	}
 }
@@ -488,7 +498,8 @@ void
 http_suite(void)
 {
 	http_basic_test();
-	http_connection_test();
+	http_connection_test(0 /* not-persistent */);
+	http_connection_test(1 /* persistent */);
 	http_post_test();
 	http_failure_test();
 }
