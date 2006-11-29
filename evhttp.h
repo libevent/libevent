@@ -76,6 +76,10 @@ void evhttp_set_cb(struct evhttp *, const char *,
 void evhttp_set_gencb(struct evhttp *,
     void (*)(struct evhttp_request *, void *), void *);
 
+void evhttp_set_timeout(struct evhttp *, int timeout_in_secs);
+
+/* Request/Response functionality */
+
 void evhttp_send_error(struct evhttp_request *, int, const char *);
 void evhttp_send_reply(struct evhttp_request *, int, const char *,
     struct evbuffer *);
@@ -148,6 +152,10 @@ struct evhttp_connection *evhttp_connection_new(
 
 /* Frees an http connection */
 void evhttp_connection_free(struct evhttp_connection *evcon);
+
+/* Sets the timeout for events related to this connection */
+void evhttp_connection_set_timeout(struct evhttp_connection *evcon,
+    int timeout_in_secs);
 
 /* The connection gets ownership of the request */
 int evhttp_make_request(struct evhttp_connection *evcon,

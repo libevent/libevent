@@ -493,6 +493,106 @@ http_failure_test(void)
 	fprintf(stdout, "OK\n");
 }
 
+static void
+close_detect_done(struct evhttp_request *req, void *arg)
+{
+	if (req == NULL || req->response_code != HTTP_OK) {
+	
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
+static void
+close_detect_launch(int fd, short what, void *arg)
+{
+	struct evhttp_connection *evcon = arg;
+	struct evhttp_request *req;
+
+	req = evhttp_request_new(close_detect_done, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+}
+
+static void
+close_detect_cb(struct evhttp_request *req, void *arg)
+{
+	struct evhttp_connection *evcon = arg;
+	struct timeval tv;
+
+	if (req->response_code != HTTP_OK) {
+	
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	timerclear(&tv);
+	tv.tv_sec = 3;   /* longer than the http time out */
+
+	/* launch a new request on the persistent connection in 6 seconds */
+	event_once(-1, EV_TIMEOUT, close_detect_launch, evcon, &tv);
+}
+
+
+void
+http_close_detection()
+{
+	short port = -1;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	
+	test_ok = 0;
+	fprintf(stdout, "Testing Connection Close Detection: ");
+
+	http = http_setup(&port);
+
+	/* 2 second timeout */
+	evhttp_set_timeout(http, 2);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/*
+	 * At this point, we want to schedule a request to the HTTP
+	 * server using our make request method.
+	 */
+
+	req = evhttp_request_new(close_detect_cb, evcon);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
+	
+	fprintf(stdout, "OK\n");
+}
 
 void
 http_suite(void)
@@ -500,6 +600,7 @@ http_suite(void)
 	http_basic_test();
 	http_connection_test(0 /* not-persistent */);
 	http_connection_test(1 /* persistent */);
+	http_close_detection();
 	http_post_test();
 	http_failure_test();
 }

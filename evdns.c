@@ -798,15 +798,17 @@ transaction_id_pick(void) {
 		const struct request *req = req_head, *started_at;
 #ifdef DNS_USE_CPU_CLOCK_FOR_ID
 		struct timespec ts;
-		const u16 trans_id = ts.tv_nsec & 0xffff;
+		u16 trans_id;
 		if (clock_gettime(CLOCK_MONOTONIC, &ts))
 			event_err(1, "clock_gettime");
+                trans_id = ts.tv_nsec & 0xffff;
 #endif
 
 #ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
 		struct timeval tv;
-		const u16 trans_id = tv.tv_usec & 0xffff;
+		u16 trans_id;
 		gettimeofday(&tv, NULL);
+                trans_id = tv.tv_usec & 0xffff;
 #endif
 
 #ifdef DNS_USE_OPENSSL_FOR_ID
@@ -1807,7 +1809,7 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
 		evdns_resolv_set_defaults(flags);
-		return 0;
+		return 1;
 	}
 
 	if (fstat(fd, &st)) { err = 2; goto out1; }

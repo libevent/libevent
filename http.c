@@ -117,6 +117,11 @@ static int make_socket(int should_bind, const char *, short);
 static void name_from_addr(struct sockaddr *, socklen_t, char **, char **);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
+static void evhttp_connection_start_detectclose(
+	struct evhttp_connection *evcon);
+static void evhttp_connection_stop_detectclose(
+	struct evhttp_connection *evcon);
+static void evhttp_request_dispatch(struct evhttp_connection* evcon);
 
 void evhttp_write(int, short, void *);
 
@@ -218,12 +223,24 @@ evhttp_method(enum evhttp_cmd_type type)
 	return (method);
 }
 
+static void
+evhttp_add_event(struct event *ev, int timeout, int default_timeout)
+{
+	if (timeout != 0) {
+		struct timeval tv;
+		
+		timerclear(&tv);
+		tv.tv_sec = timeout != -1 ? timeout : default_timeout;
+		event_add(ev, &tv);
+	} else {
+		event_add(ev, NULL);
+	}
+}
+
 void
 evhttp_write_buffer(struct evhttp_connection *evcon,
     void (*cb)(struct evhttp_connection *, void *), void *arg)
 {
-	struct timeval tv;
-
 	event_debug(("%s: preparing to write buffer\n", __func__));
 
 	/* Set call back */
@@ -232,9 +249,7 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 
 	/* xxx: maybe check if the event is still pending? */
 	event_set(&evcon->ev, evcon->fd, EV_WRITE, evhttp_write, evcon);
-	timerclear(&tv);
-	tv.tv_sec = HTTP_WRITE_TIMEOUT;
-	event_add(&evcon->ev, &tv);
+	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_WRITE_TIMEOUT);
 }
 
 /*
@@ -464,7 +479,6 @@ void
 evhttp_write(int fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
-	struct timeval tv;
 	int n;
 
 	if (what == EV_TIMEOUT) {
@@ -486,9 +500,8 @@ evhttp_write(int fd, short what, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(evcon->output_buffer) != 0) {
-		timerclear(&tv);
-		tv.tv_sec = HTTP_WRITE_TIMEOUT;
-		event_add(&evcon->ev, &tv);
+		evhttp_add_event(&evcon->ev, 
+		    evcon->timeout, HTTP_WRITE_TIMEOUT);
 		return;
 	}
 
@@ -509,10 +522,12 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 		TAILQ_REMOVE(&evcon->requests, req, next);
 		req->evcon = NULL;
 
+		int need_close = 
+		    evhttp_is_connection_close(req->input_headers) ||
+		    evhttp_is_connection_close(req->output_headers);
 
 		/* check if we got asked to close the connection */
-		if (evhttp_is_connection_close(req->input_headers) ||
-		    evhttp_is_connection_close(req->output_headers))
+		if (need_close)
 			evhttp_connection_reset(evcon);
 
 		if (TAILQ_FIRST(&evcon->requests) != NULL) {
@@ -521,7 +536,16 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 			 * and deal with the next request.  xxx: no
 			 * persistent connection right now
 			 */
-			evhttp_connection_connect(evcon);
+			if (evcon->state != EVCON_CONNECTED)
+				evhttp_connection_connect(evcon);
+			else
+				evhttp_request_dispatch(evcon);
+		} else if (!need_close) {
+			/*
+			 * The connection is going to be persistent, but we
+			 * need to detect if the other side closes it.
+			 */
+			evhttp_connection_start_detectclose(evcon);
 		}
 	}
 
@@ -549,7 +573,6 @@ evhttp_read(int fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
-	struct timeval tv;
 	int n;
 
 	if (what == EV_TIMEOUT) {
@@ -574,10 +597,8 @@ evhttp_read(int fd, short what, void *arg)
 		evhttp_connection_done(evcon);
 		return;
 	}
-	
-	timerclear(&tv);
-	tv.tv_sec = HTTP_READ_TIMEOUT;
-	event_add(&evcon->ev, &tv);
+
+	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_READ_TIMEOUT);
 }
 
 void
@@ -623,7 +644,7 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	free(evcon);
 }
 
-void
+static void
 evhttp_request_dispatch(struct evhttp_connection* evcon)
 {
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
@@ -632,6 +653,9 @@ evhttp_request_dispatch(struct evhttp_connection* evcon)
 	if (req == NULL)
 		return;
 
+	/* delete possible close detection events */
+	evhttp_connection_stop_detectclose(evcon);
+	
 	/* we assume that the connection is connected already */
 	assert(evcon->state = EVCON_CONNECTED);
 
@@ -653,13 +677,42 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 		evcon->fd = -1;
 	}
 	evcon->state = EVCON_DISCONNECTED;
+
+	/* remove unneeded flags */
+	evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
+}
+
+static void
+evhttp_detect_close_cb(int fd, short what, void *arg)
+{
+	struct evhttp_connection *evcon = arg;
+	evhttp_connection_reset(evcon);
+}
+
+static void
+evhttp_connection_start_detectclose(struct evhttp_connection *evcon)
+{
+	assert((evcon->flags & EVHTTP_REQ_OWN_CONNECTION) == 0);
+	evcon->flags |= EVHTTP_CON_CLOSEDETECT;
+	
+	event_del(&evcon->ev);
+	event_set(&evcon->ev, evcon->fd, EV_READ,
+	    evhttp_detect_close_cb, evcon);
+	event_add(&evcon->ev, NULL);
+}
+
+static void
+evhttp_connection_stop_detectclose(struct evhttp_connection *evcon)
+{
+	evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
+	event_del(&evcon->ev);
 }
 
 /*
  * Call back for asynchronous connection attempt.
  */
 
-void
+static void
 evhttp_connectioncb(int fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
@@ -918,10 +971,10 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 	int done = 0;
 
 	struct evkeyvalq* headers = req->input_headers;
-	while ((endp = evbuffer_find(buffer, "\r\n", 2)) != NULL) {
+	while ((endp = evbuffer_find(buffer, (u_char *)"\r\n", 2)) != NULL) {
 		char *skey, *svalue;
 
-		if (strncmp(EVBUFFER_DATA(buffer), "\r\n", 2) == 0) {
+		if (strncmp((char *)EVBUFFER_DATA(buffer), "\r\n", 2) == 0) {
 			evbuffer_drain(buffer, 2);
 			/* Last header - Done */
 			done = 1;
@@ -937,11 +990,13 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 		if (req->got_firstline == 0) {
 			switch (req->kind) {
 			case EVHTTP_REQUEST:
-				if (evhttp_parse_request_line(req, EVBUFFER_DATA(buffer)) == -1)
+				if (evhttp_parse_request_line(
+					    req, EVBUFFER_DATA(buffer)) == -1)
 					return (-1);
 				break;
 			case EVHTTP_RESPONSE:
-				if (evhttp_parse_response_line(req, EVBUFFER_DATA(buffer)) == -1)
+				if (evhttp_parse_response_line(
+					    req, EVBUFFER_DATA(buffer)) == -1)
 					return (-1);
 				break;
 			default:
@@ -950,7 +1005,7 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 			req->got_firstline = 1;
 		} else {
 			/* Regular header */
-			svalue = EVBUFFER_DATA(buffer);
+			svalue = (char *)EVBUFFER_DATA(buffer);
 			skey = strsep(&svalue, ":");
 			if (svalue == NULL)
 				return (-1);
@@ -971,7 +1026,6 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 void
 evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
-	struct timeval tv;
 	const char *content_length;
 	const char *connection;
 	struct evkeyvalq *headers = req->input_headers;
@@ -1013,22 +1067,18 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 
 	event_set(&evcon->ev, evcon->fd, EV_READ, evhttp_read, evcon);
-	timerclear(&tv);
-	tv.tv_sec = HTTP_READ_TIMEOUT;
-	event_add(&evcon->ev, &tv);
-	return;
+	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_READ_TIMEOUT);
 }
 
 void
 evhttp_read_header(int fd, short what, void *arg)
 {
-	struct timeval tv;
 	struct evhttp_connection *evcon = arg;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	int n, res;
 
 	if (what == EV_TIMEOUT) {
-		event_warnx("%s: timeout on %d\n", __func__, fd);
+		event_debug(("%s: timeout on %d\n", __func__, fd));
 		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
 		return;
 	}
@@ -1053,9 +1103,8 @@ evhttp_read_header(int fd, short what, void *arg)
 		return;
 	} else if (res == 0) {
 		/* Need more header lines */
-		timerclear(&tv);
-		tv.tv_sec = HTTP_READ_TIMEOUT;
-		event_add(&evcon->ev, &tv);
+		evhttp_add_event(&evcon->ev, 
+		    evcon->timeout, HTTP_READ_TIMEOUT);
 		return;
 	}
 
@@ -1105,6 +1154,8 @@ evhttp_connection_new(const char *address, unsigned short port)
 	evcon->fd = -1;
 	evcon->port = port;
 
+	evcon->timeout = -1;
+
 	if ((evcon->address = strdup(address)) == NULL) {
 		event_warn("%s: strdup failed", __func__);
 		goto error;
@@ -1131,11 +1182,16 @@ evhttp_connection_new(const char *address, unsigned short port)
 	return (NULL);
 }
 
+void
+evhttp_connection_set_timeout(struct evhttp_connection *evcon,
+    int timeout_in_secs)
+{
+	evcon->timeout = timeout_in_secs;
+}
+
 int
 evhttp_connection_connect(struct evhttp_connection *evcon)
 {
-	struct timeval tv;
-	
 	if (evcon->state == EVCON_CONNECTING)
 		return (0);
 	
@@ -1154,9 +1210,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 
 	/* Set up a callback for successful connection setup */
 	event_set(&evcon->ev, evcon->fd, EV_WRITE, evhttp_connectioncb, evcon);
-	timerclear(&tv);
-	tv.tv_sec = HTTP_CONNECT_TIMEOUT;
-	event_add(&evcon->ev, &tv);
+	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_CONNECT_TIMEOUT);
 
 	evcon->state = EVCON_CONNECTING;
 	
@@ -1190,7 +1244,7 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	
 	assert(req->evcon == NULL);
 	req->evcon = evcon;
-	assert(!(req->flags && EVHTTP_REQ_OWN_CONNECTION));
+	assert(!(req->flags & EVHTTP_REQ_OWN_CONNECTION));
 	
 	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
@@ -1217,16 +1271,12 @@ evhttp_make_request(struct evhttp_connection *evcon,
 void
 evhttp_start_read(struct evhttp_connection *evcon)
 {
-	struct timeval tv;
-
 	/* Set up an event to read the headers */
 	if (event_initialized(&evcon->ev))
 		event_del(&evcon->ev);
 	event_set(&evcon->ev, evcon->fd, EV_READ, evhttp_read_header, evcon);
-
-	timerclear(&tv);
-	tv.tv_sec = HTTP_READ_TIMEOUT;
-	event_add(&evcon->ev, &tv);
+	
+	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_READ_TIMEOUT);
 }
 
 void
@@ -1239,17 +1289,15 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	need_close = evhttp_is_connection_close(req->input_headers) ||
 	    evhttp_is_connection_close(req->output_headers);
 
+	assert(req->flags & EVHTTP_REQ_OWN_CONNECTION);
 	evhttp_request_free(req);
 
-	if ((req->flags & EVHTTP_REQ_OWN_CONNECTION) == 0)
-		return;
-	
 	if (need_close) {
 		evhttp_connection_free(evcon);
 		return;
 	} 
 
-	/* we have a persistent connection; try to accept another request */
+	/* we have a persistent connection; try to accept another request. */
 	if (evhttp_associate_new_request_with_connection(evcon) == -1)
 		evhttp_connection_free(evcon);
 }
@@ -1489,6 +1537,8 @@ evhttp_start(const char *address, u_short port)
 		return (NULL);
 	}
 
+	http->timeout = -1;
+
 	TAILQ_INIT(&http->callbacks);
 	TAILQ_INIT(&http->connections);
 
@@ -1523,6 +1573,12 @@ evhttp_free(struct evhttp* http)
 	}
 	
 	free(http);
+}
+
+void
+evhttp_set_timeout(struct evhttp* http, int timeout_in_secs)
+{
+	http->timeout = timeout_in_secs;
 }
 
 void
@@ -1696,6 +1752,10 @@ evhttp_get_request(struct evhttp *http, int fd,
 	evcon = evhttp_get_request_connection(fd, sa, salen);
 	if (evcon == NULL)
 		return;
+
+	/* the timeout can be used by the server to close idle connections */
+	if (http->timeout != -1)
+		evhttp_connection_set_timeout(evcon, http->timeout);
 
 	/* 
 	 * if we want to accept more than one request on a connection,
