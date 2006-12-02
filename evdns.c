@@ -799,7 +799,11 @@ transaction_id_pick(void) {
 #ifdef DNS_USE_CPU_CLOCK_FOR_ID
 		struct timespec ts;
 		u16 trans_id;
-		if (clock_gettime(CLOCK_MONOTONIC, &ts))
+#ifdef CLOCK_MONOTONIC
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
+#else
+		if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+#endif
 			event_err(1, "clock_gettime");
                 trans_id = ts.tv_nsec & 0xffff;
 #endif

@@ -302,21 +302,26 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	    req->response_code_line);
 	evbuffer_add(evcon->output_buffer, line, strlen(line));
 
-	/* Potentially add headers */
-	if (evhttp_find_header(req->output_headers, "Content-Type") == NULL) {
+	/* Potentially add headers for unidentified content. */
+	if (EVBUFFER_LENGTH(req->output_buffer) &&
+	    evhttp_find_header(req->output_headers, "Content-Type") == NULL) {
 		evhttp_add_header(req->output_headers,
 		    "Content-Type", "text/html; charset=ISO-8859-1");
-	}
-
-	/* 
-	 * we need to add the content length if the user did not give it,
-	 * this is required for persistent connections to work.
-	 */
-	if (evhttp_find_header(req->output_headers, "Content-Length") == NULL){
-		static char len[12];
-		snprintf(len, sizeof(len), "%ld",
-			 (long)EVBUFFER_LENGTH(req->output_buffer));
-		evhttp_add_header(req->output_headers, "Content-Length", len);
+		/* 
+		 * we need to add the content length if the user did
+		 * not give it, this is required for persistent
+		 * connections to work.
+		 */
+		if (evhttp_find_header(req->output_headers,
+			"Transfer-Encoding") == NULL &&
+		    evhttp_find_header(req->output_headers,
+			"Content-Length") == NULL) {
+			static char len[12];
+			snprintf(len, sizeof(len), "%ld",
+			    (long)EVBUFFER_LENGTH(req->output_buffer));
+			evhttp_add_header(req->output_headers,
+			    "Content-Length", len);
+		}
 	}
 
 	/* if the request asked for a close, we send a close, too */

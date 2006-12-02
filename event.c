@@ -149,8 +149,12 @@ gettime(struct timeval *tp)
 {
 #ifdef HAVE_CLOCK_GETTIME
 	struct timespec	ts;
-	
+
+#ifdef HAVE_CLOCK_MONOTONIC      
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
+#else
+	if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+#endif
 		return (-1);
 	tp->tv_sec = ts.tv_sec;
 	tp->tv_usec = ts.tv_nsec / 1000;
