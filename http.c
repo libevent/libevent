@@ -426,10 +426,10 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 	case EVCON_HTTP_TIMEOUT:
 	case EVCON_HTTP_EOF:
 		/* 
-		 * these are cases in which we probably should just close
-		 * the connection and actually send a reply.  this case may
-		 * happen when a browser keeps a persistent connection open
-		 * and we timeout on the read.
+		 * these are cases in which we probably should just
+		 * close the connection and not send a reply.  this
+		 * case may happen when a browser keeps a persistent
+		 * connection open and we timeout on the read.
 		 */
 		return (-1);
 	case EVCON_HTTP_INVALID_HEADER:
@@ -439,6 +439,11 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 			free(req->uri);
 			req->uri = NULL;
 		}
+
+		/* 
+		 * the callback needs to send a reply, once the reply has
+		 * been send, the connection should get freed.
+		 */
 		(*req->cb)(req, req->cb_arg);
 	}
 	
@@ -452,28 +457,31 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 	struct evhttp_request* req = TAILQ_FIRST(&evcon->requests);
 	assert(req != NULL);
 	
-	if (req->cb != NULL) {
+	if (evcon->flags & EVHTTP_CON_INCOMING) {
 		/* 
-		 * we are passing the request object if we have an incoming
-		 * request that somehow needs to be answered.  we need to
-		 * wait for the answer to travel over the wire before we can
-		 * kill the connection.
+		 * for incoming requests, there are two different
+		 * failure cases.  it's either a network level error
+		 * or an http layer error. for problems on the network
+		 * layer like timeouts we just drop the connections.
+		 * For HTTP problems, we might have to send back a
+		 * reply before the connection can be freed.
 		 */
-		if (evcon->flags & EVHTTP_CON_INCOMING) {
-			if (evhttp_connection_incoming_fail(req, error) == 0)
-				return;
-		} else {
-			(*req->cb)(NULL, req->cb_arg);
-		}
+		if (evhttp_connection_incoming_fail(req, error) == -1)
+			evhttp_connection_free(evcon);
+		return;
 	}
 
-	/* reset the connection */
-	evhttp_connection_reset(evcon);
+
+	if (req->cb != NULL)
+		(*req->cb)(NULL, req->cb_arg);
 
 	TAILQ_REMOVE(&evcon->requests, req, next);
 	evhttp_request_free(req);
 
 	/* xxx: maybe we should fail all requests??? */
+
+	/* reset the connection */
+	evhttp_connection_reset(evcon);
 	
 	/* We are trying the next request that was queued on us */
 	if (TAILQ_FIRST(&evcon->requests) != NULL)
@@ -626,6 +634,14 @@ evhttp_write_connectioncb(struct evhttp_connection *evcon, void *arg)
 void
 evhttp_connection_free(struct evhttp_connection *evcon)
 {
+	struct evhttp_request *req;
+
+	/* remove all requests that might be queued on this connection */
+	while ((req = TAILQ_FIRST(&evcon->requests)) != NULL) {
+		TAILQ_REMOVE(&evcon->requests, req, next);
+		evhttp_request_free(req);
+	}
+
 	if (evcon->http_server != NULL) {
 		struct evhttp *http = evcon->http_server;
 		TAILQ_REMOVE(&http->connections, evcon, next);
