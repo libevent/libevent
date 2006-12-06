@@ -247,7 +247,10 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	evcon->cb = cb;
 	evcon->cb_arg = arg;
 
-	/* xxx: maybe check if the event is still pending? */
+	/* check if the event is already pending */
+	if (event_pending(&evcon->ev, EV_WRITE|EV_TIMEOUT, NULL))
+		event_del(&evcon->ev);
+
 	event_set(&evcon->ev, evcon->fd, EV_WRITE, evhttp_write, evcon);
 	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_WRITE_TIMEOUT);
 }
@@ -1138,9 +1141,17 @@ evhttp_read_header(int fd, short what, void *arg)
 		break;
 
 	case EVHTTP_RESPONSE:
-		event_debug(("%s: starting to read body for \"%s\" on %d\n",
+		if (req->response_code == HTTP_NOCONTENT ||
+		    req->response_code == HTTP_NOTMODIFIED ||
+		    (req->response_code >= 100 && req->response_code < 200)) {
+			event_debug(("%s: skipping body for code %d\n",
+					__func__, req->response_code));
+			evhttp_connection_done(evcon);
+		} else {
+			event_debug(("%s: start of read body for %s on %d\n",
 				__func__, req->remote_host, fd));
-		evhttp_get_body(evcon, req);
+			evhttp_get_body(evcon, req);
+		}
 		break;
 
 	default:

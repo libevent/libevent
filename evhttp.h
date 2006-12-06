@@ -50,8 +50,10 @@ extern "C" {
 
 /* Response codes */
 #define HTTP_OK			200
+#define HTTP_NOCONTENT		204
 #define HTTP_MOVEPERM		301
 #define HTTP_MOVETEMP		302
+#define HTTP_NOTMODIFIED	304
 #define HTTP_BADREQUEST		400
 #define HTTP_NOTFOUND		404
 #define HTTP_SERVUNAVAIL	503
