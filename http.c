@@ -733,6 +733,15 @@ evhttp_connection_stop_detectclose(struct evhttp_connection *evcon)
 	event_del(&evcon->ev);
 }
 
+static void
+evhttp_connection_retry(int fd, short what, void *arg)
+{
+	struct evhttp_connection *evcon = arg;
+
+	evcon->state = EVCON_DISCONNECTED;
+	evhttp_connection_connect(evcon);
+}
+
 /*
  * Call back for asynchronous connection attempt.
  */
@@ -769,6 +778,8 @@ evhttp_connectioncb(int fd, short what, void *arg)
 	event_debug(("%s: connected to \"%s:%d\" on %d\n",
 			__func__, evcon->address, evcon->port, evcon->fd));
 
+	/* Reset the retry count as we were successful in connecting */
+	evcon->retry_cnt = 0;
 	evcon->state = EVCON_CONNECTED;
 
 	/* try to start requests that have queued up on this connection */
@@ -776,6 +787,13 @@ evhttp_connectioncb(int fd, short what, void *arg)
 	return;
 
  cleanup:
+	if (evcon->retry_max < 0 || evcon->retry_cnt < evcon->retry_max) {
+		evtimer_set(&evcon->ev, evhttp_connection_retry, evcon);
+		evhttp_add_event(&evcon->ev, 2 << evcon->retry_cnt,
+		    HTTP_CONNECT_TIMEOUT);
+		evcon->retry_cnt++;
+		return;
+	}
 	evhttp_connection_reset(evcon);
 
 	/* for now, we just signal all requests by executing their callbacks */
@@ -1188,6 +1206,7 @@ evhttp_connection_new(const char *address, unsigned short port)
 	evcon->port = port;
 
 	evcon->timeout = -1;
+	evcon->retry_cnt = evcon->retry_max = 0;
 
 	if ((evcon->address = strdup(address)) == NULL) {
 		event_warn("%s: strdup failed", __func__);
@@ -1220,6 +1239,13 @@ evhttp_connection_set_timeout(struct evhttp_connection *evcon,
     int timeout_in_secs)
 {
 	evcon->timeout = timeout_in_secs;
+}
+
+void
+evhttp_connection_set_retries(struct evhttp_connection *evcon,
+    int retry_max)
+{
+	evcon->retry_max = retry_max;
 }
 
 int

@@ -160,6 +160,10 @@ void evhttp_connection_free(struct evhttp_connection *evcon);
 void evhttp_connection_set_timeout(struct evhttp_connection *evcon,
     int timeout_in_secs);
 
+/* Sets the retry limit for this connection - -1 repeats indefnitely */
+void evhttp_connection_set_retries(struct evhttp_connection *evcon,
+    int retry_max);
+
 /* The connection gets ownership of the request */
 int evhttp_make_request(struct evhttp_connection *evcon,
     struct evhttp_request *req,

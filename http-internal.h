@@ -53,6 +53,8 @@ struct evhttp_connection {
 #define EVHTTP_CON_CLOSEDETECT  0x0004  /* detecting if persistent close */
 
 	int timeout;			/* timeout in seconds for events */
+	int retry_cnt;			/* retry count */
+	int retry_max;			/* maximum number of retries */
 	
 	enum evhttp_connection_state state;
 
