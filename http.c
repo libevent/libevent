@@ -523,7 +523,8 @@ evhttp_write(int fd, short what, void *arg)
 	}
 
 	/* Activate our call back */
-	(*evcon->cb)(evcon, evcon->cb_arg);
+	if (evcon->cb != NULL)
+		(*evcon->cb)(evcon, evcon->cb_arg);
 }
 
 void
@@ -640,6 +641,12 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 {
 	struct evhttp_request *req;
 
+	/* notify interested parties that this connection is going down */
+	if (evcon->fd != -1) {
+		if (evcon->closecb != NULL)
+			(*evcon->closecb)(evcon, evcon->closecb_arg);
+	}
+
 	/* remove all requests that might be queued on this connection */
 	while ((req = TAILQ_FIRST(&evcon->requests)) != NULL) {
 		TAILQ_REMOVE(&evcon->requests, req, next);
@@ -698,6 +705,10 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 		event_del(&evcon->ev);
 
 	if (evcon->fd != -1) {
+		/* inform interested parties about connection close */
+		if (evcon->closecb != NULL)
+			(*evcon->closecb)(evcon, evcon->closecb_arg);
+
 		close(evcon->fd);
 		evcon->fd = -1;
 	}
@@ -717,7 +728,6 @@ evhttp_detect_close_cb(int fd, short what, void *arg)
 static void
 evhttp_connection_start_detectclose(struct evhttp_connection *evcon)
 {
-	assert((evcon->flags & EVHTTP_REQ_OWN_CONNECTION) == 0);
 	evcon->flags |= EVHTTP_CON_CLOSEDETECT;
 	
 	event_del(&evcon->ev);
@@ -1248,6 +1258,27 @@ evhttp_connection_set_retries(struct evhttp_connection *evcon,
 	evcon->retry_max = retry_max;
 }
 
+void
+evhttp_connection_set_closecb(struct evhttp_connection *evcon,
+    void (*cb)(struct evhttp_connection *, void *), void *cbarg)
+{
+	evcon->closecb = cb;
+	evcon->closecb_arg = cbarg;
+	/* 
+	 * xxx: we cannot just call evhttp_connection_start_detectclose here
+	 * that's valid only for client initiated connections that currently
+	 * do not process any requests.
+	 */
+}
+
+void
+evhttp_connection_get_peer(struct evhttp_connection *evcon,
+    char **address, u_short *port)
+{
+	*address = evcon->address;
+	*port = evcon->port;
+}
+
 int
 evhttp_connection_connect(struct evhttp_connection *evcon)
 {
@@ -1415,6 +1446,37 @@ evhttp_send_reply(struct evhttp_request *req, int code, const char *reason,
 	evhttp_response_code(req, code, reason);
 	
 	evhttp_send(req, databuf);
+}
+
+void
+evhttp_send_reply_start(struct evhttp_request *req, int code,
+    const char *reason)
+{
+	evhttp_response_code(req, code, reason);
+	evhttp_make_header(req->evcon, req);
+	evhttp_write_buffer(req->evcon, NULL, NULL);
+}
+
+void
+evhttp_send_reply_data(struct evhttp_request *req, struct evbuffer *databuf)
+{
+	evbuffer_add_buffer(req->evcon->output_buffer, databuf);
+	evhttp_write_buffer(req->evcon, NULL, NULL);
+}
+
+void
+evhttp_send_reply_done(struct evhttp_request *req)
+{
+	struct evhttp_connection *evcon = req->evcon;
+
+	if (!event_pending(&evcon->ev, EV_WRITE|EV_TIMEOUT, NULL)) {
+		/* let the connection know that we are done with the request */
+		evhttp_send_done(evcon, NULL);
+	} else {
+		/* make the callback execute after all data has been written */
+		evcon->cb = evhttp_send_done;
+		evcon->cb_arg = NULL;
+	}
 }
 
 void

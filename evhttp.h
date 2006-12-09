@@ -87,6 +87,11 @@ void evhttp_send_error(struct evhttp_request *, int, const char *);
 void evhttp_send_reply(struct evhttp_request *, int, const char *,
     struct evbuffer *);
 
+/* Low-level response interface, for streaming/chunked replies */
+void evhttp_send_reply_start(struct evhttp_request *, int, const char *);
+void evhttp_send_reply_data(struct evhttp_request *, struct evbuffer *);
+void evhttp_send_reply_done(struct evhttp_request *);
+	
 /* Interfaces for making requests */
 enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
 
@@ -163,6 +168,14 @@ void evhttp_connection_set_timeout(struct evhttp_connection *evcon,
 /* Sets the retry limit for this connection - -1 repeats indefnitely */
 void evhttp_connection_set_retries(struct evhttp_connection *evcon,
     int retry_max);
+
+/* Set a callback for connection close. */
+void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
+    void (*)(struct evhttp_connection *, void *), void *);
+
+/* Get the remote address and port associated with this connection. */
+void evhttp_connection_get_peer(struct evhttp_connection *evcon,
+    char **address, u_short *port);
 
 /* The connection gets ownership of the request */
 int evhttp_make_request(struct evhttp_connection *evcon,

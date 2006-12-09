@@ -65,6 +65,9 @@ struct evhttp_connection {
 	
 	void (*cb)(struct evhttp_connection *, void *);
 	void *cb_arg;
+	
+	void (*closecb)(struct evhttp_connection *, void *);
+	void *closecb_arg;
 };
 
 struct evhttp_cb {
