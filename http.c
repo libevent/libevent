@@ -1265,10 +1265,12 @@ evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 	evcon->closecb = cb;
 	evcon->closecb_arg = cbarg;
 	/* 
-	 * xxx: we cannot just call evhttp_connection_start_detectclose here
-	 * that's valid only for client initiated connections that currently
-	 * do not process any requests.
+	 * applications that stream to clients forever might want to
+	 * detect when a browser or client has stopped receiving the
+	 * stream.  this would be detected on the next write in any case,
+	 * however, we can release resources earlier using this.
 	 */
+	evhttp_connection_start_detectclose(evcon);
 }
 
 void
@@ -1376,6 +1378,9 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
+	/* delete possible close detection events */
+	evhttp_connection_stop_detectclose(evcon);
+	
 	need_close = evhttp_is_connection_close(req->input_headers) ||
 	    evhttp_is_connection_close(req->output_headers);
 
