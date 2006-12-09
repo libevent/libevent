@@ -55,6 +55,7 @@
 #endif
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -888,8 +889,8 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
-	if ((req->uri = strdup(uri)) == NULL) {
-		event_warn("%s: strdup", __func__);
+	if ((req->uri = evhttp_decode_uri(uri)) == NULL) {
+		event_warn("%s: evhttp_decode_uri", __func__);
 		return (-1);
 	}
 
@@ -1372,8 +1373,9 @@ evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 	assert(TAILQ_FIRST(&evcon->requests) == req);
 
 	/* xxx: not sure if we really should expose the data buffer this way */
-	evbuffer_add_buffer(req->output_buffer, databuf);
-
+	if (databuf != NULL)
+		evbuffer_add_buffer(req->output_buffer, databuf);
+	
 	/* Adds headers to the response */
 	evhttp_make_header(evcon, req);
 
@@ -1417,9 +1419,39 @@ evhttp_send_page(struct evhttp_request *req, struct evbuffer *databuf)
 	evhttp_send(req, databuf);
 }
 
+char *
+evhttp_decode_uri(const char *path)
+{
+	char c, *ret;
+	int i, j, in_query = 0;
+	
+	ret = malloc(strlen(path) + 1);
+	if (ret == NULL)
+		event_err(1, "%s: malloc(%d)", __func__, strlen(path) + 1);
+
+	for (i = j = 0; path[i] != '\0'; i++) {
+		c = path[i];
+		if (c == '?') {
+			in_query = 1;
+		} else if (c == '+' && in_query) {
+			c = ' ';
+		} else if (c == '%' && isxdigit(path[i+1]) &&
+		    isxdigit(path[i+2])) {
+			char tmp[] = { path[i+1], path[i+2], '\0' };
+			c = (char)strtol(tmp, NULL, 16);
+			i += 2;
+		}
+		ret[j++] = c;
+	}
+	ret[j] = '\0';
+	
+	return (ret);
+}
+
 /* 
  * Helper function to parse out arguments in a query.
  * The arguments are separated by key and value.
+ * URI should already be decoded.
  */
 
 void

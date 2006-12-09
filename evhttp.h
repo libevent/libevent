@@ -175,6 +175,7 @@ int evhttp_add_header(struct evkeyvalq *, const char *, const char *);
 void evhttp_clear_headers(struct evkeyvalq *);
 
 /* Miscellaneous utility functions */
+char *evhttp_decode_uri(const char *path);
 void evhttp_parse_query(const char *uri, struct evkeyvalq *);
 char *evhttp_htmlescape(const char *html);
 #ifdef __cplusplus
