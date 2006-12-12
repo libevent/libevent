@@ -41,6 +41,7 @@ struct evhttp_connection {
 
 	int fd;
 	struct event ev;
+	struct event close_ev;
 	struct evbuffer *input_buffer;
 	struct evbuffer *output_buffer;
 	

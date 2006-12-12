@@ -658,6 +658,9 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		TAILQ_REMOVE(&http->connections, evcon, next);
 	}
 
+	if (event_initialized(&evcon->close_ev))
+		event_del(&evcon->close_ev);
+
 	if (event_initialized(&evcon->ev))
 		event_del(&evcon->ev);
 	
@@ -729,18 +732,19 @@ static void
 evhttp_connection_start_detectclose(struct evhttp_connection *evcon)
 {
 	evcon->flags |= EVHTTP_CON_CLOSEDETECT;
-	
-	event_del(&evcon->ev);
-	event_set(&evcon->ev, evcon->fd, EV_READ,
+
+	if (event_initialized(&evcon->close_ev))
+		event_del(&evcon->close_ev);
+	event_set(&evcon->close_ev, evcon->fd, EV_READ,
 	    evhttp_detect_close_cb, evcon);
-	event_add(&evcon->ev, NULL);
+	event_add(&evcon->close_ev, NULL);
 }
 
 static void
 evhttp_connection_stop_detectclose(struct evhttp_connection *evcon)
 {
 	evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
-	event_del(&evcon->ev);
+	event_del(&evcon->close_ev);
 }
 
 static void
@@ -1264,13 +1268,6 @@ evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 {
 	evcon->closecb = cb;
 	evcon->closecb_arg = cbarg;
-	/* 
-	 * applications that stream to clients forever might want to
-	 * detect when a browser or client has stopped receiving the
-	 * stream.  this would be detected on the next write in any case,
-	 * however, we can release resources earlier using this.
-	 */
-	evhttp_connection_start_detectclose(evcon);
 }
 
 void
@@ -1457,6 +1454,8 @@ void
 evhttp_send_reply_start(struct evhttp_request *req, int code,
     const char *reason)
 {
+	/* set up to watch for client close */
+	evhttp_connection_start_detectclose(req->evcon);
 	evhttp_response_code(req, code, reason);
 	evhttp_make_header(req->evcon, req);
 	evhttp_write_buffer(req->evcon, NULL, NULL);
