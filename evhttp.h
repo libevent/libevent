@@ -89,8 +89,8 @@ void evhttp_send_reply(struct evhttp_request *, int, const char *,
 
 /* Low-level response interface, for streaming/chunked replies */
 void evhttp_send_reply_start(struct evhttp_request *, int, const char *);
-void evhttp_send_reply_data(struct evhttp_request *, struct evbuffer *);
-void evhttp_send_reply_done(struct evhttp_request *);
+void evhttp_send_reply_chunk(struct evhttp_request *, struct evbuffer *);
+void evhttp_send_reply_end(struct evhttp_request *);
 	
 /* Interfaces for making requests */
 enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
@@ -131,6 +131,7 @@ struct evhttp_request {
 
 	struct evbuffer *input_buffer;	/* read data */
 	int ntoread;
+	int chunked;
 
 	struct evbuffer *output_buffer;	/* outgoing post or data */
 
@@ -192,7 +193,8 @@ int evhttp_add_header(struct evkeyvalq *, const char *, const char *);
 void evhttp_clear_headers(struct evkeyvalq *);
 
 /* Miscellaneous utility functions */
-char *evhttp_decode_uri(const char *path);
+char *evhttp_encode_uri(const char *uri);
+char *evhttp_decode_uri(const char *uri);
 void evhttp_parse_query(const char *uri, struct evkeyvalq *);
 char *evhttp_htmlescape(const char *html);
 #ifdef __cplusplus
