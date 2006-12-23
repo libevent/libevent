@@ -757,7 +757,7 @@ evhttp_request_dispatch(struct evhttp_connection* evcon)
 	evhttp_connection_stop_detectclose(evcon);
 	
 	/* we assume that the connection is connected already */
-	assert(evcon->state = EVCON_CONNECTED);
+	assert(evcon->state == EVCON_CONNECTED);
 
 	/* Create the header from the store arguments */
 	evhttp_make_header(evcon, req);
