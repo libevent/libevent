@@ -73,6 +73,7 @@
 #undef timeout_pending
 #undef timeout_initialized
 
+#include "strlcpy-internal.h"
 #include "event.h"
 #include "evhttp.h"
 #include "log.h"

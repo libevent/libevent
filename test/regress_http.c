@@ -128,7 +128,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 
  	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bev->input)));
 	
-	if (evbuffer_find(bev->input, what, strlen(what)) != NULL) {
+	if (evbuffer_find(bev->input, (const unsigned char*) what, strlen(what)) != NULL) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		req->kind = EVHTTP_RESPONSE;
 		int done = evhttp_parse_lines(req, bev->input);
@@ -445,7 +445,7 @@ void
 http_failure_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = "400 Bad Request";
-	if (evbuffer_find(bev->input, what, strlen(what)) != NULL) {
+	if (evbuffer_find(bev->input, (const unsigned char*) what, strlen(what)) != NULL) {
 		test_ok = 2;
 		bufferevent_disable(bev, EV_READ);
 		event_loopexit(NULL);
