@@ -125,6 +125,7 @@ static void evhttp_connection_stop_detectclose(
 	struct evhttp_connection *evcon);
 static void evhttp_request_dispatch(struct evhttp_connection* evcon);
 
+void evhttp_read(int, short, void *);
 void evhttp_write(int, short, void *);
 
 #ifndef HAVE_STRSEP
@@ -625,6 +626,40 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 	return (0);
 }
 
+void
+evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
+{
+	struct evbuffer *buf = evcon->input_buffer;
+	
+	if (req->chunked) {
+		int res = evhttp_handle_chunked_read(req, buf);
+		if (res == 1) {
+			/* finished last chunk */
+			evhttp_connection_done(evcon);
+			return;
+		} else if (res == -1) {
+			/* corrupted data */
+			evhttp_connection_fail(evcon,
+			    EVCON_HTTP_INVALID_HEADER);
+			return;
+		}
+	} else if (req->ntoread < 0) {
+		/* Read until connection close. */
+		evbuffer_add_buffer(req->input_buffer, buf);
+	} else if (EVBUFFER_LENGTH(buf) >= req->ntoread) {
+		/* Completed content length */
+		evbuffer_add(req->input_buffer, EVBUFFER_DATA(buf),
+		    req->ntoread);
+		evbuffer_drain(buf, req->ntoread);
+		req->ntoread = 0;
+		evhttp_connection_done(evcon);
+		return;
+	}
+	/* Read more! */
+	event_set(&evcon->ev, evcon->fd, EV_READ, evhttp_read, evcon);
+	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_READ_TIMEOUT);
+}
+
 /*
  * Reads data into a buffer structure until no more data
  * can be read on the file descriptor or we have read all
@@ -657,32 +692,7 @@ evhttp_read(int fd, short what, void *arg)
 		evhttp_connection_done(evcon);
 		return;
 	}
-	if (req->chunked) {
-		int res = evhttp_handle_chunked_read(req, buf);
-		if (res == 1) {
-			/* finished last chunk */
-			evhttp_connection_done(evcon);
-			return;
-		} else if (res == -1) {
-			/* corrupted data */
-			evhttp_connection_fail(evcon,
-			    EVCON_HTTP_INVALID_HEADER);
-			return;
-		}
-	} else if (req->ntoread < 0) {
-		/* Read until connection close. */
-		evbuffer_add_buffer(req->input_buffer, buf);
-	} else if (len >= req->ntoread) {
-		/* Completed content length */
-		evbuffer_add(req->input_buffer, EVBUFFER_DATA(buf),
-		    req->ntoread);
-		evbuffer_drain(buf, req->ntoread);
-		req->ntoread = 0;
-		evhttp_connection_done(evcon);
-		return;
-	}
-	/* Read more! */
-	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_READ_TIMEOUT);
+	evhttp_read_body(evcon, req);
 }
 
 void
@@ -1202,18 +1212,8 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 			    EVCON_HTTP_INVALID_HEADER);
 			return;
 		}
-		if (req->ntoread > 0)
-			req->ntoread -= EVBUFFER_LENGTH(evcon->input_buffer);
-		
-		if (req->ntoread == 0) {
-			evbuffer_add_buffer(req->input_buffer,
-			    evcon->input_buffer);
-			evhttp_connection_done(evcon);
-			return;
-		}
 	}
-	event_set(&evcon->ev, evcon->fd, EV_READ, evhttp_read, evcon);
-	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_READ_TIMEOUT);
+	evhttp_read_body(evcon, req);
 }
 
 void
