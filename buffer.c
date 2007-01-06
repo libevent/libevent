@@ -432,12 +432,13 @@ evbuffer_find(struct evbuffer *buffer, const u_char *what, size_t len)
 	u_char *search = buffer->buffer;
 	u_char *p;
 
-	while ((p = memchr(search, *what, remain)) != NULL && remain >= len) {
+	while ((p = memchr(search, *what, remain)) != NULL) {
+		remain = buffer->off - (size_t)(search - buffer->buffer);
+		if (remain < len)
+			break;
 		if (memcmp(p, what, len) == 0)
 			return (p);
-
 		search = p + 1;
-		remain = buffer->off - (size_t)(search - buffer->buffer);
 	}
 
 	return (NULL);
