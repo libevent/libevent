@@ -1803,7 +1803,10 @@ accept_socket(int fd, short what, void *arg)
 		event_warn("%s: bad accept", __func__);
 		return;
 	}
-
+        if (fcntl(nfd, F_SETFL, O_NONBLOCK) == -1) {
+                event_warn("fcntl(O_NONBLOCK)");
+                return;
+        }
 	evhttp_get_request(http, nfd, (struct sockaddr *)&ss, addrlen);
 }
 
