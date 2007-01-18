@@ -115,7 +115,7 @@ fake_freeaddrinfo(struct addrinfo *ai)
 extern int debug;
 
 static int make_socket_ai(int should_bind, struct addrinfo *);
-static int make_socket(int should_bind, const char *, short);
+static int make_socket(int should_bind, const char *, u_short);
 static void name_from_addr(struct sockaddr *, socklen_t, char **, char **);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
@@ -2089,14 +2089,17 @@ addr_from_name(char *address)
 {
 #ifdef HAVE_GETADDRINFO
         struct addrinfo ai, *aitop;
+        int ai_result;
 
         memset(&ai, 0, sizeof (ai));
         ai.ai_family = AF_INET;
         ai.ai_socktype = SOCK_RAW;
         ai.ai_flags = 0;
-        if (getaddrinfo(address, NULL, &ai, &aitop) != 0) {
-                event_warn("getaddrinfo");
-                return (NULL);
+        if ((ai_result = getaddrinfo(address, NULL, &ai, &aitop)) != 0) {
+                if ( ai_result == EAI_SYSTEM )
+                        event_warn("getaddrinfo");
+                else
+                        event_warnx("getaddrinfo: %s", gai_strerror(ai_result));
         }
 
 	return (aitop);
@@ -2113,12 +2116,17 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 #ifdef HAVE_GETNAMEINFO
 	static char ntop[NI_MAXHOST];
 	static char strport[NI_MAXSERV];
+	int ni_result;
 
-	if (getnameinfo(sa, salen,
+	if ((ni_result = getnameinfo(sa, salen,
 		ntop, sizeof(ntop), strport, sizeof(strport),
-		NI_NUMERICHOST|NI_NUMERICSERV) != 0)
-		event_err(1, "getnameinfo failed");
-
+		NI_NUMERICHOST|NI_NUMERICSERV)) != 0) {
+		if (ni_result == EAI_SYSTEM)
+			event_err(1, "getnameinfo failed");
+		else
+			event_errx(1, "getnameinfo failed: %s", gai_strerror(ni_result));
+	}
+ 
 	*phost = ntop;
 	*pport = strport;
 #else
@@ -2193,20 +2201,24 @@ make_socket_ai(int should_bind, struct addrinfo *ai)
 }
 
 static int
-make_socket(int should_bind, const char *address, short port)
+make_socket(int should_bind, const char *address, u_short port)
 {
 	int fd;
         struct addrinfo ai, *aitop;
 #ifdef HAVE_GETADDRINFO
         char strport[NI_MAXSERV];
+        int ai_result;
+
         memset(&ai, 0, sizeof (ai));
         ai.ai_family = AF_INET;
         ai.ai_socktype = SOCK_STREAM;
         ai.ai_flags = should_bind ? AI_PASSIVE : 0;
         snprintf(strport, sizeof (strport), "%d", port);
-        if (getaddrinfo(address, strport, &ai, &aitop) != 0) {
-                event_warn("getaddrinfo");
-                return (-1);
+        if ((ai_result = getaddrinfo(address, strport, &ai, &aitop)) != 0) {
+                if ( ai_result == EAI_SYSTEM )
+                        event_warn("getaddrinfo");
+                else
+                        event_warnx("getaddrinfo: %s", gai_strerror(ai_result));
         }
 #else
 	if (fake_getaddrinfo(address, &ai) < 0) {
