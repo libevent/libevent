@@ -640,6 +640,7 @@ static inline int
 name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 	int name_end = -1;
 	int j = *idx;
+	int ptr_count = 0;
 #define GET32(x) do { if (j + 4 > length) return -1; memcpy(&_t32, packet + j, 4); j += 4; x = ntohl(_t32); } while(0);
 #define GET16(x) do { if (j + 2 > length) return -1; memcpy(&_t, packet + j, 2); j += 2; x = ntohs(_t); } while(0);
 #define GET8(x) do { if (j >= length) return -1; x = packet[j++]; } while(0);
@@ -663,7 +664,11 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 			GET8(ptr_low);
 			if (name_end < 0) name_end = j;
 			j = (((int)label_len & 0x3f) << 8) + ptr_low;
+			/* Make sure that the target offset is in-bounds. */
 			if (j < 0 || j >= length) return -1;
+			/* If we've jumped more times than there are characters in the
+			 * message, we must have a loop. */
+			if (++ptr_count > length) return -1;
 			continue;
 		}
 		if (label_len > 63) return -1;
