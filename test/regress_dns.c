@@ -47,6 +47,9 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #endif
+#ifdef HAVE_NETINET_IN6_H
+#include <netinet/in6.h>
+#endif
 #include <netdb.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -72,6 +75,24 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 	fprintf(stderr, "type: %d, count: %d, ttl: %d: ", type, count, ttl);
 
 	switch (type) {
+	case DNS_IPv6_AAAA: {
+#if defined(HAVE_STRUCT_IN6_ADDR) && defined(HAVE_INET_NTOP)
+		struct in6_addr *in6_addrs = addresses;
+		char buf[INET6_ADDRSTRLEN+1];
+		int i;
+		/* a resolution that's not valid does not help */
+		if (ttl < 0)
+			goto out;
+		for (i = 0; i < count; ++i) {
+			const char *b = inet_ntop(AF_INET6, &in6_addrs[i], buf,sizeof(buf));
+			if (b)
+				fprintf(stderr, "%s ", b);
+			else
+				fprintf(stderr, "%s ", strerror(errno));
+		}
+#endif
+		break;
+	}
 	case DNS_IPv4_A: {
 		struct in_addr *in_addrs = addresses;
 		int i;
@@ -79,7 +100,7 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 		if (ttl < 0)
 			goto out;
 		for (i = 0; i < count; ++i)
-			fprintf(stderr, "%s ", inet_ntoa(in_addrs[0]));
+			fprintf(stderr, "%s ", inet_ntoa(in_addrs[i]));
 		break;
 	}
 	case DNS_PTR:
@@ -93,7 +114,7 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 		goto out;
 	}
 
-	dns_ok = 1;
+	dns_ok = type;
 
 out:
 	event_loopexit(NULL);
@@ -107,7 +128,23 @@ dns_gethostbyname()
 	evdns_resolve_ipv4("www.monkey.org", 0, dns_gethostbyname_cb, NULL);
 	event_dispatch();
 
-	if (dns_ok) {
+	if (dns_ok == DNS_IPv4_A) {
+		fprintf(stdout, "OK\n");
+	} else {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+}
+
+void
+dns_gethostbyname6()
+{
+	fprintf(stdout, "IPv6 DNS resolve: ");
+	dns_ok = 0;
+	evdns_resolve_ipv6("www.ietf.org", 0, dns_gethostbyname_cb, NULL);
+	event_dispatch();
+
+	if (dns_ok == DNS_IPv6_AAAA) {
 		fprintf(stdout, "OK\n");
 	} else {
 		fprintf(stdout, "FAILED\n");
@@ -125,7 +162,7 @@ dns_gethostbyaddr()
 	evdns_resolve_reverse(&in, 0, dns_gethostbyname_cb, NULL);
 	event_dispatch();
 
-	if (dns_ok) {
+	if (dns_ok == DNS_PTR) {
 		fprintf(stdout, "OK\n");
 	} else {
 		fprintf(stdout, "FAILED\n");
@@ -138,6 +175,7 @@ dns_suite(void)
 {
 	evdns_init();
 	dns_gethostbyname();
+	dns_gethostbyname6();
 	dns_gethostbyaddr();
 
 	evdns_shutdown(0);

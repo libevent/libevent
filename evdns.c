@@ -596,6 +596,7 @@ reply_callback(struct request *const req, u32 ttl, u32 err, struct reply *reply)
 							   req->user_pointer);
 		else
 			req->user_callback(err, 0, 0, 0, NULL, req->user_pointer);
+                return;
 	}
 	assert(0);
 }
@@ -1783,7 +1784,7 @@ search_make_new(const struct search_state *const state, int n, const char *const
 
 static int
 search_request_new(int type, const char *const name, int flags, evdns_callback_type user_callback, void *user_arg) {
-	assert(type == TYPE_A);
+	assert(type == TYPE_A || type == TYPE_AAAA);
 	if ( ((flags & DNS_QUERY_NO_SEARCH) == 0) &&
 	     global_search_state &&
 		 global_search_state->num_domains) {
