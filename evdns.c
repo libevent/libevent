@@ -207,7 +207,7 @@ struct nameserver {
 				     // when we next probe this server.
 				     // Valid if state == 0
 	char state;  // zero if we think that this server is down
-	char choaked;  // true if we have an EAGAIN from this server's socket
+	char choked;  // true if we have an EAGAIN from this server's socket
 	char write_waiting;  // true if we are waiting for EV_WRITE events
 };
 
@@ -237,7 +237,7 @@ static int global_max_nameserver_timeout = 3;
 static const struct timeval global_nameserver_timeouts[] = {{10, 0}, {60, 0}, {300, 0}, {900, 0}, {3600, 0}};
 static const int global_nameserver_timeouts_length = sizeof(global_nameserver_timeouts)/sizeof(struct timeval);
 
-const char *const evdns_error_strings[] = {"no error", "The name server was unable to interpret the query", "The name server suffered an internal error", "The requested domain name does not exist", "The name server refused to reply to the request"};
+static const char *const evdns_error_strings[] = {"no error", "The name server was unable to interpret the query", "The name server suffered an internal error", "The requested domain name does not exist", "The name server refused to reply to the request"};
 
 static struct nameserver *nameserver_pick(void);
 static void evdns_request_insert(struct request *req, struct request **head);
@@ -253,7 +253,7 @@ static u16 transaction_id_pick(void);
 static struct request *request_new(int type, const char *name, int flags, evdns_callback_type callback, void *ptr);
 static void request_submit(struct request *req);
 
-#if defined(MS_WINDOWS) || defined(WIN32)
+#ifdef WIN32
 static int
 last_error(int sock)
 {
@@ -304,7 +304,7 @@ debug_ntoa(u32 address)
 {
 	static char buf[32];
 	u32 a = ntohl(address);
-	sprintf(buf, "%d.%d.%d.%d",
+	snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
                       (int)(u8)((a>>24)&0xff),
                       (int)(u8)((a>>16)&0xff),
                       (int)(u8)((a>>8 )&0xff),
@@ -336,7 +336,7 @@ _evdns_log(int warn, const char *fmt, ...)
   if (!evdns_log_fn)
     return;
   va_start(args,fmt);
-#ifdef MS_WINDOWS
+#ifdef WIN32
   _vsnprintf(buf, sizeof(buf), fmt, args);
 #else
   vsnprintf(buf, sizeof(buf), fmt, args);
@@ -664,9 +664,9 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 	int name_end = -1;
 	int j = *idx;
 	int ptr_count = 0;
-#define GET32(x) do { if (j + 4 > length) return -1; memcpy(&_t32, packet + j, 4); j += 4; x = ntohl(_t32); } while(0);
-#define GET16(x) do { if (j + 2 > length) return -1; memcpy(&_t, packet + j, 2); j += 2; x = ntohs(_t); } while(0);
-#define GET8(x) do { if (j >= length) return -1; x = packet[j++]; } while(0);
+#define GET32(x) do { if (j + 4 > length) goto err; memcpy(&_t32, packet + j, 4); j += 4; x = ntohl(_t32); } while(0);
+#define GET16(x) do { if (j + 2 > length) goto err; memcpy(&_t, packet + j, 2); j += 2; x = ntohs(_t); } while(0);
+#define GET8(x) do { if (j >= length) goto err; x = packet[j++]; } while(0);
 
 	char *cp = name_out;
 	const char *const end = name_out + name_out_len;
@@ -711,9 +711,11 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 	else
 		*idx = name_end;
 	return 0;
+ err:
+	return -1;
 }
 
-// parses a raw packet from the wire
+// parses a raw request from a nameserver
 static int
 reply_parse(u8 *packet, int length) {
 	int j = 0;  // index into packet
@@ -733,6 +735,8 @@ reply_parse(u8 *packet, int length) {
 	GET16(answers);
 	GET16(authority);
 	GET16(additional);
+	(void) authority; /* suppress "unused variable" warnings. */
+	(void) additional; /* suppress "unused variable" warnings. */
 
 	req = request_find_from_trans_id(trans_id);
 	if (!req) return -1;
@@ -752,7 +756,7 @@ reply_parse(u8 *packet, int length) {
 #define SKIP_NAME \
 	do { tmp_name[0] = '\0';					\
 		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0) \
-			return -1;					\
+			goto err;													\
 	} while(0);
 
 	reply.type = req->request_type;
@@ -783,7 +787,8 @@ reply_parse(u8 *packet, int length) {
 			if (req->request_type != TYPE_A) {
 				j += datalength; continue;
 			}
-                        // XXXX do something sane with malformed A answers.
+			if ((datalength & 3) != 0) /* not an even number of As. */
+				return -1;
 			addrcount = datalength >> 2;
 			addrtocopy = MIN(MAX_ADDRS - reply.data.a.addrcount, (unsigned)addrcount);
 
@@ -810,7 +815,8 @@ reply_parse(u8 *packet, int length) {
 			if (req->request_type != TYPE_AAAA) {
 				j += datalength; continue;
 			}
-			// XXXX do something sane with malformed AAAA answers.
+			if ((datalength & 15) != 0) /* not an even number of AAAAs. */
+				return -1;
 			addrcount = datalength >> 4;  // each address is 16 bytes long
 			addrtocopy = MIN(MAX_ADDRS - reply.data.aaaa.addrcount, (unsigned)addrcount);
 			ttl_r = MIN(ttl_r, ttl);
@@ -831,6 +837,8 @@ reply_parse(u8 *packet, int length) {
 
 	reply_handle(req, flags, ttl_r, &reply);
 	return 0;
+ err:
+	return -1;
 #undef SKIP_NAME
 #undef GET32
 #undef GET16
@@ -968,7 +976,7 @@ nameserver_ready_callback(int fd, short events, void *arg) {
         (void)fd;
 
 	if (events & EV_WRITE) {
-		ns->choaked = 0;
+		ns->choked = 0;
 		if (!evdns_transmit()) {
 			nameserver_write_waiting(ns, 0);
 		}
@@ -1149,7 +1157,7 @@ evdns_request_transmit(struct request *req) {
 	req->transmit_me = 1;
 	if (req->trans_id == 0xffff) abort();
 
-	if (req->ns->choaked) {
+	if (req->ns->choked) {
 		// don't bother trying to write to a socket
 		// which we have had EAGAIN from
 		return 1;
@@ -1159,7 +1167,7 @@ evdns_request_transmit(struct request *req) {
 	switch (r) {
 	case 1:
 		// temp failure
-		req->ns->choaked = 1;
+		req->ns->choked = 1;
 		nameserver_write_waiting(req->ns, 1);
 		return 1;
 	case 2:
@@ -1333,7 +1341,7 @@ evdns_nameserver_add(unsigned long int address) {
 
 	ns->socket = socket(PF_INET, SOCK_DGRAM, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
-#if defined(MS_WINDOWS) || defined(WIN32)
+#ifdef WIN32
         {
 		u_long nonblocking = 1;
 		ioctlsocket(ns->socket, FIONBIO, &nonblocking);
@@ -1511,7 +1519,7 @@ int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type cal
 	u32 a;
 	assert(in);
 	a = ntohl(in->s_addr);
-	sprintf(buf, "%d.%d.%d.%d.in-addr.arpa",
+	snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
 			(int)(u8)((a	)&0xff),
 			(int)(u8)((a>>8 )&0xff),
 			(int)(u8)((a>>16)&0xff),
@@ -1698,6 +1706,7 @@ search_make_new(const struct search_state *const state, int n, const char *const
 
 	// we ran off the end of the list and still didn't find the requested string
 	abort();
+	return NULL; /* unreachable; stops warnings in some compilers. */
 }
 
 static int
@@ -1911,10 +1920,12 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 	}
 	if (st.st_size > 65535) { err = 3; goto out1; }  // no resolv.conf should be any bigger
 
-	resolv = (u8 *) malloc(st.st_size + 1);
+	resolv = (u8 *) malloc((size_t)st.st_size + 1);
 	if (!resolv) { err = 4; goto out1; }
 
-	if (read(fd, resolv, st.st_size) != st.st_size) { err = 5; goto out2; }
+	if (read(fd, resolv, (size_t)st.st_size) != st.st_size) {
+		err = 5; goto out2;
+	}
 	resolv[st.st_size] = 0;  // we malloced an extra byte
 
 	start = (char *) resolv;
@@ -1945,7 +1956,7 @@ out1:
 	return err;
 }
 
-#if defined(MS_WINDOWS) || defined(WIN32)
+#ifdef WIN32
 // Add multiple nameservers from a space-or-comma-separated list.
 static int
 evdns_nameserver_ip_add_line(const char *ips) {
@@ -2138,10 +2149,10 @@ evdns_config_windows_nameservers(void)
 #endif
 
 int
-evdns_init()
+evdns_init(void)
 {
 	int res = 0;
-#if defined(MS_WINDOWS) || defined(WIN32)
+#ifdef WIN32
 	evdns_config_windows_nameservers();
 #else
 	res = evdns_resolv_conf_parse(DNS_OPTIONS_ALL, "/etc/resolv.conf");
@@ -2230,7 +2241,8 @@ main_callback(int result, char type, int count, int ttl,
 }
 
 void
-logfn(const char *msg) {
+logfn(int is_warn, const char *msg) {
+  (void) is_warn;
   fprintf(stderr, "%s\n", msg);
 }
 int
