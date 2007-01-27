@@ -213,6 +213,7 @@
  *    3 file too large
  *    4 out of memory
  *    5 short read from file
+ *    6 no nameservers in file
  *
  * Internals:
  *
@@ -298,6 +299,7 @@ struct in_addr;
 struct in6_addr;
 int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
 int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
+int evdns_set_option(const char *option, const char *val, int flags);
 int evdns_resolv_conf_parse(int flags, const char *);
 #ifdef MS_WINDOWS
 int evdns_config_windows_nameservers(void);

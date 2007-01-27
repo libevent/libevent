@@ -1898,6 +1898,64 @@ strtoint(const char *const str) {
 	return r;
 }
 
+// helper version of atoi that returns -1 on error and clips to bounds.
+static int
+strtoint_clipped(const char *const str, int min, int max)
+{
+	int r = strtoint(str);
+	if (r == -1)
+		return r;
+	else if (r<min)
+		return min;
+	else if (r>max)
+		return max;
+	else
+		return r;
+}
+
+// exported function
+int
+evdns_set_option(const char *option, const char *val, int flags)
+{
+	if (!strncmp(option, "ndots:", 6)) {
+		const int ndots = strtoint(val);
+		if (ndots == -1) return -1;
+		if (!(flags & DNS_OPTION_SEARCH)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting ndots to %d", ndots);
+		if (!global_search_state) global_search_state = search_state_new();
+		if (!global_search_state) return -1;
+		global_search_state->ndots = ndots;
+	} else if (!strncmp(option, "timeout:", 8)) {
+		const int timeout = strtoint(val);
+		if (timeout == -1) return -1;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting timeout to %d", timeout);
+		global_timeout.tv_sec = timeout;
+	} else if (!strncmp(option, "max-timeouts:", 12)) {
+		const int maxtimeout = strtoint_clipped(val, 1, 255);
+		if (maxtimeout == -1) return -1;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting maximum allowed timeouts to %d",
+			maxtimeout);
+		global_max_nameserver_timeout = maxtimeout;
+	} else if (!strncmp(option, "max-inflight:", 13)) {
+		const int maxinflight = strtoint_clipped(val, 1, 65000);
+		if (maxinflight == -1) return -1;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting maximum inflight requests to %d",
+			maxinflight);
+		global_max_requests_inflight = maxinflight;
+	} else if (!strncmp(option, "attempts:", 9)) {
+		int retries = strtoint(val);
+		if (retries == -1) return -1;
+		if (retries > 255) retries = 255;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting retries to %d", retries);
+		global_max_retransmits = retries;
+	}
+	return 0;
+}
+
 static void
 resolv_conf_parse_line(char *const start, int flags) {
 	char *strtok_state;
@@ -1907,7 +1965,7 @@ resolv_conf_parse_line(char *const start, int flags) {
 	char *const first_token = strtok_r(start, delims, &strtok_state);
 	if (!first_token) return;
 
-	if (!strcmp(first_token, "nameserver")) {
+	if (!strcmp(first_token, "nameserver") && (flags & DNS_OPTION_NAMESERVERS)) {
 		const char *const nameserver = NEXT_TOKEN;
 		struct in_addr ina;
 
@@ -1931,30 +1989,9 @@ resolv_conf_parse_line(char *const start, int flags) {
 		search_reverse();
 	} else if (!strcmp(first_token, "options")) {
 		const char *option;
-
 		while ((option = NEXT_TOKEN)) {
-			if (!strncmp(option, "ndots:", 6)) {
-				const int ndots = strtoint(&option[6]);
-				if (ndots == -1) continue;
-				if (!(flags & DNS_OPTION_SEARCH)) continue;
-				log(EVDNS_LOG_DEBUG, "Setting ndots to %d", ndots);
-				if (!global_search_state) global_search_state = search_state_new();
-                                if (!global_search_state) return;
-				global_search_state->ndots = ndots;
-			} else if (!strncmp(option, "timeout:", 8)) {
-				const int timeout = strtoint(&option[8]);
-				if (timeout == -1) continue;
-				if (!(flags & DNS_OPTION_MISC)) continue;
-				log(EVDNS_LOG_DEBUG, "Setting timeout to %d", timeout);
-				global_timeout.tv_sec = timeout;
-			} else if (!strncmp(option, "attempts:", 9)) {
-				int retries = strtoint(&option[9]);
-				if (retries == -1) continue;
-				if (retries > 255) retries = 255;
-				if (!(flags & DNS_OPTION_MISC)) continue;
-				log(EVDNS_LOG_DEBUG, "Setting retries to %d", retries);
-				global_max_retransmits = retries;
-			}
+			const char *val = strchr(option, ':');
+			evdns_set_option(option, val ? val+1 : "", flags);
 		}
 	}
 #undef NEXT_TOKEN
@@ -1987,7 +2024,7 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 	if (fstat(fd, &st)) { err = 2; goto out1; }
 	if (!st.st_size) {
 		evdns_resolv_set_defaults(flags);
-		err = 0;
+		err = (flags & DNS_OPTION_NAMESERVERS) ? 6 : 0;
 		goto out1;
 	}
 	if (st.st_size > 65535) { err = 3; goto out1; }  // no resolv.conf should be any bigger
@@ -2016,6 +2053,7 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 	if (!server_head && (flags & DNS_OPTION_NAMESERVERS)) {
 		// no nameservers were configured.
 		evdns_nameserver_ip_add("127.0.0.1");
+		err = 6;
 	}
 	if (flags & DNS_OPTION_SEARCH && (!global_search_state || global_search_state->num_domains == 0)) {
 		search_set_from_hostname();
