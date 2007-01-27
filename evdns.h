@@ -237,6 +237,10 @@
 #ifndef EVENTDNS_H
 #define EVENTDNS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Error codes 0-5 are as described in RFC 1035. */
 #define DNS_ERR_NONE 0
 /* The name server was unable to interpret the query */
@@ -302,5 +306,9 @@ typedef void (*evdns_debug_log_fn_type)(int is_warning, const char *msg);
 void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 
 #define DNS_NO_SEARCH 1
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  // !EVENTDNS_H

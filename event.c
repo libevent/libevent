@@ -301,6 +301,8 @@ event_process_active(struct event_base *base)
 		}
 	}
 
+	assert(activeq != NULL);
+
 	for (ev = TAILQ_FIRST(activeq); ev; ev = TAILQ_FIRST(activeq)) {
 		event_queue_remove(base, ev, EVLIST_ACTIVE);
 		
