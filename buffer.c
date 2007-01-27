@@ -138,6 +138,9 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 		buffer = (char *)buf->buffer + buf->off;
 		space = buf->totallen - buf->misalign - buf->off;
 
+#ifndef va_copy
+#define	va_copy(dst, src)	memcpy(&(dst), &(src), sizeof(va_list))
+#endif
 		va_copy(aq, ap);
 
 #ifdef WIN32

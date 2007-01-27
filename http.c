@@ -538,10 +538,11 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 	 * on the connection, so that we can reply to it.
 	 */
 	if (evcon->flags & EVHTTP_CON_OUTGOING) {
+	        int need_close;
 		TAILQ_REMOVE(&evcon->requests, req, next);
 		req->evcon = NULL;
 
-		int need_close = 
+		need_close = 
 		    evhttp_is_connection_close(req->input_headers) ||
 		    evhttp_is_connection_close(req->output_headers);
 
