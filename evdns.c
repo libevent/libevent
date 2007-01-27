@@ -986,29 +986,113 @@ nameserver_ready_callback(int fd, short events, void *arg) {
 	}
 }
 
-// Converts a string to a length-prefixed set of DNS labels.
-// @buf must be strlen(name)+2 or longer. name and buf must
-// not overlap. name_len should be the length of name
+/* This is an inefficient representation; only use it via the dnslabel_table_*
+ * functions, so that is can be safely replaced with something smarter later. */
+#define MAX_LABELS 128
+// Structures used to implement name compression
+struct dnslabel_entry { char *v; int pos; };
+struct dnslabel_table {
+	int n_labels; // number of current entries
+	// map from name to position in message
+	struct dnslabel_entry labels[MAX_LABELS];
+};
+
+// Initialize dnslabel_table.
+static void
+dnslabel_table_init(struct dnslabel_table *table)
+{
+	table->n_labels = 0;
+}
+
+// Free all storage held by table, but not the table itself.
+static void
+dnslabel_clear(struct dnslabel_table *table)
+{
+	int i;
+	for (i = 0; i < table->n_labels; ++i)
+		free(table->labels[i].v);
+	table->n_labels = 0;
+}
+
+// return the position of the label in the current message, or -1 if the label
+// hasn't been used yet.
+static int
+dnslabel_table_get_pos(const struct dnslabel_table *table, const char *label)
+{
+	int i;
+	for (i = 0; i < table->n_labels; ++i) {
+		if (!strcmp(label, table->labels[i].v))
+			return table->labels[i].pos;
+	}
+	return -1;
+}
+
+// remember that we've used the label at position pos
+static int
+dnslabel_table_add(struct dnslabel_table *table, const char *label, int pos)
+{
+	char *v;
+	int p;
+	if (table->n_labels == MAX_LABELS)
+		return (-1);
+	v = strdup(label);
+	if (v == NULL)
+		return (-1);
+	p = table->n_labels++;
+	table->labels[p].v = v;
+	table->labels[p].pos = pos;
+
+	return (0);
+}
+
+// Converts a string to a length-prefixed set of DNS labels, starting
+// at buf[j]. name and buf must not overlap. name_len should be the length
+// of name.	 table is optional, and is used for compression.
 //
 // Input: abc.def
 // Output: <3>abc<3>def<0>
 //
-// Returns the length of the data. negative on error
-//   -1  label was > 63 bytes
-//   -2  name was > 255 bytes
-static int
-dnsname_to_labels(u8 *const buf, const char *name, const int name_len) {
+// Returns the first index after the encoded name, or negative on error.
+//	 -1	 label was > 63 bytes
+//	 -2	 name too long to fit in buffer.
+//
+static off_t
+dnsname_to_labels(u8 *const buf, size_t buf_len, off_t j,
+				  const char *name, const int name_len,
+				  struct dnslabel_table *table) {
 	const char *end = name + name_len;
-	int j = 0;  // current offset into buf
+	int ref = 0;
+	u16 _t;
+
+#define APPEND16(x) do {						   \
+		if (j + 2 > (off_t)buf_len)				   \
+			goto overflow;						   \
+		_t = htons(x);							   \
+		memcpy(buf + j, &_t, 2);				   \
+		j += 2;									   \
+	} while (0)
+#define APPEND32(x) do {						   \
+		if (j + 4 > (off_t)buf_len)				   \
+			goto overflow;						   \
+		_t32 = htonl(x);						   \
+		memcpy(buf + j, &_t32, 4);				   \
+		j += 4;									   \
+	} while (0)
 
 	if (name_len > 255) return -2;
 
 	for (;;) {
 		const char *const start = name;
+		if (table && (ref = dnslabel_table_get_pos(table, name)) >= 0) {
+			APPEND16(ref | 0xc000);
+			return j;
+		}
 		name = strchr(name, '.');
 		if (!name) {
 			const unsigned int label_len = end - start;
 			if (label_len > 63) return -1;
+			if ((size_t)(j+label_len+1) > buf_len) return -2;
+			if (table) dnslabel_table_add(table, start, j);
 			buf[j++] = label_len;
 
 			memcpy(buf + j, start, end - start);
@@ -1018,6 +1102,8 @@ dnsname_to_labels(u8 *const buf, const char *name, const int name_len) {
 			// append length of the label.
 			const unsigned int label_len = name - start;
 			if (label_len > 63) return -1;
+			if ((size_t)(j+label_len+1) > buf_len) return -2;
+			if (table) dnslabel_table_add(table, start, j);
 			buf[j++] = label_len;
 
 			memcpy(buf + j, start, name - start);
@@ -1032,6 +1118,8 @@ dnsname_to_labels(u8 *const buf, const char *name, const int name_len) {
 	// in which case the zero is already there
 	if (!j || buf[j-1]) buf[j++] = 0;
 	return j;
+ overflow:
+	return (-2);
 }
 
 // Finds the length of a dns request for a DNS name of the given
@@ -1052,18 +1140,9 @@ static int
 evdns_request_data_build(const char *const name, const int name_len,
     const u16 trans_id, const u16 type, const u16 class,
     u8 *const buf, size_t buf_len) {
-	int j = 0;  // current offset into buf
+	off_t j = 0;  // current offset into buf
 	u16 _t;  // used by the macros
-	u8 *labels;
-	int labels_len;
 
-#define APPEND16(x) do { \
-  if (j + 2 > buf_len) \
-    return (-1); \
-  _t = htons(x); \
-  memcpy(buf + j, &_t, 2); j += 2; \
-} while(0)
-	
 	APPEND16(trans_id);
 	APPEND16(0x0100);  // standard query, recusion needed
 	APPEND16(1);  // one question
@@ -1071,28 +1150,21 @@ evdns_request_data_build(const char *const name, const int name_len,
 	APPEND16(0);  // no authority
 	APPEND16(0);  // no additional
 
-	labels = (u8 *) malloc(name_len + 2);
-        if (labels == NULL)
-		return (-1);
-	labels_len = dnsname_to_labels(labels, name, name_len);
-	if (labels_len < 0) {
-		free(labels);
-		return (labels_len);
+	j = dnsname_to_labels(buf, buf_len, j, name, name_len, NULL);
+	if (j < 0) {
+		return (int)j;
 	}
-	if ((size_t)(j + labels_len) > buf_len) {
-		free(labels);
-		return (-1);
-	}
-	memcpy(buf + j, labels, labels_len);
-	j += labels_len;
-	free(labels);
 	
 	APPEND16(type);
 	APPEND16(class);
-#undef APPEND16
 
-	return (j);
+	return (int)j;
+ overflow:
+	return (-1);
 }
+
+#undef APPEND16
+#undef APPEND32
 
 // this is a libevent callback function which is called when a request
 // has timed out.
