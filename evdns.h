@@ -317,4 +317,49 @@ void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 }
 #endif
 
+/*
+ * Structures and functions used to implement a DNS server.
+ */
+
+struct evdns_server_request {
+	int flags;
+	int nquestions;
+	struct evdns_server_question **questions;
+};
+struct evdns_server_question {
+	int type;
+	int class;
+	char name[1];
+};
+typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, void *);
+#define EVDNS_ANSWER_SECTION 0
+#define EVDNS_AUTHORITY_SECTION 1
+#define EVDNS_ADDITIONAL_SECTION 2
+
+#define EVDNS_TYPE_A	   1
+#define EVDNS_TYPE_NS	   2
+#define EVDNS_TYPE_CNAME   5
+#define EVDNS_TYPE_SOA	   6
+#define EVDNS_TYPE_PTR	  12
+#define EVDNS_TYPE_MX	  15
+#define EVDNS_TYPE_TXT	  16
+#define EVDNS_TYPE_AAAA	  28
+
+#define EVDNS_QTYPE_AXFR 252
+#define EVDNS_QTYPE_ALL	 255
+
+#define EVDNS_CLASS_INET   1
+
+struct evdns_server_port *evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
+void evdns_close_server_port(struct evdns_server_port *port);
+
+int evdns_server_request_add_reply(struct evdns_server_request *req, int section, const char *name, int type, int class, int ttl, int datalen, int is_name, const char *data);
+int evdns_server_request_add_a_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl);
+int evdns_server_request_add_aaaa_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl);
+int evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_addr *in, const char *inaddr_name, const char *hostname, int ttl);
+int evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl);
+
+int evdns_server_request_respond(struct evdns_server_request *req, int err);
+int evdns_server_request_drop(struct evdns_server_request *req);
+
 #endif  // !EVENTDNS_H

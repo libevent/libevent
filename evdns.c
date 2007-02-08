@@ -109,6 +109,10 @@
 #include <netinet/in6.h>
 #endif
 
+#ifdef WIN32
+typedef int socklen_t;
+#endif
+
 #define EVDNS_LOG_DEBUG 0
 #define EVDNS_LOG_WARN 1
 
@@ -138,12 +142,12 @@ typedef unsigned int uint;
 #define MAX_ADDRS 4  // maximum number of addresses from a single packet
 // which we bother recording
 
-#define TYPE_A         1
+#define TYPE_A         EVDNS_TYPE_A
 #define TYPE_CNAME     5
-#define TYPE_PTR      12
-#define TYPE_AAAA     28
+#define TYPE_PTR       EVDNS_TYPE_PTR
+#define TYPE_AAAA      EVDNS_TYPE_AAAA
 
-#define CLASS_INET 1
+#define CLASS_INET     EVDNS_CLASS_INET
 
 struct request {
 	u8 *request;  // the dns packet data
@@ -214,6 +218,72 @@ struct nameserver {
 static struct request *req_head = NULL, *req_waiting_head = NULL;
 static struct nameserver *server_head = NULL;
 
+// Represents a local port where we're listening for DNS requests. Right now,
+// only UDP is supported.
+struct evdns_server_port {
+	int socket; // socket we use to read queries and write replies.
+	int refcnt; // reference count.
+	char choked; // Are we currently blocked from writing?
+	char closing; // Are we trying to close this port, pending writes?
+	evdns_request_callback_fn_type user_callback; // Fn to handle requests
+	void *user_data; // Opaque pointer passed to user_callback
+	struct event event; // Read/write event
+	// circular list of replies that we want to write.
+	struct server_request *pending_replies;
+};
+
+// Represents part of a reply being built.	(That is, a single RR.)
+struct server_reply_item {
+	struct server_reply_item *next; // next item in sequence.
+	char *name; // name part of the RR
+	u16 type : 16; // The RR type
+	u16 class : 16; // The RR class (usually CLASS_INET)
+	u32 ttl; // The RR TTL
+	char is_name; // True iff data is a label
+	u16 datalen; // Length of data; -1 if data is a label
+	void *data; // The contents of the RR
+};
+
+// Represents a request that we've received as a DNS server, and holds
+// the components of the reply as we're constructing it.
+struct server_request {
+	// Pointers to the next and previous entries on the list of replies
+	// that we're waiting to write.	 Only set if we have tried to respond
+	// and gotten EAGAIN.
+	struct server_request *next_pending;
+	struct server_request *prev_pending;
+
+	u16 trans_id; // Transaction id.
+	struct evdns_server_port *port; // Which port received this request on?
+	struct sockaddr_storage addr; // Where to send the response
+	socklen_t addrlen; // length of addr
+
+	int n_answer; // how many answer RRs have been set?
+	int n_authority; // how many authority RRs have been set?
+	int n_additional; // how many additional RRs have been set?
+
+	struct server_reply_item *answer; // linked list of answer RRs
+	struct server_reply_item *authority; // linked list of authority RRs
+	struct server_reply_item *additional; // linked list of additional RRs
+
+	// Constructed response.  Only set once we're ready to send a reply.
+	// Once this is set, the RR fields are cleared, and no more should be set.
+	char *response;
+	size_t response_len;
+
+	// Caller-visible fields: flags, questions.
+	struct evdns_server_request base;
+};
+
+// helper macro
+#define OFFSET_OF(st, member) ((off_t) (((char*)&((st*)0)->member)-(char*)0))
+
+// Given a pointer to an evdns_server_request, get the corresponding
+// server_request.
+#define TO_SERVER_REQUEST(base_ptr)										\
+	((struct server_request*)											\
+	 (((char*)(base_ptr) - OFFSET_OF(struct server_request, base))))
+
 // The number of good nameservers that we have
 static int global_good_nameservers = 0;
 
@@ -252,6 +322,13 @@ static void evdns_requests_pump_waiting_queue(void);
 static u16 transaction_id_pick(void);
 static struct request *request_new(int type, const char *name, int flags, evdns_callback_type callback, void *ptr);
 static void request_submit(struct request *req);
+
+static int server_request_free(struct server_request *req);
+static void server_request_free_answers(struct server_request *req);
+static void server_port_free(struct evdns_server_port *port);
+static void server_port_ready_callback(int fd, short events, void *arg);
+
+static int strtoint(const char *const str);
 
 #ifdef WIN32
 static int
@@ -809,6 +886,7 @@ reply_parse(u8 *packet, int length) {
 			if (name_parse(packet, length, &j, reply.data.ptr.name,
 						   sizeof(reply.data.ptr.name))<0)
 				return -1;
+			ttl_r = MIN(ttl_r, ttl);
 			reply.have_answer = 1;
 			break;
 		} else if (type == TYPE_AAAA && class == CLASS_INET) {
@@ -840,6 +918,84 @@ reply_parse(u8 *packet, int length) {
 	return 0;
  err:
 	return -1;
+}
+
+// Parse a raw request (packet,length) sent to a nameserver port (port) from
+// a DNS client (addr,addrlen), and if it's well-formed, call the corresponding
+// callback.
+static int
+request_parse(u8 *packet, int length, struct evdns_server_port *port, struct sockaddr *addr, socklen_t addrlen)
+{
+	int j = 0;	// index into packet
+	u16 _t;	 // used by the macros
+	char tmp_name[256]; // used by the macros
+
+	int i;
+	u16 trans_id, flags, questions, answers, authority, additional;
+	struct server_request *server_req = NULL;
+
+	// Get the header fields
+	GET16(trans_id);
+	GET16(flags);
+	GET16(questions);
+	GET16(answers);
+	GET16(authority);
+	GET16(additional);
+
+	if (flags & 0x8000) return -1; // Must not be an answer.
+	if (flags & 0x7800) return -1; // only standard queries are supported
+	flags &= 0x0300; // Only TC and RD get preserved.
+
+	server_req = malloc(sizeof(struct server_request));
+	if (server_req == NULL) return -1;
+	memset(server_req, 0, sizeof(struct server_request));
+
+	server_req->trans_id = trans_id;
+	memcpy(&server_req->addr, addr, addrlen);
+	server_req->addrlen = addrlen;
+
+	server_req->base.flags = flags;
+	server_req->base.nquestions = 0;
+	server_req->base.questions = malloc(sizeof(struct evdns_server_question *) * questions);
+	if (server_req->base.questions == NULL)
+		goto err;
+
+	for (i = 0; i < questions; ++i) {
+		u16 type, class;
+		struct evdns_server_question *q;
+		int namelen;
+		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0)
+			goto err;
+		GET16(type);
+		GET16(class);
+		namelen = strlen(tmp_name);
+		q = malloc(sizeof(struct evdns_server_question) + namelen);
+		if (!q)
+			goto err;
+		q->type = type;
+		q->class = class;
+		memcpy(q->name, tmp_name, namelen+1);
+		server_req->base.questions[server_req->base.nquestions++] = q;
+	}
+
+	// Ignore answers, authority, and additional.
+
+	server_req->port = port;
+	port->refcnt++;
+	port->user_callback(&(server_req->base), port->user_data);
+
+	return 0;
+err:
+	if (server_req) {
+		if (server_req->base.questions) {
+			for (i = 0; i < server_req->base.nquestions; ++i)
+				free(server_req->base.questions[i]);
+			free(server_req->base.questions);
+		}
+		free(server_req);
+	}
+	return -1;
+
 #undef SKIP_NAME
 #undef GET32
 #undef GET16
@@ -951,6 +1107,60 @@ nameserver_read(struct nameserver *ns) {
 	}
 }
 
+// Read a packet from a DNS client on a server port s, parse it, and
+// act accordingly.
+static void
+server_port_read(struct evdns_server_port *s) {
+	u8 packet[1500];
+	struct sockaddr_storage addr;
+	socklen_t addrlen;
+	int r;
+
+	for (;;) {
+		addrlen = sizeof(struct sockaddr_storage);
+		r = recvfrom(s->socket, packet, sizeof(packet), 0,
+					 (struct sockaddr*) &addr, &addrlen);
+		if (r < 0) {
+			int err = last_error(s->socket);
+			if (error_is_eagain(err)) return;
+			log(EVDNS_LOG_WARN, "Error %s (%d) while reading request.",
+				strerror(err), err);
+			return;
+		}
+		request_parse(packet, r, s, (struct sockaddr*) &addr, addrlen);
+	}
+}
+
+// Try to write all pending replies on a given DNS server port.
+static void
+server_port_flush(struct evdns_server_port *port)
+{
+	while (port->pending_replies) {
+		struct server_request *req = port->pending_replies;
+		int r = sendto(port->socket, req->response, req->response_len, 0,
+			   (struct sockaddr*) &req->addr, req->addrlen);
+		if (r < 0) {
+			int err = last_error(port->socket);
+			if (error_is_eagain(err))
+				return;
+			log(EVDNS_LOG_WARN, "Error %s (%d) while writing response to port; dropping", strerror(err), err);
+		}
+		if (server_request_free(req)) {
+			// we released the last reference to req->port.
+			return;
+		}
+	}
+
+	// We have no more pending requests; stop listening for 'writeable' events.
+	(void) event_del(&port->event);
+	event_set(&port->event, port->socket, EV_READ | EV_PERSIST,
+			  server_port_ready_callback, port);
+	if (event_add(&port->event, NULL) < 0) {
+		log(EVDNS_LOG_WARN, "Error from libevent when adding event for DNS server.");
+		// ???? Do more?
+	}
+}
+
 // set if we are waiting for the ability to write to this server.
 // if waiting is true then we ask libevent for EV_WRITE events, otherwise
 // we stop these events.
@@ -984,6 +1194,22 @@ nameserver_ready_callback(int fd, short events, void *arg) {
 	}
 	if (events & EV_READ) {
 		nameserver_read(ns);
+	}
+}
+
+// a callback function. Called by libevent when the kernel says that
+// a server socket is ready for writing or reading.
+static void
+server_port_ready_callback(int fd, short events, void *arg) {
+	struct evdns_server_port *port = (struct evdns_server_port *) arg;
+	(void) fd;
+
+	if (events & EV_WRITE) {
+		port->choked = 0;
+		server_port_flush(port);
+	}
+	if (events & EV_READ) {
+		server_port_read(port);
 	}
 }
 
@@ -1162,6 +1388,395 @@ evdns_request_data_build(const char *const name, const int name_len,
 	return (int)j;
  overflow:
 	return (-1);
+}
+
+// exported function
+struct evdns_server_port *
+evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type cb, void *user_data)
+{
+	struct evdns_server_port *port;
+	if (!(port = malloc(sizeof(struct evdns_server_port))))
+		return NULL;
+	memset(port, 0, sizeof(struct evdns_server_port));
+
+	assert(!is_tcp); // TCP sockets not yet implemented
+	port->socket = socket;
+	port->refcnt = 1;
+	port->choked = 0;
+	port->closing = 0;
+	port->user_callback = cb;
+	port->user_data = user_data;
+	port->pending_replies = NULL;
+
+	event_set(&port->event, port->socket, EV_READ | EV_PERSIST,
+			  server_port_ready_callback, port);
+	event_add(&port->event, NULL); // check return.
+	return port;
+}
+
+// exported function
+void
+evdns_close_server_port(struct evdns_server_port *port)
+{
+	if (--port->refcnt == 0)
+		server_port_free(port);
+	port->closing = 1;
+}
+
+// exported function
+int
+evdns_server_request_add_reply(struct evdns_server_request *_req, int section, const char *name, int type, int class, int ttl, int datalen, int is_name, const char *data)
+{
+	struct server_request *req = TO_SERVER_REQUEST(_req);
+	struct server_reply_item **itemp, *item;
+	int *countp;
+
+	if (req->response) /* have we already answered? */
+		return (-1);
+
+	switch (section) {
+	case EVDNS_ANSWER_SECTION:
+		itemp = &req->answer;
+		countp = &req->n_answer;
+		break;
+	case EVDNS_AUTHORITY_SECTION:
+		itemp = &req->authority;
+		countp = &req->n_authority;
+		break;
+	case EVDNS_ADDITIONAL_SECTION:
+		itemp = &req->additional;
+		countp = &req->n_additional;
+		break;
+	default:
+		return (-1);
+	}
+	while (*itemp) {
+		itemp = &((*itemp)->next);
+	}
+	item = malloc(sizeof(struct server_reply_item));
+	if (!item)
+		return -1;
+	item->next = NULL;
+	if (!(item->name = strdup(name))) {
+		free(item);
+		return -1;
+	}
+	item->type = type;
+	item->class = class;
+	item->ttl = ttl;
+	item->is_name = is_name != 0;
+	item->datalen = 0;
+	item->data = NULL;
+	if (data) {
+		if (item->is_name) {
+			if (!(item->data = strdup(data))) {
+				free(item->name);
+				free(item);
+				return -1;
+			}
+			item->datalen = -1;
+		} else {
+			if (!(item->data = malloc(datalen))) {
+				free(item->name);
+				free(item);
+				return -1;
+			}
+			item->datalen = datalen;
+			memcpy(item->data, data, datalen);
+		}
+	}
+
+	*itemp = item;
+	++(*countp);
+	return 0;
+}
+
+// exported function
+int
+evdns_server_request_add_a_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl)
+{
+	return evdns_server_request_add_reply(
+		  req, EVDNS_ANSWER_SECTION, name, TYPE_A, CLASS_INET,
+		  ttl, n*4, 0, addrs);
+}
+
+// exported function
+int
+evdns_server_request_add_aaaa_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl)
+{
+	return evdns_server_request_add_reply(
+		  req, EVDNS_ANSWER_SECTION, name, TYPE_AAAA, CLASS_INET,
+		  ttl, n*16, 0, addrs);
+}
+
+// exported function
+int
+evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_addr *in, const char *inaddr_name, const char *hostname, int ttl)
+{
+	u32 a;
+	char buf[32];
+	assert(in || inaddr_name);
+	assert(!(in && inaddr_name));
+	if (in) {
+		a = ntohl(in->s_addr);
+		snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
+				(int)(u8)((a	)&0xff),
+				(int)(u8)((a>>8 )&0xff),
+				(int)(u8)((a>>16)&0xff),
+				(int)(u8)((a>>24)&0xff));
+		inaddr_name = buf;
+	}
+	return evdns_server_request_add_reply(
+		  req, EVDNS_ANSWER_SECTION, inaddr_name, TYPE_PTR, CLASS_INET,
+		  ttl, -1, 1, hostname);
+}
+
+// exported function
+int
+evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl)
+{
+	return evdns_server_request_add_reply(
+		  req, EVDNS_ANSWER_SECTION, name, TYPE_A, CLASS_INET,
+		  ttl, -1, 1, cname);
+}
+
+
+static int
+evdns_server_request_format_response(struct server_request *req, int err)
+{
+	unsigned char buf[1500];
+	size_t buf_len = sizeof(buf);
+	off_t j = 0, r;
+	u16 _t;
+	u32 _t32;
+	int i;
+	u16 flags;
+	struct dnslabel_table table;
+
+	if (err < 0 || err > 15) return -1;
+
+	/* Set response bit and error code; copy OPCODE and RD fields from
+	 * question; copy RA and AA if set by caller. */
+	flags = req->base.flags;
+	flags |= (0x8000 | err);
+
+	dnslabel_table_init(&table);
+	APPEND16(req->trans_id);
+	APPEND16(flags);
+	APPEND16(req->base.nquestions);
+	APPEND16(req->n_answer);
+	APPEND16(req->n_authority);
+	APPEND16(req->n_additional);
+
+	/* Add questions. */
+	for (i=0; i < req->base.nquestions; ++i) {
+		const char *s = req->base.questions[i]->name;
+		j = dnsname_to_labels(buf, buf_len, j, s, strlen(s), &table);
+		if (j < 0) {
+			dnslabel_clear(&table);
+			return (int) j;
+		}
+		APPEND16(req->base.questions[i]->type);
+		APPEND16(req->base.questions[i]->class);
+	}
+
+	/* Add answer, authority, and additional sections. */
+	for (i=0; i<3; ++i) {
+		struct server_reply_item *item;
+		if (i==0)
+			item = req->answer;
+		else if (i==1)
+			item = req->authority;
+		else
+			item = req->additional;
+		while (item) {
+			r = dnsname_to_labels(buf, buf_len, j, item->name, strlen(item->name), &table);
+			if (r < 0)
+				goto overflow;
+			j = r;
+
+			APPEND16(item->type);
+			APPEND16(item->class);
+			APPEND32(item->ttl);
+			if (item->is_name) {
+				off_t len_idx = j, name_start;
+				j += 2;
+				name_start = j;
+				r = dnsname_to_labels(buf, buf_len, j, item->data, strlen(item->data), &table);
+				if (r < 0)
+					goto overflow;
+				j = r;
+				_t = htons( (j-name_start) );
+				memcpy(buf+len_idx, &_t, 2);
+			} else {
+				APPEND16(item->datalen);
+				if (j+item->datalen > (off_t)buf_len)
+					goto overflow;
+				memcpy(buf+j, item->data, item->datalen);
+				j += item->datalen;
+			}
+			item = item->next;
+		}
+	}
+
+	if (j > 512) {
+overflow:
+		j = 512;
+		buf[3] |= 0x02; /* set the truncated bit. */
+	}
+
+	req->response_len = j;
+
+	if (!(req->response = malloc(req->response_len))) {
+		server_request_free_answers(req);
+		dnslabel_clear(&table);
+		return (-1);
+	}
+	memcpy(req->response, buf, req->response_len);
+	server_request_free_answers(req);
+	dnslabel_clear(&table);
+	return (0);
+}
+
+// exported function
+int
+evdns_server_request_respond(struct evdns_server_request *_req, int err)
+{
+	struct server_request *req = TO_SERVER_REQUEST(_req);
+	struct evdns_server_port *port = req->port;
+	int r;
+	if (!req->response) {
+		if ((r = evdns_server_request_format_response(req, err))<0)
+			return r;
+	}
+
+	r = sendto(port->socket, req->response, req->response_len, 0,
+			   (struct sockaddr*) &req->addr, req->addrlen);
+	if (r<0) {
+		int err = last_error(port->socket);
+		if (! error_is_eagain(err))
+			return -1;
+
+		if (port->pending_replies) {
+			req->prev_pending = port->pending_replies->prev_pending;
+			req->next_pending = port->pending_replies;
+			req->prev_pending->next_pending =
+				req->next_pending->prev_pending = req;
+		} else {
+			req->prev_pending = req->next_pending = req;
+			port->pending_replies = req;
+			port->choked = 1;
+
+			(void) event_del(&port->event);
+			event_set(&port->event, port->socket, (port->closing?0:EV_READ) | EV_WRITE | EV_PERSIST, server_port_ready_callback, port);
+
+			if (event_add(&port->event, NULL) < 0) {
+				log(EVDNS_LOG_WARN, "Error from libevent when adding event for DNS server");
+			}
+
+		}
+
+		return 1;
+	}
+	if (server_request_free(req))
+		return 0;
+
+	if (req->port->pending_replies)
+		server_port_flush(port);
+
+	return 0;
+}
+
+// Free all storage held by RRs in req.
+static void
+server_request_free_answers(struct server_request *req)
+{
+	struct server_reply_item *victim, *next, **list;
+	int i;
+	for (i = 0; i < 3; ++i) {
+		if (i==0)
+			list = &req->answer;
+		else if (i==1)
+			list = &req->authority;
+		else
+			list = &req->additional;
+
+		victim = *list;
+		while (victim) {
+			next = victim->next;
+			free(victim->name);
+			if (victim->data)
+				free(victim->data);
+			/* XXXX free(victim?) -NM */
+			victim = next;
+		}
+		*list = NULL;
+	}
+}
+
+// Free all storage held by req, and remove links to it.
+// return true iff we just wound up freeing the server_port.
+static int
+server_request_free(struct server_request *req)
+{
+	int i, rc=1;
+	if (req->base.questions) {
+		for (i = 0; i < req->base.nquestions; ++i)
+			free(req->base.questions[i]);
+	}
+
+	if (req->port) {
+		if (req->port->pending_replies == req) {
+			if (req->next_pending)
+				req->port->pending_replies = req->next_pending;
+			else
+				req->port->pending_replies = NULL;
+		}
+		rc = --req->port->refcnt;
+	}
+
+	if (req->response) {
+		free(req->response);
+	}
+
+	server_request_free_answers(req);
+
+	if (req->next_pending && req->next_pending != req) {
+		req->next_pending->prev_pending = req->prev_pending;
+		req->prev_pending->next_pending = req->next_pending;
+	}
+
+	if (rc == 0) {
+		server_port_free(req->port);
+		free(req);
+		return (1);
+	}
+	free(req);
+	return (0);
+}
+
+// Free all storage held by an evdns_server_port.  Only called when 
+static void
+server_port_free(struct evdns_server_port *port)
+{
+	assert(port);
+	assert(!port->refcnt);
+	assert(!port->pending_replies);
+	if (port->socket > 0) {
+		CLOSE_SOCKET(port->socket);
+		port->socket = -1;
+	}
+	(void) event_del(&port->event);
+	// XXXX actually free the port? -NM
+}
+
+// exported function
+int
+evdns_server_request_drop(struct evdns_server_request *_req)
+{
+	struct server_request *req = TO_SERVER_REQUEST(_req);
+	server_request_free(req);
+	return 0;
 }
 
 #undef APPEND16
@@ -1391,9 +2006,8 @@ evdns_resume(void)
 	return 0;
 }
 
-// exported function
-int
-evdns_nameserver_add(unsigned long int address) {
+static int
+_evdns_nameserver_add_impl(unsigned long int address, int port) {
 	// first check to see if we already have this nameserver
 
 	const struct nameserver *server = server_head, *const started_at = server_head;
@@ -1423,7 +2037,7 @@ evdns_nameserver_add(unsigned long int address) {
         fcntl(ns->socket, F_SETFL, O_NONBLOCK);
 #endif
 	sin.sin_addr.s_addr = address;
-	sin.sin_port = htons(53);
+	sin.sin_port = htons(port);
 	sin.sin_family = AF_INET;
 	if (connect(ns->socket, (struct sockaddr *) &sin, sizeof(sin)) != 0) {
 		err = 2;
@@ -1467,11 +2081,37 @@ out1:
 
 // exported function
 int
+evdns_nameserver_add(unsigned long int address) {
+	return _evdns_nameserver_add_impl(address, 53);
+}
+
+// exported function
+int
 evdns_nameserver_ip_add(const char *ip_as_string) {
 	struct in_addr ina;
-	if (!inet_aton(ip_as_string, &ina))
-          return 4;
-	return evdns_nameserver_add(ina.s_addr);
+	int port;
+	char buf[20];
+	const char *cp;
+	cp = strchr(ip_as_string, ':');
+	if (! cp) {
+		cp = ip_as_string;
+		port = 53;
+	} else {
+		port = strtoint(cp+1);
+		if (port < 0 || port > 65535) {
+			return 4;
+		}
+		if ((cp-ip_as_string) >= (int)sizeof(buf)) {
+			return 4;
+		}
+		memcpy(buf, ip_as_string, cp-ip_as_string);
+		buf[cp-ip_as_string] = '\0';
+		cp = buf;
+	}
+	if (!inet_aton(cp, &ina)) {
+		return 4;
+	}
+	return _evdns_nameserver_add_impl(ina.s_addr, port);
 }
 
 // insert into the tail of the queue
@@ -2078,7 +2718,7 @@ evdns_nameserver_ip_add_line(const char *ips) {
 		while (ISSPACE(*ips) || *ips == ',' || *ips == '\t')
 			++ips;
 		addr = ips;
-		while (ISDIGIT(*ips) || *ips == '.')
+		while (ISDIGIT(*ips) || *ips == '.' || *ips == ':')
 			++ips;
 		buf = malloc(ips-addr+1);
 		if (!buf) return 4;
@@ -2350,6 +2990,37 @@ main_callback(int result, char type, int count, int ttl,
 	}
 	fflush(stdout);
 }
+void
+evdns_server_callback(struct evdns_server_request *req, void *data)
+{
+	int i, r;
+	(void)data;
+	/* dummy; give 192.168.11.11 as an answer for all A questions,
+	 *	give foo.bar.example.com as an answer for all PTR questions. */
+	for (i = 0; i < req->nquestions; ++i) {
+		u32 ans = htonl(0xc0a80b0bUL);
+		if (req->questions[i]->type == EVDNS_TYPE_A &&
+			req->questions[i]->class == EVDNS_CLASS_INET) {
+			printf(" -- replying for %s (A)\n", req->questions[i]->name);
+			r = evdns_server_request_add_a_reply(req, req->questions[i]->name,
+										  1, &ans, 10);
+			if (r<0)
+				printf("eeep, didn't work.\n");
+		} else if (req->questions[i]->type == EVDNS_TYPE_PTR &&
+				   req->questions[i]->class == EVDNS_CLASS_INET) {
+			printf(" -- replying for %s (PTR)\n", req->questions[i]->name);
+			r = evdns_server_request_add_ptr_reply(req, NULL, req->questions[i]->name,
+											"foo.bar.example.com", 10);
+		} else {
+			printf(" -- skipping %s [%d %d]\n", req->questions[i]->name,
+				   req->questions[i]->type, req->questions[i]->class);
+		}
+	}
+
+	r = evdns_request_respond(req, 0);
+	if (r<0)
+		printf("eeek, couldn't send reply.\n");
+}
 
 void
 logfn(int is_warn, const char *msg) {
@@ -2359,9 +3030,10 @@ logfn(int is_warn, const char *msg) {
 int
 main(int c, char **v) {
 	int idx;
-	int reverse = 0, verbose = 1;
+	int reverse = 0, verbose = 1, servertest = 0;
 	if (c<2) {
 		fprintf(stderr, "syntax: %s [-x] [-v] hostname\n", v[0]);
+		fprintf(stderr, "syntax: %s [-servertest]\n", v[0]);
 		return 1;
 	}
 	idx = 1;
@@ -2370,6 +3042,8 @@ main(int c, char **v) {
 			reverse = 1;
 		else if (!strcmp(v[idx], "-v"))
 			verbose = 1;
+		else if (!strcmp(v[idx], "-servertest"))
+			servertest = 1;
 		else
 			fprintf(stderr, "Unknown option %s\n", v[idx]);
 		++idx;
@@ -2378,6 +3052,20 @@ main(int c, char **v) {
 	if (verbose)
 		evdns_set_log_fn(logfn);
 	evdns_resolv_conf_parse(DNS_OPTION_NAMESERVERS, "/etc/resolv.conf");
+	if (servertest) {
+		int sock;
+		struct sockaddr_in my_addr;
+		sock = socket(PF_INET, SOCK_DGRAM, 0);
+		fcntl(sock, F_SETFL, O_NONBLOCK);
+		my_addr.sin_family = AF_INET;
+		my_addr.sin_port = htons(10053);
+		my_addr.sin_addr.s_addr = INADDR_ANY;
+		if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr))<0) {
+			perror("bind");
+			exit(1);
+		}
+		evdns_add_server_port(sock, 0, evdns_server_callback, NULL);
+	}
 	for (; idx < c; ++idx) {
 		if (reverse) {
 			struct in_addr addr;
