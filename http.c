@@ -112,6 +112,28 @@ fake_freeaddrinfo(struct addrinfo *ai)
 }
 #endif
 
+#ifndef MIN
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#endif
+
+static int
+event_make_socket_nonblocking(int fd)
+{
+
+#ifdef WIN32
+	{
+		unsigned long nonblocking = 1;
+		ioctlsocket(fd, FIONBIO, (unsigned long*) &nonblocking);
+	}
+#else
+	if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1) {
+		event_warn("fcntl(O_NONBLOCK)");
+		return -1;
+	}
+#endif
+	return 0;
+}
+
 extern int debug;
 
 static int make_socket_ai(int should_bind, struct addrinfo *);
@@ -1804,10 +1826,9 @@ accept_socket(int fd, short what, void *arg)
 		event_warn("%s: bad accept", __func__);
 		return;
 	}
-        if (fcntl(nfd, F_SETFL, O_NONBLOCK) == -1) {
-                event_warn("fcntl(O_NONBLOCK)");
+        if (event_make_socket_nonblocking(fd) < 0)
                 return;
-        }
+
 	evhttp_get_request(http, nfd, (struct sockaddr *)&ss, addrlen);
 }
 
@@ -2151,17 +2172,10 @@ make_socket_ai(int should_bind, struct addrinfo *ai)
                 return (-1);
         }
 
-#ifdef WIN32
-	{
-		unsigned long nonblocking = 1;
-		ioctlsocket(fd, FIONBIO, (unsigned long*) &nonblocking);
-	}
-#else
-        if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1) {
-                event_warn("fcntl(O_NONBLOCK)");
+        if (event_make_socket_nonblocking(fd) < 0)
                 goto out;
-        }
 
+#ifndef WIN32
         if (fcntl(fd, F_SETFD, 1) == -1) {
                 event_warn("fcntl(F_SETFD)");
                 goto out;
