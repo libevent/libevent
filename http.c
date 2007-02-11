@@ -330,10 +330,13 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	evbuffer_add(evcon->output_buffer, line, strlen(line));
 
 	/* Potentially add headers for unidentified content. */
-	if (EVBUFFER_LENGTH(req->output_buffer) &&
-	    evhttp_find_header(req->output_headers, "Content-Type") == NULL) {
-		evhttp_add_header(req->output_headers,
-		    "Content-Type", "text/html; charset=ISO-8859-1");
+	if (EVBUFFER_LENGTH(req->output_buffer)) {
+		if (evhttp_find_header(req->output_headers,
+			"Content-Type") == NULL) {
+			evhttp_add_header(req->output_headers,
+			    "Content-Type", "text/html; charset=ISO-8859-1");
+		}
+
 		/* 
 		 * we need to add the content length if the user did
 		 * not give it, this is required for persistent
@@ -1752,7 +1755,7 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 		if (value == NULL)
 			goto error;
 
-		event_warnx("Got: %s -> %s\n", key, value);
+		event_debug(("Query Param: %s -> %s\n", key, value));
 		evhttp_add_header(headers, key, value);
 	}
 
