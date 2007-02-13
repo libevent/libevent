@@ -316,6 +316,14 @@ evhttp_is_connection_close(struct evkeyvalq* headers)
 	return (connection != NULL && strcasecmp(connection, "close") == 0);
 }
 
+static int
+evhttp_is_connection_keepalive(struct evkeyvalq* headers)
+{
+	const char *connection = evhttp_find_header(headers, "Connection");
+	return (connection != NULL 
+	    && strncasecmp(connection, "keep-alive", 10) == 0);
+}
+
 /*
  * Create the headers needed for an HTTP reply
  */
@@ -1493,7 +1501,10 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	/* delete possible close detection events */
 	evhttp_connection_stop_detectclose(evcon);
 	
-	need_close = evhttp_is_connection_close(req->input_headers) ||
+	need_close =
+	    (req->minor == 0 &&
+		!evhttp_is_connection_keepalive(req->input_headers))||
+	    evhttp_is_connection_close(req->input_headers) ||
 	    evhttp_is_connection_close(req->output_headers);
 
 	assert(req->flags & EVHTTP_REQ_OWN_CONNECTION);
