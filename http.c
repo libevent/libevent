@@ -1755,8 +1755,10 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 		if (value == NULL)
 			goto error;
 
+		value = evhttp_decode_uri(value);
 		event_debug(("Query Param: %s -> %s\n", key, value));
 		evhttp_add_header(headers, key, value);
+		free(value);
 	}
 
  error:
