@@ -631,6 +631,9 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			int error;
 			if (p == NULL)
 				break;
+			/* the last chunk is on a new line? */
+			if (strlen(p) == 0)
+				continue;
 			req->ntoread = strtol(p, &endp, 16);
 			error = *p == '\0' || *endp != '\0';
 			free(p);
@@ -642,18 +645,22 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 				/* Last chunk */
 				return (1);
 			}
-		} else if (len >= req->ntoread) {
-			/* Completed chunk */
-			evbuffer_add(req->input_buffer,
-			    EVBUFFER_DATA(buf), req->ntoread);
-			evbuffer_drain(buf, req->ntoread);
-			req->ntoread = -1;
-			if (req->cb != NULL) {
-				(*req->cb)(req, req->cb_arg);
-				/* XXX(niels): not sure if i like semantics */ 
-				evbuffer_drain(req->input_buffer,
-				    EVBUFFER_LENGTH(req->input_buffer));
-			}
+			continue;
+		}
+
+		/* don't have enough to complete a chunk; wait for more */
+		if (len < req->ntoread)
+			return (0);
+
+		/* Completed chunk */
+		evbuffer_add(req->input_buffer,
+		    EVBUFFER_DATA(buf), req->ntoread);
+		evbuffer_drain(buf, req->ntoread);
+		req->ntoread = -1;
+		if (req->chunk_cb != NULL) {
+			(*req->chunk_cb)(req, req->cb_arg);
+			evbuffer_drain(req->input_buffer,
+			    EVBUFFER_LENGTH(req->input_buffer));
 		}
 	}
 
@@ -2027,6 +2034,13 @@ evhttp_request_free(struct evhttp_request *req)
 		evbuffer_free(req->output_buffer);
 
 	free(req);
+}
+
+void
+evhttp_request_set_chunked_cb(struct evhttp_request *req,
+    void (*cb)(struct evhttp_request *, void *))
+{
+	req->chunk_cb = cb;
 }
 
 /*

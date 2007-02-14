@@ -138,6 +138,13 @@ struct evhttp_request {
 	/* Callback */
 	void (*cb)(struct evhttp_request *, void *);
 	void *cb_arg;
+
+	/* 
+	 * Chunked data callback - call for each completed chunk if
+	 * specified.  If not specified, all the data is delivered via
+	 * the regular callback.
+	 */
+	void (*chunk_cb)(struct evhttp_request *, void *);
 };
 
 /* 
@@ -147,6 +154,8 @@ struct evhttp_request {
  */
 struct evhttp_request *evhttp_request_new(
 	void (*cb)(struct evhttp_request *, void *), void *arg);
+void evhttp_request_set_chunked_cb(struct evhttp_request *,
+    void (*cb)(struct evhttp_request *, void *));
 
 /* Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
