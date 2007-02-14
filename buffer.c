@@ -291,7 +291,7 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 }
 
 int
-evbuffer_add(struct evbuffer *buf, void *data, size_t datlen)
+evbuffer_add(struct evbuffer *buf, const void *data, size_t datlen)
 {
 	size_t need = buf->misalign + buf->off + datlen;
 	size_t oldoff = buf->off;

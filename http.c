@@ -635,7 +635,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			if (strlen(p) == 0)
 				continue;
 			req->ntoread = strtol(p, &endp, 16);
-			error = *p == '\0' || *endp != '\0';
+			error = *p == '\0' || (*endp != '\0' && *endp != ' ');
 			free(p);
 			if (error) {
 				/* could not get chunk size */
