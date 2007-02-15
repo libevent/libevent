@@ -109,6 +109,7 @@ struct evhttp_request {
 	struct evhttp_connection *evcon;
 	int flags;
 #define EVHTTP_REQ_OWN_CONNECTION	0x0001	
+#define EVHTTP_PROXY_REQUEST		0x0002
 	
 	struct evkeyvalq *input_headers;
 	struct evkeyvalq *output_headers;

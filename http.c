@@ -310,10 +310,16 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 }
 
 static int
-evhttp_is_connection_close(struct evkeyvalq* headers)
+evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 {
-	const char *connection = evhttp_find_header(headers, "Connection");
-	return (connection != NULL && strcasecmp(connection, "close") == 0);
+	if (flags & EVHTTP_PROXY_REQUEST) {
+		/* proxy connection */
+		const char *connection = evhttp_find_header(headers, "Proxy-Connection");
+		return (connection == NULL || strcasecmp(connection, "keep-alive") != 0);
+	} else {
+		const char *connection = evhttp_find_header(headers, "Connection");
+		return (connection != NULL && strcasecmp(connection, "close") == 0);
+	}
 }
 
 static int
@@ -363,9 +369,11 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	}
 
 	/* if the request asked for a close, we send a close, too */
-	if (evhttp_is_connection_close(req->input_headers)) {
+	if (evhttp_is_connection_close(req->flags, req->input_headers)) {
 		evhttp_remove_header(req->output_headers, "Connection");
-		evhttp_add_header(req->output_headers, "Connection", "close");
+		if (!(req->flags & EVHTTP_PROXY_REQUEST))
+		    evhttp_add_header(req->output_headers, "Connection", "close");
+		evhttp_remove_header(req->output_headers, "Proxy-Connection");
 	}
 }
 
@@ -576,8 +584,8 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 		req->evcon = NULL;
 
 		need_close = 
-		    evhttp_is_connection_close(req->input_headers) ||
-		    evhttp_is_connection_close(req->output_headers);
+		    evhttp_is_connection_close(req->flags, req->input_headers) ||
+		    evhttp_is_connection_close(req->flags, req->output_headers);
 
 		/* check if we got asked to close the connection */
 		if (need_close)
@@ -1042,6 +1050,10 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		event_warn("%s: evhttp_decode_uri", __func__);
 		return (-1);
 	}
+
+	/* determine if it's a proxy request */
+	if (strlen(req->uri) > 0 && req->uri[0] != '/')
+		req->flags |= EVHTTP_PROXY_REQUEST;
 
 	return (0);
 }
@@ -1511,8 +1523,8 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	need_close =
 	    (req->minor == 0 &&
 		!evhttp_is_connection_keepalive(req->input_headers))||
-	    evhttp_is_connection_close(req->input_headers) ||
-	    evhttp_is_connection_close(req->output_headers);
+	    evhttp_is_connection_close(req->flags, req->input_headers) ||
+	    evhttp_is_connection_close(req->flags, req->output_headers);
 
 	assert(req->flags & EVHTTP_REQ_OWN_CONNECTION);
 	evhttp_request_free(req);
