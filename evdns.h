@@ -213,6 +213,7 @@
  *    3 file too large
  *    4 out of memory
  *    5 short read from file
+ *    6 no nameservers in file
  *
  * Internals:
  *
@@ -236,6 +237,10 @@
 
 #ifndef EVENTDNS_H
 #define EVENTDNS_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* Error codes 0-5 are as described in RFC 1035. */
 #define DNS_ERR_NONE 0
@@ -262,6 +267,7 @@
 
 #define DNS_IPv4_A 1
 #define DNS_PTR 2
+#define DNS_IPv6_AAAA 3
 
 #define DNS_QUERY_NO_SEARCH 1
 
@@ -272,7 +278,7 @@
 
 /* 
  * The callback that contains the results from a lookup.
- * - type is either DNS_IPv4_A or DNS_PTR
+ * - type is either DNS_IPv4_A or DNS_PTR or DNS_IPv6_AAAA
  * - count contains the number of addresses of form type
  * - ttl is the number of seconds the resolution may be cached for.
  * - addresses needs to be cast according to type
@@ -288,8 +294,12 @@ int evdns_clear_nameservers_and_suspend(void);
 int evdns_resume(void);
 int evdns_nameserver_ip_add(const char *ip_as_string);
 int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback, void *ptr);
+int evdns_resolve_ipv6(const char *name, int flags, evdns_callback_type callback, void *ptr);
 struct in_addr;
+struct in6_addr;
 int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
+int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
+int evdns_set_option(const char *option, const char *val, int flags);
 int evdns_resolv_conf_parse(int flags, const char *);
 #ifdef MS_WINDOWS
 int evdns_config_windows_nameservers(void);
@@ -302,5 +312,54 @@ typedef void (*evdns_debug_log_fn_type)(int is_warning, const char *msg);
 void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 
 #define DNS_NO_SEARCH 1
+
+#ifdef __cplusplus
+}
+#endif
+
+/*
+ * Structures and functions used to implement a DNS server.
+ */
+
+struct evdns_server_request {
+	int flags;
+	int nquestions;
+	struct evdns_server_question **questions;
+};
+struct evdns_server_question {
+	int type;
+	int class;
+	char name[1];
+};
+typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, void *);
+#define EVDNS_ANSWER_SECTION 0
+#define EVDNS_AUTHORITY_SECTION 1
+#define EVDNS_ADDITIONAL_SECTION 2
+
+#define EVDNS_TYPE_A	   1
+#define EVDNS_TYPE_NS	   2
+#define EVDNS_TYPE_CNAME   5
+#define EVDNS_TYPE_SOA	   6
+#define EVDNS_TYPE_PTR	  12
+#define EVDNS_TYPE_MX	  15
+#define EVDNS_TYPE_TXT	  16
+#define EVDNS_TYPE_AAAA	  28
+
+#define EVDNS_QTYPE_AXFR 252
+#define EVDNS_QTYPE_ALL	 255
+
+#define EVDNS_CLASS_INET   1
+
+struct evdns_server_port *evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
+void evdns_close_server_port(struct evdns_server_port *port);
+
+int evdns_server_request_add_reply(struct evdns_server_request *req, int section, const char *name, int type, int class, int ttl, int datalen, int is_name, const char *data);
+int evdns_server_request_add_a_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl);
+int evdns_server_request_add_aaaa_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl);
+int evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_addr *in, const char *inaddr_name, const char *hostname, int ttl);
+int evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl);
+
+int evdns_server_request_respond(struct evdns_server_request *req, int err);
+int evdns_server_request_drop(struct evdns_server_request *req);
 
 #endif  // !EVENTDNS_H

@@ -128,7 +128,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 
  	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bev->input)));
 	
-	if (evbuffer_find(bev->input, what, strlen(what)) != NULL) {
+	if (evbuffer_find(bev->input, (const unsigned char*) what, strlen(what)) != NULL) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		req->kind = EVHTTP_RESPONSE;
 		int done = evhttp_parse_lines(req, bev->input);
@@ -445,7 +445,7 @@ void
 http_failure_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = "400 Bad Request";
-	if (evbuffer_find(bev->input, what, strlen(what)) != NULL) {
+	if (evbuffer_find(bev->input, (const unsigned char*) what, strlen(what)) != NULL) {
 		test_ok = 2;
 		bufferevent_disable(bev, EV_READ);
 		event_loopexit(NULL);
@@ -595,6 +595,28 @@ http_close_detection()
 }
 
 void
+http_highport_test(void)
+{
+	int i = -1;
+	struct evhttp *myhttp = NULL;
+ 
+	fprintf(stdout, "Testing HTTP Server with high port: ");
+
+	/* Try a few different ports */
+	for (i = 0; i < 50; ++i) {
+		myhttp = evhttp_start("127.0.0.1", 65535 - i);
+		if (myhttp != NULL) {
+			fprintf(stdout, "OK\n");
+			evhttp_free(myhttp);
+			return;
+		}
+	}
+
+	fprintf(stdout, "FAILED\n");
+	exit(1);
+}
+
+void
 http_suite(void)
 {
 	http_basic_test();
@@ -603,4 +625,5 @@ http_suite(void)
 	http_close_detection();
 	http_post_test();
 	http_failure_test();
+	http_highport_test();
 }

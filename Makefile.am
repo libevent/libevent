@@ -39,7 +39,9 @@ SYS_INCLUDES =
 endif
 
 libevent_la_SOURCES = event.c buffer.c evbuffer.c log.c event_tagging.c \
-	 http.c evhttp.h http-internal.h evdns.c evdns.h $(SYS_SRC)
+	http.c evhttp.h http-internal.h evdns.c evdns.h strlcpy.c \
+	strlcpy-internal.h strlcpy-internal.h \
+	$(SYS_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
 

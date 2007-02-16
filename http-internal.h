@@ -41,6 +41,7 @@ struct evhttp_connection {
 
 	int fd;
 	struct event ev;
+	struct event close_ev;
 	struct evbuffer *input_buffer;
 	struct evbuffer *output_buffer;
 	
@@ -53,6 +54,8 @@ struct evhttp_connection {
 #define EVHTTP_CON_CLOSEDETECT  0x0004  /* detecting if persistent close */
 
 	int timeout;			/* timeout in seconds for events */
+	int retry_cnt;			/* retry count */
+	int retry_max;			/* maximum number of retries */
 	
 	enum evhttp_connection_state state;
 
@@ -63,6 +66,9 @@ struct evhttp_connection {
 	
 	void (*cb)(struct evhttp_connection *, void *);
 	void *cb_arg;
+	
+	void (*closecb)(struct evhttp_connection *, void *);
+	void *closecb_arg;
 };
 
 struct evhttp_cb {

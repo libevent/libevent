@@ -50,8 +50,10 @@ extern "C" {
 
 /* Response codes */
 #define HTTP_OK			200
+#define HTTP_NOCONTENT		204
 #define HTTP_MOVEPERM		301
 #define HTTP_MOVETEMP		302
+#define HTTP_NOTMODIFIED	304
 #define HTTP_BADREQUEST		400
 #define HTTP_NOTFOUND		404
 
@@ -84,6 +86,11 @@ void evhttp_send_error(struct evhttp_request *, int, const char *);
 void evhttp_send_reply(struct evhttp_request *, int, const char *,
     struct evbuffer *);
 
+/* Low-level response interface, for streaming/chunked replies */
+void evhttp_send_reply_start(struct evhttp_request *, int, const char *);
+void evhttp_send_reply_chunk(struct evhttp_request *, struct evbuffer *);
+void evhttp_send_reply_end(struct evhttp_request *);
+	
 /* Interfaces for making requests */
 enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
 
@@ -101,6 +108,7 @@ struct evhttp_request {
 	struct evhttp_connection *evcon;
 	int flags;
 #define EVHTTP_REQ_OWN_CONNECTION	0x0001	
+#define EVHTTP_PROXY_REQUEST		0x0002
 	
 	struct evkeyvalq *input_headers;
 	struct evkeyvalq *output_headers;
@@ -123,12 +131,20 @@ struct evhttp_request {
 
 	struct evbuffer *input_buffer;	/* read data */
 	int ntoread;
+	int chunked;
 
 	struct evbuffer *output_buffer;	/* outgoing post or data */
 
 	/* Callback */
 	void (*cb)(struct evhttp_request *, void *);
 	void *cb_arg;
+
+	/* 
+	 * Chunked data callback - call for each completed chunk if
+	 * specified.  If not specified, all the data is delivered via
+	 * the regular callback.
+	 */
+	void (*chunk_cb)(struct evhttp_request *, void *);
 };
 
 /* 
@@ -138,6 +154,8 @@ struct evhttp_request {
  */
 struct evhttp_request *evhttp_request_new(
 	void (*cb)(struct evhttp_request *, void *), void *arg);
+void evhttp_request_set_chunked_cb(struct evhttp_request *,
+    void (*cb)(struct evhttp_request *, void *));
 
 /* Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
@@ -157,6 +175,18 @@ void evhttp_connection_free(struct evhttp_connection *evcon);
 void evhttp_connection_set_timeout(struct evhttp_connection *evcon,
     int timeout_in_secs);
 
+/* Sets the retry limit for this connection - -1 repeats indefnitely */
+void evhttp_connection_set_retries(struct evhttp_connection *evcon,
+    int retry_max);
+
+/* Set a callback for connection close. */
+void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
+    void (*)(struct evhttp_connection *, void *), void *);
+
+/* Get the remote address and port associated with this connection. */
+void evhttp_connection_get_peer(struct evhttp_connection *evcon,
+    char **address, u_short *port);
+
 /* The connection gets ownership of the request */
 int evhttp_make_request(struct evhttp_connection *evcon,
     struct evhttp_request *req,
@@ -172,6 +202,8 @@ int evhttp_add_header(struct evkeyvalq *, const char *, const char *);
 void evhttp_clear_headers(struct evkeyvalq *);
 
 /* Miscellaneous utility functions */
+char *evhttp_encode_uri(const char *uri);
+char *evhttp_decode_uri(const char *uri);
 void evhttp_parse_query(const char *uri, struct evkeyvalq *);
 char *evhttp_htmlescape(const char *html);
 #ifdef __cplusplus
