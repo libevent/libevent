@@ -204,16 +204,16 @@ html_replace(char ch)
 char *
 evhttp_htmlescape(const char *html)
 {
-	int i, new_size = 0;
+	int i, new_size = 0, old_size = strlen(html);
 	char *escaped_html, *p;
 	
-	for (i = 0; i < strlen(html); ++i)
+	for (i = 0; i < old_size; ++i)
 		new_size += strlen(html_replace(html[i]));
 
 	p = escaped_html = malloc(new_size + 1);
 	if (escaped_html == NULL)
 		event_err(1, "%s: malloc(%d)", __func__, new_size + 1);
-	for (i = 0; i < strlen(html); ++i) {
+	for (i = 0; i < old_size; ++i) {
 		const char *replaced = html_replace(html[i]);
 		/* this is length checked */
 		strcpy(p, replaced);
@@ -1046,7 +1046,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
-	if ((req->uri = evhttp_decode_uri(uri)) == NULL) {
+	if ((req->uri = strdup(uri)) == NULL) {
 		event_warn("%s: evhttp_decode_uri", __func__);
 		return (-1);
 	}
@@ -1675,7 +1675,7 @@ evhttp_send_page(struct evhttp_request *req, struct evbuffer *databuf)
 static const char uri_chars[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
-	0, 1, 0, 0, 1, 0, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1,
+	0, 1, 0, 0, 1, 0, 0, 1,   1, 1, 1, 1, 1, 1, 1, 1,
 	1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 0, 0, 1, 0, 0,
 	/* 64 */
 	1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1,
