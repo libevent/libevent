@@ -56,6 +56,7 @@ extern "C" {
 #define HTTP_NOTMODIFIED	304
 #define HTTP_BADREQUEST		400
 #define HTTP_NOTFOUND		404
+#define HTTP_SERVUNAVAIL	503
 
 struct evhttp;
 struct evhttp_request;
