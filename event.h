@@ -300,7 +300,7 @@ void evbuffer_setcb(struct evbuffer *, void (*)(struct evbuffer *, size_t, size_
 void evtag_init(void);
 
 void evtag_marshal(struct evbuffer *evbuf, u_int8_t tag, const void *data,
-    u_int16_t len);
+    u_int32_t len);
 
 void encode_int(struct evbuffer *evbuf, u_int32_t number);
 

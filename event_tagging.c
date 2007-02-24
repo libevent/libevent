@@ -112,7 +112,7 @@ encode_int(struct evbuffer *evbuf, u_int32_t number)
 
 void
 evtag_marshal(struct evbuffer *evbuf, u_int8_t tag,
-    const void *data, u_int16_t len)
+    const void *data, u_int32_t len)
 {
 	evbuffer_add(evbuf, &tag, sizeof(tag));
 	encode_int(evbuf, len);
@@ -259,7 +259,7 @@ int
 evtag_unmarshal(struct evbuffer *src, u_int8_t *ptag, struct evbuffer *dst)
 {
 	u_int8_t tag;
-	u_int16_t len;
+	u_int32_t len;
 	u_int32_t integer;
 
 	if (evbuffer_remove(src, &tag, sizeof(tag)) != sizeof(tag))
@@ -287,7 +287,7 @@ evtag_unmarshal_int(struct evbuffer *evbuf, u_int8_t need_tag,
     u_int32_t *pinteger)
 {
 	u_int8_t tag;
-	u_int16_t len;
+	u_int32_t len;
 	u_int32_t integer;
 
 	if (evbuffer_remove(evbuf, &tag, sizeof(tag)) != sizeof(tag) ||
