@@ -2261,7 +2261,7 @@ static int
 make_socket(int should_bind, const char *address, u_short port)
 {
 	int fd;
-        struct addrinfo ai, *aitop;
+        struct addrinfo ai, *aitop = NULL;
 #ifdef HAVE_GETADDRINFO
         char strport[NI_MAXSERV];
         int ai_result;
@@ -2276,6 +2276,7 @@ make_socket(int should_bind, const char *address, u_short port)
                         event_warn("getaddrinfo");
                 else
                         event_warnx("getaddrinfo: %s", gai_strerror(ai_result));
+		return (-1);
         }
 #else
 	if (fake_getaddrinfo(address, &ai) < 0) {
