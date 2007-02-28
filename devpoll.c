@@ -66,7 +66,6 @@ struct devpollop {
 	struct pollfd *events;
 	int nevents;
 	int dpfd;
-	sigset_t evsigmask;
 	struct pollfd *changes;
 	int nchanges;
 };
@@ -180,7 +179,7 @@ devpoll_init(void)
 		return (NULL);
 	}
 
-	evsignal_init(&devpollop->evsigmask);
+	evsignal_init();
 
 	return (devpollop);
 }
@@ -209,7 +208,7 @@ devpoll_recalc(struct event_base *base, void *arg, int max)
 		devpollop->nfds = nfds;
 	}
 
-	return (evsignal_recalc(&devpollop->evsigmask));
+	return (0);
 }
 
 int
@@ -221,9 +220,6 @@ devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	struct evdevpoll *evdp;
 	int i, res, timeout;
 
-	if (evsignal_deliver(&devpollop->evsigmask) == -1)
-		return (-1);
-
 	if (devpollop->nchanges)
 		devpoll_commit(devpollop);
 
@@ -234,9 +230,6 @@ devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	dvp.dp_timeout = timeout;
 
 	res = ioctl(devpollop->dpfd, DP_POLL, &dvp);
-
-	if (evsignal_recalc(&devpollop->evsigmask) == -1)
-		return (-1);
 
 	if (res == -1) {
 		if (errno != EINTR) {
@@ -301,7 +294,7 @@ devpoll_add(void *arg, struct event *ev)
 	int fd, events;
 
 	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_add(&devpollop->evsigmask, ev));
+		return (evsignal_add(ev));
 
 	fd = ev->ev_fd;
 	if (fd >= devpollop->nfds) {
@@ -356,7 +349,7 @@ devpoll_del(void *arg, struct event *ev)
 	int needwritedelete = 1, needreaddelete = 1;
 
 	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_del(&devpollop->evsigmask, ev));
+		return (evsignal_del(ev));
 
 	fd = ev->ev_fd;
 	if (fd >= devpollop->nfds)

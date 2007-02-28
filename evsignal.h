@@ -27,11 +27,9 @@
 #ifndef _EVSIGNAL_H_
 #define _EVSIGNAL_H_
 
-void evsignal_init(sigset_t *);
+void evsignal_init(void);
 void evsignal_process(void);
-int evsignal_recalc(sigset_t *);
-int evsignal_deliver(sigset_t *);
-int evsignal_add(sigset_t *, struct event *);
-int evsignal_del(sigset_t *, struct event *);
+int evsignal_add(struct event *);
+int evsignal_del(struct event *);
 
 #endif /* _EVSIGNAL_H_ */

@@ -117,7 +117,6 @@ struct fd_info {
 
 struct evport_data {
 	int 		ed_port;	/* event port for system events  */
-	sigset_t 	ed_sigmask;	/* for evsignal 		 */
 	int		ed_nevents;	/* number of allocated fdi's 	 */
 	struct fd_info *ed_fds;		/* allocated fdi table 		 */
 	/* fdi's that we need to reassoc */
@@ -173,7 +172,7 @@ evport_init(void)
 	evpd->ed_nevents = DEFAULT_NFDS;
 	memset(&evpd->ed_pending, 0, EVENTS_PER_GETN * sizeof(struct fd_info*));
 
-	evsignal_init(&evpd->ed_sigmask);
+	evsignal_init();
 
 	return (evpd);
 }
@@ -330,11 +329,6 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		}
 	}
 
-	
-
-	if (evsignal_deliver(&epdp->ed_sigmask) == -1)
-		return (-1);
-
 	if ((res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN, 
 		    &nevents, &ts)) == -1) {
 		if (errno == EINTR) {
@@ -410,9 +404,6 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	check_evportop(epdp);
 
-	if (evsignal_recalc(&epdp->ed_sigmask) == -1)
-		return (-1);
-
 	return (0);
 }
 
@@ -426,7 +417,7 @@ evport_recalc(struct event_base *base, void *arg, int max)
 {
 	struct evport_data *evpd = arg;
 	check_evportop(evpd);
-	return (evsignal_recalc(&evpd->ed_sigmask));
+	return (0);
 }
 
 
@@ -448,7 +439,7 @@ evport_add(void *arg, struct event *ev)
 	 * Delegate, if it's not ours to handle.
 	 */
 	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_add(&evpd->ed_sigmask, ev));
+		return (evsignal_add(ev));
 
 	/*
 	 * If necessary, grow the file descriptor info table
@@ -489,7 +480,7 @@ evport_del(void *arg, struct event *ev)
 	 * Delegate, if it's not ours to handle
 	 */
 	if (ev->ev_events & EV_SIGNAL) {
-		return (evsignal_del(&evpd->ed_sigmask, ev));
+		return (evsignal_del(ev));
 	}
 
 	if (evpd->ed_nevents < ev->ev_fd) {

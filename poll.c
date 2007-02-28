@@ -66,7 +66,6 @@ struct pollop {
 	int *idxplus1_by_fd; /* Index into event_set by fd; we add 1 so
 			      * that 0 (which is easy to memset) can mean
 			      * "no entry." */
-	sigset_t evsigmask;
 };
 
 void *poll_init	(void);
@@ -98,7 +97,7 @@ poll_init(void)
 	if (!(pollop = calloc(1, sizeof(struct pollop))))
 		return (NULL);
 
-	evsignal_init(&pollop->evsigmask);
+	evsignal_init();
 
 	return (pollop);
 }
@@ -111,9 +110,7 @@ poll_init(void)
 int
 poll_recalc(struct event_base *base, void *arg, int max)
 {
-	struct pollop *pop = arg;
-
-	return (evsignal_recalc(&pop->evsigmask));
+	return (0);
 }
 
 #ifdef CHECK_INVARIANTS
@@ -156,16 +153,10 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	int res, i, sec, nfds;
 	struct pollop *pop = arg;
 
-	if (evsignal_deliver(&pop->evsigmask) == -1)
-		return (-1);
-
 	poll_check_ok(pop);
 	sec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 	nfds = pop->nfds;
 	res = poll(pop->event_set, nfds, sec);
-
-	if (evsignal_recalc(&pop->evsigmask) == -1)
-		return (-1);
 
 	if (res == -1) {
 		if (errno != EINTR) {
@@ -228,7 +219,7 @@ poll_add(void *arg, struct event *ev)
 	int i;
 
 	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_add(&pop->evsigmask, ev));
+		return (evsignal_add(ev));
 	if (!(ev->ev_events & (EV_READ|EV_WRITE)))
 		return (0);
 
@@ -333,7 +324,7 @@ poll_del(void *arg, struct event *ev)
 	int i;
 
 	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_del(&pop->evsigmask, ev));
+		return (evsignal_del(ev));
 
 	if (!(ev->ev_events & (EV_READ|EV_WRITE)))
 		return (0);
