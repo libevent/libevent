@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#include <evconfig.h>
 #include <stdarg.h>
 
 #ifdef WIN32

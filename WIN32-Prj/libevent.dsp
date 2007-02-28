@@ -109,7 +109,7 @@ SOURCE=..\acconfig.h
 # End Source File
 # Begin Source File
 
-SOURCE="..\WIN32-Code\config.h"
+SOURCE="..\WIN32-Code\evconfig.h"
 # End Source File
 # Begin Source File
 

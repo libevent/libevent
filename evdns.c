@@ -36,7 +36,7 @@
 
 #include <sys/types.h>
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "evconfig.h"
 #endif
 
 #ifdef WIN32
