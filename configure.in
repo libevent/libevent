@@ -3,7 +3,7 @@ dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
 AM_INIT_AUTOMAKE(libevent,1.3a)
-AM_CONFIG_HEADER(evconfig.h)
+AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 
 dnl Initialize prefix.

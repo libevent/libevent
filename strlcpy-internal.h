@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #ifdef HAVE_CONFIG_H
-#include "evconfig.h"
+#include "config.h"
 #endif /* HAVE_CONFIG_H */
 
 #ifndef HAVE_STRLCPY

@@ -2,9 +2,12 @@
  * Compile with:
  * cc -I/usr/local/include -o time-test time-test.c -L/usr/local/lib -levent
  */
-#include <evconfig.h>
 
 #include <sys/types.h>
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <sys/stat.h>
 #ifndef WIN32

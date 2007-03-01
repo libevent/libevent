@@ -34,7 +34,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "evconfig.h"
+#include "config.h"
 #endif
 
 #include <sys/types.h>

@@ -148,7 +148,7 @@
 
 
 #ifdef HAVE_CONFIG_H
-#include "evconfig.h"
+#include "config.h"
 #endif
 
 /* Enable F_SETSIG and F_SETOWN */

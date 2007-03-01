@@ -25,7 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #ifdef HAVE_CONFIG_H
-#include "evconfig.h"
+#include "config.h"
 #endif
 
 #include <stdint.h>

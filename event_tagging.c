@@ -29,7 +29,7 @@
 #include <sys/param.h>
 
 #ifdef HAVE_CONFIG_H
-#include "evconfig.h"
+#include "config.h"
 #endif
 
 #ifdef WIN32

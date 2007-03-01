@@ -26,10 +26,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #ifdef _MSC_VER
-#include "evconfig.h"
+#include "config.h"
 #else
 /* Avoid the windows/msvc thing. */
-#include "../evconfig.h"
+#include "../config.h"
 #endif
 
 #include <windows.h>
