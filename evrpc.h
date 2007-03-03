@@ -27,6 +27,10 @@
 #ifndef _EVRPC_H_
 #define _EVRPC_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * This header files provides basic support for an RPC server and client.
  *
@@ -281,5 +285,9 @@ void evrpc_pool_add_connection(struct evrpc_pool *,
  * for the connection itself.
  */
 void evrpc_pool_set_timeout(struct evrpc_pool *, int timeout_in_secs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _EVRPC_H_ */

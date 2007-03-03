@@ -46,7 +46,7 @@ libevent_la_SOURCES = event.c buffer.c evbuffer.c log.c event_tagging.c \
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
 
-include_HEADERS = event.h evhttp.h evdns.h
+include_HEADERS = event.h evhttp.h evdns.h evrpc.h
 
 INCLUDES = -Icompat $(SYS_INCLUDES)
 
