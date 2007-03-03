@@ -152,7 +152,8 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
     void (*cb)(struct reqstruct *, struct rplystruct *, void *cbarg), \
     void *cbarg) { \
 	struct evrpc_request_wrapper *ctx;			    \
-	ctx = malloc(sizeof(struct evrpc_request_wrapper));	    \
+	ctx = (struct evrpc_request_wrapper *) \
+	    malloc(sizeof(struct evrpc_request_wrapper));	    \
 	if (ctx == NULL) {					    \
 		(*(cb))(request, reply, cbarg);			    \
 		return (-1);					    \
