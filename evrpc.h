@@ -192,8 +192,10 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
 #define EVRPC_REGISTER_OBJECT(rpc, name, request, reply) \
   do { \
     (rpc)->uri = strdup(#name); \
-    if ((rpc)->uri == NULL) \
-      event_err(1, "failed to register object"); \
+    if ((rpc)->uri == NULL) {			 \
+      fprintf(stderr, "failed to register object\n");	\
+      exit(1);						\
+    } \
     (rpc)->request_new = (void *(*)(void))request##_new; \
     (rpc)->request_free = (void (*)(void *))request##_free; \
     (rpc)->request_unmarshal = (int (*)(void *, struct evbuffer *))request##_unmarshal; \
@@ -201,7 +203,7 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
     (rpc)->reply_free = (void (*)(void *))reply##_free; \
     (rpc)->reply_complete = (int (*)(void *))reply##_complete; \
     (rpc)->reply_marshal = (void (*)(struct evbuffer*, void *))reply##_marshal; \
-  } while(0)
+  } while (0)
 
 struct evrpc_base;
 struct evhttp;
@@ -212,7 +214,7 @@ struct evrpc_base *evrpc_init(struct evhttp *server);
 /* this macro is used to register RPCs with the HTTP Server */
 #define EVRPC_REGISTER(base, name, request, reply, callback, cbarg) \
   do { \
-    struct evrpc* rpc = calloc(1, sizeof(struct evrpc)); \
+    struct evrpc* rpc = (struct evrpc *)calloc(1, sizeof(struct evrpc)); \
     EVRPC_REGISTER_OBJECT(rpc, name, request, reply); \
     evrpc_register_rpc(base, rpc, \
 	(void (*)(struct evrpc_req_generic*, void *))callback, cbarg);	\
