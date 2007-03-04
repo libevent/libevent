@@ -55,12 +55,13 @@
 extern struct event_list signalqueue;
 
 static sig_atomic_t evsigcaught[NSIG];
-static int needrecalc;
 volatile sig_atomic_t evsignal_caught = 0;
 
 static struct event ev_signal;
 static int ev_signal_pair[2];
 static int ev_signal_added;
+
+static void evsignal_handler(int sig);
 
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
@@ -86,10 +87,8 @@ evsignal_cb(int fd, short what, void *arg)
 #endif
 
 void
-evsignal_init(sigset_t *evsigmask)
+evsignal_init(void)
 {
-	sigemptyset(evsigmask);
-
 	/* 
 	 * Our signal handler is going to write to one end of the socket
 	 * pair to wake up our event loop.  The event loop then scans for
@@ -109,14 +108,27 @@ evsignal_init(sigset_t *evsigmask)
 }
 
 int
-evsignal_add(sigset_t *evsigmask, struct event *ev)
+evsignal_add(struct event *ev)
 {
 	int evsignal;
+	struct sigaction sa;
 
 	if (ev->ev_events & (EV_READ|EV_WRITE))
 		event_errx(1, "%s: EV_SIGNAL incompatible use", __func__);
 	evsignal = EVENT_SIGNAL(ev);
-	sigaddset(evsigmask, evsignal);
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = evsignal_handler;
+	sigfillset(&sa.sa_mask);
+	sa.sa_flags |= SA_RESTART;
+
+	if (sigaction(evsignal, &sa, NULL) == -1)
+		return (-1);
+
+	if (!ev_signal_added) {
+		ev_signal_added = 1;
+		event_add(&ev_signal, NULL);
+	}
 
 	return (0);
 }
@@ -126,13 +138,11 @@ evsignal_add(sigset_t *evsigmask, struct event *ev)
  */
 
 int
-evsignal_del(sigset_t *evsigmask, struct event *ev)
+evsignal_del(struct event *ev)
 {
 	int evsignal;
 
 	evsignal = EVENT_SIGNAL(ev);
-	sigdelset(evsigmask, evsignal);
-	needrecalc = 1;
 
 	return (sigaction(EVENT_SIGNAL(ev),(struct sigaction *)SIG_DFL, NULL));
 }
@@ -150,63 +160,21 @@ evsignal_handler(int sig)
 	errno = save_errno;
 }
 
-int
-evsignal_recalc(sigset_t *evsigmask)
-{
-	struct sigaction sa;
-	struct event *ev;
-
-	if (!ev_signal_added) {
-		ev_signal_added = 1;
-		event_add(&ev_signal, NULL);
-	}
-
-	if (TAILQ_FIRST(&signalqueue) == NULL && !needrecalc)
-		return (0);
-	needrecalc = 0;
-
-	if (sigprocmask(SIG_BLOCK, evsigmask, NULL) == -1)
-		return (-1);
-
-	/* Reinstall our signal handler. */
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = evsignal_handler;
-	sa.sa_mask = *evsigmask;
-	sa.sa_flags |= SA_RESTART;
-
-	TAILQ_FOREACH(ev, &signalqueue, ev_signal_next) {
-		if (sigaction(EVENT_SIGNAL(ev), &sa, NULL) == -1)
-			return (-1);
-	}
-	return (0);
-}
-
-int
-evsignal_deliver(sigset_t *evsigmask)
-{
-	if (TAILQ_FIRST(&signalqueue) == NULL)
-		return (0);
-
-	return (sigprocmask(SIG_UNBLOCK, evsigmask, NULL));
-	/* XXX - pending signals handled here */
-}
-
 void
 evsignal_process(void)
 {
 	struct event *ev;
 	sig_atomic_t ncalls;
 
+	evsignal_caught = 0;
 	TAILQ_FOREACH(ev, &signalqueue, ev_signal_next) {
 		ncalls = evsigcaught[EVENT_SIGNAL(ev)];
 		if (ncalls) {
 			if (!(ev->ev_events & EV_PERSIST))
 				event_del(ev);
 			event_active(ev, EV_SIGNAL, ncalls);
+			evsigcaught[EVENT_SIGNAL(ev)] = 0;
 		}
 	}
-
-	memset(evsigcaught, 0, sizeof(evsigcaught));
-	evsignal_caught = 0;
 }
 

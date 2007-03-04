@@ -68,7 +68,6 @@ struct epollop {
 	struct epoll_event *events;
 	int nevents;
 	int epfd;
-	sigset_t evsigmask;
 };
 
 void *epoll_init	(void);
@@ -150,7 +149,7 @@ epoll_init(void)
 	}
 	epollop->nfds = nfiles;
 
-	evsignal_init(&epollop->evsigmask);
+	evsignal_init();
 
 	return (epollop);
 }
@@ -179,7 +178,7 @@ epoll_recalc(struct event_base *base, void *arg, int max)
 		epollop->nfds = nfds;
 	}
 
-	return (evsignal_recalc(&epollop->evsigmask));
+	return (0);
 }
 
 int
@@ -190,14 +189,8 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	struct evepoll *evep;
 	int i, res, timeout;
 
-	if (evsignal_deliver(&epollop->evsigmask) == -1)
-		return (-1);
-
 	timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
-
-	if (evsignal_recalc(&epollop->evsigmask) == -1)
-		return (-1);
 
 	if (res == -1) {
 		if (errno != EINTR) {
@@ -262,7 +255,7 @@ epoll_add(void *arg, struct event *ev)
 	int fd, op, events;
 
 	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_add(&epollop->evsigmask, ev));
+		return (evsignal_add(ev));
 
 	fd = ev->ev_fd;
 	if (fd >= epollop->nfds) {
@@ -311,7 +304,7 @@ epoll_del(void *arg, struct event *ev)
 	int needwritedelete = 1, needreaddelete = 1;
 
 	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_del(&epollop->evsigmask, ev));
+		return (evsignal_del(ev));
 
 	fd = ev->ev_fd;
 	if (fd >= epollop->nfds)

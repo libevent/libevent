@@ -553,7 +553,7 @@ evhttp_write(int fd, short what, void *arg)
 	}
 
 	if (n == 0) {
-		event_warnx("%s: write nothing\n", __func__);
+		event_warnx("%s: write nothing", __func__);
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
@@ -893,7 +893,7 @@ evhttp_connectioncb(int fd, short what, void *arg)
 	socklen_t errsz = sizeof(error);
 		
 	if (what == EV_TIMEOUT) {
-		event_warnx("%s: connection timeout for \"%s:%d\" on %d\n",
+		event_warnx("%s: connection timeout for \"%s:%d\" on %d",
 		    __func__, evcon->address, evcon->port, evcon->fd);
 		goto cleanup;
 	}
@@ -907,7 +907,7 @@ evhttp_connectioncb(int fd, short what, void *arg)
 	}
 
 	if (error) {
-		event_warnx("%s: connect failed for \"%s:%d\" on %d: %s\n",
+		event_warnx("%s: connect failed for \"%s:%d\" on %d: %s",
 		    __func__, evcon->address, evcon->port, evcon->fd,
 		    strerror(error));
 		goto cleanup;
@@ -983,14 +983,14 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 		req->major = 1;
 		req->minor = 1;
 	} else {
-		event_warnx("%s: bad protocol \"%s\"\n",
+		event_warnx("%s: bad protocol \"%s\"",
 		    __func__, protocol);
 		return (-1);
 	}
 
 	req->response_code = atoi(number);
 	if (!evhttp_valid_response_code(req->response_code)) {
-		event_warnx("%s: bad response code \"%s\"\n",
+		event_warnx("%s: bad response code \"%s\"",
 		    __func__, number);
 		return (-1);
 	}
@@ -1029,8 +1029,8 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	} else if (strcmp(method, "HEAD") == 0) {
 		req->type = EVHTTP_REQ_HEAD;
 	} else {
-		event_warnx("%s: bad method %s on request %p\n",
-		    __func__, method, req);
+		event_warnx("%s: bad method %s on request %p from %s",
+		    __func__, method, req, req->remote_host);
 		return (-1);
 	}
 
@@ -1041,8 +1041,8 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		req->major = 1;
 		req->minor = 1;
 	} else {
-		event_warnx("%s: bad version %s on request %p\n",
-		    __func__, version, req);
+		event_warnx("%s: bad version %s on request %p from %s",
+		    __func__, version, req, req->remote_host);
 		return (-1);
 	}
 
@@ -1223,7 +1223,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 	    strcasecmp(connection, "Close") != 0) {
 		/* Bad combination, we don't know when it will end */
 		event_warnx("%s: we got no content length, but the "
-		    "server wants to keep the connection open: %s.\n",
+		    "server wants to keep the connection open: %s.",
 		    __func__, connection);
 		return (-1);
 	} else if (content_length == NULL) {
@@ -1284,12 +1284,12 @@ evhttp_read_header(int fd, short what, void *arg)
 
 	n = evbuffer_read(evcon->input_buffer, fd, -1);
 	if (n == 0) {
-		event_warnx("%s: no more data on %d\n", __func__, fd);
+		event_warnx("%s: no more data on %d", __func__, fd);
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
 	if (n == -1) {
-		event_warnx("%s: bad read on %d\n", __func__, fd);
+		event_warnx("%s: bad read on %d", __func__, fd);
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
@@ -1330,7 +1330,7 @@ evhttp_read_header(int fd, short what, void *arg)
 		break;
 
 	default:
-		event_warnx("%s: bad header on %d\n", __func__, fd);
+		event_warnx("%s: bad header on %d", __func__, fd);
 		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 		break;
 	}
@@ -2261,7 +2261,7 @@ static int
 make_socket(int should_bind, const char *address, u_short port)
 {
 	int fd;
-        struct addrinfo ai, *aitop;
+        struct addrinfo ai, *aitop = NULL;
 #ifdef HAVE_GETADDRINFO
         char strport[NI_MAXSERV];
         int ai_result;
@@ -2276,6 +2276,7 @@ make_socket(int should_bind, const char *address, u_short port)
                         event_warn("getaddrinfo");
                 else
                         event_warnx("getaddrinfo: %s", gai_strerror(ai_result));
+		return (-1);
         }
 #else
 	if (fake_getaddrinfo(address, &ai) < 0) {

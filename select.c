@@ -68,7 +68,6 @@ struct selectop {
 	fd_set *event_writeset_out;
 	struct event **event_r_by_fd;
 	struct event **event_w_by_fd;
-	sigset_t evsigmask;
 };
 
 void *select_init	(void);
@@ -104,7 +103,7 @@ select_init(void)
 
 	select_resize(sop, howmany(32 + 1, NFDBITS)*sizeof(fd_mask));
 
-	evsignal_init(&sop->evsigmask);
+	evsignal_init();
 
 	return (sop);
 }
@@ -133,7 +132,7 @@ check_selectop(struct selectop *sop)
 
 }
 #else
-#define check_selectop(sop) do {;} while (0)
+#define check_selectop(sop) do { (void) sop; } while (0)
 #endif
 
 /*
@@ -148,7 +147,7 @@ select_recalc(struct event_base *base, void *arg, int max)
 
 	check_selectop(sop);
 
-	return (evsignal_recalc(&sop->evsigmask));
+	return (0);
 }
 
 int
@@ -164,15 +163,10 @@ select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	memcpy(sop->event_writeset_out, sop->event_writeset_in,
 	       sop->event_fdsz);
 
-	if (evsignal_deliver(&sop->evsigmask) == -1)
-		return (-1);
-
 	res = select(sop->event_fds + 1, sop->event_readset_out,
 	    sop->event_writeset_out, NULL, tv);
 
 	check_selectop(sop);
-	if (evsignal_recalc(&sop->evsigmask) == -1)
-		return (-1);
 
 	if (res == -1) {
 		if (errno != EINTR) {
@@ -281,7 +275,7 @@ select_add(void *arg, struct event *ev)
 	struct selectop *sop = arg;
 
 	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_add(&sop->evsigmask, ev));
+		return (evsignal_add(ev));
 
 	check_selectop(sop);
 	/*
@@ -332,7 +326,7 @@ select_del(void *arg, struct event *ev)
 
 	check_selectop(sop);
 	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_del(&sop->evsigmask, ev));
+		return (evsignal_del(ev));
 
 	if (sop->event_fds < ev->ev_fd) {
 		check_selectop(sop);

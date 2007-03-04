@@ -451,6 +451,20 @@ test_simplesignal(void)
 
 	cleanup_test();
 }
+
+void
+test_immediatesignal(void)
+{
+	struct event ev;
+
+	printf("Immediate signal: ");
+	signal_set(&ev, SIGUSR1, signal_cb, &ev);
+	signal_add(&ev, NULL);
+	raise(SIGUSR1);
+	event_loop(EVLOOP_NONBLOCK);
+	signal_del(&ev);
+	cleanup_test();
+}
 #endif
 
 void
@@ -899,6 +913,7 @@ main (int argc, char **argv)
 	test_simpletimeout();
 #ifndef WIN32
 	test_simplesignal();
+	test_immediatesignal();
 #endif
 	test_loopexit();
 
