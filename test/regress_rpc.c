@@ -381,7 +381,7 @@ rpc_basic_client(void)
 
 	kill = kill_new();
 
-	EVRPC_MAKE_REQUEST(Message, msg, kill,  GotKillCb, NULL);
+	EVRPC_MAKE_REQUEST(Message, pool, msg, kill,  GotKillCb, NULL);
 
 	test_ok = 0;
 
@@ -395,7 +395,7 @@ rpc_basic_client(void)
 	/* we do it twice to make sure that reuse works correctly */
 	kill_clear(kill);
 
-	EVRPC_MAKE_REQUEST(Message, msg, kill,  GotKillCb, NULL);
+	EVRPC_MAKE_REQUEST(Message, pool, msg, kill,  GotKillCb, NULL);
 
 	event_dispatch();
 	
@@ -441,8 +441,8 @@ rpc_basic_queued_client(void)
 	kill_one = kill_new();
 	kill_two = kill_new();
 
-	EVRPC_MAKE_REQUEST(Message, msg, kill_one,  GotKillCbTwo, NULL);
-	EVRPC_MAKE_REQUEST(Message, msg, kill_two,  GotKillCb, NULL);
+	EVRPC_MAKE_REQUEST(Message, pool, msg, kill_one,  GotKillCbTwo, NULL);
+	EVRPC_MAKE_REQUEST(Message, pool, msg, kill_two,  GotKillCb, NULL);
 
 	test_ok = 0;
 
@@ -502,7 +502,7 @@ rpc_client_timeout(void)
 
 	kill = kill_new();
 
-	EVRPC_MAKE_REQUEST(NeverReply, msg, kill,  GotErrorCb, NULL);
+	EVRPC_MAKE_REQUEST(NeverReply, pool, msg, kill,  GotErrorCb, NULL);
 
 	test_ok = 0;
 

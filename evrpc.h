@@ -262,7 +262,7 @@ struct evrpc_request_wrapper {
 	int (*reply_unmarshal)(void *, struct evbuffer*);
 };
 
-#define EVRPC_MAKE_REQUEST(name, request, reply, cb, cbarg) \
+#define EVRPC_MAKE_REQUEST(name, pool, request, reply, cb, cbarg)	\
 	evrpc_send_request_##name(pool, request, reply, cb, cbarg)
 
 int evrpc_make_request(struct evrpc_request_wrapper *);
