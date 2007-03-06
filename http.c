@@ -1795,30 +1795,41 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 	free(line);
 }
 
+static struct evhttp_cb *
+evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
+{
+	struct evhttp_cb *cb;
+
+	/* Test for different URLs */
+	char *p = strchr(req->uri, '?');
+	TAILQ_FOREACH(cb, callbacks, next) {
+		int res;
+		if (p == NULL)
+			res = strcmp(cb->what, req->uri) == 0;
+		else
+			res = strncmp(cb->what, req->uri,
+			    (size_t)(p - req->uri)) == 0;
+		if (res)
+			return (cb);
+	}
+
+	return (NULL);
+}
+
 void
 evhttp_handle_request(struct evhttp_request *req, void *arg)
 {
 	struct evhttp *http = arg;
-	struct evhttp_cb *cb;
+	struct evhttp_cb *cb = NULL;
 
 	if (req->uri == NULL) {
 		evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
 		return;
 	}
 
-	/* Test for different URLs */
-	TAILQ_FOREACH(cb, &http->callbacks, next) {
-		int res;
-		char *p = strchr(req->uri, '?');
-		if (p == NULL)
-			res = strcmp(cb->what, req->uri) == 0;
-		else
-			res = strncmp(cb->what, req->uri,
-			    (size_t)(p - req->uri)) == 0;
-		if (res) {
-			(*cb->cb)(req, cb->cbarg);
-			return;
-		}
+	if ((cb = evhttp_dispatch_callback(&http->callbacks, req)) != NULL) {
+		(*cb->cb)(req, cb->cbarg);
+		return;
 	}
 
 	/* Generic call back */
