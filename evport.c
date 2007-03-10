@@ -81,8 +81,6 @@
 #include "log.h"
 #include "evsignal.h"
 
-extern volatile sig_atomic_t evsignal_caught;
-
 
 /*
  * Default value for ed_nevents, which is the maximum file descriptor number we
@@ -123,7 +121,7 @@ struct evport_data {
 	struct fd_info *ed_pending[EVENTS_PER_GETN];
 };
 
-static void*	evport_init	(void);
+static void*	evport_init	(struct event_base *);
 static int 	evport_add	(void *, struct event *);
 static int 	evport_del	(void *, struct event *);
 static int 	evport_recalc	(struct event_base *, void *, int);
@@ -143,7 +141,7 @@ const struct eventop evportops = {
  */
 
 static void*
-evport_init(void)
+evport_init(struct event_base *base)
 {
 	struct evport_data *evpd;
 	/*
@@ -172,7 +170,7 @@ evport_init(void)
 	evpd->ed_nevents = DEFAULT_NFDS;
 	memset(&evpd->ed_pending, 0, EVENTS_PER_GETN * sizeof(struct fd_info*));
 
-	evsignal_init();
+	evsignal_init(base);
 
 	return (evpd);
 }
@@ -332,7 +330,7 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	if ((res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN, 
 		    &nevents, &ts)) == -1) {
 		if (errno == EINTR) {
-			evsignal_process();
+			evsignal_process(base);
 			return (0);
 		} else if (errno == ETIME) {
 			if (nevents == 0)
@@ -341,8 +339,8 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			perror("port_getn");
 			return (-1);
 		}
-	} else if (evsignal_caught) {
-		evsignal_process();
+	} else if (base->sig.evsignal_caught) {
+		evsignal_process(base);
 	}
 	
 	event_debug(("%s: port_getn reports %d events", __func__, nevents));

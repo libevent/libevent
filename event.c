@@ -111,9 +111,8 @@ const struct eventop *eventops[] = {
 };
 
 /* Global state */
-struct event_list signalqueue;
-
 struct event_base *current_base = NULL;
+extern struct event_base *evsignal_base;
 
 /* Handle signals - This is a deprecated interface */
 int (*event_sigcb)(void);		/* Signal callback when gotsig is set */
@@ -174,36 +173,40 @@ void *
 event_init(void)
 {
 	int i;
+	struct event_base *base;
 
-	if ((current_base = calloc(1, sizeof(struct event_base))) == NULL)
+	if ((base = calloc(1, sizeof(struct event_base))) == NULL)
 		event_err(1, "%s: calloc");
 
 	event_sigcb = NULL;
 	event_gotsig = 0;
-	gettime(&current_base->event_tv);
+	gettime(&base->event_tv);
 	
-	RB_INIT(&current_base->timetree);
-	TAILQ_INIT(&current_base->eventqueue);
-	TAILQ_INIT(&signalqueue);
+	RB_INIT(&base->timetree);
+	TAILQ_INIT(&base->eventqueue);
+	TAILQ_INIT(&base->sig.signalqueue);
+	base->sig.ev_signal_pair[0] = -1;
+	base->sig.ev_signal_pair[1] = -1;
 	
-	current_base->evbase = NULL;
-	for (i = 0; eventops[i] && !current_base->evbase; i++) {
-		current_base->evsel = eventops[i];
+	base->evbase = NULL;
+	for (i = 0; eventops[i] && !base->evbase; i++) {
+		base->evsel = eventops[i];
 
-		current_base->evbase = current_base->evsel->init();
+		base->evbase = base->evsel->init(base);
 	}
 
-	if (current_base->evbase == NULL)
+	if (base->evbase == NULL)
 		event_errx(1, "%s: no event mechanism available", __func__);
 
 	if (getenv("EVENT_SHOW_METHOD")) 
 		event_msgx("libevent using: %s\n",
-			   current_base->evsel->name);
+			   base->evsel->name);
 
 	/* allocate a single active event queue */
-	event_base_priority_init(current_base, 1);
+	event_base_priority_init(base, 1);
 
-	return (current_base);
+	current_base = base;
+	return (base);
 }
 
 void
@@ -217,7 +220,8 @@ event_base_free(struct event_base *base)
 		current_base = NULL;
 
 	assert(base);
-	assert(TAILQ_EMPTY(&base->eventqueue));
+	if (base->evsel->dealloc != NULL)
+		base->evsel->dealloc(base, base->evbase);
 	for (i=0; i < base->nactivequeues; ++i)
 		assert(TAILQ_EMPTY(base->activequeues[i]));
 
@@ -227,8 +231,7 @@ event_base_free(struct event_base *base)
 		free(base->activequeues[i]);
 	free(base->activequeues);
 
-	if (base->evsel->dealloc != NULL)
-		base->evsel->dealloc(base->evbase);
+	assert(TAILQ_EMPTY(&base->eventqueue));
 
 	free(base);
 }
@@ -343,7 +346,6 @@ event_loopexit_cb(int fd, short what, void *arg)
 }
 
 /* not thread safe */
-
 int
 event_loopexit(struct timeval *tv)
 {
@@ -354,7 +356,7 @@ event_loopexit(struct timeval *tv)
 int
 event_base_loopexit(struct event_base *event_base, struct timeval *tv)
 {
-	return (event_once(-1, EV_TIMEOUT, event_loopexit_cb,
+	return (event_base_once(event_base, -1, EV_TIMEOUT, event_loopexit_cb,
 		    event_base, tv));
 }
 
@@ -374,6 +376,8 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval tv;
 	int res, done;
 
+	if(!TAILQ_EMPTY(&base->sig.signalqueue))
+		evsignal_base = base;
 	done = 0;
 	while (!done) {
 		/* Calculate the initial events that we are waiting for */
@@ -422,6 +426,7 @@ event_base_loop(struct event_base *base, int flags)
 
 		res = evsel->dispatch(base, evbase, &tv);
 
+
 		if (res == -1)
 			return (-1);
 
@@ -459,10 +464,17 @@ event_once_cb(int fd, short events, void *arg)
 	free(eonce);
 }
 
-/* Schedules an event once */
-
+/* not threadsafe, event scheduled once. */
 int
 event_once(int fd, short events,
+    void (*callback)(int, short, void *), void *arg, struct timeval *tv)
+{
+	return event_base_once(current_base, fd, events, callback, arg, tv);
+}
+
+/* Schedules an event once */
+int
+event_base_once(struct event_base *base, int fd, short events,
     void (*callback)(int, short, void *), void *arg, struct timeval *tv)
 {
 	struct event_once *eonce;
@@ -496,7 +508,9 @@ event_once(int fd, short events,
 		return (-1);
 	}
 
-	res = event_add(&eonce->ev, tv);
+	res = event_base_set(base, &eonce->ev);
+	if (res == 0)
+		res = event_add(&eonce->ev, tv);
 	if (res != 0) {
 		free(eonce);
 		return (res);
@@ -521,7 +535,8 @@ event_set(struct event *ev, int fd, short events,
 	ev->ev_pncalls = NULL;
 
 	/* by default, we put new events into the middle priority */
-	ev->ev_pri = current_base->nactivequeues/2;
+	if(current_base)
+		ev->ev_pri = current_base->nactivequeues/2;
 }
 
 int
@@ -801,7 +816,7 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 		    ev, ev_active_next);
 		break;
 	case EVLIST_SIGNAL:
-		TAILQ_REMOVE(&signalqueue, ev, ev_signal_next);
+		TAILQ_REMOVE(&base->sig.signalqueue, ev, ev_signal_next);
 		break;
 	case EVLIST_TIMEOUT:
 		RB_REMOVE(event_tree, &base->timetree, ev);
@@ -843,7 +858,7 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		    ev,ev_active_next);
 		break;
 	case EVLIST_SIGNAL:
-		TAILQ_INSERT_TAIL(&signalqueue, ev, ev_signal_next);
+		TAILQ_INSERT_TAIL(&base->sig.signalqueue, ev, ev_signal_next);
 		break;
 	case EVLIST_TIMEOUT: {
 		struct event *tmp = RB_INSERT(event_tree, &base->timetree, ev);

@@ -42,6 +42,7 @@
 .Nm event_add ,
 .Nm event_del ,
 .Nm event_once ,
+.Nm event_base_once ,
 .Nm event_pending ,
 .Nm event_initialized ,
 .Nm event_priority_init ,
@@ -106,6 +107,8 @@
 .Fn "event_del" "struct event *ev"
 .Ft int
 .Fn "event_once" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg" "struct timeval *tv"
+.Ft int
+.Fn "event_base_once" "struct event_base *base" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg" "struct timeval *tv"
 .Ft int
 .Fn "event_pending" "struct event *ev" "short event" "struct timeval *tv"
 .Ft int

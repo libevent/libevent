@@ -131,12 +131,12 @@ TAILQ_HEAD (evkeyvalq, evkeyval);
 
 struct eventop {
 	char *name;
-	void *(*init)(void);
+	void *(*init)(struct event_base *);
 	int (*add)(void *, struct event *);
 	int (*del)(void *, struct event *);
 	int (*recalc)(struct event_base *, void *, int);
 	int (*dispatch)(struct event_base *, void *, struct timeval *);
-	void (*dealloc)(void *);
+	void (*dealloc)(struct event_base *, void *);
 };
 
 #define TIMEOUT_DEFAULT	{5, 0}
@@ -184,6 +184,7 @@ int event_base_loopexit(struct event_base *, struct timeval *);
 
 void event_set(struct event *, int, short, void (*)(int, short, void *), void *);
 int event_once(int, short, void (*)(int, short, void *), void *, struct timeval *);
+int event_base_once(struct event_base *, int, short, void (*)(int, short, void *), void *, struct timeval *);
 
 int event_add(struct event *, struct timeval *);
 int event_del(struct event *);

@@ -223,7 +223,7 @@ struct rtdata {
 	int poll_position;
 };
 
-void *rtsig_init(void);
+void *rtsig_init(struct event_base *);
 int rtsig_add(void *, struct event *);
 int rtsig_del(void *, struct event *);
 int rtsig_recalc(struct event_base *, void *, int);
@@ -544,7 +544,7 @@ activate(struct event *ev, int flags)
 } while (0)
 
 void *
-rtsig_init(void)
+rtsig_init(struct event_base *)
 {
 	struct rtsigop *op;
 	int sockets[2];
