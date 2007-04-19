@@ -431,13 +431,12 @@ evbuffer_write(struct evbuffer *buffer, int fd)
 u_char *
 evbuffer_find(struct evbuffer *buffer, const u_char *what, size_t len)
 {
-	size_t remain = buffer->off;
-	u_char *search = buffer->buffer;
+	u_char *search = buffer->buffer, *end = search + buffer->off;
 	u_char *p;
 
-	while ((p = memchr(search, *what, remain)) != NULL) {
-		remain = buffer->off - (size_t)(search - buffer->buffer);
-		if (remain < len)
+	while (search < end &&
+	    (p = memchr(search, *what, end - search)) != NULL) {
+		if (p + len > end)
 			break;
 		if (memcmp(p, what, len) == 0)
 			return (p);

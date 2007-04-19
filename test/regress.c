@@ -605,6 +605,61 @@ test_evbuffer(void) {
 }
 
 void
+test_evbuffer_find(void)
+{
+	u_char* p;
+	char* test1 = "1234567890\r\n";
+	char* test2 = "1234567890\r";
+#define EVBUFFER_INITIAL_LENGTH 256
+	char test3[EVBUFFER_INITIAL_LENGTH];
+	unsigned int i;
+	struct evbuffer * buf = evbuffer_new();
+
+	/* make sure evbuffer_find doesn't match past the end of the buffer */
+	fprintf(stdout, "Testing evbuffer_find 1: ");
+	evbuffer_add(buf, (u_char*)test1, strlen(test1));
+	evbuffer_drain(buf, strlen(test1));	  
+	evbuffer_add(buf, (u_char*)test2, strlen(test2));
+	p = evbuffer_find(buf, (u_char*)"\r\n", 2);
+	if (p == NULL) {
+		fprintf(stdout, "OK\n");
+	} else {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/*
+	 * drain the buffer and do another find; in r309 this would
+	 * read past the allocated buffer causing a valgrind error.
+	 */
+	fprintf(stdout, "Testing evbuffer_find 2: ");
+	evbuffer_drain(buf, strlen(test2));
+	for (i = 0; i < EVBUFFER_INITIAL_LENGTH; ++i)
+		test3[i] = 'a';
+	test3[EVBUFFER_INITIAL_LENGTH - 1] = 'x';
+	evbuffer_add(buf, (u_char *)test3, EVBUFFER_INITIAL_LENGTH);
+	p = evbuffer_find(buf, (u_char *)"xy", 2);
+	if (p == NULL) {
+		printf("OK\n");
+	} else {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* simple test for match at end of allocated buffer */
+	fprintf(stdout, "Testing evbuffer_find 3: ");
+	p = evbuffer_find(buf, (u_char *)"ax", 2);
+	if (p != NULL && strncmp(p, "ax", 2) == 0) {
+		printf("OK\n");
+	} else {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evbuffer_free(buf);
+}
+
+void
 readcb(struct bufferevent *bev, void *arg)
 {
 	if (EVBUFFER_LENGTH(bev->input) == 8333) {
@@ -988,6 +1043,11 @@ main (int argc, char **argv)
 	/* Initalize the event library */
 	event_base = event_init();
 
+	test_evbuffer();
+	test_evbuffer_find();
+	
+	test_bufferevent();
+
 	http_suite();
 
 	rpc_suite();
@@ -1010,10 +1070,6 @@ main (int argc, char **argv)
 	test_immediatesignal();
 #endif
 	test_loopexit();
-
-	test_evbuffer();
-	
-	test_bufferevent();
 
 	test_priorities(1);
 	test_priorities(2);
