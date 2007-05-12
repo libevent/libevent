@@ -573,12 +573,13 @@ void
 evhttp_connection_done(struct evhttp_connection *evcon)
 {
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
-
+	int con_outgoing = evcon->flags & EVHTTP_CON_OUTGOING;
+    
 	/*
 	 * if this is an incoming connection, we need to leave the request
 	 * on the connection, so that we can reply to it.
 	 */
-	if (evcon->flags & EVHTTP_CON_OUTGOING) {
+	if (con_outgoing) {
 	        int need_close;
 		TAILQ_REMOVE(&evcon->requests, req, next);
 		req->evcon = NULL;
@@ -614,7 +615,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 	(*req->cb)(req, req->cb_arg);
 
 	/* if this was an outgoing request, we own and it's done. so free it */
-	if (evcon->flags & EVHTTP_CON_OUTGOING) {
+	if (con_outgoing) {
 		evhttp_request_free(req);
 	}
 }
