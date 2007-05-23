@@ -75,6 +75,9 @@ void evhttp_free(struct evhttp* http);
 void evhttp_set_cb(struct evhttp *, const char *,
     void (*)(struct evhttp_request *, void *), void *);
 
+/* Removes the callback for a specified URI */
+int evhttp_del_cb(struct evhttp *, const char *);
+
 /* Set a callback for all requests that are not caught by specific callbacks */
 void evhttp_set_gencb(struct evhttp *,
     void (*)(struct evhttp_request *, void *), void *);

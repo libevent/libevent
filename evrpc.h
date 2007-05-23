@@ -223,6 +223,11 @@ struct evrpc_base *evrpc_init(struct evhttp *server);
 int evrpc_register_rpc(struct evrpc_base *, struct evrpc *,
     void (*)(struct evrpc_req_generic*, void *), void *);
 
+/* Takes the named RPCs and tried to unregister it */
+#define EVRPC_UNREGISTER(base, name) evrpc_unregister_rpc(base, #name)
+
+int evrpc_unregister_rpc(struct evrpc_base *, const char *name);
+
 /*
  * Client-side RPC support
  */

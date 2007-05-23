@@ -133,6 +133,35 @@ evrpc_register_rpc(struct evrpc_base *base, struct evrpc *rpc,
 	return (0);
 }
 
+int
+evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
+{
+	char *registered_uri = NULL;
+	struct evrpc *rpc;
+
+	/* find the right rpc; linear search might be slow */
+	TAILQ_FOREACH(rpc, &base->registered_rpcs, next) {
+		if (strcmp(rpc->uri, name) == 0)
+			break;
+	}
+	if (rpc == NULL) {
+		/* We did not find an RPC with this name */
+		return (-1);
+	}
+	TAILQ_REMOVE(&base->registered_rpcs, rpc, next);
+	
+	free((char *)rpc->uri);
+	free(rpc);
+
+        registered_uri = evrpc_construct_uri(name);
+
+	/* remove the http server callback */
+	assert(evhttp_del_cb(base->http_server, registered_uri) == 0);
+
+	free(registered_uri);
+	return (0);
+}
+
 static void
 evrpc_request_cb(struct evhttp_request *req, void *arg)
 {

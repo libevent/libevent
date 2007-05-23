@@ -129,6 +129,13 @@ rpc_setup(struct evhttp **phttp, short *pport, struct evrpc_base **pbase)
 }
 
 static void
+rpc_teardown(struct evrpc_base *base)
+{
+	assert(EVRPC_UNREGISTER(base, Message) == 0);
+	assert(EVRPC_UNREGISTER(base, NeverReply) == 0);
+}
+
+static void
 rpc_postrequest_failure(struct evhttp_request *req, void *arg)
 {
 	if (req->response_code != HTTP_SERVUNAVAIL) {
@@ -189,6 +196,8 @@ rpc_basic_test(void)
 	test_ok = 0;
 
 	event_dispatch();
+
+	rpc_teardown(base);
 	
 	if (test_ok != 1) {
 		fprintf(stdout, "FAILED\n");
@@ -275,6 +284,8 @@ rpc_basic_message(void)
 	test_ok = 0;
 
 	event_dispatch();
+	
+	rpc_teardown(base);
 	
 	if (test_ok != 1) {
 		fprintf(stdout, "FAILED\n");
@@ -399,6 +410,8 @@ rpc_basic_client(void)
 
 	event_dispatch();
 	
+	rpc_teardown(base);
+	
 	if (test_ok != 2) {
 		fprintf(stdout, "FAILED (2)\n");
 		exit(1);
@@ -447,6 +460,8 @@ rpc_basic_queued_client(void)
 	test_ok = 0;
 
 	event_dispatch();
+	
+	rpc_teardown(base);
 	
 	if (test_ok != 2) {
 		fprintf(stdout, "FAILED (1)\n");
@@ -507,6 +522,8 @@ rpc_client_timeout(void)
 	test_ok = 0;
 
 	event_dispatch();
+	
+	rpc_teardown(base);
 	
 	if (test_ok != 2) {
 		fprintf(stdout, "FAILED (1)\n");

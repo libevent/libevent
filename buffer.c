@@ -44,6 +44,7 @@
 #include <sys/ioctl.h>
 #endif
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -134,9 +135,13 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 	int sz;
 	va_list aq;
 
+	/* make sure that at least some space is available */
+	evbuffer_expand(buf, 64);
 	for (;;) {
+		size_t used = buf->misalign + buf->off;
 		buffer = (char *)buf->buffer + buf->off;
-		space = buf->totallen - buf->misalign - buf->off;
+		assert(buf->totallen >= used);
+		space = buf->totallen - used;
 
 #ifndef va_copy
 #define	va_copy(dst, src)	memcpy(&(dst), &(src), sizeof(va_list))
@@ -152,7 +157,7 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 
 		va_end(aq);
 
-		if (sz == -1)
+		if (sz < 0)
 			return (-1);
 		if (sz < space) {
 			buf->off += sz;
