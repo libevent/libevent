@@ -211,6 +211,9 @@ struct evhttp;
 /* functions to start up the rpc system */
 struct evrpc_base *evrpc_init(struct evhttp *server);
 
+/* frees the base - for now, you are responsible for making sure that no rpcs are ongoing */
+void evrpc_free(struct evrpc_base *);
+
 /* this macro is used to register RPCs with the HTTP Server */
 #define EVRPC_REGISTER(base, name, request, reply, callback, cbarg) \
   do { \

@@ -82,7 +82,13 @@ evrpc_init(struct evhttp *http_server)
 void
 evrpc_free(struct evrpc_base *base)
 {
+	struct evrpc *rpc;
+	
+	while ((rpc = TAILQ_FIRST(&base->registered_rpcs)) != NULL) {
+		assert(evrpc_unregister_rpc(base, rpc->uri));
+	}
 
+	free(base);
 }
 
 static void evrpc_pool_schedule(struct evrpc_pool *pool);

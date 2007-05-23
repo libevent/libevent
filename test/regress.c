@@ -1079,16 +1079,16 @@ main (int argc, char **argv)
 
 	test_want_only_once();
 
+	evtag_test();
+
+	rpc_test();
+
 #ifndef WIN32
 	test_signal_dealloc();
 	test_signal_pipeloss();
 	test_signal_switchbase();
 #endif
 	
-	evtag_test();
-
-	rpc_test();
-
 	return (0);
 }
 

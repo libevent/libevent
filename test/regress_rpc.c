@@ -133,6 +133,8 @@ rpc_teardown(struct evrpc_base *base)
 {
 	assert(EVRPC_UNREGISTER(base, Message) == 0);
 	assert(EVRPC_UNREGISTER(base, NeverReply) == 0);
+
+	evrpc_free(base);
 }
 
 static void
