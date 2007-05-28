@@ -1688,7 +1688,7 @@ evdns_server_request_respond(struct evdns_server_request *_req, int err)
 	if (server_request_free(req))
 		return 0;
 
-	if (req->port->pending_replies)
+	if (port->pending_replies)
 		server_port_flush(port);
 
 	return 0;
