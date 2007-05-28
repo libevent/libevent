@@ -2649,7 +2649,7 @@ resolv_conf_parse_line(char *const start, int flags) {
 int
 evdns_resolv_conf_parse(int flags, const char *const filename) {
 	struct stat st;
-	int fd;
+	int fd, n, r;
 	u8 *resolv;
 	char *start;
 	int err = 0;
@@ -2673,10 +2673,15 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 	resolv = (u8 *) malloc((size_t)st.st_size + 1);
 	if (!resolv) { err = 4; goto out1; }
 
-	if (read(fd, resolv, (size_t)st.st_size) != st.st_size) {
-		err = 5; goto out2;
-	}
-	resolv[st.st_size] = 0;  // we malloced an extra byte
+	n = 0;
+	while ((r = read(fd, resolv+n, (size_t)st.st_size-n)) > 0) {
+		n += r;
+		if (n == st.st_size)
+			break;
+		assert(n < st.st_size);
+ 	}
+	if (r < 0) { err = 5; goto out2; }
+	resolv[n] = 0;	 // we malloced an extra byte; this should be fine.
 
 	start = (char *) resolv;
 	for (;;) {
