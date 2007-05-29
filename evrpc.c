@@ -382,6 +382,7 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 {
 	struct evhttp_request *req = NULL;
 	struct evrpc_pool *pool = ctx->pool;
+	struct evrpc_status status;
 	char *uri = NULL;
 	int res = 0;
 
@@ -418,7 +419,9 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 	return (0);
 
 error:
-	(*ctx->cb)(ctx->request, ctx->reply, ctx->cb_arg);
+	memset(&status, 0, sizeof(status));
+	status.error = EVRPC_STATUS_ERR_UNSTARTED;
+	(*ctx->cb)(&status, ctx->request, ctx->reply, ctx->cb_arg);
 	evrpc_request_wrapper_free(ctx);
 	return (-1);
 }
@@ -450,20 +453,28 @@ evrpc_reply_done(struct evhttp_request *req, void *arg)
 {
 	struct evrpc_request_wrapper *ctx = arg;
 	struct evrpc_pool *pool = ctx->pool;
+	struct evrpc_status status;
 	int res = -1;
 	
 	/* cancel any timeout we might have scheduled */
 	event_del(&ctx->ev_timeout);
 
+	memset(&status, 0, sizeof(status));
 	/* we need to get the reply now */
-	if (req != NULL)
+	if (req != NULL) {
 		res = ctx->reply_unmarshal(ctx->reply, req->input_buffer);
+		if (res == -1) {
+			status.error = EVRPC_STATUS_ERR_BADPAYLOAD;
+		}
+	} else {
+		status.error = EVRPC_STATUS_ERR_TIMEOUT;
+	}
 	if (res == -1) {
 		/* clear everything that we might have written previously */
 		ctx->reply_clear(ctx->reply);
 	}
 
-	(*ctx->cb)(ctx->request, ctx->reply, ctx->cb_arg);
+	(*ctx->cb)(&status, ctx->request, ctx->reply, ctx->cb_arg);
 	
 	evrpc_request_wrapper_free(ctx);
 

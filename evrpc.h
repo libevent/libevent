@@ -104,6 +104,7 @@ struct evrpc {
 #define EVRPC_STRUCT(rpcname) struct evrpc_req__##rpcname
 
 struct evhttp_request;
+struct evrpc_status;
 
 /* We alias the RPC specific structs to this voided one */
 struct evrpc_req_generic {
@@ -117,7 +118,7 @@ struct evrpc_req_generic {
 	 * the static structure for this rpc; that can be used to
 	 * automatically unmarshal and marshal the http buffers.
 	 */
-	struct evrpc* rpc;
+	struct evrpc *rpc;
 
 	/*
 	 * the http request structure on which we need to answer.
@@ -132,41 +133,43 @@ struct evrpc_req_generic {
 
 /*
  * You need to use EVRPC_HEADER to create structures and function prototypes
- * needed by the server and client implmentation.
+ * needed by the server and client implementation.
  */
 #define EVRPC_HEADER(rpcname, reqstruct, rplystruct) \
 EVRPC_STRUCT(rpcname) {	\
 	struct reqstruct* request; \
 	struct rplystruct* reply; \
 	struct evrpc* rpc; \
-	void (*done)(struct evrpc* rpc, void *request, void *reply); \
+	void (*done)(struct evrpc_status *, \
+	    struct evrpc* rpc, void *request, void *reply);	     \
 };								     \
 int evrpc_send_request_##rpcname(struct evrpc_pool *, \
     struct reqstruct *, struct rplystruct *, \
-    void (*)(struct reqstruct *, struct rplystruct *, void *cbarg), \
+    void (*)(struct evrpc_status *, \
+	struct reqstruct *, struct rplystruct *, void *cbarg),	\
     void *);
 
 #define EVRPC_GENERATE(rpcname, reqstruct, rplystruct) \
 int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
     struct reqstruct *request, struct rplystruct *reply, \
-    void (*cb)(struct reqstruct *, struct rplystruct *, void *cbarg), \
+    void (*cb)(struct evrpc_status *, \
+	struct reqstruct *, struct rplystruct *, void *cbarg),	\
     void *cbarg) { \
+	struct evrpc_status status;				    \
 	struct evrpc_request_wrapper *ctx;			    \
 	ctx = (struct evrpc_request_wrapper *) \
 	    malloc(sizeof(struct evrpc_request_wrapper));	    \
-	if (ctx == NULL) {					    \
-		(*(cb))(request, reply, cbarg);			    \
-		return (-1);					    \
-	}							    \
+	if (ctx == NULL)					    \
+		goto error;					    \
 	ctx->pool = pool;					    \
 	ctx->evcon = NULL;					    \
 	ctx->name = strdup(#rpcname);				    \
 	if (ctx->name == NULL) {				    \
 		free(ctx);					    \
-		(*(cb))(request, reply, cbarg);			    \
-		return (-1);					    \
+		goto error;					    \
 	}							    \
-	ctx->cb = (void (*)(void *, void *, void *))cb;		    \
+	ctx->cb = (void (*)(struct evrpc_status *, \
+		void *, void *, void *))cb;			    \
 	ctx->cb_arg = cbarg;					    \
 	ctx->request = (void *)request;				    \
 	ctx->reply = (void *)reply;				    \
@@ -174,6 +177,11 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
 	ctx->reply_clear = (void (*)(void *))rplystruct##_clear;    \
 	ctx->reply_unmarshal = (int (*)(void *, struct evbuffer *))rplystruct##_unmarshal; \
 	return (evrpc_make_request(ctx));			    \
+error:								    \
+	memset(&status, 0, sizeof(status));			    \
+	status.error = EVRPC_STATUS_ERR_UNSTARTED;		    \
+	(*(cb))(&status, request, reply, cbarg);		    \
+	return (-1);						    \
 }
 
 
@@ -238,6 +246,14 @@ int evrpc_unregister_rpc(struct evrpc_base *, const char *name);
 struct evrpc_pool;
 struct evhttp_connection;
 
+struct evrpc_status {
+#define EVRPC_STATUS_ERR_NONE		0
+#define EVRPC_STATUS_ERR_TIMEOUT	1
+#define EVRPC_STATUS_ERR_BADPAYLOAD	2
+#define EVRPC_STATUS_ERR_UNSTARTED	3
+	int error;
+};
+
 struct evrpc_request_wrapper {
 	TAILQ_ENTRY(evrpc_request_wrapper) next;
 
@@ -254,7 +270,7 @@ struct evrpc_request_wrapper {
 	char *name;
 
 	/* callback */
-	void (*cb)(void *request, void *reply, void *arg);
+	void (*cb)(struct evrpc_status*, void *request, void *reply, void *arg);
 	void *cb_arg;
 
 	void *request;

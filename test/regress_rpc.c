@@ -317,10 +317,14 @@ rpc_pool_with_connection(short port)
 }
 
 static void
-GotKillCb(struct msg *msg, struct kill *kill, void *arg)
+GotKillCb(struct evrpc_status *status,
+    struct msg *msg, struct kill *kill, void *arg)
 {
 	char *weapon;
 	char *action;
+
+	if (status->error != EVRPC_STATUS_ERR_NONE)
+		goto done;
 
 	if (EVTAG_GET(kill, weapon, &weapon) == -1) {
 		fprintf(stderr, "get weapon\n");
@@ -344,10 +348,14 @@ done:
 }
 
 static void
-GotKillCbTwo(struct msg *msg, struct kill *kill, void *arg)
+GotKillCbTwo(struct evrpc_status *status,
+    struct msg *msg, struct kill *kill, void *arg)
 {
 	char *weapon;
 	char *action;
+
+	if (status->error != EVRPC_STATUS_ERR_NONE)
+		goto done;
 
 	if (EVTAG_GET(kill, weapon, &weapon) == -1) {
 		fprintf(stderr, "get weapon\n");
@@ -481,8 +489,12 @@ rpc_basic_queued_client(void)
 }
 
 static void
-GotErrorCb(struct msg *msg, struct kill *kill, void *arg)
+GotErrorCb(struct evrpc_status *status,
+    struct msg *msg, struct kill *kill, void *arg)
 {
+	if (status->error != EVRPC_STATUS_ERR_TIMEOUT)
+		goto done;
+
 	/* should never be complete but just to check */
 	if (kill_complete(kill) == 0)
 		goto done;
@@ -519,7 +531,7 @@ rpc_client_timeout(void)
 
 	kill = kill_new();
 
-	EVRPC_MAKE_REQUEST(NeverReply, pool, msg, kill,  GotErrorCb, NULL);
+	EVRPC_MAKE_REQUEST(NeverReply, pool, msg, kill, GotErrorCb, NULL);
 
 	test_ok = 0;
 
