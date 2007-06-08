@@ -1873,7 +1873,7 @@ accept_socket(int fd, short what, void *arg)
 		event_warn("%s: bad accept", __func__);
 		return;
 	}
-        if (event_make_socket_nonblocking(fd) < 0)
+        if (event_make_socket_nonblocking(nfd) < 0)
                 return;
 
 	evhttp_get_request(http, nfd, (struct sockaddr *)&ss, addrlen);
