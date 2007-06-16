@@ -36,6 +36,7 @@
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
+#include <sys/tree.h>
 #include <sys/devpoll.h>
 #include <signal.h>
 #include <stdio.h>
@@ -47,6 +48,7 @@
 #include <assert.h>
 
 #include "event.h"
+#include "event-internal.h"
 #include "evsignal.h"
 #include "log.h"
 

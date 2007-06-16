@@ -126,6 +126,7 @@ static int 	evport_add	(void *, struct event *);
 static int 	evport_del	(void *, struct event *);
 static int 	evport_recalc	(struct event_base *, void *, int);
 static int 	evport_dispatch	(struct event_base *, void *, struct timeval *);
+static void	evport_dealloc	(struct event_base *, void *);
 
 const struct eventop evportops = {
 	"event ports",
@@ -133,7 +134,8 @@ const struct eventop evportops = {
 	evport_add,
 	evport_del,
 	evport_recalc,
-	evport_dispatch
+	evport_dispatch,
+	evport_dealloc
 };
 
 /*
@@ -328,7 +330,7 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	}
 
 	if ((res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN, 
-		    &nevents, &ts)) == -1) {
+		    (unsigned int *) &nevents, &ts)) == -1) {
 		if (errno == EINTR) {
 			evsignal_process(base);
 			return (0);
@@ -496,3 +498,16 @@ evport_del(void *arg, struct event *ev)
 }
 
 
+static void
+evport_dealloc(struct event_base *base, void *arg)
+{
+	struct evport_data *evpd = arg;
+
+	evsignal_dealloc(base);
+
+	close(evpd->ed_port);
+
+	if (evpd->ed_fds)
+		free(evpd->ed_fds);
+	free(evpd);
+}

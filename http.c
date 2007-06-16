@@ -1570,7 +1570,7 @@ evhttp_send_error(struct evhttp_request *req, int error, const char *reason)
 
 /* Requires that headers and response code are already set up */
 
-static __inline void
+static inline void
 evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 {
 	struct evhttp_connection *evcon = req->evcon;

@@ -149,7 +149,7 @@ evtag_marshal_timeval(struct evbuffer *evbuf, u_int8_t tag, struct timeval *tv)
 	    EVBUFFER_LENGTH(_buf));
 }
 
-static int __inline
+static int inline
 decode_int_internal(u_int32_t *pnumber, struct evbuffer *evbuf, int dodrain)
 {
 	u_int32_t number = 0;

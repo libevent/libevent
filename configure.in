@@ -2,7 +2,7 @@ dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
-AM_INIT_AUTOMAKE(libevent,1.3b)
+AM_INIT_AUTOMAKE(libevent,1.3c-trunk)
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 
@@ -36,6 +36,7 @@ AC_ARG_WITH(rtsig,
 
 dnl Checks for libraries.
 AC_CHECK_LIB(socket, socket)
+AC_CHECK_LIB(resolv, inet_aton)
 
 dnl Checks for header files.
 AC_HEADER_STDC
