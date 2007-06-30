@@ -307,8 +307,6 @@ static int global_max_nameserver_timeout = 3;
 static const struct timeval global_nameserver_timeouts[] = {{10, 0}, {60, 0}, {300, 0}, {900, 0}, {3600, 0}};
 static const int global_nameserver_timeouts_length = sizeof(global_nameserver_timeouts)/sizeof(struct timeval);
 
-static const char *const evdns_error_strings[] = {"no error", "The name server was unable to interpret the query", "The name server suffered an internal error", "The requested domain name does not exist", "The name server refused to reply to the request"};
-
 static struct nameserver *nameserver_pick(void);
 static void evdns_request_insert(struct request *req, struct request **head);
 static void nameserver_ready_callback(int fd, short events, void *arg);
@@ -744,14 +742,14 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 	}
 }
 
-static inline int
+static int
 name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 	int name_end = -1;
 	int j = *idx;
 	int ptr_count = 0;
-#define GET32(x) do { if (j + 4 > length) goto err; memcpy(&_t32, packet + j, 4); j += 4; x = ntohl(_t32); } while(0);
-#define GET16(x) do { if (j + 2 > length) goto err; memcpy(&_t, packet + j, 2); j += 2; x = ntohs(_t); } while(0);
-#define GET8(x) do { if (j >= length) goto err; x = packet[j++]; } while(0);
+#define GET32(x) do { if (j + 4 > length) goto err; memcpy(&_t32, packet + j, 4); j += 4; x = ntohl(_t32); } while(0)
+#define GET16(x) do { if (j + 2 > length) goto err; memcpy(&_t, packet + j, 2); j += 2; x = ntohs(_t); } while(0)
+#define GET8(x) do { if (j >= length) goto err; x = packet[j++]; } while(0)
 
 	char *cp = name_out;
 	const char *const end = name_out + name_out_len;
@@ -1226,7 +1224,7 @@ server_port_ready_callback(int fd, short events, void *arg) {
  * functions, so that is can be safely replaced with something smarter later. */
 #define MAX_LABELS 128
 // Structures used to implement name compression
-struct dnslabel_entry { char *v; int pos; };
+struct dnslabel_entry { char *v; off_t pos; };
 struct dnslabel_table {
 	int n_labels; // number of current entries
 	// map from name to position in message
@@ -1265,7 +1263,7 @@ dnslabel_table_get_pos(const struct dnslabel_table *table, const char *label)
 
 // remember that we've used the label at position pos
 static int
-dnslabel_table_add(struct dnslabel_table *table, const char *label, int pos)
+dnslabel_table_add(struct dnslabel_table *table, const char *label, off_t pos)
 {
 	char *v;
 	int p;
@@ -1483,7 +1481,7 @@ evdns_server_request_add_reply(struct evdns_server_request *_req, int section, c
 				free(item);
 				return -1;
 			}
-			item->datalen = -1;
+			item->datalen = (u16)-1;
 		} else {
 			if (!(item->data = malloc(datalen))) {
 				free(item->name);

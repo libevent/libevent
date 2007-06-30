@@ -1735,8 +1735,8 @@ evhttp_decode_uri(const char *uri)
 			in_query = 1;
 		} else if (c == '+' && in_query) {
 			c = ' ';
-		} else if (c == '%' && isxdigit(uri[i+1]) &&
-		    isxdigit(uri[i+2])) {
+		} else if (c == '%' && isxdigit((unsigned char)uri[i+1]) &&
+		    isxdigit((unsigned char)uri[i+2])) {
 			char tmp[] = { uri[i+1], uri[i+2], '\0' };
 			c = (char)strtol(tmp, NULL, 16);
 			i += 2;
@@ -2178,7 +2178,7 @@ evhttp_get_request(struct evhttp *http, int fd,
  * Network helper functions that we do not want to export to the rest of
  * the world.
  */
-
+#if 0 /* Unused */
 static struct addrinfo *
 addr_from_name(char *address)
 {
@@ -2203,6 +2203,7 @@ addr_from_name(char *address)
 	return NULL; // XXXXX Use gethostbyname, if this function is ever used.
 #endif
 }
+#endif
 
 static void
 name_from_addr(struct sockaddr *sa, socklen_t salen,

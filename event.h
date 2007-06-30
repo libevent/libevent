@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#include <sys/time.h>
 #include <stdarg.h>
 
 #ifdef WIN32

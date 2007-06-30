@@ -249,7 +249,7 @@ evbuffer_readline(struct evbuffer *buffer)
 
 /* Adds data to an event buffer */
 
-static inline void
+static void
 evbuffer_align(struct evbuffer *buf)
 {
 	memmove(buf->orig_buffer, buf->buffer, buf->off);
