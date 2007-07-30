@@ -592,9 +592,9 @@ test_loopexit(void)
 
 void
 test_evbuffer(void) {
-	setup_test("Evbuffer: ");
 
 	struct evbuffer *evb = evbuffer_new();
+	setup_test("Evbuffer: ");
 
 	evbuffer_add_printf(evb, "%s/%d", "hello", 1);
 
