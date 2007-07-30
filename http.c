@@ -1115,9 +1115,15 @@ evhttp_remove_header(struct evkeyvalq *headers, const char *key)
 }
 
 int
-evhttp_add_header(struct evkeyvalq *headers, const char *key, const char *value)
+evhttp_add_header(struct evkeyvalq *headers,
+    const char *key, const char *value)
 {
 	struct evkeyval *header;
+
+	if (strchr(value, "\r") != NULL || strchr(value, "\n") != NULL) {
+		/* drop illegal headers */
+		return (-1);
+	}
 
 	header = calloc(1, sizeof(struct evkeyval));
 	if (header == NULL) {
