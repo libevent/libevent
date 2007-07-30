@@ -148,13 +148,16 @@ poll_check_ok(struct pollop *pop)
 int
 poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
-	int res, i, sec, nfds;
+	int res, i, msec = -1, nfds;
 	struct pollop *pop = arg;
 
 	poll_check_ok(pop);
-	sec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
+
+	if (tv != NULL)
+		msec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
+
 	nfds = pop->nfds;
-	res = poll(pop->event_set, nfds, sec);
+	res = poll(pop->event_set, nfds, msec);
 
 	if (res == -1) {
 		if (errno != EINTR) {

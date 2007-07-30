@@ -141,8 +141,6 @@ struct eventop {
 	void (*dealloc)(struct event_base *, void *);
 };
 
-#define TIMEOUT_DEFAULT	{5, 0}
-
 void *event_init(void);
 int event_dispatch(void);
 int event_base_dispatch(struct event_base *);

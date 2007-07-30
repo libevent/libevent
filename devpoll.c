@@ -218,12 +218,13 @@ devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	struct pollfd *events = devpollop->events;
 	struct dvpoll dvp;
 	struct evdevpoll *evdp;
-	int i, res, timeout;
+	int i, res, timeout = -1;
 
 	if (devpollop->nchanges)
 		devpoll_commit(devpollop);
 
-	timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
+	if (tv != NULL)
+		timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 
 	dvp.dp_fds = devpollop->events;
 	dvp.dp_nfds = devpollop->nevents;
