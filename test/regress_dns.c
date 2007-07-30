@@ -179,7 +179,7 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 	const char TEST_ARPA[] = "11.11.168.192.in-addr.arpa";
 	for (i = 0; i < req->nquestions; ++i) {
 		struct in_addr ans;
-		ans.s_addr = htonl(0xc0a80b0bUL); // 192.168.11.11
+		ans.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
 		if (req->questions[i]->type == EVDNS_TYPE_A &&
 			req->questions[i]->class == EVDNS_CLASS_INET &&
 			!strcmp(req->questions[i]->name, "zz.example.com")) {
@@ -325,7 +325,7 @@ dns_server()
 					   dns_server_gethostbyname_cb, NULL);
 	evdns_resolve_ipv6("zz.example.com", DNS_QUERY_NO_SEARCH,
 					   dns_server_gethostbyname_cb, NULL);
-	resolve_addr.s_addr = htonl(0xc0a80b0bUL); // 192.168.11.11
+	resolve_addr.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
 	evdns_resolve_reverse(&resolve_addr, 0,
 						  dns_server_gethostbyname_cb, NULL);
 

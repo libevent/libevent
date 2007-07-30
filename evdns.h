@@ -364,4 +364,4 @@ int evdns_server_request_drop(struct evdns_server_request *req);
 struct sockaddr;
 int evdns_server_request_get_requesting_addr(struct evdns_server_request *_req, struct sockaddr *sa, int addr_len);
 
-#endif  // !EVENTDNS_H
+#endif  /* !EVENTDNS_H */
