@@ -641,8 +641,10 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			if (p == NULL)
 				break;
 			/* the last chunk is on a new line? */
-			if (strlen(p) == 0)
+			if (strlen(p) == 0) {
+				free(p);
 				continue;
+			}
 			req->ntoread = strtol(p, &endp, 16);
 			error = *p == '\0' || (*endp != '\0' && *endp != ' ');
 			free(p);
