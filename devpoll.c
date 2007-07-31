@@ -36,6 +36,7 @@
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
+#include <sys/tree.h>
 #include <sys/devpoll.h>
 #include <signal.h>
 #include <stdio.h>
@@ -47,10 +48,9 @@
 #include <assert.h>
 
 #include "event.h"
+#include "event-internal.h"
 #include "evsignal.h"
 #include "log.h"
-
-extern volatile sig_atomic_t evsignal_caught;
 
 /* due to limitations in the devpoll interface, we need to keep track of
  * all file descriptors outself.
@@ -70,12 +70,12 @@ struct devpollop {
 	int nchanges;
 };
 
-void *devpoll_init	(void);
+void *devpoll_init	(struct event_base *);
 int devpoll_add	(void *, struct event *);
 int devpoll_del	(void *, struct event *);
 int devpoll_recalc	(struct event_base *, void *, int);
 int devpoll_dispatch	(struct event_base *, void *, struct timeval *);
-void devpoll_dealloc	(void *);
+void devpoll_dealloc	(struct event_base *, void *);
 
 struct eventop devpollops = {
 	"devpoll",
@@ -126,7 +126,7 @@ devpoll_queue(struct devpollop *devpollop, int fd, int events) {
 }
 
 void *
-devpoll_init(void)
+devpoll_init(struct event_base *base)
 {
 	int dpfd, nfiles = NEVENT;
 	struct rlimit rl;
@@ -179,7 +179,7 @@ devpoll_init(void)
 		return (NULL);
 	}
 
-	evsignal_init();
+	evsignal_init(base);
 
 	return (devpollop);
 }
@@ -218,12 +218,13 @@ devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	struct pollfd *events = devpollop->events;
 	struct dvpoll dvp;
 	struct evdevpoll *evdp;
-	int i, res, timeout;
+	int i, res, timeout = -1;
 
 	if (devpollop->nchanges)
 		devpoll_commit(devpollop);
 
-	timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
+	if (tv != NULL)
+		timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 
 	dvp.dp_fds = devpollop->events;
 	dvp.dp_nfds = devpollop->nevents;
@@ -237,10 +238,11 @@ devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			return (-1);
 		}
 
-		evsignal_process();
+		evsignal_process(base);
 		return (0);
-	} else if (evsignal_caught)
-		evsignal_process();
+	} else if (base->sig.evsignal_caught) {
+		evsignal_process(base);
+	}
 
 	event_debug(("%s: devpoll_wait reports %d", __func__, res));
 
@@ -398,10 +400,11 @@ devpoll_del(void *arg, struct event *ev)
 }
 
 void
-devpoll_dealloc(void *arg)
+devpoll_dealloc(struct event_base *base, void *arg)
 {
 	struct devpollop *devpollop = arg;
 
+	evsignal_dealloc(base);
 	if (devpollop->fds)
 		free(devpollop->fds);
 	if (devpollop->events)

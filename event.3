@@ -39,9 +39,11 @@
 .Nm event_base_loop ,
 .Nm event_base_loopexit ,
 .Nm event_base_set ,
+.Nm event_base_free ,
 .Nm event_add ,
 .Nm event_del ,
 .Nm event_once ,
+.Nm event_base_once ,
 .Nm event_pending ,
 .Nm event_initialized ,
 .Nm event_priority_init ,
@@ -83,9 +85,9 @@
 .Fd #include <sys/time.h>
 .Fd #include <event.h>
 .Ft "struct event_base *"
-.Fn "event_init"
+.Fn "event_init" "void"
 .Ft int
-.Fn "event_dispatch"
+.Fn "event_dispatch" "void"
 .Ft int
 .Fn "event_loop" "int flags"
 .Ft int
@@ -100,12 +102,16 @@
 .Fn "event_base_loopexit" "struct event_base *base" "struct timeval *tv"
 .Ft int
 .Fn "event_base_set" "struct event_base *base" "struct event *"
+.Ft void
+.Fn "event_base_free" "struct event_base *base"
 .Ft int
 .Fn "event_add" "struct event *ev" "struct timeval *tv"
 .Ft int
 .Fn "event_del" "struct event *ev"
 .Ft int
 .Fn "event_once" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg" "struct timeval *tv"
+.Ft int
+.Fn "event_base_once" "struct event_base *base" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg" "struct timeval *tv"
 .Ft int
 .Fn "event_pending" "struct event *ev" "short event" "struct timeval *tv"
 .Ft int
@@ -157,11 +163,11 @@
 .Ft void
 .Fn "evbuffer_free" "struct evbuffer *buf"
 .Ft int
-.Fn "evbuffer_add" "struct evbuffer *buf" "u_char *data" "size_t size"
+.Fn "evbuffer_add" "struct evbuffer *buf" "const void *data" "size_t size"
 .Ft int
 .Fn "evbuffer_add_buffer" "struct evbuffer *dst" "struct evbuffer *src"
 .Ft int
-.Fn "evbuffer_add_printf" "struct evbuffer *buf" "char *fmt" "..."
+.Fn "evbuffer_add_printf" "struct evbuffer *buf" "const char *fmt" "..."
 .Ft int
 .Fn "evbuffer_add_vprintf" "struct evbuffer *buf" "const char *fmt" "va_list ap"
 .Ft void
@@ -171,7 +177,7 @@
 .Ft int
 .Fn "evbuffer_read" "struct evbuffer *buf" "int fd" "int size"
 .Ft "u_char *"
-.Fn "evbuffer_find" "struct evbuffer *buf" "u_char *data" "size_t size"
+.Fn "evbuffer_find" "struct evbuffer *buf" "const u_char *data" "size_t size"
 .Ft "char *"
 .Fn "evbuffer_readline" "struct evbuffer *buf"
 .Ft "struct evhttp *"
@@ -180,7 +186,7 @@
 .Fn "evhttp_free" "struct evhttp* http"
 .Ft int
 .Fa (*event_sigcb)(void) ;
-.Ft int
+.Ft volatile sig_atomic_t
 .Fa event_gotsig ;
 .Sh DESCRIPTION
 The
@@ -217,7 +223,7 @@ After the signal handler sets
 .Nm event_dispatch
 will execute the callback function to process received signals.
 The callback returns 1 when no events are registered any more.
-It can return -1 to indicate an error to the
+It can return \-1 to indicate an error to the
 .Nm event
 library, causing
 .Fn event_dispatch
@@ -453,8 +459,9 @@ This event base can be used in conjunction with calls to
 .Fn event_base_dispatch ,
 .Fn event_base_loop ,
 .Fn event_base_loopexit ,
+.Fn bufferevent_base_set
 and
-.Fn bufferevent_base_set .
+.Fn event_base_free .
 .Fn event_base_set
 should be called after preparing an event with
 .Fn event_set ,
@@ -464,6 +471,9 @@ assigns the provided event to the most recently created event base.
 .Fn bufferevent_base_set
 should be called after preparing a bufferevent with
 .Fn bufferevent_new .
+.Fn event_base_free
+should be used to free memory associated with the event base
+when it is no longer needed.
 .Sh BUFFERED EVENTS
 .Nm libevent
 provides an abstraction on top of the regular event callbacks.
@@ -497,14 +507,15 @@ Both the read and the write callback may be NULL.
 The error callback has to be always provided.
 .Pp
 Once initialized, the bufferevent structure can be used repeatedly with
-bufferevent_enable() and bufferevent_disable().  The flags parameter can
-be a combination of 
+bufferevent_enable() and bufferevent_disable().
+The flags parameter can be a combination of
 .Va EV_READ
 and
 .Va EV_WRITE .
-When read enabled the bufferevent will try to read from the file 
-descriptor and call the read callback. The write callback is executed
-whenever the output buffer is drained below the write low watermark, 
+When read enabled the bufferevent will try to read from the file
+descriptor and call the read callback.
+The write callback is executed
+whenever the output buffer is drained below the write low watermark,
 which is
 .Va 0
 by default.
@@ -514,10 +525,12 @@ The
 function can be used to write data to the file descriptor.
 The data is appended to the output buffer and written to the descriptor
 automatically as it becomes available for writing.
+.Fn bufferevent_write
+returns 0 on success or \-1 on failure.
 The
 .Fn bufferevent_read
-function is used to read data from the input buffer.
-Both functions return the amount of data written or read.
+function is used to read data from the input buffer,
+returning the amount of data read.
 .Pp
 If multiple bases are in use, bufferevent_base_set() must be called before
 enabling the bufferevent for the first time.
@@ -537,9 +550,9 @@ This can be done by calling
 The second argument is the URI for which a callback is being registered.
 The corresponding callback will receive an
 .Va struct evhttp_request
-object that contains all information about the request. 
+object that contains all information about the request.
 .Pp
-This section does not document all the possible function calls, please
+This section does not document all the possible function calls; please
 check
 .Va event.h
 for the public interfaces.
@@ -555,6 +568,7 @@ set to indicate the error.
 .Xr kqueue 2 ,
 .Xr poll 2 ,
 .Xr select 2 ,
+.Xr evdns 3 ,
 .Xr timeout 9
 .Sh HISTORY
 The

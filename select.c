@@ -36,6 +36,9 @@
 #else
 #include <sys/_time.h>
 #endif
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
+#endif
 #include <sys/queue.h>
 #include <sys/tree.h>
 #include <signal.h>
@@ -57,8 +60,6 @@
 #define        howmany(x, y)   (((x)+((y)-1))/(y))
 #endif
 
-extern volatile sig_atomic_t evsignal_caught;
-
 struct selectop {
 	int event_fds;		/* Highest fd in fd set */
 	int event_fdsz;
@@ -70,12 +71,12 @@ struct selectop {
 	struct event **event_w_by_fd;
 };
 
-void *select_init	(void);
+void *select_init	(struct event_base *);
 int select_add		(void *, struct event *);
 int select_del		(void *, struct event *);
 int select_recalc	(struct event_base *, void *, int);
 int select_dispatch	(struct event_base *, void *, struct timeval *);
-void select_dealloc     (void *);
+void select_dealloc     (struct event_base *, void *);
 
 const struct eventop selectops = {
 	"select",
@@ -90,7 +91,7 @@ const struct eventop selectops = {
 static int select_resize(struct selectop *sop, int fdsz);
 
 void *
-select_init(void)
+select_init(struct event_base *base)
 {
 	struct selectop *sop;
 
@@ -103,7 +104,7 @@ select_init(void)
 
 	select_resize(sop, howmany(32 + 1, NFDBITS)*sizeof(fd_mask));
 
-	evsignal_init();
+	evsignal_init(base);
 
 	return (sop);
 }
@@ -113,7 +114,7 @@ static void
 check_selectop(struct selectop *sop)
 {
 	int i;
-	for (i=0;i<=sop->event_fds;++i) {
+	for (i = 0; i <= sop->event_fds; ++i) {
 		if (FD_ISSET(i, sop->event_readset_in)) {
 			assert(sop->event_r_by_fd[i]);
 			assert(sop->event_r_by_fd[i]->ev_events & EV_READ);
@@ -174,10 +175,11 @@ select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			return (-1);
 		}
 
-		evsignal_process();
+		evsignal_process(base);
 		return (0);
-	} else if (evsignal_caught)
-		evsignal_process();
+	} else if (base->sig.evsignal_caught) {
+		evsignal_process(base);
+	}
 
 	event_debug(("%s: select reports %d", __func__, res));
 
@@ -348,10 +350,11 @@ select_del(void *arg, struct event *ev)
 }
 
 void
-select_dealloc(void *arg)
+select_dealloc(struct event_base *base, void *arg)
 {
 	struct selectop *sop = arg;
 
+	evsignal_dealloc(base);
 	if (sop->event_readset_in)
 		free(sop->event_readset_in);
 	if (sop->event_writeset_in)

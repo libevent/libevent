@@ -27,9 +27,18 @@
 #ifndef _EVSIGNAL_H_
 #define _EVSIGNAL_H_
 
-void evsignal_init(void);
-void evsignal_process(void);
+struct evsignal_info {
+	struct event_list signalqueue;
+	struct event ev_signal;
+	int ev_signal_pair[2];
+	int ev_signal_added;
+	volatile sig_atomic_t evsignal_caught;
+	sig_atomic_t evsigcaught[NSIG];
+};
+void evsignal_init(struct event_base *);
+void evsignal_process(struct event_base *);
 int evsignal_add(struct event *);
 int evsignal_del(struct event *);
+void evsignal_dealloc(struct event_base *);
 
 #endif /* _EVSIGNAL_H_ */

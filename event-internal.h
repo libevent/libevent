@@ -31,6 +31,8 @@
 extern "C" {
 #endif
 
+#include "evsignal.h"
+
 struct event_base {
 	const struct eventop *evsel;
 	void *evbase;
@@ -42,6 +44,9 @@ struct event_base {
 	/* active event management */
 	struct event_list **activequeues;
 	int nactivequeues;
+
+	/* signal handling info */
+	struct evsignal_info sig;
 
 	struct event_list eventqueue;
 	struct timeval event_tv;

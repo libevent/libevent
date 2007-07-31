@@ -35,6 +35,7 @@
 #endif
 
 #include <sys/types.h>
+#include <sys/tree.h>
 #include <sys/stat.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -47,12 +48,14 @@
 #endif
 #include <netdb.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 
 #include "event.h"
+#include "event-internal.h"
 #include "log.h"
 
 #include "regress.h"
@@ -465,6 +468,96 @@ test_immediatesignal(void)
 	signal_del(&ev);
 	cleanup_test();
 }
+
+void
+test_signal_dealloc(void)
+{
+	/* make sure that signal_event is event_del'ed and pipe closed */
+	struct event ev;
+	struct event_base *base = event_init();
+	printf("Signal dealloc: ");
+	signal_set(&ev, SIGUSR1, signal_cb, &ev);
+	signal_add(&ev, NULL);
+	signal_del(&ev);
+	event_base_free(base);
+	errno = EINTR;
+	if (base->sig.ev_signal_added) {
+		printf("ev_signal not removed (evsignal_dealloc needed) ");
+		test_ok = 0;
+	} else if (close(base->sig.ev_signal_pair[0]) != -1 ||
+	    errno != EBADF) {
+		/* fd must be closed, so second close gives -1, EBADF */
+		printf("signal pipe still open (evsignal_dealloc needed) ");
+		test_ok = 0;
+	} else {
+		test_ok = 1;
+	}
+	cleanup_test();
+}
+
+void
+test_signal_pipeloss(void)
+{
+	/* make sure that the base1 pipe is closed correctly. */
+	struct event_base *base1, *base2;
+	int pipe1;
+	printf("Signal pipeloss: ");
+	base1 = event_init();
+	pipe1 = base1->sig.ev_signal_pair[0];
+	base2 = event_init();
+	event_base_free(base2);
+	event_base_free(base1);
+	if (close(pipe1) != -1 || errno!=EBADF) {
+		/* fd must be closed, so second close gives -1, EBADF */
+		printf("signal pipe not closed. ");
+		test_ok = 0;
+	} else {
+		test_ok = 1;
+	}
+	cleanup_test();
+}
+
+/*
+ * make two bases to catch signals, use both of them.  this only works
+ * for event mechanisms that use our signal pipe trick.  kqueue handles
+ * signals internally, and it looks like the first kqueue always gets the
+ * signal.
+ */
+void
+test_signal_switchbase(void)
+{
+	struct event ev1, ev2;
+	struct event_base *base1, *base2;
+	printf("Signal switchbase: ");
+	base1 = event_init();
+	base2 = event_init();
+	signal_set(&ev1, SIGUSR1, signal_cb, &ev1);
+	signal_set(&ev2, SIGUSR1, signal_cb, &ev2);
+	if (event_base_set(base1, &ev1) ||
+	    event_base_set(base2, &ev2) ||
+	    event_add(&ev1, NULL) ||
+	    event_add(&ev2, NULL)) {
+		fprintf(stderr, "%s: cannot set base, add\n", __func__);
+		exit(1);
+	}
+
+	test_ok = 0;
+	/* can handle signal before loop is called */
+	raise(SIGUSR1);
+	event_base_loop(base2, EVLOOP_NONBLOCK);
+	event_base_loop(base1, EVLOOP_NONBLOCK);
+	if (test_ok) {
+		test_ok = 0;
+		/* set base1 to handle signals */
+		event_base_loop(base1, EVLOOP_NONBLOCK);
+		raise(SIGUSR1);
+		event_base_loop(base1, EVLOOP_NONBLOCK);
+		event_base_loop(base2, EVLOOP_NONBLOCK);
+	}
+	event_base_free(base1);
+	event_base_free(base2);
+	cleanup_test();
+}
 #endif
 
 void
@@ -499,9 +592,9 @@ test_loopexit(void)
 
 void
 test_evbuffer(void) {
-	setup_test("Evbuffer: ");
 
 	struct evbuffer *evb = evbuffer_new();
+	setup_test("Evbuffer: ");
 
 	evbuffer_add_printf(evb, "%s/%d", "hello", 1);
 
@@ -510,6 +603,61 @@ test_evbuffer(void) {
 	    test_ok = 1;
 	
 	cleanup_test();
+}
+
+void
+test_evbuffer_find(void)
+{
+	u_char* p;
+	char* test1 = "1234567890\r\n";
+	char* test2 = "1234567890\r";
+#define EVBUFFER_INITIAL_LENGTH 256
+	char test3[EVBUFFER_INITIAL_LENGTH];
+	unsigned int i;
+	struct evbuffer * buf = evbuffer_new();
+
+	/* make sure evbuffer_find doesn't match past the end of the buffer */
+	fprintf(stdout, "Testing evbuffer_find 1: ");
+	evbuffer_add(buf, (u_char*)test1, strlen(test1));
+	evbuffer_drain(buf, strlen(test1));	  
+	evbuffer_add(buf, (u_char*)test2, strlen(test2));
+	p = evbuffer_find(buf, (u_char*)"\r\n", 2);
+	if (p == NULL) {
+		fprintf(stdout, "OK\n");
+	} else {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/*
+	 * drain the buffer and do another find; in r309 this would
+	 * read past the allocated buffer causing a valgrind error.
+	 */
+	fprintf(stdout, "Testing evbuffer_find 2: ");
+	evbuffer_drain(buf, strlen(test2));
+	for (i = 0; i < EVBUFFER_INITIAL_LENGTH; ++i)
+		test3[i] = 'a';
+	test3[EVBUFFER_INITIAL_LENGTH - 1] = 'x';
+	evbuffer_add(buf, (u_char *)test3, EVBUFFER_INITIAL_LENGTH);
+	p = evbuffer_find(buf, (u_char *)"xy", 2);
+	if (p == NULL) {
+		printf("OK\n");
+	} else {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* simple test for match at end of allocated buffer */
+	fprintf(stdout, "Testing evbuffer_find 3: ");
+	p = evbuffer_find(buf, (u_char *)"ax", 2);
+	if (p != NULL && strncmp(p, "ax", 2) == 0) {
+		printf("OK\n");
+	} else {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evbuffer_free(buf);
 }
 
 void
@@ -896,6 +1044,11 @@ main (int argc, char **argv)
 	/* Initalize the event library */
 	event_base = event_init();
 
+	test_evbuffer();
+	test_evbuffer_find();
+	
+	test_bufferevent();
+
 	http_suite();
 
 	dns_suite();
@@ -917,10 +1070,6 @@ main (int argc, char **argv)
 #endif
 	test_loopexit();
 
-	test_evbuffer();
-	
-	test_bufferevent();
-
 	test_priorities(1);
 	test_priorities(2);
 	test_priorities(3);
@@ -928,11 +1077,17 @@ main (int argc, char **argv)
 	test_multiple_events_for_same_fd();
 
 	test_want_only_once();
-	
+
 	evtag_test();
 
 	rpc_test();
 
+#ifndef WIN32
+	test_signal_dealloc();
+	test_signal_pipeloss();
+	test_signal_switchbase();
+#endif
+	
 	return (0);
 }
 

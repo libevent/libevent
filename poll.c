@@ -54,8 +54,6 @@
 #include "evsignal.h"
 #include "log.h"
 
-extern volatile sig_atomic_t evsignal_caught;
-
 struct pollop {
 	int event_count;		/* Highest number alloc */
 	int nfds;                       /* Size of event_* */
@@ -68,12 +66,12 @@ struct pollop {
 			      * "no entry." */
 };
 
-void *poll_init	(void);
+void *poll_init	(struct event_base *);
 int poll_add		(void *, struct event *);
 int poll_del		(void *, struct event *);
 int poll_recalc		(struct event_base *, void *, int);
 int poll_dispatch	(struct event_base *, void *, struct timeval *);
-void poll_dealloc	(void *);
+void poll_dealloc	(struct event_base *, void *);
 
 const struct eventop pollops = {
 	"poll",
@@ -86,7 +84,7 @@ const struct eventop pollops = {
 };
 
 void *
-poll_init(void)
+poll_init(struct event_base *base)
 {
 	struct pollop *pollop;
 
@@ -97,7 +95,7 @@ poll_init(void)
 	if (!(pollop = calloc(1, sizeof(struct pollop))))
 		return (NULL);
 
-	evsignal_init();
+	evsignal_init(base);
 
 	return (pollop);
 }
@@ -150,13 +148,16 @@ poll_check_ok(struct pollop *pop)
 int
 poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
-	int res, i, sec, nfds;
+	int res, i, msec = -1, nfds;
 	struct pollop *pop = arg;
 
 	poll_check_ok(pop);
-	sec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
+
+	if (tv != NULL)
+		msec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
+
 	nfds = pop->nfds;
-	res = poll(pop->event_set, nfds, sec);
+	res = poll(pop->event_set, nfds, msec);
 
 	if (res == -1) {
 		if (errno != EINTR) {
@@ -164,10 +165,11 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			return (-1);
 		}
 
-		evsignal_process();
+		evsignal_process(base);
 		return (0);
-	} else if (evsignal_caught)
-		evsignal_process();
+	} else if (base->sig.evsignal_caught) {
+		evsignal_process(base);
+	}
 
 	event_debug(("%s: poll reports %d", __func__, res));
 
@@ -370,10 +372,11 @@ poll_del(void *arg, struct event *ev)
 }
 
 void
-poll_dealloc(void *arg)
+poll_dealloc(struct event_base *base, void *arg)
 {
 	struct pollop *pop = arg;
 
+	evsignal_dealloc(base);
 	if (pop->event_set)
 		free(pop->event_set);
 	if (pop->event_r_back)

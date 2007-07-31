@@ -130,8 +130,10 @@ http_readcb(struct bufferevent *bev, void *arg)
 	
 	if (evbuffer_find(bev->input, (const unsigned char*) what, strlen(what)) != NULL) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
+		int done;
+
 		req->kind = EVHTTP_RESPONSE;
-		int done = evhttp_parse_lines(req, bev->input);
+		done = evhttp_parse_lines(req, bev->input);
 
 		if (done == 1 &&
 		    evhttp_find_header(req->input_headers,
@@ -163,9 +165,9 @@ http_errorcb(struct bufferevent *bev, short what, void *arg)
 void
 http_basic_cb(struct evhttp_request *req, void *arg)
 {
-	event_debug(("%s: called\n", __func__));
 
 	struct evbuffer *evb = evbuffer_new();
+	event_debug(("%s: called\n", __func__));
 	evbuffer_add_printf(evb, "This is funny");
 
 	evhttp_send_reply(req, HTTP_OK, "Everything is fine", evb);
@@ -380,6 +382,7 @@ http_post_test(void)
 void
 http_post_cb(struct evhttp_request *req, void *arg)
 {
+	struct evbuffer *evb;
 	event_debug(("%s: called\n", __func__));
 
 	/* Yes, we are expecting a post request */
@@ -389,7 +392,7 @@ http_post_cb(struct evhttp_request *req, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(POST_DATA)) {
-		fprintf(stdout, "FAILED (length: %ld vs %ld)\n",
+		fprintf(stdout, "FAILED (length: %zu vs %zu)\n",
 		    EVBUFFER_LENGTH(req->input_buffer), strlen(POST_DATA));
 		exit(1);
 	}
@@ -402,7 +405,7 @@ http_post_cb(struct evhttp_request *req, void *arg)
 		exit(1);
 	}
 	
-	struct evbuffer *evb = evbuffer_new();
+	evb = evbuffer_new();
 	evbuffer_add_printf(evb, "This is funny");
 
 	evhttp_send_reply(req, HTTP_OK, "Everything is fine", evb);
@@ -427,7 +430,7 @@ http_postrequest_done(struct evhttp_request *req, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
-		fprintf(stderr, "FAILED (length %ld vs %ld)\n",
+		fprintf(stderr, "FAILED (length %zu vs %zu)\n",
 		    EVBUFFER_LENGTH(req->input_buffer), strlen(what));
 		exit(1);
 	}

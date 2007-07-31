@@ -69,13 +69,13 @@ struct kqop {
 	int kq;
 };
 
-void *kq_init	(void);
+void *kq_init	(struct event_base *);
 int kq_add	(void *, struct event *);
 int kq_del	(void *, struct event *);
 int kq_recalc	(struct event_base *, void *, int);
 int kq_dispatch	(struct event_base *, void *, struct timeval *);
 int kq_insert	(struct kqop *, struct kevent *);
-void kq_dealloc (void *);
+void kq_dealloc (struct event_base *, void *);
 
 const struct eventop kqops = {
 	"kqueue",
@@ -88,7 +88,7 @@ const struct eventop kqops = {
 };
 
 void *
-kq_init(void)
+kq_init(struct event_base *base)
 {
 	int kq;
 	struct kqop *kqueueop;
@@ -212,13 +212,16 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	struct kevent *changes = kqop->changes;
 	struct kevent *events = kqop->events;
 	struct event *ev;
-	struct timespec ts;
+	struct timespec ts, *ts_p = NULL;
 	int i, res;
 
-	TIMEVAL_TO_TIMESPEC(tv, &ts);
+	if (tv != NULL) {
+		TIMEVAL_TO_TIMESPEC(tv, &ts);
+		ts_p = &ts;
+	}
 
 	res = kevent(kqop->kq, changes, kqop->nchanges,
-	    events, kqop->nevents, &ts);
+	    events, kqop->nevents, ts_p);
 	kqop->nchanges = 0;
 	if (res == -1) {
 		if (errno != EINTR) {
@@ -398,7 +401,7 @@ kq_del(void *arg, struct event *ev)
 }
 
 void
-kq_dealloc(void *arg)
+kq_dealloc(struct event_base *base, void *arg)
 {
 	struct kqop *kqop = arg;
 

@@ -51,6 +51,7 @@
 #include <signal.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #include "event.h"
 #include "event-internal.h"
@@ -111,9 +112,9 @@ const struct eventop *eventops[] = {
 };
 
 /* Global state */
-struct event_list signalqueue;
-
 struct event_base *current_base = NULL;
+extern struct event_base *evsignal_base;
+static int use_monotonic;
 
 /* Handle signals - This is a deprecated interface */
 int (*event_sigcb)(void);		/* Signal callback when gotsig is set */
@@ -126,7 +127,7 @@ static int	event_haveevents(struct event_base *);
 
 static void	event_process_active(struct event_base *);
 
-static int	timeout_next(struct event_base *, struct timeval *);
+static int	timeout_next(struct event_base *, struct timeval **);
 static void	timeout_process(struct event_base *);
 static void	timeout_correct(struct event_base *, struct timeval *);
 
@@ -144,25 +145,34 @@ compare(struct event *a, struct event *b)
 	return (0);
 }
 
+static void
+detect_monotonic(void)
+{
+#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+	struct timespec	ts;
+
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+		use_monotonic = 1;
+#endif
+}
+
 static int
 gettime(struct timeval *tp)
 {
-#ifdef HAVE_CLOCK_GETTIME
+#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	struct timespec	ts;
 
-#ifdef HAVE_CLOCK_MONOTONIC      
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
-#else
-	if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
-#endif
-		return (-1);
-	tp->tv_sec = ts.tv_sec;
-	tp->tv_usec = ts.tv_nsec / 1000;
-#else
-	gettimeofday(tp, NULL);
+	if (use_monotonic) {
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
+			return (-1);
+
+		tp->tv_sec = ts.tv_sec;
+		tp->tv_usec = ts.tv_nsec / 1000;
+		return (0);
+	}
 #endif
 
-	return (0);
+	return (gettimeofday(tp, NULL));
 }
 
 RB_PROTOTYPE(event_tree, event, ev_timeout_node, compare);
@@ -174,36 +184,42 @@ void *
 event_init(void)
 {
 	int i;
+	struct event_base *base;
 
-	if ((current_base = calloc(1, sizeof(struct event_base))) == NULL)
+	if ((base = calloc(1, sizeof(struct event_base))) == NULL)
 		event_err(1, "%s: calloc");
 
 	event_sigcb = NULL;
 	event_gotsig = 0;
-	gettime(&current_base->event_tv);
-	
-	RB_INIT(&current_base->timetree);
-	TAILQ_INIT(&current_base->eventqueue);
-	TAILQ_INIT(&signalqueue);
-	
-	current_base->evbase = NULL;
-	for (i = 0; eventops[i] && !current_base->evbase; i++) {
-		current_base->evsel = eventops[i];
 
-		current_base->evbase = current_base->evsel->init();
+	detect_monotonic();
+	gettime(&base->event_tv);
+	
+	RB_INIT(&base->timetree);
+	TAILQ_INIT(&base->eventqueue);
+	TAILQ_INIT(&base->sig.signalqueue);
+	base->sig.ev_signal_pair[0] = -1;
+	base->sig.ev_signal_pair[1] = -1;
+	
+	base->evbase = NULL;
+	for (i = 0; eventops[i] && !base->evbase; i++) {
+		base->evsel = eventops[i];
+
+		base->evbase = base->evsel->init(base);
 	}
 
-	if (current_base->evbase == NULL)
+	if (base->evbase == NULL)
 		event_errx(1, "%s: no event mechanism available", __func__);
 
 	if (getenv("EVENT_SHOW_METHOD")) 
 		event_msgx("libevent using: %s\n",
-			   current_base->evsel->name);
+			   base->evsel->name);
 
 	/* allocate a single active event queue */
-	event_base_priority_init(current_base, 1);
+	event_base_priority_init(base, 1);
 
-	return (current_base);
+	current_base = base;
+	return (base);
 }
 
 void
@@ -217,7 +233,8 @@ event_base_free(struct event_base *base)
 		current_base = NULL;
 
 	assert(base);
-	assert(TAILQ_EMPTY(&base->eventqueue));
+	if (base->evsel->dealloc != NULL)
+		base->evsel->dealloc(base, base->evbase);
 	for (i=0; i < base->nactivequeues; ++i)
 		assert(TAILQ_EMPTY(base->activequeues[i]));
 
@@ -227,8 +244,7 @@ event_base_free(struct event_base *base)
 		free(base->activequeues[i]);
 	free(base->activequeues);
 
-	if (base->evsel->dealloc != NULL)
-		base->evsel->dealloc(base->evbase);
+	assert(TAILQ_EMPTY(&base->eventqueue));
 
 	free(base);
 }
@@ -343,7 +359,6 @@ event_loopexit_cb(int fd, short what, void *arg)
 }
 
 /* not thread safe */
-
 int
 event_loopexit(struct timeval *tv)
 {
@@ -354,7 +369,7 @@ event_loopexit(struct timeval *tv)
 int
 event_base_loopexit(struct event_base *event_base, struct timeval *tv)
 {
-	return (event_once(-1, EV_TIMEOUT, event_loopexit_cb,
+	return (event_base_once(event_base, -1, EV_TIMEOUT, event_loopexit_cb,
 		    event_base, tv));
 }
 
@@ -372,8 +387,11 @@ event_base_loop(struct event_base *base, int flags)
 	const struct eventop *evsel = base->evsel;
 	void *evbase = base->evbase;
 	struct timeval tv;
+	struct timeval *tv_p;
 	int res, done;
 
+	if(!TAILQ_EMPTY(&base->sig.signalqueue))
+		evsignal_base = base;
 	done = 0;
 	while (!done) {
 		/* Calculate the initial events that we are waiting for */
@@ -398,21 +416,18 @@ event_base_loop(struct event_base *base, int flags)
 			}
 		}
 
-		/* Check if time is running backwards */
-		gettime(&tv);
-		if (timercmp(&tv, &base->event_tv, <)) {
-			struct timeval off;
-			event_debug(("%s: time is running backwards, corrected",
-				    __func__));
-			timersub(&base->event_tv, &tv, &off);
-			timeout_correct(base, &off);
-		}
-		base->event_tv = tv;
+		timeout_correct(base, &tv);
 
-		if (!base->event_count_active && !(flags & EVLOOP_NONBLOCK))
-			timeout_next(base, &tv);
-		else
+		tv_p = &tv;
+		if (!base->event_count_active && !(flags & EVLOOP_NONBLOCK)) {
+			timeout_next(base, &tv_p);
+		} else {
+			/* 
+			 * if we have active events, we just poll new events
+			 * without waiting.
+			 */
 			timerclear(&tv);
+		}
 		
 		/* If we have no events, we just exit */
 		if (!event_haveevents(base)) {
@@ -420,7 +435,8 @@ event_base_loop(struct event_base *base, int flags)
 			return (1);
 		}
 
-		res = evsel->dispatch(base, evbase, &tv);
+		res = evsel->dispatch(base, evbase, tv_p);
+
 
 		if (res == -1)
 			return (-1);
@@ -459,10 +475,17 @@ event_once_cb(int fd, short events, void *arg)
 	free(eonce);
 }
 
-/* Schedules an event once */
-
+/* not threadsafe, event scheduled once. */
 int
 event_once(int fd, short events,
+    void (*callback)(int, short, void *), void *arg, struct timeval *tv)
+{
+	return event_base_once(current_base, fd, events, callback, arg, tv);
+}
+
+/* Schedules an event once */
+int
+event_base_once(struct event_base *base, int fd, short events,
     void (*callback)(int, short, void *), void *arg, struct timeval *tv)
 {
 	struct event_once *eonce;
@@ -496,7 +519,9 @@ event_once(int fd, short events,
 		return (-1);
 	}
 
-	res = event_add(&eonce->ev, tv);
+	res = event_base_set(base, &eonce->ev);
+	if (res == 0)
+		res = event_add(&eonce->ev, tv);
 	if (res != 0) {
 		free(eonce);
 		return (res);
@@ -516,12 +541,14 @@ event_set(struct event *ev, int fd, short events,
 	ev->ev_arg = arg;
 	ev->ev_fd = fd;
 	ev->ev_events = events;
+	ev->ev_res = 0;
 	ev->ev_flags = EVLIST_INIT;
 	ev->ev_ncalls = 0;
 	ev->ev_pncalls = NULL;
 
 	/* by default, we put new events into the middle priority */
-	ev->ev_pri = current_base->nactivequeues/2;
+	if(current_base)
+		ev->ev_pri = current_base->nactivequeues/2;
 }
 
 int
@@ -710,16 +737,16 @@ event_active(struct event *ev, int res, short ncalls)
 	event_queue_insert(ev->ev_base, ev, EVLIST_ACTIVE);
 }
 
-int
-timeout_next(struct event_base *base, struct timeval *tv)
+static int
+timeout_next(struct event_base *base, struct timeval **tv_p)
 {
-	struct timeval dflt = TIMEOUT_DEFAULT;
-
 	struct timeval now;
 	struct event *ev;
+	struct timeval *tv = *tv_p;
 
 	if ((ev = RB_MIN(event_tree, &base->timetree)) == NULL) {
-		*tv = dflt;
+		/* if no time-based events are active wait for I/O */
+		*tv_p = NULL;
 		return (0);
 	}
 
@@ -740,17 +767,38 @@ timeout_next(struct event_base *base, struct timeval *tv)
 	return (0);
 }
 
+/*
+ * Determines if the time is running backwards by comparing the current
+ * time against the last time we checked.  Not needed when using clock
+ * monotonic.
+ */
+
 static void
-timeout_correct(struct event_base *base, struct timeval *off)
+timeout_correct(struct event_base *base, struct timeval *tv)
 {
 	struct event *ev;
+	struct timeval off;
+
+	if (use_monotonic)
+		return;
+
+	/* Check if time is running backwards */
+	gettime(tv);
+	if (timercmp(tv, &base->event_tv, >=)) {
+		base->event_tv = *tv;
+		return;
+	}
+
+	event_debug(("%s: time is running backwards, corrected",
+		    __func__));
+	timersub(&base->event_tv, tv, &off);
 
 	/*
 	 * We can modify the key element of the node without destroying
 	 * the key, beause we apply it to all in the right order.
 	 */
 	RB_FOREACH(ev, event_tree, &base->timetree)
-		timersub(&ev->ev_timeout, off, &ev->ev_timeout);
+		timersub(&ev->ev_timeout, &off, &ev->ev_timeout);
 }
 
 void
@@ -801,7 +849,7 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 		    ev, ev_active_next);
 		break;
 	case EVLIST_SIGNAL:
-		TAILQ_REMOVE(&signalqueue, ev, ev_signal_next);
+		TAILQ_REMOVE(&base->sig.signalqueue, ev, ev_signal_next);
 		break;
 	case EVLIST_TIMEOUT:
 		RB_REMOVE(event_tree, &base->timetree, ev);
@@ -843,7 +891,7 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		    ev,ev_active_next);
 		break;
 	case EVLIST_SIGNAL:
-		TAILQ_INSERT_TAIL(&signalqueue, ev, ev_signal_next);
+		TAILQ_INSERT_TAIL(&base->sig.signalqueue, ev, ev_signal_next);
 		break;
 	case EVLIST_TIMEOUT: {
 		struct event *tmp = RB_INSERT(event_tree, &base->timetree, ev);

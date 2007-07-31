@@ -223,7 +223,7 @@ struct rtdata {
 	int poll_position;
 };
 
-void *rtsig_init(void);
+void *rtsig_init(struct event_base *);
 int rtsig_add(void *, struct event *);
 int rtsig_del(void *, struct event *);
 int rtsig_recalc(struct event_base *, void *, int);
@@ -544,7 +544,7 @@ activate(struct event *ev, int flags)
 } while (0)
 
 void *
-rtsig_init(void)
+rtsig_init(struct event_base *)
 {
 	struct rtsigop *op;
 	int sockets[2];
@@ -750,7 +750,7 @@ rtsig_recalc(struct event_base *base, void *arg, int max)
  */
 
 static inline int
-do_poll(struct rtsigop *op, struct timespec *ts)
+do_poll(struct rtsigop *op, struct timespec *ts, struct timespec **ts_p)
 {
 	int res = 0;
 	int i = 0;
@@ -758,7 +758,11 @@ do_poll(struct rtsigop *op, struct timespec *ts)
 	if (op->cur > 1) {
 		/* non-empty poll set (modulo the signalfd) */
 		if (op->nonsock) {
-			int timeout = ts->tv_nsec / 1000000 + ts->tv_sec * 1000;
+			int timeout = -1;
+			
+			if (*ts_p != NULL)
+				timeout = (*ts_p)->tv_nsec / 1000000
+					  + (*ts_p)->tv_sec * 1000;
 			
 			sigprocmask(SIG_UNBLOCK, &(op->sigs), NULL);
 
@@ -768,6 +772,7 @@ do_poll(struct rtsigop *op, struct timespec *ts)
 			
 			ts->tv_sec = 0;
 			ts->tv_nsec = 0;
+			*ts_p = ts;
 		} else {
 			res = poll(op->poll, op->cur, 0);
 		}
@@ -777,6 +782,7 @@ do_poll(struct rtsigop *op, struct timespec *ts)
 		} else if (res) {
 			ts->tv_sec = 0;
 			ts->tv_nsec = 0;
+			*ts_p = ts;
 		}
 
 		i = 0;
@@ -894,17 +900,18 @@ do_siginfo_dispatch(struct event_base *base, struct rtsigop *op,
  * return -1 on error
  */
 static inline int
-do_sigwait(struct event_base *base, struct rtsigop *op, struct timespec *ts,
-    sigset_t *sigs)
+do_sigwait(struct event_base *base, struct rtsigop *op,
+    struct timespec *ts, struct timespec **ts_p, sigset_t *sigs)
 {
 	for (;;) {
 		siginfo_t info;
 		int signum;
 
-		signum = sigtimedwait(sigs, &info, ts);
+		signum = sigtimedwait(sigs, &info, *ts_p);
 
 		ts->tv_sec = 0;
 		ts->tv_nsec = 0;
+		*ts_p = ts;
 
 		if (signum == -1) {
 			if (errno == EAGAIN || errno == EINTR)
@@ -920,7 +927,7 @@ do_sigwait(struct event_base *base, struct rtsigop *op, struct timespec *ts,
 
 static inline int
 do_signals_from_socket(struct event_base *base, struct rtsigop *op,
-    struct timespec *ts)
+    struct timespec *ts, struct timespec **ts_p)
 {
 	int fd = op->signal_recv_fd;
 	siginfo_t info;
@@ -937,6 +944,7 @@ do_signals_from_socket(struct event_base *base, struct rtsigop *op,
 		} else {
 			ts->tv_sec = 0;
 			ts->tv_nsec = 0;
+			*ts_p = ts;
 			if (1 == do_siginfo_dispatch(base, op, &info))
 				return (1);
 		}
@@ -948,17 +956,21 @@ int
 rtsig_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	struct rtsigop *op = (struct rtsigop *) arg;
-	struct timespec ts;
+	struct timespec ts, *ts_p = NULL;
 	int res;
 	sigset_t sigs;
 
-	ts.tv_sec = tv->tv_sec;
-	ts.tv_nsec = tv->tv_usec * 1000;
+	if (tv != NULL) {
+		ts.tv_sec = tv->tv_sec;
+		ts.tv_nsec = tv->tv_usec * 1000;
+		*ts_p = ts;
+	}
 
  poll_for_level:
-	res = do_poll(op, &ts); /* ts can be modified in do_XXX() */
+	/* ts and ts_p can be modified in do_XXX() */
+	res = do_poll(op, &ts, &ts_p);
 
-	res = do_signals_from_socket(base, op, &ts);
+	res = do_signals_from_socket(base, op, &ts, &ts_p);
 	if (res == 1)
 		goto poll_for_level;
 	else if (res == -1)
@@ -973,7 +985,7 @@ rtsig_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	signotset(&sigs);
 	sigorset(&sigs, &sigs, &op->sigs);
 
-	res = do_sigwait(base, op, &ts, &sigs);
+	res = do_sigwait(base, op, &ts, &ts_p, &sigs);
 
 	if (res == 1)
 		goto poll_for_level;

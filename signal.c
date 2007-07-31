@@ -31,6 +31,7 @@
 #endif
 
 #include <sys/types.h>
+#include <sys/tree.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
@@ -47,19 +48,14 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#include <assert.h>
 
 #include "event.h"
+#include "event-internal.h"
 #include "evsignal.h"
 #include "log.h"
 
-extern struct event_list signalqueue;
-
-static sig_atomic_t evsigcaught[NSIG];
-volatile sig_atomic_t evsignal_caught = 0;
-
-static struct event ev_signal;
-static int ev_signal_pair[2];
-static int ev_signal_added;
+struct event_base *evsignal_base = NULL;
 
 static void evsignal_handler(int sig);
 
@@ -87,24 +83,27 @@ evsignal_cb(int fd, short what, void *arg)
 #endif
 
 void
-evsignal_init(void)
+evsignal_init(struct event_base *base)
 {
 	/* 
 	 * Our signal handler is going to write to one end of the socket
 	 * pair to wake up our event loop.  The event loop then scans for
 	 * signals that got delivered.
 	 */
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, ev_signal_pair) == -1)
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, base->sig.ev_signal_pair) == -1)
 		event_err(1, "%s: socketpair", __func__);
 
-	FD_CLOSEONEXEC(ev_signal_pair[0]);
-	FD_CLOSEONEXEC(ev_signal_pair[1]);
+	FD_CLOSEONEXEC(base->sig.ev_signal_pair[0]);
+	FD_CLOSEONEXEC(base->sig.ev_signal_pair[1]);
+	base->sig.evsignal_caught = 0;
+	memset(&base->sig.evsigcaught, 0, sizeof(sig_atomic_t)*NSIG);
 
-	fcntl(ev_signal_pair[0], F_SETFL, O_NONBLOCK);
+	fcntl(base->sig.ev_signal_pair[0], F_SETFL, O_NONBLOCK);
 
-	event_set(&ev_signal, ev_signal_pair[1], EV_READ,
-	    evsignal_cb, &ev_signal);
-	ev_signal.ev_flags |= EVLIST_INTERNAL;
+	event_set(&base->sig.ev_signal, base->sig.ev_signal_pair[1], EV_READ,
+	    evsignal_cb, &base->sig.ev_signal);
+	base->sig.ev_signal.ev_base = base;
+	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
 }
 
 int
@@ -112,6 +111,7 @@ evsignal_add(struct event *ev)
 {
 	int evsignal;
 	struct sigaction sa;
+	struct event_base *base = ev->ev_base;
 
 	if (ev->ev_events & (EV_READ|EV_WRITE))
 		event_errx(1, "%s: EV_SIGNAL incompatible use", __func__);
@@ -121,29 +121,23 @@ evsignal_add(struct event *ev)
 	sa.sa_handler = evsignal_handler;
 	sigfillset(&sa.sa_mask);
 	sa.sa_flags |= SA_RESTART;
+	/* catch signals if they happen quickly */
+	evsignal_base = base;
 
 	if (sigaction(evsignal, &sa, NULL) == -1)
 		return (-1);
 
-	if (!ev_signal_added) {
-		ev_signal_added = 1;
-		event_add(&ev_signal, NULL);
+	if (!base->sig.ev_signal_added) {
+		base->sig.ev_signal_added = 1;
+		event_add(&base->sig.ev_signal, NULL);
 	}
 
 	return (0);
 }
 
-/*
- * Nothing to be done here.
- */
-
 int
 evsignal_del(struct event *ev)
 {
-	int evsignal;
-
-	evsignal = EVENT_SIGNAL(ev);
-
 	return (sigaction(EVENT_SIGNAL(ev),(struct sigaction *)SIG_DFL, NULL));
 }
 
@@ -152,29 +146,50 @@ evsignal_handler(int sig)
 {
 	int save_errno = errno;
 
-	evsigcaught[sig]++;
-	evsignal_caught = 1;
+	if(evsignal_base == NULL) {
+		event_warn(
+			"%s: received signal %s, but have no base configured",
+			__func__, sig);
+		return;
+	}
+
+	evsignal_base->sig.evsigcaught[sig]++;
+	evsignal_base->sig.evsignal_caught = 1;
 
 	/* Wake up our notification mechanism */
-	write(ev_signal_pair[0], "a", 1);
+	write(evsignal_base->sig.ev_signal_pair[0], "a", 1);
 	errno = save_errno;
 }
 
 void
-evsignal_process(void)
+evsignal_process(struct event_base *base)
 {
 	struct event *ev;
 	sig_atomic_t ncalls;
 
-	evsignal_caught = 0;
-	TAILQ_FOREACH(ev, &signalqueue, ev_signal_next) {
-		ncalls = evsigcaught[EVENT_SIGNAL(ev)];
+	base->sig.evsignal_caught = 0;
+	TAILQ_FOREACH(ev, &base->sig.signalqueue, ev_signal_next) {
+		ncalls = base->sig.evsigcaught[EVENT_SIGNAL(ev)];
 		if (ncalls) {
 			if (!(ev->ev_events & EV_PERSIST))
 				event_del(ev);
 			event_active(ev, EV_SIGNAL, ncalls);
-			evsigcaught[EVENT_SIGNAL(ev)] = 0;
+			base->sig.evsigcaught[EVENT_SIGNAL(ev)] = 0;
 		}
 	}
 }
 
+void
+evsignal_dealloc(struct event_base *base)
+{
+	if(base->sig.ev_signal_added) {
+		event_del(&base->sig.ev_signal);
+		base->sig.ev_signal_added = 0;
+	}
+	assert(TAILQ_EMPTY(&base->sig.signalqueue));
+
+	close(base->sig.ev_signal_pair[0]);
+	base->sig.ev_signal_pair[0] = -1;
+	close(base->sig.ev_signal_pair[1]);
+	base->sig.ev_signal_pair[1] = -1;
+}

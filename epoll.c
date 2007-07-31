@@ -30,6 +30,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <sys/tree.h>
 #include <sys/resource.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -49,10 +50,9 @@
 #endif
 
 #include "event.h"
+#include "event-internal.h"
 #include "evsignal.h"
 #include "log.h"
-
-extern volatile sig_atomic_t evsignal_caught;
 
 /* due to limitations in the epoll interface, we need to keep track of
  * all file descriptors outself.
@@ -70,12 +70,12 @@ struct epollop {
 	int epfd;
 };
 
-void *epoll_init	(void);
+void *epoll_init	(struct event_base *);
 int epoll_add	(void *, struct event *);
 int epoll_del	(void *, struct event *);
 int epoll_recalc	(struct event_base *, void *, int);
 int epoll_dispatch	(struct event_base *, void *, struct timeval *);
-void epoll_dealloc	(void *);
+void epoll_dealloc	(struct event_base *, void *);
 
 struct eventop epollops = {
 	"epoll",
@@ -99,7 +99,7 @@ struct eventop epollops = {
 #define NEVENT	32000
 
 void *
-epoll_init(void)
+epoll_init(struct event_base *base)
 {
 	int epfd, nfiles = NEVENT;
 	struct rlimit rl;
@@ -149,7 +149,7 @@ epoll_init(void)
 	}
 	epollop->nfds = nfiles;
 
-	evsignal_init();
+	evsignal_init(base);
 
 	return (epollop);
 }
@@ -187,9 +187,11 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	struct epollop *epollop = arg;
 	struct epoll_event *events = epollop->events;
 	struct evepoll *evep;
-	int i, res, timeout;
+	int i, res, timeout = -1;
 
-	timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
+	if (tv != NULL)
+		timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
+
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
 
 	if (res == -1) {
@@ -198,10 +200,11 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			return (-1);
 		}
 
-		evsignal_process();
+		evsignal_process(base);
 		return (0);
-	} else if (evsignal_caught)
-		evsignal_process();
+	} else if (base->sig.evsignal_caught) {
+		evsignal_process(base);
+	}
 
 	event_debug(("%s: epoll_wait reports %d", __func__, res));
 
@@ -346,10 +349,11 @@ epoll_del(void *arg, struct event *ev)
 }
 
 void
-epoll_dealloc(void *arg)
+epoll_dealloc(struct event_base *base, void *arg)
 {
 	struct epollop *epollop = arg;
 
+	evsignal_dealloc(base);
 	if (epollop->fds)
 		free(epollop->fds);
 	if (epollop->events)

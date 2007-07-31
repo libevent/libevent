@@ -573,12 +573,13 @@ void
 evhttp_connection_done(struct evhttp_connection *evcon)
 {
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
-
+	int con_outgoing = evcon->flags & EVHTTP_CON_OUTGOING;
+    
 	/*
 	 * if this is an incoming connection, we need to leave the request
 	 * on the connection, so that we can reply to it.
 	 */
-	if (evcon->flags & EVHTTP_CON_OUTGOING) {
+	if (con_outgoing) {
 	        int need_close;
 		TAILQ_REMOVE(&evcon->requests, req, next);
 		req->evcon = NULL;
@@ -614,7 +615,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 	(*req->cb)(req, req->cb_arg);
 
 	/* if this was an outgoing request, we own and it's done. so free it */
-	if (evcon->flags & EVHTTP_CON_OUTGOING) {
+	if (con_outgoing) {
 		evhttp_request_free(req);
 	}
 }
@@ -640,8 +641,10 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			if (p == NULL)
 				break;
 			/* the last chunk is on a new line? */
-			if (strlen(p) == 0)
+			if (strlen(p) == 0) {
+				free(p);
 				continue;
+			}
 			req->ntoread = strtol(p, &endp, 16);
 			error = *p == '\0' || (*endp != '\0' && *endp != ' ');
 			free(p);
@@ -1114,9 +1117,15 @@ evhttp_remove_header(struct evkeyvalq *headers, const char *key)
 }
 
 int
-evhttp_add_header(struct evkeyvalq *headers, const char *key, const char *value)
+evhttp_add_header(struct evkeyvalq *headers,
+    const char *key, const char *value)
 {
 	struct evkeyval *header;
+
+	if (strchr(value, "\r") != NULL || strchr(value, "\n") != NULL) {
+		/* drop illegal headers */
+		return (-1);
+	}
 
 	header = calloc(1, sizeof(struct evkeyval));
 	if (header == NULL) {
@@ -1240,7 +1249,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 		
 	event_debug(("%s: bytes to read: %d (in buffer %d)\n",
 		__func__, req->ntoread,
-		EVBUFFER_LENGTH(evcon->input_buffer)));
+		EVBUFFER_LENGTH(req->evcon->input_buffer)));
 
 	return (0);
 }
@@ -1569,7 +1578,7 @@ evhttp_send_error(struct evhttp_request *req, int error, const char *reason)
 
 /* Requires that headers and response code are already set up */
 
-static __inline void
+static inline void
 evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 {
 	struct evhttp_connection *evcon = req->evcon;
@@ -1734,8 +1743,8 @@ evhttp_decode_uri(const char *uri)
 			in_query = 1;
 		} else if (c == '+' && in_query) {
 			c = ' ';
-		} else if (c == '%' && isxdigit(uri[i+1]) &&
-		    isxdigit(uri[i+2])) {
+		} else if (c == '%' && isxdigit((unsigned char)uri[i+1]) &&
+		    isxdigit((unsigned char)uri[i+2])) {
 			char tmp[] = { uri[i+1], uri[i+2], '\0' };
 			c = (char)strtol(tmp, NULL, 16);
 			i += 2;
@@ -1795,30 +1804,41 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 	free(line);
 }
 
+static struct evhttp_cb *
+evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
+{
+	struct evhttp_cb *cb;
+
+	/* Test for different URLs */
+	char *p = strchr(req->uri, '?');
+	TAILQ_FOREACH(cb, callbacks, next) {
+		int res;
+		if (p == NULL)
+			res = strcmp(cb->what, req->uri) == 0;
+		else
+			res = strncmp(cb->what, req->uri,
+			    (size_t)(p - req->uri)) == 0;
+		if (res)
+			return (cb);
+	}
+
+	return (NULL);
+}
+
 void
 evhttp_handle_request(struct evhttp_request *req, void *arg)
 {
 	struct evhttp *http = arg;
-	struct evhttp_cb *cb;
+	struct evhttp_cb *cb = NULL;
 
 	if (req->uri == NULL) {
 		evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
 		return;
 	}
 
-	/* Test for different URLs */
-	TAILQ_FOREACH(cb, &http->callbacks, next) {
-		int res;
-		char *p = strchr(req->uri, '?');
-		if (p == NULL)
-			res = strcmp(cb->what, req->uri) == 0;
-		else
-			res = strncmp(cb->what, req->uri,
-			    (size_t)(p - req->uri)) == 0;
-		if (res) {
-			(*cb->cb)(req, cb->cbarg);
-			return;
-		}
+	if ((cb = evhttp_dispatch_callback(&http->callbacks, req)) != NULL) {
+		(*cb->cb)(req, cb->cbarg);
+		return;
 	}
 
 	/* Generic call back */
@@ -1861,7 +1881,7 @@ accept_socket(int fd, short what, void *arg)
 		event_warn("%s: bad accept", __func__);
 		return;
 	}
-        if (event_make_socket_nonblocking(fd) < 0)
+        if (event_make_socket_nonblocking(nfd) < 0)
                 return;
 
 	evhttp_get_request(http, nfd, (struct sockaddr *)&ss, addrlen);
@@ -1962,6 +1982,25 @@ evhttp_set_cb(struct evhttp *http, const char *uri,
 	http_cb->cbarg = cbarg;
 
 	TAILQ_INSERT_TAIL(&http->callbacks, http_cb, next);
+}
+
+int
+evhttp_del_cb(struct evhttp *http, const char *uri)
+{
+	struct evhttp_cb *http_cb;
+
+	TAILQ_FOREACH(http_cb, &http->callbacks, next) {
+		if (strcmp(http_cb->what, uri) == 0)
+			break;
+	}
+	if (http_cb == NULL)
+		return (-1);
+
+	TAILQ_REMOVE(&http->callbacks, http_cb, next);
+	free(http_cb->what);
+	free(http_cb);
+
+	return (0);
 }
 
 void
@@ -2147,7 +2186,7 @@ evhttp_get_request(struct evhttp *http, int fd,
  * Network helper functions that we do not want to export to the rest of
  * the world.
  */
-
+#if 0 /* Unused */
 static struct addrinfo *
 addr_from_name(char *address)
 {
@@ -2172,6 +2211,7 @@ addr_from_name(char *address)
 	return NULL; // XXXXX Use gethostbyname, if this function is ever used.
 #endif
 }
+#endif
 
 static void
 name_from_addr(struct sockaddr *sa, socklen_t salen,
