@@ -36,6 +36,9 @@
 #else
 #include <sys/_time.h>
 #endif
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
+#endif
 #include <sys/queue.h>
 #include <sys/tree.h>
 #include <signal.h>
