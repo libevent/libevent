@@ -517,6 +517,11 @@ http_postrequest_done(struct evhttp_request *req, void *arg)
 {
 	const char *what = "This is funny";
 
+	if (req == NULL) {
+		fprintf(stderr, "FAILED (timeout)\n");
+		exit(1);
+	}
+
 	if (req->response_code != HTTP_OK) {
 	
 		fprintf(stderr, "FAILED (response code)\n");
