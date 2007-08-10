@@ -1,8 +1,7 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
 LDADD = ../libevent.la
-CPPFPLAGS = -I.. 
-CFLAGS = -I../compat @CFLAGS@
+CPPFLAGS = -I.. -I../compat
 
 EXTRA_DIST = regress.rpc
 

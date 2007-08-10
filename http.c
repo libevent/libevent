@@ -1122,7 +1122,7 @@ evhttp_add_header(struct evkeyvalq *headers,
 {
 	struct evkeyval *header;
 
-	if (strchr(value, "\r") != NULL || strchr(value, "\n") != NULL) {
+	if (strchr(value, '\r') != NULL || strchr(value, '\n') != NULL) {
 		/* drop illegal headers */
 		return (-1);
 	}

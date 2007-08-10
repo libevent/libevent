@@ -599,7 +599,7 @@ test_evbuffer(void) {
 	evbuffer_add_printf(evb, "%s/%d", "hello", 1);
 
 	if (EVBUFFER_LENGTH(evb) == 7 &&
-	    strcmp(EVBUFFER_DATA(evb), "hello/1") == 0)
+	    strcmp((char*)EVBUFFER_DATA(evb), "hello/1") == 0)
 	    test_ok = 1;
 	
 	cleanup_test();
@@ -650,7 +650,7 @@ test_evbuffer_find(void)
 	/* simple test for match at end of allocated buffer */
 	fprintf(stdout, "Testing evbuffer_find 3: ");
 	p = evbuffer_find(buf, (u_char *)"ax", 2);
-	if (p != NULL && strncmp(p, "ax", 2) == 0) {
+	if (p != NULL && strncmp((char*)p, "ax", 2) == 0) {
 		printf("OK\n");
 	} else {
 		fprintf(stdout, "FAILED\n");
