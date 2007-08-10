@@ -48,10 +48,13 @@
 #include <inttypes.h>
 #endif
 
-#if defined(HAVE_INTTYPES_H) && !defined(__OpenBSD__) && !defined(__FreeBSD__)
-#define INTPTR(x)	(intptr_t)x
+/* Some platforms apparently define the udata field of struct kevent as
+ * ntptr_t, whereas others define it as void*.  There doesn't seem to be an
+ * easy way to tell them apart via autoconf, so we need to use OS macros. */
+#if defined(HAVE_INTTYPES_H) && !defined(__OpenBSD__) && !defined(__FreeBSD__) && !defined(__darwin__) && !defined(__APPLE__)
+#define PTR_TO_UDATA(x) ((intptr_t)(x))
 #else
-#define INTPTR(x)	x
+#define PTR_TO_UDATA(x) (x)
 #endif
 
 #include "event.h"
@@ -297,7 +300,7 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
-		kev.udata = INTPTR(ev);
+		kev.udata = PTR_TO_UDATA(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
@@ -320,7 +323,7 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
-		kev.udata = INTPTR(ev);
+		kev.udata = PTR_TO_UDATA(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
@@ -335,7 +338,7 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
-		kev.udata = INTPTR(ev);
+		kev.udata = PTR_TO_UDATA(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
