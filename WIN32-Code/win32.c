@@ -167,7 +167,7 @@ do_fd_clear(struct win32op *op, SOCKET s, int read)
 
 #define NEVENT 64
 void *
-win32_init(struct event_base *)
+win32_init(struct event_base *_base)
 {
 	struct win32op *winop;
 	size_t size;
@@ -376,7 +376,7 @@ win32_dispatch(struct event_base *base, void *op,
 }
 
 void
-win32_dealloc(struct event_base *, void *arg)
+win32_dealloc(struct event_base *_base, void *arg)
 {
 	struct win32op *win32op = arg;
 
