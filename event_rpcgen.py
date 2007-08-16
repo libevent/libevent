@@ -86,7 +86,7 @@ class Struct:
         print >>file, '};\n'
 
         print >>file, (
-            'struct %s *%s_new();\n' % (self._name, self._name) +
+            'struct %s *%s_new(void);\n' % (self._name, self._name) +
             'void %s_free(struct %s *);\n' % (self._name, self._name) +
             'void %s_clear(struct %s *);\n' % (self._name, self._name) +
             'void %s_marshal(struct evbuffer *, const struct %s *);\n' % (
@@ -119,7 +119,7 @@ class Struct:
 
         # Creation
         print >>file, ( 'struct %s *\n' % self._name +
-                        '%s_new()\n' % self._name +
+                        '%s_new(void)\n' % self._name +
                         '{\n'
                         '  struct %s *tmp;\n' % self._name +
                         '  if ((tmp = malloc(sizeof(struct %s))) == NULL) {\n'

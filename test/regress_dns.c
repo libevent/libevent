@@ -121,7 +121,7 @@ out:
 }
 
 void
-dns_gethostbyname()
+dns_gethostbyname(void)
 {
 	fprintf(stdout, "Simple DNS resolve: ");
 	dns_ok = 0;
@@ -137,7 +137,7 @@ dns_gethostbyname()
 }
 
 void
-dns_gethostbyname6()
+dns_gethostbyname6(void)
 {
 	fprintf(stdout, "IPv6 DNS resolve: ");
 	dns_ok = 0;
@@ -153,7 +153,7 @@ dns_gethostbyname6()
 }
 
 void
-dns_gethostbyaddr()
+dns_gethostbyaddr(void)
 {
 	struct in_addr in;
 	in.s_addr = htonl(0x7f000001ul); /* 127.0.0.1 */
@@ -278,7 +278,7 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 }
 
 void
-dns_server()
+dns_server(void)
 {
 	int sock;
 	struct sockaddr_in my_addr;

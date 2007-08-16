@@ -295,7 +295,7 @@ int evrpc_make_request(struct evrpc_request_wrapper *);
  * a pool has a number of connections associated with it.
  * rpc requests are always made via a pool.
  */
-struct evrpc_pool *evrpc_pool_new();
+struct evrpc_pool *evrpc_pool_new(void);
 void evrpc_pool_free(struct evrpc_pool *);
 void evrpc_pool_add_connection(struct evrpc_pool *, 
     struct evhttp_connection *);

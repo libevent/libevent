@@ -652,7 +652,7 @@ close_detect_cb(struct evhttp_request *req, void *arg)
 
 
 void
-http_close_detection()
+http_close_detection(void)
 {
 	short port = -1;
 	struct evhttp_connection *evcon = NULL;
@@ -724,7 +724,7 @@ http_highport_test(void)
 }
 
 void
-http_bad_header_test()
+http_bad_header_test(void)
 {
 	struct evkeyvalq headers;
 

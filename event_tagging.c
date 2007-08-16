@@ -63,7 +63,7 @@ int decode_int(uint32_t *pnumber, struct evbuffer *evbuf);
 static struct evbuffer *_buf;	/* not thread safe */
 
 void
-evtag_init()
+evtag_init(void)
 {
 	if (_buf != NULL)
 		return;

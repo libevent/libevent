@@ -909,7 +909,7 @@ evtag_int_test(void)
 }
 
 void
-evtag_fuzz()
+evtag_fuzz(void)
 {
 	u_char buffer[4096];
 	struct evbuffer *tmp = evbuffer_new();

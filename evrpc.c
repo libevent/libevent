@@ -271,7 +271,7 @@ static int evrpc_schedule_request(struct evhttp_connection *connection,
     struct evrpc_request_wrapper *ctx);
 
 struct evrpc_pool *
-evrpc_pool_new()
+evrpc_pool_new(void)
 {
 	struct evrpc_pool *pool = calloc(1, sizeof(struct evrpc_pool));
 	if (pool == NULL)
