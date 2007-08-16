@@ -1120,10 +1120,12 @@ int
 evhttp_add_header(struct evkeyvalq *headers,
     const char *key, const char *value)
 {
-	struct evkeyval *header;
+	struct evkeyval *header = NULL;
 
-	if (strchr(value, '\r') != NULL || strchr(value, '\n') != NULL) {
+	if (strchr(value, '\r') != NULL || strchr(value, '\n') != NULL ||
+	    strchr(key, '\r') != NULL || strchr(key, '\n') != NULL) {
 		/* drop illegal headers */
+		event_debug(("%s: dropping illegal header\n"));
 		return (-1);
 	}
 

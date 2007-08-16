@@ -517,6 +517,11 @@ http_postrequest_done(struct evhttp_request *req, void *arg)
 {
 	const char *what = "This is funny";
 
+	if (req == NULL) {
+		fprintf(stderr, "FAILED (timeout)\n");
+		exit(1);
+	}
+
 	if (req->response_code != HTTP_OK) {
 	
 		fprintf(stderr, "FAILED (response code)\n");
@@ -719,8 +724,40 @@ http_highport_test(void)
 }
 
 void
+http_bad_header_test()
+{
+	struct evkeyvalq headers;
+
+	fprintf(stdout, "Testing HTTP Header filtering: ");
+
+	TAILQ_INIT(&headers);
+
+	if (evhttp_add_header(&headers, "One", "Two") != 0)
+		goto fail;
+	
+	if (evhttp_add_header(&headers, "One\r", "Two") != -1)
+		goto fail;
+
+	if (evhttp_add_header(&headers, "One\n", "Two") != -1)
+		goto fail;
+
+	if (evhttp_add_header(&headers, "One", "Two\r") != -1)
+		goto fail;
+
+	if (evhttp_add_header(&headers, "One", "Two\n") != -1)
+		goto fail;
+
+	fprintf(stdout, "OK\n");
+	return;
+fail:
+	fprintf(stdout, "FAILED\n");
+	exit(1);
+}
+
+void
 http_suite(void)
 {
+	http_bad_header_test();
 	http_basic_test();
 	http_connection_test(0 /* not-persistent */);
 	http_connection_test(1 /* persistent */);
