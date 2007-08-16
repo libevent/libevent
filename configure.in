@@ -1,7 +1,7 @@
 dnl configure.in for libevent
 AC_INIT(event.c)
 
-AM_INIT_AUTOMAKE(libevent,1.3c)
+AM_INIT_AUTOMAKE(libevent,1.3d)
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 
