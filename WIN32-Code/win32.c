@@ -52,7 +52,7 @@
 
 extern struct event_list timequeue;
 extern struct event_list addqueue;
-extern struct event_list signalqueue;
+// extern struct event_list signalqueue;
 
 struct win_fd_set {
 	u_int fd_count;
@@ -410,10 +410,12 @@ signal_recalc(void)
 	struct event *ev;
 
 	/* Reinstall our signal handler. */
+#if 0
 	TAILQ_FOREACH(ev, &signalqueue, ev_signal_next) {
 		if((int)signal(EVENT_SIGNAL(ev), signal_handler) == -1)
 			return (-1);
 	}
+#endif
 	return (0);
 }
 
@@ -423,6 +425,7 @@ signal_process(void)
 	struct event *ev;
 	short ncalls;
 
+#if 0
 	TAILQ_FOREACH(ev, &signalqueue, ev_signal_next) {
 		ncalls = evsigcaught[EVENT_SIGNAL(ev)];
 		if (ncalls) {
@@ -431,6 +434,7 @@ signal_process(void)
 			event_active(ev, EV_SIGNAL, ncalls);
 		}
 	}
+#endif
 
 	memset(evsigcaught, 0, sizeof(evsigcaught));
 	signal_caught = 0;

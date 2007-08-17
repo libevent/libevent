@@ -390,8 +390,10 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval *tv_p;
 	int res, done;
 
+#ifndef WIN32
 	if(!TAILQ_EMPTY(&base->sig.signalqueue))
 		evsignal_base = base;
+#endif
 	done = 0;
 	while (!done) {
 		/* Calculate the initial events that we are waiting for */
