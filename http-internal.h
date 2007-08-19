@@ -35,6 +35,8 @@ enum evhttp_connection_state {
 	EVCON_CONNECTED		/* connection is established */
 };
 
+struct event_base;
+
 struct evhttp_connection {
 	/* we use tailq only if they were created for an http server */
 	TAILQ_ENTRY(evhttp_connection) next;
@@ -69,6 +71,8 @@ struct evhttp_connection {
 	
 	void (*closecb)(struct evhttp_connection *, void *);
 	void *closecb_arg;
+
+	struct event_base *base;
 };
 
 struct evhttp_cb {
@@ -93,6 +97,8 @@ struct evhttp {
 
 	void (*gencb)(struct evhttp_request *req, void *);
 	void *gencbarg;
+
+	struct event_base *base;
 };
 
 /* resets the connection; can be reused for more requests */

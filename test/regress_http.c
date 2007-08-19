@@ -61,22 +61,24 @@ extern int pair[];
 extern int test_ok;
 
 static struct evhttp *http;
+/* set if a test needs to call loopexit on a base */
+static struct event_base *base;
 
 void http_basic_cb(struct evhttp_request *req, void *arg);
 void http_post_cb(struct evhttp_request *req, void *arg);
 void http_dispatcher_cb(struct evhttp_request *req, void *arg);
 
 static struct evhttp *
-http_setup(short *pport)
+http_setup(short *pport, struct event_base *base)
 {
 	int i;
 	struct evhttp *myhttp;
 	short port = -1;
 
 	/* Try a few different ports */
+	myhttp = evhttp_new(base);
 	for (i = 0; i < 50; ++i) {
-		myhttp = evhttp_start("127.0.0.1", 8080 + i);
-		if (myhttp != NULL) {
+		if (evhttp_bind_socket(myhttp, "127.0.0.1", 8080 + i) != -1) {
 			port = 8080 + i;
 			break;
 		}
@@ -130,7 +132,8 @@ http_readcb(struct bufferevent *bev, void *arg)
 
  	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bev->input)));
 	
-	if (evbuffer_find(bev->input, (const unsigned char*) what, strlen(what)) != NULL) {
+	if (evbuffer_find(bev->input,
+		(const unsigned char*) what, strlen(what)) != NULL) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		int done;
 
@@ -143,7 +146,10 @@ http_readcb(struct bufferevent *bev, void *arg)
 			test_ok++;
 		evhttp_request_free(req);
 		bufferevent_disable(bev, EV_READ);
-		event_loopexit(NULL);
+		if (base)
+			event_base_loopexit(base, NULL);
+		else
+			event_loopexit(NULL);
 	}
 }
 
@@ -188,7 +194,7 @@ http_basic_test(void)
 	test_ok = 0;
 	fprintf(stdout, "Testing Basic HTTP Server: ");
 
-	http = http_setup(&port);
+	http = http_setup(&port, NULL);
 	
 	fd = http_connect("127.0.0.1", port);
 
@@ -232,7 +238,7 @@ http_connection_test(int persistent)
 	fprintf(stdout, "Testing Request Connection Pipeline %s: ",
 	    persistent ? "(persistent)" : "");
 
-	http = http_setup(&port);
+	http = http_setup(&port, NULL);
 
 	evcon = evhttp_connection_new("127.0.0.1", port);
 	if (evcon == NULL) {
@@ -379,7 +385,7 @@ http_dispatcher_test(void)
 	test_ok = 0;
 	fprintf(stdout, "Testing HTTP Dispatcher: ");
 
-	http = http_setup(&port);
+	http = http_setup(&port, NULL);
 
 	evcon = evhttp_connection_new("127.0.0.1", port);
 	if (evcon == NULL) {
@@ -437,7 +443,7 @@ http_post_test(void)
 	test_ok = 0;
 	fprintf(stdout, "Testing HTTP POST Request: ");
 
-	http = http_setup(&port);
+	http = http_setup(&port, NULL);
 
 	evcon = evhttp_connection_new("127.0.0.1", port);
 	if (evcon == NULL) {
@@ -573,7 +579,7 @@ http_failure_test(void)
 	test_ok = 0;
 	fprintf(stdout, "Testing Bad HTTP Request: ");
 
-	http = http_setup(&port);
+	http = http_setup(&port, NULL);
 	
 	fd = http_connect("127.0.0.1", port);
 
@@ -661,7 +667,7 @@ http_close_detection(void)
 	test_ok = 0;
 	fprintf(stdout, "Testing Connection Close Detection: ");
 
-	http = http_setup(&port);
+	http = http_setup(&port, NULL);
 
 	/* 2 second timeout */
 	evhttp_set_timeout(http, 2);
@@ -755,8 +761,63 @@ fail:
 }
 
 void
+http_base_test(void)
+{
+	struct bufferevent *bev;
+	int fd;
+	char *http_request;
+	short port = -1;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing HTTP Server Event Base: ");
+
+	base = event_init();
+
+	/* 
+	 * create another bogus base - which is being used by all subsequen
+	 * tests - yuck!
+	 */
+	event_init();
+
+	http = http_setup(&port, base);
+	
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, http_readcb, http_writecb,
+	    http_errorcb, NULL);
+	bufferevent_base_set(base, bev);
+
+	http_request =
+	    "GET /test HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+	
+	event_base_dispatch(base);
+
+	bufferevent_free(bev);
+	close(fd);
+
+	evhttp_free(http);
+
+	event_base_free(base);
+	base = NULL;
+	
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	
+	fprintf(stdout, "OK\n");
+}
+
+void
 http_suite(void)
 {
+	http_base_test();
 	http_bad_header_test();
 	http_basic_test();
 	http_connection_test(0 /* not-persistent */);

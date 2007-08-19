@@ -62,11 +62,20 @@ struct evhttp;
 struct evhttp_request;
 struct evkeyvalq;
 
-/* Start an HTTP server on the specified address and port */
-struct evhttp *evhttp_start(const char *address, u_short port);
+/* 
+ * creates a new HTTP server; if base is specified events from the http server
+ * are going to be created on that event base.
+ */
+struct evhttp *evhttp_new(struct event_base *base);
+
+/* 
+ * binds the http server to specific port and can be called multiple times
+ * to bind the same http server to multiple different ports.
+ */
+int evhttp_bind_socket(struct evhttp *http, const char *address, u_short port);
 
 /*
- * Free the previously create HTTP server.  Works only if no requests are
+ * Free the previously created HTTP server.  Works only if no requests are
  * currently being served.
  */
 void evhttp_free(struct evhttp* http);
@@ -95,7 +104,15 @@ void evhttp_send_reply_start(struct evhttp_request *, int, const char *);
 void evhttp_send_reply_chunk(struct evhttp_request *, struct evbuffer *);
 void evhttp_send_reply_end(struct evhttp_request *);
 	
-/* Interfaces for making requests */
+/*
+ * Start an HTTP server on the specified address and port
+ * DEPRECATED: it does not allow an event base to be specified
+ */
+struct evhttp *evhttp_start(const char *address, u_short port);
+
+/*
+ * Interfaces for making requests
+ */
 enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
 
 enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
@@ -188,6 +205,13 @@ void evhttp_connection_set_retries(struct evhttp_connection *evcon,
 /* Set a callback for connection close. */
 void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
     void (*)(struct evhttp_connection *, void *), void *);
+
+/*
+ * Associates an event base with the connection - can only be called
+ * on a freshly created connection object that has not been used yet.
+ */
+void evhttp_connection_set_base(struct evhttp_connection *evcon,
+    struct event_base *base);
 
 /* Get the remote address and port associated with this connection. */
 void evhttp_connection_get_peer(struct evhttp_connection *evcon,

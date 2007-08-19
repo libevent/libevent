@@ -71,7 +71,7 @@ static int roff;
 static int usepersist;
 static struct timeval tset;
 static struct timeval tcalled;
-static struct event_base *event_base;
+static struct event_base *global_base;
 
 #define TEST1	"this is a test"
 #define SECONDS	1
@@ -594,7 +594,7 @@ void
 test_evbuffer(void) {
 
 	struct evbuffer *evb = evbuffer_new();
-	setup_test("Evbuffer: ");
+	setup_test("Testing Evbuffer: ");
 
 	evbuffer_add_printf(evb, "%s/%d", "hello", 1);
 
@@ -742,10 +742,10 @@ test_priorities(int npriorities)
 	struct test_pri_event one, two;
 	struct timeval tv;
 
-	snprintf(buf, sizeof(buf), "Priorities %d: ", npriorities);
+	snprintf(buf, sizeof(buf), "Testing Priorities %d: ", npriorities);
 	setup_test(buf);
 
-	event_base_priority_init(event_base, npriorities);
+	event_base_priority_init(global_base, npriorities);
 
 	memset(&one, 0, sizeof(one));
 	memset(&two, 0, sizeof(two));
@@ -1042,7 +1042,12 @@ main (int argc, char **argv)
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	/* Initalize the event library */
-	event_base = event_init();
+	global_base = event_init();
+
+	/* use the global event base and need to be called first */
+	test_priorities(1);
+	test_priorities(2);
+	test_priorities(3);
 
 	test_evbuffer();
 	test_evbuffer_find();
@@ -1071,10 +1076,6 @@ main (int argc, char **argv)
 	test_immediatesignal();
 #endif
 	test_loopexit();
-
-	test_priorities(1);
-	test_priorities(2);
-	test_priorities(3);
 
 	test_multiple_events_for_same_fd();
 

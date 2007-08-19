@@ -78,7 +78,8 @@
 .Nm evbuffer_read ,
 .Nm evbuffer_find ,
 .Nm evbuffer_readline ,
-.Nm evhttp_start ,
+.Nm evhttp_new ,
+.Nm evhttp_bind_socket ,
 .Nm evhttp_free
 .Nd execute a function when a specific event occurs
 .Sh SYNOPSIS
@@ -181,9 +182,11 @@
 .Ft "char *"
 .Fn "evbuffer_readline" "struct evbuffer *buf"
 .Ft "struct evhttp *"
-.Fn "evhttp_start" "const char *address" "u_short port"
+.Fn "evhttp_new"
+.Ft int
+.Fn "evhttp_bind_socket" "struct evhttp *http" "const char *address" "u_short port"
 .Ft "void"
-.Fn "evhttp_free" "struct evhttp* http"
+.Fn "evhttp_free" "struct evhttp *http"
 .Ft int
 .Fa (*event_sigcb)(void) ;
 .Ft volatile sig_atomic_t
@@ -539,7 +542,10 @@ enabling the bufferevent for the first time.
 provides a very thin HTTP layer that can be used both to host an HTTP
 server and also to make HTTP requests.
 An HTTP server can be created by calling
-.Fn evhttp_start .
+.Fn evhttp_new .
+It can be bound to any port and address with the
+.Fn evhttp_bind_socket
+function.
 When the HTTP server is no longer used, it can be freed via
 .Fn evhttp_free .
 .Pp

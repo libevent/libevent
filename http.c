@@ -116,6 +116,11 @@ fake_freeaddrinfo(struct addrinfo *ai)
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
 
+/* wrapper for setting the base from the http server */
+#define EVHTTP_BASE_SET(x, y) do { \
+	if ((x)->base != NULL) event_base_set((x)->base, y);	\
+} while (0) 
+
 static int
 event_make_socket_nonblocking(int fd)
 {
@@ -277,6 +282,7 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 		event_del(&evcon->ev);
 
 	event_set(&evcon->ev, evcon->fd, EV_WRITE, evhttp_write, evcon);
+	EVHTTP_BASE_SET(evcon, &evcon->ev);
 	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_WRITE_TIMEOUT);
 }
 
@@ -709,6 +715,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 	/* Read more! */
 	event_set(&evcon->ev, evcon->fd, EV_READ, evhttp_read, evcon);
+	EVHTTP_BASE_SET(evcon, &evcon->ev);
 	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_READ_TIMEOUT);
 }
 
@@ -865,6 +872,7 @@ evhttp_connection_start_detectclose(struct evhttp_connection *evcon)
 		event_del(&evcon->close_ev);
 	event_set(&evcon->close_ev, evcon->fd, EV_READ,
 	    evhttp_detect_close_cb, evcon);
+	EVHTTP_BASE_SET(evcon, &evcon->ev);
 	event_add(&evcon->close_ev, NULL);
 }
 
@@ -931,6 +939,7 @@ evhttp_connectioncb(int fd, short what, void *arg)
  cleanup:
 	if (evcon->retry_max < 0 || evcon->retry_cnt < evcon->retry_max) {
 		evtimer_set(&evcon->ev, evhttp_connection_retry, evcon);
+		EVHTTP_BASE_SET(evcon, &evcon->ev);
 		evhttp_add_event(&evcon->ev, MIN(3600, 2 << evcon->retry_cnt),
 		    HTTP_CONNECT_TIMEOUT);
 		evcon->retry_cnt++;
@@ -1403,6 +1412,14 @@ evhttp_connection_new(const char *address, unsigned short port)
 	return (NULL);
 }
 
+void evhttp_connection_set_base(struct evhttp_connection *evcon,
+    struct event_base *base)
+{
+	assert(evcon->base == NULL);
+	assert(evcon->state == EVCON_DISCONNECTED);
+	evcon->base = base;
+}
+
 void
 evhttp_connection_set_timeout(struct evhttp_connection *evcon,
     int timeout_in_secs)
@@ -1454,6 +1471,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 
 	/* Set up a callback for successful connection setup */
 	event_set(&evcon->ev, evcon->fd, EV_WRITE, evhttp_connectioncb, evcon);
+	EVHTTP_BASE_SET(evcon, &evcon->ev);
 	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_CONNECT_TIMEOUT);
 
 	evcon->state = EVCON_CONNECTING;
@@ -1519,6 +1537,7 @@ evhttp_start_read(struct evhttp_connection *evcon)
 	if (event_initialized(&evcon->ev))
 		event_del(&evcon->ev);
 	event_set(&evcon->ev, evcon->fd, EV_READ, evhttp_read_header, evcon);
+	EVHTTP_BASE_SET(evcon, &evcon->ev);
 	
 	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_READ_TIMEOUT);
 }
@@ -1897,8 +1916,8 @@ accept_socket(int fd, short what, void *arg)
 	evhttp_get_request(http, nfd, (struct sockaddr *)&ss, addrlen);
 }
 
-static int
-bind_socket(struct evhttp *http, const char *address, u_short port)
+int
+evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 {
 	struct event *ev = &http->bind_ev;
 	int fd;
@@ -1908,11 +1927,13 @@ bind_socket(struct evhttp *http, const char *address, u_short port)
 
 	if (listen(fd, 10) == -1) {
 		event_warn("%s: listen", __func__);
+		close(fd);
 		return (-1);
 	}
 
 	/* Schedule the socket for accepting */
 	event_set(ev, fd, EV_READ | EV_PERSIST, accept_socket, http);
+	EVHTTP_BASE_SET(http, ev);
 	event_add(ev, NULL);
 
 	event_debug(("Bound to port %d - Awaiting connections ... ", port));
@@ -1920,14 +1941,10 @@ bind_socket(struct evhttp *http, const char *address, u_short port)
 	return (0);
 }
 
-/*
- * Start a web server on the specified address and port.
- */
-
-struct evhttp *
-evhttp_start(const char *address, u_short port)
+static struct evhttp*
+evhttp_new_object()
 {
-	struct evhttp *http;
+	struct evhttp *http = NULL;
 
 	if ((http = calloc(1, sizeof(struct evhttp))) == NULL) {
 		event_warn("%s: calloc", __func__);
@@ -1939,7 +1956,29 @@ evhttp_start(const char *address, u_short port)
 	TAILQ_INIT(&http->callbacks);
 	TAILQ_INIT(&http->connections);
 
-	if (bind_socket(http, address, port) == -1) {
+	return (http);
+}
+
+struct evhttp *
+evhttp_new(struct event_base *base)
+{
+	struct evhttp *http = evhttp_new_object();
+
+	http->base = base;
+
+	return (http);
+}
+
+/*
+ * Start a web server on the specified address and port.
+ */
+
+struct evhttp *
+evhttp_start(const char *address, u_short port)
+{
+	struct evhttp *http = evhttp_new_object();
+
+	if (evhttp_bind_socket(http, address, port) == -1) {
 		free(http);
 		return (NULL);
 	}
@@ -2122,6 +2161,7 @@ evhttp_request_uri(struct evhttp_request *req) {
 
 static struct evhttp_connection*
 evhttp_get_request_connection(
+	struct evhttp* http,
 	int fd, struct sockaddr *sa, socklen_t salen)
 {
 	struct evhttp_connection *evcon;
@@ -2134,6 +2174,10 @@ evhttp_get_request_connection(
 	/* we need a connection object to put the http request on */
 	if ((evcon = evhttp_connection_new(hostname, atoi(portname))) == NULL)
 		return (NULL);
+
+	/* associate the base if we have one*/
+	evhttp_connection_set_base(evcon, http->base);
+
 	evcon->flags |= EVHTTP_CON_INCOMING;
 	evcon->state = EVCON_CONNECTED;
 	
@@ -2172,7 +2216,7 @@ evhttp_get_request(struct evhttp *http, int fd,
 {
 	struct evhttp_connection *evcon;
 
-	evcon = evhttp_get_request_connection(fd, sa, salen);
+	evcon = evhttp_get_request_connection(http, fd, sa, salen);
 	if (evcon == NULL)
 		return;
 
