@@ -109,10 +109,6 @@
 #include <netinet/in6.h>
 #endif
 
-#ifdef WIN32
-typedef int socklen_t;
-#endif
-
 #define EVDNS_LOG_DEBUG 0
 #define EVDNS_LOG_WARN 1
 
