@@ -48,11 +48,11 @@ libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
 
 include_HEADERS = event.h evhttp.h evdns.h evrpc.h
 
-INCLUDES = -Icompat $(SYS_INCLUDES)
+INCLUDES = -I$(srcdir)/compat $(SYS_INCLUDES)
 
 man_MANS = event.3 evdns.3
 
 verify: libevent.la
-	cd $(srcdir)/test && make verify	
+	cd test && make verify
 
 DISTCLEANFILES = *~

@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
 LDADD = ../libevent.la
-CPPFLAGS = -I.. -I../compat
+CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat
 
 EXTRA_DIST = regress.rpc
 
@@ -18,7 +18,7 @@ regress_SOURCES = regress.c regress.h regress_http.c regress_dns.c \
 bench_SOURCES = bench.c
 
 regress.gen.c regress.gen.h: regress.rpc
-	../event_rpcgen.py regress.rpc || echo "No Python installed"
+	$(top_srcdir)/event_rpcgen.py regress.rpc || echo "No Python installed"
 
 DISTCLEANFILES = *~
 CLEANFILES = regress.gen.h regress.gen.c
