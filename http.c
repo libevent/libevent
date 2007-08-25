@@ -1175,58 +1175,55 @@ evhttp_add_header(struct evkeyvalq *headers,
 int
 evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 {
-	u_char *endp;
+	char *line;
 	int done = 0;
 
 	struct evkeyvalq* headers = req->input_headers;
-	while ((endp = evbuffer_find(buffer, (u_char *)"\r\n", 2)) != NULL) {
+	while ((line = evbuffer_readline(buffer)) != NULL) {
 		char *skey, *svalue;
 
-		if (strncmp((char *)EVBUFFER_DATA(buffer), "\r\n", 2) == 0) {
-			evbuffer_drain(buffer, 2);
-			/* Last header - Done */
+		if (*line == '\0') { /* Last header - Done */
 			done = 1;
+			free (line);
 			break;
 		}
-
-		*endp = '\0';
-		endp += 2;
 
 		/* Processing of header lines */
 		if (req->got_firstline == 0) {
 			switch (req->kind) {
 			case EVHTTP_REQUEST:
-				if (evhttp_parse_request_line(req,
-					(char *)EVBUFFER_DATA(buffer)) == -1)
-					return (-1);
+				if (evhttp_parse_request_line(req, line) == -1)
+					goto error;
 				break;
 			case EVHTTP_RESPONSE:
-				if (evhttp_parse_response_line(req,
-					(char *)EVBUFFER_DATA(buffer)) == -1)
-					return (-1);
+				if (evhttp_parse_response_line(req, line) == -1)
+					goto error;
 				break;
 			default:
-				return (-1);
+				goto error;
 			}
 			req->got_firstline = 1;
 		} else {
 			/* Regular header */
-			svalue = (char *)EVBUFFER_DATA(buffer);
+			svalue = line;
 			skey = strsep(&svalue, ":");
 			if (svalue == NULL)
-				return (-1);
+				goto error;
 
 			svalue += strspn(svalue, " ");
 
 			if (evhttp_add_header(headers, skey, svalue) == -1)
-				return (-1);
+				goto error;
 		}
 
-		/* Move the uncompleted headers forward */
-		evbuffer_drain(buffer, endp - EVBUFFER_DATA(buffer));
+		free (line);
 	}
 
 	return (done);
+
+ error:
+	free (line);
+	return (-1);
 }
 
 static int
