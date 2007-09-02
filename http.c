@@ -507,6 +507,8 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
     enum evhttp_connection_error error)
 {
 	struct evhttp_request* req = TAILQ_FIRST(&evcon->requests);
+	void (*cb)(struct evhttp_request *, void *);
+	void *cb_arg;
 	assert(req != NULL);
 	
 	if (evcon->flags & EVHTTP_CON_INCOMING) {
@@ -523,9 +525,9 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 		return;
 	}
 
-
-	if (req->cb != NULL)
-		(*req->cb)(NULL, req->cb_arg);
+	/* save the callback for later; the cb might free our object */
+	cb = req->cb;
+	cb_arg = req->cb_arg;
 
 	TAILQ_REMOVE(&evcon->requests, req, next);
 	evhttp_request_free(req);
@@ -538,6 +540,10 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 	/* We are trying the next request that was queued on us */
 	if (TAILQ_FIRST(&evcon->requests) != NULL)
 		evhttp_connection_connect(evcon);
+
+	/* inform the user */
+	if (cb != NULL)
+		(*cb)(NULL, cb_arg);
 }
 
 void
@@ -553,13 +559,13 @@ evhttp_write(int fd, short what, void *arg)
 
 	n = evbuffer_write(evcon->output_buffer, fd);
 	if (n == -1) {
-		event_warn("%s: evbuffer_write", __func__);
+		event_debug(("%s: evbuffer_write", __func__));
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
 
 	if (n == 0) {
-		event_warnx("%s: write nothing", __func__);
+		event_debug(("%s: write nothing", __func__));
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
@@ -743,7 +749,7 @@ evhttp_read(int fd, short what, void *arg)
 	event_debug(("%s: got %d on %d\n", __func__, n, fd));
 	
 	if (n == -1) {
-		event_warn("%s: evbuffer_read", __func__);
+		event_debug(("%s: evbuffer_read", __func__));
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	} else if (n == 0) {
@@ -904,23 +910,23 @@ evhttp_connectioncb(int fd, short what, void *arg)
 	socklen_t errsz = sizeof(error);
 		
 	if (what == EV_TIMEOUT) {
-		event_warnx("%s: connection timeout for \"%s:%d\" on %d",
-		    __func__, evcon->address, evcon->port, evcon->fd);
+		event_debug(("%s: connection timeout for \"%s:%d\" on %d",
+			__func__, evcon->address, evcon->port, evcon->fd));
 		goto cleanup;
 	}
 
 	/* Check if the connection completed */
 	if (getsockopt(evcon->fd, SOL_SOCKET, SO_ERROR, (void*)&error,
 		       &errsz) == -1) {
-		event_warn("%s: getsockopt for \"%s:%d\" on %d",
-		    __func__, evcon->address, evcon->port, evcon->fd);
+		event_debug(("%s: getsockopt for \"%s:%d\" on %d",
+			__func__, evcon->address, evcon->port, evcon->fd));
 		goto cleanup;
 	}
 
 	if (error) {
-		event_warnx("%s: connect failed for \"%s:%d\" on %d: %s",
+		event_debug(("%s: connect failed for \"%s:%d\" on %d: %s",
 		    __func__, evcon->address, evcon->port, evcon->fd,
-		    strerror(error));
+			strerror(error)));
 		goto cleanup;
 	}
 
@@ -995,15 +1001,15 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 		req->major = 1;
 		req->minor = 1;
 	} else {
-		event_warnx("%s: bad protocol \"%s\"",
-		    __func__, protocol);
+		event_debug(("%s: bad protocol \"%s\"",
+			__func__, protocol));
 		return (-1);
 	}
 
 	req->response_code = atoi(number);
 	if (!evhttp_valid_response_code(req->response_code)) {
-		event_warnx("%s: bad response code \"%s\"",
-		    __func__, number);
+		event_debug(("%s: bad response code \"%s\"",
+			__func__, number));
 		return (-1);
 	}
 
@@ -1041,8 +1047,8 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	} else if (strcmp(method, "HEAD") == 0) {
 		req->type = EVHTTP_REQ_HEAD;
 	} else {
-		event_warnx("%s: bad method %s on request %p from %s",
-		    __func__, method, req, req->remote_host);
+		event_debug(("%s: bad method %s on request %p from %s",
+			__func__, method, req, req->remote_host));
 		return (-1);
 	}
 
@@ -1053,13 +1059,13 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		req->major = 1;
 		req->minor = 1;
 	} else {
-		event_warnx("%s: bad version %s on request %p from %s",
-		    __func__, version, req, req->remote_host);
+		event_debug(("%s: bad version %s on request %p from %s",
+			__func__, version, req, req->remote_host));
 		return (-1);
 	}
 
 	if ((req->uri = strdup(uri)) == NULL) {
-		event_warn("%s: evhttp_decode_uri", __func__);
+		event_debug(("%s: evhttp_decode_uri", __func__));
 		return (-1);
 	}
 
@@ -1303,12 +1309,12 @@ evhttp_read_header(int fd, short what, void *arg)
 
 	n = evbuffer_read(evcon->input_buffer, fd, -1);
 	if (n == 0) {
-		event_warnx("%s: no more data on %d", __func__, fd);
+		event_debug(("%s: no more data on %d", __func__, fd));
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
 	if (n == -1) {
-		event_warnx("%s: bad read on %d", __func__, fd);
+		event_debug(("%s: bad read on %d", __func__, fd));
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 		return;
 	}
@@ -1461,8 +1467,8 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	/* Do async connection to HTTP server */
 	if ((evcon->fd = make_socket(
 		     0, evcon->address, evcon->port)) == -1) {
-		event_warn("%s: failed to connect to \"%s:%d\"",
-		    __func__, evcon->address, evcon->port);
+		event_debug(("%s: failed to connect to \"%s:%d\"",
+			__func__, evcon->address, evcon->port));
 		return (-1);
 	}
 

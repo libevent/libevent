@@ -1,2 +1,3 @@
 Changes in current version:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.  
+ o demote most http warnings to debug messages
