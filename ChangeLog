@@ -1,1 +1,2 @@
 Changes since 1.3d:
+ o demote most http warnings to debug messages
