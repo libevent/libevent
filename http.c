@@ -346,11 +346,16 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 		if (evhttp_find_header(req->output_headers,
 							   "Date") == NULL) {
 			char date[50];
-			struct tm cur;
+			struct tm cur, *cur_p;
 			time_t t = time(NULL);
+#ifdef WIN32
+			cur_p = gmtime(&t);
+#else
 			gmtime_r(&t, &cur);
+			cur_p = &cur;
+#endif
 			if (strftime(date, sizeof(date),
-						 "%a, %d %b %Y %H:%M:%S GMT", &cur) != 0) {
+						 "%a, %d %b %Y %H:%M:%S GMT", cur_p) != 0) {
 				evhttp_add_header(req->output_headers, "Date", date);
 			}
 		}
