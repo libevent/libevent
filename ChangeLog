@@ -1,2 +1,3 @@
 Changes since 1.3d:
  o demote most http warnings to debug messages
+ o Fix compilation on Solaris; from Magne Mahre 

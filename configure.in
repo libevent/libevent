@@ -37,6 +37,7 @@ dnl Checks for libraries.
 AC_CHECK_LIB(socket, socket)
 AC_CHECK_LIB(resolv, inet_aton)
 AC_CHECK_LIB(rt, clock_gettime)
+AC_CHECK_LIB(nsl, inet_ntoa)
 
 dnl Checks for header files.
 AC_HEADER_STDC
@@ -366,12 +367,12 @@ AC_TRY_COMPILE([
 
 AC_MSG_CHECKING([whether our compiler supports __func__])
 AC_TRY_COMPILE([],
- [void foo() { const char *cp = __func__; }],
+ [ const char *cp = __func__; ],
  AC_MSG_RESULT([yes]),
  AC_MSG_RESULT([no])
  AC_MSG_CHECKING([whether our compiler supports __FUNCTION__])
  AC_TRY_COMPILE([],
-   [void foo() { const char *cp = __FUNCTION__; }],
+   [ const char *cp = __FUNCTION__; ],
    AC_MSG_RESULT([yes])
    AC_DEFINE(__func__, __FUNCTION__,
          [Define to appropriate substitue if compiler doesnt have __func__]),
