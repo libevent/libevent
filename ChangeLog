@@ -3,3 +3,4 @@ Changes in current version:
  o demote most http warnings to debug messages
  o Fix Solaris compilation; from Magne Mahre
  o Add a "Date" header to HTTP responses, as required by HTTP 1.1.
+ o Support specifying the local address of an evhttp_connection using set_local_address

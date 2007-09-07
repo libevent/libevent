@@ -139,8 +139,9 @@ event_make_socket_nonblocking(int fd)
 
 extern int debug;
 
-static int make_socket_ai(int should_bind, struct addrinfo *);
-static int make_socket(int should_bind, const char *, u_short);
+static int socket_connect(int fd, const char *address, unsigned short port);
+static int bind_socket_ai(struct addrinfo *);
+static int bind_socket(const char *, u_short);
 static void name_from_addr(struct sockaddr *, socklen_t, char **, char **);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
@@ -823,6 +824,9 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	if (evcon->fd != -1)
 		close(evcon->fd);
 
+	if (evcon->bind_address != NULL)
+		free(evcon->bind_address);
+
 	if (evcon->address != NULL)
 		free(evcon->address);
 
@@ -834,6 +838,18 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 
 	free(evcon);
 }
+
+void
+evhttp_connection_set_local_address(struct evhttp_connection *evcon,
+    const char *address)
+{
+	assert(evcon->state == EVCON_DISCONNECTED);
+	if (evcon->bind_address)
+		free(evcon->bind_address);
+	if ((evcon->bind_address = strdup(address)) == NULL)
+		event_err(1, "%s: strdup", __func__);
+}
+
 
 static void
 evhttp_request_dispatch(struct evhttp_connection* evcon)
@@ -1479,11 +1495,15 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	assert(!(evcon->flags & EVHTTP_CON_INCOMING));
 	evcon->flags |= EVHTTP_CON_OUTGOING;
 	
-	/* Do async connection to HTTP server */
-	if ((evcon->fd = make_socket(
-		     0, evcon->address, evcon->port)) == -1) {
-		event_debug(("%s: failed to connect to \"%s:%d\"",
-			__func__, evcon->address, evcon->port));
+	evcon->fd = bind_socket(evcon->bind_address, 0);
+	if (evcon->fd == -1) {
+		event_debug(("%s: failed to bind to \"%s\"",
+			__func__, bind_address));
+		return (-1);
+	}
+
+	if (socket_connect(evcon->fd, evcon->address, evcon->port) == -1) {
+		close(evcon->fd); evcon->fd = -1;
 		return (-1);
 	}
 
@@ -1940,7 +1960,7 @@ evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 	struct event *ev = &http->bind_ev;
 	int fd;
 
-	if ((fd = make_socket(1, address, port)) == -1)
+	if ((fd = bind_socket(address, port)) == -1)
 		return (-1);
 
 	if (listen(fd, 10) == -1) {
@@ -2313,7 +2333,7 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 /* Either connect or bind */
 
 static int
-make_socket_ai(int should_bind, struct addrinfo *ai)
+bind_socket_ai(struct addrinfo *ai)
 {
         struct linger linger;
         int fd, on = 1, r;
@@ -2342,11 +2362,87 @@ make_socket_ai(int should_bind, struct addrinfo *ai)
         linger.l_linger = 5;
         setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&linger, sizeof(linger));
 
-	if (should_bind)
-		r = bind(fd, ai->ai_addr, ai->ai_addrlen);
-	else
-		r = connect(fd, ai->ai_addr, ai->ai_addrlen);
-	if (r == -1) {
+	r = bind(fd, ai->ai_addr, ai->ai_addrlen);
+	if (r == -1)
+		goto out;
+
+	return (fd);
+
+ out:
+	serrno = errno;
+	close(fd);
+	errno = serrno;
+	return (-1);
+}
+
+static struct addrinfo *
+make_addrinfo(const char *address, u_short port)
+{
+        struct addrinfo ai[2], *aitop = NULL;
+
+#ifdef HAVE_GETADDRINFO
+        char strport[NI_MAXSERV];
+        int ai_result;
+
+        memset(&ai[0], 0, sizeof (ai[0]));
+        ai[0].ai_family = AF_INET;
+        ai[0].ai_socktype = SOCK_STREAM;
+        ai[0].ai_flags = AI_PASSIVE;  /* turn NULL host name into INADDR_ANY */
+        snprintf(strport, sizeof (strport), "%d", port);
+        if ((ai_result = getaddrinfo(address, strport, &ai[0], &aitop)) != 0) {
+                if ( ai_result == EAI_SYSTEM )
+                        event_warn("getaddrinfo");
+                else
+                        event_warnx("getaddrinfo: %s", gai_strerror(ai_result));
+		return (NULL);
+        }
+#else
+	static int cur;
+	if (++cur == 2) cur = 0;   /* allow calling this function twice */
+
+	if (fake_getaddrinfo(address, &ai[cur]) < 0) {
+		event_warn("fake_getaddrinfo");
+		return (NULL);
+	}
+	aitop = &ai[cur];
+#endif
+
+	return (aitop);
+}
+
+static int
+bind_socket(const char *address, u_short port)
+{
+	int fd;
+        struct addrinfo *aitop = make_addrinfo(address, port);
+
+	if (aitop == NULL)
+		return (-1);
+
+	fd = bind_socket_ai(aitop);
+
+#ifdef HAVE_GETADDRINFO
+	freeaddrinfo(aitop);
+#else
+	fake_freeaddrinfo(aitop);
+#endif
+
+	return (fd);
+}
+
+static int
+socket_connect(int fd, const char *address, unsigned short port)
+{
+	struct addrinfo *ai = make_addrinfo(address, port);
+	int res = -1;
+
+	if (ai == NULL) {
+		event_debug(("%s: make_addrinfo: \"%s:%d\"",
+			__func__, evcon->address, evcon->port));
+		return (-1);
+	}
+
+	if (connect(fd, ai->ai_addr, ai->ai_addrlen) == -1) {
 #ifdef WIN32
 		int tmp_error = WSAGetLastError();
 		if (tmp_error != WSAEWOULDBLOCK && tmp_error != WSAEINVAL &&
@@ -2360,51 +2456,15 @@ make_socket_ai(int should_bind, struct addrinfo *ai)
 #endif
 	}
 
-	return (fd);
+	/* everything is fine */
+	res = 0;
 
- out:
-	serrno = errno;
-	close(fd);
-	errno = serrno;
-	return (-1);
-}
-
-static int
-make_socket(int should_bind, const char *address, u_short port)
-{
-	int fd;
-        struct addrinfo ai, *aitop = NULL;
+out:
 #ifdef HAVE_GETADDRINFO
-        char strport[NI_MAXSERV];
-        int ai_result;
-
-        memset(&ai, 0, sizeof (ai));
-        ai.ai_family = AF_INET;
-        ai.ai_socktype = SOCK_STREAM;
-        ai.ai_flags = should_bind ? AI_PASSIVE : 0;
-        snprintf(strport, sizeof (strport), "%d", port);
-        if ((ai_result = getaddrinfo(address, strport, &ai, &aitop)) != 0) {
-                if ( ai_result == EAI_SYSTEM )
-                        event_warn("getaddrinfo");
-                else
-                        event_warnx("getaddrinfo: %s", gai_strerror(ai_result));
-		return (-1);
-        }
+	freeaddrinfo(ai);
 #else
-	if (fake_getaddrinfo(address, &ai) < 0) {
-		event_warn("fake_getaddrinfo");
-		return (-1);
-	}
-	aitop = &ai;
+	fake_freeaddrinfo(ai);
 #endif
 
-	fd = make_socket_ai(should_bind, aitop);
-
-#ifdef HAVE_GETADDRINFO
-	freeaddrinfo(aitop);
-#else
-	fake_freeaddrinfo(aitop);
-#endif
-
-	return (fd);
+	return (res);
 }

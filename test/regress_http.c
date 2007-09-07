@@ -393,6 +393,9 @@ http_dispatcher_test(void)
 		exit(1);
 	}
 
+	/* also bind to local host */
+	evhttp_connection_set_local_address(evcon, "127.0.0.1");
+
 	/*
 	 * At this point, we want to schedule an HTTP GET request
 	 * server using our make request method.

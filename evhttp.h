@@ -196,6 +196,10 @@ struct evhttp_connection *evhttp_connection_new(
 /* Frees an http connection */
 void evhttp_connection_free(struct evhttp_connection *evcon);
 
+/* sets the ip address from which http connections are made */
+void evhttp_connection_set_local_address(struct evhttp_connection *evcon,
+    const char *address);
+
 /* Sets the timeout for events related to this connection */
 void evhttp_connection_set_timeout(struct evhttp_connection *evcon,
     int timeout_in_secs);
