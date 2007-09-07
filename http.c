@@ -64,9 +64,6 @@
 #include <syslog.h>
 #endif
 #include <signal.h>
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
 #include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
