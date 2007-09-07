@@ -64,9 +64,7 @@
 #include <syslog.h>
 #endif
 #include <signal.h>
-#ifdef HAVE_TIME_H
 #include <time.h>
-#endif
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -345,6 +343,18 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 
 	/* Potentially add headers for unidentified content. */
 	if (EVBUFFER_LENGTH(req->output_buffer)) {
+		if (evhttp_find_header(req->output_headers,
+							   "Date") == NULL) {
+			char date[50];
+			struct tm cur;
+			time_t t = time(NULL);
+			gmtime_r(&t, &cur);
+			if (strftime(date, sizeof(date),
+						 "%a, %d %b %Y %H:%M:%S GMT", &cur) != 0) {
+				evhttp_add_header(req->output_headers, "Date", date);
+			}
+		}
+
 		if (evhttp_find_header(req->output_headers,
 			"Content-Type") == NULL) {
 			evhttp_add_header(req->output_headers,

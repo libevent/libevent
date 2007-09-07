@@ -1,3 +1,5 @@
 Changes since 1.3d:
  o demote most http warnings to debug messages
- o Fix compilation on Solaris; from Magne Mahre 
+ o Fix compilation on Solaris; from Magne Mahre
+ o Add a "Date" header to HTTP responses when it's missing, as
+   required by HTTP 1.1.  Original Patch from Ralph Moritz.
