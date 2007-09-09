@@ -3,3 +3,4 @@ Changes since 1.3d:
  o Fix compilation on Solaris; from Magne Mahre
  o Add a "Date" header to HTTP responses when it's missing, as
    required by HTTP 1.1.  Original Patch from Ralph Moritz.
+ o Fix a memory leak in which failed HTTP connections whould not free the request object

@@ -967,6 +967,7 @@ evhttp_connectioncb(int fd, short what, void *arg)
 
 		/* we might want to set an error here */
 		request->cb(request, request->cb_arg);
+		evhttp_request_free(request);
 	}
 }
 
