@@ -930,9 +930,15 @@ class EntryArray(Entry):
             self._struct.Name(), name, self._struct.Name()),
             '{',
             '  msg->%s_length++;' % name,
-            '  msg->%s_data = (struct %s**)realloc(msg->%s_data, '
-            '  msg->%s_length * sizeof(struct %s*));' % (
+            '  if (msg->%s_length >= msg->%s_num_allocated) { ' % (name, name),
+            '    if (!msg->%s_num_allocated) ' % name,
+            '      msg->%s_num_allocated = 1; ' % name,
+            '    else ',
+            '      msg->%s_num_allocated <<= 1; ' % name,
+            '    msg->%s_data = (struct %s**)realloc(msg->%s_data, '
+            '  msg->%s_num_allocated * sizeof(struct %s*));' % (
             name, self._refname, name, name, self._refname ),
+            '  }',
             '  if (msg->%s_data == NULL)' % name,
             '    return (NULL);',
             '  msg->%s_data[msg->%s_length - 1] = %s_new();' % (
@@ -1005,6 +1011,7 @@ class EntryArray(Entry):
                  '  %s->%s_data = NULL;' % (structname, self.Name()),
                  '  %s->%s_set = 0;' % (structname, self.Name()),
                  '  %s->%s_length = 0;' % (structname, self.Name()),
+                 '  %s->%s_num_allocated = 0;' % (structname, self.Name()),
                  '}'
                  ]
 
@@ -1012,7 +1019,8 @@ class EntryArray(Entry):
         
     def CodeNew(self, name):
         code  = ['%s->%s_data = NULL;' % (name, self._name),
-                 '%s->%s_length = 0;' % (name, self._name)]
+                 '%s->%s_length = 0;' % (name, self._name),
+                 '%s->%s_num_allocated = 0;' % (name, self._name)]
         code.extend(Entry.CodeNew(self, name))
         return code
 
@@ -1028,6 +1036,7 @@ class EntryArray(Entry):
                  '  free(%s->%s_data);' % (name, self._name),
                  '  %s->%s_data = NULL;' % (name, self._name),
                  '  %s->%s_length = 0;' % (name, self._name),
+                 '  %s->%s_num_allocated = 0;' % (name, self._name),
                  '}'
                  ]
 
@@ -1035,7 +1044,8 @@ class EntryArray(Entry):
 
     def Declaration(self):
         dcl  = ['struct %s **%s_data;' % (self._refname, self._name),
-                'int %s_length;' % self._name]
+                'int %s_length;' % self._name,
+                'int %s_num_allocated;' % self._name ]
 
         return dcl
 
