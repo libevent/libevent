@@ -602,6 +602,8 @@ test_evbuffer(void) {
 	    strcmp((char*)EVBUFFER_DATA(evb), "hello/1") == 0)
 	    test_ok = 1;
 	
+	evbuffer_free(evb);
+
 	cleanup_test();
 }
 
@@ -970,6 +972,7 @@ rpc_test(void)
 	struct kill *kill;
 	struct run *run;
 	struct evbuffer *tmp = evbuffer_new();
+	struct timeval tv_start, tv_end;
 	int i;
 
 	fprintf(stdout, "Testing RPC: ");
@@ -986,13 +989,14 @@ rpc_test(void)
 	EVTAG_ASSIGN(kill, weapon, "feather");
 	EVTAG_ASSIGN(kill, action, "tickle");
 
-	for (i = 0; i < 3; ++i) {
+	gettimeofday(&tv_start, NULL);
+	for (i = 0; i < 1000; ++i) {
 		run = EVTAG_ADD(msg, run);
 		if (run == NULL) {
 			fprintf(stderr, "Failed to add run message.\n");
 			exit(1);
 		}
-		EVTAG_ASSIGN(run, how, "very fast");
+		EVTAG_ASSIGN(run, how, "very fast but with some data in it");
 	}
 
 	if (msg_complete(msg) == -1) {
@@ -1008,6 +1012,12 @@ rpc_test(void)
 		exit(1);
 	}
 
+	gettimeofday(&tv_end, NULL);
+	timersub(&tv_end, &tv_start, &tv_end);
+	fprintf(stderr, "(%.1f us/add) ",
+	    (float)tv_end.tv_sec/(float)i * 1000000.0 +
+	    tv_end.tv_usec / (float)i);
+
 	if (!EVTAG_HAS(msg2, from_name) ||
 	    !EVTAG_HAS(msg2, to_name) ||
 	    !EVTAG_HAS(msg2, kill)) {
@@ -1015,7 +1025,7 @@ rpc_test(void)
 		exit(1);
 	}
 
-	if (EVTAG_LEN(msg2, run) != 3) {
+	if (EVTAG_LEN(msg2, run) != i) {
 		fprintf(stderr, "Wrong number of run messages.\n");
 		exit(1);
 	}

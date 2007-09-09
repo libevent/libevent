@@ -199,6 +199,8 @@ rpc_basic_test(void)
 
 	event_dispatch();
 
+	evhttp_connection_free(evcon);
+
 	rpc_teardown(base);
 	
 	if (test_ok != 1) {
@@ -286,6 +288,8 @@ rpc_basic_message(void)
 	test_ok = 0;
 
 	event_dispatch();
+
+	evhttp_connection_free(evcon);
 	
 	rpc_teardown(base);
 	

@@ -756,6 +756,8 @@ http_bad_header_test(void)
 	if (evhttp_add_header(&headers, "One", "Two\n") != -1)
 		goto fail;
 
+	evhttp_clear_headers(&headers);
+
 	fprintf(stdout, "OK\n");
 	return;
 fail:
