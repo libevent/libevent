@@ -104,10 +104,13 @@ MessageCb(EVRPC_STRUCT(Message)* rpc, void *arg)
 	EVRPC_REQUEST_DONE(rpc);
 }
 
+static EVRPC_STRUCT(NeverReply) *saved_rpc;
+
 void
 NeverReplyCb(EVRPC_STRUCT(NeverReply)* rpc, void *arg)
 {
 	test_ok += 1;
+	saved_rpc = rpc;
 }
 
 static void
@@ -541,6 +544,9 @@ rpc_client_timeout(void)
 
 	event_dispatch();
 	
+	/* free the saved RPC structure up */
+	EVRPC_REQUEST_DONE(saved_rpc);
+
 	rpc_teardown(base);
 	
 	if (test_ok != 2) {

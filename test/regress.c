@@ -480,18 +480,6 @@ test_signal_dealloc(void)
 	signal_add(&ev, NULL);
 	signal_del(&ev);
 	event_base_free(base);
-	errno = EINTR;
-	if (base->sig.ev_signal_added) {
-		printf("ev_signal not removed (evsignal_dealloc needed) ");
-		test_ok = 0;
-	} else if (close(base->sig.ev_signal_pair[0]) != -1 ||
-	    errno != EBADF) {
-		/* fd must be closed, so second close gives -1, EBADF */
-		printf("signal pipe still open (evsignal_dealloc needed) ");
-		test_ok = 0;
-	} else {
-		test_ok = 1;
-	}
 	cleanup_test();
 }
 
@@ -700,7 +688,7 @@ test_bufferevent(void)
 	bufferevent_enable(bev2, EV_READ);
 
 	for (i = 0; i < sizeof(buffer); i++)
-		buffer[0] = i;
+		buffer[i] = i;
 
 	bufferevent_write(bev1, buffer, sizeof(buffer));
 
@@ -1032,6 +1020,8 @@ rpc_test(void)
 
 	msg_free(msg);
 	msg_free(msg2);
+
+	evbuffer_free(tmp);
 
 	fprintf(stdout, "OK\n");
 }
