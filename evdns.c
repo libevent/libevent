@@ -1717,7 +1717,7 @@ server_request_free_answers(struct server_request *req)
 			free(victim->name);
 			if (victim->data)
 				free(victim->data);
-			/* XXXX free(victim?) -NM */
+			free(victim);
 			victim = next;
 		}
 		*list = NULL;
