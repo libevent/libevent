@@ -2265,7 +2265,8 @@ int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type cal
 }
 
 int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
-	char buf[64];
+	/* 32 nybbles, 32 periods, "ip6.arpa", NUL. */
+	char buf[73];
 	char *cp;
 	struct request *req;
 	int i;
@@ -2278,8 +2279,8 @@ int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_ty
 		*cp++ = "0123456789abcdef"[byte >> 4];
 		*cp++ = '.';
 	}
-	assert(cp + strlen(".ip6.arpa") < buf+sizeof(buf));
-	memcpy(cp, ".ip6.arpa", strlen(".ip6.arpa")+1);
+	assert(cp + strlen("ip6.arpa") < buf+sizeof(buf));
+	memcpy(cp, "ip6.arpa", strlen("ip6.arpa")+1);
 	log(EVDNS_LOG_DEBUG, "Resolve requested for %s (reverse)", buf);
 	req = request_new(TYPE_PTR, buf, flags, callback, ptr);
 	if (!req) return 1;

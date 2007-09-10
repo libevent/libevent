@@ -8,3 +8,4 @@ Changes in current version:
  o Make adding of array members in event_rpcgen more efficient, but doubling memory allocation
  o Fix a memory leak in the DNS server
  o Fix compilation when DNS_USE_OPENSSL_FOR_ID is enabled
+ o Fix buffer size and string generation in evdns_resolve_reverse_ipv6().
