@@ -1037,9 +1037,11 @@ transaction_id_pick(void) {
 		if (RAND_pseudo_bytes((u8 *) &trans_id, 2) == -1) {
 			/* in the case that the RAND call fails we back */
 			/* down to using gettimeofday. */
-			struct timeval tv;
+			/*
+                        struct timeval tv;
 			gettimeofday(&tv, NULL);
-			trans_id = tv.tv_usec & 0xffff; */
+			trans_id = tv.tv_usec & 0xffff;
+                        */
 			abort();
 		}
 #endif

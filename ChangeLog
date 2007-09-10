@@ -7,3 +7,4 @@ Changes in current version:
  o Fix a memory leak in which failed HTTP connections whould not free the request object
  o Make adding of array members in event_rpcgen more efficient, but doubling memory allocation
  o Fix a memory leak in the DNS server
+ o Fix compilation when DNS_USE_OPENSSL_FOR_ID is enabled
