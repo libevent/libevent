@@ -949,8 +949,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	GET16(additional);
 
 	if (flags & 0x8000) return -1; /* Must not be an answer. */
-	if (flags & 0x7800) return -1; /* only standard queries are supported */
-	flags &= 0x0300; /* Only TC and RD get preserved. */
+	flags &= 0x0110; /* Only RD and CD get preserved. */
 
 	server_req = malloc(sizeof(struct server_request));
 	if (server_req == NULL) return -1;
@@ -988,6 +987,13 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 
 	server_req->port = port;
 	port->refcnt++;
+
+	/* Only standard queries are supported. */
+	if (flags & 0x7800) {
+		evdns_server_request_respond(&(server_req->base), DNS_ERR_NOTIMPL);
+		return -1;
+	}
+
 	port->user_callback(&(server_req->base), port->user_data);
 
 	return 0;

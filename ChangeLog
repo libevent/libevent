@@ -9,3 +9,5 @@ Changes in current version:
  o Fix a memory leak in the DNS server
  o Fix compilation when DNS_USE_OPENSSL_FOR_ID is enabled
  o Fix buffer size and string generation in evdns_resolve_reverse_ipv6().
+ o Respond to nonstandard DNS queries with "NOTIMPL" rather than by ignoring them.
+ o In DNS responses, the CD flag should be preserved, not the TC flag.
