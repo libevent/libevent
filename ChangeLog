@@ -4,3 +4,4 @@ Changes since 1.3d:
  o Add a "Date" header to HTTP responses when it's missing, as
    required by HTTP 1.1.  Original Patch from Ralph Moritz.
  o Fix a memory leak in which failed HTTP connections whould not free the request object
+ o Fix a memory leak in the DNS server

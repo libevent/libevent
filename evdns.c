@@ -1733,6 +1733,7 @@ server_request_free(struct server_request *req)
 	if (req->base.questions) {
 		for (i = 0; i < req->base.nquestions; ++i)
 			free(req->base.questions[i]);
+		free(req->base.questions);
 	}
 
 	if (req->port) {
