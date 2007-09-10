@@ -6,3 +6,4 @@ Changes in current version:
  o Support specifying the local address of an evhttp_connection using set_local_address
  o Fix a memory leak in which failed HTTP connections whould not free the request object
  o Make adding of array members in event_rpcgen more efficient, but doubling memory allocation
+ o Fix a memory leak in the DNS server
