@@ -240,8 +240,10 @@ static int
 grow(struct evport_data *epdp, int factor)
 {
 	struct fd_info *tmp;
+	struct fd_info *old = epdp->ed_fds;
 	int oldsize = epdp->ed_nevents;
 	int newsize = factor * oldsize;
+	int ii;
 	assert(factor > 1);
 
 	check_evportop(epdp);
@@ -252,6 +254,15 @@ grow(struct evport_data *epdp, int factor)
 	epdp->ed_fds = tmp;
 	memset((char*) (epdp->ed_fds + oldsize), 0, 
 	    (newsize - oldsize)*sizeof(struct fd_info));
+
+	/* The ev_pending array contains pointers into the released array. */
+	for (ii = 0; ii < EVENTS_PER_GETN; ++ii) {
+		if (epdp->ed_pending[ii] != 0) {
+			int offset = epdp->ed_pending[ii] - old;
+			epdp->ed_pending[ii] = epdp->ed_fds + offset;
+		}
+	}
+        
 	epdp->ed_nevents = newsize;
 
 	check_evportop(epdp);
@@ -309,9 +320,16 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	/*
 	 * We have to convert a struct timeval to a struct timespec
-	 * (only difference is nanoseconds vs. microseconds)
+	 * (only difference is nanoseconds vs. microseconds). If no time-based
+	 * events are active, we should wait for I/O (and tv == NULL).
 	 */
-	struct timespec ts = {tv->tv_sec, tv->tv_usec * 1000};
+	struct timespec ts;
+	struct timespec *ts_p = NULL;
+	if (tv != NULL) {
+		ts.tv_sec = tv->tv_sec;
+		ts.tv_nsec = tv->tv_usec * 1000;
+		ts_p = &ts;
+	}
 
 	/*
 	 * Before doing anything else, we need to reassociate the events we hit
@@ -330,7 +348,7 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	}
 
 	if ((res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN, 
-		    (unsigned int *) &nevents, &ts)) == -1) {
+		    (unsigned int *) &nevents, ts_p)) == -1) {
 		if (errno == EINTR) {
 			evsignal_process(base);
 			return (0);

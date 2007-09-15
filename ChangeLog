@@ -5,3 +5,5 @@ Changes since 1.3d:
    required by HTTP 1.1.  Original Patch from Ralph Moritz.
  o Fix a memory leak in which failed HTTP connections whould not free the request object
  o Fix a memory leak in the DNS server
+ o Handle NULL timeouts correctly on Solaris; from Trond Norbye
+ o Recalculate pending events properly when reallocating event array on Solaris; from Trond Norbye
