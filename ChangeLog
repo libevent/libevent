@@ -12,3 +12,5 @@ Changes in current version:
  o Respond to nonstandard DNS queries with "NOTIMPL" rather than by ignoring them.
  o In DNS responses, the CD flag should be preserved, not the TC flag.
  o Fix http.c to compile properly with USE_DEBUG; from Christopher Layne
+ o Handle NULL timeouts correctly on Solaris; from Trond Norbye
+ o Recalculate pending events properly when reallocating event array on Solaris; from Trond Norbye
