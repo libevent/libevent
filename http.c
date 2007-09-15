@@ -1174,7 +1174,7 @@ evhttp_add_header(struct evkeyvalq *headers,
 	if (strchr(value, '\r') != NULL || strchr(value, '\n') != NULL ||
 	    strchr(key, '\r') != NULL || strchr(key, '\n') != NULL) {
 		/* drop illegal headers */
-		event_debug(("%s: dropping illegal header\n"));
+		event_debug(("%s: dropping illegal header\n", __func__));
 		return (-1);
 	}
 
@@ -1499,7 +1499,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	evcon->fd = bind_socket(evcon->bind_address, 0);
 	if (evcon->fd == -1) {
 		event_debug(("%s: failed to bind to \"%s\"",
-			__func__, bind_address));
+			__func__, evcon->bind_address));
 		return (-1);
 	}
 
@@ -2439,7 +2439,7 @@ socket_connect(int fd, const char *address, unsigned short port)
 
 	if (ai == NULL) {
 		event_debug(("%s: make_addrinfo: \"%s:%d\"",
-			__func__, evcon->address, evcon->port));
+			__func__, address, port));
 		return (-1);
 	}
 
