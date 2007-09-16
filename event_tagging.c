@@ -155,26 +155,25 @@ decode_int_internal(uint32_t *pnumber, struct evbuffer *evbuf, int dodrain)
 	uint32_t number = 0;
 	uint8_t *data = EVBUFFER_DATA(evbuf);
 	int len = EVBUFFER_LENGTH(evbuf);
-	int nibbles = 0, off;
+	int nibbles = 0;
 
 	if (!len)
 		return (-1);
 
 	nibbles = ((data[0] & 0xf0) >> 4) + 1;
-	if (nibbles > 8 || (nibbles >> 1) > len - 1)
+	if (nibbles > 8 || (nibbles >> 1) + 1 > len)
 		return (-1);
+	len = (nibbles >> 1) + 1;
 
-	off = nibbles;
-	while (off > 0) {
+	while (nibbles > 0) {
 		number <<= 4;
-		if (off & 0x1)
-			number |= data[off >> 1] & 0x0f;
+		if (nibbles & 0x1)
+			number |= data[nibbles >> 1] & 0x0f;
 		else
-			number |= (data[off >> 1] & 0xf0) >> 4;
-		off--;
+			number |= (data[nibbles >> 1] & 0xf0) >> 4;
+		nibbles--;
 	}
 
-	len = (nibbles >> 1) + 1;
 	if (dodrain)
 		evbuffer_drain(evbuf, len);
 
