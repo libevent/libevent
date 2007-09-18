@@ -28,76 +28,107 @@
 #define _EVENT_H_
 
 /** @mainpage
- 
+
   @section intro Introduction
 
-  libevent is an event notification library for developing scalable
-  network servers.  The libevent API provides a mechanism to execute a callback function when a specific 
-  event occurs on a file descriptor or after a timeout has been reached. Furthermore,
-  libevent also support callbacks due to signals or regular timeouts.
- 
-  libevent is meant to replace the event loop found in event driven network servers. An application just needs to call event_dispatch() and then add or remove events dynamically without having to change the event loop.
+  libevent is an event notification library for developing scalable network
+  servers.  The libevent API provides a mechanism to execute a callback
+  function when a specific event occurs on a file descriptor or after a
+  timeout has been reached. Furthermore, libevent also support callbacks due
+  to signals or regular timeouts.
 
-  Currently, libevent supports /dev/poll, kqueue(2), select(2), poll(2) and epoll(4). It also has experimental support for real-time signals. The internal event mechanism is completely independent of the exposed event API, and a simple update of libevent can provide new functionality without having to redesign the applications. As a result, Libevent allows for portable application development and provides the most scalable event notification mechanism available on an operating system. Libevent can also be used for multi-threaded aplications; see Steven Grimm's explanation. Libevent should compile on Linux, *BSD, Mac OS X, Solaris and Windows.
+  libevent is meant to replace the event loop found in event driven network
+  servers. An application just needs to call event_dispatch() and then add or
+  remove events dynamically without having to change the event loop.
+
+  Currently, libevent supports /dev/poll, kqueue(2), select(2), poll(2) and
+  epoll(4). It also has experimental support for real-time signals. The
+  internal event mechanism is completely independent of the exposed event API,
+  and a simple update of libevent can provide new functionality without having
+  to redesign the applications. As a result, Libevent allows for portable
+  application development and provides the most scalable event notification
+  mechanism available on an operating system. Libevent can also be used for
+  multi-threaded aplications; see Steven Grimm's explanation. Libevent should
+  compile on Linux, *BSD, Mac OS X, Solaris and Windows.
 
   @section usage Standard usage
 
-  Every program that uses libevent must include the <event.h> header, and pass the -levent flag to the linker. 
-  Before using any of the functions in the library, you must call event_init() to perform
-  one-time initialization of the libevent library. 
+  Every program that uses libevent must include the <event.h> header, and pass
+  the -levent flag to the linker.  Before using any of the functions in the
+  library, you must call event_init() to perform one-time initialization of
+  the libevent library.
 
   @section event Event notification
 
-  For each file descriptor that you wish to monitor, you must declare an event structure and call event_set() to initialize the members of the structure. 
-  To enable notification, you add the structure
-  to the list of monitored events by calling event_add().  The
-  event structure must remain allocated as long as it is active, so it should be
-  allocated on the heap. Finally, you call event_dispatch()
-  to loop and dispatch events.
+  For each file descriptor that you wish to monitor, you must declare an event
+  structure and call event_set() to initialize the members of the structure.
+  To enable notification, you add the structure to the list of monitored
+  events by calling event_add().  The event structure must remain allocated as
+  long as it is active, so it should be allocated on the heap. Finally, you
+  call event_dispatch() to loop and dispatch events.
 
   @section bufferevent I/O Buffers
 
-  libevent provides an abstraction on top of the regular event callbacks. This abstraction is called a buffered event. A buffered event provides input and output buffers that get filled and drained automatically. The user of a buffered event no longer deals directly with the I/O, but instead is reading from input and writing to output buffers.
+  libevent provides an abstraction on top of the regular event callbacks. This
+  abstraction is called a buffered event. A buffered event provides input and
+  output buffers that get filled and drained automatically. The user of a
+  buffered event no longer deals directly with the I/O, but instead is reading
+  from input and writing to output buffers.
 
-Once initialized via bufferevent_new(), the bufferevent structure can be used repeatedly with bufferevent_enable() and bufferevent_disable().  Instead of reading and writing directly to a socket, you would call bufferevent_read() and bufferevent_write().
+  Once initialized via bufferevent_new(), the bufferevent structure can be
+  used repeatedly with bufferevent_enable() and bufferevent_disable().
+  Instead of reading and writing directly to a socket, you would call
+  bufferevent_read() and bufferevent_write().
 
-When read enabled the bufferevent will try to read from the file descriptor and call the read callback. The write callback is executed whenever the output buffer is drained below the write low watermark, which is 0 by default.
+  When read enabled the bufferevent will try to read from the file descriptor
+  and call the read callback. The write callback is executed whenever the
+  output buffer is drained below the write low watermark, which is 0 by
+  default.
 
   @section timers Timers
 
   libevent can also be used to create timers that invoke a callback after a
-  certain amount of time has expired. The evtimer_set() function prepares
-  an event struct to be used as a timer. To activate the timer, call evtimer_add(). Timers can be deactivated by calling evtimer_del().
+  certain amount of time has expired. The evtimer_set() function prepares an
+  event struct to be used as a timer. To activate the timer, call
+  evtimer_add(). Timers can be deactivated by calling evtimer_del().
 
   @section timeouts Timeouts
 
   In addition to simple timers, libevent can assign timeout events to file
   descriptors that are triggered whenever a certain amount of time has passed
-  with no activity on a file descriptor.  The timeout_set() function initializes
-  an event struct for use as a timeout. Once initialized, the event must be
-  activated by using timeout_add().  To cancel the timeout, call timeout_del().
-  
+  with no activity on a file descriptor.  The timeout_set() function
+  initializes an event struct for use as a timeout. Once initialized, the
+  event must be activated by using timeout_add().  To cancel the timeout, call
+  timeout_del().
+
   @section evdns Asynchronous DNS resolution
 
-  libevent provides an asynchronous DNS resolver that should be used instead of the
-  standard DNS resolver functions.  These functions can be imported by including
-  the <evdns.h> header in your program. Before using any of the resolver functions, you must call evdns_init() to initialize the library. To convert a hostname to an IP address, you call
-  the evdns_resolve_ipv4() function.  To perform a reverse lookup, you would call the
-  evdns_resolve_reverse() function.  All of these functions use callbacks to avoid
-  blocking while the lookup is performed.
+  libevent provides an asynchronous DNS resolver that should be used instead
+  of the standard DNS resolver functions.  These functions can be imported by
+  including the <evdns.h> header in your program. Before using any of the
+  resolver functions, you must call evdns_init() to initialize the library. To
+  convert a hostname to an IP address, you call the evdns_resolve_ipv4()
+  function.  To perform a reverse lookup, you would call the
+  evdns_resolve_reverse() function.  All of these functions use callbacks to
+  avoid blocking while the lookup is performed.
 
   @section evhttp Event-driven HTTP servers
 
-  libevent provides a very simple event-driven HTTP server that can be embedded in your program
-  and used to service HTTP requests.
-  
-  To use this capability, you need to include the <evhttp.h> header in your program. 
-  You create the server by calling evhttp_start() and providing the address and port to listen on. You then register one or more callbacks to handle incoming requests.  Each URI can be assigned a callback via the evhttp_set_cb() function.  A generic callback function can also be registered via evhttp_set_gencb(); this callback will be invoked if no other callbacks have been
-  registered for a given URI.
+  libevent provides a very simple event-driven HTTP server that can be
+  embedded in your program and used to service HTTP requests.
+
+  To use this capability, you need to include the <evhttp.h> header in your
+  program.  You create the server by calling evhttp_start() and providing the
+  address and port to listen on. You then register one or more callbacks to
+  handle incoming requests.  Each URI can be assigned a callback via the
+  evhttp_set_cb() function.  A generic callback function can also be
+  registered via evhttp_set_gencb(); this callback will be invoked if no other
+  callbacks have been registered for a given URI.
 
   @section api API Reference
 
-  To browse the complete documentation of the libevent API, click on any of the following links. 
+  To browse the complete documentation of the libevent API, click on any of
+  the following links.
 
   event.h
   The primary libevent header
@@ -107,13 +138,13 @@ When read enabled the bufferevent will try to read from the file descriptor and 
 
   evhttp.h
   An embedded libevent-based HTTP server
-  
+
  */
 
 /** @file event.h
- 
+
   A library for writing event-driven network servers
- 
+
  */
 
 #ifdef __cplusplus
@@ -232,7 +263,7 @@ struct eventop {
 
 /**
   Initialize the event API.
- 
+
   The event API needs to be initialized with event_init() before it can be
   used.
  */
@@ -241,11 +272,11 @@ void *event_init(void);
 
 /**
   Loop to process events.
- 
+
   In order to process events, an application needs to call
   event_dispatch().  This function only returns on error, and should
   replace the event core of the application program.
- 
+
   @see event_base_dispatch()
  */
 int event_dispatch(void);
@@ -253,7 +284,7 @@ int event_dispatch(void);
 
 /**
   Threadsafe event dispatching loop.
- 
+
   @param eb the event_base structure returned by event_init()
   @see event_init(), event_dispatch()
  */
@@ -262,7 +293,7 @@ int event_base_dispatch(struct event_base *);
 
 /**
   Deallocate all memory associated with an event_base.
- 
+
   @param eb an event_base to be freed
  */
 void event_base_free(struct event_base *);
@@ -275,7 +306,7 @@ void event_base_free(struct event_base *);
 typedef void (*event_log_cb)(int severity, const char *msg);
 void event_set_log_callback(event_log_cb cb);
 
-/** 
+/**
   Associate a different event base with an event.
 
   @param eb the event base
@@ -284,7 +315,7 @@ void event_set_log_callback(event_log_cb cb);
 int event_base_set(struct event_base *, struct event *);
 
 /** A flag for event_loop() to indicate ... (FIXME) */
-#define EVLOOP_ONCE	0x01	
+#define EVLOOP_ONCE	0x01
 
 /** A flag for event_loop() to indicate ... (FIXME) */
 #define EVLOOP_NONBLOCK	0x02
@@ -292,8 +323,8 @@ int event_base_set(struct event_base *, struct event *);
 /**
   Execute a single event.
 
-  The event_loop() function provides an interface for single pass execution of pending
-  events.  
+  The event_loop() function provides an interface for single pass execution of
+  pending events.
 
   @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK
   @return 0 if successful, or -1 if an error occurred
@@ -304,8 +335,8 @@ int event_loop(int);
 /**
   Execute a single event (threadsafe variant).
 
-  The event_base_loop() function provides an interface for single pass execution of pending
-  events.  
+  The event_base_loop() function provides an interface for single pass
+  execution of pending events.
 
   @param eb the event_base structure returned by event_init()
   @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK
@@ -317,9 +348,9 @@ int event_base_loop(struct event_base *, int);
 /**
   Execute a single event, with a timeout.
 
-  The event_loopexit() function is similar to event_loop(), 
-  but allows the loop to be terminated after some amount of time has passed. 
-  
+  The event_loopexit() function is similar to event_loop(), but allows the
+  loop to be terminated after some amount of time has passed.
+
   @param tv the amount of time after which the loop should terminate.
   @return 0 if successful, or -1 if an error occurred
   @see event_loop(), event_base_loop(), event_base_loopexit()
@@ -327,20 +358,20 @@ int event_base_loop(struct event_base *, int);
 int event_loopexit(struct timeval *);
 
 
-/** 
+/**
   Execute a single event, with a timeout (threadsafe variant).
 
   @param eb the event_base structure returned by event_init()
   @param tv the amount of time after which the loop should terminate.
   @return 0 if successful, or -1 if an error occurred
   @see event_loopexit()
- */ 
+ */
 int event_base_loopexit(struct event_base *, struct timeval *);
 
 
 /**
   Add a timer event.
- 
+
   @param ev the event struct
   @param tv timeval struct
  */
@@ -349,7 +380,7 @@ int event_base_loopexit(struct event_base *, struct timeval *);
 
 /**
   Define a timer event.
- 
+
   @param ev event struct to be modified
   @param cb callback function
   @param arg argument that will be passed to the callback function
@@ -405,19 +436,20 @@ int event_base_loopexit(struct event_base *, struct timeval *);
 /**
   Prepare an event structure to be added.
 
-  The function event_set() prepares the event structure ev to be used in future calls to
-  event_add() and event_del().  The event will be prepared to call the function specified
-  by the fn argument with an int argument indicating the file descriptor, a short argument
-  indicating the type of event, and a void * argument given in the arg argument.  The fd
-  indicates the file descriptor that should be monitored for events.  The events can be
-  either EV_READ, EV_WRITE, or both.  Indicating that an application can read or write from
-  the file descriptor respectively without blocking.
+  The function event_set() prepares the event structure ev to be used in
+  future calls to event_add() and event_del().  The event will be prepared to
+  call the function specified by the fn argument with an int argument
+  indicating the file descriptor, a short argument indicating the type of
+  event, and a void * argument given in the arg argument.  The fd indicates
+  the file descriptor that should be monitored for events.  The events can be
+  either EV_READ, EV_WRITE, or both.  Indicating that an application can read
+  or write from the file descriptor respectively without blocking.
 
-  The function fn will be called with the file descriptor that triggered the event and the
-  type of event which will be either EV_TIMEOUT, EV_SIGNAL, EV_READ, or EV_WRITE.  The
-  additional flag EV_PERSIST makes an event_add() persistent until event_del() has been
-  called.
-  
+  The function fn will be called with the file descriptor that triggered the
+  event and the type of event which will be either EV_TIMEOUT, EV_SIGNAL,
+  EV_READ, or EV_WRITE.  The additional flag EV_PERSIST makes an event_add()
+  persistent until event_del() has been called.
+
   @param ev an event struct to be modified
   @param fd the file descriptor to be monitored
   @param event desired events to monitor; can be EV_READ and/or EV_WRITE
@@ -432,14 +464,17 @@ void event_set(struct event *, int, short, void (*)(int, short, void *), void *)
 /**
   Schedule a one-time event to occur.
 
-  The function event_once() is similar to event_set().  However, it schedules a callback to
-  be called exactly once and does not require the caller to prepare an event structure.
+  The function event_once() is similar to event_set().  However, it schedules
+  a callback to be called exactly once and does not require the caller to
+  prepare an event structure.
 
   @param fd a file descriptor to monitor
-  @param events event(s) to monitor; can be any of EV_TIMEOUT | EV_READ | EV_WRITE
+  @param events event(s) to monitor; can be any of EV_TIMEOUT | EV_READ |
+         EV_WRITE
   @param callback callback function to be invoked when the event occurs
   @param arg an argument to be passed to the callback function
-  @param timeout the maximum amount of time to wait for the event, or NULL to wait forever
+  @param timeout the maximum amount of time to wait for the event, or NULL
+         to wait forever
   @return 0 if successful, or -1 if an error occurred
   @see event_set()
 
@@ -449,17 +484,19 @@ int event_once(int, short, void (*)(int, short, void *), void *, struct timeval 
 
 /**
   Schedule a one-time event (threadsafe variant)
- 
-  The function event_base_once() is similar to event_set().  However, it schedules a 
-  callback to be called exactly once and does not require the caller to prepare an 
-  event structure.
+
+  The function event_base_once() is similar to event_set().  However, it
+  schedules a callback to be called exactly once and does not require the
+  caller to prepare an event structure.
 
   @param base an event_base returned by event_init()
   @param fd a file descriptor to monitor
-  @param events event(s) to monitor; can be any of EV_TIMEOUT | EV_READ | EV_WRITE
+  @param events event(s) to monitor; can be any of EV_TIMEOUT | EV_READ |
+         EV_WRITE
   @param callback callback function to be invoked when the event occurs
   @param arg an argument to be passed to the callback function
-  @param timeout the maximum amount of time to wait for the event, or NULL to wait forever
+  @param timeout the maximum amount of time to wait for the event, or NULL
+         to wait forever
   @return 0 if successful, or -1 if an error occurred
   @see event_once()
  */
@@ -469,16 +506,18 @@ int event_base_once(struct event_base *, int, short, void (*)(int, short, void *
 /**
   Add an event to the set of monitored events.
 
-  The function event_add() schedules the execution of the ev event when the event specified
-  in event_set() occurs or in at least the time specified in the tv.  If tv is NULL, no
-  timeout occurs and the function will only be called if a matching event occurs on the
-  file descriptor.  The event in the ev argument must be already initialized by event_set()
-  and may not be used in calls to event_set() until it has timed out or been removed with
-  event_del().  If the event in the ev argument already has a scheduled timeout, the old
-  timeout will be replaced by the new one.
+  The function event_add() schedules the execution of the ev event when the
+  event specified in event_set() occurs or in at least the time specified in
+  the tv.  If tv is NULL, no timeout occurs and the function will only be
+  called if a matching event occurs on the file descriptor.  The event in the
+  ev argument must be already initialized by event_set() and may not be used
+  in calls to event_set() until it has timed out or been removed with
+  event_del().  If the event in the ev argument already has a scheduled
+  timeout, the old timeout will be replaced by the new one.
 
   @param ev an event struct initialized via event_set()
-  @param timeout the maximum amount of time to wait for the event, or NULL to wait forever
+  @param timeout the maximum amount of time to wait for the event, or NULL
+         to wait forever
   @return 0 if successful, or -1 if an error occurred
   @see event_del(), event_set()
   */
@@ -488,8 +527,9 @@ int event_add(struct event *, struct timeval *);
 /**
   Remove an event from the set of monitored events.
 
-  The function event_del() will cancel the event in the argument ev.  If the event has
-     already executed or has never been added the call will have no effect. 
+  The function event_del() will cancel the event in the argument ev.  If the
+  event has already executed or has never been added the call will have no
+  effect.
 
   @param ev an event struct to be removed from the working set
   @return 0 if successful, or -1 if an error occurred
@@ -501,11 +541,11 @@ void event_active(struct event *, int, short);
 
 
 /**
- 
   Checks if a specific event is pending or scheduled.
-  
+
   @param ev an event struct previously passed to event_add()
-  @param event the requested event type; any of EV_TIMEOUT|EV_READ|EV_WRITE|EV_SIGNAL
+  @param event the requested event type; any of EV_TIMEOUT|EV_READ|
+         EV_WRITE|EV_SIGNAL
   @param tv an alternate timeout (FIXME - is this true?)
 
   @return 1 if the event is pending, or 0 if the event has not occurred
@@ -517,10 +557,12 @@ int event_pending(struct event *, short, struct timeval *);
 /**
   Test if an event structure has been initialized.
 
-  The event_initialized() macro can be used to check if an event has been initialized.
+  The event_initialized() macro can be used to check if an event has been
+  initialized.
 
   @param ev an event structure to be tested
-  @return 1 if the structure has been initialized, or 0 if it has not been initialized
+  @return 1 if the structure has been initialized, or 0 if it has not been
+          initialized
  */
 #ifdef WIN32
 #define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT && (ev)->ev_fd != (int)INVALID_HANDLE_VALUE)
@@ -548,16 +590,17 @@ const char *event_get_method(void);
 /**
   Set the number of different event priorities.
 
-  By default libevent schedules all active events with the same priority.  However, some
-  time it is desirable to process some events with a higher priority than others.  For that
-  reason, libevent supports strict priority queues.  Active events with a lower priority
-  are always processed before events with a higher priority.
+  By default libevent schedules all active events with the same priority.
+  However, some time it is desirable to process some events with a higher
+  priority than others.  For that reason, libevent supports strict priority
+  queues.  Active events with a lower priority are always processed before
+  events with a higher priority.
 
-  The number of different priorities can be set initially with the event_priority_init()
-  function.  This function should be called before the first call to event_dispatch().  The
-  event_priority_set() function can be used to assign a priority to an event.  By default,
-  libevent assigns the middle priority to all events unless their priority is explicitly
-  set.
+  The number of different priorities can be set initially with the
+  event_priority_init() function.  This function should be called before the
+  first call to event_dispatch().  The event_priority_set() function can be
+  used to assign a priority to an event.  By default, libevent assigns the
+  middle priority to all events unless their priority is explicitly set.
 
   @param npriorities the maximum number of priorities
   @return 0 if successful, or -1 if an error occurred
@@ -569,7 +612,7 @@ int	event_priority_init(int);
 
 /**
   Set the number of different event priorities (threadsafe variant).
-  
+
   See the description of event_priority_init() for more information.
 
   @param eb the event_base structure returned by event_init()
@@ -652,23 +695,29 @@ struct bufferevent {
   user of a buffered event no longer deals directly with the I/O, but
   instead is reading from input and writing to output buffers.
 
-  Once initialized, the bufferevent structure can be used repeatedly with 
+  Once initialized, the bufferevent structure can be used repeatedly with
   bufferevent_enable() and bufferevent_disable().
 
-  When read enabled the bufferevent will try to read from the file descriptor and 
-  call the read callback.  The write callback is executed whenever the output buffer
-  is drained below the write low watermark, which is 0 by default.
+  When read enabled the bufferevent will try to read from the file descriptor
+  and call the read callback.  The write callback is executed whenever the
+  output buffer is drained below the write low watermark, which is 0 by
+  default.
 
-  If multiple bases are in use, bufferevent_base_set() must be called before enabling the
-  bufferevent for the first time.
+  If multiple bases are in use, bufferevent_base_set() must be called before
+  enabling the bufferevent for the first time.
 
   @param fd the file descriptor from which data is read and written to.
   		This file descriptor is not allowed to be a pipe(2).
-  @param readcb callback to invoke when there is data to be read, or NULL if no callback is desired
-  @param writecb callback to invoke when the file descriptor is ready for writing, or NULL if no callback is desired 
-  @param errorcb callback to invoke when there is an error on the file descriptor
-  @param cbarg an argument that will be supplied to each of the callbacks (readcb, writecb, and errorcb)
-  @return a pointer to a newly allocated bufferevent struct, or NULL if an error occurred
+  @param readcb callback to invoke when there is data to be read, or NULL if
+         no callback is desired
+  @param writecb callback to invoke when the file descriptor is ready for
+         writing, or NULL if no callback is desired
+  @param errorcb callback to invoke when there is an error on the file
+         descriptor
+  @param cbarg an argument that will be supplied to each of the callbacks
+         (readcb, writecb, and errorcb)
+  @return a pointer to a newly allocated bufferevent struct, or NULL if an
+          error occurred
   @see bufferevent_base_set(), bufferevent_free()
   */
 struct bufferevent *bufferevent_new(int fd,
@@ -707,10 +756,10 @@ void bufferevent_free(struct bufferevent *bufev);
 /**
   Write data to a bufferevent buffer.
 
-  The bufferevent_write() function can be used to write data to the file descriptor.  The
-  data is appended to the output buffer and written to the descriptor automatically as it
-  becomes available for writing.
-  
+  The bufferevent_write() function can be used to write data to the file
+  descriptor.  The data is appended to the output buffer and written to the
+  descriptor automatically as it becomes available for writing.
+
   @param bufev the bufferevent to be written to
   @param data a pointer to the data to be written
   @param size the length of the data, in bytes
@@ -785,7 +834,8 @@ void bufferevent_settimeout(struct bufferevent *bufev,
 /**
   Allocate storage for a new evbuffer.
 
-  @return a pointer to a newly allocated evbuffer struct, or NULL if an error occurred
+  @return a pointer to a newly allocated evbuffer struct, or NULL if an error
+          occurred
  */
 struct evbuffer *evbuffer_new(void);
 
@@ -801,7 +851,7 @@ void evbuffer_free(struct evbuffer *);
 /**
   Expands the available space in an event buffer.
 
-  Expands the available space in the event buffer to at least datlen 
+  Expands the available space in the event buffer to at least datlen
 
   @param buf the event buffer to be expanded
   @param datlen the new minimum length requirement
@@ -903,7 +953,7 @@ int evbuffer_write(struct evbuffer *, int);
 
 
 /**
-  Read from a file descriptor and store the result in an evbuffer. 
+  Read from a file descriptor and store the result in an evbuffer.
 
   @param buf the evbuffer to store the result
   @param fd the file descriptor to read from
@@ -933,7 +983,7 @@ u_char *evbuffer_find(struct evbuffer *, const u_char *, size_t);
  */
 void evbuffer_setcb(struct evbuffer *, void (*)(struct evbuffer *, size_t, size_t, void *), void *);
 
-/* 
+/*
  * Marshaling tagged data - We assume that all tags are inserted in their
  * numeric order - so that unknown tags will always be higher than the
  * known ones - and we can just ignore the end of an event buffer.
@@ -946,7 +996,7 @@ void evtag_marshal(struct evbuffer *evbuf, uint8_t tag, const void *data,
 
 /**
   Encode an integer and store it in an evbuffer.
-  
+
   We encode integer's by nibbles; the first nibble contains the number
   of significant nibbles - 1;  this allows us to encode up to 64-bit
   integers.  This function is byte-order independent.

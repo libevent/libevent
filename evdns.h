@@ -198,7 +198,7 @@ extern "C" {
 #define DNS_OPTION_MISC 4
 #define DNS_OPTIONS_ALL 7
 
-/** 
+/**
  * The callback that contains the results from a lookup.
  * - type is either DNS_IPv4_A or DNS_PTR or DNS_IPv6_AAAA
  * - count contains the number of addresses of form type
@@ -210,8 +210,9 @@ typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, 
 /**
   Initialize the asynchronous DNS library.
 
-  This function initializes support for non-blocking name resolution by calling
-  evdns_resolv_conf_parse() on UNIX and evdns_config_windows_nameservers() on Windows.
+  This function initializes support for non-blocking name resolution by
+  calling evdns_resolv_conf_parse() on UNIX and
+  evdns_config_windows_nameservers() on Windows.
 
   @return 0 if successful, or -1 if an error occurred
   @see evdns_shutdown()
@@ -243,9 +244,9 @@ const char *evdns_err_to_string(int err);
 
 
 /**
-  Add a nameserver. 
+  Add a nameserver.
 
-  The address should be an IP address in network byte order. 
+  The address should be an IP address in network byte order.
   The type of address is chosen so that it matches in_addr.s_addr.
 
   @param address an IP address in network byte order
@@ -263,7 +264,7 @@ int evdns_nameserver_add(unsigned long int address);
   whether our calls to the various nameserver configuration functions
   have been successful.
 
-  @return the number of configured nameservers 
+  @return the number of configured nameservers
   @see evdns_nameserver_add()
  */
 int evdns_count_nameservers(void);
@@ -282,7 +283,7 @@ int evdns_clear_nameservers_and_suspend(void);
 
 /**
   Resume normal operation and continue any suspended resolve requests.
-  
+
   Re-attempt resolves left in limbo after an earlier call to
   evdns_clear_nameservers_and_suspend().
 
@@ -313,7 +314,7 @@ int evdns_nameserver_ip_add(const char *ip_as_string);
   @param ptr an argument to pass to the callback function
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_ipv6(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
- */ 
+ */
 int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 
@@ -326,7 +327,7 @@ int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback
   @param ptr an argument to pass to the callback function
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
- */ 
+ */
 int evdns_resolve_ipv6(const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 struct in_addr;
@@ -341,7 +342,7 @@ struct in6_addr;
   @param ptr an argument to pass to the callback function
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_reverse_ipv6()
- */ 
+ */
 int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 
@@ -361,10 +362,10 @@ int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_ty
 /**
   Set the value of a configuration option.
 
-  The currently available configuration options are: 
+  The currently available configuration options are:
 
     ndots, timeout, max-timeouts, max-inflight, and attempts
- 
+
   @param option the name of the configuration option to be modified
   @param val the value to be set
   @param flags either 0 | DNS_OPTION_SEARCH | DNS_OPTION_MISC
@@ -376,17 +377,22 @@ int evdns_set_option(const char *option, const char *val, int flags);
 /**
   Parse a resolv.conf file.
 
-  The 'flags' parameter determines what information is parsed from
-  the resolv.conf file. See the man page for resolv.conf for the format of this file.
-  The following directives are not parsed from the file:  sortlist, rotate, no-check-names, inet6, debug
+  The 'flags' parameter determines what information is parsed from the
+  resolv.conf file. See the man page for resolv.conf for the format of this
+  file.
 
-  If this function encounters an error, the possible return values are:
-  1 = failed to open file, 2 = failed to stat file, 3 = file too large,
-  4 = out of memory, 5 = short read from file, 6 = no nameservers listed in the file
+  The following directives are not parsed from the file: sortlist, rotate,
+  no-check-names, inet6, debug.
 
-  @param flags any of DNS_OPTION_NAMESERVERS|DNS_OPTION_SEARCH|DNS_OPTION_MISC|DNS_OPTIONS_ALL
+  If this function encounters an error, the possible return values are: 1 =
+  failed to open file, 2 = failed to stat file, 3 = file too large, 4 = out of
+  memory, 5 = short read from file, 6 = no nameservers listed in the file
+
+  @param flags any of DNS_OPTION_NAMESERVERS|DNS_OPTION_SEARCH|DNS_OPTION_MISC|
+         DNS_OPTIONS_ALL
   @param filename the path to the resolv.conf file
-  @return 0 if successful, or various positive error codes if an error occurred (see above)
+  @return 0 if successful, or various positive error codes if an error
+          occurred (see above)
   @see resolv.conf(3), evdns_config_windows_nameservers()
  */
 int evdns_resolv_conf_parse(int flags, const char *filename);
@@ -397,7 +403,7 @@ int evdns_resolv_conf_parse(int flags, const char *filename);
 
   Attempt to configure a set of nameservers based on platform settings on
   a win32 host.  Preferentially tries to use GetNetworkParams; if that fails,
-  looks in the registry.  
+  looks in the registry.
 
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolv_conf_parse()
@@ -414,7 +420,7 @@ void evdns_search_clear(void);
 
 
 /**
-  Add a domain to the list of search domains 
+  Add a domain to the list of search domains
 
   @param domain the domain to be added to the search list
  */
@@ -431,8 +437,8 @@ void evdns_search_add(const char *domain);
  */
 void evdns_search_ndots_set(const int ndots);
 
-/** 
-  A callback that is invoked when a log message is generated 
+/**
+  A callback that is invoked when a log message is generated
 
   @param is_warning indicates if the log message is a 'warning'
   @param msg the content of the log message
