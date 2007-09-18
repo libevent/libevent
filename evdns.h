@@ -47,7 +47,8 @@
  * the source verbatim in their source distributions)
  */
 
-/*
+/** @file evdns.h
+ *
  * Welcome, gentle reader
  *
  * Async DNS lookups are really a whole lot harder than they should be,
@@ -136,85 +137,6 @@
  *  Query: www.abc
  *  Order: www.abc., www.abc.myhome.net
  *
- * API reference:
- *
- * int evdns_nameserver_add(unsigned long int address)
- *   Add a nameserver. The address should be an IP address in
- *   network byte order. The type of address is chosen so that
- *   it matches in_addr.s_addr.
- *   Returns non-zero on error.
- *
- * int evdns_nameserver_ip_add(const char *ip_as_string)
- *   This wraps the above function by parsing a string as an IP
- *   address and adds it as a nameserver.
- *   Returns non-zero on error
- *
- * int evdns_resolve(const char *name, int flags,
- *		      evdns_callback_type callback,
- *		      void *ptr)
- *   Resolve a name. The name parameter should be a DNS name.
- *   The flags parameter should be 0, or DNS_QUERY_NO_SEARCH
- *   which disables searching for this query. (see defn of
- *   searching above).
- *
- *   The callback argument is a function which is called when
- *   this query completes and ptr is an argument which is passed
- *   to that callback function.
- *
- *   Returns non-zero on error
- *
- * void evdns_search_clear()
- *   Clears the list of search domains
- *
- * void evdns_search_add(const char *domain)
- *   Add a domain to the list of search domains
- *
- * void evdns_search_ndots_set(int ndots)
- *   Set the number of dots which, when found in a name, causes
- *   the first query to be without any search domain.
- *
- * int evdns_count_nameservers(void)
- *   Return the number of configured nameservers (not necessarily the
- *   number of running nameservers).  This is useful for double-checking
- *   whether our calls to the various nameserver configuration functions
- *   have been successful.
- *
- * int evdns_clear_nameservers_and_suspend(void)
- *   Remove all currently configured nameservers, and suspend all pending
- *   resolves.  Resolves will not necessarily be re-attempted until
- *   evdns_resume() is called.
- *
- * int evdns_resume(void)
- *   Re-attempt resolves left in limbo after an earlier call to
- *   evdns_clear_nameservers_and_suspend().
- *
- * int evdns_config_windows_nameservers(void)
- *   Attempt to configure a set of nameservers based on platform settings on
- *   a win32 host.  Preferentially tries to use GetNetworkParams; if that fails,
- *   looks in the registry.  Returns 0 on success, nonzero on failure.
- *
- * int evdns_resolv_conf_parse(int flags, const char *filename)
- *   Parse a resolv.conf like file from the given filename.
- *
- *   See the man page for resolv.conf for the format of this file.
- *   The flags argument determines what information is parsed from
- *   this file:
- *     DNS_OPTION_SEARCH - domain, search and ndots options
- *     DNS_OPTION_NAMESERVERS - nameserver lines
- *     DNS_OPTION_MISC - timeout and attempts options
- *     DNS_OPTIONS_ALL - all of the above
- *   The following directives are not parsed from the file:
- *     sortlist, rotate, no-check-names, inet6, debug
- *
- *   Returns non-zero on error:
- *    0 no errors
- *    1 failed to open file
- *    2 failed to stat file
- *    3 file too large
- *    4 out of memory
- *    5 short read from file
- *    6 no nameservers in file
- *
  * Internals:
  *
  * Requests are kept in two queues. The first is the inflight queue. In
@@ -242,27 +164,27 @@
 extern "C" {
 #endif
 
-/* Error codes 0-5 are as described in RFC 1035. */
+/** Error codes 0-5 are as described in RFC 1035. */
 #define DNS_ERR_NONE 0
-/* The name server was unable to interpret the query */
+/** The name server was unable to interpret the query */
 #define DNS_ERR_FORMAT 1
-/* The name server was unable to process this query due to a problem with the
+/** The name server was unable to process this query due to a problem with the
  * name server */
 #define DNS_ERR_SERVERFAILED 2
-/* The domain name does not exist */
+/** The domain name does not exist */
 #define DNS_ERR_NOTEXIST 3
-/* The name server does not support the requested kind of query */
+/** The name server does not support the requested kind of query */
 #define DNS_ERR_NOTIMPL 4
-/* The name server refuses to reform the specified operation for policy
+/** The name server refuses to reform the specified operation for policy
  * reasons */
 #define DNS_ERR_REFUSED 5
-/* The reply was truncated or ill-formated */
+/** The reply was truncated or ill-formated */
 #define DNS_ERR_TRUNCATED 65
-/* An unknown error occurred */
+/** An unknown error occurred */
 #define DNS_ERR_UNKNOWN 66
-/* Communication with the server timed out */
+/** Communication with the server timed out */
 #define DNS_ERR_TIMEOUT 67
-/* The request was canceled because the DNS subsystem was shut down. */
+/** The request was canceled because the DNS subsystem was shut down. */
 #define DNS_ERR_SHUTDOWN 68
 
 #define DNS_IPv4_A 1
@@ -276,7 +198,7 @@ extern "C" {
 #define DNS_OPTION_MISC 4
 #define DNS_OPTIONS_ALL 7
 
-/* 
+/** 
  * The callback that contains the results from a lookup.
  * - type is either DNS_IPv4_A or DNS_PTR or DNS_IPv6_AAAA
  * - count contains the number of addresses of form type
@@ -285,30 +207,244 @@ extern "C" {
  */
 typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, void *addresses, void *arg);
 
+/**
+  Initialize the asynchronous DNS library.
+
+  This function initializes support for non-blocking name resolution by calling
+  evdns_resolv_conf_parse() on UNIX and evdns_config_windows_nameservers() on Windows.
+
+  @return 0 if successful, or -1 if an error occurred
+  @see evdns_shutdown()
+ */
 int evdns_init(void);
+
+
+/**
+  Shut down the asynchronous DNS resolver and terminate all active requests.
+
+  If the 'fail_requests' option is enabled, all active requests will return
+  an empty result with the error flag set to DNS_ERR_SHUTDOWN. Otherwise,
+  the requests will be silently discarded.
+
+  @param fail_requests if zero, active requests will be aborted; if non-zero,
+		active requests will return DNS_ERR_SHUTDOWN.
+  @see evdns_init()
+ */
 void evdns_shutdown(int fail_requests);
+
+
+/**
+  Convert a DNS error code to a string.
+
+  @param err the DNS error code
+  @return a string containing an explanation of the error code
+*/
 const char *evdns_err_to_string(int err);
+
+
+/**
+  Add a nameserver. 
+
+  The address should be an IP address in network byte order. 
+  The type of address is chosen so that it matches in_addr.s_addr.
+
+  @param address an IP address in network byte order
+  @return 0 if successful, or -1 if an error occurred
+  @see evdns_nameserver_ip_add()
+ */
 int evdns_nameserver_add(unsigned long int address);
+
+
+/**
+  Get the number of configured nameservers.
+
+  This returns the number of configured nameservers (not necessarily the
+  number of running nameservers).  This is useful for double-checking
+  whether our calls to the various nameserver configuration functions
+  have been successful.
+
+  @return the number of configured nameservers 
+  @see evdns_nameserver_add()
+ */
 int evdns_count_nameservers(void);
+
+
+/**
+  Remove all configured nameservers, and suspend all pending resolves.
+
+  Resolves will not necessarily be re-attempted until evdns_resume() is called.
+
+  @return 0 if successful, or -1 if an error occurred
+  @see evdns_resume()
+ */
 int evdns_clear_nameservers_and_suspend(void);
+
+
+/**
+  Resume normal operation and continue any suspended resolve requests.
+  
+  Re-attempt resolves left in limbo after an earlier call to
+  evdns_clear_nameservers_and_suspend().
+
+  @return 0 if successful, or -1 if an error occurred
+  @see evdns_clear_nameservers_and_suspend()
+ */
 int evdns_resume(void);
+
+
+/**
+  Add a nameserver.
+
+  This wraps the evdns_nameserver_add() function by parsing a string as an IP
+  address and adds it as a nameserver.
+
+  @return 0 if successful, or -1 if an error occurred
+  @see evdns_nameserver_add()
+ */
 int evdns_nameserver_ip_add(const char *ip_as_string);
+
+
+/**
+  Lookup an A record for a given name.
+
+  @param name a DNS hostname
+  @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return 0 if successful, or -1 if an error occurred
+  @see evdns_resolve_ipv6(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
+ */ 
 int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback, void *ptr);
+
+
+/**
+  Lookup an AAAA record for a given name.
+
+  @param name a DNS hostname
+  @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return 0 if successful, or -1 if an error occurred
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
+ */ 
 int evdns_resolve_ipv6(const char *name, int flags, evdns_callback_type callback, void *ptr);
+
 struct in_addr;
 struct in6_addr;
+
+/**
+  Lookup a PTR record for a given IP address.
+
+  @param in an IPv4 address
+  @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return 0 if successful, or -1 if an error occurred
+  @see evdns_resolve_reverse_ipv6()
+ */ 
 int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
+
+
+/**
+  Lookup a PTR record for a given IPv6 address.
+
+  @param in an IPv6 address
+  @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return 0 if successful, or -1 if an error occurred
+  @see evdns_resolve_reverse_ipv6()
+ */
 int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
+
+
+/**
+  Set the value of a configuration option.
+
+  The currently available configuration options are: 
+
+    ndots, timeout, max-timeouts, max-inflight, and attempts
+ 
+  @param option the name of the configuration option to be modified
+  @param val the value to be set
+  @param flags either 0 | DNS_OPTION_SEARCH | DNS_OPTION_MISC
+  @return 0 if successful, or -1 if an error occurred
+ */
 int evdns_set_option(const char *option, const char *val, int flags);
-int evdns_resolv_conf_parse(int flags, const char *);
+
+
+/**
+  Parse a resolv.conf file.
+
+  The 'flags' parameter determines what information is parsed from
+  the resolv.conf file. See the man page for resolv.conf for the format of this file.
+  The following directives are not parsed from the file:  sortlist, rotate, no-check-names, inet6, debug
+
+  If this function encounters an error, the possible return values are:
+  1 = failed to open file, 2 = failed to stat file, 3 = file too large,
+  4 = out of memory, 5 = short read from file, 6 = no nameservers listed in the file
+
+  @param flags any of DNS_OPTION_NAMESERVERS|DNS_OPTION_SEARCH|DNS_OPTION_MISC|DNS_OPTIONS_ALL
+  @param filename the path to the resolv.conf file
+  @return 0 if successful, or various positive error codes if an error occurred (see above)
+  @see resolv.conf(3), evdns_config_windows_nameservers()
+ */
+int evdns_resolv_conf_parse(int flags, const char *filename);
+
+
+/**
+  Obtain nameserver information using the Windows API.
+
+  Attempt to configure a set of nameservers based on platform settings on
+  a win32 host.  Preferentially tries to use GetNetworkParams; if that fails,
+  looks in the registry.  
+
+  @return 0 if successful, or -1 if an error occurred
+  @see evdns_resolv_conf_parse()
+ */
 #ifdef MS_WINDOWS
 int evdns_config_windows_nameservers(void);
 #endif
+
+
+/**
+  Clear the list of search domains.
+ */
 void evdns_search_clear(void);
+
+
+/**
+  Add a domain to the list of search domains 
+
+  @param domain the domain to be added to the search list
+ */
 void evdns_search_add(const char *domain);
+
+
+/**
+  Set the 'ndots' parameter for searches.
+
+  Sets the number of dots which, when found in a name, causes
+  the first query to be without any search domain.
+
+  @param ndots the new ndots parameter
+ */
 void evdns_search_ndots_set(const int ndots);
 
+/** 
+  A callback that is invoked when a log message is generated 
+
+  @param is_warning indicates if the log message is a 'warning'
+  @param msg the content of the log message
+ */
 typedef void (*evdns_debug_log_fn_type)(int is_warning, const char *msg);
+
+
+/**
+  Set the callback function to handle log messages.
+
+  @param fn the callback to be invoked when a log message is generated
+ */
 void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 
 #define DNS_NO_SEARCH 1
