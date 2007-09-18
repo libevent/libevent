@@ -72,10 +72,10 @@ struct evkeyvalq;
  */
 struct evhttp *evhttp_new(struct event_base *base);
 
-/** 
+/**
  * Start an HTTP server on the specified address and port.
  *
- * Can be called multiple times to bind the same http server 
+ * Can be called multiple times to bind the same http server
  * to multiple different ports.
  *
  * @param address a string containing the IP address to listen(2) on
@@ -86,7 +86,7 @@ struct evhttp *evhttp_new(struct event_base *base);
 int evhttp_bind_socket(struct evhttp *http, const char *address, u_short port);
 
 /**
- * Free the previously created HTTP server. 
+ * Free the previously created HTTP server.
  *
  * Works only if no requests are currently being served.
  *
@@ -102,11 +102,12 @@ void evhttp_set_cb(struct evhttp *, const char *,
 /** Removes the callback for a specified URI */
 int evhttp_del_cb(struct evhttp *, const char *);
 
-/** Set a callback for all requests that are not caught by specific callbacks */
+/** Set a callback for all requests that are not caught by specific callbacks
+ */
 void evhttp_set_gencb(struct evhttp *,
     void (*)(struct evhttp_request *, void *), void *);
 
-/** 
+/**
  * Set the timeout for an HTTP request.
  *
  * @param http an evhttp object
@@ -140,7 +141,7 @@ void evhttp_send_reply(struct evhttp_request *, int, const char *,
 void evhttp_send_reply_start(struct evhttp_request *, int, const char *);
 void evhttp_send_reply_chunk(struct evhttp_request *, struct evbuffer *);
 void evhttp_send_reply_end(struct evhttp_request *);
-	
+
 /*
  * Start an HTTP server on the specified address and port
  * DEPRECATED: it does not allow an event base to be specified
@@ -165,9 +166,9 @@ struct evhttp_request {
 	/* the connection object that this request belongs to */
 	struct evhttp_connection *evcon;
 	int flags;
-#define EVHTTP_REQ_OWN_CONNECTION	0x0001	
+#define EVHTTP_REQ_OWN_CONNECTION	0x0001
 #define EVHTTP_PROXY_REQUEST		0x0002
-	
+
 	struct evkeyvalq *input_headers;
 	struct evkeyvalq *output_headers;
 
@@ -182,7 +183,7 @@ struct evhttp_request {
 
 	char major;			/* HTTP Major number */
 	char minor;			/* HTTP Minor number */
-	
+
 	int got_firstline;
 	int response_code;		/* HTTP Response code */
 	char *response_code_line;	/* Readable response */
@@ -197,7 +198,7 @@ struct evhttp_request {
 	void (*cb)(struct evhttp_request *, void *);
 	void *cb_arg;
 
-	/* 
+	/*
 	 * Chunked data callback - call for each completed chunk if
 	 * specified.  If not specified, all the data is delivered via
 	 * the regular callback.
@@ -205,7 +206,7 @@ struct evhttp_request {
 	void (*chunk_cb)(struct evhttp_request *, void *);
 };
 
-/** 
+/**
  * Creates a new request object that needs to be filled in with the request
  * parameters.  The callback is executed when the request completed or an
  * error occurred.
@@ -297,7 +298,7 @@ char *evhttp_encode_uri(const char *uri);
 char *evhttp_decode_uri(const char *uri);
 
 
-/** 
+/**
  * Helper function to parse out arguments in a query.
  * The arguments are separated by key and value.
  * URI should already be decoded.
