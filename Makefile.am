@@ -55,4 +55,7 @@ man_MANS = event.3 evdns.3
 verify: libevent.la
 	cd test && make verify
 
+doxygen:
+	doxygen $(srcdir)/Doxyfile
+
 DISTCLEANFILES = *~

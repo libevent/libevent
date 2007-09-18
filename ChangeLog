@@ -14,3 +14,4 @@ Changes in current version:
  o Fix http.c to compile properly with USE_DEBUG; from Christopher Layne
  o Handle NULL timeouts correctly on Solaris; from Trond Norbye
  o Recalculate pending events properly when reallocating event array on Solaris; from Trond Norbye
+ o Add Doxygen documentation to header files; from Mark Heily
