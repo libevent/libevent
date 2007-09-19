@@ -164,6 +164,8 @@
 extern "C" {
 #endif
 
+#include <stdint.h>
+
 /** Error codes 0-5 are as described in RFC 1035. */
 #define DNS_ERR_NONE 0
 /** The name server was unable to interpret the query */
@@ -246,7 +248,7 @@ const char *evdns_err_to_string(int err);
 /**
   Add a nameserver.
 
-  The address should be an IP address in network byte order.
+  The address should be an IPv4 address in network byte order.
   The type of address is chosen so that it matches in_addr.s_addr.
 
   @param address an IP address in network byte order
@@ -452,6 +454,14 @@ typedef void (*evdns_debug_log_fn_type)(int is_warning, const char *msg);
   @param fn the callback to be invoked when a log message is generated
  */
 void evdns_set_log_fn(evdns_debug_log_fn_type fn);
+
+/**
+   Set a callback that will be invoked to generate transaction IDs.  By
+   default, we pick transaction IDs based on the current clock time.
+
+   @param fn the new callback, or NULL to use the default.
+ */
+void evdns_set_transaction_id_fn(uint16_t (*fn)(void));
 
 #define DNS_NO_SEARCH 1
 

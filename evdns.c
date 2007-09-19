@@ -1014,43 +1014,59 @@ err:
 #undef GET8
 }
 
+static u16
+default_transaction_id_fn(void)
+{
+	u16 trans_id;
+#ifdef DNS_USE_CPU_CLOCK_FOR_ID
+	struct timespec ts;
+#ifdef CLOCK_MONOTONIC
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
+#else
+	if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+#endif
+	event_err(1, "clock_gettime");
+	trans_id = ts.tv_nsec & 0xffff;
+#endif
+
+#ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	trans_id = tv.tv_usec & 0xffff;
+#endif
+
+#ifdef DNS_USE_OPENSSL_FOR_ID
+	if (RAND_pseudo_bytes((u8 *) &trans_id, 2) == -1) {
+		/* in the case that the RAND call fails we back */
+		/* down to using gettimeofday. */
+		/*
+		  struct timeval tv;
+		  gettimeofday(&tv, NULL);
+		  trans_id = tv.tv_usec & 0xffff;
+		*/
+		abort();
+	}
+#endif
+	return trans_id;
+}
+
+static uint16_t (*trans_id_function)(void) = default_transaction_id_fn;
+
+void
+evdns_set_transaction_id_fn(uint16_t (*fn)(void))
+{
+	if (fn)
+		trans_id_function = fn;
+	else
+		trans_id_function = default_transaction_id_fn;
+}
+
 /* Try to choose a strong transaction id which isn't already in flight */
 static u16
 transaction_id_pick(void) {
 	for (;;) {
 		const struct request *req = req_head, *started_at;
-#ifdef DNS_USE_CPU_CLOCK_FOR_ID
-		struct timespec ts;
-		u16 trans_id;
-#ifdef CLOCK_MONOTONIC
-		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
-#else
-		if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
-#endif
-			event_err(1, "clock_gettime");
-                trans_id = ts.tv_nsec & 0xffff;
-#endif
-
-#ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
-		struct timeval tv;
-		u16 trans_id;
-		gettimeofday(&tv, NULL);
-                trans_id = tv.tv_usec & 0xffff;
-#endif
-
-#ifdef DNS_USE_OPENSSL_FOR_ID
-		u16 trans_id;
-		if (RAND_pseudo_bytes((u8 *) &trans_id, 2) == -1) {
-			/* in the case that the RAND call fails we back */
-			/* down to using gettimeofday. */
-			/*
-                        struct timeval tv;
-			gettimeofday(&tv, NULL);
-			trans_id = tv.tv_usec & 0xffff;
-                        */
-			abort();
-		}
-#endif
+		u16 trans_id = trans_id_function();
 
 		if (trans_id == 0xffff) continue;
 		/* now check to see if that id is already inflight */

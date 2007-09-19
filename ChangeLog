@@ -15,3 +15,5 @@ Changes in current version:
  o Handle NULL timeouts correctly on Solaris; from Trond Norbye
  o Recalculate pending events properly when reallocating event array on Solaris; from Trond Norbye
  o Add Doxygen documentation to header files; from Mark Heily
+ o Add a evdns_set_transaction_id_fn() function to override the default
+   transaction ID generation code.
