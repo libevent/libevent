@@ -44,8 +44,8 @@
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <unistd.h>
-#endif
 #include <netdb.h>
+#endif
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>

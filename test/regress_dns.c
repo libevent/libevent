@@ -50,7 +50,9 @@
 #ifdef HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
+#ifdef HAVE_NETDB_H
 #include <netdb.h>
+#endif
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -341,7 +343,7 @@ dns_server(void)
 	evdns_close_server_port(port);
 	evdns_shutdown(0); /* remove ourself as nameserver. */
 #ifdef WIN32
-	CloseHandle(sock);
+	closesocket(sock);
 #else
 	close(sock);
 #endif
