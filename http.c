@@ -74,6 +74,7 @@
 #include "strlcpy-internal.h"
 #include "event.h"
 #include "evhttp.h"
+#include "evutil.h"
 #include "log.h"
 #include "http-internal.h"
 
@@ -118,24 +119,6 @@ fake_freeaddrinfo(struct addrinfo *ai)
 #define EVHTTP_BASE_SET(x, y) do { \
 	if ((x)->base != NULL) event_base_set((x)->base, y);	\
 } while (0) 
-
-static int
-event_make_socket_nonblocking(int fd)
-{
-
-#ifdef WIN32
-	{
-		unsigned long nonblocking = 1;
-		ioctlsocket(fd, FIONBIO, (unsigned long*) &nonblocking);
-	}
-#else
-	if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1) {
-		event_warn("fcntl(O_NONBLOCK)");
-		return -1;
-	}
-#endif
-	return 0;
-}
 
 extern int debug;
 
@@ -822,7 +805,7 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		event_del(&evcon->ev);
 	
 	if (evcon->fd != -1)
-		close(evcon->fd);
+		EVUTIL_CLOSESOCKET(evcon->fd);
 
 	if (evcon->bind_address != NULL)
 		free(evcon->bind_address);
@@ -884,7 +867,7 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 		if (evcon->state == EVCON_CONNECTED && evcon->closecb != NULL)
 			(*evcon->closecb)(evcon, evcon->closecb_arg);
 
-		close(evcon->fd);
+		EVUTIL_CLOSESOCKET(evcon->fd);
 		evcon->fd = -1;
 	}
 	evcon->state = EVCON_DISCONNECTED;
@@ -1504,7 +1487,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	}
 
 	if (socket_connect(evcon->fd, evcon->address, evcon->port) == -1) {
-		close(evcon->fd); evcon->fd = -1;
+		EVUTIL_CLOSESOCKET(evcon->fd); evcon->fd = -1;
 		return (-1);
 	}
 
@@ -1949,7 +1932,7 @@ accept_socket(int fd, short what, void *arg)
 		event_warn("%s: bad accept", __func__);
 		return;
 	}
-        if (event_make_socket_nonblocking(nfd) < 0)
+        if (evutil_make_socket_nonblocking(nfd) < 0)
                 return;
 
 	evhttp_get_request(http, nfd, (struct sockaddr *)&ss, addrlen);
@@ -1966,7 +1949,7 @@ evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 
 	if (listen(fd, 10) == -1) {
 		event_warn("%s: listen", __func__);
-		close(fd);
+		EVUTIL_CLOSESOCKET(fd);
 		return (-1);
 	}
 
@@ -2034,7 +2017,7 @@ evhttp_free(struct evhttp* http)
 
 	/* Remove the accepting part */
 	event_del(&http->bind_ev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	while ((evcon = TAILQ_FIRST(&http->connections)) != NULL) {
 		/* evhttp_connection_free removes the connection */
@@ -2347,7 +2330,7 @@ bind_socket_ai(struct addrinfo *ai)
                 return (-1);
         }
 
-        if (event_make_socket_nonblocking(fd) < 0)
+        if (evutil_make_socket_nonblocking(fd) < 0)
                 goto out;
 
 #ifndef WIN32
@@ -2371,7 +2354,7 @@ bind_socket_ai(struct addrinfo *ai)
 
  out:
 	serrno = errno;
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 	errno = serrno;
 	return (-1);
 }

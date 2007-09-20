@@ -94,6 +94,7 @@
 #include <stdarg.h>
 
 #include "evdns.h"
+#include "evutil.h"
 #include "log.h"
 #ifdef WIN32
 #include <windows.h>
@@ -359,12 +360,11 @@ inet_aton(const char *c, struct in_addr *addr)
 	}
 	return 1;
 }
-#define CLOSE_SOCKET(x) closesocket(x)
 #else
 #define last_error(sock) (errno)
 #define error_is_eagain(err) ((err) == EAGAIN)
-#define CLOSE_SOCKET(x) close(x)
 #endif
+#define CLOSE_SOCKET(s) EVUTIL_CLOSESOCKET(s)
 
 #define ISSPACE(c) isspace((int)(unsigned char)(c))
 #define ISDIGIT(c) isdigit((int)(unsigned char)(c))
@@ -2070,14 +2070,7 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 
 	ns->socket = socket(PF_INET, SOCK_DGRAM, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
-#ifdef WIN32
-        {
-		u_long nonblocking = 1;
-		ioctlsocket(ns->socket, FIONBIO, &nonblocking);
-	}
-#else
-        fcntl(ns->socket, F_SETFL, O_NONBLOCK);
-#endif
+        evutil_make_socket_nonblocking(ns->socket);
 	sin.sin_addr.s_addr = address;
 	sin.sin_port = htons(port);
 	sin.sin_family = AF_INET;
@@ -3106,7 +3099,7 @@ main(int c, char **v) {
 		int sock;
 		struct sockaddr_in my_addr;
 		sock = socket(PF_INET, SOCK_DGRAM, 0);
-		fcntl(sock, F_SETFL, O_NONBLOCK);
+                evutil_make_socket_nonblocking(sock);
 		my_addr.sin_family = AF_INET;
 		my_addr.sin_port = htons(10053);
 		my_addr.sin_addr.s_addr = INADDR_ANY;

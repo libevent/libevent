@@ -18,3 +18,5 @@ Changes in current version:
  o Add a evdns_set_transaction_id_fn() function to override the default
    transaction ID generation code.
  o Add an evutil module (with header evutil.h) to implement our standard cross-platform hacks, on the theory that somebody else would like to use them too.
+ o Fix signals implementation on windows.
+ o Fix http module on windows to close sockets properly.
