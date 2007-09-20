@@ -52,7 +52,9 @@
 
 extern struct event_list timequeue;
 extern struct event_list addqueue;
+#if 0
 extern struct event_list signalqueue;
+#endif
 
 struct win_fd_set {
 	u_int fd_count;
@@ -64,10 +66,12 @@ volatile sig_atomic_t signal_caught = 0;
 /* MSDN says this is required to handle SIGFPE */
 volatile double SIGFPE_REQ = 0.0f;
 
+#if 0
 static void signal_handler(int sig);
 
 void signal_process(void);
 int signal_recalc(void);
+#endif
 
 struct win32op {
 	int fd_setsz;
@@ -193,6 +197,8 @@ win32_init(struct event_base *_base)
 	winop->readset_out->fd_count = winop->writeset_out->fd_count
 		= winop->exset_out->fd_count = 0;
 
+	evsignal_init(_base);
+
 	return (winop);
  err:
         XFREE(winop->readset_in);
@@ -208,7 +214,10 @@ win32_init(struct event_base *_base)
 int
 win32_recalc(struct event_base *base, void *arg, int max)
 {
-	return (signal_recalc());
+#if 0
+	return (evsignal_recalc());
+#endif
+	return (0);
 }
 
 int
@@ -218,13 +227,7 @@ win32_insert(void *op, struct event *ev)
 	int i;
 
 	if (ev->ev_events & EV_SIGNAL) {
-		if (ev->ev_events & (EV_READ|EV_WRITE))
-			event_errx(1, "%s: EV_SIGNAL incompatible use",
-			           __func__);
-		if((int)signal(EVENT_SIGNAL(ev), signal_handler) == -1)
-			return (-1);
-
-		return (0);
+		return (evsignal_add(ev));
 	}
 	if (!(ev->ev_events & (EV_READ|EV_WRITE)))
 		return (0);
@@ -265,7 +268,7 @@ win32_del(void *op, struct event *ev)
 	int i, found;
 
 	if (ev->ev_events & EV_SIGNAL)
-		return ((int)signal(EVENT_SIGNAL(ev), SIG_IGN));
+		return (evsignal_del(ev));
 
 	found = -1;
 	for (i=0;i<win32op->n_events;++i) {
@@ -330,7 +333,7 @@ win32_dispatch(struct event_base *base, void *op,
 	if (!fd_count) {
 		/* Windows doesn't like you to call select() with no sockets */
 		Sleep(timeval_to_ms(tv));
-		signal_process();
+		evsignal_process(base);
 		return (0);
 	}
 
@@ -342,8 +345,10 @@ win32_dispatch(struct event_base *base, void *op,
 	event_debug(("%s: select returned %d", __func__, res));
 
 	if(res <= 0) {
-		signal_process();
+		evsignal_process(base);
 		return res;
+	} else if (base->sig.evsignal_caught) {
+		evsignal_process(base);
 	}
 
 	for (i=0;i<win32op->n_events;++i) {
@@ -369,8 +374,10 @@ win32_dispatch(struct event_base *base, void *op,
 		event_active(ev,got,1);
 	}
 
+#if 0
 	if (signal_recalc() == -1)
 		return (-1);
+#endif
 
 	return (0);
 }
@@ -380,6 +387,7 @@ win32_dealloc(struct event_base *_base, void *arg)
 {
 	struct win32op *win32op = arg;
 
+	evsignal_dealloc(_base);
 	if (win32op->readset_in)
 		free(win32op->readset_in);
 	if (win32op->writeset_in)
@@ -397,6 +405,7 @@ win32_dealloc(struct event_base *_base, void *arg)
 	free(win32op);
 }
 
+#if 0
 static void
 signal_handler(int sig)
 {
@@ -435,3 +444,5 @@ signal_process(void)
 	memset(evsigcaught, 0, sizeof(evsigcaught));
 	signal_caught = 0;
 }
+#endif
+

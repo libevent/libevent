@@ -30,6 +30,12 @@
 #include "config.h"
 #endif
 
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <winsock2.h>
+#undef WIN32_LEAN_AND_MEAN
+#endif
 #include <sys/types.h>
 #include <sys/tree.h>
 #ifdef HAVE_SYS_TIME_H
@@ -38,7 +44,9 @@
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,6 +61,7 @@
 #include "event.h"
 #include "event-internal.h"
 #include "evsignal.h"
+#include "evutil.h"
 #include "log.h"
 
 struct event_base *evsignal_base = NULL;
@@ -67,7 +76,7 @@ evsignal_cb(int fd, short what, void *arg)
 	struct event *ev = arg;
 	ssize_t n;
 
-	n = read(fd, signals, sizeof(signals));
+	n = recv(fd, signals, sizeof(signals), 0);
 	if (n == -1)
 		event_err(1, "%s: read", __func__);
 	event_add(ev, NULL);
@@ -90,7 +99,7 @@ evsignal_init(struct event_base *base)
 	 * pair to wake up our event loop.  The event loop then scans for
 	 * signals that got delivered.
 	 */
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, base->sig.ev_signal_pair) == -1)
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, base->sig.ev_signal_pair) == -1)
 		event_err(1, "%s: socketpair", __func__);
 
 	FD_CLOSEONEXEC(base->sig.ev_signal_pair[0]);
@@ -98,7 +107,7 @@ evsignal_init(struct event_base *base)
 	base->sig.evsignal_caught = 0;
 	memset(&base->sig.evsigcaught, 0, sizeof(sig_atomic_t)*NSIG);
 
-	fcntl(base->sig.ev_signal_pair[0], F_SETFL, O_NONBLOCK);
+        evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
 
 	event_set(&base->sig.ev_signal, base->sig.ev_signal_pair[1], EV_READ,
 	    evsignal_cb, &base->sig.ev_signal);
@@ -110,13 +119,16 @@ int
 evsignal_add(struct event *ev)
 {
 	int evsignal;
+#ifdef HAVE_SIGACTION
 	struct sigaction sa;
+#endif
 	struct event_base *base = ev->ev_base;
 
 	if (ev->ev_events & (EV_READ|EV_WRITE))
 		event_errx(1, "%s: EV_SIGNAL incompatible use", __func__);
 	evsignal = EVENT_SIGNAL(ev);
 
+#ifdef HAVE_SIGACTION
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = evsignal_handler;
 	sigfillset(&sa.sa_mask);
@@ -126,6 +138,11 @@ evsignal_add(struct event *ev)
 
 	if (sigaction(evsignal, &sa, NULL) == -1)
 		return (-1);
+#else
+	evsignal_base = base;
+	if (signal(evsignal, evsignal_handler) == SIG_ERR)
+		return (-1);
+#endif
 
 	if (!base->sig.ev_signal_added) {
 		base->sig.ev_signal_added = 1;
@@ -138,7 +155,11 @@ evsignal_add(struct event *ev)
 int
 evsignal_del(struct event *ev)
 {
+#ifdef HAVE_SIGACTION
 	return (sigaction(EVENT_SIGNAL(ev),(struct sigaction *)SIG_DFL, NULL));
+#else
+	return (signal(EVENT_SIGNAL(ev),SIG_DFL))==SIG_ERR ? -1 : 0;
+#endif
 }
 
 static void
@@ -156,8 +177,12 @@ evsignal_handler(int sig)
 	evsignal_base->sig.evsigcaught[sig]++;
 	evsignal_base->sig.evsignal_caught = 1;
 
+#ifndef HAVE_SIGACTION
+	signal(sig, evsignal_handler);
+#endif
+
 	/* Wake up our notification mechanism */
-	write(evsignal_base->sig.ev_signal_pair[0], "a", 1);
+	send(evsignal_base->sig.ev_signal_pair[0], "a", 1, 0);
 	errno = save_errno;
 }
 
@@ -188,8 +213,8 @@ evsignal_dealloc(struct event_base *base)
 	}
 	assert(TAILQ_EMPTY(&base->sig.signalqueue));
 
-	close(base->sig.ev_signal_pair[0]);
+	EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);
 	base->sig.ev_signal_pair[0] = -1;
-	close(base->sig.ev_signal_pair[1]);
+	EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[1]);
 	base->sig.ev_signal_pair[1] = -1;
 }

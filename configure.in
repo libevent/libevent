@@ -135,7 +135,7 @@ AC_C_INLINE
 AC_HEADER_TIME
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop)
+AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop signal sigaction)
 
 if test "x$ac_cv_func_clock_gettime" = "xyes"; then
    AC_DEFINE(DNS_USE_CPU_CLOCK_FOR_ID, 1, [Define if clock_gettime is available in libc])
@@ -331,6 +331,12 @@ if test "x$haveeventports" = "xyes" ; then
 	AC_DEFINE(HAVE_EVENT_PORTS, 1,
 		[Define if your system supports event ports])
 	AC_LIBOBJ(evport)
+	needsignal=yes
+fi
+if test "x$bwin32" = "xtrue"; then
+	needsignal=yes
+fi
+if test "x$bwin32" = "xtrue"; then
 	needsignal=yes
 fi
 if test "x$needsignal" = "xyes" ; then
