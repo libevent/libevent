@@ -32,6 +32,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
 #include "misc.h"
 #endif
 
@@ -45,15 +46,16 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#include <errno.h>
 
 #include "evutil.h"
 #include "log.h"
 
 int
-evutil_socketpair(int d, int type, int protocol, int sv[2])
+evutil_socketpair(int family, int type, int protocol, int fd[2])
 {
 #ifndef WIN32
-	return socketpair(d, type, protocol, sv);
+	return socketpair(family, type, protocol, fd);
 #else
 	/* This code is originally from Tor.  Used with permission. */
 
@@ -81,9 +83,9 @@ evutil_socketpair(int d, int type, int protocol, int sv[2])
 		return -EINVAL;
 	}
 
-	listener = tor_open_socket(AF_INET, type, 0);
+	listener = socket(AF_INET, type, 0);
 	if (listener < 0)
-		return -tor_socket_errno(-1);
+		return -errno;
 	memset(&listen_addr, 0, sizeof(listen_addr));
 	listen_addr.sin_family = AF_INET;
 	listen_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -94,7 +96,7 @@ evutil_socketpair(int d, int type, int protocol, int sv[2])
 	if (listen(listener, 1) == -1)
 		goto tidy_up_and_fail;
 
-	connector = tor_open_socket(AF_INET, type, 0);
+	connector = socket(AF_INET, type, 0);
 	if (connector < 0)
 		goto tidy_up_and_fail;
 	/* We want to find out the port number to connect to.  */
