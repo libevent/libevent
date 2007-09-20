@@ -40,13 +40,14 @@ SYS_INCLUDES =
 endif
 
 libevent_la_SOURCES = event.c buffer.c evbuffer.c log.c event_tagging.c \
-	http.c evhttp.h http-internal.h evdns.c evdns.h evrpc.c strlcpy.c \
+	http.c evhttp.h http-internal.h evdns.c evdns.h evrpc.c evutil.c \
+	strlcpy.c \
 	strlcpy-internal.h evrpc.h evrpc-internal.h strlcpy-internal.h \
 	$(SYS_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
 
-include_HEADERS = event.h evhttp.h evdns.h evrpc.h
+include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h
 
 INCLUDES = -I$(srcdir)/compat $(SYS_INCLUDES)
 

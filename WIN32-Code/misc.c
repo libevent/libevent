@@ -65,6 +65,7 @@ win_write(int fd, void *buf, unsigned int length)
 		return (dwBytesWritten);
 }
 
+#if 0
 int
 socketpair(int d, int type, int protocol, int *sv)
 {
@@ -89,3 +90,4 @@ socketpair(int d, int type, int protocol, int *sv)
 
 	return (0);
 }
+#endif
