@@ -22,3 +22,5 @@ Changes in current version:
  o Fix http module on windows to close sockets properly.
  o Make autogen.sh script run correctly on systems where /bin/sh isn't bash. (Patch from Trond Norbye, rewritten by Hagne Mahre and then Hannah Schroeter.)
  o Skip calling gettime() in timeout_process if we are not in fact waiting for any events. (Patch from Trond Norbye)
+ o Make test subdirectory compile under mingw.
+

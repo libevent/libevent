@@ -45,8 +45,8 @@
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <unistd.h>
-#endif
 #include <netdb.h>
+#endif
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -55,6 +55,7 @@
 #include <errno.h>
 
 #include "event.h"
+#include "evutil.h"
 #include "event-internal.h"
 #include "log.h"
 
@@ -75,6 +76,10 @@ static struct event_base *global_base;
 
 #define TEST1	"this is a test"
 #define SECONDS	1
+
+#ifndef SHUT_WR
+#define SHUT_WR 1
+#endif
 
 void
 simple_read_cb(int fd, short event, void *arg)
@@ -246,7 +251,7 @@ setup_test(char *name)
 
 	fprintf(stdout, "%s", name);
 
-	if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
 		fprintf(stderr, "%s: socketpair\n", __func__);
 		exit(1);
 	}

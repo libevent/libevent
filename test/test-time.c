@@ -25,6 +25,16 @@ int called = 0;
 
 struct event *ev[NEVENT];
 
+int
+rand_int(int n)
+{
+#ifdef WIN32
+	return (int)(rand() * n);
+#else
+	return (int)(random() % n);
+#endif
+}
+
 void
 time_cb(int fd, short event, void *arg)
 {
@@ -35,9 +45,9 @@ time_cb(int fd, short event, void *arg)
 
 	if (called < 10*NEVENT) {
 		for (i = 0; i < 10; i++) {
-			j = random() % NEVENT;
+			j = rand_int(NEVENT);
 			tv.tv_sec = 0;
-			tv.tv_usec = random() % 50000L;
+			tv.tv_usec = rand_int(50000);
 			if (tv.tv_usec % 2)
 				evtimer_add(ev[j], &tv);
 			else
@@ -61,7 +71,7 @@ main (int argc, char **argv)
 		/* Initalize one event */
 		evtimer_set(ev[i], time_cb, ev[i]);
 		tv.tv_sec = 0;
-		tv.tv_usec = random() % 50000L;
+		tv.tv_usec = rand_int(50000);
 		evtimer_add(ev[i], &tv);
 	}
 
