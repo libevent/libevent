@@ -807,6 +807,9 @@ timeout_process(struct event_base *base)
 	struct timeval now;
 	struct event *ev, *next;
 
+	if (RB_EMPTY(&base->timetree))
+		return;
+
 	gettime(&now);
 
 	for (ev = RB_MIN(event_tree, &base->timetree); ev; ev = next) {
