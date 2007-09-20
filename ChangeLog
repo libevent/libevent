@@ -20,3 +20,4 @@ Changes in current version:
  o Add an evutil module (with header evutil.h) to implement our standard cross-platform hacks, on the theory that somebody else would like to use them too.
  o Fix signals implementation on windows.
  o Fix http module on windows to close sockets properly.
+ o Make autogen.sh script run correctly on systems where /bin/sh isn't bash. (Patch from Trond Norbye, rewritten by Hagne Mahre and then Hannah Schroeter.)
