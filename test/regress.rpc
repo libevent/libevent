@@ -3,7 +3,7 @@
 struct msg {
 	string from_name = 1;
 	string to_name = 2;
-	optional struct[kill] kill = 3;
+	optional struct[kill] attack = 3;
 	array struct[run] run = 4;
 }
 

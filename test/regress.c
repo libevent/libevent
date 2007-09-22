@@ -962,7 +962,7 @@ void
 rpc_test(void)
 {
 	struct msg *msg, *msg2;
-	struct kill *kill;
+	struct kill *attack;
 	struct run *run;
 	struct evbuffer *tmp = evbuffer_new();
 	struct timeval tv_start, tv_end;
@@ -974,13 +974,13 @@ rpc_test(void)
 	EVTAG_ASSIGN(msg, from_name, "niels");
 	EVTAG_ASSIGN(msg, to_name, "phoenix");
 
-	if (EVTAG_GET(msg, kill, &kill) == -1) {
+	if (EVTAG_GET(msg, attack, &attack) == -1) {
 		fprintf(stderr, "Failed to set kill message.\n");
 		exit(1);
 	}
 
-	EVTAG_ASSIGN(kill, weapon, "feather");
-	EVTAG_ASSIGN(kill, action, "tickle");
+	EVTAG_ASSIGN(attack, weapon, "feather");
+	EVTAG_ASSIGN(attack, action, "tickle");
 
 	gettimeofday(&tv_start, NULL);
 	for (i = 0; i < 1000; ++i) {
@@ -1013,7 +1013,7 @@ rpc_test(void)
 
 	if (!EVTAG_HAS(msg2, from_name) ||
 	    !EVTAG_HAS(msg2, to_name) ||
-	    !EVTAG_HAS(msg2, kill)) {
+	    !EVTAG_HAS(msg2, attack)) {
 		fprintf(stderr, "Missing data structures.\n");
 		exit(1);
 	}
