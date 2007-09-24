@@ -2356,9 +2356,9 @@ bind_socket_ai(struct addrinfo *ai)
 	return (fd);
 
  out:
-	serrno = errno;
+	serrno = EVUTIL_SOCKET_ERROR();
 	EVUTIL_CLOSESOCKET(fd);
-	errno = serrno;
+	EVUTIL_SET_SOCKET_ERROR(serrno);
 	return (-1);
 }
 

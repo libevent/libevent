@@ -46,6 +46,16 @@ int evutil_make_socket_nonblocking(int sock);
 #define EVUTIL_CLOSESOCKET(s) close(s)
 #endif
 
+#ifdef WIN32
+#define EVUTIL_SOCKET_ERROR() WSAGetLastError()
+#define EVUTIL_SET_SOCKET_ERROR(errcode)		\
+	do { WSASetLastError(errcode); } while (0)
+#else
+#define EVUTIL_SOCKET_ERROR() (errno)
+#define EVUTIL_SET_SOCKET_ERROR(errcode)		\
+		do { errno = (errcode); } while (0)
+#endif
+
 #ifdef __cplusplus
 }
 #endif

@@ -77,15 +77,17 @@ evutil_socketpair(int family, int type, int protocol, int fd[2])
 		|| family != AF_UNIX
 #endif
 		) {
-		return -WSAEAFNOSUPPORT;
+		SET_SOCKET_ERROR(WSAEAFNOSUPPORT);
+		return -1;
 	}
 	if (!fd) {
-		return -EINVAL;
+		SET_SOCKET_ERROR(WSAEINVAL);
+		return -1;
 	}
 
 	listener = socket(AF_INET, type, 0);
 	if (listener < 0)
-		return -errno;
+		return -1;
 	memset(&listen_addr, 0, sizeof(listen_addr));
 	listen_addr.sin_family = AF_INET;
 	listen_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -134,14 +136,16 @@ evutil_socketpair(int family, int type, int protocol, int fd[2])
 	saved_errno = WSAECONNABORTED;
  tidy_up_and_fail:
 	if (saved_errno < 0)
-		saved_errno = errno;
+		saved_errno = WSAGetLastError();
 	if (listener != -1)
 		EVUTIL_CLOSESOCKET(listener);
 	if (connector != -1)
 		EVUTIL_CLOSESOCKET(connector);
 	if (acceptor != -1)
 		EVUTIL_CLOSESOCKET(acceptor);
-	return -saved_errno;
+
+	SET_SOCKET_ERROR(saved_errno);
+	return -1;
 #endif
 }
 
@@ -157,7 +161,7 @@ evutil_make_socket_nonblocking(int fd)
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1) {
 		event_warn("fcntl(O_NONBLOCK)");
 		return -1;
-	}
+}	
 #endif
 	return 0;
 }
