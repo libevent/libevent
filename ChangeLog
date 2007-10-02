@@ -24,4 +24,5 @@ Changes in current version:
  o Skip calling gettime() in timeout_process if we are not in fact waiting for any events. (Patch from Trond Norbye)
  o Make test subdirectory compile under mingw.
  o Fix win32 buffer.c behavior so that it is correct for sockets (which do not like ReadFile and WriteFile).
-
+ o Make the test.sh script run unit tests for the evpoll method.
+ o Make the entire evdns.h header enclosed in "extern C" as appropriate.
