@@ -90,17 +90,28 @@ struct addrinfo {
 static int
 fake_getaddrinfo(const char *hostname, struct addrinfo *ai)
 {
-	struct hostent *he;
-	he = gethostbyname(hostname);
-	if (!he)
-		return (-1);
-	ai->ai_family = he->h_addrtype;
+	struct hostent *he = NULL;
+	struct sockaddr_in *sa;
+	if (hostname) {
+		he = gethostbyname(hostname);
+		if (!he)
+			return (-1);
+	}
+	ai->ai_family = he ? he->h_addrtype : AF_INET;
 	ai->ai_socktype = SOCK_STREAM;
 	ai->ai_protocol = 0;
-	ai->ai_addrlen = he->h_length;
+	ai->ai_addrlen = sizeof(struct sockaddr_in);
 	if (NULL == (ai->ai_addr = malloc(ai->ai_addrlen)))
 		return (-1);
-	memcpy(ai->ai_addr, &he->h_addr_list[0], ai->ai_addrlen);
+	sa = (struct sockaddr_in*)ai->ai_addr;
+	memset(sa, 0, ai->ai_addrlen);
+	if (he) {
+		sa->sin_family = he->h_addrtype;
+		memcpy(&sa->sin_addr, he->h_addr_list[0], he->h_length);
+	} else {
+		sa->sin_family = AF_INET;
+		sa->sin_addr.s_addr = INADDR_ANY;
+	}
 	ai->ai_next = NULL;
 	return (0);
 }
@@ -144,7 +155,7 @@ static char *
 strsep(char **s, const char *del)
 {
 	char *d, *tok;
-        assert(strlen(del) == 1);
+	assert(strlen(del) == 1);
 	if (!s || !*s)
 		return NULL;
 	tok = *s;
@@ -349,7 +360,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 			cur_p = gmtime(&t);
 #else
 			gmtime_r(&t, &cur);
-                        cur_p = &cur;
+			cur_p = &cur;
 #endif
 			if (strftime(date, sizeof(date),
 						 "%a, %d %b %Y %H:%M:%S GMT", cur_p) != 0) {
@@ -1939,8 +1950,8 @@ accept_socket(int fd, short what, void *arg)
 		event_warn("%s: bad accept", __func__);
 		return;
 	}
-        if (evutil_make_socket_nonblocking(nfd) < 0)
-                return;
+	if (evutil_make_socket_nonblocking(nfd) < 0)
+		return;
 
 	evhttp_get_request(http, nfd, (struct sockaddr *)&ss, addrlen);
 }
@@ -2277,7 +2288,7 @@ addr_from_name(char *address)
         struct addrinfo ai, *aitop;
         int ai_result;
 
-        memset(&ai, 0, sizeof (ai));
+        memset(&ai, 0, sizeof(ai));
         ai.ai_family = AF_INET;
         ai.ai_socktype = SOCK_RAW;
         ai.ai_flags = 0;
@@ -2369,18 +2380,19 @@ bind_socket_ai(struct addrinfo *ai)
 static struct addrinfo *
 make_addrinfo(const char *address, u_short port)
 {
-        struct addrinfo ai[2], *aitop = NULL;
+        struct addrinfo *aitop = NULL;
 
 #ifdef HAVE_GETADDRINFO
+        struct addrinfo ai;
         char strport[NI_MAXSERV];
         int ai_result;
 
-        memset(&ai[0], 0, sizeof (ai[0]));
-        ai[0].ai_family = AF_INET;
-        ai[0].ai_socktype = SOCK_STREAM;
-        ai[0].ai_flags = AI_PASSIVE;  /* turn NULL host name into INADDR_ANY */
-        snprintf(strport, sizeof (strport), "%d", port);
-        if ((ai_result = getaddrinfo(address, strport, &ai[0], &aitop)) != 0) {
+        memset(&ai, 0, sizeof(ai));
+        ai.ai_family = AF_INET;
+        ai.ai_socktype = SOCK_STREAM;
+        ai.ai_flags = AI_PASSIVE;  /* turn NULL host name into INADDR_ANY */
+        snprintf(strport, sizeof(strport), "%d", port);
+        if ((ai_result = getaddrinfo(address, strport, &ai, &aitop)) != 0) {
                 if ( ai_result == EAI_SYSTEM )
                         event_warn("getaddrinfo");
                 else
@@ -2389,6 +2401,7 @@ make_addrinfo(const char *address, u_short port)
         }
 #else
 	static int cur;
+	static struct addrinfo ai[2]; /* We will be returning the address of some of this memory so it has to last even after this call. */
 	if (++cur == 2) cur = 0;   /* allow calling this function twice */
 
 	if (fake_getaddrinfo(address, &ai[cur]) < 0) {
@@ -2396,6 +2409,7 @@ make_addrinfo(const char *address, u_short port)
 		return (NULL);
 	}
 	aitop = &ai[cur];
+	((struct sockaddr_in *) aitop->ai_addr)->sin_port = htons(port);
 #endif
 
 	return (aitop);
@@ -2405,7 +2419,7 @@ static int
 bind_socket(const char *address, u_short port)
 {
 	int fd;
-        struct addrinfo *aitop = make_addrinfo(address, port);
+	struct addrinfo *aitop = make_addrinfo(address, port);
 
 	if (aitop == NULL)
 		return (-1);

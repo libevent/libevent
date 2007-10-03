@@ -27,3 +27,4 @@ Changes in current version:
  o Make the test.sh script run unit tests for the evpoll method.
  o Make the entire evdns.h header enclosed in "extern C" as appropriate.
  o Fix implementation of strsep on platforms that lack it
+ o Fix implementation of getaddrinfo on platforms that lack it; mainly, this will make Windows http.c work better.  Original patch by Lubomir Marinov.
