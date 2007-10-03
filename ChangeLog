@@ -26,3 +26,4 @@ Changes in current version:
  o Fix win32 buffer.c behavior so that it is correct for sockets (which do not like ReadFile and WriteFile).
  o Make the test.sh script run unit tests for the evpoll method.
  o Make the entire evdns.h header enclosed in "extern C" as appropriate.
+ o Fix implementation of strsep on platforms that lack it
