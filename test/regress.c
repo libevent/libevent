@@ -81,6 +81,11 @@ static struct event_base *global_base;
 #define SHUT_WR 1
 #endif
 
+#ifdef WIN32
+#define write(fd,buf,len) send((fd),(buf),(len),0)
+#define read(fd,buf,len) recv((fd),(buf),(len),0)
+#endif
+
 void
 simple_read_cb(int fd, short event, void *arg)
 {
