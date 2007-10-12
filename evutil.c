@@ -77,11 +77,11 @@ evutil_socketpair(int family, int type, int protocol, int fd[2])
 		|| family != AF_UNIX
 #endif
 		) {
-		SET_SOCKET_ERROR(WSAEAFNOSUPPORT);
+		EVUTIL_SET_SOCKET_ERROR(WSAEAFNOSUPPORT);
 		return -1;
 	}
 	if (!fd) {
-		SET_SOCKET_ERROR(WSAEINVAL);
+		EVUTIL_SET_SOCKET_ERROR(WSAEINVAL);
 		return -1;
 	}
 
@@ -144,7 +144,7 @@ evutil_socketpair(int family, int type, int protocol, int fd[2])
 	if (acceptor != -1)
 		EVUTIL_CLOSESOCKET(acceptor);
 
-	SET_SOCKET_ERROR(saved_errno);
+	EVUTIL_SET_SOCKET_ERROR(saved_errno);
 	return -1;
 #endif
 }
