@@ -28,3 +28,4 @@ Changes in current version:
  o Make the entire evdns.h header enclosed in "extern C" as appropriate.
  o Fix implementation of strsep on platforms that lack it
  o Fix implementation of getaddrinfo on platforms that lack it; mainly, this will make Windows http.c work better.  Original patch by Lubomir Marinov.
+ o Fix evport implementation: port_disassociate called on unassociated events resulting in bogus errors; more efficient memory management; from Trond Norbye and Prakash Sangappa
