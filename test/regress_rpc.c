@@ -91,10 +91,20 @@ EVRPC_HEADER(NeverReply, msg, kill);
 EVRPC_GENERATE(Message, msg, kill);
 EVRPC_GENERATE(NeverReply, msg, kill);
 
+static int need_input_hook = 0;
+static int need_output_hook = 0;
+
 void
 MessageCb(EVRPC_STRUCT(Message)* rpc, void *arg)
 {
 	struct kill* kill_reply = rpc->reply;
+
+	if (need_input_hook) {
+		struct evhttp_request* req = EVRPC_REQUEST_HTTP(rpc);
+		const char *header = evhttp_find_header(
+			req->input_headers, "X-Hook");
+		assert(strcmp(header, "input") == 0);
+	}
 
 	/* we just want to fill in some non-sense */
 	EVTAG_ASSIGN(kill_reply, weapon, "dagger");
@@ -129,6 +139,9 @@ rpc_setup(struct evhttp **phttp, short *pport, struct evrpc_base **pbase)
 	*phttp = http;
 	*pport = port;
 	*pbase = base;
+
+	need_input_hook = 0;
+	need_output_hook = 0;
 }
 
 static void
@@ -330,6 +343,13 @@ GotKillCb(struct evrpc_status *status,
 	char *weapon;
 	char *action;
 
+	if (need_output_hook) {
+		struct evhttp_request *req = status->http_req;
+		const char *header = evhttp_find_header(
+			req->input_headers, "X-Hook");
+		assert(strcmp(header, "output") == 0);
+	}
+
 	if (status->error != EVRPC_STATUS_ERR_NONE)
 		goto done;
 
@@ -386,6 +406,18 @@ done:
 		event_loopexit(NULL);
 }
 
+static int
+rpc_hook_add_header(struct evhttp_request *req,
+    struct evbuffer *evbuf, void *arg)
+{
+	const char *hook_type = arg;
+	if (strcmp("input", hook_type) == 0)
+		evhttp_add_header(req->input_headers, "X-Hook", hook_type);
+	else 
+		evhttp_add_header(req->output_headers, "X-Hook", hook_type);
+	return (0);
+}
+
 static void
 rpc_basic_client(void)
 {
@@ -399,6 +431,14 @@ rpc_basic_client(void)
 	fprintf(stdout, "Testing RPC Client: ");
 
 	rpc_setup(&http, &port, &base);
+
+	need_input_hook = 1;
+	need_output_hook = 1;
+
+	assert(evrpc_add_hook(base, INPUT, rpc_hook_add_header, "input")
+	    != NULL);
+	assert(evrpc_add_hook(base, OUTPUT, rpc_hook_add_header, "output")
+	    != NULL);
 
 	pool = rpc_pool_with_connection(port);
 

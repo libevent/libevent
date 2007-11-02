@@ -99,6 +99,9 @@ struct evrpc {
 	/* the callback invoked for each received rpc */
 	void (*cb)(struct evrpc_req_generic *, void *);
 	void *cb_arg;
+
+	/* reference for further configuration */
+	struct evrpc_base *base;
 };
 
 #define EVRPC_STRUCT(rpcname) struct evrpc_req__##rpcname
@@ -140,6 +143,7 @@ EVRPC_STRUCT(rpcname) {	\
 	struct reqstruct* request; \
 	struct rplystruct* reply; \
 	struct evrpc* rpc; \
+	struct evhttp_request* http_req; \
 	void (*done)(struct evrpc_status *, \
 	    struct evrpc* rpc, void *request, void *reply);	     \
 };								     \
@@ -184,6 +188,11 @@ error:								    \
 	return (-1);						    \
 }
 
+/*
+ * Access to the underlying http object; can be used to look at headers or
+ * for getting the remote ip address
+ */
+#define EVRPC_REQUEST_HTTP(rpc_req) (rpc_req)->http_req
 
 /* 
  * EVRPC_REQUEST_DONE is used to answer a request; the reply is expected
@@ -252,6 +261,9 @@ struct evrpc_status {
 #define EVRPC_STATUS_ERR_BADPAYLOAD	2
 #define EVRPC_STATUS_ERR_UNSTARTED	3
 	int error;
+
+	/* for looking at headers or other information */
+	struct evhttp_request *http_req;
 };
 
 struct evrpc_request_wrapper {
@@ -312,6 +324,28 @@ void evrpc_pool_add_connection(struct evrpc_pool *,
  * for the connection itself.
  */
 void evrpc_pool_set_timeout(struct evrpc_pool *, int timeout_in_secs);
+
+/*
+ * Hooks for changing the input and output of RPCs; this can be used to
+ * implement compression, authentication, encryption, ...
+ *
+ * If a hook returns -1, the processing is aborted.
+ *
+ * The add functions return handles that can be used for removing hooks.
+ */
+
+enum EVRPC_HOOK_TYPE {
+	INPUT, OUTPUT
+};
+
+void *evrpc_add_hook(struct evrpc_base *base,
+    enum EVRPC_HOOK_TYPE hook_type,
+    int (*cb)(struct evhttp_request *, struct evbuffer *, void *),
+    void *cb_arg);
+
+int evrpc_remove_hook(struct evrpc_base *base,
+    enum EVRPC_HOOK_TYPE hook_type,
+    void *handle);
 
 #ifdef __cplusplus
 }

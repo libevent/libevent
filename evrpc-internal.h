@@ -33,12 +33,24 @@ struct evrpc;
 
 #define EVRPC_URI_PREFIX "/.rpc."
 
+struct evrpc_hook {
+	TAILQ_ENTRY(evrpc_hook) (next);
+
+	/* returns -1; if the rpc should be aborted, is allowed to rewrite */
+	int (*process)(struct evhttp_request *, struct evbuffer *, void *);
+	void *process_arg;
+};
+
 struct evrpc_base {
 	/* the HTTP server under which we register our RPC calls */
 	struct evhttp* http_server;
 
 	/* a list of all RPCs registered with us */
 	TAILQ_HEAD(evrpc_list, evrpc) registered_rpcs;
+	
+	/* hooks for processing outbound and inbound rpcs */
+	TAILQ_HEAD(evrpc_hook_list, evrpc_hook) input_hooks;
+	struct evrpc_hook_list output_hooks;
 };
 
 struct evrpc_req_generic;
