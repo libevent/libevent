@@ -74,6 +74,8 @@ evrpc_init(struct evhttp *http_server)
 	evtag_init();
 
 	TAILQ_INIT(&base->registered_rpcs);
+	TAILQ_INIT(&base->input_hooks);
+	TAILQ_INIT(&base->output_hooks);
 	base->http_server = http_server;
 
 	return (base);
@@ -83,12 +85,93 @@ void
 evrpc_free(struct evrpc_base *base)
 {
 	struct evrpc *rpc;
-	
+	struct evrpc_hook *hook;
+
 	while ((rpc = TAILQ_FIRST(&base->registered_rpcs)) != NULL) {
 		assert(evrpc_unregister_rpc(base, rpc->uri));
 	}
-
+	while ((hook = TAILQ_FIRST(&base->input_hooks)) != NULL) {
+		assert(evrpc_remove_hook(base, INPUT, hook));
+	}
+	while ((hook = TAILQ_FIRST(&base->output_hooks)) != NULL) {
+		assert(evrpc_remove_hook(base, OUTPUT, hook));
+	}
 	free(base);
+}
+
+void *
+evrpc_add_hook(struct evrpc_base *base,
+    enum EVRPC_HOOK_TYPE hook_type,
+    int (*cb)(struct evhttp_request *, struct evbuffer *, void *),
+    void *cb_arg)
+{
+	struct evrpc_hook_list *head = NULL;
+	struct evrpc_hook *hook = NULL;
+	switch (hook_type) {
+	case INPUT:
+		head = &base->input_hooks;
+		break;
+	case OUTPUT:
+		head = &base->output_hooks;
+		break;
+	default:
+		assert(hook_type == INPUT || hook_type == OUTPUT);
+	}
+
+	hook = calloc(1, sizeof(struct evrpc_hook));
+	assert(hook != NULL);
+	
+	hook->process = cb;
+	hook->process_arg = cb_arg;
+	TAILQ_INSERT_TAIL(head, hook, next);
+
+	return (hook);
+}
+
+/*
+ * remove the hook specified by the handle
+ */
+
+int
+evrpc_remove_hook(struct evrpc_base *base,
+    enum EVRPC_HOOK_TYPE hook_type,
+    void *handle)
+{
+	struct evrpc_hook_list *head = NULL;
+	struct evrpc_hook *hook = NULL;
+	switch (hook_type) {
+	case INPUT:
+		head = &base->input_hooks;
+		break;
+	case OUTPUT:
+		head = &base->output_hooks;
+		break;
+	default:
+		assert(hook_type == INPUT || hook_type == OUTPUT);
+	}
+
+	TAILQ_FOREACH(hook, head, next) {
+		if (hook == handle) {
+			TAILQ_REMOVE(head, hook, next);
+			free(hook);
+			return (1);
+		}
+	}
+
+	return (0);
+}
+
+static int
+evrpc_process_hooks(struct evrpc_hook_list *head,
+    struct evhttp_request *req, struct evbuffer *evbuf)
+{
+	struct evrpc_hook *hook;
+	TAILQ_FOREACH(hook, head, next) {
+		if (hook->process(req, evbuf, hook->process_arg) == -1)
+			return (-1);
+	}
+
+	return (0);
 }
 
 static void evrpc_pool_schedule(struct evrpc_pool *pool);
@@ -124,6 +207,7 @@ evrpc_register_rpc(struct evrpc_base *base, struct evrpc *rpc,
 {
 	char *constructed_uri = evrpc_construct_uri(rpc->uri);
 
+	rpc->base = base;
 	rpc->cb = cb;
 	rpc->cb_arg = cb_arg;
 
@@ -177,6 +261,15 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 	/* let's verify the outside parameters */
 	if (req->type != EVHTTP_REQ_POST ||
 	    EVBUFFER_LENGTH(req->input_buffer) <= 0)
+		goto error;
+
+	/*
+	 * we might want to allow hooks to suspend the processing,
+	 * but at the moment, we assume that they just act as simple
+	 * filters.
+	 */
+	if (evrpc_process_hooks(&rpc->base->input_hooks,
+		req, req->input_buffer) == -1)
 		goto error;
 
 	rpc_state = calloc(1, sizeof(struct evrpc_req_generic));
@@ -236,7 +329,7 @@ evrpc_request_done(struct evrpc_req_generic* rpc_state)
 {
 	struct evhttp_request *req = rpc_state->http_req;
 	struct evrpc *rpc = rpc_state->rpc;
-	struct evbuffer* data;
+	struct evbuffer* data = NULL;
 
 	if (rpc->reply_complete(rpc_state->reply) == -1) {
 		/* the reply was not completely filled in.  error out */
@@ -251,6 +344,11 @@ evrpc_request_done(struct evrpc_req_generic* rpc_state)
 	/* serialize the reply */
 	rpc->reply_marshal(data, rpc_state->reply);
 
+	/* do hook based tweaks to the request */
+	if (evrpc_process_hooks(&rpc->base->output_hooks,
+		req, data) == -1)
+		goto error;
+
 	evhttp_send_reply(req, HTTP_OK, "OK", data);
 
 	evbuffer_free(data);
@@ -260,6 +358,8 @@ evrpc_request_done(struct evrpc_req_generic* rpc_state)
 	return;
 
 error:
+	if (data != NULL)
+		evbuffer_free(data);
 	evrpc_reqstate_free(rpc_state);
 	evhttp_send_error(req, HTTP_SERVUNAVAIL, "Service Error");
 	return;
@@ -460,6 +560,8 @@ evrpc_reply_done(struct evhttp_request *req, void *arg)
 	event_del(&ctx->ev_timeout);
 
 	memset(&status, 0, sizeof(status));
+	status.http_req = req;
+
 	/* we need to get the reply now */
 	if (req != NULL) {
 		res = ctx->reply_unmarshal(ctx->reply, req->input_buffer);
