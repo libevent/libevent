@@ -31,3 +31,4 @@ Changes in current version:
  o Fix evport implementation: port_disassociate called on unassociated events resulting in bogus errors; more efficient memory management; from Trond Norbye and Prakash Sangappa
  o support for hooks on rpc input and output; can be used to implement rpc independent processing such as compression or authentication.
  o use a min heap instead of a red-black tree for timeouts; as a result finding the min is a O(1) operation now; from Maxim Yegorushkin
+ o associate an event base with an rpc pool

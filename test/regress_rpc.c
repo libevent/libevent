@@ -325,7 +325,7 @@ rpc_pool_with_connection(short port)
 	struct evhttp_connection *evcon;
 	struct evrpc_pool *pool;
 
-	pool = evrpc_pool_new();
+	pool = evrpc_pool_new(NULL);
 	assert(pool != NULL);
 
 	evcon = evhttp_connection_new("127.0.0.1", port);
@@ -346,8 +346,8 @@ GotKillCb(struct evrpc_status *status,
 	if (need_output_hook) {
 		struct evhttp_request *req = status->http_req;
 		const char *header = evhttp_find_header(
-			req->input_headers, "X-Hook");
-		assert(strcmp(header, "output") == 0);
+			req->input_headers, "X-Pool-Hook");
+		assert(strcmp(header, "ran") == 0);
 	}
 
 	if (status->error != EVRPC_STATUS_ERR_NONE)
@@ -418,6 +418,19 @@ rpc_hook_add_header(struct evhttp_request *req,
 	return (0);
 }
 
+static int
+rpc_hook_remove_header(struct evhttp_request *req,
+    struct evbuffer *evbuf, void *arg)
+{
+	const char *header = evhttp_find_header(req->input_headers, "X-Hook");
+	assert(header != NULL);
+	assert(strcmp(header, arg) == 0);
+	evhttp_remove_header(req->input_headers, "X-Hook");
+	evhttp_add_header(req->input_headers, "X-Pool-Hook", "ran");
+
+	return (0);
+}
+
 static void
 rpc_basic_client(void)
 {
@@ -441,6 +454,8 @@ rpc_basic_client(void)
 	    != NULL);
 
 	pool = rpc_pool_with_connection(port);
+
+	assert(evrpc_add_hook(pool, INPUT, rpc_hook_remove_header, "output"));
 
 	/* set up the basic message */
 	msg = msg_new();
