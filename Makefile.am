@@ -1,6 +1,5 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
-
 bin_SCRIPTS = event_rpcgen.py
 
 EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h evdns.3 \
@@ -21,7 +20,7 @@ EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h evdns.3 \
 	WIN32-Prj/libevent.dsw WIN32-Prj/signal_test/signal_test.dsp \
 	WIN32-Prj/time_test/time_test.dsp
 
-lib_LTLIBRARIES = libevent.la
+lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 
 if BUILD_WIN32
 
@@ -39,13 +38,22 @@ SYS_INCLUDES =
 
 endif
 
-libevent_la_SOURCES = event.c buffer.c evbuffer.c log.c event_tagging.c \
-	http.c evhttp.h http-internal.h evdns.c evdns.h evrpc.c evutil.c \
-	strlcpy.c \
-	strlcpy-internal.h evrpc.h evrpc-internal.h strlcpy-internal.h \
-	$(SYS_SRC)
+CORE_SRC = event.c buffer.c evbuffer.c log.c evutil.c $(SYS_SRC)
+EXTRA_SRC = event_tagging.c http.c evhttp.h http-internal.h evdns.c \
+	evdns.h evrpc.c evrpc.h evrpc-internal.h \
+	strlcpy.c strlcpy-internal.h strlcpy-internal.h
+
+libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
+
+libevent_core_la_SOURCES = $(CORE_SRC)
+libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
+libevent_core_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
+
+libevent_extra_la_SOURCES = $(EXTRA_SRC)
+libevent_extra_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
+libevent_extra_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
 
 include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h
 
