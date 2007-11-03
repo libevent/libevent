@@ -237,10 +237,6 @@ struct evkeyvalq;
 TAILQ_HEAD (event_list, event);
 TAILQ_HEAD (evkeyvalq, evkeyval);
 #endif /* _EVENT_DEFINED_TQENTRY */
-#ifdef _EVENT_DEFINED_RBENTRY
-#undef RB_ENTRY
-#undef _EVENT_DEFINED_RBENTRY
-#endif /* _EVENT_DEFINED_RBENTRY */
 
 struct eventop {
 	char *name;

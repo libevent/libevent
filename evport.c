@@ -58,7 +58,6 @@
 #include <sys/time.h>
 #include <assert.h>
 #include <sys/queue.h>
-#include <sys/tree.h>
 #include <errno.h>
 #include <poll.h>
 #include <port.h>

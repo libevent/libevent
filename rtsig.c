@@ -169,7 +169,6 @@
 #include <string.h>
 #include <sys/poll.h>
 #include <sys/queue.h>
-#include <sys/tree.h>
 #include <unistd.h>
 #include <sys/socket.h>
 
