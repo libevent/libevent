@@ -131,20 +131,6 @@ static int	timeout_next(struct event_base *, struct timeval **);
 static void	timeout_process(struct event_base *);
 static void	timeout_correct(struct event_base *, struct timeval *);
 
-static int
-compare(struct event *a, struct event *b)
-{
-	if (timercmp(&a->ev_timeout, &b->ev_timeout, <))
-		return (-1);
-	else if (timercmp(&a->ev_timeout, &b->ev_timeout, >))
-		return (1);
-	if (a < b)
-		return (-1);
-	else if (a > b)
-		return (1);
-	return (0);
-}
-
 static void
 detect_monotonic(void)
 {
@@ -175,11 +161,6 @@ gettime(struct timeval *tp)
 	return (gettimeofday(tp, NULL));
 }
 
-RB_PROTOTYPE(event_tree, event, ev_timeout_node, compare);
-
-RB_GENERATE(event_tree, event, ev_timeout_node, compare);
-
-
 void *
 event_init(void)
 {
@@ -195,7 +176,7 @@ event_init(void)
 	detect_monotonic();
 	gettime(&base->event_tv);
 	
-	RB_INIT(&base->timetree);
+	min_heap_ctor(&base->timeheap);
 	TAILQ_INIT(&base->eventqueue);
 	TAILQ_INIT(&base->sig.signalqueue);
 	base->sig.ev_signal_pair[0] = -1;
@@ -232,13 +213,13 @@ event_base_free(struct event_base *base)
         if (base == current_base)
 		current_base = NULL;
 
+	/* XXX(niels) - check for internal events first */
 	assert(base);
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base, base->evbase);
 	for (i=0; i < base->nactivequeues; ++i)
 		assert(TAILQ_EMPTY(base->activequeues[i]));
-
-	assert(RB_EMPTY(&base->timetree));
+	assert(min_heap_empty(&base->timeheap));
 
 	for (i = 0; i < base->nactivequeues; ++i)
 		free(base->activequeues[i]);
@@ -546,6 +527,8 @@ event_set(struct event *ev, int fd, short events,
 	ev->ev_ncalls = 0;
 	ev->ev_pncalls = NULL;
 
+	min_heap_elem_init(ev);
+
 	/* by default, we put new events into the middle priority */
 	if(current_base)
 		ev->ev_pri = current_base->nactivequeues/2;
@@ -637,6 +620,9 @@ event_add(struct event *ev, struct timeval *tv)
 
 		if (ev->ev_flags & EVLIST_TIMEOUT)
 			event_queue_remove(base, ev, EVLIST_TIMEOUT);
+		else if (min_heap_reserve(&base->timeheap,
+			1 + min_heap_size(&base->timeheap)) == -1)
+		    return (-1);  /* ENOMEM == errno */
 
 		/* Check if it is active due to a timeout.  Rescheduling
 		 * this timeout before the callback can be executed
@@ -744,7 +730,7 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 	struct event *ev;
 	struct timeval *tv = *tv_p;
 
-	if ((ev = RB_MIN(event_tree, &base->timetree)) == NULL) {
+	if ((ev = min_heap_top(&base->timeheap)) == NULL) {
 		/* if no time-based events are active wait for I/O */
 		*tv_p = NULL;
 		return (0);
@@ -776,7 +762,8 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 static void
 timeout_correct(struct event_base *base, struct timeval *tv)
 {
-	struct event *ev;
+	struct event **pev;
+	unsigned int size;
 	struct timeval off;
 
 	if (use_monotonic)
@@ -797,26 +784,28 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	 * We can modify the key element of the node without destroying
 	 * the key, beause we apply it to all in the right order.
 	 */
-	RB_FOREACH(ev, event_tree, &base->timetree)
-		timersub(&ev->ev_timeout, &off, &ev->ev_timeout);
+	pev = base->timeheap.p;
+	size = base->timeheap.n;
+	for (; size-- > 0; ++pev) {
+		struct timeval *tv = &(**pev).ev_timeout;
+		timersub(tv, &off, tv);
+	}
 }
 
 void
 timeout_process(struct event_base *base)
 {
 	struct timeval now;
-	struct event *ev, *next;
+	struct event *ev;
 
-	if (RB_EMPTY(&base->timetree))
+	if (min_heap_empty(&base->timeheap))
 		return;
 
 	gettime(&now);
 
-	for (ev = RB_MIN(event_tree, &base->timetree); ev; ev = next) {
+	while ((ev = min_heap_top(&base->timeheap))) {
 		if (timercmp(&ev->ev_timeout, &now, >))
 			break;
-		next = RB_NEXT(event_tree, &base->timetree, ev);
-
 		event_queue_remove(base, ev, EVLIST_TIMEOUT);
 
 		/* delete this event from the I/O queues */
@@ -855,7 +844,7 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 		TAILQ_REMOVE(&base->sig.signalqueue, ev, ev_signal_next);
 		break;
 	case EVLIST_TIMEOUT:
-		RB_REMOVE(event_tree, &base->timetree, ev);
+		min_heap_erase(&base->timeheap, ev);
 		break;
 	case EVLIST_INSERTED:
 		TAILQ_REMOVE(&base->eventqueue, ev, ev_next);
@@ -897,8 +886,7 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		TAILQ_INSERT_TAIL(&base->sig.signalqueue, ev, ev_signal_next);
 		break;
 	case EVLIST_TIMEOUT: {
-		struct event *tmp = RB_INSERT(event_tree, &base->timetree, ev);
-		assert(tmp == NULL);
+		min_heap_push(&base->timeheap, ev);
 		break;
 	}
 	case EVLIST_INSERTED:
