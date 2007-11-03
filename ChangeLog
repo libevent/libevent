@@ -32,3 +32,4 @@ Changes in current version:
  o support for hooks on rpc input and output; can be used to implement rpc independent processing such as compression or authentication.
  o use a min heap instead of a red-black tree for timeouts; as a result finding the min is a O(1) operation now; from Maxim Yegorushkin
  o associate an event base with an rpc pool
+ o added two additional libraries: libevent_core and libevent_extra in addition to the regular libevent.  libevent_core contains only the event core whereas libevent_extra contains dns, http and rpc support

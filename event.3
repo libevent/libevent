@@ -182,7 +182,7 @@
 .Ft "char *"
 .Fn "evbuffer_readline" "struct evbuffer *buf"
 .Ft "struct evhttp *"
-.Fn "evhttp_new"
+.Fn "evhttp_new" "struct event_base *base"
 .Ft int
 .Fn "evhttp_bind_socket" "struct evhttp *http" "const char *address" "u_short port"
 .Ft "void"
