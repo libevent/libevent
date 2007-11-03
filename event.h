@@ -188,25 +188,16 @@ struct {								\
 	struct type **tqe_prev;	/* address of previous next element */	\
 }
 #endif /* !TAILQ_ENTRY */
-#ifndef RB_ENTRY
-#define _EVENT_DEFINED_RBENTRY
-#define RB_ENTRY(type)							\
-struct {								\
-	struct type *rbe_left;		/* left element */		\
-	struct type *rbe_right;		/* right element */		\
-	struct type *rbe_parent;	/* parent element */		\
-	int rbe_color;			/* node color */		\
-}
-#endif /* !RB_ENTRY */
 
 struct event_base;
 struct event {
 	TAILQ_ENTRY (event) ev_next;
 	TAILQ_ENTRY (event) ev_active_next;
 	TAILQ_ENTRY (event) ev_signal_next;
-	RB_ENTRY (event) ev_timeout_node;
+	unsigned int min_heap_idx;	/* for managing timeouts */
 
 	struct event_base *ev_base;
+
 	int ev_fd;
 	short ev_events;
 	short ev_ncalls;

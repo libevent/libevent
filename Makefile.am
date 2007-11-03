@@ -4,7 +4,7 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 bin_SCRIPTS = event_rpcgen.py
 
 EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h evdns.3 \
-	evrpc.h evrpc-internal.h \
+	evrpc.h evrpc-internal.h min_heap.h \
 	event.3 \
 	kqueue.c epoll_sub.c epoll.c select.c rtsig.c poll.c signal.c \
 	evport.c devpoll.c event_rpcgen.py \

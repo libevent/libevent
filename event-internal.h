@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+#include "min_heap.h"
 #include "evsignal.h"
 
 struct event_base {
@@ -51,7 +52,7 @@ struct event_base {
 	struct event_list eventqueue;
 	struct timeval event_tv;
 
-	RB_HEAD(event_tree, event) timetree;
+	struct min_heap timeheap;
 };
 
 #ifdef __cplusplus
