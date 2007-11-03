@@ -37,7 +37,6 @@
 #endif
 
 #include <sys/types.h>
-#include <sys/tree.h>
 #ifndef WIN32
 #include <sys/socket.h>
 #endif

@@ -46,7 +46,6 @@
 #include <sys/wait.h>
 #endif
 
-#include <sys/tree.h>
 #include <sys/queue.h>
 
 #ifndef WIN32

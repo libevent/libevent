@@ -40,7 +40,6 @@
 #include <sys/select.h>
 #endif
 #include <sys/queue.h>
-#include <sys/tree.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
