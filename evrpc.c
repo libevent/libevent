@@ -100,19 +100,20 @@ evrpc_free(struct evrpc_base *base)
 }
 
 void *
-evrpc_add_hook(struct evrpc_base *base,
+evrpc_add_hook(void *vbase,
     enum EVRPC_HOOK_TYPE hook_type,
     int (*cb)(struct evhttp_request *, struct evbuffer *, void *),
     void *cb_arg)
 {
+	struct _evrpc_hooks *base = vbase;
 	struct evrpc_hook_list *head = NULL;
 	struct evrpc_hook *hook = NULL;
 	switch (hook_type) {
 	case INPUT:
-		head = &base->input_hooks;
+		head = &base->in_hooks;
 		break;
 	case OUTPUT:
-		head = &base->output_hooks;
+		head = &base->out_hooks;
 		break;
 	default:
 		assert(hook_type == INPUT || hook_type == OUTPUT);
@@ -128,28 +129,10 @@ evrpc_add_hook(struct evrpc_base *base,
 	return (hook);
 }
 
-/*
- * remove the hook specified by the handle
- */
-
-int
-evrpc_remove_hook(struct evrpc_base *base,
-    enum EVRPC_HOOK_TYPE hook_type,
-    void *handle)
+static int
+evrpc_remove_hook_internal(struct evrpc_hook_list *head, void *handle)
 {
-	struct evrpc_hook_list *head = NULL;
 	struct evrpc_hook *hook = NULL;
-	switch (hook_type) {
-	case INPUT:
-		head = &base->input_hooks;
-		break;
-	case OUTPUT:
-		head = &base->output_hooks;
-		break;
-	default:
-		assert(hook_type == INPUT || hook_type == OUTPUT);
-	}
-
 	TAILQ_FOREACH(hook, head, next) {
 		if (hook == handle) {
 			TAILQ_REMOVE(head, hook, next);
@@ -159,6 +142,29 @@ evrpc_remove_hook(struct evrpc_base *base,
 	}
 
 	return (0);
+}
+
+/*
+ * remove the hook specified by the handle
+ */
+
+int
+evrpc_remove_hook(void *vbase, enum EVRPC_HOOK_TYPE hook_type, void *handle)
+{
+	struct _evrpc_hooks *base = vbase;
+	struct evrpc_hook_list *head = NULL;
+	switch (hook_type) {
+	case INPUT:
+		head = &base->in_hooks;
+		break;
+	case OUTPUT:
+		head = &base->out_hooks;
+		break;
+	default:
+		assert(hook_type == INPUT || hook_type == OUTPUT);
+	}
+
+	return (evrpc_remove_hook_internal(head, handle));
 }
 
 static int
@@ -371,7 +377,7 @@ static int evrpc_schedule_request(struct evhttp_connection *connection,
     struct evrpc_request_wrapper *ctx);
 
 struct evrpc_pool *
-evrpc_pool_new(void)
+evrpc_pool_new(struct event_base *base)
 {
 	struct evrpc_pool *pool = calloc(1, sizeof(struct evrpc_pool));
 	if (pool == NULL)
@@ -380,6 +386,10 @@ evrpc_pool_new(void)
 	TAILQ_INIT(&pool->connections);
 	TAILQ_INIT(&pool->requests);
 
+	TAILQ_INIT(&pool->input_hooks);
+	TAILQ_INIT(&pool->output_hooks);
+
+	pool->base = base;
 	pool->timeout = -1;
 
 	return (pool);
@@ -397,6 +407,7 @@ evrpc_pool_free(struct evrpc_pool *pool)
 {
 	struct evhttp_connection *connection;
 	struct evrpc_request_wrapper *request;
+	struct evrpc_hook *hook;
 
 	while ((request = TAILQ_FIRST(&pool->requests)) != NULL) {
 		TAILQ_REMOVE(&pool->requests, request, next);
@@ -407,6 +418,14 @@ evrpc_pool_free(struct evrpc_pool *pool)
 	while ((connection = TAILQ_FIRST(&pool->connections)) != NULL) {
 		TAILQ_REMOVE(&pool->connections, connection, next);
 		evhttp_connection_free(connection);
+	}
+
+	while ((hook = TAILQ_FIRST(&pool->input_hooks)) != NULL) {
+		assert(evrpc_remove_hook(pool, INPUT, hook));
+	}
+
+	while ((hook = TAILQ_FIRST(&pool->output_hooks)) != NULL) {
+		assert(evrpc_remove_hook(pool, OUTPUT, hook));
 	}
 
 	free(pool);
@@ -422,6 +441,12 @@ evrpc_pool_add_connection(struct evrpc_pool *pool,
     struct evhttp_connection *connection) {
 	assert(connection->http_server == NULL);
 	TAILQ_INSERT_TAIL(&pool->connections, connection, next);
+
+	/*
+	 * associate an event base with this connection
+	 */
+	if (pool->base != NULL)
+		evhttp_connection_set_base(connection, pool->base);
 
 	/* 
 	 * unless a timeout was specifically set for a connection,
@@ -499,6 +524,11 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 	/* we need to know the connection that we might have to abort */
 	ctx->evcon = connection;
 
+	/* apply hooks to the outgoing request */
+	if (evrpc_process_hooks(&pool->output_hooks,
+		req, req->output_buffer) == -1)
+		goto error;
+
 	if (pool->timeout > 0) {
 		/* 
 		 * a timeout after which the whole rpc is going to be aborted.
@@ -533,6 +563,8 @@ evrpc_make_request(struct evrpc_request_wrapper *ctx)
 
 	/* initialize the event structure for this rpc */
 	evtimer_set(&ctx->ev_timeout, evrpc_request_timeout, ctx);
+	if (pool->base != NULL)
+		event_base_set(pool->base, &ctx->ev_timeout);
 
 	/* we better have some available connections on the pool */
 	assert(TAILQ_FIRST(&pool->connections) != NULL);
@@ -564,13 +596,22 @@ evrpc_reply_done(struct evhttp_request *req, void *arg)
 
 	/* we need to get the reply now */
 	if (req != NULL) {
-		res = ctx->reply_unmarshal(ctx->reply, req->input_buffer);
-		if (res == -1) {
-			status.error = EVRPC_STATUS_ERR_BADPAYLOAD;
+		/* apply hooks to the incoming request */
+		if (evrpc_process_hooks(&pool->input_hooks,
+			req, req->input_buffer) == -1) {
+			status.error = EVRPC_STATUS_ERR_HOOKABORTED;
+			res = -1;
+		} else {
+			res = ctx->reply_unmarshal(ctx->reply,
+			    req->input_buffer);
+			if (res == -1) {
+				status.error = EVRPC_STATUS_ERR_BADPAYLOAD;
+			}
 		}
 	} else {
 		status.error = EVRPC_STATUS_ERR_TIMEOUT;
 	}
+
 	if (res == -1) {
 		/* clear everything that we might have written previously */
 		ctx->reply_clear(ctx->reply);

@@ -66,6 +66,7 @@ extern "C" {
  */
 
 struct evbuffer;
+struct event_base;
 struct evrpc_req_generic;
 
 /* Encapsulates a request */
@@ -260,6 +261,7 @@ struct evrpc_status {
 #define EVRPC_STATUS_ERR_TIMEOUT	1
 #define EVRPC_STATUS_ERR_BADPAYLOAD	2
 #define EVRPC_STATUS_ERR_UNSTARTED	3
+#define EVRPC_STATUS_ERR_HOOKABORTED	4
 	int error;
 
 	/* for looking at headers or other information */
@@ -307,8 +309,12 @@ int evrpc_make_request(struct evrpc_request_wrapper *);
  * a pool has a number of connections associated with it.
  * rpc requests are always made via a pool.
  */
-struct evrpc_pool *evrpc_pool_new(void);
+struct evrpc_pool *evrpc_pool_new(struct event_base *);
 void evrpc_pool_free(struct evrpc_pool *);
+/*
+ * adds a connection over which rpc can be dispatched.  the connection
+ * object must have been newly created.
+ */
 void evrpc_pool_add_connection(struct evrpc_pool *, 
     struct evhttp_connection *);
 
@@ -329,6 +335,8 @@ void evrpc_pool_set_timeout(struct evrpc_pool *, int timeout_in_secs);
  * Hooks for changing the input and output of RPCs; this can be used to
  * implement compression, authentication, encryption, ...
  *
+ * vbase may either be a pointer to struct evrpc_base or to struct evrpc_pool
+ * 
  * If a hook returns -1, the processing is aborted.
  *
  * The add functions return handles that can be used for removing hooks.
@@ -338,12 +346,12 @@ enum EVRPC_HOOK_TYPE {
 	INPUT, OUTPUT
 };
 
-void *evrpc_add_hook(struct evrpc_base *base,
+void *evrpc_add_hook(void *vbase,
     enum EVRPC_HOOK_TYPE hook_type,
     int (*cb)(struct evhttp_request *, struct evbuffer *, void *),
     void *cb_arg);
 
-int evrpc_remove_hook(struct evrpc_base *base,
+int evrpc_remove_hook(void *vbase,
     enum EVRPC_HOOK_TYPE hook_type,
     void *handle);
 
