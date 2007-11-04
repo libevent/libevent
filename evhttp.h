@@ -124,7 +124,8 @@ void evhttp_set_timeout(struct evhttp *, int timeout_in_secs);
  * @param error the HTTP error code
  * @param reason a brief explanation of the error
  */
-void evhttp_send_error(struct evhttp_request *, int, const char *);
+void evhttp_send_error(struct evhttp_request *req, int error,
+    const char *reason);
 
 /**
  * Send an HTML reply to the client.
@@ -134,17 +135,21 @@ void evhttp_send_error(struct evhttp_request *, int, const char *);
  * @param reason a brief message to send with the response code
  * @param databuf the body of the response
  */
-void evhttp_send_reply(struct evhttp_request *, int, const char *,
-    struct evbuffer *);
+void evhttp_send_reply(struct evhttp_request *req, int code,
+    const char *reason, struct evbuffer *databuf);
 
 /* Low-level response interface, for streaming/chunked replies */
 void evhttp_send_reply_start(struct evhttp_request *, int, const char *);
 void evhttp_send_reply_chunk(struct evhttp_request *, struct evbuffer *);
 void evhttp_send_reply_end(struct evhttp_request *);
 
-/*
+/**
  * Start an HTTP server on the specified address and port
  * DEPRECATED: it does not allow an event base to be specified
+ *
+ * @param address the address to which the HTTP server should be bound
+ * @param port the port number on which the HTTP server should listen
+ * @return an struct evhttp object
  */
 struct evhttp *evhttp_start(const char *address, u_short port);
 
