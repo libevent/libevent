@@ -118,12 +118,17 @@
   embedded in your program and used to service HTTP requests.
 
   To use this capability, you need to include the <evhttp.h> header in your
-  program.  You create the server by calling evhttp_start() and providing the
-  address and port to listen on. You then register one or more callbacks to
-  handle incoming requests.  Each URI can be assigned a callback via the
-  evhttp_set_cb() function.  A generic callback function can also be
+  program.  You create the server by calling evhttp_new(). Add addresses and
+  ports to listen on with evhttp_bind_socket(). You then register one or more
+  callbacks to handle incoming requests.  Each URI can be assigned a callback
+  via the evhttp_set_cb() function.  A generic callback function can also be
   registered via evhttp_set_gencb(); this callback will be invoked if no other
   callbacks have been registered for a given URI.
+
+  @section evrpc A framework for RPC servers and clients
+ 
+  libevents provides a framework for creating RPC servers and clients.  It
+  takes care of marshaling and unmarshaling all data structures.
 
   @section api API Reference
 
@@ -138,6 +143,9 @@
 
   evhttp.h
   An embedded libevent-based HTTP server
+
+  evrpc.h
+  A framework for creating RPC servers and clients
 
  */
 
