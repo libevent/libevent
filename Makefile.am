@@ -1,5 +1,31 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
+# This is the point release for libevent.  It shouldn't include any
+# a/b/c/d/e notations.
+RELEASE = 1.4
+
+# This is the version info for the libevent binary API.  It has three
+# numbers:
+#   Current  -- the number of the binary API that we're implementing
+#   Revision -- which iteration of the implementation of the binary
+#               API are we supplying?
+#   Age      -- How many previous binary API versions do we also
+#               support?
+#
+# If we release a new version that does not change the binary API,
+# increment Revision.
+#
+# If we release a new version that changes the binary API, but does
+# not break programs compiled against the old binary API, increment
+# Current and Age.  Set Revision to 0, since this is the first
+# implementation of the new API.
+#
+# Otherwise, we're changing the binary API and breaking bakward
+# compatibility with old binaries.  Increment Current.  Set Age to 0,
+# since we're backward compatible with no previous APIs.  Set Revision
+# to 0 too.
+VERSION_INFO = 2:0:0
+
 bin_SCRIPTS = event_rpcgen.py
 
 EXTRA_DIST = acconfig.h event.h event-internal.h log.h evsignal.h evdns.3 \
@@ -45,15 +71,15 @@ EXTRA_SRC = event_tagging.c http.c evhttp.h http-internal.h evdns.c \
 
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
-libevent_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
+libevent_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
 
 libevent_core_la_SOURCES = $(CORE_SRC)
 libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
-libevent_core_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
+libevent_core_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
 
 libevent_extra_la_SOURCES = $(EXTRA_SRC)
 libevent_extra_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
-libevent_extra_la_LDFLAGS = -release @VERSION@ -version-info 1:3:0
+libevent_extra_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
 
 include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h
 
