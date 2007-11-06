@@ -166,7 +166,14 @@ enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
  * reasonable accessors.
  */
 struct evhttp_request {
+#if defined(TAILQ_ENTRY)
 	TAILQ_ENTRY(evhttp_request) next;
+#else
+struct {
+	struct evhttp_request *tqe_next;
+	struct evhttp_request **tqe_prev;
+}       next;
+#endif
 
 	/* the connection object that this request belongs to */
 	struct evhttp_connection *evcon;
