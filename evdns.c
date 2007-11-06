@@ -136,7 +136,7 @@ typedef unsigned int uint;
 #define u16 uint16_t
 #define u8  uint8_t
 
-#define MAX_ADDRS 4  /* maximum number of addresses from a single packet */
+#define MAX_ADDRS 32  /* maximum number of addresses from a single packet */
 /* which we bother recording */
 
 #define TYPE_A         EVDNS_TYPE_A
