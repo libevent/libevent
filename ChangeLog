@@ -35,3 +35,4 @@ Changes in current version:
  o added two additional libraries: libevent_core and libevent_extra in addition to the regular libevent.  libevent_core contains only the event core whereas libevent_extra contains dns, http and rpc support
  o Begin using libtool's library versioning support correctly.  If we don't mess up, this will more or less guarantee binaries linked against old versions of libevent continue working when we make changes to libevent that do not break backward compatibility.
  o Fix evhttp.h compilation when TAILQ_ENTRY is not defined.
+ o Small code cleanups in epoll_dispatch().
