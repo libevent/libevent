@@ -1,18 +1,3 @@
-/* Define if kqueue works correctly with pipes */
-#undef HAVE_WORKING_KQUEUE
-
-/* Define to `unsigned long long' if <sys/types.h> doesn't define.  */
-#undef u_int64_t
-
-/* Define to `unsigned int' if <sys/types.h> doesn't define.  */
-#undef u_int32_t
-
-/* Define to `unsigned short' if <sys/types.h> doesn't define.  */
-#undef u_int16_t
-
-/* Define to `unsigned char' if <sys/types.h> doesn't define.  */
-#undef u_int8_t
-
 /* Define if timeradd is defined in <sys/time.h> */
 #undef HAVE_TIMERADD
 #ifndef HAVE_TIMERADD
@@ -75,5 +60,3 @@
 } while (0)
 #endif /* TAILQ_FOREACH */
 
-/* Define to __FUNCTION__ or __file__ if your compiler doesn't have __func__ */
-#undef __func__
