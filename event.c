@@ -54,6 +54,7 @@
 
 #include "event.h"
 #include "event-internal.h"
+#include "evutil.h"
 #include "log.h"
 
 #ifdef HAVE_EVENT_PORTS
@@ -415,7 +416,7 @@ event_base_loop(struct event_base *base, int flags)
 			 * if we have active events, we just poll new events
 			 * without waiting.
 			 */
-			timerclear(&tv);
+			evutil_timerclear(&tv);
 		}
 		
 		/* If we have no events, we just exit */
@@ -493,7 +494,7 @@ event_base_once(struct event_base *base, int fd, short events,
 
 	if (events == EV_TIMEOUT) {
 		if (tv == NULL) {
-			timerclear(&etv);
+			evutil_timerclear(&etv);
 			tv = &etv;
 		}
 
@@ -597,10 +598,10 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 	/* See if there is a timeout that we should report */
 	if (tv != NULL && (flags & event & EV_TIMEOUT)) {
 		gettime(&now);
-		timersub(&ev->ev_timeout, &now, &res);
+		evutil_timersub(&ev->ev_timeout, &now, &res);
 		/* correctly remap to real time */
 		gettimeofday(&now, NULL);
-		timeradd(&now, &res, tv);
+		evutil_timeradd(&now, &res, tv);
 	}
 
 	return (flags & event);
@@ -649,7 +650,7 @@ event_add(struct event *ev, struct timeval *tv)
 		}
 
 		gettime(&now);
-		timeradd(&now, tv, &ev->ev_timeout);
+		evutil_timeradd(&now, tv, &ev->ev_timeout);
 
 		event_debug((
 			 "event_add: timeout in %d seconds, call %p",
@@ -747,12 +748,12 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 	if (gettime(&now) == -1)
 		return (-1);
 
-	if (timercmp(&ev->ev_timeout, &now, <=)) {
-		timerclear(tv);
+	if (evutil_timercmp(&ev->ev_timeout, &now, <=)) {
+		evutil_timerclear(tv);
 		return (0);
 	}
 
-	timersub(&ev->ev_timeout, &now, tv);
+	evutil_timersub(&ev->ev_timeout, &now, tv);
 
 	assert(tv->tv_sec >= 0);
 	assert(tv->tv_usec >= 0);
@@ -779,14 +780,14 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 
 	/* Check if time is running backwards */
 	gettime(tv);
-	if (timercmp(tv, &base->event_tv, >=)) {
+	if (evutil_timercmp(tv, &base->event_tv, >=)) {
 		base->event_tv = *tv;
 		return;
 	}
 
 	event_debug(("%s: time is running backwards, corrected",
 		    __func__));
-	timersub(&base->event_tv, tv, &off);
+	evutil_timersub(&base->event_tv, tv, &off);
 
 	/*
 	 * We can modify the key element of the node without destroying
@@ -796,7 +797,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	size = base->timeheap.n;
 	for (; size-- > 0; ++pev) {
 		struct timeval *tv = &(**pev).ev_timeout;
-		timersub(tv, &off, tv);
+		evutil_timersub(tv, &off, tv);
 	}
 }
 
@@ -812,7 +813,7 @@ timeout_process(struct event_base *base)
 	gettime(&now);
 
 	while ((ev = min_heap_top(&base->timeheap))) {
-		if (timercmp(&ev->ev_timeout, &now, >))
+		if (evutil_timercmp(&ev->ev_timeout, &now, >))
 			break;
 		event_queue_remove(base, ev, EVLIST_TIMEOUT);
 

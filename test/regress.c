@@ -178,10 +178,10 @@ timeout_cb(int fd, short event, void *arg)
 	int diff;
 
 	gettimeofday(&tcalled, NULL);
-	if (timercmp(&tcalled, &tset, >))
-		timersub(&tcalled, &tset, &tv);
+	if (evutil_timercmp(&tcalled, &tset, >))
+		evutil_timersub(&tcalled, &tset, &tv);
 	else
-		timersub(&tset, &tcalled, &tv);
+		evutil_timersub(&tset, &tcalled, &tv);
 
 	diff = tv.tv_sec*1000 + tv.tv_usec/1000 - SECONDS * 1000;
 	if (diff < 0)
@@ -593,7 +593,7 @@ test_loopexit(void)
 	gettimeofday(&tv_start, NULL);
 	event_dispatch();
 	gettimeofday(&tv_end, NULL);
-	timersub(&tv_end, &tv_start, &tv_end);
+	evutil_timersub(&tv_end, &tv_start, &tv_end);
 
 	evtimer_del(&ev);
 
@@ -746,7 +746,7 @@ test_priorities_cb(int fd, short what, void *arg)
 
 	pri->count++;
 
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	event_add(&pri->ev, &tv);
 }
 
@@ -777,7 +777,7 @@ test_priorities(int npriorities)
 		exit(1);
 	}
 
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 
 	if (event_add(&one.ev, &tv) == -1)
 		exit(1);
@@ -869,7 +869,7 @@ test_want_only_once(void)
 	write(pair[0], TEST1, strlen(TEST1)+1);
 
 	/* Setup the loop termination */
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 1;
 	event_loopexit(&tv);
 	
@@ -950,7 +950,7 @@ evtag_fuzz(void)
 
 	/* Now insert some corruption into the tag length field */
 	evbuffer_drain(tmp, -1);
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 1;
 	evtag_marshal_timeval(tmp, 0, &tv);
 	evbuffer_add(tmp, buffer, sizeof(buffer));
@@ -1026,7 +1026,7 @@ rpc_test(void)
 	}
 
 	gettimeofday(&tv_end, NULL);
-	timersub(&tv_end, &tv_start, &tv_end);
+	evutil_timersub(&tv_end, &tv_start, &tv_end);
 	fprintf(stderr, "(%.1f us/add) ",
 	    (float)tv_end.tv_sec/(float)i * 1000000.0 +
 	    tv_end.tv_usec / (float)i);

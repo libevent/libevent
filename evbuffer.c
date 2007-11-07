@@ -43,6 +43,7 @@
 #include <stdarg.h>
 #endif
 
+#include "evutil.h"
 #include "event.h"
 
 /* prototypes */
@@ -56,7 +57,7 @@ bufferevent_add(struct event *ev, int timeout)
 	struct timeval tv, *ptv = NULL;
 
 	if (timeout) {
-		timerclear(&tv);
+		evutil_timerclear(&tv);
 		tv.tv_sec = timeout;
 		ptv = &tv;
 	}
