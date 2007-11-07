@@ -2,6 +2,10 @@ To build libevent, type
 
 $ ./configure && make
 
+     (If you got libevent from the subversion repository, you will
+      first need to run the included "autogen.sh" script in order to
+      generate the configure script.)
+
 Install as root via
 
 # make install
@@ -15,7 +19,7 @@ Before, reporting any problems, please run the regression tests.
 To enable the low-level tracing build the library as:
 
 CFLAGS=-DUSE_DEBUG ./configure [...]
- 
+
 Acknowledgements:
 -----------------
 
