@@ -392,7 +392,6 @@ evbuffer_read(struct evbuffer *buf, int fd, int howmuch)
 #ifndef WIN32
 	n = read(fd, p, howmuch);
 #else
-	//n = ReadFile((HANDLE)fd, p, howmuch, &dwBytesRead, NULL);
 	n = recv(fd, p, howmuch, 0);
 #endif
 	if (n == -1)
