@@ -42,8 +42,6 @@
 #endif
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else
-#include <sys/_time.h>
 #endif
 #include <sys/queue.h>
 #include <stdio.h>

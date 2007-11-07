@@ -25,11 +25,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/param.h>
-#include <sys/types.h>
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
+#endif
+
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
 #endif
 
 #ifdef HAVE_SYS_TIME_H
@@ -53,6 +57,10 @@
 #include <netdb.h>
 #endif
 
+#ifdef WIN32
+#include <winsock2.h>
+#endif
+
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -64,8 +72,12 @@
 #endif
 #include <signal.h>
 #include <time.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
 
 #undef timeout_pending
 #undef timeout_initialized
@@ -76,6 +88,13 @@
 #include "evutil.h"
 #include "log.h"
 #include "http-internal.h"
+
+#ifdef WIN32
+#define snprintf _snprintf
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#define strdup _strdup
+#endif
 
 #ifndef HAVE_GETADDRINFO
 struct addrinfo {

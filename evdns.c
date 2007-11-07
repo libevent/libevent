@@ -43,13 +43,19 @@
 #include "misc.h"
 #endif
 
+#ifdef DNS_USE_FTIME_FOR_ID
+#include <sys/timeb.h>
+#endif
+
 /* #define NDEBUG */
 
 #ifndef DNS_USE_CPU_CLOCK_FOR_ID
 #ifndef DNS_USE_GETTIMEOFDAY_FOR_ID
 #ifndef DNS_USE_OPENSSL_FOR_ID
+#ifndef DNS_USE_FTIME_FOR_ID
 #error Must configure at least one id generation method.
 #error Please see the documentation.
+#endif
 #endif
 #endif
 #endif
@@ -78,7 +84,9 @@
 
 #include <string.h>
 #include <fcntl.h>
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
@@ -86,7 +94,9 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <limits.h>
 #include <sys/stat.h>
 #include <ctype.h>
@@ -97,9 +107,10 @@
 #include "evutil.h"
 #include "log.h"
 #ifdef WIN32
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #include <iphlpapi.h>
+#include <io.h>
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -131,10 +142,18 @@ typedef unsigned int uint;
 #endif
 #include <event.h>
 
-#define u64 uint64_t
-#define u32 uint32_t
-#define u16 uint16_t
-#define u8  uint8_t
+#define u64 ev_uint64_t
+#define u32 ev_uint32_t
+#define u16 ev_uint16_t
+#define u8  ev_uint8_t
+
+#ifdef WIN32
+#define snprintf _snprintf
+#define open _open
+#define read _read
+#define close _close
+#define strdup _strdup
+#endif
 
 #define MAX_ADDRS 32  /* maximum number of addresses from a single packet */
 /* which we bother recording */
@@ -316,7 +335,7 @@ static int search_request_new(int type, const char *const name, int flags, evdns
 static void evdns_requests_pump_waiting_queue(void);
 static u16 transaction_id_pick(void);
 static struct request *request_new(int type, const char *name, int flags, evdns_callback_type callback, void *ptr);
-static void request_submit(struct request *req);
+static void request_submit(struct request *const req);
 
 static int server_request_free(struct server_request *req);
 static void server_request_free_answers(struct server_request *req);
@@ -1029,6 +1048,12 @@ default_transaction_id_fn(void)
 	trans_id = ts.tv_nsec & 0xffff;
 #endif
 
+#ifdef DNS_USE_FTIME_FOR_ID
+	struct _timeb tb;
+	_ftime(&tb);
+	trans_id = tb.millitm & 0xffff;
+#endif
+
 #ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
@@ -1636,7 +1661,7 @@ evdns_server_request_format_response(struct server_request *req, int err)
 				if (r < 0)
 					goto overflow;
 				j = r;
-				_t = htons( (j-name_start) );
+				_t = htons( (short) (j-name_start) );
 				memcpy(buf+len_idx, &_t, 2);
 			} else {
 				APPEND16(item->datalen);

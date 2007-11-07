@@ -39,8 +39,6 @@
 #include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else
-#include <sys/_time.h>
 #endif
 #include <sys/queue.h>
 #ifdef HAVE_SYS_SOCKET_H
@@ -50,7 +48,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <errno.h>
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -73,7 +73,11 @@ evsignal_cb(int fd, short what, void *arg)
 {
 	static char signals[100];
 	struct event *ev = arg;
+#ifdef WIN32
+	SSIZE_T n;
+#else
 	ssize_t n;
+#endif
 
 	n = recv(fd, signals, sizeof(signals), 0);
 	if (n == -1)
