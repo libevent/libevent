@@ -438,7 +438,8 @@ evhttp_hostportfile(char *url, char **phost, u_short *pport, char **pfile)
 {
 	static char host[1024];
 	static char file[1024];
-	char *p, *p2;
+	char *p;
+	const char *p2;
 	int len;
 	u_short port;
 
@@ -1617,7 +1618,7 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 void
 evhttp_send_error(struct evhttp_request *req, int error, const char *reason)
 {
-	char *fmt = "<HTML><HEAD>\n"
+	const char *fmt = "<HTML><HEAD>\n"
 	    "<TITLE>%d %s</TITLE>\n"
 	    "</HEAD><BODY>\n"
 	    "<H1>Method Not Implemented</H1>\n"
@@ -1915,7 +1916,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 		return;
 	} else {
 		/* We need to send a 404 here */
-		char *fmt = "<html><head>"
+		const char *fmt = "<html><head>"
 		    "<title>404 Not Found</title>"
 		    "</head><body>"
 		    "<h1>Not Found</h1>"

@@ -251,7 +251,7 @@ TAILQ_HEAD (evkeyvalq, evkeyval);
 #endif /* _EVENT_DEFINED_TQENTRY */
 
 struct eventop {
-	char *name;
+	const char *name;
 	void *(*init)(struct event_base *);
 	int (*add)(void *, struct event *);
 	int (*del)(void *, struct event *);
