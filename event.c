@@ -65,9 +65,6 @@ extern const struct eventop selectops;
 #ifdef HAVE_POLL
 extern const struct eventop pollops;
 #endif
-#ifdef HAVE_RTSIG
-extern const struct eventop rtsigops;
-#endif
 #ifdef HAVE_EPOLL
 extern const struct eventop epollops;
 #endif
@@ -94,9 +91,6 @@ const struct eventop *eventops[] = {
 #endif
 #ifdef HAVE_DEVPOLL
 	&devpollops,
-#endif
-#ifdef HAVE_RTSIG
-	&rtsigops,
 #endif
 #ifdef HAVE_POLL
 	&pollops,
