@@ -978,7 +978,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 		if (!q)
 			goto err;
 		q->type = type;
-		q->class = class;
+		q->dns_question_class = class;
 		memcpy(q->name, tmp_name, namelen+1);
 		server_req->base.questions[server_req->base.nquestions++] = q;
 	}
@@ -1492,7 +1492,7 @@ evdns_server_request_add_reply(struct evdns_server_request *_req, int section, c
 		return -1;
 	}
 	item->type = type;
-	item->class = class;
+	item->dns_question_class = class;
 	item->ttl = ttl;
 	item->is_name = is_name != 0;
 	item->datalen = 0;
@@ -1607,7 +1607,7 @@ evdns_server_request_format_response(struct server_request *req, int err)
 			return (int) j;
 		}
 		APPEND16(req->base.questions[i]->type);
-		APPEND16(req->base.questions[i]->class);
+		APPEND16(req->base.questions[i]->dns_question_class);
 	}
 
 	/* Add answer, authority, and additional sections. */
@@ -1626,7 +1626,7 @@ evdns_server_request_format_response(struct server_request *req, int err)
 			j = r;
 
 			APPEND16(item->type);
-			APPEND16(item->class);
+			APPEND16(item->dns_question_class);
 			APPEND32(item->ttl);
 			if (item->is_name) {
 				off_t len_idx = j, name_start;
@@ -3043,20 +3043,20 @@ evdns_server_callback(struct evdns_server_request *req, void *data)
 	for (i = 0; i < req->nquestions; ++i) {
 		u32 ans = htonl(0xc0a80b0bUL);
 		if (req->questions[i]->type == EVDNS_TYPE_A &&
-			req->questions[i]->class == EVDNS_CLASS_INET) {
+			req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
 			printf(" -- replying for %s (A)\n", req->questions[i]->name);
 			r = evdns_server_request_add_a_reply(req, req->questions[i]->name,
 										  1, &ans, 10);
 			if (r<0)
 				printf("eeep, didn't work.\n");
 		} else if (req->questions[i]->type == EVDNS_TYPE_PTR &&
-				   req->questions[i]->class == EVDNS_CLASS_INET) {
+				   req->questions[i]->dns_question_class == EVDNS_CLASS_INET) {
 			printf(" -- replying for %s (PTR)\n", req->questions[i]->name);
 			r = evdns_server_request_add_ptr_reply(req, NULL, req->questions[i]->name,
 											"foo.bar.example.com", 10);
 		} else {
 			printf(" -- skipping %s [%d %d]\n", req->questions[i]->name,
-				   req->questions[i]->type, req->questions[i]->class);
+				   req->questions[i]->type, req->questions[i]->dns_question_class);
 		}
 	}
 
