@@ -262,7 +262,7 @@ struct eventop {
   The event API needs to be initialized with event_init() before it can be
   used.
  */
-void *event_init(void);
+struct event_base *event_init(void);
 
 
 /**
