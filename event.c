@@ -796,8 +796,8 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	pev = base->timeheap.p;
 	size = base->timeheap.n;
 	for (; size-- > 0; ++pev) {
-		struct timeval *tv = &(**pev).ev_timeout;
-		evutil_timersub(tv, &off, tv);
+		struct timeval *ev_tv = &(**pev).ev_timeout;
+		evutil_timersub(ev_tv, &off, ev_tv);
 	}
 }
 
