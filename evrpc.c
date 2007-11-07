@@ -60,6 +60,7 @@
 #include "evrpc.h"
 #include "evrpc-internal.h"
 #include "evhttp.h"
+#include "evutil.h"
 #include "log.h"
 
 struct evrpc_base *
@@ -533,7 +534,7 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 		 * a timeout after which the whole rpc is going to be aborted.
 		 */
 		struct timeval tv;
-		timerclear(&tv);
+		evutil_timerclear(&tv);
 		tv.tv_sec = pool->timeout;
 		evtimer_add(&ctx->ev_timeout, &tv);
 	}

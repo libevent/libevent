@@ -41,3 +41,8 @@ Changes in current version:
  o Rename the "class" field in evdns_server_request to dns_question_class, so that it won't break compilation under C++.  Use a macro so that old code won't break.  Mark the macro as deprecated.
  o Fix DNS unit tests so that having a DNS server with broken IPv6 support is no longer cause for aborting the unit tests.
  o Make event_base_free() succeed even if there are pending non-internal events on a base.  This may still leak memory and fds, but at least it no longer crashes.
+ o Post-process the config.h file into a new, installed event-config.h file that we can install, and whose macros will be safe to include in header files.
+ o Remove the long-deprecated acconfig.h file.
+ o Do not require #include <sys/types.h> before #include <event.h>.
+ o Add new evutil_timer* functions to wrap (or replace) the regular timeval manipulation functions.
+

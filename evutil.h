@@ -38,6 +38,11 @@
 extern "C" {
 #endif
 
+#include <event-config.h>
+#ifdef _EVENT_HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 int evutil_socketpair(int d, int type, int protocol, int sv[2]);
 int evutil_make_socket_nonblocking(int sock);
 #ifdef WIN32
@@ -54,6 +59,54 @@ int evutil_make_socket_nonblocking(int sock);
 #define EVUTIL_SOCKET_ERROR() (errno)
 #define EVUTIL_SET_SOCKET_ERROR(errcode)		\
 		do { errno = (errcode); } while (0)
+#endif
+
+/*
+ * Manipulation functions for struct timeval
+ */
+#ifdef _EVENT_HAVE_TIMERADD
+#define evutil_timeradd(tvp, uvp, vvp) timeradd((tvp), (uvp), (vvp))
+#define evutil_timersub(tvp, uvp, vvp) timersub((tvp), (uvp), (vvp))
+#else
+#define evutil_timeradd(tvp, uvp, vvp)							\
+	do {														\
+		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;			\
+		(vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;       \
+		if ((vvp)->tv_usec >= 1000000) {						\
+			(vvp)->tv_sec++;									\
+			(vvp)->tv_usec -= 1000000;							\
+		}														\
+	} while (0)
+#define	evutil_timersub(tvp, uvp, vvp)						\
+	do {													\
+		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
+		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
+		if ((vvp)->tv_usec < 0) {							\
+			(vvp)->tv_sec--;								\
+			(vvp)->tv_usec += 1000000;						\
+		}													\
+	} while (0)
+#endif /* !_EVENT_HAVE_HAVE_TIMERADD */
+
+#ifdef _EVENT_HAVE_TIMERCLEAR
+#define evutil_timerclear(tvp) timerclear(tvp)
+#else
+#define	evutil_timerclear(tvp)	(tvp)->tv_sec = (tvp)->tv_usec = 0
+#endif
+
+#ifdef _EVENT_HAVE_TIMERCMP
+#define evutil_timercmp(tvp, uvp, cmp) timercmp((tvp), (uvp), cmp)
+#else
+#define	evutil_timercmp(tvp, uvp, cmp)							\
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?							\
+	 ((tvp)->tv_usec cmp (uvp)->tv_usec) :						\
+	 ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#endif
+
+#ifdef _EVENT_HAVE_TIMERISSET
+#define evutil_timerisset(tvp) timerisset(tvp)
+#else
+#define	evutil_timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
 #endif
 
 #ifdef __cplusplus

@@ -114,7 +114,7 @@ run_once(void)
 	if (xcount != count) fprintf(stderr, "Xcount: %d, Rcount: %d\n", xcount, count);
 	}
 
-	timersub(&te, &ts, &te);
+	evutil_timersub(&te, &ts, &te);
 
 	return (&te);
 }

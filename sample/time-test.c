@@ -25,6 +25,7 @@
 #include <errno.h>
 
 #include <event.h>
+#include <evutil.h>
 
 int lasttime;
 
@@ -39,7 +40,7 @@ timeout_cb(int fd, short event, void *arg)
 	    newtime - lasttime);
 	lasttime = newtime;
 
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 2;
 	event_add(timeout, &tv);
 }
@@ -56,7 +57,7 @@ main (int argc, char **argv)
 	/* Initalize one event */
 	evtimer_set(&timeout, timeout_cb, &timeout);
 
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 2;
 	event_add(&timeout, &tv);
 
