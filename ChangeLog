@@ -45,4 +45,5 @@ Changes in current version:
  o Remove the long-deprecated acconfig.h file.
  o Do not require #include <sys/types.h> before #include <event.h>.
  o Add new evutil_timer* functions to wrap (or replace) the regular timeval manipulation functions.
+ o Fix many build issues when using the Microsoft C compiler.
 
