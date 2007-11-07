@@ -206,7 +206,11 @@
 #define VERSION "1.3.99-trunk"
 
 /* Define to appropriate substitue if compiler doesnt have __func__ */
+#if defined(_MSC_VER) && _MSC_VER < 1300
+#define __func__ "??"
+#else
 #define __func__ __FUNCTION__
+#endif
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
