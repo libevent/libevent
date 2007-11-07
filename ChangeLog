@@ -37,3 +37,4 @@ Changes in current version:
  o Fix evhttp.h compilation when TAILQ_ENTRY is not defined.
  o Small code cleanups in epoll_dispatch().
  o Increase the maximum number of addresses read from a packet in evdns to 32.
+ o Remove support for the rtsig method: it hasn't compiled for a while, and nobody seems to miss it very much.  Let us know if there's a good reason to put it back in.
