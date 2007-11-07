@@ -39,3 +39,5 @@ Changes in current version:
  o Increase the maximum number of addresses read from a packet in evdns to 32.
  o Remove support for the rtsig method: it hasn't compiled for a while, and nobody seems to miss it very much.  Let us know if there's a good reason to put it back in.
  o Rename the "class" field in evdns_server_request to dns_question_class, so that it won't break compilation under C++.  Use a macro so that old code won't break.  Mark the macro as deprecated.
+ o Fix DNS unit tests so that having a DNS server with broken IPv6 support is no longer cause for aborting the unit tests.
+
