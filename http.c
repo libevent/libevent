@@ -226,7 +226,7 @@ evhttp_htmlescape(const char *html)
 	return (escaped_html);
 }
 
-const char *
+static const char *
 evhttp_method(enum evhttp_cmd_type type)
 {
 	const char *method;
@@ -597,12 +597,12 @@ evhttp_write(int fd, short what, void *arg)
 		(*evcon->cb)(evcon, evcon->cb_arg);
 }
 
-void
+static void
 evhttp_connection_done(struct evhttp_connection *evcon)
 {
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	int con_outgoing = evcon->flags & EVHTTP_CON_OUTGOING;
-    
+
 	/*
 	 * if this is an incoming connection, we need to leave the request
 	 * on the connection, so that we can reply to it.
@@ -706,7 +706,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 	return (0);
 }
 
-void
+static void
 evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
 	struct evbuffer *buf = evcon->input_buffer;
@@ -776,7 +776,7 @@ evhttp_read(int fd, short what, void *arg)
 	evhttp_read_body(evcon, req);
 }
 
-void
+static void
 evhttp_write_connectioncb(struct evhttp_connection *evcon, void *arg)
 {
 	/* This is after writing the request to the server */
@@ -1000,7 +1000,7 @@ evhttp_connectioncb(int fd, short what, void *arg)
  * Check if we got a valid response code.
  */
 
-int
+static int
 evhttp_valid_response_code(int code)
 {
 	if (code == 0)
@@ -1011,7 +1011,7 @@ evhttp_valid_response_code(int code)
 
 /* Parses the status line of a web server */
 
-int
+static int
 evhttp_parse_response_line(struct evhttp_request *req, char *line)
 {
 	char *protocol;
@@ -1053,7 +1053,7 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 
 /* Parse the first line of a HTTP request */
 
-int
+static int
 evhttp_parse_request_line(struct evhttp_request *req, char *line)
 {
 	char *method;
@@ -1581,7 +1581,7 @@ evhttp_start_read(struct evhttp_connection *evcon)
 	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_READ_TIMEOUT);
 }
 
-void
+static void
 evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 {
 	int need_close;
@@ -1893,7 +1893,7 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 	return (NULL);
 }
 
-void
+static void
 evhttp_handle_request(struct evhttp_request *req, void *arg)
 {
 	struct evhttp *http = arg;
@@ -1981,7 +1981,7 @@ evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 }
 
 static struct evhttp*
-evhttp_new_object()
+evhttp_new_object(void)
 {
 	struct evhttp *http = NULL;
 
