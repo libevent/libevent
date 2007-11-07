@@ -558,6 +558,22 @@ test_signal_switchbase(void)
 #endif
 
 void
+test_free_active_base(void)
+{
+	struct event_base *base1;
+	struct event ev1;
+	setup_test("Free active base: ");
+	base1 = event_init();
+	event_set(&ev1, pair[1], EV_READ, simple_read_cb, &ev1);
+	event_base_set(base1, &ev1);
+	event_add(&ev1, NULL);
+	/* event_del(&ev1); */
+	event_base_free(base1);
+	test_ok = 1;
+	cleanup_test();
+}
+
+void
 test_loopexit(void)
 {
 	struct timeval tv, tv_start, tv_end;
@@ -1062,6 +1078,8 @@ main (int argc, char **argv)
 	test_evbuffer_find();
 	
 	test_bufferevent();
+
+	test_free_active_base();
 
 	http_suite();
 
