@@ -64,15 +64,24 @@
 #include "log.h"
 
 static int dns_ok = 0;
+static int dns_err = 0;
 
 void
 dns_gethostbyname_cb(int result, char type, int count, int ttl,
     void *addresses, void *arg)
 {
-	dns_ok = 0;
+	dns_ok = dns_err = 0;
 
-	if (result != DNS_ERR_NONE)
+	if (result == DNS_ERR_TIMEOUT) {
+		fprintf(stdout, "[Timed out] ");
+		dns_err = result;
 		goto out;
+	}
+
+	if (result != DNS_ERR_NONE) {
+		fprintf(stdout, "[Error code %d] ", result);
+		goto out;
+	}
 
 	fprintf(stderr, "type: %d, count: %d, ttl: %d: ", type, count, ttl);
 
@@ -148,8 +157,10 @@ dns_gethostbyname6(void)
 
 	if (dns_ok == DNS_IPv6_AAAA) {
 		fprintf(stdout, "OK\n");
+	} else if (!dns_ok && dns_err == DNS_ERR_TIMEOUT) {
+		fprintf(stdout, "SKIPPED\n");
 	} else {
-		fprintf(stdout, "FAILED\n");
+		fprintf(stdout, "FAILED (%d)\n", dns_ok);
 		exit(1);
 	}
 }
