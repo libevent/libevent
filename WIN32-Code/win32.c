@@ -36,7 +36,6 @@
 #include <winsock2.h>
 #include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/tree.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
