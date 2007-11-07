@@ -2304,7 +2304,7 @@ addr_from_name(char *address)
 	return (aitop);
 #else
 	assert(0);
-	return NULL; // XXXXX Use gethostbyname, if this function is ever used.
+	return NULL; /* XXXXX Use gethostbyname, if this function is ever used. */
 #endif
 }
 #endif
@@ -2330,7 +2330,7 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 	*phost = ntop;
 	*pport = strport;
 #else
-	// XXXX
+	/* XXXX */
 #endif
 }
 
