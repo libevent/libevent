@@ -164,7 +164,8 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
+/* For integer types. */
+#include <evutil.h>
 
 /** Error codes 0-5 are as described in RFC 1035. */
 #define DNS_ERR_NONE 0
@@ -397,7 +398,7 @@ int evdns_set_option(const char *option, const char *val, int flags);
           occurred (see above)
   @see resolv.conf(3), evdns_config_windows_nameservers()
  */
-int evdns_resolv_conf_parse(int flags, const char *filename);
+int evdns_resolv_conf_parse(int flags, const char *const filename);
 
 
 /**
@@ -461,7 +462,7 @@ void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 
    @param fn the new callback, or NULL to use the default.
  */
-void evdns_set_transaction_id_fn(uint16_t (*fn)(void));
+void evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void));
 
 #define DNS_NO_SEARCH 1
 

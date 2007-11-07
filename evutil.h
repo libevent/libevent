@@ -109,6 +109,19 @@ int evutil_make_socket_nonblocking(int sock);
 #define	evutil_timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
 #endif
 
+#ifdef _EVENT_HAVE_STDINT_H
+#include <stdint.h>
+#define ev_uint64_t	uint64_t
+#define ev_uint32_t	uint32_t
+#define ev_uint16_t	uint16_t
+#define ev_uint8_t	uint8_t
+#elif defined(WIN32)
+#define ev_uint64_t	__uint64_t
+#define ev_uint32_t	unsigned int
+#define ev_uint16_t	unsigned short
+#define ev_uint8_t	unsigned char
+#endif
+
 #ifdef __cplusplus
 }
 #endif

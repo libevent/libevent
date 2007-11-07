@@ -83,7 +83,7 @@ struct event* min_heap_pop(min_heap_t* s)
 
 int min_heap_erase(min_heap_t* s, struct event* e)
 {
-    if(-1u != e->min_heap_idx)
+    if(((unsigned int)-1) != e->min_heap_idx)
     {
         min_heap_shift_down_(s, e->min_heap_idx, s->p[--s->n]);
         e->min_heap_idx = -1;

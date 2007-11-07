@@ -26,14 +26,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #ifdef _MSC_VER
-#include "config.h"
+#include "./config.h"
 #else
 /* Avoid the windows/msvc thing. */
 #include "../config.h"
 #endif
 
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <signal.h>
