@@ -160,7 +160,7 @@ gettime(struct timeval *tp)
 	return (gettimeofday(tp, NULL));
 }
 
-void *
+struct event_base *
 event_init(void)
 {
 	int i;
