@@ -214,8 +214,8 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		evep = (struct evepoll *)events[i].data.ptr;
 
 		if (what & (EPOLLHUP|EPOLLERR)) {
-			evread = &evep->evread;
-			evwrite = &evep->evwrite;
+			evread = evep->evread;
+			evwrite = evep->evwrite;
 		} else {
 			if (what & EPOLLIN) {
 				evread = evep->evread;
