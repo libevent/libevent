@@ -190,7 +190,7 @@ void evrpc_request_done(struct evrpc_req_generic*);
  * calls this function.
  */
 
-char *
+static char *
 evrpc_construct_uri(const char *uri)
 {
 	char *constructed_uri;
