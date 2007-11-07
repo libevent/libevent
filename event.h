@@ -287,7 +287,10 @@ int event_base_dispatch(struct event_base *);
 
 
 /**
-  Deallocate all memory associated with an event_base.
+  Deallocate all memory associated with an event_base, and free the base.
+
+  Note that this function will not close any fds or free any memory passed
+  to event_set as the argument to callback.
 
   @param eb an event_base to be freed
  */
@@ -299,6 +302,13 @@ void event_base_free(struct event_base *);
 #define _EVENT_LOG_WARN  2
 #define _EVENT_LOG_ERR   3
 typedef void (*event_log_cb)(int severity, const char *msg);
+/**
+  Redirect libevent's log messages.
+
+  @param cb a function taking two arguments: an integer severity between
+     _EVENT_LOG_DEBUG and _EVENT_LOG_ERR, and a string.  If cb is NULL,
+	 then the default log is used.
+  */
 void event_set_log_callback(event_log_cb cb);
 
 /**
