@@ -1,7 +1,7 @@
 #!/bin/sh
 LIBTOOLIZE=libtoolize
 SYSNAME=`uname`
-if [ "x$SYSNAME" == "xDarwin" ] ; then
+if [ "x$SYSNAME" = "xDarwin" ] ; then
   LIBTOOLIZE=glibtoolize
 fi
 aclocal && \
