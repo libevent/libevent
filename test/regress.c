@@ -191,6 +191,11 @@ timeout_cb(int fd, short event, void *arg)
 		test_ok = 1;
 }
 
+void signal_cb_sa(int sig)
+{
+	test_ok = 2;
+}
+
 void
 signal_cb(int fd, short event, void *arg)
 {
@@ -554,6 +559,75 @@ test_signal_switchbase(void)
 	event_base_free(base1);
 	event_base_free(base2);
 	cleanup_test();
+}
+
+/*
+ * assert that a signal event removed from the event queue really is
+ * removed - with no possibility of it's parent handler being fired.
+ */
+void
+test_signal_assert()
+{
+	struct event ev;
+	struct event_base *base = event_init();
+	printf("Signal handler assert: ");
+	/* use SIGCONT so we don't kill ourselves when we signal to nowhere */
+	signal_set(&ev, SIGCONT, signal_cb, &ev);
+	signal_add(&ev, NULL);
+	/*
+	 * if signal_del() fails to reset the handler, it's current handler
+	 * will still point to evsignal_handler().
+	 */
+	signal_del(&ev);
+
+	raise(SIGCONT);
+	/* only way to verify we were in evsignal_handler() */
+	if (base->sig.evsignal_caught)
+		test_ok = 0;
+	else
+		test_ok = 1;
+
+	event_base_free(base);
+	cleanup_test();
+	return;
+}
+
+/*
+ * assert that we restore our previous signal handler properly.
+ */
+void
+test_signal_restore()
+{
+	struct event ev;
+	struct event_base *base = event_init();
+#ifdef HAVE_SIGACTION
+	struct sigaction sa;
+#endif
+
+	test_ok = 0;
+	printf("Signal handler restore: ");
+#ifdef HAVE_SIGACTION
+	sa.sa_handler = signal_cb_sa;
+	sa.sa_flags = 0x0;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(SIGUSR1, &sa, NULL) == -1)
+		goto out;
+#else
+	if (signal(SIGUSR1, signal_cb_sa) == SIG_ERR)
+		goto out;
+#endif
+	signal_set(&ev, SIGUSR1, signal_cb, &ev);
+	signal_add(&ev, NULL);
+	signal_del(&ev);
+
+	raise(SIGUSR1);
+	/* 1 == signal_cb, 2 == signal_cb_sa, we want our previous handler */
+	if (test_ok != 2)
+		test_ok = 0;
+out:
+	event_base_free(base);
+	cleanup_test();
+	return;
 }
 #endif
 
@@ -1116,6 +1190,8 @@ main (int argc, char **argv)
 	test_signal_dealloc();
 	test_signal_pipeloss();
 	test_signal_switchbase();
+	test_signal_restore();
+	test_signal_assert();
 #endif
 	
 	return (0);
