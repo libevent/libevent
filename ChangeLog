@@ -47,4 +47,5 @@ Changes in current version:
  o Add new evutil_timer* functions to wrap (or replace) the regular timeval manipulation functions.
  o Fix many build issues when using the Microsoft C compiler.
  o Remove a bash-ism in autogen.sh
+ o When calling event_del on a signal, restore the signal handler's previous value rather than setting it to SIG_DFL. Patch from Christopher Layne.
 
