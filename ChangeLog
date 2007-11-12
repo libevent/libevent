@@ -1,0 +1,51 @@
+Changes in current version:
+ o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
+ o demote most http warnings to debug messages
+ o Fix Solaris compilation; from Magne Mahre
+ o Add a "Date" header to HTTP responses, as required by HTTP 1.1.
+ o Support specifying the local address of an evhttp_connection using set_local_address
+ o Fix a memory leak in which failed HTTP connections whould not free the request object
+ o Make adding of array members in event_rpcgen more efficient, but doubling memory allocation
+ o Fix a memory leak in the DNS server
+ o Fix compilation when DNS_USE_OPENSSL_FOR_ID is enabled
+ o Fix buffer size and string generation in evdns_resolve_reverse_ipv6().
+ o Respond to nonstandard DNS queries with "NOTIMPL" rather than by ignoring them.
+ o In DNS responses, the CD flag should be preserved, not the TC flag.
+ o Fix http.c to compile properly with USE_DEBUG; from Christopher Layne
+ o Handle NULL timeouts correctly on Solaris; from Trond Norbye
+ o Recalculate pending events properly when reallocating event array on Solaris; from Trond Norbye
+ o Add Doxygen documentation to header files; from Mark Heily
+ o Add a evdns_set_transaction_id_fn() function to override the default
+   transaction ID generation code.
+ o Add an evutil module (with header evutil.h) to implement our standard cross-platform hacks, on the theory that somebody else would like to use them too.
+ o Fix signals implementation on windows.
+ o Fix http module on windows to close sockets properly.
+ o Make autogen.sh script run correctly on systems where /bin/sh isn't bash. (Patch from Trond Norbye, rewritten by Hagne Mahre and then Hannah Schroeter.)
+ o Skip calling gettime() in timeout_process if we are not in fact waiting for any events. (Patch from Trond Norbye)
+ o Make test subdirectory compile under mingw.
+ o Fix win32 buffer.c behavior so that it is correct for sockets (which do not like ReadFile and WriteFile).
+ o Make the test.sh script run unit tests for the evpoll method.
+ o Make the entire evdns.h header enclosed in "extern C" as appropriate.
+ o Fix implementation of strsep on platforms that lack it
+ o Fix implementation of getaddrinfo on platforms that lack it; mainly, this will make Windows http.c work better.  Original patch by Lubomir Marinov.
+ o Fix evport implementation: port_disassociate called on unassociated events resulting in bogus errors; more efficient memory management; from Trond Norbye and Prakash Sangappa
+ o support for hooks on rpc input and output; can be used to implement rpc independent processing such as compression or authentication.
+ o use a min heap instead of a red-black tree for timeouts; as a result finding the min is a O(1) operation now; from Maxim Yegorushkin
+ o associate an event base with an rpc pool
+ o added two additional libraries: libevent_core and libevent_extra in addition to the regular libevent.  libevent_core contains only the event core whereas libevent_extra contains dns, http and rpc support
+ o Begin using libtool's library versioning support correctly.  If we don't mess up, this will more or less guarantee binaries linked against old versions of libevent continue working when we make changes to libevent that do not break backward compatibility.
+ o Fix evhttp.h compilation when TAILQ_ENTRY is not defined.
+ o Small code cleanups in epoll_dispatch().
+ o Increase the maximum number of addresses read from a packet in evdns to 32.
+ o Remove support for the rtsig method: it hasn't compiled for a while, and nobody seems to miss it very much.  Let us know if there's a good reason to put it back in.
+ o Rename the "class" field in evdns_server_request to dns_question_class, so that it won't break compilation under C++.  Use a macro so that old code won't break.  Mark the macro as deprecated.
+ o Fix DNS unit tests so that having a DNS server with broken IPv6 support is no longer cause for aborting the unit tests.
+ o Make event_base_free() succeed even if there are pending non-internal events on a base.  This may still leak memory and fds, but at least it no longer crashes.
+ o Post-process the config.h file into a new, installed event-config.h file that we can install, and whose macros will be safe to include in header files.
+ o Remove the long-deprecated acconfig.h file.
+ o Do not require #include <sys/types.h> before #include <event.h>.
+ o Add new evutil_timer* functions to wrap (or replace) the regular timeval manipulation functions.
+ o Fix many build issues when using the Microsoft C compiler.
+ o Remove a bash-ism in autogen.sh
+ o When calling event_del on a signal, restore the signal handler's previous value rather than setting it to SIG_DFL. Patch from Christopher Layne.
+ o Make the logic for active events work better with internal events; patch from Christopher Layne.
