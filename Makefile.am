@@ -110,4 +110,4 @@ doxygen: FORCE
 	doxygen $(srcdir)/Doxyfile
 FORCE:
 
-DISTCLEANFILES = *~
+DISTCLEANFILES = *~ event-config.h
