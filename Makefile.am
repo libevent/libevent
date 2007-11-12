@@ -28,7 +28,7 @@ VERSION_INFO = 2:0:0
 
 bin_SCRIPTS = event_rpcgen.py
 
-EXTRA_DIST = event.h event-internal.h log.h evsignal.h evdns.3 \
+EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
 	evrpc.h evrpc-internal.h min_heap.h \
 	event.3 \
 	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
