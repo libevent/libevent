@@ -57,7 +57,6 @@
 #include <event.h>
 #include <evutil.h>
 
-
 static int count, writes, fired;
 static int *pipes;
 static int num_pipes, num_active, num_writes;

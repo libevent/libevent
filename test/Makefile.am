@@ -31,6 +31,6 @@ CLEANFILES = regress.gen.h regress.gen.c
 test: test-init test-eof test-weof test-time regress
 
 verify: test
-	@./test.sh
+	@$(srcdir)/test.sh
 
 bench test-init test-eof test-weof test-time: ../libevent.la
