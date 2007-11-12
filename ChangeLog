@@ -49,3 +49,4 @@ Changes in current version:
  o Remove a bash-ism in autogen.sh
  o When calling event_del on a signal, restore the signal handler's previous value rather than setting it to SIG_DFL. Patch from Christopher Layne.
  o Make the logic for active events work better with internal events; patch from Christopher Layne.
+ o We do not need to specially remove a timeout before calling event_del; patch from Christopher Layne.
