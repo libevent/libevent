@@ -815,7 +815,6 @@ timeout_process(struct event_base *base)
 	while ((ev = min_heap_top(&base->timeheap))) {
 		if (evutil_timercmp(&ev->ev_timeout, &now, >))
 			break;
-		event_queue_remove(base, ev, EVLIST_TIMEOUT);
 
 		/* delete this event from the I/O queues */
 		event_del(ev);
