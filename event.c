@@ -829,23 +829,17 @@ timeout_process(struct event_base *base)
 void
 event_queue_remove(struct event_base *base, struct event *ev, int queue)
 {
-	int docount = 1;
-
 	if (!(ev->ev_flags & queue))
 		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
 			   ev, ev->ev_fd, queue);
 
-	if (ev->ev_flags & EVLIST_INTERNAL)
-		docount = 0;
-
-	if (docount)
+	if (~ev->ev_flags & EVLIST_INTERNAL)
 		base->event_count--;
 
 	ev->ev_flags &= ~queue;
 	switch (queue) {
 	case EVLIST_ACTIVE:
-		if (docount)
-			base->event_count_active--;
+		base->event_count_active--;
 		TAILQ_REMOVE(base->activequeues[ev->ev_pri],
 		    ev, ev_active_next);
 		break;
@@ -866,8 +860,6 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 void
 event_queue_insert(struct event_base *base, struct event *ev, int queue)
 {
-	int docount = 1;
-
 	if (ev->ev_flags & queue) {
 		/* Double insertion is possible for active events */
 		if (queue & EVLIST_ACTIVE)
@@ -877,17 +869,13 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 			   ev, ev->ev_fd, queue);
 	}
 
-	if (ev->ev_flags & EVLIST_INTERNAL)
-		docount = 0;
-
-	if (docount)
+	if (~ev->ev_flags & EVLIST_INTERNAL)
 		base->event_count++;
 
 	ev->ev_flags |= queue;
 	switch (queue) {
 	case EVLIST_ACTIVE:
-		if (docount)
-			base->event_count_active++;
+		base->event_count_active++;
 		TAILQ_INSERT_TAIL(base->activequeues[ev->ev_pri],
 		    ev,ev_active_next);
 		break;
