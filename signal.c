@@ -141,7 +141,7 @@ evsignal_add(struct event *ev)
 	 * a dynamic array is used to keep footprint on the low side.
 	 */
 	if (evsignal >= sig->sh_old_max) {
-		event_debug(("%s: evsignal > sh_old_max, resizing array",
+		event_debug(("%s: evsignal (%d) >= sh_old_max (%d), resizing",
 			    __func__, evsignal, sig->sh_old_max));
 		sig->sh_old_max = evsignal + 1;
 		p = realloc(sig->sh_old, sig->sh_old_max * sizeof *sig->sh_old);
@@ -159,21 +159,20 @@ evsignal_add(struct event *ev)
 		return (-1);
 	}
 
+	/* save previous handler and setup new handler */
+	event_debug(("%s: %p: changing signal handler", __func__, ev));
 #ifdef HAVE_SIGACTION
-	/* setup new handler */
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = evsignal_handler;
 	sa.sa_flags |= SA_RESTART;
 	sigfillset(&sa.sa_mask);
 
-	/* save previous handler setup */
 	if (sigaction(evsignal, &sa, sig->sh_old[evsignal]) == -1) {
 		event_warn("sigaction");
 		free(sig->sh_old[evsignal]);
 		return (-1);
 	}
 #else
-	/* save previous handler setup */
 	if ((sh = signal(evsignal, evsignal_handler)) == SIG_ERR) {
 		event_warn("signal");
 		free(sig->sh_old[evsignal]);
@@ -207,6 +206,7 @@ evsignal_del(struct event *ev)
 	evsignal = EVENT_SIGNAL(ev);
 
 	/* restore previous handler */
+	event_debug(("%s: %p: restoring signal handler", __func__, ev));
 	sh = sig->sh_old[evsignal];
 	sig->sh_old[evsignal] = NULL;
 #ifdef HAVE_SIGACTION
