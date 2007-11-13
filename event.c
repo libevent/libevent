@@ -229,6 +229,7 @@ event_base_free(struct event_base *base)
 	for (i=0; i < base->nactivequeues; ++i)
 		assert(TAILQ_EMPTY(base->activequeues[i]));
 	assert(min_heap_empty(&base->timeheap));
+	min_heap_dtor(&base->timeheap);
 
 	for (i = 0; i < base->nactivequeues; ++i)
 		free(base->activequeues[i]);
