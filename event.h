@@ -55,8 +55,8 @@
 
   Every program that uses libevent must include the <event.h> header, and pass
   the -levent flag to the linker.  Before using any of the functions in the
-  library, you must call event_init() to perform one-time initialization of
-  the libevent library.
+  library, you must call event_init() or event_base_new() to perform one-time
+  initialization of the libevent library.
 
   @section event Event notification
 
@@ -270,8 +270,22 @@ struct eventop {
 /**
   Initialize the event API.
 
+  Use event_base_new() to initialize a new event base, but does not set
+  the current_base global.   If using only event_base_new(), each event
+  added must have an event base set with event_base_set()
+
+  @see event_base_set(), event_base_free(), event_init()
+ */
+struct event_base *event_base_new(void);
+
+/**
+  Initialize the event API.
+
   The event API needs to be initialized with event_init() before it can be
-  used.
+  used.  Sets the current_base global representing the default base for
+  events that have no base associated with them.
+
+  @see event_base_set(), event_base_new()
  */
 struct event_base *event_init(void);
 
