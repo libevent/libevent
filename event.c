@@ -158,6 +158,17 @@ gettime(struct timeval *tp)
 struct event_base *
 event_init(void)
 {
+	struct event_base *base = event_base_new();
+
+	if (base != NULL)
+		current_base = base;
+
+	return (base);
+}
+
+struct event_base *
+event_base_new(void)
+{
 	int i;
 	struct event_base *base;
 
@@ -193,7 +204,6 @@ event_init(void)
 	/* allocate a single active event queue */
 	event_base_priority_init(base, 1);
 
-	current_base = base;
 	return (base);
 }
 
