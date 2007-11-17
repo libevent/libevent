@@ -407,6 +407,35 @@ int event_loopexit(struct timeval *);
  */
 int event_base_loopexit(struct event_base *, struct timeval *);
 
+/**
+  Abort the active event_loop() immediately.
+
+  event_loop() will abort the loop after the next event is completed;
+  event_loopbreak() is typically invoked from this event's callback.
+  This behavior is analogous to the "break;" statement.
+
+  Subsequent invocations of event_loop() will proceed normally.
+
+  @return 0 if successful, or -1 if an error occurred
+  @see event_base_loopbreak(), event_loopexit()
+ */
+int event_loopbreak(void);
+
+/**
+  Abort the active event_base_loop() immediately.
+
+  event_base_loop() will abort the loop after the next event is completed;
+  event_base_loopbreak() is typically invoked from this event's callback.
+  This behavior is analogous to the "break;" statement.
+
+  Subsequent invocations of event_loop() will proceed normally.
+
+  @param eb the event_base structure returned by event_init()
+  @return 0 if successful, or -1 if an error occurred
+  @see event_base_loopexit
+ */
+int event_base_loopbreak(struct event_base *);
+
 
 /**
   Add a timer event.
