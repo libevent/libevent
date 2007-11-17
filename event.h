@@ -796,11 +796,13 @@ void bufferevent_free(struct bufferevent *bufev);
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_write_buffer()
   */
-int bufferevent_write(struct bufferevent *bufev, void *data, size_t size);
+int bufferevent_write(struct bufferevent *bufev,
+    const void *data, size_t size);
 
 
 /**
-  Write data from an evbuffer to a bufferevent buffer.
+  Write data from an evbuffer to a bufferevent buffer.  The evbuffer is
+  being drained as a result.
 
   @param bufev the bufferevent to be written to
   @param buf the evbuffer to be written
