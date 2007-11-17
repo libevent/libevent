@@ -699,6 +699,42 @@ test_loopexit(void)
 	cleanup_test();
 }
 
+static void
+break_cb(int fd, short events, void *arg)
+{
+	test_ok = 1;
+	event_loopbreak();
+}
+
+static void
+fail_cb(int fd, short events, void *arg)
+{
+	test_ok = 0;
+}
+
+void
+test_loopbreak(void)
+{
+	struct event ev1, ev2;
+	struct timeval tv;
+
+	setup_test("Loop break: ");
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+	evtimer_set(&ev1, break_cb, NULL);
+	evtimer_add(&ev1, &tv);
+	evtimer_set(&ev2, fail_cb, NULL);
+	evtimer_add(&ev2, &tv);
+
+	event_dispatch();
+
+	evtimer_del(&ev1);
+	evtimer_del(&ev2);
+
+	cleanup_test();
+}
+
 void
 test_evbuffer(void) {
 
@@ -1201,6 +1237,7 @@ main (int argc, char **argv)
 	test_immediatesignal();
 #endif
 	test_loopexit();
+	test_loopbreak();
 
 	test_multiple_events_for_same_fd();
 

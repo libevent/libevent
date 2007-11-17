@@ -34,10 +34,12 @@
 .Nm event_dispatch ,
 .Nm event_loop ,
 .Nm event_loopexit ,
+.Nm event_loopbreak ,
 .Nm event_set ,
 .Nm event_base_dispatch ,
 .Nm event_base_loop ,
 .Nm event_base_loopexit ,
+.Nm event_base_loopbreak ,
 .Nm event_base_set ,
 .Nm event_base_free ,
 .Nm event_add ,
@@ -93,6 +95,8 @@
 .Fn "event_loop" "int flags"
 .Ft int
 .Fn "event_loopexit" "struct timeval *tv"
+.Ft int
+.Fn "event_loopbreak" "void"
 .Ft void
 .Fn "event_set" "struct event *ev" "int fd" "short event" "void (*fn)(int, short, void *)" "void *arg"
 .Ft int
@@ -101,6 +105,8 @@
 .Fn "event_base_loop" "struct event_base *base" "int flags"
 .Ft int
 .Fn "event_base_loopexit" "struct event_base *base" "struct timeval *tv"
+.Ft int
+.Fn "event_base_loopbreak" "struct event_base *base"
 .Ft int
 .Fn "event_base_set" "struct event_base *base" "struct event *"
 .Ft void
@@ -419,7 +425,16 @@ given timer expires will complete normally (handling all queued events) then
 exit without blocking for events again. Subsequent invocations of
 .Fn event_loop
 will proceed normally.
-The parameter indicates the time after which the loop should terminate.
+The
+.Nm event_loopbreak
+function exits from the event loop immediately.
+.Fn event_loop
+will abort after the next event is completed;
+.Fn event_loopbreak
+is typically invoked from this event's callback. This behavior is analogous
+to the "break;" statement. Subsequent invocations of
+.Fn event_loop
+will proceed normally.
 .Pp
 It is the responsibility of the caller to provide these functions with
 pre-allocated event structures.
