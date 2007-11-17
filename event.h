@@ -344,17 +344,18 @@ void event_set_log_callback(event_log_cb cb);
  */
 int event_base_set(struct event_base *, struct event *);
 
-/** A flag for event_loop() to indicate ... (FIXME) */
-#define EVLOOP_ONCE	0x01
-
-/** A flag for event_loop() to indicate ... (FIXME) */
-#define EVLOOP_NONBLOCK	0x02
+/**
+ event_loop() flags
+ */
+/*@{*/
+#define EVLOOP_ONCE	0x01	/**< Block at most once. */
+#define EVLOOP_NONBLOCK	0x02	/**< Do not block. */
+/*@}*/
 
 /**
-  Execute a single event.
+  Handle events.
 
-  The event_loop() function provides an interface for single pass execution of
-  pending events.
+  This is a more flexible version of event_dispatch().
 
   @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK
   @return 0 if successful, or -1 if an error occurred
@@ -363,10 +364,9 @@ int event_base_set(struct event_base *, struct event *);
 int event_loop(int);
 
 /**
-  Execute a single event (threadsafe variant).
+  Handle events (threadsafe version).
 
-  The event_base_loop() function provides an interface for single pass
-  execution of pending events.
+  This is a more flexible version of event_base_dispatch().
 
   @param eb the event_base structure returned by event_init()
   @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK
@@ -376,10 +376,13 @@ int event_loop(int);
 int event_base_loop(struct event_base *, int);
 
 /**
-  Execute a single event, with a timeout.
+  Exit the event loop after the specified time.
 
-  The event_loopexit() function is similar to event_loop(), but allows the
-  loop to be terminated after some amount of time has passed.
+  The next event_loop() iteration after the given timer expires will
+  complete normally (handling all queued events) then exit without
+  blocking for events again.
+
+  Subsequent invocations of event_loop() will proceed normally.
 
   @param tv the amount of time after which the loop should terminate.
   @return 0 if successful, or -1 if an error occurred
@@ -389,7 +392,13 @@ int event_loopexit(struct timeval *);
 
 
 /**
-  Execute a single event, with a timeout (threadsafe variant).
+  Exit the event loop after the specified time (threadsafe variant).
+
+  The next event_base_loop() iteration after the given timer expires will
+  complete normally (handling all queued events) then exit without
+  blocking for events again.
+
+  Subsequent invocations of event_base_loop() will proceed normally.
 
   @param eb the event_base structure returned by event_init()
   @param tv the amount of time after which the loop should terminate.

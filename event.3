@@ -412,8 +412,13 @@ and
 are recognized.
 The
 .Nm event_loopexit
-function allows the loop to be terminated after some amount of time
-has passed.
+function exits from the event loop. The next
+.Fn event_loop
+iteration after the
+given timer expires will complete normally (handling all queued events) then
+exit without blocking for events again. Subsequent invocations of
+.Fn event_loop
+will proceed normally.
 The parameter indicates the time after which the loop should terminate.
 .Pp
 It is the responsibility of the caller to provide these functions with

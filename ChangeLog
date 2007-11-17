@@ -3,6 +3,7 @@ Changes in current version:
  o debug cleanups in signal.c; from Christopher Layne
  o provide event_base_new() that does not set the current_base global	
  o bufferevent_write now uses a const source argument; report from Charles Kerr
+ o better documentation for event_base_loopexit; from Scott Lamb.
 
 Changes in 1.4.0-beta:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
