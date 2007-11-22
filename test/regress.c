@@ -294,7 +294,7 @@ cleanup_test(void)
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
-
+        test_ok = 0;
 	return (0);
 }
 
@@ -474,6 +474,7 @@ test_immediatesignal(void)
 {
 	struct event ev;
 
+	test_ok = 0;
 	printf("Immediate signal: ");
 	signal_set(&ev, SIGUSR1, signal_cb, &ev);
 	signal_add(&ev, NULL);
@@ -494,6 +495,8 @@ test_signal_dealloc(void)
 	signal_add(&ev, NULL);
 	signal_del(&ev);
 	event_base_free(base);
+        /* If we got here without asserting, we're fine. */
+        test_ok = 1;
 	cleanup_test();
 }
 
@@ -503,6 +506,7 @@ test_signal_pipeloss(void)
 	/* make sure that the base1 pipe is closed correctly. */
 	struct event_base *base1, *base2;
 	int pipe1;
+	test_ok = 0;
 	printf("Signal pipeloss: ");
 	base1 = event_init();
 	pipe1 = base1->sig.ev_signal_pair[0];
@@ -530,6 +534,7 @@ test_signal_switchbase(void)
 {
 	struct event ev1, ev2;
 	struct event_base *base1, *base2;
+	test_ok = 0;
 	printf("Signal switchbase: ");
 	base1 = event_init();
 	base2 = event_init();
@@ -570,6 +575,7 @@ test_signal_assert()
 {
 	struct event ev;
 	struct event_base *base = event_init();
+	test_ok = 0;
 	printf("Signal handler assert: ");
 	/* use SIGCONT so we don't kill ourselves when we signal to nowhere */
 	signal_set(&ev, SIGCONT, signal_cb, &ev);
