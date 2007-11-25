@@ -199,8 +199,9 @@ evsignal_add(struct event *ev)
 	evsignal_base = base;
 
 	if (!sig->ev_signal_added) {
+		if (event_add(&sig->ev_signal, NULL))
+			return (-1);
 		sig->ev_signal_added = 1;
-		event_add(&sig->ev_signal, NULL);
 	}
 
 	return (0);
