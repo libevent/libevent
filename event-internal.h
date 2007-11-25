@@ -73,6 +73,10 @@ struct event_base {
 } while (0)
 #endif /* TAILQ_FOREACH */
 
+int _evsignal_set_handler(struct event_base *base, int evsignal,
+			  void (*fn)(int));
+int _evsignal_restore_handler(struct event_base *base, int evsignal);
+
 #ifdef __cplusplus
 }
 #endif
