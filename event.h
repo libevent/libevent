@@ -952,18 +952,40 @@ int evbuffer_add(struct evbuffer *, const void *, size_t);
  */
 int evbuffer_remove(struct evbuffer *, void *, size_t);
 
+/** Used to tell evbuffer_readln what kind of line-ending to look for.
+ */
+enum evbuffer_eol_style {
+	/** Any sequence of CR and LF characters is acceptable as an EOL. */
+	EVBUFFER_EOL_ANY,
+	/** An EOL is an LF, optionally preceded by a CR.  This style is
+	 * most useful for implementing text-based internet protocols. */
+	EVBUFFER_EOL_CRLF,
+	/** An EOL is a CR followed by an LF. */
+	EVBUFFER_EOL_CRLF_STRICT,
+	/** An EOL is a LF. */
+	EVBUFFER_EOL_LF
+};
 
 /**
  * Read a single line from an event buffer.
  *
- * Reads a line terminated by either '\r\n', '\n\r' or '\r' or '\n'.
- * The returned buffer needs to be freed by the caller.
+ * Reads a line terminated by an EOL as determined by the evbuffer_eol_style
+ * argument.  Returns a newly allocated nul-terminated string; the caller must
+ * free the returned value.  The EOL is not included in the returned string.
  *
  * @param buffer the evbuffer to read from
+ * @param n_read_out if non-NULL, points to a size_t that is set to the
+ *       number of characters in the returned string.  This is useful for
+ *       strings that can contain NUL characters.
+ * @param eol_style the style of line-ending to use.
  * @return pointer to a single line, or NULL if an error occurred
  */
-char *evbuffer_readline(struct evbuffer *);
+char *evbuffer_readln(struct evbuffer *, size_t *, enum evbuffer_eol_style);
 
+/**
+   Obsolete alias for evbuffer_readln(buffer, NULL, EOL_STYLE_ANY).
+ **/
+char *evbuffer_readline(struct evbuffer *);
 
 /**
   Move data from one evbuffer into another evbuffer.

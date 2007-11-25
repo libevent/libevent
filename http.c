@@ -685,7 +685,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 	while ((len = EVBUFFER_LENGTH(buf)) > 0) {
 		if (req->ntoread < 0) {
 			/* Read chunk size */
-			char *p = evbuffer_readline(buf);
+			char *p = evbuffer_readln(buf, NULL, EVBUFFER_EOL_CRLF);
 			char *endp;
 			int error;
 			if (p == NULL)
@@ -1239,7 +1239,7 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 	int done = 0;
 
 	struct evkeyvalq* headers = req->input_headers;
-	while ((line = evbuffer_readline(buffer)) != NULL) {
+	while ((line = evbuffer_readln(buffer, NULL, EVBUFFER_EOL_CRLF)) != NULL) {
 		char *skey, *svalue;
 
 		if (*line == '\0') { /* Last header - Done */
