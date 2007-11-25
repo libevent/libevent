@@ -262,6 +262,8 @@ event_reinit(struct event_base *base)
 	if (!evsel->need_reinit)
 		return (0);
 
+	if (base->evsel->dealloc != NULL)
+		base->evsel->dealloc(base, base->evbase);
 	base->evbase = evsel->init(base);
 	if (base->evbase == NULL)
 		event_errx(1, "%s: could not reinitialize event mechanism",
