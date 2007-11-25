@@ -72,12 +72,12 @@ static void
 evsignal_cb(int fd, short what, void *arg)
 {
 	static char signals[100];
-	struct event *ev = arg;
 #ifdef WIN32
 	SSIZE_T n;
 #else
 	ssize_t n;
 #endif
+        (void)arg; /* Suppress "unused variable" warning. */
 
 	n = recv(fd, signals, sizeof(signals), 0);
 	if (n == -1)
