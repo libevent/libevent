@@ -250,6 +250,31 @@ event_base_free(struct event_base *base)
 	free(base);
 }
 
+/* reinitialized the event base after a fork */
+int
+event_reinit(struct event_base *base)
+{
+	const struct eventop *evsel = base->evsel;
+	int res = 0;
+	struct event *ev;
+
+	/* check if this event mechanism requires reinit */
+	if (!evsel->need_reinit)
+		return (0);
+
+	base->evbase = evsel->init(base);
+	if (base->evbase == NULL)
+		event_errx(1, "%s: could not reinitialize event mechanism",
+		    __func__);
+
+	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
+		if (evsel->add(base, ev) == -1)
+			res = -1;
+	}
+
+	return (res);
+}
+
 int
 event_priority_init(int npriorities)
 {

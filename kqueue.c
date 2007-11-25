@@ -58,6 +58,7 @@
 #endif
 
 #include "event.h"
+#include "event-internal.h"
 #include "log.h"
 
 #define EVLIST_X_KQINKERNEL	0x1000
@@ -87,7 +88,8 @@ const struct eventop kqops = {
 	kq_del,
 	kq_recalc,
 	kq_dispatch,
-	kq_dealloc
+	kq_dealloc,
+	1 /* need reinit */
 };
 
 void *
