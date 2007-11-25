@@ -42,6 +42,7 @@
 #include <sys/queue.h>
 #ifndef WIN32
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <sys/signal.h>
 #include <unistd.h>
 #include <netdb.h>
@@ -446,6 +447,47 @@ test_simpletimeout(void)
 }
 
 #ifndef WIN32
+void
+test_fork(void)
+{
+	int status;
+	struct event ev;
+	pid_t pid;
+
+	setup_test("After fork: ");
+
+	write(pair[0], TEST1, strlen(TEST1)+1);
+	shutdown(pair[0], SHUT_WR);
+
+	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
+	if (event_add(&ev, NULL) == -1)
+		exit(1);
+
+	if ((pid = fork()) == 0) {
+		/* in the child */
+		extern struct event_base *current_base;
+		if (event_reinit(current_base) == -1) {
+			fprintf(stderr, "FAILED (reinit)\n");
+			exit(1);
+		}
+
+		event_dispatch();
+
+		exit(test_ok == 0);
+	}
+
+	event_del(&ev);
+
+	if (waitpid(pid, &status, 0) == -1) {
+		fprintf(stderr, "FAILED (fork)\n");
+		exit(1);
+	}
+	
+	test_ok = WEXITSTATUS(status) == 0;
+
+	cleanup_test();
+}
+
 void
 test_simplesignal(void)
 {
@@ -1227,6 +1269,10 @@ main (int argc, char **argv)
 
 	dns_suite();
 	
+#ifndef WIN32
+	test_fork();
+#endif
+
 	test_simpleread();
 
 	test_simplewrite();
