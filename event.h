@@ -217,7 +217,7 @@ struct event {
 
 	struct event_base *ev_base;
 
-	int ev_fd;
+	evutil_socket_t ev_fd;
 	short ev_events;
 	short ev_ncalls;
 	short *ev_pncalls;	/* Allows deletes in callback */
@@ -226,7 +226,7 @@ struct event {
 
 	int ev_pri;		/* smaller numbers are higher priority */
 
-	void (*ev_callback)(int, short, void *arg);
+	void (*ev_callback)(evutil_socket_t, short, void *arg);
 	void *ev_arg;
 
 	int ev_res;		/* result passed to event callback */
@@ -528,7 +528,7 @@ int event_base_loopbreak(struct event_base *);
   @see event_add(), event_del(), event_once()
 
  */
-void event_set(struct event *, int, short, void (*)(int, short, void *), void *);
+void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
 
 /**
   Schedule a one-time event to occur.
@@ -548,7 +548,7 @@ void event_set(struct event *, int, short, void (*)(int, short, void *), void *)
   @see event_set()
 
  */
-int event_once(int, short, void (*)(int, short, void *), void *, struct timeval *);
+int event_once(evutil_socket_t , short, void (*)(evutil_socket_t, short, void *), void *, struct timeval *);
 
 
 /**
@@ -569,7 +569,7 @@ int event_once(int, short, void (*)(int, short, void *), void *, struct timeval 
   @return 0 if successful, or -1 if an error occurred
   @see event_once()
  */
-int event_base_once(struct event_base *, int, short, void (*)(int, short, void *), void *, struct timeval *);
+int event_base_once(struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *, struct timeval *);
 
 
 /**
@@ -606,6 +606,13 @@ int event_add(struct event *, struct timeval *);
  */
 int event_del(struct event *);
 
+/**
+  Make an event active.
+
+  @param ev an event to make active.
+  @param res a set of flags to pass to the event's callback.
+  @param ncalls
+ **/
 void event_active(struct event *, int, short);
 
 
@@ -789,7 +796,7 @@ struct bufferevent {
           error occurred
   @see bufferevent_base_set(), bufferevent_free()
   */
-struct bufferevent *bufferevent_new(int fd,
+struct bufferevent *bufferevent_new(evutil_socket_t fd,
     evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg);
 
 
@@ -1042,7 +1049,7 @@ void evbuffer_drain(struct evbuffer *, size_t);
   @return the number of bytes written, or -1 if an error occurred
   @see evbuffer_read()
  */
-int evbuffer_write(struct evbuffer *, int);
+int evbuffer_write(struct evbuffer *, evutil_socket_t);
 
 
 /**
@@ -1054,7 +1061,7 @@ int evbuffer_write(struct evbuffer *, int);
   @return the number of bytes read, or -1 if an error occurred
   @see evbuffer_write()
  */
-int evbuffer_read(struct evbuffer *, int, int);
+int evbuffer_read(struct evbuffer *, evutil_socket_t, int);
 
 
 /**

@@ -399,7 +399,7 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 #define EVBUFFER_MAX_READ	4096
 
 int
-evbuffer_read(struct evbuffer *buf, int fd, int howmuch)
+evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 {
 	u_char *p;
 	size_t oldoff = buf->off;
@@ -457,7 +457,7 @@ evbuffer_read(struct evbuffer *buf, int fd, int howmuch)
 }
 
 int
-evbuffer_write(struct evbuffer *buffer, int fd)
+evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd)
 {
 	int n;
 

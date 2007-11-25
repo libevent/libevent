@@ -80,7 +80,7 @@ struct evhttp *evhttp_new(struct event_base *base);
  *
  * @param address a string containing the IP address to listen(2) on
  * @param port the port number to listen on
- * @return a newly allocated evhttp struct
+ * @return 0 on success, -1 on failure.
  * @see evhttp_free()
  */
 int evhttp_bind_socket(struct evhttp *http, const char *address, u_short port);

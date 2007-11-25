@@ -151,9 +151,9 @@ fake_freeaddrinfo(struct addrinfo *ai)
 
 extern int debug;
 
-static int socket_connect(int fd, const char *address, unsigned short port);
-static int bind_socket_ai(struct addrinfo *);
-static int bind_socket(const char *, u_short);
+static int socket_connect(evutil_socket_t kefd, const char *address, unsigned short port);
+static evutil_socket_t bind_socket_ai(struct addrinfo *);
+static evutil_socket_t bind_socket(const char *, u_short);
 static void name_from_addr(struct sockaddr *, socklen_t, char **, char **);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
@@ -163,8 +163,8 @@ static void evhttp_connection_stop_detectclose(
 	struct evhttp_connection *evcon);
 static void evhttp_request_dispatch(struct evhttp_connection* evcon);
 
-void evhttp_read(int, short, void *);
-void evhttp_write(int, short, void *);
+void evhttp_read(evutil_socket_t, short, void *);
+void evhttp_write(evutil_socket_t, short, void *);
 
 #ifndef HAVE_STRSEP
 /* strsep replacement for platforms that lack it.  Only works if
@@ -585,7 +585,7 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 }
 
 void
-evhttp_write(int fd, short what, void *arg)
+evhttp_write(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 	int n;
@@ -771,7 +771,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
  */
 
 void
-evhttp_read(int fd, short what, void *arg)
+evhttp_read(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
@@ -916,7 +916,7 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 }
 
 static void
-evhttp_detect_close_cb(int fd, short what, void *arg)
+evhttp_detect_close_cb(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 	evhttp_connection_reset(evcon);
@@ -943,7 +943,7 @@ evhttp_connection_stop_detectclose(struct evhttp_connection *evcon)
 }
 
 static void
-evhttp_connection_retry(int fd, short what, void *arg)
+evhttp_connection_retry(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 
@@ -956,7 +956,7 @@ evhttp_connection_retry(int fd, short what, void *arg)
  */
 
 static void
-evhttp_connectioncb(int fd, short what, void *arg)
+evhttp_connectioncb(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 	int error;
@@ -1349,7 +1349,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 }
 
 void
-evhttp_read_header(int fd, short what, void *arg)
+evhttp_read_header(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
@@ -1960,12 +1960,12 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 }
 
 static void
-accept_socket(int fd, short what, void *arg)
+accept_socket(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp *http = arg;
 	struct sockaddr_storage ss;
 	socklen_t addrlen = sizeof(ss);
-	int nfd;
+	evutil_socket_t nfd;
 
 	if ((nfd = accept(fd, (struct sockaddr *)&ss, &addrlen)) == -1) {
 		event_warn("%s: bad accept", __func__);
@@ -1981,7 +1981,7 @@ int
 evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 {
 	struct event *ev = &http->bind_ev;
-	int fd;
+	evutil_socket_t fd;
 
 	if ((fd = bind_socket(address, port)) == -1)
 		return (-1);
@@ -2052,7 +2052,7 @@ evhttp_free(struct evhttp* http)
 {
 	struct evhttp_cb *http_cb;
 	struct evhttp_connection *evcon;
-	int fd = http->bind_ev.ev_fd;
+	evutil_socket_t fd = http->bind_ev.ev_fd;
 
 	/* Remove the accepting part */
 	event_del(&http->bind_ev);
@@ -2223,7 +2223,7 @@ evhttp_request_uri(struct evhttp_request *req) {
 static struct evhttp_connection*
 evhttp_get_request_connection(
 	struct evhttp* http,
-	int fd, struct sockaddr *sa, socklen_t salen)
+	evutil_socket_t fd, struct sockaddr *sa, socklen_t salen)
 {
 	struct evhttp_connection *evcon;
 	char *hostname, *portname;
@@ -2272,7 +2272,7 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 }
 
 void
-evhttp_get_request(struct evhttp *http, int fd,
+evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
     struct sockaddr *sa, socklen_t salen)
 {
 	struct evhttp_connection *evcon;
@@ -2355,11 +2355,13 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 
 /* Either connect or bind */
 
-static int
+static evutil_socket_t
 bind_socket_ai(struct addrinfo *ai)
 {
         struct linger linger;
-        int fd, on = 1, r;
+        evutil_socket_t fd;
+
+	int on = 1, r;
 	int serrno;
 
         /* Create listen socket */
@@ -2436,10 +2438,10 @@ make_addrinfo(const char *address, u_short port)
 	return (aitop);
 }
 
-static int
+static evutil_socket_t
 bind_socket(const char *address, u_short port)
 {
-	int fd;
+	evutil_socket_t fd;
 	struct addrinfo *aitop = make_addrinfo(address, port);
 
 	if (aitop == NULL)
@@ -2457,7 +2459,7 @@ bind_socket(const char *address, u_short port)
 }
 
 static int
-socket_connect(int fd, const char *address, unsigned short port)
+socket_connect(evutil_socket_t fd, const char *address, unsigned short port)
 {
 	struct addrinfo *ai = make_addrinfo(address, port);
 	int res = -1;

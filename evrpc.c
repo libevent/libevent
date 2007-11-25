@@ -479,7 +479,7 @@ evrpc_pool_set_timeout(struct evrpc_pool *pool, int timeout_in_secs)
 
 
 static void evrpc_reply_done(struct evhttp_request *, void *);
-static void evrpc_request_timeout(int, short, void *);
+static void evrpc_request_timeout(evutil_socket_t, short, void *);
 
 /*
  * Finds a connection object associated with the pool that is currently
@@ -643,7 +643,7 @@ evrpc_pool_schedule(struct evrpc_pool *pool)
 }
 
 static void
-evrpc_request_timeout(int fd, short what, void *arg)
+evrpc_request_timeout(evutil_socket_t fd, short what, void *arg)
 {
 	struct evrpc_request_wrapper *ctx = arg;
 	struct evhttp_connection *evcon = ctx->evcon;

@@ -41,7 +41,7 @@ struct evhttp_connection {
 	/* we use tailq only if they were created for an http server */
 	TAILQ_ENTRY(evhttp_connection) (next);
 
-	int fd;
+	evutil_socket_t fd;
 	struct event ev;
 	struct event close_ev;
 	struct evbuffer *input_buffer;
@@ -113,14 +113,14 @@ int evhttp_connection_connect(struct evhttp_connection *);
 void evhttp_connection_fail(struct evhttp_connection *,
     enum evhttp_connection_error error);
 
-void evhttp_get_request(struct evhttp *, int, struct sockaddr *, socklen_t);
+void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, socklen_t);
 
 int evhttp_hostportfile(char *, char **, u_short *, char **);
 
 int evhttp_parse_lines(struct evhttp_request *, struct evbuffer*);
 
 void evhttp_start_read(struct evhttp_connection *);
-void evhttp_read_header(int, short, void *);
+void evhttp_read_header(evutil_socket_t, short, void *);
 void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
 
 void evhttp_write_buffer(struct evhttp_connection *,

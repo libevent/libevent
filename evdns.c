@@ -216,7 +216,7 @@ struct reply {
 };
 
 struct nameserver {
-	int socket;  /* a connected UDP socket */
+	evutil_socket_t socket;  /* a connected UDP socket */
 	u32 address;
 	int failed_times;  /* number of times which we have given this server a chance */
 	int timedout;  /* number of times in a row a request has timed out */
@@ -237,7 +237,7 @@ static struct nameserver *server_head = NULL;
 /* Represents a local port where we're listening for DNS requests. Right now, */
 /* only UDP is supported. */
 struct evdns_server_port {
-	int socket; /* socket we use to read queries and write replies. */
+	evutil_socket_t socket; /* socket we use to read queries and write replies. */
 	int refcnt; /* reference count. */
 	char choked; /* Are we currently blocked from writing? */
 	char closing; /* Are we trying to close this port, pending writes? */
@@ -325,7 +325,7 @@ static const int global_nameserver_timeouts_length = sizeof(global_nameserver_ti
 
 static struct nameserver *nameserver_pick(void);
 static void evdns_request_insert(struct request *req, struct request **head);
-static void nameserver_ready_callback(int fd, short events, void *arg);
+static void nameserver_ready_callback(evutil_socket_t fd, short events, void *arg);
 static int evdns_transmit(void);
 static int evdns_request_transmit(struct request *req);
 static void nameserver_send_probe(struct nameserver *const ns);
@@ -340,13 +340,13 @@ static void request_submit(struct request *const req);
 static int server_request_free(struct server_request *req);
 static void server_request_free_answers(struct server_request *req);
 static void server_port_free(struct evdns_server_port *port);
-static void server_port_ready_callback(int fd, short events, void *arg);
+static void server_port_ready_callback(evutil_socket_t fd, short events, void *arg);
 
 static int strtoint(const char *const str);
 
 #ifdef WIN32
 static int
-last_error(int sock)
+last_error(evutil_socket_t sock)
 {
 	int optval, optvallen=sizeof(optval);
 	int err = WSAGetLastError();
@@ -458,7 +458,7 @@ request_find_from_trans_id(u16 trans_id) {
 /* a libevent callback function which is called when a nameserver */
 /* has gone down and we want to test if it has came back to life yet */
 static void
-nameserver_prod_callback(int fd, short events, void *arg) {
+nameserver_prod_callback(evutil_socket_t fd, short events, void *arg) {
 	struct nameserver *const ns = (struct nameserver *) arg;
         (void)fd;
         (void)events;
@@ -1237,7 +1237,7 @@ nameserver_write_waiting(struct nameserver *ns, char waiting) {
 /* a callback function. Called by libevent when the kernel says that */
 /* a nameserver socket is ready for writing or reading */
 static void
-nameserver_ready_callback(int fd, short events, void *arg) {
+nameserver_ready_callback(evutil_socket_t fd, short events, void *arg) {
 	struct nameserver *ns = (struct nameserver *) arg;
         (void)fd;
 
@@ -1255,7 +1255,7 @@ nameserver_ready_callback(int fd, short events, void *arg) {
 /* a callback function. Called by libevent when the kernel says that */
 /* a server socket is ready for writing or reading. */
 static void
-server_port_ready_callback(int fd, short events, void *arg) {
+server_port_ready_callback(evutil_socket_t fd, short events, void *arg) {
 	struct evdns_server_port *port = (struct evdns_server_port *) arg;
 	(void) fd;
 
@@ -1852,7 +1852,7 @@ evdns_server_request_get_requesting_addr(struct evdns_server_request *_req, stru
 /* this is a libevent callback function which is called when a request */
 /* has timed out. */
 static void
-evdns_request_timeout_callback(int fd, short events, void *arg) {
+evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 	struct request *const req = (struct request *) arg;
         (void) fd;
         (void) events;
