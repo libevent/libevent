@@ -119,22 +119,19 @@ evsignal_init(struct event_base *base)
 	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
 }
 
+/* Helper: set the signal handler for evsignal to handler in base, so that
+ * we can restore the original handler when we clear the current one. */
 int
-evsignal_add(struct event *ev)
+_evsignal_set_handler(struct event_base *base,
+		      int evsignal, void (*handler)(int))
 {
-	int evsignal;
 #ifdef HAVE_SIGACTION
 	struct sigaction sa;
 #else
 	ev_sighandler_t sh;
 #endif
-	struct event_base *base = ev->ev_base;
-	struct evsignal_info *sig = &ev->ev_base->sig;
+	struct evsignal_info *sig = &base->sig;
 	void *p;
-
-	if (ev->ev_events & (EV_READ|EV_WRITE))
-		event_errx(1, "%s: EV_SIGNAL incompatible use", __func__);
-	evsignal = EVENT_SIGNAL(ev);
 
 	/*
 	 * resize saved signal handler array up to the highest signal number.
@@ -160,10 +157,9 @@ evsignal_add(struct event *ev)
 	}
 
 	/* save previous handler and setup new handler */
-	event_debug(("%s: %p: changing signal handler", __func__, ev));
 #ifdef HAVE_SIGACTION
 	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = evsignal_handler;
+	sa.sa_handler = handler;
 	sa.sa_flags |= SA_RESTART;
 	sigfillset(&sa.sa_mask);
 
@@ -173,13 +169,32 @@ evsignal_add(struct event *ev)
 		return (-1);
 	}
 #else
-	if ((sh = signal(evsignal, evsignal_handler)) == SIG_ERR) {
+	if ((sh = signal(evsignal, handler)) == SIG_ERR) {
 		event_warn("signal");
 		event_free(sig->sh_old[evsignal]);
 		return (-1);
 	}
 	*sig->sh_old[evsignal] = sh;
 #endif
+
+	return (0);
+}
+
+int
+evsignal_add(struct event *ev)
+{
+	int evsignal;
+	struct event_base *base = ev->ev_base;
+	struct evsignal_info *sig = &ev->ev_base->sig;
+
+	if (ev->ev_events & (EV_READ|EV_WRITE))
+		event_errx(1, "%s: EV_SIGNAL incompatible use", __func__);
+	evsignal = EVENT_SIGNAL(ev);
+
+	event_debug(("%s: %p: changing signal handler", __func__, ev));
+	if (_evsignal_set_handler(base, evsignal, evsignal_handler) == -1)
+		return (-1);
+
 	/* catch signals if they happen quickly */
 	evsignal_base = base;
 
@@ -192,21 +207,17 @@ evsignal_add(struct event *ev)
 }
 
 int
-evsignal_del(struct event *ev)
+_evsignal_restore_handler(struct event_base *base, int evsignal)
 {
-	int evsignal, ret = 0;
-	struct event_base *base = ev->ev_base;
-	struct evsignal_info *sig = &ev->ev_base->sig;
+	int ret = 0;
+	struct evsignal_info *sig = &base->sig;
 #ifdef HAVE_SIGACTION
 	struct sigaction *sh;
 #else
 	ev_sighandler_t *sh;
 #endif
 
-	evsignal = EVENT_SIGNAL(ev);
-
 	/* restore previous handler */
-	event_debug(("%s: %p: restoring signal handler", __func__, ev));
 	sh = sig->sh_old[evsignal];
 	sig->sh_old[evsignal] = NULL;
 #ifdef HAVE_SIGACTION
@@ -220,9 +231,17 @@ evsignal_del(struct event *ev)
 		ret = -1;
 	}
 #endif
+
 	event_free(sh);
 
 	return ret;
+}
+
+int
+evsignal_del(struct event *ev)
+{
+	event_debug(("%s: %p: restoring signal handler", __func__, ev));
+	return _evsignal_restore_handler(ev->ev_base, EVENT_SIGNAL(ev));
 }
 
 static void
