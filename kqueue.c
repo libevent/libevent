@@ -296,6 +296,7 @@ kq_add(void *arg, struct event *ev)
 
 	if (ev->ev_events & EV_SIGNAL) {
 		int nsignal = EVENT_SIGNAL(ev);
+                struct timespec timeout = { 0, 0 };
 
  		memset(&kev, 0, sizeof(kev));
 		kev.ident = nsignal;
@@ -304,11 +305,14 @@ kq_add(void *arg, struct event *ev)
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
 		kev.udata = PTR_TO_UDATA(ev);
-		
-		if (kq_insert(kqop, &kev) == -1)
-			return (-1);
 
-		if (signal(nsignal, kq_sighandler) == SIG_ERR)
+		/* Be ready for the signal if it is sent any time between
+		 * now and the next call to kq_dispatch. */
+                if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
+                	return (-1);
+
+		if (_evsignal_set_handler(ev->ev_base, nsignal,
+					  kq_sighandler) == -1)
 			return (-1);
 
 		ev->ev_flags |= EVLIST_X_KQINKERNEL;
@@ -372,7 +376,7 @@ kq_del(void *arg, struct event *ev)
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
-		if (signal(nsignal, SIG_DFL) == SIG_ERR)
+		if (_evsignal_restore_handler(ev->ev_base, nsignal) == -1)
 			return (-1);
 
 		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
