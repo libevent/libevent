@@ -59,8 +59,8 @@
 
 #include "event.h"
 #include "event-internal.h"
-#include "evsignal.h"
 #include "evutil.h"
+#include "evsignal.h"
 #include "log.h"
 
 struct event_base *evsignal_base = NULL;
@@ -69,7 +69,7 @@ static void evsignal_handler(int sig);
 
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
-evsignal_cb(int fd, short what, void *arg)
+evsignal_cb(evutil_socket_t fd, short what, void *arg)
 {
 	static char signals[100];
 #ifdef WIN32

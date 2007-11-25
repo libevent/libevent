@@ -92,7 +92,7 @@ bufferevent_read_pressure_cb(struct evbuffer *buf, size_t old, size_t now,
 }
 
 static void
-bufferevent_readcb(int fd, short event, void *arg)
+bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 {
 	struct bufferevent *bufev = arg;
 	int res = 0;
@@ -155,7 +155,7 @@ bufferevent_readcb(int fd, short event, void *arg)
 }
 
 static void
-bufferevent_writecb(int fd, short event, void *arg)
+bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 {
 	struct bufferevent *bufev = arg;
 	int res = 0;
@@ -225,7 +225,7 @@ bufferevent_writecb(int fd, short event, void *arg)
  */
 
 struct bufferevent *
-bufferevent_new(int fd, evbuffercb readcb, evbuffercb writecb,
+bufferevent_new(evutil_socket_t fd, evbuffercb readcb, evbuffercb writecb,
     everrorcb errorcb, void *cbarg)
 {
 	struct bufferevent *bufev;

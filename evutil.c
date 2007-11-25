@@ -52,7 +52,7 @@
 #include "log.h"
 
 int
-evutil_socketpair(int family, int type, int protocol, int fd[2])
+evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 {
 #ifndef WIN32
 	return socketpair(family, type, protocol, fd);
@@ -64,9 +64,9 @@ evutil_socketpair(int family, int type, int protocol, int fd[2])
 	 * for now, and really, when localhost is down sometimes, we
 	 * have other problems too.
 	 */
-	int listener = -1;
-	int connector = -1;
-	int acceptor = -1;
+	evutil_socket_t listener = -1;
+	evutil_socket_t connector = -1;
+	evutil_socket_t acceptor = -1;
 	struct sockaddr_in listen_addr;
 	struct sockaddr_in connect_addr;
 	int size;
@@ -150,7 +150,7 @@ evutil_socketpair(int family, int type, int protocol, int fd[2])
 }
 
 int
-evutil_make_socket_nonblocking(int fd)
+evutil_make_socket_nonblocking(evutil_socket_t fd)
 {
 #ifdef WIN32
 	{

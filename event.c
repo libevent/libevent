@@ -381,7 +381,7 @@ event_base_dispatch(struct event_base *event_base)
 }
 
 static void
-event_loopexit_cb(int fd, short what, void *arg)
+event_loopexit_cb(evutil_socket_t fd, short what, void *arg)
 {
 	struct event_base *base = arg;
 	base->event_gotterm = 1;
@@ -513,14 +513,14 @@ event_base_loop(struct event_base *base, int flags)
 struct event_once {
 	struct event ev;
 
-	void (*cb)(int, short, void *);
+	void (*cb)(evutil_socket_t, short, void *);
 	void *arg;
 };
 
 /* One-time callback, it deletes itself */
 
 static void
-event_once_cb(int fd, short events, void *arg)
+event_once_cb(evutil_socket_t fd, short events, void *arg)
 {
 	struct event_once *eonce = arg;
 
@@ -530,16 +530,18 @@ event_once_cb(int fd, short events, void *arg)
 
 /* not threadsafe, event scheduled once. */
 int
-event_once(int fd, short events,
-    void (*callback)(int, short, void *), void *arg, struct timeval *tv)
+event_once(evutil_socket_t fd, short events,
+    void (*callback)(evutil_socket_t, short, void *),
+	void *arg, struct timeval *tv)
 {
 	return event_base_once(current_base, fd, events, callback, arg, tv);
 }
 
 /* Schedules an event once */
 int
-event_base_once(struct event_base *base, int fd, short events,
-    void (*callback)(int, short, void *), void *arg, struct timeval *tv)
+event_base_once(struct event_base *base, evutil_socket_t fd, short events,
+    void (*callback)(evutil_socket_t, short, void *),
+	void *arg, struct timeval *tv)
 {
 	struct event_once *eonce;
 	struct timeval etv;
@@ -584,8 +586,8 @@ event_base_once(struct event_base *base, int fd, short events,
 }
 
 void
-event_set(struct event *ev, int fd, short events,
-	  void (*callback)(int, short, void *), void *arg)
+event_set(struct event *ev, evutil_socket_t fd, short events,
+	  void (*callback)(evutil_socket_t, short, void *), void *arg)
 {
 	/* Take the current base - caller needs to set the real base later */
 	ev->ev_base = current_base;

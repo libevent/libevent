@@ -27,12 +27,16 @@
 #ifndef _EVSIGNAL_H_
 #define _EVSIGNAL_H_
 
+#ifndef evutil_socket_t
+#include "evutil.h"
+#endif
+
 typedef void (*ev_sighandler_t)(int);
 
 struct evsignal_info {
 	struct event_list signalqueue;
 	struct event ev_signal;
-	int ev_signal_pair[2];
+    evutil_socket_t ev_signal_pair[2];
 	int ev_signal_added;
 	volatile sig_atomic_t evsignal_caught;
 	sig_atomic_t evsigcaught[NSIG];

@@ -43,8 +43,29 @@ extern "C" {
 #include <sys/time.h>
 #endif
 
-int evutil_socketpair(int d, int type, int protocol, int sv[2]);
-int evutil_make_socket_nonblocking(int sock);
+#ifdef _EVENT_HAVE_STDINT_H
+#include <stdint.h>
+#define ev_uint64_t	uint64_t
+#define ev_uint32_t	uint32_t
+#define ev_uint16_t	uint16_t
+#define ev_uint8_t	uint8_t
+#elif defined(WIN32)
+#define ev_uint64_t	__uint64_t
+#define ev_uint32_t	unsigned int
+#define ev_uint16_t	unsigned short
+#define ev_uint8_t	unsigned char
+#endif
+
+#ifdef WIN32
+/** Type to hold the output of "socket()" or "accept()".  On Windows, this is
+ * an intptr_t; elsewhere, it is an int. */
+#define evutil_socket_t intptr_t
+#else
+#define evutil_socket_t int
+#endif
+
+int evutil_socketpair(int d, int type, int protocol, evutil_socket_t sv[2]);
+int evutil_make_socket_nonblocking(evutil_socket_t sock);
 #ifdef WIN32
 #define EVUTIL_CLOSESOCKET(s) closesocket(s)
 #else
@@ -107,19 +128,6 @@ int evutil_make_socket_nonblocking(int sock);
 #define evutil_timerisset(tvp) timerisset(tvp)
 #else
 #define	evutil_timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
-#endif
-
-#ifdef _EVENT_HAVE_STDINT_H
-#include <stdint.h>
-#define ev_uint64_t	uint64_t
-#define ev_uint32_t	uint32_t
-#define ev_uint16_t	uint16_t
-#define ev_uint8_t	uint8_t
-#elif defined(WIN32)
-#define ev_uint64_t	__uint64_t
-#define ev_uint32_t	unsigned int
-#define ev_uint16_t	unsigned short
-#define ev_uint8_t	unsigned char
 #endif
 
 #ifdef __cplusplus

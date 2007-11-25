@@ -12,6 +12,8 @@ Changes in current version:
  o The kqueue implementation now restores original signal handlers correctly when its signal events are removed.
  o Check return value of event_add in signal.c
  o Add a more powerful evbuffer_readln as a replacement for evbuffer_readline.  The new function handles more newline styles, and is more useful with buffers that may contain a nul characters.
+ o Do not mangle socket handles on 64-bit windows. 
+
 
 
 Changes in 1.4.0:
