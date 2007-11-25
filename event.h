@@ -1105,6 +1105,27 @@ int evtag_unmarshal_string(struct evbuffer *evbuf, ev_uint8_t need_tag,
 int evtag_unmarshal_timeval(struct evbuffer *evbuf, ev_uint8_t need_tag,
     struct timeval *ptv);
 
+/**
+ Override the functions that libevent uses for memory management.
+
+ Usually, libevent uses the standard libc functions malloc, realloc, and
+ free to allocate memory.  Passing replacements for those functions to
+ event_set_mem_functions() overrides this behavior.  To restore the default
+ behavior, pass NULLs as the arguments to this function.
+
+ Note that all memory returned from libevent will be allocated by the
+ replacement functions rather than by malloc() and realloc().  Thus, if you
+ have replaced those functions, it may not be appropriate to free() memory
+ that you get from libevent.
+
+ @param malloc_fn A replacement for malloc.
+ @param realloc_fn A replacement for realloc
+ @param free_fn A replacement for free.
+ **/
+void event_set_mem_functions(void *(*malloc_fn)(size_t sz),
+                             void *(*realloc_fn)(void *ptr, size_t sz),
+                             void (*free_fn)(void *ptr));
+
 #ifdef __cplusplus
 }
 #endif

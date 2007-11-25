@@ -63,13 +63,14 @@
 
 #include "event.h"
 #include "config.h"
+#include "mm-internal.h"
 
 struct evbuffer *
 evbuffer_new(void)
 {
 	struct evbuffer *buffer;
 	
-	buffer = calloc(1, sizeof(struct evbuffer));
+	buffer = event_calloc(1, sizeof(struct evbuffer));
 
 	return (buffer);
 }
@@ -78,8 +79,8 @@ void
 evbuffer_free(struct evbuffer *buffer)
 {
 	if (buffer->orig_buffer != NULL)
-		free(buffer->orig_buffer);
-	free(buffer);
+		event_free(buffer->orig_buffer);
+	event_free(buffer);
 }
 
 /* 
@@ -227,7 +228,7 @@ evbuffer_readline(struct evbuffer *buffer)
 	if (i == len)
 		return (NULL);
 
-	if ((line = malloc(i + 1)) == NULL) {
+	if ((line = event_malloc(i + 1)) == NULL) {
 		fprintf(stderr, "%s: out of memory\n", __func__);
 		evbuffer_drain(buffer, i);
 		return (NULL);
@@ -291,7 +292,7 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 
 		if (buf->orig_buffer != buf->buffer)
 			evbuffer_align(buf);
-		if ((newbuf = realloc(buf->buffer, length)) == NULL)
+		if ((newbuf = event_realloc(buf->buffer, length)) == NULL)
 			return (-1);
 
 		buf->orig_buffer = buf->buffer = newbuf;

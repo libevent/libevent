@@ -47,7 +47,7 @@
 #include "event.h"
 #include "event-internal.h"
 
-#define XFREE(ptr) do { if (ptr) free(ptr); } while(0)
+#define XFREE(ptr) do { if (ptr) event_free(ptr); } while(0)
 
 extern struct event_list timequeue;
 extern struct event_list addqueue;
@@ -174,23 +174,23 @@ win32_init(struct event_base *_base)
 {
 	struct win32op *winop;
 	size_t size;
-	if (!(winop = calloc(1, sizeof(struct win32op))))
+	if (!(winop = event_calloc(1, sizeof(struct win32op))))
 		return NULL;
 	winop->fd_setsz = NEVENT;
 	size = FD_SET_ALLOC_SIZE(NEVENT);
-	if (!(winop->readset_in = malloc(size)))
+	if (!(winop->readset_in = event_malloc(size)))
 		goto err;
-	if (!(winop->writeset_in = malloc(size)))
+	if (!(winop->writeset_in = event_malloc(size)))
 		goto err;
-	if (!(winop->readset_out = malloc(size)))
+	if (!(winop->readset_out = event_malloc(size)))
 		goto err;
-	if (!(winop->writeset_out = malloc(size)))
+	if (!(winop->writeset_out = event_malloc(size)))
 		goto err;
-	if (!(winop->exset_out = malloc(size)))
+	if (!(winop->exset_out = event_malloc(size)))
 		goto err;
 	winop->n_events = 0;
 	winop->n_events_alloc = NEVENT;
-	if (!(winop->events = malloc(NEVENT*sizeof(struct event*))))
+	if (!(winop->events = event_malloc(NEVENT*sizeof(struct event*))))
 		goto err;
 	winop->readset_in->fd_count = winop->writeset_in->fd_count = 0;
 	winop->readset_out->fd_count = winop->writeset_out->fd_count
@@ -252,7 +252,7 @@ win32_insert(void *op, struct event *ev)
 		size_t sz;
 		win32op->n_events_alloc *= 2;
 		sz = sizeof(struct event*)*win32op->n_events_alloc;
-		if (!(win32op->events = realloc(win32op->events, sz)))
+		if (!(win32op->events = event_realloc(win32op->events, sz)))
 			return (-1);
 	}
 	win32op->events[win32op->n_events++] = ev;
@@ -388,20 +388,20 @@ win32_dealloc(struct event_base *_base, void *arg)
 
 	evsignal_dealloc(_base);
 	if (win32op->readset_in)
-		free(win32op->readset_in);
+		event_free(win32op->readset_in);
 	if (win32op->writeset_in)
-		free(win32op->writeset_in);
+		event_free(win32op->writeset_in);
 	if (win32op->readset_out)
-		free(win32op->readset_out);
+		event_free(win32op->readset_out);
 	if (win32op->writeset_out)
-		free(win32op->writeset_out);
+		event_free(win32op->writeset_out);
 	if (win32op->exset_out)
-		free(win32op->exset_out);
+		event_free(win32op->exset_out);
 	if (win32op->events)
-		free(win32op->events);
+		event_free(win32op->events);
 
 	memset(win32op, 0, sizeof(win32op));
-	free(win32op);
+	event_free(win32op);
 }
 
 #if 0

@@ -148,21 +148,21 @@ evport_init(struct event_base *base)
 	if (getenv("EVENT_NOEVPORT"))
 		return (NULL);
 
-	if (!(evpd = calloc(1, sizeof(struct evport_data))))
+	if (!(evpd = event_calloc(1, sizeof(struct evport_data))))
 		return (NULL);
 
 	if ((evpd->ed_port = port_create()) == -1) {
-		free(evpd);
+		event_free(evpd);
 		return (NULL);
 	}
 
 	/*
 	 * Initialize file descriptor structure
 	 */
-	evpd->ed_fds = calloc(DEFAULT_NFDS, sizeof(struct fd_info));
+	evpd->ed_fds = event_calloc(DEFAULT_NFDS, sizeof(struct fd_info));
 	if (evpd->ed_fds == NULL) {
 		close(evpd->ed_port);
-		free(evpd);
+		event_free(evpd);
 		return (NULL);
 	}
 	evpd->ed_nevents = DEFAULT_NFDS;
@@ -245,7 +245,7 @@ grow(struct evport_data *epdp, int factor)
 
 	check_evportop(epdp);
 
-	tmp = realloc(epdp->ed_fds, sizeof(struct fd_info) * newsize);
+	tmp = event_realloc(epdp->ed_fds, sizeof(struct fd_info) * newsize);
 	if (NULL == tmp)
 		return -1;
 	epdp->ed_fds = tmp;
@@ -530,6 +530,6 @@ evport_dealloc(struct event_base *base, void *arg)
 	close(evpd->ed_port);
 
 	if (evpd->ed_fds)
-		free(evpd->ed_fds);
-	free(evpd);
+		event_free(evpd->ed_fds);
+	event_free(evpd);
 }

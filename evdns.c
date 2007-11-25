@@ -106,6 +106,7 @@
 #include "evdns.h"
 #include "evutil.h"
 #include "log.h"
+#include "mm-internal.h"
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -152,7 +153,6 @@ typedef unsigned int uint;
 #define open _open
 #define read _read
 #define close _close
-#define strdup _strdup
 #endif
 
 #define MAX_ADDRS 32  /* maximum number of addresses from a single packet */
@@ -586,13 +586,13 @@ request_finished(struct request *const req, struct request **head) {
 
 	if (!req->request_appended) {
 		/* need to free the request data on it's own */
-		free(req->request);
+		event_free(req->request);
 	} else {
 		/* the request data is appended onto the header */
 		/* so everything gets free()ed when we: */
 	}
 
-	free(req);
+	event_free(req);
 
 	evdns_requests_pump_waiting_queue();
 }
@@ -970,7 +970,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	if (flags & 0x8000) return -1; /* Must not be an answer. */
 	flags &= 0x0110; /* Only RD and CD get preserved. */
 
-	server_req = malloc(sizeof(struct server_request));
+	server_req = event_malloc(sizeof(struct server_request));
 	if (server_req == NULL) return -1;
 	memset(server_req, 0, sizeof(struct server_request));
 
@@ -980,7 +980,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 
 	server_req->base.flags = flags;
 	server_req->base.nquestions = 0;
-	server_req->base.questions = malloc(sizeof(struct evdns_server_question *) * questions);
+	server_req->base.questions = event_malloc(sizeof(struct evdns_server_question *) * questions);
 	if (server_req->base.questions == NULL)
 		goto err;
 
@@ -993,7 +993,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 		GET16(type);
 		GET16(class);
 		namelen = strlen(tmp_name);
-		q = malloc(sizeof(struct evdns_server_question) + namelen);
+		q = event_malloc(sizeof(struct evdns_server_question) + namelen);
 		if (!q)
 			goto err;
 		q->type = type;
@@ -1020,10 +1020,10 @@ err:
 	if (server_req) {
 		if (server_req->base.questions) {
 			for (i = 0; i < server_req->base.nquestions; ++i)
-				free(server_req->base.questions[i]);
-			free(server_req->base.questions);
+				event_free(server_req->base.questions[i]);
+			event_free(server_req->base.questions);
 		}
-		free(server_req);
+		event_free(server_req);
 	}
 	return -1;
 
@@ -1292,7 +1292,7 @@ dnslabel_clear(struct dnslabel_table *table)
 {
 	int i;
 	for (i = 0; i < table->n_labels; ++i)
-		free(table->labels[i].v);
+		event_free(table->labels[i].v);
 	table->n_labels = 0;
 }
 
@@ -1317,7 +1317,7 @@ dnslabel_table_add(struct dnslabel_table *table, const char *label, off_t pos)
 	int p;
 	if (table->n_labels == MAX_LABELS)
 		return (-1);
-	v = strdup(label);
+	v = event_strdup(label);
 	if (v == NULL)
 		return (-1);
 	p = table->n_labels++;
@@ -1450,7 +1450,7 @@ struct evdns_server_port *
 evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type cb, void *user_data)
 {
 	struct evdns_server_port *port;
-	if (!(port = malloc(sizeof(struct evdns_server_port))))
+	if (!(port = event_malloc(sizeof(struct evdns_server_port))))
 		return NULL;
 	memset(port, 0, sizeof(struct evdns_server_port));
 
@@ -1508,12 +1508,12 @@ evdns_server_request_add_reply(struct evdns_server_request *_req, int section, c
 	while (*itemp) {
 		itemp = &((*itemp)->next);
 	}
-	item = malloc(sizeof(struct server_reply_item));
+	item = event_malloc(sizeof(struct server_reply_item));
 	if (!item)
 		return -1;
 	item->next = NULL;
-	if (!(item->name = strdup(name))) {
-		free(item);
+	if (!(item->name = event_strdup(name))) {
+		event_free(item);
 		return -1;
 	}
 	item->type = type;
@@ -1524,16 +1524,16 @@ evdns_server_request_add_reply(struct evdns_server_request *_req, int section, c
 	item->data = NULL;
 	if (data) {
 		if (item->is_name) {
-			if (!(item->data = strdup(data))) {
-				free(item->name);
-				free(item);
+			if (!(item->data = event_strdup(data))) {
+				event_free(item->name);
+				event_free(item);
 				return -1;
 			}
 			item->datalen = (u16)-1;
 		} else {
-			if (!(item->data = malloc(datalen))) {
-				free(item->name);
-				free(item);
+			if (!(item->data = event_malloc(datalen))) {
+				event_free(item->name);
+				event_free(item);
 				return -1;
 			}
 			item->datalen = datalen;
@@ -1682,7 +1682,7 @@ overflow:
 
 	req->response_len = j;
 
-	if (!(req->response = malloc(req->response_len))) {
+	if (!(req->response = event_malloc(req->response_len))) {
 		server_request_free_answers(req);
 		dnslabel_clear(&table);
 		return (-1);
@@ -1759,10 +1759,10 @@ server_request_free_answers(struct server_request *req)
 		victim = *list;
 		while (victim) {
 			next = victim->next;
-			free(victim->name);
+			event_free(victim->name);
 			if (victim->data)
-				free(victim->data);
-			free(victim);
+				event_free(victim->data);
+			event_free(victim);
 			victim = next;
 		}
 		*list = NULL;
@@ -1777,8 +1777,8 @@ server_request_free(struct server_request *req)
 	int i, rc=1;
 	if (req->base.questions) {
 		for (i = 0; i < req->base.nquestions; ++i)
-			free(req->base.questions[i]);
-		free(req->base.questions);
+			event_free(req->base.questions[i]);
+		event_free(req->base.questions);
 	}
 
 	if (req->port) {
@@ -1792,7 +1792,7 @@ server_request_free(struct server_request *req)
 	}
 
 	if (req->response) {
-		free(req->response);
+		event_free(req->response);
 	}
 
 	server_request_free_answers(req);
@@ -1804,10 +1804,10 @@ server_request_free(struct server_request *req)
 
 	if (rc == 0) {
 		server_port_free(req->port);
-		free(req);
+		event_free(req);
 		return (1);
 	}
-	free(req);
+	event_free(req);
 	return (0);
 }
 
@@ -2029,7 +2029,7 @@ evdns_clear_nameservers_and_suspend(void)
 		(void) evtimer_del(&server->timeout_event);
 		if (server->socket >= 0)
 			CLOSE_SOCKET(server->socket);
-		free(server);
+		event_free(server);
 		if (next == started_at)
 			break;
 		server = next;
@@ -2088,7 +2088,7 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 		} while (server != started_at);
 	}
 
-	ns = (struct nameserver *) malloc(sizeof(struct nameserver));
+	ns = (struct nameserver *) event_malloc(sizeof(struct nameserver));
         if (!ns) return -1;
 
 	memset(ns, 0, sizeof(struct nameserver));
@@ -2134,7 +2134,7 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 out2:
 	CLOSE_SOCKET(ns->socket);
 out1:
-	free(ns);
+	event_free(ns);
 	log(EVDNS_LOG_WARN, "Unable to add nameserver %s: error %d", debug_ntoa(address), err);
 	return err;
 }
@@ -2210,7 +2210,7 @@ request_new(int type, const char *name, int flags,
 	const u16 trans_id = issuing_now ? transaction_id_pick() : 0xffff;
 	/* the request data is alloced in a single block with the header */
 	struct request *const req =
-	    (struct request *) malloc(sizeof(struct request) + request_max_len);
+	    (struct request *) event_malloc(sizeof(struct request) + request_max_len);
 	int rlen;
         (void) flags;
 
@@ -2236,7 +2236,7 @@ request_new(int type, const char *name, int flags,
 
 	return req;
 err1:
-	free(req);
+	event_free(req);
 	return NULL;
 }
 
@@ -2364,15 +2364,15 @@ search_state_decref(struct search_state *const state) {
 		struct search_domain *next, *dom;
 		for (dom = state->head; dom; dom = next) {
 			next = dom->next;
-			free(dom);
+			event_free(dom);
 		}
-		free(state);
+		event_free(state);
 	}
 }
 
 static struct search_state *
 search_state_new(void) {
-	struct search_state *state = (struct search_state *) malloc(sizeof(struct search_state));
+	struct search_state *state = (struct search_state *) event_malloc(sizeof(struct search_state));
         if (!state) return NULL;
 	memset(state, 0, sizeof(struct search_state));
 	state->refcount = 1;
@@ -2405,7 +2405,7 @@ search_postfix_add(const char *domain) {
         if (!global_search_state) return;
 	global_search_state->num_domains++;
 
-	sdomain = (struct search_domain *) malloc(sizeof(struct search_domain) + domain_len);
+	sdomain = (struct search_domain *) event_malloc(sizeof(struct search_domain) + domain_len);
         if (!sdomain) return;
 	memcpy( ((u8 *) sdomain) + sizeof(struct search_domain), domain, domain_len);
 	sdomain->next = global_search_state->head;
@@ -2468,7 +2468,7 @@ search_make_new(const struct search_state *const state, int n, const char *const
 			/* the actual postfix string is kept at the end of the structure */
 			const u8 *const postfix = ((u8 *) dom) + sizeof(struct search_domain);
 			const int postfix_len = dom->len;
-			char *const newname = (char *) malloc(base_len + need_to_append_dot + postfix_len + 1);
+			char *const newname = (char *) event_malloc(base_len + need_to_append_dot + postfix_len + 1);
                         if (!newname) return NULL;
 			memcpy(newname, base_name, base_len);
 			if (need_to_append_dot) newname[base_len] = '.';
@@ -2499,11 +2499,11 @@ search_request_new(int type, const char *const name, int flags, evdns_callback_t
 			char *const new_name = search_make_new(global_search_state, 0, name);
                         if (!new_name) return 1;
 			req = request_new(type, new_name, flags, user_callback, user_arg);
-			free(new_name);
+			event_free(new_name);
 			if (!req) return 1;
 			req->search_index = 0;
 		}
-		req->search_origname = strdup(name);
+		req->search_origname = event_strdup(name);
 		req->search_state = global_search_state;
 		req->search_flags = flags;
 		global_search_state->refcount++;
@@ -2548,7 +2548,7 @@ search_try_next(struct request *const req) {
                 if (!new_name) return 1;
 		log(EVDNS_LOG_DEBUG, "Search: now trying %s (%d)", new_name, req->search_index);
 		newreq = request_new(req->request_type, new_name, req->search_flags, req->user_callback, req->user_pointer);
-		free(new_name);
+		event_free(new_name);
 		if (!newreq) return 1;
 		newreq->search_origname = req->search_origname;
 		req->search_origname = NULL;
@@ -2569,7 +2569,7 @@ search_request_finished(struct request *const req) {
 		req->search_state = NULL;
 	}
 	if (req->search_origname) {
-		free(req->search_origname);
+		event_free(req->search_origname);
 		req->search_origname = NULL;
 	}
 }
@@ -2731,7 +2731,7 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 	}
 	if (st.st_size > 65535) { err = 3; goto out1; }  /* no resolv.conf should be any bigger */
 
-	resolv = (u8 *) malloc((size_t)st.st_size + 1);
+	resolv = (u8 *) event_malloc((size_t)st.st_size + 1);
 	if (!resolv) { err = 4; goto out1; }
 
 	n = 0;
@@ -2767,7 +2767,7 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 	}
 
 out2:
-	free(resolv);
+	event_free(resolv);
 out1:
 	close(fd);
 	return err;
@@ -2786,12 +2786,12 @@ evdns_nameserver_ip_add_line(const char *ips) {
 		addr = ips;
 		while (ISDIGIT(*ips) || *ips == '.' || *ips == ':')
 			++ips;
-		buf = malloc(ips-addr+1);
+		buf = event_malloc(ips-addr+1);
 		if (!buf) return 4;
 		memcpy(buf, addr, ips-addr);
 		buf[ips-addr] = '\0';
 		r = evdns_nameserver_ip_add(buf);
-		free(buf);
+		event_free(buf);
 		if (r) return r;
 	}
 	return 0;
@@ -2824,7 +2824,7 @@ load_nameservers_with_getnetworkparams(void)
 		goto done;
 	}
 
-	buf = malloc(size);
+	buf = event_malloc(size);
 	if (!buf) { status = 4; goto done; }
 	fixed = buf;
 	r = fn(fixed, &size);
@@ -2833,8 +2833,8 @@ load_nameservers_with_getnetworkparams(void)
 		goto done;
 	}
 	if (r != ERROR_SUCCESS) {
-		free(buf);
-		buf = malloc(size);
+		event_free(buf);
+		buf = event_malloc(size);
 		if (!buf) { status = 4; goto done; }
 		fixed = buf;
 		r = fn(fixed, &size);
@@ -2870,7 +2870,7 @@ load_nameservers_with_getnetworkparams(void)
 
  done:
 	if (buf)
-		free(buf);
+		event_free(buf);
 	if (handle)
 		FreeLibrary(handle);
 	return status;
@@ -2886,7 +2886,7 @@ config_nameserver_from_reg_key(HKEY key, const char *subkey)
 	if (RegQueryValueEx(key, subkey, 0, &type, NULL, &bufsz)
 	    != ERROR_MORE_DATA)
 		return -1;
-	if (!(buf = malloc(bufsz)))
+	if (!(buf = event_malloc(bufsz)))
 		return -1;
 
 	if (RegQueryValueEx(key, subkey, 0, &type, (LPBYTE)buf, &bufsz)
@@ -2894,7 +2894,7 @@ config_nameserver_from_reg_key(HKEY key, const char *subkey)
 		status = evdns_nameserver_ip_add_line(buf);
 	}
 
-	free(buf);
+	event_free(buf);
 	return status;
 }
 
@@ -3022,7 +3022,7 @@ evdns_shutdown(int fail_requests)
 		(void) event_del(&server->event);
 		if (server->state == 0)
                         (void) event_del(&server->timeout_event);
-		free(server);
+		event_free(server);
 		if (server_next == server_head)
 			break;
 	}
@@ -3032,9 +3032,9 @@ evdns_shutdown(int fail_requests)
 	if (global_search_state) {
 		for (dom = global_search_state->head; dom; dom = dom_next) {
 			dom_next = dom->next;
-			free(dom);
+			event_free(dom);
 		}
-		free(global_search_state);
+		event_free(global_search_state);
 		global_search_state = NULL;
 	}
 	evdns_log_fn = NULL;
