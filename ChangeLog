@@ -9,6 +9,7 @@ Changes in current version:
  o New function event_set_mem_functinons.  It allows the user to give libevent replacement functions to use for memory management in place of malloc(), free(), etc.  This should be generally useful for memory instrumentation, specialized allocators, and so on.
  o The kqueue implementation now catches signals that are raised after event_add() is called but before the event_loop() call.  This makes it match the other implementations.
  o The kqueue implementation now restores original signal handlers correctly when its signal events are removed.
+ o Check return value of event_add in signal.c
 
 
 Changes in 1.4.0:
