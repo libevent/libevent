@@ -211,45 +211,91 @@ evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen)
  * Reads a line terminated by either '\r\n', '\n\r' or '\r' or '\n'.
  * The returned buffer needs to be freed by the called.
  */
-
 char *
 evbuffer_readline(struct evbuffer *buffer)
 {
+	return evbuffer_readln(buffer, NULL, EVBUFFER_EOL_ANY);
+}
+
+char *
+evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
+		enum evbuffer_eol_style eol_style)
+{
 	u_char *data = EVBUFFER_DATA(buffer);
+	u_char *start_of_eol, *end_of_eol;
 	size_t len = EVBUFFER_LENGTH(buffer);
 	char *line;
-	unsigned int i;
+	unsigned int i, n_to_copy, n_to_drain;
 
-	for (i = 0; i < len; i++) {
-		if (data[i] == '\r' || data[i] == '\n')
-			break;
+	/* depending on eol_style, set start_of_eol to the first character
+	 * in the newline, and end_of_eol to one after the last character. */
+	switch (eol_style) {
+	case EVBUFFER_EOL_ANY:
+		for (i = 0; i < len; i++) {
+			if (data[i] == '\r' || data[i] == '\n')
+				break;
+		}
+		if (i == len)
+			return (NULL);
+		start_of_eol = data+i;
+		++i;
+		for ( ; i < len; i++) {
+			if (data[i] != '\r' && data[i] != '\n')
+				break;
+		}
+		end_of_eol = data+i;
+		break;
+	case EVBUFFER_EOL_CRLF:
+		end_of_eol = memchr(data, '\n', len);
+		if (!end_of_eol)
+			return (NULL);
+		if (end_of_eol > data && *(end_of_eol-1) == '\r')
+			start_of_eol = end_of_eol - 1;
+		else
+			start_of_eol = end_of_eol;
+		end_of_eol++; /*point to one after the LF. */
+		break;
+	case EVBUFFER_EOL_CRLF_STRICT: {
+		u_char *cp = data;
+		while ((cp = memchr(cp, '\r', len-(cp-data)))) {
+			if (cp < data+len-1 && *(cp+1) == '\n')
+				break;
+			if (++cp >= data+len) {
+				cp = NULL;
+				break;
+			}
+		}
+		if (!cp)
+			return (NULL);
+		start_of_eol = cp;
+		end_of_eol = cp+2;
+		break;
+	}
+	case EVBUFFER_EOL_LF:
+		start_of_eol = memchr(data, '\n', len);
+		if (!start_of_eol)
+			return (NULL);
+		end_of_eol = start_of_eol + 1;
+		break;
+	default:
+		return (NULL);
 	}
 
-	if (i == len)
-		return (NULL);
+	n_to_copy = start_of_eol - data;
+	n_to_drain = end_of_eol - data;
 
-	if ((line = event_malloc(i + 1)) == NULL) {
+	if ((line = event_malloc(n_to_copy+1)) == NULL) {
 		fprintf(stderr, "%s: out of memory\n", __func__);
-		evbuffer_drain(buffer, i);
+		evbuffer_drain(buffer, n_to_drain);
 		return (NULL);
 	}
 
-	memcpy(line, data, i);
-	line[i] = '\0';
+	memcpy(line, data, n_to_copy);
+	line[n_to_copy] = '\0';
 
-	/*
-	 * Some protocols terminate a line with '\r\n', so check for
-	 * that, too.
-	 */
-	if ( i < len - 1 ) {
-		char fch = data[i], sch = data[i+1];
-
-		/* Drain one more character if needed */
-		if ( (sch == '\r' || sch == '\n') && sch != fch )
-			i += 1;
-	}
-
-	evbuffer_drain(buffer, i + 1);
+	evbuffer_drain(buffer, n_to_drain);
+	if (n_read_out)
+		*n_read_out = (size_t)n_to_copy;
 
 	return (line);
 }
