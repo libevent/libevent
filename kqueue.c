@@ -60,6 +60,7 @@
 #include "event.h"
 #include "event-internal.h"
 #include "log.h"
+#include "event-internal.h"
 
 #define EVLIST_X_KQINKERNEL	0x1000
 
@@ -102,29 +103,29 @@ kq_init(struct event_base *base)
 	if (getenv("EVENT_NOKQUEUE"))
 		return (NULL);
 
-	if (!(kqueueop = calloc(1, sizeof(struct kqop))))
+	if (!(kqueueop = event_calloc(1, sizeof(struct kqop))))
 		return (NULL);
 
 	/* Initalize the kernel queue */
 	
 	if ((kq = kqueue()) == -1) {
 		event_warn("kqueue");
-		free (kqueueop);
+		event_free (kqueueop);
 		return (NULL);
 	}
 
 	kqueueop->kq = kq;
 
 	/* Initalize fields */
-	kqueueop->changes = malloc(NEVENT * sizeof(struct kevent));
+	kqueueop->changes = event_malloc(NEVENT * sizeof(struct kevent));
 	if (kqueueop->changes == NULL) {
-		free (kqueueop);
+		event_free (kqueueop);
 		return (NULL);
 	}
-	kqueueop->events = malloc(NEVENT * sizeof(struct kevent));
+	kqueueop->events = event_malloc(NEVENT * sizeof(struct kevent));
 	if (kqueueop->events == NULL) {
-		free (kqueueop->changes);
-		free (kqueueop);
+		event_free (kqueueop->changes);
+		event_free (kqueueop);
 		return (NULL);
 	}
 	kqueueop->nevents = NEVENT;
@@ -143,9 +144,9 @@ kq_init(struct event_base *base)
 	    kqueueop->events[0].ident != -1 ||
 	    kqueueop->events[0].flags != EV_ERROR) {
 		event_warn("%s: detected broken kqueue; not using.", __func__);
-		free(kqueueop->changes);
-		free(kqueueop->events);
-		free(kqueueop);
+		event_free(kqueueop->changes);
+		event_free(kqueueop->events);
+		event_free(kqueueop);
 		close(kq);
 		return (NULL);
 	}
@@ -170,7 +171,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 
 		nevents *= 2;
 
-		newchange = realloc(kqop->changes,
+		newchange = event_realloc(kqop->changes,
 				    nevents * sizeof(struct kevent));
 		if (newchange == NULL) {
 			event_warn("%s: malloc", __func__);
@@ -178,7 +179,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 		}
 		kqop->changes = newchange;
 
-		newresult = realloc(kqop->events,
+		newresult = event_realloc(kqop->events,
 				    nevents * sizeof(struct kevent));
 
 		/*
@@ -411,11 +412,11 @@ kq_dealloc(struct event_base *base, void *arg)
 	struct kqop *kqop = arg;
 
 	if (kqop->changes)
-		free(kqop->changes);
+		event_free(kqop->changes);
 	if (kqop->events)
-		free(kqop->events);
+		event_free(kqop->events);
 	if (kqop->kq)
 		close(kqop->kq);
 	memset(kqop, 0, sizeof(struct kqop));
-	free(kqop);
+	event_free(kqop);
 }

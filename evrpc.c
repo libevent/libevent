@@ -60,11 +60,12 @@
 #include "evhttp.h"
 #include "evutil.h"
 #include "log.h"
+#include "mm-internal.h"
 
 struct evrpc_base *
 evrpc_init(struct evhttp *http_server)
 {
-	struct evrpc_base* base = calloc(1, sizeof(struct evrpc_base));
+	struct evrpc_base* base = event_calloc(1, sizeof(struct evrpc_base));
 	if (base == NULL)
 		return (NULL);
 
@@ -94,7 +95,7 @@ evrpc_free(struct evrpc_base *base)
 	while ((hook = TAILQ_FIRST(&base->output_hooks)) != NULL) {
 		assert(evrpc_remove_hook(base, OUTPUT, hook));
 	}
-	free(base);
+	event_free(base);
 }
 
 void *
@@ -117,7 +118,7 @@ evrpc_add_hook(void *vbase,
 		assert(hook_type == INPUT || hook_type == OUTPUT);
 	}
 
-	hook = calloc(1, sizeof(struct evrpc_hook));
+	hook = event_calloc(1, sizeof(struct evrpc_hook));
 	assert(hook != NULL);
 	
 	hook->process = cb;
@@ -134,7 +135,7 @@ evrpc_remove_hook_internal(struct evrpc_hook_list *head, void *handle)
 	TAILQ_FOREACH(hook, head, next) {
 		if (hook == handle) {
 			TAILQ_REMOVE(head, hook, next);
-			free(hook);
+			event_free(hook);
 			return (1);
 		}
 	}
@@ -195,7 +196,7 @@ evrpc_construct_uri(const char *uri)
 	int constructed_uri_len;
 
 	constructed_uri_len = strlen(EVRPC_URI_PREFIX) + strlen(uri) + 1;
-	if ((constructed_uri = malloc(constructed_uri_len)) == NULL)
+	if ((constructed_uri = event_malloc(constructed_uri_len)) == NULL)
 		event_err(1, "%s: failed to register rpc at %s",
 		    __func__, uri);
 	memcpy(constructed_uri, EVRPC_URI_PREFIX, strlen(EVRPC_URI_PREFIX));
@@ -222,7 +223,7 @@ evrpc_register_rpc(struct evrpc_base *base, struct evrpc *rpc,
 	    evrpc_request_cb,
 	    rpc);
 	
-	free(constructed_uri);
+	event_free(constructed_uri);
 
 	return (0);
 }
@@ -244,15 +245,15 @@ evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
 	}
 	TAILQ_REMOVE(&base->registered_rpcs, rpc, next);
 	
-	free((char *)rpc->uri);
-	free(rpc);
+	event_free((char *)rpc->uri);
+	event_free(rpc);
 
         registered_uri = evrpc_construct_uri(name);
 
 	/* remove the http server callback */
 	assert(evhttp_del_cb(base->http_server, registered_uri) == 0);
 
-	free(registered_uri);
+	event_free(registered_uri);
 	return (0);
 }
 
@@ -276,7 +277,7 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 		req, req->input_buffer) == -1)
 		goto error;
 
-	rpc_state = calloc(1, sizeof(struct evrpc_req_generic));
+	rpc_state = event_calloc(1, sizeof(struct evrpc_req_generic));
 	if (rpc_state == NULL)
 		goto error;
 
@@ -324,7 +325,7 @@ evrpc_reqstate_free(struct evrpc_req_generic* rpc_state)
 			rpc->request_free(rpc_state->request);
 		if (rpc_state->reply != NULL)
 			rpc->reply_free(rpc_state->reply);
-		free(rpc_state);
+		event_free(rpc_state);
 	}
 }
 
@@ -377,7 +378,7 @@ static int evrpc_schedule_request(struct evhttp_connection *connection,
 struct evrpc_pool *
 evrpc_pool_new(struct event_base *base)
 {
-	struct evrpc_pool *pool = calloc(1, sizeof(struct evrpc_pool));
+	struct evrpc_pool *pool = event_calloc(1, sizeof(struct evrpc_pool));
 	if (pool == NULL)
 		return (NULL);
 
@@ -396,8 +397,8 @@ evrpc_pool_new(struct event_base *base)
 static void
 evrpc_request_wrapper_free(struct evrpc_request_wrapper *request)
 {
-	free(request->name);
-	free(request);
+	event_free(request->name);
+	event_free(request);
 }
 
 void
@@ -426,7 +427,7 @@ evrpc_pool_free(struct evrpc_pool *pool)
 		assert(evrpc_remove_hook(pool, OUTPUT, hook));
 	}
 
-	free(pool);
+	event_free(pool);
 }
 
 /*
@@ -539,7 +540,7 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 
 	/* start the request over the connection */
 	res = evhttp_make_request(connection, req, EVHTTP_REQ_POST, uri);
-	free(uri);
+	event_free(uri);
 
 	if (res == -1)
 		goto error;

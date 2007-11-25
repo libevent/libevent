@@ -144,7 +144,7 @@ evsignal_add(struct event *ev)
 		event_debug(("%s: evsignal (%d) >= sh_old_max (%d), resizing",
 			    __func__, evsignal, sig->sh_old_max));
 		sig->sh_old_max = evsignal + 1;
-		p = realloc(sig->sh_old, sig->sh_old_max * sizeof *sig->sh_old);
+		p = event_realloc(sig->sh_old, sig->sh_old_max * sizeof *sig->sh_old);
 		if (p == NULL) {
 			event_warn("realloc");
 			return (-1);
@@ -153,7 +153,7 @@ evsignal_add(struct event *ev)
 	}
 
 	/* allocate space for previous handler out of dynamic array */
-	sig->sh_old[evsignal] = malloc(sizeof *sig->sh_old[evsignal]);
+	sig->sh_old[evsignal] = event_malloc(sizeof *sig->sh_old[evsignal]);
 	if (sig->sh_old[evsignal] == NULL) {
 		event_warn("malloc");
 		return (-1);
@@ -169,13 +169,13 @@ evsignal_add(struct event *ev)
 
 	if (sigaction(evsignal, &sa, sig->sh_old[evsignal]) == -1) {
 		event_warn("sigaction");
-		free(sig->sh_old[evsignal]);
+		event_free(sig->sh_old[evsignal]);
 		return (-1);
 	}
 #else
 	if ((sh = signal(evsignal, evsignal_handler)) == SIG_ERR) {
 		event_warn("signal");
-		free(sig->sh_old[evsignal]);
+		event_free(sig->sh_old[evsignal]);
 		return (-1);
 	}
 	*sig->sh_old[evsignal] = sh;
@@ -220,7 +220,7 @@ evsignal_del(struct event *ev)
 		ret = -1;
 	}
 #endif
-	free(sh);
+	event_free(sh);
 
 	return ret;
 }
@@ -283,5 +283,5 @@ evsignal_dealloc(struct event_base *base)
 	base->sig.sh_old_max = 0;
 
 	/* per index frees are handled in evsignal_del() */
-	free(base->sig.sh_old);
+	event_free(base->sig.sh_old);
 }

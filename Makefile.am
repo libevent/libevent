@@ -82,7 +82,7 @@ event-config.h: config.h
 
 CORE_SRC = event.c buffer.c evbuffer.c log.c evutil.c $(SYS_SRC)
 EXTRA_SRC = event_tagging.c http.c evhttp.h http-internal.h evdns.c \
-	evdns.h evrpc.c evrpc.h evrpc-internal.h \
+	evdns.h evrpc.c evrpc.h evrpc-internal.h mm-internal.h \
 	strlcpy.c strlcpy-internal.h strlcpy-internal.h
 
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)

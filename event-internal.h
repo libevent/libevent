@@ -34,6 +34,7 @@ extern "C" {
 #include "config.h"
 #include "min_heap.h"
 #include "evsignal.h"
+#include "mm-internal.h"
 
 struct eventop {
 	const char *name;

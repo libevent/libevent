@@ -49,6 +49,7 @@
 
 #include "evutil.h"
 #include "event.h"
+#include "mm-internal.h"
 
 /* prototypes */
 
@@ -229,17 +230,17 @@ bufferevent_new(int fd, evbuffercb readcb, evbuffercb writecb,
 {
 	struct bufferevent *bufev;
 
-	if ((bufev = calloc(1, sizeof(struct bufferevent))) == NULL)
+	if ((bufev = event_calloc(1, sizeof(struct bufferevent))) == NULL)
 		return (NULL);
 
 	if ((bufev->input = evbuffer_new()) == NULL) {
-		free(bufev);
+		event_free(bufev);
 		return (NULL);
 	}
 
 	if ((bufev->output = evbuffer_new()) == NULL) {
 		evbuffer_free(bufev->input);
-		free(bufev);
+		event_free(bufev);
 		return (NULL);
 	}
 
@@ -284,7 +285,7 @@ bufferevent_free(struct bufferevent *bufev)
 	evbuffer_free(bufev->input);
 	evbuffer_free(bufev->output);
 
-	free(bufev);
+	event_free(bufev);
 }
 
 /*

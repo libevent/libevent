@@ -63,6 +63,7 @@
 
 #include "event.h"
 #include "log.h"
+#include "mm-internal.h"
 
 int decode_int(uint32_t *pnumber, struct evbuffer *evbuf);
 
@@ -347,7 +348,7 @@ evtag_unmarshal_string(struct evbuffer *evbuf, uint8_t need_tag,
 	if (evtag_unmarshal(evbuf, &tag, _buf) == -1 || tag != need_tag)
 		return (-1);
 
-	*pstring = calloc(EVBUFFER_LENGTH(_buf) + 1, 1);
+	*pstring = event_calloc(EVBUFFER_LENGTH(_buf) + 1, 1);
 	if (*pstring == NULL)
 		event_err(1, "%s: calloc", __func__);
 	evbuffer_remove(_buf, *pstring, EVBUFFER_LENGTH(_buf));
