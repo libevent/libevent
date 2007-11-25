@@ -11,6 +11,7 @@ Changes in current version:
  o The kqueue implementation now catches signals that are raised after event_add() is called but before the event_loop() call.  This makes it match the other implementations.
  o The kqueue implementation now restores original signal handlers correctly when its signal events are removed.
  o Check return value of event_add in signal.c
+ o Add a more powerful evbuffer_readln as a replacement for evbuffer_readline.  The new function handles more newline styles, and is more useful with buffers that may contain a nul characters.
 
 
 Changes in 1.4.0:
