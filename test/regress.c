@@ -86,7 +86,7 @@ static struct event_base *global_base;
 #define read(fd,buf,len) recv((fd),(buf),(len),0)
 #endif
 
-void
+static void
 simple_read_cb(int fd, short event, void *arg)
 {
 	char buf[256];
@@ -105,7 +105,7 @@ simple_read_cb(int fd, short event, void *arg)
 	called++;
 }
 
-void
+static void
 simple_write_cb(int fd, short event, void *arg)
 {
 	int len;
@@ -117,7 +117,7 @@ simple_write_cb(int fd, short event, void *arg)
 		test_ok = 1;
 }
 
-void
+static void
 multiple_write_cb(int fd, short event, void *arg)
 {
 	struct event *ev = arg;
@@ -150,7 +150,7 @@ multiple_write_cb(int fd, short event, void *arg)
 	}
 }
 
-void
+static void
 multiple_read_cb(int fd, short event, void *arg)
 {
 	struct event *ev = arg;
@@ -172,7 +172,7 @@ multiple_read_cb(int fd, short event, void *arg)
 	}
 }
 
-void
+static void
 timeout_cb(int fd, short event, void *arg)
 {
 	struct timeval tv;
@@ -192,12 +192,13 @@ timeout_cb(int fd, short event, void *arg)
 		test_ok = 1;
 }
 
-void signal_cb_sa(int sig)
+static void
+signal_cb_sa(int sig)
 {
 	test_ok = 2;
 }
 
-void
+static void
 signal_cb(int fd, short event, void *arg)
 {
 	struct event *ev = arg;
@@ -211,7 +212,7 @@ struct both {
 	int nread;
 };
 
-void
+static void
 combined_read_cb(int fd, short event, void *arg)
 {
 	struct both *both = arg;
@@ -229,7 +230,7 @@ combined_read_cb(int fd, short event, void *arg)
 		exit(1);
 }
 
-void
+static void
 combined_write_cb(int fd, short event, void *arg)
 {
 	struct both *both = arg;
@@ -255,8 +256,8 @@ combined_write_cb(int fd, short event, void *arg)
 
 /* Test infrastructure */
 
-int
-setup_test(char *name)
+static int
+setup_test(const char *name)
 {
 
 	fprintf(stdout, "%s", name);
@@ -279,7 +280,7 @@ setup_test(char *name)
 	return (0);
 }
 
-int
+static int
 cleanup_test(void)
 {
 #ifndef WIN32
@@ -299,7 +300,7 @@ cleanup_test(void)
 	return (0);
 }
 
-void
+static void
 test_simpleread(void)
 {
 	struct event ev;
@@ -318,7 +319,7 @@ test_simpleread(void)
 	cleanup_test();
 }
 
-void
+static void
 test_simplewrite(void)
 {
 	struct event ev;
@@ -334,7 +335,7 @@ test_simplewrite(void)
 	cleanup_test();
 }
 
-void
+static void
 test_multiple(void)
 {
 	struct event ev, ev2;
@@ -363,7 +364,7 @@ test_multiple(void)
 	cleanup_test();
 }
 
-void
+static void
 test_persistent(void)
 {
 	struct event ev, ev2;
@@ -392,7 +393,7 @@ test_persistent(void)
 	cleanup_test();
 }
 
-void
+static void
 test_combined(void)
 {
 	struct both r1, r2, w1, w2;
@@ -427,7 +428,7 @@ test_combined(void)
 	cleanup_test();
 }
 
-void
+static void
 test_simpletimeout(void)
 {
 	struct timeval tv;
@@ -447,7 +448,8 @@ test_simpletimeout(void)
 }
 
 #ifndef WIN32
-void
+extern struct event_base *current_base;
+static void
 test_fork(void)
 {
 	int status;
@@ -465,7 +467,6 @@ test_fork(void)
 
 	if ((pid = fork()) == 0) {
 		/* in the child */
-		extern struct event_base *current_base;
 		if (event_reinit(current_base) == -1) {
 			fprintf(stderr, "FAILED (reinit)\n");
 			exit(1);
@@ -488,7 +489,7 @@ test_fork(void)
 	cleanup_test();
 }
 
-void
+static void
 test_simplesignal(void)
 {
 	struct event ev;
@@ -511,7 +512,7 @@ test_simplesignal(void)
 	cleanup_test();
 }
 
-void
+static void
 test_immediatesignal(void)
 {
 	struct event ev;
@@ -526,7 +527,7 @@ test_immediatesignal(void)
 	cleanup_test();
 }
 
-void
+static void
 test_signal_dealloc(void)
 {
 	/* make sure that signal_event is event_del'ed and pipe closed */
@@ -542,7 +543,7 @@ test_signal_dealloc(void)
 	cleanup_test();
 }
 
-void
+static void
 test_signal_pipeloss(void)
 {
 	/* make sure that the base1 pipe is closed correctly. */
@@ -570,7 +571,7 @@ test_signal_pipeloss(void)
  * for event mechanisms that use our signal pipe trick.  kqueue handles
  * signals internally, and all interested kqueues get all the signals.
  */
-void
+static void
 test_signal_switchbase(void)
 {
 	struct event ev1, ev2;
@@ -620,8 +621,8 @@ test_signal_switchbase(void)
  * assert that a signal event removed from the event queue really is
  * removed - with no possibility of it's parent handler being fired.
  */
-void
-test_signal_assert()
+static void
+test_signal_assert(void)
 {
 	struct event ev;
 	struct event_base *base = event_init();
@@ -651,8 +652,8 @@ test_signal_assert()
 /*
  * assert that we restore our previous signal handler properly.
  */
-void
-test_signal_restore()
+static void
+test_signal_restore(void)
 {
 	struct event ev;
 	struct event_base *base = event_init();
@@ -687,7 +688,7 @@ out:
 }
 #endif
 
-void
+static void
 test_free_active_base(void)
 {
 	struct event_base *base1;
@@ -703,7 +704,7 @@ test_free_active_base(void)
 	cleanup_test();
 }
 
-void
+static void
 test_event_base_new(void)
 {
 	struct event_base *base;
@@ -725,7 +726,7 @@ test_event_base_new(void)
 	cleanup_test();
 }
 
-void
+static void
 test_loopexit(void)
 {
 	struct timeval tv, tv_start, tv_end;
@@ -768,7 +769,7 @@ fail_cb(int fd, short events, void *arg)
 	test_ok = 0;
 }
 
-void
+static void
 test_loopbreak(void)
 {
 	struct event ev1, ev2;
@@ -791,7 +792,7 @@ test_loopbreak(void)
 	cleanup_test();
 }
 
-void
+static void
 test_evbuffer(void) {
 
 	struct evbuffer *evb = evbuffer_new();
@@ -808,7 +809,7 @@ test_evbuffer(void) {
 	cleanup_test();
 }
 
-void
+static void
 test_evbuffer_readln(void)
 {
 	struct evbuffer *evb = evbuffer_new();
@@ -917,12 +918,12 @@ test_evbuffer_readln(void)
 	cleanup_test();
 }
 
-void
+static void
 test_evbuffer_find(void)
 {
 	u_char* p;
-	char* test1 = "1234567890\r\n";
-	char* test2 = "1234567890\r";
+	const char* test1 = "1234567890\r\n";
+	const char* test2 = "1234567890\r";
 #define EVBUFFER_INITIAL_LENGTH 256
 	char test3[EVBUFFER_INITIAL_LENGTH];
 	unsigned int i;
@@ -972,7 +973,7 @@ test_evbuffer_find(void)
 	evbuffer_free(buf);
 }
 
-void
+static void
 readcb(struct bufferevent *bev, void *arg)
 {
 	if (EVBUFFER_LENGTH(bev->input) == 8333) {
@@ -981,20 +982,20 @@ readcb(struct bufferevent *bev, void *arg)
 	}
 }
 
-void
+static void
 writecb(struct bufferevent *bev, void *arg)
 {
 	if (EVBUFFER_LENGTH(bev->output) == 0)
 		test_ok++;
 }
 
-void
+static void
 errorcb(struct bufferevent *bev, short what, void *arg)
 {
 	test_ok = -2;
 }
 
-void
+static void
 test_bufferevent(void)
 {
 	struct bufferevent *bev1, *bev2;
@@ -1030,7 +1031,7 @@ struct test_pri_event {
 	int count;
 };
 
-void
+static void
 test_priorities_cb(int fd, short what, void *arg)
 {
 	struct test_pri_event *pri = arg;
@@ -1047,7 +1048,7 @@ test_priorities_cb(int fd, short what, void *arg)
 	event_add(&pri->ev, &tv);
 }
 
-void
+static void
 test_priorities(int npriorities)
 {
 	char buf[32];
@@ -1110,7 +1111,7 @@ test_multiple_cb(int fd, short event, void *arg)
 		test_ok |= 2;
 }
 
-void
+static void
 test_multiple_events_for_same_fd(void)
 {
    struct event e1, e2;
@@ -1135,7 +1136,7 @@ test_multiple_events_for_same_fd(void)
 
 int decode_int(uint32_t *pnumber, struct evbuffer *evbuf);
 
-void
+static void
 read_once_cb(int fd, short event, void *arg)
 {
 	char buf[256];
@@ -1154,7 +1155,7 @@ read_once_cb(int fd, short event, void *arg)
 	called++;
 }
 
-void
+static void
 test_want_only_once(void)
 {
 	struct event ev;
@@ -1180,7 +1181,7 @@ test_want_only_once(void)
 
 #define TEST_MAX_INT	6
 
-void
+static void
 evtag_int_test(void)
 {
 	struct evbuffer *tmp = evbuffer_new();
@@ -1220,7 +1221,7 @@ evtag_int_test(void)
 	fprintf(stdout, "\t%s: OK\n", __func__);
 }
 
-void
+static void
 evtag_fuzz(void)
 {
 	u_char buffer[4096];
@@ -1275,7 +1276,7 @@ evtag_test(void)
 	fprintf(stdout, "OK\n");
 }
 
-void
+static void
 rpc_test(void)
 {
 	struct msg *msg, *msg2;

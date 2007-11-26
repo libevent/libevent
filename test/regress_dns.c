@@ -66,7 +66,9 @@
 static int dns_ok = 0;
 static int dns_err = 0;
 
-void
+void dns_suite(void);
+
+static void
 dns_gethostbyname_cb(int result, char type, int count, int ttl,
     void *addresses, void *arg)
 {
@@ -131,7 +133,7 @@ out:
 	event_loopexit(NULL);
 }
 
-void
+static void
 dns_gethostbyname(void)
 {
 	fprintf(stdout, "Simple DNS resolve: ");
@@ -147,7 +149,7 @@ dns_gethostbyname(void)
 	}
 }
 
-void
+static void
 dns_gethostbyname6(void)
 {
 	fprintf(stdout, "IPv6 DNS resolve: ");
@@ -165,7 +167,7 @@ dns_gethostbyname6(void)
 	}
 }
 
-void
+static void
 dns_gethostbyaddr(void)
 {
 	struct in_addr in;
@@ -230,7 +232,7 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 	}
 }
 
-void
+static void
 dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 							void *addresses, void *arg)
 {
@@ -290,7 +292,7 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 	}
 }
 
-void
+static void
 dns_server(void)
 {
 	int sock;

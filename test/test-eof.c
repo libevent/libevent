@@ -29,7 +29,7 @@
 int test_okay = 1;
 int called = 0;
 
-void
+static void
 read_cb(int fd, short event, void *arg)
 {
 	char buf[256];
@@ -57,7 +57,7 @@ int
 main (int argc, char **argv)
 {
 	struct event ev;
-	char *test = "test string";
+	const char *test = "test string";
 	int pair[2];
 
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)

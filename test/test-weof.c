@@ -31,10 +31,10 @@ int pair[2];
 int test_okay = 1;
 int called = 0;
 
-void
+static void
 write_cb(int fd, short event, void *arg)
 {
-	char *test = "test string";
+	const char *test = "test string";
 	int len;
 
 	len = write(fd, test, strlen(test) + 1);

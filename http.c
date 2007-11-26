@@ -443,7 +443,7 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 
 	/* XXX EVBUFFER_LENGTH returns an unsigned value, so this test
 	 *      is always true. What is the intent of this test? -NM */
-	if (EVBUFFER_LENGTH(req->output_buffer) >= 0) {
+	if (1) { // || EVBUFFER_LENGTH(req->output_buffer) >= 0) {
 		/*
 		 * For a request, we add the POST data, for a reply, this
 		 * is the regular data.

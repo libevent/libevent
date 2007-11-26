@@ -25,7 +25,7 @@ int called = 0;
 
 struct event *ev[NEVENT];
 
-int
+static int
 rand_int(int n)
 {
 #ifdef WIN32
@@ -35,7 +35,7 @@ rand_int(int n)
 #endif
 }
 
-void
+static void
 time_cb(int fd, short event, void *arg)
 {
 	struct timeval tv;
