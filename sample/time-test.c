@@ -29,7 +29,7 @@
 
 int lasttime;
 
-void
+static void
 timeout_cb(int fd, short event, void *arg)
 {
 	struct timeval tv;

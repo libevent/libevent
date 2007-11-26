@@ -28,7 +28,7 @@
 
 int called = 0;
 
-void
+static void
 signal_cb(int fd, short event, void *arg)
 {
 	struct event *signal = arg;

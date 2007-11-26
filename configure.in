@@ -21,6 +21,9 @@ if test "$GCC" = yes ; then
         CFLAGS="$CFLAGS -Wall"
 fi
 
+AC_ARG_ENABLE(gcc-warnings,
+     AS_HELP_STRING(--enable-gcc-warnings, enable verbose warnings with GCC))
+
 AC_PROG_LIBTOOL
 
 dnl   Uncomment "AC_DISABLE_SHARED" to make shared librraries not get
@@ -334,5 +337,38 @@ AC_TRY_COMPILE([],
    AC_DEFINE(__func__, __FILE__,
          [Define to appropriate substitue if compiler doesnt have __func__])))
 
+
+# Add some more warnings which we use in development but not in the
+# released versions.  (Some relevant gcc versions can't handle these.)
+if test x$enable_gcc_warnings = xyes; then
+
+  AC_COMPILE_IFELSE(AC_LANG_PROGRAM([], [
+#if !defined(__GNUC__) || (__GNUC__ < 4)
+#error
+#endif]), have_gcc4=yes, have_gcc4=no)
+
+  AC_COMPILE_IFELSE(AC_LANG_PROGRAM([], [
+#if !defined(__GNUC__) || (__GNUC__ < 4) || (__GNUC__ == 4 && __GNUC_MINOR__ < 2)
+#error
+#endif]), have_gcc42=yes, have_gcc42=no)
+
+  CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat=2 -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch-enum -Werror"
+  CFLAGS="$CFLAGS -Wno-unused-parameter -Wno-sign-compare"
+
+  if test x$have_gcc4 = xyes ; then 
+    # These warnings break gcc 3.3.5 and work on gcc 4.0.2
+    CFLAGS="$CFLAGS -Winit-self -Wmissing-field-initializers -Wdeclaration-after-statement"
+    #CFLAGS="$CFLAGS -Wold-style-definition"
+  fi
+
+  if test x$have_gcc42 = xyes ; then 
+    # These warnings break gcc 4.0.2 and work on gcc 4.2
+    CFLAGS="$CFLAGS -Waddress -Wnormalized=id -Woverride-init"
+  fi
+
+##This will break the world on some 64-bit architectures
+# CFLAGS="$CFLAGS -Winline"
+
+fi
 
 AC_OUTPUT(Makefile test/Makefile sample/Makefile)

@@ -64,6 +64,8 @@ static struct evhttp *http;
 /* set if a test needs to call loopexit on a base */
 static struct event_base *base;
 
+void http_suite(void);
+
 void http_basic_cb(struct evhttp_request *req, void *arg);
 void http_post_cb(struct evhttp_request *req, void *arg);
 void http_dispatcher_cb(struct evhttp_request *req, void *arg);
@@ -100,7 +102,7 @@ http_setup(short *pport, struct event_base *base)
 #define NI_MAXSERV 1024
 #endif
 
-int
+static int
 http_connect(const char *address, u_short port)
 {
 	/* Stupid code for connecting */
@@ -150,7 +152,7 @@ http_connect(const char *address, u_short port)
 	return (fd);
 }
 
-void
+static void
 http_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = "This is funny";
@@ -178,7 +180,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 	}
 }
 
-void
+static void
 http_writecb(struct bufferevent *bev, void *arg)
 {
 	if (EVBUFFER_LENGTH(bev->output) == 0) {
@@ -188,7 +190,7 @@ http_writecb(struct bufferevent *bev, void *arg)
 	}
 }
 
-void
+static void
 http_errorcb(struct bufferevent *bev, short what, void *arg)
 {
 	test_ok = -2;
@@ -208,12 +210,12 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	evbuffer_free(evb);
 }
 
-void
+static void
 http_basic_test(void)
 {
 	struct bufferevent *bev;
 	int fd;
-	char *http_request;
+	const char *http_request;
 	short port = -1;
 
 	test_ok = 0;
@@ -252,7 +254,7 @@ http_basic_test(void)
 
 void http_request_done(struct evhttp_request *, void *);
 
-void
+static void
 http_connection_test(int persistent)
 {
 	short port = -1;
@@ -370,7 +372,7 @@ http_dispatcher_cb(struct evhttp_request *req, void *arg)
 	evbuffer_free(evb);
 }
 
-void
+static void
 http_dispatcher_test_done(struct evhttp_request *req, void *arg)
 {
 	const char *what = "DISPATCHER_TEST";
@@ -400,7 +402,7 @@ http_dispatcher_test_done(struct evhttp_request *req, void *arg)
 	event_loopexit(NULL);
 }
 
-void
+static void
 http_dispatcher_test(void)
 {
 	short port = -1;
@@ -461,7 +463,7 @@ void http_postrequest_done(struct evhttp_request *, void *);
 
 #define POST_DATA "Okay.  Not really printf"
 
-void
+static void
 http_post_test(void)
 {
 	short port = -1;
@@ -582,7 +584,7 @@ http_postrequest_done(struct evhttp_request *req, void *arg)
 	event_loopexit(NULL);
 }
 
-void
+static void
 http_failure_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = "400 Bad Request";
@@ -596,12 +598,12 @@ http_failure_readcb(struct bufferevent *bev, void *arg)
 /*
  * Testing that the HTTP server can deal with a malformed request.
  */
-void
+static void
 http_failure_test(void)
 {
 	struct bufferevent *bev;
 	int fd;
-	char *http_request;
+	const char *http_request;
 	short port = -1;
 
 	test_ok = 0;
@@ -685,7 +687,7 @@ close_detect_cb(struct evhttp_request *req, void *arg)
 }
 
 
-void
+static void
 http_close_detection(void)
 {
 	short port = -1;
@@ -735,7 +737,7 @@ http_close_detection(void)
 	fprintf(stdout, "OK\n");
 }
 
-void
+static void
 http_highport_test(void)
 {
 	int i = -1;
@@ -757,7 +759,7 @@ http_highport_test(void)
 	exit(1);
 }
 
-void
+static void
 http_bad_header_test(void)
 {
 	struct evkeyvalq headers;
@@ -790,12 +792,12 @@ fail:
 	exit(1);
 }
 
-void
+static void
 http_base_test(void)
 {
 	struct bufferevent *bev;
 	int fd;
-	char *http_request;
+	const char *http_request;
 	short port = -1;
 
 	test_ok = 0;
