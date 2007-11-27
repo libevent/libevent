@@ -230,12 +230,6 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		if (!(evread||evwrite))
 			continue;
 
-		if (evread != NULL && !(evread->ev_events & EV_PERSIST))
-			event_del(evread);
-		if (evwrite != NULL && evwrite != evread &&
-			!(evwrite->ev_events & EV_PERSIST))
-			event_del(evwrite);
-
 		if (evread != NULL)
 			event_active(evread, EV_READ, 1);
 		if (evwrite != NULL)
