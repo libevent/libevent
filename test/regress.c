@@ -459,7 +459,6 @@ test_fork(void)
 	setup_test("After fork: ");
 
 	write(pair[0], TEST1, strlen(TEST1)+1);
-	shutdown(pair[0], SHUT_WR);
 
 	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
 	if (event_add(&ev, NULL) == -1)
@@ -477,14 +476,26 @@ test_fork(void)
 		exit(test_ok == 0);
 	}
 
-	event_del(&ev);
+	/* wait for the child to read the data */
+	sleep(1);
+
+	write(pair[0], TEST1, strlen(TEST1)+1);
 
 	if (waitpid(pid, &status, 0) == -1) {
 		fprintf(stderr, "FAILED (fork)\n");
 		exit(1);
 	}
 	
-	test_ok = WEXITSTATUS(status) == 0;
+	if (WEXITSTATUS(status) != 0) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	/* test that the current event loop still works */
+	write(pair[0], TEST1, strlen(TEST1)+1);
+	shutdown(pair[0], SHUT_WR);
+
+	event_dispatch();
 
 	cleanup_test();
 }
