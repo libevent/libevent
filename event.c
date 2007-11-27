@@ -255,6 +255,7 @@ int
 event_reinit(struct event_base *base)
 {
 	const struct eventop *evsel = base->evsel;
+	void *evbase = base->evbase;
 	int res = 0;
 	struct event *ev;
 
@@ -270,7 +271,7 @@ event_reinit(struct event_base *base)
 		    __func__);
 
 	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
-		if (evsel->add(base, ev) == -1)
+		if (evsel->add(evbase, ev) == -1)
 			res = -1;
 	}
 
