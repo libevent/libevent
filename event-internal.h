@@ -35,6 +35,18 @@ extern "C" {
 #include "min_heap.h"
 #include "evsignal.h"
 
+struct eventop {
+	const char *name;
+	void *(*init)(struct event_base *);
+	int (*add)(void *, struct event *);
+	int (*del)(void *, struct event *);
+	int (*recalc)(struct event_base *, void *, int);
+	int (*dispatch)(struct event_base *, void *, struct timeval *);
+	void (*dealloc)(struct event_base *, void *);
+	/* set if we need to reinitialize the event base */
+	int need_reinit;
+};
+
 struct event_base {
 	const struct eventop *evsel;
 	void *evbase;

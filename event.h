@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2000-2007 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -257,16 +257,6 @@ TAILQ_HEAD (event_list, event);
 TAILQ_HEAD (evkeyvalq, evkeyval);
 #endif /* _EVENT_DEFINED_TQENTRY */
 
-struct eventop {
-	const char *name;
-	void *(*init)(struct event_base *);
-	int (*add)(void *, struct event *);
-	int (*del)(void *, struct event *);
-	int (*recalc)(struct event_base *, void *, int);
-	int (*dispatch)(struct event_base *, void *, struct timeval *);
-	void (*dealloc)(struct event_base *, void *);
-};
-
 /**
   Initialize the event API.
 
@@ -289,6 +279,17 @@ struct event_base *event_base_new(void);
  */
 struct event_base *event_init(void);
 
+/**
+  Reinitialized the event base after a fork
+
+  Some event mechanisms do not survive across fork.   The event base needs
+  to be reinitialized with the event_reinit() function.
+
+  @param base the event base that needs to be re-initialized
+  @return 0 if successful, or -1 if some events could not be re-added.
+  @see event_base_new(), event_init()
+*/
+int event_reinit(struct event_base *base);
 
 /**
   Loop to process events.

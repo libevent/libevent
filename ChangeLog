@@ -6,6 +6,7 @@ Changes in current version:
  o better documentation for event_base_loopexit; from Scott Lamb.
  o Make kqueue have the same behavior as other backends when a signal is caught between event_add() and event_loop().  Previously, it would catch and ignore such signals.
  o Make kqueue restore signal handlers correctly when event_del() is called.
+ o provide event_reinit() to reintialize an event_base after fork
 
 
 Changes in 1.4.0-beta:

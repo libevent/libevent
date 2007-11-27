@@ -83,7 +83,8 @@ struct eventop epollops = {
 	epoll_del,
 	epoll_recalc,
 	epoll_dispatch,
-	epoll_dealloc
+	epoll_dealloc,
+	1 /* need reinit */
 };
 
 #ifdef HAVE_SETFD
