@@ -302,7 +302,7 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 }
 
 /*
- * Create the headers need for an HTTP reply
+ * Create the headers need for an HTTP request
  */
 static void
 evhttp_make_header_request(struct evhttp_connection *evcon,
@@ -351,9 +351,45 @@ evhttp_is_connection_keepalive(struct evkeyvalq* headers)
 	    && strncasecmp(connection, "keep-alive", 10) == 0);
 }
 
+static void
+evhttp_maybe_add_date_header(struct evkeyvalq *headers)
+{
+	if (evhttp_find_header(headers, "Date") == NULL) {
+		char date[50];
+#ifndef WIN32
+		struct tm cur;
+#endif
+		struct tm *cur_p;
+		time_t t = time(NULL);
+#ifdef WIN32
+		cur_p = gmtime(&t);
+#else
+		gmtime_r(&t, &cur);
+		cur_p = &cur;
+#endif
+		if (strftime(date, sizeof(date),
+			"%a, %d %b %Y %H:%M:%S GMT", cur_p) != 0) {
+			evhttp_add_header(headers, "Date", date);
+		}
+	}
+}
+
+static void
+evhttp_maybe_add_content_length_header(struct evkeyvalq *headers,
+    long content_length)
+{
+	if (evhttp_find_header(headers, "Transfer-Encoding") == NULL &&
+	    evhttp_find_header(headers,	"Content-Length") == NULL) {
+		static char len[12]; /* XXX: not thread-safe */
+		snprintf(len, sizeof(len), "%ld", content_length);
+		evhttp_add_header(headers, "Content-Length", len);
+	}
+}
+
 /*
  * Create the headers needed for an HTTP reply
  */
+
 static void
 evhttp_make_header_response(struct evhttp_connection *evcon,
     struct evhttp_request *req)
@@ -364,48 +400,24 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	    req->response_code_line);
 	evbuffer_add(evcon->output_buffer, line, strlen(line));
 
-	/* Potentially add headers for unidentified content. */
-	if (EVBUFFER_LENGTH(req->output_buffer)) {
-		if (evhttp_find_header(req->output_headers,
-							   "Date") == NULL) {
-			char date[50];
-#ifndef WIN32
-			struct tm cur;
-#endif
-			struct tm *cur_p;
-			time_t t = time(NULL);
-#ifdef WIN32
-			cur_p = gmtime(&t);
-#else
-			gmtime_r(&t, &cur);
-			cur_p = &cur;
-#endif
-			if (strftime(date, sizeof(date),
-						 "%a, %d %b %Y %H:%M:%S GMT", cur_p) != 0) {
-				evhttp_add_header(req->output_headers, "Date", date);
-			}
-		}
-
-		if (evhttp_find_header(req->output_headers,
-			"Content-Type") == NULL) {
-			evhttp_add_header(req->output_headers,
-			    "Content-Type", "text/html; charset=ISO-8859-1");
-		}
+	if (req->major == 1 && req->minor == 1) {
+		evhttp_maybe_add_date_header(req->output_headers);
 
 		/* 
 		 * we need to add the content length if the user did
 		 * not give it, this is required for persistent
 		 * connections to work.
 		 */
+		evhttp_maybe_add_content_length_header(req->output_headers,
+		    (long)EVBUFFER_LENGTH(req->output_buffer));
+	}
+
+	/* Potentially add headers for unidentified content. */
+	if (EVBUFFER_LENGTH(req->output_buffer)) {
 		if (evhttp_find_header(req->output_headers,
-			"Transfer-Encoding") == NULL &&
-		    evhttp_find_header(req->output_headers,
-			"Content-Length") == NULL) {
-			static char len[12];
-			snprintf(len, sizeof(len), "%ld",
-			    (long)EVBUFFER_LENGTH(req->output_buffer));
+			"Content-Type") == NULL) {
 			evhttp_add_header(req->output_headers,
-			    "Content-Length", len);
+			    "Content-Type", "text/html; charset=ISO-8859-1");
 		}
 	}
 
