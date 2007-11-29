@@ -15,6 +15,7 @@ Changes in current version:
  o Do not mangle socket handles on 64-bit windows.
  o The configure script now takes an --enable-gcc-warnigns option that turns on many optional gcc warnings.  (Nick has been building with these for a while, but they might be useful to other developers.)
  o move EV_PERSIST handling out of the event backends
+ o small improvements to evhttp documentation
 
 
 Changes in 1.4.0:
