@@ -73,11 +73,12 @@ struct evkeyvalq;
 struct evhttp *evhttp_new(struct event_base *base);
 
 /**
- * Start an HTTP server on the specified address and port.
+ * Binds an HTTP server on the specified address and port.
  *
  * Can be called multiple times to bind the same http server
  * to multiple different ports.
  *
+ * @param http a pointer to an evhttp object
  * @param address a string containing the IP address to listen(2) on
  * @param port the port number to listen on
  * @return a newly allocated evhttp struct
@@ -145,6 +146,7 @@ void evhttp_send_reply_end(struct evhttp_request *);
 
 /**
  * Start an HTTP server on the specified address and port
+ *
  * DEPRECATED: it does not allow an event base to be specified
  *
  * @param address the address to which the HTTP server should be bound
