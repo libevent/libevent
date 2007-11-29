@@ -198,12 +198,14 @@ http_errorcb(struct bufferevent *bev, short what, void *arg)
 void
 http_basic_cb(struct evhttp_request *req, void *arg)
 {
-
 	struct evbuffer *evb = evbuffer_new();
+	int empty = evhttp_find_header(req->input_headers, "Empty") != NULL;
 	event_debug(("%s: called\n", __func__));
 	evbuffer_add_printf(evb, "This is funny");
 
-	evhttp_send_reply(req, HTTP_OK, "Everything is fine", evb);
+	/* allow sending of an empty reply */
+	evhttp_send_reply(req, HTTP_OK, "Everything is fine",
+	    !empty ? evb : NULL);
 
 	evbuffer_free(evb);
 }
@@ -251,6 +253,7 @@ http_basic_test(void)
 }
 
 void http_request_done(struct evhttp_request *, void *);
+void http_request_empty_done(struct evhttp_request *, void *);
 
 void
 http_connection_test(int persistent)
@@ -317,6 +320,27 @@ http_connection_test(int persistent)
 
 	event_dispatch();
 
+	/* make another request: request empty reply */
+	test_ok = 0;
+	
+	req = evhttp_request_new(http_request_empty_done, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Empty", "itis");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
 	evhttp_connection_free(evcon);
 	evhttp_free(http);
 	
@@ -329,7 +353,6 @@ http_request_done(struct evhttp_request *req, void *arg)
 	const char *what = "This is funny";
 
 	if (req->response_code != HTTP_OK) {
-	
 		fprintf(stderr, "FAILED\n");
 		exit(1);
 	}
@@ -345,6 +368,42 @@ http_request_done(struct evhttp_request *req, void *arg)
 	}
 	
 	if (memcmp(EVBUFFER_DATA(req->input_buffer), what, strlen(what)) != 0) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
+/* test date header and content length */
+
+void
+http_request_empty_done(struct evhttp_request *req, void *arg)
+{
+	if (req->response_code != HTTP_OK) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (evhttp_find_header(req->input_headers, "Date") == NULL) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	
+	if (evhttp_find_header(req->input_headers, "Content-Length") == NULL) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (strcmp(evhttp_find_header(req->input_headers, "Content-Length"),
+		"0")) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (EVBUFFER_LENGTH(req->input_buffer) != 0) {
 		fprintf(stderr, "FAILED\n");
 		exit(1);
 	}

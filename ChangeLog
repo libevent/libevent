@@ -8,6 +8,7 @@ Changes in current version:
  o Make kqueue restore signal handlers correctly when event_del() is called.
  o provide event_reinit() to reintialize an event_base after fork
  o small improvements to evhttp documentation
+ o always generate Date and Content-Length headers for HTTP/1.1 replies
 
 
 Changes in 1.4.0-beta:
