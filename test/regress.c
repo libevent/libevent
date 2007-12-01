@@ -806,6 +806,59 @@ test_loopbreak(void)
 	cleanup_test();
 }
 
+static struct event *readd_test_event_last_added = NULL;
+static void
+re_add_read_cb(int fd, short event, void *arg)
+{
+	char buf[256];
+	int len;
+	struct event *ev_other = arg;
+	readd_test_event_last_added = ev_other;
+	len = read(fd, buf, sizeof(buf));
+	event_add(ev_other, NULL);
+	++test_ok;
+}
+
+static void
+test_nonpersist_readd(void)
+{
+	struct event ev1, ev2;
+	int n, m;
+
+	setup_test("Re-add nonpersistent events: ");
+	event_set(&ev1, pair[0], EV_READ, re_add_read_cb, &ev2);
+	event_set(&ev2, pair[1], EV_READ, re_add_read_cb, &ev1);
+	n = write(pair[0], "Hello", 5);
+	m = write(pair[1], "Hello", 5);
+	if (event_add(&ev1, NULL) == -1 ||
+	    event_add(&ev2, NULL) == -1) {
+		test_ok = 0;
+	}
+	if (test_ok != 0)
+		exit(1);
+	event_loop(EVLOOP_ONCE);
+	if (test_ok != 2)
+		exit(1);
+	/* At this point, we executed both callbacks.  Whichever one got
+	 * called first added the second, but the second then immediately got
+	 * deleted before its callback was called.  At this point, though, it
+	 * re-added the first.
+	 */
+	if (!readd_test_event_last_added) {
+		test_ok = 0;
+	} else if (readd_test_event_last_added == &ev1) {
+		if (!event_pending(&ev1, EV_READ, NULL) ||
+		    event_pending(&ev2, EV_READ, NULL))
+			test_ok = 0;
+	} else {
+		if (event_pending(&ev1, EV_READ, NULL) ||
+		    !event_pending(&ev2, EV_READ, NULL))
+			test_ok = 0;
+	}
+
+	cleanup_test();
+}
+
 static void
 test_evbuffer(void) {
 
@@ -1532,6 +1585,8 @@ main (int argc, char **argv)
 #endif
 	test_loopexit();
 	test_loopbreak();
+
+        test_nonpersist_readd();
 
 	test_multiple_events_for_same_fd();
 
