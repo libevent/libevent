@@ -37,6 +37,7 @@ int gettimeofday(struct timeval *tv, struct timezone *tz) {
 }
 #endif
 
+#if 0
 int
 win_read(int fd, void *buf, unsigned int length)
 {
@@ -65,7 +66,6 @@ win_write(int fd, void *buf, unsigned int length)
 		return (dwBytesWritten);
 }
 
-#if 0
 int
 socketpair(int d, int type, int protocol, int *sv)
 {

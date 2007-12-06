@@ -355,6 +355,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\mm-internal.h"
+				>
+			</File>
+			<File
 				RelativePath="..\strlcpy-internal.h"
 				>
 			</File>
