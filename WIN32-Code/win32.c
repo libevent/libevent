@@ -299,7 +299,7 @@ win32_insert(void *op, struct event *ev)
 		ent->read_event = ev;
 	}
 	if (ev->ev_events & EV_WRITE) {
-		if (do_fd_set(win32op, ent, 1)<0)
+		if (do_fd_set(win32op, ent, 0)<0)
 			return (-1);
 		ent->write_event = ev;
 	}
@@ -393,20 +393,20 @@ win32_dispatch(struct event_base *base, void *op,
 	for (i=0; i<win32op->readset_out->fd_count; ++i) {
 		struct event_entry *ent;
 		SOCKET s = win32op->readset_out->fd_array[i];
-		if ((ent = get_event_entry(win32op, s, 0)))
+		if ((ent = get_event_entry(win32op, s, 0)) && ent->read_event)
 			event_active(ent->read_event, EV_READ, 1);
 	}
 	for (i=0; i<win32op->exset_out->fd_count; ++i) {
 		struct event_entry *ent;
 		SOCKET s = win32op->exset_out->fd_array[i];
-		if ((ent = get_event_entry(win32op, s, 0)))
+		if ((ent = get_event_entry(win32op, s, 0)) && ent->read_event)
 			event_active(ent->read_event, EV_READ, 1);
 	}
 	for (i=0; i<win32op->writeset_out->fd_count; ++i) {
 		struct event_entry *ent;
 		SOCKET s = win32op->writeset_out->fd_array[i];
-		if ((ent = get_event_entry(win32op, s, 0)))
-			event_active(ent->read_event, EV_WRITE, 1);
+		if ((ent = get_event_entry(win32op, s, 0)) && ent->write_event)
+			event_active(ent->write_event, EV_WRITE, 1);
 	}
 
 #if 0
