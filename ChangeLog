@@ -9,6 +9,7 @@ Changes in current version:
  o provide event_reinit() to reintialize an event_base after fork
  o small improvements to evhttp documentation
  o always generate Date and Content-Length headers for HTTP/1.1 replies
+ o set the correct event base for HTTP close events
 
 
 Changes in 1.4.0-beta:

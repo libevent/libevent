@@ -943,7 +943,7 @@ evhttp_connection_start_detectclose(struct evhttp_connection *evcon)
 		event_del(&evcon->close_ev);
 	event_set(&evcon->close_ev, evcon->fd, EV_READ,
 	    evhttp_detect_close_cb, evcon);
-	EVHTTP_BASE_SET(evcon, &evcon->ev);
+	EVHTTP_BASE_SET(evcon, &evcon->close_ev);
 	event_add(&evcon->close_ev, NULL);
 }
 
