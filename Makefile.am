@@ -48,16 +48,16 @@ EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
 
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 
+SUBDIRS = . sample test
+
 if BUILD_WIN32
 
-SUBDIRS = . sample
 SYS_LIBS = -lws2_32
 SYS_SRC = WIN32-Code/misc.c WIN32-Code/win32.c
 SYS_INCLUDES = -IWIN32-Code
 
 else
 
-SUBDIRS = . sample test
 SYS_LIBS =
 SYS_SRC =
 SYS_INCLUDES =
