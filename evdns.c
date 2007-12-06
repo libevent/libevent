@@ -2956,7 +2956,7 @@ load_nameservers_from_registry(void)
 #undef TRY
 }
 
-int
+static int
 evdns_config_windows_nameservers(void)
 {
 	if (load_nameservers_with_getnetworkparams() == 0)
@@ -2970,7 +2970,7 @@ evdns_init(void)
 {
 	int res = 0;
 #ifdef WIN32
-	evdns_config_windows_nameservers();
+	res = evdns_config_windows_nameservers();
 #else
 	res = evdns_resolv_conf_parse(DNS_OPTIONS_ALL, "/etc/resolv.conf");
 #endif
