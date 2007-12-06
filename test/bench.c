@@ -128,6 +128,10 @@ main (int argc, char **argv)
 	struct timeval *tv;
 	int *cp;
 
+#ifdef WIN32
+	WSADATA WSAData;
+	WSAStartup(0x101, &WSAData);
+#endif
 	num_pipes = 100;
 	num_active = 1;
 	num_writes = num_pipes;
