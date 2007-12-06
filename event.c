@@ -719,7 +719,7 @@ event_add(struct event *ev, struct timeval *tv)
 
 		event_debug((
 			 "event_add: timeout in %d seconds, call %p",
-			 tv->tv_sec, ev->ev_callback));
+			 (int)tv->tv_sec, ev->ev_callback));
 
 		event_queue_insert(base, ev, EVLIST_TIMEOUT);
 	}
@@ -823,7 +823,7 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 	assert(tv->tv_sec >= 0);
 	assert(tv->tv_usec >= 0);
 
-	event_debug(("timeout_next: in %d seconds", tv->tv_sec));
+	event_debug(("timeout_next: in %d seconds", (int)tv->tv_sec));
 	return (0);
 }
 
