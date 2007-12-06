@@ -738,6 +738,7 @@ test_event_base_new(void)
 	event_base_free(base);
 	test_ok = 1;
 	cleanup_test();
+	event_init();
 }
 
 static void
@@ -855,6 +856,9 @@ test_nonpersist_readd(void)
 		    !event_pending(&ev2, EV_READ, NULL))
 			test_ok = 0;
 	}
+
+	event_del(&ev1);
+	event_del(&ev2);
 
 	cleanup_test();
 }
