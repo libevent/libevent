@@ -985,7 +985,7 @@ test_evbuffer_readln(void)
 	cleanup_test();
 }
 
-void
+static void
 test_evbuffer_find(void)
 {
 	u_char* p;
