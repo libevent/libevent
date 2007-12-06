@@ -173,7 +173,7 @@ event_base_new(void)
 	struct event_base *base;
 
 	if ((base = event_calloc(1, sizeof(struct event_base))) == NULL)
-		event_err(1, "%s: calloc");
+		event_err(1, "%s: calloc", __func__);
 
 	event_sigcb = NULL;
 	event_gotsig = 0;
