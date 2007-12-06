@@ -1015,7 +1015,11 @@ int evbuffer_add_buffer(struct evbuffer *, struct evbuffer *);
   @param ... arguments that will be passed to printf(3)
   @return 0 if successful, or -1 if an error occurred
  */
-int evbuffer_add_printf(struct evbuffer *, const char *fmt, ...);
+int evbuffer_add_printf(struct evbuffer *, const char *fmt, ...)
+#ifdef __GNUC__
+  __attribute__((format(printf, 2, 3)))
+#endif
+;
 
 
 /**

@@ -1649,12 +1649,12 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 void
 evhttp_send_error(struct evhttp_request *req, int error, const char *reason)
 {
-	const char *fmt = "<HTML><HEAD>\n"
-	    "<TITLE>%d %s</TITLE>\n"
-	    "</HEAD><BODY>\n"
-	    "<H1>Method Not Implemented</H1>\n"
-	    "Invalid method in request<P>\n"
-	    "</BODY></HTML>\n";
+#define ERR_FORMAT "<HTML><HEAD>\n" \
+	    "<TITLE>%d %s</TITLE>\n" \
+	    "</HEAD><BODY>\n" \
+	    "<H1>Method Not Implemented</H1>\n" \
+	    "Invalid method in request<P>\n" \
+	    "</BODY></HTML>\n"
 
 	struct evbuffer *buf = evbuffer_new();
 
@@ -1663,11 +1663,12 @@ evhttp_send_error(struct evhttp_request *req, int error, const char *reason)
 
 	evhttp_response_code(req, error, reason);
 
-	evbuffer_add_printf(buf, fmt, error, reason);
+	evbuffer_add_printf(buf, ERR_FORMAT, error, reason);
 
 	evhttp_send_page(req, buf);
 
 	evbuffer_free(buf);
+#undef ERR_FORMAT
 }
 
 /* Requires that headers and response code are already set up */
@@ -1722,7 +1723,7 @@ evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
 {
 	if (req->chunked) {
 		evbuffer_add_printf(req->evcon->output_buffer, "%x\r\n",
-		    EVBUFFER_LENGTH(databuf));
+				    (unsigned)EVBUFFER_LENGTH(databuf));
 	}
 	evbuffer_add_buffer(req->evcon->output_buffer, databuf);
 	evhttp_write_buffer(req->evcon, NULL, NULL);
@@ -1829,8 +1830,9 @@ evhttp_decode_uri(const char *uri)
 	
 	ret = event_malloc(strlen(uri) + 1);
 	if (ret == NULL)
-		event_err(1, "%s: malloc(%d)", __func__, strlen(uri) + 1);
-
+		event_err(1, "%s: malloc(%lu)", __func__,
+			  (unsigned long)(strlen(uri) + 1));
+	
 	for (i = j = 0; uri[i] != '\0'; i++) {
 		c = uri[i];
 		if (c == '?') {
@@ -1947,25 +1949,26 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 		return;
 	} else {
 		/* We need to send a 404 here */
-		const char *fmt = "<html><head>"
-		    "<title>404 Not Found</title>"
-		    "</head><body>"
-		    "<h1>Not Found</h1>"
-		    "<p>The requested URL %s was not found on this server.</p>"
-		    "</body></html>\n";
+#define ERR_FORMAT "<html><head>" \
+		    "<title>404 Not Found</title>" \
+		    "</head><body>" \
+		    "<h1>Not Found</h1>" \
+		    "<p>The requested URL %s was not found on this server.</p>"\
+		    "</body></html>\n"
 
 		char *escaped_html = evhttp_htmlescape(req->uri);
 		struct evbuffer *buf = evbuffer_new();
 
 		evhttp_response_code(req, HTTP_NOTFOUND, "Not Found");
 
-		evbuffer_add_printf(buf, fmt, escaped_html);
+		evbuffer_add_printf(buf, ERR_FORMAT, escaped_html);
 
 		event_free(escaped_html);
-		
+
 		evhttp_send_page(req, buf);
 
 		evbuffer_free(buf);
+#undef ERR_FORMAT
 	}
 }
 

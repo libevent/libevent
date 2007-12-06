@@ -252,7 +252,7 @@ evsignal_handler(int sig)
 
 	if(evsignal_base == NULL) {
 		event_warn(
-			"%s: received signal %s, but have no base configured",
+			"%s: received signal %d, but have no base configured",
 			__func__, sig);
 		return;
 	}

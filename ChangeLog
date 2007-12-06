@@ -18,6 +18,8 @@ Changes in current version:
  o small improvements to evhttp documentation
  o always generate Date and Content-Length headers for HTTP/1.1 replies
  o set the correct event base for HTTP close events
+ o When building with GCC, use the "format" attribute to verify type correctness of calls to printf-like functions.
+   
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
