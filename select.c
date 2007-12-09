@@ -73,7 +73,6 @@ struct selectop {
 void *select_init	(struct event_base *);
 int select_add		(void *, struct event *);
 int select_del		(void *, struct event *);
-int select_recalc	(struct event_base *, void *, int);
 int select_dispatch	(struct event_base *, void *, struct timeval *);
 void select_dealloc     (struct event_base *, void *);
 
@@ -82,7 +81,6 @@ const struct eventop selectops = {
 	select_init,
 	select_add,
 	select_del,
-	select_recalc,
 	select_dispatch,
 	select_dealloc,
 	0
@@ -135,21 +133,6 @@ check_selectop(struct selectop *sop)
 #else
 #define check_selectop(sop) do { (void) sop; } while (0)
 #endif
-
-/*
- * Called with the highest fd that we know about.  If it is 0, completely
- * recalculate everything.
- */
-
-int
-select_recalc(struct event_base *base, void *arg, int max)
-{
-	struct selectop *sop = arg;
-
-	check_selectop(sop);
-
-	return (0);
-}
 
 int
 select_dispatch(struct event_base *base, void *arg, struct timeval *tv)

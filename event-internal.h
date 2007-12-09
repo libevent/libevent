@@ -41,7 +41,6 @@ struct eventop {
 	void *(*init)(struct event_base *);
 	int (*add)(void *, struct event *);
 	int (*del)(void *, struct event *);
-	int (*recalc)(struct event_base *, void *, int);
 	int (*dispatch)(struct event_base *, void *, struct timeval *);
 	void (*dealloc)(struct event_base *, void *);
 	/* set if we need to reinitialize the event base */
