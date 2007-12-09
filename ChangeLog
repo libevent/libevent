@@ -20,6 +20,7 @@ Changes in current version:
  o set the correct event base for HTTP close events
  o When building with GCC, use the "format" attribute to verify type correctness of calls to printf-like functions.
  o Rewrite win32.c backend to be O(n lg n) rather than O(n^2).
+ o Removed obsoleted recalc code
    
 
 Changes in 1.4.0:
