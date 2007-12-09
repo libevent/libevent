@@ -443,10 +443,6 @@ event_base_loop(struct event_base *base, int flags)
 		evsignal_base = base;
 	done = 0;
 	while (!done) {
-		/* Calculate the initial events that we are waiting for */
-		if (evsel->recalc(base, evbase, 0) == -1)
-			return (-1);
-
 		/* Terminate the loop if we have been asked to */
 		if (base->event_gotterm) {
 			base->event_gotterm = 0;

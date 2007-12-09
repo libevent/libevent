@@ -68,7 +68,6 @@ struct pollop {
 void *poll_init	(struct event_base *);
 int poll_add		(void *, struct event *);
 int poll_del		(void *, struct event *);
-int poll_recalc		(struct event_base *, void *, int);
 int poll_dispatch	(struct event_base *, void *, struct timeval *);
 void poll_dealloc	(struct event_base *, void *);
 
@@ -77,7 +76,6 @@ const struct eventop pollops = {
 	poll_init,
 	poll_add,
 	poll_del,
-	poll_recalc,
 	poll_dispatch,
 	poll_dealloc,
     0
@@ -98,17 +96,6 @@ poll_init(struct event_base *base)
 	evsignal_init(base);
 
 	return (pollop);
-}
-
-/*
- * Called with the highest fd that we know about.  If it is 0, completely
- * recalculate everything.
- */
-
-int
-poll_recalc(struct event_base *base, void *arg, int max)
-{
-	return (0);
 }
 
 #ifdef CHECK_INVARIANTS

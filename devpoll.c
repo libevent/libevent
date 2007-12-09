@@ -72,7 +72,6 @@ struct devpollop {
 void *devpoll_init	(struct event_base *);
 int devpoll_add	(void *, struct event *);
 int devpoll_del	(void *, struct event *);
-int devpoll_recalc	(struct event_base *, void *, int);
 int devpoll_dispatch	(struct event_base *, void *, struct timeval *);
 void devpoll_dealloc	(struct event_base *, void *);
 
@@ -81,7 +80,6 @@ struct eventop devpollops = {
 	devpoll_init,
 	devpoll_add,
 	devpoll_del,
-	devpoll_recalc,
 	devpoll_dispatch,
 	devpoll_dealloc
 };

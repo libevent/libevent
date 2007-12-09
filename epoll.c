@@ -72,7 +72,6 @@ struct epollop {
 void *epoll_init	(struct event_base *);
 int epoll_add	(void *, struct event *);
 int epoll_del	(void *, struct event *);
-int epoll_recalc	(struct event_base *, void *, int);
 int epoll_dispatch	(struct event_base *, void *, struct timeval *);
 void epoll_dealloc	(struct event_base *, void *);
 
@@ -81,7 +80,6 @@ struct eventop epollops = {
 	epoll_init,
 	epoll_add,
 	epoll_del,
-	epoll_recalc,
 	epoll_dispatch,
 	epoll_dealloc,
 	1 /* need reinit */

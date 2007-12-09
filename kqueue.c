@@ -77,7 +77,6 @@ struct kqop {
 void *kq_init	(struct event_base *);
 int kq_add	(void *, struct event *);
 int kq_del	(void *, struct event *);
-int kq_recalc	(struct event_base *, void *, int);
 int kq_dispatch	(struct event_base *, void *, struct timeval *);
 int kq_insert	(struct kqop *, struct kevent *);
 void kq_dealloc (struct event_base *, void *);
@@ -87,7 +86,6 @@ const struct eventop kqops = {
 	kq_init,
 	kq_add,
 	kq_del,
-	kq_recalc,
 	kq_dispatch,
 	kq_dealloc,
 	1 /* need reinit */
@@ -152,12 +150,6 @@ kq_init(struct event_base *base)
 	}
 
 	return (kqueueop);
-}
-
-int
-kq_recalc(struct event_base *base, void *arg, int max)
-{
-	return (0);
 }
 
 int
