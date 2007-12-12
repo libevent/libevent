@@ -10,6 +10,7 @@ Changes in current version:
  o small improvements to evhttp documentation
  o always generate Date and Content-Length headers for HTTP/1.1 replies
  o set the correct event base for HTTP close events
+ o New function, event_{base_}loopbreak.  Like event_loopexit, it makes an event loop stop executing and return.  Unlike event_loopexit, it keeps subsequent pending events from getting executed.  Patch from Scott Lamb
 
 
 Changes in 1.4.0-beta:

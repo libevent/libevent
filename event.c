@@ -358,7 +358,7 @@ event_process_active(struct event_base *base)
 			ncalls--;
 			ev->ev_ncalls = ncalls;
 			(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
-			if (event_gotsig)
+			if (event_gotsig || base->event_break)
 				return;
 		}
 	}
@@ -403,6 +403,25 @@ event_base_loopexit(struct event_base *event_base, struct timeval *tv)
 }
 
 /* not thread safe */
+int
+event_loopbreak(void)
+{
+	return (event_base_loopbreak(current_base));
+}
+
+int
+event_base_loopbreak(struct event_base *event_base)
+{
+	if (event_base == NULL)
+		return (-1);
+
+	event_base->event_break = 1;
+	return (0);
+}
+
+
+
+/* not thread safe */
 
 int
 event_loop(int flags)
@@ -430,6 +449,11 @@ event_base_loop(struct event_base *base, int flags)
 		/* Terminate the loop if we have been asked to */
 		if (base->event_gotterm) {
 			base->event_gotterm = 0;
+			break;
+		}
+
+		if (base->event_break) {
+			base->event_break = 0;
 			break;
 		}
 
