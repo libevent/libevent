@@ -21,6 +21,7 @@ Changes in current version:
  o When building with GCC, use the "format" attribute to verify type correctness of calls to printf-like functions.
  o Rewrite win32.c backend to be O(n lg n) rather than O(n^2).
  o Removed obsoleted recalc code
+ o support for 32-bit tag numbers in rpc structures; this is wire compatible, but changes the API slightly.
    
 
 Changes in 1.4.0:
