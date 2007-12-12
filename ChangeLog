@@ -22,6 +22,7 @@ Changes in current version:
  o Rewrite win32.c backend to be O(n lg n) rather than O(n^2).
  o Removed obsoleted recalc code
  o support for 32-bit tag numbers in rpc structures; this is wire compatible, but changes the API slightly.
+ o pull setters/getters out of RPC structures into a base class to which we just need to store a pointer; this reduces the memory footprint of these structures.
    
 
 Changes in 1.4.0:
