@@ -47,8 +47,7 @@
  * necessary when large fd's come in. reassociate() takes care of maintaining
  * the proper file-descriptor/event-port associations.
  *
- * As in the select(2) implementation, signals are handled by evsignal, and
- * evport_recalc does almost nothing.
+ * As in the select(2) implementation, signals are handled by evsignal.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -119,7 +118,6 @@ struct evport_data {
 static void*	evport_init	(struct event_base *);
 static int 	evport_add	(void *, struct event *);
 static int 	evport_del	(void *, struct event *);
-static int 	evport_recalc	(struct event_base *, void *, int);
 static int 	evport_dispatch	(struct event_base *, void *, struct timeval *);
 static void	evport_dealloc	(struct event_base *, void *);
 
@@ -128,7 +126,6 @@ const struct eventop evportops = {
 	evport_init,
 	evport_add,
 	evport_del,
-	evport_recalc,
 	evport_dispatch,
 	evport_dealloc
 };
@@ -396,19 +393,6 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	check_evportop(epdp);
 
-	return (0);
-}
-
-
-/*
- * Copied from the version in select.c
- */
-
-static int
-evport_recalc(struct event_base *base, void *arg, int max)
-{
-	struct evport_data *evpd = arg;
-	check_evportop(evpd);
 	return (0);
 }
 

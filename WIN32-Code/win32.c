@@ -87,7 +87,6 @@ struct win32op {
 void *win32_init	(struct event_base *);
 int win32_insert	(void *, struct event *);
 int win32_del	(void *, struct event *);
-int win32_recalc	(struct event_base *base, void *, int);
 int win32_dispatch	(struct event_base *base, void *, struct timeval *);
 void win32_dealloc	(struct event_base *, void *);
 
@@ -96,7 +95,6 @@ struct eventop win32ops = {
 	win32_init,
 	win32_insert,
 	win32_del,
-	win32_recalc,
 	win32_dispatch,
 	win32_dealloc
 };
@@ -208,15 +206,6 @@ win32_init(struct event_base *_base)
         XFREE(winop->events);
         XFREE(winop);
         return (NULL);
-}
-
-int
-win32_recalc(struct event_base *base, void *arg, int max)
-{
-#if 0
-	return (evsignal_recalc());
-#endif
-	return (0);
 }
 
 int
