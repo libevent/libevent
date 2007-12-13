@@ -555,6 +555,10 @@ class EntryInt(Entry):
 
         return dcl
 
+    def CodeNew(self, name):
+        code = ['%s->%s_data = 0;' % (name, self._name)]
+        return code
+
 class EntryString(Entry):
     def __init__(self, type, name, tag):
         # Init base class
