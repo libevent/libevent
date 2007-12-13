@@ -1205,9 +1205,9 @@ test_multiple_events_for_same_fd(void)
    cleanup_test();
 }
 
-int decode_int(uint32_t *pnumber, struct evbuffer *evbuf);
-int encode_tag(struct evbuffer *evbuf, uint32_t number);
-int decode_tag(uint32_t *pnumber, struct evbuffer *evbuf);
+int evtag_decode_int(uint32_t *pnumber, struct evbuffer *evbuf);
+int evtag_encode_tag(struct evbuffer *evbuf, uint32_t number);
+int evtag_decode_tag(uint32_t *pnumber, struct evbuffer *evbuf);
 
 static void
 read_once_cb(int fd, short event, void *arg)
@@ -1274,7 +1274,7 @@ evtag_int_test(void)
 	}
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
-		if (decode_int(&integer, tmp) == -1) {
+		if (evtag_decode_int(&integer, tmp) == -1) {
 			fprintf(stderr, "decode %d failed", i);
 			exit(1);
 		}
@@ -1350,14 +1350,14 @@ evtag_tag_encoding(void)
 	for (i = 0; i < TEST_MAX_INT; i++) {
 		int oldlen, newlen;
 		oldlen = EVBUFFER_LENGTH(tmp);
-		encode_tag(tmp, integers[i]);
+		evtag_encode_tag(tmp, integers[i]);
 		newlen = EVBUFFER_LENGTH(tmp);
 		fprintf(stdout, "\t\tencoded 0x%08x with %d bytes\n",
 		    integers[i], newlen - oldlen);
 	}
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
-		if (decode_tag(&integer, tmp) == -1) {
+		if (evtag_decode_tag(&integer, tmp) == -1) {
 			fprintf(stderr, "decode %d failed", i);
 			exit(1);
 		}
