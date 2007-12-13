@@ -69,16 +69,21 @@ class Struct:
 
     def PrintDeclaration(self, file):
         print >>file, '/* Structure declaration for %s */' % self._name
-        print >>file, 'struct %s {' % self._name
+        print >>file, 'struct %s_access_ {' % self._name
         for entry in self._entries:
-            dcl = entry.Declaration()
-            dcl.extend(
-                entry.AssignDeclaration('(*%s_assign)' % entry.Name()))
+            dcl = entry.AssignDeclaration('(*%s_assign)' % entry.Name())
             dcl.extend(
                 entry.GetDeclaration('(*%s_get)' % entry.Name()))
             if entry.Array():
                 dcl.extend(
                     entry.AddDeclaration('(*%s_add)' % entry.Name()))
+            self.PrintIdented(file, '  ', dcl)
+        print >>file, '};\n'
+
+        print >>file, 'struct %s {' % self._name
+        print >>file, '  struct %s_access_ *base;\n' % self._name
+        for entry in self._entries:
+            dcl = entry.Declaration()
             self.PrintIdented(file, '  ', dcl)
         print >>file, ''
         for entry in self._entries:
@@ -115,6 +120,13 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, uint8_t,
                        ' * Implementation of %s\n'
                        ' */\n') % self._name
 
+        print >>file, \
+              'static struct %(name)s_access_ __%(name)s_base = {' % \
+              { 'name' : self._name }
+        for entry in self._entries:
+            self.PrintIdented(file, '  ', entry.CodeBase())
+        print >>file, '};\n'
+
         # Creation
         print >>file, (
             'struct %(name)s *\n'
@@ -124,7 +136,8 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, uint8_t,
             '  if ((tmp = malloc(sizeof(struct %(name)s))) == NULL) {\n'
             '    event_warn("%%s: malloc", __func__);\n'
             '    return (NULL);\n'
-            '  }') % { 'name' : self._name }
+            '  }\n'
+            '  tmp->base = &__%(name)s_base;\n') % { 'name' : self._name }
 
         for entry in self._entries:
             self.PrintIdented(file, '  ', entry.CodeNew('tmp'))
@@ -398,19 +411,16 @@ class Entry:
     def CodeFree(self, name):
         return []
 
-    def CodeNew(self, name):
+    def CodeBase(self):
         code = [
-            '%(vname)s->%(name)s_assign = %(parent_name)s_%(name)s_assign;',
-            '%(vname)s->%(name)s_get = %(parent_name)s_%(name)s_get;'
+            '%(parent_name)s_%(name)s_assign,',
+            '%(parent_name)s_%(name)s_get,'
             ]
         if self.Array():
-            code.append(
-                '%(vname)s->%(name)s_add = %(parent_name)s_%(name)s_add;')
+            code.append('%(parent_name)s_%(name)s_add,')
 
         code = '\n'.join(code)
-        trans = self.GetTranslation()
-        trans['vname'] = name
-        code = code % trans
+        code = code % self.GetTranslation()
         return code.split('\n')
 
     def Verify(self):
@@ -545,6 +555,10 @@ class EntryInt(Entry):
 
         return dcl
 
+    def CodeNew(self, name):
+        code = ['%s->%s_data = 0;' % (name, self._name)]
+        return code
+
 class EntryString(Entry):
     def __init__(self, type, name, tag):
         # Init base class
@@ -595,7 +609,6 @@ class EntryString(Entry):
         
     def CodeNew(self, name):
         code  = ['%s->%s_data = NULL;' % (name, self._name)]
-        code.extend(Entry.CodeNew(self, name))
         return code
 
     def CodeFree(self, name):
@@ -721,7 +734,6 @@ class EntryStruct(Entry):
         
     def CodeNew(self, name):
         code  = ['%s->%s_data = NULL;' % (name, self._name)]
-        code.extend(Entry.CodeNew(self, name))
         return code
 
     def CodeFree(self, name):
@@ -828,7 +840,6 @@ class EntryVarBytes(Entry):
     def CodeNew(self, name):
         code  = ['%s->%s_data = NULL;' % (name, self._name),
                  '%s->%s_length = 0;' % (name, self._name) ]
-        code.extend(Entry.CodeNew(self, name))
         return code
 
     def CodeFree(self, name):
@@ -1011,7 +1022,6 @@ if (evtag_unmarshal_%(refname)s(%(buf)s, %(tag_name)s,
         code  = ['%s->%s_data = NULL;' % (name, self._name),
                  '%s->%s_length = 0;' % (name, self._name),
                  '%s->%s_num_allocated = 0;' % (name, self._name)]
-        code.extend(Entry.CodeNew(self, name))
         return code
 
     def CodeFree(self, name):
@@ -1306,10 +1316,10 @@ def HeaderPreamble(name):
     pre += (
         '#define EVTAG_HAS(msg, member) ((msg)->member##_set == 1)\n'
         '#define EVTAG_ASSIGN(msg, member, args...) '
-        '(*(msg)->member##_assign)(msg, ## args)\n'
+        '(*(msg)->base->member##_assign)(msg, ## args)\n'
         '#define EVTAG_GET(msg, member, args...) '
-        '(*(msg)->member##_get)(msg, ## args)\n'
-        '#define EVTAG_ADD(msg, member) (*(msg)->member##_add)(msg)\n'
+        '(*(msg)->base->member##_get)(msg, ## args)\n'
+        '#define EVTAG_ADD(msg, member) (*(msg)->base->member##_add)(msg)\n'
         '#define EVTAG_LEN(msg, member) ((msg)->member##_length)\n'
         )
 
