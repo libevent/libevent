@@ -270,7 +270,7 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			continue;
 
 		if (!(ev->ev_events & EV_PERSIST))
-			event_del(ev);
+			ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
 
 		event_active(ev, which,
 		    ev->ev_events & EV_SIGNAL ? events[i].data : 1);

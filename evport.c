@@ -372,21 +372,16 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		fdi = &(epdp->ed_fds[fd]);
 
 		/*
-		 * We now check for each of the possible events (READ or WRITE).
-		 * If the event is not persistent, then we delete it. Then, we
-		 * activate the event (which will cause its callback to be
-		 * executed).
+		 * We now check for each of the possible events (READ
+		 * or WRITE).  Then, we activate the event (which will
+		 * cause its callback to be executed).
 		 */
 
 		if ((res & EV_READ) && ((ev = fdi->fdi_revt) != NULL)) {
-			if (!(ev->ev_events & EV_PERSIST))
-				event_del(ev);
 			event_active(ev, res, 1);
 		}
 
 		if ((res & EV_WRITE) && ((ev = fdi->fdi_wevt) != NULL)) {
-			if (!(ev->ev_events & EV_PERSIST))
-				event_del(ev);
 			event_active(ev, res, 1);
 		}
 	} /* end of all events gotten */

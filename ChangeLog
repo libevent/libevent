@@ -14,6 +14,7 @@ Changes in current version:
  o Removed obsoleted recalc code
  o pull setters/getters out of RPC structures into a base class to which we just need to store a pointer; this reduces the memory footprint of these structures.
  o fix a bug with event_rpcgen for integers
+ o move EV_PERSIST handling out of the event backends
 
 
 Changes in 1.4.0-beta:

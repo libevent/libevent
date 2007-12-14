@@ -185,13 +185,9 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			continue;
 
 		if (r_ev && (res & r_ev->ev_events)) {
-			if (!(r_ev->ev_events & EV_PERSIST))
-				event_del(r_ev);
 			event_active(r_ev, res & r_ev->ev_events, 1);
 		}
 		if (w_ev && w_ev != r_ev && (res & w_ev->ev_events)) {
-			if (!(w_ev->ev_events & EV_PERSIST))
-				event_del(w_ev);
 			event_active(w_ev, res & w_ev->ev_events, 1);
 		}
 	}

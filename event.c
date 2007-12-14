@@ -336,9 +336,6 @@ event_process_active(struct event_base *base)
 	int i;
 	short ncalls;
 
-	if (!base->event_count_active)
-		return;
-
 	for (i = 0; i < base->nactivequeues; ++i) {
 		if (TAILQ_FIRST(base->activequeues[i]) != NULL) {
 			activeq = base->activequeues[i];
@@ -349,7 +346,10 @@ event_process_active(struct event_base *base)
 	assert(activeq != NULL);
 
 	for (ev = TAILQ_FIRST(activeq); ev; ev = TAILQ_FIRST(activeq)) {
-		event_queue_remove(base, ev, EVLIST_ACTIVE);
+		if (ev->ev_events & EV_PERSIST)
+			event_queue_remove(base, ev, EVLIST_ACTIVE);
+		else
+			event_del(ev);
 		
 		/* Allows deletes to work */
 		ncalls = ev->ev_ncalls;
@@ -485,7 +485,6 @@ event_base_loop(struct event_base *base, int flags)
 		}
 
 		res = evsel->dispatch(base, evbase, tv_p);
-
 
 		if (res == -1)
 			return (-1);
