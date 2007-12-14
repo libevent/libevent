@@ -10,7 +10,7 @@ struct msg {
 struct kill {
 	string weapon = 0x10121;
 	string action = 2;
-	int how_often = 3;
+	optional int how_often = 3;
 }
 
 struct run {
