@@ -97,9 +97,9 @@ void %(name)s_clear(struct %(name)s *);
 void %(name)s_marshal(struct evbuffer *, const struct %(name)s *);
 int %(name)s_unmarshal(struct %(name)s *, struct evbuffer *);
 int %(name)s_complete(struct %(name)s *);
-void evtag_marshal_%(name)s(struct evbuffer *, uint8_t, 
+void evtag_marshal_%(name)s(struct evbuffer *, uint32_t, 
     const struct %(name)s *);
-int evtag_unmarshal_%(name)s(struct evbuffer *, uint8_t,
+int evtag_unmarshal_%(name)s(struct evbuffer *, uint32_t,
     struct %(name)s *);""" % { 'name' : self._name }
 
 
@@ -209,7 +209,7 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, uint8_t,
                        '%(name)s_unmarshal(struct %(name)s *tmp, '
                        ' struct evbuffer *evbuf)\n'
                        '{\n'
-                       '  uint8_t tag;\n'
+                       '  uint32_t tag;\n'
                        '  while (EVBUFFER_LENGTH(evbuf) > 0) {\n'
                        '    if (evtag_peek(evbuf, &tag) == -1)\n'
                        '      return (-1);\n'
@@ -260,9 +260,9 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, uint8_t,
         print >>file, (
             'int\n'
             'evtag_unmarshal_%(name)s(struct evbuffer *evbuf, '
-            'uint8_t need_tag, struct %(name)s *msg)\n'
+            'uint32_t need_tag, struct %(name)s *msg)\n'
             '{\n'
-            '  uint8_t tag;\n'
+            '  uint32_t tag;\n'
             '  int res = -1;\n'
             '\n'
             '  struct evbuffer *tmp = evbuffer_new();\n'
@@ -284,7 +284,7 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, uint8_t,
         # Complete message marshaling
         print >>file, (
             'void\n'
-            'evtag_marshal_%(name)s(struct evbuffer *evbuf, uint8_t tag, '
+            'evtag_marshal_%(name)s(struct evbuffer *evbuf, uint32_t tag, '
             'const struct %(name)s *msg)\n'
             '{\n'
             '  struct evbuffer *_buf = evbuffer_new();\n'
@@ -446,7 +446,7 @@ class EntryBytes(Entry):
         Entry.__init__(self, type, name, tag)
 
         self._length = length
-        self._ctype = 'uint8_t'
+        self._ctype = 'uint32_t'
 
     def GetDeclaration(self, funcname):
         code = [ 'int %s(struct %s *, %s **);' % (
@@ -1109,10 +1109,10 @@ def ProcessOneEntry(newstruct, entry):
 
         if not tag_set:
             tag_set = 1
-            if not re.match(r'^[0-9]+$', token):
+            if not re.match(r'^(0x)?[0-9]+$', token):
                 print >>sys.stderr, 'Expected tag number: \"%s\"' % entry
                 sys.exit(1)
-            tag = int(token)
+            tag = int(token, 0)
             continue
 
         print >>sys.stderr, 'Cannot parse \"%s\"' % entry
