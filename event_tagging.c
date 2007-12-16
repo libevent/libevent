@@ -66,6 +66,8 @@
 #include "mm-internal.h"
 
 int evtag_decode_int(uint32_t *pnumber, struct evbuffer *evbuf);
+int evtag_encode_tag(struct evbuffer *evbuf, uint32_t tag);
+int evtag_decode_tag(uint32_t *ptag, struct evbuffer *evbuf);
 
 static struct evbuffer *_buf;	/* not thread safe */
 

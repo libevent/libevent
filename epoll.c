@@ -152,7 +152,7 @@ epoll_init(struct event_base *base)
 	return (epollop);
 }
 
-int
+static int
 epoll_recalc(struct event_base *base, void *arg, int max)
 {
 	struct epollop *epollop = arg;
