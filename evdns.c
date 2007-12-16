@@ -867,7 +867,7 @@ reply_parse(u8 *packet, int length) {
 		 */
 		SKIP_NAME;
 		j += 4;
-		if (j >= length) goto err;
+		if (j > length) goto err;
 	}
 
 	/* now we have the answer section which looks like
