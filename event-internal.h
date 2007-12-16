@@ -57,7 +57,7 @@ struct event_base {
 	int event_break;		/* Set to terminate loop immediately */
 
 	/* active event management */
-	struct event_list **activequeues;
+	TAILQ_HEAD (eventhead_list, event_head) **activequeues;
 	int nactivequeues;
 
 	/* signal handling info */
@@ -68,6 +68,9 @@ struct event_base {
 
 	struct min_heap timeheap;
 };
+
+#define EVENT_CB(x) \
+	(void (*)(struct event_base *, struct event_head *, int, void *))(x)
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
 #ifndef HAVE_TAILQFOREACH
