@@ -25,6 +25,7 @@ Changes in current version:
  o pull setters/getters out of RPC structures into a base class to which we just need to store a pointer; this reduces the memory footprint of these structures.
  o prefix {encode,decode}_tag functions with evtag to avoid collisions
  o fix a bug with event_rpcgen for integers
+ o restructure the code to make event activation independent of regular event logic
    
 
 Changes in 1.4.0:
