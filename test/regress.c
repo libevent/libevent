@@ -716,6 +716,7 @@ test_free_active_base(void)
 	event_base_free(base1);
 	test_ok = 1;
 	cleanup_test();
+	global_base = event_init();
 }
 
 static void
@@ -738,7 +739,6 @@ test_event_base_new(void)
 	event_base_free(base);
 	test_ok = 1;
 	cleanup_test();
-	event_init();
 }
 
 static void
