@@ -77,7 +77,8 @@ const struct eventop pollops = {
 	poll_add,
 	poll_del,
 	poll_dispatch,
-	poll_dealloc
+	poll_dealloc,
+    0
 };
 
 void *

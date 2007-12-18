@@ -65,7 +65,7 @@ static struct event *events;
 
 
 
-void
+static void
 read_cb(int fd, short which, void *arg)
 {
 	int idx = (int) arg, widx = idx + 1;
@@ -81,7 +81,7 @@ read_cb(int fd, short which, void *arg)
 	}
 }
 
-struct timeval *
+static struct timeval *
 run_once(void)
 {
 	int *cp, i, space;
@@ -128,7 +128,6 @@ main (int argc, char **argv)
 	int i, c;
 	struct timeval *tv;
 	int *cp;
-	extern char *optarg;
 
 	num_pipes = 100;
 	num_active = 1;

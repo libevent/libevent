@@ -1086,8 +1086,6 @@ void evtag_marshal_string(struct evbuffer *buf, ev_uint32_t tag,
 void evtag_marshal_timeval(struct evbuffer *evbuf, ev_uint32_t tag,
     struct timeval *tv);
 
-void evtag_test(void);
-
 int evtag_unmarshal(struct evbuffer *src, ev_uint32_t *ptag,
     struct evbuffer *dst);
 int evtag_peek(struct evbuffer *evbuf, ev_uint32_t *ptag);

@@ -82,7 +82,8 @@ const struct eventop selectops = {
 	select_add,
 	select_del,
 	select_dispatch,
-	select_dealloc
+	select_dealloc,
+	0
 };
 
 static int select_resize(struct selectop *sop, int fdsz);

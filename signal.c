@@ -72,7 +72,6 @@ static void
 evsignal_cb(int fd, short what, void *arg)
 {
 	static char signals[100];
-	struct event *ev = arg;
 #ifdef WIN32
 	SSIZE_T n;
 #else

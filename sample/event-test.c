@@ -24,7 +24,7 @@
 
 #include <event.h>
 
-void
+static void
 fifo_read(int fd, short event, void *arg)
 {
 	char buf[255];
@@ -86,7 +86,7 @@ main (int argc, char **argv)
 
 #else
 	struct stat st;
-	char *fifo = "event.fifo";
+	const char *fifo = "event.fifo";
 	int socket;
  
 	if (lstat (fifo, &st) == 0) {

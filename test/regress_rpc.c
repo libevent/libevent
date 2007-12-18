@@ -60,6 +60,8 @@
 
 #include "regress.gen.h"
 
+void rpc_suite(void);
+
 extern int test_ok;
 
 static struct evhttp *
@@ -94,7 +96,7 @@ EVRPC_GENERATE(NeverReply, msg, kill);
 static int need_input_hook = 0;
 static int need_output_hook = 0;
 
-void
+static void
 MessageCb(EVRPC_STRUCT(Message)* rpc, void *arg)
 {
 	struct kill* kill_reply = rpc->reply;
@@ -116,7 +118,7 @@ MessageCb(EVRPC_STRUCT(Message)* rpc, void *arg)
 
 static EVRPC_STRUCT(NeverReply) *saved_rpc;
 
-void
+static void
 NeverReplyCb(EVRPC_STRUCT(NeverReply)* rpc, void *arg)
 {
 	test_ok += 1;
@@ -448,14 +450,14 @@ rpc_basic_client(void)
 	need_input_hook = 1;
 	need_output_hook = 1;
 
-	assert(evrpc_add_hook(base, INPUT, rpc_hook_add_header, "input")
+	assert(evrpc_add_hook(base, INPUT, rpc_hook_add_header, (void*)"input")
 	    != NULL);
-	assert(evrpc_add_hook(base, OUTPUT, rpc_hook_add_header, "output")
+	assert(evrpc_add_hook(base, OUTPUT, rpc_hook_add_header, (void*)"output")
 	    != NULL);
 
 	pool = rpc_pool_with_connection(port);
 
-	assert(evrpc_add_hook(pool, INPUT, rpc_hook_remove_header, "output"));
+	assert(evrpc_add_hook(pool, INPUT, rpc_hook_remove_header, (void*)"output"));
 
 	/* set up the basic message */
 	msg = msg_new();
