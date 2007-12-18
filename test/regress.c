@@ -1377,7 +1377,7 @@ evtag_tag_encoding(void)
 	fprintf(stdout, "\t%s: OK\n", __func__);
 }
 
-void
+static void
 evtag_test(void)
 {
 	fprintf(stdout, "Testing Tagging:\n");
