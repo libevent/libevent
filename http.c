@@ -2371,7 +2371,6 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 static evutil_socket_t
 bind_socket_ai(struct addrinfo *ai)
 {
-        struct linger linger;
         evutil_socket_t fd;
 
 	int on = 1, r;
@@ -2396,9 +2395,6 @@ bind_socket_ai(struct addrinfo *ai)
 
         setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));
         setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&on, sizeof(on));
-        linger.l_onoff = 1;
-        linger.l_linger = 5;
-        setsockopt(fd, SOL_SOCKET, SO_LINGER, (void *)&linger, sizeof(linger));
 
 	r = bind(fd, ai->ai_addr, ai->ai_addrlen);
 	if (r == -1)
