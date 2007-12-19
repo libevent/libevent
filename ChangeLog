@@ -28,6 +28,7 @@ Changes in current version:
  o restructure the code to make event activation independent of regular event logic
  o Correctly handle DNS replies with no answers set (Fixes bug 1846282)
  o add -Wstrict-aliasing to warnings and more cleanup
+ o removed linger from http server socket; reported by Ilya Martynov
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
