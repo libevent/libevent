@@ -19,6 +19,7 @@ Changes in current version:
  o prefix {encode,decode}_tag functions with evtag to avoid collisions
  o Correctly handle DNS replies with no answers set (Fixes bug 1846282)
  o The configure script now takes an --enable-gcc-warnigns option that turns on many optional gcc warnings.  (Nick has been building with these for a while, but they might be useful to other developers.)
+ o When building with GCC, use the "format" attribute to verify type correctness of calls to printf-like functions.
 
 
 Changes in 1.4.0-beta:
