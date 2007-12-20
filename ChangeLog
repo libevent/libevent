@@ -21,6 +21,7 @@ Changes in current version:
  o The configure script now takes an --enable-gcc-warnigns option that turns on many optional gcc warnings.  (Nick has been building with these for a while, but they might be useful to other developers.)
  o When building with GCC, use the "format" attribute to verify type correctness of calls to printf-like functions.
  o removed linger from http server socket; reported by Ilya Martynov
+ o Rewrite win32.c backend to be O(n lg n) rather than O(n^2)
 
 
 Changes in 1.4.0-beta:

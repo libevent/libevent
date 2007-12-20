@@ -41,6 +41,7 @@ EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
 	compat/sys/queue.h compat/sys/_time.h \
 	WIN32-Code/config.h WIN32-Code/misc.c \
 	WIN32-Code/win32.c WIN32-Code/misc.h \
+	WIN32-Code/tree.h \
 	WIN32-Prj/event_test/event_test.dsp \
 	WIN32-Prj/event_test/test.txt WIN32-Prj/libevent.dsp \
 	WIN32-Prj/libevent.dsw WIN32-Prj/signal_test/signal_test.dsp \
