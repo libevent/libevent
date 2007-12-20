@@ -192,6 +192,7 @@ timeout_cb(int fd, short event, void *arg)
 		test_ok = 1;
 }
 
+#ifndef WIN32
 static void
 signal_cb_sa(int sig)
 {
@@ -206,6 +207,7 @@ signal_cb(int fd, short event, void *arg)
 	signal_del(ev);
 	test_ok = 1;
 }
+#endif
 
 struct both {
 	struct event ev;
