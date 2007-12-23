@@ -29,6 +29,7 @@ Changes in current version:
  o Correctly handle DNS replies with no answers set (Fixes bug 1846282)
  o add -Wstrict-aliasing to warnings and more cleanup
  o removed linger from http server socket; reported by Ilya Martynov
+ o event_rpcgen now allows creating integer arrays
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

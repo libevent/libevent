@@ -1417,6 +1417,12 @@ rpc_test(void)
 
 	EVTAG_ASSIGN(attack, weapon, "feather");
 	EVTAG_ASSIGN(attack, action, "tickle");
+	for (i = 0; i < 3; ++i) {
+		if (EVTAG_ADD(attack, how_often, i) == NULL) {
+			fprintf(stderr, "Failed to add how_often.\n");
+			exit(1);
+		}
+	}
 
 	gettimeofday(&tv_start, NULL);
 	for (i = 0; i < 1000; ++i) {
@@ -1426,6 +1432,8 @@ rpc_test(void)
 			exit(1);
 		}
 		EVTAG_ASSIGN(run, how, "very fast but with some data in it");
+		EVTAG_ASSIGN(run, fixed_bytes,
+		    (uint8_t*)"012345678901234567890123");
 	}
 
 	if (msg_complete(msg) == -1) {
@@ -1464,9 +1472,31 @@ rpc_test(void)
 		exit(1);
 	}
 
+	if (EVTAG_GET(msg2, attack, &attack) == -1) {
+		fprintf(stderr, "Get not get attack.\n");
+		exit(1);
+	}
+
 	if (EVTAG_LEN(msg2, run) != i) {
 		fprintf(stderr, "Wrong number of run messages.\n");
 		exit(1);
+	}
+
+	if (EVTAG_LEN(attack, how_often) != 3) {
+		fprintf(stderr, "Wrong number of how_often ints.\n");
+		exit(1);
+	}
+
+	for (i = 0; i < 3; ++i) {
+		uint32_t res;
+		if (EVTAG_GET(attack, how_often, i, &res) == -1) {
+			fprintf(stderr, "Cannot get %dth how_often msg.\n", i);
+			exit(1);
+		}
+		if (res != i) {
+			fprintf(stderr, "Wrong message encoded %d != %d\n", i, res);
+			exit(1);
+		}
 	}
 
 	msg_free(msg);
