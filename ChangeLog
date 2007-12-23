@@ -1,4 +1,4 @@
-Changes in current version:
+Changes in 1.4.1-beta:
  o free minheap on event_base_free(); from Christopher Layne
  o debug cleanups in signal.c; from Christopher Layne
  o provide event_base_new() that does not set the current_base global	
