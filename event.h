@@ -192,11 +192,11 @@ typedef unsigned short u_short;
 /* EVLIST_X_ Private space: 0x1000-0xf000 */
 #define EVLIST_ALL	(0xf000 | 0x9f)
 
-#define EV_TIMEOUT	0x0001
-#define EV_READ		0x0002
-#define EV_WRITE	0x0004
-#define EV_SIGNAL	0x0008
-#define EV_PERSIST	0x0800	/* Persistant event */
+#define EV_TIMEOUT	0x01
+#define EV_READ		0x02
+#define EV_WRITE	0x04
+#define EV_SIGNAL	0x08
+#define EV_PERSIST	0x10	/* Persistant event */
 
 /* Fix so that ppl dont have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
@@ -208,35 +208,12 @@ struct {								\
 }
 #endif /* !TAILQ_ENTRY */
 
-#define EVHEAD(x)	((struct event_head *)(x))
-
 struct event_base;
-
-/** a structure common to all events
- *
- * struct event_head contains elements common to all event types.
- * it needs to be the first element of any structure that defines
- * a new event type.
- */
-struct event_head {
-	TAILQ_ENTRY (event_head) (ev_active_next);
-	int ev_pri;	/*!< smaller numbers are higher priority */
-	int ev_res;	/*!< result passed to event callback */
-	int ev_flags;	/*!< keeps track of initialization and activation */
-
-	void (*ev_cb)(struct event_base *, struct event_head *,
-	    int events, void *);
-	void *ev_cb_arg;
-};
-
 struct event {
-	struct event_head head;
-
-	TAILQ_ENTRY (event) (ev_next);
+	TAILQ_ENTRY (event) ev_next;
+	TAILQ_ENTRY (event) ev_active_next;
 	TAILQ_ENTRY (event) ev_signal_next;
 	unsigned int min_heap_idx;	/* for managing timeouts */
-
-	int ev_flags;
 
 	struct event_base *ev_base;
 
@@ -247,8 +224,13 @@ struct event {
 
 	struct timeval ev_timeout;
 
+	int ev_pri;		/* smaller numbers are higher priority */
+
 	void (*ev_callback)(evutil_socket_t, short, void *arg);
 	void *ev_arg;
+
+	int ev_res;		/* result passed to event callback */
+	int ev_flags;
 };
 
 #define EVENT_SIGNAL(ev)	(int)(ev)->ev_fd
@@ -482,7 +464,7 @@ int event_base_loopbreak(struct event_base *);
  */
 #define evtimer_del(ev)			event_del(ev)
 #define evtimer_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
-#define evtimer_initialized(ev)		(EVHEAD(ev)->ev_flags & EVLIST_INIT)
+#define evtimer_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 
 /**
  * Add a timeout event.
@@ -511,14 +493,14 @@ int event_base_loopbreak(struct event_base *);
 #define timeout_del(ev)			event_del(ev)
 
 #define timeout_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
-#define timeout_initialized(ev)		(EVHEAD(ev)->ev_flags & EVLIST_INIT)
+#define timeout_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 
 #define signal_add(ev, tv)		event_add(ev, tv)
 #define signal_set(ev, x, cb, arg)	\
 	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
 #define signal_del(ev)			event_del(ev)
 #define signal_pending(ev, tv)		event_pending(ev, EV_SIGNAL, tv)
-#define signal_initialized(ev)		(EVHEAD(ev)->ev_flags & EVLIST_INIT)
+#define signal_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 
 /**
   Prepare an event structure to be added.
@@ -659,9 +641,9 @@ int event_pending(struct event *, short, struct timeval *);
           initialized
  */
 #ifdef WIN32
-#define event_initialized(ev)		(EVHEAD(ev)->ev_flags & EVLIST_INIT && (ev)->ev_fd != (int)INVALID_HANDLE_VALUE)
+#define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT && (ev)->ev_fd != (int)INVALID_HANDLE_VALUE)
 #else
-#define event_initialized(ev)		(EVHEAD(ev)->ev_flags & EVLIST_INIT)
+#define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
 #endif
 
 
