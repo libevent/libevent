@@ -29,7 +29,8 @@ Changes in current version:
  o add -Wstrict-aliasing to warnings and more cleanup
  o removed linger from http server socket; reported by Ilya Martynov
  o event_rpcgen now allows creating integer arrays
-
+ o support string arrays in event_rpcgen
+	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
  o demote most http warnings to debug messages

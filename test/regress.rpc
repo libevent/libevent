@@ -18,4 +18,5 @@ struct run {
 	optional bytes some_bytes = 2;
 
 	bytes fixed_bytes[24] = 3;
+	array string notes = 4;
 }
