@@ -485,7 +485,7 @@ class EntryBytes(Entry):
 
     def CodeArrayAdd(self, varname, value):
         # XXX: copy here
-        return '%(varname)s = NULL;' % { 'varname' : varname }
+        return [ '%(varname)s = NULL;' % { 'varname' : varname } ]
 
     def GetDeclaration(self, funcname):
         code = [ 'int %s(struct %s *, %s **);' % (
@@ -581,16 +581,16 @@ class EntryInt(Entry):
         return "0"        
 
     def CodeArrayFree(self, var):
-        return ""
+        return []
     
     def CodeArrayAssign(self, varname, srcvar):
-        return "%(varname)s = %(srcvar)s" % { 'varname' : varname,
-                                              'srcvar' : srcvar }
+        return [ '%(varname)s = %(srcvar)s;' % { 'varname' : varname,
+                                                'srcvar' : srcvar } ]
 
     def CodeArrayAdd(self, varname, value):
         """Returns a new entry of this type."""
-        return '%(varname)s = %(value)s;' % { 'varname' : varname,
-                                              'value' : value }
+        return [ '%(varname)s = %(value)s;' % { 'varname' : varname,
+                                              'value' : value } ]
 
     def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
         code = ['if (evtag_unmarshal_int(%(buf)s, %(tag)s, &%(var)s) == -1) {',
@@ -622,10 +622,44 @@ class EntryString(Entry):
         # Init base class
         Entry.__init__(self, type, name, tag)
 
+        self._can_be_array = 1
         self._ctype = 'char *'
 
     def GetInitializer(self):
-        return "NULL"        
+        return "NULL"
+
+    def CodeArrayFree(self, varname):
+        code = [
+            'if (%(var)s != NULL) free(%(var)s);' ]
+
+        return TranslateList(code, { 'var' : varname })
+
+    def CodeArrayAssign(self, varname, srcvar):
+        code = [
+            'if (%(var)s != NULL)',
+            '  free(%(var)s);',
+            '%(var)s = strdup(%(srcvar)s);',
+            'if (%(var)s == NULL) {',
+            '  event_warnx("%%s: strdup", __func__);',
+            '  return (-1);',
+            '}' ]
+
+        return TranslateList(code, { 'var' : varname,
+                                     'srcvar' : srcvar })
+
+    def CodeArrayAdd(self, varname, value):
+        code = [
+            'if (%(value)s != NULL) {',
+            '  %(var)s = strdup(%(value)s);',
+            '  if (%(var)s == NULL) {',
+            '    goto error;',
+            '  }',
+            '} else {',
+            '  %(var)s = NULL;',
+            '}' ]
+
+        return TranslateList(code, { 'var' : varname,
+                                     'value' : value })
 
     def GetVarLen(self, var):
         return 'strlen(%s)' % self.GetVarName(var)
@@ -709,38 +743,45 @@ class EntryStruct(Entry):
         return '-1'
 
     def CodeArrayAdd(self, varname, value):
-        return ( '%(varname)s = %(refname)s_new();\n'
-                 'if (%(varname)s == NULL) \n'
-                 '  goto error;'
-                ) % self.GetTranslation({ 'varname' : varname })
+        code = [
+            '%(varname)s = %(refname)s_new();',
+            'if (%(varname)s == NULL)',
+            '  goto error;' ]
+
+        return TranslateList(code, self.GetTranslation({ 'varname' : varname }))
 
     def CodeArrayFree(self, var):
-        code = """%(refname)s_free(%(var)s);""" % self.GetTranslation(
-            { 'var' : var })
+        code = [ '%(refname)s_free(%(var)s);' % self.GetTranslation(
+            { 'var' : var }) ]
         return code
 
     def CodeArrayAssign(self, var, srcvar):
-        code = """struct evbuffer *tmp = NULL;
-  %(refname)s_clear(%(var)s);
-  if ((tmp = evbuffer_new()) == NULL) {
-    event_warn("%%s: evbuffer_new()", __func__);
-    goto error;
-  }
-  %(refname)s_marshal(tmp, %(srcvar)s);
-  if (%(refname)s_unmarshal(msg->%(name)s_data[off], tmp) == -1) {
-    event_warnx("%%s: %(refname)s_unmarshal", __func__);
-    goto error;
-  }
-  evbuffer_free(tmp);
-  return (0);
-error:
-  if (tmp != NULL)
-    evbuffer_free(tmp);
-  %(refname)s_clear(msg->%(name)s_data[off]);
-  return (-1);""" % self.GetTranslation(
-        { 'var' : var,
-          'srcvar' : srcvar})
-        return code
+        code = [
+            'int had_error = 0;',
+            'struct evbuffer *tmp = NULL;',
+            '%(refname)s_clear(%(var)s);',
+            'if ((tmp = evbuffer_new()) == NULL) {',
+            '  event_warn("%%s: evbuffer_new()", __func__);',
+            '  had_error = 1;',
+            '  goto done;',
+            '}',
+            '%(refname)s_marshal(tmp, %(srcvar)s);',
+            'if (%(refname)s_unmarshal(%(var)s, tmp) == -1) {',
+            '  event_warnx("%%s: %(refname)s_unmarshal", __func__);',
+            '  had_error = 1;',
+            '  goto done;',
+            '}',
+            'done:'
+            'if (tmp != NULL)',
+            '  evbuffer_free(tmp);',
+            'if (had_error) {',
+            '  %(refname)s_clear(%(var)s);',
+            '  return (-1);',
+            '}' ]
+        
+        return TranslateList(code, self.GetTranslation({
+            'var' : var,
+            'srcvar' : srcvar}))
 
     def CodeGet(self):
         name = self._name
@@ -872,7 +913,7 @@ class EntryVarBytes(Entry):
 
     def CodeArrayAdd(self, varname, value):
         # xxx: copy
-        return '%(varname)s = NULL;' % { 'varname' : varname }
+        return [ '%(varname)s = NULL;' % { 'varname' : varname } ]
 
     def GetDeclaration(self, funcname):
         code = [ 'int %s(struct %s *, %s *, uint32_t *);' % (
@@ -1034,51 +1075,62 @@ class EntryArray(Entry):
         return code.split('\n')
         
     def CodeAssign(self):
+        code = [
+            'int',
+            '%(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg, int off,',
+            '    const %(ctype)s value)',
+            '{',
+            '  if (!msg->%(name)s_set || off < 0 || off >= msg->%(name)s_length)',
+            '    return (-1);\n',
+            '  {' ]
+        code = TranslateList(code, self.GetTranslation())
+
         codearrayassign = self._entry.CodeArrayAssign(
             'msg->%(name)s_data[off]' % self.GetTranslation(), 'value')
-        code = """int
-%(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg, int off,
-    const %(ctype)s value)
-{
-  if (!msg->%(name)s_set || off < 0 || off >= msg->%(name)s_length)
-    return (-1);\n
-  {
-     %(codearrayassign)s;
-  }
-  return (0);
-}""" % self.GetTranslation({'codearrayassign' : codearrayassign})
+        code += map(lambda x: '    ' + x, codearrayassign)
 
-        return code.split('\n')
+        code += TranslateList([
+            '  }',
+            '  return (0);',
+            '}' ], self.GetTranslation())
+
+        return code
         
     def CodeAdd(self):
         codearrayadd = self._entry.CodeArrayAdd(
             'msg->%(name)s_data[msg->%(name)s_length - 1]' % self.GetTranslation(),
             'value')
-        code = \
-"""%(ctype)s %(optpointer)s
-%(parent_name)s_%(name)s_add(struct %(parent_name)s *msg%(optaddarg)s)
-{
-  if (++msg->%(name)s_length >= msg->%(name)s_num_allocated) {
-    int tobe_allocated = msg->%(name)s_num_allocated;
-    %(ctype)s* new_data = NULL;
-    tobe_allocated = !tobe_allocated ? 1 : tobe_allocated << 1;
-    new_data = (%(ctype)s*) realloc(msg->%(name)s_data,
-        tobe_allocated * sizeof(%(ctype)s));
-    if (new_data == NULL)
-      goto error;
-    msg->%(name)s_data = new_data;
-    msg->%(name)s_num_allocated = tobe_allocated;
-  }
-  %(codearrayadd)s;
-  msg->%(name)s_set = 1;
-  return %(optreference)s(msg->%(name)s_data[msg->%(name)s_length - 1]);
-error:
-  --msg->%(name)s_length;
-  return (NULL);
-}
-""" % self.GetTranslation({ 'codearrayadd' : codearrayadd })
+        code = [
+            '%(ctype)s %(optpointer)s',
+            '%(parent_name)s_%(name)s_add('
+            'struct %(parent_name)s *msg%(optaddarg)s)',
+            '{',
+            '  if (++msg->%(name)s_length >= msg->%(name)s_num_allocated) {',
+            '    int tobe_allocated = msg->%(name)s_num_allocated;',
+            '    %(ctype)s* new_data = NULL;',
+            '    tobe_allocated = !tobe_allocated ? 1 : tobe_allocated << 1;',
+            '    new_data = (%(ctype)s*) realloc(msg->%(name)s_data,',
+            '        tobe_allocated * sizeof(%(ctype)s));',
+            '    if (new_data == NULL)',
+            '      goto error;',
+            '    msg->%(name)s_data = new_data;',
+            '    msg->%(name)s_num_allocated = tobe_allocated;',
+            '  }' ]
 
-        return code.split('\n')
+        code = TranslateList(code, self.GetTranslation())
+        
+        code += map(lambda x: '  ' + x, codearrayadd)
+
+        code += TranslateList([
+            '  msg->%(name)s_set = 1;',
+            '  return %(optreference)s(msg->%(name)s_data['
+            'msg->%(name)s_length - 1]);',
+            'error:',
+            '  --msg->%(name)s_length;',
+            '  return (NULL);',
+            '}' ], self.GetTranslation())
+
+        return code
 
     def CodeComplete(self, structname, var_name):
         self._index = 'i'
@@ -1148,25 +1200,33 @@ error:
         return code.split('\n')
 
     def CodeClear(self, structname):
+        translate = self.GetTranslation({ 'structname' : structname })
         codearrayfree = self._entry.CodeArrayFree(
             '%(structname)s->%(name)s_data[i]' % self.GetTranslation(
             { 'structname' : structname } ))
-        code = [ 'if (%(structname)s->%(name)s_set == 1) {',
-                 '  int i;',
-                 '  for (i = 0; i < %(structname)s->%(name)s_length; ++i) {',
-                 '    %(codearrayfree)s',
-                 '  }',
+
+        code = [ 'if (%(structname)s->%(name)s_set == 1) {' ]
+
+        if codearrayfree:
+            code += [
+                '  int i;',
+                '  for (i = 0; i < %(structname)s->%(name)s_length; ++i) {' ]
+
+        code = TranslateList(code, translate)
+
+        if codearrayfree:
+            code += map(lambda x: '    ' + x, codearrayfree)
+            code += [
+                '  }' ]
+        
+        code += TranslateList([ 
                  '  free(%(structname)s->%(name)s_data);',
                  '  %(structname)s->%(name)s_data = NULL;',
                  '  %(structname)s->%(name)s_set = 0;',
                  '  %(structname)s->%(name)s_length = 0;',
                  '  %(structname)s->%(name)s_num_allocated = 0;',
                  '}'
-                 ]
-
-        code = TranslateList(code, self.GetTranslation(
-            { 'structname' : structname,
-              'codearrayfree' : codearrayfree }))
+                 ], translate)
 
         return code
         
@@ -1177,32 +1237,13 @@ error:
         return code
 
     def CodeFree(self, structname):
-        codearrayfree = self._entry.CodeArrayFree(
-            '%(structname)s->%(name)s_data[i]' % self.GetTranslation(
-            { 'structname' : structname } ))
-        code = [ 'if (%(structname)s->%(name)s_data != NULL) {' ]
+        code = self.CodeClear(structname);
 
-        if codearrayfree:
-            code += [
-                '  int i;',
-                '  for (i = 0; i < %(structname)s->%(name)s_length; ++i) {',
-                '    %(codearrayfree)s',
-                '  }' ]
+        code += TranslateList([
+            'free(%(structname)s->%(name)s_data);' ],
+                              self.GetTranslation({'structname' : structname }))
 
-        code += [
-                 '  free(%(structname)s->%(name)s_data);',
-                 '  %(structname)s->%(name)s_data = NULL;',
-                 '  %(structname)s->%(name)s_set = 0;',
-                 '  %(structname)s->%(name)s_length = 0;',
-                 '  %(structname)s->%(name)s_num_allocated = 0;',
-                 '}'
-                 ]
-
-        code = '\n'.join(code) % self.GetTranslation(
-            { 'structname' : structname,
-              'codearrayfree' : codearrayfree })
-
-        return code.split('\n')
+        return code
 
     def Declaration(self):
         dcl  = ['%s *%s_data;' % (self._ctype, self._name),

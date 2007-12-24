@@ -1434,6 +1434,15 @@ rpc_test(void)
 		EVTAG_ASSIGN(run, how, "very fast but with some data in it");
 		EVTAG_ASSIGN(run, fixed_bytes,
 		    (uint8_t*)"012345678901234567890123");
+
+		if (EVTAG_ADD(run, notes, "this is my note") == NULL) {
+			fprintf(stderr, "Failed to add note.\n");
+			exit(1);
+		}
+		if (EVTAG_ADD(run, notes, "pps") == NULL) {
+			fprintf(stderr, "Failed to add note.\n");
+			exit(1);
+		}
 	}
 
 	if (msg_complete(msg) == -1) {
@@ -1473,7 +1482,7 @@ rpc_test(void)
 	}
 
 	if (EVTAG_GET(msg2, attack, &attack) == -1) {
-		fprintf(stderr, "Get not get attack.\n");
+		fprintf(stderr, "Could not get attack.\n");
 		exit(1);
 	}
 
@@ -1482,6 +1491,32 @@ rpc_test(void)
 		exit(1);
 	}
 
+	/* get the very first run message */
+	if (EVTAG_GET(msg2, run, 0, &run) == -1) {
+		fprintf(stderr, "Failed to get run msg.\n");
+		exit(1);
+	} else {
+		/* verify the notes */
+		char *note_one, *note_two;
+
+		if (EVTAG_LEN(run, notes) != 2) {
+			fprintf(stderr, "Wrong number of note strings.\n");
+			exit(1);
+		}
+
+		if (EVTAG_GET(run, notes, 0, &note_one) == -1 ||
+		    EVTAG_GET(run, notes, 1, &note_two) == -1) {
+			fprintf(stderr, "Could not get note strings.\n");
+			exit(1);
+		}
+
+		if (strcmp(note_one, "this is my note") ||
+		    strcmp(note_two, "pps")) {
+			fprintf(stderr, "Incorrect note strings encoded.\n");
+			exit(1);
+		}
+		
+	}
 	if (EVTAG_LEN(attack, how_often) != 3) {
 		fprintf(stderr, "Wrong number of how_often ints.\n");
 		exit(1);
