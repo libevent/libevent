@@ -1,7 +1,7 @@
 Changes in 1.4.1-beta:
  o free minheap on event_base_free(); from Christopher Layne
  o debug cleanups in signal.c; from Christopher Layne
- o provide event_base_new() that does not set the current_base global	
+ o provide event_base_new() that does not set the current_base global
  o bufferevent_write now uses a const source argument; report from Charles Kerr
  o better documentation for event_base_loopexit; from Scott Lamb.
  o Make kqueue have the same behavior as other backends when a signal is caught between event_add() and event_loop().  Previously, it would catch and ignore such signals.
@@ -30,7 +30,7 @@ Changes in 1.4.0-beta:
  o Fix Solaris compilation; from Magne Mahre
  o Add a "Date" header to HTTP responses, as required by HTTP 1.1.
  o Support specifying the local address of an evhttp_connection using set_local_address
- o Fix a memory leak in which failed HTTP connections whould not free the request object
+ o Fix a memory leak in which failed HTTP connections would not free the request object
  o Make adding of array members in event_rpcgen more efficient, but doubling memory allocation
  o Fix a memory leak in the DNS server
  o Fix compilation when DNS_USE_OPENSSL_FOR_ID is enabled
