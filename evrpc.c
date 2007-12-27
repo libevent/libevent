@@ -75,6 +75,9 @@ evrpc_init(struct evhttp *http_server)
 	TAILQ_INIT(&base->registered_rpcs);
 	TAILQ_INIT(&base->input_hooks);
 	TAILQ_INIT(&base->output_hooks);
+
+	TAILQ_INIT(&base->paused_requests);
+
 	base->http_server = http_server;
 
 	return (base);
@@ -101,7 +104,7 @@ evrpc_free(struct evrpc_base *base)
 void *
 evrpc_add_hook(void *vbase,
     enum EVRPC_HOOK_TYPE hook_type,
-    int (*cb)(struct evhttp_request *, struct evbuffer *, void *),
+    int (*cb)(void *, struct evhttp_request *, struct evbuffer *, void *),
     void *cb_arg)
 {
 	struct _evrpc_hooks *base = vbase;
@@ -167,12 +170,12 @@ evrpc_remove_hook(void *vbase, enum EVRPC_HOOK_TYPE hook_type, void *handle)
 }
 
 static int
-evrpc_process_hooks(struct evrpc_hook_list *head,
+evrpc_process_hooks(struct evrpc_hook_list *head, void *ctx,
     struct evhttp_request *req, struct evbuffer *evbuf)
 {
 	struct evrpc_hook *hook;
 	TAILQ_FOREACH(hook, head, next) {
-		if (hook->process(req, evbuf, hook->process_arg) == -1)
+		if (hook->process(ctx, req, evbuf, hook->process_arg) == -1)
 			return (-1);
 	}
 
@@ -257,36 +260,76 @@ evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
 	return (0);
 }
 
+static int evrpc_pause_request(void *vbase, void *ctx,
+    void (*cb)(void *, enum EVRPC_HOOK_RESULT));
+static void evrpc_request_cb_closure(void *, enum EVRPC_HOOK_RESULT);
+
 static void
 evrpc_request_cb(struct evhttp_request *req, void *arg)
 {
 	struct evrpc *rpc = arg;
 	struct evrpc_req_generic *rpc_state = NULL;
+	int hook_res;
 
 	/* let's verify the outside parameters */
 	if (req->type != EVHTTP_REQ_POST ||
 	    EVBUFFER_LENGTH(req->input_buffer) <= 0)
 		goto error;
 
+	rpc_state = event_calloc(1, sizeof(struct evrpc_req_generic));
+	if (rpc_state == NULL)
+		goto error;
+	rpc_state->rpc = rpc;
+	rpc_state->http_req = req;
+	rpc_state->rpc_data = NULL;
+	rpc_state->done = evrpc_request_done;
+
+
 	/*
 	 * we might want to allow hooks to suspend the processing,
 	 * but at the moment, we assume that they just act as simple
 	 * filters.
 	 */
-	if (evrpc_process_hooks(&rpc->base->input_hooks,
-		req, req->input_buffer) == -1)
+	hook_res = evrpc_process_hooks(&rpc->base->input_hooks,
+	    rpc_state, req, req->input_buffer);
+	switch (hook_res) {
+	case EVRPC_TERMINATE:
 		goto error;
+	case EVRPC_PAUSE:
+		evrpc_pause_request(rpc->base, rpc_state,
+		    evrpc_request_cb_closure);
+		return;
+	case EVRPC_CONTINUE:
+		break;
+	default:
+		assert(hook_res == EVRPC_TERMINATE ||
+		    hook_res == EVRPC_CONTINUE || hook_res == EVRPC_PAUSE);
+	}
 
-	rpc_state = event_calloc(1, sizeof(struct evrpc_req_generic));
-	if (rpc_state == NULL)
+	evrpc_request_cb_closure(rpc_state, EVRPC_CONTINUE);
+	return;
+
+error:
+	if (rpc_state != NULL)
+		evrpc_reqstate_free(rpc_state);
+	evhttp_send_error(req, HTTP_SERVUNAVAIL, "Service Error");
+	return;
+}
+
+static void
+evrpc_request_cb_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
+{
+	struct evrpc_req_generic *rpc_state = arg;
+	struct evrpc *rpc = rpc_state->rpc;
+	struct evhttp_request *req = rpc_state->http_req;
+
+	if (hook_res == EVRPC_TERMINATE)
 		goto error;
 
 	/* let's check that we can parse the request */
 	rpc_state->request = rpc->request_new();
 	if (rpc_state->request == NULL)
 		goto error;
-
-	rpc_state->rpc = rpc;
 
 	if (rpc->request_unmarshal(
 		    rpc_state->request, req->input_buffer) == -1) {
@@ -300,75 +343,109 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 	if (rpc_state->reply == NULL)
 		goto error;
 
-	rpc_state->http_req = req;
-	rpc_state->done = evrpc_request_done;
-
 	/* give the rpc to the user; they can deal with it */
 	rpc->cb(rpc_state, rpc->cb_arg);
 
 	return;
 
 error:
-	evrpc_reqstate_free(rpc_state);
+	if (rpc_state != NULL)
+		evrpc_reqstate_free(rpc_state);
 	evhttp_send_error(req, HTTP_SERVUNAVAIL, "Service Error");
 	return;
 }
 
+
 void
 evrpc_reqstate_free(struct evrpc_req_generic* rpc_state)
 {
-	/* clean up all memory */
-	if (rpc_state != NULL) {
-		struct evrpc *rpc = rpc_state->rpc;
+	struct evrpc *rpc;
+	assert(rpc_state != NULL);
+	rpc = rpc_state->rpc;
 
-		if (rpc_state->request != NULL)
-			rpc->request_free(rpc_state->request);
-		if (rpc_state->reply != NULL)
-			rpc->reply_free(rpc_state->reply);
-		event_free(rpc_state);
-	}
+	/* clean up all memory */
+	if (rpc_state->request != NULL)
+		rpc->request_free(rpc_state->request);
+	if (rpc_state->reply != NULL)
+		rpc->reply_free(rpc_state->reply);
+	if (rpc_state->rpc_data != NULL)
+		evbuffer_free(rpc_state->rpc_data);
+	event_free(rpc_state);
 }
 
+static void
+evrpc_request_done_closure(void *, enum EVRPC_HOOK_RESULT);
+
 void
-evrpc_request_done(struct evrpc_req_generic* rpc_state)
+evrpc_request_done(struct evrpc_req_generic *rpc_state)
 {
 	struct evhttp_request *req = rpc_state->http_req;
 	struct evrpc *rpc = rpc_state->rpc;
-	struct evbuffer* data = NULL;
+	int hook_res;
 
 	if (rpc->reply_complete(rpc_state->reply) == -1) {
 		/* the reply was not completely filled in.  error out */
 		goto error;
 	}
 
-	if ((data = evbuffer_new()) == NULL) {
+	if ((rpc_state->rpc_data = evbuffer_new()) == NULL) {
 		/* out of memory */
 		goto error;
 	}
 
 	/* serialize the reply */
-	rpc->reply_marshal(data, rpc_state->reply);
+	rpc->reply_marshal(rpc_state->rpc_data, rpc_state->reply);
 
 	/* do hook based tweaks to the request */
-	if (evrpc_process_hooks(&rpc->base->output_hooks,
-		req, data) == -1)
+	hook_res = evrpc_process_hooks(&rpc->base->output_hooks,
+	    rpc_state, req, rpc_state->rpc_data);
+	switch (hook_res) {
+	case EVRPC_TERMINATE:
+		goto error;
+	case EVRPC_PAUSE:
+		if (evrpc_pause_request(rpc->base, rpc_state,
+			evrpc_request_done_closure) == -1)
+			goto error;
+		return;
+	case EVRPC_CONTINUE:
+		break;
+	default:
+		assert(hook_res == EVRPC_TERMINATE ||
+		    hook_res == EVRPC_CONTINUE || hook_res == EVRPC_PAUSE);
+	}
+
+	evrpc_request_done_closure(rpc_state, EVRPC_CONTINUE);
+	return;
+
+error:
+	if (rpc_state != NULL)
+		evrpc_reqstate_free(rpc_state);
+	evhttp_send_error(req, HTTP_SERVUNAVAIL, "Service Error");
+	return;
+}
+
+static void
+evrpc_request_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
+{
+	struct evrpc_req_generic *rpc_state = arg;
+	struct evhttp_request *req = rpc_state->http_req;
+
+	if (hook_res == EVRPC_TERMINATE)
 		goto error;
 
-	evhttp_send_reply(req, HTTP_OK, "OK", data);
-
-	evbuffer_free(data);
+	evhttp_send_reply(req, HTTP_OK, "OK", rpc_state->rpc_data);
 
 	evrpc_reqstate_free(rpc_state);
 
 	return;
 
 error:
-	if (data != NULL)
-		evbuffer_free(data);
-	evrpc_reqstate_free(rpc_state);
+	if (rpc_state != NULL)
+		evrpc_reqstate_free(rpc_state);
 	evhttp_send_error(req, HTTP_SERVUNAVAIL, "Service Error");
 	return;
 }
+
 
 /* Client implementation of RPC site */
 
@@ -384,6 +461,8 @@ evrpc_pool_new(struct event_base *base)
 
 	TAILQ_INIT(&pool->connections);
 	TAILQ_INIT(&pool->requests);
+
+	TAILQ_INIT(&pool->paused_requests);
 
 	TAILQ_INIT(&pool->input_hooks);
 	TAILQ_INIT(&pool->output_hooks);
@@ -406,12 +485,17 @@ evrpc_pool_free(struct evrpc_pool *pool)
 {
 	struct evhttp_connection *connection;
 	struct evrpc_request_wrapper *request;
+	struct evrpc_hook_ctx *pause;
 	struct evrpc_hook *hook;
 
 	while ((request = TAILQ_FIRST(&pool->requests)) != NULL) {
 		TAILQ_REMOVE(&pool->requests, request, next);
-		/* if this gets more complicated we need our own function */
 		evrpc_request_wrapper_free(request);
+	}
+
+	while ((pause = TAILQ_FIRST(&pool->paused_requests)) != NULL) {
+		TAILQ_REMOVE(&pool->paused_requests, pause, next);
+		event_free(pause);
 	}
 
 	while ((connection = TAILQ_FIRST(&pool->connections)) != NULL) {
@@ -498,6 +582,12 @@ evrpc_pool_find_connection(struct evrpc_pool *pool)
 }
 
 /*
+ * Prototypes responsible for evrpc scheduling and hooking
+ */ 
+
+static void evrpc_schedule_request_closure(void *ctx, enum EVRPC_HOOK_RESULT);
+
+/*
  * We assume that the ctx is no longer queued on the pool.
  */
 static int
@@ -507,8 +597,7 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 	struct evhttp_request *req = NULL;
 	struct evrpc_pool *pool = ctx->pool;
 	struct evrpc_status status;
-	char *uri = NULL;
-	int res = 0;
+	int hook_res = 0;
 
 	if ((req = evhttp_request_new(evrpc_reply_done, ctx)) == NULL)
 		goto error;
@@ -516,16 +605,60 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 	/* serialize the request data into the output buffer */
 	ctx->request_marshal(req->output_buffer, ctx->request);
 
-	uri = evrpc_construct_uri(ctx->name);
-	if (uri == NULL)
-		goto error;
-
 	/* we need to know the connection that we might have to abort */
 	ctx->evcon = connection;
 
+	/* if we get paused we also need to know the request */
+	ctx->req = req;
+
 	/* apply hooks to the outgoing request */
-	if (evrpc_process_hooks(&pool->output_hooks,
-		req, req->output_buffer) == -1)
+	hook_res = evrpc_process_hooks(&pool->output_hooks,
+	    ctx, req, req->output_buffer);
+
+	switch (hook_res) {
+	case EVRPC_TERMINATE:
+		goto error;
+	case EVRPC_PAUSE:
+		/* we need to be explicitly resumed */
+		if (evrpc_pause_request(pool, ctx,
+			evrpc_schedule_request_closure) == -1)
+			goto error;
+		return (0);
+	case EVRPC_CONTINUE:
+		/* we can just continue */
+		break;
+	default:
+		assert(hook_res == EVRPC_TERMINATE ||
+		    hook_res == EVRPC_CONTINUE || hook_res == EVRPC_PAUSE);
+	}
+
+	evrpc_schedule_request_closure(ctx, EVRPC_CONTINUE);
+	return (0);
+
+error:
+	memset(&status, 0, sizeof(status));
+	status.error = EVRPC_STATUS_ERR_UNSTARTED;
+	(*ctx->cb)(&status, ctx->request, ctx->reply, ctx->cb_arg);
+	evrpc_request_wrapper_free(ctx);
+	return (-1);
+}
+
+static void
+evrpc_schedule_request_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
+{
+	struct evrpc_request_wrapper *ctx = arg;
+	struct evhttp_connection *connection = ctx->evcon;
+	struct evhttp_request *req = ctx->req;
+	struct evrpc_pool *pool = ctx->pool;
+	struct evrpc_status status;
+	char *uri = NULL;
+	int res = 0;
+
+	if (hook_res == EVRPC_TERMINATE)
+		goto error;
+
+	uri = evrpc_construct_uri(ctx->name);
+	if (uri == NULL)
 		goto error;
 
 	if (pool->timeout > 0) {
@@ -545,14 +678,50 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 	if (res == -1)
 		goto error;
 
-	return (0);
+	return;
 
 error:
 	memset(&status, 0, sizeof(status));
 	status.error = EVRPC_STATUS_ERR_UNSTARTED;
 	(*ctx->cb)(&status, ctx->request, ctx->reply, ctx->cb_arg);
 	evrpc_request_wrapper_free(ctx);
-	return (-1);
+}
+
+/* we just queue the paused request on the pool under the req object */
+static int
+evrpc_pause_request(void *vbase, void *ctx,
+    void (*cb)(void *, enum EVRPC_HOOK_RESULT))
+{
+	struct _evrpc_hooks *base = vbase;
+	struct evrpc_hook_ctx *pause = event_malloc(sizeof(*pause));
+	if (pause == NULL)
+		return (-1);
+
+	pause->ctx = ctx;
+	pause->cb = cb;
+
+	TAILQ_INSERT_TAIL(&base->pause_requests, pause, next);
+	return (0);
+}
+
+int
+evrpc_resume_request(void *vbase, void *ctx, enum EVRPC_HOOK_RESULT res)
+{
+	struct _evrpc_hooks *base = vbase;
+	struct evrpc_pause_list *head = &base->pause_requests;
+	struct evrpc_hook_ctx *pause;
+
+	TAILQ_FOREACH(pause, head, next) {
+		if (pause->ctx == ctx)
+			break;
+	}
+
+	if (pause == NULL)
+		return (-1);
+
+	(*pause->cb)(pause->ctx, res);
+	TAILQ_REMOVE(head, pause, next);
+	return (0);
 }
 
 int
@@ -580,35 +749,66 @@ evrpc_make_request(struct evrpc_request_wrapper *ctx)
 }
 
 static void
+evrpc_reply_done_closure(void *, enum EVRPC_HOOK_RESULT);
+
+static void
 evrpc_reply_done(struct evhttp_request *req, void *arg)
 {
 	struct evrpc_request_wrapper *ctx = arg;
 	struct evrpc_pool *pool = ctx->pool;
-	struct evrpc_status status;
-	int res = -1;
+	int hook_res;
 	
 	/* cancel any timeout we might have scheduled */
 	event_del(&ctx->ev_timeout);
+
+	/* if we get paused we also need to know the request */
+	ctx->req = req;
+
+	/* we need to get the reply now */
+	if (req == NULL) {
+		evrpc_reply_done_closure(ctx, EVRPC_CONTINUE);
+		return;
+	}
+
+	/* apply hooks to the incoming request */
+	hook_res = evrpc_process_hooks(&pool->input_hooks,
+	    ctx, req, req->input_buffer);
+
+	switch (hook_res) {
+	case EVRPC_TERMINATE:
+	case EVRPC_CONTINUE:
+		evrpc_reply_done_closure(ctx, hook_res);
+		return;
+	case EVRPC_PAUSE:
+		evrpc_pause_request(pool, ctx, evrpc_reply_done_closure);
+		return;
+	default:
+		assert(hook_res == EVRPC_TERMINATE ||
+		    hook_res == EVRPC_CONTINUE || hook_res == EVRPC_PAUSE);
+	}
+}
+
+static void
+evrpc_reply_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
+{
+	struct evrpc_request_wrapper *ctx = arg;
+	struct evhttp_request *req = ctx->req;
+	struct evrpc_pool *pool = ctx->pool;
+	struct evrpc_status status;
+	int res = -1;
 
 	memset(&status, 0, sizeof(status));
 	status.http_req = req;
 
 	/* we need to get the reply now */
-	if (req != NULL) {
-		/* apply hooks to the incoming request */
-		if (evrpc_process_hooks(&pool->input_hooks,
-			req, req->input_buffer) == -1) {
-			status.error = EVRPC_STATUS_ERR_HOOKABORTED;
-			res = -1;
-		} else {
-			res = ctx->reply_unmarshal(ctx->reply,
-			    req->input_buffer);
-			if (res == -1) {
-				status.error = EVRPC_STATUS_ERR_BADPAYLOAD;
-			}
-		}
-	} else {
+	if (req == NULL) {
 		status.error = EVRPC_STATUS_ERR_TIMEOUT;
+	} else if (hook_res == EVRPC_TERMINATE) {
+		status.error = EVRPC_STATUS_ERR_HOOKABORTED;
+	} else {
+		res = ctx->reply_unmarshal(ctx->reply, req->input_buffer);
+		if (res == -1)
+			status.error = EVRPC_STATUS_ERR_BADPAYLOAD;
 	}
 
 	if (res == -1) {
