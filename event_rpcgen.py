@@ -338,7 +338,8 @@ class Entry:
             "refname" : self._refname,
             "optpointer" : self._optpointer and "*" or "",
             "optreference" : self._optpointer and "&" or "",
-            "optaddarg" : self._optaddarg and ", %s value" % self._ctype or ""
+            "optaddarg" :
+            self._optaddarg and ", const %s value" % self._ctype or ""
             }
         for (k, v) in extradict.items():
             mapping[k] = v
