@@ -1,0 +1,48 @@
+What's New In Libevent SVN:
+
+0. About this document
+
+  This document describes the key differences between Libevent 1.4 and
+  Libevent ???, from a user's point of view.  It was most recently
+  updated based on features in subversion trunk as of 27 Dec 2007.
+
+  NOTE 1: As of this writing, we haven't decided whether the trunk
+  version of svn will turn into a 1.5 or 2.0.
+
+  NOTE 2: If any features or fixes get backported from trunk to 1.4,
+  they should get moved from here into whatsnew-14.txt, since they
+  will no longer be differences between 1.4 and this version.
+
+1. Packaging Issues.
+
+2. New and Improved APIs
+
+2.1. Overrideable allocation functions
+
+  If you want to override the allocation functions used by libevent
+  (for example, to use a specialized allocator, or debug memory
+  issues, or so on), you can replace them by calling
+  event_set_mem_functions.  It takes replacements for malloc(),
+  free(), and realloc().
+
+2.2. More flexible readline support
+
+  The old evbuffer_readline() function (which accepted any sequence of
+  CR and LF characters as a newline, and which couldn't handle lines
+  containing NUL characters), is now deprecated.  The preferred
+  function is evbuffer_readln(), which supports a variety of
+  line-ending styles, and which can return the number of characters in
+  the line returned.
+
+2.3. Socket is now an abstract type
+
+  All APIs that formerly accepted int as a socket type now accept
+  "evutil_socket_t".  On Unix, this is just an alias for "int" as
+  before.  On Windows, however, it's an alias for SOCKET, which can
+  be wider than int on 64-bit platforms.
+
+3. Big bugfixes
+
+4. Big performance improvements
+
+5. Removed code and features
