@@ -135,6 +135,11 @@ struct evrpc_req_generic {
 	struct evhttp_request* http_req;
 
 	/*
+	 * Temporary data store for marshaled data
+	 */
+	struct evbuffer* rpc_data;
+
+	/*
 	 * callback to reply and finish answering this rpc
 	 */
 	void (*done)(struct evrpc_req_generic* rpc); 
@@ -157,6 +162,7 @@ EVRPC_STRUCT(rpcname) {	\
 	struct rplystruct* reply; \
 	struct evrpc* rpc; \
 	struct evhttp_request* http_req; \
+	struct evbuffer* rpc_data; \
 	void (*done)(struct evrpc_status *, \
 	    struct evrpc* rpc, void *request, void *reply);	     \
 };								     \
@@ -346,6 +352,9 @@ struct evrpc_request_wrapper {
         /* connection on which the request is being sent */
 	struct evhttp_connection *evcon;
 
+        /* the actual  request */
+	struct evhttp_request *req;
+
 	/* event for implementing request timeouts */
 	struct event ev_timeout;
 
@@ -440,9 +449,22 @@ enum EVRPC_HOOK_TYPE {
 	OUTPUT		/**< apply the function to an output hook */
 };
 
+/**
+ * Return value from hook processing functions
+ */
+
+enum EVRPC_HOOK_RESULT {
+	EVRPC_TERMINATE = -1,	/**< indicates the rpc should be terminated */
+	EVRPC_CONTINUE = 0,	/**< continue processing the rpc */
+	EVRPC_PAUSE = 1,	/**< pause processing request until resumed */
+};
+
 /** adds a processing hook to either an rpc base or rpc pool
  *
- * If a hook returns -1, the processing is aborted.
+ * If a hook returns TERMINATE, the processing is aborted. On CONTINUE,
+ * the request is immediately processed after the hook returns.  If the
+ * hook returns PAUSE, request processing stops until evrpc_resume_request()
+ * has been called.
  *
  * The add functions return handles that can be used for removing hooks.
  *
@@ -455,7 +477,7 @@ enum EVRPC_HOOK_TYPE {
  */
 void *evrpc_add_hook(void *vbase,
     enum EVRPC_HOOK_TYPE hook_type,
-    int (*cb)(struct evhttp_request *, struct evbuffer *, void *),
+    int (*cb)(void *, struct evhttp_request *, struct evbuffer *, void *),
     void *cb_arg);
 
 /** removes a previously added hook
@@ -469,6 +491,14 @@ void *evrpc_add_hook(void *vbase,
 int evrpc_remove_hook(void *vbase,
     enum EVRPC_HOOK_TYPE hook_type,
     void *handle);
+
+/** resume a paused request
+ *
+ * @param vbase a pointer to either struct evrpc_base or struct evrpc_pool
+ * @param ctx the context pointer provided to the original hook call
+ */
+int
+evrpc_resume_request(void *vbase, void *ctx, enum EVRPC_HOOK_RESULT res);
 
 #ifdef __cplusplus
 }

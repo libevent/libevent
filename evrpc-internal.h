@@ -37,7 +37,8 @@ struct evrpc_hook {
 	TAILQ_ENTRY(evrpc_hook) (next);
 
 	/* returns -1; if the rpc should be aborted, is allowed to rewrite */
-	int (*process)(struct evhttp_request *, struct evbuffer *, void *);
+	int (*process)(void *, struct evhttp_request *,
+	    struct evbuffer *, void *);
 	void *process_arg;
 };
 
@@ -48,14 +49,21 @@ TAILQ_HEAD(evrpc_hook_list, evrpc_hook);
  * the hook adding functions; we alias both evrpc_pool and evrpc_base
  * to this common structure.
  */
+
+struct evrpc_hook_ctx;
+TAILQ_HEAD(evrpc_pause_list, evrpc_hook_ctx);
+
 struct _evrpc_hooks {
 	/* hooks for processing outbound and inbound rpcs */
 	struct evrpc_hook_list in_hooks;
 	struct evrpc_hook_list out_hooks;
+	
+	struct evrpc_pause_list pause_requests;
 };
 
 #define input_hooks common.in_hooks
 #define output_hooks common.out_hooks
+#define paused_requests common.pause_requests
 
 struct evrpc_base {
 	struct _evrpc_hooks common;
@@ -80,8 +88,14 @@ struct evrpc_pool {
 
 	int timeout;
 
-	TAILQ_HEAD(evrpc_requestq, evrpc_request_wrapper) requests;
+	TAILQ_HEAD(evrpc_requestq, evrpc_request_wrapper) (requests);
 };
 
+struct evrpc_hook_ctx {
+	TAILQ_ENTRY(evrpc_hook_ctx) (next);
+
+	void *ctx;
+	void (*cb)(void *, enum EVRPC_HOOK_RESULT);
+};
 
 #endif /* _EVRPC_INTERNAL_H_ */

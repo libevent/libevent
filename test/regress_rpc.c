@@ -409,7 +409,7 @@ done:
 }
 
 static int
-rpc_hook_add_header(struct evhttp_request *req,
+rpc_hook_add_header(void *ctx, struct evhttp_request *req,
     struct evbuffer *evbuf, void *arg)
 {
 	const char *hook_type = arg;
@@ -421,7 +421,7 @@ rpc_hook_add_header(struct evhttp_request *req,
 }
 
 static int
-rpc_hook_remove_header(struct evhttp_request *req,
+rpc_hook_remove_header(void *ctx, struct evhttp_request *req,
     struct evbuffer *evbuf, void *arg)
 {
 	const char *header = evhttp_find_header(req->input_headers, "X-Hook");
@@ -498,6 +498,9 @@ rpc_basic_client(void)
 
 	evrpc_pool_free(pool);
 	evhttp_free(http);
+
+	need_input_hook = 0;
+	need_output_hook = 0;
 }
 
 /* 
@@ -569,6 +572,99 @@ done:
 	event_loopexit(NULL);
 }
 
+/* we just pause the rpc and continue it in the next callback */
+
+struct _rpc_hook_ctx {
+	void *vbase;
+	void *ctx;
+};
+
+static void
+rpc_hook_pause_cb(int fd, short what, void *arg)
+{
+	struct _rpc_hook_ctx *ctx = arg;
+	evrpc_resume_request(ctx->vbase, ctx->ctx, EVRPC_CONTINUE);
+}
+
+static int
+rpc_hook_pause(void *ctx, struct evhttp_request *req, struct evbuffer *evbuf,
+    void *arg)
+{
+	struct _rpc_hook_ctx *tmp = malloc(sizeof(*tmp));
+	struct timeval tv;
+
+	assert(tmp != NULL);
+	tmp->vbase = arg;
+	tmp->ctx = ctx;
+
+	memset(&tv, 0, sizeof(tv));
+	event_once(-1, EV_TIMEOUT, rpc_hook_pause_cb, tmp, &tv);
+	return EVRPC_PAUSE;
+}
+
+static void
+rpc_basic_client_with_pause(void)
+{
+	short port;
+	struct evhttp *http = NULL;
+	struct evrpc_base *base = NULL;
+	struct evrpc_pool *pool = NULL;
+	struct msg *msg;
+	struct kill *kill;
+
+	fprintf(stdout, "Testing RPC Client with pause hooks: ");
+
+	rpc_setup(&http, &port, &base);
+
+	assert(evrpc_add_hook(base, INPUT, rpc_hook_pause, base));
+	assert(evrpc_add_hook(base, OUTPUT, rpc_hook_pause, base));
+
+	pool = rpc_pool_with_connection(port);
+
+	assert(evrpc_add_hook(pool, INPUT, rpc_hook_pause, pool));
+	assert(evrpc_add_hook(pool, OUTPUT, rpc_hook_pause, pool));
+
+	/* set up the basic message */
+	msg = msg_new();
+	EVTAG_ASSIGN(msg, from_name, "niels");
+	EVTAG_ASSIGN(msg, to_name, "tester");
+
+	kill = kill_new();
+
+	EVRPC_MAKE_REQUEST(Message, pool, msg, kill,  GotKillCb, NULL);
+
+	test_ok = 0;
+
+	event_dispatch();
+	
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED (1)\n");
+		exit(1);
+	}
+
+	/* we do it twice to make sure that reuse works correctly */
+	kill_clear(kill);
+
+	EVRPC_MAKE_REQUEST(Message, pool, msg, kill,  GotKillCb, NULL);
+
+	event_dispatch();
+	
+	rpc_teardown(base);
+	
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED (2)\n");
+		exit(1);
+	}
+
+	fprintf(stdout, "OK\n");
+
+	msg_free(msg);
+	kill_free(kill);
+
+	evrpc_pool_free(pool);
+	evhttp_free(http);
+}
+
 static void
 rpc_client_timeout(void)
 {
@@ -627,5 +723,6 @@ rpc_suite(void)
 	rpc_basic_message();
 	rpc_basic_client();
 	rpc_basic_queued_client();
+	rpc_basic_client_with_pause();
 	rpc_client_timeout();
 }
