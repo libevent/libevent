@@ -144,8 +144,10 @@ http_connect(const char *address, u_short port)
 		event_err(1, "socket failed");
 
 	evutil_make_socket_nonblocking(fd);
-	if (connect(fd, sa, slen) == -1)
-		event_err(1, "connect failed");
+	if (connect(fd, sa, slen) == -1) {
+		if (errno != EINPROGRESS)
+			event_err(1, "connect failed");
+	}
 
 #ifndef WIN32
 	freeaddrinfo(aitop);
