@@ -31,6 +31,7 @@ Changes in current version:
  o event_rpcgen now allows creating integer arrays
  o support string arrays in event_rpcgen
  o change evrpc hooking to allow pausing of RPCs; this will make it possible for the hook to do some meaning ful work; this is not backwards compatible.
+ o allow an http request callback to take ownership of a request structure
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

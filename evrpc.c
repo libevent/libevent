@@ -175,11 +175,12 @@ evrpc_process_hooks(struct evrpc_hook_list *head, void *ctx,
 {
 	struct evrpc_hook *hook;
 	TAILQ_FOREACH(hook, head, next) {
-		if (hook->process(ctx, req, evbuf, hook->process_arg) == -1)
-			return (-1);
+		int res = hook->process(ctx, req, evbuf, hook->process_arg);
+		if (res != EVRPC_CONTINUE)
+			return (res);
 	}
 
-	return (0);
+	return (EVRPC_CONTINUE);
 }
 
 static void evrpc_pool_schedule(struct evrpc_pool *pool);
@@ -761,7 +762,6 @@ evrpc_reply_done(struct evhttp_request *req, void *arg)
 	/* cancel any timeout we might have scheduled */
 	event_del(&ctx->ev_timeout);
 
-	/* if we get paused we also need to know the request */
 	ctx->req = req;
 
 	/* we need to get the reply now */
@@ -780,12 +780,22 @@ evrpc_reply_done(struct evhttp_request *req, void *arg)
 		evrpc_reply_done_closure(ctx, hook_res);
 		return;
 	case EVRPC_PAUSE:
+		/*
+		 * if we get paused we also need to know the request.
+		 * unfortunately, the underlying layer is going to free it.
+		 * we need to request ownership explicitly
+		 */
+		if (req != NULL)
+			evhttp_request_own(req);
+
 		evrpc_pause_request(pool, ctx, evrpc_reply_done_closure);
 		return;
 	default:
 		assert(hook_res == EVRPC_TERMINATE ||
 		    hook_res == EVRPC_CONTINUE || hook_res == EVRPC_PAUSE);
 	}
+
+	/* http request is being freed by underlying layer */
 }
 
 static void
@@ -820,7 +830,10 @@ evrpc_reply_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 	
 	evrpc_request_wrapper_free(ctx);
 
-	/* the http layer owns the request structure */
+	/* the http layer owned the orignal request structure, but if we
+	 * got paused, we asked for ownership and need to free it here. */
+	if (req != NULL && evhttp_request_is_owned(req))
+		evhttp_request_free(req);
 
 	/* see if we can schedule another request */
 	evrpc_pool_schedule(pool);

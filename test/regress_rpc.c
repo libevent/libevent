@@ -579,10 +579,13 @@ struct _rpc_hook_ctx {
 	void *ctx;
 };
 
+static int hook_pause_cb_called;
+
 static void
 rpc_hook_pause_cb(int fd, short what, void *arg)
 {
 	struct _rpc_hook_ctx *ctx = arg;
+ 	++hook_pause_cb_called;
 	evrpc_resume_request(ctx->vbase, ctx->ctx, EVRPC_CONTINUE);
 }
 
@@ -631,31 +634,19 @@ rpc_basic_client_with_pause(void)
 
 	kill = kill_new();
 
-	EVRPC_MAKE_REQUEST(Message, pool, msg, kill,  GotKillCb, NULL);
+	EVRPC_MAKE_REQUEST(Message, pool, msg, kill, GotKillCb, NULL);
 
 	test_ok = 0;
 
 	event_dispatch();
 	
-	if (test_ok != 1) {
-		fprintf(stdout, "FAILED (1)\n");
+	if (test_ok != 1 || hook_pause_cb_called != 4) {
+		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
 
-	/* we do it twice to make sure that reuse works correctly */
-	kill_clear(kill);
-
-	EVRPC_MAKE_REQUEST(Message, pool, msg, kill,  GotKillCb, NULL);
-
-	event_dispatch();
-	
 	rpc_teardown(base);
 	
-	if (test_ok != 2) {
-		fprintf(stdout, "FAILED (2)\n");
-		exit(1);
-	}
-
 	fprintf(stdout, "OK\n");
 
 	msg_free(msg);

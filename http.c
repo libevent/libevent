@@ -674,8 +674,10 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 	/* notify the user of the request */
 	(*req->cb)(req, req->cb_arg);
 
-	/* if this was an outgoing request, we own and it's done. so free it */
-	if (con_outgoing) {
+	/* if this was an outgoing request, we own and it's done. so free it.
+	 * unless the callback specifically requested to own the request.
+	 */
+	if (con_outgoing && ((req->flags & EVHTTP_USER_OWNED) == 0)) {
 		evhttp_request_free(req);
 	}
 }
@@ -2208,6 +2210,18 @@ evhttp_request_free(struct evhttp_request *req)
 		evbuffer_free(req->output_buffer);
 
 	event_free(req);
+}
+
+void
+evhttp_request_own(struct evhttp_request *req)
+{
+	req->flags |= EVHTTP_USER_OWNED;
+}
+
+int
+evhttp_request_is_owned(struct evhttp_request *req)
+{
+	return (req->flags & EVHTTP_USER_OWNED) != 0;
 }
 
 void
