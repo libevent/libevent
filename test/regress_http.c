@@ -122,6 +122,7 @@ http_connect(const char *address, u_short port)
 		event_warn("gethostbyname");
 	}
 	memcpy(&sin.sin_addr, &he->h_addr, sizeof(struct in_addr));
+	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 	slen = sizeof(struct sockaddr_in);
 	sa = (struct sockaddr*)&sin;
@@ -142,6 +143,7 @@ http_connect(const char *address, u_short port)
 	if (fd == -1)
 		event_err(1, "socket failed");
 
+	evutil_make_socket_nonblocking(fd);
 	if (connect(fd, sa, slen) == -1)
 		event_err(1, "connect failed");
 
