@@ -182,6 +182,7 @@ struct {
 	int flags;
 #define EVHTTP_REQ_OWN_CONNECTION	0x0001
 #define EVHTTP_PROXY_REQUEST		0x0002
+#define EVHTTP_USER_OWNED		0x0004
 
 	struct evkeyvalq *input_headers;
 	struct evkeyvalq *output_headers;
@@ -234,6 +235,16 @@ void evhttp_request_set_chunked_cb(struct evhttp_request *,
 
 /** Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
+
+/** Takes ownership of the request object
+ *
+ * Can be used in a request callback to keep onto the request until
+ * evhttp_request_free() is explicitly called by the user.
+ */
+void evhttp_request_own(struct evhttp_request *req);
+
+/** Returns 1 if the request is owned by the user */
+int evhttp_request_is_owned(struct evhttp_request *req);
 
 /**
  * A connection object that can be used to for making HTTP requests.  The
