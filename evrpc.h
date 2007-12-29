@@ -114,9 +114,16 @@ struct evrpc {
 
 struct evhttp_request;
 struct evrpc_status;
+struct evrpc_meta_list;
 
 /* We alias the RPC specific structs to this voided one */
 struct evrpc_req_generic {
+	/*
+	 * allows association of meta data via hooks - needs to be
+	 * synchronized with evrpc_request_wrapper
+	 */
+	struct evrpc_meta_list *meta_data;
+
 	/* the unmarshaled request object */
 	void *request;
 
@@ -158,6 +165,7 @@ struct evrpc_req_generic {
  */
 #define EVRPC_HEADER(rpcname, reqstruct, rplystruct) \
 EVRPC_STRUCT(rpcname) {	\
+	struct evrpc_meta_list *meta_data; \
 	struct reqstruct* request; \
 	struct rplystruct* reply; \
 	struct evrpc* rpc; \
@@ -171,6 +179,18 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *, \
     void (*)(struct evrpc_status *, \
 	struct reqstruct *, struct rplystruct *, void *cbarg),	\
     void *);
+
+struct evrpc_pool;
+
+/** use EVRPC_GENERATE instead */
+struct evrpc_request_wrapper *evrpc_send_request_generic(
+	struct evrpc_pool *pool, void *request, void *reply,
+	const char *rpcname,
+	void (*req_marshal)(struct evbuffer*, void *),
+	void (*rpl_clear)(void *),
+	int (*rpl_unmarshal)(void *, struct evbuffer *),
+	void (*cb)(struct evrpc_status *, void *, void *, void *),
+	void *cbarg);
 
 /** Generates the code for receiving and sending an RPC message
  *
@@ -190,25 +210,15 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
     void *cbarg) { \
 	struct evrpc_status status;				    \
 	struct evrpc_request_wrapper *ctx;			    \
-	ctx = (struct evrpc_request_wrapper *) \
-	    malloc(sizeof(struct evrpc_request_wrapper));	    \
+	ctx = evrpc_send_request_generic(pool, request, reply,	    \
+	    #rpcname,						    \
+	    (void (*)(struct evbuffer *, void *))reqstruct##_marshal, \
+	    (void (*)(void *))rplystruct##_clear, \
+	    (int (*)(void *, struct evbuffer *))rplystruct##_unmarshal, \
+	    (void (*)(struct evrpc_status *, void *, void *, void *))cb, \
+	    cbarg);							\
 	if (ctx == NULL)					    \
 		goto error;					    \
-	ctx->pool = pool;					    \
-	ctx->evcon = NULL;					    \
-	ctx->name = strdup(#rpcname);				    \
-	if (ctx->name == NULL) {				    \
-		free(ctx);					    \
-		goto error;					    \
-	}							    \
-	ctx->cb = (void (*)(struct evrpc_status *, \
-		void *, void *, void *))cb;			    \
-	ctx->cb_arg = cbarg;					    \
-	ctx->request = (void *)request;				    \
-	ctx->reply = (void *)reply;				    \
-	ctx->request_marshal = (void (*)(struct evbuffer *, void *))reqstruct##_marshal; \
-	ctx->reply_clear = (void (*)(void *))rplystruct##_clear;    \
-	ctx->reply_unmarshal = (int (*)(void *, struct evbuffer *))rplystruct##_unmarshal; \
 	return (evrpc_make_request(ctx));			    \
 error:								    \
 	memset(&status, 0, sizeof(status));			    \
@@ -325,7 +335,6 @@ int evrpc_unregister_rpc(struct evrpc_base *base, const char *name);
  * Client-side RPC support
  */
 
-struct evrpc_pool;
 struct evhttp_connection;
 
 /** 
@@ -344,6 +353,12 @@ struct evrpc_status {
 };
 
 struct evrpc_request_wrapper {
+	/*
+	 * allows association of meta data via hooks - needs to be
+	 * synchronized with evrpc_req_generic.
+	 */
+	struct evrpc_meta_list *meta_data;
+
 	TAILQ_ENTRY(evrpc_request_wrapper) next;
 
         /* pool on which this rpc request is being made */
@@ -499,6 +514,33 @@ int evrpc_remove_hook(void *vbase,
  */
 int
 evrpc_resume_request(void *vbase, void *ctx, enum EVRPC_HOOK_RESULT res);
+
+/** adds meta data to request
+ *
+ * evrpc_hook_add_meta() allows hooks to add meta data to a request. for
+ * a client requet, the meta data can be inserted by an outgoing request hook
+ * and retrieved by the incoming request hook.
+ *
+ * @param ctx the context provided to the hook call
+ * @param key a NUL-terminated c-string
+ * @param data the data to be associated with the key
+ * @param data_size the size of the data
+ */
+void evrpc_hook_add_meta(void *ctx, const char *key,
+    const void *data, size_t data_size);
+
+/** retrieves meta data previously associated
+ *
+ * evrpc_hook_find_meta() can be used to retrieve meta data associated to a
+ * request by a previous hook.
+ * @param ctx the context provided to the hook call
+ * @param key a NUL-terminated c-string
+ * @param data pointer to a data pointer that will contain the retrieved data
+ * @param data_size pointer tothe size of the data
+ * @return 0 on success or -1 on failure
+ */
+int evrpc_hook_find_meta(void *ctx, const char *key,
+    void **data, size_t *data_size);
 
 #ifdef __cplusplus
 }
