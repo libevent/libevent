@@ -417,7 +417,17 @@ rpc_hook_add_header(void *ctx, struct evhttp_request *req,
 		evhttp_add_header(req->input_headers, "X-Hook", hook_type);
 	else 
 		evhttp_add_header(req->output_headers, "X-Hook", hook_type);
-	return (0);
+
+	return (EVRPC_CONTINUE);
+}
+
+static int
+rpc_hook_add_meta(void *ctx, struct evhttp_request *req,
+    struct evbuffer *evbuf, void *arg)
+{
+	evrpc_hook_add_meta(ctx, "meta", "test", 5);
+
+	return (EVRPC_CONTINUE);
 }
 
 static int
@@ -425,12 +435,20 @@ rpc_hook_remove_header(void *ctx, struct evhttp_request *req,
     struct evbuffer *evbuf, void *arg)
 {
 	const char *header = evhttp_find_header(req->input_headers, "X-Hook");
+	void *data = NULL;
+	size_t data_len = 0;
+
 	assert(header != NULL);
 	assert(strcmp(header, arg) == 0);
+
 	evhttp_remove_header(req->input_headers, "X-Hook");
 	evhttp_add_header(req->input_headers, "X-Pool-Hook", "ran");
 
-	return (0);
+	assert(evrpc_hook_find_meta(ctx, "meta", &data, &data_len) == 0);
+	assert(data != NULL);
+	assert(data_len == 5);
+
+	return (EVRPC_CONTINUE);
 }
 
 static void
@@ -457,6 +475,7 @@ rpc_basic_client(void)
 
 	pool = rpc_pool_with_connection(port);
 
+	assert(evrpc_add_hook(pool, OUTPUT, rpc_hook_add_meta, NULL));
 	assert(evrpc_add_hook(pool, INPUT, rpc_hook_remove_header, (void*)"output"));
 
 	/* set up the basic message */

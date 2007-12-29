@@ -365,6 +365,8 @@ evrpc_reqstate_free(struct evrpc_req_generic* rpc_state)
 	rpc = rpc_state->rpc;
 
 	/* clean up all memory */
+	if (rpc_state->meta_data != NULL)
+		evrpc_meta_data_free(rpc_state->meta_data);
 	if (rpc_state->request != NULL)
 		rpc->request_free(rpc_state->request);
 	if (rpc_state->reply != NULL)
@@ -477,6 +479,8 @@ evrpc_pool_new(struct event_base *base)
 static void
 evrpc_request_wrapper_free(struct evrpc_request_wrapper *request)
 {
+	if (request->meta_data != NULL)
+		evrpc_meta_data_free(request->meta_data);
 	event_free(request->name);
 	event_free(request);
 }
@@ -749,6 +753,41 @@ evrpc_make_request(struct evrpc_request_wrapper *ctx)
 	return (0);
 }
 
+
+struct evrpc_request_wrapper *
+evrpc_send_request_generic(
+	struct evrpc_pool *pool, void *request, void *reply,
+	const char *rpcname,
+	void (*req_marshal)(struct evbuffer*, void *),
+	void (*rpl_clear)(void *),
+	int (*rpl_unmarshal)(void *, struct evbuffer *),
+	void (*cb)(struct evrpc_status *, void *, void *, void *),
+	void *cbarg)
+{
+	struct evrpc_request_wrapper *ctx = (struct evrpc_request_wrapper *)
+	    event_malloc(sizeof(struct evrpc_request_wrapper));
+	if (ctx == NULL)
+		return (NULL);
+
+	ctx->pool = pool;
+	ctx->meta_data = NULL;
+	ctx->evcon = NULL;
+	ctx->name = event_strdup(rpcname);
+	if (ctx->name == NULL) {
+		event_free(ctx);
+		return (NULL);
+	}
+	ctx->cb = cb;
+	ctx->cb_arg = cbarg;
+	ctx->request = request;
+	ctx->reply = reply;
+	ctx->request_marshal = req_marshal;
+	ctx->reply_clear = rpl_clear;
+	ctx->reply_unmarshal = rpl_unmarshal;
+
+	return (ctx);
+}
+
 static void
 evrpc_reply_done_closure(void *, enum EVRPC_HOOK_RESULT);
 
@@ -863,4 +902,67 @@ evrpc_request_timeout(evutil_socket_t fd, short what, void *arg)
 	assert(evcon != NULL);
 
 	evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
+}
+
+/*
+ * frees potential meta data associated with a request.
+ */
+
+static void
+evrpc_meta_data_free(struct evrpc_meta_list *meta_data)
+{
+	struct evrpc_meta *entry;
+	assert(meta_data != NULL);
+
+	while ((entry = TAILQ_FIRST(meta_data)) != NULL) {
+		TAILQ_REMOVE(meta_data, entry, next);
+		event_free(entry->key);
+		event_free(entry->data);
+		event_free(entry);
+	}
+
+	event_free(meta_data);
+}
+
+/* adds meta data */
+void
+evrpc_hook_add_meta(void *ctx, const char *key,
+    const void *data, size_t data_size)
+{
+	struct evrpc_request_wrapper *req = ctx;
+	struct evrpc_meta *meta = NULL;
+
+	if (req->meta_data == NULL) {
+		req->meta_data = event_malloc(sizeof(struct evrpc_meta_list));
+		assert(req->meta_data != NULL);
+		TAILQ_INIT(req->meta_data);
+	}
+
+	assert((meta = event_malloc(sizeof(struct evrpc_meta))) != NULL);
+	assert((meta->key = event_strdup(key)) != NULL);
+	meta->data_size = data_size;
+	assert((meta->data = event_malloc(data_size)) != NULL);
+	memcpy(meta->data, data, data_size);
+
+	TAILQ_INSERT_TAIL(req->meta_data, meta, next);
+}
+
+int
+evrpc_hook_find_meta(void *ctx, const char *key, void **data, size_t *data_size)
+{
+	struct evrpc_request_wrapper *req = ctx;
+	struct evrpc_meta *meta = NULL;
+
+	if (req->meta_data == NULL)
+		return (-1);
+
+	TAILQ_FOREACH(meta, req->meta_data, next) {
+		if (strcmp(meta->key, key) == 0) {
+			*data = meta->data;
+			*data_size = meta->data_size;
+			return (0);
+		}
+	}
+
+	return (-1);
 }
