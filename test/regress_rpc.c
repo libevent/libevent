@@ -418,6 +418,8 @@ rpc_hook_add_header(void *ctx, struct evhttp_request *req,
 	else 
 		evhttp_add_header(req->output_headers, "X-Hook", hook_type);
 
+	assert(evrpc_hook_get_connection(ctx) != NULL);
+
 	return (EVRPC_CONTINUE);
 }
 
@@ -426,6 +428,8 @@ rpc_hook_add_meta(void *ctx, struct evhttp_request *req,
     struct evbuffer *evbuf, void *arg)
 {
 	evrpc_hook_add_meta(ctx, "meta", "test", 5);
+
+	assert(evrpc_hook_get_connection(ctx) != NULL);
 
 	return (EVRPC_CONTINUE);
 }
@@ -447,6 +451,8 @@ rpc_hook_remove_header(void *ctx, struct evhttp_request *req,
 	assert(evrpc_hook_find_meta(ctx, "meta", &data, &data_len) == 0);
 	assert(data != NULL);
 	assert(data_len == 5);
+
+	assert(evrpc_hook_get_connection(ctx) != NULL);
 
 	return (EVRPC_CONTINUE);
 }
