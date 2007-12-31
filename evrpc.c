@@ -825,7 +825,7 @@ evrpc_reply_done(struct evhttp_request *req, void *arg)
 	}
 
 	if (TAILQ_FIRST(&pool->input_hooks) != NULL) {
-		evrpc_hook_associate_meta(&ctx->hook_meta, req->evcon);
+		evrpc_hook_associate_meta(&ctx->hook_meta, ctx->evcon);
 
 		/* apply hooks to the incoming request */
 		hook_res = evrpc_process_hooks(&pool->input_hooks,
@@ -1020,6 +1020,6 @@ struct evhttp_connection *
 evrpc_hook_get_connection(void *ctx)
 {
 	struct evrpc_request_wrapper *req = ctx;
-
-	return (req->evcon);
+	assert(req->hook_meta != NULL);
+	return (req->hook_meta->evcon);
 }
