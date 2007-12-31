@@ -110,7 +110,19 @@ struct evrpc_meta {
 
 TAILQ_HEAD(evrpc_meta_list, evrpc_meta);
 
+struct evrpc_hook_meta {
+	struct evrpc_meta_list meta_data;
+	struct evhttp_connection *evcon;
+};
+
+/* allows association of meta data with a request */
+static void evrpc_hook_associate_meta(struct evrpc_hook_meta **pctx,
+    struct evhttp_connection *evcon);
+
+/* creates a new meta data store */
+static struct evrpc_hook_meta *evrpc_hook_meta_new(void);
+
 /* frees the meta data associated with a request */
-static void evrpc_meta_data_free(struct evrpc_meta_list *meta_data);
+static void evrpc_hook_context_free(struct evrpc_hook_meta *ctx);
 
 #endif /* _EVRPC_INTERNAL_H_ */

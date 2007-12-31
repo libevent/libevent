@@ -114,7 +114,7 @@ struct evrpc {
 
 struct evhttp_request;
 struct evrpc_status;
-struct evrpc_meta_list;
+struct evrpc_hook_meta;
 
 /* We alias the RPC specific structs to this voided one */
 struct evrpc_req_generic {
@@ -122,7 +122,7 @@ struct evrpc_req_generic {
 	 * allows association of meta data via hooks - needs to be
 	 * synchronized with evrpc_request_wrapper
 	 */
-	struct evrpc_meta_list *meta_data;
+	struct evrpc_hook_meta *hook_meta;
 
 	/* the unmarshaled request object */
 	void *request;
@@ -165,7 +165,7 @@ struct evrpc_req_generic {
  */
 #define EVRPC_HEADER(rpcname, reqstruct, rplystruct) \
 EVRPC_STRUCT(rpcname) {	\
-	struct evrpc_meta_list *meta_data; \
+	struct evrpc_hook_meta *hook_meta; \
 	struct reqstruct* request; \
 	struct rplystruct* reply; \
 	struct evrpc* rpc; \
@@ -357,7 +357,7 @@ struct evrpc_request_wrapper {
 	 * allows association of meta data via hooks - needs to be
 	 * synchronized with evrpc_req_generic.
 	 */
-	struct evrpc_meta_list *meta_data;
+	struct evrpc_hook_meta *hook_meta;
 
 	TAILQ_ENTRY(evrpc_request_wrapper) next;
 
@@ -542,6 +542,12 @@ void evrpc_hook_add_meta(void *ctx, const char *key,
 int evrpc_hook_find_meta(void *ctx, const char *key,
     void **data, size_t *data_size);
 
+/** returns the connection object associated with the request
+ *
+ * @param ctx the context provided to the hook call
+ * @return a pointer to the evhttp_connection object
+ */
+struct evhttp_connection *evrpc_hook_get_connection(void *ctx);
 #ifdef __cplusplus
 }
 #endif
