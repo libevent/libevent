@@ -22,7 +22,7 @@ regress_LDADD = ../libevent.la
 bench_SOURCES = bench.c
 bench_LDADD = ../libevent.la
 
-regress.gen.c regress.gen.h: regress.rpc
+regress.gen.c regress.gen.h: regress.rpc $(top_srcdir)/event_rpcgen.py
 	$(top_srcdir)/event_rpcgen.py $(srcdir)/regress.rpc || echo "No Python installed"
 
 DISTCLEANFILES = *~
