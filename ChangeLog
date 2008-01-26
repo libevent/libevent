@@ -34,6 +34,7 @@ Changes in current version:
  o allow an http request callback to take ownership of a request structure
  o allow association of meta data with RPC requests for hook processing
  o associate more context for hooks to query such as the connection object
+ o remove pending timeouts on event_base_free()
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
