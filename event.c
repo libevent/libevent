@@ -229,6 +229,11 @@ event_base_free(struct event_base *base)
 		}
 		ev = next;
 	}
+	while ((ev = min_heap_top(&base->timeheap)) != NULL) {
+		event_del(ev);
+		++n_deleted;
+	}
+
 	if (n_deleted)
 		event_debug(("%s: %d events were still set in base",
 					 __func__, n_deleted));
@@ -236,8 +241,9 @@ event_base_free(struct event_base *base)
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base, base->evbase);
 
-	for (i=0; i < base->nactivequeues; ++i)
+	for (i = 0; i < base->nactivequeues; ++i)
 		assert(TAILQ_EMPTY(base->activequeues[i]));
+
 	assert(min_heap_empty(&base->timeheap));
 	min_heap_dtor(&base->timeheap);
 
