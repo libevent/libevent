@@ -234,10 +234,8 @@ static int
 grow(struct evport_data *epdp, int factor)
 {
 	struct fd_info *tmp;
-	struct fd_info *old = epdp->ed_fds;
 	int oldsize = epdp->ed_nevents;
 	int newsize = factor * oldsize;
-	int ii;
 	assert(factor > 1);
 
 	check_evportop(epdp);
@@ -332,7 +330,7 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	if ((res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN, 
 		    (unsigned int *) &nevents, ts_p)) == -1) {
-		if (errno == EINTR) {
+		if (errno == EINTR || errno == EAGAIN) {
 			evsignal_process(base);
 			return (0);
 		} else if (errno == ETIME) {
