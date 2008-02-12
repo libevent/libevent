@@ -127,7 +127,8 @@ const struct eventop evportops = {
 	evport_add,
 	evport_del,
 	evport_dispatch,
-	evport_dealloc
+	evport_dealloc,
+	1 /* need reinit */
 };
 
 /*
