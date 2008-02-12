@@ -1,3 +1,7 @@
+Changes in 1.4.2:
+ o remove pending timeouts on event_base_free()
+ o also check EAGAIN for Solaris' event ports; from W.C.A. Wijngaards
+
 Changes in 1.4.1-beta:
  o free minheap on event_base_free(); from Christopher Layne
  o debug cleanups in signal.c; from Christopher Layne
@@ -22,8 +26,6 @@ Changes in 1.4.1-beta:
  o When building with GCC, use the "format" attribute to verify type correctness of calls to printf-like functions.
  o removed linger from http server socket; reported by Ilya Martynov
  o Rewrite win32.c backend to be O(n lg n) rather than O(n^2)
- o remove pending timeouts on event_base_free()
- o also check EAGAIN for Solaris' event ports; from W.C.A. Wijngaards
 	
 Changes in 1.4.0-beta:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
