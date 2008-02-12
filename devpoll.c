@@ -81,7 +81,8 @@ struct eventop devpollops = {
 	devpoll_add,
 	devpoll_del,
 	devpoll_dispatch,
-	devpoll_dealloc
+	devpoll_dealloc,
+	1 /* need reinit */
 };
 
 #define NEVENT	32000

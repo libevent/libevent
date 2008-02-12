@@ -36,6 +36,7 @@ Changes in current version:
  o associate more context for hooks to query such as the connection object
  o remove pending timeouts on event_base_free()
  o also check EAGAIN for Solaris' event ports; from W.C.A. Wijngaards
+ o devpoll and evport need reinit; tested by W.C.A Wijngaards	
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
