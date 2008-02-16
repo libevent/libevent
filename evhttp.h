@@ -203,7 +203,7 @@ struct {
 	char *response_code_line;	/* Readable response */
 
 	struct evbuffer *input_buffer;	/* read data */
-	int ntoread;
+	ev_int64_t ntoread;
 	int chunked;
 
 	struct evbuffer *output_buffer;	/* outgoing post or data */

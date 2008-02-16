@@ -705,7 +705,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 				free(p);
 				continue;
 			}
-			req->ntoread = strtol(p, &endp, 16);
+			req->ntoread = evutil_strtoll(p, &endp, 16);
 			error = *p == '\0' || (*endp != '\0' && *endp != ' ');
 			free(p);
 			if (error) {
@@ -1319,7 +1319,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 		req->ntoread = -1;
 	} else {
 		char *endp;
-		req->ntoread = strtol(content_length, &endp, 10);
+		req->ntoread = evutil_strtoll(content_length, &endp, 10);
 		if (*content_length == '\0' || *endp != '\0') {
 			event_warnx("%s: illegal content length: %s",
 			    __func__, content_length);

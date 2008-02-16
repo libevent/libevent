@@ -24,6 +24,10 @@ RELEASE = 1.4
 # compatibility with old binaries.  Increment Current.  Set Age to 0,
 # since we're backward compatible with no previous APIs.  Set Revision
 # to 0 too.
+
+# History:
+#  Libevent 1.4.1 was 2:0:0
+#  Libevent 1.4.2 should be 3:0:0
 VERSION_INFO = 2:0:0
 
 bin_SCRIPTS = event_rpcgen.py
