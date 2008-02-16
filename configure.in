@@ -133,7 +133,9 @@ AC_C_INLINE
 AC_HEADER_TIME
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop signal sigaction)
+AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop signal sigaction strtoll)
+
+AC_CHECK_SIZEOF(long)
 
 if test "x$ac_cv_func_clock_gettime" = "xyes"; then
    AC_DEFINE(DNS_USE_CPU_CLOCK_FOR_ID, 1, [Define if clock_gettime is available in libc])
