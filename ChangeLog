@@ -4,6 +4,7 @@ Changes in 1.4.2:
  o devpoll and evport need reinit; tested by W.C.A Wijngaards
  o event_base_get_method; from Springande Ulv
  o Send CRLF after each chunk in HTTP output, for compliance with RFC2626.  Patch from "propanbutan".  Fixes bug 1894184.
+ o Add a int64_t parsing function, with unit tests, so we can apply Scott Lamb's fix to allow large HTTP values.
 
 Changes in 1.4.1-beta:
  o free minheap on event_base_free(); from Christopher Layne

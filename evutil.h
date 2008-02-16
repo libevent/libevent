@@ -115,12 +115,23 @@ int evutil_make_socket_nonblocking(int sock);
 #define ev_uint32_t	uint32_t
 #define ev_uint16_t	uint16_t
 #define ev_uint8_t	uint8_t
+#define ev_int64_t	int64_t
+#define ev_int32_t	int32_t
+#define ev_int16_t	int16_t
+#define ev_int8_t	int8_t
 #elif defined(WIN32)
 #define ev_uint64_t	__uint64_t
 #define ev_uint32_t	unsigned int
 #define ev_uint16_t	unsigned short
 #define ev_uint8_t	unsigned char
+#define ev_int64_t	__int64_t
+#define ev_int32_t	signed int
+#define ev_int16_t	signed short
+#define ev_int8_t	signed char
 #endif
+
+/* big-int related functions */
+ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
 
 #ifdef __cplusplus
 }
