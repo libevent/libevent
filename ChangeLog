@@ -2,6 +2,7 @@ Changes in 1.4.2:
  o remove pending timeouts on event_base_free()
  o also check EAGAIN for Solaris' event ports; from W.C.A. Wijngaards
  o devpoll and evport need reinit; tested by W.C.A Wijngaards	
+ o event_base_get_method; from Springande Ulv
 
 Changes in 1.4.1-beta:
  o free minheap on event_base_free(); from Christopher Layne
