@@ -387,6 +387,13 @@ event_base_dispatch(struct event_base *event_base)
   return (event_base_loop(event_base, 0));
 }
 
+const char *
+event_base_get_method(struct event_base *base)
+{
+	assert(base);
+	return (base->evsel->name);
+}
+
 static void
 event_loopexit_cb(evutil_socket_t fd, short what, void *arg)
 {
