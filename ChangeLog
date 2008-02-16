@@ -1,8 +1,9 @@
 Changes in 1.4.2:
  o remove pending timeouts on event_base_free()
  o also check EAGAIN for Solaris' event ports; from W.C.A. Wijngaards
- o devpoll and evport need reinit; tested by W.C.A Wijngaards	
+ o devpoll and evport need reinit; tested by W.C.A Wijngaards
  o event_base_get_method; from Springande Ulv
+ o Send CRLF after each chunk in HTTP output, for compliance with RFC2626.  Patch from "propanbutan".  Fixes bug 1894184.
 
 Changes in 1.4.1-beta:
  o free minheap on event_base_free(); from Christopher Layne
