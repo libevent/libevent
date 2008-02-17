@@ -47,8 +47,6 @@
 #include <sys/timeb.h>
 #endif
 
-/* #define NDEBUG */
-
 #ifndef DNS_USE_CPU_CLOCK_FOR_ID
 #ifndef DNS_USE_GETTIMEOFDAY_FOR_ID
 #ifndef DNS_USE_OPENSSL_FOR_ID
@@ -128,9 +126,7 @@
 #define HOST_NAME_MAX 255
 #endif
 
-#ifndef NDEBUG
 #include <stdio.h>
-#endif
 
 #undef MIN
 #define MIN(a,b) ((a)<(b)?(a):(b))
@@ -388,7 +384,6 @@ inet_aton(const char *c, struct in_addr *addr)
 #define ISSPACE(c) isspace((int)(unsigned char)(c))
 #define ISDIGIT(c) isdigit((int)(unsigned char)(c))
 
-#ifndef NDEBUG
 static const char *
 debug_ntoa(u32 address)
 {
@@ -401,7 +396,6 @@ debug_ntoa(u32 address)
   		      (int)(u8)((a    )&0xff));
 	return buf;
 }
-#endif
 
 static evdns_debug_log_fn_type evdns_log_fn = NULL;
 
