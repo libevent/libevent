@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat
 
-EXTRA_DIST = regress.rpc
+EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c
 
 noinst_PROGRAMS = test-init test-eof test-weof test-time regress \
 	bench bench_cascade
@@ -29,7 +29,6 @@ regress.gen.c regress.gen.h: regress.rpc $(top_srcdir)/event_rpcgen.py
 	$(top_srcdir)/event_rpcgen.py $(srcdir)/regress.rpc || echo "No Python installed"
 
 DISTCLEANFILES = *~
-CLEANFILES = regress.gen.h regress.gen.c
 
 test: test-init test-eof test-weof test-time regress
 
