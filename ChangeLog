@@ -41,6 +41,7 @@ Changes in current version:
  o Send CRLF after each chunk in HTTP output, for compliance with RFC2626.  Patch from "propanbutan".  Fixes bug 1894184.
  o Add a int64_t parsing function, with unit tests, so we can apply Scott Lamb's fix to allow large HTTP values.
  o Use a 64-bit field to hold HTTP content-lengths.  Patch from Scott Lamb.
+ o Allow regression code to build even without Python installed
 
 
 Changes in 1.4.0:
