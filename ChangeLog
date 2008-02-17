@@ -42,6 +42,7 @@ Changes in current version:
  o Add a int64_t parsing function, with unit tests, so we can apply Scott Lamb's fix to allow large HTTP values.
  o Use a 64-bit field to hold HTTP content-lengths.  Patch from Scott Lamb.
  o Allow regression code to build even without Python installed
+ o remove NDEBUG ifdefs from evdns.c
 
 
 Changes in 1.4.0:
