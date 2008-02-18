@@ -43,8 +43,9 @@ Changes in current version:
  o Use a 64-bit field to hold HTTP content-lengths.  Patch from Scott Lamb.
  o Allow regression code to build even without Python installed
  o remove NDEBUG ifdefs from evdns.c
+ o detect integer types properly on platforms without stdint.h
 
-
+	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
  o demote most http warnings to debug messages

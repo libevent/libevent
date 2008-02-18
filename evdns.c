@@ -134,7 +134,7 @@
 
 #ifdef __USE_ISOC99B
 /* libevent doesn't work without this */
-typedef uint8_t u_char;
+typedef ev_uint8_t u_char;
 typedef unsigned int uint;
 #endif
 #include <event.h>
@@ -364,7 +364,7 @@ error_is_eagain(int err)
 static int
 inet_aton(const char *c, struct in_addr *addr)
 {
-	uint32_t r;
+	ev_uint32_t r;
 	if (strcmp(c, "255.255.255.255") == 0) {
 		addr->s_addr = 0xffffffffu;
 	} else {
@@ -1069,10 +1069,10 @@ default_transaction_id_fn(void)
 	return trans_id;
 }
 
-static uint16_t (*trans_id_function)(void) = default_transaction_id_fn;
+static ev_uint16_t (*trans_id_function)(void) = default_transaction_id_fn;
 
 void
-evdns_set_transaction_id_fn(uint16_t (*fn)(void))
+evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void))
 {
 	if (fn)
 		trans_id_function = fn;
