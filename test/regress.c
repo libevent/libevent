@@ -1234,9 +1234,9 @@ test_multiple_events_for_same_fd(void)
    cleanup_test();
 }
 
-int evtag_decode_int(uint32_t *pnumber, struct evbuffer *evbuf);
-int evtag_encode_tag(struct evbuffer *evbuf, uint32_t number);
-int evtag_decode_tag(uint32_t *pnumber, struct evbuffer *evbuf);
+int evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf);
+int evtag_encode_tag(struct evbuffer *evbuf, ev_uint32_t number);
+int evtag_decode_tag(ev_uint32_t *pnumber, struct evbuffer *evbuf);
 
 static void
 read_once_cb(int fd, short event, void *arg)
@@ -1287,10 +1287,10 @@ static void
 evtag_int_test(void)
 {
 	struct evbuffer *tmp = evbuffer_new();
-	uint32_t integers[TEST_MAX_INT] = {
+	ev_uint32_t integers[TEST_MAX_INT] = {
 		0xaf0, 0x1000, 0x1, 0xdeadbeef, 0x00, 0xbef000
 	};
-	uint32_t integer;
+	ev_uint32_t integer;
 	int i;
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
@@ -1370,10 +1370,10 @@ static void
 evtag_tag_encoding(void)
 {
 	struct evbuffer *tmp = evbuffer_new();
-	uint32_t integers[TEST_MAX_INT] = {
+	ev_uint32_t integers[TEST_MAX_INT] = {
 		0xaf0, 0x1000, 0x1, 0xdeadbeef, 0x00, 0xbef000
 	};
-	uint32_t integer;
+	ev_uint32_t integer;
 	int i;
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
@@ -1428,7 +1428,7 @@ rpc_test(void)
 	struct run *run;
 	struct evbuffer *tmp = evbuffer_new();
 	struct timeval tv_start, tv_end;
-	uint32_t tag;
+	ev_uint32_t tag;
 	int i;
 
 	fprintf(stdout, "Testing RPC: ");
@@ -1460,7 +1460,7 @@ rpc_test(void)
 		}
 		EVTAG_ASSIGN(run, how, "very fast but with some data in it");
 		EVTAG_ASSIGN(run, fixed_bytes,
-		    (uint8_t*)"012345678901234567890123");
+		    (ev_uint8_t*)"012345678901234567890123");
 
 		if (EVTAG_ADD(run, notes, "this is my note") == NULL) {
 			fprintf(stderr, "Failed to add note.\n");
@@ -1550,7 +1550,7 @@ rpc_test(void)
 	}
 
 	for (i = 0; i < 3; ++i) {
-		uint32_t res;
+		ev_uint32_t res;
 		if (EVTAG_GET(attack, how_often, i, &res) == -1) {
 			fprintf(stderr, "Cannot get %dth how_often msg.\n", i);
 			exit(1);
