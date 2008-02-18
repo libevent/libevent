@@ -4,7 +4,6 @@ AC_INIT(event.c)
 
 AM_INIT_AUTOMAKE(libevent,1.4.99-trunk)
 AM_CONFIG_HEADER(config.h)
-AM_MAINTAINER_MODE
 
 dnl Initialize prefix.
 if test "$prefix" = "NONE"; then

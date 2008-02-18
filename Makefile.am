@@ -1,4 +1,4 @@
-AUTOMAKE_OPTIONS = foreign no-dependencies
+AUTOMAKE_OPTIONS = foreign
 
 # This is the point release for libevent.  It shouldn't include any
 # a/b/c/d/e notations.
