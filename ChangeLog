@@ -44,6 +44,7 @@ Changes in current version:
  o Allow regression code to build even without Python installed
  o remove NDEBUG ifdefs from evdns.c
  o detect integer types properly on platforms without stdint.h
+ o udpate documentation of event_loop and event_base_loop; from Tani Hosokawa.
 
 	
 Changes in 1.4.0:
