@@ -8,6 +8,7 @@ Changes in 1.4.2:
  o Use a 64-bit field to hold HTTP content-lengths.  Patch from Scott Lamb.
  o Allow regression code to build even without Python installed
  o remove NDEBUG ifdefs from evdns.c
+ o udpate documentation of event_loop and event_base_loop; from Tani Hosokawa.
 
 Changes in 1.4.1-beta:
  o free minheap on event_base_free(); from Christopher Layne

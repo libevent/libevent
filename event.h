@@ -368,7 +368,8 @@ int event_base_set(struct event_base *, struct event *);
   This is a more flexible version of event_dispatch().
 
   @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK
-  @return 0 if successful, or -1 if an error occurred
+  @return 0 if successful, -1 if an error occurred, or 1 if no events were
+    registered.
   @see event_loopexit(), event_base_loop()
 */
 int event_loop(int);
@@ -380,7 +381,8 @@ int event_loop(int);
 
   @param eb the event_base structure returned by event_init()
   @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK
-  @return 0 if successful, or -1 if an error occurred
+  @return 0 if successful, -1 if an error occurred, or 1 if no events were
+    registered.
   @see event_loopexit(), event_base_loop()
   */
 int event_base_loop(struct event_base *, int);
