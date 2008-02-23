@@ -53,22 +53,18 @@ extern "C" {
 
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t
-#define ev_int64_t	int64_t
-#define ev_int32_t	int32_t
-#define ev_int16_t	int16_t
-#define ev_int8_t	int8_t
+#define ev_int64_t int64_t
 #elif defined(WIN32)
 #define ev_uint64_t __uint64_t
+#define ev_int64_t __int64_t
 #elif _EVENT_SIZEOF_LONG_LONG == 8
 #define ev_uint64_t unsigned long long
+#define ev_int64_t long long
 #elif _EVENT_SIZEOF_LONG == 8
 #define ev_uint64_t unsigned long
+#define ev_int64_t long
 #else
 #error "No way to define ev_uint64_t"
-#define ev_int64_t	__int64_t
-#define ev_int32_t	signed int
-#define ev_int16_t	signed short
-#define ev_int8_t	signed char
 #endif
 
 #ifdef _EVENT_HAVE_UINT32_T
@@ -95,7 +91,7 @@ extern "C" {
 #error "No way to define ev_uint16_t"
 #endif
 
-#ifdef _EVENT_HAVE_UINT16_T
+#ifdef _EVENT_HAVE_UINT8_T
 #define ev_uint8_t uint8_t
 #else
 #define ev_uint8_t unsigned char
