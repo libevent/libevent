@@ -78,8 +78,8 @@ evbuffer_new(void)
 void
 evbuffer_free(struct evbuffer *buffer)
 {
-	if (buffer->orig_buffer != NULL)
-		event_free(buffer->orig_buffer);
+	if (buffer->buffer != NULL)
+		event_free(buffer->buffer);
 	event_free(buffer);
 }
 
@@ -90,7 +90,6 @@ evbuffer_free(struct evbuffer *buffer)
 
 #define SWAP(x,y) do { \
 	(x)->buffer = (y)->buffer; \
-	(x)->orig_buffer = (y)->orig_buffer; \
 	(x)->misalign = (y)->misalign; \
 	(x)->totallen = (y)->totallen; \
 	(x)->off = (y)->off; \
@@ -124,7 +123,7 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		return (0);
 	}
 
-	res = evbuffer_add(outbuf, inbuf->buffer, inbuf->off);
+	res = evbuffer_add(outbuf, inbuf->buffer + inbuf->misalign, inbuf->off);
 	if (res == 0) {
 		/* We drain the input buffer on success */
 		evbuffer_drain(inbuf, inbuf->off);
@@ -146,7 +145,7 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 	evbuffer_expand(buf, 64);
 	for (;;) {
 		size_t used = buf->misalign + buf->off;
-		buffer = (char *)buf->buffer + buf->off;
+		buffer = (char *)buf->buffer + buf->misalign + buf->off;
 		assert(buf->totallen >= used);
 		space = buf->totallen - used;
 
@@ -201,7 +200,7 @@ evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen)
 	if (nread >= buf->off)
 		nread = buf->off;
 
-	memcpy(data, buf->buffer, nread);
+	memcpy(data, buf->buffer + buf->misalign, nread);
 	evbuffer_drain(buf, nread);
 	
 	return (nread);
@@ -305,8 +304,7 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 static void
 evbuffer_align(struct evbuffer *buf)
 {
-	memmove(buf->orig_buffer, buf->buffer, buf->off);
-	buf->buffer = buf->orig_buffer;
+	memmove(buf->buffer, buf->buffer + buf->misalign, buf->off);
 	buf->misalign = 0;
 }
 
@@ -336,12 +334,12 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 		while (length < need)
 			length <<= 1;
 
-		if (buf->orig_buffer != buf->buffer)
+		if (buf->misalign)
 			evbuffer_align(buf);
 		if ((newbuf = event_realloc(buf->buffer, length)) == NULL)
 			return (-1);
 
-		buf->orig_buffer = buf->buffer = newbuf;
+		buf->buffer = newbuf;
 		buf->totallen = length;
 	}
 
@@ -359,7 +357,7 @@ evbuffer_add(struct evbuffer *buf, const void *data, size_t datlen)
 			return (-1);
 	}
 
-	memcpy(buf->buffer + buf->off, data, datlen);
+	memcpy(buf->buffer + buf->misalign + buf->off, data, datlen);
 	buf->off += datlen;
 
 	if (datlen && buf->cb != NULL)
@@ -375,12 +373,10 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 
 	if (len >= buf->off) {
 		buf->off = 0;
-		buf->buffer = buf->orig_buffer;
 		buf->misalign = 0;
 		goto done;
 	}
 
-	buf->buffer += len;
 	buf->misalign += len;
 
 	buf->off -= len;
@@ -435,7 +431,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 		return (-1);
 
 	/* We can append new data at this point */
-	p = buf->buffer + buf->off;
+	p = buf->buffer + buf->misalign + buf->off;
 
 #ifndef WIN32
 	n = read(fd, p, howmuch);
@@ -462,9 +458,9 @@ evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd)
 	int n;
 
 #ifndef WIN32
-	n = write(fd, buffer->buffer, buffer->off);
+	n = write(fd, buffer->buffer + buffer->misalign, buffer->off);
 #else
-	n = send(fd, buffer->buffer, buffer->off, 0);
+	n = send(fd, buffer->buffer + buffer->misalign, buffer->off, 0);
 #endif
 	if (n == -1)
 		return (-1);
@@ -478,7 +474,8 @@ evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd)
 u_char *
 evbuffer_find(struct evbuffer *buffer, const u_char *what, size_t len)
 {
-	u_char *search = buffer->buffer, *end = search + buffer->off;
+	u_char *search = buffer->buffer + buffer->misalign;
+	u_char *end = search + buffer->off;
 	u_char *p;
 
 	while (search < end &&
