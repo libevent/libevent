@@ -98,8 +98,8 @@ What's New In Libevent 1.4:
   pending events from getting executed.  This behavior is useful for
   scripting languages to implement exceptions from inside callbacks.
 
-  RPC structures can now use 32-bit numbers as tags; this is
-  wire-compatible, but changes the APIs slightly.
+  There's a new event_base_get_method() function, for use in place of
+  event_get_method() in multi-base applications.
 
 2.3. New in HTTP.
 
@@ -145,7 +145,7 @@ What's New In Libevent 1.4:
 4. Big performance improvements
 
   Libevent now uses a min-heap rather than a red-black tree to track
-  timeouts.  This means that finding the next timeouts to fire is now
+  timeouts.  This means that finding the next timeout to fire is now
   O(1) instead of (lg n).
 
   The win32 select-based backend now uses a red-black tree to map

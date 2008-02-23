@@ -8,7 +8,7 @@ Changes in 1.4.2:
  o Use a 64-bit field to hold HTTP content-lengths.  Patch from Scott Lamb.
  o Allow regression code to build even without Python installed
  o remove NDEBUG ifdefs from evdns.c
- o udpate documentation of event_loop and event_base_loop; from Tani Hosokawa.
+ o update documentation of event_loop and event_base_loop; from Tani Hosokawa.
  o detect integer types properly on platforms without stdint.h
  o Remove "AM_MAINTAINER_MODE" declaration in configure.in: now makefiles and configure should get re-generated automatically when Makefile.am or configure.in chanes.
 
