@@ -9,6 +9,7 @@ Changes in 1.4.2:
  o Allow regression code to build even without Python installed
  o remove NDEBUG ifdefs from evdns.c
  o udpate documentation of event_loop and event_base_loop; from Tani Hosokawa.
+ o detect integer types properly on platforms without stdint.h
 
 Changes in 1.4.1-beta:
  o free minheap on event_base_free(); from Christopher Layne

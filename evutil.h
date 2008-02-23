@@ -42,6 +42,60 @@ extern "C" {
 #ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#ifdef _EVENT_HAVE_STDINT_H
+#include <stdint.h>
+#elif defined(_EVENT_HAVE_INTTYPES_H)
+#include <inttypes.h>
+#endif
+#ifdef _EVENT_HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+
+#ifdef _EVENT_HAVE_UINT64_T
+#define ev_uint64_t uint64_t
+#define ev_int64_t int64_t
+#elif defined(WIN32)
+#define ev_uint64_t __uint64_t
+#define ev_int64_t __int64_t
+#elif _EVENT_SIZEOF_LONG_LONG == 8
+#define ev_uint64_t unsigned long long
+#define ev_int64_t long long
+#elif _EVENT_SIZEOF_LONG == 8
+#define ev_uint64_t unsigned long
+#define ev_int64_t long
+#else
+#error "No way to define ev_uint64_t"
+#endif
+
+#ifdef _EVENT_HAVE_UINT32_T
+#define ev_uint32_t uint32_t
+#elif defined(WIN32)
+#define ev_uint32_t unsigned int
+#elif _EVENT_SIZEOF_LONG == 4
+#define ev_uint32_t unsigned long
+#elif _EVENT_SIZEOF_INT == 4
+#define ev_uint32_t unsigned int
+#else
+#error "No way to define ev_uint32_t"
+#endif
+
+#ifdef _EVENT_HAVE_UINT16_T
+#define ev_uint16_t uint16_t
+#elif defined(WIN32)
+#define ev_uint16_t unsigned short
+#elif _EVENT_SIZEOF_INT == 2
+#define ev_uint16_t unsigned int
+#elif _EVENT_SIZEOF_SHORT == 2
+#define ev_uint16_t unsigned short
+#else
+#error "No way to define ev_uint16_t"
+#endif
+
+#ifdef _EVENT_HAVE_UINT8_T
+#define ev_uint8_t uint8_t
+#else
+#define ev_uint8_t unsigned char
+#endif
 
 int evutil_socketpair(int d, int type, int protocol, int sv[2]);
 int evutil_make_socket_nonblocking(int sock);
@@ -109,26 +163,6 @@ int evutil_make_socket_nonblocking(int sock);
 #define	evutil_timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
 #endif
 
-#ifdef _EVENT_HAVE_STDINT_H
-#include <stdint.h>
-#define ev_uint64_t	uint64_t
-#define ev_uint32_t	uint32_t
-#define ev_uint16_t	uint16_t
-#define ev_uint8_t	uint8_t
-#define ev_int64_t	int64_t
-#define ev_int32_t	int32_t
-#define ev_int16_t	int16_t
-#define ev_int8_t	int8_t
-#elif defined(WIN32)
-#define ev_uint64_t	__uint64_t
-#define ev_uint32_t	unsigned int
-#define ev_uint16_t	unsigned short
-#define ev_uint8_t	unsigned char
-#define ev_int64_t	__int64_t
-#define ev_int32_t	signed int
-#define ev_int16_t	signed short
-#define ev_int8_t	signed char
-#endif
 
 /* big-int related functions */
 ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
