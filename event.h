@@ -725,7 +725,6 @@ int	event_priority_set(struct event *, int);
 
 struct evbuffer {
 	u_char *buffer;
-	u_char *orig_buffer;
 
 	size_t misalign;
 	size_t totallen;
@@ -915,7 +914,7 @@ void bufferevent_settimeout(struct bufferevent *bufev,
 
 
 #define EVBUFFER_LENGTH(x)	(x)->off
-#define EVBUFFER_DATA(x)	(x)->buffer
+#define EVBUFFER_DATA(x)	((x)->buffer + (x)->misalign)
 #define EVBUFFER_INPUT(x)	(x)->input
 #define EVBUFFER_OUTPUT(x)	(x)->output
 

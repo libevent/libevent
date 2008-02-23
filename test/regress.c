@@ -896,15 +896,33 @@ static void
 test_evbuffer(void) {
 
 	struct evbuffer *evb = evbuffer_new();
+	struct evbuffer *evb_two = evbuffer_new();
 	setup_test("Testing Evbuffer: ");
 
 	evbuffer_add_printf(evb, "%s/%d", "hello", 1);
 
-	if (EVBUFFER_LENGTH(evb) == 7 &&
-	    strcmp((char*)EVBUFFER_DATA(evb), "hello/1") == 0)
-	    test_ok = 1;
+	if (EVBUFFER_LENGTH(evb) != 7 ||
+	    strcmp((char*)EVBUFFER_DATA(evb), "hello/1") != 0)
+		goto out;
+
+	evbuffer_drain(evb, strlen("hello/"));
+	if (EVBUFFER_LENGTH(evb) != 1 ||
+	    strcmp((char*)EVBUFFER_DATA(evb), "1") != 0)
+		goto out;
+
+	evbuffer_add_printf(evb_two, "%s", "/hello");
+	evbuffer_add_buffer(evb, evb_two);
+
+	if (EVBUFFER_LENGTH(evb_two) != 0 ||
+	    EVBUFFER_LENGTH(evb) != 7 ||
+	    strcmp((char*)EVBUFFER_DATA(evb), "1/hello") != 0)
+		goto out;
+
+	test_ok = 1;
 	
+out:
 	evbuffer_free(evb);
+	evbuffer_free(evb_two);
 
 	cleanup_test();
 }

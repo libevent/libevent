@@ -45,8 +45,9 @@ Changes in current version:
  o remove NDEBUG ifdefs from evdns.c
  o detect integer types properly on platforms without stdint.h
  o udpate documentation of event_loop and event_base_loop; from Tani Hosokawa.
+ o simplify evbuffer by removing orig_buffer
 
-	
+
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
  o demote most http warnings to debug messages
