@@ -735,14 +735,18 @@ event_add(struct event *ev, struct timeval *tv)
 
 	if ((ev->ev_events & (EV_READ|EV_WRITE)) &&
 	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE))) {
-		event_queue_insert(base, ev, EVLIST_INSERTED);
+		int res = evsel->add(evbase, ev);
+		if (res != -1)
+			event_queue_insert(base, ev, EVLIST_INSERTED);
 
-		return (evsel->add(evbase, ev));
+		return (res);
 	} else if ((ev->ev_events & EV_SIGNAL) &&
 	    !(ev->ev_flags & EVLIST_SIGNAL)) {
-		event_queue_insert(base, ev, EVLIST_SIGNAL);
+		int res = evsel->add(evbase, ev);
+		if (res != -1)
+			event_queue_insert(base, ev, EVLIST_SIGNAL);
 
-		return (evsel->add(evbase, ev));
+		return (res);
 	}
 
 	return (0);

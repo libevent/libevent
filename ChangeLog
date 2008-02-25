@@ -46,6 +46,7 @@ Changes in current version:
  o detect integer types properly on platforms without stdint.h
  o udpate documentation of event_loop and event_base_loop; from Tani Hosokawa.
  o simplify evbuffer by removing orig_buffer
+ o do not insert event into list when evsel->add fails
 
 
 Changes in 1.4.0:
