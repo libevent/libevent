@@ -158,7 +158,7 @@ struct evhttp *evhttp_start(const char *address, u_short port);
 /*
  * Interfaces for making requests
  */
-enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD };
+enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD, EVHTTP_REQ_PUT, EVHTTP_REQ_DELETE };
 
 enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
 
