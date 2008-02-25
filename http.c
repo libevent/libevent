@@ -260,6 +260,12 @@ evhttp_method(enum evhttp_cmd_type type)
 	case EVHTTP_REQ_HEAD:
 		method = "HEAD";
 		break;
+	case EVHTTP_REQ_PUT:
+		method = "PUT";
+		break;
+	case EVHTTP_REQ_DELETE:
+		method = "DELETE";
+		break;
 	default:
 		method = NULL;
 		break;
@@ -320,8 +326,8 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	    method, req->uri, req->major, req->minor);
 	evbuffer_add(evcon->output_buffer, line, strlen(line));
 
-	/* Add the content length on a post request if missing */
-	if (req->type == EVHTTP_REQ_POST &&
+	/* Add the content length on a post or put request if missing */
+	if ((req->type == EVHTTP_REQ_POST || req->type == EVHTTP_REQ_PUT) &&
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		char size[12];
 		snprintf(size, sizeof(size), "%ld",
@@ -1112,6 +1118,10 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		req->type = EVHTTP_REQ_POST;
 	} else if (strcmp(method, "HEAD") == 0) {
 		req->type = EVHTTP_REQ_HEAD;
+	} else if (strcmp(method, "PUT") == 0) {
+                req->type = EVHTTP_REQ_PUT;
+	} else if (strcmp(method, "DELETE") == 0) {
+                req->type = EVHTTP_REQ_DELETE;
 	} else {
 		event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
@@ -1342,7 +1352,8 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	const char *xfer_enc;
 	
 	/* If this is a request without a body, then we are done */
-	if (req->kind == EVHTTP_REQUEST && req->type != EVHTTP_REQ_POST) {
+	if (req->kind == EVHTTP_REQUEST &&
+	    (req->type != EVHTTP_REQ_POST && req->type != EVHTTP_REQ_PUT)) {
 		evhttp_connection_done(evcon);
 		return;
 	}
