@@ -1,3 +1,6 @@
+Changes in 1.4.3-stable:
+ o include Content-Length in reply for HTTP/1.0 requests with keep-alive
+
 Changes in 1.4.2-rc:
  o remove pending timeouts on event_base_free()
  o also check EAGAIN for Solaris' event ports; from W.C.A. Wijngaards
