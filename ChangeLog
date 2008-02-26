@@ -50,6 +50,7 @@ Changes in current version:
  o add support for PUT/DELETE requests; from Josh Rotenberg
  o introduce evhttp_accept_socket() to accept from an already created socket
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive
+ o increase listen queue for http sockets to 128; if that is not enough the evhttp_accpet_socket() api can be used with a prepared socket.
 
 
 Changes in 1.4.0:
