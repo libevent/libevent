@@ -2018,7 +2018,7 @@ evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 	if ((fd = bind_socket(address, port)) == -1)
 		return (-1);
 
-	if (listen(fd, 10) == -1) {
+	if (listen(fd, 128) == -1) {
 		event_warn("%s: listen", __func__);
 		EVUTIL_CLOSESOCKET(fd);
 		return (-1);
