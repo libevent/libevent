@@ -406,9 +406,12 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	    req->response_code_line);
 	evbuffer_add(evcon->output_buffer, line, strlen(line));
 
-	if (req->major == 1 && req->minor == 1) {
+	if (req->major == 1 && req->minor == 1)
 		evhttp_maybe_add_date_header(req->output_headers);
 
+	if (req->major == 1 && 
+	    (req->minor == 1 || 
+		evhttp_is_connection_keepalive(req->input_headers))) {
 		/* 
 		 * we need to add the content length if the user did
 		 * not give it, this is required for persistent
