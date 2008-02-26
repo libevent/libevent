@@ -188,10 +188,8 @@ strsep(char **s, const char *del)
 #endif
 
 static const char *
-html_replace(char ch)
+html_replace(char ch, char *buf)
 {
-	static char buf[2];
-	
 	switch (ch) {
 	case '<':
 		return "&lt;";
@@ -226,15 +224,16 @@ evhttp_htmlescape(const char *html)
 {
 	int i, new_size = 0, old_size = strlen(html);
 	char *escaped_html, *p;
+	char scratch_space[2];
 	
 	for (i = 0; i < old_size; ++i)
-		new_size += strlen(html_replace(html[i]));
+          new_size += strlen(html_replace(html[i], scratch_space));
 
 	p = escaped_html = malloc(new_size + 1);
 	if (escaped_html == NULL)
 		event_err(1, "%s: malloc(%d)", __func__, new_size + 1);
 	for (i = 0; i < old_size; ++i) {
-		const char *replaced = html_replace(html[i]);
+		const char *replaced = html_replace(html[i], scratch_space);
 		/* this is length checked */
 		strcpy(p, replaced);
 		p += strlen(replaced);
@@ -308,7 +307,7 @@ static void
 evhttp_make_header_request(struct evhttp_connection *evcon,
     struct evhttp_request *req)
 {
-	static char line[1024];
+	char line[1024];
 	const char *method;
 	
 	evhttp_remove_header(req->output_headers, "Accept-Encoding");
@@ -380,7 +379,7 @@ evhttp_maybe_add_content_length_header(struct evkeyvalq *headers,
 {
 	if (evhttp_find_header(headers, "Transfer-Encoding") == NULL &&
 	    evhttp_find_header(headers,	"Content-Length") == NULL) {
-		static char len[12]; /* XXX: not thread-safe */
+		char len[12];
 		snprintf(len, sizeof(len), "%ld", content_length);
 		evhttp_add_header(headers, "Content-Length", len);
 	}
@@ -394,7 +393,7 @@ static void
 evhttp_make_header_response(struct evhttp_connection *evcon,
     struct evhttp_request *req)
 {
-	static char line[1024];
+	char line[1024];
 	snprintf(line, sizeof(line), "HTTP/%d.%d %d %s\r\n",
 	    req->major, req->minor, req->response_code,
 	    req->response_code_line);
@@ -436,7 +435,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 void
 evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
-	static char line[1024];
+	char line[1024];
 	struct evkeyval *header;
 
 	/*
@@ -470,6 +469,7 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 int
 evhttp_hostportfile(char *url, char **phost, u_short *pport, char **pfile)
 {
+	/* XXX not threadsafe. */
 	static char host[1024];
 	static char file[1024];
 	char *p;
@@ -2352,6 +2352,7 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
     char **phost, char **pport)
 {
 #ifdef HAVE_GETNAMEINFO
+	/* XXXX not threadsafe. */
 	static char ntop[NI_MAXHOST];
 	static char strport[NI_MAXSERV];
 	int ni_result;
