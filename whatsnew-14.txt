@@ -4,7 +4,7 @@ What's New In Libevent 1.4:
 
   This document describes the key differences between Libevent 1.3 and
   Libevent 1.4, from a user's point of view.  It was most recently
-  updated based on features from libevent 1.4.1-beta.
+  updated based on features from libevent 1.4.2-rc.
 
 1. Packaging Issues.
 
@@ -58,6 +58,9 @@ What's New In Libevent 1.4:
 
   Libevent now builds on platforms where /bin/sh is not bash.
 
+  Libevent's regression test no longer requires Python to be
+  installed.
+
 2. New and Improved APIs:
 
   (This list includes functions that are new, functions whose behavior
@@ -105,6 +108,8 @@ What's New In Libevent 1.4:
 
   There's an evhttp_connection_set_local_address() function you can
   use to set the local address of an HTTP connection.
+
+  HTTP/1.1 chunking now correctly ends chunks with '\r\n'.
 
 2.4. New in DNS
 
