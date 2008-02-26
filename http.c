@@ -2009,8 +2009,8 @@ accept_socket(evutil_socket_t fd, short what, void *arg)
 int
 evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 {
-	struct event *ev = &http->bind_ev;
 	evutil_socket_t fd;
+	int res;
 
 	if ((fd = bind_socket(address, port)) == -1)
 		return (-1);
@@ -2021,14 +2021,24 @@ evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 		return (-1);
 	}
 
+	res = evhttp_accept_socket(http, fd);
+	
+	if (res != -1)
+		event_debug(("Bound to port %d - Awaiting connections ... ",
+			port));
+
+	return (res);
+}
+
+int
+evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd)
+{
+	struct event *ev = &http->bind_ev;
+
 	/* Schedule the socket for accepting */
 	event_set(ev, fd, EV_READ | EV_PERSIST, accept_socket, http);
 	EVHTTP_BASE_SET(http, ev);
-	event_add(ev, NULL);
-
-	event_debug(("Bound to port %d - Awaiting connections ... ", port));
-
-	return (0);
+	return (event_add(ev, NULL));
 }
 
 static struct evhttp*
