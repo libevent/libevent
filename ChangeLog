@@ -51,7 +51,7 @@ Changes in current version:
  o introduce evhttp_accept_socket() to accept from an already created socket
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive
  o increase listen queue for http sockets to 128; if that is not enough the evhttp_accpet_socket() api can be used with a prepared socket.
-
+ o Patch from Tani Hosokawa: make some functions in http.c threadsafe.
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
