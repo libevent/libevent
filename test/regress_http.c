@@ -68,6 +68,8 @@ void http_suite(void);
 
 void http_basic_cb(struct evhttp_request *req, void *arg);
 void http_post_cb(struct evhttp_request *req, void *arg);
+void http_put_cb(struct evhttp_request *req, void *arg);
+void http_delete_cb(struct evhttp_request *req, void *arg);
 void http_dispatcher_cb(struct evhttp_request *req, void *arg);
 
 static struct evhttp *
@@ -92,6 +94,8 @@ http_setup(short *pport, struct event_base *base)
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, NULL);
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, NULL);
+	evhttp_set_cb(myhttp, "/putit", http_put_cb, NULL);
+	evhttp_set_cb(myhttp, "/deleteit", http_delete_cb, NULL);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, NULL);
 
 	*pport = port;
@@ -237,6 +241,74 @@ http_basic_test(void)
 
 	http_request =
 	    "GET /test HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+	
+	event_dispatch();
+
+	bufferevent_free(bev);
+	close(fd);
+
+	evhttp_free(http);
+	
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	
+	fprintf(stdout, "OK\n");
+}
+
+/*
+ * HTTP DELETE test,  just piggyback on the basic test
+ */
+
+void
+http_delete_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *evb = evbuffer_new();
+	int empty = evhttp_find_header(req->input_headers, "Empty") != NULL;
+
+	/* Expecting a DELETE request */
+	if (req->type != EVHTTP_REQ_DELETE) {
+		fprintf(stdout, "FAILED (delete type)\n");
+		exit(1);
+	}
+
+	event_debug(("%s: called\n", __func__));
+	evbuffer_add_printf(evb, "This is funny");
+
+	/* allow sending of an empty reply */
+	evhttp_send_reply(req, HTTP_OK, "Everything is fine",
+	    !empty ? evb : NULL);
+
+	evbuffer_free(evb);
+}
+
+static void
+http_delete_test(void)
+{
+	struct bufferevent *bev;
+	int fd;
+	const char *http_request;
+	short port = -1;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing HTTP DELETE Request: ");
+
+	http = http_setup(&port, NULL);
+	
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, http_readcb, http_writecb,
+	    http_errorcb, NULL);
+
+	http_request =
+	    "DELETE /deleteit HTTP/1.1\r\n"
 	    "Host: somehost\r\n"
 	    "Connection: close\r\n"
 	    "\r\n";
@@ -647,6 +719,134 @@ http_postrequest_done(struct evhttp_request *req, void *arg)
 	event_loopexit(NULL);
 }
 
+/*
+ * HTTP PUT test, basically just like POST, but ...
+ */
+
+void http_putrequest_done(struct evhttp_request *, void *);
+
+#define PUT_DATA "Hi, I'm some PUT data"
+
+static void
+http_put_test(void)
+{
+  short port = -1;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing HTTP PUT Request: ");
+
+	http = http_setup(&port, NULL);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/*
+	 * Schedule the HTTP PUT request
+	 */
+
+	req = evhttp_request_new(http_putrequest_done, NULL);
+	if (req == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "someotherhost");
+	evbuffer_add_printf(req->output_buffer, PUT_DATA);
+	
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_PUT, "/putit") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
+	
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED: %d\n", test_ok);
+		exit(1);
+	}
+	
+	fprintf(stdout, "OK\n");
+}
+
+void
+http_put_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *evb;
+	event_debug(("%s: called\n", __func__));
+
+	/* Expecting a PUT request */
+	if (req->type != EVHTTP_REQ_PUT) {
+		fprintf(stdout, "FAILED (put type)\n");
+		exit(1);
+	}
+
+	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(PUT_DATA)) {
+		fprintf(stdout, "FAILED (length: %zu vs %zu)\n",
+		    EVBUFFER_LENGTH(req->input_buffer), strlen(PUT_DATA));
+		//exit(1);
+	}
+
+	if (memcmp(EVBUFFER_DATA(req->input_buffer), PUT_DATA,
+		strlen(PUT_DATA))) {
+		fprintf(stdout, "FAILED (data)\n");
+		fprintf(stdout, "Got :%s\n", EVBUFFER_DATA(req->input_buffer));
+		fprintf(stdout, "Want:%s\n", PUT_DATA);
+		exit(1);
+	}
+	
+	evb = evbuffer_new();
+	evbuffer_add_printf(evb, "That ain't funny");
+
+	evhttp_send_reply(req, HTTP_OK, "Everything is great", evb);
+
+	evbuffer_free(evb);
+}
+
+void
+http_putrequest_done(struct evhttp_request *req, void *arg)
+{
+	const char *what = "That ain't funny";
+
+	if (req == NULL) {
+		fprintf(stderr, "FAILED (timeout)\n");
+		exit(1);
+	}
+
+	if (req->response_code != HTTP_OK) {
+	
+		fprintf(stderr, "FAILED (response code)\n");
+		exit(1);
+	}
+
+	if (evhttp_find_header(req->input_headers, "Content-Type") == NULL) {
+		fprintf(stderr, "FAILED (content type)\n");
+		exit(1);
+	}
+
+	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
+		fprintf(stderr, "FAILED (length %zu vs %zu)\n",
+		    EVBUFFER_LENGTH(req->input_buffer), strlen(what));
+		exit(1);
+	}
+	
+	if (memcmp(EVBUFFER_DATA(req->input_buffer), what, strlen(what)) != 0) {
+		fprintf(stderr, "FAILED (data)\n");
+		exit(1);
+	}
+
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
 static void
 http_failure_readcb(struct bufferevent *bev, void *arg)
 {
@@ -919,6 +1119,8 @@ http_suite(void)
 	http_connection_test(1 /* persistent */);
 	http_close_detection();
 	http_post_test();
+	http_put_test();
+	http_delete_test();
 	http_failure_test();
 	http_highport_test();
 	http_dispatcher_test();
