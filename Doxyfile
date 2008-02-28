@@ -54,7 +54,8 @@ SORT_BRIEF_DOCS        = YES
 # directories like "/usr/src/myproject". Separate the files or directories 
 # with spaces.
 
-INPUT                  = event.h evdns.h evhttp.h evrpc.h
+INPUT                  = event.h evdns.h evhttp.h evrpc.h \
+		       include/event2/buffer.h
 
 #---------------------------------------------------------------------------
 # configuration options related to the HTML output

@@ -891,10 +891,12 @@ test_nonpersist_readd(void)
 }
 
 static void
-test_evbuffer(void) {
-
+test_evbuffer(void)
+{
+	static char buffer[512], *tmp;
 	struct evbuffer *evb = evbuffer_new();
 	struct evbuffer *evb_two = evbuffer_new();
+	int i;
 	setup_test("Testing Evbuffer: ");
 
 	evbuffer_add_printf(evb, "%s/%d", "hello", 1);
@@ -916,6 +918,50 @@ test_evbuffer(void) {
 	    strcmp((char*)EVBUFFER_DATA(evb), "1/hello") != 0)
 		goto out;
 
+	memset(buffer, 0, sizeof(buffer));
+	evbuffer_add(evb, buffer, sizeof(buffer));
+	if (EVBUFFER_LENGTH(evb) != 7 + 512)
+		goto out;
+
+	tmp = (char *)evbuffer_pullup(evb, 7 + 512);
+	if (tmp == NULL)
+		goto out;
+	if (strncmp(tmp, "1/hello", 7) != 0)
+		goto out;
+	if (memcmp(tmp + 7, buffer, sizeof(buffer)) != 0)
+		goto out;
+
+	evbuffer_prepend(evb, "something", 9);
+	evbuffer_prepend(evb, "else", 4);
+
+	tmp = (char *)evbuffer_pullup(evb, 4 + 9 + 7);
+	if (strncmp(tmp, "elsesomething1/hello", 4 + 9 + 7) != 0)
+		goto out;
+
+	evbuffer_drain(evb, -1);
+	evbuffer_drain(evb_two, -1);
+
+	for (i = 0; i < 3; ++i) {
+		evbuffer_add(evb_two, buffer, sizeof(buffer));
+		evbuffer_add_buffer(evb, evb_two);
+	}
+
+	if (EVBUFFER_LENGTH(evb_two) != 0 ||
+	    EVBUFFER_LENGTH(evb) != i * sizeof(buffer))
+		goto out;
+
+	/* test remove buffer */
+	evbuffer_remove_buffer(evb, evb_two, sizeof(buffer) * 2.5);
+	if (EVBUFFER_LENGTH(evb_two) != sizeof(buffer) * 2.5 ||
+	    EVBUFFER_LENGTH(evb) != sizeof(buffer) * 0.5)
+		goto out;
+
+	if (memcmp(evbuffer_pullup(
+			   evb, -1), buffer, sizeof(buffer) / 2) != 0 ||
+	    memcmp(evbuffer_pullup(
+			   evb_two, -1), buffer, sizeof(buffer) != 0))
+		goto out;
+
 	test_ok = 1;
 	
 out:
@@ -929,6 +975,7 @@ static void
 test_evbuffer_readln(void)
 {
 	struct evbuffer *evb = evbuffer_new();
+	struct evbuffer *evb_tmp = evbuffer_new();
 	const char *s;
 	char *cp = NULL;
 	size_t sz;
@@ -1027,9 +1074,41 @@ test_evbuffer_readln(void)
 	if (!cp || sz != strlen(cp) || strcmp(cp, "Text"))
 		goto done;
 
+	/* Test CRLF_STRICT - across boundaries*/
+	s = " and a bad crlf\nand a good one\r";
+	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_add_buffer(evb, evb_tmp);
+	s = "\n\r";
+	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_add_buffer(evb, evb_tmp);
+	s = "\nMore\r";
+	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_add_buffer(evb, evb_tmp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	if (!cp || sz != strlen(cp) ||
+	    strcmp(cp, " and a bad crlf\nand a good one"))
+		goto done;
+	free(cp);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	if (!cp || sz != strlen(cp) || strcmp(cp, ""))
+		goto done;
+	free(cp);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	if (cp)
+		goto done;
+	evbuffer_add(evb, "\n", 1);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	if (!cp || sz != strlen(cp) || strcmp(cp, "More"))
+		goto done;
+	if (EVBUFFER_LENGTH(evb) != 0)
+		goto done;
+
+
 	test_ok = 1;
  done:
 	evbuffer_free(evb);
+	evbuffer_free(evb_tmp);
 	if (cp) free(cp);
 	cleanup_test();
 }
@@ -1371,7 +1450,7 @@ evtag_fuzz(void)
 	evtag_marshal_timeval(tmp, 0, &tv);
 	evbuffer_add(tmp, buffer, sizeof(buffer));
 
-	EVBUFFER_DATA(tmp)[1] = 0xff;
+	((char *)EVBUFFER_DATA(tmp))[1] = 0xff;
 	if (evtag_unmarshal_timeval(tmp, 0, &tv) != -1) {
 		fprintf(stderr, "evtag_unmarshal_timeval should have failed");
 		exit(1);
