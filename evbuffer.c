@@ -313,30 +313,13 @@ bufferevent_write(struct bufferevent *bufev, const void *data, size_t size)
 int
 bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf)
 {
-	int res;
-
-	res = bufferevent_write(bufev, buf->buffer, buf->off);
-	if (res != -1)
-		evbuffer_drain(buf, buf->off);
-
-	return (res);
+	return (evbuffer_add_buffer(bufev->output, buf));
 }
 
 size_t
 bufferevent_read(struct bufferevent *bufev, void *data, size_t size)
 {
-	struct evbuffer *buf = bufev->input;
-
-	if (buf->off < size)
-		size = buf->off;
-
-	/* Copy the available data to the user buffer */
-	memcpy(data, buf->buffer, size);
-
-	if (size)
-		evbuffer_drain(buf, size);
-
-	return (size);
+	return (evbuffer_remove(bufev->input, data, size));
 }
 
 int

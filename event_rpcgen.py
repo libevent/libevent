@@ -304,10 +304,8 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             '{\n'
             '  struct evbuffer *_buf = evbuffer_new();\n'
             '  assert(_buf != NULL);\n'
-            '  evbuffer_drain(_buf, -1);\n'
             '  %(name)s_marshal(_buf, msg);\n'
-            '  evtag_marshal(evbuf, tag, EVBUFFER_DATA(_buf), '
-            'EVBUFFER_LENGTH(_buf));\n'
+            '  evtag_marshal_buffer(evbuf, tag, _buf);\n '
             '  evbuffer_free(_buf);\n'
             '}\n' ) % { 'name' : self._name }
 

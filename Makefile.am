@@ -49,7 +49,7 @@ EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
 
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 
-SUBDIRS = . sample test
+SUBDIRS = . include sample test
 
 if BUILD_WIN32
 
@@ -100,7 +100,7 @@ libevent_extra_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
 
 include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h event-config.h
 
-INCLUDES = -I$(srcdir)/compat $(SYS_INCLUDES)
+INCLUDES = -I$(srcdir)/compat -I$(srcdir)/include $(SYS_INCLUDES)
 
 man_MANS = event.3 evdns.3
 

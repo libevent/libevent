@@ -87,11 +87,10 @@ evtag_init(void)
  * integers.  This function is byte-order independent.
  */
 
-void
-encode_int(struct evbuffer *evbuf, ev_uint32_t number)
+static inline int
+encode_int_internal(ev_uint8_t *data, ev_uint32_t number)
 {
 	int off = 1, nibbles = 0;
-	ev_uint8_t data[5];
 
 	memset(data, 0, sizeof(data));
 	while (number) {
@@ -110,7 +109,15 @@ encode_int(struct evbuffer *evbuf, ev_uint32_t number)
 	/* Off - 1 is the number of encoded nibbles */
 	data[0] = (data[0] & 0x0f) | ((nibbles & 0x0f) << 4);
 
-	evbuffer_add(evbuf, data, (off + 1) / 2);
+	return ((off + 1) / 2);
+}
+
+void
+encode_int(struct evbuffer *evbuf, ev_uint32_t number)
+{
+	ev_uint8_t data[5];
+	int len = encode_int_internal(data, number);
+	evbuffer_add(evbuf, data, len);
 }
 
 /*
@@ -145,9 +152,16 @@ static int
 decode_tag_internal(ev_uint32_t *ptag, struct evbuffer *evbuf, int dodrain)
 {
 	ev_uint32_t number = 0;
-	ev_uint8_t *data = EVBUFFER_DATA(evbuf);
 	int len = EVBUFFER_LENGTH(evbuf);
+	ev_uint8_t *data;
 	int count = 0, shift = 0, done = 0;
+
+	/*
+	 * the encoding of a number is at most one byte more than its
+	 * storage size.  however, it may also be much smaller.
+	 */
+	data = evbuffer_pullup(
+		evbuf, len < sizeof(number) + 1 ? len : sizeof(number) + 1);
 
 	while (count++ < len) {
 		ev_uint8_t lower = *data++;
@@ -193,16 +207,25 @@ evtag_marshal(struct evbuffer *evbuf, ev_uint32_t tag,
 	evbuffer_add(evbuf, (void *)data, len);
 }
 
+void
+evtag_marshal_buffer(struct evbuffer *evbuf, ev_uint32_t tag,
+    struct evbuffer *data)
+{
+	evtag_encode_tag(evbuf, tag);
+	encode_int(evbuf, EVBUFFER_LENGTH(data));
+	evbuffer_add_buffer(evbuf, data);
+}
+
 /* Marshaling for integers */
 void
 evtag_marshal_int(struct evbuffer *evbuf, ev_uint32_t tag, ev_uint32_t integer)
 {
-	evbuffer_drain(_buf, EVBUFFER_LENGTH(_buf));
-	encode_int(_buf, integer);
+	ev_uint8_t data[5];
+	int len = encode_int_internal(data, integer);
 
 	evtag_encode_tag(evbuf, tag);
-	encode_int(evbuf, EVBUFFER_LENGTH(_buf));
-	evbuffer_add_buffer(evbuf, _buf);
+	encode_int(evbuf, len);
+	evbuffer_add(evbuf, data, len);
 }
 
 void
@@ -214,31 +237,33 @@ evtag_marshal_string(struct evbuffer *buf, ev_uint32_t tag, const char *string)
 void
 evtag_marshal_timeval(struct evbuffer *evbuf, ev_uint32_t tag, struct timeval *tv)
 {
-	evbuffer_drain(_buf, EVBUFFER_LENGTH(_buf));
-
-	encode_int(_buf, tv->tv_sec);
-	encode_int(_buf, tv->tv_usec);
-
-	evtag_marshal(evbuf, tag, EVBUFFER_DATA(_buf),
-	    EVBUFFER_LENGTH(_buf));
+	ev_uint8_t data[10];
+	int len = encode_int_internal(data, tv->tv_sec);
+	len += encode_int_internal(data + len, tv->tv_usec);
+	evtag_marshal(evbuf, tag, data, len);
 }
 
 static int
-decode_int_internal(ev_uint32_t *pnumber, struct evbuffer *evbuf, int dodrain)
+decode_int_internal(ev_uint32_t *pnumber, struct evbuffer *evbuf, int offset)
 {
 	ev_uint32_t number = 0;
-	ev_uint8_t *data = EVBUFFER_DATA(evbuf);
-	int len = EVBUFFER_LENGTH(evbuf);
+	ev_uint8_t *data;
+	int len = EVBUFFER_LENGTH(evbuf) - offset;
 	int nibbles = 0;
 
-	if (!len)
+	if (len <= 0)
 		return (-1);
+
+	/* XXX(niels): faster? */
+	data = evbuffer_pullup(evbuf, offset + 1) + offset;
 
 	nibbles = ((data[0] & 0xf0) >> 4) + 1;
 	if (nibbles > 8 || (nibbles >> 1) + 1 > len)
 		return (-1);
 	len = (nibbles >> 1) + 1;
 
+	data = evbuffer_pullup(evbuf, offset + len) + offset;
+	
 	while (nibbles > 0) {
 		number <<= 4;
 		if (nibbles & 0x1)
@@ -248,9 +273,6 @@ decode_int_internal(ev_uint32_t *pnumber, struct evbuffer *evbuf, int dodrain)
 		nibbles--;
 	}
 
-	if (dodrain)
-		evbuffer_drain(evbuf, len);
-
 	*pnumber = number;
 
 	return (len);
@@ -259,7 +281,11 @@ decode_int_internal(ev_uint32_t *pnumber, struct evbuffer *evbuf, int dodrain)
 int
 evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf)
 {
-	return (decode_int_internal(pnumber, evbuf, 1) == -1 ? -1 : 0);
+	int res = decode_int_internal(pnumber, evbuf, 0);
+	if (res != -1)
+		evbuffer_drain(evbuf, res);
+
+	return (res == -1 ? -1 : 0);
 }
 
 int
@@ -271,18 +297,13 @@ evtag_peek(struct evbuffer *evbuf, ev_uint32_t *ptag)
 int
 evtag_peek_length(struct evbuffer *evbuf, ev_uint32_t *plength)
 {
-	struct evbuffer tmp;
 	int res, len;
 
 	len = decode_tag_internal(NULL, evbuf, 0 /* dodrain */);
 	if (len == -1)
 		return (-1);
 
-	tmp = *evbuf;
-	tmp.buffer += len;
-	tmp.off -= len;
-
-	res = decode_int_internal(plength, &tmp, 0);
+	res = decode_int_internal(plength, evbuf, len);
 	if (res == -1)
 		return (-1);
 
@@ -294,31 +315,42 @@ evtag_peek_length(struct evbuffer *evbuf, ev_uint32_t *plength)
 int
 evtag_payload_length(struct evbuffer *evbuf, ev_uint32_t *plength)
 {
-	struct evbuffer tmp;
 	int res, len;
 
 	len = decode_tag_internal(NULL, evbuf, 0 /* dodrain */);
 	if (len == -1)
 		return (-1);
 
-	tmp = *evbuf;
-	tmp.buffer += len;
-	tmp.off -= len;
-
-	res = decode_int_internal(plength, &tmp, 0);
+	res = decode_int_internal(plength, evbuf, len);
 	if (res == -1)
 		return (-1);
 
 	return (0);
 }
 
+/* just unmarshals the header and returns the length of the remaining data */
+
+int
+evtag_unmarshal_header(struct evbuffer *evbuf, ev_uint32_t *ptag)
+{
+	ev_uint32_t len;
+
+	if (decode_tag_internal(ptag, evbuf, 1 /* dodrain */) == -1)
+		return (-1);
+	if (evtag_decode_int(&len, evbuf) == -1)
+		return (-1);
+
+	if (EVBUFFER_LENGTH(evbuf) < len)
+		return (-1);
+
+	return (len);
+}
+
 int
 evtag_consume(struct evbuffer *evbuf)
 {
-	ev_uint32_t len;
-	if (decode_tag_internal(NULL, evbuf, 1 /* dodrain */) == -1)
-		return (-1);
-	if (evtag_decode_int(&len, evbuf) == -1)
+	int len;
+	if ((len = evtag_unmarshal_header(evbuf, NULL)) == -1)
 		return (-1);
 	evbuffer_drain(evbuf, len);
 
@@ -330,19 +362,12 @@ evtag_consume(struct evbuffer *evbuf)
 int
 evtag_unmarshal(struct evbuffer *src, ev_uint32_t *ptag, struct evbuffer *dst)
 {
-	ev_uint32_t len;
-	ev_uint32_t integer;
+	int len;
 
-	if (decode_tag_internal(ptag, src, 1 /* dodrain */) == -1)
-		return (-1);
-	if (evtag_decode_int(&integer, src) == -1)
-		return (-1);
-	len = integer;
-
-	if (EVBUFFER_LENGTH(src) < len)
+	if ((len = evtag_unmarshal_header(src, ptag)) == -1)
 		return (-1);
 
-	if (evbuffer_add(dst, EVBUFFER_DATA(src), len) == -1)
+	if (evbuffer_add(dst, evbuffer_pullup(src, len), len) == -1)
 		return (-1);
 
 	evbuffer_drain(src, len);
@@ -372,7 +397,7 @@ evtag_unmarshal_int(struct evbuffer *evbuf, ev_uint32_t need_tag,
 		return (-1);
 	
 	evbuffer_drain(_buf, EVBUFFER_LENGTH(_buf));
-	if (evbuffer_add(_buf, EVBUFFER_DATA(evbuf), len) == -1)
+	if (evbuffer_add(_buf, evbuffer_pullup(evbuf, len), len) == -1)
 		return (-1);
 
 	evbuffer_drain(evbuf, len);
@@ -387,18 +412,17 @@ evtag_unmarshal_fixed(struct evbuffer *src, ev_uint32_t need_tag, void *data,
     size_t len)
 {
 	ev_uint32_t tag;
-
-	/* Initialize this event buffer so that we can read into it */
-	evbuffer_drain(_buf, EVBUFFER_LENGTH(_buf));
+	int tag_len;
 
 	/* Now unmarshal a tag and check that it matches the tag we want */
-	if (evtag_unmarshal(src, &tag, _buf) == -1 || tag != need_tag)
+	if ((tag_len = evtag_unmarshal_header(src, &tag)) == -1 ||
+	    tag != need_tag)
 		return (-1);
 
-	if (EVBUFFER_LENGTH(_buf) != len)
+	if (tag_len != len)
 		return (-1);
-
-	memcpy(data, EVBUFFER_DATA(_buf), len);
+	
+	evbuffer_remove(src, data, len);
 	return (0);
 }
 
@@ -407,16 +431,17 @@ evtag_unmarshal_string(struct evbuffer *evbuf, ev_uint32_t need_tag,
     char **pstring)
 {
 	ev_uint32_t tag;
+	int tag_len;
 
-	evbuffer_drain(_buf, EVBUFFER_LENGTH(_buf));
-
-	if (evtag_unmarshal(evbuf, &tag, _buf) == -1 || tag != need_tag)
+	if ((tag_len = evtag_unmarshal_header(evbuf, &tag)) == -1 ||
+	    tag != need_tag)
 		return (-1);
 
-	*pstring = event_calloc(EVBUFFER_LENGTH(_buf) + 1, 1);
+	*pstring = event_malloc(tag_len + 1);
 	if (*pstring == NULL)
-		event_err(1, "%s: calloc", __func__);
-	evbuffer_remove(_buf, *pstring, EVBUFFER_LENGTH(_buf));
+		event_err(1, "%s: malloc", __func__);
+	evbuffer_remove(evbuf, *pstring, tag_len);
+	(*pstring)[tag_len] = '\0';
 
 	return (0);
 }
