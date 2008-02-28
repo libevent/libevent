@@ -54,6 +54,7 @@ Changes in current version:
  o Patch from Tani Hosokawa: make some functions in http.c threadsafe.
  o test support for PUT/DELETE requests; from Josh Rotenberg
  o rewrite of the evbuffer code to reduce memory copies
+ o Some older Solaris versions demand that _REENTRANT be defined to get strtok_r(); do so.
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

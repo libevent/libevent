@@ -60,6 +60,8 @@
 
 /* #define _POSIX_C_SOURCE 200507 */
 #define _GNU_SOURCE
+/* for strtok_r */
+#define _REENTRANT
 
 #ifdef DNS_USE_CPU_CLOCK_FOR_ID
 #ifdef DNS_USE_OPENSSL_FOR_ID
