@@ -67,6 +67,7 @@
 
 #include "event.h"
 #include "config.h"
+#include "log.h"
 #include "mm-internal.h"
 #include "evbuffer-internal.h"
 
@@ -344,7 +345,7 @@ evbuffer_pullup(struct evbuffer *buf, int size)
 		return chain->buffer + chain->misalign;
 
 	if ((tmp = evbuffer_chain_new(size)) == NULL) {
-		fprintf(stderr, "%s: out of memory\n", __func__);
+		event_warn("%s: out of memory\n", __func__);
 		return (NULL);
 	}
 
@@ -535,7 +536,7 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 	}
 
 	if ((line = event_malloc(n_to_copy+1)) == NULL) {
-		fprintf(stderr, "%s: out of memory\n", __func__);
+		event_warn("%s: out of memory\n", __func__);
 		evbuffer_drain(buffer, n_to_copy + extra_drain);
 		return (NULL);
 	}
