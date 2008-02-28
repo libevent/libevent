@@ -1964,7 +1964,7 @@ nameserver_send_probe(struct nameserver *const ns) {
 
   	log(EVDNS_LOG_DEBUG, "Sending probe to %s", debug_ntoa(ns->address));
 
-	req = request_new(TYPE_A, "www.google.com", DNS_QUERY_NO_SEARCH, nameserver_probe_callback, ns);
+	req = request_new(TYPE_A, "google.com", DNS_QUERY_NO_SEARCH, nameserver_probe_callback, ns);
         if (!req) return;
 	/* we force this into the inflight queue no matter what */
 	request_trans_id_set(req, transaction_id_pick());
@@ -3081,7 +3081,7 @@ evdns_server_callback(struct evdns_server_request *req, void *data)
 		}
 	}
 
-	r = evdns_request_respond(req, 0);
+	r = evdns_server_request_respond(req, 0);
 	if (r<0)
 		printf("eeek, couldn't send reply.\n");
 }
