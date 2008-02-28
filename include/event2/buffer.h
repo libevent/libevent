@@ -95,7 +95,8 @@ size_t evbuffer_length(struct evbuffer *buf);
 /**
   Expands the available space in an event buffer.
 
-  Expands the available space in the event buffer to at least datlen
+  Expands the available space in the event buffer to at least datlen, so that
+  appending datlen additional bytes will not require any new allocations.
 
   @param buf the event buffer to be expanded
   @param datlen the new minimum length requirement
@@ -271,10 +272,11 @@ void evbuffer_setcb(struct evbuffer *buffer,
     void (*cb)(struct evbuffer *, size_t, size_t, void *), void *cbarg);
 
 /**
-  Makes the memory in an evbuffer contiguous
+  Makes the memory at the begging of an evbuffer contiguous
 
   @param buf the evbuffer to make contiguous
-  @param size the number of bytes to make contiguous
+  @param size the number of bytes to make contiguous, or -1 to make the
+         entire buffer contiguous.
   @return a pointer to the contigous memory areay
 */
 
@@ -299,6 +301,18 @@ int evbuffer_prepend(struct evbuffer *buf, const void *data, size_t size);
 */
 
 void evbuffer_prepend_buffer(struct evbuffer *dst, struct evbuffer* src);
+
+/* XXX missing APIs:
+
+    A better find-string that returns a smart offset structure rather than a
+    pointer. It should also be able to start searching _at_ an offset.
+
+	A variant of evbuffer_write() that takes a maximum number of bytes to
+	write.
+
+	A check-representation functions for testing, so we can assert() that
+	nothing has gone screwy inside an evbuffer.
+*/
 
 /** deprecated in favor of calling the functions directly */
 #define EVBUFFER_LENGTH(x)	evbuffer_length(x)

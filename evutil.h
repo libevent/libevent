@@ -50,6 +50,9 @@ extern "C" {
 #ifdef _EVENT_HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
+#ifdef _EVENT_HAVE_STDDEF_H
+#include <stddef.h>
+#endif
 
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t
@@ -169,6 +172,12 @@ int evutil_make_socket_nonblocking(evutil_socket_t sock);
 #define evutil_timerisset(tvp) timerisset(tvp)
 #else
 #define	evutil_timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
+#endif
+
+#ifdef offsetof
+#define evutil_offsetof(type, field) offsetof(type, field)
+#else
+#define evutil_offsetof(type, field) ((off_t)(&((type *)0)->field))
 #endif
 
 /* big-int related functions */
