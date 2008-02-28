@@ -330,6 +330,7 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 	return (nread);
 }
 
+/* XXX shouldn't the second arg be ssize_t? */
 u_char *
 evbuffer_pullup(struct evbuffer *buf, int size)
 {
@@ -338,12 +339,17 @@ evbuffer_pullup(struct evbuffer *buf, int size)
 
 	if (size == -1)
 		size = buf->total_len;
+	/* XXX Does it make more sense, if size > buf->total_len, to
+	 * clip it downwards? */
 	if (size == 0 || size > buf->total_len)
 		return (NULL);
 
+	/* No need to pull up anything; the first size bytes are already here. */
 	if (chain->off >= size)
 		return chain->buffer + chain->misalign;
 
+	/* XXX is it possible that buf->chain will already have enough space
+	 * to hold size bytes? */
 	if ((tmp = evbuffer_chain_new(size)) == NULL) {
 		event_warn("%s: out of memory\n", __func__);
 		return (NULL);
@@ -352,6 +358,7 @@ evbuffer_pullup(struct evbuffer *buf, int size)
 	tmp->off = size;
 	buffer = tmp->buffer;
 
+	/* Copy and free every chunk that will be entirely pulled into tmp */
 	for (chain = buf->first;
 	    chain != NULL && size >= chain->off; chain = next) {
 		next = chain->next;
@@ -563,6 +570,8 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	const u_char *data = data_in;
 	size_t old_len = buf->total_len, remain, to_alloc;
 
+	/* If there are no chains allocated for this buffer, allocate one
+	 * big enough to hold all the data. */
 	if (chain == NULL) {
 		if (evbuffer_expand(buf, datlen) == -1)
 			return (-1);
@@ -571,7 +580,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 
 	remain = chain->buffer_len - chain->misalign - chain->off;
 	if (remain >= datlen) {
-		/* we have enough space */
+		/*there's enough space to hold all the data in the current last chain*/
 		memcpy(chain->buffer + chain->misalign + chain->off,
 		    data, datlen);
 		chain->off += datlen;
@@ -580,6 +589,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	}
 
 	/* we need to add another chain */
+	/* XXX Does this double the length of every successive chain? */
 	to_alloc = chain->buffer_len << 1;
 	if (datlen > to_alloc)
 		to_alloc = datlen;
@@ -592,7 +602,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	memcpy(chain->buffer + chain->misalign + chain->off,
 	    data, remain);
 	chain->off += remain;
-		
+
 	data += remain;
 	datlen -= remain;
 
@@ -628,6 +638,9 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 		chain->misalign -= datlen;
 	} else {
 		struct evbuffer_chain *tmp;
+		/* XXX we should copy as much of the data into chain as possible
+		 * before we put any into tmp. */
+
 		/* we need to add another chain */
 		if ((tmp = evbuffer_chain_new(datlen)) == NULL)
 			return (-1);
@@ -647,6 +660,8 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 	return (0);
 }
 
+/** Helper: realigns the memory in chain->buffer so that misalign is
+ * 0. */
 static void
 evbuffer_chain_align(struct evbuffer_chain *chain)
 {
@@ -677,16 +692,16 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 	if (chain->buffer_len >= need)
 		return (0);
 
-	/*
-	 * If the misalignment fulfills our data needs, we just force an
-	 * alignment to happen.  Afterwards, we have enough space.
+	/* If the misalignment plus the remaining space fulfils our data needs, we
+	 * just force an alignment to happen.  Afterwards, we have enough space.
 	 */
-	if (chain->misalign >= datlen) {
+	if (chain->buffer_len - chain->off >= datlen) {
 		evbuffer_chain_align(chain);
 		return (0);
 	}
 
-	/* avoid a memcpy if we can just a new chain */
+	/* avoid a memcpy if we can just append a new chain */
+	/* XXX in practice, does this result in lots of leftover space?  */
 	length = chain->buffer_len << 1;
 	if (length < datlen)
 		length = datlen;
@@ -734,11 +749,13 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 		else if (n > chain->buffer_len << 2)
 			n = chain->buffer_len << 2;
 	}
-#endif	
+#endif
 	if (howmuch < 0 || howmuch > n)
 		howmuch = n;
 
 	/* If we don't have FIONREAD, we might waste some space here */
+	/* XXX we _will_ waste some space here if there is any space left
+	 * over on buf->last. */
 	if (evbuffer_expand(buf, howmuch) == -1)
 		return (-1);
 
@@ -777,6 +794,9 @@ evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd)
 	struct iovec iov[NUM_IOVEC];
 	struct evbuffer_chain *chain = buffer->first;
 	int i = 0;
+	/* XXX make this top out at some maximal data length? if the buffer has
+	 * (say) 1MB in it, split over 128 chains, there's no way it all gets
+	 * written in one go. */
 	while (chain != NULL && i < NUM_IOVEC) {
 		iov[i].iov_base = chain->buffer + chain->misalign;
 		iov[i++].iov_len = chain->off;
@@ -885,7 +905,8 @@ evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
 	return (res);
 }
 
-void evbuffer_setcb(struct evbuffer *buffer,
+void
+evbuffer_setcb(struct evbuffer *buffer,
     void (*cb)(struct evbuffer *, size_t, size_t, void *),
     void *cbarg)
 {

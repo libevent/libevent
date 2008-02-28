@@ -32,6 +32,7 @@ extern "C" {
 #endif
 
 #include "config.h"
+#include "evutil.h"
 
 /* minimum allocation */
 #define MIN_BUFFER_SIZE	256
@@ -55,17 +56,15 @@ struct evbuffer_chain {
 	/** points to next buffer in the chain */
 	struct evbuffer_chain *next;
 	
-	size_t buffer_len;
+	size_t buffer_len; /**< total allocation available in the buffer field. */
 
-	size_t misalign;/** unused space at the beginning of buffer */
-	size_t off;	/** write pointer into buffer + misalign */
+	size_t misalign; /**< unused space at the beginning of buffer */
+	size_t off;	/**< Offset into buffer + misalign at which to start writing.
+				 * In other words, the total number of bytes actually stored
+				 * in buffer. */
 
 	u_char buffer[1];
 };
-
-#ifndef offsetof
-#define offsetof(type, field) ((size_t)(&((type *)0)->field))
-#endif
 
 #define EVBUFFER_CHAIN_SIZE offsetof(struct evbuffer_chain, buffer[0])
 
