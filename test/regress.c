@@ -896,6 +896,7 @@ test_evbuffer(void)
 	static char buffer[512], *tmp;
 	struct evbuffer *evb = evbuffer_new();
 	struct evbuffer *evb_two = evbuffer_new();
+	size_t sz_tmp;
 	int i;
 	setup_test("Testing Evbuffer: ");
 
@@ -951,9 +952,10 @@ test_evbuffer(void)
 		goto out;
 
 	/* test remove buffer */
-	evbuffer_remove_buffer(evb, evb_two, sizeof(buffer) * 2.5);
-	if (EVBUFFER_LENGTH(evb_two) != sizeof(buffer) * 2.5 ||
-	    EVBUFFER_LENGTH(evb) != sizeof(buffer) * 0.5)
+	sz_tmp = sizeof(buffer)*2.5;
+	evbuffer_remove_buffer(evb, evb_two, sz_tmp);
+	if (EVBUFFER_LENGTH(evb_two) != sz_tmp ||
+	    EVBUFFER_LENGTH(evb) != sizeof(buffer) / 2)
 		goto out;
 
 	if (memcmp(evbuffer_pullup(
