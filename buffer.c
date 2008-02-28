@@ -226,9 +226,10 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 /* Reads data from an event buffer and drains the bytes read */
 
 int
-evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen)
+evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 {
 	struct evbuffer_chain *chain = buf->first, *tmp;
+	char *data = data_out;
 	size_t nread;
 
 	if (datlen >= buf->total_len)
@@ -332,7 +333,7 @@ u_char *
 evbuffer_pullup(struct evbuffer *buf, int size)
 {
 	struct evbuffer_chain *chain = buf->first, *next, *tmp;
-	void *buffer;
+	u_char *buffer;
 
 	if (size == -1)
 		size = buf->total_len;
@@ -555,9 +556,10 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 /* Adds data to an event buffer */
 
 int
-evbuffer_add(struct evbuffer *buf, const void *data, size_t datlen)
+evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 {
 	struct evbuffer_chain *chain = buf->last;
+	const u_char *data = data_in;
 	size_t old_len = buf->total_len, remain, to_alloc;
 
 	if (chain == NULL) {
@@ -656,7 +658,7 @@ evbuffer_chain_align(struct evbuffer_chain *chain)
 int
 evbuffer_expand(struct evbuffer *buf, size_t datlen)
 {
-	struct evbuffer_chain *chain = buf->last;
+	struct evbuffer_chain *chain = buf->last, *tmp;
 	size_t need, length;
 
 	if (chain == NULL) {
@@ -687,7 +689,7 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 	length = chain->buffer_len << 1;
 	if (length < datlen)
 		length = datlen;
-	struct evbuffer_chain *tmp = evbuffer_chain_new(length);
+	tmp = evbuffer_chain_new(length);
 	if (tmp == NULL)
 		return (-1);
 	chain->next = tmp;

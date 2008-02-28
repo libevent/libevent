@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
-CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat
+CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include 
 
 EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c
 
