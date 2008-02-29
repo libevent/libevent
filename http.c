@@ -28,6 +28,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+#define _REENTRANT
 
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
