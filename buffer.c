@@ -339,28 +339,37 @@ evbuffer_pullup(struct evbuffer *buf, int size)
 
 	if (size == -1)
 		size = buf->total_len;
-	/* XXX Does it make more sense, if size > buf->total_len, to
-	 * clip it downwards? */
+	/* if size > buf->total_len, we cannot guarantee to the user that she
+	 * is going to have a long enough buffer afterwards; so we return
+	 * NULL */
 	if (size == 0 || size > buf->total_len)
 		return (NULL);
 
-	/* No need to pull up anything; the first size bytes are already here. */
+	/* No need to pull up anything; the first size bytes are
+	 * already here. */
 	if (chain->off >= size)
 		return chain->buffer + chain->misalign;
 
-	/* XXX is it possible that buf->chain will already have enough space
-	 * to hold size bytes? */
-	if ((tmp = evbuffer_chain_new(size)) == NULL) {
-		event_warn("%s: out of memory\n", __func__);
-		return (NULL);
+	if (chain->buffer_len - chain->misalign >= size) {
+		/* already have enough space in the first chain */
+		size_t old_off = chain->off;
+		buffer = chain->buffer + chain->misalign + chain->off;
+		tmp = chain;
+		tmp->off = size;
+		size -= old_off;
+		chain = chain->next;
+	} else {
+		if ((tmp = evbuffer_chain_new(size)) == NULL) {
+			event_warn("%s: out of memory\n", __func__);
+			return (NULL);
+		}
+		buffer = tmp->buffer;
+		tmp->off = size;
+		buf->first = tmp;
 	}
 
-	tmp->off = size;
-	buffer = tmp->buffer;
-
 	/* Copy and free every chunk that will be entirely pulled into tmp */
-	for (chain = buf->first;
-	    chain != NULL && size >= chain->off; chain = next) {
+	for (; chain != NULL && size >= chain->off; chain = next) {
 		next = chain->next;
 
 		memcpy(buffer, chain->buffer + chain->misalign, chain->off);
@@ -378,10 +387,9 @@ evbuffer_pullup(struct evbuffer *buf, int size)
 		buf->last = tmp;
 	}
 
-	buf->first = tmp;
 	tmp->next = chain;
 
-	return (tmp->buffer);
+	return (tmp->buffer + tmp->misalign);
 }
 
 /*
