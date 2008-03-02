@@ -55,6 +55,7 @@ Changes in current version:
  o test support for PUT/DELETE requests; from Josh Rotenberg
  o rewrite of the evbuffer code to reduce memory copies
  o Some older Solaris versions demand that _REENTRANT be defined to get strtok_r(); do so.
+ o Do not free the kqop file descriptor in other processes, also allow it to be 0; from Andrei Nigmatulin
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
