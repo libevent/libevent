@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2008 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,24 +24,51 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _REGRESS_H_
-#define _REGRESS_H_
+#ifndef _EVTHREAD_INTERNAL_H_
+#define _EVTHREAD_INTERNAL_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void http_suite(void);
-void http_basic_test(void);
+#include "config.h"
 
-void rpc_suite(void);
+enum evthread_locks {
+	EVTHREAD_BASE_LOCK = 0,
+	EVTHREAD_NUM_LOCKS = 1
+};
 
-void dns_suite(void);
+struct event_base;
+#ifndef DISABLE_THREAD_SUPPORT
+#define EVTHREAD_USE_LOCKS(base) \
+	((base)->th_lock != NULL)
 
-void regress_pthread(void);
-	
+#define EVTHREAD_IN_THREAD(base) \
+	((base)->th_get_id == NULL || \
+	(base)->th_owner_id == (*(base)->th_get_id)())
+
+#define EVTHREAD_GET_ID(base) \
+	(*(base)->th_get_id)()
+
+#define EVTHREAD_ACQUIRE_LOCK(base, mode, lock) do {	\
+		if (EVTHREAD_USE_LOCKS(base))		\
+			(*(base)->th_lock)(EVTHREAD_LOCK | mode, lock); \
+	} while (0)
+
+#define EVTHREAD_RELEASE_LOCK(base, mode, lock) do {	\
+		if (EVTHREAD_USE_LOCKS(base))		\
+			(*(base)->th_lock)(EVTHREAD_UNLOCK | mode, lock); \
+	} while (0)
+#else /* DISABLE_THREAD_SUPPORT */
+#define EVTHREAD_USE_LOCKS(base)
+#define EVTHREAD_IN_THREAD(base)	1
+#define EVTHREAD_GET_ID(base)
+#define EVTHREAD_ACQUIRE_LOCK(base, mode, lock)
+#define EVTHREAD_RELEASE_LOCK(base, mode, lock)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _REGRESS_H_ */
+#endif /* _EVTHREAD_INTERNAL_H_ */
