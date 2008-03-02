@@ -4,7 +4,7 @@ SYSNAME=`uname`
 if [ "x$SYSNAME" = "xDarwin" ] ; then
   LIBTOOLIZE=glibtoolize
 fi
-aclocal && \
+aclocal -I m4 && \
 	autoheader && \
 	$LIBTOOLIZE && \
 	autoconf && \

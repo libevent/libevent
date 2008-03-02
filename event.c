@@ -41,9 +41,12 @@
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef WIN32
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <errno.h>
@@ -54,6 +57,8 @@
 
 #include "event.h"
 #include "event-internal.h"
+#include "evthread-internal.h"
+#include "event2/thread.h"
 #include "evutil.h"
 #include "log.h"
 
@@ -115,6 +120,10 @@ int (*event_sigcb)(void);		/* Signal callback when gotsig is set */
 volatile sig_atomic_t event_gotsig;	/* Set in signal handler */
 
 /* Prototypes */
+static inline int event_add_internal(struct event *ev, struct timeval *tv);
+static inline int event_del_internal(struct event *ev);
+static inline void event_active_internal(struct event *ev, int res,short count);
+
 static void	event_queue_insert(struct event_base *, struct event *, int);
 static void	event_queue_remove(struct event_base *, struct event *, int);
 static int	event_haveevents(struct event_base *);
@@ -204,6 +213,10 @@ event_base_new(void)
 	/* allocate a single active event queue */
 	event_base_priority_init(base, 1);
 
+	/* prepare for threading */
+	base->th_notify_fd[0] = -1;
+	base->th_notify_fd[1] = -1;
+
 	return (base);
 }
 
@@ -220,6 +233,14 @@ event_base_free(struct event_base *base)
 
 	/* XXX(niels) - check for internal events first */
 	assert(base);
+
+	/* threading fds if we have them */
+	if (base->th_notify_fd[0] != -1) {
+		event_del(&base->th_notify);
+		close(base->th_notify_fd[0]);
+		close(base->th_notify_fd[1]);
+	}
+
 	/* Delete all non-internal events. */
 	for (ev = TAILQ_FIRST(&base->eventqueue); ev; ) {
 		struct event *next = TAILQ_NEXT(ev, ev_next);
@@ -343,6 +364,8 @@ event_process_active(struct event_base *base)
 	int i;
 	short ncalls;
 
+	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+
 	for (i = 0; i < base->nactivequeues; ++i) {
 		if (TAILQ_FIRST(base->activequeues[i]) != NULL) {
 			activeq = base->activequeues[i];
@@ -356,8 +379,11 @@ event_process_active(struct event_base *base)
 		if (ev->ev_events & EV_PERSIST)
 			event_queue_remove(base, ev, EVLIST_ACTIVE);
 		else
-			event_del(ev);
+			event_del_internal(ev);
 		
+		EVTHREAD_RELEASE_LOCK(base,
+		    EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+
 		/* Allows deletes to work */
 		ncalls = ev->ev_ncalls;
 		ev->ev_pncalls = &ncalls;
@@ -368,7 +394,11 @@ event_process_active(struct event_base *base)
 			if (event_gotsig || base->event_break)
 				return;
 		}
+		EVTHREAD_ACQUIRE_LOCK(base,
+		    EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
 	}
+
+	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
 }
 
 /*
@@ -613,7 +643,7 @@ event_set(struct event *ev, evutil_socket_t fd, short events,
 	min_heap_elem_init(ev);
 
 	/* by default, we put new events into the middle priority */
-	if(current_base)
+	if (current_base)
 		ev->ev_pri = current_base->nactivequeues/2;
 }
 
@@ -684,9 +714,24 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 int
 event_add(struct event *ev, struct timeval *tv)
 {
+	int res;
+
+	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	
+	res = event_add_internal(ev, tv);
+
+	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+
+	return (res);
+}
+
+static inline int
+event_add_internal(struct event *ev, struct timeval *tv)
+{
 	struct event_base *base = ev->ev_base;
 	const struct eventop *evsel = base->evsel;
 	void *evbase = base->evbase;
+	int res = 0;
 
 	event_debug((
 		 "event_add: event: %p, %s%s%scall %p",
@@ -705,8 +750,8 @@ event_add(struct event *ev, struct timeval *tv)
 			event_queue_remove(base, ev, EVLIST_TIMEOUT);
 		else if (min_heap_reserve(&base->timeheap,
 			1 + min_heap_size(&base->timeheap)) == -1)
-		    return (-1);  /* ENOMEM == errno */
-
+				return (-1);  /* ENOMEM == errno */
+			    
 		/* Check if it is active due to a timeout.  Rescheduling
 		 * this timeout before the callback can be executed
 		 * removes it from the active list. */
@@ -735,29 +780,44 @@ event_add(struct event *ev, struct timeval *tv)
 
 	if ((ev->ev_events & (EV_READ|EV_WRITE)) &&
 	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE))) {
-		int res = evsel->add(evbase, ev);
+		res = evsel->add(evbase, ev);
 		if (res != -1)
 			event_queue_insert(base, ev, EVLIST_INSERTED);
-
-		return (res);
 	} else if ((ev->ev_events & EV_SIGNAL) &&
 	    !(ev->ev_flags & EVLIST_SIGNAL)) {
-		int res = evsel->add(evbase, ev);
+		res = evsel->add(evbase, ev);
 		if (res != -1)
 			event_queue_insert(base, ev, EVLIST_SIGNAL);
-
-		return (res);
 	}
 
-	return (0);
+	/* if we are not in the right thread, we need to wake up the loop */
+	if (res != -1 && !EVTHREAD_IN_THREAD(base))
+		write(base->th_notify_fd[1], "", 1);
+
+	return (res);
 }
 
 int
 event_del(struct event *ev)
 {
+	int res;
+
+	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	
+	res = event_del_internal(ev);
+
+	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+
+	return (res);
+}
+
+static inline int
+event_del_internal(struct event *ev)
+{
 	struct event_base *base;
 	const struct eventop *evsel;
 	void *evbase;
+	int res = 0;
 
 	event_debug(("event_del: %p, callback %p",
 		 ev, ev->ev_callback));
@@ -786,28 +846,47 @@ event_del(struct event *ev)
 
 	if (ev->ev_flags & EVLIST_INSERTED) {
 		event_queue_remove(base, ev, EVLIST_INSERTED);
-		return (evsel->del(evbase, ev));
+		res = evsel->del(evbase, ev);
 	} else if (ev->ev_flags & EVLIST_SIGNAL) {
 		event_queue_remove(base, ev, EVLIST_SIGNAL);
-		return (evsel->del(evbase, ev));
+		res = evsel->del(evbase, ev);
 	}
 
-	return (0);
+	/* if we are not in the right thread, we need to wake up the loop */
+	if (res != -1 && !EVTHREAD_IN_THREAD(base))
+		write(base->th_notify_fd[1], "", 1);
+
+	return (res);
 }
 
 void
 event_active(struct event *ev, int res, short ncalls)
 {
+	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+
+	event_active_internal(ev, res, ncalls);
+	
+	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+}
+
+
+static inline void
+event_active_internal(struct event *ev, int res, short ncalls)
+{
+	struct event_base *base;
+
 	/* We get different kinds of events, add them together */
 	if (ev->ev_flags & EVLIST_ACTIVE) {
 		ev->ev_res |= res;
 		return;
 	}
 
+	base = ev->ev_base;
+
 	ev->ev_res = res;
 	ev->ev_ncalls = ncalls;
 	ev->ev_pncalls = NULL;
-	event_queue_insert(ev->ev_base, ev, EVLIST_ACTIVE);
+	event_queue_insert(base, ev, EVLIST_ACTIVE);
 }
 
 static int
@@ -816,28 +895,36 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 	struct timeval now;
 	struct event *ev;
 	struct timeval *tv = *tv_p;
+	int res = 0;
 
-	if ((ev = min_heap_top(&base->timeheap)) == NULL) {
+	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	ev = min_heap_top(&base->timeheap);
+
+	if (ev == NULL) {
 		/* if no time-based events are active wait for I/O */
 		*tv_p = NULL;
-		return (0);
+		goto out;
 	}
 
-	if (gettime(&now) == -1)
-		return (-1);
+	if (gettime(&now) == -1) {
+		res = -1;
+		goto out;
+	}
 
 	if (evutil_timercmp(&ev->ev_timeout, &now, <=)) {
 		evutil_timerclear(tv);
-		return (0);
+		goto out;
 	}
 
 	evutil_timersub(&ev->ev_timeout, &now, tv);
 
 	assert(tv->tv_sec >= 0);
 	assert(tv->tv_usec >= 0);
-
 	event_debug(("timeout_next: in %d seconds", (int)tv->tv_sec));
-	return (0);
+
+out:
+	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	return (res);
 }
 
 /*
@@ -858,8 +945,11 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 
 	/* Check if time is running backwards */
 	gettime(tv);
+	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+
 	if (evutil_timercmp(tv, &base->event_tv, >=)) {
 		base->event_tv = *tv;
+		EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
 		return;
 	}
 
@@ -877,6 +967,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 		struct timeval *ev_tv = &(**pev).ev_timeout;
 		evutil_timersub(ev_tv, &off, ev_tv);
 	}
+	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
 }
 
 void
@@ -885,8 +976,12 @@ timeout_process(struct event_base *base)
 	struct timeval now;
 	struct event *ev;
 
-	if (min_heap_empty(&base->timeheap))
+	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	if (min_heap_empty(&base->timeheap)) {
+		EVTHREAD_RELEASE_LOCK(base,
+		    EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
 		return;
+	}
 
 	gettime(&now);
 
@@ -895,12 +990,13 @@ timeout_process(struct event_base *base)
 			break;
 
 		/* delete this event from the I/O queues */
-		event_del(ev);
+		event_del_internal(ev);
 
 		event_debug(("timeout_process: call %p",
 			 ev->ev_callback));
-		event_active(ev, EV_TIMEOUT, 1);
+		event_active_internal(ev, EV_TIMEOUT, 1);
 	}
+	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
 }
 
 void
@@ -1059,4 +1155,67 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 	_event_malloc_fn = malloc_fn;
 	_event_realloc_fn = realloc_fn;
 	_event_free_fn = free_fn;
+}
+
+/* support for threading */
+void
+evthread_set_locking_callback(struct event_base *base,
+    void (*locking_fn)(int mode, int locknum))
+{
+#ifdef DISABLE_THREAD_SUPPORT
+	event_errx(1, "%s: not compiled with thread support", __func__);
+#endif
+	base->th_lock = locking_fn;
+}
+
+static void
+evthread_ignore_fd(int fd, short what, void *arg)
+{
+	struct event_base *base = arg;
+	int buf[128];
+	
+	/* we draining the socket */
+	while (read(fd, buf, sizeof(buf)) != -1)
+		;
+
+	event_add(&base->th_notify, NULL);
+}
+
+void
+evthread_set_id_callback(struct event_base *base,
+    unsigned long (*id_fn)(void))
+{
+#ifdef DISABLE_THREAD_SUPPORT
+	event_errx(1, "%s: not compiled with thread support", __func__);
+#endif
+	base->th_get_id = id_fn;
+	base->th_owner_id = (*id_fn)();
+	/* 
+	 * If another thread wants to add a new event, we need to notify
+	 * the thread that owns the base to wakeup for rescheduling.
+	 */
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0,
+		base->th_notify_fd) == -1)
+		event_err(1, "%s: socketpair", __func__);
+
+	evutil_make_socket_nonblocking(base->th_notify_fd[0]);
+	evutil_make_socket_nonblocking(base->th_notify_fd[1]);
+
+	/* prepare an event that we can use for wakeup */
+	event_set(&base->th_notify, base->th_notify_fd[0], EV_READ,
+	    evthread_ignore_fd, base);
+	event_base_set(base, &base->th_notify);
+	/* we need to mark this as internal event */
+	base->th_notify.ev_flags |= EVLIST_INTERNAL;
+
+	event_add(&base->th_notify, NULL);
+}
+
+int
+evthread_num_locks(void)
+{
+#ifdef DISABLE_THREAD_SUPPORT
+	event_errx(1, "%s: not compiled with thread support", __func__);
+#endif
+	return (EVTHREAD_NUM_LOCKS);
 }

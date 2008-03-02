@@ -67,6 +67,13 @@ struct event_base {
 	struct timeval event_tv;
 
 	struct min_heap timeheap;
+
+	/* threading support */
+	unsigned long th_owner_id;
+	unsigned long (*th_get_id)(void);
+	void (*th_lock)(int mode, int locknum);
+	int th_notify_fd[2];
+	struct event th_notify;
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */

@@ -22,7 +22,9 @@ fi
 
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--enable-gcc-warnings, enable verbose warnings with GCC))
-
+AC_ARG_ENABLE(thread-support,
+     AS_HELP_STRING(--enable-thread-support, enable support for threading),
+	[], [enable_thread_support=yes])
 AC_PROG_LIBTOOL
 
 dnl   Uncomment "AC_DISABLE_SHARED" to make shared librraries not get
@@ -350,6 +352,20 @@ AC_TRY_COMPILE([],
    AC_DEFINE(__func__, __FILE__,
          [Define to appropriate substitue if compiler doesnt have __func__])))
 
+
+# check if we can compile with pthreads for the unittests
+have_pthreads=no
+ACX_PTHREAD([
+	AC_DEFINE(HAVE_PTHREADS, 1,
+		[Define if we have pthreads on this system])
+	have_pthreads=yes])
+AM_CONDITIONAL(PTHREAD_REGRESS, [test "$have_pthreads" != "no"])
+
+# check if we should compile locking into the  library
+if test x$enable_thread_support = xno; then
+   AC_DEFINE(DISABLE_THREAD_SUPPORT, 1,
+	[Define if libevent should not be compiled with thread support])
+fi
 
 # Add some more warnings which we use in development but not in the
 # released versions.  (Some relevant gcc versions can't handle these.)

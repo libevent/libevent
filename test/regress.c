@@ -1727,12 +1727,16 @@ main (int argc, char **argv)
 
 	test_event_base_new();
 
+#if defined(HAVE_PTHREADS) && !defined(DISABLE_THREAD_SUPPORT)
+	regress_pthread();
+#endif
+	
 	http_suite();
 
 	rpc_suite();
 
 	dns_suite();
-	
+
 #ifndef WIN32
 	test_fork();
 #endif
