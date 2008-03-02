@@ -72,6 +72,7 @@ struct kqop {
 	struct kevent *events;
 	int nevents;
 	int kq;
+	pid_t pid;
 };
 
 void *kq_init	(struct event_base *);
@@ -113,6 +114,8 @@ kq_init(struct event_base *base)
 	}
 
 	kqueueop->kq = kq;
+
+	kqueueop->pid = getpid();
 
 	/* Initalize fields */
 	kqueueop->changes = malloc(NEVENT * sizeof(struct kevent));
@@ -411,7 +414,7 @@ kq_dealloc(struct event_base *base, void *arg)
 		free(kqop->changes);
 	if (kqop->events)
 		free(kqop->events);
-	if (kqop->kq)
+	if (kqop->kq >= 0 && kqop->pid == getpid())
 		close(kqop->kq);
 	memset(kqop, 0, sizeof(struct kqop));
 	free(kqop);

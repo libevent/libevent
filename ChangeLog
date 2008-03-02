@@ -1,6 +1,7 @@
 Changes in 1.4.3-stable:
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive
  o Patch from Tani Hosokawa: make some functions in http.c threadsafe.
+ o Do not free the kqop file descriptor in other processes, also allow it to be 0; from Andrei Nigmatulin
 
 Changes in 1.4.2-rc:
  o remove pending timeouts on event_base_free()
