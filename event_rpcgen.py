@@ -1508,7 +1508,11 @@ def HeaderPreamble(name):
         name, guard, guard)
 
     # insert stdint.h - let's hope everyone has it
-    pre += '#include <stdint.h>\n'
+    pre += (
+        '#include <event-config.h>\n'
+        '#ifdef _EVENT_HAVE_STDINT_H\n'
+        '#include <stdint.h>\n'
+        '#endif\n' )
 
     for statement in headerdirect:
         pre += '%s\n' % statement
