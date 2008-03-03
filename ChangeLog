@@ -57,6 +57,7 @@ Changes in current version:
  o Some older Solaris versions demand that _REENTRANT be defined to get strtok_r(); do so.
  o Do not free the kqop file descriptor in other processes, also allow it to be 0; from Andrei Nigmatulin
  o Provide OpenSSL style support for multiple threads accessing the same event_base
+ o make event_rpcgen.py generate code include event-config.h; reported by Sam Banks.
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
