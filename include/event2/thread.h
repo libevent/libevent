@@ -28,6 +28,26 @@
 #define _EVENT2_THREAD_H_
 
 /** @file thread.h
+    
+  Functions for multi-threaded applications using libevent.
+
+  When using a multi-threaded application in which multiple threads
+  add and delete events from a single event base, libevent needs to
+  lock its data structures.
+
+  A multi-threaded application must provide locking functions to
+  libevent via evthread_set_locking_callback().  Libevent will invoke
+  this callback whenever a lock needs to be acquired or released.
+
+  The total number of locks employed by libevent can be determined
+  via the evthread_num_locks() function.  An application must provision
+  that many locks.
+
+  If the owner of an event base is waiting for events to happen,
+  libevent may signal the thread via a special file descriptor to wake
+  up.   To enable this feature, an application needs to provide a
+  thread identity function via evthread_set_id_callback().
+
  */
 
 #ifdef __cplusplus
@@ -42,12 +62,32 @@ extern "C" {
 #define EVTHREAD_WRITE	0x04
 #define EVTHREAD_READ	0x08
 
-/** returns the number of locks that need to be allocated */
+/**
+   returns the number of locks that need to be allocated
+
+   @return the number of locks required by libevent
+*/
 int evthread_num_locks();
 
 struct event_base;
+/**
+   Sets the function libevent should use for locking.
+
+   @param base the event base for which the locking function should be set
+   @param locking_fn the function that libevent should invoke to acquire
+     or release a lock.  mode has either EVTHREAD_LOCK or EVTHREAD_UNLOCK
+     set, and in addition, either EVHTREAD_WRITE or EVTREAD_READ.
+ */
 void evthread_set_locking_callback(struct event_base *base,
     void (*locking_fn)(int mode, int locknum));
+
+/**
+   Sets the function for derminting the thread id.
+
+   @param base the event base for which to set the id function
+   @param id_fn the identify function libevent should invoke to
+     determine the identity of a thread.
+*/
 void evthread_set_id_callback(struct event_base *base,
     unsigned long (*id_fn)(void));
 

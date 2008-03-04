@@ -55,7 +55,7 @@ SORT_BRIEF_DOCS        = YES
 # with spaces.
 
 INPUT                  = event.h evdns.h evhttp.h evrpc.h \
-		       include/event2/buffer.h
+		       include/event2/buffer.h include/event2/thread.h
 
 #---------------------------------------------------------------------------
 # configuration options related to the HTML output
