@@ -67,7 +67,7 @@ extern "C" {
 
    @return the number of locks required by libevent
 */
-int evthread_num_locks();
+int evthread_num_locks(void);
 
 struct event_base;
 /**
