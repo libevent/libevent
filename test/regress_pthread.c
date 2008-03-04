@@ -42,6 +42,8 @@
 
 static pthread_mutex_t *all_locks;
 
+void regress_pthread(void);
+
 struct cond_wait {
 	pthread_mutex_t lock;
 	pthread_cond_t cond;
@@ -146,7 +148,7 @@ get_id(void)
 }
 
 void
-regress_pthread()
+regress_pthread(void)
 {
 	struct event_base *base = event_base_new();
 	int i;
