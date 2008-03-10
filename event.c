@@ -241,6 +241,9 @@ event_base_free(struct event_base *base)
 		close(base->th_notify_fd[1]);
 	}
 
+	if (base->th_base_lock != NULL)
+		(*base->th_free)(base->th_base_lock);
+
 	/* Delete all non-internal events. */
 	for (ev = TAILQ_FIRST(&base->eventqueue); ev; ) {
 		struct event *next = TAILQ_NEXT(ev, ev_next);
@@ -364,7 +367,7 @@ event_process_active(struct event_base *base)
 	int i;
 	short ncalls;
 
-	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	for (i = 0; i < base->nactivequeues; ++i) {
 		if (TAILQ_FIRST(base->activequeues[i]) != NULL) {
@@ -382,7 +385,7 @@ event_process_active(struct event_base *base)
 			event_del_internal(ev);
 		
 		EVTHREAD_RELEASE_LOCK(base,
-		    EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+		    EVTHREAD_WRITE, th_base_lock);
 
 		/* Allows deletes to work */
 		ncalls = ev->ev_ncalls;
@@ -394,11 +397,10 @@ event_process_active(struct event_base *base)
 			if (event_gotsig || base->event_break)
 				return;
 		}
-		EVTHREAD_ACQUIRE_LOCK(base,
-		    EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+		EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	}
 
-	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
 /*
@@ -716,11 +718,11 @@ event_add(struct event *ev, struct timeval *tv)
 {
 	int res;
 
-	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 	
 	res = event_add_internal(ev, tv);
 
-	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
 	return (res);
 }
@@ -802,11 +804,11 @@ event_del(struct event *ev)
 {
 	int res;
 
-	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 	
 	res = event_del_internal(ev);
 
-	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
 	return (res);
 }
@@ -862,11 +864,11 @@ event_del_internal(struct event *ev)
 void
 event_active(struct event *ev, int res, short ncalls)
 {
-	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
 	event_active_internal(ev, res, ncalls);
 	
-	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 }
 
 
@@ -897,7 +899,7 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 	struct timeval *tv = *tv_p;
 	int res = 0;
 
-	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	ev = min_heap_top(&base->timeheap);
 
 	if (ev == NULL) {
@@ -923,7 +925,7 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 	event_debug(("timeout_next: in %d seconds", (int)tv->tv_sec));
 
 out:
-	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	return (res);
 }
 
@@ -945,11 +947,11 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 
 	/* Check if time is running backwards */
 	gettime(tv);
-	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	if (evutil_timercmp(tv, &base->event_tv, >=)) {
 		base->event_tv = *tv;
-		EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+		EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 		return;
 	}
 
@@ -967,7 +969,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 		struct timeval *ev_tv = &(**pev).ev_timeout;
 		evutil_timersub(ev_tv, &off, ev_tv);
 	}
-	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
 void
@@ -976,10 +978,9 @@ timeout_process(struct event_base *base)
 	struct timeval now;
 	struct event *ev;
 
-	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	if (min_heap_empty(&base->timeheap)) {
-		EVTHREAD_RELEASE_LOCK(base,
-		    EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+		EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 		return;
 	}
 
@@ -996,7 +997,7 @@ timeout_process(struct event_base *base)
 			 ev->ev_callback));
 		event_active_internal(ev, EV_TIMEOUT, 1);
 	}
-	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, EVTHREAD_BASE_LOCK);
+	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
 void
@@ -1160,7 +1161,7 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 /* support for threading */
 void
 evthread_set_locking_callback(struct event_base *base,
-    void (*locking_fn)(int mode, int locknum))
+    void (*locking_fn)(int mode, void *lock))
 {
 #ifdef DISABLE_THREAD_SUPPORT
 	event_errx(1, "%s: not compiled with thread support", __func__);
@@ -1211,11 +1212,16 @@ evthread_set_id_callback(struct event_base *base,
 	event_add(&base->th_notify, NULL);
 }
 
-int
-evthread_num_locks(void)
+void
+evthread_set_create_callback(struct event_base *base,
+    void *(*alloc_fn)(void), void (*free_fn)(void *))
 {
 #ifdef DISABLE_THREAD_SUPPORT
 	event_errx(1, "%s: not compiled with thread support", __func__);
 #endif
-	return (EVTHREAD_NUM_LOCKS);
+	base->th_alloc = alloc_fn;
+	base->th_free = free_fn;
+
+	/* now, let's allocate our lock */
+	base->th_base_lock = (*alloc_fn)();
 }

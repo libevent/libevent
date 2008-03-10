@@ -33,11 +33,6 @@ extern "C" {
 
 #include "config.h"
 
-enum evthread_locks {
-	EVTHREAD_BASE_LOCK = 0,
-	EVTHREAD_NUM_LOCKS = 1
-};
-
 struct event_base;
 #ifndef DISABLE_THREAD_SUPPORT
 #define EVTHREAD_USE_LOCKS(base) \
@@ -52,12 +47,14 @@ struct event_base;
 
 #define EVTHREAD_ACQUIRE_LOCK(base, mode, lock) do {	\
 		if (EVTHREAD_USE_LOCKS(base))		\
-			(*(base)->th_lock)(EVTHREAD_LOCK | mode, lock); \
+			(*(base)->th_lock)(EVTHREAD_LOCK | mode, \
+			    (base)->lock);			 \
 	} while (0)
 
 #define EVTHREAD_RELEASE_LOCK(base, mode, lock) do {	\
 		if (EVTHREAD_USE_LOCKS(base))		\
-			(*(base)->th_lock)(EVTHREAD_UNLOCK | mode, lock); \
+			(*(base)->th_lock)(EVTHREAD_UNLOCK | mode, \
+			    (base)->lock);			   \
 	} while (0)
 #else /* DISABLE_THREAD_SUPPORT */
 #define EVTHREAD_USE_LOCKS(base)

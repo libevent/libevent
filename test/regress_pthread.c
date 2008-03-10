@@ -40,8 +40,6 @@
 #include "event.h"
 #include "event2/thread.h"
 
-static pthread_mutex_t *all_locks;
-
 void regress_pthread(void);
 
 struct cond_wait {
@@ -131,14 +129,30 @@ pthread_basic(struct event_base *base)
 }
 
 static void
-locking(int mode, int locknum)
+locking(int mode, void *lock)
 {
-	pthread_mutex_t *lock = &all_locks[locknum];
-
 	if (mode & EVTHREAD_LOCK)
 		pthread_mutex_lock(lock);
 	else
 		pthread_mutex_unlock(lock);
+}
+
+static void *
+alloc_lock(void)
+{
+	pthread_mutex_t *lock = malloc(sizeof(*lock));
+	assert(lock != NULL);
+
+	pthread_mutex_init(lock, NULL);
+
+	return (lock);
+}
+
+static void
+free_lock(void *lock)
+{
+	pthread_mutex_destroy(lock);
+	free(lock);
 }
 
 static unsigned long
@@ -155,17 +169,11 @@ regress_pthread(void)
 
 	pthread_mutex_init(&count_lock, NULL);
 
-	all_locks = malloc(evthread_num_locks() * sizeof(pthread_mutex_t));
-	for (i = 0; i < evthread_num_locks(); ++i)
-		pthread_mutex_init(&all_locks[i], NULL);
-
+	evthread_set_create_callback(base, alloc_lock, free_lock);
 	evthread_set_locking_callback(base, locking);
 	evthread_set_id_callback(base, get_id);
 
 	pthread_basic(base);
-
-	for (i = 0; i < evthread_num_locks(); ++i)
-		pthread_mutex_destroy(&all_locks[i]);
 
 	pthread_mutex_destroy(&count_lock);
 

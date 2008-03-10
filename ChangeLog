@@ -58,6 +58,7 @@ Changes in current version:
  o Do not free the kqop file descriptor in other processes, also allow it to be 0; from Andrei Nigmatulin
  o Provide OpenSSL style support for multiple threads accessing the same event_base
  o make event_rpcgen.py generate code include event-config.h; reported by Sam Banks.
+ o switch thread support so that locks get allocated as they are needed.
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

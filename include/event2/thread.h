@@ -63,11 +63,11 @@ extern "C" {
 #define EVTHREAD_READ	0x08
 
 /**
-   returns the number of locks that need to be allocated
-
-   @return the number of locks required by libevent
+   Sets the function libevent should use for allocating and freeing
+   locks.
 */
-int evthread_num_locks(void);
+void evthread_set_create_callback(struct event_base *base,
+    void *(*alloc_fn)(void), void (*free_fn)(void *));
 
 struct event_base;
 /**
@@ -79,7 +79,7 @@ struct event_base;
      set, and in addition, either EVHTREAD_WRITE or EVTREAD_READ.
  */
 void evthread_set_locking_callback(struct event_base *base,
-    void (*locking_fn)(int mode, int locknum));
+    void (*locking_fn)(int mode, void *lock));
 
 /**
    Sets the function for derminting the thread id.
