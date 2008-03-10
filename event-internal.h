@@ -71,7 +71,14 @@ struct event_base {
 	/* threading support */
 	unsigned long th_owner_id;
 	unsigned long (*th_get_id)(void);
-	void (*th_lock)(int mode, int locknum);
+	void *th_base_lock;
+
+	/* allocate/free locks */
+	void *(*th_alloc)(void);
+	void (*th_free)(void *lock);
+
+	/* lock or unlock a lock */
+	void (*th_lock)(int mode, void *lock);
 	int th_notify_fd[2];
 	struct event th_notify;
 };
