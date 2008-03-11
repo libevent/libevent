@@ -165,11 +165,10 @@ void
 regress_pthread(void)
 {
 	struct event_base *base = event_base_new();
-	int i;
 
 	pthread_mutex_init(&count_lock, NULL);
 
-	evthread_set_create_callback(base, alloc_lock, free_lock);
+	evthread_set_lock_create_callbacks(base, alloc_lock, free_lock);
 	evthread_set_locking_callback(base, locking);
 	evthread_set_id_callback(base, get_id);
 

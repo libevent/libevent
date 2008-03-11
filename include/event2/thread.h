@@ -63,10 +63,15 @@ extern "C" {
 #define EVTHREAD_READ	0x08
 
 /**
-   Sets the function libevent should use for allocating and freeing
-   locks.
+   Sets the functions libevent should use for allocating and freeing
+   locks.  This needs to be called in addition to
+   evthread_set_locking_callback() before using libevent in a
+   multi-threaded application.
+
+   @param alloc_fn function to be called when allocating a new lock
+   @param free_fn function to be called to a free a lock
 */
-void evthread_set_create_callback(struct event_base *base,
+void evthread_set_lock_create_callbacks(struct event_base *base,
     void *(*alloc_fn)(void), void (*free_fn)(void *));
 
 struct event_base;
