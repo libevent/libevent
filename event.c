@@ -1213,7 +1213,7 @@ evthread_set_id_callback(struct event_base *base,
 }
 
 void
-evthread_set_create_callback(struct event_base *base,
+evthread_set_lock_create_callbacks(struct event_base *base,
     void *(*alloc_fn)(void), void (*free_fn)(void *))
 {
 #ifdef DISABLE_THREAD_SUPPORT
