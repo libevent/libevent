@@ -69,11 +69,11 @@ struct devpollop {
 	int nchanges;
 };
 
-void *devpoll_init	(struct event_base *);
-int devpoll_add	(void *, struct event *);
-int devpoll_del	(void *, struct event *);
-int devpoll_dispatch	(struct event_base *, void *, struct timeval *);
-void devpoll_dealloc	(struct event_base *, void *);
+static void *devpoll_init	(struct event_base *);
+static int devpoll_add	(void *, struct event *);
+static int devpoll_del	(void *, struct event *);
+static int devpoll_dispatch	(struct event_base *, void *, struct timeval *);
+static void devpoll_dealloc	(struct event_base *, void *);
 
 struct eventop devpollops = {
 	"devpoll",
@@ -123,7 +123,7 @@ devpoll_queue(struct devpollop *devpollop, int fd, int events) {
 	return(0);
 }
 
-void *
+static void *
 devpoll_init(struct event_base *base)
 {
 	int dpfd, nfiles = NEVENT;
@@ -182,7 +182,7 @@ devpoll_init(struct event_base *base)
 	return (devpollop);
 }
 
-int
+static int
 devpoll_recalc(struct event_base *base, void *arg, int max)
 {
 	struct devpollop *devpollop = arg;
@@ -209,7 +209,7 @@ devpoll_recalc(struct event_base *base, void *arg, int max)
 	return (0);
 }
 
-int
+static int
 devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	struct devpollop *devpollop = arg;
@@ -286,7 +286,7 @@ devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 }
 
 
-int
+static int
 devpoll_add(void *arg, struct event *ev)
 {
 	struct devpollop *devpollop = arg;
@@ -340,7 +340,7 @@ devpoll_add(void *arg, struct event *ev)
 	return (0);
 }
 
-int
+static int
 devpoll_del(void *arg, struct event *ev)
 {
 	struct devpollop *devpollop = arg;
@@ -397,7 +397,7 @@ devpoll_del(void *arg, struct event *ev)
 	return (0);
 }
 
-void
+static void
 devpoll_dealloc(struct event_base *base, void *arg)
 {
 	struct devpollop *devpollop = arg;

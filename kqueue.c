@@ -75,12 +75,12 @@ struct kqop {
 	pid_t pid;
 };
 
-void *kq_init	(struct event_base *);
-int kq_add	(void *, struct event *);
-int kq_del	(void *, struct event *);
-int kq_dispatch	(struct event_base *, void *, struct timeval *);
-int kq_insert	(struct kqop *, struct kevent *);
-void kq_dealloc (struct event_base *, void *);
+static void *kq_init	(struct event_base *);
+static int kq_add	(void *, struct event *);
+static int kq_del	(void *, struct event *);
+static int kq_dispatch	(struct event_base *, void *, struct timeval *);
+static int kq_insert	(struct kqop *, struct kevent *);
+static void kq_dealloc (struct event_base *, void *);
 
 const struct eventop kqops = {
 	"kqueue",
@@ -92,7 +92,7 @@ const struct eventop kqops = {
 	1 /* need reinit */
 };
 
-void *
+static void *
 kq_init(struct event_base *base)
 {
 	int kq;
@@ -155,7 +155,7 @@ kq_init(struct event_base *base)
 	return (kqueueop);
 }
 
-int
+static int
 kq_insert(struct kqop *kqop, struct kevent *kev)
 {
 	int nevents = kqop->nevents;
@@ -206,7 +206,7 @@ kq_sighandler(int sig)
 	/* Do nothing here */
 }
 
-int
+static int
 kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	struct kqop *kqop = arg;
@@ -283,7 +283,7 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 }
 
 
-int
+static int
 kq_add(void *arg, struct event *ev)
 {
 	struct kqop *kqop = arg;
@@ -351,7 +351,7 @@ kq_add(void *arg, struct event *ev)
 	return (0);
 }
 
-int
+static int
 kq_del(void *arg, struct event *ev)
 {
 	struct kqop *kqop = arg;
@@ -405,7 +405,7 @@ kq_del(void *arg, struct event *ev)
 	return (0);
 }
 
-void
+static void
 kq_dealloc(struct event_base *base, void *arg)
 {
 	struct kqop *kqop = arg;
