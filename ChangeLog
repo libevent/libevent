@@ -3,6 +3,7 @@ Changes in 1.4.3-stable:
  o Patch from Tani Hosokawa: make some functions in http.c threadsafe.
  o Do not free the kqop file descriptor in other processes, also allow it to be 0; from Andrei Nigmatulin
  o make event_rpcgen.py generate code include event-config.h; reported by Sam Banks.
+ o make event methods static so that they are not exported; from Andrei Nigmatulin
 
 Changes in 1.4.2-rc:
  o remove pending timeouts on event_base_free()
