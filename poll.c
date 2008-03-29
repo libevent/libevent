@@ -65,11 +65,11 @@ struct pollop {
 			      * "no entry." */
 };
 
-void *poll_init	(struct event_base *);
-int poll_add		(void *, struct event *);
-int poll_del		(void *, struct event *);
-int poll_dispatch	(struct event_base *, void *, struct timeval *);
-void poll_dealloc	(struct event_base *, void *);
+static void *poll_init	(struct event_base *);
+static int poll_add		(void *, struct event *);
+static int poll_del		(void *, struct event *);
+static int poll_dispatch	(struct event_base *, void *, struct timeval *);
+static void poll_dealloc	(struct event_base *, void *);
 
 const struct eventop pollops = {
 	"poll",
@@ -81,7 +81,7 @@ const struct eventop pollops = {
     0
 };
 
-void *
+static void *
 poll_init(struct event_base *base)
 {
 	struct pollop *pollop;
@@ -132,7 +132,7 @@ poll_check_ok(struct pollop *pop)
 #define poll_check_ok(pop)
 #endif
 
-int
+static int
 poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	int res, i, msec = -1, nfds;
@@ -196,7 +196,7 @@ poll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	return (0);
 }
 
-int
+static int
 poll_add(void *arg, struct event *ev)
 {
 	struct pollop *pop = arg;
@@ -301,7 +301,7 @@ poll_add(void *arg, struct event *ev)
  * Nothing to be done here.
  */
 
-int
+static int
 poll_del(void *arg, struct event *ev)
 {
 	struct pollop *pop = arg;
@@ -354,7 +354,7 @@ poll_del(void *arg, struct event *ev)
 	return (0);
 }
 
-void
+static void
 poll_dealloc(struct event_base *base, void *arg)
 {
 	struct pollop *pop = arg;

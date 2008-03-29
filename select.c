@@ -70,11 +70,11 @@ struct selectop {
 	struct event **event_w_by_fd;
 };
 
-void *select_init	(struct event_base *);
-int select_add		(void *, struct event *);
-int select_del		(void *, struct event *);
-int select_dispatch	(struct event_base *, void *, struct timeval *);
-void select_dealloc     (struct event_base *, void *);
+static void *select_init	(struct event_base *);
+static int select_add		(void *, struct event *);
+static int select_del		(void *, struct event *);
+static int select_dispatch	(struct event_base *, void *, struct timeval *);
+static void select_dealloc     (struct event_base *, void *);
 
 const struct eventop selectops = {
 	"select",
@@ -88,7 +88,7 @@ const struct eventop selectops = {
 
 static int select_resize(struct selectop *sop, int fdsz);
 
-void *
+static void *
 select_init(struct event_base *base)
 {
 	struct selectop *sop;
@@ -134,7 +134,7 @@ check_selectop(struct selectop *sop)
 #define check_selectop(sop) do { (void) sop; } while (0)
 #endif
 
-int
+static int
 select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	int res, i;
@@ -250,7 +250,7 @@ select_resize(struct selectop *sop, int fdsz)
 }
 
 
-int
+static int
 select_add(void *arg, struct event *ev)
 {
 	struct selectop *sop = arg;
@@ -300,7 +300,7 @@ select_add(void *arg, struct event *ev)
  * Nothing to be done here.
  */
 
-int
+static int
 select_del(void *arg, struct event *ev)
 {
 	struct selectop *sop = arg;
@@ -328,7 +328,7 @@ select_del(void *arg, struct event *ev)
 	return (0);
 }
 
-void
+static void
 select_dealloc(struct event_base *base, void *arg)
 {
 	struct selectop *sop = arg;

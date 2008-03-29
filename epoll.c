@@ -69,11 +69,11 @@ struct epollop {
 	int epfd;
 };
 
-void *epoll_init	(struct event_base *);
-int epoll_add	(void *, struct event *);
-int epoll_del	(void *, struct event *);
-int epoll_dispatch	(struct event_base *, void *, struct timeval *);
-void epoll_dealloc	(struct event_base *, void *);
+static void *epoll_init	(struct event_base *);
+static int epoll_add	(void *, struct event *);
+static int epoll_del	(void *, struct event *);
+static int epoll_dispatch	(struct event_base *, void *, struct timeval *);
+static void epoll_dealloc	(struct event_base *, void *);
 
 struct eventop epollops = {
 	"epoll",
@@ -96,7 +96,7 @@ struct eventop epollops = {
 
 #define NEVENT	32000
 
-void *
+static void *
 epoll_init(struct event_base *base)
 {
 	int epfd, nfiles = NEVENT;
@@ -179,7 +179,7 @@ epoll_recalc(struct event_base *base, void *arg, int max)
 	return (0);
 }
 
-int
+static int
 epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 {
 	struct epollop *epollop = arg;
@@ -238,7 +238,7 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 }
 
 
-int
+static int
 epoll_add(void *arg, struct event *ev)
 {
 	struct epollop *epollop = arg;
@@ -286,7 +286,7 @@ epoll_add(void *arg, struct event *ev)
 	return (0);
 }
 
-int
+static int
 epoll_del(void *arg, struct event *ev)
 {
 	struct epollop *epollop = arg;
@@ -337,7 +337,7 @@ epoll_del(void *arg, struct event *ev)
 	return (0);
 }
 
-void
+static void
 epoll_dealloc(struct event_base *base, void *arg)
 {
 	struct epollop *epollop = arg;
