@@ -445,6 +445,11 @@ evrpc_request_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 	if (hook_res == EVRPC_TERMINATE)
 		goto error;
 
+	/* on success, we are going to transmit marshaled binary data */
+	if (evhttp_find_header(req->output_headers, "Content-Type") == NULL) {
+		evhttp_add_header(req->output_headers,
+		    "Content-Type", "application/octet-stream");
+	}
 	evhttp_send_reply(req, HTTP_OK, "OK", rpc_state->rpc_data);
 
 	evrpc_reqstate_free(rpc_state);
