@@ -353,6 +353,12 @@ evrpc_request_done(struct evrpc_req_generic* rpc_state)
 		req, data) == -1)
 		goto error;
 
+	/* on success, we are going to transmit marshaled binary data */
+	if (evhttp_find_header(req->output_headers, "Content-Type") == NULL) {
+		evhttp_add_header(req->output_headers,
+		    "Content-Type", "application/octet-stream");
+	}
+
 	evhttp_send_reply(req, HTTP_OK, "OK", data);
 
 	evbuffer_free(data);

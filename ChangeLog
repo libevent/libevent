@@ -4,6 +4,7 @@ Changes in 1.4.3-stable:
  o Do not free the kqop file descriptor in other processes, also allow it to be 0; from Andrei Nigmatulin
  o make event_rpcgen.py generate code include event-config.h; reported by Sam Banks.
  o make event methods static so that they are not exported; from Andrei Nigmatulin
+ o make RPC replies use application/octet-stream as mime type
 
 Changes in 1.4.2-rc:
  o remove pending timeouts on event_base_free()
@@ -44,7 +45,7 @@ Changes in 1.4.1-beta:
  o When building with GCC, use the "format" attribute to verify type correctness of calls to printf-like functions.
  o removed linger from http server socket; reported by Ilya Martynov
  o Rewrite win32.c backend to be O(n lg n) rather than O(n^2)
-
+	
 Changes in 1.4.0-beta:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
  o demote most http warnings to debug messages
