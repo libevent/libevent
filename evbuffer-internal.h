@@ -45,6 +45,7 @@ struct evbuffer_chain;
 struct evbuffer {
 	struct evbuffer_chain *first;
 	struct evbuffer_chain *last;
+	struct evbuffer_chain *previous_to_last;
 
 	size_t total_len;	/* total length of all buffers */
 

@@ -53,10 +53,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "event.h"
 #include "evutil.h"
 #include "event-internal.h"
+#include "evbuffer-internal.h"
 #include "log.h"
 
 #include "regress.h"
@@ -890,6 +892,38 @@ test_nonpersist_readd(void)
 	cleanup_test();
 }
 
+/* validates that an evbuffer is good */
+static void
+evbuffer_validate(struct evbuffer *buf)
+{
+	struct evbuffer_chain *chain, *previous = NULL;
+	size_t sum = 0;
+	
+	if (buf->first == NULL) {
+		assert(buf->last == NULL);
+		assert(buf->previous_to_last == NULL);
+		assert(buf->total_len == 0);
+	}
+
+	if (buf->previous_to_last == NULL) {
+		assert(buf->first == buf->last);
+	}
+
+	chain = buf->first;
+	while (chain != NULL) {
+		sum += chain->off;
+		if (chain->next == NULL) {
+			assert(buf->previous_to_last == previous);
+			assert(buf->last == chain);
+		}
+		assert(chain->buffer_len >= chain->misalign + chain->off);
+		previous = chain;
+		chain = chain->next;
+	}
+
+	assert(sum == buf->total_len);
+}
+
 static void
 test_evbuffer(void)
 {
@@ -900,19 +934,24 @@ test_evbuffer(void)
 	int i;
 	setup_test("Testing Evbuffer: ");
 
+	evbuffer_validate(evb);
 	evbuffer_add_printf(evb, "%s/%d", "hello", 1);
+	evbuffer_validate(evb);
 
 	if (EVBUFFER_LENGTH(evb) != 7 ||
 	    strcmp((char*)EVBUFFER_DATA(evb), "hello/1") != 0)
 		goto out;
 
 	evbuffer_drain(evb, strlen("hello/"));
+	evbuffer_validate(evb);
 	if (EVBUFFER_LENGTH(evb) != 1 ||
 	    strcmp((char*)EVBUFFER_DATA(evb), "1") != 0)
 		goto out;
 
 	evbuffer_add_printf(evb_two, "%s", "/hello");
+	evbuffer_validate(evb);
 	evbuffer_add_buffer(evb, evb_two);
+	evbuffer_validate(evb);
 
 	if (EVBUFFER_LENGTH(evb_two) != 0 ||
 	    EVBUFFER_LENGTH(evb) != 7 ||
@@ -921,6 +960,7 @@ test_evbuffer(void)
 
 	memset(buffer, 0, sizeof(buffer));
 	evbuffer_add(evb, buffer, sizeof(buffer));
+	evbuffer_validate(evb);
 	if (EVBUFFER_LENGTH(evb) != 7 + 512)
 		goto out;
 
@@ -931,20 +971,29 @@ test_evbuffer(void)
 		goto out;
 	if (memcmp(tmp + 7, buffer, sizeof(buffer)) != 0)
 		goto out;
+	evbuffer_validate(evb);
 
 	evbuffer_prepend(evb, "something", 9);
+	evbuffer_validate(evb);
 	evbuffer_prepend(evb, "else", 4);
+	evbuffer_validate(evb);
 
 	tmp = (char *)evbuffer_pullup(evb, 4 + 9 + 7);
 	if (strncmp(tmp, "elsesomething1/hello", 4 + 9 + 7) != 0)
 		goto out;
+	evbuffer_validate(evb);
 
 	evbuffer_drain(evb, -1);
+	evbuffer_validate(evb);
 	evbuffer_drain(evb_two, -1);
+	evbuffer_validate(evb);
 
 	for (i = 0; i < 3; ++i) {
 		evbuffer_add(evb_two, buffer, sizeof(buffer));
+		evbuffer_validate(evb_two);
 		evbuffer_add_buffer(evb, evb_two);
+		evbuffer_validate(evb);
+		evbuffer_validate(evb_two);
 	}
 
 	if (EVBUFFER_LENGTH(evb_two) != 0 ||
@@ -957,12 +1006,14 @@ test_evbuffer(void)
 	if (EVBUFFER_LENGTH(evb_two) != sz_tmp ||
 	    EVBUFFER_LENGTH(evb) != sizeof(buffer) / 2)
 		goto out;
+	evbuffer_validate(evb);
 
 	if (memcmp(evbuffer_pullup(
 			   evb, -1), buffer, sizeof(buffer) / 2) != 0 ||
 	    memcmp(evbuffer_pullup(
 			   evb_two, -1), buffer, sizeof(buffer) != 0))
 		goto out;
+	evbuffer_validate(evb);
 
 	test_ok = 1;
 	
@@ -986,123 +1037,169 @@ test_evbuffer_readln(void)
 	/* Test EOL_ANY. */
 	s = "complex silly newline\r\n\n\r\n\n\rmore\0\n";
 	evbuffer_add(evb, s, strlen(s)+2);
+	evbuffer_validate(evb);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_ANY);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "complex silly newline"))
 		goto done;
 	free(cp);
+	evbuffer_validate(evb);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_ANY);
 	if (!cp || sz != 5 || memcmp(cp, "more\0\0", 6))
 		goto done;
 	if (EVBUFFER_LENGTH(evb) != 0)
 		goto done;
+	evbuffer_validate(evb);
 	s = "\nno newline";
 	evbuffer_add(evb, s, strlen(s));
 	free(cp);
+	evbuffer_validate(evb);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_ANY);
 	if (!cp || sz || strcmp(cp, ""))
 		goto done;
 	free(cp);
+	evbuffer_validate(evb);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_ANY);
 	if (cp)
 		goto done;
+	evbuffer_validate(evb);
 	evbuffer_drain(evb, EVBUFFER_LENGTH(evb));
 	if (EVBUFFER_LENGTH(evb) != 0)
 		goto done;
+	evbuffer_validate(evb);
 
 	/* Test EOL_CRLF */
 	s = "Line with\rin the middle\nLine with good crlf\r\n\nfinal\n";
 	evbuffer_add(evb, s, strlen(s));
+	evbuffer_validate(evb);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "Line with\rin the middle"))
 		goto done;
-
 	free(cp);
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "Line with good crlf"))
 		goto done;
 	free(cp);
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF);
 	if (!cp || sz != strlen(cp) || strcmp(cp, ""))
 		goto done;
 	free(cp);
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "final"))
 		goto done;
 	s = "x";
+	evbuffer_validate(evb);
 	evbuffer_add(evb, s, 1);
+	evbuffer_validate(evb);
 	free(cp);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF);
 	if (cp)
 		goto done;
+	evbuffer_validate(evb);
 
 	/* Test CRLF_STRICT */
 	s = " and a bad crlf\nand a good one\r\n\r\nMore\r";
 	evbuffer_add(evb, s, strlen(s));
+	evbuffer_validate(evb);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (!cp || sz != strlen(cp) ||
 	    strcmp(cp, "x and a bad crlf\nand a good one"))
 		goto done;
 	free(cp);
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (!cp || sz != strlen(cp) || strcmp(cp, ""))
 		goto done;
 	free(cp);
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (cp)
 		goto done;
+	evbuffer_validate(evb);
 	evbuffer_add(evb, "\n", 1);
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "More"))
 		goto done;
 	if (EVBUFFER_LENGTH(evb) != 0)
 		goto done;
+	evbuffer_validate(evb);
 
 	/* Test LF */
 	s = "An\rand a nl\n\nText";
 	evbuffer_add(evb, s, strlen(s));
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "An\rand a nl"))
 		goto done;
 	free(cp);
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
 	if (!cp || sz != strlen(cp) || strcmp(cp, ""))
 		goto done;
 	free(cp);
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
 	if (cp)
 		goto done;
 	evbuffer_add(evb, "\n", 1);
+	evbuffer_validate(evb);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "Text"))
 		goto done;
+	evbuffer_validate(evb);
 
 	/* Test CRLF_STRICT - across boundaries*/
 	s = " and a bad crlf\nand a good one\r";
 	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_validate(evb);
 	evbuffer_add_buffer(evb, evb_tmp);
+	evbuffer_validate(evb);
 	s = "\n\r";
 	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_validate(evb);
 	evbuffer_add_buffer(evb, evb_tmp);
+	evbuffer_validate(evb);
 	s = "\nMore\r";
 	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_validate(evb);
 	evbuffer_add_buffer(evb, evb_tmp);
+	evbuffer_validate(evb);
 
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (!cp || sz != strlen(cp) ||
 	    strcmp(cp, " and a bad crlf\nand a good one"))
 		goto done;
 	free(cp);
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (!cp || sz != strlen(cp) || strcmp(cp, ""))
 		goto done;
 	free(cp);
+	evbuffer_validate(evb);
+
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (cp)
 		goto done;
+	evbuffer_validate(evb);
 	evbuffer_add(evb, "\n", 1);
+	evbuffer_validate(evb);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "More"))
 		goto done;
+	evbuffer_validate(evb);
 	if (EVBUFFER_LENGTH(evb) != 0)
 		goto done;
 
@@ -1112,6 +1209,36 @@ test_evbuffer_readln(void)
 	evbuffer_free(evb);
 	evbuffer_free(evb_tmp);
 	if (cp) free(cp);
+	cleanup_test();
+}
+
+static void
+test_evbuffer_iterative(void)
+{
+	struct evbuffer *buf = evbuffer_new();
+	const char *abc = "abcdefghijklmnopqrstvuwxyzabcdefghijklmnopqrstvuwxyzabcdefghijklmnopqrstvuwxyzabcdefghijklmnopqrstvuwxyz";
+	int i, j, sum;
+
+	setup_test("Testing evbuffer() iterative: ");
+
+	sum = 0;
+	for (i = 0; i < 1000; ++i) {
+		for (j = 1; j < strlen(abc); ++j) {
+			char format[32];
+
+			snprintf(format, sizeof(format), "%%%d.%ds", j, j);
+			evbuffer_add_printf(buf, format, abc);
+			evbuffer_validate(buf);
+
+			sum += j;
+		}
+	}
+	
+	if (sum == EVBUFFER_LENGTH(buf))
+		test_ok = 1;
+
+	evbuffer_free(buf);
+
 	cleanup_test();
 }
 
@@ -1129,8 +1256,11 @@ test_evbuffer_find(void)
 	/* make sure evbuffer_find doesn't match past the end of the buffer */
 	fprintf(stdout, "Testing evbuffer_find 1: ");
 	evbuffer_add(buf, (u_char*)test1, strlen(test1));
+	evbuffer_validate(buf);
 	evbuffer_drain(buf, strlen(test1));	  
+	evbuffer_validate(buf);
 	evbuffer_add(buf, (u_char*)test2, strlen(test2));
+	evbuffer_validate(buf);
 	p = evbuffer_find(buf, (u_char*)"\r\n", 2);
 	if (p == NULL) {
 		fprintf(stdout, "OK\n");
@@ -1145,10 +1275,12 @@ test_evbuffer_find(void)
 	 */
 	fprintf(stdout, "Testing evbuffer_find 2: ");
 	evbuffer_drain(buf, strlen(test2));
+	evbuffer_validate(buf);
 	for (i = 0; i < EVBUFFER_INITIAL_LENGTH; ++i)
 		test3[i] = 'a';
 	test3[EVBUFFER_INITIAL_LENGTH - 1] = 'x';
 	evbuffer_add(buf, (u_char *)test3, EVBUFFER_INITIAL_LENGTH);
+	evbuffer_validate(buf);
 	p = evbuffer_find(buf, (u_char *)"xy", 2);
 	if (p == NULL) {
 		printf("OK\n");
@@ -1718,6 +1850,7 @@ main (int argc, char **argv)
 	test_priorities(3);
 
 	test_evbuffer();
+	test_evbuffer_iterative();
 	test_evbuffer_readln();
 	test_evbuffer_find();
 	

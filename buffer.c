@@ -122,6 +122,37 @@ evbuffer_length(struct evbuffer *buffer)
 	return (buffer->total_len);
 }
 
+#define ZERO_CHAIN(dst) do { \
+		(dst)->first = NULL;		\
+		(dst)->last = NULL;		\
+		(dst)->previous_to_last = NULL; \
+		(dst)->total_len = 0;		\
+	} while (0)
+		    
+#define COPY_CHAIN(dst, src) do { \
+		(dst)->first = (src)->first;			   \
+		(dst)->previous_to_last = (src)->previous_to_last; \
+		(dst)->last = (src)->last;			   \
+		(dst)->total_len = (src)->total_len;		   \
+	} while (0)
+
+#define APPEND_CHAIN(dst, src) do {					\
+		(dst)->last->next = (src)->first;			\
+		(dst)->previous_to_last = (src)->previous_to_last ?	\
+		    (src)->previous_to_last : (dst)->last;		\
+		(dst)->last = (src)->last;				\
+		(dst)->total_len += (src)->total_len;			\
+	} while (0)
+
+#define PREPEND_CHAIN(dst, src) do {				\
+		(src)->last->next = (dst)->first;		\
+		(dst)->first = (src)->first;			\
+		(dst)->total_len += (src)->total_len;		\
+		if ((dst)->previous_to_last == NULL)		\
+			(dst)->previous_to_last = (src)->last;	\
+	} while (0)
+		
+
 int
 evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 {
@@ -129,19 +160,13 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	size_t in_total_len = inbuf->total_len;
 
 	if (out_total_len == 0) {
-		outbuf->first = inbuf->first;
-		outbuf->last = inbuf->last;
-		outbuf->total_len = in_total_len;
+		COPY_CHAIN(outbuf, inbuf);
 	} else {
-		outbuf->last->next = inbuf->first;
-		outbuf->last = inbuf->last;
-		outbuf->total_len += in_total_len;
+		APPEND_CHAIN(outbuf, inbuf);
 	}
 
 	/* remove everything from inbuf */
-	inbuf->first = NULL;
-	inbuf->last = NULL;
-	inbuf->total_len = 0;
+	ZERO_CHAIN(inbuf);
 
 	if (inbuf->cb != NULL && inbuf->total_len != in_total_len)
 		(*inbuf->cb)(inbuf, in_total_len, inbuf->total_len,
@@ -163,19 +188,13 @@ evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		return;
 
 	if (out_total_len == 0) {
-		outbuf->first = inbuf->first;
-		outbuf->last = inbuf->last;
-		outbuf->total_len = in_total_len;
+		COPY_CHAIN(outbuf, inbuf);
 	} else {
-		inbuf->last->next = outbuf->first;
-		outbuf->first = inbuf->first;
-		outbuf->total_len += in_total_len;
+		PREPEND_CHAIN(outbuf, inbuf);
 	}
 
 	/* remove everything from inbuf */
-	inbuf->first = NULL;
-	inbuf->last = NULL;
-	inbuf->total_len = 0;
+	ZERO_CHAIN(inbuf);
 
 	if (inbuf->cb != NULL && inbuf->total_len != in_total_len)
 		(*inbuf->cb)(inbuf, in_total_len, inbuf->total_len,
@@ -201,8 +220,7 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 			event_free(chain);
 		}
 
-		buf->total_len = 0;
-		buf->first = buf->last = NULL;
+		ZERO_CHAIN(buf);
 	} else {
 		buf->total_len -= len;
 
@@ -214,6 +232,8 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 		}
 
 		buf->first = chain;
+		if (buf->first == buf->last)
+			buf->previous_to_last = NULL;
 		chain->misalign += len;
 		chain->off -= len;
 	}
@@ -254,6 +274,8 @@ evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 	buf->first = chain;
 	if (chain == NULL)
 		buf->last = NULL;
+	if (buf->first == buf->last)
+		buf->previous_to_last = NULL;
 
 	if (datlen) {
 		memcpy(data, chain->buffer + chain->misalign, datlen);
@@ -276,7 +298,8 @@ int
 evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
     size_t datlen)
 {
-	struct evbuffer_chain *chain = src->first, *previous = chain;
+	struct evbuffer_chain *chain = src->first;
+	struct evbuffer_chain *previous = chain, *previous_to_previous = NULL;
 	size_t nread = 0;
 
 	/* short-cut if there is no more data buffered */
@@ -293,6 +316,7 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 	while (chain->off <= datlen) {
 		nread += chain->off;
 		datlen -= chain->off;
+		previous_to_previous = previous;
 		previous = chain;
 		chain = chain->next;
 	}
@@ -304,9 +328,12 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 		} else {
 			dst->last->next = src->first;
 		}
+		dst->previous_to_last = previous_to_previous;
 		dst->last = previous;
 		previous->next = NULL;
 		src->first = chain;
+		if (src->first == src->last)
+			src->previous_to_last = NULL;
 			
 		dst->total_len += nread;
 	}
@@ -383,8 +410,12 @@ evbuffer_pullup(struct evbuffer *buf, int size)
 		memcpy(buffer, chain->buffer + chain->misalign, size);
 		chain->misalign += size;
 		chain->off -= size;
+		if (chain == buf->last)
+			buf->previous_to_last = tmp;
 	} else {
 		buf->last = tmp;
+		/* the last is already the first, so we have no previous */
+		buf->previous_to_last = NULL;
 	}
 
 	tmp->next = chain;
@@ -605,6 +636,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	if (chain->next == NULL)
 		return (-1);
 	buf->last = chain->next;
+	buf->previous_to_last = chain;
 	buf->total_len += datlen;
 
 	memcpy(chain->buffer + chain->misalign + chain->off,
@@ -646,13 +678,15 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 		chain->misalign -= datlen;
 	} else {
 		struct evbuffer_chain *tmp;
-		/* XXX we should copy as much of the data into chain as possible
-		 * before we put any into tmp. */
+		/* XXX we should copy as much of the data into chain
+		 * as possible before we put any into tmp. */
 
 		/* we need to add another chain */
 		if ((tmp = evbuffer_chain_new(datlen)) == NULL)
 			return (-1);
 		buf->first = tmp;
+		if (buf->previous_to_last == NULL)
+			buf->previous_to_last = tmp;
 		tmp->next = chain;
 
 		tmp->off = datlen;
@@ -691,6 +725,7 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 			return (-1);
 
 		buf->first = buf->last = chain;
+		buf->previous_to_last = NULL;
 		return (0);
 	}
 
@@ -700,24 +735,33 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 	if (chain->buffer_len >= need)
 		return (0);
 
-	/* If the misalignment plus the remaining space fulfils our data needs, we
-	 * just force an alignment to happen.  Afterwards, we have enough space.
+	/* If the misalignment plus the remaining space fulfils our
+	 * data needs, we just force an alignment to happen.
+	 * Afterwards, we have enough space.
 	 */
 	if (chain->buffer_len - chain->off >= datlen) {
 		evbuffer_chain_align(chain);
 		return (0);
 	}
 
-	/* avoid a memcpy if we can just append a new chain */
-	/* XXX in practice, does this result in lots of leftover space?  */
-	length = chain->buffer_len << 1;
-	if (length < datlen)
-		length = datlen;
+	/* figure out how much space we need */
+	length = chain->buffer_len - chain->misalign + datlen;
 	tmp = evbuffer_chain_new(length);
 	if (tmp == NULL)
 		return (-1);
-	chain->next = tmp;
+	/* copy the data over that we had so far */
+	tmp->off = chain->off;
+	tmp->misalign = 0;
+	memcpy(tmp->buffer, chain->buffer + chain->misalign, chain->off);
+
+	/* fix up the chain */
+	if (buf->first == chain)
+		buf->first = tmp;
+	if (buf->previous_to_last)
+		buf->previous_to_last->next = tmp;
 	buf->last = tmp;
+
+	event_free(chain);
 
 	return (0);
 }
@@ -851,7 +895,6 @@ evbuffer_find(struct evbuffer *buffer, const u_char *what, size_t len)
 int
 evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 {
-	struct evbuffer_chain *chain;
 	char *buffer;
 	size_t space;
 	size_t old_len = buf->total_len;
@@ -862,8 +905,8 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 	if (evbuffer_expand(buf, 64) == -1)
 		return (-1);
 
-	chain = buf->last;
 	for (;;) {
+		struct evbuffer_chain *chain = buf->last;
 		size_t used = chain->misalign + chain->off;
 		buffer = (char *)chain->buffer + chain->misalign + chain->off;
 		assert(chain->buffer_len >= used);
