@@ -2020,7 +2020,8 @@ evdns_clear_nameservers_and_suspend(void)
 	while (1) {
 		struct nameserver *next = server->next;
 		(void) event_del(&server->event);
-		(void) evtimer_del(&server->timeout_event);
+		if (evtimer_initialized(&server->timeout_event))
+			(void) evtimer_del(&server->timeout_event);
 		if (server->socket >= 0)
 			CLOSE_SOCKET(server->socket);
 		free(server);

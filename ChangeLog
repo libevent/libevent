@@ -5,6 +5,7 @@ Changes in 1.4.3-stable:
  o make event_rpcgen.py generate code include event-config.h; reported by Sam Banks.
  o make event methods static so that they are not exported; from Andrei Nigmatulin
  o make RPC replies use application/octet-stream as mime type
+ o do not delete uninitialized timeout event in evdns
 
 Changes in 1.4.2-rc:
  o remove pending timeouts on event_base_free()
