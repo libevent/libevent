@@ -36,7 +36,7 @@ extern "C" {
 struct event_base;
 #ifndef DISABLE_THREAD_SUPPORT
 #define EVTHREAD_USE_LOCKS(base) \
-	((base)->th_lock != NULL)
+	(base != NULL && (base)->th_lock != NULL)
 
 #define EVTHREAD_IN_THREAD(base) \
 	((base)->th_get_id == NULL || \
