@@ -52,17 +52,17 @@ class Struct:
         name = "%s_%s" % (self._name, entry.Name())
         return name.upper()
 
+    def PrintIndented(self, file, ident, code):
+        """Takes an array, add indentation to each entry and prints it."""
+        for entry in code:
+            print >>file, '%s%s' % (ident, entry)
+
 class StructCCode(Struct):
     """ Knows how to generate C code for a struct """
     
     def __init__(self, name):
         Struct.__init__(self, name)
         
-    def PrintIndented(self, file, ident, code):
-        """Takes an array, add indentation to each entry and prints it."""
-        for entry in code:
-            print >>file, '%s%s' % (ident, entry)
-
     def PrintTags(self, file):
         """Prints the tag definitions for a structure."""
         print >>file, '/* Tag definition for %s */' % self._name
@@ -1366,7 +1366,7 @@ def ProcessOneEntry(factory, newstruct, entry):
         newname = newentry.Name()+ '_array'
 
         # Now borgify the new entry.
-        newentry = EntryArray(newentry)
+        newentry = factory.EntryArray(newentry)
         newentry.SetStruct(newstruct)
         newentry.SetLineCount(line_count)
         newentry.MakeArray()
@@ -1598,6 +1598,9 @@ class CCodeGenerator:
 
     def EntryStruct(self, entry_type, name, tag, struct_name):
         return EntryStruct(entry_type, name, tag, struct_name)
+
+    def EntryArray(self, entry):
+        return EntryArray(entry)
 
 def Generate(factory, filename):
     ext = filename.split('.')[-1]
