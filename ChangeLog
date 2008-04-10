@@ -1,3 +1,6 @@
+Changes in 1.4.4-stable:
+ o Correct the documentation on buffer printf functions.
+
 Changes in 1.4.3-stable:
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive
  o Patch from Tani Hosokawa: make some functions in http.c threadsafe.
