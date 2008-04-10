@@ -120,7 +120,8 @@ epoll_init(struct event_base *base)
 	/* Initalize the kernel queue */
 
 	if ((epfd = epoll_create(nfiles)) == -1) {
-                event_warn("epoll_create");
+		if (errno != ENOSYS)
+			event_warn("epoll_create");
 		return (NULL);
 	}
 
