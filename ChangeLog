@@ -63,6 +63,7 @@ Changes in current version:
  o make RPC replies use application/octet-stream as mime type
  o do not delete uninitialized timeout event in evdns
  o Correct the documentation on buffer printf functions.
+ o Don't warn on unimplemented epoll_create(): this isn't a problem, just a reason to fall back to poll or select.
 
 
 Changes in 1.4.0:
