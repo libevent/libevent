@@ -1,5 +1,6 @@
 Changes in 1.4.4-stable:
  o Correct the documentation on buffer printf functions.
+ o Don't warn on unimplemented epoll_create(): this isn't a problem, just a reason to fall back to poll or select.
 
 Changes in 1.4.3-stable:
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive
