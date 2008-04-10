@@ -196,7 +196,8 @@ int evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf);
   @param buf the evbuffer that will be appended to
   @param fmt a format string
   @param ... arguments that will be passed to printf(3)
-  @return 0 if successful, or -1 if an error occurred
+  @return The number of bytes added if successful, or -1 if an error occurred.
+
  */
 int evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
 #ifdef __GNUC__
@@ -211,7 +212,7 @@ int evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
   @param buf the evbuffer that will be appended to
   @param fmt a format string
   @param ap a varargs va_list argument array that will be passed to vprintf(3)
-  @return 0 if successful, or -1 if an error occurred
+  @return The number of bytes added if successful, or -1 if an error occurred.
  */
 int evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap);
 
