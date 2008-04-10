@@ -62,7 +62,9 @@ Changes in current version:
  o make event methods static so that they are not exported; from Andrei Nigmatulin
  o make RPC replies use application/octet-stream as mime type
  o do not delete uninitialized timeout event in evdns
-	
+ o Correct the documentation on buffer printf functions.
+
+
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
  o demote most http warnings to debug messages
