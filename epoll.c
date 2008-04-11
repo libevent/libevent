@@ -96,6 +96,14 @@ struct eventop epollops = {
 
 #define NEVENT	32000
 
+/* On Linux kernels at least up to 2.6.24.4, epoll can't handle timeout
+ * values bigger than (LONG_MAX - 999ULL)/HZ.  HZ in the wild can be
+ * as big as 1000, and LONG_MAX can be as small as (1<<31)-1, so the
+ * largest number of msec we can support here is 2147482.  Let's
+ * round that down by 47 seconds.
+ */
+#define MAX_EPOLL_TIMEOUT_MSEC (35*60*1000)
+
 static void *
 epoll_init(struct event_base *base)
 {
@@ -190,6 +198,12 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	if (tv != NULL)
 		timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
+
+	if (timeout > MAX_EPOLL_TIMEOUT_MSEC) {
+		/* Linux kernels can wait forever if the timeout is too big;
+		 * see comment on MAX_EPOLL_TIMEOUT_MSEC. */
+		timeout = MAX_EPOLL_TIMEOUT_MSEC;
+	}
 
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
 
