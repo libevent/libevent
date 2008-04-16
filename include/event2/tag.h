@@ -44,10 +44,6 @@ extern "C" {
 #ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef _EVENT_HAVE_STDINT_H
-#include <stdint.h>
-#endif
-#include <stdarg.h>
 
 /* For int types. */
 #include <event2/util.h>
