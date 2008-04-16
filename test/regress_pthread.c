@@ -158,7 +158,13 @@ free_lock(void *lock)
 static unsigned long
 get_id(void)
 {
-	return (unsigned long)(pthread_self());
+	union {
+		pthread_t thr;
+		unsigned long id;
+	} r;
+	r.id = 0;
+	r.thr = pthread_self();
+	return r.id;
 }
 
 void
