@@ -51,7 +51,7 @@
 #endif
 #include <errno.h>
 
-#include "evutil.h"
+#include "event2/util.h"
 #include "log.h"
 
 int

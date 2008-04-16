@@ -55,11 +55,13 @@
 #include <assert.h>
 #include <time.h>
 
-#include "event.h"
+#include "event2/event.h"
+#include "event2/event_struct.h"
+#include "event2/event_compat.h"
 #include "event-internal.h"
 #include "evthread-internal.h"
 #include "event2/thread.h"
-#include "evutil.h"
+#include "event2/util.h"
 #include "log.h"
 
 #ifdef HAVE_EVENT_PORTS

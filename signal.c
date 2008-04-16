@@ -57,9 +57,10 @@
 #endif
 #include <assert.h>
 
-#include "event.h"
+#include "event2/event.h"
+#include "event2/event_struct.h"
 #include "event-internal.h"
-#include "evutil.h"
+#include "event2/util.h"
 #include "evsignal.h"
 #include "log.h"
 
