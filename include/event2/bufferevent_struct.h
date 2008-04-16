@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2000-2007 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,9 +24,74 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVUTIL_H_
-#define _EVUTIL_H_
+#ifndef _EVENT2_BUFFEREVENT_STRUCT_H_
+#define _EVENT2_BUFFEREVENT_STRUCT_H_
 
+/** @file bufferevent_struct.h
+
+  Data structures for bufferevents.  Using these structures may hurt forward
+  compatibility with later versions of libevent: be careful!
+
+ */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <event-config.h>
+#ifdef _EVENT_HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef _EVENT_HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#ifdef _EVENT_HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#include <stdarg.h>
+
+/* For int types. */
 #include <event2/util.h>
+/* For struct event */
+#include <event2/event_struct.h>
 
-#endif /* _EVUTIL_H_ */
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef WIN32_LEAN_AND_MEAN
+typedef unsigned char u_char;
+typedef unsigned short u_short;
+#endif
+
+struct event_watermark {
+	size_t low;
+	size_t high;
+};
+
+struct bufferevent {
+	struct event ev_read;
+	struct event ev_write;
+
+	struct evbuffer *input;
+	struct evbuffer *output;
+
+	struct event_watermark wm_read;
+	struct event_watermark wm_write;
+
+	evbuffercb readcb;
+	evbuffercb writecb;
+	everrorcb errorcb;
+	void *cbarg;
+
+	int timeout_read;	/* in seconds */
+	int timeout_write;	/* in seconds */
+
+	short enabled;	/* events that are currently enabled */
+};
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _EVENT2_BUFFEREVENT_STRUCT_H_ */

@@ -65,7 +65,8 @@
 #include <unistd.h>
 #endif
 
-#include "event.h"
+#include "event2/event.h"
+#include "event2/buffer.h"
 #include "config.h"
 #include "log.h"
 #include "mm-internal.h"

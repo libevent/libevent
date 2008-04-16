@@ -57,7 +57,8 @@
 #define PTR_TO_UDATA(x)	(x)
 #endif
 
-#include "event.h"
+#include "event2/event.h"
+#include "event2/event_struct.h"
 #include "event-internal.h"
 #include "log.h"
 #include "event-internal.h"
