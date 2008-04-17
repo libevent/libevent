@@ -165,7 +165,7 @@ extern "C" {
 #endif
 
 /* For integer types. */
-#include <evutil.h>
+#include <event2/util.h>
 
 /** Error codes 0-5 are as described in RFC 1035. */
 #define DNS_ERR_NONE 0
@@ -210,6 +210,9 @@ extern "C" {
  */
 typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, void *addresses, void *arg);
 
+struct evdns_base;
+struct event_base;
+
 /**
   Initialize the asynchronous DNS library.
 
@@ -221,6 +224,7 @@ typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, 
   @see evdns_shutdown()
  */
 int evdns_init(void);
+struct evdns_base * evdns_base_new(struct event_base *event_base, int initialize_nameservers);
 
 
 /**
@@ -235,6 +239,7 @@ int evdns_init(void);
   @see evdns_init()
  */
 void evdns_shutdown(int fail_requests);
+void evdns_base_free(struct evdns_base *base, int fail_requests);
 
 
 /**
@@ -257,7 +262,8 @@ const char *evdns_err_to_string(int err);
   @see evdns_nameserver_ip_add()
  */
 int evdns_nameserver_add(unsigned long int address);
-
+int evdns_base_nameserver_add(struct evdns_base *base,
+                              unsigned long int address);
 
 /**
   Get the number of configured nameservers.
@@ -272,6 +278,8 @@ int evdns_nameserver_add(unsigned long int address);
  */
 int evdns_count_nameservers(void);
 
+int evdns_base_count_nameservers(struct evdns_base *base);
+
 
 /**
   Remove all configured nameservers, and suspend all pending resolves.
@@ -282,6 +290,7 @@ int evdns_count_nameservers(void);
   @see evdns_resume()
  */
 int evdns_clear_nameservers_and_suspend(void);
+int evdns_base_clear_nameservers_and_suspend(struct evdns_base *base);
 
 
 /**
@@ -294,7 +303,7 @@ int evdns_clear_nameservers_and_suspend(void);
   @see evdns_clear_nameservers_and_suspend()
  */
 int evdns_resume(void);
-
+int evdns_base_resume(struct evdns_base *base);
 
 /**
   Add a nameserver.
@@ -306,6 +315,8 @@ int evdns_resume(void);
   @see evdns_nameserver_add()
  */
 int evdns_nameserver_ip_add(const char *ip_as_string);
+int evdns_base_nameserver_ip_add(struct evdns_base *base,
+                                 const char *ip_as_string);
 
 
 /**
@@ -319,7 +330,7 @@ int evdns_nameserver_ip_add(const char *ip_as_string);
   @see evdns_resolve_ipv6(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
  */
 int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback, void *ptr);
-
+int evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 /**
   Lookup an AAAA record for a given name.
@@ -332,6 +343,7 @@ int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback
   @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
  */
 int evdns_resolve_ipv6(const char *name, int flags, evdns_callback_type callback, void *ptr);
+int evdns_base_resolve_ipv6(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 struct in_addr;
 struct in6_addr;
@@ -347,6 +359,7 @@ struct in6_addr;
   @see evdns_resolve_reverse_ipv6()
  */
 int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
+int evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 
 /**
@@ -360,6 +373,7 @@ int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type cal
   @see evdns_resolve_reverse_ipv6()
  */
 int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
+int evdns_base_resolve_reverse_ipv6(struct evdns_base *base, struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 
 /**
@@ -375,6 +389,7 @@ int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_ty
   @return 0 if successful, or -1 if an error occurred
  */
 int evdns_set_option(const char *option, const char *val, int flags);
+int evdns_base_set_option(struct evdns_base *base, const char *option, const char *val, int flags);
 
 
 /**
@@ -399,6 +414,7 @@ int evdns_set_option(const char *option, const char *val, int flags);
   @see resolv.conf(3), evdns_config_windows_nameservers()
  */
 int evdns_resolv_conf_parse(int flags, const char *const filename);
+int evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char *const filename);
 
 
 /**
@@ -420,6 +436,7 @@ int evdns_config_windows_nameservers(void);
   Clear the list of search domains.
  */
 void evdns_search_clear(void);
+void evdns_base_search_clear(struct evdns_base *base);
 
 
 /**
@@ -428,6 +445,7 @@ void evdns_search_clear(void);
   @param domain the domain to be added to the search list
  */
 void evdns_search_add(const char *domain);
+void evdns_base_search_add(struct evdns_base *base, const char *domain);
 
 
 /**
@@ -439,6 +457,7 @@ void evdns_search_add(const char *domain);
   @param ndots the new ndots parameter
  */
 void evdns_search_ndots_set(const int ndots);
+void evdns_base_search_ndots_set(struct evdns_base *base, const int ndots);
 
 /**
   A callback that is invoked when a log message is generated
@@ -508,6 +527,7 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
 #define EVDNS_CLASS_INET   1
 
 struct evdns_server_port *evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
+struct evdns_server_port *evdns_add_server_port_with_base(struct event_base *base, int socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
 void evdns_close_server_port(struct evdns_server_port *port);
 
 int evdns_server_request_add_reply(struct evdns_server_request *req, int section, const char *name, int type, int dns_class, int ttl, int datalen, int is_name, const char *data);
