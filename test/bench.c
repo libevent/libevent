@@ -67,7 +67,7 @@ static struct event *events;
 static void
 read_cb(int fd, short which, void *arg)
 {
-	int idx = (int) arg, widx = idx + 1;
+	long idx = (long) arg, widx = idx + 1;
 	u_char ch;
 
 	count += read(fd, &ch, sizeof(ch));
@@ -83,7 +83,8 @@ read_cb(int fd, short which, void *arg)
 static struct timeval *
 run_once(void)
 {
-	int *cp, i, space;
+	int *cp, space;
+	long i;
 	static struct timeval ts, te;
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
