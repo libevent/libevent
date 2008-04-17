@@ -84,7 +84,7 @@
 #undef timeout_initialized
 
 #include "strlcpy-internal.h"
-#include "event.h"
+#include "event2/event.h"
 #include "evhttp.h"
 #include "evutil.h"
 #include "log.h"

@@ -58,7 +58,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
-#include "event.h"
+#include "event2/event.h"
 
 #include "log.h"
 

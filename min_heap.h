@@ -27,7 +27,7 @@
 #ifndef _MIN_HEAP_H_
 #define _MIN_HEAP_H_
 
-#include "event.h"
+#include "event2/event.h"
 
 typedef struct min_heap
 {
