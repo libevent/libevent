@@ -2272,14 +2272,17 @@ evhttp_get_request_connection(
 	evutil_socket_t fd, struct sockaddr *sa, socklen_t salen)
 {
 	struct evhttp_connection *evcon;
-	char *hostname, *portname;
+	char *hostname = NULL, *portname = NULL;
 
 	name_from_addr(sa, salen, &hostname, &portname);
 	event_debug(("%s: new request from %s:%s on %d\n",
 			__func__, hostname, portname, fd));
 
 	/* we need a connection object to put the http request on */
-	if ((evcon = evhttp_connection_new(hostname, atoi(portname))) == NULL)
+	evcon = evhttp_connection_new(hostname, atoi(portname));
+	event_free(hostname);
+	event_free(portname);
+	if (evcon == NULL)
 		return (NULL);
 
 	/* associate the base if we have one*/
@@ -2379,9 +2382,8 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
     char **phost, char **pport)
 {
 #ifdef HAVE_GETNAMEINFO
-	/* XXXX not threadsafe. */
-	static char ntop[NI_MAXHOST];
-	static char strport[NI_MAXSERV];
+	char ntop[NI_MAXHOST];
+	char strport[NI_MAXSERV];
 	int ni_result;
 
 	if ((ni_result = getnameinfo(sa, salen,
@@ -2391,10 +2393,11 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 			event_err(1, "getnameinfo failed");
 		else
 			event_errx(1, "getnameinfo failed: %s", gai_strerror(ni_result));
+		return;
 	}
- 
-	*phost = ntop;
-	*pport = strport;
+
+	*phost = event_strdup(ntop);
+	*pport = event_strdup(strport);
 #else
 	/* XXXX */
 #endif
