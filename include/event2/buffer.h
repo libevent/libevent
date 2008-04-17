@@ -65,6 +65,7 @@ extern "C" {
 #endif
 
 #include <event-config.h>
+#include <stdarg.h>
 
 struct evbuffer;
 
