@@ -2275,6 +2275,9 @@ evhttp_get_request_connection(
 	char *hostname = NULL, *portname = NULL;
 
 	name_from_addr(sa, salen, &hostname, &portname);
+        if (hostname==NULL || portname==NULL)
+		return (NULL);
+
 	event_debug(("%s: new request from %s:%s on %d\n",
 			__func__, hostname, portname, fd));
 
