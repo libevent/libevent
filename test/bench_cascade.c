@@ -65,7 +65,7 @@ static void
 read_cb(int fd, short which, void *arg)
 {
 	char ch;
-	int idx = (int) arg;
+	long idx = (long) arg;
 
 	read(fd, &ch, sizeof(ch));
 	if (idx >= 0)
@@ -95,7 +95,7 @@ run_once(int num_pipes)
 	}
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
-		int fd = i < num_pipes - 1 ? cp[3] : -1;
+		long fd = i < num_pipes - 1 ? cp[3] : -1;
 		event_set(&events[i], cp[0], EV_READ, read_cb, (void *) fd);
 		event_add(&events[i], NULL);
 	}
