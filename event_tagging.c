@@ -71,22 +71,20 @@ int evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf);
 int evtag_encode_tag(struct evbuffer *evbuf, ev_uint32_t tag);
 int evtag_decode_tag(ev_uint32_t *ptag, struct evbuffer *evbuf);
 
-static struct evbuffer *_buf;	/* not thread safe */
-
 void
 evtag_init(void)
 {
-	if (_buf != NULL)
-		return;
-
-	if ((_buf = evbuffer_new()) == NULL)
-		event_err(1, "%s: malloc", __func__);
 }
 
-/* 
- * We encode integer's by nibbles; the first nibble contains the number
+/*
+ * We encode integers by nibbles; the first nibble contains the number
  * of significant nibbles - 1;  this allows us to encode up to 64-bit
  * integers.  This function is byte-order independent.
+ *
+ * @param number a 32-bit unsigned integer to encode
+ * @param data a pointer to where the data should be written.  Must
+ *    have at least 5 bytes free.
+ * @return the number of bytes written into data.
  */
 
 static inline int
@@ -94,7 +92,7 @@ encode_int_internal(ev_uint8_t *data, ev_uint32_t number)
 {
 	int off = 1, nibbles = 0;
 
-	memset(data, 0, sizeof(data));
+	memset(data, 0, sizeof(uint32_t)+1);
 	while (number) {
 		if (off & 0x1)
 			data[off/2] = (data[off/2] & 0xf0) | (number & 0x0f);
@@ -245,6 +243,14 @@ evtag_marshal_timeval(struct evbuffer *evbuf, ev_uint32_t tag, struct timeval *t
 	evtag_marshal(evbuf, tag, data, len);
 }
 
+/* Internal: decode an integer from an evbuffer, without draining it.
+ *  Only integers up to 32-bits are supported.
+ *
+ * @param evbuf the buffer to read from
+ * @param offset an index into the buffer at which we should start reading.
+ * @param pnumber a pointer to receive the integer.
+ * @return The length of the number as encoded, or -1 on error.
+ */
 static int
 decode_int_internal(ev_uint32_t *pnumber, struct evbuffer *evbuf, int offset)
 {
@@ -386,6 +392,7 @@ evtag_unmarshal_int(struct evbuffer *evbuf, ev_uint32_t need_tag,
 	ev_uint32_t tag;
 	ev_uint32_t len;
 	ev_uint32_t integer;
+	int result;
 
 	if (decode_tag_internal(&tag, evbuf, 1 /* dodrain */) == -1)
 		return (-1);
@@ -397,14 +404,13 @@ evtag_unmarshal_int(struct evbuffer *evbuf, ev_uint32_t need_tag,
 
 	if (EVBUFFER_LENGTH(evbuf) < len)
 		return (-1);
-	
-	evbuffer_drain(_buf, EVBUFFER_LENGTH(_buf));
-	if (evbuffer_add(_buf, evbuffer_pullup(evbuf, len), len) == -1)
-		return (-1);
 
+	result = decode_int_internal(pinteger, evbuf, 0);
 	evbuffer_drain(evbuf, len);
-
-	return (evtag_decode_int(pinteger, _buf));
+	if (result < 0 || result > len) /* XXX Should this be != rather than > ?*/
+		return (-1);
+	else
+		return result;
 }
 
 /* Unmarshal a fixed length tag */
@@ -454,17 +460,24 @@ evtag_unmarshal_timeval(struct evbuffer *evbuf, ev_uint32_t need_tag,
 {
 	ev_uint32_t tag;
 	ev_uint32_t integer;
+	int len, offset, offset2;
+	int result = -1;
 
-	evbuffer_drain(_buf, EVBUFFER_LENGTH(_buf));
-	if (evtag_unmarshal(evbuf, &tag, _buf) == -1 || tag != need_tag)
+	if ((len = evtag_unmarshal_header(evbuf, &tag)) == -1)
 		return (-1);
-
-	if (evtag_decode_int(&integer, _buf) == -1)
-		return (-1);
+	if (tag != need_tag)
+		goto done;
+	if ((offset = decode_int_internal(&integer, evbuf, 0)) == -1)
+		goto done;
 	ptv->tv_sec = integer;
-	if (evtag_decode_int(&integer, _buf) == -1)
-		return (-1);
+	if ((offset2 = decode_int_internal(&integer, evbuf, offset)) == -1)
+		goto done;
 	ptv->tv_usec = integer;
+	if (offset + offset2 > len) /* XXX Should this be != instead of > ? */
+		goto done;
 
-	return (0);
+	result = 0;
+ done:
+	evbuffer_drain(evbuf, len);
+	return result;
 }
