@@ -92,7 +92,7 @@ encode_int_internal(ev_uint8_t *data, ev_uint32_t number)
 {
 	int off = 1, nibbles = 0;
 
-	memset(data, 0, sizeof(uint32_t)+1);
+	memset(data, 0, sizeof(ev_uint32_t)+1);
 	while (number) {
 		if (off & 0x1)
 			data[off/2] = (data[off/2] & 0xf0) | (number & 0x0f);
