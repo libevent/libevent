@@ -688,8 +688,7 @@ event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(
 void
 event_free(struct event *ev)
 {
-	/* make sure that this event won't be coming back to haunt us.
-	 * XXX this is safe, right? */
+	/* make sure that this event won't be coming back to haunt us. */
 	event_del(ev);
 	mm_free(ev);
 }
