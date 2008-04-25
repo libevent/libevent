@@ -664,6 +664,36 @@ event_base_set(struct event_base *base, struct event *ev)
 	return (0);
 }
 
+int
+event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, short events, void (*cb)(evutil_socket_t, short, void *), void *arg)
+{
+	event_set(ev, fd, events, cb, arg);
+	return event_base_set(base, ev);
+}
+
+struct event *
+event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(evutil_socket_t, short, void *), void *arg)
+{
+	struct event *ev;
+	ev = mm_malloc(sizeof(struct event));
+	if (!ev)
+		return NULL;
+	if (event_assign(ev, base, fd, events, cb, arg) < 0) {
+		mm_free(ev);
+		return NULL;
+	}
+	return ev;
+}
+
+void
+event_free(struct event *ev)
+{
+	/* make sure that this event won't be coming back to haunt us.
+	 * XXX this is safe, right? */
+	event_del(ev);
+	mm_free(ev);
+}
+
 /*
  * Set's the priority of an event - if an event is already scheduled
  * changing the priority is going to fail.
