@@ -120,7 +120,7 @@ fake_getaddrinfo(const char *hostname, struct addrinfo *ai)
 	ai->ai_socktype = SOCK_STREAM;
 	ai->ai_protocol = 0;
 	ai->ai_addrlen = sizeof(struct sockaddr_in);
-	if (NULL == (ai->ai_addr = event_malloc(ai->ai_addrlen)))
+	if (NULL == (ai->ai_addr = mm_malloc(ai->ai_addrlen)))
 		return (-1);
 	sa = (struct sockaddr_in*)ai->ai_addr;
 	memset(sa, 0, ai->ai_addrlen);
@@ -137,7 +137,7 @@ fake_getaddrinfo(const char *hostname, struct addrinfo *ai)
 static void
 fake_freeaddrinfo(struct addrinfo *ai)
 {
-	event_free(ai->ai_addr);
+	mm_free(ai->ai_addr);
 }
 #endif
 
@@ -230,7 +230,7 @@ evhttp_htmlescape(const char *html)
 	for (i = 0; i < old_size; ++i)
 		new_size += strlen(html_replace(html[i], scratch_space));
 
-	p = escaped_html = event_malloc(new_size + 1);
+	p = escaped_html = mm_malloc(new_size + 1);
 	if (escaped_html == NULL)
 		event_err(1, "%s: malloc(%d)", __func__, new_size + 1);
 	for (i = 0; i < old_size; ++i) {
@@ -540,7 +540,7 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 	default:	/* xxx: probably should just error on default */
 		/* the callback looks at the uri to determine errors */
 		if (req->uri) {
-			event_free(req->uri);
+			mm_free(req->uri);
 			req->uri = NULL;
 		}
 
@@ -708,12 +708,12 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 				break;
 			/* the last chunk is on a new line? */
 			if (strlen(p) == 0) {
-				event_free(p);
+				mm_free(p);
 				continue;
 			}
 			req->ntoread = evutil_strtoll(p, &endp, 16);
 			error = *p == '\0' || (*endp != '\0' && *endp != ' ');
-			event_free(p);
+			mm_free(p);
 			if (error) {
 				/* could not get chunk size */
 				return (-1);
@@ -859,10 +859,10 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		EVUTIL_CLOSESOCKET(evcon->fd);
 
 	if (evcon->bind_address != NULL)
-		event_free(evcon->bind_address);
+		mm_free(evcon->bind_address);
 
 	if (evcon->address != NULL)
-		event_free(evcon->address);
+		mm_free(evcon->address);
 
 	if (evcon->input_buffer != NULL)
 		evbuffer_free(evcon->input_buffer);
@@ -870,7 +870,7 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	if (evcon->output_buffer != NULL)
 		evbuffer_free(evcon->output_buffer);
 
-	event_free(evcon);
+	mm_free(evcon);
 }
 
 void
@@ -879,8 +879,8 @@ evhttp_connection_set_local_address(struct evhttp_connection *evcon,
 {
 	assert(evcon->state == EVCON_DISCONNECTED);
 	if (evcon->bind_address)
-		event_free(evcon->bind_address);
-	if ((evcon->bind_address = event_strdup(address)) == NULL)
+		mm_free(evcon->bind_address);
+	if ((evcon->bind_address = mm_strdup(address)) == NULL)
 		event_err(1, "%s: strdup", __func__);
 }
 
@@ -1080,7 +1080,7 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
-	if ((req->response_code_line = event_strdup(readable)) == NULL)
+	if ((req->response_code_line = mm_strdup(readable)) == NULL)
 		event_err(1, "%s: strdup", __func__);
 
 	return (0);
@@ -1135,7 +1135,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
-	if ((req->uri = event_strdup(uri)) == NULL) {
+	if ((req->uri = mm_strdup(uri)) == NULL) {
 		event_debug(("%s: evhttp_decode_uri", __func__));
 		return (-1);
 	}
@@ -1169,9 +1169,9 @@ evhttp_clear_headers(struct evkeyvalq *headers)
 	    header != NULL;
 	    header = TAILQ_FIRST(headers)) {
 		TAILQ_REMOVE(headers, header, next);
-		event_free(header->key);
-		event_free(header->value);
-		event_free(header);
+		mm_free(header->key);
+		mm_free(header->value);
+		mm_free(header);
 	}
 }
 
@@ -1195,9 +1195,9 @@ evhttp_remove_header(struct evkeyvalq *headers, const char *key)
 
 	/* Free and remove the header that we found */
 	TAILQ_REMOVE(headers, header, next);
-	event_free(header->key);
-	event_free(header->value);
-	event_free(header);
+	mm_free(header->key);
+	mm_free(header->value);
+	mm_free(header);
 
 	return (0);
 }
@@ -1217,19 +1217,19 @@ evhttp_add_header(struct evkeyvalq *headers,
 		return (-1);
 	}
 
-	header = event_calloc(1, sizeof(struct evkeyval));
+	header = mm_calloc(1, sizeof(struct evkeyval));
 	if (header == NULL) {
 		event_warn("%s: calloc", __func__);
 		return (-1);
 	}
-	if ((header->key = event_strdup(key)) == NULL) {
-		event_free(header);
+	if ((header->key = mm_strdup(key)) == NULL) {
+		mm_free(header);
 		event_warn("%s: strdup", __func__);
 		return (-1);
 	}
-	if ((header->value = event_strdup(value)) == NULL) {
-		event_free(header->key);
-		event_free(header);
+	if ((header->value = mm_strdup(value)) == NULL) {
+		mm_free(header->key);
+		mm_free(header);
 		event_warn("%s: strdup", __func__);
 		return (-1);
 	}
@@ -1261,7 +1261,7 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 
 		if (*line == '\0') { /* Last header - Done */
 			done = 1;
-			event_free(line);
+			mm_free(line);
 			break;
 		}
 
@@ -1293,13 +1293,13 @@ evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
 				goto error;
 		}
 
-		event_free(line);
+		mm_free(line);
 	}
 
 	return (done);
 
  error:
-	event_free(line);
+	mm_free(line);
 	return (-1);
 }
 
@@ -1450,7 +1450,7 @@ evhttp_connection_new(const char *address, unsigned short port)
 	
 	event_debug(("Attempting connection to %s:%d\n", address, port));
 
-	if ((evcon = event_calloc(1, sizeof(struct evhttp_connection))) == NULL) {
+	if ((evcon = mm_calloc(1, sizeof(struct evhttp_connection))) == NULL) {
 		event_warn("%s: calloc failed", __func__);
 		goto error;
 	}
@@ -1461,7 +1461,7 @@ evhttp_connection_new(const char *address, unsigned short port)
 	evcon->timeout = -1;
 	evcon->retry_cnt = evcon->retry_max = 0;
 
-	if ((evcon->address = event_strdup(address)) == NULL) {
+	if ((evcon->address = mm_strdup(address)) == NULL) {
 		event_warn("%s: strdup failed", __func__);
 		goto error;
 	}
@@ -1573,8 +1573,8 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	req->kind = EVHTTP_REQUEST;
 	req->type = type;
 	if (req->uri != NULL)
-		event_free(req->uri);
-	if ((req->uri = event_strdup(uri)) == NULL)
+		mm_free(req->uri);
+	if ((req->uri = mm_strdup(uri)) == NULL)
 		event_err(1, "%s: strdup", __func__);
 
 	/* Set the protocol version if it is not supplied */
@@ -1765,8 +1765,8 @@ evhttp_response_code(struct evhttp_request *req, int code, const char *reason)
 	req->kind = EVHTTP_RESPONSE;
 	req->response_code = code;
 	if (req->response_code_line != NULL)
-		event_free(req->response_code_line);
-	req->response_code_line = event_strdup(reason);
+		mm_free(req->response_code_line);
+	req->response_code_line = mm_strdup(reason);
 }
 
 void
@@ -1827,7 +1827,7 @@ evhttp_encode_uri(const char *uri)
 		}
 	}
 	evbuffer_add(buf, "", 1);
-	p = event_strdup((char *)EVBUFFER_DATA(buf));
+	p = mm_strdup((char *)EVBUFFER_DATA(buf));
 	evbuffer_free(buf);
 	
 	return (p);
@@ -1839,7 +1839,7 @@ evhttp_decode_uri(const char *uri)
 	char c, *ret;
 	int i, j, in_query = 0;
 	
-	ret = event_malloc(strlen(uri) + 1);
+	ret = mm_malloc(strlen(uri) + 1);
 	if (ret == NULL)
 		event_err(1, "%s: malloc(%lu)", __func__,
 			  (unsigned long)(strlen(uri) + 1));
@@ -1882,7 +1882,7 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 	if (strchr(uri, '?') == NULL)
 		return;
 
-	if ((line = event_strdup(uri)) == NULL)
+	if ((line = mm_strdup(uri)) == NULL)
 		event_err(1, "%s: strdup", __func__);
 
 
@@ -1904,11 +1904,11 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 		value = evhttp_decode_uri(value);
 		event_debug(("Query Param: %s -> %s\n", key, value));
 		evhttp_add_header(headers, key, value);
-		event_free(value);
+		mm_free(value);
 	}
 
  error:
-	event_free(line);
+	mm_free(line);
 }
 
 static struct evhttp_cb *
@@ -1974,7 +1974,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 
 		evbuffer_add_printf(buf, ERR_FORMAT, escaped_html);
 
-		event_free(escaped_html);
+		mm_free(escaped_html);
 
 		evhttp_send_page(req, buf);
 
@@ -2041,7 +2041,7 @@ evhttp_new_object(void)
 {
 	struct evhttp *http = NULL;
 
-	if ((http = event_calloc(1, sizeof(struct evhttp))) == NULL) {
+	if ((http = mm_calloc(1, sizeof(struct evhttp))) == NULL) {
 		event_warn("%s: calloc", __func__);
 		return (NULL);
 	}
@@ -2074,7 +2074,7 @@ evhttp_start(const char *address, u_short port)
 	struct evhttp *http = evhttp_new_object();
 
 	if (evhttp_bind_socket(http, address, port) == -1) {
-		event_free(http);
+		mm_free(http);
 		return (NULL);
 	}
 
@@ -2099,11 +2099,11 @@ evhttp_free(struct evhttp* http)
 
 	while ((http_cb = TAILQ_FIRST(&http->callbacks)) != NULL) {
 		TAILQ_REMOVE(&http->callbacks, http_cb, next);
-		event_free(http_cb->what);
-		event_free(http_cb);
+		mm_free(http_cb->what);
+		mm_free(http_cb);
 	}
 	
-	event_free(http);
+	mm_free(http);
 }
 
 void
@@ -2118,10 +2118,10 @@ evhttp_set_cb(struct evhttp *http, const char *uri,
 {
 	struct evhttp_cb *http_cb;
 
-	if ((http_cb = event_calloc(1, sizeof(struct evhttp_cb))) == NULL)
+	if ((http_cb = mm_calloc(1, sizeof(struct evhttp_cb))) == NULL)
 		event_err(1, "%s: calloc", __func__);
 
-	http_cb->what = event_strdup(uri);
+	http_cb->what = mm_strdup(uri);
 	http_cb->cb = cb;
 	http_cb->cbarg = cbarg;
 
@@ -2141,8 +2141,8 @@ evhttp_del_cb(struct evhttp *http, const char *uri)
 		return (-1);
 
 	TAILQ_REMOVE(&http->callbacks, http_cb, next);
-	event_free(http_cb->what);
-	event_free(http_cb);
+	mm_free(http_cb->what);
+	mm_free(http_cb);
 
 	return (0);
 }
@@ -2165,20 +2165,20 @@ evhttp_request_new(void (*cb)(struct evhttp_request *, void *), void *arg)
 	struct evhttp_request *req = NULL;
 
 	/* Allocate request structure */
-	if ((req = event_calloc(1, sizeof(struct evhttp_request))) == NULL) {
+	if ((req = mm_calloc(1, sizeof(struct evhttp_request))) == NULL) {
 		event_warn("%s: calloc", __func__);
 		goto error;
 	}
 
 	req->kind = EVHTTP_RESPONSE;
-	req->input_headers = event_calloc(1, sizeof(struct evkeyvalq));
+	req->input_headers = mm_calloc(1, sizeof(struct evkeyvalq));
 	if (req->input_headers == NULL) {
 		event_warn("%s: calloc", __func__);
 		goto error;
 	}
 	TAILQ_INIT(req->input_headers);
 
-	req->output_headers = event_calloc(1, sizeof(struct evkeyvalq));
+	req->output_headers = mm_calloc(1, sizeof(struct evkeyvalq));
 	if (req->output_headers == NULL) {
 		event_warn("%s: calloc", __func__);
 		goto error;
@@ -2210,17 +2210,17 @@ void
 evhttp_request_free(struct evhttp_request *req)
 {
 	if (req->remote_host != NULL)
-		event_free(req->remote_host);
+		mm_free(req->remote_host);
 	if (req->uri != NULL)
-		event_free(req->uri);
+		mm_free(req->uri);
 	if (req->response_code_line != NULL)
-		event_free(req->response_code_line);
+		mm_free(req->response_code_line);
 
 	evhttp_clear_headers(req->input_headers);
-	event_free(req->input_headers);
+	mm_free(req->input_headers);
 
 	evhttp_clear_headers(req->output_headers);
-	event_free(req->output_headers);
+	mm_free(req->output_headers);
 
 	if (req->input_buffer != NULL)
 		evbuffer_free(req->input_buffer);
@@ -2228,7 +2228,7 @@ evhttp_request_free(struct evhttp_request *req)
 	if (req->output_buffer != NULL)
 		evbuffer_free(req->output_buffer);
 
-	event_free(req);
+	mm_free(req);
 }
 
 void
@@ -2276,8 +2276,8 @@ evhttp_get_request_connection(
 
 	name_from_addr(sa, salen, &hostname, &portname);
 	if (hostname==NULL || portname==NULL) {
-		if (hostname) event_free(hostname);
-		if (portname) event_free(portname);
+		if (hostname) mm_free(hostname);
+		if (portname) mm_free(portname);
 		return (NULL);
 	}
 
@@ -2286,8 +2286,8 @@ evhttp_get_request_connection(
 
 	/* we need a connection object to put the http request on */
 	evcon = evhttp_connection_new(hostname, atoi(portname));
-	event_free(hostname);
-	event_free(portname);
+	mm_free(hostname);
+	mm_free(portname);
 	if (evcon == NULL)
 		return (NULL);
 
@@ -2317,7 +2317,7 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 	
 	req->kind = EVHTTP_REQUEST;
 	
-	if ((req->remote_host = event_strdup(evcon->address)) == NULL)
+	if ((req->remote_host = mm_strdup(evcon->address)) == NULL)
 		event_err(1, "%s: strdup", __func__);
 	req->remote_port = evcon->port;
 
@@ -2402,8 +2402,8 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 		return;
 	}
 
-	*phost = event_strdup(ntop);
-	*pport = event_strdup(strport);
+	*phost = mm_strdup(ntop);
+	*pport = mm_strdup(strport);
 #else
 	/* XXXX */
 #endif

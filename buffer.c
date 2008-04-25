@@ -86,7 +86,7 @@ evbuffer_chain_new(size_t size)
 		to_alloc <<= 1;
 
 	/* we get everything in one chunk */
-	if ((chain = event_malloc(to_alloc)) == NULL)
+	if ((chain = mm_malloc(to_alloc)) == NULL)
 		return (NULL);
 
 	memset(chain, 0, EVBUFFER_CHAIN_SIZE);
@@ -101,7 +101,7 @@ evbuffer_new(void)
 {
 	struct evbuffer *buffer;
 	
-	buffer = event_calloc(1, sizeof(struct evbuffer));
+	buffer = mm_calloc(1, sizeof(struct evbuffer));
 
 	return (buffer);
 }
@@ -112,9 +112,9 @@ evbuffer_free(struct evbuffer *buffer)
 	struct evbuffer_chain *chain, *next;
 	for (chain = buffer->first; chain != NULL; chain = next) {
 		next = chain->next;
-		event_free(chain);
+		mm_free(chain);
 	}
-	event_free(buffer);
+	mm_free(buffer);
 }
 
 size_t
@@ -218,7 +218,7 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 		for (chain = buf->first; chain != NULL; chain = next) {
 			next = chain->next;
 
-			event_free(chain);
+			mm_free(chain);
 		}
 
 		ZERO_CHAIN(buf);
@@ -229,7 +229,7 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 			next = chain->next;
 			len -= chain->off;
 
-			event_free(chain);
+			mm_free(chain);
 		}
 
 		buf->first = chain;
@@ -269,7 +269,7 @@ evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 
 		tmp = chain;
 		chain = chain->next;
-		event_free(tmp);
+		mm_free(tmp);
 	}
 
 	buf->first = chain;
@@ -404,7 +404,7 @@ evbuffer_pullup(struct evbuffer *buf, int size)
 		size -= chain->off;
 		buffer += chain->off;
 		
-		event_free(chain);
+		mm_free(chain);
 	}
 
 	if (chain != NULL) {
@@ -582,7 +582,7 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 		return (NULL);
 	}
 
-	if ((line = event_malloc(n_to_copy+1)) == NULL) {
+	if ((line = mm_malloc(n_to_copy+1)) == NULL) {
 		event_warn("%s: out of memory\n", __func__);
 		evbuffer_drain(buffer, n_to_copy + extra_drain);
 		return (NULL);
@@ -762,7 +762,7 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 		buf->previous_to_last->next = tmp;
 	buf->last = tmp;
 
-	event_free(chain);
+	mm_free(chain);
 
 	return (0);
 }

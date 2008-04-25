@@ -91,7 +91,7 @@ poll_init(struct event_base *base)
 	if (getenv("EVENT_NOPOLL"))
 		return (NULL);
 
-	if (!(pollop = event_calloc(1, sizeof(struct pollop))))
+	if (!(pollop = mm_calloc(1, sizeof(struct pollop))))
 		return (NULL);
 
 	evsignal_init(base);
@@ -222,7 +222,7 @@ poll_add(void *arg, struct event *ev)
 			tmp_event_count = pop->event_count * 2;
 
 		/* We need more file descriptors */
-		tmp_event_set = event_realloc(pop->event_set,
+		tmp_event_set = mm_realloc(pop->event_set,
 				 tmp_event_count * sizeof(struct pollfd));
 		if (tmp_event_set == NULL) {
 			event_warn("realloc");
@@ -230,7 +230,7 @@ poll_add(void *arg, struct event *ev)
 		}
 		pop->event_set = tmp_event_set;
 
-		tmp_event_r_back = event_realloc(pop->event_r_back,
+		tmp_event_r_back = mm_realloc(pop->event_r_back,
 			    tmp_event_count * sizeof(struct event *));
 		if (tmp_event_r_back == NULL) {
 			/* event_set overallocated; that's okay. */
@@ -239,7 +239,7 @@ poll_add(void *arg, struct event *ev)
 		}
 		pop->event_r_back = tmp_event_r_back;
 
-		tmp_event_w_back = event_realloc(pop->event_w_back,
+		tmp_event_w_back = mm_realloc(pop->event_w_back,
 			    tmp_event_count * sizeof(struct event *));
 		if (tmp_event_w_back == NULL) {
 			/* event_set and event_r_back overallocated; that's
@@ -261,7 +261,7 @@ poll_add(void *arg, struct event *ev)
 		while (new_count <= ev->ev_fd)
 			new_count *= 2;
 		tmp_idxplus1_by_fd =
-		  event_realloc(pop->idxplus1_by_fd, new_count * sizeof(int));
+		  mm_realloc(pop->idxplus1_by_fd, new_count * sizeof(int));
 		if (tmp_idxplus1_by_fd == NULL) {
 			event_warn("realloc");
 			return (-1);
@@ -362,14 +362,14 @@ poll_dealloc(struct event_base *base, void *arg)
 
 	evsignal_dealloc(base);
 	if (pop->event_set)
-		event_free(pop->event_set);
+		mm_free(pop->event_set);
 	if (pop->event_r_back)
-		event_free(pop->event_r_back);
+		mm_free(pop->event_r_back);
 	if (pop->event_w_back)
-		event_free(pop->event_w_back);
+		mm_free(pop->event_w_back);
 	if (pop->idxplus1_by_fd)
-		event_free(pop->idxplus1_by_fd);
+		mm_free(pop->idxplus1_by_fd);
 
 	memset(pop, 0, sizeof(struct pollop));
-	event_free(pop);
+	mm_free(pop);
 }

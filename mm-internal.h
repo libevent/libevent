@@ -9,11 +9,11 @@ extern "C" {
 #endif
 
 /* Internal use only: Memory allocation functions. */
-void *event_malloc(size_t sz);
-void *event_calloc(size_t count, size_t size);
-char *event_strdup(const char *s);
-void *event_realloc(void *p, size_t sz);
-void event_free(void *p);
+void *mm_malloc(size_t sz);
+void *mm_calloc(size_t count, size_t size);
+char *mm_strdup(const char *s);
+void *mm_realloc(void *p, size_t sz);
+void mm_free(void *p);
 
 #ifdef __cplusplus
 }
