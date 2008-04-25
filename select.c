@@ -98,7 +98,7 @@ select_init(struct event_base *base)
 	if (getenv("EVENT_NOSELECT"))
 		return (NULL);
 
-	if (!(sop = event_calloc(1, sizeof(struct selectop))))
+	if (!(sop = mm_calloc(1, sizeof(struct selectop))))
 		return (NULL);
 
 	select_resize(sop, howmany(32 + 1, NFDBITS)*sizeof(fd_mask));
@@ -210,23 +210,23 @@ select_resize(struct selectop *sop, int fdsz)
 	if (sop->event_readset_in)
 		check_selectop(sop);
 
-	if ((readset_in = event_realloc(sop->event_readset_in, fdsz)) == NULL)
+	if ((readset_in = mm_realloc(sop->event_readset_in, fdsz)) == NULL)
 		goto error;
 	sop->event_readset_in = readset_in;
-	if ((readset_out = event_realloc(sop->event_readset_out, fdsz)) == NULL)
+	if ((readset_out = mm_realloc(sop->event_readset_out, fdsz)) == NULL)
 		goto error;
 	sop->event_readset_out = readset_out;
-	if ((writeset_in = event_realloc(sop->event_writeset_in, fdsz)) == NULL)
+	if ((writeset_in = mm_realloc(sop->event_writeset_in, fdsz)) == NULL)
 		goto error;
 	sop->event_writeset_in = writeset_in;
-	if ((writeset_out = event_realloc(sop->event_writeset_out, fdsz)) == NULL)
+	if ((writeset_out = mm_realloc(sop->event_writeset_out, fdsz)) == NULL)
 		goto error;
 	sop->event_writeset_out = writeset_out;
-	if ((r_by_fd = event_realloc(sop->event_r_by_fd,
+	if ((r_by_fd = mm_realloc(sop->event_r_by_fd,
 		 n_events*sizeof(struct event*))) == NULL)
 		goto error;
 	sop->event_r_by_fd = r_by_fd;
-	if ((w_by_fd = event_realloc(sop->event_w_by_fd,
+	if ((w_by_fd = mm_realloc(sop->event_w_by_fd,
 		 n_events * sizeof(struct event*))) == NULL)
 		goto error;
 	sop->event_w_by_fd = w_by_fd;
@@ -336,18 +336,18 @@ select_dealloc(struct event_base *base, void *arg)
 
 	evsignal_dealloc(base);
 	if (sop->event_readset_in)
-		event_free(sop->event_readset_in);
+		mm_free(sop->event_readset_in);
 	if (sop->event_writeset_in)
-		event_free(sop->event_writeset_in);
+		mm_free(sop->event_writeset_in);
 	if (sop->event_readset_out)
-		event_free(sop->event_readset_out);
+		mm_free(sop->event_readset_out);
 	if (sop->event_writeset_out)
-		event_free(sop->event_writeset_out);
+		mm_free(sop->event_writeset_out);
 	if (sop->event_r_by_fd)
-		event_free(sop->event_r_by_fd);
+		mm_free(sop->event_r_by_fd);
 	if (sop->event_w_by_fd)
-		event_free(sop->event_w_by_fd);
+		mm_free(sop->event_w_by_fd);
 
 	memset(sop, 0, sizeof(struct selectop));
-	event_free(sop);
+	mm_free(sop);
 }

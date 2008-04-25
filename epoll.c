@@ -136,23 +136,23 @@ epoll_init(struct event_base *base)
 
 	FD_CLOSEONEXEC(epfd);
 
-	if (!(epollop = event_calloc(1, sizeof(struct epollop))))
+	if (!(epollop = mm_calloc(1, sizeof(struct epollop))))
 		return (NULL);
 
 	epollop->epfd = epfd;
 
 	/* Initalize fields */
-	epollop->events = event_malloc(nfiles * sizeof(struct epoll_event));
+	epollop->events = mm_malloc(nfiles * sizeof(struct epoll_event));
 	if (epollop->events == NULL) {
-		event_free(epollop);
+		mm_free(epollop);
 		return (NULL);
 	}
 	epollop->nevents = nfiles;
 
-	epollop->fds = event_calloc(nfiles, sizeof(struct evepoll));
+	epollop->fds = mm_calloc(nfiles, sizeof(struct evepoll));
 	if (epollop->fds == NULL) {
-		event_free(epollop->events);
-		event_free(epollop);
+		mm_free(epollop->events);
+		mm_free(epollop);
 		return (NULL);
 	}
 	epollop->nfds = nfiles;
@@ -175,7 +175,7 @@ epoll_recalc(struct event_base *base, void *arg, int max)
 		while (nfds < max)
 			nfds <<= 1;
 
-		fds = event_realloc(epollop->fds, nfds * sizeof(struct evepoll));
+		fds = mm_realloc(epollop->fds, nfds * sizeof(struct evepoll));
 		if (fds == NULL) {
 			event_warn("realloc");
 			return (-1);
@@ -360,12 +360,12 @@ epoll_dealloc(struct event_base *base, void *arg)
 
 	evsignal_dealloc(base);
 	if (epollop->fds)
-		event_free(epollop->fds);
+		mm_free(epollop->fds);
 	if (epollop->events)
-		event_free(epollop->events);
+		mm_free(epollop->events);
 	if (epollop->epfd >= 0)
 		close(epollop->epfd);
 
 	memset(epollop, 0, sizeof(struct epollop));
-	event_free(epollop);
+	mm_free(epollop);
 }

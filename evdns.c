@@ -293,8 +293,16 @@ struct server_request {
 };
 
 struct evdns_base {
-	struct request *req_head, *req_waiting_head;
+	/* An array of n_req_heads circular lists for inflight requests.
+	 * Each inflight request req is in req_heads[req->trans_id % n_req_heads].
+	 */
+	struct request **req_heads;
+	/* A circular list of requests that we're waiting to send, but haven't
+	 * sent yet because there are too many requests inflight */
+	struct request *req_waiting_head;
+	/* A circular list of nameservers. */
 	struct nameserver *server_head;
+	int n_req_heads;
 
 	struct event_base *event_base;
 
@@ -329,6 +337,8 @@ static struct evdns_base *current_base = NULL;
 #define TO_SERVER_REQUEST(base_ptr)										\
 	((struct server_request*)											\
 	 (((char*)(base_ptr) - OFFSET_OF(struct server_request, base))))
+
+#define REQ_HEAD(base, id) ((base)->req_heads[id % (base)->n_req_heads])
 
 /* These are the timeout values for nameservers. If we find a nameserver is down */
 /* we try to probe it at intervals as given below. Values are in seconds. */
@@ -453,7 +463,8 @@ _evdns_log(int warn, const char *fmt, ...)
 /* failure */
 static struct request *
 request_find_from_trans_id(struct evdns_base *base, u16 trans_id) {
-	struct request *req = base->req_head, *const started_at = base->req_head;
+	struct request *req = REQ_HEAD(base, trans_id);
+	struct request *const started_at = req;
 
 	if (req) {
 		do {
@@ -511,6 +522,7 @@ static void
 nameserver_failed(struct nameserver *const ns, const char *msg) {
 	struct request *req, *started_at;
 	struct evdns_base *base = ns->base;
+	int i;
 	/* if this nameserver has already been marked as failed */
 	/* then don't do anything */
 	if (!ns->state) return;
@@ -544,16 +556,18 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 	/* trying to reassign requests to one */
 	if (!base->global_good_nameservers) return;
 
-	req = started_at = base->req_head;
-	if (req) {
-		do {
-			if (req->tx_count == 0 && req->ns == ns) {
-				/* still waiting to go out, can be moved */
-				/* to another server */
-				req->ns = nameserver_pick(base);
-			}
-			req = req->next;
-		} while (req != started_at);
+	for (i = 0; i < base->n_req_heads; ++i) {
+		req = started_at = base->req_heads[i];
+		if (req) {
+			do {
+				if (req->tx_count == 0 && req->ns == ns) {
+					/* still waiting to go out, can be moved */
+					/* to another server */
+					req->ns = nameserver_pick(base);
+				}
+				req = req->next;
+			} while (req != started_at);
+		}
 	}
 }
 
@@ -601,13 +615,13 @@ request_finished(struct request *const req, struct request **head) {
 
 	if (!req->request_appended) {
 		/* need to free the request data on it's own */
-		event_free(req->request);
+		mm_free(req->request);
 	} else {
 		/* the request data is appended onto the header */
 		/* so everything gets free()ed when we: */
 	}
 
-	event_free(req);
+	mm_free(req);
 
 	evdns_requests_pump_waiting_queue(base);
 }
@@ -665,7 +679,7 @@ evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 		req->ns = nameserver_pick(base);
 		request_trans_id_set(req, transaction_id_pick(base));
 
-		evdns_request_insert(req, &base->req_head);
+		evdns_request_insert(req, &REQ_HEAD(base, req->trans_id));
 		evdns_request_transmit(req);
 		evdns_transmit(base);
 	}
@@ -757,19 +771,19 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 				/* a new request was issued so this request is finished and */
 				/* the user callback will be made when that request (or a */
 				/* child of it) finishes. */
-				request_finished(req, &req->base->req_head);
+				request_finished(req, &REQ_HEAD(req->base, req->trans_id));
 				return;
 			}
 		}
 
 		/* all else failed. Pass the failure up */
 		reply_callback(req, 0, error, NULL);
-		request_finished(req, &req->base->req_head);
+		request_finished(req, &REQ_HEAD(req->base, req->trans_id));
 	} else {
 		/* all ok, tell the user */
 		reply_callback(req, ttl, 0, reply);
 		nameserver_up(req->ns);
-		request_finished(req, &req->base->req_head);
+		request_finished(req, &REQ_HEAD(req->base, req->trans_id));
 	}
 }
 
@@ -986,7 +1000,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	if (flags & 0x8000) return -1; /* Must not be an answer. */
 	flags &= 0x0110; /* Only RD and CD get preserved. */
 
-	server_req = event_malloc(sizeof(struct server_request));
+	server_req = mm_malloc(sizeof(struct server_request));
 	if (server_req == NULL) return -1;
 	memset(server_req, 0, sizeof(struct server_request));
 
@@ -996,7 +1010,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 
 	server_req->base.flags = flags;
 	server_req->base.nquestions = 0;
-	server_req->base.questions = event_malloc(sizeof(struct evdns_server_question *) * questions);
+	server_req->base.questions = mm_malloc(sizeof(struct evdns_server_question *) * questions);
 	if (server_req->base.questions == NULL)
 		goto err;
 
@@ -1009,7 +1023,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 		GET16(type);
 		GET16(class);
 		namelen = strlen(tmp_name);
-		q = event_malloc(sizeof(struct evdns_server_question) + namelen);
+		q = mm_malloc(sizeof(struct evdns_server_question) + namelen);
 		if (!q)
 			goto err;
 		q->type = type;
@@ -1036,10 +1050,10 @@ err:
 	if (server_req) {
 		if (server_req->base.questions) {
 			for (i = 0; i < server_req->base.nquestions; ++i)
-				event_free(server_req->base.questions[i]);
-			event_free(server_req->base.questions);
+				mm_free(server_req->base.questions[i]);
+			mm_free(server_req->base.questions);
 		}
-		event_free(server_req);
+		mm_free(server_req);
 	}
 	return -1;
 
@@ -1106,20 +1120,12 @@ evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void))
 static u16
 transaction_id_pick(struct evdns_base *base) {
 	for (;;) {
-		const struct request *req, *started_at;
 		u16 trans_id = trans_id_function();
 
 		if (trans_id == 0xffff) continue;
 		/* now check to see if that id is already inflight */
-		req = started_at = base->req_head;
-		if (req) {
-			do {
-				if (req->trans_id == trans_id) break;
-				req = req->next;
-			} while (req != started_at);
-		}
-		/* we didn't find it, so this is a good id */
-		if (req == started_at) return trans_id;
+		if (request_find_from_trans_id(base, trans_id) == NULL)
+			return trans_id;
 	}
 }
 
@@ -1312,7 +1318,7 @@ dnslabel_clear(struct dnslabel_table *table)
 {
 	int i;
 	for (i = 0; i < table->n_labels; ++i)
-		event_free(table->labels[i].v);
+		mm_free(table->labels[i].v);
 	table->n_labels = 0;
 }
 
@@ -1337,7 +1343,7 @@ dnslabel_table_add(struct dnslabel_table *table, const char *label, off_t pos)
 	int p;
 	if (table->n_labels == MAX_LABELS)
 		return (-1);
-	v = event_strdup(label);
+	v = mm_strdup(label);
 	if (v == NULL)
 		return (-1);
 	p = table->n_labels++;
@@ -1470,7 +1476,7 @@ struct evdns_server_port *
 evdns_add_server_port_with_base(struct event_base *base, int socket, int is_tcp, evdns_request_callback_fn_type cb, void *user_data)
 {
 	struct evdns_server_port *port;
-	if (!(port = event_malloc(sizeof(struct evdns_server_port))))
+	if (!(port = mm_malloc(sizeof(struct evdns_server_port))))
 		return NULL;
 	memset(port, 0, sizeof(struct evdns_server_port));
 
@@ -1537,12 +1543,12 @@ evdns_server_request_add_reply(struct evdns_server_request *_req, int section, c
 	while (*itemp) {
 		itemp = &((*itemp)->next);
 	}
-	item = event_malloc(sizeof(struct server_reply_item));
+	item = mm_malloc(sizeof(struct server_reply_item));
 	if (!item)
 		return -1;
 	item->next = NULL;
-	if (!(item->name = event_strdup(name))) {
-		event_free(item);
+	if (!(item->name = mm_strdup(name))) {
+		mm_free(item);
 		return -1;
 	}
 	item->type = type;
@@ -1553,16 +1559,16 @@ evdns_server_request_add_reply(struct evdns_server_request *_req, int section, c
 	item->data = NULL;
 	if (data) {
 		if (item->is_name) {
-			if (!(item->data = event_strdup(data))) {
-				event_free(item->name);
-				event_free(item);
+			if (!(item->data = mm_strdup(data))) {
+				mm_free(item->name);
+				mm_free(item);
 				return -1;
 			}
 			item->datalen = (u16)-1;
 		} else {
-			if (!(item->data = event_malloc(datalen))) {
-				event_free(item->name);
-				event_free(item);
+			if (!(item->data = mm_malloc(datalen))) {
+				mm_free(item->name);
+				mm_free(item);
 				return -1;
 			}
 			item->datalen = datalen;
@@ -1711,7 +1717,7 @@ overflow:
 
 	req->response_len = j;
 
-	if (!(req->response = event_malloc(req->response_len))) {
+	if (!(req->response = mm_malloc(req->response_len))) {
 		server_request_free_answers(req);
 		dnslabel_clear(&table);
 		return (-1);
@@ -1790,10 +1796,10 @@ server_request_free_answers(struct server_request *req)
 		victim = *list;
 		while (victim) {
 			next = victim->next;
-			event_free(victim->name);
+			mm_free(victim->name);
 			if (victim->data)
-				event_free(victim->data);
-			event_free(victim);
+				mm_free(victim->data);
+			mm_free(victim);
 			victim = next;
 		}
 		*list = NULL;
@@ -1808,8 +1814,8 @@ server_request_free(struct server_request *req)
 	int i, rc=1;
 	if (req->base.questions) {
 		for (i = 0; i < req->base.nquestions; ++i)
-			event_free(req->base.questions[i]);
-		event_free(req->base.questions);
+			mm_free(req->base.questions[i]);
+		mm_free(req->base.questions);
 	}
 
 	if (req->port) {
@@ -1823,7 +1829,7 @@ server_request_free(struct server_request *req)
 	}
 
 	if (req->response) {
-		event_free(req->response);
+		mm_free(req->response);
 	}
 
 	server_request_free_answers(req);
@@ -1835,10 +1841,10 @@ server_request_free(struct server_request *req)
 
 	if (rc == 0) {
 		server_port_free(req->port);
-		event_free(req);
+		mm_free(req);
 		return (1);
 	}
-	event_free(req);
+	mm_free(req);
 	return (0);
 }
 
@@ -1900,7 +1906,7 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 	if (req->tx_count >= req->base->global_max_retransmits) {
 		/* this request has failed */
 		reply_callback(req, 0, DNS_ERR_TIMEOUT, NULL);
-		request_finished(req, &req->base->req_head);
+		request_finished(req, &REQ_HEAD(req->base, req->trans_id));
 	} else {
 		/* retransmit it */
 		evdns_request_transmit(req);
@@ -2015,18 +2021,21 @@ nameserver_send_probe(struct nameserver *const ns) {
 static int
 evdns_transmit(struct evdns_base *base) {
 	char did_try_to_transmit = 0;
+	int i;
 
-	if (base->req_head) {
-		struct request *const started_at = base->req_head, *req = base->req_head;
-		/* first transmit all the requests which are currently waiting */
-		do {
-			if (req->transmit_me) {
-				did_try_to_transmit = 1;
-				evdns_request_transmit(req);
-			}
+	for (i = 0; i < base->n_req_heads; ++i) {
+		if (base->req_heads[i]) {
+			struct request *const started_at = base->req_heads[i], *req = started_at;
+			/* first transmit all the requests which are currently waiting */
+			do {
+				if (req->transmit_me) {
+					did_try_to_transmit = 1;
+					evdns_request_transmit(req);
+				}
 
-			req = req->next;
-		} while (req != started_at);
+				req = req->next;
+			} while (req != started_at);
+		}
 	}
 
 	return did_try_to_transmit;
@@ -2058,7 +2067,7 @@ int
 evdns_base_clear_nameservers_and_suspend(struct evdns_base *base)
 {
 	struct nameserver *server = base->server_head, *started_at = base->server_head;
-	struct request *req = base->req_head, *req_started_at = base->req_head;
+	int i;
 
 	if (!server)
 		return 0;
@@ -2069,7 +2078,7 @@ evdns_base_clear_nameservers_and_suspend(struct evdns_base *base)
 			(void) evtimer_del(&server->timeout_event);
 		if (server->socket >= 0)
 			CLOSE_SOCKET(server->socket);
-		event_free(server);
+		mm_free(server);
 		if (next == started_at)
 			break;
 		server = next;
@@ -2077,28 +2086,33 @@ evdns_base_clear_nameservers_and_suspend(struct evdns_base *base)
 	base->server_head = NULL;
 	base->global_good_nameservers = 0;
 
-	while (req) {
-		struct request *next = req->next;
-		req->tx_count = req->reissue_count = 0;
-		req->ns = NULL;
-		/* ???? What to do about searches? */
-		(void) evtimer_del(&req->timeout_event);
-		req->trans_id = 0;
-		req->transmit_me = 0;
+	for (i = 0; i < base->n_req_heads; ++i) {
+		struct request *req, *req_started_at;
+		req = req_started_at = base->req_heads[i];
+		while (req) {
+			struct request *next = req->next;
+			req->tx_count = req->reissue_count = 0;
+			req->ns = NULL;
+			/* ???? What to do about searches? */
+			(void) evtimer_del(&req->timeout_event);
+			req->trans_id = 0;
+			req->transmit_me = 0;
 
-		base->global_requests_waiting++;
-		evdns_request_insert(req, &base->req_waiting_head);
-		/* We want to insert these suspended elements at the front of
-		 * the waiting queue, since they were pending before any of
-		 * the waiting entries were added.  This is a circular list,
-		 * so we can just shift the start back by one.*/
-		base->req_waiting_head = base->req_waiting_head->prev;
+			base->global_requests_waiting++;
+			evdns_request_insert(req, &base->req_waiting_head);
+			/* We want to insert these suspended elements at the front of
+			 * the waiting queue, since they were pending before any of
+			 * the waiting entries were added.  This is a circular list,
+			 * so we can just shift the start back by one.*/
+			base->req_waiting_head = base->req_waiting_head->prev;
 
-		if (next == req_started_at)
-			break;
-		req = next;
+			if (next == req_started_at)
+				break;
+			req = next;
+		}
+		base->req_heads[i] = NULL;
 	}
-	base->req_head = NULL;
+
 	base->global_requests_inflight = 0;
 
 	return 0;
@@ -2140,7 +2154,7 @@ _evdns_nameserver_add_impl(struct evdns_base *base, unsigned long int address, i
 		} while (server != started_at);
 	}
 
-	ns = (struct nameserver *) event_malloc(sizeof(struct nameserver));
+	ns = (struct nameserver *) mm_malloc(sizeof(struct nameserver));
 	if (!ns) return -1;
 
 	memset(ns, 0, sizeof(struct nameserver));
@@ -2189,7 +2203,7 @@ _evdns_nameserver_add_impl(struct evdns_base *base, unsigned long int address, i
 out2:
 	CLOSE_SOCKET(ns->socket);
 out1:
-	event_free(ns);
+	mm_free(ns);
 	log(EVDNS_LOG_WARN, "Unable to add nameserver %s: error %d", debug_ntoa(address), err);
 	return err;
 }
@@ -2280,7 +2294,7 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 	const u16 trans_id = issuing_now ? transaction_id_pick(base) : 0xffff;
 	/* the request data is alloced in a single block with the header */
 	struct request *const req =
-	    (struct request *) event_malloc(sizeof(struct request) + request_max_len);
+	    (struct request *) mm_malloc(sizeof(struct request) + request_max_len);
 	int rlen;
 	(void) flags;
 
@@ -2307,7 +2321,7 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 
 	return req;
 err1:
-	event_free(req);
+	mm_free(req);
 	return NULL;
 }
 
@@ -2317,7 +2331,7 @@ request_submit(struct request *const req) {
 	if (req->ns) {
 		/* if it has a nameserver assigned then this is going */
 		/* straight into the inflight queue */
-		evdns_request_insert(req, &base->req_head);
+		evdns_request_insert(req, &REQ_HEAD(base, req->trans_id));
 		base->global_requests_inflight++;
 		evdns_request_transmit(req);
 	} else {
@@ -2455,15 +2469,15 @@ search_state_decref(struct search_state *const state) {
 		struct search_domain *next, *dom;
 		for (dom = state->head; dom; dom = next) {
 			next = dom->next;
-			event_free(dom);
+			mm_free(dom);
 		}
-		event_free(state);
+		mm_free(state);
 	}
 }
 
 static struct search_state *
 search_state_new(void) {
-	struct search_state *state = (struct search_state *) event_malloc(sizeof(struct search_state));
+	struct search_state *state = (struct search_state *) mm_malloc(sizeof(struct search_state));
 	if (!state) return NULL;
 	memset(state, 0, sizeof(struct search_state));
 	state->refcount = 1;
@@ -2501,7 +2515,7 @@ search_postfix_add(struct evdns_base *base, const char *domain) {
 	if (!base->global_search_state) return;
 	base->global_search_state->num_domains++;
 
-	sdomain = (struct search_domain *) event_malloc(sizeof(struct search_domain) + domain_len);
+	sdomain = (struct search_domain *) mm_malloc(sizeof(struct search_domain) + domain_len);
 	if (!sdomain) return;
 	memcpy( ((u8 *) sdomain) + sizeof(struct search_domain), domain, domain_len);
 	sdomain->next = base->global_search_state->head;
@@ -2572,7 +2586,7 @@ search_make_new(const struct search_state *const state, int n, const char *const
 			/* the actual postfix string is kept at the end of the structure */
 			const u8 *const postfix = ((u8 *) dom) + sizeof(struct search_domain);
 			const int postfix_len = dom->len;
-			char *const newname = (char *) event_malloc(base_len + need_to_append_dot + postfix_len + 1);
+			char *const newname = (char *) mm_malloc(base_len + need_to_append_dot + postfix_len + 1);
 			if (!newname) return NULL;
 			memcpy(newname, base_name, base_len);
 			if (need_to_append_dot) newname[base_len] = '.';
@@ -2603,11 +2617,11 @@ search_request_new(struct evdns_base *base, int type, const char *const name, in
 			char *const new_name = search_make_new(base->global_search_state, 0, name);
 			if (!new_name) return 1;
 			req = request_new(base, type, new_name, flags, user_callback, user_arg);
-			event_free(new_name);
+			mm_free(new_name);
 			if (!req) return 1;
 			req->search_index = 0;
 		}
-		req->search_origname = event_strdup(name);
+		req->search_origname = mm_strdup(name);
 		req->search_state = base->global_search_state;
 		req->search_flags = flags;
 		base->global_search_state->refcount++;
@@ -2653,7 +2667,7 @@ search_try_next(struct request *const req) {
 		if (!new_name) return 1;
 		log(EVDNS_LOG_DEBUG, "Search: now trying %s (%d)", new_name, req->search_index);
 		newreq = request_new(base, req->request_type, new_name, req->search_flags, req->user_callback, req->user_pointer);
-		event_free(new_name);
+		mm_free(new_name);
 		if (!newreq) return 1;
 		newreq->search_origname = req->search_origname;
 		req->search_origname = NULL;
@@ -2674,7 +2688,7 @@ search_request_finished(struct request *const req) {
 		req->search_state = NULL;
 	}
 	if (req->search_origname) {
-		event_free(req->search_origname);
+		mm_free(req->search_origname);
 		req->search_origname = NULL;
 	}
 }
@@ -2735,6 +2749,43 @@ strtoint_clipped(const char *const str, int min, int max)
 		return r;
 }
 
+static int
+evdns_base_set_max_requests_inflight(struct evdns_base *base, int maxinflight)
+{
+	int old_n_heads = base->n_req_heads, n_heads;
+	struct request **old_heads = base->req_heads, **new_heads, *req;
+	int i;
+	if (maxinflight < 1)
+		maxinflight = 1;
+	n_heads = (maxinflight+4) / 5;
+	assert(n_heads > 0);
+	new_heads = mm_malloc(n_heads * sizeof(struct request*));
+	if (!new_heads)
+		return (-1);
+	for (i=0; i < n_heads; ++i)
+		new_heads[i] = NULL;
+	if (old_heads) {
+		for (i = 0; i < old_n_heads; ++i) {
+			while (old_heads[i]) {
+				req = old_heads[i];
+				if (req->next == req) {
+					old_heads[i] = NULL;
+				} else {
+					old_heads[i] = req->next;
+					req->next->prev = req->prev;
+					req->prev->next = req->next;
+				}
+				evdns_request_insert(req, &new_heads[req->trans_id % n_heads]);
+			}
+		}
+		mm_free(old_heads);
+	}
+	base->req_heads = new_heads;
+	base->n_req_heads = n_heads;
+	base->global_max_requests_inflight = maxinflight;
+	return (0);
+}
+
 /* exported function */
 int
 evdns_base_set_option(struct evdns_base *base,
@@ -2767,7 +2818,7 @@ evdns_base_set_option(struct evdns_base *base,
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting maximum inflight requests to %d",
 			maxinflight);
-		base->global_max_requests_inflight = maxinflight;
+		evdns_base_set_max_requests_inflight(base, maxinflight);
 	} else if (!strncmp(option, "attempts:", 9)) {
 		int retries = strtoint(val);
 		if (retries == -1) return -1;
@@ -2858,7 +2909,7 @@ evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char *con
 	}
 	if (st.st_size > 65535) { err = 3; goto out1; }  /* no resolv.conf should be any bigger */
 
-	resolv = (u8 *) event_malloc((size_t)st.st_size + 1);
+	resolv = (u8 *) mm_malloc((size_t)st.st_size + 1);
 	if (!resolv) { err = 4; goto out1; }
 
 	n = 0;
@@ -2894,7 +2945,7 @@ evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char *con
 	}
 
 out2:
-	event_free(resolv);
+	mm_free(resolv);
 out1:
 	close(fd);
 	return err;
@@ -2918,12 +2969,12 @@ evdns_nameserver_ip_add_line(struct evdns_base *base, const char *ips) {
 		addr = ips;
 		while (ISDIGIT(*ips) || *ips == '.' || *ips == ':')
 			++ips;
-		buf = event_malloc(ips-addr+1);
+		buf = mm_malloc(ips-addr+1);
 		if (!buf) return 4;
 		memcpy(buf, addr, ips-addr);
 		buf[ips-addr] = '\0';
 		r = evdns_nameserver_ip_add(buf);
-		event_free(buf);
+		mm_free(buf);
 		if (r) return r;
 	}
 	return 0;
@@ -2956,7 +3007,7 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 		goto done;
 	}
 
-	buf = event_malloc(size);
+	buf = mm_malloc(size);
 	if (!buf) { status = 4; goto done; }
 	fixed = buf;
 	r = fn(fixed, &size);
@@ -2965,8 +3016,8 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 		goto done;
 	}
 	if (r != ERROR_SUCCESS) {
-		event_free(buf);
-		buf = event_malloc(size);
+		mm_free(buf);
+		buf = mm_malloc(size);
 		if (!buf) { status = 4; goto done; }
 		fixed = buf;
 		r = fn(fixed, &size);
@@ -3002,7 +3053,7 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 
  done:
 	if (buf)
-		event_free(buf);
+		mm_free(buf);
 	if (handle)
 		FreeLibrary(handle);
 	return status;
@@ -3018,7 +3069,7 @@ config_nameserver_from_reg_key(struct evdns_base *base, HKEY key, const char *su
 	if (RegQueryValueEx(key, subkey, 0, &type, NULL, &bufsz)
 	    != ERROR_MORE_DATA)
 		return -1;
-	if (!(buf = event_malloc(bufsz)))
+	if (!(buf = mm_malloc(bufsz)))
 		return -1;
 
 	if (RegQueryValueEx(key, subkey, 0, &type, (LPBYTE)buf, &bufsz)
@@ -3026,7 +3077,7 @@ config_nameserver_from_reg_key(struct evdns_base *base, HKEY key, const char *su
 		status = evdns_nameserver_ip_add_line(base,buf);
 	}
 
-	event_free(buf);
+	mm_free(buf);
 	return status;
 }
 
@@ -3101,16 +3152,21 @@ struct evdns_base *
 evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 {
 	struct evdns_base *base;
-	base = event_malloc(sizeof(struct evdns_base));
+	base = mm_malloc(sizeof(struct evdns_base));
 	if (base == NULL)
 		return (NULL);
 	memset(base, 0, sizeof(struct evdns_base));
-	base->req_head = base->req_waiting_head = NULL;
+	base->req_waiting_head = NULL;
+
+	/* Set max requests inflight and allocate req_heads. */
+	base->req_heads = NULL;
+	evdns_base_set_max_requests_inflight(base, 64);
+
 	base->server_head = NULL;
 	base->event_base = event_base;
 	base->global_good_nameservers = base->global_requests_inflight =
 		base->global_requests_waiting = 0;
-	base->global_max_requests_inflight = 64;
+
 	base->global_timeout.tv_sec = 5;
 	base->global_timeout.tv_usec = 0;
 	base->global_max_reissues = 1;
@@ -3168,11 +3224,14 @@ evdns_base_free(struct evdns_base *base, int fail_requests)
 {
 	struct nameserver *server, *server_next;
 	struct search_domain *dom, *dom_next;
+	int i;
 
-	while (base->req_head) {
-		if (fail_requests)
-			reply_callback(base->req_head, 0, DNS_ERR_SHUTDOWN, NULL);
-		request_finished(base->req_head, &base->req_head);
+	for (i = 0; i < base->n_req_heads; ++i) {
+		while (base->req_heads[i]) {
+			if (fail_requests)
+				reply_callback(base->req_heads[i], 0, DNS_ERR_SHUTDOWN, NULL);
+			request_finished(base->req_heads[i], &REQ_HEAD(base, base->req_heads[i]->trans_id));
+		}
 	}
 	while (base->req_waiting_head) {
 		if (fail_requests)
@@ -3188,7 +3247,7 @@ evdns_base_free(struct evdns_base *base, int fail_requests)
 		(void) event_del(&server->event);
 		if (server->state == 0)
 			(void) event_del(&server->timeout_event);
-		event_free(server);
+		mm_free(server);
 		if (server_next == base->server_head)
 			break;
 	}
@@ -3198,12 +3257,12 @@ evdns_base_free(struct evdns_base *base, int fail_requests)
 	if (base->global_search_state) {
 		for (dom = base->global_search_state->head; dom; dom = dom_next) {
 			dom_next = dom->next;
-			event_free(dom);
+			mm_free(dom);
 		}
-		event_free(base->global_search_state);
+		mm_free(base->global_search_state);
 		base->global_search_state = NULL;
 	}
-	event_free(base);
+	mm_free(base);
 }
 
 void

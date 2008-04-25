@@ -135,7 +135,7 @@ devpoll_init(struct event_base *base)
 	if (getenv("EVENT_NODEVPOLL"))
 		return (NULL);
 
-	if (!(devpollop = event_calloc(1, sizeof(struct devpollop))))
+	if (!(devpollop = mm_calloc(1, sizeof(struct devpollop))))
 		return (NULL);
 
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
@@ -145,35 +145,35 @@ devpoll_init(struct event_base *base)
 	/* Initialize the kernel queue */
 	if ((dpfd = open("/dev/poll", O_RDWR)) == -1) {
                 event_warn("open: /dev/poll");
-		event_free(devpollop);
+		mm_free(devpollop);
 		return (NULL);
 	}
 
 	devpollop->dpfd = dpfd;
 
 	/* Initialize fields */
-	devpollop->events = event_calloc(nfiles, sizeof(struct pollfd));
+	devpollop->events = mm_calloc(nfiles, sizeof(struct pollfd));
 	if (devpollop->events == NULL) {
-		event_free(devpollop);
+		mm_free(devpollop);
 		close(dpfd);
 		return (NULL);
 	}
 	devpollop->nevents = nfiles;
 
-	devpollop->fds = event_calloc(nfiles, sizeof(struct evdevpoll));
+	devpollop->fds = mm_calloc(nfiles, sizeof(struct evdevpoll));
 	if (devpollop->fds == NULL) {
-		event_free(devpollop->events);
-		event_free(devpollop);
+		mm_free(devpollop->events);
+		mm_free(devpollop);
 		close(dpfd);
 		return (NULL);
 	}
 	devpollop->nfds = nfiles;
 
-	devpollop->changes = event_calloc(nfiles, sizeof(struct pollfd));
+	devpollop->changes = mm_calloc(nfiles, sizeof(struct pollfd));
 	if (devpollop->changes == NULL) {
-		event_free(devpollop->fds);
-		event_free(devpollop->events);
-		event_free(devpollop);
+		mm_free(devpollop->fds);
+		mm_free(devpollop->events);
+		mm_free(devpollop);
 		close(dpfd);
 		return (NULL);
 	}
@@ -196,7 +196,7 @@ devpoll_recalc(struct event_base *base, void *arg, int max)
 		while (nfds < max)
 			nfds <<= 1;
 
-		fds = event_realloc(devpollop->fds, nfds * sizeof(struct evdevpoll));
+		fds = mm_realloc(devpollop->fds, nfds * sizeof(struct evdevpoll));
 		if (fds == NULL) {
 			event_warn("realloc");
 			return (-1);
@@ -405,14 +405,14 @@ devpoll_dealloc(struct event_base *base, void *arg)
 
 	evsignal_dealloc(base);
 	if (devpollop->fds)
-		event_free(devpollop->fds);
+		mm_free(devpollop->fds);
 	if (devpollop->events)
-		event_free(devpollop->events);
+		mm_free(devpollop->events);
 	if (devpollop->changes)
-		event_free(devpollop->changes);
+		mm_free(devpollop->changes);
 	if (devpollop->dpfd >= 0)
 		close(devpollop->dpfd);
 
 	memset(devpollop, 0, sizeof(struct devpollop));
-	event_free(devpollop);
+	mm_free(devpollop);
 }

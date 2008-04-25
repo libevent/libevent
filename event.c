@@ -183,7 +183,7 @@ event_base_new(void)
 	int i;
 	struct event_base *base;
 
-	if ((base = event_calloc(1, sizeof(struct event_base))) == NULL)
+	if ((base = mm_calloc(1, sizeof(struct event_base))) == NULL)
 		event_err(1, "%s: calloc", __func__);
 
 	event_sigcb = NULL;
@@ -274,12 +274,12 @@ event_base_free(struct event_base *base)
 	min_heap_dtor(&base->timeheap);
 
 	for (i = 0; i < base->nactivequeues; ++i)
-		event_free(base->activequeues[i]);
-	event_free(base->activequeues);
+		mm_free(base->activequeues[i]);
+	mm_free(base->activequeues);
 
 	assert(TAILQ_EMPTY(&base->eventqueue));
 
-	event_free(base);
+	mm_free(base);
 }
 
 /* reinitialized the event base after a fork */
@@ -326,21 +326,21 @@ event_base_priority_init(struct event_base *base, int npriorities)
 
 	if (base->nactivequeues && npriorities != base->nactivequeues) {
 		for (i = 0; i < base->nactivequeues; ++i) {
-			event_free(base->activequeues[i]);
+			mm_free(base->activequeues[i]);
 		}
-		event_free(base->activequeues);
+		mm_free(base->activequeues);
 	}
 
 	/* Allocate our priority queues */
 	base->nactivequeues = npriorities;
-	base->activequeues = (struct event_list **)event_calloc(
+	base->activequeues = (struct event_list **)mm_calloc(
 	    base->nactivequeues,
 	    npriorities * sizeof(struct event_list *));
 	if (base->activequeues == NULL)
 		event_err(1, "%s: calloc", __func__);
 
 	for (i = 0; i < base->nactivequeues; ++i) {
-		base->activequeues[i] = event_malloc(sizeof(struct event_list));
+		base->activequeues[i] = mm_malloc(sizeof(struct event_list));
 		if (base->activequeues[i] == NULL)
 			event_err(1, "%s: malloc", __func__);
 		TAILQ_INIT(base->activequeues[i]);
@@ -568,7 +568,7 @@ event_once_cb(evutil_socket_t fd, short events, void *arg)
 	struct event_once *eonce = arg;
 
 	(*eonce->cb)(fd, events, eonce->arg);
-	event_free(eonce);
+	mm_free(eonce);
 }
 
 /* not threadsafe, event scheduled once. */
@@ -594,7 +594,7 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 	if (events & EV_SIGNAL)
 		return (-1);
 
-	if ((eonce = event_calloc(1, sizeof(struct event_once))) == NULL)
+	if ((eonce = mm_calloc(1, sizeof(struct event_once))) == NULL)
 		return (-1);
 
 	eonce->cb = callback;
@@ -613,7 +613,7 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 		event_set(&eonce->ev, fd, events, event_once_cb, eonce);
 	} else {
 		/* Bad event combination */
-		event_free(eonce);
+		mm_free(eonce);
 		return (-1);
 	}
 
@@ -621,7 +621,7 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 	if (res == 0)
 		res = event_add(&eonce->ev, tv);
 	if (res != 0) {
-		event_free(eonce);
+		mm_free(eonce);
 		return (res);
 	}
 
@@ -1089,25 +1089,25 @@ event_get_method(void)
 	return (current_base->evsel->name);
 }
 
-static void *(*_event_malloc_fn)(size_t sz) = NULL;
-static void *(*_event_realloc_fn)(void *p, size_t sz) = NULL;
-static void (*_event_free_fn)(void *p) = NULL;
+static void *(*_mm_malloc_fn)(size_t sz) = NULL;
+static void *(*_mm_realloc_fn)(void *p, size_t sz) = NULL;
+static void (*_mm_free_fn)(void *p) = NULL;
 
 void *
-event_malloc(size_t sz)
+mm_malloc(size_t sz)
 {
-	if (_event_malloc_fn)
-		return _event_malloc_fn(sz);
+	if (_mm_malloc_fn)
+		return _mm_malloc_fn(sz);
 	else
 		return malloc(sz);
 }
 
 void *
-event_calloc(size_t count, size_t size)
+mm_calloc(size_t count, size_t size)
 {
-	if (_event_malloc_fn) {
+	if (_mm_malloc_fn) {
 		size_t sz = count * size;
-		void *p = _event_malloc_fn(sz);
+		void *p = _mm_malloc_fn(sz);
 		if (p)
 			memset(p, 0, sz);
 		return p;
@@ -1116,11 +1116,11 @@ event_calloc(size_t count, size_t size)
 }
 
 char *
-event_strdup(const char *str)
+mm_strdup(const char *str)
 {
-	if (_event_malloc_fn) {
+	if (_mm_malloc_fn) {
 		size_t ln = strlen(str);
-		void *p = _event_malloc_fn(ln+1);
+		void *p = _mm_malloc_fn(ln+1);
 		if (p)
 			memcpy(p, str, ln+1);
 		return p;
@@ -1133,19 +1133,19 @@ event_strdup(const char *str)
 }
 
 void *
-event_realloc(void *ptr, size_t sz)
+mm_realloc(void *ptr, size_t sz)
 {
-	if (_event_realloc_fn)
-		return _event_realloc_fn(ptr, sz);
+	if (_mm_realloc_fn)
+		return _mm_realloc_fn(ptr, sz);
 	else
 		return realloc(ptr, sz);
 }
 
 void
-event_free(void *ptr)
+mm_free(void *ptr)
 {
-	if (_event_realloc_fn)
-		_event_free_fn(ptr);
+	if (_mm_realloc_fn)
+		_mm_free_fn(ptr);
 	else
 		free(ptr);
 }
@@ -1155,9 +1155,9 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 			void *(*realloc_fn)(void *ptr, size_t sz),
 			void (*free_fn)(void *ptr))
 {
-	_event_malloc_fn = malloc_fn;
-	_event_realloc_fn = realloc_fn;
-	_event_free_fn = free_fn;
+	_mm_malloc_fn = malloc_fn;
+	_mm_realloc_fn = realloc_fn;
+	_mm_free_fn = free_fn;
 }
 
 /* support for threading */

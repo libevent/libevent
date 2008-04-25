@@ -66,7 +66,7 @@
 struct evrpc_base *
 evrpc_init(struct evhttp *http_server)
 {
-	struct evrpc_base* base = event_calloc(1, sizeof(struct evrpc_base));
+	struct evrpc_base* base = mm_calloc(1, sizeof(struct evrpc_base));
 	if (base == NULL)
 		return (NULL);
 
@@ -99,7 +99,7 @@ evrpc_free(struct evrpc_base *base)
 	while ((hook = TAILQ_FIRST(&base->output_hooks)) != NULL) {
 		assert(evrpc_remove_hook(base, OUTPUT, hook));
 	}
-	event_free(base);
+	mm_free(base);
 }
 
 void *
@@ -122,7 +122,7 @@ evrpc_add_hook(void *vbase,
 		assert(hook_type == INPUT || hook_type == OUTPUT);
 	}
 
-	hook = event_calloc(1, sizeof(struct evrpc_hook));
+	hook = mm_calloc(1, sizeof(struct evrpc_hook));
 	assert(hook != NULL);
 	
 	hook->process = cb;
@@ -139,7 +139,7 @@ evrpc_remove_hook_internal(struct evrpc_hook_list *head, void *handle)
 	TAILQ_FOREACH(hook, head, next) {
 		if (hook == handle) {
 			TAILQ_REMOVE(head, hook, next);
-			event_free(hook);
+			mm_free(hook);
 			return (1);
 		}
 	}
@@ -201,7 +201,7 @@ evrpc_construct_uri(const char *uri)
 	int constructed_uri_len;
 
 	constructed_uri_len = strlen(EVRPC_URI_PREFIX) + strlen(uri) + 1;
-	if ((constructed_uri = event_malloc(constructed_uri_len)) == NULL)
+	if ((constructed_uri = mm_malloc(constructed_uri_len)) == NULL)
 		event_err(1, "%s: failed to register rpc at %s",
 		    __func__, uri);
 	memcpy(constructed_uri, EVRPC_URI_PREFIX, strlen(EVRPC_URI_PREFIX));
@@ -228,7 +228,7 @@ evrpc_register_rpc(struct evrpc_base *base, struct evrpc *rpc,
 	    evrpc_request_cb,
 	    rpc);
 	
-	event_free(constructed_uri);
+	mm_free(constructed_uri);
 
 	return (0);
 }
@@ -250,15 +250,15 @@ evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
 	}
 	TAILQ_REMOVE(&base->registered_rpcs, rpc, next);
 	
-	event_free((char *)rpc->uri);
-	event_free(rpc);
+	mm_free((char *)rpc->uri);
+	mm_free(rpc);
 
         registered_uri = evrpc_construct_uri(name);
 
 	/* remove the http server callback */
 	assert(evhttp_del_cb(base->http_server, registered_uri) == 0);
 
-	event_free(registered_uri);
+	mm_free(registered_uri);
 	return (0);
 }
 
@@ -277,7 +277,7 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 	    EVBUFFER_LENGTH(req->input_buffer) <= 0)
 		goto error;
 
-	rpc_state = event_calloc(1, sizeof(struct evrpc_req_generic));
+	rpc_state = mm_calloc(1, sizeof(struct evrpc_req_generic));
 	if (rpc_state == NULL)
 		goto error;
 	rpc_state->rpc = rpc;
@@ -377,7 +377,7 @@ evrpc_reqstate_free(struct evrpc_req_generic* rpc_state)
 		rpc->reply_free(rpc_state->reply);
 	if (rpc_state->rpc_data != NULL)
 		evbuffer_free(rpc_state->rpc_data);
-	event_free(rpc_state);
+	mm_free(rpc_state);
 }
 
 static void
@@ -473,7 +473,7 @@ static int evrpc_schedule_request(struct evhttp_connection *connection,
 struct evrpc_pool *
 evrpc_pool_new(struct event_base *base)
 {
-	struct evrpc_pool *pool = event_calloc(1, sizeof(struct evrpc_pool));
+	struct evrpc_pool *pool = mm_calloc(1, sizeof(struct evrpc_pool));
 	if (pool == NULL)
 		return (NULL);
 
@@ -496,8 +496,8 @@ evrpc_request_wrapper_free(struct evrpc_request_wrapper *request)
 {
 	if (request->hook_meta != NULL)
 		evrpc_hook_context_free(request->hook_meta);
-	event_free(request->name);
-	event_free(request);
+	mm_free(request->name);
+	mm_free(request);
 }
 
 void
@@ -515,7 +515,7 @@ evrpc_pool_free(struct evrpc_pool *pool)
 
 	while ((pause = TAILQ_FIRST(&pool->paused_requests)) != NULL) {
 		TAILQ_REMOVE(&pool->paused_requests, pause, next);
-		event_free(pause);
+		mm_free(pause);
 	}
 
 	while ((connection = TAILQ_FIRST(&pool->connections)) != NULL) {
@@ -531,7 +531,7 @@ evrpc_pool_free(struct evrpc_pool *pool)
 		assert(evrpc_remove_hook(pool, OUTPUT, hook));
 	}
 
-	event_free(pool);
+	mm_free(pool);
 }
 
 /*
@@ -699,7 +699,7 @@ evrpc_schedule_request_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 
 	/* start the request over the connection */
 	res = evhttp_make_request(connection, req, EVHTTP_REQ_POST, uri);
-	event_free(uri);
+	mm_free(uri);
 
 	if (res == -1)
 		goto error;
@@ -719,7 +719,7 @@ evrpc_pause_request(void *vbase, void *ctx,
     void (*cb)(void *, enum EVRPC_HOOK_RESULT))
 {
 	struct _evrpc_hooks *base = vbase;
-	struct evrpc_hook_ctx *pause = event_malloc(sizeof(*pause));
+	struct evrpc_hook_ctx *pause = mm_malloc(sizeof(*pause));
 	if (pause == NULL)
 		return (-1);
 
@@ -786,16 +786,16 @@ evrpc_send_request_generic(
 	void *cbarg)
 {
 	struct evrpc_request_wrapper *ctx = (struct evrpc_request_wrapper *)
-	    event_malloc(sizeof(struct evrpc_request_wrapper));
+	    mm_malloc(sizeof(struct evrpc_request_wrapper));
 	if (ctx == NULL)
 		return (NULL);
 
 	ctx->pool = pool;
 	ctx->hook_meta = NULL;
 	ctx->evcon = NULL;
-	ctx->name = event_strdup(rpcname);
+	ctx->name = mm_strdup(rpcname);
 	if (ctx->name == NULL) {
-		event_free(ctx);
+		mm_free(ctx);
 		return (NULL);
 	}
 	ctx->cb = cb;
@@ -945,9 +945,9 @@ evrpc_meta_data_free(struct evrpc_meta_list *meta_data)
 
 	while ((entry = TAILQ_FIRST(meta_data)) != NULL) {
 		TAILQ_REMOVE(meta_data, entry, next);
-		event_free(entry->key);
-		event_free(entry->data);
-		event_free(entry);
+		mm_free(entry->key);
+		mm_free(entry->data);
+		mm_free(entry);
 	}
 }
 
@@ -955,7 +955,7 @@ static struct evrpc_hook_meta *
 evrpc_hook_meta_new(void)
 {
 	struct evrpc_hook_meta *ctx;
-	ctx = event_malloc(sizeof(struct evrpc_hook_meta));
+	ctx = mm_malloc(sizeof(struct evrpc_hook_meta));
 	assert(ctx != NULL);
 
 	TAILQ_INIT(&ctx->meta_data);
@@ -978,7 +978,7 @@ static void
 evrpc_hook_context_free(struct evrpc_hook_meta *ctx)
 {
 	evrpc_meta_data_free(&ctx->meta_data);
-	event_free(ctx);
+	mm_free(ctx);
 }
 
 /* Adds meta data */
@@ -993,10 +993,10 @@ evrpc_hook_add_meta(void *ctx, const char *key,
 	if ((store = req->hook_meta) == NULL)
 		store = req->hook_meta = evrpc_hook_meta_new();
 
-	assert((meta = event_malloc(sizeof(struct evrpc_meta))) != NULL);
-	assert((meta->key = event_strdup(key)) != NULL);
+	assert((meta = mm_malloc(sizeof(struct evrpc_meta))) != NULL);
+	assert((meta->key = mm_strdup(key)) != NULL);
 	meta->data_size = data_size;
-	assert((meta->data = event_malloc(data_size)) != NULL);
+	assert((meta->data = mm_malloc(data_size)) != NULL);
 	memcpy(meta->data, data, data_size);
 
 	TAILQ_INSERT_TAIL(&store->meta_data, meta, next);

@@ -233,17 +233,17 @@ bufferevent_new(evutil_socket_t fd, evbuffercb readcb, evbuffercb writecb,
 {
 	struct bufferevent *bufev;
 
-	if ((bufev = event_calloc(1, sizeof(struct bufferevent))) == NULL)
+	if ((bufev = mm_calloc(1, sizeof(struct bufferevent))) == NULL)
 		return (NULL);
 
 	if ((bufev->input = evbuffer_new()) == NULL) {
-		event_free(bufev);
+		mm_free(bufev);
 		return (NULL);
 	}
 
 	if ((bufev->output = evbuffer_new()) == NULL) {
 		evbuffer_free(bufev->input);
-		event_free(bufev);
+		mm_free(bufev);
 		return (NULL);
 	}
 
@@ -288,7 +288,7 @@ bufferevent_free(struct bufferevent *bufev)
 	evbuffer_free(bufev->input);
 	evbuffer_free(bufev->output);
 
-	event_free(bufev);
+	mm_free(bufev);
 }
 
 /*

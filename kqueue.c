@@ -103,14 +103,14 @@ kq_init(struct event_base *base)
 	if (getenv("EVENT_NOKQUEUE"))
 		return (NULL);
 
-	if (!(kqueueop = event_calloc(1, sizeof(struct kqop))))
+	if (!(kqueueop = mm_calloc(1, sizeof(struct kqop))))
 		return (NULL);
 
 	/* Initalize the kernel queue */
 	
 	if ((kq = kqueue()) == -1) {
 		event_warn("kqueue");
-		event_free (kqueueop);
+		mm_free (kqueueop);
 		return (NULL);
 	}
 
@@ -119,15 +119,15 @@ kq_init(struct event_base *base)
 	kqueueop->pid = getpid();
 
 	/* Initalize fields */
-	kqueueop->changes = event_malloc(NEVENT * sizeof(struct kevent));
+	kqueueop->changes = mm_malloc(NEVENT * sizeof(struct kevent));
 	if (kqueueop->changes == NULL) {
-		event_free (kqueueop);
+		mm_free (kqueueop);
 		return (NULL);
 	}
-	kqueueop->events = event_malloc(NEVENT * sizeof(struct kevent));
+	kqueueop->events = mm_malloc(NEVENT * sizeof(struct kevent));
 	if (kqueueop->events == NULL) {
-		event_free (kqueueop->changes);
-		event_free (kqueueop);
+		mm_free (kqueueop->changes);
+		mm_free (kqueueop);
 		return (NULL);
 	}
 	kqueueop->nevents = NEVENT;
@@ -146,9 +146,9 @@ kq_init(struct event_base *base)
 	    kqueueop->events[0].ident != -1 ||
 	    kqueueop->events[0].flags != EV_ERROR) {
 		event_warn("%s: detected broken kqueue; not using.", __func__);
-		event_free(kqueueop->changes);
-		event_free(kqueueop->events);
-		event_free(kqueueop);
+		mm_free(kqueueop->changes);
+		mm_free(kqueueop->events);
+		mm_free(kqueueop);
 		close(kq);
 		return (NULL);
 	}
@@ -167,7 +167,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 
 		nevents *= 2;
 
-		newchange = event_realloc(kqop->changes,
+		newchange = mm_realloc(kqop->changes,
 				    nevents * sizeof(struct kevent));
 		if (newchange == NULL) {
 			event_warn("%s: malloc", __func__);
@@ -175,7 +175,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 		}
 		kqop->changes = newchange;
 
-		newresult = event_realloc(kqop->events,
+		newresult = mm_realloc(kqop->events,
 				    nevents * sizeof(struct kevent));
 
 		/*
@@ -412,11 +412,11 @@ kq_dealloc(struct event_base *base, void *arg)
 	struct kqop *kqop = arg;
 
 	if (kqop->changes)
-		event_free(kqop->changes);
+		mm_free(kqop->changes);
 	if (kqop->events)
-		event_free(kqop->events);
+		mm_free(kqop->events);
 	if (kqop->kq >= 0 && kqop->pid == getpid())
 		close(kqop->kq);
 	memset(kqop, 0, sizeof(struct kqop));
-	event_free(kqop);
+	mm_free(kqop);
 }
