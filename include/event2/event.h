@@ -285,6 +285,13 @@ int event_base_loopbreak(struct event_base *);
  */
 void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
 
+/*XXX document this function, deprecate previous one. */
+int event_assign(struct event *, struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
+
+struct event *event_new(struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
+
+void event_free(struct event *);
+
 /**
   Schedule a one-time event (threadsafe variant)
 
