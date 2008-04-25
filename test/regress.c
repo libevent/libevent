@@ -1306,8 +1306,18 @@ static void
 readcb(struct bufferevent *bev, void *arg)
 {
 	if (EVBUFFER_LENGTH(bev->input) == 8333) {
+		struct evbuffer *evbuf = evbuffer_new();
+		assert(evbuf != NULL);
+
+		/* gratuitous test of bufferevent_read_buffer */
+		bufferevent_read_buffer(bev, evbuf);
+
 		bufferevent_disable(bev, EV_READ);
-		test_ok++;
+
+		if (EVBUFFER_LENGTH(evbuf) == 8333)
+			test_ok++;
+
+		evbuffer_free(evbuf);
 	}
 }
 

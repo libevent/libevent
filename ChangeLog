@@ -70,6 +70,7 @@ Changes in current version:
  o Make all event_tagging interfaces threadsafe.
  o Rename internal memory management functions.
  o New functions (event_assign, event_new, event_free) for use by apps that want to be safely threadsafe, or want to remain ignorant of the contents of struct event.
+ o introduce bufferevent_read_buffer; allows reading without memory copy.
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

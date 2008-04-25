@@ -326,6 +326,12 @@ bufferevent_read(struct bufferevent *bufev, void *data, size_t size)
 }
 
 int
+bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf)
+{
+	return (evbuffer_add_buffer(buf, bufev->input));
+}
+
+int
 bufferevent_enable(struct bufferevent *bufev, short event)
 {
 	if (event & EV_READ) {

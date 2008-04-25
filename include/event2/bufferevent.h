@@ -182,6 +182,16 @@ int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf);
 size_t bufferevent_read(struct bufferevent *bufev, void *data, size_t size);
 
 /**
+  Read data from a bufferevent buffer into an evbuffer.  This avoids
+  memory copies.
+
+  @param bufev the bufferevent to be read from
+  @param buf the evbuffer to which to add data
+  @return 0 if successful, or -1 if an error occurred.
+ */
+int bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf);
+
+/**
   Enable a bufferevent.
 
   @param bufev the bufferevent to be enabled
