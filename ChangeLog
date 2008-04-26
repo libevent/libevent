@@ -4,6 +4,7 @@ Changes in 1.4.4-stable:
  o Correctly handle timeouts larger than 35 minutes on Linux with epoll.c.  This is probably a kernel defect, but we'll have to support old kernels anyway even if it gets fixed.
  o Fix a potential stack corruption bug in tagging on 64-bit CPUs.
  o expose bufferevent_setwatermark via header files and fix high watermark on read
+ o fix a bug in buffrevent read water marks and add a test for them
 
 
 Changes in 1.4.3-stable:
