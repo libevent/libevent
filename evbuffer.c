@@ -298,6 +298,14 @@ bufferevent_free(struct bufferevent *bufev)
 	mm_free(bufev);
 }
 
+static inline void
+bufferevent_write_closure(struct bufferevent *bufev, int progress)
+{
+	/* If everything is okay, we need to schedule a write */
+	if (progress && (bufev->enabled & EV_WRITE))
+		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
+}
+
 /*
  * Returns 0 on success;
  *        -1 on failure.
@@ -306,24 +314,25 @@ bufferevent_free(struct bufferevent *bufev)
 int
 bufferevent_write(struct bufferevent *bufev, const void *data, size_t size)
 {
-	int res;
+	if (evbuffer_add(bufev->output, data, size) == -1)
+		return (-1);
 
-	res = evbuffer_add(bufev->output, data, size);
+	bufferevent_write_closure(bufev, size > 0);
 
-	if (res == -1)
-		return (res);
-
-	/* If everything is okay, we need to schedule a write */
-	if (size > 0 && (bufev->enabled & EV_WRITE))
-		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
-
-	return (res);
+	return (0);
 }
 
 int
 bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf)
 {
-	return (evbuffer_add_buffer(bufev->output, buf));
+	int len = EVBUFFER_LENGTH(bufev->output);
+
+	if (evbuffer_add_buffer(bufev->output, buf) == -1)
+		return (-1);
+
+	bufferevent_write_closure(bufev, len > 0);
+	
+	return (0);
 }
 
 size_t
