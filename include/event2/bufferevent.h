@@ -223,6 +223,24 @@ int bufferevent_disable(struct bufferevent *bufev, short event);
 void bufferevent_settimeout(struct bufferevent *bufev,
     int timeout_read, int timeout_write);
 
+/**
+  Sets the watermarks for read and write events.
+
+  On input, a bufferevent does not invoke the user read callback unless
+  there is at least low watermark data in the buffer.   If the read buffer
+  is beyond the high watermark, the buffevent stops reading from the network.
+
+  On output, the user write callback is invoked whenever the buffered data
+  falls below the low watermark.
+
+  @param bufev the bufferevent to be modified
+  @param events EV_READ, EV_WRITE or both
+  @param lowmark the lower watermark to set
+  @param highmark the high watermark to set
+*/
+
+void bufferevent_setwatermark(struct bufferevent *bufev, short events,
+    size_t lowmark, size_t highmark);
 
 #define EVBUFFER_INPUT(x)	(x)->input
 #define EVBUFFER_OUTPUT(x)	(x)->output
