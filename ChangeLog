@@ -72,6 +72,7 @@ Changes in current version:
  o New functions (event_assign, event_new, event_free) for use by apps that want to be safely threadsafe, or want to remain ignorant of the contents of struct event.
  o introduce bufferevent_read_buffer; allows reading without memory copy.
  o expose bufferevent_setwatermark via header files and fix high watermark on read
+ o fix a bug in buffrevent read water marks and add a test for them
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
