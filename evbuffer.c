@@ -147,9 +147,8 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 		struct evbuffer *buf = bufev->input;
 		event_del(&bufev->ev_read);
 
-		/* Now schedule a callback for us */
+		/* Now schedule a callback for us when the buffer changes */
 		evbuffer_setcb(buf, bufferevent_read_pressure_cb, bufev);
-		return;
 	}
 
 	/* Invoke the user callback - must always be called last */
