@@ -1109,6 +1109,104 @@ http_base_test(void)
 	fprintf(stdout, "OK\n");
 }
 
+/*
+ * the server is just going to close the connection if it times out during
+ * reading the headers.
+ */
+
+static void
+http_incomplete_readcb(struct bufferevent *bev, void *arg)
+{
+	test_ok = -1;
+	event_loopexit(NULL);
+}
+
+static void
+http_incomplete_errorcb(struct bufferevent *bev, short what, void *arg)
+{
+	if (what == (EVBUFFER_READ | EVBUFFER_EOF))
+		test_ok++;
+	else
+		test_ok = -2;
+	event_loopexit(NULL);
+}
+
+static void
+http_incomplete_writecb(struct bufferevent *bev, void *arg)
+{
+	if (arg != NULL) {
+		int fd = *(int *)arg;
+		/* terminate the write side to simulate EOF */
+		shutdown(fd, SHUT_WR);
+	}
+	if (EVBUFFER_LENGTH(bev->output) == 0) {
+		/* enable reading of the reply */
+		bufferevent_enable(bev, EV_READ);
+		test_ok++;
+	}
+}
+
+static void
+http_incomplete_test(int use_timeout)
+{
+	struct bufferevent *bev;
+	int fd;
+	const char *http_request;
+	short port = -1;
+	struct timeval tv_start, tv_end;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing Incomplete HTTP Request (%s): ",
+	    use_timeout ? "timeout" : "eof");
+
+	http = http_setup(&port, NULL);
+	evhttp_set_timeout(http, 1);
+
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, 
+	    http_incomplete_readcb, http_incomplete_writecb,
+	    http_incomplete_errorcb, use_timeout ? NULL : &fd);
+
+	http_request =
+	    "GET /test HTTP/1.1\r\n"
+	    "Host: somehost\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	gettimeofday(&tv_start, NULL);
+	
+	event_dispatch();
+
+	gettimeofday(&tv_end, NULL);
+	timersub(&tv_end, &tv_start, &tv_end);
+
+	if (use_timeout) {
+		bufferevent_free(bev);
+		close(fd);
+	}
+
+	evhttp_free(http);
+
+	if (use_timeout && tv_end.tv_sec >= 3) {
+		fprintf(stdout, "FAILED (time)\n");
+		exit (1);
+	} else if (!use_timeout && tv_end.tv_sec >= 1) {
+		/* we should be done immediately */
+		fprintf(stdout, "FAILED (time)\n");
+		exit (1);
+	}
+
+
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	
+	fprintf(stdout, "OK\n");
+}
+
 void
 http_suite(void)
 {
@@ -1124,4 +1222,7 @@ http_suite(void)
 	http_failure_test();
 	http_highport_test();
 	http_dispatcher_test();
+
+	http_incomplete_test(0 /* use_timeout */);
+	http_incomplete_test(1 /* use_timeout */);
 }
