@@ -192,6 +192,24 @@ size_t bufferevent_read(struct bufferevent *bufev, void *data, size_t size);
 int bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf);
 
 /**
+   Returns the input buffer.
+
+   @param bufev the buffervent from which to get the evbuffer
+   @return the evbuffer object for the input buffer
+ */
+
+struct evbuffer *bufferevent_input(struct bufferevent *bufev);
+
+/**
+   Returns the outut buffer.
+
+   @param bufev the buffervent from which to get the evbuffer
+   @return the evbuffer object for the output buffer
+ */
+
+struct evbuffer *bufferevent_output(struct bufferevent *bufev);
+
+/**
   Enable a bufferevent.
 
   @param bufev the bufferevent to be enabled
@@ -242,8 +260,8 @@ void bufferevent_settimeout(struct bufferevent *bufev,
 void bufferevent_setwatermark(struct bufferevent *bufev, short events,
     size_t lowmark, size_t highmark);
 
-#define EVBUFFER_INPUT(x)	(x)->input
-#define EVBUFFER_OUTPUT(x)	(x)->output
+#define EVBUFFER_INPUT(x)	bufferevent_input(x)
+#define EVBUFFER_OUTPUT(x)	bufferevent_output(x)
 
 
 #ifdef __cplusplus

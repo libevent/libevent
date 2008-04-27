@@ -273,6 +273,18 @@ bufferevent_new(evutil_socket_t fd, evbuffercb readcb, evbuffercb writecb,
 	return (bufev);
 }
 
+struct evbuffer *
+bufferevent_input(struct bufferevent *bufev)
+{
+	return (bufev->input);
+}
+
+struct evbuffer *
+bufferevent_output(struct bufferevent *bufev)
+{
+	return (bufev->output);
+}
+
 int
 bufferevent_priority_set(struct bufferevent *bufev, int priority)
 {
