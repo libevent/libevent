@@ -257,11 +257,7 @@ bufferevent_new(evutil_socket_t fd, evbuffercb readcb, evbuffercb writecb,
 	event_set(&bufev->ev_read, fd, EV_READ, bufferevent_readcb, bufev);
 	event_set(&bufev->ev_write, fd, EV_WRITE, bufferevent_writecb, bufev);
 
-	bufev->readcb = readcb;
-	bufev->writecb = writecb;
-	bufev->errorcb = errorcb;
-
-	bufev->cbarg = cbarg;
+	bufferevent_setcb(bufev, readcb, writecb, errorcb, cbarg);
 
 	/*
 	 * Set to EV_WRITE so that using bufferevent_write is going to
@@ -271,6 +267,33 @@ bufferevent_new(evutil_socket_t fd, evbuffercb readcb, evbuffercb writecb,
 	bufev->enabled = EV_WRITE;
 
 	return (bufev);
+}
+
+void
+bufferevent_setcb(struct bufferevent *bufev,
+    evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg)
+{
+	bufev->readcb = readcb;
+	bufev->writecb = writecb;
+	bufev->errorcb = errorcb;
+
+	bufev->cbarg = cbarg;
+}
+
+void
+bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd)
+{
+	event_del(&bufev->ev_read);
+	event_del(&bufev->ev_write);
+
+	event_set(&bufev->ev_read, fd, EV_READ, bufferevent_readcb, bufev);
+	event_set(&bufev->ev_write, fd, EV_WRITE, bufferevent_writecb, bufev);
+	if (bufev->ev_base != NULL) {
+		event_base_set(bufev->ev_base, &bufev->ev_read);
+		event_base_set(bufev->ev_base, &bufev->ev_write);
+	}
+
+	/* might have to manually trigger event registration */
 }
 
 struct evbuffer *
@@ -429,6 +452,8 @@ int
 bufferevent_base_set(struct event_base *base, struct bufferevent *bufev)
 {
 	int res;
+
+	bufev->ev_base = base;
 
 	res = event_base_set(base, &bufev->ev_read);
 	if (res == -1)

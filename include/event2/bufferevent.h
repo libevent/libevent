@@ -141,6 +141,31 @@ void bufferevent_free(struct bufferevent *bufev);
 
 
 /**
+  Changes the callbacks for a bufferevent.
+
+  @param bufev the bufferevent object for which to change callbacks
+  @param readcb callback to invoke when there is data to be read, or NULL if
+         no callback is desired
+  @param writecb callback to invoke when the file descriptor is ready for
+         writing, or NULL if no callback is desired
+  @param errorcb callback to invoke when there is an error on the file
+         descriptor
+  @param cbarg an argument that will be supplied to each of the callbacks
+         (readcb, writecb, and errorcb)
+  @see bufferevent_new()
+  */
+void bufferevent_setcb(struct bufferevent *bufev,
+    evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg);
+
+/**
+  Changes the file descriptor on which the bufferevent operates.
+
+  @param bufev the bufferevent object for which to change the file descriptor
+  @param fd the file descriptor to operate on
+*/
+void bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd);
+
+/**
   Write data to a bufferevent buffer.
 
   The bufferevent_write() function can be used to write data to the file

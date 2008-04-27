@@ -75,6 +75,7 @@ Changes in current version:
  o fix a bug in buffrevent read water marks and add a test for them
  o fix a bug in which bufferevent_write_buffer would not schedule a write event
  o provide bufferevent_input and bufferevent_output without requiring knowledge of the structure
+ o introduce bufferevent_setcb and bufferevent_setfd to allow better manipulation of bufferevents
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

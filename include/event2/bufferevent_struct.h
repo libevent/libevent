@@ -65,6 +65,8 @@ struct event_watermark {
 };
 
 struct bufferevent {
+	struct event_base *ev_base;
+
 	struct event ev_read;
 	struct event ev_write;
 
