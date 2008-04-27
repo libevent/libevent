@@ -1207,6 +1207,183 @@ http_incomplete_test(int use_timeout)
 	fprintf(stdout, "OK\n");
 }
 
+static void
+http_connection_retry_done(struct evhttp_request *req, void *arg)
+{
+	if (req->response_code == HTTP_OK) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (evhttp_find_header(req->input_headers, "Content-Type") != NULL) {
+		fprintf(stderr, "FAILED (content type)\n");
+		exit(1);
+	}
+
+	if (EVBUFFER_LENGTH(req->input_buffer)) {
+		fprintf(stderr, "FAILED (length)\n");
+		exit(1);
+	}
+	
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
+static void
+http_make_web_server(int fd, short what, void *arg)
+{
+	short port = -1;
+	http = http_setup(&port, NULL);
+}
+
+static void
+http_connection_retry(void)
+{
+	short port = -1;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	struct timeval tv, tv_start, tv_end;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing HTTP Connection Retry: ");
+
+	/* auto detect the port */
+	http = http_setup(&port, NULL);
+	evhttp_free(http);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evhttp_connection_set_timeout(evcon, 1);
+	/* also bind to local host */
+	evhttp_connection_set_local_address(evcon, "127.0.0.1");
+
+	/*
+	 * At this point, we want to schedule an HTTP GET request
+	 * server using our make request method.
+	 */
+
+	req = evhttp_request_new(http_connection_retry_done, NULL);
+	if (req == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+	
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
+		"/?arg=val") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	gettimeofday(&tv_start, NULL);
+	event_dispatch();
+	gettimeofday(&tv_end, NULL);
+	timersub(&tv_end, &tv_start, &tv_end);
+	if (tv_end.tv_sec >= 1) {
+		fprintf(stdout, "FAILED (time)\n");
+		exit(1);
+	}
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED: %d\n", test_ok);
+		exit(1);
+	}
+
+	/*
+	 * now test the same but with retries
+	 */
+	test_ok = 0;
+
+	evhttp_connection_set_timeout(evcon, 1);
+	evhttp_connection_set_retries(evcon, 1);
+
+	req = evhttp_request_new(http_connection_retry_done, NULL);
+	if (req == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+	
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
+		"/?arg=val") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	gettimeofday(&tv_start, NULL);
+	event_dispatch();
+	gettimeofday(&tv_end, NULL);
+	timersub(&tv_end, &tv_start, &tv_end);
+	if (tv_end.tv_sec <= 1 || tv_end.tv_sec >= 6) {
+		fprintf(stdout, "FAILED (time)\n");
+		exit(1);
+	}
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED: %d\n", test_ok);
+		exit(1);
+	}
+
+	/*
+	 * now test the same but with retries and give it a web server
+	 * at the end
+	 */
+	test_ok = 0;
+
+	evhttp_connection_set_timeout(evcon, 1);
+	evhttp_connection_set_retries(evcon, 3);
+
+	req = evhttp_request_new(http_dispatcher_test_done, NULL);
+	if (req == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+	
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
+		"/?arg=val") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* start up a web server one second after the connection tried
+	 * to send a request
+	 */
+	timerclear(&tv);
+	tv.tv_sec = 1;
+	event_once(-1, EV_TIMEOUT, http_make_web_server, NULL, &tv);
+
+	gettimeofday(&tv_start, NULL);
+	event_dispatch();
+	gettimeofday(&tv_end, NULL);
+
+	timersub(&tv_end, &tv_start, &tv_end);
+	if (tv_end.tv_sec <= 1 || tv_end.tv_sec >= 6) {
+		fprintf(stdout, "FAILED (time)\n");
+		exit(1);
+	}
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED: %d\n", test_ok);
+		exit(1);
+	}
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
+	
+	fprintf(stdout, "OK\n");
+}
+
 void
 http_suite(void)
 {
@@ -1225,4 +1402,6 @@ http_suite(void)
 
 	http_incomplete_test(0 /* use_timeout */);
 	http_incomplete_test(1 /* use_timeout */);
+
+	http_connection_retry();
 }
