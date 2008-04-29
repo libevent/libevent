@@ -159,14 +159,10 @@ int evutil_make_socket_nonblocking(evutil_socket_t sock);
 #define	evutil_timerclear(tvp)	(tvp)->tv_sec = (tvp)->tv_usec = 0
 #endif
 
-#ifdef _EVENT_HAVE_TIMERCMP
-#define evutil_timercmp(tvp, uvp, cmp) timercmp((tvp), (uvp), cmp)
-#else
 #define	evutil_timercmp(tvp, uvp, cmp)							\
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?							\
 	 ((tvp)->tv_usec cmp (uvp)->tv_usec) :						\
 	 ((tvp)->tv_sec cmp (uvp)->tv_sec))
-#endif
 
 #ifdef _EVENT_HAVE_TIMERISSET
 #define evutil_timerisset(tvp) timerisset(tvp)
