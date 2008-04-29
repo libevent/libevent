@@ -362,18 +362,6 @@ void evhttp_parse_query(const char *uri, struct evkeyvalq *);
  */
 char *evhttp_htmlescape(const char *html);
 
-/**
- * Separate the host, port and path component from a URL.
- * XXXX This interface will change before release to become threadsafe.
- *
- * @param url the url for which to separate the components
- * @param phost pointer in which to store the pointer to the host
- * @param pport pointer in which to store the port number
- * @param pfile pointer in which to store the pointer to the path
- * @return 0 on success and -1 on failure
- */
-int evhttp_hostportfile(const char *url, char **phost, u_short *pport, char **pfile);
-
 #ifdef __cplusplus
 }
 #endif
