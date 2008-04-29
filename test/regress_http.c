@@ -1342,6 +1342,36 @@ http_chunked_writecb(struct bufferevent *bev, void *arg)
 }
 
 static void
+http_chunked_request_done(struct evhttp_request *req, void *arg)
+{
+	if (req->response_code != HTTP_OK) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (evhttp_find_header(req->input_headers,
+		"Transfer-Encoding") == NULL) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (EVBUFFER_LENGTH(req->input_buffer) != 13 + 18 + 8) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (strncmp((char *)evbuffer_pullup(req->input_buffer, 13 + 18 + 8),
+		"This is funnybut not hilarious.bwv 1052",
+		13 + 18 + 8)) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+	
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
+static void
 http_chunked_test()
 {
 	struct bufferevent *bev;
@@ -1349,6 +1379,8 @@ http_chunked_test()
 	const char *http_request;
 	short port = -1;
 	struct timeval tv_start, tv_end;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
 
 	test_ok = 0;
 	fprintf(stdout, "Testing Chunked HTTP Reply: ");
@@ -1377,8 +1409,6 @@ http_chunked_test()
 	gettimeofday(&tv_end, NULL);
 	timersub(&tv_end, &tv_start, &tv_end);
 
-	evhttp_free(http);
-
 	if (tv_end.tv_sec >= 1) {
 		fprintf(stdout, "FAILED (time)\n");
 		exit (1);
@@ -1389,6 +1419,34 @@ http_chunked_test()
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
+
+	/* now try again with the regular connection object */
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	req = evhttp_request_new(http_chunked_request_done, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req,
+		EVHTTP_REQ_GET, "/chunked") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
 	
 	fprintf(stdout, "OK\n");
 }
