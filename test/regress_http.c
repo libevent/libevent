@@ -67,6 +67,7 @@ static struct event_base *base;
 void http_suite(void);
 
 void http_basic_cb(struct evhttp_request *req, void *arg);
+void http_chunked_cb(struct evhttp_request *req, void *arg);
 void http_post_cb(struct evhttp_request *req, void *arg);
 void http_put_cb(struct evhttp_request *req, void *arg);
 void http_delete_cb(struct evhttp_request *req, void *arg);
@@ -93,6 +94,7 @@ http_setup(short *pport, struct event_base *base)
 
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, NULL);
+	evhttp_set_cb(myhttp, "/chunked", http_chunked_cb, NULL);
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, NULL);
 	evhttp_set_cb(myhttp, "/putit", http_put_cb, NULL);
 	evhttp_set_cb(myhttp, "/deleteit", http_delete_cb, NULL);
@@ -165,15 +167,15 @@ http_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = "This is funny";
 
- 	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bev->input)));
+ 	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(EVBUFFER_INPUT(bev))));
 	
-	if (evbuffer_find(bev->input,
+	if (evbuffer_find(EVBUFFER_INPUT(bev),
 		(const unsigned char*) what, strlen(what)) != NULL) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		int done;
 
 		req->kind = EVHTTP_RESPONSE;
-		done = evhttp_parse_lines(req, bev->input);
+		done = evhttp_parse_lines(req, EVBUFFER_INPUT(bev));
 
 		if (done == 1 &&
 		    evhttp_find_header(req->input_headers,
@@ -191,7 +193,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 static void
 http_writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bev->output) == 0) {
+	if (EVBUFFER_LENGTH(EVBUFFER_OUTPUT(bev)) == 0) {
 		/* enable reading of the reply */
 		bufferevent_enable(bev, EV_READ);
 		test_ok++;
@@ -216,6 +218,33 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	/* allow sending of an empty reply */
 	evhttp_send_reply(req, HTTP_OK, "Everything is fine",
 	    !empty ? evb : NULL);
+
+	evbuffer_free(evb);
+}
+
+void
+http_chunked_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *evb = evbuffer_new();
+	event_debug(("%s: called\n", __func__));
+
+	/* generate a chunked reply */
+	evhttp_send_reply_start(req, HTTP_OK, "Everything is fine");
+
+	/* first chunk */
+	evbuffer_add_printf(evb, "This is funny");
+	evhttp_send_reply_chunk(req, evb);
+
+	/* second chunk */
+	evbuffer_add_printf(evb, "but not hilarious.");
+	evhttp_send_reply_chunk(req, evb);
+
+	/* third and last chunk */
+	evbuffer_add_printf(evb, "bwv 1052");
+	evhttp_send_reply_chunk(req, evb);
+
+	/* finish request */
+	evhttp_send_reply_end(req);
 
 	evbuffer_free(evb);
 }
@@ -851,7 +880,8 @@ static void
 http_failure_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = "400 Bad Request";
-	if (evbuffer_find(bev->input, (const unsigned char*) what, strlen(what)) != NULL) {
+	if (evbuffer_find(EVBUFFER_INPUT(bev),
+		(const unsigned char*) what, strlen(what)) != NULL) {
 		test_ok = 2;
 		bufferevent_disable(bev, EV_READ);
 		event_loopexit(NULL);
@@ -1139,7 +1169,7 @@ http_incomplete_writecb(struct bufferevent *bev, void *arg)
 		/* terminate the write side to simulate EOF */
 		shutdown(fd, SHUT_WR);
 	}
-	if (EVBUFFER_LENGTH(bev->output) == 0) {
+	if (EVBUFFER_LENGTH(EVBUFFER_OUTPUT(bev)) == 0) {
 		/* enable reading of the reply */
 		bufferevent_enable(bev, EV_READ);
 		test_ok++;
@@ -1194,6 +1224,162 @@ http_incomplete_test(int use_timeout)
 		exit (1);
 	} else if (!use_timeout && tv_end.tv_sec >= 1) {
 		/* we should be done immediately */
+		fprintf(stdout, "FAILED (time)\n");
+		exit (1);
+	}
+
+
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	
+	fprintf(stdout, "OK\n");
+}
+
+/*
+ * the server is going to reply with chunked data.
+ */
+
+static void
+http_chunked_readcb(struct bufferevent *bev, void *arg)
+{
+	/* nothing here */
+}
+
+static void
+http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
+{
+	if (!test_ok)
+		goto out;
+
+	test_ok = -1;
+
+	if ((what & EVBUFFER_EOF) != 0) {
+		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
+		const char *header;
+		int done;
+		
+		req->kind = EVHTTP_RESPONSE;
+		done = evhttp_parse_lines(req, EVBUFFER_INPUT(bev));
+
+		if (done != 1)
+			goto out;
+
+		header = evhttp_find_header(req->input_headers, "Transfer-Encoding");
+		if (header == NULL || strcmp(header, "chunked"))
+			goto out;
+
+		header = evhttp_find_header(req->input_headers, "Connection");
+		if (header == NULL || strcmp(header, "close"))
+			goto out;
+
+		header = evbuffer_readln(EVBUFFER_INPUT(bev), NULL, EVBUFFER_EOL_CRLF);
+		if (header == NULL)
+			goto out;
+		/* 13 chars */
+		if (strcmp(header, "d"))
+			goto out;
+		free((char*)header);
+
+		if (strncmp((char *)evbuffer_pullup(EVBUFFER_INPUT(bev), 13),
+			"This is funny", 13))
+			goto out;
+
+		evbuffer_drain(EVBUFFER_INPUT(bev), 13 + 2);
+
+		header = evbuffer_readln(EVBUFFER_INPUT(bev), NULL, EVBUFFER_EOL_CRLF);
+		if (header == NULL)
+			goto out;
+		/* 18 chars */
+		if (strcmp(header, "12"))
+			goto out;
+		free((char *)header);
+
+		if (strncmp((char *)evbuffer_pullup(EVBUFFER_INPUT(bev), 18),
+			"but not hilarious.", 18))
+			goto out;
+
+		evbuffer_drain(EVBUFFER_INPUT(bev), 18 + 2);
+
+		header = evbuffer_readln(EVBUFFER_INPUT(bev), NULL, EVBUFFER_EOL_CRLF);
+		if (header == NULL)
+			goto out;
+		/* 8 chars */
+		if (strcmp(header, "8"))
+			goto out;
+		free((char *)header);
+
+		if (strncmp((char *)evbuffer_pullup(EVBUFFER_INPUT(bev), 8),
+			"bwv 1052.", 8))
+			goto out;
+
+		evbuffer_drain(EVBUFFER_INPUT(bev), 8 + 2);
+
+		header = evbuffer_readln(EVBUFFER_INPUT(bev), NULL, EVBUFFER_EOL_CRLF);
+		if (header == NULL)
+			goto out;
+		/* 0 chars */
+		if (strcmp(header, "0"))
+			goto out;
+		free((char *)header);
+
+		test_ok = 2;
+	}
+
+out:
+	event_loopexit(NULL);
+}
+
+static void
+http_chunked_writecb(struct bufferevent *bev, void *arg)
+{
+	if (EVBUFFER_LENGTH(EVBUFFER_OUTPUT(bev)) == 0) {
+		/* enable reading of the reply */
+		bufferevent_enable(bev, EV_READ);
+		test_ok++;
+	}
+}
+
+static void
+http_chunked_test()
+{
+	struct bufferevent *bev;
+	int fd;
+	const char *http_request;
+	short port = -1;
+	struct timeval tv_start, tv_end;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing Chunked HTTP Reply: ");
+
+	http = http_setup(&port, NULL);
+
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, 
+	    http_chunked_readcb, http_chunked_writecb,
+	    http_chunked_errorcb, NULL);
+
+	http_request =
+	    "GET /chunked HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	gettimeofday(&tv_start, NULL);
+	
+	event_dispatch();
+
+	gettimeofday(&tv_end, NULL);
+	timersub(&tv_end, &tv_start, &tv_end);
+
+	evhttp_free(http);
+
+	if (tv_end.tv_sec >= 1) {
 		fprintf(stdout, "FAILED (time)\n");
 		exit (1);
 	}
@@ -1449,6 +1635,8 @@ http_suite(void)
 
 	http_incomplete_test(0 /* use_timeout */);
 	http_incomplete_test(1 /* use_timeout */);
+
+	http_chunked_test();
 
 	http_connection_retry();
 }
