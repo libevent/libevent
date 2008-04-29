@@ -1384,9 +1384,56 @@ http_connection_retry(void)
 	fprintf(stdout, "OK\n");
 }
 
+static void
+http_primitives(void)
+{
+	char *escaped;
+	char *host = NULL, *path = NULL;
+	unsigned short port = 0;
+	fprintf(stdout, "Testing HTTP Primitives: ");
+
+	escaped = evhttp_htmlescape("<script>");
+	if (strcmp(escaped, "&lt;script&gt;"))
+		goto failed;
+	free(escaped);
+
+	escaped = evhttp_htmlescape("\"\'&");
+	if (strcmp(escaped, "&quot;&#039;&amp;"))
+		goto failed;
+	free(escaped);
+
+	if (evhttp_hostportfile("fto://some", NULL, NULL, NULL) != -1)
+		goto failed;
+
+	if (evhttp_hostportfile("http://www.foo.com/path.html",
+		&host, &port, &path) == -1)
+		goto failed;
+
+	if (strcmp(host, "www.foo.com") || port != 80 ||
+	    strcmp(path, "/path.html"))
+		goto failed;
+
+	if (evhttp_hostportfile("http://foo.com:8080",
+		&host, &port, &path) == -1)
+		goto failed;
+
+	if (strcmp(host, "foo.com") || port != 8080 || strcmp(path, "/"))
+		goto failed;
+
+	fprintf(stdout, "OK\n");
+
+	return;
+
+failed:
+	fprintf(stdout, "FAILED\n");
+	exit(1);
+}
+
 void
 http_suite(void)
 {
+	http_primitives();
+
 	http_base_test();
 	http_bad_header_test();
 	http_basic_test();
