@@ -465,7 +465,7 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 }
 
-/* Separated host, port and file from URI */
+/* Separate host, port and file from URI */
 
 int
 evhttp_hostportfile(char *url, char **phost, u_short *pport, char **pfile)
