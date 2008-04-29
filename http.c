@@ -469,7 +469,7 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 /* Separate host, port and file from URI */
 
 int
-evhttp_hostportfile(char *url, char **phost, u_short *pport, char **pfile)
+evhttp_hostportfile(const char *url, char **phost, u_short *pport, char **pfile)
 {
 	/* XXX not threadsafe. */
 	static char host[1024];
