@@ -1372,7 +1372,7 @@ http_chunked_request_done(struct evhttp_request *req, void *arg)
 }
 
 static void
-http_chunked_test()
+http_chunked_test(void)
 {
 	struct bufferevent *bev;
 	int fd;

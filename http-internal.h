@@ -117,8 +117,6 @@ void evhttp_connection_fail(struct evhttp_connection *,
 
 void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, socklen_t);
 
-int evhttp_hostportfile(char *, char **, u_short *, char **);
-
 int evhttp_parse_lines(struct evhttp_request *, struct evbuffer*);
 
 void evhttp_start_read(struct evhttp_connection *);
