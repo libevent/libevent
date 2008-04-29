@@ -20,7 +20,8 @@
 enum evhttp_connection_error {
 	EVCON_HTTP_TIMEOUT,
 	EVCON_HTTP_EOF,
-	EVCON_HTTP_INVALID_HEADER
+	EVCON_HTTP_INVALID_HEADER,
+	EVCON_HTTP_BUFFER_ERROR
 };
 
 struct evbuffer;
@@ -42,10 +43,10 @@ struct evhttp_connection {
 	TAILQ_ENTRY(evhttp_connection) (next);
 
 	evutil_socket_t fd;
-	struct event ev;
+	struct bufferevent *bufev;
+
+	struct event retry_ev;		/* for retrying connects */
 	struct event close_ev;
-	struct evbuffer *input_buffer;
-	struct evbuffer *output_buffer;
 	
 	char *bind_address;		/* address to use for binding the src */
 
@@ -56,6 +57,7 @@ struct evhttp_connection {
 #define EVHTTP_CON_INCOMING	0x0001	/* only one request on it ever */
 #define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
 #define EVHTTP_CON_CLOSEDETECT  0x0004  /* detecting if persistent close */
+#define EVHTTP_CON_GOTHEADERS	0x0008	/* done reading headers */
 
 	int timeout;			/* timeout in seconds for events */
 	int retry_cnt;			/* retry count */
@@ -68,7 +70,7 @@ struct evhttp_connection {
 
 	TAILQ_HEAD(evcon_requestq, evhttp_request) requests;
 	
-						   void (*cb)(struct evhttp_connection *, void *);
+	void (*cb)(struct evhttp_connection *, void *);
 	void *cb_arg;
 	
 	void (*closecb)(struct evhttp_connection *, void *);
