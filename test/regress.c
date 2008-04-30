@@ -1456,9 +1456,6 @@ bufferevent_input_filter(struct evbuffer *src, struct evbuffer *dst,
 	const unsigned char *buffer;
 	int i;
 
-	if (state == BEV_FREE_DATA)
-		return (BEV_OK);
-
 	buffer = evbuffer_pullup(src, EVBUFFER_LENGTH(src));
 	for (i = 0; i < EVBUFFER_LENGTH(src); i += 2) {
 		assert(buffer[i] == 'x');
@@ -1480,9 +1477,6 @@ bufferevent_output_filter(struct evbuffer *src, struct evbuffer *dst,
 {
 	const unsigned char *buffer;
 	int i;
-
-	if (state == BEV_FREE_DATA)
-		return (BEV_OK);
 
 	buffer = evbuffer_pullup(src, EVBUFFER_LENGTH(src));
 	for (i = 0; i < EVBUFFER_LENGTH(src); ++i) {
