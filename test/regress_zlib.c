@@ -257,7 +257,7 @@ test_bufferevent_zlib(void)
 	bufferevent_free(bev2);
 
 	if (test_ok != 5) {
-		fprintf(stdout, "FAILED: \n", test_ok);
+		fprintf(stdout, "FAILED: %d\n", test_ok);
 		exit(1);
 	}
 
