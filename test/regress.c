@@ -1443,6 +1443,101 @@ test_bufferevent_watermarks(void)
 	cleanup_test();
 }
 
+/*
+ * Test bufferevent filters
+ */
+
+/* strip an 'x' from each byte */
+
+static enum bufferevent_filter_result
+bufferevent_input_filter(struct evbuffer *src, struct evbuffer *dst,
+    enum bufferevent_filter_state state, void *ctx)
+{
+	const unsigned char *buffer;
+	int i;
+
+	if (state == BEV_FREE_DATA)
+		return (BEV_OK);
+
+	buffer = evbuffer_pullup(src, EVBUFFER_LENGTH(src));
+	for (i = 0; i < EVBUFFER_LENGTH(src); i += 2) {
+		assert(buffer[i] == 'x');
+		evbuffer_add(dst, buffer + i + 1, 1);
+
+		if (i + 2 > EVBUFFER_LENGTH(src))
+			break;
+	}
+
+	evbuffer_drain(src, i);
+	return (BEV_OK);
+}
+
+/* add an 'x' before each byte */
+
+static enum bufferevent_filter_result
+bufferevent_output_filter(struct evbuffer *src, struct evbuffer *dst,
+    enum bufferevent_filter_state state, void *ctx)
+{
+	const unsigned char *buffer;
+	int i;
+
+	if (state == BEV_FREE_DATA)
+		return (BEV_OK);
+
+	buffer = evbuffer_pullup(src, EVBUFFER_LENGTH(src));
+	for (i = 0; i < EVBUFFER_LENGTH(src); ++i) {
+		evbuffer_add(dst, "x", 1);
+		evbuffer_add(dst, buffer + i, 1);
+	}
+
+	evbuffer_drain(src, EVBUFFER_LENGTH(src));
+	return (BEV_OK);
+}
+
+static void
+test_bufferevent_filters(void)
+{
+	struct bufferevent *bev1, *bev2;
+	struct bufferevent_filter *finput, *foutput;
+	char buffer[8333];
+	int i;
+
+	setup_test("Bufferevent Filters: ");
+
+	bev1 = bufferevent_new(pair[0], NULL, writecb, errorcb, NULL);
+	bev2 = bufferevent_new(pair[1], readcb, NULL, errorcb, NULL);
+
+	bufferevent_disable(bev1, EV_READ);
+	bufferevent_enable(bev2, EV_READ);
+
+	for (i = 0; i < sizeof(buffer); i++)
+		buffer[i] = i;
+
+	/* insert some filters */
+	finput = bufferevent_filter_new(
+		NULL, NULL,bufferevent_input_filter, NULL);
+	foutput = bufferevent_filter_new(
+		NULL, NULL, bufferevent_output_filter, NULL);
+
+	bufferevent_filter_insert(bev1, BEV_OUTPUT, foutput);
+	bufferevent_filter_insert(bev2, BEV_INPUT, finput);
+
+	bufferevent_write(bev1, buffer, sizeof(buffer));
+
+	event_dispatch();
+
+	bufferevent_filter_remove(bev1, BEV_OUTPUT, foutput);
+	bufferevent_filter_free(foutput);
+
+	bufferevent_free(bev1);
+	bufferevent_free(bev2);
+
+	if (test_ok != 2)
+		test_ok = 0;
+
+	cleanup_test();
+}
+
 struct test_pri_event {
 	struct event ev;
 	int count;
@@ -1944,6 +2039,7 @@ main (int argc, char **argv)
 	
 	test_bufferevent();
 	test_bufferevent_watermarks();
+	test_bufferevent_filters();
 
 	test_free_active_base();
 

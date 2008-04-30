@@ -228,6 +228,9 @@ struct evbuffer *bufferevent_input(struct bufferevent *bufev);
 /**
    Returns the outut buffer.
 
+   When filters are being used, the filters need to be manually
+   triggered if the output buffer was manipulated.
+
    @param bufev the buffervent from which to get the evbuffer
    @return the evbuffer object for the output buffer
  */
@@ -243,7 +246,6 @@ struct evbuffer *bufferevent_output(struct bufferevent *bufev);
   @see bufferevent_disable()
  */
 int bufferevent_enable(struct bufferevent *bufev, short event);
-
 
 /**
   Disable a bufferevent.
@@ -288,6 +290,147 @@ void bufferevent_setwatermark(struct bufferevent *bufev, short events,
 #define EVBUFFER_INPUT(x)	bufferevent_input(x)
 #define EVBUFFER_OUTPUT(x)	bufferevent_output(x)
 
+/**
+   Support for filtering input and output of bufferevents.
+ */
+
+/**
+   Flags that can be passed into filters to let them know how to
+   deal with the incoming data.
+*/
+enum bufferevent_filter_state {
+	/** usually set when processing data */
+	BEV_NORMAL = 0,
+
+	/** encountered EOF on read or done sending data */
+	BEV_FLUSH = 1,
+};
+
+/**
+   Values that filters can return.
+ */
+enum bufferevent_filter_result {
+	/** everything is okay */
+	BEV_OK = 0,
+
+	/** the filter needs to read more data before output */
+	BEV_NEED_MORE = 1,
+
+	/** the filter enountered a critical error, no further data
+	    can be processed. */
+	BEV_ERROR = 2
+};
+
+struct bufferevent_filter;
+
+/**
+  Creates a new filtering object for a bufferevent.
+
+  Filters can be used to implement compression, authentication, rate limiting,
+  etc. for bufferevents.  Filters can be associated with the input or output
+  path or both.   Filters need to be inserted with bufferevent_filter_insert()
+  on either the input or output path.
+
+  For example, when implementing compression, both an input and an
+  output filters are required.   The output filter compress all output
+  as it passes along whereas the input filter decompresses all input as
+  it is being read from the network.
+
+  Some filters may require specificaly behavior such as flushing their buffers
+  on EOF.   To allom them to do that, a bufferevent will invoke the filter
+  with BEV_FLUSH to let it know that EOF has been reached.
+
+  When a filter needs more data before it can output any data, it may return
+  BEV_NEED_MORE in which case the filter chain is being interrupted until
+  more data arrives.   A filter can indicate a fatal error by returning
+  BEV_ERROR.  Otherwise, it should return BEV_OK.
+
+  @param init_context an optional function that initializes the ctx parameter.
+  @param free_context an optional function to free memory associated with the
+         ctx parameter.
+  @param process the filtering function that should be invokved either during
+         input or output depending on where the filter should be attached.
+  @param ctx additional context that can be passed to the process function
+  @return a bufferevent_filter object that can subsequently be installed
+*/
+struct bufferevent_filter *bufferevent_filter_new(
+	void (*init_context)(void *),
+	void (*free_context)(void *),
+	enum bufferevent_filter_result (*process)(
+		struct evbuffer *src, struct evbuffer *dst,
+		enum bufferevent_filter_state state, void *ctx), void *ctx);
+
+/**
+   Frees the filter object.
+
+   It must have been removed from the bufferevent before it can be freed.
+
+   @param filter the filter to be freed
+   @see bufferevent_filter_remove()
+*/
+void bufferevent_filter_free(struct bufferevent_filter *filter);
+
+/** Filter types for inserting or removing filters */
+enum bufferevent_filter_type {
+	/** filter is being used for input */
+	BEV_INPUT = 0,
+
+	/** filter is being used for output */
+	BEV_OUTPUT = 1
+};
+
+/**
+   Inserts a filter into the processing of data for bufferevent.
+
+   A filter can be inserted only once.  It can not be used again for
+   another insert unless it have been removed via
+   bufferevent_filter_remove() first.
+
+   Input filters are inserted at the end, output filters at the
+   beginning of the queue.
+
+   @param bufev the bufferevent object into which to install the filter
+   @param filter_type either BEV_INPUT or BEV_OUTPUT
+   @param filter the filter object
+   @see bufferevent_filter_remove()
+ */
+void bufferevent_filter_insert(struct bufferevent *bufev,
+    enum bufferevent_filter_type filter_type,
+    struct bufferevent_filter *filter);
+
+/**
+   Removes a filter from the bufferevent.
+
+   A filter should be flushed via buffervent_trigger_filter before removing
+   it from a bufferevent.  Any remaining intermediate buffer data is going
+   to be lost.
+
+   @param bufev the bufferevent object from which to remove the filter
+   @param filter_type either BEV_INPUT or BEV_OUTPUT
+   @param filter the filter object or NULL to trigger all filters
+   @see bufferevent_trigger_filter()
+*/
+void bufferevent_filter_remove(struct bufferevent *bufev,
+    enum bufferevent_filter_type filter_type,
+    struct bufferevent_filter *filter);
+
+/**
+  Triggers the filter chain the specified filter to produce more
+  data is possible.  This is primarily for time-based filters such
+  as rate-limiting to produce more data as time passes.
+
+  @param bufev the bufferevent object to which the filter belongs
+  @param filter the bufferevent filter at which to start
+  @param iotype either BEV_INPUT or BEV_OUTPUT depending on where the filter
+	 was installed
+  @param state either BEV_NORMAL or BEV_FLUSH
+  @return -1 on failure, 0 if no data was produces, 1 if data was produced
+ */
+
+int
+bufferevent_trigger_filter(struct bufferevent *bufev,
+    struct bufferevent_filter *filter, int iotype,
+    enum bufferevent_filter_state state);
 
 #ifdef __cplusplus
 }

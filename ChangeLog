@@ -79,6 +79,7 @@ Changes in current version:
  o convert evhttp_connection to use bufferevents.
  o use libevent's internal timercmp on all platforms, to avoid bugs on old platforms where timercmp(a,b,<=) is buggy.
  o Remove the never-exported, never-used evhttp_hostportfile function.
+ o Support input/output filters for bufferevents; somewhat similar to libio's model.  This will allow us to implement SSL, compression, etc, transparently to users of bufferevents such as the http layer.
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
