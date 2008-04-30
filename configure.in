@@ -39,6 +39,18 @@ AC_CHECK_LIB(resolv, inet_aton)
 AC_CHECK_LIB(rt, clock_gettime)
 AC_CHECK_LIB(nsl, inet_ntoa)
 
+dnl Determine if we have zlib for regression tests
+ZLIB_LIBS=""
+ZLIB_CFLAGS=""
+AC_CHECK_LIB(z, inflateEnd,
+	[have_zlib=yes
+	ZLIB_LIBS="-lz" 
+	AC_DEFINE(HAVE_LIBZ, 1, [Define if the system has zlib])],
+	[have_zlib=no])
+AC_SUBST(ZLIB_LIBS)
+AC_SUBST(ZLIB_CFLAGS)
+AM_CONDITIONAL(ZLIB_REGRESS, [test "$have_zlib" != "no"])
+
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in6.h sys/socket.h sys/uio.h)

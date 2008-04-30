@@ -254,13 +254,11 @@ setup_test(const char *name)
 		exit(1);
 	}
 
-#ifdef HAVE_FCNTL
-        if (fcntl(pair[0], F_SETFL, O_NONBLOCK) == -1)
+        if (evutil_make_socket_nonblocking(pair[0]) == -1)
 		fprintf(stderr, "fcntl(O_NONBLOCK)");
 
-        if (fcntl(pair[1], F_SETFL, O_NONBLOCK) == -1)
+        if (evutil_make_socket_nonblocking(pair[1]) == -1)
 		fprintf(stderr, "fcntl(O_NONBLOCK)");
-#endif
 
 	test_ok = 0;
 	called = 0;
@@ -2041,6 +2039,10 @@ main (int argc, char **argv)
 
 #if defined(HAVE_PTHREADS) && !defined(DISABLE_THREAD_SUPPORT)
 	regress_pthread();
+#endif
+
+#if defined(HAVE_LIBZ)
+	regress_zlib();
 #endif
 	
 	http_suite();
