@@ -21,9 +21,12 @@ regress_SOURCES = regress.c regress.h regress_http.c regress_dns.c \
 if PTHREAD_REGRESS
 regress_SOURCES += regress_pthread.c
 endif
-regress_LDADD = ../libevent.la $(PTHREAD_LIBS)
+if ZLIB_REGRESS
+regress_SOURCES += regress_zlib.c
+endif
+regress_LDADD = ../libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
 regress_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat \
-	-I$(top_srcdir)/include  $(PTHREAD_CFLAGS)
+	-I$(top_srcdir)/include  $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
 bench_SOURCES = bench.c
 bench_LDADD = ../libevent.la
 bench_cascade_SOURCES = bench_cascade.c

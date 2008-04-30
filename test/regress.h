@@ -39,7 +39,8 @@ void rpc_suite(void);
 void dns_suite(void);
 
 void regress_pthread(void);
-	
+void regress_zlib(void);	
+
 #ifdef __cplusplus
 }
 #endif
