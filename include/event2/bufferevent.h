@@ -61,16 +61,44 @@ typedef unsigned short u_short;
 
 
 /* Just for error reporting - use other constants otherwise */
-#define EVBUFFER_READ		0x01
-#define EVBUFFER_WRITE		0x02
-#define EVBUFFER_EOF		0x10
-#define EVBUFFER_ERROR		0x20
-#define EVBUFFER_TIMEOUT	0x40
+#define EVBUFFER_READ		0x01	/**< error encountered while reading */
+#define EVBUFFER_WRITE		0x02	/**< error encountered while writing */
+#define EVBUFFER_EOF		0x10	/**< eof file reached */
+#define EVBUFFER_ERROR		0x20	/**< unrecoverable error encountered */
+#define EVBUFFER_TIMEOUT	0x40	/**< user specified timeout reached */
 struct bufferevent;
 struct event_base;
 struct evbuffer;
-typedef void (*evbuffercb)(struct bufferevent *, void *);
-typedef void (*everrorcb)(struct bufferevent *, short what, void *);
+
+/**
+   type definition for the read or write callback.
+
+   The read callback is triggered when new data arrives in the input
+   buffer and the amount of readable data exceed the low watermark
+   which is 0 by default.
+
+   The write callback is triggered if the write buffer has been
+   exhausted or fell below its low watermark.
+
+   @param bev the bufferevent that triggered the callback
+   @param ctx the user specified context for this bufferevent
+ */
+typedef void (*evbuffercb)(struct bufferevent *bev, void *ctx);
+
+/**
+   type defintion for the error callback of a bufferevent.
+
+   The error callback is triggered if either an EOF condition or another
+   unrecoverable error was encountered.
+
+   @param bev the bufferevent for which the error condition was reached
+   @param what a conjunction of flags: EVBUFFER_READ or EVBUFFER write to
+	  indicate if the error was encountered on the read or write path,
+	  and one of the following flags: EVBUFFER_EOF, EVBUFFER_ERROR or
+	  EVBUFFER_TIMEOUT.
+   @param ctx the user specified context for this bufferevent
+*/
+typedef void (*everrorcb)(struct bufferevent *bev, short what, void *ctx);
 
 
 /**
@@ -287,7 +315,9 @@ void bufferevent_settimeout(struct bufferevent *bufev,
 void bufferevent_setwatermark(struct bufferevent *bufev, short events,
     size_t lowmark, size_t highmark);
 
+/** macro for getting access to the input buffer of a bufferevent */
 #define EVBUFFER_INPUT(x)	bufferevent_input(x)
+/** macro for getting access to the output buffer of a bufferevent */
 #define EVBUFFER_OUTPUT(x)	bufferevent_output(x)
 
 /**
