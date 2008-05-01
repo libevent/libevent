@@ -183,7 +183,7 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *, \
 struct evrpc_pool;
 
 /** use EVRPC_GENERATE instead */
-struct evrpc_request_wrapper *evrpc_send_request_generic(
+struct evrpc_request_wrapper *evrpc_make_request_ctx(
 	struct evrpc_pool *pool, void *request, void *reply,
 	const char *rpcname,
 	void (*req_marshal)(struct evbuffer*, void *),
@@ -191,6 +191,30 @@ struct evrpc_request_wrapper *evrpc_send_request_generic(
 	int (*rpl_unmarshal)(void *, struct evbuffer *),
 	void (*cb)(struct evrpc_status *, void *, void *, void *),
 	void *cbarg);
+
+/** Creates a context structure that contains rpc specific information.
+ *
+ * EVRPC_MAKE_CTX is used to populate a RPC specific context that
+ * contains information about marshaling the RPC data types.
+ *
+ * @param rpcname the name of the RPC
+ * @param reqstruct the name of the RPC request structure
+ * @param replystruct the name of the RPC reply structure
+ * @param pool the evrpc_pool over which to make the request
+ * @param request a pointer to the RPC request structure object
+ * @param reply a pointer to the RPC reply structure object
+ * @param cb the callback function to call when the RPC has completed
+ * @param cbarg the argument to supply to the callback
+ */
+#define EVRPC_MAKE_CTX(rpcname, reqstruct, rplystruct, \
+    pool, request, reply, cb, cbarg)					\
+	evrpc_make_request_ctx(pool, request, reply,			\
+	    #rpcname,							\
+	    (void (*)(struct evbuffer *, void *))reqstruct##_marshal,	\
+	    (void (*)(void *))rplystruct##_clear,			\
+	    (int (*)(void *, struct evbuffer *))rplystruct##_unmarshal, \
+	    (void (*)(struct evrpc_status *, void *, void *, void *))cb, \
+	    cbarg)
 
 /** Generates the code for receiving and sending an RPC message
  *
@@ -210,7 +234,7 @@ int evrpc_send_request_##rpcname(struct evrpc_pool *pool, \
     void *cbarg) { \
 	struct evrpc_status status;				    \
 	struct evrpc_request_wrapper *ctx;			    \
-	ctx = evrpc_send_request_generic(pool, request, reply,	    \
+	ctx = evrpc_make_request_ctx(pool, request, reply,	    \
 	    #rpcname,						    \
 	    (void (*)(struct evbuffer *, void *))reqstruct##_marshal, \
 	    (void (*)(void *))rplystruct##_clear, \
