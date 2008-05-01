@@ -784,7 +784,7 @@ evrpc_make_request(struct evrpc_request_wrapper *ctx)
 
 
 struct evrpc_request_wrapper *
-evrpc_send_request_generic(
+evrpc_make_request_ctx(
 	struct evrpc_pool *pool, void *request, void *reply,
 	const char *rpcname,
 	void (*req_marshal)(struct evbuffer*, void *),

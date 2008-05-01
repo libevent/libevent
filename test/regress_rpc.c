@@ -509,10 +509,28 @@ rpc_basic_client(void)
 
 	event_dispatch();
 	
-	rpc_teardown(base);
-	
 	if (test_ok != 2) {
 		fprintf(stdout, "FAILED (2)\n");
+		exit(1);
+	}
+
+
+	/* we do it trice to make sure other stuff works, too */
+	kill_clear(kill);
+
+	{
+		struct evrpc_request_wrapper *ctx =
+		    EVRPC_MAKE_CTX(Message, msg, kill,
+			pool, msg, kill, GotKillCb, NULL);
+		evrpc_make_request(ctx);
+	}
+
+	event_dispatch();
+	
+	rpc_teardown(base);
+	
+	if (test_ok != 3) {
+		fprintf(stdout, "FAILED (3)\n");
 		exit(1);
 	}
 
