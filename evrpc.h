@@ -430,12 +430,28 @@ struct evrpc_pool *evrpc_pool_new(struct event_base *base);
  * @see evrpc_pool_new()
  */
 void evrpc_pool_free(struct evrpc_pool *pool);
-/*
- * adds a connection over which rpc can be dispatched.  the connection
- * object must have been newly created.
+
+/**
+ * Adds a connection over which rpc can be dispatched to the pool.
+ *
+ * The connection object must have been newly created.
+ *
+ * @param pool the pool to which to add the connection
+ * @param evcon the connection to add to the pool.
  */
-void evrpc_pool_add_connection(struct evrpc_pool *, 
-    struct evhttp_connection *);
+void evrpc_pool_add_connection(struct evrpc_pool *pool, 
+    struct evhttp_connection *evcon);
+
+/**
+ * Removes a connection from the pool.
+ *
+ * The connection object must have been newly created.
+ *
+ * @param pool the pool from which to remove the connection
+ * @param evcon the connection to remove from the pool.
+ */
+void evrpc_pool_remove_connection(struct evrpc_pool *pool,
+    struct evhttp_connection *evcon);
 
 /**
  * Sets the timeout in secs after which a request has to complete.  The
