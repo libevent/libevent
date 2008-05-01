@@ -541,7 +541,8 @@ evrpc_pool_free(struct evrpc_pool *pool)
 
 void
 evrpc_pool_add_connection(struct evrpc_pool *pool,
-    struct evhttp_connection *connection) {
+    struct evhttp_connection *connection)
+{
 	assert(connection->http_server == NULL);
 	TAILQ_INSERT_TAIL(&pool->connections, connection, next);
 
@@ -569,6 +570,13 @@ evrpc_pool_add_connection(struct evrpc_pool *pool,
 		TAILQ_REMOVE(&pool->requests, request, next);
 		evrpc_schedule_request(connection, request);
 	}
+}
+
+void
+evrpc_pool_remove_connection(struct evrpc_pool *pool,
+    struct evhttp_connection *connection)
+{
+	TAILQ_REMOVE(&pool->connections, connection, next);
 }
 
 void
