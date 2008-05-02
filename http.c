@@ -145,11 +145,6 @@ fake_freeaddrinfo(struct addrinfo *ai)
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
 
-/* wrapper for setting the base from the http server */
-#define EVHTTP_BASE_SET(x, y) do { \
-	if ((x)->base != NULL) event_base_set((x)->base, y);	\
-} while (0) 
-
 extern int debug;
 
 static int socket_connect(evutil_socket_t kefd, const char *address, unsigned short port);
@@ -843,9 +838,9 @@ evhttp_connection_start_detectclose(struct evhttp_connection *evcon)
 
 	if (event_initialized(&evcon->close_ev))
 		event_del(&evcon->close_ev);
-	event_set(&evcon->close_ev, evcon->fd, EV_READ,
+	event_assign(&evcon->close_ev, evcon->base, evcon->fd, EV_READ,
 	    evhttp_detect_close_cb, evcon);
-	EVHTTP_BASE_SET(evcon, &evcon->close_ev);
+
 	event_add(&evcon->close_ev, NULL);
 }
 
@@ -870,8 +865,7 @@ static void
 evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 {
 	if (evcon->retry_max < 0 || evcon->retry_cnt < evcon->retry_max) {
-		evtimer_set(&evcon->retry_ev, evhttp_connection_retry, evcon);
-		EVHTTP_BASE_SET(evcon, &evcon->retry_ev);
+		evtimer_assign(&evcon->retry_ev, evcon->base, evhttp_connection_retry, evcon);
 		evhttp_add_event(&evcon->retry_ev,
 		    MIN(3600, 2 << evcon->retry_cnt),
 		    HTTP_CONNECT_TIMEOUT);
@@ -1985,8 +1979,8 @@ evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd)
 	struct event *ev = &http->bind_ev;
 
 	/* Schedule the socket for accepting */
-	event_set(ev, fd, EV_READ | EV_PERSIST, accept_socket, http);
-	EVHTTP_BASE_SET(http, ev);
+	event_assign(ev, http->base, fd, EV_READ | EV_PERSIST, accept_socket, http);
+
 	return (event_add(ev, NULL));
 }
 

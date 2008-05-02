@@ -606,18 +606,17 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 			tv = &etv;
 		}
 
-		evtimer_set(&eonce->ev, event_once_cb, eonce);
+		res = evtimer_assign(&eonce->ev, base, event_once_cb, eonce);
 	} else if (events & (EV_READ|EV_WRITE)) {
 		events &= EV_READ|EV_WRITE;
 
-		event_set(&eonce->ev, fd, events, event_once_cb, eonce);
+		res = event_assign(&eonce->ev, base, fd, events, event_once_cb, eonce);
 	} else {
 		/* Bad event combination */
 		mm_free(eonce);
 		return (-1);
 	}
 
-	res = event_base_set(base, &eonce->ev);
 	if (res == 0)
 		res = event_add(&eonce->ev, tv);
 	if (res != 0) {
@@ -668,7 +667,10 @@ int
 event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, short events, void (*cb)(evutil_socket_t, short, void *), void *arg)
 {
 	event_set(ev, fd, events, cb, arg);
-	return event_base_set(base, ev);
+	if (base)
+		return event_base_set(base, ev);
+	else
+		return (0);
 }
 
 struct event *
@@ -1234,9 +1236,9 @@ evthread_set_id_callback(struct event_base *base,
 	evutil_make_socket_nonblocking(base->th_notify_fd[1]);
 
 	/* prepare an event that we can use for wakeup */
-	event_set(&base->th_notify, base->th_notify_fd[0], EV_READ,
+	event_assign(&base->th_notify, base, base->th_notify_fd[0], EV_READ,
 	    evthread_ignore_fd, base);
-	event_base_set(base, &base->th_notify);
+
 	/* we need to mark this as internal event */
 	base->th_notify.ev_flags |= EVLIST_INTERNAL;
 
