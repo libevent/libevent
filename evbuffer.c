@@ -338,12 +338,8 @@ bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 	event_del(&bufev->ev_read);
 	event_del(&bufev->ev_write);
 
-	event_set(&bufev->ev_read, fd, EV_READ, bufferevent_readcb, bufev);
-	event_set(&bufev->ev_write, fd, EV_WRITE, bufferevent_writecb, bufev);
-	if (bufev->ev_base != NULL) {
-		event_base_set(bufev->ev_base, &bufev->ev_read);
-		event_base_set(bufev->ev_base, &bufev->ev_write);
-	}
+	event_assign(&bufev->ev_read, bufev->ev_base, fd, EV_READ, bufferevent_readcb, bufev);
+	event_assign(&bufev->ev_write, bufev->ev_base, fd, EV_WRITE, bufferevent_writecb, bufev);
 
 	/* we need to free all filter contexts and then init them again */
 	TAILQ_FOREACH(filter, &bufev->input_filters, next) {

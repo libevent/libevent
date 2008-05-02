@@ -764,9 +764,7 @@ evrpc_make_request(struct evrpc_request_wrapper *ctx)
 	struct evrpc_pool *pool = ctx->pool;
 
 	/* initialize the event structure for this rpc */
-	evtimer_set(&ctx->ev_timeout, evrpc_request_timeout, ctx);
-	if (pool->base != NULL)
-		event_base_set(pool->base, &ctx->ev_timeout);
+	evtimer_assign(&ctx->ev_timeout, pool->base, evrpc_request_timeout, ctx);
 
 	/* we better have some available connections on the pool */
 	assert(TAILQ_FIRST(&pool->connections) != NULL);

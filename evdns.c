@@ -505,9 +505,8 @@ nameserver_probe_failed(struct nameserver *const ns) {
 										global_nameserver_timeouts_length - 1)];
 	ns->failed_times++;
 
-	evtimer_set(&ns->timeout_event, nameserver_prod_callback, ns);
-	if (ns->base->event_base)
-		event_base_set(ns->base->event_base, &ns->timeout_event);
+	evtimer_assign(&ns->timeout_event, ns->base->event_base, nameserver_prod_callback, ns);
+
 	if (evtimer_add(&ns->timeout_event, (struct timeval *) timeout) < 0) {
           log(EVDNS_LOG_WARN,
               "Error from libevent when adding timer event for %s",
@@ -538,9 +537,8 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 	ns->state = 0;
 	ns->failed_times = 1;
 
-	evtimer_set(&ns->timeout_event, nameserver_prod_callback, ns);
-	if (ns->base->event_base)
-		event_base_set(ns->base->event_base, &ns->timeout_event);
+	evtimer_assign(&ns->timeout_event, ns->base->event_base, nameserver_prod_callback, ns);
+
 	if (evtimer_add(&ns->timeout_event, (struct timeval *) &global_nameserver_timeouts[0]) < 0) {
 		log(EVDNS_LOG_WARN,
 		    "Error from libevent when adding timer event for %s",
@@ -1230,10 +1228,10 @@ server_port_flush(struct evdns_server_port *port)
 
 	/* We have no more pending requests; stop listening for 'writeable' events. */
 	(void) event_del(&port->event);
-	event_set(&port->event, port->socket, EV_READ | EV_PERSIST,
-			  server_port_ready_callback, port);
-	if (port->event_base)
-		event_base_set(port->event_base, &port->event);
+	event_assign(&port->event, port->event_base,
+				 port->socket, EV_READ | EV_PERSIST,
+				 server_port_ready_callback, port);
+
 	if (event_add(&port->event, NULL) < 0) {
 		log(EVDNS_LOG_WARN, "Error from libevent when adding event for DNS server.");
 		/* ???? Do more? */
@@ -1249,10 +1247,9 @@ nameserver_write_waiting(struct nameserver *ns, char waiting) {
 
 	ns->write_waiting = waiting;
 	(void) event_del(&ns->event);
-	event_set(&ns->event, ns->socket, EV_READ | (waiting ? EV_WRITE : 0) | EV_PERSIST,
-			  nameserver_ready_callback, ns);
-	if (ns->base->event_base)
-		event_base_set(ns->base->event_base, &ns->event);
+	event_assign(&ns->event, ns->base->event_base,
+				 ns->socket, EV_READ | (waiting ? EV_WRITE : 0) | EV_PERSIST,
+				 nameserver_ready_callback, ns);
 	if (event_add(&ns->event, NULL) < 0) {
           log(EVDNS_LOG_WARN, "Error from libevent when adding event for %s",
               debug_ntoa(ns->address));
@@ -1490,10 +1487,9 @@ evdns_add_server_port_with_base(struct event_base *base, int socket, int is_tcp,
 	port->pending_replies = NULL;
 	port->event_base = base;
 
-	event_set(&port->event, port->socket, EV_READ | EV_PERSIST,
-			  server_port_ready_callback, port);
-	if (port->event_base)
-		event_base_set(port->event_base, &port->event);
+	event_assign(&port->event, port->event_base,
+				 port->socket, EV_READ | EV_PERSIST,
+				 server_port_ready_callback, port);
 	event_add(&port->event, NULL); /* check return. */
 	return port;
 }
@@ -1758,9 +1754,7 @@ evdns_server_request_respond(struct evdns_server_request *_req, int err)
 			port->choked = 1;
 
 			(void) event_del(&port->event);
-			event_set(&port->event, port->socket, (port->closing?0:EV_READ) | EV_WRITE | EV_PERSIST, server_port_ready_callback, port);
-			if (port->event_base)
-				event_base_set(port->event_base, &port->event);
+			event_assign(&port->event, port->event_base, port->socket, (port->closing?0:EV_READ) | EV_WRITE | EV_PERSIST, server_port_ready_callback, port);
 
 			if (event_add(&port->event, NULL) < 0) {
 				log(EVDNS_LOG_WARN, "Error from libevent when adding event for DNS server");
@@ -1970,9 +1964,8 @@ evdns_request_transmit(struct request *req) {
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
 		    "Setting timeout for request %lx", (unsigned long) req);
-		evtimer_set(&req->timeout_event, evdns_request_timeout_callback, req);
-		if (req->base->event_base)
-			event_base_set(req->base->event_base, &req->timeout_event);
+		evtimer_assign(&req->timeout_event, req->base->event_base, evdns_request_timeout_callback, req);
+
 		if (evtimer_add(&req->timeout_event, &req->base->global_timeout) < 0) {
 			log(EVDNS_LOG_WARN,
 		      "Error from libevent when adding timer for request %lx",
@@ -2173,9 +2166,7 @@ _evdns_nameserver_add_impl(struct evdns_base *base, unsigned long int address, i
 
 	ns->address = address;
 	ns->state = 1;
-	event_set(&ns->event, ns->socket, EV_READ | EV_PERSIST, nameserver_ready_callback, ns);
-	if (ns->base->event_base)
-		event_base_set(ns->base->event_base, &ns->event);
+	event_assign(&ns->event, ns->base->event_base, ns->socket, EV_READ | EV_PERSIST, nameserver_ready_callback, ns);
 	if (event_add(&ns->event, NULL) < 0) {
 		err = 2;
 		goto out2;

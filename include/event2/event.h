@@ -192,6 +192,8 @@ int event_base_loopbreak(struct event_base *);
   @param arg argument that will be passed to the callback function
  */
 #define evtimer_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
+#define evtimer_assign(ev, b, cb, arg)  event_assign(ev, b, -1, 0, cb, arg)
+#define evtimer_new(b, cb, arg)		event_new(b, -1, 0, cb, arg)
 
 /**
   Add a timer event.
@@ -200,16 +202,6 @@ int event_base_loopbreak(struct event_base *);
   @param tv timeval struct
  */
 #define evtimer_add(ev, tv)		event_add(ev, tv)
-
-/**
-  Define a timer event.
-
-  @param ev event struct to be modified
-  @param cb callback function
-  @param arg argument that will be passed to the callback function
- */
-#define evtimer_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
-
 
 /**
  * Delete a timer event.
@@ -238,7 +230,6 @@ int event_base_loopbreak(struct event_base *);
  */
 #define timeout_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
 
-
 /**
  * Disable a timeout event.
  *
@@ -252,6 +243,10 @@ int event_base_loopbreak(struct event_base *);
 #define signal_add(ev, tv)		event_add(ev, tv)
 #define signal_set(ev, x, cb, arg)	\
 	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+#define signal_assign(ev, b, x, cb, arg)                    \
+	event_assign(ev, b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+#define signal_new(b, x, cb, arg) \
+	event_new(b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
 #define signal_del(ev)			event_del(ev)
 #define signal_pending(ev, tv)		event_pending(ev, EV_SIGNAL, tv)
 #define signal_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
@@ -282,14 +277,53 @@ int event_base_loopbreak(struct event_base *);
 
   @see event_add(), event_del(), event_once()
 
+  @deprecated event_set() is deprecated.  Use event_assign() instead.
+
  */
 void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
 
-/*XXX document this function, deprecate previous one. */
+
+/**
+  Prepare an event structure to be added.
+
+  The function event_assign() prepares the event structure ev to be used in
+  future calls to event_add() and event_del().  The event will be prepared to
+  call the function specified by the fn argument with an int argument
+  indicating the file descriptor, a short argument indicating the type of
+  event, and a void * argument given in the arg argument.  The fd indicates
+  the file descriptor that should be monitored for events.  The events can be
+  either EV_READ, EV_WRITE, or both.  Indicating that an application can read
+  or write from the file descriptor respectively without blocking.
+
+  The function fn will be called with the file descriptor that triggered the
+  event and the type of event which will be either EV_TIMEOUT, EV_SIGNAL,
+  EV_READ, or EV_WRITE.  The additional flag EV_PERSIST makes an event_add()
+  persistent until event_del() has been called.
+
+  @param ev an event struct to be modified
+  @param base the event base to which ev should be attached.
+  @param fd the file descriptor to be monitored
+  @param event desired events to monitor; can be EV_READ and/or EV_WRITE
+  @param fn callback function to be invoked when the event occurs
+  @param arg an argument to be passed to the callback function
+
+  @see event_add(), event_del(), event_once()
+
+  */
 int event_assign(struct event *, struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
 
+/**
+  Create and allocate a new event structure, ready to be added.
+
+  Arguments are as for event_assign; returns a newly allocated struct event *
+  that must later be deallocated with event_free().
+
+ */
 struct event *event_new(struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
 
+/**
+   Deallocate a struct event * returned by event_new().
+ */
 void event_free(struct event *);
 
 /**
