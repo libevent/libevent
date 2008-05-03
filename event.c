@@ -136,6 +136,8 @@ static int	timeout_next(struct event_base *, struct timeval **);
 static void	timeout_process(struct event_base *);
 static void	timeout_correct(struct event_base *, struct timeval *);
 
+static void	event_signal_closure(struct event_base *, struct event *ev);
+
 static void
 detect_monotonic(void)
 {
@@ -360,6 +362,23 @@ event_haveevents(struct event_base *base)
 	return (base->event_count > 0);
 }
 
+static void
+event_signal_closure(struct event_base *base, struct event *ev)
+{
+	short ncalls;
+
+	/* Allows deletes to work */
+	ncalls = ev->ev_ncalls;
+	ev->ev_pncalls = &ncalls;
+	while (ncalls) {
+		ncalls--;
+		ev->ev_ncalls = ncalls;
+		(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
+		if (event_gotsig || base->event_break)
+			return;
+	}
+}
+
 /*
  * Active events are stored in priority queues.  Lower priorities are always
  * process before higher priorities.  Low priority events can starve high
@@ -372,7 +391,6 @@ event_process_active(struct event_base *base)
 	struct event *ev;
 	struct event_list *activeq = NULL;
 	int i;
-	short ncalls;
 
 	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
@@ -394,16 +412,13 @@ event_process_active(struct event_base *base)
 		EVTHREAD_RELEASE_LOCK(base,
 		    EVTHREAD_WRITE, th_base_lock);
 
-		/* Allows deletes to work */
-		ncalls = ev->ev_ncalls;
-		ev->ev_pncalls = &ncalls;
-		while (ncalls) {
-			ncalls--;
-			ev->ev_ncalls = ncalls;
-			(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
-			if (event_gotsig || base->event_break)
-				return;
-		}
+		if (ev->ev_closure != NULL)
+			(*ev->ev_closure)(base, ev);
+		else
+			(*ev->ev_callback)(
+				(int)ev->ev_fd, ev->ev_res, ev->ev_arg);
+		if (event_gotsig || base->event_break)
+			return;
 		EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	}
 
@@ -655,6 +670,15 @@ event_set(struct event *ev, evutil_socket_t fd, short events,
 	ev->ev_ncalls = 0;
 	ev->ev_pncalls = NULL;
 
+	if (events & EV_SIGNAL) {
+		if ((events & (EV_READ|EV_WRITE)) != 0)
+			event_errx(1, "%s: EV_SIGNAL incompatible use",
+			    __func__);
+		ev->ev_closure = event_signal_closure;
+	} else {
+		ev->ev_closure = NULL;
+	}
+
 	min_heap_elem_init(ev);
 
 	/* by default, we put new events into the middle priority */
@@ -804,12 +828,14 @@ event_add_internal(struct event *ev, struct timeval *tv)
 		 * removes it from the active list. */
 		if ((ev->ev_flags & EVLIST_ACTIVE) &&
 		    (ev->ev_res & EV_TIMEOUT)) {
-			/* See if we are just active executing this
-			 * event in a loop
-			 */
-			if (ev->ev_ncalls && ev->ev_pncalls) {
-				/* Abort loop */
-				*ev->ev_pncalls = 0;
+			if (ev->ev_flags & EVLIST_SIGNAL) {
+				/* See if we are just active executing
+				 * this event in a loop
+				 */
+				if (ev->ev_ncalls && ev->ev_pncalls) {
+					/* Abort loop */
+					*ev->ev_pncalls = 0;
+				}
 			}
 			
 			event_queue_remove(base, ev, EVLIST_ACTIVE);
@@ -880,9 +906,11 @@ event_del_internal(struct event *ev)
 	assert(!(ev->ev_flags & ~EVLIST_ALL));
 
 	/* See if we are just active executing this event in a loop */
-	if (ev->ev_ncalls && ev->ev_pncalls) {
-		/* Abort loop */
-		*ev->ev_pncalls = 0;
+	if (ev->ev_flags & EVLIST_SIGNAL) {
+		if (ev->ev_ncalls && ev->ev_pncalls) {
+			/* Abort loop */
+			*ev->ev_pncalls = 0;
+		}
 	}
 
 	if (ev->ev_flags & EVLIST_TIMEOUT)
@@ -931,8 +959,12 @@ event_active_internal(struct event *ev, int res, short ncalls)
 	base = ev->ev_base;
 
 	ev->ev_res = res;
-	ev->ev_ncalls = ncalls;
-	ev->ev_pncalls = NULL;
+
+	if (ev->ev_flags & EVLIST_SIGNAL) {
+		ev->ev_ncalls = ncalls;
+		ev->ev_pncalls = NULL;
+	}
+
 	event_queue_insert(base, ev, EVLIST_ACTIVE);
 }
 
