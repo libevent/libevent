@@ -188,8 +188,6 @@ evsignal_add(struct event *ev)
 	struct event_base *base = ev->ev_base;
 	struct evsignal_info *sig = &ev->ev_base->sig;
 
-	if (ev->ev_events & (EV_READ|EV_WRITE))
-		event_errx(1, "%s: EV_SIGNAL incompatible use", __func__);
 	evsignal = EVENT_SIGNAL(ev);
 
 	event_debug(("%s: %p: changing signal handler", __func__, ev));
