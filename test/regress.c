@@ -432,6 +432,43 @@ test_simpletimeout(void)
 	cleanup_test();
 }
 
+static void
+periodic_timeout_cb(int fd, short event, void *arg)
+{
+	int *count = arg;
+
+	(*count)++;
+	if (*count > 5) {
+		test_ok = 1;
+		event_base_loopexit(global_base, NULL);
+	}
+}
+
+static void
+test_periodictimeout(void)
+{
+	struct timeval tv, tv_interval;
+	struct event ev;
+	int count = 0;
+
+	setup_test("Periodic timeout: ");
+
+	timerclear(&tv_interval);
+	tv_interval.tv_usec = 10000;
+
+	tv.tv_usec = 0;
+	tv.tv_sec = 0;
+	evperiodic_assign(&ev, global_base, &tv_interval,
+	    periodic_timeout_cb, &count);
+	event_add(&ev, &tv);
+
+	event_dispatch();
+
+	event_del(&ev);
+
+	cleanup_test();
+}
+
 #ifndef WIN32
 extern struct event_base *current_base;
 static void
@@ -2044,6 +2081,8 @@ main (int argc, char **argv)
 
         test_evutil_strtoll();
 
+	test_periodictimeout();
+
 	/* use the global event base and need to be called first */
 	test_priorities(1);
 	test_priorities(2);
@@ -2091,6 +2130,7 @@ main (int argc, char **argv)
 	test_combined();
 
 	test_simpletimeout();
+
 #ifndef WIN32
 	test_simplesignal();
 	test_immediatesignal();

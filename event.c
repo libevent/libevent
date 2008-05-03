@@ -137,6 +137,7 @@ static void	timeout_process(struct event_base *);
 static void	timeout_correct(struct event_base *, struct timeval *);
 
 static void	event_signal_closure(struct event_base *, struct event *ev);
+static void	event_periodic_closure(struct event_base *, struct event *ev);
 
 static void
 detect_monotonic(void)
@@ -360,6 +361,13 @@ int
 event_haveevents(struct event_base *base)
 {
 	return (base->event_count > 0);
+}
+
+static void
+event_periodic_closure(struct event_base *base, struct event *ev)
+{
+	event_add(ev, &ev->_ev.ev_periodic.tv_interval);
+	(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
 }
 
 static void
@@ -707,6 +715,16 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 		return event_base_set(base, ev);
 	else
 		return (0);
+}
+
+void
+evperiodic_assign(struct event *ev, struct event_base *base,
+    struct timeval *tv, void (*cb)(evutil_socket_t, short, void *), void *arg)
+{
+	event_assign(ev, base, -1, EV_TIMEOUT, cb, arg);
+	
+	ev->_ev.ev_periodic.tv_interval = *tv;
+	ev->ev_closure = event_periodic_closure;
 }
 
 struct event *

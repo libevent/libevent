@@ -87,6 +87,7 @@ Changes in current version:
  o introduce evbuffer_reserve_space() and evbuffer_commit_space() to make processing in filters more efficient.
  o reduce system calls for getting current time by caching it.
  o separate signal events from io events; making the code less complex.
+ o support for periodic timeouts
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
