@@ -185,6 +185,22 @@ int event_base_loopexit(struct event_base *, struct timeval *);
 int event_base_loopbreak(struct event_base *);
 
 /**
+   Define a periodic timer.
+
+   Behaves like a timer only that it repeats at the specified interval.
+   To start this time, it needs to be added via event_add().
+
+   @param ev event struct to be modified
+   @param base the event base to which this event belongs
+   @param tv periodicity interval
+   @param cb callback function
+   @param arg argument that will be passed to the callback function
+*/
+
+void evperiodic_assign(struct event *ev, struct event_base *base,
+    struct timeval *tv, void (*cb)(int, short, void *), void *arg);
+
+/**
   Define a timer event.
 
   @param ev event struct to be modified

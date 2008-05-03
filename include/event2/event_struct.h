@@ -104,6 +104,10 @@ struct event {
 			/* Allows deletes in callback */
 			short *ev_pncalls;
 		} ev_signal;
+
+		struct {
+			struct timeval tv_interval;
+		} ev_periodic;
 	} _ev;
 
 	short ev_events;
