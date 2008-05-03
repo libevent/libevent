@@ -326,7 +326,7 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
   @see event_add(), event_del(), event_once()
 
   */
-int event_assign(struct event *, struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
+void event_assign(struct event *, struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
 
 /**
   Create and allocate a new event structure, ready to be added.

@@ -623,7 +623,7 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 {
 	struct event_once *eonce;
 	struct timeval etv;
-	int res;
+	int res = 0;
 
 	/* We cannot support signals that just fire once */
 	if (events & EV_SIGNAL)
@@ -641,11 +641,11 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 			tv = &etv;
 		}
 
-		res = evtimer_assign(&eonce->ev, base, event_once_cb, eonce);
+		evtimer_assign(&eonce->ev, base, event_once_cb, eonce);
 	} else if (events & (EV_READ|EV_WRITE)) {
 		events &= EV_READ|EV_WRITE;
 
-		res = event_assign(&eonce->ev, base, fd, events, event_once_cb, eonce);
+		event_assign(&eonce->ev, base, fd, events, event_once_cb, eonce);
 	} else {
 		/* Bad event combination */
 		mm_free(eonce);
@@ -707,14 +707,12 @@ event_base_set(struct event_base *base, struct event *ev)
 	return (0);
 }
 
-int
+void
 event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, short events, void (*cb)(evutil_socket_t, short, void *), void *arg)
 {
 	event_set(ev, fd, events, cb, arg);
-	if (base)
-		return event_base_set(base, ev);
-	else
-		return (0);
+	if (base != NULL)
+		assert(event_base_set(base, ev) == 0);
 }
 
 void
@@ -732,13 +730,11 @@ event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(
 {
 	struct event *ev;
 	ev = mm_malloc(sizeof(struct event));
-	if (!ev)
-		return NULL;
-	if (event_assign(ev, base, fd, events, cb, arg) < 0) {
-		mm_free(ev);
-		return NULL;
-	}
-	return ev;
+	if (ev == NULL)
+		return (NULL);
+	event_assign(ev, base, fd, events, cb, arg);
+
+	return (ev);
 }
 
 void
