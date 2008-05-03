@@ -68,6 +68,8 @@ struct event_base {
 
 	struct min_heap timeheap;
 
+	struct timeval tv_cache;
+	
 	/* threading support */
 	unsigned long th_owner_id;
 	unsigned long (*th_get_id)(void);

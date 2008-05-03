@@ -148,8 +148,13 @@ detect_monotonic(void)
 }
 
 static int
-gettime(struct timeval *tp)
+gettime(struct event_base *base, struct timeval *tp)
 {
+	if (base->tv_cache.tv_sec) {
+		*tp = base->tv_cache;
+		return (0);
+	}
+
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	struct timespec	ts;
 
@@ -190,7 +195,7 @@ event_base_new(void)
 	event_gotsig = 0;
 
 	detect_monotonic();
-	gettime(&base->event_tv);
+	gettime(base, &base->event_tv);
 	
 	min_heap_ctor(&base->timeheap);
 	TAILQ_INIT(&base->eventqueue);
@@ -532,10 +537,17 @@ event_base_loop(struct event_base *base, int flags)
 			return (1);
 		}
 
+		/* update last old time */
+		gettime(base, &base->event_tv);
+
+		/* clear time cache */
+		base->tv_cache.tv_sec = 0;
+
 		res = evsel->dispatch(base, evbase, tv_p);
 
 		if (res == -1)
 			return (-1);
+		gettime(base, &base->tv_cache);
 
 		timeout_process(base);
 
@@ -736,7 +748,7 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 
 	/* See if there is a timeout that we should report */
 	if (tv != NULL && (flags & event & EV_TIMEOUT)) {
-		gettime(&now);
+		gettime(ev->ev_base, &now);
 		evutil_timersub(&ev->ev_timeout, &now, &res);
 		/* correctly remap to real time */
 		gettimeofday(&now, NULL);
@@ -803,7 +815,7 @@ event_add_internal(struct event *ev, struct timeval *tv)
 			event_queue_remove(base, ev, EVLIST_ACTIVE);
 		}
 
-		gettime(&now);
+		gettime(base, &now);
 		evutil_timeradd(&now, tv, &ev->ev_timeout);
 
 		event_debug((
@@ -941,7 +953,7 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 		goto out;
 	}
 
-	if (gettime(&now) == -1) {
+	if (gettime(base, &now) == -1) {
 		res = -1;
 		goto out;
 	}
@@ -979,7 +991,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 		return;
 
 	/* Check if time is running backwards */
-	gettime(tv);
+	gettime(base, tv);
 	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	if (evutil_timercmp(tv, &base->event_tv, >=)) {
@@ -1017,7 +1029,7 @@ timeout_process(struct event_base *base)
 		return;
 	}
 
-	gettime(&now);
+	gettime(base, &now);
 
 	while ((ev = min_heap_top(&base->timeheap))) {
 		if (evutil_timercmp(&ev->ev_timeout, &now, >))
@@ -1045,19 +1057,19 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 
 	ev->ev_flags &= ~queue;
 	switch (queue) {
+	case EVLIST_INSERTED:
+		TAILQ_REMOVE(&base->eventqueue, ev, ev_next);
+		break;
 	case EVLIST_ACTIVE:
 		base->event_count_active--;
 		TAILQ_REMOVE(base->activequeues[ev->ev_pri],
 		    ev, ev_active_next);
 		break;
-	case EVLIST_SIGNAL:
-		TAILQ_REMOVE(&base->sig.signalqueue, ev, ev_signal_next);
-		break;
 	case EVLIST_TIMEOUT:
 		min_heap_erase(&base->timeheap, ev);
 		break;
-	case EVLIST_INSERTED:
-		TAILQ_REMOVE(&base->eventqueue, ev, ev_next);
+	case EVLIST_SIGNAL:
+		TAILQ_REMOVE(&base->sig.signalqueue, ev, ev_signal_next);
 		break;
 	default:
 		event_errx(1, "%s: unknown queue %x", __func__, queue);
@@ -1081,20 +1093,20 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 
 	ev->ev_flags |= queue;
 	switch (queue) {
+	case EVLIST_INSERTED:
+		TAILQ_INSERT_TAIL(&base->eventqueue, ev, ev_next);
+		break;
 	case EVLIST_ACTIVE:
 		base->event_count_active++;
 		TAILQ_INSERT_TAIL(base->activequeues[ev->ev_pri],
 		    ev,ev_active_next);
 		break;
-	case EVLIST_SIGNAL:
-		TAILQ_INSERT_TAIL(&base->sig.signalqueue, ev, ev_signal_next);
-		break;
 	case EVLIST_TIMEOUT: {
 		min_heap_push(&base->timeheap, ev);
 		break;
 	}
-	case EVLIST_INSERTED:
-		TAILQ_INSERT_TAIL(&base->eventqueue, ev, ev_next);
+	case EVLIST_SIGNAL:
+		TAILQ_INSERT_TAIL(&base->sig.signalqueue, ev, ev_signal_next);
 		break;
 	default:
 		event_errx(1, "%s: unknown queue %x", __func__, queue);
