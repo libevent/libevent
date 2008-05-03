@@ -103,7 +103,6 @@ static enum bufferevent_filter_result
 zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
     enum bufferevent_filter_state state, void *ctx)
 {
-	char tmp[4096];
 	int nread, nwrite;
 	int res;
 
@@ -114,8 +113,8 @@ zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
 		p->avail_in = evbuffer_contiguous_space(src);
 		p->next_in = evbuffer_pullup(src, p->avail_in);
 
-		p->next_out = (unsigned char *)tmp;
-		p->avail_out = sizeof(tmp);
+		p->next_out = evbuffer_reserve_space(dst, 4096);
+		p->avail_out = 4096;
 
 		/* we need to flush zlib if we got a flush */
 		res = inflate(p, state == BEV_FLUSH ?
@@ -124,10 +123,10 @@ zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
 
 		/* let's figure out how much was compressed */
 		nread = evbuffer_contiguous_space(src) - p->avail_in;
-		nwrite = sizeof(tmp) - p->avail_out;
+		nwrite = 4096 - p->avail_out;
 
 		evbuffer_drain(src, nread);
-		evbuffer_add(dst, tmp, nwrite);
+		evbuffer_commit_space(dst, nwrite);
 	} while (EVBUFFER_LENGTH(src) > 0);
 
 	test_ok++;
@@ -139,7 +138,6 @@ static enum bufferevent_filter_result
 zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
     enum bufferevent_filter_state state, void *ctx)
 {
-	char tmp[4096];
 	int nread, nwrite;
 	int res;
 
@@ -150,8 +148,8 @@ zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
 		p->avail_in = evbuffer_contiguous_space(src);
 		p->next_in = evbuffer_pullup(src, p->avail_in);
 
-		p->next_out = (unsigned char *)tmp;
-		p->avail_out = sizeof(tmp);
+		p->next_out = evbuffer_reserve_space(dst, 4096);
+		p->avail_out = 4096;
 
 		/* we need to flush zlib if we got a flush */
 		res = deflate(p, state == BEV_FLUSH ? Z_FINISH : Z_NO_FLUSH);
@@ -159,10 +157,10 @@ zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
 
 		/* let's figure out how much was compressed */
 		nread = evbuffer_contiguous_space(src) - p->avail_in;
-		nwrite = sizeof(tmp) - p->avail_out;
+		nwrite = 4096 - p->avail_out;
 
 		evbuffer_drain(src, nread);
-		evbuffer_add(dst, tmp, nwrite);
+		evbuffer_commit_space(dst, nwrite);
 	} while (EVBUFFER_LENGTH(src) > 0);
 
 	test_ok++;

@@ -84,6 +84,7 @@ Changes in current version:
  o add new evtimer_assign, signal_assign, evtimer_new, and signal_new functions to manipulate timer and signal events, analagous to the now-recommended event_assign and event_new
  o switch internal uses of event_set over to use event_assign.
  o introduce evbuffer_contiguous_space() api that tells a user how much data is available in the first buffer chain
+ o introduce evbuffer_reserve_space() and evbuffer_commit_space() to make processing in filters more efficient.
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

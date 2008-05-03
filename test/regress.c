@@ -1013,6 +1013,31 @@ test_evbuffer(void)
 		goto out;
 	evbuffer_validate(evb);
 
+
+	/* testing reserve and commit */
+	{
+		u_char *buf;
+		int i, j;
+
+		for (i = 0; i < 3; ++i) {
+			buf = evbuffer_reserve_space(evb, 10000);
+			assert(buf != NULL);
+			evbuffer_validate(evb);
+			for (j = 0; j < 10000; ++j) {
+				buf[j] = j;
+			}
+			evbuffer_validate(evb);
+
+			assert(evbuffer_commit_space(evb, 10000) == 0);
+			evbuffer_validate(evb);
+
+			assert(evbuffer_length(evb) >= 10000);
+
+			evbuffer_drain(evb, j * 5000);
+			evbuffer_validate(evb);
+		}
+	}
+	
 	test_ok = 1;
 	
 out:

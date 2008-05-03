@@ -118,6 +118,38 @@ size_t evbuffer_contiguous_space(struct evbuffer *buf);
 */
 int evbuffer_expand(struct evbuffer *buf, size_t datlen);
 
+/**
+   Reserves space in the last chain of an event buffer.
+
+   Makes space available in the last chain of an event buffer that can
+   be arbitrarily written to by a user.  The space does not become
+   available for reading until it has been committed.
+
+   Multiple subsequent calls to this function will make the same space
+   available until evbuffer_commit_space() has been called.
+
+   @param buf the event buffer in which to reserve space.
+   @param size how much space to make available.
+   @return the pointer to the available space or NULL on error.
+   @see evbuffer_commit_space
+*/
+
+u_char *evbuffer_reserve_space(struct evbuffer *buf, size_t size);
+
+/**
+   Commits previously reserved space.
+
+   Commits some of the space previously reserved.  It then becomes
+   available for reading.
+
+   @param buf the event buffer in which to reserve space.
+   @param size how much space to commit.
+   @return 0 on success, -1 on error
+   @see evbuffer_reserve_space
+*/
+
+int evbuffer_commit_space(struct evbuffer *buf, size_t size);
+
 
 /**
   Append data to the end of an evbuffer.

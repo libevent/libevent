@@ -131,6 +131,34 @@ evbuffer_contiguous_space(struct evbuffer *buf)
 	return (chain != NULL ? chain->off : 0);
 }
 
+u_char *
+evbuffer_reserve_space(struct evbuffer *buf, size_t size)
+{
+	struct evbuffer_chain *chain;
+
+	if (evbuffer_expand(buf, size) == -1)
+		return (NULL);
+
+	chain = buf->last;
+
+	return (chain->buffer + chain->misalign + chain->off);
+}
+
+int
+evbuffer_commit_space(struct evbuffer *buf, size_t size)
+{
+	struct evbuffer_chain *chain = buf->last;
+
+	if (chain == NULL || 
+	    chain->buffer_len - chain->off - chain->misalign < size)
+		return (-1);
+
+	chain->off += size;
+	buf->total_len += size;
+
+	return (0);
+}
+
 #define ZERO_CHAIN(dst) do { \
 		(dst)->first = NULL;		\
 		(dst)->last = NULL;		\
