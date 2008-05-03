@@ -111,7 +111,7 @@ zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
 
 	do {
 		/* let's do some decompression */
-		p->avail_in = EVBUFFER_LENGTH(src);
+		p->avail_in = evbuffer_contiguous_space(src);
 		p->next_in = evbuffer_pullup(src, p->avail_in);
 
 		p->next_out = (unsigned char *)tmp;
@@ -123,7 +123,7 @@ zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
 		assert(res == Z_OK || res == Z_STREAM_END);
 
 		/* let's figure out how much was compressed */
-		nread = EVBUFFER_LENGTH(src) - p->avail_in;
+		nread = evbuffer_contiguous_space(src) - p->avail_in;
 		nwrite = sizeof(tmp) - p->avail_out;
 
 		evbuffer_drain(src, nread);
@@ -147,7 +147,7 @@ zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
 
 	do {
 		/* let's do some compression */
-		p->avail_in = EVBUFFER_LENGTH(src);
+		p->avail_in = evbuffer_contiguous_space(src);
 		p->next_in = evbuffer_pullup(src, p->avail_in);
 
 		p->next_out = (unsigned char *)tmp;
@@ -158,7 +158,7 @@ zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
 		assert(res == Z_OK || res == Z_STREAM_END);
 
 		/* let's figure out how much was compressed */
-		nread = EVBUFFER_LENGTH(src) - p->avail_in;
+		nread = evbuffer_contiguous_space(src) - p->avail_in;
 		nwrite = sizeof(tmp) - p->avail_out;
 
 		evbuffer_drain(src, nread);
@@ -246,7 +246,9 @@ test_bufferevent_zlib(void)
 	for (i = 0; i < sizeof(buffer); i++)
 		buffer[i] = i;
 
-	bufferevent_write(bev1, buffer, sizeof(buffer));
+	/* break it up into multiple buffer chains */
+	bufferevent_write(bev1, buffer, 1800);
+	bufferevent_write(bev1, buffer + 1800, sizeof(buffer) - 1800);
 
 	/* we are done writing - we need to flush everything */
 	bufferevent_trigger_filter(bev1, NULL, BEV_OUTPUT, BEV_FLUSH);
@@ -256,7 +258,7 @@ test_bufferevent_zlib(void)
 	bufferevent_free(bev1);
 	bufferevent_free(bev2);
 
-	if (test_ok != 5) {
+	if (test_ok != 6) {
 		fprintf(stdout, "FAILED: %d\n", test_ok);
 		exit(1);
 	}

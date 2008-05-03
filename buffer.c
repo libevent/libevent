@@ -123,6 +123,14 @@ evbuffer_length(struct evbuffer *buffer)
 	return (buffer->total_len);
 }
 
+size_t
+evbuffer_contiguous_space(struct evbuffer *buf)
+{
+	struct evbuffer_chain *chain = buf->first;
+
+	return (chain != NULL ? chain->off : 0);
+}
+
 #define ZERO_CHAIN(dst) do { \
 		(dst)->first = NULL;		\
 		(dst)->last = NULL;		\

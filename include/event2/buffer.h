@@ -94,6 +94,19 @@ void evbuffer_free(struct evbuffer *buf);
 size_t evbuffer_length(struct evbuffer *buf);
 
 /**
+   Returns the contiguous number of available bytes in the first buffer chain.
+
+   This is useful when processing of all available data can be split up into
+   chunks.  Calls to evbuffer_pullup() that cause reallocation and copying
+   of data can thus be avoided.
+
+   @param buf pointer to the evbuffer
+   @return 0 if no data is available, otherwise the number of available bytes
+     in the first buffer chain.
+*/
+size_t evbuffer_contiguous_space(struct evbuffer *buf);
+
+/**
   Expands the available space in an event buffer.
 
   Expands the available space in the event buffer to at least datlen, so that
