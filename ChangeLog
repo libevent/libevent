@@ -7,6 +7,7 @@ Changes in 1.4.4-stable:
  o fix a bug in bufferevent read water marks and add a test for them
  o introduce bufferevent_setcb and bufferevent_setfd to allow better manipulation of bufferevents
  o use libevent's internal timercmp on all platforms, to avoid bugs on old platforms where timercmp(a,b,<=) is buggy.
+ o reduce system calls for getting current time by caching it.
 
 
 Changes in 1.4.3-stable:
