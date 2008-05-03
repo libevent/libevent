@@ -35,6 +35,16 @@ extern "C" {
 #include "min_heap.h"
 #include "evsignal.h"
 
+/* map union members back */
+
+/* mutually exclusive */
+#define ev_next		_ev.ev_io.ev_next
+#define ev_signal_next	_ev.ev_signal.ev_signal_next
+
+/* used only by signals */
+#define ev_ncalls	_ev.ev_signal.ev_ncalls
+#define ev_pncalls	_ev.ev_signal.ev_pncalls
+
 struct eventop {
 	const char *name;
 	void *(*init)(struct event_base *);
