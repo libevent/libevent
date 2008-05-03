@@ -85,6 +85,7 @@ Changes in current version:
  o switch internal uses of event_set over to use event_assign.
  o introduce evbuffer_contiguous_space() api that tells a user how much data is available in the first buffer chain
  o introduce evbuffer_reserve_space() and evbuffer_commit_space() to make processing in filters more efficient.
+ o reduce system calls for getting current time by caching it.
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

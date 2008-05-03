@@ -77,7 +77,7 @@ static struct timeval *
 run_once(int num_pipes)
 {
 	int *cp, i;
-	static struct timeval ts, te;
+	static struct timeval ts, te, tv_timeout;
 
 	events = calloc(num_pipes, sizeof(struct event));
 	pipes = calloc(num_pipes * 2, sizeof(int));
@@ -94,10 +94,17 @@ run_once(int num_pipes)
 		}
 	}
 
+	/* measurements includes event setup */
+	gettimeofday(&ts, NULL);
+
+	/* provide a default timeout for events */
+	timerclear(&tv_timeout);
+	tv_timeout.tv_sec = 60;
+
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
 		long fd = i < num_pipes - 1 ? cp[3] : -1;
 		event_set(&events[i], cp[0], EV_READ, read_cb, (void *) fd);
-		event_add(&events[i], NULL);
+		event_add(&events[i], &tv_timeout);
 	}
 
 	fired = 0;
@@ -105,7 +112,6 @@ run_once(int num_pipes)
 	/* kick everything off with a single write */
 	write(pipes[1], "e", 1);
 
-	gettimeofday(&ts, NULL);
 	event_dispatch();
 
 	gettimeofday(&te, NULL);
