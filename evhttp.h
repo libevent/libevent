@@ -97,6 +97,9 @@ int evhttp_bind_socket(struct evhttp *http, const char *address, u_short port);
  * descriptor passing in situations where an http servers does not have
  * permissions to bind to a low-numbered port.
  *
+ * Can be called multiple times to have the http server listen to
+ * multiple different sockets.
+ *
  * @param http a pointer to an evhttp object
  * @param fd a socket fd that is ready for accepting connections
  * @return 0 on success, -1 on failure.
