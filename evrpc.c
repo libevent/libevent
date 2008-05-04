@@ -1032,6 +1032,5 @@ struct evhttp_connection *
 evrpc_hook_get_connection(void *ctx)
 {
 	struct evrpc_request_wrapper *req = ctx;
-	assert(req->hook_meta != NULL);
-	return (req->hook_meta->evcon);
+	return (req->hook_meta != NULL ? req->hook_meta->evcon : NULL);
 }
