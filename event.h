@@ -210,35 +210,22 @@ struct {								\
 
 struct event_base;
 struct event {
-	TAILQ_ENTRY (event) (ev_active_next);
+	TAILQ_ENTRY (event) ev_next;
+	TAILQ_ENTRY (event) ev_active_next;
+	TAILQ_ENTRY (event) ev_signal_next;
 	unsigned int min_heap_idx;	/* for managing timeouts */
 
 	struct event_base *ev_base;
 
 	int ev_fd;
-	union {
-		/* used by io events */
-		struct {
-			TAILQ_ENTRY (event) (ev_next);
-		} ev_io;
-
-		/* used by signal events */
-		struct {
-			TAILQ_ENTRY (event) (ev_signal_next);
-			short ev_ncalls;
-			/* Allows deletes in callback */
-			short *ev_pncalls;
-		} ev_signal;
-	} _ev;
-
 	short ev_events;
+	short ev_ncalls;
+	short *ev_pncalls;	/* Allows deletes in callback */
 
 	struct timeval ev_timeout;
 
 	int ev_pri;		/* smaller numbers are higher priority */
 
-	/* allows us to adopt for different types of events */
-	void (*ev_closure)(struct event_base *, struct event *);
 	void (*ev_callback)(int, short, void *arg);
 	void *ev_arg;
 
