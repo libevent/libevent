@@ -81,7 +81,7 @@ event-config.h: config.h
 	    -e 's/#ifndef /#ifndef _EVENT_/' < config.h >> $@
 	echo "#endif" >> $@
 
-CORE_SRC = event.c buffer.c evbuffer-internal.h evbuffer.c \
+CORE_SRC = event.c buffer.c evbuffer-internal.h bufferevent.c \
 	bufferevent-internal.h \
 	log.c evutil.c $(SYS_SRC)
 EXTRA_SRC = event_tagging.c http.c evhttp.h http-internal.h evdns.c \
