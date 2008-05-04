@@ -1976,12 +1976,30 @@ evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 int
 evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd)
 {
-	struct event *ev = &http->bind_ev;
+	struct evhttp_bound_socket *bound;
+	struct event *ev;
+	int res;
+
+	bound = mm_malloc(sizeof(struct evhttp_bound_socket));
+	if (bound == NULL)
+		return (-1);
+
+	ev = &bound->bind_ev;
 
 	/* Schedule the socket for accepting */
-	event_assign(ev, http->base, fd, EV_READ | EV_PERSIST, accept_socket, http);
+	event_assign(ev, http->base,
+	    fd, EV_READ | EV_PERSIST, accept_socket, http);
 
-	return (event_add(ev, NULL));
+	res = event_add(ev, NULL);
+
+	if (res == -1) {
+		mm_free(bound);
+		return (-1);
+	}
+
+	TAILQ_INSERT_TAIL(&http->sockets, bound, next);
+
+	return (0);
 }
 
 static struct evhttp*
@@ -1996,6 +2014,7 @@ evhttp_new_object(void)
 
 	http->timeout = -1;
 
+	TAILQ_INIT(&http->sockets);
 	TAILQ_INIT(&http->callbacks);
 	TAILQ_INIT(&http->connections);
 
@@ -2034,11 +2053,19 @@ evhttp_free(struct evhttp* http)
 {
 	struct evhttp_cb *http_cb;
 	struct evhttp_connection *evcon;
-	evutil_socket_t fd = http->bind_ev.ev_fd;
+	struct evhttp_bound_socket *bound;
+	evutil_socket_t fd;
 
 	/* Remove the accepting part */
-	event_del(&http->bind_ev);
-	EVUTIL_CLOSESOCKET(fd);
+	while ((bound = TAILQ_FIRST(&http->sockets)) != NULL) {
+		TAILQ_REMOVE(&http->sockets, bound, next);
+
+		fd = bound->bind_ev.ev_fd;
+		event_del(&bound->bind_ev);
+		EVUTIL_CLOSESOCKET(fd);
+
+		mm_free(bound);
+	}
 
 	while ((evcon = TAILQ_FIRST(&http->connections)) != NULL) {
 		/* evhttp_connection_free removes the connection */
