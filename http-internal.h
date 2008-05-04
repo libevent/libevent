@@ -89,8 +89,15 @@ struct evhttp_cb {
 /* both the http server as well as the rpc system need to queue connections */
 TAILQ_HEAD(evconq, evhttp_connection);
 
+/* each bound socket is stored in one of these */
+struct evhttp_bound_socket {
+	TAILQ_ENTRY(evhttp_bound_socket) (next);
+
+	struct event  bind_ev;
+};
+
 struct evhttp {
-	struct event bind_ev;
+	TAILQ_HEAD(boundq, evhttp_bound_socket) sockets;
 
 	TAILQ_HEAD(httpcbq, evhttp_cb) callbacks;
         struct evconq connections;

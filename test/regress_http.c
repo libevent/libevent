@@ -224,8 +224,39 @@ http_basic_test(void)
 	fprintf(stdout, "Testing Basic HTTP Server: ");
 
 	http = http_setup(&port, NULL);
+
+	/* bind to a second socket */
+	if (evhttp_bind_socket(http, "127.0.0.1", port + 1) == -1) {
+		fprintf(stdout, "FAILED (bind)\n");
+		exit(1);
+	}
 	
 	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, http_readcb, http_writecb,
+	    http_errorcb, NULL);
+
+	http_request =
+	    "GET /test HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+	
+	event_dispatch();
+
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* connect to the second port */
+	bufferevent_free(bev);
+	close(fd);
+
+	fd = http_connect("127.0.0.1", port + 1);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_new(fd, http_readcb, http_writecb,
@@ -246,11 +277,11 @@ http_basic_test(void)
 
 	evhttp_free(http);
 	
-	if (test_ok != 2) {
+	if (test_ok != 4) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
-	
+
 	fprintf(stdout, "OK\n");
 }
 

@@ -162,6 +162,7 @@ static void evhttp_connection_start_detectclose(
 static void evhttp_connection_stop_detectclose(
 	struct evhttp_connection *evcon);
 static void evhttp_request_dispatch(struct evhttp_connection* evcon);
+static int evhttp_accept_socket(struct evhttp *http, int fd);
 
 void evhttp_read(int, short, void *);
 void evhttp_write(int, short, void *);
@@ -1999,24 +2000,52 @@ accept_socket(int fd, short what, void *arg)
 int
 evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 {
-	struct event *ev = &http->bind_ev;
 	int fd;
+	int res;
 
 	if ((fd = bind_socket(address, port)) == -1)
 		return (-1);
 
-	if (listen(fd, 10) == -1) {
+	if (listen(fd, 128) == -1) {
 		event_warn("%s: listen", __func__);
 		EVUTIL_CLOSESOCKET(fd);
 		return (-1);
 	}
 
+	res = evhttp_accept_socket(http, fd);
+	
+	if (res != -1)
+		event_debug(("Bound to port %d - Awaiting connections ... ",
+			port));
+
+	return (res);
+}
+
+static int
+evhttp_accept_socket(struct evhttp *http, int fd)
+{
+	struct evhttp_bound_socket *bound;
+	struct event *ev;
+	int res;
+
+	bound = malloc(sizeof(struct evhttp_bound_socket));
+	if (bound == NULL)
+		return (-1);
+
+	ev = &bound->bind_ev;
+
 	/* Schedule the socket for accepting */
 	event_set(ev, fd, EV_READ | EV_PERSIST, accept_socket, http);
 	EVHTTP_BASE_SET(http, ev);
-	event_add(ev, NULL);
 
-	event_debug(("Bound to port %d - Awaiting connections ... ", port));
+	res = event_add(ev, NULL);
+
+	if (res == -1) {
+		free(bound);
+		return (-1);
+	}
+
+	TAILQ_INSERT_TAIL(&http->sockets, bound, next);
 
 	return (0);
 }
@@ -2033,6 +2062,7 @@ evhttp_new_object(void)
 
 	http->timeout = -1;
 
+	TAILQ_INIT(&http->sockets);
 	TAILQ_INIT(&http->callbacks);
 	TAILQ_INIT(&http->connections);
 
@@ -2071,11 +2101,19 @@ evhttp_free(struct evhttp* http)
 {
 	struct evhttp_cb *http_cb;
 	struct evhttp_connection *evcon;
-	int fd = http->bind_ev.ev_fd;
+	struct evhttp_bound_socket *bound;
+	int fd;
 
 	/* Remove the accepting part */
-	event_del(&http->bind_ev);
-	EVUTIL_CLOSESOCKET(fd);
+	while ((bound = TAILQ_FIRST(&http->sockets)) != NULL) {
+		TAILQ_REMOVE(&http->sockets, bound, next);
+
+		fd = bound->bind_ev.ev_fd;
+		event_del(&bound->bind_ev);
+		EVUTIL_CLOSESOCKET(fd);
+
+		free(bound);
+	}
 
 	while ((evcon = TAILQ_FIRST(&http->connections)) != NULL) {
 		/* evhttp_connection_free removes the connection */
