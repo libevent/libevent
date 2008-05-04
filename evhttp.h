@@ -55,14 +55,14 @@ extern "C" {
  */
 
 /* Response codes */
-#define HTTP_OK			200
-#define HTTP_NOCONTENT		204
-#define HTTP_MOVEPERM		301
-#define HTTP_MOVETEMP		302
-#define HTTP_NOTMODIFIED	304
-#define HTTP_BADREQUEST		400
-#define HTTP_NOTFOUND		404
-#define HTTP_SERVUNAVAIL	503
+#define HTTP_OK			200	/**< request completed ok */
+#define HTTP_NOCONTENT		204	/**< request does not have content */
+#define HTTP_MOVEPERM		301	/**< the uri moved permanently */
+#define HTTP_MOVETEMP		302	/**< the uri moved temporarily */
+#define HTTP_NOTMODIFIED	304	/**< page was not modified from last */
+#define HTTP_BADREQUEST		400	/**< invalid http request was made */
+#define HTTP_NOTFOUND		404	/**< could not find content for uri */
+#define HTTP_SERVUNAVAIL	503	/**< the server is not available */ 
 
 struct evhttp;
 struct evhttp_request;
@@ -121,10 +121,19 @@ void evhttp_set_cb(struct evhttp *, const char *,
 /** Removes the callback for a specified URI */
 int evhttp_del_cb(struct evhttp *, const char *);
 
-/** Set a callback for all requests that are not caught by specific callbacks
- */
-void evhttp_set_gencb(struct evhttp *,
-    void (*)(struct evhttp_request *, void *), void *);
+/** 
+    Set a callback for all requests that are not caught by specific callbacks
+
+    Invokes the specified callback for all requests that do not match any of
+    the previously specified request paths.  This is catchall for requests not
+    specifically configured with evhttp_set_cb().
+
+    @param http the evhttp server object for which to set the callback
+    @param cb the callback to invoke for any unmatched requests
+    @param arg an context argument for the callback
+*/
+void evhttp_set_gencb(struct evhttp *http,
+    void (*cb)(struct evhttp_request *, void *), void *arg);
 
 /**
  * Set the timeout for an HTTP request.
@@ -132,7 +141,7 @@ void evhttp_set_gencb(struct evhttp *,
  * @param http an evhttp object
  * @param timeout_in_secs the timeout, in seconds
  */
-void evhttp_set_timeout(struct evhttp *, int timeout_in_secs);
+void evhttp_set_timeout(struct evhttp *http, int timeout_in_secs);
 
 /* Request/Response functionality */
 
@@ -198,8 +207,11 @@ struct {
 	/* the connection object that this request belongs to */
 	struct evhttp_connection *evcon;
 	int flags;
+/** The request obj owns the evhttp connection and needs to free it */
 #define EVHTTP_REQ_OWN_CONNECTION	0x0001
+/** Request was made via a proxy */
 #define EVHTTP_PROXY_REQUEST		0x0002
+/** The request object is owned by the user; the user must free it */
 #define EVHTTP_USER_OWNED		0x0004
 
 	struct evkeyvalq *input_headers;
@@ -311,10 +323,45 @@ const char *evhttp_request_uri(struct evhttp_request *req);
 
 /* Interfaces for dealing with HTTP headers */
 
-const char *evhttp_find_header(const struct evkeyvalq *, const char *);
-int evhttp_remove_header(struct evkeyvalq *, const char *);
-int evhttp_add_header(struct evkeyvalq *, const char *, const char *);
-void evhttp_clear_headers(struct evkeyvalq *);
+/**
+   Finds the value belonging to a header.
+    
+   @param headers the evkeyvalq object in which to find the header
+   @param key the name of the header to find
+   @returns a pointer to the value for the header or NULL if the header
+     count not be found.
+   @see evhttp_add_header(), evhttp_remove_header()
+*/
+const char *evhttp_find_header(const struct evkeyvalq *headers,
+    const char *key);
+
+/**
+   Removes a header from a list of exisiting headers.
+    
+   @param headers the evkeyvalq object from which to remove a header
+   @param key the name of the header to remove
+   @returns 0 if the header was removed, -1  otherwise.
+   @see evhttp_find_header(), evhttp_add_header()
+*/
+int evhttp_remove_header(struct evkeyvalq *headers, const char *key);
+
+/**
+   Adds a header to a list of exisiting headers.
+    
+   @param headers the evkeyvalq object to which to add a header
+   @param key the name of the header
+   @param value the value belonging to the header
+   @returns 0 on success, -1  otherwise.
+   @see evhttp_find_header(), evhttp_clear_headers()
+*/
+int evhttp_add_header(struct evkeyvalq *headers, const char *key, const char *value);
+
+/**
+   Removes all headers from the header list.
+
+   @param headers the evkeyvalq object from which to remove all headers
+*/
+void evhttp_clear_headers(struct evkeyvalq *headers);
 
 /* Miscellaneous utility functions */
 
