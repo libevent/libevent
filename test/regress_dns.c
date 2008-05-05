@@ -59,7 +59,8 @@
 #include <string.h>
 #include <errno.h>
 
-#include "event.h"
+#include "event2/event.h"
+#include "event2/event_compat.h"
 #include "evdns.h"
 #include "log.h"
 

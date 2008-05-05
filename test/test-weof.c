@@ -24,8 +24,10 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include <event.h>
-#include <evutil.h>
+#include <event2/event.h>
+#include <event2/event_struct.h>
+#include <event2/event_compat.h>
+#include <event2/util.h>
 
 int pair[2];
 int test_okay = 1;
