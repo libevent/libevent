@@ -89,6 +89,8 @@ Changes in current version:
  o separate signal events from io events; making the code less complex.
  o support for periodic timeouts
  o support for virtual HTTP hosts.
+ o turn event_initialized() into a function, and add function equivalents to EVENT_SIGNAL and EVENT_FD so that people don't need to include event_struct.h
+
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

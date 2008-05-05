@@ -226,7 +226,7 @@ void evperiodic_assign(struct event *ev, struct event_base *base,
  */
 #define evtimer_del(ev)			event_del(ev)
 #define evtimer_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
-#define evtimer_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+#define evtimer_initialized(ev)		_event_initialized((ev), 0)
 
 /**
  * Add a timeout event.
@@ -254,7 +254,7 @@ void evperiodic_assign(struct event *ev, struct event_base *base,
 #define timeout_del(ev)			event_del(ev)
 
 #define timeout_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
-#define timeout_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+#define timeout_initialized(ev)		_event_initialized((ev), 0)
 
 #define signal_add(ev, tv)		event_add(ev, tv)
 #define signal_set(ev, x, cb, arg)	\
@@ -265,7 +265,7 @@ void evperiodic_assign(struct event *ev, struct event_base *base,
 	event_new(b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
 #define signal_del(ev)			event_del(ev)
 #define signal_pending(ev, tv)		event_pending(ev, EV_SIGNAL, tv)
-#define signal_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
+#define signal_initialized(ev)		_event_initialized((ev), 0)
 
 
 /**
@@ -430,12 +430,19 @@ int event_pending(struct event *, short, struct timeval *);
   @return 1 if the structure has been initialized, or 0 if it has not been
           initialized
  */
-#ifdef WIN32
-#define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT && (ev)->ev_fd != (int)INVALID_HANDLE_VALUE)
-#else
-#define event_initialized(ev)		((ev)->ev_flags & EVLIST_INIT)
-#endif
+#define event_initialized(ev)		_event_initialized((ev), 1)
 
+int _event_initialized(struct event *, int check_fd);
+
+/**
+   Get the signal number assigned to an event.
+*/
+#define event_get_signal(ev) ((int)event_get_fd(ev))
+
+/**
+   Get the socket assigned to an event.
+*/
+evutil_socket_t event_get_fd(struct event *ev);
 
 /**
   Get the libevent version number.
