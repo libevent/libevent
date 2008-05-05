@@ -79,6 +79,9 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef HAVE_FNMATCH_H
+#include <fnmatch.h>
+#endif
 
 #undef timeout_pending
 #undef timeout_initialized
@@ -1891,10 +1894,24 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 {
 	struct evhttp *http = arg;
 	struct evhttp_cb *cb = NULL;
+	const char *hostname;
 
 	if (req->uri == NULL) {
 		evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
 		return;
+	}
+
+	/* handle potential virtual hosts */
+	hostname = evhttp_find_header(req->input_headers, "Host");
+	if (hostname != NULL) {
+		struct evhttp *vhost;
+		TAILQ_FOREACH(vhost, &http->virtualhosts, next) {
+			if (fnmatch(vhost->vhost_pattern, hostname,
+				FNM_CASEFOLD) == 0) {
+				evhttp_handle_request(req, vhost);
+				return;
+			}
+		}
 	}
 
 	if ((cb = evhttp_dispatch_callback(&http->callbacks, req)) != NULL) {
@@ -2017,6 +2034,7 @@ evhttp_new_object(void)
 	TAILQ_INIT(&http->sockets);
 	TAILQ_INIT(&http->callbacks);
 	TAILQ_INIT(&http->connections);
+	TAILQ_INIT(&http->virtualhosts);
 
 	return (http);
 }
@@ -2054,6 +2072,7 @@ evhttp_free(struct evhttp* http)
 	struct evhttp_cb *http_cb;
 	struct evhttp_connection *evcon;
 	struct evhttp_bound_socket *bound;
+	struct evhttp* vhost;
 	evutil_socket_t fd;
 
 	/* Remove the accepting part */
@@ -2077,8 +2096,49 @@ evhttp_free(struct evhttp* http)
 		mm_free(http_cb->what);
 		mm_free(http_cb);
 	}
+
+	while ((vhost = TAILQ_FIRST(&http->virtualhosts)) != NULL) {
+		TAILQ_REMOVE(&http->virtualhosts, vhost, next);
+
+		evhttp_free(vhost);
+	}
+
+	if (http->vhost_pattern != NULL)
+		mm_free(http->vhost_pattern);
 	
 	mm_free(http);
+}
+
+int
+evhttp_add_virtual_host(struct evhttp* http, const char *pattern,
+    struct evhttp* vhost)
+{
+	/* a vhost can only be a vhost once and should not have bound sockets */
+	if (vhost->vhost_pattern != NULL ||
+	    TAILQ_FIRST(&vhost->sockets) != NULL)
+		return (-1);
+
+	vhost->vhost_pattern = mm_strdup(pattern);
+	if (vhost->vhost_pattern == NULL)
+		return (-1);
+
+	TAILQ_INSERT_TAIL(&http->virtualhosts, vhost, next);
+
+	return (0);
+}
+
+int
+evhttp_remove_virtual_host(struct evhttp* http, struct evhttp* vhost)
+{
+	if (vhost->vhost_pattern == NULL)
+		return (-1);
+
+	TAILQ_REMOVE(&http->virtualhosts, vhost, next);
+
+	mm_free(vhost->vhost_pattern);
+	vhost->vhost_pattern = NULL;
+
+	return (0);
 }
 
 void
