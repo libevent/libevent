@@ -450,6 +450,14 @@ int _event_initialized(struct event *, int check_fd);
 */
 evutil_socket_t event_get_fd(struct event *ev);
 
+#ifndef EVENT_FD
+/* We haven't included event_struct.h, so define these as function calls
+ * rather than as direct struct access.  If we include event_struct.h later,
+ * these macros will be overridden. */
+#define EVENT_FD(ev)		((int)event_get_fd(ev))
+#define EVENT_SIGNAL(ev)	((int)event_get_fd(ev))
+#endif
+
 /**
   Get the libevent version number.
 
