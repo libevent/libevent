@@ -119,8 +119,14 @@ struct event {
 	int ev_flags;
 };
 
+#ifdef EVENT_FD
+/* This was defined in event.h, but since we're including event_struct.h, we
+ * can use the faster versions. */
+#undef EVENT_FD
+#undef EVENT_SIGNAL
 #define EVENT_SIGNAL(ev)	((int)(ev)->ev_fd)
 #define EVENT_FD(ev)		((int)(ev)->ev_fd)
+#endif
 
 /*
  * Key-Value pairs.  Can be used for HTTP headers but also for
