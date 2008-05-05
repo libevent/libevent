@@ -1561,7 +1561,10 @@ class CCodeGenerator:
                  '#include <stdlib.h>\n'
                  '#include <string.h>\n'
                  '#include <assert.h>\n'
-                 '#include <event.h>\n\n' )
+                 '#include <event2/event.h>\n'
+                 '#include <event2/buffer.h>\n'
+                 '#include <event2/tag.h>\n\n'
+                 )
     
         for statement in cppdirect:
             pre += '%s\n' % statement
