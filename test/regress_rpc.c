@@ -53,7 +53,7 @@
 #include <errno.h>
 #include <assert.h>
 
-#include "event.h"
+#include "event2/event.h"
 #include "evhttp.h"
 #include "log.h"
 #include "evrpc.h"

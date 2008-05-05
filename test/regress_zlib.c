@@ -49,8 +49,11 @@
 #include <zlib.h>
 #include <assert.h>
 
-#include "evutil.h"
-#include "event.h"
+#include "event2/util.h"
+#include "event2/event.h"
+#include "event2/event_compat.h"
+#include "event2/buffer.h"
+#include "event2/bufferevent.h"
 
 void regress_zlib(void);
 
@@ -175,7 +178,7 @@ zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
 static void
 readcb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bev->input) == 8333) {
+	if (EVBUFFER_LENGTH(bufferevent_input(bev)) == 8333) {
 		struct evbuffer *evbuf = evbuffer_new();
 		assert(evbuf != NULL);
 
@@ -194,7 +197,7 @@ readcb(struct bufferevent *bev, void *arg)
 static void
 writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bev->output) == 0)
+	if (EVBUFFER_LENGTH(bufferevent_output(bev)) == 0)
 		test_ok++;
 }
 
