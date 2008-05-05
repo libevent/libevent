@@ -318,6 +318,7 @@ int evdns_nameserver_ip_add(const char *ip_as_string);
 int evdns_base_nameserver_ip_add(struct evdns_base *base,
                                  const char *ip_as_string);
 
+struct evdns_request;
 
 /**
   Lookup an A record for a given name.
@@ -330,7 +331,7 @@ int evdns_base_nameserver_ip_add(struct evdns_base *base,
   @see evdns_resolve_ipv6(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
  */
 int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback, void *ptr);
-int evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+struct evdns_request *evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 /**
   Lookup an AAAA record for a given name.
@@ -343,7 +344,7 @@ int evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags
   @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
  */
 int evdns_resolve_ipv6(const char *name, int flags, evdns_callback_type callback, void *ptr);
-int evdns_base_resolve_ipv6(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+struct evdns_request *evdns_base_resolve_ipv6(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 struct in_addr;
 struct in6_addr;
@@ -359,7 +360,7 @@ struct in6_addr;
   @see evdns_resolve_reverse_ipv6()
  */
 int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
-int evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
+struct evdns_request *evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 
 /**
@@ -373,7 +374,7 @@ int evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int 
   @see evdns_resolve_reverse_ipv6()
  */
 int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
-int evdns_base_resolve_reverse_ipv6(struct evdns_base *base, struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
+struct evdns_request *evdns_base_resolve_reverse_ipv6(struct evdns_base *base, struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 
 /**

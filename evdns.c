@@ -164,7 +164,7 @@ typedef unsigned int uint;
 
 #define CLASS_INET     EVDNS_CLASS_INET
 
-struct request {
+struct evdns_request {
 	u8 *request;  /* the dns packet data */
 	unsigned int request_len;
 	int reissue_count;
@@ -181,7 +181,7 @@ struct request {
 	int search_flags;
 
 	/* these objects are kept in a circular list */
-	struct request *next, *prev;
+	struct evdns_request *next, *prev;
 
 	struct event timeout_event;
 
@@ -296,10 +296,10 @@ struct evdns_base {
 	/* An array of n_req_heads circular lists for inflight requests.
 	 * Each inflight request req is in req_heads[req->trans_id % n_req_heads].
 	 */
-	struct request **req_heads;
+	struct evdns_request **req_heads;
 	/* A circular list of requests that we're waiting to send, but haven't
 	 * sent yet because there are too many requests inflight */
-	struct request *req_waiting_head;
+	struct evdns_request *req_waiting_head;
 	/* A circular list of nameservers. */
 	struct nameserver *server_head;
 	int n_req_heads;
@@ -346,18 +346,18 @@ static const struct timeval global_nameserver_timeouts[] = {{10, 0}, {60, 0}, {3
 static const int global_nameserver_timeouts_length = sizeof(global_nameserver_timeouts)/sizeof(struct timeval);
 
 static struct nameserver *nameserver_pick(struct evdns_base *base);
-static void evdns_request_insert(struct request *req, struct request **head);
+static void evdns_request_insert(struct evdns_request *req, struct evdns_request **head);
 static void nameserver_ready_callback(evutil_socket_t fd, short events, void *arg);
 static int evdns_transmit(struct evdns_base *base);
-static int evdns_request_transmit(struct request *req);
+static int evdns_request_transmit(struct evdns_request *req);
 static void nameserver_send_probe(struct nameserver *const ns);
-static void search_request_finished(struct request *const);
-static int search_try_next(struct request *const req);
-static int search_request_new(struct evdns_base *base, int type, const char *const name, int flags, evdns_callback_type user_callback, void *user_arg);
+static void search_request_finished(struct evdns_request *const);
+static int search_try_next(struct evdns_request *const req);
+static struct evdns_request *search_request_new(struct evdns_base *base, int type, const char *const name, int flags, evdns_callback_type user_callback, void *user_arg);
 static void evdns_requests_pump_waiting_queue(struct evdns_base *base);
 static u16 transaction_id_pick(struct evdns_base *base);
-static struct request *request_new(struct evdns_base *base, int type, const char *name, int flags, evdns_callback_type callback, void *ptr);
-static void request_submit(struct request *const req);
+static struct evdns_request *request_new(struct evdns_base *base, int type, const char *name, int flags, evdns_callback_type callback, void *ptr);
+static void request_submit(struct evdns_request *const req);
 
 static int server_request_free(struct server_request *req);
 static void server_request_free_answers(struct server_request *req);
@@ -461,10 +461,10 @@ _evdns_log(int warn, const char *fmt, ...)
 /* This walks the list of inflight requests to find the */
 /* one with a matching transaction id. Returns NULL on */
 /* failure */
-static struct request *
+static struct evdns_request *
 request_find_from_trans_id(struct evdns_base *base, u16 trans_id) {
-	struct request *req = REQ_HEAD(base, trans_id);
-	struct request *const started_at = req;
+	struct evdns_request *req = REQ_HEAD(base, trans_id);
+	struct evdns_request *const started_at = req;
 
 	if (req) {
 		do {
@@ -519,7 +519,7 @@ nameserver_probe_failed(struct nameserver *const ns) {
 /* many packets have timed out etc */
 static void
 nameserver_failed(struct nameserver *const ns, const char *msg) {
-	struct request *req, *started_at;
+	struct evdns_request *req, *started_at;
 	struct evdns_base *base = ns->base;
 	int i;
 	/* if this nameserver has already been marked as failed */
@@ -582,7 +582,7 @@ nameserver_up(struct nameserver *const ns) {
 }
 
 static void
-request_trans_id_set(struct request *const req, const u16 trans_id) {
+request_trans_id_set(struct evdns_request *const req, const u16 trans_id) {
 	req->trans_id = trans_id;
 	*((u16 *) req->request) = htons(trans_id);
 }
@@ -591,7 +591,7 @@ request_trans_id_set(struct request *const req, const u16 trans_id) {
 /* head is a pointer to the head of the list it should be */
 /* removed from or NULL if the request isn't in a list. */
 static void
-request_finished(struct request *const req, struct request **head) {
+request_finished(struct evdns_request *const req, struct evdns_request **head) {
 	struct evdns_base *base = req->base;
 	if (head) {
 		if (req->next == req) {
@@ -631,7 +631,7 @@ request_finished(struct request *const req, struct request **head) {
 /*   0 ok */
 /*   1 failed/reissue is pointless */
 static int
-request_reissue(struct request *req) {
+request_reissue(struct evdns_request *req) {
 	const struct nameserver *const last_ns = req->ns;
 	/* the last nameserver should have been marked as failing */
 	/* by the caller of this function, therefore pick will try */
@@ -657,7 +657,7 @@ static void
 evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 	while (base->global_requests_inflight < base->global_max_requests_inflight &&
 		   base->global_requests_waiting) {
-		struct request *req;
+		struct evdns_request *req;
 		/* move a request from the waiting queue to the inflight queue */
 		assert(base->req_waiting_head);
 		if (base->req_waiting_head->next == base->req_waiting_head) {
@@ -684,7 +684,7 @@ evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 }
 
 static void
-reply_callback(struct request *const req, u32 ttl, u32 err, struct reply *reply) {
+reply_callback(struct evdns_request *const req, u32 ttl, u32 err, struct reply *reply) {
 	switch (req->request_type) {
 	case TYPE_A:
 		if (reply)
@@ -720,7 +720,7 @@ reply_callback(struct request *const req, u32 ttl, u32 err, struct reply *reply)
 
 /* this processes a parsed reply packet */
 static void
-reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply) {
+reply_handle(struct evdns_request *const req, u16 flags, u32 ttl, struct reply *reply) {
 	int error;
 	static const int error_codes[] = {DNS_ERR_FORMAT, DNS_ERR_SERVERFAILED, DNS_ERR_NOTEXIST, DNS_ERR_NOTIMPL, DNS_ERR_REFUSED};
 
@@ -853,7 +853,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
         u16 flags = 0;
 	u32 ttl, ttl_r = 0xffffffff;
 	struct reply reply;
-	struct request *req = NULL;
+	struct evdns_request *req = NULL;
 	unsigned int i;
 
 	GET16(trans_id);
@@ -1884,7 +1884,7 @@ evdns_server_request_get_requesting_addr(struct evdns_server_request *_req, stru
 /* has timed out. */
 static void
 evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
-	struct request *const req = (struct request *) arg;
+	struct evdns_request *const req = (struct evdns_request *) arg;
         (void) fd;
         (void) events;
 
@@ -1914,7 +1914,7 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 /*   1 temporary failure */
 /*   2 other failure */
 static int
-evdns_request_transmit_to(struct request *req, struct nameserver *server) {
+evdns_request_transmit_to(struct evdns_request *req, struct nameserver *server) {
 	const int r = send(server->socket, req->request, req->request_len, 0);
 	if (r < 0) {
 		int err = last_error(server->socket);
@@ -1935,7 +1935,7 @@ evdns_request_transmit_to(struct request *req, struct nameserver *server) {
 /*   0 ok */
 /*   1 failed */
 static int
-evdns_request_transmit(struct request *req) {
+evdns_request_transmit(struct evdns_request *req) {
 	int retcode = 0, r;
 
 	/* if we fail to send this packet then this flag marks it */
@@ -1994,7 +1994,7 @@ nameserver_probe_callback(int result, char type, int count, int ttl, void *addre
 
 static void
 nameserver_send_probe(struct nameserver *const ns) {
-	struct request *req;
+	struct evdns_request *req;
 	/* here we need to send a probe to a given nameserver */
 	/* in the hope that it is up now. */
 
@@ -2018,7 +2018,7 @@ evdns_transmit(struct evdns_base *base) {
 
 	for (i = 0; i < base->n_req_heads; ++i) {
 		if (base->req_heads[i]) {
-			struct request *const started_at = base->req_heads[i], *req = started_at;
+			struct evdns_request *const started_at = base->req_heads[i], *req = started_at;
 			/* first transmit all the requests which are currently waiting */
 			do {
 				if (req->transmit_me) {
@@ -2080,10 +2080,10 @@ evdns_base_clear_nameservers_and_suspend(struct evdns_base *base)
 	base->global_good_nameservers = 0;
 
 	for (i = 0; i < base->n_req_heads; ++i) {
-		struct request *req, *req_started_at;
+		struct evdns_request *req, *req_started_at;
 		req = req_started_at = base->req_heads[i];
 		while (req) {
-			struct request *next = req->next;
+			struct evdns_request *next = req->next;
 			req->tx_count = req->reissue_count = 0;
 			req->ns = NULL;
 			/* ???? What to do about searches? */
@@ -2251,7 +2251,7 @@ evdns_nameserver_ip_add(const char *ip_as_string) {
 
 /* insert into the tail of the queue */
 static void
-evdns_request_insert(struct request *req, struct request **head) {
+evdns_request_insert(struct evdns_request *req, struct evdns_request **head) {
 	if (!*head) {
 		*head = req;
 		req->next = req->prev = req;
@@ -2274,7 +2274,7 @@ string_num_dots(const char *s) {
 	return count;
 }
 
-static struct request *
+static struct evdns_request *
 request_new(struct evdns_base *base, int type, const char *name, int flags,
     evdns_callback_type callback, void *user_ptr) {
 	const char issuing_now =
@@ -2284,17 +2284,17 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 	const int request_max_len = evdns_request_len(name_len);
 	const u16 trans_id = issuing_now ? transaction_id_pick(base) : 0xffff;
 	/* the request data is alloced in a single block with the header */
-	struct request *const req =
-	    (struct request *) mm_malloc(sizeof(struct request) + request_max_len);
+	struct evdns_request *const req =
+	    (struct evdns_request *) mm_malloc(sizeof(struct evdns_request) + request_max_len);
 	int rlen;
 	(void) flags;
 
 	if (!req) return NULL;
-	memset(req, 0, sizeof(struct request));
+	memset(req, 0, sizeof(struct evdns_request));
 	req->base = base;
 
 	/* request data lives just after the header */
-	req->request = ((u8 *) req) + sizeof(struct request);
+	req->request = ((u8 *) req) + sizeof(struct evdns_request);
 	/* denotes that the request data shouldn't be free()ed */
 	req->request_appended = 1;
 	rlen = evdns_request_data_build(name, name_len, trans_id,
@@ -2317,7 +2317,7 @@ err1:
 }
 
 static void
-request_submit(struct request *const req) {
+request_submit(struct evdns_request *const req) {
 	struct evdns_base *base = req->base;
 	if (req->ns) {
 		/* if it has a nameserver assigned then this is going */
@@ -2332,16 +2332,17 @@ request_submit(struct request *const req) {
 }
 
 /* exported function */
-int evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags,
+struct evdns_request *
+evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags,
     evdns_callback_type callback, void *ptr) {
 	log(EVDNS_LOG_DEBUG, "Resolve requested for %s", name);
 	if (flags & DNS_QUERY_NO_SEARCH) {
-		struct request *const req =
+		struct evdns_request *const req =
 			request_new(base, TYPE_A, name, flags, callback, ptr);
 		if (req == NULL)
-			return (1);
+			return NULL;
 		request_submit(req);
-		return (0);
+		return (req);
 	} else {
 		return (search_request_new(base, TYPE_A, name, flags, callback, ptr));
 	}
@@ -2350,22 +2351,24 @@ int evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags
 int evdns_resolve_ipv4(const char *name, int flags,
 					   evdns_callback_type callback, void *ptr)
 {
-	return evdns_base_resolve_ipv4(current_base, name, flags, callback, ptr);
+	return evdns_base_resolve_ipv4(current_base, name, flags, callback, ptr)
+		? 0 : -1;
 }
 
 
 /* exported function */
-int evdns_base_resolve_ipv6(struct evdns_base *base,
+struct evdns_request *
+evdns_base_resolve_ipv6(struct evdns_base *base,
 							const char *name, int flags,
 							evdns_callback_type callback, void *ptr) {
 	log(EVDNS_LOG_DEBUG, "Resolve requested for %s", name);
 	if (flags & DNS_QUERY_NO_SEARCH) {
-		struct request *const req =
+		struct evdns_request *const req =
 			request_new(base, TYPE_AAAA, name, flags, callback, ptr);
 		if (req == NULL)
-			return (1);
+			return (NULL);
 		request_submit(req);
-		return (0);
+		return (req);
 	} else {
 		return (search_request_new(base,TYPE_AAAA, name, flags, callback, ptr));
 	}
@@ -2373,12 +2376,14 @@ int evdns_base_resolve_ipv6(struct evdns_base *base,
 
 int evdns_resolve_ipv6(const char *name, int flags,
 					   evdns_callback_type callback, void *ptr) {
-	return evdns_base_resolve_ipv6(current_base, name, flags, callback, ptr);
+	return evdns_base_resolve_ipv6(current_base, name, flags, callback, ptr)
+		? 0 : -1;
 }
 
-int evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
+struct evdns_request *
+evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	char buf[32];
-	struct request *req;
+	struct evdns_request *req;
 	u32 a;
 	assert(in);
 	a = ntohl(in->s_addr);
@@ -2389,20 +2394,22 @@ int evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int 
 			(int)(u8)((a>>24)&0xff));
 	log(EVDNS_LOG_DEBUG, "Resolve requested for %s (reverse)", buf);
 	req = request_new(base, TYPE_PTR, buf, flags, callback, ptr);
-	if (!req) return 1;
+	if (!req) return NULL;
 	request_submit(req);
-	return 0;
+	return (req);
 }
 
 int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
-	return evdns_base_resolve_reverse(current_base, in, flags, callback, ptr);
+	return evdns_base_resolve_reverse(current_base, in, flags, callback, ptr)
+		? 0 : -1;
 }
 
-int evdns_base_resolve_reverse_ipv6(struct evdns_base *base, struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
+struct evdns_request *
+evdns_base_resolve_reverse_ipv6(struct evdns_base *base, struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	/* 32 nybbles, 32 periods, "ip6.arpa", NUL. */
 	char buf[73];
 	char *cp;
-	struct request *req;
+	struct evdns_request *req;
 	int i;
 	assert(in);
 	cp = buf;
@@ -2417,13 +2424,14 @@ int evdns_base_resolve_reverse_ipv6(struct evdns_base *base, struct in6_addr *in
 	memcpy(cp, "ip6.arpa", strlen("ip6.arpa")+1);
 	log(EVDNS_LOG_DEBUG, "Resolve requested for %s (reverse)", buf);
 	req = request_new(base, TYPE_PTR, buf, flags, callback, ptr);
-	if (!req) return 1;
+	if (!req) return NULL;
 	request_submit(req);
-	return 0;
+	return (req);
 }
 
 int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
-	return evdns_base_resolve_reverse_ipv6(current_base, in, flags, callback, ptr);
+	return evdns_base_resolve_reverse_ipv6(current_base, in, flags, callback, ptr)
+		? 0 : -1;
 }
 
 /*/////////////////////////////////////////////////////////////////// */
@@ -2592,24 +2600,24 @@ search_make_new(const struct search_state *const state, int n, const char *const
 	return NULL; /* unreachable; stops warnings in some compilers. */
 }
 
-static int
+static struct evdns_request *
 search_request_new(struct evdns_base *base, int type, const char *const name, int flags, evdns_callback_type user_callback, void *user_arg) {
 	assert(type == TYPE_A || type == TYPE_AAAA);
 	if ( ((flags & DNS_QUERY_NO_SEARCH) == 0) &&
 	     base->global_search_state &&
 		 base->global_search_state->num_domains) {
 		/* we have some domains to search */
-		struct request *req;
+		struct evdns_request *req;
 		if (string_num_dots(name) >= base->global_search_state->ndots) {
 			req = request_new(base, type, name, flags, user_callback, user_arg);
-			if (!req) return 1;
+			if (!req) return NULL;
 			req->search_index = -1;
 		} else {
 			char *const new_name = search_make_new(base->global_search_state, 0, name);
-			if (!new_name) return 1;
+			if (!new_name) return NULL;
 			req = request_new(base, type, new_name, flags, user_callback, user_arg);
 			mm_free(new_name);
-			if (!req) return 1;
+			if (!req) return NULL;
 			req->search_index = 0;
 		}
 		req->search_origname = mm_strdup(name);
@@ -2617,12 +2625,12 @@ search_request_new(struct evdns_base *base, int type, const char *const name, in
 		req->search_flags = flags;
 		base->global_search_state->refcount++;
 		request_submit(req);
-		return 0;
+		return req;
 	} else {
-		struct request *const req = request_new(base, type, name, flags, user_callback, user_arg);
-		if (!req) return 1;
+		struct evdns_request *const req = request_new(base, type, name, flags, user_callback, user_arg);
+		if (!req) return NULL;
 		request_submit(req);
-		return 0;
+		return req;
 	}
 }
 
@@ -2632,12 +2640,12 @@ search_request_new(struct evdns_base *base, int type, const char *const name, in
 /*   0 another request has been submitted */
 /*   1 no more requests needed */
 static int
-search_try_next(struct request *const req) {
+search_try_next(struct evdns_request *const req) {
 	struct evdns_base *base = req->base;
 	if (req->search_state) {
 		/* it is part of a search */
 		char *new_name;
-		struct request *newreq;
+		struct evdns_request *newreq;
 		req->search_index++;
 		if (req->search_index >= req->search_state->num_domains) {
 			/* no more postfixes to try, however we may need to try */
@@ -2673,7 +2681,7 @@ search_try_next(struct request *const req) {
 }
 
 static void
-search_request_finished(struct request *const req) {
+search_request_finished(struct evdns_request *const req) {
 	if (req->search_state) {
 		search_state_decref(req->search_state);
 		req->search_state = NULL;
@@ -2744,13 +2752,13 @@ static int
 evdns_base_set_max_requests_inflight(struct evdns_base *base, int maxinflight)
 {
 	int old_n_heads = base->n_req_heads, n_heads;
-	struct request **old_heads = base->req_heads, **new_heads, *req;
+	struct evdns_request **old_heads = base->req_heads, **new_heads, *req;
 	int i;
 	if (maxinflight < 1)
 		maxinflight = 1;
 	n_heads = (maxinflight+4) / 5;
 	assert(n_heads > 0);
-	new_heads = mm_malloc(n_heads * sizeof(struct request*));
+	new_heads = mm_malloc(n_heads * sizeof(struct evdns_request*));
 	if (!new_heads)
 		return (-1);
 	for (i=0; i < n_heads; ++i)
