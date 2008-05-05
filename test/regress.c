@@ -980,13 +980,13 @@ test_evbuffer(void)
 	evbuffer_validate(evb);
 
 	if (EVBUFFER_LENGTH(evb) != 7 ||
-	    strcmp((char*)EVBUFFER_DATA(evb), "hello/1") != 0)
+	    memcmp((char*)EVBUFFER_DATA(evb), "hello/1", 1) != 0)
 		goto out;
 
 	evbuffer_drain(evb, strlen("hello/"));
 	evbuffer_validate(evb);
 	if (EVBUFFER_LENGTH(evb) != 1 ||
-	    strcmp((char*)EVBUFFER_DATA(evb), "1") != 0)
+	    memcmp((char*)EVBUFFER_DATA(evb), "1", 1) != 0)
 		goto out;
 
 	evbuffer_add_printf(evb_two, "%s", "/hello");
@@ -996,7 +996,7 @@ test_evbuffer(void)
 
 	if (EVBUFFER_LENGTH(evb_two) != 0 ||
 	    EVBUFFER_LENGTH(evb) != 7 ||
-	    strcmp((char*)EVBUFFER_DATA(evb), "1/hello") != 0)
+	    memcmp((char*)EVBUFFER_DATA(evb), "1/hello", 7) != 0)
 		goto out;
 
 	memset(buffer, 0, sizeof(buffer));
