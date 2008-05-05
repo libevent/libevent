@@ -67,12 +67,6 @@ typedef unsigned short u_short;
 /* EVLIST_X_ Private space: 0x1000-0xf000 */
 #define EVLIST_ALL	(0xf000 | 0x9f)
 
-#define EV_TIMEOUT	0x01
-#define EV_READ		0x02
-#define EV_WRITE	0x04
-#define EV_SIGNAL	0x08
-#define EV_PERSIST	0x10	/* Persistant event */
-
 /* Fix so that ppl dont have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
 #define _EVENT_DEFINED_TQENTRY

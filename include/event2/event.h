@@ -90,7 +90,6 @@ int event_reinit(struct event_base *base);
  */
 int event_base_dispatch(struct event_base *);
 
-
 /**
  Get the kernel event notification mechanism used by libevent.
  
@@ -200,6 +199,14 @@ int event_base_loopbreak(struct event_base *);
 void evperiodic_assign(struct event *ev, struct event_base *base,
     struct timeval *tv, void (*cb)(int, short, void *), void *arg);
 
+/* Flags to pass to event_set(), event_new(), event_assign(),
+ * event_pending()... */
+#define EV_TIMEOUT	0x01
+#define EV_READ		0x02
+#define EV_WRITE	0x04
+#define EV_SIGNAL	0x08
+#define EV_PERSIST	0x10	/* Persistant event */
+
 /**
   Define a timer event.
 
@@ -266,7 +273,6 @@ void evperiodic_assign(struct event *ev, struct event_base *base,
 #define signal_del(ev)			event_del(ev)
 #define signal_pending(ev, tv)		event_pending(ev, EV_SIGNAL, tv)
 #define signal_initialized(ev)		_event_initialized((ev), 0)
-
 
 /**
   Prepare an event structure to be added.
