@@ -139,6 +139,41 @@ void evhttp_set_gencb(struct evhttp *http,
     void (*cb)(struct evhttp_request *, void *), void *arg);
 
 /**
+   Adds a virtual host to the http server.
+
+   A virtual host is a newly initialized evhttp object that has request
+   callbacks set on it via evhttp_set_cb() or evhttp_set_gencb().  It
+   most not have any listing sockets associated with it.
+
+   If the virtual host has not been removed by the time that evhttp_free()
+   is called on the main http server, it will be automatically freed, too.
+
+   It is possible to have hierarchical vhosts.  For example: A vhost
+   with the pattern *.example.com may have other vhosts with patterns
+   foo.example.com and bar.example.com associated with it.
+
+   @param http the evhttp object to which to add a virtual host
+   @param pattern the glob pattern against which the hostname is matched.
+     The match is case insensitive and follows otherwise regular shell
+     matching.
+   @param vhost the virtual host to add the regular http server.
+   @return 0 on success, -1 on failure
+   @see evhttp_remove_virtual_host()
+*/
+int evhttp_add_virtual_host(struct evhttp* http, const char *pattern,
+    struct evhttp* vhost);
+
+/**
+   Removes a virtual host from the http server.
+
+   @param http the evhttp object from which to remove the virtual host
+   @param vhost the virtual host to remove from the regular http server.
+   @return 0 on success, -1 on failure
+   @see evhttp_add_virtual_host()
+*/
+int evhttp_remove_virtual_host(struct evhttp* http, struct evhttp* vhost);
+
+/**
  * Set the timeout for an HTTP request.
  *
  * @param http an evhttp object
