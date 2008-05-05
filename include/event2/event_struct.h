@@ -125,8 +125,8 @@ struct event {
 	int ev_flags;
 };
 
-#define EVENT_SIGNAL(ev)	(int)(ev)->ev_fd
-#define EVENT_FD(ev)		(int)(ev)->ev_fd
+#define EVENT_SIGNAL(ev)	((int)(ev)->ev_fd)
+#define EVENT_FD(ev)		((int)(ev)->ev_fd)
 
 /*
  * Key-Value pairs.  Can be used for HTTP headers but also for

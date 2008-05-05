@@ -797,12 +797,31 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 }
 
 int
+_event_initialized(struct event *ev, int need_fd)
+{
+	if (!(ev->ev_flags & EVLIST_INIT))
+		return 0;
+#ifdef WIN32
+	/* XXX Is this actually a sensible thing to check? -NM */
+	if (need_fd && (ev)->ev_fd == INVALID_HANDLE_VALUE)
+		return 0;
+#endif
+	return 1;
+}
+
+evutil_socket_t
+event_get_fd(struct event *ev)
+{
+	return ev->ev_fd;
+}
+
+int
 event_add(struct event *ev, struct timeval *tv)
 {
 	int res;
 
 	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
-	
+
 	res = event_add_internal(ev, tv);
 
 	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
