@@ -80,6 +80,7 @@
 #include <fcntl.h>
 #endif
 #ifdef HAVE_FNMATCH_H
+#define _GNU_SOURCE
 #include <fnmatch.h>
 #endif
 
