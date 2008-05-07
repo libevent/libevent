@@ -145,9 +145,9 @@ gettime(struct event_base *base, struct timeval *tp)
 	}
 
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-	struct timespec	ts;
-
 	if (use_monotonic) {
+		struct timespec	ts;
+
 		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
 			return (-1);
 
