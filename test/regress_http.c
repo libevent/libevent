@@ -528,7 +528,7 @@ http_request_expect_error(struct evhttp_request *req, void *arg)
 
 /* test virtual hosts */
 static void
-http_virtual_host_test()
+http_virtual_host_test(void)
 {
 	short port = -1;
 	struct evhttp_connection *evcon = NULL;
