@@ -10,6 +10,7 @@ Changes in 1.4.4-stable:
  o reduce system calls for getting current time by caching it.
  o fix evhttp_bind_socket() so that multiple sockets can be bound by the same http server.
  o Build test directory correctly with CPPFLAGS set.
+ o Fix build under Visual C++ 2005.
 
 Changes in 1.4.3-stable:
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive

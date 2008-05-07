@@ -55,8 +55,8 @@ extern "C" {
 #define ev_uint64_t uint64_t
 #define ev_int64_t int64_t
 #elif defined(WIN32)
-#define ev_uint64_t __uint64_t
-#define ev_int64_t __int64_t
+#define ev_uint64_t unsigned __int64
+#define ev_int64_t signed __int64
 #elif _EVENT_SIZEOF_LONG_LONG == 8
 #define ev_uint64_t unsigned long long
 #define ev_int64_t long long

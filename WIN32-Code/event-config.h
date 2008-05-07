@@ -51,7 +51,7 @@
 /* #undef _EVENT_HAVE_INET_NTOP */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
-#define _EVENT_HAVE_INTTYPES_H 1
+/* #undef _EVENT_HAVE_INTTYPES_H 1 */
 
 /* Define to 1 if you have the `kqueue' function. */
 /* #undef _EVENT_HAVE_KQUEUE */
