@@ -390,8 +390,8 @@ http_delete_test(void)
 	fprintf(stdout, "OK\n");
 }
 
-void http_request_done(struct evhttp_request *, void *);
-void http_request_empty_done(struct evhttp_request *, void *);
+static void http_request_done(struct evhttp_request *, void *);
+static void http_request_empty_done(struct evhttp_request *, void *);
 
 static void
 http_connection_test(int persistent)
@@ -485,7 +485,7 @@ http_connection_test(int persistent)
 	fprintf(stdout, "OK\n");
 }
 
-void
+static void
 http_request_done(struct evhttp_request *req, void *arg)
 {
 	const char *what = "This is funny";
@@ -514,9 +514,99 @@ http_request_done(struct evhttp_request *req, void *arg)
 	event_loopexit(NULL);
 }
 
+static void
+http_request_expect_error(struct evhttp_request *req, void *arg)
+{
+	if (req->response_code == HTTP_OK) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
+/* test virtual hosts */
+static void
+http_virtual_host_test()
+{
+	short port = -1;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	struct evhttp *second = NULL;
+	
+	test_ok = 0;
+	fprintf(stdout, "Testing Virtual Hosts: ");
+
+	http = http_setup(&port, NULL);
+
+	/* virtual host */
+	second = evhttp_new(NULL);
+	evhttp_set_cb(second, "/funnybunny", http_basic_cb, NULL);
+
+	if (evhttp_add_virtual_host(http, "foo.com", second) == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* make a request with a different host and expect an error */
+	req = evhttp_request_new(http_request_expect_error, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
+		"/funnybunny") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	test_ok = 0;
+
+	/* make a request with the right host and expect a response */
+	req = evhttp_request_new(http_request_done, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "foo.com");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
+		"/funnybunny") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
+	
+	fprintf(stdout, "OK\n");
+}
+
+
 /* test date header and content length */
 
-void
+static void
 http_request_empty_done(struct evhttp_request *req, void *arg)
 {
 	if (req->response_code != HTTP_OK) {
@@ -1694,6 +1784,7 @@ http_suite(void)
 	http_basic_test();
 	http_connection_test(0 /* not-persistent */);
 	http_connection_test(1 /* persistent */);
+	http_virtual_host_test();
 	http_close_detection();
 	http_post_test();
 	http_put_test();
