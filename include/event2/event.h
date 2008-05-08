@@ -97,6 +97,18 @@ int event_base_dispatch(struct event_base *);
  @return a string identifying the kernel event mechanism (kqueue, epoll, etc.)
  */
 const char *event_base_get_method(struct event_base *);
+
+/**
+   Gets all event notification mechanisms supported by libevent.
+
+   This functions returns the event mechanism in order preferred
+   by libevent.
+
+   @return an array with pointers to the names of support methods.
+     The end of the array is indicated by a NULL pointer.  If an
+     error is encountered NULL is returned.
+*/
+const char **event_supported_methods(void);
         
         
 /**

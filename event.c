@@ -318,6 +318,36 @@ event_reinit(struct event_base *base)
 	return (res);
 }
 
+const char **
+event_supported_methods()
+{
+	static const char **methods;
+	const struct eventop **method;
+	const char **tmp;
+	int i = 0, k;
+
+	if (methods != NULL)
+		return (methods);
+
+	/* count all methods */
+	for (method = &eventops[0]; *method != NULL; ++method)
+		++i;
+
+	/* allocate one more than we need for the NULL pointer */
+	tmp = mm_malloc((i + 1) * sizeof(char *));
+	if (tmp == NULL)
+		return (NULL);
+
+	/* populate the array with the supported methods */
+	for (k = 0; k < i; ++k)
+		tmp[k] = eventops[k]->name;
+	tmp[i] = NULL;
+
+	methods = tmp;
+	
+	return (methods);
+}
+
 int
 event_priority_init(int npriorities)
 {
