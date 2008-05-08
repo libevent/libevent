@@ -196,3 +196,19 @@ evutil_strtoll(const char *s, char **endptr, int base)
 #error "I don't know how to parse 64-bit integers."
 #endif
 }
+
+#ifndef _EVENT_HAVE_GETTIMEOFDAY
+int
+evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
+{
+	struct _timeb tb;
+
+	if(tv == NULL)
+		return -1;
+
+	_ftime(&tb);
+	tv->tv_sec = (long) tb.time;
+	tv->tv_usec = ((int) tb.millitm) * 1000;
+	return 0;
+}
+#endif

@@ -1050,7 +1050,7 @@ default_transaction_id_fn(void)
 
 #ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
 	struct timeval tv;
-	gettimeofday(&tv, NULL);
+	evutil_gettimeofday(&tv, NULL);
 	trans_id = tv.tv_usec & 0xffff;
 #endif
 
@@ -1060,7 +1060,7 @@ default_transaction_id_fn(void)
 		/* down to using gettimeofday. */
 		/*
 		  struct timeval tv;
-		  gettimeofday(&tv, NULL);
+		  evutil_gettimeofday(&tv, NULL);
 		  trans_id = tv.tv_usec & 0xffff;
 		*/
 		abort();
