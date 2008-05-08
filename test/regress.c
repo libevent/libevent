@@ -2066,6 +2066,26 @@ test_evutil_strtoll(void)
         cleanup_test();
 }
 
+static void
+test_methods(void)
+{
+	const char **methods = event_supported_methods();
+
+	fprintf(stderr, "Testing supported methods: ");
+
+	if (methods == NULL) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	while (*methods != NULL) {
+		fprintf(stderr, "%s ", *methods);
+		++methods;
+	}
+
+	fprintf(stderr, "OK\n");
+}
+
 
 int
 main (int argc, char **argv)
@@ -2081,6 +2101,8 @@ main (int argc, char **argv)
 #endif
 
 	setvbuf(stdout, NULL, _IONBF, 0);
+
+	test_methods();
 
 	/* Initalize the event library */
 	global_base = event_init();
