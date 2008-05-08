@@ -360,13 +360,13 @@ bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 }
 
 struct evbuffer *
-bufferevent_input(struct bufferevent *bufev)
+bufferevent_get_input(struct bufferevent *bufev)
 {
 	return (bufev->input);
 }
 
 struct evbuffer *
-bufferevent_output(struct bufferevent *bufev)
+bufferevent_get_output(struct bufferevent *bufev)
 {
 	return TAILQ_FIRST(&bufev->output_filters) != NULL ?
 	    TAILQ_FIRST(&bufev->output_filters)->buffer :

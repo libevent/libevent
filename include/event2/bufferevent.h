@@ -251,7 +251,7 @@ int bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf);
    @return the evbuffer object for the input buffer
  */
 
-struct evbuffer *bufferevent_input(struct bufferevent *bufev);
+struct evbuffer *bufferevent_get_input(struct bufferevent *bufev);
 
 /**
    Returns the outut buffer.
@@ -263,7 +263,7 @@ struct evbuffer *bufferevent_input(struct bufferevent *bufev);
    @return the evbuffer object for the output buffer
  */
 
-struct evbuffer *bufferevent_output(struct bufferevent *bufev);
+struct evbuffer *bufferevent_get_output(struct bufferevent *bufev);
 
 /**
   Enable a bufferevent.
@@ -316,9 +316,9 @@ void bufferevent_setwatermark(struct bufferevent *bufev, short events,
     size_t lowmark, size_t highmark);
 
 /** macro for getting access to the input buffer of a bufferevent */
-#define EVBUFFER_INPUT(x)	bufferevent_input(x)
+#define EVBUFFER_INPUT(x)	bufferevent_get_input(x)
 /** macro for getting access to the output buffer of a bufferevent */
-#define EVBUFFER_OUTPUT(x)	bufferevent_output(x)
+#define EVBUFFER_OUTPUT(x)	bufferevent_get_output(x)
 
 /**
    Support for filtering input and output of bufferevents.

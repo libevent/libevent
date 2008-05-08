@@ -345,7 +345,7 @@ event_reinit(struct event_base *base)
 }
 
 const char **
-event_supported_methods()
+event_get_supported_methods(void)
 {
 	static const char **methods;
 	const struct eventop **method;
