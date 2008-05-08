@@ -27,9 +27,8 @@
 #ifndef _EVENT2_HTTP_H_
 #define _EVENT2_HTTP_H_
 
-#include <event2/http.h>
-#include <event2/http_struct.h>
-#include <event2/http_compat.h>
+/* For int types. */
+#include <event2/util.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,8 +41,9 @@ extern "C" {
 #undef WIN32_LEAN_AND_MEAN
 #endif
 
-/* For int types. */
-#include <evutil.h>
+/* In case we haven't included the right headers yet. */
+struct evbuffer;
+struct event_base;
 
 /** @file evhttp.h
  *
@@ -64,7 +64,7 @@ extern "C" {
 #define HTTP_NOTMODIFIED	304	/**< page was not modified from last */
 #define HTTP_BADREQUEST		400	/**< invalid http request was made */
 #define HTTP_NOTFOUND		404	/**< could not find content for uri */
-#define HTTP_SERVUNAVAIL	503	/**< the server is not available */ 
+#define HTTP_SERVUNAVAIL	503	/**< the server is not available */
 
 struct evhttp;
 struct evhttp_request;

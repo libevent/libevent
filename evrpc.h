@@ -31,6 +31,8 @@
 extern "C" {
 #endif
 
+#include <event2/event_struct.h>
+
 /** @file evrpc.h
  *
  * This header files provides basic support for an RPC server and client.
