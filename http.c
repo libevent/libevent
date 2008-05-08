@@ -89,7 +89,9 @@
 
 #include "strlcpy-internal.h"
 #include "event2/event.h"
-#include "evhttp.h"
+#include "event2/http.h"
+#include "event2/http_struct.h"
+#include "event2/http_compat.h"
 #include "evutil.h"
 #include "log.h"
 #include "http-internal.h"
@@ -1384,6 +1386,20 @@ evhttp_read_header_cb(struct bufferevent *bufev, void *arg)
  * only numeric hostnames so that non-blocking DNS resolution can
  * happen elsewhere.
  */
+
+struct evhttp_connection *
+evhttp_connection_base_new(struct event_base *base,
+    const char *address, unsigned short port)
+{
+	struct evhttp_connection *evcon = evhttp_connection_new(address, port);
+	if (evcon == NULL)
+		return (NULL);
+
+	if (base != NULL)
+		evhttp_connection_set_base(evcon, base);
+
+	return (evcon);
+}
 
 struct evhttp_connection *
 evhttp_connection_new(const char *address, unsigned short port)
