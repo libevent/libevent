@@ -322,7 +322,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 
 	/* Generate request line */
 	method = evhttp_method(req->type);
-	evbuffer_add_printf(bufferevent_output(evcon->bufev),
+	evbuffer_add_printf(bufferevent_get_output(evcon->bufev),
 	    "%s %s HTTP/%d.%d\r\n",
 	    method, req->uri, req->major, req->minor);
 
@@ -400,7 +400,7 @@ static void
 evhttp_make_header_response(struct evhttp_connection *evcon,
     struct evhttp_request *req)
 {
-	evbuffer_add_printf(bufferevent_output(evcon->bufev),
+	evbuffer_add_printf(bufferevent_get_output(evcon->bufev),
 	    "HTTP/%d.%d %d %s\r\n",
 	    req->major, req->minor, req->response_code,
 	    req->response_code_line);
@@ -442,7 +442,7 @@ void
 evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
 	struct evkeyval *header;
-	struct evbuffer *output = bufferevent_output(evcon->bufev);
+	struct evbuffer *output = bufferevent_get_output(evcon->bufev);
 	
 	/*
 	 * Depending if this is a HTTP request or response, we might need to
@@ -670,7 +670,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 static void
 evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
-	struct evbuffer *buf = bufferevent_input(evcon->bufev);
+	struct evbuffer *buf = bufferevent_get_input(evcon->bufev);
 	
 	if (req->chunked) {
 		int res = evhttp_handle_chunked_read(req, buf);
@@ -1333,7 +1333,7 @@ evhttp_read_header_cb(struct bufferevent *bufev, void *arg)
 	int res;
 	int fd = evcon->fd;
 
-	res = evhttp_parse_lines(req, bufferevent_input(evcon->bufev));
+	res = evhttp_parse_lines(req, bufferevent_get_input(evcon->bufev));
 	if (res == -1) {
 		/* Error while reading, terminate */
 		event_debug(("%s: bad header lines on %d\n", __func__, fd));
@@ -1697,7 +1697,7 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
 void
 evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
 {
-	struct evbuffer *output = bufferevent_output(req->evcon->bufev);
+	struct evbuffer *output = bufferevent_get_output(req->evcon->bufev);
 	if (req->chunked) {
 		evbuffer_add_printf(output, "%x\r\n",
 				    (unsigned)EVBUFFER_LENGTH(databuf));
@@ -1713,7 +1713,7 @@ void
 evhttp_send_reply_end(struct evhttp_request *req)
 {
 	struct evhttp_connection *evcon = req->evcon;
-	struct evbuffer *output = bufferevent_output(evcon->bufev);
+	struct evbuffer *output = bufferevent_get_output(evcon->bufev);
 
 	if (req->chunked) {
 		evbuffer_add(output, "0\r\n\r\n", 5);

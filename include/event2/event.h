@@ -110,7 +110,7 @@ const char *event_base_get_method(struct event_base *);
      The end of the array is indicated by a NULL pointer.  If an
      error is encountered NULL is returned.
 */
-const char **event_supported_methods(void);
+const char **event_get_supported_methods(void);
 
 /**
    Allocates a new event configuration object.

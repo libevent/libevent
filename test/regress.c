@@ -1074,7 +1074,7 @@ test_evbuffer(void)
 			assert(evbuffer_commit_space(evb, 10000) == 0);
 			evbuffer_validate(evb);
 
-			assert(evbuffer_length(evb) >= 10000);
+			assert(evbuffer_get_length(evb) >= 10000);
 
 			evbuffer_drain(evb, j * 5000);
 			evbuffer_validate(evb);
@@ -2069,7 +2069,7 @@ test_evutil_strtoll(void)
 static void
 test_methods(void)
 {
-	const char **methods = event_supported_methods();
+	const char **methods = event_get_supported_methods();
 	struct event_config *cfg;
 	struct event_base *base;
 	const char *backend;
