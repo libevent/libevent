@@ -27,7 +27,9 @@
 #ifndef _EVENT2_HTTP_H_
 #define _EVENT2_HTTP_H_
 
-#include <event.h>
+#include <event2/http.h>
+#include <event2/http_struct.h>
+#include <event2/http_compat.h>
 
 #ifdef __cplusplus
 extern "C" {
