@@ -94,6 +94,7 @@ Changes in current version:
  o Provide an API for retrieving the supported event mechanisms.
  o event_base_new_with_config() and corresponding config APIs.
  o migrate the evhttp header to event2/ but accessors are still missing.
+ o deprecate timeout_* event functions by moving them to event_compat.h
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

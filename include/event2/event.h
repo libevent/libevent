@@ -293,34 +293,6 @@ void evperiodic_assign(struct event *ev, struct event_base *base,
 #define evtimer_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
 #define evtimer_initialized(ev)		_event_initialized((ev), 0)
 
-/**
- * Add a timeout event.
- *
- * @param ev the event struct to be disabled
- * @param tv the timeout value, in seconds
- */
-#define timeout_add(ev, tv)		event_add(ev, tv)
-
-
-/**
- * Define a timeout event.
- *
- * @param ev the event struct to be defined
- * @param cb the callback to be invoked when the timeout expires
- * @param arg the argument to be passed to the callback
- */
-#define timeout_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
-
-/**
- * Disable a timeout event.
- *
- * @param ev the timeout event to be disabled
- */
-#define timeout_del(ev)			event_del(ev)
-
-#define timeout_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
-#define timeout_initialized(ev)		_event_initialized((ev), 0)
-
 #define signal_add(ev, tv)		event_add(ev, tv)
 #define signal_set(ev, x, cb, arg)	\
 	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
