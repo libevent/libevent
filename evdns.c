@@ -39,10 +39,6 @@
 #include "config.h"
 #endif
 
-#ifdef WIN32
-#include "misc.h"
-#endif
-
 #ifdef DNS_USE_FTIME_FOR_ID
 #include <sys/timeb.h>
 #endif
