@@ -7,8 +7,10 @@
  * need to know about these.
  */
 
-#ifndef _HTTP_H_
-#define _HTTP_H_
+#ifndef _HTTP_INTERNAL_H_
+#define _HTTP_INTERNAL_H_
+
+#include "event2/event_struct.h"
 
 #define HTTP_CONNECT_TIMEOUT	45
 #define HTTP_WRITE_TIMEOUT	50

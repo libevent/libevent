@@ -58,6 +58,8 @@
 #include "evrpc.h"
 #include "evrpc-internal.h"
 #include "event2/http.h"
+#include "event2/buffer.h"
+#include "event2/tag.h"
 #include "event2/http_struct.h"
 #include "event2/http_compat.h"
 #include "evutil.h"
