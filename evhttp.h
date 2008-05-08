@@ -87,6 +87,24 @@ struct evhttp *evhttp_new(struct event_base *base);
 int evhttp_bind_socket(struct evhttp *http, const char *address, u_short port);
 
 /**
+ * Makes an HTTP server accept connections on the specified socket
+ *
+ * This may be useful to create a socket and then fork multiple instances
+ * of an http server, or when a socket has been communicated via file
+ * descriptor passing in situations where an http servers does not have
+ * permissions to bind to a low-numbered port.
+ *
+ * Can be called multiple times to have the http server listen to
+ * multiple different sockets.
+ *
+ * @param http a pointer to an evhttp object
+ * @param fd a socket fd that is ready for accepting connections
+ * @return 0 on success, -1 on failure.
+ * @see evhttp_free(), evhttp_bind_socket()
+ */
+int evhttp_accept_socket(struct evhttp *http, int fd);
+
+/**
  * Free the previously created HTTP server.
  *
  * Works only if no requests are currently being served.

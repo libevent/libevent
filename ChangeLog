@@ -11,6 +11,7 @@ Changes in 1.4.4-stable:
  o fix evhttp_bind_socket() so that multiple sockets can be bound by the same http server.
  o Build test directory correctly with CPPFLAGS set.
  o Fix build under Visual C++ 2005.
+ o Expose evhttp_accept_socket() API.
 
 Changes in 1.4.3-stable:
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive

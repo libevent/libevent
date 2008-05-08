@@ -162,7 +162,6 @@ static void evhttp_connection_start_detectclose(
 static void evhttp_connection_stop_detectclose(
 	struct evhttp_connection *evcon);
 static void evhttp_request_dispatch(struct evhttp_connection* evcon);
-static int evhttp_accept_socket(struct evhttp *http, int fd);
 
 void evhttp_read(int, short, void *);
 void evhttp_write(int, short, void *);
@@ -2021,7 +2020,7 @@ evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
 	return (res);
 }
 
-static int
+int
 evhttp_accept_socket(struct evhttp *http, int fd)
 {
 	struct evhttp_bound_socket *bound;
