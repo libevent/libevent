@@ -246,28 +246,6 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath="..\WIN32-Code\misc.c"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
 				RelativePath="..\signal.c"
 				>
 			</File>
@@ -348,10 +326,6 @@
 			</File>
 			<File
 				RelativePath="..\min_heap.h"
-				>
-			</File>
-			<File
-				RelativePath="..\WIN32-Code\misc.h"
 				>
 			</File>
 			<File

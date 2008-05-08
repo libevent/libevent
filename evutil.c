@@ -49,6 +49,9 @@
 #include <stdlib.h>
 #endif
 #include <errno.h>
+#if defined WIN32 && !defined(HAVE_GETTIMEOFDAY_H)
+#include <sys/timeb.h>
+#endif
 
 #include "evutil.h"
 #include "log.h"
