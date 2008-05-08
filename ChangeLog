@@ -13,6 +13,8 @@ Changes in 1.4.4-stable:
  o Fix build under Visual C++ 2005.
  o Expose evhttp_accept_socket() API.
  o Merge windows gettimeofday() replacement into a new evutil_gettimeofday() function.
+ o Fix autoconf script behavior on IRIX.
+
 
 Changes in 1.4.3-stable:
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive
