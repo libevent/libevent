@@ -188,6 +188,26 @@ event_init(void)
 struct event_base *
 event_base_new(void)
 {
+	return (event_base_new_with_config(NULL));
+}
+
+static int
+event_config_is_avoided_method(struct event_config *cfg, const char *method)
+{
+	struct event_config_entry *entry;
+
+	TAILQ_FOREACH(entry, &cfg->entries, next) {
+		if (entry->avoid_method != NULL &&
+		    strcmp(entry->avoid_method, method) == 0)
+			return (1);
+	}
+
+	return (0);
+}
+
+struct event_base *
+event_base_new_with_config(struct event_config *cfg)
+{
 	int i;
 	struct event_base *base;
 
@@ -208,6 +228,13 @@ event_base_new(void)
 	
 	base->evbase = NULL;
 	for (i = 0; eventops[i] && !base->evbase; i++) {
+		if (cfg != NULL) {
+			/* determine if this backend should be avoided */
+			if (event_config_is_avoided_method(cfg,
+				eventops[i]->name))
+				continue;
+		}
+
 		base->evsel = eventops[i];
 
 		base->evbase = base->evsel->init(base);
@@ -346,6 +373,55 @@ event_supported_methods()
 	methods = tmp;
 	
 	return (methods);
+}
+
+struct event_config *
+event_config_new(void)
+{
+	struct event_config *cfg = mm_malloc(sizeof(*cfg));
+
+	if (cfg == NULL)
+		return (NULL);
+
+	TAILQ_INIT(&cfg->entries);
+	
+	return (cfg);
+}
+
+static void
+event_config_entry_free(struct event_config_entry *entry)
+{
+	if (entry->avoid_method != NULL)
+		mm_free((char *)entry->avoid_method);
+	mm_free(entry);
+}
+
+void
+event_config_free(struct event_config *cfg)
+{
+	struct event_config_entry *entry;
+
+	while ((entry = TAILQ_FIRST(&cfg->entries)) != NULL) {
+		TAILQ_REMOVE(&cfg->entries, entry, next);
+		event_config_entry_free(entry);
+	}
+}
+
+int
+event_config_avoid_method(struct event_config *cfg, const char *method)
+{
+	struct event_config_entry *entry = mm_malloc(sizeof(*entry));
+	if (entry == NULL)
+		return (-1);
+
+	if ((entry->avoid_method = mm_strdup(method)) == NULL) {
+		mm_free(entry);
+		return (-1);
+	}
+
+	TAILQ_INSERT_TAIL(&cfg->entries, entry, next);
+
+	return (0);
 }
 
 int

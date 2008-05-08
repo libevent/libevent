@@ -58,6 +58,7 @@ typedef unsigned short u_short;
 
 struct event_base;
 struct event;
+struct event_config;
 
 /**
   Initialize the event API.
@@ -66,7 +67,8 @@ struct event;
   the current_base global.   If using only event_base_new(), each event
   added must have an event base set with event_base_set()
 
-  @see event_base_set(), event_base_free(), event_init()
+  @see event_base_set(), event_base_free(), event_init(),
+    event_base_new_with_config()
  */
 struct event_base *event_base_new(void);
 
@@ -109,8 +111,52 @@ const char *event_base_get_method(struct event_base *);
      error is encountered NULL is returned.
 */
 const char **event_supported_methods(void);
-        
-        
+
+/**
+   Allocates a new event configuration object.
+
+   The event configuration object can be used to change the behavior of
+   an event base.
+
+   @return an event_config object that can be used to store configuration or
+     NULL when an error is encountered.
+*/
+
+struct event_config *event_config_new(void);
+
+/**
+   Deallocates all memory associated with an event configuration object
+
+   @param cfg the event configuration object to be freed.
+*/
+void event_config_free(struct event_config *cfg);
+
+/**
+   Enters an event method that should be avoided into the configuration.
+
+   This can be used to avoid event mechanisms that do not support certain
+   file descriptor types.  An application can make use of multiple event
+   bases to accomodate incompatible file descriptor types.
+
+   @param cfg the event configuration object
+   @param method the event method to avoid
+   @return 0 on success, -1 on failure.
+*/
+int event_config_avoid_method(struct event_config *cfg, const char *method);
+
+/**
+  Initialize the event API.
+
+  Use event_base_new_with_config() to initialize a new event base, taking
+  the specified configuration under consideration.  The configuration object
+  can currently be used to avoid certain event notification mechanisms.
+
+  @param cfg the event configuration object
+  @return an initialized event_base that can be used to registering events.
+  @see event_base_new(), event_base_free(), event_init(), event_assign()
+*/
+struct event_base *event_base_new_with_config(struct event_config *cfg);
+
 /**
   Deallocate all memory associated with an event_base, and free the base.
 

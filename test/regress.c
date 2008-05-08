@@ -2070,6 +2070,9 @@ static void
 test_methods(void)
 {
 	const char **methods = event_supported_methods();
+	struct event_config *cfg;
+	struct event_base *base;
+	const char *backend;
 
 	fprintf(stderr, "Testing supported methods: ");
 
@@ -2078,10 +2081,30 @@ test_methods(void)
 		exit(1);
 	}
 
+	backend = methods[0];
 	while (*methods != NULL) {
 		fprintf(stderr, "%s ", *methods);
 		++methods;
 	}
+
+	cfg = event_config_new();
+	assert(cfg != NULL);
+
+	assert(event_config_avoid_method(cfg, backend) == 0);
+
+	base = event_base_new_with_config(cfg);
+	if (base == NULL) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (strcmp(backend, event_base_get_method(base)) == 0) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	event_base_free(base);
+	event_config_free(cfg);
 
 	fprintf(stderr, "OK\n");
 }

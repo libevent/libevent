@@ -95,6 +95,16 @@ struct event_base {
 	struct event th_notify;
 };
 
+struct event_config_entry {
+	TAILQ_ENTRY(event_config_entry) (next);
+
+	const char *avoid_method;
+};
+
+struct event_config {
+	TAILQ_HEAD(event_configq, event_config_entry) entries;
+};
+
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
 #ifndef HAVE_TAILQFOREACH
 #define	TAILQ_FIRST(head)		((head)->tqh_first)
