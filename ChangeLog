@@ -92,6 +92,7 @@ Changes in current version:
  o turn event_initialized() into a function, and add function equivalents to EVENT_SIGNAL and EVENT_FD so that people don't need to include event_struct.h
  o Build test directory correctly with CPPFLAGS set.
  o Provide an API for retrieving the supported event mechanisms.
+ o event_base_new_with_config() and corresponding config APIs.
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
