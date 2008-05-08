@@ -96,6 +96,7 @@ Changes in current version:
  o migrate the evhttp header to event2/ but accessors are still missing.
  o deprecate timeout_* event functions by moving them to event_compat.h
  o Move	windows gettimeofday replacement into a new evutil_gettimeofday().
+ o Make configure script work on IRIX.
 
 
 Changes in 1.4.0:

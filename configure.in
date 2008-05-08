@@ -130,9 +130,9 @@ dnl - (this is how we check for a windows version of GCC)
 AC_MSG_CHECKING(for WIN32)
 AC_TRY_COMPILE(,
 	[
-	#ifndef WIN32
-	#error
-	#endif
+#ifndef WIN32
+die horribly
+#endif
 	],
 	bwin32=true; AC_MSG_RESULT(yes),
 	bwin32=false; AC_MSG_RESULT(no),
