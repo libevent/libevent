@@ -39,8 +39,8 @@ EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
 	test/test-eof.c test/test-weof.c test/test-time.c \
 	test/test-init.c test/test.sh \
 	compat/sys/queue.h compat/sys/_time.h \
-	WIN32-Code/config.h WIN32-Code/misc.c \
-	WIN32-Code/win32.c WIN32-Code/misc.h \
+	WIN32-Code/config.h \
+	WIN32-Code/win32.c \
 	WIN32-Code/tree.h \
 	WIN32-Prj/event_test/event_test.dsp \
 	WIN32-Prj/event_test/test.txt WIN32-Prj/libevent.dsp \
@@ -54,7 +54,7 @@ SUBDIRS = . include sample test
 if BUILD_WIN32
 
 SYS_LIBS = -lws2_32
-SYS_SRC = WIN32-Code/misc.c WIN32-Code/win32.c
+SYS_SRC = WIN32-Code/win32.c
 SYS_INCLUDES = -IWIN32-Code
 
 else

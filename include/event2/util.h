@@ -179,6 +179,12 @@ int evutil_make_socket_nonblocking(evutil_socket_t sock);
 /* big-int related functions */
 ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
 
+#ifdef _EVENT_HAVE_GETTIMEOFDAY
+#define evutil_gettimeofday(tv, tz) gettimeofday((tv), (tz))
+#else
+int evutil_gettimeofday(struct timeval *tv, struct timezone *tz);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

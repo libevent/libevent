@@ -1084,13 +1084,13 @@ default_transaction_id_fn(void)
 
 #ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
 	struct timeval tv;
-	gettimeofday(&tv, NULL);
+	evutil_gettimeofday(&tv, NULL);
 	trans_id = tv.tv_usec & 0xffff;
 #endif
 
 #ifdef DNS_USE_OPENSSL_FOR_ID
 	if (RAND_pseudo_bytes((u8 *) &trans_id, 2) == -1) {
-		/* in the case that the RAND call fails we back */
+		/* in the case that the RAND call fails we used to back */
 		/* down to using gettimeofday. */
 		/*
 		  struct timeval tv;
