@@ -79,10 +79,6 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#ifdef HAVE_FNMATCH_H
-#define _GNU_SOURCE
-#include <fnmatch.h>
-#endif
 
 #undef timeout_pending
 #undef timeout_initialized
@@ -1908,6 +1904,37 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 	return (NULL);
 }
 
+
+static int
+prefix_suffix_match(const char *pattern, const char *name, int ignorecase)
+{
+	char c;
+	
+	while (1) {
+		switch (c = *pattern++) {
+		case '\0':
+			return *name == '\0';
+
+		case '*':
+			while (*name != '\0') {
+				if (prefix_suffix_match(pattern, name,
+					ignorecase))
+					return (1);
+				++name;
+			}
+			return (0);
+		default:
+			if (c != *name) {
+				if (!ignorecase ||
+				    tolower(c) != tolower(*name))
+					return (0);
+			}
+			++name;
+		}
+	}
+	/* NOTREACHED */
+}
+
 static void
 evhttp_handle_request(struct evhttp_request *req, void *arg)
 {
@@ -1925,8 +1952,8 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	if (hostname != NULL) {
 		struct evhttp *vhost;
 		TAILQ_FOREACH(vhost, &http->virtualhosts, next) {
-			if (fnmatch(vhost->vhost_pattern, hostname,
-				FNM_CASEFOLD) == 0) {
+			if (prefix_suffix_match(vhost->vhost_pattern, hostname,
+				1 /* ignorecase */)) {
 				evhttp_handle_request(req, vhost);
 				return;
 			}

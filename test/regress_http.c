@@ -533,7 +533,7 @@ http_virtual_host_test(void)
 	short port = -1;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
-	struct evhttp *second = NULL;
+	struct evhttp *second = NULL, *third = NULL;
 	
 	test_ok = 0;
 	fprintf(stdout, "Testing Virtual Hosts: ");
@@ -543,8 +543,15 @@ http_virtual_host_test(void)
 	/* virtual host */
 	second = evhttp_new(NULL);
 	evhttp_set_cb(second, "/funnybunny", http_basic_cb, NULL);
+	third = evhttp_new(NULL);
+	evhttp_set_cb(third, "/blackcoffee", http_basic_cb, NULL);
 
 	if (evhttp_add_virtual_host(http, "foo.com", second) == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	if (evhttp_add_virtual_host(http, "bar.*.foo.com", third) == -1) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
@@ -586,6 +593,28 @@ http_virtual_host_test(void)
 	/* We give ownership of the request to the connection */
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
 		"/funnybunny") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	test_ok = 0;
+
+	/* make a request with the right host and expect a response */
+	req = evhttp_request_new(http_request_done, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "bar.magic.foo.com");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
+		"/blackcoffee") == -1) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
