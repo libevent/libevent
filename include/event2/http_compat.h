@@ -84,6 +84,9 @@ void evhttp_connection_set_base(struct evhttp_connection *evcon,
     struct event_base *base);
 
 
+/** Returns the request URI */
+#define evhttp_request_uri evhttp_request_get_uri
+
 #ifdef __cplusplus
 }
 #endif
