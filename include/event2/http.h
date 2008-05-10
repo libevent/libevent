@@ -279,7 +279,8 @@ int evhttp_make_request(struct evhttp_connection *evcon,
     struct evhttp_request *req,
     enum evhttp_cmd_type type, const char *uri);
 
-const char *evhttp_request_uri(struct evhttp_request *req);
+/** Returns the request URI */
+const char *evhttp_request_get_uri(struct evhttp_request *req);
 
 /* Interfaces for dealing with HTTP headers */
 
