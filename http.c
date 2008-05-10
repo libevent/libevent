@@ -168,6 +168,8 @@ static void evhttp_read_cb(struct bufferevent *, void *);
 static void evhttp_read_header_cb(struct bufferevent *bufev, void *arg);
 static void evhttp_write_cb(struct bufferevent *, void *);
 static void evhttp_error_cb(struct bufferevent *bufev, short what, void *arg);
+static int evhttp_decode_uri_internal(const char *uri, size_t length,
+    char *ret);
 
 #ifndef HAVE_STRSEP
 /* strsep replacement for platforms that lack it.  Only works if
@@ -1799,18 +1801,13 @@ evhttp_encode_uri(const char *uri)
 	return (p);
 }
 
-char *
-evhttp_decode_uri(const char *uri)
+static int
+evhttp_decode_uri_internal(const char *uri, size_t length, char *ret)
 {
-	char c, *ret;
+	char c;
 	int i, j, in_query = 0;
-	
-	ret = mm_malloc(strlen(uri) + 1);
-	if (ret == NULL)
-		event_err(1, "%s: malloc(%lu)", __func__,
-			  (unsigned long)(strlen(uri) + 1));
-	
-	for (i = j = 0; uri[i] != '\0'; i++) {
+
+	for (i = j = 0; i < length; i++) {
 		c = uri[i];
 		if (c == '?') {
 			in_query = 1;
@@ -1825,6 +1822,20 @@ evhttp_decode_uri(const char *uri)
 		ret[j++] = c;
 	}
 	ret[j] = '\0';
+
+	return (j);
+}
+
+char *
+evhttp_decode_uri(const char *uri)
+{
+	char *ret;
+	
+	if ((ret = mm_malloc(strlen(uri) + 1)) == NULL)
+		event_err(1, "%s: malloc(%lu)", __func__,
+			  (unsigned long)(strlen(uri) + 1));
+
+	evhttp_decode_uri_internal(uri, strlen(uri), ret);
 	
 	return (ret);
 }
@@ -1882,20 +1893,23 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 {
 	struct evhttp_cb *cb;
 	size_t offset = 0;
+	char *translated;
 
 	/* Test for different URLs */
-	char *p = strchr(req->uri, '?');
-	if (p != NULL)
-		offset = (size_t)(p - req->uri);
+	char *p = req->uri;
+	while (*p != '\0' && *p != '?')
+		++p;
+	offset = (size_t)(p - req->uri);
+
+	/* allocate the rewritten version on the stack */
+	if ((translated = alloca(offset + 1)) == NULL)
+		return (NULL);
+	offset = evhttp_decode_uri_internal(req->uri, offset, translated);
 
 	TAILQ_FOREACH(cb, callbacks, next) {
 		int res = 0;
-		if (p == NULL) {
-			res = strcmp(cb->what, req->uri) == 0;
-		} else {
-			res = ((strncmp(cb->what, req->uri, offset) == 0) &&
-					(cb->what[offset] == '\0'));
-		}
+		res = ((strncmp(cb->what, translated, offset) == 0) &&
+		    (cb->what[offset] == '\0'));
 
 		if (res)
 			return (cb);
