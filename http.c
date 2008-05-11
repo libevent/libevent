@@ -2356,6 +2356,31 @@ evhttp_request_get_uri(struct evhttp_request *req) {
 	return (req->uri);
 }
 
+/** Returns the input headers */
+struct evkeyvalq *evhttp_request_get_input_headers(struct evhttp_request *req)
+{
+	return (req->input_headers);
+}
+
+/** Returns the output headers */
+struct evkeyvalq *evhttp_request_get_output_headers(struct evhttp_request *req)
+{
+	return (req->output_headers);
+}
+
+/** Returns the input buffer */
+struct evbuffer *evhttp_request_get_input_buffer(struct evhttp_request *req)
+{
+	return (req->input_buffer);
+}
+
+/** Returns the output buffer */
+struct evbuffer *evhttp_request_get_output_buffer(struct evhttp_request *req)
+{
+	return (req->output_buffer);
+}
+
+
 /*
  * Takes a file descriptor to read a request from.
  * The callback is executed once the whole request has been read.
