@@ -281,6 +281,14 @@ int evhttp_make_request(struct evhttp_connection *evcon,
 
 /** Returns the request URI */
 const char *evhttp_request_get_uri(struct evhttp_request *req);
+/** Returns the input headers */
+struct evkeyvalq *evhttp_request_get_input_headers(struct evhttp_request *req);
+/** Returns the output headers */
+struct evkeyvalq *evhttp_request_get_output_headers(struct evhttp_request *req);
+/** Returns the input buffer */
+struct evbuffer *evhttp_request_get_input_buffer(struct evhttp_request *req);
+/** Returns the output buffer */
+struct evbuffer *evhttp_request_get_output_buffer(struct evhttp_request *req);
 
 /* Interfaces for dealing with HTTP headers */
 
