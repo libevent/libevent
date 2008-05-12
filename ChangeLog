@@ -98,7 +98,8 @@ Changes in current version:
  o Move	windows gettimeofday replacement into a new evutil_gettimeofday().
  o Make configure script work on IRIX.
  o provide a method for canceling ongoing http requests.
- 
+ o Make vsnprintf() returns consistent on win32.
+
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

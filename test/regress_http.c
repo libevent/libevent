@@ -138,7 +138,7 @@ http_connect(const char *address, u_short port)
 	memset(&ai, 0, sizeof (ai));
 	ai.ai_family = AF_INET;
 	ai.ai_socktype = SOCK_STREAM;
-	snprintf(strport, sizeof (strport), "%d", port);
+	evutil_snprintf(strport, sizeof (strport), "%d", port);
 	if (getaddrinfo(address, strport, &ai, &aitop) != 0) {
 		event_warn("getaddrinfo");
 		return (-1);

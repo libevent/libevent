@@ -1292,7 +1292,7 @@ test_evbuffer_iterative(void)
 		for (j = 1; j < strlen(abc); ++j) {
 			char format[32];
 
-			snprintf(format, sizeof(format), "%%%d.%ds", j, j);
+			evutil_snprintf(format, sizeof(format), "%%%d.%ds", j, j);
 			evbuffer_add_printf(buf, format, abc);
 			evbuffer_validate(buf);
 
@@ -1627,7 +1627,7 @@ test_priorities(int npriorities)
 	struct test_pri_event one, two;
 	struct timeval tv;
 
-	snprintf(buf, sizeof(buf), "Testing Priorities %d: ", npriorities);
+	evutil_snprintf(buf, sizeof(buf), "Testing Priorities %d: ", npriorities);
 	setup_test(buf);
 
 	event_base_priority_init(global_base, npriorities);
@@ -2067,6 +2067,38 @@ test_evutil_strtoll(void)
 }
 
 static void
+test_evutil_snprintf(void)
+{
+	char buf[16];
+	int r;
+	setup_test("evutil_snprintf: ");
+	test_ok = 0;
+	r = evutil_snprintf(buf, sizeof(buf), "%d %d", 50, 100);
+	if (strcmp(buf, "50 100")) {
+		fprintf(stderr, "buf='%s'\n", buf);
+		goto err;
+	}
+	if (r != 6) {
+		fprintf(stderr, "r=%d\n", r);
+		goto err;
+	}
+
+	r = evutil_snprintf(buf, sizeof(buf), "longish %d", 1234567890);
+	if (strcmp(buf, "longish 1234567")) {
+		fprintf(stderr, "buf='%s'\n", buf);
+		goto err;
+	}
+	if (r != 18) {
+		fprintf(stderr, "r=%d\n", r);
+		goto err;
+	}
+
+	test_ok = 1;
+ err:
+	cleanup_test();
+}
+
+static void
 test_methods(void)
 {
 	const char **methods = event_get_supported_methods();
@@ -2130,7 +2162,8 @@ main (int argc, char **argv)
 	/* Initalize the event library */
 	global_base = event_init();
 
-        test_evutil_strtoll();
+	test_evutil_strtoll();
+	test_evutil_snprintf();
 
 	test_periodictimeout();
 
