@@ -1901,8 +1901,7 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 		++p;
 	offset = (size_t)(p - req->uri);
 
-	/* allocate the rewritten version on the stack */
-	if ((translated = alloca(offset + 1)) == NULL)
+	if ((translated = mm_malloc(offset + 1)) == NULL)
 		return (NULL);
 	offset = evhttp_decode_uri_internal(req->uri, offset, translated);
 
@@ -1911,10 +1910,13 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 		res = ((strncmp(cb->what, translated, offset) == 0) &&
 		    (cb->what[offset] == '\0'));
 
-		if (res)
+		if (res) {
+			mm_free(translated);
 			return (cb);
+		}
 	}
 
+	mm_free(translated);
 	return (NULL);
 }
 
