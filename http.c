@@ -96,7 +96,6 @@
 #include "mm-internal.h"
 
 #ifdef WIN32
-#define snprintf _snprintf
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #endif
@@ -328,8 +327,8 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	if ((req->type == EVHTTP_REQ_POST || req->type == EVHTTP_REQ_PUT) &&
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		char size[12];
-		snprintf(size, sizeof(size), "%ld",
-			 (long)EVBUFFER_LENGTH(req->output_buffer));
+		evutil_snprintf(size, sizeof(size), "%ld",
+						(long)EVBUFFER_LENGTH(req->output_buffer));
 		evhttp_add_header(req->output_headers, "Content-Length", size);
 	}
 }
@@ -385,7 +384,7 @@ evhttp_maybe_add_content_length_header(struct evkeyvalq *headers,
 	if (evhttp_find_header(headers, "Transfer-Encoding") == NULL &&
 	    evhttp_find_header(headers,	"Content-Length") == NULL) {
 		char len[12];
-		snprintf(len, sizeof(len), "%ld", content_length);
+		evutil_snprintf(len, sizeof(len), "%ld", content_length);
 		evhttp_add_header(headers, "Content-Length", len);
 	}
 }
@@ -2627,7 +2626,7 @@ make_addrinfo(const char *address, ev_uint16_t port)
         ai.ai_family = AF_INET;
         ai.ai_socktype = SOCK_STREAM;
         ai.ai_flags = AI_PASSIVE;  /* turn NULL host name into INADDR_ANY */
-        snprintf(strport, sizeof(strport), "%d", port);
+        evutil_snprintf(strport, sizeof(strport), "%d", port);
         if ((ai_result = getaddrinfo(address, strport, &ai, &aitop)) != 0) {
                 if ( ai_result == EAI_SYSTEM )
                         event_warn("getaddrinfo");

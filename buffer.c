@@ -954,12 +954,7 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 #endif
 		va_copy(aq, ap);
 
-#ifdef WIN32
-		sz = vsnprintf(buffer, space - 1, fmt, aq);
-		buffer[space - 1] = '\0';
-#else
-		sz = vsnprintf(buffer, space, fmt, aq);
-#endif
+		sz = evutil_vsnprintf(buffer, space, fmt, aq);
 
 		va_end(aq);
 

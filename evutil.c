@@ -49,6 +49,7 @@
 #include <stdlib.h>
 #endif
 #include <errno.h>
+#include <stdio.h>
 
 #ifndef _EVENT_HAVE_GETTIMEOFDAY
 #include <sys/timeb.h>
@@ -216,3 +217,31 @@ evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
 	return 0;
 }
 #endif
+
+int
+evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
+{
+	int r;
+	va_list ap;
+	va_start(ap, format);
+	r = vsnprintf(buf, buflen, format, ap);
+	va_end(ap);
+	return r;
+}
+
+int
+evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
+{
+#ifdef WIN32
+	int r = _vsnprintf(buf, buflen, format, ap);
+	buf[buflen-1] = '\0';
+	if (r >= 0)
+		return r;
+	else
+		return _vscprintf(format, ap);
+#else
+	int r = vsnprintf(buf, buflen, format, ap);
+	buf[buflen-1] = '\0';
+	return r;
+#endif
+}

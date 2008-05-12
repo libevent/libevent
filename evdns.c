@@ -143,7 +143,6 @@ typedef unsigned int uint;
 #define u8  ev_uint8_t
 
 #ifdef WIN32
-#define snprintf _snprintf
 #define open _open
 #define read _read
 #define close _close
@@ -410,11 +409,11 @@ debug_ntoa(u32 address)
 {
 	static char buf[32];
 	u32 a = ntohl(address);
-	snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
-                      (int)(u8)((a>>24)&0xff),
-                      (int)(u8)((a>>16)&0xff),
-                      (int)(u8)((a>>8 )&0xff),
-  		      (int)(u8)((a    )&0xff));
+	evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
+					(int)(u8)((a>>24)&0xff),
+					(int)(u8)((a>>16)&0xff),
+					(int)(u8)((a>>8 )&0xff),
+					(int)(u8)((a    )&0xff));
 	return buf;
 }
 
@@ -441,12 +440,7 @@ _evdns_log(int warn, const char *fmt, ...)
   if (!evdns_log_fn)
     return;
   va_start(args,fmt);
-#ifdef WIN32
-  _vsnprintf(buf, sizeof(buf), fmt, args);
-#else
-  vsnprintf(buf, sizeof(buf), fmt, args);
-#endif
-  buf[sizeof(buf)-1] = '\0';
+  evutil_snprintf(buf, sizeof(buf), fmt, args);
   evdns_log_fn(warn, buf);
   va_end(args);
 }
@@ -738,7 +732,7 @@ reply_handle(struct evdns_request *const req, u16 flags, u32 ttl, struct reply *
 			/* we regard these errors as marking a bad nameserver */
 			if (req->reissue_count < req->base->global_max_reissues) {
 				char msg[64];
-				snprintf(msg, sizeof(msg), "Bad response %d (%s)",
+				evutil_snprintf(msg, sizeof(msg), "Bad response %d (%s)",
 					 error, evdns_err_to_string(error));
 				nameserver_failed(req->ns, msg);
 				if (!request_reissue(req)) return;
@@ -1600,7 +1594,7 @@ evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_a
 	assert(!(in && inaddr_name));
 	if (in) {
 		a = ntohl(in->s_addr);
-		snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
+		evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
 				(int)(u8)((a	)&0xff),
 				(int)(u8)((a>>8 )&0xff),
 				(int)(u8)((a>>16)&0xff),
@@ -2382,7 +2376,7 @@ evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int flag
 	u32 a;
 	assert(in);
 	a = ntohl(in->s_addr);
-	snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
+	evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
 			(int)(u8)((a	)&0xff),
 			(int)(u8)((a>>8 )&0xff),
 			(int)(u8)((a>>16)&0xff),

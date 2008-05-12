@@ -53,6 +53,7 @@ extern "C" {
 #ifdef _EVENT_HAVE_STDDEF_H
 #include <stddef.h>
 #endif
+#include <stdarg.h>
 
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t
@@ -184,6 +185,19 @@ ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
 #else
 int evutil_gettimeofday(struct timeval *tv, struct timezone *tz);
 #endif
+
+#ifdef __GNUC__
+#define EVUTIL_CHECK_FMT(a,b) __attribute__((format(printf, a, b)))
+#else
+#define EVUTIL_CHECK_FMT(a,b)
+#endif
+
+int evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
+#ifdef __GNUC__
+	__attribute__((format(printf, 3, 4)))
+#endif
+	;
+int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap);
 
 #ifdef __cplusplus
 }
