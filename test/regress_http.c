@@ -66,12 +66,13 @@ static struct event_base *base;
 
 void http_suite(void);
 
-void http_basic_cb(struct evhttp_request *req, void *arg);
-void http_chunked_cb(struct evhttp_request *req, void *arg);
-void http_post_cb(struct evhttp_request *req, void *arg);
-void http_put_cb(struct evhttp_request *req, void *arg);
-void http_delete_cb(struct evhttp_request *req, void *arg);
-void http_dispatcher_cb(struct evhttp_request *req, void *arg);
+static void http_basic_cb(struct evhttp_request *req, void *arg);
+static void http_chunked_cb(struct evhttp_request *req, void *arg);
+static void http_post_cb(struct evhttp_request *req, void *arg);
+static void http_put_cb(struct evhttp_request *req, void *arg);
+static void http_delete_cb(struct evhttp_request *req, void *arg);
+static void http_delay_cb(struct evhttp_request *req, void *arg);
+static void http_dispatcher_cb(struct evhttp_request *req, void *arg);
 
 static struct evhttp *
 http_setup(short *pport, struct event_base *base)
@@ -98,6 +99,7 @@ http_setup(short *pport, struct event_base *base)
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, NULL);
 	evhttp_set_cb(myhttp, "/putit", http_put_cb, NULL);
 	evhttp_set_cb(myhttp, "/deleteit", http_delete_cb, NULL);
+	evhttp_set_cb(myhttp, "/delay", http_delay_cb, NULL);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, NULL);
 
 	*pport = port;
@@ -207,7 +209,7 @@ http_errorcb(struct bufferevent *bev, short what, void *arg)
 	event_loopexit(NULL);
 }
 
-void
+static void
 http_basic_cb(struct evhttp_request *req, void *arg)
 {
 	struct evbuffer *evb = evbuffer_new();
@@ -222,7 +224,7 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	evbuffer_free(evb);
 }
 
-void
+static void
 http_chunked_cb(struct evhttp_request *req, void *arg)
 {
 	struct evbuffer *evb = evbuffer_new();
@@ -322,11 +324,32 @@ http_basic_test(void)
 	fprintf(stdout, "OK\n");
 }
 
+static void
+http_delay_reply(evutil_socket_t fd, short what, void *arg)
+{
+	struct evhttp_request *req = arg;
+
+	evhttp_send_reply(req, HTTP_OK, "Everything is fine", NULL);
+
+	++test_ok;
+}
+
+static void
+http_delay_cb(struct evhttp_request *req, void *arg)
+{
+	struct timeval tv;
+	timerclear(&tv);
+	tv.tv_sec = 0;
+	tv.tv_usec = 200 * 1000;
+
+	event_once(-1, EV_TIMEOUT, http_delay_reply, req, &tv);
+}
+
 /*
  * HTTP DELETE test,  just piggyback on the basic test
  */
 
-void
+static void
 http_delete_cb(struct evhttp_request *req, void *arg)
 {
 	struct evbuffer *evb = evbuffer_new();
@@ -449,6 +472,120 @@ http_connection_test(int persistent)
 	 */
 	if (!persistent)
 		evhttp_add_header(req->output_headers, "Connection", "close");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	/* make another request: request empty reply */
+	test_ok = 0;
+	
+	req = evhttp_request_new(http_request_empty_done, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Empty", "itis");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
+	
+	fprintf(stdout, "OK\n");
+}
+
+static void
+http_request_never_call(struct evhttp_request *req, void *arg)
+{
+	fprintf(stdout, "FAILED\n");
+	exit(1);
+}
+
+static void
+http_do_cancel(evutil_socket_t fd, short what, void *arg)
+{
+	struct evhttp_request *req = arg;
+	struct timeval tv;
+	timerclear(&tv);
+	tv.tv_sec = 0;
+	tv.tv_usec = 500 * 1000;
+
+	evhttp_cancel_request(req);
+
+	event_loopexit(&tv);
+
+	++test_ok;
+}
+
+static void
+http_cancel_test(void)
+{
+	short port = -1;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	struct timeval tv;
+	
+	test_ok = 0;
+	fprintf(stdout, "Testing Request Cancelation: ");
+
+	http = http_setup(&port, NULL);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/*
+	 * At this point, we want to schedule a request to the HTTP
+	 * server using our make request method.
+	 */
+
+	req = evhttp_request_new(http_request_never_call, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/delay") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	timerclear(&tv);
+	tv.tv_sec = 0;
+	tv.tv_usec = 100 * 1000;
+
+	event_once(-1, EV_TIMEOUT, http_do_cancel, req, &tv);
+
+	event_dispatch();
+
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* try to make another request over the same connection */
+	test_ok = 0;
+	
+	req = evhttp_request_new(http_request_done, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
 
 	/* We give ownership of the request to the connection */
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
@@ -1811,6 +1948,7 @@ http_suite(void)
 	http_base_test();
 	http_bad_header_test();
 	http_basic_test();
+	http_cancel_test();
 	http_connection_test(0 /* not-persistent */);
 	http_connection_test(1 /* persistent */);
 	http_virtual_host_test();

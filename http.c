@@ -483,6 +483,7 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 		return (-1);
 	case EVCON_HTTP_INVALID_HEADER:
 	case EVCON_HTTP_BUFFER_ERROR:
+	case EVCON_HTTP_REQUEST_CANCEL:
 	default:	/* xxx: probably should just error on default */
 		/* the callback looks at the uri to determine errors */
 		if (req->uri) {
@@ -525,14 +526,23 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 		return;
 	}
 
-	/* save the callback for later; the cb might free our object */
-	cb = req->cb;
-	cb_arg = req->cb_arg;
+	/* when the request was canceled, the callback is not executed */
+	if (error != EVCON_HTTP_REQUEST_CANCEL) {
+		/* save the callback for later; the cb might free our object */
+		cb = req->cb;
+		cb_arg = req->cb_arg;
+	} else {
+		cb = NULL;
+		cb_arg = NULL;
+	}
 
 	TAILQ_REMOVE(&evcon->requests, req, next);
 	evhttp_request_free(req);
 
-	/* xxx: maybe we should fail all requests??? */
+	/* do not fail all requests; the next request is going to get
+	 * send over a new connection.   when a user cancels a request,
+	 * all other pending requests should be processed as normal
+	 */
 
 	/* reset the connection */
 	evhttp_connection_reset(evcon);
@@ -1572,6 +1582,32 @@ evhttp_make_request(struct evhttp_connection *evcon,
 		evhttp_request_dispatch(evcon);
 
 	return (0);
+}
+
+void
+evhttp_cancel_request(struct evhttp_request *req)
+{
+	struct evhttp_connection *evcon = req->evcon;
+	if (evcon != NULL) {
+		/* We need to remove it from the connection */
+		if (TAILQ_FIRST(&evcon->requests) == req) {
+			/* it's currently being worked on, so reset
+			 * the connection.
+			 */
+			evhttp_connection_fail(evcon,
+			    EVCON_HTTP_REQUEST_CANCEL);
+
+			/* connection fail freed the request */
+			return;
+		} else {
+			/* otherwise, we can just remove it from the
+			 * queue
+			 */
+			TAILQ_REMOVE(&evcon->requests, req, next);
+		}
+	}
+
+	evhttp_request_free(req);
 }
 
 /*
