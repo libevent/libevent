@@ -153,7 +153,7 @@ extern int debug;
 
 static int socket_connect(evutil_socket_t kefd, const char *address, unsigned short port);
 static evutil_socket_t bind_socket_ai(struct addrinfo *);
-static evutil_socket_t bind_socket(const char *, u_short);
+static evutil_socket_t bind_socket(const char *, ev_uint16_t);
 static void name_from_addr(struct sockaddr *, socklen_t, char **, char **);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
@@ -1483,7 +1483,7 @@ evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 
 void
 evhttp_connection_get_peer(struct evhttp_connection *evcon,
-    char **address, u_short *port)
+    char **address, ev_uint16_t *port)
 {
 	*address = evcon->address;
 	*port = evcon->port;
@@ -1788,10 +1788,10 @@ evhttp_encode_uri(const char *uri)
 	char *p;
 
 	for (p = (char *)uri; *p != '\0'; p++) {
-		if (uri_chars[(u_char)(*p)]) {
+		if (uri_chars[(unsigned char)(*p)]) {
 			evbuffer_add(buf, p, 1);
 		} else {
-			evbuffer_add_printf(buf, "%%%02X", (u_char)(*p));
+			evbuffer_add_printf(buf, "%%%02X", (unsigned char)(*p));
 		}
 	}
 	evbuffer_add(buf, "", 1);
@@ -2027,7 +2027,7 @@ accept_socket(evutil_socket_t fd, short what, void *arg)
 }
 
 int
-evhttp_bind_socket(struct evhttp *http, const char *address, u_short port)
+evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
 {
 	evutil_socket_t fd;
 	int res;
@@ -2114,7 +2114,7 @@ evhttp_new(struct event_base *base)
  */
 
 struct evhttp *
-evhttp_start(const char *address, u_short port)
+evhttp_start(const char *address, unsigned short port)
 {
 	struct evhttp *http = evhttp_new_object();
 
@@ -2576,7 +2576,7 @@ bind_socket_ai(struct addrinfo *ai)
 }
 
 static struct addrinfo *
-make_addrinfo(const char *address, u_short port)
+make_addrinfo(const char *address, ev_uint16_t port)
 {
         struct addrinfo *aitop = NULL;
 
@@ -2614,7 +2614,7 @@ make_addrinfo(const char *address, u_short port)
 }
 
 static evutil_socket_t
-bind_socket(const char *address, u_short port)
+bind_socket(const char *address, ev_uint16_t port)
 {
 	evutil_socket_t fd;
 	struct addrinfo *aitop = make_addrinfo(address, port);

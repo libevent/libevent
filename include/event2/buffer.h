@@ -134,7 +134,7 @@ int evbuffer_expand(struct evbuffer *buf, size_t datlen);
    @see evbuffer_commit_space
 */
 
-u_char *evbuffer_reserve_space(struct evbuffer *buf, size_t size);
+unsigned char *evbuffer_reserve_space(struct evbuffer *buf, size_t size);
 
 /**
    Commits previously reserved space.
@@ -306,7 +306,7 @@ int evbuffer_read(struct evbuffer *buffer, evutil_socket_t fd, int howmuch);
   @param len the length of the search string
   @return a pointer to the beginning of the search string, or NULL if the search failed.
  */
-u_char *evbuffer_find(struct evbuffer *buffer, const u_char *what, size_t len);
+unsigned char *evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len);
 
 /**
   Set a callback to invoke when the evbuffer is modified.
@@ -327,7 +327,7 @@ void evbuffer_setcb(struct evbuffer *buffer,
   @return a pointer to the contigous memory areay
 */
 
-u_char *evbuffer_pullup(struct evbuffer *buf, int size);
+unsigned char *evbuffer_pullup(struct evbuffer *buf, int size);
 
 /**
   Prepends data to the beginning of the evbuffer

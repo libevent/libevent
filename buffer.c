@@ -131,7 +131,7 @@ evbuffer_get_contiguous_space(struct evbuffer *buf)
 	return (chain != NULL ? chain->off : 0);
 }
 
-u_char *
+unsigned char *
 evbuffer_reserve_space(struct evbuffer *buf, size_t size)
 {
 	struct evbuffer_chain *chain;
@@ -395,11 +395,11 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 }
 
 /* XXX shouldn't the second arg be ssize_t? */
-u_char *
+unsigned char *
 evbuffer_pullup(struct evbuffer *buf, int size)
 {
 	struct evbuffer_chain *chain = buf->first, *next, *tmp;
-	u_char *buffer;
+	unsigned char *buffer;
 
 	if (size == -1)
 		size = buf->total_len;
@@ -643,7 +643,7 @@ int
 evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 {
 	struct evbuffer_chain *chain = buf->last;
-	const u_char *data = data_in;
+	const unsigned char *data = data_in;
 	size_t old_len = buf->total_len, remain, to_alloc;
 
 	/* If there are no chains allocated for this buffer, allocate one
@@ -813,7 +813,7 @@ int
 evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 {
 	struct evbuffer_chain *chain = buf->last;
-	u_char *p;
+	unsigned char *p;
 	size_t old_len = buf->total_len;
 	int n = EVBUFFER_MAX_READ;
 
@@ -910,12 +910,12 @@ evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd)
 	return (n);
 }
 
-u_char *
-evbuffer_find(struct evbuffer *buffer, const u_char *what, size_t len)
+unsigned char *
+evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len)
 {
-	u_char *search = evbuffer_pullup(buffer, -1);
-	u_char *end = search + buffer->total_len;
-	u_char *p;
+	unsigned char *search = evbuffer_pullup(buffer, -1);
+	unsigned char *end = search + buffer->total_len;
+	unsigned char *p;
 
 	while (search < end &&
 	    (p = memchr(search, *what, end - search)) != NULL) {

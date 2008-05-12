@@ -79,7 +79,7 @@ struct {
 
 	/* address of the remote host and the port connection came from */
 	char *remote_host;
-	u_short remote_port;
+	ev_uint16_t remote_port;
 
 	enum evhttp_request_kind kind;
 	enum evhttp_cmd_type type;
