@@ -89,7 +89,7 @@ struct evhttp *evhttp_new(struct event_base *base);
  * @return 0 on success, -1 on failure.
  * @see evhttp_free(), evhttp_accept_socket()
  */
-int evhttp_bind_socket(struct evhttp *http, const char *address, u_short port);
+int evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port);
 
 /**
  * Makes an HTTP server accept connections on the specified socket
@@ -272,7 +272,7 @@ void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 
 /** Get the remote address and port associated with this connection. */
 void evhttp_connection_get_peer(struct evhttp_connection *evcon,
-    char **address, u_short *port);
+    char **address, ev_uint16_t *port);
 
 /** The connection gets ownership of the request */
 int evhttp_make_request(struct evhttp_connection *evcon,

@@ -53,8 +53,6 @@ extern "C" {
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
-typedef unsigned char u_char;
-typedef unsigned short u_short;
 #endif
 
 /**
@@ -66,7 +64,7 @@ typedef unsigned short u_short;
  * @param port the port number on which the HTTP server should listen
  * @return an struct evhttp object
  */
-struct evhttp *evhttp_start(const char *address, u_short port);
+struct evhttp *evhttp_start(const char *address, unsigned short port);
 
 /**
  * A connection object that can be used to for making HTTP requests.  The

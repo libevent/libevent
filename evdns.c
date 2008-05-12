@@ -132,7 +132,6 @@
 
 #ifdef __USE_ISOC99B
 /* libevent doesn't work without this */
-typedef ev_uint8_t u_char;
 typedef unsigned int uint;
 #endif
 #include "event2/event.h"
