@@ -49,7 +49,7 @@
 #include "event.h"
 #include "event-internal.h"
 
-#define XFREE(ptr) do { if (ptr) event_free(ptr); } while(0)
+#define XFREE(ptr) do { if (ptr) mm_free(ptr); } while(0)
 
 extern struct event_list timequeue;
 extern struct event_list addqueue;
@@ -163,7 +163,7 @@ get_event_entry(struct win32op *op, SOCKET s, int create)
 	val = RB_FIND(event_map, &op->event_root, &key);
 	if (val || !create)
 		return val;
-	if (!(val = event_calloc(1, sizeof(struct event_entry)))) {
+	if (!(val = mm_calloc(1, sizeof(struct event_entry)))) {
 		event_warn("%s: calloc", __func__);
 		return NULL;
 	}
@@ -234,19 +234,19 @@ win32_init(struct event_base *_base)
 {
 	struct win32op *winop;
 	size_t size;
-	if (!(winop = event_calloc(1, sizeof(struct win32op))))
+	if (!(winop = mm_calloc(1, sizeof(struct win32op))))
 		return NULL;
 	winop->fd_setsz = NEVENT;
 	size = FD_SET_ALLOC_SIZE(NEVENT);
-	if (!(winop->readset_in = event_malloc(size)))
+	if (!(winop->readset_in = mm_malloc(size)))
 		goto err;
-	if (!(winop->writeset_in = event_malloc(size)))
+	if (!(winop->writeset_in = mm_malloc(size)))
 		goto err;
-	if (!(winop->readset_out = event_malloc(size)))
+	if (!(winop->readset_out = mm_malloc(size)))
 		goto err;
-	if (!(winop->writeset_out = event_malloc(size)))
+	if (!(winop->writeset_out = mm_malloc(size)))
 		goto err;
-	if (!(winop->exset_out = event_malloc(size)))
+	if (!(winop->exset_out = mm_malloc(size)))
 		goto err;
 	RB_INIT(&winop->event_root);
 	winop->readset_in->fd_count = winop->writeset_in->fd_count = 0;
@@ -317,7 +317,7 @@ win32_del(void *op, struct event *ev)
 	}
 	if (!ent->read_event && !ent->write_event) {
 		RB_REMOVE(event_map, &win32op->event_root, ent);
-		event_free(ent);
+		mm_free(ent);
 	}
 
 	return 0;
@@ -413,19 +413,19 @@ win32_dealloc(struct event_base *_base, void *arg)
 
 	evsignal_dealloc(_base);
 	if (win32op->readset_in)
-		event_free(win32op->readset_in);
+		mm_free(win32op->readset_in);
 	if (win32op->writeset_in)
-		event_free(win32op->writeset_in);
+		mm_free(win32op->writeset_in);
 	if (win32op->readset_out)
-		event_free(win32op->readset_out);
+		mm_free(win32op->readset_out);
 	if (win32op->writeset_out)
-		event_free(win32op->writeset_out);
+		mm_free(win32op->writeset_out);
 	if (win32op->exset_out)
-		event_free(win32op->exset_out);
+		mm_free(win32op->exset_out);
 	/* XXXXX free the tree. */
 
 	memset(win32op, 0, sizeof(win32op));
-	event_free(win32op);
+	mm_free(win32op);
 }
 
 #if 0
