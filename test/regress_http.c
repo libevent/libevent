@@ -153,8 +153,15 @@ http_connect(const char *address, u_short port)
 
 	evutil_make_socket_nonblocking(fd);
 	if (connect(fd, sa, slen) == -1) {
+#ifdef WIN32
+		int tmp_err = WSAGetLastError();
+		if (tmp_err != WSAEINPROGRESS && tmp_err != WSAEINVAL &&
+		    tmp_err != WSAEWOULDBLOCK)
+			event_err(1, "connect failed");
+#else
 		if (errno != EINPROGRESS)
 			event_err(1, "connect failed");
+#endif
 	}
 
 #ifndef WIN32
@@ -1451,6 +1458,9 @@ http_incomplete_errorcb(struct bufferevent *bev, short what, void *arg)
 static void
 http_incomplete_writecb(struct bufferevent *bev, void *arg)
 {
+#ifndef SHUT_WR
+#define SHUT_WR 1
+#endif
 	if (arg != NULL) {
 		int fd = *(int *)arg;
 		/* terminate the write side to simulate EOF */
@@ -1497,7 +1507,7 @@ http_incomplete_test(int use_timeout)
 	event_dispatch();
 
 	gettimeofday(&tv_end, NULL);
-	timersub(&tv_end, &tv_start, &tv_end);
+	evutil_timersub(&tv_end, &tv_start, &tv_end);
 
 	if (use_timeout) {
 		bufferevent_free(bev);
@@ -1694,7 +1704,7 @@ http_chunked_test(void)
 	event_dispatch();
 
 	gettimeofday(&tv_end, NULL);
-	timersub(&tv_end, &tv_start, &tv_end);
+	evutil_timersub(&tv_end, &tv_start, &tv_end);
 
 	if (tv_end.tv_sec >= 1) {
 		fprintf(stdout, "FAILED (time)\n");
@@ -1815,7 +1825,7 @@ http_connection_retry(void)
 	gettimeofday(&tv_start, NULL);
 	event_dispatch();
 	gettimeofday(&tv_end, NULL);
-	timersub(&tv_end, &tv_start, &tv_end);
+	evutil_timersub(&tv_end, &tv_start, &tv_end);
 	if (tv_end.tv_sec >= 1) {
 		fprintf(stdout, "FAILED (time)\n");
 		exit(1);
@@ -1852,7 +1862,7 @@ http_connection_retry(void)
 	gettimeofday(&tv_start, NULL);
 	event_dispatch();
 	gettimeofday(&tv_end, NULL);
-	timersub(&tv_end, &tv_start, &tv_end);
+	evutil_timersub(&tv_end, &tv_start, &tv_end);
 	if (tv_end.tv_sec <= 1 || tv_end.tv_sec >= 6) {
 		fprintf(stdout, "FAILED (time)\n");
 		exit(1);
@@ -1898,7 +1908,7 @@ http_connection_retry(void)
 	event_dispatch();
 	gettimeofday(&tv_end, NULL);
 
-	timersub(&tv_end, &tv_start, &tv_end);
+	evutil_timersub(&tv_end, &tv_start, &tv_end);
 	if (tv_end.tv_sec <= 1 || tv_end.tv_sec >= 6) {
 		fprintf(stdout, "FAILED (time)\n");
 		exit(1);

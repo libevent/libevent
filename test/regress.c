@@ -2105,6 +2105,7 @@ test_methods(void)
 	struct event_config *cfg;
 	struct event_base *base;
 	const char *backend;
+	int n_methods = 0;
 
 	fprintf(stderr, "Testing supported methods: ");
 
@@ -2117,6 +2118,12 @@ test_methods(void)
 	while (*methods != NULL) {
 		fprintf(stderr, "%s ", *methods);
 		++methods;
+		++n_methods;
+	}
+
+	if (n_methods == 1) {
+		/* only one method supported; can't continue. */
+		goto done;
 	}
 
 	cfg = event_config_new();
@@ -2137,7 +2144,7 @@ test_methods(void)
 
 	event_base_free(base);
 	event_config_free(cfg);
-
+done:
 	fprintf(stderr, "OK\n");
 }
 
