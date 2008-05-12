@@ -274,10 +274,36 @@ void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 void evhttp_connection_get_peer(struct evhttp_connection *evcon,
     char **address, ev_uint16_t *port);
 
-/** The connection gets ownership of the request */
+/** 
+    Make an HTTP request over the specified connection.
+    
+    The connection gets ownership of the request.
+
+    @param evcon the evhttp_connection object over which to send the request
+    @param req the previously created and configured request object
+    @param type the request type EVHTTP_REQ_GET, EVHTTP_REQ_POST, etc.
+    @param uri the URI associated with the request
+    @return 0 on success, -1 on failure
+    @see evhttp_cancel_request()
+*/
 int evhttp_make_request(struct evhttp_connection *evcon,
     struct evhttp_request *req,
     enum evhttp_cmd_type type, const char *uri);
+
+/**
+   Cancels a pending HTTP request.
+   
+   Cancels an ongoing HTTP request.  The callback associated with this request
+   is not executed and the request object is freed.  If the request is
+   currently being processed, e.g. it is ongoing, the corresponding
+   evhttp_connection object is going to get reset.
+
+   A request cannot be canceled if its callback has executed already.
+
+   @param req the evhttp_request to cancel; req becomes invalid after this call.
+*/
+void evhttp_cancel_request(struct evhttp_request *req);
+
 
 /** Returns the request URI */
 const char *evhttp_request_get_uri(struct evhttp_request *req);
