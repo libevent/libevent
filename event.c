@@ -29,6 +29,7 @@
 #endif
 
 #ifdef WIN32
+#include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
@@ -908,7 +909,7 @@ _event_initialized(struct event *ev, int need_fd)
 		return 0;
 #ifdef WIN32
 	/* XXX Is this actually a sensible thing to check? -NM */
-	if (need_fd && (ev)->ev_fd == INVALID_HANDLE_VALUE)
+	if (need_fd && (ev)->ev_fd == (evutil_socket_t)INVALID_HANDLE_VALUE)
 		return 0;
 #endif
 	return 1;
@@ -1404,13 +1405,18 @@ evthread_set_id_callback(struct event_base *base,
 #ifdef DISABLE_THREAD_SUPPORT
 	event_errx(1, "%s: not compiled with thread support", __func__);
 #endif
+#ifdef WIN32
+#define LOCAL_SOCKETPAIR_AF AF_INET
+#else
+#define LOCAL_SOCKETPAIR_AF AF_UNIX
+#endif
 	base->th_get_id = id_fn;
 	base->th_owner_id = (*id_fn)();
 	/* 
 	 * If another thread wants to add a new event, we need to notify
 	 * the thread that owns the base to wakeup for rescheduling.
 	 */
-	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0,
+	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0,
 		base->th_notify_fd) == -1)
 		event_err(1, "%s: socketpair", __func__);
 
