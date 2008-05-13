@@ -1397,21 +1397,14 @@ evhttp_read_header_cb(struct bufferevent *bufev, void *arg)
  */
 
 struct evhttp_connection *
-evhttp_connection_base_new(struct event_base *base,
-    const char *address, unsigned short port)
+evhttp_connection_new(const char *address, unsigned short port)
 {
-	struct evhttp_connection *evcon = evhttp_connection_new(address, port);
-	if (evcon == NULL)
-		return (NULL);
-
-	if (base != NULL)
-		evhttp_connection_set_base(evcon, base);
-
-	return (evcon);
+	return (evhttp_connection_base_new(NULL, address, port));
 }
 
 struct evhttp_connection *
-evhttp_connection_new(const char *address, unsigned short port)
+evhttp_connection_base_new(struct event_base *base,
+    const char *address, unsigned short port)
 {
 	struct evhttp_connection *evcon = NULL;
 	
@@ -1444,6 +1437,11 @@ evhttp_connection_new(const char *address, unsigned short port)
 	evcon->state = EVCON_DISCONNECTED;
 	TAILQ_INIT(&evcon->requests);
 
+	if (base != NULL) {
+		evcon->base = base;
+		bufferevent_base_set(base, evcon->bufev);
+	}
+
 	return (evcon);
 	
  error:
@@ -1452,7 +1450,8 @@ evhttp_connection_new(const char *address, unsigned short port)
 	return (NULL);
 }
 
-void evhttp_connection_set_base(struct evhttp_connection *evcon,
+void
+evhttp_connection_set_base(struct evhttp_connection *evcon,
     struct event_base *base)
 {
 	assert(evcon->base == NULL);
@@ -2432,7 +2431,7 @@ evhttp_get_request_connection(
 	char *hostname = NULL, *portname = NULL;
 
 	name_from_addr(sa, salen, &hostname, &portname);
-	if (hostname==NULL || portname==NULL) {
+	if (hostname == NULL || portname == NULL) {
 		if (hostname) mm_free(hostname);
 		if (portname) mm_free(portname);
 		return (NULL);
@@ -2442,15 +2441,12 @@ evhttp_get_request_connection(
 			__func__, hostname, portname, fd));
 
 	/* we need a connection object to put the http request on */
-	evcon = evhttp_connection_new(hostname, atoi(portname));
+	evcon = evhttp_connection_base_new(
+		http->base, hostname, atoi(portname));
 	mm_free(hostname);
 	mm_free(portname);
 	if (evcon == NULL)
 		return (NULL);
-
-	/* associate the base if we have one */
-	if (http->base != NULL)
-		evhttp_connection_set_base(evcon, http->base);
 
 	evcon->flags |= EVHTTP_CON_INCOMING;
 	evcon->state = EVCON_CONNECTED;
