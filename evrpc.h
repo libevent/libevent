@@ -71,6 +71,7 @@ extern "C" {
 struct evbuffer;
 struct event_base;
 struct evrpc_req_generic;
+struct evrpc_request_wrapper;
 
 /* Encapsulates a request */
 struct evrpc {
@@ -118,41 +119,7 @@ struct evhttp_request;
 struct evrpc_status;
 struct evrpc_hook_meta;
 
-/* We alias the RPC specific structs to this voided one */
-struct evrpc_req_generic {
-	/*
-	 * allows association of meta data via hooks - needs to be
-	 * synchronized with evrpc_request_wrapper
-	 */
-	struct evrpc_hook_meta *hook_meta;
-
-	/* the unmarshaled request object */
-	void *request;
-
-	/* the empty reply object that needs to be filled in */
-	void *reply;
-
-	/* 
-	 * the static structure for this rpc; that can be used to
-	 * automatically unmarshal and marshal the http buffers.
-	 */
-	struct evrpc *rpc;
-
-	/*
-	 * the http request structure on which we need to answer.
-	 */
-	struct evhttp_request* http_req;
-
-	/*
-	 * Temporary data store for marshaled data
-	 */
-	struct evbuffer* rpc_data;
-
-	/*
-	 * callback to reply and finish answering this rpc
-	 */
-	void (*done)(struct evrpc_req_generic* rpc); 
-};
+/* the structure below needs to be synchornized with evrpc_req_generic */
 
 /** Creates the definitions and prototypes for an RPC
  *
@@ -173,8 +140,6 @@ EVRPC_STRUCT(rpcname) {	\
 	struct evrpc* rpc; \
 	struct evhttp_request* http_req; \
 	struct evbuffer* rpc_data; \
-	void (*done)(struct evrpc_status *, \
-	    struct evrpc* rpc, void *request, void *reply);	     \
 };								     \
 int evrpc_send_request_##rpcname(struct evrpc_pool *, \
     struct reqstruct *, struct rplystruct *, \
@@ -264,6 +229,9 @@ error:								    \
  */
 #define EVRPC_REQUEST_HTTP(rpc_req) (rpc_req)->http_req
 
+/** completes the server response to an rpc request */
+void evrpc_request_done(struct evrpc_req_generic *req);
+
 /** Creates the reply to an RPC request
  * 
  * EVRPC_REQUEST_DONE is used to answer a request; the reply is expected
@@ -274,7 +242,7 @@ error:								    \
  */
 #define EVRPC_REQUEST_DONE(rpc_req) do { \
   struct evrpc_req_generic *_req = (struct evrpc_req_generic *)(rpc_req); \
-  _req->done(_req); \
+  evrpc_request_done(_req);					\
 } while (0)
   
 
@@ -376,47 +344,6 @@ struct evrpc_status {
 
 	/* for looking at headers or other information */
 	struct evhttp_request *http_req;
-};
-
-struct evrpc_request_wrapper {
-	/*
-	 * allows association of meta data via hooks - needs to be
-	 * synchronized with evrpc_req_generic.
-	 */
-	struct evrpc_hook_meta *hook_meta;
-
-	TAILQ_ENTRY(evrpc_request_wrapper) next;
-
-        /* pool on which this rpc request is being made */
-        struct evrpc_pool *pool;
-
-        /* connection on which the request is being sent */
-	struct evhttp_connection *evcon;
-
-        /* the actual  request */
-	struct evhttp_request *req;
-
-	/* event for implementing request timeouts */
-	struct event ev_timeout;
-
-	/* the name of the rpc */
-	char *name;
-
-	/* callback */
-	void (*cb)(struct evrpc_status*, void *request, void *reply, void *arg);
-	void *cb_arg;
-
-	void *request;
-	void *reply;
-
-	/* unmarshals the buffer into the proper request structure */
-	void (*request_marshal)(struct evbuffer *, void *);
-
-	/* removes all stored state in the reply */
-	void (*reply_clear)(void *);
-
-	/* marshals the reply into a buffer */
-	int (*reply_unmarshal)(void *, struct evbuffer*);
 };
 
 /** launches an RPC and sends it to the server
@@ -590,6 +517,15 @@ int evrpc_hook_find_meta(void *ctx, const char *key,
  * @return a pointer to the evhttp_connection object
  */
 struct evhttp_connection *evrpc_hook_get_connection(void *ctx);
+
+/** accessors for obscure and undocumented functionality */
+struct evrpc_pool* evrpc_request_get_pool(struct evrpc_request_wrapper *ctx);
+void evrpc_request_set_pool(struct evrpc_request_wrapper *ctx,
+    struct evrpc_pool *pool);
+void evrpc_request_set_cb(struct evrpc_request_wrapper *ctx,
+    void (*cb)(struct evrpc_status*, void *request, void *reply, void *arg),
+    void *cb_arg);
+
 #ifdef __cplusplus
 }
 #endif

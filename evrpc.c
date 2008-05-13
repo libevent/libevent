@@ -189,7 +189,6 @@ evrpc_process_hooks(struct evrpc_hook_list *head, void *ctx,
 
 static void evrpc_pool_schedule(struct evrpc_pool *pool);
 static void evrpc_request_cb(struct evhttp_request *, void *);
-void evrpc_request_done(struct evrpc_req_generic*);
 
 /*
  * Registers a new RPC with the HTTP server.   The evrpc object is expected
@@ -286,7 +285,6 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 	rpc_state->rpc = rpc;
 	rpc_state->http_req = req;
 	rpc_state->rpc_data = NULL;
-	rpc_state->done = evrpc_request_done;
 
 	if (TAILQ_FIRST(&rpc->base->input_hooks) != NULL) {
 		int hook_res;
@@ -1036,4 +1034,27 @@ evrpc_hook_get_connection(void *ctx)
 {
 	struct evrpc_request_wrapper *req = ctx;
 	return (req->hook_meta != NULL ? req->hook_meta->evcon : NULL);
+}
+
+/** accessors for obscure and undocumented functionality */
+struct evrpc_pool *
+evrpc_request_get_pool(struct evrpc_request_wrapper *ctx)
+{
+	return (ctx->pool);
+}
+
+void
+evrpc_request_set_pool(struct evrpc_request_wrapper *ctx,
+    struct evrpc_pool *pool)
+{
+	ctx->pool = pool;
+}
+
+void
+evrpc_request_set_cb(struct evrpc_request_wrapper *ctx,
+    void (*cb)(struct evrpc_status*, void *request, void *reply, void *arg),
+    void *cb_arg)
+{
+	ctx->cb = cb;
+	ctx->cb_arg = cb_arg;
 }

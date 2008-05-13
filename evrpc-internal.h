@@ -30,6 +30,7 @@
 #include "http-internal.h"
 
 struct evrpc;
+struct evrpc_request_wrapper;
 
 #define EVRPC_URI_PREFIX "/.rpc."
 
@@ -124,5 +125,80 @@ static struct evrpc_hook_meta *evrpc_hook_meta_new(void);
 
 /* frees the meta data associated with a request */
 static void evrpc_hook_context_free(struct evrpc_hook_meta *ctx);
+
+/* the server side of an rpc */
+
+/* We alias the RPC specific structs to this voided one */
+struct evrpc_req_generic {
+	/*
+	 * allows association of meta data via hooks - needs to be
+	 * synchronized with evrpc_request_wrapper
+	 */
+	struct evrpc_hook_meta *hook_meta;
+
+	/* the unmarshaled request object */
+	void *request;
+
+	/* the empty reply object that needs to be filled in */
+	void *reply;
+
+	/* 
+	 * the static structure for this rpc; that can be used to
+	 * automatically unmarshal and marshal the http buffers.
+	 */
+	struct evrpc *rpc;
+
+	/*
+	 * the http request structure on which we need to answer.
+	 */
+	struct evhttp_request* http_req;
+
+	/*
+	 * Temporary data store for marshaled data
+	 */
+	struct evbuffer* rpc_data;
+};
+
+/* the client side of an rpc request */
+struct evrpc_request_wrapper {
+	/*
+	 * allows association of meta data via hooks - needs to be
+	 * synchronized with evrpc_req_generic.
+	 */
+	struct evrpc_hook_meta *hook_meta;
+
+	TAILQ_ENTRY(evrpc_request_wrapper) next;
+
+        /* pool on which this rpc request is being made */
+        struct evrpc_pool *pool;
+
+        /* connection on which the request is being sent */
+	struct evhttp_connection *evcon;
+
+        /* the actual  request */
+	struct evhttp_request *req;
+
+	/* event for implementing request timeouts */
+	struct event ev_timeout;
+
+	/* the name of the rpc */
+	char *name;
+
+	/* callback */
+	void (*cb)(struct evrpc_status*, void *request, void *reply, void *arg);
+	void *cb_arg;
+
+	void *request;
+	void *reply;
+
+	/* unmarshals the buffer into the proper request structure */
+	void (*request_marshal)(struct evbuffer *, void *);
+
+	/* removes all stored state in the reply */
+	void (*reply_clear)(void *);
+
+	/* marshals the reply into a buffer */
+	int (*reply_unmarshal)(void *, struct evbuffer*);
+};
 
 #endif /* _EVRPC_INTERNAL_H_ */
