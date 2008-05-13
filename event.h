@@ -144,7 +144,7 @@
   evdns.h
   Asynchronous DNS resolution
 
-  evhttp.h
+  event2/http.h
   An embedded libevent-based HTTP server
 
   evrpc.h

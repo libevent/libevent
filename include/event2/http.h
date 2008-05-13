@@ -45,7 +45,7 @@ extern "C" {
 struct evbuffer;
 struct event_base;
 
-/** @file evhttp.h
+/** @file http.h
  *
  * Basic support for HTTP serving.
  *
@@ -198,6 +198,11 @@ void evhttp_send_error(struct evhttp_request *req, int error,
 /**
  * Send an HTML reply to the client.
  *
+ * The body of the reply consists of the data in databuf.  After calling
+ * evhttp_send_reply() databuf will be empty, but the buffer is still
+ * owned by the caller and needs to be deallocated by the caller if
+ * necessary.
+ *
  * @param req a request object
  * @param code the HTTP response code to send
  * @param reason a brief message to send with the response code
@@ -207,15 +212,58 @@ void evhttp_send_reply(struct evhttp_request *req, int code,
     const char *reason, struct evbuffer *databuf);
 
 /* Low-level response interface, for streaming/chunked replies */
-void evhttp_send_reply_start(struct evhttp_request *, int, const char *);
-void evhttp_send_reply_chunk(struct evhttp_request *, struct evbuffer *);
-void evhttp_send_reply_end(struct evhttp_request *);
+
+/**
+   Initiate a reply that uses Transfer-Encoding chunked.
+
+   This allows the caller to stream the reply back to the client and is
+   useful when either not all of the reply data is immediately available
+   or when sending very large replies.
+
+   The caller needs to supply data chunks with evhttp_send_reply_chunk()
+   and complete the reply by calling evhttp_send_reply_end().
+
+   @param req a request object
+   @param code the HTTP response code to send
+   @param reason a brief message to send with the response code
+*/
+void evhttp_send_reply_start(struct evhttp_request *req, int code,
+    const char *reason);
+
+/**
+   Send another data chunk as part of an ongoing chunked reply.
+
+   The reply chunk consists of the data in databuf.  After calling
+   evhttp_send_reply_chunk() databuf will be empty, but the buffer is
+   still owned by the caller and needs to be deallocated by the caller
+   if necessary.
+
+   @param req a request object
+   @param databuf the data chunk to send as part of the reply.
+*/
+void evhttp_send_reply_chunk(struct evhttp_request *req,
+    struct evbuffer *databuf);
+/**
+   Complete a chunked reply.
+
+   @param req a request object
+*/
+void evhttp_send_reply_end(struct evhttp_request *req);
 
 /*
  * Interfaces for making requests
  */
-enum evhttp_cmd_type { EVHTTP_REQ_GET, EVHTTP_REQ_POST, EVHTTP_REQ_HEAD, EVHTTP_REQ_PUT, EVHTTP_REQ_DELETE };
 
+/** the different request types supported by evhttp */
+enum evhttp_cmd_type {
+	EVHTTP_REQ_GET,
+	EVHTTP_REQ_POST,
+	EVHTTP_REQ_HEAD,
+	EVHTTP_REQ_PUT,
+	EVHTTP_REQ_DELETE
+};
+
+/** a request object can represent either a request or a reply */
 enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
 
 /**
