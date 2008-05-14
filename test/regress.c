@@ -1771,7 +1771,7 @@ evtag_int_test(void)
 		encode_int(tmp, integers[i]);
 		newlen = EVBUFFER_LENGTH(tmp);
 		fprintf(stdout, "\t\tencoded 0x%08x with %d bytes\n",
-		    integers[i], newlen - oldlen);
+				(unsigned)integers[i], newlen - oldlen);
 	}
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
@@ -1781,7 +1781,7 @@ evtag_int_test(void)
 		}
 		if (integer != integers[i]) {
 			fprintf(stderr, "got %x, wanted %x",
-			    integer, integers[i]);
+					(unsigned)integer, (unsigned)integers[i]);
 			exit(1);
 		}
 	}
@@ -1854,7 +1854,7 @@ evtag_tag_encoding(void)
 		evtag_encode_tag(tmp, integers[i]);
 		newlen = EVBUFFER_LENGTH(tmp);
 		fprintf(stdout, "\t\tencoded 0x%08x with %d bytes\n",
-		    integers[i], newlen - oldlen);
+				(unsigned)integers[i], newlen - oldlen);
 	}
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
@@ -1864,7 +1864,7 @@ evtag_tag_encoding(void)
 		}
 		if (integer != integers[i]) {
 			fprintf(stderr, "got %x, wanted %x",
-			    integer, integers[i]);
+					(unsigned)integer, (unsigned)integers[i]);
 			exit(1);
 		}
 	}
@@ -1957,7 +1957,7 @@ rpc_test(void)
 	}
 
 	if (tag != 0xdeaf) {
-		fprintf(stderr, "Got incorrect tag: %0x.\n", tag);
+		fprintf(stderr, "Got incorrect tag: %0x.\n", (unsigned)tag);
 		exit (1);
 	}
 
