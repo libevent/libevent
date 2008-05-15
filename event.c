@@ -35,10 +35,12 @@
 #undef WIN32_LEAN_AND_MEAN
 #endif
 #include <sys/types.h>
+#ifndef WIN32
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else 
 #include <sys/_time.h>
+#endif
 #endif
 #include <sys/queue.h>
 #ifdef HAVE_SYS_SOCKET_H
