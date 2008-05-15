@@ -276,8 +276,8 @@ event_base_free(struct event_base *base)
 	/* threading fds if we have them */
 	if (base->th_notify_fd[0] != -1) {
 		event_del(&base->th_notify);
-		close(base->th_notify_fd[0]);
-		close(base->th_notify_fd[1]);
+		EVUTIL_CLOSESOCKET(base->th_notify_fd[0]);
+		EVUTIL_CLOSESOCKET(base->th_notify_fd[1]);
 	}
 
 	if (base->th_base_lock != NULL)
@@ -1006,7 +1006,7 @@ event_add_internal(struct event *ev, struct timeval *tv)
 
 	/* if we are not in the right thread, we need to wake up the loop */
 	if (res != -1 && !EVTHREAD_IN_THREAD(base))
-		write(base->th_notify_fd[1], "", 1);
+		send(base->th_notify_fd[1], "", 1, 0);
 
 	return (res);
 }
@@ -1394,7 +1394,7 @@ evthread_ignore_fd(int fd, short what, void *arg)
 	int buf[128];
 	
 	/* we draining the socket */
-	while (read(fd, buf, sizeof(buf)) != -1)
+	while (recv(fd, buf, sizeof(buf), 0) != -1)
 		;
 
 	event_add(&base->th_notify, NULL);
