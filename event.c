@@ -1391,9 +1391,9 @@ static void
 evthread_ignore_fd(int fd, short what, void *arg)
 {
 	struct event_base *base = arg;
-	int buf[128];
+	char buf[128];
 	
-	/* we draining the socket */
+	/* we're draining the socket */
 	while (recv(fd, buf, sizeof(buf), 0) != -1)
 		;
 
@@ -1447,4 +1447,35 @@ evthread_set_lock_create_callbacks(struct event_base *base,
 
 	/* now, let's allocate our lock */
 	base->th_base_lock = (*alloc_fn)();
+}
+
+void
+event_base_dump_events(struct event_base *base, FILE *output)
+{
+	struct event *e;
+	int i;
+	fprintf(output, "Inserted events:\n");
+	TAILQ_FOREACH(e, &base->eventqueue, ev_next) {
+		fprintf(output, "  %p [fd %ld]%s%s%s%s%s\n",
+				(void*)e, (long)e->ev_fd,
+				(e->ev_events&EV_READ)?" Read":"",
+				(e->ev_events&EV_WRITE)?" Write":"",
+				(e->ev_events&EV_SIGNAL)?" Signal":"",
+				(e->ev_events&EV_TIMEOUT)?" Timeout":"",
+				(e->ev_events&EV_PERSIST)?" Persist":"");
+
+	}
+	for (i = 0; i < base->nactivequeues; ++i) {
+		if (TAILQ_EMPTY(base->activequeues[i]))
+			continue;
+		fprintf(output, "Active events [priority %d]:\n", i);
+		TAILQ_FOREACH(e, &base->eventqueue, ev_next) {
+			fprintf(output, "  %p [fd %ld]%s%s%s%s\n",
+					(void*)e, (long)e->ev_fd,
+					(e->ev_res&EV_READ)?" Read active":"",
+					(e->ev_res&EV_WRITE)?" Write active":"",
+					(e->ev_res&EV_SIGNAL)?" Signal active":"",
+					(e->ev_res&EV_TIMEOUT)?" Timeout active":"");
+		}
+	}
 }
