@@ -300,7 +300,7 @@ http_basic_test(void)
 
 	/* connect to the second port */
 	bufferevent_free(bev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	fd = http_connect("127.0.0.1", port + 1);
 
