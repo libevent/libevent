@@ -67,7 +67,7 @@ struct evbuffer_chain {
 	u_char buffer[1];
 };
 
-#define EVBUFFER_CHAIN_SIZE offsetof(struct evbuffer_chain, buffer[0])
+#define EVBUFFER_CHAIN_SIZE evutil_offsetof(struct evbuffer_chain, buffer[0])
 
 #ifdef __cplusplus
 }
