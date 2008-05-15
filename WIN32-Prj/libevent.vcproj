@@ -41,7 +41,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\,..\WIN32-Code,..\compat"
+				AdditionalIncludeDirectories="..\,..\WIN32-Code,..\compat,..\include"
 				PreprocessorDefinitions="WIN32,HAVE_CONFIG_H,_CRT_SECURE_NO_DEPRECATE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -118,7 +118,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="..\,..\WIN32-Code,..\compat"
+				AdditionalIncludeDirectories="..\,..\WIN32-Code,..\compat,..\include"
 				PreprocessorDefinitions="WIN32,HAVE_CONFIG_H,_CRT_SECURE_NO_DEPRECATE"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -178,7 +178,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\evbuffer.c"
+				RelativePath="..\bufferevent.c"
 				>
 			</File>
 			<File
@@ -225,28 +225,6 @@
 			</File>
 			<File
 				RelativePath="..\log.c"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories=""
-						PreprocessorDefinitions=""
-					/>
-				</FileConfiguration>
-			</File>
-			<File
-				RelativePath="..\WIN32-Code\misc.c"
 				>
 				<FileConfiguration
 					Name="Debug|Win32"
@@ -348,10 +326,6 @@
 			</File>
 			<File
 				RelativePath="..\min_heap.h"
-				>
-			</File>
-			<File
-				RelativePath="..\WIN32-Code\misc.h"
 				>
 			</File>
 			<File
