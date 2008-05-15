@@ -397,24 +397,34 @@ static void
 evhttp_make_header_response(struct evhttp_connection *evcon,
     struct evhttp_request *req)
 {
+	int is_keepalive = evhttp_is_connection_keepalive(req->input_headers);
 	evbuffer_add_printf(bufferevent_get_output(evcon->bufev),
 	    "HTTP/%d.%d %d %s\r\n",
 	    req->major, req->minor, req->response_code,
 	    req->response_code_line);
 
-	if (req->major == 1 && req->minor == 1)
-		evhttp_maybe_add_date_header(req->output_headers);
+	if (req->major == 1) {
+		if (req->minor == 1)
+			evhttp_maybe_add_date_header(req->output_headers);
 
-	if (req->major == 1 && 
-	    (req->minor == 1 || 
-		evhttp_is_connection_keepalive(req->input_headers))) {
-		/* 
-		 * we need to add the content length if the user did
-		 * not give it, this is required for persistent
-		 * connections to work.
+		/*
+		 * if the protocol is 1.0; and the connection was keep-alive
+		 * we need to add a keep-alive header, too.
 		 */
-		evhttp_maybe_add_content_length_header(req->output_headers,
-		    (long)EVBUFFER_LENGTH(req->output_buffer));
+		if (req->minor == 0 && is_keepalive)
+			evhttp_add_header(req->output_headers,
+			    "Connection", "keep-alive");
+
+		if (req->minor == 1 || is_keepalive) {
+			/* 
+			 * we need to add the content length if the
+			 * user did not give it, this is required for
+			 * persistent connections to work.
+			 */
+			evhttp_maybe_add_content_length_header(
+				req->output_headers,
+				(long)EVBUFFER_LENGTH(req->output_buffer));
+		}
 	}
 
 	/* Potentially add headers for unidentified content. */
