@@ -499,12 +499,14 @@ test_fork(void)
 			exit(1);
 		}
 
+		called = 0;
+
 		event_dispatch();
 
 		/* we do not send an EOF; simple_read_cb requires an EOF 
 		 * to set test_ok.  we just verify that the callback was
 		 * called. */
-		exit(test_ok != 0 || called != 2);
+		exit(test_ok != 0 || called != 2 ? -2 : 76);
 	}
 
 	/* wait for the child to read the data */
@@ -517,8 +519,8 @@ test_fork(void)
 		exit(1);
 	}
 	
-	if (WEXITSTATUS(status) != 0) {
-		fprintf(stderr, "FAILED (exit)\n");
+	if (WEXITSTATUS(status) != 76) {
+		fprintf(stderr, "FAILED (exit): %d\n", WEXITSTATUS(status));
 		exit(1);
 	}
 
