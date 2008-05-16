@@ -1,5 +1,6 @@
 Changes in 1.4.5-stable:
  o Fix connection keep-alive behavior for HTTP/1.0
+ o Fix use of freed memory in event_reinit; pointed out by Peter Postma
 
 Changes in 1.4.4-stable:
  o Correct the documentation on buffer printf functions.
