@@ -406,14 +406,14 @@ event_loopexit_cb(int fd, short what, void *arg)
 
 /* not thread safe */
 int
-event_loopexit(struct timeval *tv)
+event_loopexit(const struct timeval *tv)
 {
 	return (event_once(-1, EV_TIMEOUT, event_loopexit_cb,
 		    current_base, tv));
 }
 
 int
-event_base_loopexit(struct event_base *event_base, struct timeval *tv)
+event_base_loopexit(struct event_base *event_base, const struct timeval *tv)
 {
 	return (event_base_once(event_base, -1, EV_TIMEOUT, event_loopexit_cb,
 		    event_base, tv));
@@ -550,7 +550,7 @@ event_once_cb(int fd, short events, void *arg)
 /* not threadsafe, event scheduled once. */
 int
 event_once(int fd, short events,
-    void (*callback)(int, short, void *), void *arg, struct timeval *tv)
+    void (*callback)(int, short, void *), void *arg, const struct timeval *tv)
 {
 	return event_base_once(current_base, fd, events, callback, arg, tv);
 }
@@ -558,7 +558,7 @@ event_once(int fd, short events,
 /* Schedules an event once */
 int
 event_base_once(struct event_base *base, int fd, short events,
-    void (*callback)(int, short, void *), void *arg, struct timeval *tv)
+    void (*callback)(int, short, void *), void *arg, const struct timeval *tv)
 {
 	struct event_once *eonce;
 	struct timeval etv;
@@ -690,7 +690,7 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 }
 
 int
-event_add(struct event *ev, struct timeval *tv)
+event_add(struct event *ev, const struct timeval *tv)
 {
 	struct event_base *base = ev->ev_base;
 	const struct eventop *evsel = base->evsel;

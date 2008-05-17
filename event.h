@@ -400,7 +400,7 @@ int event_base_loop(struct event_base *, int);
   @return 0 if successful, or -1 if an error occurred
   @see event_loop(), event_base_loop(), event_base_loopexit()
   */
-int event_loopexit(struct timeval *);
+int event_loopexit(const struct timeval *);
 
 
 /**
@@ -417,7 +417,7 @@ int event_loopexit(struct timeval *);
   @return 0 if successful, or -1 if an error occurred
   @see event_loopexit()
  */
-int event_base_loopexit(struct event_base *, struct timeval *);
+int event_base_loopexit(struct event_base *, const struct timeval *);
 
 /**
   Abort the active event_loop() immediately.
@@ -559,7 +559,8 @@ void event_set(struct event *, int, short, void (*)(int, short, void *), void *)
   @see event_set()
 
  */
-int event_once(int, short, void (*)(int, short, void *), void *, struct timeval *);
+int event_once(int, short, void (*)(int, short, void *), void *,
+    const struct timeval *);
 
 
 /**
@@ -580,7 +581,9 @@ int event_once(int, short, void (*)(int, short, void *), void *, struct timeval 
   @return 0 if successful, or -1 if an error occurred
   @see event_once()
  */
-int event_base_once(struct event_base *, int, short, void (*)(int, short, void *), void *, struct timeval *);
+int event_base_once(struct event_base *base, int fd, short events,
+    void (*callback)(int, short, void *), void *arg,
+    const struct timeval *timeout);
 
 
 /**
@@ -601,7 +604,7 @@ int event_base_once(struct event_base *, int, short, void (*)(int, short, void *
   @return 0 if successful, or -1 if an error occurred
   @see event_del(), event_set()
   */
-int event_add(struct event *, struct timeval *);
+int event_add(struct event *ev, const struct timeval *timeout);
 
 
 /**
@@ -631,7 +634,7 @@ void event_active(struct event *, int, short);
   @return 1 if the event is pending, or 0 if the event has not occurred
 
  */
-int event_pending(struct event *, short, struct timeval *);
+int event_pending(struct event *ev, short event, struct timeval *tv);
 
 
 /**
