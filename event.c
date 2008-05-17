@@ -124,7 +124,8 @@ int (*event_sigcb)(void);		/* Signal callback when gotsig is set */
 volatile sig_atomic_t event_gotsig;	/* Set in signal handler */
 
 /* Prototypes */
-static inline int event_add_internal(struct event *ev, struct timeval *tv);
+static inline int event_add_internal(struct event *ev,
+    const struct timeval *tv);
 static inline int event_del_internal(struct event *ev);
 static inline void event_active_internal(struct event *ev, int res,short count);
 
@@ -573,14 +574,14 @@ event_loopexit_cb(evutil_socket_t fd, short what, void *arg)
 
 /* not thread safe */
 int
-event_loopexit(struct timeval *tv)
+event_loopexit(const struct timeval *tv)
 {
 	return (event_once(-1, EV_TIMEOUT, event_loopexit_cb,
 		    current_base, tv));
 }
 
 int
-event_base_loopexit(struct event_base *event_base, struct timeval *tv)
+event_base_loopexit(struct event_base *event_base, const struct timeval *tv)
 {
 	return (event_base_once(event_base, -1, EV_TIMEOUT, event_loopexit_cb,
 		    event_base, tv));
@@ -718,7 +719,7 @@ event_once_cb(evutil_socket_t fd, short events, void *arg)
 int
 event_once(evutil_socket_t fd, short events,
     void (*callback)(evutil_socket_t, short, void *),
-	void *arg, struct timeval *tv)
+	void *arg, const struct timeval *tv)
 {
 	return event_base_once(current_base, fd, events, callback, arg, tv);
 }
@@ -727,7 +728,7 @@ event_once(evutil_socket_t fd, short events,
 int
 event_base_once(struct event_base *base, evutil_socket_t fd, short events,
     void (*callback)(evutil_socket_t, short, void *),
-	void *arg, struct timeval *tv)
+	void *arg, const struct timeval *tv)
 {
 	struct event_once *eonce;
 	struct timeval etv;
@@ -825,7 +826,8 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 
 void
 evperiodic_assign(struct event *ev, struct event_base *base,
-    struct timeval *tv, void (*cb)(evutil_socket_t, short, void *), void *arg)
+    const struct timeval *tv,
+    void (*cb)(evutil_socket_t, short, void *), void *arg)
 {
 	event_assign(ev, base, -1, EV_TIMEOUT, cb, arg);
 	
@@ -924,7 +926,7 @@ event_get_fd(struct event *ev)
 }
 
 int
-event_add(struct event *ev, struct timeval *tv)
+event_add(struct event *ev, const struct timeval *tv)
 {
 	int res;
 
@@ -938,7 +940,7 @@ event_add(struct event *ev, struct timeval *tv)
 }
 
 static inline int
-event_add_internal(struct event *ev, struct timeval *tv)
+event_add_internal(struct event *ev, const struct timeval *tv)
 {
 	struct event_base *base = ev->ev_base;
 	const struct eventop *evsel = base->evsel;

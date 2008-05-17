@@ -224,7 +224,7 @@ int event_base_loop(struct event_base *, int);
   @return 0 if successful, or -1 if an error occurred
   @see event_loopexit()
  */
-int event_base_loopexit(struct event_base *, struct timeval *);
+int event_base_loopexit(struct event_base *, const struct timeval *);
 
 /**
   Abort the active event_base_loop() immediately.
@@ -255,7 +255,7 @@ int event_base_loopbreak(struct event_base *);
 */
 
 void evperiodic_assign(struct event *ev, struct event_base *base,
-    struct timeval *tv, void (*cb)(int, short, void *), void *arg);
+    const struct timeval *tv, void (*cb)(int, short, void *), void *arg);
 
 /* Flags to pass to event_set(), event_new(), event_assign(),
  * event_pending()... */
@@ -396,7 +396,7 @@ void event_free(struct event *);
   @return 0 if successful, or -1 if an error occurred
   @see event_once()
  */
-int event_base_once(struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *, struct timeval *);
+int event_base_once(struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *, const struct timeval *);
 
 /**
   Add an event to the set of monitored events.
@@ -416,7 +416,7 @@ int event_base_once(struct event_base *, evutil_socket_t, short, void (*)(evutil
   @return 0 if successful, or -1 if an error occurred
   @see event_del(), event_set()
   */
-int event_add(struct event *, struct timeval *);
+int event_add(struct event *, const struct timeval *);
 
 /**
   Remove an event from the set of monitored events.
