@@ -103,7 +103,7 @@ int event_loop(int);
   @return 0 if successful, or -1 if an error occurred
   @see event_loop(), event_base_loop(), event_base_loopexit()
   */
-int event_loopexit(struct timeval *);
+int event_loopexit(const struct timeval *);
 
 
 /**
@@ -138,7 +138,8 @@ int event_loopbreak(void);
   @see event_set()
 
  */
-int event_once(evutil_socket_t , short, void (*)(evutil_socket_t, short, void *), void *, struct timeval *);
+int event_once(evutil_socket_t , short,
+    void (*)(evutil_socket_t, short, void *), void *, const struct timeval *);
 
 
 /**
