@@ -112,10 +112,6 @@ epoll_init(struct event_base *base)
 	struct rlimit rl;
 	struct epollop *epollop;
 
-	/* Disable epollueue when this environment variable is set */
-	if (getenv("EVENT_NOEPOLL"))
-		return (NULL);
-
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
 	    rl.rlim_cur != RLIM_INFINITY) {
 		/*

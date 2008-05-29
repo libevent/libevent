@@ -51,6 +51,7 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#include <ctype.h>
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
@@ -208,6 +209,19 @@ event_config_is_avoided_method(struct event_config *cfg, const char *method)
 	return (0);
 }
 
+static int
+event_is_method_disabled(const char *name)
+{
+	char environment[64];
+	int i;
+
+	evutil_snprintf(environment, sizeof(environment), "EVENT_NO%s", name);
+	for (i = 8; environment[i] != '\0'; ++i)
+		environment[i] = toupper(environment[i]);
+	return (getenv(environment) != NULL);
+	
+}
+
 struct event_base *
 event_base_new_with_config(struct event_config *cfg)
 {
@@ -238,6 +252,10 @@ event_base_new_with_config(struct event_config *cfg)
 				continue;
 		}
 
+		/* also obey the environment variables */
+		if (event_is_method_disabled(eventops[i]->name))
+			continue;
+
 		base->evsel = eventops[i];
 
 		base->evbase = base->evsel->init(base);
@@ -247,8 +265,7 @@ event_base_new_with_config(struct event_config *cfg)
 		event_errx(1, "%s: no event mechanism available", __func__);
 
 	if (getenv("EVENT_SHOW_METHOD")) 
-		event_msgx("libevent using: %s\n",
-			   base->evsel->name);
+		event_msgx("libevent using: %s", base->evsel->name);
 
 	/* allocate a single active event queue */
 	event_base_priority_init(base, 1);
@@ -356,12 +373,12 @@ event_get_supported_methods(void)
 	const char **tmp;
 	int i = 0, k;
 
-	if (methods != NULL)
-		return (methods);
-
 	/* count all methods */
-	for (method = &eventops[0]; *method != NULL; ++method)
+	for (method = &eventops[0]; *method != NULL; ++method) {
+		if (event_is_method_disabled((*method)->name))
+			continue;
 		++i;
+	}
 
 	/* allocate one more than we need for the NULL pointer */
 	tmp = mm_malloc((i + 1) * sizeof(char *));
@@ -369,9 +386,15 @@ event_get_supported_methods(void)
 		return (NULL);
 
 	/* populate the array with the supported methods */
-	for (k = 0; k < i; ++k)
-		tmp[k] = eventops[k]->name;
+	for (k = 0, i = 0; eventops[k] != NULL; ++k) {
+		if (event_is_method_disabled(eventops[k]->name))
+			continue;
+		tmp[i++] = eventops[k]->name;
+	}
 	tmp[i] = NULL;
+
+	if (methods != NULL)
+		mm_free(methods);
 
 	methods = tmp;
 	

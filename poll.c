@@ -87,10 +87,6 @@ poll_init(struct event_base *base)
 {
 	struct pollop *pollop;
 
-	/* Disable poll when this environment variable is set */
-	if (getenv("EVENT_NOPOLL"))
-		return (NULL);
-
 	if (!(pollop = mm_calloc(1, sizeof(struct pollop))))
 		return (NULL);
 

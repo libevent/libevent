@@ -495,7 +495,7 @@ test_fork(void)
 	if ((pid = fork()) == 0) {
 		/* in the child */
 		if (event_reinit(current_base) == -1) {
-			fprintf(stderr, "FAILED (reinit)\n");
+			fprintf(stdout, "FAILED (reinit)\n");
 			exit(1);
 		}
 
@@ -515,12 +515,12 @@ test_fork(void)
 	write(pair[0], TEST1, strlen(TEST1)+1);
 
 	if (waitpid(pid, &status, 0) == -1) {
-		fprintf(stderr, "FAILED (fork)\n");
+		fprintf(stdout, "FAILED (fork)\n");
 		exit(1);
 	}
 	
 	if (WEXITSTATUS(status) != 76) {
-		fprintf(stderr, "FAILED (exit): %d\n", WEXITSTATUS(status));
+		fprintf(stdout, "FAILED (exit): %d\n", WEXITSTATUS(status));
 		exit(1);
 	}
 
@@ -1971,7 +1971,7 @@ rpc_test(void)
 
 	gettimeofday(&tv_end, NULL);
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
-	fprintf(stderr, "(%.1f us/add) ",
+	fprintf(stdout, "(%.1f us/add) ",
 	    (float)tv_end.tv_sec/(float)i * 1000000.0 +
 	    tv_end.tv_usec / (float)i);
 
@@ -2109,16 +2109,16 @@ test_methods(void)
 	const char *backend;
 	int n_methods = 0;
 
-	fprintf(stderr, "Testing supported methods: ");
+	fprintf(stdout, "Testing supported methods: ");
 
 	if (methods == NULL) {
-		fprintf(stderr, "FAILED\n");
+		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
 
 	backend = methods[0];
 	while (*methods != NULL) {
-		fprintf(stderr, "%s ", *methods);
+		fprintf(stdout, "%s ", *methods);
 		++methods;
 		++n_methods;
 	}
@@ -2135,19 +2135,19 @@ test_methods(void)
 
 	base = event_base_new_with_config(cfg);
 	if (base == NULL) {
-		fprintf(stderr, "FAILED\n");
+		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
 
 	if (strcmp(backend, event_base_get_method(base)) == 0) {
-		fprintf(stderr, "FAILED\n");
+		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
 
 	event_base_free(base);
 	event_config_free(cfg);
 done:
-	fprintf(stderr, "OK\n");
+	fprintf(stdout, "OK\n");
 }
 
 

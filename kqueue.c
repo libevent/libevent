@@ -99,10 +99,6 @@ kq_init(struct event_base *base)
 	int kq;
 	struct kqop *kqueueop;
 
-	/* Disable kqueue when this environment variable is set */
-	if (getenv("EVENT_NOKQUEUE"))
-		return (NULL);
-
 	if (!(kqueueop = mm_calloc(1, sizeof(struct kqop))))
 		return (NULL);
 
