@@ -131,10 +131,6 @@ devpoll_init(struct event_base *base)
 	struct rlimit rl;
 	struct devpollop *devpollop;
 
-	/* Disable devpoll when this environment variable is set */
-	if (getenv("EVENT_NODEVPOLL"))
-		return (NULL);
-
 	if (!(devpollop = mm_calloc(1, sizeof(struct devpollop))))
 		return (NULL);
 
