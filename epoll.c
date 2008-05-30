@@ -241,9 +241,9 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			continue;
 
 		if (evread != NULL)
-			event_active(evread, EV_READ, 1);
+			event_active(evread, EV_READ | (evread->ev_events & EV_ET), 1);
 		if (evwrite != NULL)
-			event_active(evwrite, EV_WRITE, 1);
+			event_active(evwrite, EV_WRITE | (evwrite->ev_events & EV_ET), 1);
 	}
 
 	return (0);
@@ -283,6 +283,8 @@ epoll_add(void *arg, struct event *ev)
 		events |= EPOLLIN;
 	if (ev->ev_events & EV_WRITE)
 		events |= EPOLLOUT;
+	if(ev->ev_events & EV_ET)
+		events |= EPOLLET;
 
 	epev.data.ptr = evep;
 	epev.events = events;

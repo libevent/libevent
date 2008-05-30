@@ -39,7 +39,9 @@ void rpc_suite(void);
 void dns_suite(void);
 
 void regress_pthread(void);
-void regress_zlib(void);	
+void regress_zlib(void);
+
+void test_edgetriggered(void);
 
 #ifdef __cplusplus
 }

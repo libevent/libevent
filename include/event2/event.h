@@ -258,12 +258,16 @@ void evperiodic_assign(struct event *ev, struct event_base *base,
     const struct timeval *tv, void (*cb)(int, short, void *), void *arg);
 
 /* Flags to pass to event_set(), event_new(), event_assign(),
- * event_pending()... */
+ * event_pending(), and anything else with an argument of the form
+ * "short events" */
 #define EV_TIMEOUT	0x01
 #define EV_READ		0x02
 #define EV_WRITE	0x04
 #define EV_SIGNAL	0x08
-#define EV_PERSIST	0x10	/* Persistant event */
+/** Persistent event: won't get removed automatically when activated. */
+#define EV_PERSIST	0x10
+/** Select edge-triggered behavior, if supported by the backend. */
+#define EV_ET       0x20
 
 /**
   Define a timer event.
@@ -320,6 +324,11 @@ void evperiodic_assign(struct event *ev, struct event_base *base,
   event and the type of event which will be either EV_TIMEOUT, EV_SIGNAL,
   EV_READ, or EV_WRITE.  The additional flag EV_PERSIST makes an event_add()
   persistent until event_del() has been called.
+
+  For read and write events, edge-triggered behavior can be requested
+  with the EV_ET flag.  Not all backends support edge-triggered
+  behavior.  When an edge-triggered event is activated, the EV_ET flag
+  is added to its events argument.
 
   @param ev an event struct to be modified
   @param fd the file descriptor to be monitored
