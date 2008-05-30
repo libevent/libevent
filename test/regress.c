@@ -2185,7 +2185,7 @@ main (int argc, char **argv)
 	test_evbuffer_iterative();
 	test_evbuffer_readln();
 	test_evbuffer_find();
-	
+
 	test_bufferevent();
 	test_bufferevent_watermarks();
 	test_bufferevent_filters();
@@ -2201,7 +2201,7 @@ main (int argc, char **argv)
 #if defined(HAVE_LIBZ)
 	regress_zlib();
 #endif
-	
+
 	http_suite();
 
 	rpc_suite();
@@ -2223,6 +2223,8 @@ main (int argc, char **argv)
 	test_combined();
 
 	test_simpletimeout();
+
+    test_edgetriggered();
 
 #ifndef WIN32
 	test_simplesignal();

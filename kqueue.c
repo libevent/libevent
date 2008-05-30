@@ -272,7 +272,7 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		if (!(ev->ev_events & EV_PERSIST))
 			ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
 
-		event_active(ev, which,
+		event_active(ev, which | (ev->ev_events & EV_ET),
 		    ev->ev_events & EV_SIGNAL ? events[i].data : 1);
 	}
 
@@ -322,6 +322,8 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
+		if (ev->ev_events & EV_ET)
+			kev.flags |= EV_CLEAR;
 		kev.udata = PTR_TO_UDATA(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
@@ -337,6 +339,8 @@ kq_add(void *arg, struct event *ev)
 		kev.flags = EV_ADD;
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
+		if (ev->ev_events & EV_ET)
+			kev.flags |= EV_CLEAR;
 		kev.udata = PTR_TO_UDATA(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
