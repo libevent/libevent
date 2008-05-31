@@ -55,6 +55,7 @@ struct eventop {
 	void (*dealloc)(struct event_base *, void *);
 	/* set if we need to reinitialize the event base */
 	int need_reinit;
+	enum event_method_feature features;
 };
 
 struct event_base {
@@ -103,6 +104,8 @@ struct event_config_entry {
 
 struct event_config {
 	TAILQ_HEAD(event_configq, event_config_entry) entries;
+
+	enum event_method_feature require_features;
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */

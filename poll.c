@@ -79,7 +79,8 @@ const struct eventop pollops = {
 	poll_del,
 	poll_dispatch,
 	poll_dealloc,
-    0
+    0, /* doesn't need_reinit */
+	EV_FEATURE_FDS,
 };
 
 static void *

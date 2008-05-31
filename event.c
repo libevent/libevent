@@ -219,7 +219,12 @@ event_is_method_disabled(const char *name)
 	for (i = 8; environment[i] != '\0'; ++i)
 		environment[i] = toupper(environment[i]);
 	return (getenv(environment) != NULL);
-	
+}
+
+enum event_method_feature
+event_base_get_features(struct event_base *base)
+{
+	return base->evsel->features;
 }
 
 struct event_base *
@@ -236,19 +241,22 @@ event_base_new_with_config(struct event_config *cfg)
 
 	detect_monotonic();
 	gettime(base, &base->event_tv);
-	
+
 	min_heap_ctor(&base->timeheap);
 	TAILQ_INIT(&base->eventqueue);
 	TAILQ_INIT(&base->sig.signalqueue);
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
-	
+
 	base->evbase = NULL;
 	for (i = 0; eventops[i] && !base->evbase; i++) {
 		if (cfg != NULL) {
 			/* determine if this backend should be avoided */
 			if (event_config_is_avoided_method(cfg,
 				eventops[i]->name))
+				continue;
+			if ((eventops[i]->features & cfg->require_features)
+				!= cfg->require_features)
 				continue;
 		}
 
@@ -261,10 +269,16 @@ event_base_new_with_config(struct event_config *cfg)
 		base->evbase = base->evsel->init(base);
 	}
 
-	if (base->evbase == NULL)
-		event_errx(1, "%s: no event mechanism available", __func__);
+	if (base->evbase == NULL) {
+		if (cfg == NULL)
+            event_errx(1, "%s: no event mechanism available", __func__);
+        else {
+			event_base_free(base);
+			return NULL;
+		}
+	}
 
-	if (getenv("EVENT_SHOW_METHOD")) 
+	if (getenv("EVENT_SHOW_METHOD"))
 		event_msgx("libevent using: %s", base->evsel->name);
 
 	/* allocate a single active event queue */
@@ -397,7 +411,7 @@ event_get_supported_methods(void)
 		mm_free(methods);
 
 	methods = tmp;
-	
+
 	return (methods);
 }
 
@@ -410,7 +424,8 @@ event_config_new(void)
 		return (NULL);
 
 	TAILQ_INIT(&cfg->entries);
-	
+	cfg->require_features = 0;
+
 	return (cfg);
 }
 
@@ -447,6 +462,16 @@ event_config_avoid_method(struct event_config *cfg, const char *method)
 
 	TAILQ_INSERT_TAIL(&cfg->entries, entry, next);
 
+	return (0);
+}
+
+int
+event_config_require_features(struct event_config *cfg,
+                              enum event_method_feature features)
+{
+	if (!cfg)
+		return (-1);
+	cfg->require_features = features;
 	return (0);
 }
 

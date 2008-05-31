@@ -90,7 +90,8 @@ const struct eventop kqops = {
 	kq_del,
 	kq_dispatch,
 	kq_dealloc,
-	1 /* need reinit */
+	1 /* need reinit */,
+    EV_FEATURE_ET|EV_FEATURE_O1|EV_FEATURE_FDS,
 };
 
 static void *
