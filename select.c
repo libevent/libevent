@@ -84,7 +84,8 @@ const struct eventop selectops = {
 	select_del,
 	select_dispatch,
 	select_dealloc,
-	0
+	0, /* doesn't need reinit. */
+	EV_FEATURE_FDS,
 };
 
 static int select_resize(struct selectop *sop, int fdsz);

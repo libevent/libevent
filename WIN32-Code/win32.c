@@ -120,7 +120,8 @@ struct eventop win32ops = {
 	win32_del,
 	win32_dispatch,
 	win32_dealloc,
-	0
+	0, /* doesn't need reinit */
+	0, /* No features supported. */
 };
 
 #define FD_SET_ALLOC_SIZE(n) ((sizeof(struct win_fd_set) + ((n)-1)*sizeof(SOCKET)))

@@ -101,6 +101,11 @@ int event_base_dispatch(struct event_base *);
 const char *event_base_get_method(struct event_base *);
 
 /**
+ Return a bitmask of the features implemented by an event base.
+ */
+enum event_method_feature event_base_get_features(struct event_base *base);
+
+/**
    Gets all event notification mechanisms supported by libevent.
 
    This functions returns the event mechanism in order preferred
@@ -144,6 +149,43 @@ void event_config_free(struct event_config *cfg);
 */
 int event_config_avoid_method(struct event_config *cfg, const char *method);
 
+enum event_method_feature {
+    /* Require an event method that allows edge-triggered events with EV_ET. */
+    EV_FEATURE_ET = 0x01,
+    /* Require an event method where having one event triggered among
+     * many is [approximately] an O(1) operation. This excludes (for
+     * example) select and poll, which are approximately O(N) for N
+     * equal to the total number of possible events. */
+    EV_FEATURE_O1 = 0x02,
+    /* Require an event method that allows file descriptors as well as
+     * sockets. */
+    EV_FEATURE_FDS = 0x04,
+} event_method_feature;
+
+/**
+   Enters a required event method feature that the application demands.
+
+   Note that not every feature or combination of features is supported
+   on every platform.  Code that requests features should be prepared
+   to handle the case where event_base_new_with_config() returns NULL, as in:
+   <pre>
+     event_config_require_features(cfg, EV_FEATURE_ET);
+     base = event_base_new_with_config(cfg);
+     if (base == NULL) {
+       // We can't get edge-triggered behavior here.
+       event_config_require_features(cfg, 0);
+       base = event_base_new_with_config(cfg);
+     }
+   </pre>
+
+   @param cfg the event configuration object
+   @param feature a bitfield of one or more event_method_feature values.
+          Replaces values from previous calls to this function.
+   @return 0 on success, -1 on failure.
+*/
+int event_config_require_features(struct event_config *cfg,
+                                  enum event_method_feature feature);
+
 /**
   Initialize the event API.
 
@@ -152,7 +194,8 @@ int event_config_avoid_method(struct event_config *cfg, const char *method);
   can currently be used to avoid certain event notification mechanisms.
 
   @param cfg the event configuration object
-  @return an initialized event_base that can be used to registering events.
+  @return an initialized event_base that can be used to registering events,
+     or NULL if no event base can be created with the requested event_config.
   @see event_base_new(), event_base_free(), event_init(), event_assign()
 */
 struct event_base *event_base_new_with_config(struct event_config *cfg);
