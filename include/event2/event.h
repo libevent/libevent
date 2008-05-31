@@ -101,11 +101,6 @@ int event_base_dispatch(struct event_base *);
 const char *event_base_get_method(struct event_base *);
 
 /**
- Return a bitmask of the features implemented by an event base.
- */
-enum event_method_feature event_base_get_features(struct event_base *base);
-
-/**
    Gets all event notification mechanisms supported by libevent.
 
    This functions returns the event mechanism in order preferred
@@ -161,6 +156,11 @@ enum event_method_feature {
      * sockets. */
     EV_FEATURE_FDS = 0x04,
 } event_method_feature;
+
+/**
+ Return a bitmask of the features implemented by an event base.
+ */
+enum event_method_feature event_base_get_features(struct event_base *base);
 
 /**
    Enters a required event method feature that the application demands.
