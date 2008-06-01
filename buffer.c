@@ -196,6 +196,9 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	size_t out_total_len = outbuf->total_len;
 	size_t in_total_len = inbuf->total_len;
 
+	if (in_total_len == 0)
+		return (0);
+
 	if (out_total_len == 0) {
 		COPY_CHAIN(outbuf, inbuf);
 	} else {
