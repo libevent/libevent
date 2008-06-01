@@ -985,6 +985,9 @@ test_evbuffer(void)
 	    memcmp((char*)EVBUFFER_DATA(evb), "hello/1", 1) != 0)
 		goto out;
 
+	evbuffer_add_buffer(evb, evb_two);
+	evbuffer_validate(evb);
+
 	evbuffer_drain(evb, strlen("hello/"));
 	evbuffer_validate(evb);
 	if (EVBUFFER_LENGTH(evb) != 1 ||
