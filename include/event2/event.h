@@ -155,7 +155,7 @@ enum event_method_feature {
     /* Require an event method that allows file descriptors as well as
      * sockets. */
     EV_FEATURE_FDS = 0x04,
-} event_method_feature;
+};
 
 /**
  Return a bitmask of the features implemented by an event base.
