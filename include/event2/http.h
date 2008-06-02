@@ -274,7 +274,13 @@ enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
 struct evhttp_request *evhttp_request_new(
 	void (*cb)(struct evhttp_request *, void *), void *arg);
 
-/** enable delivery of chunks to requestor */
+/**
+ * Enable delivery of chunks to requestor.
+ * @param cb will be called after every read of data with the same argument
+ *           as the completion callback. Will never be called on an empty
+ *           response. May drain the input buffer; it will be drained
+ *           automatically on return.
+ */
 void evhttp_request_set_chunked_cb(struct evhttp_request *,
     void (*cb)(struct evhttp_request *, void *));
 
@@ -346,7 +352,8 @@ int evhttp_make_request(struct evhttp_connection *evcon,
    currently being processed, e.g. it is ongoing, the corresponding
    evhttp_connection object is going to get reset.
 
-   A request cannot be canceled if its callback has executed already.
+   A request cannot be canceled if its callback has executed already. A request
+   may be canceled reentrantly from its chunked callback.
 
    @param req the evhttp_request to cancel; req becomes invalid after this call.
 */

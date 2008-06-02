@@ -1749,6 +1749,143 @@ http_chunked_test(void)
 }
 
 static void
+http_stream_in_chunk(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *reply = arg;
+
+	if (req->response_code != HTTP_OK) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	evbuffer_add_buffer(reply, req->input_buffer);
+}
+
+static void
+http_stream_in_done(struct evhttp_request *req, void *arg)
+{
+	if (evbuffer_get_length(req->input_buffer) != 0) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	event_loopexit(NULL);
+}
+
+/**
+ * Makes a request and reads the response in chunks.
+ */
+static void
+_http_stream_in_test(char const *url,
+    size_t expected_len, char const *expected)
+{
+	struct evhttp_connection *evcon;
+	struct evbuffer *reply = evbuffer_new();
+	struct evhttp_request *req = NULL;
+	short port = -1;
+
+	http = http_setup(&port, NULL);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	req = evhttp_request_new(http_stream_in_done, reply);
+	evhttp_request_set_chunked_cb(req, http_stream_in_chunk);
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, url) == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	if (evbuffer_get_length(reply) != expected_len) {
+		printf("reply length %zu; expected %zu; FAILED (%s)\n",
+		    EVBUFFER_LENGTH(reply), expected_len,
+		    evbuffer_pullup(reply, -1));
+		exit(1);
+	}
+
+	if (memcmp(evbuffer_pullup(reply, -1), expected, expected_len) != 0) {
+		printf("FAILED\n");
+		exit(1);
+	}
+
+	evbuffer_free(reply);
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
+	fprintf(stdout, "OK\n");
+}
+
+static void
+http_stream_in_test(void)
+{
+	printf("Testing streamed reading of chunked response: ");
+	_http_stream_in_test("/chunked", 13 + 18 + 8,
+	    "This is funnybut not hilarious.bwv 1052");
+
+	printf("Testing streamed reading of non-chunked response: ");
+	_http_stream_in_test("/test", 13, "This is funny");
+}
+
+static void
+http_stream_in_cancel_chunk(struct evhttp_request *req, void *arg)
+{
+	if (req->response_code != HTTP_OK) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	evhttp_cancel_request(req);
+	event_loopexit(NULL);
+}
+
+static void
+http_stream_in_cancel_done(struct evhttp_request *req, void *arg)
+{
+	/* should never be called */
+	fprintf(stdout, "FAILED\n");
+	exit(1);
+}
+
+static void
+http_stream_in_cancel_test(void)
+{
+	struct evhttp_connection *evcon;
+	struct evhttp_request *req = NULL;
+	short port = -1;
+
+	printf("Testing cancelling while stream-reading a response: ");
+
+	http = http_setup(&port, NULL);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	req = evhttp_request_new(http_stream_in_cancel_done, NULL);
+	evhttp_request_set_chunked_cb(req, http_stream_in_cancel_chunk);
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/chunked") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
+	fprintf(stdout, "OK\n");
+}
+
+static void
 http_connection_retry_done(struct evhttp_request *req, void *arg)
 {
 	if (req->response_code == HTTP_OK) {
@@ -1974,6 +2111,9 @@ http_suite(void)
 	http_incomplete_test(1 /* use_timeout */);
 
 	http_chunked_test();
+
+	http_stream_in_test();
+	http_stream_in_cancel_test();
 
 	http_connection_retry();
 }

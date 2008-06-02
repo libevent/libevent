@@ -73,6 +73,10 @@ struct {
 #define EVHTTP_PROXY_REQUEST		0x0002
 /** The request object is owned by the user; the user must free it */
 #define EVHTTP_USER_OWNED		0x0004
+/** The request will be used again upstack; freeing must be deferred */
+#define EVHTTP_REQ_DEFER_FREE		0x0008
+/** The request should be freed upstack */
+#define EVHTTP_REQ_NEEDS_FREE		0x0010
 
 	struct evkeyvalq *input_headers;
 	struct evkeyvalq *output_headers;
