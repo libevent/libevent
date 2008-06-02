@@ -630,12 +630,24 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 
 /*
  * Handles reading from a chunked request.
- * return 1: all data has been read
- * return 0: more data is expected
- * return -1: data is corrupted
+ *   return ALL_DATA_READ:
+ *     all data has been read
+ *   return MORE_DATA_EXPECTED:
+ *     more data is expected
+ *   return DATA_CORRUPTED:
+ *     data is corrupted
+ *   return REQUEST_CANCLED:
+ *     request was canceled by the user calling evhttp_cancel_request
  */
 
-static int
+enum chunked_read_status {
+	ALL_DATA_READ = 1,
+	MORE_DATA_EXPECTED = 0,
+	DATA_CORRUPTED = -1,
+	REQUEST_CANCELED = -2
+};
+
+static enum chunked_read_status
 evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 {
 	int len;
@@ -658,30 +670,35 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			mm_free(p);
 			if (error) {
 				/* could not get chunk size */
-				return (-1);
+				return (DATA_CORRUPTED);
 			}
 			if (req->ntoread == 0) {
 				/* Last chunk */
-				return (1);
+				return (ALL_DATA_READ);
 			}
 			continue;
 		}
 
 		/* don't have enough to complete a chunk; wait for more */
 		if (len < req->ntoread)
-			return (0);
+			return (MORE_DATA_EXPECTED);
 
 		/* Completed chunk */
 		evbuffer_remove_buffer(buf, req->input_buffer, req->ntoread);
 		req->ntoread = -1;
 		if (req->chunk_cb != NULL) {
+			req->flags |= EVHTTP_REQ_DEFER_FREE;
 			(*req->chunk_cb)(req, req->cb_arg);
 			evbuffer_drain(req->input_buffer,
 			    EVBUFFER_LENGTH(req->input_buffer));
+			req->flags &= ~EVHTTP_REQ_DEFER_FREE;
+			if ((req->flags & EVHTTP_REQ_NEEDS_FREE) != 0) {
+				return (REQUEST_CANCELED);
+			}
 		}
 	}
 
-	return (0);
+	return (MORE_DATA_EXPECTED);
 }
 
 static void
@@ -690,26 +707,51 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	struct evbuffer *buf = bufferevent_get_input(evcon->bufev);
 	
 	if (req->chunked) {
-		int res = evhttp_handle_chunked_read(req, buf);
-		if (res == 1) {
+		switch (evhttp_handle_chunked_read(req, buf)) {
+		case ALL_DATA_READ:
 			/* finished last chunk */
 			bufferevent_disable(evcon->bufev, EV_READ);
 			evhttp_connection_done(evcon);
 			return;
-		} else if (res == -1) {
+		case DATA_CORRUPTED:
 			/* corrupted data */
 			evhttp_connection_fail(evcon,
 			    EVCON_HTTP_INVALID_HEADER);
 			return;
+		case REQUEST_CANCELED:
+			/* request canceled */
+			evhttp_request_free(req);
+			return;
+		case MORE_DATA_EXPECTED:
+		default:
+			break;
 		}
 	} else if (req->ntoread < 0) {
 		/* Read until connection close. */
 		evbuffer_add_buffer(req->input_buffer, buf);
-	} else if (EVBUFFER_LENGTH(buf) >= req->ntoread) {
+	} else if (req->chunk_cb != NULL ||
+	    EVBUFFER_LENGTH(buf) >= req->ntoread) {
+		/* We've postponed moving the data until now, but we're
+		 * about to use it. */
+		req->ntoread -= EVBUFFER_LENGTH(buf);
+		evbuffer_add_buffer(req->input_buffer, buf);
+	}
+
+	if (EVBUFFER_LENGTH(req->input_buffer) > 0 && req->chunk_cb != NULL) {
+		req->flags |= EVHTTP_REQ_DEFER_FREE;
+		(*req->chunk_cb)(req, req->cb_arg);
+		req->flags &= ~EVHTTP_REQ_DEFER_FREE;
+		evbuffer_drain(req->input_buffer,
+		    EVBUFFER_LENGTH(req->input_buffer));
+		if ((req->flags & EVHTTP_REQ_NEEDS_FREE) != 0) {
+			evhttp_request_free(req);
+			return;
+		}
+	}
+
+	if (req->ntoread == 0) {
 		bufferevent_disable(evcon->bufev, EV_READ);
 		/* Completed content length */
-		evbuffer_remove_buffer(buf, req->input_buffer, req->ntoread);
-		req->ntoread = 0;
 		evhttp_connection_done(evcon);
 		return;
 	}
@@ -734,6 +776,7 @@ evhttp_read_cb(struct bufferevent *bufev, void *arg)
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 
 	evhttp_read_body(evcon, req);
+	/* note the request may have been freed in evhttp_read_body */
 }
 
 static void
@@ -1340,6 +1383,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		}
 	}
 	evhttp_read_body(evcon, req);
+	/* note the request may have been freed in evhttp_read_body */
 }
 
 static void
@@ -1373,6 +1417,7 @@ evhttp_read_header_cb(struct bufferevent *bufev, void *arg)
 		event_debug(("%s: checking for post data on %d\n",
 				__func__, fd));
 		evhttp_get_body(evcon, req);
+		/* note the request may have been freed in evhttp_get_body */
 		break;
 
 	case EVHTTP_RESPONSE:
@@ -1386,6 +1431,8 @@ evhttp_read_header_cb(struct bufferevent *bufev, void *arg)
 			event_debug(("%s: start of read body for %s on %d\n",
 				__func__, req->remote_host, fd));
 			evhttp_get_body(evcon, req);
+			/* note the request may have been freed in
+			 * evhttp_get_body */
 		}
 		break;
 
@@ -1394,6 +1441,7 @@ evhttp_read_header_cb(struct bufferevent *bufev, void *arg)
 		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 		break;
 	}
+	/* request may have been freed above */
 }
 
 /*
@@ -2350,6 +2398,11 @@ evhttp_request_new(void (*cb)(struct evhttp_request *, void *), void *arg)
 void
 evhttp_request_free(struct evhttp_request *req)
 {
+	if ((req->flags & EVHTTP_REQ_DEFER_FREE) != 0) {
+		req->flags |= EVHTTP_REQ_NEEDS_FREE;
+		return;
+	}
+
 	if (req->remote_host != NULL)
 		mm_free(req->remote_host);
 	if (req->uri != NULL)
