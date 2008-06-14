@@ -3,6 +3,8 @@ Changes in 1.4.5-stable:
  o Fix use of freed memory in event_reinit; pointed out by Peter Postma
  o Constify struct timeval * where possible; pointed out by Forest Wilkinson
  o allow min_heap_erase to be called on removed members; from liusifan.
+ o Rename INPUT and OUTPUT to EVRPC_INPUT and EVRPC_OUTPUT.  Retain INPUT/OUTPUT aliases on on-win32 platforms for backwards compatibility.
+
 
 Changes in 1.4.4-stable:
  o Correct the documentation on buffer printf functions.
