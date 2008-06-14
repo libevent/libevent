@@ -97,10 +97,10 @@ evrpc_free(struct evrpc_base *base)
 		assert(evrpc_unregister_rpc(base, rpc->uri));
 	}
 	while ((hook = TAILQ_FIRST(&base->input_hooks)) != NULL) {
-		assert(evrpc_remove_hook(base, INPUT, hook));
+		assert(evrpc_remove_hook(base, EVRPC_INPUT, hook));
 	}
 	while ((hook = TAILQ_FIRST(&base->output_hooks)) != NULL) {
-		assert(evrpc_remove_hook(base, OUTPUT, hook));
+		assert(evrpc_remove_hook(base, EVRPC_OUTPUT, hook));
 	}
 	mm_free(base);
 }
@@ -115,14 +115,14 @@ evrpc_add_hook(void *vbase,
 	struct evrpc_hook_list *head = NULL;
 	struct evrpc_hook *hook = NULL;
 	switch (hook_type) {
-	case INPUT:
+	case EVRPC_INPUT:
 		head = &base->in_hooks;
 		break;
-	case OUTPUT:
+	case EVRPC_OUTPUT:
 		head = &base->out_hooks;
 		break;
 	default:
-		assert(hook_type == INPUT || hook_type == OUTPUT);
+		assert(hook_type == EVRPC_INPUT || hook_type == EVRPC_OUTPUT);
 	}
 
 	hook = mm_calloc(1, sizeof(struct evrpc_hook));
@@ -160,14 +160,14 @@ evrpc_remove_hook(void *vbase, enum EVRPC_HOOK_TYPE hook_type, void *handle)
 	struct _evrpc_hooks *base = vbase;
 	struct evrpc_hook_list *head = NULL;
 	switch (hook_type) {
-	case INPUT:
+	case EVRPC_INPUT:
 		head = &base->in_hooks;
 		break;
-	case OUTPUT:
+	case EVRPC_OUTPUT:
 		head = &base->out_hooks;
 		break;
 	default:
-		assert(hook_type == INPUT || hook_type == OUTPUT);
+		assert(hook_type == EVRPC_INPUT || hook_type == EVRPC_OUTPUT);
 	}
 
 	return (evrpc_remove_hook_internal(head, handle));
@@ -525,11 +525,11 @@ evrpc_pool_free(struct evrpc_pool *pool)
 	}
 
 	while ((hook = TAILQ_FIRST(&pool->input_hooks)) != NULL) {
-		assert(evrpc_remove_hook(pool, INPUT, hook));
+		assert(evrpc_remove_hook(pool, EVRPC_INPUT, hook));
 	}
 
 	while ((hook = TAILQ_FIRST(&pool->output_hooks)) != NULL) {
-		assert(evrpc_remove_hook(pool, OUTPUT, hook));
+		assert(evrpc_remove_hook(pool, EVRPC_OUTPUT, hook));
 	}
 
 	mm_free(pool);

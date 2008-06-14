@@ -474,15 +474,15 @@ rpc_basic_client(void)
 	need_input_hook = 1;
 	need_output_hook = 1;
 
-	assert(evrpc_add_hook(base, INPUT, rpc_hook_add_header, (void*)"input")
+	assert(evrpc_add_hook(base, EVRPC_INPUT, rpc_hook_add_header, (void*)"input")
 	    != NULL);
-	assert(evrpc_add_hook(base, OUTPUT, rpc_hook_add_header, (void*)"output")
+	assert(evrpc_add_hook(base, EVRPC_OUTPUT, rpc_hook_add_header, (void*)"output")
 	    != NULL);
 
 	pool = rpc_pool_with_connection(port);
 
-	assert(evrpc_add_hook(pool, OUTPUT, rpc_hook_add_meta, NULL));
-	assert(evrpc_add_hook(pool, INPUT, rpc_hook_remove_header, (void*)"output"));
+	assert(evrpc_add_hook(pool, EVRPC_OUTPUT, rpc_hook_add_meta, NULL));
+	assert(evrpc_add_hook(pool, EVRPC_INPUT, rpc_hook_remove_header, (void*)"output"));
 
 	/* set up the basic message */
 	msg = msg_new();
@@ -662,13 +662,13 @@ rpc_basic_client_with_pause(void)
 
 	rpc_setup(&http, &port, &base);
 
-	assert(evrpc_add_hook(base, INPUT, rpc_hook_pause, base));
-	assert(evrpc_add_hook(base, OUTPUT, rpc_hook_pause, base));
+	assert(evrpc_add_hook(base, EVRPC_INPUT, rpc_hook_pause, base));
+	assert(evrpc_add_hook(base, EVRPC_OUTPUT, rpc_hook_pause, base));
 
 	pool = rpc_pool_with_connection(port);
 
-	assert(evrpc_add_hook(pool, INPUT, rpc_hook_pause, pool));
-	assert(evrpc_add_hook(pool, OUTPUT, rpc_hook_pause, pool));
+	assert(evrpc_add_hook(pool, EVRPC_INPUT, rpc_hook_pause, pool));
+	assert(evrpc_add_hook(pool, EVRPC_OUTPUT, rpc_hook_pause, pool));
 
 	/* set up the basic message */
 	msg = msg_new();
