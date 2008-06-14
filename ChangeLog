@@ -108,6 +108,8 @@ Changes in current version:
  o change failing behavior of event_base_new_with_config: if a config is provided and no backend is selected, return NULL instead of aborting.
  o deliver partial data to request callbacks when chunked callback is set even if there is no chunking on the http level; allows cancelation of requests from within the chunked callback; from Scott Lamb.
  o allow min_heap_erase to be called on removed members; from liusifan.
+ o Rename INPUT and OUTPUT to EVRPC_INPUT and EVRPC_OUTPUT.  Retain INPUT/OUTPUT aliases on on-win32 platforms for backwards compatibility.
+
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
