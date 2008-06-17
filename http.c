@@ -1574,6 +1574,8 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	}
 
 	if (socket_connect(evcon->fd, evcon->address, evcon->port) == -1) {
+		event_warn("%s: connection to \"%s\" failed",
+		    __func__, evcon->address);
 		EVUTIL_CLOSESOCKET(evcon->fd); evcon->fd = -1;
 		return (-1);
 	}
