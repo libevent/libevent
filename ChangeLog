@@ -109,6 +109,7 @@ Changes in current version:
  o deliver partial data to request callbacks when chunked callback is set even if there is no chunking on the http level; allows cancelation of requests from within the chunked callback; from Scott Lamb.
  o allow min_heap_erase to be called on removed members; from liusifan.
  o Rename INPUT and OUTPUT to EVRPC_INPUT and EVRPC_OUTPUT.  Retain INPUT/OUTPUT aliases on on-win32 platforms for backwards compatibility.
+ o Do not use SO_REUSEADDR when connecting
 
 
 Changes in 1.4.0:
