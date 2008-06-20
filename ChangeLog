@@ -4,6 +4,7 @@ Changes in 1.4.5-stable:
  o Constify struct timeval * where possible; pointed out by Forest Wilkinson
  o allow min_heap_erase to be called on removed members; from liusifan.
  o Rename INPUT and OUTPUT to EVRPC_INPUT and EVRPC_OUTPUT.  Retain INPUT/OUTPUT aliases on on-win32 platforms for backwards compatibility.
+ o Do not use SO_REUSEADDR when connecting
 
 
 Changes in 1.4.4-stable:
