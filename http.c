@@ -151,8 +151,8 @@ fake_freeaddrinfo(struct addrinfo *ai)
 extern int debug;
 
 static int socket_connect(evutil_socket_t kefd, const char *address, unsigned short port);
-static evutil_socket_t bind_socket_ai(struct addrinfo *);
-static evutil_socket_t bind_socket(const char *, ev_uint16_t);
+static evutil_socket_t bind_socket_ai(struct addrinfo *, int reuse);
+static evutil_socket_t bind_socket(const char *, ev_uint16_t, int reuse);
 static void name_from_addr(struct sockaddr *, socklen_t, char **, char **);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
@@ -1566,7 +1566,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	assert(!(evcon->flags & EVHTTP_CON_INCOMING));
 	evcon->flags |= EVHTTP_CON_OUTGOING;
 	
-	evcon->fd = bind_socket(evcon->bind_address, 0);
+	evcon->fd = bind_socket(evcon->bind_address, 0 /*port*/, 0 /*reuse*/);
 	if (evcon->fd == -1) {
 		event_debug(("%s: failed to bind to \"%s\"",
 			__func__, evcon->bind_address));
@@ -2128,7 +2128,7 @@ evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
 	evutil_socket_t fd;
 	int res;
 
-	if ((fd = bind_socket(address, port)) == -1)
+	if ((fd = bind_socket(address, port, 1 /*reuse*/)) == -1)
 		return (-1);
 
 	if (listen(fd, 128) == -1) {
@@ -2633,7 +2633,7 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 /* Either connect or bind */
 
 static evutil_socket_t
-bind_socket_ai(struct addrinfo *ai)
+bind_socket_ai(struct addrinfo *ai, int reuse)
 {
         evutil_socket_t fd;
 
@@ -2658,7 +2658,10 @@ bind_socket_ai(struct addrinfo *ai)
 #endif
 
         setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));
-        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (void *)&on, sizeof(on));
+	if (reuse) {
+		setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+		    (void *)&on, sizeof(on));
+	}
 
 	r = bind(fd, ai->ai_addr, ai->ai_addrlen);
 	if (r == -1)
@@ -2712,7 +2715,7 @@ make_addrinfo(const char *address, ev_uint16_t port)
 }
 
 static evutil_socket_t
-bind_socket(const char *address, ev_uint16_t port)
+bind_socket(const char *address, ev_uint16_t port, int reuse)
 {
 	evutil_socket_t fd;
 	struct addrinfo *aitop = make_addrinfo(address, port);
@@ -2720,7 +2723,7 @@ bind_socket(const char *address, ev_uint16_t port)
 	if (aitop == NULL)
 		return (-1);
 
-	fd = bind_socket_ai(aitop);
+	fd = bind_socket_ai(aitop, reuse);
 
 #ifdef HAVE_GETADDRINFO
 	freeaddrinfo(aitop);
