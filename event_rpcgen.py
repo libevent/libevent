@@ -575,12 +575,17 @@ class EntryBytes(Entry):
         Entry.Verify(self)
 
 class EntryInt(Entry):
-    def __init__(self, type, name, tag):
+    def __init__(self, type, name, tag, bits=32):
         # Init base class
         Entry.__init__(self, type, name, tag)
 
         self._can_be_array = 1
-        self._ctype = 'ev_uint32_t'
+        if bits == 32:
+            self._ctype = 'ev_uint32_t'
+            self._marshal_type = 'int'
+        if bits == 64:
+            self._ctype = 'ev_uint64_t'
+            self._marshal_type = 'int64'
 
     def GetInitializer(self):
         return "0"        
@@ -598,23 +603,26 @@ class EntryInt(Entry):
                                               'value' : value } ]
 
     def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
-        code = ['if (evtag_unmarshal_int(%(buf)s, %(tag)s, &%(var)s) == -1) {',
-                  '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
-                '  return (-1);',
-                '}' ]
+        code = [
+            'if (evtag_unmarshal_%(ma)s(%(buf)s, %(tag)s, &%(var)s) == -1) {',
+            '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
+            '  return (-1);',
+            '}' ]
         code = '\n'.join(code) % self.GetTranslation({
+            'ma'  : self._marshal_type,
             'buf' : buf,
             'tag' : tag_name,
             'var' : var_name })
         return code.split('\n')
 
     def CodeMarshal(self, buf, tag_name, var_name, var_len):
-        code = ['evtag_marshal_int(%s, %s, %s);' % (
-            buf, tag_name, var_name)]
+        code = [
+            'evtag_marshal_%s(%s, %s, %s);' % (
+            self._marshal_type, buf, tag_name, var_name)]
         return code
 
     def Declaration(self):
-        dcl  = ['ev_uint32_t %s_data;' % self._name]
+        dcl  = ['%s %s_data;' % (self._ctype, self._name)]
 
         return dcl
 
@@ -1338,6 +1346,8 @@ def ProcessOneEntry(factory, newstruct, entry):
             newentry = factory.EntryVarBytes(entry_type, name, tag)
     elif entry_type == 'int' and not fixed_length:
         newentry = factory.EntryInt(entry_type, name, tag)
+    elif entry_type == 'int64' and not fixed_length:
+        newentry = factory.EntryInt(entry_type, name, tag, bits=64)
     elif entry_type == 'string' and not fixed_length:
         newentry = factory.EntryString(entry_type, name, tag)
     else:
@@ -1593,8 +1603,8 @@ class CCodeGenerator:
     def EntryVarBytes(self, entry_type, name, tag):
         return EntryVarBytes(entry_type, name, tag)
 
-    def EntryInt(self, entry_type, name, tag):
-        return EntryInt(entry_type, name, tag)
+    def EntryInt(self, entry_type, name, tag, bits=32):
+        return EntryInt(entry_type, name, tag, bits)
 
     def EntryString(self, entry_type, name, tag):
         return EntryString(entry_type, name, tag)

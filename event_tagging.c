@@ -87,29 +87,39 @@ evtag_init(void)
  * @return the number of bytes written into data.
  */
 
+#define ENCODE_INT_INTERNAL(data, number) do {				\
+	int off = 1, nibbles = 0;					\
+									\
+	memset(data, 0, sizeof(number)+1);				\
+	while (number) {						\
+		if (off & 0x1)						\
+			data[off/2] = (data[off/2] & 0xf0) | (number & 0x0f); \
+		else							\
+			data[off/2] = (data[off/2] & 0x0f) |		\
+			    ((number & 0x0f) << 4);			\
+		number >>= 4;						\
+		off++;							\
+	}								\
+									\
+	if (off > 2)							\
+		nibbles = off - 2;					\
+									\
+	/* Off - 1 is the number of encoded nibbles */			\
+	data[0] = (data[0] & 0x0f) | ((nibbles & 0x0f) << 4);		\
+									\
+	return ((off + 1) / 2);						\
+} while (0)
+
 static inline int
 encode_int_internal(ev_uint8_t *data, ev_uint32_t number)
 {
-	int off = 1, nibbles = 0;
+	ENCODE_INT_INTERNAL(data, number);
+}
 
-	memset(data, 0, sizeof(ev_uint32_t)+1);
-	while (number) {
-		if (off & 0x1)
-			data[off/2] = (data[off/2] & 0xf0) | (number & 0x0f);
-		else
-			data[off/2] = (data[off/2] & 0x0f) |
-			    ((number & 0x0f) << 4);
-		number >>= 4;
-		off++;
-	}
-
-	if (off > 2)
-		nibbles = off - 2;
-
-	/* Off - 1 is the number of encoded nibbles */
-	data[0] = (data[0] & 0x0f) | ((nibbles & 0x0f) << 4);
-
-	return ((off + 1) / 2);
+static inline int
+encode_int64_internal(ev_uint8_t *data, ev_uint64_t number)
+{
+	ENCODE_INT_INTERNAL(data, number);
 }
 
 void
@@ -117,6 +127,14 @@ encode_int(struct evbuffer *evbuf, ev_uint32_t number)
 {
 	ev_uint8_t data[5];
 	int len = encode_int_internal(data, number);
+	evbuffer_add(evbuf, data, len);
+}
+
+void
+encode_int64(struct evbuffer *evbuf, ev_uint64_t number)
+{
+	ev_uint8_t data[9];
+	int len = encode_int64_internal(data, number);
 	evbuffer_add(evbuf, data, len);
 }
 
@@ -229,6 +247,18 @@ evtag_marshal_int(struct evbuffer *evbuf, ev_uint32_t tag, ev_uint32_t integer)
 }
 
 void
+evtag_marshal_int64(struct evbuffer *evbuf, ev_uint32_t tag,
+    ev_uint64_t integer)
+{
+	ev_uint8_t data[9];
+	int len = encode_int64_internal(data, integer);
+
+	evtag_encode_tag(evbuf, tag);
+	encode_int(evbuf, len);
+	evbuffer_add(evbuf, data, len);
+}
+
+void
 evtag_marshal_string(struct evbuffer *buf, ev_uint32_t tag, const char *string)
 {
 	evtag_marshal(buf, tag, string, strlen(string));
@@ -243,6 +273,39 @@ evtag_marshal_timeval(struct evbuffer *evbuf, ev_uint32_t tag, struct timeval *t
 	evtag_marshal(evbuf, tag, data, len);
 }
 
+#define DECODE_INT_INTERNAL(number, maxnibbles, pnumber, evbuf, offset) \
+do {									\
+	ev_uint8_t *data;						\
+	int len = EVBUFFER_LENGTH(evbuf) - offset;			\
+	int nibbles = 0;						\
+									\
+	if (len <= 0)							\
+		return (-1);						\
+									\
+	/* XXX(niels): faster? */					\
+	data = evbuffer_pullup(evbuf, offset + 1) + offset;		\
+									\
+	nibbles = ((data[0] & 0xf0) >> 4) + 1;				\
+	if (nibbles > maxnibbles || (nibbles >> 1) + 1 > len)		\
+		return (-1);						\
+	len = (nibbles >> 1) + 1;					\
+									\
+	data = evbuffer_pullup(evbuf, offset + len) + offset;		\
+									\
+	while (nibbles > 0) {						\
+		number <<= 4;						\
+		if (nibbles & 0x1)					\
+			number |= data[nibbles >> 1] & 0x0f;		\
+		else							\
+			number |= (data[nibbles >> 1] & 0xf0) >> 4;	\
+		nibbles--;						\
+	}								\
+									\
+	*pnumber = number;						\
+									\
+	return (len);							\
+} while (0)
+
 /* Internal: decode an integer from an evbuffer, without draining it.
  *  Only integers up to 32-bits are supported.
  *
@@ -251,39 +314,19 @@ evtag_marshal_timeval(struct evbuffer *evbuf, ev_uint32_t tag, struct timeval *t
  * @param pnumber a pointer to receive the integer.
  * @return The length of the number as encoded, or -1 on error.
  */
+
 static int
 decode_int_internal(ev_uint32_t *pnumber, struct evbuffer *evbuf, int offset)
 {
 	ev_uint32_t number = 0;
-	ev_uint8_t *data;
-	int len = EVBUFFER_LENGTH(evbuf) - offset;
-	int nibbles = 0;
+	DECODE_INT_INTERNAL(number, 8, pnumber, evbuf, offset);
+}
 
-	if (len <= 0)
-		return (-1);
-
-	/* XXX(niels): faster? */
-	data = evbuffer_pullup(evbuf, offset + 1) + offset;
-
-	nibbles = ((data[0] & 0xf0) >> 4) + 1;
-	if (nibbles > 8 || (nibbles >> 1) + 1 > len)
-		return (-1);
-	len = (nibbles >> 1) + 1;
-
-	data = evbuffer_pullup(evbuf, offset + len) + offset;
-	
-	while (nibbles > 0) {
-		number <<= 4;
-		if (nibbles & 0x1)
-			number |= data[nibbles >> 1] & 0x0f;
-		else
-			number |= (data[nibbles >> 1] & 0xf0) >> 4;
-		nibbles--;
-	}
-
-	*pnumber = number;
-
-	return (len);
+static int
+decode_int64_internal(ev_uint64_t *pnumber, struct evbuffer *evbuf, int offset)
+{
+	ev_uint64_t number = 0;
+	DECODE_INT_INTERNAL(number, 16, pnumber, evbuf, offset);
 }
 
 int
@@ -391,21 +434,45 @@ evtag_unmarshal_int(struct evbuffer *evbuf, ev_uint32_t need_tag,
 {
 	ev_uint32_t tag;
 	ev_uint32_t len;
-	ev_uint32_t integer;
 	int result;
 
 	if (decode_tag_internal(&tag, evbuf, 1 /* dodrain */) == -1)
 		return (-1);
 	if (need_tag != tag)
 		return (-1);
-	if (evtag_decode_int(&integer, evbuf) == -1)
+	if (evtag_decode_int(&len, evbuf) == -1)
 		return (-1);
-	len = integer;
 
 	if (EVBUFFER_LENGTH(evbuf) < len)
 		return (-1);
 
 	result = decode_int_internal(pinteger, evbuf, 0);
+	evbuffer_drain(evbuf, len);
+	if (result < 0 || result > len) /* XXX Should this be != rather than > ?*/
+		return (-1);
+	else
+		return result;
+}
+
+int
+evtag_unmarshal_int64(struct evbuffer *evbuf, ev_uint32_t need_tag,
+    ev_uint64_t *pinteger)
+{
+	ev_uint32_t tag;
+	ev_uint32_t len;
+	int result;
+
+	if (decode_tag_internal(&tag, evbuf, 1 /* dodrain */) == -1)
+		return (-1);
+	if (need_tag != tag)
+		return (-1);
+	if (evtag_decode_int(&len, evbuf) == -1)
+		return (-1);
+
+	if (EVBUFFER_LENGTH(evbuf) < len)
+		return (-1);
+
+	result = decode_int64_internal(pinteger, evbuf, 0);
 	evbuffer_drain(evbuf, len);
 	if (result < 0 || result > len) /* XXX Should this be != rather than > ?*/
 		return (-1);
