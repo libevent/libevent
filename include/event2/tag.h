@@ -89,9 +89,12 @@ void evtag_marshal_buffer(struct evbuffer *evbuf, ev_uint32_t tag,
   @param number a 32-bit integer
  */
 void encode_int(struct evbuffer *evbuf, ev_uint32_t number);
+void encode_int64(struct evbuffer *evbuf, ev_uint64_t number);
 
 void evtag_marshal_int(struct evbuffer *evbuf, ev_uint32_t tag,
     ev_uint32_t integer);
+void evtag_marshal_int64(struct evbuffer *evbuf, ev_uint32_t tag,
+    ev_uint64_t integer);
 
 void evtag_marshal_string(struct evbuffer *buf, ev_uint32_t tag,
     const char *string);
@@ -108,6 +111,8 @@ int evtag_consume(struct evbuffer *evbuf);
 
 int evtag_unmarshal_int(struct evbuffer *evbuf, ev_uint32_t need_tag,
     ev_uint32_t *pinteger);
+int evtag_unmarshal_int64(struct evbuffer *evbuf, ev_uint32_t need_tag,
+    ev_uint64_t *pinteger);
 
 int evtag_unmarshal_fixed(struct evbuffer *src, ev_uint32_t need_tag,
     void *data, size_t len);

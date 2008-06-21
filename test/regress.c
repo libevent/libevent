@@ -1947,6 +1947,10 @@ rpc_test(void)
 			fprintf(stderr, "Failed to add note.\n");
 			exit(1);
 		}
+
+		EVTAG_ASSIGN(run, large_number, 0xdead0a0bcafebeefLL);
+		EVTAG_ADD(run, other_numbers, 0xdead0a0b);
+		EVTAG_ADD(run, other_numbers, 0xbeefcafe);
 	}
 
 	if (msg_complete(msg) == -1) {
@@ -2002,6 +2006,8 @@ rpc_test(void)
 	} else {
 		/* verify the notes */
 		char *note_one, *note_two;
+		ev_uint64_t large_number;
+		ev_uint32_t short_number;
 
 		if (EVTAG_LEN(run, notes) != 2) {
 			fprintf(stderr, "Wrong number of note strings.\n");
@@ -2019,7 +2025,24 @@ rpc_test(void)
 			fprintf(stderr, "Incorrect note strings encoded.\n");
 			exit(1);
 		}
-		
+	       
+		if (EVTAG_GET(run, large_number, &large_number) == -1 ||
+		    large_number != 0xdead0a0bcafebeefLL) {
+			fprintf(stderr, "Incorrrect large_number.\n");
+			exit(1);
+		}
+
+		if (EVTAG_LEN(run, other_numbers) != 2) {
+			fprintf(stderr, "Wrong number of other_numbers.\n");
+			exit(1);
+		}
+
+		if (EVTAG_GET(run, other_numbers, 0, &short_number) == -1) {
+			fprintf(stderr, "Could not get short number.\n");
+			exit(1);
+		}
+		assert(short_number == 0xdead0a0b);
+
 	}
 	if (EVTAG_LEN(attack, how_often) != 3) {
 		fprintf(stderr, "Wrong number of how_often ints.\n");

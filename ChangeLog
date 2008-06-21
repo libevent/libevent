@@ -110,7 +110,7 @@ Changes in current version:
  o allow min_heap_erase to be called on removed members; from liusifan.
  o Rename INPUT and OUTPUT to EVRPC_INPUT and EVRPC_OUTPUT.  Retain INPUT/OUTPUT aliases on on-win32 platforms for backwards compatibility.
  o Do not use SO_REUSEADDR when connecting
-
+ o Support 64-bit integers in RPC structs
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

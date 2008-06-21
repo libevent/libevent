@@ -19,4 +19,7 @@ struct run {
 
 	bytes fixed_bytes[24] = 3;
 	array string notes = 4;
+
+	optional int64 large_number = 5;
+	array int other_numbers = 6;
 }
