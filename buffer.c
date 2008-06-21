@@ -659,9 +659,21 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 
 	remain = chain->buffer_len - chain->misalign - chain->off;
 	if (remain >= datlen) {
-		/*there's enough space to hold all the data in the current last chain*/
+		/* there's enough space to hold all the data in the
+		 * current last chain */
 		memcpy(chain->buffer + chain->misalign + chain->off,
 		    data, datlen);
+		chain->off += datlen;
+		buf->total_len += datlen;
+		goto out;
+	} else if (chain->misalign >= datlen) {
+		/* we can fit the data into the misalignment */
+		memmove(chain->buffer,
+		    chain->buffer + chain->misalign,
+		    chain->off);
+		chain->misalign = 0;
+
+		memcpy(chain->buffer + chain->off, data, datlen);
 		chain->off += datlen;
 		buf->total_len += datlen;
 		goto out;
@@ -678,7 +690,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	buf->last = chain->next;
 	buf->previous_to_last = chain;
 	buf->total_len += datlen;
-
+	
 	memcpy(chain->buffer + chain->misalign + chain->off,
 	    data, remain);
 	chain->off += remain;
