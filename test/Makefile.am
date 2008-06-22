@@ -17,12 +17,13 @@ test_weof_LDADD = ../libevent_core.la
 test_time_SOURCES = test-time.c
 test_time_LDADD = ../libevent_core.la
 regress_SOURCES = regress.c regress.h regress_http.c regress_dns.c \
-	regress_rpc.c regress.gen.c regress.gen.h regress_et.c
+	regress_rpc.c regress.gen.c regress.gen.h regress_et.c \
+	$(regress_pthread_SOURCES) $(regress_zlib_SOURCES)
 if PTHREAD_REGRESS
-regress_SOURCES += regress_pthread.c
+regress_pthread_SOURCES = regress_pthread.c
 endif
 if ZLIB_REGRESS
-regress_SOURCES += regress_zlib.c
+regress_zlib_SOURCES = regress_zlib.c
 endif
 regress_LDADD = ../libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
 regress_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat \
