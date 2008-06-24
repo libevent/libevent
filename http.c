@@ -2602,6 +2602,7 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 	evcon = evhttp_get_request_connection(http, fd, sa, salen);
 	if (evcon == NULL) {
 		event_warn("%s: cannot get connection on %d", __func__, fd);
+		EVUTIL_CLOSESOCKET(fd);
 		return;
 	}
 
