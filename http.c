@@ -100,6 +100,52 @@
 #define strncasecmp _strnicmp
 #endif
 
+#ifndef HAVE_GETNAMEINFO
+#define NI_MAXSERV 32
+#define NI_MAXHOST 1025
+
+#define NI_NUMERICHOST 1
+#define NI_NUMERICSERV 2
+
+int
+fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host, 
+	size_t hostlen, char *serv, size_t servlen, int flags)
+{
+        struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+        
+        if (serv != NULL) {
+				char tmpserv[16];
+				evutil_snprintf(tmpserv, sizeof(tmpserv),
+					"%d", ntohs(sin->sin_port));
+                if (strlcpy(serv, tmpserv, servlen) >= servlen)
+                        return (-1);
+        }
+
+        if (host != NULL) {
+                if (flags & NI_NUMERICHOST) {
+                        if (strlcpy(host, inet_ntoa(sin->sin_addr),
+                            hostlen) >= hostlen)
+                                return (-1);
+                        else
+                                return (0);
+                } else {
+						struct hostent *hp;
+                        hp = gethostbyaddr((char *)&sin->sin_addr, 
+                            sizeof(struct in_addr), AF_INET);
+                        if (hp == NULL)
+                                return (-2);
+                        
+                        if (strlcpy(host, hp->h_name, hostlen) >= hostlen)
+                                return (-1);
+                        else
+                                return (0);
+                }
+        }
+        return (0);
+}
+
+#endif
+
 #ifndef HAVE_GETADDRINFO
 struct addrinfo {
 	int ai_family;
@@ -1355,7 +1401,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 		
 	event_debug(("%s: bytes to read: %d (in buffer %ld)\n",
 		__func__, req->ntoread,
-		EVBUFFER_LENGTH(req->evcon->input_buffer)));
+		EVBUFFER_LENGTH(bufferevent_get_input(req->evcon->bufev))));
 
 	return (0);
 }
@@ -2554,8 +2600,10 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 	struct evhttp_connection *evcon;
 
 	evcon = evhttp_get_request_connection(http, fd, sa, salen);
-	if (evcon == NULL)
+	if (evcon == NULL) {
+		event_warn(1, "%s: cannot get connection on %d", __func__, fd);
 		return;
+	}
 
 	/* the timeout can be used by the server to close idle connections */
 	if (http->timeout != -1)
@@ -2608,26 +2656,32 @@ static void
 name_from_addr(struct sockaddr *sa, socklen_t salen,
     char **phost, char **pport)
 {
-#ifdef HAVE_GETNAMEINFO
 	char ntop[NI_MAXHOST];
 	char strport[NI_MAXSERV];
 	int ni_result;
 
-	if ((ni_result = getnameinfo(sa, salen,
+#ifdef HAVE_GETNAMEINFO
+	ni_result = getnameinfo(sa, salen,
 		ntop, sizeof(ntop), strport, sizeof(strport),
-		NI_NUMERICHOST|NI_NUMERICSERV)) != 0) {
+		NI_NUMERICHOST|NI_NUMERICSERV)
+	
+	if (ni_result != 0) {
 		if (ni_result == EAI_SYSTEM)
 			event_err(1, "getnameinfo failed");
 		else
 			event_errx(1, "getnameinfo failed: %s", gai_strerror(ni_result));
 		return;
 	}
+#else
+	ni_result = fake_getnameinfo(sa, salen,
+		ntop, sizeof(ntop), strport, sizeof(strport),
+		NI_NUMERICHOST|NI_NUMERICSERV);
+	if (ni_result != 0)
+			return;
+#endif
 
 	*phost = mm_strdup(ntop);
 	*pport = mm_strdup(strport);
-#else
-	/* XXXX */
-#endif
 }
 
 /* Either connect or bind */
