@@ -2601,7 +2601,7 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 
 	evcon = evhttp_get_request_connection(http, fd, sa, salen);
 	if (evcon == NULL) {
-		event_warn(1, "%s: cannot get connection on %d", __func__, fd);
+		event_warn("%s: cannot get connection on %d", __func__, fd);
 		return;
 	}
 
@@ -2663,7 +2663,7 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 #ifdef HAVE_GETNAMEINFO
 	ni_result = getnameinfo(sa, salen,
 		ntop, sizeof(ntop), strport, sizeof(strport),
-		NI_NUMERICHOST|NI_NUMERICSERV)
+		NI_NUMERICHOST|NI_NUMERICSERV);
 	
 	if (ni_result != 0) {
 		if (ni_result == EAI_SYSTEM)
