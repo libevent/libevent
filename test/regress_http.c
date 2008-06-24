@@ -129,7 +129,7 @@ http_connect(const char *address, u_short port)
 	if (!(he = gethostbyname(address))) {
 		event_warn("gethostbyname");
 	}
-	memcpy(&sin.sin_addr, &he->h_addr, sizeof(struct in_addr));
+	memcpy(&sin.sin_addr, he->h_addr_list[0], he->h_length);
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 	slen = sizeof(struct sockaddr_in);
