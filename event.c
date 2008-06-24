@@ -574,6 +574,13 @@ event_process_active(struct event_base *base)
 		else
 			event_del_internal(ev);
 		
+		event_debug((
+			 "event_process_active: event: %p, %s%scall %p",
+			ev,	
+			ev->ev_res & EV_READ ? "EV_READ " : " ",
+			ev->ev_res & EV_WRITE ? "EV_WRITE " : " ",
+			ev->ev_callback));
+
 		EVTHREAD_RELEASE_LOCK(base,
 		    EVTHREAD_WRITE, th_base_lock);
 
