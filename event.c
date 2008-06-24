@@ -1120,8 +1120,8 @@ event_del_internal(struct event *ev)
 
 	/* if we are not in the right thread, we need to wake up the loop */
 	if (res != -1 && !EVTHREAD_IN_THREAD(base))
-		write(base->th_notify_fd[1], "", 1);
-
+		send(base->th_notify_fd[1], "", 1, 0);
+	
 	return (res);
 }
 
