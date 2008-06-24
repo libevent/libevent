@@ -68,7 +68,10 @@
 #include "log.h"
 
 #include "regress.h"
+
+#ifndef WIN32
 #include "regress.gen.h"
+#endif
 
 int pair[2];
 int test_ok;
@@ -186,7 +189,7 @@ timeout_cb(int fd, short event, void *arg)
 	struct timeval tv;
 	int diff;
 
-	gettimeofday(&tcalled, NULL);
+	evutil_gettimeofday(&tcalled, NULL);
 	if (evutil_timercmp(&tcalled, &tset, >))
 		evutil_timersub(&tcalled, &tset, &tv);
 	else
@@ -432,7 +435,7 @@ test_simpletimeout(void)
 	evtimer_set(&ev, timeout_cb, NULL);
 	evtimer_add(&ev, &tv);
 
-	gettimeofday(&tset, NULL);
+	evutil_gettimeofday(&tset, NULL);
 	event_dispatch();
 
 	cleanup_test();
@@ -803,9 +806,9 @@ test_loopexit(void)
 	tv.tv_sec = 1;
 	event_loopexit(&tv);
 
-	gettimeofday(&tv_start, NULL);
+	evutil_gettimeofday(&tv_start, NULL);
 	event_dispatch();
-	gettimeofday(&tv_end, NULL);
+	evutil_gettimeofday(&tv_end, NULL);
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
 
 	evtimer_del(&ev);
@@ -1900,6 +1903,7 @@ evtag_test(void)
 static void
 rpc_test(void)
 {
+#ifndef WIN32
 	struct msg *msg, *msg2;
 	struct kill *attack;
 	struct run *run;
@@ -1928,7 +1932,7 @@ rpc_test(void)
 		}
 	}
 
-	gettimeofday(&tv_start, NULL);
+	evutil_gettimeofday(&tv_start, NULL);
 	for (i = 0; i < 1000; ++i) {
 		run = EVTAG_ADD(msg, run);
 		if (run == NULL) {
@@ -1976,7 +1980,7 @@ rpc_test(void)
 		exit(1);
 	}
 
-	gettimeofday(&tv_end, NULL);
+	evutil_gettimeofday(&tv_end, NULL);
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
 	fprintf(stdout, "(%.1f us/add) ",
 	    (float)tv_end.tv_sec/(float)i * 1000000.0 +
@@ -2067,6 +2071,7 @@ rpc_test(void)
 	evbuffer_free(tmp);
 
 	fprintf(stdout, "OK\n");
+#endif
 }
 
 static void
@@ -2230,7 +2235,9 @@ main (int argc, char **argv)
 
 	http_suite();
 
+#ifndef WIN32
 	rpc_suite();
+#endif
 
 	dns_suite();
 
@@ -2250,9 +2257,8 @@ main (int argc, char **argv)
 
 	test_simpletimeout();
 
-    test_edgetriggered();
-
 #ifndef WIN32
+    test_edgetriggered();
 	test_simplesignal();
 	test_immediatesignal();
 #endif
