@@ -319,7 +319,7 @@ http_basic_test(void)
 	event_dispatch();
 
 	bufferevent_free(bev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	evhttp_free(http);
 	
@@ -408,7 +408,7 @@ http_delete_test(void)
 	event_dispatch();
 
 	bufferevent_free(bev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	evhttp_free(http);
 	
@@ -1211,7 +1211,7 @@ http_failure_test(void)
 	event_dispatch();
 
 	bufferevent_free(bev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	evhttp_free(http);
 	
@@ -1418,7 +1418,7 @@ http_base_test(void)
 	event_base_dispatch(base);
 
 	bufferevent_free(bev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	evhttp_free(http);
 
@@ -1502,16 +1502,16 @@ http_incomplete_test(int use_timeout)
 
 	bufferevent_write(bev, http_request, strlen(http_request));
 
-	gettimeofday(&tv_start, NULL);
+	evutil_gettimeofday(&tv_start, NULL);
 	
 	event_dispatch();
 
-	gettimeofday(&tv_end, NULL);
+	evutil_gettimeofday(&tv_end, NULL);
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
 
 	if (use_timeout) {
 		bufferevent_free(bev);
-		close(fd);
+		EVUTIL_CLOSESOCKET(fd);
 	}
 
 	evhttp_free(http);
@@ -1699,11 +1699,11 @@ http_chunked_test(void)
 
 	bufferevent_write(bev, http_request, strlen(http_request));
 
-	gettimeofday(&tv_start, NULL);
+	evutil_gettimeofday(&tv_start, NULL);
 	
 	event_dispatch();
 
-	gettimeofday(&tv_end, NULL);
+	evutil_gettimeofday(&tv_end, NULL);
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
 
 	if (tv_end.tv_sec >= 1) {
@@ -1959,9 +1959,9 @@ http_connection_retry(void)
 		exit(1);
 	}
 
-	gettimeofday(&tv_start, NULL);
+	evutil_gettimeofday(&tv_start, NULL);
 	event_dispatch();
-	gettimeofday(&tv_end, NULL);
+	evutil_gettimeofday(&tv_end, NULL);
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
 	if (tv_end.tv_sec >= 1) {
 		fprintf(stdout, "FAILED (time)\n");
@@ -1996,9 +1996,9 @@ http_connection_retry(void)
 		exit(1);
 	}
 
-	gettimeofday(&tv_start, NULL);
+	evutil_gettimeofday(&tv_start, NULL);
 	event_dispatch();
-	gettimeofday(&tv_end, NULL);
+	evutil_gettimeofday(&tv_end, NULL);
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
 	if (tv_end.tv_sec <= 1 || tv_end.tv_sec >= 6) {
 		fprintf(stdout, "FAILED (time)\n");
@@ -2041,9 +2041,9 @@ http_connection_retry(void)
 	tv.tv_sec = 1;
 	event_once(-1, EV_TIMEOUT, http_make_web_server, NULL, &tv);
 
-	gettimeofday(&tv_start, NULL);
+	evutil_gettimeofday(&tv_start, NULL);
 	event_dispatch();
-	gettimeofday(&tv_end, NULL);
+	evutil_gettimeofday(&tv_end, NULL);
 
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
 	if (tv_end.tv_sec <= 1 || tv_end.tv_sec >= 6) {
