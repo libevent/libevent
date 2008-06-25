@@ -2547,7 +2547,7 @@ evdns_base_search_ndots_set(struct evdns_base *base, const int ndots) {
 }
 void
 evdns_search_ndots_set(const int ndots) {
-	return evdns_base_search_ndots_set(current_base, ndots);
+	evdns_base_search_ndots_set(current_base, ndots);
 }
 
 static void
