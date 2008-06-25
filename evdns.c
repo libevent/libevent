@@ -2961,7 +2961,7 @@ evdns_nameserver_ip_add_line(struct evdns_base *base, const char *ips) {
 		if (!buf) return 4;
 		memcpy(buf, addr, ips-addr);
 		buf[ips-addr] = '\0';
-		r = evdns_nameserver_ip_add(buf);
+		r = evdns_base_nameserver_ip_add(base, buf);
 		mm_free(buf);
 		if (r) return r;
 	}
