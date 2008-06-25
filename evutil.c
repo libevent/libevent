@@ -53,6 +53,7 @@
 #include <sys/timeb.h>
 #endif
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "evutil.h"
 #include "log.h"
