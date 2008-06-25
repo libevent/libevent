@@ -170,6 +170,13 @@ ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
 int evutil_gettimeofday(struct timeval *tv, struct timezone *tz);
 #endif
 
+int evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
+#ifdef __GNUC__
+	__attribute__((format(printf, 3, 4)))
+#endif
+	;
+int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap);
+
 #ifdef __cplusplus
 }
 #endif
