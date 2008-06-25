@@ -90,10 +90,55 @@
 #include "http-internal.h"
 
 #ifdef WIN32
-#define snprintf _snprintf
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #define strdup _strdup
+#endif
+
+#ifndef HAVE_GETNAMEINFO
+#define NI_MAXSERV 32
+#define NI_MAXHOST 1025
+
+#define NI_NUMERICHOST 1
+#define NI_NUMERICSERV 2
+
+int
+fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host, 
+	size_t hostlen, char *serv, size_t servlen, int flags)
+{
+        struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+        
+        if (serv != NULL) {
+				char tmpserv[16];
+				evutil_snprintf(tmpserv, sizeof(tmpserv),
+					"%d", ntohs(sin->sin_port));
+                if (strlcpy(serv, tmpserv, servlen) >= servlen)
+                        return (-1);
+        }
+
+        if (host != NULL) {
+                if (flags & NI_NUMERICHOST) {
+                        if (strlcpy(host, inet_ntoa(sin->sin_addr),
+                            hostlen) >= hostlen)
+                                return (-1);
+                        else
+                                return (0);
+                } else {
+						struct hostent *hp;
+                        hp = gethostbyaddr((char *)&sin->sin_addr, 
+                            sizeof(struct in_addr), AF_INET);
+                        if (hp == NULL)
+                                return (-2);
+                        
+                        if (strlcpy(host, hp->h_name, hostlen) >= hostlen)
+                                return (-1);
+                        else
+                                return (0);
+                }
+        }
+        return (0);
+}
+
 #endif
 
 #ifndef HAVE_GETADDRINFO
@@ -315,7 +360,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 
 	/* Generate request line */
 	method = evhttp_method(req->type);
-	snprintf(line, sizeof(line), "%s %s HTTP/%d.%d\r\n",
+	evutil_snprintf(line, sizeof(line), "%s %s HTTP/%d.%d\r\n",
 	    method, req->uri, req->major, req->minor);
 	evbuffer_add(evcon->output_buffer, line, strlen(line));
 
@@ -323,7 +368,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	if (req->type == EVHTTP_REQ_POST &&
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		char size[12];
-		snprintf(size, sizeof(size), "%ld",
+		evutil_snprintf(size, sizeof(size), "%ld",
 			 (long)EVBUFFER_LENGTH(req->output_buffer));
 		evhttp_add_header(req->output_headers, "Content-Length", size);
 	}
@@ -380,7 +425,7 @@ evhttp_maybe_add_content_length_header(struct evkeyvalq *headers,
 	if (evhttp_find_header(headers, "Transfer-Encoding") == NULL &&
 	    evhttp_find_header(headers,	"Content-Length") == NULL) {
 		char len[12];
-		snprintf(len, sizeof(len), "%ld", content_length);
+		evutil_snprintf(len, sizeof(len), "%ld", content_length);
 		evhttp_add_header(headers, "Content-Length", len);
 	}
 }
@@ -395,7 +440,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 {
 	int is_keepalive = evhttp_is_connection_keepalive(req->input_headers);
 	char line[1024];
-	snprintf(line, sizeof(line), "HTTP/%d.%d %d %s\r\n",
+	evutil_snprintf(line, sizeof(line), "HTTP/%d.%d %d %s\r\n",
 	    req->major, req->minor, req->response_code,
 	    req->response_code_line);
 	evbuffer_add(evcon->output_buffer, line, strlen(line));
@@ -459,7 +504,7 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 
 	TAILQ_FOREACH(header, req->output_headers, next) {
-		snprintf(line, sizeof(line), "%s: %s\r\n",
+		evutil_snprintf(line, sizeof(line), "%s: %s\r\n",
 		    header->key, header->value);
 		evbuffer_add(evcon->output_buffer, line, strlen(line));
 	}
@@ -508,7 +553,7 @@ evhttp_hostportfile(char *url, char **phost, u_short *pport, char **pfile)
 		/* Generate request file */
 		if (p2 == NULL)
 			p2 = "";
-		snprintf(file, sizeof(file), "/%s", p2);
+		evutil_snprintf(file, sizeof(file), "/%s", p2);
 	}
 
 	p = strchr(host, ':');
@@ -2398,26 +2443,31 @@ static void
 name_from_addr(struct sockaddr *sa, socklen_t salen,
     char **phost, char **pport)
 {
-#ifdef HAVE_GETNAMEINFO
-	/* XXXX not threadsafe. */
-	static char ntop[NI_MAXHOST];
-	static char strport[NI_MAXSERV];
+	char ntop[NI_MAXHOST];
+	char strport[NI_MAXSERV];
 	int ni_result;
 
-	if ((ni_result = getnameinfo(sa, salen,
+#ifdef HAVE_GETNAMEINFO
+	ni_result = getnameinfo(sa, salen,
 		ntop, sizeof(ntop), strport, sizeof(strport),
-		NI_NUMERICHOST|NI_NUMERICSERV)) != 0) {
+		NI_NUMERICHOST|NI_NUMERICSERV);
+	
+	if (ni_result != 0) {
 		if (ni_result == EAI_SYSTEM)
 			event_err(1, "getnameinfo failed");
 		else
 			event_errx(1, "getnameinfo failed: %s", gai_strerror(ni_result));
+		return;
 	}
- 
+#else
+	ni_result = fake_getnameinfo(sa, salen,
+		ntop, sizeof(ntop), strport, sizeof(strport),
+		NI_NUMERICHOST|NI_NUMERICSERV);
+	if (ni_result != 0)
+			return;
+#endif
 	*phost = ntop;
 	*pport = strport;
-#else
-	/* XXXX */
-#endif
 }
 
 /* Either connect or bind */
@@ -2478,7 +2528,7 @@ make_addrinfo(const char *address, u_short port)
         ai.ai_family = AF_INET;
         ai.ai_socktype = SOCK_STREAM;
         ai.ai_flags = AI_PASSIVE;  /* turn NULL host name into INADDR_ANY */
-        snprintf(strport, sizeof(strport), "%d", port);
+        evutil_snprintf(strport, sizeof(strport), "%d", port);
         if ((ai_result = getaddrinfo(address, strport, &ai, &aitop)) != 0) {
                 if ( ai_result == EAI_SYSTEM )
                         event_warn("getaddrinfo");
