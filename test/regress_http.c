@@ -121,7 +121,8 @@ http_connect(const char *address, u_short port)
 	if (!(he = gethostbyname(address))) {
 		event_warn("gethostbyname");
 	}
-	memcpy(&sin.sin_addr, &he->h_addr, sizeof(struct in_addr));
+	memcpy(&sin.sin_addr, he->h_addr_list[0], he->h_length);
+	sin.sin_family = AF_INET;
 	sin.sin_port = htons(port);
 	slen = sizeof(struct sockaddr_in);
 	sa = (struct sockaddr*)&sin;
@@ -254,7 +255,7 @@ http_basic_test(void)
 
 	/* connect to the second port */
 	bufferevent_free(bev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	fd = http_connect("127.0.0.1", port + 1);
 
@@ -273,7 +274,7 @@ http_basic_test(void)
 	event_dispatch();
 
 	bufferevent_free(bev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	evhttp_free(http);
 	
@@ -714,7 +715,7 @@ http_failure_test(void)
 	event_dispatch();
 
 	bufferevent_free(bev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	evhttp_free(http);
 	
@@ -921,7 +922,7 @@ http_base_test(void)
 	event_base_dispatch(base);
 
 	bufferevent_free(bev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	evhttp_free(http);
 
