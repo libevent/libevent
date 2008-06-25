@@ -2337,7 +2337,7 @@ evhttp_get_request_connection(
 	int fd, struct sockaddr *sa, socklen_t salen)
 {
 	struct evhttp_connection *evcon;
-	char *hostname, *portname;
+	char *hostname = NULL, *portname = NULL;
 
 	name_from_addr(sa, salen, &hostname, &portname);
 	event_debug(("%s: new request from %s:%s on %d\n",
