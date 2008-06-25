@@ -1363,6 +1363,8 @@ rpc_test(void)
 			exit(1);
 		}
 		EVTAG_ASSIGN(run, how, "very fast but with some data in it");
+		EVTAG_ASSIGN(run, fixed_bytes,
+		    (unsigned char*)"012345678901234567890123");
 	}
 
 	if (msg_complete(msg) == -1) {

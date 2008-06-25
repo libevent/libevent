@@ -6,6 +6,7 @@ Changes in 1.4.5-stable:
  o Rename INPUT and OUTPUT to EVRPC_INPUT and EVRPC_OUTPUT.  Retain INPUT/OUTPUT aliases on on-win32 platforms for backwards compatibility.
  o Do not use SO_REUSEADDR when connecting
  o Fix Windows build
+ o Fix a bug in event_rpcgen when generated fixed-sized entries
 
 Changes in 1.4.4-stable:
  o Correct the documentation on buffer printf functions.
