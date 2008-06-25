@@ -325,6 +325,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\log.h"
+				>
+			</File>
+			<File
 				RelativePath="..\min_heap.h"
 				>
 			</File>
