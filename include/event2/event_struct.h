@@ -78,7 +78,7 @@ struct {								\
 struct event_base;
 struct event {
 	TAILQ_ENTRY (event) (ev_active_next);
-	unsigned int min_heap_idx;	/* for managing timeouts */
+	int min_heap_idx;	/* for managing timeouts */
 
 	struct event_base *ev_base;
 
