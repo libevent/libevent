@@ -2115,5 +2115,7 @@ http_suite(void)
 	http_stream_in_test();
 	http_stream_in_cancel_test();
 
+#ifndef WIN32
 	http_connection_retry();
+#endif
 }
