@@ -181,15 +181,23 @@ http_readcb(struct bufferevent *bev, void *arg)
 	if (evbuffer_find(EVBUFFER_INPUT(bev),
 		(const unsigned char*) what, strlen(what)) != NULL) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
-		int done;
+		enum message_read_status done;
 
 		req->kind = EVHTTP_RESPONSE;
-		done = evhttp_parse_lines(req, EVBUFFER_INPUT(bev));
+		done = evhttp_parse_firstline(req, EVBUFFER_INPUT(bev));
+		if (done != ALL_DATA_READ)
+			goto out;
+
+		done = evhttp_parse_headers(req, EVBUFFER_INPUT(bev));
+		if (done != ALL_DATA_READ)
+			goto out;
 
 		if (done == 1 &&
 		    evhttp_find_header(req->input_headers,
 			"Content-Type") != NULL)
 			test_ok++;
+
+	 out:
 		evhttp_request_free(req);
 		bufferevent_disable(bev, EV_READ);
 		if (base)
@@ -231,31 +239,53 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	evbuffer_free(evb);
 }
 
+static char const* const CHUNKS[] = {
+	"This is funny",
+	"but not hilarious.",
+	"bwv 1052"
+};
+
+struct chunk_req_state {
+	struct evhttp_request *req;
+	int i;
+};
+
+static void
+http_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
+{
+	struct evbuffer *evb = evbuffer_new();
+	struct chunk_req_state *state = arg;
+	struct timeval when = { 0, 0 };
+
+	evbuffer_add_printf(evb, CHUNKS[state->i]);
+	evhttp_send_reply_chunk(state->req, evb);
+	evbuffer_free(evb);
+
+	if (++state->i < sizeof(CHUNKS)/sizeof(CHUNKS[0])) {
+		event_once(-1, EV_TIMEOUT,
+		    http_chunked_trickle_cb, state, &when);
+	} else {
+		evhttp_send_reply_end(state->req);
+		free(state);
+	}
+}
+
 static void
 http_chunked_cb(struct evhttp_request *req, void *arg)
 {
-	struct evbuffer *evb = evbuffer_new();
+	struct timeval when = { 0, 0 };
+	struct chunk_req_state *state = malloc(sizeof(struct chunk_req_state));
 	event_debug(("%s: called\n", __func__));
+
+	memset(state, 0, sizeof(struct chunk_req_state));
+	state->req = req;
 
 	/* generate a chunked reply */
 	evhttp_send_reply_start(req, HTTP_OK, "Everything is fine");
 
-	/* first chunk */
-	evbuffer_add_printf(evb, "This is funny");
-	evhttp_send_reply_chunk(req, evb);
-
-	/* second chunk */
-	evbuffer_add_printf(evb, "but not hilarious.");
-	evhttp_send_reply_chunk(req, evb);
-
-	/* third and last chunk */
-	evbuffer_add_printf(evb, "bwv 1052");
-	evhttp_send_reply_chunk(req, evb);
-
-	/* finish request */
-	evhttp_send_reply_end(req);
-
-	evbuffer_free(evb);
+	/* but trickle it across several iterations to ensure we're not
+	 * assuming it comes all at once */
+	event_once(-1, EV_TIMEOUT, http_chunked_trickle_cb, state, &when);
 }
 
 static void
@@ -1555,12 +1585,15 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 	if ((what & EVBUFFER_EOF) != 0) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		const char *header;
-		int done;
+		enum message_read_status done;
 		
 		req->kind = EVHTTP_RESPONSE;
-		done = evhttp_parse_lines(req, EVBUFFER_INPUT(bev));
+		done = evhttp_parse_firstline(req, EVBUFFER_INPUT(bev));
+		if (done != ALL_DATA_READ)
+			goto out;
 
-		if (done != 1)
+		done = evhttp_parse_headers(req, EVBUFFER_INPUT(bev));
+		if (done != ALL_DATA_READ)
 			goto out;
 
 		header = evhttp_find_header(req->input_headers, "Transfer-Encoding");
@@ -1678,6 +1711,7 @@ http_chunked_test(void)
 	struct timeval tv_start, tv_end;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
+	int i;
 
 	test_ok = 0;
 	fprintf(stdout, "Testing Chunked HTTP Reply: ");
@@ -1723,23 +1757,28 @@ http_chunked_test(void)
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
-	req = evhttp_request_new(http_chunked_request_done, NULL);
 
-	/* Add the information that we care about */
-	evhttp_add_header(req->output_headers, "Host", "somehost");
+	/* make two requests to check the keepalive behavior */
+	for (i = 0; i < 2; i++) {
+		test_ok = 0;
+		req = evhttp_request_new(http_chunked_request_done, NULL);
 
-	/* We give ownership of the request to the connection */
-	if (evhttp_make_request(evcon, req,
-		EVHTTP_REQ_GET, "/chunked") == -1) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+		/* Add the information that we care about */
+		evhttp_add_header(req->output_headers, "Host", "somehost");
 
-	event_dispatch();
+		/* We give ownership of the request to the connection */
+		if (evhttp_make_request(evcon, req,
+			EVHTTP_REQ_GET, "/chunked") == -1) {
+			fprintf(stdout, "FAILED\n");
+			exit(1);
+		}
 
-	if (test_ok != 1) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
+		event_dispatch();
+
+		if (test_ok != 1) {
+			fprintf(stdout, "FAILED\n");
+			exit(1);
+		}
 	}
 
 	evhttp_connection_free(evcon);

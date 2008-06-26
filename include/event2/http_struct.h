@@ -93,7 +93,6 @@ struct {
 	char major;			/* HTTP Major number */
 	char minor;			/* HTTP Minor number */
 
-	int got_firstline;
 	int response_code;		/* HTTP Response code */
 	char *response_code_line;	/* Readable response */
 
