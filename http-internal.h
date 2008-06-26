@@ -19,6 +19,13 @@
 #define HTTP_PREFIX		"http://"
 #define HTTP_DEFAULTPORT	80
 
+enum message_read_status {
+	ALL_DATA_READ = 1,
+	MORE_DATA_EXPECTED = 0,
+	DATA_CORRUPTED = -1,
+	REQUEST_CANCELED = -2
+};
+
 enum evhttp_connection_error {
 	EVCON_HTTP_TIMEOUT,
 	EVCON_HTTP_EOF,
@@ -34,9 +41,15 @@ struct evhttp_request;
 /* A stupid connection object - maybe make this a bufferevent later */
 
 enum evhttp_connection_state {
-	EVCON_DISCONNECTED,	/* not currently connected not trying either */
-	EVCON_CONNECTING,	/* tries to currently connect */
-	EVCON_CONNECTED		/* connection is established */
+	EVCON_DISCONNECTED,	/**< not currently connected not trying either*/
+	EVCON_CONNECTING,	/**< tries to currently connect */
+	EVCON_IDLE,		/**< connection is established */
+	EVCON_READING_FIRSTLINE,/**< reading Request-Line (incoming conn) or
+				 **< Status-Line (outgoing conn) */
+	EVCON_READING_HEADERS,	/**< reading request/response headers */
+	EVCON_READING_BODY,	/**< reading request/response body */
+	EVCON_READING_TRAILER,	/**< reading request/response chunked trailer */
+	EVCON_WRITING		/**< writing request/response headers/body */
 };
 
 struct event_base;
@@ -60,7 +73,6 @@ struct evhttp_connection {
 #define EVHTTP_CON_INCOMING	0x0001	/* only one request on it ever */
 #define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
 #define EVHTTP_CON_CLOSEDETECT  0x0004  /* detecting if persistent close */
-#define EVHTTP_CON_GOTHEADERS	0x0008	/* done reading headers */
 
 	int timeout;			/* timeout in seconds for events */
 	int retry_cnt;			/* retry count */
@@ -134,10 +146,10 @@ void evhttp_connection_fail(struct evhttp_connection *,
 
 void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, socklen_t);
 
-int evhttp_parse_lines(struct evhttp_request *, struct evbuffer*);
+int evhttp_parse_firstline(struct evhttp_request *, struct evbuffer*);
+int evhttp_parse_headers(struct evhttp_request *, struct evbuffer*);
 
 void evhttp_start_read(struct evhttp_connection *);
-void evhttp_read_header(evutil_socket_t, short, void *);
 void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
 
 void evhttp_write_buffer(struct evhttp_connection *,
