@@ -50,6 +50,7 @@ extern "C" {
 #ifdef _EVENT_HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
+#include <stdarg.h>
 
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t

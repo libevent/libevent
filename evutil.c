@@ -52,7 +52,6 @@
 #if defined WIN32 && !defined(HAVE_GETTIMEOFDAY_H)
 #include <sys/timeb.h>
 #endif
-#include <stdarg.h>
 #include <stdio.h>
 
 #include "evutil.h"
