@@ -1412,6 +1412,29 @@ evhttp_parse_firstline(struct evhttp_request *req, struct evbuffer *buffer)
 	return (status);
 }
 
+static int
+evhttp_append_to_last_header(struct evkeyvalq *headers, const char *line)
+{
+	struct evkeyval *header = TAILQ_LAST(headers, evkeyvalq);
+	char *newval;
+	size_t old_len, line_len;
+
+	if (header == NULL)
+		return (-1);
+
+	old_len = strlen(header->value);
+	line_len = strlen(line);
+
+	newval = mm_realloc(header->value, old_len + line_len + 1);
+	if (newval == NULL)
+		return (-1);
+
+	memcpy(newval + old_len, line, line_len + 1);
+	header->value = newval;
+
+	return (0);
+}
+
 enum message_read_status
 evhttp_parse_headers(struct evhttp_request *req, struct evbuffer* buffer)
 {
@@ -1427,6 +1450,13 @@ evhttp_parse_headers(struct evhttp_request *req, struct evbuffer* buffer)
 			status = ALL_DATA_READ;
 			mm_free(line);
 			break;
+		}
+
+		/* Check if this is a continuation line */
+		if (*line == ' ' || *line == '\t') {
+			if (evhttp_append_to_last_header(headers, line) == -1)
+				goto error;
+			continue;
 		}
 
 		/* Processing of header lines */
