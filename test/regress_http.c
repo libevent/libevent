@@ -231,7 +231,18 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	int empty = evhttp_find_header(req->input_headers, "Empty") != NULL;
 	event_debug(("%s: called\n", __func__));
 	evbuffer_add_printf(evb, "This is funny");
-
+	
+	/* For multi-line headers test */
+	{
+		const char *multi =
+		    evhttp_find_header(req->input_headers,"X-multi");
+		if (multi) {
+			if (strcmp("END", multi + strlen(multi) - 3) == 0)
+				test_ok++;
+			if (evhttp_find_header(req->input_headers, "X-Last"))
+				test_ok++;
+		}
+	}
 	/* allow sending of an empty reply */
 	evhttp_send_reply(req, HTTP_OK, "Everything is fine",
 	    !empty ? evb : NULL);
@@ -2126,6 +2137,52 @@ failed:
 	exit(1);
 }
 
+static void
+http_multi_line_header_test(void)
+{
+	struct bufferevent *bev;
+	int fd;
+	const char *http_start_request;
+	short port = -1;
+	
+	test_ok = 0;
+	fprintf(stdout, "Testing HTTP Server with multi line: ");
+
+	http = http_setup(&port, NULL);
+	
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, http_readcb, http_writecb,
+	    http_errorcb, NULL);
+
+	http_start_request =
+	    "GET /test HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "X-Multi:  aaaaaaaa\r\n"
+	    " a\r\n"
+	    "\tEND\r\n"
+	    "X-Last: last\r\n"
+	    "\r\n";
+		
+	bufferevent_write(bev, http_start_request, strlen(http_start_request));
+
+	event_dispatch();
+	
+	bufferevent_free(bev);
+	close(fd);
+
+	evhttp_free(http);
+
+	if (test_ok != 4) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	
+	fprintf(stdout, "OK\n");
+}
+
 void
 http_suite(void)
 {
@@ -2145,6 +2202,8 @@ http_suite(void)
 	http_failure_test();
 	http_highport_test();
 	http_dispatcher_test();
+
+	http_multi_line_header_test();
 
 	http_incomplete_test(0 /* use_timeout */);
 	http_incomplete_test(1 /* use_timeout */);
