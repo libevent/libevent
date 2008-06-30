@@ -207,6 +207,10 @@ static void evhttp_connection_start_detectclose(
 static void evhttp_connection_stop_detectclose(
 	struct evhttp_connection *evcon);
 static void evhttp_request_dispatch(struct evhttp_connection* evcon);
+static void evhttp_read_firstline(struct evhttp_connection *evcon,
+				  struct evhttp_request *req);
+static void evhttp_read_header(struct evhttp_connection *evcon,
+    struct evhttp_request *req);
 
 void evhttp_read(int, short, void *);
 void evhttp_write(int, short, void *);
@@ -343,6 +347,24 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	event_set(&evcon->ev, evcon->fd, EV_WRITE, evhttp_write, evcon);
 	EVHTTP_BASE_SET(evcon, &evcon->ev);
 	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_WRITE_TIMEOUT);
+}
+
+static int
+evhttp_connected(struct evhttp_connection *evcon)
+{
+	switch (evcon->state) {
+	case EVCON_DISCONNECTED:
+	case EVCON_CONNECTING:
+		return (0);
+	case EVCON_IDLE:
+	case EVCON_READING_FIRSTLINE:
+	case EVCON_READING_HEADERS:
+	case EVCON_READING_BODY:
+	case EVCON_READING_TRAILER:
+	case EVCON_WRITING:
+	default:
+		return (1);
+	}
 }
 
 /*
@@ -687,23 +709,29 @@ evhttp_write(int fd, short what, void *arg)
 		(*evcon->cb)(evcon, evcon->cb_arg);
 }
 
+/**
+ * Advance the connection state.
+ * - If this is an outgoing connection, we've just processed the response;
+ *   idle or close the connection.
+ * - If this is an incoming connection, we've just processed the request;
+ *   respond.
+ */
 static void
 evhttp_connection_done(struct evhttp_connection *evcon)
 {
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	int con_outgoing = evcon->flags & EVHTTP_CON_OUTGOING;
 
-	/*
-	 * if this is an incoming connection, we need to leave the request
-	 * on the connection, so that we can reply to it.
-	 */
 	if (con_outgoing) {
+		/* idle or close the connection */
 	        int need_close;
 		TAILQ_REMOVE(&evcon->requests, req, next);
 		req->evcon = NULL;
 
+		evcon->state = EVCON_IDLE;
+
 		need_close = 
-		    evhttp_is_connection_close(req->flags, req->input_headers) ||
+		    evhttp_is_connection_close(req->flags, req->input_headers)||
 		    evhttp_is_connection_close(req->flags, req->output_headers);
 
 		/* check if we got asked to close the connection */
@@ -713,10 +741,9 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 		if (TAILQ_FIRST(&evcon->requests) != NULL) {
 			/*
 			 * We have more requests; reset the connection
-			 * and deal with the next request.  xxx: no
-			 * persistent connection right now
+			 * and deal with the next request.
 			 */
-			if (evcon->state != EVCON_CONNECTED)
+			if (!evhttp_connected(evcon))
 				evhttp_connection_connect(evcon);
 			else
 				evhttp_request_dispatch(evcon);
@@ -727,6 +754,12 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 			 */
 			evhttp_connection_start_detectclose(evcon);
 		}
+	} else {
+		/*
+		 * incoming connection - we need to leave the request on the
+		 * connection so that we can reply to it.
+		 */
+		evcon->state = EVCON_WRITING;
 	}
 
 	/* notify the user of the request */
@@ -740,12 +773,17 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 
 /*
  * Handles reading from a chunked request.
- * return 1: all data has been read
- * return 0: more data is expected
- * return -1: data is corrupted
+ *   return ALL_DATA_READ:
+ *     all data has been read
+ *   return MORE_DATA_EXPECTED:
+ *     more data is expected
+ *   return DATA_CORRUPTED:
+ *     data is corrupted
+ *   return REQUEST_CANCLED:
+ *     request was canceled by the user calling evhttp_cancel_request
  */
 
-static int
+static enum message_read_status
 evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 {
 	int len;
@@ -768,18 +806,18 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			free(p);
 			if (error) {
 				/* could not get chunk size */
-				return (-1);
+				return (DATA_CORRUPTED);
 			}
 			if (req->ntoread == 0) {
 				/* Last chunk */
-				return (1);
+				return (ALL_DATA_READ);
 			}
 			continue;
 		}
 
 		/* don't have enough to complete a chunk; wait for more */
 		if (len < req->ntoread)
-			return (0);
+			return (MORE_DATA_EXPECTED);
 
 		/* Completed chunk */
 		evbuffer_add(req->input_buffer,
@@ -793,7 +831,28 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 		}
 	}
 
-	return (0);
+	return (MORE_DATA_EXPECTED);
+}
+
+static void
+evhttp_read_trailer(struct evhttp_connection *evcon, struct evhttp_request *req)
+{
+	struct evbuffer *buf = evcon->input_buffer;
+
+	switch (evhttp_parse_headers(req, buf)) {
+	case DATA_CORRUPTED:
+		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
+		break;
+	case ALL_DATA_READ:
+		event_del(&evcon->ev);
+		evhttp_connection_done(evcon);
+		break;
+	case MORE_DATA_EXPECTED:
+	default:
+		evhttp_add_event(&evcon->ev, evcon->timeout,
+		    HTTP_READ_TIMEOUT);
+		break;
+	}
 }
 
 static void
@@ -802,16 +861,24 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	struct evbuffer *buf = evcon->input_buffer;
 	
 	if (req->chunked) {
-		int res = evhttp_handle_chunked_read(req, buf);
-		if (res == 1) {
+		switch (evhttp_handle_chunked_read(req, buf)) {
+		case ALL_DATA_READ:
 			/* finished last chunk */
-			evhttp_connection_done(evcon);
+			evcon->state = EVCON_READING_TRAILER;
+			evhttp_read_trailer(evcon, req);
 			return;
-		} else if (res == -1) {
+		case DATA_CORRUPTED:
 			/* corrupted data */
 			evhttp_connection_fail(evcon,
 			    EVCON_HTTP_INVALID_HEADER);
 			return;
+		case REQUEST_CANCELED:
+			/* request canceled */
+			evhttp_request_free(req);
+			return;
+		case MORE_DATA_EXPECTED:
+		default:
+			break;
 		}
 	} else if (req->ntoread < 0) {
 		/* Read until connection close. */
@@ -863,7 +930,28 @@ evhttp_read(int fd, short what, void *arg)
 		evhttp_connection_done(evcon);
 		return;
 	}
-	evhttp_read_body(evcon, req);
+
+	switch (evcon->state) {
+	case EVCON_READING_FIRSTLINE:
+		evhttp_read_firstline(evcon, req);
+		break;
+	case EVCON_READING_HEADERS:
+		evhttp_read_header(evcon, req);
+		break;
+	case EVCON_READING_BODY:
+		evhttp_read_body(evcon, req);
+		break;
+	case EVCON_READING_TRAILER:
+		evhttp_read_trailer(evcon, req);
+		break;
+	case EVCON_DISCONNECTED:
+	case EVCON_CONNECTING:
+	case EVCON_IDLE:
+	case EVCON_WRITING:
+	default:
+		event_errx(1, "%s: illegal connection state %d",
+			   __func__, evcon->state);
+	}
 }
 
 static void
@@ -872,6 +960,8 @@ evhttp_write_connectioncb(struct evhttp_connection *evcon, void *arg)
 	/* This is after writing the request to the server */
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	assert(req != NULL);
+
+	assert(evcon->state == EVCON_WRITING);
 
 	/* We are done writing our header and are now expecting the response */
 	req->kind = EVHTTP_RESPONSE;
@@ -890,7 +980,7 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 
 	/* notify interested parties that this connection is going down */
 	if (evcon->fd != -1) {
-		if (evcon->state == EVCON_CONNECTED && evcon->closecb != NULL)
+		if (evhttp_connected(evcon) && evcon->closecb != NULL)
 			(*evcon->closecb)(evcon, evcon->closecb_arg);
 	}
 
@@ -954,7 +1044,9 @@ evhttp_request_dispatch(struct evhttp_connection* evcon)
 	evhttp_connection_stop_detectclose(evcon);
 	
 	/* we assume that the connection is connected already */
-	assert(evcon->state == EVCON_CONNECTED);
+	assert(evcon->state == EVCON_IDLE);
+
+	evcon->state = EVCON_WRITING;
 
 	/* Create the header from the store arguments */
 	evhttp_make_header(evcon, req);
@@ -971,16 +1063,13 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 
 	if (evcon->fd != -1) {
 		/* inform interested parties about connection close */
-		if (evcon->state == EVCON_CONNECTED && evcon->closecb != NULL)
+		if (evhttp_connected(evcon) && evcon->closecb != NULL)
 			(*evcon->closecb)(evcon, evcon->closecb_arg);
 
 		EVUTIL_CLOSESOCKET(evcon->fd);
 		evcon->fd = -1;
 	}
 	evcon->state = EVCON_DISCONNECTED;
-
-	/* remove unneeded flags */
-	evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
 }
 
 static void
@@ -1057,7 +1146,7 @@ evhttp_connectioncb(int fd, short what, void *arg)
 
 	/* Reset the retry count as we were successful in connecting */
 	evcon->retry_cnt = 0;
-	evcon->state = EVCON_CONNECTED;
+	evcon->state = EVCON_IDLE;
 
 	/* try to start requests that have queued up on this connection */
 	evhttp_request_dispatch(evcon);
@@ -1295,63 +1384,74 @@ evhttp_add_header(struct evkeyvalq *headers,
  * request object given an event buffer.
  *
  * Returns
- *   -1  on error
- *    0  when we need to read more headers
- *    1  when all headers have been read.
+ *   DATA_CORRUPTED      on error
+ *   MORE_DATA_EXPECTED  when we need to read more headers
+ *   ALL_DATA_READ       when all headers have been read.
  */
 
-int
-evhttp_parse_lines(struct evhttp_request *req, struct evbuffer* buffer)
+enum message_read_status
+evhttp_parse_firstline(struct evhttp_request *req, struct evbuffer *buffer)
 {
 	char *line;
-	int done = 0;
+	enum message_read_status status = ALL_DATA_READ;
+
+	line = evbuffer_readline(buffer);
+	if (line == NULL)
+		return (MORE_DATA_EXPECTED);
+
+	switch (req->kind) {
+	case EVHTTP_REQUEST:
+		if (evhttp_parse_request_line(req, line) == -1)
+			status = DATA_CORRUPTED;
+		break;
+	case EVHTTP_RESPONSE:
+		if (evhttp_parse_response_line(req, line) == -1)
+			status = DATA_CORRUPTED;
+		break;
+	default:
+		status = DATA_CORRUPTED;
+	}
+
+	free(line);
+	return (status);
+}
+
+enum message_read_status
+evhttp_parse_headers(struct evhttp_request *req, struct evbuffer* buffer)
+{
+	char *line;
+	enum message_read_status status = MORE_DATA_EXPECTED;
 
 	struct evkeyvalq* headers = req->input_headers;
-	while ((line = evbuffer_readline(buffer)) != NULL) {
+	while ((line = evbuffer_readline(buffer))
+	       != NULL) {
 		char *skey, *svalue;
 
 		if (*line == '\0') { /* Last header - Done */
-			done = 1;
-			free (line);
+			status = ALL_DATA_READ;
+			free(line);
 			break;
 		}
 
 		/* Processing of header lines */
-		if (req->got_firstline == 0) {
-			switch (req->kind) {
-			case EVHTTP_REQUEST:
-				if (evhttp_parse_request_line(req, line) == -1)
-					goto error;
-				break;
-			case EVHTTP_RESPONSE:
-				if (evhttp_parse_response_line(req, line) == -1)
-					goto error;
-				break;
-			default:
-				goto error;
-			}
-			req->got_firstline = 1;
-		} else {
-			/* Regular header */
-			svalue = line;
-			skey = strsep(&svalue, ":");
-			if (svalue == NULL)
-				goto error;
+		svalue = line;
+		skey = strsep(&svalue, ":");
+		if (svalue == NULL)
+			goto error;
 
-			svalue += strspn(svalue, " ");
+		svalue += strspn(svalue, " ");
 
-			if (evhttp_add_header(headers, skey, svalue) == -1)
-				goto error;
-		}
+		if (evhttp_add_header(headers, skey, svalue) == -1)
+			goto error;
 
-		free (line);
+		free(line);
 	}
 
-	return (done);
+	return (status);
 
  error:
-	free (line);
-	return (-1);
+	free(line);
+	return (DATA_CORRUPTED);
 }
 
 static int
@@ -1385,7 +1485,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 		}
 	}
 		
-	event_debug(("%s: bytes to read: %d (in buffer %d)\n",
+	event_debug(("%s: bytes to read: %lld (in buffer %ld)\n",
 		__func__, req->ntoread,
 		EVBUFFER_LENGTH(req->evcon->input_buffer)));
 
@@ -1402,6 +1502,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		evhttp_connection_done(evcon);
 		return;
 	}
+	evcon->state = EVCON_READING_BODY;
 	xfer_enc = evhttp_find_header(req->input_headers, "Transfer-Encoding");
 	if (xfer_enc != NULL && strcasecmp(xfer_enc, "chunked") == 0) {
 		req->chunked = 1;
@@ -1416,38 +1517,42 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	evhttp_read_body(evcon, req);
 }
 
-void
-evhttp_read_header(int fd, short what, void *arg)
+static void
+evhttp_read_firstline(struct evhttp_connection *evcon,
+		      struct evhttp_request *req)
 {
-	struct evhttp_connection *evcon = arg;
-	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
-	int n, res;
+	enum message_read_status res;
 
-	if (what == EV_TIMEOUT) {
-		event_debug(("%s: timeout on %d\n", __func__, fd));
-		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
+	res = evhttp_parse_firstline(req, evcon->input_buffer);
+	if (res == DATA_CORRUPTED) {
+		/* Error while reading, terminate */
+		event_debug(("%s: bad header lines on %d\n",
+			__func__, evcon->fd));
+		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
+		return;
+	} else if (res == MORE_DATA_EXPECTED) {
+		/* Need more header lines */
+		evhttp_add_event(&evcon->ev, 
+                    evcon->timeout, HTTP_READ_TIMEOUT);
 		return;
 	}
 
-	n = evbuffer_read(evcon->input_buffer, fd, -1);
-	if (n == 0) {
-		event_debug(("%s: no more data on %d", __func__, fd));
-		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
-		return;
-	}
-	if (n == -1) {
-		event_debug(("%s: bad read on %d", __func__, fd));
-		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
-		return;
-	}
+	evhttp_read_header(evcon, req);
+}
 
-	res = evhttp_parse_lines(req, evcon->input_buffer);
-	if (res == -1) {
+static void
+evhttp_read_header(struct evhttp_connection *evcon, struct evhttp_request *req)
+{
+	enum message_read_status res;
+	int fd = evcon->fd;
+
+	res = evhttp_parse_headers(req, evcon->input_buffer);
+	if (res == DATA_CORRUPTED) {
 		/* Error while reading, terminate */
 		event_debug(("%s: bad header lines on %d\n", __func__, fd));
 		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 		return;
-	} else if (res == 0) {
+	} else if (res == MORE_DATA_EXPECTED) {
 		/* Need more header lines */
 		evhttp_add_event(&evcon->ev, 
 		    evcon->timeout, HTTP_READ_TIMEOUT);
@@ -1640,7 +1745,7 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
 	/* If the connection object is not connected; make it so */
-	if (evcon->state != EVCON_CONNECTED)
+	if (!evhttp_connected(evcon))
 		return (evhttp_connection_connect(evcon));
 
 	/*
@@ -1665,10 +1770,11 @@ evhttp_start_read(struct evhttp_connection *evcon)
 	/* Set up an event to read the headers */
 	if (event_initialized(&evcon->ev))
 		event_del(&evcon->ev);
-	event_set(&evcon->ev, evcon->fd, EV_READ, evhttp_read_header, evcon);
+	event_set(&evcon->ev, evcon->fd, EV_READ, evhttp_read, evcon);
 	EVHTTP_BASE_SET(evcon, &evcon->ev);
 	
 	evhttp_add_event(&evcon->ev, evcon->timeout, HTTP_READ_TIMEOUT);
+	evcon->state = EVCON_READING_FIRSTLINE;
 }
 
 static void
@@ -2322,7 +2428,7 @@ evhttp_request_set_chunked_cb(struct evhttp_request *req,
 const char *
 evhttp_request_uri(struct evhttp_request *req) {
 	if (req->uri == NULL)
-		event_debug(("%s: request %p has no uri\n", req));
+		event_debug(("%s: request %p has no uri\n", __func__, req));
 	return (req->uri);
 }
 
@@ -2351,7 +2457,7 @@ evhttp_get_request_connection(
 	evhttp_connection_set_base(evcon, http->base);
 
 	evcon->flags |= EVHTTP_CON_INCOMING;
-	evcon->state = EVCON_CONNECTED;
+	evcon->state = EVCON_READING_FIRSTLINE;
 	
 	evcon->fd = fd;
 

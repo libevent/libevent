@@ -67,6 +67,7 @@ static struct event_base *base;
 void http_suite(void);
 
 void http_basic_cb(struct evhttp_request *req, void *arg);
+static void http_chunked_cb(struct evhttp_request *req, void *arg);
 void http_post_cb(struct evhttp_request *req, void *arg);
 void http_dispatcher_cb(struct evhttp_request *req, void *arg);
 
@@ -91,6 +92,7 @@ http_setup(short *pport, struct event_base *base)
 
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, NULL);
+	evhttp_set_cb(myhttp, "/chunked", http_chunked_cb, NULL);
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, NULL);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, NULL);
 
@@ -163,15 +165,23 @@ http_readcb(struct bufferevent *bev, void *arg)
 	if (evbuffer_find(bev->input,
 		(const unsigned char*) what, strlen(what)) != NULL) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
-		int done;
+		enum message_read_status done;
 
 		req->kind = EVHTTP_RESPONSE;
-		done = evhttp_parse_lines(req, bev->input);
+		done = evhttp_parse_firstline(req, bev->input);
+		if (done != ALL_DATA_READ)
+			goto out;
+
+		done = evhttp_parse_headers(req, bev->input);
+		if (done != ALL_DATA_READ)
+			goto out;
 
 		if (done == 1 &&
 		    evhttp_find_header(req->input_headers,
 			"Content-Type") != NULL)
 			test_ok++;
+
+	out:
 		evhttp_request_free(req);
 		bufferevent_disable(bev, EV_READ);
 		if (base)
@@ -211,6 +221,55 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	    !empty ? evb : NULL);
 
 	evbuffer_free(evb);
+}
+
+static char const* const CHUNKS[] = {
+	"This is funny",
+	"but not hilarious.",
+	"bwv 1052"
+};
+
+struct chunk_req_state {
+	struct evhttp_request *req;
+	int i;
+};
+
+static void
+http_chunked_trickle_cb(int fd, short events, void *arg)
+{
+	struct evbuffer *evb = evbuffer_new();
+	struct chunk_req_state *state = arg;
+	struct timeval when = { 0, 0 };
+
+	evbuffer_add_printf(evb, "%s", CHUNKS[state->i]);
+	evhttp_send_reply_chunk(state->req, evb);
+	evbuffer_free(evb);
+
+	if (++state->i < sizeof(CHUNKS)/sizeof(CHUNKS[0])) {
+		event_once(-1, EV_TIMEOUT,
+		    http_chunked_trickle_cb, state, &when);
+	} else {
+		evhttp_send_reply_end(state->req);
+		free(state);
+	}
+}
+
+static void
+http_chunked_cb(struct evhttp_request *req, void *arg)
+{
+	struct timeval when = { 0, 0 };
+	struct chunk_req_state *state = malloc(sizeof(struct chunk_req_state));
+	event_debug(("%s: called\n", __func__));
+
+	memset(state, 0, sizeof(struct chunk_req_state));
+	state->req = req;
+
+	/* generate a chunked reply */
+	evhttp_send_reply_start(req, HTTP_OK, "Everything is fine");
+
+	/* but trickle it across several iterations to ensure we're not
+	 * assuming it comes all at once */
+	event_once(-1, EV_TIMEOUT, http_chunked_trickle_cb, state, &when);
 }
 
 static void
@@ -937,6 +996,229 @@ http_base_test(void)
 	fprintf(stdout, "OK\n");
 }
 
+/*
+ * the server is going to reply with chunked data.
+ */
+
+static void
+http_chunked_readcb(struct bufferevent *bev, void *arg)
+{
+	/* nothing here */
+}
+
+static void
+http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
+{
+	if (!test_ok)
+		goto out;
+
+	test_ok = -1;
+
+	if ((what & EVBUFFER_EOF) != 0) {
+		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
+		const char *header;
+		enum message_read_status done;
+		
+		req->kind = EVHTTP_RESPONSE;
+		done = evhttp_parse_firstline(req, EVBUFFER_INPUT(bev));
+		if (done != ALL_DATA_READ)
+			goto out;
+
+		done = evhttp_parse_headers(req, EVBUFFER_INPUT(bev));
+		if (done != ALL_DATA_READ)
+			goto out;
+
+		header = evhttp_find_header(req->input_headers, "Transfer-Encoding");
+		if (header == NULL || strcmp(header, "chunked"))
+			goto out;
+
+		header = evhttp_find_header(req->input_headers, "Connection");
+		if (header == NULL || strcmp(header, "close"))
+			goto out;
+
+		header = evbuffer_readline(EVBUFFER_INPUT(bev));
+		if (header == NULL)
+			goto out;
+		/* 13 chars */
+		if (strcmp(header, "d"))
+			goto out;
+		free((char*)header);
+
+		if (strncmp((char *)EVBUFFER_DATA(EVBUFFER_INPUT(bev)),
+			"This is funny", 13))
+			goto out;
+
+		evbuffer_drain(EVBUFFER_INPUT(bev), 13 + 2);
+
+		header = evbuffer_readline(EVBUFFER_INPUT(bev));
+		if (header == NULL)
+			goto out;
+		/* 18 chars */
+		if (strcmp(header, "12"))
+			goto out;
+		free((char *)header);
+
+		if (strncmp((char *)EVBUFFER_DATA(EVBUFFER_INPUT(bev)),
+			"but not hilarious.", 18))
+			goto out;
+
+		evbuffer_drain(EVBUFFER_INPUT(bev), 18 + 2);
+
+		header = evbuffer_readline(EVBUFFER_INPUT(bev));
+		if (header == NULL)
+			goto out;
+		/* 8 chars */
+		if (strcmp(header, "8"))
+			goto out;
+		free((char *)header);
+
+		if (strncmp((char *)EVBUFFER_DATA(EVBUFFER_INPUT(bev)),
+			"bwv 1052.", 8))
+			goto out;
+
+		evbuffer_drain(EVBUFFER_INPUT(bev), 8 + 2);
+
+		header = evbuffer_readline(EVBUFFER_INPUT(bev));
+		if (header == NULL)
+			goto out;
+		/* 0 chars */
+		if (strcmp(header, "0"))
+			goto out;
+		free((char *)header);
+
+		test_ok = 2;
+	}
+
+out:
+	event_loopexit(NULL);
+}
+
+static void
+http_chunked_writecb(struct bufferevent *bev, void *arg)
+{
+	if (EVBUFFER_LENGTH(EVBUFFER_OUTPUT(bev)) == 0) {
+		/* enable reading of the reply */
+		bufferevent_enable(bev, EV_READ);
+		test_ok++;
+	}
+}
+
+static void
+http_chunked_request_done(struct evhttp_request *req, void *arg)
+{
+	if (req->response_code != HTTP_OK) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (evhttp_find_header(req->input_headers,
+		"Transfer-Encoding") == NULL) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (EVBUFFER_LENGTH(req->input_buffer) != 13 + 18 + 8) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	if (strncmp((char *)EVBUFFER_DATA(req->input_buffer),
+		"This is funnybut not hilarious.bwv 1052",
+		13 + 18 + 8)) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+	
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
+static void
+http_chunked_test(void)
+{
+	struct bufferevent *bev;
+	int fd;
+	const char *http_request;
+	short port = -1;
+	struct timeval tv_start, tv_end;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	int i;
+
+	test_ok = 0;
+	fprintf(stdout, "Testing Chunked HTTP Reply: ");
+
+	http = http_setup(&port, NULL);
+
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, 
+	    http_chunked_readcb, http_chunked_writecb,
+	    http_chunked_errorcb, NULL);
+
+	http_request =
+	    "GET /chunked HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	evutil_gettimeofday(&tv_start, NULL);
+	
+	event_dispatch();
+
+	evutil_gettimeofday(&tv_end, NULL);
+	evutil_timersub(&tv_end, &tv_start, &tv_end);
+
+	if (tv_end.tv_sec >= 1) {
+		fprintf(stdout, "FAILED (time)\n");
+		exit (1);
+	}
+
+
+	if (test_ok != 2) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* now try again with the regular connection object */
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* make two requests to check the keepalive behavior */
+	for (i = 0; i < 2; i++) {
+		test_ok = 0;
+		req = evhttp_request_new(http_chunked_request_done, NULL);
+
+		/* Add the information that we care about */
+		evhttp_add_header(req->output_headers, "Host", "somehost");
+
+		/* We give ownership of the request to the connection */
+		if (evhttp_make_request(evcon, req,
+			EVHTTP_REQ_GET, "/chunked") == -1) {
+			fprintf(stdout, "FAILED\n");
+			exit(1);
+		}
+
+		event_dispatch();
+
+		if (test_ok != 1) {
+			fprintf(stdout, "FAILED\n");
+			exit(1);
+		}
+	}
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
+	
+	fprintf(stdout, "OK\n");
+}
+
 void
 http_suite(void)
 {
@@ -950,4 +1232,6 @@ http_suite(void)
 	http_failure_test();
 	http_highport_test();
 	http_dispatcher_test();
+
+	http_chunked_test();
 }

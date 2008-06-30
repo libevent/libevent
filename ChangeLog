@@ -1,6 +1,7 @@
 Changes in 1.4.6-stable:
  o evutil.h now includes <stdarg.h> directly
  o switch all uses of [v]snprintf over to evutil
+ o Correct handling of trailing headers in chunked replies; from Scott Lamb.
 
 Changes in 1.4.5-stable:
  o Fix connection keep-alive behavior for HTTP/1.0
