@@ -193,9 +193,9 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 	memcpy(&kqop->changes[kqop->nchanges++], kev, sizeof(struct kevent));
 
 	event_debug(("%s: fd %d %s%s",
-		 __func__, kev->ident, 
-		 kev->filter == EVFILT_READ ? "EVFILT_READ" : "EVFILT_WRITE",
-		 kev->flags == EV_DELETE ? " (del)" : ""));
+		__func__, (int)kev->ident, 
+		kev->filter == EVFILT_READ ? "EVFILT_READ" : "EVFILT_WRITE",
+		kev->flags == EV_DELETE ? " (del)" : ""));
 
 	return (0);
 }
