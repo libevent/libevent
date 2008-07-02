@@ -326,6 +326,21 @@ evhttp_method(enum evhttp_cmd_type type)
 	return (method);
 }
 
+/**
+ * Determines if a response should have a body.
+ * Follows the rules in RFC 2616 section 4.3.
+ * @return 1 if the response MUST have a body;
+ *         0 if the response MUST NOT have a body.
+ */
+static int
+evhttp_response_needs_body(struct evhttp_request *req)
+{
+	return (req->response_code != HTTP_NOCONTENT &&
+		req->response_code != HTTP_NOTMODIFIED &&
+		(req->response_code < 100 || req->response_code >= 200) &&
+		req->type != EVHTTP_REQ_HEAD);
+}
+
 static void
 evhttp_add_event(struct event *ev, int timeout, int default_timeout)
 {
@@ -482,7 +497,8 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 			evhttp_add_header(req->output_headers,
 			    "Connection", "keep-alive");
 
-		if (req->minor == 1 || is_keepalive) {
+		if ((req->minor == 1 || is_keepalive) &&
+		    evhttp_response_needs_body(req)) {
 			/* 
 			 * we need to add the content length if the
 			 * user did not give it, this is required for
@@ -495,7 +511,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	}
 
 	/* Potentially add headers for unidentified content. */
-	if (EVBUFFER_LENGTH(req->output_buffer)) {
+	if (evhttp_response_needs_body(req)) {
 		if (evhttp_find_header(req->output_headers,
 			"Content-Type") == NULL) {
 			evhttp_add_header(req->output_headers,
@@ -1601,9 +1617,7 @@ evhttp_read_header(struct evhttp_connection *evcon,
 		break;
 
 	case EVHTTP_RESPONSE:
-		if (req->response_code == HTTP_NOCONTENT ||
-		    req->response_code == HTTP_NOTMODIFIED ||
-		    (req->response_code >= 100 && req->response_code < 200)) {
+		if (!evhttp_response_needs_body(req)) {
 			event_debug(("%s: skipping body for code %d\n",
 					__func__, req->response_code));
 			evhttp_connection_done(evcon);
@@ -1957,8 +1971,14 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
 	/* set up to watch for client close */
 	evhttp_connection_start_detectclose(req->evcon);
 	evhttp_response_code(req, code, reason);
-	if (req->major == 1 && req->minor == 1) {
-		/* use chunked encoding for HTTP/1.1 */
+	if (evhttp_find_header(req->output_headers, "Content-Length") == NULL &&
+	    req->major == 1 && req->minor == 1 &&
+	    evhttp_response_needs_body(req)) {
+		/*
+		 * prefer HTTP/1.1 chunked encoding to closing the connection;
+		 * note RFC 2616 section 4.4 forbids it with Content-Length:
+		 * and it's not necessary then anyway.
+		 */
 		evhttp_add_header(req->output_headers, "Transfer-Encoding",
 		    "chunked");
 		req->chunked = 1;
@@ -1971,6 +1991,10 @@ void
 evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
 {
 	struct evbuffer *output = bufferevent_get_output(req->evcon->bufev);
+	if (EVBUFFER_LENGTH(databuf) == 0)
+		return;
+	if (!evhttp_response_needs_body(req))
+		return;
 	if (req->chunked) {
 		evbuffer_add_printf(output, "%x\r\n",
 				    (unsigned)EVBUFFER_LENGTH(databuf));

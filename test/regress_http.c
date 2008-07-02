@@ -64,6 +64,8 @@ static struct evhttp *http;
 /* set if a test needs to call loopexit on a base */
 static struct event_base *base;
 
+static char const BASIC_REQUEST_BODY[] = "This is funny";
+
 void http_suite(void);
 
 static void http_basic_cb(struct evhttp_request *req, void *arg);
@@ -96,6 +98,7 @@ http_setup(short *pport, struct event_base *base)
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, NULL);
 	evhttp_set_cb(myhttp, "/chunked", http_chunked_cb, NULL);
+	evhttp_set_cb(myhttp, "/streamed", http_chunked_cb, NULL);
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, NULL);
 	evhttp_set_cb(myhttp, "/putit", http_put_cb, NULL);
 	evhttp_set_cb(myhttp, "/deleteit", http_delete_cb, NULL);
@@ -174,7 +177,7 @@ http_connect(const char *address, u_short port)
 static void
 http_readcb(struct bufferevent *bev, void *arg)
 {
-	const char *what = "This is funny";
+	const char *what = BASIC_REQUEST_BODY;
 
  	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(EVBUFFER_INPUT(bev))));
 	
@@ -230,7 +233,7 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	struct evbuffer *evb = evbuffer_new();
 	int empty = evhttp_find_header(req->input_headers, "Empty") != NULL;
 	event_debug(("%s: called\n", __func__));
-	evbuffer_add_printf(evb, "This is funny");
+	evbuffer_add_printf(evb, BASIC_REQUEST_BODY);
 	
 	/* For multi-line headers test */
 	{
@@ -297,7 +300,11 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 	memset(state, 0, sizeof(struct chunk_req_state));
 	state->req = req;
 
-	/* generate a chunked reply */
+ 	if (strcmp(evhttp_request_uri(req), "/streamed") == 0) {
+ 		evhttp_add_header(req->output_headers, "Content-Length", "39");
+ 	}
+ 
+ 	/* generate a chunked/streamed reply */
 	evhttp_send_reply_start(req, HTTP_OK, "Everything is fine");
 
 	/* but trickle it across several iterations to ensure we're not
@@ -416,7 +423,7 @@ http_delete_cb(struct evhttp_request *req, void *arg)
 	}
 
 	event_debug(("%s: called\n", __func__));
-	evbuffer_add_printf(evb, "This is funny");
+	evbuffer_add_printf(evb, BASIC_REQUEST_BODY);
 
 	/* allow sending of an empty reply */
 	evhttp_send_reply(req, HTTP_OK, "Everything is fine",
@@ -494,7 +501,7 @@ http_connection_test(int persistent)
 	 * server using our make request method.
 	 */
 
-	req = evhttp_request_new(http_request_done, NULL);
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 
 	/* Add the information that we care about */
 	evhttp_add_header(req->output_headers, "Host", "somehost");
@@ -515,7 +522,7 @@ http_connection_test(int persistent)
 	/* try to make another request over the same connection */
 	test_ok = 0;
 	
-	req = evhttp_request_new(http_request_done, NULL);
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 
 	/* Add the information that we care about */
 	evhttp_add_header(req->output_headers, "Host", "somehost");
@@ -636,7 +643,7 @@ http_cancel_test(void)
 	/* try to make another request over the same connection */
 	test_ok = 0;
 	
-	req = evhttp_request_new(http_request_done, NULL);
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 
 	/* Add the information that we care about */
 	evhttp_add_header(req->output_headers, "Host", "somehost");
@@ -679,7 +686,7 @@ http_cancel_test(void)
 static void
 http_request_done(struct evhttp_request *req, void *arg)
 {
-	const char *what = "This is funny";
+	const char *what = arg;
 
 	if (req->response_code != HTTP_OK) {
 		fprintf(stderr, "FAILED\n");
@@ -776,7 +783,7 @@ http_virtual_host_test(void)
 	test_ok = 0;
 
 	/* make a request with the right host and expect a response */
-	req = evhttp_request_new(http_request_done, NULL);
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 
 	/* Add the information that we care about */
 	evhttp_add_header(req->output_headers, "Host", "foo.com");
@@ -798,7 +805,7 @@ http_virtual_host_test(void)
 	test_ok = 0;
 
 	/* make a request with the right host and expect a response */
-	req = evhttp_request_new(http_request_done, NULL);
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 
 	/* Add the information that we care about */
 	evhttp_add_header(req->output_headers, "Host", "bar.magic.foo.com");
@@ -1046,7 +1053,7 @@ http_post_cb(struct evhttp_request *req, void *arg)
 	}
 	
 	evb = evbuffer_new();
-	evbuffer_add_printf(evb, "This is funny");
+	evbuffer_add_printf(evb, BASIC_REQUEST_BODY);
 
 	evhttp_send_reply(req, HTTP_OK, "Everything is fine", evb);
 
@@ -1056,7 +1063,7 @@ http_post_cb(struct evhttp_request *req, void *arg)
 void
 http_postrequest_done(struct evhttp_request *req, void *arg)
 {
-	const char *what = "This is funny";
+	const char *what = BASIC_REQUEST_BODY;
 
 	if (req == NULL) {
 		fprintf(stderr, "FAILED (timeout)\n");
@@ -1719,7 +1726,7 @@ http_chunked_request_done(struct evhttp_request *req, void *arg)
 }
 
 static void
-http_chunked_test(void)
+http_chunk_out_test(void)
 {
 	struct bufferevent *bev;
 	int fd;
@@ -1796,6 +1803,55 @@ http_chunked_test(void)
 			fprintf(stdout, "FAILED\n");
 			exit(1);
 		}
+	}
+
+	evhttp_connection_free(evcon);
+	evhttp_free(http);
+	
+	fprintf(stdout, "OK\n");
+}
+
+static void
+http_stream_out_test(void)
+{
+	short port = -1;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	
+	test_ok = 0;
+	printf("Tests streaming responses out: ");
+
+	http = http_setup(&port, NULL);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/*
+	 * At this point, we want to schedule a request to the HTTP
+	 * server using our make request method.
+	 */
+
+	req = evhttp_request_new(http_request_done,
+	    (void *)"This is funnybut not hilarious.bwv 1052");
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/streamed")
+	    == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
 	}
 
 	evhttp_connection_free(evcon);
@@ -1885,7 +1941,8 @@ http_stream_in_test(void)
 	    "This is funnybut not hilarious.bwv 1052");
 
 	printf("Testing streamed reading of non-chunked response: ");
-	_http_stream_in_test("/test", 13, "This is funny");
+	_http_stream_in_test("/test", strlen(BASIC_REQUEST_BODY),
+	    BASIC_REQUEST_BODY);
 }
 
 static void
@@ -2273,7 +2330,8 @@ http_suite(void)
 	http_incomplete_test(0 /* use_timeout */);
 	http_incomplete_test(1 /* use_timeout */);
 
-	http_chunked_test();
+	http_chunk_out_test();
+	http_stream_out_test();
 
 	http_stream_in_test();
 	http_stream_in_cancel_test();
