@@ -4,6 +4,7 @@ Changes in 1.4.6-stable:
  o Correct handling of trailing headers in chunked replies; from Scott Lamb.
  o Support multi-line HTTP headers; based on a patch from Moshe Litvin
  o Reject negative Content-Length headers; anonymous bug report
+ o Detect CLOCK_MONOTONIC at runtime for evdns; anonymous bug report	
 
 Changes in 1.4.5-stable:
  o Fix connection keep-alive behavior for HTTP/1.0
