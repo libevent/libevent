@@ -1056,12 +1056,16 @@ default_transaction_id_fn(void)
 	u16 trans_id;
 #ifdef DNS_USE_CPU_CLOCK_FOR_ID
 	struct timespec ts;
+	static int clkid = -1;
+	if (clkid == -1) {
+		clkid = CLOCK_REALTIME;
 #ifdef CLOCK_MONOTONIC
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
-#else
-	if (clock_gettime(CLOCK_REALTIME, &ts) == -1)
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) != -1)
+			clkid = CLOCK_MONOTONIC;
 #endif
-	event_err(1, "clock_gettime");
+	}
+	if (clock_gettime(clkid, &ts) == -1)
+		event_err(1, "clock_gettime");
 	trans_id = ts.tv_nsec & 0xffff;
 #endif
 
