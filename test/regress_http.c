@@ -227,6 +227,12 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 				test_ok++;
 		}
 	}
+
+	/* injecting a bad content-length */
+	if (evhttp_find_header(req->input_headers, "X-Negative"))
+		evhttp_add_header(req->output_headers,
+		    "Content-Length", "-100");
+
 	/* allow sending of an empty reply */
 	evhttp_send_reply(req, HTTP_OK, "Everything is fine",
 	    !empty ? evb : NULL);
@@ -1276,6 +1282,64 @@ http_multi_line_header_test(void)
 	fprintf(stdout, "OK\n");
 }
 
+static void
+http_request_bad(struct evhttp_request *req, void *arg)
+{
+	if (req != NULL) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
+	test_ok = 1;
+	event_loopexit(NULL);
+}
+
+static void
+http_negative_content_length_test(void)
+{
+	short port = -1;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	
+	test_ok = 0;
+	fprintf(stdout, "Testing HTTP Negative Content Length: ");
+
+	http = http_setup(&port, NULL);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	if (evcon == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/*
+	 * At this point, we want to schedule a request to the HTTP
+	 * server using our make request method.
+	 */
+
+	req = evhttp_request_new(http_request_bad, NULL);
+
+	/* Cause the response to have a negative content-length */
+	evhttp_add_header(req->output_headers, "X-Negative", "makeitso");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	evhttp_free(http);
+
+	if (test_ok != 1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	fprintf(stdout, "OK\n");
+}
+
 void
 http_suite(void)
 {
@@ -1291,6 +1355,7 @@ http_suite(void)
 	http_dispatcher_test();
 
 	http_multi_line_header_test();
+	http_negative_content_length_test();
 
 	http_chunked_test();
 }

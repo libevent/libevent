@@ -3,6 +3,7 @@ Changes in 1.4.6-stable:
  o switch all uses of [v]snprintf over to evutil
  o Correct handling of trailing headers in chunked replies; from Scott Lamb.
  o Support multi-line HTTP headers; based on a patch from Moshe Litvin
+ o Reject negative Content-Length headers; anonymous bug report
 
 Changes in 1.4.5-stable:
  o Fix connection keep-alive behavior for HTTP/1.0
