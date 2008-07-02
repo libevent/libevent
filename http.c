@@ -395,7 +395,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		char size[12];
 		evutil_snprintf(size, sizeof(size), "%ld",
-						(long)EVBUFFER_LENGTH(req->output_buffer));
+		    (long)EVBUFFER_LENGTH(req->output_buffer));
 		evhttp_add_header(req->output_headers, "Content-Length", size);
 	}
 }
@@ -726,6 +726,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 	while ((len = EVBUFFER_LENGTH(buf)) > 0) {
 		if (req->ntoread < 0) {
 			/* Read chunk size */
+			ev_int64_t ntoread;
 			char *p = evbuffer_readln(buf, NULL, EVBUFFER_EOL_CRLF);
 			char *endp;
 			int error;
@@ -736,13 +737,16 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 				mm_free(p);
 				continue;
 			}
-			req->ntoread = evutil_strtoll(p, &endp, 16);
-			error = *p == '\0' || (*endp != '\0' && *endp != ' ');
+			ntoread = evutil_strtoll(p, &endp, 16);
+			error = (*p == '\0' ||
+			    (*endp != '\0' && *endp != ' ') ||
+			    ntoread < 0);
 			mm_free(p);
 			if (error) {
 				/* could not get chunk size */
 				return (DATA_CORRUPTED);
 			}
+			req->ntoread = ntoread;
 			if (req->ntoread == 0) {
 				/* Last chunk */
 				return (ALL_DATA_READ);
@@ -1503,12 +1507,13 @@ evhttp_get_body_length(struct evhttp_request *req)
 		req->ntoread = -1;
 	} else {
 		char *endp;
-		req->ntoread = evutil_strtoll(content_length, &endp, 10);
-		if (*content_length == '\0' || *endp != '\0') {
-			event_warnx("%s: illegal content length: %s",
-			    __func__, content_length);
+		ev_int64_t ntoread = evutil_strtoll(content_length, &endp, 10);
+		if (*content_length == '\0' || *endp != '\0' || ntoread < 0) {
+			event_debug(("%s: illegal content length: %s",
+				__func__, content_length));
 			return (-1);
 		}
+		req->ntoread = ntoread;
 	}
 		
 	event_debug(("%s: bytes to read: %d (in buffer %ld)\n",
