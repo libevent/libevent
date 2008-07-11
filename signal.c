@@ -195,7 +195,7 @@ evsignal_add(struct event *ev)
 	struct evsignal_info *sig = &ev->ev_base->sig;
 
 	evsignal = EVENT_SIGNAL(ev);
-	assert(evsignal >= 0 & evsignal < NSIG);
+	assert(evsignal >= 0 && evsignal < NSIG);
 	if (TAILQ_EMPTY(&sig->evsigevents[evsignal])) {
 		event_debug(("%s: %p: changing signal handler", __func__, ev));
 		if (_evsignal_set_handler(
@@ -256,7 +256,7 @@ evsignal_del(struct event *ev)
 	struct evsignal_info *sig = &base->sig;
 	int evsignal = EVENT_SIGNAL(ev);
 
-	assert(evsignal >= 0 & evsignal < NSIG);
+	assert(evsignal >= 0 && evsignal < NSIG);
 
 	/* multiple events may listen to the same signal */
 	TAILQ_REMOVE(&sig->evsigevents[evsignal], ev, ev_signal_next);
