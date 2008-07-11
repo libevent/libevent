@@ -364,14 +364,17 @@ kq_del(void *arg, struct event *ev)
 
 	if (ev->ev_events & EV_SIGNAL) {
 		int nsignal = EVENT_SIGNAL(ev);
+		struct timespec timeout = { 0, 0 };
 
  		memset(&kev, 0, sizeof(kev));
 		kev.ident = nsignal;
 		kev.filter = EVFILT_SIGNAL;
 		kev.flags = EV_DELETE;
 		
-		if (kq_insert(kqop, &kev) == -1)
-			return (-1);
+		/* Because we insert signal events immediately, we need to
+		 * delete them immediately, too */
+                if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
+                	return (-1);
 
 		if (_evsignal_restore_handler(ev->ev_base, nsignal) == -1)
 			return (-1);
