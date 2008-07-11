@@ -187,7 +187,6 @@ event_base_new(void)
 	
 	min_heap_ctor(&base->timeheap);
 	TAILQ_INIT(&base->eventqueue);
-	TAILQ_INIT(&base->sig.signalqueue);
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
 	
@@ -455,7 +454,7 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval *tv_p;
 	int res, done;
 
-	if(!TAILQ_EMPTY(&base->sig.signalqueue))
+	if (&base->sig.ev_signal_added)
 		evsignal_base = base;
 	done = 0;
 	while (!done) {
@@ -667,13 +666,11 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 	int flags = 0;
 
 	if (ev->ev_flags & EVLIST_INSERTED)
-		flags |= (ev->ev_events & (EV_READ|EV_WRITE));
+		flags |= (ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL));
 	if (ev->ev_flags & EVLIST_ACTIVE)
 		flags |= ev->ev_res;
 	if (ev->ev_flags & EVLIST_TIMEOUT)
 		flags |= EV_TIMEOUT;
-	if (ev->ev_flags & EVLIST_SIGNAL)
-		flags |= EV_SIGNAL;
 
 	event &= (EV_TIMEOUT|EV_READ|EV_WRITE|EV_SIGNAL);
 
@@ -741,18 +738,11 @@ event_add(struct event *ev, const struct timeval *tv)
 		event_queue_insert(base, ev, EVLIST_TIMEOUT);
 	}
 
-	if ((ev->ev_events & (EV_READ|EV_WRITE)) &&
+	if ((ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL)) &&
 	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE))) {
 		int res = evsel->add(evbase, ev);
 		if (res != -1)
 			event_queue_insert(base, ev, EVLIST_INSERTED);
-
-		return (res);
-	} else if ((ev->ev_events & EV_SIGNAL) &&
-	    !(ev->ev_flags & EVLIST_SIGNAL)) {
-		int res = evsel->add(evbase, ev);
-		if (res != -1)
-			event_queue_insert(base, ev, EVLIST_SIGNAL);
 
 		return (res);
 	}
@@ -794,9 +784,6 @@ event_del(struct event *ev)
 
 	if (ev->ev_flags & EVLIST_INSERTED) {
 		event_queue_remove(base, ev, EVLIST_INSERTED);
-		return (evsel->del(evbase, ev));
-	} else if (ev->ev_flags & EVLIST_SIGNAL) {
-		event_queue_remove(base, ev, EVLIST_SIGNAL);
 		return (evsel->del(evbase, ev));
 	}
 
@@ -934,9 +921,6 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 	case EVLIST_TIMEOUT:
 		min_heap_erase(&base->timeheap, ev);
 		break;
-	case EVLIST_SIGNAL:
-		TAILQ_REMOVE(&base->sig.signalqueue, ev, ev_signal_next);
-		break;
 	default:
 		event_errx(1, "%s: unknown queue %x", __func__, queue);
 	}
@@ -971,9 +955,6 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		min_heap_push(&base->timeheap, ev);
 		break;
 	}
-	case EVLIST_SIGNAL:
-		TAILQ_INSERT_TAIL(&base->sig.signalqueue, ev, ev_signal_next);
-		break;
 	default:
 		event_errx(1, "%s: unknown queue %x", __func__, queue);
 	}

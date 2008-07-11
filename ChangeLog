@@ -6,6 +6,7 @@ Changes in 1.4.6-stable:
  o Reject negative Content-Length headers; anonymous bug report
  o Detect CLOCK_MONOTONIC at runtime for evdns; anonymous bug report	
  o Fix a bug where deleting signals with the kqueue backend would cause subsequent adds to fail
+ o Support multiple events listening on the same signal; make signals regular events that go on the same event queue.
 
 Changes in 1.4.5-stable:
  o Fix connection keep-alive behavior for HTTP/1.0
