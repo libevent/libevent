@@ -517,6 +517,9 @@ test_simplesignal(void)
 	setup_test("Simple signal: ");
 	signal_set(&ev, SIGALRM, signal_cb, &ev);
 	signal_add(&ev, NULL);
+	/* find bugs in which operations are re-ordered */
+	signal_del(&ev);
+	signal_add(&ev, NULL);
 
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 1;
