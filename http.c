@@ -1575,7 +1575,8 @@ evhttp_read_firstline(struct evhttp_connection *evcon,
 	res = evhttp_parse_firstline(req, bufferevent_get_input(evcon->bufev));
 	if (res == DATA_CORRUPTED) {
 		/* Error while reading, terminate */
-		event_debug(("%s: bad header lines on %d\n", __func__, fd));
+		event_debug(("%s: bad header lines on %d\n",
+			__func__, evcon->fd));
 		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 		return;
 	} else if (res == MORE_DATA_EXPECTED) {

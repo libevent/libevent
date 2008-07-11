@@ -117,6 +117,7 @@ Changes in current version:
  o Detect CLOCK_MONOTONIC at runtime for evdns; anonymous bug report	
  o Various HTTP correctness fixes from Scott Lamb
  o Fix a bug where deleting signals with the kqueue backend would cause subsequent adds to fail
+ o Support multiple events listening on the same signal; make signals regular events that go on the same event queue.
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

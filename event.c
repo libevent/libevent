@@ -244,7 +244,6 @@ event_base_new_with_config(struct event_config *cfg)
 
 	min_heap_ctor(&base->timeheap);
 	TAILQ_INIT(&base->eventqueue);
-	TAILQ_INIT(&base->sig.signalqueue);
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
 
@@ -678,7 +677,7 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval *tv_p;
 	int res, done;
 
-	if(!TAILQ_EMPTY(&base->sig.signalqueue))
+	if (&base->sig.ev_signal_added)
 		evsignal_base = base;
 	done = 0;
 	while (!done) {
@@ -939,13 +938,11 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 	int flags = 0;
 
 	if (ev->ev_flags & EVLIST_INSERTED)
-		flags |= (ev->ev_events & (EV_READ|EV_WRITE));
+		flags |= (ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL));
 	if (ev->ev_flags & EVLIST_ACTIVE)
 		flags |= ev->ev_res;
 	if (ev->ev_flags & EVLIST_TIMEOUT)
 		flags |= EV_TIMEOUT;
-	if (ev->ev_flags & EVLIST_SIGNAL)
-		flags |= EV_SIGNAL;
 
 	event &= (EV_TIMEOUT|EV_READ|EV_WRITE|EV_SIGNAL);
 
@@ -1026,7 +1023,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 		 * removes it from the active list. */
 		if ((ev->ev_flags & EVLIST_ACTIVE) &&
 		    (ev->ev_res & EV_TIMEOUT)) {
-			if (ev->ev_flags & EVLIST_SIGNAL) {
+			if (ev->ev_events & EV_SIGNAL) {
 				/* See if we are just active executing
 				 * this event in a loop
 				 */
@@ -1049,16 +1046,11 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 		event_queue_insert(base, ev, EVLIST_TIMEOUT);
 	}
 
-	if ((ev->ev_events & (EV_READ|EV_WRITE)) &&
+	if ((ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL)) &&
 	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE))) {
 		res = evsel->add(evbase, ev);
 		if (res != -1)
 			event_queue_insert(base, ev, EVLIST_INSERTED);
-	} else if ((ev->ev_events & EV_SIGNAL) &&
-	    !(ev->ev_flags & EVLIST_SIGNAL)) {
-		res = evsel->add(evbase, ev);
-		if (res != -1)
-			event_queue_insert(base, ev, EVLIST_SIGNAL);
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
@@ -1104,7 +1096,7 @@ event_del_internal(struct event *ev)
 	assert(!(ev->ev_flags & ~EVLIST_ALL));
 
 	/* See if we are just active executing this event in a loop */
-	if (ev->ev_flags & EVLIST_SIGNAL) {
+	if (ev->ev_events & EV_SIGNAL) {
 		if (ev->ev_ncalls && ev->ev_pncalls) {
 			/* Abort loop */
 			*ev->ev_pncalls = 0;
@@ -1119,9 +1111,6 @@ event_del_internal(struct event *ev)
 
 	if (ev->ev_flags & EVLIST_INSERTED) {
 		event_queue_remove(base, ev, EVLIST_INSERTED);
-		res = evsel->del(evbase, ev);
-	} else if (ev->ev_flags & EVLIST_SIGNAL) {
-		event_queue_remove(base, ev, EVLIST_SIGNAL);
 		res = evsel->del(evbase, ev);
 	}
 
@@ -1158,7 +1147,7 @@ event_active_internal(struct event *ev, int res, short ncalls)
 
 	ev->ev_res = res;
 
-	if (ev->ev_flags & EVLIST_SIGNAL) {
+	if (ev->ev_events & EV_SIGNAL) {
 		ev->ev_ncalls = ncalls;
 		ev->ev_pncalls = NULL;
 	}
@@ -1298,9 +1287,6 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 	case EVLIST_TIMEOUT:
 		min_heap_erase(&base->timeheap, ev);
 		break;
-	case EVLIST_SIGNAL:
-		TAILQ_REMOVE(&base->sig.signalqueue, ev, ev_signal_next);
-		break;
 	default:
 		event_errx(1, "%s: unknown queue %x", __func__, queue);
 	}
@@ -1335,9 +1321,6 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		min_heap_push(&base->timeheap, ev);
 		break;
 	}
-	case EVLIST_SIGNAL:
-		TAILQ_INSERT_TAIL(&base->sig.signalqueue, ev, ev_signal_next);
-		break;
 	default:
 		event_errx(1, "%s: unknown queue %x", __func__, queue);
 	}
