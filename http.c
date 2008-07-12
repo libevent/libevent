@@ -926,8 +926,13 @@ evhttp_read(int fd, short what, void *arg)
 	event_debug(("%s: got %d on %d\n", __func__, n, fd));
 	
 	if (n == -1) {
-		event_debug(("%s: evbuffer_read", __func__));
-		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
+		if (errno != EINTR && errno != EAGAIN) {
+			event_debug(("%s: evbuffer_read", __func__));
+			evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
+		} else {
+			evhttp_add_event(&evcon->ev, evcon->timeout,
+			    HTTP_READ_TIMEOUT);	       
+		}
 		return;
 	} else if (n == 0) {
 		/* Connection closed */
