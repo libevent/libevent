@@ -1270,7 +1270,7 @@ http_multi_line_header_test(void)
 	event_dispatch();
 	
 	bufferevent_free(bev);
-	close(fd);
+	EVUTIL_CLOSESOCKET(fd);
 
 	evhttp_free(http);
 
