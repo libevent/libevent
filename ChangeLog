@@ -8,6 +8,7 @@ Changes in 1.4.6-stable:
  o Fix a bug where deleting signals with the kqueue backend would cause subsequent adds to fail
  o Support multiple events listening on the same signal; make signals regular events that go on the same event queue; problem report by Alexander Drozdov.
  o Deal with evbuffer_read() returning -1 on EINTR|EAGAIN; from Adam Langley.
+ o Fix a bug in which the DNS server would incorrectly set the type of a cname reply to a.
 
 Changes in 1.4.5-stable:
  o Fix connection keep-alive behavior for HTTP/1.0
