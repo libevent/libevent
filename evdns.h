@@ -527,9 +527,16 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
 
 #define EVDNS_CLASS_INET   1
 
+/* flags that can be set in answers; as part of the err parameter */
+#define EVDNS_FLAGS_AA	0x400
+#define EVDNS_FLAGS_RD	0x080
+
 struct evdns_server_port *evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
 struct evdns_server_port *evdns_add_server_port_with_base(struct event_base *base, int socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
 void evdns_close_server_port(struct evdns_server_port *port);
+
+/** allows setting of the AA or RD flags */
+void evdns_server_request_set_flags(struct evdns_server_request *req, int flags);
 
 int evdns_server_request_add_reply(struct evdns_server_request *req, int section, const char *name, int type, int dns_class, int ttl, int datalen, int is_name, const char *data);
 int evdns_server_request_add_a_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl);

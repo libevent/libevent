@@ -1619,6 +1619,14 @@ evdns_server_request_add_cname_reply(struct evdns_server_request *req, const cha
 		  ttl, -1, 1, cname);
 }
 
+/* exported function */
+void
+evdns_server_request_set_flags(struct evdns_server_request *exreq, int flags)
+{
+	struct server_request *req = TO_SERVER_REQUEST(exreq);
+	req->base.flags &= ~(EVDNS_FLAGS_AA|EVDNS_FLAGS_RD);
+	req->base.flags |= flags;
+}
 
 static int
 evdns_server_request_format_response(struct server_request *req, int err)
