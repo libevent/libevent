@@ -145,14 +145,19 @@ _evsignal_set_handler(struct event_base *base,
 	 * a dynamic array is used to keep footprint on the low side.
 	 */
 	if (evsignal >= sig->sh_old_max) {
+		int new_max = evsignal + 1;
 		event_debug(("%s: evsignal (%d) >= sh_old_max (%d), resizing",
 			    __func__, evsignal, sig->sh_old_max));
-		sig->sh_old_max = evsignal + 1;
-		p = mm_realloc(sig->sh_old, sig->sh_old_max * sizeof *sig->sh_old);
+		p = mm_realloc(sig->sh_old, new_max * sizeof(*sig->sh_old));
 		if (p == NULL) {
 			event_warn("realloc");
 			return (-1);
 		}
+
+		memset((char *)p + sig->sh_old_max * sizeof(*sig->sh_old),
+		    0, (new_max - sig->sh_old_max) * sizeof(*sig->sh_old));
+
+		sig->sh_old_max = new_max;
 		sig->sh_old = p;
 	}
 
@@ -327,8 +332,11 @@ evsignal_dealloc(struct event_base *base)
 		event_del(&base->sig.ev_signal);
 		base->sig.ev_signal_added = 0;
 	}
-	for (i = 0; i < NSIG; ++i)
+	for (i = 0; i < NSIG; ++i) {
+		if (i < base->sig.sh_old_max && base->sig.sh_old[i] != NULL)
+			_evsignal_restore_handler(base, i);
 		assert(TAILQ_EMPTY(&base->sig.evsigevents[0]));
+	}
 
 	EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);
 	base->sig.ev_signal_pair[0] = -1;
