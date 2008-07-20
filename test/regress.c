@@ -479,12 +479,14 @@ test_periodictimeout(void)
 }
 
 #ifndef WIN32
+static void signal_cb(int fd, short event, void *arg);
+
 extern struct event_base *current_base;
 static void
 test_fork(void)
 {
 	int status;
-	struct event ev;
+	struct event ev, sig_ev;
 	pid_t pid;
 
 	setup_test("After fork: ");
@@ -495,6 +497,9 @@ test_fork(void)
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
 
+	signal_set(&sig_ev, SIGALRM, signal_cb, &ev);
+	signal_add(&sig_ev, NULL);
+
 	if ((pid = fork()) == 0) {
 		/* in the child */
 		if (event_reinit(current_base) == -1) {
@@ -502,9 +507,13 @@ test_fork(void)
 			exit(1);
 		}
 
+		signal_del(&sig_ev);
+
 		called = 0;
 
 		event_dispatch();
+
+		event_base_free(current_base);
 
 		/* we do not send an EOF; simple_read_cb requires an EOF 
 		 * to set test_ok.  we just verify that the callback was
@@ -514,6 +523,8 @@ test_fork(void)
 
 	/* wait for the child to read the data */
 	sleep(1);
+
+	signal_del(&sig_ev);
 
 	write(pair[0], TEST1, strlen(TEST1)+1);
 
