@@ -51,7 +51,7 @@ EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
 	WIN32-Prj/event_test/test.txt WIN32-Prj/libevent.dsp \
 	WIN32-Prj/libevent.dsw WIN32-Prj/signal_test/signal_test.dsp \
 	WIN32-Prj/time_test/time_test.dsp WIN32-Prj/regress/regress.vcproj \
-	WIN32-Prj/libevent.sln
+	WIN32-Prj/libevent.sln WIN32-Prj/libevent.vcproj
 
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 

@@ -11,6 +11,7 @@ Changes in 1.4.6-stable:
  o Fix a bug in which the DNS server would incorrectly set the type of a cname reply to a.
  o Fix a bug where setting the timeout on a bufferevent would take not effect if the event was already pending.
  o Fix a memory leak when using signals for some event bases; reported by Alexander Drozdov.
+ o Add libevent.vcproj file to distribution to help with Windows build.
 
 Changes in 1.4.5-stable:
  o Fix connection keep-alive behavior for HTTP/1.0
