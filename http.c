@@ -2188,7 +2188,8 @@ accept_socket(int fd, short what, void *arg)
 	int nfd;
 
 	if ((nfd = accept(fd, (struct sockaddr *)&ss, &addrlen)) == -1) {
-		event_warn("%s: bad accept", __func__);
+		if (errno != EAGAIN && errno != EINTR)
+			event_warn("%s: bad accept", __func__);
 		return;
 	}
 	if (evutil_make_socket_nonblocking(nfd) < 0)
