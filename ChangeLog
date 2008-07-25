@@ -120,6 +120,7 @@ Changes in current version:
  o Support multiple events listening on the same signal; make signals regular events that go on the same event queue; problem report by Alexander Drozdov.
  o Fix a problem with epoll() and reinit; problem report by Alexander Drozdov.	
  o Fix off-by-one errors in devpoll; from Ian Bell
+ o Make event_add not change any state if it fails; reported by Ian Bell.
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
