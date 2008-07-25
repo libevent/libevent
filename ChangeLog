@@ -118,7 +118,7 @@ Changes in current version:
  o Various HTTP correctness fixes from Scott Lamb
  o Fix a bug where deleting signals with the kqueue backend would cause subsequent adds to fail
  o Support multiple events listening on the same signal; make signals regular events that go on the same event queue; problem report by Alexander Drozdov.
-	
+ o Fix a problem with epoll() and reinit; problem report by Alexander Drozdov.	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
  o demote most http warnings to debug messages
