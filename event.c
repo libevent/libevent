@@ -710,6 +710,7 @@ event_add(struct event *ev, const struct timeval *tv)
 	struct event_base *base = ev->ev_base;
 	const struct eventop *evsel = base->evsel;
 	void *evbase = base->evbase;
+	int res = 0;
 
 	event_debug((
 		 "event_add: event: %p, %s%s%scall %p",
@@ -721,14 +722,36 @@ event_add(struct event *ev, const struct timeval *tv)
 
 	assert(!(ev->ev_flags & ~EVLIST_ALL));
 
-	if (tv != NULL) {
+	/*
+	 * prepare for timeout insertion further below, if we get a
+	 * failure on any step, we should not change any state.
+	 */
+	if (tv != NULL && !(ev->ev_flags & EVLIST_TIMEOUT)) {
+		if (min_heap_reserve(&base->timeheap,
+			1 + min_heap_size(&base->timeheap)) == -1)
+			return (-1);  /* ENOMEM == errno */
+	}
+
+	if ((ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL)) &&
+	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE))) {
+		res = evsel->add(evbase, ev);
+		if (res != -1)
+			event_queue_insert(base, ev, EVLIST_INSERTED);
+	}
+
+	/* 
+	 * we should change the timout state only if the previous event
+	 * addition succeeded.
+	 */
+	if (res != -1 && tv != NULL) {
 		struct timeval now;
 
+		/* 
+		 * we already reserved memory above for the case where we
+		 * are not replacing an exisiting timeout.
+		 */
 		if (ev->ev_flags & EVLIST_TIMEOUT)
 			event_queue_remove(base, ev, EVLIST_TIMEOUT);
-		else if (min_heap_reserve(&base->timeheap,
-			1 + min_heap_size(&base->timeheap)) == -1)
-		    return (-1);  /* ENOMEM == errno */
 
 		/* Check if it is active due to a timeout.  Rescheduling
 		 * this timeout before the callback can be executed
@@ -754,15 +777,6 @@ event_add(struct event *ev, const struct timeval *tv)
 			 tv->tv_sec, ev->ev_callback));
 
 		event_queue_insert(base, ev, EVLIST_TIMEOUT);
-	}
-
-	if ((ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL)) &&
-	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE))) {
-		int res = evsel->add(evbase, ev);
-		if (res != -1)
-			event_queue_insert(base, ev, EVLIST_INSERTED);
-
-		return (res);
 	}
 
 	return (0);

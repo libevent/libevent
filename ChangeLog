@@ -14,6 +14,7 @@ Changes in 1.4.6-stable:
  o Add libevent.vcproj file to distribution to help with Windows build.
  o Fix a problem with epoll() and reinit; problem report by Alexander Drozdov.	
  o Fix off-by-one errors in devpoll; from Ian Bell
+ o Make event_add not change any state if it fails; reported by Ian Bell.
 
 Changes in 1.4.5-stable:
  o Fix connection keep-alive behavior for HTTP/1.0
