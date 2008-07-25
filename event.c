@@ -375,8 +375,11 @@ event_reinit(struct event_base *base)
 		return (0);
 
 	/* prevent internal delete */
-	if (base->sig.ev_signal_added)
+	if (base->sig.ev_signal_added) {
+		event_queue_remove(base, &base->sig.ev_signal,
+		    EVLIST_INSERTED);
 		base->sig.ev_signal_added = 0;
+	}
 	
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base, base->evbase);

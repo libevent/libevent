@@ -482,10 +482,24 @@ test_periodictimeout(void)
 static void signal_cb(int fd, short event, void *arg);
 
 extern struct event_base *current_base;
+
+static void
+child_signal_cb(int fd, short event, void *arg)
+{
+	struct timeval tv;
+	int *pint = arg;
+
+	*pint = 1;
+
+	tv.tv_usec = 500000;
+	tv.tv_sec = 0;
+	event_loopexit(&tv);
+}
+
 static void
 test_fork(void)
 {
-	int status;
+	int status, got_sigchld = 0;
 	struct event ev, sig_ev;
 	pid_t pid;
 
@@ -497,7 +511,7 @@ test_fork(void)
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
 
-	signal_set(&sig_ev, SIGALRM, signal_cb, &ev);
+	signal_set(&sig_ev, SIGCHLD, child_signal_cb, &got_sigchld);
 	signal_add(&sig_ev, NULL);
 
 	if ((pid = fork()) == 0) {
@@ -524,8 +538,6 @@ test_fork(void)
 	/* wait for the child to read the data */
 	sleep(1);
 
-	signal_del(&sig_ev);
-
 	write(pair[0], TEST1, strlen(TEST1)+1);
 
 	if (waitpid(pid, &status, 0) == -1) {
@@ -543,6 +555,13 @@ test_fork(void)
 	shutdown(pair[0], SHUT_WR);
 
 	event_dispatch();
+
+	if (!got_sigchld) {
+		fprintf(stdout, "FAILED (sigchld)\n");
+		exit(1);
+	}
+
+	signal_del(&sig_ev);
 
 	cleanup_test();
 }
