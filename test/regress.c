@@ -452,11 +452,25 @@ test_simpletimeout(void)
 
 #ifndef WIN32
 extern struct event_base *current_base;
+
+static void
+child_signal_cb(int fd, short event, void *arg)
+{
+	struct timeval tv;
+	int *pint = arg;
+
+	*pint = 1;
+
+	tv.tv_usec = 500000;
+	tv.tv_sec = 0;
+	event_loopexit(&tv);
+}
+
 static void
 test_fork(void)
 {
-	int status;
-	struct event ev;
+	int status, got_sigchld = 0;
+	struct event ev, sig_ev;
 	pid_t pid;
 
 	setup_test("After fork: ");
@@ -467,12 +481,17 @@ test_fork(void)
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
 
+	signal_set(&sig_ev, SIGCHLD, child_signal_cb, &got_sigchld);
+	signal_add(&sig_ev, NULL);
+
 	if ((pid = fork()) == 0) {
 		/* in the child */
 		if (event_reinit(current_base) == -1) {
 			fprintf(stderr, "FAILED (reinit)\n");
 			exit(1);
 		}
+
+		signal_del(&sig_ev);
 
 		called = 0;
 
@@ -504,6 +523,13 @@ test_fork(void)
 	shutdown(pair[0], SHUT_WR);
 
 	event_dispatch();
+
+	if (!got_sigchld) {
+		fprintf(stdout, "FAILED (sigchld)\n");
+		exit(1);
+	}
+
+	signal_del(&sig_ev);
 
 	cleanup_test();
 }

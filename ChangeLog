@@ -12,6 +12,7 @@ Changes in 1.4.6-stable:
  o Fix a bug where setting the timeout on a bufferevent would take not effect if the event was already pending.
  o Fix a memory leak when using signals for some event bases; reported by Alexander Drozdov.
  o Add libevent.vcproj file to distribution to help with Windows build.
+ o Fix a problem with epoll() and reinit; problem report by Alexander Drozdov.	
 
 Changes in 1.4.5-stable:
  o Fix connection keep-alive behavior for HTTP/1.0
@@ -89,7 +90,6 @@ Changes in 1.4.1-beta:
  o The configure script now takes an --enable-gcc-warnigns option that turns on many optional gcc warnings.  (Nick has been building with these for a while, but they might be useful to other developers.)
  o When building with GCC, use the "format" attribute to verify type correctness of calls to printf-like functions.
  o removed linger from http server socket; reported by Ilya Martynov
- o Rewrite win32.c backend to be O(n lg n) rather than O(n^2)
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
  o demote most http warnings to debug messages
  o Fix Solaris compilation; from Magne Mahre

@@ -334,7 +334,6 @@ evsignal_dealloc(struct event_base *base)
 	for (i = 0; i < NSIG; ++i) {
 		if (i < base->sig.sh_old_max && base->sig.sh_old[i] != NULL)
 			_evsignal_restore_handler(base, i);
-		assert(TAILQ_EMPTY(&base->sig.evsigevents[0]));
 	}
 
 	EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);

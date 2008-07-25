@@ -237,9 +237,20 @@ event_base_free(struct event_base *base)
 		++n_deleted;
 	}
 
+	for (i = 0; i < base->nactivequeues; ++i) {
+		for (ev = TAILQ_FIRST(base->activequeues[i]); ev; ) {
+			struct event *next = TAILQ_NEXT(ev, ev_active_next);
+			if (!(ev->ev_flags & EVLIST_INTERNAL)) {
+				event_del(ev);
+				++n_deleted;
+			}
+			ev = next;
+		}
+	}
+
 	if (n_deleted)
 		event_debug(("%s: %d events were still set in base",
-					 __func__, n_deleted));
+			__func__, n_deleted));
 
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base, base->evbase);
@@ -272,6 +283,13 @@ event_reinit(struct event_base *base)
 	if (!evsel->need_reinit)
 		return (0);
 
+	/* prevent internal delete */
+	if (base->sig.ev_signal_added) {
+		event_queue_remove(base, &base->sig.ev_signal,
+		    EVLIST_INSERTED);
+		base->sig.ev_signal_added = 0;
+	}
+	
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base, base->evbase);
 	evbase = base->evbase = evsel->init(base);
