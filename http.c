@@ -1577,6 +1577,7 @@ evhttp_read_firstline(struct evhttp_connection *evcon,
 		return;
 	}
 
+	evcon->state = EVCON_READING_HEADERS;
 	evhttp_read_header(evcon, req);
 }
 
