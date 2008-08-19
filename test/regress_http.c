@@ -313,8 +313,19 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 }
 
 static void
+http_complete_write(int fd, short what, void *arg)
+{
+	struct bufferevent *bev = arg;
+	const char *http_request = "host\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+	bufferevent_write(bev, http_request, strlen(http_request));
+}
+
+static void
 http_basic_test(void)
 {
+	struct timeval tv;
 	struct bufferevent *bev;
 	int fd;
 	const char *http_request;
@@ -337,17 +348,19 @@ http_basic_test(void)
 	bev = bufferevent_new(fd, http_readcb, http_writecb,
 	    http_errorcb, NULL);
 
+	/* first half of the http request */
 	http_request =
 	    "GET /test HTTP/1.1\r\n"
-	    "Host: somehost\r\n"
-	    "Connection: close\r\n"
-	    "\r\n";
+	    "Host: some";
 
 	bufferevent_write(bev, http_request, strlen(http_request));
+	timerclear(&tv);
+	tv.tv_usec = 10000;
+	event_once(-1, EV_TIMEOUT, http_complete_write, bev, &tv);
 	
 	event_dispatch();
 
-	if (test_ok != 2) {
+	if (test_ok != 3) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
@@ -377,7 +390,7 @@ http_basic_test(void)
 
 	evhttp_free(http);
 	
-	if (test_ok != 4) {
+	if (test_ok != 5) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
