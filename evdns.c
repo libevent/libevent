@@ -680,7 +680,10 @@ reply_callback(struct request *const req, u32 ttl, u32 err, struct reply *reply)
 static void
 reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply) {
 	int error;
-	static const int error_codes[] = {DNS_ERR_FORMAT, DNS_ERR_SERVERFAILED, DNS_ERR_NOTEXIST, DNS_ERR_NOTIMPL, DNS_ERR_REFUSED};
+	static const int error_codes[] = {
+		DNS_ERR_FORMAT, DNS_ERR_SERVERFAILED, DNS_ERR_NOTEXIST,
+		DNS_ERR_NOTIMPL, DNS_ERR_REFUSED
+	};
 
 	if (flags & 0x020f || !reply || !reply->have_answer) {
 		/* there was an error */
@@ -709,9 +712,10 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 			}
 			break;
 		case DNS_ERR_SERVERFAILED:
-			/* rcode 2 (servfailed) sometimes means "we are broken" and
-			 * sometimes (with some binds) means "that request was very
-			 * confusing."  Treat this as a timeout, not a failure. 
+			/* rcode 2 (servfailed) sometimes means "we
+			 * are broken" and sometimes (with some binds)
+			 * means "that request was very confusing."
+			 * Treat this as a timeout, not a failure.
 			 */
 			log(EVDNS_LOG_DEBUG, "Got a SERVERFAILED from nameserver %s; "
 				"will allow the request to time out.",
@@ -723,10 +727,13 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 		}
 
 		if (req->search_state && req->request_type != TYPE_PTR) {
-			/* if we have a list of domains to search in, try the next one */
+			/* if we have a list of domains to search in,
+			 * try the next one */
 			if (!search_try_next(req)) {
-				/* a new request was issued so this request is finished and */
-				/* the user callback will be made when that request (or a */
+				/* a new request was issued so this
+				 * request is finished and */
+				/* the user callback will be made when
+				 * that request (or a */
 				/* child of it) finishes. */
 				request_finished(req, &req_head);
 				return;
@@ -803,10 +810,10 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 /* parses a raw request from a nameserver */
 static int
 reply_parse(u8 *packet, int length) {
-	int j = 0;  /* index into packet */
+	int j = 0, k = 0;  /* index into packet */
 	u16 _t;  /* used by the macros */
 	u32 _t32;  /* used by the macros */
-	char tmp_name[256]; /* used by the macros */
+	char tmp_name[256], cmp_name[256]; /* used by the macros */
 
 	u16 trans_id, questions, answers, authority, additional, datalength;
         u16 flags = 0;
@@ -839,10 +846,21 @@ reply_parse(u8 *packet, int length) {
 
 	/* This macro skips a name in the DNS reply. */
 #define SKIP_NAME \
-	do { tmp_name[0] = '\0';					\
-		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0) \
-			goto err;													\
-	} while(0);
+	do { tmp_name[0] = '\0';				\
+		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0)\
+			goto err;				\
+	} while(0)
+#define TEST_NAME \
+	do { tmp_name[0] = '\0';				\
+		cmp_name[0] = '\0';				\
+		k = j;						\
+		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name))<0)\
+			goto err;					\
+		if (name_parse(req->request, req->request_len, &k, cmp_name, sizeof(cmp_name))<0)	\
+			goto err;				\
+		if (memcmp(tmp_name, cmp_name, strlen (tmp_name)) != 0)	\
+			return (-1); /* we ignore mismatching names */	\
+	} while(0)
 
 	reply.type = req->request_type;
 
@@ -851,7 +869,7 @@ reply_parse(u8 *packet, int length) {
 		/* the question looks like
 		 *   <label:name><u16:type><u16:class>
 		 */
-		SKIP_NAME;
+		TEST_NAME;
 		j += 4;
 		if (j > length) goto err;
 	}
