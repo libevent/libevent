@@ -2488,6 +2488,12 @@ evhttp_get_request_connection(
 	char *hostname = NULL, *portname = NULL;
 
 	name_from_addr(sa, salen, &hostname, &portname);
+	if (hostname == NULL || portname == NULL) {
+		if (hostname) free(hostname);
+		if (portname) free(portname);
+		return (NULL);
+	}
+
 	event_debug(("%s: new request from %s:%s on %d\n",
 			__func__, hostname, portname, fd));
 
@@ -2614,8 +2620,8 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 	if (ni_result != 0)
 			return;
 #endif
-	*phost = ntop;
-	*pport = strport;
+	*phost = strdup(ntop);
+	*pport = strdup(strport);
 }
 
 /* Either connect or bind */
