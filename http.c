@@ -2498,7 +2498,10 @@ evhttp_get_request_connection(
 			__func__, hostname, portname, fd));
 
 	/* we need a connection object to put the http request on */
-	if ((evcon = evhttp_connection_new(hostname, atoi(portname))) == NULL)
+	evcon = evhttp_connection_new(hostname, atoi(portname));
+	free(hostname);
+	free(portname);
+	if (evcon == NULL)
 		return (NULL);
 
 	/* associate the base if we have one*/
