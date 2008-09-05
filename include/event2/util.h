@@ -117,14 +117,28 @@ int evutil_make_socket_nonblocking(evutil_socket_t sock);
 #define EVUTIL_CLOSESOCKET(s) close(s)
 #endif
 
+/* Winsock handles socket errors differently from the rest of the world.
+ * Elsewhere, a socket error is like any other error and is stored in errno.
+ * But winsock functions require you to retrieve the error with a special
+ * function, and don't let you use strerror for the error codes.  And handling
+ * EWOULD block is ... different. */
+
 #ifdef WIN32
+/** Return the most recent socket error.  Not idempotent. */
 #define EVUTIL_SOCKET_ERROR() WSAGetLastError()
+/** Replace the most recent socket error with errcode */
 #define EVUTIL_SET_SOCKET_ERROR(errcode)		\
 	do { WSASetLastError(errcode); } while (0)
+/** Return the most recent socket error to occur on sock. */
+int evutil_socket_geterror(evutil_socket_t sock);
+/** Convert a socket error to a string. */
+const char *evutil_socket_error_to_string(int errcode);
 #else
 #define EVUTIL_SOCKET_ERROR() (errno)
 #define EVUTIL_SET_SOCKET_ERROR(errcode)		\
 		do { errno = (errcode); } while (0)
+#define evutil_socket_geterror(sock) (errno)
+#define evutil_socket_error_to_string(errcode) (strerror(errcode))
 #endif
 
 /*

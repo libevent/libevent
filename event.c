@@ -1487,13 +1487,13 @@ evthread_set_id_callback(struct event_base *base,
 #endif
 	base->th_get_id = id_fn;
 	base->th_owner_id = (*id_fn)();
-	/* 
+	/*
 	 * If another thread wants to add a new event, we need to notify
 	 * the thread that owns the base to wakeup for rescheduling.
 	 */
 	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0,
 		base->th_notify_fd) == -1)
-		event_err(1, "%s: socketpair", __func__);
+		event_sock_err(1, -1, "%s: socketpair", __func__);
 
 	evutil_make_socket_nonblocking(base->th_notify_fd[0]);
 	evutil_make_socket_nonblocking(base->th_notify_fd[1]);

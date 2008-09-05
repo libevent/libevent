@@ -362,21 +362,6 @@ static int strtoint(const char *const str);
 
 #ifdef WIN32
 static int
-last_error(evutil_socket_t sock)
-{
-	int optval, optvallen=sizeof(optval);
-	int err = WSAGetLastError();
-	if (err == WSAEWOULDBLOCK && sock >= 0) {
-		if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (void*)&optval,
-			       &optvallen))
-			return err;
-		if (optval)
-			return optval;
-	}
-	return err;
-
-}
-static int
 error_is_eagain(int err)
 {
 	return err == EAGAIN || err == WSAEWOULDBLOCK;
@@ -396,7 +381,6 @@ inet_aton(const char *c, struct in_addr *addr)
 	return 1;
 }
 #else
-#define last_error(sock) (errno)
 #define error_is_eagain(err) ((err) == EAGAIN)
 #endif
 #define CLOSE_SOCKET(s) EVUTIL_CLOSESOCKET(s)
@@ -1183,9 +1167,9 @@ nameserver_read(struct nameserver *ns) {
 	for (;;) {
           	const int r = recv(ns->socket, packet, sizeof(packet), 0);
 		if (r < 0) {
-			int err = last_error(ns->socket);
+			int err = evutil_socket_geterror(ns->socket);
 			if (error_is_eagain(err)) return;
-			nameserver_failed(ns, strerror(err));
+			nameserver_failed(ns, evutil_socket_error_to_string(err));
 			return;
 		}
 		ns->timedout = 0;
@@ -1207,10 +1191,10 @@ server_port_read(struct evdns_server_port *s) {
 		r = recvfrom(s->socket, packet, sizeof(packet), 0,
 					 (struct sockaddr*) &addr, &addrlen);
 		if (r < 0) {
-			int err = last_error(s->socket);
+			int err = evutil_socket_geterror(s->socket);
 			if (error_is_eagain(err)) return;
 			log(EVDNS_LOG_WARN, "Error %s (%d) while reading request.",
-				strerror(err), err);
+				evutil_socket_error_to_string(err), err);
 			return;
 		}
 		request_parse(packet, r, s, (struct sockaddr*) &addr, addrlen);
@@ -1226,10 +1210,10 @@ server_port_flush(struct evdns_server_port *port)
 		int r = sendto(port->socket, req->response, req->response_len, 0,
 			   (struct sockaddr*) &req->addr, req->addrlen);
 		if (r < 0) {
-			int err = last_error(port->socket);
+			int err = evutil_socket_geterror(port->socket);
 			if (error_is_eagain(err))
 				return;
-			log(EVDNS_LOG_WARN, "Error %s (%d) while writing response to port; dropping", strerror(err), err);
+			log(EVDNS_LOG_WARN, "Error %s (%d) while writing response to port; dropping", evutil_socket_error_to_string(err), err);
 		}
 		if (server_request_free(req)) {
 			/* we released the last reference to req->port. */
@@ -1758,7 +1742,7 @@ evdns_server_request_respond(struct evdns_server_request *_req, int err)
 	r = sendto(port->socket, req->response, req->response_len, 0,
 			   (struct sockaddr*) &req->addr, req->addrlen);
 	if (r<0) {
-		int sock_err = last_error(port->socket);
+		int sock_err = evutil_socket_geterror(port->socket);
 		if (! error_is_eagain(sock_err))
 			return -1;
 
@@ -1936,9 +1920,9 @@ static int
 evdns_request_transmit_to(struct evdns_request *req, struct nameserver *server) {
 	const int r = send(server->socket, req->request, req->request_len, 0);
 	if (r < 0) {
-		int err = last_error(server->socket);
+		int err = evutil_socket_geterror(server->socket);
 		if (error_is_eagain(err)) return 1;
-		nameserver_failed(req->ns, strerror(err));
+		nameserver_failed(req->ns, evutil_socket_error_to_string(err));
 		return 2;
 	} else if (r != (int)req->request_len) {
 		return 1;  /* short write */

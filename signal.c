@@ -82,7 +82,7 @@ evsignal_cb(evutil_socket_t fd, short what, void *arg)
 
 	n = recv(fd, signals, sizeof(signals), 0);
 	if (n == -1)
-		event_err(1, "%s: read", __func__);
+		event_sock_err(1, fd, "%s: read", __func__);
 }
 
 #ifdef HAVE_SETFD
@@ -106,7 +106,7 @@ evsignal_init(struct event_base *base)
 	 */
 	if (evutil_socketpair(
 		    AF_UNIX, SOCK_STREAM, 0, base->sig.ev_signal_pair) == -1)
-		event_err(1, "%s: socketpair", __func__);
+		event_sock_err(1, -1, "%s: socketpair", __func__);
 
 	FD_CLOSEONEXEC(base->sig.ev_signal_pair[0]);
 	FD_CLOSEONEXEC(base->sig.ev_signal_pair[1]);
@@ -278,6 +278,9 @@ static void
 evsignal_handler(int sig)
 {
 	int save_errno = errno;
+#ifdef WIN32
+	int socket_errno = EVUTIL_SOCKET_ERROR();
+#endif
 
 	if (evsignal_base == NULL) {
 		event_warn(
@@ -296,6 +299,9 @@ evsignal_handler(int sig)
 	/* Wake up our notification mechanism */
 	send(evsignal_base->sig.ev_signal_pair[0], "a", 1, 0);
 	errno = save_errno;
+#ifdef WIN32
+	EVUTIL_SET_SOCKET_ERRNO(socket_error);
+#endif
 }
 
 void
