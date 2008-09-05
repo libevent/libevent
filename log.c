@@ -62,7 +62,7 @@
 
 #include "log.h"
 
-static void _warn_helper(int severity, int log_errno, const char *fmt,
+static void _warn_helper(int severity, const char *errstr, const char *fmt,
                          va_list ap);
 static void event_log(int severity, const char *msg);
 
@@ -72,7 +72,7 @@ event_err(int eval, const char *fmt, ...)
 	va_list ap;
 	
 	va_start(ap, fmt);
-	_warn_helper(_EVENT_LOG_ERR, errno, fmt, ap);
+	_warn_helper(_EVENT_LOG_ERR, strerror(errno), fmt, ap);
 	va_end(ap);
 	exit(eval);
 }
@@ -83,7 +83,30 @@ event_warn(const char *fmt, ...)
 	va_list ap;
 	
 	va_start(ap, fmt);
-	_warn_helper(_EVENT_LOG_WARN, errno, fmt, ap);
+	_warn_helper(_EVENT_LOG_WARN, strerror(errno), fmt, ap);
+	va_end(ap);
+}
+
+void
+event_sock_err(int eval, evutil_socket_t sock, const char *fmt, ...)
+{
+	va_list ap;
+	int err = evutil_socket_geterror(sock);
+
+	va_start(ap, fmt);
+	_warn_helper(_EVENT_LOG_ERR, evutil_socket_error_to_string(err), fmt, ap);
+	va_end(ap);
+	exit(eval);
+}
+
+void
+event_sock_warn(int sock, const char *fmt, ...)
+{
+	va_list ap;
+	int err = evutil_socket_geterror(sock);
+
+	va_start(ap, fmt);
+	_warn_helper(_EVENT_LOG_WARN, evutil_socket_error_to_string(err), fmt, ap);
 	va_end(ap);
 }
 
@@ -93,7 +116,7 @@ event_errx(int eval, const char *fmt, ...)
 	va_list ap;
 	
 	va_start(ap, fmt);
-	_warn_helper(_EVENT_LOG_ERR, -1, fmt, ap);
+	_warn_helper(_EVENT_LOG_ERR, NULL, fmt, ap);
 	va_end(ap);
 	exit(eval);
 }
@@ -104,7 +127,7 @@ event_warnx(const char *fmt, ...)
 	va_list ap;
 	
 	va_start(ap, fmt);
-	_warn_helper(_EVENT_LOG_WARN, -1, fmt, ap);
+	_warn_helper(_EVENT_LOG_WARN, NULL, fmt, ap);
 	va_end(ap);
 }
 
@@ -114,7 +137,7 @@ event_msgx(const char *fmt, ...)
 	va_list ap;
 	
 	va_start(ap, fmt);
-	_warn_helper(_EVENT_LOG_MSG, -1, fmt, ap);
+	_warn_helper(_EVENT_LOG_MSG, NULL, fmt, ap);
 	va_end(ap);
 }
 
@@ -124,12 +147,12 @@ _event_debugx(const char *fmt, ...)
 	va_list ap;
 	
 	va_start(ap, fmt);
-	_warn_helper(_EVENT_LOG_DEBUG, -1, fmt, ap);
+	_warn_helper(_EVENT_LOG_DEBUG, NULL, fmt, ap);
 	va_end(ap);
 }
 
 static void
-_warn_helper(int severity, int log_errno, const char *fmt, va_list ap)
+_warn_helper(int severity, const char *errstr, const char *fmt, va_list ap)
 {
 	char buf[1024];
 	size_t len;
@@ -139,11 +162,10 @@ _warn_helper(int severity, int log_errno, const char *fmt, va_list ap)
 	else
 		buf[0] = '\0';
 
-	if (log_errno >= 0) {
+	if (errstr) {
 		len = strlen(buf);
 		if (len < sizeof(buf) - 3) {
-			evutil_snprintf(buf + len, sizeof(buf) - len, ": %s",
-			    strerror(log_errno));
+			evutil_snprintf(buf + len, sizeof(buf) - len, ": %s", errstr);
 		}
 	}
 

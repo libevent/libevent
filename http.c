@@ -1141,7 +1141,7 @@ evhttp_connection_cb(struct bufferevent *bufev, void *arg)
 	struct evhttp_connection *evcon = arg;
 	int error;
 	socklen_t errsz = sizeof(error);
-		
+
 	/* Check if the connection completed */
 	if (getsockopt(evcon->fd, SOL_SOCKET, SO_ERROR, (void*)&error,
 		       &errsz) == -1) {
@@ -1153,7 +1153,7 @@ evhttp_connection_cb(struct bufferevent *bufev, void *arg)
 	if (error) {
 		event_debug(("%s: connect failed for \"%s:%d\" on %d: %s",
 		    __func__, evcon->address, evcon->port, evcon->fd,
-			strerror(error)));
+			evutil_socket_error_to_string(error)));
 		goto cleanup;
 	}
 
@@ -1770,7 +1770,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	}
 
 	if (socket_connect(evcon->fd, evcon->address, evcon->port) == -1) {
-		event_warn("%s: connection to \"%s\" failed",
+		event_sock_warn(evcon->fd, "%s: connection to \"%s\" failed",
 		    __func__, evcon->address);
 		EVUTIL_CLOSESOCKET(evcon->fd); evcon->fd = -1;
 		return (-1);
@@ -2340,7 +2340,7 @@ evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
 		return (-1);
 
 	if (listen(fd, 128) == -1) {
-		event_warn("%s: listen", __func__);
+		event_sock_warn(fd, "%s: listen", __func__);
 		EVUTIL_CLOSESOCKET(fd);
 		return (-1);
 	}
@@ -2763,7 +2763,7 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 
 	evcon = evhttp_get_request_connection(http, fd, sa, salen);
 	if (evcon == NULL) {
-		event_warn("%s: cannot get connection on %d", __func__, fd);
+		event_sock_warn(fd, "%s: cannot get connection on %d", __func__, fd);
 		EVUTIL_CLOSESOCKET(fd);
 		return;
 	}
@@ -2860,8 +2860,8 @@ bind_socket_ai(struct addrinfo *ai, int reuse)
         /* Create listen socket */
         fd = socket(AF_INET, SOCK_STREAM, 0);
         if (fd == -1) {
-                event_warn("socket");
-                return (-1);
+			event_sock_warn(-1, "socket");
+			return (-1);
         }
 
         if (evutil_make_socket_nonblocking(fd) < 0)
