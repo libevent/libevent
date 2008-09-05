@@ -305,10 +305,10 @@ evutil_socket_error_to_string(int errcode)
   /* XXXX Is there really no built-in function to do this? */
   int i;
   for (i=0; windows_socket_errors[i].code >= 0; ++i) {
-    if (e == windows_socket_errors[i].code)
+    if (errcode == windows_socket_errors[i].code)
       return windows_socket_errors[i].msg;
   }
-  return strerror(e);
+  return strerror(errcode);
 }
 #endif
 

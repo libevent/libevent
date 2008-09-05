@@ -300,7 +300,7 @@ evsignal_handler(int sig)
 	send(evsignal_base->sig.ev_signal_pair[0], "a", 1, 0);
 	errno = save_errno;
 #ifdef WIN32
-	EVUTIL_SET_SOCKET_ERRNO(socket_error);
+	EVUTIL_SET_SOCKET_ERROR(socket_errno);
 #endif
 }
 
