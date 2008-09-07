@@ -29,7 +29,7 @@ RELEASE = 1.4
 #  Libevent 1.4.1 was 2:0:0
 #  Libevent 1.4.2 should be 3:0:0
 #  Libevent 1.4.5 is 3:0:1 (we forgot to increment in the past)
-VERSION_INFO = 3:1:1
+VERSION_INFO = 3:2:1
 
 bin_SCRIPTS = event_rpcgen.py
 
