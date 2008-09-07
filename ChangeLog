@@ -124,7 +124,8 @@ Changes in current version:
  o Fix a bug where headers arriving in multiple packets were not parsed; fix from Jiang Hong; test by me.
  o Match the query in DNS replies to the query in the request; from Vsevolod Stakhov.
  o Add new utility functions to correctly observe and log winsock errors.
-
+ o Do not remove Accept-Encoding header
+	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
  o demote most http warnings to debug messages

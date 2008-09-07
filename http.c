@@ -388,7 +388,7 @@ evhttp_connected(struct evhttp_connection *evcon)
 }
 
 /*
- * Create the headers need for an HTTP request
+ * Create the headers needed for an HTTP request
  */
 static void
 evhttp_make_header_request(struct evhttp_connection *evcon,
@@ -396,7 +396,6 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 {
 	const char *method;
 	
-	evhttp_remove_header(req->output_headers, "Accept-Encoding");
 	evhttp_remove_header(req->output_headers, "Proxy-Connection");
 
 	/* Generate request line */
