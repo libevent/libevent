@@ -1,6 +1,7 @@
 Changes in 1.4.8-stable:
  o Match the query in DNS replies to the query in the request; from Vsevolod Stakhov.
  o Fix a merge problem in which name_from_addr returned pointers to the stack; found by Jiang Hong.
+ o Do not remove Accept-Encoding header
 	
 Changes in 1.4.7-stable:
  o Fix a bug where headers arriving in multiple packets were not parsed; fix from Jiang Hong; test by me.
