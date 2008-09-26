@@ -343,7 +343,7 @@ event_base_free(struct event_base *base)
 		event_debug(("%s: %d events were still set in base",
 			__func__, n_deleted));
 
-	if (base->evsel->dealloc != NULL)
+	if (base->evsel != NULL && base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base, base->evbase);
 
 	for (i = 0; i < base->nactivequeues; ++i)
