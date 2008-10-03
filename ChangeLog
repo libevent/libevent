@@ -1,3 +1,6 @@
+Changes in 1.4.9-stable:
+ o event_add would not return error for some backends; from Dean McNamee
+
 Changes in 1.4.8-stable:
  o Match the query in DNS replies to the query in the request; from Vsevolod Stakhov.
  o Fix a merge problem in which name_from_addr returned pointers to the stack; found by Jiang Hong.

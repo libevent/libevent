@@ -779,7 +779,7 @@ event_add(struct event *ev, const struct timeval *tv)
 		event_queue_insert(base, ev, EVLIST_TIMEOUT);
 	}
 
-	return (0);
+	return (res);
 }
 
 int
