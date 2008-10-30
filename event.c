@@ -472,6 +472,9 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval *tv_p;
 	int res, done;
 
+	/* clear time cache */
+	base->tv_cache.tv_sec = 0;
+
 	if (&base->sig.ev_signal_added)
 		evsignal_base = base;
 	done = 0;
