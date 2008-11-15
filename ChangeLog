@@ -126,6 +126,7 @@ Changes in current version:
  o Add new utility functions to correctly observe and log winsock errors.
  o Do not remove Accept-Encoding header
  o Clear the timer cache on entering the event loop; reported by Victor Chang
+ o Only bind the socket on connect when a local address has been provided; reported by Alejo Sanchez
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

@@ -2846,8 +2846,8 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 	*pport = mm_strdup(strport);
 }
 
-/* Either connect or bind */
-
+/* Create a non-blocking socket and bind it */
+/* todo: rename this function */
 static evutil_socket_t
 bind_socket_ai(struct addrinfo *ai, int reuse)
 {
@@ -2879,9 +2879,11 @@ bind_socket_ai(struct addrinfo *ai, int reuse)
 		    (void *)&on, sizeof(on));
 	}
 
-	r = bind(fd, ai->ai_addr, ai->ai_addrlen);
-	if (r == -1)
-		goto out;
+	if (ai != NULL) {
+		r = bind(fd, ai->ai_addr, ai->ai_addrlen);
+		if (r == -1)
+			goto out;
+	}
 
 	return (fd);
 
@@ -2934,7 +2936,13 @@ static evutil_socket_t
 bind_socket(const char *address, ev_uint16_t port, int reuse)
 {
 	evutil_socket_t fd;
-	struct addrinfo *aitop = make_addrinfo(address, port);
+	struct addrinfo *aitop = NULL;
+
+	/* just create an unbound socket */
+	if (address == NULL && port == 0)
+		return bind_socket_ai(NULL, 0);
+		
+	aitop = make_addrinfo(address, port);
 
 	if (aitop == NULL)
 		return (-1);
