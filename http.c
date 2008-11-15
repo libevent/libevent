@@ -2626,8 +2626,8 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 	*pport = strdup(strport);
 }
 
-/* Either connect or bind */
-
+/* Create a non-blocking socket and bind it */
+/* todo: rename this function */
 static int
 bind_socket_ai(struct addrinfo *ai, int reuse)
 {
@@ -2657,9 +2657,11 @@ bind_socket_ai(struct addrinfo *ai, int reuse)
 		    (void *)&on, sizeof(on));
 	}
 
-	r = bind(fd, ai->ai_addr, ai->ai_addrlen);
-	if (r == -1)
-		goto out;
+	if (ai != NULL) {
+		r = bind(fd, ai->ai_addr, ai->ai_addrlen);
+		if (r == -1)
+			goto out;
+	}
 
 	return (fd);
 
@@ -2712,7 +2714,13 @@ static int
 bind_socket(const char *address, u_short port, int reuse)
 {
 	int fd;
-	struct addrinfo *aitop = make_addrinfo(address, port);
+	struct addrinfo *aitop = NULL;
+
+	/* just create an unbound socket */
+	if (address == NULL && port == 0)
+		return bind_socket_ai(NULL, 0);
+		
+	aitop = make_addrinfo(address, port);
 
 	if (aitop == NULL)
 		return (-1);
