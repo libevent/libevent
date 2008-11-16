@@ -65,6 +65,7 @@ struct evhttp_connection {
 	struct event close_ev;
 	
 	char *bind_address;		/* address to use for binding the src */
+	u_short bind_port;		/* local port for binding the src */
 
 	char *address;			/* address to connect to */
 	u_short port;
