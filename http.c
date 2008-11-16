@@ -1038,6 +1038,13 @@ evhttp_connection_set_local_address(struct evhttp_connection *evcon,
 		event_err(1, "%s: strdup", __func__);
 }
 
+void
+evhttp_connection_set_local_port(struct evhttp_connection *evcon,
+    unsigned short port)
+{
+	assert(evcon->state == EVCON_DISCONNECTED);
+	evcon->bind_port = port;
+}
 
 static void
 evhttp_request_dispatch(struct evhttp_connection* evcon)
@@ -1731,7 +1738,8 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	assert(!(evcon->flags & EVHTTP_CON_INCOMING));
 	evcon->flags |= EVHTTP_CON_OUTGOING;
 	
-	evcon->fd = bind_socket(evcon->bind_address, 0 /*port*/, 0 /*reuse*/);
+	evcon->fd = bind_socket(
+		evcon->bind_address, evcon->bind_port, 0 /*reuse*/);
 	if (evcon->fd == -1) {
 		event_debug(("%s: failed to bind to \"%s\"",
 			__func__, evcon->bind_address));

@@ -2,6 +2,7 @@ Changes in 1.4.9-stable:
  o event_add would not return error for some backends; from Dean McNamee
  o Clear the timer cache on entering the event loop; reported by Victor Chang
  o Only bind the socket on connect when a local address has been provided; reported by Alejo Sanchez
+ o Allow setting of local port for evhttp connections to support millions of connections from a single system; from Richard Jones.
 
 Changes in 1.4.8-stable:
  o Match the query in DNS replies to the query in the request; from Vsevolod Stakhov.

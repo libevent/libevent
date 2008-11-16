@@ -267,6 +267,10 @@ void evhttp_connection_free(struct evhttp_connection *evcon);
 void evhttp_connection_set_local_address(struct evhttp_connection *evcon,
     const char *address);
 
+/** sets the local port from which http connections are made */
+void evhttp_connection_set_local_port(struct evhttp_connection *evcon,
+    unsigned short port);
+
 /** Sets the timeout for events related to this connection */
 void evhttp_connection_set_timeout(struct evhttp_connection *evcon,
     int timeout_in_secs);
