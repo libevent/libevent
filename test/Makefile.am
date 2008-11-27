@@ -28,6 +28,7 @@ endif
 regress_LDADD = ../libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
 regress_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat \
 	-I$(top_srcdir)/include  $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
+regress_LDFLAGS = $(PTHREAD_CFLAGS)
 bench_SOURCES = bench.c
 bench_LDADD = ../libevent.la
 bench_cascade_SOURCES = bench_cascade.c
