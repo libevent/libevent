@@ -543,6 +543,9 @@ event_base_loop(struct event_base *base, int flags)
 			done = 1;
 	}
 
+	/* clear time cache */
+	base->tv_cache.tv_sec = 0;
+
 	event_debug(("%s: asked to terminate loop.", __func__));
 	return (0);
 }
