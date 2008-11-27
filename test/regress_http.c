@@ -2014,6 +2014,11 @@ http_stream_in_cancel_test(void)
 static void
 http_connection_retry_done(struct evhttp_request *req, void *arg)
 {
+	if (req == NULL) {
+		fprintf(stderr, "FAILED (connection aborted)\n");
+		exit(1);
+	}
+	
 	if (req->response_code == HTTP_OK) {
 		fprintf(stderr, "FAILED\n");
 		exit(1);
