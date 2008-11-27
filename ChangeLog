@@ -128,6 +128,7 @@ Changes in current version:
  o Clear the timer cache on entering the event loop; reported by Victor Chang
  o Only bind the socket on connect when a local address has been provided; reported by Alejo Sanchez
  o Allow setting of local port for evhttp connections to support millions of connections from a single system; from Richard Jones.
+ o Clear the timer cache when leaving the event loop; reported by Robin Haberkorn
 	
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
