@@ -341,6 +341,7 @@ static const int global_nameserver_timeouts_length = sizeof(global_nameserver_ti
 
 static struct nameserver *nameserver_pick(struct evdns_base *base);
 static void evdns_request_insert(struct evdns_request *req, struct evdns_request **head);
+static void evdns_request_remove(struct evdns_request *req, struct evdns_request **head);
 static void nameserver_ready_callback(evutil_socket_t fd, short events, void *arg);
 static int evdns_transmit(struct evdns_base *base);
 static int evdns_request_transmit(struct evdns_request *req);
@@ -566,16 +567,8 @@ request_trans_id_set(struct evdns_request *const req, const u16 trans_id) {
 static void
 request_finished(struct evdns_request *const req, struct evdns_request **head) {
 	struct evdns_base *base = req->base;
-	if (head) {
-		if (req->next == req) {
-			/* only item in the list */
-			*head = NULL;
-		} else {
-			req->next->prev = req->prev;
-			req->prev->next = req->next;
-			if (*head == req) *head = req->next;
-		}
-	}
+	if (head)
+		evdns_request_remove(req, head);
 
 	log(EVDNS_LOG_DEBUG, "Removing timeout for request %lx",
 	    (unsigned long) req);
@@ -633,16 +626,8 @@ evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 		struct evdns_request *req;
 		/* move a request from the waiting queue to the inflight queue */
 		assert(base->req_waiting_head);
-		if (base->req_waiting_head->next == base->req_waiting_head) {
-			/* only one item in the queue */
-			req = base->req_waiting_head;
-			base->req_waiting_head = NULL;
-		} else {
-			req = base->req_waiting_head;
-			req->next->prev = req->prev;
-			req->prev->next = req->next;
-			base->req_waiting_head = req->next;
-		}
+		req = base->req_waiting_head;
+		evdns_request_remove(req, &base->req_waiting_head);
 
 		base->global_requests_waiting--;
 		base->global_requests_inflight++;
@@ -2252,6 +2237,20 @@ evdns_nameserver_ip_add(const char *ip_as_string) {
 	return evdns_base_nameserver_ip_add(current_base, ip_as_string);
 }
 
+/* remove from the queue */
+static void
+evdns_request_remove(struct evdns_request *req, struct evdns_request **head)
+{
+	if (req->next == req) {
+		/* only item in the list */
+		*head = NULL;
+	} else {
+		req->next->prev = req->prev;
+		req->prev->next = req->next;
+		if (*head == req) *head = req->next;
+	}
+}
+
 /* insert into the tail of the queue */
 static void
 evdns_request_insert(struct evdns_request *req, struct evdns_request **head) {
@@ -2770,13 +2769,7 @@ evdns_base_set_max_requests_inflight(struct evdns_base *base, int maxinflight)
 		for (i = 0; i < old_n_heads; ++i) {
 			while (old_heads[i]) {
 				req = old_heads[i];
-				if (req->next == req) {
-					old_heads[i] = NULL;
-				} else {
-					old_heads[i] = req->next;
-					req->next->prev = req->prev;
-					req->prev->next = req->next;
-				}
+				evdns_request_remove(req, &old_heads[i]);
 				evdns_request_insert(req, &new_heads[req->trans_id % n_heads]);
 			}
 		}
