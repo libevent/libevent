@@ -380,7 +380,7 @@ struct evdns_request *evdns_base_resolve_reverse_ipv6(struct evdns_base *base, s
 
   The currently available configuration options are:
 
-    ndots, timeout, max-timeouts, max-inflight, and attempts
+    ndots, timeout, max-timeouts, max-inflight, attempts, randomize-case.
 
   @param base the evdns_base to which to apply this operation
   @param option the name of the configuration option to be modified
@@ -473,11 +473,20 @@ void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 
 /**
    Set a callback that will be invoked to generate transaction IDs.  By
-   default, we pick transaction IDs based on the current clock time.
+   default, we pick transaction IDs based on the current clock time, which
+   is bad for security.
 
    @param fn the new callback, or NULL to use the default.
  */
 void evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void));
+
+/**
+   Set a callback used to generate random bytes.  By default, we use
+   the same function as passed to evdns_set_transaction_id_fn to generate
+   bytes two at a time.  If a function is provided here, it's also used
+   to generate transaction IDs.
+*/
+void evdns_set_random_bytes_fn(void (*fn)(char *, size_t));
 
 #define DNS_NO_SEARCH 1
 
