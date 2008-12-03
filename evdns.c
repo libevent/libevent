@@ -103,6 +103,7 @@
 #include "evutil.h"
 #include "log.h"
 #include "mm-internal.h"
+#include "strlcpy-internal.h"
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -317,6 +318,8 @@ struct evdns_base {
 	int global_max_retransmits;  /* number of times we'll retransmit a request which timed out */
 	/* number of timeouts in a row before we consider this server to be down */
 	int global_max_nameserver_timeout;
+	/* true iff we will use the 0x20 hack to prevent poisoning attacks. */
+	int global_randomize_case;
 
 	struct search_state *global_search_state;
 };
@@ -813,6 +816,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 	u16 _t;  /* used by the macros */
 	u32 _t32;  /* used by the macros */
 	char tmp_name[256], cmp_name[256]; /* used by the macros */
+	int name_matches = 0;
 
 	u16 trans_id, questions, answers, authority, additional, datalength;
         u16 flags = 0;
@@ -858,8 +862,13 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			goto err;					\
 		if (name_parse(req->request, req->request_len, &k, cmp_name, sizeof(cmp_name))<0)	\
 			goto err;				\
-		if (memcmp(tmp_name, cmp_name, strlen (tmp_name)) != 0)	\
-			return (-1); /* we ignore mismatching names */	\
+		if (base->global_randomize_case) {			\
+			if (strcmp(tmp_name, cmp_name) == 0)	\
+				name_matches = 1;					\
+		} else {									 \
+			if (strcasecmp(tmp_name, cmp_name) == 0) \
+				name_matches = 1;					 \
+		}											 \
 	} while(0)
 
 	reply.type = req->request_type;
@@ -873,6 +882,9 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 		j += 4;
 		if (j > length) goto err;
 	}
+
+	if (!name_matches)
+		goto err;
 
 	/* now we have the answer section which looks like
 	 * <label:name><u16:type><u16:class><u32:ttl><u16:len><data...>
@@ -1085,6 +1097,32 @@ default_transaction_id_fn(void)
 
 static ev_uint16_t (*trans_id_function)(void) = default_transaction_id_fn;
 
+static void
+default_random_bytes_fn(char *buf, size_t n)
+{
+	unsigned i;
+	for (i = 0; i < n-1; i += 2) {
+		u16 tid = trans_id_function();
+		buf[i] = (tid >> 8) & 0xff;
+		buf[i+1] = tid & 0xff;
+	}
+	if (i < n) {
+		u16 tid = trans_id_function();
+		buf[i] = tid & 0xff;
+	}
+}
+
+static void (*rand_bytes_function)(char *buf, size_t n) =
+	default_random_bytes_fn;
+
+static u16
+trans_id_from_random_bytes_fn(void)
+{
+	u16 tid;
+	rand_bytes_function((char*) &tid, sizeof(tid));
+	return tid;
+}
+
 void
 evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void))
 {
@@ -1092,6 +1130,14 @@ evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void))
 		trans_id_function = fn;
 	else
 		trans_id_function = default_transaction_id_fn;
+	rand_bytes_function = default_random_bytes_fn;
+}
+
+void
+evdns_set_random_bytes_fn(void (*fn)(char *, size_t))
+{
+	rand_bytes_function = fn;
+	trans_id_function = trans_id_from_random_bytes_fn;
 }
 
 /* Try to choose a strong transaction id which isn't already in flight */
@@ -2276,6 +2322,10 @@ string_num_dots(const char *s) {
 	return count;
 }
 
+/* Helper: provide a working isalpha implementation on platforms with funny
+ * ideas about character types and isalpha behavior. */
+#define ISALPHA(c) isalpha((int)(unsigned char)(c))
+
 static struct evdns_request *
 request_new(struct evdns_base *base, int type, const char *name, int flags,
     evdns_callback_type callback, void *user_ptr) {
@@ -2289,11 +2339,28 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 	struct evdns_request *const req =
 	    (struct evdns_request *) mm_malloc(sizeof(struct evdns_request) + request_max_len);
 	int rlen;
+	char namebuf[256];
 	(void) flags;
 
 	if (!req) return NULL;
 	memset(req, 0, sizeof(struct evdns_request));
 	req->base = base;
+
+	if (base->global_randomize_case) {
+		unsigned i;
+		char randbits[(sizeof(namebuf)+7)/8];
+		strlcpy(namebuf, name, sizeof(namebuf));
+		rand_bytes_function(randbits, (name_len+7)/8);
+		for (i = 0; i < name_len; ++i) {
+			if (ISALPHA(namebuf[i])) {
+				if ((randbits[i >> 3] & (1<<(i & 7))))
+					namebuf[i] |= 0x20;
+				else
+					namebuf[i] &= ~0x20;
+			}
+		}
+		name = namebuf;
+	}
 
 	/* request data lives just after the header */
 	req->request = ((u8 *) req) + sizeof(struct evdns_request);
@@ -2303,6 +2370,7 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 	    type, CLASS_INET, req->request, request_max_len);
 	if (rlen < 0)
 		goto err1;
+
 	req->request_len = rlen;
 	req->trans_id = trans_id;
 	req->tx_count = 0;
@@ -2821,6 +2889,10 @@ evdns_base_set_option(struct evdns_base *base,
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting retries to %d", retries);
 		base->global_max_retransmits = retries;
+	} else if (!strncmp(option, "randomize-case:", 15)) {
+		int randcase = strtoint(val);
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		base->global_randomize_case = randcase;
 	}
 	return 0;
 }
@@ -3168,6 +3240,7 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 	base->global_max_retransmits = 3;
 	base->global_max_nameserver_timeout = 3;
 	base->global_search_state = NULL;
+	base->global_randomize_case = 1;
 	if (initialize_nameservers) {
 		int r;
 #ifdef WIN32

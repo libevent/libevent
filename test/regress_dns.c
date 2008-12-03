@@ -198,24 +198,27 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 		ans.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
 		if (req->questions[i]->type == EVDNS_TYPE_A &&
 			req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-			!strcmp(req->questions[i]->name, "zz.example.com")) {
-			r = evdns_server_request_add_a_reply(req, "zz.example.com",
+			!strcasecmp(req->questions[i]->name, "zz.example.com")) {
+			r = evdns_server_request_add_a_reply(req,
+												 req->questions[i]->name,
 												 1, &ans.s_addr, 12345);
 			if (r<0)
 				dns_ok = 0;
 		} else if (req->questions[i]->type == EVDNS_TYPE_AAAA &&
 				   req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-				   !strcmp(req->questions[i]->name, "zz.example.com")) {
+				   !strcasecmp(req->questions[i]->name, "zz.example.com")) {
 			char addr6[17] = "abcdefghijklmnop";
-			r = evdns_server_request_add_aaaa_reply(req, "zz.example.com",
+			r = evdns_server_request_add_aaaa_reply(req,
+													req->questions[i]->name,
 												 1, addr6, 123);
 			if (r<0)
 				dns_ok = 0;
 		} else if (req->questions[i]->type == EVDNS_TYPE_PTR &&
 				   req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-				   !strcmp(req->questions[i]->name, TEST_ARPA)) {
-			r = evdns_server_request_add_ptr_reply(req, NULL, TEST_ARPA,
-					   "ZZ.EXAMPLE.COM", 54321);
+				   !strcasecmp(req->questions[i]->name, TEST_ARPA)) {
+			r = evdns_server_request_add_ptr_reply(req, NULL,
+												   req->questions[i]->name,
+												   "ZZ.EXAMPLE.COM", 54321);
 			if (r<0)
 				dns_ok = 0;
 		} else {
