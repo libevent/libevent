@@ -75,7 +75,7 @@ static int epoll_del	(void *, struct event *);
 static int epoll_dispatch	(struct event_base *, void *, struct timeval *);
 static void epoll_dealloc	(struct event_base *, void *);
 
-struct eventop epollops = {
+const struct eventop epollops = {
 	"epoll",
 	epoll_init,
 	epoll_add,

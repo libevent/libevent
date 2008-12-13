@@ -75,7 +75,7 @@ static int devpoll_del	(void *, struct event *);
 static int devpoll_dispatch	(struct event_base *, void *, struct timeval *);
 static void devpoll_dealloc	(struct event_base *, void *);
 
-struct eventop devpollops = {
+const struct eventop devpollops = {
 	"devpoll",
 	devpoll_init,
 	devpoll_add,
