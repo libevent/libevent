@@ -90,7 +90,7 @@ extern const struct eventop win32ops;
 #endif
 
 /* In order of preference */
-const struct eventop *eventops[] = {
+static const struct eventop *eventops[] = {
 #ifdef HAVE_EVENT_PORTS
 	&evportops,
 #endif
