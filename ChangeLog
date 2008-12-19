@@ -5,6 +5,7 @@ Changes in 1.4.9-stable:
  o Allow setting of local port for evhttp connections to support millions of connections from a single system; from Richard Jones.
  o Clear the timer cache when leaving the event loop; reported by Robin Haberkorn
  o Fix a typo in setting the global event base; reported by lance.
+ o Fix a memory leak when reading multi-line headers
 
 Changes in 1.4.8-stable:
  o Match the query in DNS replies to the query in the request; from Vsevolod Stakhov.

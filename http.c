@@ -1475,6 +1475,7 @@ evhttp_parse_headers(struct evhttp_request *req, struct evbuffer* buffer)
 		if (*line == ' ' || *line == '\t') {
 			if (evhttp_append_to_last_header(headers, line) == -1)
 				goto error;
+			free(line);
 			continue;
 		}
 
