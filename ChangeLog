@@ -131,7 +131,7 @@ Changes in current version:
  o Clear the timer cache when leaving the event loop; reported by Robin Haberkorn
  o Fix a typo in setting the global event base; reported by lance.
  o Set the 0x20 bit on outgoing alphabetic characters in DNS requests randomly, and insist on a match in replies.  This helps resist DNS poisoning attacks.
-
+ o Make the http connection close detection work properly with bufferevents and fix a potential memory leak associated with it.
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

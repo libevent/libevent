@@ -950,9 +950,6 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		TAILQ_REMOVE(&http->connections, evcon, next);
 	}
 
-	if (event_initialized(&evcon->close_ev))
-		event_del(&evcon->close_ev);
-
 	if (event_initialized(&evcon->retry_ev))
 		event_del(&evcon->retry_ev);
 
@@ -1031,31 +1028,17 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 }
 
 static void
-evhttp_detect_close_cb(evutil_socket_t fd, short what, void *arg)
-{
-	struct evhttp_connection *evcon = arg;
-	evhttp_connection_reset(evcon);
-}
-
-static void
 evhttp_connection_start_detectclose(struct evhttp_connection *evcon)
 {
 	evcon->flags |= EVHTTP_CON_CLOSEDETECT;
 
-	if (event_initialized(&evcon->close_ev))
-		event_del(&evcon->close_ev);
-	event_assign(&evcon->close_ev, evcon->base, evcon->fd, EV_READ,
-	    evhttp_detect_close_cb, evcon);
-
-	event_add(&evcon->close_ev, NULL);
+	bufferevent_enable(evcon->bufev, EV_READ);
 }
 
 static void
 evhttp_connection_stop_detectclose(struct evhttp_connection *evcon)
 {
-	evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
-	if (event_initialized(&evcon->close_ev))
-		event_del(&evcon->close_ev);
+	bufferevent_disable(evcon->bufev, EV_READ);
 }
 
 static void
@@ -1126,6 +1109,29 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	case EVCON_WRITING:
 	default:
 		break;
+	}
+
+	/* when we are in close detect mode, a read error means that
+	 * the other side closed their connection.
+	 */
+	if (evcon->flags & EVHTTP_CON_CLOSEDETECT) {
+		evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
+		if (evcon->http_server == NULL) {
+			/* For connections from the client, we just
+			 * reset the connection so that it becomes
+			 * disconnected.
+			 */ 
+			assert(evcon->state == EVCON_IDLE);
+			evhttp_connection_reset(evcon);
+		} else {
+			/* For connections from the server, we free
+			 * them if there is no request working on
+			 * them.
+			 */
+			if (evcon->state == EVCON_READING_FIRSTLINE)
+				evhttp_connection_free(evcon);
+		}
+		return;
 	}
 
 	if (what & EVBUFFER_TIMEOUT) {
@@ -1482,6 +1488,7 @@ evhttp_parse_headers(struct evhttp_request *req, struct evbuffer* buffer)
 		if (*line == ' ' || *line == '\t') {
 			if (evhttp_append_to_last_header(headers, line) == -1)
 				goto error;
+			mm_free(line);
 			continue;
 		}
 
@@ -1910,8 +1917,12 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	} 
 
 	/* we have a persistent connection; try to accept another request. */
-	if (evhttp_associate_new_request_with_connection(evcon) == -1)
+	if (evhttp_associate_new_request_with_connection(evcon) == -1) {
 		evhttp_connection_free(evcon);
+	} else {
+		/* set up to watch for client close */
+		evhttp_connection_start_detectclose(evcon);
+	}
 }
 
 /*
@@ -1966,8 +1977,6 @@ void
 evhttp_send_reply(struct evhttp_request *req, int code, const char *reason,
     struct evbuffer *databuf)
 {
-	/* set up to watch for client close */
-	evhttp_connection_start_detectclose(req->evcon);
 	evhttp_response_code(req, code, reason);
 	
 	evhttp_send(req, databuf);
@@ -1977,8 +1986,6 @@ void
 evhttp_send_reply_start(struct evhttp_request *req, int code,
     const char *reason)
 {
-	/* set up to watch for client close */
-	evhttp_connection_start_detectclose(req->evcon);
 	evhttp_response_code(req, code, reason);
 	if (evhttp_find_header(req->output_headers, "Content-Length") == NULL &&
 	    req->major == 1 && req->minor == 1 &&

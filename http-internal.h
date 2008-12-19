@@ -62,7 +62,6 @@ struct evhttp_connection {
 	struct bufferevent *bufev;
 
 	struct event retry_ev;		/* for retrying connects */
-	struct event close_ev;
 	
 	char *bind_address;		/* address to use for binding the src */
 	u_short bind_port;		/* local port for binding the src */
