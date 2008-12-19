@@ -827,6 +827,7 @@ test_free_active_base(void)
 	event_base_free(base1);
 	test_ok = 1;
 	cleanup_test();
+	event_base_free(global_base);
 	global_base = event_init();
 }
 
@@ -1259,6 +1260,7 @@ test_evbuffer_readln(void)
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (cp)
 		goto done;
+	free(cp);
 	evbuffer_validate(evb);
 	evbuffer_add(evb, "\n", 1);
 	evbuffer_validate(evb);
@@ -1266,6 +1268,7 @@ test_evbuffer_readln(void)
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "More"))
 		goto done;
+	free(cp);
 	if (EVBUFFER_LENGTH(evb) != 0)
 		goto done;
 	evbuffer_validate(evb);
@@ -1290,11 +1293,13 @@ test_evbuffer_readln(void)
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
 	if (cp)
 		goto done;
+	free(cp);
 	evbuffer_add(evb, "\n", 1);
 	evbuffer_validate(evb);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "Text"))
 		goto done;
+	free(cp);
 	evbuffer_validate(evb);
 
 	/* Test CRLF_STRICT - across boundaries*/
@@ -1330,12 +1335,14 @@ test_evbuffer_readln(void)
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (cp)
 		goto done;
+	free(cp);
 	evbuffer_validate(evb);
 	evbuffer_add(evb, "\n", 1);
 	evbuffer_validate(evb);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	if (!cp || sz != strlen(cp) || strcmp(cp, "More"))
 		goto done;
+	free(cp); cp = NULL;
 	evbuffer_validate(evb);
 	if (EVBUFFER_LENGTH(evb) != 0)
 		goto done;
@@ -2258,6 +2265,10 @@ main (int argc, char **argv)
 	err = WSAStartup( wVersionRequested, &wsaData );
 #endif
 
+#ifndef WIN32
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		return (1);
+#endif
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	test_methods();
