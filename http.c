@@ -1116,21 +1116,13 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	 */
 	if (evcon->flags & EVHTTP_CON_CLOSEDETECT) {
 		evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
-		if (evcon->http_server == NULL) {
-			/* For connections from the client, we just
-			 * reset the connection so that it becomes
-			 * disconnected.
-			 */ 
-			assert(evcon->state == EVCON_IDLE);
-			evhttp_connection_reset(evcon);
-		} else {
-			/* For connections from the server, we free
-			 * them if there is no request working on
-			 * them.
-			 */
-			if (evcon->state == EVCON_READING_FIRSTLINE)
-				evhttp_connection_free(evcon);
-		}
+		assert(evcon->http_server == NULL);
+		/* For connections from the client, we just
+		 * reset the connection so that it becomes
+		 * disconnected.
+		 */ 
+		assert(evcon->state == EVCON_IDLE);
+		evhttp_connection_reset(evcon);
 		return;
 	}
 
@@ -1919,9 +1911,6 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	/* we have a persistent connection; try to accept another request. */
 	if (evhttp_associate_new_request_with_connection(evcon) == -1) {
 		evhttp_connection_free(evcon);
-	} else {
-		/* set up to watch for client close */
-		evhttp_connection_start_detectclose(evcon);
 	}
 }
 
