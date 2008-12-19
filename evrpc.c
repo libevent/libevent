@@ -92,9 +92,14 @@ evrpc_free(struct evrpc_base *base)
 {
 	struct evrpc *rpc;
 	struct evrpc_hook *hook;
+	struct evrpc_hook_ctx *pause;
 
 	while ((rpc = TAILQ_FIRST(&base->registered_rpcs)) != NULL) {
 		assert(evrpc_unregister_rpc(base, rpc->uri));
+	}
+	while ((pause = TAILQ_FIRST(&base->paused_requests)) != NULL) {
+		TAILQ_REMOVE(&base->paused_requests, pause, next);
+		mm_free(pause);
 	}
 	while ((hook = TAILQ_FIRST(&base->input_hooks)) != NULL) {
 		assert(evrpc_remove_hook(base, EVRPC_INPUT, hook));
