@@ -1515,6 +1515,10 @@ main (int argc, char **argv)
 	err = WSAStartup( wVersionRequested, &wsaData );
 #endif
 
+#ifndef WIN32
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		return (1);
+#endif
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	/* Initalize the event library */

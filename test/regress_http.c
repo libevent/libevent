@@ -70,6 +70,7 @@ void http_basic_cb(struct evhttp_request *req, void *arg);
 static void http_chunked_cb(struct evhttp_request *req, void *arg);
 void http_post_cb(struct evhttp_request *req, void *arg);
 void http_dispatcher_cb(struct evhttp_request *req, void *arg);
+static void http_large_delay_cb(struct evhttp_request *req, void *arg);
 
 static struct evhttp *
 http_setup(short *pport, struct event_base *base)
@@ -94,6 +95,7 @@ http_setup(short *pport, struct event_base *base)
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, NULL);
 	evhttp_set_cb(myhttp, "/chunked", http_chunked_cb, NULL);
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, NULL);
+	evhttp_set_cb(myhttp, "/largedelay", http_large_delay_cb, NULL);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, NULL);
 
 	*pport = port;
@@ -373,6 +375,31 @@ http_basic_test(void)
 	}
 
 	fprintf(stdout, "OK\n");
+}
+
+static struct evhttp_connection *delayed_client;
+
+static void
+http_delay_reply(int fd, short what, void *arg)
+{
+	struct evhttp_request *req = arg;
+
+	evhttp_send_reply(req, HTTP_OK, "Everything is fine", NULL);
+
+	++test_ok;
+}
+
+static void
+http_large_delay_cb(struct evhttp_request *req, void *arg)
+{
+	struct timeval tv;
+	timerclear(&tv);
+	tv.tv_sec = 3;
+
+	event_once(-1, EV_TIMEOUT, http_delay_reply, req, &tv);
+
+	/* here we close the client connection which will cause an EOF */
+	evhttp_connection_fail(delayed_client, EVCON_HTTP_EOF);
 }
 
 void http_request_done(struct evhttp_request *, void *);
@@ -819,6 +846,7 @@ http_failure_test(void)
 static void
 close_detect_done(struct evhttp_request *req, void *arg)
 {
+	struct timeval tv;
 	if (req == NULL || req->response_code != HTTP_OK) {
 	
 		fprintf(stderr, "FAILED\n");
@@ -826,7 +854,11 @@ close_detect_done(struct evhttp_request *req, void *arg)
 	}
 
 	test_ok = 1;
-	event_loopexit(NULL);
+
+	timerclear(&tv);
+	tv.tv_sec = 3;   /* longer than the http time out */
+
+	event_loopexit(&tv);
 }
 
 static void
@@ -853,7 +885,7 @@ close_detect_cb(struct evhttp_request *req, void *arg)
 	struct evhttp_connection *evcon = arg;
 	struct timeval tv;
 
-	if (req->response_code != HTTP_OK) {
+	if (req != NULL && req->response_code != HTTP_OK) {
 	
 		fprintf(stderr, "FAILED\n");
 		exit(1);
@@ -868,14 +900,15 @@ close_detect_cb(struct evhttp_request *req, void *arg)
 
 
 static void
-http_close_detection(void)
+http_close_detection(int with_delay)
 {
 	short port = -1;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	
 	test_ok = 0;
-	fprintf(stdout, "Testing Connection Close Detection: ");
+	fprintf(stdout, "Testing Connection Close Detection%s: ",
+		with_delay ? " (with delay)" : "");
 
 	http = http_setup(&port, NULL);
 
@@ -888,6 +921,8 @@ http_close_detection(void)
 		exit(1);
 	}
 
+	delayed_client = evcon;
+
 	/*
 	 * At this point, we want to schedule a request to the HTTP
 	 * server using our make request method.
@@ -899,7 +934,8 @@ http_close_detection(void)
 	evhttp_add_header(req->output_headers, "Host", "somehost");
 
 	/* We give ownership of the request to the connection */
-	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+	if (evhttp_make_request(evcon,
+	    req, EVHTTP_REQ_GET, with_delay ? "/largedelay" : "/test") == -1) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
@@ -908,6 +944,12 @@ http_close_detection(void)
 
 	if (test_ok != 1) {
 		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* at this point, the http server should have no connection */
+	if (TAILQ_FIRST(&http->connections) != NULL) {
+		fprintf(stdout, "FAILED (left connections)\n");
 		exit(1);
 	}
 
@@ -1361,7 +1403,8 @@ http_suite(void)
 	http_basic_test();
 	http_connection_test(0 /* not-persistent */);
 	http_connection_test(1 /* persistent */);
-	http_close_detection();
+	http_close_detection(0 /* with delay */);
+	http_close_detection(1 /* with delay */);
 	http_post_test();
 	http_failure_test();
 	http_highport_test();

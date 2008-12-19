@@ -1907,8 +1907,6 @@ void
 evhttp_send_reply(struct evhttp_request *req, int code, const char *reason,
     struct evbuffer *databuf)
 {
-	/* set up to watch for client close */
-	evhttp_connection_start_detectclose(req->evcon);
 	evhttp_response_code(req, code, reason);
 	
 	evhttp_send(req, databuf);
@@ -1918,8 +1916,6 @@ void
 evhttp_send_reply_start(struct evhttp_request *req, int code,
     const char *reason)
 {
-	/* set up to watch for client close */
-	evhttp_connection_start_detectclose(req->evcon);
 	evhttp_response_code(req, code, reason);
 	if (req->major == 1 && req->minor == 1) {
 		/* use chunked encoding for HTTP/1.1 */
