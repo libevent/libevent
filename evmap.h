@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2007 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,30 +24,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVSIGNAL_H_
-#define _EVSIGNAL_H_
+#ifndef _EVMAP_H_
+#define _EVMAP_H_
 
-#ifndef evutil_socket_t
-#include "evutil.h"
-#endif
+struct event_map;
+struct event_base;
+struct event;
 
-typedef void (*ev_sighandler_t)(int);
+void evmap_clear(struct event_map* ctx);
 
-struct evsignal_info {
-	struct event ev_signal;
-	evutil_socket_t ev_signal_pair[2];
-	int ev_signal_added;
-	volatile sig_atomic_t evsignal_caught;
-	sig_atomic_t evsigcaught[NSIG];
-#ifdef HAVE_SIGACTION
-	struct sigaction **sh_old;
-#else
-	ev_sighandler_t **sh_old;
-#endif
-	int sh_old_max;
-};
-void evsignal_init(struct event_base *);
-void evsignal_process(struct event_base *);
-void evsignal_dealloc(struct event_base *);
+int evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev);
+int evmap_io_del(struct event_base *base, evutil_socket_t fd, struct event *ev);
+void evmap_io_active(struct event_base *base, evutil_socket_t fd, short events);
 
-#endif /* _EVSIGNAL_H_ */
+int evmap_signal_add(struct event_base *base, int signum, struct event *ev);
+int evmap_signal_del(struct event_base *base, int signum, struct event *ev);
+void evmap_signal_active(struct event_base *base, int fd, int ncalls);
+
+#endif /* _EVMAP_H_ */

@@ -66,6 +66,7 @@
 #include "event2/thread.h"
 #include "event2/util.h"
 #include "log.h"
+#include "evmap.h"
 
 #ifdef HAVE_EVENT_PORTS
 extern const struct eventop evportops;
@@ -255,7 +256,7 @@ event_base_new_with_config(struct event_config *cfg)
 				eventops[i]->name))
 				continue;
 			if ((eventops[i]->features & cfg->require_features)
-				!= cfg->require_features)
+			    != cfg->require_features)
 				continue;
 		}
 
@@ -270,8 +271,9 @@ event_base_new_with_config(struct event_config *cfg)
 
 	if (base->evbase == NULL) {
 		if (cfg == NULL)
-            event_errx(1, "%s: no event mechanism available", __func__);
-        else {
+			event_errx(1, "%s: no event mechanism available",
+			    __func__);
+		else {
 			event_base_free(base);
 			return NULL;
 		}
@@ -344,7 +346,7 @@ event_base_free(struct event_base *base)
 			__func__, n_deleted));
 
 	if (base->evsel != NULL && base->evsel->dealloc != NULL)
-		base->evsel->dealloc(base, base->evbase);
+		base->evsel->dealloc(base);
 
 	for (i = 0; i < base->nactivequeues; ++i)
 		assert(TAILQ_EMPTY(base->activequeues[i]));
@@ -358,6 +360,9 @@ event_base_free(struct event_base *base)
 
 	assert(TAILQ_EMPTY(&base->eventqueue));
 
+	evmap_clear(&base->io);
+	evmap_clear(&base->sigmap);
+
 	mm_free(base);
 }
 
@@ -366,7 +371,6 @@ int
 event_reinit(struct event_base *base)
 {
 	const struct eventop *evsel = base->evsel;
-	void *evbase = base->evbase;
 	int res = 0;
 	struct event *ev;
 
@@ -382,15 +386,23 @@ event_reinit(struct event_base *base)
 	}
 	
 	if (base->evsel->dealloc != NULL)
-		base->evsel->dealloc(base, base->evbase);
-	evbase = base->evbase = evsel->init(base);
+		base->evsel->dealloc(base);
+	base->evbase = evsel->init(base);
 	if (base->evbase == NULL)
 		event_errx(1, "%s: could not reinitialize event mechanism",
 		    __func__);
 
+	evmap_clear(&base->io);
+	evmap_clear(&base->sigmap);
+
 	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
-		if (evsel->add(evbase, ev) == -1)
-			res = -1;
+		if (ev->ev_events & (EV_READ|EV_WRITE)) {
+			if (evmap_io_add(base, ev->ev_fd, ev) == -1)
+				res = -1;
+		} else if (ev->ev_events & EV_SIGNAL) {
+			if (evmap_signal_add(base, ev->ev_fd, ev) == -1)
+				res = -1;
+		}
 	}
 
 	return (res);
@@ -691,7 +703,6 @@ int
 event_base_loop(struct event_base *base, int flags)
 {
 	const struct eventop *evsel = base->evsel;
-	void *evbase = base->evbase;
 	struct timeval tv;
 	struct timeval *tv_p;
 	int res, done;
@@ -751,7 +762,7 @@ event_base_loop(struct event_base *base, int flags)
 		/* clear time cache */
 		base->tv_cache.tv_sec = 0;
 
-		res = evsel->dispatch(base, evbase, tv_p);
+		res = evsel->dispatch(base, tv_p);
 
 		if (res == -1)
 			return (-1);
@@ -1020,8 +1031,6 @@ static inline int
 event_add_internal(struct event *ev, const struct timeval *tv)
 {
 	struct event_base *base = ev->ev_base;
-	const struct eventop *evsel = base->evsel;
-	void *evbase = base->evbase;
 	int res = 0;
 
 	event_debug((
@@ -1046,7 +1055,10 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 
 	if ((ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL)) &&
 	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE))) {
-		res = evsel->add(evbase, ev);
+		if (ev->ev_events & (EV_READ|EV_WRITE))
+			res = evmap_io_add(base, ev->ev_fd, ev);
+		else if (ev->ev_events & EV_SIGNAL)
+			res = evmap_signal_add(base, ev->ev_fd, ev);
 		if (res != -1)
 			event_queue_insert(base, ev, EVLIST_INSERTED);
 	}
@@ -1118,8 +1130,6 @@ static inline int
 event_del_internal(struct event *ev)
 {
 	struct event_base *base;
-	const struct eventop *evsel;
-	void *evbase;
 	int res = 0;
 
 	event_debug(("event_del: %p, callback %p",
@@ -1130,8 +1140,6 @@ event_del_internal(struct event *ev)
 		return (-1);
 
 	base = ev->ev_base;
-	evsel = base->evsel;
-	evbase = base->evbase;
 
 	assert(!(ev->ev_flags & ~EVLIST_ALL));
 
@@ -1151,7 +1159,10 @@ event_del_internal(struct event *ev)
 
 	if (ev->ev_flags & EVLIST_INSERTED) {
 		event_queue_remove(base, ev, EVLIST_INSERTED);
-		res = evsel->del(evbase, ev);
+		if (ev->ev_events & (EV_READ|EV_WRITE))
+			res = evmap_io_del(base, ev->ev_fd, ev);
+		else
+			res = evmap_signal_del(base, ev->ev_fd, ev);
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */

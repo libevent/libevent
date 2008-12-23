@@ -46,15 +46,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#ifdef CHECK_INVARIANTS
 #include <assert.h>
-#endif
 
-#include "event2/event.h"
-#include "event2/event_struct.h"
 #include "event-internal.h"
 #include "evsignal.h"
 #include "log.h"
+#include "evmap.h"
 
 #ifndef howmany
 #define        howmany(x, y)   (((x)+((y)-1))/(y))
@@ -67,15 +64,13 @@ struct selectop {
 	fd_set *event_writeset_in;
 	fd_set *event_readset_out;
 	fd_set *event_writeset_out;
-	struct event **event_r_by_fd;
-	struct event **event_w_by_fd;
 };
 
 static void *select_init	(struct event_base *);
-static int select_add		(void *, struct event *);
-static int select_del		(void *, struct event *);
-static int select_dispatch	(struct event_base *, void *, struct timeval *);
-static void select_dealloc     (struct event_base *, void *);
+static int select_add(struct event_base *, int, short old, short events);
+static int select_del(struct event_base *, int, short old, short events);
+static int select_dispatch	(struct event_base *, struct timeval *);
+static void select_dealloc     (struct event_base *);
 
 const struct eventop selectops = {
 	"select",
@@ -109,34 +104,17 @@ select_init(struct event_base *base)
 static void
 check_selectop(struct selectop *sop)
 {
-	int i;
-	for (i = 0; i <= sop->event_fds; ++i) {
-		if (FD_ISSET(i, sop->event_readset_in)) {
-			assert(sop->event_r_by_fd[i]);
-			assert(sop->event_r_by_fd[i]->ev_events & EV_READ);
-			assert(sop->event_r_by_fd[i]->ev_fd == i);
-		} else {
-			assert(! sop->event_r_by_fd[i]);
-		}
-		if (FD_ISSET(i, sop->event_writeset_in)) {
-			assert(sop->event_w_by_fd[i]);
-			assert(sop->event_w_by_fd[i]->ev_events & EV_WRITE);
-			assert(sop->event_w_by_fd[i]->ev_fd == i);
-		} else {
-			assert(! sop->event_w_by_fd[i]);
-		}
-	}
-
+	/* nothing to be done here */
 }
 #else
 #define check_selectop(sop) do { (void) sop; } while (0)
 #endif
 
 static int
-select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
+select_dispatch(struct event_base *base, struct timeval *tv)
 {
 	int res, i;
-	struct selectop *sop = arg;
+	struct selectop *sop = base->evbase;
 
 	check_selectop(sop);
 
@@ -166,22 +144,16 @@ select_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	check_selectop(sop);
 	for (i = 0; i <= sop->event_fds; ++i) {
-		struct event *r_ev = NULL, *w_ev = NULL;
 		res = 0;
-		if (FD_ISSET(i, sop->event_readset_out)) {
-			r_ev = sop->event_r_by_fd[i];
+		if (FD_ISSET(i, sop->event_readset_out))
 			res |= EV_READ;
-		}
-		if (FD_ISSET(i, sop->event_writeset_out)) {
-			w_ev = sop->event_w_by_fd[i];
+		if (FD_ISSET(i, sop->event_writeset_out))
 			res |= EV_WRITE;
-		}
-		if (r_ev && (res & r_ev->ev_events)) {
-			event_active(r_ev, res & r_ev->ev_events, 1);
-		}
-		if (w_ev && w_ev != r_ev && (res & w_ev->ev_events)) {
-			event_active(w_ev, res & w_ev->ev_events, 1);
-		}
+
+		if (res == 0)
+			continue;
+
+		evmap_io_active(base, i, res);
 	}
 	check_selectop(sop);
 
@@ -198,8 +170,6 @@ select_resize(struct selectop *sop, int fdsz)
 	fd_set *writeset_in = NULL;
 	fd_set *readset_out = NULL;
 	fd_set *writeset_out = NULL;
-	struct event **r_by_fd = NULL;
-	struct event **w_by_fd = NULL;
 
 	n_events = (fdsz/sizeof(fd_mask)) * NFDBITS;
 	n_events_old = (sop->event_fdsz/sizeof(fd_mask)) * NFDBITS;
@@ -219,23 +189,11 @@ select_resize(struct selectop *sop, int fdsz)
 	if ((writeset_out = mm_realloc(sop->event_writeset_out, fdsz)) == NULL)
 		goto error;
 	sop->event_writeset_out = writeset_out;
-	if ((r_by_fd = mm_realloc(sop->event_r_by_fd,
-		 n_events*sizeof(struct event*))) == NULL)
-		goto error;
-	sop->event_r_by_fd = r_by_fd;
-	if ((w_by_fd = mm_realloc(sop->event_w_by_fd,
-		 n_events * sizeof(struct event*))) == NULL)
-		goto error;
-	sop->event_w_by_fd = w_by_fd;
 
 	memset((char *)sop->event_readset_in + sop->event_fdsz, 0,
 	    fdsz - sop->event_fdsz);
 	memset((char *)sop->event_writeset_in + sop->event_fdsz, 0,
 	    fdsz - sop->event_fdsz);
-	memset(sop->event_r_by_fd + n_events_old, 0,
-	    (n_events-n_events_old) * sizeof(struct event*));
-	memset(sop->event_w_by_fd + n_events_old, 0,
-	    (n_events-n_events_old) * sizeof(struct event*));
 
 	sop->event_fdsz = fdsz;
 	check_selectop(sop);
@@ -249,26 +207,24 @@ select_resize(struct selectop *sop, int fdsz)
 
 
 static int
-select_add(void *arg, struct event *ev)
+select_add(struct event_base *base, int fd, short old, short events)
 {
-	struct selectop *sop = arg;
+	struct selectop *sop = base->evbase;
 
-	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_add(ev));
-
+	assert((events & EV_SIGNAL) == 0);
 	check_selectop(sop);
 	/*
 	 * Keep track of the highest fd, so that we can calculate the size
 	 * of the fd_sets for select(2)
 	 */
-	if (sop->event_fds < ev->ev_fd) {
+	if (sop->event_fds < fd) {
 		int fdsz = sop->event_fdsz;
 
 		if (fdsz < sizeof(fd_mask))
 			fdsz = sizeof(fd_mask);
 
 		while (fdsz <
-		    (howmany(ev->ev_fd + 1, NFDBITS) * sizeof(fd_mask)))
+		    (howmany(fd + 1, NFDBITS) * sizeof(fd_mask)))
 			fdsz *= 2;
 
 		if (fdsz != sop->event_fdsz) {
@@ -278,17 +234,13 @@ select_add(void *arg, struct event *ev)
 			}
 		}
 
-		sop->event_fds = ev->ev_fd;
+		sop->event_fds = fd;
 	}
 
-	if (ev->ev_events & EV_READ) {
-		FD_SET(ev->ev_fd, sop->event_readset_in);
-		sop->event_r_by_fd[ev->ev_fd] = ev;
-	}
-	if (ev->ev_events & EV_WRITE) {
-		FD_SET(ev->ev_fd, sop->event_writeset_in);
-		sop->event_w_by_fd[ev->ev_fd] = ev;
-	}
+	if (events & EV_READ)
+		FD_SET(fd, sop->event_readset_in);
+	if (events & EV_WRITE)
+		FD_SET(fd, sop->event_writeset_in);
 	check_selectop(sop);
 
 	return (0);
@@ -299,37 +251,32 @@ select_add(void *arg, struct event *ev)
  */
 
 static int
-select_del(void *arg, struct event *ev)
+select_del(struct event_base *base, int fd, short old, short events)
 {
-	struct selectop *sop = arg;
+	struct selectop *sop = base->evbase;
 
+	assert((events & EV_SIGNAL) == 0);
 	check_selectop(sop);
-	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_del(ev));
 
-	if (sop->event_fds < ev->ev_fd) {
+	if (sop->event_fds < fd) {
 		check_selectop(sop);
 		return (0);
 	}
 
-	if (ev->ev_events & EV_READ) {
-		FD_CLR(ev->ev_fd, sop->event_readset_in);
-		sop->event_r_by_fd[ev->ev_fd] = NULL;
-	}
+	if (events & EV_READ)
+		FD_CLR(fd, sop->event_readset_in);
 
-	if (ev->ev_events & EV_WRITE) {
-		FD_CLR(ev->ev_fd, sop->event_writeset_in);
-		sop->event_w_by_fd[ev->ev_fd] = NULL;
-	}
+	if (events & EV_WRITE)
+		FD_CLR(fd, sop->event_writeset_in);
 
 	check_selectop(sop);
 	return (0);
 }
 
 static void
-select_dealloc(struct event_base *base, void *arg)
+select_dealloc(struct event_base *base)
 {
-	struct selectop *sop = arg;
+	struct selectop *sop = base->evbase;
 
 	evsignal_dealloc(base);
 	if (sop->event_readset_in)
@@ -340,10 +287,6 @@ select_dealloc(struct event_base *base, void *arg)
 		mm_free(sop->event_readset_out);
 	if (sop->event_writeset_out)
 		mm_free(sop->event_writeset_out);
-	if (sop->event_r_by_fd)
-		mm_free(sop->event_r_by_fd);
-	if (sop->event_w_by_fd)
-		mm_free(sop->event_w_by_fd);
 
 	memset(sop, 0, sizeof(struct selectop));
 	mm_free(sop);

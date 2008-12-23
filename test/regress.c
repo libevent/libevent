@@ -330,6 +330,35 @@ test_simplewrite(void)
 }
 
 static void
+simpleread_multiple_cb(int fd, short event, void *arg)
+{
+	if (++called == 2)
+		test_ok = 1;
+}
+
+static void
+test_simpleread_multiple(void)
+{
+	struct event one, two;
+
+	/* Very simple read test */
+	setup_test("Simple read to multiple evens: ");
+	
+	write(pair[0], TEST1, strlen(TEST1)+1);
+	shutdown(pair[0], SHUT_WR);
+
+	event_set(&one, pair[1], EV_READ, simpleread_multiple_cb, NULL);
+	if (event_add(&one, NULL) == -1)
+		exit(1);
+	event_set(&two, pair[1], EV_READ, simpleread_multiple_cb, NULL);
+	if (event_add(&two, NULL) == -1)
+		exit(1);
+	event_dispatch();
+
+	cleanup_test();
+}
+
+static void
 test_multiple(void)
 {
 	struct event ev, ev2;
@@ -2307,19 +2336,8 @@ main (int argc, char **argv)
 	regress_zlib();
 #endif
 
-	http_suite();
-
-#ifndef WIN32
-	rpc_suite();
-#endif
-
-	dns_suite();
-
-#ifndef WIN32
-	test_fork();
-#endif
-
 	test_simpleread();
+	test_simpleread_multiple();
 
 	test_simplewrite();
 
@@ -2332,6 +2350,10 @@ main (int argc, char **argv)
 	test_simpletimeout();
 
 #ifndef WIN32
+	test_fork();
+#endif
+
+#ifndef WIN32
 	test_edgetriggered();
 	test_simplesignal();
 	test_multiplesignal();
@@ -2339,6 +2361,14 @@ main (int argc, char **argv)
 #endif
 	test_loopexit();
 	test_loopbreak();
+
+	http_suite();
+
+#ifndef WIN32
+	rpc_suite();
+#endif
+
+	/* XXX(niels): renable dns_suite(); */
 
 	test_loopexit_multiple();
 

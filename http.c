@@ -1891,9 +1891,6 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
-	/* delete possible close detection events */
-	evhttp_connection_stop_detectclose(evcon);
-	
 	need_close =
 	    (req->minor == 0 &&
 		!evhttp_is_connection_keepalive(req->input_headers))||
