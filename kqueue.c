@@ -223,7 +223,6 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 	struct kqop *kqop = base->evbase;
 	struct kevent *changes = kqop->changes;
 	struct kevent *events = kqop->events;
-	struct event *ev;
 	struct timespec ts, *ts_p = NULL;
 	int i, res;
 
