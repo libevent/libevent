@@ -1128,7 +1128,7 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 
 	if (what & EVBUFFER_TIMEOUT) {
 		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
-	} else if (what & EVBUFFER_EOF) {
+	} else if (what & (EVBUFFER_EOF|EVBUFFER_ERROR)) {
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 	} else {
 		evhttp_connection_fail(evcon, EVCON_HTTP_BUFFER_ERROR);
