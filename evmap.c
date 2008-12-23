@@ -56,10 +56,12 @@
 #include "evmap.h"
 #include "mm-internal.h"
 
-#define GET_SLOT(map, slot, msize) (void *)((char *)(map)->entries + (slot)*(msize))
+#define GET_SLOT(map, slot, type) \
+	(struct type *)((char *)(map)->entries + (slot)*(sizeof(struct type)))
 
-static void *
-evmap_get_head(struct event_map *map, int slot, int msize, void (*ctor)(void *))
+static int
+evmap_make_space(
+	struct event_map *map, int slot, int msize, void (*ctor)(void *))
 {
 	if (map->nentries <= slot) {
 		int i;
@@ -71,7 +73,7 @@ evmap_get_head(struct event_map *map, int slot, int msize, void (*ctor)(void *))
 
 		tmp = mm_realloc(map->entries, nentries * msize);
 		if (tmp == NULL)
-			return (NULL);
+			return (-1);
 		
 		for (i = map->nentries; i < nentries; ++i)
 			(*ctor)((char *)tmp + i * msize);
@@ -80,7 +82,7 @@ evmap_get_head(struct event_map *map, int slot, int msize, void (*ctor)(void *))
 		map->entries = tmp;
 	}
 
-	return (GET_SLOT(map, slot, msize));
+	return (0);
 }
 
 
@@ -123,13 +125,11 @@ evmap_io_add(struct event_base *base, int fd, struct event *ev)
 	short res = 0, old = 0;
 
 	if (fd >= io->nentries) {
-		ctx = evmap_get_head(
-			io, fd, sizeof(struct evmap_io), evmap_io_init);
-		if (ctx == NULL)
+		if (evmap_make_space(io, fd,
+			sizeof(struct evmap_io), evmap_io_init) == -1)
 			return (-1);
-	} else {
-		ctx = GET_SLOT(io, fd, sizeof(struct evmap_io));
 	}
+	ctx = GET_SLOT(io, fd, evmap_io);
 
 	nread = ctx->nread;
 	nwrite = ctx->nwrite;
@@ -176,7 +176,7 @@ evmap_io_del(struct event_base *base, int fd, struct event *ev)
 	if (fd >= io->nentries)
 		return (-1);
 	
-	ctx = GET_SLOT(io, fd, sizeof(struct evmap_io));
+	ctx = GET_SLOT(io, fd, evmap_io);
 
 	nread = ctx->nread;
 	nwrite = ctx->nwrite;
@@ -217,7 +217,7 @@ evmap_io_active(struct event_base *base, int fd, short events)
 	struct event *ev;
 
 	assert(fd < io->nentries);
-	ctx = GET_SLOT(io, fd, sizeof(struct evmap_io));
+	ctx = GET_SLOT(io, fd, evmap_io);
 
 	TAILQ_FOREACH(ev, &ctx->events, ev_io_next) {
 		if (ev->ev_events & events)
@@ -248,14 +248,12 @@ evmap_signal_add(struct event_base *base, int sig, struct event *ev)
 	struct evmap_signal *ctx = NULL;
 
 	if (sig >= map->nentries) {
-		ctx = evmap_get_head(
+		if (evmap_make_space(
 			map, sig, sizeof(struct evmap_signal),
-			evmap_signal_init);
-		if (ctx == NULL)
+			evmap_signal_init) == -1)
 			return (-1);
-	} else {
-		ctx = GET_SLOT(map, sig, sizeof(struct evmap_signal));
 	}
+	ctx = GET_SLOT(map, sig, evmap_signal);
 
 	if (TAILQ_EMPTY(&ctx->events)) {
 		if (evsel->add(base, EVENT_SIGNAL(ev), 0, EV_SIGNAL) == -1)
@@ -277,7 +275,7 @@ evmap_signal_del(struct event_base *base, int sig, struct event *ev)
 	if (sig >= map->nentries)
 		return (-1);
 	
-	ctx = GET_SLOT(map, sig, sizeof(struct evmap_signal));
+	ctx = GET_SLOT(map, sig, evmap_signal);
 
 	if (TAILQ_FIRST(&ctx->events) == TAILQ_LAST(&ctx->events, event_list)) {
 		if (evsel->del(base, EVENT_SIGNAL(ev), 0, EV_SIGNAL) == -1)
@@ -297,7 +295,7 @@ evmap_signal_active(struct event_base *base, int sig, int ncalls)
 	struct event *ev;
 
 	assert(sig < map->nentries);
-	ctx = GET_SLOT(map, sig, sizeof(struct evmap_signal));
+	ctx = GET_SLOT(map, sig, evmap_signal);
 
 	TAILQ_FOREACH(ev, &ctx->events, ev_signal_next)
 		event_active(ev, EV_SIGNAL, ncalls);
