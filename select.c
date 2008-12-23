@@ -95,7 +95,7 @@ select_init(struct event_base *base)
 
 	select_resize(sop, howmany(32 + 1, NFDBITS)*sizeof(fd_mask));
 
-	evsignal_init(base);
+	evsig_init(base);
 
 	return (sop);
 }
@@ -134,10 +134,10 @@ select_dispatch(struct event_base *base, struct timeval *tv)
 			return (-1);
 		}
 
-		evsignal_process(base);
+		evsig_process(base);
 		return (0);
-	} else if (base->sig.evsignal_caught) {
-		evsignal_process(base);
+	} else if (base->sig.evsig_caught) {
+		evsig_process(base);
 	}
 
 	event_debug(("%s: select reports %d", __func__, res));
@@ -278,7 +278,7 @@ select_dealloc(struct event_base *base)
 {
 	struct selectop *sop = base->evbase;
 
-	evsignal_dealloc(base);
+	evsig_dealloc(base);
 	if (sop->event_readset_in)
 		mm_free(sop->event_readset_in);
 	if (sop->event_writeset_in)

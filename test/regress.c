@@ -540,8 +540,8 @@ test_fork(void)
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
 
-	signal_set(&sig_ev, SIGCHLD, child_signal_cb, &got_sigchld);
-	signal_add(&sig_ev, NULL);
+	evsignal_set(&sig_ev, SIGCHLD, child_signal_cb, &got_sigchld);
+	evsignal_add(&sig_ev, NULL);
 
 	if ((pid = fork()) == 0) {
 		/* in the child */
@@ -550,7 +550,7 @@ test_fork(void)
 			exit(1);
 		}
 
-		signal_del(&sig_ev);
+		evsignal_del(&sig_ev);
 
 		called = 0;
 
@@ -590,7 +590,7 @@ test_fork(void)
 		exit(1);
 	}
 
-	signal_del(&sig_ev);
+	evsignal_del(&sig_ev);
 
 	cleanup_test();
 }
@@ -606,7 +606,7 @@ signal_cb(int fd, short event, void *arg)
 {
 	struct event *ev = arg;
 
-	signal_del(ev);
+	evsignal_del(ev);
 	test_ok = 1;
 }
 
@@ -617,11 +617,11 @@ test_simplesignal(void)
 	struct itimerval itv;
 
 	setup_test("Simple signal: ");
-	signal_set(&ev, SIGALRM, signal_cb, &ev);
-	signal_add(&ev, NULL);
+	evsignal_set(&ev, SIGALRM, signal_cb, &ev);
+	evsignal_add(&ev, NULL);
 	/* find bugs in which operations are re-ordered */
-	signal_del(&ev);
-	signal_add(&ev, NULL);
+	evsignal_del(&ev);
+	evsignal_add(&ev, NULL);
 
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 1;
@@ -630,7 +630,7 @@ test_simplesignal(void)
 
 	event_dispatch();
  skip_simplesignal:
-	if (signal_del(&ev) == -1)
+	if (evsignal_del(&ev) == -1)
 		test_ok = 0;
 
 	cleanup_test();
@@ -644,11 +644,11 @@ test_multiplesignal(void)
 
 	setup_test("Multiple signal: ");
 
-	signal_set(&ev_one, SIGALRM, signal_cb, &ev_one);
-	signal_add(&ev_one, NULL);
+	evsignal_set(&ev_one, SIGALRM, signal_cb, &ev_one);
+	evsignal_add(&ev_one, NULL);
 
-	signal_set(&ev_two, SIGALRM, signal_cb, &ev_two);
-	signal_add(&ev_two, NULL);
+	evsignal_set(&ev_two, SIGALRM, signal_cb, &ev_two);
+	evsignal_add(&ev_two, NULL);
 
 	memset(&itv, 0, sizeof(itv));
 	itv.it_value.tv_sec = 1;
@@ -658,9 +658,9 @@ test_multiplesignal(void)
 	event_dispatch();
 
  skip_simplesignal:
-	if (signal_del(&ev_one) == -1)
+	if (evsignal_del(&ev_one) == -1)
 		test_ok = 0;
-	if (signal_del(&ev_two) == -1)
+	if (evsignal_del(&ev_two) == -1)
 		test_ok = 0;
 
 	cleanup_test();
@@ -673,24 +673,24 @@ test_immediatesignal(void)
 
 	test_ok = 0;
 	printf("Immediate signal: ");
-	signal_set(&ev, SIGUSR1, signal_cb, &ev);
-	signal_add(&ev, NULL);
+	evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
+	evsignal_add(&ev, NULL);
 	raise(SIGUSR1);
 	event_loop(EVLOOP_NONBLOCK);
-	signal_del(&ev);
+	evsignal_del(&ev);
 	cleanup_test();
 }
 
 static void
 test_signal_dealloc(void)
 {
-	/* make sure that signal_event is event_del'ed and pipe closed */
+	/* make sure that evsignal_event is event_del'ed and pipe closed */
 	struct event ev;
 	struct event_base *base = event_init();
 	printf("Signal dealloc: ");
-	signal_set(&ev, SIGUSR1, signal_cb, &ev);
-	signal_add(&ev, NULL);
-	signal_del(&ev);
+	evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
+	evsignal_add(&ev, NULL);
+	evsignal_del(&ev);
 	event_base_free(base);
         /* If we got here without asserting, we're fine. */
         test_ok = 1;
@@ -736,8 +736,8 @@ test_signal_switchbase(void)
 	base1 = event_init();
 	base2 = event_init();
         is_kqueue = !strcmp(event_get_method(),"kqueue");
-	signal_set(&ev1, SIGUSR1, signal_cb, &ev1);
-	signal_set(&ev2, SIGUSR1, signal_cb, &ev2);
+	evsignal_set(&ev1, SIGUSR1, signal_cb, &ev1);
+	evsignal_set(&ev2, SIGUSR1, signal_cb, &ev2);
 	if (event_base_set(base1, &ev1) ||
 	    event_base_set(base2, &ev2) ||
 	    event_add(&ev1, NULL) ||
@@ -783,17 +783,17 @@ test_signal_assert(void)
 	test_ok = 0;
 	printf("Signal handler assert: ");
 	/* use SIGCONT so we don't kill ourselves when we signal to nowhere */
-	signal_set(&ev, SIGCONT, signal_cb, &ev);
-	signal_add(&ev, NULL);
+	evsignal_set(&ev, SIGCONT, signal_cb, &ev);
+	evsignal_add(&ev, NULL);
 	/*
-	 * if signal_del() fails to reset the handler, it's current handler
-	 * will still point to evsignal_handler().
+	 * if evsignal_del() fails to reset the handler, it's current handler
+	 * will still point to evsig_handler().
 	 */
-	signal_del(&ev);
+	evsignal_del(&ev);
 
 	raise(SIGCONT);
-	/* only way to verify we were in evsignal_handler() */
-	if (base->sig.evsignal_caught)
+	/* only way to verify we were in evsig_handler() */
+	if (base->sig.evsig_caught)
 		test_ok = 0;
 	else
 		test_ok = 1;
@@ -827,9 +827,9 @@ test_signal_restore(void)
 	if (signal(SIGUSR1, signal_cb_sa) == SIG_ERR)
 		goto out;
 #endif
-	signal_set(&ev, SIGUSR1, signal_cb, &ev);
-	signal_add(&ev, NULL);
-	signal_del(&ev);
+	evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
+	evsignal_add(&ev, NULL);
+	evsignal_del(&ev);
 
 	raise(SIGUSR1);
 	/* 1 == signal_cb, 2 == signal_cb_sa, we want our previous handler */

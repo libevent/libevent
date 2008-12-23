@@ -118,7 +118,7 @@ static const struct eventop *eventops[] = {
 
 /* Global state */
 struct event_base *current_base = NULL;
-extern struct event_base *evsignal_base;
+extern struct event_base *evsig_base;
 static int use_monotonic;
 
 /* Handle signals - This is a deprecated interface */
@@ -711,7 +711,7 @@ event_base_loop(struct event_base *base, int flags)
 	base->tv_cache.tv_sec = 0;
 
 	if (base->sig.ev_signal_added)
-		evsignal_base = base;
+		evsig_base = base;
 	done = 0;
 	while (!done) {
 		/* Terminate the loop if we have been asked to */

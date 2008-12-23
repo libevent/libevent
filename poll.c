@@ -86,7 +86,7 @@ poll_init(struct event_base *base)
 	if (!(pollop = mm_calloc(1, sizeof(struct pollop))))
 		return (NULL);
 
-	evsignal_init(base);
+	evsig_init(base);
 
 	return (pollop);
 }
@@ -133,10 +133,10 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 			return (-1);
 		}
 
-		evsignal_process(base);
+		evsig_process(base);
 		return (0);
-	} else if (base->sig.evsignal_caught) {
-		evsignal_process(base);
+	} else if (base->sig.evsig_caught) {
+		evsig_process(base);
 	}
 
 	event_debug(("%s: poll reports %d", __func__, res));
@@ -295,7 +295,7 @@ poll_dealloc(struct event_base *base)
 {
 	struct pollop *pop = base->evbase;
 
-	evsignal_dealloc(base);
+	evsig_dealloc(base);
 	if (pop->event_set)
 		mm_free(pop->event_set);
 	if (pop->idxplus1_by_fd)

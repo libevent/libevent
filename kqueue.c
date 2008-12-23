@@ -394,7 +394,7 @@ kq_sig_add(struct event_base *base, int nsignal, short old, short events)
 	if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
 		return (-1);
 			
-	if (_evsignal_set_handler(base, nsignal, kq_sighandler) == -1)
+	if (_evsig_set_handler(base, nsignal, kq_sighandler) == -1)
 		return (-1);
 
 	return (0);
@@ -421,7 +421,7 @@ kq_sig_del(struct event_base *base, int nsignal, short old, short events)
 	if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
 		return (-1);
 
-	if (_evsignal_restore_handler(base, nsignal) == -1)
+	if (_evsig_restore_handler(base, nsignal) == -1)
 		return (-1);
 
 	return (0);

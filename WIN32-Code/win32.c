@@ -241,7 +241,7 @@ win32_init(struct event_base *_base)
 	winop->readset_out->fd_count = winop->writeset_out->fd_count
 		= winop->exset_out->fd_count = 0;
 
-	evsignal_init(_base);
+	evsig_init(_base);
 
 	return (winop);
  err:
@@ -337,7 +337,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	if (!fd_count) {
 		/* Windows doesn't like you to call select() with no sockets */
 		Sleep(timeval_to_ms(tv));
-		evsignal_process(base);
+		evsig_process(base);
 		return (0);
 	}
 
@@ -349,10 +349,10 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	event_debug(("%s: select returned %d", __func__, res));
 
 	if(res <= 0) {
-		evsignal_process(base);
+		evsig_process(base);
 		return res;
-	} else if (base->sig.evsignal_caught) {
-		evsignal_process(base);
+	} else if (base->sig.evsig_caught) {
+		evsig_process(base);
 	}
 
 	for (i=0; i<win32op->readset_out->fd_count; ++i) {
@@ -379,7 +379,7 @@ win32_dealloc(struct event_base *_base)
 {
 	struct win32op *win32op = _base->evbase;
 
-	evsignal_dealloc(_base);
+	evsig_dealloc(_base);
 	if (win32op->readset_in)
 		mm_free(win32op->readset_in);
 	if (win32op->writeset_in)

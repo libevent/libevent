@@ -160,7 +160,7 @@ evport_init(struct event_base *base)
 	for (i = 0; i < EVENTS_PER_GETN; i++)
 		evpd->ed_pending[i] = -1;
 
-	evsignal_init(base);
+	evsig_init(base);
 
 	return (evpd);
 }
@@ -305,7 +305,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 	if ((res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN, 
 		    (unsigned int *) &nevents, ts_p)) == -1) {
 		if (errno == EINTR || errno == EAGAIN) {
-			evsignal_process(base);
+			evsig_process(base);
 			return (0);
 		} else if (errno == ETIME) {
 			if (nevents == 0)
@@ -314,8 +314,8 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 			event_warn("port_getn");
 			return (-1);
 		}
-	} else if (base->sig.evsignal_caught) {
-		evsignal_process(base);
+	} else if (base->sig.evsig_caught) {
+		evsig_process(base);
 	}
 	
 	event_debug(("%s: port_getn reports %d events", __func__, nevents));
@@ -447,7 +447,7 @@ evport_dealloc(struct event_base *base)
 {
 	struct evport_data *evpd = base->evbase;
 
-	evsignal_dealloc(base);
+	evsig_dealloc(base);
 
 	close(evpd->ed_port);
 

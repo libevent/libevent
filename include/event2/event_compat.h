@@ -201,6 +201,17 @@ int	event_priority_init(int);
 #define timeout_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
 #define timeout_initialized(ev)		_event_initialized((ev), 0)
 
+#define signal_add(ev, tv)		event_add(ev, tv)
+#define signal_set(ev, x, cb, arg)	\
+	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+#define signal_assign(ev, b, x, cb, arg)                    \
+	event_assign(ev, b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+#define signal_new(b, x, cb, arg) \
+	event_new(b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+#define signal_del(ev)			event_del(ev)
+#define signal_pending(ev, tv)		event_pending(ev, EV_SIGNAL, tv)
+#define signal_initialized(ev)		_event_initialized((ev), 0)
+
 #ifdef __cplusplus
 }
 #endif
