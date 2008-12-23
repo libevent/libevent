@@ -135,7 +135,7 @@ epoll_init(struct event_base *base)
 	}
 	epollop->nevents = nfiles;
 
-	evsignal_init(base);
+	evsig_init(base);
 
 	return (epollop);
 }
@@ -164,10 +164,10 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 			return (-1);
 		}
 
-		evsignal_process(base);
+		evsig_process(base);
 		return (0);
-	} else if (base->sig.evsignal_caught) {
-		evsignal_process(base);
+	} else if (base->sig.evsig_caught) {
+		evsig_process(base);
 	}
 
 	event_debug(("%s: epoll_wait reports %d", __func__, res));
@@ -262,7 +262,7 @@ epoll_dealloc(struct event_base *base)
 {
 	struct epollop *epollop = base->evbase;
 
-	evsignal_dealloc(base);
+	evsig_dealloc(base);
 	if (epollop->events)
 		mm_free(epollop->events);
 	if (epollop->epfd >= 0)

@@ -65,26 +65,26 @@
 #include "log.h"
 #include "evmap.h"
 
-static int evsignal_add(struct event_base *, int, short, short);
-static int evsignal_del(struct event_base *, int, short, short);
+static int evsig_add(struct event_base *, int, short, short);
+static int evsig_del(struct event_base *, int, short, short);
 
 static const struct eventop evsigops = {
 	"signal",
 	NULL,
-	evsignal_add,
-	evsignal_del,
+	evsig_add,
+	evsig_del,
 	NULL,
 	NULL,
 	0, 0
 };
 
-struct event_base *evsignal_base = NULL;
+struct event_base *evsig_base = NULL;
 
-static void evsignal_handler(int sig);
+static void evsig_handler(int sig);
 
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
-evsignal_cb(evutil_socket_t fd, short what, void *arg)
+evsig_cb(evutil_socket_t fd, short what, void *arg)
 {
 	static char signals[100];
 #ifdef WIN32
@@ -109,7 +109,7 @@ evsignal_cb(evutil_socket_t fd, short what, void *arg)
 #endif
 
 void
-evsignal_init(struct event_base *base)
+evsig_init(struct event_base *base)
 {
 	/* 
 	 * Our signal handler is going to write to one end of the socket
@@ -124,13 +124,13 @@ evsignal_init(struct event_base *base)
 	FD_CLOSEONEXEC(base->sig.ev_signal_pair[1]);
 	base->sig.sh_old = NULL;
 	base->sig.sh_old_max = 0;
-	base->sig.evsignal_caught = 0;
+	base->sig.evsig_caught = 0;
 	memset(&base->sig.evsigcaught, 0, sizeof(sig_atomic_t)*NSIG);
 
         evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
 
 	event_assign(&base->sig.ev_signal, base, base->sig.ev_signal_pair[1],
-		EV_READ | EV_PERSIST, evsignal_cb, &base->sig.ev_signal);
+		EV_READ | EV_PERSIST, evsig_cb, &base->sig.ev_signal);
 
 	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
 
@@ -141,7 +141,7 @@ evsignal_init(struct event_base *base)
 /* Helper: set the signal handler for evsignal to handler in base, so that
  * we can restore the original handler when we clear the current one. */
 int
-_evsignal_set_handler(struct event_base *base,
+_evsig_set_handler(struct event_base *base,
 		      int evsignal, void (*handler)(int))
 {
 #ifdef HAVE_SIGACTION
@@ -149,7 +149,7 @@ _evsignal_set_handler(struct event_base *base,
 #else
 	ev_sighandler_t sh;
 #endif
-	struct evsignal_info *sig = &base->sig;
+	struct evsig_info *sig = &base->sig;
 	void *p;
 
 	/*
@@ -205,18 +205,18 @@ _evsignal_set_handler(struct event_base *base,
 }
 
 static int
-evsignal_add(struct event_base *base, int evsignal, short old, short events)
+evsig_add(struct event_base *base, int evsignal, short old, short events)
 {
-	struct evsignal_info *sig = &base->sig;
+	struct evsig_info *sig = &base->sig;
 
 	assert(evsignal >= 0 && evsignal < NSIG);
 
 	event_debug(("%s: %p: changing signal handler", __func__, ev));
-	if (_evsignal_set_handler(base, evsignal, evsignal_handler) == -1)
+	if (_evsig_set_handler(base, evsignal, evsig_handler) == -1)
 		return (-1);
 
 	/* catch signals if they happen quickly */
-	evsignal_base = base;
+	evsig_base = base;
 
 	if (!sig->ev_signal_added) {
 		if (event_add(&sig->ev_signal, NULL))
@@ -228,10 +228,10 @@ evsignal_add(struct event_base *base, int evsignal, short old, short events)
 }
 
 int
-_evsignal_restore_handler(struct event_base *base, int evsignal)
+_evsig_restore_handler(struct event_base *base, int evsignal)
 {
 	int ret = 0;
-	struct evsignal_info *sig = &base->sig;
+	struct evsig_info *sig = &base->sig;
 #ifdef HAVE_SIGACTION
 	struct sigaction *sh;
 #else
@@ -259,39 +259,39 @@ _evsignal_restore_handler(struct event_base *base, int evsignal)
 }
 
 static int
-evsignal_del(struct event_base *base, int evsignal, short old, short events)
+evsig_del(struct event_base *base, int evsignal, short old, short events)
 {
 	assert(evsignal >= 0 && evsignal < NSIG);
 
 	event_debug(("%s: %p: restoring signal handler", __func__, ev));
 
-	return (_evsignal_restore_handler(base, evsignal));
+	return (_evsig_restore_handler(base, evsignal));
 }
 
 static void
-evsignal_handler(int sig)
+evsig_handler(int sig)
 {
 	int save_errno = errno;
 #ifdef WIN32
 	int socket_errno = EVUTIL_SOCKET_ERROR();
 #endif
 
-	if (evsignal_base == NULL) {
+	if (evsig_base == NULL) {
 		event_warn(
 			"%s: received signal %d, but have no base configured",
 			__func__, sig);
 		return;
 	}
 
-	evsignal_base->sig.evsigcaught[sig]++;
-	evsignal_base->sig.evsignal_caught = 1;
+	evsig_base->sig.evsigcaught[sig]++;
+	evsig_base->sig.evsig_caught = 1;
 
 #ifndef HAVE_SIGACTION
-	signal(sig, evsignal_handler);
+	signal(sig, evsig_handler);
 #endif
 
 	/* Wake up our notification mechanism */
-	send(evsignal_base->sig.ev_signal_pair[0], "a", 1, 0);
+	send(evsig_base->sig.ev_signal_pair[0], "a", 1, 0);
 	errno = save_errno;
 #ifdef WIN32
 	EVUTIL_SET_SOCKET_ERROR(socket_errno);
@@ -299,13 +299,13 @@ evsignal_handler(int sig)
 }
 
 void
-evsignal_process(struct event_base *base)
+evsig_process(struct event_base *base)
 {
-	struct evsignal_info *sig = &base->sig;
+	struct evsig_info *sig = &base->sig;
 	sig_atomic_t ncalls;
 	int i;
 	
-	base->sig.evsignal_caught = 0;
+	base->sig.evsig_caught = 0;
 	for (i = 1; i < NSIG; ++i) {
 		ncalls = sig->evsigcaught[i];
 		if (ncalls == 0)
@@ -317,7 +317,7 @@ evsignal_process(struct event_base *base)
 }
 
 void
-evsignal_dealloc(struct event_base *base)
+evsig_dealloc(struct event_base *base)
 {
 	int i = 0;
 	if (base->sig.ev_signal_added) {
@@ -326,7 +326,7 @@ evsignal_dealloc(struct event_base *base)
 	}
 	for (i = 0; i < NSIG; ++i) {
 		if (i < base->sig.sh_old_max && base->sig.sh_old[i] != NULL)
-			_evsignal_restore_handler(base, i);
+			_evsig_restore_handler(base, i);
 	}
 
 	EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);
@@ -335,6 +335,6 @@ evsignal_dealloc(struct event_base *base)
 	base->sig.ev_signal_pair[1] = -1;
 	base->sig.sh_old_max = 0;
 
-	/* per index frees are handled in evsignal_del() */
+	/* per index frees are handled in evsig_del() */
 	mm_free(base->sig.sh_old);
 }

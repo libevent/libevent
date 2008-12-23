@@ -72,7 +72,7 @@ struct event_base {
 	const struct eventop *evsigsel;
 	void *evsigbase;
 
-	struct evsignal_info sig;
+	struct evsig_info sig;
 
 	int event_count;		/* counts number of total events */
 	int event_count_active;	/* counts number of active events */
@@ -141,9 +141,9 @@ struct event_config {
 } while (0)
 #endif /* TAILQ_FOREACH */
 
-int _evsignal_set_handler(struct event_base *base, int evsignal,
+int _evsig_set_handler(struct event_base *base, int evsignal,
 			  void (*fn)(int));
-int _evsignal_restore_handler(struct event_base *base, int evsignal);
+int _evsig_restore_handler(struct event_base *base, int evsignal);
 
 #ifdef __cplusplus
 }

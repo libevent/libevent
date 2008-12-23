@@ -33,11 +33,11 @@
 
 typedef void (*ev_sighandler_t)(int);
 
-struct evsignal_info {
+struct evsig_info {
 	struct event ev_signal;
 	evutil_socket_t ev_signal_pair[2];
 	int ev_signal_added;
-	volatile sig_atomic_t evsignal_caught;
+	volatile sig_atomic_t evsig_caught;
 	sig_atomic_t evsigcaught[NSIG];
 #ifdef HAVE_SIGACTION
 	struct sigaction **sh_old;
@@ -46,8 +46,8 @@ struct evsignal_info {
 #endif
 	int sh_old_max;
 };
-void evsignal_init(struct event_base *);
-void evsignal_process(struct event_base *);
-void evsignal_dealloc(struct event_base *);
+void evsig_init(struct event_base *);
+void evsig_process(struct event_base *);
+void evsig_dealloc(struct event_base *);
 
 #endif /* _EVSIGNAL_H_ */

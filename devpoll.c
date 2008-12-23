@@ -156,7 +156,7 @@ devpoll_init(struct event_base *base)
 		return (NULL);
 	}
 
-	evsignal_init(base);
+	evsig_init(base);
 
 	return (devpollop);
 }
@@ -188,10 +188,10 @@ devpoll_dispatch(struct event_base *base, struct timeval *tv)
 			return (-1);
 		}
 
-		evsignal_process(base);
+		evsig_process(base);
 		return (0);
-	} else if (base->sig.evsignal_caught) {
-		evsignal_process(base);
+	} else if (base->sig.evsig_caught) {
+		evsig_process(base);
 	}
 
 	event_debug(("%s: devpoll_wait reports %d", __func__, res));
@@ -302,7 +302,7 @@ devpoll_dealloc(struct event_base *base)
 {
 	struct devpollop *devpollop = base->evbase;
 
-	evsignal_dealloc(base);
+	evsig_dealloc(base);
 	if (devpollop->events)
 		mm_free(devpollop->events);
 	if (devpollop->changes)

@@ -340,16 +340,16 @@ void evperiodic_assign(struct event *ev, struct event_base *base,
 #define evtimer_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
 #define evtimer_initialized(ev)		_event_initialized((ev), 0)
 
-#define signal_add(ev, tv)		event_add(ev, tv)
-#define signal_set(ev, x, cb, arg)	\
+#define evsignal_add(ev, tv)		event_add(ev, tv)
+#define evsignal_set(ev, x, cb, arg)	\
 	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
-#define signal_assign(ev, b, x, cb, arg)                    \
+#define evsignal_assign(ev, b, x, cb, arg)                   \
 	event_assign(ev, b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
-#define signal_new(b, x, cb, arg) \
+#define evsignal_new(b, x, cb, arg) \
 	event_new(b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
-#define signal_del(ev)			event_del(ev)
-#define signal_pending(ev, tv)		event_pending(ev, EV_SIGNAL, tv)
-#define signal_initialized(ev)		_event_initialized((ev), 0)
+#define evsignal_del(ev)		event_del(ev)
+#define evsignal_pending(ev, tv)	event_pending(ev, EV_SIGNAL, tv)
+#define evsignal_initialized(ev)	_event_initialized((ev), 0)
 
 /**
   Prepare an event structure to be added.
