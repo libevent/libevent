@@ -48,33 +48,22 @@
 #include <fcntl.h>
 #endif
 
-#include "event2/event.h"
-#include "event2/event_struct.h"
 #include "event-internal.h"
 #include "evsignal.h"
 #include "log.h"
-
-/* due to limitations in the epoll interface, we need to keep track of
- * all file descriptors outself.
- */
-struct evepoll {
-	struct event *evread;
-	struct event *evwrite;
-};
+#include "evmap.h"
 
 struct epollop {
-	struct evepoll *fds;
-	int nfds;
 	struct epoll_event *events;
 	int nevents;
 	int epfd;
 };
 
 static void *epoll_init	(struct event_base *);
-static int epoll_add	(void *, struct event *);
-static int epoll_del	(void *, struct event *);
-static int epoll_dispatch	(struct event_base *, void *, struct timeval *);
-static void epoll_dealloc	(struct event_base *, void *);
+static int epoll_add(struct event_base *, int fd, short old, short events);
+static int epoll_del(struct event_base *, int fd, short old, short events);
+static int epoll_dispatch	(struct event_base *, struct timeval *);
+static void epoll_dealloc	(struct event_base *);
 
 const struct eventop epollops = {
 	"epoll",
@@ -146,52 +135,16 @@ epoll_init(struct event_base *base)
 	}
 	epollop->nevents = nfiles;
 
-	epollop->fds = mm_calloc(nfiles, sizeof(struct evepoll));
-	if (epollop->fds == NULL) {
-		mm_free(epollop->events);
-		mm_free(epollop);
-		return (NULL);
-	}
-	epollop->nfds = nfiles;
-
 	evsignal_init(base);
 
 	return (epollop);
 }
 
 static int
-epoll_recalc(struct event_base *base, void *arg, int max)
+epoll_dispatch(struct event_base *base, struct timeval *tv)
 {
-	struct epollop *epollop = arg;
-
-	if (max > epollop->nfds) {
-		struct evepoll *fds;
-		int nfds;
-
-		nfds = epollop->nfds;
-		while (nfds < max)
-			nfds <<= 1;
-
-		fds = mm_realloc(epollop->fds, nfds * sizeof(struct evepoll));
-		if (fds == NULL) {
-			event_warn("realloc");
-			return (-1);
-		}
-		epollop->fds = fds;
-		memset(fds + epollop->nfds, 0,
-		    (nfds - epollop->nfds) * sizeof(struct evepoll));
-		epollop->nfds = nfds;
-	}
-
-	return (0);
-}
-
-static int
-epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
-{
-	struct epollop *epollop = arg;
+	struct epollop *epollop = base->evbase;
 	struct epoll_event *events = epollop->events;
-	struct evepoll *evep;
 	int i, res, timeout = -1;
 
 	if (tv != NULL)
@@ -221,130 +174,82 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 	for (i = 0; i < res; i++) {
 		int what = events[i].events;
-		struct event *evread = NULL, *evwrite = NULL;
-
-		evep = (struct evepoll *)events[i].data.ptr;
+		short res = 0;
 
 		if (what & (EPOLLHUP|EPOLLERR)) {
-			evread = evep->evread;
-			evwrite = evep->evwrite;
+			res = EV_READ | EV_WRITE;
 		} else {
-			if (what & EPOLLIN) {
-				evread = evep->evread;
-			}
-
-			if (what & EPOLLOUT) {
-				evwrite = evep->evwrite;
-			}
+			if (what & EPOLLIN)
+				res |= EV_READ;
+			if (what & EPOLLOUT)
+				res |= EV_WRITE;
 		}
 
-		if (!(evread||evwrite))
+		if (!res)
 			continue;
 
-		if (evread != NULL)
-			event_active(evread, EV_READ | (evread->ev_events & EV_ET), 1);
-		if (evwrite != NULL)
-			event_active(evwrite, EV_WRITE | (evwrite->ev_events & EV_ET), 1);
+		evmap_io_active(base, events[i].data.fd, res | EV_ET);
 	}
 
 	return (0);
 }
 
-
 static int
-epoll_add(void *arg, struct event *ev)
+epoll_add(struct event_base *base, int fd, short old, short events)
 {
-	struct epollop *epollop = arg;
+	struct epollop *epollop = base->evbase;
 	struct epoll_event epev = {0, {0}};
-	struct evepoll *evep;
-	int fd, op, events;
+	int op, res;
 
-	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_add(ev));
-
-	fd = ev->ev_fd;
-	if (fd >= epollop->nfds) {
-		/* Extent the file descriptor array as necessary */
-		if (epoll_recalc(ev->ev_base, epollop, fd) == -1)
-			return (-1);
-	}
-	evep = &epollop->fds[fd];
 	op = EPOLL_CTL_ADD;
-	events = 0;
-	if (evep->evread != NULL) {
-		events |= EPOLLIN;
+	res = 0;
+
+	events |= old;
+	if (events & EV_READ)
+		res |= EPOLLIN;
+	if (events & EV_WRITE)
+		res |= EPOLLOUT;
+	if (events & EV_ET)
+		res |= EPOLLET;
+
+	if (old != 0)
 		op = EPOLL_CTL_MOD;
-	}
-	if (evep->evwrite != NULL) {
-		events |= EPOLLOUT;
-		op = EPOLL_CTL_MOD;
-	}
 
-	if (ev->ev_events & EV_READ)
-		events |= EPOLLIN;
-	if (ev->ev_events & EV_WRITE)
-		events |= EPOLLOUT;
-	if(ev->ev_events & EV_ET)
-		events |= EPOLLET;
-
-	epev.data.ptr = evep;
-	epev.events = events;
-	if (epoll_ctl(epollop->epfd, op, ev->ev_fd, &epev) == -1)
-			return (-1);
-
-	/* Update events responsible */
-	if (ev->ev_events & EV_READ)
-		evep->evread = ev;
-	if (ev->ev_events & EV_WRITE)
-		evep->evwrite = ev;
+	epev.data.fd = fd;
+	epev.events = res;
+	if (epoll_ctl(epollop->epfd, op, fd, &epev) == -1)
+		return (-1);
 
 	return (0);
 }
 
 static int
-epoll_del(void *arg, struct event *ev)
+epoll_del(struct event_base *base, int fd, short old, short events)
 {
-	struct epollop *epollop = arg;
+	struct epollop *epollop = base->evbase;
 	struct epoll_event epev = {0, {0}};
-	struct evepoll *evep;
-	int fd, events, op;
-	int needwritedelete = 1, needreaddelete = 1;
-
-	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_del(ev));
-
-	fd = ev->ev_fd;
-	if (fd >= epollop->nfds)
-		return (0);
-	evep = &epollop->fds[fd];
+	int res, op;
 
 	op = EPOLL_CTL_DEL;
-	events = 0;
 
-	if (ev->ev_events & EV_READ)
-		events |= EPOLLIN;
-	if (ev->ev_events & EV_WRITE)
-		events |= EPOLLOUT;
+	res = 0;
+	if (events & EV_READ)
+		res |= EPOLLIN;
+	if (events & EV_WRITE)
+		res |= EPOLLOUT;
 
-	if ((events & (EPOLLIN|EPOLLOUT)) != (EPOLLIN|EPOLLOUT)) {
-		if ((events & EPOLLIN) && evep->evwrite != NULL) {
-			needwritedelete = 0;
-			events = EPOLLOUT;
+	if ((res & (EPOLLIN|EPOLLOUT)) != (EPOLLIN|EPOLLOUT)) {
+		if ((res & EPOLLIN) && (old & EV_WRITE)) {
+			res = EPOLLOUT;
 			op = EPOLL_CTL_MOD;
-		} else if ((events & EPOLLOUT) && evep->evread != NULL) {
-			needreaddelete = 0;
-			events = EPOLLIN;
+		} else if ((res & EPOLLOUT) && (old & EV_READ)) {
+			res = EPOLLIN;
 			op = EPOLL_CTL_MOD;
 		}
 	}
 
-	epev.events = events;
-	epev.data.ptr = evep;
-
-	if (needreaddelete)
-		evep->evread = NULL;
-	if (needwritedelete)
-		evep->evwrite = NULL;
+	epev.data.fd = fd;
+	epev.events = res;
 
 	if (epoll_ctl(epollop->epfd, op, fd, &epev) == -1)
 		return (-1);
@@ -353,13 +258,11 @@ epoll_del(void *arg, struct event *ev)
 }
 
 static void
-epoll_dealloc(struct event_base *base, void *arg)
+epoll_dealloc(struct event_base *base)
 {
-	struct epollop *epollop = arg;
+	struct epollop *epollop = base->evbase;
 
 	evsignal_dealloc(base);
-	if (epollop->fds)
-		mm_free(epollop->fds);
 	if (epollop->events)
 		mm_free(epollop->events);
 	if (epollop->epfd >= 0)

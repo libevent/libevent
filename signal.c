@@ -63,6 +63,20 @@
 #include "event2/util.h"
 #include "evsignal.h"
 #include "log.h"
+#include "evmap.h"
+
+static int evsignal_add(struct event_base *, int, short, short);
+static int evsignal_del(struct event_base *, int, short, short);
+
+static const struct eventop evsigops = {
+	"signal",
+	NULL,
+	evsignal_add,
+	evsignal_del,
+	NULL,
+	NULL,
+	0, 0
+};
 
 struct event_base *evsignal_base = NULL;
 
@@ -97,8 +111,6 @@ evsignal_cb(evutil_socket_t fd, short what, void *arg)
 void
 evsignal_init(struct event_base *base)
 {
-	int i;
-
 	/* 
 	 * Our signal handler is going to write to one end of the socket
 	 * pair to wake up our event loop.  The event loop then scans for
@@ -114,9 +126,6 @@ evsignal_init(struct event_base *base)
 	base->sig.sh_old_max = 0;
 	base->sig.evsignal_caught = 0;
 	memset(&base->sig.evsigcaught, 0, sizeof(sig_atomic_t)*NSIG);
-	/* initialize the queues for all events */
-	for (i = 0; i < NSIG; ++i)
-		TAILQ_INIT(&base->sig.evsigevents[i]);
 
         evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
 
@@ -124,6 +133,9 @@ evsignal_init(struct event_base *base)
 		EV_READ | EV_PERSIST, evsignal_cb, &base->sig.ev_signal);
 
 	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
+
+	base->evsigsel = &evsigops;
+	base->evsigbase = &base->sig;
 }
 
 /* Helper: set the signal handler for evsignal to handler in base, so that
@@ -192,33 +204,25 @@ _evsignal_set_handler(struct event_base *base,
 	return (0);
 }
 
-int
-evsignal_add(struct event *ev)
+static int
+evsignal_add(struct event_base *base, int evsignal, short old, short events)
 {
-	int evsignal;
-	struct event_base *base = ev->ev_base;
-	struct evsignal_info *sig = &ev->ev_base->sig;
+	struct evsignal_info *sig = &base->sig;
 
-	evsignal = EVENT_SIGNAL(ev);
 	assert(evsignal >= 0 && evsignal < NSIG);
-	if (TAILQ_EMPTY(&sig->evsigevents[evsignal])) {
-		event_debug(("%s: %p: changing signal handler", __func__, ev));
-		if (_evsignal_set_handler(
-			    base, evsignal, evsignal_handler) == -1)
+
+	event_debug(("%s: %p: changing signal handler", __func__, ev));
+	if (_evsignal_set_handler(base, evsignal, evsignal_handler) == -1)
+		return (-1);
+
+	/* catch signals if they happen quickly */
+	evsignal_base = base;
+
+	if (!sig->ev_signal_added) {
+		if (event_add(&sig->ev_signal, NULL))
 			return (-1);
-
-		/* catch signals if they happen quickly */
-		evsignal_base = base;
-
-		if (!sig->ev_signal_added) {
-			if (event_add(&sig->ev_signal, NULL))
-				return (-1);
-			sig->ev_signal_added = 1;
-		}
+		sig->ev_signal_added = 1;
 	}
-
-	/* multiple events may listen to the same signal */
-	TAILQ_INSERT_TAIL(&sig->evsigevents[evsignal], ev, ev_signal_next);
 
 	return (0);
 }
@@ -254,24 +258,14 @@ _evsignal_restore_handler(struct event_base *base, int evsignal)
 	return ret;
 }
 
-int
-evsignal_del(struct event *ev)
+static int
+evsignal_del(struct event_base *base, int evsignal, short old, short events)
 {
-	struct event_base *base = ev->ev_base;
-	struct evsignal_info *sig = &base->sig;
-	int evsignal = EVENT_SIGNAL(ev);
-
 	assert(evsignal >= 0 && evsignal < NSIG);
-
-	/* multiple events may listen to the same signal */
-	TAILQ_REMOVE(&sig->evsigevents[evsignal], ev, ev_signal_next);
-
-	if (!TAILQ_EMPTY(&sig->evsigevents[evsignal]))
-		return (0);
 
 	event_debug(("%s: %p: restoring signal handler", __func__, ev));
 
-	return (_evsignal_restore_handler(ev->ev_base, EVENT_SIGNAL(ev)));
+	return (_evsignal_restore_handler(base, evsignal));
 }
 
 static void
@@ -308,7 +302,6 @@ void
 evsignal_process(struct event_base *base)
 {
 	struct evsignal_info *sig = &base->sig;
-	struct event *ev, *next_ev;
 	sig_atomic_t ncalls;
 	int i;
 	
@@ -318,14 +311,7 @@ evsignal_process(struct event_base *base)
 		if (ncalls == 0)
 			continue;
 
-		for (ev = TAILQ_FIRST(&sig->evsigevents[i]);
-		    ev != NULL; ev = next_ev) {
-			next_ev = TAILQ_NEXT(ev, ev_signal_next);
-			if (!(ev->ev_events & EV_PERSIST))
-				event_del(ev);
-			event_active(ev, EV_SIGNAL, ncalls);
-		}
-
+		evmap_signal_active(base, i, ncalls);
 		sig->evsigcaught[i] = 0;
 	}
 }

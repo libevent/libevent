@@ -40,6 +40,7 @@ extern "C" {
 
 /* mutually exclusive */
 #define ev_signal_next	_ev.ev_signal.ev_signal_next
+#define ev_io_next	_ev.ev_io.ev_io_next
 
 /* used only by signals */
 #define ev_ncalls	_ev.ev_signal.ev_ncalls
@@ -48,18 +49,31 @@ extern "C" {
 struct eventop {
 	const char *name;
 	void *(*init)(struct event_base *);
-	int (*add)(void *, struct event *);
-	int (*del)(void *, struct event *);
-	int (*dispatch)(struct event_base *, void *, struct timeval *);
-	void (*dealloc)(struct event_base *, void *);
+	int (*add)(struct event_base *, evutil_socket_t fd, short old, short events);
+	int (*del)(struct event_base *, evutil_socket_t fd, short old, short events);
+	int (*dispatch)(struct event_base *, struct timeval *);
+	void (*dealloc)(struct event_base *);
 	/* set if we need to reinitialize the event base */
 	int need_reinit;
 	enum event_method_feature features;
 };
 
+/* used to map multiple events to the same underlying identifier */
+struct event_map {
+	void *entries;
+	int nentries;
+};
+
 struct event_base {
 	const struct eventop *evsel;
 	void *evbase;
+
+	/* signal handling info */
+	const struct eventop *evsigsel;
+	void *evsigbase;
+
+	struct evsignal_info sig;
+
 	int event_count;		/* counts number of total events */
 	int event_count_active;	/* counts number of active events */
 
@@ -70,8 +84,11 @@ struct event_base {
 	struct event_list **activequeues;
 	int nactivequeues;
 
-	/* signal handling info */
-	struct evsignal_info sig;
+	/* for mapping io activity to events */
+	struct event_map io;
+
+	/* for mapping signal activity to events */
+	struct event_map sigmap;
 
 	struct event_list eventqueue;
 	struct timeval event_tv;

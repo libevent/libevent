@@ -51,18 +51,9 @@
 #include "event-internal.h"
 #include "evsignal.h"
 #include "log.h"
-
-/* due to limitations in the devpoll interface, we need to keep track of
- * all file descriptors outself.
- */
-struct evdevpoll {
-	struct event *evread;
-	struct event *evwrite;
-};
+#include "evmap.h"
 
 struct devpollop {
-	struct evdevpoll *fds;
-	int nfds;
 	struct pollfd *events;
 	int nevents;
 	int dpfd;
@@ -71,10 +62,10 @@ struct devpollop {
 };
 
 static void *devpoll_init	(struct event_base *);
-static int devpoll_add	(void *, struct event *);
-static int devpoll_del	(void *, struct event *);
-static int devpoll_dispatch	(struct event_base *, void *, struct timeval *);
-static void devpoll_dealloc	(struct event_base *, void *);
+static int devpoll_add(struct event_base *, int fd, short old, short events);
+static int devpoll_del(struct event_base *, int fd, short old, short events);
+static int devpoll_dispatch	(struct event_base *, struct timeval *);
+static void devpoll_dealloc	(struct event_base *);
 
 const struct eventop devpollops = {
 	"devpoll",
@@ -157,18 +148,8 @@ devpoll_init(struct event_base *base)
 	}
 	devpollop->nevents = nfiles;
 
-	devpollop->fds = mm_calloc(nfiles, sizeof(struct evdevpoll));
-	if (devpollop->fds == NULL) {
-		mm_free(devpollop->events);
-		mm_free(devpollop);
-		close(dpfd);
-		return (NULL);
-	}
-	devpollop->nfds = nfiles;
-
 	devpollop->changes = mm_calloc(nfiles, sizeof(struct pollfd));
 	if (devpollop->changes == NULL) {
-		mm_free(devpollop->fds);
 		mm_free(devpollop->events);
 		mm_free(devpollop);
 		close(dpfd);
@@ -181,36 +162,9 @@ devpoll_init(struct event_base *base)
 }
 
 static int
-devpoll_recalc(struct event_base *base, void *arg, int max)
+devpoll_dispatch(struct event_base *base, struct timeval *tv)
 {
-	struct devpollop *devpollop = arg;
-
-	if (max >= devpollop->nfds) {
-		struct evdevpoll *fds;
-		int nfds;
-
-		nfds = devpollop->nfds;
-		while (nfds <= max)
-			nfds <<= 1;
-
-		fds = mm_realloc(devpollop->fds, nfds * sizeof(struct evdevpoll));
-		if (fds == NULL) {
-			event_warn("realloc");
-			return (-1);
-		}
-		devpollop->fds = fds;
-		memset(fds + devpollop->nfds, 0,
-		    (nfds - devpollop->nfds) * sizeof(struct evdevpoll));
-		devpollop->nfds = nfds;
-	}
-
-	return (0);
-}
-
-static int
-devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
-{
-	struct devpollop *devpollop = arg;
+	struct devpollop *devpollop = base->evbase;
 	struct pollfd *events = devpollop->events;
 	struct dvpoll dvp;
 	struct evdevpoll *evdp;
@@ -247,9 +201,6 @@ devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		int what = events[i].revents;
 		struct event *evread = NULL, *evwrite = NULL;
 
-		assert(events[i].fd < devpollop->nfds);
-		evdp = &devpollop->fds[events[i].fd];
-   
                 if (what & POLLHUP)
                         what |= POLLIN | POLLOUT;
                 else if (what & POLLERR)
@@ -268,16 +219,8 @@ devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		if (!which)
 			continue;
 
-		if (evread != NULL && !(evread->ev_events & EV_PERSIST))
-			event_del(evread);
-		if (evwrite != NULL && evwrite != evread &&
-		    !(evwrite->ev_events & EV_PERSIST))
-			event_del(evwrite);
-
-		if (evread != NULL)
-			event_active(evread, EV_READ, 1);
-		if (evwrite != NULL)
-			event_active(evwrite, EV_WRITE, 1);
+		/* XXX(niels): not sure if this works for devpoll */
+		evmap_io_active(base, events[i].fd, which);
 	}
 
 	return (0);
@@ -285,22 +228,11 @@ devpoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 
 static int
-devpoll_add(void *arg, struct event *ev)
+devpoll_add(struct event_base *base, int fd, short old, short events)
 {
-	struct devpollop *devpollop = arg;
+	struct devpollop *devpollop = base->evbase;
 	struct evdevpoll *evdp;
-	int fd, events;
-
-	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_add(ev));
-
-	fd = ev->ev_fd;
-	if (fd >= devpollop->nfds) {
-		/* Extend the file descriptor array as necessary */
-		if (devpoll_recalc(ev->ev_base, devpollop, fd) == -1)
-			return (-1);
-	}
-	evdp = &devpollop->fds[fd];
+	int events;
 
 	/* 
 	 * It's not necessary to OR the existing read/write events that we
@@ -310,54 +242,29 @@ devpoll_add(void *arg, struct event *ev)
 	 */
 
 	events = 0;
-	if (ev->ev_events & EV_READ) {
-		if (evdp->evread && evdp->evread != ev) {
-		   /* There is already a different read event registered */
-		   return(-1);
-		}
+	if (events & EV_READ)
 		events |= POLLIN;
-	}
-
-	if (ev->ev_events & EV_WRITE) {
-		if (evdp->evwrite && evdp->evwrite != ev) {
-		   /* There is already a different write event registered */
-		   return(-1);
-		}
+	if (events & EV_WRITE)
 		events |= POLLOUT;
-	}
 
 	if (devpoll_queue(devpollop, fd, events) != 0)
 		return(-1);
-
-	/* Update events responsible */
-	if (ev->ev_events & EV_READ)
-		evdp->evread = ev;
-	if (ev->ev_events & EV_WRITE)
-		evdp->evwrite = ev;
 
 	return (0);
 }
 
 static int
-devpoll_del(void *arg, struct event *ev)
+devpoll_del(struct event_base *base, int fd, short old, short events)
 {
-	struct devpollop *devpollop = arg;
+	struct devpollop *devpollop = base->evbase;
 	struct evdevpoll *evdp;
-	int fd, events;
+	int events;
 	int needwritedelete = 1, needreaddelete = 1;
 
-	if (ev->ev_events & EV_SIGNAL)
-		return (evsignal_del(ev));
-
-	fd = ev->ev_fd;
-	if (fd >= devpollop->nfds)
-		return (0);
-	evdp = &devpollop->fds[fd];
-
 	events = 0;
-	if (ev->ev_events & EV_READ)
+	if (events & EV_READ)
 		events |= POLLIN;
-	if (ev->ev_events & EV_WRITE)
+	if (events & EV_WRITE)
 		events |= POLLOUT;
 
 	/*
@@ -376,33 +283,26 @@ devpoll_del(void *arg, struct event *ev)
 		 * event that we are still interested in if one exists.
 		 */
 
-		if ((events & POLLIN) && evdp->evwrite != NULL) {
+		if ((events & POLLIN) && (old & EV_WRITE)) {
 			/* Deleting read, still care about write */
 			devpoll_queue(devpollop, fd, POLLOUT);
 			needwritedelete = 0;
-		} else if ((events & POLLOUT) && evdp->evread != NULL) {
+		} else if ((events & POLLOUT) && (old & EV_READ)) {
 			/* Deleting write, still care about read */
 			devpoll_queue(devpollop, fd, POLLIN);
 			needreaddelete = 0;
 		}
 	}
 
-	if (needreaddelete)
-		evdp->evread = NULL;
-	if (needwritedelete)
-		evdp->evwrite = NULL;
-
 	return (0);
 }
 
 static void
-devpoll_dealloc(struct event_base *base, void *arg)
+devpoll_dealloc(struct event_base *base)
 {
-	struct devpollop *devpollop = arg;
+	struct devpollop *devpollop = base->evbase;
 
 	evsignal_dealloc(base);
-	if (devpollop->fds)
-		mm_free(devpollop->fds);
 	if (devpollop->events)
 		mm_free(devpollop->events);
 	if (devpollop->changes)

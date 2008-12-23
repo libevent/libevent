@@ -58,13 +58,9 @@
 #define PTR_TO_UDATA(x)	(x)
 #endif
 
-#include "event2/event.h"
-#include "event2/event_struct.h"
 #include "event-internal.h"
 #include "log.h"
-#include "event-internal.h"
-
-#define EVLIST_X_KQINKERNEL	0x1000
+#include "evmap.h"
 
 #define NEVENT		64
 
@@ -72,18 +68,19 @@ struct kqop {
 	struct kevent *changes;
 	int nchanges;
 	struct kevent *events;
-	struct event_list evsigevents[NSIG];
 	int nevents;
 	int kq;
 	pid_t pid;
 };
 
 static void *kq_init	(struct event_base *);
-static int kq_add	(void *, struct event *);
-static int kq_del	(void *, struct event *);
-static int kq_dispatch	(struct event_base *, void *, struct timeval *);
+static int kq_add (struct event_base *, int, short, short);
+static int kq_del (struct event_base *, int, short, short);
+static int kq_sig_add (struct event_base *, int, short, short);
+static int kq_sig_del (struct event_base *, int, short, short);
+static int kq_dispatch	(struct event_base *, struct timeval *);
 static int kq_insert	(struct kqop *, struct kevent *);
-static void kq_dealloc (struct event_base *, void *);
+static void kq_dealloc (struct event_base *);
 
 const struct eventop kqops = {
 	"kqueue",
@@ -96,10 +93,21 @@ const struct eventop kqops = {
     EV_FEATURE_ET|EV_FEATURE_O1|EV_FEATURE_FDS,
 };
 
+static const struct eventop kqsigops = {
+	"kqueue_signal",
+	NULL,
+	kq_sig_add,
+	kq_sig_del,
+	NULL,
+	NULL,
+	1 /* need reinit */,
+	0
+};
+
 static void *
 kq_init(struct event_base *base)
 {
-	int i, kq;
+	int kq;
 	struct kqop *kqueueop;
 
 	if (!(kqueueop = mm_calloc(1, sizeof(struct kqop))))
@@ -131,11 +139,6 @@ kq_init(struct event_base *base)
 	}
 	kqueueop->nevents = NEVENT;
 
-	/* we need to keep track of multiple events per signal */
-	for (i = 0; i < NSIG; ++i) {
-		TAILQ_INIT(&kqueueop->evsigevents[i]);
-	}
-
 	/* Check for Mac OS X kqueue bug. */
 	kqueueop->changes[0].ident = -1;
 	kqueueop->changes[0].filter = EVFILT_READ;
@@ -156,6 +159,9 @@ kq_init(struct event_base *base)
 		close(kq);
 		return (NULL);
 	}
+
+	base->evsigsel = &kqsigops;
+	base->evsigbase = kqueueop;
 
 	return (kqueueop);
 }
@@ -212,9 +218,9 @@ kq_sighandler(int sig)
 }
 
 static int
-kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
+kq_dispatch(struct event_base *base, struct timeval *tv)
 {
-	struct kqop *kqop = arg;
+	struct kqop *kqop = base->evbase;
 	struct kevent *changes = kqop->changes;
 	struct kevent *events = kqop->events;
 	struct event *ev;
@@ -276,18 +282,9 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 			continue;
 
 		if (events[i].filter == EVFILT_SIGNAL) {
-			struct event_list *head =
-			    (struct event_list *)events[i].udata;
-			TAILQ_FOREACH(ev, head, ev_signal_next) {
-				event_active(ev, which, events[i].data);
-			}
+			evmap_signal_active(base, events[i].ident, 1);
 		} else {
-			ev = (struct event *)events[i].udata;
-
-			if (!(ev->ev_events & EV_PERSIST))
-				ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
-
-			event_active(ev, which | (ev->ev_events & EV_ET), 1);
+			evmap_io_active(base, events[i].ident, which | EV_ET);
 		}
 	}
 
@@ -296,149 +293,75 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 
 
 static int
-kq_add(void *arg, struct event *ev)
+kq_add(struct event_base *base, int fd, short old, short events)
 {
-	struct kqop *kqop = arg;
+	struct kqop *kqop = base->evbase;
 	struct kevent kev;
 
-	if (ev->ev_events & EV_SIGNAL) {
-		int nsignal = EVENT_SIGNAL(ev);
-
-		assert(nsignal >= 0 && nsignal < NSIG);
-		if (TAILQ_EMPTY(&kqop->evsigevents[nsignal])) {
-			struct timespec timeout = { 0, 0 };
-			
-			memset(&kev, 0, sizeof(kev));
-			kev.ident = nsignal;
-			kev.filter = EVFILT_SIGNAL;
-			kev.flags = EV_ADD;
-			kev.udata = PTR_TO_UDATA(&kqop->evsigevents[nsignal]);
-			
-			/* Be ready for the signal if it is sent any
-			 * time between now and the next call to
-			 * kq_dispatch. */
-			if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
-				return (-1);
-			
-			if (_evsignal_set_handler(ev->ev_base, nsignal,
-				kq_sighandler) == -1)
-				return (-1);
-		}
-
-		TAILQ_INSERT_TAIL(&kqop->evsigevents[nsignal], ev,
-		    ev_signal_next);
-		ev->ev_flags |= EVLIST_X_KQINKERNEL;
-		return (0);
-	}
-
-	if (ev->ev_events & EV_READ) {
+	if (events & EV_READ) {
  		memset(&kev, 0, sizeof(kev));
-		kev.ident = ev->ev_fd;
+		kev.ident = fd;
 		kev.filter = EVFILT_READ;
 #ifdef NOTE_EOF
 		/* Make it behave like select() and poll() */
 		kev.fflags = NOTE_EOF;
 #endif
 		kev.flags = EV_ADD;
-		if (!(ev->ev_events & EV_PERSIST))
-			kev.flags |= EV_ONESHOT;
-		if (ev->ev_events & EV_ET)
+		if (events & EV_ET)
 			kev.flags |= EV_CLEAR;
-		kev.udata = PTR_TO_UDATA(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
-
-		ev->ev_flags |= EVLIST_X_KQINKERNEL;
 	}
 
-	if (ev->ev_events & EV_WRITE) {
+	if (events & EV_WRITE) {
  		memset(&kev, 0, sizeof(kev));
-		kev.ident = ev->ev_fd;
+		kev.ident = fd;
 		kev.filter = EVFILT_WRITE;
 		kev.flags = EV_ADD;
-		if (!(ev->ev_events & EV_PERSIST))
-			kev.flags |= EV_ONESHOT;
-		if (ev->ev_events & EV_ET)
+		if (events & EV_ET)
 			kev.flags |= EV_CLEAR;
-		kev.udata = PTR_TO_UDATA(ev);
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
-
-		ev->ev_flags |= EVLIST_X_KQINKERNEL;
 	}
 
 	return (0);
 }
 
 static int
-kq_del(void *arg, struct event *ev)
+kq_del(struct event_base *base, int fd, short old, short events)
 {
-	struct kqop *kqop = arg;
+	struct kqop *kqop = base->evbase;
 	struct kevent kev;
 
-	if (!(ev->ev_flags & EVLIST_X_KQINKERNEL))
-		return (0);
-
-	if (ev->ev_events & EV_SIGNAL) {
-		int nsignal = EVENT_SIGNAL(ev);
-		struct timespec timeout = { 0, 0 };
-
-		assert(nsignal >= 0 && nsignal < NSIG);
-		TAILQ_REMOVE(&kqop->evsigevents[nsignal], ev, ev_signal_next);
-		if (TAILQ_EMPTY(&kqop->evsigevents[nsignal])) {
-			memset(&kev, 0, sizeof(kev));
-			kev.ident = nsignal;
-			kev.filter = EVFILT_SIGNAL;
-			kev.flags = EV_DELETE;
-		
-			/* Because we insert signal events
-			 * immediately, we need to delete them
-			 * immediately, too */
-			if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
-				return (-1);
-
-			if (_evsignal_restore_handler(ev->ev_base,
-				nsignal) == -1)
-				return (-1);
-		}
-
-		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
-		return (0);
-	}
-
-	if (ev->ev_events & EV_READ) {
+	if (events & EV_READ) {
  		memset(&kev, 0, sizeof(kev));
-		kev.ident = ev->ev_fd;
+		kev.ident = fd;
 		kev.filter = EVFILT_READ;
 		kev.flags = EV_DELETE;
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
-
-		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
 	}
 
-	if (ev->ev_events & EV_WRITE) {
+	if (events & EV_WRITE) {
  		memset(&kev, 0, sizeof(kev));
-		kev.ident = ev->ev_fd;
+		kev.ident = fd;
 		kev.filter = EVFILT_WRITE;
 		kev.flags = EV_DELETE;
 		
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
-
-		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
 	}
 
 	return (0);
 }
 
 static void
-kq_dealloc(struct event_base *base, void *arg)
+kq_dealloc(struct event_base *base)
 {
-	struct kqop *kqop = arg;
+	struct kqop *kqop = base->evbase;
 
 	if (kqop->changes)
 		mm_free(kqop->changes);
@@ -448,4 +371,58 @@ kq_dealloc(struct event_base *base, void *arg)
 		close(kqop->kq);
 	memset(kqop, 0, sizeof(struct kqop));
 	mm_free(kqop);
+}
+
+/* signal handling */
+static int
+kq_sig_add(struct event_base *base, int nsignal, short old, short events)
+{
+	struct kqop *kqop = base->evbase;
+	struct kevent kev;
+	struct timespec timeout = { 0, 0 };
+
+	assert(nsignal >= 0 && nsignal < NSIG);
+			
+	memset(&kev, 0, sizeof(kev));
+	kev.ident = nsignal;
+	kev.filter = EVFILT_SIGNAL;
+	kev.flags = EV_ADD;
+			
+	/* Be ready for the signal if it is sent any
+	 * time between now and the next call to
+	 * kq_dispatch. */
+	if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
+		return (-1);
+			
+	if (_evsignal_set_handler(base, nsignal, kq_sighandler) == -1)
+		return (-1);
+
+	return (0);
+}
+
+static int
+kq_sig_del(struct event_base *base, int nsignal, short old, short events)
+{
+	struct kqop *kqop = base->evbase;
+	struct kevent kev;
+
+	struct timespec timeout = { 0, 0 };
+
+	assert(nsignal >= 0 && nsignal < NSIG);
+
+	memset(&kev, 0, sizeof(kev));
+	kev.ident = nsignal;
+	kev.filter = EVFILT_SIGNAL;
+	kev.flags = EV_DELETE;
+		
+	/* Because we insert signal events
+	 * immediately, we need to delete them
+	 * immediately, too */
+	if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
+		return (-1);
+
+	if (_evsignal_restore_handler(base, nsignal) == -1)
+		return (-1);
+
+	return (0);
 }

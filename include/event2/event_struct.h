@@ -85,6 +85,11 @@ struct event {
 
 	evutil_socket_t ev_fd;
 	union {
+		/* used for io events */
+		struct {
+			TAILQ_ENTRY (event) (ev_io_next);
+		} ev_io;
+
 		/* used by signal events */
 		struct {
 			TAILQ_ENTRY (event) (ev_signal_next);

@@ -1373,7 +1373,7 @@ http_close_detection(int with_delay)
 	http = http_setup(&port, NULL);
 
 	/* 2 second timeout */
-	evhttp_set_timeout(http, 2);
+	evhttp_set_timeout(http, 1);
 
 	evcon = evhttp_connection_new("127.0.0.1", port);
 	if (evcon == NULL) {
