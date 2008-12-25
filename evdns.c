@@ -2402,6 +2402,21 @@ request_submit(struct evdns_request *const req) {
 }
 
 /* exported function */
+void
+evdns_cancel_request(struct evdns_base *base, struct evdns_request *req)
+{
+	if (req->ns) {
+		/* remove from inflight queue */
+		evdns_request_remove(req, &REQ_HEAD(base, req->trans_id));
+		--base->global_requests_inflight;
+	} else {
+		/* remove from global_waiting head */
+		evdns_request_remove(req, &base->req_waiting_head);
+		--base->global_requests_waiting;
+	}
+}
+
+/* exported function */
 struct evdns_request *
 evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags,
     evdns_callback_type callback, void *ptr) {
