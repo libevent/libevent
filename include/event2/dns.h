@@ -326,8 +326,8 @@ struct evdns_request;
   @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
   @param callback a callback function to invoke when the request is completed
   @param ptr an argument to pass to the callback function
-  @return 0 if successful, or -1 if an error occurred
-  @see evdns_resolve_ipv6(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv6(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
  */
 struct evdns_request *evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
@@ -339,8 +339,8 @@ struct evdns_request *evdns_base_resolve_ipv4(struct evdns_base *base, const cha
   @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
   @param callback a callback function to invoke when the request is completed
   @param ptr an argument to pass to the callback function
-  @return 0 if successful, or -1 if an error occurred
-  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6(), evdns_cancel_request()
  */
 struct evdns_request *evdns_base_resolve_ipv6(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
@@ -355,8 +355,8 @@ struct in6_addr;
   @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
   @param callback a callback function to invoke when the request is completed
   @param ptr an argument to pass to the callback function
-  @return 0 if successful, or -1 if an error occurred
-  @see evdns_resolve_reverse_ipv6()
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_reverse_ipv6(), evdns_cancel_request()
  */
 struct evdns_request *evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
@@ -369,11 +369,19 @@ struct evdns_request *evdns_base_resolve_reverse(struct evdns_base *base, struct
   @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
   @param callback a callback function to invoke when the request is completed
   @param ptr an argument to pass to the callback function
-  @return 0 if successful, or -1 if an error occurred
-  @see evdns_resolve_reverse_ipv6()
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_resolve_reverse_ipv6(), evdns_cancel_request()
  */
 struct evdns_request *evdns_base_resolve_reverse_ipv6(struct evdns_base *base, struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
+/**
+  Cancels a pending DNS resolution request.
+
+  @param base the evdns_base that was used to make the request
+  @param req the evdns_request that was returned by calling a resolve function
+  @see evdns_base_resolve_ip4(), evdns_base_resolve_ipv6, evdns_base_resolve_reverse
+*/
+void evdns_cancel_request(struct evdns_base *base, struct evdns_request *req);
 
 /**
   Set the value of a configuration option.

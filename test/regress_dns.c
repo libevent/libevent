@@ -131,7 +131,10 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 	dns_ok = type;
 
 out:
-	event_loopexit(NULL);
+	if (arg == NULL)
+		event_loopexit(NULL);
+	else
+		event_base_loopexit((struct event_base *)arg, NULL);
 }
 
 static void
@@ -184,6 +187,38 @@ dns_gethostbyaddr(void)
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
+}
+
+static void
+dns_resolve_reverse(void)
+{
+	struct in_addr in;
+	struct event_base *base = event_base_new();
+	struct evdns_base *dns = evdns_base_new(base, 1/* init name servers */);
+	struct evdns_request *req = NULL;
+
+	in.s_addr = htonl(0x7f000001ul); /* 127.0.0.1 */
+	fprintf(stdout, "Simple reverse DNS resolve (base): ");
+	dns_ok = 0;
+
+	req = evdns_base_resolve_reverse(
+		dns, &in, 0, dns_gethostbyname_cb, base);
+	if (req == NULL) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_base_dispatch(base);
+
+	if (dns_ok == DNS_PTR) {
+		fprintf(stdout, "OK\n");
+	} else {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evdns_base_free(dns, 0);
+	event_base_free(base);
 }
 
 static int n_server_responses = 0;
@@ -375,6 +410,8 @@ dns_suite(void)
 	dns_gethostbyname();
 	dns_gethostbyname6();
 	dns_gethostbyaddr();
+
+	dns_resolve_reverse();
 
 	evdns_shutdown(0);
 }
