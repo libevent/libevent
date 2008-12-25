@@ -2368,7 +2368,7 @@ main (int argc, char **argv)
 	rpc_suite();
 #endif
 
-	/* XXX(niels): renable dns_suite(); */
+	dns_suite();
 
 	test_loopexit_multiple();
 
