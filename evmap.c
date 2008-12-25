@@ -56,8 +56,7 @@
 #include "evmap.h"
 #include "mm-internal.h"
 
-#define GET_SLOT(map, slot, type) \
-	(struct type *)((char *)(map)->entries + (slot)*(sizeof(struct type)))
+#define GET_SLOT(map, slot, type) (struct type *)((map)->entries[slot])
 
 static int
 evmap_make_space(
@@ -66,17 +65,20 @@ evmap_make_space(
 	if (map->nentries <= slot) {
 		int i;
 		int nentries = map->nentries ? map->nentries : 32;
-		void *tmp;
+		void **tmp;
 
 		while (nentries <= slot)
 			nentries <<= 1;
 
-		tmp = mm_realloc(map->entries, nentries * msize);
+		tmp = (void **)mm_realloc(map->entries, nentries * msize);
 		if (tmp == NULL)
 			return (-1);
 		
-		for (i = map->nentries; i < nentries; ++i)
-			(*ctor)((char *)tmp + i * msize);
+		for (i = map->nentries; i < nentries; ++i) {
+			tmp[i] = mm_malloc(msize);
+			assert(tmp[i] != NULL);
+			(*ctor)(tmp[i]);
+		}
 
 		map->nentries = nentries;
 		map->entries = tmp;
@@ -91,6 +93,9 @@ evmap_clear(struct event_map *ctx)
 {
 	ctx->nentries = 0;
 	if (ctx->entries != NULL) {
+		int i;
+		for (i = 0; i < ctx->nentries; ++i)
+			mm_free(ctx->entries[i]);
 		mm_free(ctx->entries);
 		ctx->entries = NULL;
 	}
