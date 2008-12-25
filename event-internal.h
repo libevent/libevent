@@ -60,7 +60,7 @@ struct eventop {
 
 /* used to map multiple events to the same underlying identifier */
 struct event_map {
-	void *entries;
+	void **entries;
 	int nentries;
 };
 
