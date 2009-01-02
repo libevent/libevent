@@ -53,7 +53,7 @@ AM_CONDITIONAL(ZLIB_REGRESS, [test "$have_zlib" != "no"])
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in6.h sys/socket.h sys/uio.h)
+AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in6.h sys/socket.h sys/uio.h arpa/inet.h)
 if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
 	AC_EGREP_CPP(yes,
@@ -146,7 +146,7 @@ AC_C_INLINE
 AC_HEADER_TIME
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop signal sigaction strtoll)
+AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop inet_pton signal sigaction strtoll inet_aton)
 
 AC_CHECK_SIZEOF(long)
 
