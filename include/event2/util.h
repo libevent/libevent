@@ -215,6 +215,9 @@ int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap);
 
 const char *evutil_inet_ntop(int af, const void *src, char *dst, size_t len);
 int evutil_inet_pton(int af, const char *src, void *dst);
+struct sockaddr;
+int evutil_parse_sockaddr_port(const char *str, struct sockaddr *out, int outlen);
+
 
 #ifdef __cplusplus
 }

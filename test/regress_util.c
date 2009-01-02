@@ -217,10 +217,87 @@ regress_ipv6_parse(void)
 #endif
 }
 
+static struct sa_port_ent {
+	const char *parse;
+	int sa_family;
+	const char *addr;
+	int port;
+} sa_port_ents[] = {
+	{ "[ffff::1]:1000", AF_INET6, "ffff::1", 1000 },
+	{ "[ffff::1]", AF_INET6, "ffff::1", 0 },
+	{ "[ffff::1", 0, NULL, 0 },
+	{ "::1", AF_INET6, "::1", 0 },
+	{ "1:2::1", AF_INET6, "1:2::1", 0 },
+	{ "192.168.0.1:50", AF_INET, "192.168.0.1", 50 },
+	{ "1.2.3.4", AF_INET, "1.2.3.4", 0 },
+	{ NULL, 0, NULL, 0 },
+};
+
+static void
+regress_sockaddr_port_parse(void)
+{
+	struct sockaddr_storage ss;
+	int ok = 1;
+	int i, r;
+
+	for (i = 0; sa_port_ents[i].parse; ++i) {
+		struct sa_port_ent *ent = &sa_port_ents[i];
+		memset(&ss, 0, sizeof(ss));
+		r = evutil_parse_sockaddr_port(ent->parse, (struct sockaddr*)&ss, sizeof(ss));
+		if (r < 0) {
+			if (ent->sa_family) {
+				printf("Couldn't parse %s!\n", ent->parse);
+				ok = 0;
+			}
+			continue;
+		} else if (! ent->sa_family) {
+			printf("Shouldn't have been able to parse %s!\n",
+				   ent->parse);
+			ok = 0;
+			continue;
+		}
+		if (ent->sa_family == AF_INET) {
+			struct sockaddr_in sin;
+			memset(&sin, 0, sizeof(sin));
+			sin.sin_len = sizeof(sin);
+			sin.sin_family = AF_INET;
+			sin.sin_port = htons(ent->port);
+			r = evutil_inet_pton(AF_INET, ent->addr, &sin.sin_addr);
+			if (1 != r) {
+				printf("Couldn't parse ipv4 target %s.\n", ent->addr);
+				ok = 0;
+			} else if (memcmp(&sin, &ss, sizeof(sin))) {
+				printf("Parse for %s was not as expected.\n", ent->parse);
+				ok = 0;
+			}
+		} else {
+			struct sockaddr_in6 sin6;
+			memset(&sin6, 0, sizeof(sin6));
+			sin6.sin6_len = sizeof(sin6);
+			sin6.sin6_family = AF_INET6;
+			sin6.sin6_port = htons(ent->port);
+			r = evutil_inet_pton(AF_INET6, ent->addr, &sin6.sin6_addr);
+			if (1 != r) {
+				printf("Couldn't parse ipv6 target %s.\n", ent->addr);
+				ok = 0;
+			} else if (memcmp(&sin6, &ss, sizeof(sin6))) {
+				printf("Parse for %s was not as expected.\n", ent->parse);
+				ok = 0;
+			}
+		}
+	}
+
+	if (!ok) {
+		printf("FAILED\n");
+		exit(1);
+	}
+	printf("OK\n");
+}
 
 void
 util_suite(void)
 {
 	regress_ipv4_parse();
 	regress_ipv6_parse();
+	regress_sockaddr_port_parse();
 }
