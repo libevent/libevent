@@ -104,6 +104,7 @@
 #include "log.h"
 #include "mm-internal.h"
 #include "strlcpy-internal.h"
+#include "ipv6-internal.h"
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -186,12 +187,6 @@ struct evdns_request {
 
 	struct evdns_base *base;
 };
-
-#ifndef HAVE_STRUCT_IN6_ADDR
-struct in6_addr {
-	u8 s6_addr[16];
-};
-#endif
 
 struct reply {
 	unsigned int type;

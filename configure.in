@@ -53,7 +53,7 @@ AM_CONDITIONAL(ZLIB_REGRESS, [test "$have_zlib" != "no"])
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in6.h sys/socket.h sys/uio.h arpa/inet.h)
+AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h signal.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in.h netinet/in6.h sys/socket.h sys/uio.h arpa/inet.h)
 if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
 	AC_EGREP_CPP(yes,
@@ -326,17 +326,52 @@ AC_CHECK_SIZEOF(long)
 AC_CHECK_SIZEOF(int)
 AC_CHECK_SIZEOF(short)
 
-AC_CHECK_TYPES([struct in6_addr], , ,
-[#ifdef WIN32
-#include <winsock2.h>
-#else
-#include <sys/types.h>
+AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, sa_family_t], , ,
+[#include <sys/types.h>
+#ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
-#include <sys/socket.h>
 #endif
 #ifdef HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
-#endif])
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef WIN32
+#define WIN32_WINNT 0x400
+#define _WIN32_WINNT 0x400
+#define WIN32_LEAN_AND_MEAN
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+#include <winsock.h>
+#else
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+#endif
+])
+AC_CHECK_MEMBERS([struct in6_addr.s6_addr32, struct in6_addr.s6_addr16, struct sockaddr_in.sin_len, struct sockaddr_in6.sin6_len], , ,
+[#include <sys/types.h>
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef HAVE_NETINET_IN6_H
+#include <netinet/in6.h>
+#endif
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#ifdef WIN32
+#define WIN32_WINNT 0x400
+#define _WIN32_WINNT 0x400
+#define WIN32_LEAN_AND_MEAN
+#if defined(_MSC_VER) && (_MSC_VER < 1300)
+#include <winsock.h>
+#else
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+#endif
+])
 
 AC_MSG_CHECKING([for socklen_t])
 AC_TRY_COMPILE([
