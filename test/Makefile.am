@@ -18,6 +18,7 @@ test_time_SOURCES = test-time.c
 test_time_LDADD = ../libevent_core.la
 regress_SOURCES = regress.c regress.h regress_http.c regress_dns.c \
 	regress_rpc.c regress.gen.c regress.gen.h regress_et.c \
+	regress_util.c \
 	$(regress_pthread_SOURCES) $(regress_zlib_SOURCES)
 if PTHREAD_REGRESS
 regress_pthread_SOURCES = regress_pthread.c

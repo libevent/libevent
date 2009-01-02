@@ -2307,6 +2307,7 @@ main (int argc, char **argv)
 
 	test_evutil_strtoll();
 	test_evutil_snprintf();
+	util_suite();
 
 	test_periodictimeout();
 

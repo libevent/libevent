@@ -213,6 +213,9 @@ int evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
 	;
 int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap);
 
+const char *evutil_inet_ntop(int af, const void *src, char *dst, size_t len);
+int evutil_inet_pton(int af, const char *src, void *dst);
+
 #ifdef __cplusplus
 }
 #endif
