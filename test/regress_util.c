@@ -47,6 +47,7 @@
 #include <string.h>
 
 #include "event2/util.h"
+#include "../ipv6-internal.h"
 
 void util_suite(void);
 
@@ -259,7 +260,9 @@ regress_sockaddr_port_parse(void)
 		if (ent->sa_family == AF_INET) {
 			struct sockaddr_in sin;
 			memset(&sin, 0, sizeof(sin));
+#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
 			sin.sin_len = sizeof(sin);
+#endif
 			sin.sin_family = AF_INET;
 			sin.sin_port = htons(ent->port);
 			r = evutil_inet_pton(AF_INET, ent->addr, &sin.sin_addr);
@@ -273,7 +276,9 @@ regress_sockaddr_port_parse(void)
 		} else {
 			struct sockaddr_in6 sin6;
 			memset(&sin6, 0, sizeof(sin6));
+#ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
 			sin6.sin6_len = sizeof(sin6);
+#endif
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_port = htons(ent->port);
 			r = evutil_inet_pton(AF_INET6, ent->addr, &sin6.sin6_addr);

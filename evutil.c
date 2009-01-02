@@ -68,6 +68,7 @@
 #include "log.h"
 
 #include "strlcpy-internal.h"
+#include "ipv6-internal.h"
 
 int
 evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
@@ -634,7 +635,9 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int o
 	if (is_ipv6) {
 		struct sockaddr_in6 sin6;
 		memset(&sin6, 0, sizeof(sin6));
+#ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
 		sin6.sin6_len = sizeof(sin6);
+#endif
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_port = htons(port);
 		if (1 != evutil_inet_pton(AF_INET6, addr_part, &sin6.sin6_addr))
@@ -647,7 +650,9 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int o
 	} else {
 		struct sockaddr_in sin;
 		memset(&sin, 0, sizeof(sin));
+#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
 		sin.sin_len = sizeof(sin);
+#endif
 		sin.sin_family = AF_INET;
 		sin.sin_port = htons(port);
 		if (1 != evutil_inet_pton(AF_INET, addr_part, &sin.sin_addr))
