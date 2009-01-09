@@ -27,14 +27,47 @@
 #ifndef _EVMAP_H_
 #define _EVMAP_H_
 
+/** @file evmap.h
+ *
+ * An event_map is a utility structure to map each fd or signal to zero or
+ * more events.  Functions to manipulate event_maps should only be used from
+ * inside libevent.
+ **/
+
 struct event_map;
 struct event_base;
 struct event;
 
+/** Remove all entries from an event_map.
+
+	@param ctx the map to clear.
+ */
 void evmap_clear(struct event_map* ctx);
 
+/** Add an IO event (some combination of EV_READ or EV_WRITE) to an
+	event_base's list of events on a given file descriptor, and tell the
+	underlying eventops about the fd if its state has changed.
+
+	@param base the event_base to operate on.
+	@param fd the file descriptor corresponding to ev.
+	@param ev the event to add.
+ */
 int evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev);
+/** Remove an IO event (some combination of EV_READ or EV_WRITE) to an
+	event_base's list of events on a given file descriptor, and tell the
+	underlying eventops about the fd if its state has changed.
+
+	@param base the event_base to operate on.
+	@param fd the file descriptor corresponding to ev.
+	@param ev the event to remove.
+ */
 int evmap_io_del(struct event_base *base, evutil_socket_t fd, struct event *ev);
+/** Active the set of events waiting on an event_base for a given fd.
+
+	@param base the event_base to operate on.
+	@param fd the file descriptor that has become active.
+	@param events a bitmask of EV_READ|EV_WRITE|EV_ET.
+ */
 void evmap_io_active(struct event_base *base, evutil_socket_t fd, short events);
 
 int evmap_signal_add(struct event_base *base, int signum, struct event *ev);

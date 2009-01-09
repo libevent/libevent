@@ -37,7 +37,7 @@
 #include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else 
+#else
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>
@@ -56,8 +56,15 @@
 #include "evmap.h"
 #include "mm-internal.h"
 
+/* Set the variable 'x' to the field in event_map 'map' with fields of type
+   'struct type *' corresponding to the fd or signal 'slot'.  Set 'x' to NULL
+   if there are no entries for 'slot'.  Does no bounds-checking. */
 #define GET_SLOT(x, map, slot, type)			\
 	(x) = (struct type *)((map)->entries[slot])
+/* As GET_SLOT, but construct the entry for 'slot' if it is not present,
+   by allocating enough memory for a 'struct type', and initializing the new
+   value by calling the function 'ctor' on it.
+ */
 #define GET_SLOT_AND_CTOR(x, map, slot, type, ctor)			\
 	do {								\
 		if ((map)->entries[slot] == NULL) {			\
@@ -69,6 +76,9 @@
 		(x) = (struct type *)((map)->entries[slot]);		\
 	} while (0)							\
 
+/** Expand 'map' with new entries of width 'msize' until it is big enough
+	to store a value in 'slot'.
+ */
 static int
 evmap_make_space(struct event_map *map, int slot, int msize)
 {
@@ -82,7 +92,7 @@ evmap_make_space(struct event_map *map, int slot, int msize)
 		tmp = (void **)mm_realloc(map->entries, nentries * msize);
 		if (tmp == NULL)
 			return (-1);
-		
+
 		memset(&tmp[map->nentries], 0,
 		    (nentries - map->nentries)  * sizeof(void *));
 
@@ -111,17 +121,19 @@ evmap_clear(struct event_map *ctx)
 
 /* code specific to file descriptors */
 
+/** An entry for an evmap_io list: notes all the events that want to read or
+	write on a given fd, and the number of each.
+  */
 struct evmap_io {
 	struct event_list events;
 	unsigned int nread;
 	unsigned int nwrite;
 };
 
+/** Constructor for struct evmap_io */
 static void
-evmap_io_init(void *arg)
+evmap_io_init(struct evmap_io *entry)
 {
-	struct evmap_io *entry = arg;
-
 	TAILQ_INIT(&entry->events);
 	entry->nread = 0;
 	entry->nwrite = 0;
@@ -136,6 +148,10 @@ evmap_io_add(struct event_base *base, int fd, struct event *ev)
 	struct evmap_io *ctx = NULL;
 	int nread, nwrite;
 	short res = 0, old = 0;
+
+	assert(fd == ev->ev_fd); /*XXX(nickm) always true? */
+	/*XXX(nickm) Should we assert that ev is not already inserted, or should
+	 * we make this function idempotent? */
 
 	if (fd >= io->nentries) {
 		if (evmap_make_space(io, fd, sizeof(struct evmap_io)) == -1)
@@ -185,9 +201,13 @@ evmap_io_del(struct event_base *base, int fd, struct event *ev)
 	int nread, nwrite;
 	short res = 0, old = 0;
 
+	assert(fd == ev->ev_fd); /*XXX(nickm) always true? */
+	/*XXX(nickm) Should we assert that ev is not already inserted, or should
+	 * we make this function idempotent? */
+
 	if (fd >= io->nentries)
 		return (-1);
-	
+
 	GET_SLOT(ctx, io, fd, evmap_io);
 
 	nread = ctx->nread;
@@ -231,6 +251,7 @@ evmap_io_active(struct event_base *base, int fd, short events)
 	assert(fd < io->nentries);
 	GET_SLOT(ctx, io, fd, evmap_io);
 
+	assert(ctx);
 	TAILQ_FOREACH(ev, &ctx->events, ev_io_next) {
 		if (ev->ev_events & events)
 			event_active(ev, ev->ev_events & events, 1);
@@ -244,10 +265,8 @@ struct evmap_signal {
 };
 
 static void
-evmap_signal_init(void *arg)
+evmap_signal_init(struct evmap_signal *entry)
 {
-	struct evmap_signal *entry = arg;
-
 	TAILQ_INIT(&entry->events);
 }
 
@@ -285,7 +304,7 @@ evmap_signal_del(struct event_base *base, int sig, struct event *ev)
 
 	if (sig >= map->nentries)
 		return (-1);
-	
+
 	GET_SLOT(ctx, map, sig, evmap_signal);
 
 	if (TAILQ_FIRST(&ctx->events) == TAILQ_LAST(&ctx->events, event_list)) {
