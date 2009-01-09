@@ -34,7 +34,6 @@
  * inside libevent.
  **/
 
-struct event_map;
 struct event_base;
 struct event;
 
@@ -42,7 +41,8 @@ struct event;
 
 	@param ctx the map to clear.
  */
-void evmap_clear(struct event_map* ctx);
+void evmap_io_clear(struct event_io_map* ctx);
+void evmap_signal_clear(struct event_signal_map* ctx);
 
 /** Add an IO event (some combination of EV_READ or EV_WRITE) to an
 	event_base's list of events on a given file descriptor, and tell the
