@@ -58,8 +58,22 @@ struct eventop {
 	enum event_method_feature features;
 };
 
-/* used to map multiple events to the same underlying identifier */
-struct event_map {
+#ifdef WIN32
+#define EVMAP_USE_HT
+#endif
+
+#ifdef EVMAP_USE_HT
+#include "ht-internal.h"
+struct event_map_entry;
+HT_HEAD(event_io_map, event_map_entry);
+#else
+#define event_io_map event_signal_map
+#endif
+
+/* Used to map signal numbers to a list of events.  If EVMAP_USE_HT is not
+   defined, this is also used as event_io_map, to map fds to a list of events.
+*/
+struct event_signal_map {
 	void **entries;
 	int nentries;
 };
@@ -85,10 +99,10 @@ struct event_base {
 	int nactivequeues;
 
 	/* for mapping io activity to events */
-	struct event_map io;
+	struct event_io_map io;
 
 	/* for mapping signal activity to events */
-	struct event_map sigmap;
+	struct event_signal_map sigmap;
 
 	struct event_list eventqueue;
 	struct timeval event_tv;

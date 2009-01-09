@@ -360,8 +360,8 @@ event_base_free(struct event_base *base)
 
 	assert(TAILQ_EMPTY(&base->eventqueue));
 
-	evmap_clear(&base->io);
-	evmap_clear(&base->sigmap);
+	evmap_io_clear(&base->io);
+	evmap_signal_clear(&base->sigmap);
 
 	mm_free(base);
 }
@@ -392,8 +392,8 @@ event_reinit(struct event_base *base)
 		event_errx(1, "%s: could not reinitialize event mechanism",
 		    __func__);
 
-	evmap_clear(&base->io);
-	evmap_clear(&base->sigmap);
+	evmap_io_clear(&base->io);
+	evmap_signal_clear(&base->sigmap);
 
 	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
 		if (ev->ev_events & (EV_READ|EV_WRITE)) {
