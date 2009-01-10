@@ -91,7 +91,12 @@ struct event_map_entry {
 static inline unsigned
 hashsocket(struct event_map_entry *e)
 {
-	return (unsigned) e->fd;
+	/* On win32, in practice, the low 2-3 bits of a SOCKET seem not to
+	 * matter.  Our hashtable implementation really likes low-order bits,
+	 * though, so let's do the rotate-and-add trick. */
+	unsigned h = (unsigned) e->fd;
+	h += (h >> 2) | (h << 30);
+	return h;
 }
 
 static inline int
