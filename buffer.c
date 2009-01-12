@@ -889,10 +889,15 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 }
 
 int
-evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd)
+evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
+					  ssize_t howmuch)
 {
 	int n;
 
+	if (howmuch < 0)
+		howmuch = buffer->total_len;
+
+	{
 #ifndef WIN32
   #ifdef HAVE_SYS_UIO_H
 	struct iovec iov[NUM_IOVEC];
@@ -901,21 +906,29 @@ evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd)
 	/* XXX make this top out at some maximal data length? if the buffer has
 	 * (say) 1MB in it, split over 128 chains, there's no way it all gets
 	 * written in one go. */
-	while (chain != NULL && i < NUM_IOVEC) {
+	while (chain != NULL && i < NUM_IOVEC && howmuch) {
 		iov[i].iov_base = chain->buffer + chain->misalign;
-		iov[i++].iov_len = chain->off;
+		if (howmuch >= chain->off) {
+			iov[i++].iov_len = chain->off;
+			howmuch -= chain->off;
+		} else {
+			iov[i++].iov_len = howmuch;
+			break;
+		}
 		chain = chain->next;
 	}
 	n = writev(fd, iov, i);
   #else /* !HAVE_SYS_UIO_H */
-	void *p = evbuffer_pullup(buffer, -1);
-	n = write(fd, p, buffer->total_len, 0);
+	void *p = evbuffer_pullup(buffer, howmuch);
+	n = write(fd, p, howmuch, 0);
   #endif
 #else
 	/* XXX(niels): investigate if windows has writev */
-	void *p = evbuffer_pullup(buffer, -1);
-	n = send(fd, p, buffer->total_len, 0);
+	void *p = evbuffer_pullup(buffer, howmuch);
+	n = send(fd, p, howmuch, 0);
 #endif
+	}
+
 	if (n == -1)
 		return (-1);
 	if (n == 0)
@@ -923,6 +936,12 @@ evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd)
 	evbuffer_drain(buffer, n);
 
 	return (n);
+}
+
+int
+evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd)
+{
+	return evbuffer_write_atmost(buffer, fd, -1);
 }
 
 unsigned char *
