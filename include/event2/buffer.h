@@ -48,9 +48,11 @@
     before hand.
 
   - evbuffer_add_buffer() adds the contents of one buffer to the other
-    without incurring any memory copies.
+    without incurring any unnecessary memory copies.
 
-  - evbuffer_add() and evbuffer_add_buffer() do not mix very well.
+  - evbuffer_add() and evbuffer_add_buffer() do not mix very well:
+    if you use them, you will wind up with fragmented memory in your
+	buffer.
 
   As the contents of an evbuffer can be stored into multiple different
   memory blocks, it cannot be accessed directly.  Instead, evbuffer_pullup()
@@ -94,11 +96,12 @@ void evbuffer_free(struct evbuffer *buf);
 size_t evbuffer_get_length(struct evbuffer *buf);
 
 /**
-   Returns the contiguous number of available bytes in the first buffer chain.
+   Returns the number of contiguous available bytes in the first buffer chain.
 
-   This is useful when processing of all available data can be split up into
-   chunks.  Calls to evbuffer_pullup() that cause reallocation and copying
-   of data can thus be avoided.
+   This is useful when procesing data that might be split into multiple
+   chains, or that might all be in the first chain.  Calls to
+   evbuffer_pullup() that cause reallocation and copying of data can thus be
+   avoided.
 
    @param buf pointer to the evbuffer
    @return 0 if no data is available, otherwise the number of available bytes
@@ -123,7 +126,8 @@ int evbuffer_expand(struct evbuffer *buf, size_t datlen);
 
    Makes space available in the last chain of an event buffer that can
    be arbitrarily written to by a user.  The space does not become
-   available for reading until it has been committed.
+   available for reading until it has been committed with
+   evbuffer_commit_space().
 
    Multiple subsequent calls to this function will make the same space
    available until evbuffer_commit_space() has been called.
@@ -139,8 +143,8 @@ unsigned char *evbuffer_reserve_space(struct evbuffer *buf, size_t size);
 /**
    Commits previously reserved space.
 
-   Commits some of the space previously reserved.  It then becomes
-   available for reading.
+   Commits some of the space previously reserved with
+   evbuffer_reserve_space().  It then becomes available for reading.
 
    @param buf the event buffer in which to reserve space.
    @param size how much space to commit.
@@ -227,7 +231,7 @@ char *evbuffer_readline(struct evbuffer *buffer);
   Move data from one evbuffer into another evbuffer.
 
   This is a destructive add.  The data from one buffer moves into
-  the other buffer. However, no memory copies occur.
+  the other buffer.  However, no unnecessary memory copies occur.
 
   @param outbuf the output buffer
   @param inbuf the input buffer
@@ -285,7 +289,6 @@ void evbuffer_drain(struct evbuffer *buf, size_t len);
  */
 int evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd);
 
-
 /**
   Read from a file descriptor and store the result in an evbuffer.
 
@@ -311,6 +314,13 @@ unsigned char *evbuffer_find(struct evbuffer *buffer, const unsigned char *what,
 /**
   Set a callback to invoke when the evbuffer is modified.
 
+  The callback takes four arguments.  In order, they are: the evbuffer that
+  was modified, the buffer's old length, the buffer's new length, and the
+  value passed to this function in the 'cbarg' argument.
+
+  Subsequent calls to evbuffer_setcb() replace callbacks set by previous
+  calls.  Setting the callback to NULL removes any previously set callback.
+
   @param buffer the evbuffer to be monitored
   @param cb the callback function to invoke when the evbuffer is modified
   @param cbarg an argument to be provided to the callback function
@@ -319,7 +329,7 @@ void evbuffer_setcb(struct evbuffer *buffer,
     void (*cb)(struct evbuffer *, size_t, size_t, void *), void *cbarg);
 
 /**
-  Makes the memory at the begging of an evbuffer contiguous
+  Makes the data at the begging of an evbuffer contiguous.
 
   @param buf the evbuffer to make contiguous
   @param size the number of bytes to make contiguous, or -1 to make the
@@ -341,7 +351,8 @@ unsigned char *evbuffer_pullup(struct evbuffer *buf, int size);
 int evbuffer_prepend(struct evbuffer *buf, const void *data, size_t size);
 
 /**
-  Prepends the src evbuffer to the beginning of the dst evbuffer
+  Prepends all data from the src evbuffer to the beginning of the dst
+  evbuffer.
 
   @param dst the evbuffer to which to prepend data
   @param src the evbuffer to prepend; it will be emptied as a result
