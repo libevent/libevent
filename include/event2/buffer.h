@@ -290,6 +290,21 @@ void evbuffer_drain(struct evbuffer *buf, size_t len);
 int evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd);
 
 /**
+  Write some of the contents of an evbuffer to a file descriptor.
+
+  The evbuffer will be drained after the bytes have been successfully written.
+
+  @param buffer the evbuffer to be written and drained
+  @param fd the file descriptor to be written to
+  @param howmuch the largest allowable number of bytes to write, or -1
+        to write as many bytes as we can.
+  @return the number of bytes written, or -1 if an error occurred
+  @see evbuffer_read()
+ */
+int evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
+						  ssize_t howmuch);
+
+/**
   Read from a file descriptor and store the result in an evbuffer.
 
   @param buf the evbuffer to store the result
@@ -364,9 +379,6 @@ void evbuffer_prepend_buffer(struct evbuffer *dst, struct evbuffer* src);
 
     A better find-string that returns a smart offset structure rather than a
     pointer. It should also be able to start searching _at_ an offset.
-
-	A variant of evbuffer_write() that takes a maximum number of bytes to
-	write.
 
 	A check-representation functions for testing, so we can assert() that
 	nothing has gone screwy inside an evbuffer.
