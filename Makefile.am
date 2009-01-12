@@ -83,10 +83,10 @@ event-config.h: config.h
 
 CORE_SRC = event.c buffer.c evbuffer-internal.h bufferevent.c \
 	bufferevent-internal.h evmap.c evmap.h \
-	log.c evutil.c $(SYS_SRC)
+	log.c evutil.c strlcpy.c strlcpy-internal.h $(SYS_SRC)
 EXTRA_SRC = event_tagging.c http.c evhttp.h http-internal.h evdns.c \
 	evdns.h evrpc.c evrpc.h evrpc-internal.h mm-internal.h \
-	strlcpy.c strlcpy-internal.h strlcpy-internal.h ipv6-internal.h
+	ipv6-internal.h
 
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
