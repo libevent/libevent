@@ -211,7 +211,7 @@ evsig_add(struct event_base *base, int evsignal, short old, short events)
 
 	assert(evsignal >= 0 && evsignal < NSIG);
 
-	event_debug(("%s: %p: changing signal handler", __func__, ev));
+	event_debug(("%s: %d: changing signal handler", __func__, evsignal));
 	if (_evsig_set_handler(base, evsignal, evsig_handler) == -1)
 		return (-1);
 
@@ -263,7 +263,7 @@ evsig_del(struct event_base *base, int evsignal, short old, short events)
 {
 	assert(evsignal >= 0 && evsignal < NSIG);
 
-	event_debug(("%s: %p: restoring signal handler", __func__, ev));
+	event_debug(("%s: %d: restoring signal handler", __func__, evsignal));
 
 	return (_evsig_restore_handler(base, evsignal));
 }
