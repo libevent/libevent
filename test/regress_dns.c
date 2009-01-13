@@ -62,7 +62,7 @@
 #include "event2/event.h"
 #include "event2/event_compat.h"
 #include "evdns.h"
-#include "log.h"
+#include "log-internal.h"
 
 static int dns_ok = 0;
 static int dns_err = 0;

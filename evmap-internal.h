@@ -27,7 +27,7 @@
 #ifndef _EVMAP_H_
 #define _EVMAP_H_
 
-/** @file evmap.h
+/** @file evmap-internal.h
  *
  * An event_map is a utility structure to map each fd or signal to zero or
  * more events.  Functions to manipulate event_maps should only be used from

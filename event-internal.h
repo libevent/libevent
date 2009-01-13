@@ -32,8 +32,8 @@ extern "C" {
 #endif
 
 #include "config.h"
-#include "min_heap.h"
-#include "evsignal.h"
+#include "minheap-internal.h"
+#include "evsignal-internal.h"
 #include "mm-internal.h"
 
 /* map union members back */

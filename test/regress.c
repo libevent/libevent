@@ -65,7 +65,7 @@
 #include "event2/util.h"
 #include "event-internal.h"
 #include "evbuffer-internal.h"
-#include "log.h"
+#include "log-internal.h"
 
 #include "regress.h"
 

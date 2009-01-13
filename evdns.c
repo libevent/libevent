@@ -101,7 +101,7 @@
 
 #include "evdns.h"
 #include "evutil.h"
-#include "log.h"
+#include "log-internal.h"
 #include "mm-internal.h"
 #include "strlcpy-internal.h"
 #include "ipv6-internal.h"

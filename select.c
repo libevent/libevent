@@ -49,9 +49,9 @@
 #include <assert.h>
 
 #include "event-internal.h"
-#include "evsignal.h"
-#include "log.h"
-#include "evmap.h"
+#include "evsignal-internal.h"
+#include "log-internal.h"
+#include "evmap-internal.h"
 
 #ifndef howmany
 #define        howmany(x, y)   (((x)+((y)-1))/(y))

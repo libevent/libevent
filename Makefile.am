@@ -102,7 +102,7 @@ noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
 	evrpc-internal.h strlcpy-internal.h evbuffer-internal.h \
 	bufferevent-internal.h http-internal.h event-internal.h \
 	evthread-internal.h \
-	min_heap.h log.h evsignal.h evmap.h
+	minheap-internal.h log-internal.h evsignal-internal.h evmap-internal.h
 
 include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h event-config.h
 

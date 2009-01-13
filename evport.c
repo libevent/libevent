@@ -71,9 +71,9 @@
 #endif
 
 #include "event-internal.h"
-#include "log.h"
-#include "evsignal.h"
-#include "evmap.h"
+#include "log-internal.h"
+#include "evsignal-internal.h"
+#include "evmap-internal.h"
 
 /*
  * Default value for ed_nevents, which is the maximum file descriptor number we

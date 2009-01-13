@@ -64,7 +64,7 @@
 #include "event2/event.h"
 #include "event2/tag.h"
 #include "event2/buffer.h"
-#include "log.h"
+#include "log-internal.h"
 #include "mm-internal.h"
 
 int evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf);

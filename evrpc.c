@@ -63,7 +63,7 @@
 #include "event2/http_struct.h"
 #include "event2/http_compat.h"
 #include "evutil.h"
-#include "log.h"
+#include "log-internal.h"
 #include "mm-internal.h"
 
 struct evrpc_base *
