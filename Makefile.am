@@ -83,7 +83,7 @@ event-config.h: config.h
 
 CORE_SRC = event.c buffer.c bufferevent.c \
 	evmap.c	log.c evutil.c strlcpy.c $(SYS_SRC)
-EXTRA_SRC = event_tagging.c http.c evdns.c evdns.h evrpc.c
+EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
 
 
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
@@ -95,7 +95,7 @@ libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_core_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
 
 libevent_extra_la_SOURCES = $(EXTRA_SRC)
-libevent_extra_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
+libevent_extra_la_LIBADD =
 libevent_extra_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
 
 noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
