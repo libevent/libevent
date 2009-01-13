@@ -105,6 +105,7 @@
 #include "mm-internal.h"
 #include "strlcpy-internal.h"
 #include "ipv6-internal.h"
+#include "util-internal.h"
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -361,11 +362,6 @@ static int strtoint(const char *const str);
 
 #ifdef WIN32
 static int
-error_is_eagain(int err)
-{
-	return err == EAGAIN || err == WSAEWOULDBLOCK;
-}
-static int
 inet_aton(const char *c, struct in_addr *addr)
 {
 	ev_uint32_t r;
@@ -379,8 +375,6 @@ inet_aton(const char *c, struct in_addr *addr)
 	}
 	return 1;
 }
-#else
-#define error_is_eagain(err) ((err) == EAGAIN)
 #endif
 #define CLOSE_SOCKET(s) EVUTIL_CLOSESOCKET(s)
 
@@ -1246,7 +1240,8 @@ nameserver_read(struct nameserver *ns) {
           	const int r = recv(ns->socket, packet, sizeof(packet), 0);
 		if (r < 0) {
 			int err = evutil_socket_geterror(ns->socket);
-			if (error_is_eagain(err)) return;
+			if (EVUTIL_ERR_RW_RETRIABLE(err))
+				return;
 			nameserver_failed(ns, evutil_socket_error_to_string(err));
 			return;
 		}
@@ -1270,7 +1265,8 @@ server_port_read(struct evdns_server_port *s) {
 					 (struct sockaddr*) &addr, &addrlen);
 		if (r < 0) {
 			int err = evutil_socket_geterror(s->socket);
-			if (error_is_eagain(err)) return;
+			if (EVUTIL_ERR_RW_RETRIABLE(err))
+				return;
 			log(EVDNS_LOG_WARN, "Error %s (%d) while reading request.",
 				evutil_socket_error_to_string(err), err);
 			return;
@@ -1289,7 +1285,7 @@ server_port_flush(struct evdns_server_port *port)
 			   (struct sockaddr*) &req->addr, req->addrlen);
 		if (r < 0) {
 			int err = evutil_socket_geterror(port->socket);
-			if (error_is_eagain(err))
+			if (EVUTIL_ERR_RW_RETRIABLE(err))
 				return;
 			log(EVDNS_LOG_WARN, "Error %s (%d) while writing response to port; dropping", evutil_socket_error_to_string(err), err);
 		}
@@ -1821,7 +1817,7 @@ evdns_server_request_respond(struct evdns_server_request *_req, int err)
 			   (struct sockaddr*) &req->addr, req->addrlen);
 	if (r<0) {
 		int sock_err = evutil_socket_geterror(port->socket);
-		if (! error_is_eagain(sock_err))
+		if (EVUTIL_ERR_RW_RETRIABLE(sock_err))
 			return -1;
 
 		if (port->pending_replies) {
@@ -1999,7 +1995,8 @@ evdns_request_transmit_to(struct evdns_request *req, struct nameserver *server) 
 	const int r = send(server->socket, req->request, req->request_len, 0);
 	if (r < 0) {
 		int err = evutil_socket_geterror(server->socket);
-		if (error_is_eagain(err)) return 1;
+		if (EVUTIL_ERR_RW_RETRIABLE(err))
+			return 1;
 		nameserver_failed(req->ns, evutil_socket_error_to_string(err));
 		return 2;
 	} else if (r != (int)req->request_len) {

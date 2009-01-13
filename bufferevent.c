@@ -56,6 +56,7 @@
 #include "log.h"
 #include "mm-internal.h"
 #include "bufferevent-internal.h"
+#include "util-internal.h"
 
 /* prototypes */
 
@@ -171,7 +172,8 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	res = evbuffer_read(input, fd, howmuch);
 
 	if (res == -1) {
-		if (errno == EAGAIN || errno == EINTR)
+		int err = evutil_socket_geterror(fd);
+		if (EVUTIL_ERR_RW_RETRIABLE(err))
 			goto reschedule;
 		/* error case */
 		what |= EVBUFFER_ERROR;
@@ -226,20 +228,12 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	if (EVBUFFER_LENGTH(bufev->output)) {
 	    res = evbuffer_write(bufev->output, fd);
 	    if (res == -1) {
-#ifndef WIN32
-/*todo. evbuffer uses WriteFile when WIN32 is set. WIN32 system calls do not
- *set errno. thus this error checking is not portable*/
-		    if (errno == EAGAIN ||
-			errno == EINTR ||
-			errno == EINPROGRESS)
-			    goto reschedule;
-		    /* error case */
-		    what |= EVBUFFER_ERROR;
-
-#else
+			int err = evutil_socket_geterror(fd);
+			/* XXXX we used to check for EINPROGRESS here too, but I
+			   don't think write can set that. -nick */
+			if (EVUTIL_ERR_RW_RETRIABLE(err))
 				goto reschedule;
-#endif
-
+		    what |= EVBUFFER_ERROR;
 	    } else if (res == 0) {
 		    /* eof case */
 		    what |= EVBUFFER_EOF;

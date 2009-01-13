@@ -94,6 +94,7 @@
 #include "log.h"
 #include "http-internal.h"
 #include "mm-internal.h"
+#include "util-internal.h"
 
 #ifdef WIN32
 #define strcasecmp _stricmp
@@ -2320,7 +2321,8 @@ accept_socket(evutil_socket_t fd, short what, void *arg)
 	evutil_socket_t nfd;
 
 	if ((nfd = accept(fd, (struct sockaddr *)&ss, &addrlen)) == -1) {
-		if (errno != EAGAIN && errno != EINTR)
+		int err = evutil_socket_geterror(fd);
+		if (! EVUTIL_ERR_ACCEPT_RETRIABLE(err))
 			event_warn("%s: bad accept", __func__);
 		return;
 	}
@@ -2972,17 +2974,9 @@ socket_connect(evutil_socket_t fd, const char *address, unsigned short port)
 	}
 
 	if (connect(fd, ai->ai_addr, ai->ai_addrlen) == -1) {
-#ifdef WIN32
-		int tmp_error = WSAGetLastError();
-		if (tmp_error != WSAEWOULDBLOCK && tmp_error != WSAEINVAL &&
-		    tmp_error != WSAEINPROGRESS) {
+		int err = evutil_socket_geterror(fd);
+		if (! EVUTIL_ERR_CONNECT_RETRIABLE(err))
 			goto out;
-		}
-#else
-		if (errno != EINPROGRESS) {
-			goto out;
-		}
-#endif
 	}
 
 	/* everything is fine */
