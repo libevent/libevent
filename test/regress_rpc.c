@@ -55,7 +55,7 @@
 
 #include "event2/event.h"
 #include "evhttp.h"
-#include "log.h"
+#include "log-internal.h"
 #include "evrpc.h"
 
 #include "regress.gen.h"

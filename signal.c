@@ -61,9 +61,9 @@
 #include "event2/event_struct.h"
 #include "event-internal.h"
 #include "event2/util.h"
-#include "evsignal.h"
-#include "log.h"
-#include "evmap.h"
+#include "evsignal-internal.h"
+#include "log-internal.h"
+#include "evmap-internal.h"
 
 static int evsig_add(struct event_base *, int, short, short);
 static int evsig_del(struct event_base *, int, short, short);

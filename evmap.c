@@ -53,7 +53,7 @@
 #include <time.h>
 
 #include "event-internal.h"
-#include "evmap.h"
+#include "evmap-internal.h"
 #include "mm-internal.h"
 
 /** An entry for an evmap_io list: notes all the events that want to read or

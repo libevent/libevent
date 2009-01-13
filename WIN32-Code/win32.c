@@ -45,10 +45,10 @@
 
 #define RB_AUGMENT(x) (void)(x)
 #include "./tree.h"
-#include "log.h"
+#include "log-internal.h"
 #include "event.h"
 #include "event-internal.h"
-#include "evmap.h"
+#include "evmap-inernal.h"
 
 #define XFREE(ptr) do { if (ptr) mm_free(ptr); } while(0)
 

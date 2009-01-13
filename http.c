@@ -91,7 +91,7 @@
 #include "event2/http_struct.h"
 #include "event2/http_compat.h"
 #include "event2/util.h"
-#include "log.h"
+#include "log-internal.h"
 #include "http-internal.h"
 #include "mm-internal.h"
 #include "util-internal.h"

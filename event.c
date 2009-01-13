@@ -65,8 +65,8 @@
 #include "evthread-internal.h"
 #include "event2/thread.h"
 #include "event2/util.h"
-#include "log.h"
-#include "evmap.h"
+#include "log-internal.h"
+#include "evmap-internal.h"
 
 #ifdef HAVE_EVENT_PORTS
 extern const struct eventop evportops;

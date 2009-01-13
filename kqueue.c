@@ -59,8 +59,8 @@
 #endif
 
 #include "event-internal.h"
-#include "log.h"
-#include "evmap.h"
+#include "log-internal.h"
+#include "evmap-internal.h"
 
 #define NEVENT		64
 

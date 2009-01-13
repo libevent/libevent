@@ -65,7 +65,7 @@
 #endif
 
 #include "event2/util.h"
-#include "log.h"
+#include "log-internal.h"
 
 #include "strlcpy-internal.h"
 #include "ipv6-internal.h"

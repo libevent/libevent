@@ -49,9 +49,9 @@
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event-internal.h"
-#include "evsignal.h"
-#include "log.h"
-#include "evmap.h"
+#include "evsignal-internal.h"
+#include "log-internal.h"
+#include "evmap-internal.h"
 
 struct devpollop {
 	struct pollfd *events;

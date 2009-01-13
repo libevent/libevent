@@ -47,9 +47,9 @@
 #include <assert.h>
 
 #include "event-internal.h"
-#include "evsignal.h"
-#include "log.h"
-#include "evmap.h"
+#include "evsignal-internal.h"
+#include "log-internal.h"
+#include "evmap-internal.h"
 
 struct pollop {
 	int event_count;		/* Highest number alloc */

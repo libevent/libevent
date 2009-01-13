@@ -60,7 +60,7 @@
 #include "event2/event.h"
 #include "event2/util.h"
 
-#include "log.h"
+#include "log-internal.h"
 
 static void _warn_helper(int severity, const char *errstr, const char *fmt,
                          va_list ap);
