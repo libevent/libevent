@@ -48,7 +48,7 @@
 #include "log-internal.h"
 #include "event.h"
 #include "event-internal.h"
-#include "evmap-inernal.h"
+#include "evmap-internal.h"
 
 #define XFREE(ptr) do { if (ptr) mm_free(ptr); } while(0)
 
@@ -95,7 +95,7 @@ RB_PROTOTYPE(event_map, event_entry, node, compare);
 RB_GENERATE(event_map, event_entry, node, compare);
 
 void *win32_init	(struct event_base *);
-int win32_insert(struct event_base *, evutil_socket_t, short old short events);
+int win32_insert(struct event_base *, evutil_socket_t, short old, short events);
 int win32_del(struct event_base *, evutil_socket_t, short old, short events);
 int win32_dispatch	(struct event_base *base, struct timeval *);
 void win32_dealloc	(struct event_base *);
@@ -292,7 +292,7 @@ win32_del(struct event_base *base, evutil_socket_t fd, short old, short events)
 		do_fd_clear(win32op, ent, 1);
 	if (events & EV_WRITE)
 		do_fd_clear(win32op, ent, 0);
-	if ((events & (EV_WRITE|EV_READ) == (EV_WRITE|EV_READ)) {
+	if ((events & (EV_WRITE|EV_READ)) == (EV_WRITE|EV_READ)) {
 		RB_REMOVE(event_map, &win32op->event_root, ent);
 		mm_free(ent);
 	}
@@ -356,19 +356,16 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	}
 
 	for (i=0; i<win32op->readset_out->fd_count; ++i) {
-		struct event_entry *ent;
 		SOCKET s = win32op->readset_out->fd_array[i];
 		evmap_io_active(base, s, EV_READ);
 	}
 	for (i=0; i<win32op->exset_out->fd_count; ++i) {
-		struct event_entry *ent;
 		SOCKET s = win32op->exset_out->fd_array[i];
-		evmap_io_active(base, s, EV_READ, 1);
+		evmap_io_active(base, s, EV_READ);
 	}
 	for (i=0; i<win32op->writeset_out->fd_count; ++i) {
-		struct event_entry *ent;
 		SOCKET s = win32op->writeset_out->fd_array[i];
-		evmap_io_active(base, s, EV_WRITE, 1);
+		evmap_io_active(base, s, EV_WRITE);
 	}
 
 	return (0);

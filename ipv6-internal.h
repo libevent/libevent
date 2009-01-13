@@ -19,7 +19,7 @@ struct in6_addr {
 #endif
 
 #ifndef _EVENT_HAVE_SA_FAMILY_T
-typedef int sa_family_t
+typedef int sa_family_t;
 #endif
 
 #ifndef _EVENT_HAVE_STRUCT_SOCKADDR_IN6

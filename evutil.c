@@ -30,6 +30,7 @@
 
 #ifdef WIN32
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
@@ -465,14 +466,14 @@ evutil_inet_pton(int af, const char *src, void *dst)
 #else
 		ev_uint32_t r;
 		struct in_addr *out = dst;
-		if (strcmp(c, "255.255.255.255") == 0) {
+		if (strcmp(src, "255.255.255.255") == 0) {
 			out->s_addr = 0xffffffffu;
 		} else {
-		  r = inet_addr(c);
+		  r = inet_addr(src);
 		  if (r == INADDR_NONE)
 			  return 0;
-		  addr->s_addr = r;
-	  }
+		  out->s_addr = r;
+		}
 	  return 1;
 #endif
 #ifdef AF_INET6
