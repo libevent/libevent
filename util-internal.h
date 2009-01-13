@@ -32,8 +32,7 @@ extern "C" {
 #else
 
 #define EVUTIL_ERR_RW_RETRIABLE(e)								\
-	((e) == WSAEAGAIN ||										\
-	 (e) == WSAEWOULDBLOCK ||									\
+	((e) == WSAEWOULDBLOCK ||									\
 	 (e) == WSAEINTR)
 
 #define EVUTIL_ERR_CONNECT_RETRIABLE(e)			\
