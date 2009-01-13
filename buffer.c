@@ -922,8 +922,34 @@ evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
 	void *p = evbuffer_pullup(buffer, howmuch);
 	n = write(fd, p, howmuch, 0);
   #endif
+#elif 0
+	const int N_BUFFERS 8;
+	WSABUF buffers[N_BUFFERS];
+	struct evbuffer_chain *chain = buffer->first;
+	int i = 0;
+	DWORD bytesSent;
+	/* XXX make this top out at some maximal data length? if the buffer has
+	 * (say) 1MB in it, split over 128 chains, there's no way it all gets
+	 * written in one go. */
+	while (chain != NULL && i < N_BUFFERS && howmuch) {
+		buffers[i].buf = chain->buffer + chain->misalign;
+		if (howmuch >= chain->off) {
+			buffers[i++].len = chain->off;
+			howmuch -= chain->off;
+		} else {
+			buffers[i++].len = howmuch;
+			break;
+		}
+		chain = chain->next;
+	}
+
+	if (WSASend(s, buffers, i, &bytesSent, 0, NULL, NULL))
+		n = -1;
+	else
+		n = bytesSent;
 #else
-	/* XXX(niels): investigate if windows has writev */
+	/* XXX(nickm) Don't disable this code until we know if the WSARecv
+	 * code above works. */
 	void *p = evbuffer_pullup(buffer, howmuch);
 	n = send(fd, p, howmuch, 0);
 #endif
