@@ -28,8 +28,8 @@ VERSION_INFO = 2:0:0
 
 bin_SCRIPTS = event_rpcgen.py
 
-EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
-	evrpc.h evrpc-internal.h min_heap.h evthread-internal.h \
+EXTRA_DIST = \
+	autogen.sh evdns.3 \
 	event.3 \
 	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
 	evport.c devpoll.c event_rpcgen.py \
@@ -81,14 +81,10 @@ event-config.h: config.h
 	    -e 's/#ifndef /#ifndef _EVENT_/' < config.h >> $@
 	echo "#endif" >> $@
 
-noinst_HEADERS = util-internal.h
+CORE_SRC = event.c buffer.c bufferevent.c \
+	evmap.c	log.c evutil.c strlcpy.c $(SYS_SRC)
+EXTRA_SRC = event_tagging.c http.c evdns.c evdns.h evrpc.c
 
-CORE_SRC = event.c buffer.c evbuffer-internal.h bufferevent.c \
-	bufferevent-internal.h evmap.c evmap.h \
-	log.c evutil.c strlcpy.c strlcpy-internal.h $(SYS_SRC)
-EXTRA_SRC = event_tagging.c http.c evhttp.h http-internal.h evdns.c \
-	evdns.h evrpc.c evrpc.h evrpc-internal.h mm-internal.h \
-	ipv6-internal.h
 
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
@@ -101,6 +97,12 @@ libevent_core_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
 libevent_extra_la_SOURCES = $(EXTRA_SRC)
 libevent_extra_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_extra_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
+
+noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
+	evrpc-internal.h strlcpy-internal.h evbuffer-internal.h \
+	bufferevent-internal.h http-internal.h event-internal.h \
+	evthread-internal.h \
+	min_heap.h log.h evsignal.h evmap.h
 
 include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h event-config.h
 
