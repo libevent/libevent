@@ -109,6 +109,7 @@
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
+#include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <io.h>
 #else
@@ -360,22 +361,6 @@ static void server_port_ready_callback(evutil_socket_t fd, short events, void *a
 
 static int strtoint(const char *const str);
 
-#ifdef WIN32
-static int
-inet_aton(const char *c, struct in_addr *addr)
-{
-	ev_uint32_t r;
-	if (strcmp(c, "255.255.255.255") == 0) {
-		addr->s_addr = 0xffffffffu;
-	} else {
-		r = inet_addr(c);
-		if (r == INADDR_NONE)
-			return 0;
-		addr->s_addr = r;
-	}
-	return 1;
-}
-#endif
 #define CLOSE_SOCKET(s) EVUTIL_CLOSESOCKET(s)
 
 #define ISSPACE(c) isspace((int)(unsigned char)(c))

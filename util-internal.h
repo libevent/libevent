@@ -39,7 +39,7 @@ extern "C" {
 	((e) == WSAEWOULDBLOCK ||					\
 	 (e) == WSAEINTR ||							\
 	 (e) == WSAEINPROGRESS ||					\
-	 (e) == WSAEINVAL))
+	 (e) == WSAEINVAL)
 
 #define EVUTIL_ERR_ACCEPT_RETRIABLE(e)			\
 	EVUTIL_ERR_RW_RETRIABLE(e)

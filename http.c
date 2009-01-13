@@ -108,7 +108,7 @@
 #define NI_NUMERICHOST 1
 #define NI_NUMERICSERV 2
 
-int
+static int
 fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host, 
 	size_t hostlen, char *serv, size_t servlen, int flags)
 {
