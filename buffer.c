@@ -923,7 +923,7 @@ evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
 	n = write(fd, p, howmuch, 0);
   #endif
 #elif 0
-	const int N_BUFFERS 8;
+	const int N_BUFFERS = 8;
 	WSABUF buffers[N_BUFFERS];
 	struct evbuffer_chain *chain = buffer->first;
 	int i = 0;
@@ -943,7 +943,7 @@ evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
 		chain = chain->next;
 	}
 
-	if (WSASend(s, buffers, i, &bytesSent, 0, NULL, NULL))
+	if (WSASend(fd, buffers, i, &bytesSent, 0, NULL, NULL))
 		n = -1;
 	else
 		n = bytesSent;
