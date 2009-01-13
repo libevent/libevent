@@ -81,6 +81,8 @@ event-config.h: config.h
 	    -e 's/#ifndef /#ifndef _EVENT_/' < config.h >> $@
 	echo "#endif" >> $@
 
+noinst_HEADERS = util-internal.h
+
 CORE_SRC = event.c buffer.c evbuffer-internal.h bufferevent.c \
 	bufferevent-internal.h evmap.c evmap.h \
 	log.c evutil.c strlcpy.c strlcpy-internal.h $(SYS_SRC)
