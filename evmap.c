@@ -208,7 +208,7 @@ evmap_make_space(struct event_signal_map *map, int slot, int msize)
 			return (-1);
 
 		memset(&tmp[map->nentries], 0,
-		    (nentries - map->nentries)  * sizeof(void *));
+		    (nentries - map->nentries) * msize);
 
 		map->nentries = nentries;
 		map->entries = tmp;
@@ -267,7 +267,7 @@ evmap_io_add(struct event_base *base, int fd, struct event *ev)
 
 #ifndef EVMAP_USE_HT
 	if (fd >= io->nentries) {
-		if (evmap_make_space(io, fd, sizeof(struct evmap_io)) == -1)
+		if (evmap_make_space(io, fd, sizeof(struct evmap_io *)) == -1)
 			return (-1);
 	}
 #endif
@@ -394,7 +394,7 @@ evmap_signal_add(struct event_base *base, int sig, struct event *ev)
 
 	if (sig >= map->nentries) {
 		if (evmap_make_space(
-			map, sig, sizeof(struct evmap_signal)) == -1)
+			map, sig, sizeof(struct evmap_signal *)) == -1)
 			return (-1);
 	}
 	GET_SIGNAL_SLOT_AND_CTOR(ctx, map, sig, evmap_signal, evmap_signal_init);
