@@ -51,19 +51,19 @@
 #include "log-internal.h"
 #include "evmap-internal.h"
 
+struct pollidx {
+	int idxplus1;
+};
+
 struct pollop {
 	int event_count;		/* Highest number alloc */
 	int nfds;                       /* Size of event_* */
-	int fd_count;                   /* Size of idxplus1_by_fd */
 	struct pollfd *event_set;
-	int *idxplus1_by_fd; /* Index into event_set by fd; we add 1 so
-			      * that 0 (which is easy to memset) can mean
-			      * "no entry." */
 };
 
 static void *poll_init	(struct event_base *);
-static int poll_add(struct event_base *, int, short old, short events);
-static int poll_del(struct event_base *, int, short old, short events);
+static int poll_add(struct event_base *, int, short old, short events, void *_idx);
+static int poll_del(struct event_base *, int, short old, short events, void *_idx);
 static int poll_dispatch	(struct event_base *, struct timeval *);
 static void poll_dealloc	(struct event_base *);
 
@@ -76,6 +76,7 @@ const struct eventop pollops = {
 	poll_dealloc,
     0, /* doesn't need_reinit */
 	EV_FEATURE_FDS,
+	sizeof(struct pollidx),
 };
 
 static void *
@@ -168,10 +169,11 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 }
 
 static int
-poll_add(struct event_base *base, int fd, short old, short events)
+poll_add(struct event_base *base, int fd, short old, short events, void *_idx)
 {
 	struct pollop *pop = base->evbase;
 	struct pollfd *pfd = NULL;
+	struct pollidx *idx = _idx;
 	int i;
 
 	assert((events & EV_SIGNAL) == 0);
@@ -199,28 +201,9 @@ poll_add(struct event_base *base, int fd, short old, short events)
 
 		pop->event_count = tmp_event_count;
 	}
-	if (fd >= pop->fd_count) {
-		int *tmp_idxplus1_by_fd;
-		int new_count;
-		if (pop->fd_count < 32)
-			new_count = 32;
-		else
-			new_count = pop->fd_count * 2;
-		while (new_count <= fd)
-			new_count *= 2;
-		tmp_idxplus1_by_fd =
-		  mm_realloc(pop->idxplus1_by_fd, new_count * sizeof(int));
-		if (tmp_idxplus1_by_fd == NULL) {
-			event_warn("realloc");
-			return (-1);
-		}
-		pop->idxplus1_by_fd = tmp_idxplus1_by_fd;
-		memset(pop->idxplus1_by_fd + pop->fd_count,
-		       0, sizeof(int)*(new_count - pop->fd_count));
-		pop->fd_count = new_count;
-	}
 
-	i = pop->idxplus1_by_fd[fd] - 1;
+	i = idx->idxplus1 - 1;
+
 	if (i >= 0) {
 		pfd = &pop->event_set[i];
 	} else {
@@ -228,7 +211,7 @@ poll_add(struct event_base *base, int fd, short old, short events)
 		pfd = &pop->event_set[i];
 		pfd->events = 0;
 		pfd->fd = fd;
-		pop->idxplus1_by_fd[fd] = i + 1;
+		idx->idxplus1 = i + 1;
 	}
 
 	pfd->revents = 0;
@@ -246,10 +229,11 @@ poll_add(struct event_base *base, int fd, short old, short events)
  */
 
 static int
-poll_del(struct event_base *base, int fd, short old, short events)
+poll_del(struct event_base *base, int fd, short old, short events, void *_idx)
 {
 	struct pollop *pop = base->evbase;
 	struct pollfd *pfd = NULL;
+	struct pollidx *idx = _idx;
 	int i;
 
 	assert((events & EV_SIGNAL) == 0);
@@ -257,7 +241,7 @@ poll_del(struct event_base *base, int fd, short old, short events)
 		return (0);
 
 	poll_check_ok(pop);
-	i = pop->idxplus1_by_fd[fd] - 1;
+	i = idx->idxplus1 - 1;
 	if (i < 0)
 		return (-1);
 
@@ -273,17 +257,20 @@ poll_del(struct event_base *base, int fd, short old, short events)
 		return (0);
 
 	/* Okay, so we aren't interested in that fd anymore. */
-	pop->idxplus1_by_fd[fd] = 0;
+	idx->idxplus1 = 0;
 
 	--pop->nfds;
 	if (i != pop->nfds) {
-		/* 
+		/*
 		 * Shift the last pollfd down into the now-unoccupied
 		 * position.
 		 */
 		memcpy(&pop->event_set[i], &pop->event_set[pop->nfds],
 		       sizeof(struct pollfd));
-		pop->idxplus1_by_fd[pop->event_set[i].fd] = i + 1;
+		idx = evmap_io_get_fdinfo(&base->io, pop->event_set[i].fd);
+		assert(idx);
+		assert(idx->idxplus1 == pop->nfds + 1);
+		idx->idxplus1 = i + 1;
 	}
 
 	poll_check_ok(pop);
@@ -298,8 +285,6 @@ poll_dealloc(struct event_base *base)
 	evsig_dealloc(base);
 	if (pop->event_set)
 		mm_free(pop->event_set);
-	if (pop->idxplus1_by_fd)
-		mm_free(pop->idxplus1_by_fd);
 
 	memset(pop, 0, sizeof(struct pollop));
 	mm_free(pop);

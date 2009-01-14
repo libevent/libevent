@@ -65,8 +65,8 @@
 #include "log-internal.h"
 #include "evmap-internal.h"
 
-static int evsig_add(struct event_base *, int, short, short);
-static int evsig_del(struct event_base *, int, short, short);
+static int evsig_add(struct event_base *, int, short, short, void *);
+static int evsig_del(struct event_base *, int, short, short, void *);
 
 static const struct eventop evsigops = {
 	"signal",
@@ -75,7 +75,7 @@ static const struct eventop evsigops = {
 	evsig_del,
 	NULL,
 	NULL,
-	0, 0
+	0, 0, 0
 };
 
 struct event_base *evsig_base = NULL;
@@ -205,9 +205,10 @@ _evsig_set_handler(struct event_base *base,
 }
 
 static int
-evsig_add(struct event_base *base, int evsignal, short old, short events)
+evsig_add(struct event_base *base, int evsignal, short old, short events, void *p)
 {
 	struct evsig_info *sig = &base->sig;
+	(void)p;
 
 	assert(evsignal >= 0 && evsignal < NSIG);
 
@@ -259,7 +260,7 @@ _evsig_restore_handler(struct event_base *base, int evsignal)
 }
 
 static int
-evsig_del(struct event_base *base, int evsignal, short old, short events)
+evsig_del(struct event_base *base, int evsignal, short old, short events, void *p)
 {
 	assert(evsignal >= 0 && evsignal < NSIG);
 

@@ -114,8 +114,8 @@ struct evport_data {
 };
 
 static void*	evport_init	(struct event_base *);
-static int evport_add(struct event_base *, int fd, short old, short events);
-static int evport_del(struct event_base *, int fd, short old, short events);
+static int evport_add(struct event_base *, int fd, short old, short events, void *);
+static int evport_del(struct event_base *, int fd, short old, short events, void *);
 static int 	evport_dispatch	(struct event_base *, struct timeval *);
 static void	evport_dealloc	(struct event_base *);
 
@@ -126,7 +126,8 @@ const struct eventop evportops = {
 	evport_del,
 	evport_dispatch,
 	evport_dealloc,
-	1 /* need reinit */
+	1, /* need reinit */
+	0
 };
 
 /*
@@ -358,11 +359,12 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
  */
 
 static int
-evport_add(struct event_base *base, int fd, short old, short events)
+evport_add(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct evport_data *evpd = base->evbase;
 	struct fd_info *fdi;
 	int factor;
+	(void)p;
 
 	check_evportop(evpd);
 
@@ -391,12 +393,13 @@ evport_add(struct event_base *base, int fd, short old, short events)
  */
 
 static int
-evport_del(struct event_base *base, int fd, short old, short events)
+evport_del(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct evport_data *evpd = base->evbase;
 	struct fd_info *fdi;
 	int i;
 	int associated = 1;
+	(void)p;
 
 	check_evportop(evpd);
 

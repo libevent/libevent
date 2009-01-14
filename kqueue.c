@@ -74,8 +74,8 @@ struct kqop {
 };
 
 static void *kq_init	(struct event_base *);
-static int kq_add (struct event_base *, int, short, short);
-static int kq_del (struct event_base *, int, short, short);
+static int kq_add (struct event_base *, int, short, short, void *);
+static int kq_del (struct event_base *, int, short, short, void *);
 static int kq_sig_add (struct event_base *, int, short, short);
 static int kq_sig_del (struct event_base *, int, short, short);
 static int kq_dispatch	(struct event_base *, struct timeval *);
@@ -91,6 +91,7 @@ const struct eventop kqops = {
 	kq_dealloc,
 	1 /* need reinit */,
     EV_FEATURE_ET|EV_FEATURE_O1|EV_FEATURE_FDS,
+	0
 };
 
 static const struct eventop kqsigops = {
@@ -101,6 +102,7 @@ static const struct eventop kqsigops = {
 	NULL,
 	NULL,
 	1 /* need reinit */,
+	0,
 	0
 };
 
@@ -292,10 +294,11 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 
 
 static int
-kq_add(struct event_base *base, int fd, short old, short events)
+kq_add(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct kqop *kqop = base->evbase;
 	struct kevent kev;
+	(void) p;
 
 	if (events & EV_READ) {
  		memset(&kev, 0, sizeof(kev));
@@ -329,10 +332,11 @@ kq_add(struct event_base *base, int fd, short old, short events)
 }
 
 static int
-kq_del(struct event_base *base, int fd, short old, short events)
+kq_del(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct kqop *kqop = base->evbase;
 	struct kevent kev;
+	(void) p;
 
 	if (events & EV_READ) {
  		memset(&kev, 0, sizeof(kev));
