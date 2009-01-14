@@ -640,6 +640,8 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 	return (line);
 }
 
+#define EVBUFFER_CHAIN_MAX_AUTO_SIZE 4096
+
 /* Adds data to an event buffer */
 
 int
@@ -680,8 +682,9 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	}
 
 	/* we need to add another chain */
-	/* XXX Does this double the length of every successive chain? */
-	to_alloc = chain->buffer_len << 1;
+	to_alloc = chain->buffer_len;
+	if (to_alloc <= EVBUFFER_CHAIN_MAX_AUTO_SIZE/2)
+		to_alloc <<= 1;
 	if (datlen > to_alloc)
 		to_alloc = datlen;
 	chain->next = evbuffer_chain_new(to_alloc);
