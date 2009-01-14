@@ -37,6 +37,11 @@
 struct event_base;
 struct event;
 
+/** Initialize an event_map for use.
+ */
+void evmap_io_initmap(struct event_io_map* ctx);
+void evmap_signal_initmap(struct event_signal_map* ctx);
+
 /** Remove all entries from an event_map.
 
 	@param ctx the map to clear.
