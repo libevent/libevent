@@ -118,13 +118,13 @@ evbuffer_free(struct evbuffer *buffer)
 }
 
 size_t
-evbuffer_get_length(struct evbuffer *buffer)
+evbuffer_get_length(const struct evbuffer *buffer)
 {
 	return (buffer->total_len);
 }
 
 size_t
-evbuffer_get_contiguous_space(struct evbuffer *buf)
+evbuffer_get_contiguous_space(const struct evbuffer *buf)
 {
 	struct evbuffer_chain *chain = buf->first;
 
