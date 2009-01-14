@@ -67,8 +67,8 @@ struct selectop {
 };
 
 static void *select_init	(struct event_base *);
-static int select_add(struct event_base *, int, short old, short events);
-static int select_del(struct event_base *, int, short old, short events);
+static int select_add(struct event_base *, int, short old, short events, void*);
+static int select_del(struct event_base *, int, short old, short events, void*);
 static int select_dispatch	(struct event_base *, struct timeval *);
 static void select_dealloc     (struct event_base *);
 
@@ -81,6 +81,7 @@ const struct eventop selectops = {
 	select_dealloc,
 	0, /* doesn't need reinit. */
 	EV_FEATURE_FDS,
+	0,
 };
 
 static int select_resize(struct selectop *sop, int fdsz);
@@ -207,9 +208,10 @@ select_resize(struct selectop *sop, int fdsz)
 
 
 static int
-select_add(struct event_base *base, int fd, short old, short events)
+select_add(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct selectop *sop = base->evbase;
+	(void) p;
 
 	assert((events & EV_SIGNAL) == 0);
 	check_selectop(sop);
@@ -251,9 +253,10 @@ select_add(struct event_base *base, int fd, short old, short events)
  */
 
 static int
-select_del(struct event_base *base, int fd, short old, short events)
+select_del(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct selectop *sop = base->evbase;
+	(void)p;
 
 	assert((events & EV_SIGNAL) == 0);
 	check_selectop(sop);

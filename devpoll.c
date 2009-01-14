@@ -62,8 +62,8 @@ struct devpollop {
 };
 
 static void *devpoll_init	(struct event_base *);
-static int devpoll_add(struct event_base *, int fd, short old, short events);
-static int devpoll_del(struct event_base *, int fd, short old, short events);
+static int devpoll_add(struct event_base *, int fd, short old, short events, void *);
+static int devpoll_del(struct event_base *, int fd, short old, short events, void *);
 static int devpoll_dispatch	(struct event_base *, struct timeval *);
 static void devpoll_dealloc	(struct event_base *);
 
@@ -76,6 +76,7 @@ const struct eventop devpollops = {
 	devpoll_dealloc,
 	1, /* need reinit */
 	EV_FEATURE_FDS|EV_FEATURE_O1,
+	0
 };
 
 #define NEVENT	32000
@@ -228,11 +229,12 @@ devpoll_dispatch(struct event_base *base, struct timeval *tv)
 
 
 static int
-devpoll_add(struct event_base *base, int fd, short old, short events)
+devpoll_add(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct devpollop *devpollop = base->evbase;
 	struct evdevpoll *evdp;
 	int events;
+	(void)p;
 
 	/* 
 	 * It's not necessary to OR the existing read/write events that we
@@ -254,12 +256,13 @@ devpoll_add(struct event_base *base, int fd, short old, short events)
 }
 
 static int
-devpoll_del(struct event_base *base, int fd, short old, short events)
+devpoll_del(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct devpollop *devpollop = base->evbase;
 	struct evdevpoll *evdp;
 	int events;
 	int needwritedelete = 1, needreaddelete = 1;
+	(void)p;
 
 	events = 0;
 	if (events & EV_READ)

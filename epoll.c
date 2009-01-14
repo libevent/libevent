@@ -60,8 +60,8 @@ struct epollop {
 };
 
 static void *epoll_init	(struct event_base *);
-static int epoll_add(struct event_base *, int fd, short old, short events);
-static int epoll_del(struct event_base *, int fd, short old, short events);
+static int epoll_add(struct event_base *, int fd, short old, short events, void *);
+static int epoll_del(struct event_base *, int fd, short old, short events, void *);
 static int epoll_dispatch	(struct event_base *, struct timeval *);
 static void epoll_dealloc	(struct event_base *);
 
@@ -74,6 +74,7 @@ const struct eventop epollops = {
 	epoll_dealloc,
 	1, /* need reinit */
 	EV_FEATURE_ET|EV_FEATURE_O1,
+	0
 };
 
 #ifdef HAVE_SETFD
@@ -195,11 +196,12 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 }
 
 static int
-epoll_add(struct event_base *base, int fd, short old, short events)
+epoll_add(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct epollop *epollop = base->evbase;
 	struct epoll_event epev = {0, {0}};
 	int op, res;
+	(void)p;
 
 	op = EPOLL_CTL_ADD;
 	res = 0;
@@ -224,11 +226,12 @@ epoll_add(struct event_base *base, int fd, short old, short events)
 }
 
 static int
-epoll_del(struct event_base *base, int fd, short old, short events)
+epoll_del(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct epollop *epollop = base->evbase;
 	struct epoll_event epev = {0, {0}};
 	int res, op;
+	(void) p;
 
 	op = EPOLL_CTL_DEL;
 
