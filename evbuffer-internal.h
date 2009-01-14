@@ -37,10 +37,6 @@ extern "C" {
 /* minimum allocation */
 #define MIN_BUFFER_SIZE	256
 
-/* number of iovec we use for writev, fragmentation is going to determine
- * how much we end up writing */
-#define NUM_IOVEC 128
-
 struct evbuffer_chain;
 struct evbuffer {
 	struct evbuffer_chain *first;
