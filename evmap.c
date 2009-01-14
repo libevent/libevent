@@ -135,6 +135,11 @@ HT_GENERATE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket,
 		(x) = &_ent->ent.type;										\
 	} while (0)
 
+void evmap_io_initmap(struct event_io_map *ctx)
+{
+	HT_INIT(event_io_map, ctx);
+}
+
 void evmap_io_clear(struct event_io_map *ctx)
 {
 	struct event_map_entry **ent, **next, *this;
@@ -173,6 +178,11 @@ void evmap_io_clear(struct event_io_map *ctx)
 #define GET_IO_SLOT_AND_CTOR(x,map,slot,type,ctor)	\
 	GET_SIGNAL_SLOT_AND_CTOR(x,map,slot,type,ctor)
 void
+evmap_io_initmap(struct event_io_map* ctx)
+{
+	evmap_signal_initmap(ctx);
+}
+void
 evmap_io_clear(struct event_io_map* ctx)
 {
 	evmap_signal_clear(ctx);
@@ -205,6 +215,13 @@ evmap_make_space(struct event_signal_map *map, int slot, int msize)
 	}
 
 	return (0);
+}
+
+void
+evmap_signal_initmap(struct event_signal_map *ctx)
+{
+	ctx->nentries = 0;
+	ctx->entries = NULL;
 }
 
 void

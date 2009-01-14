@@ -248,6 +248,9 @@ event_base_new_with_config(struct event_config *cfg)
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
 
+	evmap_io_initmap(&base->io);
+	evmap_signal_initmap(&base->sigmap);
+
 	base->evbase = NULL;
 	for (i = 0; eventops[i] && !base->evbase; i++) {
 		if (cfg != NULL) {
