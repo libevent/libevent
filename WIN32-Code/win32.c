@@ -43,8 +43,6 @@
 #include <errno.h>
 #include <assert.h>
 
-#define RB_AUGMENT(x) (void)(x)
-#include "./tree.h"
 #include "log-internal.h"
 #include "event.h"
 #include "event-internal.h"
@@ -63,23 +61,10 @@ struct win_fd_set {
 /* MSDN says this is required to handle SIGFPE */
 volatile double SIGFPE_REQ = 0.0f;
 
-struct event_entry {
-	RB_ENTRY(event_entry) node;
-	SOCKET sock;
-	int read_pos;
-	int write_pos;
+struct idx_info {
+	int read_pos_plus1;
+	int write_pos_plus1;
 };
-
-static int
-compare(struct event_entry *a, struct event_entry *b)
-{
-	if (a->sock < b->sock)
-		return -1;
-	else if (a->sock > b->sock)
-		return 1;
-	else
-		return 0;
-}
 
 struct win32op {
 	int fd_setsz;
@@ -88,27 +73,24 @@ struct win32op {
 	struct win_fd_set *readset_out;
 	struct win_fd_set *writeset_out;
 	struct win_fd_set *exset_out;
-	RB_HEAD(event_map, event_entry) event_root;
 };
 
-RB_PROTOTYPE(event_map, event_entry, node, compare);
-RB_GENERATE(event_map, event_entry, node, compare);
-
-void *win32_init	(struct event_base *);
-int win32_insert(struct event_base *, evutil_socket_t, short old, short events);
-int win32_del(struct event_base *, evutil_socket_t, short old, short events);
-int win32_dispatch	(struct event_base *base, struct timeval *);
-void win32_dealloc	(struct event_base *);
+static void *win32_init	(struct event_base *);
+static int win32_add(struct event_base *, evutil_socket_t, short old, short events, void *_idx);
+static int win32_del(struct event_base *, evutil_socket_t, short old, short events, void *_idx);
+static int win32_dispatch	(struct event_base *base, struct timeval *);
+static void win32_dealloc	(struct event_base *);
 
 struct eventop win32ops = {
 	"win32",
 	win32_init,
-	win32_insert,
+	win32_add,
 	win32_del,
 	win32_dispatch,
 	win32_dealloc,
 	0, /* doesn't need reinit */
 	0, /* No features supported. */
+	sizeof(struct idx_info),
 };
 
 #define FD_SET_ALLOC_SIZE(n) ((sizeof(struct win_fd_set) + ((n)-1)*sizeof(SOCKET)))
@@ -143,34 +125,15 @@ timeval_to_ms(struct timeval *tv)
 	return ((tv->tv_sec * 1000) + (tv->tv_usec / 1000));
 }
 
-static struct event_entry*
-get_event_entry(struct win32op *op, SOCKET s, int create)
-{
-	struct event_entry key, *val;
-	key.sock = s;
-	val = RB_FIND(event_map, &op->event_root, &key);
-	if (val || !create)
-		return val;
-	if (!(val = mm_calloc(1, sizeof(struct event_entry)))) {
-		event_warn("%s: calloc", __func__);
-		return NULL;
-	}
-	val->sock = s;
-	val->read_pos = val->write_pos = -1;
-	RB_INSERT(event_map, &op->event_root, val);
-	return val;
-}
-
 static int
-do_fd_set(struct win32op *op, struct event_entry *ent, int read)
+do_fd_set(struct win32op *op, struct idx_info *ent, evutil_socket_t s, int read)
 {
-	SOCKET s = ent->sock;
 	struct win_fd_set *set = read ? op->readset_in : op->writeset_in;
 	if (read) {
-		if (ent->read_pos >= 0)
+		if (ent->read_pos_plus1 > 0)
 			return (0);
 	} else {
-		if (ent->write_pos >= 0)
+		if (ent->write_pos_plus1 > 0)
 			return (0);
 	}
 	if (set->fd_count == op->fd_setsz) {
@@ -181,37 +144,40 @@ do_fd_set(struct win32op *op, struct event_entry *ent, int read)
 	}
 	set->fd_array[set->fd_count] = s;
 	if (read)
-		ent->read_pos = set->fd_count;
+		ent->read_pos_plus1 = set->fd_count+1;
 	else
-		ent->write_pos = set->fd_count;
+		ent->write_pos_plus1 = set->fd_count+1;
 	return (set->fd_count++);
 }
 
 static int
-do_fd_clear(struct win32op *op, struct event_entry *ent, int read)
+do_fd_clear(struct event_base *base,
+			struct win32op *op, struct idx_info *ent, int read)
 {
 	int i;
 	struct win_fd_set *set = read ? op->readset_in : op->writeset_in;
 	if (read) {
-		i = ent->read_pos;
-		ent->read_pos = -1;
+		i = ent->read_pos_plus1 - 1;
+		ent->read_pos_plus1 = 0;
 	} else {
-		i = ent->write_pos;
-		ent->write_pos = -1;
+		i = ent->write_pos_plus1 - 1;
+		ent->write_pos_plus1 = 0;
 	}
 	if (i < 0)
 		return (0);
 	if (--set->fd_count != i) {
-		struct event_entry *ent2;
+		struct idx_info *ent2;
 		SOCKET s2;
 		s2 = set->fd_array[i] = set->fd_array[set->fd_count];
-		ent2 = get_event_entry(op, s2, 0);
-		if (!ent) /* This indicates a bug. */
+
+		ent2 = evmap_io_get_fdinfo(&base->io, s2);
+
+		if (!ent2) /* This indicates a bug. */
 			return (0);
 		if (read)
-			ent2->read_pos = i;
+			ent2->read_pos_plus1 = i+1;
 		else
-			ent2->write_pos = i;
+			ent2->write_pos_plus1 = i+1;
 	}
 	return (0);
 }
@@ -236,7 +202,6 @@ win32_init(struct event_base *_base)
 		goto err;
 	if (!(winop->exset_out = mm_malloc(size)))
 		goto err;
-	RB_INIT(&winop->event_root);
 	winop->readset_in->fd_count = winop->writeset_in->fd_count = 0;
 	winop->readset_out->fd_count = winop->writeset_out->fd_count
 		= winop->exset_out->fd_count = 0;
@@ -255,47 +220,39 @@ win32_init(struct event_base *_base)
 }
 
 int
-win32_insert(struct event_base *base, evutil_socket_t fd,
-    short old, short events)
+win32_add(struct event_base *base, evutil_socket_t fd,
+			 short old, short events, void *_idx)
 {
 	struct win32op *win32op = base->evbase;
-	struct event_entry *ent;
+	struct idx_info *idx = _idx;
 
 	if (!(events & (EV_READ|EV_WRITE)))
 		return (0);
-	ent = get_event_entry(win32op, fd, 1);
-	if (!ent)
-		return (-1); /* out of memory */
 
 	event_debug(("%s: adding event for %d", __func__, (int)fd));
 	if (events & EV_READ) {
-		if (do_fd_set(win32op, ent, 1)<0)
+		if (do_fd_set(win32op, idx, fd, 1)<0)
 			return (-1);
 	}
 	if (events & EV_WRITE) {
-		if (do_fd_set(win32op, ent, 0)<0)
+		if (do_fd_set(win32op, idx, fd, 0)<0)
 			return (-1);
 	}
 	return (0);
 }
 
 int
-win32_del(struct event_base *base, evutil_socket_t fd, short old, short events)
+win32_del(struct event_base *base, evutil_socket_t fd, short old, short events,
+		  void *_idx)
 {
 	struct win32op *win32op = base->evbase;
-	struct event_entry *ent;
+	struct idx_info *idx = _idx;
 
-	if (!(ent = get_event_entry(win32op, fd, 0)))
-		return (-1);
 	event_debug(("%s: Removing event for %d", __func__, fd));
 	if (events & EV_READ)
-		do_fd_clear(win32op, ent, 1);
+		do_fd_clear(base, win32op, idx, 1);
 	if (events & EV_WRITE)
-		do_fd_clear(win32op, ent, 0);
-	if ((events & (EV_WRITE|EV_READ)) == (EV_WRITE|EV_READ)) {
-		RB_REMOVE(event_map, &win32op->event_root, ent);
-		mm_free(ent);
-	}
+		do_fd_clear(base, win32op, idx, 0);
 
 	return 0;
 }
