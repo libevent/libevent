@@ -245,6 +245,8 @@ int bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf);
 /**
    Returns the input buffer.
 
+   The user MUST NOT set the callback on this buffer.
+
    @param bufev the buffervent from which to get the evbuffer
    @return the evbuffer object for the input buffer
  */
@@ -253,6 +255,8 @@ struct evbuffer *bufferevent_get_input(struct bufferevent *bufev);
 
 /**
    Returns the outut buffer.
+
+   The user MUST NOT set the callback on this buffer.
 
    When filters are being used, the filters need to be manually
    triggered if the output buffer was manipulated.
