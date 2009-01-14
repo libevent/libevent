@@ -93,7 +93,7 @@ void evbuffer_free(struct evbuffer *buf);
   @param buf pointer to the evbuffer
   @return the number of bytes stored in the event buffer
 */
-size_t evbuffer_get_length(struct evbuffer *buf);
+size_t evbuffer_get_length(const struct evbuffer *buf);
 
 /**
    Returns the number of contiguous available bytes in the first buffer chain.
@@ -107,7 +107,7 @@ size_t evbuffer_get_length(struct evbuffer *buf);
    @return 0 if no data is available, otherwise the number of available bytes
      in the first buffer chain.
 */
-size_t evbuffer_get_contiguous_space(struct evbuffer *buf);
+size_t evbuffer_get_contiguous_space(const struct evbuffer *buf);
 
 /**
   Expands the available space in an event buffer.
