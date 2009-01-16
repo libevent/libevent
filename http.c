@@ -1015,6 +1015,8 @@ evhttp_request_dispatch(struct evhttp_connection* evcon)
 void
 evhttp_connection_reset(struct evhttp_connection *evcon)
 {
+	struct evbuffer *tmp;
+
 	bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
 
 	if (evcon->fd != -1) {
@@ -1025,6 +1027,13 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 		EVUTIL_CLOSESOCKET(evcon->fd);
 		evcon->fd = -1;
 	}
+
+	/* we need to clean up any buffered data */
+	tmp = bufferevent_get_output(evcon->bufev);
+	evbuffer_drain(tmp, EVBUFFER_LENGTH(tmp));
+	tmp = bufferevent_get_input(evcon->bufev);
+	evbuffer_drain(tmp, EVBUFFER_LENGTH(tmp));
+
 	evcon->state = EVCON_DISCONNECTED;
 }
 
