@@ -1,3 +1,6 @@
+Changes in 1.4.10-stable:
+ o clean up buffered http connection data on reset; reported by Brian O'Kelley
+
 Changes in 1.4.9-stable:
  o event_add would not return error for some backends; from Dean McNamee
  o Clear the timer cache on entering the event loop; reported by Victor Chang

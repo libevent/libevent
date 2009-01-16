@@ -1085,6 +1085,11 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 		evcon->fd = -1;
 	}
 	evcon->state = EVCON_DISCONNECTED;
+
+	evbuffer_drain(evcon->input_buffer,
+	    EVBUFFER_LENGTH(evcon->input_buffer));
+	evbuffer_drain(evcon->output_buffer,
+	    EVBUFFER_LENGTH(evcon->output_buffer));
 }
 
 static void
