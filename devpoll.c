@@ -168,7 +168,6 @@ devpoll_dispatch(struct event_base *base, struct timeval *tv)
 	struct devpollop *devpollop = base->evbase;
 	struct pollfd *events = devpollop->events;
 	struct dvpoll dvp;
-	struct evdevpoll *evdp;
 	int i, res, timeout = -1;
 
 	if (devpollop->nchanges)
@@ -200,22 +199,16 @@ devpoll_dispatch(struct event_base *base, struct timeval *tv)
 	for (i = 0; i < res; i++) {
 		int which = 0;
 		int what = events[i].revents;
-		struct event *evread = NULL, *evwrite = NULL;
 
                 if (what & POLLHUP)
                         what |= POLLIN | POLLOUT;
                 else if (what & POLLERR)
                         what |= POLLIN | POLLOUT;
 
-		if (what & POLLIN) {
-			evread = evdp->evread;
+		if (what & POLLIN)
 			which |= EV_READ;
-		}
-
-		if (what & POLLOUT) {
-			evwrite = evdp->evwrite;
+		if (what & POLLOUT)
 			which |= EV_WRITE;
-		}
 
 		if (!which)
 			continue;
@@ -232,8 +225,7 @@ static int
 devpoll_add(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct devpollop *devpollop = base->evbase;
-	struct evdevpoll *evdp;
-	int events;
+	int res;
 	(void)p;
 
 	/* 
@@ -243,13 +235,13 @@ devpoll_add(struct event_base *base, int fd, short old, short events, void *p)
 	 * that it has cached for the fd.
 	 */
 
-	events = 0;
+	res = 0;
 	if (events & EV_READ)
-		events |= POLLIN;
+		res |= POLLIN;
 	if (events & EV_WRITE)
-		events |= POLLOUT;
+		res |= POLLOUT;
 
-	if (devpoll_queue(devpollop, fd, events) != 0)
+	if (devpoll_queue(devpollop, fd, res) != 0)
 		return(-1);
 
 	return (0);
@@ -259,16 +251,14 @@ static int
 devpoll_del(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct devpollop *devpollop = base->evbase;
-	struct evdevpoll *evdp;
-	int events;
-	int needwritedelete = 1, needreaddelete = 1;
+	int res;
 	(void)p;
 
-	events = 0;
+	res = 0;
 	if (events & EV_READ)
-		events |= POLLIN;
+		res |= POLLIN;
 	if (events & EV_WRITE)
-		events |= POLLOUT;
+		res |= POLLOUT;
 
 	/*
 	 * The only way to remove an fd from the /dev/poll monitored set is
@@ -280,20 +270,18 @@ devpoll_del(struct event_base *base, int fd, short old, short events, void *p)
 	if (devpoll_queue(devpollop, fd, POLLREMOVE) != 0)
 		return(-1);
 
-	if ((events & (POLLIN|POLLOUT)) != (POLLIN|POLLOUT)) {
+	if ((res & (POLLIN|POLLOUT)) != (POLLIN|POLLOUT)) {
 		/*
 		 * We're not deleting all events, so we must resubmit the
 		 * event that we are still interested in if one exists.
 		 */
 
-		if ((events & POLLIN) && (old & EV_WRITE)) {
+		if ((res & POLLIN) && (old & EV_WRITE)) {
 			/* Deleting read, still care about write */
 			devpoll_queue(devpollop, fd, POLLOUT);
-			needwritedelete = 0;
-		} else if ((events & POLLOUT) && (old & EV_READ)) {
+		} else if ((res & POLLOUT) && (old & EV_READ)) {
 			/* Deleting write, still care about read */
 			devpoll_queue(devpollop, fd, POLLIN);
-			needreaddelete = 0;
 		}
 	}
 
