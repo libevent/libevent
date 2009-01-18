@@ -76,8 +76,8 @@ struct kqop {
 static void *kq_init	(struct event_base *);
 static int kq_add (struct event_base *, int, short, short, void *);
 static int kq_del (struct event_base *, int, short, short, void *);
-static int kq_sig_add (struct event_base *, int, short, short);
-static int kq_sig_del (struct event_base *, int, short, short);
+static int kq_sig_add (struct event_base *, int, short, short, void *);
+static int kq_sig_del (struct event_base *, int, short, short, void *);
 static int kq_dispatch	(struct event_base *, struct timeval *);
 static int kq_insert	(struct kqop *, struct kevent *);
 static void kq_dealloc (struct event_base *);
@@ -378,11 +378,12 @@ kq_dealloc(struct event_base *base)
 
 /* signal handling */
 static int
-kq_sig_add(struct event_base *base, int nsignal, short old, short events)
+kq_sig_add(struct event_base *base, int nsignal, short old, short events, void *p)
 {
 	struct kqop *kqop = base->evbase;
 	struct kevent kev;
 	struct timespec timeout = { 0, 0 };
+	(void)p;
 
 	assert(nsignal >= 0 && nsignal < NSIG);
 			
@@ -404,12 +405,13 @@ kq_sig_add(struct event_base *base, int nsignal, short old, short events)
 }
 
 static int
-kq_sig_del(struct event_base *base, int nsignal, short old, short events)
+kq_sig_del(struct event_base *base, int nsignal, short old, short events, void *p)
 {
 	struct kqop *kqop = base->evbase;
 	struct kevent kev;
 
 	struct timespec timeout = { 0, 0 };
+	(void)p;
 
 	assert(nsignal >= 0 && nsignal < NSIG);
 
