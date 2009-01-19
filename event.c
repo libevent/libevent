@@ -285,8 +285,13 @@ event_reinit(struct event_base *base)
 
 	/* prevent internal delete */
 	if (base->sig.ev_signal_added) {
+		/* we cannot call event_del here because the base has
+		 * not been reinitialized yet. */
 		event_queue_remove(base, &base->sig.ev_signal,
 		    EVLIST_INSERTED);
+		if (base->sig.ev_signal.ev_flags & EVLIST_ACTIVE)
+			event_queue_remove(base, &base->sig.ev_signal,
+			    EVLIST_ACTIVE);
 		base->sig.ev_signal_added = 0;
 	}
 	
