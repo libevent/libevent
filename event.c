@@ -51,6 +51,9 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#ifdef HAVE_SYS_EVENTFD_H
+#include <sys/eventfd.h>
+#endif
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
@@ -316,6 +319,8 @@ event_base_free(struct event_base *base)
 		event_del(&base->th_notify);
 		EVUTIL_CLOSESOCKET(base->th_notify_fd[0]);
 		EVUTIL_CLOSESOCKET(base->th_notify_fd[1]);
+		base->th_notify_fd[0] = -1;
+		base->th_notify_fd[1] = -1;
 	}
 
 	if (base->th_base_lock != NULL)
@@ -1039,7 +1044,7 @@ event_add(struct event *ev, const struct timeval *tv)
 }
 
 static int
-evthread_notify_base(struct event_base *base)
+evthread_notify_base_default(struct event_base *base)
 {
 	char buf[1];
 	int r;
@@ -1050,6 +1055,28 @@ evthread_notify_base(struct event_base *base)
 	r = write(base->th_notify_fd[1], buf, 1);
 #endif
 	return (r < 0) ? -1 : 0;
+}
+
+#if defined(HAVE_EVENTFD) && defined(HAVE_SYS_EVENTFD_H)
+static int
+evthread_notify_base_eventfd(struct event_base *base)
+{
+	ev_uint64_t msg = 1;
+	int r;
+	do {
+		r = write(base->th_notify_fd[0], (void*) &msg, sizeof(msg));
+	} while (r < 0 && errno == EAGAIN);
+
+	return (r < 0) ? -1 : 0;
+}
+#endif
+
+static int
+evthread_notify_base(struct event_base *base)
+{
+	if (!base->th_notify_fn)
+		return -1;
+	return base->th_notify_fn(base);
 }
 
 static inline int
@@ -1503,13 +1530,25 @@ evthread_set_locking_callback(struct event_base *base,
 	base->th_lock = locking_fn;
 }
 
+#if defined(HAVE_EVENTFD) && defined(HAVE_SYS_EVENTFD_H)
 static void
-evthread_notification_callback(int fd, short what, void *arg)
+evthread_notify_drain_eventfd(int fd, short what, void *arg)
+{
+	struct event_base *base = arg;
+	ev_uint64_t msg;
+
+	read(fd, (void*) &msg, sizeof(msg));
+
+	/* XXX Why not make th_notify EV_PERSIST? */
+	event_add(&base->th_notify, NULL);
+}
+#endif
+
+static void
+evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 {
 	struct event_base *base = arg;
 	unsigned char buf[128];
-
-	/* Drain the socket or pipe. */
 #ifdef WIN32
 	while (recv(fd, (char*)buf, sizeof(buf), 0) > 0)
 		;
@@ -1518,6 +1557,7 @@ evthread_notification_callback(int fd, short what, void *arg)
 		;
 #endif
 
+	/* XXX Why not make th_notify EV_PERSIST? */
 	event_add(&base->th_notify, NULL);
 }
 
@@ -1546,16 +1586,28 @@ evthread_set_id_callback(struct event_base *base,
 int
 evthread_make_base_notifiable(struct event_base *base)
 {
+	void (*cb)(evutil_socket_t, short, void *) = evthread_notify_drain_default;
+	int (*notify)(struct event_base *) = evthread_notify_base_default;
+
 	if (!base)
 		return -1;
 
 	if (base->th_notify_fd[0] >= 0)
 		return 0;
 
+#if defined(HAVE_EVENTFD) && defined(HAVE_SYS_EVENTFD_H)
+	base->th_notify_fd[0] = eventfd(0, 0);
+	if (base->th_notify_fd[0] >= 0) {
+		notify = evthread_notify_base_eventfd;
+		cb = evthread_notify_drain_eventfd;
+	} else
+#endif
 #if defined(_EVENT_HAVE_PIPE)
-	if ((base->evsel->features & EV_FEATURE_FDS)) {
-		if (pipe(base->th_notify_fd) < 0)
-			event_warn("%s: pipe", __func__);
+	{
+		if ((base->evsel->features & EV_FEATURE_FDS)) {
+			if (pipe(base->th_notify_fd) < 0)
+				event_warn("%s: pipe", __func__);
+		}
 	}
 	if (base->th_notify_fd[0] < 0)
 #endif
@@ -1569,13 +1621,15 @@ evthread_make_base_notifiable(struct event_base *base)
 
 	evutil_make_socket_nonblocking(base->th_notify_fd[0]);
 
+	base->th_notify_fn = notify;
+
 	// This can't be right, can it?  We want writes to this socket to
 	// just succeed.
 	// evutil_make_socket_nonblocking(base->th_notify_fd[1]);
 
 	/* prepare an event that we can use for wakeup */
 	event_assign(&base->th_notify, base, base->th_notify_fd[0], EV_READ,
-	    evthread_notification_callback, base);
+				 cb, base);
 
 	/* we need to mark this as internal event */
 	base->th_notify.ev_flags |= EVLIST_INTERNAL;

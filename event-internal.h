@@ -111,7 +111,7 @@ struct event_base {
 	struct min_heap timeheap;
 
 	struct timeval tv_cache;
-	
+
 	/* threading support */
 	unsigned long th_owner_id;
 	unsigned long (*th_get_id)(void);
@@ -123,8 +123,11 @@ struct event_base {
 
 	/* lock or unlock a lock */
 	void (*th_lock)(int mode, void *lock);
+
+	/* Notify main thread to wake up break, etc. */
 	int th_notify_fd[2];
 	struct event th_notify;
+	int (*th_notify_fn)(struct event_base *base);
 };
 
 struct event_config_entry {
