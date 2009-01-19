@@ -311,9 +311,9 @@ evsig_process(struct event_base *base)
 		ncalls = sig->evsigcaught[i];
 		if (ncalls == 0)
 			continue;
+		sig->evsigcaught[i] -= ncalls;
 
 		evmap_signal_active(base, i, ncalls);
-		sig->evsigcaught[i] = 0;
 	}
 }
 
