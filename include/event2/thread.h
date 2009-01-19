@@ -96,6 +96,12 @@ void evthread_set_locking_callback(struct event_base *base,
 void evthread_set_id_callback(struct event_base *base,
     unsigned long (*id_fn)(void));
 
+/** Make sure it's safe to tell an event base to wake up from another thread.
+
+	@return 0 on success, -1 on failure.
+ */
+int evthread_make_base_notifiable(struct event_base *base);
+
 #ifdef __cplusplus
 }
 #endif
