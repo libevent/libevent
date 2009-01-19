@@ -136,6 +136,7 @@ Changes in current version:
  o Add generic implementations for parsing and emiting IPv6 addresses on platforms that do not have inet_ntop and/or inet_pton.
  o Allow DNS servers that have IPv6 addresses.
  o Add an evbuffer_write_atmost() function to write a limited number of bytes to an fd.
+ o Refactor internal notify-main-thread logic to prefer eventfd to pipe, then pipe to socketpair, and only use socketpairs as a last resort.
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.
