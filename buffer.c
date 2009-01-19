@@ -72,6 +72,9 @@
 #include "mm-internal.h"
 #include "evbuffer-internal.h"
 
+#define CHAIN_SPACE_PTR(ch) ((ch)->buffer + (ch)->misalign + (ch)->off)
+#define CHAIN_SPACE_LEN(ch) ((ch)->buffer_len - ((ch)->misalign + (ch)->off))
+
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
 {
@@ -771,6 +774,8 @@ evbuffer_chain_align(struct evbuffer_chain *chain)
 int
 evbuffer_expand(struct evbuffer *buf, size_t datlen)
 {
+	/* XXX we should either make this function less costly, or call it
+	 * less often.  */
 	struct evbuffer_chain *chain = buf->last, *tmp;
 	size_t need, length;
 
@@ -821,9 +826,99 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 	return (0);
 }
 
+/* Make sure that datlen bytes are available for writing in the last two
+ * chains.  Never copies or moves data. */
+static int
+_evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
+{
+	struct evbuffer_chain *chain = buf->last, *tmp;
+	size_t avail, avail_in_prev = 0;
+
+	if (chain == NULL) {
+		chain = evbuffer_chain_new(datlen);
+		if (chain == NULL)
+			return (-1);
+
+		buf->first = buf->last = chain;
+		buf->previous_to_last = NULL;
+		return (0);
+	}
+
+	/* How many bytes can we stick at the end of chain? */
+
+	if (chain->off) {
+		avail = chain->buffer_len - (chain->off + chain->misalign);
+		avail_in_prev = 0;
+	} else {
+		/* No data in chain; realign it. */
+		chain->misalign = 0;
+		avail = chain->buffer_len;
+		/* Can we stick some data in the penultimate chain? */
+		if (buf->previous_to_last) {
+			struct evbuffer_chain *prev = buf->previous_to_last;
+			avail_in_prev = CHAIN_SPACE_LEN(prev);
+		}
+	}
+
+	/* If we can fit all the data, then we don't have to do anything */
+	if (avail+avail_in_prev >= datlen)
+		return (0);
+
+	/* Otherwise, we need a bigger chunk. */
+	if (chain->off == 0) {
+		/* If there are no bytes on this chain, free it and replace it with
+		   a better one. */
+		/* XXX round up. */
+		tmp = evbuffer_chain_new(datlen-avail_in_prev);
+		if (tmp == NULL)
+			return -1;
+		/* XXX write functions to in new chains */
+		if (buf->first == chain)
+			buf->first = tmp;
+		if (buf->previous_to_last)
+			buf->previous_to_last->next = tmp;
+		buf->last = tmp;
+		mm_free(chain);
+
+	} else {
+		/* Add a new chunk big enough to hold what won't fit in chunk. */
+		/*XXX round this up. */
+		tmp = evbuffer_chain_new(datlen-avail);
+		if (tmp == NULL)
+			return (-1);
+
+		buf->previous_to_last = chain;
+		chain->next = tmp;
+		buf->last = tmp;
+	}
+
+	return (0);
+}
+
 /*
  * Reads data from a file descriptor into a buffer.
  */
+
+#if defined(HAVE_SYS_UIO_H)
+#define USE_IOVEC_IMPL
+#endif
+
+#ifdef USE_IOVEC_IMPL
+
+#ifdef HAVE_SYS_UIO_H
+/* number of iovec we use for writev, fragmentation is going to determine
+ * how much we end up writing */
+#define NUM_IOVEC 128
+#define IOV_TYPE struct iovec
+#define IOV_PTR_FIELD iov_base
+#define IOV_LEN_FIELD iov_len
+#else
+#define NUM_IOVEC 16
+#define IOV_TYPE WSABUF
+#define IOV_PTR_FIELD buf
+#define IOV_LEN_FIELD len
+#endif
+#endif
 
 #define EVBUFFER_MAX_READ	4096
 
@@ -831,9 +926,13 @@ int
 evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 {
 	struct evbuffer_chain *chain = buf->last;
-	unsigned char *p;
 	size_t old_len = buf->total_len;
 	int n = EVBUFFER_MAX_READ;
+#ifdef USE_IOVEC_IMPL
+	int nvecs;
+#else
+	unsigned char *p;
+#endif
 
 #if defined(FIONREAD)
 #ifdef WIN32
@@ -860,6 +959,58 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 	if (howmuch < 0 || howmuch > n)
 		howmuch = n;
 
+#ifdef USE_IOVEC_IMPL
+
+	/* Since we can use iovecs, we're willing to use the last _two_ chains. */
+	if (_evbuffer_expand_fast(buf, howmuch) == -1) {
+		return(-1);
+	} else {
+		IOV_TYPE vecs[2];
+		chain = buf->last;
+		if (chain->off == 0 && buf->previous_to_last &&
+			CHAIN_SPACE_LEN(buf->previous_to_last)) {
+			/* The last chain is empty, so it's safe to use the space in the
+			   next-to-last chain.
+			*/
+			struct evbuffer_chain *prev = buf->previous_to_last;
+			vecs[0].IOV_PTR_FIELD = CHAIN_SPACE_PTR(prev);
+			vecs[0].IOV_LEN_FIELD = CHAIN_SPACE_LEN(prev);
+			vecs[1].IOV_PTR_FIELD = CHAIN_SPACE_PTR(chain);
+			vecs[1].IOV_LEN_FIELD = CHAIN_SPACE_LEN(chain);
+			if (vecs[0].IOV_LEN_FIELD >= howmuch) {
+				/* The next-to-last chain has enough space on its own. */
+				nvecs = 1;
+			} else {
+				/* We'll need both chains. */
+				nvecs = 2;
+				if (vecs[0].IOV_LEN_FIELD + vecs[1].IOV_LEN_FIELD > howmuch) {
+					vecs[1].IOV_LEN_FIELD = howmuch - vecs[0].IOV_LEN_FIELD;
+				}
+			}
+		} else {
+			/* There's data in the last chain, so we're not allowed to
+			 * use the next-to-last. */
+			nvecs = 1;
+			vecs[0].IOV_PTR_FIELD = CHAIN_SPACE_PTR(chain);
+			vecs[0].IOV_LEN_FIELD = CHAIN_SPACE_LEN(chain);
+			if (vecs[0].IOV_LEN_FIELD > howmuch)
+				vecs[0].IOV_LEN_FIELD = howmuch;
+		}
+
+#ifdef WIN32
+		{
+			DWORD bytesRead;
+			if (WSARecv(fd, vecs, nvecs, &bytesRead, 0, NULL, NULL))
+				n = -1;
+			else
+				n = bytesRead;
+		}
+#else
+		n = readv(fd, vecs, nvecs);
+#endif
+	}
+
+#else /*!USE_IOVEC_IMPL*/
 	/* If we don't have FIONREAD, we might waste some space here */
 	/* XXX we _will_ waste some space here if there is any space left
 	 * over on buf->last. */
@@ -876,12 +1027,28 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 #else
 	n = recv(fd, p, howmuch, 0);
 #endif
+#endif /* USE_IOVEC_IMPL */
+
 	if (n == -1)
 		return (-1);
 	if (n == 0)
 		return (0);
 
+#ifdef USE_IOVEC_IMPL
+	if (nvecs == 2) {
+		size_t space = CHAIN_SPACE_LEN(buf->previous_to_last);
+		if (space < n) {
+			buf->previous_to_last->off += space;
+			chain->off += n-space;
+		} else {
+			buf->previous_to_last->off += n;
+		}
+	} else {
+		chain->off += n;
+	}
+#else
 	chain->off += n;
+#endif
 	buf->total_len += n;
 
 	/* Tell someone about changes in this buffer */
@@ -890,27 +1057,6 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 
 	return (n);
 }
-
-#if defined(HAVE_SYS_UIO_H)
-#define USE_IOVEC_IMPL
-#endif
-
-#ifdef USE_IOVEC_IMPL
-
-#ifdef HAVE_SYS_UIO_H
-/* number of iovec we use for writev, fragmentation is going to determine
- * how much we end up writing */
-#define NUM_IOVEC 128
-#define IOV_TYPE struct iovec
-#define IOV_PTR_FIELD iov_base
-#define IOV_LEN_FIELD iov_len
-#else
-#define NUM_IOVEC 16
-#define IOV_TYPE WSABUF
-#define IOV_PTR_FIELD buf
-#define IOV_LEN_FIELD len
-#endif
-#endif
 
 int
 evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
