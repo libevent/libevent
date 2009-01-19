@@ -144,9 +144,7 @@ static void	timeout_correct(struct event_base *, struct timeval *);
 static void	event_signal_closure(struct event_base *, struct event *ev);
 static void	event_periodic_closure(struct event_base *, struct event *ev);
 
-static int evthread_notify_base(struct event_base *base, ev_uint8_t msg);
-#define EVTHREAD_NOTIFY_MSG_RECALC 0
-#define EVTHREAD_NOTIFY_MSG_LOOPBREAK 1
+static int evthread_notify_base(struct event_base *base);
 
 static void
 detect_monotonic(void)
@@ -691,10 +689,13 @@ event_base_loopbreak(struct event_base *event_base)
 	if (event_base == NULL)
 		return (-1);
 
+	EVTHREAD_ACQUIRE_LOCK(event_base, EVTHREAD_WRITE, th_base_lock);
+	event_base->event_break = 1;
+	EVTHREAD_RELEASE_LOCK(event_base, EVTHREAD_WRITE, th_base_lock);
+
 	if (!EVTHREAD_IN_THREAD(event_base)) {
-		return evthread_notify_base(event_base, EVTHREAD_NOTIFY_MSG_LOOPBREAK);
+		return evthread_notify_base(event_base);
 	} else {
-		event_base->event_break = 1;
 		return (0);
 	}
 }
@@ -1038,11 +1039,11 @@ event_add(struct event *ev, const struct timeval *tv)
 }
 
 static int
-evthread_notify_base(struct event_base *base, ev_uint8_t msg)
+evthread_notify_base(struct event_base *base)
 {
 	char buf[1];
 	int r;
-	buf[0] = (char)msg;
+	buf[0] = (char) 0;
 #ifdef WIN32
 	r = send(base->th_notify_fd[1], buf, 1, 0);
 #else
@@ -1131,7 +1132,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 
 	/* if we are not in the right thread, we need to wake up the loop */
 	if (res != -1 && !EVTHREAD_IN_THREAD(base))
-		evthread_notify_base(base, EVTHREAD_NOTIFY_MSG_RECALC);
+		evthread_notify_base(base);
 
 	return (res);
 }
@@ -1191,7 +1192,7 @@ event_del_internal(struct event *ev)
 
 	/* if we are not in the right thread, we need to wake up the loop */
 	if (res != -1 && !EVTHREAD_IN_THREAD(base))
-		evthread_notify_base(base, EVTHREAD_NOTIFY_MSG_RECALC);
+		evthread_notify_base(base);
 
 	return (res);
 }
@@ -1507,22 +1508,15 @@ evthread_notification_callback(int fd, short what, void *arg)
 {
 	struct event_base *base = arg;
 	unsigned char buf[128];
-	int n, i;
 
-	/* we're draining the socket */
+	/* Drain the socket or pipe. */
 #ifdef WIN32
-	while ((n = recv(fd, (char*)buf, sizeof(buf), 0)) != -1) {
+	while (recv(fd, (char*)buf, sizeof(buf), 0) > 0)
+		;
 #else
-	while ((n = read(fd, (char*)buf, sizeof(buf))) != -1) {
+	while (read(fd, (char*)buf, sizeof(buf)) > 0)
+		;
 #endif
-		for (i=0;i<n;++i) {
-			if (buf[i] == EVTHREAD_NOTIFY_MSG_RECALC) {
-				/* ignore; this is just to make us call recalc/dispatch. */
-			} else if (buf[i] == EVTHREAD_NOTIFY_MSG_LOOPBREAK) {
-				event_base_loopbreak(base);
-			}
-		}
-	}
 
 	event_add(&base->th_notify, NULL);
 }
