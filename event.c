@@ -1043,7 +1043,11 @@ evthread_notify_base(struct event_base *base, ev_uint8_t msg)
 	char buf[1];
 	int r;
 	buf[0] = (char)msg;
+#ifdef WIN32
 	r = send(base->th_notify_fd[1], buf, 1, 0);
+#else
+	r = write(base->th_notify_fd[1], buf, 1);
+#endif
 	return (r < 0) ? -1 : 0;
 }
 
@@ -1506,7 +1510,11 @@ evthread_notification_callback(int fd, short what, void *arg)
 	int n, i;
 
 	/* we're draining the socket */
+#ifdef WIN32
 	while ((n = recv(fd, (char*)buf, sizeof(buf), 0)) != -1) {
+#else
+	while ((n = read(fd, (char*)buf, sizeof(buf))) != -1) {
+#endif
 		for (i=0;i<n;++i) {
 			if (buf[i] == EVTHREAD_NOTIFY_MSG_RECALC) {
 				/* ignore; this is just to make us call recalc/dispatch. */
@@ -1550,10 +1558,10 @@ evthread_make_base_notifiable(struct event_base *base)
 	if (base->th_notify_fd[0] >= 0)
 		return 0;
 
-#if defined(XXX_EVENT_HAVE_PIPE)
+#if defined(_EVENT_HAVE_PIPE)
 	if ((base->evsel->features & EV_FEATURE_FDS)) {
 		if (pipe(base->th_notify_fd) < 0)
-			event_warn(1, "%s: pipe", __func__);
+			event_warn("%s: pipe", __func__);
 	}
 	if (base->th_notify_fd[0] < 0)
 #endif
