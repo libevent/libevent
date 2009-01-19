@@ -96,11 +96,11 @@
  */
 
 struct fd_info {
-	short fdi_what		/* combinations of EV_READ and EV_WRITE */
+	short fdi_what;		/* combinations of EV_READ and EV_WRITE */
 };
 
 #define FDI_HAS_READ(fdi)  ((fdi)->fdi_what & EV_READ)
-#define FDI_HAS_WRITE(fdi) ((fdi)->fdi_what & EV_WRITE))
+#define FDI_HAS_WRITE(fdi) ((fdi)->fdi_what & EV_WRITE)
 #define FDI_HAS_EVENTS(fdi) (FDI_HAS_READ(fdi) || FDI_HAS_WRITE(fdi))
 #define FDI_TO_SYSEVENTS(fdi) (FDI_HAS_READ(fdi) ? POLLIN : 0) | \
     (FDI_HAS_WRITE(fdi) ? POLLOUT : 0)
@@ -297,7 +297,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 		}
 
 		if (fdi != NULL && FDI_HAS_EVENTS(fdi)) {
-			int fd = edp->ed_pending[i];
+			int fd = epdp->ed_pending[i];
 			reassociate(epdp, fdi, fd);
 			epdp->ed_pending[i] = -1;
 		}
@@ -322,7 +322,6 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 	event_debug(("%s: port_getn reports %d events", __func__, nevents));
 
 	for (i = 0; i < nevents; ++i) {
-		struct event *ev;
 		struct fd_info *fdi;
 		port_event_t *pevt = &pevtlist[i];
 		int fd = (int) pevt->portev_object;
@@ -383,7 +382,7 @@ evport_add(struct event_base *base, int fd, short old, short events, void *p)
 	}
 
 	fdi = &evpd->ed_fds[fd];
-	fdi->what |= events;
+	fdi->fdi_what |= events;
 
 	return reassociate(evpd, fdi, fd);
 }
@@ -416,9 +415,9 @@ evport_del(struct event_base *base, int fd, short old, short events, void *p)
 
 	fdi = &evpd->ed_fds[fd];
 	if (events & EV_READ)
-		fdi->what &= ~EV_READ;
+		fdi->fdi_what &= ~EV_READ;
 	if (events & EV_WRITE)
-		fdi->what &= ~EV_WRITE;
+		fdi->fdi_what &= ~EV_WRITE;
 
 	if (associated) {
 		if (!FDI_HAS_EVENTS(fdi) &&
@@ -437,7 +436,7 @@ evport_del(struct event_base *base, int fd, short old, short events, void *p)
 			}
 		}
 	} else {
-		if ((fdi->what & (EV_READ|EV_WRITE)) == 0) {
+		if ((fdi->fdi_what & (EV_READ|EV_WRITE)) == 0) {
 			evpd->ed_pending[i] = -1;
 		}
 	}
