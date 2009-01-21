@@ -406,7 +406,7 @@ ACX_PTHREAD([
 	AC_DEFINE(HAVE_PTHREADS, 1,
 		[Define if we have pthreads on this system])
 	have_pthreads=yes])
-AM_CONDITIONAL(PTHREAD_REGRESS, [test "$have_pthreads" != "no"])
+AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no"])
 
 # check if we should compile locking into the  library
 if test x$enable_thread_support = xno; then

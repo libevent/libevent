@@ -102,6 +102,23 @@ void evthread_set_id_callback(struct event_base *base,
  */
 int evthread_make_base_notifiable(struct event_base *base);
 
+#ifdef WIN32
+/** Sets up libevent for use with Windows builtin locking and thread ID
+	functions.  Unavailable if libevent is not build for Windows.
+
+	@return 0 on success, -1 on failure. */
+int evthread_use_windows_threads(struct event_base *base);
+#endif
+
+#ifdef _EVENT_HAVE_PTHREADS
+/** Sets up libevent for use with Pthreadsn locking and thread ID functions.
+	Unavailable if libevent is not build for use with pthreads.  Requires
+	libraries to link against libevent_pthreads as well as libevent.
+
+	@return 0 on success, -1 on failure. */
+int evthread_use_pthreads(struct event_base *base);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
