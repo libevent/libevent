@@ -20,7 +20,7 @@ regress_SOURCES = regress.c regress.h regress_http.c regress_dns.c \
 	regress_rpc.c regress.gen.c regress.gen.h regress_et.c \
 	regress_util.c \
 	$(regress_pthread_SOURCES) $(regress_zlib_SOURCES)
-if PTHREAD_REGRESS
+if PTHREADS
 regress_pthread_SOURCES = regress_pthread.c
 endif
 if ZLIB_REGRESS

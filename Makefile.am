@@ -39,6 +39,8 @@ EXTRA_DIST = \
 	test/test-eof.c test/test-weof.c test/test-time.c \
 	test/test-init.c test/test.sh \
 	compat/sys/queue.h compat/sys/_time.h \
+	evthread_win32.c \
+	evthread_pthread.c \
 	WIN32-Code/config.h \
 	WIN32-Code/win32.c \
 	WIN32-Code/tree.h \
@@ -48,13 +50,16 @@ EXTRA_DIST = \
 	WIN32-Prj/time_test/time_test.dsp
 
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
+if PTHREADS
+lib_LTLIBRARIES += libevent_pthreads.la
+endif
 
 SUBDIRS = . include sample test
 
 if BUILD_WIN32
 
 SYS_LIBS = -lws2_32
-SYS_SRC = WIN32-Code/win32.c
+SYS_SRC = WIN32-Code/win32.c evthread_win32.c
 SYS_INCLUDES = -IWIN32-Code
 
 else
@@ -93,6 +98,10 @@ libevent_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
 libevent_core_la_SOURCES = $(CORE_SRC)
 libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_core_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
+
+if PTHREADS
+libevent_pthreads_la_SOURCES = evthread_pthread.c
+endif
 
 libevent_extra_la_SOURCES = $(EXTRA_SRC)
 libevent_extra_la_LIBADD =
