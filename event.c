@@ -1561,20 +1561,15 @@ evthread_set_locking_callback(struct event_base *base,
 static void
 evthread_notify_drain_eventfd(int fd, short what, void *arg)
 {
-	struct event_base *base = arg;
 	ev_uint64_t msg;
 
 	read(fd, (void*) &msg, sizeof(msg));
-
-	/* XXX Why not make th_notify EV_PERSIST? */
-	event_add(&base->th_notify, NULL);
 }
 #endif
 
 static void
 evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 {
-	struct event_base *base = arg;
 	unsigned char buf[128];
 #ifdef WIN32
 	while (recv(fd, (char*)buf, sizeof(buf), 0) > 0)
@@ -1583,9 +1578,6 @@ evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 	while (read(fd, (char*)buf, sizeof(buf)) > 0)
 		;
 #endif
-
-	/* XXX Why not make th_notify EV_PERSIST? */
-	event_add(&base->th_notify, NULL);
 }
 
 void
@@ -1655,8 +1647,8 @@ evthread_make_base_notifiable(struct event_base *base)
 	// evutil_make_socket_nonblocking(base->th_notify_fd[1]);
 
 	/* prepare an event that we can use for wakeup */
-	event_assign(&base->th_notify, base, base->th_notify_fd[0], EV_READ,
-				 cb, base);
+	event_assign(&base->th_notify, base, base->th_notify_fd[0],
+				 EV_READ|EV_PERSIST, cb, base);
 
 	/* we need to mark this as internal event */
 	base->th_notify.ev_flags |= EVLIST_INTERNAL;
