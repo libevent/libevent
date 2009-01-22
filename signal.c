@@ -86,7 +86,7 @@ static void evsig_handler(int sig);
 static void
 evsig_cb(evutil_socket_t fd, short what, void *arg)
 {
-	static char signals[100];
+	static char signals[1];
 #ifdef WIN32
 	SSIZE_T n;
 #else
