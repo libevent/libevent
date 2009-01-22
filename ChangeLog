@@ -3,6 +3,7 @@ Changes in 1.4.10-stable:
  o bug fix and potential race condition in signal handling; from Alexander Drozdov
  o rename the Solaris event ports backend to evport
  o support compilation on Haiku
+ o fix signal processing when a signal callback delivers a signal; from Alexander Drozdov
 
 Changes in 1.4.9-stable:
  o event_add would not return error for some backends; from Dean McNamee

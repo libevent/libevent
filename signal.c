@@ -71,7 +71,7 @@ static void evsignal_handler(int sig);
 static void
 evsignal_cb(int fd, short what, void *arg)
 {
-	static char signals[100];
+	static char signals[1];
 #ifdef WIN32
 	SSIZE_T n;
 #else

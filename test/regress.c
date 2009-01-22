@@ -764,6 +764,52 @@ out:
 	cleanup_test();
 	return;
 }
+
+void
+signal_cb_swp(int sig, short event, void *arg)
+{
+	called++;
+	if (called < 5)
+		raise(sig);
+	else
+		event_loopexit(NULL);
+}
+void
+timeout_cb_swp(int fd, short event, void *arg)
+{
+	if (called == -1) {
+		struct timeval tv = {5, 0};
+
+		called = 0;
+		evtimer_add((struct event *)arg, &tv);
+		raise(SIGUSR1);
+		return;
+	}
+	test_ok = 0;
+	event_loopexit(NULL);
+}
+
+static void
+test_signal_while_processing(void)
+{
+	struct event_base *base = event_init();
+	struct event ev, ev_timer;
+	struct timeval tv = {0, 0};
+
+	setup_test("Receiving a signal while processing other signal: ");
+
+	called = -1;
+	test_ok = 1;
+	signal_set(&ev, SIGUSR1, signal_cb_swp, NULL);
+	signal_add(&ev, NULL);
+	evtimer_set(&ev_timer, timeout_cb_swp, &ev_timer);
+	evtimer_add(&ev_timer, &tv);
+	event_dispatch();
+
+	event_base_free(base);
+	cleanup_test();
+	return;
+}
 #endif
 
 static void
@@ -1588,6 +1634,7 @@ main (int argc, char **argv)
 	test_signal_switchbase();
 	test_signal_restore();
 	test_signal_assert();
+	test_signal_while_processing();
 #endif
 	
 	return (0);
