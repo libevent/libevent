@@ -2,6 +2,8 @@ dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
+AC_CONFIG_MACRO_DIR([m4])
+
 AM_INIT_AUTOMAKE(libevent,1.4.99-trunk)
 AM_CONFIG_HEADER(config.h)
 

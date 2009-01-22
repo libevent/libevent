@@ -1,4 +1,5 @@
 AUTOMAKE_OPTIONS = foreign
+ACLOCAL_AMFLAGS = -I m4
 
 # This is the point release for libevent.  It shouldn't include any
 # a/b/c/d/e notations.
