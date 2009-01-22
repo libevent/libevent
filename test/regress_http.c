@@ -42,7 +42,7 @@
 #include <sys/queue.h>
 #ifndef WIN32
 #include <sys/socket.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <unistd.h>
 #include <netdb.h>
 #endif
