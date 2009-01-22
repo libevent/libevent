@@ -507,6 +507,29 @@ test_periodictimeout(void)
 	cleanup_test();
 }
 
+static void
+test_persistent_timeout(void)
+{
+	struct timeval tv;
+	struct event ev;
+	int count = 0;
+
+	setup_test("Periodic timeout via EV_PERSIST: ");
+
+	timerclear(&tv);
+	tv.tv_usec = 10000;
+
+	event_assign(&ev, global_base, -1, EV_TIMEOUT|EV_PERSIST,
+	    periodic_timeout_cb, &count);
+	event_add(&ev, &tv);
+
+	event_dispatch();
+
+	event_del(&ev);
+
+	cleanup_test();
+}
+
 #ifndef WIN32
 static void signal_cb(int fd, short event, void *arg);
 
@@ -2310,6 +2333,7 @@ main (int argc, char **argv)
 	util_suite();
 
 	test_periodictimeout();
+	test_persistent_timeout();
 
 	/* use the global event base and need to be called first */
 	test_priorities(1);

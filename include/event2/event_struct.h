@@ -88,6 +88,7 @@ struct event {
 		/* used for io events */
 		struct {
 			TAILQ_ENTRY (event) (ev_io_next);
+			struct timeval ev_timeout;
 		} ev_io;
 
 		/* used by signal events */

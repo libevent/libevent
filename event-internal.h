@@ -40,7 +40,9 @@ extern "C" {
 
 /* mutually exclusive */
 #define ev_signal_next	_ev.ev_signal.ev_signal_next
+
 #define ev_io_next	_ev.ev_io.ev_io_next
+#define ev_io_timeout	_ev.ev_io.ev_timeout
 
 /* used only by signals */
 #define ev_ncalls	_ev.ev_signal.ev_ncalls
