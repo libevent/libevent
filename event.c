@@ -146,6 +146,7 @@ static void	timeout_correct(struct event_base *, struct timeval *);
 
 static void	event_signal_closure(struct event_base *, struct event *ev);
 static void	event_periodic_closure(struct event_base *, struct event *ev);
+static void	event_persist_closure(struct event_base *, struct event *ev);
 
 static int evthread_notify_base(struct event_base *base);
 
@@ -573,6 +574,15 @@ event_periodic_closure(struct event_base *base, struct event *ev)
 }
 
 static void
+event_persist_closure(struct event_base *base, struct event *ev)
+{
+	/* reschedule the persistent event if we have a timeout */
+	if (ev->ev_io_timeout.tv_sec || ev->ev_io_timeout.tv_usec)
+		event_add(ev, &ev->ev_io_timeout);
+	(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
+}
+
+static void
 event_signal_closure(struct event_base *base, struct event *ev)
 {
 	short ncalls;
@@ -904,7 +914,12 @@ event_set(struct event *ev, evutil_socket_t fd, short events,
 			    __func__);
 		ev->ev_closure = event_signal_closure;
 	} else {
-		ev->ev_closure = NULL;
+		if (events & EV_PERSIST) {
+			timerclear(&ev->ev_io_timeout);
+			ev->ev_closure = event_persist_closure;
+		} else {
+			ev->ev_closure = NULL;
+		}
 	}
 
 	min_heap_elem_init(ev);
@@ -1126,6 +1141,13 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 	 */
 	if (res != -1 && tv != NULL) {
 		struct timeval now;
+
+		/*
+		 * for persistent timeout events, we remember the
+		 * timeout value and re-add the event.
+		 */
+		if (ev->ev_closure == event_persist_closure)
+			ev->ev_io_timeout = *tv;
 
 		/* 
 		 * we already reserved memory above for the case where we
