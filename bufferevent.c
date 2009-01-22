@@ -89,9 +89,9 @@ static void
 bufferevent_read_pressure_cb(struct evbuffer *buf, size_t old, size_t now,
     void *arg) {
 	struct bufferevent *bufev = arg;
-	/* 
-	 * If we are below the watermark then reschedule reading if it's
-	 * still enabled.
+	/*
+	 * If we are now below the watermark, then we don't need the callback any
+	 * more, and we can read again.
 	 */
 	if (bufev->wm_read.high == 0 || now < bufev->wm_read.high) {
 		evbuffer_setcb(buf, NULL, NULL);
@@ -105,8 +105,6 @@ static void
 bufferevent_read_closure(struct bufferevent *bufev, int progress)
 {
 	size_t len;
-
-	bufferevent_add(&bufev->ev_read, bufev->timeout_read);
 
 	/* nothing user visible changed? */
 	if (!progress)
@@ -198,7 +196,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 			what |= EVBUFFER_ERROR;
 		}
 	}
-	
+
 	if (res <= 0)
 		goto error;
 
@@ -206,11 +204,12 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	return;
 
  reschedule:
-	bufferevent_add(&bufev->ev_read, bufev->timeout_read);
 	return;
 
  error:
+	event_del(&bufev->ev_read);
 	(*bufev->errorcb)(bufev, what, bufev->cbarg);
+
 }
 
 static void
@@ -242,8 +241,8 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		    goto error;
 	}
 
-	if (EVBUFFER_LENGTH(bufev->output) != 0)
-		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
+	if (EVBUFFER_LENGTH(bufev->output) == 0)
+		event_del(&bufev->ev_write);
 
 	/*
 	 * Invoke the user callback if our buffer is drained or below the
@@ -256,11 +255,12 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	return;
 
  reschedule:
-	if (EVBUFFER_LENGTH(bufev->output) != 0)
-		bufferevent_add(&bufev->ev_write, bufev->timeout_write);
+	if (EVBUFFER_LENGTH(bufev->output) == 0)
+		event_del(&bufev->ev_write);
 	return;
 
  error:
+	event_del(&bufev->ev_write);
 	(*bufev->errorcb)(bufev, what, bufev->cbarg);
 }
 
@@ -295,8 +295,8 @@ bufferevent_new(evutil_socket_t fd, evbuffercb readcb, evbuffercb writecb,
 		return (NULL);
 	}
 
-	event_set(&bufev->ev_read, fd, EV_READ, bufferevent_readcb, bufev);
-	event_set(&bufev->ev_write, fd, EV_WRITE, bufferevent_writecb, bufev);
+	event_set(&bufev->ev_read, fd, EV_READ|EV_PERSIST, bufferevent_readcb, bufev);
+	event_set(&bufev->ev_write, fd, EV_WRITE|EV_PERSIST, bufferevent_writecb, bufev);
 
 	bufferevent_setcb(bufev, readcb, writecb, errorcb, cbarg);
 
@@ -332,8 +332,8 @@ bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 	event_del(&bufev->ev_read);
 	event_del(&bufev->ev_write);
 
-	event_assign(&bufev->ev_read, bufev->ev_base, fd, EV_READ, bufferevent_readcb, bufev);
-	event_assign(&bufev->ev_write, bufev->ev_base, fd, EV_WRITE, bufferevent_writecb, bufev);
+	event_assign(&bufev->ev_read, bufev->ev_base, fd, EV_READ|EV_PERSIST, bufferevent_readcb, bufev);
+	event_assign(&bufev->ev_write, bufev->ev_base, fd, EV_WRITE|EV_PERSIST, bufferevent_writecb, bufev);
 
 	/* we need to free all filter contexts and then init them again */
 	TAILQ_FOREACH(filter, &bufev->input_filters, next) {
