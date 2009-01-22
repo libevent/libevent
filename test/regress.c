@@ -483,31 +483,6 @@ periodic_timeout_cb(int fd, short event, void *arg)
 }
 
 static void
-test_periodictimeout(void)
-{
-	struct timeval tv, tv_interval;
-	struct event ev;
-	int count = 0;
-
-	setup_test("Periodic timeout: ");
-
-	timerclear(&tv_interval);
-	tv_interval.tv_usec = 10000;
-
-	tv.tv_usec = 0;
-	tv.tv_sec = 0;
-	evperiodic_assign(&ev, global_base, &tv_interval,
-	    periodic_timeout_cb, &count);
-	event_add(&ev, &tv);
-
-	event_dispatch();
-
-	event_del(&ev);
-
-	cleanup_test();
-}
-
-static void
 test_persistent_timeout(void)
 {
 	struct timeval tv;
@@ -2378,7 +2353,6 @@ main (int argc, char **argv)
 	test_evutil_snprintf();
 	util_suite();
 
-	test_periodictimeout();
 	test_persistent_timeout();
 
 	/* use the global event base and need to be called first */
