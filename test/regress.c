@@ -864,7 +864,7 @@ out:
 	return;
 }
 
-void
+static void
 signal_cb_swp(int sig, short event, void *arg)
 {
 	called++;
@@ -873,7 +873,7 @@ signal_cb_swp(int sig, short event, void *arg)
 	else
 		event_loopexit(NULL);
 }
-void
+static void
 timeout_cb_swp(int fd, short event, void *arg)
 {
 	if (called == -1) {
