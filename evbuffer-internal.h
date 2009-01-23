@@ -34,8 +34,15 @@ extern "C" {
 #include "config.h"
 #include "evutil.h"
 
+#include <sys/queue.h>
 /* minimum allocation */
 #define MIN_BUFFER_SIZE	256
+
+struct evbuffer_cb_entry {
+	TAILQ_ENTRY(evbuffer_cb_entry) next;
+	evbuffer_cb cb;
+	void *cbarg;
+};
 
 struct evbuffer_chain;
 struct evbuffer {
@@ -45,8 +52,11 @@ struct evbuffer {
 
 	size_t total_len;	/* total length of all buffers */
 
-	void (*cb)(struct evbuffer *, size_t, size_t, void *);
+	evbuffer_cb cb;
 	void *cbarg;
+
+	TAILQ_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
+	unsigned char in_callbacks;
 };
 
 struct evbuffer_chain {

@@ -175,6 +175,8 @@ What's New In Libevent 2.0 so far:
 
 2.X. Edge-triggered events on some backends.
 
+2.X. Multiple callbacks per evbuffer
+
 3. Big bugfixes
 
 3.X. Win32 bufferevents work
