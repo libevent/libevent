@@ -319,23 +319,25 @@ int evbuffer_read(struct evbuffer *buffer, evutil_socket_t fd, int howmuch);
 unsigned char *evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len);
 
 
-/** Type definition for a callback that is invoked whenever[1] data is added or
-	removed from an evbuffer.
+/** Type definition for a callback that is invoked whenever data is added or
+    removed from an evbuffer.
 
-	An evbuffer may have one or more callbacks set at a time.  The order
-	in which they are exectuded is undefined.
+    An evbuffer may have one or more callbacks set at a time.  The order
+    in which they are exectuded is undefined.
 
-	A callback function may add more callbacks, or remove itself from the
-	list of callbacks, or add or remove data from the buffer.  It may not
-	remove another callback from the list.
+    A callback function may add more callbacks, or remove itself from the
+    list of callbacks, or add or remove data from the buffer.  It may not
+    remove another callback from the list.
 
-	[1] If the length of the buffer changes because of a callback, the
-	callbacks are not invoked again, to prevent an infinite loop.
+    If a callback adds or removes data from the buffer or from another
+    buffer, this can cause a recursive invocation of your callback or
+    other callbacks.  If you ask for an infinite loop, you might just get
+    one: watch out!
 
-	@param buffer the buffer whose size has changed
-	@param old_len the previous length of the buffer
-	@param new_len thee current length of the buffer
-	@param arg a pointer to user data
+    @param buffer the buffer whose size has changed
+    @param old_len the previous length of the buffer
+    @param new_len thee current length of the buffer
+    @param arg a pointer to user data
 */
 typedef void (*evbuffer_cb)(struct evbuffer *buffer, size_t old_len, size_t new_len, void *arg);
 
@@ -354,21 +356,21 @@ struct evbuffer_cb_entry;
 struct evbuffer_cb_entry *evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
 
 /** Remove a callback from an evbuffer, given a handle returned from
-	evbuffer_add_cb.
+    evbuffer_add_cb.
 
-	Calling this function invalidates the handle.
+    Calling this function invalidates the handle.
 
-	@return 0 if a callback was removed, or -1 if no matching callback was
-	found.
+    @return 0 if a callback was removed, or -1 if no matching callback was
+    found.
  */
 int evbuffer_remove_cb_entry(struct evbuffer *buffer,
-							 struct evbuffer_cb_entry *ent);
+			     struct evbuffer_cb_entry *ent);
 
 /** Remove a callback from an evbuffer, given the function and argument
-	used to add it.
+    used to add it.
 
-	@return 0 if a callback was removed, or -1 if no matching callback was
-	found.
+    @return 0 if a callback was removed, or -1 if no matching callback was
+    found.
  */
 int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
 
@@ -409,8 +411,8 @@ void evbuffer_prepend_buffer(struct evbuffer *dst, struct evbuffer* src);
     A better find-string that returns a smart offset structure rather than a
     pointer. It should also be able to start searching _at_ an offset.
 
-	A check-representation functions for testing, so we can assert() that
-	nothing has gone screwy inside an evbuffer.
+    A check-representation functions for testing, so we can assert() that
+    nothing has gone screwy inside an evbuffer.
 */
 
 /** deprecated in favor of calling the functions directly */

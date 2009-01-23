@@ -56,7 +56,6 @@ struct evbuffer {
 	void *cbarg;
 
 	TAILQ_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
-	unsigned char in_callbacks;
 };
 
 struct evbuffer_chain {
