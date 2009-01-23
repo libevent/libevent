@@ -115,15 +115,20 @@ evbuffer_new(void)
 static inline void
 evbuffer_invoke_callbacks(struct evbuffer *buffer, size_t old_size)
 {
+	struct evbuffer_cb_entry *cbent, *next;
 	size_t new_size = buffer->total_len;
-	if (!TAILQ_EMPTY(&buffer->callbacks) && old_size != new_size) {
-		struct evbuffer_cb_entry *cbent, *next;
-		for (cbent = TAILQ_FIRST(&buffer->callbacks);
-			 cbent != TAILQ_END(&buffer->callbacks);
-			 cbent = next) {
-			next = TAILQ_NEXT(cbent, next);
+	if (TAILQ_EMPTY(&buffer->callbacks) || old_size == new_size)
+		return;
+
+
+	for (cbent = TAILQ_FIRST(&buffer->callbacks);
+	     cbent != TAILQ_END(&buffer->callbacks);
+	     cbent = next) {
+		/* Get the 'next' pointer now in case this callback decides
+		 * to remove itself or something. */
+		next = TAILQ_NEXT(cbent, next);
+		if ((cbent->flags & EVBUFFER_CB_ENABLED))
 			cbent->cb(buffer, old_size, new_size, cbent->cbarg);
-		}
 	}
 }
 
@@ -1231,6 +1236,7 @@ evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
 		return NULL;
 	e->cb = cb;
 	e->cbarg = cbarg;
+	e->flags = EVBUFFER_CB_ENABLED;
 	TAILQ_INSERT_HEAD(&buffer->callbacks, e, next);
 	return e;
 }
@@ -1255,3 +1261,13 @@ evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
 	}
 	return -1;
 }
+
+int
+evbuffer_cb_set_flags(struct evbuffer *buffer,
+		      struct evbuffer_cb_entry *cb, unsigned flags)
+{
+	(void)buffer; /* unused */
+	cb->flags = flags;
+	return 0;
+}
+
