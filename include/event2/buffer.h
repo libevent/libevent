@@ -220,14 +220,6 @@ char *evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
     enum evbuffer_eol_style eol_style);
 
 /**
-   Obsolete alias for evbuffer_readln(buffer, NULL, EOL_STYLE_ANY).
-
-   @param buffer the evbuffer to read from
-   @return pointer to a single line, or NULL if an error occurred
-*/
-char *evbuffer_readline(struct evbuffer *buffer);
-
-/**
   Move data from one evbuffer into another evbuffer.
 
   This is a destructive add.  The data from one buffer moves into
