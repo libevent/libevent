@@ -116,17 +116,14 @@ static inline void
 evbuffer_invoke_callbacks(struct evbuffer *buffer, size_t old_size)
 {
 	size_t new_size = buffer->total_len;
-	if (!TAILQ_EMPTY(&buffer->callbacks) && old_size != new_size
-	    && !buffer->in_callbacks) {
+	if (!TAILQ_EMPTY(&buffer->callbacks) && old_size != new_size) {
 		struct evbuffer_cb_entry *cbent, *next;
-		buffer->in_callbacks = 1;
 		for (cbent = TAILQ_FIRST(&buffer->callbacks);
 			 cbent != TAILQ_END(&buffer->callbacks);
 			 cbent = next) {
 			next = TAILQ_NEXT(cbent, next);
 			cbent->cb(buffer, old_size, new_size, cbent->cbarg);
 		}
-		buffer->in_callbacks = 0;
 	}
 }
 
