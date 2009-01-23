@@ -67,6 +67,7 @@
 
 #include "event2/event.h"
 #include "event2/buffer.h"
+#include "event2/buffer_compat.h"
 #include "config.h"
 #include "log-internal.h"
 #include "mm-internal.h"
@@ -132,7 +133,7 @@ evbuffer_invoke_callbacks(struct evbuffer *buffer, size_t old_size)
 static void
 evbuffer_remove_all_callbacks(struct evbuffer *buffer)
 {
-	struct evbuffer_cb_entry *cbent, *next;
+	struct evbuffer_cb_entry *cbent;
 	while ((cbent = TAILQ_FIRST(&buffer->callbacks))) {
 	    TAILQ_REMOVE(&buffer->callbacks, cbent, next);
 	    mm_free(cbent);
