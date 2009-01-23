@@ -103,10 +103,40 @@ struct evbuffer *
 evbuffer_new(void)
 {
 	struct evbuffer *buffer;
-	
+
 	buffer = mm_calloc(1, sizeof(struct evbuffer));
 
+	TAILQ_INIT(&buffer->callbacks);
+
 	return (buffer);
+}
+
+static inline void
+evbuffer_invoke_callbacks(struct evbuffer *buffer, size_t old_size)
+{
+	size_t new_size = buffer->total_len;
+	if (!TAILQ_EMPTY(&buffer->callbacks) && old_size != new_size
+	    && !buffer->in_callbacks) {
+		struct evbuffer_cb_entry *cbent, *next;
+		buffer->in_callbacks = 1;
+		for (cbent = TAILQ_FIRST(&buffer->callbacks);
+			 cbent != TAILQ_END(&buffer->callbacks);
+			 cbent = next) {
+			next = TAILQ_NEXT(cbent, next);
+			cbent->cb(buffer, old_size, new_size, cbent->cbarg);
+		}
+		buffer->in_callbacks = 0;
+	}
+}
+
+static void
+evbuffer_remove_all_callbacks(struct evbuffer *buffer)
+{
+	struct evbuffer_cb_entry *cbent, *next;
+	while ((cbent = TAILQ_FIRST(&buffer->callbacks))) {
+	    TAILQ_REMOVE(&buffer->callbacks, cbent, next);
+	    mm_free(cbent);
+	}
 }
 
 void
@@ -117,6 +147,7 @@ evbuffer_free(struct evbuffer *buffer)
 		next = chain->next;
 		mm_free(chain);
 	}
+	evbuffer_remove_all_callbacks(buffer);
 	mm_free(buffer);
 }
 
@@ -211,13 +242,9 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	/* remove everything from inbuf */
 	ZERO_CHAIN(inbuf);
 
-	if (inbuf->cb != NULL && inbuf->total_len != in_total_len)
-		(*inbuf->cb)(inbuf, in_total_len, inbuf->total_len,
-		    inbuf->cbarg);
-	if (outbuf->cb != NULL && outbuf->total_len != out_total_len)
-		(*outbuf->cb)(outbuf, out_total_len, outbuf->total_len,
-		    outbuf->cbarg);
-		
+	evbuffer_invoke_callbacks(inbuf, in_total_len);
+	evbuffer_invoke_callbacks(outbuf, out_total_len);
+
 	return (0);
 }
 
@@ -239,12 +266,8 @@ evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	/* remove everything from inbuf */
 	ZERO_CHAIN(inbuf);
 
-	if (inbuf->cb != NULL && inbuf->total_len != in_total_len)
-		(*inbuf->cb)(inbuf, in_total_len, inbuf->total_len,
-		    inbuf->cbarg);
-	if (outbuf->cb != NULL && outbuf->total_len != out_total_len)
-		(*outbuf->cb)(outbuf, out_total_len, outbuf->total_len,
-		    outbuf->cbarg);
+	evbuffer_invoke_callbacks(inbuf, in_total_len);
+	evbuffer_invoke_callbacks(outbuf, out_total_len);
 }
 
 void
@@ -282,9 +305,7 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 	}
 
 	/* Tell someone about changes in this buffer */
-	if (buf->cb != NULL && buf->total_len != old_len)
-		(*buf->cb)(buf, old_len, buf->total_len, buf->cbarg);
-
+	evbuffer_invoke_callbacks(buf, old_len);
 }
 
 /* Reads data from an event buffer and drains the bytes read */
@@ -328,9 +349,8 @@ evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 
 	buf->total_len -= nread;
 
-	if (buf->cb != NULL && nread)
-		(*buf->cb)(buf, buf->total_len + nread, buf->total_len,
-		    buf->cbarg);
+	if (nread)
+		evbuffer_invoke_callbacks(buf, buf->total_len + nread);
 
 	return (nread);
 }
@@ -390,12 +410,10 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 
 	src->total_len -= nread;
 
-	if (dst->cb != NULL && nread)
-		(*dst->cb)(dst, dst->total_len - nread, dst->total_len,
-		    dst->cbarg);
-	if (src->cb != NULL && nread)
-		(*src->cb)(src, src->total_len + nread, src->total_len,
-		    src->cbarg);
+	if (nread) {
+		evbuffer_invoke_callbacks(dst, dst->total_len - nread);
+		evbuffer_invoke_callbacks(src, src->total_len + nread);
+	}
 
 	return (nread);
 }
@@ -709,8 +727,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	chain->off = datlen;
 
 out:
-	if (buf->cb != NULL && datlen)
-		(*buf->cb)(buf, old_len, buf->total_len, buf->cbarg);
+	evbuffer_invoke_callbacks(buf, old_len);
 
 	return (0);
 }
@@ -754,8 +771,7 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 	}
 	buf->total_len += datlen;
 
-	if (buf->cb != NULL && datlen)
-		(*buf->cb)(buf, old_len, buf->total_len, buf->cbarg);
+	evbuffer_invoke_callbacks(buf, old_len);
 
 	return (0);
 }
@@ -1052,8 +1068,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 	buf->total_len += n;
 
 	/* Tell someone about changes in this buffer */
-	if (buf->cb != NULL)
-		(*buf->cb)(buf, old_len, buf->total_len, buf->cbarg);
+	evbuffer_invoke_callbacks(buf, old_len);
 
 	return (n);
 }
@@ -1176,9 +1191,8 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 		if (sz < space) {
 			chain->off += sz;
 			buf->total_len += sz;
-			if (buf->cb != NULL)
-				(*buf->cb)(buf, old_len,
-				    buf->total_len, buf->cbarg);
+
+			evbuffer_invoke_callbacks(buf, old_len);
 			return (sz);
 		}
 		if (evbuffer_expand(buf, sz + 1) == -1)
@@ -1202,10 +1216,44 @@ evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
 }
 
 void
-evbuffer_setcb(struct evbuffer *buffer,
-    void (*cb)(struct evbuffer *, size_t, size_t, void *),
-    void *cbarg)
+evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
 {
-	buffer->cb = cb;
-	buffer->cbarg = cbarg;
+	if (!TAILQ_EMPTY(&buffer->callbacks))
+		evbuffer_remove_all_callbacks(buffer);
+
+	if (cb)
+		evbuffer_add_cb(buffer, cb, cbarg);
+}
+
+struct evbuffer_cb_entry *
+evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
+{
+	struct evbuffer_cb_entry *e;
+	if (! (e = mm_malloc(sizeof(struct evbuffer_cb_entry))))
+		return NULL;
+	e->cb = cb;
+	e->cbarg = cbarg;
+	TAILQ_INSERT_HEAD(&buffer->callbacks, e, next);
+	return e;
+}
+
+int
+evbuffer_remove_cb_entry(struct evbuffer *buffer,
+			 struct evbuffer_cb_entry *ent)
+{
+	TAILQ_REMOVE(&buffer->callbacks, ent, next);
+	mm_free(ent);
+	return 0;
+}
+
+int
+evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
+{
+	struct evbuffer_cb_entry *cbent;
+	TAILQ_FOREACH(cbent, &buffer->callbacks, next) {
+		if (cb == cbent->cb && cbarg == cbent->cbarg) {
+			return evbuffer_remove_cb_entry(buffer, cbent);
+		}
+	}
+	return -1;
 }

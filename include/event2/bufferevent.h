@@ -81,6 +81,8 @@ struct evbuffer;
    @param bev the bufferevent that triggered the callback
    @param ctx the user specified context for this bufferevent
  */
+/* XXXX we should rename this to bufferevent_cb; evbuffercb implies that it's
+ * a cb on an evbuffer. We should retain the old name in bufferevent_compat. */
 typedef void (*evbuffercb)(struct bufferevent *bev, void *ctx);
 
 /**
@@ -96,6 +98,7 @@ typedef void (*evbuffercb)(struct bufferevent *bev, void *ctx);
 	  EVBUFFER_TIMEOUT.
    @param ctx the user specified context for this bufferevent
 */
+/* XXXX we should rename this to bufferevent_error_cb; see above. */
 typedef void (*everrorcb)(struct bufferevent *bev, short what, void *ctx);
 
 

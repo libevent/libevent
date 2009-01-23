@@ -326,22 +326,59 @@ int evbuffer_read(struct evbuffer *buffer, evutil_socket_t fd, int howmuch);
  */
 unsigned char *evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len);
 
-/**
-  Set a callback to invoke when the evbuffer is modified.
 
-  The callback takes four arguments.  In order, they are: the evbuffer that
-  was modified, the buffer's old length, the buffer's new length, and the
-  value passed to this function in the 'cbarg' argument.
+/** Type definition for a callback that is invoked whenever[1] data is added or
+	removed from an evbuffer.
 
-  Subsequent calls to evbuffer_setcb() replace callbacks set by previous
-  calls.  Setting the callback to NULL removes any previously set callback.
+	An evbuffer may have one or more callbacks set at a time.  The order
+	in which they are exectuded is undefined.
+
+	A callback function may add more callbacks, or remove itself from the
+	list of callbacks, or add or remove data from the buffer.  It may not
+	remove another callback from the list.
+
+	[1] If the length of the buffer changes because of a callback, the
+	callbacks are not invoked again, to prevent an infinite loop.
+
+	@param buffer the buffer whose size has changed
+	@param old_len the previous length of the buffer
+	@param new_len thee current length of the buffer
+	@param arg a pointer to user data
+*/
+typedef void (*evbuffer_cb)(struct evbuffer *buffer, size_t old_len, size_t new_len, void *arg);
+
+struct evbuffer_cb_entry;
+/** Add a new callback to an evbuffer.
+
+  Subsequent calls to evbuffer_add_cb() add new callbacks.  To remove this
+  callback, call evbuffer_remove_cb or evbuffer_remove_cb_entry.
 
   @param buffer the evbuffer to be monitored
-  @param cb the callback function to invoke when the evbuffer is modified
+  @param cb the callback function to invoke when the evbuffer is modified,
+            or NULL to remove all callbacks.
   @param cbarg an argument to be provided to the callback function
+  @return a handle to the callback on success, or NULL on failure.
  */
-void evbuffer_setcb(struct evbuffer *buffer,
-    void (*cb)(struct evbuffer *, size_t, size_t, void *), void *cbarg);
+struct evbuffer_cb_entry *evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
+
+/** Remove a callback from an evbuffer, given a handle returned from
+	evbuffer_add_cb.
+
+	Calling this function invalidates the handle.
+
+	@return 0 if a callback was removed, or -1 if no matching callback was
+	found.
+ */
+int evbuffer_remove_cb_entry(struct evbuffer *buffer,
+							 struct evbuffer_cb_entry *ent);
+
+/** Remove a callback from an evbuffer, given the function and argument
+	used to add it.
+
+	@return 0 if a callback was removed, or -1 if no matching callback was
+	found.
+ */
+int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
 
 /**
   Makes the data at the begging of an evbuffer contiguous.
