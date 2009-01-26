@@ -109,11 +109,26 @@ extern "C" {
 #define evutil_socket_t int
 #endif
 
+/** Create two new sockets that are connected to each other.  On Unix, this
+    simply calls socketpair().  On Windows, it uses the loopback network
+    interface on 127.0.0.1, and only AF_INET,SOCK_STREAM are supported.
+
+    Parameters and return values are as for socketpair()
+*/
 int evutil_socketpair(int d, int type, int protocol, evutil_socket_t sv[2]);
+/** Do platform-specific operations as needed to make a socket nonblocking.
+
+    @param sock The socket to make nonblocking
+    @return 0 on success, -1 on failure
+ */
 int evutil_make_socket_nonblocking(evutil_socket_t sock);
 #ifdef WIN32
+/** Do the platform-specific call needed to close a socket returned from
+    socket() or accept(). */
 #define EVUTIL_CLOSESOCKET(s) closesocket(s)
 #else
+/** Do the platform-specific call needed to close a socket returned from
+    socket() or accept(). */
 #define EVUTIL_CLOSESOCKET(s) close(s)
 #endif
 
@@ -124,7 +139,7 @@ int evutil_make_socket_nonblocking(evutil_socket_t sock);
  * EWOULD block is ... different. */
 
 #ifdef WIN32
-/** Return the most recent socket error.  Not idempotent. */
+/** Return the most recent socket error.  Not idempotent on all platforms. */
 #define EVUTIL_SOCKET_ERROR() WSAGetLastError()
 /** Replace the most recent socket error with errcode */
 #define EVUTIL_SET_SOCKET_ERROR(errcode)		\
@@ -142,7 +157,7 @@ const char *evutil_socket_error_to_string(int errcode);
 #endif
 
 /*
- * Manipulation functions for struct timeval
+ * Manipulation macros for struct timeval
  */
 #ifdef _EVENT_HAVE_TIMERADD
 #define evutil_timeradd(tvp, uvp, vvp) timeradd((tvp), (uvp), (vvp))
@@ -192,8 +207,10 @@ const char *evutil_socket_error_to_string(int errcode);
 #endif
 
 /* big-int related functions */
+/** Parse a 64-bit value from a string.  Arguments are as for strtol. */
 ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
 
+/* Replacement for gettimeofday on platforms that lack it. */
 #ifdef _EVENT_HAVE_GETTIMEOFDAY
 #define evutil_gettimeofday(tv, tz) gettimeofday((tv), (tz))
 #else
@@ -201,21 +218,46 @@ int evutil_gettimeofday(struct timeval *tv, struct timezone *tz);
 #endif
 
 #ifdef __GNUC__
+/** Helper macro; used to tell the compiler that a given function takes a
+ * printf-like format string as argument number 'a', and a set of printf-like
+ * arguments starting in argument 'b'. */
 #define EVUTIL_CHECK_FMT(a,b) __attribute__((format(printf, a, b)))
 #else
 #define EVUTIL_CHECK_FMT(a,b)
 #endif
 
+/** Replacement for snprintf to get consistent behavior on platforms for
+    which the return value of snprintf does not conform to C99.
+ */
 int evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
-#ifdef __GNUC__
-	__attribute__((format(printf, 3, 4)))
-#endif
-	;
+	EVUTIL_CHECK_FMT(3,4);
 int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap);
 
+/** Replacement for inet_ntop for platforms which lack it. */
 const char *evutil_inet_ntop(int af, const void *src, char *dst, size_t len);
+/** Replacement for inet_pton for platforms which lack it. */
 int evutil_inet_pton(int af, const char *src, void *dst);
 struct sockaddr;
+
+/** Parse an IPv4 or IPv6 address, with optional port, from a string.
+
+    Recognized formats are:
+    - [IPv6Address]:port
+    - [IPv6Address]
+    - IPv6Address
+    - IPv4Address:port
+    - IPv4Address
+
+    If no port is specified, the port in the output is set to 0.
+
+    @param str The string to parse.
+    @param out A struct sockaddr to hold the result.  This should probably be
+       a struct sockaddr_storage.
+    @param outlen The number of bytes that 'out' can safely hold.
+    @return -1 if the address is not well-formed, if the port is out of range,
+       or if out is not large enough to hold the result.  Otherwise returns
+       0 on success.
+*/
 int evutil_parse_sockaddr_port(const char *str, struct sockaddr *out, int outlen);
 
 

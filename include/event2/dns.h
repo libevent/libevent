@@ -306,8 +306,15 @@ int evdns_base_resume(struct evdns_base *base);
 /**
   Add a nameserver.
 
-  This wraps the evdns_nameserver_add() function by parsing a string as an IP
-  address and adds it as a nameserver.
+  This function parses a n IPv4 or IPv6 address from a string and adds it as a
+  nameserver.  It supports the following formats:
+  - [IPv6Address]:port
+  - [IPv6Address]
+  - IPv6Address
+  - IPv4Address:port
+  - IPv4Address
+
+  If no port is specified, it defaults to 53.
 
   @param base the evdns_base to which to apply this operation
   @return 0 if successful, or -1 if an error occurred
