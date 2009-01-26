@@ -102,8 +102,8 @@ extern "C" {
 #endif
 
 #ifdef WIN32
-/** Type to hold the output of "socket()" or "accept()".  On Windows, this is
- * an intptr_t; elsewhere, it is an int. */
+/** A type wide enough to hold the output of "socket()" or "accept()".  On
+ * Windows, this is an intptr_t; elsewhere, it is an int. */
 #define evutil_socket_t intptr_t
 #else
 #define evutil_socket_t int
@@ -148,23 +148,23 @@ const char *evutil_socket_error_to_string(int errcode);
 #define evutil_timeradd(tvp, uvp, vvp) timeradd((tvp), (uvp), (vvp))
 #define evutil_timersub(tvp, uvp, vvp) timersub((tvp), (uvp), (vvp))
 #else
-#define evutil_timeradd(tvp, uvp, vvp)							\
-	do {														\
-		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;			\
+#define evutil_timeradd(tvp, uvp, vvp)					\
+	do {								\
+		(vvp)->tv_sec = (tvp)->tv_sec + (uvp)->tv_sec;		\
 		(vvp)->tv_usec = (tvp)->tv_usec + (uvp)->tv_usec;       \
-		if ((vvp)->tv_usec >= 1000000) {						\
-			(vvp)->tv_sec++;									\
-			(vvp)->tv_usec -= 1000000;							\
-		}														\
+		if ((vvp)->tv_usec >= 1000000) {			\
+			(vvp)->tv_sec++;				\
+			(vvp)->tv_usec -= 1000000;			\
+		}							\
 	} while (0)
-#define	evutil_timersub(tvp, uvp, vvp)						\
-	do {													\
+#define	evutil_timersub(tvp, uvp, vvp)					\
+	do {								\
 		(vvp)->tv_sec = (tvp)->tv_sec - (uvp)->tv_sec;		\
 		(vvp)->tv_usec = (tvp)->tv_usec - (uvp)->tv_usec;	\
-		if ((vvp)->tv_usec < 0) {							\
-			(vvp)->tv_sec--;								\
-			(vvp)->tv_usec += 1000000;						\
-		}													\
+		if ((vvp)->tv_usec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_usec += 1000000;			\
+		}							\
 	} while (0)
 #endif /* !_EVENT_HAVE_HAVE_TIMERADD */
 
@@ -174,9 +174,9 @@ const char *evutil_socket_error_to_string(int errcode);
 #define	evutil_timerclear(tvp)	(tvp)->tv_sec = (tvp)->tv_usec = 0
 #endif
 
-#define	evutil_timercmp(tvp, uvp, cmp)							\
-	(((tvp)->tv_sec == (uvp)->tv_sec) ?							\
-	 ((tvp)->tv_usec cmp (uvp)->tv_usec) :						\
+#define	evutil_timercmp(tvp, uvp, cmp)					\
+	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
+	 ((tvp)->tv_usec cmp (uvp)->tv_usec) :				\
 	 ((tvp)->tv_sec cmp (uvp)->tv_sec))
 
 #ifdef _EVENT_HAVE_TIMERISSET
