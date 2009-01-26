@@ -228,7 +228,6 @@ evmap_signal_initmap(struct event_signal_map *ctx)
 void
 evmap_signal_clear(struct event_signal_map *ctx)
 {
-	ctx->nentries = 0;
 	if (ctx->entries != NULL) {
 		int i;
 		for (i = 0; i < ctx->nentries; ++i) {
@@ -238,6 +237,7 @@ evmap_signal_clear(struct event_signal_map *ctx)
 		mm_free(ctx->entries);
 		ctx->entries = NULL;
 	}
+	ctx->nentries = 0;
 }
 
 
