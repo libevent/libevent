@@ -303,6 +303,16 @@ void evdns_search_add(const char *domain);
  */
 void evdns_search_ndots_set(const int ndots);
 
+/**
+   As evdns_server_new_with_base.
+
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which even_base it uses.  The recommended
+    function is evdns_add_server_port_with_base().
+
+*/
+struct evdns_server_port *evdns_add_server_port(evutil_socket_t socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
+
 #ifdef __cplusplus
 }
 #endif

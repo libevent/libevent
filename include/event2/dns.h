@@ -512,6 +512,17 @@ void evdns_set_random_bytes_fn(void (*fn)(char *, size_t));
 struct evdns_server_request;
 struct evdns_server_question;
 
+/**
+   A callback to implement a DNS server.  The callback function receives a DNS
+   request.  It should then optionally add a number of answers to the reply
+   using the evdns_server_request_add_*_reply functinos, before calling either
+   evdns_server_request_respond to send the reply back, or
+   evdns_server_request_drop to decling to answer the request.
+
+   @param req A newly received request
+   @param user_data A pointer that was passed to
+      evdns_add_server_port_with_base().
+ */
 typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, void *);
 #define EVDNS_ANSWER_SECTION 0
 #define EVDNS_AUTHORITY_SECTION 1
@@ -535,22 +546,45 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
 #define EVDNS_FLAGS_AA	0x400
 #define EVDNS_FLAGS_RD	0x080
 
-struct evdns_server_port *evdns_add_server_port(int socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
-struct evdns_server_port *evdns_add_server_port_with_base(struct event_base *base, int socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
+/** Create a new DNS server port.
+
+    @param base The event base to handle events for the server port.
+    @param socket A UDP socket to accept DNS requests.
+    @param is_tcp Always 0 for now.
+    @param callback A function to invoke whenever we get a DNS request
+      on the socket.
+    @param user_data Data to pass to the callback.
+    @return an evdns_server_port structure for this server port.
+ */
+struct evdns_server_port *evdns_add_server_port_with_base(struct event_base *base, evutil_socket_t socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
+/** Close down a DNS server port, and free associated structures. */
 void evdns_close_server_port(struct evdns_server_port *port);
 
-/** allows setting of the AA or RD flags */
+/** Sets some flags in a reply we're building.
+    Allows setting of the AA or RD flags
+ */
 void evdns_server_request_set_flags(struct evdns_server_request *req, int flags);
 
+/* Functions to add an answer to an in-progress DNS reply.
+ */
 int evdns_server_request_add_reply(struct evdns_server_request *req, int section, const char *name, int type, int dns_class, int ttl, int datalen, int is_name, const char *data);
 int evdns_server_request_add_a_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl);
 int evdns_server_request_add_aaaa_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl);
 int evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_addr *in, const char *inaddr_name, const char *hostname, int ttl);
 int evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl);
 
+/**
+   Send back a response to a DNS request, and free the request structure.
+*/
 int evdns_server_request_respond(struct evdns_server_request *req, int err);
+/**
+   Free a DNS request without sending back a reply.
+*/
 int evdns_server_request_drop(struct evdns_server_request *req);
 struct sockaddr;
+/**
+    Get the address that made a DNS request.
+ */
 int evdns_server_request_get_requesting_addr(struct evdns_server_request *_req, struct sockaddr *sa, int addr_len);
 
 #ifdef __cplusplus
