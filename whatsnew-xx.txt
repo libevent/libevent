@@ -12,6 +12,13 @@ What's New In Libevent 2.0 so far:
 
 2. New and Improved APIs
 
+  Many APIs are improved, refactored, or deprecated in Libevent 2.0.
+
+  All existing code that worked with should Libevent 1.4 should still work
+  correctly with Libevent 2.0.  However, if you are writing new code, or if
+  you want to port old code, we strongly recommend using the new APIs and
+  avoiding deprecated APIs as much as possible.
+
 2.1. New header layout for improved compatibility
 
   Libevent 2.0 has a new header layout to make it easier for programmers to
@@ -77,6 +84,26 @@ What's New In Libevent 2.0 so far:
         initialize functions you can use instead of the old initialize-only
         functions.  For example, instead of malloc and event_set, you
         can use event_new().
+
+
+   So in the case where old code would look like this:
+
+      #include <event.h>
+      ...
+      struct event *ev = malloc(sizeof(struct event));
+      /* This call will cause a stack overrun if you compile with one version
+         of libevent and link dynamically against another. */
+      event_set(ev, fd, EV_READ, cb, NULL);
+      /* If you forget this call, your code will break in hard-to-diagnose
+         ways in the presence of multiple event bases. */
+      event_set_base(ev, base);
+
+   New code will look more like this:
+
+     #include <event2/event.h>
+     ...
+     struct event *ev;
+     ev = event_new(base, fd, EV_READ, cb, NULL);
 
 2.3. Overrideable allocation functions
 
@@ -144,7 +171,15 @@ What's New In Libevent 2.0 so far:
   applications tend to want.  Instead, applications tend to want every
   triggering of the event to re-set the timeout.  So now, if you set
   up an event like this:
-      XXXX
+       struct event *ev;
+       struct timeval tv;
+       ev = event_new(base, fd, EV_READ|EV_PERSIST, cb, NULL);
+       tv.tv_sec = 1;
+       tv.tv_usec = 0;
+       event_add(ev, &tv);
+
+  The callback 'cb' will be invoked whenever fd is ready to read, OR whenever
+  a second has passed since the last invocation of cb.
 
 2.X. kqueue event ordering consistency
 
