@@ -12,8 +12,13 @@
 /**
    Obsolete alias for evbuffer_readln(buffer, NULL, EOL_STYLE_ANY).
 
+   @deprecated This function is deprecated because its behavior is not correct
+      for almost any protocol, and also because it's wholly subsumed by
+      evbuffer_readln().
+
    @param buffer the evbuffer to read from
    @return pointer to a single line, or NULL if an error occurred
+
 */
 char *evbuffer_readline(struct evbuffer *buffer);
 
@@ -23,6 +28,13 @@ char *evbuffer_readline(struct evbuffer *buffer);
 
   Subsequent calls to evbuffer_setcb() replace callbacks set by previous
   calls.  Setting the callback to NULL removes any previously set callback.
+
+  @deprecated This function is deprecated because it clears all previous
+     callbacks set on the evbuffer, which can cause confusing behavior if
+     multiple parts of the code all want to add their own callbacks on a
+     buffer.  Instead, use evbuffer_add(), evbuffer_del(), and
+     evbuffer_setflags() to manage your own evbuffer callbacks without
+     interfering with callbacks set by others.
 
   @param buffer the evbuffer to be monitored
   @param cb the callback function to invoke when the evbuffer is modified,

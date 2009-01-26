@@ -103,8 +103,10 @@ const char *event_base_get_method(struct event_base *);
 /**
    Gets all event notification mechanisms supported by libevent.
 
-   This functions returns the event mechanism in order preferred
-   by libevent.
+   This functions returns the event mechanism in order preferred by
+   libevent.  Note that this list will include all backends that
+   Libevent has compiled-in support for, and will not necessarily check
+   your OS to see whether it has the required resources.
 
    @return an array with pointers to the names of support methods.
      The end of the array is indicated by a NULL pointer.  If an
@@ -365,8 +367,9 @@ int event_base_loopbreak(struct event_base *);
 
   @see event_add(), event_del(), event_once()
 
-  @deprecated event_set() is deprecated.  Use event_assign() instead.
-
+  @deprecated event_set() is not recommended for new code, because it requires
+     a subsequent call to event_base_set() to be safe under many circumstances.
+     Use event_assign() or event_new() instead.
  */
 void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
 
@@ -387,6 +390,12 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
   event and the type of event which will be either EV_TIMEOUT, EV_SIGNAL,
   EV_READ, or EV_WRITE.  The additional flag EV_PERSIST makes an event_add()
   persistent until event_del() has been called.
+
+  Note that using event_assign() request that you have already allocated the
+  event struct.  Doing so will often require your code to depend on the size
+  of the structure, and will create possible incompatibility with future
+  versions of libevent.  If this seems like a bad idea to you, use event_new()
+  and event_free() instead.
 
   @param ev an event struct to be modified
   @param base the event base to which ev should be attached.
@@ -415,7 +424,7 @@ struct event *event_new(struct event_base *, evutil_socket_t, short, void (*)(ev
 void event_free(struct event *);
 
 /**
-  Schedule a one-time event (threadsafe variant)
+  Schedule a one-time event
 
   The function event_base_once() is similar to event_set().  However, it
   schedules a callback to be called exactly once and does not require the
