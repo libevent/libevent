@@ -58,7 +58,7 @@ extern "C" {
 /**
  * Start an HTTP server on the specified address and port
  *
- * DEPRECATED: it does not allow an event base to be specified
+ * @deprecated It does not allow an event base to be specified
  *
  * @param address the address to which the HTTP server should be bound
  * @param port the port number on which the HTTP server should listen
@@ -70,6 +70,8 @@ struct evhttp *evhttp_start(const char *address, unsigned short port);
  * A connection object that can be used to for making HTTP requests.  The
  * connection object tries to establish the connection when it is given an
  * http request object.
+ *
+ * @deprecated It does not allow an event base to be specified
  */
 struct evhttp_connection *evhttp_connection_new(
 	const char *address, unsigned short port);
@@ -77,6 +79,8 @@ struct evhttp_connection *evhttp_connection_new(
 /**
  * Associates an event base with the connection - can only be called
  * on a freshly created connection object that has not been used yet.
+ *
+ * @deprecated XXXX Why?
  */
 void evhttp_connection_set_base(struct evhttp_connection *evcon,
     struct event_base *base);

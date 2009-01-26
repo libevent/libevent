@@ -56,6 +56,12 @@ extern "C" {
   calling evdns_resolv_conf_parse() on UNIX and
   evdns_config_windows_nameservers() on Windows.
 
+  @deprecated This function is deprecated because it always uses the current
+    event base, and is easily confused by multiple calls to event_init(), and
+    so is not safe for multithreaded use.  Additionally, it allocates a global
+    structure that only one thread can use. The replacement is
+    evdns_base_new().
+
   @return 0 if successful, or -1 if an error occurred
   @see evdns_shutdown()
  */
@@ -68,6 +74,10 @@ int evdns_init(void);
   an empty result with the error flag set to DNS_ERR_SHUTDOWN. Otherwise,
   the requests will be silently discarded.
 
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_shutdown().
+
   @param fail_requests if zero, active requests will be aborted; if non-zero,
 		active requests will return DNS_ERR_SHUTDOWN.
   @see evdns_init()
@@ -79,6 +89,10 @@ void evdns_shutdown(int fail_requests);
 
   The address should be an IPv4 address in network byte order.
   The type of address is chosen so that it matches in_addr.s_addr.
+
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_nameserver_add().
 
   @param address an IP address in network byte order
   @return 0 if successful, or -1 if an error occurred
@@ -94,6 +108,10 @@ int evdns_nameserver_add(unsigned long int address);
   whether our calls to the various nameserver configuration functions
   have been successful.
 
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_count_nameservers().
+
   @return the number of configured nameservers
   @see evdns_nameserver_add()
  */
@@ -103,6 +121,10 @@ int evdns_count_nameservers(void);
   Remove all configured nameservers, and suspend all pending resolves.
 
   Resolves will not necessarily be re-attempted until evdns_resume() is called.
+
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_clear_nameservers_and_suspend().
 
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resume()
@@ -115,6 +137,10 @@ int evdns_clear_nameservers_and_suspend(void);
   Re-attempt resolves left in limbo after an earlier call to
   evdns_clear_nameservers_and_suspend().
 
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_resume().
+
   @return 0 if successful, or -1 if an error occurred
   @see evdns_clear_nameservers_and_suspend()
  */
@@ -126,6 +152,10 @@ int evdns_resume(void);
   This wraps the evdns_nameserver_add() function by parsing a string as an IP
   address and adds it as a nameserver.
 
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_nameserver_ip_add().
+
   @return 0 if successful, or -1 if an error occurred
   @see evdns_nameserver_add()
  */
@@ -133,6 +163,10 @@ int evdns_nameserver_ip_add(const char *ip_as_string);
 
 /**
   Lookup an A record for a given name.
+
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_resolve_ipv4().
 
   @param name a DNS hostname
   @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
@@ -161,6 +195,10 @@ struct in6_addr;
 /**
   Lookup a PTR record for a given IP address.
 
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_resolve_reverse().
+
   @param in an IPv4 address
   @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
   @param callback a callback function to invoke when the request is completed
@@ -172,6 +210,10 @@ int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type cal
 
 /**
   Lookup a PTR record for a given IPv6 address.
+
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_resolve_reverse_ipv6().
 
   @param in an IPv6 address
   @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
@@ -188,6 +230,10 @@ int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_ty
   The currently available configuration options are:
 
     ndots, timeout, max-timeouts, max-inflight, and attempts
+
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_set_option().
 
   @param option the name of the configuration option to be modified
   @param val the value to be set
@@ -210,6 +256,10 @@ int evdns_set_option(const char *option, const char *val, int flags);
   failed to open file, 2 = failed to stat file, 3 = file too large, 4 = out of
   memory, 5 = short read from file, 6 = no nameservers listed in the file
 
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_resolv_conf_parse().
+
   @param flags any of DNS_OPTION_NAMESERVERS|DNS_OPTION_SEARCH|DNS_OPTION_MISC|
          DNS_OPTIONS_ALL
   @param filename the path to the resolv.conf file
@@ -221,11 +271,19 @@ int evdns_resolv_conf_parse(int flags, const char *const filename);
 
 /**
   Clear the list of search domains.
+
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_search_clear().
  */
 void evdns_search_clear(void);
 
 /**
   Add a domain to the list of search domains
+
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_search_add().
 
   @param domain the domain to be added to the search list
  */
@@ -236,6 +294,10 @@ void evdns_search_add(const char *domain);
 
   Sets the number of dots which, when found in a name, causes
   the first query to be without any search domain.
+
+  @deprecated This function is deprecated because it does not allow the
+    caller to specify which evdns_base it applies to.  The recommended
+    function is evdns_base_search_ndots_set().
 
   @param ndots the new ndots parameter
  */

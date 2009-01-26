@@ -62,6 +62,10 @@ extern "C" {
   used.  Sets the current_base global representing the default base for
   events that have no base associated with them.
 
+  @deprecated This function is deprecated because it relaces the "current"
+    event_base, and is totally unsafe for multithreaded use.  The replacement
+    is event_base_new().
+
   @see event_base_set(), event_base_new()
  */
 struct event_base *event_init(void);
@@ -73,6 +77,10 @@ struct event_base *event_init(void);
   event_dispatch().  This function only returns on error, and should
   replace the event core of the application program.
 
+  @deprecated This function is deprecated because it is easily confused by
+    multiple calls to event_init(), and because it is not safe for
+    multithreaded use.  The replacement is event_base_dispatch().
+
   @see event_base_dispatch()
  */
 int event_dispatch(void);
@@ -82,10 +90,14 @@ int event_dispatch(void);
 
   This is a more flexible version of event_dispatch().
 
+  @deprecated This function is deprecated because it uses the event base from
+    the last call to event_init, and is therefore not safe for multithreaded
+    use.  The replacement is event_base_loop().
+
   @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK
   @return 0 if successful, -1 if an error occurred, or 1 if no events were
     registered.
-  @see event_loopexit(), event_base_loop()
+  @see event_base_loopexit(), event_base_loop()
 */
 int event_loop(int);
 
@@ -98,6 +110,10 @@ int event_loop(int);
   blocking for events again.
 
   Subsequent invocations of event_loop() will proceed normally.
+
+  @deprecated This function is deprecated because it is easily confused by
+    multiple calls to event_init(), and because it is not safe for
+    multithreaded use.  The replacement is event_base_loopexit().
 
   @param tv the amount of time after which the loop should terminate.
   @return 0 if successful, or -1 if an error occurred
@@ -115,6 +131,10 @@ int event_loopexit(const struct timeval *);
 
   Subsequent invocations of event_loop() will proceed normally.
 
+  @deprecated This function is deprecated because it is easily confused by
+    multiple calls to event_init(), and because it is not safe for
+    multithreaded use.  The replacement is event_base_loopbreak().
+
   @return 0 if successful, or -1 if an error occurred
   @see event_base_loopbreak(), event_loopexit()
  */
@@ -126,6 +146,10 @@ int event_loopbreak(void);
   The function event_once() is similar to event_set().  However, it schedules
   a callback to be called exactly once and does not require the caller to
   prepare an event structure.
+
+  @deprecated This function is deprecated because it is easily confused by
+    multiple calls to event_init(), and because it is not safe for
+    multithreaded use.  The replacement is event_base_once().
 
   @param fd a file descriptor to monitor
   @param events event(s) to monitor; can be any of EV_TIMEOUT | EV_READ |
@@ -146,6 +170,10 @@ int event_once(evutil_socket_t , short,
   Get the kernel event notification mechanism used by libevent.
 
   @return a string identifying the kernel event mechanism (kqueue, epoll, etc.)
+
+  @deprecated This function is deprecated because it is easily confused by
+    multiple calls to event_init(), and because it is not safe for
+    multithreaded use.  The replacement is event_base_get_method().
  */
 const char *event_get_method(void);
 
@@ -165,6 +193,10 @@ const char *event_get_method(void);
   used to assign a priority to an event.  By default, libevent assigns the
   middle priority to all events unless their priority is explicitly set.
 
+  @deprecated This function is deprecated because it is easily confused by
+    multiple calls to event_init(), and because it is not safe for
+    multithreaded use.  The replacement is event_base_priority_init().
+
   @param npriorities the maximum number of priorities
   @return 0 if successful, or -1 if an error occurred
   @see event_base_priority_init(), event_priority_set()
@@ -178,6 +210,9 @@ int	event_priority_init(int);
  *
  * @param ev the event struct to be disabled
  * @param tv the timeout value, in seconds
+ *
+ * @deprecated This macro is deprecated because its naming is inconsistent.
+ *    The recommend macro is evtimer_add().
  */
 #define timeout_add(ev, tv)		event_add(ev, tv)
 
@@ -188,6 +223,9 @@ int	event_priority_init(int);
  * @param ev the event struct to be defined
  * @param cb the callback to be invoked when the timeout expires
  * @param arg the argument to be passed to the callback
+ *
+ * @deprecated This macro is deprecated because its naming is inconsistent.
+ *    The recommend macro is evtimer_set().
  */
 #define timeout_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
 
@@ -195,21 +233,60 @@ int	event_priority_init(int);
  * Disable a timeout event.
  *
  * @param ev the timeout event to be disabled
+ *
+ * @deprecated This macro is deprecated because its naming is inconsistent.
+ *    The recommend macro is evtimer_del().
  */
 #define timeout_del(ev)			event_del(ev)
 
+/**
+   @deprecated This macro is deprecated because its naming is inconsistent.
+   The recommend macro is evtimer_pending().
+*/
 #define timeout_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
+/**
+   @deprecated This macro is deprecated because its naming is inconsistent.
+   The recommend macro is evtimer_initialized().
+*/
 #define timeout_initialized(ev)		_event_initialized((ev), 0)
 
+/**
+   @deprecated This macro is deprecated because its naming is inconsistent.
+    The recommend macro is evsignal_add().
+*/
 #define signal_add(ev, tv)		event_add(ev, tv)
+/**
+   @deprecated This macro is deprecated because its naming is inconsistent.
+    The recommend macro is evsignal_set().
+*/
 #define signal_set(ev, x, cb, arg)	\
 	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+/**
+   @deprecated This macro is deprecated because its naming is inconsistent.
+    The recommend macro is evsignal_assign().
+*/
 #define signal_assign(ev, b, x, cb, arg)                    \
 	event_assign(ev, b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+/**
+   @deprecated This macro is deprecated because its naming is inconsistent.
+    The recommend macro is evsignal_new().
+*/
 #define signal_new(b, x, cb, arg) \
 	event_new(b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+/**
+   @deprecated This macro is deprecated because its naming is inconsistent.
+    The recommend macro is evsignal_del().
+*/
 #define signal_del(ev)			event_del(ev)
+/**
+   @deprecated This macro is deprecated because its naming is inconsistent.
+    The recommend macro is evsignal_pending().
+*/
 #define signal_pending(ev, tv)		event_pending(ev, EV_SIGNAL, tv)
+/**
+   @deprecated This macro is deprecated because its naming is inconsistent.
+    The recommend macro is evsignal_initialized().
+*/
 #define signal_initialized(ev)		_event_initialized((ev), 0)
 
 #ifdef __cplusplus
