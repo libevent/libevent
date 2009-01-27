@@ -396,7 +396,7 @@ int evbuffer_cb_set_flags(struct evbuffer *buffer,
   @return a pointer to the contigous memory areay
 */
 
-unsigned char *evbuffer_pullup(struct evbuffer *buf, int size);
+unsigned char *evbuffer_pullup(struct evbuffer *buf, ssize_t size);
 
 /**
   Prepends data to the beginning of the evbuffer

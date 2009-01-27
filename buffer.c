@@ -421,9 +421,8 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 	return (nread);
 }
 
-/* XXX shouldn't the second arg be ssize_t? */
 unsigned char *
-evbuffer_pullup(struct evbuffer *buf, int size)
+evbuffer_pullup(struct evbuffer *buf, ssize_t size)
 {
 	struct evbuffer_chain *chain = buf->first, *next, *tmp;
 	unsigned char *buffer;
