@@ -868,7 +868,7 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 			goto out;
 		} else if (chain->misalign) {
 			memcpy(chain->buffer,
-			    data + datlen - chain->misalign,
+			    (char*)data + datlen - chain->misalign,
 			    chain->misalign);
 			chain->off += chain->misalign;
 			buf->total_len += chain->misalign;
@@ -1469,7 +1469,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		 */
 		if (mapped == MAP_FAILED) {
 			event_warn("%s: mmap(%d, %d, %zu) failed",
-			    __func__, fd, 0, offset + length);
+			    __func__, fd, 0, (size_t)(offset + length));
 			return (-1);
 		}
 		chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_fd));
