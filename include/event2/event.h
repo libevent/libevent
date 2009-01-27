@@ -94,7 +94,7 @@ int event_base_dispatch(struct event_base *);
 
 /**
  Get the kernel event notification mechanism used by libevent.
- 
+
  @param eb the event_base structure returned by event_base_new()
  @return a string identifying the kernel event mechanism (kqueue, epoll, etc.)
  */

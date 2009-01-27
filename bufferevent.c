@@ -81,7 +81,7 @@ bufferevent_add(struct event *ev, int timeout)
 	return (event_add(ev, ptv));
 }
 
-/* 
+/*
  * This callback is executed when the size of the input buffer changes.
  * We use it to apply back pressure on the reading side.
  */
@@ -398,7 +398,7 @@ bufferevent_free(struct bufferevent *bufev)
 
 		bufferevent_filter_free(filter);
 	}
-	
+
 	while ((filter = TAILQ_FIRST(&bufev->output_filters)) != NULL) {
 		bufferevent_filter_remove(bufev, BEV_OUTPUT, filter);
 
@@ -469,7 +469,7 @@ bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf)
 
 	if (evbuffer_add_buffer(output, buf) == -1)
 		return (-1);
-	
+
 	return (bufferevent_write_closure(bufev, len > 0));
 }
 
@@ -648,7 +648,7 @@ bufferevent_filter_remove(struct bufferevent *bufev,
 
 	if (filter->free_context)
 		filter->free_context(filter->ctx);
-		
+
 }
 
 static int

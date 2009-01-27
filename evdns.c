@@ -1513,7 +1513,7 @@ evdns_request_data_build(const char *const name, const int name_len,
 	if (j < 0) {
 		return (int)j;
 	}
-	
+
 	APPEND16(type);
 	APPEND16(class);
 

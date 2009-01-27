@@ -50,7 +50,7 @@ main (int argc, char **argv)
 {
 	struct event timeout;
 	struct timeval tv;
- 
+
 	/* Initalize the event library */
 	event_init();
 
@@ -62,7 +62,7 @@ main (int argc, char **argv)
 	event_add(&timeout, &tv);
 
 	lasttime = time(NULL);
-	
+
 	event_dispatch();
 
 	return (0);

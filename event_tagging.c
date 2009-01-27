@@ -496,7 +496,7 @@ evtag_unmarshal_fixed(struct evbuffer *src, ev_uint32_t need_tag, void *data,
 
 	if (tag_len != len)
 		return (-1);
-	
+
 	evbuffer_remove(src, data, len);
 	return (0);
 }

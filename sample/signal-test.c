@@ -38,7 +38,7 @@ signal_cb(int fd, short event, void *arg)
 
 	if (called >= 2)
 		event_del(signal);
-	
+
 	called++;
 }
 
@@ -46,7 +46,7 @@ int
 main (int argc, char **argv)
 {
 	struct event signal_int;
- 
+
 	/* Initalize the event library */
 	event_init();
 

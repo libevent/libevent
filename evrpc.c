@@ -132,7 +132,7 @@ evrpc_add_hook(void *vbase,
 
 	hook = mm_calloc(1, sizeof(struct evrpc_hook));
 	assert(hook != NULL);
-	
+
 	hook->process = cb;
 	hook->process_arg = cb_arg;
 	TAILQ_INSERT_TAIL(head, hook, next);
@@ -234,7 +234,7 @@ evrpc_register_rpc(struct evrpc_base *base, struct evrpc *rpc,
 	    constructed_uri,
 	    evrpc_request_cb,
 	    rpc);
-	
+
 	mm_free(constructed_uri);
 
 	return (0);
@@ -256,7 +256,7 @@ evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
 		return (-1);
 	}
 	TAILQ_REMOVE(&base->registered_rpcs, rpc, next);
-	
+
 	mm_free((char *)rpc->uri);
 	mm_free(rpc);
 
@@ -558,20 +558,20 @@ evrpc_pool_add_connection(struct evrpc_pool *pool,
 	if (pool->base != NULL)
 		evhttp_connection_set_base(connection, pool->base);
 
-	/* 
+	/*
 	 * unless a timeout was specifically set for a connection,
 	 * the connection inherits the timeout from the pool.
 	 */
 	if (connection->timeout == -1)
 		connection->timeout = pool->timeout;
 
-	/* 
+	/*
 	 * if we have any requests pending, schedule them with the new
 	 * connections.
 	 */
 
 	if (TAILQ_FIRST(&pool->requests) != NULL) {
-		struct evrpc_request_wrapper *request = 
+		struct evrpc_request_wrapper *request =
 		    TAILQ_FIRST(&pool->requests);
 		TAILQ_REMOVE(&pool->requests, request, next);
 		evrpc_schedule_request(connection, request);
@@ -617,7 +617,7 @@ evrpc_pool_find_connection(struct evrpc_pool *pool)
 
 /*
  * Prototypes responsible for evrpc scheduling and hooking
- */ 
+ */
 
 static void evrpc_schedule_request_closure(void *ctx, enum EVRPC_HOOK_RESULT);
 
@@ -702,7 +702,7 @@ evrpc_schedule_request_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 		goto error;
 
 	if (pool->timeout > 0) {
-		/* 
+		/*
 		 * a timeout after which the whole rpc is going to be aborted.
 		 */
 		struct timeval tv;
@@ -775,7 +775,7 @@ evrpc_make_request(struct evrpc_request_wrapper *ctx)
 	/* we better have some available connections on the pool */
 	assert(TAILQ_FIRST(&pool->connections) != NULL);
 
-	/* 
+	/*
 	 * if no connection is available, we queue the request on the pool,
 	 * the next time a connection is empty, the rpc will be send on that.
 	 */
@@ -830,7 +830,7 @@ evrpc_reply_done(struct evhttp_request *req, void *arg)
 	struct evrpc_request_wrapper *ctx = arg;
 	struct evrpc_pool *pool = ctx->pool;
 	int hook_res = EVRPC_CONTINUE;
-	
+
 	/* cancel any timeout we might have scheduled */
 	event_del(&ctx->ev_timeout);
 
@@ -907,7 +907,7 @@ evrpc_reply_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 	}
 
 	(*ctx->cb)(&status, ctx->request, ctx->reply, ctx->cb_arg);
-	
+
 	evrpc_request_wrapper_free(ctx);
 
 	/* the http layer owned the orignal request structure, but if we

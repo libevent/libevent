@@ -111,7 +111,7 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 void
 evsig_init(struct event_base *base)
 {
-	/* 
+	/*
 	 * Our signal handler is going to write to one end of the socket
 	 * pair to wake up our event loop.  The event loop then scans for
 	 * signals that got delivered.
@@ -305,7 +305,7 @@ evsig_process(struct event_base *base)
 	struct evsig_info *sig = &base->sig;
 	sig_atomic_t ncalls;
 	int i;
-	
+
 	base->sig.evsig_caught = 0;
 	for (i = 1; i < NSIG; ++i) {
 		ncalls = sig->evsigcaught[i];

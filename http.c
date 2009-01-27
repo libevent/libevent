@@ -109,11 +109,11 @@
 #define NI_NUMERICSERV 2
 
 static int
-fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host, 
+fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	size_t hostlen, char *serv, size_t servlen, int flags)
 {
         struct sockaddr_in *sin = (struct sockaddr_in *)sa;
-        
+
         if (serv != NULL) {
 				char tmpserv[16];
 				evutil_snprintf(tmpserv, sizeof(tmpserv),
@@ -131,11 +131,11 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
                                 return (0);
                 } else {
 						struct hostent *hp;
-                        hp = gethostbyaddr((char *)&sin->sin_addr, 
+                        hp = gethostbyaddr((char *)&sin->sin_addr,
                             sizeof(struct in_addr), AF_INET);
                         if (hp == NULL)
                                 return (-2);
-                        
+
                         if (strlcpy(host, hp->h_name, hostlen) >= hostlen)
                                 return (-1);
                         else
@@ -262,7 +262,7 @@ html_replace(char ch, char *buf)
 	/* Echo the character back */
 	buf[0] = ch;
 	buf[1] = '\0';
-	
+
 	return buf;
 }
 
@@ -347,7 +347,7 @@ evhttp_add_event(struct event *ev, int timeout, int default_timeout)
 {
 	if (timeout != 0) {
 		struct timeval tv;
-		
+
 		evutil_timerclear(&tv);
 		tv.tv_sec = timeout != -1 ? timeout : default_timeout;
 		event_add(ev, &tv);
@@ -396,7 +396,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
     struct evhttp_request *req)
 {
 	const char *method;
-	
+
 	evhttp_remove_header(req->output_headers, "Proxy-Connection");
 
 	/* Generate request line */
@@ -432,7 +432,7 @@ static int
 evhttp_is_connection_keepalive(struct evkeyvalq* headers)
 {
 	const char *connection = evhttp_find_header(headers, "Connection");
-	return (connection != NULL 
+	return (connection != NULL
 	    && strncasecmp(connection, "keep-alive", 10) == 0);
 }
 
@@ -499,7 +499,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 
 		if ((req->minor == 1 || is_keepalive) &&
 		    evhttp_response_needs_body(req)) {
-			/* 
+			/*
 			 * we need to add the content length if the
 			 * user did not give it, this is required for
 			 * persistent connections to work.
@@ -533,7 +533,7 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
 	struct evkeyval *header;
 	struct evbuffer *output = bufferevent_get_output(evcon->bufev);
-	
+
 	/*
 	 * Depending if this is a HTTP request or response, we might need to
 	 * add some new headers or remove existing headers.
@@ -566,7 +566,7 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 	switch (error) {
 	case EVCON_HTTP_TIMEOUT:
 	case EVCON_HTTP_EOF:
-		/* 
+		/*
 		 * these are cases in which we probably should just
 		 * close the connection and not send a reply.  this
 		 * case may happen when a browser keeps a persistent
@@ -583,13 +583,13 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 			req->uri = NULL;
 		}
 
-		/* 
+		/*
 		 * the callback needs to send a reply, once the reply has
 		 * been send, the connection should get freed.
 		 */
 		(*req->cb)(req, req->cb_arg);
 	}
-	
+
 	return (0);
 }
 
@@ -601,11 +601,11 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 	void (*cb)(struct evhttp_request *, void *);
 	void *cb_arg;
 	assert(req != NULL);
-	
+
 	bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
 
 	if (evcon->flags & EVHTTP_CON_INCOMING) {
-		/* 
+		/*
 		 * for incoming requests, there are two different
 		 * failure cases.  it's either a network level error
 		 * or an http layer error. for problems on the network
@@ -638,7 +638,7 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 
 	/* reset the connection */
 	evhttp_connection_reset(evcon);
-	
+
 	/* We are trying the next request that was queued on us */
 	if (TAILQ_FIRST(&evcon->requests) != NULL)
 		evhttp_connection_connect(evcon);
@@ -679,7 +679,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 
 		evcon->state = EVCON_IDLE;
 
-		need_close = 
+		need_close =
 		    evhttp_is_connection_close(req->flags, req->input_headers)||
 		    evhttp_is_connection_close(req->flags, req->output_headers);
 
@@ -816,7 +816,7 @@ static void
 evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
 	struct evbuffer *buf = bufferevent_get_input(evcon->bufev);
-	
+
 	if (req->chunked) {
 		switch (evhttp_handle_chunked_read(req, buf)) {
 		case ALL_DATA_READ:
@@ -992,14 +992,14 @@ static void
 evhttp_request_dispatch(struct evhttp_connection* evcon)
 {
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
-	
+
 	/* this should not usually happy but it's possible */
 	if (req == NULL)
 		return;
 
 	/* delete possible close detection events */
 	evhttp_connection_stop_detectclose(evcon);
-	
+
 	/* we assume that the connection is connected already */
 	assert(evcon->state == EVCON_IDLE);
 
@@ -1130,7 +1130,7 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 		/* For connections from the client, we just
 		 * reset the connection so that it becomes
 		 * disconnected.
-		 */ 
+		 */
 		assert(evcon->state == EVCON_IDLE);
 		evhttp_connection_reset(evcon);
 		return;
@@ -1187,10 +1187,10 @@ evhttp_connection_cb(struct bufferevent *bufev, void *arg)
 	    evcon);
 
 	if (evcon->timeout == -1)
-		bufferevent_settimeout(evcon->bufev, 
+		bufferevent_settimeout(evcon->bufev,
 		    HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT);
 	else
-		bufferevent_settimeout(evcon->bufev, 
+		bufferevent_settimeout(evcon->bufev,
 		    evcon->timeout, evcon->timeout);
 
 	/* try to start requests that have queued up on this connection */
@@ -1524,7 +1524,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 
 	content_length = evhttp_find_header(headers, "Content-Length");
 	connection = evhttp_find_header(headers, "Connection");
-		
+
 	if (content_length == NULL && connection == NULL)
 		req->ntoread = -1;
 	else if (content_length == NULL &&
@@ -1546,7 +1546,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 		}
 		req->ntoread = ntoread;
 	}
-		
+
 	event_debug(("%s: bytes to read: %d (in buffer %ld)\n",
 		__func__, req->ntoread,
 		EVBUFFER_LENGTH(bufferevent_get_input(req->evcon->bufev))));
@@ -1558,7 +1558,7 @@ static void
 evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
 	const char *xfer_enc;
-	
+
 	/* If this is a request without a body, then we are done */
 	if (req->kind == EVHTTP_REQUEST &&
 	    (req->type != EVHTTP_REQ_POST && req->type != EVHTTP_REQ_PUT)) {
@@ -1676,7 +1676,7 @@ evhttp_connection_base_new(struct event_base *base,
     const char *address, unsigned short port)
 {
 	struct evhttp_connection *evcon = NULL;
-	
+
 	event_debug(("Attempting connection to %s:%d\n", address, port));
 
 	if ((evcon = mm_calloc(1, sizeof(struct evhttp_connection))) == NULL) {
@@ -1712,7 +1712,7 @@ evhttp_connection_base_new(struct event_base *base,
 	}
 
 	return (evcon);
-	
+
  error:
 	if (evcon != NULL)
 		evhttp_connection_free(evcon);
@@ -1736,10 +1736,10 @@ evhttp_connection_set_timeout(struct evhttp_connection *evcon,
 	evcon->timeout = timeout_in_secs;
 
 	if (evcon->timeout == -1)
-		bufferevent_settimeout(evcon->bufev, 
+		bufferevent_settimeout(evcon->bufev,
 		    HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT);
 	else
-		bufferevent_settimeout(evcon->bufev, 
+		bufferevent_settimeout(evcon->bufev,
 		    evcon->timeout, evcon->timeout);
 }
 
@@ -1771,12 +1771,12 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 {
 	if (evcon->state == EVCON_CONNECTING)
 		return (0);
-	
+
 	evhttp_connection_reset(evcon);
 
 	assert(!(evcon->flags & EVHTTP_CON_INCOMING));
 	evcon->flags |= EVHTTP_CON_OUTGOING;
-	
+
 	evcon->fd = bind_socket(
 		evcon->bind_address, evcon->bind_port, 0 /*reuse*/);
 	if (evcon->fd == -1) {
@@ -1794,7 +1794,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 
 	/* Set up a callback for successful connection setup */
 	bufferevent_setfd(evcon->bufev, evcon->fd);
-	bufferevent_setcb(evcon->bufev, 
+	bufferevent_setcb(evcon->bufev,
 	    NULL /* evhttp_read_cb */,
 	    evhttp_connection_cb,
 	    evhttp_error_cb, evcon);
@@ -1804,7 +1804,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	bufferevent_enable(evcon->bufev, EV_WRITE);
 
 	evcon->state = EVCON_CONNECTING;
-	
+
 	return (0);
 }
 
@@ -1832,11 +1832,11 @@ evhttp_make_request(struct evhttp_connection *evcon,
 		req->major = 1;
 		req->minor = 1;
 	}
-	
+
 	assert(req->evcon == NULL);
 	req->evcon = evcon;
 	assert(!(req->flags & EVHTTP_REQ_OWN_CONNECTION));
-	
+
 	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
 	/* If the connection object is not connected; make it so */
@@ -1913,7 +1913,7 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	if (need_close) {
 		evhttp_connection_free(evcon);
 		return;
-	} 
+	}
 
 	/* we have a persistent connection; try to accept another request. */
 	if (evhttp_associate_new_request_with_connection(evcon) == -1) {
@@ -1962,7 +1962,7 @@ evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 	/* xxx: not sure if we really should expose the data buffer this way */
 	if (databuf != NULL)
 		evbuffer_add_buffer(req->output_buffer, databuf);
-	
+
 	/* Adds headers to the response */
 	evhttp_make_header(evcon, req);
 
@@ -1974,7 +1974,7 @@ evhttp_send_reply(struct evhttp_request *req, int code, const char *reason,
     struct evbuffer *databuf)
 {
 	evhttp_response_code(req, code, reason);
-	
+
 	evhttp_send(req, databuf);
 }
 
@@ -2055,7 +2055,7 @@ evhttp_send_page(struct evhttp_request *req, struct evbuffer *databuf)
 		req->major = 1;
 		req->minor = 1;
 	}
-	
+
 	if (req->kind != EVHTTP_RESPONSE)
 		evhttp_response_code(req, 200, "OK");
 
@@ -2108,7 +2108,7 @@ evhttp_encode_uri(const char *uri)
 	evbuffer_add(buf, "", 1);
 	p = mm_strdup((char *)EVBUFFER_DATA(buf));
 	evbuffer_free(buf);
-	
+
 	return (p);
 }
 
@@ -2141,17 +2141,17 @@ char *
 evhttp_decode_uri(const char *uri)
 {
 	char *ret;
-	
+
 	if ((ret = mm_malloc(strlen(uri) + 1)) == NULL)
 		event_err(1, "%s: malloc(%lu)", __func__,
 			  (unsigned long)(strlen(uri) + 1));
 
 	evhttp_decode_uri_internal(uri, strlen(uri), ret);
-	
+
 	return (ret);
 }
 
-/* 
+/*
  * Helper function to parse out arguments in a query.
  * The arguments are separated by key and value.
  * URI should already be decoded.
@@ -2236,7 +2236,7 @@ static int
 prefix_suffix_match(const char *pattern, const char *name, int ignorecase)
 {
 	char c;
-	
+
 	while (1) {
 		switch (c = *pattern++) {
 		case '\0':
@@ -2357,7 +2357,7 @@ evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
 	}
 
 	res = evhttp_accept_socket(http, fd);
-	
+
 	if (res != -1)
 		event_debug(("Bound to port %d - Awaiting connections ... ",
 			port));
@@ -2480,7 +2480,7 @@ evhttp_free(struct evhttp* http)
 
 	if (http->vhost_pattern != NULL)
 		mm_free(http->vhost_pattern);
-	
+
 	mm_free(http);
 }
 
@@ -2734,7 +2734,7 @@ evhttp_get_request_connection(
 
 	evcon->flags |= EVHTTP_CON_INCOMING;
 	evcon->state = EVCON_READING_FIRSTLINE;
-	
+
 	evcon->fd = fd;
 
 	bufferevent_setfd(evcon->bufev, fd);
@@ -2752,17 +2752,17 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 
 	req->evcon = evcon;	/* the request ends up owning the connection */
 	req->flags |= EVHTTP_REQ_OWN_CONNECTION;
-	
+
 	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
-	
+
 	req->kind = EVHTTP_REQUEST;
-	
+
 	if ((req->remote_host = mm_strdup(evcon->address)) == NULL)
 		event_err(1, "%s: strdup", __func__);
 	req->remote_port = evcon->port;
 
 	evhttp_start_read(evcon);
-	
+
 	return (0);
 }
 
@@ -2783,13 +2783,13 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 	if (http->timeout != -1)
 		evhttp_connection_set_timeout(evcon, http->timeout);
 
-	/* 
+	/*
 	 * if we want to accept more than one request on a connection,
 	 * we need to know which http server it belongs to.
 	 */
 	evcon->http_server = http;
 	TAILQ_INSERT_TAIL(&http->connections, evcon, next);
-	
+
 	if (evhttp_associate_new_request_with_connection(evcon) == -1)
 		evhttp_connection_free(evcon);
 }
@@ -2838,7 +2838,7 @@ name_from_addr(struct sockaddr *sa, socklen_t salen,
 	ni_result = getnameinfo(sa, salen,
 		ntop, sizeof(ntop), strport, sizeof(strport),
 		NI_NUMERICHOST|NI_NUMERICSERV);
-	
+
 	if (ni_result != 0) {
 		if (ni_result == EAI_SYSTEM)
 			event_err(1, "getnameinfo failed");
@@ -2953,7 +2953,7 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 	/* just create an unbound socket */
 	if (address == NULL && port == 0)
 		return bind_socket_ai(NULL, 0);
-		
+
 	aitop = make_addrinfo(address, port);
 
 	if (aitop == NULL)

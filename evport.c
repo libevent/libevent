@@ -21,7 +21,7 @@
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /*
@@ -41,7 +41,7 @@
  *
  * evport_add and evport_del update this data structure. evport_dispatch uses it
  * to determine where to callback when an event occurs (which it gets from
- * port_getn). 
+ * port_getn).
  *
  * Helper functions are used: grow() grows the file descriptor array as
  * necessary when large fd's come in. reassociate() takes care of maintaining
@@ -220,7 +220,7 @@ grow(struct evport_data *epdp, int factor)
 	if (NULL == tmp)
 		return -1;
 	epdp->ed_fds = tmp;
-	memset((char*) (epdp->ed_fds + oldsize), 0, 
+	memset((char*) (epdp->ed_fds + oldsize), 0,
 	    (newsize - oldsize)*sizeof(struct fd_info));
 	epdp->ed_nevents = newsize;
 
@@ -303,7 +303,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 		}
 	}
 
-	if ((res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN, 
+	if ((res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN,
 		    (unsigned int *) &nevents, ts_p)) == -1) {
 		if (errno == EINTR || errno == EAGAIN) {
 			evsig_process(base);
@@ -318,7 +318,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 	} else if (base->sig.evsig_caught) {
 		evsig_process(base);
 	}
-	
+
 	event_debug(("%s: port_getn reports %d events", __func__, nevents));
 
 	for (i = 0; i < nevents; ++i) {
@@ -331,7 +331,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 		epdp->ed_pending[i] = fd;
 
 		/*
-		 * Figure out what kind of event it was 
+		 * Figure out what kind of event it was
 		 * (because we have to pass this to the callback)
 		 */
 		res = 0;

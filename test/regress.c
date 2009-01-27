@@ -178,7 +178,7 @@ multiple_read_cb(int fd, short event, void *arg)
 
 	roff += len;
 	if (!usepersist) {
-		if (event_add(ev, NULL) == -1) 
+		if (event_add(ev, NULL) == -1)
 			exit(1);
 	}
 }
@@ -301,7 +301,7 @@ test_simpleread(void)
 
 	/* Very simple read test */
 	setup_test("Simple read: ");
-	
+
 	write(pair[0], TEST1, strlen(TEST1)+1);
 	shutdown(pair[0], SHUT_WR);
 
@@ -320,7 +320,7 @@ test_simplewrite(void)
 
 	/* Very simple write test */
 	setup_test("Simple write: ");
-	
+
 	event_set(&ev, pair[0], EV_WRITE, simple_write_cb, &ev);
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
@@ -343,7 +343,7 @@ test_simpleread_multiple(void)
 
 	/* Very simple read test */
 	setup_test("Simple read to multiple evens: ");
-	
+
 	write(pair[0], TEST1, strlen(TEST1)+1);
 	shutdown(pair[0], SHUT_WR);
 
@@ -558,7 +558,7 @@ test_fork(void)
 
 		event_base_free(current_base);
 
-		/* we do not send an EOF; simple_read_cb requires an EOF 
+		/* we do not send an EOF; simple_read_cb requires an EOF
 		 * to set test_ok.  we just verify that the callback was
 		 * called. */
 		exit(test_ok != 0 || called != 2 ? -2 : 76);
@@ -573,7 +573,7 @@ test_fork(void)
 		fprintf(stdout, "FAILED (fork)\n");
 		exit(1);
 	}
-	
+
 	if (WEXITSTATUS(status) != 76) {
 		fprintf(stdout, "FAILED (exit): %d\n", WEXITSTATUS(status));
 		exit(1);
@@ -967,7 +967,7 @@ test_loopexit_multiple(void)
 	setup_test("Loop Multiple exit: ");
 
 	base = event_base_new();
-	
+
 	tv.tv_usec = 0;
 	tv.tv_sec = 1;
 	event_base_loopexit(base, &tv);
@@ -979,7 +979,7 @@ test_loopexit_multiple(void)
 	event_base_dispatch(base);
 
 	event_base_free(base);
-	
+
 	test_ok = 1;
 
 	cleanup_test();
@@ -1083,7 +1083,7 @@ evbuffer_validate(struct evbuffer *buf)
 {
 	struct evbuffer_chain *chain, *previous = NULL;
 	size_t sum = 0;
-	
+
 	if (buf->first == NULL) {
 		assert(buf->last == NULL);
 		assert(buf->previous_to_last == NULL);
@@ -1227,9 +1227,9 @@ test_evbuffer(void)
 			evbuffer_validate(evb);
 		}
 	}
-	
+
 	test_ok = 1;
-	
+
 out:
 	evbuffer_free(evb);
 	evbuffer_free(evb_two);
@@ -1452,7 +1452,7 @@ test_evbuffer_iterative(void)
 			sum += j;
 		}
 	}
-	
+
 	if (sum == EVBUFFER_LENGTH(buf))
 		test_ok = 1;
 
@@ -1476,7 +1476,7 @@ test_evbuffer_find(void)
 	fprintf(stdout, "Testing evbuffer_find 1: ");
 	evbuffer_add(buf, (u_char*)test1, strlen(test1));
 	evbuffer_validate(buf);
-	evbuffer_drain(buf, strlen(test1));	  
+	evbuffer_drain(buf, strlen(test1));
 	evbuffer_validate(buf);
 	evbuffer_add(buf, (u_char*)test2, strlen(test2));
 	evbuffer_validate(buf);
@@ -1852,7 +1852,7 @@ test_multiple_events_for_same_fd(void)
    write(pair[1], TEST1, strlen(TEST1)+1);
    event_loop(EVLOOP_ONCE);
    event_del(&e1);
-   
+
    if (test_ok != 3)
 	   test_ok = 0;
 
@@ -1890,14 +1890,14 @@ test_want_only_once(void)
 
 	/* Very simple read test */
 	setup_test("Want read only once: ");
-	
+
 	write(pair[0], TEST1, strlen(TEST1)+1);
 
 	/* Setup the loop termination */
 	evutil_timerclear(&tv);
 	tv.tv_sec = 1;
 	event_loopexit(&tv);
-	
+
 	event_set(&ev, pair[1], EV_READ, read_once_cb, &ev);
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
@@ -2174,7 +2174,7 @@ rpc_test(void)
 			fprintf(stderr, "Incorrect note strings encoded.\n");
 			exit(1);
 		}
-	       
+
 		if (EVTAG_GET(run, large_number, &large_number) == -1 ||
 		    large_number != 0xdead0a0bcafebeefLL) {
 			fprintf(stderr, "Incorrrect large_number.\n");
@@ -2437,7 +2437,7 @@ main (int argc, char **argv)
 	test_signal_assert();
 	test_signal_while_processing();
 #endif
-	
+
 	return (0);
 }
 

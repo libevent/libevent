@@ -119,7 +119,7 @@ evbuffer_chain_new(size_t size)
 	size_t to_alloc;
 
 	size += EVBUFFER_CHAIN_SIZE;
-	
+
 	/* get the next largest memory that can hold the buffer */
 	to_alloc = MIN_BUFFER_SIZE;
 	while (to_alloc < size)
@@ -288,7 +288,7 @@ evbuffer_commit_space(struct evbuffer *buf, size_t size)
 {
 	struct evbuffer_chain *chain = buf->last;
 
-	if (chain == NULL || 
+	if (chain == NULL ||
 	    chain->buffer_len - chain->off - chain->misalign < size)
 		return (-1);
 
@@ -304,7 +304,7 @@ evbuffer_commit_space(struct evbuffer *buf, size_t size)
 		(dst)->previous_to_last = NULL; \
 		(dst)->total_len = 0;		\
 	} while (0)
-		    
+
 #define COPY_CHAIN(dst, src) do { \
 		(dst)->first = (src)->first;			   \
 		(dst)->previous_to_last = (src)->previous_to_last; \
@@ -327,7 +327,7 @@ evbuffer_commit_space(struct evbuffer *buf, size_t size)
 		if ((dst)->previous_to_last == NULL)		\
 			(dst)->previous_to_last = (src)->last;	\
 	} while (0)
-		
+
 
 int
 evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
@@ -502,7 +502,7 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 		src->first = chain;
 		if (src->first == src->last)
 			src->previous_to_last = NULL;
-			
+
 		dst->total_len += nread;
 	}
 
@@ -569,7 +569,7 @@ evbuffer_pullup(struct evbuffer *buf, ssize_t size)
 		memcpy(buffer, chain->buffer + chain->misalign, chain->off);
 		size -= chain->off;
 		buffer += chain->off;
-		
+
 		evbuffer_chain_free(chain);
 	}
 
@@ -802,7 +802,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 			    chain->buffer + chain->misalign,
 			    chain->off);
 			chain->misalign = 0;
-			
+
 			memcpy(chain->buffer + chain->off, data, datlen);
 			chain->off += datlen;
 			buf->total_len += datlen;
@@ -822,7 +822,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	tmp = evbuffer_chain_new(to_alloc);
 	if (tmp == NULL)
 		return (-1);
-	
+
 	if (remain) {
 		memcpy(chain->buffer + chain->misalign + chain->off,
 		    data, remain);
@@ -1260,7 +1260,7 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 	res = sendfile(fd, info->fd, &offset, chain->off);
 	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
 		/* if this is EGAIN or EINTR return 0; otherwise, -1 */
-		return (0); 
+		return (0);
 	}
 	return (res);
 #endif
@@ -1449,11 +1449,11 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 
 		info = EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_fd, chain);
 		info->fd = fd;
-		
+
 		evbuffer_chain_insert(outbuf, chain);
 	} else
 #endif
-#if defined(HAVE_MMAP)	
+#if defined(HAVE_MMAP)
 	if (use_mmap) {
 		void *mapped = mmap(NULL, length + offset, PROT_READ,
 #ifdef MAP_NOCACHE
@@ -1483,10 +1483,10 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		chain->buffer = mapped;
 		chain->buffer_len = length + offset;
 		chain->off = length + offset;
-		
+
 		info = EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_fd, chain);
 		info->fd = fd;
-		
+
 		evbuffer_chain_insert(outbuf, chain);
 
 		/* we need to subtract whatever we don't need */
@@ -1509,7 +1509,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 
 			length -= read;
 		}
-		
+
 		close(fd);
 	}
 

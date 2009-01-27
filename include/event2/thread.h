@@ -28,7 +28,7 @@
 #define _EVENT2_THREAD_H_
 
 /** @file thread.h
-    
+
   Functions for multi-threaded applications using libevent.
 
   When using a multi-threaded application in which multiple threads
