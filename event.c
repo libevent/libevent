@@ -324,7 +324,10 @@ event_base_priority_init(struct event_base *base, int npriorities)
 	if (base->event_count_active)
 		return (-1);
 
-	if (base->nactivequeues && npriorities != base->nactivequeues) {
+	if (npriorities == base->nactivequeues)
+		return (0);
+
+	if (base->nactivequeues) {
 		for (i = 0; i < base->nactivequeues; ++i) {
 			free(base->activequeues[i]);
 		}
