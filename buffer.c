@@ -1254,10 +1254,10 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 
 	return (len);
 #elif SENDFILE_IS_LINUX
-	/* TODO(niels): implement splice
+	/* TODO(niels): implement splice */
 	ssize_t res;
 	off_t offset = chain->misalign;
-	res = sendfile(fd, info->fd, chain->misalign, &offset, chain->off);
+	res = sendfile(fd, info->fd, &offset, chain->off);
 	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
 		/* if this is EGAIN or EINTR return 0; otherwise, -1 */
 		return (0); 
@@ -1456,7 +1456,10 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 #if defined(HAVE_MMAP)	
 	if (use_mmap) {
 		void *mapped = mmap(NULL, length + offset, PROT_READ,
-		    MAP_FILE | MAP_NOCACHE | MAP_PRIVATE,
+#ifdef MAP_NOCACHE
+		    MAP_NOCACHE |
+#endif
+		    MAP_FILE | MAP_PRIVATE,
 		    fd, 0);
 		/* some mmap implementations require offset to be a multiple of
 		 * the page size.  most users of this api, are likely to use 0
