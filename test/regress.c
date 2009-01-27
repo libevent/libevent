@@ -476,7 +476,9 @@ periodic_timeout_cb(int fd, short event, void *arg)
 	int *count = arg;
 
 	(*count)++;
-	if (*count > 5) {
+	if (*count == 6) {
+		/* call loopexit only once - on slow machines(?), it is
+		 * apparently possible for this to get called twice. */
 		test_ok = 1;
 		event_base_loopexit(global_base, NULL);
 	}
