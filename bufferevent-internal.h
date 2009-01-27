@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-#include "config.h"
+#include "event-config.h"
 #include "evutil.h"
 
 struct bufferevent_filter {

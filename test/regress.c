@@ -31,12 +31,12 @@
 #endif
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "event-config.h"
 #endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef HAVE_SYS_TIME_H
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
@@ -811,13 +811,13 @@ test_signal_restore(void)
 {
 	struct event ev;
 	struct event_base *base = event_init();
-#ifdef HAVE_SIGACTION
+#ifdef _EVENT_HAVE_SIGACTION
 	struct sigaction sa;
 #endif
 
 	test_ok = 0;
 	printf("Signal handler restore: ");
-#ifdef HAVE_SIGACTION
+#ifdef _EVENT_HAVE_SIGACTION
 	sa.sa_handler = signal_cb_sa;
 	sa.sa_flags = 0x0;
 	sigemptyset(&sa.sa_mask);
@@ -2375,11 +2375,11 @@ main (int argc, char **argv)
 
 	test_event_base_new();
 
-#if defined(HAVE_PTHREADS) && !defined(DISABLE_THREAD_SUPPORT)
+#if defined(_EVENT_HAVE_PTHREADS) && !defined(_EVENT_DISABLE_THREAD_SUPPORT)
 	regress_pthread();
 #endif
 
-#if defined(HAVE_LIBZ)
+#if defined(_EVENT_HAVE_LIBZ)
 	regress_zlib();
 #endif
 

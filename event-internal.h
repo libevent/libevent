@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-#include "config.h"
+#include "event-config.h"
 #include "minheap-internal.h"
 #include "evsignal-internal.h"
 #include "mm-internal.h"
@@ -145,7 +145,7 @@ struct event_config {
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
-#ifndef HAVE_TAILQFOREACH
+#ifndef _EVENT_HAVE_TAILQFOREACH
 #define	TAILQ_FIRST(head)		((head)->tqh_first)
 #define	TAILQ_END(head)			NULL
 #define	TAILQ_NEXT(elm, field)		((elm)->field.tqe_next)

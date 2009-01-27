@@ -6,7 +6,7 @@
 #include <sys/types.h>
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "event-config.h"
 #endif
 
 #include <sys/stat.h>
@@ -15,7 +15,7 @@
 #include <unistd.h>
 #endif
 #include <time.h>
-#ifdef HAVE_SYS_TIME_H
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <fcntl.h>

@@ -25,7 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "event-config.h"
 #endif
 
 #ifdef WIN32
@@ -36,22 +36,22 @@
 #endif
 #include <sys/types.h>
 #ifndef WIN32
-#ifdef HAVE_SYS_TIME_H
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
 #include <sys/_time.h>
 #endif
 #endif
 #include <sys/queue.h>
-#ifdef HAVE_SYS_SOCKET_H
+#ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef HAVE_UNISTD_H
+#ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_SYS_EVENTFD_H
+#ifdef _EVENT_HAVE_SYS_EVENTFD_H
 #include <sys/eventfd.h>
 #endif
 #include <ctype.h>
@@ -71,22 +71,22 @@
 #include "log-internal.h"
 #include "evmap-internal.h"
 
-#ifdef HAVE_EVENT_PORTS
+#ifdef _EVENT_HAVE_EVENT_PORTS
 extern const struct eventop evportops;
 #endif
-#ifdef HAVE_SELECT
+#ifdef _EVENT_HAVE_SELECT
 extern const struct eventop selectops;
 #endif
-#ifdef HAVE_POLL
+#ifdef _EVENT_HAVE_POLL
 extern const struct eventop pollops;
 #endif
-#ifdef HAVE_EPOLL
+#ifdef _EVENT_HAVE_EPOLL
 extern const struct eventop epollops;
 #endif
-#ifdef HAVE_WORKING_KQUEUE
+#ifdef _EVENT_HAVE_WORKING_KQUEUE
 extern const struct eventop kqops;
 #endif
-#ifdef HAVE_DEVPOLL
+#ifdef _EVENT_HAVE_DEVPOLL
 extern const struct eventop devpollops;
 #endif
 #ifdef WIN32
@@ -95,22 +95,22 @@ extern const struct eventop win32ops;
 
 /* In order of preference */
 static const struct eventop *eventops[] = {
-#ifdef HAVE_EVENT_PORTS
+#ifdef _EVENT_HAVE_EVENT_PORTS
 	&evportops,
 #endif
-#ifdef HAVE_WORKING_KQUEUE
+#ifdef _EVENT_HAVE_WORKING_KQUEUE
 	&kqops,
 #endif
-#ifdef HAVE_EPOLL
+#ifdef _EVENT_HAVE_EPOLL
 	&epollops,
 #endif
-#ifdef HAVE_DEVPOLL
+#ifdef _EVENT_HAVE_DEVPOLL
 	&devpollops,
 #endif
-#ifdef HAVE_POLL
+#ifdef _EVENT_HAVE_POLL
 	&pollops,
 #endif
-#ifdef HAVE_SELECT
+#ifdef _EVENT_HAVE_SELECT
 	&selectops,
 #endif
 #ifdef WIN32
@@ -152,7 +152,7 @@ static int evthread_notify_base(struct event_base *base);
 static void
 detect_monotonic(void)
 {
-#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+#if defined(_EVENT_HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	struct timespec	ts;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
@@ -168,7 +168,7 @@ gettime(struct event_base *base, struct timeval *tp)
 		return (0);
 	}
 
-#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+#if defined(_EVENT_HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	if (use_monotonic) {
 		struct timespec	ts;
 
@@ -1061,7 +1061,7 @@ evthread_notify_base_default(struct event_base *base)
 	return (r < 0) ? -1 : 0;
 }
 
-#if defined(HAVE_EVENTFD) && defined(HAVE_SYS_EVENTFD_H)
+#if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
 static int
 evthread_notify_base_eventfd(struct event_base *base)
 {
@@ -1445,7 +1445,7 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 const char *
 event_get_version(void)
 {
-	return (VERSION);
+	return (_EVENT_VERSION);
 }
 
 /*
@@ -1535,13 +1535,13 @@ void
 evthread_set_locking_callback(struct event_base *base,
     void (*locking_fn)(int mode, void *lock))
 {
-#ifdef DISABLE_THREAD_SUPPORT
+#ifdef _EVENT_DISABLE_THREAD_SUPPORT
 	event_errx(1, "%s: not compiled with thread support", __func__);
 #endif
 	base->th_lock = locking_fn;
 }
 
-#if defined(HAVE_EVENTFD) && defined(HAVE_SYS_EVENTFD_H)
+#if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
 static void
 evthread_notify_drain_eventfd(int fd, short what, void *arg)
 {
@@ -1568,7 +1568,7 @@ void
 evthread_set_id_callback(struct event_base *base,
     unsigned long (*id_fn)(void))
 {
-#ifdef DISABLE_THREAD_SUPPORT
+#ifdef _EVENT_DISABLE_THREAD_SUPPORT
 	event_errx(1, "%s: not compiled with thread support", __func__);
 #endif
 #ifdef WIN32
@@ -1598,7 +1598,7 @@ evthread_make_base_notifiable(struct event_base *base)
 	if (base->th_notify_fd[0] >= 0)
 		return 0;
 
-#if defined(HAVE_EVENTFD) && defined(HAVE_SYS_EVENTFD_H)
+#if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
 	base->th_notify_fd[0] = eventfd(0, 0);
 	if (base->th_notify_fd[0] >= 0) {
 		notify = evthread_notify_base_eventfd;
@@ -1648,7 +1648,7 @@ void
 evthread_set_lock_create_callbacks(struct event_base *base,
     void *(*alloc_fn)(void), void (*free_fn)(void *))
 {
-#ifdef DISABLE_THREAD_SUPPORT
+#ifdef _EVENT_DISABLE_THREAD_SUPPORT
 	event_errx(1, "%s: not compiled with thread support", __func__);
 #endif
 	base->th_alloc = alloc_fn;

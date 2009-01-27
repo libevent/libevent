@@ -36,15 +36,15 @@
 
 #include <sys/types.h>
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "event-config.h"
 #endif
 
 #ifdef DNS_USE_FTIME_FOR_ID
 #include <sys/timeb.h>
 #endif
 
-#ifndef DNS_USE_CPU_CLOCK_FOR_ID
-#ifndef DNS_USE_GETTIMEOFDAY_FOR_ID
+#ifndef _EVENT_DNS_USE_CPU_CLOCK_FOR_ID
+#ifndef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
 #ifndef DNS_USE_OPENSSL_FOR_ID
 #ifndef DNS_USE_FTIME_FOR_ID
 #error Must configure at least one id generation method.
@@ -59,18 +59,18 @@
 /* for strtok_r */
 #define _REENTRANT
 
-#ifdef DNS_USE_CPU_CLOCK_FOR_ID
+#ifdef _EVENT_DNS_USE_CPU_CLOCK_FOR_ID
 #ifdef DNS_USE_OPENSSL_FOR_ID
 #error Multiple id options selected
 #endif
-#ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
+#ifdef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
 #error Multiple id options selected
 #endif
 #include <time.h>
 #endif
 
 #ifdef DNS_USE_OPENSSL_FOR_ID
-#ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
+#ifdef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
 #error Multiple id options selected
 #endif
 #include <openssl/rand.h>
@@ -80,17 +80,17 @@
 
 #include <string.h>
 #include <fcntl.h>
-#ifdef HAVE_SYS_TIME_H
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef HAVE_STDINT_H
+#ifdef _EVENT_HAVE_STDINT_H
 #include <stdint.h>
 #endif
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
-#ifdef HAVE_UNISTD_H
+#ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <limits.h>
@@ -118,7 +118,7 @@
 #include <arpa/inet.h>
 #endif
 
-#ifdef HAVE_NETINET_IN6_H
+#ifdef _EVENT_HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
 
@@ -1079,7 +1079,7 @@ static u16
 default_transaction_id_fn(void)
 {
 	u16 trans_id;
-#ifdef DNS_USE_CPU_CLOCK_FOR_ID
+#ifdef _EVENT_DNS_USE_CPU_CLOCK_FOR_ID
 	struct timespec ts;
 	static int clkid = -1;
 	if (clkid == -1) {
@@ -1100,7 +1100,7 @@ default_transaction_id_fn(void)
 	trans_id = tb.millitm & 0xffff;
 #endif
 
-#ifdef DNS_USE_GETTIMEOFDAY_FOR_ID
+#ifdef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
 	struct timeval tv;
 	evutil_gettimeofday(&tv, NULL);
 	trans_id = tv.tv_usec & 0xffff;
@@ -2824,7 +2824,7 @@ evdns_resolv_set_defaults(struct evdns_base *base, int flags) {
 	if (flags & DNS_OPTION_NAMESERVERS) evdns_base_nameserver_ip_add(base,"127.0.0.1");
 }
 
-#ifndef HAVE_STRTOK_R
+#ifndef _EVENT_HAVE_STRTOK_R
 static char *
 strtok_r(char *s, const char *delim, char **state) {
 	char *cp, *start;

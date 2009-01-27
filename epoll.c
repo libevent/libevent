@@ -25,13 +25,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "event-config.h"
 #endif
 
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/resource.h>
-#ifdef HAVE_SYS_TIME_H
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
 #include <sys/_time.h>
@@ -44,7 +44,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#ifdef HAVE_FCNTL_H
+#ifdef _EVENT_HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
 
@@ -77,7 +77,7 @@ const struct eventop epollops = {
 	0
 };
 
-#ifdef HAVE_SETFD
+#ifdef _EVENT_HAVE_SETFD
 #define FD_CLOSEONEXEC(x) do { \
         if (fcntl(x, F_SETFD, 1) == -1) \
                 event_warn("fcntl(%d, F_SETFD)", x); \
