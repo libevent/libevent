@@ -70,7 +70,7 @@ void
 event_err(int eval, const char *fmt, ...)
 {
 	va_list ap;
-	
+
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_ERR, strerror(errno), fmt, ap);
 	va_end(ap);
@@ -81,7 +81,7 @@ void
 event_warn(const char *fmt, ...)
 {
 	va_list ap;
-	
+
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_WARN, strerror(errno), fmt, ap);
 	va_end(ap);
@@ -114,7 +114,7 @@ void
 event_errx(int eval, const char *fmt, ...)
 {
 	va_list ap;
-	
+
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_ERR, NULL, fmt, ap);
 	va_end(ap);
@@ -125,7 +125,7 @@ void
 event_warnx(const char *fmt, ...)
 {
 	va_list ap;
-	
+
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_WARN, NULL, fmt, ap);
 	va_end(ap);
@@ -135,7 +135,7 @@ void
 event_msgx(const char *fmt, ...)
 {
 	va_list ap;
-	
+
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_MSG, NULL, fmt, ap);
 	va_end(ap);
@@ -145,7 +145,7 @@ void
 _event_debugx(const char *fmt, ...)
 {
 	va_list ap;
-	
+
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_DEBUG, NULL, fmt, ap);
 	va_end(ap);

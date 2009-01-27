@@ -102,8 +102,8 @@ devpoll_queue(struct devpollop *devpollop, int fd, int events) {
 
 	if (devpollop->nchanges >= devpollop->nevents) {
 		/*
-		 * Change buffer is full, must commit it to /dev/poll before 
-		 * adding more 
+		 * Change buffer is full, must commit it to /dev/poll before
+		 * adding more
 		 */
 		if (devpoll_commit(devpollop) != 0)
 			return(-1);
@@ -228,7 +228,7 @@ devpoll_add(struct event_base *base, int fd, short old, short events, void *p)
 	int res;
 	(void)p;
 
-	/* 
+	/*
 	 * It's not necessary to OR the existing read/write events that we
 	 * are currently interested in with the new event we are adding.
 	 * The /dev/poll driver ORs any new events with the existing events
@@ -262,8 +262,8 @@ devpoll_del(struct event_base *base, int fd, short old, short events, void *p)
 
 	/*
 	 * The only way to remove an fd from the /dev/poll monitored set is
-	 * to use POLLREMOVE by itself.  This removes ALL events for the fd 
-	 * provided so if we care about two events and are only removing one 
+	 * to use POLLREMOVE by itself.  This removes ALL events for the fd
+	 * provided so if we care about two events and are only removing one
 	 * we must re-add the other event after POLLREMOVE.
 	 */
 

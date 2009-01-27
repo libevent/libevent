@@ -134,7 +134,7 @@ rpc_setup(struct evhttp **phttp, short *pport, struct evrpc_base **pbase)
 
 	http = http_setup(&port);
 	base = evrpc_init(http);
-	
+
 	EVRPC_REGISTER(base, Message, msg, kill, MessageCb, NULL);
 	EVRPC_REGISTER(base, NeverReply, msg, kill, NeverReplyCb, NULL);
 
@@ -159,7 +159,7 @@ static void
 rpc_postrequest_failure(struct evhttp_request *req, void *arg)
 {
 	if (req->response_code != HTTP_SERVUNAVAIL) {
-	
+
 		fprintf(stderr, "FAILED (response code)\n");
 		exit(1);
 	}
@@ -205,7 +205,7 @@ rpc_basic_test(void)
 	/* Add the information that we care about */
 	evhttp_add_header(req->output_headers, "Host", "somehost");
 	evbuffer_add_printf(req->output_buffer, "Some Nonsense");
-	
+
 	if (evhttp_make_request(evcon, req,
 		EVHTTP_REQ_POST,
 		"/.rpc.Message") == -1) {
@@ -220,7 +220,7 @@ rpc_basic_test(void)
 	evhttp_connection_free(evcon);
 
 	rpc_teardown(base);
-	
+
 	if (test_ok != 1) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
@@ -237,7 +237,7 @@ rpc_postrequest_done(struct evhttp_request *req, void *arg)
 	struct kill* kill_reply = NULL;
 
 	if (req->response_code != HTTP_OK) {
-	
+
 		fprintf(stderr, "FAILED (response code)\n");
 		exit(1);
 	}
@@ -248,7 +248,7 @@ rpc_postrequest_done(struct evhttp_request *req, void *arg)
 		fprintf(stderr, "FAILED (unmarshal)\n");
 		exit(1);
 	}
-	
+
 	kill_free(kill_reply);
 
 	test_ok = 1;
@@ -308,9 +308,9 @@ rpc_basic_message(void)
 	event_dispatch();
 
 	evhttp_connection_free(evcon);
-	
+
 	rpc_teardown(base);
-	
+
 	if (test_ok != 1) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
@@ -334,7 +334,7 @@ rpc_pool_with_connection(short port)
 	assert(evcon != NULL);
 
 	evrpc_pool_add_connection(pool, evcon);
-	
+
 	return (pool);
 }
 
@@ -415,7 +415,7 @@ rpc_hook_add_header(void *ctx, struct evhttp_request *req,
 	const char *hook_type = arg;
 	if (strcmp("input", hook_type) == 0)
 		evhttp_add_header(req->input_headers, "X-Hook", hook_type);
-	else 
+	else
 		evhttp_add_header(req->output_headers, "X-Hook", hook_type);
 
 	assert(evrpc_hook_get_connection(ctx) != NULL);
@@ -496,7 +496,7 @@ rpc_basic_client(void)
 	test_ok = 0;
 
 	event_dispatch();
-	
+
 	if (test_ok != 1) {
 		fprintf(stdout, "FAILED (1)\n");
 		exit(1);
@@ -508,7 +508,7 @@ rpc_basic_client(void)
 	EVRPC_MAKE_REQUEST(Message, pool, msg, kill,  GotKillCb, NULL);
 
 	event_dispatch();
-	
+
 	if (test_ok != 2) {
 		fprintf(stdout, "FAILED (2)\n");
 		exit(1);
@@ -526,9 +526,9 @@ rpc_basic_client(void)
 	}
 
 	event_dispatch();
-	
+
 	rpc_teardown(base);
-	
+
 	if (test_ok != 3) {
 		fprintf(stdout, "FAILED (3)\n");
 		exit(1);
@@ -546,7 +546,7 @@ rpc_basic_client(void)
 	need_output_hook = 0;
 }
 
-/* 
+/*
  * We are testing that the second requests gets send over the same
  * connection after the first RPCs completes.
  */
@@ -580,9 +580,9 @@ rpc_basic_queued_client(void)
 	test_ok = 0;
 
 	event_dispatch();
-	
+
 	rpc_teardown(base);
-	
+
 	if (test_ok != 2) {
 		fprintf(stdout, "FAILED (1)\n");
 		exit(1);
@@ -682,14 +682,14 @@ rpc_basic_client_with_pause(void)
 	test_ok = 0;
 
 	event_dispatch();
-	
+
 	if (test_ok != 1 || hook_pause_cb_called != 4) {
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
 
 	rpc_teardown(base);
-	
+
 	fprintf(stdout, "OK\n");
 
 	msg_free(msg);
@@ -730,12 +730,12 @@ rpc_client_timeout(void)
 	test_ok = 0;
 
 	event_dispatch();
-	
+
 	/* free the saved RPC structure up */
 	EVRPC_REQUEST_DONE(saved_rpc);
 
 	rpc_teardown(base);
-	
+
 	if (test_ok != 2) {
 		fprintf(stdout, "FAILED (1)\n");
 		exit(1);

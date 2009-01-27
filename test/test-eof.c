@@ -63,7 +63,7 @@ main (int argc, char **argv)
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
 		return (1);
 
-	
+
 	write(pair[0], test, strlen(test)+1);
 	shutdown(pair[0], SHUT_WR);
 

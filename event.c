@@ -38,7 +38,7 @@
 #ifndef WIN32
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else 
+#else
 #include <sys/_time.h>
 #endif
 #endif
@@ -399,7 +399,7 @@ event_reinit(struct event_base *base)
 			    EVLIST_ACTIVE);
 		base->sig.ev_signal_added = 0;
 	}
-	
+
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base);
 	base->evbase = evsel->init(base);
@@ -623,10 +623,10 @@ event_process_active(struct event_base *base)
 			event_queue_remove(base, ev, EVLIST_ACTIVE);
 		else
 			event_del_internal(ev);
-		
+
 		event_debug((
 			 "event_process_active: event: %p, %s%scall %p",
-			ev,	
+			ev,
 			ev->ev_res & EV_READ ? "EV_READ " : " ",
 			ev->ev_res & EV_WRITE ? "EV_WRITE " : " ",
 			ev->ev_callback));
@@ -769,13 +769,13 @@ event_base_loop(struct event_base *base, int flags)
 		if (!base->event_count_active && !(flags & EVLOOP_NONBLOCK)) {
 			timeout_next(base, &tv_p);
 		} else {
-			/* 
+			/*
 			 * if we have active events, we just poll new events
 			 * without waiting.
 			 */
 			evutil_timerclear(&tv);
 		}
-		
+
 		/* If we have no events, we just exit */
 		if (!event_haveevents(base)) {
 			event_debug(("%s: no events registered.", __func__));
@@ -1119,7 +1119,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 			event_queue_insert(base, ev, EVLIST_INSERTED);
 	}
 
-	/* 
+	/*
 	 * we should change the timout state only if the previous event
 	 * addition succeeded.
 	 */
@@ -1133,13 +1133,13 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 		if (ev->ev_closure == event_persist_closure)
 			ev->ev_io_timeout = *tv;
 
-		/* 
+		/*
 		 * we already reserved memory above for the case where we
 		 * are not replacing an exisiting timeout.
 		 */
 		if (ev->ev_flags & EVLIST_TIMEOUT)
 			event_queue_remove(base, ev, EVLIST_TIMEOUT);
-			    
+
 		/* Check if it is active due to a timeout.  Rescheduling
 		 * this timeout before the callback can be executed
 		 * removes it from the active list. */
@@ -1154,7 +1154,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 					*ev->ev_pncalls = 0;
 				}
 			}
-			
+
 			event_queue_remove(base, ev, EVLIST_ACTIVE);
 		}
 
@@ -1181,7 +1181,7 @@ event_del(struct event *ev)
 	int res;
 
 	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
-	
+
 	res = event_del_internal(ev);
 
 	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
@@ -1448,7 +1448,7 @@ event_get_version(void)
 	return (VERSION);
 }
 
-/* 
+/*
  * No thread-safe interface needed - the information should be the same
  * for all threads.
  */

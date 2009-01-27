@@ -126,7 +126,7 @@ void evhttp_set_cb(struct evhttp *, const char *,
 /** Removes the callback for a specified URI */
 int evhttp_del_cb(struct evhttp *, const char *);
 
-/** 
+/**
     Set a callback for all requests that are not caught by specific callbacks
 
     Invokes the specified callback for all requests that do not match any of
@@ -332,9 +332,9 @@ void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 void evhttp_connection_get_peer(struct evhttp_connection *evcon,
     char **address, ev_uint16_t *port);
 
-/** 
+/**
     Make an HTTP request over the specified connection.
-    
+
     The connection gets ownership of the request.
 
     @param evcon the evhttp_connection object over which to send the request
@@ -350,7 +350,7 @@ int evhttp_make_request(struct evhttp_connection *evcon,
 
 /**
    Cancels a pending HTTP request.
-   
+
    Cancels an ongoing HTTP request.  The callback associated with this request
    is not executed and the request object is freed.  If the request is
    currently being processed, e.g. it is ongoing, the corresponding
@@ -379,7 +379,7 @@ struct evbuffer *evhttp_request_get_output_buffer(struct evhttp_request *req);
 
 /**
    Finds the value belonging to a header.
-    
+
    @param headers the evkeyvalq object in which to find the header
    @param key the name of the header to find
    @returns a pointer to the value for the header or NULL if the header
@@ -391,7 +391,7 @@ const char *evhttp_find_header(const struct evkeyvalq *headers,
 
 /**
    Removes a header from a list of exisiting headers.
-    
+
    @param headers the evkeyvalq object from which to remove a header
    @param key the name of the header to remove
    @returns 0 if the header was removed, -1  otherwise.
@@ -401,7 +401,7 @@ int evhttp_remove_header(struct evkeyvalq *headers, const char *key);
 
 /**
    Adds a header to a list of exisiting headers.
-    
+
    @param headers the evkeyvalq object to which to add a header
    @param key the name of the header
    @param value the value belonging to the header
