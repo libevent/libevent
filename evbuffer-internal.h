@@ -63,17 +63,50 @@ struct evbuffer_chain {
 	/** points to next buffer in the chain */
 	struct evbuffer_chain *next;
 	
-	size_t buffer_len; /**< total allocation available in the buffer field. */
+	/** total allocation available in the buffer field. */
+	size_t buffer_len;
 
-	size_t misalign; /**< unused space at the beginning of buffer */
-	size_t off;	/**< Offset into buffer + misalign at which to start writing.
-				 * In other words, the total number of bytes actually stored
-				 * in buffer. */
+	/** unused space at the beginning of buffer or an offset into a 
+	 * file for sendfile buffers. */
+	off_t misalign;
 
-	u_char buffer[1];
+	/** Offset into buffer + misalign at which to start writing.
+	 * In other words, the total number of bytes actually stored
+	 * in buffer. */
+	size_t off;
+
+	/** Set if special handling is required for this chain */
+	unsigned flags;
+#define EVBUFFER_MMAP		0x0001  /**< memory in buffer is mmaped */
+#define EVBUFFER_SENDFILE	0x0002  /**< a chain used for sendfile */
+#define EVBUFFER_REFERENCE	0x0004	/**< a chain with a mem reference */
+#define EVBUFFER_IMMUTABLE	0x0008  /**< read-only chain */
+
+	/** Usually points to the read-write memory belonging to this
+	 * buffer allocated as part of the evbuffer_chain allocation.
+	 * For mmap, this can be a read-only buffer and
+	 * EVBUFFER_IMMUTABLE will be set in flags.  For sendfile, it
+	 * may point to NULL.
+	 */
+	u_char *buffer;
 };
 
-#define EVBUFFER_CHAIN_SIZE evutil_offsetof(struct evbuffer_chain, buffer[0])
+/* this is currently used by both mmap and sendfile */
+/* TODO(niels): something strange needs to happen for Windows here, I am not
+ * sure what that is, but it needs to get looked into.
+ */
+struct evbuffer_chain_fd {
+	int fd;	/**< the fd associated with this chain */
+};
+
+/* callback for reference buffer */
+struct evbuffer_chain_reference {
+	void (*cleanupfn)(void *extra);
+	void *extra;
+};
+
+#define EVBUFFER_CHAIN_SIZE sizeof(struct evbuffer_chain)
+#define EVBUFFER_CHAIN_EXTRA(t, c) (t *)((struct evbuffer_chain *)(c) + 1)
 
 #ifdef __cplusplus
 }
