@@ -231,6 +231,45 @@ char *evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
  */
 int evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf);
 
+/**
+  Reference memory into an evbuffer without copying.
+
+  The memory needs to remain valid until all the added data has been
+  read.  This function keeps just a reference to the memory without
+  actually incurring the overhead of a copy.
+
+  @param outbuf the output buffer
+  @param data the memory to reference
+  @param datlen how memory to reference
+  @param cleanupfn callback to be invokved when the memory is no longer
+	referenced
+  @param extra optional argument to the cleanup callback
+  @return 0 if successful, or -1 if an error occurred
+ */
+int evbuffer_add_reference(struct evbuffer *outbuf, void *data, size_t datlen,
+    void (*cleanupfn)(void *extra), void *extra);
+
+/**
+  Move data from a file into the evbuffer for writing to a socket.
+
+  This function avoids unnecessary data copies between userland and
+  kernel.  Where available, it uses sendfile or splice.
+
+  The function owns the resulting file descriptor and will close it
+  when finished transferring data.
+
+  The results of using evbuffer_remove() or evbuffer_pullup() are
+  undefined.
+
+  @param outbuf the output buffer
+  @param fd the file descriptor
+  @param off the offset from which to read data
+  @param length how much data to read
+  @return 0 if successful, or -1 if an error occurred
+*/
+
+int evbuffer_add_file(struct evbuffer *output, int fd, off_t offset,
+    size_t length);
 
 /**
   Append a formatted string to the end of an evbuffer.
