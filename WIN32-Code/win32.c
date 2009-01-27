@@ -1,7 +1,7 @@
 /*
- * Copyright 2000-2002 Niels Provos <provos@citi.umich.edu>
+ * Copyright 2007-2009 Niels Provos and Nick Mathewson
+ * Copyright 2000-2007 Niels Provos <provos@citi.umich.edu>
  * Copyright 2003 Michael A. Davis <mike@datanerds.net>
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

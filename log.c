@@ -5,7 +5,7 @@
  *
  * Based on err.c, which was adapted from OpenBSD libc *err* *warn* code.
  *
- * Copyright (c) 2005 Nick Mathewson <nickm@freehaven.net>
+ * Copyright (c) 2005-2009 Niels Provos and Nick Mathewson
  *
  * Copyright (c) 2000 Dug Song <dugsong@monkey.org>
  *
