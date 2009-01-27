@@ -31,12 +31,12 @@
 #endif
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "event-config.h"
 #endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef HAVE_SYS_TIME_H
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>

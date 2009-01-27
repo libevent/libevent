@@ -31,10 +31,10 @@
 extern "C" {
 #endif
 
-#include "config.h"
+#include "event-config.h"
 
 struct event_base;
-#ifndef DISABLE_THREAD_SUPPORT
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
 #define EVTHREAD_USE_LOCKS(base) \
 	(base != NULL && (base)->th_lock != NULL)
 
@@ -56,7 +56,7 @@ struct event_base;
 			(*(base)->th_lock)(EVTHREAD_UNLOCK | mode, \
 			    (base)->lock);			   \
 	} while (0)
-#else /* DISABLE_THREAD_SUPPORT */
+#else /* _EVENT_DISABLE_THREAD_SUPPORT */
 #define EVTHREAD_USE_LOCKS(base)
 #define EVTHREAD_IN_THREAD(base)	1
 #define EVTHREAD_GET_ID(base)

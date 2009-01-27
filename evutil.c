@@ -25,7 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "event-config.h"
 #endif
 
 #ifdef WIN32
@@ -37,29 +37,29 @@
 #endif
 
 #include <sys/types.h>
-#ifdef HAVE_SYS_SOCKET_H
+#ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#ifdef HAVE_UNISTD_H
+#ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_FCNTL_H
+#ifdef _EVENT_HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#ifdef HAVE_STDLIB_H
+#ifdef _EVENT_HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 #include <errno.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
-#ifdef HAVE_ARPA_INET_H
+#ifdef _EVENT_HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
-#ifdef HAVE_NETINET_IN_H
+#ifdef _EVENT_HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
-#ifdef HAVE_NETINET_IN6_H
+#ifdef _EVENT_HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
 
@@ -192,9 +192,9 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 ev_int64_t
 evutil_strtoll(const char *s, char **endptr, int base)
 {
-#ifdef HAVE_STRTOLL
+#ifdef _EVENT_HAVE_STRTOLL
 	return (ev_int64_t)strtoll(s, endptr, base);
-#elif SIZEOF_LONG == 8
+#elif _EVENT_SIZEOF_LONG == 8
 	return (ev_int64_t)strtol(s, endptr, base);
 #elif defined(WIN32) && defined(_MSC_VER) && _MSC_VER < 1300
 	/* XXXX on old versions of MS APIs, we only support base
@@ -639,7 +639,7 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int o
 	if (is_ipv6) {
 		struct sockaddr_in6 sin6;
 		memset(&sin6, 0, sizeof(sin6));
-#ifdef HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
+#ifdef _EVENT_HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
 		sin6.sin6_len = sizeof(sin6);
 #endif
 		sin6.sin6_family = AF_INET6;
@@ -654,7 +654,7 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int o
 	} else {
 		struct sockaddr_in sin;
 		memset(&sin, 0, sizeof(sin));
-#ifdef HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
+#ifdef _EVENT_HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
 		sin.sin_len = sizeof(sin);
 #endif
 		sin.sin_family = AF_INET;

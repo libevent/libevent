@@ -26,7 +26,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "event-config.h"
 #endif
 
 #ifdef WIN32
@@ -34,34 +34,34 @@
 #include <windows.h>
 #endif
 
-#ifdef HAVE_VASPRINTF
+#ifdef _EVENT_HAVE_VASPRINTF
 /* If we have vasprintf, we need to define this before we include stdio.h. */
 #define _GNU_SOURCE
 #endif
 
 #include <sys/types.h>
 
-#ifdef HAVE_SYS_TIME_H
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 
-#ifdef HAVE_SYS_SOCKET_H
+#ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 
-#ifdef HAVE_SYS_UIO_H
+#ifdef _EVENT_HAVE_SYS_UIO_H
 #include <sys/uio.h>
 #endif
 
-#ifdef HAVE_SYS_IOCTL_H
+#ifdef _EVENT_HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
 
-#ifdef HAVE_SYS_MMAN_H
+#ifdef _EVENT_HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
 
-#ifdef HAVE_SYS_SENDFILE_H
+#ifdef _EVENT_HAVE_SYS_SENDFILE_H
 #include <sys/sendfile.h>
 #endif
 
@@ -70,17 +70,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef HAVE_STDARG_H
+#ifdef _EVENT_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
-#ifdef HAVE_UNISTD_H
+#ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
 #include "event2/event.h"
 #include "event2/buffer.h"
 #include "event2/buffer_compat.h"
-#include "config.h"
+#include "event-config.h"
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "util-internal.h"
@@ -92,10 +92,10 @@
 #endif
 
 /* send file support */
-#if defined(HAVE_SYS_SENDFILE_H) && defined(HAVE_SENDFILE) && defined(__linux__)
+#if defined(_EVENT_HAVE_SYS_SENDFILE_H) && defined(_EVENT_HAVE_SENDFILE) && defined(__linux__)
 #define USE_SENDFILE		1
 #define SENDFILE_IS_LINUX	1
-#elif defined(HAVE_SENDFILE) && (defined(__FreeBSD__) || defined(__APPLE__))
+#elif defined(_EVENT_HAVE_SENDFILE) && (defined(__FreeBSD__) || defined(__APPLE__))
 #define USE_SENDFILE		1
 #define SENDFILE_IS_FREEBSD	1
 #endif
@@ -103,7 +103,7 @@
 #ifdef USE_SENDFILE
 static int use_sendfile = 1;
 #endif
-#ifdef HAVE_MMAP
+#ifdef _EVENT_HAVE_MMAP
 static int use_mmap = 1;
 #endif
 
@@ -154,7 +154,7 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 			if (info->cleanupfn)
 				(*info->cleanupfn)(info->extra);
 		}
-#ifdef HAVE_MMAP
+#ifdef _EVENT_HAVE_MMAP
 		if (chain->flags & EVBUFFER_MMAP) {
 			struct evbuffer_chain_fd *info =
 			    EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_fd,
@@ -1034,13 +1034,13 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
  * Reads data from a file descriptor into a buffer.
  */
 
-#if defined(HAVE_SYS_UIO_H)
+#if defined(_EVENT_HAVE_SYS_UIO_H)
 #define USE_IOVEC_IMPL
 #endif
 
 #ifdef USE_IOVEC_IMPL
 
-#ifdef HAVE_SYS_UIO_H
+#ifdef _EVENT_HAVE_SYS_UIO_H
 /* number of iovec we use for writev, fragmentation is going to determine
  * how much we end up writing */
 #define NUM_IOVEC 128
@@ -1428,7 +1428,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 {
 	size_t old_len = outbuf->total_len;
 
-#if defined(USE_SENDFILE) || defined(HAVE_MMAP)
+#if defined(USE_SENDFILE) || defined(_EVENT_HAVE_MMAP)
 	struct evbuffer_chain *chain;
 	struct evbuffer_chain_fd *info;
 #endif
@@ -1453,7 +1453,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		evbuffer_chain_insert(outbuf, chain);
 	} else
 #endif
-#if defined(HAVE_MMAP)
+#if defined(_EVENT_HAVE_MMAP)
 	if (use_mmap) {
 		void *mapped = mmap(NULL, length + offset, PROT_READ,
 #ifdef MAP_NOCACHE

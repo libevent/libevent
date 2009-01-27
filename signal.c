@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include "event-config.h"
 #endif
 
 #ifdef WIN32
@@ -37,22 +37,22 @@
 #undef WIN32_LEAN_AND_MEAN
 #endif
 #include <sys/types.h>
-#ifdef HAVE_SYS_TIME_H
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
-#ifdef HAVE_SYS_SOCKET_H
+#ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef HAVE_UNISTD_H
+#ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <errno.h>
-#ifdef HAVE_FCNTL_H
+#ifdef _EVENT_HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
 #include <assert.h>
@@ -99,7 +99,7 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 		event_sock_err(1, fd, "%s: read", __func__);
 }
 
-#ifdef HAVE_SETFD
+#ifdef _EVENT_HAVE_SETFD
 #define FD_CLOSEONEXEC(x) do { \
         if (fcntl(x, F_SETFD, 1) == -1) \
                 event_warn("fcntl(%d, F_SETFD)", x); \
@@ -144,7 +144,7 @@ int
 _evsig_set_handler(struct event_base *base,
 		      int evsignal, void (*handler)(int))
 {
-#ifdef HAVE_SIGACTION
+#ifdef _EVENT_HAVE_SIGACTION
 	struct sigaction sa;
 #else
 	ev_sighandler_t sh;
@@ -181,7 +181,7 @@ _evsig_set_handler(struct event_base *base,
 	}
 
 	/* save previous handler and setup new handler */
-#ifdef HAVE_SIGACTION
+#ifdef _EVENT_HAVE_SIGACTION
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = handler;
 	sa.sa_flags |= SA_RESTART;
@@ -233,7 +233,7 @@ _evsig_restore_handler(struct event_base *base, int evsignal)
 {
 	int ret = 0;
 	struct evsig_info *sig = &base->sig;
-#ifdef HAVE_SIGACTION
+#ifdef _EVENT_HAVE_SIGACTION
 	struct sigaction *sh;
 #else
 	ev_sighandler_t *sh;
@@ -242,7 +242,7 @@ _evsig_restore_handler(struct event_base *base, int evsignal)
 	/* restore previous handler */
 	sh = sig->sh_old[evsignal];
 	sig->sh_old[evsignal] = NULL;
-#ifdef HAVE_SIGACTION
+#ifdef _EVENT_HAVE_SIGACTION
 	if (sigaction(evsignal, sh, NULL) == -1) {
 		event_warn("sigaction");
 		ret = -1;
@@ -287,7 +287,7 @@ evsig_handler(int sig)
 	evsig_base->sig.evsigcaught[sig]++;
 	evsig_base->sig.evsig_caught = 1;
 
-#ifndef HAVE_SIGACTION
+#ifndef _EVENT_HAVE_SIGACTION
 	signal(sig, evsig_handler);
 #endif
 

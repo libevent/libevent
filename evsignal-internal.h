@@ -39,7 +39,7 @@ struct evsig_info {
 	int ev_signal_added;
 	volatile sig_atomic_t evsig_caught;
 	sig_atomic_t evsigcaught[NSIG];
-#ifdef HAVE_SIGACTION
+#ifdef _EVENT_HAVE_SIGACTION
 	struct sigaction **sh_old;
 #else
 	ev_sighandler_t **sh_old;
