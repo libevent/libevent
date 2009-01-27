@@ -1,8 +1,8 @@
 /*	$OpenBSD: poll.c,v 1.2 2002/06/25 15:50:15 mickey Exp $	*/
 
 /*
- * Copyright 2000-2003 Niels Provos <provos@citi.umich.edu>
- * All rights reserved.
+ * Copyright 2000-2007 Niels Provos <provos@citi.umich.edu>
+ * Copyright 2007-2009 Niels Provos and Nick Mathewson
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

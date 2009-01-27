@@ -1,6 +1,6 @@
 /*
- * Copyright 2001 Niels Provos <provos@citi.umich.edu>
- * All rights reserved.
+ * Copyright 2001-2007 Niels Provos <provos@citi.umich.edu>
+ * Copyright 2007-2009 Niels Provos and Nick Mathewson
  *
  * This header file contains definitions for dealing with HTTP requests
  * that are internal to libevent.  As user of the library, you should not

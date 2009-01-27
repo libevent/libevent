@@ -1,5 +1,6 @@
-/* Copyright 2002 Christopher Clark */
-/* Copyright 2005-9 Nick Mathewson */
+/* Possibly Copyright 2002 Christopher Clark */
+/* Copyright 2005-2009 Nick Mathewson */
+/* Copyright 2009 Niels Provos and Nick Mathewson */
 /* See license at end. */
 
 /* Based on ideas by Christopher Clark and interfaces from Niels Provos. */
