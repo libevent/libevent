@@ -1468,7 +1468,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		 * page size to avoid mapping too much memory.
 		 */
 		if (mapped == MAP_FAILED) {
-			event_warn("%s: mmap(%d, %d, %llu) failed",
+			event_warn("%s: mmap(%d, %d, %zu) failed",
 			    __func__, fd, 0, offset + length);
 			return (-1);
 		}
