@@ -1484,8 +1484,8 @@ dnsname_to_labels(u8 *const buf, size_t buf_len, off_t j,
 /* Finds the length of a dns request for a DNS name of the given */
 /* length. The actual request may be smaller than the value returned */
 /* here */
-static int
-evdns_request_len(const int name_len) {
+static size_t
+evdns_request_len(const size_t name_len) {
 	return 96 + /* length of the DNS standard header */
 		name_len + 2 +
 		4;  /* space for the resource type */
@@ -2369,12 +2369,12 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 	const char issuing_now =
 	    (base->global_requests_inflight < base->global_max_requests_inflight) ? 1 : 0;
 
-	const int name_len = strlen(name);
-	const int request_max_len = evdns_request_len(name_len);
+	const size_t name_len = strlen(name);
+	const size_t request_max_len = evdns_request_len(name_len);
 	const u16 trans_id = issuing_now ? transaction_id_pick(base) : 0xffff;
 	/* the request data is alloced in a single block with the header */
 	struct evdns_request *const req =
-	    (struct evdns_request *) mm_malloc(sizeof(struct evdns_request) + request_max_len);
+	    mm_malloc(sizeof(struct evdns_request) + request_max_len);
 	int rlen;
 	char namebuf[256];
 	(void) flags;
