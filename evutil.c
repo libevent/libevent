@@ -340,18 +340,18 @@ evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
 int
 evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
 {
+        int r;
+        if (!buflen)
+                return 0;
 #ifdef _MSC_VER
-	int r = _vsnprintf(buf, buflen, format, ap);
-	buf[buflen-1] = '\0';
-	if (r >= 0)
-		return r;
-	else
-		return _vscprintf(format, ap);
+	r = _vsnprintf(buf, buflen, format, ap);
+	if (r < 0)
+		r = _vscprintf(format, ap);
 #else
-	int r = vsnprintf(buf, buflen, format, ap);
+	r = vsnprintf(buf, buflen, format, ap);
+#endif
 	buf[buflen-1] = '\0';
 	return r;
-#endif
 }
 
 #define USE_INTERNAL_NTOP
