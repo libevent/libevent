@@ -245,7 +245,8 @@ int evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf);
   @param extra optional argument to the cleanup callback
   @return 0 if successful, or -1 if an error occurred
  */
-int evbuffer_add_reference(struct evbuffer *outbuf, void *data, size_t datlen,
+int evbuffer_add_reference(struct evbuffer *outbuf,
+    const void *data, size_t datlen,
     void (*cleanupfn)(void *extra), void *extra);
 
 /**

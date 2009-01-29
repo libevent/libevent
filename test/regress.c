@@ -1238,6 +1238,64 @@ out:
 }
 
 static void
+reference_cb(void *extra)
+{
+	assert(extra = (void *)0xdeadaffe);
+	test_ok = 1;
+}
+
+static void
+test_evbuffer_reference(void)
+{
+	struct evbuffer *src = evbuffer_new();
+	struct evbuffer *dst = evbuffer_new();
+	void *tmp;
+	const char *data = "this is what we add as read-only memory.";
+
+	setup_test("Testing evbuffer_add_reference: ");
+
+	if (evbuffer_add_reference(src, data, strlen(data),
+		reference_cb, (void *)0xdeadaffe) == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	tmp = evbuffer_reserve_space(dst, strlen(data));
+	if (evbuffer_remove(src, tmp, 10) == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evbuffer_validate(src);
+	evbuffer_validate(dst);
+
+	/* make sure that we don't write data at the beginning */
+	evbuffer_prepend(src, "aaaaa", 5);
+	evbuffer_validate(src);
+	evbuffer_drain(src, 5);
+
+	if (evbuffer_remove(src, tmp + 10, strlen(data) - 10) == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	evbuffer_commit_space(dst, strlen(data));
+	evbuffer_validate(src);
+	evbuffer_validate(dst);
+
+	if (memcmp(evbuffer_pullup(dst, strlen(data)),
+		data, strlen(data)) != 0) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	cleanup_test();
+
+	evbuffer_free(dst);
+	evbuffer_free(src);
+}
+
+static void
 test_evbuffer_readln(void)
 {
 	struct evbuffer *evb = evbuffer_new();
@@ -2363,6 +2421,7 @@ main (int argc, char **argv)
 	test_priorities(3);
 
 	test_evbuffer();
+	test_evbuffer_reference();
 	test_evbuffer_iterative();
 	test_evbuffer_readln();
 	test_evbuffer_find();
