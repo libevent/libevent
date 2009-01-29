@@ -1389,7 +1389,8 @@ evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
 }
 
 int
-evbuffer_add_reference(struct evbuffer *outbuf, void *data, size_t datlen,
+evbuffer_add_reference(struct evbuffer *outbuf,
+    const void *data, size_t datlen,
     void (*cleanupfn)(void *extra), void *extra)
 {
 	size_t old_len = outbuf->total_len;
@@ -1400,7 +1401,7 @@ evbuffer_add_reference(struct evbuffer *outbuf, void *data, size_t datlen,
 		return (-1);
 
 	chain->flags |= EVBUFFER_REFERENCE | EVBUFFER_IMMUTABLE;
-	chain->buffer = data;
+	chain->buffer = (u_char *)data;
 	chain->buffer_len = datlen;
 	chain->off = datlen;
 
