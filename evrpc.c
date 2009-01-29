@@ -53,6 +53,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "util-internal.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "evrpc.h"

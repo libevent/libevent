@@ -70,6 +70,10 @@ extern "C" {
 
 #endif
 
+#ifdef _EVENT_socklen_t
+#define socklen_t _EVENT_socklen_t
+#endif
+
 #ifdef __cplusplus
 }
 #endif
