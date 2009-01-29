@@ -22,7 +22,6 @@
 
 #include "regress.h"
 
-static int called = 0;
 static int was_et = 0;
 
 static void

@@ -49,7 +49,7 @@
 #include "event2/util.h"
 #include "../ipv6-internal.h"
 
-void util_suite(void);
+#include "regress.h"
 
 enum entry_status { NORMAL, CANONICAL, BAD };
 
@@ -97,12 +97,9 @@ static struct ipv6_entry {
 };
 
 static void
-regress_ipv4_parse(void)
+regress_ipv4_parse(void *ptr)
 {
 	int i;
-	int ok = 1;
-	printf("Testing IPv4 parsing...");
-
 	for (i = 0; ipv4_entries[i].addr; ++i) {
 		char written[128];
 		struct ipv4_entry *ent = &ipv4_entries[i];
@@ -111,54 +108,44 @@ regress_ipv4_parse(void)
 		r = evutil_inet_pton(AF_INET, ent->addr, &in);
 		if (r == 0) {
 			if (ent->status != BAD) {
-				printf("%s did not parse, but it's a good address!\n",
-					   ent->addr);
-				ok = 0;
+				TT_FAIL(("%s did not parse, but it's a good address!",
+					ent->addr));
 			}
 			continue;
 		}
 		if (ent->status == BAD) {
-			printf("%s parsed, but we expected an error\n", ent->addr);
-			ok = 0;
+			TT_FAIL(("%s parsed, but we expected an error", ent->addr));
 			continue;
 		}
 		if (ntohl(in.s_addr) != ent->res) {
-			printf("%s parsed to %lx, but we expected %lx\n", ent->addr,
-				   (unsigned long)ntohl(in.s_addr),
-				   (unsigned long)ent->res);
-			ok = 0;
+			TT_FAIL(("%s parsed to %lx, but we expected %lx", ent->addr,
+				(unsigned long)ntohl(in.s_addr),
+				(unsigned long)ent->res));
 			continue;
 		}
 		if (ent->status == CANONICAL) {
 			const char *w = evutil_inet_ntop(AF_INET, &in, written,
 											 sizeof(written));
 			if (!w) {
-				printf("Tried to write out %s; got NULL.\n", ent->addr);
-				ok = 0;
+				TT_FAIL(("Tried to write out %s; got NULL.", ent->addr));
 				continue;
 			}
 			if (strcmp(written, ent->addr)) {
-				printf("Tried to write out %s; got %s\n", ent->addr, written);
-				ok = 0;
+				TT_FAIL(("Tried to write out %s; got %s",
+					ent->addr, written));
 				continue;
 			}
 		}
 
 	}
-	if (!ok) {
-		printf("FAILED\n");
-		exit(1);
-	}
-	printf("OK\n");
+
 }
 
 static void
-regress_ipv6_parse(void)
+regress_ipv6_parse(void *ptr)
 {
 #ifdef AF_INET6
 	int i, j;
-	int ok = 1;
-	printf("Testing IPv6 parsing...");
 
 	for (i = 0; ipv6_entries[i].addr; ++i) {
 		char written[128];
@@ -167,16 +154,13 @@ regress_ipv6_parse(void)
 		int r;
 		r = evutil_inet_pton(AF_INET6, ent->addr, &in6);
 		if (r == 0) {
-			if (ent->status != BAD) {
-				printf("%s did not parse, but it's a good address!\n",
-					   ent->addr);
-				ok = 0;
-			}
+			if (ent->status != BAD)
+				TT_FAIL(("%s did not parse, but it's a good address!",
+					ent->addr));
 			continue;
 		}
 		if (ent->status == BAD) {
-			printf("%s parsed, but we expected an error\n", ent->addr);
-			ok = 0;
+			TT_FAIL(("%s parsed, but we expected an error", ent->addr));
 			continue;
 		}
 		for (j = 0; j < 4; ++j) {
@@ -187,8 +171,7 @@ regress_ipv6_parse(void)
 				(in6.s6_addr[j*4+2] << 8) |
 				(in6.s6_addr[j*4+3]);
 			if (u != ent->res[j]) {
-				printf("%s did not parse as expected.\n", ent->addr);
-				ok = 0;
+				TT_FAIL(("%s did not parse as expected.", ent->addr));
 				continue;
 			}
 		}
@@ -196,25 +179,18 @@ regress_ipv6_parse(void)
 			const char *w = evutil_inet_ntop(AF_INET6, &in6, written,
 											 sizeof(written));
 			if (!w) {
-				printf("Tried to write out %s; got NULL.\n", ent->addr);
-				ok = 0;
+				TT_FAIL(("Tried to write out %s; got NULL.", ent->addr));
 				continue;
 			}
 			if (strcmp(written, ent->addr)) {
-				printf("Tried to write out %s; got %s\n", ent->addr, written);
-				ok = 0;
+				TT_FAIL(("Tried to write out %s; got %s", ent->addr, written));
 				continue;
 			}
 		}
 
 	}
-	if (!ok) {
-		printf("FAILED\n");
-		exit(1);
-	}
-	printf("OK\n");
 #else
-	print("Skipping IPv6 address parsing.\n");
+	TT_BLATHER(("Skipping IPv6 address parsing."));
 #endif
 }
 
@@ -235,10 +211,9 @@ static struct sa_port_ent {
 };
 
 static void
-regress_sockaddr_port_parse(void)
+regress_sockaddr_port_parse(void *ptr)
 {
 	struct sockaddr_storage ss;
-	int ok = 1;
 	int i, r;
 
 	for (i = 0; sa_port_ents[i].parse; ++i) {
@@ -246,15 +221,11 @@ regress_sockaddr_port_parse(void)
 		memset(&ss, 0, sizeof(ss));
 		r = evutil_parse_sockaddr_port(ent->parse, (struct sockaddr*)&ss, sizeof(ss));
 		if (r < 0) {
-			if (ent->sa_family) {
-				printf("Couldn't parse %s!\n", ent->parse);
-				ok = 0;
-			}
+			if (ent->sa_family)
+				TT_FAIL(("Couldn't parse %s!", ent->parse));
 			continue;
 		} else if (! ent->sa_family) {
-			printf("Shouldn't have been able to parse %s!\n",
-				   ent->parse);
-			ok = 0;
+			TT_FAIL(("Shouldn't have been able to parse %s!", ent->parse));
 			continue;
 		}
 		if (ent->sa_family == AF_INET) {
@@ -267,11 +238,9 @@ regress_sockaddr_port_parse(void)
 			sin.sin_port = htons(ent->port);
 			r = evutil_inet_pton(AF_INET, ent->addr, &sin.sin_addr);
 			if (1 != r) {
-				printf("Couldn't parse ipv4 target %s.\n", ent->addr);
-				ok = 0;
+				TT_FAIL(("Couldn't parse ipv4 target %s.", ent->addr));
 			} else if (memcmp(&sin, &ss, sizeof(sin))) {
-				printf("Parse for %s was not as expected.\n", ent->parse);
-				ok = 0;
+				TT_FAIL(("Parse for %s was not as expected.", ent->parse));
 			}
 		} else {
 			struct sockaddr_in6 sin6;
@@ -283,26 +252,19 @@ regress_sockaddr_port_parse(void)
 			sin6.sin6_port = htons(ent->port);
 			r = evutil_inet_pton(AF_INET6, ent->addr, &sin6.sin6_addr);
 			if (1 != r) {
-				printf("Couldn't parse ipv6 target %s.\n", ent->addr);
-				ok = 0;
+				TT_FAIL(("Couldn't parse ipv6 target %s.", ent->addr));
 			} else if (memcmp(&sin6, &ss, sizeof(sin6))) {
-				printf("Parse for %s was not as expected.\n", ent->parse);
-				ok = 0;
+				TT_FAIL(("Parse for %s was not as expected.", ent->parse));
 			}
 		}
 	}
-
-	if (!ok) {
-		printf("FAILED\n");
-		exit(1);
-	}
-	printf("OK\n");
 }
 
-void
-util_suite(void)
-{
-	regress_ipv4_parse();
-	regress_ipv6_parse();
-	regress_sockaddr_port_parse();
-}
+struct testcase_t util_testcases[] = {
+	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
+	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
+	{ "sockaddr_port_parse", regress_sockaddr_port_parse, 0, NULL, NULL },
+	END_OF_TESTCASES,
+};
+
+

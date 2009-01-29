@@ -75,7 +75,9 @@
 
 int pair[2];
 int test_ok;
-static int called;
+int called;
+struct event_base *global_base;
+
 static char wbuf[4096];
 static char rbuf[4096];
 static int woff;
@@ -83,7 +85,8 @@ static int roff;
 static int usepersist;
 static struct timeval tset;
 static struct timeval tcalled;
-static struct event_base *global_base;
+
+
 
 #define TEST1	"this is a test"
 #define SECONDS	1
@@ -255,6 +258,8 @@ combined_write_cb(int fd, short event, void *arg)
 static int
 setup_test(const char *name)
 {
+        if (in_legacy_test_wrapper)
+                return 0;
 
 	fprintf(stdout, "%s", name);
 
@@ -277,6 +282,9 @@ setup_test(const char *name)
 static int
 cleanup_test(void)
 {
+        if (in_legacy_test_wrapper)
+                return 0;
+
 #ifndef WIN32
 	close(pair[0]);
 	close(pair[1]);
@@ -491,8 +499,6 @@ test_persistent_timeout(void)
 	struct event ev;
 	int count = 0;
 
-	setup_test("Periodic timeout via EV_PERSIST: ");
-
 	timerclear(&tv);
 	tv.tv_usec = 10000;
 
@@ -504,7 +510,6 @@ test_persistent_timeout(void)
 
 	event_del(&ev);
 
-	cleanup_test();
 }
 
 #ifndef WIN32
@@ -1077,7 +1082,7 @@ test_nonpersist_readd(void)
 	cleanup_test();
 }
 
-/* validates that an evbuffer is good */
+/* Validates that an evbuffer is good. */
 static void
 evbuffer_validate(struct evbuffer *buf)
 {
@@ -1520,7 +1525,7 @@ test_evbuffer_iterative(void)
 }
 
 static void
-test_evbuffer_find(void)
+test_evbuffer_find(void *ptr)
 {
 	u_char* p;
 	const char* test1 = "1234567890\r\n";
@@ -1531,7 +1536,6 @@ test_evbuffer_find(void)
 	struct evbuffer * buf = evbuffer_new();
 
 	/* make sure evbuffer_find doesn't match past the end of the buffer */
-	fprintf(stdout, "Testing evbuffer_find 1: ");
 	evbuffer_add(buf, (u_char*)test1, strlen(test1));
 	evbuffer_validate(buf);
 	evbuffer_drain(buf, strlen(test1));
@@ -1539,18 +1543,12 @@ test_evbuffer_find(void)
 	evbuffer_add(buf, (u_char*)test2, strlen(test2));
 	evbuffer_validate(buf);
 	p = evbuffer_find(buf, (u_char*)"\r\n", 2);
-	if (p == NULL) {
-		fprintf(stdout, "OK\n");
-	} else {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_want(p == NULL);
 
 	/*
 	 * drain the buffer and do another find; in r309 this would
 	 * read past the allocated buffer causing a valgrind error.
 	 */
-	fprintf(stdout, "Testing evbuffer_find 2: ");
 	evbuffer_drain(buf, strlen(test2));
 	evbuffer_validate(buf);
 	for (i = 0; i < EVBUFFER_INITIAL_LENGTH; ++i)
@@ -1559,24 +1557,16 @@ test_evbuffer_find(void)
 	evbuffer_add(buf, (u_char *)test3, EVBUFFER_INITIAL_LENGTH);
 	evbuffer_validate(buf);
 	p = evbuffer_find(buf, (u_char *)"xy", 2);
-	if (p == NULL) {
-		printf("OK\n");
-	} else {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_want(p == NULL);
 
 	/* simple test for match at end of allocated buffer */
-	fprintf(stdout, "Testing evbuffer_find 3: ");
 	p = evbuffer_find(buf, (u_char *)"ax", 2);
-	if (p != NULL && strncmp((char*)p, "ax", 2) == 0) {
-		printf("OK\n");
-	} else {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_assert(p != NULL);
+        tt_want(strncmp((char*)p, "ax", 2) == 0);
 
-	evbuffer_free(buf);
+end:
+        if (buf)
+                evbuffer_free(buf);
 }
 
 /*
@@ -1832,14 +1822,12 @@ test_priorities_cb(int fd, short what, void *arg)
 }
 
 static void
-test_priorities(int npriorities)
+test_priorities_impl(int npriorities)
 {
-	char buf[32];
 	struct test_pri_event one, two;
 	struct timeval tv;
 
-	evutil_snprintf(buf, sizeof(buf), "Testing Priorities %d: ", npriorities);
-	setup_test(buf);
+	TT_BLATHER(("Testing Priorities %d: ", npriorities));
 
 	event_base_priority_init(global_base, npriorities);
 
@@ -1881,9 +1869,18 @@ test_priorities(int npriorities)
 		if (one.count == 3 && two.count == 0)
 			test_ok = 1;
 	}
-
-	cleanup_test();
 }
+
+static void
+test_priorities(void)
+{
+        test_priorities_impl(1);
+        if (test_ok)
+                test_priorities_impl(2);
+        if (test_ok)
+                test_priorities_impl(3);
+}
+
 
 static void
 test_multiple_cb(int fd, short event, void *arg)
@@ -2282,7 +2279,6 @@ test_evutil_strtoll(void)
 {
         const char *s;
         char *endptr;
-        setup_test("evutil_stroll: ");
         test_ok = 0;
 
         if (evutil_strtoll("5000000000", NULL, 10) != ((ev_int64_t)5000000)*1000)
@@ -2298,141 +2294,138 @@ test_evutil_strtoll(void)
                 goto err;
 
         test_ok = 1;
- err:
-        cleanup_test();
+err:
+        ;
 }
 
 static void
-test_evutil_snprintf(void)
+test_evutil_snprintf(void *ptr)
 {
 	char buf[16];
 	int r;
-	setup_test("evutil_snprintf: ");
-	test_ok = 0;
 	r = evutil_snprintf(buf, sizeof(buf), "%d %d", 50, 100);
-	if (strcmp(buf, "50 100")) {
-		fprintf(stderr, "buf='%s'\n", buf);
-		goto err;
-	}
-	if (r != 6) {
-		fprintf(stderr, "r=%d\n", r);
-		goto err;
-	}
+        tt_str_op(buf, ==, "50 100");
+        tt_int_op(r, ==, 6);
 
 	r = evutil_snprintf(buf, sizeof(buf), "longish %d", 1234567890);
-	if (strcmp(buf, "longish 1234567")) {
-		fprintf(stderr, "buf='%s'\n", buf);
-		goto err;
-	}
-	if (r != 18) {
-		fprintf(stderr, "r=%d\n", r);
-		goto err;
-	}
+        tt_str_op(buf, ==, "longish 1234567");
+        tt_int_op(r, ==, 18);
 
-	test_ok = 1;
- err:
-	cleanup_test();
+      end:
+	;
 }
 
 static void
-test_methods(void)
+test_methods(void *ptr)
 {
 	const char **methods = event_get_supported_methods();
-	struct event_config *cfg;
-	struct event_base *base;
+	struct event_config *cfg = NULL;
+	struct event_base *base = NULL;
 	const char *backend;
 	int n_methods = 0;
 
-	fprintf(stdout, "Testing supported methods: ");
-
-	if (methods == NULL) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_assert(methods);
 
 	backend = methods[0];
 	while (*methods != NULL) {
-		fprintf(stdout, "%s ", *methods);
+		TT_BLATHER(("Support method: %s", *methods));
 		++methods;
 		++n_methods;
 	}
 
 	if (n_methods == 1) {
 		/* only one method supported; can't continue. */
-		goto done;
+                goto end;
 	}
 
 	cfg = event_config_new();
 	assert(cfg != NULL);
 
-	assert(event_config_avoid_method(cfg, backend) == 0);
+	tt_int_op(event_config_avoid_method(cfg, backend), ==, 0);
 
 	base = event_base_new_with_config(cfg);
-	if (base == NULL) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_assert(base);
 
-	if (strcmp(backend, event_base_get_method(base)) == 0) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+	tt_str_op(backend, !=, event_base_get_method(base));
 
-	event_base_free(base);
-	event_config_free(cfg);
-done:
-	fprintf(stdout, "OK\n");
+end:
+        if (base)
+                event_base_free(base);
+        if (cfg)
+                event_config_free(cfg);
 }
 
+/* All the flags we set */
+#define TT_ISOLATED TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE
 
-int
-main (int argc, char **argv)
-{
-#ifdef WIN32
-	WORD wVersionRequested;
-	WSADATA wsaData;
-	int	err;
+struct testcase_t legacy_testcases[] = {
+        /* Some converted-over tests */
+        { "methods", test_methods, TT_FORK, NULL, NULL },
+	{ "evutil_snprintf", test_evutil_snprintf, 0, NULL, NULL },
 
-	wVersionRequested = MAKEWORD( 2, 2 );
+        /* These are still using the old API */
+        LEGACY(evutil_strtoll, 0),
+        LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
+        LEGACY(priorities, TT_FORK|TT_NEED_BASE),
 
-	err = WSAStartup( wVersionRequested, &wsaData );
-#endif
+        /* These need to fork because of evbuffer_validate. Otherwise
+         * they'd be fine in the main process, since they don't mess
+         * with global state. */
+        LEGACY(evbuffer, TT_FORK),
+        LEGACY(evbuffer_reference, TT_FORK),
+        LEGACY(evbuffer_iterative, TT_FORK),
+        LEGACY(evbuffer_readln, TT_FORK),
+        { "evbuffer_find", test_evbuffer_find, TT_FORK, NULL, NULL },
+
+        LEGACY(bufferevent, TT_ISOLATED),
+        LEGACY(bufferevent_watermarks, TT_ISOLATED),
+        LEGACY(bufferevent_filters, TT_ISOLATED),
+
+        LEGACY(free_active_base, TT_FORK|TT_NEED_BASE),
+        LEGACY(event_base_new, TT_FORK|TT_NEED_SOCKETPAIR),
+
+        /* These legacy tests may not all need all of these flags. */
+        LEGACY(simpleread, TT_ISOLATED),
+        LEGACY(simpleread_multiple, TT_ISOLATED),
+        LEGACY(simplewrite, TT_ISOLATED),
+        LEGACY(multiple, TT_ISOLATED),
+        LEGACY(persistent, TT_ISOLATED),
+        LEGACY(combined, TT_ISOLATED),
+        LEGACY(simpletimeout, TT_ISOLATED),
+        LEGACY(loopbreak, TT_ISOLATED),
+        LEGACY(loopexit, TT_ISOLATED),
+	LEGACY(loopexit_multiple, TT_ISOLATED),
+	LEGACY(nonpersist_readd, TT_ISOLATED),
+	LEGACY(multiple_events_for_same_fd, TT_ISOLATED),
+	LEGACY(want_only_once, TT_ISOLATED),
 
 #ifndef WIN32
-	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
-		return (1);
+        LEGACY(fork, TT_ISOLATED),
 #endif
-	setvbuf(stdout, NULL, _IONBF, 0);
 
-	test_methods();
+        END_OF_TESTCASES
+};
 
+struct testcase_t signal_testcases[] = {
+#ifndef WIN32
+	LEGACY(simplesignal, TT_ISOLATED),
+	LEGACY(multiplesignal, TT_ISOLATED),
+	LEGACY(immediatesignal, TT_ISOLATED),
+        LEGACY(signal_dealloc, TT_ISOLATED),
+	LEGACY(signal_pipeloss, TT_ISOLATED),
+	LEGACY(signal_switchbase, TT_ISOLATED),
+	LEGACY(signal_restore, TT_ISOLATED),
+	LEGACY(signal_assert, TT_ISOLATED),
+	LEGACY(signal_while_processing, TT_ISOLATED),
+#endif
+        END_OF_TESTCASES
+};
+
+int
+legacy_main(void)
+{
 	/* Initalize the event library */
 	global_base = event_init();
-
-	test_evutil_strtoll();
-	test_evutil_snprintf();
-	util_suite();
-
-	test_persistent_timeout();
-
-	/* use the global event base and need to be called first */
-	test_priorities(1);
-	test_priorities(2);
-	test_priorities(3);
-
-	test_evbuffer();
-	test_evbuffer_reference();
-	test_evbuffer_iterative();
-	test_evbuffer_readln();
-	test_evbuffer_find();
-
-	test_bufferevent();
-	test_bufferevent_watermarks();
-	test_bufferevent_filters();
-
-	test_free_active_base();
-
-	test_event_base_new();
 
 #if defined(_EVENT_HAVE_PTHREADS) && !defined(_EVENT_DISABLE_THREAD_SUPPORT)
 	regress_pthread();
@@ -2442,32 +2435,6 @@ main (int argc, char **argv)
 	regress_zlib();
 #endif
 
-	test_simpleread();
-	test_simpleread_multiple();
-
-	test_simplewrite();
-
-	test_multiple();
-
-	test_persistent();
-
-	test_combined();
-
-	test_simpletimeout();
-
-#ifndef WIN32
-	test_fork();
-#endif
-
-#ifndef WIN32
-	test_edgetriggered();
-	test_simplesignal();
-	test_multiplesignal();
-	test_immediatesignal();
-#endif
-	test_loopexit();
-	test_loopbreak();
-
 	http_suite();
 
 #ifndef WIN32
@@ -2476,26 +2443,9 @@ main (int argc, char **argv)
 
 	dns_suite();
 
-	test_loopexit_multiple();
-
-        test_nonpersist_readd();
-
-	test_multiple_events_for_same_fd();
-
-	test_want_only_once();
-
 	evtag_test();
 
 	rpc_test();
-
-#ifndef WIN32
-	test_signal_dealloc();
-	test_signal_pipeloss();
-	test_signal_switchbase();
-	test_signal_restore();
-	test_signal_assert();
-	test_signal_while_processing();
-#endif
 
 	return (0);
 }

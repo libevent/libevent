@@ -31,6 +31,15 @@
 extern "C" {
 #endif
 
+#include "tinytest.h"
+#include "tinytest_macros.h"
+
+extern struct testcase_t legacy_testcases[];
+extern struct testcase_t util_testcases[];
+extern struct testcase_t signal_testcases[];
+
+int legacy_main(void);
+
 void http_suite(void);
 void http_basic_test(void);
 
@@ -38,12 +47,29 @@ void rpc_suite(void);
 
 void dns_suite(void);
 
-void util_suite(void);
-
 void regress_pthread(void);
 void regress_zlib(void);
 
 void test_edgetriggered(void);
+
+/* Helpers to wrap old testcases */
+extern int pair[2];
+extern int test_ok;
+extern int called;
+extern struct event_base *global_base;
+extern int in_legacy_test_wrapper;
+
+extern const struct testcase_setup_t legacy_setup;
+void run_legacy_test_fn(void *ptr);
+
+/* A couple of flags that legacy_setup can support. */
+#define TT_NEED_SOCKETPAIR   TT_FIRST_USER_FLAG
+#define TT_NEED_BASE         (TT_FIRST_USER_FLAG<<1)
+
+#define LEGACY(name,flags)						\
+	{ #name, run_legacy_test_fn, flags, &legacy_setup,		\
+	  test_## name }
+
 
 #ifdef __cplusplus
 }
