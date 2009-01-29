@@ -1496,20 +1496,32 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 #endif
 	{
 		/* the default implementation */
+		struct evbuffer *tmp = evbuffer_new();
 		ssize_t read;
 
-		if (lseek(fd, offset, SEEK_SET) == -1)
+		if (tmp == NULL)
 			return (-1);
 
+		if (lseek(fd, offset, SEEK_SET) == -1) {
+			evbuffer_free(tmp);
+			return (-1);
+		}
+
+		/* we add everything to a temporary buffer, so that we
+		 * can abort without side effects if the read fails.
+		 */
 		while (length) {
-			read = evbuffer_read(outbuf, fd, length);
+			read = evbuffer_read(tmp, fd, length);
 			if (read == -1) {
-				/* TODO(niels): deal with rewinding */
+				evbuffer_free(tmp);
 				return (-1);
 			}
 
 			length -= read;
 		}
+
+		evbuffer_add_buffer(outbuf, tmp);
+		evbuffer_free(tmp);
 
 		close(fd);
 	}
