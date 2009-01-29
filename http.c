@@ -92,9 +92,9 @@
 #include "event2/http_compat.h"
 #include "event2/util.h"
 #include "log-internal.h"
+#include "util-internal.h"
 #include "http-internal.h"
 #include "mm-internal.h"
-#include "util-internal.h"
 
 #ifdef WIN32
 #define strcasecmp _stricmp

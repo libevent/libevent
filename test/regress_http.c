@@ -55,6 +55,7 @@
 #include "event.h"
 #include "evhttp.h"
 #include "log-internal.h"
+#include "util-internal.h"
 #include "http-internal.h"
 
 extern int pair[];

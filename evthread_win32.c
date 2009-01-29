@@ -37,6 +37,8 @@
 struct event_base;
 #include <event2/thread.h>
 
+#include "mm-internal.h"
+
 static void *
 evthread_win32_lock_create(void)
 {

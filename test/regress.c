@@ -1249,7 +1249,7 @@ test_evbuffer_reference(void)
 {
 	struct evbuffer *src = evbuffer_new();
 	struct evbuffer *dst = evbuffer_new();
-	void *tmp;
+	char *tmp;
 	const char *data = "this is what we add as read-only memory.";
 
 	setup_test("Testing evbuffer_add_reference: ");
