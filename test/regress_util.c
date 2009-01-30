@@ -260,10 +260,45 @@ regress_sockaddr_port_parse(void *ptr)
 	}
 }
 
+static void
+test_evutil_strtoll(void *ptr)
+{
+        const char *s;
+        char *endptr;
+
+        tt_want(evutil_strtoll("5000000000", NULL, 10) ==
+		((ev_int64_t)5000000)*1000);
+        tt_want(evutil_strtoll("-5000000000", NULL, 10) ==
+		((ev_int64_t)5000000)*-1000);
+	s = " 99999stuff";
+	tt_want(evutil_strtoll(s, &endptr, 10) == (ev_int64_t)99999);
+	tt_want(endptr == s+6);
+	tt_want(evutil_strtoll("foo", NULL, 10) == 0);
+ }
+
+static void
+test_evutil_snprintf(void *ptr)
+{
+	char buf[16];
+	int r;
+	r = evutil_snprintf(buf, sizeof(buf), "%d %d", 50, 100);
+        tt_str_op(buf, ==, "50 100");
+        tt_int_op(r, ==, 6);
+
+	r = evutil_snprintf(buf, sizeof(buf), "longish %d", 1234567890);
+        tt_str_op(buf, ==, "longish 1234567");
+        tt_int_op(r, ==, 18);
+
+      end:
+	;
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
 	{ "sockaddr_port_parse", regress_sockaddr_port_parse, 0, NULL, NULL },
+	{ "evutil_snprintf", test_evutil_snprintf, 0, NULL, NULL },
+	{ "evutil_strtoll", test_evutil_strtoll, 0, NULL, NULL },
 	END_OF_TESTCASES,
 };
 
