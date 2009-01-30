@@ -2275,39 +2275,6 @@ rpc_test(void)
 }
 
 static void
-test_evutil_strtoll(void *ptr)
-{
-        const char *s;
-        char *endptr;
-
-        tt_want(evutil_strtoll("5000000000", NULL, 10) ==
-		((ev_int64_t)5000000)*1000);
-        tt_want(evutil_strtoll("-5000000000", NULL, 10) ==
-		((ev_int64_t)5000000)*-1000);
-	s = " 99999stuff";
-	tt_want(evutil_strtoll(s, &endptr, 10) == (ev_int64_t)99999);
-	tt_want(endptr == s+6);
-	tt_want(evutil_strtoll("foo", NULL, 10) == 0);
- }
-
-static void
-test_evutil_snprintf(void *ptr)
-{
-	char buf[16];
-	int r;
-	r = evutil_snprintf(buf, sizeof(buf), "%d %d", 50, 100);
-        tt_str_op(buf, ==, "50 100");
-        tt_int_op(r, ==, 6);
-
-	r = evutil_snprintf(buf, sizeof(buf), "longish %d", 1234567890);
-        tt_str_op(buf, ==, "longish 1234567");
-        tt_int_op(r, ==, 18);
-
-      end:
-	;
-}
-
-static void
 test_methods(void *ptr)
 {
 	const char **methods = event_get_supported_methods();
@@ -2353,10 +2320,8 @@ end:
 struct testcase_t legacy_testcases[] = {
         /* Some converted-over tests */
         { "methods", test_methods, TT_FORK, NULL, NULL },
-	{ "evutil_snprintf", test_evutil_snprintf, 0, NULL, NULL },
 
         /* These are still using the old API */
-        { "evutil_strtoll", test_evutil_strtoll, 0, NULL, NULL },
         LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
         LEGACY(priorities, TT_FORK|TT_NEED_BASE),
 
