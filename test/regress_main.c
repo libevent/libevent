@@ -100,9 +100,9 @@ legacy_test_setup(const struct testcase_t *testcase)
 			exit(1);
 		}
 	}
-        if (testcase->flags & TT_NEED_BASE) {
-                global_base = event_init();
-        }
+	if (testcase->flags & TT_NEED_BASE) {
+		global_base = event_init();
+	}
 
 	return testcase->setup_data;
 }
@@ -165,6 +165,7 @@ struct testgroup_t testgroups[] = {
         { "main/", legacy_testcases },
         { "signal/", signal_testcases },
         { "util/", util_testcases },
+        { "http/", http_testcases },
         END_OF_GROUPS
 };
 

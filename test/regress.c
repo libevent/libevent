@@ -2314,9 +2314,6 @@ end:
                 event_config_free(cfg);
 }
 
-/* All the flags we set */
-#define TT_ISOLATED TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE
-
 struct testcase_t legacy_testcases[] = {
         /* Some converted-over tests */
         { "methods", test_methods, TT_FORK, NULL, NULL },
@@ -2391,8 +2388,6 @@ legacy_main(void)
 #if defined(_EVENT_HAVE_LIBZ)
 	regress_zlib();
 #endif
-
-	http_suite();
 
 #ifndef WIN32
 	rpc_suite();
