@@ -2275,28 +2275,20 @@ rpc_test(void)
 }
 
 static void
-test_evutil_strtoll(void)
+test_evutil_strtoll(void *ptr)
 {
         const char *s;
         char *endptr;
-        test_ok = 0;
 
-        if (evutil_strtoll("5000000000", NULL, 10) != ((ev_int64_t)5000000)*1000)
-                goto err;
-        if (evutil_strtoll("-5000000000", NULL, 10) != ((ev_int64_t)5000000)*-1000)
-                goto err;
-        s = " 99999stuff";
-        if (evutil_strtoll(s, &endptr, 10) != (ev_int64_t)99999)
-                goto err;
-        if (endptr != s+6)
-                goto err;
-        if (evutil_strtoll("foo", NULL, 10) != 0)
-                goto err;
-
-        test_ok = 1;
-err:
-        ;
-}
+        tt_want(evutil_strtoll("5000000000", NULL, 10) ==
+		((ev_int64_t)5000000)*1000);
+        tt_want(evutil_strtoll("-5000000000", NULL, 10) ==
+		((ev_int64_t)5000000)*-1000);
+	s = " 99999stuff";
+	tt_want(evutil_strtoll(s, &endptr, 10) == (ev_int64_t)99999);
+	tt_want(endptr == s+6);
+	tt_want(evutil_strtoll("foo", NULL, 10) == 0);
+ }
 
 static void
 test_evutil_snprintf(void *ptr)
@@ -2364,7 +2356,7 @@ struct testcase_t legacy_testcases[] = {
 	{ "evutil_snprintf", test_evutil_snprintf, 0, NULL, NULL },
 
         /* These are still using the old API */
-        LEGACY(evutil_strtoll, 0),
+        { "evutil_strtoll", test_evutil_strtoll, 0, NULL, NULL },
         LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
         LEGACY(priorities, TT_FORK|TT_NEED_BASE),
 
