@@ -75,6 +75,13 @@
 #define tt_fail_msg(msg) TT_FAIL((msg))
 #define tt_fail() tt_fail_msg("(Failed.)")
 
+/* End the current test, and indicate we are skipping it. */
+#define tt_skip()                               \
+	TT_STMT_BEGIN						\
+	_tinytest_set_test_skipped();				\
+	TT_EXIT_TEST_FUNCTION;					\
+	TT_STMT_END
+
 #define _tt_want(b, msg, fail)				\
 	TT_STMT_BEGIN					\
 	if (!(b)) {					\

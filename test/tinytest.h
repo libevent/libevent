@@ -66,6 +66,8 @@ struct testgroup_t {
 
 /** Implementation: called from a test to indicate failure, before logging. */
 void _tinytest_set_test_failed(void);
+/** Implementation: called from a test to indicate that we're skipping. */
+void _tinytest_set_test_skipped(void);
 /** Implementation: return 0 for quiet, 1 for normal, 2 for loud. */
 int _tinytest_get_verbosity(void);
 /** Implementation: Set a flag on tests matching a name; returns number
