@@ -382,7 +382,7 @@ struct testcase_t dns_testcases[] = {
         DNS_LEGACY(gethostbyname, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
         DNS_LEGACY(gethostbyname6, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
         DNS_LEGACY(gethostbyaddr, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
-        { "resolve_reverse", dns_resolve_reverse, TT_FORK },
+        { "resolve_reverse", dns_resolve_reverse, TT_FORK, NULL, NULL },
 
         END_OF_TESTCASES
 };
