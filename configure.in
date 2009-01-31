@@ -19,7 +19,11 @@ AC_PROG_LN_S
 
 AC_PROG_GCC_TRADITIONAL
 if test "$GCC" = yes ; then
+        # Enable many gcc warnings by default...
         CFLAGS="$CFLAGS -Wall"
+	# And disable the strict-aliasing optimization, since it breaks
+	# our sockaddr-handling code in strange ways.
+	CFLAGS="$CFLAGS -fno-strict-aliasing"
 fi
 
 AC_ARG_ENABLE(gcc-warnings,
@@ -433,13 +437,13 @@ if test x$enable_gcc_warnings = xyes; then
   CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch-enum -Werror"
   CFLAGS="$CFLAGS -Wno-unused-parameter -Wno-sign-compare -Wstrict-aliasing"
 
-  if test x$have_gcc4 = xyes ; then 
+  if test x$have_gcc4 = xyes ; then
     # These warnings break gcc 3.3.5 and work on gcc 4.0.2
     CFLAGS="$CFLAGS -Winit-self -Wmissing-field-initializers -Wdeclaration-after-statement"
     #CFLAGS="$CFLAGS -Wold-style-definition"
   fi
 
-  if test x$have_gcc42 = xyes ; then 
+  if test x$have_gcc42 = xyes ; then
     # These warnings break gcc 4.0.2 and work on gcc 4.2
     CFLAGS="$CFLAGS -Waddress -Wnormalized=id -Woverride-init"
   fi

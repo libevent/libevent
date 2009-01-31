@@ -3468,6 +3468,7 @@ main(int c, char **v) {
 		++idx;
 	}
 	event_init();
+	evdns_init();
 	if (verbose)
 		evdns_set_log_fn(logfn);
 	evdns_resolv_conf_parse(DNS_OPTION_NAMESERVERS, "/etc/resolv.conf");
