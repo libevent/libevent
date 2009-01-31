@@ -60,9 +60,7 @@
 
 #include "regress.gen.h"
 
-void rpc_suite(void);
-
-extern int test_ok;
+#include "regress.h"
 
 static struct evhttp *
 http_setup(short *pport)
@@ -181,15 +179,10 @@ rpc_basic_test(void)
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 
-	fprintf(stdout, "Testing Basic RPC Support: ");
-
 	rpc_setup(&http, &port, &base);
 
 	evcon = evhttp_connection_new("127.0.0.1", port);
-	if (evcon == NULL) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+	tt_assert(evcon);
 
 	/*
 	 * At this point, we want to schedule an HTTP POST request
@@ -197,10 +190,7 @@ rpc_basic_test(void)
 	 */
 
 	req = evhttp_request_new(rpc_postrequest_failure, NULL);
-	if (req == NULL) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+	tt_assert(req);
 
 	/* Add the information that we care about */
 	evhttp_add_header(req->output_headers, "Host", "somehost");
@@ -209,8 +199,7 @@ rpc_basic_test(void)
 	if (evhttp_make_request(evcon, req,
 		EVHTTP_REQ_POST,
 		"/.rpc.Message") == -1) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
+                tt_abort();
 	}
 
 	test_ok = 0;
@@ -221,13 +210,9 @@ rpc_basic_test(void)
 
 	rpc_teardown(base);
 
-	if (test_ok != 1) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_assert(test_ok == 1);
 
-	fprintf(stdout, "OK\n");
-
+end:
 	evhttp_free(http);
 }
 
@@ -237,7 +222,6 @@ rpc_postrequest_done(struct evhttp_request *req, void *arg)
 	struct kill* kill_reply = NULL;
 
 	if (req->response_code != HTTP_OK) {
-
 		fprintf(stderr, "FAILED (response code)\n");
 		exit(1);
 	}
@@ -265,15 +249,10 @@ rpc_basic_message(void)
 	struct evhttp_request *req = NULL;
 	struct msg *msg;
 
-	fprintf(stdout, "Testing Good RPC Post: ");
-
 	rpc_setup(&http, &port, &base);
 
 	evcon = evhttp_connection_new("127.0.0.1", port);
-	if (evcon == NULL) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_assert(evcon);
 
 	/*
 	 * At this point, we want to schedule an HTTP POST request
@@ -311,13 +290,7 @@ rpc_basic_message(void)
 
 	rpc_teardown(base);
 
-	if (test_ok != 1) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
-
-	fprintf(stdout, "OK\n");
-
+end:
 	evhttp_free(http);
 }
 
@@ -464,10 +437,8 @@ rpc_basic_client(void)
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 	struct evrpc_pool *pool = NULL;
-	struct msg *msg;
-	struct kill *kill;
-
-	fprintf(stdout, "Testing RPC Client: ");
+	struct msg *msg = NULL;
+	struct kill *kill = NULL;
 
 	rpc_setup(&http, &port, &base);
 
@@ -497,10 +468,7 @@ rpc_basic_client(void)
 
 	event_dispatch();
 
-	if (test_ok != 1) {
-		fprintf(stdout, "FAILED (1)\n");
-		exit(1);
-	}
+        tt_assert(test_ok == 1);
 
 	/* we do it twice to make sure that reuse works correctly */
 	kill_clear(kill);
@@ -509,11 +477,7 @@ rpc_basic_client(void)
 
 	event_dispatch();
 
-	if (test_ok != 2) {
-		fprintf(stdout, "FAILED (2)\n");
-		exit(1);
-	}
-
+        tt_assert(test_ok == 2);
 
 	/* we do it trice to make sure other stuff works, too */
 	kill_clear(kill);
@@ -529,18 +493,18 @@ rpc_basic_client(void)
 
 	rpc_teardown(base);
 
-	if (test_ok != 3) {
-		fprintf(stdout, "FAILED (3)\n");
-		exit(1);
-	}
+        tt_assert(test_ok == 3);
 
-	fprintf(stdout, "OK\n");
+end:
+        if (msg)
+                msg_free(msg);
+        if (kill)
+                kill_free(kill);
 
-	msg_free(msg);
-	kill_free(kill);
-
-	evrpc_pool_free(pool);
-	evhttp_free(http);
+        if (pool)
+                evrpc_pool_free(pool);
+        if (http)
+                evhttp_free(http);
 
 	need_input_hook = 0;
 	need_output_hook = 0;
@@ -557,10 +521,8 @@ rpc_basic_queued_client(void)
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 	struct evrpc_pool *pool = NULL;
-	struct msg *msg;
-	struct kill *kill_one, *kill_two;
-
-	fprintf(stdout, "Testing RPC (Queued) Client: ");
+	struct msg *msg=NULL;
+	struct kill *kill_one=NULL, *kill_two=NULL;
 
 	rpc_setup(&http, &port, &base);
 
@@ -583,19 +545,20 @@ rpc_basic_queued_client(void)
 
 	rpc_teardown(base);
 
-	if (test_ok != 2) {
-		fprintf(stdout, "FAILED (1)\n");
-		exit(1);
-	}
+        tt_assert(test_ok == 2);
 
-	fprintf(stdout, "OK\n");
+end:
+        if (msg)
+                msg_free(msg);
+        if (kill_one)
+                kill_free(kill_one);
+        if (kill_two)
+                kill_free(kill_two);
 
-	msg_free(msg);
-	kill_free(kill_one);
-	kill_free(kill_two);
-
-	evrpc_pool_free(pool);
-	evhttp_free(http);
+        if (pool)
+                evrpc_pool_free(pool);
+        if (http)
+                evhttp_free(http);
 }
 
 static void
@@ -622,7 +585,7 @@ struct _rpc_hook_ctx {
 	void *ctx;
 };
 
-static int hook_pause_cb_called;
+static int hook_pause_cb_called=0;
 
 static void
 rpc_hook_pause_cb(int fd, short what, void *arg)
@@ -655,10 +618,8 @@ rpc_basic_client_with_pause(void)
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 	struct evrpc_pool *pool = NULL;
-	struct msg *msg;
-	struct kill *kill;
-
-	fprintf(stdout, "Testing RPC Client with pause hooks: ");
+	struct msg *msg = NULL;
+	struct kill *kill= NULL;
 
 	rpc_setup(&http, &port, &base);
 
@@ -683,20 +644,22 @@ rpc_basic_client_with_pause(void)
 
 	event_dispatch();
 
-	if (test_ok != 1 || hook_pause_cb_called != 4) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_int_op(test_ok, ==, 1);
+        tt_int_op(hook_pause_cb_called, ==, 4);
 
-	rpc_teardown(base);
+end:
+        if (base)
+                rpc_teardown(base);
 
-	fprintf(stdout, "OK\n");
+        if (msg)
+                msg_free(msg);
+        if (kill)
+                kill_free(kill);
 
-	msg_free(msg);
-	kill_free(kill);
-
-	evrpc_pool_free(pool);
-	evhttp_free(http);
+        if (pool)
+                evrpc_pool_free(pool);
+        if (http)
+                evhttp_free(http);
 }
 
 static void
@@ -706,10 +669,8 @@ rpc_client_timeout(void)
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 	struct evrpc_pool *pool = NULL;
-	struct msg *msg;
-	struct kill *kill;
-
-	fprintf(stdout, "Testing RPC Client Timeout: ");
+	struct msg *msg = NULL;
+	struct kill *kill = NULL;
 
 	rpc_setup(&http, &port, &base);
 
@@ -736,19 +697,34 @@ rpc_client_timeout(void)
 
 	rpc_teardown(base);
 
-	if (test_ok != 2) {
-		fprintf(stdout, "FAILED (1)\n");
-		exit(1);
-	}
+        tt_assert(test_ok == 2);
 
-	fprintf(stdout, "OK\n");
+end:
+        if (msg)
+                msg_free(msg);
+        if (kill)
+                kill_free(kill);
 
-	msg_free(msg);
-	kill_free(kill);
-
-	evrpc_pool_free(pool);
-	evhttp_free(http);
+        if (pool)
+                evrpc_pool_free(pool);
+        if (http)
+                evhttp_free(http);
 }
+
+#define RPC_LEGACY(name)						\
+	{ #name, run_legacy_test_fn, TT_FORK|TT_NEED_BASE, &legacy_setup, \
+                    rpc_##name }
+
+struct testcase_t rpc_testcases[] = {
+        RPC_LEGACY(basic_test),
+        RPC_LEGACY(basic_message),
+        RPC_LEGACY(basic_client),
+        RPC_LEGACY(basic_queued_client),
+        RPC_LEGACY(basic_client_with_pause),
+        RPC_LEGACY(client_timeout),
+
+        END_OF_TESTCASES,
+};
 
 void
 rpc_suite(void)

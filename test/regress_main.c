@@ -189,6 +189,7 @@ struct testgroup_t testgroups[] = {
         { "util/", util_testcases },
         { "http/", http_testcases },
         { "dns/", dns_testcases },
+        { "rpc/", rpc_testcases },
         END_OF_GROUPS
 };
 
