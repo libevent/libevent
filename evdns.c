@@ -454,7 +454,7 @@ _evdns_log(int warn, const char *fmt, ...)
   if (!evdns_log_fn)
     return;
   va_start(args,fmt);
-  evutil_snprintf(buf, sizeof(buf), fmt, args);
+  evutil_vsnprintf(buf, sizeof(buf), fmt, args);
   evdns_log_fn(warn, buf);
   va_end(args);
 }
