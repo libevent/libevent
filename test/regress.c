@@ -2393,8 +2393,6 @@ legacy_main(void)
 	rpc_suite();
 #endif
 
-	dns_suite();
-
 	evtag_test();
 
 	rpc_test();

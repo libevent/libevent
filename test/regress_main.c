@@ -63,18 +63,31 @@
 #include <event2/util.h>
 #include <event2/event.h>
 #include <event2/event_compat.h>
+#include <event2/dns.h>
+#include <event2/dns_compat.h>
 
 #include "regress.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"
 
 /* ============================================================ */
-/* Code to wrap up old legacy test cases that used setup() and cleanup(). */
+/* Code to wrap up old legacy test cases that used setup() and cleanup().
+ *
+ * Not all of the tests designated "legacy" are ones that used setup() and
+ * cleanup(), of course.  A test is legacy it it uses setup()/cleanup(), OR
+ * if it wants to find its event base/socketpair in global variables (ugh),
+ * OR if it wants to communicate success/failure through test_ok.
+ */
 
 /* This is set to true if we're inside a legacy test wrapper.  It lets the
    setup() and cleanup() functions in regress.c know they're not needed.
  */
 int in_legacy_test_wrapper = 0;
+
+static void dnslogcb(int w, const char *m)
+{
+        TT_BLATHER((m));
+}
 
 /* The "data" for a legacy test is just a pointer to the void fn(void)
    function implementing the test case.  We need to set up some globals,
@@ -103,6 +116,12 @@ legacy_test_setup(const struct testcase_t *testcase)
 	if (testcase->flags & TT_NEED_BASE) {
 		global_base = event_init();
 	}
+
+        if (testcase->flags & TT_NEED_DNS) {
+                evdns_set_log_fn(dnslogcb);
+                if (evdns_init())
+                        return NULL; /* fast failure *//*XXX asserts. */
+        }
 
 	return testcase->setup_data;
 }
@@ -150,6 +169,9 @@ legacy_test_cleanup(const struct testcase_t *testcase, void *ptr)
                 global_base = NULL;
         }
 
+        if (testcase->flags & TT_NEED_DNS) {
+                evdns_shutdown(0);
+        }
 
 	return 1;
 }
@@ -166,6 +188,7 @@ struct testgroup_t testgroups[] = {
         { "signal/", signal_testcases },
         { "util/", util_testcases },
         { "http/", http_testcases },
+        { "dns/", dns_testcases },
         END_OF_GROUPS
 };
 

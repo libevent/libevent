@@ -38,12 +38,11 @@ extern struct testcase_t legacy_testcases[];
 extern struct testcase_t util_testcases[];
 extern struct testcase_t signal_testcases[];
 extern struct testcase_t http_testcases[];
+extern struct testcase_t dns_testcases[];
 
 int legacy_main(void);
 
 void rpc_suite(void);
-
-void dns_suite(void);
 
 void regress_pthread(void);
 void regress_zlib(void);
@@ -63,6 +62,7 @@ void run_legacy_test_fn(void *ptr);
 /* A couple of flags that legacy_setup can support. */
 #define TT_NEED_SOCKETPAIR   TT_FIRST_USER_FLAG
 #define TT_NEED_BASE         (TT_FIRST_USER_FLAG<<1)
+#define TT_NEED_DNS          (TT_FIRST_USER_FLAG<<2)
 
 /* All the flags that a legacy test needs. */
 #define TT_ISOLATED TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE
