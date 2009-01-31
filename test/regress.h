@@ -43,8 +43,6 @@ extern struct testcase_t rpc_testcases[];
 
 int legacy_main(void);
 
-void rpc_suite(void);
-
 void regress_pthread(void);
 void regress_zlib(void);
 
