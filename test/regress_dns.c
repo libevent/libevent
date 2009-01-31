@@ -63,11 +63,10 @@
 #include "event2/event_compat.h"
 #include "evdns.h"
 #include "log-internal.h"
+#include "regress.h"
 
 static int dns_ok = 0;
 static int dns_err = 0;
-
-void dns_suite(void);
 
 static void
 dns_gethostbyname_cb(int result, char type, int count, int ttl,
@@ -86,7 +85,7 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 		goto out;
 	}
 
-	fprintf(stderr, "type: %d, count: %d, ttl: %d: ", type, count, ttl);
+        TT_BLATHER(("type: %d, count: %d, ttl: %d: ", type, count, ttl));
 
 	switch (type) {
 	case DNS_IPv6_AAAA: {
@@ -100,9 +99,9 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 		for (i = 0; i < count; ++i) {
 			const char *b = inet_ntop(AF_INET6, &in6_addrs[i], buf,sizeof(buf));
 			if (b)
-				fprintf(stderr, "%s ", b);
+				TT_BLATHER(("%s ", b));
 			else
-				fprintf(stderr, "%s ", strerror(errno));
+				TT_BLATHER(("%s ", strerror(errno)));
 		}
 #endif
 		break;
@@ -114,7 +113,7 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 		if (ttl < 0)
 			goto out;
 		for (i = 0; i < count; ++i)
-			fprintf(stderr, "%s ", inet_ntoa(in_addrs[i]));
+                        TT_BLATHER(("%s ", inet_ntoa(in_addrs[i])));
 		break;
 	}
 	case DNS_PTR:
@@ -122,7 +121,7 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 		if (count != 1)
 			goto out;
 
-		fprintf(stderr, "%s ", *(char **)addresses);
+		TT_BLATHER(("%s ", *(char **)addresses));
 		break;
 	default:
 		goto out;
@@ -140,35 +139,31 @@ out:
 static void
 dns_gethostbyname(void)
 {
-	fprintf(stdout, "Simple DNS resolve: ");
 	dns_ok = 0;
 	evdns_resolve_ipv4("www.monkey.org", 0, dns_gethostbyname_cb, NULL);
 	event_dispatch();
 
-	if (dns_ok == DNS_IPv4_A) {
-		fprintf(stdout, "OK\n");
-	} else {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_int_op(dns_ok, ==, DNS_IPv4_A);
+        test_ok = dns_ok;
+end:
+        ;
 }
 
 static void
 dns_gethostbyname6(void)
 {
-	fprintf(stdout, "IPv6 DNS resolve: ");
 	dns_ok = 0;
 	evdns_resolve_ipv6("www.ietf.org", 0, dns_gethostbyname_cb, NULL);
 	event_dispatch();
 
-	if (dns_ok == DNS_IPv6_AAAA) {
-		fprintf(stdout, "OK\n");
-	} else if (!dns_ok && dns_err == DNS_ERR_TIMEOUT) {
-		fprintf(stdout, "SKIPPED\n");
-	} else {
-		fprintf(stdout, "FAILED (%d)\n", dns_ok);
-		exit(1);
-	}
+        if (!dns_ok && dns_err == DNS_ERR_TIMEOUT) {
+                tt_skip();
+        }
+
+        tt_int_op(dns_ok, ==, DNS_IPv6_AAAA);
+        test_ok = 1;
+end:
+        ;
 }
 
 static void
@@ -176,49 +171,42 @@ dns_gethostbyaddr(void)
 {
 	struct in_addr in;
 	in.s_addr = htonl(0x7f000001ul); /* 127.0.0.1 */
-	fprintf(stdout, "Simple reverse DNS resolve: ");
 	dns_ok = 0;
 	evdns_resolve_reverse(&in, 0, dns_gethostbyname_cb, NULL);
 	event_dispatch();
 
-	if (dns_ok == DNS_PTR) {
-		fprintf(stdout, "OK\n");
-	} else {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_int_op(dns_ok, ==, DNS_PTR);
+        test_ok = dns_ok;
+end:
+        ;
 }
 
 static void
-dns_resolve_reverse(void)
+dns_resolve_reverse(void *ptr)
 {
 	struct in_addr in;
 	struct event_base *base = event_base_new();
 	struct evdns_base *dns = evdns_base_new(base, 1/* init name servers */);
 	struct evdns_request *req = NULL;
 
+        tt_assert(base);
+        tt_assert(dns);
 	in.s_addr = htonl(0x7f000001ul); /* 127.0.0.1 */
-	fprintf(stdout, "Simple reverse DNS resolve (base): ");
 	dns_ok = 0;
 
 	req = evdns_base_resolve_reverse(
 		dns, &in, 0, dns_gethostbyname_cb, base);
-	if (req == NULL) {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_assert(req);
 
 	event_base_dispatch(base);
 
-	if (dns_ok == DNS_PTR) {
-		fprintf(stdout, "OK\n");
-	} else {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        tt_int_op(dns_ok, ==, DNS_PTR);
 
-	evdns_base_free(dns, 0);
-	event_base_free(base);
+end:
+        if (dns)
+                evdns_base_free(dns, 0);
+        if (base)
+                event_base_free(base);
 }
 
 static int n_server_responses = 0;
@@ -334,43 +322,32 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 static void
 dns_server(void)
 {
-	int sock;
+        evutil_socket_t sock=-1;
 	struct sockaddr_in my_addr;
-	struct evdns_server_port *port;
+	struct evdns_server_port *port=NULL;
 	struct in_addr resolve_addr;
 
 	dns_ok = 1;
-	fprintf(stdout, "DNS server support: ");
 
 	/* Add ourself as the only nameserver, and make sure we really are
 	 * the only nameserver. */
 	evdns_nameserver_ip_add("127.0.0.1:35353");
-	if (evdns_count_nameservers() != 1) {
-		fprintf(stdout, "Couldn't set up.\n");
-		exit(1);
-	}
 
+	tt_int_op(evdns_count_nameservers(), ==, 1);
 	/* Now configure a nameserver port. */
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sock == -1) {
-		perror("socket");
-		exit(1);
-	}
-#ifdef WIN32
-	{
-		u_long nonblocking = 1;
-		ioctlsocket(sock, FIONBIO, &nonblocking);
-	}
-#else
-	fcntl(sock, F_SETFL, O_NONBLOCK);
-#endif
+        if (sock<=0) {
+                tt_fail_perror("socket");
+        }
+
+        evutil_make_socket_nonblocking(sock);
+
 	memset(&my_addr, 0, sizeof(my_addr));
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_port = htons(35353);
 	my_addr.sin_addr.s_addr = htonl(0x7f000001UL);
 	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
-		perror("bind");
-		exit (1);
+		tt_fail_perror("bind");
 	}
 	port = evdns_add_server_port(sock, 0, dns_server_request_cb, NULL);
 
@@ -381,37 +358,32 @@ dns_server(void)
 					   dns_server_gethostbyname_cb, NULL);
 	resolve_addr.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
 	evdns_resolve_reverse(&resolve_addr, 0,
-						  dns_server_gethostbyname_cb, NULL);
+            dns_server_gethostbyname_cb, NULL);
 
 	event_dispatch();
 
-	if (dns_ok) {
-		fprintf(stdout, "OK\n");
-	} else {
-		fprintf(stdout, "FAILED\n");
-		exit(1);
-	}
+        test_ok = dns_ok;
 
-	evdns_close_server_port(port);
+end:
+        if (port)
+                evdns_close_server_port(port);
 	evdns_shutdown(0); /* remove ourself as nameserver. */
-#ifdef WIN32
-	closesocket(sock);
-#else
-	close(sock);
-#endif
+        if (sock >= 0)
+                EVUTIL_CLOSESOCKET(sock);
 }
 
-void
-dns_suite(void)
-{
-	dns_server(); /* Do this before we call evdns_init. */
 
-	evdns_init();
-	dns_gethostbyname();
-	dns_gethostbyname6();
-	dns_gethostbyaddr();
+#define DNS_LEGACY(name, flags)                                        \
+	{ #name, run_legacy_test_fn, flags, &legacy_setup,             \
+                    dns_##name }
 
-	dns_resolve_reverse();
+struct testcase_t dns_testcases[] = {
+        DNS_LEGACY(server, TT_FORK|TT_NEED_BASE),
+        DNS_LEGACY(gethostbyname, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
+        DNS_LEGACY(gethostbyname6, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
+        DNS_LEGACY(gethostbyaddr, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
+        { "resolve_reverse", dns_resolve_reverse, TT_FORK },
 
-	evdns_shutdown(0);
-}
+        END_OF_TESTCASES
+};
+

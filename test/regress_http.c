@@ -2140,7 +2140,6 @@ http_negative_content_length_test(void)
 		evhttp_free(http);
 }
 
-#
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED, &legacy_setup, \
                     http_##name##_test }
