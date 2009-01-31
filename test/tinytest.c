@@ -48,7 +48,8 @@ static int n_bad = 0; /**< Number of tests that have failed. */
 static int opt_forked = 0; /**< True iff we're called from inside a win32 fork*/
 static int opt_verbosity = 1; /**< 0==quiet,1==normal,2==verbose */
 
-static int cur_test_outcome = 0; /**< True iff the current test has failed. */
+enum outcome { SKIP=2, OK=1, FAIL=0 };
+static enum outcome cur_test_outcome = 0;
 const char *cur_test_prefix = NULL; /**< prefix of the current test group */
 /** Name of the  current test, if we haven't logged is yet. Used for --quiet */
 const char *cur_test_name = NULL;
@@ -58,29 +59,32 @@ const char *cur_test_name = NULL;
 static const char *commandname = NULL;
 #endif
 
-static int
+static enum outcome
 _testcase_run_bare(const struct testcase_t *testcase)
 {
 	void *env = NULL;
 	int outcome;
 	if (testcase->setup) {
 		env = testcase->setup->setup_fn(testcase);
-		assert(env);
+                if (!env)
+			return FAIL;
 	}
 
-	cur_test_outcome = 1;
+	cur_test_outcome = OK;
 	testcase->fn(env);
 	outcome = cur_test_outcome;
 
 	if (testcase->setup) {
 		if (testcase->setup->cleanup_fn(testcase, env) == 0)
-			outcome = 0;
+			outcome = FAIL;
 	}
 
 	return outcome;
 }
 
-static int
+#define MAGIC_EXITCODE 42
+
+static enum outcome
 _testcase_run_forked(const struct testgroup_t *group,
 		     const struct testcase_t *testcase)
 {
@@ -127,7 +131,12 @@ _testcase_run_forked(const struct testgroup_t *group,
 	GetExitCodeProcess(info.hProcess, &exitcode);
 	CloseHandle(info.hProcess);
 	CloseHandle(info.hThread);
-	return exitcode == 0;
+	if (exitcode == 0)
+		return OK;
+	else if (exitcode == MAGIC_EXITCODE)
+		return SKIP;
+	else
+		return FAIL;
 #else
 	int outcome_pipe[2];
 	pid_t pid;
@@ -142,9 +151,12 @@ _testcase_run_forked(const struct testgroup_t *group,
 	if (!pid) {
 		/* child. */
 		int test_r, write_r;
+		char b[1];
 		close(outcome_pipe[0]);
 		test_r = _testcase_run_bare(testcase);
-	        write_r = write(outcome_pipe[1], test_r ? "Y" : "N", 1);
+		assert(0<=(int)test_r && (int)test_r<=2);
+		b[0] = "NYS"[test_r];
+	        write_r = write(outcome_pipe[1], b, 1);
 		if (write_r != 1) {
 			perror("write outcome to pipe");
 			exit(1);
@@ -166,7 +178,7 @@ _testcase_run_forked(const struct testgroup_t *group,
 		}
 		waitpid(pid, &status, 0);
 		close(outcome_pipe[0]);
-		return b[0] == 'Y' ? 1 : 0;
+		return b[0]=='Y' ? OK : (b[0]=='S' ? SKIP : FAIL);
 	}
 #endif
 }
@@ -175,13 +187,13 @@ int
 testcase_run_one(const struct testgroup_t *group,
 		 const struct testcase_t *testcase)
 {
-	int outcome;
+	enum outcome outcome;
 
 	if (testcase->flags & TT_SKIP) {
 		if (opt_verbosity)
 			printf("%s%s... SKIPPED\n",
 			    group->prefix, testcase->name);
-		return 1;
+		return SKIP;
 	}
 
 	if (opt_verbosity && !opt_forked)
@@ -197,10 +209,13 @@ testcase_run_one(const struct testgroup_t *group,
 		outcome  = _testcase_run_bare(testcase);
 	}
 
-	if (outcome) {
+	if (outcome == OK) {
 		++n_ok;
 		if (opt_verbosity && !opt_forked)
 			puts(opt_verbosity==1?"OK":"");
+	} else if (outcome == SKIP) {
+		if (opt_verbosity && !opt_forked)
+			puts("SKIPPED");
 	} else {
 		++n_bad;
 		if (!opt_forked)
@@ -208,9 +223,9 @@ testcase_run_one(const struct testgroup_t *group,
 	}
 
 	if (opt_forked) {
-		exit(outcome ? 0 : 1);
+		exit(outcome==OK ? 0 : (outcome==SKIP?MAGIC_EXITCODE : 1));
 	} else {
-		return outcome;
+		return (int)outcome;
 	}
 }
 
@@ -310,5 +325,12 @@ _tinytest_set_test_failed(void)
 		cur_test_name = NULL;
 	}
 	cur_test_outcome = 0;
+}
+
+void
+_tinytest_set_test_skipped(void)
+{
+	if (cur_test_outcome==OK)
+		cur_test_outcome = SKIP;
 }
 
