@@ -1913,7 +1913,7 @@ http_make_web_server(int fd, short what, void *arg)
 }
 
 static void
-http_connection_retry(void)
+http_connection_retry_test(void)
 {
 	short port = -1;
 	struct evhttp_connection *evcon = NULL;
@@ -2142,35 +2142,36 @@ http_negative_content_length_test(void)
 
 #
 #define HTTP_LEGACY(name)						\
-	{ #name, run_legacy_test_fn, TT_ISOLATED, &legacy_setup, http_##name }
+	{ #name, run_legacy_test_fn, TT_ISOLATED, &legacy_setup, \
+                    http_##name##_test }
 
 struct testcase_t http_testcases[] = {
 	{ "primitives", http_primitives, 0, NULL, NULL },
-	HTTP_LEGACY(base_test),
+	HTTP_LEGACY(base),
 	{ "bad_headers", http_bad_header_test, 0, NULL, NULL },
-	HTTP_LEGACY(basic_test),
-	HTTP_LEGACY(cancel_test),
-	HTTP_LEGACY(virtual_host_test),
-	HTTP_LEGACY(post_test),
-	HTTP_LEGACY(put_test),
-	HTTP_LEGACY(delete_test),
-	HTTP_LEGACY(failure_test),
-	HTTP_LEGACY(connection_test),
-	HTTP_LEGACY(persist_connection_test),
-	HTTP_LEGACY(close_detection_test),
-	HTTP_LEGACY(close_detection_delay_test),
-	HTTP_LEGACY(incomplete_test),
-	HTTP_LEGACY(incomplete_timeout_test),
+	HTTP_LEGACY(basic),
+	HTTP_LEGACY(cancel),
+	HTTP_LEGACY(virtual_host),
+	HTTP_LEGACY(post),
+	HTTP_LEGACY(put),
+	HTTP_LEGACY(delete),
+	HTTP_LEGACY(failure),
+	HTTP_LEGACY(connection),
+	HTTP_LEGACY(persist_connection),
+	HTTP_LEGACY(close_detection),
+	HTTP_LEGACY(close_detection_delay),
+	HTTP_LEGACY(incomplete),
+	HTTP_LEGACY(incomplete_timeout),
 
-	HTTP_LEGACY(highport_test),
-	HTTP_LEGACY(dispatcher_test),
-	HTTP_LEGACY(multi_line_header_test),
-	HTTP_LEGACY(negative_content_length_test),
-	HTTP_LEGACY(chunk_out_test),
-	HTTP_LEGACY(stream_out_test),
+	HTTP_LEGACY(highport),
+	HTTP_LEGACY(dispatcher),
+	HTTP_LEGACY(multi_line_header),
+	HTTP_LEGACY(negative_content_length),
+	HTTP_LEGACY(chunk_out),
+	HTTP_LEGACY(stream_out),
 
-	HTTP_LEGACY(stream_in_test),
-	HTTP_LEGACY(stream_in_cancel_test),
+	HTTP_LEGACY(stream_in),
+	HTTP_LEGACY(stream_in_cancel),
 
 #ifndef WIN32
 	HTTP_LEGACY(connection_retry),
