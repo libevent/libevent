@@ -2389,10 +2389,6 @@ legacy_main(void)
 	regress_zlib();
 #endif
 
-#ifndef WIN32
-	rpc_suite();
-#endif
-
 	evtag_test();
 
 	rpc_test();
