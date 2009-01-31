@@ -1978,29 +1978,18 @@ evtag_int_test(void)
 		oldlen = EVBUFFER_LENGTH(tmp);
 		encode_int(tmp, integers[i]);
 		newlen = EVBUFFER_LENGTH(tmp);
-		fprintf(stdout, "\t\tencoded 0x%08x with %d bytes\n",
-				(unsigned)integers[i], newlen - oldlen);
+                TT_BLATHER(("encoded 0x%08x with %d bytes",
+                        (unsigned)integers[i], newlen - oldlen));
 	}
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
-		if (evtag_decode_int(&integer, tmp) == -1) {
-			fprintf(stderr, "decode %d failed", i);
-			exit(1);
-		}
-		if (integer != integers[i]) {
-			fprintf(stderr, "got %x, wanted %x",
-					(unsigned)integer, (unsigned)integers[i]);
-			exit(1);
-		}
+                tt_assert(evtag_decode_int(&integer, tmp) != -1);
+                tt_uint_op(integer, ==, integers[i]);
 	}
 
-	if (EVBUFFER_LENGTH(tmp) != 0) {
-		fprintf(stderr, "trailing data");
-		exit(1);
-	}
+        tt_uint_op(EVBUFFER_LENGTH(tmp), ==, 0);
+end:
 	evbuffer_free(tmp);
-
-	fprintf(stdout, "\t%s: OK\n", __func__);
 }
 
 static void
@@ -2023,10 +2012,7 @@ evtag_fuzz(void)
 	}
 
 	/* The majority of decodes should fail */
-	if (not_failed >= 10) {
-		fprintf(stderr, "evtag_unmarshal should have failed");
-		exit(1);
-	}
+	tt_int_op(not_failed, <, 10);
 
 	/* Now insert some corruption into the tag length field */
 	evbuffer_drain(tmp, -1);
@@ -2037,13 +2023,11 @@ evtag_fuzz(void)
 
 	((char *)EVBUFFER_DATA(tmp))[1] = 0xff;
 	if (evtag_unmarshal_timeval(tmp, 0, &tv) != -1) {
-		fprintf(stderr, "evtag_unmarshal_timeval should have failed");
-		exit(1);
+                tt_abort_msg("evtag_unmarshal_timeval should have failed");
 	}
 
+end:
 	evbuffer_free(tmp);
-
-	fprintf(stdout, "\t%s: OK\n", __func__);
 }
 
 static void
@@ -2061,43 +2045,28 @@ evtag_tag_encoding(void)
 		oldlen = EVBUFFER_LENGTH(tmp);
 		evtag_encode_tag(tmp, integers[i]);
 		newlen = EVBUFFER_LENGTH(tmp);
-		fprintf(stdout, "\t\tencoded 0x%08x with %d bytes\n",
-				(unsigned)integers[i], newlen - oldlen);
+                TT_BLATHER(("encoded 0x%08x with %d bytes",
+                        (unsigned)integers[i], newlen - oldlen));
 	}
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
-		if (evtag_decode_tag(&integer, tmp) == -1) {
-			fprintf(stderr, "decode %d failed", i);
-			exit(1);
-		}
-		if (integer != integers[i]) {
-			fprintf(stderr, "got %x, wanted %x",
-					(unsigned)integer, (unsigned)integers[i]);
-			exit(1);
-		}
+                tt_int_op(evtag_decode_tag(&integer, tmp), !=, -1);
+                tt_uint_op(integer, ==, integers[i]);
 	}
 
-	if (EVBUFFER_LENGTH(tmp) != 0) {
-		fprintf(stderr, "trailing data");
-		exit(1);
-	}
+        tt_uint_op(EVBUFFER_LENGTH(tmp), ==, 0);
+end:
 	evbuffer_free(tmp);
-
-	fprintf(stdout, "\t%s: OK\n", __func__);
 }
 
 static void
-evtag_test(void)
+test_evtag(void)
 {
-	fprintf(stdout, "Testing Tagging:\n");
-
 	evtag_init();
 	evtag_int_test();
 	evtag_fuzz();
-
 	evtag_tag_encoding();
-
-	fprintf(stdout, "OK\n");
+        test_ok = 1;
 }
 
 static void
@@ -2183,6 +2152,8 @@ struct testcase_t legacy_testcases[] = {
         LEGACY(fork, TT_ISOLATED),
 #endif
 
+        LEGACY(evtag, TT_ISOLATED),
+
         END_OF_TESTCASES
 };
 
@@ -2214,8 +2185,6 @@ legacy_main(void)
 #if defined(_EVENT_HAVE_LIBZ)
 	regress_zlib();
 #endif
-
-	evtag_test();
 
 	return (0);
 }
