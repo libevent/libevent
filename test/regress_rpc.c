@@ -711,6 +711,150 @@ end:
                 evhttp_free(http);
 }
 
+static void
+rpc_test(void)
+{
+	struct msg *msg = NULL, *msg2 = NULL;
+	struct kill *attack = NULL;
+	struct run *run = NULL;
+	struct evbuffer *tmp = evbuffer_new();
+	struct timeval tv_start, tv_end;
+	ev_uint32_t tag;
+	int i;
+
+	msg = msg_new();
+	EVTAG_ASSIGN(msg, from_name, "niels");
+	EVTAG_ASSIGN(msg, to_name, "phoenix");
+
+	if (EVTAG_GET(msg, attack, &attack) == -1) {
+		tt_abort_msg("Failed to set kill message.");
+	}
+
+	EVTAG_ASSIGN(attack, weapon, "feather");
+	EVTAG_ASSIGN(attack, action, "tickle");
+	for (i = 0; i < 3; ++i) {
+		if (EVTAG_ADD(attack, how_often, i) == NULL) {
+			tt_abort_msg("Failed to add how_often.");
+		}
+	}
+
+	evutil_gettimeofday(&tv_start, NULL);
+	for (i = 0; i < 1000; ++i) {
+		run = EVTAG_ADD(msg, run);
+		if (run == NULL) {
+			tt_abort_msg("Failed to add run message.");
+		}
+		EVTAG_ASSIGN(run, how, "very fast but with some data in it");
+		EVTAG_ASSIGN(run, fixed_bytes,
+		    (ev_uint8_t*)"012345678901234567890123");
+
+		if (EVTAG_ADD(run, notes, "this is my note") == NULL) {
+			tt_abort_msg("Failed to add note.");
+		}
+		if (EVTAG_ADD(run, notes, "pps") == NULL) {
+			tt_abort_msg("Failed to add note");
+		}
+
+		EVTAG_ASSIGN(run, large_number, 0xdead0a0bcafebeefLL);
+		EVTAG_ADD(run, other_numbers, 0xdead0a0b);
+		EVTAG_ADD(run, other_numbers, 0xbeefcafe);
+	}
+
+	if (msg_complete(msg) == -1)
+		tt_abort_msg("Failed to make complete message.");
+
+	evtag_marshal_msg(tmp, 0xdeaf, msg);
+
+	if (evtag_peek(tmp, &tag) == -1)
+		tt_abort_msg("Failed to peak tag.");
+
+	if (tag != 0xdeaf)
+		TT_DIE(("Got incorrect tag: %0x.", (unsigned)tag));
+
+	msg2 = msg_new();
+	if (evtag_unmarshal_msg(tmp, 0xdeaf, msg2) == -1)
+                tt_abort_msg("Failed to unmarshal message.");
+
+	evutil_gettimeofday(&tv_end, NULL);
+	evutil_timersub(&tv_end, &tv_start, &tv_end);
+        TT_BLATHER(("(%.1f us/add) ",
+                (float)tv_end.tv_sec/(float)i * 1000000.0 +
+                tv_end.tv_usec / (float)i));
+
+	if (!EVTAG_HAS(msg2, from_name) ||
+	    !EVTAG_HAS(msg2, to_name) ||
+	    !EVTAG_HAS(msg2, attack)) {
+                tt_abort_msg("Missing data structures.");
+	}
+
+	if (EVTAG_GET(msg2, attack, &attack) == -1) {
+		tt_abort_msg("Could not get attack.");
+	}
+
+	if (EVTAG_LEN(msg2, run) != i) {
+                tt_abort_msg("Wrong number of run messages.");
+	}
+
+	/* get the very first run message */
+	if (EVTAG_GET(msg2, run, 0, &run) == -1) {
+		tt_abort_msg("Failed to get run msg.");
+	} else {
+		/* verify the notes */
+		char *note_one, *note_two;
+		ev_uint64_t large_number;
+		ev_uint32_t short_number;
+
+		if (EVTAG_LEN(run, notes) != 2) {
+			tt_abort_msg("Wrong number of note strings.");
+		}
+
+		if (EVTAG_GET(run, notes, 0, &note_one) == -1 ||
+		    EVTAG_GET(run, notes, 1, &note_two) == -1) {
+			tt_abort_msg("Could not get note strings.");
+		}
+
+		if (strcmp(note_one, "this is my note") ||
+		    strcmp(note_two, "pps")) {
+			tt_abort_msg("Incorrect note strings encoded.");
+		}
+
+		if (EVTAG_GET(run, large_number, &large_number) == -1 ||
+		    large_number != 0xdead0a0bcafebeefLL) {
+			tt_abort_msg("Incorrrect large_number.");
+		}
+
+		if (EVTAG_LEN(run, other_numbers) != 2) {
+			tt_abort_msg("Wrong number of other_numbers.");
+		}
+
+		if (EVTAG_GET(run, other_numbers, 0, &short_number) == -1) {
+			tt_abort_msg("Could not get short number.");
+		}
+		tt_uint_op(short_number, ==, 0xdead0a0b);
+
+	}
+        tt_int_op(EVTAG_LEN(attack, how_often), ==, 3);
+
+	for (i = 0; i < 3; ++i) {
+		ev_uint32_t res;
+		if (EVTAG_GET(attack, how_often, i, &res) == -1) {
+			TT_DIE(("Cannot get %dth how_often msg.", i));
+		}
+		if (res != i) {
+			TT_DIE(("Wrong message encoded %d != %d", i, res));
+		}
+	}
+
+        test_ok = 1;
+end:
+        if (msg)
+                msg_free(msg);
+        if (msg2)
+                msg_free(msg2);
+        if (tmp)
+                evbuffer_free(tmp);
+}
+
 #define RPC_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_FORK|TT_NEED_BASE, &legacy_setup, \
                     rpc_##name }
@@ -722,17 +866,7 @@ struct testcase_t rpc_testcases[] = {
         RPC_LEGACY(basic_queued_client),
         RPC_LEGACY(basic_client_with_pause),
         RPC_LEGACY(client_timeout),
+        RPC_LEGACY(test),
 
         END_OF_TESTCASES,
 };
-
-void
-rpc_suite(void)
-{
-	rpc_basic_test();
-	rpc_basic_message();
-	rpc_basic_client();
-	rpc_basic_queued_client();
-	rpc_basic_client_with_pause();
-	rpc_client_timeout();
-}
