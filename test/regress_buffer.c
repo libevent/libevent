@@ -253,7 +253,7 @@ test_evbuffer_reference(void *ptr)
 	evbuffer_validate(src);
 	evbuffer_validate(dst);
 
-	tt_int_op(reference_cb_called);
+	tt_int_op(reference_cb_called, ==, 1);
 
 	tt_assert(!memcmp(evbuffer_pullup(dst, strlen(data)),
 			  data, strlen(data)));
@@ -507,12 +507,84 @@ end:
                 evbuffer_free(buf);
 }
 
+static void
+log_change_callback(struct evbuffer *buffer, size_t old_len, size_t new_len,
+	       void *arg)
+{
+	struct evbuffer *out = arg;
+	evbuffer_add_printf(out, "%lu->%lu; ", (unsigned long)old_len,
+			    (unsigned long)new_len);
+}
+static void
+self_draining_callback(struct evbuffer *evbuffer, size_t old_len,
+		       size_t new_len, void *arg)
+{
+	if (new_len > old_len)
+		evbuffer_drain(evbuffer, new_len);
+}
+
+static void
+test_evbuffer_callbacks(void *ptr)
+{
+	struct evbuffer *buf = evbuffer_new();
+	struct evbuffer *buf_out1 = evbuffer_new();
+	struct evbuffer *buf_out2 = evbuffer_new();
+	struct evbuffer_cb_entry *cb1, *cb2;
+
+	cb1 = evbuffer_add_cb(buf, log_change_callback, buf_out1);
+	cb2 = evbuffer_add_cb(buf, log_change_callback, buf_out2);
+
+	/* Let's run through adding and deleting some stuff from the buffer
+	 * and turning the callbacks on and off and removing them.  The callback
+	 * adds a summary of length changes to buf_out1/buf_out2 when called. */
+	/* size: 0-> 36. */
+	evbuffer_add_printf(buf, "The %d magic words are spotty pudding", 2);
+	evbuffer_cb_set_flags(buf, cb2, 0);
+	evbuffer_drain(buf, 10); /*36->26*/
+	evbuffer_prepend(buf, "Hello", 5);/*26->31*/
+	evbuffer_cb_set_flags(buf, cb2, EVBUFFER_CB_ENABLED);
+	evbuffer_add_reference(buf, "Goodbye", 7, NULL, NULL); /*31->38*/
+	evbuffer_remove_cb_entry(buf, cb1);
+	evbuffer_drain(buf, EVBUFFER_LENGTH(buf)); /*38->0*/;
+	tt_assert(-1 == evbuffer_remove_cb(buf, log_change_callback, NULL));
+	evbuffer_add(buf, "X", 1); /* 0->1 */
+	tt_assert(!evbuffer_remove_cb(buf, log_change_callback, buf_out2));
+
+	tt_str_op(evbuffer_pullup(buf_out1, -1), ==,
+		  "0->36; 36->26; 26->31; 31->38; ");
+	tt_str_op(evbuffer_pullup(buf_out2, -1), ==,
+		  "0->36; 31->38; 38->0; 0->1; ");
+	evbuffer_drain(buf_out1, EVBUFFER_LENGTH(buf_out1));
+	evbuffer_drain(buf_out2, EVBUFFER_LENGTH(buf_out2));
+
+	/* Let's test the obsolete buffer_setcb function too. */
+	cb1 = evbuffer_add_cb(buf, log_change_callback, buf_out1);
+	cb2 = evbuffer_add_cb(buf, log_change_callback, buf_out2);
+	evbuffer_setcb(buf, self_draining_callback, NULL);
+	evbuffer_add_printf(buf, "This should get drained right away.");
+	tt_uint_op(EVBUFFER_LENGTH(buf), ==, 0);
+	tt_uint_op(EVBUFFER_LENGTH(buf_out1), ==, 0);
+	tt_uint_op(EVBUFFER_LENGTH(buf_out2), ==, 0);
+	evbuffer_setcb(buf, NULL, NULL);
+	evbuffer_add_printf(buf, "This will not.");
+	tt_str_op(evbuffer_pullup(buf, -1), ==, "This will not.");
+
+ end:
+	if (buf)
+		evbuffer_free(buf);
+	if (buf_out1)
+		evbuffer_free(buf_out1);
+	if (buf_out2)
+		evbuffer_free(buf_out2);
+}
+
 struct testcase_t evbuffer_testcases[] = {
 	{ "evbuffer", test_evbuffer, 0, NULL, NULL },
 	{ "reference", test_evbuffer_reference, 0, NULL, NULL },
 	{ "iterative", test_evbuffer_iterative, 0, NULL, NULL },
 	{ "readln", test_evbuffer_readln, 0, NULL, NULL },
 	{ "find", test_evbuffer_find, 0, NULL, NULL },
+	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
 
 	END_OF_TESTCASES
 };
