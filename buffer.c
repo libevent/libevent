@@ -1561,7 +1561,7 @@ struct evbuffer_cb_entry *
 evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
 {
 	struct evbuffer_cb_entry *e;
-	if (! (e = mm_malloc(sizeof(struct evbuffer_cb_entry))))
+	if (! (e = mm_calloc(1, sizeof(struct evbuffer_cb_entry))))
 		return NULL;
 	e->cb = cb;
 	e->cbarg = cbarg;
