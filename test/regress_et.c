@@ -54,19 +54,18 @@ read_cb(int fd, short event, void *arg)
 #define LOCAL_SOCKETPAIR_AF AF_UNIX
 #endif
 
-void
-test_edgetriggered(void)
+static void
+test_edgetriggered(void *et)
 {
-	struct event *ev;
-    struct event_base *base;
+	struct event *ev = NULL;
+    struct event_base *base = NULL;
 	const char *test = "test string";
-	evutil_socket_t pair[2];
+	evutil_socket_t pair[2] = {-1,-1};
     int supports_et;
 	int success;
 
 	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0, pair) == -1) {
-		perror("socketpair");
-		exit(1);
+		tt_fail_perror("socketpair");
 	}
 
 	called = was_et = 0;
@@ -83,8 +82,9 @@ test_edgetriggered(void)
 	else
 		supports_et = 0;
 
-	printf("Testing edge-triggered events with %sedge-triggered method %s: ",
-		   supports_et ? "" : "non-", event_base_get_method(base));
+	TT_BLATHER(("Checking for edge-triggered events with %s, which should %s"
+				"support edge-triggering", event_base_get_method(base),
+				supports_et?"":"not "));
 
 	/* Initalize one event */
     ev = event_new(base, pair[1], EV_READ|EV_ET|EV_PERSIST, read_cb, &ev);
@@ -101,23 +101,28 @@ test_edgetriggered(void)
 	event_base_loop(base,EVLOOP_NONBLOCK|EVLOOP_ONCE);
 	event_base_loop(base,EVLOOP_NONBLOCK|EVLOOP_ONCE);
 
-	/* Clean up... */
-    event_del(ev);
-    event_free(ev);
-    event_base_free(base);
+	if (supports_et) {
+		tt_int_op(called, ==, 1);
+		tt_assert(was_et);
+	} else {
+		tt_int_op(called, ==, 2);
+		tt_assert(!was_et);
+		success = (called == 2) && !was_et;
+
+	}
+
+ end:
+	if (ev) {
+		event_del(ev);
+		event_free(ev);
+	}
+	if (base)
+		event_base_free(base);
 	EVUTIL_CLOSESOCKET(pair[0]);
 	EVUTIL_CLOSESOCKET(pair[1]);
-
-	if (supports_et) {
-		success = (called == 1) && was_et;
-	} else {
-		success = (called == 2) && !was_et;
-	}
-
-	if (success) {
-		puts("OK");
-	} else {
-		printf("FAILED (called=%d, was_et=%d)\n", called, was_et);
-		exit(1);
-	}
 }
+
+struct testcase_t edgetriggered_testcases[] = {
+	{ "et", test_edgetriggered, TT_FORK, NULL, NULL },
+	END_OF_TESTCASES
+};

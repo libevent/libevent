@@ -185,6 +185,7 @@ const struct testcase_setup_t legacy_setup = {
 
 struct testgroup_t testgroups[] = {
         { "main/", legacy_testcases },
+		{ "et/", edgetriggered_testcases },
 		{ "evbuffer/", evbuffer_testcases },
         { "signal/", signal_testcases },
         { "util/", util_testcases },
