@@ -107,6 +107,16 @@ static int use_sendfile = 1;
 static int use_mmap = 1;
 #endif
 
+
+/* Mask of user-selectable callback flags. */
+#define EVBUFFER_CB_USER_FLAGS      0xffff
+/* Mask of all internal-use-only flags. */
+#define EVBUFFER_CB_INTERNAL_FLAGS  0xffff0000
+/* Flag set on suspended callbacks. */
+#define EVBUFFER_CB_SUSPENDED          0x00010000
+/* Flag set if we should invoke the callback on wakeup. */
+#define EVBUFFER_CB_CALL_ON_UNSUSPEND  0x00020000
+
 /* evbuffer_chain support */
 #define CHAIN_SPACE_PTR(ch) ((ch)->buffer + (ch)->misalign + (ch)->off)
 #define CHAIN_SPACE_LEN(ch) ((ch)->flags & EVBUFFER_IMMUTABLE ? \
@@ -229,8 +239,13 @@ evbuffer_invoke_callbacks(struct evbuffer *buffer, size_t old_size)
 		/* Get the 'next' pointer now in case this callback decides
 		 * to remove itself or something. */
 		next = TAILQ_NEXT(cbent, next);
-		if ((cbent->flags & EVBUFFER_CB_ENABLED))
-			cbent->cb(buffer, old_size, new_size, cbent->cbarg);
+		if ((cbent->flags & EVBUFFER_CB_ENABLED)) {
+			if ((cbent->flags & EVBUFFER_CB_SUSPENDED))
+				cbent->flags |= EVBUFFER_CB_CALL_ON_UNSUSPEND;
+			else
+				cbent->cb(buffer,
+					  old_size, new_size, cbent->cbarg);
+		}
 	}
 }
 
@@ -1578,9 +1593,33 @@ evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
 
 int
 evbuffer_cb_set_flags(struct evbuffer *buffer,
-		      struct evbuffer_cb_entry *cb, unsigned flags)
+		      struct evbuffer_cb_entry *cb, ev_uint32_t flags)
 {
 	(void)buffer; /* unused */
-	cb->flags = flags;
+	cb->flags = (cb->flags & EVBUFFER_CB_INTERNAL_FLAGS) | flags;
 	return 0;
+}
+
+void
+evbuffer_cb_suspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb)
+{
+	if (!(cb->flags & EVBUFFER_CB_SUSPENDED)) {
+		cb->size_before_suspend = EVBUFFER_LENGTH(buffer);
+		cb->flags |= EVBUFFER_CB_SUSPENDED;
+	}
+}
+
+void
+evbuffer_cb_unsuspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb)
+{
+	if ((cb->flags & EVBUFFER_CB_SUSPENDED)) {
+		unsigned call = (cb->flags & EVBUFFER_CB_CALL_ON_UNSUSPEND);
+		size_t sz = cb->size_before_suspend;
+		cb->flags &= ~(EVBUFFER_CB_SUSPENDED|
+			       EVBUFFER_CB_CALL_ON_UNSUSPEND);
+		cb->size_before_suspend = 0;
+		if (call && (cb->flags & EVBUFFER_CB_ENABLED)) {
+			cb->cb(buffer, sz, EVBUFFER_LENGTH(buffer), cb->cbarg);
+		}
+	}
 }

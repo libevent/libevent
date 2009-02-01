@@ -424,7 +424,28 @@ int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
     @return 0 on success, -1 on failure.
  */
 int evbuffer_cb_set_flags(struct evbuffer *buffer,
-			  struct evbuffer_cb_entry *cb, unsigned flags);
+			  struct evbuffer_cb_entry *cb, ev_uint32_t flags);
+
+/** Postpone calling a given callback until unsuspend is called later.
+
+    This is different from disabling the callback, since the callback will get
+	invoked later if the buffer size changes between now and when we unsuspend
+	it.
+
+	@param the buffer that the callback is watching.
+	@param cb the callback we want to suspend.
+ */
+void evbuffer_cb_suspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb);
+/** Stop postponing a callback that we posponed with evbuffer_cb_suspend.
+
+	If data was added to or removed from the buffer while the callback was
+	suspended, the callback will get called once now.
+
+	@param the buffer that the callback is watching.
+	@param cb the callback we want to stop suspending.
+ */
+void evbuffer_cb_unsuspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb);
+
 
 /**
   Makes the data at the begging of an evbuffer contiguous.
