@@ -41,13 +41,12 @@ extern struct testcase_t signal_testcases[];
 extern struct testcase_t http_testcases[];
 extern struct testcase_t dns_testcases[];
 extern struct testcase_t rpc_testcases[];
+extern struct testcase_t edgetriggered_testcases[];
 
 int legacy_main(void);
 
 void regress_pthread(void);
 void regress_zlib(void);
-
-void test_edgetriggered(void);
 
 /* Helpers to wrap old testcases */
 extern int pair[2];
