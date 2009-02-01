@@ -42,7 +42,8 @@ struct evbuffer_cb_entry {
 	TAILQ_ENTRY(evbuffer_cb_entry) next;
 	evbuffer_cb cb;
 	void *cbarg;
-	unsigned flags;
+	ev_uint32_t flags;
+	size_t size_before_suspend;
 };
 
 struct evbuffer_chain;

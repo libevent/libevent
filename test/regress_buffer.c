@@ -569,6 +569,26 @@ test_evbuffer_callbacks(void *ptr)
 	evbuffer_add_printf(buf, "This will not.");
 	tt_str_op(evbuffer_pullup(buf, -1), ==, "This will not.");
 
+	evbuffer_drain(buf, EVBUFFER_LENGTH(buf));
+
+	/* Now let's try a suspended callback. */
+	cb1 = evbuffer_add_cb(buf, log_change_callback, buf_out1);
+	cb2 = evbuffer_add_cb(buf, log_change_callback, buf_out2);
+	evbuffer_cb_suspend(buf,cb2);
+	evbuffer_prepend(buf,"Hello world",11); /*0->11*/
+	evbuffer_validate(buf);
+	evbuffer_cb_suspend(buf,cb1);
+	evbuffer_add(buf,"more",4); /* 11->15 */
+	evbuffer_cb_unsuspend(buf,cb2);
+	evbuffer_drain(buf, 4); /* 15->11 */
+	evbuffer_cb_unsuspend(buf,cb1);
+	evbuffer_drain(buf, EVBUFFER_LENGTH(buf)); /* 11->0 */
+
+	tt_str_op(evbuffer_pullup(buf_out1, -1), ==,
+		  "0->11; 11->11; 11->0; ");
+	tt_str_op(evbuffer_pullup(buf_out2, -1), ==,
+		  "0->15; 15->11; 11->0; ");
+
  end:
 	if (buf)
 		evbuffer_free(buf);
