@@ -375,7 +375,7 @@ unsigned char *evbuffer_find(struct evbuffer *buffer, const unsigned char *what,
 
     @param buffer the buffer whose size has changed
     @param old_len the previous length of the buffer
-    @param new_len thee current length of the buffer
+    @param new_len the current length of the buffer
     @param arg a pointer to user data
 */
 typedef void (*evbuffer_cb)(struct evbuffer *buffer, size_t old_len, size_t new_len, void *arg);
