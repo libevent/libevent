@@ -56,20 +56,15 @@
 
 void regress_zlib(void);
 
-static int test_ok;
+static int infilter_calls;
+static int outfilter_calls;
+static int readcb_finished;
+static int writecb_finished;
+static int errorcb_invoked;
 
 /*
  * Zlib filters
  */
-
-static void
-zlib_deflate_init(void *ctx)
-{
-	z_streamp p = ctx;
-
-	memset(p, 0, sizeof(z_stream));
-	assert(deflateInit(p, Z_DEFAULT_COMPRESSION) == Z_OK);
-}
 
 static void
 zlib_deflate_free(void *ctx)
@@ -80,20 +75,25 @@ zlib_deflate_free(void *ctx)
 }
 
 static void
-zlib_inflate_init(void *ctx)
-{
-	z_streamp p = ctx;
-
-	memset(p, 0, sizeof(z_stream));
-	assert(inflateInit(p) == Z_OK);
-}
-
-static void
 zlib_inflate_free(void *ctx)
 {
 	z_streamp p = ctx;
 
 	assert(inflateEnd(p) == Z_OK);
+}
+
+static int
+getstate(enum bufferevent_flush_mode state)
+{
+	switch (state) {
+	case BEV_FINISHED:
+		return Z_FINISH;
+	case BEV_FLUSH:
+		return Z_SYNC_FLUSH;
+	case BEV_NORMAL:
+	default:
+		return Z_NO_FLUSH;
+	}
 }
 
 /*
@@ -103,7 +103,7 @@ zlib_inflate_free(void *ctx)
  */
 static enum bufferevent_filter_result
 zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
-    enum bufferevent_filter_state state, void *ctx)
+    ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
 	int nread, nwrite;
 	int res;
@@ -119,9 +119,7 @@ zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
 		p->avail_out = 4096;
 
 		/* we need to flush zlib if we got a flush */
-		res = inflate(p, state == BEV_FLUSH ?
-		    Z_FINISH : Z_NO_FLUSH);
-		assert(res == Z_OK || res == Z_STREAM_END);
+		res = inflate(p, getstate(state));
 
 		/* let's figure out how much was compressed */
 		nread = evbuffer_get_contiguous_space(src) - p->avail_in;
@@ -129,16 +127,27 @@ zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
 
 		evbuffer_drain(src, nread);
 		evbuffer_commit_space(dst, nwrite);
+
+		if (res==Z_BUF_ERROR) {
+			/* We're out of space, or out of decodeable input.
+			   Only if nwrite == 0 assume the latter.
+			 */
+			if (nwrite == 0)
+				return BEV_NEED_MORE;
+		} else {
+			assert(res == Z_OK || res == Z_STREAM_END);
+		}
+
 	} while (EVBUFFER_LENGTH(src) > 0);
 
-	test_ok++;
+        ++infilter_calls;
 
 	return (BEV_OK);
 }
 
 static enum bufferevent_filter_result
 zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
-    enum bufferevent_filter_state state, void *ctx)
+    ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
 	int nread, nwrite;
 	int res;
@@ -153,9 +162,9 @@ zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
 		p->next_out = evbuffer_reserve_space(dst, 4096);
 		p->avail_out = 4096;
 
+
 		/* we need to flush zlib if we got a flush */
-		res = deflate(p, state == BEV_FLUSH ? Z_FINISH : Z_NO_FLUSH);
-		assert(res == Z_OK || res == Z_STREAM_END);
+		res = deflate(p, getstate(state));
 
 		/* let's figure out how much was compressed */
 		nread = evbuffer_get_contiguous_space(src) - p->avail_in;
@@ -163,9 +172,20 @@ zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
 
 		evbuffer_drain(src, nread);
 		evbuffer_commit_space(dst, nwrite);
+
+		if (res==Z_BUF_ERROR) {
+			/* We're out of space, or out of decodeable input.
+			   Only if nwrite == 0 assume the latter.
+			 */
+			if (nwrite == 0)
+				return BEV_NEED_MORE;
+		} else {
+			assert(res == Z_OK || res == Z_STREAM_END);
+		}
+
 	} while (EVBUFFER_LENGTH(src) > 0);
 
-	test_ok++;
+	++outfilter_calls;
 
 	return (BEV_OK);
 }
@@ -186,8 +206,9 @@ readcb(struct bufferevent *bev, void *arg)
 
 		bufferevent_disable(bev, EV_READ);
 
-		if (EVBUFFER_LENGTH(evbuf) == 8333)
-			test_ok++;
+		if (EVBUFFER_LENGTH(evbuf) == 8333) {
+			++readcb_finished;
+                }
 
 		evbuffer_free(evbuf);
 	}
@@ -196,26 +217,29 @@ readcb(struct bufferevent *bev, void *arg)
 static void
 writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bufferevent_get_output(bev)) == 0)
-		test_ok++;
+	if (EVBUFFER_LENGTH(bufferevent_get_output(bev)) == 0) {
+		++writecb_finished;
+        }
 }
 
 static void
 errorcb(struct bufferevent *bev, short what, void *arg)
 {
-	test_ok = -2;
+	errorcb_invoked = 1;
 }
 
 static void
 test_bufferevent_zlib(void)
 {
-	struct bufferevent *bev1, *bev2;
-	struct bufferevent_filter *finput, *foutput;
+	struct bufferevent *bev1, *bev2, *bev1_orig, *bev2_orig;
 	char buffer[8333];
 	z_stream z_input, z_output;
-	int i, pair[2];
+	int i, pair[2], r;
+        int test_ok;
 
-	test_ok = 0;
+	infilter_calls = outfilter_calls = readcb_finished = writecb_finished
+            = errorcb_invoked = 0;
+
 	fprintf(stdout, "Testing Zlib Filter: ");
 
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
@@ -226,21 +250,27 @@ test_bufferevent_zlib(void)
 	evutil_make_socket_nonblocking(pair[0]);
 	evutil_make_socket_nonblocking(pair[1]);
 
-	bev1 = bufferevent_new(pair[0], readcb, writecb, errorcb, NULL);
-	bev2 = bufferevent_new(pair[1], readcb, writecb, errorcb, NULL);
+	bev1_orig = bev1 = bufferevent_socket_new(NULL, pair[0], 0);
+	bev2_orig = bev2 = bufferevent_socket_new(NULL, pair[1], 0);
+
+	memset(&z_output, 0, sizeof(z_output));
+	r = deflateInit(&z_output, Z_DEFAULT_COMPRESSION);
+	assert(r == Z_OK);
+	memset(&z_input, 0, sizeof(z_input));
+	r = inflateInit(&z_input);
 
 	/* initialize filters */
-	finput = bufferevent_filter_new(
-		zlib_inflate_init, zlib_inflate_free,
-		zlib_input_filter, &z_input);
-	bufferevent_filter_insert(bev2, BEV_INPUT, finput);
+	bev1 = bufferevent_filter_new(bev1, NULL, zlib_output_filter, 0,
+				      zlib_deflate_free, &z_output);
+	bev2 = bufferevent_filter_new(bev2, zlib_input_filter,
+				      NULL, 0, zlib_inflate_free, &z_input);
+	bufferevent_setcb(bev1, readcb, writecb, errorcb, NULL);
+	bufferevent_setcb(bev2, readcb, writecb, errorcb, NULL);
 
-	foutput = bufferevent_filter_new(
-		zlib_deflate_init, zlib_deflate_free,
-		zlib_output_filter, &z_output);
-	bufferevent_filter_insert(bev1, BEV_OUTPUT, foutput);
 
 	bufferevent_disable(bev1, EV_READ);
+	bufferevent_enable(bev1, EV_WRITE);
+
 	bufferevent_enable(bev2, EV_READ);
 
 	for (i = 0; i < sizeof(buffer); i++)
@@ -251,14 +281,21 @@ test_bufferevent_zlib(void)
 	bufferevent_write(bev1, buffer + 1800, sizeof(buffer) - 1800);
 
 	/* we are done writing - we need to flush everything */
-	bufferevent_trigger_filter(bev1, NULL, BEV_OUTPUT, BEV_FLUSH);
+	bufferevent_flush(bev1, EV_WRITE, BEV_FINISHED);
 
 	event_dispatch();
 
 	bufferevent_free(bev1);
 	bufferevent_free(bev2);
 
-	if (test_ok != 6) {
+
+        test_ok = infilter_calls &&
+            outfilter_calls &&
+            readcb_finished &&
+            writecb_finished &&
+            !errorcb_invoked;
+
+        if (! test_ok) {
 		fprintf(stdout, "FAILED: %d\n", test_ok);
 		exit(1);
 	}

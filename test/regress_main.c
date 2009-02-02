@@ -189,6 +189,7 @@ struct testgroup_t testgroups[] = {
 		{ "evbuffer/", evbuffer_testcases },
         { "signal/", signal_testcases },
         { "util/", util_testcases },
+        { "bufferevent/", bufferevent_testcases },
         { "http/", http_testcases },
         { "dns/", dns_testcases },
         { "rpc/", rpc_testcases },

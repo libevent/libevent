@@ -192,6 +192,7 @@ typedef unsigned short u_short;
 #include <event2/buffer_compat.h>
 #include <event2/bufferevent.h>
 #include <event2/bufferevent_struct.h>
+#include <event2/bufferevent_compat.h>
 #include <event2/tag.h>
 
 #ifdef __cplusplus

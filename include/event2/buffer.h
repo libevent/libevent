@@ -413,14 +413,15 @@ int evbuffer_remove_cb_entry(struct evbuffer *buffer,
  */
 int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
 
+#define EVBUFFER_CB_DISABLED 0
 #define EVBUFFER_CB_ENABLED 1
 /** Change whether a given callback is enabled on a buffer or not.  A
     disabled callback is not invoked even when the buffer size changes.
 
     @param buffer the evbuffer that the callback is watching.
     @param cb the callback whose status we want to change.
-    @param flags EVBUFFER_CB_ENABLED to enable the callback, or 0 to
-        disable it.
+    @param flags EVBUFFER_CB_ENABLED to enable the callback, or
+        EVBUFFER_CB_DISABLEDD to disable it.
     @return 0 on success, -1 on failure.
  */
 int evbuffer_cb_set_flags(struct evbuffer *buffer,

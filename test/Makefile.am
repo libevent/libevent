@@ -20,6 +20,7 @@ test_time_LDADD = ../libevent_core.la
 
 regress_SOURCES = regress.c regress_buffer.c regress_http.c regress_dns.c \
 	regress_rpc.c regress.gen.c regress.gen.h regress_et.c \
+	regress_bufferevent.c \
 	regress_util.c tinytest.c regress_main.c \
 	$(regress_pthread_SOURCES) $(regress_zlib_SOURCES)
 if PTHREADS
