@@ -2172,9 +2172,7 @@ struct testcase_t http_testcases[] = {
 	HTTP_LEGACY(stream_in),
 	HTTP_LEGACY(stream_in_cancel),
 
-#ifndef WIN32
 	HTTP_LEGACY(connection_retry),
-#endif
 
 	END_OF_TESTCASES
 };
