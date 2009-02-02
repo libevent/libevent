@@ -61,6 +61,7 @@
 #include "event2/tag.h"
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
+#include "event2/bufferevent_compat.h"
 #include "event2/bufferevent_struct.h"
 #include "event2/util.h"
 #include "event-internal.h"
@@ -150,7 +151,7 @@ multiple_write_cb(int fd, short event, void *arg)
 	}
 
 	woff += len;
-
+        
 	if (woff >= sizeof(wbuf)) {
 		shutdown(fd, SHUT_WR);
 		if (usepersist)
@@ -1098,8 +1099,9 @@ readcb(struct bufferevent *bev, void *arg)
 
 		bufferevent_disable(bev, EV_READ);
 
-		if (EVBUFFER_LENGTH(evbuf) == 8333)
+		if (EVBUFFER_LENGTH(evbuf) == 8333) {
 			test_ok++;
+                }
 
 		evbuffer_free(evbuf);
 	}
@@ -1108,8 +1110,9 @@ readcb(struct bufferevent *bev, void *arg)
 static void
 writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bev->output) == 0)
+	if (EVBUFFER_LENGTH(bev->output) == 0) {
 		test_ok++;
+        }
 }
 
 static void
@@ -1118,7 +1121,8 @@ errorcb(struct bufferevent *bev, short what, void *arg)
 	test_ok = -2;
 }
 
-static void
+/*XXXX move to regress_bufferevent.c; make static again. */
+void
 test_bufferevent(void)
 {
 	struct bufferevent *bev1, *bev2;
@@ -1179,8 +1183,11 @@ wm_readcb(struct bufferevent *bev, void *arg)
 static void
 wm_writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bev->output) == 0)
+        assert(EVBUFFER_LENGTH(bev->output) <= 100);
+	if (EVBUFFER_LENGTH(bev->output) == 0) {
+                evbuffer_drain(bev->output, EVBUFFER_LENGTH(bev->output));
 		test_ok++;
+        }
 }
 
 static void
@@ -1189,7 +1196,8 @@ wm_errorcb(struct bufferevent *bev, short what, void *arg)
 	test_ok = -2;
 }
 
-static void
+/*XXXX move to regress_bufferevent.c; make static again. */
+void
 test_bufferevent_watermarks(void)
 {
 	struct bufferevent *bev1, *bev2;
@@ -1205,20 +1213,28 @@ test_bufferevent_watermarks(void)
 	bufferevent_enable(bev2, EV_READ);
 
 	for (i = 0; i < sizeof(buffer); i++)
-		buffer[i] = i;
+		buffer[i] = (char)i;
 
 	bufferevent_write(bev1, buffer, sizeof(buffer));
 
 	/* limit the reading on the receiving bufferevent */
 	bufferevent_setwatermark(bev2, EV_READ, 10, 20);
 
+        /* Tell the sending bufferevent not to notify us till it's down to
+           100 bytes. */
+        bufferevent_setwatermark(bev1, EV_WRITE, 100, 2000);
+
 	event_dispatch();
 
+	tt_int_op(test_ok, ==, 2);
+
+        /* The write callback drained all the data from outbuf, so we
+         * should have removed the write event... */
+        tt_assert(!event_pending(&bev2->ev_write, EV_WRITE, NULL));
+
+end:
 	bufferevent_free(bev1);
 	bufferevent_free(bev2);
-
-	if (test_ok != 2)
-		test_ok = 0;
 
 	cleanup_test();
 }
@@ -1231,7 +1247,7 @@ test_bufferevent_watermarks(void)
 
 static enum bufferevent_filter_result
 bufferevent_input_filter(struct evbuffer *src, struct evbuffer *dst,
-    enum bufferevent_filter_state state, void *ctx)
+    ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
 	const unsigned char *buffer;
 	int i;
@@ -1253,7 +1269,7 @@ bufferevent_input_filter(struct evbuffer *src, struct evbuffer *dst,
 
 static enum bufferevent_filter_result
 bufferevent_output_filter(struct evbuffer *src, struct evbuffer *dst,
-    enum bufferevent_filter_state state, void *ctx)
+    ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
 	const unsigned char *buffer;
 	int i;
@@ -1268,40 +1284,38 @@ bufferevent_output_filter(struct evbuffer *src, struct evbuffer *dst,
 	return (BEV_OK);
 }
 
-static void
+
+/*XXXX move to regress_bufferevent.c; make static again. */
+void
 test_bufferevent_filters(void)
 {
 	struct bufferevent *bev1, *bev2;
-	struct bufferevent_filter *finput, *foutput;
 	char buffer[8333];
 	int i;
 
+        test_ok = 0;
 	setup_test("Bufferevent Filters: ");
 
-	bev1 = bufferevent_new(pair[0], NULL, writecb, errorcb, NULL);
-	bev2 = bufferevent_new(pair[1], readcb, NULL, errorcb, NULL);
-
-	bufferevent_disable(bev1, EV_READ);
-	bufferevent_enable(bev2, EV_READ);
+	bev1 = bufferevent_socket_new(NULL, pair[0], 0);
+	bev2 = bufferevent_socket_new(NULL, pair[1], 0);
 
 	for (i = 0; i < sizeof(buffer); i++)
 		buffer[i] = i;
 
+	bev1 = bufferevent_filter_new(bev1, NULL, bufferevent_output_filter,
+				      0, NULL, NULL);
+
+	bev2 = bufferevent_filter_new(bev2, bufferevent_input_filter,
+				      NULL, 0, NULL, NULL);
+	bufferevent_setcb(bev1, NULL, writecb, errorcb, NULL);
+	bufferevent_setcb(bev2, readcb, NULL, errorcb, NULL);
+
+	bufferevent_disable(bev1, EV_READ);
+	bufferevent_enable(bev2, EV_READ);
 	/* insert some filters */
-	finput = bufferevent_filter_new(
-		NULL, NULL,bufferevent_input_filter, NULL);
-	foutput = bufferevent_filter_new(
-		NULL, NULL, bufferevent_output_filter, NULL);
-
-	bufferevent_filter_insert(bev1, BEV_OUTPUT, foutput);
-	bufferevent_filter_insert(bev2, BEV_INPUT, finput);
-
 	bufferevent_write(bev1, buffer, sizeof(buffer));
 
 	event_dispatch();
-
-	bufferevent_filter_remove(bev1, BEV_OUTPUT, foutput);
-	bufferevent_filter_free(foutput);
 
 	bufferevent_free(bev1);
 	bufferevent_free(bev2);
@@ -1629,10 +1643,6 @@ struct testcase_t legacy_testcases[] = {
         /* These are still using the old API */
         LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
         LEGACY(priorities, TT_FORK|TT_NEED_BASE),
-
-        LEGACY(bufferevent, TT_ISOLATED),
-        LEGACY(bufferevent_watermarks, TT_ISOLATED),
-        LEGACY(bufferevent_filters, TT_ISOLATED),
 
         LEGACY(free_active_base, TT_FORK|TT_NEED_BASE),
         LEGACY(event_base_new, TT_FORK|TT_NEED_SOCKETPAIR),

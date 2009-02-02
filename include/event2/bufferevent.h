@@ -34,6 +34,20 @@
   and one for writing, and callbacks that are invoked under certain
   circumstances.
 
+  libevent provides an abstraction on top of the regular event callbacks.
+  This abstraction is called a buffered event.  A buffered event provides
+  input and output buffers that get filled and drained automatically.  The
+  user of a buffered event no longer deals directly with the I/O, but
+  instead is reading from input and writing to output buffers.
+
+  Once initialized, the bufferevent structure can be used repeatedly with
+  bufferevent_enable() and bufferevent_disable().
+
+  When read enabled the bufferevent will try to read from the file descriptor
+  and call the read callback.  The write callback is executed whenever the
+  output buffer is drained below the write low watermark, which is 0 by
+  default.
+
  */
 
 #ifdef __cplusplus
@@ -102,43 +116,21 @@ typedef void (*evbuffercb)(struct bufferevent *bev, void *ctx);
 typedef void (*everrorcb)(struct bufferevent *bev, short what, void *ctx);
 
 
+enum bufferevent_options {
+	BEV_OPT_CLOSE_ON_FREE = (1<<0),
+};
+
 /**
-  Create a new bufferevent.
+  Create a new socket bufferevent over an existing socket.
 
-  libevent provides an abstraction on top of the regular event callbacks.
-  This abstraction is called a buffered event.  A buffered event provides
-  input and output buffers that get filled and drained automatically.  The
-  user of a buffered event no longer deals directly with the I/O, but
-  instead is reading from input and writing to output buffers.
-
-  Once initialized, the bufferevent structure can be used repeatedly with
-  bufferevent_enable() and bufferevent_disable().
-
-  When read enabled the bufferevent will try to read from the file descriptor
-  and call the read callback.  The write callback is executed whenever the
-  output buffer is drained below the write low watermark, which is 0 by
-  default.
-
-  If multiple bases are in use, bufferevent_base_set() must be called before
-  enabling the bufferevent for the first time.
-
+  @param base the event base to associate with the new bufferevent.
   @param fd the file descriptor from which data is read and written to.
   		This file descriptor is not allowed to be a pipe(2).
-  @param readcb callback to invoke when there is data to be read, or NULL if
-         no callback is desired
-  @param writecb callback to invoke when the file descriptor is ready for
-         writing, or NULL if no callback is desired
-  @param errorcb callback to invoke when there is an error on the file
-         descriptor
-  @param cbarg an argument that will be supplied to each of the callbacks
-         (readcb, writecb, and errorcb)
   @return a pointer to a newly allocated bufferevent struct, or NULL if an
           error occurred
-  @see bufferevent_base_set(), bufferevent_free()
+  @see bufferevent_free()
   */
-struct bufferevent *bufferevent_new(evutil_socket_t fd,
-    evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg);
-
+struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socket_t fd, enum bufferevent_options options);
 
 /**
   Assign a bufferevent to a specific event_base.
@@ -295,11 +287,11 @@ int bufferevent_disable(struct bufferevent *bufev, short event);
   Set the read and write timeout for a buffered event.
 
   @param bufev the bufferevent to be modified
-  @param timeout_read the read timeout
-  @param timeout_write the write timeout
+  @param timeout_read the read timeout, or NULL
+  @param timeout_write the write timeout, or NULL
  */
-void bufferevent_settimeout(struct bufferevent *bufev,
-    int timeout_read, int timeout_write);
+void bufferevent_set_timeouts(struct bufferevent *bufev,
+    const struct timeval *timeout_read, const struct timeval *timeout_write);
 
 /**
   Sets the watermarks for read and write events.
@@ -309,7 +301,9 @@ void bufferevent_settimeout(struct bufferevent *bufev,
   is beyond the high watermark, the buffevent stops reading from the network.
 
   On output, the user write callback is invoked whenever the buffered data
-  falls below the low watermark.
+  falls below the low watermark.  Filters that write to this bufev will try
+  not to write more bytes to this buffer than the high watermark would allow,
+  except when flushing.
 
   @param bufev the bufferevent to be modified
   @param events EV_READ, EV_WRITE or both
@@ -326,20 +320,36 @@ void bufferevent_setwatermark(struct bufferevent *bufev, short events,
 #define EVBUFFER_OUTPUT(x)	bufferevent_get_output(x)
 
 /**
-   Support for filtering input and output of bufferevents.
- */
-
-/**
    Flags that can be passed into filters to let them know how to
    deal with the incoming data.
 */
-enum bufferevent_filter_state {
+enum bufferevent_flush_mode {
 	/** usually set when processing data */
 	BEV_NORMAL = 0,
 
-	/** encountered EOF on read or done sending data */
+	/** want to checkpoint all data sent. */
 	BEV_FLUSH = 1,
+
+	/** encountered EOF on read or done sending data */
+	BEV_FINISHED = 2,
 };
+
+/**
+   Triggers the bufferevent to produce more
+   data if possible.
+
+   @param bufev the bufferevent object
+   @param iotype either EV_READ or EV_WRITE or both.
+   @param state either BEV_NORMAL or BEV_FLUSH or BEV_FINISHED
+   @return -1 on failure, 0 if no data was produces, 1 if data was produced
+ */
+int bufferevent_flush(struct bufferevent *bufev,
+    short iotype,
+    enum bufferevent_flush_mode state);
+
+/**
+   Support for filtering input and output of bufferevents.
+ */
 
 /**
    Values that filters can return.
@@ -356,116 +366,44 @@ enum bufferevent_filter_result {
 	BEV_ERROR = 2
 };
 
+/** A callback function to implement a filter for a bufferevent.
+
+    @param src An evbuffer to drain data from.
+    @param dst An evbuffer to add data to.
+    @param limit A suggested upper bound of bytes to write to dst.
+       The filter may ignore this value, but doing so means that
+       it will overflow the high-water mark associated with dst.
+       -1 means "no limit".
+    @param state Whether we should write data as may be convenient
+       (BEV_NORMAL), or flush as much data as we can (BEV_FLUSH),
+       or flush as much as we can, possibly including an end-of-stream
+       marker (BEF_FINISH).
+    @param ctx A user-supplied pointer.
+
+    @return BEV_OK if we wrote some data; BEV_NEED_MORE if we can't
+       produce any more output until we get some input; and BEV_ERROR
+       on an error.
+ */
+typedef enum bufferevent_filter_result (*bufferevent_filter_cb)(
+    struct evbuffer *src, struct evbuffer *dst, ssize_t dst_limit,
+    enum bufferevent_flush_mode mode, void *ctx);
+
 struct bufferevent_filter;
 
-/**
-  Creates a new filtering object for a bufferevent.
-
-  Filters can be used to implement compression, authentication, rate limiting,
-  etc. for bufferevents.  Filters can be associated with the input or output
-  path or both.   Filters need to be inserted with bufferevent_filter_insert()
-  on either the input or output path.
-
-  For example, when implementing compression, both an input and an
-  output filters are required.   The output filter compress all output
-  as it passes along whereas the input filter decompresses all input as
-  it is being read from the network.
-
-  Some filters may require specificaly behavior such as flushing their buffers
-  on EOF.   To allom them to do that, a bufferevent will invoke the filter
-  with BEV_FLUSH to let it know that EOF has been reached.
-
-  When a filter needs more data before it can output any data, it may return
-  BEV_NEED_MORE in which case the filter chain is being interrupted until
-  more data arrives.   A filter can indicate a fatal error by returning
-  BEV_ERROR.  Otherwise, it should return BEV_OK.
-
-  @param init_context an optional function that initializes the ctx parameter.
-  @param free_context an optional function to free memory associated with the
-         ctx parameter.
-  @param process the filtering function that should be invokved either during
-         input or output depending on where the filter should be attached.
-  @param ctx additional context that can be passed to the process function
-  @return a bufferevent_filter object that can subsequently be installed
-*/
-struct bufferevent_filter *bufferevent_filter_new(
-	void (*init_context)(void *),
-	void (*free_context)(void *),
-	enum bufferevent_filter_result (*process)(
-		struct evbuffer *src, struct evbuffer *dst,
-		enum bufferevent_filter_state state, void *ctx), void *ctx);
-
-/**
-   Frees the filter object.
-
-   It must have been removed from the bufferevent before it can be freed.
-
-   @param filter the filter to be freed
-   @see bufferevent_filter_remove()
-*/
-void bufferevent_filter_free(struct bufferevent_filter *filter);
-
-/** Filter types for inserting or removing filters */
-enum bufferevent_filter_type {
-	/** filter is being used for input */
-	BEV_INPUT = 0,
-
-	/** filter is being used for output */
-	BEV_OUTPUT = 1
+enum bufferevent_filter_options {
+	BEV_FILT_FREE_UNDERLYING = (1<<0),
 };
 
-/**
-   Inserts a filter into the processing of data for bufferevent.
 
-   A filter can be inserted only once.  It can not be used again for
-   another insert unless it have been removed via
-   bufferevent_filter_remove() first.
-
-   Input filters are inserted at the end, output filters at the
-   beginning of the queue.
-
-   @param bufev the bufferevent object into which to install the filter
-   @param filter_type either BEV_INPUT or BEV_OUTPUT
-   @param filter the filter object
-   @see bufferevent_filter_remove()
+/** Allocate a new filtering bufferevent on top of an existing bufferevent.
  */
-void bufferevent_filter_insert(struct bufferevent *bufev,
-    enum bufferevent_filter_type filter_type,
-    struct bufferevent_filter *filter);
-
-/**
-   Removes a filter from the bufferevent.
-
-   A filter should be flushed via buffervent_trigger_filter before removing
-   it from a bufferevent.  Any remaining intermediate buffer data is going
-   to be lost.
-
-   @param bufev the bufferevent object from which to remove the filter
-   @param filter_type either BEV_INPUT or BEV_OUTPUT
-   @param filter the filter object or NULL to trigger all filters
-   @see bufferevent_trigger_filter()
-*/
-void bufferevent_filter_remove(struct bufferevent *bufev,
-    enum bufferevent_filter_type filter_type,
-    struct bufferevent_filter *filter);
-
-/**
-  Triggers the filter chain the specified filter to produce more
-  data is possible.  This is primarily for time-based filters such
-  as rate-limiting to produce more data as time passes.
-
-  @param bufev the bufferevent object to which the filter belongs
-  @param filter the bufferevent filter at which to start
-  @param iotype either BEV_INPUT or BEV_OUTPUT depending on where the filter
-	 was installed
-  @param state either BEV_NORMAL or BEV_FLUSH
-  @return -1 on failure, 0 if no data was produces, 1 if data was produced
- */
-
-int
-bufferevent_trigger_filter(struct bufferevent *bufev,
-    struct bufferevent_filter *filter, int iotype,
-    enum bufferevent_filter_state state);
+struct bufferevent *
+bufferevent_filter_new(struct bufferevent *underlying,
+		       bufferevent_filter_cb input_filter,
+		       bufferevent_filter_cb output_filter,
+		       enum bufferevent_options options,
+		       void (*free_context)(void *),
+		       void *ctx);
 
 #ifdef __cplusplus
 }

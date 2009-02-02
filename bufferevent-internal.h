@@ -33,25 +33,61 @@ extern "C" {
 #include "event-config.h"
 #include "evutil.h"
 
-struct bufferevent_filter {
-	/** allows chaining of filters */
-	TAILQ_ENTRY(bufferevent_filter) (next);
+/**
+   Implementation table for a bufferevent: holds function pointers and other
+   information to make the various bufferevent types work.
+*/
+struct bufferevent_ops {
+	/** The name of the bufferevent's type. */
+	const char *type;
+	/** At what offset into the implementation type will we find a
+	    bufferevent structure?
 
-	/** used for intermediary state either on the input or output path */
-	struct evbuffer *buffer;
+	    Example: if the type is implemented as
+	    struct bufferevent_x {
+	       int extra_data;
+	       struct bufferevent bev;
+	    }
+	    then mem_offset should be offsetof(struct bufferevent_x, bev)
+	*/
+	off_t mem_offset;
 
-	/** initializes the context provided to process */
-	void (*init_context)(void *);
+	/** Enables one or more of EV_READ|EV_WRITE on a bufferevent.  Does
+	    not need to adjust the 'enabled' field.  Returns 0 on success, -1
+	    on failure.
+	 */
+	int (*enable)(struct bufferevent *, short);
 
-	/** frees any context related to ctx */
-	void (*free_context)(void *);
+	/** Disables one or more of EV_READ|EV_WRITE on a bufferevent.  Does
+	    not need to adjust the 'enabled' field.  Returns 0 on success, -1
+	    on failure.
+	 */
+	int (*disable)(struct bufferevent *, short);
 
-	enum bufferevent_filter_result (*process)(
-		struct evbuffer *src, struct evbuffer *dst,
-		enum bufferevent_filter_state flags, void *ctx);
+	/** Free any storage and deallocate any extra data or structures used
+	    in this implementation.
+	 */
+	void (*destruct)(struct bufferevent *);
 
-	void *ctx;
+	/** Called when the timeouts on the bufferevent have changed.*/
+	void (*adj_timeouts)(struct bufferevent *);
+
+        /** Called to flush data. */
+        int (*flush)(struct bufferevent *, short, enum bufferevent_flush_mode);
 };
+
+extern const struct bufferevent_ops be_ops_socket;
+extern const struct bufferevent_ops be_ops_filter;
+
+/** Initialize the shared parts of a bufferevent. */
+int bufferevent_init_common(struct bufferevent *, struct event_base *, const struct bufferevent_ops *, enum bufferevent_options options);
+
+/** For internal use: temporarily stop all reads on bufev, because its
+ * read buffer is too full. */
+void bufferevent_wm_suspend_read(struct bufferevent *bufev);
+/** For internal use: temporarily stop all reads on bufev, because its
+ * read buffer is too full. */
+void bufferevent_wm_unsuspend_read(struct bufferevent *bufev);
 
 #ifdef __cplusplus
 }

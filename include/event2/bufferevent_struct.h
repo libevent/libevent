@@ -62,6 +62,7 @@ struct event_watermark {
 	size_t high;
 };
 
+#if 0
 struct bufferevent_filter;
 
 /* Fix so that ppl dont have to run with <sys/queue.h> */
@@ -74,20 +75,42 @@ struct name {								\
 }
 #endif /* !TAILQ_HEAD */
 
-TAILQ_HEAD(bufferevent_filterq, bufferevent_filter);
-
 #ifdef _EVENT_DEFINED_TQHEAD
 #undef TAILQ_HEAD
 #undef _EVENT_DEFINED_TQHEAD
 #endif /* _EVENT_DEFINED_TQHEAD */
+#endif
 
+/**
+  Shared implementation of a bufferevent.
+
+  This type is exposed only because it was exposed in previous versions,
+  and some people's code may rely on manipulating it.  Otherwise, you
+  should really not rely on the layout, size, or contents of this structure:
+  it is fairly volatile, and WILL change in future versions of the code.
+**/
 struct bufferevent {
+	/** Event base for which this bufferevent was created. */
 	struct event_base *ev_base;
+	/** Pointer to a table of function pointers to set up how this
+	    bufferevent behaves. */
+	const struct bufferevent_ops *be_ops;
 
+	/** A read event that triggers when a timeout has happened or a socket
+	    is ready to read data.  Only used by some subtypes of
+	    bufferevent. */
 	struct event ev_read;
+	/** A write event that triggers when a timeout has happened or a socket
+	    is ready to write data.  Only used by some subtypes of
+	    bufferevent. */
 	struct event ev_write;
 
+	/** An input buffer. Only the bufferevent is allowed to add data to
+	    this buffer, though the user is allowed to drain it. */
 	struct evbuffer *input;
+
+	/** An input buffer. Only the bufferevent is allowed to drain data
+	    from this buffer, though the user is allowed to add it. */
 	struct evbuffer *output;
 
 	struct event_watermark wm_read;
@@ -98,14 +121,19 @@ struct bufferevent {
 	everrorcb errorcb;
 	void *cbarg;
 
-	int timeout_read;	/* in seconds */
-	int timeout_write;	/* in seconds */
+	struct timeval timeout_read;
+	struct timeval timeout_write;
 
-	short enabled;	/* events that are currently enabled */
+	/** Evbuffer callback to enforce watermarks on input. */
+	struct evbuffer_cb_entry *read_watermarks_cb;
 
-	/** the list of input and output filters */
-	struct bufferevent_filterq input_filters;
-	struct bufferevent_filterq output_filters;
+	/** Events that are currently enabled: currently EV_READ and EV_WRITE
+	    are supported. */
+	short enabled;
+	/** If set, read is suspended until evbuffer some. */
+	unsigned read_suspended : 1; /*  */
+
+	enum bufferevent_options options;
 };
 
 #ifdef __cplusplus
