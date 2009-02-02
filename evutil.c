@@ -95,10 +95,11 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 	int saved_errno = -1;
 
 	if (protocol
+		|| (family != AF_INET
 #ifdef AF_UNIX
-		|| family != AF_UNIX
+		    && family != AF_UNIX
 #endif
-		) {
+		)) {
 		EVUTIL_SET_SOCKET_ERROR(WSAEAFNOSUPPORT);
 		return -1;
 	}
