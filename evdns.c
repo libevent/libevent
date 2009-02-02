@@ -2503,7 +2503,7 @@ int evdns_resolve_ipv6(const char *name, int flags,
 }
 
 struct evdns_request *
-evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
+evdns_base_resolve_reverse(struct evdns_base *base, const struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	char buf[32];
 	struct evdns_request *req;
 	u32 a;
@@ -2521,13 +2521,13 @@ evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int flag
 	return (req);
 }
 
-int evdns_resolve_reverse(struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
+int evdns_resolve_reverse(const struct in_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	return evdns_base_resolve_reverse(current_base, in, flags, callback, ptr)
 		? 0 : -1;
 }
 
 struct evdns_request *
-evdns_base_resolve_reverse_ipv6(struct evdns_base *base, struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
+evdns_base_resolve_reverse_ipv6(struct evdns_base *base, const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	/* 32 nybbles, 32 periods, "ip6.arpa", NUL. */
 	char buf[73];
 	char *cp;
@@ -2551,7 +2551,7 @@ evdns_base_resolve_reverse_ipv6(struct evdns_base *base, struct in6_addr *in, in
 	return (req);
 }
 
-int evdns_resolve_reverse_ipv6(struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
+int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	return evdns_base_resolve_reverse_ipv6(current_base, in, flags, callback, ptr)
 		? 0 : -1;
 }

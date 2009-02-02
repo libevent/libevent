@@ -365,7 +365,7 @@ struct in6_addr;
   @return an evdns_request object if successful, or NULL if an error occurred.
   @see evdns_resolve_reverse_ipv6(), evdns_cancel_request()
  */
-struct evdns_request *evdns_base_resolve_reverse(struct evdns_base *base, struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
+struct evdns_request *evdns_base_resolve_reverse(struct evdns_base *base, const struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 
 /**
@@ -379,7 +379,7 @@ struct evdns_request *evdns_base_resolve_reverse(struct evdns_base *base, struct
   @return an evdns_request object if successful, or NULL if an error occurred.
   @see evdns_resolve_reverse_ipv6(), evdns_cancel_request()
  */
-struct evdns_request *evdns_base_resolve_reverse_ipv6(struct evdns_base *base, struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
+struct evdns_request *evdns_base_resolve_reverse_ipv6(struct evdns_base *base, const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 /**
   Cancels a pending DNS resolution request.
