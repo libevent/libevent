@@ -214,6 +214,10 @@ main(int argc, const char **argv)
 		return 1;
 #endif
 
+#ifdef WIN32
+	tinytest_skip(testgroups, "http/connection_retry");
+#endif
+
         if (tinytest_main(argc,argv,testgroups))
                 return 1;
 
