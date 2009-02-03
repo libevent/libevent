@@ -1049,7 +1049,7 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
  * Reads data from a file descriptor into a buffer.
  */
 
-#if defined(_EVENT_HAVE_SYS_UIO_H)
+#if defined(_EVENT_HAVE_SYS_UIO_H) || defined(WIN32)
 #define USE_IOVEC_IMPL
 #endif
 
@@ -1153,9 +1153,15 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 #ifdef WIN32
 		{
 			DWORD bytesRead;
-			if (WSARecv(fd, vecs, nvecs, &bytesRead, 0, NULL, NULL))
-				n = -1;
-			else
+			DWORD flags=0;
+			if (WSARecv(fd, vecs, nvecs, &bytesRead, &flags, NULL, NULL)) {
+				/* The read failed. It might be a close,
+				 * or it might be an error. */
+				if (WSAGetLastError() == WSAECONNABORTED)
+					n = 0;
+				else
+					n = -1;
+			} else
 				n = bytesRead;
 		}
 #else
@@ -1239,8 +1245,8 @@ ssize_t howmuch)
 	}
 #ifdef WIN32
 	{
-		DWORD byteSent;
-		if (WSASend(fd, buffers, i, &bytesSent, 0, NULL, NULL))
+		DWORD bytesSent;
+		if (WSASend(fd, iov, i, &bytesSent, 0, NULL, NULL))
 			n = -1;
 		else
 			n = bytesSent;
