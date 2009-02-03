@@ -34,12 +34,6 @@ extern "C" {
 #include "tinytest.h"
 #include "tinytest_macros.h"
 
-/*XXX move these to regress_bufferevent.c when bufferevent changes are
- * merged. */
-void test_bufferevent(void);
-void test_bufferevent_watermarks(void);
-void test_bufferevent_filters(void);
-
 extern struct testcase_t legacy_testcases[];
 extern struct testcase_t evbuffer_testcases[];
 extern struct testcase_t bufferevent_testcases[];
