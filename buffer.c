@@ -916,6 +916,7 @@ out:
 static void
 evbuffer_chain_align(struct evbuffer_chain *chain)
 {
+	assert(!(chain->flags & EVBUFFER_IMMUTABLE));
 	memmove(chain->buffer, chain->buffer + chain->misalign, chain->off);
 	chain->misalign = 0;
 }
