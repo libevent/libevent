@@ -350,7 +350,7 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	size_t out_total_len = outbuf->total_len;
 	size_t in_total_len = inbuf->total_len;
 
-	if (in_total_len == 0)
+	if (in_total_len == 0 || outbuf == inbuf)
 		return (0);
 
 	if (out_total_len == 0) {
@@ -374,7 +374,7 @@ evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	size_t out_total_len = outbuf->total_len;
 	size_t in_total_len = inbuf->total_len;
 
-	if (!in_total_len)
+	if (!in_total_len || inbuf == outbuf)
 		return;
 
 	if (out_total_len == 0) {
@@ -433,6 +433,7 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 int
 evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 {
+        /*XXX fails badly on sendfile case. */
 	struct evbuffer_chain *chain = buf->first, *tmp;
 	char *data = data_out;
 	size_t nread;
@@ -481,9 +482,15 @@ int
 evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
     size_t datlen)
 {
+	/*XXX We should have an option to force this to be zero-copy.*/
+
+	/*XXX can fail badly on sendfile case. */
 	struct evbuffer_chain *chain = src->first;
 	struct evbuffer_chain *previous = chain, *previous_to_previous = NULL;
 	size_t nread = 0;
+
+	if (datlen == 0 || dst == src)
+		return (0);
 
 	/* short-cut if there is no more data buffered */
 	if (datlen >= src->total_len) {
@@ -491,9 +498,6 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 		evbuffer_add_buffer(dst, src);
 		return (datlen);
 	}
-
-	if (datlen == 0)
-		return (0);
 
 	/* removes chains if possible */
 	while (chain->off <= datlen) {
