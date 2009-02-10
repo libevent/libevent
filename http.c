@@ -63,7 +63,6 @@
 #endif
 
 #include <assert.h>
-#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -2125,8 +2124,8 @@ evhttp_decode_uri_internal(const char *uri, size_t length, char *ret)
 			in_query = 1;
 		} else if (c == '+' && in_query) {
 			c = ' ';
-		} else if (c == '%' && isxdigit((unsigned char)uri[i+1]) &&
-		    isxdigit((unsigned char)uri[i+2])) {
+		} else if (c == '%' && EVUTIL_ISXDIGIT(uri[i+1]) &&
+		    EVUTIL_ISXDIGIT(uri[i+2])) {
 			char tmp[] = { uri[i+1], uri[i+2], '\0' };
 			c = (char)strtol(tmp, NULL, 16);
 			i += 2;
@@ -2254,7 +2253,7 @@ prefix_suffix_match(const char *pattern, const char *name, int ignorecase)
 		default:
 			if (c != *name) {
 				if (!ignorecase ||
-				    tolower(c) != tolower(*name))
+				    EVUTIL_TOLOWER(c) != EVUTIL_TOLOWER(*name))
 					return (0);
 			}
 			++name;

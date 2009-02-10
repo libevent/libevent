@@ -74,6 +74,30 @@ extern "C" {
 #define socklen_t _EVENT_socklen_t
 #endif
 
+/* Locale-independent replacements for some ctypes functions.  Use these
+ * when you care about ASCII's notion of character types, because you are about
+ * to send those types onto the wire.
+ */
+#define DECLARE_CTYPE_FN(name)                                          \
+        static int EVUTIL_##name(char c);                               \
+        extern const ev_uint32_t EVUTIL_##name##_TABLE[];               \
+        static inline int EVUTIL_##name(char c) {                       \
+                ev_uint8_t u = c;                                       \
+                return !!(EVUTIL_##name##_TABLE[(u >> 5) & 7] & (1 << (u & 31))); \
+        }
+DECLARE_CTYPE_FN(ISALPHA)
+DECLARE_CTYPE_FN(ISALNUM)
+DECLARE_CTYPE_FN(ISSPACE)
+DECLARE_CTYPE_FN(ISDIGIT)
+DECLARE_CTYPE_FN(ISXDIGIT)
+DECLARE_CTYPE_FN(ISPRINT)
+DECLARE_CTYPE_FN(ISLOWER)
+DECLARE_CTYPE_FN(ISUPPER)
+extern const char EVUTIL_TOUPPER_TABLE[];
+extern const char EVUTIL_TOLOWER_TABLE[];
+#define EVUTIL_TOLOWER(c) (EVUTIL_TOLOWER_TABLE[(ev_uint8_t)c])
+#define EVUTIL_TOUPPER(c) (EVUTIL_TOUPPER_TABLE[(ev_uint8_t)c])
+
 #ifdef __cplusplus
 }
 #endif

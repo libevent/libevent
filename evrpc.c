@@ -53,7 +53,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "util-internal.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "evrpc.h"
@@ -63,7 +62,8 @@
 #include "event2/tag.h"
 #include "event2/http_struct.h"
 #include "event2/http_compat.h"
-#include "evutil.h"
+#include "event2/util.h"
+#include "util-internal.h"
 #include "log-internal.h"
 #include "mm-internal.h"
 
