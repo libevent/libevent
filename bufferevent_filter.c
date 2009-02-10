@@ -154,10 +154,8 @@ static enum bufferevent_filter_result
 be_null_filter(struct evbuffer *src, struct evbuffer *dst, ssize_t lim,
 	       enum bufferevent_flush_mode state, void *ctx)
 {
-        /* XXX respect lim. */
-
 	(void)state;
-	if (evbuffer_add_buffer(dst, src) == 0)
+	if (evbuffer_remove_buffer(src, src, lim) == 0)
 		return BEV_OK;
 	else
 		return BEV_ERROR;
