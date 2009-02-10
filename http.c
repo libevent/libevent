@@ -2887,10 +2887,8 @@ bind_socket_ai(struct addrinfo *ai, int reuse)
 #endif
 
         setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));
-	if (reuse) {
-		setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-		    (void *)&on, sizeof(on));
-	}
+	if (reuse)
+                evutil_make_listen_socket_reuseable(fd);
 
 	if (ai != NULL) {
 		r = bind(fd, ai->ai_addr, ai->ai_addrlen);
