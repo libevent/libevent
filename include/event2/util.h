@@ -121,6 +121,16 @@ int evutil_socketpair(int d, int type, int protocol, evutil_socket_t sv[2]);
     @return 0 on success, -1 on failure
  */
 int evutil_make_socket_nonblocking(evutil_socket_t sock);
+
+/** Do platform-specific operations on a listener socket to make sure that
+    another program will be able to bind this address right after we've
+    closed the listener
+
+    @param sock The socket to make reuseabla
+    @return 0 on success, -1 on failure
+ */
+int evutil_make_listen_socket_reuseable(evutil_socket_t);
+
 #ifdef WIN32
 /** Do the platform-specific call needed to close a socket returned from
     socket() or accept(). */
