@@ -677,6 +677,63 @@ end:
 		evbuffer_free(buf2);
 }
 
+/* Some cases that we didn't get in test_evbuffer() above, for more coverage. */
+static void
+test_evbuffer_prepend(void *ptr)
+{
+	struct evbuffer *buf1 = NULL, *buf2 = NULL;
+	char tmp[128];
+	int n;
+
+	buf1 = evbuffer_new();
+	tt_assert(buf1);
+
+	evbuffer_add(buf1, "This string has 29 characters", 29);
+
+	/* Case 1: Prepend goes entirely in new chunk. */
+	evbuffer_prepend(buf1, "Short.", 6);
+	evbuffer_validate(buf1);
+
+	/* Case 2: prepend goes entirely in first chunk. */
+	evbuffer_drain(buf1, 6+11);
+	evbuffer_prepend(buf1, "it", 2);
+	evbuffer_validate(buf1);
+	tt_assert(!memcmp(buf1->first->buffer+buf1->first->misalign,
+		"it has", 6));
+
+	/* Case 3: prepend is split over multiple chunks. */
+	evbuffer_prepend(buf1, "It is no longer true to say ", 28);
+	evbuffer_validate(buf1);
+	n = evbuffer_remove(buf1, tmp, sizeof(tmp)-1);
+	tmp[n]='\0';
+	tt_str_op(tmp,==,"It is no longer true to say it has 29 characters");
+
+	buf2 = evbuffer_new();
+	tt_assert(buf2);
+
+	/* Case 4: prepend a buffer to an empty buffer. */
+	n = 999;
+	evbuffer_add_printf(buf1, "Here is string %d. ", n++);
+	evbuffer_prepend_buffer(buf2, buf1);
+	evbuffer_validate(buf2);
+
+	/* Case 5: prepend a buffer to a nonempty buffer. */
+	evbuffer_add_printf(buf1, "Here is string %d. ", n++);
+	evbuffer_prepend_buffer(buf2, buf1);
+	evbuffer_validate(buf2);
+	n = evbuffer_remove(buf2, tmp, sizeof(tmp)-1);
+	tmp[n]='\0';
+	tt_str_op(tmp,==,"Here is string 1000. Here is string 999. ");
+
+end:
+	if (buf1)
+		evbuffer_free(buf1);
+	if (buf2)
+		evbuffer_free(buf2);
+
+}
+
+
 struct testcase_t evbuffer_testcases[] = {
 	{ "evbuffer", test_evbuffer, 0, NULL, NULL },
 	{ "reference", test_evbuffer_reference, 0, NULL, NULL },
@@ -685,6 +742,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "find", test_evbuffer_find, 0, NULL, NULL },
 	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
 	{ "add_reference", test_evbuffer_add_reference, 0, NULL, NULL },
+	{ "prepend", test_evbuffer_prepend, 0, NULL, NULL },
 
 	END_OF_TESTCASES
 };
