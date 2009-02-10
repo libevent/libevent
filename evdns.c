@@ -323,14 +323,11 @@ struct evdns_base {
 
 static struct evdns_base *current_base = NULL;
 
-/* helper macro */
-#define OFFSET_OF(st, member) ((off_t) (((char*)&((st*)0)->member)-(char*)0))
-
 /* Given a pointer to an evdns_server_request, get the corresponding */
 /* server_request. */
-#define TO_SERVER_REQUEST(base_ptr)										\
-	((struct server_request*)											\
-	 (((char*)(base_ptr) - OFFSET_OF(struct server_request, base))))
+#define TO_SERVER_REQUEST(base_ptr)                                     \
+	((struct server_request*)                                       \
+          (((char*)(base_ptr) - evutil_offsetof(struct server_request, base))))
 
 #define REQ_HEAD(base, id) ((base)->req_heads[id % (base)->n_req_heads])
 
