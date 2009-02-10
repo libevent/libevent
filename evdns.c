@@ -1127,14 +1127,11 @@ static void
 default_random_bytes_fn(char *buf, size_t n)
 {
 	unsigned i;
-	for (i = 0; i < n-1; i += 2) {
+	for (i = 0; i < n; i += 2) {
 		u16 tid = trans_id_function();
 		buf[i] = (tid >> 8) & 0xff;
-		buf[i+1] = tid & 0xff;
-	}
-	if (i < n) {
-		u16 tid = trans_id_function();
-		buf[i] = tid & 0xff;
+		if (i+1<n)
+			buf[i+1] = tid & 0xff;
 	}
 }
 
@@ -2380,6 +2377,12 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 	(void) flags;
 
 	if (!req) return NULL;
+
+	if (name_len >= sizeof(namebuf)) {
+		free(req);
+		return NULL;
+	}
+
 	memset(req, 0, sizeof(struct evdns_request));
 	req->base = base;
 
