@@ -35,14 +35,21 @@ extern "C" {
 #include "evutil.h"
 
 #include <sys/queue.h>
-/* minimum allocation */
+/* minimum allocation for a chain. */
 #define MIN_BUFFER_SIZE	256
 
+/** A single evbuffer callback for an evbuffer. */
 struct evbuffer_cb_entry {
+        /** Structures to implement a doubly-linked queue of callbacks */
 	TAILQ_ENTRY(evbuffer_cb_entry) next;
+        /** The callback function to invoke when this callback is called */
 	evbuffer_cb cb;
+        /** Argument to pass to cb. */
 	void *cbarg;
+        /** Currently set flags on this callback. */
 	ev_uint32_t flags;
+        /** Size of the evbuffer before this callback was suspended, or 0
+            if this callback is not suspended. */
 	size_t size_before_suspend;
 };
 
@@ -63,11 +70,11 @@ struct evbuffer {
 struct evbuffer_chain {
 	/** points to next buffer in the chain */
 	struct evbuffer_chain *next;
-	
+
 	/** total allocation available in the buffer field. */
 	size_t buffer_len;
 
-	/** unused space at the beginning of buffer or an offset into a 
+	/** unused space at the beginning of buffer or an offset into a
 	 * file for sendfile buffers. */
 	off_t misalign;
 
@@ -100,7 +107,8 @@ struct evbuffer_chain_fd {
 	int fd;	/**< the fd associated with this chain */
 };
 
-/* callback for reference buffer */
+/** callback for a reference buffer; lets us know what to do with it when
+ * we're done with it. */
 struct evbuffer_chain_reference {
 	void (*cleanupfn)(void *extra);
 	void *extra;
