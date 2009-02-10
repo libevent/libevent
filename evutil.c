@@ -479,21 +479,17 @@ evutil_inet_pton(int af, const char *src, void *dst)
 	return inet_pton(af, src, dst);
 #else
 	if (af == AF_INET) {
-#ifdef _EVENT_HAVE_INET_ATON
-		return inet_aton(src, dst);
-#else
-		ev_uint32_t r;
-		struct in_addr *out = dst;
-		if (strcmp(src, "255.255.255.255") == 0) {
-			out->s_addr = 0xffffffffu;
-		} else {
-		  r = inet_addr(src);
-		  if (r == INADDR_NONE)
-			  return 0;
-		  out->s_addr = r;
-		}
-	  return 1;
-#endif
+		int a,b,c,d;
+		char more;
+		struct in_addr *addr = dst;
+		if (sscanf(src, "%d.%d.%d.%d%c", &a,&b,&c,&d,&more) != 4)
+			return 0;
+		if (a < 0 || a > 255) return 0;
+		if (b < 0 || b > 255) return 0;
+		if (c < 0 || c > 255) return 0;
+		if (d < 0 || d > 255) return 0;
+		addr->s_addr = htonl((a<<24) | (b<<16) | (c<<8) | d);
+		return 1;
 #ifdef AF_INET6
 	} else if (af == AF_INET6) {
 		struct in6_addr *out = dst;
