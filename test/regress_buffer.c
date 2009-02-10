@@ -274,7 +274,7 @@ test_evbuffer_readln(void *ptr)
 
 #define tt_line_eq(content)						\
 	TT_STMT_BEGIN							\
-	if (!cp || sz != strlen(content) || strcmp(cp, content)) { 	\
+	if (!cp || sz != strlen(content) || strcmp(cp, content)) {	\
 		TT_DIE(("Wanted %s; got %s [%d]", content, cp, (int)sz)); \
 	}								\
 	TT_STMT_END
@@ -481,7 +481,7 @@ test_evbuffer_find(void *ptr)
 	evbuffer_add(buf, (u_char*)test2, strlen(test2));
 	evbuffer_validate(buf);
 	p = evbuffer_find(buf, (u_char*)"\r\n", 2);
-        tt_want(p == NULL);
+	tt_want(p == NULL);
 
 	/*
 	 * drain the buffer and do another find; in r309 this would
@@ -495,16 +495,16 @@ test_evbuffer_find(void *ptr)
 	evbuffer_add(buf, (u_char *)test3, EVBUFFER_INITIAL_LENGTH);
 	evbuffer_validate(buf);
 	p = evbuffer_find(buf, (u_char *)"xy", 2);
-        tt_want(p == NULL);
+	tt_want(p == NULL);
 
 	/* simple test for match at end of allocated buffer */
 	p = evbuffer_find(buf, (u_char *)"ax", 2);
-        tt_assert(p != NULL);
-        tt_want(strncmp((char*)p, "ax", 2) == 0);
+	tt_assert(p != NULL);
+	tt_want(strncmp((char*)p, "ax", 2) == 0);
 
 end:
-        if (buf)
-                evbuffer_free(buf);
+	if (buf)
+		evbuffer_free(buf);
 }
 
 static void
@@ -598,6 +598,85 @@ test_evbuffer_callbacks(void *ptr)
 		evbuffer_free(buf_out2);
 }
 
+static int ref_done_cb_called_count = 0;
+static void *ref_done_cb_called_with = NULL;
+static void ref_done_cb(void *data)
+{
+	++ref_done_cb_called_count;
+	ref_done_cb_called_with = data;
+}
+
+static void
+test_evbuffer_add_reference(void *ptr)
+{
+	const char chunk1[] = "If you have found the answer to such a problem";
+	const char chunk2[] = "you ought to write it up for publication";
+			  /* -- Knuth's "Notes on the Exercises" from TAOCP */
+	char tmp[16];
+	size_t len1 = strlen(chunk1), len2=strlen(chunk2);
+
+	struct evbuffer *buf1 = NULL, *buf2 = NULL;
+
+	buf1 = evbuffer_new();
+	tt_assert(buf1);
+
+	evbuffer_add_reference(buf1, chunk1, len1, ref_done_cb, (void*)111);
+	evbuffer_add(buf1, ", ", 2);
+	evbuffer_add_reference(buf1, chunk2, len2, ref_done_cb, (void*)222);
+	tt_int_op(evbuffer_get_length(buf1), ==, len1+len2+2);
+
+	/* Make sure we can drain a little from a reference. */
+	tt_int_op(evbuffer_remove(buf1, tmp, 6), ==, 6);
+	tt_int_op(memcmp(tmp, "If you", 6), ==, 0);
+	tt_int_op(evbuffer_remove(buf1, tmp, 5), ==, 5);
+	tt_int_op(memcmp(tmp, " have", 5), ==, 0);
+
+	/* Make sure that prepending does not meddle with immutable data */
+	tt_int_op(evbuffer_prepend(buf1, "I have ", 7), ==, 0);
+	tt_int_op(memcmp(chunk1, "If you", 6), ==, 0);
+
+	/* Make sure that when the chunk is over, the callback is invoked. */
+	evbuffer_drain(buf1, 7); /* Remove prepended stuff. */
+	evbuffer_drain(buf1, len1-11-1); /* remove all but one byte of chunk1 */
+	tt_int_op(ref_done_cb_called_count, ==, 0);
+	evbuffer_remove(buf1, tmp, 1);
+	tt_int_op(tmp[0], ==, 'm');
+	tt_assert(ref_done_cb_called_with == (void*)111);
+	tt_int_op(ref_done_cb_called_count, ==, 1);
+
+	/* Drain some of the remaining chunk, then add it to another buffer */
+	evbuffer_drain(buf1, 6); /* Remove the ", you ". */
+	buf2 = evbuffer_new();
+	tt_assert(buf2);
+	tt_int_op(ref_done_cb_called_count, ==, 1);
+	evbuffer_add(buf2, "I ", 2);
+
+	evbuffer_add_buffer(buf2, buf1);
+	tt_int_op(ref_done_cb_called_count, ==, 1);
+	evbuffer_remove(buf2, tmp, 16);
+	tt_int_op(memcmp("I ought to write", tmp, 16), ==, 0);
+	evbuffer_drain(buf2, evbuffer_get_length(buf2));
+	tt_int_op(ref_done_cb_called_count, ==, 2);
+	tt_assert(ref_done_cb_called_with == (void*)222);
+
+	/* Now add more stuff to buf1 and make sure that it gets removed on
+	 * free. */
+	evbuffer_add(buf1, "You shake and shake the ", 24);
+	evbuffer_add_reference(buf1, "ketchup bottle", 14, ref_done_cb,
+	    (void*)3333);
+	evbuffer_add(buf1, ". Nothing comes and then a lot'll.", 42);
+	evbuffer_free(buf1);
+	buf1 = NULL;
+	tt_int_op(ref_done_cb_called_count, ==, 3);
+	tt_assert(ref_done_cb_called_with == (void*)3333);
+
+end:
+	if (buf1)
+		evbuffer_free(buf1);
+	if (buf2)
+		evbuffer_free(buf2);
+}
+
 struct testcase_t evbuffer_testcases[] = {
 	{ "evbuffer", test_evbuffer, 0, NULL, NULL },
 	{ "reference", test_evbuffer_reference, 0, NULL, NULL },
@@ -605,6 +684,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "readln", test_evbuffer_readln, 0, NULL, NULL },
 	{ "find", test_evbuffer_find, 0, NULL, NULL },
 	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
+	{ "add_reference", test_evbuffer_add_reference, 0, NULL, NULL },
 
 	END_OF_TESTCASES
 };
