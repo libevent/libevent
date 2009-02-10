@@ -95,7 +95,6 @@
 #endif
 #include <limits.h>
 #include <sys/stat.h>
-#include <ctype.h>
 #include <stdio.h>
 #include <stdarg.h>
 
@@ -107,6 +106,7 @@
 #include "ipv6-internal.h"
 #include "util-internal.h"
 #ifdef WIN32
+#include <ctype.h>
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
@@ -359,9 +359,6 @@ static void server_port_ready_callback(evutil_socket_t fd, short events, void *a
 static int strtoint(const char *const str);
 
 #define CLOSE_SOCKET(s) EVUTIL_CLOSESOCKET(s)
-
-#define ISSPACE(c) isspace((int)(unsigned char)(c))
-#define ISDIGIT(c) isdigit((int)(unsigned char)(c))
 
 static const char *
 debug_ntoa(u32 address)
@@ -2353,10 +2350,6 @@ string_num_dots(const char *s) {
 	return count;
 }
 
-/* Helper: provide a working isalpha implementation on platforms with funny
- * ideas about character types and isalpha behavior. */
-#define ISALPHA(c) isalpha((int)(unsigned char)(c))
-
 static struct evdns_request *
 request_new(struct evdns_base *base, int type, const char *name, int flags,
     evdns_callback_type callback, void *user_ptr) {
@@ -2389,7 +2382,7 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 		strlcpy(namebuf, name, sizeof(namebuf));
 		rand_bytes_function(randbits, (name_len+7)/8);
 		for (i = 0; i < name_len; ++i) {
-			if (ISALPHA(namebuf[i])) {
+			if (EVUTIL_ISALPHA(namebuf[i])) {
 				if ((randbits[i >> 3] & (1<<(i & 7))))
 					namebuf[i] |= 0x20;
 				else
@@ -3079,10 +3072,10 @@ evdns_nameserver_ip_add_line(struct evdns_base *base, const char *ips) {
 	char *buf;
 	int r;
 	while (*ips) {
-		while (ISSPACE(*ips) || *ips == ',' || *ips == '\t')
+		while (isspace(*ips) || *ips == ',' || *ips == '\t')
 			++ips;
 		addr = ips;
-		while (ISDIGIT(*ips) || *ips == '.' || *ips == ':')
+		while (isdigit(*ips) || *ips == '.' || *ips == ':')
 			++ips;
 		buf = mm_malloc(ips-addr+1);
 		if (!buf) return 4;
