@@ -582,7 +582,7 @@ evutil_inet_pton(int af, const char *src, void *dst)
 }
 
 int
-evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int outlen)
+evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *outlen)
 {
 	int port;
 	char buf[128];
@@ -654,10 +654,11 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int o
 		sin6.sin6_port = htons(port);
 		if (1 != evutil_inet_pton(AF_INET6, addr_part, &sin6.sin6_addr))
 			return -1;
-		if (sizeof(sin6) > outlen)
+		if (sizeof(sin6) > *outlen)
 			return -1;
-		memset(out, 0, outlen);
+		memset(out, 0, *outlen);
 		memcpy(out, &sin6, sizeof(sin6));
+                *outlen = sizeof(sin6);
 		return 0;
 	} else {
 		struct sockaddr_in sin;
@@ -669,10 +670,11 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int o
 		sin.sin_port = htons(port);
 		if (1 != evutil_inet_pton(AF_INET, addr_part, &sin.sin_addr))
 			return -1;
-		if (sizeof(sin) > outlen)
+		if (sizeof(sin) > *outlen)
 			return -1;
-		memset(out, 0, outlen);
+		memset(out, 0, *outlen);
 		memcpy(out, &sin, sizeof(sin));
+                *outlen = sizeof(sin);
 		return 0;
 	}
 }
