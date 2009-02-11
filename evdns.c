@@ -900,7 +900,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 		 */
 		TEST_NAME;
 		j += 4;
-		if (j > length) goto err;
+		if (j >= length) goto err;
 	}
 
 	if (!name_matches)
@@ -1210,17 +1210,29 @@ nameserver_pick(struct evdns_base *base) {
 /* this is called when a namesever socket is ready for reading */
 static void
 nameserver_read(struct nameserver *ns) {
+	struct sockaddr_storage ss;
+	socklen_t addrlen = sizeof(ss);
 	u8 packet[1500];
 
 	for (;;) {
-          	const int r = recv(ns->socket, packet, sizeof(packet), 0);
+          	const int r = recvfrom(ns->socket, packet, sizeof(packet), 0,
+		    (struct sockaddr*)&ss, &addrlen);
 		if (r < 0) {
 			int err = evutil_socket_geterror(ns->socket);
 			if (EVUTIL_ERR_RW_RETRIABLE(err))
 				return;
-			nameserver_failed(ns, evutil_socket_error_to_string(err));
+			nameserver_failed(ns,
+			    evutil_socket_error_to_string(err));
 			return;
 		}
+		if (!sockaddr_eq((struct sockaddr*)&ss,
+			(struct sockaddr*)&ns->address, 0)) {
+			log(EVDNS_LOG_WARN, "Address mismatch on received "
+			    "DNS packet.  Apparent source was %s",
+			    debug_ntop((struct sockaddr*)&ss));
+			return;
+		}
+
 		ns->timedout = 0;
 		reply_parse(ns->base, packet, r);
 	}
@@ -1535,7 +1547,10 @@ evdns_add_server_port_with_base(struct event_base *base, evutil_socket_t socket,
 	event_assign(&port->event, port->event_base,
 				 port->socket, EV_READ | EV_PERSIST,
 				 server_port_ready_callback, port);
-	event_add(&port->event, NULL); /* check return. */
+	if (event_add(&port->event, NULL) < 0) {
+		mm_free(port);
+		return NULL;
+	}
 	return port;
 }
 
@@ -1907,7 +1922,7 @@ server_port_free(struct evdns_server_port *port)
 		port->socket = -1;
 	}
 	(void) event_del(&port->event);
-	/* XXXX actually free the port? -NM */
+	mm_free(port);
 }
 
 /* exported function */
@@ -2201,7 +2216,10 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 			server = server->next;
 		} while (server != started_at);
 	}
-
+	if (addrlen > (int)sizeof(ns->address)) {
+		log(EVDNS_LOG_DEBUG, "Addrlen %d too long.", (int)addrlen);
+		return 2;
+	}
 
 	ns = (struct nameserver *) mm_malloc(sizeof(struct nameserver));
 	if (!ns) return -1;
@@ -3075,7 +3093,8 @@ evdns_nameserver_ip_add_line(struct evdns_base *base, const char *ips) {
 		while (isspace(*ips) || *ips == ',' || *ips == '\t')
 			++ips;
 		addr = ips;
-		while (isdigit(*ips) || *ips == '.' || *ips == ':')
+		while (isdigit(*ips) || *ips == '.' || *ips == ':' ||
+		    *ips=='[' || *ips==']')
 			++ips;
 		buf = mm_malloc(ips-addr+1);
 		if (!buf) return 4;
@@ -3145,18 +3164,20 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 			log(EVDNS_LOG_DEBUG,"Could not add nameserver %s to list,error: %d",
 				(ns->IpAddress.String),(int)GetLastError());
 			status = r;
-			goto done;
 		} else {
+			++added_any;
 			log(EVDNS_LOG_DEBUG,"Succesfully added %s as nameserver",ns->IpAddress.String);
 		}
 
-		added_any++;
 		ns = ns->Next;
 	}
 
 	if (!added_any) {
 		log(EVDNS_LOG_DEBUG, "No nameservers added.");
-		status = -1;
+		if (status == 0)
+			status = -1;
+	} else {
+		status = 0;
 	}
 
  done:
