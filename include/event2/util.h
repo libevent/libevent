@@ -262,12 +262,13 @@ struct sockaddr;
     @param str The string to parse.
     @param out A struct sockaddr to hold the result.  This should probably be
        a struct sockaddr_storage.
-    @param outlen The number of bytes that 'out' can safely hold.
+    @param outlen A pointer to the number of bytes that that 'out' can safely
+       hold.  Set to the number of bytes used in 'out' on sucess.
     @return -1 if the address is not well-formed, if the port is out of range,
        or if out is not large enough to hold the result.  Otherwise returns
        0 on success.
 */
-int evutil_parse_sockaddr_port(const char *str, struct sockaddr *out, int outlen);
+int evutil_parse_sockaddr_port(const char *str, struct sockaddr *out, int *outlen);
 
 
 #ifdef __cplusplus

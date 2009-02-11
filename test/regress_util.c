@@ -220,8 +220,9 @@ regress_sockaddr_port_parse(void *ptr)
 
 	for (i = 0; sa_port_ents[i].parse; ++i) {
 		struct sa_port_ent *ent = &sa_port_ents[i];
+                int len = sizeof(ss);
 		memset(&ss, 0, sizeof(ss));
-		r = evutil_parse_sockaddr_port(ent->parse, (struct sockaddr*)&ss, sizeof(ss));
+		r = evutil_parse_sockaddr_port(ent->parse, (struct sockaddr*)&ss, &len);
 		if (r < 0) {
 			if (ent->sa_family)
 				TT_FAIL(("Couldn't parse %s!", ent->parse));
@@ -239,11 +240,13 @@ regress_sockaddr_port_parse(void *ptr)
 			sin.sin_family = AF_INET;
 			sin.sin_port = htons(ent->port);
 			r = evutil_inet_pton(AF_INET, ent->addr, &sin.sin_addr);
-			if (1 != r) {
+                        if (1 != r) {
 				TT_FAIL(("Couldn't parse ipv4 target %s.", ent->addr));
 			} else if (memcmp(&sin, &ss, sizeof(sin))) {
 				TT_FAIL(("Parse for %s was not as expected.", ent->parse));
-			}
+			} else if (len != sizeof(sin)) {
+                                TT_FAIL(("Length for %s not as expected.",ent->parse));
+                        }
 		} else {
 			struct sockaddr_in6 sin6;
 			memset(&sin6, 0, sizeof(sin6));
@@ -257,6 +260,8 @@ regress_sockaddr_port_parse(void *ptr)
 				TT_FAIL(("Couldn't parse ipv6 target %s.", ent->addr));
 			} else if (memcmp(&sin6, &ss, sizeof(sin6))) {
 				TT_FAIL(("Parse for %s was not as expected.", ent->parse));
+			} else if (len != sizeof(sin6)) {
+                                TT_FAIL(("Length for %s not as expected.",ent->parse));
 			}
 		}
 	}

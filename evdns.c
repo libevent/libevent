@@ -2295,9 +2295,9 @@ int
 evdns_base_nameserver_ip_add(struct evdns_base *base, const char *ip_as_string) {
 	struct sockaddr_storage ss;
 	struct sockaddr *sa;
-	int len;
+	int len = sizeof(ss);
 	if (evutil_parse_sockaddr_port(ip_as_string, (struct sockaddr *)&ss,
-								   sizeof(ss))) {
+		&len)) {
 		log(EVDNS_LOG_WARN, "Unable to parse nameserver address %s",
 			ip_as_string);
 		return 4;
@@ -2307,14 +2307,12 @@ evdns_base_nameserver_ip_add(struct evdns_base *base, const char *ip_as_string) 
 		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 		if (sin->sin_port == 0)
 			sin->sin_port = htons(53);
-		len = sizeof(struct sockaddr_in);
 	}
 #ifdef AF_INET6
 	else if (sa->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
 		if (sin6->sin6_port == 0)
 			sin6->sin6_port = htons(53);
-		len = sizeof(struct sockaddr_in6);
 	}
 #endif
 	else
