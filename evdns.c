@@ -318,6 +318,11 @@ struct evdns_base {
 	/* true iff we will use the 0x20 hack to prevent poisoning attacks. */
 	int global_randomize_case;
 
+	/** Port to bind to for outgoing DNS packets. */
+	struct sockaddr_storage global_outgoing_address;
+	/** Socklen_t for global_outgoing_address. 0 if it isn't set. */
+	socklen_t global_outgoing_addrlen;
+
 	struct search_state *global_search_state;
 };
 
@@ -2231,6 +2236,17 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 	ns->socket = socket(PF_INET, SOCK_DGRAM, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
 	evutil_make_socket_nonblocking(ns->socket);
+
+	if (base->global_outgoing_addrlen) {
+		if (bind(ns->socket,
+			(struct sockaddr*)&base->global_outgoing_address,
+			base->global_outgoing_addrlen) < 0) {
+			log(EVDNS_LOG_WARN,"Couldn't bind to outgoing address");
+			err = 2;
+			goto out2;
+		}
+	}
+
 	if (connect(ns->socket, address, addrlen) != 0) {
 		err = 2;
 		goto out2;
@@ -2955,6 +2971,15 @@ evdns_base_set_option(struct evdns_base *base,
 		int randcase = strtoint(val);
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		base->global_randomize_case = randcase;
+	} else if (!strncmp(option, "bind-to:", 8)) {
+                /* XXX This only applies to successive nameservers, not
+                 * to already-configured ones.  We might want to fix that. */
+                int len = sizeof(base->global_outgoing_address);
+		if (!(flags & DNS_OPTION_NAMESERVERS)) return 0;
+		if (evutil_parse_sockaddr_port(val,
+			(struct sockaddr*)&base->global_outgoing_address, &len))
+                        return -1;
+                base->global_outgoing_addrlen = len;
 	}
 	return 0;
 }
