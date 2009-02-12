@@ -297,6 +297,16 @@ event_base_new_with_config(struct event_config *cfg)
 	base->th_notify_fd[0] = -1;
 	base->th_notify_fd[1] = -1;
 
+	if (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK)) {
+		int r;
+		EVTHREAD_ALLOC_LOCK(base->th_base_lock);
+		r = evthread_make_base_notifiable(base);
+		if (r<0) {
+			event_base_free(base);
+			return NULL;
+		}
+	}
+
 	return (base);
 }
 
@@ -323,8 +333,7 @@ event_base_free(struct event_base *base)
 		base->th_notify_fd[1] = -1;
 	}
 
-	if (base->th_base_lock != NULL)
-		(*base->th_free)(base->th_base_lock);
+	EVTHREAD_FREE_LOCK(base->th_base_lock);
 
 	/* Delete all non-internal events. */
 	for (ev = TAILQ_FIRST(&base->eventqueue); ev; ) {
@@ -607,7 +616,7 @@ event_process_active(struct event_base *base)
 	struct event_list *activeq = NULL;
 	int i;
 
-	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	for (i = 0; i < base->nactivequeues; ++i) {
 		if (TAILQ_FIRST(base->activequeues[i]) != NULL) {
@@ -631,7 +640,7 @@ event_process_active(struct event_base *base)
 			ev->ev_res & EV_WRITE ? "EV_WRITE " : " ",
 			ev->ev_callback));
 
-		EVTHREAD_RELEASE_LOCK(base,
+		EVBASE_RELEASE_LOCK(base,
 		    EVTHREAD_WRITE, th_base_lock);
 
 		if (ev->ev_closure != NULL)
@@ -641,10 +650,10 @@ event_process_active(struct event_base *base)
 				(int)ev->ev_fd, ev->ev_res, ev->ev_arg);
 		if (event_gotsig || base->event_break)
 			return;
-		EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	}
 
-	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
 /*
@@ -704,11 +713,11 @@ event_base_loopbreak(struct event_base *event_base)
 	if (event_base == NULL)
 		return (-1);
 
-	EVTHREAD_ACQUIRE_LOCK(event_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(event_base, EVTHREAD_WRITE, th_base_lock);
 	event_base->event_break = 1;
-	EVTHREAD_RELEASE_LOCK(event_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(event_base, EVTHREAD_WRITE, th_base_lock);
 
-	if (!EVTHREAD_IN_THREAD(event_base)) {
+	if (!EVBASE_IN_THREAD(event_base)) {
 		return evthread_notify_base(event_base);
 	} else {
 		return (0);
@@ -739,6 +748,11 @@ event_base_loop(struct event_base *base, int flags)
 	if (base->sig.ev_signal_added)
 		evsig_base = base;
 	done = 0;
+
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+	base->th_owner_id = EVTHREAD_GET_ID();
+#endif
+
 	while (!done) {
 		/* Terminate the loop if we have been asked to */
 		if (base->event_gotterm) {
@@ -1038,11 +1052,11 @@ event_add(struct event *ev, const struct timeval *tv)
 {
 	int res;
 
-	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
 	res = event_add_internal(ev, tv);
 
-	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
 	return (res);
 }
@@ -1169,7 +1183,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
-	if (res != -1 && !EVTHREAD_IN_THREAD(base))
+	if (res != -1 && !EVBASE_IN_THREAD(base))
 		evthread_notify_base(base);
 
 	return (res);
@@ -1180,11 +1194,11 @@ event_del(struct event *ev)
 {
 	int res;
 
-	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
 	res = event_del_internal(ev);
 
-	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
 	return (res);
 }
@@ -1229,7 +1243,7 @@ event_del_internal(struct event *ev)
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
-	if (res != -1 && !EVTHREAD_IN_THREAD(base))
+	if (res != -1 && !EVBASE_IN_THREAD(base))
 		evthread_notify_base(base);
 
 	return (res);
@@ -1238,11 +1252,11 @@ event_del_internal(struct event *ev)
 void
 event_active(struct event *ev, int res, short ncalls)
 {
-	EVTHREAD_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
 	event_active_internal(ev, res, ncalls);
 
-	EVTHREAD_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 }
 
 
@@ -1277,7 +1291,7 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 	struct timeval *tv = *tv_p;
 	int res = 0;
 
-	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	ev = min_heap_top(&base->timeheap);
 
 	if (ev == NULL) {
@@ -1303,7 +1317,7 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 	event_debug(("timeout_next: in %d seconds", (int)tv->tv_sec));
 
 out:
-	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	return (res);
 }
 
@@ -1325,11 +1339,11 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 
 	/* Check if time is running backwards */
 	gettime(base, tv);
-	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	if (evutil_timercmp(tv, &base->event_tv, >=)) {
 		base->event_tv = *tv;
-		EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 		return;
 	}
 
@@ -1347,7 +1361,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 		struct timeval *ev_tv = &(**pev).ev_timeout;
 		evutil_timersub(ev_tv, &off, ev_tv);
 	}
-	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
 void
@@ -1356,9 +1370,9 @@ timeout_process(struct event_base *base)
 	struct timeval now;
 	struct event *ev;
 
-	EVTHREAD_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	if (min_heap_empty(&base->timeheap)) {
-		EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 		return;
 	}
 
@@ -1375,7 +1389,7 @@ timeout_process(struct event_base *base)
 			 ev->ev_callback));
 		event_active_internal(ev, EV_TIMEOUT, 1);
 	}
-	EVTHREAD_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
 void
@@ -1530,15 +1544,21 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 	_mm_free_fn = free_fn;
 }
 
+
 /* support for threading */
+void (*_evthread_locking_fn)(int mode, void *lock) = NULL;
+unsigned long (*_evthread_id_fn)(void) = NULL;
+void *(*_evthread_lock_alloc_fn)(void) = NULL;
+void (*_evthread_lock_free_fn)(void *) = NULL;
+
 void
-evthread_set_locking_callback(struct event_base *base,
-    void (*locking_fn)(int mode, void *lock))
+evthread_set_locking_callback(void (*locking_fn)(int mode, void *lock))
 {
 #ifdef _EVENT_DISABLE_THREAD_SUPPORT
 	event_errx(1, "%s: not compiled with thread support", __func__);
+#else
+	_evthread_locking_fn = locking_fn;
 #endif
-	base->th_lock = locking_fn;
 }
 
 #if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
@@ -1565,25 +1585,13 @@ evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 }
 
 void
-evthread_set_id_callback(struct event_base *base,
-    unsigned long (*id_fn)(void))
+evthread_set_id_callback(unsigned long (*id_fn)(void))
 {
 #ifdef _EVENT_DISABLE_THREAD_SUPPORT
 	event_errx(1, "%s: not compiled with thread support", __func__);
-#endif
-#ifdef WIN32
-#define LOCAL_SOCKETPAIR_AF AF_INET
 #else
-#define LOCAL_SOCKETPAIR_AF AF_UNIX
+	_evthread_id_fn = id_fn;
 #endif
-	base->th_get_id = id_fn;
-	base->th_owner_id = (*id_fn)();
-
-	/*
-	 * If another thread wants to add a new event, we need to notify
-	 * the thread that owns the base to wakeup for rescheduling.
-	 */
-	evthread_make_base_notifiable(base);
 }
 
 int
@@ -1614,9 +1622,15 @@ evthread_make_base_notifiable(struct event_base *base)
 	}
 	if (base->th_notify_fd[0] < 0)
 #endif
+
+#ifdef WIN32
+#define LOCAL_SOCKETPAIR_AF AF_INET
+#else
+#define LOCAL_SOCKETPAIR_AF AF_UNIX
+#endif
 	{
 		if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0,
-							  base->th_notify_fd) == -1) {
+			base->th_notify_fd) == -1) {
 			event_sock_warn(-1, "%s: socketpair", __func__);
 			return (-1);
 		}
@@ -1645,17 +1659,15 @@ evthread_make_base_notifiable(struct event_base *base)
 }
 
 void
-evthread_set_lock_create_callbacks(struct event_base *base,
-    void *(*alloc_fn)(void), void (*free_fn)(void *))
+evthread_set_lock_create_callbacks(void *(*alloc_fn)(void),
+    void (*free_fn)(void *))
 {
 #ifdef _EVENT_DISABLE_THREAD_SUPPORT
 	event_errx(1, "%s: not compiled with thread support", __func__);
+#else
+	_evthread_lock_alloc_fn = alloc_fn;
+	_evthread_lock_free_fn = free_fn;
 #endif
-	base->th_alloc = alloc_fn;
-	base->th_free = free_fn;
-
-	/* now, let's allocate our lock */
-	base->th_base_lock = (*alloc_fn)();
 }
 
 void

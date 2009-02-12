@@ -159,6 +159,10 @@ enum event_method_feature {
     EV_FEATURE_FDS = 0x04,
 };
 
+enum event_base_config_flag {
+	EVENT_BASE_FLAG_NOLOCK = 0x01,
+};
+
 /**
  Return a bitmask of the features implemented by an event base.
  */
@@ -187,6 +191,11 @@ enum event_method_feature event_base_get_features(struct event_base *base);
 */
 int event_config_require_features(struct event_config *cfg,
                                   enum event_method_feature feature);
+
+/** Sets a flag to configure what parts of the eventual event_base will
+ * be initialized, and how they'll work. */
+int event_config_set_flag(struct event_config *cfg,
+    enum event_base_config_flag flag);
 
 /**
   Initialize the event API.

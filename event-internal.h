@@ -114,17 +114,11 @@ struct event_base {
 
 	struct timeval tv_cache;
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
 	/* threading support */
 	unsigned long th_owner_id;
-	unsigned long (*th_get_id)(void);
 	void *th_base_lock;
-
-	/* allocate/free locks */
-	void *(*th_alloc)(void);
-	void (*th_free)(void *lock);
-
-	/* lock or unlock a lock */
-	void (*th_lock)(int mode, void *lock);
+#endif
 
 	/* Notify main thread to wake up break, etc. */
 	int th_notify_fd[2];
@@ -142,6 +136,7 @@ struct event_config {
 	TAILQ_HEAD(event_configq, event_config_entry) entries;
 
 	enum event_method_feature require_features;
+        enum event_base_config_flag flags;
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
@@ -170,3 +165,4 @@ int _evsig_restore_handler(struct event_base *base, int evsignal);
 #endif
 
 #endif /* _EVENT_INTERNAL_H_ */
+

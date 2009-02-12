@@ -32,6 +32,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
+#include <sys/locking.h>
 #endif
 
 struct event_base;
@@ -73,13 +74,13 @@ evthread_win32_get_id(void)
 }
 
 int
-evthread_use_windows_threads(struct event_base *base)
+evthread_use_windows_threads(void)
 {
-	evthread_set_lock_create_callbacks(base,
-									   evthread_win32_lock_create,
-									   evthread_win32_lock_free);
-	evthread_set_locking_callback(base, evthread_win32_lock);
-	evthread_set_id_callback(base, evthread_win32_get_id);
+	evthread_set_lock_create_callbacks(
+            evthread_win32_lock_create,
+            evthread_win32_lock_free);
+	evthread_set_locking_callback(evthread_win32_lock);
+	evthread_set_id_callback(evthread_win32_get_id);
 	return 0;
 }
 

@@ -25,6 +25,7 @@ regress_SOURCES = regress.c regress_buffer.c regress_http.c regress_dns.c \
 	$(regress_pthread_SOURCES) $(regress_zlib_SOURCES)
 if PTHREADS
 regress_pthread_SOURCES = regress_pthread.c
+PTHREAD_LIBS += ../libevent_pthreads.la
 endif
 if ZLIB_REGRESS
 regress_zlib_SOURCES = regress_zlib.c
