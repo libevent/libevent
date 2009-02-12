@@ -128,55 +128,20 @@ pthread_basic(struct event_base *base)
 	fprintf(stdout, "OK\n");
 }
 
-static void
-locking(int mode, void *lock)
-{
-	if (mode & EVTHREAD_LOCK)
-		pthread_mutex_lock(lock);
-	else
-		pthread_mutex_unlock(lock);
-}
-
-static void *
-alloc_lock(void)
-{
-	pthread_mutex_t *lock = malloc(sizeof(*lock));
-	assert(lock != NULL);
-
-	pthread_mutex_init(lock, NULL);
-
-	return (lock);
-}
-
-static void
-free_lock(void *lock)
-{
-	pthread_mutex_destroy(lock);
-	free(lock);
-}
-
-static unsigned long
-get_id(void)
-{
-	union {
-		pthread_t thr;
-		unsigned long id;
-	} r;
-	r.id = 0;
-	r.thr = pthread_self();
-	return r.id;
-}
-
 void
 regress_pthread(void)
 {
-	struct event_base *base = event_base_new();
+	struct event_base *base;
 
 	pthread_mutex_init(&count_lock, NULL);
 
-	evthread_set_lock_create_callbacks(base, alloc_lock, free_lock);
-	evthread_set_locking_callback(base, locking);
-	evthread_set_id_callback(base, get_id);
+        evthread_use_pthreads();
+
+        base = event_base_new();
+        if (evthread_make_base_notifiable(base)<0) {
+                puts("Couldn't make base notifiable!");
+                return;
+        }
 
 	pthread_basic(base);
 

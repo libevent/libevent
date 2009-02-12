@@ -27,11 +27,16 @@
 #include "event-config.h"
 #endif
 
+/* With glibc we need to define this to get PTHREAD_MUTEX_RECURSIVE. */
+#define _GNU_SOURCE
 #include <pthread.h>
+
 struct event_base;
 #include <event2/thread.h>
 
 #include "mm-internal.h"
+
+static pthread_mutexattr_t attr_recursive;
 
 static void *
 evthread_posix_lock_create(void)
@@ -39,7 +44,10 @@ evthread_posix_lock_create(void)
 	pthread_mutex_t *lock = mm_malloc(sizeof(pthread_mutex_t));
 	if (!lock)
 		return NULL;
-	pthread_mutex_init(lock, NULL);
+	if (pthread_mutex_init(lock, &attr_recursive)) {
+		mm_free(lock);
+		return NULL;
+	}
 	return lock;
 }
 
@@ -73,12 +81,16 @@ evthread_posix_get_id(void)
 }
 
 int
-evthread_use_pthreads(struct event_base *base)
+evthread_use_pthreads(void)
 {
-	evthread_set_lock_create_callbacks(base,
-									   evthread_posix_lock_create,
-									   evthread_posix_lock_free);
-	evthread_set_locking_callback(base, evthread_posix_lock);
-	evthread_set_id_callback(base, evthread_posix_get_id);
+	/* Set ourselves up to get recursive locks. */
+	pthread_mutexattr_init(&attr_recursive);
+	pthread_mutexattr_settype(&attr_recursive, PTHREAD_MUTEX_RECURSIVE);
+
+	evthread_set_lock_create_callbacks(
+	    evthread_posix_lock_create,
+	    evthread_posix_lock_free);
+	evthread_set_locking_callback(evthread_posix_lock);
+	evthread_set_id_callback(evthread_posix_get_id);
 	return -1;
 }
