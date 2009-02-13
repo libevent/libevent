@@ -264,6 +264,41 @@ test_evbuffer_reference(void *ptr)
 }
 
 static void
+test_evbuffer_add_file(void *ptr)
+{
+	struct evbuffer *src = evbuffer_new();
+	const char *data = "this is what we add as file system data.";
+	const char *compare;
+	evutil_socket_t fd, pair[2];
+
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
+		tt_abort_msg("socketpair failed");
+
+	fd = regress_make_tmpfile(data, strlen(data));
+
+	tt_assert(fd != -1);
+
+	tt_assert(evbuffer_add_file(src, fd, 0, strlen(data)) != -1);
+
+	evbuffer_validate(src);
+
+	while (evbuffer_write(src, pair[0]) > 0) {
+		evbuffer_validate(src);
+	}
+
+	tt_assert(evbuffer_read(src, pair[1], strlen(data)) == strlen(data));
+	compare = (char *)evbuffer_pullup(src, strlen(data));
+	tt_assert(compare != NULL);
+	if (memcmp(compare, data, strlen(data)))
+		tt_abort_msg("Data from add_file differs.");
+
+ end:
+	EVUTIL_CLOSESOCKET(pair[0]);
+	EVUTIL_CLOSESOCKET(pair[1]);
+	evbuffer_free(src);
+}
+
+static void
 test_evbuffer_readln(void *ptr)
 {
 	struct evbuffer *evb = evbuffer_new();
@@ -743,6 +778,10 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
 	{ "add_reference", test_evbuffer_add_reference, 0, NULL, NULL },
 	{ "prepend", test_evbuffer_prepend, 0, NULL, NULL },
+#ifndef WIN32
+	/* TODO: need a temp file implementation for Windows */
+	{ "add_file", test_evbuffer_add_file, 0, NULL, NULL },
+#endif
 
 	END_OF_TESTCASES
 };

@@ -56,6 +56,8 @@ extern int called;
 extern struct event_base *global_base;
 extern int in_legacy_test_wrapper;
 
+evutil_socket_t regress_make_tmpfile(const void *data, size_t datalen);
+
 extern const struct testcase_setup_t legacy_setup;
 void run_legacy_test_fn(void *ptr);
 

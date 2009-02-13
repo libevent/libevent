@@ -89,6 +89,30 @@ static void dnslogcb(int w, const char *m)
         TT_BLATHER((m));
 }
 
+/* creates a temporary file with the data in it */
+evutil_socket_t
+regress_make_tmpfile(const void *data, size_t datalen)
+{
+#ifndef WIN32
+	char tmpfilename[32];
+	strcpy(tmpfilename, "/tmp/eventtmp.XXXX");
+	int fd = mkstemp(tmpfilename);
+	if (fd == -1)
+		return (-1);
+	if (write(fd, data, datalen) != datalen) {
+		close(fd);
+		return (-1);
+	}
+	lseek(fd, 0, SEEK_SET);
+	/* remove it from the file system */
+	unlink(tmpfilename);
+	return (fd);
+#else
+	/* we need a windows implementation here */
+	return (-1);
+#endif
+}
+
 /* The "data" for a legacy test is just a pointer to the void fn(void)
    function implementing the test case.  We need to set up some globals,
    though, since that's where legacy tests expect to find a socketpair
