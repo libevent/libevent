@@ -95,8 +95,9 @@ regress_make_tmpfile(const void *data, size_t datalen)
 {
 #ifndef WIN32
 	char tmpfilename[32];
+	int fd;
 	strcpy(tmpfilename, "/tmp/eventtmp.XXXX");
-	int fd = mkstemp(tmpfilename);
+	fd = mkstemp(tmpfilename);
 	if (fd == -1)
 		return (-1);
 	if (write(fd, data, datalen) != datalen) {
