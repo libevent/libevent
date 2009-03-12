@@ -95,6 +95,9 @@ simple_read_cb(int fd, short event, void *arg)
 	char buf[256];
 	int len;
 
+	if (arg == NULL)
+		return;
+
 	len = read(fd, buf, sizeof(buf));
 
 	if (len) {
@@ -112,6 +115,9 @@ static void
 simple_write_cb(int fd, short event, void *arg)
 {
 	int len;
+
+	if (arg == NULL)
+		return;
 
 	len = write(fd, TEST1, strlen(TEST1) + 1);
 	if (len == -1)
@@ -301,6 +307,57 @@ cleanup_test(void)
 	}
         test_ok = 0;
 	return (0);
+}
+
+static void
+test_registerfds(void)
+{
+	int i, j;
+	int pair[2];
+	struct event read_evs[512];
+	struct event write_evs[512];
+
+	struct event_base *base = event_base_new();
+
+	fprintf(stdout, "Testing register fds: ");
+
+	for (i = 0; i < 512; ++i) {
+		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
+			/* run up to the limit of file descriptors */
+			break;
+		}
+		event_set(&read_evs[i], pair[0],
+		    EV_READ|EV_PERSIST, simple_read_cb, NULL);
+		event_base_set(base, &read_evs[i]);
+		event_add(&read_evs[i], NULL);
+		event_set(&write_evs[i], pair[1],
+		    EV_WRITE|EV_PERSIST, simple_write_cb, NULL);
+		event_base_set(base, &write_evs[i]);
+		event_add(&write_evs[i], NULL);
+
+		/* just loop once */
+		event_base_loop(base, EVLOOP_ONCE);
+	}
+
+	/* now delete everything */
+	for (j = 0; j < i; ++j) {
+		event_del(&read_evs[j]);
+		event_del(&write_evs[j]);
+#ifndef WIN32
+		close(read_evs[j].ev_fd);
+		close(write_evs[j].ev_fd);
+#else
+		CloseHandle((HANDLE)read_evs[j].ev_fd);
+		CloseHandle((HANDLE)write_evs[j].ev_fd);
+#endif
+
+		/* just loop once */
+		event_base_loop(base, EVLOOP_ONCE);
+	}
+
+	event_base_free(base);
+
+	fprintf(stdout, "OK\n");
 }
 
 static void
@@ -1569,6 +1626,8 @@ main (int argc, char **argv)
 
 	/* Initalize the event library */
 	global_base = event_init();
+
+	test_registerfds();
 
         test_evutil_strtoll();
 

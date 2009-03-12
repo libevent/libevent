@@ -166,7 +166,7 @@ epoll_recalc(struct event_base *base, void *arg, int max)
 {
 	struct epollop *epollop = arg;
 
-	if (max > epollop->nfds) {
+	if (max >= epollop->nfds) {
 		struct evepoll *fds;
 		int nfds;
 
