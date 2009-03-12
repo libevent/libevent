@@ -32,6 +32,7 @@ bin_SCRIPTS = event_rpcgen.py
 EXTRA_DIST = \
 	autogen.sh evdns.3 \
 	event.3 \
+	Doxyfile \
 	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
 	evport.c devpoll.c event_rpcgen.py \
 	sample/Makefile.am sample/Makefile.in sample/event-test.c \
