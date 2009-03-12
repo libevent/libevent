@@ -6,6 +6,7 @@ Changes in 1.4.10-stable:
  o fix signal processing when a signal callback delivers a signal; from Alexander Drozdov
  o const-ify some arguments to evdns functions.
  o off-by-one error in epoll_recalc; reported by Victor Goya
+ o include Doxyfile in tar ball; from Jeff Garzik
 
 Changes in 1.4.9-stable:
  o event_add would not return error for some backends; from Dean McNamee
