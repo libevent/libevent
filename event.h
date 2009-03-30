@@ -1069,7 +1069,6 @@ int evbuffer_add_vprintf(struct evbuffer *, const char *fmt, va_list ap);
 
   @param buf the evbuffer to be drained
   @param len the number of bytes to drain from the beginning of the buffer
-  @return 0 if successful, or -1 if an error occurred
  */
 void evbuffer_drain(struct evbuffer *, size_t);
 
