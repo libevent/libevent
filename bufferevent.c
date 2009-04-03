@@ -82,20 +82,22 @@ bufferevent_wm_unsuspend_read(struct bufferevent *bufev)
 /* Callback to implement watermarks on the input buffer.  Only enabled
  * if the watermark is set. */
 static void
-bufferevent_inbuf_wm_cb(struct evbuffer *buf, size_t old, size_t now,
-			void *arg)
+bufferevent_inbuf_wm_cb(struct evbuffer *buf,
+    const struct evbuffer_cb_info *cbinfo,
+    void *arg)
 {
 	struct bufferevent *bufev = arg;
+        size_t size = evbuffer_get_length(buf);
 
-	if (now > old) {
+	if (cbinfo->n_added > cbinfo->n_deleted) {
 		/* Data got added.  If it put us over the watermark, stop
 		 * reading. */
-		if (now >= bufev->wm_read.high)
+		if (size >= bufev->wm_read.high)
 			bufferevent_wm_suspend_read(bufev);
 	} else {
 		/* Data got removed.  If it puts us under the watermark,
 		   stop reading. */
-		if (now < bufev->wm_read.high)
+		if (size < bufev->wm_read.high)
 			bufferevent_wm_unsuspend_read(bufev);
 	}
 }

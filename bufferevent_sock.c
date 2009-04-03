@@ -91,11 +91,12 @@ be_socket_add(struct event *ev, const struct timeval *tv)
 
 static void
 bufferevent_socket_outbuf_cb(struct evbuffer *buf,
-			     size_t old, size_t now, void *arg)
+    const struct evbuffer_cb_info *cbinfo,
+    void *arg)
 {
 	struct bufferevent *bufev = arg;
 
-	if (now > old &&
+	if (cbinfo->n_added &&
 	    (bufev->enabled & EV_WRITE) &&
 	    !event_pending(&bufev->ev_write, EV_WRITE, NULL)) {
 		/* Somebody added data to the buffer, and we would like to
