@@ -70,6 +70,21 @@ extern "C" {
 
 struct evbuffer;
 
+/** Points to a position within an evbuffer. Used when repeatedly searching
+    through a buffer.  Calls to any function that modifies or re-packs the
+    buffer contents may invalidate all evbuffer_ptrs for that buffer.  Do not
+    modify these values except with evbuffer_ptr_set.
+ */
+struct evbuffer_ptr {
+	ssize_t pos;
+
+	/* Do not alter the values of fields. */
+	struct {
+		void *chain;
+		size_t pos_in_chain;
+	} _internal;
+};
+
 /**
   Allocate storage for a new evbuffer.
 
@@ -345,17 +360,42 @@ int evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
  */
 int evbuffer_read(struct evbuffer *buffer, evutil_socket_t fd, int howmuch);
 
+/**
+   Search for a string within an evbuffer.
+
+   @param buffer the evbuffer to be searched
+   @param what the string to be searched for
+   @param len the length of the search string
+   @param start NULL or a pointer to a valid struct evbuffer_ptr.
+   @return a struct evbuffer_ptr whose 'pos' field has the offset of the
+     first occurrence of the string in the buffer after 'start'.  The 'pos'
+     field of the result is -1 if the string was not found.
+ */
+struct evbuffer_ptr evbuffer_search(struct evbuffer *buffer, const char *what, size_t len, const struct evbuffer_ptr *start);
+
+enum evbuffer_ptr_how {
+	/** Sets the pointer to the position; can be called on with an
+	    uninitalized evbuffer_ptr. */
+	EVBUFFER_PTR_SET,
+	/** Advances the pointer by adding to the current position. */
+	EVBUFFER_PTR_ADD
+};
 
 /**
-  Find a string within an evbuffer.
+   Sets the search pointer in the buffer to positiion.
 
-  @param buffer the evbuffer to be searched
-  @param what the string to be searched for
-  @param len the length of the search string
-  @return a pointer to the beginning of the search string, or NULL if the search failed.
- */
-unsigned char *evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len);
+   If evbuffer_ptr is not initalized.  This function can only be called
+   with EVBUFFER_PTR_SET.
 
+   @param buffer the evbuffer to be search
+   @param ptr a pointer to a struct evbuffer_ptr
+   @param position the position at which to start the next search
+   @param how determines how the pointer should be manipulated.
+   @returns 0 on success or -1 otherwise
+*/
+int
+evbuffer_ptr_set(struct evbuffer *buffer, struct evbuffer_ptr *pos,
+    size_t position, enum evbuffer_ptr_how how);
 
 /** Type definition for a callback that is invoked whenever data is added or
     removed from an evbuffer.
