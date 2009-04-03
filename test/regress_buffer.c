@@ -543,6 +543,85 @@ end:
 }
 
 static void
+test_evbuffer_ptr_set(void *ptr)
+{
+	struct evbuffer *buf = evbuffer_new();
+	struct evbuffer_ptr pos;
+
+	/* create some chains */
+	evbuffer_reserve_space(buf, 5000);
+	evbuffer_commit_space(buf, 5000);
+	evbuffer_reserve_space(buf, 4000);
+	evbuffer_commit_space(buf, 4000);
+	evbuffer_reserve_space(buf, 3000);
+	evbuffer_commit_space(buf, 3000);
+
+	tt_assert(evbuffer_ptr_set(buf, &pos, 13000, EVBUFFER_PTR_SET) == -1);
+	tt_assert(pos.pos == -1);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 0, EVBUFFER_PTR_SET) == 0);
+	tt_assert(pos.pos == 0);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 13000, EVBUFFER_PTR_ADD) == -1);
+
+	tt_assert(evbuffer_ptr_set(buf, &pos, 0, EVBUFFER_PTR_SET) == 0);
+	tt_assert(pos.pos == 0);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 10000, EVBUFFER_PTR_ADD) == 0);
+	tt_assert(pos.pos == 10000);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 1000, EVBUFFER_PTR_ADD) == 0);
+	tt_assert(pos.pos == 11000);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 1000, EVBUFFER_PTR_ADD) == -1);
+	tt_assert(pos.pos == -1);
+
+end:
+	if (buf)
+		evbuffer_free(buf);
+}
+
+static void
+test_evbuffer_search(void *ptr)
+{
+	struct evbuffer *buf = evbuffer_new();
+	struct evbuffer *tmp = evbuffer_new();
+	struct evbuffer_ptr pos;
+
+	/* set up our chains */
+	evbuffer_add_printf(tmp, "hello");  /* 5 chars */
+	evbuffer_add_buffer(buf, tmp);
+	evbuffer_add_printf(tmp, "foo");    /* 3 chars */
+	evbuffer_add_buffer(buf, tmp);
+	evbuffer_add_printf(tmp, "cat");    /* 3 chars */
+	evbuffer_add_buffer(buf, tmp);
+	evbuffer_add_printf(tmp, "attack");
+	evbuffer_add_buffer(buf, tmp);
+
+	pos = evbuffer_search(buf, "attack", 6, NULL);
+	tt_int_op(pos.pos, ==, 11);
+	pos = evbuffer_search(buf, "attacker", 8, NULL);
+	tt_int_op(pos.pos, ==, -1);
+
+	/* test continuing search */
+	pos = evbuffer_search(buf, "oc", 2, NULL);
+	tt_int_op(pos.pos, ==, 7);
+	pos = evbuffer_search(buf, "cat", 3, &pos);
+	tt_int_op(pos.pos, ==, 8);
+	pos = evbuffer_search(buf, "tacking", 7, &pos);
+	tt_int_op(pos.pos, ==, -1);
+
+	evbuffer_ptr_set(buf, &pos, 5, EVBUFFER_PTR_SET);
+	pos = evbuffer_search(buf, "foo", 3, &pos);
+	tt_int_op(pos.pos, ==, 5);
+
+	evbuffer_ptr_set(buf, &pos, 2, EVBUFFER_PTR_ADD);
+	pos = evbuffer_search(buf, "tat", 3, &pos);
+	tt_int_op(pos.pos, ==, 10);
+
+end:
+	if (buf)
+		evbuffer_free(buf);
+	if (tmp)
+		evbuffer_free(tmp);
+}
+
+static void
 log_change_callback(struct evbuffer *buffer, size_t old_len, size_t new_len,
 	       void *arg)
 {
@@ -775,6 +854,8 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "iterative", test_evbuffer_iterative, 0, NULL, NULL },
 	{ "readln", test_evbuffer_readln, 0, NULL, NULL },
 	{ "find", test_evbuffer_find, 0, NULL, NULL },
+	{ "ptr_set", test_evbuffer_ptr_set, 0, NULL, NULL },
+	{ "search", test_evbuffer_search, 0, NULL, NULL },
 	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
 	{ "add_reference", test_evbuffer_add_reference, 0, NULL, NULL },
 	{ "prepend", test_evbuffer_prepend, 0, NULL, NULL },

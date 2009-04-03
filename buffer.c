@@ -1340,21 +1340,142 @@ evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd)
 unsigned char *
 evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len)
 {
-	unsigned char *search = evbuffer_pullup(buffer, -1);
-	unsigned char *end = search + buffer->total_len;
-	unsigned char *p;
+        unsigned char *search;
+        struct evbuffer_ptr ptr;
 
-	while (search < end &&
-	    (p = memchr(search, *what, end - search)) != NULL) {
-		if (p + len > end)
-			break;
-		if (memcmp(p, what, len) == 0)
-			return (p);
-		search = p + 1;
+        ptr = evbuffer_search(buffer, (const char *)what, len, NULL);
+        if (ptr.pos < 0)
+                return (NULL);
+
+        search = evbuffer_pullup(buffer, ptr.pos + len);
+        return search + ptr.pos;
+}
+
+int
+evbuffer_ptr_set(struct evbuffer *buf, struct evbuffer_ptr *pos,
+    size_t position, enum evbuffer_ptr_how how)
+{
+        size_t left = position;
+	struct evbuffer_chain *chain = NULL;
+
+	switch (how) {
+	case EVBUFFER_PTR_SET:
+		chain = buf->first;
+		pos->pos = position;
+		position = 0;
+		break;
+	case EVBUFFER_PTR_ADD:
+		/* this avoids iterating over all previous chains if
+		   we just want to advance the position */
+		chain = pos->_internal.chain;
+		pos->pos += position;
+		position = pos->_internal.pos_in_chain;
+		break;
 	}
 
-	return (NULL);
+	while (chain && position + left >= chain->off) {
+		left -= chain->off - position;
+		chain = chain->next;
+		position = 0;
+	}
+	if (chain) {
+		pos->_internal.chain = chain;
+		pos->_internal.pos_in_chain = position + left;
+	} else {
+		pos->_internal.chain = NULL;
+		pos->pos = -1;
+	}
+
+	return chain != NULL ? 0 : -1;
 }
+
+/**
+   Compare the bytes in buf at position pos to the len bytes in mem.  Return
+   less than 0, 0, or greater than 0 as memcmp.
+ */
+static int
+evbuffer_ptr_memcmp(const struct evbuffer *buf, const struct evbuffer_ptr *pos,
+    const char *mem, size_t len)
+{
+        struct evbuffer_chain *chain;
+        size_t position;
+        int r;
+
+        if (pos->pos + len > buf->total_len)
+                return -1;
+
+        chain = pos->_internal.chain;
+        position = pos->_internal.pos_in_chain;
+        while (len && chain) {
+                size_t n_comparable;
+                if (len + position > chain->off)
+                        n_comparable = chain->off - position;
+                else
+                        n_comparable = len;
+                r = memcmp(chain->buffer + chain->misalign + position, mem,
+                    n_comparable);
+                if (r)
+                        return r;
+                mem += n_comparable;
+                len -= n_comparable;
+                position = 0;
+                chain = chain->next;
+        }
+
+        return 0;
+}
+
+struct evbuffer_ptr
+evbuffer_search(struct evbuffer *buffer, const char *what, size_t len, const struct evbuffer_ptr *start)
+{
+        struct evbuffer_ptr pos;
+        struct evbuffer_chain *chain;
+	const unsigned char *p;
+        char first;
+
+        if (start) {
+                memcpy(&pos, start, sizeof(pos));
+                chain = pos._internal.chain;
+        } else {
+                pos.pos = 0;
+                chain = pos._internal.chain = buffer->first;
+                pos._internal.pos_in_chain = 0;
+        }
+
+        if (!len)
+                return pos;
+
+        first = what[0];
+
+        while (chain) {
+                const unsigned char *start_at =
+                    chain->buffer + chain->misalign +
+                    pos._internal.pos_in_chain;
+                p = memchr(start_at, first,
+                    chain->off - pos._internal.pos_in_chain);
+                if (p) {
+                        pos.pos += p - start_at;
+                        pos._internal.pos_in_chain += p - start_at;
+                        if (!evbuffer_ptr_memcmp(buffer, &pos, what, len))
+                                return pos;
+                        ++pos.pos;
+                        ++pos._internal.pos_in_chain;
+                        if (pos._internal.pos_in_chain == chain->off) {
+                                chain = pos._internal.chain = chain->next;
+                                pos._internal.pos_in_chain = 0;
+                        }
+                } else {
+                        pos.pos += chain->off - pos._internal.pos_in_chain;
+                        chain = pos._internal.chain = chain->next;
+                        pos._internal.pos_in_chain = 0;
+                }
+        }
+
+        pos.pos = -1;
+        pos._internal.chain = NULL;
+        return pos;
+}
+
 
 int
 evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
