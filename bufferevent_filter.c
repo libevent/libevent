@@ -73,7 +73,7 @@ static int be_filter_flush(struct bufferevent *bufev,
     short iotype, enum bufferevent_flush_mode mode);
 
 static void bufferevent_filtered_outbuf_cb(struct evbuffer *buf,
-    size_t old, size_t now, void *arg);
+    const struct evbuffer_cb_info *info, void *arg);
 
 struct bufferevent_filtered {
 	struct bufferevent bev;
@@ -354,11 +354,11 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
 /* Called when the size of our outbuf changes. */
 static void
 bufferevent_filtered_outbuf_cb(struct evbuffer *buf,
-			       size_t old, size_t now, void *arg)
+    const struct evbuffer_cb_info *cbinfo, void *arg)
 {
 	struct bufferevent_filtered *bevf = arg;
 
-	if (now > old) {
+	if (cbinfo->n_added) {
 		int processed_any = 0;
 		/* Somebody added more data to the output buffer. Try to
 		 * process it, if we should. */

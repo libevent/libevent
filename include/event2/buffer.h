@@ -397,6 +397,14 @@ int
 evbuffer_ptr_set(struct evbuffer *buffer, struct evbuffer_ptr *pos,
     size_t position, enum evbuffer_ptr_how how);
 
+/** Structure passed to an evbuffer callback */
+struct evbuffer_cb_info {
+        /** The size of */
+        size_t orig_size;
+        size_t n_added;
+        size_t n_deleted;
+};
+
 /** Type definition for a callback that is invoked whenever data is added or
     removed from an evbuffer.
 
@@ -413,11 +421,10 @@ evbuffer_ptr_set(struct evbuffer *buffer, struct evbuffer_ptr *pos,
     one: watch out!
 
     @param buffer the buffer whose size has changed
-    @param old_len the previous length of the buffer
-    @param new_len the current length of the buffer
+    @param info a structure describing how the buffer changed
     @param arg a pointer to user data
 */
-typedef void (*evbuffer_cb)(struct evbuffer *buffer, size_t old_len, size_t new_len, void *arg);
+typedef void (*evbuffer_cb_func)(struct evbuffer *buffer, const struct evbuffer_cb_info *info, void *arg);
 
 struct evbuffer_cb_entry;
 /** Add a new callback to an evbuffer.
@@ -431,7 +438,7 @@ struct evbuffer_cb_entry;
   @param cbarg an argument to be provided to the callback function
   @return a handle to the callback on success, or NULL on failure.
  */
-struct evbuffer_cb_entry *evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
+struct evbuffer_cb_entry *evbuffer_add_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg);
 
 /** Remove a callback from an evbuffer, given a handle returned from
     evbuffer_add_cb.
@@ -450,10 +457,11 @@ int evbuffer_remove_cb_entry(struct evbuffer *buffer,
     @return 0 if a callback was removed, or -1 if no matching callback was
     found.
  */
-int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
+int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg);
 
 #define EVBUFFER_CB_DISABLED 0
 #define EVBUFFER_CB_ENABLED 1
+
 /** Change whether a given callback is enabled on a buffer or not.  A
     disabled callback is not invoked even when the buffer size changes.
 

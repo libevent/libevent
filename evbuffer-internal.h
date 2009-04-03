@@ -43,14 +43,19 @@ struct evbuffer_cb_entry {
         /** Structures to implement a doubly-linked queue of callbacks */
 	TAILQ_ENTRY(evbuffer_cb_entry) next;
         /** The callback function to invoke when this callback is called */
-	evbuffer_cb cb;
+        union {
+                evbuffer_cb_func cb_func;
+                evbuffer_cb cb_obsolete;
+        } cb;
         /** Argument to pass to cb. */
 	void *cbarg;
         /** Currently set flags on this callback. */
 	ev_uint32_t flags;
+#if 0
         /** Size of the evbuffer before this callback was suspended, or 0
             if this callback is not suspended. */
 	size_t size_before_suspend;
+#endif
 };
 
 struct evbuffer_chain;
@@ -63,6 +68,9 @@ struct evbuffer {
 
 	evbuffer_cb cb;
 	void *cbarg;
+
+        size_t n_add_for_cb;
+        size_t n_del_for_cb;
 
 	TAILQ_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
 };

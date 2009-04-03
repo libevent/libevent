@@ -22,6 +22,28 @@
 */
 char *evbuffer_readline(struct evbuffer *buffer);
 
+/** Type definition for a callback that is invoked whenever data is added or
+    removed from an evbuffer.
+
+    An evbuffer may have one or more callbacks set at a time.  The order
+    in which they are exectuded is undefined.
+
+    A callback function may add more callbacks, or remove itself from the
+    list of callbacks, or add or remove data from the buffer.  It may not
+    remove another callback from the list.
+
+    If a callback adds or removes data from the buffer or from another
+    buffer, this can cause a recursive invocation of your callback or
+    other callbacks.  If you ask for an infinite loop, you might just get
+    one: watch out!
+
+    @param buffer the buffer whose size has changed
+    @param old_len the previous length of the buffer
+    @param new_len the current length of the buffer
+    @param arg a pointer to user data
+*/
+typedef void (*evbuffer_cb)(struct evbuffer *buffer, size_t old_len, size_t new_len, void *arg);
+
 /**
   Replace all callbacks on an evbuffer with a single new callback, or
   remove them.
