@@ -72,6 +72,12 @@ struct evbuffer {
         size_t n_add_for_cb;
         size_t n_del_for_cb;
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+        void *lock;
+#endif
+	unsigned own_lock : 1;
+        int lock_count : 31;
+
 	TAILQ_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
 };
 
@@ -124,6 +130,50 @@ struct evbuffer_chain_reference {
 
 #define EVBUFFER_CHAIN_SIZE sizeof(struct evbuffer_chain)
 #define EVBUFFER_CHAIN_EXTRA(t, c) (t *)((struct evbuffer_chain *)(c) + 1)
+
+#define ASSERT_EVBUFFER_LOCKED(buffer)                  \
+	do {                                            \
+		assert((buffer)->lock_count > 0);       \
+	} while (0)
+#define ASSERT_EVBUFFER_UNLOCKED(buffer)                  \
+	do {                                            \
+		assert((buffer)->lock_count == 0);	\
+	} while (0)
+#define _EVBUFFER_INCREMENT_LOCK_COUNT(buffer)                 \
+	do {                                                   \
+		((struct evbuffer*)(buffer))->lock_count++;    \
+	} while (0)
+#define _EVBUFFER_DECREMENT_LOCK_COUNT(buffer)		      \
+	do {						      \
+		ASSERT_EVBUFFER_LOCKED(buffer);		      \
+		((struct evbuffer*)(buffer))->lock_count--;   \
+	} while (0)
+
+#define EVBUFFER_LOCK(buffer, mode)					\
+	do {								\
+		EVLOCK_LOCK((buffer)->lock, (mode));			\
+		_EVBUFFER_INCREMENT_LOCK_COUNT(buffer);			\
+	} while(0)
+#define EVBUFFER_UNLOCK(buffer, mode)					\
+	do {								\
+		_EVBUFFER_DECREMENT_LOCK_COUNT(buffer);			\
+		EVLOCK_UNLOCK((buffer)->lock, (mode));			\
+	} while(0)
+
+#define EVBUFFER_LOCK2(buffer1, buffer2)				\
+	do {								\
+		EVLOCK_LOCK2((buffer1)->lock, (buffer2)->lock,		\
+		    EVTHREAD_WRITE, EVTHREAD_WRITE);			\
+		_EVBUFFER_INCREMENT_LOCK_COUNT(buffer1);		\
+		_EVBUFFER_INCREMENT_LOCK_COUNT(buffer2);		\
+	} while(0)
+#define EVBUFFER_UNLOCK2(buffer1, buffer2)				\
+	do {								\
+		_EVBUFFER_DECREMENT_LOCK_COUNT(buffer1);		\
+		_EVBUFFER_DECREMENT_LOCK_COUNT(buffer2);		\
+		EVLOCK_UNLOCK2((buffer1)->lock, (buffer2)->lock,	\
+		    EVTHREAD_WRITE, EVTHREAD_WRITE);			\
+	} while(0)
 
 #ifdef __cplusplus
 }
