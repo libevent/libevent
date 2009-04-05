@@ -102,6 +102,25 @@ struct evbuffer *evbuffer_new(void);
 void evbuffer_free(struct evbuffer *buf);
 
 /**
+   Enable locking on an evbuffer so that it can safely be used by multiple
+   threads at the same time.
+
+   NOTE: when locking is enabled, the lock will be held when callbacks are
+   invoked.  This could result in deadlock if you aren't careful.  Plan
+   accordingly!
+
+   @param buf An evbuffer to make lockable.
+   @param lock A lock object, or NULL if we should allocate our own.
+   @return 0 on success, -1 on failure.
+ */
+int evbuffer_enable_locking(struct evbuffer *buf, void *lock);
+
+/* DOCDOC */
+void evbuffer_lock(struct evbuffer *buf);
+void evbuffer_unlock(struct evbuffer *buf);
+
+
+/**
   Returns the total number of bytes stored in the event buffer
 
   @param buf pointer to the evbuffer
@@ -421,7 +440,7 @@ struct evbuffer_cb_info {
     one: watch out!
 
     @param buffer the buffer whose size has changed
-    @param info a structure describing how the buffer changed
+    @param info a structure describing how the buffer changed.
     @param arg a pointer to user data
 */
 typedef void (*evbuffer_cb_func)(struct evbuffer *buffer, const struct evbuffer_cb_info *info, void *arg);
