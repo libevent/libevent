@@ -31,6 +31,7 @@
 #endif
 
 #include "event-config.h"
+#include "util-internal.h"
 
 struct event_base;
 
