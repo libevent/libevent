@@ -58,7 +58,47 @@ extern void (*_evthread_lock_free_fn)(void *);
 	do {							\
 		if (lockvar && _evthread_lock_free_fn)		\
 			_evthread_lock_free_fn(lockvar);	\
-	} while (0);
+	} while (0)
+
+#define EVLOCK_LOCK(lock,mode)					\
+	do {								\
+		if (lock)						\
+			_evthread_locking_fn(EVTHREAD_LOCK|mode, lock);	\
+	} while (0)
+#define EVLOCK_UNLOCK(lock,mode)					\
+	do {								\
+		if (lock)						\
+			_evthread_locking_fn(EVTHREAD_UNLOCK|mode, lock); \
+	} while (0)
+#define _EVLOCK_SORTLOCKS(lockvar1, lockvar2)				\
+	do {								\
+		if (lockvar1 && lockvar2 && lockvar1 > lockvar2) {	\
+			void *tmp = lockvar1;				\
+			lockvar1 = lockvar2;				\
+			lockvar2 = tmp;					\
+		}							\
+	} while (0)
+
+#define EVLOCK_LOCK2(lock1,lock2,mode1,mode2)				\
+	do {								\
+		void *_lock1_tmplock = (lock1);				\
+		void *_lock2_tmplock = (lock2);				\
+		_EVLOCK_SORTLOCKS(_lock1_tmplock,_lock2_tmplock);	\
+		EVLOCK_LOCK(_lock1_tmplock,mode1);			\
+                if (_lock2_tmplock != _lock1_tmplock)                   \
+                        EVLOCK_LOCK(_lock2_tmplock,mode2);              \
+	} while (0)
+
+#define EVLOCK_UNLOCK2(lock1,lock2,mode1,mode2)				\
+	do {								\
+		void *_lock1_tmplock = (lock1);				\
+		void *_lock2_tmplock = (lock2);				\
+		_EVLOCK_SORTLOCKS(_lock1_tmplock,_lock2_tmplock);	\
+                if (_lock2_tmplock != _lock1_tmplock)                   \
+                        EVLOCK_UNLOCK(_lock2_tmplock,mode2);            \
+		EVLOCK_UNLOCK(_lock1_tmplock,mode1);			\
+	} while (0)
+
 
 #define EVBASE_ACQUIRE_LOCK(base, mode, lock) do {			\
 		if (EVBASE_USING_LOCKS(base))				\
