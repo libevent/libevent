@@ -112,13 +112,25 @@ extern void (*_evthread_lock_free_fn)(void *);
 			    (base)->lock);				\
 	} while (0)
 #else /* _EVENT_DISABLE_THREAD_SUPPORT */
-#define EVTHREAD_GET_ID()	1
-#define EVTHREAD_ALLOC_LOCK(lockvar)
-#define EVTHREAD_FREE_LOCK(lockvar)
 
-#define EVBASE_IN_THREAD()	1
-#define EVBASE_ACQUIRE_LOCK(base, mode, lock)
-#define EVBASE_RELEASE_LOCK(base, mode, lock)
+/* No-op statement. */
+#define _EV_NIL_STMT ((void)0)
+
+#define EVTHREAD_GET_ID()	1
+#define EVTHREAD_ALLOC_LOCK(lockvar) _EV_NIL_STMT
+#define EVTHREAD_FREE_LOCK(lockvar) _EV_NIL_STMT
+
+#define EVLOCK_LOCK(lockvar, mode) _EV_NIL_STMT
+#define EVLOCK_UNLOCK(lockvar, mode) _EV_NIL_STMT
+#define EVLOCK_LOCK2(lock1,lock2,mode1,mode2) _EV_NIL_STMT
+#define EVLOCK_UNLOCK2(lock1,lock2,mode1,mode2) _EV_NIL_STMT
+
+#define EVBASE_IN_THREAD(base)	1
+#define EVBASE_ACQUIRE_LOCK(base, mode, lock) _EV_NIL_STMT
+#define EVBASE_RELEASE_LOCK(base, mode, lock) _EV_NIL_STMT
+
+#undef _EV_NIL_STMT
+
 #endif
 
 #ifdef __cplusplus
