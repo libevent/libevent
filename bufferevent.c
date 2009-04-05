@@ -73,9 +73,9 @@ void
 bufferevent_wm_unsuspend_read(struct bufferevent *bufev)
 {
 	if (bufev->read_suspended) {
+		bufev->read_suspended = 0;
 		if (bufev->enabled & EV_READ)
 			bufev->be_ops->enable(bufev, EV_READ);
-		bufev->read_suspended = 0;
 	}
 }
 
