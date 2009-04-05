@@ -1972,13 +1972,13 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 		nameserver_failed(req->ns, "request timed out.");
 	}
 
-	(void) evtimer_del(&req->timeout_event);
 	if (req->tx_count >= req->base->global_max_retransmits) {
 		/* this request has failed */
 		reply_callback(req, 0, DNS_ERR_TIMEOUT, NULL);
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id));
 	} else {
 		/* retransmit it */
+		(void) evtimer_del(&req->timeout_event);
 		evdns_request_transmit(req);
 	}
 }
@@ -2471,6 +2471,7 @@ request_submit(struct evdns_request *const req) {
 void
 evdns_cancel_request(struct evdns_base *base, struct evdns_request *req)
 {
+        /* XXX Does anything ever free the request */
 	if (req->ns) {
 		/* remove from inflight queue */
 		evdns_request_remove(req, &REQ_HEAD(base, req->trans_id));
