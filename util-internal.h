@@ -33,6 +33,9 @@
 extern "C" {
 #endif
 
+/* A good no-op to use in macro definitions. */
+#define _EVUTIL_NIL_STMT ((void)0)
+
 /* Internal use only: macros to match patterns of error codes in a
    cross-platform way.  We need these macros because of two historical
    reasons: first, nonblocking IO functions are generally written to give an
