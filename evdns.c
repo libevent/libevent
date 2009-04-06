@@ -595,15 +595,19 @@ request_trans_id_set(struct evdns_request *const req, const u16 trans_id) {
 static void
 request_finished(struct evdns_request *const req, struct evdns_request **head) {
 	struct evdns_base *base = req->base;
+	int was_inflight = (head != &base->req_waiting_head);
 	if (head)
 		evdns_request_remove(req, head);
 
 	log(EVDNS_LOG_DEBUG, "Removing timeout for request %lx",
 	    (unsigned long) req);
-	evtimer_del(&req->timeout_event);
-
 	search_request_finished(req);
-	base->global_requests_inflight--;
+	if (was_inflight) {
+		evtimer_del(&req->timeout_event);
+		base->global_requests_inflight--;
+	} else {
+		base->global_requests_waiting--;
+	}
 
 	if (!req->request_appended) {
 		/* need to free the request data on it's own */
@@ -2471,15 +2475,16 @@ request_submit(struct evdns_request *const req) {
 void
 evdns_cancel_request(struct evdns_base *base, struct evdns_request *req)
 {
-        /* XXX Does anything ever free the request */
+	if (!base)
+		base = req->base;
+
+	reply_callback(req, 0, DNS_ERR_CANCEL, NULL);
 	if (req->ns) {
 		/* remove from inflight queue */
-		evdns_request_remove(req, &REQ_HEAD(base, req->trans_id));
-		--base->global_requests_inflight;
+		request_finished(req, &REQ_HEAD(base, req->trans_id));
 	} else {
 		/* remove from global_waiting head */
-		evdns_request_remove(req, &base->req_waiting_head);
-		--base->global_requests_waiting;
+		request_finished(req, &base->req_waiting_head);
 	}
 }
 
@@ -3374,6 +3379,7 @@ evdns_err_to_string(int err)
 	case DNS_ERR_UNKNOWN: return "unknown";
 	case DNS_ERR_TIMEOUT: return "request timed out";
 	case DNS_ERR_SHUTDOWN: return "dns subsystem shut down";
+	case DNS_ERR_CANCEL: return "dns request canceled";
 	default: return "[Unknown error code]";
     }
 }

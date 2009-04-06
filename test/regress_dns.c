@@ -66,6 +66,7 @@
 #include "regress.h"
 
 static int dns_ok = 0;
+static int dns_got_cancel = 0;
 static int dns_err = 0;
 
 static void
@@ -244,6 +245,12 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 												   "ZZ.EXAMPLE.COM", 54321);
 			if (r<0)
 				dns_ok = 0;
+                } else if (req->questions[i]->type == EVDNS_TYPE_A &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
+		    !strcasecmp(req->questions[i]->name, "drop.example.com")) {
+			if (evdns_server_request_drop(req)<0)
+				dns_ok = 0;
+			return;
 		} else {
 			fprintf(stdout, "Unexpected question %d %d \"%s\" ",
 					req->questions[i]->type,
@@ -261,8 +268,16 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 
 static void
 dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
-							void *addresses, void *arg)
+    void *addresses, void *arg)
 {
+	if (result == DNS_ERR_CANCEL) {
+		if (arg != (void*)(char*)90909) {
+			fprintf(stdout, "Unexpected cancelation");
+			dns_ok = 0;
+		}
+		dns_got_cancel = 1;
+		goto out;
+	}
 	if (result != DNS_ERR_NONE) {
 		fprintf(stdout, "Unexpected result %d. ", result);
 		dns_ok = 0;
@@ -326,14 +341,18 @@ dns_server(void)
 	struct sockaddr_in my_addr;
 	struct evdns_server_port *port=NULL;
 	struct in_addr resolve_addr;
+	struct evdns_base *base=NULL;
+	struct evdns_request *req=NULL;
 
 	dns_ok = 1;
 
+	base = evdns_base_new(NULL, 0);
+
 	/* Add ourself as the only nameserver, and make sure we really are
 	 * the only nameserver. */
-	evdns_nameserver_ip_add("127.0.0.1:35353");
+	evdns_base_nameserver_ip_add(base, "127.0.0.1:35353");
 
-	tt_int_op(evdns_count_nameservers(), ==, 1);
+	tt_int_op(evdns_base_count_nameservers(base), ==, 1);
 	/* Now configure a nameserver port. */
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
         if (sock<=0) {
@@ -351,17 +370,23 @@ dns_server(void)
 	}
 	port = evdns_add_server_port(sock, 0, dns_server_request_cb, NULL);
 
-	/* Send two queries. */
-	evdns_resolve_ipv4("zz.example.com", DNS_QUERY_NO_SEARCH,
+	/* Send some queries. */
+	evdns_base_resolve_ipv4(base, "zz.example.com", DNS_QUERY_NO_SEARCH,
 					   dns_server_gethostbyname_cb, NULL);
-	evdns_resolve_ipv6("zz.example.com", DNS_QUERY_NO_SEARCH,
+	evdns_base_resolve_ipv6(base, "zz.example.com", DNS_QUERY_NO_SEARCH,
 					   dns_server_gethostbyname_cb, NULL);
 	resolve_addr.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
-	evdns_resolve_reverse(&resolve_addr, 0,
+	evdns_base_resolve_reverse(base, &resolve_addr, 0,
             dns_server_gethostbyname_cb, NULL);
+	req = evdns_base_resolve_ipv4(base,
+	    "drop.example.com", DNS_QUERY_NO_SEARCH,
+	    dns_server_gethostbyname_cb, (void*)(char*)90909);
+
+	evdns_cancel_request(base, req);
 
 	event_dispatch();
 
+	tt_assert(dns_got_cancel);
         test_ok = dns_ok;
 
 end:
@@ -370,6 +395,8 @@ end:
 	evdns_shutdown(0); /* remove ourself as nameserver. */
         if (sock >= 0)
                 EVUTIL_CLOSESOCKET(sock);
+	if (base)
+		evdns_base_free(base, 0);
 }
 
 

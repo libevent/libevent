@@ -187,8 +187,10 @@ extern "C" {
 #define DNS_ERR_UNKNOWN 66
 /** Communication with the server timed out */
 #define DNS_ERR_TIMEOUT 67
-/** The request was canceled because the DNS subsystem was shut down. */
+/** The request was cancelled because the DNS subsystem was shut down. */
 #define DNS_ERR_SHUTDOWN 68
+/** The request was cancelled via a call to evdns_cancel_request */
+#define DNS_ERR_CANCEL 69
 
 #define DNS_IPv4_A 1
 #define DNS_PTR 2
