@@ -219,6 +219,8 @@ struct nameserver {
 	struct event timeout_event;  /* used to keep the timeout for */
 				     /* when we next probe this server. */
 				     /* Valid if state == 0 */
+	/* Outstanding probe request for this nameserver, if any */
+	struct evdns_request *probe_request;
 	char state;  /* zero if we think that this server is down */
 	char choked;  /* true if we have an EAGAIN from this server's socket */
 	char write_waiting;  /* true if we are waiting for EV_WRITE events */
@@ -577,6 +579,10 @@ nameserver_up(struct nameserver *const ns) {
 	log(EVDNS_LOG_WARN, "Nameserver %s is back up",
 	    debug_ntop((struct sockaddr *)&ns->address));
 	evtimer_del(&ns->timeout_event);
+	if (ns->probe_request) {
+		evdns_cancel_request(ns->base, ns->probe_request);
+		ns->probe_request = NULL;
+	}
 	ns->state = 1;
 	ns->failed_times = 0;
 	ns->timedout = 0;
@@ -2067,11 +2073,17 @@ nameserver_probe_callback(int result, char type, int count, int ttl, void *addre
 	(void) count;
 	(void) ttl;
 	(void) addresses;
-
-	if (result == DNS_ERR_NONE || result == DNS_ERR_NOTEXIST) {
+	ns->probe_request = NULL;
+	if (result == DNS_ERR_CANCEL) {
+		/* We canceled this request because the nameserver came up
+		 * for some other reason.  Do not change our opinion about
+		 * the nameserver. */
+	} else if (result == DNS_ERR_NONE || result == DNS_ERR_NOTEXIST) {
 		/* this is a good reply */
 		nameserver_up(ns);
-	} else nameserver_probe_failed(ns);
+	} else {
+		nameserver_probe_failed(ns);
+	}
 }
 
 static void
@@ -2085,6 +2097,7 @@ nameserver_send_probe(struct nameserver *const ns) {
 
 	req = request_new(ns->base, TYPE_A, "google.com", DNS_QUERY_NO_SEARCH, nameserver_probe_callback, ns);
 	if (!req) return;
+	ns->probe_request = req;
 	/* we force this into the inflight queue no matter what */
 	request_trans_id_set(req, transaction_id_pick(ns->base));
 	req->ns = ns;
