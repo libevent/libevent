@@ -44,10 +44,8 @@ extern struct testcase_t dns_testcases[];
 extern struct testcase_t rpc_testcases[];
 extern struct testcase_t edgetriggered_testcases[];
 
-int legacy_main(void);
-
-void regress_pthread(void);
-void regress_zlib(void);
+void regress_threads(void *);
+void test_bufferevent_zlib(void *);
 
 /* Helpers to wrap old testcases */
 extern int pair[2];

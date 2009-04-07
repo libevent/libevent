@@ -47,6 +47,7 @@
 
 #include <zlib.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "event2/util.h"
 #include "event2/event.h"
@@ -54,7 +55,7 @@
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
 
-void regress_zlib(void);
+#include "regress.h"
 
 static int infilter_calls;
 static int outfilter_calls;
@@ -228,23 +229,20 @@ errorcb(struct bufferevent *bev, short what, void *arg)
 	errorcb_invoked = 1;
 }
 
-static void
-test_bufferevent_zlib(void)
+void
+test_bufferevent_zlib(void *arg)
 {
-	struct bufferevent *bev1, *bev2, *bev1_orig, *bev2_orig;
+	struct bufferevent *bev1=NULL, *bev2=NULL, *bev1_orig, *bev2_orig;
 	char buffer[8333];
 	z_stream z_input, z_output;
-	int i, pair[2], r;
-        int test_ok;
+	int i, pair[2]={-1,-1}, r;
+        (void)arg;
 
 	infilter_calls = outfilter_calls = readcb_finished = writecb_finished
             = errorcb_invoked = 0;
 
-	fprintf(stdout, "Testing Zlib Filter: ");
-
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
-		fprintf(stderr, "%s: socketpair\n", __func__);
-		exit(1);
+		tt_fail_perror("socketpair");
 	}
 
 	evutil_make_socket_nonblocking(pair[0]);
@@ -255,18 +253,17 @@ test_bufferevent_zlib(void)
 
 	memset(&z_output, 0, sizeof(z_output));
 	r = deflateInit(&z_output, Z_DEFAULT_COMPRESSION);
-	assert(r == Z_OK);
+	tt_int_op(r, ==, Z_OK);
 	memset(&z_input, 0, sizeof(z_input));
 	r = inflateInit(&z_input);
 
 	/* initialize filters */
 	bev1 = bufferevent_filter_new(bev1, NULL, zlib_output_filter, 0,
-				      zlib_deflate_free, &z_output);
+	    zlib_deflate_free, &z_output);
 	bev2 = bufferevent_filter_new(bev2, zlib_input_filter,
-				      NULL, 0, zlib_inflate_free, &z_input);
+	    NULL, 0, zlib_inflate_free, &z_input);
 	bufferevent_setcb(bev1, readcb, writecb, errorcb, NULL);
 	bufferevent_setcb(bev2, readcb, writecb, errorcb, NULL);
-
 
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev1, EV_WRITE);
@@ -285,34 +282,21 @@ test_bufferevent_zlib(void)
 
 	event_dispatch();
 
-	bufferevent_free(bev1);
-	bufferevent_free(bev2);
+        tt_want(infilter_calls);
+        tt_want(outfilter_calls);
+        tt_want(readcb_finished);
+        tt_want(writecb_finished);
+        tt_want(!errorcb_invoked);
 
+        test_ok = 1;
+end:
+        if (bev1)
+                bufferevent_free(bev1);
+        if (bev2)
+		bufferevent_free(bev2);
 
-        test_ok = infilter_calls &&
-            outfilter_calls &&
-            readcb_finished &&
-            writecb_finished &&
-            !errorcb_invoked;
-
-        if (! test_ok) {
-		fprintf(stdout, "FAILED: %d\n", test_ok);
-		exit(1);
-	}
-
-#ifndef WIN32
-	close(pair[0]);
-	close(pair[1]);
-#else
-	CloseHandle((HANDLE)pair[0]);
-	CloseHandle((HANDLE)pair[1]);
-#endif
-
-	fprintf(stdout, "OK\n");
-}
-
-void
-regress_zlib(void)
-{
-	test_bufferevent_zlib();
+	if (pair[0] >= 0)
+		EVUTIL_CLOSESOCKET(pair[0]);
+	if (pair[1] >= 0)
+		EVUTIL_CLOSESOCKET(pair[1]);
 }
