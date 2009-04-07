@@ -66,6 +66,7 @@
 #include <event2/dns.h>
 #include <event2/dns_compat.h>
 
+#include "event-config.h"
 #include "regress.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"
@@ -208,16 +209,26 @@ const struct testcase_setup_t legacy_setup = {
 /* ============================================================ */
 
 
+struct testcase_t thread_testcases[] = {
+#if defined(_EVENT_HAVE_PTHREADS) && !defined(_EVENT_DISABLE_THREAD_SUPPORT)
+	{ "pthreads", regress_threads, TT_FORK, NULL, NULL, },
+#else
+	{ "pthreads", NULL, TT_SKIP, NULL, NULL },
+#endif
+	END_OF_TESTCASES
+};
+
 struct testgroup_t testgroups[] = {
-        { "main/", legacy_testcases },
-		{ "et/", edgetriggered_testcases },
-		{ "evbuffer/", evbuffer_testcases },
-        { "signal/", signal_testcases },
-        { "util/", util_testcases },
-        { "bufferevent/", bufferevent_testcases },
-        { "http/", http_testcases },
-        { "dns/", dns_testcases },
-        { "rpc/", rpc_testcases },
+	{ "main/", legacy_testcases },
+	{ "et/", edgetriggered_testcases },
+	{ "evbuffer/", evbuffer_testcases },
+	{ "signal/", signal_testcases },
+	{ "util/", util_testcases },
+	{ "bufferevent/", bufferevent_testcases },
+	{ "http/", http_testcases },
+	{ "dns/", dns_testcases },
+	{ "rpc/", rpc_testcases },
+	{ "thread/", thread_testcases },
         END_OF_GROUPS
 };
 
@@ -246,7 +257,6 @@ main(int argc, const char **argv)
         if (tinytest_main(argc,argv,testgroups))
                 return 1;
 
-        in_legacy_test_wrapper = 0;
-        return legacy_main();
+	return 0;
 }
 

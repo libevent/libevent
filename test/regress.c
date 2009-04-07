@@ -1439,20 +1439,3 @@ struct testcase_t signal_testcases[] = {
         END_OF_TESTCASES
 };
 
-int
-legacy_main(void)
-{
-	/* Initalize the event library */
-	global_base = event_init();
-
-#if defined(_EVENT_HAVE_PTHREADS) && !defined(_EVENT_DISABLE_THREAD_SUPPORT)
-	regress_pthread();
-#endif
-
-#if defined(_EVENT_HAVE_LIBZ)
-	regress_zlib();
-#endif
-
-	return (0);
-}
-

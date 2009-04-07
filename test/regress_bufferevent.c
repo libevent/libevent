@@ -55,6 +55,7 @@
 #include <errno.h>
 #include <assert.h>
 
+#include "event-config.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/event_compat.h"
@@ -304,6 +305,11 @@ struct testcase_t bufferevent_testcases[] = {
         LEGACY(bufferevent, TT_ISOLATED),
         LEGACY(bufferevent_watermarks, TT_ISOLATED),
         LEGACY(bufferevent_filters, TT_ISOLATED),
+#ifdef _EVENT_HAVE_LIBZ
+        LEGACY(bufferevent_zlib, TT_ISOLATED),
+#else
+        { "bufferevent_zlib", NULL, TT_SKIP, NULL, NULL },
+#endif
 
         END_OF_TESTCASES,
 };

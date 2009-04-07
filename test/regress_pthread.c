@@ -39,8 +39,8 @@
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/thread.h"
-
-void regress_pthread(void);
+#include "regress.h"
+#include "tinytest_macros.h"
 
 struct cond_wait {
 	pthread_mutex_t lock;
@@ -107,8 +107,6 @@ pthread_basic(struct event_base *base)
 	struct timeval tv;
 	int i;
 
-	fprintf(stdout, "Testing basic pthreads support: ");
-
 	for (i = 0; i < NUM_THREADS; ++i)
 		pthread_create(&threads[i], NULL, basic_thread, base);
 
@@ -124,14 +122,13 @@ pthread_basic(struct event_base *base)
 		pthread_join(threads[i], NULL);
 
 	event_del(&ev);
-
-	fprintf(stdout, "OK\n");
 }
 
 void
-regress_pthread(void)
+regress_threads(void *arg)
 {
 	struct event_base *base;
+        (void) arg;
 
 	pthread_mutex_init(&count_lock, NULL);
 
@@ -139,8 +136,7 @@ regress_pthread(void)
 
         base = event_base_new();
         if (evthread_make_base_notifiable(base)<0) {
-                puts("Couldn't make base notifiable!");
-                return;
+                tt_abort_msg("Couldn't make base notifiable!");
         }
 
 	pthread_basic(base);
@@ -148,4 +144,6 @@ regress_pthread(void)
 	pthread_mutex_destroy(&count_lock);
 
 	event_base_free(base);
+end:
+        ;
 }
