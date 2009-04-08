@@ -130,6 +130,11 @@ static int use_mmap = 1;
 #define CHAIN_SPACE_LEN(ch) ((ch)->flags & EVBUFFER_IMMUTABLE ? \
 	    0 : (ch)->buffer_len - ((ch)->misalign + (ch)->off))
 
+
+#define CHAIN_PINNED(ch)  (((ch)->flags & EVBUFFER_MEM_PINNED_ANY) != 0)
+
+static void evbuffer_chain_align(struct evbuffer_chain *chain);
+
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
 {
@@ -162,6 +167,10 @@ evbuffer_chain_new(size_t size)
 static inline void
 evbuffer_chain_free(struct evbuffer_chain *chain)
 {
+	if (CHAIN_PINNED(chain)) {
+		chain->flags |= EVBUFFER_DANGLING;
+		return;
+	}
 	if (chain->flags & (EVBUFFER_MMAP|EVBUFFER_SENDFILE|
 		EVBUFFER_REFERENCE)) {
 		if (chain->flags & EVBUFFER_REFERENCE) {
@@ -207,7 +216,7 @@ evbuffer_chain_insert(struct evbuffer *buf, struct evbuffer_chain *chain)
 		buf->previous_to_last = NULL;
 	} else {
 		/* the last chain is empty so we can just drop it */
-		if (buf->last->off == 0) {
+		if (buf->last->off == 0 && !CHAIN_PINNED(buf->last)) {
 			evbuffer_chain_free(buf->last);
 			buf->previous_to_last->next = chain;
 			buf->last = chain;
@@ -220,6 +229,24 @@ evbuffer_chain_insert(struct evbuffer *buf, struct evbuffer_chain *chain)
 
 	buf->total_len += chain->off;
 }
+
+#ifdef NOT_USED_YET
+static void
+evbuffer_chain_pin(struct evbuffer_chain *chain, unsigned flag)
+{
+	assert((chain->flags & flag) == 0);
+	chain->flags |= flag;
+}
+
+static void
+evbuffer_chain_unpin(struct evbuffer_chain *chain, unsigned flag)
+{
+	assert((chain->flags & flag) != 0);
+	chain->flags &= ~flag;
+	if (chain->flags & EVBUFFER_DANGLING)
+		evbuffer_chain_free(chain);
+}
+#endif
 
 struct evbuffer *
 evbuffer_new(void)
@@ -524,6 +551,9 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 	if (old_len == 0)
 		goto done;
 
+	/* TODO(nickm) when we drain the last byte from a chain, we
+	 * should not unlink or free it if it is pinned. */
+
 	if (len >= old_len) {
                 len = old_len;
 		for (chain = buf->first; chain != NULL; chain = next) {
@@ -698,6 +728,7 @@ evbuffer_pullup(struct evbuffer *buf, ssize_t size)
 {
 	struct evbuffer_chain *chain, *next, *tmp;
 	unsigned char *buffer, *result = NULL;
+	ssize_t remaining;
 
         EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
 
@@ -718,7 +749,28 @@ evbuffer_pullup(struct evbuffer *buf, ssize_t size)
                 goto done;
         }
 
-	if (chain->buffer_len - chain->misalign >= size) {
+	/* Make sure that none of the chains we need to copy from is pinned. */
+	remaining = size - chain->off;
+	for (tmp=chain->next; tmp; tmp=tmp->next) {
+		if (CHAIN_PINNED(tmp))
+			goto done;
+		if (tmp->off >= remaining)
+			break;
+		remaining -= tmp->off;
+	}
+
+	if (CHAIN_PINNED(chain)) {
+		size_t old_off = chain->off;
+		if (CHAIN_SPACE_LEN(chain) < size - chain->off) {
+			/* not enough room at end of chunk. */
+			goto done;
+		}
+		buffer = CHAIN_SPACE_PTR(chain);
+		tmp = chain;
+		tmp->off = size;
+		size -= old_off;
+		chain = chain->next;
+	} else if (chain->buffer_len - chain->misalign >= size) {
 		/* already have enough space in the first chain */
 		size_t old_off = chain->off;
 		buffer = chain->buffer + chain->misalign + chain->off;
@@ -988,12 +1040,9 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 			buf->total_len += datlen;
                         buf->n_add_for_cb += datlen;
 			goto out;
-		} else if (chain->misalign >= datlen) {
+		} else if (chain->misalign >= datlen && !CHAIN_PINNED(chain)) {
 			/* we can fit the data into the misalignment */
-			memmove(chain->buffer,
-			    chain->buffer + chain->misalign,
-			    chain->off);
-			chain->misalign = 0;
+			evbuffer_chain_align(chain);
 
 			memcpy(chain->buffer + chain->off, data, datlen);
 			chain->off += datlen;
@@ -1106,6 +1155,7 @@ static void
 evbuffer_chain_align(struct evbuffer_chain *chain)
 {
 	assert(!(chain->flags & EVBUFFER_IMMUTABLE));
+	assert(!(chain->flags & EVBUFFER_MEM_PINNED_ANY));
 	memmove(chain->buffer, chain->buffer + chain->misalign, chain->off);
 	chain->misalign = 0;
 }
@@ -1125,7 +1175,8 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 
         chain = buf->last;
 
-	if (chain == NULL || (chain->flags & EVBUFFER_IMMUTABLE)) {
+	if (chain == NULL ||
+	    (chain->flags & (EVBUFFER_IMMUTABLE|EVBUFFER_MEM_PINNED_ANY))) {
 		chain = evbuffer_chain_new(datlen);
 		if (chain == NULL)
 			goto err;
