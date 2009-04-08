@@ -134,7 +134,9 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 		}
 	}
 
+	evbuffer_unfreeze(input, 0);
 	res = evbuffer_read(input, fd, howmuch);
+	evbuffer_freeze(input, 0);
 
 	if (res == -1) {
 		int err = evutil_socket_geterror(fd);
@@ -180,7 +182,9 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(bufev->output)) {
+	    evbuffer_unfreeze(bufev->output, 1);
 	    res = evbuffer_write(bufev->output, fd);
+	    evbuffer_freeze(bufev->output, 1);
 	    if (res == -1) {
 			int err = evutil_socket_geterror(fd);
 			if (EVUTIL_ERR_RW_RETRIABLE(err))
@@ -238,6 +242,9 @@ bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
 	    EV_WRITE|EV_PERSIST, bufferevent_writecb, bufev);
 
 	evbuffer_add_cb(bufev->output, bufferevent_socket_outbuf_cb, bufev);
+
+	evbuffer_freeze(bufev->input, 0);
+	evbuffer_freeze(bufev->output, 1);
 
 	return bufev;
 }
