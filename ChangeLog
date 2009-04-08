@@ -143,6 +143,8 @@ Changes in current version:
  o sendfile, mmap and memory reference support for evbuffers.
  o New evutil_make_listen_socket_reuseable() to abstract SO_REUSEADDR.
  o New bind-to option to allow DNS clients to bind to an arbitrary port for outgoing requests.
+ o evbuffers can now be "frozen" to prevent operations at one or both ends.
+
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

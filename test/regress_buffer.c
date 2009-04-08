@@ -853,6 +853,110 @@ end:
 
 }
 
+/* Check whether evbuffer freezing works right.  This is called twice,
+   once with the argument "start" and once with the argument "end".
+   When we test "start", we freeze the start of an evbuffer and make sure
+   that modifying the start of the buffer doesn't work.  When we test
+   "end", we freeze the end of an evbuffer and make sure that modifying
+   the end of the buffer doesn't work.
+ */
+static void
+test_evbuffer_freeze(void *ptr)
+{
+	struct evbuffer *buf = NULL, *tmp_buf=NULL;
+	const char string[] = /* Year's End, Richard Wilbur */
+	    "I've known the wind by water banks to shake\n"
+	    "The late leaves down, which frozen where they fell\n"
+	    "And held in ice as dancers in a spell\n"
+	    "Fluttered all winter long into a lake...";
+	const int start = !strcmp(ptr, "start");
+	char *cp;
+	char charbuf[128];
+	int r;
+	size_t orig_length;
+
+	if (!start)
+		tt_str_op(ptr, ==, "end");
+
+	buf = evbuffer_new();
+	tmp_buf = evbuffer_new();
+	tt_assert(tmp_buf);
+
+	evbuffer_add(buf, string, strlen(string));
+	evbuffer_freeze(buf, start); /* Freeze the start or the end.*/
+
+#define FREEZE_EQ(a, startcase, endcase)		\
+	do {						\
+	    if (start) {				\
+		    tt_int_op((a), ==, (startcase));	\
+	    } else {					\
+		    tt_int_op((a), ==, (endcase));	\
+	    }						\
+	} while (0)
+
+
+	orig_length = evbuffer_get_length(buf);
+
+	/* These functions all manipulate the end of buf. */
+	r = evbuffer_add(buf, "abc", 0);
+	FREEZE_EQ(r, 0, -1);
+	cp = (char*)evbuffer_reserve_space(buf, 10);
+	FREEZE_EQ(cp==NULL, 0, 1);
+	if (cp)
+		memset(cp, 'X', 10);
+	r = evbuffer_commit_space(buf, 10);
+	FREEZE_EQ(r, 0, -1);
+	r = evbuffer_add_reference(buf, string, 5, NULL, NULL);
+	FREEZE_EQ(r, 0, -1);
+	r = evbuffer_add_printf(buf, "Hello %s", "world");
+	FREEZE_EQ(r, 11, -1);
+	// TODO: test add_buffer, add_file, read
+
+	if (!start)
+		tt_int_op(orig_length, ==, evbuffer_get_length(buf));
+
+	orig_length = evbuffer_get_length(buf);
+
+	/* These functions all manipulate the start of buf. */
+	r = evbuffer_remove(buf, charbuf, 1);
+	FREEZE_EQ(r, -1, 1);
+	r = evbuffer_drain(buf, 3);
+	FREEZE_EQ(r, -1, 0);
+	r = evbuffer_prepend(buf, "dummy", 5);
+	FREEZE_EQ(r, -1, 0);
+	cp = evbuffer_readln(buf, NULL, EVBUFFER_EOL_LF);
+	FREEZE_EQ(cp==NULL, 1, 0);
+	if (cp)
+		free(cp);
+	// TODO: Test remove_buffer, add_buffer, write, prepend_buffer
+
+	if (start)
+		tt_int_op(orig_length, ==, evbuffer_get_length(buf));
+
+end:
+	if (buf)
+		evbuffer_free(buf);
+
+	if (tmp_buf)
+		evbuffer_free(tmp_buf);
+}
+
+static void *
+setup_passthrough(const struct testcase_t *testcase)
+{
+	return testcase->setup_data;
+}
+static int
+cleanup_passthrough(const struct testcase_t *testcase, void *ptr)
+{
+	(void) ptr;
+	return 1;
+}
+
+static const struct testcase_setup_t nil_setup = {
+	setup_passthrough,
+	cleanup_passthrough
+};
 
 struct testcase_t evbuffer_testcases[] = {
 	{ "evbuffer", test_evbuffer, 0, NULL, NULL },
@@ -865,6 +969,8 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
 	{ "add_reference", test_evbuffer_add_reference, 0, NULL, NULL },
 	{ "prepend", test_evbuffer_prepend, 0, NULL, NULL },
+	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },
+	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
 #ifndef WIN32
 	/* TODO: need a temp file implementation for Windows */
 	{ "add_file", test_evbuffer_add_file, 0, NULL, NULL },
