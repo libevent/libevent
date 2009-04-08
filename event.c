@@ -1364,7 +1364,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
-void
+static void
 timeout_process(struct event_base *base)
 {
 	struct timeval now;
