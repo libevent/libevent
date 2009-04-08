@@ -194,6 +194,7 @@ int evbuffer_commit_space(struct evbuffer *buf, size_t size);
   @param buf the event buffer to be appended to
   @param data pointer to the beginning of the data buffer
   @param datlen the number of bytes to be copied from the data buffer
+  @return 0 on success, -1 on failure.
  */
 int evbuffer_add(struct evbuffer *buf, const void *data, size_t datlen);
 
@@ -204,7 +205,7 @@ int evbuffer_add(struct evbuffer *buf, const void *data, size_t datlen);
   @param buf the event buffer to be read from
   @param data the destination buffer to store the result
   @param datlen the maximum size of the destination buffer
-  @return the number of bytes read
+  @return the number of bytes read, or -1 if we can't drain the buffer.
  */
 int evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen);
 
@@ -337,8 +338,9 @@ int evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap);
 
   @param buf the evbuffer to be drained
   @param len the number of bytes to drain from the beginning of the buffer
+  @return 0 on success, -1 on failure.
  */
-void evbuffer_drain(struct evbuffer *buf, size_t len);
+int evbuffer_drain(struct evbuffer *buf, size_t len);
 
 
 /**
@@ -542,9 +544,10 @@ int evbuffer_prepend(struct evbuffer *buf, const void *data, size_t size);
 
   @param dst the evbuffer to which to prepend data
   @param src the evbuffer to prepend; it will be emptied as a result
+  @return 0 if successful, or -1 otherwise
 */
 
-void evbuffer_prepend_buffer(struct evbuffer *dst, struct evbuffer* src);
+int evbuffer_prepend_buffer(struct evbuffer *dst, struct evbuffer* src);
 
 /* XXX missing APIs:
 
@@ -558,6 +561,31 @@ void evbuffer_prepend_buffer(struct evbuffer *dst, struct evbuffer* src);
 /** deprecated in favor of calling the functions directly */
 #define EVBUFFER_LENGTH(x)	evbuffer_get_length(x)
 #define EVBUFFER_DATA(x)	evbuffer_pullup(x, -1)
+
+/**
+   Prevent calls that modify an evbuffer from succeeding. A buffer may
+   frozen at the front, at the back, or at both the front and the back.
+
+   If the front of a buffer is frozen, operations that drain data from
+   the front of the buffer, or that prepend data to the buffer, will
+   fail until it is unfrozen.   If the back a buffer is frozen, operations
+   that append data from the buffer will fail until it is unfrozen.
+
+   @param buf The buffer to freeze
+   @param at_front If true, we freeze the front of the buffer.  If false,
+      we freeze the back.
+   @return 0 on success, -1 on failure.
+*/
+int evbuffer_freeze(struct evbuffer *buf, int at_front);
+/**
+   Re-enable calls that modify an evbuffer.
+
+   @param buf The buffer to un-freeze
+   @param at_front If true, we unfreeze the front of the buffer.  If false,
+      we unfreeze the back.
+   @return 0 on success, -1 on failure.
+ */
+int evbuffer_unfreeze(struct evbuffer *buf, int at_front);
 
 #ifdef __cplusplus
 }

@@ -76,6 +76,8 @@ struct evbuffer {
         void *lock;
 #endif
 	unsigned own_lock : 1;
+	unsigned freeze_start : 1;
+	unsigned freeze_end : 1;
 
         int lock_count;
 
