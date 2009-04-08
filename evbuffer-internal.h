@@ -76,7 +76,8 @@ struct evbuffer {
         void *lock;
 #endif
 	unsigned own_lock : 1;
-        int lock_count : 31;
+
+        int lock_count;
 
 	TAILQ_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
 };
@@ -103,6 +104,14 @@ struct evbuffer_chain {
 #define EVBUFFER_SENDFILE	0x0002  /**< a chain used for sendfile */
 #define EVBUFFER_REFERENCE	0x0004	/**< a chain with a mem reference */
 #define EVBUFFER_IMMUTABLE	0x0008  /**< read-only chain */
+	/** a chain that mustn't be reallocated or freed, or have its contents
+	 * memmoved, until the chain is un-pinned. */
+#define EVBUFFER_MEM_PINNED_R	0x0010
+#define EVBUFFER_MEM_PINNED_W	0x0020
+#define EVBUFFER_MEM_PINNED_ANY (EVBUFFER_MEM_PINNED_R|EVBUFFER_MEM_PINNED_W)
+	/** a chain that should be freed, but can't be freed until it is
+	 * un-pinned. */
+#define EVBUFFER_DANGLING	0x0040
 
 	/** Usually points to the read-write memory belonging to this
 	 * buffer allocated as part of the evbuffer_chain allocation.
