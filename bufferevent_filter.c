@@ -97,7 +97,7 @@ struct bufferevent_filtered {
 	void *context;
 };
 
-struct bufferevent_ops bufferevent_ops_filter = {
+const struct bufferevent_ops bufferevent_ops_filter = {
 	"filter",
 	evutil_offsetof(struct bufferevent_filtered, bev),
 	be_filter_enable,

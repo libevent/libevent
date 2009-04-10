@@ -70,7 +70,7 @@ static void be_socket_destruct(struct bufferevent *);
 static void be_socket_adj_timeouts(struct bufferevent *);
 static int be_socket_flush(struct bufferevent *, short, enum bufferevent_flush_mode);
 
-struct bufferevent_ops bufferevent_ops_socket = {
+const struct bufferevent_ops bufferevent_ops_socket = {
 	"socket",
 	0,
 	be_socket_enable,
