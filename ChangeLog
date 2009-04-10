@@ -146,6 +146,7 @@ Changes in current version:
  o evbuffers can now be "frozen" to prevent operations at one or both ends.
  o Bufferevents now notice external attempts to add data to an inbuf or remove it from an outbuf, and stop them.
  o Fix parsing of queries where the encoded queries contained \r, \n or +
+ o Do not allow internal events to starve lower-priority events.
 
 Changes in 1.4.0:
  o allow \r or \n individually to separate HTTP headers instead of the standard "\r\n"; from Charles Kerr.

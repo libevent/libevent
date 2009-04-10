@@ -604,26 +604,18 @@ event_signal_closure(struct event_base *base, struct event *ev)
 }
 
 /*
- * Active events are stored in priority queues.  Lower priorities are always
- * process before higher priorities.  Low priority events can starve high
- * priority ones.
- */
-
-static void
-event_process_active(struct event_base *base)
+  Helper for event_process_active to process all the events in a single queue,
+  releasing the lock as we go.  This function requires that the lock be held
+  when it's invoked.  Returns -1 if we get a signal or an event_break that
+  means we should stop processing any active events now.  Otherwise returns
+  the number of non-internal events that we processed.
+*/
+static int
+event_process_active_single_queue(struct event_base *base,
+    struct event_list *activeq)
 {
 	struct event *ev;
-	struct event_list *activeq = NULL;
-	int i;
-
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
-
-	for (i = 0; i < base->nactivequeues; ++i) {
-		if (TAILQ_FIRST(base->activequeues[i]) != NULL) {
-			activeq = base->activequeues[i];
-			break;
-		}
-	}
+	int count = 0;
 
 	assert(activeq != NULL);
 
@@ -632,6 +624,8 @@ event_process_active(struct event_base *base)
 			event_queue_remove(base, ev, EVLIST_ACTIVE);
 		else
 			event_del_internal(ev);
+		if (!(ev->ev_flags & EVLIST_INTERNAL))
+			++count;
 
 		event_debug((
 			 "event_process_active: event: %p, %s%scall %p",
@@ -649,8 +643,38 @@ event_process_active(struct event_base *base)
 			(*ev->ev_callback)(
 				(int)ev->ev_fd, ev->ev_res, ev->ev_arg);
 		if (event_gotsig || base->event_break)
-			return;
+			return -1;
 		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	}
+	return count;
+}
+
+/*
+ * Active events are stored in priority queues.  Lower priorities are always
+ * process before higher priorities.  Low priority events can starve high
+ * priority ones.
+ */
+
+static void
+event_process_active(struct event_base *base)
+{
+	struct event_list *activeq = NULL;
+	int i, c;
+
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
+	for (i = 0; i < base->nactivequeues; ++i) {
+		if (TAILQ_FIRST(base->activequeues[i]) != NULL) {
+			activeq = base->activequeues[i];
+			c = event_process_active_single_queue(base, activeq);
+			if (c < 0)
+				return; /* already unlocked */
+			else if (c > 0)
+				break; /* Processed a real event; do not
+					* consider lower-priority events */
+			/* If we get here, all of the events we processed
+			 * were internal.  Continue. */
+		}
 	}
 
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
@@ -1650,8 +1674,6 @@ evthread_make_base_notifiable(struct event_base *base)
 
 	/* we need to mark this as internal event */
 	base->th_notify.ev_flags |= EVLIST_INTERNAL;
-
-	/* XXX th_notify should have a very high priority. */
 
 	event_add(&base->th_notify, NULL);
 
