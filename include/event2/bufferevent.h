@@ -405,7 +405,13 @@ bufferevent_filter_new(struct bufferevent *underlying,
 		       void (*free_context)(void *),
 		       void *ctx);
 
-/** Allocate a pair of linked bufferevents DOCDOC */
+/**
+   Allocate a pair of linked bufferevents.  The bufferevents behave as would
+   two bufferevent_sock instances connected to opposite ends of a
+   socketpair(), except that no internel socketpair is allocated.
+
+   @param base The event base to associate with the socketpair.
+ */
 int
 bufferevent_pair_new(struct event_base *base, enum bufferevent_options options,
     struct bufferevent *pair[2]);
