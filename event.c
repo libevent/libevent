@@ -65,6 +65,7 @@
 #include "event2/event_struct.h"
 #include "event2/event_compat.h"
 #include "event-internal.h"
+#include "defer-internal.h"
 #include "evthread-internal.h"
 #include "event2/thread.h"
 #include "event2/util.h"
@@ -250,6 +251,7 @@ event_base_new_with_config(struct event_config *cfg)
 
 	min_heap_ctor(&base->timeheap);
 	TAILQ_INIT(&base->eventqueue);
+	TAILQ_INIT(&base->deferred_cb_list);
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
 
@@ -649,6 +651,28 @@ event_process_active_single_queue(struct event_base *base,
 	return count;
 }
 
+static int
+event_process_deferred_callbacks(struct event_base *base)
+{
+	int count = 0;
+	struct deferred_cb *cb;
+
+	while ((cb = TAILQ_FIRST(&base->deferred_cb_list))) {
+		cb->queued = 0;
+		TAILQ_REMOVE(&base->deferred_cb_list, cb, cb_next);
+		--base->event_count_active;
+		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
+		cb->cb(cb, cb->arg);
+		++count;
+		if (event_gotsig || base->event_break)
+			return -1;
+
+		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	}
+	return count;
+}
+
 /*
  * Active events are stored in priority queues.  Lower priorities are always
  * process before higher priorities.  Low priority events can starve high
@@ -676,6 +700,8 @@ event_process_active(struct event_base *base)
 			 * were internal.  Continue. */
 		}
 	}
+
+	event_process_deferred_callbacks(base);
 
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
@@ -1305,6 +1331,44 @@ event_active_internal(struct event *ev, int res, short ncalls)
 	}
 
 	event_queue_insert(base, ev, EVLIST_ACTIVE);
+}
+
+void
+event_deferred_cb_init(struct deferred_cb *cb, deferred_cb_fn fn, void *arg)
+{
+	memset(cb, 0, sizeof(struct deferred_cb));
+	cb->cb = fn;
+	cb->arg = arg;
+}
+
+void
+event_deferred_cb_cancel(struct event_base *base, struct deferred_cb *cb)
+{
+	if (!base)
+		base = current_base;
+
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	if (cb->queued) {
+		TAILQ_REMOVE(&base->deferred_cb_list, cb, cb_next);
+		--base->event_count_active;
+		cb->queued = 0;
+	}
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+}
+
+void
+event_deferred_cb_schedule(struct event_base *base, struct deferred_cb *cb)
+{
+	assert(!cb->queued);
+	if (!base)
+		base = current_base;
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	cb->queued = 1;
+	TAILQ_INSERT_TAIL(&base->deferred_cb_list, cb, cb_next);
+	++base->event_count_active;
+	if (!EVBASE_IN_THREAD(base))
+		evthread_notify_base(base);
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
 static int
