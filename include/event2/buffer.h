@@ -587,6 +587,16 @@ int evbuffer_freeze(struct evbuffer *buf, int at_front);
  */
 int evbuffer_unfreeze(struct evbuffer *buf, int at_front);
 
+struct event_base;
+/**
+   Force all the callbacks on an evbuffer to be run, not immediately after
+   the evbuffer is altered, but instead from inside the event loop.
+
+   This can be used to serialize all the callbacks to a single thread
+   of execution.
+ */
+int evbuffer_defer_callbacks(struct evbuffer *buffer, struct event_base *base);
+
 #ifdef __cplusplus
 }
 #endif
