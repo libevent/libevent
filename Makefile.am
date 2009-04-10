@@ -90,6 +90,7 @@ event-config.h: config.h
 
 CORE_SRC = event.c buffer.c \
 	bufferevent.c bufferevent_sock.c bufferevent_filter.c \
+	bufferevent_pair.c \
 	evmap.c	log.c evutil.c strlcpy.c $(SYS_SRC)
 EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
 

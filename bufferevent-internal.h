@@ -76,8 +76,9 @@ struct bufferevent_ops {
         int (*flush)(struct bufferevent *, short, enum bufferevent_flush_mode);
 };
 
-extern const struct bufferevent_ops be_ops_socket;
-extern const struct bufferevent_ops be_ops_filter;
+extern const struct bufferevent_ops bufferevent_ops_socket;
+extern const struct bufferevent_ops bufferevent_ops_filter;
+extern const struct bufferevent_ops bufferevent_ops_pair;
 
 /** Initialize the shared parts of a bufferevent. */
 int bufferevent_init_common(struct bufferevent *, struct event_base *, const struct bufferevent_ops *, enum bufferevent_options options);

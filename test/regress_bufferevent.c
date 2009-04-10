@@ -109,14 +109,23 @@ errorcb(struct bufferevent *bev, short what, void *arg)
 }
 
 static void
-test_bufferevent(void)
+test_bufferevent_impl(int use_pair)
 {
-	struct bufferevent *bev1, *bev2;
+	struct bufferevent *bev1 = NULL, *bev2 = NULL;
 	char buffer[8333];
 	int i;
 
-	bev1 = bufferevent_new(pair[0], readcb, writecb, errorcb, NULL);
-	bev2 = bufferevent_new(pair[1], readcb, writecb, errorcb, NULL);
+	if (use_pair) {
+		struct bufferevent *pair[2];
+		tt_assert(0 == bufferevent_pair_new(NULL, 0, pair));
+		bev1 = pair[0];
+		bev2 = pair[1];
+		bufferevent_setcb(bev1, readcb, writecb, errorcb, NULL);
+		bufferevent_setcb(bev2, readcb, writecb, errorcb, NULL);
+	} else {
+		bev1 = bufferevent_new(pair[0], readcb, writecb, errorcb, NULL);
+		bev2 = bufferevent_new(pair[1], readcb, writecb, errorcb, NULL);
+	}
 
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
@@ -133,7 +142,20 @@ test_bufferevent(void)
 
 	if (test_ok != 2)
 		test_ok = 0;
+end:
+	;
+}
 
+static void
+test_bufferevent(void)
+{
+	test_bufferevent_impl(0);
+}
+
+static void
+test_bufferevent_pair(void)
+{
+	test_bufferevent_impl(1);
 }
 
 /*
@@ -180,22 +202,29 @@ wm_errorcb(struct bufferevent *bev, short what, void *arg)
 }
 
 static void
-test_bufferevent_watermarks(void)
+test_bufferevent_watermarks_impl(int use_pair)
 {
-	struct bufferevent *bev1, *bev2;
+	struct bufferevent *bev1 = NULL, *bev2 = NULL;
 	char buffer[65000];
 	int i;
+	test_ok = 0;
 
-	bev1 = bufferevent_new(pair[0], NULL, wm_writecb, wm_errorcb, NULL);
-	bev2 = bufferevent_new(pair[1], wm_readcb, NULL, wm_errorcb, NULL);
-
+	if (use_pair) {
+		struct bufferevent *pair[2];
+		tt_assert(0 == bufferevent_pair_new(NULL, 0, pair));
+		bev1 = pair[0];
+		bev2 = pair[1];
+		bufferevent_setcb(bev1, NULL, wm_writecb, errorcb, NULL);
+		bufferevent_setcb(bev2, wm_readcb, NULL, errorcb, NULL);
+	} else {
+		bev1 = bufferevent_new(pair[0], NULL, wm_writecb, wm_errorcb, NULL);
+		bev2 = bufferevent_new(pair[1], wm_readcb, NULL, wm_errorcb, NULL);
+	}
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
 
 	for (i = 0; i < sizeof(buffer); i++)
 		buffer[i] = (char)i;
-
-	bufferevent_write(bev1, buffer, sizeof(buffer));
 
 	/* limit the reading on the receiving bufferevent */
 	bufferevent_setwatermark(bev2, EV_READ, 10, 20);
@@ -203,6 +232,8 @@ test_bufferevent_watermarks(void)
         /* Tell the sending bufferevent not to notify us till it's down to
            100 bytes. */
         bufferevent_setwatermark(bev1, EV_WRITE, 100, 2000);
+
+	bufferevent_write(bev1, buffer, sizeof(buffer));
 
 	event_dispatch();
 
@@ -215,6 +246,18 @@ test_bufferevent_watermarks(void)
 end:
 	bufferevent_free(bev1);
 	bufferevent_free(bev2);
+}
+
+static void
+test_bufferevent_watermarks(void)
+{
+	test_bufferevent_watermarks_impl(0);
+}
+
+static void
+test_bufferevent_pair_watermarks(void)
+{
+	test_bufferevent_watermarks_impl(1);
 }
 
 /*
@@ -264,16 +307,23 @@ bufferevent_output_filter(struct evbuffer *src, struct evbuffer *dst,
 
 
 static void
-test_bufferevent_filters(void)
+test_bufferevent_filters_impl(int use_pair)
 {
-	struct bufferevent *bev1, *bev2;
+	struct bufferevent *bev1 = NULL, *bev2 = NULL;
 	char buffer[8333];
 	int i;
 
         test_ok = 0;
 
-	bev1 = bufferevent_socket_new(NULL, pair[0], 0);
-	bev2 = bufferevent_socket_new(NULL, pair[1], 0);
+	if (use_pair) {
+		struct bufferevent *pair[2];
+		tt_assert(0 == bufferevent_pair_new(NULL, 0, pair));
+		bev1 = pair[0];
+		bev2 = pair[1];
+	} else {
+		bev1 = bufferevent_socket_new(NULL, pair[0], 0);
+		bev2 = bufferevent_socket_new(NULL, pair[1], 0);
+	}
 
 	for (i = 0; i < sizeof(buffer); i++)
 		buffer[i] = i;
@@ -293,18 +343,35 @@ test_bufferevent_filters(void)
 
 	event_dispatch();
 
+	if (test_ok != 2)
+		test_ok = 0;
+
+end:
 	bufferevent_free(bev1);
 	bufferevent_free(bev2);
 
-	if (test_ok != 2)
-		test_ok = 0;
+}
+
+static void
+test_bufferevent_filters(void)
+{
+	test_bufferevent_filters_impl(0);
+}
+
+static void
+test_bufferevent_pair_filters(void)
+{
+	test_bufferevent_filters_impl(1);
 }
 
 struct testcase_t bufferevent_testcases[] = {
 
         LEGACY(bufferevent, TT_ISOLATED),
+        LEGACY(bufferevent_pair, TT_ISOLATED),
         LEGACY(bufferevent_watermarks, TT_ISOLATED),
+        LEGACY(bufferevent_pair_watermarks, TT_ISOLATED),
         LEGACY(bufferevent_filters, TT_ISOLATED),
+        LEGACY(bufferevent_pair_filters, TT_ISOLATED),
 #ifdef _EVENT_HAVE_LIBZ
         LEGACY(bufferevent_zlib, TT_ISOLATED),
 #else

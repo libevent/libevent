@@ -405,6 +405,11 @@ bufferevent_filter_new(struct bufferevent *underlying,
 		       void (*free_context)(void *),
 		       void *ctx);
 
+/** Allocate a pair of linked bufferevents DOCDOC */
+int
+bufferevent_pair_new(struct event_base *base, enum bufferevent_options options,
+    struct bufferevent *pair[2]);
+
 #ifdef __cplusplus
 }
 #endif
