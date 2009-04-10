@@ -1351,11 +1351,52 @@ http_bad_header_test(void *ptr)
 	TAILQ_INIT(&headers);
 
 	tt_want(evhttp_add_header(&headers, "One", "Two") == 0);
+	tt_want(evhttp_add_header(&headers, "One", "Two\r\n Three") == 0);
 	tt_want(evhttp_add_header(&headers, "One\r", "Two") == -1);
 	tt_want(evhttp_add_header(&headers, "One\n", "Two") == -1);
 	tt_want(evhttp_add_header(&headers, "One", "Two\r") == -1);
 	tt_want(evhttp_add_header(&headers, "One", "Two\n") == -1);
 
+	evhttp_clear_headers(&headers);
+}
+
+static int validate_header(
+	const struct evkeyvalq* headers,
+	const char *key, const char *value) 
+{
+	const char *real_val = evhttp_find_header(headers, key);
+	tt_assert(real_val != NULL);
+	tt_want(strcmp(real_val, value) == 0);
+end:
+	return (0);
+}
+
+static void
+http_parse_query_test(void *ptr)
+{
+	struct evkeyvalq headers;
+
+	TAILQ_INIT(&headers);
+	
+	evhttp_parse_query("http://www.test.com/?q=test", &headers);
+	tt_want(validate_header(&headers, "q", "test") == 0);
+	evhttp_clear_headers(&headers);
+
+	evhttp_parse_query("http://www.test.com/?q=test&foo=bar", &headers);
+	tt_want(validate_header(&headers, "q", "test") == 0);
+	tt_want(validate_header(&headers, "foo", "bar") == 0);
+	evhttp_clear_headers(&headers);
+
+	evhttp_parse_query("http://www.test.com/?q=test+foo", &headers);
+	tt_want(validate_header(&headers, "q", "test foo") == 0);
+	evhttp_clear_headers(&headers);
+
+	evhttp_parse_query("http://www.test.com/?q=test%0Afoo", &headers);
+	tt_want(validate_header(&headers, "q", "test\nfoo") == 0);
+	evhttp_clear_headers(&headers);
+
+	evhttp_parse_query("http://www.test.com/?q=test%0Dfoo", &headers);
+	tt_want(validate_header(&headers, "q", "test\rfoo") == 0);
 	evhttp_clear_headers(&headers);
 }
 
@@ -2148,6 +2189,7 @@ struct testcase_t http_testcases[] = {
 	{ "primitives", http_primitives, 0, NULL, NULL },
 	HTTP_LEGACY(base),
 	{ "bad_headers", http_bad_header_test, 0, NULL, NULL },
+	{ "parse_query", http_parse_query_test, 0, NULL, NULL },
 	HTTP_LEGACY(basic),
 	HTTP_LEGACY(cancel),
 	HTTP_LEGACY(virtual_host),

@@ -211,14 +211,16 @@ static void evhttp_request_dispatch(struct evhttp_connection* evcon);
 static void evhttp_read_firstline(struct evhttp_connection *evcon,
 				  struct evhttp_request *req);
 static void evhttp_read_header(struct evhttp_connection *evcon,
-				  struct evhttp_request *req);
+    struct evhttp_request *req);
+static int evhttp_add_header_internal(struct evkeyvalq *headers,
+    const char *key, const char *value);
 
 /* callbacks for bufferevent */
 static void evhttp_read_cb(struct bufferevent *, void *);
 static void evhttp_write_cb(struct bufferevent *, void *);
 static void evhttp_error_cb(struct bufferevent *bufev, short what, void *arg);
 static int evhttp_decode_uri_internal(const char *uri, size_t length,
-    char *ret);
+    char *ret, int always_decode_plus);
 
 #ifndef _EVENT_HAVE_STRSEP
 /* strsep replacement for platforms that lack it.  Only works if
@@ -1372,22 +1374,46 @@ evhttp_remove_header(struct evkeyvalq *headers, const char *key)
 	return (0);
 }
 
+static int
+evhttp_header_is_valid_value(const char *value)
+{
+	const char *p = value;
+
+	while ((p = strpbrk(p, "\r\n")) != NULL) {
+		/* we really expect only one new line */
+		p += strspn(p, "\r\n");
+		/* we expect a space or tab for continuation */
+		if (*p != ' ' && *p != '\t')
+			return (0);
+	}
+	return (1);
+}
+
 int
 evhttp_add_header(struct evkeyvalq *headers,
     const char *key, const char *value)
 {
-	struct evkeyval *header = NULL;
-
 	event_debug(("%s: key: %s val: %s\n", __func__, key, value));
 
-	if (strchr(value, '\r') != NULL || strchr(value, '\n') != NULL ||
-	    strchr(key, '\r') != NULL || strchr(key, '\n') != NULL) {
+	if (strchr(key, '\r') != NULL || strchr(key, '\n') != NULL) {
 		/* drop illegal headers */
-		event_debug(("%s: dropping illegal header\n", __func__));
+		event_debug(("%s: dropping illegal header key\n", __func__));
+		return (-1);
+	}
+	
+	if (!evhttp_header_is_valid_value(value)) {
+		event_debug(("%s: dropping illegal header vakye\n", __func__));
 		return (-1);
 	}
 
-	header = mm_calloc(1, sizeof(struct evkeyval));
+	return (evhttp_add_header_internal(headers, key, value));
+}
+
+static int
+evhttp_add_header_internal(struct evkeyvalq *headers,
+    const char *key, const char *value)
+{
+	struct evkeyval *header = mm_calloc(1, sizeof(struct evkeyval));
 	if (header == NULL) {
 		event_warn("%s: calloc", __func__);
 		return (-1);
@@ -2112,11 +2138,16 @@ evhttp_encode_uri(const char *uri)
 	return (p);
 }
 
+/*
+ * @param always_decode_plus: when true we transform plus to space even
+ *     if we have not seen a ?.
+ */
 static int
-evhttp_decode_uri_internal(const char *uri, size_t length, char *ret)
+evhttp_decode_uri_internal(
+	const char *uri, size_t length, char *ret, int always_decode_plus)
 {
 	char c;
-	int i, j, in_query = 0;
+	int i, j, in_query = always_decode_plus;
 
 	for (i = j = 0; i < length; i++) {
 		c = uri[i];
@@ -2146,7 +2177,8 @@ evhttp_decode_uri(const char *uri)
 		event_err(1, "%s: malloc(%lu)", __func__,
 			  (unsigned long)(strlen(uri) + 1));
 
-	evhttp_decode_uri_internal(uri, strlen(uri), ret);
+	evhttp_decode_uri_internal(uri, strlen(uri),
+	    ret, 1 /*always_decode_plus*/);
 
 	return (ret);
 }
@@ -2191,7 +2223,7 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 
 		value = evhttp_decode_uri(value);
 		event_debug(("Query Param: %s -> %s\n", key, value));
-		evhttp_add_header(headers, key, value);
+		evhttp_add_header_internal(headers, key, value);
 		mm_free(value);
 	}
 
@@ -2214,7 +2246,8 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 
 	if ((translated = mm_malloc(offset + 1)) == NULL)
 		return (NULL);
-	offset = evhttp_decode_uri_internal(req->uri, offset, translated);
+	offset = evhttp_decode_uri_internal(req->uri, offset,
+	    translated, 0 /* always_decode_plus */);
 
 	TAILQ_FOREACH(cb, callbacks, next) {
 		int res = 0;
