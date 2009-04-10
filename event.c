@@ -841,7 +841,7 @@ event_base_loop(struct event_base *base, int flags)
 		}
 
 		/* If we have no events, we just exit */
-		if (!event_haveevents(base)) {
+		if (!event_haveevents(base) && !base->event_count_active) {
 			event_debug(("%s: no events registered.", __func__));
 			return (1);
 		}
@@ -1359,15 +1359,16 @@ event_deferred_cb_cancel(struct event_base *base, struct deferred_cb *cb)
 void
 event_deferred_cb_schedule(struct event_base *base, struct deferred_cb *cb)
 {
-	assert(!cb->queued);
 	if (!base)
 		base = current_base;
 	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
-	cb->queued = 1;
-	TAILQ_INSERT_TAIL(&base->deferred_cb_list, cb, cb_next);
-	++base->event_count_active;
-	if (!EVBASE_IN_THREAD(base))
-		evthread_notify_base(base);
+	if (!cb->queued) {
+		cb->queued = 1;
+		TAILQ_INSERT_TAIL(&base->deferred_cb_list, cb, cb_next);
+		++base->event_count_active;
+		if (!EVBASE_IN_THREAD(base))
+			evthread_notify_base(base);
+	}
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
