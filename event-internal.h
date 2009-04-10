@@ -101,11 +101,15 @@ struct event_base {
 	struct event_list **activequeues;
 	int nactivequeues;
 
+	/* deferred callback management */
+	TAILQ_HEAD (deferred_cb_list, deferred_cb) deferred_cb_list;
+
 	/* for mapping io activity to events */
 	struct event_io_map io;
 
 	/* for mapping signal activity to events */
 	struct event_signal_map sigmap;
+
 
 	struct event_list eventqueue;
 	struct timeval event_tv;
