@@ -134,6 +134,7 @@ static int use_mmap = 1;
 #define CHAIN_PINNED(ch)  (((ch)->flags & EVBUFFER_MEM_PINNED_ANY) != 0)
 
 static void evbuffer_chain_align(struct evbuffer_chain *chain);
+static void evbuffer_deferred_callback(struct deferred_cb *cb, void *arg);
 
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
@@ -261,6 +262,18 @@ evbuffer_new(void)
 }
 
 int
+evbuffer_defer_callbacks(struct evbuffer *buffer, struct event_base *base)
+{
+	EVBUFFER_LOCK(buffer, EVTHREAD_WRITE);
+	buffer->ev_base = base;
+	buffer->deferred_cbs = 1;
+	event_deferred_cb_init(&buffer->deferred,
+	    evbuffer_deferred_callback, buffer);
+	EVBUFFER_UNLOCK(buffer, EVTHREAD_WRITE);
+	return 0;
+}
+
+int
 evbuffer_enable_locking(struct evbuffer *buf, void *lock)
 {
 #ifdef _EVENT_DISABLE_THREAD_SUPPORT
@@ -284,8 +297,8 @@ evbuffer_enable_locking(struct evbuffer *buf, void *lock)
 #endif
 }
 
-static inline void
-evbuffer_invoke_callbacks(struct evbuffer *buffer)
+static void
+evbuffer_run_callbacks(struct evbuffer *buffer)
 {
 	struct evbuffer_cb_entry *cbent, *next;
         struct evbuffer_cb_info info;
@@ -328,6 +341,28 @@ evbuffer_invoke_callbacks(struct evbuffer *buffer)
 	}
 }
 
+static inline void
+evbuffer_invoke_callbacks(struct evbuffer *buffer)
+{
+	if (buffer->deferred_cbs) {
+		event_deferred_cb_schedule(buffer->ev_base, &buffer->deferred);
+	} else {
+		evbuffer_run_callbacks(buffer);
+	}
+}
+
+static void
+evbuffer_deferred_callback(struct deferred_cb *cb, void *arg)
+{
+	struct evbuffer *buffer = arg;
+	static int which = 0;
+	printf("FOO #%d\n", which++);
+
+	EVBUFFER_LOCK(buffer, EVTHREAD_WRITE);
+	evbuffer_run_callbacks(buffer);
+	EVBUFFER_UNLOCK(buffer, EVTHREAD_WRITE);
+}
+
 static void
 evbuffer_remove_all_callbacks(struct evbuffer *buffer)
 {
@@ -351,6 +386,8 @@ evbuffer_free(struct evbuffer *buffer)
 		evbuffer_chain_free(chain);
 	}
 	evbuffer_remove_all_callbacks(buffer);
+	if (buffer->deferred_cbs)
+		event_deferred_cb_cancel(buffer->ev_base, &buffer->deferred);
         if (buffer->own_lock)
                 EVTHREAD_FREE_LOCK(buffer->lock);
 	mm_free(buffer);

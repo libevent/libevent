@@ -33,6 +33,7 @@ extern "C" {
 
 #include "event-config.h"
 #include "evutil.h"
+#include "defer-internal.h"
 
 #include <sys/queue.h>
 /* minimum allocation for a chain. */
@@ -78,8 +79,13 @@ struct evbuffer {
 	unsigned own_lock : 1;
 	unsigned freeze_start : 1;
 	unsigned freeze_end : 1;
+	unsigned deferred_cbs : 1;
+
+	struct event_base *ev_base;
 
         int lock_count;
+
+	struct deferred_cb deferred;
 
 	TAILQ_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
 };
