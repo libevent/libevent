@@ -218,7 +218,7 @@ static void evhttp_read_cb(struct bufferevent *, void *);
 static void evhttp_write_cb(struct bufferevent *, void *);
 static void evhttp_error_cb(struct bufferevent *bufev, short what, void *arg);
 static int evhttp_decode_uri_internal(const char *uri, size_t length,
-    char *ret, int optional_decode_plus);
+    char *ret);
 
 #ifndef _EVENT_HAVE_STRSEP
 /* strsep replacement for platforms that lack it.  Only works if
@@ -2112,16 +2112,11 @@ evhttp_encode_uri(const char *uri)
 	return (p);
 }
 
-/*
- * @param optional_decode_plus: when true we transform plus to space only
- *     if we have seen a ?.
- */
 static int
-evhttp_decode_uri_internal(
-	const char *uri, size_t length, char *ret, int optional_decode_plus)
+evhttp_decode_uri_internal(const char *uri, size_t length, char *ret)
 {
 	char c;
-	int i, j, in_query = !optional_decode_plus;
+	int i, j, in_query = 0;
 
 	for (i = j = 0; i < length; i++) {
 		c = uri[i];
@@ -2151,8 +2146,7 @@ evhttp_decode_uri(const char *uri)
 		event_err(1, "%s: malloc(%lu)", __func__,
 			  (unsigned long)(strlen(uri) + 1));
 
-	evhttp_decode_uri_internal(uri, strlen(uri),
-	    ret, 0 /*optional_decode_plus*/);
+	evhttp_decode_uri_internal(uri, strlen(uri), ret);
 
 	return (ret);
 }
@@ -2220,8 +2214,7 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 
 	if ((translated = mm_malloc(offset + 1)) == NULL)
 		return (NULL);
-	offset = evhttp_decode_uri_internal(req->uri, offset,
-	    translated, 1 /* optional_decode_plus */);
+	offset = evhttp_decode_uri_internal(req->uri, offset, translated);
 
 	TAILQ_FOREACH(cb, callbacks, next) {
 		int res = 0;
