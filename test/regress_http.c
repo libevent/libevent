@@ -995,16 +995,74 @@ http_bad_header_test(void)
 	
 	if (evhttp_add_header(&headers, "One\r", "Two") != -1)
 		goto fail;
-
+	if (evhttp_add_header(&headers, "One", "Two") != 0)
+		goto fail;
+	if (evhttp_add_header(&headers, "One", "Two\r\n Three") != 0)
+		goto fail;
+	if (evhttp_add_header(&headers, "One\r", "Two") != -1)
+		goto fail;
 	if (evhttp_add_header(&headers, "One\n", "Two") != -1)
 		goto fail;
-
 	if (evhttp_add_header(&headers, "One", "Two\r") != -1)
 		goto fail;
-
 	if (evhttp_add_header(&headers, "One", "Two\n") != -1)
 		goto fail;
 
+	evhttp_clear_headers(&headers);
+
+	fprintf(stdout, "OK\n");
+	return;
+fail:
+	fprintf(stdout, "FAILED\n");
+	exit(1);
+}
+
+static int validate_header(
+	const struct evkeyvalq* headers,
+	const char *key, const char *value) 
+{
+	const char *real_val = evhttp_find_header(headers, key);
+	if (real_val == NULL)
+		return (-1);
+	if (strcmp(real_val, value) != 0)
+		return (-1);
+	return (0);
+}
+
+static void
+http_parse_query_test(void)
+{
+	struct evkeyvalq headers;
+
+	fprintf(stdout, "Testing HTTP query parsing: ");
+
+	TAILQ_INIT(&headers);
+	
+	evhttp_parse_query("http://www.test.com/?q=test", &headers);
+	if (validate_header(&headers, "q", "test") != 0)
+		goto fail;
+	evhttp_clear_headers(&headers);
+
+	evhttp_parse_query("http://www.test.com/?q=test&foo=bar", &headers);
+	if (validate_header(&headers, "q", "test") != 0)
+		goto fail;
+	if (validate_header(&headers, "foo", "bar") != 0)
+		goto fail;
+	evhttp_clear_headers(&headers);
+
+	evhttp_parse_query("http://www.test.com/?q=test+foo", &headers);
+	if (validate_header(&headers, "q", "test foo") != 0)
+		goto fail;
+	evhttp_clear_headers(&headers);
+
+	evhttp_parse_query("http://www.test.com/?q=test%0Afoo", &headers);
+	if (validate_header(&headers, "q", "test\nfoo") != 0)
+		goto fail;
+	evhttp_clear_headers(&headers);
+
+	evhttp_parse_query("http://www.test.com/?q=test%0Dfoo", &headers);
+	if (validate_header(&headers, "q", "test\rfoo") != 0)
+		goto fail;
 	evhttp_clear_headers(&headers);
 
 	fprintf(stdout, "OK\n");
@@ -1400,6 +1458,7 @@ http_suite(void)
 {
 	http_base_test();
 	http_bad_header_test();
+	http_parse_query_test();
 	http_basic_test();
 	http_connection_test(0 /* not-persistent */);
 	http_connection_test(1 /* persistent */);

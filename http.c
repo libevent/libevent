@@ -211,6 +211,10 @@ static void evhttp_read_firstline(struct evhttp_connection *evcon,
 				  struct evhttp_request *req);
 static void evhttp_read_header(struct evhttp_connection *evcon,
     struct evhttp_request *req);
+static int evhttp_add_header_internal(struct evkeyvalq *headers,
+    const char *key, const char *value);
+static int evhttp_decode_uri_internal(const char *uri, size_t length,
+    char *ret, int always_decode_plus);
 
 void evhttp_read(int, short, void *);
 void evhttp_write(int, short, void *);
@@ -1362,22 +1366,46 @@ evhttp_remove_header(struct evkeyvalq *headers, const char *key)
 	return (0);
 }
 
+static int
+evhttp_header_is_valid_value(const char *value)
+{
+	const char *p = value;
+
+	while ((p = strpbrk(p, "\r\n")) != NULL) {
+		/* we really expect only one new line */
+		p += strspn(p, "\r\n");
+		/* we expect a space or tab for continuation */
+		if (*p != ' ' && *p != '\t')
+			return (0);
+	}
+	return (1);
+}
+
 int
 evhttp_add_header(struct evkeyvalq *headers,
     const char *key, const char *value)
 {
-	struct evkeyval *header = NULL;
-
 	event_debug(("%s: key: %s val: %s\n", __func__, key, value));
 
-	if (strchr(value, '\r') != NULL || strchr(value, '\n') != NULL ||
-	    strchr(key, '\r') != NULL || strchr(key, '\n') != NULL) {
+	if (strchr(key, '\r') != NULL || strchr(key, '\n') != NULL) {
 		/* drop illegal headers */
-		event_debug(("%s: dropping illegal header\n", __func__));
+		event_debug(("%s: dropping illegal header key\n", __func__));
+		return (-1);
+	}
+	
+	if (!evhttp_header_is_valid_value(value)) {
+		event_debug(("%s: dropping illegal header value\n", __func__));
 		return (-1);
 	}
 
-	header = calloc(1, sizeof(struct evkeyval));
+	return (evhttp_add_header_internal(headers, key, value));
+}
+
+static int
+evhttp_add_header_internal(struct evkeyvalq *headers,
+    const char *key, const char *value)
+{
+	struct evkeyval *header = calloc(1, sizeof(struct evkeyval));
 	if (header == NULL) {
 		event_warn("%s: calloc", __func__);
 		return (-1);
@@ -2039,16 +2067,16 @@ evhttp_encode_uri(const char *uri)
 	return (p);
 }
 
-char *
-evhttp_decode_uri(const char *uri)
+/*
+ * @param always_decode_plus: when true we transform plus to space even
+ *     if we have not seen a ?.
+ */
+static int
+evhttp_decode_uri_internal(
+	const char *uri, size_t length, char *ret, int always_decode_plus)
 {
-	char c, *ret;
-	int i, j, in_query = 0;
-	
-	ret = malloc(strlen(uri) + 1);
-	if (ret == NULL)
-		event_err(1, "%s: malloc(%lu)", __func__,
-			  (unsigned long)(strlen(uri) + 1));
+	char c;
+	int i, j, in_query = always_decode_plus;
 	
 	for (i = j = 0; uri[i] != '\0'; i++) {
 		c = uri[i];
@@ -2065,7 +2093,22 @@ evhttp_decode_uri(const char *uri)
 		ret[j++] = c;
 	}
 	ret[j] = '\0';
-	
+
+	return (j);
+}
+
+char *
+evhttp_decode_uri(const char *uri)
+{
+	char *ret;
+
+	if ((ret = malloc(strlen(uri) + 1)) == NULL)
+		event_err(1, "%s: malloc(%lu)", __func__,
+			  (unsigned long)(strlen(uri) + 1));
+
+	evhttp_decode_uri_internal(uri, strlen(uri),
+	    ret, 0 /*always_decode_plus*/);
+
 	return (ret);
 }
 
@@ -2099,7 +2142,7 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 
 	p = argument;
 	while (p != NULL && *p != '\0') {
-		char *key, *value;
+		char *key, *value, *decoded_value;
 		argument = strsep(&p, "&");
 
 		value = argument;
@@ -2107,10 +2150,14 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 		if (value == NULL)
 			goto error;
 
-		value = evhttp_decode_uri(value);
-		event_debug(("Query Param: %s -> %s\n", key, value));
-		evhttp_add_header(headers, key, value);
-		free(value);
+		if ((decoded_value = malloc(strlen(value) + 1)) == NULL)
+			event_err(1, "%s: malloc", __func__);
+
+		evhttp_decode_uri_internal(value, strlen(value),
+		    decoded_value, 1 /*always_decode_plus*/);
+		event_debug(("Query Param: %s -> %s\n", key, decoded_value));
+		evhttp_add_header_internal(headers, key, decoded_value);
+		free(decoded_value);
 	}
 
  error:
