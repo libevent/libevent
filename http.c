@@ -2186,7 +2186,6 @@ evhttp_decode_uri(const char *uri)
 /*
  * Helper function to parse out arguments in a query.
  * The arguments are separated by key and value.
- * URI should already be decoded.
  */
 
 void
