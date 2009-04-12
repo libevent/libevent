@@ -39,6 +39,7 @@
 #include "defer-internal.h"
 #include "bufferevent-internal.h"
 #include "mm-internal.h"
+#include "util-internal.h"
 
 struct bufferevent_pair {
 	struct bufferevent bev;
@@ -56,8 +57,7 @@ upcast(struct bufferevent *bev)
 	struct bufferevent_pair *bev_p;
 	if (bev->be_ops != &bufferevent_ops_pair)
 		return NULL;
-	bev_p = (void*)( ((char*)bev) -
-			 evutil_offsetof(struct bufferevent_pair, bev) );
+	bev_p = EVUTIL_UPCAST(bev, struct bufferevent_pair, bev);
 	assert(bev_p->bev.be_ops == &bufferevent_ops_pair);
 	return bev_p;
 }
