@@ -58,15 +58,15 @@ extern "C" {
 
 #else
 
-#define EVUTIL_ERR_RW_RETRIABLE(e)								\
-	((e) == WSAEWOULDBLOCK ||									\
-	 (e) == WSAEINTR)
-
-#define EVUTIL_ERR_CONNECT_RETRIABLE(e)			\
+#define EVUTIL_ERR_RW_RETRIABLE(e)					\
 	((e) == WSAEWOULDBLOCK ||					\
-	 (e) == WSAEINTR ||							\
-	 (e) == WSAEINPROGRESS ||					\
-	 (e) == WSAEINVAL)
+	    (e) == WSAEINTR)
+
+#define EVUTIL_ERR_CONNECT_RETRIABLE(e)					\
+	((e) == WSAEWOULDBLOCK ||					\
+	    (e) == WSAEINTR ||						\
+	    (e) == WSAEINPROGRESS ||					\
+	    (e) == WSAEINVAL)
 
 #define EVUTIL_ERR_ACCEPT_RETRIABLE(e)			\
 	EVUTIL_ERR_RW_RETRIABLE(e)
