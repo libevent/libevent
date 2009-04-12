@@ -101,6 +101,9 @@ extern const char EVUTIL_TOLOWER_TABLE[];
 #define EVUTIL_TOLOWER(c) (EVUTIL_TOLOWER_TABLE[(ev_uint8_t)c])
 #define EVUTIL_TOUPPER(c) (EVUTIL_TOUPPER_TABLE[(ev_uint8_t)c])
 
+#define EVUTIL_UPCAST(ptr, type, field)				\
+	((type *)((char*)ptr) - evutil_offsetof(type, field))
+
 #ifdef __cplusplus
 }
 #endif
