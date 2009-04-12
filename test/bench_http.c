@@ -53,14 +53,15 @@
 
 static void http_basic_cb(struct evhttp_request *req, void *arg);
 
-static char content[4096];
+static char *content;
+static size_t content_len;
 
 static void
 http_basic_cb(struct evhttp_request *req, void *arg)
 {
 	struct evbuffer *evb = evbuffer_new();
 
-	evbuffer_add(evb, content, sizeof(content));
+	evbuffer_add(evb, content, content_len);
 
 	/* allow sending of an empty reply */
 	evhttp_send_reply(req, HTTP_OK, "Everything is fine", evb);
@@ -68,19 +69,41 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	evbuffer_free(evb);
 }
 
+/* cheasy way of detecting evbuffer_add_reference */
+#ifdef _EVENT2_EVENT_H_
+static void
+http_ref_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *evb = evbuffer_new();
+
+	evbuffer_add_reference(evb, content, content_len, NULL, NULL);
+
+	/* allow sending of an empty reply */
+	evhttp_send_reply(req, HTTP_OK, "Everything is fine", evb);
+
+	evbuffer_free(evb);
+}
+#endif
+
 int
 main (int argc, char **argv)
 {
 	struct event_base *base = event_base_new();
 	struct evhttp *http = evhttp_new(base);
-	struct evhttp *virtual = evhttp_new(base);
 	int c;
 
 	unsigned short port = 8080;
-	while ((c = getopt(argc, argv, "p:")) != -1) {
+	while ((c = getopt(argc, argv, "p:l:")) != -1) {
 		switch (c) {
 		case 'p':
 			port = atoi(optarg);
+			break;
+		case 'l':
+			content_len = atol(optarg);
+			if (content_len == 0) {
+				fprintf(stderr, "Bad content length\n");
+				exit(1);
+			}
 			break;
 		default:
 			fprintf(stderr, "Illegal argument \"%c\"\n", c);
@@ -93,9 +116,26 @@ main (int argc, char **argv)
 		return (1);
 #endif
 
-	evhttp_set_cb(http, "/index.html", http_basic_cb, NULL);
-	evhttp_set_cb(virtual, "/index.html", http_basic_cb, NULL);
-	evhttp_add_virtual_host(http, "foo.com", virtual);
+	content = malloc(content_len);
+	if (content == NULL) {
+		fprintf(stderr, "Cannot allocate content\n");
+		exit(1);
+	} else {
+		int i = 0;
+		for (i = 0; i < content_len; ++i)
+			content[i] = (i & 255);
+	}
+
+	evhttp_set_cb(http, "/ind", http_basic_cb, NULL);
+	fprintf(stderr, "/ind - basic content (memory copy)\n");
+
+#ifdef _EVENT2_EVENT_H_
+	evhttp_set_cb(http, "/ref", http_ref_cb, NULL);
+	fprintf(stderr, "/ref - basic content (reference)\n");
+#endif
+
+	fprintf(stderr, "Serving %d bytes on port %d\n",
+	    (int)content_len, port);
 
 	evhttp_bind_socket(http, "0.0.0.0", port);
 
