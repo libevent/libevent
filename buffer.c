@@ -132,6 +132,7 @@ static int use_mmap = 1;
 
 
 #define CHAIN_PINNED(ch)  (((ch)->flags & EVBUFFER_MEM_PINNED_ANY) != 0)
+#define CHAIN_PINNED_R(ch)  (((ch)->flags & EVBUFFER_MEM_PINNED_R) != 0)
 
 static void evbuffer_chain_align(struct evbuffer_chain *chain);
 static void evbuffer_deferred_callback(struct deferred_cb *cb, void *arg);
@@ -636,10 +637,8 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 		goto done;
 	}
 
-	/* TODO(nickm) when we drain the last byte from a chain, we
-	 * should not unlink or free it if it is pinned. */
 
-	if (len >= old_len) {
+	if (len >= old_len && !(buf->last && CHAIN_PINNED_R(buf->last))) {
                 len = old_len;
 		for (chain = buf->first; chain != NULL; chain = next) {
 			next = chain->next;
@@ -649,12 +648,17 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 
 		ZERO_CHAIN(buf);
 	} else {
+		if (len >= old_len)
+			len = old_len;
+
 		buf->total_len -= len;
 
 		for (chain = buf->first; len >= chain->off; chain = next) {
 			next = chain->next;
 			len -= chain->off;
 
+			if (len == 0 && CHAIN_PINNED_R(chain))
+				break;
 			evbuffer_chain_free(chain);
 		}
 
