@@ -59,16 +59,17 @@
 #include "bufferevent-internal.h"
 #include "util-internal.h"
 
-
 void
 bufferevent_wm_suspend_read(struct bufferevent *bufev)
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	BEV_LOCK(bufev);
 	if (!bufev_private->read_suspended) {
 		bufev->be_ops->disable(bufev, EV_READ);
 		bufev_private->read_suspended = 1;
 	}
+	BEV_LOCK(bufev);
 }
 
 void
@@ -76,11 +77,14 @@ bufferevent_wm_unsuspend_read(struct bufferevent *bufev)
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+
+	BEV_LOCK(bufev);
 	if (bufev_private->read_suspended) {
 		bufev_private->read_suspended = 0;
 		if (bufev->enabled & EV_READ)
 			bufev->be_ops->enable(bufev, EV_READ);
 	}
+	BEV_LOCK(bufev);
 }
 
 /* Callback to implement watermarks on the input buffer.  Only enabled
@@ -91,7 +95,9 @@ bufferevent_inbuf_wm_cb(struct evbuffer *buf,
     void *arg)
 {
 	struct bufferevent *bufev = arg;
-        size_t size = evbuffer_get_length(buf);
+        size_t size;
+
+	size = evbuffer_get_length(buf);
 
 	if (cbinfo->n_added > cbinfo->n_deleted) {
 		/* Data got added.  If it put us over the watermark, stop
@@ -137,6 +143,15 @@ bufferevent_init_common(struct bufferevent_private *bufev_private,
 	 */
 	bufev->enabled = EV_WRITE;
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+	if (options & BEV_OPT_THREADSAFE) {
+		if (bufferevent_enable_locking(bufev, NULL) < 0) {
+			/* cleanup */
+			return -1;
+		}
+	}
+#endif
+
 	bufev_private->options = options;
 
 	return 0;
@@ -146,11 +161,14 @@ void
 bufferevent_setcb(struct bufferevent *bufev,
     evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg)
 {
+	BEV_LOCK(bufev);
+
 	bufev->readcb = readcb;
 	bufev->writecb = writecb;
 	bufev->errorcb = errorcb;
 
 	bufev->cbarg = cbarg;
+	BEV_UNLOCK(bufev);
 }
 
 struct evbuffer *
@@ -206,15 +224,19 @@ bufferevent_enable(struct bufferevent *bufev, short event)
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	short impl_events = event;
+	int r = 0;
+
+	BEV_LOCK(bufev);
 	if (bufev_private->read_suspended)
 		impl_events &= ~EV_READ;
 
 	bufev->enabled |= event;
 
 	if (bufev->be_ops->enable(bufev, impl_events) < 0)
-		return -1;
+		r = -1;
 
-	return (0);
+	BEV_UNLOCK(bufev);
+	return r;
 }
 
 void
@@ -222,6 +244,7 @@ bufferevent_set_timeouts(struct bufferevent *bufev,
 			 const struct timeval *tv_read,
 			 const struct timeval *tv_write)
 {
+	BEV_LOCK(bufev);
 	if (tv_read) {
 		bufev->timeout_read = *tv_read;
 	} else {
@@ -235,6 +258,7 @@ bufferevent_set_timeouts(struct bufferevent *bufev,
 
 	if (bufev->be_ops->adj_timeouts)
 		bufev->be_ops->adj_timeouts(bufev);
+	BEV_UNLOCK(bufev);
 }
 
 
@@ -265,12 +289,16 @@ bufferevent_settimeout(struct bufferevent *bufev,
 int
 bufferevent_disable(struct bufferevent *bufev, short event)
 {
+	int r = 0;
+
+	BEV_LOCK(bufev);
 	bufev->enabled &= ~event;
 
 	if (bufev->be_ops->disable(bufev, event) < 0)
-		return (-1);
+		r = -1;
 
-	return (0);
+	BEV_UNLOCK(bufev);
+	return r;
 }
 
 /*
@@ -284,6 +312,7 @@ bufferevent_setwatermark(struct bufferevent *bufev, short events,
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 
+	BEV_LOCK(bufev);
 	if (events & EV_WRITE) {
 		bufev->wm_write.low = lowmark;
 		bufev->wm_write.high = highmark;
@@ -321,6 +350,7 @@ bufferevent_setwatermark(struct bufferevent *bufev, short events,
 			bufferevent_wm_unsuspend_read(bufev);
 		}
 	}
+	BEV_UNLOCK(bufev);
 }
 
 int
@@ -328,10 +358,12 @@ bufferevent_flush(struct bufferevent *bufev,
     short iotype,
     enum bufferevent_flush_mode mode)
 {
+	int r = -1;
+	BEV_LOCK(bufev);
         if (bufev->be_ops->flush)
-                return bufev->be_ops->flush(bufev, iotype, mode);
-        else
-                return -1;
+                r = bufev->be_ops->flush(bufev, iotype, mode);
+	BEV_UNLOCK(bufev);
+	return r;
 }
 
 void
@@ -347,5 +379,32 @@ bufferevent_free(struct bufferevent *bufev)
 
 	/* Free the actual allocated memory. */
 	mm_free(bufev - bufev->be_ops->mem_offset);
+	/* Free lock XXX */
+}
+
+int
+bufferevent_enable_locking(struct bufferevent *bufev, void *lock)
+{
+#ifdef _EVENT_DISABLE_THREAD_SUPPORT
+	return -1;
+#else
+	if (BEV_UPCAST(bufev)->lock)
+		return -1;
+
+	if (!lock) {
+		EVTHREAD_ALLOC_LOCK(lock);
+		if (!lock)
+			return -1;
+		BEV_UPCAST(bufev)->lock = lock;
+		BEV_UPCAST(bufev)->own_lock = 1;
+	} else {
+		BEV_UPCAST(bufev)->lock = lock;
+		BEV_UPCAST(bufev)->own_lock = 0;
+	}
+	evbuffer_enable_locking(bufev->input, lock);
+	evbuffer_enable_locking(bufev->output, lock);
+
+	return 0;
+#endif
 }
 

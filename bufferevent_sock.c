@@ -342,6 +342,7 @@ be_socket_flush(struct bufferevent *bev, short iotype,
 void
 bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 {
+	BEV_LOCK(bufev);
 	assert(bufev->be_ops == &bufferevent_ops_socket);
 
 	event_del(&bufev->ev_read);
@@ -351,37 +352,48 @@ bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 	    EV_READ|EV_PERSIST, bufferevent_readcb, bufev);
 	event_assign(&bufev->ev_write, bufev->ev_base, fd,
 	    EV_WRITE|EV_PERSIST, bufferevent_writecb, bufev);
+	BEV_UNLOCK(bufev);
 }
 
 /* XXXX Should non-socket buffferevents support this? */
 int
 bufferevent_priority_set(struct bufferevent *bufev, int priority)
 {
+	int r = -1;
+
+	BEV_LOCK(bufev);
 	if (bufev->be_ops != &bufferevent_ops_socket)
-		return -1;
+		goto done;
 
 	if (event_priority_set(&bufev->ev_read, priority) == -1)
-		return (-1);
+		goto done;
 	if (event_priority_set(&bufev->ev_write, priority) == -1)
-		return (-1);
+		goto done;
 
-	return (0);
+	r = 0;
+done:
+	BEV_UNLOCK(bufev);
+	return r;
 }
 
 /* XXXX Should non-socket buffferevents support this? */
 int
 bufferevent_base_set(struct event_base *base, struct bufferevent *bufev)
 {
-	int res;
+	int res = -1;
+
+	BEV_LOCK(bufev);
 	if (bufev->be_ops != &bufferevent_ops_socket)
-		return -1;
+		goto done;
 
 	bufev->ev_base = base;
 
 	res = event_base_set(base, &bufev->ev_read);
 	if (res == -1)
-		return (res);
+		goto done;
 
 	res = event_base_set(base, &bufev->ev_write);
-	return (res);
+done:
+	BEV_UNLOCK(bufev);
+	return res;
 }

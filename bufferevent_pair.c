@@ -75,6 +75,7 @@ run_callback(struct deferred_cb *cb, void *arg)
 	struct bufferevent_pair *bufev = arg;
 	struct bufferevent *bev = downcast(bufev);
 
+	BEV_LOCK(bev);
 	if (cb == &bufev->deferred_read_cb) {
 		if (bev->readcb) {
 			bev->readcb(bev, bev->cbarg);
@@ -84,6 +85,7 @@ run_callback(struct deferred_cb *cb, void *arg)
 			bev->writecb(bev, bev->cbarg);
 		}
 	}
+	BEV_UNLOCK(bev);
 }
 
 static struct bufferevent_pair *
@@ -115,14 +117,20 @@ bufferevent_pair_new(struct event_base *base, enum bufferevent_options options,
     struct bufferevent *pair[2])
 {
         struct bufferevent_pair *bufev1 = NULL, *bufev2 = NULL;
+	enum bufferevent_options tmp_options = options & ~BEV_OPT_THREADSAFE;
 
 	bufev1 = bufferevent_pair_elt_new(base, options);
 	if (!bufev1)
 		return -1;
-	bufev2 = bufferevent_pair_elt_new(base, options);
+	bufev2 = bufferevent_pair_elt_new(base, tmp_options);
 	if (!bufev2) {
 		bufferevent_free(downcast(bufev1));
 		return -1;
+	}
+
+	if (options & BEV_OPT_THREADSAFE) {
+		/*XXXX check return */
+		bufferevent_enable_locking(downcast(bufev2), bufev1->bev.lock);
 	}
 
 	bufev1->partner = bufev2;
