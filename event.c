@@ -1617,7 +1617,7 @@ mm_realloc(void *ptr, size_t sz)
 void
 mm_free(void *ptr)
 {
-	if (_mm_realloc_fn)
+	if (_mm_free_fn)
 		_mm_free_fn(ptr);
 	else
 		free(ptr);
