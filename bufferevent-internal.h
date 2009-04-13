@@ -33,6 +33,8 @@ extern "C" {
 #include "event-config.h"
 #include "evutil.h"
 #include "defer-internal.h"
+#include "evthread-internal.h"
+#include "event2/thread.h"
 
 struct bufferevent_private {
 	struct bufferevent bev;
@@ -42,6 +44,7 @@ struct bufferevent_private {
 
 	/** If set, read is suspended until evbuffer some. */
 	unsigned read_suspended : 1;
+	unsigned own_lock : 1;
 
 	enum bufferevent_options options;
 
@@ -105,6 +108,22 @@ void bufferevent_wm_suspend_read(struct bufferevent *bufev);
 /** For internal use: temporarily stop all reads on bufev, because its
  * read buffer is too full. */
 void bufferevent_wm_unsuspend_read(struct bufferevent *bufev);
+
+int bufferevent_enable_locking(struct bufferevent *bufev, void *lock);
+
+#define BEV_UPCAST(b) EVUTIL_UPCAST((b), struct bufferevent_private, bev)
+
+#define BEV_LOCK(b) do {						\
+		struct bufferevent_private *locking =  BEV_UPCAST(b);	\
+		if (locking->lock)					\
+			EVLOCK_LOCK(locking->lock, EVTHREAD_WRITE);	\
+	} while(0)
+
+#define BEV_UNLOCK(b) do {						\
+		struct bufferevent_private *locking =  BEV_UPCAST(b);	\
+		if (locking->lock)					\
+			EVLOCK_UNLOCK(locking->lock, EVTHREAD_WRITE);	\
+	} while(0)
 
 #ifdef __cplusplus
 }

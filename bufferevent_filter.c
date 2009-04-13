@@ -170,6 +170,7 @@ bufferevent_filter_new(struct bufferevent *underlying,
 		       void *ctx)
 {
 	struct bufferevent_filtered *bufev_f;
+	enum bufferevent_options tmp_options = options & ~BEV_OPT_THREADSAFE;
 
 	if (!input_filter)
 		input_filter = be_null_filter;
@@ -181,9 +182,17 @@ bufferevent_filter_new(struct bufferevent *underlying,
 		return NULL;
 
 	if (bufferevent_init_common(&bufev_f->bev, underlying->ev_base,
-				    &bufferevent_ops_filter, options) < 0) {
+				    &bufferevent_ops_filter, tmp_options) < 0) {
 		mm_free(bufev_f);
 		return NULL;
+	}
+	if (options & BEV_OPT_THREADSAFE) {
+		void *lock = BEV_UPCAST(underlying)->lock;
+		if (!lock) {
+			bufferevent_enable_locking(underlying, NULL);
+			lock = BEV_UPCAST(underlying)->lock;
+		}
+		bufferevent_enable_locking(downcast(bufev_f), lock);
 	}
 
 	bufev_f->underlying = underlying;

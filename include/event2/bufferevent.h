@@ -118,6 +118,7 @@ typedef void (*everrorcb)(struct bufferevent *bev, short what, void *ctx);
 
 enum bufferevent_options {
 	BEV_OPT_CLOSE_ON_FREE = (1<<0),
+	BEV_OPT_THREADSAFE = (1<<1),
 };
 
 /**
