@@ -476,8 +476,10 @@ evbuffer_commit_space(struct evbuffer *buf, size_t size)
 
 	chain->off += size;
 	buf->total_len += size;
+	buf->n_add_for_cb += size;
 
-        result = 0;
+	result = 0;
+	evbuffer_invoke_callbacks(buf);
 done:
         EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
 	return result;
