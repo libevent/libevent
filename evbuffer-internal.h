@@ -194,6 +194,9 @@ struct evbuffer_chain_reference {
 	} while(0)
 
 void _evbuffer_incref(struct evbuffer *buf);
+void _evbuffer_chain_pin(struct evbuffer_chain *chain, unsigned flag);
+void _evbuffer_chain_unpin(struct evbuffer_chain *chain, unsigned flag);
+void _evbuffer_decref_and_unlock(struct evbuffer *buffer);
 
 #ifdef _EVENT_HAVE_SYS_UIO_H
 int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,

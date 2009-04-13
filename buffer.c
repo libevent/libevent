@@ -231,23 +231,21 @@ evbuffer_chain_insert(struct evbuffer *buf, struct evbuffer_chain *chain)
 	buf->total_len += chain->off;
 }
 
-#ifdef NOT_USED_YET
-static void
-evbuffer_chain_pin(struct evbuffer_chain *chain, unsigned flag)
+void
+_evbuffer_chain_pin(struct evbuffer_chain *chain, unsigned flag)
 {
 	assert((chain->flags & flag) == 0);
 	chain->flags |= flag;
 }
 
-static void
-evbuffer_chain_unpin(struct evbuffer_chain *chain, unsigned flag)
+void
+_evbuffer_chain_unpin(struct evbuffer_chain *chain, unsigned flag)
 {
 	assert((chain->flags & flag) != 0);
 	chain->flags &= ~flag;
 	if (chain->flags & EVBUFFER_DANGLING)
 		evbuffer_chain_free(chain);
 }
-#endif
 
 struct evbuffer *
 evbuffer_new(void)
@@ -370,8 +368,7 @@ evbuffer_deferred_callback(struct deferred_cb *cb, void *arg)
 
 	EVBUFFER_LOCK(buffer, EVTHREAD_WRITE);
 	evbuffer_run_callbacks(buffer);
-	evbuffer_free(buffer); /* release the reference */
-	EVBUFFER_UNLOCK(buffer, EVTHREAD_WRITE);
+	_evbuffer_decref_and_unlock(buffer);
 }
 
 static void
@@ -386,11 +383,11 @@ evbuffer_remove_all_callbacks(struct evbuffer *buffer)
 }
 
 void
-evbuffer_free(struct evbuffer *buffer)
+_evbuffer_decref_and_unlock(struct evbuffer *buffer)
 {
 	struct evbuffer_chain *chain, *next;
+	ASSERT_EVBUFFER_LOCKED(buffer);
 
-	EVBUFFER_LOCK(buffer, EVTHREAD_WRITE);
 	if (--buffer->refcnt > 0) {
 		EVBUFFER_UNLOCK(buffer, EVTHREAD_WRITE);
 		return;
@@ -408,6 +405,13 @@ evbuffer_free(struct evbuffer *buffer)
         if (buffer->own_lock)
                 EVTHREAD_FREE_LOCK(buffer->lock);
 	mm_free(buffer);
+}
+
+void
+evbuffer_free(struct evbuffer *buffer)
+{
+	EVBUFFER_LOCK(buffer, EVTHREAD_WRITE);
+	_evbuffer_decref_and_unlock(buffer);
 }
 
 void
