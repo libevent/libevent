@@ -263,6 +263,7 @@ test_evbuffer_reference(void *ptr)
 	evbuffer_free(src);
 }
 
+#ifndef WIN32
 static void
 test_evbuffer_add_file(void *ptr)
 {
@@ -297,6 +298,7 @@ test_evbuffer_add_file(void *ptr)
 	EVUTIL_CLOSESOCKET(pair[1]);
 	evbuffer_free(src);
 }
+#endif
 
 static void
 test_evbuffer_readln(void *ptr)

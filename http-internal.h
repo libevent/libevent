@@ -11,6 +11,7 @@
 #define _HTTP_INTERNAL_H_
 
 #include "event2/event_struct.h"
+#include "util-internal.h"
 
 #define HTTP_CONNECT_TIMEOUT	45
 #define HTTP_WRITE_TIMEOUT	50
