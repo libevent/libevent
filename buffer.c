@@ -257,8 +257,17 @@ evbuffer_new(void)
 	buffer = mm_calloc(1, sizeof(struct evbuffer));
 
 	TAILQ_INIT(&buffer->callbacks);
+	buffer->refcnt = 1;
 
 	return (buffer);
+}
+
+void
+_evbuffer_incref(struct evbuffer *buf)
+{
+	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
+	++buf->refcnt;
+	EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
 }
 
 int
@@ -345,6 +354,9 @@ static inline void
 evbuffer_invoke_callbacks(struct evbuffer *buffer)
 {
 	if (buffer->deferred_cbs) {
+		if (buffer->deferred.queued)
+			return;
+		_evbuffer_incref(buffer);
 		event_deferred_cb_schedule(buffer->ev_base, &buffer->deferred);
 	} else {
 		evbuffer_run_callbacks(buffer);
@@ -355,11 +367,10 @@ static void
 evbuffer_deferred_callback(struct deferred_cb *cb, void *arg)
 {
 	struct evbuffer *buffer = arg;
-	static int which = 0;
-	printf("FOO #%d\n", which++);
 
 	EVBUFFER_LOCK(buffer, EVTHREAD_WRITE);
 	evbuffer_run_callbacks(buffer);
+	evbuffer_free(buffer); /* release the reference */
 	EVBUFFER_UNLOCK(buffer, EVTHREAD_WRITE);
 }
 
@@ -379,7 +390,11 @@ evbuffer_free(struct evbuffer *buffer)
 {
 	struct evbuffer_chain *chain, *next;
 
-        ASSERT_EVBUFFER_UNLOCKED(buffer);
+	EVBUFFER_LOCK(buffer, EVTHREAD_WRITE);
+	if (--buffer->refcnt > 0) {
+		EVBUFFER_UNLOCK(buffer, EVTHREAD_WRITE);
+		return;
+	}
 
 	for (chain = buffer->first; chain != NULL; chain = next) {
 		next = chain->next;
@@ -388,6 +403,8 @@ evbuffer_free(struct evbuffer *buffer)
 	evbuffer_remove_all_callbacks(buffer);
 	if (buffer->deferred_cbs)
 		event_deferred_cb_cancel(buffer->ev_base, &buffer->deferred);
+
+	EVBUFFER_UNLOCK(buffer, EVTHREAD_WRITE);
         if (buffer->own_lock)
                 EVTHREAD_FREE_LOCK(buffer->lock);
 	mm_free(buffer);

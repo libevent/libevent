@@ -84,6 +84,7 @@ struct evbuffer {
 	struct event_base *ev_base;
 
         int lock_count;
+	int refcnt;
 
 	struct deferred_cb deferred;
 
@@ -191,6 +192,8 @@ struct evbuffer_chain_reference {
 		EVLOCK_UNLOCK2((buffer1)->lock, (buffer2)->lock,	\
 		    EVTHREAD_WRITE, EVTHREAD_WRITE);			\
 	} while(0)
+
+void _evbuffer_incref(struct evbuffer *buf);
 
 #ifdef _EVENT_HAVE_SYS_UIO_H
 int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
