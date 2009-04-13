@@ -105,16 +105,9 @@ struct bufferevent {
 	struct timeval timeout_read;
 	struct timeval timeout_write;
 
-	/** Evbuffer callback to enforce watermarks on input. */
-	struct evbuffer_cb_entry *read_watermarks_cb;
-
 	/** Events that are currently enabled: currently EV_READ and EV_WRITE
 	    are supported. */
 	short enabled;
-	/** If set, read is suspended until evbuffer some. */
-	unsigned read_suspended : 1; /*  */
-
-	enum bufferevent_options options;
 };
 
 #ifdef __cplusplus

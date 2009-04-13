@@ -42,7 +42,7 @@
 #include "util-internal.h"
 
 struct bufferevent_pair {
-	struct bufferevent bev;
+	struct bufferevent_private bev;
 	struct bufferevent_pair *partner;
 	struct deferred_cb deferred_write_cb;
 	struct deferred_cb deferred_read_cb;
@@ -57,12 +57,12 @@ upcast(struct bufferevent *bev)
 	struct bufferevent_pair *bev_p;
 	if (bev->be_ops != &bufferevent_ops_pair)
 		return NULL;
-	bev_p = EVUTIL_UPCAST(bev, struct bufferevent_pair, bev);
-	assert(bev_p->bev.be_ops == &bufferevent_ops_pair);
+	bev_p = EVUTIL_UPCAST(bev, struct bufferevent_pair, bev.bev);
+	assert(bev_p->bev.bev.be_ops == &bufferevent_ops_pair);
 	return bev_p;
 }
 
-#define downcast(bev_pair) (&(bev_pair)->bev)
+#define downcast(bev_pair) (&(bev_pair)->bev.bev)
 
 /* XXX Handle close */
 
@@ -100,7 +100,7 @@ bufferevent_pair_elt_new(struct event_base *base,
 	}
 	/* XXX set read timeout event */
 	/* XXX set write timeout event */
-	if (!evbuffer_add_cb(bufev->bev.output, be_pair_outbuf_cb, bufev)) {
+	if (!evbuffer_add_cb(bufev->bev.bev.output, be_pair_outbuf_cb, bufev)) {
 		bufferevent_free(downcast(bufev));
 		return NULL;
 	}
@@ -128,10 +128,10 @@ bufferevent_pair_new(struct event_base *base, enum bufferevent_options options,
 	bufev1->partner = bufev2;
 	bufev2->partner = bufev1;
 
-	evbuffer_freeze(bufev1->bev.input, 0);
-	evbuffer_freeze(bufev1->bev.output, 1);
-	evbuffer_freeze(bufev2->bev.input, 0);
-	evbuffer_freeze(bufev2->bev.output, 1);
+	evbuffer_freeze(downcast(bufev1)->input, 0);
+	evbuffer_freeze(downcast(bufev1)->output, 1);
+	evbuffer_freeze(downcast(bufev2)->input, 0);
+	evbuffer_freeze(downcast(bufev2)->output, 1);
 
 	pair[0] = downcast(bufev1);
 	pair[1] = downcast(bufev2);
@@ -180,11 +180,13 @@ done:
 }
 
 static inline int
-be_pair_wants_to_talk(struct bufferevent *src, struct bufferevent *dst)
+be_pair_wants_to_talk(struct bufferevent_pair *src,
+    struct bufferevent_pair *dst)
 {
-	return (src->enabled & EV_WRITE) &&
-	    (dst->enabled & EV_READ) && !dst->read_suspended &&
-	    evbuffer_get_length(src->output);
+	return (downcast(src)->enabled & EV_WRITE) &&
+	    (downcast(dst)->enabled & EV_READ) &&
+	    !dst->bev.read_suspended &&
+	    evbuffer_get_length(downcast(src)->output);
 }
 
 static void
@@ -197,8 +199,7 @@ be_pair_outbuf_cb(struct evbuffer *outbuf,
 	if (info->n_added > info->n_deleted && partner) {
 		/* We got more data.  If the other side's reading, then
 		   hand it over. */
-		if (be_pair_wants_to_talk(downcast(bev_pair),
-			downcast(partner))) {
+		if (be_pair_wants_to_talk(bev_pair, partner)) {
 			be_pair_transfer(downcast(bev_pair), downcast(partner), 0);
 		}
 	}
@@ -212,12 +213,12 @@ be_pair_enable(struct bufferevent *bufev, short events)
 
 	/* We're starting to read! Does the other side have anything to write?*/
 	if ((events & EV_READ) && partner &&
-	    be_pair_wants_to_talk(downcast(partner), bufev)) {
+	    be_pair_wants_to_talk(partner, bev_p)) {
 		be_pair_transfer(downcast(partner), bufev, 0);
 	}
 	/* We're starting to write! Does the other side want to read? */
 	if ((events & EV_WRITE) && partner &&
-	    be_pair_wants_to_talk(bufev, downcast(partner))) {
+	    be_pair_wants_to_talk(bev_p, partner)) {
 		be_pair_transfer(bufev, downcast(partner), 0);
 	}
 	return 0;

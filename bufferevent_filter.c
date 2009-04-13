@@ -76,7 +76,7 @@ static void bufferevent_filtered_outbuf_cb(struct evbuffer *buf,
     const struct evbuffer_cb_info *info, void *arg);
 
 struct bufferevent_filtered {
-	struct bufferevent bev;
+	struct bufferevent_private bev;
 
         /** The bufferevent that we read/write filterd data from/to. */
 	struct bufferevent *underlying;
@@ -116,12 +116,12 @@ upcast(struct bufferevent *bev)
 	if (bev->be_ops != &bufferevent_ops_filter)
 		return NULL;
 	bev_f = (void*)( ((char*)bev) -
-			 evutil_offsetof(struct bufferevent_filtered, bev) );
-	assert(bev_f->bev.be_ops == &bufferevent_ops_filter);
+			 evutil_offsetof(struct bufferevent_filtered, bev.bev));
+	assert(bev_f->bev.bev.be_ops == &bufferevent_ops_filter);
 	return bev_f;
 }
 
-#define downcast(bev_f) (&(bev_f)->bev)
+#define downcast(bev_f) (&(bev_f)->bev.bev)
 
 /** Return 1 iff bevf's underlying bufferevent's output buffer is at or
  * over its high watermark such that we should not write to it in a given
@@ -195,10 +195,10 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	bufferevent_setcb(bufev_f->underlying,
             be_filter_readcb, be_filter_writecb, be_filter_errorcb, bufev_f);
 
-	bufev_f->outbuf_cb = evbuffer_add_cb(bufev_f->bev.output,
+	bufev_f->outbuf_cb = evbuffer_add_cb(downcast(bufev_f)->output,
 	   bufferevent_filtered_outbuf_cb, bufev_f);
 
-	return &bufev_f->bev;
+	return downcast(bufev_f);
 }
 
 static void
@@ -209,7 +209,7 @@ be_filter_destruct(struct bufferevent *bev)
 	if (bevf->free_context)
 		bevf->free_context(bevf->context);
 
-	if (bev->options & BEV_OPT_CLOSE_ON_FREE)
+	if (bevf->bev.options & BEV_OPT_CLOSE_ON_FREE)
 		bufferevent_free(bevf->underlying);
 }
 
@@ -247,28 +247,29 @@ be_filter_process_input(struct bufferevent_filtered *bevf,
 			int *processed_out)
 {
 	enum bufferevent_filter_result res;
+	struct bufferevent *bev = downcast(bevf);
 
         if (state == BEV_NORMAL) {
                 /* If we're in 'normal' mode, don't urge data on the filter
                  * unless we're reading data and under our high-water mark.*/
-                if (!(bevf->bev.enabled & EV_READ) ||
+                if (!(bev->enabled & EV_READ) ||
                     be_readbuf_full(bevf, state))
                         return BEV_OK;
         }
 
 	do {
                 ssize_t limit = -1;
-                if (state == BEV_NORMAL && bevf->bev.wm_read.high)
-                        limit = bevf->bev.wm_read.high -
-                            EVBUFFER_LENGTH(bevf->bev.input);
+                if (state == BEV_NORMAL && bev->wm_read.high)
+                        limit = bev->wm_read.high -
+                            EVBUFFER_LENGTH(bev->input);
 
 		res = bevf->process_in(bevf->underlying->input,
-                    bevf->bev.input, limit, state, bevf->context);
+                    bev->input, limit, state, bevf->context);
 
 		if (res == BEV_OK)
 			*processed_out = 1;
 	} while (res == BEV_OK &&
-		 (bevf->bev.enabled & EV_READ) &&
+		 (bev->enabled & EV_READ) &&
 		 EVBUFFER_LENGTH(bevf->underlying->input) &&
   		 !be_readbuf_full(bevf, state));
 
@@ -312,7 +313,7 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
                                 limit = bevf->underlying->wm_write.high -
                                     EVBUFFER_LENGTH(bevf->underlying->output);
 
-                        res = bevf->process_out(bevf->bev.output,
+                        res = bevf->process_out(downcast(bevf)->output,
                             bevf->underlying->output,
                             limit,
                             state,
@@ -405,10 +406,11 @@ static void
 be_filter_errorcb(struct bufferevent *underlying, short what, void *_me)
 {
 	struct bufferevent_filtered *bevf = _me;
+	struct bufferevent *bev = downcast(bevf);
 
 	/* All we can really to is tell our own errorcb. */
-	if (bevf->bev.errorcb)
-		bevf->bev.errorcb(&bevf->bev, what, bevf->bev.cbarg);
+	if (bev->errorcb)
+		bev->errorcb(bev, what, bev->cbarg);
 }
 
 static int
