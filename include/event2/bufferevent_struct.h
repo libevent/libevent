@@ -62,25 +62,6 @@ struct event_watermark {
 	size_t high;
 };
 
-#if 0
-struct bufferevent_filter;
-
-/* Fix so that ppl dont have to run with <sys/queue.h> */
-#ifndef TAILQ_HEAD
-#define _EVENT_DEFINED_TQHEAD
-#define TAILQ_HEAD(name, type)						\
-struct name {								\
-	struct type *tqh_first;	/* first element */			\
-	struct type **tqh_last;	/* addr of last next element */		\
-}
-#endif /* !TAILQ_HEAD */
-
-#ifdef _EVENT_DEFINED_TQHEAD
-#undef TAILQ_HEAD
-#undef _EVENT_DEFINED_TQHEAD
-#endif /* _EVENT_DEFINED_TQHEAD */
-#endif
-
 /**
   Shared implementation of a bufferevent.
 
