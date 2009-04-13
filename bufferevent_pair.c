@@ -128,6 +128,11 @@ bufferevent_pair_new(struct event_base *base, enum bufferevent_options options,
 	bufev1->partner = bufev2;
 	bufev2->partner = bufev1;
 
+	evbuffer_freeze(bufev1->bev.input, 0);
+	evbuffer_freeze(bufev1->bev.output, 1);
+	evbuffer_freeze(bufev2->bev.input, 0);
+	evbuffer_freeze(bufev2->bev.output, 1);
+
 	pair[0] = downcast(bufev1);
 	pair[1] = downcast(bufev2);
 
@@ -141,6 +146,9 @@ be_pair_transfer(struct bufferevent *src, struct bufferevent *dst,
 	size_t src_size, dst_size;
 	size_t n;
 
+	evbuffer_unfreeze(src->output, 1);
+	evbuffer_unfreeze(dst->input, 0);
+
 	if (dst->wm_read.high) {
 		size_t dst_size = evbuffer_get_length(dst->input);
 		if (dst_size < dst->wm_read.high) {
@@ -148,7 +156,7 @@ be_pair_transfer(struct bufferevent *src, struct bufferevent *dst,
 			evbuffer_remove_buffer(src->output, dst->input, n);
 		} else {
 			if (!ignore_wm)
-				return;
+				goto done;
 			evbuffer_add_buffer(dst->input, src->output);
 		}
 	} else {
@@ -166,6 +174,9 @@ be_pair_transfer(struct bufferevent *src, struct bufferevent *dst,
 		event_deferred_cb_schedule(src->ev_base,
 		    &(upcast(src)->deferred_write_cb));
 	}
+done:
+	evbuffer_freeze(src->output, 1);
+	evbuffer_freeze(dst->input, 0);
 }
 
 static inline int
