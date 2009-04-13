@@ -63,17 +63,21 @@
 void
 bufferevent_wm_suspend_read(struct bufferevent *bufev)
 {
-	if (!bufev->read_suspended) {
+	struct bufferevent_private *bufev_private =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	if (!bufev_private->read_suspended) {
 		bufev->be_ops->disable(bufev, EV_READ);
-		bufev->read_suspended = 1;
+		bufev_private->read_suspended = 1;
 	}
 }
 
 void
 bufferevent_wm_unsuspend_read(struct bufferevent *bufev)
 {
-	if (bufev->read_suspended) {
-		bufev->read_suspended = 0;
+	struct bufferevent_private *bufev_private =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	if (bufev_private->read_suspended) {
+		bufev_private->read_suspended = 0;
 		if (bufev->enabled & EV_READ)
 			bufev->be_ops->enable(bufev, EV_READ);
 	}
@@ -103,10 +107,13 @@ bufferevent_inbuf_wm_cb(struct evbuffer *buf,
 }
 
 int
-bufferevent_init_common(struct bufferevent *bufev, struct event_base *base,
-			const struct bufferevent_ops *ops,
-			enum bufferevent_options options)
+bufferevent_init_common(struct bufferevent_private *bufev_private,
+    struct event_base *base,
+    const struct bufferevent_ops *ops,
+    enum bufferevent_options options)
 {
+	struct bufferevent *bufev = &bufev_private->bev;
+
 	if ((bufev->input = evbuffer_new()) == NULL)
 		return -1;
 
@@ -130,7 +137,7 @@ bufferevent_init_common(struct bufferevent *bufev, struct event_base *base,
 	 */
 	bufev->enabled = EV_WRITE;
 
-	bufev->options = options;
+	bufev_private->options = options;
 
 	return 0;
 }
@@ -196,8 +203,10 @@ bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf)
 int
 bufferevent_enable(struct bufferevent *bufev, short event)
 {
+	struct bufferevent_private *bufev_private =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	short impl_events = event;
-	if (bufev->read_suspended)
+	if (bufev_private->read_suspended)
 		impl_events &= ~EV_READ;
 
 	bufev->enabled |= event;
@@ -272,6 +281,8 @@ void
 bufferevent_setwatermark(struct bufferevent *bufev, short events,
     size_t lowmark, size_t highmark)
 {
+	struct bufferevent_private *bufev_private =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 
 	if (events & EV_WRITE) {
 		bufev->wm_write.low = lowmark;
@@ -287,14 +298,14 @@ bufferevent_setwatermark(struct bufferevent *bufev, short events,
 			   enable the callback if needed, and see if we should
 			   suspend/bufferevent_wm_unsuspend. */
 
-			if (bufev->read_watermarks_cb == NULL) {
-				bufev->read_watermarks_cb =
+			if (bufev_private->read_watermarks_cb == NULL) {
+				bufev_private->read_watermarks_cb =
 				    evbuffer_add_cb(bufev->input,
 						    bufferevent_inbuf_wm_cb,
 						    bufev);
 			}
 			evbuffer_cb_set_flags(bufev->input,
-					      bufev->read_watermarks_cb,
+					      bufev_private->read_watermarks_cb,
 					      EVBUFFER_CB_ENABLED);
 
 			if (EVBUFFER_LENGTH(bufev->input) > highmark)
@@ -303,10 +314,10 @@ bufferevent_setwatermark(struct bufferevent *bufev, short events,
 				bufferevent_wm_unsuspend_read(bufev);
 		} else {
 			/* There is now no high-water mark for read. */
-			if (bufev->read_watermarks_cb)
+			if (bufev_private->read_watermarks_cb)
 				evbuffer_cb_set_flags(bufev->input,
-						      bufev->read_watermarks_cb,
-						      EVBUFFER_CB_DISABLED);
+				    bufev_private->read_watermarks_cb,
+				    EVBUFFER_CB_DISABLED);
 			bufferevent_wm_unsuspend_read(bufev);
 		}
 	}

@@ -225,16 +225,18 @@ struct bufferevent *
 bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
     enum bufferevent_options options)
 {
+	struct bufferevent_private *bufev_p;
 	struct bufferevent *bufev;
 
-	if ((bufev = mm_calloc(1, sizeof(struct bufferevent))) == NULL)
+	if ((bufev_p = mm_calloc(1, sizeof(struct bufferevent_private)))== NULL)
 		return NULL;
 
-	if (bufferevent_init_common(bufev, base, &bufferevent_ops_socket,
+	if (bufferevent_init_common(bufev_p, base, &bufferevent_ops_socket,
 				    options) < 0) {
-		mm_free(bufev);
+		mm_free(bufev_p);
 		return NULL;
 	}
+	bufev = &bufev_p->bev;
 
 	event_assign(&bufev->ev_read, bufev->ev_base, fd,
 	    EV_READ|EV_PERSIST, bufferevent_readcb, bufev);
@@ -306,6 +308,8 @@ be_socket_disable(struct bufferevent *bufev, short event)
 static void
 be_socket_destruct(struct bufferevent *bufev)
 {
+	struct bufferevent_private *bufev_p =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	evutil_socket_t fd;
 	assert(bufev->be_ops == &bufferevent_ops_socket);
 
@@ -314,7 +318,7 @@ be_socket_destruct(struct bufferevent *bufev)
 	event_del(&bufev->ev_read);
 	event_del(&bufev->ev_write);
 
-	if (bufev->options & BEV_OPT_CLOSE_ON_FREE)
+	if (bufev_p->options & BEV_OPT_CLOSE_ON_FREE)
 		EVUTIL_CLOSESOCKET(fd);
 }
 

@@ -32,6 +32,22 @@ extern "C" {
 
 #include "event-config.h"
 #include "evutil.h"
+#include "defer-internal.h"
+
+struct bufferevent_private {
+	struct bufferevent bev;
+
+	/** Evbuffer callback to enforce watermarks on input. */
+	struct evbuffer_cb_entry *read_watermarks_cb;
+
+	/** If set, read is suspended until evbuffer some. */
+	unsigned read_suspended : 1;
+
+	enum bufferevent_options options;
+
+	int refcnt;
+	void *lock;
+};
 
 /**
    Implementation table for a bufferevent: holds function pointers and other
@@ -81,7 +97,7 @@ extern const struct bufferevent_ops bufferevent_ops_filter;
 extern const struct bufferevent_ops bufferevent_ops_pair;
 
 /** Initialize the shared parts of a bufferevent. */
-int bufferevent_init_common(struct bufferevent *, struct event_base *, const struct bufferevent_ops *, enum bufferevent_options options);
+int bufferevent_init_common(struct bufferevent_private *, struct event_base *, const struct bufferevent_ops *, enum bufferevent_options options);
 
 /** For internal use: temporarily stop all reads on bufev, because its
  * read buffer is too full. */
