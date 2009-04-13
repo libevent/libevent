@@ -1410,6 +1410,62 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
 
 #define EVBUFFER_MAX_READ	4096
 
+#ifdef USE_IOVEC_IMPL
+/** Helper function to figure out which space to use for reading data into
+    an evbuffer.  Internal use only.
+
+    @param buf The buffer to read into
+    @param howmuch How much we want to read.
+    @param vecs An array of two iovecs or WSABUFs.
+    @param chainp A pointer to a variable to hold the first chain we're
+      reading into.
+    @return The number of buffers we're using.
+ */
+int
+_evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
+    IOV_TYPE *vecs, struct evbuffer_chain **chainp)
+{
+	struct evbuffer_chain *chain;
+	int nvecs;
+
+	chain = buf->last;
+
+	if (chain->off == 0 && buf->previous_to_last &&
+	    CHAIN_SPACE_LEN(buf->previous_to_last)) {
+		/* The last chain is empty, so it's safe to
+		   use the space in the next-to-last chain.
+		*/
+		struct evbuffer_chain *prev = buf->previous_to_last;
+		vecs[0].IOV_PTR_FIELD = CHAIN_SPACE_PTR(prev);
+		vecs[0].IOV_LEN_FIELD = CHAIN_SPACE_LEN(prev);
+		vecs[1].IOV_PTR_FIELD = CHAIN_SPACE_PTR(chain);
+		vecs[1].IOV_LEN_FIELD = CHAIN_SPACE_LEN(chain);
+		if (vecs[0].IOV_LEN_FIELD >= howmuch) {
+			/* The next-to-last chain has enough
+			 * space on its own. */
+			nvecs = 1;
+		} else {
+			/* We'll need both chains. */
+			nvecs = 2;
+			if (vecs[0].IOV_LEN_FIELD + vecs[1].IOV_LEN_FIELD > howmuch) {
+				vecs[1].IOV_LEN_FIELD = howmuch - vecs[0].IOV_LEN_FIELD;
+			}
+		}
+	} else {
+		/* There's data in the last chain, so we're
+		 * not allowed to use the next-to-last. */
+		nvecs = 1;
+		vecs[0].IOV_PTR_FIELD = CHAIN_SPACE_PTR(chain);
+		vecs[0].IOV_LEN_FIELD = CHAIN_SPACE_LEN(chain);
+		if (vecs[0].IOV_LEN_FIELD > howmuch)
+			vecs[0].IOV_LEN_FIELD = howmuch;
+	}
+
+	*chainp = chain;
+	return nvecs;
+}
+#endif
+
 /* TODO(niels): should this function return ssize_t and take ssize_t
  * as howmuch? */
 int
@@ -1467,37 +1523,8 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
                 goto done;
 	} else {
 		IOV_TYPE vecs[2];
-		chain = buf->last;
-		if (chain->off == 0 && buf->previous_to_last &&
-			CHAIN_SPACE_LEN(buf->previous_to_last)) {
-			/* The last chain is empty, so it's safe to
-			   use the space in the next-to-last chain.
-			*/
-			struct evbuffer_chain *prev = buf->previous_to_last;
-			vecs[0].IOV_PTR_FIELD = CHAIN_SPACE_PTR(prev);
-			vecs[0].IOV_LEN_FIELD = CHAIN_SPACE_LEN(prev);
-			vecs[1].IOV_PTR_FIELD = CHAIN_SPACE_PTR(chain);
-			vecs[1].IOV_LEN_FIELD = CHAIN_SPACE_LEN(chain);
-			if (vecs[0].IOV_LEN_FIELD >= howmuch) {
-				/* The next-to-last chain has enough
-				 * space on its own. */
-				nvecs = 1;
-			} else {
-				/* We'll need both chains. */
-				nvecs = 2;
-				if (vecs[0].IOV_LEN_FIELD + vecs[1].IOV_LEN_FIELD > howmuch) {
-					vecs[1].IOV_LEN_FIELD = howmuch - vecs[0].IOV_LEN_FIELD;
-				}
-			}
-		} else {
-			/* There's data in the last chain, so we're
-			 * not allowed to use the next-to-last. */
-			nvecs = 1;
-			vecs[0].IOV_PTR_FIELD = CHAIN_SPACE_PTR(chain);
-			vecs[0].IOV_LEN_FIELD = CHAIN_SPACE_LEN(chain);
-			if (vecs[0].IOV_LEN_FIELD > howmuch)
-				vecs[0].IOV_LEN_FIELD = howmuch;
-		}
+		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, vecs,
+		    &chain);
 
 #ifdef WIN32
 		{

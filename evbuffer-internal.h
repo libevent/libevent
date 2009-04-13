@@ -192,6 +192,14 @@ struct evbuffer_chain_reference {
 		    EVTHREAD_WRITE, EVTHREAD_WRITE);			\
 	} while(0)
 
+#ifdef _EVENT_HAVE_SYS_UIO_H
+int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
+    struct iovec *vecs, struct evbuffer_chain **chainp);
+#elif defined(WIN32)
+int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
+    WSABUF *vecs, struct evbuffer_chain **chainp);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
