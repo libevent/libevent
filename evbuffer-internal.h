@@ -80,6 +80,9 @@ struct evbuffer {
 	unsigned freeze_start : 1;
 	unsigned freeze_end : 1;
 	unsigned deferred_cbs : 1;
+#ifdef WIN32
+	unsigned is_overlapped : 1;
+#endif
 
 	struct event_base *ev_base;
 
@@ -128,7 +131,7 @@ struct evbuffer_chain {
 	 * EVBUFFER_IMMUTABLE will be set in flags.  For sendfile, it
 	 * may point to NULL.
 	 */
-	u_char *buffer;
+	unsigned char *buffer;
 };
 
 /* this is currently used by both mmap and sendfile */
@@ -197,6 +200,7 @@ void _evbuffer_incref(struct evbuffer *buf);
 void _evbuffer_chain_pin(struct evbuffer_chain *chain, unsigned flag);
 void _evbuffer_chain_unpin(struct evbuffer_chain *chain, unsigned flag);
 void _evbuffer_decref_and_unlock(struct evbuffer *buffer);
+int _evbuffer_expand_fast(struct evbuffer *, size_t);
 
 #ifdef _EVENT_HAVE_SYS_UIO_H
 int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
@@ -204,6 +208,10 @@ int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
 #elif defined(WIN32)
 int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
     WSABUF *vecs, struct evbuffer_chain **chainp);
+#endif
+
+#ifdef WIN32
+struct evbuffer *evbuffer_overlapped_new(evutil_socket_t fd);
 #endif
 
 #ifdef __cplusplus

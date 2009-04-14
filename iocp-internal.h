@@ -31,6 +31,7 @@
 extern "C" {
 #endif
 
+struct event_overlapped;
 typedef void (*iocp_callback)(struct event_overlapped *, uintptr_t, ssize_t);
 
 struct event_overlapped {
@@ -40,10 +41,13 @@ struct event_overlapped {
 
 struct event_iocp_port {
 	HANDLE port;
-	int shutdown = 0;
 };
 
 void event_overlapped_init(struct event_overlapped *, iocp_callback cb);
+
+struct evbuffer;
+int evbuffer_launch_write(struct evbuffer *buf, ssize_t atmost);
+int evbuffer_launch_read(struct evbuffer *buf, size_t atmost);
 
 #ifdef __cplusplus
 }

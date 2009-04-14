@@ -1341,7 +1341,7 @@ err:
 
 /* Make sure that datlen bytes are available for writing in the last two
  * chains.  Never copies or moves data. */
-static int
+int
 _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
 {
 	struct evbuffer_chain *chain = buf->last, *tmp;
