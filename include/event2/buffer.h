@@ -67,6 +67,10 @@ extern "C" {
 
 #include <event-config.h>
 #include <stdarg.h>
+#ifdef _EVENT_HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#include <event2/util.h>
 
 struct evbuffer;
 

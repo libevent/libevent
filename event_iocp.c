@@ -1,4 +1,10 @@
 
+#include "event-config.h"
+#include <sys/types.h>
+#include <windows.h>
+#include <WinBase.h>
+#include "event2/util.h"
+#include "util-internal.h"
 #include "iocp-internal.h"
 
 #define N_OVERLAPPED_ENTRIES 32
@@ -6,7 +12,7 @@
 void
 event_overlapped_init(struct event_overlapped *o, iocp_callback cb)
 {
-	memeset(o, 0, sizeof(struct event_overlapped));
+	memset(o, 0, sizeof(struct event_overlapped));
 	o->cb = cb;
 }
 
