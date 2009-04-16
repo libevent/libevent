@@ -41,13 +41,20 @@ struct event_overlapped {
 
 struct event_iocp_port {
 	HANDLE port;
+	int n_threads;
+	int shutdown;
+	long ms;
 };
 
-void event_overlapped_init(struct event_overlapped *, iocp_callback cb);
-
 struct evbuffer;
-int evbuffer_launch_write(struct evbuffer *buf, ssize_t atmost);
-int evbuffer_launch_read(struct evbuffer *buf, size_t atmost);
+void event_overlapped_init(struct event_overlapped *, iocp_callback cb);
+int evbuffer_launch_read(struct evbuffer *, size_t n);
+int evbuffer_launch_write(struct evbuffer *, ssize_t n);
+
+struct event_iocp_port *event_iocp_port_launch(void);
+int event_iocp_port_associate(struct event_iocp_port *port, evutil_socket_t fd,
+    uintptr_t key);
+void event_iocp_shutdown(struct event_iocp_port *port);
 
 #ifdef __cplusplus
 }
