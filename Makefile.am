@@ -3,7 +3,7 @@ ACLOCAL_AMFLAGS = -I m4
 
 # This is the point release for libevent.  It shouldn't include any
 # a/b/c/d/e notations.
-RELEASE = 1.4
+RELEASE = 2.0
 
 # This is the version info for the libevent binary API.  It has three
 # numbers:
@@ -25,7 +25,15 @@ RELEASE = 1.4
 # compatibility with old binaries.  Increment Current.  Set Age to 0,
 # since we're backward compatible with no previous APIs.  Set Revision
 # to 0 too.
-VERSION_INFO = 2:0:0
+#
+#   Version history:
+#    1.4:
+#      2 -- Libevent ??? ..Libevent 1.4.10
+#      [Gap left for possible intermediate versions]
+#
+#    2.0
+#      1 -- Libevent 2.0.1-alpha.
+VERSION_INFO = 1:0:0
 
 bin_SCRIPTS = event_rpcgen.py
 

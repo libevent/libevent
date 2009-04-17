@@ -1551,6 +1551,12 @@ event_get_version(void)
 	return (_EVENT_VERSION);
 }
 
+ev_uint32_t
+event_get_version_number(void)
+{
+	return (_EVENT_NUMERIC_VERSION);
+}
+
 /*
  * No thread-safe interface needed - the information should be the same
  * for all threads.
