@@ -2076,6 +2076,7 @@ static void
 http_primitives(void *ptr)
 {
 	char *escaped = NULL;
+	struct evhttp *http;
 
 	escaped = evhttp_htmlescape("<script>");
 	tt_str_op(escaped, ==, "&lt;script&gt;");
@@ -2083,6 +2084,14 @@ http_primitives(void *ptr)
 
 	escaped = evhttp_htmlescape("\"\'&");
 	tt_str_op(escaped, ==, "&quot;&#039;&amp;");
+
+	http = evhttp_new(NULL);
+	tt_int_op(evhttp_set_cb(http, "/test", http_basic_cb, NULL), ==, 0);
+	tt_int_op(evhttp_set_cb(http, "/test", http_basic_cb, NULL), ==, -1);
+	tt_int_op(evhttp_del_cb(http, "/test"), ==, 0);
+	tt_int_op(evhttp_del_cb(http, "/test"), ==, -1);
+	tt_int_op(evhttp_set_cb(http, "/test", http_basic_cb, NULL), ==, 0);
+	evhttp_free(http);
 
  end:
 	if (escaped)

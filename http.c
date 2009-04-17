@@ -2557,11 +2557,16 @@ evhttp_set_timeout(struct evhttp* http, int timeout_in_secs)
 	http->timeout = timeout_in_secs;
 }
 
-void
+int
 evhttp_set_cb(struct evhttp *http, const char *uri,
     void (*cb)(struct evhttp_request *, void *), void *cbarg)
 {
 	struct evhttp_cb *http_cb;
+
+	TAILQ_FOREACH(http_cb, &http->callbacks, next) {
+		if (strcmp(http_cb->what, uri) == 0)
+			return (-1);
+	}
 
 	if ((http_cb = mm_calloc(1, sizeof(struct evhttp_cb))) == NULL)
 		event_err(1, "%s: calloc", __func__);
@@ -2571,6 +2576,8 @@ evhttp_set_cb(struct evhttp *http, const char *uri,
 	http_cb->cbarg = cbarg;
 
 	TAILQ_INSERT_TAIL(&http->callbacks, http_cb, next);
+
+	return (0);
 }
 
 int
