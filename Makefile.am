@@ -48,6 +48,7 @@ EXTRA_DIST = \
 	compat/sys/queue.h compat/sys/_time.h \
 	evthread_win32.c \
 	evthread_pthread.c \
+	whatsnew-2.0.txt \
 	WIN32-Code/config.h \
 	WIN32-Code/win32.c \
 	WIN32-Code/tree.h \
