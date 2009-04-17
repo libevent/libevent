@@ -40,10 +40,10 @@ dnl AC_DISABLE_SHARED
 AC_SUBST(LIBTOOL_DEPS)
 
 dnl Checks for libraries.
-AC_CHECK_LIB(socket, socket)
-AC_CHECK_LIB(resolv, inet_aton)
-AC_CHECK_LIB(rt, clock_gettime)
-AC_CHECK_LIB(nsl, inet_ntoa)
+AC_CHECK_LIB(socket, socket, [AC_SUBST( [LIBSOCKET], ["-lsocket"] )] )
+AC_CHECK_LIB(resolv, inet_aton, [AC_SUBST( [LIBRESOLV], ["-lresolv"] )]  )
+AC_CHECK_LIB(rt, clock_gettime, [AC_SUBST( [LIBRT], ["-lrt"] )] )
+AC_CHECK_LIB(nsl, inet_ntoa, [AC_SUBST( [LIBNSL], ["-lnsl"] )] )
 
 dnl Determine if we have zlib for regression tests
 ZLIB_LIBS=""
@@ -453,4 +453,5 @@ if test x$enable_gcc_warnings = xyes; then
 
 fi
 
+AC_CONFIG_FILES( [libevent.pc] )
 AC_OUTPUT(Makefile include/Makefile test/Makefile sample/Makefile)
