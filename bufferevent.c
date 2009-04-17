@@ -128,6 +128,7 @@ bufferevent_init_common(struct bufferevent_private *bufev_private,
 		return -1;
 	}
 
+	bufev_private->refcnt = 1;
 	bufev->ev_base = base;
 
 	/* Disable timeouts. */
@@ -367,8 +368,16 @@ bufferevent_flush(struct bufferevent *bufev,
 }
 
 void
-bufferevent_free(struct bufferevent *bufev)
+_bufferevent_decref_and_unlock(struct bufferevent *bufev)
 {
+	struct bufferevent_private *bufev_private =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+
+	if (--bufev_private->refcnt) {
+		BEV_UNLOCK(bufev);
+		return;
+	}
+
 	/* Clean up the shared info */
 	if (bufev->be_ops->destruct)
 		bufev->be_ops->destruct(bufev);
@@ -377,9 +386,30 @@ bufferevent_free(struct bufferevent *bufev)
 	evbuffer_free(bufev->input);
 	evbuffer_free(bufev->output);
 
+	BEV_UNLOCK(bufev);
+	if (bufev_private->own_lock)
+		EVTHREAD_FREE_LOCK(bufev_private->lock);
+
 	/* Free the actual allocated memory. */
 	mm_free(bufev - bufev->be_ops->mem_offset);
-	/* Free lock XXX */
+}
+
+void
+bufferevent_free(struct bufferevent *bufev)
+{
+	BEV_LOCK(bufev);
+	_bufferevent_decref_and_unlock(bufev);
+}
+
+void
+bufferevent_incref(struct bufferevent *bufev)
+{
+	struct bufferevent_private *bufev_private =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+
+	BEV_LOCK(bufev);
+	++bufev_private->refcnt;
+	BEV_UNLOCK(bufev);
 }
 
 int

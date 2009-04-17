@@ -110,6 +110,8 @@ void bufferevent_wm_suspend_read(struct bufferevent *bufev);
 void bufferevent_wm_unsuspend_read(struct bufferevent *bufev);
 
 int bufferevent_enable_locking(struct bufferevent *bufev, void *lock);
+void bufferevent_incref(struct bufferevent *bufev);
+void _bufferevent_decref_and_unlock(struct bufferevent *bufev);
 
 #define BEV_UPCAST(b) EVUTIL_UPCAST((b), struct bufferevent_private, bev)
 
