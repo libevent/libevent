@@ -119,9 +119,17 @@ int evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd);
  */
 void evhttp_free(struct evhttp* http);
 
-/** Set a callback for a specified URI */
-void evhttp_set_cb(struct evhttp *, const char *,
-    void (*)(struct evhttp_request *, void *), void *);
+/**
+   Set a callback for a specified URI 
+    
+   @param http the http sever on which to set the callback
+   @param path the path for which to invoke the callback
+   @param cb the callback function that gets invoked on requesting path
+   @param cb_arg an additional context argument for the callback
+   @return 0 on success, -1 if the callback existed already
+*/
+int evhttp_set_cb(struct evhttp *http, const char *path,
+    void (*cb)(struct evhttp_request *, void *), void *cb_arg);
 
 /** Removes the callback for a specified URI */
 int evhttp_del_cb(struct evhttp *, const char *);
