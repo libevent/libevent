@@ -29,9 +29,13 @@ VERSION_INFO = 2:0:0
 
 bin_SCRIPTS = event_rpcgen.py
 
+pkgconfigdir=$(libdir)/pkgconfig
+pkgconfig_DATA=libevent.pc
+
 EXTRA_DIST = \
 	autogen.sh evdns.3 \
 	event.3 \
+	libevent.pc \
 	Doxyfile \
 	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
 	evport.c devpoll.c event_rpcgen.py \
@@ -131,4 +135,4 @@ doxygen: FORCE
 	doxygen $(srcdir)/Doxyfile
 FORCE:
 
-DISTCLEANFILES = *~ event-config.h
+DISTCLEANFILES = *~ event-config.h libevent.pc

@@ -1,0 +1,15 @@
+#libevent pkg-config source file
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libevent
+Description: libevent is an asynchronous notification event loop library
+Version: @VERSION@
+Requires:
+Conflicts:
+Libs: -L${libdir} -levent @LIBSOCKET@ @LIBRESOLV@ @LIBRT@ @LIBNSL@ @ZLIB_LIBS@
+Cflags: -I${includedir}
+
