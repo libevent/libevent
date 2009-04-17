@@ -506,6 +506,7 @@ int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg
 int evbuffer_cb_set_flags(struct evbuffer *buffer,
 			  struct evbuffer_cb_entry *cb, ev_uint32_t flags);
 
+#if 0
 /** Postpone calling a given callback until unsuspend is called later.
 
     This is different from disabling the callback, since the callback will get
@@ -525,7 +526,7 @@ void evbuffer_cb_suspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb);
 	@param cb the callback we want to stop suspending.
  */
 void evbuffer_cb_unsuspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb);
-
+#endif
 
 /**
   Makes the data at the begging of an evbuffer contiguous.
