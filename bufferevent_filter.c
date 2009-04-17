@@ -343,7 +343,7 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
                 if (processed && bufev->writecb &&
                     evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
                         /* call the write callback.*/
-                        (*bufev->writecb)(bufev, bufev->cbarg);
+                        _bufferevent_run_writecb(bufev);
 
                         if (res == BEV_OK &&
                             (bufev->enabled & EV_WRITE) &&
@@ -396,7 +396,7 @@ be_filter_readcb(struct bufferevent *underlying, void *_me)
 	if (processed_any &&
             evbuffer_get_length(bufev->input) >= bufev->wm_read.low &&
             bufev->readcb != NULL)
-		(*bufev->readcb)(bufev, bufev->cbarg);
+		_bufferevent_run_readcb(bufev);
 }
 
 /* Called when the underlying socket has drained enough that we can write to
@@ -419,7 +419,7 @@ be_filter_errorcb(struct bufferevent *underlying, short what, void *_me)
 
 	/* All we can really to is tell our own errorcb. */
 	if (bev->errorcb)
-		bev->errorcb(bev, what, bev->cbarg);
+		_bufferevent_run_errorcb(bev, what);
 }
 
 static int

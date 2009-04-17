@@ -156,7 +156,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	/* Invoke the user callback - must always be called last */
 	if (evbuffer_get_length(input) >= bufev->wm_read.low &&
             bufev->readcb != NULL)
-		(*bufev->readcb)(bufev, bufev->cbarg);
+		_bufferevent_run_readcb(bufev);
 
 	return;
 
@@ -165,8 +165,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 
  error:
 	event_del(&bufev->ev_read);
-	(*bufev->errorcb)(bufev, what, bufev->cbarg);
-
+	_bufferevent_run_errorcb(bufev, what);
 }
 
 static void
@@ -207,7 +206,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	 */
 	if (bufev->writecb != NULL &&
 	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low)
-		(*bufev->writecb)(bufev, bufev->cbarg);
+		_bufferevent_run_writecb(bufev);
 
 	return;
 
@@ -218,7 +217,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 
  error:
 	event_del(&bufev->ev_write);
-	(*bufev->errorcb)(bufev, what, bufev->cbarg);
+	_bufferevent_run_errorcb(bufev, what);
 }
 
 struct bufferevent *

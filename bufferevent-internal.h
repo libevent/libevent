@@ -44,7 +44,14 @@ struct bufferevent_private {
 
 	/** If set, read is suspended until evbuffer some. */
 	unsigned read_suspended : 1;
+	/** If set, we should free the lock when we free the bufferevent. */
 	unsigned own_lock : 1;
+
+	unsigned readcb_pending : 1;
+	unsigned writecb_pending : 1;
+	short errorcb_pending;
+	int errno_pending;
+	struct deferred_cb deferred;
 
 	enum bufferevent_options options;
 
@@ -112,6 +119,10 @@ void bufferevent_wm_unsuspend_read(struct bufferevent *bufev);
 int bufferevent_enable_locking(struct bufferevent *bufev, void *lock);
 void bufferevent_incref(struct bufferevent *bufev);
 void _bufferevent_decref_and_unlock(struct bufferevent *bufev);
+
+void _bufferevent_run_readcb(struct bufferevent *bufev);
+void _bufferevent_run_writecb(struct bufferevent *bufev);
+void _bufferevent_run_errorcb(struct bufferevent *bufev, short what);
 
 #define BEV_UPCAST(b) EVUTIL_UPCAST((b), struct bufferevent_private, bev)
 

@@ -46,6 +46,7 @@
 #ifdef WIN32
 #include <winsock2.h>
 #endif
+#include <errno.h>
 
 #include "event2/util.h"
 #include "event2/bufferevent.h"
@@ -112,6 +113,87 @@ bufferevent_inbuf_wm_cb(struct evbuffer *buf,
 	}
 }
 
+static void
+bufferevent_run_deferred_callbacks(struct deferred_cb *_, void *arg)
+{
+	struct bufferevent_private *bufev_private = arg;
+	struct bufferevent *bufev = &bufev_private->bev;
+
+	BEV_LOCK(bufev);
+	if (bufev_private->readcb_pending && bufev->readcb) {
+		bufev_private->readcb_pending = 0;
+		bufev->readcb(bufev, bufev->cbarg);
+	}
+	if (bufev_private->writecb_pending && bufev->writecb) {
+		bufev_private->writecb_pending = 0;
+		bufev->writecb(bufev, bufev->cbarg);
+	}
+	if (bufev_private->errorcb_pending && bufev->errorcb) {
+		short what = bufev_private->errorcb_pending;
+		int err = bufev_private->errno_pending;
+		bufev_private->errorcb_pending = 0;
+		bufev_private->errno_pending = 0;
+		EVUTIL_SET_SOCKET_ERROR(err);
+		bufev->errorcb(bufev, what, bufev->cbarg);
+	}
+	_bufferevent_decref_and_unlock(bufev);
+}
+
+void
+_bufferevent_run_readcb(struct bufferevent *bufev)
+{
+	/* Requires lock. */
+	struct bufferevent_private *p =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
+		p->readcb_pending = 1;
+		if (!p->deferred.queued) {
+			bufferevent_incref(bufev);
+			event_deferred_cb_schedule(
+				bufev->ev_base, &p->deferred);
+		}
+	} else {
+		bufev->readcb(bufev, bufev->cbarg);
+	}
+}
+
+void
+_bufferevent_run_writecb(struct bufferevent *bufev)
+{
+	/* Requires lock. */
+	struct bufferevent_private *p =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
+		p->writecb_pending = 1;
+		if (!p->deferred.queued) {
+			bufferevent_incref(bufev);
+			event_deferred_cb_schedule(
+				bufev->ev_base, &p->deferred);
+		}
+	} else {
+		bufev->writecb(bufev, bufev->cbarg);
+	}
+}
+
+void
+_bufferevent_run_errorcb(struct bufferevent *bufev, short what)
+{
+	/* Requires lock. */
+	struct bufferevent_private *p =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
+		p->errorcb_pending |= what;
+		p->errno_pending = EVUTIL_SOCKET_ERROR();
+		if (!p->deferred.queued) {
+			bufferevent_incref(bufev);
+			event_deferred_cb_schedule(
+				bufev->ev_base, &p->deferred);
+		}
+	} else {
+		bufev->errorcb(bufev, what, bufev->cbarg);
+	}
+}
+
 int
 bufferevent_init_common(struct bufferevent_private *bufev_private,
     struct event_base *base,
@@ -152,6 +234,11 @@ bufferevent_init_common(struct bufferevent_private *bufev_private,
 		}
 	}
 #endif
+	if (options & BEV_OPT_DEFER_CALLBACKS) {
+		event_deferred_cb_init(&bufev_private->deferred,
+		    bufferevent_run_deferred_callbacks,
+		    bufev_private);
+	}
 
 	bufev_private->options = options;
 

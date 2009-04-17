@@ -44,8 +44,6 @@
 struct bufferevent_pair {
 	struct bufferevent_private bev;
 	struct bufferevent_pair *partner;
-	struct deferred_cb deferred_write_cb;
-	struct deferred_cb deferred_read_cb;
 };
 
 
@@ -69,25 +67,6 @@ upcast(struct bufferevent *bev)
 static void be_pair_outbuf_cb(struct evbuffer *,
     const struct evbuffer_cb_info *, void *);
 
-static void
-run_callback(struct deferred_cb *cb, void *arg)
-{
-	struct bufferevent_pair *bufev = arg;
-	struct bufferevent *bev = downcast(bufev);
-
-	BEV_LOCK(bev);
-	if (cb == &bufev->deferred_read_cb) {
-		if (bev->readcb) {
-			bev->readcb(bev, bev->cbarg);
-		}
-	} else {
-		if (bev->writecb) {
-			bev->writecb(bev, bev->cbarg);
-		}
-	}
-	BEV_UNLOCK(bev);
-}
-
 static struct bufferevent_pair *
 bufferevent_pair_elt_new(struct event_base *base,
     enum bufferevent_options options)
@@ -106,8 +85,6 @@ bufferevent_pair_elt_new(struct event_base *base,
 		bufferevent_free(downcast(bufev));
 		return NULL;
 	}
-	event_deferred_cb_init(&bufev->deferred_read_cb, run_callback, bufev);
-	event_deferred_cb_init(&bufev->deferred_write_cb, run_callback, bufev);
 
 	return bufev;
 }
@@ -117,7 +94,10 @@ bufferevent_pair_new(struct event_base *base, enum bufferevent_options options,
     struct bufferevent *pair[2])
 {
         struct bufferevent_pair *bufev1 = NULL, *bufev2 = NULL;
-	enum bufferevent_options tmp_options = options & ~BEV_OPT_THREADSAFE;
+	enum bufferevent_options tmp_options;
+
+	options |= BEV_OPT_DEFER_CALLBACKS;
+	tmp_options = options & ~BEV_OPT_THREADSAFE;
 
 	bufev1 = bufferevent_pair_elt_new(base, options);
 	if (!bufev1)
@@ -175,12 +155,10 @@ be_pair_transfer(struct bufferevent *src, struct bufferevent *dst,
 	dst_size = evbuffer_get_length(dst->input);
 
 	if (dst_size >= dst->wm_read.low && dst->readcb) {
-		event_deferred_cb_schedule(dst->ev_base,
-		    &(upcast(dst)->deferred_read_cb));
+		_bufferevent_run_readcb(dst);
 	}
 	if (src_size <= src->wm_write.low && src->writecb) {
-		event_deferred_cb_schedule(src->ev_base,
-		    &(upcast(src)->deferred_write_cb));
+		_bufferevent_run_writecb(src);
 	}
 done:
 	evbuffer_freeze(src->output, 1);
@@ -247,8 +225,6 @@ be_pair_destruct(struct bufferevent *bev)
 		bev_p->partner->partner = NULL;
 		bev_p->partner = NULL;
 	}
-	event_deferred_cb_cancel(bev->ev_base, &bev_p->deferred_write_cb);
-	event_deferred_cb_cancel(bev->ev_base, &bev_p->deferred_read_cb);
 }
 
 static void
