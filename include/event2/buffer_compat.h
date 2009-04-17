@@ -76,5 +76,10 @@ void evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
  */
 unsigned char *evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len);
 
+/** deprecated in favor of calling the functions directly */
+#define EVBUFFER_LENGTH(x)	evbuffer_get_length(x)
+/** deprecated in favor of calling the functions directly */
+#define EVBUFFER_DATA(x)	evbuffer_pullup(x, -1)
+
 #endif
 

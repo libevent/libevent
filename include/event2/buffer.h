@@ -559,11 +559,6 @@ int evbuffer_prepend(struct evbuffer *buf, const void *data, size_t size);
 */
 int evbuffer_prepend_buffer(struct evbuffer *dst, struct evbuffer* src);
 
-/** deprecated in favor of calling the functions directly */
-#define EVBUFFER_LENGTH(x)	evbuffer_get_length(x)
-/** deprecated in favor of calling the functions directly */
-#define EVBUFFER_DATA(x)	evbuffer_pullup(x, -1)
-
 /**
    Prevent calls that modify an evbuffer from succeeding. A buffer may
    frozen at the front, at the back, or at both the front and the back.

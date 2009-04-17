@@ -2259,7 +2259,7 @@ void
 evbuffer_cb_suspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb)
 {
 	if (!(cb->flags & EVBUFFER_CB_SUSPENDED)) {
-		cb->size_before_suspend = EVBUFFER_LENGTH(buffer);
+		cb->size_before_suspend = evbuffer_get_length(buffer);
 		cb->flags |= EVBUFFER_CB_SUSPENDED;
 	}
 }
@@ -2274,7 +2274,7 @@ evbuffer_cb_unsuspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb)
 			       EVBUFFER_CB_CALL_ON_UNSUSPEND);
 		cb->size_before_suspend = 0;
 		if (call && (cb->flags & EVBUFFER_CB_ENABLED)) {
-			cb->cb(buffer, sz, EVBUFFER_LENGTH(buffer), cb->cbarg);
+			cb->cb(buffer, sz, evbuffer_get_length(buffer), cb->cbarg);
 		}
 	}
 }

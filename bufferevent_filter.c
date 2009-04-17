@@ -133,7 +133,7 @@ be_underlying_writebuf_full(struct bufferevent_filtered *bevf,
         struct bufferevent *u = bevf->underlying;
         return state == BEV_NORMAL &&
             u->wm_write.high &&
-            EVBUFFER_LENGTH(u->output) >= u->wm_write.high;
+            evbuffer_get_length(u->output) >= u->wm_write.high;
 }
 
 /** Return 1 if our input buffer is at or over its high watermark such that we
@@ -145,7 +145,7 @@ be_readbuf_full(struct bufferevent_filtered *bevf,
         struct bufferevent *bufev = downcast(bevf);
         return state == BEV_NORMAL &&
             bufev->wm_read.high &&
-            EVBUFFER_LENGTH(bufev->input) >= bufev->wm_read.high;
+            evbuffer_get_length(bufev->input) >= bufev->wm_read.high;
 }
 
 
@@ -270,7 +270,7 @@ be_filter_process_input(struct bufferevent_filtered *bevf,
                 ssize_t limit = -1;
                 if (state == BEV_NORMAL && bev->wm_read.high)
                         limit = bev->wm_read.high -
-                            EVBUFFER_LENGTH(bev->input);
+                            evbuffer_get_length(bev->input);
 
 		res = bevf->process_in(bevf->underlying->input,
                     bev->input, limit, state, bevf->context);
@@ -279,7 +279,7 @@ be_filter_process_input(struct bufferevent_filtered *bevf,
 			*processed_out = 1;
 	} while (res == BEV_OK &&
 		 (bev->enabled & EV_READ) &&
-		 EVBUFFER_LENGTH(bevf->underlying->input) &&
+		 evbuffer_get_length(bevf->underlying->input) &&
   		 !be_readbuf_full(bevf, state));
 
 	return res;
@@ -303,7 +303,7 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
                  * call the filter no matter what. */
                 if (!(bufev->enabled & EV_WRITE) ||
                     be_underlying_writebuf_full(bevf, state) ||
-                    !EVBUFFER_LENGTH(bufev->output))
+                    !evbuffer_get_length(bufev->output))
                         return BEV_OK;
         }
 
@@ -320,7 +320,7 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
                         if (state == BEV_NORMAL &&
                             bevf->underlying->wm_write.high)
                                 limit = bevf->underlying->wm_write.high -
-                                    EVBUFFER_LENGTH(bevf->underlying->output);
+                                    evbuffer_get_length(bevf->underlying->output);
 
                         res = bevf->process_out(downcast(bevf)->output,
                             bevf->underlying->output,
@@ -336,18 +336,18 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
                         (bufev->enabled & EV_WRITE) &&
                         /* Of if we have nothing more to write and we are
                          * not flushing. */
-                        EVBUFFER_LENGTH(bufev->output) &&
+                        evbuffer_get_length(bufev->output) &&
                         /* Or if we have filled the underlying output buffer. */
                         !be_underlying_writebuf_full(bevf,state));
 
                 if (processed && bufev->writecb &&
-                    EVBUFFER_LENGTH(bufev->output) <= bufev->wm_write.low) {
+                    evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
                         /* call the write callback.*/
                         (*bufev->writecb)(bufev, bufev->cbarg);
 
                         if (res == BEV_OK &&
                             (bufev->enabled & EV_WRITE) &&
-                            EVBUFFER_LENGTH(bufev->output) &&
+                            evbuffer_get_length(bufev->output) &&
                             !be_underlying_writebuf_full(bevf, state)) {
                                 again = 1;
                         }
@@ -394,7 +394,7 @@ be_filter_readcb(struct bufferevent *underlying, void *_me)
 	res = be_filter_process_input(bevf, state, &processed_any);
 
 	if (processed_any &&
-            EVBUFFER_LENGTH(bufev->input) >= bufev->wm_read.low &&
+            evbuffer_get_length(bufev->input) >= bufev->wm_read.low &&
             bufev->readcb != NULL)
 		(*bufev->readcb)(bufev, bufev->cbarg);
 }

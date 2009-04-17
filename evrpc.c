@@ -282,7 +282,7 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 
 	/* let's verify the outside parameters */
 	if (req->type != EVHTTP_REQ_POST ||
-	    EVBUFFER_LENGTH(req->input_buffer) <= 0)
+	    evbuffer_get_length(req->input_buffer) <= 0)
 		goto error;
 
 	rpc_state = mm_calloc(1, sizeof(struct evrpc_req_generic));

@@ -126,7 +126,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	 * read more data than would make us reach the watermark.
 	 */
 	if (bufev->wm_read.high != 0) {
-		howmuch = bufev->wm_read.high - EVBUFFER_LENGTH(input);
+		howmuch = bufev->wm_read.high - evbuffer_get_length(input);
 		/* we somehow lowered the watermark, stop reading */
 		if (howmuch <= 0) {
 			bufferevent_wm_suspend_read(bufev);
@@ -154,7 +154,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 
 
 	/* Invoke the user callback - must always be called last */
-	if (EVBUFFER_LENGTH(input) >= bufev->wm_read.low &&
+	if (evbuffer_get_length(input) >= bufev->wm_read.low &&
             bufev->readcb != NULL)
 		(*bufev->readcb)(bufev, bufev->cbarg);
 
@@ -181,7 +181,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		goto error;
 	}
 
-	if (EVBUFFER_LENGTH(bufev->output)) {
+	if (evbuffer_get_length(bufev->output)) {
 	    evbuffer_unfreeze(bufev->output, 1);
 	    res = evbuffer_write(bufev->output, fd);
 	    evbuffer_freeze(bufev->output, 1);
@@ -198,7 +198,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		    goto error;
 	}
 
-	if (EVBUFFER_LENGTH(bufev->output) == 0)
+	if (evbuffer_get_length(bufev->output) == 0)
 		event_del(&bufev->ev_write);
 
 	/*
@@ -206,13 +206,13 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	 * low watermark.
 	 */
 	if (bufev->writecb != NULL &&
-	    EVBUFFER_LENGTH(bufev->output) <= bufev->wm_write.low)
+	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low)
 		(*bufev->writecb)(bufev, bufev->cbarg);
 
 	return;
 
  reschedule:
-	if (EVBUFFER_LENGTH(bufev->output) == 0)
+	if (evbuffer_get_length(bufev->output) == 0)
 		event_del(&bufev->ev_write);
 	return;
 

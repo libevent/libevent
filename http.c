@@ -412,7 +412,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		char size[12];
 		evutil_snprintf(size, sizeof(size), "%ld",
-		    (long)EVBUFFER_LENGTH(req->output_buffer));
+		    (long)evbuffer_get_length(req->output_buffer));
 		evhttp_add_header(req->output_headers, "Content-Length", size);
 	}
 }
@@ -508,7 +508,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 			 */
 			evhttp_maybe_add_content_length_header(
 				req->output_headers,
-				(long)EVBUFFER_LENGTH(req->output_buffer));
+				(long)evbuffer_get_length(req->output_buffer));
 		}
 	}
 
@@ -552,7 +552,7 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 	evbuffer_add(output, "\r\n", 2);
 
-	if (EVBUFFER_LENGTH(req->output_buffer) > 0) {
+	if (evbuffer_get_length(req->output_buffer) > 0) {
 		/*
 		 * For a request, we add the POST data, for a reply, this
 		 * is the regular data.
@@ -741,7 +741,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 {
 	int len;
 
-	while ((len = EVBUFFER_LENGTH(buf)) > 0) {
+	while ((len = evbuffer_get_length(buf)) > 0) {
 		if (req->ntoread < 0) {
 			/* Read chunk size */
 			ev_int64_t ntoread;
@@ -783,7 +783,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			req->flags |= EVHTTP_REQ_DEFER_FREE;
 			(*req->chunk_cb)(req, req->cb_arg);
 			evbuffer_drain(req->input_buffer,
-			    EVBUFFER_LENGTH(req->input_buffer));
+			    evbuffer_get_length(req->input_buffer));
 			req->flags &= ~EVHTTP_REQ_DEFER_FREE;
 			if ((req->flags & EVHTTP_REQ_NEEDS_FREE) != 0) {
 				return (REQUEST_CANCELED);
@@ -843,19 +843,19 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		/* Read until connection close. */
 		evbuffer_add_buffer(req->input_buffer, buf);
 	} else if (req->chunk_cb != NULL ||
-	    EVBUFFER_LENGTH(buf) >= req->ntoread) {
+	    evbuffer_get_length(buf) >= req->ntoread) {
 		/* We've postponed moving the data until now, but we're
 		 * about to use it. */
-		req->ntoread -= EVBUFFER_LENGTH(buf);
+		req->ntoread -= evbuffer_get_length(buf);
 		evbuffer_add_buffer(req->input_buffer, buf);
 	}
 
-	if (EVBUFFER_LENGTH(req->input_buffer) > 0 && req->chunk_cb != NULL) {
+	if (evbuffer_get_length(req->input_buffer) > 0 && req->chunk_cb != NULL) {
 		req->flags |= EVHTTP_REQ_DEFER_FREE;
 		(*req->chunk_cb)(req, req->cb_arg);
 		req->flags &= ~EVHTTP_REQ_DEFER_FREE;
 		evbuffer_drain(req->input_buffer,
-		    EVBUFFER_LENGTH(req->input_buffer));
+		    evbuffer_get_length(req->input_buffer));
 		if ((req->flags & EVHTTP_REQ_NEEDS_FREE) != 0) {
 			evhttp_request_free(req);
 			return;
@@ -1032,9 +1032,9 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 
 	/* we need to clean up any buffered data */
 	tmp = bufferevent_get_output(evcon->bufev);
-	evbuffer_drain(tmp, EVBUFFER_LENGTH(tmp));
+	evbuffer_drain(tmp, evbuffer_get_length(tmp));
 	tmp = bufferevent_get_input(evcon->bufev);
-	evbuffer_drain(tmp, EVBUFFER_LENGTH(tmp));
+	evbuffer_drain(tmp, evbuffer_get_length(tmp));
 
 	evcon->state = EVCON_DISCONNECTED;
 }
@@ -1575,7 +1575,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 
 	event_debug(("%s: bytes to read: %d (in buffer %ld)\n",
 		__func__, req->ntoread,
-		EVBUFFER_LENGTH(bufferevent_get_input(req->evcon->bufev))));
+		evbuffer_get_length(bufferevent_get_input(req->evcon->bufev))));
 
 	return (0);
 }
@@ -2029,13 +2029,13 @@ void
 evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
 {
 	struct evbuffer *output = bufferevent_get_output(req->evcon->bufev);
-	if (EVBUFFER_LENGTH(databuf) == 0)
+	if (evbuffer_get_length(databuf) == 0)
 		return;
 	if (!evhttp_response_needs_body(req))
 		return;
 	if (req->chunked) {
 		evbuffer_add_printf(output, "%x\r\n",
-				    (unsigned)EVBUFFER_LENGTH(databuf));
+				    (unsigned)evbuffer_get_length(databuf));
 	}
 	evbuffer_add_buffer(output, databuf);
 	if (req->chunked) {
@@ -2054,7 +2054,7 @@ evhttp_send_reply_end(struct evhttp_request *req)
 		evbuffer_add(output, "0\r\n\r\n", 5);
 		evhttp_write_buffer(req->evcon, evhttp_send_done, NULL);
 		req->chunked = 0;
-	} else if (EVBUFFER_LENGTH(output) == 0) {
+	} else if (evbuffer_get_length(output) == 0) {
 		/* let the connection know that we are done with the request */
 		evhttp_send_done(evcon, NULL);
 	} else {
@@ -2132,7 +2132,7 @@ evhttp_encode_uri(const char *uri)
 		}
 	}
 	evbuffer_add(buf, "", 1);
-	p = mm_strdup((char *)EVBUFFER_DATA(buf));
+	p = mm_strdup((char*)evbuffer_pullup(buf, -1));
 	evbuffer_free(buf);
 
 	return (p);

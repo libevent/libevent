@@ -221,7 +221,7 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
                        ' struct evbuffer *evbuf)\n'
                        '{\n'
                        '  ev_uint32_t tag;\n'
-                       '  while (EVBUFFER_LENGTH(evbuf) > 0) {\n'
+                       '  while (evbuffer_get_length(evbuf) > 0) {\n'
                        '    if (evtag_peek(evbuf, &tag) == -1)\n'
                        '      return (-1);\n'
                        '    switch (tag) {\n'
@@ -977,7 +977,7 @@ class EntryVarBytes(Entry):
         code = ['if (evtag_payload_length(%(buf)s, &%(varlen)s) == -1)',
                 '  return (-1);',
                 # We do not want DoS opportunities
-                'if (%(varlen)s > EVBUFFER_LENGTH(%(buf)s))',
+                'if (%(varlen)s > evbuffer_get_length(%(buf)s))',
                 '  return (-1);',
                 'if ((%(var)s = malloc(%(varlen)s)) == NULL)',
                 '  return (-1);',

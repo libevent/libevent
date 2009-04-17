@@ -60,6 +60,7 @@
 #include "event2/event_compat.h"
 #include "event2/tag.h"
 #include "event2/buffer.h"
+#include "event2/buffer_compat.h"
 #include "event2/util.h"
 #include "event-internal.h"
 #include "log-internal.h"

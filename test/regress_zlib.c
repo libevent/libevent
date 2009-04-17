@@ -139,7 +139,7 @@ zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
 			assert(res == Z_OK || res == Z_STREAM_END);
 		}
 
-	} while (EVBUFFER_LENGTH(src) > 0);
+	} while (evbuffer_get_length(src) > 0);
 
         ++infilter_calls;
 
@@ -184,7 +184,7 @@ zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
 			assert(res == Z_OK || res == Z_STREAM_END);
 		}
 
-	} while (EVBUFFER_LENGTH(src) > 0);
+	} while (evbuffer_get_length(src) > 0);
 
 	++outfilter_calls;
 
@@ -198,7 +198,7 @@ zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
 static void
 readcb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bufferevent_get_input(bev)) == 8333) {
+	if (evbuffer_get_length(bufferevent_get_input(bev)) == 8333) {
 		struct evbuffer *evbuf = evbuffer_new();
 		assert(evbuf != NULL);
 
@@ -207,7 +207,7 @@ readcb(struct bufferevent *bev, void *arg)
 
 		bufferevent_disable(bev, EV_READ);
 
-		if (EVBUFFER_LENGTH(evbuf) == 8333) {
+		if (evbuffer_get_length(evbuf) == 8333) {
 			++readcb_finished;
                 }
 
@@ -218,7 +218,7 @@ readcb(struct bufferevent *bev, void *arg)
 static void
 writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bufferevent_get_output(bev)) == 0) {
+	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
 		++writecb_finished;
         }
 }
