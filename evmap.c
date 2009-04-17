@@ -107,31 +107,31 @@ HT_PROTOTYPE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket);
 HT_GENERATE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket,
 			0.5, mm_malloc, mm_realloc, mm_free);
 
-#define GET_IO_SLOT(x, map, slot, type)								\
-	do {															\
-		struct event_map_entry _key, *_ent;							\
-		_key.fd = slot;												\
-		_ent = HT_FIND(event_io_map, map, &_key);					\
-		(x) = _ent ? &_ent->ent.type : NULL;						\
+#define GET_IO_SLOT(x, map, slot, type)					\
+	do {								\
+		struct event_map_entry _key, *_ent;			\
+		_key.fd = slot;						\
+		_ent = HT_FIND(event_io_map, map, &_key);		\
+		(x) = _ent ? &_ent->ent.type : NULL;			\
 	} while (0);
 
 #define GET_IO_SLOT_AND_CTOR(x, map, slot, type, ctor, fdinfo_len)	\
-	do {															\
-		struct event_map_entry _key, *_ent;							\
-		_key.fd = slot;												\
-		_HT_FIND_OR_INSERT(event_io_map, map_node, hashsocket, map,	\
-						   event_map_entry, &_key, ptr,				\
-			 {														\
-				 _ent = *ptr;										\
-			 },														\
-			 {			  											\
-				 _ent = mm_calloc(1,sizeof(struct event_map_entry)+fdinfo_len); \
-				 assert(_ent);										\
-				 _ent->fd = slot;									\
-				 (ctor)(&_ent->ent.type);							\
-				 _HT_FOI_INSERT(map_node, map, &_key, _ent, ptr)	\
-			 });													\
-		(x) = &_ent->ent.type;										\
+	do {								\
+		struct event_map_entry _key, *_ent;			\
+		_key.fd = slot;						\
+		_HT_FIND_OR_INSERT(event_io_map, map_node, hashsocket, map, \
+		    event_map_entry, &_key, ptr,			\
+		    {							\
+			    _ent = *ptr;				\
+		    },							\
+		    {							\
+			    _ent = mm_calloc(1,sizeof(struct event_map_entry)+fdinfo_len); \
+			    assert(_ent);				\
+			    _ent->fd = slot;				\
+			    (ctor)(&_ent->ent.type);			\
+			    _HT_FOI_INSERT(map_node, map, &_key, _ent, ptr) \
+				});					\
+		(x) = &_ent->ent.type;					\
 	} while (0)
 
 void evmap_io_initmap(struct event_io_map *ctx)
@@ -160,14 +160,15 @@ void evmap_io_clear(struct event_io_map *ctx)
    value by calling the function 'ctor' on it.
  */
 #define GET_SIGNAL_SLOT_AND_CTOR(x, map, slot, type, ctor, fdinfo_len)	\
-	do {																\
-		if ((map)->entries[slot] == NULL) {								\
-			assert(ctor != NULL);										\
-			(map)->entries[slot]=mm_calloc(1,sizeof(struct type)+fdinfo_len);\
-			assert((map)->entries[slot] != NULL);						\
-			(ctor)((struct type *)(map)->entries[slot]);				\
-		}																\
-		(x) = (struct type *)((map)->entries[slot]);					\
+	do {								\
+		if ((map)->entries[slot] == NULL) {			\
+			assert(ctor != NULL);				\
+			(map)->entries[slot] =				\
+			    mm_calloc(1,sizeof(struct type)+fdinfo_len); \
+			assert((map)->entries[slot] != NULL);		\
+			(ctor)((struct type *)(map)->entries[slot]);	\
+		}							\
+		(x) = (struct type *)((map)->entries[slot]);		\
 	} while (0)
 
 /* If we aren't using hashtables, then define the IO_SLOT macros and functions
