@@ -1562,6 +1562,7 @@ event_get_method(void)
 	return (current_base->evsel->name);
 }
 
+#ifndef _EVENT_DISABLE_MM_REPLACEMENT
 static void *(*_mm_malloc_fn)(size_t sz) = NULL;
 static void *(*_mm_realloc_fn)(void *p, size_t sz) = NULL;
 static void (*_mm_free_fn)(void *p) = NULL;
@@ -1632,7 +1633,7 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 	_mm_realloc_fn = realloc_fn;
 	_mm_free_fn = free_fn;
 }
-
+#endif
 
 /* support for threading */
 void (*_evthread_locking_fn)(int mode, void *lock) = NULL;
