@@ -27,7 +27,7 @@
 #define _EVTHREAD_INTERNAL_H_
 
 #ifdef __cplusplus
-//extern "C" {
+extern "C" {
 #endif
 
 #include "event-config.h"
@@ -36,41 +36,55 @@
 struct event_base;
 
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
+/* Global function pointers to lock-related functions. NULL if locking isn't
+   enabled. */
 extern void (*_evthread_locking_fn)(int mode, void *lock);
 extern unsigned long (*_evthread_id_fn)(void);
 extern void *(*_evthread_lock_alloc_fn)(void);
 extern void (*_evthread_lock_free_fn)(void *);
 
+/** True iff the given event_base is set up to use locking */
 #define EVBASE_USING_LOCKS(base)			\
 	(base != NULL && (base)->th_base_lock != NULL)
 
+/** Return the ID of the current thread, or 1 if threading isn't enabled. */
 #define EVTHREAD_GET_ID() \
 	(_evthread_id_fn ? _evthread_id_fn() : 1)
 
+/** Return true iff we're in the thread that is currently running a given
+ * event_base's loop. */
 #define EVBASE_IN_THREAD(base)				 \
 	(_evthread_id_fn == NULL ||			 \
 	(base)->th_owner_id == _evthread_id_fn())
 
+/** Allocate a new lock, and store it in lockvar, a void*.  Sets lockvar to
+    NULL if locking is not enabled. */
 #define EVTHREAD_ALLOC_LOCK(lockvar)		\
 	((lockvar) = _evthread_lock_alloc_fn ?	\
 	    _evthread_lock_alloc_fn() : NULL)
 
+/** Free a given lock, if it is present and locking is enabled. */
 #define EVTHREAD_FREE_LOCK(lockvar)				\
 	do {							\
 		if (lockvar && _evthread_lock_free_fn)		\
 			_evthread_lock_free_fn(lockvar);	\
 	} while (0)
 
+/** Acquire a lock. */
 #define EVLOCK_LOCK(lock,mode)					\
 	do {								\
 		if (lock)						\
 			_evthread_locking_fn(EVTHREAD_LOCK|mode, lock);	\
 	} while (0)
+
+/** Release a lock */
 #define EVLOCK_UNLOCK(lock,mode)					\
 	do {								\
 		if (lock)						\
 			_evthread_locking_fn(EVTHREAD_UNLOCK|mode, lock); \
 	} while (0)
+
+/** Helper: put lockvar1 and lockvar2 into pointerwise ascending order. */
 #define _EVLOCK_SORTLOCKS(lockvar1, lockvar2)				\
 	do {								\
 		if (lockvar1 && lockvar2 && lockvar1 > lockvar2) {	\
@@ -80,6 +94,8 @@ extern void (*_evthread_lock_free_fn)(void *);
 		}							\
 	} while (0)
 
+/** Acquire both lock1 and lock2.  Always allocates locks in the same order,
+ * so that two threads locking two locks with LOCK2 will not deadlock. */
 #define EVLOCK_LOCK2(lock1,lock2,mode1,mode2)				\
 	do {								\
 		void *_lock1_tmplock = (lock1);				\
@@ -90,6 +106,7 @@ extern void (*_evthread_lock_free_fn)(void *);
                         EVLOCK_LOCK(_lock2_tmplock,mode2);              \
 	} while (0)
 
+/** Releaes both lock1 and lock2.  */
 #define EVLOCK_UNLOCK2(lock1,lock2,mode1,mode2)				\
 	do {								\
 		void *_lock1_tmplock = (lock1);				\
@@ -101,12 +118,15 @@ extern void (*_evthread_lock_free_fn)(void *);
 	} while (0)
 
 
+/** Lock an event_base, if it is set up for locking.  Acquires the lock
+    in the base structure whose field is named 'lock'. */
 #define EVBASE_ACQUIRE_LOCK(base, mode, lock) do {			\
 		if (EVBASE_USING_LOCKS(base))				\
 			_evthread_locking_fn(EVTHREAD_LOCK | mode,	\
 			    (base)->lock);				\
 	} while (0)
 
+/** Unlock an event_base, if it is set up for locking. */
 #define EVBASE_RELEASE_LOCK(base, mode, lock) do {			\
 		if (EVBASE_USING_LOCKS(base))				\
 			_evthread_locking_fn(EVTHREAD_UNLOCK | mode,	\

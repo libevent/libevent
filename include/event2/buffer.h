@@ -119,10 +119,17 @@ void evbuffer_free(struct evbuffer *buf);
  */
 int evbuffer_enable_locking(struct evbuffer *buf, void *lock);
 
-/* DOCDOC */
+/**
+   Acquire the lock on an evbuffer.  Has no effect if locking was not enabled
+   with evbuffer_enable_locking.
+*/
 void evbuffer_lock(struct evbuffer *buf);
-void evbuffer_unlock(struct evbuffer *buf);
 
+/**
+   Release the lock on an evbuffer.  Has no effect if locking was not enabled
+   with evbuffer_enable_locking.
+*/
+void evbuffer_unlock(struct evbuffer *buf);
 
 /**
   Returns the total number of bytes stored in the event buffer
@@ -493,7 +500,7 @@ int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg
     @param buffer the evbuffer that the callback is watching.
     @param cb the callback whose status we want to change.
     @param flags EVBUFFER_CB_ENABLED to enable the callback, or
-        EVBUFFER_CB_DISABLEDD to disable it.
+        EVBUFFER_CB_DISABLED to disable it.
     @return 0 on success, -1 on failure.
  */
 int evbuffer_cb_set_flags(struct evbuffer *buffer,
