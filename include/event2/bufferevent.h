@@ -124,6 +124,9 @@ enum bufferevent_options {
 	/** If set, and threading is enabled, operations on this bufferevent
 	 * are protected by a lock */
 	BEV_OPT_THREADSAFE = (1<<1),
+
+	/** If set, callbacks are run deferred in the event loop. */
+	BEV_OPT_DEFER_CALLBACKS = (1<<2),
 };
 
 /**

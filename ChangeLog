@@ -1,4 +1,7 @@
-Changes in current version:
+Changes in 2.0.2-alpha:
+ o Add a new flag to bufferevents to make all callbacks automatically deferred.
+
+Changes in 2.0.1-alpha:
  o free minheap on event_base_free(); from Christopher Layne
  o debug cleanups in signal.c; from Christopher Layne
  o provide event_base_new() that does not set the current_base global
