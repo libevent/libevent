@@ -258,11 +258,15 @@ _tinytest_set_flag(struct testgroup_t *groups, const char *arg, unsigned long fl
 }
 
 static void
-usage(struct testgroup_t *groups)
+usage(struct testgroup_t *groups, int list_groups)
 {
 	puts("Options are: [--verbose|--quiet|--terse] [--no-fork]");
-	puts("Known tests are:");
-	_tinytest_set_flag(groups, "..", 0);
+	puts("  Specify tests by name, or using a prefix ending with '..'");
+	puts("  Use --list-tests for a list of tests.");
+	if (list_groups) {
+		puts("Known tests are:");
+		_tinytest_set_flag(groups, "..", 0);
+	}
 	exit(0);
 }
 
@@ -290,7 +294,9 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 				opt_verbosity = 0;
 				verbosity_flag = "--terse";
 			} else if (!strcmp(v[i], "--help")) {
-				usage(groups);
+				usage(groups, 0);
+			} else if (!strcmp(v[i], "--list-tests")) {
+				usage(groups, 1);
 			} else {
 				printf("Unknown option %s.  Try --help\n",v[i]);
 				return -1;
