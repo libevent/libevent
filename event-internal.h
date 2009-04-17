@@ -48,20 +48,38 @@ extern "C" {
 #define ev_ncalls	_ev.ev_signal.ev_ncalls
 #define ev_pncalls	_ev.ev_signal.ev_pncalls
 
+/** Structure to define the backend of a given event_base. */
 struct eventop {
+	/** The name of this backend. */
 	const char *name;
+	/** Set up an event_base to use this backend.*/
 	void *(*init)(struct event_base *);
+	/** Enable reading/writing on a given fd. */
 	int (*add)(struct event_base *, evutil_socket_t fd, short old, short events, void *fdinfo);
+	/** Disable reading/writing on a given fd. */
 	int (*del)(struct event_base *, evutil_socket_t fd, short old, short events, void *fdinfo);
+	/** Function to implement the core of an event loop.  It must see which
+	    added events are ready, and cause event_active to be called for each
+	    active event (usually via event_io_active or such).
+	 */
 	int (*dispatch)(struct event_base *, struct timeval *);
+	/** Function to clean up and free our data from the event_base. */
 	void (*dealloc)(struct event_base *);
-	/* set if we need to reinitialize the event base */
+	/** Set if we need to reinitialize the event base after we fork. */
 	int need_reinit;
+	/** Bit-array of supported event_method_features */
 	enum event_method_feature features;
+	/** Length of extra information we should record for each fd that
+	    has one or more active events.
+	 */
 	size_t fdinfo_len;
 };
 
 #ifdef WIN32
+/* If we're on win32, then file descriptors are not nice low densely packed
+   integers.  Instead, they are pointer-like windows handles, and we want to
+   use a hashtable instead of an array to map fds to events.
+*/
 #define EVMAP_USE_HT
 #endif
 
@@ -82,45 +100,57 @@ struct event_signal_map {
 };
 
 struct event_base {
+	/** Function pointers and other data to describe this event_base's
+	 * backend. */
 	const struct eventop *evsel;
+	/** Pointer to backend-specific data. */
 	void *evbase;
 
 	/* signal handling info */
 	const struct eventop *evsigsel;
 	void *evsigbase;
-
 	struct evsig_info sig;
 
-	int event_count;		/* counts number of total events */
-	int event_count_active;	/* counts number of active events */
+	int event_count;		/**< counts number of total events */
+	int event_count_active;		/**< counts number of active events */
 
-	int event_gotterm;		/* Set to terminate loop */
-	int event_break;		/* Set to terminate loop immediately */
+	int event_gotterm;		/**< Set to terminate loop once done
+					 * processing events. */
+	int event_break;		/**< Set to exit loop immediately */
 
-	/* active event management */
+	/* Active event management. */
+	/** An array of nactivequeues queues for active events (ones that
+	 * have triggered, and whose callbacks need to be called).  Low
+	 * priority numbers are more important, and stall higher ones.
+	 */
 	struct event_list **activequeues;
 	int nactivequeues;
 
-	/* deferred callback management */
+	/** Deferred callback management: a list of deferred callbacks to
+	 * run active the active events. */
 	TAILQ_HEAD (deferred_cb_list, deferred_cb) deferred_cb_list;
 
-	/* for mapping io activity to events */
+	/** Mapping from file descriptors to enabled events */
 	struct event_io_map io;
 
-	/* for mapping signal activity to events */
+	/** Mapping from signal numbers to enabled events. */
 	struct event_signal_map sigmap;
 
-
+	/** All events that have been enabled (added) in this event_base */
 	struct event_list eventqueue;
+
 	struct timeval event_tv;
 
+	/** Priority queue of events with timeouts. */
 	struct min_heap timeheap;
 
 	struct timeval tv_cache;
 
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
 	/* threading support */
+	/** The thread currently running the event_loop for this base */
 	unsigned long th_owner_id;
+	/** A lock to prevent conflicting accesses to this event_base */
 	void *th_base_lock;
 #endif
 
@@ -136,6 +166,8 @@ struct event_config_entry {
 	const char *avoid_method;
 };
 
+/** Internal structure: describes the configuration we want for an event_base
+ * that we're about to allocate. */
 struct event_config {
 	TAILQ_HEAD(event_configq, event_config_entry) entries;
 

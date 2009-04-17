@@ -38,6 +38,12 @@
 extern "C" {
 #endif
 
+/** @file ipv6-internal.h
+ *
+ * Replacement types and functions for platfoms that don't support ipv6
+ * properly.
+ */
+
 #ifndef _EVENT_HAVE_STRUCT_IN6_ADDR
 struct in6_addr {
 	ev_uint8_t s6_addr[16];

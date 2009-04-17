@@ -101,6 +101,21 @@ extern const char EVUTIL_TOLOWER_TABLE[];
 #define EVUTIL_TOLOWER(c) (EVUTIL_TOLOWER_TABLE[(ev_uint8_t)c])
 #define EVUTIL_TOUPPER(c) (EVUTIL_TOUPPER_TABLE[(ev_uint8_t)c])
 
+/** Helper macro.  If we know that a given pointer points to a field in a
+    structure, return a pointer to the structure itself.  Used to implement
+    our half-baked C OO.  Example:
+
+    struct subtype {
+         int x;
+	 struct supertype common;
+	 int y;
+    };
+    ...
+    void fn(struct supertype *super) {
+         struct subtype *sub = EVUTIL_UPCAST(super, struct subtype, common);
+         ...
+    }
+ */
 #define EVUTIL_UPCAST(ptr, type, field)				\
 	((type *)((char*)ptr) - evutil_offsetof(type, field))
 

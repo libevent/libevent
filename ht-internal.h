@@ -427,7 +427,7 @@ ht_string_hash(const char *s)
 /*
  * Copyright 2005, Nick Mathewson.  Implementation logic is adapted from code
  * by Cristopher Clark, retrofit to allow drop-in memory management, and to
- * use the same interface as Niels Provos's HT_H.  I'm not sure whether this
+ * use the same interface as Niels Provos's tree.h.  I'm not sure whether this
  * is a derived work any more, but whether it is or not, the license below
  * applies.
  *

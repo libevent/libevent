@@ -1,3 +1,35 @@
+/*
+ * Copyright (c) 2009 Niels Provos and Nick Mathewson
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/**
+   @file buffer_iocp.c
+
+   This module implements overlapped read and write functions for evbuffer
+   objects on Windows.
+*/
 
 #include <windows.h>
 #include <assert.h>
@@ -15,25 +47,38 @@
 
 #define MAX_WSABUFS 16
 
+/** Wrapper for an OVERLAPPED that holds the necessary info to notice
+    when an overlapped read or write is done on an evbuffer.
+ **/
 struct buffer_overlapped {
 	struct event_overlapped event_overlapped;
 
+	/** The first pinned chain in the buffer. */
 	struct evbuffer_chain *first_pinned;
+	/** The buffer itself. */
 	struct evbuffer_overlapped *buf;
+	/** How many chains are pinned; how many of the fields in buffers
+	 * are we using. */
 	int n_buffers;
 	WSABUF buffers[MAX_WSABUFS];
 };
 
+/** An evbuffer that can handle overlapped IO. */
 struct evbuffer_overlapped {
 	struct evbuffer buffer;
+	/** The socket that we're doing overlapped IO on. */
 	evutil_socket_t fd;
+	/** True iff we have scheduled a write. */
 	unsigned write_in_progress : 1;
+	/** True iff we have scheduled a read. */
 	unsigned read_in_progress : 1;
 
 	struct buffer_overlapped read_info;
 	struct buffer_overlapped write_info;
 };
 
+/** Given an evbuffer, return the correponding evbuffer structure, or NULL if
+ * the evbuffer isn't overlapped. */
 static inline struct evbuffer_overlapped *
 upcast_evbuffer(struct evbuffer *buf)
 {
@@ -48,6 +93,7 @@ upcast_overlapped(struct event_overlapped *o)
 	return EVUTIL_UPCAST(o, struct buffer_overlapped, event_overlapped);
 }
 
+/** Unpin all the chains noted as pinned in 'eo'. */
 static void
 pin_release(struct event_overlapped *eo, unsigned flag)
 {
@@ -62,6 +108,7 @@ pin_release(struct event_overlapped *eo, unsigned flag)
 	}
 }
 
+/** IOCP callback invoked when a read operation is finished. */
 static void
 read_completed(struct event_overlapped *eo, uintptr_t _, ssize_t nBytes)
 {
@@ -95,6 +142,7 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ssize_t nBytes)
 	_evbuffer_decref_and_unlock(evbuf);
 }
 
+/** IOCP callback invoked when a write operation is finished. */
 static void
 write_completed(struct event_overlapped *eo, uintptr_t _, ssize_t nBytes)
 {

@@ -115,9 +115,14 @@ typedef void (*evbuffercb)(struct bufferevent *bev, void *ctx);
 /* XXXX we should rename this to bufferevent_error_cb; see above. */
 typedef void (*everrorcb)(struct bufferevent *bev, short what, void *ctx);
 
-
+/** Options that can be specified when creating a bufferevent */
 enum bufferevent_options {
+	/** If set, we close the underlying file
+	 * descriptor/bufferevent/whatever when this bufferevent is freed. */
 	BEV_OPT_CLOSE_ON_FREE = (1<<0),
+
+	/** If set, and threading is enabled, operations on this bufferevent
+	 * are protected by a lock */
 	BEV_OPT_THREADSAFE = (1<<1),
 };
 
@@ -389,14 +394,18 @@ typedef enum bufferevent_filter_result (*bufferevent_filter_cb)(
     struct evbuffer *src, struct evbuffer *dst, ssize_t dst_limit,
     enum bufferevent_flush_mode mode, void *ctx);
 
-struct bufferevent_filter;
+/**
+   Allocate a new filtering bufferevent on top of an existing bufferevent.
 
-enum bufferevent_filter_options {
-	BEV_FILT_FREE_UNDERLYING = (1<<0),
-};
-
-
-/** Allocate a new filtering bufferevent on top of an existing bufferevent.
+   @param underlying the underlying bufferevent.
+   @param input_filter The filter to apply to data we read from the underlying
+     bufferevent
+   @param output_filter The filer to apply to data we write to the underlying
+     bufferevent
+   @param options A bitfield of bufferevent options.
+   @param free_context A function to use to free the filter context when
+     this bufferevent is freed.
+   @param ctx A context pointer to pass to the filter functions.
  */
 struct bufferevent *
 bufferevent_filter_new(struct bufferevent *underlying,
@@ -412,6 +421,9 @@ bufferevent_filter_new(struct bufferevent *underlying,
    socketpair(), except that no internel socketpair is allocated.
 
    @param base The event base to associate with the socketpair.
+   @param options A set of options for this bufferevent
+   @param pair A pointer to an array to hold the two new bufferevent objects.
+   @return 0 on success, -1 on failure.
  */
 int
 bufferevent_pair_new(struct event_base *base, enum bufferevent_options options,

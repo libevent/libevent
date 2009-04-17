@@ -54,6 +54,18 @@ extern "C" {
 #endif
 #include <stdarg.h>
 
+/* Integer type definitions for types that are supposed to be defined in the
+ * C99-specified stdint.h.  Shamefully, some platforms do not include
+ * stdint.h, so we need to replace it.  (If you are on a platform like this,
+ * your C headers are now 10 years out of date.  You should bug them to do
+ * somthing about this.)
+ *
+ * We define:
+ *    ev_uint64_t, ev_uint32_t, ev_uint16_t, ev_uint8_t -- unsigned integer
+ *      types of exactly 64, 32, 16, and 8 bits respectively.
+ *    ev_int64_t, ev_int32_t, ev_int16_t, ev_int8_t -- signed integer
+ *      types of exactly 64, 32, 16, and 8 bits respectively.
+ */
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t
 #define ev_int64_t int64_t
@@ -112,6 +124,9 @@ extern "C" {
     simply calls socketpair().  On Windows, it uses the loopback network
     interface on 127.0.0.1, and only AF_INET,SOCK_STREAM are supported.
 
+    (This may fail on some Windows hosts where firewall software has cleverly
+    decided to keep 127.0.0.1 from talking to itself.)
+
     Parameters and return values are as for socketpair()
 */
 int evutil_socketpair(int d, int type, int protocol, evutil_socket_t sv[2]);
@@ -166,7 +181,8 @@ const char *evutil_socket_error_to_string(int errcode);
 #endif
 
 /*
- * Manipulation macros for struct timeval
+ * Manipulation macros for struct timeval.  We define replacements
+ * for timeradd, timersub, timerclear, timercmp, and timerisset.
  */
 #ifdef _EVENT_HAVE_TIMERADD
 #define evutil_timeradd(tvp, uvp, vvp) timeradd((tvp), (uvp), (vvp))
@@ -198,6 +214,8 @@ const char *evutil_socket_error_to_string(int errcode);
 #define	evutil_timerclear(tvp)	(tvp)->tv_sec = (tvp)->tv_usec = 0
 #endif
 
+/** Return true iff the tvp is related to uvp according to the relational
+ * operator cmp.  Recognized values for cmp are ==, <=, <, >=, and >. */
 #define	evutil_timercmp(tvp, uvp, cmp)					\
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
 	 ((tvp)->tv_usec cmp (uvp)->tv_usec) :				\
@@ -209,6 +227,7 @@ const char *evutil_socket_error_to_string(int errcode);
 #define	evutil_timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
 #endif
 
+/* Replacement for offsetof on platforms that don't define it. */
 #ifdef offsetof
 #define evutil_offsetof(type, field) offsetof(type, field)
 #else

@@ -39,11 +39,14 @@ extern "C" {
 /* minimum allocation for a chain. */
 #define MIN_BUFFER_SIZE	256
 
-/** A single evbuffer callback for an evbuffer. */
+/** A single evbuffer callback for an evbuffer. This function will be invoked
+ * when bytes are added to or removed from the evbuffer. */
 struct evbuffer_cb_entry {
         /** Structures to implement a doubly-linked queue of callbacks */
 	TAILQ_ENTRY(evbuffer_cb_entry) next;
-        /** The callback function to invoke when this callback is called */
+        /** The callback function to invoke when this callback is called.
+	    If EVBUFFER_CB_OBSOLETE is set in flags, the cb_obsolete field is
+	    valid; otherwise, cb_func is valid. */
         union {
                 evbuffer_cb_func cb_func;
                 evbuffer_cb cb_obsolete;
@@ -61,39 +64,75 @@ struct evbuffer_cb_entry {
 
 struct evbuffer_chain;
 struct evbuffer {
+	/** The first chain in this buffer's linked list of chains. */
 	struct evbuffer_chain *first;
+	/** The last chain in this buffer's linked list of chains. */
 	struct evbuffer_chain *last;
+	/** The next-to-last chain in this buffer's linked list of chains.
+	 * NULL if the buffer has 0 or 1 chains.  Used in case there's an
+	 * ongoing read that needs to be split across multiple chains: we want
+	 * to add a new chain as a read target, but we don't want to lose our
+	 * pointer to the next-to-last chain if the read turns out to be
+	 * incomplete.
+	 */
 	struct evbuffer_chain *previous_to_last;
 
-	size_t total_len;	/* total length of all buffers */
+	/** Total amount of bytes stored in all chains.*/
+	size_t total_len;
 
-	evbuffer_cb cb;
-	void *cbarg;
-
+	/** Number of bytes we have added to the buffer since we last tried to
+	 * invoke callbacks. */
         size_t n_add_for_cb;
+	/** Number of bytes we have removed from the buffer since we last
+	 * tried to invoke callbacks. */
         size_t n_del_for_cb;
 
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
+	/** A lock used to mediate access to this buffer. */
         void *lock;
 #endif
+	/** True iff we should free the lock field when we free this
+	 * evbuffer. */
 	unsigned own_lock : 1;
+	/** True iff we should not allow changes to the front of the buffer
+	 * (drains or prepends). */
 	unsigned freeze_start : 1;
+	/** True iff we should not allow changes to the end of the buffer
+	 * (appends) */
 	unsigned freeze_end : 1;
+	/** True iff this evbuffer's callbacks are not invoked immediately
+	 * upon a change in the buffer, but instead are deferred to be invoked
+	 * from the event_base's loop.  Useful for preventing enormous stack
+	 * overflows when we have mutually recursive callbacks, and for
+	 * serializing callbacks in a single thread. */
 	unsigned deferred_cbs : 1;
 #ifdef WIN32
+	/** True iff this buffer is set up for overlapped IO. */
 	unsigned is_overlapped : 1;
 #endif
 
+	/** An event_base associated with this evbuffer.  Used to implement
+	 * deferred callbacks. */
 	struct event_base *ev_base;
 
+	/** For debugging: how many times have we acquired the lock for this
+	 * evbuffer? */
         int lock_count;
+	/** A reference count on this evbuffer.  When the reference count
+	 * reaches 0, the buffer is destroyed.  Manipulated with
+	 * evbuffer_incref and evbuffer_decref_and_unlock and
+	 * evbuffer_free. */
 	int refcnt;
 
+	/** A deferred_cb handle to make all of this buffer's callbacks
+	 * invoked from the event loop. */
 	struct deferred_cb deferred;
 
+	/** A doubly-linked-list of callback functions */
 	TAILQ_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
 };
 
+/** A single item in an evbuffer. */
 struct evbuffer_chain {
 	/** points to next buffer in the chain */
 	struct evbuffer_chain *next;
@@ -150,12 +189,15 @@ struct evbuffer_chain_reference {
 };
 
 #define EVBUFFER_CHAIN_SIZE sizeof(struct evbuffer_chain)
+/** Return a pointer to extra data allocated along with an evbuffer. */
 #define EVBUFFER_CHAIN_EXTRA(t, c) (t *)((struct evbuffer_chain *)(c) + 1)
 
+/** Assert that somebody (hopefully us) is holding the lock on an evbuffer */
 #define ASSERT_EVBUFFER_LOCKED(buffer)                  \
 	do {                                            \
 		assert((buffer)->lock_count > 0);       \
 	} while (0)
+/** Assert that nobody is holding the lock on an evbuffer */
 #define ASSERT_EVBUFFER_UNLOCKED(buffer)                  \
 	do {                                            \
 		assert((buffer)->lock_count == 0);	\
@@ -196,22 +238,32 @@ struct evbuffer_chain_reference {
 		    EVTHREAD_WRITE, EVTHREAD_WRITE);			\
 	} while(0)
 
+/** Increase the reference count of buf by one. */
 void _evbuffer_incref(struct evbuffer *buf);
+/** Pin a single buffer chain using a given flag. A pinned chunk may not be
+ * moved or freed until it is unpinned. */
 void _evbuffer_chain_pin(struct evbuffer_chain *chain, unsigned flag);
+/** Unpin a single buffer chain using a given flag. */
 void _evbuffer_chain_unpin(struct evbuffer_chain *chain, unsigned flag);
+/** As evbuffer_free, but requires that we hold a lock on the buffer, and
+ * releases the lock before freeing it and the buffer. */
 void _evbuffer_decref_and_unlock(struct evbuffer *buffer);
+/** As evbuffer_expand, but does not guarantee that the newly allocated memory
+ * is contiguous.  Instead, it may be split across two chunks. */
 int _evbuffer_expand_fast(struct evbuffer *, size_t);
 
 #ifdef _EVENT_HAVE_SYS_UIO_H
+/** Helper: prepares for a readv/WSARecv call by expanding the buffer to
+ * hold enough memory to read 'howmuch' bytes in possibly noncontiguous memory.
+ * Sets up the one or two iovecs in 'vecs' to point to the free memory and its
+ * extent, and *chainp to poitn to the first chain that we'll try to read into.
+ * Returns the number of vecs used.
+ */
 int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
     struct iovec *vecs, struct evbuffer_chain **chainp);
 #elif defined(WIN32)
 int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
     WSABUF *vecs, struct evbuffer_chain **chainp);
-#endif
-
-#ifdef WIN32
-struct evbuffer *evbuffer_overlapped_new(evutil_socket_t fd);
 #endif
 
 #ifdef __cplusplus

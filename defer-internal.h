@@ -37,15 +37,34 @@ struct deferred_cb;
 
 typedef void (*deferred_cb_fn)(struct deferred_cb *, void *);
 
+/** A deferred_cb is a callback that can be scheduled to run as part of
+ * an event_base's event_loop, rather than running immediately. */
 struct deferred_cb {
+	/** Links to the adjacent active (pending) deferred_cb objects. */
 	TAILQ_ENTRY (deferred_cb) (cb_next);
+	/** True iff this deferred_cb is pending in an event_base. */
 	unsigned queued : 1;
+	/** The function to execute when the callback runs. */
 	deferred_cb_fn cb;
+	/** The function's second argument. */
 	void *arg;
 };
 
+/**
+   Initialize an empty, non-pending deferred_cb.
+
+   @param deferred The deferred_cb structure to initialize.
+   @param cb The function to run when the deferred_cb executes.
+   @param arg The function's second argument.
+ */
 void event_deferred_cb_init(struct deferred_cb *, deferred_cb_fn, void *);
+/**
+   Cancel a deferred_cb if it is currently scheduled in an event_base.
+ */
 void event_deferred_cb_cancel(struct event_base *, struct deferred_cb *);
+/**
+   Activate a deferred_cb if it is not currently scheduled in an event_base.
+ */
 void event_deferred_cb_schedule(struct event_base *, struct deferred_cb *);
 
 #ifdef __cplusplus
