@@ -2,7 +2,7 @@ dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
-AM_INIT_AUTOMAKE(libevent,1.4.9-stable)
+AM_INIT_AUTOMAKE(libevent,1.4.10-stable)
 AM_CONFIG_HEADER(config.h)
 dnl AM_MAINTAINER_MODE
 
