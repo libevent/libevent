@@ -573,6 +573,7 @@ int	event_base_priority_init(struct event_base *, int);
   */
 int	event_priority_set(struct event *, int);
 
+#ifndef _EVENT_DISABLE_MM_REPLACEMENT
 /**
  Override the functions that libevent uses for memory management.
 
@@ -593,6 +594,7 @@ int	event_priority_set(struct event *, int);
 void event_set_mem_functions(void *(*malloc_fn)(size_t sz),
                              void *(*realloc_fn)(void *ptr, size_t sz),
                              void (*free_fn)(void *ptr));
+#endif
 
 void event_base_dump_events(struct event_base *, FILE *);
 

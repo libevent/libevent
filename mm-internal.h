@@ -32,12 +32,20 @@
 extern "C" {
 #endif
 
+#ifndef _EVENT_DISABLE_MM_REPLACEMENT
 /* Internal use only: Memory allocation functions. */
 void *mm_malloc(size_t sz);
 void *mm_calloc(size_t count, size_t size);
 char *mm_strdup(const char *s);
 void *mm_realloc(void *p, size_t sz);
 void mm_free(void *p);
+#else
+#define mm_malloc(sz) malloc(sz)
+#define mm_calloc(n, sz) calloc((n), (sz))
+#define mm_strdup(s) strdup(s)
+#define mm_realloc(p, sz) realloc((p), (sz))
+#define mm_free(p) free(p)
+#endif
 
 #ifdef __cplusplus
 }

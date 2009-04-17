@@ -31,6 +31,9 @@ AC_ARG_ENABLE(gcc-warnings,
 AC_ARG_ENABLE(thread-support,
      AS_HELP_STRING(--enable-thread-support, enable support for threading),
 	[], [enable_thread_support=yes])
+AC_ARG_ENABLE(malloc-replacement,
+     AS_HELP_STRING(--disable-malloc-replacement, disable support for replacing the memory mgt functions),
+        [], [enable_malloc_replacement=yes])
 AC_PROG_LIBTOOL
 
 dnl   Uncomment "AC_DISABLE_SHARED" to make shared librraries not get
@@ -418,6 +421,12 @@ AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no"])
 if test x$enable_thread_support = xno; then
    AC_DEFINE(DISABLE_THREAD_SUPPORT, 1,
 	[Define if libevent should not be compiled with thread support])
+fi
+
+# check if we should hard-code the mm functions.
+if test x$enable_malloc_replacement = xno; then
+  AC_DEFINE(DISABLE_MM_REPLACEMENT, 1,
+        [Define if libevent should not allow replacing the mm functions])
 fi
 
 # Add some more warnings which we use in development but not in the
