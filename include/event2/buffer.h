@@ -557,20 +557,11 @@ int evbuffer_prepend(struct evbuffer *buf, const void *data, size_t size);
   @param src the evbuffer to prepend; it will be emptied as a result
   @return 0 if successful, or -1 otherwise
 */
-
 int evbuffer_prepend_buffer(struct evbuffer *dst, struct evbuffer* src);
-
-/* XXX missing APIs:
-
-    A better find-string that returns a smart offset structure rather than a
-    pointer. It should also be able to start searching _at_ an offset.
-
-    A check-representation functions for testing, so we can assert() that
-    nothing has gone screwy inside an evbuffer.
-*/
 
 /** deprecated in favor of calling the functions directly */
 #define EVBUFFER_LENGTH(x)	evbuffer_get_length(x)
+/** deprecated in favor of calling the functions directly */
 #define EVBUFFER_DATA(x)	evbuffer_pullup(x, -1)
 
 /**
