@@ -115,7 +115,7 @@ test_evbuffer(void *ptr)
 	evbuffer_add_printf(evb, "%s/%d", "hello", 1);
 	evbuffer_validate(evb);
 
-	tt_assert(EVBUFFER_LENGTH(evb) == 7);
+	tt_assert(evbuffer_get_length(evb) == 7);
 	tt_assert(!memcmp((char*)EVBUFFER_DATA(evb), "hello/1", 1));
 
 	evbuffer_add_buffer(evb, evb_two);
@@ -123,7 +123,7 @@ test_evbuffer(void *ptr)
 
 	evbuffer_drain(evb, strlen("hello/"));
 	evbuffer_validate(evb);
-	tt_assert(EVBUFFER_LENGTH(evb) == 1);
+	tt_assert(evbuffer_get_length(evb) == 1);
 	tt_assert(!memcmp((char*)EVBUFFER_DATA(evb), "1", 1));
 
 	evbuffer_add_printf(evb_two, "%s", "/hello");
@@ -131,14 +131,14 @@ test_evbuffer(void *ptr)
 	evbuffer_add_buffer(evb, evb_two);
 	evbuffer_validate(evb);
 
-	tt_assert(EVBUFFER_LENGTH(evb_two) == 0);
-	tt_assert(EVBUFFER_LENGTH(evb) == 7);
+	tt_assert(evbuffer_get_length(evb_two) == 0);
+	tt_assert(evbuffer_get_length(evb) == 7);
 	tt_assert(!memcmp((char*)EVBUFFER_DATA(evb), "1/hello", 7) != 0);
 
 	memset(buffer, 0, sizeof(buffer));
 	evbuffer_add(evb, buffer, sizeof(buffer));
 	evbuffer_validate(evb);
-	tt_assert(EVBUFFER_LENGTH(evb) == 7 + 512);
+	tt_assert(evbuffer_get_length(evb) == 7 + 512);
 
 	tmp = (char *)evbuffer_pullup(evb, 7 + 512);
 	tt_assert(tmp);
@@ -168,14 +168,14 @@ test_evbuffer(void *ptr)
 		evbuffer_validate(evb_two);
 	}
 
-	tt_assert(EVBUFFER_LENGTH(evb_two) == 0);
-	tt_assert(EVBUFFER_LENGTH(evb) == i * sizeof(buffer));
+	tt_assert(evbuffer_get_length(evb_two) == 0);
+	tt_assert(evbuffer_get_length(evb) == i * sizeof(buffer));
 
 	/* test remove buffer */
 	sz_tmp = sizeof(buffer)*2.5;
 	evbuffer_remove_buffer(evb, evb_two, sz_tmp);
-	tt_assert(EVBUFFER_LENGTH(evb_two) == sz_tmp);
-	tt_assert(EVBUFFER_LENGTH(evb) == sizeof(buffer) / 2);
+	tt_assert(evbuffer_get_length(evb_two) == sz_tmp);
+	tt_assert(evbuffer_get_length(evb) == sizeof(buffer) / 2);
 	evbuffer_validate(evb);
 
 	if (memcmp(evbuffer_pullup(
@@ -327,7 +327,7 @@ test_evbuffer_readln(void *ptr)
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_ANY);
 	if (!cp || sz != 5 || memcmp(cp, "more\0\0", 6))
 		tt_abort_msg("Not as expected");
-	tt_uint_op(EVBUFFER_LENGTH(evb), ==, 0);
+	tt_uint_op(evbuffer_get_length(evb), ==, 0);
 	evbuffer_validate(evb);
 	s = "\nno newline";
 	evbuffer_add(evb, s, strlen(s));
@@ -340,8 +340,8 @@ test_evbuffer_readln(void *ptr)
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_ANY);
 	tt_assert(!cp);
 	evbuffer_validate(evb);
-	evbuffer_drain(evb, EVBUFFER_LENGTH(evb));
-	tt_assert(EVBUFFER_LENGTH(evb) == 0);
+	evbuffer_drain(evb, evbuffer_get_length(evb));
+	tt_assert(evbuffer_get_length(evb) == 0);
 	evbuffer_validate(evb);
 
 	/* Test EOL_CRLF */
@@ -398,7 +398,7 @@ test_evbuffer_readln(void *ptr)
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	tt_line_eq("More");
 	free(cp);
-	tt_assert(EVBUFFER_LENGTH(evb) == 0);
+	tt_assert(evbuffer_get_length(evb) == 0);
 	evbuffer_validate(evb);
 
 	/* Test LF */
@@ -463,7 +463,7 @@ test_evbuffer_readln(void *ptr)
 	tt_line_eq("More");
 	free(cp); cp = NULL;
 	evbuffer_validate(evb);
-	tt_assert(EVBUFFER_LENGTH(evb) == 0);
+	tt_assert(evbuffer_get_length(evb) == 0);
 
 	test_ok = 1;
  end:
@@ -492,7 +492,7 @@ test_evbuffer_iterative(void *ptr)
 		}
 	}
 
-	tt_uint_op(sum, ==, EVBUFFER_LENGTH(buf));
+	tt_uint_op(sum, ==, evbuffer_get_length(buf));
 
  end:
 	evbuffer_free(buf);
@@ -665,7 +665,7 @@ test_evbuffer_callbacks(void *ptr)
 	evbuffer_cb_set_flags(buf, cb2, EVBUFFER_CB_ENABLED);
 	evbuffer_add_reference(buf, "Goodbye", 7, NULL, NULL); /*31->38*/
 	evbuffer_remove_cb_entry(buf, cb1);
-	evbuffer_drain(buf, EVBUFFER_LENGTH(buf)); /*38->0*/;
+	evbuffer_drain(buf, evbuffer_get_length(buf)); /*38->0*/;
 	tt_assert(-1 == evbuffer_remove_cb(buf, log_change_callback, NULL));
 	evbuffer_add(buf, "X", 1); /* 0->1 */
 	tt_assert(!evbuffer_remove_cb(buf, log_change_callback, buf_out2));
@@ -674,22 +674,22 @@ test_evbuffer_callbacks(void *ptr)
 		  "0->36; 36->26; 26->31; 31->38; ");
 	tt_str_op(evbuffer_pullup(buf_out2, -1), ==,
 		  "0->36; 31->38; 38->0; 0->1; ");
-	evbuffer_drain(buf_out1, EVBUFFER_LENGTH(buf_out1));
-	evbuffer_drain(buf_out2, EVBUFFER_LENGTH(buf_out2));
+	evbuffer_drain(buf_out1, evbuffer_get_length(buf_out1));
+	evbuffer_drain(buf_out2, evbuffer_get_length(buf_out2));
 
 	/* Let's test the obsolete buffer_setcb function too. */
 	cb1 = evbuffer_add_cb(buf, log_change_callback, buf_out1);
 	cb2 = evbuffer_add_cb(buf, log_change_callback, buf_out2);
 	evbuffer_setcb(buf, self_draining_callback, NULL);
 	evbuffer_add_printf(buf, "This should get drained right away.");
-	tt_uint_op(EVBUFFER_LENGTH(buf), ==, 0);
-	tt_uint_op(EVBUFFER_LENGTH(buf_out1), ==, 0);
-	tt_uint_op(EVBUFFER_LENGTH(buf_out2), ==, 0);
+	tt_uint_op(evbuffer_get_length(buf), ==, 0);
+	tt_uint_op(evbuffer_get_length(buf_out1), ==, 0);
+	tt_uint_op(evbuffer_get_length(buf_out2), ==, 0);
 	evbuffer_setcb(buf, NULL, NULL);
 	evbuffer_add_printf(buf, "This will not.");
 	tt_str_op(evbuffer_pullup(buf, -1), ==, "This will not.");
 
-	evbuffer_drain(buf, EVBUFFER_LENGTH(buf));
+	evbuffer_drain(buf, evbuffer_get_length(buf));
 
 #if 0
 	/* Now let's try a suspended callback. */
@@ -703,7 +703,7 @@ test_evbuffer_callbacks(void *ptr)
 	evbuffer_cb_unsuspend(buf,cb2);
 	evbuffer_drain(buf, 4); /* 15->11 */
 	evbuffer_cb_unsuspend(buf,cb1);
-	evbuffer_drain(buf, EVBUFFER_LENGTH(buf)); /* 11->0 */
+	evbuffer_drain(buf, evbuffer_get_length(buf)); /* 11->0 */
 
 	tt_str_op(evbuffer_pullup(buf_out1, -1), ==,
 		  "0->11; 11->11; 11->0; ");

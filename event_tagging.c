@@ -169,7 +169,7 @@ static int
 decode_tag_internal(ev_uint32_t *ptag, struct evbuffer *evbuf, int dodrain)
 {
 	ev_uint32_t number = 0;
-	int len = EVBUFFER_LENGTH(evbuf);
+	int len = evbuffer_get_length(evbuf);
 	ev_uint8_t *data;
 	int count = 0, shift = 0, done = 0;
 
@@ -229,7 +229,7 @@ evtag_marshal_buffer(struct evbuffer *evbuf, ev_uint32_t tag,
     struct evbuffer *data)
 {
 	evtag_encode_tag(evbuf, tag);
-	encode_int(evbuf, EVBUFFER_LENGTH(data));
+	encode_int(evbuf, evbuffer_get_length(data));
 	evbuffer_add_buffer(evbuf, data);
 }
 
@@ -275,7 +275,7 @@ evtag_marshal_timeval(struct evbuffer *evbuf, ev_uint32_t tag, struct timeval *t
 #define DECODE_INT_INTERNAL(number, maxnibbles, pnumber, evbuf, offset) \
 do {									\
 	ev_uint8_t *data;						\
-	int len = EVBUFFER_LENGTH(evbuf) - offset;			\
+	int len = evbuffer_get_length(evbuf) - offset;			\
 	int nibbles = 0;						\
 									\
 	if (len <= 0)							\
@@ -390,7 +390,7 @@ evtag_unmarshal_header(struct evbuffer *evbuf, ev_uint32_t *ptag)
 	if (evtag_decode_int(&len, evbuf) == -1)
 		return (-1);
 
-	if (EVBUFFER_LENGTH(evbuf) < len)
+	if (evbuffer_get_length(evbuf) < len)
 		return (-1);
 
 	return (len);
@@ -442,7 +442,7 @@ evtag_unmarshal_int(struct evbuffer *evbuf, ev_uint32_t need_tag,
 	if (evtag_decode_int(&len, evbuf) == -1)
 		return (-1);
 
-	if (EVBUFFER_LENGTH(evbuf) < len)
+	if (evbuffer_get_length(evbuf) < len)
 		return (-1);
 
 	result = decode_int_internal(pinteger, evbuf, 0);
@@ -468,7 +468,7 @@ evtag_unmarshal_int64(struct evbuffer *evbuf, ev_uint32_t need_tag,
 	if (evtag_decode_int(&len, evbuf) == -1)
 		return (-1);
 
-	if (EVBUFFER_LENGTH(evbuf) < len)
+	if (evbuffer_get_length(evbuf) < len)
 		return (-1);
 
 	result = decode_int64_internal(pinteger, evbuf, 0);

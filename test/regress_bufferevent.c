@@ -77,7 +77,7 @@
 static void
 readcb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bev->input) == 8333) {
+	if (evbuffer_get_length(bev->input) == 8333) {
 		struct evbuffer *evbuf = evbuffer_new();
 		assert(evbuf != NULL);
 
@@ -86,7 +86,7 @@ readcb(struct bufferevent *bev, void *arg)
 
 		bufferevent_disable(bev, EV_READ);
 
-		if (EVBUFFER_LENGTH(evbuf) == 8333) {
+		if (evbuffer_get_length(evbuf) == 8333) {
 			test_ok++;
                 }
 
@@ -97,7 +97,7 @@ readcb(struct bufferevent *bev, void *arg)
 static void
 writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bev->output) == 0) {
+	if (evbuffer_get_length(bev->output) == 0) {
 		test_ok++;
         }
 }
@@ -166,7 +166,7 @@ static void
 wm_readcb(struct bufferevent *bev, void *arg)
 {
 	struct evbuffer *evbuf = evbuffer_new();
-	int len = EVBUFFER_LENGTH(bev->input);
+	int len = evbuffer_get_length(bev->input);
 	static int nread;
 
 	assert(len >= 10 && len <= 20);
@@ -188,9 +188,9 @@ wm_readcb(struct bufferevent *bev, void *arg)
 static void
 wm_writecb(struct bufferevent *bev, void *arg)
 {
-        assert(EVBUFFER_LENGTH(bev->output) <= 100);
-	if (EVBUFFER_LENGTH(bev->output) == 0) {
-                evbuffer_drain(bev->output, EVBUFFER_LENGTH(bev->output));
+        assert(evbuffer_get_length(bev->output) <= 100);
+	if (evbuffer_get_length(bev->output) == 0) {
+                evbuffer_drain(bev->output, evbuffer_get_length(bev->output));
 		test_ok++;
         }
 }
@@ -273,12 +273,12 @@ bufferevent_input_filter(struct evbuffer *src, struct evbuffer *dst,
 	const unsigned char *buffer;
 	int i;
 
-	buffer = evbuffer_pullup(src, EVBUFFER_LENGTH(src));
-	for (i = 0; i < EVBUFFER_LENGTH(src); i += 2) {
+	buffer = evbuffer_pullup(src, evbuffer_get_length(src));
+	for (i = 0; i < evbuffer_get_length(src); i += 2) {
 		assert(buffer[i] == 'x');
 		evbuffer_add(dst, buffer + i + 1, 1);
 
-		if (i + 2 > EVBUFFER_LENGTH(src))
+		if (i + 2 > evbuffer_get_length(src))
 			break;
 	}
 
@@ -295,13 +295,13 @@ bufferevent_output_filter(struct evbuffer *src, struct evbuffer *dst,
 	const unsigned char *buffer;
 	int i;
 
-	buffer = evbuffer_pullup(src, EVBUFFER_LENGTH(src));
-	for (i = 0; i < EVBUFFER_LENGTH(src); ++i) {
+	buffer = evbuffer_pullup(src, evbuffer_get_length(src));
+	for (i = 0; i < evbuffer_get_length(src); ++i) {
 		evbuffer_add(dst, "x", 1);
 		evbuffer_add(dst, buffer + i, 1);
 	}
 
-	evbuffer_drain(src, EVBUFFER_LENGTH(src));
+	evbuffer_drain(src, evbuffer_get_length(src));
 	return (BEV_OK);
 }
 
