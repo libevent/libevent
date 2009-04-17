@@ -421,5 +421,23 @@ What's New In Libevent 2.0 so far:
 
    TODO(nickm) writeme
 
+7. Infrastructure improvements
 
+7.1. Better unit test framework
 
+   We now use a unit test framework that Nick wrote called "tinytest".
+   The main benefit from Libevent's point of view is that tests which
+   might mess with global state can all run each in their own
+   subprocess.  This way, when there's a bug that makes one unit test
+   crash or mess up global state, it doesn't affect any others.
+
+7.2. Better unit tests
+
+   Despite all the code we've added, our unit tests are much better
+   than before.  Right now, iterating over the different backends on
+   my MacBook, I'm getting around 75% test coverage, compared with
+   less than 45% test coverage in Libevent 1.4.
+
+   (Right now, evdns.c has the worst test coverage of any significant
+   module, at 57%.  If we exclude it from consideration, we're at 80%
+   test coverage, which is fairly good for a networking library.)
