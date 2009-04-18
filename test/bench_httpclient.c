@@ -1,0 +1,176 @@
+/*
+ * Copyright 2009 Niels Provos and Nick Mathewson
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ */
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <stdlib.h>
+#include <errno.h>
+
+#include <event2/event.h>
+#include <event2/bufferevent.h>
+#include <event2/buffer.h>
+#include <event2/util.h>
+
+const char *resource = NULL;
+struct event_base *base = NULL;
+
+int total_n_handled = 0;
+int total_n_errors = 0;
+int total_n_launched = 0;
+size_t total_n_bytes = 0;
+struct timeval total_time = {0,0};
+int n_errors = 0;
+
+const int PARALLELISM = 100;
+const int N_REQUESTS = 10000;
+
+struct request_info {
+	size_t n_read;
+	struct timeval started;
+};
+
+static int launch_request(void);
+static void readcb(struct bufferevent *b, void *arg);
+static void errorcb(struct bufferevent *b, short what, void *arg);
+
+static void
+readcb(struct bufferevent *b, void *arg)
+{
+	struct request_info *ri = arg;
+	struct evbuffer *input = bufferevent_get_input(b);
+	size_t n = evbuffer_get_length(input);
+
+	ri->n_read += n;
+	evbuffer_drain(input, n);
+}
+
+static void
+errorcb(struct bufferevent *b, short what, void *arg)
+{
+	struct request_info *ri = arg;
+	struct timeval now, diff;
+	if (what & EVBUFFER_EOF) {
+		++total_n_handled;
+		total_n_bytes += ri->n_read;
+		gettimeofday(&now, NULL);
+		evutil_timersub(&now, &ri->started, &diff);
+		evutil_timeradd(&diff, &total_time, &total_time);
+
+		if (total_n_handled && (total_n_handled%1000)==0)
+			printf("%d requests done\n",total_n_handled);
+
+		if (total_n_launched < N_REQUESTS) {
+			if (launch_request() < 0)
+				perror("Can't launch");
+		}
+	} else {
+		++total_n_errors;
+		perror("Unexpected error");
+	}
+
+	bufferevent_setcb(b, NULL, NULL, NULL, NULL);
+	free(ri);
+	bufferevent_disable(b, EV_READ|EV_WRITE);
+	bufferevent_free(b);
+}
+
+static int
+launch_request(void)
+{
+	int sock;
+	struct sockaddr_in sin;
+	struct bufferevent *b;
+
+	struct request_info *ri;
+
+	++total_n_launched;
+
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(0x7f000001);
+	sin.sin_port = htons(8080);
+	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+		return -1;
+	if (evutil_make_socket_nonblocking(sock) < 0)
+		return -1;
+	if (connect(sock, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
+		if (errno != EINTR && errno != EINPROGRESS) {
+			return -1;
+		}
+	}
+
+	ri = malloc(sizeof(*ri));
+	ri->n_read = 0;
+	gettimeofday(&ri->started, NULL);
+
+	b = bufferevent_socket_new(base, sock, BEV_OPT_CLOSE_ON_FREE);
+
+	bufferevent_setcb(b, readcb, NULL, errorcb, ri);
+	bufferevent_enable(b, EV_READ|EV_WRITE);
+
+	evbuffer_add_printf(bufferevent_get_output(b),
+	    "GET %s HTTP/1.0\r\n\r\n", resource);
+
+	return 0;
+}
+
+
+int
+main(int argc, char **argv)
+{
+	int i;
+	struct timeval start, end, total;
+	long long usec;
+	resource = "/ref";
+
+	setvbuf(stdout, NULL, _IONBF, 0);
+
+	base = event_base_new();
+
+	for (i=0; i < PARALLELISM; ++i) {
+		if (launch_request() < 0)
+			perror("launch");
+	}
+
+	gettimeofday(&start, NULL);
+
+	event_base_dispatch(base);
+
+	gettimeofday(&end, NULL);
+	evutil_timersub(&end, &start, &total);
+	usec = total_time.tv_sec * 1000000 + total_time.tv_usec;
+
+	printf("\n%d requests in %d.%06d sec.\n"
+	    "Each took about %d usec.\n"
+	    "%lld bytes read. %d errors.\n",
+	    total_n_handled,
+	    (int)total.tv_sec, total.tv_usec,
+	    (int)(usec / total_n_handled),
+	    (long long)total_n_bytes, n_errors);
+
+	return 0;
+}
