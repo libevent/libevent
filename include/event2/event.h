@@ -27,11 +27,11 @@
 #ifndef _EVENT2_EVENT_H_
 #define _EVENT2_EVENT_H_
 
-/** @file event.h
+/** @file event2/event.h
 
   Core functions for waiting for and receiving events, and using event bases.
 
- */
+*/
 
 #ifdef __cplusplus
 extern "C" {
