@@ -46,8 +46,8 @@ size_t total_n_bytes = 0;
 struct timeval total_time = {0,0};
 int n_errors = 0;
 
-const int PARALLELISM = 100;
-const int N_REQUESTS = 10000;
+const int PARALLELISM = 200;
+const int N_REQUESTS = 20000;
 
 struct request_info {
 	size_t n_read;
@@ -99,6 +99,18 @@ errorcb(struct bufferevent *b, short what, void *arg)
 	bufferevent_free(b);
 }
 
+static void
+frob_socket(int sock)
+{
+	struct linger l;
+	int one = 1;
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+	l.l_onoff = 1;
+	l.l_linger = 0;
+	if (setsockopt(sock, SOL_SOCKET, SO_LINGER, &l, sizeof(l))<0)
+		perror("setsockopt");
+}
+
 static int
 launch_request(void)
 {
@@ -117,6 +129,7 @@ launch_request(void)
 		return -1;
 	if (evutil_make_socket_nonblocking(sock) < 0)
 		return -1;
+	frob_socket(sock);
 	if (connect(sock, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
 		if (errno != EINTR && errno != EINPROGRESS) {
 			return -1;
@@ -145,6 +158,7 @@ main(int argc, char **argv)
 	int i;
 	struct timeval start, end, total;
 	long long usec;
+	double throughput;
 	resource = "/ref";
 
 	setvbuf(stdout, NULL, _IONBF, 0);
@@ -164,12 +178,22 @@ main(int argc, char **argv)
 	evutil_timersub(&end, &start, &total);
 	usec = total_time.tv_sec * 1000000 + total_time.tv_usec;
 
-	printf("\n%d requests in %d.%06d sec.\n"
-	    "Each took about %d usec.\n"
+	if (!total_n_handled) {
+		puts("Nothing worked.  You probably did something dumb.");
+		return 0;
+	}
+
+
+	throughput = total_n_handled /
+	    (total.tv_sec+ ((double)total.tv_usec)/1000000.0);
+
+	printf("\n%d requests in %d.%06d sec. (%.2f throughput)\n"
+	    "Each took about %.02f msec latency\n"
 	    "%lld bytes read. %d errors.\n",
 	    total_n_handled,
 	    (int)total.tv_sec, total.tv_usec,
-	    (int)(usec / total_n_handled),
+	    throughput,
+	    (double)(usec/1000) / total_n_handled,
 	    (long long)total_n_bytes, n_errors);
 
 	return 0;
