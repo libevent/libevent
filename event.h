@@ -135,13 +135,13 @@
   To browse the complete documentation of the libevent API, click on any of
   the following links.
 
-  event.h
+  event2/event.h
   The primary libevent header
 
   event2/buffer.h
   Buffer management for network reading and writing
 
-  evdns.h
+  event2/dns.h
   Asynchronous DNS resolution
 
   event2/http.h
@@ -152,7 +152,7 @@
 
  */
 
-/** @file event.h
+/** @file libevent/event.h
 
   A library for writing event-driven network servers
 
