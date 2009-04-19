@@ -392,7 +392,6 @@ dns_server(void)
 end:
         if (port)
                 evdns_close_server_port(port);
-	evdns_shutdown(0); /* remove ourself as nameserver. */
         if (sock >= 0)
                 EVUTIL_CLOSESOCKET(sock);
 	if (base)
