@@ -229,7 +229,7 @@ What's New In Libevent 2.0 so far:
   To make an evbuffer or a bufferevent object threadsafe, call its
   _enable_locking() function.
 
-  The HTTP and DNS apis are not currently threadsafe.
+  The HTTP api is not currently threadsafe.
 
   To build Libevent with threading support disabled, pass
   --disable-thread-support to the configure script.
