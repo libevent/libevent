@@ -109,6 +109,7 @@
 #include <event2/event_struct.h>
 #include <event2/thread.h>
 
+#include "defer-internal.h"
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "strlcpy-internal.h"
@@ -735,40 +736,77 @@ evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 	}
 }
 
+/* TODO(nickm) document */
+struct deferred_reply_callback {
+	struct deferred_cb deferred;
+	u8 request_type;
+	u8 have_reply;
+	u32 ttl;
+	u32 err;
+	evdns_callback_type user_callback;
+	struct reply reply;
+};
+
 static void
-reply_callback(struct evdns_request *const req, u32 ttl, u32 err, struct reply *reply) {
-	/* TODO(nickm) This nees to be deferred. */
-	switch (req->request_type) {
+reply_run_callback(struct deferred_cb *d, void *user_pointer)
+{
+	struct deferred_reply_callback *cb =
+	    EVUTIL_UPCAST(d, struct deferred_reply_callback, deferred);
+
+	switch (cb->request_type) {
 	case TYPE_A:
-		if (reply)
-			req->user_callback(DNS_ERR_NONE, DNS_IPv4_A,
-							   reply->data.a.addrcount, ttl,
-							   reply->data.a.addresses,
-							   req->user_pointer);
+		if (cb->have_reply)
+			cb->user_callback(DNS_ERR_NONE, DNS_IPv4_A,
+			    cb->reply.data.a.addrcount, cb->ttl,
+			    cb->reply.data.a.addresses,
+			    user_pointer);
 		else
-			req->user_callback(err, 0, 0, 0, NULL, req->user_pointer);
-		return;
+			cb->user_callback(cb->err, 0, 0, 0, NULL, user_pointer);
+		break;
 	case TYPE_PTR:
-		if (reply) {
-			char *name = reply->data.ptr.name;
-			req->user_callback(DNS_ERR_NONE, DNS_PTR, 1, ttl,
-			    &name, req->user_pointer);
+		if (cb->have_reply) {
+			char *name = cb->reply.data.ptr.name;
+			cb->user_callback(DNS_ERR_NONE, DNS_PTR, 1, cb->ttl,
+			    &name, user_pointer);
 		} else {
-			req->user_callback(err, 0, 0, 0, NULL,
-			    req->user_pointer);
+			cb->user_callback(cb->err, 0, 0, 0, NULL, user_pointer);
 		}
-		return;
+		break;
 	case TYPE_AAAA:
-		if (reply)
-			req->user_callback(DNS_ERR_NONE, DNS_IPv6_AAAA,
-			    reply->data.aaaa.addrcount, ttl,
-			    reply->data.aaaa.addresses,
-			    req->user_pointer);
+		if (cb->have_reply)
+			cb->user_callback(DNS_ERR_NONE, DNS_IPv6_AAAA,
+			    cb->reply.data.aaaa.addrcount, cb->ttl,
+			    cb->reply.data.aaaa.addresses,
+			    user_pointer);
 		else
-			req->user_callback(err, 0, 0, 0, NULL, req->user_pointer);
-		return;
+			cb->user_callback(cb->err, 0, 0, 0, NULL, user_pointer);
+		break;
+	default:
+		assert(0);
 	}
-	assert(0);
+
+	mm_free(cb);
+}
+
+static void
+reply_schedule_callback(struct evdns_request *const req, u32 ttl, u32 err, struct reply *reply)
+{
+	struct deferred_reply_callback *d = mm_calloc(1, sizeof(*d));
+
+	ASSERT_LOCKED(req->base);
+
+	d->request_type = req->request_type;
+	d->user_callback = req->user_callback;
+	d->ttl = ttl;
+	d->err = err;
+	if (reply) {
+		d->have_reply = 1;
+		memcpy(&d->reply, reply, sizeof(struct reply));
+	}
+
+	event_deferred_cb_init(&d->deferred, reply_run_callback,
+	    req->user_pointer);
+	event_deferred_cb_schedule(req->base->event_base, &d->deferred);
 }
 
 /* this processes a parsed reply packet */
@@ -837,11 +875,11 @@ reply_handle(struct evdns_request *const req, u16 flags, u32 ttl, struct reply *
 		}
 
 		/* all else failed. Pass the failure up */
-		reply_callback(req, 0, error, NULL);
+		reply_schedule_callback(req, 0, error, NULL);
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id));
 	} else {
 		/* all ok, tell the user */
-		reply_callback(req, ttl, 0, reply);
+		reply_schedule_callback(req, ttl, 0, reply);
 		nameserver_up(req->ns);
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id));
 	}
@@ -2082,7 +2120,7 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 
 	if (req->tx_count >= req->base->global_max_retransmits) {
 		/* this request has failed */
-		reply_callback(req, 0, DNS_ERR_TIMEOUT, NULL);
+		reply_schedule_callback(req, 0, DNS_ERR_TIMEOUT, NULL);
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id));
 	} else {
 		/* retransmit it */
@@ -2627,7 +2665,7 @@ evdns_cancel_request(struct evdns_base *base, struct evdns_request *req)
 		base = req->base;
 
 	EVDNS_LOCK(base);
-	reply_callback(req, 0, DNS_ERR_CANCEL, NULL);
+	reply_schedule_callback(req, 0, DNS_ERR_CANCEL, NULL);
 	if (req->ns) {
 		/* remove from inflight queue */
 		request_finished(req, &REQ_HEAD(base, req->trans_id));
@@ -3606,13 +3644,13 @@ evdns_base_free(struct evdns_base *base, int fail_requests)
 	for (i = 0; i < base->n_req_heads; ++i) {
 		while (base->req_heads[i]) {
 			if (fail_requests)
-				reply_callback(base->req_heads[i], 0, DNS_ERR_SHUTDOWN, NULL);
+				reply_schedule_callback(base->req_heads[i], 0, DNS_ERR_SHUTDOWN, NULL);
 			request_finished(base->req_heads[i], &REQ_HEAD(base, base->req_heads[i]->trans_id));
 		}
 	}
 	while (base->req_waiting_head) {
 		if (fail_requests)
-			reply_callback(base->req_waiting_head, 0, DNS_ERR_SHUTDOWN, NULL);
+			reply_schedule_callback(base->req_waiting_head, 0, DNS_ERR_SHUTDOWN, NULL);
 		request_finished(base->req_waiting_head, &base->req_waiting_head);
 	}
 	base->global_requests_inflight = base->global_requests_waiting = 0;
