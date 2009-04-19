@@ -98,8 +98,11 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "evdns.h"
-#include "evutil.h"
+#include <event2/dns.h>
+#include <event2/dns_struct.h>
+#include <event2/dns_compat.h>
+#include <event2/util.h>
+
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "strlcpy-internal.h"
