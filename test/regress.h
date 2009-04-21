@@ -56,6 +56,15 @@ extern int in_legacy_test_wrapper;
 
 evutil_socket_t regress_make_tmpfile(const void *data, size_t datalen);
 
+struct basic_test_data {
+	struct event_base *base;
+	int pair[2];
+
+	void (*legacy_test_fn)(void);
+};
+extern const struct testcase_setup_t basic_setup;
+
+
 extern const struct testcase_setup_t legacy_setup;
 void run_legacy_test_fn(void *ptr);
 
@@ -63,12 +72,13 @@ void run_legacy_test_fn(void *ptr);
 #define TT_NEED_SOCKETPAIR   TT_FIRST_USER_FLAG
 #define TT_NEED_BASE         (TT_FIRST_USER_FLAG<<1)
 #define TT_NEED_DNS          (TT_FIRST_USER_FLAG<<2)
+#define TT_LEGACY            (TT_FIRST_USER_FLAG<<3)
 
 /* All the flags that a legacy test needs. */
 #define TT_ISOLATED TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE
 
 #define LEGACY(name,flags)						\
-	{ #name, run_legacy_test_fn, flags, &legacy_setup,		\
+	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,	\
 	  test_## name }
 
 

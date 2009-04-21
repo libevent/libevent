@@ -400,7 +400,7 @@ end:
 
 
 #define DNS_LEGACY(name, flags)                                        \
-	{ #name, run_legacy_test_fn, flags, &legacy_setup,             \
+	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
                     dns_##name }
 
 struct testcase_t dns_testcases[] = {

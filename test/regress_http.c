@@ -2191,7 +2191,7 @@ http_negative_content_length_test(void)
 }
 
 #define HTTP_LEGACY(name)						\
-	{ #name, run_legacy_test_fn, TT_ISOLATED, &legacy_setup, \
+	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
                     http_##name##_test }
 
 struct testcase_t http_testcases[] = {
