@@ -1575,11 +1575,16 @@ static void
 test_mm_functions(void *arg)
 {
 	struct event_base *b = NULL;
+	struct event_config *cfg = NULL;
 	event_set_mem_functions(dummy_malloc, dummy_realloc, dummy_free);
-	b = event_base_new();
+	cfg = event_config_new();
+	event_config_avoid_method(cfg, "Nonesuch");
+	b = event_base_new_with_config(cfg);
 	tt_assert(b);
 	tt_assert(check_dummy_mem_ok(b));
 end:
+	if (cfg)
+		event_config_free(cfg);
 	if (b)
 		event_base_free(b);
 }
