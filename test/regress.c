@@ -1534,6 +1534,56 @@ end:
 	}
 }
 
+int
+check_dummy_mem_ok(void *_mem)
+{
+	char *mem = _mem;
+	mem -= 16;
+	return !memcmp(mem, "{[<guardedram>]}", 16);
+}
+
+static void *
+dummy_malloc(size_t len)
+{
+	char *mem = malloc(len+16);
+	memcpy(mem, "{[<guardedram>]}", 16);
+	return mem+16;
+}
+
+static void *
+dummy_realloc(void *_mem, size_t len)
+{
+	char *mem = _mem;
+	if (!mem)
+		return dummy_malloc(len);
+	tt_want(check_dummy_mem_ok(_mem));
+	mem -= 16;
+	mem = realloc(mem, len+16);
+	return mem+16;
+}
+
+static void
+dummy_free(void *_mem)
+{
+	char *mem = _mem;
+	tt_want(check_dummy_mem_ok(_mem));
+	mem -= 16;
+	free(mem);
+}
+
+static void
+test_mm_functions(void *arg)
+{
+	struct event_base *b = NULL;
+	event_set_mem_functions(dummy_malloc, dummy_realloc, dummy_free);
+	b = event_base_new();
+	tt_assert(b);
+	tt_assert(check_dummy_mem_ok(b));
+end:
+	if (b)
+		event_base_free(b);
+}
+
 struct testcase_t main_testcases[] = {
         /* Some converted-over tests */
         { "methods", test_methods, TT_FORK, NULL, NULL },
@@ -1564,6 +1614,7 @@ struct testcase_t main_testcases[] = {
 	{ "event_once", test_event_once, TT_ISOLATED, &basic_setup, NULL },
 	{ "event_pending", test_event_pending, TT_ISOLATED, &basic_setup,
 	  NULL },
+	{ "mm_functions", test_mm_functions, TT_FORK, NULL, NULL },
 
 #ifndef WIN32
         LEGACY(fork, TT_ISOLATED),
