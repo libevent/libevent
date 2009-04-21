@@ -1368,7 +1368,7 @@ test_methods(void *ptr)
 		++n_methods;
 	}
 
-	if (n_methods == 1) {
+	if (n_methods > 1) {
 		/* only one method supported; can't continue. */
                 goto end;
 	}
@@ -1390,9 +1390,61 @@ end:
                 event_config_free(cfg);
 }
 
+static void
+test_version(void *arg)
+{
+	const char *vstr;
+	ev_uint32_t vint;
+	int major, minor, patch, n;
+
+	vstr = event_get_version();
+	vint = event_get_version_number();
+
+	tt_assert(vstr);
+	tt_assert(vint);
+
+	tt_str_op(vstr, ==, LIBEVENT_VERSION);
+	tt_int_op(vint, ==, LIBEVENT_VERSION_NUMBER);
+
+	n = sscanf(vstr, "%d.%d.%d", &major, &minor, &patch);
+	tt_assert(3 == n);
+	tt_int_op(vint, ==, ((major<<24)|(minor<<16)|(patch<<8)));
+end:
+	;
+}
+
+static void
+test_base_features(void *arg)
+{
+	struct event_base *base = NULL;
+	struct event_config *cfg = NULL;
+
+	cfg = event_config_new();
+
+	tt_assert(0 == event_config_require_features(cfg, EV_FEATURE_ET));
+
+	base = event_base_new_with_config(cfg);
+	if (base) {
+		tt_int_op(EV_FEATURE_ET, ==,
+		    event_base_get_features(base) & EV_FEATURE_ET);
+	} else {
+		base = event_base_new();
+		tt_int_op(0, ==, event_base_get_features(base) & EV_FEATURE_ET);
+	}
+
+end:
+	if (base)
+		event_base_free(base);
+	if (cfg)
+		event_config_free(cfg);
+}
+
+
 struct testcase_t main_testcases[] = {
         /* Some converted-over tests */
         { "methods", test_methods, TT_FORK, NULL, NULL },
+	{ "version", test_version, 0, NULL, NULL },
+	{ "base_features", test_base_features, TT_FORK, NULL, NULL },
 
         /* These are still using the old API */
         LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
