@@ -502,9 +502,12 @@ void event_active(struct event *, int, short);
   @param ev an event struct previously passed to event_add()
   @param event the requested event type; any of EV_TIMEOUT|EV_READ|
          EV_WRITE|EV_SIGNAL
-  @param tv an alternate timeout (FIXME - is this true?)
+  @param tv if this field is not NULL, and the event has a timeout,
+         this field is set to hold the time at which the timeout will
+	 expire.
 
-  @return 1 if the event is pending, or 0 if the event has not occurred
+  @return 1 if the event is pending (that is to say, it has been added), or 0
+  if the event is not added.
 
  */
 int event_pending(struct event *, short, struct timeval *);
