@@ -219,7 +219,7 @@ struct testcase_t thread_testcases[] = {
 };
 
 struct testgroup_t testgroups[] = {
-	{ "main/", legacy_testcases },
+	{ "main/", main_testcases },
 	{ "et/", edgetriggered_testcases },
 	{ "evbuffer/", evbuffer_testcases },
 	{ "signal/", signal_testcases },
