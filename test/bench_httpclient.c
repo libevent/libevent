@@ -191,7 +191,7 @@ main(int argc, char **argv)
 	    "Each took about %.02f msec latency\n"
 	    "%lld bytes read. %d errors.\n",
 	    total_n_handled,
-	    (int)total.tv_sec, total.tv_usec,
+	    (int)total.tv_sec, (int)total.tv_usec,
 	    throughput,
 	    (double)(usec/1000) / total_n_handled,
 	    (long long)total_n_bytes, n_errors);
