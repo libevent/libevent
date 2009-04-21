@@ -337,5 +337,6 @@ evsig_dealloc(struct event_base *base)
 	base->sig.sh_old_max = 0;
 
 	/* per index frees are handled in evsig_del() */
-	mm_free(base->sig.sh_old);
+	if (base->sig.sh_old)
+		mm_free(base->sig.sh_old);
 }
