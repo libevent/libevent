@@ -1470,9 +1470,11 @@ test_event_once(void *ptr)
 	r = event_base_once(data->base, data->pair[0], EV_READ,
 	    read_called_once_cb, NULL, NULL);
 	tt_int_op(r, ==, 0);
-	r = event_base_once(data->base, data->pair[0], EV_TIMEOUT,
+	r = event_base_once(data->base, -1, EV_TIMEOUT,
 	    timeout_called_once_cb, NULL, &tv);
 	tt_int_op(r, ==, 0);
+	r = event_base_once(data->base, -1, 0, NULL, NULL, NULL);
+	tt_int_op(r, <, 0);
 
 	write(data->pair[1], TEST1, strlen(TEST1)+1);
 	shutdown(data->pair[1], SHUT_WR);
@@ -1482,6 +1484,54 @@ test_event_once(void *ptr)
 	tt_int_op(called, ==, 101);
 end:
 	;
+}
+
+static void
+test_event_pending(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event *r=NULL, *w=NULL, *t=NULL;
+	struct timeval tv, now, tv2, diff;
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 500 * 1000;
+	r = event_new(data->base, data->pair[0], EV_READ, simple_read_cb,
+	    NULL);
+	w = event_new(data->base, data->pair[1], EV_WRITE, simple_write_cb,
+	    NULL);
+	t = evtimer_new(data->base, timeout_cb, NULL);
+
+	evutil_gettimeofday(&now, NULL);
+	event_add(r, NULL);
+	event_add(t, &tv);
+
+	tt_assert( event_pending(r, EV_READ, NULL));
+	tt_assert(!event_pending(w, EV_WRITE, NULL));
+	tt_assert(!event_pending(r, EV_WRITE, NULL));
+	tt_assert( event_pending(r, EV_READ|EV_WRITE, NULL));
+	tt_assert(!event_pending(r, EV_TIMEOUT, NULL));
+	tt_assert( event_pending(t, EV_TIMEOUT, NULL));
+	tt_assert( event_pending(t, EV_TIMEOUT, &tv2));
+
+	tt_assert(evutil_timercmp(&tv2, &now, >));
+	evutil_timeradd(&now, &tv, &tv);
+	evutil_timersub(&tv2, &tv, &diff);
+	tt_int_op(diff.tv_sec, ==, 0);
+	tt_int_op(labs(diff.tv_usec), <, 1000);
+
+end:
+	if (r) {
+		event_del(r);
+		event_free(r);
+	}
+	if (w) {
+		event_del(w);
+		event_free(w);
+	}
+	if (t) {
+		event_del(t);
+		event_free(t);
+	}
 }
 
 struct testcase_t main_testcases[] = {
@@ -1511,7 +1561,9 @@ struct testcase_t main_testcases[] = {
 	LEGACY(nonpersist_readd, TT_ISOLATED),
 	LEGACY(multiple_events_for_same_fd, TT_ISOLATED),
 	LEGACY(want_only_once, TT_ISOLATED),
-	{ "event_once", test_event_once, TT_ISOLATED, &legacy_setup, NULL },
+	{ "event_once", test_event_once, TT_ISOLATED, &basic_setup, NULL },
+	{ "event_pending", test_event_pending, TT_ISOLATED, &basic_setup,
+	  NULL },
 
 #ifndef WIN32
         LEGACY(fork, TT_ISOLATED),
