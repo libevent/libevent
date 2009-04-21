@@ -1439,6 +1439,51 @@ end:
 		event_config_free(cfg);
 }
 
+static void
+read_called_once_cb(int fd, short event, void *arg)
+{
+	tt_int_op(event, ==, EV_READ);
+	called += 1;
+end:
+	;
+}
+
+static void
+timeout_called_once_cb(int fd, short event, void *arg)
+{
+	tt_int_op(event, ==, EV_TIMEOUT);
+	called += 100;
+end:
+	;
+}
+
+static void
+test_event_once(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct timeval tv;
+	int r;
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 50*1000;
+	called = 0;
+	r = event_base_once(data->base, data->pair[0], EV_READ,
+	    read_called_once_cb, NULL, NULL);
+	tt_int_op(r, ==, 0);
+	r = event_base_once(data->base, data->pair[0], EV_TIMEOUT,
+	    timeout_called_once_cb, NULL, &tv);
+	tt_int_op(r, ==, 0);
+
+	write(data->pair[1], TEST1, strlen(TEST1)+1);
+	shutdown(data->pair[1], SHUT_WR);
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(called, ==, 101);
+end:
+	;
+}
+
 struct testcase_t main_testcases[] = {
         /* Some converted-over tests */
         { "methods", test_methods, TT_FORK, NULL, NULL },
@@ -1466,6 +1511,7 @@ struct testcase_t main_testcases[] = {
 	LEGACY(nonpersist_readd, TT_ISOLATED),
 	LEGACY(multiple_events_for_same_fd, TT_ISOLATED),
 	LEGACY(want_only_once, TT_ISOLATED),
+	{ "event_once", test_event_once, TT_ISOLATED, &legacy_setup, NULL },
 
 #ifndef WIN32
         LEGACY(fork, TT_ISOLATED),
