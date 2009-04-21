@@ -856,7 +856,8 @@ end:
 }
 
 #define RPC_LEGACY(name)						\
-	{ #name, run_legacy_test_fn, TT_FORK|TT_NEED_BASE, &legacy_setup, \
+	{ #name, run_legacy_test_fn, TT_FORK|TT_NEED_BASE|TT_LEGACY,	\
+		    &legacy_setup,				    \
                     rpc_##name }
 
 struct testcase_t rpc_testcases[] = {

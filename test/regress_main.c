@@ -115,32 +115,36 @@ regress_make_tmpfile(const void *data, size_t datalen)
 #endif
 }
 
-/* The "data" for a legacy test is just a pointer to the void fn(void)
-   function implementing the test case.  We need to set up some globals,
-   though, since that's where legacy tests expect to find a socketpair
-   (sometimes) and a global event_base (sometimes).
- */
 static void *
-legacy_test_setup(const struct testcase_t *testcase)
+basic_test_setup(const struct testcase_t *testcase)
 {
+	struct event_base *base = NULL;
+	int spair[2] = { -1, -1 };
+	struct basic_test_data *data = NULL;
+
 	if (testcase->flags & TT_NEED_SOCKETPAIR) {
-		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
+		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, spair) == -1) {
 			fprintf(stderr, "%s: socketpair\n", __func__);
 			exit(1);
 		}
 
-		if (evutil_make_socket_nonblocking(pair[0]) == -1) {
+		if (evutil_make_socket_nonblocking(spair[0]) == -1) {
 			fprintf(stderr, "fcntl(O_NONBLOCK)");
 			exit(1);
 		}
 
-		if (evutil_make_socket_nonblocking(pair[1]) == -1) {
+		if (evutil_make_socket_nonblocking(spair[1]) == -1) {
 			fprintf(stderr, "fcntl(O_NONBLOCK)");
 			exit(1);
 		}
 	}
 	if (testcase->flags & TT_NEED_BASE) {
-		global_base = event_init();
+		if (testcase->flags & TT_LEGACY)
+			base = event_init();
+		else
+			base = event_base_new();
+		if (!base)
+			exit(1);
 	}
 
         if (testcase->flags & TT_NEED_DNS) {
@@ -149,7 +153,57 @@ legacy_test_setup(const struct testcase_t *testcase)
                         return NULL; /* fast failure *//*XXX asserts. */
         }
 
-	return testcase->setup_data;
+	data = calloc(1, sizeof(*data));
+	if (!data)
+		exit(1);
+	data->base = base;
+	data->pair[0] = spair[0];
+	data->pair[1] = spair[1];
+	return data;
+}
+
+static int
+basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	if (testcase->flags & TT_NEED_SOCKETPAIR) {
+                if (data->pair[0] != -1)
+                        EVUTIL_CLOSESOCKET(data->pair[0]);
+                if (data->pair[1] != -1)
+                        EVUTIL_CLOSESOCKET(data->pair[1]);
+        }
+
+        if (testcase->flags & TT_NEED_BASE) {
+                event_base_free(data->base);
+        }
+
+        if (testcase->flags & TT_NEED_DNS) {
+                evdns_shutdown(0);
+        }
+
+	free(data);
+
+	return 1;
+}
+
+const struct testcase_setup_t basic_setup = {
+	basic_test_setup, basic_test_cleanup
+};
+
+/* The "data" for a legacy test is just a pointer to the void fn(void)
+   function implementing the test case.  We need to set up some globals,
+   though, since that's where legacy tests expect to find a socketpair
+   (sometimes) and a global event_base (sometimes).
+ */
+static void *
+legacy_test_setup(const struct testcase_t *testcase)
+{
+	struct basic_test_data *data = basic_test_setup(testcase);
+	global_base = data->base;
+	pair[0] = data->pair[0];
+	pair[1] = data->pair[1];
+	data->legacy_test_fn = testcase->setup_data;
+	return data;
 }
 
 /* This function is the implementation of every legacy test case.  It
@@ -159,12 +213,11 @@ legacy_test_setup(const struct testcase_t *testcase)
 void
 run_legacy_test_fn(void *ptr)
 {
-	void (*fn)(void);
+	struct basic_test_data *data = ptr;
 	test_ok = called = 0;
-	fn = ptr;
 
         in_legacy_test_wrapper = 1;
-	fn(); /* This part actually calls the test */
+	data->legacy_test_fn(); /* This part actually calls the test */
         in_legacy_test_wrapper = 0;
 
 	if (!test_ok)
@@ -181,25 +234,10 @@ end:
 static int
 legacy_test_cleanup(const struct testcase_t *testcase, void *ptr)
 {
-	(void)ptr;
-	if (testcase->flags & TT_NEED_SOCKETPAIR) {
-                if (pair[0] != -1)
-                        EVUTIL_CLOSESOCKET(pair[0]);
-                if (pair[1] != -1)
-                        EVUTIL_CLOSESOCKET(pair[1]);
-                pair[0] = pair[1] = -1;
-        }
-
-        if (testcase->flags & TT_NEED_BASE) {
-                event_base_free(global_base);
-                global_base = NULL;
-        }
-
-        if (testcase->flags & TT_NEED_DNS) {
-                evdns_shutdown(0);
-        }
-
-	return 1;
+	int r = basic_test_cleanup(testcase, ptr);
+	pair[0] = pair[1] = -1;
+	global_base = NULL;
+	return r;
 }
 
 const struct testcase_setup_t legacy_setup = {

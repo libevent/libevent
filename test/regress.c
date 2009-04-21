@@ -1439,7 +1439,6 @@ end:
 		event_config_free(cfg);
 }
 
-
 struct testcase_t main_testcases[] = {
         /* Some converted-over tests */
         { "methods", test_methods, TT_FORK, NULL, NULL },
