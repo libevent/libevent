@@ -1534,7 +1534,7 @@ end:
 	}
 }
 
-int
+static int
 check_dummy_mem_ok(void *_mem)
 {
 	char *mem = _mem;
