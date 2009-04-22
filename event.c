@@ -548,7 +548,7 @@ event_base_priority_init(struct event_base *base, int npriorities)
 {
 	int i;
 
-	if (base->event_count_active)
+	if (base->event_count_active || npriorities < 1)
 		return (-1);
 
 	if (npriorities == base->nactivequeues)
