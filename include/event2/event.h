@@ -160,7 +160,12 @@ enum event_method_feature {
 };
 
 enum event_base_config_flag {
+	/** Do not allocate a lock for the event base, even if we have
+	    locking set up. */
 	EVENT_BASE_FLAG_NOLOCK = 0x01,
+	/** Do not check the EVENT_NO* environment variables when picking
+	    an event_base. */
+	EVENT_BASE_FLAG_IGNORE_ENV = 0x02,
 };
 
 /**

@@ -239,6 +239,7 @@ event_base_new_with_config(struct event_config *cfg)
 {
 	int i;
 	struct event_base *base;
+	int should_check_environment;
 
 	if ((base = mm_calloc(1, sizeof(struct event_base))) == NULL)
 		event_err(1, "%s: calloc", __func__);
@@ -259,6 +260,10 @@ event_base_new_with_config(struct event_config *cfg)
 	evmap_signal_initmap(&base->sigmap);
 
 	base->evbase = NULL;
+
+	should_check_environment =
+	    cfg && (cfg->flags & EVENT_BASE_FLAG_IGNORE_ENV);
+
 	for (i = 0; eventops[i] && !base->evbase; i++) {
 		if (cfg != NULL) {
 			/* determine if this backend should be avoided */
@@ -271,7 +276,8 @@ event_base_new_with_config(struct event_config *cfg)
 		}
 
 		/* also obey the environment variables */
-		if (event_is_method_disabled(eventops[i]->name))
+		if (should_check_environment &&
+		    event_is_method_disabled(eventops[i]->name))
 			continue;
 
 		base->evsel = eventops[i];
