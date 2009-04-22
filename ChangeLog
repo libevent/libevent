@@ -2,6 +2,7 @@ Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.
  o Make evdns functionality locked, and automatically defer dns callbacks.
  o Fix a possible free(NULL) when freeing an event_base with no signals.
+ o Add a flag to disable checking environment varibles when making an event_base
 
 Changes in 2.0.1-alpha:
  o free minheap on event_base_free(); from Christopher Layne
