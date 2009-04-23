@@ -36,9 +36,9 @@
 #include <windows.h>
 #else
 #include <sys/socket.h>
-#include <sys/signal.h>
 #include <sys/resource.h>
 #endif
+#include <signal.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>

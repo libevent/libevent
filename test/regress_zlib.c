@@ -37,10 +37,10 @@
 #ifndef WIN32
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include <sys/signal.h>
 #include <unistd.h>
 #include <netdb.h>
 #endif
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

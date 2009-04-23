@@ -5,6 +5,7 @@ Changes in 2.0.2-alpha:
  o Add a flag to disable checking environment varibles when making an event_base
  o Disallow setting less than 1 priority.
  o Fix a bug when removing a timeout from the heap. [Patch from Marko Kreen]
+ o Use signal.h, not sys/signal.h. [Patch from mmadia]
 
 Changes in 2.0.1-alpha:
  o free minheap on event_base_free(); from Christopher Layne
