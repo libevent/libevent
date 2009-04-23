@@ -1408,7 +1408,7 @@ test_version(void *arg)
 
 	n = sscanf(vstr, "%d.%d.%d", &major, &minor, &patch);
 	tt_assert(3 == n);
-	tt_int_op(vint, ==, ((major<<24)|(minor<<16)|(patch<<8)));
+	tt_int_op((vint&0xffffff00), ==, ((major<<24)|(minor<<16)|(patch<<8)));
 end:
 	;
 }
