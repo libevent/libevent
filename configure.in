@@ -6,7 +6,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE(libevent,2.0.1-alpha-dev)
 AM_CONFIG_HEADER(config.h)
-AC_DEFINE(NUMERIC_VERSION, 0x02000100, [Numeric representation of the version])
+AC_DEFINE(NUMERIC_VERSION, 0x02000101, [Numeric representation of the version])
 
 dnl Initialize prefix.
 if test "$prefix" = "NONE"; then
