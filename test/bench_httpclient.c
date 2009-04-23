@@ -26,8 +26,12 @@
  */
 
 #include <sys/types.h>
+#ifdef WIN32
+#include <winsock2.h>
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
+#endif
 #include <stdlib.h>
 #include <errno.h>
 
@@ -35,6 +39,9 @@
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
 #include <event2/util.h>
+
+/* for EVUTIL_ERR_CONNECT_RETRIABLE macro */
+#include "util-internal.h"
 
 const char *resource = NULL;
 struct event_base *base = NULL;
@@ -104,10 +111,10 @@ frob_socket(int sock)
 {
 	struct linger l;
 	int one = 1;
-	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void*)&one, sizeof(one));
 	l.l_onoff = 1;
 	l.l_linger = 0;
-	if (setsockopt(sock, SOL_SOCKET, SO_LINGER, &l, sizeof(l))<0)
+	if (setsockopt(sock, SOL_SOCKET, SO_LINGER, (void*)&l, sizeof(l))<0)
 		perror("setsockopt");
 }
 
@@ -131,7 +138,8 @@ launch_request(void)
 		return -1;
 	frob_socket(sock);
 	if (connect(sock, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
-		if (errno != EINTR && errno != EINPROGRESS) {
+		int e = errno;
+		if (! EVUTIL_ERR_CONNECT_RETRIABLE(e)) {
 			return -1;
 		}
 	}
