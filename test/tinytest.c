@@ -102,7 +102,7 @@ _testcase_run_forked(const struct testgroup_t *group,
 	 */
 	int ok;
 	char buffer[LONGEST_TEST_NAME+256];
-	const char *verbosity;
+	//const char *verbosity;
 	STARTUPINFO si;
 	PROCESS_INFORMATION info;
 	DWORD exitcode;

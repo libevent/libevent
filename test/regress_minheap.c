@@ -34,8 +34,8 @@
 static void
 set_random_timeout(struct event *ev)
 {
-	ev->ev_timeout.tv_sec = random();
-	ev->ev_timeout.tv_usec = random();
+	ev->ev_timeout.tv_sec = rand();
+	ev->ev_timeout.tv_usec = rand();
 	ev->min_heap_idx = -1;
 }
 

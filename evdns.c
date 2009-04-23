@@ -3392,7 +3392,7 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 	IP_ADDR_STRING *ns;
 	GetNetworkParams_fn_t fn;
 
-	ASSERT_LOCKD(base);
+	ASSERT_LOCKED(base);
 	if (!(handle = LoadLibrary("iphlpapi.dll"))) {
 		log(EVDNS_LOG_WARN, "Could not open iphlpapi.dll");
 		status = -1;
