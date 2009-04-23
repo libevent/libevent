@@ -1599,7 +1599,7 @@ struct testcase_t main_testcases[] = {
         LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
         LEGACY(priorities, TT_FORK|TT_NEED_BASE),
 
-        LEGACY(free_active_base, TT_FORK|TT_NEED_BASE),
+        LEGACY(free_active_base, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
         LEGACY(event_base_new, TT_FORK|TT_NEED_SOCKETPAIR),
 
         /* These legacy tests may not all need all of these flags. */
