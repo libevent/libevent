@@ -1368,20 +1368,18 @@ test_methods(void *ptr)
 		++n_methods;
 	}
 
-	if (n_methods > 1) {
-		/* only one method supported; can't continue. */
-                goto end;
-	}
-
 	cfg = event_config_new();
 	assert(cfg != NULL);
 
 	tt_int_op(event_config_avoid_method(cfg, backend), ==, 0);
 
 	base = event_base_new_with_config(cfg);
-        tt_assert(base);
-
-	tt_str_op(backend, !=, event_base_get_method(base));
+	if (n_methods > 1) {
+		tt_assert(base);
+		tt_str_op(backend, !=, event_base_get_method(base));
+	} else {
+		tt_assert(base == NULL);
+	}
 
 end:
         if (base)
