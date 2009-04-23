@@ -261,8 +261,8 @@ struct evdns_server_port {
 struct server_reply_item {
 	struct server_reply_item *next; /* next item in sequence. */
 	char *name; /* name part of the RR */
-	u16 type : 16; /* The RR type */
-	u16 class : 16; /* The RR class (usually CLASS_INET) */
+	u16 type; /* The RR type */
+	u16 class; /* The RR class (usually CLASS_INET) */
 	u32 ttl; /* The RR TTL */
 	char is_name; /* True iff data is a label */
 	u16 datalen; /* Length of data; -1 if data is a label */
