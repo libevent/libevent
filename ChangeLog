@@ -1,3 +1,6 @@
+Changes in 1.4.11-stable:
+ o Fix a bug when removing a timeout from the heap. [Patch from Marko Kreen]
+
 Changes in 1.4.10-stable:
  o clean up buffered http connection data on reset; reported by Brian O'Kelley
  o bug fix and potential race condition in signal handling; from Alexander Drozdov
