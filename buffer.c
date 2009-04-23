@@ -1470,9 +1470,11 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
 		if (vecs[0].IOV_LEN_FIELD >= howmuch) {
 			/* The next-to-last chain has enough
 			 * space on its own. */
+			chain = prev;
 			nvecs = 1;
 		} else {
 			/* We'll need both chains. */
+			chain = prev;
 			nvecs = 2;
 			if (vecs[0].IOV_LEN_FIELD + vecs[1].IOV_LEN_FIELD > howmuch) {
 				vecs[1].IOV_LEN_FIELD = howmuch - vecs[0].IOV_LEN_FIELD;
@@ -1604,12 +1606,12 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 
 #ifdef USE_IOVEC_IMPL
 	if (nvecs == 2) {
-		size_t space = CHAIN_SPACE_LEN(buf->previous_to_last);
-        		if (space < n) {
-			buf->previous_to_last->off += space;
-			chain->off += n-space;
+		size_t space = CHAIN_SPACE_LEN(chain);
+		if (space < n) {
+			chain->off += space;
+			chain->next->off += n-space;
 		} else {
-			buf->previous_to_last->off += n;
+			chain->off += n;
 		}
 	} else {
 		chain->off += n;
