@@ -2157,7 +2157,10 @@ evhttp_decode_uri_internal(
 			c = ' ';
 		} else if (c == '%' && EVUTIL_ISXDIGIT(uri[i+1]) &&
 		    EVUTIL_ISXDIGIT(uri[i+2])) {
-			char tmp[] = { uri[i+1], uri[i+2], '\0' };
+			char tmp[3];
+			tmp[0] = uri[i+1];
+			tmp[1] = uri[i+2];
+			tmp[2] = '\0';
 			c = (char)strtol(tmp, NULL, 16);
 			i += 2;
 		}
