@@ -479,13 +479,12 @@ event_get_supported_methods(void)
 struct event_config *
 event_config_new(void)
 {
-	struct event_config *cfg = mm_malloc(sizeof(*cfg));
+	struct event_config *cfg = mm_calloc(1, sizeof(*cfg));
 
 	if (cfg == NULL)
 		return (NULL);
 
 	TAILQ_INIT(&cfg->entries);
-	cfg->require_features = 0;
 
 	return (cfg);
 }
