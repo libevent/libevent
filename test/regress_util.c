@@ -34,7 +34,6 @@
 #endif
 #ifndef WIN32
 #include <sys/socket.h>
-#include <sys/signal.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -42,6 +41,7 @@
 #ifdef _EVENT_HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
