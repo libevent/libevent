@@ -808,6 +808,7 @@ evhttp_read_trailer(struct evhttp_connection *evcon, struct evhttp_request *req)
 		evhttp_connection_done(evcon);
 		break;
 	case MORE_DATA_EXPECTED:
+	case REQUEST_CANCELED: /* ??? */
 	default:
 		bufferevent_enable(evcon->bufev, EV_READ);
 		break;
