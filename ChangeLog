@@ -7,6 +7,7 @@ Changes in 2.0.2-alpha:
  o Fix a bug when removing a timeout from the heap. [Patch from Marko Kreen]
  o Use signal.h, not sys/signal.h. [Patch from mmadia]
  o Try harder to build with certain older c99 compilers.
+ o Make sure that an event_config's flags field is always initialized to 0. [Bug report from Victor Goya]
 
 Changes in 2.0.1-alpha:
  o free minheap on event_base_free(); from Christopher Layne
