@@ -97,9 +97,12 @@
 #if defined(_EVENT_HAVE_SYS_SENDFILE_H) && defined(_EVENT_HAVE_SENDFILE) && defined(__linux__)
 #define USE_SENDFILE		1
 #define SENDFILE_IS_LINUX	1
-#elif defined(_EVENT_HAVE_SENDFILE) && (defined(__FreeBSD__) || defined(__APPLE__))
+#elif defined(_EVENT_HAVE_SENDFILE) && defined(__FreeBSD__)
 #define USE_SENDFILE		1
 #define SENDFILE_IS_FREEBSD	1
+#elif defined(_EVENT_HAVE_SENDFILE) && defined(__APPLE__)
+#define USE_SENDFILE		1
+#define SENDFILE_IS_MACOSX	1
 #endif
 
 #ifdef USE_SENDFILE
@@ -1682,7 +1685,7 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 	struct evbuffer_chain *chain = buffer->first;
 	struct evbuffer_chain_fd *info =
 	    EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_fd, chain);
-#ifdef SENDFILE_IS_FREEBSD
+#if defined(SENDFILE_IS_MACOSX) || defined(SENDFILE_IS_FREEBSD)
 	int res;
 	off_t len = chain->off;
 #elif SENDFILE_IS_LINUX
@@ -1692,8 +1695,14 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 
         ASSERT_EVBUFFER_LOCKED(buffer);
 
-#ifdef SENDFILE_IS_FREEBSD
+#ifdef SENDFILE_IS_MACOSX
 	res = sendfile(info->fd, fd, chain->misalign, &len, NULL, 0);
+	if (res == -1 && !EVUTIL_ERR_RW_RETRIABLE(errno))
+		return (-1);
+
+	return (len);
+#elif SENDFILE_IS_FREEBSD
+	res = sendfile(info->fd, fd, chain->misalign, len, NULL, &len, 0);
 	if (res == -1 && !EVUTIL_ERR_RW_RETRIABLE(errno))
 		return (-1);
 

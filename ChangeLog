@@ -9,6 +9,7 @@ Changes in 2.0.2-alpha:
  o Try harder to build with certain older c99 compilers.
  o Make sure that an event_config's flags field is always initialized to 0. [Bug report from Victor Goya]
  o Avoid data corruption when reading data entirely into the second-to-last chain of an evbuffer. [Bug report from Victor Goya]
+ o Make sendfile work on FreeBSD
 
 Changes in 2.0.1-alpha:
  o free minheap on event_base_free(); from Christopher Layne
