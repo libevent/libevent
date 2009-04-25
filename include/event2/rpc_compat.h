@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2007 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2006-2007 Niels Provos <provos@citi.umich.edu>
  * Copyright (c) 2007-2009 Niels Provos and Nick Mathewson
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,12 +24,38 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVRPC_H_
-#define _EVRPC_H_
+#ifndef _EVENT2_RPC_COMPAT_H_
+#define _EVENT2_RPC_COMPAT_H_
 
-#include <event.h>
-#include <event2/rpc.h>
-#include <event2/rpc_struct.h>
-#include <event2/rpc_compat.h>
+/** @file rpc_compat.h
 
-#endif /* _EVRPC_H_ */
+  Deprecated versions of the functions in rpc.h: provided only for
+  backwards compatibility.
+
+ */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/** backwards compatible accessors that work only with gcc */
+#ifdef __GNUC__
+
+#undef EVTAG_ASSIGN
+#undef EVTAG_GET
+#undef EVTAG_ADD
+
+#define EVTAG_ASSIGN(msg, member, args...) \
+	(*(msg)->base->member##_assign)(msg, ## args)
+#define EVTAG_GET(msg, member, args...) \
+	(*(msg)->base->member##_get)(msg, ## args)
+#define EVTAG_ADD(msg, member, args...) \
+	(*(msg)->base->member##_add)(msg, ## args)
+#endif
+#define EVTAG_LEN(msg, member) ((msg)->member##_length)
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* _EVENT2_EVENT_COMPAT_H_ */
