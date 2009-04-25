@@ -1539,18 +1539,7 @@ class CCodeGenerator:
         if headerdirect:
             pre += '\n'
 
-        pre += (
-            '#define EVTAG_HAS(msg, member) ((msg)->member##_set == 1)\n'
-            '#ifdef __GNUC__\n'
-            '#define EVTAG_ASSIGN(msg, member, args...) '
-            '(*(msg)->base->member##_assign)(msg, ## args)\n'
-            '#define EVTAG_GET(msg, member, args...) '
-            '(*(msg)->base->member##_get)(msg, ## args)\n'
-            '#define EVTAG_ADD(msg, member, args...) '
-            '(*(msg)->base->member##_add)(msg, ## args)\n'
-            '#endif\n'
-            '#define EVTAG_LEN(msg, member) ((msg)->member##_length)\n'
-            )
+        pre += '#include <event2/rpc.h>'
 
         return pre
 
