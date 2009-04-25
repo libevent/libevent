@@ -56,7 +56,8 @@
 #include "event2/event.h"
 #include "evhttp.h"
 #include "log-internal.h"
-#include "evrpc.h"
+#include "event2/rpc.h"
+#include "event2/rpc_struct.h"
 
 #include "regress.gen.h"
 
@@ -733,14 +734,14 @@ rpc_test(void)
 	EVTAG_ASSIGN(attack, weapon, "feather");
 	EVTAG_ASSIGN(attack, action, "tickle");
 	for (i = 0; i < 3; ++i) {
-		if (EVTAG_ADD(attack, how_often, i) == NULL) {
+		if (EVTAG_ARRAY_ADD_VALUE(attack, how_often, i) == NULL) {
 			tt_abort_msg("Failed to add how_often.");
 		}
 	}
 
 	evutil_gettimeofday(&tv_start, NULL);
 	for (i = 0; i < 1000; ++i) {
-		run = EVTAG_ADD(msg, run);
+		run = EVTAG_ARRAY_ADD(msg, run);
 		if (run == NULL) {
 			tt_abort_msg("Failed to add run message.");
 		}
@@ -748,16 +749,17 @@ rpc_test(void)
 		EVTAG_ASSIGN(run, fixed_bytes,
 		    (ev_uint8_t*)"012345678901234567890123");
 
-		if (EVTAG_ADD(run, notes, "this is my note") == NULL) {
+		if (EVTAG_ARRAY_ADD_VALUE(
+			    run, notes, "this is my note") == NULL) {
 			tt_abort_msg("Failed to add note.");
 		}
-		if (EVTAG_ADD(run, notes, "pps") == NULL) {
+		if (EVTAG_ARRAY_ADD_VALUE(run, notes, "pps") == NULL) {
 			tt_abort_msg("Failed to add note");
 		}
 
 		EVTAG_ASSIGN(run, large_number, 0xdead0a0bcafebeefLL);
-		EVTAG_ADD(run, other_numbers, 0xdead0a0b);
-		EVTAG_ADD(run, other_numbers, 0xbeefcafe);
+		EVTAG_ARRAY_ADD_VALUE(run, other_numbers, 0xdead0a0b);
+		EVTAG_ARRAY_ADD_VALUE(run, other_numbers, 0xbeefcafe);
 	}
 
 	if (msg_complete(msg) == -1)
@@ -791,12 +793,12 @@ rpc_test(void)
 		tt_abort_msg("Could not get attack.");
 	}
 
-	if (EVTAG_LEN(msg2, run) != i) {
+	if (EVTAG_ARRAY_LEN(msg2, run) != i) {
                 tt_abort_msg("Wrong number of run messages.");
 	}
 
 	/* get the very first run message */
-	if (EVTAG_GET(msg2, run, 0, &run) == -1) {
+	if (EVTAG_ARRAY_GET(msg2, run, 0, &run) == -1) {
 		tt_abort_msg("Failed to get run msg.");
 	} else {
 		/* verify the notes */
@@ -804,12 +806,12 @@ rpc_test(void)
 		ev_uint64_t large_number;
 		ev_uint32_t short_number;
 
-		if (EVTAG_LEN(run, notes) != 2) {
+		if (EVTAG_ARRAY_LEN(run, notes) != 2) {
 			tt_abort_msg("Wrong number of note strings.");
 		}
 
-		if (EVTAG_GET(run, notes, 0, &note_one) == -1 ||
-		    EVTAG_GET(run, notes, 1, &note_two) == -1) {
+		if (EVTAG_ARRAY_GET(run, notes, 0, &note_one) == -1 ||
+		    EVTAG_ARRAY_GET(run, notes, 1, &note_two) == -1) {
 			tt_abort_msg("Could not get note strings.");
 		}
 
@@ -823,21 +825,22 @@ rpc_test(void)
 			tt_abort_msg("Incorrrect large_number.");
 		}
 
-		if (EVTAG_LEN(run, other_numbers) != 2) {
+		if (EVTAG_ARRAY_LEN(run, other_numbers) != 2) {
 			tt_abort_msg("Wrong number of other_numbers.");
 		}
 
-		if (EVTAG_GET(run, other_numbers, 0, &short_number) == -1) {
+		if (EVTAG_ARRAY_GET(
+			    run, other_numbers, 0, &short_number) == -1) {
 			tt_abort_msg("Could not get short number.");
 		}
 		tt_uint_op(short_number, ==, 0xdead0a0b);
 
 	}
-        tt_int_op(EVTAG_LEN(attack, how_often), ==, 3);
+        tt_int_op(EVTAG_ARRAY_LEN(attack, how_often), ==, 3);
 
 	for (i = 0; i < 3; ++i) {
 		ev_uint32_t res;
-		if (EVTAG_GET(attack, how_often, i, &res) == -1) {
+		if (EVTAG_ARRAY_GET(attack, how_often, i, &res) == -1) {
 			TT_DIE(("Cannot get %dth how_often msg.", i));
 		}
 		if (res != i) {

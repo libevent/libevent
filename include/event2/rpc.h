@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-/** @file evrpc.h
+/** @file rpc.h
  *
  * This header files provides basic support for an RPC server and client.
  *
@@ -66,6 +66,77 @@ extern "C" {
  * See the regression test for an example.
  */
 
+/**
+   Determines if the member has been set in the message
+   
+   @param msg the message to inspect
+   @param member the member variable to test for presences
+   @return 1 if it's present or 0 otherwise.
+*/
+#define EVTAG_HAS(msg, member) \
+	((msg)->member##_set == 1)
+
+/**
+   Assigns a value to the member in the message.
+
+   @param msg the message to which to assign a value
+   @param member the name of the member variable
+   @param value the value to assign
+*/
+#define EVTAG_ASSIGN(msg, member, value) \
+	(*(msg)->base->member##_assign)(msg, value)
+/**
+   Assigns a value to the member in the message.
+
+   @param msg the message to which to assign a value
+   @param member the name of the member variable
+   @param value the value to assign
+   @param len the length of the value
+*/
+#define EVTAG_ASSIGN_WITH_LEN(msg, member, value, len)	\
+	(*(msg)->base->member##_assign)(msg, value, len)
+/**
+   Returns the value for a member.
+
+   @param msg the message from which to get the value
+   @param member the name of the member variable
+   @param pvalue a pointer to the variable to hold the value
+   @return 0 on success, -1 otherwise.
+*/
+#define EVTAG_GET(msg, member, pvalue) \
+	(*(msg)->base->member##_get)(msg, pvalue)
+/**
+   Returns the value for a member.
+
+   @param msg the message from which to get the value
+   @param member the name of the member variable
+   @param pvalue a pointer to the variable to hold the value
+   @param plen a pointer to the length of the value
+   @return 0 on success, -1 otherwise.
+*/
+#define EVTAG_GET_WITH_LEN(msg, member, pvalue, plen)	\
+	(*(msg)->base->member##_get)(msg, pvalue, plen)
+
+/**
+   Adds a value to an array.
+*/
+#define EVTAG_ARRAY_ADD_VALUE(msg, member, value) \
+	(*(msg)->base->member##_add)(msg, value)
+/**
+   Allocates a new entry in the array and returns it.
+*/
+#define EVTAG_ARRAY_ADD(msg, member) \
+	(*(msg)->base->member##_add)(msg)
+/**
+   Gets a variable at the specified offset from the array.
+*/
+#define EVTAG_ARRAY_GET(msg, member, offset, pvalue)	\
+	(*(msg)->base->member##_get)(msg, offset, pvalue)
+/**
+   Returns the number of entries in the array.
+*/
+#define EVTAG_ARRAY_LEN(msg, member) ((msg)->member##_length)
+
 struct evbuffer;
 struct event_base;
 struct evrpc_req_generic;
@@ -81,8 +152,6 @@ struct evrpc;
 struct evhttp_request;
 struct evrpc_status;
 struct evrpc_hook_meta;
-
-/* the structure below needs to be synchornized with evrpc_req_generic */
 
 /** Creates the definitions and prototypes for an RPC
  *

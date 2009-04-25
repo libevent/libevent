@@ -31,10 +31,12 @@
 extern "C" {
 #endif
 
-/** @file evrpc_struct.h
+/** @file rpc_struct.h
  *
  * This header files provides basic support for an RPC server and client.
  */
+
+/* the structure below needs to be synchronized with evrpc_req_generic */
 
 /* Encapsulates a request */
 struct evrpc {

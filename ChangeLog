@@ -10,6 +10,7 @@ Changes in 2.0.2-alpha:
  o Make sure that an event_config's flags field is always initialized to 0. [Bug report from Victor Goya]
  o Avoid data corruption when reading data entirely into the second-to-last chain of an evbuffer. [Bug report from Victor Goya]
  o Make sendfile work on FreeBSD
+ o Do not use vararg macros for accessing evrpc structures; this is not backwards compatible, but we did not promise any backwards compatibility for the rpc code.
 
 Changes in 2.0.1-alpha:
  o free minheap on event_base_free(); from Christopher Layne
