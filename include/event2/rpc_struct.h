@@ -32,9 +32,26 @@ extern "C" {
 #endif
 
 /** @file rpc_struct.h
- *
- * This header files provides basic support for an RPC server and client.
+
+  Structures used by rpc.h.  Using these structures directly may harm
+  forward compatibility: be careful!
+
  */
+
+/** 
+ * provides information about the completed RPC request.
+ */
+struct evrpc_status {
+#define EVRPC_STATUS_ERR_NONE		0
+#define EVRPC_STATUS_ERR_TIMEOUT	1
+#define EVRPC_STATUS_ERR_BADPAYLOAD	2
+#define EVRPC_STATUS_ERR_UNSTARTED	3
+#define EVRPC_STATUS_ERR_HOOKABORTED	4
+	int error;
+
+	/* for looking at headers or other information */
+	struct evhttp_request *http_req;
+};
 
 /* the structure below needs to be synchronized with evrpc_req_generic */
 

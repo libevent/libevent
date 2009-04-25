@@ -64,6 +64,7 @@ INPUT                  = event.h evdns.h evhttp.h evrpc.h \
 		       include/event2/bufferevent_compat.h \
 		       include/event2/util.h \
 		       include/event2/rpc.h include/event2/rpc_struct.h \
+		       include/event2/rpc_compat.h \
 		       include/event2/dns.h include/event2/dns_struct.h \
 		       include/event2/dns_compat.h \
 		       include/event2/http.h include/event2/http_struct.h \

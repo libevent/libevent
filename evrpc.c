@@ -1042,6 +1042,76 @@ evrpc_hook_get_connection(void *ctx)
 	return (req->hook_meta != NULL ? req->hook_meta->evcon : NULL);
 }
 
+int
+evrpc_send_request_generic(struct evrpc_pool *pool,
+    void *request, void *reply,
+    void (*cb)(struct evrpc_status *, void *, void *, void *),
+    void *cb_arg,
+    const char *rpcname,
+    void (*req_marshal)(struct evbuffer *, void *),
+    void (*rpl_clear)(void *),
+    int (*rpl_unmarshal)(void *, struct evbuffer *))
+{
+	struct evrpc_status status;
+	struct evrpc_request_wrapper *ctx;
+	ctx = evrpc_make_request_ctx(pool, request, reply,
+	    rpcname, req_marshal, rpl_clear, rpl_unmarshal, cb, cb_arg);
+	if (ctx == NULL)
+		goto error;
+	return (evrpc_make_request(ctx));
+error:
+	memset(&status, 0, sizeof(status));
+	status.error = EVRPC_STATUS_ERR_UNSTARTED;
+	(*(cb))(&status, request, reply, cb_arg);
+	return (-1);
+}
+
+/** Takes a request object and fills it in with the right magic */
+static struct evrpc *
+evrpc_register_object(const char *name,
+    void *(*req_new)(void), void (*req_free)(void *),
+    int (*req_unmarshal)(void *, struct evbuffer *),
+    void *(*rpl_new)(void), void (*rpl_free)(void *),
+    int (*rpl_complete)(void *),
+    void (*rpl_marshal)(struct evbuffer *, void *))
+{
+	struct evrpc* rpc = (struct evrpc *)mm_calloc(1, sizeof(struct evrpc));
+	if (rpc == NULL)
+		return (NULL);
+	rpc->uri = mm_strdup(name);
+	if (rpc->uri == NULL) {
+		mm_free(rpc);
+		return (NULL);
+	}
+	rpc->request_new = req_new;
+	rpc->request_free = req_free;
+	rpc->request_unmarshal = req_unmarshal;
+	rpc->reply_new = rpl_new;
+	rpc->reply_free = rpl_free;
+	rpc->reply_complete = rpl_complete;
+	rpc->reply_marshal = rpl_marshal;
+	return (rpc);
+}
+
+int
+evrpc_register_generic(struct evrpc_base *base, const char *name,
+    void (*callback)(struct evrpc_req_generic *, void *), void *cbarg,
+    void *(*req_new)(void), void (*req_free)(void *),
+    int (*req_unmarshal)(void *, struct evbuffer *),
+    void *(*rpl_new)(void), void (*rpl_free)(void *),
+    int (*rpl_complete)(void *),
+    void (*rpl_marshal)(struct evbuffer *, void *))
+{
+	struct evrpc* rpc = 
+	    evrpc_register_object(name, req_new, req_free, req_unmarshal,
+		rpl_new, rpl_free, rpl_complete, rpl_marshal);
+	if (rpc == NULL)
+		return (-1);
+	evrpc_register_rpc(base, rpc,
+	    (void (*)(struct evrpc_req_generic*, void *))callback, cbarg);
+	return (0);
+}
+
 /** accessors for obscure and undocumented functionality */
 struct evrpc_pool *
 evrpc_request_get_pool(struct evrpc_request_wrapper *ctx)
