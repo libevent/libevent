@@ -24,14 +24,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVRPC_H_
-#define _EVRPC_H_
+#ifndef _EVENT2_RPC_H_
+#define _EVENT2_RPC_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <event2/event_struct.h>
 
 /** @file evrpc.h
  *
@@ -72,42 +70,7 @@ struct evbuffer;
 struct event_base;
 struct evrpc_req_generic;
 struct evrpc_request_wrapper;
-
-/* Encapsulates a request */
-struct evrpc {
-	TAILQ_ENTRY(evrpc) next;
-
-	/* the URI at which the request handler lives */
-	const char* uri;
-
-	/* creates a new request structure */
-	void *(*request_new)(void);
-
-	/* frees the request structure */
-	void (*request_free)(void *);
-
-	/* unmarshals the buffer into the proper request structure */
-	int (*request_unmarshal)(void *, struct evbuffer *);
-
-	/* creates a new reply structure */
-	void *(*reply_new)(void);
-
-	/* creates a new reply structure */
-	void (*reply_free)(void *);
-
-	/* verifies that the reply is valid */
-	int (*reply_complete)(void *);
-	
-	/* marshals the reply into a buffer */
-	void (*reply_marshal)(struct evbuffer*, void *);
-
-	/* the callback invoked for each received rpc */
-	void (*cb)(struct evrpc_req_generic *, void *);
-	void *cb_arg;
-
-	/* reference for further configuration */
-	struct evrpc_base *base;
-};
+struct evrpc;
 
 /** The type of a specific RPC Message
  *
@@ -539,4 +502,4 @@ void evrpc_request_set_cb(struct evrpc_request_wrapper *ctx,
 }
 #endif
 
-#endif /* _EVRPC_H_ */
+#endif /* _EVENT2_RPC_H_ */
