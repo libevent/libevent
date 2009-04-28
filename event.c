@@ -509,6 +509,17 @@ event_config_free(struct event_config *cfg)
 	mm_free(cfg);
 }
 
+
+int
+event_config_set_flag(struct event_config *cfg,
+    enum event_base_config_flag flag)
+{
+	if (!cfg)
+		return -1;
+	cfg->flags |= flag;
+	return 0;
+}
+
 int
 event_config_avoid_method(struct event_config *cfg, const char *method)
 {
