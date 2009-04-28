@@ -262,7 +262,7 @@ event_base_new_with_config(struct event_config *cfg)
 	base->evbase = NULL;
 
 	should_check_environment =
-	    cfg && (cfg->flags & EVENT_BASE_FLAG_IGNORE_ENV);
+	    !(cfg && (cfg->flags & EVENT_BASE_FLAG_IGNORE_ENV));
 
 	for (i = 0; eventops[i] && !base->evbase; i++) {
 		if (cfg != NULL) {
