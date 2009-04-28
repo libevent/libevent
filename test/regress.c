@@ -54,6 +54,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include "event2/event.h"
 #include "event2/event_struct.h"
@@ -1438,6 +1439,68 @@ end:
 }
 
 static void
+methodname_to_envvar(const char *mname, char *buf, size_t buflen)
+{
+	char *cp;
+	evutil_snprintf(buf, buflen, "EVENT_NO%s", mname);
+	for (cp = buf; *cp; ++cp) {
+		*cp = toupper(*cp);
+	}
+}
+
+static void
+test_base_environ(void *arg)
+{
+	const char **basenames;
+	char varbuf[128];
+	int i, n_methods=0;
+	struct event_base *base = NULL;
+	struct event_config *cfg = NULL;
+	const char *defaultname;
+
+	basenames = event_get_supported_methods();
+	for (i = 0; basenames[i]; ++i) {
+		methodname_to_envvar(basenames[i], varbuf, sizeof(varbuf));
+		unsetenv(varbuf);
+		++n_methods;
+	}
+
+	base = event_base_new();
+	tt_assert(base);
+
+	defaultname = event_base_get_method(base);
+	event_base_free(base);
+	base = NULL;
+
+	/* Can we disable the method with EVENT_NOfoo ? */
+	methodname_to_envvar(defaultname, varbuf, sizeof(varbuf));
+	setenv(varbuf, "1", 1);
+
+	base = event_base_new();
+	if (n_methods == 1) {
+		tt_assert(!base);
+	} else {
+		tt_assert(base);
+		tt_str_op(defaultname, !=, event_base_get_method(base));
+		event_base_free(base);
+		base = NULL;
+	}
+
+	/* Can we disable looking at the environment with IGNORE_ENV ? */
+	cfg = event_config_new();
+	event_config_set_flag(cfg, EVENT_BASE_FLAG_IGNORE_ENV);
+	base = event_base_new_with_config(cfg);
+	tt_assert(base);
+	tt_str_op(defaultname, ==, event_base_get_method(base));
+
+end:
+	if (base)
+		event_base_free(base);
+	if (cfg)
+		event_config_free(cfg);
+}
+
+static void
 read_called_once_cb(int fd, short event, void *arg)
 {
 	tt_int_op(event, ==, EV_READ);
@@ -1592,6 +1655,7 @@ struct testcase_t main_testcases[] = {
         { "methods", test_methods, TT_FORK, NULL, NULL },
 	{ "version", test_version, 0, NULL, NULL },
 	{ "base_features", test_base_features, TT_FORK, NULL, NULL },
+	{ "base_environ", test_base_environ, TT_FORK, NULL, NULL },
 
         /* These are still using the old API */
         LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
