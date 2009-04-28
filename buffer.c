@@ -1695,19 +1695,19 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 
         ASSERT_EVBUFFER_LOCKED(buffer);
 
-#ifdef SENDFILE_IS_MACOSX
+#if defined(SENDFILE_IS_MACOSX)
 	res = sendfile(info->fd, fd, chain->misalign, &len, NULL, 0);
 	if (res == -1 && !EVUTIL_ERR_RW_RETRIABLE(errno))
 		return (-1);
 
 	return (len);
-#elif SENDFILE_IS_FREEBSD
+#elif defined(SENDFILE_IS_FREEBSD)
 	res = sendfile(info->fd, fd, chain->misalign, len, NULL, &len, 0);
 	if (res == -1 && !EVUTIL_ERR_RW_RETRIABLE(errno))
 		return (-1);
 
 	return (len);
-#elif SENDFILE_IS_LINUX
+#elif defined(SENDFILE_IS_LINUX)
 	/* TODO(niels): implement splice */
 	res = sendfile(fd, info->fd, &offset, chain->off);
 	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
