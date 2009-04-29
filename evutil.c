@@ -195,7 +195,7 @@ evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 #ifndef WIN32
 	int one = 1;
 	/* REUSEADDR on Unix means, "don't hang on to this address after the
-	 * listener is closed."  On Windows, thoug, it means "don't keep other
+	 * listener is closed."  On Windows, though, it means "don't keep other
 	 * processes from binding to this address while we're using it. */
 	return setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void*) &one,
 	    (socklen_t)sizeof(one));
