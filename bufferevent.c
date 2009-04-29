@@ -119,6 +119,8 @@ bufferevent_run_deferred_callbacks(struct deferred_cb *_, void *arg)
 	struct bufferevent_private *bufev_private = arg;
 	struct bufferevent *bufev = &bufev_private->bev;
 
+	/* XXXX It would be better to run these without holding the
+	 * bufferevent lock */
 	BEV_LOCK(bufev);
 	if (bufev_private->readcb_pending && bufev->readcb) {
 		bufev_private->readcb_pending = 0;
