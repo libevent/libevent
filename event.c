@@ -930,8 +930,9 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 	struct timeval etv;
 	int res = 0;
 
-	/* We cannot support signals that just fire once */
-	if (events & EV_SIGNAL)
+	/* We cannot support signals that just fire once, or persistent
+	 * events. */
+	if (events & (EV_SIGNAL|EV_PERSIST))
 		return (-1);
 
 	if ((eonce = mm_calloc(1, sizeof(struct event_once))) == NULL)
