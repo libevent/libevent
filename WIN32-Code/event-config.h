@@ -331,4 +331,7 @@
 /* Define to unsigned int if you dont have it */
 #define _EVENT_socklen_t unsigned int
 
+/* Define to `int' if <sys/types.h> does not define. */
+#define _EVENT_ssize_t SSIZE_T
+
 #endif
