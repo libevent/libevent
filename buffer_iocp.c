@@ -82,7 +82,7 @@ struct evbuffer_overlapped {
 static inline struct evbuffer_overlapped *
 upcast_evbuffer(struct evbuffer *buf)
 {
-	if (!buf || buf->is_overlapped)
+	if (!buf || !buf->is_overlapped)
 		return NULL;
 	return EVUTIL_UPCAST(buf, struct evbuffer_overlapped, buffer);
 }
