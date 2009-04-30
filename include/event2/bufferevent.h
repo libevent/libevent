@@ -394,7 +394,7 @@ enum bufferevent_filter_result {
        on an error.
  */
 typedef enum bufferevent_filter_result (*bufferevent_filter_cb)(
-    struct evbuffer *src, struct evbuffer *dst, ssize_t dst_limit,
+    struct evbuffer *src, struct evbuffer *dst, ev_ssize_t dst_limit,
     enum bufferevent_flush_mode mode, void *ctx);
 
 /**

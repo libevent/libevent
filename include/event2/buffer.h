@@ -80,7 +80,7 @@ struct evbuffer;
     modify these values except with evbuffer_ptr_set.
  */
 struct evbuffer_ptr {
-	ssize_t pos;
+	ev_ssize_t pos;
 
 	/* Do not alter the values of fields. */
 	struct {
@@ -379,7 +379,7 @@ int evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd);
   @see evbuffer_read()
  */
 int evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
-						  ssize_t howmuch);
+						  ev_ssize_t howmuch);
 
 /**
   Read from a file descriptor and store the result in an evbuffer.
@@ -537,7 +537,7 @@ void evbuffer_cb_unsuspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb
   @return a pointer to the contigous memory areay
 */
 
-unsigned char *evbuffer_pullup(struct evbuffer *buf, ssize_t size);
+unsigned char *evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size);
 
 /**
   Prepends data to the beginning of the evbuffer

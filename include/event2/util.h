@@ -112,6 +112,12 @@ extern "C" {
 #define ev_uint8_t unsigned char
 #endif
 
+#ifdef _EVENT_ssize_t
+#define ev_ssize_t _EVENT_ssize_t
+#else
+#define ev_ssize_t ssize_t
+#endif
+
 #ifdef WIN32
 /** A type wide enough to hold the output of "socket()" or "accept()".  On
  * Windows, this is an intptr_t; elsewhere, it is an int. */
