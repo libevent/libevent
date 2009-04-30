@@ -268,6 +268,9 @@ struct testgroup_t testgroups[] = {
 	{ "dns/", dns_testcases },
 	{ "rpc/", rpc_testcases },
 	{ "thread/", thread_testcases },
+#ifdef WIN32
+	{ "iocp/", iocp_testcases },
+#endif
         END_OF_GROUPS
 };
 
