@@ -26,12 +26,15 @@
 
 #include <windows.h>
 #include <process.h>
+#include <stdio.h>
 
 #include "event2/util.h"
 #include "util-internal.h"
 #include "iocp-internal.h"
 #include "log-internal.h"
 #include "mm-internal.h"
+
+#define NOTIFICATION_KEY ((ULONG_PTR)-1)
 
 void
 event_overlapped_init(struct event_overlapped *o, iocp_callback cb)
@@ -56,18 +59,30 @@ loop(void *_port)
 	ULONG_PTR key;
 	DWORD bytes;
 	long ms = port->ms;
+	HANDLE p = port->port;
 
 	if (ms <= 0)
 		ms = INFINITE;
 
-
-	while (GetQueuedCompletionStatus(port->port, &bytes, &key,
+	while (GetQueuedCompletionStatus(p, &bytes, &key,
 		&overlapped, ms)) {
-		if (port->shutdown)
+		EnterCriticalSection(&port->lock);
+		if (port->shutdown) {
+			if (--port->n_live_threads == 0)
+				ReleaseSemaphore(port->shutdownSemaphore, 1, NULL);
+			LeaveCriticalSection(&port->lock);
 			return;
-		handle_entry(overlapped, key, bytes);
+		}
+		LeaveCriticalSection(&port->lock);
+
+		if (key != NOTIFICATION_KEY)
+			handle_entry(overlapped, key, bytes);
 	}
 	event_warnx("GetQueuedCompletionStatus exited with no event.");
+	EnterCriticalSection(&port->lock);
+	if (--port->n_live_threads == 0)
+		ReleaseSemaphore(port->shutdownSemaphore, 1, NULL);
+	LeaveCriticalSection(&port->lock);
 }
 
 int
@@ -85,26 +100,97 @@ struct event_iocp_port *
 event_iocp_port_launch(void)
 {
 	struct event_iocp_port *port;
-	int thread, i;
+	int i;
 
 	if (!(port = mm_calloc(1, sizeof(struct event_iocp_port))))
 		return NULL;
 	port->n_threads = 2;
-	port->port = CreateIoCompletionPort(NULL, NULL, 0, port->n_threads);
+	port->threads = calloc(port->n_threads, sizeof(HANDLE));
+	if (!port->threads)
+		goto err;
+
+	port->port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, port->n_threads);
 	port->ms = -1;
 	if (!port->port)
-		mm_free(port);
+		goto err;
 
-	for (i=0; i<port->n_threads; ++i)
-		thread = _beginthread(loop, 0, port);
+	port->shutdownSemaphore = CreateSemaphore(NULL, 0, 1, NULL);
+	if (!port->shutdownSemaphore)
+		goto err;
+
+	for (i=0; i<port->n_threads; ++i) {
+		uintptr_t th = _beginthread(loop, 0, port);
+		if (th == (uintptr_t)-1)
+			goto err;
+		port->threads[i] = (HANDLE)th;
+		++port->n_live_threads;
+	}
+
+	InitializeCriticalSection(&port->lock);
 
 	return port;
+err:
+	if (port->port)
+		CloseHandle(port->port);
+	if (port->threads)
+		mm_free(port->threads);
+	if (port->shutdownSemaphore)
+		CloseHandle(port->shutdownSemaphore);
+	mm_free(port);
+	return NULL;
 }
 
-
-void
-event_iocp_shutdown(struct event_iocp_port *port)
+static void
+_event_iocp_port_unlock_and_free(struct event_iocp_port *port)
 {
+	DeleteCriticalSection(&port->lock);
+	CloseHandle(port->port);
+	CloseHandle(port->shutdownSemaphore);
+	mm_free(port->threads);
+	mm_free(port);
+}
+
+static int
+event_iocp_notify_all(struct event_iocp_port *port)
+{
+	int i, r, ok=1;
+	for (i=0; i<port->n_threads; ++i) {
+		r = PostQueuedCompletionStatus(port->port, 0, NOTIFICATION_KEY,
+		    NULL);
+		if (!r)
+			ok = 0;
+	}
+	return ok ? 0 : -1;
+}
+
+int
+event_iocp_shutdown(struct event_iocp_port *port, long waitMsec)
+{
+	int n;
+	EnterCriticalSection(&port->lock);
 	port->shutdown = 1;
-	/* XXX notify. */
+	LeaveCriticalSection(&port->lock);
+	event_iocp_notify_all(port);
+
+	WaitForSingleObject(port->shutdownSemaphore, waitMsec);
+	EnterCriticalSection(&port->lock);
+	n = port->n_live_threads;
+	LeaveCriticalSection(&port->lock);
+	if (n == 0) {
+		_event_iocp_port_unlock_and_free(port);
+		return 0;
+	} else {
+		return -1;
+	}
+}
+
+int
+event_iocp_activate_overlapped(
+    struct event_iocp_port *port, struct event_overlapped *o,
+    uintptr_t key, ev_uint32_t n)
+{
+	BOOL r;
+
+	r = PostQueuedCompletionStatus(port->port, n, key, &o->overlapped);
+	return (r==0) ? -1 : 0;
 }
