@@ -30,6 +30,9 @@ endif
 if ZLIB_REGRESS
 regress_zlib_SOURCES = regress_zlib.c
 endif
+if BUILD_WIN32
+regress_SOURCES += regress_iocp.c
+endif
 regress_LDADD = ../libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
 regress_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat \
 	-I$(top_srcdir)/include  $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
