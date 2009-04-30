@@ -33,6 +33,7 @@
 
 #include <windows.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "event2/buffer.h"
 #include "event2/buffer_compat.h"
@@ -102,9 +103,9 @@ pin_release(struct event_overlapped *eo, unsigned flag)
 	struct evbuffer_chain *chain = bo->first_pinned;
 
 	for (i = 0; i < bo->n_buffers; ++i) {
+		assert(chain);
 		_evbuffer_chain_unpin(chain, flag);
 		chain = chain->next;
-		assert(chain);
 	}
 }
 
@@ -167,8 +168,10 @@ evbuffer_overlapped_new(evutil_socket_t fd)
 	evo = mm_calloc(1, sizeof(struct evbuffer_overlapped));
 
 	TAILQ_INIT(&evo->buffer.callbacks);
+	evo->buffer.refcnt = 1;
 
 	evo->buffer.is_overlapped = 1;
+	evo->fd = fd;
 
 	return &evo->buffer;
 }
@@ -247,11 +250,12 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
 	struct evbuffer_overlapped *buf_o = upcast_evbuffer(buf);
 	int r = -1;
 	int nvecs;
+	int npin=0;
 	struct evbuffer_chain *chain=NULL;
 	DWORD bytesRead;
 	DWORD flags = 0;
 
-	if (!buf)
+	if (!buf_o)
 		return -1;
 	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
 	if (buf->freeze_end || buf_o->read_in_progress)
@@ -270,8 +274,12 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
 	    buf_o->read_info.buffers, &chain);
 	buf_o->read_info.n_buffers = nvecs;
 	buf_o->read_info.first_pinned = chain;
-	for ( ; chain; chain = chain->next)
+	npin=0;
+	for ( ; chain; chain = chain->next) {
 		_evbuffer_chain_pin(chain, EVBUFFER_MEM_PINNED_R);
+		++npin;
+	}
+	assert(npin == nvecs);
 
 	_evbuffer_incref(buf);
 	if (WSARecv(buf_o->fd, buf_o->read_info.buffers, nvecs, &bytesRead, &flags, &buf_o->read_info.event_overlapped.overlapped, NULL)) {
