@@ -388,7 +388,7 @@ evutil_inet_ntop(int af, const void *src, char *dst, size_t len)
 							(int)(ev_uint8_t)((a>>16)&0xff),
 							(int)(ev_uint8_t)((a>>8 )&0xff),
 							(int)(ev_uint8_t)((a    )&0xff));
-		if (r<0||r>=len)
+		if (r<0||(size_t)r>=len)
 			return NULL;
 		else
 			return dst;
@@ -490,7 +490,7 @@ evutil_inet_pton(int af, const char *src, void *dst)
 #ifdef AF_INET6
 	} else if (af == AF_INET6) {
 		struct in6_addr *out = dst;
-		uint16_t words[8];
+		ev_uint16_t words[8];
 		int gapPos = -1, i, setWords=0;
 		const char *dot = strchr(src, '.');
 		const char *eow; /* end of words. */
@@ -536,7 +536,7 @@ evutil_inet_pton(int af, const char *src, void *dst)
 				if (r<0 || r>65536)
 					return 0;
 
-				words[i++] = (uint16_t)r;
+				words[i++] = (ev_uint16_t)r;
 				setWords++;
 				src = next;
 				if (*src != ':' && src != eow)
@@ -565,8 +565,8 @@ evutil_inet_pton(int af, const char *src, void *dst)
 			if (nToMove < 0)
 				return -1; /* should be impossible */
 			memmove(&words[gapPos+gapLen], &words[gapPos],
-					sizeof(uint16_t)*nToMove);
-			memset(&words[gapPos], 0, sizeof(uint16_t)*gapLen);
+					sizeof(ev_uint16_t)*nToMove);
+			memset(&words[gapPos], 0, sizeof(ev_uint16_t)*gapLen);
 		}
 		for (i = 0; i < 8; ++i) {
 			out->s6_addr[2*i  ] = words[i] >> 8;

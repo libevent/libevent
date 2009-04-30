@@ -33,6 +33,14 @@
 extern "C" {
 #endif
 
+/* If we need magic to say "inline", get it for free internally. */
+#ifdef _EVENT_inline
+#define inline _EVENT_inline
+#endif
+#ifdef _EVENT___func__
+#define __func__ _EVENT___func__
+#endif
+
 /* A good no-op to use in macro definitions. */
 #define _EVUTIL_NIL_STMT ((void)0)
 
