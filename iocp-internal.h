@@ -60,13 +60,26 @@ struct event_overlapped {
 struct event_iocp_port {
 	/** The port itself */
 	HANDLE port;
-	/** Number of threads open on the port. */
-	int n_threads;
+	/* A lock to cover internal structures. */
+	CRITICAL_SECTION lock;
+	/** Number of threads ever open on the port. */
+	short n_threads;
 	/** True iff we're shutting down all the threads on this port */
-	int shutdown;
+	short shutdown;
 	/** How often the threads on this port check for shutdown and other
 	 * conditions */
 	long ms;
+	/* The threads that are waiting for events. */
+	HANDLE *threads;
+	/** Number of threads currently open on this port. */
+	short n_live_threads;
+	/* A semaphore to signal when we are done shutting down. */
+	HANDLE *shutdownSemaphore;
+};
+#else
+/* Dummy definition so we can test-compile more things on unix. */
+struct event_overlapped {
+	iocp_callback cb;
 };
 #endif
 
@@ -120,8 +133,18 @@ struct event_iocp_port *event_iocp_port_launch(void);
 int event_iocp_port_associate(struct event_iocp_port *port, evutil_socket_t fd,
     uintptr_t key);
 
-/** Shut down all threads serving an iocp. */
-void event_iocp_shutdown(struct event_iocp_port *port);
+/** Tell all threads serving an iocp to stop.  Wait for up to waitMsec for all
+    the threads to finish whatever they're doing.  If all the threads are
+    done, free the port and return 0.  Otherwise, return -1.  If you get a -1
+    return value, it is safe to call this function again.
+*/
+int event_iocp_shutdown(struct event_iocp_port *port, long waitMsec);
+
+/* FIXME document. */
+int event_iocp_activate_overlapped(struct event_iocp_port *port,
+    struct event_overlapped *o,
+    uintptr_t key, ev_uint32_t n_bytes);
+
 
 #ifdef __cplusplus
 }
