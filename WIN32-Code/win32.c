@@ -25,12 +25,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifdef _MSC_VER
-#include "./config.h"
-#else
-/* Avoid the windows/msvc thing. */
-#include "../config.h"
-#endif
 
 #include <winsock2.h>
 #include <windows.h>
@@ -43,8 +37,11 @@
 #include <errno.h>
 #include <assert.h>
 
+#include "event2/util.h"
+#include "event-config.h"
+#include "util-internal.h"
 #include "log-internal.h"
-#include "event.h"
+#include "event2/event.h"
 #include "event-internal.h"
 #include "evmap-internal.h"
 
@@ -280,7 +277,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 {
 	struct win32op *win32op = base->evbase;
 	int res = 0;
-	int i;
+	unsigned i;
 	int fd_count;
 
 	fd_set_copy(win32op->readset_out, win32op->readset_in);

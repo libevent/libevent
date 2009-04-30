@@ -469,7 +469,7 @@ event_get_supported_methods(void)
 	tmp[i] = NULL;
 
 	if (methods != NULL)
-		mm_free(methods);
+		mm_free((char**)methods);
 
 	methods = tmp;
 
