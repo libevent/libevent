@@ -1448,6 +1448,21 @@ methodname_to_envvar(const char *mname, char *buf, size_t buflen)
 	}
 }
 
+#ifdef WIN32
+static void setenv(const char *k, const char *v, int _o)
+{
+	char b[256];
+	evutil_snprintf(b, sizeof(b), "%s=%s",k,v);
+	putenv(b);
+}
+static void unsetenv(const char *k)
+{
+	char b[256];
+	evutil_snprintf(b, sizeof(b), "%s=",k);
+	putenv(b);
+}
+#endif
+
 static void
 test_base_environ(void *arg)
 {
@@ -1476,7 +1491,11 @@ test_base_environ(void *arg)
 	methodname_to_envvar(defaultname, varbuf, sizeof(varbuf));
 	setenv(varbuf, "1", 1);
 
-	base = event_base_new();
+	/* Use an empty cfg rather than NULL so a failure doesn't exit() */
+	cfg = event_config_new();
+	base = event_base_new_with_config(cfg);
+	event_config_free(cfg);
+	cfg = NULL;
 	if (n_methods == 1) {
 		tt_assert(!base);
 	} else {
