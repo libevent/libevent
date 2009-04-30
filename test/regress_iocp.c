@@ -28,7 +28,9 @@
 #include <string.h>
 #include <event2/event.h>
 #include <event2/thread.h>
+#include <event2/buffer.h>
 
+#include "regress.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"
 
@@ -76,7 +78,7 @@ pair_is_in(struct dummy_overlapped *o, uintptr_t key, ssize_t n)
 }
 
 static void
-test_iocp_port(void *loop)
+test_iocp_port(void *ptr)
 {
 	struct event_iocp_port *port = NULL;
 	struct dummy_overlapped o1, o2;
@@ -136,7 +138,55 @@ end:
 	;
 }
 
+static void
+test_iocp_evbuffer(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_iocp_port *port = NULL;
+	struct evbuffer *rbuf = NULL, *wbuf = NULL;
+	char junk[1024];
+	int i;
+
+#ifdef WIN32
+	evthread_use_windows_threads();
+#endif
+
+	for (i = 0; i < sizeof(junk); ++i)
+		junk[i] = (char)(i);
+
+	rbuf = evbuffer_overlapped_new(data->pair[0]);
+	wbuf = evbuffer_overlapped_new(data->pair[1]);
+	evbuffer_enable_locking(rbuf, NULL);
+	evbuffer_enable_locking(wbuf, NULL);
+
+	port = event_iocp_port_launch();
+	tt_assert(port);
+	tt_assert(rbuf);
+	tt_assert(wbuf);
+
+	tt_assert(!event_iocp_port_associate(port, data->pair[0], 100));
+	tt_assert(!event_iocp_port_associate(port, data->pair[1], 100));
+
+	for (i=0;i<10;++i)
+		evbuffer_add(wbuf, junk, sizeof(junk));
+
+	tt_assert(!evbuffer_launch_read(rbuf, 2048));
+	tt_assert(!evbuffer_launch_write(wbuf, 512));
+
+#ifdef WIN32
+	Sleep(1000);
+#endif
+
+	/* Actually test some stuff here. */
+
+end:
+	evbuffer_free(rbuf);
+	evbuffer_free(wbuf);
+}
+
 struct testcase_t iocp_testcases[] = {
-	{ "iocp_port", test_iocp_port, TT_FORK, NULL, NULL },
+	{ "port", test_iocp_port, TT_FORK, NULL, NULL },
+	{ "evbuffer", test_iocp_evbuffer, TT_FORK|TT_NEED_SOCKETPAIR,
+	  &basic_setup, NULL },
 	END_OF_TESTCASES
 };
