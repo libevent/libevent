@@ -25,6 +25,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <event2/event.h>
 #include <event2/thread.h>
 
@@ -98,8 +99,17 @@ test_iocp_port(void *loop)
 	port = event_iocp_port_launch();
 	tt_assert(port);
 
-	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 10, 105));
-	tt_assert(!event_iocp_activate_overlapped(port, &o2.eo, 25, 205));
+	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 10, 100));
+	tt_assert(!event_iocp_activate_overlapped(port, &o2.eo, 20, 200));
+
+	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 11, 101));
+	tt_assert(!event_iocp_activate_overlapped(port, &o2.eo, 21, 201));
+
+	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 12, 102));
+	tt_assert(!event_iocp_activate_overlapped(port, &o2.eo, 22, 202));
+
+	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 13, 103));
+	tt_assert(!event_iocp_activate_overlapped(port, &o2.eo, 23, 203));
 
 #ifdef WIN32
 	/* FIXME Be smarter. */
@@ -108,10 +118,18 @@ test_iocp_port(void *loop)
 
 	tt_want(!event_iocp_shutdown(port, 2000));
 
-	tt_int_op(o1.call_count, ==, 1);
-	tt_int_op(o2.call_count, ==, 1);
-	tt_want(pair_is_in(&o1, 10, 105));
-	tt_want(pair_is_in(&o2, 25, 205));
+	tt_int_op(o1.call_count, ==, 4);
+	tt_int_op(o2.call_count, ==, 4);
+
+	tt_want(pair_is_in(&o1, 10, 100));
+	tt_want(pair_is_in(&o1, 11, 101));
+	tt_want(pair_is_in(&o1, 12, 102));
+	tt_want(pair_is_in(&o1, 13, 103));
+
+	tt_want(pair_is_in(&o2, 20, 200));
+	tt_want(pair_is_in(&o2, 21, 201));
+	tt_want(pair_is_in(&o2, 22, 202));
+	tt_want(pair_is_in(&o2, 23, 203));
 
 end:
 	/* FIXME free the locks. */
