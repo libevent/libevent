@@ -32,9 +32,13 @@ extern "C" {
 #endif
 
 #include "event-config.h"
-#include "evutil.h"
+#include "event2/util.h"
+#include "util-internal.h"
 #include "defer-internal.h"
 
+#ifdef WIN32
+#include <winsock2.h>
+#endif
 #include <sys/queue.h>
 /* minimum allocation for a chain. */
 #define MIN_BUFFER_SIZE	256

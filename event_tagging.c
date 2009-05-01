@@ -65,6 +65,7 @@
 #include "event2/buffer.h"
 #include "log-internal.h"
 #include "mm-internal.h"
+#include "util-internal.h"
 
 int evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf);
 int evtag_encode_tag(struct evbuffer *evbuf, ev_uint32_t tag);
@@ -447,7 +448,7 @@ evtag_unmarshal_int(struct evbuffer *evbuf, ev_uint32_t need_tag,
 
 	result = decode_int_internal(pinteger, evbuf, 0);
 	evbuffer_drain(evbuf, len);
-	if (result < 0 || result > len) /* XXX Should this be != rather than > ?*/
+	if (result < 0 || (size_t)result > len) /* XXX Should this be != rather than > ?*/
 		return (-1);
 	else
 		return result;
@@ -473,7 +474,7 @@ evtag_unmarshal_int64(struct evbuffer *evbuf, ev_uint32_t need_tag,
 
 	result = decode_int64_internal(pinteger, evbuf, 0);
 	evbuffer_drain(evbuf, len);
-	if (result < 0 || result > len) /* XXX Should this be != rather than > ?*/
+	if (result < 0 || (size_t)result > len) /* XXX Should this be != rather than > ?*/
 		return (-1);
 	else
 		return result;

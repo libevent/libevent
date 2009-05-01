@@ -97,6 +97,10 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdarg.h>
+#ifdef WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
 
 #include <event2/dns.h>
 #include <event2/dns_struct.h>
@@ -118,9 +122,7 @@
 #include "evthread-internal.h"
 #ifdef WIN32
 #include <ctype.h>
-#include <winsock2.h>
 #include <windows.h>
-#include <ws2tcpip.h>
 #include <iphlpapi.h>
 #include <io.h>
 #else
@@ -989,6 +991,9 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			sizeof(tmp_name))<0)			\
 			goto err;				\
 	} while(0)
+#ifdef _MSC_VER
+#define strcasecmp _strcmpi
+#endif
 #define TEST_NAME							\
 	do { tmp_name[0] = '\0';					\
 		cmp_name[0] = '\0';					\
