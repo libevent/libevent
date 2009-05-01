@@ -777,7 +777,8 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			return (MORE_DATA_EXPECTED);
 
 		/* Completed chunk */
-		evbuffer_remove_buffer(buf, req->input_buffer, req->ntoread);
+		/* XXXX fixme: what if req->ntoread is > SIZE_T_MAX? */
+		evbuffer_remove_buffer(buf, req->input_buffer, (size_t)req->ntoread);
 		req->ntoread = -1;
 		if (req->chunk_cb != NULL) {
 			req->flags |= EVHTTP_REQ_DEFER_FREE;
@@ -2148,7 +2149,8 @@ evhttp_decode_uri_internal(
 	const char *uri, size_t length, char *ret, int always_decode_plus)
 {
 	char c;
-	int i, j, in_query = always_decode_plus;
+	int j, in_query = always_decode_plus;
+	unsigned i;
 
 	for (i = j = 0; i < length; i++) {
 		c = uri[i];

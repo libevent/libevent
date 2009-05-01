@@ -32,6 +32,7 @@
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
+#include <io.h>
 #endif
 
 #ifdef _EVENT_HAVE_VASPRINTF
@@ -839,27 +840,28 @@ evbuffer_pullup(struct evbuffer *buf, ssize_t size)
 
         chain = buf->first;
 
-	if (size == -1)
+	if (size < 0)
 		size = buf->total_len;
 	/* if size > buf->total_len, we cannot guarantee to the user that she
 	 * is going to have a long enough buffer afterwards; so we return
 	 * NULL */
-	if (size == 0 || size > buf->total_len)
+	if (size == 0 || (size_t)size > buf->total_len)
                 goto done;
 
 	/* No need to pull up anything; the first size bytes are
 	 * already here. */
-        if (chain->off >= size) {
+        if (chain->off >= (size_t)size) {
                 result = chain->buffer + chain->misalign;
                 goto done;
         }
 
 	/* Make sure that none of the chains we need to copy from is pinned. */
 	remaining = size - chain->off;
+	assert(remaining >= 0);
 	for (tmp=chain->next; tmp; tmp=tmp->next) {
 		if (CHAIN_PINNED(tmp))
 			goto done;
-		if (tmp->off >= remaining)
+		if (tmp->off >= (size_t)remaining)
 			break;
 		remaining -= tmp->off;
 	}
@@ -875,7 +877,7 @@ evbuffer_pullup(struct evbuffer *buf, ssize_t size)
 		tmp->off = size;
 		size -= old_off;
 		chain = chain->next;
-	} else if (chain->buffer_len - chain->misalign >= size) {
+	} else if (chain->buffer_len - chain->misalign >= (size_t)size) {
 		/* already have enough space in the first chain */
 		size_t old_off = chain->off;
 		buffer = chain->buffer + chain->misalign + chain->off;
@@ -896,7 +898,7 @@ evbuffer_pullup(struct evbuffer *buf, ssize_t size)
 	/* TODO(niels): deal with buffers that point to NULL like sendfile */
 
 	/* Copy and free every chunk that will be entirely pulled into tmp */
-	for (; chain != NULL && size >= chain->off; chain = next) {
+	for (; chain != NULL && (size_t)size >= chain->off; chain = next) {
 		next = chain->next;
 
 		memcpy(buffer, chain->buffer + chain->misalign, chain->off);
@@ -946,7 +948,8 @@ static inline int
 evbuffer_strchr(struct evbuffer_iterator *it, const char chr)
 {
 	struct evbuffer_chain *chain = it->chain;
-	int i = it->off, count = 0;
+	unsigned i = it->off;
+	int count = 0;
 	while (chain != NULL) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
 		for (; i < chain->off; ++i, ++count) {
@@ -967,7 +970,8 @@ static inline int
 evbuffer_strpbrk(struct evbuffer_iterator *it, const char *chrset)
 {
 	struct evbuffer_chain *chain = it->chain;
-	int i = it->off, count = 0;
+	unsigned i = it->off;
+	int count = 0;
 	while (chain != NULL) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
 		for (; i < chain->off; ++i, ++count) {
@@ -989,7 +993,7 @@ evbuffer_strpbrk(struct evbuffer_iterator *it, const char *chrset)
 
 static inline int
 evbuffer_strspn(
-	struct evbuffer_chain *chain, int i, const char *chrset)
+	struct evbuffer_chain *chain, unsigned i, const char *chrset)
 {
 	int count = 0;
 	while (chain != NULL) {
@@ -1017,7 +1021,7 @@ evbuffer_getchr(struct evbuffer_iterator *it, char *pchr)
 	struct evbuffer_chain *chain = it->chain;
 	int off = it->off;
 
-	while (off >= chain->off) {
+	while ((size_t)off >= chain->off) {
 		off -= chain->off;
 		chain = chain->next;
 		if (chain == NULL)
@@ -1153,7 +1157,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 			buf->total_len += datlen;
                         buf->n_add_for_cb += datlen;
 			goto out;
-		} else if (chain->misalign >= datlen && !CHAIN_PINNED(chain)) {
+		} else if ((size_t)chain->misalign >= datlen && !CHAIN_PINNED(chain)) {
 			/* we can fit the data into the misalignment */
 			evbuffer_chain_align(chain);
 
@@ -1224,7 +1228,7 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 
 	/* we cannot touch immutable buffers */
 	if ((chain->flags & EVBUFFER_IMMUTABLE) == 0) {
-		if (chain->misalign >= datlen) {
+		if ((size_t)chain->misalign >= datlen) {
 			/* we have enough space */
 			memcpy(chain->buffer + chain->misalign - datlen,
 			    data, datlen);
@@ -1460,6 +1464,9 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
 	struct evbuffer_chain *chain;
 	int nvecs;
 
+	if (howmuch < 0)
+		return -1;
+
 	chain = buf->last;
 
 	if (chain->off == 0 && buf->previous_to_last &&
@@ -1472,7 +1479,7 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
 		vecs[0].IOV_LEN_FIELD = CHAIN_SPACE_LEN(prev);
 		vecs[1].IOV_PTR_FIELD = CHAIN_SPACE_PTR(chain);
 		vecs[1].IOV_LEN_FIELD = CHAIN_SPACE_LEN(chain);
-		if (vecs[0].IOV_LEN_FIELD >= howmuch) {
+		if (vecs[0].IOV_LEN_FIELD >= (size_t)howmuch) {
 			/* The next-to-last chain has enough
 			 * space on its own. */
 			chain = prev;
@@ -1481,7 +1488,7 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
 			/* We'll need both chains. */
 			chain = prev;
 			nvecs = 2;
-			if (vecs[0].IOV_LEN_FIELD + vecs[1].IOV_LEN_FIELD > howmuch) {
+			if (vecs[0].IOV_LEN_FIELD + vecs[1].IOV_LEN_FIELD > (size_t)howmuch) {
 				vecs[1].IOV_LEN_FIELD = howmuch - vecs[0].IOV_LEN_FIELD;
 			}
 		}
@@ -1491,7 +1498,7 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
 		nvecs = 1;
 		vecs[0].IOV_PTR_FIELD = CHAIN_SPACE_PTR(chain);
 		vecs[0].IOV_LEN_FIELD = CHAIN_SPACE_LEN(chain);
-		if (vecs[0].IOV_LEN_FIELD > howmuch)
+		if (vecs[0].IOV_LEN_FIELD > (size_t)howmuch)
 			vecs[0].IOV_LEN_FIELD = howmuch;
 	}
 
@@ -1542,7 +1549,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 		 */
 		if (chain == NULL || n < EVBUFFER_MAX_READ)
 			n = EVBUFFER_MAX_READ;
-		else if (n > chain->buffer_len << 2)
+		else if ((size_t)n > chain->buffer_len << 2)
 			n = chain->buffer_len << 2;
 	}
 #endif
@@ -1611,7 +1618,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 
 #ifdef USE_IOVEC_IMPL
 	if (nvecs == 2) {
-		size_t space = CHAIN_SPACE_LEN(chain);
+		ssize_t space = CHAIN_SPACE_LEN(chain);
 		if (space < n) {
 			chain->off += space;
 			chain->next->off += n-space;
@@ -1644,6 +1651,9 @@ ssize_t howmuch)
 	struct evbuffer_chain *chain = buffer->first;
 	int n, i = 0;
 
+	if (howmuch < 0)
+		return -1;
+
         ASSERT_EVBUFFER_LOCKED(buffer);
 	/* XXX make this top out at some maximal data length?  if the
 	 * buffer has (say) 1MB in it, split over 128 chains, there's
@@ -1655,7 +1665,7 @@ ssize_t howmuch)
 			break;
 #endif
 		iov[i].IOV_PTR_FIELD = chain->buffer + chain->misalign;
-		if (howmuch >= chain->off) {
+		if ((size_t)howmuch >= chain->off) {
 			iov[i++].IOV_LEN_FIELD = chain->off;
 			howmuch -= chain->off;
 		} else {
@@ -1962,7 +1972,7 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 
 		if (sz < 0)
 			goto done;
-		if (sz < space) {
+		if ((size_t)sz < space) {
 			chain->off += sz;
 			buf->total_len += sz;
                         buf->n_add_for_cb += sz;
@@ -2135,6 +2145,9 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		if (tmp == NULL)
 			return (-1);
 
+#ifdef WIN32
+#define lseek _lseek
+#endif
 		if (lseek(fd, offset, SEEK_SET) == -1) {
 			evbuffer_free(tmp);
 			return (-1);
@@ -2161,6 +2174,9 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 			evbuffer_add_buffer(outbuf, tmp);
 			evbuffer_free(tmp);
 
+#ifdef WIN32
+#define close _close
+#endif
 			close(fd);
 		}
 	}

@@ -27,6 +27,10 @@
 #include <sys/types.h>
 #include <assert.h>
 
+#ifdef WIN32
+#include <winsock2.h>
+#endif
+
 #ifdef HAVE_CONFIG_H
 #include "event-config.h"
 #endif

@@ -202,7 +202,7 @@
 /* #undef _EVENT_HAVE_SYS_MMAN_H */
 
 /* Define to 1 if you have the <sys/param.h> header file. */
-#define _EVENT_HAVE_SYS_PARAM_H 1
+/* #define _EVENT_HAVE_SYS_PARAM_H 1 */
 
 /* Define to 1 if you have the <sys/queue.h> header file. */
 /* #undef _EVENT_HAVE_SYS_QUEUE_H */
@@ -332,6 +332,6 @@
 #define _EVENT_socklen_t unsigned int
 
 /* Define to `int' if <sys/types.h> does not define. */
-#define _EVENT_ssize_t SSIZE_T
+#define _EVENT_ssize_t intptr_t
 
 #endif

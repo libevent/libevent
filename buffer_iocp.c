@@ -31,10 +31,6 @@
    objects on Windows.
 */
 
-#include <windows.h>
-#include <assert.h>
-#include <stdio.h>
-
 #include "event2/buffer.h"
 #include "event2/buffer_compat.h"
 #include "event2/util.h"
@@ -45,6 +41,10 @@
 #include "evbuffer-internal.h"
 #include "iocp-internal.h"
 #include "mm-internal.h"
+
+#include <windows.h>
+#include <assert.h>
+#include <stdio.h>
 
 #define MAX_WSABUFS 16
 
@@ -123,7 +123,7 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ssize_t nBytes)
 	evbuffer_unfreeze(evbuf, 0);
 
 	if (chain == evbuf->previous_to_last) {
-		size_t n = chain->buffer_len - (chain->misalign + chain->off);
+		ssize_t n = chain->buffer_len - (chain->misalign + chain->off);
 		if (n>nBytes)
 			n=nBytes;
 		chain->off += n;
@@ -197,7 +197,7 @@ evbuffer_launch_write(struct evbuffer *buf, ssize_t at_most)
 		/* Nothing to write */
 		r = 0;
 		goto done;
-	} else if (at_most > buf->total_len || at_most < 0) {
+	} else if (at_most < 0 || (size_t)at_most > buf->total_len) {
 		at_most = buf->total_len;
 	}
 	evbuffer_freeze(buf, 1);
@@ -213,7 +213,7 @@ evbuffer_launch_write(struct evbuffer *buf, ssize_t at_most)
 		b->buf = chain->buffer + chain->misalign;
 		_evbuffer_chain_pin(chain, EVBUFFER_MEM_PINNED_W);
 
-		if (at_most > chain->off) {
+		if ((size_t)at_most > chain->off) {
 			b->len = chain->off;
 			at_most -= chain->off;
 		} else {
