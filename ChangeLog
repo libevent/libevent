@@ -13,6 +13,8 @@ Changes in 2.0.2-alpha:
  o Do not use vararg macros for accessing evrpc structures; this is not backwards compatible, but we did not promise any backwards compatibility for the rpc code.
  o Actually define the event_config_set_flag() function.
  o Try harder to compile with Visual C++.
+ o Move event_set() and its allies to event2/event_compat.h where they belong.
+
 
 Changes in 2.0.1-alpha:
  o free minheap on event_base_free(); from Christopher Layne

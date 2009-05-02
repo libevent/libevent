@@ -316,10 +316,10 @@ int event_base_loopbreak(struct event_base *);
   Define a timer event.
 
   @param ev event struct to be modified
+  @param b an event_base
   @param cb callback function
   @param arg argument that will be passed to the callback function
  */
-#define evtimer_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
 #define evtimer_assign(ev, b, cb, arg)  event_assign(ev, b, -1, 0, cb, arg)
 #define evtimer_new(b, cb, arg)		event_new(b, -1, 0, cb, arg)
 
@@ -341,8 +341,6 @@ int event_base_loopbreak(struct event_base *);
 #define evtimer_initialized(ev)		_event_initialized((ev), 0)
 
 #define evsignal_add(ev, tv)		event_add(ev, tv)
-#define evsignal_set(ev, x, cb, arg)	\
-	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
 #define evsignal_assign(ev, b, x, cb, arg)                   \
 	event_assign(ev, b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
 #define evsignal_new(b, x, cb, arg) \
@@ -350,43 +348,6 @@ int event_base_loopbreak(struct event_base *);
 #define evsignal_del(ev)		event_del(ev)
 #define evsignal_pending(ev, tv)	event_pending(ev, EV_SIGNAL, tv)
 #define evsignal_initialized(ev)	_event_initialized((ev), 0)
-
-/**
-  Prepare an event structure to be added.
-
-  The function event_set() prepares the event structure ev to be used in
-  future calls to event_add() and event_del().  The event will be prepared to
-  call the function specified by the fn argument with an int argument
-  indicating the file descriptor, a short argument indicating the type of
-  event, and a void * argument given in the arg argument.  The fd indicates
-  the file descriptor that should be monitored for events.  The events can be
-  either EV_READ, EV_WRITE, or both.  Indicating that an application can read
-  or write from the file descriptor respectively without blocking.
-
-  The function fn will be called with the file descriptor that triggered the
-  event and the type of event which will be either EV_TIMEOUT, EV_SIGNAL,
-  EV_READ, or EV_WRITE.  The additional flag EV_PERSIST makes an event_add()
-  persistent until event_del() has been called.
-
-  For read and write events, edge-triggered behavior can be requested
-  with the EV_ET flag.  Not all backends support edge-triggered
-  behavior.  When an edge-triggered event is activated, the EV_ET flag
-  is added to its events argument.
-
-  @param ev an event struct to be modified
-  @param fd the file descriptor to be monitored
-  @param event desired events to monitor; can be EV_READ and/or EV_WRITE
-  @param fn callback function to be invoked when the event occurs
-  @param arg an argument to be passed to the callback function
-
-  @see event_add(), event_del(), event_once()
-
-  @deprecated event_set() is not recommended for new code, because it requires
-     a subsequent call to event_base_set() to be safe under many circumstances.
-     Use event_assign() or event_new() instead.
- */
-void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
-
 
 /**
   Prepare an event structure to be added.
