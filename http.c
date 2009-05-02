@@ -1193,9 +1193,12 @@ evhttp_connection_cb(struct bufferevent *bufev, void *arg)
 	if (evcon->timeout == -1)
 		bufferevent_settimeout(evcon->bufev,
 		    HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT);
-	else
-		bufferevent_settimeout(evcon->bufev,
-		    evcon->timeout, evcon->timeout);
+	else {
+		struct timeval tv;
+		tv.tv_sec = evcon->timeout;
+		tv.tv_usec = 0;
+		bufferevent_set_timeouts(evcon->bufev, &tv, &tv);
+	}
 
 	/* try to start requests that have queued up on this connection */
 	evhttp_request_dispatch(evcon);
