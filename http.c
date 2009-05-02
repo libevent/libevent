@@ -2658,7 +2658,8 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
 }
 
 void
-evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
+evhttp_send_reply_chunk_with_cb(struct evhttp_request *req, struct evbuffer *databuf,
+    void (*cb)(struct evhttp_connection *, void *), void *arg)
 {
 	struct evhttp_connection *evcon = req->evcon;
 	struct evbuffer *output;
@@ -2680,9 +2681,14 @@ evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
 	if (req->chunked) {
 		evbuffer_add(output, "\r\n", 2);
 	}
-	evhttp_write_buffer(evcon, NULL, NULL);
+	evhttp_write_buffer(evcon, cb, arg);
 }
 
+void
+evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
+{
+	evhttp_send_reply_chunk_with_cb(req, databuf, NULL, NULL);
+}
 void
 evhttp_send_reply_end(struct evhttp_request *req)
 {
