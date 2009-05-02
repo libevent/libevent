@@ -71,8 +71,7 @@ basic_thread(void *arg)
 	assert(pthread_mutex_init(&cw.lock, NULL) == 0);
 	assert(pthread_cond_init(&cw.cond, NULL) == 0);
 
-	evtimer_set(&ev, basic_timeout, &cw);
-	event_base_set(base, &ev);
+	evtimer_assign(&ev, base, basic_timeout, &cw);
 	for (i = 0; i < 100; i++) {
 		struct timeval tv;
 		evutil_timerclear(&tv);
@@ -110,8 +109,7 @@ pthread_basic(struct event_base *base)
 	for (i = 0; i < NUM_THREADS; ++i)
 		pthread_create(&threads[i], NULL, basic_thread, base);
 
-	evtimer_set(&ev, NULL, NULL);
-	event_base_set(base, &ev);
+	evtimer_assign(&ev, base, NULL, NULL);
 	evutil_timerclear(&tv);
 	tv.tv_sec = 1000;
 	event_add(&ev, &tv);
