@@ -14,6 +14,7 @@ Changes in 2.0.2-alpha:
  o Actually define the event_config_set_flag() function.
  o Try harder to compile with Visual C++.
  o Move event_set() and its allies to event2/event_compat.h where they belong.
+ o Remove the event_gotsig code, which has long been deprecated and unused.
 
 
 Changes in 2.0.1-alpha:

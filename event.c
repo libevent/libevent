@@ -125,10 +125,6 @@ struct event_base *current_base = NULL;
 extern struct event_base *evsig_base;
 static int use_monotonic;
 
-/* Handle signals - This is a deprecated interface */
-int (*event_sigcb)(void);		/* Signal callback when gotsig is set */
-volatile sig_atomic_t event_gotsig;	/* Set in signal handler */
-
 /* Prototypes */
 static inline int event_add_internal(struct event *ev,
     const struct timeval *tv);
@@ -243,9 +239,6 @@ event_base_new_with_config(struct event_config *cfg)
 
 	if ((base = mm_calloc(1, sizeof(struct event_base))) == NULL)
 		event_err(1, "%s: calloc", __func__);
-
-	event_sigcb = NULL;
-	event_gotsig = 0;
 
 	detect_monotonic();
 	gettime(base, &base->event_tv);
@@ -616,7 +609,7 @@ event_signal_closure(struct event_base *base, struct event *ev)
 		ncalls--;
 		ev->ev_ncalls = ncalls;
 		(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
-		if (event_gotsig || base->event_break)
+		if (base->event_break)
 			return;
 	}
 }
@@ -660,7 +653,7 @@ event_process_active_single_queue(struct event_base *base,
 		else
 			(*ev->ev_callback)(
 				(int)ev->ev_fd, ev->ev_res, ev->ev_arg);
-		if (event_gotsig || base->event_break)
+		if (base->event_break)
 			return -1;
 		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	}
@@ -681,7 +674,7 @@ event_process_deferred_callbacks(struct event_base *base)
 
 		cb->cb(cb, cb->arg);
 		++count;
-		if (event_gotsig || base->event_break)
+		if (base->event_break)
 			return -1;
 
 		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
@@ -829,18 +822,6 @@ event_base_loop(struct event_base *base, int flags)
 		if (base->event_break) {
 			base->event_break = 0;
 			break;
-		}
-
-		/* You cannot use this interface for multi-threaded apps */
-		while (event_gotsig) {
-			event_gotsig = 0;
-			if (event_sigcb) {
-				res = (*event_sigcb)();
-				if (res == -1) {
-					errno = EINTR;
-					return (-1);
-				}
-			}
 		}
 
 		timeout_correct(base, &tv);
