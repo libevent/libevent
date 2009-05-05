@@ -120,6 +120,7 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ssize_t nBytes)
 	struct evbuffer_chain *chain = buf_o->first_pinned;
 
 	EVBUFFER_LOCK(evbuf, EVTHREAD_WRITE);
+	buf->read_in_progress = 0;
 	evbuffer_unfreeze(evbuf, 0);
 
 	if (chain == evbuf->previous_to_last) {
@@ -139,7 +140,6 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ssize_t nBytes)
 
 	pin_release(eo, EVBUFFER_MEM_PINNED_R);
 
-	buf->read_in_progress = 0;
 	_evbuffer_decref_and_unlock(evbuf);
 }
 
@@ -153,10 +153,10 @@ write_completed(struct event_overlapped *eo, uintptr_t _, ssize_t nBytes)
 	struct evbuffer *evbuf = &buf->buffer;
 
 	EVBUFFER_LOCK(evbuf, EVTHREAD_WRITE);
+	buf->write_in_progress = 0;
 	evbuffer_unfreeze(evbuf, 1);
 	evbuffer_drain(evbuf, nBytes);
 	pin_release(eo,EVBUFFER_MEM_PINNED_W);
-	buf->write_in_progress = 0;
 	_evbuffer_decref_and_unlock(evbuf);
 }
 

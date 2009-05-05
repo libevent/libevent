@@ -57,6 +57,7 @@ EXTRA_DIST = \
 	evthread_win32.c \
 	evthread_pthread.c \
 	whatsnew-2.0.txt \
+	bufferevent_async.c \
 	WIN32-Code/config.h \
 	WIN32-Code/win32.c \
 	WIN32-Code/tree.h \
@@ -75,7 +76,8 @@ SUBDIRS = . include sample test
 if BUILD_WIN32
 
 SYS_LIBS = -lws2_32
-SYS_SRC = WIN32-Code/win32.c evthread_win32.c buffer_iocp.c event_iocp.c
+SYS_SRC = WIN32-Code/win32.c evthread_win32.c buffer_iocp.c event_iocp.c \
+	bufferevent_async.c
 SYS_INCLUDES = -IWIN32-Code
 
 else

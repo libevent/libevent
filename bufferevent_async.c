@@ -105,7 +105,7 @@ bev_async_consider_writing(struct bufferevent_async *b)
 	if (!evbuffer_get_length(b->bev.bev.output))
 		return;
 
-	/* XXXX doesn't respect low-water mark very well. */
+	/*  XXXX doesn't respect low-water mark very well. */
 	if (evbuffer_launch_write(b->bev.bev.output, -1)) {
 		assert(0);/* XXX act sensibly. */
 	} else {
@@ -118,6 +118,7 @@ bev_async_consider_reading(struct bufferevent_async *b)
 {
 	size_t cur_size;
 	size_t read_high;
+	size_t at_most;
 	/* Don't read if there is a read in progress, or we do not
 	 * want to read. */
 	if (b->read_in_progress || !(b->bev.bev.enabled&EV_READ))
@@ -126,10 +127,15 @@ bev_async_consider_reading(struct bufferevent_async *b)
 	/* Don't read if we're full */
 	cur_size = evbuffer_get_length(b->bev.bev.input);
 	read_high = b->bev.bev.wm_read.high;
-	if (cur_size >= read_high)
-		return;
+	if (read_high) {
+		if (cur_size >= read_high)
+			return;
+		at_most = read_high - cur_size;
+	} else {
+		at_most = 16384; /* FIXME totally magic. */
+	}
 
-	if (evbuffer_launch_read(b->bev.bev.input, read_high-cur_size)) {
+	if (evbuffer_launch_read(b->bev.bev.input, at_most)) {
 		assert(0);
 	} else {
 		b->read_in_progress = 1;
