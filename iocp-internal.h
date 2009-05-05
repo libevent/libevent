@@ -145,6 +145,7 @@ int event_iocp_activate_overlapped(struct event_iocp_port *port,
     struct event_overlapped *o,
     uintptr_t key, ev_uint32_t n_bytes);
 
+struct event_base;
 struct event_iocp_port *event_base_get_iocp(struct event_base *base);
 
 #ifdef __cplusplus

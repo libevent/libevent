@@ -176,14 +176,18 @@ test_iocp_evbuffer(void *ptr)
 	for (i=0;i<10;++i)
 		evbuffer_add(wbuf, junk, sizeof(junk));
 
-	tt_assert(!evbuffer_launch_read(rbuf, 2048));
+	tt_assert(!evbuffer_get_length(rbuf));
 	tt_assert(!evbuffer_launch_write(wbuf, 512));
+	tt_assert(!evbuffer_launch_read(rbuf, 2048));
 
 #ifdef WIN32
 	/* FIXME this is stupid. */
 	Sleep(1000);
 #endif
 
+	tt_int_op(evbuffer_get_length(rbuf),==,512);
+	
+	
 	/* FIXME Actually test some stuff here. */
 
 end:
@@ -220,9 +224,9 @@ test_iocp_bufferevent_async(void *ptr)
 #endif
 
 	bea1 = bufferevent_async_new(data->base, data->pair[0],
-	    BEV_OPT_DEFER_CALLBACKS);
+	    0); /* We'd defer callbacks, but that would need a base. */
 	bea2 = bufferevent_async_new(data->base, data->pair[1],
-	    BEV_OPT_DEFER_CALLBACKS);
+	    0);
 	tt_assert(bea1);
 	tt_assert(bea2);
 
@@ -239,7 +243,7 @@ test_iocp_bufferevent_async(void *ptr)
 #endif
 	n = bufferevent_read(bea2, buf, sizeof(buf)-1);
 	buf[n]='\0';
-	tt_assert(!strcmp(buf, "Hello world"));
+	tt_str_op(buf, ==, "Hello world");
 
 end:
 	/* FIXME: free stuff. */;

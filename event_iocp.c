@@ -33,6 +33,7 @@
 #include "iocp-internal.h"
 #include "log-internal.h"
 #include "mm-internal.h"
+#include "event-internal.h"
 
 #define NOTIFICATION_KEY ((ULONG_PTR)-1)
 
@@ -195,7 +196,7 @@ event_iocp_activate_overlapped(
 	return (r==0) ? -1 : 0;
 }
 
-struct event_iocp *
+struct event_iocp_port *
 event_base_get_iocp(struct event_base *base)
 {
 #ifdef WIN32
