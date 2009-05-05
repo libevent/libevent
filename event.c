@@ -1095,6 +1095,12 @@ event_get_fd(struct event *ev)
 	return ev->ev_fd;
 }
 
+struct event_base *
+event_get_base(struct event *ev)
+{
+	return ev->ev_base;
+}
+
 int
 event_add(struct event *ev, const struct timeval *tv)
 {

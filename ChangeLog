@@ -15,6 +15,7 @@ Changes in 2.0.2-alpha:
  o Try harder to compile with Visual C++.
  o Move event_set() and its allies to event2/event_compat.h where they belong.
  o Remove the event_gotsig code, which has long been deprecated and unused.
+ o Add an event_get_base() function to return the base assigned to an event.
 
 
 Changes in 2.0.1-alpha:
