@@ -503,6 +503,11 @@ int _event_initialized(struct event *, int check_fd);
 */
 evutil_socket_t event_get_fd(struct event *ev);
 
+/**
+   Get the event_base assigned to an event.
+*/
+struct event_base *event_get_base(struct event *ev);
+
 #ifndef EVENT_FD
 /* We haven't included event_struct.h, so define these as function calls
  * rather than as direct struct access.  If we include event_struct.h later,
