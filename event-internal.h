@@ -154,6 +154,10 @@ struct event_base {
 	void *th_base_lock;
 #endif
 
+#ifdef WIN32
+	struct event_iocp_port *iocp;
+#endif
+
 	/* Notify main thread to wake up break, etc. */
 	int th_notify_fd[2];
 	struct event th_notify;

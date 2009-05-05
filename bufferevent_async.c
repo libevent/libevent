@@ -67,7 +67,7 @@ static void be_async_adj_timeouts(struct bufferevent *);
 static int be_async_flush(struct bufferevent *, short, enum bufferevent_flush_mode);
 
 const struct bufferevent_ops bufferevent_ops_async = {
-	"socket",
+	"socket_async",
 	0,
 	be_async_enable,
 	be_async_disable,
@@ -228,4 +228,51 @@ be_async_flush(struct bufferevent *bev, short what,
     enum bufferevent_flush_mode mode)
 {
 	return 0;
+}
+
+struct bufferevent *
+bufferevent_async_new(struct event_base *base,
+    evutil_socket_t fd, enum bufferevent_options options);
+
+struct bufferevent *
+bufferevent_async_new(struct event_base *base,
+    evutil_socket_t fd, enum bufferevent_options options)
+{
+	struct bufferevent_async *bev_a;
+	struct bufferevent *bev;
+	struct event_iocp_port *iocp;
+
+	options |= BEV_OPT_THREADSAFE;
+
+	if (!(iocp = event_base_get_iocp(base)))
+		return NULL;
+
+	if (event_iocp_port_associate(iocp, fd, 1)<0)
+		return NULL;
+
+	if (!(bev_a = mm_calloc(1, sizeof(struct bufferevent_async))))
+		return NULL;
+
+	bev = &bev_a->bev.bev;
+	if (!(bev->input = evbuffer_overlapped_new(fd))) {
+		mm_free(bev_a);
+		return NULL;
+	}
+	if (!(bev->output = evbuffer_overlapped_new(fd))) {
+		evbuffer_free(bev->input);
+		mm_free(bev_a);
+		return NULL;
+	}
+
+	if (bufferevent_init_common(&bev_a->bev, base, &bufferevent_ops_async,
+		options)<0)
+		goto err;
+
+	evbuffer_add_cb(bev->input, be_async_inbuf_callback, bev);
+	evbuffer_add_cb(bev->output, be_async_outbuf_callback, bev);
+
+	return bev;
+err:
+	bufferevent_free(&bev_a->bev.bev);
+	return NULL;
 }

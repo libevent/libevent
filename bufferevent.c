@@ -203,12 +203,16 @@ bufferevent_init_common(struct bufferevent_private *bufev_private,
 {
 	struct bufferevent *bufev = &bufev_private->bev;
 
-	if ((bufev->input = evbuffer_new()) == NULL)
-		return -1;
+	if (!bufev->input) {
+		if ((bufev->input = evbuffer_new()) == NULL)
+			return -1;
+	}
 
-	if ((bufev->output = evbuffer_new()) == NULL) {
-		evbuffer_free(bufev->input);
-		return -1;
+	if (!bufev->output) {
+		if ((bufev->output = evbuffer_new()) == NULL) {
+			evbuffer_free(bufev->input);
+			return -1;
+		}
 	}
 
 	bufev_private->refcnt = 1;

@@ -194,3 +194,14 @@ event_iocp_activate_overlapped(
 	r = PostQueuedCompletionStatus(port->port, n, key, &o->overlapped);
 	return (r==0) ? -1 : 0;
 }
+
+struct event_iocp *
+event_base_get_iocp(struct event_base *base)
+{
+#ifdef WIN32
+	return base->iocp;
+#else
+	return NULL
+#endif
+}
+
