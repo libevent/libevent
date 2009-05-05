@@ -29,6 +29,7 @@
 #include <event2/event.h>
 #include <event2/thread.h>
 #include <event2/buffer.h>
+#include <event2/bufferevent.h>
 
 #include "regress.h"
 #include "tinytest.h"
@@ -36,6 +37,11 @@
 
 #include "iocp-internal.h"
 #include "evthread-internal.h"
+
+/* FIXME remove these ones */
+#include <sys/queue.h>
+#include "event2/event_struct.h"
+#include "event-internal.h"
 
 #define MAX_CALLS 16
 struct dummy_overlapped {
@@ -174,19 +180,77 @@ test_iocp_evbuffer(void *ptr)
 	tt_assert(!evbuffer_launch_write(wbuf, 512));
 
 #ifdef WIN32
+	/* FIXME this is stupid. */
 	Sleep(1000);
 #endif
 
-	/* Actually test some stuff here. */
+	/* FIXME Actually test some stuff here. */
 
 end:
 	evbuffer_free(rbuf);
 	evbuffer_free(wbuf);
 }
 
+/*FIXME get this from a header once it's in one. */
+struct bufferevent *
+bufferevent_async_new(struct event_base *base,
+    evutil_socket_t fd, enum bufferevent_options options);
+
+static void
+test_iocp_bufferevent_async(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_iocp_port *port = NULL;
+	struct bufferevent *bea1=NULL, *bea2=NULL;
+	char buf[128];
+	size_t n;
+
+
+#ifdef WIN32
+	evthread_use_windows_threads();
+#endif
+
+	port = event_iocp_port_launch();
+	tt_assert(port);
+
+
+#ifdef WIN32
+	/* FIXME set this indirectly once there is an interface to do that. */
+	data->base->iocp = port;
+#endif
+
+	bea1 = bufferevent_async_new(data->base, data->pair[0],
+	    BEV_OPT_DEFER_CALLBACKS);
+	bea2 = bufferevent_async_new(data->base, data->pair[1],
+	    BEV_OPT_DEFER_CALLBACKS);
+	tt_assert(bea1);
+	tt_assert(bea2);
+
+	/*FIXME set some callbacks */
+
+	bufferevent_enable(bea1, EV_WRITE);
+	bufferevent_enable(bea2, EV_READ);
+
+	bufferevent_write(bea1, "Hello world", strlen("Hello world")+1);
+
+#ifdef WIN32
+/* FIXME: again, stupid. */
+	Sleep(1000);
+#endif
+	n = bufferevent_read(bea2, buf, sizeof(buf)-1);
+	buf[n]='\0';
+	tt_assert(!strcmp(buf, "Hello world"));
+
+end:
+	/* FIXME: free stuff. */;
+}
+
+
 struct testcase_t iocp_testcases[] = {
 	{ "port", test_iocp_port, TT_FORK, NULL, NULL },
 	{ "evbuffer", test_iocp_evbuffer, TT_FORK|TT_NEED_SOCKETPAIR,
 	  &basic_setup, NULL },
+	{ "bufferevent_async", test_iocp_bufferevent_async,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE, &basic_setup, NULL },
 	END_OF_TESTCASES
 };
