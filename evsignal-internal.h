@@ -28,8 +28,9 @@
 #define _EVSIGNAL_H_
 
 #ifndef evutil_socket_t
-#include "evutil.h"
+#include "event2/util.h"
 #endif
+#include <signal.h>
 
 typedef void (*ev_sighandler_t)(int);
 
