@@ -78,9 +78,11 @@ extern "C" {
 #define EVBUFFER_EOF		0x10	/**< eof file reached */
 #define EVBUFFER_ERROR		0x20	/**< unrecoverable error encountered */
 #define EVBUFFER_TIMEOUT	0x40	/**< user specified timeout reached */
+#define EVBUFFER_CONNECTED	0x80	/**< connect operation finished. */
 struct bufferevent;
 struct event_base;
 struct evbuffer;
+struct sockaddr;
 
 /**
    type definition for the read or write callback.
@@ -134,12 +136,29 @@ enum bufferevent_options {
 
   @param base the event base to associate with the new bufferevent.
   @param fd the file descriptor from which data is read and written to.
-  		This file descriptor is not allowed to be a pipe(2).
+	    This file descriptor is not allowed to be a pipe(2).
+	    It is safe to set the fd to -1, so long as you later
+	    set it with bufferevent_setfd or bufferevent_socket_connect().
   @return a pointer to a newly allocated bufferevent struct, or NULL if an
           error occurred
   @see bufferevent_free()
   */
 struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socket_t fd, enum bufferevent_options options);
+
+/**
+   Launch a connect() attempt with a socket.  When the connect succeeds,
+   the errorcb will be invoked with EVBUFFER_CONNECTED set.
+
+   If the bufferevent does not already have a socket set, we allocate a new
+   socket here and make it nonblocking before we begin.
+
+   @param bufev an existing bufferevent allocated with
+       bufferevent_socket_new().
+   @param addr the address we should connect to
+   @param socklen The length of the address
+   @return 0 on success, -1 on failure.
+ */
+int bufferevent_socket_connect(struct bufferevent *, struct sockaddr *, int);
 
 /**
   Assign a bufferevent to a specific event_base.

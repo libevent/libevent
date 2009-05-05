@@ -16,6 +16,8 @@ Changes in 2.0.2-alpha:
  o Move event_set() and its allies to event2/event_compat.h where they belong.
  o Remove the event_gotsig code, which has long been deprecated and unused.
  o Add an event_get_base() function to return the base assigned to an event.
+ o New function to automate connecting on a socket-based bufferevent.
+ o New functions to automate listening for incoming TCP connections.
 
 
 Changes in 2.0.1-alpha:
