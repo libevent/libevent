@@ -55,6 +55,10 @@
 #include <errno.h>
 #include <assert.h>
 
+#ifdef _EVENT_HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
 #include "event-config.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
@@ -64,6 +68,7 @@
 #include "event2/bufferevent.h"
 #include "event2/bufferevent_compat.h"
 #include "event2/bufferevent_struct.h"
+#include "event2/listener.h"
 #include "event2/util.h"
 
 #include "bufferevent-internal.h"
@@ -364,6 +369,108 @@ test_bufferevent_pair_filters(void)
 	test_bufferevent_filters_impl(1);
 }
 
+
+static void
+sender_writecb(struct bufferevent *bev, void *ctx)
+{
+	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
+		bufferevent_disable(bev,EV_READ|EV_WRITE);
+		bufferevent_free(bev);
+	}
+}
+
+static void
+sender_errorcb(struct bufferevent *bev, short what, void *ctx)
+{
+	TT_FAIL(("Got sender error %d",(int)what));
+}
+
+static int n_strings_read = 0;
+
+#define TEST_STR "Now is the time for all good events to signal for " \
+	"the good of their protocol"
+static void
+listen_cb(evutil_socket_t fd, struct sockaddr *sa, int socklen, void *arg)
+{
+	struct event_base *base = arg;
+	struct bufferevent *bev;
+	const char s[] = TEST_STR;
+	bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+	bufferevent_write(bev, s, sizeof(s));
+	bufferevent_setcb(bev, NULL, sender_writecb, sender_errorcb, NULL);
+	bufferevent_enable(bev, EV_WRITE);
+}
+
+static void
+reader_eventcb(struct bufferevent *bev, short what, void *ctx)
+{
+	struct event_base *base = ctx;
+	if (what & EVBUFFER_ERROR) {
+		perror("foobar");
+		TT_FAIL(("got connector error %d", (int)what));
+		return;
+	}
+	if (what & EVBUFFER_CONNECTED) {
+		bufferevent_enable(bev, EV_READ);
+	}
+	if (what & EVBUFFER_EOF) {
+		char buf[512];
+		size_t n;
+		n = bufferevent_read(bev, buf, sizeof(buf)-1);
+		buf[n] = '\0';
+		tt_str_op(buf, ==, TEST_STR);
+		if (++n_strings_read == 2)
+			event_base_loopexit(base, NULL);
+	}
+end:
+	;
+}
+
+static void
+test_bufferevent_connect(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evconnlistener *lev=NULL;
+	struct bufferevent *bev1=NULL, *bev2=NULL;
+	struct sockaddr_in localhost;
+	struct sockaddr *sa = (struct sockaddr*)&localhost;
+
+	memset(&localhost, 0, sizeof(localhost));
+
+	localhost.sin_port = htons(27015);
+	localhost.sin_addr.s_addr = htonl(0x7f000001L);
+	localhost.sin_family = AF_INET;
+
+	lev = evconnlistener_new_bind(data->base, listen_cb, data->base,
+	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
+	    16, sa, sizeof(localhost));
+	tt_assert(lev);
+	tt_assert(!evconnlistener_enable(lev));
+	bev1 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
+	bev2 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
+	bufferevent_setcb(bev1, NULL, NULL, reader_eventcb, data->base);
+	bufferevent_setcb(bev2, NULL, NULL, reader_eventcb, data->base);
+
+	tt_want(!bufferevent_socket_connect(bev1, sa, sizeof(localhost)));
+	tt_want(!bufferevent_socket_connect(bev2, sa, sizeof(localhost)));
+
+	bufferevent_enable(bev1, EV_READ);
+	bufferevent_enable(bev2, EV_READ);
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(n_strings_read, ==, 2);
+end:
+	if (lev)
+		evconnlistener_free(lev);
+
+	if (bev1)
+		bufferevent_free(bev1);
+
+	if (bev2)
+		bufferevent_free(bev2);
+}
+
 struct testcase_t bufferevent_testcases[] = {
 
         LEGACY(bufferevent, TT_ISOLATED),
@@ -372,6 +479,8 @@ struct testcase_t bufferevent_testcases[] = {
         LEGACY(bufferevent_pair_watermarks, TT_ISOLATED),
         LEGACY(bufferevent_filters, TT_ISOLATED),
         LEGACY(bufferevent_pair_filters, TT_ISOLATED),
+	{ "bufferevent_connect", test_bufferevent_connect, TT_FORK|TT_NEED_BASE,
+	  &basic_setup, NULL },
 #ifdef _EVENT_HAVE_LIBZ
         LEGACY(bufferevent_zlib, TT_ISOLATED),
 #else

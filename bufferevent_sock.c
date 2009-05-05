@@ -52,6 +52,10 @@
 #include <winsock2.h>
 #endif
 
+#ifdef _EVENT_HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+
 #include "event2/util.h"
 #include "event2/bufferevent.h"
 #include "event2/buffer.h"
@@ -172,12 +176,22 @@ static void
 bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 {
 	struct bufferevent *bufev = arg;
+	struct bufferevent_private *bufev_p =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	int res = 0;
 	short what = EVBUFFER_WRITE;
 
 	if (event == EV_TIMEOUT) {
 		what |= EVBUFFER_TIMEOUT;
 		goto error;
+	}
+	if (bufev_p->connecting) {
+		bufev_p->connecting = 0;
+		_bufferevent_run_errorcb(bufev, EVBUFFER_CONNECTED);
+		if (!(bufev->enabled & EV_WRITE)) {
+			event_del(&bufev->ev_write);
+			return;
+		}
 	}
 
 	if (evbuffer_get_length(bufev->output)) {
@@ -250,6 +264,50 @@ bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
 	return bufev;
 }
 
+int
+bufferevent_socket_connect(struct bufferevent *bev,
+    struct sockaddr *sa, int socklen)
+{
+	struct bufferevent_private *bufev_p =
+	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+
+	int family = sa->sa_family;
+	evutil_socket_t fd;
+	int made_socket = 0;
+
+	if (!bufev_p)
+		return -1;
+
+	fd = event_get_fd(&bev->ev_read);
+	if (fd < 0) {
+		made_socket = 1;
+		if ((fd = socket(family, SOCK_STREAM, 0)) < 0)
+			return -1;
+		if (evutil_make_socket_nonblocking(fd) < 0) {
+			EVUTIL_CLOSESOCKET(fd);
+			return -1;
+		}
+		bufferevent_setfd(bev, fd);
+	}
+
+	if (connect(fd, sa, socklen)<0) {
+		int e = evutil_socket_geterror(fd);
+		if (EVUTIL_ERR_CONNECT_RETRIABLE(e)) {
+			if (! be_socket_enable(bev, EV_WRITE)) {
+				bufev_p->connecting = 1;
+				return 0;
+			}
+		}
+		_bufferevent_run_errorcb(bev, EVBUFFER_ERROR);
+		/* do something about the error? */
+	} else {
+		/* The connect succeeded already. How odd. */
+		_bufferevent_run_errorcb(bev, EVBUFFER_CONNECTED);
+	}
+
+	return 0;
+}
+
 /*
  * Create a new buffered event object.
  *
@@ -293,11 +351,14 @@ be_socket_enable(struct bufferevent *bufev, short event)
 static int
 be_socket_disable(struct bufferevent *bufev, short event)
 {
+	struct bufferevent_private *bufev_p =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (event & EV_READ) {
 		if (event_del(&bufev->ev_read) == -1)
 			return -1;
 	}
-	if (event & EV_WRITE) {
+	/* Don't actually disable the write if we are trying to connect. */
+	if ((event & EV_WRITE) && ! bufev_p->connecting) {
 		if (event_del(&bufev->ev_write) == -1)
 			return -1;
 	}

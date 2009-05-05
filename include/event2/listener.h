@@ -1,0 +1,103 @@
+/*
+ * Copyright (c) 2000-2007 Niels Provos <provos@citi.umich.edu>
+ * Copyright (c) 2007-2009 Niels Provos and Nick Mathewson
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+#ifndef _EVENT2_LISTENER_H_
+#define _EVENT2_LISTENER_H_
+
+#include <event2/event.h>
+
+struct sockaddr;
+struct evconnlistener;
+
+/**
+   A callback that we invoke when a listener has a new connection.
+
+   @param fd The new file descriptor
+   @param addr The source address of the connection
+   @param socklen The length of addr
+   @param user_arg the pointer passed to evconnlistener_new()
+ */
+typedef void (*evconnlistener_cb)(evutil_socket_t, struct sockaddr *, int socklen, void *);
+
+/** Flag: Indicates that we should not make incoming sockets nonblocking
+ * before passing them to the callback. */
+#define LEV_OPT_LEAVE_SOCKETS_BLOCKING	(1u<<0)
+/** Flag: Indicates that freeing the listener should close the underlying
+ * socket. */
+#define LEV_OPT_CLOSE_ON_FREE		(1u<<1)
+/** Flag: Indicates that we should set the close-on-exec flag, if possible */
+#define LEV_OPT_CLOSE_ON_EXEC		(1u<<2)
+/** Flag: Indicates that we should disable the timeout (if any) between when
+ * this socket is closed and when we can listen again on the same port. */
+#define LEV_OPT_REUSEABLE		(1u<<3)
+
+/**
+   Allocate a new evconnlistener object to listen for incoming TCP connections
+   on a given file descriptor.
+
+   @param base The event base to associate the listener with.
+   @param cb A callback to be invoked when a new connection arrives.
+   @param ptr A user-supplied pointer to give to the callback.
+   @param flags Any number of LEV_OPT_* flags
+   @param backlog Passed to the listen() call to determine the length of the
+      acceptable connection backlog.  Set to -1 for a reasonable default.
+   @param fd The file descriptor to listen on.  It must be a nonblocking
+      file descriptor, and it should already be bound to an appropriate
+      port and address.
+*/
+struct evconnlistener *evconnlistener_new(struct event_base *base,
+    evconnlistener_cb cb, void *ptr, unsigned flags, int backlog,
+    evutil_socket_t fd);
+/**
+   Allocate a new evconnlistener object to listen for incoming TCP connections
+   on a given address.
+
+   @param base The event base to associate the listener with.
+   @param cb A callback to be invoked when a new connection arrives.
+   @param ptr A user-supplied pointer to give to the callback.
+   @param flags Any number of LEV_OPT_* flags
+   @param backlog Passed to the listen() call to determine the length of the
+      acceptable connection backlog.  Set to -1 for a reasonable default.
+   @param addr The address to listen for connections on.
+   @param socklen The length of the address.
+ */
+struct evconnlistener *evconnlistener_new_bind(struct event_base *base,
+    evconnlistener_cb cb, void *ptr, unsigned flags, int backlog,
+    const struct sockaddr *sa, int socklen);
+/**
+   Disable and deallocate an evconnlistener.
+ */
+void evconnlistener_free(struct evconnlistener *lev);
+/**
+   Re-enable an evconnlistener that has been disabled.
+ */
+int evconnlistener_enable(struct evconnlistener *lev);
+/**
+   Stop listening for connections on an evconnlistener.
+ */
+int evconnlistener_disable(struct evconnlistener *lev);
+
+#endif

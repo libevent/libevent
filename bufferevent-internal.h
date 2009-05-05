@@ -49,6 +49,7 @@ struct bufferevent_private {
 
 	unsigned readcb_pending : 1;
 	unsigned writecb_pending : 1;
+	unsigned connecting : 1;
 	short errorcb_pending;
 	int errno_pending;
 	struct deferred_cb deferred;
