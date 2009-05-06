@@ -190,6 +190,7 @@ test_iocp_evbuffer(void *ptr)
 	
 	/* FIXME Actually test some stuff here. */
 
+	tt_want(!event_iocp_shutdown(port, 2000));
 end:
 	evbuffer_free(rbuf);
 	evbuffer_free(wbuf);
@@ -208,6 +209,7 @@ test_iocp_bufferevent_async(void *ptr)
 	struct bufferevent *bea1=NULL, *bea2=NULL;
 	char buf[128];
 	size_t n;
+	struct timeval one_sec = {1,0};
 
 
 #ifdef WIN32
@@ -224,27 +226,26 @@ test_iocp_bufferevent_async(void *ptr)
 #endif
 
 	bea1 = bufferevent_async_new(data->base, data->pair[0],
-	    0); /* We'd defer callbacks, but that would need a base. */
+	    BEV_OPT_DEFER_CALLBACKS);
 	bea2 = bufferevent_async_new(data->base, data->pair[1],
-	    0);
+	    BEV_OPT_DEFER_CALLBACKS);
 	tt_assert(bea1);
 	tt_assert(bea2);
 
 	/*FIXME set some callbacks */
-
 	bufferevent_enable(bea1, EV_WRITE);
 	bufferevent_enable(bea2, EV_READ);
 
 	bufferevent_write(bea1, "Hello world", strlen("Hello world")+1);
 
-#ifdef WIN32
-/* FIXME: again, stupid. */
-	Sleep(1000);
-#endif
+	event_base_loopexit(data->base, &one_sec);
+	event_base_dispatch(data->base);
+
 	n = bufferevent_read(bea2, buf, sizeof(buf)-1);
 	buf[n]='\0';
 	tt_str_op(buf, ==, "Hello world");
 
+	tt_want(!event_iocp_shutdown(port, 2000));
 end:
 	/* FIXME: free stuff. */;
 }
