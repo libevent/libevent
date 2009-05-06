@@ -180,7 +180,7 @@ be_async_inbuf_callback(struct evbuffer *buf,
 	/* If we successfully read into the inbuf, or we drained data from
 	 * the inbuf and were not reading before, we may want to read now */
 
-	BEV_UNLOCK(bev);
+	BEV_LOCK(bev);
 	if (cbinfo->n_added) {
 		/* XXXX can't detect 0-length read completion */
 		bev_async->read_in_progress = 0;
@@ -277,6 +277,8 @@ bufferevent_async_new(struct event_base *base,
 
 	evbuffer_add_cb(bev->input, be_async_inbuf_callback, bev);
 	evbuffer_add_cb(bev->output, be_async_outbuf_callback, bev);
+	evbuffer_defer_callbacks(bev->input, base);
+	evbuffer_defer_callbacks(bev->output, base);
 
 	return bev;
 err:
