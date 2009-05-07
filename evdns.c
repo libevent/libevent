@@ -988,9 +988,6 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			sizeof(tmp_name))<0)			\
 			goto err;				\
 	} while(0)
-#ifdef _MSC_VER
-#define strcasecmp _strcmpi
-#endif
 #define TEST_NAME							\
 	do { tmp_name[0] = '\0';					\
 		cmp_name[0] = '\0';					\
@@ -1005,7 +1002,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			if (strcmp(tmp_name, cmp_name) == 0)		\
 				name_matches = 1;			\
 		} else {						\
-			if (strcasecmp(tmp_name, cmp_name) == 0)	\
+			if (evutil_strcasecmp(tmp_name, cmp_name) == 0)	\
 				name_matches = 1;			\
 		}							\
 	} while(0)
