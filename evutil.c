@@ -734,3 +734,34 @@ const char EVUTIL_TOLOWER_TABLE[256] = {
   224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,
 };
+
+int
+evutil_strcasecmp(const char *s1, const char *s2)
+{
+	char c1, c2;
+	while (1) {
+		c1 = EVUTIL_TOLOWER(*s1++);
+		c2 = EVUTIL_TOLOWER(*s2++);
+		if (c1 < c2)
+			return -1;
+		else if (c1 > c2)
+			return 1;
+		else if (c1 == 0)
+			return 0;
+	}
+}
+int evutil_strncasecmp(const char *s1, const char *s2, size_t n)
+{
+	char c1, c2;
+	while (n--) {
+		c1 = EVUTIL_TOLOWER(*s1++);
+		c2 = EVUTIL_TOLOWER(*s2++);
+		if (c1 < c2)
+			return -1;
+		else if (c1 > c2)
+			return 1;
+		else if (c1 == 0)
+			return 0;
+	}
+	return 0;
+}

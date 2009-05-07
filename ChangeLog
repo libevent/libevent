@@ -18,6 +18,7 @@ Changes in 2.0.2-alpha:
  o Add an event_get_base() function to return the base assigned to an event.
  o New function to automate connecting on a socket-based bufferevent.
  o New functions to automate listening for incoming TCP connections.
+ o Do case-insensitive checks with a locale-independent comparison function.
 
 
 Changes in 2.0.1-alpha:

@@ -96,11 +96,6 @@
 #include "http-internal.h"
 #include "mm-internal.h"
 
-#ifdef WIN32
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
-#endif
-
 #ifndef _EVENT_HAVE_GETNAMEINFO
 #define NI_MAXSERV 32
 #define NI_MAXHOST 1025
@@ -423,10 +418,10 @@ evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 	if (flags & EVHTTP_PROXY_REQUEST) {
 		/* proxy connection */
 		const char *connection = evhttp_find_header(headers, "Proxy-Connection");
-		return (connection == NULL || strcasecmp(connection, "keep-alive") != 0);
+		return (connection == NULL || evutil_strcasecmp(connection, "keep-alive") != 0);
 	} else {
 		const char *connection = evhttp_find_header(headers, "Connection");
-		return (connection != NULL && strcasecmp(connection, "close") == 0);
+		return (connection != NULL && evutil_strcasecmp(connection, "close") == 0);
 	}
 }
 
@@ -435,7 +430,7 @@ evhttp_is_connection_keepalive(struct evkeyvalq* headers)
 {
 	const char *connection = evhttp_find_header(headers, "Connection");
 	return (connection != NULL
-	    && strncasecmp(connection, "keep-alive", 10) == 0);
+	    && evutil_strncasecmp(connection, "keep-alive", 10) == 0);
 }
 
 static void
@@ -1330,7 +1325,7 @@ evhttp_find_header(const struct evkeyvalq *headers, const char *key)
 	struct evkeyval *header;
 
 	TAILQ_FOREACH(header, headers, next) {
-		if (strcasecmp(header->key, key) == 0)
+		if (evutil_strcasecmp(header->key, key) == 0)
 			return (header->value);
 	}
 
@@ -1363,7 +1358,7 @@ evhttp_remove_header(struct evkeyvalq *headers, const char *key)
 	struct evkeyval *header;
 
 	TAILQ_FOREACH(header, headers, next) {
-		if (strcasecmp(header->key, key) == 0)
+		if (evutil_strcasecmp(header->key, key) == 0)
 			break;
 	}
 
@@ -1559,7 +1554,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 	if (content_length == NULL && connection == NULL)
 		req->ntoread = -1;
 	else if (content_length == NULL &&
-	    strcasecmp(connection, "Close") != 0) {
+	    evutil_strcasecmp(connection, "Close") != 0) {
 		/* Bad combination, we don't know when it will end */
 		event_warnx("%s: we got no content length, but the "
 		    "server wants to keep the connection open: %s.",
@@ -1598,7 +1593,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 	evcon->state = EVCON_READING_BODY;
 	xfer_enc = evhttp_find_header(req->input_headers, "Transfer-Encoding");
-	if (xfer_enc != NULL && strcasecmp(xfer_enc, "chunked") == 0) {
+	if (xfer_enc != NULL && evutil_strcasecmp(xfer_enc, "chunked") == 0) {
 		req->chunked = 1;
 		req->ntoread = -1;
 	} else {
