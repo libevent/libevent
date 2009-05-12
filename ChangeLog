@@ -1,6 +1,7 @@
 Changes in 1.4.11-stable:
  o Fix a bug when removing a timeout from the heap. [Patch from Marko Kreen]
  o Remove the limit on size of HTTP headers by removing static buffers.
+ o Fix a nasty dangling pointer bug in epoll.c that could occur after epoll_recalc(). [Patch from Kevin Springborn]
 
 Changes in 1.4.10-stable:
  o clean up buffered http connection data on reset; reported by Brian O'Kelley

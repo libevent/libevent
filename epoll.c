@@ -224,8 +224,11 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	for (i = 0; i < res; i++) {
 		int what = events[i].events;
 		struct event *evread = NULL, *evwrite = NULL;
+		int fd = events[i].data.fd;
 
-		evep = (struct evepoll *)events[i].data.ptr;
+		if (fd < 0 && fd >= epollop->nfds)
+			continue;
+		evep = &epollop->fds[fd];
 
 		if (what & (EPOLLHUP|EPOLLERR)) {
 			evread = evep->evread;
@@ -287,7 +290,7 @@ epoll_add(void *arg, struct event *ev)
 	if (ev->ev_events & EV_WRITE)
 		events |= EPOLLOUT;
 
-	epev.data.ptr = evep;
+	epev.data.fd = fd;
 	epev.events = events;
 	if (epoll_ctl(epollop->epfd, op, ev->ev_fd, &epev) == -1)
 			return (-1);
@@ -339,7 +342,7 @@ epoll_del(void *arg, struct event *ev)
 	}
 
 	epev.events = events;
-	epev.data.ptr = evep;
+	epev.data.fd = fd;
 
 	if (needreaddelete)
 		evep->evread = NULL;
