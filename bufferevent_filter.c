@@ -70,6 +70,7 @@ static void be_filter_writecb(struct bufferevent *, void *);
 static void be_filter_errorcb(struct bufferevent *, short, void *);
 static int be_filter_flush(struct bufferevent *bufev,
     short iotype, enum bufferevent_flush_mode mode);
+static int be_filter_ctrl(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
 
 static void bufferevent_filtered_outbuf_cb(struct evbuffer *buf,
     const struct evbuffer_cb_info *info, void *arg);
@@ -104,6 +105,7 @@ const struct bufferevent_ops bufferevent_ops_filter = {
 	be_filter_destruct,
 	be_filter_adj_timeouts,
         be_filter_flush,
+	be_filter_ctrl,
 };
 
 /* Given a bufferevent that's really the bev filter of a bufferevent_filtered,
@@ -440,4 +442,21 @@ be_filter_flush(struct bufferevent *bufev,
         bufferevent_flush(bevf->underlying, iotype, mode);
 
 	return processed_any;
+}
+
+static int
+be_filter_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
+    union bufferevent_ctrl_data *data)
+{
+	struct bufferevent_filtered *bevf;
+	switch(op) {
+	case BEV_CTRL_GET_UNDERLYING:
+		bevf = upcast(bev);
+		data->ptr = bevf->underlying;
+		return 0;
+	case BEV_CTRL_GET_FD:
+	case BEV_CTRL_SET_FD:
+	default:
+		return -1;
+	}
 }

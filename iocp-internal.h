@@ -97,6 +97,9 @@ void event_overlapped_init(struct event_overlapped *, iocp_callback cb);
 */
 struct evbuffer *evbuffer_overlapped_new(evutil_socket_t fd);
 
+/** XXXX Document (nickm) */
+evutil_socket_t _evbuffer_overlapped_get_fd(struct evbuffer *buf);
+
 /** Start reading data onto the end of an overlapped evbuffer.
 
     An evbuffer can only have one read pending at a time.  While the read

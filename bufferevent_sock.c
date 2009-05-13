@@ -73,6 +73,9 @@ static int be_socket_disable(struct bufferevent *, short);
 static void be_socket_destruct(struct bufferevent *);
 static void be_socket_adj_timeouts(struct bufferevent *);
 static int be_socket_flush(struct bufferevent *, short, enum bufferevent_flush_mode);
+static int be_socket_ctrl(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
+
+static void be_socket_setfd(struct bufferevent *, evutil_socket_t);
 
 const struct bufferevent_ops bufferevent_ops_socket = {
 	"socket",
@@ -82,6 +85,7 @@ const struct bufferevent_ops bufferevent_ops_socket = {
 	be_socket_destruct,
 	be_socket_adj_timeouts,
         be_socket_flush,
+	be_socket_ctrl,
 };
 
 static int
@@ -287,7 +291,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 			EVUTIL_CLOSESOCKET(fd);
 			return -1;
 		}
-		bufferevent_setfd(bev, fd);
+		be_socket_setfd(bev, fd);
 	}
 
 	if (connect(fd, sa, socklen)<0) {
@@ -400,8 +404,8 @@ be_socket_flush(struct bufferevent *bev, short iotype,
 }
 
 
-void
-bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd)
+static void
+be_socket_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 {
 	BEV_LOCK(bufev);
 	assert(bufev->be_ops == &bufferevent_ops_socket);
@@ -457,4 +461,21 @@ bufferevent_base_set(struct event_base *base, struct bufferevent *bufev)
 done:
 	BEV_UNLOCK(bufev);
 	return res;
+}
+
+static int
+be_socket_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
+    union bufferevent_ctrl_data *data)
+{
+	switch (op) {
+	case BEV_CTRL_SET_FD:
+		be_socket_setfd(bev, data->fd);
+		return 0;
+	case BEV_CTRL_GET_FD:
+		data->fd = event_get_fd(&bev->ev_read);
+		return 0;
+	case BEV_CTRL_GET_UNDERLYING:
+	default:
+		return -1;
+	}
 }
