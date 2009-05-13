@@ -405,15 +405,15 @@ static void
 reader_eventcb(struct bufferevent *bev, short what, void *ctx)
 {
 	struct event_base *base = ctx;
-	if (what & EVBUFFER_ERROR) {
+	if (what & BEV_EVENT_ERROR) {
 		perror("foobar");
 		TT_FAIL(("got connector error %d", (int)what));
 		return;
 	}
-	if (what & EVBUFFER_CONNECTED) {
+	if (what & BEV_EVENT_CONNECTED) {
 		bufferevent_enable(bev, EV_READ);
 	}
-	if (what & EVBUFFER_EOF) {
+	if (what & BEV_EVENT_EOF) {
 		char buf[512];
 		size_t n;
 		n = bufferevent_read(bev, buf, sizeof(buf)-1);

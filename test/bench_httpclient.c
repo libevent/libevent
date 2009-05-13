@@ -81,7 +81,7 @@ errorcb(struct bufferevent *b, short what, void *arg)
 {
 	struct request_info *ri = arg;
 	struct timeval now, diff;
-	if (what & EVBUFFER_EOF) {
+	if (what & BEV_EVENT_EOF) {
 		++total_n_handled;
 		total_n_bytes += ri->n_read;
 		gettimeofday(&now, NULL);

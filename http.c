@@ -1092,7 +1092,7 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 
 	switch (evcon->state) {
 	case EVCON_CONNECTING:
-		if (what == EVBUFFER_TIMEOUT) {
+		if (what == BEV_EVENT_TIMEOUT) {
 			event_debug(("%s: connection timeout for \"%s:%d\" on %d",
 				__func__, evcon->address, evcon->port,
 				evcon->fd));
@@ -1103,7 +1103,7 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 
 	case EVCON_READING_BODY:
 		if (!req->chunked && req->ntoread < 0
-		    && what == (EVBUFFER_READ|EVBUFFER_EOF)) {
+		    && what == (BEV_EVENT_READING|BEV_EVENT_EOF)) {
 			/* EOF on read can be benign */
 			evhttp_connection_done(evcon);
 			return;
@@ -1135,9 +1135,9 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 		return;
 	}
 
-	if (what & EVBUFFER_TIMEOUT) {
+	if (what & BEV_EVENT_TIMEOUT) {
 		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
-	} else if (what & (EVBUFFER_EOF|EVBUFFER_ERROR)) {
+	} else if (what & (BEV_EVENT_EOF|BEV_EVENT_ERROR)) {
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
 	} else {
 		evhttp_connection_fail(evcon, EVCON_HTTP_BUFFER_ERROR);

@@ -73,12 +73,12 @@ extern "C" {
 
 
 /* Just for error reporting - use other constants otherwise */
-#define EVBUFFER_READ		0x01	/**< error encountered while reading */
-#define EVBUFFER_WRITE		0x02	/**< error encountered while writing */
-#define EVBUFFER_EOF		0x10	/**< eof file reached */
-#define EVBUFFER_ERROR		0x20	/**< unrecoverable error encountered */
-#define EVBUFFER_TIMEOUT	0x40	/**< user specified timeout reached */
-#define EVBUFFER_CONNECTED	0x80	/**< connect operation finished. */
+#define BEV_EVENT_READING	0x01	/**< error encountered while reading */
+#define BEV_EVENT_WRITING	0x02	/**< error encountered while writing */
+#define BEV_EVENT_EOF		0x10	/**< eof file reached */
+#define BEV_EVENT_ERROR		0x20	/**< unrecoverable error encountered */
+#define BEV_EVENT_TIMEOUT	0x40	/**< user specified timeout reached */
+#define BEV_EVENT_CONNECTED	0x80	/**< connect operation finished. */
 struct bufferevent;
 struct event_base;
 struct evbuffer;
@@ -97,9 +97,7 @@ struct sockaddr;
    @param bev the bufferevent that triggered the callback
    @param ctx the user specified context for this bufferevent
  */
-/* XXXX we should rename this to bufferevent_cb; evbuffercb implies that it's
- * a cb on an evbuffer. We should retain the old name in bufferevent_compat. */
-typedef void (*evbuffercb)(struct bufferevent *bev, void *ctx);
+typedef void (*bufferevent_data_cb)(struct bufferevent *bev, void *ctx);
 
 /**
    type defintion for the error callback of a bufferevent.
@@ -108,14 +106,14 @@ typedef void (*evbuffercb)(struct bufferevent *bev, void *ctx);
    unrecoverable error was encountered.
 
    @param bev the bufferevent for which the error condition was reached
-   @param what a conjunction of flags: EVBUFFER_READ or EVBUFFER write to
-	  indicate if the error was encountered on the read or write path,
-	  and one of the following flags: EVBUFFER_EOF, EVBUFFER_ERROR or
-	  EVBUFFER_TIMEOUT.
+   @param what a conjunction of flags: BEV_EVENT_READING or BEV_EVENT_WRITING
+	  to indicate if the error was encountered on the read or write path,
+	  and one of the following flags: BEV_EVENT_EOF, BEV_EVENT_ERROR,
+	  BEV_EVENT_TIMEOUT, BEV_EVENT_CONNECTED.
+
    @param ctx the user specified context for this bufferevent
 */
-/* XXXX we should rename this to bufferevent_error_cb; see above. */
-typedef void (*everrorcb)(struct bufferevent *bev, short what, void *ctx);
+typedef void (*bufferevent_event_cb)(struct bufferevent *bev, short what, void *ctx);
 
 /** Options that can be specified when creating a bufferevent */
 enum bufferevent_options {
@@ -147,7 +145,7 @@ struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socke
 
 /**
    Launch a connect() attempt with a socket.  When the connect succeeds,
-   the errorcb will be invoked with EVBUFFER_CONNECTED set.
+   the errorcb will be invoked with BEV_EVENT_CONNECTED set.
 
    If the bufferevent does not already have a socket set, we allocate a new
    socket here and make it nonblocking before we begin.
@@ -204,7 +202,8 @@ void bufferevent_free(struct bufferevent *bufev);
   @see bufferevent_new()
   */
 void bufferevent_setcb(struct bufferevent *bufev,
-    evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg);
+    bufferevent_data_cb readcb, bufferevent_data_cb writecb,
+    bufferevent_event_cb errorcb, void *cbarg);
 
 /**
   Changes the file descriptor on which the bufferevent operates.
@@ -341,11 +340,6 @@ void bufferevent_set_timeouts(struct bufferevent *bufev,
 
 void bufferevent_setwatermark(struct bufferevent *bufev, short events,
     size_t lowmark, size_t highmark);
-
-/** macro for getting access to the input buffer of a bufferevent */
-#define EVBUFFER_INPUT(x)	bufferevent_get_input(x)
-/** macro for getting access to the output buffer of a bufferevent */
-#define EVBUFFER_OUTPUT(x)	bufferevent_get_output(x)
 
 /**
    Flags that can be passed into filters to let them know how to
