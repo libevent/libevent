@@ -97,9 +97,9 @@ struct bufferevent {
 	struct event_watermark wm_read;
 	struct event_watermark wm_write;
 
-	evbuffercb readcb;
-	evbuffercb writecb;
-	everrorcb errorcb;
+	bufferevent_data_cb readcb;
+	bufferevent_data_cb writecb;
+	bufferevent_event_cb errorcb;
 	void *cbarg;
 
 	struct timeval timeout_read;

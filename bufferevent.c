@@ -252,7 +252,8 @@ bufferevent_init_common(struct bufferevent_private *bufev_private,
 
 void
 bufferevent_setcb(struct bufferevent *bufev,
-    evbuffercb readcb, evbuffercb writecb, everrorcb errorcb, void *cbarg)
+    bufferevent_data_cb readcb, bufferevent_data_cb writecb,
+    bufferevent_event_cb errorcb, void *cbarg)
 {
 	BEV_LOCK(bufev);
 

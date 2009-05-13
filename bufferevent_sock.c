@@ -115,11 +115,11 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	struct bufferevent *bufev = arg;
 	struct evbuffer *input;
 	int res = 0;
-	short what = EVBUFFER_READ;
+	short what = BEV_EVENT_READING;
 	int howmuch = -1;
 
 	if (event == EV_TIMEOUT) {
-		what |= EVBUFFER_TIMEOUT;
+		what |= BEV_EVENT_TIMEOUT;
 		goto error;
 	}
 
@@ -147,10 +147,10 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 		if (EVUTIL_ERR_RW_RETRIABLE(err))
 			goto reschedule;
 		/* error case */
-		what |= EVBUFFER_ERROR;
+		what |= BEV_EVENT_ERROR;
 	} else if (res == 0) {
 		/* eof case */
-		what |= EVBUFFER_EOF;
+		what |= BEV_EVENT_EOF;
 	}
 
 	if (res <= 0)
@@ -179,15 +179,15 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	struct bufferevent_private *bufev_p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	int res = 0;
-	short what = EVBUFFER_WRITE;
+	short what = BEV_EVENT_WRITING;
 
 	if (event == EV_TIMEOUT) {
-		what |= EVBUFFER_TIMEOUT;
+		what |= BEV_EVENT_TIMEOUT;
 		goto error;
 	}
 	if (bufev_p->connecting) {
 		bufev_p->connecting = 0;
-		_bufferevent_run_errorcb(bufev, EVBUFFER_CONNECTED);
+		_bufferevent_run_errorcb(bufev, BEV_EVENT_CONNECTED);
 		if (!(bufev->enabled & EV_WRITE)) {
 			event_del(&bufev->ev_write);
 			return;
@@ -202,10 +202,10 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 			int err = evutil_socket_geterror(fd);
 			if (EVUTIL_ERR_RW_RETRIABLE(err))
 				goto reschedule;
-		    what |= EVBUFFER_ERROR;
+		    what |= BEV_EVENT_ERROR;
 	    } else if (res == 0) {
 		    /* eof case */
-		    what |= EVBUFFER_EOF;
+		    what |= BEV_EVENT_EOF;
 	    }
 	    if (res <= 0)
 		    goto error;
@@ -298,11 +298,11 @@ bufferevent_socket_connect(struct bufferevent *bev,
 				return 0;
 			}
 		}
-		_bufferevent_run_errorcb(bev, EVBUFFER_ERROR);
+		_bufferevent_run_errorcb(bev, BEV_EVENT_ERROR);
 		/* do something about the error? */
 	} else {
 		/* The connect succeeded already. How odd. */
-		_bufferevent_run_errorcb(bev, EVBUFFER_CONNECTED);
+		_bufferevent_run_errorcb(bev, BEV_EVENT_CONNECTED);
 	}
 
 	return 0;
@@ -320,8 +320,9 @@ bufferevent_socket_connect(struct bufferevent *bev,
  */
 
 struct bufferevent *
-bufferevent_new(evutil_socket_t fd, evbuffercb readcb, evbuffercb writecb,
-    everrorcb errorcb, void *cbarg)
+bufferevent_new(evutil_socket_t fd,
+    bufferevent_data_cb readcb, bufferevent_data_cb writecb,
+    bufferevent_event_cb errorcb, void *cbarg)
 {
 	struct bufferevent *bufev;
 

@@ -178,19 +178,19 @@ http_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = BASIC_REQUEST_BODY;
 
- 	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(EVBUFFER_INPUT(bev))));
+ 	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bufferevent_get_input(bev))));
 
-	if (evbuffer_find(EVBUFFER_INPUT(bev),
+	if (evbuffer_find(bufferevent_get_input(bev),
 		(const unsigned char*) what, strlen(what)) != NULL) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		enum message_read_status done;
 
 		req->kind = EVHTTP_RESPONSE;
-		done = evhttp_parse_firstline(req, EVBUFFER_INPUT(bev));
+		done = evhttp_parse_firstline(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
-		done = evhttp_parse_headers(req, EVBUFFER_INPUT(bev));
+		done = evhttp_parse_headers(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
@@ -212,7 +212,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 static void
 http_writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(EVBUFFER_OUTPUT(bev)) == 0) {
+	if (EVBUFFER_LENGTH(bufferevent_get_output(bev)) == 0) {
 		/* enable reading of the reply */
 		bufferevent_enable(bev, EV_READ);
 		test_ok++;
@@ -1171,7 +1171,7 @@ static void
 http_failure_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = "400 Bad Request";
-	if (evbuffer_find(EVBUFFER_INPUT(bev),
+	if (evbuffer_find(bufferevent_get_input(bev),
 		(const unsigned char*) what, strlen(what)) != NULL) {
 		test_ok = 2;
 		bufferevent_disable(bev, EV_READ);
@@ -1480,7 +1480,7 @@ http_incomplete_writecb(struct bufferevent *bev, void *arg)
 		/* terminate the write side to simulate EOF */
 		shutdown(fd, SHUT_WR);
 	}
-	if (EVBUFFER_LENGTH(EVBUFFER_OUTPUT(bev)) == 0) {
+	if (EVBUFFER_LENGTH(bufferevent_get_output(bev)) == 0) {
 		/* enable reading of the reply */
 		bufferevent_enable(bev, EV_READ);
 		test_ok++;
@@ -1574,11 +1574,11 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 		enum message_read_status done;
 
 		req->kind = EVHTTP_RESPONSE;
-		done = evhttp_parse_firstline(req, EVBUFFER_INPUT(bev));
+		done = evhttp_parse_firstline(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
-		done = evhttp_parse_headers(req, EVBUFFER_INPUT(bev));
+		done = evhttp_parse_headers(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
@@ -1590,7 +1590,7 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 		if (header == NULL || strcmp(header, "close"))
 			goto out;
 
-		header = evbuffer_readln(EVBUFFER_INPUT(bev), NULL, EVBUFFER_EOL_CRLF);
+		header = evbuffer_readln(bufferevent_get_input(bev), NULL, EVBUFFER_EOL_CRLF);
 		if (header == NULL)
 			goto out;
 		/* 13 chars */
@@ -1598,13 +1598,13 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 			goto out;
 		free((char*)header);
 
-		if (strncmp((char *)evbuffer_pullup(EVBUFFER_INPUT(bev), 13),
+		if (strncmp((char *)evbuffer_pullup(bufferevent_get_input(bev), 13),
 			"This is funny", 13))
 			goto out;
 
-		evbuffer_drain(EVBUFFER_INPUT(bev), 13 + 2);
+		evbuffer_drain(bufferevent_get_input(bev), 13 + 2);
 
-		header = evbuffer_readln(EVBUFFER_INPUT(bev), NULL, EVBUFFER_EOL_CRLF);
+		header = evbuffer_readln(bufferevent_get_input(bev), NULL, EVBUFFER_EOL_CRLF);
 		if (header == NULL)
 			goto out;
 		/* 18 chars */
@@ -1612,13 +1612,13 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 			goto out;
 		free((char *)header);
 
-		if (strncmp((char *)evbuffer_pullup(EVBUFFER_INPUT(bev), 18),
+		if (strncmp((char *)evbuffer_pullup(bufferevent_get_input(bev), 18),
 			"but not hilarious.", 18))
 			goto out;
 
-		evbuffer_drain(EVBUFFER_INPUT(bev), 18 + 2);
+		evbuffer_drain(bufferevent_get_input(bev), 18 + 2);
 
-		header = evbuffer_readln(EVBUFFER_INPUT(bev), NULL, EVBUFFER_EOL_CRLF);
+		header = evbuffer_readln(bufferevent_get_input(bev), NULL, EVBUFFER_EOL_CRLF);
 		if (header == NULL)
 			goto out;
 		/* 8 chars */
@@ -1626,13 +1626,13 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 			goto out;
 		free((char *)header);
 
-		if (strncmp((char *)evbuffer_pullup(EVBUFFER_INPUT(bev), 8),
+		if (strncmp((char *)evbuffer_pullup(bufferevent_get_input(bev), 8),
 			"bwv 1052.", 8))
 			goto out;
 
-		evbuffer_drain(EVBUFFER_INPUT(bev), 8 + 2);
+		evbuffer_drain(bufferevent_get_input(bev), 8 + 2);
 
-		header = evbuffer_readln(EVBUFFER_INPUT(bev), NULL, EVBUFFER_EOL_CRLF);
+		header = evbuffer_readln(bufferevent_get_input(bev), NULL, EVBUFFER_EOL_CRLF);
 		if (header == NULL)
 			goto out;
 		/* 0 chars */
@@ -1652,7 +1652,7 @@ out:
 static void
 http_chunked_writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(EVBUFFER_OUTPUT(bev)) == 0) {
+	if (EVBUFFER_LENGTH(bufferevent_get_output(bev)) == 0) {
 		/* enable reading of the reply */
 		bufferevent_enable(bev, EV_READ);
 		test_ok++;
