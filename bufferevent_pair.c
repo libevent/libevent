@@ -273,4 +273,5 @@ const struct bufferevent_ops bufferevent_ops_pair = {
 	be_pair_destruct,
 	be_pair_adj_timeouts,
 	be_pair_flush,
+	NULL, /* ctrl */
 };

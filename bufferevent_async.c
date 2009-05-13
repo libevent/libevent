@@ -65,6 +65,7 @@ static int be_async_disable(struct bufferevent *, short);
 static void be_async_destruct(struct bufferevent *);
 static void be_async_adj_timeouts(struct bufferevent *);
 static int be_async_flush(struct bufferevent *, short, enum bufferevent_flush_mode);
+static int be_async_ctrl(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
 
 const struct bufferevent_ops bufferevent_ops_async = {
 	"socket_async",
@@ -74,8 +75,8 @@ const struct bufferevent_ops bufferevent_ops_async = {
 	be_async_destruct,
 	be_async_adj_timeouts,
         be_async_flush,
+        be_async_ctrl,
 };
-
 
 struct bufferevent_async {
 	struct bufferevent_private bev;
@@ -284,4 +285,19 @@ bufferevent_async_new(struct event_base *base,
 err:
 	bufferevent_free(&bev_a->bev.bev);
 	return NULL;
+}
+
+static int
+be_async_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
+    union bufferevent_ctrl_data *data)
+{
+	switch (op) {
+	case BEV_CTRL_GET_FD:
+		data->fd = _evbuffer_overlapped_get_fd(bev->input);
+		return 0;
+	case BEV_CTRL_SET_FD:
+	case BEV_CTRL_GET_UNDERLYING:
+	default:
+		return -1;
+	}
 }

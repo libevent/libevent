@@ -22,6 +22,8 @@ Changes in 2.0.2-alpha:
  o Rename the evbuffercb and everrorcb callbacks to bufferevent_data_cb and bufferevent_event_cb respectively.  The old names are available in bufferevent_compat.h.
  o Rename the EVBUFFER_* codes used by bufferevent event callbacks to BEV_EVENT_*, to avoid namespace collision with evbuffer flags.  The old names are available in bufferevent_compat.h.
  o Move the EVBUFFER_INPUT and EVBUFFER_OUTPUT macros to bufferevent_compat.h
+ o Add a bufferevent_getfd() function to mirror bufferevent_setfd()
+ o Make bufferevent_setfd() return an error code if the operation is not successful.
 
 Changes in 2.0.1-alpha:
  o free minheap on event_base_free(); from Christopher Layne

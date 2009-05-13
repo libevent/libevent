@@ -207,11 +207,24 @@ void bufferevent_setcb(struct bufferevent *bufev,
 
 /**
   Changes the file descriptor on which the bufferevent operates.
+  Not supported for all bufferevent types.
 
   @param bufev the bufferevent object for which to change the file descriptor
   @param fd the file descriptor to operate on
 */
-void bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd);
+int bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd);
+
+/**
+   Returns the file descriptor associated with a bufferevent, or -1 if
+   no file descriptor is associated with the bufferevent.
+ */
+evutil_socket_t bufferevent_getfd(struct bufferevent *bufev);
+
+/**
+   Returns the underlying bufferevent associated with a bufferevent (if
+   the bufferevent is a wrapper), or NULL if there is no underlying bufferevent.
+ */
+struct bufferevent *bufferevent_get_underlying(struct bufferevent *bufev);
 
 /**
   Write data to a bufferevent buffer.

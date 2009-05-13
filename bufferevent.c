@@ -531,3 +531,41 @@ bufferevent_enable_locking(struct bufferevent *bufev, void *lock)
 #endif
 }
 
+int
+bufferevent_setfd(struct bufferevent *bev, evutil_socket_t fd)
+{
+	union bufferevent_ctrl_data d;
+	int res = -1;
+	d.fd = fd;
+	BEV_LOCK(bev);
+	if (bev->be_ops->ctrl)
+		res = bev->be_ops->ctrl(bev, BEV_CTRL_SET_FD, &d);
+	BEV_UNLOCK(bev);
+	return res;
+}
+
+evutil_socket_t
+bufferevent_getfd(struct bufferevent *bev)
+{
+	union bufferevent_ctrl_data d;
+	int res = -1;
+	d.fd = -1;
+	BEV_LOCK(bev);
+	if (bev->be_ops->ctrl)
+		res = bev->be_ops->ctrl(bev, BEV_CTRL_GET_FD, &d);
+	BEV_UNLOCK(bev);
+	return (res<0) ? -1 : d.fd;
+}
+
+struct bufferevent *
+bufferevent_get_underlying(struct bufferevent *bev)
+{
+	union bufferevent_ctrl_data d;
+	int res = -1;
+	d.ptr = NULL;
+	BEV_LOCK(bev);
+	if (bev->be_ops->ctrl)
+		res = bev->be_ops->ctrl(bev, BEV_CTRL_GET_UNDERLYING, &d);
+	BEV_UNLOCK(bev);
+	return (res<0) ? NULL : d.ptr;
+}

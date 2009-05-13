@@ -60,6 +60,17 @@ struct bufferevent_private {
 	void *lock;
 };
 
+enum bufferevent_ctrl_op {
+	BEV_CTRL_SET_FD,
+	BEV_CTRL_GET_FD,
+	BEV_CTRL_GET_UNDERLYING,
+};
+
+union bufferevent_ctrl_data {
+	void *ptr;
+	evutil_socket_t fd;
+};
+
 /**
    Implementation table for a bufferevent: holds function pointers and other
    information to make the various bufferevent types work.
@@ -101,6 +112,9 @@ struct bufferevent_ops {
 
         /** Called to flush data. */
         int (*flush)(struct bufferevent *, short, enum bufferevent_flush_mode);
+
+	/** Called to access miscellaneous fields. */
+	int (*ctrl)(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
 };
 
 extern const struct bufferevent_ops bufferevent_ops_socket;

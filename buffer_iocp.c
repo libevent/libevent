@@ -300,3 +300,9 @@ done:
 	return r;
 }
 
+evutil_socket_t
+_evbuffer_overlapped_get_fd(struct evbuffer *buf)
+{
+	struct evbuffer_overlapped *buf_o = upcast_evbuffer(buf);
+	return buf_o ? buf_o->fd : -1;
+}
