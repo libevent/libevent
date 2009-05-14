@@ -87,7 +87,6 @@ void bufferevent_settimeout(struct bufferevent *bufev,
 #define EVBUFFER_EOF		BEV_EVENT_EOF
 #define EVBUFFER_ERROR		BEV_EVENT_ERROR
 #define EVBUFFER_TIMEOUT	BEV_EVENT_TIMEOUT
-#define EVBUFFER_CONNECTED	BEV_EVENT_CONNECTED
 
 /** macro for getting access to the input buffer of a bufferevent */
 #define EVBUFFER_INPUT(x)	bufferevent_get_input(x)
