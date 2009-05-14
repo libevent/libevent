@@ -181,7 +181,9 @@ int evbuffer_expand(struct evbuffer *buf, size_t datlen);
    @return the pointer to the available space or NULL on error.
    @see evbuffer_commit_space
 */
-
+/* FIXME: This interface is prone to leaving gaps in the buffer and
+ * reallocating stuff needlessly.  Nothing uses it.  It was new in Libevent 2.0.
+ * It should get re-thought. */
 unsigned char *evbuffer_reserve_space(struct evbuffer *buf, size_t size);
 
 /**
@@ -291,6 +293,7 @@ int evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf);
   @param extra optional argument to the cleanup callback
   @return 0 if successful, or -1 if an error occurred
  */
+/* XXXX Should the cleanupfn get a copy of the data pointer too? */
 int evbuffer_add_reference(struct evbuffer *outbuf,
     const void *data, size_t datlen,
     void (*cleanupfn)(void *extra), void *extra);
@@ -503,6 +506,8 @@ int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg
         EVBUFFER_CB_DISABLED to disable it.
     @return 0 on success, -1 on failure.
  */
+/* XXXX It would be better to have a set_flags() and a clear_flags()
+ * interface, and make them separate. -nickm FIXME */
 int evbuffer_cb_set_flags(struct evbuffer *buffer,
 			  struct evbuffer_cb_entry *cb, ev_uint32_t flags);
 
