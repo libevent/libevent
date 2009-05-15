@@ -58,6 +58,7 @@ EXTRA_DIST = \
 	evthread_pthread.c \
 	whatsnew-2.0.txt \
 	bufferevent_async.c \
+	WIN32-Code/event-config.h \
 	WIN32-Code/config.h \
 	WIN32-Code/win32.c \
 	WIN32-Code/tree.h \
@@ -137,7 +138,9 @@ noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
 	evthread-internal.h ht-internal.h defer-internal.h \
 	minheap-internal.h log-internal.h evsignal-internal.h evmap-internal.h
 
-include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h event-config.h
+include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h
+
+nodist_include_HEADERS = event-config.h
 
 INCLUDES = -I$(srcdir)/compat -I$(srcdir)/include $(SYS_INCLUDES)
 
