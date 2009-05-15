@@ -80,10 +80,10 @@ struct event {
 	TAILQ_ENTRY (event) (ev_active_next);
 	TAILQ_ENTRY (event) (ev_next);
 	int min_heap_idx;	/* for managing timeouts */
+	evutil_socket_t ev_fd;
 
 	struct event_base *ev_base;
 
-	evutil_socket_t ev_fd;
 	union {
 		/* used for io events */
 		struct {
@@ -101,18 +101,15 @@ struct event {
 	} _ev;
 
 	short ev_events;
-
+	short ev_res;		/* result passed to event callback */
+	short ev_flags;
+	ev_uint8_t ev_pri;	/* smaller numbers are higher priority */
+	ev_uint8_t ev_closure;
 	struct timeval ev_timeout;
 
-	int ev_pri;		/* smaller numbers are higher priority */
-
 	/* allows us to adopt for different types of events */
-	void (*ev_closure)(struct event_base *, struct event *);
 	void (*ev_callback)(evutil_socket_t, short, void *arg);
 	void *ev_arg;
-
-	int ev_res;		/* result passed to event callback */
-	int ev_flags;
 };
 
 #ifdef EVENT_FD

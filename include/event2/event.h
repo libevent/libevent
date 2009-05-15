@@ -546,6 +546,7 @@ ev_uint32_t event_get_version_number(void);
  * headers. */
 #define LIBEVENT_VERSION_NUMBER _EVENT_NUMERIC_VERSION
 
+#define EVENT_MAX_PRIORITIES 256
 /**
   Set the number of different event priorities (threadsafe variant).
 
