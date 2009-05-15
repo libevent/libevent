@@ -218,10 +218,14 @@ test_evbuffer(void *ptr)
 
 static int reference_cb_called;
 static void
-reference_cb(void *extra)
+reference_cb(const void *data, size_t len, void *extra)
 {
+	tt_str_op(data, ==, "this is what we add as read-only memory.");
+	tt_int_op(len, ==, strlen(data));
 	tt_want(extra == (void *)0xdeadaffe);
 	++reference_cb_called;
+end:
+	;
 }
 
 static void
@@ -722,10 +726,14 @@ test_evbuffer_callbacks(void *ptr)
 
 static int ref_done_cb_called_count = 0;
 static void *ref_done_cb_called_with = NULL;
-static void ref_done_cb(void *data)
+static const void *ref_done_cb_called_with_data = NULL;
+static size_t ref_done_cb_called_with_len = 0;
+static void ref_done_cb(const void *data, size_t len, void *info)
 {
 	++ref_done_cb_called_count;
-	ref_done_cb_called_with = data;
+	ref_done_cb_called_with = info;
+	ref_done_cb_called_with_data = data;
+	ref_done_cb_called_with_len = len;
 }
 
 static void
@@ -764,6 +772,8 @@ test_evbuffer_add_reference(void *ptr)
 	evbuffer_remove(buf1, tmp, 1);
 	tt_int_op(tmp[0], ==, 'm');
 	tt_assert(ref_done_cb_called_with == (void*)111);
+	tt_assert(ref_done_cb_called_with_data == chunk1);
+	tt_assert(ref_done_cb_called_with_len == len1);
 	tt_int_op(ref_done_cb_called_count, ==, 1);
 
 	/* Drain some of the remaining chunk, then add it to another buffer */

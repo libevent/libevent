@@ -185,7 +185,9 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 				    struct evbuffer_chain_reference,
 				    chain);
 			if (info->cleanupfn)
-				(*info->cleanupfn)(info->extra);
+				(*info->cleanupfn)(chain->buffer,
+				    chain->buffer_len,
+				    info->extra);
 		}
 #ifdef _EVENT_HAVE_MMAP
 		if (chain->flags & EVBUFFER_MMAP) {
@@ -2007,7 +2009,7 @@ evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
 int
 evbuffer_add_reference(struct evbuffer *outbuf,
     const void *data, size_t datlen,
-    void (*cleanupfn)(void *extra), void *extra)
+    evbuffer_ref_cleanup_cb cleanupfn, void *extra)
 {
 	struct evbuffer_chain *chain;
 	struct evbuffer_chain_reference *info;
