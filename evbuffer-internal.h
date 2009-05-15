@@ -188,7 +188,7 @@ struct evbuffer_chain_fd {
 /** callback for a reference buffer; lets us know what to do with it when
  * we're done with it. */
 struct evbuffer_chain_reference {
-	void (*cleanupfn)(void *extra);
+	evbuffer_ref_cleanup_cb cleanupfn;
 	void *extra;
 };
 

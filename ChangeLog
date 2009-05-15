@@ -27,6 +27,7 @@ Changes in 2.0.2-alpha:
  o Shave 22 bytes off struct event on 32-bit platforms by shrinking and re-ordering fields.  The savings on 64-bit platforms is likely higher.
  o Cap the maximum number of priorities at 256.
  o Change the semantics of evbuffer_cb_set_flags() to be set-flag only; add a new evbuffer_cb_clear_flags() to remove set flags.
+ o Change the interface of evbuffer_add_reference so that the cleanup callback gets more information
 
 
 Changes in 2.0.1-alpha:

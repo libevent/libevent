@@ -278,6 +278,10 @@ char *evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
  */
 int evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf);
 
+
+typedef void (*evbuffer_ref_cleanup_cb)(const void *data,
+    size_t datalen, void *extra);
+
 /**
   Reference memory into an evbuffer without copying.
 
@@ -293,10 +297,9 @@ int evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf);
   @param extra optional argument to the cleanup callback
   @return 0 if successful, or -1 if an error occurred
  */
-/* XXXX Should the cleanupfn get a copy of the data pointer too? */
 int evbuffer_add_reference(struct evbuffer *outbuf,
     const void *data, size_t datlen,
-    void (*cleanupfn)(void *extra), void *extra);
+    evbuffer_ref_cleanup_cb cleanupfn, void *extra);
 
 /**
   Move data from a file into the evbuffer for writing to a socket.
