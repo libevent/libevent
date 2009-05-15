@@ -50,6 +50,11 @@ extern "C" {
 #define ev_ncalls	_ev.ev_signal.ev_ncalls
 #define ev_pncalls	_ev.ev_signal.ev_pncalls
 
+/* Possible event closures. */
+#define EV_CLOSURE_NONE 0
+#define EV_CLOSURE_SIGNAL 1
+#define EV_CLOSURE_PERSIST 2
+
 /** Structure to define the backend of a given event_base. */
 struct eventop {
 	/** The name of this backend. */

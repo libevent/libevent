@@ -551,7 +551,8 @@ event_base_priority_init(struct event_base *base, int npriorities)
 {
 	int i;
 
-	if (base->event_count_active || npriorities < 1)
+	if (base->event_count_active || npriorities < 1
+	    || npriorities >= EVENT_MAX_PRIORITIES)
 		return (-1);
 
 	if (npriorities == base->nactivequeues)
@@ -648,11 +649,20 @@ event_process_active_single_queue(struct event_base *base,
 		EVBASE_RELEASE_LOCK(base,
 		    EVTHREAD_WRITE, th_base_lock);
 
-		if (ev->ev_closure != NULL)
-			(*ev->ev_closure)(base, ev);
-		else
+		switch (ev->ev_closure) {
+		case EV_CLOSURE_SIGNAL:
+			event_signal_closure(base, ev);
+			break;
+		case EV_CLOSURE_PERSIST:
+			event_persist_closure(base, ev);
+			break;
+		default:
+		case EV_CLOSURE_NONE:
 			(*ev->ev_callback)(
 				(int)ev->ev_fd, ev->ev_res, ev->ev_arg);
+			break;
+		}
+
 		if (base->event_break)
 			return -1;
 		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
@@ -969,13 +979,13 @@ event_set(struct event *ev, evutil_socket_t fd, short events,
 		if ((events & (EV_READ|EV_WRITE)) != 0)
 			event_errx(1, "%s: EV_SIGNAL incompatible use",
 			    __func__);
-		ev->ev_closure = event_signal_closure;
+		ev->ev_closure = EV_CLOSURE_SIGNAL;
 	} else {
 		if (events & EV_PERSIST) {
 			timerclear(&ev->ev_io_timeout);
-			ev->ev_closure = event_persist_closure;
+			ev->ev_closure = EV_CLOSURE_PERSIST;
 		} else {
-			ev->ev_closure = NULL;
+			ev->ev_closure = EV_CLOSURE_NONE;
 		}
 	}
 
@@ -1198,7 +1208,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 		 * for persistent timeout events, we remember the
 		 * timeout value and re-add the event.
 		 */
-		if (ev->ev_closure == event_persist_closure)
+		if (ev->ev_closure == EV_CLOSURE_PERSIST)
 			ev->ev_io_timeout = *tv;
 
 		/*

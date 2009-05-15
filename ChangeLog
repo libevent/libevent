@@ -24,6 +24,8 @@ Changes in 2.0.2-alpha:
  o Move the EVBUFFER_INPUT and EVBUFFER_OUTPUT macros to bufferevent_compat.h
  o Add a bufferevent_getfd() function to mirror bufferevent_setfd()
  o Make bufferevent_setfd() return an error code if the operation is not successful.
+ o Shave 22 bytes off struct event on 32-bit platforms by shrinking and re-ordering fields.  The savings on 64-bit platforms is likely higher.
+ o Cap the maximum number of priorities at 256.
 
 Changes in 2.0.1-alpha:
  o free minheap on event_base_free(); from Christopher Layne
