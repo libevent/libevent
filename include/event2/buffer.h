@@ -494,21 +494,28 @@ int evbuffer_remove_cb_entry(struct evbuffer *buffer,
  */
 int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg);
 
-#define EVBUFFER_CB_DISABLED 0
+/** If this flag is not set, then a callback is temporarily disabled, and
+ * should not be invoked. */
 #define EVBUFFER_CB_ENABLED 1
 
-/** Change whether a given callback is enabled on a buffer or not.  A
-    disabled callback is not invoked even when the buffer size changes.
+/** Change the flags that are set for a callback on a buffer by adding more.
 
     @param buffer the evbuffer that the callback is watching.
     @param cb the callback whose status we want to change.
-    @param flags EVBUFFER_CB_ENABLED to enable the callback, or
-        EVBUFFER_CB_DISABLED to disable it.
+    @param flags EVBUFFER_CB_ENABLED to re-enable the callback.
     @return 0 on success, -1 on failure.
  */
-/* XXXX It would be better to have a set_flags() and a clear_flags()
- * interface, and make them separate. -nickm FIXME */
 int evbuffer_cb_set_flags(struct evbuffer *buffer,
+			  struct evbuffer_cb_entry *cb, ev_uint32_t flags);
+
+/** Change the flags that are set for a callback on a buffer by removing some
+
+    @param buffer the evbuffer that the callback is watching.
+    @param cb the callback whose status we want to change.
+    @param flags EVBUFFER_CB_ENABLED to disable the callback.
+    @return 0 on success, -1 on failure.
+ */
+int evbuffer_cb_clear_flags(struct evbuffer *buffer,
 			  struct evbuffer_cb_entry *cb, ev_uint32_t flags);
 
 #if 0
