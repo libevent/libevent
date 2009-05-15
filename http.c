@@ -822,8 +822,8 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 
 		/* Completed chunk */
 		evbuffer_add(req->input_buffer,
-		    EVBUFFER_DATA(buf), req->ntoread);
-		evbuffer_drain(buf, req->ntoread);
+		    EVBUFFER_DATA(buf), (size_t)req->ntoread);
+		evbuffer_drain(buf, (size_t)req->ntoread);
 		req->ntoread = -1;
 		if (req->chunk_cb != NULL) {
 			(*req->chunk_cb)(req, req->cb_arg);
@@ -887,8 +887,8 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	} else if (EVBUFFER_LENGTH(buf) >= req->ntoread) {
 		/* Completed content length */
 		evbuffer_add(req->input_buffer, EVBUFFER_DATA(buf),
-		    req->ntoread);
-		evbuffer_drain(buf, req->ntoread);
+		    (size_t)req->ntoread);
+		evbuffer_drain(buf, (size_t)req->ntoread);
 		req->ntoread = 0;
 		evhttp_connection_done(evcon);
 		return;
