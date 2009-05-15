@@ -659,7 +659,7 @@ test_evbuffer_callbacks(void *ptr)
 	 * adds a summary of length changes to buf_out1/buf_out2 when called. */
 	/* size: 0-> 36. */
 	evbuffer_add_printf(buf, "The %d magic words are spotty pudding", 2);
-	evbuffer_cb_set_flags(buf, cb2, 0);
+	evbuffer_cb_clear_flags(buf, cb2, EVBUFFER_CB_ENABLED);
 	evbuffer_drain(buf, 10); /*36->26*/
 	evbuffer_prepend(buf, "Hello", 5);/*26->31*/
 	evbuffer_cb_set_flags(buf, cb2, EVBUFFER_CB_ENABLED);

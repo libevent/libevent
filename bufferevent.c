@@ -438,9 +438,9 @@ bufferevent_setwatermark(struct bufferevent *bufev, short events,
 		} else {
 			/* There is now no high-water mark for read. */
 			if (bufev_private->read_watermarks_cb)
-				evbuffer_cb_set_flags(bufev->input,
+				evbuffer_cb_clear_flags(bufev->input,
 				    bufev_private->read_watermarks_cb,
-				    EVBUFFER_CB_DISABLED);
+				    EVBUFFER_CB_ENABLED);
 			bufferevent_wm_unsuspend_read(bufev);
 		}
 	}
