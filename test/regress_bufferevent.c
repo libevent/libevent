@@ -390,7 +390,8 @@ static int n_strings_read = 0;
 #define TEST_STR "Now is the time for all good events to signal for " \
 	"the good of their protocol"
 static void
-listen_cb(evutil_socket_t fd, struct sockaddr *sa, int socklen, void *arg)
+listen_cb(struct evconnlistener *listener, evutil_socket_t fd,
+    struct sockaddr *sa, int socklen, void *arg)
 {
 	struct event_base *base = arg;
 	struct bufferevent *bev;

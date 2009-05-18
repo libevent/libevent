@@ -35,12 +35,13 @@ struct evconnlistener;
 /**
    A callback that we invoke when a listener has a new connection.
 
+   @param listener The evconnlistener
    @param fd The new file descriptor
    @param addr The source address of the connection
    @param socklen The length of addr
    @param user_arg the pointer passed to evconnlistener_new()
  */
-typedef void (*evconnlistener_cb)(evutil_socket_t, struct sockaddr *, int socklen, void *);
+typedef void (*evconnlistener_cb)(struct evconnlistener *, evutil_socket_t, struct sockaddr *, int socklen, void *);
 
 /** Flag: Indicates that we should not make incoming sockets nonblocking
  * before passing them to the callback. */
@@ -64,6 +65,7 @@ typedef void (*evconnlistener_cb)(evutil_socket_t, struct sockaddr *, int sockle
    @param flags Any number of LEV_OPT_* flags
    @param backlog Passed to the listen() call to determine the length of the
       acceptable connection backlog.  Set to -1 for a reasonable default.
+      Set to 0 if the socket is already listening.
    @param fd The file descriptor to listen on.  It must be a nonblocking
       file descriptor, and it should already be bound to an appropriate
       port and address.
@@ -99,5 +101,8 @@ int evconnlistener_enable(struct evconnlistener *lev);
    Stop listening for connections on an evconnlistener.
  */
 int evconnlistener_disable(struct evconnlistener *lev);
+
+/** Return an evconnlistener's associated event_base. */
+struct event_base *evconnlistener_get_base(struct evconnlistener *lev);
 
 #endif
