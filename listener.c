@@ -70,6 +70,9 @@ evconnlistener_new(struct event_base *base,
 	if (backlog > 0) {
 		if (listen(fd, backlog) < 0)
 			return NULL;
+	} else if (backlog < 0) {
+		if (listen(fd, 128) < 0)
+			return NULL;
 	}
 	lev = mm_calloc(1, sizeof(struct evconnlistener));
 	if (!lev)
@@ -142,6 +145,12 @@ evconnlistener_disable(struct evconnlistener *lev)
 	return event_del(&lev->listener);
 }
 
+struct event_base *
+evconnlistener_get_base(struct evconnlistener *lev)
+{
+	return event_get_base(&lev->listener);
+}
+
 static void
 listener_read_cb(evutil_socket_t fd, short what, void *p)
 {
@@ -158,7 +167,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 		if (!(lev->flags & LEV_OPT_LEAVE_SOCKETS_BLOCKING))
 			evutil_make_socket_nonblocking(new_fd);
 
-		lev->cb(new_fd, (struct sockaddr*)&ss, (int)socklen,
+		lev->cb(lev, new_fd, (struct sockaddr*)&ss, (int)socklen,
 		    lev->user_data);
 	}
 	err = evutil_socket_geterror(fd);
