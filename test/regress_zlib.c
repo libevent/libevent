@@ -106,28 +106,38 @@ static enum bufferevent_filter_result
 zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
     ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
+	struct evbuffer_iovec v_in[1];
+	struct evbuffer_iovec v_out[1];
 	int nread, nwrite;
-	int res;
+	int res, n;
 
 	z_streamp p = ctx;
 
 	do {
 		/* let's do some decompression */
-		p->avail_in = evbuffer_get_contiguous_space(src);
-		p->next_in = evbuffer_pullup(src, p->avail_in);
+		n = evbuffer_peek(src, -1, NULL, v_in, 1);
+		if (n) {
+			p->avail_in = v_in[0].iov_len;
+			p->next_in = v_in[0].iov_base;
+		} else {
+			p->avail_in = 0;
+			p->next_in = 0;
+		}
 
-		p->next_out = evbuffer_reserve_space(dst, 4096);
-		p->avail_out = 4096;
+		evbuffer_reserve_space(dst, 4096, v_out, 1);
+		p->next_out = v_out[0].iov_base;
+		p->avail_out = v_out[0].iov_len;
 
 		/* we need to flush zlib if we got a flush */
 		res = inflate(p, getstate(state));
 
 		/* let's figure out how much was compressed */
-		nread = evbuffer_get_contiguous_space(src) - p->avail_in;
-		nwrite = 4096 - p->avail_out;
+		nread = v_in[0].iov_len - p->avail_in;
+		nwrite = v_out[0].iov_len - p->avail_out;
 
 		evbuffer_drain(src, nread);
-		evbuffer_commit_space(dst, nwrite);
+		v_out[0].iov_len = nwrite;
+		evbuffer_commit_space(dst, v_out, 1);
 
 		if (res==Z_BUF_ERROR) {
 			/* We're out of space, or out of decodeable input.
@@ -150,29 +160,38 @@ static enum bufferevent_filter_result
 zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
     ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
+	struct evbuffer_iovec v_in[1];
+	struct evbuffer_iovec v_out[1];
 	int nread, nwrite;
-	int res;
+	int res, n;
 
 	z_streamp p = ctx;
 
 	do {
 		/* let's do some compression */
-		p->avail_in = evbuffer_get_contiguous_space(src);
-		p->next_in = evbuffer_pullup(src, p->avail_in);
+		n = evbuffer_peek(src, -1, NULL, v_in, 1);
+		if (n) {
+			p->avail_in = v_in[0].iov_len;
+			p->next_in = v_in[0].iov_base;
+		} else {
+			p->avail_in = 0;
+			p->next_in = 0;
+		}
 
-		p->next_out = evbuffer_reserve_space(dst, 4096);
-		p->avail_out = 4096;
-
+		evbuffer_reserve_space(dst, 4096, v_out, 1);
+		p->next_out = v_out[0].iov_base;
+		p->avail_out = v_out[0].iov_len;
 
 		/* we need to flush zlib if we got a flush */
 		res = deflate(p, getstate(state));
 
-		/* let's figure out how much was compressed */
-		nread = evbuffer_get_contiguous_space(src) - p->avail_in;
-		nwrite = 4096 - p->avail_out;
+		/* let's figure out how much was decompressed */
+		nread = v_in[0].iov_len - p->avail_in;
+		nwrite = v_out[0].iov_len - p->avail_out;
 
 		evbuffer_drain(src, nread);
-		evbuffer_commit_space(dst, nwrite);
+		v_out[0].iov_len = nwrite;
+		evbuffer_commit_space(dst, v_out, 1);
 
 		if (res==Z_BUF_ERROR) {
 			/* We're out of space, or out of decodeable input.

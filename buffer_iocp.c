@@ -118,25 +118,26 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ssize_t nBytes)
 	struct evbuffer *evbuf = &buf->buffer;
 
 	struct evbuffer_chain *chain = buf_o->first_pinned;
+	struct evbuffer_iovec iov[2];
+	int n_vec;
 
 	EVBUFFER_LOCK(evbuf, EVTHREAD_WRITE);
 	buf->read_in_progress = 0;
 	evbuffer_unfreeze(evbuf, 0);
 
-	if (chain == evbuf->previous_to_last) {
-		ssize_t n = chain->buffer_len - (chain->misalign + chain->off);
-		if (n>nBytes)
-			n=nBytes;
-		chain->off += n;
-		nBytes -= n;
-		evbuf->n_add_for_cb += n;
-
-		evbuffer_commit_space(evbuf, nBytes);
-	} else if (chain == evbuf->last) {
-		evbuffer_commit_space(evbuf, nBytes);
+	iov[0].iov_base = buf_o->buffers[0].buf;
+	if (nBytes <= buf_o->buffers[0].len) {
+		iov[0].iov_len = nBytes;
+		n_vec = 1;
 	} else {
-		assert(0);
+		iov[0].iov_len = buf_o->buffers[0].len;
+		iov[1].iov_base = buf_o->buffers[1].buf;
+		iov[1].iov_len = nBytes - iov[0].iov_len;
+		n_vec = 2;
 	}
+
+	if (evbuffer_commit_space(evbuf, iov, n_vec) < 0)
+		assert(0); /* XXXX fail nicer. */
 
 	pin_release(eo, EVBUFFER_MEM_PINNED_R);
 
@@ -244,16 +245,22 @@ done:
 	return r;
 }
 
+#define IOV_TYPE_FROM_EVBUFFER_IOV(i,ei) do {		\
+		(i)->buf = (ei)->iov_base;		\
+		(i)->len = (ei)->iov_len;		\
+	} while(0)
+
 int
 evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
 {
 	struct evbuffer_overlapped *buf_o = upcast_evbuffer(buf);
-	int r = -1;
+	int r = -1, i;
 	int nvecs;
 	int npin=0;
 	struct evbuffer_chain *chain=NULL;
 	DWORD bytesRead;
 	DWORD flags = 0;
+	struct evbuffer_iovec vecs[MAX_VECS];
 
 	if (!buf_o)
 		return -1;
@@ -271,7 +278,13 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
 	buf_o->read_info.event_overlapped.cb = read_completed;
 
 	nvecs = _evbuffer_read_setup_vecs(buf, at_most,
-	    buf_o->read_info.buffers, &chain);
+	    vecs, &chain, 1);
+	for (i=0;i<nvecs;++i) {
+		IOV_TYPE_FROM_EVBUFFER_IOV(
+			&buf_o->read_info.buffers[i],
+			&vecs[i]);
+	}
+
 	buf_o->read_info.n_buffers = nvecs;
 	buf_o->read_info.first_pinned = chain;
 	npin=0;
