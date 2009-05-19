@@ -89,6 +89,18 @@ struct evbuffer_ptr {
 	} _internal;
 };
 
+/** Describes a single extent of memory inside an evbuffer.  Used for
+    direct-access functions.
+
+    @see evbuffer_reserve_space, evbuffer_commit_space, evbuffer_peek
+ */
+struct evbuffer_iovec {
+	/** The start of the extent of memory. */
+	void *iov_base;
+	/** The length of the extent of memory. */
+	size_t iov_len;
+};
+
 /**
   Allocate storage for a new evbuffer.
 
@@ -173,18 +185,33 @@ int evbuffer_expand(struct evbuffer *buf, size_t datlen);
    available for reading until it has been committed with
    evbuffer_commit_space().
 
+   The space is made available as one or more extents, represented by
+   an initial pointer and a length.  You can force the memory to be
+   available as only one extent.  Allowing more, however, makes the
+   function more efficient.
+
    Multiple subsequent calls to this function will make the same space
    available until evbuffer_commit_space() has been called.
 
+   It is an error to do anything that moves around the buffer's internal
+   memory structures before committing the space.
+
+   NOTE: The code currently does not ever use more than two extents.
+   This may change in future versions.
+
    @param buf the event buffer in which to reserve space.
-   @param size how much space to make available.
-   @return the pointer to the available space or NULL on error.
+   @param size how much space to make available, at minimum.  The
+      total length of the extents may be greater than the requested
+      length.
+   @param vec an array of one or more evbuffer_iovec structures to
+      hold pointers to the reserved extents of memory.
+   @param n_vec The length of the vec array.  Must be at least 1.
+   @return the number of provided extents, or -1 on error.
    @see evbuffer_commit_space
 */
-/* FIXME: This interface is prone to leaving gaps in the buffer and
- * reallocating stuff needlessly.  Nothing uses it.  It was new in Libevent 2.0.
- * It should get re-thought. */
-unsigned char *evbuffer_reserve_space(struct evbuffer *buf, size_t size);
+int
+evbuffer_reserve_space(struct evbuffer *buf, ssize_t size,
+    struct evbuffer_iovec *vec, int n_vecs);
 
 /**
    Commits previously reserved space.
@@ -192,14 +219,23 @@ unsigned char *evbuffer_reserve_space(struct evbuffer *buf, size_t size);
    Commits some of the space previously reserved with
    evbuffer_reserve_space().  It then becomes available for reading.
 
+   This function may return an error if the pointer in the extents do
+   not match those returned from evbuffer_reserve_space, or if data
+   has been added to the buffer since the space was reserved.
+
+   If you want to commit less data than you got reserved space for,
+   modify the iov_len pointer of the buffer to a smaller value.  Note
+   that you may have received more space than you requested if it was
+   available!
+
    @param buf the event buffer in which to reserve space.
-   @param size how much space to commit.
+   @param vec one or two extents returned by evbuffer_reserve_space.
+   @paramm n_vecs the number of extents.
    @return 0 on success, -1 on error
    @see evbuffer_reserve_space
 */
-
-int evbuffer_commit_space(struct evbuffer *buf, size_t size);
-
+int evbuffer_commit_space(struct evbuffer *buf,
+    struct evbuffer_iovec *vec, int n_vecs);
 
 /**
   Append data to the end of an evbuffer.
@@ -442,6 +478,36 @@ struct evbuffer_cb_info {
         size_t n_added;
         size_t n_deleted;
 };
+
+/** Function to peek at data inside an evbuffer without removing it or
+    copying it out.
+
+    Pointers to the data are returned by filling the 'vec_out' array
+    with pointers to one or more extents of data inside the buffer.
+
+    The total data in the extents that you get back may be more than
+    you requested (if there is more data last extent than you asked
+    for), or less (if you do not provide enough evbuffer_iovecs, or if
+    the buffer does not have as much data as you asked to see).
+
+    @param buffer the evbuffer to peek into,
+    @param len the number of bytes to try to peek.  If negative, we
+       will try to fill as much of vec_out as we can.
+    @param start_at an evbuffer_ptr indicating the point at which we
+       should start looking for data.  NULL means, "At the start of the
+       buffer."
+    @param vec_out an array of evbuffer_iovec
+    @param n_vec the length of n_vec.  If 0, we only count how many
+       extents would be necessary to point to the requested amount of
+       data.
+    @return The number of extents needed.  This may be less than n_vec
+       if we didn't need all the evbuffer_iovecs we were given, or more
+       than n_vec if we would need more to return all the data that was
+       requested.
+ */
+int evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
+    struct evbuffer_ptr *start_at,
+    struct evbuffer_iovec *vec_out, int n_vec);
 
 /** Type definition for a callback that is invoked whenever data is added or
     removed from an evbuffer.

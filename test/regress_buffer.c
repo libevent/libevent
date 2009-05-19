@@ -187,21 +187,26 @@ test_evbuffer(void *ptr)
 	evbuffer_validate(evb);
 
 
-	/* testing reserve and commit */
+	/* testing one-vector reserve and commit */
 	{
-		u_char *buf;
-		int i, j;
+		struct evbuffer_iovec v[1];
+		char *buf;
+		int i, j, r;
 
 		for (i = 0; i < 3; ++i) {
-			buf = evbuffer_reserve_space(evb, 10000);
-			tt_assert(buf != NULL);
+			r = evbuffer_reserve_space(evb, 10000, v, 1);
+			tt_int_op(r, ==, 1);
+			tt_assert(v[0].iov_len >= 10000);
+			tt_assert(v[0].iov_base != NULL);
+
 			evbuffer_validate(evb);
+			buf = v[0].iov_base;
 			for (j = 0; j < 10000; ++j) {
 				buf[j] = j;
 			}
 			evbuffer_validate(evb);
 
-			tt_assert(evbuffer_commit_space(evb, 10000) == 0);
+			tt_int_op(evbuffer_commit_space(evb, v, 1), ==, 0);
 			evbuffer_validate(evb);
 
 			tt_assert(evbuffer_get_length(evb) >= 10000);
@@ -214,6 +219,97 @@ test_evbuffer(void *ptr)
  end:
 	evbuffer_free(evb);
 	evbuffer_free(evb_two);
+}
+
+static void
+test_evbuffer_reserve2(void *ptr)
+{
+	/* Test the two-vector cases of reserve/commit. */
+	struct evbuffer *buf = evbuffer_new();
+	int n, i;
+	struct evbuffer_iovec v[2];
+	size_t remaining;
+	char *cp, *cp2;
+
+	/* First chunk will necessarily be one chunk. Use 512 bytes of it.*/
+	n = evbuffer_reserve_space(buf, 1024, v, 2);
+	tt_int_op(n, ==, 1);
+	tt_int_op(evbuffer_get_length(buf), ==, 0);
+	tt_assert(v[0].iov_base != NULL);
+	tt_int_op(v[0].iov_len, >=, 1024);
+	memset(v[0].iov_base, 'X', 512);
+	cp = v[0].iov_base;
+	remaining = v[0].iov_len - 512;
+	v[0].iov_len = 512;
+	tt_int_op(0, ==, evbuffer_commit_space(buf, v, 1));
+	tt_int_op(evbuffer_get_length(buf), ==, 512);
+
+	/* Ask for another same-chunk request, in an existing chunk. Use 8
+	 * bytes of it. */
+	n = evbuffer_reserve_space(buf, 32, v, 2);
+	tt_int_op(n, ==, 1);
+	tt_assert(cp + 512 == v[0].iov_base);
+	tt_int_op(remaining, ==, v[0].iov_len);
+	memset(v[0].iov_base, 'Y', 8);
+	v[0].iov_len = 8;
+	tt_int_op(0, ==, evbuffer_commit_space(buf, v, 1));
+	tt_int_op(evbuffer_get_length(buf), ==, 520);
+	remaining -= 8;
+
+	/* Now ask for a request that will be split. Use only one byte of it,
+	   though. */
+	n = evbuffer_reserve_space(buf, remaining+64, v, 2);
+	tt_int_op(n, ==, 2);
+	tt_assert(cp + 520 == v[0].iov_base);
+	tt_int_op(remaining, ==, v[0].iov_len);
+	tt_assert(v[1].iov_base);
+	tt_assert(v[1].iov_len >= 64);
+	cp2 = v[1].iov_base;
+	memset(v[0].iov_base, 'Z', 1);
+	v[0].iov_len = 1;
+	tt_int_op(0, ==, evbuffer_commit_space(buf, v, 1));
+	tt_int_op(evbuffer_get_length(buf), ==, 521);
+	remaining -= 1;
+
+	/* Now ask for a request that will be split. Use some of the first
+	 * part and some of the second. */
+	n = evbuffer_reserve_space(buf, remaining+64, v, 2);
+	tt_int_op(n, ==, 2);
+	tt_assert(cp + 521 == v[0].iov_base);
+	tt_int_op(remaining, ==, v[0].iov_len);
+	tt_assert(v[1].iov_base == cp2);
+	tt_assert(v[1].iov_len >= 64);
+	memset(v[0].iov_base, 'W', 400);
+	v[0].iov_len = 400;
+	memset(v[1].iov_base, 'x', 60);
+	v[1].iov_len = 60;
+	tt_int_op(0, ==, evbuffer_commit_space(buf, v, 2));
+	tt_int_op(evbuffer_get_length(buf), ==, 981);
+
+
+	/* Now peek to make sure stuff got made how we like. */
+	memset(v,0,sizeof(v));
+	n = evbuffer_peek(buf, -1, NULL, v, 2);
+	tt_int_op(n, ==, 2);
+	tt_int_op(v[0].iov_len, ==, 921);
+	tt_int_op(v[1].iov_len, ==, 60);
+
+	cp = v[0].iov_base;
+	for (i=0; i<512; ++i)
+		tt_int_op(cp[i], ==, 'X');
+	for (i=512; i<520; ++i)
+		tt_int_op(cp[i], ==, 'Y');
+	for (i=520; i<521; ++i)
+		tt_int_op(cp[i], ==, 'Z');
+	for (i=521; i<921; ++i)
+		tt_int_op(cp[i], ==, 'W');
+
+	cp = v[1].iov_base;
+	for (i=0; i<60; ++i)
+		tt_int_op(cp[i], ==, 'x');
+
+end:
+	evbuffer_free(buf);
 }
 
 static int reference_cb_called;
@@ -233,15 +329,15 @@ test_evbuffer_reference(void *ptr)
 {
 	struct evbuffer *src = evbuffer_new();
 	struct evbuffer *dst = evbuffer_new();
-	unsigned char *tmp;
+	struct evbuffer_iovec v[1];
 	const char *data = "this is what we add as read-only memory.";
 	reference_cb_called = 0;
 
 	tt_assert(evbuffer_add_reference(src, data, strlen(data),
 		 reference_cb, (void *)0xdeadaffe) != -1);
 
-	tmp = evbuffer_reserve_space(dst, strlen(data));
-	tt_assert(evbuffer_remove(src, tmp, 10) != -1);
+	evbuffer_reserve_space(dst, strlen(data), v, 1);
+	tt_assert(evbuffer_remove(src, v[0].iov_base, 10) != -1);
 
 	evbuffer_validate(src);
 	evbuffer_validate(dst);
@@ -251,9 +347,12 @@ test_evbuffer_reference(void *ptr)
 	evbuffer_validate(src);
 	evbuffer_drain(src, 5);
 
-	tt_assert(evbuffer_remove(src, tmp + 10, strlen(data) - 10) != -1);
+	tt_assert(evbuffer_remove(src, ((char*)(v[0].iov_base)) + 10,
+		strlen(data) - 10) != -1);
 
-	evbuffer_commit_space(dst, strlen(data));
+	v[0].iov_len = strlen(data);
+
+	evbuffer_commit_space(dst, v, 1);
 	evbuffer_validate(src);
 	evbuffer_validate(dst);
 
@@ -553,14 +652,25 @@ test_evbuffer_ptr_set(void *ptr)
 {
 	struct evbuffer *buf = evbuffer_new();
 	struct evbuffer_ptr pos;
+	struct evbuffer_iovec v[1];
 
 	/* create some chains */
-	evbuffer_reserve_space(buf, 5000);
-	evbuffer_commit_space(buf, 5000);
-	evbuffer_reserve_space(buf, 4000);
-	evbuffer_commit_space(buf, 4000);
-	evbuffer_reserve_space(buf, 3000);
-	evbuffer_commit_space(buf, 3000);
+	evbuffer_reserve_space(buf, 5000, v, 1);
+	v[0].iov_len = 5000;
+	memset(v[0].iov_base, 1, v[0].iov_len);
+	evbuffer_commit_space(buf, v, 1);
+
+	evbuffer_reserve_space(buf, 4000, v, 1);
+	v[0].iov_len = 4000;
+	memset(v[0].iov_base, 2, v[0].iov_len);
+	evbuffer_commit_space(buf, v, 1);
+
+	evbuffer_reserve_space(buf, 3000, v, 1);
+	v[0].iov_len = 3000;
+	memset(v[0].iov_base, 3, v[0].iov_len);
+	evbuffer_commit_space(buf, v, 1);
+
+	tt_int_op(evbuffer_get_length(buf), ==, 12000);
 
 	tt_assert(evbuffer_ptr_set(buf, &pos, 13000, EVBUFFER_PTR_SET) == -1);
 	tt_assert(pos.pos == -1);
@@ -865,6 +975,106 @@ end:
 
 }
 
+static void
+test_evbuffer_peek(void *info)
+{
+	struct evbuffer *buf = NULL, *tmp_buf = NULL;
+	int i;
+	struct evbuffer_iovec v[20];
+	struct evbuffer_ptr ptr;
+
+#define tt_iov_eq(v, s)						\
+	tt_int_op((v)->iov_len, ==, strlen(s));			\
+	tt_assert(!memcmp((v)->iov_base, (s), strlen(s)))
+
+	/* Let's make a very fragmented buffer. */
+	buf = evbuffer_new();
+	tmp_buf = evbuffer_new();
+	for (i = 0; i < 16; ++i) {
+		evbuffer_add_printf(tmp_buf, "Contents of chunk [%d]\n", i);
+		evbuffer_add_buffer(buf, tmp_buf);
+	}
+
+	/* Simple peek: get everything. */
+	i = evbuffer_peek(buf, -1, NULL, v, 20);
+	tt_int_op(i, ==, 16); /* we used only 16 chunks. */
+	tt_iov_eq(&v[0], "Contents of chunk [0]\n");
+	tt_iov_eq(&v[3], "Contents of chunk [3]\n");
+	tt_iov_eq(&v[12], "Contents of chunk [12]\n");
+	tt_iov_eq(&v[15], "Contents of chunk [15]\n");
+
+	/* Just get one chunk worth. */
+	memset(v, 0, sizeof(v));
+	i = evbuffer_peek(buf, -1, NULL, v, 1);
+	tt_int_op(i, ==, 1);
+	tt_iov_eq(&v[0], "Contents of chunk [0]\n");
+	tt_assert(v[1].iov_base == NULL);
+
+	/* Suppose we want at least the first 40 bytes. */
+	memset(v, 0, sizeof(v));
+	i = evbuffer_peek(buf, 40, NULL, v, 16);
+	tt_int_op(i, ==, 2);
+	tt_iov_eq(&v[0], "Contents of chunk [0]\n");
+	tt_iov_eq(&v[1], "Contents of chunk [1]\n");
+	tt_assert(v[2].iov_base == NULL);
+
+	/* How many chunks do we need for 100 bytes? */
+	memset(v, 0, sizeof(v));
+	i = evbuffer_peek(buf, 100, NULL, NULL, 0);
+	tt_int_op(i, ==, 5);
+	tt_assert(v[0].iov_base == NULL);
+
+	/* Now we ask for more bytes than we provide chunks for */
+	memset(v, 0, sizeof(v));
+	i = evbuffer_peek(buf, 60, NULL, v, 1);
+	tt_int_op(i, ==, 3);
+	tt_iov_eq(&v[0], "Contents of chunk [0]\n");
+	tt_assert(v[1].iov_base == NULL);
+
+	/* Now we ask for more bytes than the buffer has. */
+	memset(v, 0, sizeof(v));
+	i = evbuffer_peek(buf, 65536, NULL, v, 20);
+	tt_int_op(i, ==, 16); /* we used only 16 chunks. */
+	tt_iov_eq(&v[0], "Contents of chunk [0]\n");
+	tt_iov_eq(&v[3], "Contents of chunk [3]\n");
+	tt_iov_eq(&v[12], "Contents of chunk [12]\n");
+	tt_iov_eq(&v[15], "Contents of chunk [15]\n");
+	tt_assert(v[16].iov_base == NULL);
+
+	/* What happens if we try an empty buffer? */
+	memset(v, 0, sizeof(v));
+	i = evbuffer_peek(tmp_buf, -1, NULL, v, 20);
+	tt_int_op(i, ==, 0);
+	tt_assert(v[0].iov_base == NULL);
+	memset(v, 0, sizeof(v));
+	i = evbuffer_peek(tmp_buf, 50, NULL, v, 20);
+	tt_int_op(i, ==, 0);
+	tt_assert(v[0].iov_base == NULL);
+
+	/* Okay, now time to have fun with pointers. */
+	memset(v, 0, sizeof(v));
+	evbuffer_ptr_set(buf, &ptr, 30, EVBUFFER_PTR_SET);
+	i = evbuffer_peek(buf, 50, &ptr, v, 20);
+	tt_int_op(i, ==, 3);
+	tt_iov_eq(&v[0], " of chunk [1]\n");
+	tt_iov_eq(&v[1], "Contents of chunk [2]\n");
+	tt_iov_eq(&v[2], "Contents of chunk [3]\n"); /*more than we asked for*/
+
+	/* advance to the start of another chain. */
+	memset(v, 0, sizeof(v));
+	evbuffer_ptr_set(buf, &ptr, 14, EVBUFFER_PTR_ADD);
+	i = evbuffer_peek(buf, 44, &ptr, v, 20);
+	tt_int_op(i, ==, 2);
+	tt_iov_eq(&v[0], "Contents of chunk [2]\n");
+	tt_iov_eq(&v[1], "Contents of chunk [3]\n"); /*more than we asked for*/
+
+end:
+	if (buf)
+		evbuffer_free(buf);
+	if (tmp_buf)
+		evbuffer_free(tmp_buf);
+}
+
 /* Check whether evbuffer freezing works right.  This is called twice,
    once with the argument "start" and once with the argument "end".
    When we test "start", we freeze the start of an evbuffer and make sure
@@ -886,6 +1096,7 @@ test_evbuffer_freeze(void *ptr)
 	char charbuf[128];
 	int r;
 	size_t orig_length;
+	struct evbuffer_iovec v[1];
 
 	if (!start)
 		tt_str_op(ptr, ==, "end");
@@ -912,11 +1123,13 @@ test_evbuffer_freeze(void *ptr)
 	/* These functions all manipulate the end of buf. */
 	r = evbuffer_add(buf, "abc", 0);
 	FREEZE_EQ(r, 0, -1);
-	cp = (char*)evbuffer_reserve_space(buf, 10);
-	FREEZE_EQ(cp==NULL, 0, 1);
-	if (cp)
-		memset(cp, 'X', 10);
-	r = evbuffer_commit_space(buf, 10);
+	r = evbuffer_reserve_space(buf, 10, v, 1);
+	FREEZE_EQ(r, 1, -1);
+	if (r == 0) {
+		memset(v[0].iov_base, 'X', 10);
+		v[0].iov_len = 10;
+	}
+	r = evbuffer_commit_space(buf, v, 1);
 	FREEZE_EQ(r, 0, -1);
 	r = evbuffer_add_reference(buf, string, 5, NULL, NULL);
 	FREEZE_EQ(r, 0, -1);
@@ -972,6 +1185,7 @@ static const struct testcase_setup_t nil_setup = {
 
 struct testcase_t evbuffer_testcases[] = {
 	{ "evbuffer", test_evbuffer, 0, NULL, NULL },
+	{ "reserve2", test_evbuffer_reserve2, 0, NULL, NULL },
 	{ "reference", test_evbuffer_reference, 0, NULL, NULL },
 	{ "iterative", test_evbuffer_iterative, 0, NULL, NULL },
 	{ "readln", test_evbuffer_readln, 0, NULL, NULL },
@@ -981,6 +1195,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
 	{ "add_reference", test_evbuffer_add_reference, 0, NULL, NULL },
 	{ "prepend", test_evbuffer_prepend, 0, NULL, NULL },
+	{ "peek", test_evbuffer_peek, 0, NULL, NULL },
 	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },
 	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
 #ifndef WIN32

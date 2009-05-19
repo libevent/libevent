@@ -134,7 +134,6 @@ static int use_mmap = 1;
 #define CHAIN_SPACE_LEN(ch) ((ch)->flags & EVBUFFER_IMMUTABLE ? \
 	    0 : (ch)->buffer_len - ((ch)->misalign + (ch)->off))
 
-
 #define CHAIN_PINNED(ch)  (((ch)->flags & EVBUFFER_MEM_PINNED_ANY) != 0)
 #define CHAIN_PINNED_R(ch)  (((ch)->flags & EVBUFFER_MEM_PINNED_R) != 0)
 
@@ -463,55 +462,87 @@ evbuffer_get_contiguous_space(const struct evbuffer *buf)
         return result;
 }
 
-unsigned char *
-evbuffer_reserve_space(struct evbuffer *buf, size_t size)
+int
+evbuffer_reserve_space(struct evbuffer *buf, ssize_t size,
+    struct evbuffer_iovec *vec, int n_vecs)
 {
 	struct evbuffer_chain *chain;
-        unsigned char *result = NULL;
+	int n = -1;
 
-        EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
-
+	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
 	if (buf->freeze_end)
 		goto done;
+	if (n_vecs < 1)
+		goto done;
+	if (n_vecs == 1) {
+		if (evbuffer_expand(buf, size) == -1)
+			goto done;
+		chain = buf->last;
 
-	if (evbuffer_expand(buf, size) == -1)
-                goto done;
-
-	chain = buf->last;
-
-	result = (chain->buffer + chain->misalign + chain->off);
+		vec[0].iov_base = CHAIN_SPACE_PTR(chain);
+		vec[0].iov_len = CHAIN_SPACE_LEN(chain);
+		n = 1;
+	} else {
+		if (_evbuffer_expand_fast(buf, size)<0)
+			goto done;
+		n = _evbuffer_read_setup_vecs(buf, size, vec, &chain, 0);
+	}
 
 done:
-        EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
+	EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
+	return n;
 
-        return result;
 }
 
 int
-evbuffer_commit_space(struct evbuffer *buf, size_t size)
+evbuffer_commit_space(struct evbuffer *buf,
+    struct evbuffer_iovec *vec, int n_vecs)
 {
-	struct evbuffer_chain *chain;
-        int result = -1;
+	struct evbuffer_chain *prev = buf->previous_to_last;
+	struct evbuffer_chain *last = buf->last;
+	int result = -1;
+	size_t added;
 
-        EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
-	if (buf->freeze_end) {
+
+	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
+	if (buf->freeze_end)
 		goto done;
+	if (n_vecs < 1 || n_vecs > 2)
+		goto done;
+	if (n_vecs == 2) {
+		if (!prev || !last ||
+		    vec[0].iov_base != CHAIN_SPACE_PTR(prev) ||
+		    vec[1].iov_base != CHAIN_SPACE_PTR(last) ||
+		    vec[0].iov_len > CHAIN_SPACE_LEN(prev) ||
+		    vec[1].iov_len > CHAIN_SPACE_LEN(last))
+			goto done;
+
+		prev->off += vec[0].iov_len;
+		last->off += vec[1].iov_len;
+		added = vec[0].iov_len + vec[1].iov_len;
+	} else {
+		/* n_vecs == 1 */
+		struct evbuffer_chain *chain;
+		if (prev && vec[0].iov_base == CHAIN_SPACE_PTR(prev))
+			chain = prev;
+		else if (last && vec[0].iov_base == CHAIN_SPACE_PTR(last))
+			chain = last;
+		else
+			goto done;
+		if (vec[0].iov_len > CHAIN_SPACE_LEN(chain))
+			goto done;
+
+		chain->off += vec[0].iov_len;
+		added = vec[0].iov_len;
 	}
 
-        chain = buf->last;
-
-	if (chain == NULL ||
-	    chain->buffer_len - chain->off - chain->misalign < size)
-		goto done;
-
-	chain->off += size;
-	buf->total_len += size;
-	buf->n_add_for_cb += size;
-
+	buf->total_len += added;
+	buf->n_add_for_cb += added;
 	result = 0;
 	evbuffer_invoke_callbacks(buf);
+
 done:
-        EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
+	EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
 	return result;
 }
 
@@ -1444,6 +1475,12 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
 #define IOV_PTR_FIELD buf
 #define IOV_LEN_FIELD len
 #endif
+
+#define IOV_TYPE_FROM_EVBUFFER_IOV(i,ei) do {		\
+		(i)->IOV_PTR_FIELD = (ei)->iov_base;	\
+		(i)->IOV_LEN_FIELD = (ei)->iov_len;	\
+	} while(0)
+
 #endif
 
 #define EVBUFFER_MAX_READ	4096
@@ -1457,11 +1494,12 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
     @param vecs An array of two iovecs or WSABUFs.
     @param chainp A pointer to a variable to hold the first chain we're
       reading into.
+    @param exact DOCDOC
     @return The number of buffers we're using.
  */
 int
 _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
-    IOV_TYPE *vecs, struct evbuffer_chain **chainp)
+    struct evbuffer_iovec *vecs, struct evbuffer_chain **chainp, int exact)
 {
 	struct evbuffer_chain *chain;
 	int nvecs;
@@ -1477,11 +1515,11 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
 		   use the space in the next-to-last chain.
 		*/
 		struct evbuffer_chain *prev = buf->previous_to_last;
-		vecs[0].IOV_PTR_FIELD = CHAIN_SPACE_PTR(prev);
-		vecs[0].IOV_LEN_FIELD = CHAIN_SPACE_LEN(prev);
-		vecs[1].IOV_PTR_FIELD = CHAIN_SPACE_PTR(chain);
-		vecs[1].IOV_LEN_FIELD = CHAIN_SPACE_LEN(chain);
-		if (vecs[0].IOV_LEN_FIELD >= (size_t)howmuch) {
+		vecs[0].iov_base = CHAIN_SPACE_PTR(prev);
+		vecs[0].iov_len = CHAIN_SPACE_LEN(prev);
+		vecs[1].iov_base = CHAIN_SPACE_PTR(chain);
+		vecs[1].iov_len = CHAIN_SPACE_LEN(chain);
+		if (vecs[0].iov_len >= (size_t)howmuch) {
 			/* The next-to-last chain has enough
 			 * space on its own. */
 			chain = prev;
@@ -1490,18 +1528,19 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
 			/* We'll need both chains. */
 			chain = prev;
 			nvecs = 2;
-			if (vecs[0].IOV_LEN_FIELD + vecs[1].IOV_LEN_FIELD > (size_t)howmuch) {
-				vecs[1].IOV_LEN_FIELD = howmuch - vecs[0].IOV_LEN_FIELD;
+			if (exact &&
+			    (vecs[0].iov_len + vecs[1].iov_len > (size_t)howmuch)) {
+				vecs[1].iov_len = howmuch - vecs[0].iov_len;
 			}
 		}
 	} else {
 		/* There's data in the last chain, so we're
 		 * not allowed to use the next-to-last. */
 		nvecs = 1;
-		vecs[0].IOV_PTR_FIELD = CHAIN_SPACE_PTR(chain);
-		vecs[0].IOV_LEN_FIELD = CHAIN_SPACE_LEN(chain);
-		if (vecs[0].IOV_LEN_FIELD > (size_t)howmuch)
-			vecs[0].IOV_LEN_FIELD = howmuch;
+		vecs[0].iov_base = CHAIN_SPACE_PTR(chain);
+		vecs[0].iov_len = CHAIN_SPACE_LEN(chain);
+		if (exact && (vecs[0].iov_len > (size_t)howmuch))
+			vecs[0].iov_len = howmuch;
 	}
 
 	*chainp = chain;
@@ -1566,8 +1605,16 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
                 goto done;
 	} else {
 		IOV_TYPE vecs[2];
-		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, vecs,
-		    &chain);
+		struct evbuffer_iovec ev_vecs[2];
+		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, ev_vecs,
+		    &chain, 1);
+
+		if (nvecs == 2) {
+			IOV_TYPE_FROM_EVBUFFER_IOV(&vecs[1], &ev_vecs[1]);
+			IOV_TYPE_FROM_EVBUFFER_IOV(&vecs[0], &ev_vecs[0]);
+		} else if (nvecs == 1) {
+			IOV_TYPE_FROM_EVBUFFER_IOV(&vecs[0], &ev_vecs[0]);
+		}
 
 #ifdef WIN32
 		{
@@ -1935,6 +1982,50 @@ evbuffer_search(struct evbuffer *buffer, const char *what, size_t len, const str
 done:
         EVBUFFER_UNLOCK(buffer, EVTHREAD_READ);
         return pos;
+}
+
+int
+evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
+    struct evbuffer_ptr *start_at,
+    struct evbuffer_iovec *vec, int n_vec)
+{
+	struct evbuffer_chain *chain;
+	int idx = 0;
+	size_t len_so_far = 0;
+
+	EVBUFFER_LOCK(buffer, EVTHREAD_READ);
+
+	if (start_at) {
+		chain = start_at->_internal.chain;
+		len_so_far = chain->off
+		    - start_at->_internal.pos_in_chain;
+		idx = 1;
+		if (n_vec > 0) {
+			vec[0].iov_base = chain->buffer + chain->misalign
+			    + start_at->_internal.pos_in_chain;
+			vec[0].iov_len = len_so_far;
+		}
+		chain = chain->next;
+	} else {
+		chain = buffer->first;
+	}
+
+	while (chain) {
+		if (len >= 0 && len_so_far >= len)
+			break;
+		if (idx<n_vec) {
+			vec[idx].iov_base = chain->buffer + chain->misalign;
+			vec[idx].iov_len = chain->off;
+		} else if (len<0)
+			break;
+		++idx;
+		len_so_far += chain->off;
+		chain = chain->next;
+	}
+
+	EVBUFFER_UNLOCK(buffer, EVTHREAD_READ);
+
+	return idx;
 }
 
 
