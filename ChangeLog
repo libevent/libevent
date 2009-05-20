@@ -30,6 +30,7 @@ Changes in 2.0.2-alpha:
  o Change the interface of evbuffer_add_reference so that the cleanup callback gets more information
  o Revise the new evbuffer_reserve_space/evbuffer_commit_space() interfaces so that you can use them without causing extraneous copies or leaving gaps in the evbuffer.
  o Add a new evbuffer_peek() interface to inspect data in an evbuffer without removing it.
+ o Fix a deadlock when suspending reads in a bufferevent due to a full buffer. (Spotted by Joachim Bauch.)
 
 
 Changes in 2.0.1-alpha:
