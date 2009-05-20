@@ -69,7 +69,7 @@ bufferevent_wm_suspend_read(struct bufferevent *bufev)
 		bufev->be_ops->disable(bufev, EV_READ);
 		bufev_private->read_suspended = 1;
 	}
-	BEV_LOCK(bufev);
+	BEV_UNLOCK(bufev);
 }
 
 void
@@ -84,7 +84,7 @@ bufferevent_wm_unsuspend_read(struct bufferevent *bufev)
 		if (bufev->enabled & EV_READ)
 			bufev->be_ops->enable(bufev, EV_READ);
 	}
-	BEV_LOCK(bufev);
+	BEV_UNLOCK(bufev);
 }
 
 /* Callback to implement watermarks on the input buffer.  Only enabled
