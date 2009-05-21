@@ -245,11 +245,6 @@ done:
 	return r;
 }
 
-#define IOV_TYPE_FROM_EVBUFFER_IOV(i,ei) do {		\
-		(i)->buf = (ei)->iov_base;		\
-		(i)->len = (ei)->iov_len;		\
-	} while(0)
-
 int
 evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
 {
@@ -280,7 +275,7 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
 	nvecs = _evbuffer_read_setup_vecs(buf, at_most,
 	    vecs, &chain, 1);
 	for (i=0;i<nvecs;++i) {
-		IOV_TYPE_FROM_EVBUFFER_IOV(
+		WSABUF_FROM_EVBUFFER_IOV(
 			&buf_o->read_info.buffers[i],
 			&vecs[i]);
 	}

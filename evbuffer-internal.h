@@ -252,6 +252,7 @@ void _evbuffer_chain_unpin(struct evbuffer_chain *chain, unsigned flag);
 /** As evbuffer_free, but requires that we hold a lock on the buffer, and
  * releases the lock before freeing it and the buffer. */
 void _evbuffer_decref_and_unlock(struct evbuffer *buffer);
+
 /** As evbuffer_expand, but does not guarantee that the newly allocated memory
  * is contiguous.  Instead, it may be split across two chunks. */
 int _evbuffer_expand_fast(struct evbuffer *, size_t);
@@ -264,6 +265,12 @@ int _evbuffer_expand_fast(struct evbuffer *, size_t);
  */
 int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
     struct evbuffer_iovec *vecs, struct evbuffer_chain **chainp, int exact);
+
+/* Helper macro: copies an evbuffer_iovec in ei to a win32 WSABUF in i. */
+#define WSABUF_FROM_EVBUFFER_IOV(i,ei) do {		\
+		(i)->buf = (ei)->iov_base;		\
+		(i)->len = (ei)->iov_len;		\
+	} while(0)
 
 #ifdef __cplusplus
 }

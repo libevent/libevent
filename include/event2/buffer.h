@@ -70,6 +70,9 @@ extern "C" {
 #ifdef _EVENT_HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
+#ifdef _EVENT_HAVE_SYS_UIO_H
+#include <sys/uio.h>
+#endif
 #include <event2/util.h>
 
 struct evbuffer;
@@ -94,12 +97,18 @@ struct evbuffer_ptr {
 
     @see evbuffer_reserve_space, evbuffer_commit_space, evbuffer_peek
  */
+#ifdef _EVENT_HAVE_SYS_UIO_H
+#define evbuffer_iovec iovec
+/* Internal use -- defined only if we are using the native struct iovec */
+#define _EVBUFFER_IOVEC_IS_NATIVE
+#else
 struct evbuffer_iovec {
 	/** The start of the extent of memory. */
 	void *iov_base;
 	/** The length of the extent of memory. */
 	size_t iov_len;
 };
+#endif
 
 /**
   Allocate storage for a new evbuffer.
