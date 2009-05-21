@@ -104,7 +104,7 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb, void *ptr
 
 #ifndef WIN32
 	if (flags & LEV_OPT_CLOSE_ON_EXEC) {
-		if (fcntl(fd, F_SETFD, 1) == -1) {
+		if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
 			EVUTIL_CLOSESOCKET(fd);
 			return NULL;
 		}
