@@ -1475,17 +1475,10 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
 #define IOV_PTR_FIELD buf
 #define IOV_LEN_FIELD len
 #endif
-
-#define IOV_TYPE_FROM_EVBUFFER_IOV(i,ei) do {		\
-		(i)->IOV_PTR_FIELD = (ei)->iov_base;	\
-		(i)->IOV_LEN_FIELD = (ei)->iov_len;	\
-	} while(0)
-
 #endif
 
 #define EVBUFFER_MAX_READ	4096
 
-#ifdef USE_IOVEC_IMPL
 /** Helper function to figure out which space to use for reading data into
     an evbuffer.  Internal use only.
 
@@ -1494,7 +1487,8 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
     @param vecs An array of two iovecs or WSABUFs.
     @param chainp A pointer to a variable to hold the first chain we're
       reading into.
-    @param exact DOCDOC
+    @param exact Boolean: if true, we do not provide more than 'howmuch'
+      space in the vectors, even if more space is available.
     @return The number of buffers we're using.
  */
 int
@@ -1546,7 +1540,6 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
 	*chainp = chain;
 	return nvecs;
 }
-#endif
 
 /* TODO(niels): should this function return ssize_t and take ssize_t
  * as howmuch? */
@@ -1605,16 +1598,23 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
                 goto done;
 	} else {
 		IOV_TYPE vecs[2];
+#ifdef _EVBUFFER_IOVEC_IS_NATIVE
+		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, vecs,
+		    &chain, 1);
+#else
+		/* We aren't using the native struct iovec.  Therefore,
+		   we are on win32. */
 		struct evbuffer_iovec ev_vecs[2];
 		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, ev_vecs,
 		    &chain, 1);
 
 		if (nvecs == 2) {
-			IOV_TYPE_FROM_EVBUFFER_IOV(&vecs[1], &ev_vecs[1]);
-			IOV_TYPE_FROM_EVBUFFER_IOV(&vecs[0], &ev_vecs[0]);
+			WSABUF_FROM_EVBUFFER_IOV(&vecs[1], &ev_vecs[1]);
+			WSABUF_FROM_EVBUFFER_IOV(&vecs[0], &ev_vecs[0]);
 		} else if (nvecs == 1) {
-			IOV_TYPE_FROM_EVBUFFER_IOV(&vecs[0], &ev_vecs[0]);
+			WSABUF_FROM_EVBUFFER_IOV(&vecs[0], &ev_vecs[0]);
 		}
+#endif
 
 #ifdef WIN32
 		{
