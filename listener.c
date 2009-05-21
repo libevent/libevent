@@ -94,6 +94,8 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb, void *ptr
 	int on = 1;
 	int family = sa ? sa->sa_family : AF_UNSPEC;
 
+	if (backlog == 0)
+		return NULL;
 	fd = socket(family, SOCK_STREAM, 0);
 	if (fd == -1)
 		return NULL;
