@@ -27,6 +27,9 @@
 #include <event.h>
 #include <evutil.h>
 
+#ifdef WIN32
+#include <winsock2.h>
+#endif
 #ifdef _EVENT___func__
 #define __func__ _EVENT___func__
 #endif
