@@ -47,7 +47,7 @@ struct evsig_info {
 #endif
 	int sh_old_max;
 };
-void evsig_init(struct event_base *);
+int evsig_init(struct event_base *);
 void evsig_process(struct event_base *);
 void evsig_dealloc(struct event_base *);
 
