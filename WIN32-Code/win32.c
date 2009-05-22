@@ -70,6 +70,7 @@ struct win32op {
 	struct win_fd_set *readset_out;
 	struct win_fd_set *writeset_out;
 	struct win_fd_set *exset_out;
+	unsigned signals_are_broken : 1;
 };
 
 static void *win32_init	(struct event_base *);
@@ -203,7 +204,8 @@ win32_init(struct event_base *_base)
 	winop->readset_out->fd_count = winop->writeset_out->fd_count
 		= winop->exset_out->fd_count = 0;
 
-	evsig_init(_base);
+	if (evsig_init(_base) < 0)
+		winop->signals_are_broken = 1;
 
 	return (winop);
  err:
@@ -222,6 +224,9 @@ win32_add(struct event_base *base, evutil_socket_t fd,
 {
 	struct win32op *win32op = base->evbase;
 	struct idx_info *idx = _idx;
+
+	if ((events & EV_SIGNAL) && win32op->signals_are_broken)
+		return (-1);
 
 	if (!(events & (EV_READ|EV_WRITE)))
 		return (0);
