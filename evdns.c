@@ -559,8 +559,6 @@ nameserver_probe_failed(struct nameserver *const ns) {
 										global_nameserver_timeouts_length - 1)];
 	ns->failed_times++;
 
-	evtimer_assign(&ns->timeout_event, ns->base->event_base, nameserver_prod_callback, ns);
-
 	if (evtimer_add(&ns->timeout_event, (struct timeval *) timeout) < 0) {
 	  log(EVDNS_LOG_WARN,
 	      "Error from libevent when adding timer event for %s",
@@ -592,8 +590,6 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 
 	ns->state = 0;
 	ns->failed_times = 1;
-
-	evtimer_assign(&ns->timeout_event, ns->base->event_base, nameserver_prod_callback, ns);
 
 	if (evtimer_add(&ns->timeout_event, (struct timeval *) &global_nameserver_timeouts[0]) < 0) {
 		log(EVDNS_LOG_WARN,
@@ -2191,8 +2187,6 @@ evdns_request_transmit(struct evdns_request *req) {
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
 		    "Setting timeout for request %lx", (unsigned long) req);
-		evtimer_assign(&req->timeout_event, req->base->event_base, evdns_request_timeout_callback, req);
-
 		if (evtimer_add(&req->timeout_event, &req->base->global_timeout) < 0) {
 			log(EVDNS_LOG_WARN,
 		      "Error from libevent when adding timer for request %lx",
@@ -2411,6 +2405,8 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 	memset(ns, 0, sizeof(struct nameserver));
 	ns->base = base;
 
+	evtimer_assign(&ns->timeout_event, ns->base->event_base, nameserver_prod_callback, ns);
+
 	ns->socket = socket(PF_INET, SOCK_DGRAM, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
 	evutil_make_socket_nonblocking(ns->socket);
@@ -2599,6 +2595,8 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 
 	memset(req, 0, sizeof(struct evdns_request));
 	req->base = base;
+
+	evtimer_assign(&req->timeout_event, req->base->event_base, evdns_request_timeout_callback, req);
 
 	if (base->global_randomize_case) {
 		unsigned i;
