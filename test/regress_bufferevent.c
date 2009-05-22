@@ -273,7 +273,7 @@ test_bufferevent_pair_watermarks(void)
 
 static enum bufferevent_filter_result
 bufferevent_input_filter(struct evbuffer *src, struct evbuffer *dst,
-    ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
+    ev_ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
 	const unsigned char *buffer;
 	int i;
@@ -295,7 +295,7 @@ bufferevent_input_filter(struct evbuffer *src, struct evbuffer *dst,
 
 static enum bufferevent_filter_result
 bufferevent_output_filter(struct evbuffer *src, struct evbuffer *dst,
-    ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
+    ev_ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
 	const unsigned char *buffer;
 	int i;

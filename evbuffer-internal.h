@@ -263,7 +263,7 @@ int _evbuffer_expand_fast(struct evbuffer *, size_t);
  * extent, and *chainp to poitn to the first chain that we'll try to read into.
  * Returns the number of vecs used.
  */
-int _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
+int _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
     struct evbuffer_iovec *vecs, struct evbuffer_chain **chainp, int exact);
 
 /* Helper macro: copies an evbuffer_iovec in ei to a win32 WSABUF in i. */

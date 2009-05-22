@@ -87,11 +87,8 @@ static void
 evsig_cb(evutil_socket_t fd, short what, void *arg)
 {
 	static char signals[1];
-#ifdef WIN32
-	SSIZE_T n;
-#else
-	ssize_t n;
-#endif
+	ev_ssize_t n;
+
         (void)arg; /* Suppress "unused variable" warning. */
 
 	n = recv(fd, signals, sizeof(signals), 0);

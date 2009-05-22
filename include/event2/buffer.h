@@ -219,7 +219,7 @@ int evbuffer_expand(struct evbuffer *buf, size_t datlen);
    @see evbuffer_commit_space
 */
 int
-evbuffer_reserve_space(struct evbuffer *buf, ssize_t size,
+evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
     struct evbuffer_iovec *vec, int n_vecs);
 
 /**

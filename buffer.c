@@ -463,7 +463,7 @@ evbuffer_get_contiguous_space(const struct evbuffer *buf)
 }
 
 int
-evbuffer_reserve_space(struct evbuffer *buf, ssize_t size,
+evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
     struct evbuffer_iovec *vec, int n_vecs)
 {
 	struct evbuffer_chain *chain;
@@ -863,11 +863,11 @@ done:
 }
 
 unsigned char *
-evbuffer_pullup(struct evbuffer *buf, ssize_t size)
+evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size)
 {
 	struct evbuffer_chain *chain, *next, *tmp;
 	unsigned char *buffer, *result = NULL;
-	ssize_t remaining;
+	ev_ssize_t remaining;
 
         EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
 
@@ -1492,7 +1492,7 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
     @return The number of buffers we're using.
  */
 int
-_evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
+_evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
     struct evbuffer_iovec *vecs, struct evbuffer_chain **chainp, int exact)
 {
 	struct evbuffer_chain *chain;
@@ -1541,7 +1541,7 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ssize_t howmuch,
 	return nvecs;
 }
 
-/* TODO(niels): should this function return ssize_t and take ssize_t
+/* TODO(niels): should this function return ev_ssize_t and take ev_ssize_t
  * as howmuch? */
 int
 evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
@@ -1667,7 +1667,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 
 #ifdef USE_IOVEC_IMPL
 	if (nvecs == 2) {
-		ssize_t space = CHAIN_SPACE_LEN(chain);
+		ev_ssize_t space = CHAIN_SPACE_LEN(chain);
 		if (space < n) {
 			chain->off += space;
 			chain->next->off += n-space;
@@ -1741,7 +1741,7 @@ ssize_t howmuch)
 #ifdef USE_SENDFILE
 static inline int
 evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
-    ssize_t howmuch)
+    ev_ssize_t howmuch)
 {
 	struct evbuffer_chain *chain = buffer->first;
 	struct evbuffer_chain_fd *info =
@@ -1750,7 +1750,7 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 	int res;
 	off_t len = chain->off;
 #elif SENDFILE_IS_LINUX
-	ssize_t res;
+	ev_ssize_t res;
 	off_t offset = chain->misalign;
 #endif
 
@@ -1782,7 +1782,7 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 
 int
 evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
-    ssize_t howmuch)
+    ev_ssize_t howmuch)
 {
 	int n = -1;
 
@@ -2233,7 +2233,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 	{
 		/* the default implementation */
 		struct evbuffer *tmp = evbuffer_new();
-		ssize_t read;
+		ev_ssize_t read;
 
 		if (tmp == NULL)
 			return (-1);
