@@ -334,8 +334,6 @@ event_base_free(struct event_base *base)
 		base->th_notify_fd[1] = -1;
 	}
 
-	EVTHREAD_FREE_LOCK(base->th_base_lock);
-
 	/* Delete all non-internal events. */
 	for (ev = TAILQ_FIRST(&base->eventqueue); ev; ) {
 		struct event *next = TAILQ_NEXT(ev, ev_next);
@@ -382,6 +380,8 @@ event_base_free(struct event_base *base)
 
 	evmap_io_clear(&base->io);
 	evmap_signal_clear(&base->sigmap);
+
+	EVTHREAD_FREE_LOCK(base->th_base_lock);
 
 	mm_free(base);
 }
