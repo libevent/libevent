@@ -117,7 +117,6 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ssize_t nBytes)
 	struct evbuffer_overlapped *buf = buf_o->buf;
 	struct evbuffer *evbuf = &buf->buffer;
 
-	struct evbuffer_chain *chain = buf_o->first_pinned;
 	struct evbuffer_iovec iov[2];
 	int n_vec;
 
@@ -255,7 +254,7 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
 	struct evbuffer_chain *chain=NULL;
 	DWORD bytesRead;
 	DWORD flags = 0;
-	struct evbuffer_iovec vecs[MAX_VECS];
+	struct evbuffer_iovec vecs[MAX_WSABUFS];
 
 	if (!buf_o)
 		return -1;

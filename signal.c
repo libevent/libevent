@@ -121,7 +121,7 @@ evsig_init(struct event_base *base)
 #ifdef WIN32
 		/* Make this nonfatal on win32, where sometimes people
 		   have localhost firewalled. */
-		event_sock_warn(1, -1, "%s: socketpair", __func__);
+		event_sock_warn(-1, "%s: socketpair", __func__);
 #else
 		event_sock_err(1, -1, "%s: socketpair", __func__);
 #endif
