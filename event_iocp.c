@@ -202,7 +202,7 @@ event_base_get_iocp(struct event_base *base)
 #ifdef WIN32
 	return base->iocp;
 #else
-	return NULL
+	return NULL;
 #endif
 }
 
