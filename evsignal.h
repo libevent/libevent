@@ -43,7 +43,7 @@ struct evsignal_info {
 #endif
 	int sh_old_max;
 };
-void evsignal_init(struct event_base *);
+int evsignal_init(struct event_base *);
 void evsignal_process(struct event_base *);
 int evsignal_add(struct event *);
 int evsignal_del(struct event *);

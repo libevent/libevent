@@ -102,6 +102,8 @@ struct win32op {
 	struct win_fd_set *writeset_out;
 	struct win_fd_set *exset_out;
 	RB_HEAD(event_map, event_entry) event_root;
+
+	unsigned signals_are_broken : 1;
 };
 
 RB_PROTOTYPE(event_map, event_entry, node, compare);
@@ -253,7 +255,8 @@ win32_init(struct event_base *_base)
 	winop->readset_out->fd_count = winop->writeset_out->fd_count
 		= winop->exset_out->fd_count = 0;
 
-	evsignal_init(_base);
+	if (evsignal_init(_base) < 0)
+		winop->signals_are_broken = 1;
 
 	return (winop);
  err:
@@ -273,6 +276,8 @@ win32_insert(void *op, struct event *ev)
 	struct event_entry *ent;
 
 	if (ev->ev_events & EV_SIGNAL) {
+		if (win32op->signals_are_broken)
+			return (-1);
 		return (evsignal_add(ev));
 	}
 	if (!(ev->ev_events & (EV_READ|EV_WRITE)))

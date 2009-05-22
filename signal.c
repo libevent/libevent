@@ -92,7 +92,7 @@ evsignal_cb(int fd, short what, void *arg)
 #define FD_CLOSEONEXEC(x)
 #endif
 
-void
+int
 evsignal_init(struct event_base *base)
 {
 	int i;
@@ -103,8 +103,16 @@ evsignal_init(struct event_base *base)
 	 * signals that got delivered.
 	 */
 	if (evutil_socketpair(
-		    AF_UNIX, SOCK_STREAM, 0, base->sig.ev_signal_pair) == -1)
+		    AF_UNIX, SOCK_STREAM, 0, base->sig.ev_signal_pair) == -1) {
+#ifdef WIN32
+		/* Make this nonfatal on win32, where sometimes people
+		   have localhost firewalled. */
+		event_warn("%s: socketpair", __func__);
+#else
 		event_err(1, "%s: socketpair", __func__);
+#endif
+		return -1;
+	}
 
 	FD_CLOSEONEXEC(base->sig.ev_signal_pair[0]);
 	FD_CLOSEONEXEC(base->sig.ev_signal_pair[1]);
@@ -122,6 +130,8 @@ evsignal_init(struct event_base *base)
 		EV_READ | EV_PERSIST, evsignal_cb, &base->sig.ev_signal);
 	base->sig.ev_signal.ev_base = base;
 	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
+
+	return 0;
 }
 
 /* Helper: set the signal handler for evsignal to handler in base, so that
