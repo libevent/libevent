@@ -469,7 +469,6 @@ nameserver_probe_failed(struct nameserver *const ns) {
 					  global_nameserver_timeouts_length - 1)];
 	ns->failed_times++;
 
-	evtimer_set(&ns->timeout_event, nameserver_prod_callback, ns);
 	if (evtimer_add(&ns->timeout_event, (struct timeval *) timeout) < 0) {
           log(EVDNS_LOG_WARN,
               "Error from libevent when adding timer event for %s",
@@ -498,7 +497,6 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 	ns->state = 0;
 	ns->failed_times = 1;
 
-	evtimer_set(&ns->timeout_event, nameserver_prod_callback, ns);
 	if (evtimer_add(&ns->timeout_event, (struct timeval *) &global_nameserver_timeouts[0]) < 0) {
 		log(EVDNS_LOG_WARN,
 		    "Error from libevent when adding timer event for %s",
@@ -1941,7 +1939,6 @@ evdns_request_transmit(struct request *req) {
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
 		    "Setting timeout for request %lx", (unsigned long) req);
-		evtimer_set(&req->timeout_event, evdns_request_timeout_callback, req);
 		if (evtimer_add(&req->timeout_event, &global_timeout) < 0) {
                   log(EVDNS_LOG_WARN,
 		      "Error from libevent when adding timer for request %lx",
@@ -2102,6 +2099,8 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 
 	memset(ns, 0, sizeof(struct nameserver));
 
+	evtimer_set(&ns->timeout_event, nameserver_prod_callback, ns);
+
 	ns->socket = socket(PF_INET, SOCK_DGRAM, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
         evutil_make_socket_nonblocking(ns->socket);
@@ -2225,6 +2224,8 @@ request_new(int type, const char *name, int flags,
 
         if (!req) return NULL;
 	memset(req, 0, sizeof(struct request));
+
+	evtimer_set(&req->timeout_event, evdns_request_timeout_callback, req);
 
 	/* request data lives just after the header */
 	req->request = ((u8 *) req) + sizeof(struct request);
