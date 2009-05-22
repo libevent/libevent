@@ -34,7 +34,7 @@ extern "C" {
 struct event_overlapped;
 struct event_iocp_port;
 struct evbuffer;
-typedef void (*iocp_callback)(struct event_overlapped *, uintptr_t, ssize_t);
+typedef void (*iocp_callback)(struct event_overlapped *, uintptr_t, ev_ssize_t);
 
 /* This whole file is actually win32 only. We wrap the structures in a win32
  * ifdef so that we can test-compile code that uses these interfaces on
@@ -122,7 +122,7 @@ int evbuffer_launch_read(struct evbuffer *, size_t n);
     @param n The number of bytes to try to read.
     @return 0 on success, -1 on error.
  */
-int evbuffer_launch_write(struct evbuffer *, ssize_t n);
+int evbuffer_launch_write(struct evbuffer *, ev_ssize_t n);
 
 /** Create an IOCP, and launch its worker threads.  Internal use only.
 

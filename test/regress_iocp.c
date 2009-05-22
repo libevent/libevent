@@ -49,11 +49,11 @@ struct dummy_overlapped {
 	void *lock;
 	int call_count;
 	uintptr_t keys[MAX_CALLS];
-	ssize_t sizes[MAX_CALLS];
+	ev_ssize_t sizes[MAX_CALLS];
 };
 
 static void
-dummy_cb(struct event_overlapped *o, uintptr_t key, ssize_t n)
+dummy_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n)
 {
 	struct dummy_overlapped *d_o =
 	    EVUTIL_UPCAST(o, struct dummy_overlapped, eo);
@@ -68,7 +68,7 @@ dummy_cb(struct event_overlapped *o, uintptr_t key, ssize_t n)
 }
 
 static int
-pair_is_in(struct dummy_overlapped *o, uintptr_t key, ssize_t n)
+pair_is_in(struct dummy_overlapped *o, uintptr_t key, ev_ssize_t n)
 {
 	int i;
 	int result = 0;

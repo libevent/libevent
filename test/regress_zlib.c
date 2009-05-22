@@ -104,7 +104,7 @@ getstate(enum bufferevent_flush_mode state)
  */
 static enum bufferevent_filter_result
 zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
-    ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
+    ev_ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
 	struct evbuffer_iovec v_in[1];
 	struct evbuffer_iovec v_out[1];
@@ -158,7 +158,7 @@ zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
 
 static enum bufferevent_filter_result
 zlib_output_filter(struct evbuffer *src, struct evbuffer *dst,
-    ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
+    ev_ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
 	struct evbuffer_iovec v_in[1];
 	struct evbuffer_iovec v_out[1];

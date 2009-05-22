@@ -40,9 +40,6 @@ extern "C" {
 #ifdef _EVENT___func__
 #define __func__ _EVENT___func__
 #endif
-#ifdef _EVENT_ssize_t
-#define ssize_t _EVENT_ssize_t
-#endif
 
 /* A good no-op to use in macro definitions. */
 #define _EVUTIL_NIL_STMT ((void)0)

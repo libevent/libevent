@@ -152,7 +152,7 @@ be_readbuf_full(struct bufferevent_filtered *bevf,
 
 /* Filter to use when we're created with a NULL filter. */
 static enum bufferevent_filter_result
-be_null_filter(struct evbuffer *src, struct evbuffer *dst, ssize_t lim,
+be_null_filter(struct evbuffer *src, struct evbuffer *dst, ev_ssize_t lim,
 	       enum bufferevent_flush_mode state, void *ctx)
 {
 	(void)state;
@@ -268,7 +268,7 @@ be_filter_process_input(struct bufferevent_filtered *bevf,
         }
 
 	do {
-                ssize_t limit = -1;
+                ev_ssize_t limit = -1;
                 if (state == BEV_NORMAL && bev->wm_read.high)
                         limit = bev->wm_read.high -
                             evbuffer_get_length(bev->input);
@@ -317,7 +317,7 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
                 again = 0;
 
                 do {
-                        ssize_t limit = -1;
+                        ev_ssize_t limit = -1;
                         if (state == BEV_NORMAL &&
                             bevf->underlying->wm_write.high)
                                 limit = bevf->underlying->wm_write.high -
