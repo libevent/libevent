@@ -129,10 +129,10 @@ bufferevent_run_deferred_callbacks(struct deferred_cb *_, void *arg)
 		bufev_private->writecb_pending = 0;
 		bufev->writecb(bufev, bufev->cbarg);
 	}
-	if (bufev_private->errorcb_pending && bufev->errorcb) {
-		short what = bufev_private->errorcb_pending;
+	if (bufev_private->eventcb_pending && bufev->errorcb) {
+		short what = bufev_private->eventcb_pending;
 		int err = bufev_private->errno_pending;
-		bufev_private->errorcb_pending = 0;
+		bufev_private->eventcb_pending = 0;
 		bufev_private->errno_pending = 0;
 		EVUTIL_SET_SOCKET_ERROR(err);
 		bufev->errorcb(bufev, what, bufev->cbarg);
@@ -177,13 +177,13 @@ _bufferevent_run_writecb(struct bufferevent *bufev)
 }
 
 void
-_bufferevent_run_errorcb(struct bufferevent *bufev, short what)
+_bufferevent_run_eventcb(struct bufferevent *bufev, short what)
 {
 	/* Requires lock. */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
-		p->errorcb_pending |= what;
+		p->eventcb_pending |= what;
 		p->errno_pending = EVUTIL_SOCKET_ERROR();
 		if (!p->deferred.queued) {
 			bufferevent_incref(bufev);
@@ -253,13 +253,13 @@ bufferevent_init_common(struct bufferevent_private *bufev_private,
 void
 bufferevent_setcb(struct bufferevent *bufev,
     bufferevent_data_cb readcb, bufferevent_data_cb writecb,
-    bufferevent_event_cb errorcb, void *cbarg)
+    bufferevent_event_cb eventcb, void *cbarg)
 {
 	BEV_LOCK(bufev);
 
 	bufev->readcb = readcb;
 	bufev->writecb = writecb;
-	bufev->errorcb = errorcb;
+	bufev->errorcb = eventcb;
 
 	bufev->cbarg = cbarg;
 	BEV_UNLOCK(bufev);
@@ -574,13 +574,13 @@ static void
 bufferevent_generic_read_timeout_cb(evutil_socket_t fd, short event, void *ctx)
 {
 	struct bufferevent *bev = ctx;
-	_bufferevent_run_errorcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_READING);
+	_bufferevent_run_eventcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_READING);
 }
 static void
 bufferevent_generic_write_timeout_cb(evutil_socket_t fd, short event, void *ctx)
 {
 	struct bufferevent *bev = ctx;
-	_bufferevent_run_errorcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING);
+	_bufferevent_run_eventcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING);
 }
 
 void

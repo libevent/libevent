@@ -60,8 +60,8 @@ struct bufferevent_private {
 	unsigned connecting : 1;
 	/** Set to the events pending if we have deferred callbacks and
 	 * an events callback is pending. */
-	short errorcb_pending;
-	/** Set to the current error if we have deferred callbacks and
+	short eventcb_pending;
+	/** Set to the current socket errno if we have deferred callbacks and
 	 * an events callback is pending. */
 	int errno_pending;
 	/** Used to implement deferred callbacks */
@@ -168,7 +168,7 @@ void _bufferevent_run_readcb(struct bufferevent *bufev);
 void _bufferevent_run_writecb(struct bufferevent *bufev);
 /** Internal: If callbacks are deferred and we have an eventcb, schedule
  * it to run with events "what".  Otherwise just run the eventcb. */
-void _bufferevent_run_errorcb(struct bufferevent *bufev, short what);
+void _bufferevent_run_eventcb(struct bufferevent *bufev, short what);
 
 /* =========
  * These next functions implement timeouts for bufferevents that aren't doing
