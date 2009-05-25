@@ -36,7 +36,10 @@ extern "C" {
 #include "evthread-internal.h"
 #include "event2/thread.h"
 
+/** Parts of the bufferevent structure that are shared among all bufferevent
+ * types, but not exposed in bufferevent_struct.h. */
 struct bufferevent_private {
+	/** The underlying bufferevent structure. */
 	struct bufferevent bev;
 
 	/** Evbuffer callback to enforce watermarks on input. */
@@ -47,25 +50,42 @@ struct bufferevent_private {
 	/** If set, we should free the lock when we free the bufferevent. */
 	unsigned own_lock : 1;
 
+	/** Flag: set if we have deferred callbacks and a read callback is
+	 * pending. */
 	unsigned readcb_pending : 1;
+	/** Flag: set if we have deferred callbacks and a write callback is
+	 * pending. */
 	unsigned writecb_pending : 1;
+	/** Flag: set if we are currently busy connecting. */
 	unsigned connecting : 1;
+	/** Set to the events pending if we have deferred callbacks and
+	 * an events callback is pending. */
 	short errorcb_pending;
+	/** Set to the current error if we have deferred callbacks and
+	 * an events callback is pending. */
 	int errno_pending;
+	/** Used to implement deferred callbacks */
 	struct deferred_cb deferred;
 
+	/** The options this bufferevent was constructed with */
 	enum bufferevent_options options;
 
+	/** Current reference count for this bufferevent. */
 	int refcnt;
+
+	/** Lock for this bufferevent.  Shared by the inbuf and the outbuf.
+	 * If NULL, locking is disabled. */
 	void *lock;
 };
 
+/** Possible operations for a control callback. */
 enum bufferevent_ctrl_op {
 	BEV_CTRL_SET_FD,
 	BEV_CTRL_GET_FD,
 	BEV_CTRL_GET_UNDERLYING,
 };
 
+/** Possible data types for a control callback */
 union bufferevent_ctrl_data {
 	void *ptr;
 	evutil_socket_t fd;
@@ -131,12 +151,23 @@ void bufferevent_wm_suspend_read(struct bufferevent *bufev);
  * read buffer is too full. */
 void bufferevent_wm_unsuspend_read(struct bufferevent *bufev);
 
+/** Internal: Set up locking on a bufferevent.  If lock is set, use it.
+ * Otherwise, use a new lock. */
 int bufferevent_enable_locking(struct bufferevent *bufev, void *lock);
+/** Internal: Increment the reference count on bufev. */
 void bufferevent_incref(struct bufferevent *bufev);
+/** Internal: Drop the reference count on bufev, freeing as necessary, and
+ * unlocking it otherwise. */
 void _bufferevent_decref_and_unlock(struct bufferevent *bufev);
 
+/** Internal: If callbacks are deferred and we have a read callback, schedule
+ * a readcb.  Otherwise just run the readcb. */
 void _bufferevent_run_readcb(struct bufferevent *bufev);
+/** Internal: If callbacks are deferred and we have a write callback, schedule
+ * a writecb.  Otherwise just run the writecb. */
 void _bufferevent_run_writecb(struct bufferevent *bufev);
+/** Internal: If callbacks are deferred and we have an eventcb, schedule
+ * it to run with events "what".  Otherwise just run the eventcb. */
 void _bufferevent_run_errorcb(struct bufferevent *bufev, short what);
 
 /* =========
@@ -171,14 +202,18 @@ void _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 			event_add(&(bev)->ev_write, &(bev)->timeout_write); \
 	} while (0)
 
+/** Internal: Given a bufferevent, return its corresponding
+ * bufferevent_private. */
 #define BEV_UPCAST(b) EVUTIL_UPCAST((b), struct bufferevent_private, bev)
 
+/** Internal: Grab the lock (if any) on a bufferevent */
 #define BEV_LOCK(b) do {						\
 		struct bufferevent_private *locking =  BEV_UPCAST(b);	\
 		if (locking->lock)					\
 			EVLOCK_LOCK(locking->lock, EVTHREAD_WRITE);	\
 	} while(0)
 
+/** Internal: Release the lock (if any) on a bufferevent */
 #define BEV_UNLOCK(b) do {						\
 		struct bufferevent_private *locking =  BEV_UPCAST(b);	\
 		if (locking->lock)					\
