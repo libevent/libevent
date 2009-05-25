@@ -261,8 +261,7 @@ be_pair_flush(struct bufferevent *bev, short iotype,
 
 	if (mode == BEV_FINISHED) {
 		if (partner->errorcb)
-			(*partner->errorcb)(partner,
-			    iotype|BEV_EVENT_EOF, partner->cbarg);
+			_bufferevent_run_eventcb(partner, iotype|BEV_EVENT_EOF);
 	}
 	return 0;
 }
