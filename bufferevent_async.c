@@ -63,7 +63,6 @@
 static int be_async_enable(struct bufferevent *, short);
 static int be_async_disable(struct bufferevent *, short);
 static void be_async_destruct(struct bufferevent *);
-static void be_async_adj_timeouts(struct bufferevent *);
 static int be_async_flush(struct bufferevent *, short, enum bufferevent_flush_mode);
 static int be_async_ctrl(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
 
@@ -73,7 +72,7 @@ const struct bufferevent_ops bufferevent_ops_async = {
 	be_async_enable,
 	be_async_disable,
 	be_async_destruct,
-	be_async_adj_timeouts,
+	_bufferevent_generic_adj_timeouts,
         be_async_flush,
         be_async_ctrl,
 };
@@ -162,10 +161,13 @@ be_async_outbuf_callback(struct evbuffer *buf,
 	if (cbinfo->n_added || cbinfo->n_deleted)
 		bev_async_consider_writing(bev_async);
 
-	if (cbinfo->n_deleted &&
-	    bev->writecb != NULL &&
-	    evbuffer_get_length(bev->output) <= bev->wm_write.low)
-		_bufferevent_run_writecb(bev);
+	if (cbinfo->n_deleted) {
+		BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
+
+		if (bev->writecb != NULL &&
+		    evbuffer_get_length(bev->output) <= bev->wm_write.low)
+			_bufferevent_run_writecb(bev);
+	}
 
 	BEV_UNLOCK(bev);
 }
@@ -190,10 +192,13 @@ be_async_inbuf_callback(struct evbuffer *buf,
 	if (cbinfo->n_added || cbinfo->n_deleted)
 		bev_async_consider_reading(bev_async);
 
-	if (cbinfo->n_added &&
-	    evbuffer_get_length(bev->input) >= bev->wm_read.low &&
-            bev->readcb != NULL)
-		_bufferevent_run_readcb(bev);
+	if (cbinfo->n_added) {
+		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
+
+		if (evbuffer_get_length(bev->input) >= bev->wm_read.low &&
+		    bev->readcb != NULL)
+			_bufferevent_run_readcb(bev);
+	}
 
 	BEV_UNLOCK(bev);
 }
@@ -202,6 +207,8 @@ static int
 be_async_enable(struct bufferevent *buf, short what)
 {
 	struct bufferevent_async *bev_async = upcast(buf);
+
+	_bufferevent_generic_adj_timeouts(buf);
 
 	/* If we newly enable reading or writing, and we aren't reading or
 	   writing already, consider launching a new read or write. */
@@ -219,17 +226,18 @@ be_async_disable(struct bufferevent *bev, short what)
 	/* XXXX If we disable reading or writing, we may want to consider
 	 * canceling any in-progress read or write operation, though it might
 	 * not work. */
+
+	_bufferevent_generic_adj_timeouts(bev);
+
 	return 0;
 }
 
 static void
 be_async_destruct(struct bufferevent *bev)
 {
+	_bufferevent_del_generic_timeout_cbs(bev);
 }
-static void
-be_async_adj_timeouts(struct bufferevent *bev)
-{
-}
+
 static int
 be_async_flush(struct bufferevent *bev, short what,
     enum bufferevent_flush_mode mode)
@@ -280,6 +288,8 @@ bufferevent_async_new(struct event_base *base,
 	evbuffer_add_cb(bev->output, be_async_outbuf_callback, bev);
 	evbuffer_defer_callbacks(bev->input, base);
 	evbuffer_defer_callbacks(bev->output, base);
+
+	_bufferevent_init_generic_timeout_cbs(&bev_a->bev.bev);
 
 	return bev;
 err:

@@ -569,3 +569,48 @@ bufferevent_get_underlying(struct bufferevent *bev)
 	BEV_UNLOCK(bev);
 	return (res<0) ? NULL : d.ptr;
 }
+
+static void
+bufferevent_generic_read_timeout_cb(evutil_socket_t fd, short event, void *ctx)
+{
+	struct bufferevent *bev = ctx;
+	_bufferevent_run_errorcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_READING);
+}
+static void
+bufferevent_generic_write_timeout_cb(evutil_socket_t fd, short event, void *ctx)
+{
+	struct bufferevent *bev = ctx;
+	_bufferevent_run_errorcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING);
+}
+
+void
+_bufferevent_init_generic_timeout_cbs(struct bufferevent *bev)
+{
+	evtimer_assign(&bev->ev_read, bev->ev_base,
+	    bufferevent_generic_read_timeout_cb, bev);
+	evtimer_assign(&bev->ev_read, bev->ev_base,
+	    bufferevent_generic_write_timeout_cb, bev);
+}
+
+void
+_bufferevent_del_generic_timeout_cbs(struct bufferevent *bev)
+{
+	event_del(&bev->ev_read);
+	event_del(&bev->ev_write);
+}
+
+void
+_bufferevent_generic_adj_timeouts(struct bufferevent *bev)
+{
+	const short enabled = bev->enabled;
+	if ((enabled & EV_READ) && evutil_timerisset(&bev->timeout_read))
+		event_add(&bev->ev_read, &bev->timeout_read);
+	else
+		event_del(&bev->ev_read);
+
+	if ((enabled & EV_WRITE) && evutil_timerisset(&bev->timeout_write))
+		event_add(&bev->ev_write, &bev->timeout_write);
+	else
+		event_del(&bev->ev_write);
+}
+

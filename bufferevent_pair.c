@@ -83,12 +83,12 @@ bufferevent_pair_elt_new(struct event_base *base,
 		mm_free(bufev);
 		return NULL;
 	}
-	/* XXX set read timeout event */
-	/* XXX set write timeout event */
 	if (!evbuffer_add_cb(bufev->bev.bev.output, be_pair_outbuf_cb, bufev)) {
 		bufferevent_free(downcast(bufev));
 		return NULL;
 	}
+
+	_bufferevent_init_generic_timeout_cbs(&bufev->bev.bev);
 
 	return bufev;
 }
@@ -155,6 +155,9 @@ be_pair_transfer(struct bufferevent *src, struct bufferevent *dst,
 		evbuffer_add_buffer(dst->input, src->output);
 	}
 
+	BEV_RESET_GENERIC_READ_TIMEOUT(dst);
+	BEV_RESET_GENERIC_WRITE_TIMEOUT(dst);
+
 	src_size = evbuffer_get_length(src->output);
 	dst_size = evbuffer_get_length(dst->input);
 
@@ -201,6 +204,8 @@ be_pair_enable(struct bufferevent *bufev, short events)
 	struct bufferevent_pair *bev_p = upcast(bufev);
 	struct bufferevent_pair *partner = bev_p->partner;
 
+	_bufferevent_generic_adj_timeouts(bufev);
+
 	/* We're starting to read! Does the other side have anything to write?*/
 	if ((events & EV_READ) && partner &&
 	    be_pair_wants_to_talk(partner, bev_p)) {
@@ -217,6 +222,7 @@ be_pair_enable(struct bufferevent *bufev, short events)
 static int
 be_pair_disable(struct bufferevent *bev, short events)
 {
+	_bufferevent_generic_adj_timeouts(bev);
 	return 0;
 }
 
@@ -229,12 +235,8 @@ be_pair_destruct(struct bufferevent *bev)
 		bev_p->partner->partner = NULL;
 		bev_p->partner = NULL;
 	}
-}
 
-static void
-be_pair_adj_timeouts(struct bufferevent *bev)
-{
-	/* TODO: implement. */
+	_bufferevent_del_generic_timeout_cbs(bev);
 }
 
 static int
@@ -271,7 +273,7 @@ const struct bufferevent_ops bufferevent_ops_pair = {
 	be_pair_enable,
 	be_pair_disable,
 	be_pair_destruct,
-	be_pair_adj_timeouts,
+	_bufferevent_generic_adj_timeouts,
 	be_pair_flush,
 	NULL, /* ctrl */
 };
