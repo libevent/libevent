@@ -66,7 +66,7 @@ static void be_filter_destruct(struct bufferevent *);
 
 static void be_filter_readcb(struct bufferevent *, void *);
 static void be_filter_writecb(struct bufferevent *, void *);
-static void be_filter_errorcb(struct bufferevent *, short, void *);
+static void be_filter_eventcb(struct bufferevent *, short, void *);
 static int be_filter_flush(struct bufferevent *bufev,
     short iotype, enum bufferevent_flush_mode mode);
 static int be_filter_ctrl(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
@@ -202,7 +202,7 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	bufev_f->context = ctx;
 
 	bufferevent_setcb(bufev_f->underlying,
-            be_filter_readcb, be_filter_writecb, be_filter_errorcb, bufev_f);
+            be_filter_readcb, be_filter_writecb, be_filter_eventcb, bufev_f);
 
 	bufev_f->outbuf_cb = evbuffer_add_cb(downcast(bufev_f)->output,
 	   bufferevent_filtered_outbuf_cb, bufev_f);
@@ -410,14 +410,14 @@ be_filter_writecb(struct bufferevent *underlying, void *_me)
 
 /* Called when the underlying socket has given us an error */
 static void
-be_filter_errorcb(struct bufferevent *underlying, short what, void *_me)
+be_filter_eventcb(struct bufferevent *underlying, short what, void *_me)
 {
 	struct bufferevent_filtered *bevf = _me;
 	struct bufferevent *bev = downcast(bevf);
 
-	/* All we can really to is tell our own errorcb. */
+	/* All we can really to is tell our own eventcb. */
 	if (bev->errorcb)
-		_bufferevent_run_errorcb(bev, what);
+		_bufferevent_run_eventcb(bev, what);
 }
 
 static int

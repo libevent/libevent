@@ -173,7 +173,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 
  error:
 	event_del(&bufev->ev_read);
-	_bufferevent_run_errorcb(bufev, what);
+	_bufferevent_run_eventcb(bufev, what);
 }
 
 static void
@@ -191,7 +191,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	}
 	if (bufev_p->connecting) {
 		bufev_p->connecting = 0;
-		_bufferevent_run_errorcb(bufev, BEV_EVENT_CONNECTED);
+		_bufferevent_run_eventcb(bufev, BEV_EVENT_CONNECTED);
 		if (!(bufev->enabled & EV_WRITE)) {
 			event_del(&bufev->ev_write);
 			return;
@@ -235,7 +235,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 
  error:
 	event_del(&bufev->ev_write);
-	_bufferevent_run_errorcb(bufev, what);
+	_bufferevent_run_eventcb(bufev, what);
 }
 
 struct bufferevent *
@@ -302,11 +302,11 @@ bufferevent_socket_connect(struct bufferevent *bev,
 				return 0;
 			}
 		}
-		_bufferevent_run_errorcb(bev, BEV_EVENT_ERROR);
+		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
 		/* do something about the error? */
 	} else {
 		/* The connect succeeded already. How odd. */
-		_bufferevent_run_errorcb(bev, BEV_EVENT_CONNECTED);
+		_bufferevent_run_eventcb(bev, BEV_EVENT_CONNECTED);
 	}
 
 	return 0;
@@ -326,14 +326,14 @@ bufferevent_socket_connect(struct bufferevent *bev,
 struct bufferevent *
 bufferevent_new(evutil_socket_t fd,
     bufferevent_data_cb readcb, bufferevent_data_cb writecb,
-    bufferevent_event_cb errorcb, void *cbarg)
+    bufferevent_event_cb eventcb, void *cbarg)
 {
 	struct bufferevent *bufev;
 
 	if (!(bufev = bufferevent_socket_new(NULL, fd, 0)))
 		return NULL;
 
-	bufferevent_setcb(bufev, readcb, writecb, errorcb, cbarg);
+	bufferevent_setcb(bufev, readcb, writecb, eventcb, cbarg);
 
 	return bufev;
 }

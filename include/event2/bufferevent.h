@@ -145,7 +145,7 @@ struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socke
 
 /**
    Launch a connect() attempt with a socket.  When the connect succeeds,
-   the errorcb will be invoked with BEV_EVENT_CONNECTED set.
+   the eventcb will be invoked with BEV_EVENT_CONNECTED set.
 
    If the bufferevent does not already have a socket set, we allocate a new
    socket here and make it nonblocking before we begin.
@@ -195,7 +195,7 @@ void bufferevent_free(struct bufferevent *bufev);
          no callback is desired
   @param writecb callback to invoke when the file descriptor is ready for
          writing, or NULL if no callback is desired
-  @param errorcb callback to invoke when there is an error on the file
+  @param eventcb callback to invoke when there is an event on the file
          descriptor
   @param cbarg an argument that will be supplied to each of the callbacks
          (readcb, writecb, and errorcb)
@@ -203,7 +203,7 @@ void bufferevent_free(struct bufferevent *bufev);
   */
 void bufferevent_setcb(struct bufferevent *bufev,
     bufferevent_data_cb readcb, bufferevent_data_cb writecb,
-    bufferevent_event_cb errorcb, void *cbarg);
+    bufferevent_event_cb eventcb, void *cbarg);
 
 /**
   Changes the file descriptor on which the bufferevent operates.

@@ -99,6 +99,8 @@ struct bufferevent {
 
 	bufferevent_data_cb readcb;
 	bufferevent_data_cb writecb;
+	/* This should be called 'eventcb', but renaming it would break
+	 * backward compatibility */
 	bufferevent_event_cb errorcb;
 	void *cbarg;
 
