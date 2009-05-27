@@ -506,7 +506,7 @@ struct evbuffer_cb_info {
        should start looking for data.  NULL means, "At the start of the
        buffer."
     @param vec_out an array of evbuffer_iovec
-    @param n_vec the length of n_vec.  If 0, we only count how many
+    @param n_vec the length of vec_out.  If 0, we only count how many
        extents would be necessary to point to the requested amount of
        data.
     @return The number of extents needed.  This may be less than n_vec
