@@ -117,7 +117,7 @@ poll_check_ok(struct pollop *pop)
 static int
 poll_dispatch(struct event_base *base, struct timeval *tv)
 {
-	int res, i, msec = -1, nfds;
+	int res, i, j, msec = -1, nfds;
 	struct pollop *pop = base->evbase;
 
 	poll_check_ok(pop);
@@ -142,11 +142,15 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 
 	event_debug(("%s: poll reports %d", __func__, res));
 
-	if (res == 0)
+	if (res == 0 || nfds == 0)
 		return (0);
 
-	for (i = 0; i < nfds; i++) {
-		int what = pop->event_set[i].revents;
+	i = random() % nfds;
+	for (j = 0; j < nfds; j++) {
+		int what;
+		if (++i == nfds)
+			i = 0;
+		what = pop->event_set[i].revents;
 		if (!what)
 			continue;
 
