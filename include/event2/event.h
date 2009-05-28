@@ -93,7 +93,7 @@ int event_reinit(struct event_base *base);
 int event_base_dispatch(struct event_base *);
 
 /**
- Get the kernel event notification mechanism used by libevent.
+ Get the kernel event notification mechanism used by Libevent.
 
  @param eb the event_base structure returned by event_base_new()
  @return a string identifying the kernel event mechanism (kqueue, epoll, etc.)
@@ -101,10 +101,10 @@ int event_base_dispatch(struct event_base *);
 const char *event_base_get_method(struct event_base *);
 
 /**
-   Gets all event notification mechanisms supported by libevent.
+   Gets all event notification mechanisms supported by Libevent.
 
    This functions returns the event mechanism in order preferred by
-   libevent.  Note that this list will include all backends that
+   Libevent.  Note that this list will include all backends that
    Libevent has compiled-in support for, and will not necessarily check
    your OS to see whether it has the required resources.
 
@@ -138,7 +138,7 @@ void event_config_free(struct event_config *cfg);
 
    This can be used to avoid event mechanisms that do not support certain
    file descriptor types.  An application can make use of multiple event
-   bases to accomodate incompatible file descriptor types.
+   bases to accommodate incompatible file descriptor types.
 
    @param cfg the event configuration object
    @param method the event method to avoid
@@ -232,7 +232,7 @@ void event_base_free(struct event_base *);
 #define _EVENT_LOG_ERR   3
 typedef void (*event_log_cb)(int severity, const char *msg);
 /**
-  Redirect libevent's log messages.
+  Redirect Libevent's log messages.
 
   @param cb a function taking two arguments: an integer severity between
      _EVENT_LOG_DEBUG and _EVENT_LOG_ERR, and a string.  If cb is NULL,
@@ -369,7 +369,7 @@ int event_base_loopbreak(struct event_base *);
   Note that using event_assign() request that you have already allocated the
   event struct.  Doing so will often require your code to depend on the size
   of the structure, and will create possible incompatibility with future
-  versions of libevent.  If this seems like a bad idea to you, use event_new()
+  versions of Libevent.  If this seems like a bad idea to you, use event_new()
   and event_free() instead.
 
   @param ev an event struct to be modified
@@ -517,7 +517,7 @@ struct event_base *event_get_base(struct event *ev);
 #endif
 
 /**
-   Get the libevent version.
+   Get the Libevent version.
 
    Note that this will give you the version of the library that you're
    currently linked against, not the version of the headers that you've
@@ -572,17 +572,17 @@ int	event_priority_set(struct event *, int);
 
 #ifndef _EVENT_DISABLE_MM_REPLACEMENT
 /**
- Override the functions that libevent uses for memory management.
+ Override the functions that Libevent uses for memory management.
 
- Usually, libevent uses the standard libc functions malloc, realloc, and
+ Usually, Libevent uses the standard libc functions malloc, realloc, and
  free to allocate memory.  Passing replacements for those functions to
  event_set_mem_functions() overrides this behavior.  To restore the default
  behavior, pass NULLs as the arguments to this function.
 
- Note that all memory returned from libevent will be allocated by the
+ Note that all memory returned from Libevent will be allocated by the
  replacement functions rather than by malloc() and realloc().  Thus, if you
  have replaced those functions, it may not be appropriate to free() memory
- that you get from libevent.
+ that you get from Libevent.
 
  @param malloc_fn A replacement for malloc.
  @param realloc_fn A replacement for realloc

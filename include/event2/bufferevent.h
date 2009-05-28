@@ -34,7 +34,7 @@
   and one for writing, and callbacks that are invoked under certain
   circumstances.
 
-  libevent provides an abstraction on top of the regular event callbacks.
+  Libevent provides an abstraction on top of the regular event callbacks.
   This abstraction is called a buffered event.  A buffered event provides
   input and output buffers that get filled and drained automatically.  The
   user of a buffered event no longer deals directly with the I/O, but
@@ -100,7 +100,7 @@ struct sockaddr;
 typedef void (*bufferevent_data_cb)(struct bufferevent *bev, void *ctx);
 
 /**
-   type defintion for the error callback of a bufferevent.
+   type definition for the error callback of a bufferevent.
 
    The error callback is triggered if either an EOF condition or another
    unrecoverable error was encountered.
@@ -282,21 +282,21 @@ int bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf);
 
    The user MUST NOT set the callback on this buffer.
 
-   @param bufev the buffervent from which to get the evbuffer
+   @param bufev the bufferevent from which to get the evbuffer
    @return the evbuffer object for the input buffer
  */
 
 struct evbuffer *bufferevent_get_input(struct bufferevent *bufev);
 
 /**
-   Returns the outut buffer.
+   Returns the output buffer.
 
    The user MUST NOT set the callback on this buffer.
 
    When filters are being used, the filters need to be manually
    triggered if the output buffer was manipulated.
 
-   @param bufev the buffervent from which to get the evbuffer
+   @param bufev the bufferevent from which to get the evbuffer
    @return the evbuffer object for the output buffer
  */
 
@@ -338,7 +338,7 @@ void bufferevent_set_timeouts(struct bufferevent *bufev,
 
   On input, a bufferevent does not invoke the user read callback unless
   there is at least low watermark data in the buffer.   If the read buffer
-  is beyond the high watermark, the buffevent stops reading from the network.
+  is beyond the high watermark, the bufferevent stops reading from the network.
 
   On output, the user write callback is invoked whenever the buffered data
   falls below the low watermark.  Filters that write to this bufev will try
@@ -396,7 +396,7 @@ enum bufferevent_filter_result {
 	/** the filter needs to read more data before output */
 	BEV_NEED_MORE = 1,
 
-	/** the filter enountered a critical error, no further data
+	/** the filter encountered a critical error, no further data
 	    can be processed. */
 	BEV_ERROR = 2
 };
@@ -412,7 +412,7 @@ enum bufferevent_filter_result {
     @param state Whether we should write data as may be convenient
        (BEV_NORMAL), or flush as much data as we can (BEV_FLUSH),
        or flush as much as we can, possibly including an end-of-stream
-       marker (BEF_FINISH).
+       marker (BEV_FINISH).
     @param ctx A user-supplied pointer.
 
     @return BEV_OK if we wrote some data; BEV_NEED_MORE if we can't
@@ -447,7 +447,7 @@ bufferevent_filter_new(struct bufferevent *underlying,
 /**
    Allocate a pair of linked bufferevents.  The bufferevents behave as would
    two bufferevent_sock instances connected to opposite ends of a
-   socketpair(), except that no internel socketpair is allocated.
+   socketpair(), except that no internal socketpair is allocated.
 
    @param base The event base to associate with the socketpair.
    @param options A set of options for this bufferevent

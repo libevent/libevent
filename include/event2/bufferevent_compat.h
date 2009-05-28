@@ -34,7 +34,7 @@
 /**
   Create a new bufferevent for an fd.
 
-  This function is deprecated.  Use buffevent_socket_new and
+  This function is deprecated.  Use bufferevent_socket_new and
   bufferevent_set_callbacks instead.
 
   libevent provides an abstraction on top of the regular event callbacks.

@@ -28,10 +28,10 @@
 
 /** @file thread.h
 
-  Functions for multi-threaded applications using libevent.
+  Functions for multi-threaded applications using Libevent.
 
   When using a multi-threaded application in which multiple threads
-  add and delete events from a single event base, libevent needs to
+  add and delete events from a single event base, Libevent needs to
   lock its data structures.
 
   Like the memory-management function hooks, all of the threading functions
@@ -39,15 +39,15 @@
   use them.
 
   A multi-threaded application must provide locking functions to
-  libevent via evthread_set_locking_callback().  Libevent will invoke
+  Libevent via evthread_set_locking_callback().  Libevent will invoke
   this callback whenever a lock needs to be acquired or released.
 
-  The total number of locks employed by libevent can be determined
+  The total number of locks employed by Libevent can be determined
   via the evthread_num_locks() function.  An application must provision
   that many locks.
 
   If the owner of an event base is waiting for events to happen,
-  libevent may signal the thread via a special file descriptor to wake
+  Libevent may signal the thread via a special file descriptor to wake
   up.   To enable this feature, an application needs to provide a
   thread identity function via evthread_set_id_callback().
 
@@ -66,9 +66,9 @@ extern "C" {
 #define EVTHREAD_READ	0x08
 
 /**
-   Sets the functions libevent should use for allocating and freeing
+   Sets the functions Libevent should use for allocating and freeing
    locks.  This needs to be called in addition to
-   evthread_set_locking_callback() before using libevent in a
+   evthread_set_locking_callback() before using Libevent in a
    multi-threaded application.
 
    Locks must be recursive.  That is, it must be safe for a thread to
@@ -81,20 +81,20 @@ void evthread_set_lock_create_callbacks(
     void *(*alloc_fn)(void), void (*free_fn)(void *));
 
 /**
-   Sets the function libevent should use for locking.
+   Sets the function Libevent should use for locking.
 
-   @param locking_fn the function that libevent should invoke to acquire
+   @param locking_fn the function that Libevent should invoke to acquire
      or release a lock.  mode has either EVTHREAD_LOCK or EVTHREAD_UNLOCK
-     set, and in addition, either EVHTREAD_WRITE or EVTREAD_READ.
+     set, and in addition, either EVTHREAD_WRITE or EVTHREAD_READ.
  */
 void evthread_set_locking_callback(
     void (*locking_fn)(int mode, void *lock));
 
 /**
-   Sets the function for derminting the thread id.
+   Sets the function for determining the thread id.
 
    @param base the event base for which to set the id function
-   @param id_fn the identify function libevent should invoke to
+   @param id_fn the identify function Libevent should invoke to
      determine the identity of a thread.
 */
 void evthread_set_id_callback(
@@ -107,17 +107,17 @@ void evthread_set_id_callback(
 int evthread_make_base_notifiable(struct event_base *base);
 
 #ifdef WIN32
-/** Sets up libevent for use with Windows builtin locking and thread ID
-	functions.  Unavailable if libevent is not built for Windows.
+/** Sets up Libevent for use with Windows builtin locking and thread ID
+	functions.  Unavailable if Libevent is not built for Windows.
 
 	@return 0 on success, -1 on failure. */
 int evthread_use_windows_threads(void);
 #endif
 
 #ifdef _EVENT_HAVE_PTHREADS
-/** Sets up libevent for use with Pthreadsn locking and thread ID functions.
-	Unavailable if libevent is not build for use with pthreads.  Requires
-	libraries to link against libevent_pthreads as well as libevent.
+/** Sets up Libevent for use with Pthreads locking and thread ID functions.
+	Unavailable if Libevent is not build for use with pthreads.  Requires
+	libraries to link against Libevent_pthreads as well as Libevent.
 
 	@return 0 on success, -1 on failure. */
 int evthread_use_pthreads(void);

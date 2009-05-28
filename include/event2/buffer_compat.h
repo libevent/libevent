@@ -51,7 +51,7 @@ char *evbuffer_readline(struct evbuffer *buffer);
     removed from an evbuffer.
 
     An evbuffer may have one or more callbacks set at a time.  The order
-    in which they are exectuded is undefined.
+    in which they are executed is undefined.
 
     A callback function may add more callbacks, or remove itself from the
     list of callbacks, or add or remove data from the buffer.  It may not

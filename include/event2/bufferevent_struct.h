@@ -30,7 +30,7 @@
 /** @file bufferevent_struct.h
 
   Data structures for bufferevents.  Using these structures may hurt forward
-  compatibility with later versions of libevent: be careful!
+  compatibility with later versions of Libevent: be careful!
 
  */
 

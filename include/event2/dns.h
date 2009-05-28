@@ -29,7 +29,7 @@
  * The original DNS code is due to Adam Langley with heavy
  * modifications by Nick Mathewson.  Adam put his DNS software in the
  * public domain.  You can find his original copyright below.  Please,
- * aware that the code as part of libevent is governed by the 3-clause
+ * aware that the code as part of Libevent is governed by the 3-clause
  * BSD license above.
  *
  * This software is Public Domain. To view a copy of the public domain dedication,
@@ -58,7 +58,7 @@
  * (see http://www.imperialviolet.org/page25.html#e498). Otherwise,
  * please continue.
  *
- * This code is based on libevent and you must call event_init before
+ * This code is based on Libevent and you must call event_init before
  * any of the APIs in this file. You must also seed the OpenSSL random
  * source if you are using OpenSSL for ids (see below).
  *
@@ -181,15 +181,15 @@ extern "C" {
 /** The name server refuses to reform the specified operation for policy
  * reasons */
 #define DNS_ERR_REFUSED 5
-/** The reply was truncated or ill-formated */
+/** The reply was truncated or ill-formatted */
 #define DNS_ERR_TRUNCATED 65
 /** An unknown error occurred */
 #define DNS_ERR_UNKNOWN 66
 /** Communication with the server timed out */
 #define DNS_ERR_TIMEOUT 67
-/** The request was cancelled because the DNS subsystem was shut down. */
+/** The request was canceled because the DNS subsystem was shut down. */
 #define DNS_ERR_SHUTDOWN 68
-/** The request was cancelled via a call to evdns_cancel_request */
+/** The request was canceled via a call to evdns_cancel_request */
 #define DNS_ERR_CANCEL 69
 
 #define DNS_IPv4_A 1
@@ -520,9 +520,9 @@ struct evdns_server_question;
 /**
    A callback to implement a DNS server.  The callback function receives a DNS
    request.  It should then optionally add a number of answers to the reply
-   using the evdns_server_request_add_*_reply functinos, before calling either
+   using the evdns_server_request_add_*_reply functions, before calling either
    evdns_server_request_respond to send the reply back, or
-   evdns_server_request_drop to decling to answer the request.
+   evdns_server_request_drop to decline to answer the request.
 
    @param req A newly received request
    @param user_data A pointer that was passed to

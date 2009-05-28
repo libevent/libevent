@@ -57,7 +57,7 @@ extern "C" {
  * EVRPC_REGISTER(base, SendCommand, Request, Reply,  FunctionCB, arg);
  *
  * when the server receives an appropriately formatted RPC, the user callback
- * is invokved.   The callback needs to fill in the reply structure.
+ * is invoked.   The callback needs to fill in the reply structure.
  *
  * void FunctionCB(EVRPC_STRUCT(SendCommand)* rpc, void *arg);
  *
@@ -514,7 +514,7 @@ evrpc_resume_request(void *vbase, void *ctx, enum EVRPC_HOOK_RESULT res);
 /** adds meta data to request
  *
  * evrpc_hook_add_meta() allows hooks to add meta data to a request. for
- * a client requet, the meta data can be inserted by an outgoing request hook
+ * a client request, the meta data can be inserted by an outgoing request hook
  * and retrieved by the incoming request hook.
  *
  * @param ctx the context provided to the hook call
@@ -532,7 +532,7 @@ void evrpc_hook_add_meta(void *ctx, const char *key,
  * @param ctx the context provided to the hook call
  * @param key a NUL-terminated c-string
  * @param data pointer to a data pointer that will contain the retrieved data
- * @param data_size pointer tothe size of the data
+ * @param data_size pointer to the size of the data
  * @return 0 on success or -1 on failure
  */
 int evrpc_hook_find_meta(void *ctx, const char *key,

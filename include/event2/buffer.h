@@ -33,7 +33,7 @@
   An evbuffer can be used for preparing data before sending it to
   the network or conversely for reading data from the network.
   Evbuffers try to avoid memory copies as much as possible.  As a
-  result evbuffers can be used to pass data around witout actually
+  result evbuffers can be used to pass data around without actually
   incurring the overhead of copying the data.
 
   A new evbuffer can be allocated with evbuffer_new(), and can be
@@ -163,7 +163,7 @@ size_t evbuffer_get_length(const struct evbuffer *buf);
 /**
    Returns the number of contiguous available bytes in the first buffer chain.
 
-   This is useful when procesing data that might be split into multiple
+   This is useful when processing data that might be split into multiple
    chains, or that might all be in the first chain.  Calls to
    evbuffer_pullup() that cause reallocation and copying of data can thus be
    avoided.
@@ -239,7 +239,7 @@ evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
 
    @param buf the event buffer in which to reserve space.
    @param vec one or two extents returned by evbuffer_reserve_space.
-   @paramm n_vecs the number of extents.
+   @param n_vecs the number of extents.
    @return 0 on success, -1 on error
    @see evbuffer_reserve_space
 */
@@ -337,7 +337,7 @@ typedef void (*evbuffer_ref_cleanup_cb)(const void *data,
   @param outbuf the output buffer
   @param data the memory to reference
   @param datlen how memory to reference
-  @param cleanupfn callback to be invokved when the memory is no longer
+  @param cleanupfn callback to be invoked when the memory is no longer
 	referenced
   @param extra optional argument to the cleanup callback
   @return 0 if successful, or -1 if an error occurred
@@ -458,16 +458,16 @@ struct evbuffer_ptr evbuffer_search(struct evbuffer *buffer, const char *what, s
 
 enum evbuffer_ptr_how {
 	/** Sets the pointer to the position; can be called on with an
-	    uninitalized evbuffer_ptr. */
+	    uninitialized evbuffer_ptr. */
 	EVBUFFER_PTR_SET,
 	/** Advances the pointer by adding to the current position. */
 	EVBUFFER_PTR_ADD
 };
 
 /**
-   Sets the search pointer in the buffer to positiion.
+   Sets the search pointer in the buffer to position.
 
-   If evbuffer_ptr is not initalized.  This function can only be called
+   If evbuffer_ptr is not initialized.  This function can only be called
    with EVBUFFER_PTR_SET.
 
    @param buffer the evbuffer to be search
@@ -522,7 +522,7 @@ int evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
     removed from an evbuffer.
 
     An evbuffer may have one or more callbacks set at a time.  The order
-    in which they are exectuded is undefined.
+    in which they are executed is undefined.
 
     A callback function may add more callbacks, or remove itself from the
     list of callbacks, or add or remove data from the buffer.  It may not
@@ -607,7 +607,7 @@ int evbuffer_cb_clear_flags(struct evbuffer *buffer,
 	@param cb the callback we want to suspend.
  */
 void evbuffer_cb_suspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb);
-/** Stop postponing a callback that we posponed with evbuffer_cb_suspend.
+/** Stop postponing a callback that we postponed with evbuffer_cb_suspend.
 
 	If data was added to or removed from the buffer while the callback was
 	suspended, the callback will get called once now.
@@ -624,7 +624,7 @@ void evbuffer_cb_unsuspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb
   @param buf the evbuffer to make contiguous
   @param size the number of bytes to make contiguous, or -1 to make the
          entire buffer contiguous.
-  @return a pointer to the contigous memory areay
+  @return a pointer to the contiguous memory array
 */
 
 unsigned char *evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size);

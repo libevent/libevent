@@ -62,7 +62,7 @@ extern "C" {
   used.  Sets the current_base global representing the default base for
   events that have no base associated with them.
 
-  @deprecated This function is deprecated because it relaces the "current"
+  @deprecated This function is deprecated because it replaces the "current"
     event_base, and is totally unsafe for multithreaded use.  The replacement
     is event_base_new().
 
@@ -167,7 +167,7 @@ int event_once(evutil_socket_t , short,
 
 
 /**
-  Get the kernel event notification mechanism used by libevent.
+  Get the kernel event notification mechanism used by Libevent.
 
   @return a string identifying the kernel event mechanism (kqueue, epoll, etc.)
 
@@ -181,16 +181,16 @@ const char *event_get_method(void);
 /**
   Set the number of different event priorities.
 
-  By default libevent schedules all active events with the same priority.
+  By default Libevent schedules all active events with the same priority.
   However, some time it is desirable to process some events with a higher
-  priority than others.  For that reason, libevent supports strict priority
+  priority than others.  For that reason, Libevent supports strict priority
   queues.  Active events with a lower priority are always processed before
   events with a higher priority.
 
   The number of different priorities can be set initially with the
   event_priority_init() function.  This function should be called before the
   first call to event_dispatch().  The event_priority_set() function can be
-  used to assign a priority to an event.  By default, libevent assigns the
+  used to assign a priority to an event.  By default, Libevent assigns the
   middle priority to all events unless their priority is explicitly set.
 
   @deprecated This function is deprecated because it is easily confused by
