@@ -156,7 +156,7 @@ enum event_method_feature {
     EV_FEATURE_O1 = 0x02,
     /* Require an event method that allows file descriptors as well as
      * sockets. */
-    EV_FEATURE_FDS = 0x04,
+    EV_FEATURE_FDS = 0x04
 };
 
 enum event_base_config_flag {
@@ -165,7 +165,7 @@ enum event_base_config_flag {
 	EVENT_BASE_FLAG_NOLOCK = 0x01,
 	/** Do not check the EVENT_NO* environment variables when picking
 	    an event_base. */
-	EVENT_BASE_FLAG_IGNORE_ENV = 0x02,
+	EVENT_BASE_FLAG_IGNORE_ENV = 0x02
 };
 
 /**
