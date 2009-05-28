@@ -126,7 +126,7 @@ enum bufferevent_options {
 	BEV_OPT_THREADSAFE = (1<<1),
 
 	/** If set, callbacks are run deferred in the event loop. */
-	BEV_OPT_DEFER_CALLBACKS = (1<<2),
+	BEV_OPT_DEFER_CALLBACKS = (1<<2)
 };
 
 /**
@@ -366,7 +366,7 @@ enum bufferevent_flush_mode {
 	BEV_FLUSH = 1,
 
 	/** encountered EOF on read or done sending data */
-	BEV_FINISHED = 2,
+	BEV_FINISHED = 2
 };
 
 /**
