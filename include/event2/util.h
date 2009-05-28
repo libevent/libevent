@@ -58,7 +58,7 @@ extern "C" {
  * C99-specified stdint.h.  Shamefully, some platforms do not include
  * stdint.h, so we need to replace it.  (If you are on a platform like this,
  * your C headers are now 10 years out of date.  You should bug them to do
- * somthing about this.)
+ * something about this.)
  *
  * We define:
  *    ev_uint64_t, ev_uint32_t, ev_uint16_t, ev_uint8_t -- unsigned integer
@@ -147,7 +147,7 @@ int evutil_make_socket_nonblocking(evutil_socket_t sock);
     another program will be able to bind this address right after we've
     closed the listener
 
-    @param sock The socket to make reuseabla
+    @param sock The socket to make reusable
     @return 0 on success, -1 on failure
  */
 int evutil_make_listen_socket_reuseable(evutil_socket_t);
@@ -166,7 +166,7 @@ int evutil_make_listen_socket_reuseable(evutil_socket_t);
  * Elsewhere, a socket error is like any other error and is stored in errno.
  * But winsock functions require you to retrieve the error with a special
  * function, and don't let you use strerror for the error codes.  And handling
- * EWOULD block is ... different. */
+ * EWOULDBLOCK is ... different. */
 
 #ifdef WIN32
 /** Return the most recent socket error.  Not idempotent on all platforms. */
@@ -288,7 +288,7 @@ struct sockaddr;
     @param out A struct sockaddr to hold the result.  This should probably be
        a struct sockaddr_storage.
     @param outlen A pointer to the number of bytes that that 'out' can safely
-       hold.  Set to the number of bytes used in 'out' on sucess.
+       hold.  Set to the number of bytes used in 'out' on success.
     @return -1 if the address is not well-formed, if the port is out of range,
        or if out is not large enough to hold the result.  Otherwise returns
        0 on success.

@@ -49,7 +49,7 @@ struct event_base;
  *
  * Basic support for HTTP serving.
  *
- * As libevent is a library for dealing with event notification and most
+ * As Libevent is a library for dealing with event notification and most
  * interesting applications are networked today, I have often found the
  * need to write HTTP code.  The following prototypes and definitions provide
  * an application with a minimal interface for making HTTP requests and for
@@ -328,7 +328,7 @@ void evhttp_connection_set_local_port(struct evhttp_connection *evcon,
 void evhttp_connection_set_timeout(struct evhttp_connection *evcon,
     int timeout_in_secs);
 
-/** Sets the retry limit for this connection - -1 repeats indefnitely */
+/** Sets the retry limit for this connection - -1 repeats indefinitely */
 void evhttp_connection_set_retries(struct evhttp_connection *evcon,
     int retry_max);
 
@@ -398,7 +398,7 @@ const char *evhttp_find_header(const struct evkeyvalq *headers,
     const char *key);
 
 /**
-   Removes a header from a list of exisiting headers.
+   Removes a header from a list of existing headers.
 
    @param headers the evkeyvalq object from which to remove a header
    @param key the name of the header to remove
@@ -408,7 +408,7 @@ const char *evhttp_find_header(const struct evkeyvalq *headers,
 int evhttp_remove_header(struct evkeyvalq *headers, const char *key);
 
 /**
-   Adds a header to a list of exisiting headers.
+   Adds a header to a list of existing headers.
 
    @param headers the evkeyvalq object to which to add a header
    @param key the name of the header

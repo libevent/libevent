@@ -65,7 +65,7 @@ extern "C" {
 /* EVLIST_X_ Private space: 0x1000-0xf000 */
 #define EVLIST_ALL	(0xf000 | 0x9f)
 
-/* Fix so that ppl dont have to run with <sys/queue.h> */
+/* Fix so that people don't have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
 #define _EVENT_DEFINED_TQENTRY
 #define TAILQ_ENTRY(type)						\
