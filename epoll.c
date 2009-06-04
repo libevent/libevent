@@ -171,7 +171,7 @@ epoll_recalc(struct event_base *base, void *arg, int max)
 		int nfds;
 
 		nfds = epollop->nfds;
-		while (nfds < max)
+		while (nfds <= max)
 			nfds <<= 1;
 
 		fds = realloc(epollop->fds, nfds * sizeof(struct evepoll));
@@ -226,7 +226,7 @@ epoll_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		struct event *evread = NULL, *evwrite = NULL;
 		int fd = events[i].data.fd;
 
-		if (fd < 0 && fd >= epollop->nfds)
+		if (fd < 0 || fd >= epollop->nfds)
 			continue;
 		evep = &epollop->fds[fd];
 
