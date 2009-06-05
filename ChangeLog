@@ -34,6 +34,8 @@ Changes in 2.0.2-alpha:
  o Fix a memory error when freeing a thread-enabled event base with registered events. (Spotted by Joachim Bauch.)
  o Try to contain degree of failure when running on a win32 version so heavily firewalled that we can't fake a socketpair.
  o Activate fd events in a pseudorandom order with O(N) backends, so that we don't systematically favor low fds (select) or earlier-added fds (poll, win32).
+ o Replace some read()/write() instances with send()/recv() to work properly
+ on win32.
 
 
 Changes in 2.0.1-alpha:

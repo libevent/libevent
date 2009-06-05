@@ -66,9 +66,9 @@ read_cb(int fd, short which, void *arg)
 	char ch;
 	long idx = (long) arg;
 
-	read(fd, &ch, sizeof(ch));
+	recv(fd, &ch, sizeof(ch), 0);
 	if (idx >= 0)
-		write(idx, "e", 1);
+		send(idx, "e", 1, 0);
 	fired++;
 }
 
@@ -109,7 +109,7 @@ run_once(int num_pipes)
 	fired = 0;
 
 	/* kick everything off with a single write */
-	write(pipes[1], "e", 1);
+	send(pipes[1], "e", 1, 0);
 
 	event_dispatch();
 
