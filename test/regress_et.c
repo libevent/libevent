@@ -55,7 +55,7 @@ read_cb(int fd, short event, void *arg)
 	char buf;
 	int len;
 
-	len = read(fd, &buf, sizeof(buf));
+	len = recv(fd, &buf, sizeof(buf), 0);
 
 	/*printf("%s: %s %d%s\n", __func__, event & EV_ET ? "etread" : "read",
 	         len, len ? "" : " - means EOF");
@@ -95,7 +95,7 @@ test_edgetriggered(void *et)
 
 	called = was_et = 0;
 
-	write(pair[0], test, strlen(test)+1);
+	send(pair[0], test, strlen(test)+1, 0);
 	shutdown(pair[0], SHUT_WR);
 
 	/* Initalize the event library */

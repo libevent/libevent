@@ -39,7 +39,7 @@ write_cb(int fd, short event, void *arg)
 	const char *test = "test string";
 	int len;
 
-	len = write(fd, test, strlen(test) + 1);
+	len = send(fd, test, strlen(test) + 1, 0);
 
 	printf("%s: write %d%s\n", __func__,
 	    len, len ? "" : " - means EOF");

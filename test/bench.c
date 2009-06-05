@@ -70,11 +70,11 @@ read_cb(int fd, short which, void *arg)
 	long idx = (long) arg, widx = idx + 1;
 	u_char ch;
 
-	count += read(fd, &ch, sizeof(ch));
+	count += recv(fd, &ch, sizeof(ch), 0);
 	if (writes) {
 		if (widx >= num_pipes)
 			widx -= num_pipes;
-		write(pipes[2 * widx + 1], "e", 1);
+		send(pipes[2 * widx + 1], "e", 1, 0);
 		writes--;
 		fired++;
 	}
@@ -99,7 +99,7 @@ run_once(void)
 	space = num_pipes / num_active;
 	space = space * 2;
 	for (i = 0; i < num_active; i++, fired++)
-		write(pipes[i * space + 1], "e", 1);
+		send(pipes[i * space + 1], "e", 1, 0);
 
 	count = 0;
 	writes = num_writes;
