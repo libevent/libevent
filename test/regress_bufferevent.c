@@ -46,6 +46,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <netinet/in.h>
 #endif
 #include <fcntl.h>
 #include <signal.h>
