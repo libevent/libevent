@@ -644,7 +644,9 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 
 	if (!addr_part)
 		return -1; /* Should be impossible. */
-	if (is_ipv6) {
+#ifdef AF_INET6
+	if (is_ipv6)
+	{
 		struct sockaddr_in6 sin6;
 		memset(&sin6, 0, sizeof(sin6));
 #ifdef _EVENT_HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
@@ -660,7 +662,10 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 		memcpy(out, &sin6, sizeof(sin6));
                 *outlen = sizeof(sin6);
 		return 0;
-	} else {
+	}
+	else
+#endif
+	{
 		struct sockaddr_in sin;
 		memset(&sin, 0, sizeof(sin));
 #ifdef _EVENT_HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
