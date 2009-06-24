@@ -2,6 +2,7 @@ Changes in 1.4.12-stable:
  o Try to contain degree of failure when running on a win32 version so heavily firewalled that we can't fake a socketpair.
  o Fix an obscure timing-dependent, allocator-dependent crash in the evdns code.
  o Use __VA_ARGS__ syntax for varargs macros in event_rpcgen when compiler is not GCC.
+ o Activate fd events in a pseudorandom order with O(N) backends, so that we don't systematically favor low fds (select) or earlier-added fds (poll, win32).
  o Fix another pair of fencepost bugs in epoll.c.  [Patch from Adam Langley.]
 
 Changes in 1.4.11-stable:
@@ -85,7 +86,6 @@ Changes in 1.4.4-stable:
  o Merge windows gettimeofday() replacement into a new evutil_gettimeofday() function.
  o Fix autoconf script behavior on IRIX.
  o Make sure winsock2.h include always comes before windows.h include.
-
 
 Changes in 1.4.3-stable:
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive

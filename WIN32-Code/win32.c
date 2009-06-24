@@ -352,8 +352,9 @@ win32_dispatch(struct event_base *base, void *op,
 {
 	struct win32op *win32op = op;
 	int res = 0;
-	unsigned i;
+	unsigned j, i;
 	int fd_count;
+	SOCKET s;
 
 	fd_set_copy(win32op->readset_out, win32op->readset_in);
 	fd_set_copy(win32op->exset_out, win32op->readset_in);
@@ -384,29 +385,37 @@ win32_dispatch(struct event_base *base, void *op,
 		evsignal_process(base);
 	}
 
-	for (i=0; i<win32op->readset_out->fd_count; ++i) {
-		struct event_entry *ent;
-		SOCKET s = win32op->readset_out->fd_array[i];
-		if ((ent = get_event_entry(win32op, s, 0)) && ent->read_event)
-			event_active(ent->read_event, EV_READ, 1);
+	if (win32op->readset_out->fd_count) {
+		i = rand() % win32op->readset_out->fd_count;
+		for (j=0; j<win32op->readset_out->fd_count; ++j) {
+			if (++i >= win32op->readset_out->fd_count)
+				i = 0;
+			s = win32op->readset_out->fd_array[i];
+			if ((ent = get_event_entry(win32op, s, 0)) && ent->read_event)
+				event_active(ent->read_event, EV_READ, 1);
+		}
 	}
-	for (i=0; i<win32op->exset_out->fd_count; ++i) {
-		struct event_entry *ent;
-		SOCKET s = win32op->exset_out->fd_array[i];
-		if ((ent = get_event_entry(win32op, s, 0)) && ent->read_event)
-			event_active(ent->read_event, EV_READ, 1);
+	if (win32op->exset_out->fd_count) {
+		i = rand() % win32op->exset_out->fd_count;
+		for (j=0; j<win32op->exset_out->fd_count; ++j) {
+			if (++i >= win32op-exset_out->fd_count)
+				i = 0;
+			s = win32op->exset_out->fd_array[i];
+			if ((ent = get_event_entry(win32op, s, 0)) && ent->read_event)
+				event_active(ent->read_event, EV_READ, 1);
+		}
 	}
-	for (i=0; i<win32op->writeset_out->fd_count; ++i) {
-		struct event_entry *ent;
-		SOCKET s = win32op->writeset_out->fd_array[i];
-		if ((ent = get_event_entry(win32op, s, 0)) && ent->write_event)
-			event_active(ent->write_event, EV_WRITE, 1);
-	}
+	if (win32op->writeset_out->fd_count) {
+		i = rand() % win32op->writeset_out->fd_count;
+		for (j=0; j<win32op->writeset_out->fd_count; ++j) {
+			if (++i >= win32op-exset_out->fd_count)
+				i = 0;
+			s = win32op->writeset_out->fd_array[i];
+			if ((ent = get_event_entry(win32op, s, 0)) && ent->write_event)
+				event_active(ent->write_event, EV_WRITE, 1);
 
-#if 0
-	if (signal_recalc() == -1)
-		return (-1);
-#endif
+		}
+	}
 
 	return (0);
 }
