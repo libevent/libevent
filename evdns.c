@@ -219,6 +219,7 @@ struct reply {
 struct nameserver {
 	evutil_socket_t socket;	 /* a connected UDP socket */
 	struct sockaddr_storage address;
+	socklen_t addrlen;
 	int failed_times;  /* number of times which we have given this server a chance */
 	int timedout;  /* number of times in a row a request has timed out */
 	struct event event;
@@ -2135,7 +2136,8 @@ static int
 evdns_request_transmit_to(struct evdns_request *req, struct nameserver *server) {
 	int r;
 	ASSERT_LOCKED(req->base);
-	r = send(server->socket, req->request, req->request_len, 0);
+	r = sendto(server->socket, req->request, req->request_len, 0,
+                (struct sockaddr *)&server->address, server->addrlen);
 	if (r < 0) {
 		int err = evutil_socket_geterror(server->socket);
 		if (EVUTIL_ERR_RW_RETRIABLE(err))
@@ -2421,12 +2423,8 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 		}
 	}
 
-	if (connect(ns->socket, address, addrlen) != 0) {
-		err = 2;
-		goto out2;
-	}
-
 	memcpy(&ns->address, address, addrlen);
+	ns->addrlen = addrlen;
 	ns->state = 1;
 	event_assign(&ns->event, ns->base->event_base, ns->socket, EV_READ | EV_PERSIST, nameserver_ready_callback, ns);
 	if (event_add(&ns->event, NULL) < 0) {
