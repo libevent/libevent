@@ -4,6 +4,7 @@ Changes in 1.4.12-stable:
  o Use __VA_ARGS__ syntax for varargs macros in event_rpcgen when compiler is not GCC.
  o Activate fd events in a pseudorandom order with O(N) backends, so that we don't systematically favor low fds (select) or earlier-added fds (poll, win32).
  o Fix another pair of fencepost bugs in epoll.c.  [Patch from Adam Langley.]
+ o Do not break evdns connections to nameservers when our IP changes.
 
 Changes in 1.4.11-stable:
  o Fix a bug when removing a timeout from the heap. [Patch from Marko Kreen]
