@@ -1763,7 +1763,7 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 
 	return (len);
 #elif defined(SENDFILE_IS_FREEBSD)
-	res = sendfile(info->fd, fd, chain->misalign, len, NULL, &len, 0);
+	res = sendfile(info->fd, fd, chain->misalign, chain->off, NULL, &len, 0);
 	if (res == -1 && !EVUTIL_ERR_RW_RETRIABLE(errno))
 		return (-1);
 
