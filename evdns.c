@@ -1703,7 +1703,7 @@ evdns_server_request_format_response(struct server_request *req, int err)
 	if (j > 512) {
 overflow:
 		j = 512;
-		buf[3] |= 0x02; /* set the truncated bit. */
+		buf[2] |= 0x02; /* set the truncated bit. */
 	}
 
 	req->response_len = j;
