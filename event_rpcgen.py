@@ -5,20 +5,29 @@
 #
 # Generates marshaling code based on libevent.
 
+# TODO:
+# 1) use optparse to allow the strategy shell to parse options, and
+#    to allow the instantiated factory (for the specific output language)
+#    to parse remaining options
+# 2) move the globals into a class that manages execution (including the
+#    progress outputs that space stderr at the moment)
+# 3) emit other languages
+
 import sys
 import re
 
-#
 _NAME = "event_rpcgen.py"
 _VERSION = "0.1"
-_STRUCT_RE = '[a-z][a-z_0-9]*'
 
 # Globals
 line_count = 0
 
-white = re.compile(r'^\s+')
+white = re.compile(r'\s+')
 cppcomment = re.compile(r'\/\/.*$')
 nonident = re.compile(r'[^a-zA-Z0-9_]')
+structref = re.compile(r'^struct\[([a-zA-Z_][a-zA-Z0-9_]*)\]$')
+structdef = re.compile(r'^struct +[a-zA-Z_][a-zA-Z0-9_]* *{$')
+
 headerdirect = []
 cppdirect = []
 
@@ -1351,8 +1360,7 @@ def ProcessOneEntry(factory, newstruct, entry):
     elif entry_type == 'string' and not fixed_length:
         newentry = factory.EntryString(entry_type, name, tag)
     else:
-        res = re.match(r'^struct\[(%s)\]$' % _STRUCT_RE,
-                       entry_type, re.IGNORECASE)
+        res = structref.match(entry_type)
         if res:
             # References another struct defined in our file
             newentry = factory.EntryStruct(entry_type, name, tag, res.group(1))
@@ -1426,8 +1434,8 @@ def GetNextStruct(file):
         line = line[:-1]
 
         if not have_c_comment and re.search(r'/\*', line):
-            if re.search(r'/\*.*\*/', line):
-                line = re.sub(r'/\*.*\*/', '', line)
+            if re.search(r'/\*.*?\*/', line):
+                line = re.sub(r'/\*.*?\*/', '', line)
             else:
                 line = re.sub(r'/\*.*$', '', line)
                 have_c_comment = 1
@@ -1456,8 +1464,7 @@ def GetNextStruct(file):
                 headerdirect.append(line)
                 continue
 
-            if not re.match(r'^struct %s {$' % _STRUCT_RE,
-                            line, re.IGNORECASE):
+            if not structdef.match(line):
                 raise RpcGenError('Missing struct on line %d: %s'
                                   % (line_count, line))
             else:
