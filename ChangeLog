@@ -37,6 +37,7 @@ Changes in 2.0.2-alpha:
  o Replace some read()/write() instances with send()/recv() to work properly on win32.
  o Set truncated flag correctly in evdns server replies.
  o Raise RpcGenError in event_rpcgen.py; from jmanison and Zack Weinberg
+ o Fix preamble of rpcgen-generated files to rely on event2 includes; based on work by jmansion; patch from Zack Weinberg.
 
 
 Changes in 2.0.1-alpha:
