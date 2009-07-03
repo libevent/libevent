@@ -1539,11 +1539,10 @@ class CCodeGenerator:
         guard = self.GuardName(name)
         return '#endif  /* %s */' % guard
 
-    def BodyPreamble(self, name):
+    def BodyPreamble(self, name, header_file):
         global _NAME
         global _VERSION
 
-        header_file = '.'.join(name.split('.')[:-1]) + '.gen.h'
         slash = header_file.rfind('/')
         if slash != -1:
             header_file = header_file[slash+1:]
@@ -1573,7 +1572,7 @@ class CCodeGenerator:
         return pre
 
     def HeaderFilename(self, filename):
-        return '.'.join(filename.split('.')[:-1]) + '.gen.h'
+        return '.'.join(filename.split('.')[:-1]) + '.h'
 
     def CodeFilename(self, filename):
         return '.'.join(filename.split('.')[:-1]) + '.gen.c'
@@ -1599,51 +1598,92 @@ class CCodeGenerator:
     def EntryArray(self, entry):
         return EntryArray(entry)
 
-def Generate(factory, filename):
-    ext = filename.split('.')[-1]
-    if ext != 'rpc':
-        raise RpcGenError('Unrecognized file extension: %s' % ext)
+class Usage(RpcGenError):
+    def __init__(self, argv0):
+        RpcGenError.__init__("usage: %s input.rpc [[output.h] output.c]"
+                             % argv0)
 
-    print >>sys.stderr, 'Reading \"%s\"' % filename
+class CommandLine:
+    def __init__(self, argv):
+        self.filename = None
+        self.header_file = None
+        self.impl_file = None
+        self.factory = CCodeGenerator()
 
-    fp = open(filename, 'r')
-    entities = Parse(factory, fp)
-    fp.close()
+        if len(argv) < 2 or len(argv) > 4:
+            raise Usage(argv[0])
 
-    header_file = factory.HeaderFilename(filename)
-    impl_file = factory.CodeFilename(filename)
+        self.filename = argv[1].replace('\\', '/')
+        if len(argv) == 3:
+            self.impl_file = argv[2].replace('\\', '/')
+        if len(argv) == 4:
+            self.header_file = argv[2].replace('\\', '/')
+            self.impl_file = argv[3].replace('\\', '/')
 
-    print >>sys.stderr, '... creating "%s"' % header_file
-    header_fp = open(header_file, 'w')
-    print >>header_fp, factory.HeaderPreamble(filename)
+        if not self.filename:
+            raise Usage(argv[0])
 
-    # Create forward declarations: allows other structs to reference
-    # each other
-    for entry in entities:
-        entry.PrintForwardDeclaration(header_fp)
-    print >>header_fp, ''
+        if not self.impl_file:
+            self.impl_file = self.factory.CodeFilename(self.filename)
 
-    for entry in entities:
-        entry.PrintTags(header_fp)
-        entry.PrintDeclaration(header_fp)
-    print >>header_fp, factory.HeaderPostamble(filename)
-    header_fp.close()
+        if not self.header_file:
+            self.header_file = self.factory.HeaderFilename(self.impl_file)
 
-    print >>sys.stderr, '... creating "%s"' % impl_file
-    impl_fp = open(impl_file, 'w')
-    print >>impl_fp, factory.BodyPreamble(filename)
-    for entry in entities:
-        entry.PrintCode(impl_fp)
-    impl_fp.close()
+        if not self.impl_file.endswith('.c'):
+            raise RpcGenError("can only generate C implementation files")
+        if not self.header_file.endswith('.h'):
+            raise RpcGenError("can only generate C header files")
+
+    def run(self):
+        filename = self.filename
+        header_file = self.header_file
+        impl_file = self.impl_file
+        factory = self.factory
+
+        print >>sys.stderr, 'Reading \"%s\"' % filename
+
+        fp = open(filename, 'r')
+        entities = Parse(factory, fp)
+        fp.close()
+
+        print >>sys.stderr, '... creating "%s"' % header_file
+        header_fp = open(header_file, 'w')
+        print >>header_fp, factory.HeaderPreamble(filename)
+
+        # Create forward declarations: allows other structs to reference
+        # each other
+        for entry in entities:
+            entry.PrintForwardDeclaration(header_fp)
+        print >>header_fp, ''
+
+        for entry in entities:
+            entry.PrintTags(header_fp)
+            entry.PrintDeclaration(header_fp)
+        print >>header_fp, factory.HeaderPostamble(filename)
+        header_fp.close()
+
+        print >>sys.stderr, '... creating "%s"' % impl_file
+        impl_fp = open(impl_file, 'w')
+        print >>impl_fp, factory.BodyPreamble(filename, header_file)
+        for entry in entities:
+            entry.PrintCode(impl_fp)
+        impl_fp.close()
 
 if __name__ == '__main__': 
     try:
-        if len(sys.argv) < 2 or not sys.argv[1]:
-            raise RpcGenError('Need RPC description file as first argument.')
-
-        Generate(CCodeGenerator(), sys.argv[1])
+        CommandLine(sys.argv).run()
         sys.exit(0)
 
     except RpcGenError, e:
         print >>sys.stderr, e
         sys.exit(1)
+
+    except EnvironmentError, e:
+        if e.filename and e.strerror:
+            print >>sys.stderr, "%s: %s" % (e.filename, e.strerror)
+            sys.exit(1)
+        elif e.strerror:
+            print >> sys.stderr, e.strerror
+            sys.exit(1)
+        else:
+            raise
