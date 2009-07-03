@@ -36,6 +36,7 @@ Changes in 2.0.2-alpha:
  o Activate fd events in a pseudorandom order with O(N) backends, so that we don't systematically favor low fds (select) or earlier-added fds (poll, win32).
  o Replace some read()/write() instances with send()/recv() to work properly on win32.
  o Set truncated flag correctly in evdns server replies.
+ o Raise RpcGenError in event_rpcgen.py; from jmanison and Zack Weinberg
 
 
 Changes in 2.0.1-alpha:

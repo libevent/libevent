@@ -24,6 +24,13 @@ cppdirect = []
 def TranslateList(mylist, mydict):
     return map(lambda x: x % mydict, mylist)
 
+# Exception class for parse errors
+class RpcGenError(Exception):
+        def __init__(self, why):
+                self.why = why
+        def __str__(self):
+                return str(self.why)
+
 # Holds everything that makes a struct
 class Struct:
     def __init__(self, name):
@@ -34,11 +41,10 @@ class Struct:
 
     def AddEntry(self, entry):
         if self._tags.has_key(entry.Tag()):
-            print >>sys.stderr, ( 'Entry "%s" duplicates tag number '
-                                  '%d from "%s" around line %d' ) % (
-                entry.Name(), entry.Tag(),
-                self._tags[entry.Tag()], line_count)
-            sys.exit(1)
+            raise RpcGenError(
+                'Entry "%s" duplicates tag number %d from "%s" '
+                'around line %d' % (entry.Name(), entry.Tag(),
+                                    self._tags[entry.Tag()], line_count))
         self._entries.append(entry)
         self._tags[entry.Tag()] = entry.Name()
         print >>sys.stderr, '    Added entry: %s' % entry.Name()
@@ -367,20 +373,17 @@ class Entry:
 
     def Verify(self):
         if self.Array() and not self._can_be_array:
-            print >>sys.stderr, (
+            raise RpcGenError(
                 'Entry "%s" cannot be created as an array '
-                'around line %d' ) % (self._name, self.LineCount())
-            sys.exit(1)
+                'around line %d' % (self._name, self.LineCount()))
         if not self._struct:
-            print >>sys.stderr, (
+            raise RpcGenError(
                 'Entry "%s" does not know which struct it belongs to '
-                'around line %d' ) % (self._name, self.LineCount())
-            sys.exit(1)
+                'around line %d' % (self._name, self.LineCount()))
         if self._optional and self._array:
-            print >>sys.stderr,  ( 'Entry "%s" has illegal combination of '
-                                   'optional and array around line %d' ) % (
-                self._name, self.LineCount() )
-            sys.exit(1)
+            raise RpcGenError(
+                'Entry "%s" has illegal combination of optional and array '
+                'around line %d' % (self._name, self.LineCount()))
 
     def GetTranslation(self, extradict = {}):
         mapping = {
@@ -568,9 +571,9 @@ class EntryBytes(Entry):
 
     def Verify(self):
         if not self._length:
-            print >>sys.stderr, 'Entry "%s" needs a length around line %d' % (
-                self._name, self.LineCount() )
-            sys.exit(1)
+            raise RpcGenError(
+                'Entry "%s" needs a length '
+                'around line %d' % (self._name, self.LineCount()))
 
         Entry.Verify(self)
 
@@ -1306,9 +1309,9 @@ def ProcessOneEntry(factory, newstruct, entry):
         if not name:
             res = re.match(r'^([^\[\]]+)(\[.*\])?$', token)
             if not res:
-                print >>sys.stderr, 'Cannot parse name: \"%s\" around %d' % (
-                    entry, line_count)
-                sys.exit(1)
+                 raise RpcGenError(
+                     'Cannot parse name: \"%s\" '
+                     'around line %d' % (entry, line_count))
             name = res.group(1)
             fixed_length = res.group(2)
             if fixed_length:
@@ -1318,25 +1321,21 @@ def ProcessOneEntry(factory, newstruct, entry):
         if not separator:
             separator = token
             if separator != '=':
-                print >>sys.stderr, 'Expected "=" after name \"%s\" got %s' % (
-                    name, token)
-                sys.exit(1)
+                 raise RpcGenError('Expected "=" after name \"%s\" got %s'
+                                   % (name, token))
             continue
 
         if not tag_set:
             tag_set = 1
             if not re.match(r'^(0x)?[0-9]+$', token):
-                print >>sys.stderr, 'Expected tag number: \"%s\"' % entry
-                sys.exit(1)
+                raise RpcGenError('Expected tag number: \"%s\"' % entry)
             tag = int(token, 0)
             continue
 
-        print >>sys.stderr, 'Cannot parse \"%s\"' % entry
-        sys.exit(1)
+        raise RpcGenError('Cannot parse \"%s\"' % entry)
 
     if not tag_set:
-        print >>sys.stderr, 'Need tag number: \"%s\"' % entry
-        sys.exit(1)
+        raise RpcGenError('Need tag number: \"%s\"' % entry)
 
     # Create the right entry
     if entry_type == 'bytes':
@@ -1357,8 +1356,7 @@ def ProcessOneEntry(factory, newstruct, entry):
             # References another struct defined in our file
             newentry = factory.EntryStruct(entry_type, name, tag, res.group(1))
         else:
-            print >>sys.stderr, 'Bad type: "%s" in "%s"' % (entry_type, entry)
-            sys.exit(1)
+            raise RpcGenError('Bad type: "%s" in "%s"' % (entry_type, entry))
 
     structs = []
 
@@ -1459,9 +1457,8 @@ def GetNextStruct(file):
 
             if not re.match(r'^struct %s {$' % _STRUCT_RE,
                             line, re.IGNORECASE):
-                print >>sys.stderr, 'Missing struct on line %d: %s' % (
-                    line_count, line)
-                sys.exit(1)
+                raise RpcGenError('Missing struct on line %d: %s'
+                                  % (line_count, line))
             else:
                 got_struct = 1
                 data += line
@@ -1474,9 +1471,8 @@ def GetNextStruct(file):
             continue
 
         if len(tokens[1]):
-            print >>sys.stderr, 'Trailing garbage after struct on line %d' % (
-                line_count )
-            sys.exit(1)
+            raise RpcGenError('Trailing garbage after struct on line %d' 
+                              % line_count)
 
         # We found the end of the struct
         data += ' %s}' % tokens[0]
@@ -1609,8 +1605,7 @@ class CCodeGenerator:
 def Generate(factory, filename):
     ext = filename.split('.')[-1]
     if ext != 'rpc':
-        print >>sys.stderr, 'Unrecognized file extension: %s' % ext
-        sys.exit(1)
+        raise RpcGenError('Unrecognized file extension: %s' % ext)
 
     print >>sys.stderr, 'Reading \"%s\"' % filename
 
@@ -1644,12 +1639,14 @@ def Generate(factory, filename):
         entry.PrintCode(impl_fp)
     impl_fp.close()
 
-def main(argv):
-    if len(argv) < 2 or not argv[1]:
-        print >>sys.stderr, 'Need RPC description file as first argument.'
+if __name__ == '__main__': 
+    try:
+        if len(sys.argv) < 2 or not sys.argv[1]:
+            raise RpcGenError('Need RPC description file as first argument.')
+
+        Generate(CCodeGenerator(), sys.argv[1])
+        sys.exit(0)
+
+    except RpcGenError, e:
+        print >>sys.stderr, e
         sys.exit(1)
-
-    Generate(CCodeGenerator(), argv[1])
-
-if __name__ == '__main__':
-    main(sys.argv)
