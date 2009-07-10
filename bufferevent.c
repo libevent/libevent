@@ -574,13 +574,17 @@ static void
 bufferevent_generic_read_timeout_cb(evutil_socket_t fd, short event, void *ctx)
 {
 	struct bufferevent *bev = ctx;
+	BEV_LOCK(bev);
 	_bufferevent_run_eventcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_READING);
+	BEV_UNLOCK(bev);
 }
 static void
 bufferevent_generic_write_timeout_cb(evutil_socket_t fd, short event, void *ctx)
 {
 	struct bufferevent *bev = ctx;
+	BEV_LOCK(bev);
 	_bufferevent_run_eventcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING);
+	BEV_UNLOCK(bev);
 }
 
 void

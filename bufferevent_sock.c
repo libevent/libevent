@@ -122,6 +122,8 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	short what = BEV_EVENT_READING;
 	int howmuch = -1;
 
+	BEV_LOCK(arg);
+
 	if (event == EV_TIMEOUT) {
 		what |= BEV_EVENT_TIMEOUT;
 		goto error;
@@ -138,7 +140,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 		/* we somehow lowered the watermark, stop reading */
 		if (howmuch <= 0) {
 			bufferevent_wm_suspend_read(bufev);
-			return;
+			goto done;
 		}
 	}
 
@@ -166,14 +168,17 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
             bufev->readcb != NULL)
 		_bufferevent_run_readcb(bufev);
 
-	return;
+	goto done;
 
  reschedule:
-	return;
+	goto done;
 
  error:
 	event_del(&bufev->ev_read);
 	_bufferevent_run_eventcb(bufev, what);
+
+ done:
+	BEV_UNLOCK(bufev);
 }
 
 static void
@@ -185,6 +190,8 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	int res = 0;
 	short what = BEV_EVENT_WRITING;
 
+	BEV_LOCK(bufev);
+
 	if (event == EV_TIMEOUT) {
 		what |= BEV_EVENT_TIMEOUT;
 		goto error;
@@ -194,7 +201,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		_bufferevent_run_eventcb(bufev, BEV_EVENT_CONNECTED);
 		if (!(bufev->enabled & EV_WRITE)) {
 			event_del(&bufev->ev_write);
-			return;
+			goto done;
 		}
 	}
 
@@ -226,16 +233,19 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low)
 		_bufferevent_run_writecb(bufev);
 
-	return;
+	goto done;
 
  reschedule:
 	if (evbuffer_get_length(bufev->output) == 0)
 		event_del(&bufev->ev_write);
-	return;
+	goto done;
 
  error:
 	event_del(&bufev->ev_write);
 	_bufferevent_run_eventcb(bufev, what);
+
+ done:
+	BEV_UNLOCK(bufev);
 }
 
 struct bufferevent *
