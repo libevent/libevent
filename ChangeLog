@@ -41,6 +41,7 @@ Changes in 2.0.2-alpha:
  o Allow specifying the output filename for rpcgen; based on work by jmansion; patch from Zack Weinberg.
  o Allow C identifiers as struct names; allow multiple comments in .rpc files; from Zack Weinberg
  o Mitigate a race condition when using socket bufferevents in multiple threads.
+ o Use AC_SEARCH_LIBS, not AC_CHECK_LIB to avoid needless library use.
 
 
 Changes in 2.0.1-alpha:
