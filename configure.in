@@ -45,22 +45,24 @@ dnl AC_DISABLE_SHARED
 AC_SUBST(LIBTOOL_DEPS)
 
 dnl Checks for libraries.
-AC_CHECK_LIB(socket, socket, [AC_SUBST( [LIBSOCKET], ["-lsocket"] )] )
-AC_CHECK_LIB(resolv, inet_aton, [AC_SUBST( [LIBRESOLV], ["-lresolv"] )]  )
-AC_CHECK_LIB(rt, clock_gettime, [AC_SUBST( [LIBRT], ["-lrt"] )] )
-AC_CHECK_LIB(nsl, inet_ntoa, [AC_SUBST( [LIBNSL], ["-lnsl"] )] )
+AC_SEARCH_LIBS([inet_ntoa], [nsl])
+AC_SEARCH_LIBS([socket], [socket])
+AC_SEARCH_LIBS([inet_aton], [resolv])
+AC_SEARCH_LIBS([clock_gettime], [rt])
 
 dnl Determine if we have zlib for regression tests
+dnl Don't put this one in LIBS
+save_LIBS="$LIBS"
+LIBS=""
 ZLIB_LIBS=""
-ZLIB_CFLAGS=""
-AC_CHECK_LIB(z, inflateEnd,
+have_zlib=no
+AC_SEARCH_LIBS([inflateEnd], [z],
 	[have_zlib=yes
-	ZLIB_LIBS="-lz" 
-	AC_DEFINE(HAVE_LIBZ, 1, [Define if the system has zlib])],
-	[have_zlib=no])
+	ZLIB_LIBS="$LIBS"
+	AC_DEFINE(HAVE_LIBZ, 1, [Define if the system has zlib])])
+LIBS="$save_LIBS"
 AC_SUBST(ZLIB_LIBS)
-AC_SUBST(ZLIB_CFLAGS)
-AM_CONDITIONAL(ZLIB_REGRESS, [test "$have_zlib" != "no"])
+AM_CONDITIONAL(ZLIB_REGRESS, [test "$have_zlib" = "yes"])
 
 dnl Checks for header files.
 AC_HEADER_STDC
