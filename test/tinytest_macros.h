@@ -68,12 +68,16 @@
 	TT_STMT_END
 
 /* Fail and abort the current test for the reason in msg */
-#define tt_abort_msg(msg) TT_DIE((msg))
-#define tt_abort() tt_fail_msg("(Failed.)")
+#define tt_abort_printf(msg) TT_DIE(msg)
+#define tt_abort_perror(op) TT_DIE(("%s: %s [%d]",(op),strerror(errno), errno))
+#define tt_abort_msg(msg) TT_DIE(("%s", msg))
+#define tt_abort() TT_DIE(("%s", "(Failed.)"))
 
 /* Fail but do not abort the current test for the reason in msg. */
-#define tt_fail_msg(msg) TT_FAIL((msg))
-#define tt_fail() tt_fail_msg("(Failed.)")
+#define tt_fail_printf(msg) TT_FAIL(msg)
+#define tt_fail_perror(op) TT_FAIL(("%s: %s [%d]",(op),strerror(errno), errno))
+#define tt_fail_msg(msg) TT_FAIL(("%s", msg))
+#define tt_fail() TT_FAIL(("%s", "(Failed.)"))
 
 /* End the current test, and indicate we are skipping it. */
 #define tt_skip()                               \
@@ -134,11 +138,5 @@
 #define tt_str_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,const char *,		\
 			    (strcmp(_val1,_val2) op 0),"<%s>")
-
-/** Fail and log the errno as with perror. */
-#define tt_fail_perror(op)					\
-	TT_STMT_BEGIN						\
-	TT_DIE(("%s: %s [%d]",(op),strerror(errno),errno));	\
-	TT_STMT_END
 
 #endif

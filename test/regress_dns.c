@@ -356,7 +356,7 @@ dns_server(void)
 	/* Now configure a nameserver port. */
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
         if (sock<=0) {
-                tt_fail_perror("socket");
+                tt_abort_perror("socket");
         }
 
         evutil_make_socket_nonblocking(sock);
@@ -366,7 +366,7 @@ dns_server(void)
 	my_addr.sin_port = htons(35353);
 	my_addr.sin_addr.s_addr = htonl(0x7f000001UL);
 	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
-		tt_fail_perror("bind");
+		tt_abort_perror("bind");
 	}
 	port = evdns_add_server_port(sock, 0, dns_server_request_cb, NULL);
 

@@ -261,7 +261,7 @@ test_bufferevent_zlib(void *arg)
             = errorcb_invoked = 0;
 
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
-		tt_fail_perror("socketpair");
+		tt_abort_perror("socketpair");
 	}
 
 	evutil_make_socket_nonblocking(pair[0]);
