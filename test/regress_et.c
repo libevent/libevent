@@ -90,7 +90,7 @@ test_edgetriggered(void *et)
 	int success;
 
 	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0, pair) == -1) {
-		tt_fail_perror("socketpair");
+		tt_abort_perror("socketpair");
 	}
 
 	called = was_et = 0;
