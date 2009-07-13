@@ -1,10 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I m4
 
-# This is the point release for libevent.  It shouldn't include any
-# a/b/c/d/e notations.
-RELEASE = 2.0
-
 # This is the version info for the libevent binary API.  It has three
 # numbers:
 #   Current  -- the number of the binary API that we're implementing
@@ -26,14 +22,14 @@ RELEASE = 2.0
 # since we're backward compatible with no previous APIs.  Set Revision
 # to 0 too.
 #
-#   Version history:
-#    1.4:
-#      2 -- Libevent ??? ..Libevent 1.4.10
-#      [Gap left for possible intermediate versions]
+# ABI version history for this package effectively begins with package
+# version 2.0, because package version 1.4 erroneously applied both
+# -release and -version-info to the same libraries; -release takes
+# precedence, so the -version-info history of 1.4 libraries is moot.
+# We are starting the numbering at 2 rather than 1 to avoid confusion.
 #
-#    2.0
-#      1 -- Libevent 2.0.1-alpha.
-VERSION_INFO = 1:0:0
+#      2:0:0 -- Libevent 2.0.1-alpha.
+VERSION_INFO = 2:0:0
 
 bin_SCRIPTS = event_rpcgen.py
 
@@ -118,11 +114,11 @@ EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
 
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
-libevent_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
+libevent_la_LDFLAGS = -version-info $(VERSION_INFO)
 
 libevent_core_la_SOURCES = $(CORE_SRC)
 libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
-libevent_core_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
+libevent_core_la_LDFLAGS = -version-info $(VERSION_INFO)
 
 if PTHREADS
 libevent_pthreads_la_SOURCES = evthread_pthread.c
@@ -130,7 +126,7 @@ endif
 
 libevent_extra_la_SOURCES = $(EXTRA_SRC)
 libevent_extra_la_LIBADD =
-libevent_extra_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
+libevent_extra_la_LDFLAGS = -version-info $(VERSION_INFO)
 
 noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
 	evrpc-internal.h strlcpy-internal.h evbuffer-internal.h \
