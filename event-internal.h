@@ -12,7 +12,7 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
@@ -133,6 +133,9 @@ struct event_base {
 	struct event_list **activequeues;
 	int nactivequeues;
 
+	/** The event whose callback is executing right now */
+	struct event *current_event;
+
 	/** Deferred callback management: a list of deferred callbacks to
 	 * run active the active events. */
 	TAILQ_HEAD (deferred_cb_list, deferred_cb) deferred_cb_list;
@@ -159,6 +162,9 @@ struct event_base {
 	unsigned long th_owner_id;
 	/** A lock to prevent conflicting accesses to this event_base */
 	void *th_base_lock;
+	/** A lock to prevent event_del from deleting an event while its
+	 * callback is executing. */
+	void *current_event_lock;
 #endif
 
 #ifdef WIN32

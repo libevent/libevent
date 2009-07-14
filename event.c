@@ -301,6 +301,7 @@ event_base_new_with_config(struct event_config *cfg)
 	if (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK)) {
 		int r;
 		EVTHREAD_ALLOC_LOCK(base->th_base_lock);
+		EVTHREAD_ALLOC_LOCK(base->current_event_lock);
 		r = evthread_make_base_notifiable(base);
 		if (r<0) {
 			event_base_free(base);
@@ -382,6 +383,7 @@ event_base_free(struct event_base *base)
 	evmap_signal_clear(&base->sigmap);
 
 	EVTHREAD_FREE_LOCK(base->th_base_lock);
+	EVTHREAD_FREE_LOCK(base->current_event_lock);
 
 	mm_free(base);
 }
@@ -646,6 +648,10 @@ event_process_active_single_queue(struct event_base *base,
 			ev->ev_res & EV_WRITE ? "EV_WRITE " : " ",
 			ev->ev_callback));
 
+		base->current_event = ev;
+
+		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, current_event_lock);
+
 		EVBASE_RELEASE_LOCK(base,
 		    EVTHREAD_WRITE, th_base_lock);
 
@@ -663,9 +669,12 @@ event_process_active_single_queue(struct event_base *base,
 			break;
 		}
 
+		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, current_event_lock);
+		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+		base->current_event = NULL;
+
 		if (base->event_break)
 			return -1;
-		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	}
 	return count;
 }
@@ -711,7 +720,7 @@ event_process_active(struct event_base *base)
 			activeq = base->activequeues[i];
 			c = event_process_active_single_queue(base, activeq);
 			if (c < 0)
-				return; /* already unlocked */
+				goto unlock;
 			else if (c > 0)
 				break; /* Processed a real event; do not
 					* consider lower-priority events */
@@ -722,6 +731,7 @@ event_process_active(struct event_base *base)
 
 	event_process_deferred_callbacks(base);
 
+unlock:
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
@@ -1267,11 +1277,13 @@ event_del(struct event *ev)
 	return (res);
 }
 
+/* Helper for event_del: always called with th_base_lock held. */
 static inline int
 event_del_internal(struct event *ev)
 {
 	struct event_base *base;
 	int res = 0;
+	int need_cur_lock;
 
 	event_debug(("event_del: %p, callback %p",
 		 ev, ev->ev_callback));
@@ -1280,7 +1292,15 @@ event_del_internal(struct event *ev)
 	if (ev->ev_base == NULL)
 		return (-1);
 
+	/* If the main thread is currently executing this event's callback,
+	 * and we are not the main thread, then we want to wait until the
+	 * callback is done before we start removing the event.  That way,
+	 * when this function returns, it will be safe to free the
+	 * user-supplied argument. */
 	base = ev->ev_base;
+	need_cur_lock = (base->current_event == ev);
+	if (need_cur_lock)
+		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, current_event_lock);
 
 	assert(!(ev->ev_flags & ~EVLIST_ALL));
 
@@ -1309,6 +1329,9 @@ event_del_internal(struct event *ev)
 	/* if we are not in the right thread, we need to wake up the loop */
 	if (res != -1 && !EVBASE_IN_THREAD(base))
 		evthread_notify_base(base);
+
+	if (need_cur_lock)
+		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, current_event_lock);
 
 	return (res);
 }
