@@ -79,6 +79,9 @@ void run_legacy_test_fn(void *ptr);
 /* All the flags that a legacy test needs. */
 #define TT_ISOLATED TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE
 
+#define BASIC(name,flags)						\
+	{ #name, test_## name, flags, &basic_setup, NULL }
+
 #define LEGACY(name,flags)						\
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,	\
 	  test_## name }

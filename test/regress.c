@@ -99,6 +99,13 @@ static struct timeval tcalled;
 #define read(fd,buf,len) recv((fd),(buf),(len),0)
 #endif
 
+struct basic_cb_args
+{
+	struct event_base *eb;
+	struct event *ev;
+	unsigned int callcount;
+};
+
 static void
 simple_read_cb(int fd, short event, void *arg)
 {
@@ -116,6 +123,45 @@ simple_read_cb(int fd, short event, void *arg)
 		test_ok = 1;
 
 	called++;
+}
+
+static void
+basic_read_cb(int fd, short event, void *data)
+{
+	char buf[256];
+	int len;
+	struct basic_cb_args *arg = data;
+
+	len = read(fd, buf, sizeof(buf));
+
+	if (len < 0) {
+		tt_fail_perror("read (callback)");
+	} else {
+		switch (arg->callcount++) {
+		case 0:  /* first call: expect to read data; cycle */
+			if (len > 0)
+				return;
+
+			tt_fail_msg("EOF before data read");
+			break;
+
+		case 1:  /* second call: expect EOF; stop */
+			if (len > 0)
+				tt_fail_msg("not all data read on first cycle");
+			break;
+
+		default:  /* third call: should not happen */
+			tt_fail_msg("too many cycles");
+		}
+	}
+
+	event_del(arg->ev);
+	event_base_loopexit(arg->eb, NULL);
+}
+
+static void
+dummy_read_cb(int fd, short event, void *arg)
+{
 }
 
 static void
@@ -893,43 +939,62 @@ test_signal_while_processing(void)
 #endif
 
 static void
-test_free_active_base(void)
+test_free_active_base(void *ptr)
 {
+	struct basic_test_data *data = ptr;
 	struct event_base *base1;
-	struct event ev1;
-	setup_test("Free active base: ");
+
 	base1 = event_init();
-	event_set(&ev1, pair[1], EV_READ, simple_read_cb, &ev1);
-	event_base_set(base1, &ev1);
-	event_add(&ev1, NULL);
-	/* event_del(&ev1); */
-	event_base_free(base1);
-	test_ok = 1;
-	cleanup_test();
-	event_base_free(global_base);
-	global_base = event_init();
+	if (base1) {
+		struct event ev1;
+		event_assign(&ev1, base1, data->pair[1], EV_READ,
+			     dummy_read_cb, NULL);
+		event_add(&ev1, NULL);
+		event_base_free(base1);  /* should not crash */
+	} else {
+		tt_fail_msg("failed to create event_base for test");
+	}
 }
 
 static void
-test_event_base_new(void)
+test_event_base_new(void *ptr)
 {
-	struct event_base *base;
+	struct basic_test_data *data = ptr;
+	struct event_base *base = 0;
 	struct event ev1;
-	setup_test("Event base new: ");
+	struct basic_cb_args args;
 
-	write(pair[0], TEST1, strlen(TEST1)+1);
-	shutdown(pair[0], SHUT_WR);
+	int towrite = strlen(TEST1)+1;
+	int len = write(data->pair[0], TEST1, towrite);
+
+	if (len < 0) 
+		tt_abort_perror("initial write");
+	else if (len != towrite)
+		tt_abort_printf(("initial write fell short (%d of %d bytes)",
+				 len, towrite));
+			
+	if (shutdown(data->pair[0], SHUT_WR))
+		tt_abort_perror("initial write shutdown");
 
 	base = event_base_new();
-	event_set(&ev1, pair[1], EV_READ, simple_read_cb, &ev1);
-	event_base_set(base, &ev1);
-	event_add(&ev1, NULL);
+	if (!base)
+		tt_abort_msg("failed to create event base");
 
-	event_base_dispatch(base);
+	args.eb = base;
+	args.ev = &ev1;
+	args.callcount = 0;
+	event_assign(&ev1, base, data->pair[1],
+		     EV_READ|EV_PERSIST, basic_read_cb, &args);
 
-	event_base_free(base);
-	test_ok = 1;
-	cleanup_test();
+	if (event_add(&ev1, NULL))
+		tt_abort_perror("initial event_add");
+
+	if (event_base_loop(base, 0))
+		tt_abort_msg("unsuccessful exit from event loop");
+
+end:
+	if (base)
+		event_base_free(base);
 }
 
 static void
@@ -1484,6 +1549,7 @@ test_base_environ(void *arg)
 	tt_assert(base);
 
 	defaultname = event_base_get_method(base);
+	TT_BLATHER(("default is <%s>", defaultname));
 	event_base_free(base);
 	base = NULL;
 
@@ -1676,12 +1742,12 @@ struct testcase_t main_testcases[] = {
 	{ "base_features", test_base_features, TT_FORK, NULL, NULL },
 	{ "base_environ", test_base_environ, TT_FORK, NULL, NULL },
 
+	BASIC(event_base_new, TT_FORK|TT_NEED_SOCKETPAIR),
+	BASIC(free_active_base, TT_FORK|TT_NEED_SOCKETPAIR),
+
         /* These are still using the old API */
         LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
         LEGACY(priorities, TT_FORK|TT_NEED_BASE),
-
-        LEGACY(free_active_base, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
-        LEGACY(event_base_new, TT_FORK|TT_NEED_SOCKETPAIR),
 
         /* These legacy tests may not all need all of these flags. */
         LEGACY(simpleread, TT_ISOLATED),
