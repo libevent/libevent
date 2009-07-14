@@ -74,7 +74,9 @@
 #include <openssl/rand.h>
 #endif
 
+#ifndef _FORTIFY_SOURCE
 #define _FORTIFY_SOURCE 3
+#endif
 
 #include <string.h>
 #include <fcntl.h>
