@@ -561,7 +561,7 @@ evutil_inet_pton(int af, const char *src, void *dst)
 		if (gapPos >= 0) {
 			int nToMove = setWords - (dot ? 2 : 0) - gapPos;
 			int gapLen = 8 - setWords;
-			// assert(nToMove >= 0);
+			/* assert(nToMove >= 0); */
 			if (nToMove < 0)
 				return -1; /* should be impossible */
 			memmove(&words[gapPos+gapLen], &words[gapPos],

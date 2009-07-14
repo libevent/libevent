@@ -1112,7 +1112,7 @@ http_put_cb(struct evhttp_request *req, void *arg)
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(PUT_DATA)) {
 		fprintf(stdout, "FAILED (length: %zu vs %zu)\n",
 		    EVBUFFER_LENGTH(req->input_buffer), strlen(PUT_DATA));
-		//exit(1);
+		exit(1);
 	}
 
 	if (memcmp(EVBUFFER_DATA(req->input_buffer), PUT_DATA,
