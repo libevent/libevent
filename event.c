@@ -1773,9 +1773,11 @@ evthread_make_base_notifiable(struct event_base *base)
 
 	base->th_notify_fn = notify;
 
-	// This can't be right, can it?  We want writes to this socket to
-	// just succeed.
-	// evutil_make_socket_nonblocking(base->th_notify_fd[1]);
+	/*
+	  This can't be right, can it?  We want writes to this socket to
+	  just succeed.
+	  evutil_make_socket_nonblocking(base->th_notify_fd[1]);
+	*/
 
 	/* prepare an event that we can use for wakeup */
 	event_assign(&base->th_notify, base, base->th_notify_fd[0],

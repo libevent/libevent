@@ -150,7 +150,7 @@ basic_test_setup(const struct testcase_t *testcase)
         if (testcase->flags & TT_NEED_DNS) {
                 evdns_set_log_fn(dnslogcb);
                 if (evdns_init())
-                        return NULL; /* fast failure *//*XXX asserts. */
+                        return NULL; /* fast failure */ /*XXX asserts. */
         }
 
 	data = calloc(1, sizeof(*data));

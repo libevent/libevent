@@ -42,7 +42,7 @@ fifo_read(int fd, short event, void *arg)
 #ifdef WIN32
 	len = ReadFile((HANDLE)fd, buf, sizeof(buf) - 1, &dwBytesRead, NULL);
 
-	// Check for end of file.
+	/* Check for end of file. */
 	if(len && dwBytesRead == 0) {
 		fprintf(stderr, "End Of File");
 		event_del(ev);
@@ -72,14 +72,14 @@ main (int argc, char **argv)
 	struct event evfifo;
 #ifdef WIN32
 	HANDLE socket;
-	// Open a file.
-	socket = CreateFile("test.txt",     // open File
-			GENERIC_READ,                 // open for reading
-			0,                            // do not share
-			NULL,                         // no security
-			OPEN_EXISTING,                // existing file only
-			FILE_ATTRIBUTE_NORMAL,        // normal file
-			NULL);                        // no attr. template
+	/* Open a file. */
+	socket = CreateFile("test.txt",               /* open File */
+			GENERIC_READ,                 /* open for reading */
+			0,                            /* do not share */
+			NULL,                         /* no security */
+			OPEN_EXISTING,                /* existing file only */
+			FILE_ATTRIBUTE_NORMAL,        /* normal file */
+			NULL);                        /* no attr. template */
 
 	if(socket == INVALID_HANDLE_VALUE)
 		return 1;

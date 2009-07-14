@@ -1135,7 +1135,7 @@ test_evbuffer_freeze(void *ptr)
 	FREEZE_EQ(r, 0, -1);
 	r = evbuffer_add_printf(buf, "Hello %s", "world");
 	FREEZE_EQ(r, 11, -1);
-	// TODO: test add_buffer, add_file, read
+	/* TODO: test add_buffer, add_file, read */
 
 	if (!start)
 		tt_int_op(orig_length, ==, evbuffer_get_length(buf));
@@ -1153,7 +1153,7 @@ test_evbuffer_freeze(void *ptr)
 	FREEZE_EQ(cp==NULL, 1, 0);
 	if (cp)
 		free(cp);
-	// TODO: Test remove_buffer, add_buffer, write, prepend_buffer
+	/* TODO: Test remove_buffer, add_buffer, write, prepend_buffer */
 
 	if (start)
 		tt_int_op(orig_length, ==, evbuffer_get_length(buf));
