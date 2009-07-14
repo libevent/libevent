@@ -457,8 +457,6 @@ event_get_supported_methods(void)
 
 	/* populate the array with the supported methods */
 	for (k = 0, i = 0; eventops[k] != NULL; ++k) {
-		if (event_is_method_disabled(eventops[k]->name))
-			continue;
 		tmp[i++] = eventops[k]->name;
 	}
 	tmp[i] = NULL;
