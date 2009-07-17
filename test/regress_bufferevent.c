@@ -504,11 +504,14 @@ struct testcase_t bufferevent_testcases[] = {
         LEGACY(bufferevent_filters, TT_ISOLATED),
         LEGACY(bufferevent_pair_filters, TT_ISOLATED),
 	{ "bufferevent_connect", test_bufferevent_connect, TT_FORK|TT_NEED_BASE,
-	  &basic_setup, "" },
+	  &basic_setup, (void*)"" },
 	{ "bufferevent_connect_defer", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, "defer" },
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"defer" },
 	{ "bufferevent_connect_lock", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup, "lock" },
+	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup, (void*)"lock" },
+	{ "bufferevent_connect_lock_defer", test_bufferevent_connect,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup,
+	  (void*)"defer lock" },
 #ifdef _EVENT_HAVE_LIBZ
         LEGACY(bufferevent_zlib, TT_ISOLATED),
 #else
