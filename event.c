@@ -1678,6 +1678,7 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 }
 #endif
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
 /* support for threading */
 void (*_evthread_locking_fn)(int mode, void *lock) = NULL;
 unsigned long (*_evthread_id_fn)(void) = NULL;
@@ -1687,12 +1688,9 @@ void (*_evthread_lock_free_fn)(void *) = NULL;
 void
 evthread_set_locking_callback(void (*locking_fn)(int mode, void *lock))
 {
-#ifdef _EVENT_DISABLE_THREAD_SUPPORT
-	event_errx(1, "%s: not compiled with thread support", __func__);
-#else
 	_evthread_locking_fn = locking_fn;
-#endif
 }
+#endif
 
 #if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
 static void
@@ -1717,15 +1715,13 @@ evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 #endif
 }
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
 void
 evthread_set_id_callback(unsigned long (*id_fn)(void))
 {
-#ifdef _EVENT_DISABLE_THREAD_SUPPORT
-	event_errx(1, "%s: not compiled with thread support", __func__);
-#else
 	_evthread_id_fn = id_fn;
-#endif
 }
+#endif
 
 int
 evthread_make_base_notifiable(struct event_base *base)
@@ -1789,17 +1785,15 @@ evthread_make_base_notifiable(struct event_base *base)
 	return event_add(&base->th_notify, NULL);
 }
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
 void
 evthread_set_lock_create_callbacks(void *(*alloc_fn)(void),
     void (*free_fn)(void *))
 {
-#ifdef _EVENT_DISABLE_THREAD_SUPPORT
-	event_errx(1, "%s: not compiled with thread support", __func__);
-#else
 	_evthread_lock_alloc_fn = alloc_fn;
 	_evthread_lock_free_fn = free_fn;
-#endif
 }
+#endif
 
 void
 event_base_dump_events(struct event_base *base, FILE *output)

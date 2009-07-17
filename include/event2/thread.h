@@ -65,6 +65,8 @@ extern "C" {
 #define EVTHREAD_WRITE	0x04
 #define EVTHREAD_READ	0x08
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+
 /**
    Sets the functions Libevent should use for allocating and freeing
    locks.  This needs to be called in addition to
@@ -100,13 +102,7 @@ void evthread_set_locking_callback(
 void evthread_set_id_callback(
     unsigned long (*id_fn)(void));
 
-/** Make sure it's safe to tell an event base to wake up from another thread.
-
-	@return 0 on success, -1 on failure.
- */
-int evthread_make_base_notifiable(struct event_base *base);
-
-#ifdef WIN32
+#if defined(WIN32) && !defined(_EVENT_DISABLE_THREAD_SUPPORT)
 /** Sets up Libevent for use with Windows builtin locking and thread ID
 	functions.  Unavailable if Libevent is not built for Windows.
 
@@ -115,7 +111,7 @@ int evthread_use_windows_threads(void);
 #define EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED 1
 #endif
 
-#ifdef _EVENT_HAVE_PTHREADS
+#if defined(_EVENT_HAVE_PTHREADS)
 /** Sets up Libevent for use with Pthreads locking and thread ID functions.
 	Unavailable if Libevent is not build for use with pthreads.  Requires
 	libraries to link against Libevent_pthreads as well as Libevent.
@@ -124,6 +120,15 @@ int evthread_use_windows_threads(void);
 int evthread_use_pthreads(void);
 #define EVTHREAD_USE_PTHREADS_IMPLEMENTED 1
 #endif
+
+#endif /* _EVENT_DISABLE_THREAD_SUPPORT */
+
+/** Make sure it's safe to tell an event base to wake up from another thread.
+    or a signal handler.
+
+	@return 0 on success, -1 on failure.
+ */
+int evthread_make_base_notifiable(struct event_base *base);
 
 #ifdef __cplusplus
 }
