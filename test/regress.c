@@ -195,7 +195,7 @@ multiple_write_cb(int fd, short event, void *arg)
 	}
 
 	woff += len;
-        
+
 	if (woff >= sizeof(wbuf)) {
 		shutdown(fd, SHUT_WR);
 		if (usepersist)
@@ -975,12 +975,12 @@ test_event_base_new(void *ptr)
 	int towrite = strlen(TEST1)+1;
 	int len = write(data->pair[0], TEST1, towrite);
 
-	if (len < 0) 
+	if (len < 0)
 		tt_abort_perror("initial write");
 	else if (len != towrite)
 		tt_abort_printf(("initial write fell short (%d of %d bytes)",
 				 len, towrite));
-			
+
 	if (shutdown(data->pair[0], SHUT_WR))
 		tt_abort_perror("initial write shutdown");
 

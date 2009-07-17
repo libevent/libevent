@@ -728,7 +728,7 @@ class EntryString(Entry):
 
     def CodeClear(self, structname):
         code = [ 'if (%s->%s_set == 1) {' % (structname, self.Name()),
-                 '  free (%s->%s_data);' % (structname, self.Name()),
+                 '  free(%s->%s_data);' % (structname, self.Name()),
                  '  %s->%s_data = NULL;' % (structname, self.Name()),
                  '  %s->%s_set = 0;' % (structname, self.Name()),
                  '}'
@@ -914,7 +914,7 @@ class EntryStruct(Entry):
 
     def CodeFree(self, name):
         code  = ['if (%s->%s_data != NULL)' % (name, self._name),
-                 '    %s_free(%s->%s_data); ' % (
+                 '    %s_free(%s->%s_data);' % (
             self._refname, name, self._name)]
 
         return code
@@ -1030,7 +1030,7 @@ class EntryVarBytes(Entry):
 
     def CodeFree(self, name):
         code  = ['if (%s->%s_data != NULL)' % (name, self._name),
-                 '    free (%s->%s_data); ' % (name, self._name)]
+                 '    free(%s->%s_data);' % (name, self._name)]
 
         return code
 
@@ -1479,7 +1479,7 @@ def GetNextStruct(file):
             continue
 
         if len(tokens[1]):
-            raise RpcGenError('Trailing garbage after struct on line %d' 
+            raise RpcGenError('Trailing garbage after struct on line %d'
                               % line_count)
 
         # We found the end of the struct
@@ -1676,7 +1676,7 @@ class CommandLine:
             entry.PrintCode(impl_fp)
         impl_fp.close()
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     try:
         CommandLine(sys.argv).run()
         sys.exit(0)

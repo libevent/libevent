@@ -63,7 +63,7 @@ struct evhttp_connection {
 	struct bufferevent *bufev;
 
 	struct event retry_ev;		/* for retrying connects */
-	
+
 	char *bind_address;		/* address to use for binding the src */
 	u_short bind_port;		/* local port for binding the src */
 
@@ -78,17 +78,17 @@ struct evhttp_connection {
 	int timeout;			/* timeout in seconds for events */
 	int retry_cnt;			/* retry count */
 	int retry_max;			/* maximum number of retries */
-	
+
 	enum evhttp_connection_state state;
 
 	/* for server connections, the http server they are connected with */
 	struct evhttp *http_server;
 
 	TAILQ_HEAD(evcon_requestq, evhttp_request) requests;
-	
+
 	void (*cb)(struct evhttp_connection *, void *);
 	void *cb_arg;
-	
+
 	void (*closecb)(struct evhttp_connection *, void *);
 	void *closecb_arg;
 
@@ -122,7 +122,7 @@ struct evhttp {
 	TAILQ_HEAD(httpcbq, evhttp_cb) callbacks;
         struct evconq connections;
 
-	TAILQ_HEAD(vhostsq, evhttp) virtualhosts;			       
+	TAILQ_HEAD(vhostsq, evhttp) virtualhosts;
 
 	/* NULL if this server is not a vhost */
         char *vhost_pattern;

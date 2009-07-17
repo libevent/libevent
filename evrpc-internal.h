@@ -60,7 +60,7 @@ struct _evrpc_hooks {
 	/* hooks for processing outbound and inbound rpcs */
 	struct evrpc_hook_list in_hooks;
 	struct evrpc_hook_list out_hooks;
-	
+
 	struct evrpc_pause_list pause_requests;
 };
 
@@ -142,7 +142,7 @@ struct evrpc_req_generic {
 	/* the empty reply object that needs to be filled in */
 	void *reply;
 
-	/* 
+	/*
 	 * the static structure for this rpc; that can be used to
 	 * automatically unmarshal and marshal the http buffers.
 	 */

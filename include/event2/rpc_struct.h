@@ -38,7 +38,7 @@ extern "C" {
 
  */
 
-/** 
+/**
  * provides information about the completed RPC request.
  */
 struct evrpc_status {
@@ -79,7 +79,7 @@ struct evrpc {
 
 	/* verifies that the reply is valid */
 	int (*reply_complete)(void *);
-	
+
 	/* marshals the reply into a buffer */
 	void (*reply_marshal)(struct evbuffer*, void *);
 

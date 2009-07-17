@@ -68,7 +68,7 @@ extern "C" {
 
 /**
    Determines if the member has been set in the message
-   
+
    @param msg the message to inspect
    @param member the member variable to test for presences
    @return 1 if it's present or 0 otherwise.
@@ -245,7 +245,7 @@ struct evrpc_request_wrapper *evrpc_make_request_ctx(
 	    (void (*)(void *))rplystruct##_clear,			\
 	    (int (*)(void *, struct evbuffer *))rplystruct##_unmarshal); \
 }
-	
+
 /** Provides access to the HTTP request object underlying an RPC
  *
  * Access to the underlying http object; can be used to look at headers or
@@ -261,18 +261,18 @@ struct evrpc_request_wrapper *evrpc_make_request_ctx(
 void evrpc_request_done(struct evrpc_req_generic *req);
 
 /** Creates the reply to an RPC request
- * 
+ *
  * EVRPC_REQUEST_DONE is used to answer a request; the reply is expected
  * to have been filled in.  The request and reply pointers become invalid
  * after this call has finished.
- * 
+ *
  * @param rpc_req the rpc request structure provided to the server callback
  */
 #define EVRPC_REQUEST_DONE(rpc_req) do { \
   struct evrpc_req_generic *_req = (struct evrpc_req_generic *)(rpc_req); \
   evrpc_request_done(_req);					\
 } while (0)
-  
+
 
 struct evrpc_base;
 struct evhttp;
@@ -287,7 +287,7 @@ struct evhttp;
  */
 struct evrpc_base *evrpc_init(struct evhttp *server);
 
-/** 
+/**
  * Frees the evrpc base
  *
  * For now, you are responsible for making sure that no rpcs are ongoing.
@@ -385,7 +385,7 @@ struct evrpc_status;
 int evrpc_make_request(struct evrpc_request_wrapper *ctx);
 
 /** creates an rpc connection pool
- * 
+ *
  * a pool has a number of connections associated with it.
  * rpc requests are always made via a pool.
  *
@@ -410,7 +410,7 @@ void evrpc_pool_free(struct evrpc_pool *pool);
  * @param pool the pool to which to add the connection
  * @param evcon the connection to add to the pool.
  */
-void evrpc_pool_add_connection(struct evrpc_pool *pool, 
+void evrpc_pool_add_connection(struct evrpc_pool *pool,
     struct evhttp_connection *evcon);
 
 /**
@@ -538,7 +538,7 @@ void evrpc_hook_add_meta(void *ctx, const char *key,
 int evrpc_hook_find_meta(void *ctx, const char *key,
     void **data, size_t *data_size);
 
-/** 
+/**
  * returns the connection object associated with the request
  *
  * @param ctx the context provided to the hook call
@@ -564,7 +564,7 @@ int evrpc_send_request_generic(struct evrpc_pool *pool,
 
 /**
    Function for registering a generic RPC with the RPC base.
-    
+
    Do not call this function directly, use EVRPC_REGISTER() instead.
 
    @see EVRPC_REGISTER()

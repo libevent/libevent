@@ -1362,7 +1362,7 @@ http_bad_header_test(void *ptr)
 
 static int validate_header(
 	const struct evkeyvalq* headers,
-	const char *key, const char *value) 
+	const char *key, const char *value)
 {
 	const char *real_val = evhttp_find_header(headers, key);
 	tt_assert(real_val != NULL);
@@ -1377,7 +1377,7 @@ http_parse_query_test(void *ptr)
 	struct evkeyvalq headers;
 
 	TAILQ_INIT(&headers);
-	
+
 	evhttp_parse_query("http://www.test.com/?q=test", &headers);
 	tt_want(validate_header(&headers, "q", "test") == 0);
 	evhttp_clear_headers(&headers);
