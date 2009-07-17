@@ -112,6 +112,7 @@ int evthread_make_base_notifiable(struct event_base *base);
 
 	@return 0 on success, -1 on failure. */
 int evthread_use_windows_threads(void);
+#define EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED 1
 #endif
 
 #ifdef _EVENT_HAVE_PTHREADS
@@ -121,6 +122,7 @@ int evthread_use_windows_threads(void);
 
 	@return 0 on success, -1 on failure. */
 int evthread_use_pthreads(void);
+#define EVTHREAD_USE_PTHREADS_IMPLEMENTED 1
 #endif
 
 #ifdef __cplusplus
