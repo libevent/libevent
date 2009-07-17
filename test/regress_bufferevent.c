@@ -448,6 +448,14 @@ test_bufferevent_connect(void *arg)
 	struct bufferevent *bev1=NULL, *bev2=NULL;
 	struct sockaddr_in localhost;
 	struct sockaddr *sa = (struct sockaddr*)&localhost;
+	int be_flags=BEV_OPT_CLOSE_ON_FREE;
+
+	if (strstr((char*)data->setup_data, "defer")) {
+		be_flags |= BEV_OPT_DEFER_CALLBACKS;
+	}
+	if (strstr((char*)data->setup_data, "lock")) {
+		be_flags |= BEV_OPT_THREADSAFE;
+	}
 
 	memset(&localhost, 0, sizeof(localhost));
 
@@ -460,8 +468,10 @@ test_bufferevent_connect(void *arg)
 	    16, sa, sizeof(localhost));
 	tt_assert(lev);
 	tt_assert(!evconnlistener_enable(lev));
-	bev1 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
-	bev2 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
+	bev1 = bufferevent_socket_new(data->base, -1, be_flags);
+	bev2 = bufferevent_socket_new(data->base, -1, be_flags);
+	tt_assert(bev1);
+	tt_assert(bev2);
 	bufferevent_setcb(bev1, NULL, NULL, reader_eventcb, data->base);
 	bufferevent_setcb(bev2, NULL, NULL, reader_eventcb, data->base);
 
@@ -494,7 +504,11 @@ struct testcase_t bufferevent_testcases[] = {
         LEGACY(bufferevent_filters, TT_ISOLATED),
         LEGACY(bufferevent_pair_filters, TT_ISOLATED),
 	{ "bufferevent_connect", test_bufferevent_connect, TT_FORK|TT_NEED_BASE,
-	  &basic_setup, NULL },
+	  &basic_setup, "" },
+	{ "bufferevent_connect_defer", test_bufferevent_connect,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, "defer" },
+	{ "bufferevent_connect_lock", test_bufferevent_connect,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup, "lock" },
 #ifdef _EVENT_HAVE_LIBZ
         LEGACY(bufferevent_zlib, TT_ISOLATED),
 #else
