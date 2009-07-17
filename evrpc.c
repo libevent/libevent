@@ -1106,7 +1106,7 @@ evrpc_register_generic(struct evrpc_base *base, const char *name,
     int (*rpl_complete)(void *),
     void (*rpl_marshal)(struct evbuffer *, void *))
 {
-	struct evrpc* rpc = 
+	struct evrpc* rpc =
 	    evrpc_register_object(name, req_new, req_free, req_unmarshal,
 		rpl_new, rpl_free, rpl_complete, rpl_marshal);
 	if (rpc == NULL)

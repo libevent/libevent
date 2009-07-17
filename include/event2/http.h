@@ -120,8 +120,8 @@ int evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd);
 void evhttp_free(struct evhttp* http);
 
 /**
-   Set a callback for a specified URI 
-    
+   Set a callback for a specified URI
+
    @param http the http sever on which to set the callback
    @param path the path for which to invoke the callback
    @param cb the callback function that gets invoked on requesting path

@@ -126,7 +126,7 @@
   callbacks have been registered for a given URI.
 
   @section evrpc A framework for RPC servers and clients
- 
+
   libevents provides a framework for creating RPC servers and clients.  It
   takes care of marshaling and unmarshaling all data structures.
 
