@@ -130,7 +130,8 @@ regress_threads(void *arg)
 
 	pthread_mutex_init(&count_lock, NULL);
 
-        evthread_use_pthreads();
+        if (evthread_use_pthreads()<0)
+		tt_abort_msg("Couldn't initialize pthreads!");
 
         base = event_base_new();
         if (evthread_make_base_notifiable(base)<0) {
