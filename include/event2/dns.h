@@ -446,8 +446,9 @@ int evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char 
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolv_conf_parse()
  */
-#ifdef MS_WINDOWS
+#ifdef WIN32
 int evdns_config_windows_nameservers(void);
+#define EVDNS_CONFIG_WINDOWS_NAMESERVERS_IMPLEMENTED
 #endif
 
 
