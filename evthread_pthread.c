@@ -84,13 +84,15 @@ int
 evthread_use_pthreads(void)
 {
 	/* Set ourselves up to get recursive locks. */
-	pthread_mutexattr_init(&attr_recursive);
-	pthread_mutexattr_settype(&attr_recursive, PTHREAD_MUTEX_RECURSIVE);
+	if (pthread_mutexattr_init(&attr_recursive))
+		return -1;
+	if (pthread_mutexattr_settype(&attr_recursive, PTHREAD_MUTEX_RECURSIVE))
+		return -1;
 
 	evthread_set_lock_create_callbacks(
 	    evthread_posix_lock_create,
 	    evthread_posix_lock_free);
 	evthread_set_locking_callback(evthread_posix_lock);
 	evthread_set_id_callback(evthread_posix_get_id);
-	return -1;
+	return 0;
 }
