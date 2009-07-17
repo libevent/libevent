@@ -351,8 +351,8 @@ test_bufferevent_filters_impl(int use_pair)
 
 	tt_ptr_op(bufferevent_get_underlying(bev1), ==, bev1_base);
 	tt_ptr_op(bufferevent_get_underlying(bev2), ==, bev2_base);
-	tt_ptr_op(bufferevent_getfd(bev1), ==, -1);
-	tt_ptr_op(bufferevent_getfd(bev2), ==, -1);
+	tt_int_op(bufferevent_getfd(bev1), ==, -1);
+	tt_int_op(bufferevent_getfd(bev2), ==, -1);
 
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
