@@ -591,6 +591,7 @@ int	event_priority_set(struct event *, int);
 void event_set_mem_functions(void *(*malloc_fn)(size_t sz),
                              void *(*realloc_fn)(void *ptr, size_t sz),
                              void (*free_fn)(void *ptr));
+#define EVENT_SET_MEM_FUNCTIONS_IMPLEMENTED
 #endif
 
 void event_base_dump_events(struct event_base *, FILE *);
