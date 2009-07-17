@@ -1485,6 +1485,8 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 		struct timeval *ev_tv = &(**pev).ev_timeout;
 		evutil_timersub(ev_tv, &off, ev_tv);
 	}
+	/* Now remember what the new time turned out to be. */
+	base->event_tv = *tv;
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
