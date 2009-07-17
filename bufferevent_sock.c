@@ -122,7 +122,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	short what = BEV_EVENT_READING;
 	int howmuch = -1;
 
-	BEV_LOCK(arg);
+	_bufferevent_incref_and_lock(bufev);
 
 	if (event == EV_TIMEOUT) {
 		what |= BEV_EVENT_TIMEOUT;
@@ -178,7 +178,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	_bufferevent_run_eventcb(bufev, what);
 
  done:
-	BEV_UNLOCK(bufev);
+	_bufferevent_decref_and_unlock(bufev);
 }
 
 static void
@@ -190,7 +190,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	int res = 0;
 	short what = BEV_EVENT_WRITING;
 
-	BEV_LOCK(bufev);
+	_bufferevent_incref_and_lock(bufev);
 
 	if (event == EV_TIMEOUT) {
 		what |= BEV_EVENT_TIMEOUT;
@@ -245,7 +245,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	_bufferevent_run_eventcb(bufev, what);
 
  done:
-	BEV_UNLOCK(bufev);
+	_bufferevent_decref_and_unlock(bufev);
 }
 
 struct bufferevent *
@@ -288,18 +288,21 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	int family = sa->sa_family;
 	evutil_socket_t fd;
 	int made_socket = 0;
+	int result = -1;
+
+	_bufferevent_incref_and_lock(bev);
 
 	if (!bufev_p)
-		return -1;
+		goto done;
 
 	fd = event_get_fd(&bev->ev_read);
 	if (fd < 0) {
 		made_socket = 1;
 		if ((fd = socket(family, SOCK_STREAM, 0)) < 0)
-			return -1;
+			goto done;
 		if (evutil_make_socket_nonblocking(fd) < 0) {
 			EVUTIL_CLOSESOCKET(fd);
-			return -1;
+			goto done;
 		}
 		be_socket_setfd(bev, fd);
 	}
@@ -309,7 +312,8 @@ bufferevent_socket_connect(struct bufferevent *bev,
 		if (EVUTIL_ERR_CONNECT_RETRIABLE(e)) {
 			if (! be_socket_enable(bev, EV_WRITE)) {
 				bufev_p->connecting = 1;
-				return 0;
+				result = 0;
+				goto done;
 			}
 		}
 		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
@@ -319,7 +323,10 @@ bufferevent_socket_connect(struct bufferevent *bev,
 		_bufferevent_run_eventcb(bev, BEV_EVENT_CONNECTED);
 	}
 
-	return 0;
+	result = 0;
+done:
+	_bufferevent_decref_and_unlock(bev);
+	return result;
 }
 
 /*
