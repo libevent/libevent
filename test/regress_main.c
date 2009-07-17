@@ -65,6 +65,7 @@
 #include <event2/event_compat.h>
 #include <event2/dns.h>
 #include <event2/dns_compat.h>
+#include <event2/thread.h>
 
 #include "event-config.h"
 #include "regress.h"
@@ -122,6 +123,20 @@ basic_test_setup(const struct testcase_t *testcase)
 	int spair[2] = { -1, -1 };
 	struct basic_test_data *data = NULL;
 
+	if (testcase->flags & TT_NEED_THREADS) {
+		if (!(testcase->flags & TT_FORK))
+			return NULL;
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
+		if (evthread_use_pthreads())
+			exit(1);
+#elif defined(EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED)
+		if (evthread_use_windows_threads())
+			exit(1);
+#else
+		return (void*)TT_SKIP;
+#endif
+	}
+
 	if (testcase->flags & TT_NEED_SOCKETPAIR) {
 		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, spair) == -1) {
 			fprintf(stderr, "%s: socketpair\n", __func__);
@@ -147,6 +162,7 @@ basic_test_setup(const struct testcase_t *testcase)
 			exit(1);
 	}
 
+
         if (testcase->flags & TT_NEED_DNS) {
                 evdns_set_log_fn(dnslogcb);
                 if (evdns_init())
@@ -159,6 +175,7 @@ basic_test_setup(const struct testcase_t *testcase)
 	data->base = base;
 	data->pair[0] = spair[0];
 	data->pair[1] = spair[1];
+	data->setup_data = testcase->setup_data;
 	return data;
 }
 

@@ -71,6 +71,8 @@ _testcase_run_bare(const struct testcase_t *testcase)
 		env = testcase->setup->setup_fn(testcase);
                 if (!env)
 			return FAIL;
+		else if (env == (void*)TT_SKIP)
+			return SKIP;
 	}
 
 	cur_test_outcome = OK;
