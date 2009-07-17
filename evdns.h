@@ -411,7 +411,7 @@ int evdns_resolv_conf_parse(int flags, const char *const filename);
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolv_conf_parse()
  */
-#ifdef MS_WINDOWS
+#ifdef WIN32
 int evdns_config_windows_nameservers(void);
 #endif
 
