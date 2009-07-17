@@ -128,9 +128,13 @@ test_bufferevent_impl(int use_pair)
 		bev2 = pair[1];
 		bufferevent_setcb(bev1, readcb, writecb, errorcb, NULL);
 		bufferevent_setcb(bev2, readcb, writecb, errorcb, NULL);
+		tt_int_op(bufferevent_getfd(bev1), ==, -1);
+		tt_ptr_op(bufferevent_get_underlying(bev1), ==, NULL);
 	} else {
 		bev1 = bufferevent_new(pair[0], readcb, writecb, errorcb, NULL);
 		bev2 = bufferevent_new(pair[1], readcb, writecb, errorcb, NULL);
+		tt_int_op(bufferevent_getfd(bev1), ==, pair[0]);
+		tt_ptr_op(bufferevent_get_underlying(bev1), ==, NULL);
 	}
 
 	bufferevent_disable(bev1, EV_READ);
@@ -316,6 +320,7 @@ static void
 test_bufferevent_filters_impl(int use_pair)
 {
 	struct bufferevent *bev1 = NULL, *bev2 = NULL;
+	struct bufferevent *bev1_base = NULL, *bev2_base = NULL;
 	char buffer[8333];
 	int i;
 
@@ -330,6 +335,8 @@ test_bufferevent_filters_impl(int use_pair)
 		bev1 = bufferevent_socket_new(NULL, pair[0], 0);
 		bev2 = bufferevent_socket_new(NULL, pair[1], 0);
 	}
+	bev1_base = bev1;
+	bev2_base = bev2;
 
 	for (i = 0; i < sizeof(buffer); i++)
 		buffer[i] = i;
@@ -341,6 +348,11 @@ test_bufferevent_filters_impl(int use_pair)
 				      NULL, 0, NULL, NULL);
 	bufferevent_setcb(bev1, NULL, writecb, errorcb, NULL);
 	bufferevent_setcb(bev2, readcb, NULL, errorcb, NULL);
+
+	tt_ptr_op(bufferevent_get_underlying(bev1), ==, bev1_base);
+	tt_ptr_op(bufferevent_get_underlying(bev2), ==, bev2_base);
+	tt_ptr_op(bufferevent_getfd(bev1), ==, -1);
+	tt_ptr_op(bufferevent_getfd(bev2), ==, -1);
 
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
