@@ -286,6 +286,7 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
 			 enum bufferevent_flush_mode state,
 			 int *processed_out)
 {
+	/* Requires references and lock: might call writecb */
 	enum bufferevent_filter_result res = BEV_OK;
         struct bufferevent *bufev = downcast(bevf);
         int again = 0;
@@ -365,12 +366,15 @@ bufferevent_filtered_outbuf_cb(struct evbuffer *buf,
     const struct evbuffer_cb_info *cbinfo, void *arg)
 {
 	struct bufferevent_filtered *bevf = arg;
+	struct bufferevent *bev = downcast(bevf);
 
 	if (cbinfo->n_added) {
 		int processed_any = 0;
 		/* Somebody added more data to the output buffer. Try to
 		 * process it, if we should. */
+		_bufferevent_incref_and_lock(bev);
                 be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
+		_bufferevent_decref_and_unlock(bev);
 	}
 }
 
@@ -384,6 +388,8 @@ be_filter_readcb(struct bufferevent *underlying, void *_me)
 	struct bufferevent *bufev = downcast(bevf);
 	int processed_any = 0;
 
+	_bufferevent_incref_and_lock(bufev);
+
 	if (bevf->got_eof)
 		state = BEV_FINISHED;
 	else
@@ -391,10 +397,15 @@ be_filter_readcb(struct bufferevent *underlying, void *_me)
 
 	res = be_filter_process_input(bevf, state, &processed_any);
 
+	/* XXX This should be in process_input, not here.  There are
+	 * other places that can call process-input, and they should
+	 * force readcb calls as needed. */
 	if (processed_any &&
 	    evbuffer_get_length(bufev->input) >= bufev->wm_read.low &&
 	    bufev->readcb != NULL)
 		_bufferevent_run_readcb(bufev);
+
+	_bufferevent_decref_and_unlock(bufev);
 }
 
 /* Called when the underlying socket has drained enough that we can write to
@@ -403,9 +414,12 @@ static void
 be_filter_writecb(struct bufferevent *underlying, void *_me)
 {
 	struct bufferevent_filtered *bevf = _me;
+	struct bufferevent *bev = downcast(bevf);
         int processed_any = 0;
 
+	_bufferevent_incref_and_lock(bev);
         be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
+	_bufferevent_decref_and_unlock(bev);
 }
 
 /* Called when the underlying socket has given us an error */
@@ -415,9 +429,11 @@ be_filter_eventcb(struct bufferevent *underlying, short what, void *_me)
 	struct bufferevent_filtered *bevf = _me;
 	struct bufferevent *bev = downcast(bevf);
 
+	_bufferevent_incref_and_lock(bev);
 	/* All we can really to is tell our own eventcb. */
 	if (bev->errorcb)
 		_bufferevent_run_eventcb(bev, what);
+	_bufferevent_decref_and_unlock(bev);
 }
 
 static int
@@ -428,6 +444,8 @@ be_filter_flush(struct bufferevent *bufev,
 	int processed_any = 0;
 	assert(bevf);
 
+	_bufferevent_incref_and_lock(bufev);
+
 	if (iotype & EV_READ) {
 		be_filter_process_input(bevf, mode, &processed_any);
 	}
@@ -437,6 +455,8 @@ be_filter_flush(struct bufferevent *bufev,
         /* XXX check the return value? */
         /* XXX does this want to recursively call lower-level flushes? */
         bufferevent_flush(bevf->underlying, iotype, mode);
+
+	_bufferevent_decref_and_unlock(bufev);
 
 	return processed_any;
 }

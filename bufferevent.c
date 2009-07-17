@@ -143,7 +143,7 @@ bufferevent_run_deferred_callbacks(struct deferred_cb *_, void *arg)
 void
 _bufferevent_run_readcb(struct bufferevent *bufev)
 {
-	/* Requires lock. */
+	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
@@ -161,7 +161,7 @@ _bufferevent_run_readcb(struct bufferevent *bufev)
 void
 _bufferevent_run_writecb(struct bufferevent *bufev)
 {
-	/* Requires lock. */
+	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
@@ -179,7 +179,7 @@ _bufferevent_run_writecb(struct bufferevent *bufev)
 void
 _bufferevent_run_eventcb(struct bufferevent *bufev, short what)
 {
-	/* Requires lock. */
+	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
@@ -461,6 +461,15 @@ bufferevent_flush(struct bufferevent *bufev,
 }
 
 void
+_bufferevent_incref_and_lock(struct bufferevent *bufev)
+{
+	struct bufferevent_private *bufev_private =
+	    BEV_UPCAST(bufev);
+	BEV_LOCK(bufev);
+	++bufev_private->refcnt;
+}
+
+void
 _bufferevent_decref_and_unlock(struct bufferevent *bufev)
 {
 	struct bufferevent_private *bufev_private =
@@ -574,17 +583,17 @@ static void
 bufferevent_generic_read_timeout_cb(evutil_socket_t fd, short event, void *ctx)
 {
 	struct bufferevent *bev = ctx;
-	BEV_LOCK(bev);
+	_bufferevent_incref_and_lock(bev);
 	_bufferevent_run_eventcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_READING);
-	BEV_UNLOCK(bev);
+	_bufferevent_decref_and_unlock(bev);
 }
 static void
 bufferevent_generic_write_timeout_cb(evutil_socket_t fd, short event, void *ctx)
 {
 	struct bufferevent *bev = ctx;
-	BEV_LOCK(bev);
+	_bufferevent_incref_and_lock(bev);
 	_bufferevent_run_eventcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING);
-	BEV_UNLOCK(bev);
+	_bufferevent_decref_and_unlock(bev);
 }
 
 void

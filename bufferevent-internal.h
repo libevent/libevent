@@ -156,6 +156,9 @@ void bufferevent_wm_unsuspend_read(struct bufferevent *bufev);
 int bufferevent_enable_locking(struct bufferevent *bufev, void *lock);
 /** Internal: Increment the reference count on bufev. */
 void bufferevent_incref(struct bufferevent *bufev);
+/** Internal: Lock bufev and increase its reference count.
+ * unlocking it otherwise. */
+void _bufferevent_incref_and_lock(struct bufferevent *bufev);
 /** Internal: Drop the reference count on bufev, freeing as necessary, and
  * unlocking it otherwise. */
 void _bufferevent_decref_and_unlock(struct bufferevent *bufev);

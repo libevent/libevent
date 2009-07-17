@@ -152,7 +152,7 @@ be_async_outbuf_callback(struct evbuffer *buf,
 	/* If we successfully wrote from the outbuf, or we added data to the
 	 * outbuf and were not writing before, we may want to write now. */
 
-	BEV_LOCK(bev);
+	_bufferevent_incref_and_lock(bev);
 	if (cbinfo->n_deleted) {
 		/* XXXX can't detect 0-length write completion */
 		bev_async->write_in_progress = 0;
@@ -169,7 +169,7 @@ be_async_outbuf_callback(struct evbuffer *buf,
 			_bufferevent_run_writecb(bev);
 	}
 
-	BEV_UNLOCK(bev);
+	_bufferevent_decref_and_unlock(bev);
 }
 
 static void
@@ -183,7 +183,7 @@ be_async_inbuf_callback(struct evbuffer *buf,
 	/* If we successfully read into the inbuf, or we drained data from
 	 * the inbuf and were not reading before, we may want to read now */
 
-	BEV_LOCK(bev);
+	_bufferevent_incref_and_lock(bev);
 	if (cbinfo->n_added) {
 		/* XXXX can't detect 0-length read completion */
 		bev_async->read_in_progress = 0;
@@ -200,7 +200,7 @@ be_async_inbuf_callback(struct evbuffer *buf,
 			_bufferevent_run_readcb(bev);
 	}
 
-	BEV_UNLOCK(bev);
+	_bufferevent_decref_and_unlock(bev);
 }
 
 static int

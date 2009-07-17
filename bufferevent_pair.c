@@ -66,6 +66,25 @@ upcast(struct bufferevent *bev)
 
 #define downcast(bev_pair) (&(bev_pair)->bev.bev)
 
+static inline void
+incref_and_lock(struct bufferevent *b)
+{
+	struct bufferevent_pair *bevp;
+	_bufferevent_incref_and_lock(b);
+	bevp = upcast(b);
+	if (bevp->partner)
+		_bufferevent_incref_and_lock(downcast(bevp->partner));
+}
+
+static inline void
+decref_and_unlock(struct bufferevent *b)
+{
+	struct bufferevent_pair *bevp = upcast(b);
+	if (bevp->partner)
+		_bufferevent_decref_and_unlock(downcast(bevp->partner));
+	_bufferevent_decref_and_unlock(b);
+}
+
 /* XXX Handle close */
 
 static void be_pair_outbuf_cb(struct evbuffer *,
@@ -189,6 +208,8 @@ be_pair_outbuf_cb(struct evbuffer *outbuf,
 	struct bufferevent_pair *bev_pair = arg;
 	struct bufferevent_pair *partner = bev_pair->partner;
 
+	incref_and_lock(downcast(bev_pair));
+
 	if (info->n_added > info->n_deleted && partner) {
 		/* We got more data.  If the other side's reading, then
 		   hand it over. */
@@ -196,6 +217,8 @@ be_pair_outbuf_cb(struct evbuffer *outbuf,
 			be_pair_transfer(downcast(bev_pair), downcast(partner), 0);
 		}
 	}
+
+	decref_and_unlock(downcast(bev_pair));
 }
 
 static int
@@ -203,6 +226,8 @@ be_pair_enable(struct bufferevent *bufev, short events)
 {
 	struct bufferevent_pair *bev_p = upcast(bufev);
 	struct bufferevent_pair *partner = bev_p->partner;
+
+	incref_and_lock(bufev);
 
 	_bufferevent_generic_adj_timeouts(bufev);
 
@@ -216,6 +241,7 @@ be_pair_enable(struct bufferevent *bufev, short events)
 	    be_pair_wants_to_talk(bev_p, partner)) {
 		be_pair_transfer(bufev, downcast(partner), 0);
 	}
+	decref_and_unlock(bufev);
 	return 0;
 }
 
@@ -245,6 +271,7 @@ be_pair_flush(struct bufferevent *bev, short iotype,
 {
 	struct bufferevent_pair *bev_p = upcast(bev);
 	struct bufferevent *partner;
+	incref_and_lock(bev);
 	if (!bev_p->partner)
 		return -1;
 
@@ -263,6 +290,7 @@ be_pair_flush(struct bufferevent *bev, short iotype,
 		if (partner->errorcb)
 			_bufferevent_run_eventcb(partner, iotype|BEV_EVENT_EOF);
 	}
+	decref_and_unlock(bev);
 	return 0;
 }
 
