@@ -943,10 +943,10 @@ test_free_active_base(void *ptr)
 {
 	struct basic_test_data *data = ptr;
 	struct event_base *base1;
+	struct event ev1;
 
 	base1 = event_init();
 	if (base1) {
-		struct event ev1;
 		event_assign(&ev1, base1, data->pair[1], EV_READ,
 			     dummy_read_cb, NULL);
 		event_add(&ev1, NULL);
@@ -954,6 +954,14 @@ test_free_active_base(void *ptr)
 	} else {
 		tt_fail_msg("failed to create event_base for test");
 	}
+
+	base1 = event_init();
+	tt_assert(base1);
+	event_assign(&ev1, base1, 0, 0, dummy_read_cb, NULL);
+	event_active(&ev1, EV_READ, 1);
+	event_base_free(base1);
+end:
+	;
 }
 
 static void
