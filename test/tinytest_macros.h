@@ -134,6 +134,9 @@
 #define tt_uint_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,unsigned long,		\
 			    (_val1 op _val2),"%lu")
+#define tt_ptr_op(a,op,b)						\
+	tt_assert_test_type(a,b,#a" "#op" "#b,void*,			\
+			    (_val1 op _val2),"%p")
 
 #define tt_str_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,const char *,		\
