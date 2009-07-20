@@ -35,6 +35,7 @@ extern "C" {
 #include "tinytest_macros.h"
 
 extern struct testcase_t main_testcases[];
+extern struct testcase_t evtag_testcases[];
 extern struct testcase_t evbuffer_testcases[];
 extern struct testcase_t bufferevent_testcases[];
 extern struct testcase_t util_testcases[];
