@@ -1320,7 +1320,7 @@ test_want_only_once(void)
 #define TEST_MAX_INT	6
 
 static void
-evtag_int_test(void)
+evtag_int_test(void *ptr)
 {
 	struct evbuffer *tmp = evbuffer_new();
 	ev_uint32_t integers[TEST_MAX_INT] = {
@@ -1329,6 +1329,8 @@ evtag_int_test(void)
 	ev_uint32_t integer;
 	ev_uint64_t big_int;
 	int i;
+
+	evtag_init();
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
 		int oldlen, newlen;
@@ -1349,14 +1351,13 @@ evtag_int_test(void)
 		tt_assert((big_int / 1000000000) == integers[i]);
 	}
 
-        tt_uint_op(EVBUFFER_LENGTH(tmp), ==, 0);
-
+	tt_uint_op(EVBUFFER_LENGTH(tmp), ==, 0);
 end:
 	evbuffer_free(tmp);
 }
 
 static void
-evtag_fuzz(void)
+evtag_fuzz(void *ptr)
 {
 	u_char buffer[4096];
 	struct evbuffer *tmp = evbuffer_new();
@@ -1364,6 +1365,9 @@ evtag_fuzz(void)
 	int i, j;
 
 	int not_failed = 0;
+
+	evtag_init();
+
 	for (j = 0; j < 100; j++) {
 		for (i = 0; i < sizeof(buffer); i++)
 			buffer[i] = rand();
@@ -1394,7 +1398,7 @@ end:
 }
 
 static void
-evtag_tag_encoding(void)
+evtag_tag_encoding(void *ptr)
 {
 	struct evbuffer *tmp = evbuffer_new();
 	ev_uint32_t integers[TEST_MAX_INT] = {
@@ -1402,6 +1406,8 @@ evtag_tag_encoding(void)
 	};
 	ev_uint32_t integer;
 	int i;
+
+	evtag_init();
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
 		int oldlen, newlen;
@@ -1418,19 +1424,11 @@ evtag_tag_encoding(void)
 	}
 
         tt_uint_op(EVBUFFER_LENGTH(tmp), ==, 0);
+
 end:
 	evbuffer_free(tmp);
 }
 
-static void
-test_evtag(void)
-{
-	evtag_init();
-	evtag_int_test();
-	evtag_fuzz();
-	evtag_tag_encoding();
-        test_ok = 1;
-}
 
 static void
 test_methods(void *ptr)
@@ -1787,10 +1785,15 @@ struct testcase_t main_testcases[] = {
 #ifndef WIN32
         LEGACY(fork, TT_ISOLATED),
 #endif
-
-        LEGACY(evtag, TT_ISOLATED),
-
         END_OF_TESTCASES
+};
+
+struct testcase_t evtag_testcases[] = {
+	{ "int", evtag_int_test, TT_FORK, NULL, NULL },
+	{ "fuzz", evtag_fuzz, TT_FORK, NULL, NULL },
+	{ "encoding", evtag_tag_encoding, TT_FORK, NULL, NULL },
+
+	END_OF_TESTCASES
 };
 
 struct testcase_t signal_testcases[] = {

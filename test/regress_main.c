@@ -283,6 +283,7 @@ struct testgroup_t testgroups[] = {
 	{ "bufferevent/", bufferevent_testcases },
 	{ "http/", http_testcases },
 	{ "dns/", dns_testcases },
+	{ "evtag/", evtag_testcases },
 	{ "rpc/", rpc_testcases },
 	{ "thread/", thread_testcases },
 #ifdef WIN32
