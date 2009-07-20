@@ -88,8 +88,8 @@ void evtag_marshal_buffer(struct evbuffer *evbuf, ev_uint32_t tag,
   @param evbuf evbuffer to store the encoded number
   @param number a 32-bit integer
  */
-void encode_int(struct evbuffer *evbuf, ev_uint32_t number);
-void encode_int64(struct evbuffer *evbuf, ev_uint64_t number);
+void evtag_encode_int(struct evbuffer *evbuf, ev_uint32_t number);
+void evtag_encode_int64(struct evbuffer *evbuf, ev_uint64_t number);
 
 void evtag_marshal_int(struct evbuffer *evbuf, ev_uint32_t tag,
     ev_uint32_t integer);

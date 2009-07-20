@@ -1270,6 +1270,7 @@ test_multiple_events_for_same_fd(void)
 }
 
 int evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf);
+int evtag_decode_int64(ev_uint64_t *pnumber, struct evbuffer *evbuf);
 int evtag_encode_tag(struct evbuffer *evbuf, ev_uint32_t number);
 int evtag_decode_tag(ev_uint32_t *pnumber, struct evbuffer *evbuf);
 
@@ -1326,23 +1327,30 @@ evtag_int_test(void)
 		0xaf0, 0x1000, 0x1, 0xdeadbeef, 0x00, 0xbef000
 	};
 	ev_uint32_t integer;
+	ev_uint64_t big_int;
 	int i;
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
 		int oldlen, newlen;
 		oldlen = EVBUFFER_LENGTH(tmp);
-		encode_int(tmp, integers[i]);
-		newlen = EVBUFFER_LENGTH(tmp);
-                TT_BLATHER(("encoded 0x%08x with %d bytes",
+		evtag_encode_int(tmp, integers[i]);
+                newlen = EVBUFFER_LENGTH(tmp);
+		TT_BLATHER(("encoded 0x%08x with %d bytes",
                         (unsigned)integers[i], newlen - oldlen));
+		big_int = integers[i];
+		big_int *= 1000000000; /* 1 billion */
+		evtag_encode_int64(tmp, big_int);
 	}
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
-                tt_assert(evtag_decode_int(&integer, tmp) != -1);
+                tt_int_op(evtag_decode_int(&integer, tmp), !=, -1);
                 tt_uint_op(integer, ==, integers[i]);
+		tt_int_op(evtag_decode_int64(&big_int, tmp), !=, -1);
+		tt_assert((big_int / 1000000000) == integers[i]);
 	}
 
         tt_uint_op(EVBUFFER_LENGTH(tmp), ==, 0);
+
 end:
 	evbuffer_free(tmp);
 }
