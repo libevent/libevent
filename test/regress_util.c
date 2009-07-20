@@ -48,6 +48,7 @@
 
 #include "event2/util.h"
 #include "../ipv6-internal.h"
+#include "../util-internal.h"
 
 #include "regress.h"
 
@@ -300,12 +301,34 @@ test_evutil_snprintf(void *ptr)
 	;
 }
 
+static void
+test_evutil_casecmp(void *ptr)
+{
+	tt_int_op(evutil_strcasecmp("ABC", "ABC"), ==, 0);
+	tt_int_op(evutil_strcasecmp("ABC", "abc"), ==, 0);
+	tt_int_op(evutil_strcasecmp("ABC", "abcd"), <, 0);
+	tt_int_op(evutil_strcasecmp("ABC", "abb"), >, 0);
+	tt_int_op(evutil_strcasecmp("ABCd", "abc"), >, 0);
+
+	tt_int_op(evutil_strncasecmp("Libevent", "LibEvEnT", 100), ==, 0);
+	tt_int_op(evutil_strncasecmp("Libevent", "LibEvEnT", 4), ==, 0);
+	tt_int_op(evutil_strncasecmp("Libevent", "LibEXXXX", 4), ==, 0);
+	tt_int_op(evutil_strncasecmp("Libevent", "LibE", 4), ==, 0);
+	tt_int_op(evutil_strncasecmp("Libe", "LibEvEnT", 4), ==, 0);
+	tt_int_op(evutil_strncasecmp("Lib", "LibEvEnT", 4), <, 0);
+	tt_int_op(evutil_strncasecmp("abc", "def", 99), <, 0);
+	tt_int_op(evutil_strncasecmp("Z", "qrst", 1), >, 0);
+end:
+	;
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
 	{ "sockaddr_port_parse", regress_sockaddr_port_parse, 0, NULL, NULL },
 	{ "evutil_snprintf", test_evutil_snprintf, 0, NULL, NULL },
 	{ "evutil_strtoll", test_evutil_strtoll, 0, NULL, NULL },
+	{ "evutil_casecmp", test_evutil_casecmp, 0, NULL, NULL },
 	END_OF_TESTCASES,
 };
 
