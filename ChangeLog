@@ -44,6 +44,7 @@ Changes in 2.0.2-alpha:
  o Use AC_SEARCH_LIBS, not AC_CHECK_LIB to avoid needless library use.
  o Do not allow event_del(ev) to return while that event's callback is executing in another thread.  This fixes a nasty race condition.
  o event_get_supported_methods() now lists methods that have been disabled with the EVENT_NO* environment options.
+ o Rename encode_int[64] to evtag_encode_int[64] to avoid polluting the global namespace.  The old method names are still available as macros in event2/tag_compat.h.
 
 Changes in 2.0.1-alpha:
  o free minheap on event_base_free(); from Christopher Layne

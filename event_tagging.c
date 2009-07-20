@@ -68,6 +68,7 @@
 #include "util-internal.h"
 
 int evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf);
+int evtag_decode_int64(ev_uint64_t *pnumber, struct evbuffer *evbuf);
 int evtag_encode_tag(struct evbuffer *evbuf, ev_uint32_t tag);
 int evtag_decode_tag(ev_uint32_t *ptag, struct evbuffer *evbuf);
 
@@ -123,7 +124,7 @@ encode_int64_internal(ev_uint8_t *data, ev_uint64_t number)
 }
 
 void
-encode_int(struct evbuffer *evbuf, ev_uint32_t number)
+evtag_encode_int(struct evbuffer *evbuf, ev_uint32_t number)
 {
 	ev_uint8_t data[5];
 	int len = encode_int_internal(data, number);
@@ -131,7 +132,7 @@ encode_int(struct evbuffer *evbuf, ev_uint32_t number)
 }
 
 void
-encode_int64(struct evbuffer *evbuf, ev_uint64_t number)
+evtag_encode_int64(struct evbuffer *evbuf, ev_uint64_t number)
 {
 	ev_uint8_t data[9];
 	int len = encode_int64_internal(data, number);
@@ -221,7 +222,7 @@ evtag_marshal(struct evbuffer *evbuf, ev_uint32_t tag,
     const void *data, ev_uint32_t len)
 {
 	evtag_encode_tag(evbuf, tag);
-	encode_int(evbuf, len);
+	evtag_encode_int(evbuf, len);
 	evbuffer_add(evbuf, (void *)data, len);
 }
 
@@ -230,7 +231,7 @@ evtag_marshal_buffer(struct evbuffer *evbuf, ev_uint32_t tag,
     struct evbuffer *data)
 {
 	evtag_encode_tag(evbuf, tag);
-	encode_int(evbuf, evbuffer_get_length(data));
+	evtag_encode_int(evbuf, evbuffer_get_length(data));
 	evbuffer_add_buffer(evbuf, data);
 }
 
@@ -242,7 +243,7 @@ evtag_marshal_int(struct evbuffer *evbuf, ev_uint32_t tag, ev_uint32_t integer)
 	int len = encode_int_internal(data, integer);
 
 	evtag_encode_tag(evbuf, tag);
-	encode_int(evbuf, len);
+	evtag_encode_int(evbuf, len);
 	evbuffer_add(evbuf, data, len);
 }
 
@@ -254,7 +255,7 @@ evtag_marshal_int64(struct evbuffer *evbuf, ev_uint32_t tag,
 	int len = encode_int64_internal(data, integer);
 
 	evtag_encode_tag(evbuf, tag);
-	encode_int(evbuf, len);
+	evtag_encode_int(evbuf, len);
 	evbuffer_add(evbuf, data, len);
 }
 
@@ -333,6 +334,16 @@ int
 evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf)
 {
 	int res = decode_int_internal(pnumber, evbuf, 0);
+	if (res != -1)
+		evbuffer_drain(evbuf, res);
+
+	return (res == -1 ? -1 : 0);
+}
+
+int
+evtag_decode_int64(ev_uint64_t *pnumber, struct evbuffer *evbuf)
+{
+	int res = decode_int64_internal(pnumber, evbuf, 0);
 	if (res != -1)
 		evbuffer_drain(evbuf, res);
 
