@@ -796,13 +796,16 @@ test_signal_switchbase(void)
 		exit(1);
 	}
 
+	tt_ptr_op(event_get_base(&ev1), ==, base1);
+	tt_ptr_op(event_get_base(&ev2), ==, base2);
+
 	test_ok = 0;
 	/* can handle signal before loop is called */
 	raise(SIGUSR1);
 	event_base_loop(base2, EVLOOP_NONBLOCK);
         if (is_kqueue) {
                 if (!test_ok)
-                        goto done;
+                        goto end;
                 test_ok = 0;
         }
 	event_base_loop(base1, EVLOOP_NONBLOCK);
@@ -815,7 +818,7 @@ test_signal_switchbase(void)
 		event_base_loop(base1, EVLOOP_NONBLOCK);
 		event_base_loop(base2, EVLOOP_NONBLOCK);
 	}
- done:
+end:
 	event_base_free(base1);
 	event_base_free(base2);
 	cleanup_test();
@@ -962,6 +965,29 @@ test_free_active_base(void *ptr)
 	event_base_free(base1);
 end:
 	;
+}
+
+static void
+test_manipulate_active_events(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event ev1;
+
+	event_assign(&ev1, base, -1, EV_TIMEOUT, dummy_read_cb, NULL);
+
+	/* Make sure an active event is pending. */
+	event_active(&ev1, EV_READ, 1);
+	tt_int_op(event_pending(&ev1, EV_READ|EV_TIMEOUT|EV_WRITE, NULL),
+	    ==, EV_READ);
+
+	/* Make sure that activating an event twice works. */
+	event_active(&ev1, EV_WRITE, 1);
+	tt_int_op(event_pending(&ev1, EV_READ|EV_TIMEOUT|EV_WRITE, NULL),
+	    ==, EV_READ|EV_WRITE);
+
+end:
+	event_del(&ev1);
 }
 
 static void
@@ -1758,6 +1784,8 @@ struct testcase_t main_testcases[] = {
 
 	BASIC(event_base_new, TT_FORK|TT_NEED_SOCKETPAIR),
 	BASIC(free_active_base, TT_FORK|TT_NEED_SOCKETPAIR),
+
+	BASIC(manipulate_active_events, TT_FORK|TT_NEED_BASE),
 
         /* These are still using the old API */
         LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
