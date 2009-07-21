@@ -3538,13 +3538,32 @@ load_nameservers_from_registry(struct evdns_base *base)
 #undef TRY
 }
 
-static int
-evdns_config_windows_nameservers(struct evdns_base *base)
+int
+evdns_base_config_windows_nameservers(struct evdns_base *base)
 {
-	ASSERT_LOCKED(base);
+	int r;
+	if (base == NULL)
+		base = current_base;
+	if (base == NULL)
+		return -1;
+	EVDNS_LOCK(base);
 	if (load_nameservers_with_getnetworkparams(base) == 0)
 		return 0;
-	return load_nameservers_from_registry(base);
+	r = load_nameservers_from_registry(base);
+	EVDNS_UNLOCK(base);
+	return r;
+}
+
+int
+evdns_config_windows_nameservers(void)
+{
+	if (!current_base) {
+		current_base = evdns_base_new(NULL, 1);
+		return current_base == NULL ? -1 : 0;
+	} else {
+		return evdns_base_config_windows_nameservers(current_base);
+	}
+	 
 }
 #endif
 
@@ -3582,7 +3601,7 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 	if (initialize_nameservers) {
 		int r;
 #ifdef WIN32
-		r = evdns_config_windows_nameservers(base);
+		r = evdns_base_config_windows_nameservers(base);
 #else
 		r = evdns_base_resolv_conf_parse(base, DNS_OPTIONS_ALL, "/etc/resolv.conf");
 #endif
