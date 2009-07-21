@@ -355,6 +355,7 @@ win32_dispatch(struct event_base *base, void *op,
 	unsigned j, i;
 	int fd_count;
 	SOCKET s;
+	struct event_entry *ent;
 
 	fd_set_copy(win32op->readset_out, win32op->readset_in);
 	fd_set_copy(win32op->exset_out, win32op->readset_in);
@@ -398,7 +399,7 @@ win32_dispatch(struct event_base *base, void *op,
 	if (win32op->exset_out->fd_count) {
 		i = rand() % win32op->exset_out->fd_count;
 		for (j=0; j<win32op->exset_out->fd_count; ++j) {
-			if (++i >= win32op-exset_out->fd_count)
+			if (++i >= win32op->exset_out->fd_count)
 				i = 0;
 			s = win32op->exset_out->fd_array[i];
 			if ((ent = get_event_entry(win32op, s, 0)) && ent->read_event)
@@ -408,7 +409,7 @@ win32_dispatch(struct event_base *base, void *op,
 	if (win32op->writeset_out->fd_count) {
 		i = rand() % win32op->writeset_out->fd_count;
 		for (j=0; j<win32op->writeset_out->fd_count; ++j) {
-			if (++i >= win32op-exset_out->fd_count)
+			if (++i >= win32op->exset_out->fd_count)
 				i = 0;
 			s = win32op->writeset_out->fd_array[i];
 			if ((ent = get_event_entry(win32op, s, 0)) && ent->write_event)

@@ -2989,7 +2989,7 @@ load_nameservers_from_registry(void)
 #undef TRY
 }
 
-static int
+int
 evdns_config_windows_nameservers(void)
 {
 	if (load_nameservers_with_getnetworkparams() == 0)
