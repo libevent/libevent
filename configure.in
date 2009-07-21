@@ -19,6 +19,9 @@ AC_PROG_LN_S
 AC_PROG_GCC_TRADITIONAL
 if test "$GCC" = yes ; then
         CFLAGS="$CFLAGS -Wall"
+        # And disable the strict-aliasing optimization, since it breaks
+        # our sockaddr-handling code in strange ways.
+        CFLAGS="$CFLAGS -fno-strict-aliasing"
 fi
 
 AC_ARG_ENABLE(gcc-warnings,
@@ -310,6 +313,7 @@ AC_CHECK_SIZEOF(long long)
 AC_CHECK_SIZEOF(long)   
 AC_CHECK_SIZEOF(int)
 AC_CHECK_SIZEOF(short)
+AC_CHECK_SIZEOF(void *)
 AC_CHECK_TYPES([struct in6_addr], , ,
 [#ifdef WIN32
 #include <winsock2.h>

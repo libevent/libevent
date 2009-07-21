@@ -6,6 +6,7 @@ Changes in 1.4.12-stable:
  o Fix another pair of fencepost bugs in epoll.c.  [Patch from Adam Langley.]
  o Do not break evdns connections to nameservers when our IP changes.
  o Set truncated flag correctly in evdns server replies.
+ o Disable strict aliasing with GCC: our code is not compliant with it.
 
 Changes in 1.4.11-stable:
  o Fix a bug when removing a timeout from the heap. [Patch from Marko Kreen]
