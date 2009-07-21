@@ -144,7 +144,7 @@ static void	timeout_correct(struct event_base *, struct timeval *);
 static void	event_signal_closure(struct event_base *, struct event *ev);
 static void	event_persist_closure(struct event_base *, struct event *ev);
 
-static int evthread_notify_base(struct event_base *base);
+static int	evthread_notify_base(struct event_base *base);
 
 static void
 detect_monotonic(void)
@@ -583,7 +583,7 @@ event_base_priority_init(struct event_base *base, int npriorities)
 	return (0);
 }
 
-int
+static int
 event_haveevents(struct event_base *base)
 {
 	return (base->event_count > 0);
@@ -1518,7 +1518,7 @@ timeout_process(struct event_base *base)
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
-void
+static void
 event_queue_remove(struct event_base *base, struct event *ev, int queue)
 {
 	if (!(ev->ev_flags & queue))
@@ -1546,7 +1546,7 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 	}
 }
 
-void
+static void
 event_queue_insert(struct event_base *base, struct event *ev, int queue)
 {
 	if (ev->ev_flags & queue) {
