@@ -313,6 +313,11 @@ void evdns_search_ndots_set(const int ndots);
 */
 struct evdns_server_port *evdns_add_server_port(evutil_socket_t socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
 
+#ifdef WIN32
+int evdns_config_windows_nameservers(void);
+#define EVDNS_CONFIG_WINDOWS_NAMESERVERS_IMPLEMENTED
+#endif
+
 #ifdef __cplusplus
 }
 #endif
