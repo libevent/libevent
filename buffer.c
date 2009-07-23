@@ -2187,7 +2187,10 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 #ifdef MAP_NOCACHE
 		    MAP_NOCACHE |
 #endif
-		    MAP_FILE | MAP_PRIVATE,
+#ifdef MAP_FILE
+		    MAP_FILE |
+#endif
+		    MAP_PRIVATE,
 		    fd, 0);
 		/* some mmap implementations require offset to be a multiple of
 		 * the page size.  most users of this api, are likely to use 0
