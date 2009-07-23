@@ -310,10 +310,8 @@ AC_CHECK_TYPES([uint64_t, uint32_t, uint16_t, uint8_t], , ,
 #include <sys/types.h>
 #endif])
 AC_CHECK_SIZEOF(long long)
-AC_CHECK_SIZEOF(long)   
 AC_CHECK_SIZEOF(int)
 AC_CHECK_SIZEOF(short)
-AC_CHECK_SIZEOF(void *)
 AC_CHECK_TYPES([struct in6_addr], , ,
 [#ifdef WIN32
 #include <winsock2.h>

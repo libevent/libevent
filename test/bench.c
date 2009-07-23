@@ -63,16 +63,10 @@ static int *pipes;
 static int num_pipes, num_active, num_writes;
 static struct event *events;
 
-#if SIZEOF_VOID_P == 4
-#define EV_INTPTR_T ev_int32_t
-#elif SIZEOF_VOID_P == 8
-#define EV_INTPTR_T ev_int64_t
-#endif
-
 static void
 read_cb(int fd, short which, void *arg)
 {
-	EV_INTPTR_T idx = (ev_uint64_t) arg, widx = idx + 1;
+	long idx = (long) arg, widx = idx + 1;
 	u_char ch;
 
 	count += read(fd, &ch, sizeof(ch));
@@ -89,7 +83,7 @@ static struct timeval *
 run_once(void)
 {
 	int *cp, space;
-	EV_INTPTR_T i;
+	long i;
 	static struct timeval ts, te;
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
