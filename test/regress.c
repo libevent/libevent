@@ -1478,6 +1478,7 @@ test_methods(void *ptr)
 	assert(cfg != NULL);
 
 	tt_int_op(event_config_avoid_method(cfg, backend), ==, 0);
+	event_config_set_flag(cfg, EVENT_BASE_FLAG_IGNORE_ENV);
 
 	base = event_base_new_with_config(cfg);
 	if (n_methods > 1) {
