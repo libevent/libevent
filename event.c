@@ -230,6 +230,27 @@ event_base_get_features(struct event_base *base)
 	return base->evsel->features;
 }
 
+void
+event_deferred_cb_queue_init(struct deferred_cb_queue *cb)
+{
+	memset(cb, 0, sizeof(struct deferred_cb_queue));
+	TAILQ_INIT(&cb->deferred_cb_list);
+}
+
+static void
+notify_base_cbq_callback(struct deferred_cb_queue *cb, void *baseptr)
+{
+	struct event_base *base = baseptr;
+	if (!EVBASE_IN_THREAD(base))
+	    evthread_notify_base(base);
+}
+
+struct deferred_cb_queue *
+event_base_get_deferred_cb_queue(struct event_base *base)
+{
+	return base ? &base->defer_queue : NULL;
+}
+
 struct event_base *
 event_base_new_with_config(struct event_config *cfg)
 {
@@ -245,9 +266,12 @@ event_base_new_with_config(struct event_config *cfg)
 
 	min_heap_ctor(&base->timeheap);
 	TAILQ_INIT(&base->eventqueue);
-	TAILQ_INIT(&base->deferred_cb_list);
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
+
+	event_deferred_cb_queue_init(&base->defer_queue);
+	base->defer_queue.notify_fn = notify_base_cbq_callback;
+	base->defer_queue.notify_arg = base;
 
 	evmap_io_initmap(&base->io);
 	evmap_signal_initmap(&base->sigmap);
@@ -301,6 +325,7 @@ event_base_new_with_config(struct event_config *cfg)
 	if (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK)) {
 		int r;
 		EVTHREAD_ALLOC_LOCK(base->th_base_lock);
+		base->defer_queue.lock = base->th_base_lock;
 		EVTHREAD_ALLOC_LOCK(base->current_event_lock);
 		r = evthread_make_base_notifiable(base);
 		if (r<0) {
@@ -551,7 +576,7 @@ event_base_priority_init(struct event_base *base, int npriorities)
 {
 	int i;
 
-	if (base->event_count_active || npriorities < 1
+	if (N_ACTIVE_CALLBACKS(base) || npriorities < 1
 	    || npriorities >= EVENT_MAX_PRIORITIES)
 		return (-1);
 
@@ -678,23 +703,23 @@ event_process_active_single_queue(struct event_base *base,
 }
 
 static int
-event_process_deferred_callbacks(struct event_base *base)
+event_process_deferred_callbacks(struct deferred_cb_queue *queue, int *breakptr)
 {
 	int count = 0;
 	struct deferred_cb *cb;
 
-	while ((cb = TAILQ_FIRST(&base->deferred_cb_list))) {
+	while ((cb = TAILQ_FIRST(&queue->deferred_cb_list))) {
 		cb->queued = 0;
-		TAILQ_REMOVE(&base->deferred_cb_list, cb, cb_next);
-		--base->event_count_active;
-		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+		TAILQ_REMOVE(&queue->deferred_cb_list, cb, cb_next);
+		--queue->active_count;
+		UNLOCK_DEFERRED_QUEUE(queue);
 
 		cb->cb(cb, cb->arg);
 		++count;
-		if (base->event_break)
+		if (*breakptr)
 			return -1;
 
-		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+		LOCK_DEFERRED_QUEUE(queue);
 	}
 	return count;
 }
@@ -727,7 +752,7 @@ event_process_active(struct event_base *base)
 		}
 	}
 
-	event_process_deferred_callbacks(base);
+	event_process_deferred_callbacks(&base->defer_queue,&base->event_break);
 
 unlock:
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
@@ -845,7 +870,7 @@ event_base_loop(struct event_base *base, int flags)
 		timeout_correct(base, &tv);
 
 		tv_p = &tv;
-		if (!base->event_count_active && !(flags & EVLOOP_NONBLOCK)) {
+		if (!N_ACTIVE_CALLBACKS(base) && !(flags & EVLOOP_NONBLOCK)) {
 			timeout_next(base, &tv_p);
 		} else {
 			/*
@@ -856,7 +881,7 @@ event_base_loop(struct event_base *base, int flags)
 		}
 
 		/* If we have no events, we just exit */
-		if (!event_haveevents(base) && !base->event_count_active) {
+		if (!event_haveevents(base) && !N_ACTIVE_CALLBACKS(base)) {
 			event_debug(("%s: no events registered.", __func__));
 			return (1);
 		}
@@ -875,7 +900,7 @@ event_base_loop(struct event_base *base, int flags)
 
 		timeout_process(base);
 
-		if (base->event_count_active) {
+		if (N_ACTIVE_CALLBACKS(base)) {
 			event_process_active(base);
 			if (!base->event_count_active && (flags & EVLOOP_ONCE))
 				done = 1;
@@ -1377,34 +1402,45 @@ event_deferred_cb_init(struct deferred_cb *cb, deferred_cb_fn fn, void *arg)
 }
 
 void
-event_deferred_cb_cancel(struct event_base *base, struct deferred_cb *cb)
+event_deferred_cb_cancel(struct deferred_cb_queue *queue,
+    struct deferred_cb *cb)
 {
-	if (!base)
-		base = current_base;
+	if (!queue) {
+		if (current_base)
+			queue = &current_base->defer_queue;
+		else
+			return;
+	}
 
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	LOCK_DEFERRED_QUEUE(queue);
 	if (cb->queued) {
-		TAILQ_REMOVE(&base->deferred_cb_list, cb, cb_next);
-		--base->event_count_active;
+		TAILQ_REMOVE(&queue->deferred_cb_list, cb, cb_next);
+		--queue->active_count;
 		cb->queued = 0;
 	}
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	UNLOCK_DEFERRED_QUEUE(queue);
 }
 
 void
-event_deferred_cb_schedule(struct event_base *base, struct deferred_cb *cb)
+event_deferred_cb_schedule(struct deferred_cb_queue *queue,
+    struct deferred_cb *cb)
 {
-	if (!base)
-		base = current_base;
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	if (!queue) {
+		if (current_base)
+			queue = &current_base->defer_queue;
+		else
+			return;
+	}
+
+	LOCK_DEFERRED_QUEUE(queue);
 	if (!cb->queued) {
 		cb->queued = 1;
-		TAILQ_INSERT_TAIL(&base->deferred_cb_list, cb, cb_next);
-		++base->event_count_active;
-		if (!EVBASE_IN_THREAD(base))
-			evthread_notify_base(base);
+		TAILQ_INSERT_TAIL(&queue->deferred_cb_list, cb, cb_next);
+		++queue->active_count;
+		if (queue->notify_fn)
+			queue->notify_fn(queue, queue->notify_arg);
 	}
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	UNLOCK_DEFERRED_QUEUE(queue);
 }
 
 static int

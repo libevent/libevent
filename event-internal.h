@@ -37,6 +37,7 @@ extern "C" {
 #include "minheap-internal.h"
 #include "evsignal-internal.h"
 #include "mm-internal.h"
+#include "defer-internal.h"
 
 /* map union members back */
 
@@ -136,9 +137,7 @@ struct event_base {
 	/** The event whose callback is executing right now */
 	struct event *current_event;
 
-	/** Deferred callback management: a list of deferred callbacks to
-	 * run active the active events. */
-	TAILQ_HEAD (deferred_cb_list, deferred_cb) deferred_cb_list;
+	struct deferred_cb_queue defer_queue;
 
 	/** Mapping from file descriptors to enabled events */
 	struct event_io_map io;
@@ -208,6 +207,9 @@ struct event_config {
 	(listelm)->field.tqe_prev = &(elm)->field.tqe_next;		\
 } while (0)
 #endif /* TAILQ_FOREACH */
+
+#define N_ACTIVE_CALLBACKS(base)					\
+	((base)->event_count_active + (base)->defer_queue.active_count)
 
 int _evsig_set_handler(struct event_base *base, int evsignal,
 			  void (*fn)(int));

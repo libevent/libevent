@@ -115,9 +115,8 @@ struct evbuffer {
 	unsigned is_overlapped : 1;
 #endif
 
-	/** An event_base associated with this evbuffer.  Used to implement
-	 * deferred callbacks. */
-	struct event_base *ev_base;
+	/** Used to implement deferred callbacks. */
+	struct deferred_cb_queue *cb_queue;
 
 	/** For debugging: how many times have we acquired the lock for this
 	 * evbuffer? */

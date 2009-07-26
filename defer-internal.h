@@ -50,6 +50,20 @@ struct deferred_cb {
 	void *arg;
 };
 
+
+struct deferred_cb_queue {
+	void *lock;
+
+	int active_count;
+
+	void (*notify_fn)(struct deferred_cb_queue *, void *);
+	void *notify_arg;
+
+	/** Deferred callback management: a list of deferred callbacks to
+	 * run active the active events. */
+	TAILQ_HEAD (deferred_cb_list, deferred_cb) deferred_cb_list;
+};
+
 /**
    Initialize an empty, non-pending deferred_cb.
 
@@ -61,15 +75,32 @@ void event_deferred_cb_init(struct deferred_cb *, deferred_cb_fn, void *);
 /**
    Cancel a deferred_cb if it is currently scheduled in an event_base.
  */
-void event_deferred_cb_cancel(struct event_base *, struct deferred_cb *);
+void event_deferred_cb_cancel(struct deferred_cb_queue *, struct deferred_cb *);
 /**
    Activate a deferred_cb if it is not currently scheduled in an event_base.
  */
-void event_deferred_cb_schedule(struct event_base *, struct deferred_cb *);
+void event_deferred_cb_schedule(struct deferred_cb_queue *, struct deferred_cb *);
+
+#define LOCK_DEFERRED_QUEUE(q)						\
+	do {								\
+		if ((q)->lock)						\
+			_evthread_locking_fn(EVTHREAD_LOCK|EVTHREAD_WRITE, \
+			    (q)->lock);					\
+	} while (0)
+
+#define UNLOCK_DEFERRED_QUEUE(q)					\
+	do {								\
+		if ((q)->lock)						\
+			_evthread_locking_fn(EVTHREAD_UNLOCK|EVTHREAD_WRITE, \
+			    (q)->lock);					\
+	} while (0)
 
 #ifdef __cplusplus
 }
 #endif
+
+void event_deferred_cb_queue_init(struct deferred_cb_queue *);
+struct deferred_cb_queue *event_base_get_deferred_cb_queue(struct event_base *);
 
 #endif /* _EVENT_INTERNAL_H_ */
 

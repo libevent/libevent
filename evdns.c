@@ -804,7 +804,9 @@ reply_schedule_callback(struct evdns_request *const req, u32 ttl, u32 err, struc
 
 	event_deferred_cb_init(&d->deferred, reply_run_callback,
 	    req->user_pointer);
-	event_deferred_cb_schedule(req->base->event_base, &d->deferred);
+	event_deferred_cb_schedule(
+		event_base_get_deferred_cb_queue(req->base->event_base),
+		&d->deferred);
 }
 
 /* this processes a parsed reply packet */
