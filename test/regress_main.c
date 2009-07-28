@@ -28,11 +28,14 @@
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
-#define __func__    __FUNCTION__
 #endif
 
 #ifdef HAVE_CONFIG_H
 #include "event-config.h"
+#endif
+
+#ifdef _EVENT___func__
+#define __func__ _EVENT___func__
 #endif
 
 #if 0

@@ -1561,9 +1561,13 @@ class CCodeGenerator:
         pre += ( '#include <stdlib.h>\n'
                  '#include <string.h>\n'
                  '#include <assert.h>\n'
+                 '#include <event-config.h>\n'
                  '#include <event2/event.h>\n'
                  '#include <event2/buffer.h>\n'
                  '#include <event2/tag.h>\n\n'
+                 '#ifdef _EVENT___func__\n'
+                 '#define __func__ _EVENT___FUNC__\n'
+                 '#endif\n\n'
                  )
 
         for statement in cppdirect:

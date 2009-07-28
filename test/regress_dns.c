@@ -70,6 +70,9 @@ static int dns_ok = 0;
 static int dns_got_cancel = 0;
 static int dns_err = 0;
 
+/* XXXXX have evutil export this. */
+int evutil_strcasecmp(const char *, const char *);
+
 static void
 dns_gethostbyname_cb(int result, char type, int count, int ttl,
     void *addresses, void *arg)
