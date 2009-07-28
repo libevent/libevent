@@ -3,6 +3,8 @@ Changes in 2.0.3-alpha:
  o Fix a bug where we didn't allocate enough memory in event_get_supported_methods().
  o Avoid segfault during failed allocation of locked evdns_base. (Found by Rocco Carbone.)
  o Export new evutil_ascii_* functions to perform locale-independent character type operations.
+ o Try to compile better with MSVC: patches from Brodie Thiesfield
+
 
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.
