@@ -463,15 +463,13 @@ event_reinit(struct event_base *base)
 const char **
 event_get_supported_methods(void)
 {
-	static const char **methods;
+	static const char **methods = NULL;
 	const struct eventop **method;
 	const char **tmp;
 	int i = 0, k;
 
 	/* count all methods */
 	for (method = &eventops[0]; *method != NULL; ++method) {
-		if (event_is_method_disabled((*method)->name))
-			continue;
 		++i;
 	}
 

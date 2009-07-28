@@ -1,5 +1,6 @@
 Changes in 2.0.3-alpha:
  o Add a new code to support SSL/TLS on bufferevents, using the OpenSSL library (where available).
+ o Fix a bug where we didn't allocate enough memory in event_get_supported_methods().
 
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.
