@@ -386,6 +386,7 @@ static void server_port_ready_callback(evutil_socket_t fd, short events, void *a
 static int evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char *const filename);
 static int evdns_base_set_option_impl(struct evdns_base *base,
     const char *option, const char *val, int flags);
+static void evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests);
 
 static int strtoint(const char *const str);
 
@@ -3608,8 +3609,8 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 		r = evdns_base_resolv_conf_parse(base, DNS_OPTIONS_ALL, "/etc/resolv.conf");
 #endif
 		if (r == -1) {
-			evdns_base_free(base, 0);
-			base = NULL;
+			evdns_base_free_and_unlock(base, 0);
+			return NULL;
 		}
 	}
 	EVDNS_UNLOCK(base);
@@ -3648,16 +3649,16 @@ evdns_err_to_string(int err)
     }
 }
 
-void
-evdns_base_free(struct evdns_base *base, int fail_requests)
+static void
+evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 {
 	struct nameserver *server, *server_next;
 	struct search_domain *dom, *dom_next;
 	int i;
 
-	/* TODO(nickm) we might need to refcount here. */
+	/* Requires that we hold the lock. */
 
-	EVDNS_LOCK(base);
+	/* TODO(nickm) we might need to refcount here. */
 
 	for (i = 0; i < base->n_req_heads; ++i) {
 		while (base->req_heads[i]) {
@@ -3702,11 +3703,19 @@ evdns_base_free(struct evdns_base *base, int fail_requests)
 }
 
 void
+evdns_base_free(struct evdns_base *base, int fail_requests)
+{
+	EVDNS_LOCK(base);
+	evdns_base_free_and_unlock(base, fail_requests);
+}
+
+void
 evdns_shutdown(int fail_requests)
 {
 	if (current_base) {
-		evdns_base_free(current_base, fail_requests);
+		struct evdns_base *b = current_base;
 		current_base = NULL;
+		evdns_base_free(b, fail_requests);
 	}
 	evdns_log_fn = NULL;
 }
