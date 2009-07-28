@@ -1005,7 +1005,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			if (strcmp(tmp_name, cmp_name) == 0)		\
 				name_matches = 1;			\
 		} else {						\
-			if (evutil_strcasecmp(tmp_name, cmp_name) == 0)	\
+			if (evutil_ascii_strcasecmp(tmp_name, cmp_name) == 0) \
 				name_matches = 1;			\
 		}							\
 	} while(0)

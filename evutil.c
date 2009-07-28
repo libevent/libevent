@@ -773,7 +773,7 @@ const char EVUTIL_TOLOWER_TABLE[256] = {
 };
 
 int
-evutil_strcasecmp(const char *s1, const char *s2)
+evutil_ascii_strcasecmp(const char *s1, const char *s2)
 {
 	char c1, c2;
 	while (1) {
@@ -787,7 +787,7 @@ evutil_strcasecmp(const char *s1, const char *s2)
 			return 0;
 	}
 }
-int evutil_strncasecmp(const char *s1, const char *s2, size_t n)
+int evutil_ascii_strncasecmp(const char *s1, const char *s2, size_t n)
 {
 	char c1, c2;
 	while (n--) {

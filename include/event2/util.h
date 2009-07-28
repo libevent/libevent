@@ -295,6 +295,14 @@ struct sockaddr;
 */
 int evutil_parse_sockaddr_port(const char *str, struct sockaddr *out, int *outlen);
 
+/** As strcasecmp, but always compares the characters in locale-independent
+    ASCII.  That's useful if you're handling data in ASCII-based protocols.
+ */
+int evutil_ascii_strcasecmp(const char *str1, const char *str2);
+/** As strncasecmp, but always compares the characters in locale-independent
+    ASCII.  That's useful if you're handling data in ASCII-based protocols.
+ */
+int evutil_ascii_strncasecmp(const char *str1, const char *str2, size_t n);
 
 #ifdef __cplusplus
 }

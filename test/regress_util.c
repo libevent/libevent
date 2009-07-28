@@ -304,20 +304,20 @@ test_evutil_snprintf(void *ptr)
 static void
 test_evutil_casecmp(void *ptr)
 {
-	tt_int_op(evutil_strcasecmp("ABC", "ABC"), ==, 0);
-	tt_int_op(evutil_strcasecmp("ABC", "abc"), ==, 0);
-	tt_int_op(evutil_strcasecmp("ABC", "abcd"), <, 0);
-	tt_int_op(evutil_strcasecmp("ABC", "abb"), >, 0);
-	tt_int_op(evutil_strcasecmp("ABCd", "abc"), >, 0);
+	tt_int_op(evutil_ascii_strcasecmp("ABC", "ABC"), ==, 0);
+	tt_int_op(evutil_ascii_strcasecmp("ABC", "abc"), ==, 0);
+	tt_int_op(evutil_ascii_strcasecmp("ABC", "abcd"), <, 0);
+	tt_int_op(evutil_ascii_strcasecmp("ABC", "abb"), >, 0);
+	tt_int_op(evutil_ascii_strcasecmp("ABCd", "abc"), >, 0);
 
-	tt_int_op(evutil_strncasecmp("Libevent", "LibEvEnT", 100), ==, 0);
-	tt_int_op(evutil_strncasecmp("Libevent", "LibEvEnT", 4), ==, 0);
-	tt_int_op(evutil_strncasecmp("Libevent", "LibEXXXX", 4), ==, 0);
-	tt_int_op(evutil_strncasecmp("Libevent", "LibE", 4), ==, 0);
-	tt_int_op(evutil_strncasecmp("Libe", "LibEvEnT", 4), ==, 0);
-	tt_int_op(evutil_strncasecmp("Lib", "LibEvEnT", 4), <, 0);
-	tt_int_op(evutil_strncasecmp("abc", "def", 99), <, 0);
-	tt_int_op(evutil_strncasecmp("Z", "qrst", 1), >, 0);
+	tt_int_op(evutil_ascii_strncasecmp("Libevent", "LibEvEnT", 100), ==, 0);
+	tt_int_op(evutil_ascii_strncasecmp("Libevent", "LibEvEnT", 4), ==, 0);
+	tt_int_op(evutil_ascii_strncasecmp("Libevent", "LibEXXXX", 4), ==, 0);
+	tt_int_op(evutil_ascii_strncasecmp("Libevent", "LibE", 4), ==, 0);
+	tt_int_op(evutil_ascii_strncasecmp("Libe", "LibEvEnT", 4), ==, 0);
+	tt_int_op(evutil_ascii_strncasecmp("Lib", "LibEvEnT", 4), <, 0);
+	tt_int_op(evutil_ascii_strncasecmp("abc", "def", 99), <, 0);
+	tt_int_op(evutil_ascii_strncasecmp("Z", "qrst", 1), >, 0);
 end:
 	;
 }

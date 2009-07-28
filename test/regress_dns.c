@@ -70,9 +70,6 @@ static int dns_ok = 0;
 static int dns_got_cancel = 0;
 static int dns_err = 0;
 
-/* XXXXX have evutil export this. */
-int evutil_strcasecmp(const char *, const char *);
-
 static void
 dns_gethostbyname_cb(int result, char type, int count, int ttl,
     void *addresses, void *arg)
@@ -226,7 +223,7 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 		ans.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
 		if (req->questions[i]->type == EVDNS_TYPE_A &&
 			req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-			!evutil_strcasecmp(req->questions[i]->name, "zz.example.com")) {
+			!evutil_ascii_strcasecmp(req->questions[i]->name, "zz.example.com")) {
 			r = evdns_server_request_add_a_reply(req,
 												 req->questions[i]->name,
 												 1, &ans.s_addr, 12345);
@@ -234,7 +231,7 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 				dns_ok = 0;
 		} else if (req->questions[i]->type == EVDNS_TYPE_AAAA &&
 				   req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-				   !evutil_strcasecmp(req->questions[i]->name, "zz.example.com")) {
+				   !evutil_ascii_strcasecmp(req->questions[i]->name, "zz.example.com")) {
 			char addr6[17] = "abcdefghijklmnop";
 			r = evdns_server_request_add_aaaa_reply(req,
 													req->questions[i]->name,
@@ -243,7 +240,7 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 				dns_ok = 0;
 		} else if (req->questions[i]->type == EVDNS_TYPE_PTR &&
 				   req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-				   !evutil_strcasecmp(req->questions[i]->name, TEST_ARPA)) {
+				   !evutil_ascii_strcasecmp(req->questions[i]->name, TEST_ARPA)) {
 			r = evdns_server_request_add_ptr_reply(req, NULL,
 												   req->questions[i]->name,
 												   "ZZ.EXAMPLE.COM", 54321);
@@ -251,7 +248,7 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 				dns_ok = 0;
                 } else if (req->questions[i]->type == EVDNS_TYPE_A &&
 		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-		    !evutil_strcasecmp(req->questions[i]->name, "drop.example.com")) {
+		    !evutil_ascii_strcasecmp(req->questions[i]->name, "drop.example.com")) {
 			if (evdns_server_request_drop(req)<0)
 				dns_ok = 0;
 			return;

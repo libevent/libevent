@@ -108,8 +108,6 @@ extern const char EVUTIL_TOUPPER_TABLE[];
 extern const char EVUTIL_TOLOWER_TABLE[];
 #define EVUTIL_TOLOWER(c) (EVUTIL_TOLOWER_TABLE[(ev_uint8_t)c])
 #define EVUTIL_TOUPPER(c) (EVUTIL_TOUPPER_TABLE[(ev_uint8_t)c])
-int evutil_strcasecmp(const char *, const char *);
-int evutil_strncasecmp(const char *, const char *, size_t);
 
 /** Helper macro.  If we know that a given pointer points to a field in a
     structure, return a pointer to the structure itself.  Used to implement
