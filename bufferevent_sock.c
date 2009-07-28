@@ -88,14 +88,8 @@ const struct bufferevent_ops bufferevent_ops_socket = {
 	be_socket_ctrl,
 };
 
-static int
-be_socket_add(struct event *ev, const struct timeval *tv)
-{
-	if (tv->tv_sec == 0 && tv->tv_usec == 0)
-		return event_add(ev, NULL);
-	else
-		return event_add(ev, tv);
-}
+#define be_socket_add(ev, t)			\
+	_bufferevent_add_event((ev), (t))
 
 static void
 bufferevent_socket_outbuf_cb(struct evbuffer *buf,
@@ -285,45 +279,35 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	struct bufferevent_private *bufev_p =
 	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
 
-	int family = sa->sa_family;
 	evutil_socket_t fd;
-	int made_socket = 0;
-	int result = -1;
+	int r;
+	int result=-1;
 
 	_bufferevent_incref_and_lock(bev);
 
 	if (!bufev_p)
 		goto done;
 
-	fd = event_get_fd(&bev->ev_read);
-	if (fd < 0) {
-		made_socket = 1;
-		if ((fd = socket(family, SOCK_STREAM, 0)) < 0)
-			goto done;
-		if (evutil_make_socket_nonblocking(fd) < 0) {
-			EVUTIL_CLOSESOCKET(fd);
-			goto done;
-		}
-		be_socket_setfd(bev, fd);
-	}
-
-	if (connect(fd, sa, socklen)<0) {
-		int e = evutil_socket_geterror(fd);
-		if (EVUTIL_ERR_CONNECT_RETRIABLE(e)) {
-			if (! be_socket_enable(bev, EV_WRITE)) {
-				bufev_p->connecting = 1;
-				result = 0;
-				goto done;
-			}
-		}
+	fd = bufferevent_getfd(bev);
+	r = evutil_socket_connect(&fd, sa, socklen);
+	if (r < 0) {
 		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
 		/* do something about the error? */
+		goto done;
+	}
+
+	bufferevent_setfd(bev, fd);
+	if (r == 0) {
+		if (! bufferevent_enable(bev, EV_WRITE)) {
+			bufev_p->connecting = 1;
+			result = 0;
+			goto done;
+		}
 	} else {
 		/* The connect succeeded already. How odd. */
 		_bufferevent_run_eventcb(bev, BEV_EVENT_CONNECTED);
 	}
 
-	result = 0;
 done:
 	_bufferevent_decref_and_unlock(bev);
 	return result;

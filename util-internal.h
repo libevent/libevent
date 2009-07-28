@@ -129,6 +129,9 @@ int evutil_strncasecmp(const char *, const char *, size_t);
 #define EVUTIL_UPCAST(ptr, type, field)				\
 	((type *)((char*)ptr) - evutil_offsetof(type, field))
 
+
+int evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen);
+
 #ifdef __cplusplus
 }
 #endif

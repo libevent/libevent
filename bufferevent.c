@@ -325,7 +325,7 @@ bufferevent_enable(struct bufferevent *bufev, short event)
 	short impl_events = event;
 	int r = 0;
 
-	BEV_LOCK(bufev);
+	_bufferevent_incref_and_lock(bufev);
 	if (bufev_private->read_suspended)
 		impl_events &= ~EV_READ;
 
@@ -334,7 +334,7 @@ bufferevent_enable(struct bufferevent *bufev, short event)
 	if (bufev->be_ops->enable(bufev, impl_events) < 0)
 		r = -1;
 
-	BEV_UNLOCK(bufev);
+	_bufferevent_decref_and_unlock(bufev);
 	return r;
 }
 
@@ -525,10 +525,17 @@ bufferevent_enable_locking(struct bufferevent *bufev, void *lock)
 #ifdef _EVENT_DISABLE_THREAD_SUPPORT
 	return -1;
 #else
+	struct bufferevent *underlying;
+
 	if (BEV_UPCAST(bufev)->lock)
 		return -1;
+	underlying = bufferevent_get_underlying(bufev);
 
-	if (!lock) {
+	if (!lock && underlying && BEV_UPCAST(underlying)->lock) {
+		lock = BEV_UPCAST(underlying)->lock;
+		BEV_UPCAST(bufev)->lock = lock;
+		BEV_UPCAST(bufev)->own_lock = 0;
+	} else if (!lock) {
 		EVTHREAD_ALLOC_LOCK(lock);
 		if (!lock)
 			return -1;
@@ -540,6 +547,9 @@ bufferevent_enable_locking(struct bufferevent *bufev, void *lock)
 	}
 	evbuffer_enable_locking(bufev->input, lock);
 	evbuffer_enable_locking(bufev->output, lock);
+
+	if (underlying && !BEV_UPCAST(underlying)->lock)
+		bufferevent_enable_locking(underlying, lock);
 
 	return 0;
 #endif
@@ -632,3 +642,11 @@ _bufferevent_generic_adj_timeouts(struct bufferevent *bev)
 		event_del(&bev->ev_write);
 }
 
+int
+_bufferevent_add_event(struct event *ev, const struct timeval *tv)
+{
+	if (tv->tv_sec == 0 && tv->tv_usec == 0)
+		return event_add(ev, NULL);
+	else
+		return event_add(ev, tv);
+}

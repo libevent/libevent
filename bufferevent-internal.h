@@ -173,6 +173,10 @@ void _bufferevent_run_writecb(struct bufferevent *bufev);
  * it to run with events "what".  Otherwise just run the eventcb. */
 void _bufferevent_run_eventcb(struct bufferevent *bufev, short what);
 
+/** Internal: Add the event 'ev' with timeout tv, unless tv is set to 0, in
+ * which case add ev with no timeout. */
+int _bufferevent_add_event(struct event *ev, const struct timeval *tv);
+
 /* =========
  * These next functions implement timeouts for bufferevents that aren't doing
  * anything else with ev_read and ev_write, to handle timeouts.
@@ -226,5 +230,6 @@ void _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 #ifdef __cplusplus
 }
 #endif
+
 
 #endif /* _BUFFEREVENT_INTERNAL_H_ */

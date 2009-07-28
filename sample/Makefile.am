@@ -9,6 +9,12 @@ event_test_sources = event-test.c
 time_test_sources = time-test.c
 signal_test_sources = signal-test.c
 
+if OPENSSL
+noinst_PROGRAMS += le-proxy
+le_proxy_sources = le-proxy.c
+le_proxy_LDADD = $(LDADD) ../libevent_openssl.la -lcrypto -lssl
+endif
+
 verify:
 
 DISTCLEANFILES = *~

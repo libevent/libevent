@@ -187,12 +187,7 @@ bufferevent_filter_new(struct bufferevent *underlying,
 		return NULL;
 	}
 	if (options & BEV_OPT_THREADSAFE) {
-		void *lock = BEV_UPCAST(underlying)->lock;
-		if (!lock) {
-			bufferevent_enable_locking(underlying, NULL);
-			lock = BEV_UPCAST(underlying)->lock;
-		}
-		bufferevent_enable_locking(downcast(bufev_f), lock);
+		bufferevent_enable_locking(downcast(bufev_f), NULL);
 	}
 
 	bufev_f->underlying = underlying;

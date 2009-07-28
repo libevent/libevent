@@ -67,6 +67,9 @@ lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 if PTHREADS
 lib_LTLIBRARIES += libevent_pthreads.la
 endif
+if OPENSSL
+lib_LTLIBRARIES += libevent_openssl.la
+endif
 
 SUBDIRS = . include sample test
 
@@ -127,6 +130,12 @@ endif
 libevent_extra_la_SOURCES = $(EXTRA_SRC)
 libevent_extra_la_LIBADD =
 libevent_extra_la_LDFLAGS = -version-info $(VERSION_INFO)
+
+if OPENSSL
+libevent_openssl_la_SOURCES = bufferevent_openssl.c
+libevent_openssl_la_LIBADD = -lcrypto -lssl
+libevent_openssl_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
+endif
 
 noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
 	evrpc-internal.h strlcpy-internal.h evbuffer-internal.h \

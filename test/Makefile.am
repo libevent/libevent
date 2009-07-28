@@ -33,10 +33,16 @@ endif
 if BUILD_WIN32
 regress_SOURCES += regress_iocp.c
 endif
+
 regress_LDADD = ../libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
 regress_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat \
 	-I$(top_srcdir)/include  $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
 regress_LDFLAGS = $(PTHREAD_CFLAGS)
+
+if OPENSSL
+regress_SOURCES += regress_ssl.c
+regress_LDADD += ../libevent_openssl.la -lcrypto -lssl
+endif
 
 bench_SOURCES = bench.c
 bench_LDADD = ../libevent.la

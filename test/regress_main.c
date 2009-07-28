@@ -289,6 +289,9 @@ struct testgroup_t testgroups[] = {
 #ifdef WIN32
 	{ "iocp/", iocp_testcases },
 #endif
+#ifdef _EVENT_HAVE_OPENSSL
+	{ "ssl/", ssl_testcases },
+#endif
         END_OF_GROUPS
 };
 
