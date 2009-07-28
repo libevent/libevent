@@ -31,7 +31,6 @@
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -39,7 +38,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifndef WIN32
+#include <sys/time.h>
 #include <unistd.h>
+#endif
 #include <errno.h>
 
 #include <event2/event.h>

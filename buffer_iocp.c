@@ -42,6 +42,7 @@
 #include "iocp-internal.h"
 #include "mm-internal.h"
 
+#include <winsock2.h>
 #include <windows.h>
 #include <assert.h>
 #include <stdio.h>

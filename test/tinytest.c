@@ -29,12 +29,15 @@
 #include <assert.h>
 
 #ifdef WIN32
+#include <winsock2.h>
 #include <windows.h>
 #else
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
+
+#include <event2/util.h>
 
 #include "tinytest.h"
 #include "tinytest_macros.h"
@@ -116,7 +119,7 @@ _testcase_run_forked(const struct testgroup_t *group,
 	if (opt_verbosity>0)
 		printf("[forking] ");
 
-	snprintf(buffer, sizeof(buffer), "%s --RUNNING-FORKED %s %s%s",
+	evutil_snprintf(buffer, sizeof(buffer), "%s --RUNNING-FORKED %s %s%s",
 		 commandname, verbosity_flag, group->prefix, testcase->name);
 
 	memset(&si, 0, sizeof(si));
@@ -245,7 +248,7 @@ _tinytest_set_flag(struct testgroup_t *groups, const char *arg, unsigned long fl
 		length = strstr(arg,"..")-arg;
 	for (i=0; groups[i].prefix; ++i) {
 		for (j=0; groups[i].cases[j].name; ++j) {
-			snprintf(fullname, sizeof(fullname), "%s%s",
+			evutil_snprintf(fullname, sizeof(fullname), "%s%s",
 				 groups[i].prefix, groups[i].cases[j].name);
 			if (!flag) /* Hack! */
 				printf("    %s\n", fullname);

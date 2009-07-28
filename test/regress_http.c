@@ -2102,7 +2102,7 @@ static void
 http_multi_line_header_test(void)
 {
 	struct bufferevent *bev= NULL;
-	int fd = -1;
+	evutil_socket_t fd = -1;
 	const char *http_start_request;
 	short port = -1;
 
@@ -2135,7 +2135,7 @@ http_multi_line_header_test(void)
 	if (bev)
 		bufferevent_free(bev);
 	if (fd >= 0)
-		close(fd);
+		EVUTIL_CLOSESOCKET(fd);
 	if (http)
 		evhttp_free(http);
 }

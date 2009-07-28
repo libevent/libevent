@@ -334,4 +334,6 @@
 /* Define to `int' if <sys/types.h> does not define. */
 #define _EVENT_ssize_t intptr_t
 
+#define ssize_t SSIZE_T
+
 #endif

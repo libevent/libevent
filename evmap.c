@@ -28,6 +28,7 @@
 #endif
 
 #ifdef WIN32
+#include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
@@ -35,7 +36,7 @@
 #include <sys/types.h>
 #ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
-#else
+#elif !defined(WIN32)
 #include <sys/_time.h>
 #endif
 #include <sys/queue.h>

@@ -121,6 +121,7 @@
 #include "evthread-internal.h"
 #ifdef WIN32
 #include <ctype.h>
+#include <winsock2.h>
 #include <windows.h>
 #include <iphlpapi.h>
 #include <io.h>
