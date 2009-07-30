@@ -303,6 +303,14 @@ struct sockaddr;
 */
 int evutil_parse_sockaddr_port(const char *str, struct sockaddr *out, int *outlen);
 
+/** Compare two sockaddrs; return 0 if they are equal, or less than 0 if sa1
+ * preceeds sa2, or greater than 0 if sa1 follows sa2.  If include_port is
+ * true, consider the port as well as the address.  Only implemented for
+ * AF_INET and AF_INET6 addresses. The ordering is not guaranteed to remain
+ * the same between Libevent versions. */
+int evutil_sockaddr_cmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
+    int include_port);
+
 /** As strcasecmp, but always compares the characters in locale-independent
     ASCII.  That's useful if you're handling data in ASCII-based protocols.
  */

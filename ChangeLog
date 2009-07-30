@@ -8,7 +8,9 @@ Changes in 2.0.3-alpha:
  o Expose an ev_socklen_t type for consistent use across platforms.
  o Make bufferevenr_socket_connect() work when the original fd was -1.
  o Fix a bug in bufferevent_socket_connect() when the connection succeeds too quickly.
+ o Export an evutil_sockaddr_cmp() to compare to sockaddr objects for equality.
 
+       
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.
  o Make evdns functionality locked, and automatically defer dns callbacks.

@@ -448,39 +448,6 @@ debug_ntop(const struct sockaddr *sa)
 	return "<unknown>";
 }
 
-static int
-sockaddr_eq(const struct sockaddr *sa1, const struct sockaddr *sa2,
-			int include_port)
-{
-	if (sa1->sa_family != sa2->sa_family)
-		return 0;
-	if (sa1->sa_family == AF_INET) {
-		const struct sockaddr_in *sin1, *sin2;
-		sin1 = (const struct sockaddr_in *)sa1;
-		sin2 = (const struct sockaddr_in *)sa2;
-		if (sin1->sin_addr.s_addr != sin2->sin_addr.s_addr)
-			return 0;
-		else if (include_port && sin1->sin_port != sin2->sin_port)
-			return 0;
-		else
-			return 1;
-	}
-#ifdef AF_INET6
-	if (sa1->sa_family == AF_INET6) {
-		const struct sockaddr_in6 *sin1, *sin2;
-		sin1 = (const struct sockaddr_in6 *)sa1;
-		sin2 = (const struct sockaddr_in6 *)sa2;
-		if (memcmp(sin1->sin6_addr.s6_addr, sin2->sin6_addr.s6_addr, 16))
-			return 0;
-		else if (include_port && sin1->sin6_port != sin2->sin6_port)
-			return 0;
-		else
-			return 1;
-	}
-#endif
-	return 1;
-}
-
 static evdns_debug_log_fn_type evdns_log_fn = NULL;
 
 void
@@ -1349,7 +1316,7 @@ nameserver_read(struct nameserver *ns) {
 			    evutil_socket_error_to_string(err));
 			return;
 		}
-		if (!sockaddr_eq((struct sockaddr*)&ss,
+		if (evutil_sockaddr_cmp((struct sockaddr*)&ss,
 			(struct sockaddr*)&ns->address, 0)) {
 			log(EVDNS_LOG_WARN, "Address mismatch on received "
 			    "DNS packet.  Apparent source was %s",
@@ -2398,7 +2365,7 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 	ASSERT_LOCKED(base);
 	if (server) {
 		do {
-			if (sockaddr_eq((struct sockaddr*)&server->address, address, 1)) return 3;
+			if (!evutil_sockaddr_cmp((struct sockaddr*)&server->address, address, 1)) return 3;
 			server = server->next;
 		} while (server != started_at);
 	}
