@@ -414,7 +414,8 @@ stop_writing(struct bufferevent_openssl *bev_ssl)
 static void
 set_rbow(struct bufferevent_openssl *bev_ssl)
 {
-	stop_reading(bev_ssl);
+	if (!bev_ssl->underlying)
+		stop_reading(bev_ssl);
 	bev_ssl->read_blocked_on_write = 1;
 	start_writing(bev_ssl);
 }
@@ -422,7 +423,8 @@ set_rbow(struct bufferevent_openssl *bev_ssl)
 static void
 set_wbor(struct bufferevent_openssl *bev_ssl)
 {
-	stop_writing(bev_ssl);
+	if (!bev_ssl->underlying)
+		stop_writing(bev_ssl);
 	bev_ssl->write_blocked_on_read = 1;
 	start_reading(bev_ssl);
 }

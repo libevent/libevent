@@ -148,6 +148,7 @@ static int test_is_done = 0;
 static int n_connected = 0;
 static int got_close = 0;
 static int got_error = 0;
+static int renegotiate_at = -1;
 
 static void
 respond_to_number(struct bufferevent *bev, void *ctx)
@@ -166,6 +167,9 @@ respond_to_number(struct bufferevent *bev, void *ctx)
 		++test_is_done;
 		bufferevent_free(bev); /* Should trigger close on other side. */
 		return;
+	}
+	if (!strcmp(ctx, "client") && n == renegotiate_at) {
+		SSL_renegotiate(bufferevent_openssl_get_ssl(bev));
 	}
 	++n;
 	evbuffer_add_printf(bufferevent_get_output(bev),
@@ -221,6 +225,9 @@ regress_bufferevent_openssl(void *arg)
 	SSL_use_certificate(ssl2, cert);
 	SSL_use_PrivateKey(ssl2, key);
 
+	if (strstr((char*)data->setup_data, "renegotiate"))
+		renegotiate_at = 600;
+
 	if (strstr((char*)data->setup_data, "socketpair")) {
 		bev1 = bufferevent_openssl_socket_new(
 			data->base,
@@ -272,6 +279,7 @@ regress_bufferevent_openssl(void *arg)
 
 	tt_assert(test_is_done == 1);
 	tt_assert(n_connected == 2);
+
 	/* We don't handle shutdown properly yet.
 	   tt_int_op(got_close, ==, 1);
 	   tt_int_op(got_error, ==, 0);
@@ -287,6 +295,12 @@ struct testcase_t ssl_testcases[] = {
 	{ "bufferevent_filter", regress_bufferevent_openssl,
 	  TT_ISOLATED,
 	  &basic_setup, (void*)"filter" },
+	{ "bufferevent_renegotiate_socketpair", regress_bufferevent_openssl,
+	  TT_ISOLATED,
+	  &basic_setup, (void*)"socketpair renegotiate" },
+	{ "bufferevent_renegotiate_filterfilter", regress_bufferevent_openssl,
+	  TT_ISOLATED,
+	  &basic_setup, (void*)"filter renegotiate" },
 
         END_OF_TESTCASES,
 };
