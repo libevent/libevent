@@ -6,6 +6,8 @@ Changes in 2.0.3-alpha:
  o Try to compile better with MSVC: patches from Brodie Thiesfield
  o New evconnlistener_get_fd function to expose a listener's associated socket.
  o Expose an ev_socklen_t type for consistent use across platforms.
+ o Make bufferevenr_socket_connect() work when the original fd was -1.
+ o Fix a bug in bufferevent_socket_connect() when the connection succeeds too quickly.
 
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.

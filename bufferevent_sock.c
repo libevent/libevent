@@ -282,6 +282,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	evutil_socket_t fd;
 	int r;
 	int result=-1;
+	int ownfd = 0;
 
 	_bufferevent_incref_and_lock(bev);
 
@@ -289,9 +290,19 @@ bufferevent_socket_connect(struct bufferevent *bev,
 		goto done;
 
 	fd = bufferevent_getfd(bev);
+	if (fd < 0) {
+		fd = socket(sa->sa_family, SOCK_STREAM, 0);
+		if (fd < 0)
+			goto done;
+		if (evutil_make_socket_nonblocking(fd)<0)
+			goto done;
+		ownfd = 1;
+	}
 	r = evutil_socket_connect(&fd, sa, socklen);
 	if (r < 0) {
 		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
+		if (ownfd)
+			EVUTIL_CLOSESOCKET(fd);
 		/* do something about the error? */
 		goto done;
 	}
@@ -305,6 +316,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 		}
 	} else {
 		/* The connect succeeded already. How odd. */
+		result = 0;
 		_bufferevent_run_eventcb(bev, BEV_EVENT_CONNECTED);
 	}
 
