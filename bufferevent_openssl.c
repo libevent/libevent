@@ -776,10 +776,8 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 		assert(0);
 		break;
 	case BUFFEREVENT_SSL_CONNECTING:
-		r = SSL_connect(bev_ssl->ssl);
-		break;
 	case BUFFEREVENT_SSL_ACCEPTING:
-		r = SSL_accept(bev_ssl->ssl);
+		r = SSL_do_handshake(bev_ssl->ssl);
 		break;
 	}
 
@@ -1046,9 +1044,11 @@ bufferevent_openssl_new_impl(struct event_base *base,
 
 	switch (state) {
 	case BUFFEREVENT_SSL_ACCEPTING:
+		SSL_set_accept_state(bev_ssl->ssl);
 		set_handshake_callbacks(bev_ssl, fd);
 		break;
 	case BUFFEREVENT_SSL_CONNECTING:
+		SSL_set_connect_state(bev_ssl->ssl);
 		set_handshake_callbacks(bev_ssl, fd);
 		break;
 	case BUFFEREVENT_SSL_OPEN:
