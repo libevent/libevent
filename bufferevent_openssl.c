@@ -819,6 +819,7 @@ be_openssl_handshakecb(struct bufferevent *bev_base, void *ctx)
 	struct bufferevent_openssl *bev_ssl = ctx;
 	do_handshake(bev_ssl);
 }
+
 static void
 be_openssl_handshakeeventcb(evutil_socket_t fd, short what, void *ptr)
 {
@@ -1027,6 +1028,10 @@ bufferevent_openssl_new_impl(struct event_base *base,
 	if (bufferevent_init_common(bev_p, base,
 		&bufferevent_ops_openssl, tmp_options) < 0)
 		goto err;
+
+	/* Don't explode if we decide to realloc a chunk we're writing from in
+	 * the output buffer. */
+	SSL_set_mode(ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
 	bev_ssl->underlying = underlying;
 	bev_ssl->ssl = ssl;
