@@ -153,6 +153,12 @@ evconnlistener_get_base(struct evconnlistener *lev)
 	return event_get_base(&lev->listener);
 }
 
+evutil_socket_t
+evconnlistener_get_fd(struct evconnlistener *lev)
+{
+	return event_get_fd(&lev->listener);
+}
+
 static void
 listener_read_cb(evutil_socket_t fd, short what, void *p)
 {

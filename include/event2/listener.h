@@ -105,4 +105,7 @@ int evconnlistener_disable(struct evconnlistener *lev);
 /** Return an evconnlistener's associated event_base. */
 struct event_base *evconnlistener_get_base(struct evconnlistener *lev);
 
+/** Return the socket that an evconnlistner is listening on. */
+evutil_socket_t evconnlistener_get_fd(struct evconnlistener *lev);
+
 #endif
