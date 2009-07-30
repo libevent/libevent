@@ -47,6 +47,7 @@ extern struct testcase_t edgetriggered_testcases[];
 extern struct testcase_t minheap_testcases[];
 extern struct testcase_t iocp_testcases[];
 extern struct testcase_t ssl_testcases[];
+extern struct testcase_t listener_testcases[];
 
 void regress_threads(void *);
 void test_bufferevent_zlib(void *);

@@ -290,6 +290,7 @@ struct testgroup_t testgroups[] = {
 	{ "evtag/", evtag_testcases },
 	{ "rpc/", rpc_testcases },
 	{ "thread/", thread_testcases },
+	{ "listener/", listener_testcases },
 #ifdef WIN32
 	{ "iocp/", iocp_testcases },
 #endif
