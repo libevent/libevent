@@ -61,6 +61,10 @@ bufferevent_openssl_socket_new(struct event_base *base,
     struct ssl_st *ssl,
     enum bufferevent_ssl_state state,
     enum bufferevent_options options);
+
+struct ssl_st *
+bufferevent_openssl_get_ssl(struct bufferevent *bufev);
+
 #endif
 
 #ifdef __cplusplus

@@ -176,9 +176,19 @@ static void
 eventcb(struct bufferevent *bev, short what, void *ctx)
 {
 	TT_BLATHER(("Got event %d", (int)what));
-	if (what & BEV_EVENT_CONNECTED)
+	if (what & BEV_EVENT_CONNECTED) {
+		SSL *ssl;
+		X509 *peer_cert;
 		++n_connected;
-	else if (what & BEV_EVENT_EOF) {
+		ssl = bufferevent_openssl_get_ssl(bev);
+		tt_assert(ssl);
+		peer_cert = SSL_get_peer_certificate(ssl);
+		if (0==strcmp(ctx, "server")) {
+			tt_assert(peer_cert == NULL);
+		} else {
+			tt_assert(peer_cert != NULL);
+		}
+	} else if (what & BEV_EVENT_EOF) {
 		TT_BLATHER(("Got a good EOF"));
 		++got_close;
 		bufferevent_free(bev);
@@ -187,6 +197,8 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 		++got_error;
 		bufferevent_free(bev);
 	}
+end:
+	;
 }
 
 static void
@@ -249,8 +261,10 @@ regress_bufferevent_openssl(void *arg)
 	bufferevent_enable(bev1, EV_READ|EV_WRITE);
 	bufferevent_enable(bev2, EV_READ|EV_WRITE);
 
-	bufferevent_setcb(bev1, respond_to_number, NULL, eventcb, NULL);
-	bufferevent_setcb(bev2, respond_to_number, NULL, eventcb, NULL);
+	bufferevent_setcb(bev1, respond_to_number, NULL, eventcb,
+	    (void*)"client");
+	bufferevent_setcb(bev2, respond_to_number, NULL, eventcb,
+	    (void*)"server");
 
 	evbuffer_add_printf(bufferevent_get_output(bev1), "1\n");
 

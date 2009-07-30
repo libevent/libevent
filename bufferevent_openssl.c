@@ -1005,6 +1005,15 @@ be_openssl_ctrl(struct bufferevent *bev,
 	}
 }
 
+SSL *
+bufferevent_openssl_get_ssl(struct bufferevent *bufev)
+{
+	struct bufferevent_openssl *bev_ssl = upcast(bufev);
+	if (!bev_ssl)
+		return NULL;
+	return bev_ssl->ssl;
+}
+
 static struct bufferevent *
 bufferevent_openssl_new_impl(struct event_base *base,
     struct bufferevent *underlying,
