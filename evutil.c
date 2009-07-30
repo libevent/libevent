@@ -198,7 +198,7 @@ evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 	 * listener is closed."  On Windows, though, it means "don't keep other
 	 * processes from binding to this address while we're using it. */
 	return setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void*) &one,
-	    (socklen_t)sizeof(one));
+	    (ev_socklen_t)sizeof(one));
 #else
 	return 0;
 #endif

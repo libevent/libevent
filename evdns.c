@@ -222,7 +222,7 @@ struct reply {
 struct nameserver {
 	evutil_socket_t socket;	 /* a connected UDP socket */
 	struct sockaddr_storage address;
-	socklen_t addrlen;
+	ev_socklen_t addrlen;
 	int failed_times;  /* number of times which we have given this server a chance */
 	int timedout;  /* number of times in a row a request has timed out */
 	struct event event;
@@ -284,7 +284,7 @@ struct server_request {
 	u16 trans_id; /* Transaction id. */
 	struct evdns_server_port *port; /* Which port received this request on? */
 	struct sockaddr_storage addr; /* Where to send the response */
-	socklen_t addrlen; /* length of addr */
+	ev_socklen_t addrlen; /* length of addr */
 
 	int n_answer; /* how many answer RRs have been set? */
 	int n_authority; /* how many authority RRs have been set? */
@@ -339,8 +339,8 @@ struct evdns_base {
 
 	/** Port to bind to for outgoing DNS packets. */
 	struct sockaddr_storage global_outgoing_address;
-	/** Socklen_t for global_outgoing_address. 0 if it isn't set. */
-	socklen_t global_outgoing_addrlen;
+	/** ev_socklen_t for global_outgoing_address. 0 if it isn't set. */
+	ev_socklen_t global_outgoing_addrlen;
 
 	struct search_state *global_search_state;
 
@@ -1104,7 +1104,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 /* a DNS client (addr,addrlen), and if it's well-formed, call the corresponding */
 /* callback. */
 static int
-request_parse(u8 *packet, int length, struct evdns_server_port *port, struct sockaddr *addr, socklen_t addrlen)
+request_parse(u8 *packet, int length, struct evdns_server_port *port, struct sockaddr *addr, ev_socklen_t addrlen)
 {
 	int j = 0;	/* index into packet */
 	u16 _t;	 /* used by the macros */
@@ -1334,7 +1334,7 @@ nameserver_pick(struct evdns_base *base) {
 static void
 nameserver_read(struct nameserver *ns) {
 	struct sockaddr_storage ss;
-	socklen_t addrlen = sizeof(ss);
+	ev_socklen_t addrlen = sizeof(ss);
 	u8 packet[1500];
 	ASSERT_LOCKED(ns->base);
 
@@ -1368,7 +1368,7 @@ static void
 server_port_read(struct evdns_server_port *s) {
 	u8 packet[1500];
 	struct sockaddr_storage addr;
-	socklen_t addrlen;
+	ev_socklen_t addrlen;
 	int r;
 	ASSERT_LOCKED(s);
 

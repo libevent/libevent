@@ -5,6 +5,7 @@ Changes in 2.0.3-alpha:
  o Export new evutil_ascii_* functions to perform locale-independent character type operations.
  o Try to compile better with MSVC: patches from Brodie Thiesfield
  o New evconnlistener_get_fd function to expose a listener's associated socket.
+ o Expose an ev_socklen_t type for consistent use across platforms.
 
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.

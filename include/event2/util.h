@@ -119,6 +119,14 @@ extern "C" {
 #endif
 
 #ifdef WIN32
+#define ev_socklen_t int
+#elif defined(_EVENT_socklen_t)
+#define ev_socklen_t _EVENT_socklen_t
+#else
+#define ev_socklen_t socklen_t
+#endif
+
+#ifdef WIN32
 /** A type wide enough to hold the output of "socket()" or "accept()".  On
  * Windows, this is an intptr_t; elsewhere, it is an int. */
 #define evutil_socket_t intptr_t

@@ -195,7 +195,7 @@ extern int debug;
 static int socket_connect(evutil_socket_t kefd, const char *address, unsigned short port);
 static evutil_socket_t bind_socket_ai(struct addrinfo *, int reuse);
 static evutil_socket_t bind_socket(const char *, ev_uint16_t, int reuse);
-static void name_from_addr(struct sockaddr *, socklen_t, char **, char **);
+static void name_from_addr(struct sockaddr *, ev_socklen_t, char **, char **);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
 static void evhttp_connection_start_detectclose(
@@ -1153,7 +1153,7 @@ evhttp_connection_cb(struct bufferevent *bufev, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 	int error;
-	socklen_t errsz = sizeof(error);
+	ev_socklen_t errsz = sizeof(error);
 
 	/* Check if the connection completed */
 	if (getsockopt(evcon->fd, SOL_SOCKET, SO_ERROR, (void*)&error,
@@ -2365,7 +2365,7 @@ accept_socket(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp *http = arg;
 	struct sockaddr_storage ss;
-	socklen_t addrlen = sizeof(ss);
+	ev_socklen_t addrlen = sizeof(ss);
 	evutil_socket_t nfd;
 
 	if ((nfd = accept(fd, (struct sockaddr *)&ss, &addrlen)) == -1) {
@@ -2755,7 +2755,7 @@ struct evbuffer *evhttp_request_get_output_buffer(struct evhttp_request *req)
 static struct evhttp_connection*
 evhttp_get_request_connection(
 	struct evhttp* http,
-	evutil_socket_t fd, struct sockaddr *sa, socklen_t salen)
+	evutil_socket_t fd, struct sockaddr *sa, ev_socklen_t salen)
 {
 	struct evhttp_connection *evcon;
 	char *hostname = NULL, *portname = NULL;
@@ -2814,7 +2814,7 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 
 void
 evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
-    struct sockaddr *sa, socklen_t salen)
+    struct sockaddr *sa, ev_socklen_t salen)
 {
 	struct evhttp_connection *evcon;
 
@@ -2873,7 +2873,7 @@ addr_from_name(char *address)
 #endif
 
 static void
-name_from_addr(struct sockaddr *sa, socklen_t salen,
+name_from_addr(struct sockaddr *sa, ev_socklen_t salen,
     char **phost, char **pport)
 {
 	char ntop[NI_MAXHOST];
