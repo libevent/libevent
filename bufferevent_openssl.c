@@ -1090,9 +1090,11 @@ bufferevent_openssl_new_impl(struct event_base *base,
 		bufferevent_enable(underlying, EV_READ|EV_WRITE);
 	else {
 		bev_ssl->bev.bev.enabled = EV_READ|EV_WRITE;
-		/* XXX Is this quite right? */
-		event_add(&bev_ssl->bev.bev.ev_read, NULL);
-		event_add(&bev_ssl->bev.bev.ev_write, NULL);
+		if (bev_ssl->fd_is_set) {
+			/* XXX Is this quite right? */
+			event_add(&bev_ssl->bev.bev.ev_read, NULL);
+			event_add(&bev_ssl->bev.bev.ev_write, NULL);
+		}
 	}
 
 	return &bev_ssl->bev.bev;

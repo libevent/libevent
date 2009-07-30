@@ -29,10 +29,16 @@
 #include <windows.h>
 #endif
 
+#ifndef WIN32
+#include <sys/socket.h>
+#include <netinet/in.h>
+#endif
+
 #include <event2/util.h>
 #include <event2/event.h>
 #include <event2/bufferevent_ssl.h>
 #include <event2/buffer.h>
+#include <event2/listener.h>
 
 #include "regress.h"
 #include "tinytest.h"
@@ -121,10 +127,11 @@ end:
 	return NULL;
 }
 
+static SSL_CTX *the_ssl_ctx = NULL;
+
 static SSL_CTX *
 get_ssl_ctx(void)
 {
-	static SSL_CTX *the_ssl_ctx = NULL;
 	if (the_ssl_ctx)
 		return the_ssl_ctx;
 	return (the_ssl_ctx = SSL_CTX_new(SSLv23_method()));
@@ -241,6 +248,8 @@ regress_bufferevent_openssl(void *arg)
 			ssl2,
 			BUFFEREVENT_SSL_ACCEPTING,
 			BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
+
+		tt_int_op(bufferevent_getfd(bev1), ==, data->pair[0]);
 	} else if (strstr((char*)data->setup_data, "filter")) {
 		struct bufferevent *bev_ll1, *bev_ll2;
 		bev_ll1 = bufferevent_socket_new(data->base, data->pair[0],
@@ -261,6 +270,7 @@ regress_bufferevent_openssl(void *arg)
 			ssl2,
 			BUFFEREVENT_SSL_ACCEPTING,
 			BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
+		tt_ptr_op(bufferevent_get_underlying(bev1), ==, bev_ll1);
 	} else {
 		TT_DIE(("Bad setup data %s", (char*)data->setup_data));
 	}
@@ -288,6 +298,89 @@ end:
 	return;
 }
 
+static void
+acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
+    struct sockaddr *addr, int socklen, void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev;
+	SSL *ssl = SSL_new(get_ssl_ctx());
+
+	SSL_use_certificate(ssl, getcert());
+	SSL_use_PrivateKey(ssl, getkey());
+
+	bev = bufferevent_openssl_socket_new(
+		data->base,
+		fd,
+		ssl,
+		BUFFEREVENT_SSL_ACCEPTING,
+		BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
+
+	bufferevent_setcb(bev, respond_to_number, NULL, eventcb,
+	    (void*)"server");
+
+	bufferevent_enable(bev, EV_READ|EV_WRITE);
+
+	/* Only accept once, then disable ourself. */
+	evconnlistener_disable(listener);
+}
+
+static void
+regress_bufferevent_openssl_connect(void *arg)
+{
+	struct basic_test_data *data = arg;
+
+	struct event_base *base = data->base;
+
+	struct evconnlistener *listener;
+	struct bufferevent *bev;
+	struct sockaddr_in sin;
+	struct sockaddr_storage ss;
+	ev_socklen_t slen;
+
+	init_ssl();
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(0x7f000001);
+
+	memset(&ss, 0, sizeof(ss));
+	slen = sizeof(ss);
+
+	listener = evconnlistener_new_bind(base, acceptcb, data,
+	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
+	    -1, (struct sockaddr *)&sin, sizeof(sin));
+
+	tt_assert(listener);
+	tt_assert(evconnlistener_get_fd(listener) >= 0);
+
+	bev = bufferevent_openssl_socket_new(
+		data->base, -1, SSL_new(get_ssl_ctx()),
+		BUFFEREVENT_SSL_CONNECTING,
+		BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
+	tt_assert(bev);
+
+	bufferevent_setcb(bev, respond_to_number, NULL, eventcb,
+	    (void*)"client");
+
+	tt_assert(getsockname(evconnlistener_get_fd(listener),
+		(struct sockaddr*)&ss, &slen) == 0);
+	tt_assert(slen == sizeof(struct sockaddr_in));
+	tt_int_op(((struct sockaddr*)&ss)->sa_family, ==, AF_INET);
+	tt_int_op(((struct sockaddr*)&ss)->sa_family, ==, AF_INET);
+
+	tt_assert(0 ==
+	    bufferevent_socket_connect(bev, (struct sockaddr*)&ss, slen));
+	evbuffer_add_printf(bufferevent_get_output(bev), "1\n");
+	bufferevent_enable(bev, EV_READ|EV_WRITE);
+
+	puts("Dispatch");
+
+	event_base_dispatch(base);
+end:
+	;
+}
+
 struct testcase_t ssl_testcases[] = {
 
 	{ "bufferevent_socketpair", regress_bufferevent_openssl, TT_ISOLATED,
@@ -298,9 +391,12 @@ struct testcase_t ssl_testcases[] = {
 	{ "bufferevent_renegotiate_socketpair", regress_bufferevent_openssl,
 	  TT_ISOLATED,
 	  &basic_setup, (void*)"socketpair renegotiate" },
-	{ "bufferevent_renegotiate_filterfilter", regress_bufferevent_openssl,
+	{ "bufferevent_renegotiate_filter", regress_bufferevent_openssl,
 	  TT_ISOLATED,
 	  &basic_setup, (void*)"filter renegotiate" },
+
+	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
         END_OF_TESTCASES,
 };
