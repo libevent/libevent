@@ -293,6 +293,10 @@ struct bufferevent_openssl {
 	   know to write data to the SSL. */
 	struct evbuffer_cb_entry *outbuf_cb;
 
+	/* If this value is greater than 0, then the last SSL_write blocked,
+	 * and we need to try it again with this many bytes. */
+	ev_ssize_t last_write;
+
 	/* When we next get available space, we should say "read" instead of
 	   "write". This can happen if there's a renegotiation during a read
 	   operation. */
@@ -556,6 +560,9 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 	struct evbuffer *output = bev->output;
 	struct evbuffer_iovec space[8];
 
+	if (bev_ssl->last_write > 0)
+		atmost = bev_ssl->last_write;
+
 	n = evbuffer_peek(output, atmost, NULL, space, 8);
 	if (n < 0)
 		return -1;
@@ -567,6 +574,7 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 			if (bev_ssl->write_blocked_on_read)
 				clear_wbor(bev_ssl);
 			n_written += r;
+			bev_ssl->last_write = -1;
 		} else {
 			int err = SSL_get_error(bev_ssl->ssl, r);
 			print_err(err);
@@ -575,15 +583,18 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 				/* Can't read until underlying has more data. */
 				if (bev_ssl->write_blocked_on_read)
 					clear_wbor(bev_ssl);
+				bev_ssl->last_write = space[i].iov_len;
 				break;
 			case SSL_ERROR_WANT_READ:
 				/* This read operation requires a write, and the
 				 * underlying is full */
 				if (!bev_ssl->write_blocked_on_read)
 					set_wbor(bev_ssl);
+				bev_ssl->last_write = space[i].iov_len;
 				break;
 			default:
 				conn_closed(bev_ssl, err, r);
+				bev_ssl->last_write = -1;
 				break;
 			}
 			blocked = 1;
@@ -1055,6 +1066,7 @@ bufferevent_openssl_new_impl(struct event_base *base,
 		_bufferevent_init_generic_timeout_cbs(&bev_ssl->bev.bev);
 
 	bev_ssl->state = state;
+	bev_ssl->last_write = -1;
 
 	switch (state) {
 	case BUFFEREVENT_SSL_ACCEPTING:
