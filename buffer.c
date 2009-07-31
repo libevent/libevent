@@ -139,6 +139,8 @@ static int use_mmap = 1;
 
 static void evbuffer_chain_align(struct evbuffer_chain *chain);
 static void evbuffer_deferred_callback(struct deferred_cb *cb, void *arg);
+static int evbuffer_ptr_memcmp(const struct evbuffer *buf,
+    const struct evbuffer_ptr *pos, const char *mem, size_t len);
 
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
@@ -1070,14 +1072,88 @@ evbuffer_getchr(struct evbuffer_ptr *it)
 	return chain->buffer[chain->misalign + off];
 }
 
+struct evbuffer_ptr
+evbuffer_search_eol(struct evbuffer *buffer,
+    struct evbuffer_ptr *start, size_t *eol_len_out,
+    enum evbuffer_eol_style eol_style)
+{
+	struct evbuffer_ptr it, it2;
+        size_t extra_drain = 0;
+	int ok = 0;
+
+        EVBUFFER_LOCK(buffer, EVTHREAD_READ);
+
+	if (start) {
+		memcpy(&it, start, sizeof(it));
+	} else {
+		it.pos = 0;
+		it._internal.chain = buffer->first;
+		it._internal.pos_in_chain = 0;
+	}
+
+	/* the eol_style determines our first stop character and how many
+	 * characters we are going to drain afterwards. */
+	switch (eol_style) {
+	case EVBUFFER_EOL_ANY:
+		if (evbuffer_strpbrk(&it, "\r\n") < 0)
+			goto done;
+		memcpy(&it2, &it, sizeof(it));
+		extra_drain = evbuffer_strspn(&it2, "\r\n");
+		break;
+	case EVBUFFER_EOL_CRLF_STRICT: {
+		it = evbuffer_search(buffer, "\r\n", 2, &it);
+		if (it.pos < 0)
+			goto done;
+		extra_drain = 2;
+		break;
+	}
+	case EVBUFFER_EOL_CRLF:
+		while (1) {
+			if (evbuffer_strpbrk(&it, "\r\n") < 0)
+				goto done;
+			if (evbuffer_getchr(&it) == '\n') {
+				extra_drain = 1;
+				break;
+			} else if (!evbuffer_ptr_memcmp(
+				    buffer, &it, "\r\n", 2)) {
+				extra_drain = 2;
+				break;
+			} else {
+				if (evbuffer_ptr_set(buffer, &it, 1,
+					EVBUFFER_PTR_ADD)<0)
+					goto done;
+			}
+		}
+		break;
+	case EVBUFFER_EOL_LF:
+		if (evbuffer_strchr(&it, '\n') < 0)
+			goto done;
+		extra_drain = 1;
+		break;
+	default:
+		goto done;
+	}
+
+	ok = 1;
+done:
+	EVBUFFER_UNLOCK(buffer, EVTHREAD_READ);
+
+	if (!ok) {
+		it.pos = -1;
+	}
+	if (eol_len_out)
+		*eol_len_out = extra_drain;
+
+	return it;
+}
+
 char *
 evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 		enum evbuffer_eol_style eol_style)
 {
 	struct evbuffer_ptr it;
-	char *line, chr;
-	unsigned int n_to_copy, extra_drain;
-	int count = 0;
+	char *line;
+	size_t n_to_copy=0, extra_drain=0;
         char *result = NULL;
 
         EVBUFFER_LOCK(buffer, EVTHREAD_WRITE);
@@ -1086,50 +1162,10 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 		goto done;
 	}
 
-	if (evbuffer_ptr_set(buffer, &it, 0, EVBUFFER_PTR_SET) < 0)
+	it = evbuffer_search_eol(buffer, NULL, &extra_drain, eol_style);
+	if (it.pos < 0)
 		goto done;
-
-	/* the eol_style determines our first stop character and how many
-	 * characters we are going to drain afterwards. */
-	switch (eol_style) {
-	case EVBUFFER_EOL_ANY:
-		count = evbuffer_strpbrk(&it, "\r\n");
-		if (count == -1)
-			goto done;
-
-		n_to_copy = count;
-		extra_drain = evbuffer_strspn(&it, "\r\n");
-		break;
-	case EVBUFFER_EOL_CRLF_STRICT: {
-		int tmp;
-		while ((tmp = evbuffer_strchr(&it, '\r')) != -1) {
-			count += tmp;
-			if (evbuffer_ptr_set(buffer, &it, 1, EVBUFFER_PTR_ADD)
-			    < 0)
-				goto done;
-			chr = evbuffer_getchr(&it);
-			if (chr == '\n') {
-				n_to_copy = count;
-				break;
-			}
-			++count;
-		}
-		if (tmp == -1)
-			goto done;
-		extra_drain = 2;
-		break;
-	}
-	case EVBUFFER_EOL_CRLF:
-		/* we might strip a preceding '\r' */
-	case EVBUFFER_EOL_LF:
-		if ((count = evbuffer_strchr(&it, '\n')) == -1)
-			goto done;
-		n_to_copy = count;
-		extra_drain = 1;
-		break;
-	default:
-		goto done;
-	}
+	n_to_copy = it.pos;
 
 	if ((line = mm_malloc(n_to_copy+1)) == NULL) {
 		event_warn("%s: out of memory\n", __func__);
@@ -1138,18 +1174,16 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 	}
 
 	evbuffer_remove(buffer, line, n_to_copy);
-	if (eol_style == EVBUFFER_EOL_CRLF &&
-	    n_to_copy && line[n_to_copy-1] == '\r')
-		--n_to_copy;
 	line[n_to_copy] = '\0';
 
 	evbuffer_drain(buffer, extra_drain);
-	if (n_read_out)
-		*n_read_out = (size_t)n_to_copy;
-
         result = line;
 done:
         EVBUFFER_UNLOCK(buffer, EVTHREAD_WRITE);
+
+	if (n_read_out)
+		*n_read_out = result ? n_to_copy : 0;
+
         return result;
 }
 

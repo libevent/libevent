@@ -480,6 +480,24 @@ int
 evbuffer_ptr_set(struct evbuffer *buffer, struct evbuffer_ptr *pos,
     size_t position, enum evbuffer_ptr_how how);
 
+/**
+   Search for an end-of-line string within an evbuffer.
+
+   @param buffer the evbuffer to be searched
+   @param start NULL or a pointer to a valid struct evbuffer_ptr to start
+      searching at.
+   @param eol_len_out If non-NULL, the pointed-to value will be set to
+      the length of the end-of-line string.
+   @param eol_style The kind of EOL to look for; see evbuffer_readln() for
+      more information
+   @return a struct evbuffer_ptr whose 'pos' field has the offset of the
+     first occurrence EOL in the buffer after 'start'.  The 'pos'
+     field of the result is -1 if the string was not found.
+ */
+struct evbuffer_ptr evbuffer_search_eol(struct evbuffer *buffer,
+    struct evbuffer_ptr *start, size_t *eol_len_out,
+    enum evbuffer_eol_style eol_style);
+
 /** Structure passed to an evbuffer callback */
 struct evbuffer_cb_info {
         /** The size of */

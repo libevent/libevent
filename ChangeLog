@@ -10,6 +10,7 @@ Changes in 2.0.3-alpha:
  o Fix a bug in bufferevent_socket_connect() when the connection succeeds too quickly.
  o Export an evutil_sockaddr_cmp() to compare to sockaddr objects for equality.
  o Add a bufferevent_get_enabled() to tell what a bufferevent has been configured to do.
+ o Add an evbuffer_search_eol() function to locate the end of a line nondestructively.
 
 
 Changes in 2.0.2-alpha:
