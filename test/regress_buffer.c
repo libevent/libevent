@@ -493,13 +493,31 @@ test_evbuffer_readln(void *ptr)
 
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	tt_assert(!cp);
-	free(cp);
 	evbuffer_validate(evb);
 	evbuffer_add(evb, "\n", 1);
 	evbuffer_validate(evb);
 
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
 	tt_line_eq("More");
+	free(cp);
+	tt_assert(evbuffer_get_length(evb) == 0);
+	evbuffer_validate(evb);
+
+	s = "An internal CR\r is not an eol\r\nNor is a lack of one";
+	evbuffer_add(evb, s, strlen(s));
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_line_eq("An internal CR\r is not an eol");
+	free(cp);
+	evbuffer_validate(evb);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_assert(!cp);
+	evbuffer_validate(evb);
+
+	evbuffer_add(evb, "\r\n", 2);
+	evbuffer_validate(evb);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_line_eq("Nor is a lack of one");
 	free(cp);
 	tt_assert(evbuffer_get_length(evb) == 0);
 	evbuffer_validate(evb);
