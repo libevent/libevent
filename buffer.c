@@ -972,23 +972,19 @@ evbuffer_readline(struct evbuffer *buffer)
 	return evbuffer_readln(buffer, NULL, EVBUFFER_EOL_ANY);
 }
 
-struct evbuffer_iterator {
-	struct evbuffer_chain *chain;
-	int off;
-};
-
 static inline int
-evbuffer_strchr(struct evbuffer_iterator *it, const char chr)
+evbuffer_strchr(struct evbuffer_ptr *it, const char chr)
 {
-	struct evbuffer_chain *chain = it->chain;
-	unsigned i = it->off;
+	struct evbuffer_chain *chain = it->_internal.chain;
+	unsigned i = it->_internal.pos_in_chain;
 	int count = 0;
 	while (chain != NULL) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
 		for (; i < chain->off; ++i, ++count) {
 			if (buffer[i] == chr) {
-				it->chain = chain;
-				it->off = i;
+				it->_internal.chain = chain;
+				it->_internal.pos_in_chain = i;
+				it->pos += count;
 				return (count);
 			}
 		}
@@ -1000,10 +996,10 @@ evbuffer_strchr(struct evbuffer_iterator *it, const char chr)
 }
 
 static inline int
-evbuffer_strpbrk(struct evbuffer_iterator *it, const char *chrset)
+evbuffer_strpbrk(struct evbuffer_ptr *it, const char *chrset)
 {
-	struct evbuffer_chain *chain = it->chain;
-	unsigned i = it->off;
+	struct evbuffer_chain *chain = it->_internal.chain;
+	unsigned i = it->_internal.pos_in_chain;
 	int count = 0;
 	while (chain != NULL) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
@@ -1011,8 +1007,9 @@ evbuffer_strpbrk(struct evbuffer_iterator *it, const char *chrset)
 			const char *p = chrset;
 			while (*p) {
 				if (buffer[i] == *p++) {
-					it->chain = chain;
-					it->off = i;
+					it->_internal.chain = chain;
+					it->_internal.pos_in_chain = i;
+					it->pos += count;
 					return (count);
 				}
 			}
@@ -1026,10 +1023,16 @@ evbuffer_strpbrk(struct evbuffer_iterator *it, const char *chrset)
 
 static inline int
 evbuffer_strspn(
-	struct evbuffer_chain *chain, unsigned i, const char *chrset)
+	struct evbuffer_ptr *ptr, const char *chrset)
 {
 	int count = 0;
-	while (chain != NULL) {
+	struct evbuffer_chain *chain = ptr->_internal.chain;
+	unsigned i = ptr->_internal.pos_in_chain;
+
+	if (!chain)
+		return -1;
+
+	while (1) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
 		for (; i < chain->off; ++i) {
 			const char *p = chrset;
@@ -1037,43 +1040,41 @@ evbuffer_strspn(
 				if (buffer[i] == *p++)
 					goto next;
 			}
+			ptr->_internal.chain = chain;
+			ptr->_internal.pos_in_chain = i;
+			ptr->pos += count;
 			return count;
 		next:
 			++count;
 		}
 		i = 0;
+
+		if (! chain->next) {
+			ptr->_internal.chain = chain;
+			ptr->_internal.pos_in_chain = i;
+			ptr->pos += count;
+			return count;
+		}
+
 		chain = chain->next;
 	}
-
-	return (count);
 }
 
-static inline int
-evbuffer_getchr(struct evbuffer_iterator *it, char *pchr)
+
+static inline char
+evbuffer_getchr(struct evbuffer_ptr *it)
 {
-	struct evbuffer_chain *chain = it->chain;
-	int off = it->off;
+	struct evbuffer_chain *chain = it->_internal.chain;
+	int off = it->_internal.pos_in_chain;
 
-	while ((size_t)off >= chain->off) {
-		off -= chain->off;
-		chain = chain->next;
-		if (chain == NULL)
-			return (-1);
-	}
-
-	*pchr = chain->buffer[chain->misalign + off];
-
-	it->chain = chain;
-	it->off = off;
-
-	return (0);
+	return chain->buffer[chain->misalign + off];
 }
 
 char *
 evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 		enum evbuffer_eol_style eol_style)
 {
-	struct evbuffer_iterator it;
+	struct evbuffer_ptr it;
 	char *line, chr;
 	unsigned int n_to_copy, extra_drain;
 	int count = 0;
@@ -1085,8 +1086,8 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 		goto done;
 	}
 
-	it.chain = buffer->first;
-	it.off = 0;
+	if (evbuffer_ptr_set(buffer, &it, 0, EVBUFFER_PTR_SET) < 0)
+		goto done;
 
 	/* the eol_style determines our first stop character and how many
 	 * characters we are going to drain afterwards. */
@@ -1097,15 +1098,16 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 			goto done;
 
 		n_to_copy = count;
-		extra_drain = evbuffer_strspn(it.chain, it.off, "\r\n");
+		extra_drain = evbuffer_strspn(&it, "\r\n");
 		break;
 	case EVBUFFER_EOL_CRLF_STRICT: {
 		int tmp;
 		while ((tmp = evbuffer_strchr(&it, '\r')) != -1) {
 			count += tmp;
-			++it.off;
-			if (evbuffer_getchr(&it, &chr) == -1)
+			if (evbuffer_ptr_set(buffer, &it, 1, EVBUFFER_PTR_ADD)
+			    < 0)
 				goto done;
+			chr = evbuffer_getchr(&it);
 			if (chr == '\n') {
 				n_to_copy = count;
 				break;
