@@ -581,6 +581,16 @@ bufferevent_getfd(struct bufferevent *bev)
 	return (res<0) ? -1 : d.fd;
 }
 
+short
+bufferevent_get_enabled(struct bufferevent *bufev)
+{
+	short r;
+	BEV_LOCK(bufev);
+	r = bufev->enabled;
+	BEV_UNLOCK(bufev);
+	return r;
+}
+
 struct bufferevent *
 bufferevent_get_underlying(struct bufferevent *bev)
 {

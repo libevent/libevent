@@ -140,6 +140,9 @@ test_bufferevent_impl(int use_pair)
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
 
+	tt_int_op(bufferevent_get_enabled(bev1), ==, EV_WRITE);
+	tt_int_op(bufferevent_get_enabled(bev2), ==, EV_WRITE|EV_READ);
+
 	for (i = 0; i < sizeof(buffer); i++)
 		buffer[i] = i;
 

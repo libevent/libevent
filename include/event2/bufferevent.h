@@ -322,6 +322,13 @@ int bufferevent_enable(struct bufferevent *bufev, short event);
  */
 int bufferevent_disable(struct bufferevent *bufev, short event);
 
+/**
+   Return the events that are enabled on a given bufferevent.
+
+   @param bufev the bufferevent to inspect
+   @return A combination of EV_READ | EV_WRITE
+ */
+short bufferevent_get_enabled(struct bufferevent *bufev);
 
 /**
   Set the read and write timeout for a buffered event.
