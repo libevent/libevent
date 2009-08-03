@@ -713,8 +713,6 @@ dns_reissue_test(void *arg)
 	struct event_base *base = data->base;
 	struct evdns_server_port *port1 = NULL, *port2 = NULL;
 	struct evdns_base *dns = NULL;
-	int drop_count = 100;
-
 	struct generic_dns_callback_result r1;
 
 	port1 = get_generic_server(base, 53900, generic_dns_server_cb,
@@ -758,6 +756,61 @@ end:
 		evdns_close_server_port(port2);
 }
 
+static void
+dumb_bytes_fn(char *p, size_t n)
+{
+	unsigned i;
+	/* This gets us 6 bits of entropy per transaction ID, which means we
+	 * will have probably have collisions and need to pick again. */
+	for(i=0;i<n;++i)
+		p[i] = (char)(rand() & 7);
+}
+
+static void
+dns_inflight_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_server_port *port = NULL;
+	struct evdns_base *dns = NULL;
+
+	struct generic_dns_callback_result r[20];
+	int i;
+
+	port = get_generic_server(base, 53900, generic_dns_server_cb,
+	    reissue_table);
+	tt_assert(port);
+
+	/* Make sure that having another (very bad!) RNG doesn't mess us
+	 * up. */
+	evdns_set_random_bytes_fn(dumb_bytes_fn);
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
+	tt_assert(! evdns_base_set_option(dns, "max-inflight:", "3", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "randomize-case:", "0", DNS_OPTIONS_ALL));
+
+	for(i=0;i<20;++i)
+		evdns_base_resolve_ipv4(dns, "foof.example.com", 0, generic_dns_callback, &r[i]);
+
+	n_replies_left = 20;
+	exit_base = base;
+
+	event_base_dispatch(base);
+
+	for (i=0;i<20;++i) {
+		tt_int_op(r[i].type, ==, DNS_IPv4_A);
+		tt_int_op(r[i].count, ==, 1);
+		tt_int_op(((ev_uint32_t*)r[i].addrs)[0], ==, htonl(0xf00ff00f));
+	}
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+	if (port)
+		evdns_close_server_port(port);
+}
+
 #define DNS_LEGACY(name, flags)                                        \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
                     dns_##name }
@@ -771,6 +824,7 @@ struct testcase_t dns_testcases[] = {
 	{ "search", dns_search_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "reissue", dns_reissue_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "inflight", dns_inflight_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
         END_OF_TESTCASES
 };
