@@ -679,7 +679,9 @@ dns_retry_test(void *arg)
 	    generic_dns_callback, &r1);
 
 	event_base_dispatch(base);
+	tt_int_op(r1.result, ==, DNS_ERR_NONE);
 	tt_int_op(r1.type, ==, DNS_IPv4_A);
+	tt_int_op(r1.count, ==, 1);
 	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0x10204080));
 
 end:
@@ -689,50 +691,72 @@ end:
 		evdns_close_server_port(port);
 }
 
-#if 0
+static struct generic_dns_server_table internal_error_table[] = {
+	/* Error 4 (NOTIMPL) makes us reissue the request to another server
+	   if we can.
+
+	   XXXX we should reissue under a much wider set of circumstances!
+	 */
+	{ "foof.example.com", "err", "4", 0 },
+	{ NULL, NULL, NULL, 0 }
+};
+
+static struct generic_dns_server_table reissue_table[] = {
+	{ "foof.example.com", "A", "240.15.240.15", 0 },
+	{ NULL, NULL, NULL, 0 }
+};
+
 static void
-dns_probe_test(void *arg)
+dns_reissue_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
-	struct evdns_server_port *port = NULL;
+	struct evdns_server_port *port1 = NULL, *port2 = NULL;
 	struct evdns_base *dns = NULL;
-	int drop_count = 4;
+	int drop_count = 100;
 
 	struct generic_dns_callback_result r1;
 
-	port = get_generic_server(base, 53900, fail_twice_server_cb,
-	    &drop_count);
-	tt_assert(port);
+	port1 = get_generic_server(base, 53900, generic_dns_server_cb,
+	    internal_error_table);
+	tt_assert(port1);
+	port2 = get_generic_server(base, 53901, generic_dns_server_cb,
+	    reissue_table);
+	tt_assert(port2);
 
 	dns = evdns_base_new(base, 0);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
-	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.2", DNS_OPTIONS_ALL));
-	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "4", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.3", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "2", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "attempts:", "5", DNS_OPTIONS_ALL));
 
-	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
+	memset(&r1, 0, sizeof(r1));
+	evdns_base_resolve_ipv4(dns, "foof.example.com", 0,
 	    generic_dns_callback, &r1);
+
+	/* Add this after, so that we are sure to get a reissue. */
+	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53901"));
 
 	n_replies_left = 1;
 	exit_base = base;
 
 	event_base_dispatch(base);
-
-	tt_int_op(drop_count, ==, 1);
-
+	tt_int_op(r1.result, ==, DNS_ERR_NONE);
 	tt_int_op(r1.type, ==, DNS_IPv4_A);
 	tt_int_op(r1.count, ==, 1);
-	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0x10204080));
+	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0xf00ff00f));
 
-	event_base_dispatch(base);
+	/* Make sure we dropped at least once. */
+	tt_int_op(internal_error_table[0].seen, >, 0);
 
 end:
 	if (dns)
 		evdns_base_free(dns, 0);
-	if (port)
-		evdns_close_server_port(port);
+	if (port1)
+		evdns_close_server_port(port1);
+	if (port2)
+		evdns_close_server_port(port2);
 }
-#endif
 
 #define DNS_LEGACY(name, flags)                                        \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
@@ -746,6 +770,7 @@ struct testcase_t dns_testcases[] = {
         { "resolve_reverse", dns_resolve_reverse, TT_FORK, NULL, NULL },
 	{ "search", dns_search_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "reissue", dns_reissue_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
         END_OF_TESTCASES
 };
