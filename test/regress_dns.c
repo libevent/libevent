@@ -77,13 +77,13 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 	dns_ok = dns_err = 0;
 
 	if (result == DNS_ERR_TIMEOUT) {
-		fprintf(stdout, "[Timed out] ");
+		printf("[Timed out] ");
 		dns_err = result;
 		goto out;
 	}
 
 	if (result != DNS_ERR_NONE) {
-		fprintf(stdout, "[Error code %d] ", result);
+		printf("[Error code %d] ", result);
 		goto out;
 	}
 
@@ -253,7 +253,7 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 				dns_ok = 0;
 			return;
 		} else {
-			fprintf(stdout, "Unexpected question %d %d \"%s\" ",
+			printf("Unexpected question %d %d \"%s\" ",
 					req->questions[i]->type,
 					req->questions[i]->dns_question_class,
 					req->questions[i]->name);
@@ -262,7 +262,7 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 	}
 	r = evdns_server_request_respond(req, 0);
 	if (r<0) {
-		fprintf(stdout, "Couldn't send reply. ");
+		printf("Couldn't send reply. ");
 		dns_ok = 0;
 	}
 }
@@ -273,19 +273,19 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 {
 	if (result == DNS_ERR_CANCEL) {
 		if (arg != (void*)(char*)90909) {
-			fprintf(stdout, "Unexpected cancelation");
+			printf("Unexpected cancelation");
 			dns_ok = 0;
 		}
 		dns_got_cancel = 1;
 		goto out;
 	}
 	if (result != DNS_ERR_NONE) {
-		fprintf(stdout, "Unexpected result %d. ", result);
+		printf("Unexpected result %d. ", result);
 		dns_ok = 0;
 		goto out;
 	}
 	if (count != 1) {
-		fprintf(stdout, "Unexpected answer count %d. ", count);
+		printf("Unexpected answer count %d. ", count);
 		dns_ok = 0;
 		goto out;
 	}
@@ -293,7 +293,7 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 	case DNS_IPv4_A: {
 		struct in_addr *in_addrs = addresses;
 		if (in_addrs[0].s_addr != htonl(0xc0a80b0bUL) || ttl != 12345) {
-			fprintf(stdout, "Bad IPv4 response \"%s\" %d. ",
+			printf("Bad IPv4 response \"%s\" %d. ",
 					inet_ntoa(in_addrs[0]), ttl);
 			dns_ok = 0;
 			goto out;
@@ -307,7 +307,7 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		if (memcmp(&in6_addrs[0].s6_addr, "abcdefghijklmnop", 16)
 			|| ttl != 123) {
 			const char *b = inet_ntop(AF_INET6, &in6_addrs[0],buf,sizeof(buf));
-			fprintf(stdout, "Bad IPv6 response \"%s\" %d. ", b, ttl);
+			printf("Bad IPv6 response \"%s\" %d. ", b, ttl);
 			dns_ok = 0;
 			goto out;
 		}
@@ -317,7 +317,7 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 	case DNS_PTR: {
 		char **addrs = addresses;
 		if (strcmp(addrs[0], "ZZ.EXAMPLE.COM") || ttl != 54321) {
-			fprintf(stdout, "Bad PTR response \"%s\" %d. ",
+			printf("Bad PTR response \"%s\" %d. ",
 					addrs[0], ttl);
 			dns_ok = 0;
 			goto out;
@@ -325,7 +325,7 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		break;
 	}
 	default:
-		fprintf(stdout, "Bad response type %d. ", type);
+		printf("Bad response type %d. ", type);
 		dns_ok = 0;
 	}
 
