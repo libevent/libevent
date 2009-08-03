@@ -452,7 +452,8 @@ end:
 static struct evdns_server_port *
 get_generic_server(struct event_base *base,
     ev_uint64_t portnum,
-    struct generic_dns_server_table *tab)
+    evdns_request_callback_fn_type cb,
+    void *arg)
 {
 	struct evdns_server_port *port = NULL;
 	evutil_socket_t sock;
@@ -472,7 +473,7 @@ get_generic_server(struct event_base *base,
 	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
 		tt_abort_perror("bind");
 	}
-	port = evdns_add_server_port_with_base(base, sock, 0, generic_dns_server_cb, tab);
+	port = evdns_add_server_port_with_base(base, sock, 0, cb, arg);
 
 	return port;
 end:
@@ -544,7 +545,8 @@ dns_search_test(void *arg)
 
 	struct generic_dns_callback_result r1, r2, r3, r4, r5;
 
-	port = get_generic_server(base, 53900, search_table);
+	port = get_generic_server(base, 53900, generic_dns_server_cb,
+	    search_table);
 	tt_assert(port);
 
 	dns = evdns_base_new(base, 0);
@@ -576,10 +578,161 @@ dns_search_test(void *arg)
 	tt_int_op(r5.result, ==, DNS_ERR_NOTEXIST);
 
 end:
+	if (dns)
+		evdns_base_free(dns, 0);
 	if (port)
 		evdns_close_server_port(port);
 }
 
+static void
+fail_server_cb(struct evdns_server_request *req, void *data)
+{
+	const char *question;
+	int *count = data;
+	struct in_addr in;
+
+	/* Drop the first N requests that we get. */
+	if (*count > 0) {
+		--*count;
+		tt_want(! evdns_server_request_drop(req));
+		return;
+	}
+
+	if (req->nquestions != 1)
+		TT_DIE(("Only handling one question at a time; got %d",
+			req->nquestions));
+
+	question = req->questions[0]->name;
+
+	if (!evutil_ascii_strcasecmp(question, "google.com")) {
+		/* Detect a probe, and get out of the loop. */
+		event_base_loopexit(exit_base, NULL);
+	}
+
+	evutil_inet_pton(AF_INET, "16.32.64.128", &in);
+	evdns_server_request_add_a_reply(req, question, 1, &in.s_addr,
+	    100);
+	tt_assert(! evdns_server_request_respond(req, 0))
+	return;
+end:
+	tt_want(! evdns_server_request_drop(req));
+}
+
+static void
+dns_retry_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_server_port *port = NULL;
+	struct evdns_base *dns = NULL;
+	int drop_count = 2;
+
+	struct generic_dns_callback_result r1;
+
+	port = get_generic_server(base, 53900, fail_server_cb,
+	    &drop_count);
+	tt_assert(port);
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
+	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.3", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "10", DNS_OPTIONS_ALL));
+
+	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
+	    generic_dns_callback, &r1);
+
+	n_replies_left = 1;
+	exit_base = base;
+
+	event_base_dispatch(base);
+
+	tt_int_op(drop_count, ==, 0);
+
+	tt_int_op(r1.type, ==, DNS_IPv4_A);
+	tt_int_op(r1.count, ==, 1);
+	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0x10204080));
+
+
+	/* Now try again, but this time have the server get treated as
+	 * failed, so we can send it a test probe. */
+	drop_count = 4;
+	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "3", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "attempts:", "4", DNS_OPTIONS_ALL));
+	memset(&r1, 0, sizeof(r1));
+
+	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
+	    generic_dns_callback, &r1);
+
+	n_replies_left = 2;
+
+	/* This will run until it answers the "google.com" probe request. */
+	/* XXXX It takes 10 seconds to retry the probe, which makes the test
+	 * slow. */
+	event_base_dispatch(base);
+
+	/* We'll treat the server as failed here. */
+	tt_int_op(r1.result, ==, DNS_ERR_TIMEOUT);
+
+	/* It should work this time. */
+	tt_int_op(drop_count, ==, 0);
+	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
+	    generic_dns_callback, &r1);
+
+	event_base_dispatch(base);
+	tt_int_op(r1.type, ==, DNS_IPv4_A);
+	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0x10204080));
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+	if (port)
+		evdns_close_server_port(port);
+}
+
+#if 0
+static void
+dns_probe_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_server_port *port = NULL;
+	struct evdns_base *dns = NULL;
+	int drop_count = 4;
+
+	struct generic_dns_callback_result r1;
+
+	port = get_generic_server(base, 53900, fail_twice_server_cb,
+	    &drop_count);
+	tt_assert(port);
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
+	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.2", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "4", DNS_OPTIONS_ALL));
+
+	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
+	    generic_dns_callback, &r1);
+
+	n_replies_left = 1;
+	exit_base = base;
+
+	event_base_dispatch(base);
+
+	tt_int_op(drop_count, ==, 1);
+
+	tt_int_op(r1.type, ==, DNS_IPv4_A);
+	tt_int_op(r1.count, ==, 1);
+	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0x10204080));
+
+	event_base_dispatch(base);
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+	if (port)
+		evdns_close_server_port(port);
+}
+#endif
 
 #define DNS_LEGACY(name, flags)                                        \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
@@ -592,6 +745,7 @@ struct testcase_t dns_testcases[] = {
         DNS_LEGACY(gethostbyaddr, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
         { "resolve_reverse", dns_resolve_reverse, TT_FORK, NULL, NULL },
 	{ "search", dns_search_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
         END_OF_TESTCASES
 };

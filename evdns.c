@@ -623,7 +623,7 @@ static void
 request_finished(struct evdns_request *const req, struct evdns_request **head) {
 	struct evdns_base *base = req->base;
 	int was_inflight = (head != &base->req_waiting_head);
-	EVDNS_LOCK(req->base);
+	EVDNS_LOCK(base);
 	if (head)
 		evdns_request_remove(req, head);
 
@@ -648,6 +648,7 @@ request_finished(struct evdns_request *const req, struct evdns_request **head) {
 	mm_free(req);
 
 	evdns_requests_pump_waiting_queue(base);
+	EVDNS_UNLOCK(base);
 }
 
 /* This is called when a server returns a funny error code. */
@@ -849,6 +850,8 @@ reply_handle(struct evdns_request *const req, u16 flags, u32 ttl, struct reply *
 	} else {
 		/* all ok, tell the user */
 		reply_schedule_callback(req, ttl, 0, reply);
+		if (req == req->ns->probe_request)
+			req->ns->probe_request = NULL; /* Avoid double-free */
 		nameserver_up(req->ns);
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id));
 	}
@@ -2075,11 +2078,12 @@ evdns_server_request_get_requesting_addr(struct evdns_server_request *_req, stru
 static void
 evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 	struct evdns_request *const req = (struct evdns_request *) arg;
+	struct evdns_base *base = req->base;
 	(void) fd;
 	(void) events;
 
 	log(EVDNS_LOG_DEBUG, "Request %lx timed out", (unsigned long) arg);
-	EVDNS_LOCK(req->base);
+	EVDNS_LOCK(base);
 
 	req->ns->timedout++;
 	if (req->ns->timedout > req->base->global_max_nameserver_timeout) {
@@ -2096,7 +2100,7 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 		(void) evtimer_del(&req->timeout_event);
 		evdns_request_transmit(req);
 	}
-	EVDNS_UNLOCK(req->base);
+	EVDNS_UNLOCK(base);
 }
 
 /* try to send a request to a given server. */
@@ -2502,6 +2506,27 @@ static void
 evdns_request_remove(struct evdns_request *req, struct evdns_request **head)
 {
 	ASSERT_LOCKED(req->base);
+
+#if 0
+	{
+		struct evdns_request *ptr;
+		int found = 0;
+		assert(*head != NULL);
+
+		ptr = *head;
+		do {
+			if (ptr == req) {
+				found = 1;
+				break;
+			}
+			ptr = ptr->next;
+		} while (ptr != *head);
+		assert(found);
+
+		assert(req->next);
+	}
+#endif
+
 	if (req->next == req) {
 		/* only item in the list */
 		*head = NULL;
@@ -2510,6 +2535,7 @@ evdns_request_remove(struct evdns_request *req, struct evdns_request **head)
 		req->prev->next = req->next;
 		if (*head == req) *head = req->next;
 	}
+	req->next = req->prev = NULL;
 }
 
 /* insert into the tail of the queue */
@@ -3061,11 +3087,25 @@ strtok_r(char *s, const char *delim, char **state) {
 
 /* helper version of atoi which returns -1 on error */
 static int
-strtoint(const char *const str) {
+strtoint(const char *const str)
+{
 	char *endptr;
 	const int r = strtol(str, &endptr, 10);
 	if (*endptr) return -1;
 	return r;
+}
+
+/* Parse a number of seconds into a timeval; return -1 on error. */
+static int
+strtotimeval(const char *const str, struct timeval *out)
+{
+	double d;
+	char *endptr;
+	d = strtod(str, &endptr);
+	if (*endptr) return -1;
+	out->tv_sec = (int) d;
+	out->tv_usec = (int) ((d - (int) d)*1000000);
+	return 0;
 }
 
 /* helper version of atoi that returns -1 on error and clips to bounds. */
@@ -3142,11 +3182,11 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		if (!base->global_search_state) return -1;
 		base->global_search_state->ndots = ndots;
 	} else if (!strncmp(option, "timeout:", 8)) {
-		const int timeout = strtoint(val);
-		if (timeout == -1) return -1;
+		struct timeval tv;
+		if (strtotimeval(val, &tv) == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
-		log(EVDNS_LOG_DEBUG, "Setting timeout to %d", timeout);
-		base->global_timeout.tv_sec = timeout;
+		log(EVDNS_LOG_DEBUG, "Setting timeout to %s", val);
+		memcpy(&base->global_timeout, &tv, sizeof(struct timeval));
 	} else if (!strncmp(option, "max-timeouts:", 12)) {
 		const int maxtimeout = strtoint_clipped(val, 1, 255);
 		if (maxtimeout == -1) return -1;
