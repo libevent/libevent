@@ -399,6 +399,187 @@ end:
 		evdns_base_free(base, 0);
 }
 
+struct generic_dns_server_table {
+	const char *q;
+	const char *anstype;
+	const char *ans;
+	int seen;
+};
+
+static void
+generic_dns_server_cb(struct evdns_server_request *req, void *data)
+{
+	struct generic_dns_server_table *tab = data;
+	const char *question;
+
+	if (req->nquestions != 1)
+		TT_DIE(("Only handling one question at a time; got %d",
+			req->nquestions));
+
+	question = req->questions[0]->name;
+
+	while (tab->q && evutil_ascii_strcasecmp(question, tab->q) &&
+	    strcmp("*", tab->q))
+		++tab;
+	if (tab->q == NULL)
+		TT_DIE(("Unexpected question: '%s'", question));
+
+	++tab->seen;
+
+	if (!strcmp(tab->anstype, "err")) {
+		int err = atoi(tab->ans);
+		tt_assert(! evdns_server_request_respond(req, err));
+		return;
+	} else if (!strcmp(tab->anstype, "A")) {
+		struct in_addr in;
+		evutil_inet_pton(AF_INET, tab->ans, &in);
+		evdns_server_request_add_a_reply(req, question, 1, &in.s_addr,
+		    100);
+	} else if (!strcmp(tab->anstype, "AAAA")) {
+		struct in6_addr in6;
+		evutil_inet_pton(AF_INET6, tab->ans, &in6);
+		evdns_server_request_add_aaaa_reply(req,
+		    question, 1, &in6.s6_addr, 100);
+	} else {
+		TT_DIE(("Weird table entry with type '%s'", tab->anstype));
+	}
+	tt_assert(! evdns_server_request_respond(req, 0))
+	return;
+end:
+	tt_want(! evdns_server_request_drop(req));
+}
+
+static struct evdns_server_port *
+get_generic_server(struct event_base *base,
+    ev_uint64_t portnum,
+    struct generic_dns_server_table *tab)
+{
+	struct evdns_server_port *port = NULL;
+	evutil_socket_t sock;
+	struct sockaddr_in my_addr;
+
+	sock = socket(AF_INET, SOCK_DGRAM, 0);
+        if (sock<=0) {
+                tt_abort_perror("socket");
+        }
+
+        evutil_make_socket_nonblocking(sock);
+
+	memset(&my_addr, 0, sizeof(my_addr));
+	my_addr.sin_family = AF_INET;
+	my_addr.sin_port = htons(portnum);
+	my_addr.sin_addr.s_addr = htonl(0x7f000001UL);
+	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
+		tt_abort_perror("bind");
+	}
+	port = evdns_add_server_port_with_base(base, sock, 0, generic_dns_server_cb, tab);
+
+	return port;
+end:
+	return NULL;
+}
+
+static int n_replies_left;
+static struct event_base *exit_base;
+
+struct generic_dns_callback_result {
+	int result;
+	char type;
+	int count;
+	int ttl;
+	void *addrs;
+};
+
+static void
+generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
+    void *arg)
+{
+	size_t len;
+	struct generic_dns_callback_result *res = arg;
+	res->result = result;
+	res->type = type;
+	res->count = count;
+	res->ttl = ttl;
+
+	if (type == DNS_IPv4_A)
+		len = count * 4;
+	else if (type == DNS_IPv6_AAAA)
+		len = count * 16;
+	else if (type == DNS_PTR)
+		len = strlen(addresses)+1;
+	else {
+		len = 0;
+		res->addrs = NULL;
+	}
+	if (len) {
+		res->addrs = malloc(len);
+		memcpy(res->addrs, addresses, len);
+	}
+
+	if (--n_replies_left == 0)
+		event_base_loopexit(exit_base, NULL);
+}
+
+static struct generic_dns_server_table search_table[] = {
+	{ "host.a.example.com", "err", "3", 0 },
+	{ "host.b.example.com", "err", "3", 0 },
+	{ "host.c.example.com", "A", "11.22.33.44", 0 },
+	{ "host2.a.example.com", "err", "3", 0 },
+	{ "host2.b.example.com", "A", "200.100.0.100", 0 },
+	{ "host2.c.example.com", "err", "3", 0 },
+
+	{ "host", "err", "3", 0 },
+	{ "host2", "err", "3", 0 },
+	{ "*", "err", "3", 0 },
+	{ NULL, NULL, NULL, 0 }
+};
+
+static void
+dns_search_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_server_port *port = NULL;
+	struct evdns_base *dns = NULL;
+
+	struct generic_dns_callback_result r1, r2, r3, r4, r5;
+
+	port = get_generic_server(base, 53900, search_table);
+	tt_assert(port);
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
+
+	evdns_base_search_add(dns, "a.example.com");
+	evdns_base_search_add(dns, "b.example.com");
+	evdns_base_search_add(dns, "c.example.com");
+
+	n_replies_left = 5;
+	exit_base = base;
+
+	evdns_base_resolve_ipv4(dns, "host", 0, generic_dns_callback, &r1);
+	evdns_base_resolve_ipv4(dns, "host2", 0, generic_dns_callback, &r2);
+	evdns_base_resolve_ipv4(dns, "host", DNS_NO_SEARCH, generic_dns_callback, &r3);
+	evdns_base_resolve_ipv4(dns, "host2", DNS_NO_SEARCH, generic_dns_callback, &r4);
+	evdns_base_resolve_ipv4(dns, "host3", 0, generic_dns_callback, &r5);
+
+	event_base_dispatch(base);
+
+	tt_int_op(r1.type, ==, DNS_IPv4_A);
+	tt_int_op(r1.count, ==, 1);
+	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0x0b16212c));
+	tt_int_op(r2.type, ==, DNS_IPv4_A);
+	tt_int_op(r2.count, ==, 1);
+	tt_int_op(((ev_uint32_t*)r2.addrs)[0], ==, htonl(0xc8640064));
+	tt_int_op(r3.result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r4.result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r5.result, ==, DNS_ERR_NOTEXIST);
+
+end:
+	if (port)
+		evdns_close_server_port(port);
+}
+
 
 #define DNS_LEGACY(name, flags)                                        \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
@@ -410,6 +591,7 @@ struct testcase_t dns_testcases[] = {
         DNS_LEGACY(gethostbyname6, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
         DNS_LEGACY(gethostbyaddr, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
         { "resolve_reverse", dns_resolve_reverse, TT_FORK, NULL, NULL },
+	{ "search", dns_search_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
         END_OF_TESTCASES
 };
