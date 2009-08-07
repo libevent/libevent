@@ -1968,8 +1968,14 @@ evbuffer_ptr_memcmp(const struct evbuffer *buf, const struct evbuffer_ptr *pos,
 struct evbuffer_ptr
 evbuffer_search(struct evbuffer *buffer, const char *what, size_t len, const struct evbuffer_ptr *start)
 {
+	return evbuffer_search_range(buffer, what, len, start, NULL);
+}
+
+struct evbuffer_ptr
+evbuffer_search_range(struct evbuffer *buffer, const char *what, size_t len, const struct evbuffer_ptr *start, const struct evbuffer_ptr *end)
+{
         struct evbuffer_ptr pos;
-        struct evbuffer_chain *chain;
+        struct evbuffer_chain *chain, *last_chain = NULL;
 	const unsigned char *p;
         char first;
 
@@ -1983,6 +1989,9 @@ evbuffer_search(struct evbuffer *buffer, const char *what, size_t len, const str
                 chain = pos._internal.chain = buffer->first;
                 pos._internal.pos_in_chain = 0;
         }
+
+	if (end)
+		last_chain = end->_internal.chain;
 
         if (!len)
                 goto done;
@@ -1998,8 +2007,12 @@ evbuffer_search(struct evbuffer *buffer, const char *what, size_t len, const str
                 if (p) {
                         pos.pos += p - start_at;
                         pos._internal.pos_in_chain += p - start_at;
-                        if (!evbuffer_ptr_memcmp(buffer, &pos, what, len))
-                                goto done;
+                        if (!evbuffer_ptr_memcmp(buffer, &pos, what, len)) {
+				if (end && pos.pos + len > end->pos)
+					goto not_found;
+				else
+					goto done;
+			}
                         ++pos.pos;
                         ++pos._internal.pos_in_chain;
                         if (pos._internal.pos_in_chain == chain->off) {
@@ -2007,12 +2020,15 @@ evbuffer_search(struct evbuffer *buffer, const char *what, size_t len, const str
                                 pos._internal.pos_in_chain = 0;
                         }
                 } else {
+			if (chain == last_chain)
+				goto not_found;
                         pos.pos += chain->off - pos._internal.pos_in_chain;
                         chain = pos._internal.chain = chain->next;
                         pos._internal.pos_in_chain = 0;
                 }
         }
 
+not_found:
         pos.pos = -1;
         pos._internal.chain = NULL;
 done:

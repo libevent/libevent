@@ -715,7 +715,7 @@ test_evbuffer_search(void *ptr)
 {
 	struct evbuffer *buf = evbuffer_new();
 	struct evbuffer *tmp = evbuffer_new();
-	struct evbuffer_ptr pos;
+	struct evbuffer_ptr pos, end;
 
 	/* set up our chains */
 	evbuffer_add_printf(tmp, "hello");  /* 5 chars */
@@ -747,6 +747,18 @@ test_evbuffer_search(void *ptr)
 	evbuffer_ptr_set(buf, &pos, 2, EVBUFFER_PTR_ADD);
 	pos = evbuffer_search(buf, "tat", 3, &pos);
 	tt_int_op(pos.pos, ==, 10);
+
+	/* test bounded search. */
+	/* Set "end" to the first t in "attack". */
+	evbuffer_ptr_set(buf, &end, 12, EVBUFFER_PTR_SET);
+	pos = evbuffer_search_range(buf, "foo", 3, NULL, &end);
+	tt_int_op(pos.pos, ==, 5);
+	pos = evbuffer_search_range(buf, "foocata", 7, NULL, &end);
+	tt_int_op(pos.pos, ==, 5);
+	pos = evbuffer_search_range(buf, "foocatat", 8, NULL, &end);
+	tt_int_op(pos.pos, ==, -1);
+	pos = evbuffer_search_range(buf, "ack", 3, NULL, &end);
+	tt_int_op(pos.pos, ==, -1);
 
 end:
 	if (buf)

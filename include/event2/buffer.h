@@ -456,6 +456,22 @@ int evbuffer_read(struct evbuffer *buffer, evutil_socket_t fd, int howmuch);
  */
 struct evbuffer_ptr evbuffer_search(struct evbuffer *buffer, const char *what, size_t len, const struct evbuffer_ptr *start);
 
+/**
+   Search for a string within part of an evbuffer.
+
+   @param buffer the evbuffer to be searched
+   @param what the string to be searched for
+   @param len the length of the search string
+   @param start NULL or a pointer to a valid struct evbuffer_ptr that
+     indicates where we should start searching.
+   @param end NULL or a pointer to a valid struct evbuffer_ptr that
+     indicates where we should stop searching.
+   @return a struct evbuffer_ptr whose 'pos' field has the offset of the
+     first occurrence of the string in the buffer after 'start'.  The 'pos'
+     field of the result is -1 if the string was not found.
+ */
+struct evbuffer_ptr evbuffer_search_range(struct evbuffer *buffer, const char *what, size_t len, const struct evbuffer_ptr *start, const struct evbuffer_ptr *end);
+
 enum evbuffer_ptr_how {
 	/** Sets the pointer to the position; can be called on with an
 	    uninitialized evbuffer_ptr. */
