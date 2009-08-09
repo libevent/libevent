@@ -11,6 +11,9 @@ Changes in 2.0.3-alpha:
  o Export an evutil_sockaddr_cmp() to compare to sockaddr objects for equality.
  o Add a bufferevent_get_enabled() to tell what a bufferevent has been configured to do.
  o Add an evbuffer_search_eol() function to locate the end of a line nondestructively.
+ o Add an evbuffer_search_range() function to search a bounded range of a buffer.
+ o Fix a rare crash bug in evdns.
+ o Have bufferevent_socket_connect() with no arguments put a bufferevent into connecting mode.
 
 
 Changes in 2.0.2-alpha:
