@@ -280,7 +280,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
 
 	evutil_socket_t fd;
-	int r;
+	int r = 0;
 	int result=-1;
 	int ownfd = 0;
 
@@ -291,6 +291,8 @@ bufferevent_socket_connect(struct bufferevent *bev,
 
 	fd = bufferevent_getfd(bev);
 	if (fd < 0) {
+		if (!sa)
+			goto done;
 		fd = socket(sa->sa_family, SOCK_STREAM, 0);
 		if (fd < 0)
 			goto done;
@@ -298,15 +300,16 @@ bufferevent_socket_connect(struct bufferevent *bev,
 			goto done;
 		ownfd = 1;
 	}
-	r = evutil_socket_connect(&fd, sa, socklen);
-	if (r < 0) {
-		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
-		if (ownfd)
-			EVUTIL_CLOSESOCKET(fd);
-		/* do something about the error? */
-		goto done;
+	if (sa) {
+		r = evutil_socket_connect(&fd, sa, socklen);
+		if (r < 0) {
+			_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
+			if (ownfd)
+				EVUTIL_CLOSESOCKET(fd);
+			/* do something about the error? */
+			goto done;
+		}
 	}
-
 	bufferevent_setfd(bev, fd);
 	if (r == 0) {
 		if (! bufferevent_enable(bev, EV_WRITE)) {

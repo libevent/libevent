@@ -150,6 +150,10 @@ struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socke
    If the bufferevent does not already have a socket set, we allocate a new
    socket here and make it nonblocking before we begin.
 
+   If no address is provided, we assume that the socket is already connecting,
+   and configure the bufferevent so that a BEV_EVENT_CONNECTED event will be
+   yielded when it is done connecting.
+
    @param bufev an existing bufferevent allocated with
        bufferevent_socket_new().
    @param addr the address we should connect to
