@@ -121,6 +121,13 @@ bufferevent_run_deferred_callbacks(struct deferred_cb *_, void *arg)
 	/* XXXX It would be better to run these without holding the
 	 * bufferevent lock */
 	BEV_LOCK(bufev);
+	if ((bufev_private->eventcb_pending & BEV_EVENT_CONNECTED) &&
+	    bufev->errorcb) {
+		/* The "connected" happened before any reads or writes, so
+		   send it first. */
+		bufev_private->eventcb_pending &= ~BEV_EVENT_CONNECTED;
+		bufev->errorcb(bufev, BEV_EVENT_CONNECTED, bufev->cbarg);
+	}
 	if (bufev_private->readcb_pending && bufev->readcb) {
 		bufev_private->readcb_pending = 0;
 		bufev->readcb(bufev, bufev->cbarg);
