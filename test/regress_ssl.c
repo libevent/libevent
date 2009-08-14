@@ -374,8 +374,6 @@ regress_bufferevent_openssl_connect(void *arg)
 	evbuffer_add_printf(bufferevent_get_output(bev), "1\n");
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 
-	puts("Dispatch");
-
 	event_base_dispatch(base);
 end:
 	;
