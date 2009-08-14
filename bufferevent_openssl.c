@@ -796,12 +796,12 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 
 	if (r==1) {
 		/* We're done! */
-		_bufferevent_run_eventcb(&bev_ssl->bev.bev,
-		    BEV_EVENT_CONNECTED);
 		bev_ssl->state = BUFFEREVENT_SSL_OPEN;
 		set_open_callbacks(bev_ssl, -1);
 		/* Call do_read and do_write as needed */
 		bufferevent_enable(&bev_ssl->bev.bev, bev_ssl->bev.bev.enabled);
+		_bufferevent_run_eventcb(&bev_ssl->bev.bev,
+		    BEV_EVENT_CONNECTED);
 		return 1;
 	} else {
 		int err = SSL_get_error(bev_ssl->ssl, r);
