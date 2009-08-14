@@ -84,7 +84,7 @@ const struct bufferevent_ops bufferevent_ops_socket = {
 	be_socket_disable,
 	be_socket_destruct,
 	be_socket_adj_timeouts,
-        be_socket_flush,
+	be_socket_flush,
 	be_socket_ctrl,
 };
 
@@ -200,20 +200,23 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	}
 
 	if (evbuffer_get_length(bufev->output)) {
-	    evbuffer_unfreeze(bufev->output, 1);
-	    res = evbuffer_write(bufev->output, fd);
-	    evbuffer_freeze(bufev->output, 1);
-	    if (res == -1) {
+		evbuffer_unfreeze(bufev->output, 1);
+		res = evbuffer_write(bufev->output, fd);
+		evbuffer_freeze(bufev->output, 1);
+		if (res == -1) {
 			int err = evutil_socket_geterror(fd);
 			if (EVUTIL_ERR_RW_RETRIABLE(err))
 				goto reschedule;
-		    what |= BEV_EVENT_ERROR;
-	    } else if (res == 0) {
-		    /* eof case */
-		    what |= BEV_EVENT_EOF;
-	    }
-	    if (res <= 0)
-		    goto error;
+			what |= BEV_EVENT_ERROR;
+		} else if (res == 0) {
+			/* eof case
+			   XXXX Actually, a 0 on write doesn't indicate
+			   an EOF. An ECONNRESET might be more typical.
+			 */
+			what |= BEV_EVENT_EOF;
+		}
+		if (res <= 0)
+			goto error;
 	}
 
 	if (evbuffer_get_length(bufev->output) == 0)
@@ -416,7 +419,7 @@ static int
 be_socket_flush(struct bufferevent *bev, short iotype,
     enum bufferevent_flush_mode mode)
 {
-        return 0;
+	return 0;
 }
 
 
