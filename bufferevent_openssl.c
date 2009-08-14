@@ -808,16 +808,16 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 		print_err(err);
 		switch (err) {
 		case SSL_ERROR_WANT_WRITE:
-			/* XXXX we only want to do this for the socket case.
-			  stop_reading(bev_ssl);
-			  start_writing(bev_ssl);
-			*/
+			if (!bev_ssl->underlying) {
+				stop_reading(bev_ssl);
+				start_writing(bev_ssl);
+			}
 			return 0;
 		case SSL_ERROR_WANT_READ:
-			/* XXXX we only want to do this for the socket case.
-			   stop_reading(bev_ssl);
-			   start_writing(bev_ssl);
-			*/
+			if (!bev_ssl->underlying) {
+				stop_writing(bev_ssl);
+				start_reading(bev_ssl);
+			}
 			return 0;
 		default:
 			conn_closed(bev_ssl, err, r);
