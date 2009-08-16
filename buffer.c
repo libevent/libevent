@@ -104,6 +104,9 @@
 #elif defined(_EVENT_HAVE_SENDFILE) && defined(__APPLE__)
 #define USE_SENDFILE		1
 #define SENDFILE_IS_MACOSX	1
+#elif defined(_EVENT_HAVE_SENDFILE) && defined(__sun__) && defined(__svr4__)
+#define USE_SENDFILE		1
+#define SENDFILE_IS_SOLARIS	1
 #endif
 
 #ifdef USE_SENDFILE
@@ -1785,7 +1788,7 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 #if defined(SENDFILE_IS_MACOSX) || defined(SENDFILE_IS_FREEBSD)
 	int res;
 	off_t len = chain->off;
-#elif SENDFILE_IS_LINUX
+#elif defined(SENDFILE_IS_LINUX) || defined(SENDFILE_IS_SOLARIS)
 	ev_ssize_t res;
 	off_t offset = chain->misalign;
 #endif
@@ -1809,6 +1812,13 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 	res = sendfile(fd, info->fd, &offset, chain->off);
 	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
 		/* if this is EGAIN or EINTR return 0; otherwise, -1 */
+		return (0);
+	}
+	return (res);
+#elif defined(SENDFILE_IS_SOLARIS)
+	res = sendfile(fd, info->fd, &offset, chain->off);
+	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
+		/* if this is EAGAIN or EINTR return 0; otherwise, -1 */
 		return (0);
 	}
 	return (res);

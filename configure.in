@@ -53,6 +53,7 @@ AC_SEARCH_LIBS([inet_ntoa], [nsl])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([inet_aton], [resolv])
 AC_SEARCH_LIBS([clock_gettime], [rt])
+AC_SEARCH_LIBS([sendfile], [sendfile])
 
 dnl Determine if we have zlib for regression tests
 dnl Don't put this one in LIBS

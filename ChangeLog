@@ -14,6 +14,7 @@ Changes in 2.0.3-alpha:
  o Add an evbuffer_search_range() function to search a bounded range of a buffer.
  o Fix a rare crash bug in evdns.
  o Have bufferevent_socket_connect() with no arguments put a bufferevent into connecting mode.
+ o Support sendfile on Solaris: patch from Caitlin Mercer.
 
 
 Changes in 2.0.2-alpha:
