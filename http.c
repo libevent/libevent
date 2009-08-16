@@ -2394,7 +2394,7 @@ struct evhttp_bound_socket *
 evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint16_t port)
 {
 	evutil_socket_t fd;
-	int res;
+	struct evhttp_bound_socket *bound;
 
 	if ((fd = bind_socket(address, port, 1 /*reuse*/)) == -1)
 		return (NULL);
@@ -2405,8 +2405,7 @@ evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint
 		return (NULL);
 	}
 
-	struct evhttp_bound_socket *bound =
-		evhttp_accept_socket_with_handle(http, fd);
+	bound = evhttp_accept_socket_with_handle(http, fd);
 
 	if (bound != NULL) {
 		event_debug(("Bound to port %d - Awaiting connections ... ",
