@@ -70,10 +70,12 @@ struct evhttp;
 struct evhttp_request;
 struct evkeyvalq;
 
-/** Create a new HTTP server
+/**
+ * Create a new HTTP server.
  *
  * @param base (optional) the event base to receive the HTTP events
  * @return a pointer to a newly initialized evhttp server structure
+ * @see evhttp_free()
  */
 struct evhttp *evhttp_new(struct event_base *base);
 
@@ -87,12 +89,12 @@ struct evhttp *evhttp_new(struct event_base *base);
  * @param address a string containing the IP address to listen(2) on
  * @param port the port number to listen on
  * @return 0 on success, -1 on failure.
- * @see evhttp_free(), evhttp_accept_socket()
+ * @see evhttp_accept_socket()
  */
 int evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port);
 
 /**
- * Makes an HTTP server accept connections on the specified socket
+ * Makes an HTTP server accept connections on the specified socket.
  *
  * This may be useful to create a socket and then fork multiple instances
  * of an http server, or when a socket has been communicated via file
@@ -105,7 +107,7 @@ int evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t por
  * @param http a pointer to an evhttp object
  * @param fd a socket fd that is ready for accepting connections
  * @return 0 on success, -1 on failure.
- * @see evhttp_free(), evhttp_bind_socket()
+ * @see evhttp_bind_socket()
  */
 int evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd);
 
