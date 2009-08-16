@@ -138,6 +138,22 @@ int evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd);
 struct evhttp_bound_socket *evhttp_accept_socket_with_handle(struct evhttp *http, evutil_socket_t fd);
 
 /**
+ * Makes an HTTP server stop accepting connections on the specified socket
+ *
+ * This may be useful when a socket has been sent via file descriptor passing
+ * and is no longer needed by the current process.
+ *
+ * This function does not close the socket.
+ *
+ * \a bound_socket is an invalid pointer after this call returns.
+ *
+ * @param http a pointer to an evhttp object
+ * @param bound_socket a handle returned by evhttp_{bind,accept}_socket_with_handle
+ * @see evhttp_bind_socket_with_handle(), evhttp_accept_socket_with_handle()
+ */
+void evhttp_del_accept_socket(struct evhttp *http, struct evhttp_bound_socket *bound_socket);
+
+/**
  * Get the raw file descriptor referenced by an evhttp_bound_socket.
  *
  * @param bound_socket a handle returned by evhttp_{bind,accept}_socket_with_handle

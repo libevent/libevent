@@ -2462,6 +2462,14 @@ evutil_socket_t evhttp_bound_socket_get_fd(struct evhttp_bound_socket *bound)
 	return bound->bind_ev.ev_fd;
 }
 
+void
+evhttp_del_accept_socket(struct evhttp *http, struct evhttp_bound_socket *bound)
+{
+	TAILQ_REMOVE(&http->sockets, bound, next);
+	event_del(&bound->bind_ev);
+	mm_free(bound);
+}
+
 static struct evhttp*
 evhttp_new_object(void)
 {
