@@ -2433,6 +2433,11 @@ evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd)
 	return (0);
 }
 
+evutil_socket_t evhttp_bound_socket_get_fd(struct evhttp_bound_socket *bound)
+{
+	return bound->bind_ev.ev_fd;
+}
+
 static struct evhttp*
 evhttp_new_object(void)
 {

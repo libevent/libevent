@@ -69,6 +69,7 @@ struct event_base;
 struct evhttp;
 struct evhttp_request;
 struct evkeyvalq;
+struct evhttp_bound_socket;
 
 /**
  * Create a new HTTP server.
@@ -110,6 +111,15 @@ int evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t por
  * @see evhttp_bind_socket()
  */
 int evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd);
+
+/**
+ * Get the raw file descriptor referenced by an evhttp_bound_socket.
+ *
+ * @param bound_socket a handle returned by evhttp_{bind,accept}_socket_with_handle
+ * @return the file descriptor used by the bound socket
+ * @see evhttp_bind_socket_with_handle(), evhttp_accept_socket_with_handle()
+ */
+evutil_socket_t evhttp_bound_socket_get_fd(struct evhttp_bound_socket *bound_socket);
 
 /**
  * Free the previously created HTTP server.
