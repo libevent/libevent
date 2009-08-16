@@ -2383,29 +2383,53 @@ accept_socket(evutil_socket_t fd, short what, void *arg)
 int
 evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
 {
+	struct evhttp_bound_socket *bound =
+		evhttp_bind_socket_with_handle(http, address, port);
+	if (bound == NULL)
+		return (-1);
+	return (0);
+}
+
+struct evhttp_bound_socket *
+evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint16_t port)
+{
 	evutil_socket_t fd;
 	int res;
 
 	if ((fd = bind_socket(address, port, 1 /*reuse*/)) == -1)
-		return (-1);
+		return (NULL);
 
 	if (listen(fd, 128) == -1) {
 		event_sock_warn(fd, "%s: listen", __func__);
 		EVUTIL_CLOSESOCKET(fd);
-		return (-1);
+		return (NULL);
 	}
 
-	res = evhttp_accept_socket(http, fd);
+	struct evhttp_bound_socket *bound =
+		evhttp_accept_socket_with_handle(http, fd);
 
-	if (res != -1)
+	if (bound != NULL) {
 		event_debug(("Bound to port %d - Awaiting connections ... ",
 			port));
+		return (bound);
+	}
 
-	return (res);
+	return (NULL);
 }
 
 int
 evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd)
+{
+	struct evhttp_bound_socket *bound =
+		evhttp_accept_socket_with_handle(http, fd);
+	if (bound == NULL)
+		return (-1);
+	return (0);
+}
+
+
+struct evhttp_bound_socket *
+evhttp_accept_socket_with_handle(struct evhttp *http, evutil_socket_t fd)
 {
 	struct evhttp_bound_socket *bound;
 	struct event *ev;
@@ -2413,7 +2437,7 @@ evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd)
 
 	bound = mm_malloc(sizeof(struct evhttp_bound_socket));
 	if (bound == NULL)
-		return (-1);
+		return (NULL);
 
 	ev = &bound->bind_ev;
 
@@ -2425,12 +2449,12 @@ evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd)
 
 	if (res == -1) {
 		mm_free(bound);
-		return (-1);
+		return (NULL);
 	}
 
 	TAILQ_INSERT_TAIL(&http->sockets, bound, next);
 
-	return (0);
+	return (bound);
 }
 
 evutil_socket_t evhttp_bound_socket_get_fd(struct evhttp_bound_socket *bound)

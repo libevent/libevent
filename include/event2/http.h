@@ -95,6 +95,19 @@ struct evhttp *evhttp_new(struct event_base *base);
 int evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port);
 
 /**
+ * Like evhttp_bind_socket(), but returns a handle for referencing the socket.
+ *
+ * The returned pointer is not valid after \a http is freed.
+ *
+ * @param http a pointer to an evhttp object
+ * @param address a string containing the IP address to listen(2) on
+ * @param port the port number to listen on
+ * @return Handle for the socket on success, NULL on failure.
+ * @see evhttp_bind_socket(), evhttp_del_accept_socket()
+ */
+struct evhttp_bound_socket *evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint16_t port);
+
+/**
  * Makes an HTTP server accept connections on the specified socket.
  *
  * This may be useful to create a socket and then fork multiple instances
@@ -111,6 +124,18 @@ int evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t por
  * @see evhttp_bind_socket()
  */
 int evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd);
+
+/**
+ * Like evhttp_accept_socket(), but returns a handle for referencing the socket.
+ *
+ * The returned pointer is not valid after \a http is freed.
+ *
+ * @param http a pointer to an evhttp object
+ * @param fd a socket fd that is ready for accepting connections
+ * @return Handle for the socket on success, NULL on failure.
+ * @see evhttp_accept_socket(), evhttp_del_accept_socket()
+ */
+struct evhttp_bound_socket *evhttp_accept_socket_with_handle(struct evhttp *http, evutil_socket_t fd);
 
 /**
  * Get the raw file descriptor referenced by an evhttp_bound_socket.
