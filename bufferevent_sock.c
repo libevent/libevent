@@ -183,6 +183,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	int res = 0;
 	short what = BEV_EVENT_WRITING;
+	int connected = 0;
 
 	_bufferevent_incref_and_lock(bufev);
 
@@ -192,6 +193,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	}
 	if (bufev_p->connecting) {
 		bufev_p->connecting = 0;
+		connected = 1;
 		_bufferevent_run_eventcb(bufev, BEV_EVENT_CONNECTED);
 		if (!(bufev->enabled & EV_WRITE)) {
 			event_del(&bufev->ev_write);
@@ -226,7 +228,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	 * Invoke the user callback if our buffer is drained or below the
 	 * low watermark.
 	 */
-	if (bufev->writecb != NULL &&
+	if (bufev->writecb != NULL && (res || !connected) &&
 	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low)
 		_bufferevent_run_writecb(bufev);
 

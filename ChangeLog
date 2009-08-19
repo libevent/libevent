@@ -16,6 +16,7 @@ Changes in 2.0.3-alpha:
  o Have bufferevent_socket_connect() with no arguments put a bufferevent into connecting mode.
  o Support sendfile on Solaris: patch from Caitlin Mercer.
  o New functions to explicitly reference a socket used by an evhttp object. Patches from David Reiss.
+ o When we send a BEV_EVENT_CONNECTED to indicate connected status, we no longer invoke the write callback as well unless we actually wrote data too.
 
 
 Changes in 2.0.2-alpha:
