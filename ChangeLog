@@ -18,6 +18,8 @@ Changes in 2.0.3-alpha:
  o New functions to explicitly reference a socket used by an evhttp object. Patches from David Reiss.
  o When we send a BEV_EVENT_CONNECTED to indicate connected status, we no longer invoke the write callback as well unless we actually wrote data too.
  o If the kernel tells us that there are a negative number of bytes to read from a socket, do not believe it.  Fixes bug 2841177; found by Alexander Pronchenkov.
+ o Do not detect whether we have monotonic clock support every time a new event base is created: instead do it only once.  Patch taken from Chromium.
+
 
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.

@@ -151,9 +151,15 @@ detect_monotonic(void)
 {
 #if defined(_EVENT_HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	struct timespec	ts;
+	static int use_monotonic_initialized = 0;
+
+	if (use_monotonic_initialized)
+		return;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
 		use_monotonic = 1;
+
+	use_monotonic_initialized = 1;
 #endif
 }
 
