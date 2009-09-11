@@ -1,3 +1,6 @@
+Changes in 1.4.13-stable:
+ o If the kernel tells us that there are a negative number of bytes to read from a socket, do not believe it.  Fixes bug 2841177; found by Alexander Pronchenkov.
+
 Changes in 1.4.12-stable:
  o Try to contain degree of failure when running on a win32 version so heavily firewalled that we can't fake a socketpair.
  o Fix an obscure timing-dependent, allocator-dependent crash in the evdns code.
