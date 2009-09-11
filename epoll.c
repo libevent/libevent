@@ -44,6 +44,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <assert.h>
 #ifdef _EVENT_HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -86,7 +87,8 @@ const struct eventop epollops = {
 #define FD_CLOSEONEXEC(x)
 #endif
 
-#define NEVENT	32000
+#define INITIAL_NEVENT 32
+#define MAX_NEVENT 4096
 
 /* On Linux kernels at least up to 2.6.24.4, epoll can't handle timeout
  * values bigger than (LONG_MAX - 999ULL)/HZ.  HZ in the wild can be
@@ -99,23 +101,12 @@ const struct eventop epollops = {
 static void *
 epoll_init(struct event_base *base)
 {
-	int epfd, nfiles = NEVENT;
-	struct rlimit rl;
+	int epfd;
 	struct epollop *epollop;
 
-	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
-	    rl.rlim_cur != RLIM_INFINITY) {
-		/*
-		 * Solaris is somewhat retarded - it's important to drop
-		 * backwards compatibility when making changes.  So, don't
-		 * dare to put rl.rlim_cur here.
-		 */
-		nfiles = rl.rlim_cur - 1;
-	}
-
-	/* Initalize the kernel queue */
-
-	if ((epfd = epoll_create(nfiles)) == -1) {
+	/* Initalize the kernel queue.  (The size field is ignored since
+	 * 2.6.8.) */
+	if ((epfd = epoll_create(32000)) == -1) {
 		if (errno != ENOSYS)
 			event_warn("epoll_create");
 		return (NULL);
@@ -129,12 +120,12 @@ epoll_init(struct event_base *base)
 	epollop->epfd = epfd;
 
 	/* Initalize fields */
-	epollop->events = mm_malloc(nfiles * sizeof(struct epoll_event));
+	epollop->events = mm_malloc(INITIAL_NEVENT * sizeof(struct epoll_event));
 	if (epollop->events == NULL) {
 		mm_free(epollop);
 		return (NULL);
 	}
-	epollop->nevents = nfiles;
+	epollop->nevents = INITIAL_NEVENT;
 
 	evsig_init(base);
 
@@ -172,24 +163,39 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	}
 
 	event_debug(("%s: epoll_wait reports %d", __func__, res));
+	assert(res < epollop->nevents);
 
 	for (i = 0; i < res; i++) {
 		int what = events[i].events;
-		short res = 0;
+		short ev = 0;
 
 		if (what & (EPOLLHUP|EPOLLERR)) {
-			res = EV_READ | EV_WRITE;
+			ev = EV_READ | EV_WRITE;
 		} else {
 			if (what & EPOLLIN)
-				res |= EV_READ;
+				ev |= EV_READ;
 			if (what & EPOLLOUT)
-				res |= EV_WRITE;
+				ev |= EV_WRITE;
 		}
 
-		if (!res)
+		if (!events)
 			continue;
 
-		evmap_io_active(base, events[i].data.fd, res | EV_ET);
+		evmap_io_active(base, events[i].data.fd, ev | EV_ET);
+	}
+
+	if (res == epollop->nevents && epollop->nevents < MAX_NEVENT) {
+		/* We used all of the event space this time.  We should
+		   be ready for more events next time. */
+		int new_nevents = epollop->nevents * 2;
+		struct epoll_event *new_events;
+
+		new_events = mm_realloc(epollop->events,
+		    new_nevents * sizeof(struct epoll_event));
+		if (new_events) {
+			epollop->events = new_events;
+			epollop->nevents = new_nevents;
+		}
 	}
 
 	return (0);
