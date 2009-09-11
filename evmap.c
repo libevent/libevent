@@ -267,6 +267,9 @@ evmap_io_add(struct event_base *base, int fd, struct event *ev)
 	/*XXX(nickm) Should we assert that ev is not already inserted, or should
 	 * we make this function idempotent? */
 
+	if (fd < 0)
+		return 0;
+
 #ifndef EVMAP_USE_HT
 	if (fd >= io->nentries) {
 		if (evmap_make_space(io, fd, sizeof(struct evmap_io *)) == -1)
@@ -318,6 +321,9 @@ evmap_io_del(struct event_base *base, int fd, struct event *ev)
 	struct evmap_io *ctx;
 	int nread, nwrite;
 	short res = 0, old = 0;
+
+	if (fd < 0)
+		return 0;
 
 	assert(fd == ev->ev_fd); /*XXX(nickm) always true? */
 	/*XXX(nickm) Should we assert that ev is not already inserted, or should
