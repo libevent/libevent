@@ -352,6 +352,14 @@ AC_CHECK_TYPES([uint64_t, uint32_t, uint16_t, uint8_t], , ,
 #include <sys/types.h>
 #endif])
 
+AC_CHECK_TYPES([fd_mask], , ,
+[#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SELECT_H
+#include <select.h>
+#endif])
+
 AC_CHECK_SIZEOF(long long)
 AC_CHECK_SIZEOF(long)
 AC_CHECK_SIZEOF(int)

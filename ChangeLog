@@ -21,7 +21,8 @@ Changes in 2.0.3-alpha:
  o Do not detect whether we have monotonic clock support every time a new event base is created: instead do it only once.  Patch taken from Chromium.
  o Do not allocate the maximum event queue for the epoll backend at startup.  Instead, start out accepting 32 events at a time, and double the queue's size when it seems that the OS is generating events faster than we're requesting them.  Saves up to 374K per epoll-based event_base.  Resolves bug 2839240.
  o Treat an event with a negative fd as valid but untriggerable by Libevent.  This is useful for applications that want to manually activate events.
-
+ o Fix compilation on Android, which forgot to define fd_mask in its sys/select.h
+ 
 
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.
