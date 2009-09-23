@@ -109,10 +109,6 @@ struct event_base *current_base = NULL;
 extern struct event_base *evsignal_base;
 static int use_monotonic;
 
-/* Handle signals - This is a deprecated interface */
-int (*event_sigcb)(void);		/* Signal callback when gotsig is set */
-volatile sig_atomic_t event_gotsig;	/* Set in signal handler */
-
 /* Prototypes */
 static void	event_queue_insert(struct event_base *, struct event *, int);
 static void	event_queue_remove(struct event_base *, struct event *, int);
@@ -178,9 +174,6 @@ event_base_new(void)
 
 	if ((base = calloc(1, sizeof(struct event_base))) == NULL)
 		event_err(1, "%s: calloc", __func__);
-
-	event_sigcb = NULL;
-	event_gotsig = 0;
 
 	detect_monotonic();
 	gettime(base, &base->event_tv);
@@ -390,7 +383,7 @@ event_process_active(struct event_base *base)
 			ncalls--;
 			ev->ev_ncalls = ncalls;
 			(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
-			if (event_gotsig || base->event_break)
+			if (base->event_break)
 				return;
 		}
 	}
@@ -493,18 +486,6 @@ event_base_loop(struct event_base *base, int flags)
 		if (base->event_break) {
 			base->event_break = 0;
 			break;
-		}
-
-		/* You cannot use this interface for multi-threaded apps */
-		while (event_gotsig) {
-			event_gotsig = 0;
-			if (event_sigcb) {
-				res = (*event_sigcb)();
-				if (res == -1) {
-					errno = EINTR;
-					return (-1);
-				}
-			}
 		}
 
 		timeout_correct(base, &tv);
