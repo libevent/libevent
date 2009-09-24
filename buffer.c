@@ -1172,7 +1172,6 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 
 	if ((line = mm_malloc(n_to_copy+1)) == NULL) {
 		event_warn("%s: out of memory\n", __func__);
-		evbuffer_drain(buffer, n_to_copy + extra_drain);
 		goto done;
 	}
 

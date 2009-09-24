@@ -403,6 +403,12 @@ test_evbuffer_add_file(void *ptr)
 }
 #endif
 
+static void *
+failing_malloc(size_t how_much)
+{
+	return NULL;
+}
+
 static void
 test_evbuffer_readln(void *ptr)
 {
@@ -585,6 +591,31 @@ test_evbuffer_readln(void *ptr)
 	free(cp); cp = NULL;
 	evbuffer_validate(evb);
 	tt_assert(evbuffer_get_length(evb) == 0);
+
+	/* Test memory problem*/
+	s = "one line\ntwo line\nblue line";
+	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_validate(evb);
+	evbuffer_add_buffer(evb, evb_tmp);
+	evbuffer_validate(evb);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
+	tt_line_eq("one line");
+	free(cp); cp = NULL;
+	evbuffer_validate(evb);
+
+	/* the next call to readline should fail */
+	event_set_mem_functions(failing_malloc, realloc, free);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
+	tt_assert(cp == NULL);
+	evbuffer_validate(evb);
+
+	/* now we should get the next line back */
+	event_set_mem_functions(malloc, realloc, free);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
+	tt_line_eq("two line");
+	free(cp); cp = NULL;
+	evbuffer_validate(evb);
 
 	test_ok = 1;
  end:
