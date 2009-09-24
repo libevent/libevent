@@ -225,7 +225,6 @@ evbuffer_readline(struct evbuffer *buffer)
 
 	if ((line = malloc(i + 1)) == NULL) {
 		fprintf(stderr, "%s: out of memory\n", __func__);
-		evbuffer_drain(buffer, i);
 		return (NULL);
 	}
 

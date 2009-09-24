@@ -2,6 +2,7 @@ Changes in 1.4.13-stable:
  o If the kernel tells us that there are a negative number of bytes to read from a socket, do not believe it.  Fixes bug 2841177; found by Alexander Pronchenkov.
  o Do not allocate the maximum event queue and fd array for the epoll backend at startup.  Instead, start out accepting 32 events at a time, and double the queue's size when it seems that the OS is generating events faster than we're requesting them.  Saves up to 512K per epoll-based event_base.  Resolves bug 2839240.
  o Fix compilation on Android, which forgot to define fd_mask in its sys/select.h
+ o Do not drop data from evbuffer when out of memory; reported by Jacek Masiulaniec
 
 
 Changes in 1.4.12-stable:
