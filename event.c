@@ -830,7 +830,25 @@ event_base_loopbreak(struct event_base *event_base)
 	}
 }
 
+int
+event_base_got_break(struct event_base *event_base)
+{
+	int res;
+	EVBASE_ACQUIRE_LOCK(event_base, EVTHREAD_READ, th_base_lock);
+	res = event_base->event_break;
+	EVBASE_RELEASE_LOCK(event_base, EVTHREAD_READ, th_base_lock);
+	return res;
+}
 
+int
+event_base_got_exit(struct event_base *event_base)
+{
+	int res;
+	EVBASE_ACQUIRE_LOCK(event_base, EVTHREAD_READ, th_base_lock);
+	res = event_base->event_gotterm;
+	EVBASE_RELEASE_LOCK(event_base, EVTHREAD_READ, th_base_lock);
+	return res;
+}
 
 /* not thread safe */
 
@@ -859,15 +877,15 @@ event_base_loop(struct event_base *base, int flags)
 	base->th_owner_id = EVTHREAD_GET_ID();
 #endif
 
+	base->event_gotterm = base->event_break = 0;
+
 	while (!done) {
 		/* Terminate the loop if we have been asked to */
 		if (base->event_gotterm) {
-			base->event_gotterm = 0;
 			break;
 		}
 
 		if (base->event_break) {
-			base->event_break = 0;
 			break;
 		}
 

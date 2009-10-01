@@ -300,6 +300,34 @@ int event_base_loopexit(struct event_base *, const struct timeval *);
  */
 int event_base_loopbreak(struct event_base *);
 
+/**
+  Checks if the event loop was told to exit by event_loopexit().
+
+  This function will return true for an event_base at every point after
+  event_loopexit() is called, until the event loop is next entered.
+
+  @param eb the event_base structure returned by event_init()
+  @return true if event_base_loopexit() was called on this event base,
+    or 0 otherwise
+  @see event_base_loopexit
+  @see event_base_got_break
+ */
+int event_base_got_exit(struct event_base *);
+
+/**
+  Checks if the event loop was told to abort immediately by event_loopbreak().
+
+  This function will return true for an event_base at every point after
+  event_loopbreak() is called, until the event loop is next entered.
+
+  @param eb the event_base structure returned by event_init()
+  @return true if event_base_loopbreak() was called on this event base,
+    or 0 otherwise
+  @see event_base_loopbreak
+  @see event_base_got_exit
+ */
+int event_base_got_break(struct event_base *);
+
 /* Flags to pass to event_set(), event_new(), event_assign(),
  * event_pending(), and anything else with an argument of the form
  * "short events" */
