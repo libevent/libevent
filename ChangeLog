@@ -24,6 +24,7 @@ Changes in 2.0.3-alpha:
  o Fix compilation on Android, which forgot to define fd_mask in its sys/select.h
  o Do not drop data from evbuffer when out of memory; reported by Jacek Masiulaniec
  o New event_base_got_exit() and event_base_got_break() functions to tell whether an event loop exited because of an event_base_loopexit() or an event_base_loopbreak().  Patch from Ka-Hing Cheung.
+ o When adding or deleting an event from a non-main thread, only wake up the main thread when its behavior actually needs to change.
 
 
 Changes in 2.0.2-alpha:
