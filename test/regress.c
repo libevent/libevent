@@ -487,20 +487,16 @@ test_combined(void)
 	event_set(&w1.ev, pair[0], EV_WRITE, combined_write_cb, &w1);
 	event_set(&r2.ev, pair[1], EV_READ, combined_read_cb, &r2);
 	event_set(&w2.ev, pair[1], EV_WRITE, combined_write_cb, &w2);
-	if (event_add(&r1.ev, NULL) == -1)
-		exit(1);
-	if (event_add(&w1.ev, NULL))
-		exit(1);
-	if (event_add(&r2.ev, NULL))
-		exit(1);
-	if (event_add(&w2.ev, NULL))
-		exit(1);
-
+	tt_assert(event_add(&r1.ev, NULL) != -1);
+	tt_assert(!event_add(&w1.ev, NULL));
+	tt_assert(!event_add(&r2.ev, NULL));
+	tt_assert(!event_add(&w2.ev, NULL));
 	event_dispatch();
 
 	if (r1.nread == 8192 && r2.nread == 4096)
 		test_ok = 1;
 
+end:
 	cleanup_test();
 }
 

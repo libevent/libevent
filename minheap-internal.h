@@ -43,6 +43,7 @@ typedef struct min_heap
 static inline void           min_heap_ctor(min_heap_t* s);
 static inline void           min_heap_dtor(min_heap_t* s);
 static inline void           min_heap_elem_init(struct event* e);
+static inline int            min_heap_elt_is_top(const struct event *e);
 static inline int            min_heap_elem_greater(struct event *a, struct event *b);
 static inline int            min_heap_empty(min_heap_t* s);
 static inline unsigned       min_heap_size(min_heap_t* s);
@@ -84,6 +85,11 @@ struct event* min_heap_pop(min_heap_t* s)
         return e;
     }
     return 0;
+}
+
+int min_heap_elt_is_top(const struct event *e)
+{
+	return e->min_heap_idx == 0;
 }
 
 int min_heap_erase(min_heap_t* s, struct event* e)

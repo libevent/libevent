@@ -254,13 +254,15 @@ evmap_io_init(struct evmap_io *entry)
 }
 
 
+/* return -1 on error, 0 on success if nothing changed in the event backend,
+ * and 1 on success if something did. */
 int
 evmap_io_add(struct event_base *base, int fd, struct event *ev)
 {
 	const struct eventop *evsel = base->evsel;
 	struct event_io_map *io = &base->io;
 	struct evmap_io *ctx = NULL;
-	int nread, nwrite;
+	int nread, nwrite, retval = 0;
 	short res = 0, old = 0;
 
 	assert(fd == ev->ev_fd); /*XXX(nickm) always true? */
@@ -304,22 +306,25 @@ evmap_io_add(struct event_base *base, int fd, struct event *ev)
 		if (evsel->add(base, ev->ev_fd,
 					   old, (ev->ev_events & EV_ET) | res, extra) == -1)
 			return (-1);
+		retval = 1;
 	}
 
 	ctx->nread = nread;
 	ctx->nwrite = nwrite;
 	TAILQ_INSERT_TAIL(&ctx->events, ev, ev_io_next);
 
-	return (0);
+	return (retval);
 }
 
+/* return -1 on error, 0 on success if nothing changed in the event backend,
+ * and 1 on success if something did. */
 int
 evmap_io_del(struct event_base *base, int fd, struct event *ev)
 {
 	const struct eventop *evsel = base->evsel;
 	struct event_io_map *io = &base->io;
 	struct evmap_io *ctx;
-	int nread, nwrite;
+	int nread, nwrite, retval = 0;
 	short res = 0, old = 0;
 
 	if (fd < 0)
@@ -359,13 +364,14 @@ evmap_io_del(struct event_base *base, int fd, struct event *ev)
 		void *extra = ((char*)ctx) + sizeof(struct evmap_io);
 		if (evsel->del(base, ev->ev_fd, old, res, extra) == -1)
 			return (-1);
+		retval = 1;
 	}
 
 	ctx->nread = nread;
 	ctx->nwrite = nwrite;
 	TAILQ_REMOVE(&ctx->events, ev, ev_io_next);
 
-	return (0);
+	return (retval);
 }
 
 void
@@ -417,7 +423,7 @@ evmap_signal_add(struct event_base *base, int sig, struct event *ev)
 
 	TAILQ_INSERT_TAIL(&ctx->events, ev, ev_signal_next);
 
-	return (0);
+	return (1);
 }
 
 int
@@ -439,7 +445,7 @@ evmap_signal_del(struct event_base *base, int sig, struct event *ev)
 
 	TAILQ_REMOVE(&ctx->events, ev, ev_signal_next);
 
-	return (0);
+	return (1);
 }
 
 void

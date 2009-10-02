@@ -1221,6 +1221,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 {
 	struct event_base *base = ev->ev_base;
 	int res = 0;
+	int notify = 0;
 
 	event_debug((
 		 "event_add: event: %p, %s%s%scall %p",
@@ -1250,6 +1251,11 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 			res = evmap_signal_add(base, ev->ev_fd, ev);
 		if (res != -1)
 			event_queue_insert(base, ev, EVLIST_INSERTED);
+		if (res == 1) {
+			/* evmap says we need to notify the main thread. */
+			notify = 1;
+			res = 0;
+		}
 	}
 
 	/*
@@ -1270,8 +1276,11 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 		 * we already reserved memory above for the case where we
 		 * are not replacing an exisiting timeout.
 		 */
-		if (ev->ev_flags & EVLIST_TIMEOUT)
+		if (ev->ev_flags & EVLIST_TIMEOUT) {
+			if (min_heap_elt_is_top(ev))
+				notify = 1;
 			event_queue_remove(base, ev, EVLIST_TIMEOUT);
+		}
 
 		/* Check if it is active due to a timeout.  Rescheduling
 		 * this timeout before the callback can be executed
@@ -1299,10 +1308,16 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 			 (int)tv->tv_sec, ev->ev_callback));
 
 		event_queue_insert(base, ev, EVLIST_TIMEOUT);
+		if (min_heap_elt_is_top(ev)) {
+			/* The earliest timeout is now earlier than it was
+			 * before: we will need to tell the main thread to
+			 * wake up earlier than it would otherwise. */
+			notify = 1;
+		}
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
-	if (res != -1 && !EVBASE_IN_THREAD(base))
+	if (res != -1 && notify && !EVBASE_IN_THREAD(base))
 		evthread_notify_base(base);
 
 	return (res);
@@ -1327,7 +1342,7 @@ static inline int
 event_del_internal(struct event *ev)
 {
 	struct event_base *base;
-	int res = 0;
+	int res = 0, notify = 0;
 	int need_cur_lock;
 
 	event_debug(("event_del: %p, callback %p",
@@ -1357,8 +1372,16 @@ event_del_internal(struct event *ev)
 		}
 	}
 
-	if (ev->ev_flags & EVLIST_TIMEOUT)
+	if (ev->ev_flags & EVLIST_TIMEOUT) {
+		/* NOTE: We never need to notify the main thread because of a
+		 * deleted timeout event: all that could happen if we don't is
+		 * that the dispatch loop might wake up too early.  But the
+		 * point of notifying the main thread _is_ to wake up the
+		 * dispatch loop early anyway, so we wouldn't gain anything by
+		 * doing it.
+		 */
 		event_queue_remove(base, ev, EVLIST_TIMEOUT);
+	}
 
 	if (ev->ev_flags & EVLIST_ACTIVE)
 		event_queue_remove(base, ev, EVLIST_ACTIVE);
@@ -1369,10 +1392,15 @@ event_del_internal(struct event *ev)
 			res = evmap_io_del(base, ev->ev_fd, ev);
 		else
 			res = evmap_signal_del(base, ev->ev_fd, ev);
+		if (res == 1) {
+			/* evmap says we need to notify the main thread. */
+			notify = 1;
+			res = 0;
+		}
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
-	if (res != -1 && !EVBASE_IN_THREAD(base))
+	if (res != -1 && notify && !EVBASE_IN_THREAD(base))
 		evthread_notify_base(base);
 
 	if (need_cur_lock)
