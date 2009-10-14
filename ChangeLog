@@ -6,7 +6,7 @@ Changes in 2.0.3-alpha:
  o Try to compile better with MSVC: patches from Brodie Thiesfield
  o New evconnlistener_get_fd function to expose a listener's associated socket.
  o Expose an ev_socklen_t type for consistent use across platforms.
- o Make bufferevenr_socket_connect() work when the original fd was -1.
+ o Make bufferevent_socket_connect() work when the original fd was -1.
  o Fix a bug in bufferevent_socket_connect() when the connection succeeds too quickly.
  o Export an evutil_sockaddr_cmp() to compare to sockaddr objects for equality.
  o Add a bufferevent_get_enabled() to tell what a bufferevent has been configured to do.
@@ -26,6 +26,7 @@ Changes in 2.0.3-alpha:
  o New event_base_got_exit() and event_base_got_break() functions to tell whether an event loop exited because of an event_base_loopexit() or an event_base_loopbreak().  Patch from Ka-Hing Cheung.
  o When adding or deleting an event from a non-main thread, only wake up the main thread when its behavior actually needs to change.
  o Fix some bugs when using the old evdns interfaces to initialize the evdns module.
+ o Detect errors during bufferevent_connect().  Patch from Christopher Davis.
 
 
 Changes in 2.0.2-alpha:

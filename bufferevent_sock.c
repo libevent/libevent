@@ -192,12 +192,24 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		goto error;
 	}
 	if (bufev_p->connecting) {
-		bufev_p->connecting = 0;
-		connected = 1;
-		_bufferevent_run_eventcb(bufev, BEV_EVENT_CONNECTED);
-		if (!(bufev->enabled & EV_WRITE)) {
-			event_del(&bufev->ev_write);
+		int c = evutil_socket_finished_connecting(fd);
+
+		if (c == 0)
 			goto done;
+
+		bufev_p->connecting = 0;
+		if (c < 0) {
+			event_del(&bufev->ev_write);
+			event_del(&bufev->ev_read);
+			_bufferevent_run_eventcb(bufev, BEV_EVENT_ERROR);
+			goto done;
+		} else {
+			connected = 1;
+			_bufferevent_run_eventcb(bufev, BEV_EVENT_CONNECTED);
+			if (!(bufev->enabled & EV_WRITE)) {
+				event_del(&bufev->ev_write);
+				goto done;
+			}
 		}
 	}
 

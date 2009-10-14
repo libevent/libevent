@@ -297,6 +297,29 @@ err:
 	return -1;
 }
 
+/* Check whether a socket on which we called connect() is done
+   connecting. Return 1 for connected, 0 for not yet, -1 for error.  In the
+   error case, set the current socket errno to the error that happened during
+   the connect operation. */
+int
+evutil_socket_finished_connecting(evutil_socket_t fd)
+{
+	int e;
+	ev_socklen_t elen = sizeof(e);
+
+	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (void*)&e, &elen) < 0)
+		return -1;
+
+	if (e) {
+		if (EVUTIL_ERR_CONNECT_RETRIABLE(e))
+			return 0;
+		EVUTIL_SET_SOCKET_ERROR(e);
+		return -1;
+	}
+
+	return 1;
+}
+
 #ifdef WIN32
 #define E(code, s) { code, (s " [" #code " ]") }
 static struct { int code; const char *msg; } windows_socket_errors[] = {

@@ -130,6 +130,8 @@ extern const char EVUTIL_TOLOWER_TABLE[];
 
 int evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen);
 
+int evutil_socket_finished_connecting(evutil_socket_t fd);
+
 #ifdef __cplusplus
 }
 #endif
