@@ -3228,6 +3228,8 @@ evdns_base_set_option_impl(struct evdns_base *base,
 int
 evdns_set_option(const char *option, const char *val, int flags)
 {
+	if (!current_base)
+		current_base = evdns_base_new(NULL, 0);
 	return evdns_base_set_option(current_base, option, val, flags);
 }
 
@@ -3355,6 +3357,8 @@ out1:
 
 int
 evdns_resolv_conf_parse(int flags, const char *const filename) {
+	if (!current_base)
+		current_base = evdns_base_new(NULL, 0);
 	return evdns_base_resolv_conf_parse(current_base, flags, filename);
 }
 
@@ -3574,7 +3578,6 @@ evdns_config_windows_nameservers(void)
 	} else {
 		return evdns_base_config_windows_nameservers(current_base);
 	}
-	 
 }
 #endif
 
