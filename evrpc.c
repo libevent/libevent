@@ -915,7 +915,7 @@ evrpc_reply_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 
 	evrpc_request_wrapper_free(ctx);
 
-	/* the http layer owned the orignal request structure, but if we
+	/* the http layer owned the original request structure, but if we
 	 * got paused, we asked for ownership and need to free it here. */
 	if (req != NULL && evhttp_request_is_owned(req))
 		evhttp_request_free(req);

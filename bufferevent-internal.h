@@ -183,10 +183,10 @@ int _bufferevent_add_event(struct event *ev, const struct timeval *tv);
  * ========= */
 /** Internal use: Set up the ev_read and ev_write callbacks so that
  * the other "generic_timeout" functions will work on it.  Call this from
- * the constuctor function. */
+ * the constructor function. */
 void _bufferevent_init_generic_timeout_cbs(struct bufferevent *bev);
 /** Internal use: Delete the ev_read and ev_write callbacks if they're pending.
- * Call thiss from the destructor function. */
+ * Call this from the destructor function. */
 void _bufferevent_del_generic_timeout_cbs(struct bufferevent *bev);
 /** Internal use: Add or delete the generic timeout events as appropriate.
  * (If an event is enabled and a timeout is set, we add the event.  Otherwise
@@ -195,14 +195,14 @@ void _bufferevent_del_generic_timeout_cbs(struct bufferevent *bev);
 void _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 
 /** Internal use: We have just successfully read data into an inbuf, so
- * reset the read timout (if any). */
+ * reset the read timeout (if any). */
 #define BEV_RESET_GENERIC_READ_TIMEOUT(bev)				\
 	do {								\
 		if (evutil_timerisset(&(bev)->timeout_read))		\
 			event_add(&(bev)->ev_read, &(bev)->timeout_read); \
 	} while (0)
 /** Internal use: We have just successfully written data from an inbuf, so
- * reset the read timout (if any). */
+ * reset the read timeout (if any). */
 #define BEV_RESET_GENERIC_WRITE_TIMEOUT(bev)				\
 	do {								\
 		if (evutil_timerisset(&(bev)->timeout_write))		\

@@ -75,7 +75,7 @@
 
    Here we define a BIO implementation that directs its output to a
    bufferevent.  We'll want to use this only when none of OpenSSL's built-in
-   IO mechinsms work for us.
+   IO mechanisms work for us.
    -------------------- */
 
 /* every BIO type needs its own integer type value. */
@@ -264,7 +264,7 @@ BIO_new_bufferevent(struct bufferevent *bufferevent, int close_flag)
 }
 
 /* --------------------
-   Now, here's the openssl-based implementation of bufferevent.
+   Now, here's the OpenSSL-based implementation of bufferevent.
 
    The implementation comes in two flavors: one that connects its SSL object
    to an underlying bufferevent using a BIO_bufferevent, and one that has the
@@ -277,7 +277,7 @@ BIO_new_bufferevent(struct bufferevent *bufferevent, int close_flag)
    -------------------- */
 
 struct bufferevent_openssl {
-	/* Shared fields with common bufferevet implementation code.
+	/* Shared fields with common bufferevent implementation code.
 	   If we were set up with an underlying bufferevent, we use the
 	   events here as timers only.  If we have an SSL, then we use
 	   the events as socket events.
@@ -332,7 +332,7 @@ const struct bufferevent_ops bufferevent_ops_openssl = {
 };
 
 /* Given a bufferevent, return a pointer to the bufferevent_openssl that
- * countains it, if any. */
+ * contains it, if any. */
 static inline struct bufferevent_openssl *
 upcast(struct bufferevent *bev)
 {

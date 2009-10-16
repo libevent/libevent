@@ -1384,7 +1384,7 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 	if (chain->buffer_len >= need)
                 goto ok;
 
-	/* If the misalignment plus the remaining space fulfils our
+	/* If the misalignment plus the remaining space fulfills our
 	 * data needs, we just force an alignment to happen.
 	 * Afterwards, we have enough space.
 	 */
@@ -1617,7 +1617,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 		 * reading.  We do not want to exhaust resources
 		 * before the reader has a chance to do something
 		 * about it.  If the reader does not tell us how much
-		 * data we should read, we artifically limit it.
+		 * data we should read, we artificially limit it.
 		 */
 		if (chain == NULL || n < EVBUFFER_MAX_READ)
 			n = EVBUFFER_MAX_READ;
@@ -1810,7 +1810,7 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 	/* TODO(niels): implement splice */
 	res = sendfile(fd, info->fd, &offset, chain->off);
 	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
-		/* if this is EGAIN or EINTR return 0; otherwise, -1 */
+		/* if this is EAGAIN or EINTR return 0; otherwise, -1 */
 		return (0);
 	}
 	return (res);
@@ -2200,7 +2200,7 @@ done:
 
 /* TODO(niels): maybe we don't want to own the fd, however, in that
  * case, we should dup it - dup is cheap.  Perhaps, we should use a
- * callback insead?
+ * callback instead?
  */
 /* TODO(niels): we may want to add to automagically convert to mmap, in
  * case evbuffer_remove() or evbuffer_pullup() are being used.

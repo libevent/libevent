@@ -9,7 +9,7 @@
  * TODO:
  *   - Support IPv6 and PTR records.
  *   - Replace all externally visible magic numbers with #defined constants.
- *   - Write doccumentation for APIs of all external functions.
+ *   - Write documentation for APIs of all external functions.
  */
 
 /* Async DNS Library
@@ -3448,7 +3448,7 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 			status = r;
 		} else {
 			++added_any;
-			log(EVDNS_LOG_DEBUG,"Succesfully added %s as nameserver",ns->IpAddress.String);
+			log(EVDNS_LOG_DEBUG,"Successfully added %s as nameserver",ns->IpAddress.String);
 		}
 
 		ns = ns->Next;

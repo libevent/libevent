@@ -104,7 +104,7 @@ epoll_init(struct event_base *base)
 	int epfd;
 	struct epollop *epollop;
 
-	/* Initalize the kernel queue.  (The size field is ignored since
+	/* Initialize the kernel queue.  (The size field is ignored since
 	 * 2.6.8.) */
 	if ((epfd = epoll_create(32000)) == -1) {
 		if (errno != ENOSYS)
@@ -119,7 +119,7 @@ epoll_init(struct event_base *base)
 
 	epollop->epfd = epfd;
 
-	/* Initalize fields */
+	/* Initialize fields */
 	epollop->events = mm_malloc(INITIAL_NEVENT * sizeof(struct epoll_event));
 	if (epollop->events == NULL) {
 		mm_free(epollop);

@@ -423,7 +423,7 @@ evport_del(struct event_base *base, int fd, short old, short events, void *p)
 		if (!FDI_HAS_EVENTS(fdi) &&
 		    port_dissociate(evpd->ed_port, PORT_SOURCE_FD, fd) == -1) {
 			/*
-			 * Ignre EBADFD error the fd could have been closed
+			 * Ignore EBADFD error the fd could have been closed
 			 * before event_del() was called.
 			 */
 			if (errno != EBADFD) {

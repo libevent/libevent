@@ -106,7 +106,7 @@ extern void (*_evthread_lock_free_fn)(void *);
                         EVLOCK_LOCK(_lock2_tmplock,mode2);              \
 	} while (0)
 
-/** Releaes both lock1 and lock2.  */
+/** Release both lock1 and lock2.  */
 #define EVLOCK_UNLOCK2(lock1,lock2,mode1,mode2)				\
 	do {								\
 		void *_lock1_tmplock = (lock1);				\

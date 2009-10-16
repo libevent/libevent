@@ -48,7 +48,7 @@
   to redesign the applications. As a result, Libevent allows for portable
   application development and provides the most scalable event notification
   mechanism available on an operating system. Libevent can also be used for
-  multi-threaded aplications; see Steven Grimm's explanation. Libevent should
+  multi-threaded applications; see Steven Grimm's explanation. Libevent should
   compile on Linux, *BSD, Mac OS X, Solaris and Windows.
 
   @section usage Standard usage
@@ -127,7 +127,7 @@
 
   @section evrpc A framework for RPC servers and clients
 
-  libevents provides a framework for creating RPC servers and clients.  It
+  libevent provides a framework for creating RPC servers and clients.  It
   takes care of marshaling and unmarshaling all data structures.
 
   @section api API Reference

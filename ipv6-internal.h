@@ -43,7 +43,7 @@ extern "C" {
 
 /** @file ipv6-internal.h
  *
- * Replacement types and functions for platfoms that don't support ipv6
+ * Replacement types and functions for platforms that don't support ipv6
  * properly.
  */
 

@@ -115,7 +115,7 @@ kq_init(struct event_base *base)
 	if (!(kqueueop = mm_calloc(1, sizeof(struct kqop))))
 		return (NULL);
 
-	/* Initalize the kernel queue */
+	/* Initialize the kernel queue */
 
 	if ((kq = kqueue()) == -1) {
 		event_warn("kqueue");
@@ -127,7 +127,7 @@ kq_init(struct event_base *base)
 
 	kqueueop->pid = getpid();
 
-	/* Initalize fields */
+	/* Initialize fields */
 	kqueueop->changes = mm_malloc(NEVENT * sizeof(struct kevent));
 	if (kqueueop->changes == NULL) {
 		mm_free (kqueueop);
@@ -253,9 +253,9 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 		if (events[i].flags & EV_ERROR) {
 			/*
 			 * Error messages that can happen, when a delete fails.
-			 *   EBADF happens when the file discriptor has been
+			 *   EBADF happens when the file descriptor has been
 			 *   closed,
-			 *   ENOENT when the file discriptor was closed and
+			 *   ENOENT when the file descriptor was closed and
 			 *   then reopened.
 			 *   EINVAL for some reasons not understood; EINVAL
 			 *   should not be returned ever; but FreeBSD does :-\

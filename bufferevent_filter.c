@@ -77,7 +77,7 @@ static void bufferevent_filtered_outbuf_cb(struct evbuffer *buf,
 struct bufferevent_filtered {
 	struct bufferevent_private bev;
 
-        /** The bufferevent that we read/write filterd data from/to. */
+        /** The bufferevent that we read/write filtered data from/to. */
 	struct bufferevent *underlying;
         /** A callback on our outbuf to notice when somebody adds data */
 	struct evbuffer_cb_entry *outbuf_cb;

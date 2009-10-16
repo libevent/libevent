@@ -763,7 +763,7 @@ unlock:
 }
 
 /*
- * Wait continously for events.  We exit only if no events are left.
+ * Wait continuously for events.  We exit only if no events are left.
  */
 
 int
@@ -1259,7 +1259,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 	}
 
 	/*
-	 * we should change the timout state only if the previous event
+	 * we should change the timeout state only if the previous event
 	 * addition succeeded.
 	 */
 	if (res != -1 && tv != NULL) {
@@ -1274,7 +1274,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 
 		/*
 		 * we already reserved memory above for the case where we
-		 * are not replacing an exisiting timeout.
+		 * are not replacing an existing timeout.
 		 */
 		if (ev->ev_flags & EVLIST_TIMEOUT) {
 			if (min_heap_elt_is_top(ev))
@@ -1563,7 +1563,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 
 	/*
 	 * We can modify the key element of the node without destroying
-	 * the key, beause we apply it to all in the right order.
+	 * the key, because we apply it to all in the right order.
 	 */
 	pev = base->timeheap.p;
 	size = base->timeheap.n;

@@ -259,7 +259,7 @@ int _evbuffer_expand_fast(struct evbuffer *, size_t);
 /** Helper: prepares for a readv/WSARecv call by expanding the buffer to
  * hold enough memory to read 'howmuch' bytes in possibly noncontiguous memory.
  * Sets up the one or two iovecs in 'vecs' to point to the free memory and its
- * extent, and *chainp to poitn to the first chain that we'll try to read into.
+ * extent, and *chainp to point to the first chain that we'll try to read into.
  * Returns the number of vecs used.
  */
 int _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,

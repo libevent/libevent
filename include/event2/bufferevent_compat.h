@@ -37,7 +37,7 @@
   This function is deprecated.  Use bufferevent_socket_new and
   bufferevent_set_callbacks instead.
 
-  libevent provides an abstraction on top of the regular event callbacks.
+  Libevent provides an abstraction on top of the regular event callbacks.
   This abstraction is called a buffered event.  A buffered event provides
   input and output buffers that get filled and drained automatically.  The
   user of a buffered event no longer deals directly with the I/O, but

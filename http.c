@@ -727,7 +727,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
  *     more data is expected
  *   return DATA_CORRUPTED:
  *     data is corrupted
- *   return REQUEST_CANCLED:
+ *   return REQUEST_CANCELED:
  *     request was canceled by the user calling evhttp_cancel_request
  */
 
@@ -1402,7 +1402,7 @@ evhttp_add_header(struct evkeyvalq *headers,
 	}
 	
 	if (!evhttp_header_is_valid_value(value)) {
-		event_debug(("%s: dropping illegal header vakye\n", __func__));
+		event_debug(("%s: dropping illegal header value\n", __func__));
 		return (-1);
 	}
 
@@ -1683,7 +1683,7 @@ evhttp_read_header(struct evhttp_connection *evcon,
 
 /*
  * Creates a TCP connection to the specified port and executes a callback
- * when finished.  Failure or sucess is indicate by the passed connection
+ * when finished.  Failure or success is indicate by the passed connection
  * object.
  *
  * Although this interface accepts a hostname, it is intended to take

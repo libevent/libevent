@@ -453,7 +453,7 @@ be_socket_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 	BEV_UNLOCK(bufev);
 }
 
-/* XXXX Should non-socket buffferevents support this? */
+/* XXXX Should non-socket bufferevents support this? */
 int
 bufferevent_priority_set(struct bufferevent *bufev, int priority)
 {
@@ -474,7 +474,7 @@ done:
 	return r;
 }
 
-/* XXXX Should non-socket buffferevents support this? */
+/* XXXX Should non-socket bufferevents support this? */
 int
 bufferevent_base_set(struct event_base *base, struct bufferevent *bufev)
 {
