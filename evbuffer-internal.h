@@ -79,6 +79,8 @@ struct evbuffer {
 	 * pointer to the next-to-last chain if the read turns out to be
 	 * incomplete.
 	 */
+	/* FIXME: This should probably be called last_with_space and
+	 * repurposed accordingly. */
 	struct evbuffer_chain *previous_to_last;
 
 	/** Total amount of bytes stored in all chains.*/
