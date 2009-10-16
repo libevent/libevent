@@ -257,7 +257,7 @@ evmap_io_init(struct evmap_io *entry)
 /* return -1 on error, 0 on success if nothing changed in the event backend,
  * and 1 on success if something did. */
 int
-evmap_io_add(struct event_base *base, int fd, struct event *ev)
+evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 {
 	const struct eventop *evsel = base->evsel;
 	struct event_io_map *io = &base->io;
@@ -319,7 +319,7 @@ evmap_io_add(struct event_base *base, int fd, struct event *ev)
 /* return -1 on error, 0 on success if nothing changed in the event backend,
  * and 1 on success if something did. */
 int
-evmap_io_del(struct event_base *base, int fd, struct event *ev)
+evmap_io_del(struct event_base *base, evutil_socket_t fd, struct event *ev)
 {
 	const struct eventop *evsel = base->evsel;
 	struct event_io_map *io = &base->io;
@@ -375,7 +375,7 @@ evmap_io_del(struct event_base *base, int fd, struct event *ev)
 }
 
 void
-evmap_io_active(struct event_base *base, int fd, short events)
+evmap_io_active(struct event_base *base, evutil_socket_t fd, short events)
 {
 	struct event_io_map *io = &base->io;
 	struct evmap_io *ctx;
