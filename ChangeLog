@@ -27,6 +27,7 @@ Changes in 2.0.3-alpha:
  o When adding or deleting an event from a non-main thread, only wake up the main thread when its behavior actually needs to change.
  o Fix some bugs when using the old evdns interfaces to initialize the evdns module.
  o Detect errors during bufferevent_connect().  Patch from Christopher Davis.
+ o Fix compilation for listener.h for C++ - missing extern "C".  Patch from Ferenc Szalai.
 
 
 Changes in 2.0.2-alpha:

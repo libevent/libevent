@@ -27,6 +27,10 @@
 #ifndef _EVENT2_LISTENER_H_
 #define _EVENT2_LISTENER_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <event2/event.h>
 
 struct sockaddr;
@@ -107,5 +111,9 @@ struct event_base *evconnlistener_get_base(struct evconnlistener *lev);
 
 /** Return the socket that an evconnlistner is listening on. */
 evutil_socket_t evconnlistener_get_fd(struct evconnlistener *lev);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
