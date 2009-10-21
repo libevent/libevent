@@ -44,6 +44,8 @@
 #include "event2/event.h"
 #include "event-internal.h"
 #include "evmap-internal.h"
+#include "event2/thread.h"
+#include "evthread-internal.h"
 
 #define XFREE(ptr) do { if (ptr) mm_free(ptr); } while(0)
 
@@ -282,14 +284,15 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	int fd_count;
 	SOCKET s;
 
-	if (op->resize_out_sets) {
-		if (!(op->readset_out = mm_realloc(op->readset_out, size)))
+	if (win32op->resize_out_sets) {
+		size_t size = win32op->fd_setsz;
+		if (!(win32op->readset_out = mm_realloc(win32op->readset_out, size)))
 			return (-1);
-		if (!(op->exset_out = mm_realloc(op->exset_out, size)))
+		if (!(win32op->exset_out = mm_realloc(win32op->exset_out, size)))
 			return (-1);
-		if (!(op->writeset_out = mm_realloc(op->writeset_out, size)))
+		if (!(win32op->writeset_out = mm_realloc(win32op->writeset_out, size)))
 			return (-1);
-		op->resize_out_sets = 0;
+		win32op->resize_out_sets = 0;
 	}
 
 	fd_set_copy(win32op->readset_out, win32op->readset_in);
