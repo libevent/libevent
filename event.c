@@ -230,7 +230,7 @@ event_is_method_disabled(const char *name)
 	return (getenv(environment) != NULL);
 }
 
-enum event_method_feature
+int
 event_base_get_features(struct event_base *base)
 {
 	return base->evsel->features;
@@ -533,8 +533,7 @@ event_config_free(struct event_config *cfg)
 
 
 int
-event_config_set_flag(struct event_config *cfg,
-    enum event_base_config_flag flag)
+event_config_set_flag(struct event_config *cfg, int flag)
 {
 	if (!cfg)
 		return -1;
@@ -561,7 +560,7 @@ event_config_avoid_method(struct event_config *cfg, const char *method)
 
 int
 event_config_require_features(struct event_config *cfg,
-                              enum event_method_feature features)
+                              int features)
 {
 	if (!cfg)
 		return (-1);

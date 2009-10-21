@@ -1047,11 +1047,11 @@ bufferevent_openssl_new_impl(struct event_base *base,
     evutil_socket_t fd,
     SSL *ssl,
     enum bufferevent_ssl_state state,
-    enum bufferevent_options options)
+    int options)
 {
 	struct bufferevent_openssl *bev_ssl = NULL;
 	struct bufferevent_private *bev_p = NULL;
-	enum bufferevent_options tmp_options = options & ~BEV_OPT_THREADSAFE;
+	int tmp_options = options & ~BEV_OPT_THREADSAFE;
 
 	if (underlying != NULL && fd >= 0)
 		return NULL; /* Only one can be set. */
@@ -1123,7 +1123,7 @@ bufferevent_openssl_filter_new(struct event_base *base,
     struct bufferevent *underlying,
     SSL *ssl,
     enum bufferevent_ssl_state state,
-    enum bufferevent_options options)
+    int options)
 {
 	int close_flag = options & BEV_OPT_CLOSE_ON_FREE;
 	BIO *bio;
@@ -1143,7 +1143,7 @@ bufferevent_openssl_socket_new(struct event_base *base,
     evutil_socket_t fd,
     SSL *ssl,
     enum bufferevent_ssl_state state,
-    enum bufferevent_options options)
+    int options)
 {
 	/* Does the SSL already have an fd? */
 	BIO *bio = SSL_get_wbio(ssl);

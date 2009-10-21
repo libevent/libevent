@@ -261,7 +261,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 
 struct bufferevent *
 bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
-    enum bufferevent_options options)
+    int options)
 {
 	struct bufferevent_private *bufev_p;
 	struct bufferevent *bufev;

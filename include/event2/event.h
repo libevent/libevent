@@ -171,7 +171,7 @@ enum event_base_config_flag {
 /**
  Return a bitmask of the features implemented by an event base.
  */
-enum event_method_feature event_base_get_features(struct event_base *base);
+int event_base_get_features(struct event_base *base);
 
 /**
    Enters a required event method feature that the application demands.
@@ -194,13 +194,11 @@ enum event_method_feature event_base_get_features(struct event_base *base);
           Replaces values from previous calls to this function.
    @return 0 on success, -1 on failure.
 */
-int event_config_require_features(struct event_config *cfg,
-                                  enum event_method_feature feature);
+int event_config_require_features(struct event_config *cfg, int feature);
 
 /** Sets a flag to configure what parts of the eventual event_base will
  * be initialized, and how they'll work. */
-int event_config_set_flag(struct event_config *cfg,
-    enum event_base_config_flag flag);
+int event_config_set_flag(struct event_config *cfg, int flag);
 
 /**
   Initialize the event API.

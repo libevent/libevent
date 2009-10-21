@@ -141,7 +141,7 @@ enum bufferevent_options {
           error occurred
   @see bufferevent_free()
   */
-struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socket_t fd, enum bufferevent_options options);
+struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socket_t fd, int options);
 
 /**
    Launch a connect() attempt with a socket.  When the connect succeeds,
@@ -451,7 +451,7 @@ struct bufferevent *
 bufferevent_filter_new(struct bufferevent *underlying,
 		       bufferevent_filter_cb input_filter,
 		       bufferevent_filter_cb output_filter,
-		       enum bufferevent_options options,
+		       int options,
 		       void (*free_context)(void *),
 		       void *ctx);
 
@@ -466,7 +466,7 @@ bufferevent_filter_new(struct bufferevent *underlying,
    @return 0 on success, -1 on failure.
  */
 int
-bufferevent_pair_new(struct event_base *base, enum bufferevent_options options,
+bufferevent_pair_new(struct event_base *base, int options,
     struct bufferevent *pair[2]);
 
 #ifdef __cplusplus

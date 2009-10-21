@@ -165,12 +165,12 @@ struct bufferevent *
 bufferevent_filter_new(struct bufferevent *underlying,
 		       bufferevent_filter_cb input_filter,
 		       bufferevent_filter_cb output_filter,
-		       enum bufferevent_options options,
+		       int options,
 		       void (*free_context)(void *),
 		       void *ctx)
 {
 	struct bufferevent_filtered *bufev_f;
-	enum bufferevent_options tmp_options = options & ~BEV_OPT_THREADSAFE;
+	int tmp_options = options & ~BEV_OPT_THREADSAFE;
 
 	if (!input_filter)
 		input_filter = be_null_filter;

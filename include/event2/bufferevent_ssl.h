@@ -53,14 +53,14 @@ bufferevent_openssl_filter_new(struct event_base *base,
     struct bufferevent *underlying,
     struct ssl_st *ssl,
     enum bufferevent_ssl_state state,
-    enum bufferevent_options options);
+    int options);
 
 struct bufferevent *
 bufferevent_openssl_socket_new(struct event_base *base,
     evutil_socket_t fd,
     struct ssl_st *ssl,
     enum bufferevent_ssl_state state,
-    enum bufferevent_options options);
+    int options);
 
 struct ssl_st *
 bufferevent_openssl_get_ssl(struct bufferevent *bufev);

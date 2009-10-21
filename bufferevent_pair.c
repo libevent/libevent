@@ -92,7 +92,7 @@ static void be_pair_outbuf_cb(struct evbuffer *,
 
 static struct bufferevent_pair *
 bufferevent_pair_elt_new(struct event_base *base,
-    enum bufferevent_options options)
+    int options)
 {
 	struct bufferevent_pair *bufev;
 	if (! (bufev = mm_calloc(1, sizeof(struct bufferevent_pair))))
@@ -113,11 +113,11 @@ bufferevent_pair_elt_new(struct event_base *base,
 }
 
 int
-bufferevent_pair_new(struct event_base *base, enum bufferevent_options options,
+bufferevent_pair_new(struct event_base *base, int options,
     struct bufferevent *pair[2])
 {
         struct bufferevent_pair *bufev1 = NULL, *bufev2 = NULL;
-	enum bufferevent_options tmp_options;
+	int tmp_options;
 
 	options |= BEV_OPT_DEFER_CALLBACKS;
 	tmp_options = options & ~BEV_OPT_THREADSAFE;
