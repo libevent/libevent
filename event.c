@@ -1584,7 +1584,6 @@ timeout_process(struct event_base *base)
 	struct event *ev;
 
 	if (min_heap_empty(&base->timeheap)) {
-		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 		return;
 	}
 
