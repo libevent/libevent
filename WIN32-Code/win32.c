@@ -296,7 +296,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	}
 
 	fd_set_copy(win32op->readset_out, win32op->readset_in);
-	fd_set_copy(win32op->exset_out, win32op->readset_in);
+	fd_set_copy(win32op->exset_out, win32op->writeset_in);
 	fd_set_copy(win32op->writeset_out, win32op->writeset_in);
 
 	fd_count =
@@ -343,7 +343,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 			if (++i >= win32op->exset_out->fd_count)
 				i = 0;
 			s = win32op->exset_out->fd_array[i];
-			evmap_io_active(base, s, EV_READ);
+			evmap_io_active(base, s, EV_WRITE);
 		}
 	}
 	if (win32op->writeset_out->fd_count) {
