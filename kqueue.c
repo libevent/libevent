@@ -61,6 +61,8 @@
 #include "event-internal.h"
 #include "log-internal.h"
 #include "evmap-internal.h"
+#include "event2/thread.h"
+#include "evthread-internal.h"
 
 #define NEVENT		64
 
@@ -139,7 +141,7 @@ kq_init(struct event_base *base)
 		return (NULL);
 	}
 	kqueueop->pend_changes = mm_malloc(NEVENT * sizeof(struct kevent));
-	if (kqueueop->pendchanges == NULL) {
+	if (kqueueop->pend_changes == NULL) {
 		mm_free (kqueueop->changes);
 		mm_free (kqueueop);
 		return (NULL);
@@ -243,17 +245,17 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 	 * we're looking at in pend_changes, and let other threads mess with
 	 * changes. */
 	SWAP(struct kevent *, kqop->changes, kqop->pend_changes);
-	SWAP(int, kqop->nchanges, kqop->npend_changes);
+	SWAP(int, kqop->nchanges, kqop->n_pend_changes);
 	SWAP(int, kqop->changes_size, kqop->pend_changes_size);
 
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
-	res = kevent(kqop->kq, kqop->pend_changes, kqop->npend_changes,
+	res = kevent(kqop->kq, kqop->pend_changes, kqop->n_pend_changes,
 	    events, kqop->events_size, ts_p);
 
 	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
-	kqop->npend_changes = 0;
+	kqop->n_pend_changes = 0;
 	if (res == -1) {
 		if (errno != EINTR) {
                         event_warn("kevent");
@@ -307,7 +309,7 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 		}
 	}
 
-	if (res == kqop->nevents) {
+	if (res == kqop->events_size) {
 		struct kevent *newresult;
 		int size = kqop->events_size;
 		/* We used all the events space that we have. Maybe we should
