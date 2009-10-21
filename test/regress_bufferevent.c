@@ -518,6 +518,16 @@ want_fail_eventcb(struct bufferevent *bev, short what, void *ctx)
 }
 
 static void
+close_socket_cb(evutil_socket_t fd, short what, void *arg)
+{
+	evutil_socket_t *fdp = arg;
+	if (*fdp >= 0) {
+		EVUTIL_CLOSESOCKET(*fdp);
+		*fdp = -1;
+	}
+}
+
+static void
 test_bufferevent_connect_fail(void *arg)
 {
 	struct basic_test_data *data = arg;
@@ -526,6 +536,8 @@ test_bufferevent_connect_fail(void *arg)
 	struct sockaddr *sa = (struct sockaddr*)&localhost;
 	evutil_socket_t fake_listener = -1;
 	ev_socklen_t slen = sizeof(localhost);
+	struct event close_listener_event;
+	struct timeval one_second = { 1, 0 };
 
 	test_ok = 0;
 
@@ -535,7 +547,7 @@ test_bufferevent_connect_fail(void *arg)
 	localhost.sin_family = AF_INET;
 
 	/* bind, but don't listen or accept. should trigger
-	   "Connection refused" reliably */
+	   "Connection refused" reliably on most platforms. */
 	fake_listener = socket(localhost.sin_family, SOCK_STREAM, 0);
 	tt_assert(fake_listener >= 0);
 	tt_assert(bind(fake_listener, sa, slen) == 0);
@@ -546,6 +558,12 @@ test_bufferevent_connect_fail(void *arg)
 	bufferevent_setcb(bev, NULL, NULL, want_fail_eventcb, data->base);
 
 	tt_want(!bufferevent_socket_connect(bev, sa, slen));
+
+	/* Close the listener socket after a second. This should trigger
+	   "connection refused" on some other platforms, including OSX. */
+	evtimer_assign(&close_listener_event, data->base, close_socket_cb,
+	    &fake_listener);
+	event_add(&close_listener_event, &one_second);
 
 	event_base_dispatch(data->base);
 
