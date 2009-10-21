@@ -498,6 +498,67 @@ end:
 		bufferevent_free(bev2);
 }
 
+static void
+want_fail_eventcb(struct bufferevent *bev, short what, void *ctx)
+{
+	struct event_base *base = ctx;
+	const char *err;
+	evutil_socket_t s;
+
+	if (what & BEV_EVENT_ERROR) {
+		s = bufferevent_getfd(bev);
+		err = evutil_socket_error_to_string(evutil_socket_geterror(s));
+		TT_BLATHER(("connection failure %s", err));
+		test_ok = 1;
+	} else {
+		TT_FAIL(("didn't fail? what %hd", what));
+	}
+
+	event_base_loopexit(base, NULL);
+}
+
+static void
+test_bufferevent_connect_fail(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev=NULL;
+	struct sockaddr_in localhost;
+	struct sockaddr *sa = (struct sockaddr*)&localhost;
+	evutil_socket_t fake_listener = -1;
+	ev_socklen_t slen = sizeof(localhost);
+
+	test_ok = 0;
+
+	memset(&localhost, 0, sizeof(localhost));
+	localhost.sin_port = 0;
+	localhost.sin_addr.s_addr = htonl(0x7f000001L);
+	localhost.sin_family = AF_INET;
+
+	/* bind, but don't listen or accept. should trigger
+	   "Connection refused" reliably */
+	fake_listener = socket(localhost.sin_family, SOCK_STREAM, 0);
+	tt_assert(fake_listener >= 0);
+	tt_assert(bind(fake_listener, sa, slen) == 0);
+	tt_assert(getsockname(fake_listener, sa, &slen) == 0);
+	bev = bufferevent_socket_new(data->base, -1,
+		BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+	tt_assert(bev);
+	bufferevent_setcb(bev, NULL, NULL, want_fail_eventcb, data->base);
+
+	tt_want(!bufferevent_socket_connect(bev, sa, slen));
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(test_ok, ==, 1);
+
+end:
+	if (fake_listener >= 0)
+		EVUTIL_CLOSESOCKET(fake_listener);
+
+	if (bev)
+		bufferevent_free(bev);
+}
+
 struct testcase_t bufferevent_testcases[] = {
 
         LEGACY(bufferevent, TT_ISOLATED),
@@ -515,6 +576,8 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_connect_lock_defer", test_bufferevent_connect,
 	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup,
 	  (void*)"defer lock" },
+	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 #ifdef _EVENT_HAVE_LIBZ
         LEGACY(bufferevent_zlib, TT_ISOLATED),
 #else
