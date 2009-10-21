@@ -145,7 +145,7 @@ int evhttp_connection_connect(struct evhttp_connection *);
 void evhttp_connection_fail(struct evhttp_connection *,
     enum evhttp_connection_error error);
 
-void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, socklen_t);
+void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, ev_socklen_t);
 
 enum message_read_status;
 
