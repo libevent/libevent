@@ -140,6 +140,8 @@ devpoll_init(struct event_base *base)
 	devpollop->dpfd = dpfd;
 
 	/* Initialize fields */
+	/* FIXME: allocating 'nfiles' worth of space here can be
+	 * expensive and unnecessary.  See how epoll.c does it instead. */
 	devpollop->events = mm_calloc(nfiles, sizeof(struct pollfd));
 	if (devpollop->events == NULL) {
 		mm_free(devpollop);
@@ -179,7 +181,11 @@ devpoll_dispatch(struct event_base *base, struct timeval *tv)
 	dvp.dp_nfds = devpollop->nevents;
 	dvp.dp_timeout = timeout;
 
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
 	res = ioctl(devpollop->dpfd, DP_POLL, &dvp);
+
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	if (res == -1) {
 		if (errno != EINTR) {

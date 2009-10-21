@@ -303,8 +303,14 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 		}
 	}
 
-	if ((res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN,
-		    (unsigned int *) &nevents, ts_p)) == -1) {
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
+	res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN,
+	    (unsigned int *) &nevents, ts_p);
+
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
+	if (res == -1) {
 		if (errno == EINTR || errno == EAGAIN) {
 			evsig_process(base);
 			return (0);

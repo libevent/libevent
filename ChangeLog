@@ -28,6 +28,8 @@ Changes in 2.0.3-alpha:
  o Fix some bugs when using the old evdns interfaces to initialize the evdns module.
  o Detect errors during bufferevent_connect().  Patch from Christopher Davis.
  o Fix compilation for listener.h for C++ - missing extern "C".  Patch from Ferenc Szalai.
+ o Make the event_base_loop() family of functions respect thread-safety better.  This should clear up a few hard-to-debug race conditions.
+ o Fix a bug when using a specialized memory allocator on win32.
 
 
 Changes in 2.0.2-alpha:

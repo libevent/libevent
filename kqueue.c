@@ -67,8 +67,13 @@
 struct kqop {
 	struct kevent *changes;
 	int nchanges;
+	int changes_size;
+	struct kevent *pend_changes;
+	int n_pend_changes;
+	int pend_changes_size;
+
 	struct kevent *events;
-	int nevents;
+	int events_size;
 	int kq;
 	pid_t pid;
 };
@@ -133,13 +138,21 @@ kq_init(struct event_base *base)
 		mm_free (kqueueop);
 		return (NULL);
 	}
-	kqueueop->events = mm_malloc(NEVENT * sizeof(struct kevent));
-	if (kqueueop->events == NULL) {
+	kqueueop->pend_changes = mm_malloc(NEVENT * sizeof(struct kevent));
+	if (kqueueop->pendchanges == NULL) {
 		mm_free (kqueueop->changes);
 		mm_free (kqueueop);
 		return (NULL);
 	}
-	kqueueop->nevents = NEVENT;
+	kqueueop->events = mm_malloc(NEVENT * sizeof(struct kevent));
+	if (kqueueop->events == NULL) {
+		mm_free (kqueueop->changes);
+		mm_free (kqueueop->pend_changes);
+		mm_free (kqueueop);
+		return (NULL);
+	}
+	kqueueop->events_size = kqueueop->changes_size =
+	    kqueueop->pend_changes_size = NEVENT;
 
 	/* Check for Mac OS X kqueue bug. */
 	kqueueop->changes[0].ident = -1;
@@ -171,36 +184,21 @@ kq_init(struct event_base *base)
 static int
 kq_insert(struct kqop *kqop, struct kevent *kev)
 {
-	int nevents = kqop->nevents;
+	int size = kqop->changes_size;
 
-	if (kqop->nchanges == nevents) {
+	if (kqop->nchanges == size) {
 		struct kevent *newchange;
-		struct kevent *newresult;
 
-		nevents *= 2;
+		size *= 2;
 
 		newchange = mm_realloc(kqop->changes,
-				    nevents * sizeof(struct kevent));
+				    size * sizeof(struct kevent));
 		if (newchange == NULL) {
 			event_warn("%s: malloc", __func__);
 			return (-1);
 		}
 		kqop->changes = newchange;
-
-		newresult = mm_realloc(kqop->events,
-				    nevents * sizeof(struct kevent));
-
-		/*
-		 * If we fail, we don't have to worry about freeing,
-		 * the next realloc will pick it up.
-		 */
-		if (newresult == NULL) {
-			event_warn("%s: malloc", __func__);
-			return (-1);
-		}
-		kqop->events = newresult;
-
-		kqop->nevents = nevents;
+		kqop->changes_size = size;
 	}
 
 	memcpy(&kqop->changes[kqop->nchanges++], kev, sizeof(struct kevent));
@@ -219,11 +217,17 @@ kq_sighandler(int sig)
 	/* Do nothing here */
 }
 
+#define SWAP(tp,a,b)				\
+	do {					\
+		tp tmp_swap_var = (a);		\
+		a = b;				\
+		b = tmp_swap_var;		\
+	} while (0);
+
 static int
 kq_dispatch(struct event_base *base, struct timeval *tv)
 {
 	struct kqop *kqop = base->evbase;
-	struct kevent *changes = kqop->changes;
 	struct kevent *events = kqop->events;
 	struct timespec ts, *ts_p = NULL;
 	int i, res;
@@ -233,9 +237,23 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 		ts_p = &ts;
 	}
 
-	res = kevent(kqop->kq, changes, kqop->nchanges,
-	    events, kqop->nevents, ts_p);
-	kqop->nchanges = 0;
+	/* We can't hold the lock while we're calling kqueue, so another
+	 * thread might potentially mess with changes before the kernel has a
+	 * chance to read it.  Therefore, we need to keep the change list
+	 * we're looking at in pend_changes, and let other threads mess with
+	 * changes. */
+	SWAP(struct kevent *, kqop->changes, kqop->pend_changes);
+	SWAP(int, kqop->nchanges, kqop->npend_changes);
+	SWAP(int, kqop->changes_size, kqop->pend_changes_size);
+
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
+	res = kevent(kqop->kq, kqop->pend_changes, kqop->npend_changes,
+	    events, kqop->events_size, ts_p);
+
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
+	kqop->npend_changes = 0;
 	if (res == -1) {
 		if (errno != EINTR) {
                         event_warn("kevent");
@@ -286,6 +304,20 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 			evmap_signal_active(base, events[i].ident, 1);
 		} else {
 			evmap_io_active(base, events[i].ident, which | EV_ET);
+		}
+	}
+
+	if (res == kqop->nevents) {
+		struct kevent *newresult;
+		int size = kqop->events_size;
+		/* We used all the events space that we have. Maybe we should
+		   make it bigger. */
+		size *= 2;
+		newresult = mm_realloc(kqop->events,
+		    size * sizeof(struct kevent));
+		if (newresult) {
+			kqop->events = newresult;
+			kqop->events_size = size;
 		}
 	}
 

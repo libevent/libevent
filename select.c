@@ -50,6 +50,8 @@
 
 #include "event-internal.h"
 #include "evsignal-internal.h"
+#include "event2/thread.h"
+#include "evthread-internal.h"
 #include "log-internal.h"
 #include "evmap-internal.h"
 
@@ -67,6 +69,7 @@ typedef unsigned long fd_mask;
 struct selectop {
 	int event_fds;		/* Highest fd in fd set */
 	int event_fdsz;
+	int resize_out_sets;
 	fd_set *event_readset_in;
 	fd_set *event_writeset_in;
 	fd_set *event_readset_out;
@@ -121,18 +124,37 @@ check_selectop(struct selectop *sop)
 static int
 select_dispatch(struct event_base *base, struct timeval *tv)
 {
-	int res, i, j;
+	int res=0, i, j, nfds;
 	struct selectop *sop = base->evbase;
 
 	check_selectop(sop);
+	if (sop->resize_out_sets) {
+		fd_set *readset_out=NULL, *writeset_out=NULL;
+		size_t sz = sop->event_fdsz;
+		if (!(readset_out = mm_realloc(sop->event_readset_out, sz)))
+			return (-1);
+		if (!(writeset_out = mm_realloc(sop->event_writeset_out, sz))) {
+			mm_free(readset_out);
+			return (-1);
+		}
+		sop->event_readset_out = readset_out;
+		sop->event_writeset_out = writeset_out;
+		sop->resize_out_sets = 0;
+	}
 
 	memcpy(sop->event_readset_out, sop->event_readset_in,
 	       sop->event_fdsz);
 	memcpy(sop->event_writeset_out, sop->event_writeset_in,
 	       sop->event_fdsz);
 
-	res = select(sop->event_fds + 1, sop->event_readset_out,
+	nfds = sop->event_fds+1;
+
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
+	res = select(nfds, sop->event_readset_out,
 	    sop->event_writeset_out, NULL, tv);
+
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	check_selectop(sop);
 
@@ -151,9 +173,9 @@ select_dispatch(struct event_base *base, struct timeval *tv)
 	event_debug(("%s: select reports %d", __func__, res));
 
 	check_selectop(sop);
-	i = random() % (sop->event_fds+1);
-	for (j = 0; j <= sop->event_fds; ++j) {
-		if (++i >= sop->event_fds+1)
+	i = random() % (nfds+1);
+	for (j = 0; j <= nfds; ++j) {
+		if (++i >= nfds+1)
 			i = 0;
 		res = 0;
 		if (FD_ISSET(i, sop->event_readset_out))

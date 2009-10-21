@@ -50,6 +50,8 @@
 #include "evsignal-internal.h"
 #include "log-internal.h"
 #include "evmap-internal.h"
+#include "event2/thread.h"
+#include "evthread-internal.h"
 
 struct pollidx {
 	int idxplus1;
@@ -57,8 +59,11 @@ struct pollidx {
 
 struct pollop {
 	int event_count;		/* Highest number alloc */
-	int nfds;                       /* Size of event_* */
+	int nfds;                       /* Highest number used */
+	int realloc_copy;               /* True iff we must realloc
+					 * event_set_copy */
 	struct pollfd *event_set;
+	struct pollfd *event_set_copy;
 };
 
 static void *poll_init	(struct event_base *);
@@ -119,14 +124,43 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 {
 	int res, i, j, msec = -1, nfds;
 	struct pollop *pop = base->evbase;
+	struct pollfd *event_set;
 
 	poll_check_ok(pop);
+
+	nfds = pop->nfds;
+
+	if (base->th_base_lock) {
+		/* If we're using this backend in a multithreaded setting,
+		 * then we need to work on a copy of event_set, so that we can
+		 * let other threads modify the main event_set while we're
+		 * polling. If we're not multithreaded, then we'll skip the
+		 * copy step here to save memory and time. */
+		if (pop->realloc_copy) {
+			struct pollfd *tmp = mm_realloc(pop->event_set_copy,
+			    pop->event_count * sizeof(struct pollfd));
+			if (tmp == NULL) {
+				event_warn("realloc");
+				return -1;
+			}
+			pop->event_set_copy = tmp;
+			pop->realloc_copy = 0;
+		}
+		memcpy(pop->event_set_copy, pop->event_set,
+		    sizeof(struct pollfd)*nfds);
+		event_set = pop->event_set_copy;
+	} else {
+		event_set = pop->event_set;
+	}
 
 	if (tv != NULL)
 		msec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 
-	nfds = pop->nfds;
-	res = poll(pop->event_set, nfds, msec);
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
+	res = poll(event_set, nfds, msec);
+
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	if (res == -1) {
 		if (errno != EINTR) {
@@ -150,7 +184,7 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 		int what;
 		if (++i == nfds)
 			i = 0;
-		what = pop->event_set[i].revents;
+		what = event_set[i].revents;
 		if (!what)
 			continue;
 
@@ -166,7 +200,7 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 		if (res == 0)
 			continue;
 
-		evmap_io_active(base, pop->event_set[i].fd, res);
+		evmap_io_active(base, event_set[i].fd, res);
 	}
 
 	return (0);
@@ -204,6 +238,7 @@ poll_add(struct event_base *base, int fd, short old, short events, void *_idx)
 		pop->event_set = tmp_event_set;
 
 		pop->event_count = tmp_event_count;
+		pop->realloc_copy = 1;
 	}
 
 	i = idx->idxplus1 - 1;
@@ -289,6 +324,8 @@ poll_dealloc(struct event_base *base)
 	evsig_dealloc(base);
 	if (pop->event_set)
 		mm_free(pop->event_set);
+	if (pop->event_set_copy)
+		mm_free(pop->event_set_copy);
 
 	memset(pop, 0, sizeof(struct pollop));
 	mm_free(pop);

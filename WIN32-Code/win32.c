@@ -65,6 +65,7 @@ struct idx_info {
 
 struct win32op {
 	int fd_setsz;
+	int resize_out_sets;
 	struct win_fd_set *readset_in;
 	struct win_fd_set *writeset_in;
 	struct win_fd_set *readset_out;
@@ -103,16 +104,11 @@ realloc_fd_sets(struct win32op *op, size_t new_size)
 	assert(new_size >= 1);
 
 	size = FD_SET_ALLOC_SIZE(new_size);
-	if (!(op->readset_in = realloc(op->readset_in, size)))
+	if (!(op->readset_in = mm_realloc(op->readset_in, size)))
 		return (-1);
-	if (!(op->writeset_in = realloc(op->writeset_in, size)))
+	if (!(op->writeset_in = mm_realloc(op->writeset_in, size)))
 		return (-1);
-	if (!(op->readset_out = realloc(op->readset_out, size)))
-		return (-1);
-	if (!(op->exset_out = realloc(op->exset_out, size)))
-		return (-1);
-	if (!(op->writeset_out = realloc(op->writeset_out, size)))
-		return (-1);
+	op->resize_out_sets = 1;
 	op->fd_setsz = new_size;
 	return (0);
 }
@@ -286,6 +282,16 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	int fd_count;
 	SOCKET s;
 
+	if (op->resize_out_sets) {
+		if (!(op->readset_out = mm_realloc(op->readset_out, size)))
+			return (-1);
+		if (!(op->exset_out = mm_realloc(op->exset_out, size)))
+			return (-1);
+		if (!(op->writeset_out = mm_realloc(op->writeset_out, size)))
+			return (-1);
+		op->resize_out_sets = 0;
+	}
+
 	fd_set_copy(win32op->readset_out, win32op->readset_in);
 	fd_set_copy(win32op->exset_out, win32op->readset_in);
 	fd_set_copy(win32op->writeset_out, win32op->writeset_in);
@@ -301,10 +307,14 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 		return (0);
 	}
 
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
 	res = select(fd_count,
 		     (struct fd_set*)win32op->readset_out,
 		     (struct fd_set*)win32op->writeset_out,
 		     (struct fd_set*)win32op->exset_out, tv);
+
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	event_debug(("%s: select returned %d", __func__, res));
 

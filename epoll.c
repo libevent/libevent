@@ -51,6 +51,8 @@
 
 #include "event-internal.h"
 #include "evsignal-internal.h"
+#include "event2/thread.h"
+#include "evthread-internal.h"
 #include "log-internal.h"
 #include "evmap-internal.h"
 
@@ -148,7 +150,11 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 		timeout = MAX_EPOLL_TIMEOUT_MSEC;
 	}
 
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
+
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	if (res == -1) {
 		if (errno != EINTR) {

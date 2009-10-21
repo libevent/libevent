@@ -615,6 +615,7 @@ event_base_priority_init(struct event_base *base, int npriorities)
 static int
 event_haveevents(struct event_base *base)
 {
+	/* Caller must hold th_base_lock */
 	return (base->event_count > 0);
 }
 
@@ -737,17 +738,16 @@ event_process_deferred_callbacks(struct deferred_cb_queue *queue, int *breakptr)
 static void
 event_process_active(struct event_base *base)
 {
+	/* Caller must hold th_base_lock */
 	struct event_list *activeq = NULL;
 	int i, c;
-
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	for (i = 0; i < base->nactivequeues; ++i) {
 		if (TAILQ_FIRST(base->activequeues[i]) != NULL) {
 			activeq = base->activequeues[i];
 			c = event_process_active_single_queue(base, activeq);
 			if (c < 0)
-				goto unlock;
+				return;
 			else if (c > 0)
 				break; /* Processed a real event; do not
 					* consider lower-priority events */
@@ -757,9 +757,6 @@ event_process_active(struct event_base *base)
 	}
 
 	event_process_deferred_callbacks(&base->defer_queue,&base->event_break);
-
-unlock:
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
 /*
@@ -866,6 +863,10 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval *tv_p;
 	int res, done;
 
+	/* Grab the lock.  We will release it inside evsel.dispatch, and again
+	 * as we invoke user callbacks. */
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+
 	/* clear time cache */
 	base->tv_cache.tv_sec = 0;
 
@@ -932,6 +933,8 @@ event_base_loop(struct event_base *base, int flags)
 
 	/* clear time cache */
 	base->tv_cache.tv_sec = 0;
+
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	event_debug(("%s: asked to terminate loop.", __func__));
 	return (0);
@@ -1496,12 +1499,12 @@ event_deferred_cb_schedule(struct deferred_cb_queue *queue,
 static int
 timeout_next(struct event_base *base, struct timeval **tv_p)
 {
+	/* Caller must hold th_base_lock */
 	struct timeval now;
 	struct event *ev;
 	struct timeval *tv = *tv_p;
 	int res = 0;
 
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	ev = min_heap_top(&base->timeheap);
 
 	if (ev == NULL) {
@@ -1527,7 +1530,6 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 	event_debug(("timeout_next: in %d seconds", (int)tv->tv_sec));
 
 out:
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	return (res);
 }
 
@@ -1540,6 +1542,7 @@ out:
 static void
 timeout_correct(struct event_base *base, struct timeval *tv)
 {
+	/* Caller must hold th_base_lock. */
 	struct event **pev;
 	unsigned int size;
 	struct timeval off;
@@ -1549,11 +1552,9 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 
 	/* Check if time is running backwards */
 	gettime(base, tv);
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
 	if (evutil_timercmp(tv, &base->event_tv, >=)) {
 		base->event_tv = *tv;
-		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 		return;
 	}
 
@@ -1573,16 +1574,15 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	}
 	/* Now remember what the new time turned out to be. */
 	base->event_tv = *tv;
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
 static void
 timeout_process(struct event_base *base)
 {
+	/* Caller must hold lock. */
 	struct timeval now;
 	struct event *ev;
 
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	if (min_heap_empty(&base->timeheap)) {
 		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 		return;
@@ -1601,7 +1601,6 @@ timeout_process(struct event_base *base)
 			 ev->ev_callback));
 		event_active_internal(ev, EV_TIMEOUT, 1);
 	}
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 }
 
 static void
