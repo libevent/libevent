@@ -537,6 +537,7 @@ test_bufferevent_connect_fail(void *arg)
 	evutil_socket_t fake_listener = -1;
 	ev_socklen_t slen = sizeof(localhost);
 	struct event close_listener_event;
+	int close_listener_event_added = 0;
 	struct timeval one_second = { 1, 0 };
 
 	test_ok = 0;
@@ -564,6 +565,7 @@ test_bufferevent_connect_fail(void *arg)
 	evtimer_assign(&close_listener_event, data->base, close_socket_cb,
 	    &fake_listener);
 	event_add(&close_listener_event, &one_second);
+	close_listener_event_added = 1;
 
 	event_base_dispatch(data->base);
 
@@ -575,6 +577,9 @@ end:
 
 	if (bev)
 		bufferevent_free(bev);
+
+	if (close_listener_event_added)
+		event_del(&close_listener_event);
 }
 
 struct testcase_t bufferevent_testcases[] = {
