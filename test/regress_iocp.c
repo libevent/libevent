@@ -186,8 +186,7 @@ test_iocp_evbuffer(void *ptr)
 #endif
 
 	tt_int_op(evbuffer_get_length(rbuf),==,512);
-	
-	
+
 	/* FIXME Actually test some stuff here. */
 
 	tt_want(!event_iocp_shutdown(port, 2000));
@@ -216,14 +215,9 @@ test_iocp_bufferevent_async(void *ptr)
 	evthread_use_windows_threads();
 #endif
 
-	port = event_iocp_port_launch();
+	event_base_start_iocp(data->base);
+	port = event_base_get_iocp(data->base);
 	tt_assert(port);
-
-
-#ifdef WIN32
-	/* FIXME set this indirectly once there is an interface to do that. */
-	data->base->iocp = port;
-#endif
 
 	bea1 = bufferevent_async_new(data->base, data->pair[0],
 	    BEV_OPT_DEFER_CALLBACKS);

@@ -245,14 +245,9 @@ be_async_flush(struct bufferevent *bev, short what,
 	return 0;
 }
 
-/*FIXME export this */
 struct bufferevent *
 bufferevent_async_new(struct event_base *base,
-    evutil_socket_t fd, enum bufferevent_options options);
-
-struct bufferevent *
-bufferevent_async_new(struct event_base *base,
-    evutil_socket_t fd, enum bufferevent_options options)
+    evutil_socket_t fd, int options)
 {
 	struct bufferevent_async *bev_a;
 	struct bufferevent *bev;

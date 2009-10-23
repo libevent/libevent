@@ -66,6 +66,9 @@
 #include "mm-internal.h"
 #include "bufferevent-internal.h"
 #include "util-internal.h"
+#ifdef WIN32
+#include "iocp-internal.h"
+#endif
 
 /* prototypes */
 static int be_socket_enable(struct bufferevent *, short);
@@ -265,6 +268,11 @@ bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
 {
 	struct bufferevent_private *bufev_p;
 	struct bufferevent *bufev;
+
+#ifdef WIN32
+	if (base && base->iocp)
+		return bufferevent_async_new(base, fd, options);
+#endif
 
 	if ((bufev_p = mm_calloc(1, sizeof(struct bufferevent_private)))== NULL)
 		return NULL;

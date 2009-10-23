@@ -165,7 +165,9 @@ enum event_base_config_flag {
 	EVENT_BASE_FLAG_NOLOCK = 0x01,
 	/** Do not check the EVENT_NO* environment variables when picking
 	    an event_base. */
-	EVENT_BASE_FLAG_IGNORE_ENV = 0x02
+	EVENT_BASE_FLAG_IGNORE_ENV = 0x02,
+	/** Windows only: enable the IOCP dispatcher at startup */
+	EVENT_BASE_FLAG_STARTUP_IOCP = 0x04
 };
 
 /**

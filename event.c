@@ -71,6 +71,7 @@
 #include "event2/util.h"
 #include "log-internal.h"
 #include "evmap-internal.h"
+#include "iocp-internal.h"
 
 #ifdef _EVENT_HAVE_EVENT_PORTS
 extern const struct eventop evportops;
@@ -340,7 +341,29 @@ event_base_new_with_config(struct event_config *cfg)
 		}
 	}
 
+#ifdef WIN32
+	if ((cfg->flags & EVENT_BASE_FLAG_STARTUP_IOCP) != 0)
+		event_base_start_iocp(base);
+#endif
+
 	return (base);
+}
+
+int
+event_base_start_iocp(struct event_base *base)
+{
+#ifdef WIN32
+	if (base->iocp)
+		return 0;
+	base->iocp = event_iocp_port_launch();
+	if (!base->iocp) {
+		event_warnx("%s: Couldn't launch IOCP", __func__);
+		return -1;
+	}
+	return 0;
+#else
+	return -1;
+#endif
 }
 
 void

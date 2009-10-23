@@ -149,7 +149,16 @@ int event_iocp_activate_overlapped(struct event_iocp_port *port,
     uintptr_t key, ev_uint32_t n_bytes);
 
 struct event_base;
+/* FIXME document. */
 struct event_iocp_port *event_base_get_iocp(struct event_base *base);
+
+/* FIXME document. */
+int event_base_start_iocp(struct event_base *base);
+
+/* FIXME document. */
+struct bufferevent *bufferevent_async_new(struct event_base *base,
+    evutil_socket_t fd, int options);
+
 
 #ifdef __cplusplus
 }
