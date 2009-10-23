@@ -195,11 +195,6 @@ end:
 	evbuffer_free(wbuf);
 }
 
-/*FIXME get this from a header once it's in one. */
-struct bufferevent *
-bufferevent_async_new(struct event_base *base,
-    evutil_socket_t fd, enum bufferevent_options options);
-
 static void
 test_iocp_bufferevent_async(void *ptr)
 {

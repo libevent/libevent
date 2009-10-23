@@ -270,7 +270,7 @@ bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
 	struct bufferevent *bufev;
 
 #ifdef WIN32
-	if (base && base->iocp)
+	if (base && event_base_get_iocp(base))
 		return bufferevent_async_new(base, fd, options);
 #endif
 

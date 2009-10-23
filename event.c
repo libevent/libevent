@@ -342,7 +342,7 @@ event_base_new_with_config(struct event_config *cfg)
 	}
 
 #ifdef WIN32
-	if ((cfg->flags & EVENT_BASE_FLAG_STARTUP_IOCP) != 0)
+	if (cfg && (cfg->flags & EVENT_BASE_FLAG_STARTUP_IOCP))
 		event_base_start_iocp(base);
 #endif
 
