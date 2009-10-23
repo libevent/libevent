@@ -26,25 +26,56 @@ static int use_wrapper = 1;
 
 static SSL_CTX *ssl_ctx = NULL;
 
+#define MAX_OUTPUT (512*1024)
+
+static void drained_writecb(struct bufferevent *bev, void *ctx);
+static void eventcb(struct bufferevent *bev, short what, void *ctx);
+
 static void
 readcb(struct bufferevent *bev, void *ctx)
 {
 	struct bufferevent *partner = ctx;
 	struct evbuffer *src, *dst;
+	size_t len;
 	src = bufferevent_get_input(bev);
+	len = evbuffer_get_length(src);
 	if (!partner) {
-		evbuffer_drain(src, evbuffer_get_length(src));
+		evbuffer_drain(src, len);
 		return;
 	}
 	dst = bufferevent_get_output(partner);
-
 	evbuffer_add_buffer(dst, src);
+
+	if (evbuffer_get_length(dst) >= MAX_OUTPUT) {
+		/* We're giving the other side data faster than it can
+		 * pass it on.  Stop reading here until we have drained the
+		 * other side to MAX_OUTPUT/2 bytes. */
+		bufferevent_setcb(partner, readcb, drained_writecb,
+		    eventcb, bev);
+		bufferevent_setwatermark(partner, EV_WRITE, MAX_OUTPUT/2,
+		    MAX_OUTPUT);
+		bufferevent_disable(bev, EV_READ);
+	}
+}
+
+static void
+drained_writecb(struct bufferevent *bev, void *ctx)
+{
+	struct bufferevent *partner = ctx;
+
+	/* We were choking the other side until we drained our outbuf a bit.
+	 * Now it seems drained. */
+	bufferevent_setcb(bev, readcb, NULL, eventcb, partner);
+	bufferevent_setwatermark(bev, EV_WRITE, 0, 0);
+	if (partner)
+		bufferevent_enable(partner, EV_READ);
 }
 
 static void
 close_on_finished_writecb(struct bufferevent *bev, void *ctx)
 {
 	struct evbuffer *b = bufferevent_get_output(bev);
+
 	if (evbuffer_get_length(b) == 0) {
 		bufferevent_free(bev);
 	}
@@ -63,10 +94,20 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 			/* Flush all pending data */
 			readcb(bev, ctx);
 
-			/* Disconnect this one from the partner. */
-			bufferevent_setcb(partner,
-			    NULL, close_on_finished_writecb,
-			    eventcb, NULL);
+			if (evbuffer_get_length(
+				    bufferevent_get_output(partner))) {
+				/* We still have to flush data from the other
+				 * side, but when that's done, close the other
+				 * side. */
+				bufferevent_setcb(partner,
+				    NULL, close_on_finished_writecb,
+				    eventcb, NULL);
+				bufferevent_disable(partner, EV_READ);
+			} else {
+				/* We have nothing left to say to the other
+				 * side; close it. */
+				bufferevent_free(partner);
+			}
 		}
 		bufferevent_free(bev);
 	}
