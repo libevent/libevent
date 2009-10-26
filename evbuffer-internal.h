@@ -200,12 +200,12 @@ struct evbuffer_chain_reference {
 /** Assert that somebody (hopefully us) is holding the lock on an evbuffer */
 #define ASSERT_EVBUFFER_LOCKED(buffer)                  \
 	do {                                            \
-		assert((buffer)->lock_count > 0);       \
+		EVUTIL_ASSERT((buffer)->lock_count > 0);       \
 	} while (0)
 /** Assert that nobody is holding the lock on an evbuffer */
 #define ASSERT_EVBUFFER_UNLOCKED(buffer)                  \
 	do {                                            \
-		assert((buffer)->lock_count == 0);	\
+		EVUTIL_ASSERT((buffer)->lock_count == 0);	\
 	} while (0)
 #define _EVBUFFER_INCREMENT_LOCK_COUNT(buffer)                 \
 	do {                                                   \

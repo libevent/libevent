@@ -25,7 +25,6 @@
  */
 
 #include <sys/types.h>
-#include <assert.h>
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -60,7 +59,7 @@ upcast(struct bufferevent *bev)
 	if (bev->be_ops != &bufferevent_ops_pair)
 		return NULL;
 	bev_p = EVUTIL_UPCAST(bev, struct bufferevent_pair, bev.bev);
-	assert(bev_p->bev.bev.be_ops == &bufferevent_ops_pair);
+	EVUTIL_ASSERT(bev_p->bev.bev.be_ops == &bufferevent_ops_pair);
 	return bev_p;
 }
 

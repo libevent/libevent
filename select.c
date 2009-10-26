@@ -46,7 +46,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
 
 #include "event-internal.h"
 #include "evsignal-internal.h"
@@ -245,7 +244,7 @@ select_add(struct event_base *base, int fd, short old, short events, void *p)
 	struct selectop *sop = base->evbase;
 	(void) p;
 
-	assert((events & EV_SIGNAL) == 0);
+	EVUTIL_ASSERT((events & EV_SIGNAL) == 0);
 	check_selectop(sop);
 	/*
 	 * Keep track of the highest fd, so that we can calculate the size
@@ -290,7 +289,7 @@ select_del(struct event_base *base, int fd, short old, short events, void *p)
 	struct selectop *sop = base->evbase;
 	(void)p;
 
-	assert((events & EV_SIGNAL) == 0);
+	EVUTIL_ASSERT((events & EV_SIGNAL) == 0);
 	check_selectop(sop);
 
 	if (sop->event_fds < fd) {

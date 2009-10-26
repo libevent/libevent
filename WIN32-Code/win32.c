@@ -35,7 +35,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 
 #include "event2/util.h"
 #include "event-config.h"
@@ -101,9 +100,9 @@ realloc_fd_sets(struct win32op *op, size_t new_size)
 {
 	size_t size;
 
-	assert(new_size >= op->readset_in->fd_count &&
+	EVUTIL_ASSERT(new_size >= op->readset_in->fd_count &&
 	       new_size >= op->writeset_in->fd_count);
-	assert(new_size >= 1);
+	EVUTIL_ASSERT(new_size >= 1);
 
 	size = FD_SET_ALLOC_SIZE(new_size);
 	if (!(op->readset_in = mm_realloc(op->readset_in, size)))

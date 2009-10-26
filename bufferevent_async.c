@@ -36,7 +36,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #ifdef _EVENT_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -90,7 +89,7 @@ upcast(struct bufferevent *bev)
 	if (bev->be_ops != &bufferevent_ops_async)
 		return NULL;
 	bev_a = EVUTIL_UPCAST(bev, struct bufferevent_async, bev.bev);
-	assert(bev_a->bev.bev.be_ops == &bufferevent_ops_async);
+	EVUTIL_ASSERT(bev_a->bev.bev.be_ops == &bufferevent_ops_async);
 	return bev_a;
 }
 
@@ -107,7 +106,7 @@ bev_async_consider_writing(struct bufferevent_async *b)
 
 	/*  XXXX doesn't respect low-water mark very well. */
 	if (evbuffer_launch_write(b->bev.bev.output, -1)) {
-		assert(0);/* XXX act sensibly. */
+		EVUTIL_ASSERT(0);/* XXX act sensibly. */
 	} else {
 		b->write_in_progress = 1;
 	}
@@ -136,7 +135,7 @@ bev_async_consider_reading(struct bufferevent_async *b)
 	}
 
 	if (evbuffer_launch_read(b->bev.bev.input, at_most)) {
-		assert(0);
+		EVUTIL_ASSERT(0);
 	} else {
 		b->read_in_progress = 1;
 	}

@@ -62,7 +62,6 @@
 #include <winsock2.h>
 #endif
 
-#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -224,7 +223,7 @@ static char *
 strsep(char **s, const char *del)
 {
 	char *d, *tok;
-	assert(strlen(del) == 1);
+	EVUTIL_ASSERT(strlen(del) == 1);
 	if (!s || !*s)
 		return NULL;
 	tok = *s;
@@ -597,7 +596,7 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 	struct evhttp_request* req = TAILQ_FIRST(&evcon->requests);
 	void (*cb)(struct evhttp_request *, void *);
 	void *cb_arg;
-	assert(req != NULL);
+	EVUTIL_ASSERT(req != NULL);
 
 	bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
 
@@ -914,9 +913,9 @@ evhttp_write_connectioncb(struct evhttp_connection *evcon, void *arg)
 {
 	/* This is after writing the request to the server */
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
-	assert(req != NULL);
+	EVUTIL_ASSERT(req != NULL);
 
-	assert(evcon->state == EVCON_WRITING);
+	EVUTIL_ASSERT(evcon->state == EVCON_WRITING);
 
 	/* We are done writing our header and are now expecting the response */
 	req->kind = EVHTTP_RESPONSE;
@@ -972,7 +971,7 @@ void
 evhttp_connection_set_local_address(struct evhttp_connection *evcon,
     const char *address)
 {
-	assert(evcon->state == EVCON_DISCONNECTED);
+	EVUTIL_ASSERT(evcon->state == EVCON_DISCONNECTED);
 	if (evcon->bind_address)
 		mm_free(evcon->bind_address);
 	if ((evcon->bind_address = mm_strdup(address)) == NULL)
@@ -983,7 +982,7 @@ void
 evhttp_connection_set_local_port(struct evhttp_connection *evcon,
     ev_uint16_t port)
 {
-	assert(evcon->state == EVCON_DISCONNECTED);
+	EVUTIL_ASSERT(evcon->state == EVCON_DISCONNECTED);
 	evcon->bind_port = port;
 }
 
@@ -1000,7 +999,7 @@ evhttp_request_dispatch(struct evhttp_connection* evcon)
 	evhttp_connection_stop_detectclose(evcon);
 
 	/* we assume that the connection is connected already */
-	assert(evcon->state == EVCON_IDLE);
+	EVUTIL_ASSERT(evcon->state == EVCON_IDLE);
 
 	evcon->state = EVCON_WRITING;
 
@@ -1125,12 +1124,12 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	 */
 	if (evcon->flags & EVHTTP_CON_CLOSEDETECT) {
 		evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
-		assert(evcon->http_server == NULL);
+		EVUTIL_ASSERT(evcon->http_server == NULL);
 		/* For connections from the client, we just
 		 * reset the connection so that it becomes
 		 * disconnected.
 		 */
-		assert(evcon->state == EVCON_IDLE);
+		EVUTIL_ASSERT(evcon->state == EVCON_IDLE);
 		evhttp_connection_reset(evcon);
 		return;
 	}
@@ -1749,8 +1748,8 @@ void
 evhttp_connection_set_base(struct evhttp_connection *evcon,
     struct event_base *base)
 {
-	assert(evcon->base == NULL);
-	assert(evcon->state == EVCON_DISCONNECTED);
+	EVUTIL_ASSERT(evcon->base == NULL);
+	EVUTIL_ASSERT(evcon->state == EVCON_DISCONNECTED);
 	evcon->base = base;
 	bufferevent_base_set(base, evcon->bufev);
 }
@@ -1800,7 +1799,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 
 	evhttp_connection_reset(evcon);
 
-	assert(!(evcon->flags & EVHTTP_CON_INCOMING));
+	EVUTIL_ASSERT(!(evcon->flags & EVHTTP_CON_INCOMING));
 	evcon->flags |= EVHTTP_CON_OUTGOING;
 
 	evcon->fd = bind_socket(
@@ -1859,9 +1858,9 @@ evhttp_make_request(struct evhttp_connection *evcon,
 		req->minor = 1;
 	}
 
-	assert(req->evcon == NULL);
+	EVUTIL_ASSERT(req->evcon == NULL);
 	req->evcon = evcon;
-	assert(!(req->flags & EVHTTP_REQ_OWN_CONNECTION));
+	EVUTIL_ASSERT(!(req->flags & EVHTTP_REQ_OWN_CONNECTION));
 
 	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
@@ -1933,7 +1932,7 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	    evhttp_is_connection_close(req->flags, req->input_headers) ||
 	    evhttp_is_connection_close(req->flags, req->output_headers);
 
-	assert(req->flags & EVHTTP_REQ_OWN_CONNECTION);
+	EVUTIL_ASSERT(req->flags & EVHTTP_REQ_OWN_CONNECTION);
 	evhttp_request_free(req);
 
 	if (need_close) {
@@ -1983,7 +1982,7 @@ evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 {
 	struct evhttp_connection *evcon = req->evcon;
 
-	assert(TAILQ_FIRST(&evcon->requests) == req);
+	EVUTIL_ASSERT(TAILQ_FIRST(&evcon->requests) == req);
 
 	/* xxx: not sure if we really should expose the data buffer this way */
 	if (databuf != NULL)
@@ -2902,7 +2901,7 @@ addr_from_name(char *address)
 
 	return (aitop);
 #else
-	assert(0);
+	EVUTIL_ASSERT(0);
 	return NULL; /* XXXXX Use gethostbyname, if this function is ever used. */
 #endif
 }

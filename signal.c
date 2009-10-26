@@ -55,7 +55,6 @@
 #ifdef _EVENT_HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#include <assert.h>
 
 #include "event2/event.h"
 #include "event2/event_struct.h"
@@ -217,7 +216,7 @@ evsig_add(struct event_base *base, int evsignal, short old, short events, void *
 	struct evsig_info *sig = &base->sig;
 	(void)p;
 
-	assert(evsignal >= 0 && evsignal < NSIG);
+	EVUTIL_ASSERT(evsignal >= 0 && evsignal < NSIG);
 
 	event_debug(("%s: %d: changing signal handler", __func__, evsignal));
 	if (_evsig_set_handler(base, evsignal, evsig_handler) == -1)
@@ -269,7 +268,7 @@ _evsig_restore_handler(struct event_base *base, int evsignal)
 static int
 evsig_del(struct event_base *base, int evsignal, short old, short events, void *p)
 {
-	assert(evsignal >= 0 && evsignal < NSIG);
+	EVUTIL_ASSERT(evsignal >= 0 && evsignal < NSIG);
 
 	event_debug(("%s: %d: restoring signal handler", __func__, evsignal));
 

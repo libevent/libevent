@@ -55,7 +55,6 @@
 #endif
 
 #include <sys/time.h>
-#include <assert.h>
 #include <sys/queue.h>
 #include <errno.h>
 #include <poll.h>
@@ -66,9 +65,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#ifdef CHECK_INVARIANTS
-#include <assert.h>
-#endif
 
 #include "event-internal.h"
 #include "log-internal.h"
@@ -176,10 +172,10 @@ evport_init(struct event_base *base)
 static void
 check_evportop(struct evport_data *evpd)
 {
-	assert(evpd);
-	assert(evpd->ed_nevents > 0);
-	assert(evpd->ed_port > 0);
-	assert(evpd->ed_fds > 0);
+	EVUTIL_ASSERT(evpd);
+	EVUTIL_ASSERT(evpd->ed_nevents > 0);
+	EVUTIL_ASSERT(evpd->ed_port > 0);
+	EVUTIL_ASSERT(evpd->ed_fds > 0);
 }
 
 /*
@@ -194,8 +190,8 @@ check_event(port_event_t* pevt)
 	 * but since we're not using port_alert either, we can assume
 	 * PORT_SOURCE_FD.
 	 */
-	assert(pevt->portev_source == PORT_SOURCE_FD);
-	assert(pevt->portev_user == NULL);
+	EVUTIL_ASSERT(pevt->portev_source == PORT_SOURCE_FD);
+	EVUTIL_ASSERT(pevt->portev_user == NULL);
 }
 
 #else
@@ -212,7 +208,7 @@ grow(struct evport_data *epdp, int factor)
 	struct fd_info *tmp;
 	int oldsize = epdp->ed_nevents;
 	int newsize = factor * oldsize;
-	assert(factor > 1);
+	EVUTIL_ASSERT(factor > 1);
 
 	check_evportop(epdp);
 
@@ -346,7 +342,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 		if (pevt->portev_events & POLLOUT)
 			res |= EV_WRITE;
 
-		assert(epdp->ed_nevents > fd);
+		EVUTIL_ASSERT(epdp->ed_nevents > fd);
 		fdi = &(epdp->ed_fds[fd]);
 
 		evmap_io_active(base, fd, res);

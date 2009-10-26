@@ -40,7 +40,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #ifdef _EVENT_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -417,7 +416,7 @@ be_socket_destruct(struct bufferevent *bufev)
 	struct bufferevent_private *bufev_p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	evutil_socket_t fd;
-	assert(bufev->be_ops == &bufferevent_ops_socket);
+	EVUTIL_ASSERT(bufev->be_ops == &bufferevent_ops_socket);
 
 	fd = event_get_fd(&bufev->ev_read);
 
@@ -449,7 +448,7 @@ static void
 be_socket_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 {
 	BEV_LOCK(bufev);
-	assert(bufev->be_ops == &bufferevent_ops_socket);
+	EVUTIL_ASSERT(bufev->be_ops == &bufferevent_ops_socket);
 
 	event_del(&bufev->ev_read);
 	event_del(&bufev->ev_write);

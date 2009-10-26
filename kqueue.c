@@ -44,7 +44,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
 #ifdef _EVENT_HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
@@ -419,7 +418,7 @@ kq_sig_add(struct event_base *base, int nsignal, short old, short events, void *
 	struct timespec timeout = { 0, 0 };
 	(void)p;
 
-	assert(nsignal >= 0 && nsignal < NSIG);
+	EVUTIL_ASSERT(nsignal >= 0 && nsignal < NSIG);
 
 	memset(&kev, 0, sizeof(kev));
 	kev.ident = nsignal;
@@ -447,7 +446,7 @@ kq_sig_del(struct event_base *base, int nsignal, short old, short events, void *
 	struct timespec timeout = { 0, 0 };
 	(void)p;
 
-	assert(nsignal >= 0 && nsignal < NSIG);
+	EVUTIL_ASSERT(nsignal >= 0 && nsignal < NSIG);
 
 	memset(&kev, 0, sizeof(kev));
 	kev.ident = nsignal;

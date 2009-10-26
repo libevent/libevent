@@ -44,7 +44,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
 
 #include "event-internal.h"
 #include "evsignal-internal.h"
@@ -108,11 +107,11 @@ poll_check_ok(struct pollop *pop)
 		idx = pop->idxplus1_by_fd[i]-1;
 		if (idx < 0)
 			continue;
-		assert(pop->event_set[idx].fd == i);
+		EVUTIL_ASSERT(pop->event_set[idx].fd == i);
 	}
 	for (i = 0; i < pop->nfds; ++i) {
 		struct pollfd *pfd = &pop->event_set[i];
-		assert(pop->idxplus1_by_fd[pfd->fd] == i+1);
+		EVUTIL_ASSERT(pop->idxplus1_by_fd[pfd->fd] == i+1);
 	}
 }
 #else
@@ -214,7 +213,7 @@ poll_add(struct event_base *base, int fd, short old, short events, void *_idx)
 	struct pollidx *idx = _idx;
 	int i;
 
-	assert((events & EV_SIGNAL) == 0);
+	EVUTIL_ASSERT((events & EV_SIGNAL) == 0);
 	if (!(events & (EV_READ|EV_WRITE)))
 		return (0);
 
@@ -275,7 +274,7 @@ poll_del(struct event_base *base, int fd, short old, short events, void *_idx)
 	struct pollidx *idx = _idx;
 	int i;
 
-	assert((events & EV_SIGNAL) == 0);
+	EVUTIL_ASSERT((events & EV_SIGNAL) == 0);
 	if (!(events & (EV_READ|EV_WRITE)))
 		return (0);
 
@@ -307,8 +306,8 @@ poll_del(struct event_base *base, int fd, short old, short events, void *_idx)
 		memcpy(&pop->event_set[i], &pop->event_set[pop->nfds],
 		       sizeof(struct pollfd));
 		idx = evmap_io_get_fdinfo(&base->io, pop->event_set[i].fd);
-		assert(idx);
-		assert(idx->idxplus1 == pop->nfds + 1);
+		EVUTIL_ASSERT(idx);
+		EVUTIL_ASSERT(idx->idxplus1 == pop->nfds + 1);
 		idx->idxplus1 = i + 1;
 	}
 

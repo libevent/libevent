@@ -58,7 +58,6 @@
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
-#include <assert.h>
 #include <time.h>
 
 #include "event2/event.h"
@@ -378,7 +377,7 @@ event_base_free(struct event_base *base)
 		current_base = NULL;
 
 	/* XXX(niels) - check for internal events first */
-	assert(base);
+	EVUTIL_ASSERT(base);
 
 	/* threading fds if we have them */
 	if (base->th_notify_fd[0] != -1) {
@@ -422,16 +421,16 @@ event_base_free(struct event_base *base)
 		base->evsel->dealloc(base);
 
 	for (i = 0; i < base->nactivequeues; ++i)
-		assert(TAILQ_EMPTY(base->activequeues[i]));
+		EVUTIL_ASSERT(TAILQ_EMPTY(base->activequeues[i]));
 
-	assert(min_heap_empty(&base->timeheap));
+	EVUTIL_ASSERT(min_heap_empty(&base->timeheap));
 	min_heap_dtor(&base->timeheap);
 
 	for (i = 0; i < base->nactivequeues; ++i)
 		mm_free(base->activequeues[i]);
 	mm_free(base->activequeues);
 
-	assert(TAILQ_EMPTY(&base->eventqueue));
+	EVUTIL_ASSERT(TAILQ_EMPTY(&base->eventqueue));
 
 	evmap_io_clear(&base->io);
 	evmap_signal_clear(&base->sigmap);
@@ -681,7 +680,7 @@ event_process_active_single_queue(struct event_base *base,
 	struct event *ev;
 	int count = 0;
 
-	assert(activeq != NULL);
+	EVUTIL_ASSERT(activeq != NULL);
 
 	for (ev = TAILQ_FIRST(activeq); ev; ev = TAILQ_FIRST(activeq)) {
 		if (ev->ev_events & EV_PERSIST)
@@ -800,7 +799,7 @@ event_base_dispatch(struct event_base *event_base)
 const char *
 event_base_get_method(struct event_base *base)
 {
-	assert(base);
+	EVUTIL_ASSERT(base);
 	return (base->evsel->name);
 }
 
@@ -1094,7 +1093,7 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 {
 	event_set(ev, fd, events, cb, arg);
 	if (base != NULL)
-		assert(event_base_set(base, ev) == 0);
+		EVUTIL_ASSERT(event_base_set(base, ev) == 0);
 }
 
 struct event *
@@ -1256,7 +1255,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 		 tv ? "EV_TIMEOUT " : " ",
 		 ev->ev_callback));
 
-	assert(!(ev->ev_flags & ~EVLIST_ALL));
+	EVUTIL_ASSERT(!(ev->ev_flags & ~EVLIST_ALL));
 
 	/*
 	 * prepare for timeout insertion further below, if we get a
@@ -1387,7 +1386,7 @@ event_del_internal(struct event *ev)
 	if (need_cur_lock)
 		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, current_event_lock);
 
-	assert(!(ev->ev_flags & ~EVLIST_ALL));
+	EVUTIL_ASSERT(!(ev->ev_flags & ~EVLIST_ALL));
 
 	/* See if we are just active executing this event in a loop */
 	if (ev->ev_events & EV_SIGNAL) {
@@ -1547,8 +1546,8 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 
 	evutil_timersub(&ev->ev_timeout, &now, tv);
 
-	assert(tv->tv_sec >= 0);
-	assert(tv->tv_usec >= 0);
+	EVUTIL_ASSERT(tv->tv_sec >= 0);
+	EVUTIL_ASSERT(tv->tv_usec >= 0);
 	event_debug(("timeout_next: in %d seconds", (int)tv->tv_sec));
 
 out:

@@ -43,7 +43,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <assert.h>
 
 #include "event2/event.h"
 #include "event2/event_struct.h"

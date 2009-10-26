@@ -66,7 +66,6 @@
 #include <sys/sendfile.h>
 #endif
 
-#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -245,14 +244,14 @@ evbuffer_chain_insert(struct evbuffer *buf, struct evbuffer_chain *chain)
 void
 _evbuffer_chain_pin(struct evbuffer_chain *chain, unsigned flag)
 {
-	assert((chain->flags & flag) == 0);
+	EVUTIL_ASSERT((chain->flags & flag) == 0);
 	chain->flags |= flag;
 }
 
 void
 _evbuffer_chain_unpin(struct evbuffer_chain *chain, unsigned flag)
 {
-	assert((chain->flags & flag) != 0);
+	EVUTIL_ASSERT((chain->flags & flag) != 0);
 	chain->flags &= ~flag;
 	if (chain->flags & EVBUFFER_DANGLING)
 		evbuffer_chain_free(chain);
@@ -895,7 +894,7 @@ evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size)
 
 	/* Make sure that none of the chains we need to copy from is pinned. */
 	remaining = size - chain->off;
-	assert(remaining >= 0);
+	EVUTIL_ASSERT(remaining >= 0);
 	for (tmp=chain->next; tmp; tmp=tmp->next) {
 		if (CHAIN_PINNED(tmp))
 			goto done;
@@ -1347,8 +1346,8 @@ done:
 static void
 evbuffer_chain_align(struct evbuffer_chain *chain)
 {
-	assert(!(chain->flags & EVBUFFER_IMMUTABLE));
-	assert(!(chain->flags & EVBUFFER_MEM_PINNED_ANY));
+	EVUTIL_ASSERT(!(chain->flags & EVBUFFER_IMMUTABLE));
+	EVUTIL_ASSERT(!(chain->flags & EVBUFFER_MEM_PINNED_ANY));
 	memmove(chain->buffer, chain->buffer + chain->misalign, chain->off);
 	chain->misalign = 0;
 }
@@ -2112,7 +2111,7 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 		struct evbuffer_chain *chain = buf->last;
 		size_t used = chain->misalign + chain->off;
 		buffer = (char *)chain->buffer + chain->misalign + chain->off;
-		assert(chain->buffer_len >= used);
+		EVUTIL_ASSERT(chain->buffer_len >= used);
 		space = chain->buffer_len - used;
 
 #ifndef va_copy

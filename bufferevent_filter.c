@@ -40,7 +40,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #ifdef _EVENT_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -117,7 +116,7 @@ upcast(struct bufferevent *bev)
 		return NULL;
 	bev_f = (void*)( ((char*)bev) -
 			 evutil_offsetof(struct bufferevent_filtered, bev.bev));
-	assert(bev_f->bev.bev.be_ops == &bufferevent_ops_filter);
+	EVUTIL_ASSERT(bev_f->bev.bev.be_ops == &bufferevent_ops_filter);
 	return bev_f;
 }
 
@@ -211,7 +210,7 @@ static void
 be_filter_destruct(struct bufferevent *bev)
 {
 	struct bufferevent_filtered *bevf = upcast(bev);
-	assert(bevf);
+	EVUTIL_ASSERT(bevf);
 	if (bevf->free_context)
 		bevf->free_context(bevf->context);
 
@@ -437,7 +436,7 @@ be_filter_flush(struct bufferevent *bufev,
 {
 	struct bufferevent_filtered *bevf = upcast(bufev);
 	int processed_any = 0;
-	assert(bevf);
+	EVUTIL_ASSERT(bevf);
 
 	_bufferevent_incref_and_lock(bufev);
 

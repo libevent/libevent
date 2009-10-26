@@ -91,7 +91,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 #ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -405,13 +404,13 @@ static int strtoint(const char *const str);
 	} while (0)
 #define EVDNS_UNLOCK(base)						\
 	do {								\
-		assert((base)->lock_count > 0);				\
+		EVUTIL_ASSERT((base)->lock_count > 0);				\
 		--(base)->lock_count;					\
 		if ((base)->lock) {					\
 			EVLOCK_UNLOCK((base)->lock, EVTHREAD_WRITE);	\
 		}							\
 	} while (0)
-#define ASSERT_LOCKED(base) assert((base)->lock_count > 0)
+#define ASSERT_LOCKED(base) EVUTIL_ASSERT((base)->lock_count > 0)
 #endif
 
 #define CLOSE_SOCKET(s) EVUTIL_CLOSESOCKET(s)
@@ -555,7 +554,7 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 	log(EVDNS_LOG_WARN, "Nameserver %s has failed: %s",
 		debug_ntop((struct sockaddr*)&ns->address), msg);
 	base->global_good_nameservers--;
-	assert(base->global_good_nameservers >= 0);
+	EVUTIL_ASSERT(base->global_good_nameservers >= 0);
 	if (base->global_good_nameservers == 0) {
 		log(EVDNS_LOG_WARN, "All nameservers have failed");
 	}
@@ -688,7 +687,7 @@ evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 		   base->global_requests_waiting) {
 		struct evdns_request *req;
 		/* move a request from the waiting queue to the inflight queue */
-		assert(base->req_waiting_head);
+		EVUTIL_ASSERT(base->req_waiting_head);
 		req = base->req_waiting_head;
 		evdns_request_remove(req, &base->req_waiting_head);
 
@@ -750,7 +749,7 @@ reply_run_callback(struct deferred_cb *d, void *user_pointer)
 			cb->user_callback(cb->err, 0, 0, 0, NULL, user_pointer);
 		break;
 	default:
-		assert(0);
+		EVUTIL_ASSERT(0);
 	}
 
 	mm_free(cb);
@@ -942,7 +941,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 
 	req = request_find_from_trans_id(base, trans_id);
 	if (!req) return -1;
-	assert(req->base == base);
+	EVUTIL_ASSERT(req->base == base);
 
 	memset(&reply, 0, sizeof(reply));
 
@@ -1292,7 +1291,7 @@ nameserver_pick(struct evdns_base *base) {
 			/* all the nameservers seem to be down */
 			/* so we just return this one and hope for the */
 			/* best */
-			assert(base->global_good_nameservers == 0);
+			EVUTIL_ASSERT(base->global_good_nameservers == 0);
 			picked = base->server_head;
 			base->server_head = base->server_head->next;
 			return picked;
@@ -1635,7 +1634,7 @@ evdns_add_server_port_with_base(struct event_base *base, evutil_socket_t socket,
 		return NULL;
 	memset(port, 0, sizeof(struct evdns_server_port));
 
-	assert(!is_tcp); /* TCP sockets not yet implemented */
+	EVUTIL_ASSERT(!is_tcp); /* TCP sockets not yet implemented */
 	port->socket = socket;
 	port->refcnt = 1;
 	port->choked = 0;
@@ -1772,8 +1771,8 @@ evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_a
 {
 	u32 a;
 	char buf[32];
-	assert(in || inaddr_name);
-	assert(!(in && inaddr_name));
+	EVUTIL_ASSERT(in || inaddr_name);
+	EVUTIL_ASSERT(!(in && inaddr_name));
 	if (in) {
 		a = ntohl(in->s_addr);
 		evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
@@ -2038,9 +2037,9 @@ server_request_free(struct server_request *req)
 static void
 server_port_free(struct evdns_server_port *port)
 {
-	assert(port);
-	assert(!port->refcnt);
-	assert(!port->pending_replies);
+	EVUTIL_ASSERT(port);
+	EVUTIL_ASSERT(!port->refcnt);
+	EVUTIL_ASSERT(!port->pending_replies);
 	if (port->socket > 0) {
 		CLOSE_SOCKET(port->socket);
 		port->socket = -1;
@@ -2511,7 +2510,7 @@ evdns_request_remove(struct evdns_request *req, struct evdns_request **head)
 	{
 		struct evdns_request *ptr;
 		int found = 0;
-		assert(*head != NULL);
+		EVUTIL_ASSERT(*head != NULL);
 
 		ptr = *head;
 		do {
@@ -2521,9 +2520,9 @@ evdns_request_remove(struct evdns_request *req, struct evdns_request **head)
 			}
 			ptr = ptr->next;
 		} while (ptr != *head);
-		assert(found);
+		EVUTIL_ASSERT(found);
 
-		assert(req->next);
+		EVUTIL_ASSERT(req->next);
 	}
 #endif
 
@@ -2728,7 +2727,7 @@ evdns_base_resolve_reverse(struct evdns_base *base, const struct in_addr *in, in
 	char buf[32];
 	struct evdns_request *req;
 	u32 a;
-	assert(in);
+	EVUTIL_ASSERT(in);
 	a = ntohl(in->s_addr);
 	evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
 			(int)(u8)((a	)&0xff),
@@ -2756,7 +2755,7 @@ evdns_base_resolve_reverse_ipv6(struct evdns_base *base, const struct in6_addr *
 	char *cp;
 	struct evdns_request *req;
 	int i;
-	assert(in);
+	EVUTIL_ASSERT(in);
 	cp = buf;
 	for (i=15; i >= 0; --i) {
 		u8 byte = in->s6_addr[i];
@@ -2765,7 +2764,7 @@ evdns_base_resolve_reverse_ipv6(struct evdns_base *base, const struct in6_addr *
 		*cp++ = "0123456789abcdef"[byte >> 4];
 		*cp++ = '.';
 	}
-	assert(cp + strlen("ip6.arpa") < buf+sizeof(buf));
+	EVUTIL_ASSERT(cp + strlen("ip6.arpa") < buf+sizeof(buf));
 	memcpy(cp, "ip6.arpa", strlen("ip6.arpa")+1);
 	log(EVDNS_LOG_DEBUG, "Resolve requested for %s (reverse)", buf);
 	EVDNS_LOCK(base);
@@ -2960,7 +2959,7 @@ search_make_new(const struct search_state *const state, int n, const char *const
 static struct evdns_request *
 search_request_new(struct evdns_base *base, int type, const char *const name, int flags, evdns_callback_type user_callback, void *user_arg) {
 	ASSERT_LOCKED(base);
-	assert(type == TYPE_A || type == TYPE_AAAA);
+	EVUTIL_ASSERT(type == TYPE_A || type == TYPE_AAAA);
 	if ( ((flags & DNS_QUERY_NO_SEARCH) == 0) &&
 	     base->global_search_state &&
 		 base->global_search_state->num_domains) {
@@ -3134,7 +3133,7 @@ evdns_base_set_max_requests_inflight(struct evdns_base *base, int maxinflight)
 	if (maxinflight < 1)
 		maxinflight = 1;
 	n_heads = (maxinflight+4) / 5;
-	assert(n_heads > 0);
+	EVUTIL_ASSERT(n_heads > 0);
 	new_heads = mm_malloc(n_heads * sizeof(struct evdns_request*));
 	if (!new_heads)
 		return (-1);
@@ -3321,7 +3320,7 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 		n += r;
 		if (n == st.st_size)
 			break;
-		assert(n < st.st_size);
+		EVUTIL_ASSERT(n < st.st_size);
 	}
 	if (r < 0) { err = 5; goto out2; }
 	resolv[n] = 0;	 /* we malloced an extra byte; this should be fine. */
@@ -3437,7 +3436,7 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 		}
 	}
 
-	assert(fixed);
+	EVUTIL_ASSERT(fixed);
 	added_any = 0;
 	ns = &(fixed->DnsServerList);
 	while (ns) {

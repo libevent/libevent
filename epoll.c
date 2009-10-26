@@ -44,7 +44,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
 #ifdef _EVENT_HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -169,7 +168,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	}
 
 	event_debug(("%s: epoll_wait reports %d", __func__, res));
-	assert(res <= epollop->nevents);
+	EVUTIL_ASSERT(res <= epollop->nevents);
 
 	for (i = 0; i < res; i++) {
 		int what = events[i].events;

@@ -48,7 +48,6 @@
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
-#include <assert.h>
 #include <time.h>
 
 #include "event-internal.h"
@@ -127,7 +126,7 @@ HT_GENERATE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket,
 		    },							\
 		    {							\
 			    _ent = mm_calloc(1,sizeof(struct event_map_entry)+fdinfo_len); \
-			    assert(_ent);				\
+			    EVUTIL_ASSERT(_ent);				\
 			    _ent->fd = slot;				\
 			    (ctor)(&_ent->ent.type);			\
 			    _HT_FOI_INSERT(map_node, map, &_key, _ent, ptr) \
@@ -163,10 +162,10 @@ void evmap_io_clear(struct event_io_map *ctx)
 #define GET_SIGNAL_SLOT_AND_CTOR(x, map, slot, type, ctor, fdinfo_len)	\
 	do {								\
 		if ((map)->entries[slot] == NULL) {			\
-			assert(ctor != NULL);				\
+			EVUTIL_ASSERT(ctor != NULL);				\
 			(map)->entries[slot] =				\
 			    mm_calloc(1,sizeof(struct type)+fdinfo_len); \
-			assert((map)->entries[slot] != NULL);		\
+			EVUTIL_ASSERT((map)->entries[slot] != NULL);		\
 			(ctor)((struct type *)(map)->entries[slot]);	\
 		}							\
 		(x) = (struct type *)((map)->entries[slot]);		\
@@ -265,7 +264,7 @@ evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	int nread, nwrite, retval = 0;
 	short res = 0, old = 0;
 
-	assert(fd == ev->ev_fd); /*XXX(nickm) always true? */
+	EVUTIL_ASSERT(fd == ev->ev_fd); /*XXX(nickm) always true? */
 	/*XXX(nickm) Should we assert that ev is not already inserted, or should
 	 * we make this function idempotent? */
 
@@ -330,7 +329,7 @@ evmap_io_del(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	if (fd < 0)
 		return 0;
 
-	assert(fd == ev->ev_fd); /*XXX(nickm) always true? */
+	EVUTIL_ASSERT(fd == ev->ev_fd); /*XXX(nickm) always true? */
 	/*XXX(nickm) Should we assert that ev is not already inserted, or should
 	 * we make this function idempotent? */
 
@@ -352,12 +351,12 @@ evmap_io_del(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	if (ev->ev_events & EV_READ) {
 		if (--nread == 0)
 			res |= EV_READ;
-		assert(nread >= 0);
+		EVUTIL_ASSERT(nread >= 0);
 	}
 	if (ev->ev_events & EV_WRITE) {
 		if (--nwrite == 0)
 			res |= EV_WRITE;
-		assert(nwrite >= 0);
+		EVUTIL_ASSERT(nwrite >= 0);
 	}
 
 	if (res) {
@@ -382,11 +381,11 @@ evmap_io_active(struct event_base *base, evutil_socket_t fd, short events)
 	struct event *ev;
 
 #ifndef EVMAP_USE_HT
-	assert(fd < io->nentries);
+	EVUTIL_ASSERT(fd < io->nentries);
 #endif
 	GET_IO_SLOT(ctx, io, fd, evmap_io);
 
-	assert(ctx);
+	EVUTIL_ASSERT(ctx);
 	TAILQ_FOREACH(ev, &ctx->events, ev_io_next) {
 		if (ev->ev_events & events)
 			event_active(ev, ev->ev_events & events, 1);
@@ -455,7 +454,7 @@ evmap_signal_active(struct event_base *base, int sig, int ncalls)
 	struct evmap_signal *ctx;
 	struct event *ev;
 
-	assert(sig < map->nentries);
+	EVUTIL_ASSERT(sig < map->nentries);
 	GET_SIGNAL_SLOT(ctx, map, sig, evmap_signal);
 
 	TAILQ_FOREACH(ev, &ctx->events, ev_signal_next)

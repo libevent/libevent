@@ -51,7 +51,6 @@
 #include <errno.h>
 #include <signal.h>
 #include <string.h>
-#include <assert.h>
 
 #include <sys/queue.h>
 
@@ -100,17 +99,17 @@ evrpc_free(struct evrpc_base *base)
 	struct evrpc_hook_ctx *pause;
 
 	while ((rpc = TAILQ_FIRST(&base->registered_rpcs)) != NULL) {
-		assert(evrpc_unregister_rpc(base, rpc->uri));
+		EVUTIL_ASSERT(evrpc_unregister_rpc(base, rpc->uri));
 	}
 	while ((pause = TAILQ_FIRST(&base->paused_requests)) != NULL) {
 		TAILQ_REMOVE(&base->paused_requests, pause, next);
 		mm_free(pause);
 	}
 	while ((hook = TAILQ_FIRST(&base->input_hooks)) != NULL) {
-		assert(evrpc_remove_hook(base, EVRPC_INPUT, hook));
+		EVUTIL_ASSERT(evrpc_remove_hook(base, EVRPC_INPUT, hook));
 	}
 	while ((hook = TAILQ_FIRST(&base->output_hooks)) != NULL) {
-		assert(evrpc_remove_hook(base, EVRPC_OUTPUT, hook));
+		EVUTIL_ASSERT(evrpc_remove_hook(base, EVRPC_OUTPUT, hook));
 	}
 	mm_free(base);
 }
@@ -132,11 +131,11 @@ evrpc_add_hook(void *vbase,
 		head = &base->out_hooks;
 		break;
 	default:
-		assert(hook_type == EVRPC_INPUT || hook_type == EVRPC_OUTPUT);
+		EVUTIL_ASSERT(hook_type == EVRPC_INPUT || hook_type == EVRPC_OUTPUT);
 	}
 
 	hook = mm_calloc(1, sizeof(struct evrpc_hook));
-	assert(hook != NULL);
+	EVUTIL_ASSERT(hook != NULL);
 
 	hook->process = cb;
 	hook->process_arg = cb_arg;
@@ -177,7 +176,7 @@ evrpc_remove_hook(void *vbase, enum EVRPC_HOOK_TYPE hook_type, void *handle)
 		head = &base->out_hooks;
 		break;
 	default:
-		assert(hook_type == EVRPC_INPUT || hook_type == EVRPC_OUTPUT);
+		EVUTIL_ASSERT(hook_type == EVRPC_INPUT || hook_type == EVRPC_OUTPUT);
 	}
 
 	return (evrpc_remove_hook_internal(head, handle));
@@ -268,7 +267,7 @@ evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
         registered_uri = evrpc_construct_uri(name);
 
 	/* remove the http server callback */
-	assert(evhttp_del_cb(base->http_server, registered_uri) == 0);
+	EVUTIL_ASSERT(evhttp_del_cb(base->http_server, registered_uri) == 0);
 
 	mm_free(registered_uri);
 	return (0);
@@ -316,7 +315,7 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 		case EVRPC_CONTINUE:
 			break;
 		default:
-			assert(hook_res == EVRPC_TERMINATE ||
+			EVUTIL_ASSERT(hook_res == EVRPC_TERMINATE ||
 			    hook_res == EVRPC_CONTINUE ||
 			    hook_res == EVRPC_PAUSE);
 		}
@@ -376,7 +375,7 @@ void
 evrpc_reqstate_free(struct evrpc_req_generic* rpc_state)
 {
 	struct evrpc *rpc;
-	assert(rpc_state != NULL);
+	EVUTIL_ASSERT(rpc_state != NULL);
 	rpc = rpc_state->rpc;
 
 	/* clean up all memory */
@@ -432,7 +431,7 @@ evrpc_request_done(struct evrpc_req_generic *rpc_state)
 		case EVRPC_CONTINUE:
 			break;
 		default:
-			assert(hook_res == EVRPC_TERMINATE ||
+			EVUTIL_ASSERT(hook_res == EVRPC_TERMINATE ||
 			    hook_res == EVRPC_CONTINUE ||
 			    hook_res == EVRPC_PAUSE);
 		}
@@ -535,11 +534,11 @@ evrpc_pool_free(struct evrpc_pool *pool)
 	}
 
 	while ((hook = TAILQ_FIRST(&pool->input_hooks)) != NULL) {
-		assert(evrpc_remove_hook(pool, EVRPC_INPUT, hook));
+		EVUTIL_ASSERT(evrpc_remove_hook(pool, EVRPC_INPUT, hook));
 	}
 
 	while ((hook = TAILQ_FIRST(&pool->output_hooks)) != NULL) {
-		assert(evrpc_remove_hook(pool, EVRPC_OUTPUT, hook));
+		EVUTIL_ASSERT(evrpc_remove_hook(pool, EVRPC_OUTPUT, hook));
 	}
 
 	mm_free(pool);
@@ -554,7 +553,7 @@ void
 evrpc_pool_add_connection(struct evrpc_pool *pool,
     struct evhttp_connection *connection)
 {
-	assert(connection->http_server == NULL);
+	EVUTIL_ASSERT(connection->http_server == NULL);
 	TAILQ_INSERT_TAIL(&pool->connections, connection, next);
 
 	/*
@@ -671,7 +670,7 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 			/* we can just continue */
 			break;
 		default:
-			assert(hook_res == EVRPC_TERMINATE ||
+			EVUTIL_ASSERT(hook_res == EVRPC_TERMINATE ||
 			    hook_res == EVRPC_CONTINUE ||
 			    hook_res == EVRPC_PAUSE);
 		}
@@ -778,7 +777,7 @@ evrpc_make_request(struct evrpc_request_wrapper *ctx)
 	evtimer_assign(&ctx->ev_timeout, pool->base, evrpc_request_timeout, ctx);
 
 	/* we better have some available connections on the pool */
-	assert(TAILQ_FIRST(&pool->connections) != NULL);
+	EVUTIL_ASSERT(TAILQ_FIRST(&pool->connections) != NULL);
 
 	/*
 	 * if no connection is available, we queue the request on the pool,
@@ -872,7 +871,7 @@ evrpc_reply_done(struct evhttp_request *req, void *arg)
 			    evrpc_reply_done_closure);
 			return;
 		default:
-			assert(hook_res == EVRPC_TERMINATE ||
+			EVUTIL_ASSERT(hook_res == EVRPC_TERMINATE ||
 			    hook_res == EVRPC_CONTINUE ||
 			    hook_res == EVRPC_PAUSE);
 		}
@@ -945,7 +944,7 @@ evrpc_request_timeout(evutil_socket_t fd, short what, void *arg)
 {
 	struct evrpc_request_wrapper *ctx = arg;
 	struct evhttp_connection *evcon = ctx->evcon;
-	assert(evcon != NULL);
+	EVUTIL_ASSERT(evcon != NULL);
 
 	evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
 }
@@ -958,7 +957,7 @@ static void
 evrpc_meta_data_free(struct evrpc_meta_list *meta_data)
 {
 	struct evrpc_meta *entry;
-	assert(meta_data != NULL);
+	EVUTIL_ASSERT(meta_data != NULL);
 
 	while ((entry = TAILQ_FIRST(meta_data)) != NULL) {
 		TAILQ_REMOVE(meta_data, entry, next);
@@ -973,7 +972,7 @@ evrpc_hook_meta_new(void)
 {
 	struct evrpc_hook_meta *ctx;
 	ctx = mm_malloc(sizeof(struct evrpc_hook_meta));
-	assert(ctx != NULL);
+	EVUTIL_ASSERT(ctx != NULL);
 
 	TAILQ_INIT(&ctx->meta_data);
 	ctx->evcon = NULL;
@@ -1010,10 +1009,10 @@ evrpc_hook_add_meta(void *ctx, const char *key,
 	if ((store = req->hook_meta) == NULL)
 		store = req->hook_meta = evrpc_hook_meta_new();
 
-	assert((meta = mm_malloc(sizeof(struct evrpc_meta))) != NULL);
-	assert((meta->key = mm_strdup(key)) != NULL);
+	EVUTIL_ASSERT((meta = mm_malloc(sizeof(struct evrpc_meta))) != NULL);
+	EVUTIL_ASSERT((meta->key = mm_strdup(key)) != NULL);
 	meta->data_size = data_size;
-	assert((meta->data = mm_malloc(data_size)) != NULL);
+	EVUTIL_ASSERT((meta->data = mm_malloc(data_size)) != NULL);
 	memcpy(meta->data, data, data_size);
 
 	TAILQ_INSERT_TAIL(&store->meta_data, meta, next);

@@ -44,7 +44,6 @@
 
 #include <winsock2.h>
 #include <windows.h>
-#include <assert.h>
 #include <stdio.h>
 
 #define MAX_WSABUFS 16
@@ -104,7 +103,7 @@ pin_release(struct event_overlapped *eo, unsigned flag)
 	struct evbuffer_chain *chain = bo->first_pinned;
 
 	for (i = 0; i < bo->n_buffers; ++i) {
-		assert(chain);
+		EVUTIL_ASSERT(chain);
 		_evbuffer_chain_unpin(chain, flag);
 		chain = chain->next;
 	}
@@ -137,7 +136,7 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes)
 	}
 
 	if (evbuffer_commit_space(evbuf, iov, n_vec) < 0)
-		assert(0); /* XXXX fail nicer. */
+		EVUTIL_ASSERT(0); /* XXXX fail nicer. */
 
 	pin_release(eo, EVBUFFER_MEM_PINNED_R);
 
@@ -287,7 +286,7 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
 		_evbuffer_chain_pin(chain, EVBUFFER_MEM_PINNED_R);
 		++npin;
 	}
-	assert(npin == nvecs);
+	EVUTIL_ASSERT(npin == nvecs);
 
 	_evbuffer_incref(buf);
 	if (WSARecv(buf_o->fd, buf_o->read_info.buffers, nvecs, &bytesRead, &flags, &buf_o->read_info.event_overlapped.overlapped, NULL)) {

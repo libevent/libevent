@@ -38,7 +38,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #ifdef _EVENT_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
@@ -182,7 +181,7 @@ bio_bufferevent_write(BIO *b, const char *in, int inlen)
 		inlen = bufev->wm_write.high - outlen;
 	}
 
-	assert(inlen > 0);
+	EVUTIL_ASSERT(inlen > 0);
 	evbuffer_add(output, in, inlen);
 	return inlen;
 }
@@ -341,7 +340,7 @@ upcast(struct bufferevent *bev)
 		return NULL;
 	bev_o = (void*)( ((char*)bev) -
 			 evutil_offsetof(struct bufferevent_openssl, bev.bev));
-	assert(bev_o->bev.bev.be_ops == &bufferevent_ops_openssl);
+	EVUTIL_ASSERT(bev_o->bev.bev.be_ops == &bufferevent_ops_openssl);
 	return bev_o;
 }
 
@@ -786,7 +785,7 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 	switch (bev_ssl->state) {
 	default:
 	case BUFFEREVENT_SSL_OPEN:
-		assert(0);
+		EVUTIL_ASSERT(0);
 		break;
 	case BUFFEREVENT_SSL_CONNECTING:
 	case BUFFEREVENT_SSL_ACCEPTING:
