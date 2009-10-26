@@ -241,6 +241,21 @@ typedef void (*event_log_cb)(int severity, const char *msg);
 void event_set_log_callback(event_log_cb cb);
 
 /**
+ Override Libevent's behavior in the event of a fatal internal error.
+
+ By default, Libevent will call exit(1) if a programming error makes it
+ impossible to continue correct operation.  This function allows you to supply
+ another callback instead.  Note that if the function is ever invoked,
+ something is wrong with your program, or with Libevent: any subsequent calls
+ to Libevent may result in undefined behavior.
+
+ Libevent will (almost) always log an _EVENT_LOG_ERR message before calling
+ this function; look at the last log message to see why Libevent has died.
+ */
+typedef void (*event_fatal_cb)(int err);
+void event_set_fatal_callback(event_fatal_cb cb);
+
+/**
   Associate a different event base with an event.
 
   @param eb the event base

@@ -32,6 +32,7 @@ Changes in 2.0.3-alpha:
  o Fix a bug when using a specialized memory allocator on win32.
  o Have the win32 select() backend label TCP-socket-connected events as EV_WRITE, not EV_READ.  This should bring it in line with the other backends, and improve portability.  Patch from Christopher Davis.
  o Stop using enums as arguments or return values when what we mean is a bitfield of enum values.  C++ doesn't believe that you can OR two enum values together and get another enum, and C++ takes its typing seriously.  Patch from Christopher Davis.
+ o Add an API to replace all fatal calls to exit() with a user-provided panic function.
 
 
 Changes in 2.0.2-alpha:

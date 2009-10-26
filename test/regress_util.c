@@ -46,9 +46,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "event2/event.h"
 #include "event2/util.h"
 #include "../ipv6-internal.h"
 #include "../util-internal.h"
+#include "../log-internal.h"
 
 #include "regress.h"
 
@@ -325,6 +327,122 @@ end:
 	;
 }
 
+static int logsev = 0;
+static char *logmsg = NULL;
+
+static void
+logfn(int severity, const char *msg)
+{
+	logsev = severity;
+	tt_want(msg);
+	if (msg)
+		logmsg = strdup(msg);
+}
+
+static int exited = 0;
+static int exitcode = 0;
+static void
+fatalfn(int c)
+{
+	exited = 1;
+	exitcode = c;
+}
+
+static void
+test_evutil_log(void *ptr)
+{
+	evutil_socket_t fd = -1;
+	char buf[128];
+
+	event_set_log_callback(logfn);
+	event_set_fatal_callback(fatalfn);
+#define RESET() do {				\
+		logsev = exited = exitcode = 0;	\
+		if (logmsg) free(logmsg);	\
+		logmsg = NULL;			\
+	} while (0)
+#define LOGEQ(sev,msg) do {			\
+		tt_int_op(logsev,==,sev);	\
+		tt_assert(logmsg != NULL);	\
+		tt_str_op(logmsg,==,msg);	\
+	} while (0)
+
+	event_errx(2, "Fatal error; too many kumquats (%d)", 5);
+	LOGEQ(_EVENT_LOG_ERR, "Fatal error; too many kumquats (5)");
+	tt_int_op(exitcode,==,2);
+	RESET();
+
+	event_warnx("Far too many %s (%d)", "wombats", 99);
+	LOGEQ(_EVENT_LOG_WARN, "Far too many wombats (99)");
+	tt_int_op(exited,==,0);
+	RESET();
+
+	event_msgx("Connecting lime to coconut");
+	LOGEQ(_EVENT_LOG_MSG, "Connecting lime to coconut");
+	tt_int_op(exited,==,0);
+	RESET();
+
+	event_debug("A millisecond passed!  We should log that!");
+#ifdef USE_DEBUG
+	LOGEQ(_EVENT_LOG_DEBUG, "A millisecond passed!  We should log that!");
+#else
+	tt_int_op(logsev,==,0);
+	tt_ptr_op(logmsg,==,NULL);
+#endif
+	RESET();
+
+	/* Try with an errno. */
+	errno = ENOENT;
+	event_warn("Couldn't open %s", "/bad/file");
+	evutil_snprintf(buf, sizeof(buf),
+	    "Couldn't open /bad/file: %s",strerror(ENOENT));
+	LOGEQ(_EVENT_LOG_WARN,buf);
+	tt_int_op(exited, ==, 0);
+	RESET();
+
+	errno = ENOENT;
+	event_err(5,"Couldn't open %s", "/very/bad/file");
+	evutil_snprintf(buf, sizeof(buf),
+	    "Couldn't open /very/bad/file: %s",strerror(ENOENT));
+	LOGEQ(_EVENT_LOG_ERR,buf);
+	tt_int_op(exitcode, ==, 5);
+	RESET();
+
+	/* Try with a socket errno. */
+	fd = socket(AF_INET, SOCK_STREAM, 0);
+#ifdef WIN32
+	evutil_snprintf(buf, sizeof(buf),
+	    "Unhappy socket: Resource temporarily unavailable");
+	EVUTIL_SET_SOCKET_ERROR(fd, WSAEWOULDBLOCK);
+#else
+	evutil_snprintf(buf, sizeof(buf),
+	    "Unhappy socket: %s", strerror(EAGAIN));
+	errno = EAGAIN;
+#endif
+	event_sock_warn(fd, "Unhappy socket");
+	LOGEQ(_EVENT_LOG_WARN, buf);
+	tt_int_op(exited,==,0);
+	RESET();
+
+#ifdef WIN32
+	EVUTIL_SET_SOCKET_ERROR(fd, WSAEWOULDBLOCK);
+#else
+	errno = EAGAIN;
+#endif
+	event_sock_err(200, fd, "Unhappy socket");
+	LOGEQ(_EVENT_LOG_ERR, buf);
+	tt_int_op(exitcode,==,200);
+	RESET();
+
+#undef RESET
+#undef LOGEQ
+end:
+	if (logmsg)
+		free(logmsg);
+	if (fd >= 0)
+		EVUTIL_CLOSESOCKET(fd);
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -332,6 +450,7 @@ struct testcase_t util_testcases[] = {
 	{ "evutil_snprintf", test_evutil_snprintf, 0, NULL, NULL },
 	{ "evutil_strtoll", test_evutil_strtoll, 0, NULL, NULL },
 	{ "evutil_casecmp", test_evutil_casecmp, 0, NULL, NULL },
+	{ "log", test_evutil_log, TT_FORK, NULL, NULL },
 	END_OF_TESTCASES,
 };
 

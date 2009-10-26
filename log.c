@@ -67,6 +67,23 @@ static void _warn_helper(int severity, const char *errstr, const char *fmt,
                          va_list ap);
 static void event_log(int severity, const char *msg);
 
+static event_fatal_cb fatal_fn = NULL;
+
+void
+event_set_fatal_callback(event_fatal_cb cb)
+{
+	fatal_fn = cb;
+}
+
+static void
+event_exit(int errcode)
+{
+	if (fatal_fn)
+		fatal_fn(errcode);
+	else
+		exit(errcode);
+}
+
 void
 event_err(int eval, const char *fmt, ...)
 {
@@ -75,7 +92,7 @@ event_err(int eval, const char *fmt, ...)
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_ERR, strerror(errno), fmt, ap);
 	va_end(ap);
-	exit(eval);
+	event_exit(eval);
 }
 
 void
@@ -97,7 +114,7 @@ event_sock_err(int eval, evutil_socket_t sock, const char *fmt, ...)
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_ERR, evutil_socket_error_to_string(err), fmt, ap);
 	va_end(ap);
-	exit(eval);
+	event_exit(eval);
 }
 
 void
@@ -119,7 +136,7 @@ event_errx(int eval, const char *fmt, ...)
 	va_start(ap, fmt);
 	_warn_helper(_EVENT_LOG_ERR, NULL, fmt, ap);
 	va_end(ap);
-	exit(eval);
+	event_exit(eval);
 }
 
 void
