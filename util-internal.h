@@ -29,6 +29,11 @@
 #include "event-config.h"
 #include <errno.h>
 
+/* For EVUTIL_ASSERT */
+#include "log-internal.h"
+#include <stdio.h>
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -131,6 +136,30 @@ extern const char EVUTIL_TOLOWER_TABLE[];
 int evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen);
 
 int evutil_socket_finished_connecting(evutil_socket_t fd);
+
+/* Evaluates to the same boolean value as 'p', and hints to the compiler that
+ * we expect this value to be false. */
+#ifdef __GNUC__X
+#define EVUTIL_UNLIKELY(p) __builtin_expect(!!(p),0)
+#else
+#define EVUTIL_UNLIKELY(p) (p)
+#endif
+
+/* Replacement for assert() that calls event_errx on failure. */
+#define EVUTIL_ASSERT(cond)						\
+	do {								\
+		if (EVUTIL_UNLIKELY(!(cond))) {				\
+			event_errx(_EVENT_ERR_ABORT,			\
+			    "%s:%d: Assertion %s failed in %s",		\
+			    __FILE__,__LINE__,#cond,__func__);		\
+			/* In case a user-supplied handler tries to */ 	\
+			/* return control to us, log and abort here. */	\
+			(void)fprintf(stderr,				\
+			    "%s:%d: Assertion %s failed in %s",		\
+			    __FILE__,__LINE__,#cond,__func__);		\
+			abort();					\
+		}							\
+	} while(0)
 
 #ifdef __cplusplus
 }

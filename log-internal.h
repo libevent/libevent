@@ -33,6 +33,8 @@
 #define EV_CHECK_FMT(a,b)
 #endif
 
+#define _EVENT_ERR_ABORT 0xdeaddead
+
 void event_err(int eval, const char *fmt, ...) EV_CHECK_FMT(2,3);
 void event_warn(const char *fmt, ...) EV_CHECK_FMT(1,2);
 void event_sock_err(int eval, int sock, const char *fmt, ...) EV_CHECK_FMT(3,4);
