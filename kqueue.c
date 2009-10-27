@@ -115,8 +115,8 @@ static const struct eventop kqsigops = {
 static void *
 kq_init(struct event_base *base)
 {
-	int kq;
-	struct kqop *kqueueop;
+	int kq = -1;
+	struct kqop *kqueueop = NULL;
 
 	if (!(kqueueop = mm_calloc(1, sizeof(struct kqop))))
 		return (NULL);
@@ -125,8 +125,7 @@ kq_init(struct event_base *base)
 
 	if ((kq = kqueue()) == -1) {
 		event_warn("kqueue");
-		mm_free (kqueueop);
-		return (NULL);
+		goto err;
 	}
 
 	kqueueop->kq = kq;
@@ -135,23 +134,14 @@ kq_init(struct event_base *base)
 
 	/* Initialize fields */
 	kqueueop->changes = mm_malloc(NEVENT * sizeof(struct kevent));
-	if (kqueueop->changes == NULL) {
-		mm_free (kqueueop);
-		return (NULL);
-	}
+	if (kqueueop->changes == NULL)
+		goto err;
 	kqueueop->pend_changes = mm_malloc(NEVENT * sizeof(struct kevent));
-	if (kqueueop->pend_changes == NULL) {
-		mm_free (kqueueop->changes);
-		mm_free (kqueueop);
-		return (NULL);
-	}
+	if (kqueueop->pend_changes == NULL)
+		goto err;
 	kqueueop->events = mm_malloc(NEVENT * sizeof(struct kevent));
-	if (kqueueop->events == NULL) {
-		mm_free (kqueueop->changes);
-		mm_free (kqueueop->pend_changes);
-		mm_free (kqueueop);
-		return (NULL);
-	}
+	if (kqueueop->events == NULL)
+		goto err;
 	kqueueop->events_size = kqueueop->changes_size =
 	    kqueueop->pend_changes_size = NEVENT;
 
@@ -169,17 +159,22 @@ kq_init(struct event_base *base)
 	    kqueueop->events[0].ident != -1 ||
 	    kqueueop->events[0].flags != EV_ERROR) {
 		event_warn("%s: detected broken kqueue; not using.", __func__);
-		mm_free(kqueueop->changes);
-		mm_free(kqueueop->events);
-		mm_free(kqueueop);
-		close(kq);
-		return (NULL);
+		goto err;
 	}
 
 	base->evsigsel = &kqsigops;
 	base->evsigbase = kqueueop;
 
 	return (kqueueop);
+err:
+	if (kqueueop->changes)
+		mm_free(kqueueop->changes);
+	if (kqueueop->pend_changes)
+		mm_free(kqueueop->pend_changes);
+	if (kq >= 0)
+		close(kq);
+	mm_free(kqueueop);
+	return (NULL);
 }
 
 static int
