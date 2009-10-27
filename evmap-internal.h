@@ -30,7 +30,8 @@
  *
  * An event_map is a utility structure to map each fd or signal to zero or
  * more events.  Functions to manipulate event_maps should only be used from
- * inside libevent.
+ * inside libevent.  They generally need to hold the lock on the corresponding
+ * event_base.
  **/
 
 struct event_base;

@@ -215,6 +215,8 @@ int _evsig_set_handler(struct event_base *base, int evsignal,
 			  void (*fn)(int));
 int _evsig_restore_handler(struct event_base *base, int evsignal);
 
+void event_active_nolock(struct event *ev, int res, short count);
+
 #ifdef __cplusplus
 }
 #endif

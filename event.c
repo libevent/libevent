@@ -129,7 +129,6 @@ static int use_monotonic;
 static inline int event_add_internal(struct event *ev,
     const struct timeval *tv);
 static inline int event_del_internal(struct event *ev);
-static inline void event_active_internal(struct event *ev, int res,short count);
 
 static void	event_queue_insert(struct event_base *, struct event *, int);
 static void	event_queue_remove(struct event_base *, struct event *, int);
@@ -141,8 +140,8 @@ static int	timeout_next(struct event_base *, struct timeval **);
 static void	timeout_process(struct event_base *);
 static void	timeout_correct(struct event_base *, struct timeval *);
 
-static void	event_signal_closure(struct event_base *, struct event *ev);
-static void	event_persist_closure(struct event_base *, struct event *ev);
+static inline void	event_signal_closure(struct event_base *, struct event *ev);
+static inline void	event_persist_closure(struct event_base *, struct event *ev);
 
 static int	evthread_notify_base(struct event_base *base);
 
@@ -370,6 +369,8 @@ event_base_free(struct event_base *base)
 {
 	int i, n_deleted=0;
 	struct event *ev;
+	/* XXXX grab the lock? If there is contention when one thread frees
+	 * the base, then the contending thread will be very sad soon. */
 
 	if (base == NULL && current_base)
 		base = current_base;
@@ -441,10 +442,11 @@ event_base_free(struct event_base *base)
 	mm_free(base);
 }
 
-/* reinitialized the event base after a fork */
+/* reinitialize the event base after a fork */
 int
 event_reinit(struct event_base *base)
 {
+	/* XXXX Do we need to grab a lock here? */
 	const struct eventop *evsel = base->evsel;
 	int res = 0;
 	struct event *ev;
@@ -640,16 +642,16 @@ event_haveevents(struct event_base *base)
 	return (base->event_count > 0);
 }
 
-static void
+static inline void
 event_persist_closure(struct event_base *base, struct event *ev)
 {
 	/* reschedule the persistent event if we have a timeout */
 	if (ev->ev_io_timeout.tv_sec || ev->ev_io_timeout.tv_usec)
-		event_add(ev, &ev->ev_io_timeout);
+		event_add_internal(ev, &ev->ev_io_timeout);
 	(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
 }
 
-static void
+static inline void
 event_signal_closure(struct event_base *base, struct event *ev)
 {
 	short ncalls;
@@ -1446,14 +1448,14 @@ event_active(struct event *ev, int res, short ncalls)
 {
 	EVBASE_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
-	event_active_internal(ev, res, ncalls);
+	event_active_nolock(ev, res, ncalls);
 
 	EVBASE_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 }
 
 
-static inline void
-event_active_internal(struct event *ev, int res, short ncalls)
+void
+event_active_nolock(struct event *ev, int res, short ncalls)
 {
 	struct event_base *base;
 
@@ -1627,7 +1629,7 @@ timeout_process(struct event_base *base)
 
 		event_debug(("timeout_process: call %p",
 			 ev->ev_callback));
-		event_active_internal(ev, EV_TIMEOUT, 1);
+		event_active_nolock(ev, EV_TIMEOUT, 1);
 	}
 }
 
@@ -1842,6 +1844,7 @@ evthread_make_base_notifiable(struct event_base *base)
 	void (*cb)(evutil_socket_t, short, void *) = evthread_notify_drain_default;
 	int (*notify)(struct event_base *) = evthread_notify_base_default;
 
+	/* XXXX grab the lock here? */
 	if (!base)
 		return -1;
 

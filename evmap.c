@@ -388,7 +388,7 @@ evmap_io_active(struct event_base *base, evutil_socket_t fd, short events)
 	EVUTIL_ASSERT(ctx);
 	TAILQ_FOREACH(ev, &ctx->events, ev_io_next) {
 		if (ev->ev_events & events)
-			event_active(ev, ev->ev_events & events, 1);
+			event_active_nolock(ev, ev->ev_events & events, 1);
 	}
 }
 
@@ -458,7 +458,7 @@ evmap_signal_active(struct event_base *base, int sig, int ncalls)
 	GET_SIGNAL_SLOT(ctx, map, sig, evmap_signal);
 
 	TAILQ_FOREACH(ev, &ctx->events, ev_signal_next)
-		event_active(ev, EV_SIGNAL, ncalls);
+		event_active_nolock(ev, EV_SIGNAL, ncalls);
 }
 
 void *
