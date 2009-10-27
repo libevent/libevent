@@ -924,7 +924,7 @@ evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size)
 		chain = chain->next;
 	} else {
 		if ((tmp = evbuffer_chain_new(size)) == NULL) {
-			event_warn("%s: out of memory\n", __func__);
+			event_warn("%s: out of memory", __func__);
 			goto done;
 		}
 		buffer = tmp->buffer;
@@ -1170,7 +1170,7 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 	n_to_copy = it.pos;
 
 	if ((line = mm_malloc(n_to_copy+1)) == NULL) {
-		event_warn("%s: out of memory\n", __func__);
+		event_warn("%s: out of memory", __func__);
 		goto done;
 	}
 
@@ -2218,7 +2218,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 	if (use_sendfile) {
 		chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_fd));
 		if (chain == NULL) {
-			event_warn("%s: out of memory\n", __func__);
+			event_warn("%s: out of memory", __func__);
 			return (-1);
 		}
 
@@ -2265,7 +2265,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		}
 		chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_fd));
 		if (chain == NULL) {
-			event_warn("%s: out of memory\n", __func__);
+			event_warn("%s: out of memory", __func__);
 			munmap(mapped, length);
 			return (-1);
 		}
