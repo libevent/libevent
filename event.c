@@ -1041,8 +1041,9 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 int
 event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, short events, void (*callback)(evutil_socket_t, short, void *), void *arg)
 {
-	/* Take the current base - caller needs to set the real base later */
-	ev->ev_base = current_base;
+	if (!base)
+		base = current_base;
+	ev->ev_base = base;
 
 	ev->ev_callback = callback;
 	ev->ev_arg = arg;
@@ -1072,13 +1073,8 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 	min_heap_elem_init(ev);
 
 	if (base != NULL) {
-		if (event_base_set(base, ev) < 0) {
-			event_warnx("%s: event_base_set() failed", __func__);
-			return -1;
-		}
-	} else if (current_base) {
 		/* by default, we put new events into the middle priority */
-			ev->ev_pri = current_base->nactivequeues/2;
+		ev->ev_pri = base->nactivequeues / 2;
 	}
 	return 0;
 }
@@ -1101,7 +1097,7 @@ event_set(struct event *ev, evutil_socket_t fd, short events,
 	  void (*callback)(evutil_socket_t, short, void *), void *arg)
 {
 	int r;
-	r = event_assign(ev, NULL, fd, events, callback, arg);
+	r = event_assign(ev, current_base, fd, events, callback, arg);
        	EVUTIL_ASSERT(r == 0);
 }
 
