@@ -422,10 +422,12 @@ int event_base_got_break(struct event_base *);
   @param fn callback function to be invoked when the event occurs
   @param arg an argument to be passed to the callback function
 
+  @return 0 if success, or -1 on invalid arguments.
+
   @see event_add(), event_del(), event_once()
 
   */
-void event_assign(struct event *, struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
+int event_assign(struct event *, struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
 
 /**
   Create and allocate a new event structure, ready to be added.

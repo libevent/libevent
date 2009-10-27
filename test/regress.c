@@ -987,6 +987,19 @@ end:
 }
 
 static void
+test_bad_assign(void *ptr)
+{
+	struct event ev;
+	int r;
+	/* READ|SIGNAL is not allowed */
+	r = event_assign(&ev, NULL, -1, EV_SIGNAL|EV_READ, dummy_read_cb, NULL);
+	tt_int_op(r,==,-1);
+
+end:
+	;
+}
+
+static void
 test_event_base_new(void *ptr)
 {
 	struct basic_test_data *data = ptr;
@@ -1783,6 +1796,8 @@ struct testcase_t main_testcases[] = {
 	BASIC(free_active_base, TT_FORK|TT_NEED_SOCKETPAIR),
 
 	BASIC(manipulate_active_events, TT_FORK|TT_NEED_BASE),
+
+	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 
         /* These are still using the old API */
         LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),

@@ -1038,9 +1038,8 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 	return (0);
 }
 
-void
-event_set(struct event *ev, evutil_socket_t fd, short events,
-	  void (*callback)(evutil_socket_t, short, void *), void *arg)
+int
+event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, short events, void (*callback)(evutil_socket_t, short, void *), void *arg)
 {
 	/* Take the current base - caller needs to set the real base later */
 	ev->ev_base = current_base;
@@ -1055,9 +1054,11 @@ event_set(struct event *ev, evutil_socket_t fd, short events,
 	ev->ev_pncalls = NULL;
 
 	if (events & EV_SIGNAL) {
-		if ((events & (EV_READ|EV_WRITE)) != 0)
-			event_errx(1, "%s: EV_SIGNAL incompatible use",
-			    __func__);
+		if ((events & (EV_READ|EV_WRITE)) != 0) {
+			event_warnx("%s: EV_SIGNAL is not compatible with "
+			    "EV_READ or EV_WRITE", __func__);
+			return -1;
+		}
 		ev->ev_closure = EV_CLOSURE_SIGNAL;
 	} else {
 		if (events & EV_PERSIST) {
@@ -1070,9 +1071,16 @@ event_set(struct event *ev, evutil_socket_t fd, short events,
 
 	min_heap_elem_init(ev);
 
-	/* by default, we put new events into the middle priority */
-	if (current_base)
-		ev->ev_pri = current_base->nactivequeues/2;
+	if (base != NULL) {
+		if (event_base_set(base, ev) < 0) {
+			event_warnx("%s: event_base_set() failed", __func__);
+			return -1;
+		}
+	} else if (current_base) {
+		/* by default, we put new events into the middle priority */
+			ev->ev_pri = current_base->nactivequeues/2;
+	}
+	return 0;
 }
 
 int
@@ -1089,11 +1097,12 @@ event_base_set(struct event_base *base, struct event *ev)
 }
 
 void
-event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, short events, void (*cb)(evutil_socket_t, short, void *), void *arg)
+event_set(struct event *ev, evutil_socket_t fd, short events,
+	  void (*callback)(evutil_socket_t, short, void *), void *arg)
 {
-	event_set(ev, fd, events, cb, arg);
-	if (base != NULL)
-		EVUTIL_ASSERT(event_base_set(base, ev) == 0);
+	int r;
+	r = event_assign(ev, NULL, fd, events, callback, arg);
+       	EVUTIL_ASSERT(r == 0);
 }
 
 struct event *
@@ -1103,7 +1112,10 @@ event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(
 	ev = mm_malloc(sizeof(struct event));
 	if (ev == NULL)
 		return (NULL);
-	event_assign(ev, base, fd, events, cb, arg);
+	if (event_assign(ev, base, fd, events, cb, arg) < 0) {
+		mm_free(ev);
+		return (NULL);
+	}
 
 	return (ev);
 }
