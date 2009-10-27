@@ -120,6 +120,11 @@ regress_make_tmpfile(const void *data, size_t datalen)
 #endif
 }
 
+static void
+ignore_log_cb(int s, const char *msg)
+{
+}
+
 static void *
 basic_test_setup(const struct testcase_t *testcase)
 {
@@ -173,6 +178,9 @@ basic_test_setup(const struct testcase_t *testcase)
                         return NULL; /* fast failure */ /*XXX asserts. */
         }
 
+	if (testcase->flags & TT_NO_LOGS)
+		event_set_log_callback(ignore_log_cb);
+
 	data = calloc(1, sizeof(*data));
 	if (!data)
 		exit(1);
@@ -187,6 +195,10 @@ static int
 basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
 {
 	struct basic_test_data *data = ptr;
+
+	if (testcase->flags & TT_NO_LOGS)
+		event_set_log_callback(NULL);
+
 	if (testcase->flags & TT_NEED_SOCKETPAIR) {
                 if (data->pair[0] != -1)
                         EVUTIL_CLOSESOCKET(data->pair[0]);

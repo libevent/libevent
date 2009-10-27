@@ -75,12 +75,13 @@ extern const struct testcase_setup_t basic_setup;
 extern const struct testcase_setup_t legacy_setup;
 void run_legacy_test_fn(void *ptr);
 
-/* A couple of flags that legacy_setup can support. */
+/* A couple of flags that basic/legacy_setup can support. */
 #define TT_NEED_SOCKETPAIR   TT_FIRST_USER_FLAG
 #define TT_NEED_BASE         (TT_FIRST_USER_FLAG<<1)
 #define TT_NEED_DNS          (TT_FIRST_USER_FLAG<<2)
 #define TT_LEGACY            (TT_FIRST_USER_FLAG<<3)
 #define TT_NEED_THREADS      (TT_FIRST_USER_FLAG<<4)
+#define TT_NO_LOGS           (TT_FIRST_USER_FLAG<<5)
 
 /* All the flags that a legacy test needs. */
 #define TT_ISOLATED TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE

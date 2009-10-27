@@ -406,6 +406,7 @@ test_evbuffer_add_file(void *ptr)
 static void *
 failing_malloc(size_t how_much)
 {
+	errno = ENOMEM;
 	return NULL;
 }
 
@@ -1249,7 +1250,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "reserve2", test_evbuffer_reserve2, 0, NULL, NULL },
 	{ "reference", test_evbuffer_reference, 0, NULL, NULL },
 	{ "iterative", test_evbuffer_iterative, 0, NULL, NULL },
-	{ "readln", test_evbuffer_readln, 0, NULL, NULL },
+	{ "readln", test_evbuffer_readln, TT_NO_LOGS, &basic_setup, NULL },
 	{ "find", test_evbuffer_find, 0, NULL, NULL },
 	{ "ptr_set", test_evbuffer_ptr_set, 0, NULL, NULL },
 	{ "search", test_evbuffer_search, 0, NULL, NULL },
