@@ -412,8 +412,9 @@ test_evutil_log(void *ptr)
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 #ifdef WIN32
 	evutil_snprintf(buf, sizeof(buf),
-	    "Unhappy socket: Resource temporarily unavailable");
-	EVUTIL_SET_SOCKET_ERROR(fd, WSAEWOULDBLOCK);
+	    "Unhappy socket: %s",
+	    evutil_socket_error_to_string(WSAEWOULDBLOCK));
+	EVUTIL_SET_SOCKET_ERROR(WSAEWOULDBLOCK);
 #else
 	evutil_snprintf(buf, sizeof(buf),
 	    "Unhappy socket: %s", strerror(EAGAIN));
@@ -425,7 +426,7 @@ test_evutil_log(void *ptr)
 	RESET();
 
 #ifdef WIN32
-	EVUTIL_SET_SOCKET_ERROR(fd, WSAEWOULDBLOCK);
+	EVUTIL_SET_SOCKET_ERROR(WSAEWOULDBLOCK);
 #else
 	errno = EAGAIN;
 #endif
