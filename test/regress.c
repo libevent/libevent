@@ -1789,7 +1789,7 @@ struct testcase_t main_testcases[] = {
         /* Some converted-over tests */
         { "methods", test_methods, TT_FORK, NULL, NULL },
 	{ "version", test_version, 0, NULL, NULL },
-	{ "base_features", test_base_features, TT_FORK, NULL, NULL },
+	BASIC(base_features, TT_FORK|TT_NO_LOGS),
 	{ "base_environ", test_base_environ, TT_FORK, NULL, NULL },
 
 	BASIC(event_base_new, TT_FORK|TT_NEED_SOCKETPAIR),

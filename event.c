@@ -189,10 +189,12 @@ gettime(struct event_base *base, struct timeval *tp)
 struct event_base *
 event_init(void)
 {
-	struct event_base *base = event_base_new();
+	struct event_base *base = event_base_new_with_config(NULL);
 
-	if (base != NULL)
-		current_base = base;
+	if (base == NULL)
+		event_errx(1, "%s: Unable to construct event_base", __func__);
+
+	current_base = base;
 
 	return (base);
 }
@@ -200,7 +202,13 @@ event_init(void)
 struct event_base *
 event_base_new(void)
 {
-	return (event_base_new_with_config(NULL));
+	struct event_base *base = NULL;
+	struct event_config *cfg = event_config_new();
+	if (cfg) {
+		base = event_base_new_with_config(cfg);
+		event_config_free(cfg);
+	}
+	return base;
 }
 
 static int
@@ -263,8 +271,10 @@ event_base_new_with_config(struct event_config *cfg)
 	struct event_base *base;
 	int should_check_environment;
 
-	if ((base = mm_calloc(1, sizeof(struct event_base))) == NULL)
-		event_err(1, "%s: calloc", __func__);
+	if ((base = mm_calloc(1, sizeof(struct event_base))) == NULL) {
+		event_warn("%s: calloc", __func__);
+		return NULL;
+	}
 
 	detect_monotonic();
 	gettime(base, &base->event_tv);
@@ -308,13 +318,10 @@ event_base_new_with_config(struct event_config *cfg)
 	}
 
 	if (base->evbase == NULL) {
-		if (cfg == NULL)
-			event_errx(1, "%s: no event mechanism available",
-			    __func__);
-		else {
-			event_base_free(base);
-			return NULL;
-		}
+		event_warnx("%s: no event mechanism available",
+		    __func__);
+		event_base_free(base);
+		return NULL;
 	}
 
 	if (getenv("EVENT_SHOW_METHOD"))
