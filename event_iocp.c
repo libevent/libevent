@@ -28,6 +28,7 @@
 #include <windows.h>
 #include <process.h>
 #include <stdio.h>
+#include <mswsock.h>
 
 #include "event2/util.h"
 #include "util-internal.h"
@@ -98,11 +99,72 @@ event_iocp_port_associate(struct event_iocp_port *port, evutil_socket_t fd,
 	return 0;
 }
 
+static void *
+get_extension_function(SOCKET s, const GUID *which_fn)
+{
+	void *ptr = NULL;
+	DWORD bytes=0;
+	WSAIoctl(s, SIO_GET_EXTENSION_FUNCTION_POINTER,
+	    (GUID*)which_fn, sizeof(*which_fn),
+	    &ptr, sizeof(ptr),
+	    &bytes, NULL, NULL);
+
+	/* No need to detect errors here: if ptr is set, then we have a good
+	   function pointer.  Otherwise, we should behave as if we had no
+	   function pointer.
+	*/
+	return ptr;
+}
+
+/* Mingw doesn't have these in its mswsock.h.  The values are copied from
+   wine.h.   Perhaps if we copy them exactly, the cargo will come again.
+*/
+#ifndef WSAID_ACCEPTEX
+#define WSAID_ACCEPTEX \
+	{0xb5367df1,0xcbac,0x11cf,{0x95,0xca,0x00,0x80,0x5f,0x48,0xa1,0x92}}
+#endif
+#ifndef WSAID_CONNECTEX
+#define WSAID_CONNECTEX \
+	{0x25a207b9,0xddf3,0x4660,{0x8e,0xe9,0x76,0xe5,0x8c,0x74,0x06,0x3e}}
+#endif
+#ifndef WSAID_GETACCEPTEXSOCKADDRS
+#define WSAID_GETACCEPTEXSOCKADDRS \
+	{0xb5367df2,0xcbac,0x11cf,{0x95,0xca,0x00,0x80,0x5f,0x48,0xa1,0x92}}
+#endif
+
+static void
+init_extension_functions(struct win32_extension_fns *ext)
+{
+	const GUID acceptex = WSAID_ACCEPTEX;
+	const GUID connectex = WSAID_CONNECTEX;
+	const GUID getacceptexsockaddrs = WSAID_GETACCEPTEXSOCKADDRS;
+	SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
+	if (s == INVALID_SOCKET)
+		return;
+	ext->AcceptEx = get_extension_function(s, &acceptex);
+	ext->ConnectEx = get_extension_function(s, &connectex);
+	ext->GetAcceptExSockaddrs = get_extension_function(s,
+	    &getacceptexsockaddrs);
+	closesocket(s);
+}
+
+static struct win32_extension_fns the_extension_fns;
+static int extension_fns_initialized = 0;
+
+const struct win32_extension_fns *
+event_get_win32_extension_fns(void)
+{
+	return &the_extension_fns;
+}
+
 struct event_iocp_port *
 event_iocp_port_launch(void)
 {
 	struct event_iocp_port *port;
 	int i;
+
+	if (!extension_fns_initialized)
+		init_extension_functions(&the_extension_fns);
 
 	if (!(port = mm_calloc(1, sizeof(struct event_iocp_port))))
 		return NULL;

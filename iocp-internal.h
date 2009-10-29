@@ -53,6 +53,21 @@ struct event_overlapped {
 	iocp_callback cb;
 };
 
+/* Mingw's headers don't define LPFN_ACCEPTEX. */
+
+typedef BOOL (WINAPI *AcceptExPtr)(SOCKET, SOCKET, PVOID, DWORD, DWORD, DWORD, LPDWORD, LPOVERLAPPED);
+typedef BOOL (WINAPI *ConnectExPtr)(SOCKET, const struct sockaddr *, int, PVOID, DWORD, LPDWORD, LPOVERLAPPED);
+typedef void (WINAPI *GetAcceptExSockaddrsPtr)(PVOID, DWORD, DWORD, DWORD, LPSOCKADDR *, LPINT, LPSOCKADDR *, LPINT);
+
+/** Internal use only. Holds pointers to functions that only some versions of
+    Windows provide.
+ */
+struct win32_extension_fns {
+	AcceptExPtr AcceptEx;
+	ConnectExPtr ConnectEx;
+	GetAcceptExSockaddrsPtr GetAcceptExSockaddrs;
+};
+
 /**
     Internal use only. Stores a Windows IO Completion port, along with
     related data.
@@ -73,9 +88,11 @@ struct event_iocp_port {
 	HANDLE *threads;
 	/** Number of threads currently open on this port. */
 	short n_live_threads;
-	/* A semaphore to signal when we are done shutting down. */
+	/** A semaphore to signal when we are done shutting down. */
 	HANDLE *shutdownSemaphore;
 };
+
+const struct win32_extension_fns *event_get_win32_extension_fns(void);
 #else
 /* Dummy definition so we can test-compile more things on unix. */
 struct event_overlapped {
