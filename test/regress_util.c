@@ -51,6 +51,7 @@
 #include "../ipv6-internal.h"
 #include "../util-internal.h"
 #include "../log-internal.h"
+#include "../strlcpy-internal.h"
 
 #include "regress.h"
 
@@ -444,6 +445,27 @@ end:
 		EVUTIL_CLOSESOCKET(fd);
 }
 
+static void
+test_evutil_strlcpy(void *arg)
+{
+	char buf[8];
+
+	/* Successful case. */
+	tt_int_op(5, ==, strlcpy(buf, "Hello", sizeof(buf)));
+	tt_str_op(buf, ==, "Hello");
+
+	/* Overflow by a lot. */
+	tt_int_op(13, ==, strlcpy(buf, "pentasyllabic", sizeof(buf)));
+	tt_str_op(buf, ==, "pentasy");
+
+	/* Overflow by exactly one. */
+	tt_int_op(8, ==, strlcpy(buf, "overlong", sizeof(buf)));
+	tt_str_op(buf, ==, "overlon");
+end:
+	;
+}
+
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -451,6 +473,7 @@ struct testcase_t util_testcases[] = {
 	{ "evutil_snprintf", test_evutil_snprintf, 0, NULL, NULL },
 	{ "evutil_strtoll", test_evutil_strtoll, 0, NULL, NULL },
 	{ "evutil_casecmp", test_evutil_casecmp, 0, NULL, NULL },
+	{ "strlcpy", test_evutil_strlcpy, 0, NULL, NULL },
 	{ "log", test_evutil_log, TT_FORK, NULL, NULL },
 	END_OF_TESTCASES,
 };
