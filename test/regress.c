@@ -1464,6 +1464,33 @@ end:
 	evbuffer_free(tmp);
 }
 
+static void
+evtag_test_peek(void *ptr)
+{
+	struct evbuffer *tmp = evbuffer_new();
+	ev_uint32_t u32;
+
+	evtag_marshal_int(tmp, 30, 0);
+	evtag_marshal_string(tmp, 40, "Hello world");
+
+	tt_int_op(evtag_peek(tmp, &u32), ==, 1);
+	tt_int_op(u32, ==, 30);
+	tt_int_op(evtag_peek_length(tmp, &u32), ==, 0);
+	tt_int_op(u32, ==, 1+1+1);
+	tt_int_op(evtag_consume(tmp), ==, 0);
+
+	tt_int_op(evtag_peek(tmp, &u32), ==, 1);
+	tt_int_op(u32, ==, 40);
+	tt_int_op(evtag_peek_length(tmp, &u32), ==, 0);
+	tt_int_op(u32, ==, 1+1+11);
+	tt_int_op(evtag_payload_length(tmp, &u32), ==, 0);
+	tt_int_op(u32, ==, 11);
+
+end:
+	evbuffer_free(tmp);
+}
+
+
 
 static void
 test_methods(void *ptr)
@@ -1832,6 +1859,7 @@ struct testcase_t evtag_testcases[] = {
 	{ "int", evtag_int_test, TT_FORK, NULL, NULL },
 	{ "fuzz", evtag_fuzz, TT_FORK, NULL, NULL },
 	{ "encoding", evtag_tag_encoding, TT_FORK, NULL, NULL },
+	{ "peek", evtag_test_peek, 0, NULL, NULL },
 
 	END_OF_TESTCASES
 };

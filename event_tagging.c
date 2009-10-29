@@ -67,6 +67,30 @@
 #include "mm-internal.h"
 #include "util-internal.h"
 
+/*
+  Here's our wire format:
+
+  Stream = TaggedData*
+
+  TaggedData = Tag Length Data
+       where the integer value of 'Length' is the length of 'data'.
+
+  Tag = HByte* LByte
+       where HByte is a byte with the high bit set, and LByte is a byte
+       with the high bit clear. The integer value of the tag is taken
+       by concatenating the lower 7 bits from all the tags.  So for example,
+       the tag 0x66 is encoded as [66], whereas the tag 0x166 is encoded as
+       [82 66]
+
+  Length = Integer
+
+  Integer = NNibbles Nibble* Padding?
+       where NNibbles is a 4-bit value encoding the number of nibbles-1,
+       and each Nibble is 4 bits worth of encoded integer, in big-endian
+       order.  If the total encoded integer size is an odd number of nibbles,
+       a final padding nibble with value 0 is appended.
+*/
+
 int evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf);
 int evtag_decode_int64(ev_uint64_t *pnumber, struct evbuffer *evbuf);
 int evtag_encode_tag(struct evbuffer *evbuf, ev_uint32_t tag);
