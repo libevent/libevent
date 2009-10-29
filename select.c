@@ -200,8 +200,6 @@ select_resize(struct selectop *sop, int fdsz)
 
 	fd_set *readset_in = NULL;
 	fd_set *writeset_in = NULL;
-	fd_set *readset_out = NULL;
-	fd_set *writeset_out = NULL;
 
 	n_events = (fdsz/sizeof(fd_mask)) * NFDBITS;
 	n_events_old = (sop->event_fdsz/sizeof(fd_mask)) * NFDBITS;
@@ -212,15 +210,10 @@ select_resize(struct selectop *sop, int fdsz)
 	if ((readset_in = mm_realloc(sop->event_readset_in, fdsz)) == NULL)
 		goto error;
 	sop->event_readset_in = readset_in;
-	if ((readset_out = mm_realloc(sop->event_readset_out, fdsz)) == NULL)
-		goto error;
-	sop->event_readset_out = readset_out;
 	if ((writeset_in = mm_realloc(sop->event_writeset_in, fdsz)) == NULL)
 		goto error;
 	sop->event_writeset_in = writeset_in;
-	if ((writeset_out = mm_realloc(sop->event_writeset_out, fdsz)) == NULL)
-		goto error;
-	sop->event_writeset_out = writeset_out;
+	sop->resize_out_sets = 1;
 
 	memset((char *)sop->event_readset_in + sop->event_fdsz, 0,
 	    fdsz - sop->event_fdsz);
