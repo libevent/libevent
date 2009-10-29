@@ -219,6 +219,10 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 {
 	int i, r;
 	const char TEST_ARPA[] = "11.11.168.192.in-addr.arpa";
+	const char TEST_IN6[] =
+	    "f.e.f.e." "0.0.0.0." "0.0.0.0." "1.1.1.1."
+	    "a.a.a.a." "0.0.0.0." "0.0.0.0." "0.f.f.f.ip6.arpa";
+
 	for (i = 0; i < req->nquestions; ++i) {
 		struct in_addr ans;
 		ans.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
@@ -245,6 +249,14 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 			r = evdns_server_request_add_ptr_reply(req, NULL,
 												   req->questions[i]->name,
 												   "ZZ.EXAMPLE.COM", 54321);
+			if (r<0)
+				dns_ok = 0;
+		} else if (req->questions[i]->type == EVDNS_TYPE_PTR &&
+		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(req->questions[i]->name, TEST_IN6)){
+			r = evdns_server_request_add_ptr_reply(req, NULL,
+			    req->questions[i]->name,
+			    "ZZ-INET6.EXAMPLE.COM", 54322);
 			if (r<0)
 				dns_ok = 0;
                 } else if (req->questions[i]->type == EVDNS_TYPE_A &&
@@ -317,11 +329,22 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 	}
 	case DNS_PTR: {
 		char **addrs = addresses;
-		if (strcmp(addrs[0], "ZZ.EXAMPLE.COM") || ttl != 54321) {
-			printf("Bad PTR response \"%s\" %d. ",
-					addrs[0], ttl);
-			dns_ok = 0;
-			goto out;
+		if (arg != (void*)6) {
+			if (strcmp(addrs[0], "ZZ.EXAMPLE.COM") ||
+			    ttl != 54321) {
+				printf("Bad PTR response \"%s\" %d. ",
+				    addrs[0], ttl);
+				dns_ok = 0;
+				goto out;
+			}
+		} else {
+			if (strcmp(addrs[0], "ZZ-INET6.EXAMPLE.COM") ||
+			    ttl != 54322) {
+				printf("Bad ipv6 PTR response \"%s\" %d. ",
+				    addrs[0], ttl);
+				dns_ok = 0;
+				goto out;
+			}
 		}
 		break;
 	}
@@ -329,7 +352,7 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		printf("Bad response type %d. ", type);
 		dns_ok = 0;
 	}
-
+		
  out:
 	if (++n_server_responses == 3) {
 		event_loopexit(NULL);
@@ -343,6 +366,7 @@ dns_server(void)
 	struct sockaddr_in my_addr;
 	struct evdns_server_port *port=NULL;
 	struct in_addr resolve_addr;
+	struct in6_addr resolve_addr6;
 	struct evdns_base *base=NULL;
 	struct evdns_request *req=NULL;
 
@@ -380,6 +404,12 @@ dns_server(void)
 	resolve_addr.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
 	evdns_base_resolve_reverse(base, &resolve_addr, 0,
             dns_server_gethostbyname_cb, NULL);
+	memcpy(resolve_addr6.s6_addr,
+	    "\xff\xf0\x00\x00\x00\x00\xaa\xaa"
+	    "\x11\x11\x00\x00\x00\x00\xef\xef", 16);
+	evdns_base_resolve_reverse_ipv6(base, &resolve_addr6, 0,
+            dns_server_gethostbyname_cb, (void*)6);
+
 	req = evdns_base_resolve_ipv4(base,
 	    "drop.example.com", DNS_QUERY_NO_SEARCH,
 	    dns_server_gethostbyname_cb, (void*)(char*)90909);
