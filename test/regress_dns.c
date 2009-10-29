@@ -224,52 +224,51 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 	    "a.a.a.a." "0.0.0.0." "0.0.0.0." "0.f.f.f.ip6.arpa";
 
 	for (i = 0; i < req->nquestions; ++i) {
+		const int qtype = req->questions[i]->type;
+		const int qclass = req->questions[i]->dns_question_class;
+		const char *qname = req->questions[i]->name;
+
 		struct in_addr ans;
 		ans.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
-		if (req->questions[i]->type == EVDNS_TYPE_A &&
-			req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-			!evutil_ascii_strcasecmp(req->questions[i]->name, "zz.example.com")) {
-			r = evdns_server_request_add_a_reply(req,
-												 req->questions[i]->name,
-												 1, &ans.s_addr, 12345);
+		if (qtype == EVDNS_TYPE_A &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "zz.example.com")) {
+			r = evdns_server_request_add_a_reply(req, qname,
+			    1, &ans.s_addr, 12345);
 			if (r<0)
 				dns_ok = 0;
-		} else if (req->questions[i]->type == EVDNS_TYPE_AAAA &&
-				   req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-				   !evutil_ascii_strcasecmp(req->questions[i]->name, "zz.example.com")) {
+		} else if (qtype == EVDNS_TYPE_AAAA &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "zz.example.com")) {
 			char addr6[17] = "abcdefghijklmnop";
 			r = evdns_server_request_add_aaaa_reply(req,
-													req->questions[i]->name,
-												 1, addr6, 123);
+			    qname, 1, addr6, 123);
 			if (r<0)
 				dns_ok = 0;
-		} else if (req->questions[i]->type == EVDNS_TYPE_PTR &&
-				   req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-				   !evutil_ascii_strcasecmp(req->questions[i]->name, TEST_ARPA)) {
+		} else if (qtype == EVDNS_TYPE_PTR &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, TEST_ARPA)) {
 			r = evdns_server_request_add_ptr_reply(req, NULL,
-												   req->questions[i]->name,
-												   "ZZ.EXAMPLE.COM", 54321);
+			    qname, "ZZ.EXAMPLE.COM", 54321);
 			if (r<0)
 				dns_ok = 0;
-		} else if (req->questions[i]->type == EVDNS_TYPE_PTR &&
-		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-		    !evutil_ascii_strcasecmp(req->questions[i]->name, TEST_IN6)){
+		} else if (qtype == EVDNS_TYPE_PTR &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, TEST_IN6)){
 			r = evdns_server_request_add_ptr_reply(req, NULL,
-			    req->questions[i]->name,
+			    qname,
 			    "ZZ-INET6.EXAMPLE.COM", 54322);
 			if (r<0)
 				dns_ok = 0;
-                } else if (req->questions[i]->type == EVDNS_TYPE_A &&
-		    req->questions[i]->dns_question_class == EVDNS_CLASS_INET &&
-		    !evutil_ascii_strcasecmp(req->questions[i]->name, "drop.example.com")) {
+                } else if (qtype == EVDNS_TYPE_A &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "drop.example.com")) {
 			if (evdns_server_request_drop(req)<0)
 				dns_ok = 0;
 			return;
 		} else {
 			printf("Unexpected question %d %d \"%s\" ",
-					req->questions[i]->type,
-					req->questions[i]->dns_question_class,
-					req->questions[i]->name);
+			    qtype, qclass, qname);
 			dns_ok = 0;
 		}
 	}
@@ -318,7 +317,7 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		struct in6_addr *in6_addrs = addresses;
 		char buf[INET6_ADDRSTRLEN+1];
 		if (memcmp(&in6_addrs[0].s6_addr, "abcdefghijklmnop", 16)
-			|| ttl != 123) {
+		    || ttl != 123) {
 			const char *b = inet_ntop(AF_INET6, &in6_addrs[0],buf,sizeof(buf));
 			printf("Bad IPv6 response \"%s\" %d. ", b, ttl);
 			dns_ok = 0;
@@ -352,7 +351,6 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		printf("Bad response type %d. ", type);
 		dns_ok = 0;
 	}
-		
  out:
 	if (++n_server_responses == 3) {
 		event_loopexit(NULL);
