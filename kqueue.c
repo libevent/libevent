@@ -79,6 +79,8 @@ struct kqop {
 	pid_t pid;
 };
 
+static void kqop_free(struct kqop *kqop);
+
 static void *kq_init	(struct event_base *);
 static int kq_add (struct event_base *, int, short, short, void *);
 static int kq_del (struct event_base *, int, short, short, void *);
@@ -167,13 +169,9 @@ kq_init(struct event_base *base)
 
 	return (kqueueop);
 err:
-	if (kqueueop->changes)
-		mm_free(kqueueop->changes);
-	if (kqueueop->pend_changes)
-		mm_free(kqueueop->pend_changes);
-	if (kq >= 0)
-		close(kq);
-	mm_free(kqueueop);
+	if (kqueueop)
+		kqop_free(kqueueop);
+
 	return (NULL);
 }
 
@@ -390,18 +388,25 @@ kq_del(struct event_base *base, int fd, short old, short events, void *p)
 }
 
 static void
-kq_dealloc(struct event_base *base)
+kqop_free(struct kqop *kqop)
 {
-	struct kqop *kqop = base->evbase;
-
 	if (kqop->changes)
 		mm_free(kqop->changes);
+	if (kqop->pend_changes)
+		mm_free(kqop->pend_changes);
 	if (kqop->events)
 		mm_free(kqop->events);
 	if (kqop->kq >= 0 && kqop->pid == getpid())
 		close(kqop->kq);
 	memset(kqop, 0, sizeof(struct kqop));
 	mm_free(kqop);
+}
+
+static void
+kq_dealloc(struct event_base *base)
+{
+	struct kqop *kqop = base->evbase;
+	kqop_free(kqop);
 }
 
 /* signal handling */
