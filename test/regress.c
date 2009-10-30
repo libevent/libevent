@@ -1812,6 +1812,59 @@ end:
 		event_base_free(b);
 }
 
+static void
+many_event_cb(int fd, short event, void *arg)
+{
+	int *calledp = arg;
+	*calledp += 1;
+}
+
+static void
+test_many_events(void *arg)
+{
+	/* Try 64 events that should all be aready at once.  This will
+	 * exercise the "resize" code on most of the backends. */
+#define MANY 64
+
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	evutil_socket_t sock[MANY];
+	struct event *ev[MANY];
+	int called[MANY];
+	int i;
+
+	memset(sock, 0xff, sizeof(sock));
+	memset(ev, 0, sizeof(ev));
+	memset(called, 0, sizeof(called));
+
+	for (i = 0; i < MANY; ++i) {
+		/* We need an event that will hit the backend, and that will
+		 * be ready immediately.  "Send a datagram" is an easy
+		 * instance of that. */
+		sock[i] = socket(AF_INET, SOCK_DGRAM, 0);
+		tt_assert(sock[i] >= 0);
+		called[i] = 0;
+		ev[i] = event_new(base, sock[i], EV_WRITE, many_event_cb,
+		    &called[i]);
+		event_add(ev[i], NULL);
+	}
+
+	event_base_loop(base, EVLOOP_NONBLOCK);
+
+	for (i = 0; i < MANY; ++i) {
+		tt_int_op(called[i], ==, 1);
+	}
+
+end:
+	for (i = 0; i < MANY; ++i) {
+		if (ev[i])
+			event_free(ev[i]);
+		if (sock[i] >= 0)
+			EVUTIL_CLOSESOCKET(sock[i]);
+	}
+#undef MANY
+}
+
 struct testcase_t main_testcases[] = {
         /* Some converted-over tests */
         { "methods", test_methods, TT_FORK, NULL, NULL },
@@ -1848,6 +1901,7 @@ struct testcase_t main_testcases[] = {
 	{ "event_pending", test_event_pending, TT_ISOLATED, &basic_setup,
 	  NULL },
 	{ "mm_functions", test_mm_functions, TT_FORK, NULL, NULL },
+	BASIC(many_events, TT_ISOLATED),
 
 #ifndef WIN32
         LEGACY(fork, TT_ISOLATED),
