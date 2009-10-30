@@ -67,6 +67,8 @@ bufferevent_openssl_get_ssl(struct bufferevent *bufev);
 
 int bufferevent_ssl_renegotiate(struct bufferevent *bev);
 
+unsigned long bufferevent_get_openssl_error(struct bufferevent *bev);
+
 #endif
 
 #ifdef __cplusplus

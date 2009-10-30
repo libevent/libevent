@@ -87,8 +87,21 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 	struct bufferevent *partner = ctx;
 
 	if (what & (BEV_EVENT_EOF|BEV_EVENT_ERROR)) {
-		if (what & BEV_EVENT_ERROR)
-			perror("maybe an error");
+		if (what & BEV_EVENT_ERROR) {
+			unsigned long err;
+			while ((err = (bufferevent_get_openssl_error(bev)))) {
+				const char *msg = (const char*)
+				    ERR_reason_error_string(err);
+				const char *lib = (const char*)
+				    ERR_lib_error_string(err);
+				const char *func = (const char*)
+				    ERR_func_error_string(err);
+				fprintf(stderr,
+				    "%s in %s %s\n", msg, lib, func);
+			}
+			if (errno)
+				perror("connection error");
+		}
 
 		if (partner) {
 			/* Flush all pending data */

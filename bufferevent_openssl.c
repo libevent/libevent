@@ -89,7 +89,7 @@ print_err(int val)
 	int err;
 	printf("Error was %d\n", val);
 
-	while ((err = ERR_get_error())) {
+	while ((err = ERR_get_error()))x {
 		const char *msg = (const char*)ERR_reason_error_string(err);
 		const char *lib = (const char*)ERR_lib_error_string(err);
 		const char *func = (const char*)ERR_func_error_string(err);
@@ -296,6 +296,9 @@ struct bufferevent_openssl {
 	 * and we need to try it again with this many bytes. */
 	ev_ssize_t last_write;
 
+#define NUM_ERRORS 3
+	ev_uint32_t errors[NUM_ERRORS];
+
 	/* When we next get available space, we should say "read" instead of
 	   "write". This can happen if there's a renegotiation during a read
 	   operation. */
@@ -306,6 +309,8 @@ struct bufferevent_openssl {
 	unsigned allow_dirty_shutdown : 1;
 	/* XXXX */
 	unsigned fd_is_set : 1;
+	/* XXX */
+	unsigned n_errors : 2;
 
 	/* Are we currently connecting, accepting, or doing IO? */
 	unsigned state : 2;
@@ -342,6 +347,19 @@ upcast(struct bufferevent *bev)
 			 evutil_offsetof(struct bufferevent_openssl, bev.bev));
 	EVUTIL_ASSERT(bev_o->bev.bev.be_ops == &bufferevent_ops_openssl);
 	return bev_o;
+}
+
+static inline void
+put_error(struct bufferevent_openssl *bev_ssl, unsigned long err)
+{
+	if (bev_ssl->n_errors == NUM_ERRORS)
+		return;
+	/* The error type according to openssl is "unsigned long", but
+	   openssl never uses more than 32 bits of it.  It _can't_ use more
+	   than 32 bits of it, since it needs to report errors on systems
+	   where long is only 32 bits.
+	 */
+	bev_ssl->errors[bev_ssl->n_errors++] = (uint32_t) err;
 }
 
 /* Have the base communications channel (either the underlying bufferevent or
@@ -456,6 +474,7 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int errcode, int ret)
 {
 	int event = BEV_EVENT_ERROR;
 	int dirty_shutdown = 0;
+	unsigned long err;
 
 	switch (errcode) {
 	case SSL_ERROR_ZERO_RETURN:
@@ -467,7 +486,7 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int errcode, int ret)
 		break;
 	case SSL_ERROR_SYSCALL:
 		/* IO error; possibly a dirty shutdown. */
-		if (ret == 0 && ERR_get_error() == 0)
+		if (ret == 0 && ERR_peek_error() == 0)
 			dirty_shutdown = 1;
 		break;
 	case SSL_ERROR_SSL:
@@ -484,6 +503,10 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int errcode, int ret)
 	default:
 		/* should be impossible */
 		event_errx(1, "Unexpected OpenSSL error code %d", errcode);
+	}
+
+	while ((err = ERR_get_error())) {
+		put_error(bev_ssl, err);
 	}
 
 	if (dirty_shutdown && bev_ssl->allow_dirty_shutdown)
@@ -1178,4 +1201,18 @@ bufferevent_openssl_socket_new(struct event_base *base,
 
 	return bufferevent_openssl_new_impl(
 		base, NULL, fd, ssl, state, options);
+}
+
+unsigned long
+bufferevent_get_openssl_error(struct bufferevent *bev)
+{
+	unsigned long err = 0;
+	struct bufferevent_openssl *bev_ssl;
+	BEV_LOCK(bev);
+	bev_ssl = upcast(bev);
+	if (bev_ssl && bev_ssl->n_errors) {
+		err = bev_ssl->errors[--bev_ssl->n_errors];
+	}
+	BEV_UNLOCK(bev);
+	return err;
 }
