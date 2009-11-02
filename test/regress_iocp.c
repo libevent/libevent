@@ -31,6 +31,9 @@
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
 
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
 #include "regress.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"

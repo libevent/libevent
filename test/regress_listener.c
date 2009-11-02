@@ -112,6 +112,7 @@ regress_pick_a_port(void *arg)
 	evutil_socket_connect(&fd3, (struct sockaddr*)&ss2, slen2);
 
 	event_base_dispatch(base);
+	// Sleep(2000);
 
 	tt_int_op(count1, ==, 0);
 	tt_int_op(count2, ==, 0);
@@ -131,6 +132,10 @@ struct testcase_t listener_testcases[] = {
 	{ "randport", regress_pick_a_port, TT_FORK|TT_NEED_BASE,
 	  &basic_setup, NULL},
 
+        END_OF_TESTCASES,
+};
+
+struct testcase_t listener_iocp_testcases[] = {
 	{ "iocp/randport", regress_pick_a_port,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP,
 	  &basic_setup, NULL},

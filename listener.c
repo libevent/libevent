@@ -333,7 +333,7 @@ static void
 free_and_unlock_accepting_socket(struct accepting_socket *as)
 {
 	/* requires lock. */
-	if (res->s != INVALID_SOCKET)
+	if (as->s != INVALID_SOCKET)
 		closesocket(as->s);
 
 	LeaveCriticalSection(&as->lock);
@@ -376,7 +376,9 @@ start_accepting(struct accepting_socket *as)
 		int err = WSAGetLastError();
 		if (err == ERROR_IO_PENDING)
 			result = 0;
-		event_sock_warn(as->lev->fd, "AcceptEx");
+		else
+			event_warnx("AcceptEx: %s",
+			    evutil_socket_error_to_string(err));
 	}
 
 done:
@@ -384,11 +386,13 @@ done:
 	return result;
 }
 
+#if 0
 static void
 stop_accepting(struct accepting_socket *as)
 {
 	/* XXX */
 }
+#endif
 
 static void
 accepted_socket_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n)
@@ -409,10 +413,10 @@ accepted_socket_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n)
 	    &sa_local, &socklen_local,
 	    &sa_remote, &socklen_remote);
 
-	as->s = INVALID_SOCKET;
-
 	as->lev->base.cb(&as->lev->base, as->s, sa_remote, socklen_remote,
 	    as->lev->base.user_data);
+
+	as->s = INVALID_SOCKET;
 
 	/* Avoid stack overflow XXXX */
 	start_accepting(as);
@@ -448,7 +452,7 @@ iocp_listener_getbase(struct evconnlistener *lev)
 {
 	struct evconnlistener_iocp *lev_iocp =
 	    EVUTIL_UPCAST(lev, struct evconnlistener_iocp, base);
-	return lev_iocp->event_basex;
+	return lev_iocp->event_base;
 }
 
 static const struct evconnlistener_ops evconnlistener_iocp_ops = {
@@ -497,7 +501,7 @@ evconnlistener_new_async(struct event_base *base,
 	lev->event_base = base;
 
 	if (event_iocp_port_associate(lev->port, fd, 1) < 0)
-		return -1;
+		return NULL;
 
 	lev->n_accepting = 1;
 	lev->accepting = mm_calloc(1, sizeof(struct accepting_socket *));
@@ -518,7 +522,7 @@ evconnlistener_new_async(struct event_base *base,
 
 	if (start_accepting(lev->accepting[0]) < 0) {
 		event_warnx("Couldn't start accepting on socket");
-		EnterCriticalSection(lev->accepting[0]);
+		EnterCriticalSection(&lev->accepting[0]->lock);
 		free_and_unlock_accepting_socket(lev->accepting[0]);
 		mm_free(lev->accepting);
 		mm_free(lev);

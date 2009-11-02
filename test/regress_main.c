@@ -319,8 +319,9 @@ struct testgroup_t testgroups[] = {
 	{ "listener/", listener_testcases },
 #ifdef WIN32
 	{ "iocp/", iocp_testcases },
-#endif
 	{ "iocp/bufferevent/", bufferevent_iocp_testcases },
+	{ "iocp/listener/", listener_iocp_testcases },
+#endif
 #ifdef _EVENT_HAVE_OPENSSL
 	{ "ssl/", ssl_testcases },
 #endif
