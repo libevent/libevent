@@ -1731,7 +1731,7 @@ done:
 #ifdef USE_IOVEC_IMPL
 static inline int
 evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
-ssize_t howmuch)
+    ev_ssize_t howmuch)
 {
 	IOV_TYPE iov[NUM_IOVEC];
 	struct evbuffer_chain *chain = buffer->first;
