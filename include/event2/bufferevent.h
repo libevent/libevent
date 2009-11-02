@@ -386,12 +386,12 @@ enum bufferevent_flush_mode {
 
    @param bufev the bufferevent object
    @param iotype either EV_READ or EV_WRITE or both.
-   @param state either BEV_NORMAL or BEV_FLUSH or BEV_FINISHED
+   @param mode either BEV_NORMAL or BEV_FLUSH or BEV_FINISHED
    @return -1 on failure, 0 if no data was produces, 1 if data was produced
  */
 int bufferevent_flush(struct bufferevent *bufev,
     short iotype,
-    enum bufferevent_flush_mode state);
+    enum bufferevent_flush_mode mode);
 
 /**
    Support for filtering input and output of bufferevents.
@@ -420,7 +420,7 @@ enum bufferevent_filter_result {
        The filter may ignore this value, but doing so means that
        it will overflow the high-water mark associated with dst.
        -1 means "no limit".
-    @param state Whether we should write data as may be convenient
+    @param mode Whether we should write data as may be convenient
        (BEV_NORMAL), or flush as much data as we can (BEV_FLUSH),
        or flush as much as we can, possibly including an end-of-stream
        marker (BEV_FINISH).
