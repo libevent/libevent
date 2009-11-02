@@ -112,7 +112,9 @@ regress_pick_a_port(void *arg)
 	evutil_socket_connect(&fd3, (struct sockaddr*)&ss2, slen2);
 
 	event_base_dispatch(base);
-	// Sleep(2000);
+#ifdef WIN32
+	Sleep(1000); /* XXXX this is a stupid stopgap. */
+#endif
 
 	tt_int_op(count1, ==, 0);
 	tt_int_op(count2, ==, 0);
