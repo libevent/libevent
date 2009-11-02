@@ -111,10 +111,10 @@ regress_pick_a_port(void *arg)
 	evutil_socket_connect(&fd2, (struct sockaddr*)&ss1, slen1);
 	evutil_socket_connect(&fd3, (struct sockaddr*)&ss2, slen2);
 
-	event_base_dispatch(base);
 #ifdef WIN32
-	Sleep(1000); /* XXXX this is a stupid stopgap. */
+	Sleep(100); /* XXXX this is a stupid stopgap. */
 #endif
+	event_base_dispatch(base);
 
 	tt_int_op(count1, ==, 0);
 	tt_int_op(count2, ==, 0);
@@ -138,7 +138,7 @@ struct testcase_t listener_testcases[] = {
 };
 
 struct testcase_t listener_iocp_testcases[] = {
-	{ "iocp/randport", regress_pick_a_port,
+	{ "randport", regress_pick_a_port,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP,
 	  &basic_setup, NULL},
 
