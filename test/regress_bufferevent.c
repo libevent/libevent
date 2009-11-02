@@ -609,3 +609,25 @@ struct testcase_t bufferevent_testcases[] = {
 
         END_OF_TESTCASES,
 };
+
+struct testcase_t bufferevent_iocp_testcases[] = {
+
+        LEGACY(bufferevent, TT_ISOLATED|TT_ENABLE_IOCP),
+        LEGACY(bufferevent_watermarks, TT_ISOLATED|TT_ENABLE_IOCP),
+        LEGACY(bufferevent_filters, TT_ISOLATED|TT_ENABLE_IOCP),
+#if 0
+	{ "bufferevent_connect", test_bufferevent_connect, TT_FORK|TT_NEED_BASE,
+	  &basic_setup, (void*)"" },
+	{ "bufferevent_connect_defer", test_bufferevent_connect,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"defer" },
+	{ "bufferevent_connect_lock", test_bufferevent_connect,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup, (void*)"lock" },
+	{ "bufferevent_connect_lock_defer", test_bufferevent_connect,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup,
+	  (void*)"defer lock" },
+	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+#endif
+
+        END_OF_TESTCASES,
+};

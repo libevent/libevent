@@ -38,6 +38,7 @@ extern struct testcase_t main_testcases[];
 extern struct testcase_t evtag_testcases[];
 extern struct testcase_t evbuffer_testcases[];
 extern struct testcase_t bufferevent_testcases[];
+extern struct testcase_t bufferevent_iocp_testcases[];
 extern struct testcase_t util_testcases[];
 extern struct testcase_t signal_testcases[];
 extern struct testcase_t http_testcases[];
@@ -82,6 +83,7 @@ void run_legacy_test_fn(void *ptr);
 #define TT_LEGACY            (TT_FIRST_USER_FLAG<<3)
 #define TT_NEED_THREADS      (TT_FIRST_USER_FLAG<<4)
 #define TT_NO_LOGS           (TT_FIRST_USER_FLAG<<5)
+#define TT_ENABLE_IOCP       (TT_FIRST_USER_FLAG<<6)
 
 /* All the flags that a legacy test needs. */
 #define TT_ISOLATED TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE

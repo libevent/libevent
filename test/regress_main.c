@@ -75,6 +75,8 @@
 #include "regress.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"
+#include "../iocp-internal.h"
+
 
 /* ============================================================ */
 /* Code to wrap up old legacy test cases that used setup() and cleanup().
@@ -132,6 +134,11 @@ basic_test_setup(const struct testcase_t *testcase)
 	int spair[2] = { -1, -1 };
 	struct basic_test_data *data = NULL;
 
+#ifndef WIN32
+	if (testcase->flags & TT_ENABLE_IOCP)
+		return (void*)TT_SKIP;
+#endif
+
 	if (testcase->flags & TT_NEED_THREADS) {
 		if (!(testcase->flags & TT_FORK))
 			return NULL;
@@ -170,7 +177,12 @@ basic_test_setup(const struct testcase_t *testcase)
 		if (!base)
 			exit(1);
 	}
-
+	if (testcase->flags & TT_ENABLE_IOCP) {
+		if (event_base_start_iocp(base)<0) {
+			event_base_free(base);
+			return (void*)TT_SKIP;
+		}
+	}
 
         if (testcase->flags & TT_NEED_DNS) {
                 evdns_set_log_fn(dnslogcb);
@@ -232,6 +244,8 @@ static void *
 legacy_test_setup(const struct testcase_t *testcase)
 {
 	struct basic_test_data *data = basic_test_setup(testcase);
+	if (data == (void*)TT_SKIP)
+		return data;
 	global_base = data->base;
 	pair[0] = data->pair[0];
 	pair[1] = data->pair[1];
@@ -306,6 +320,7 @@ struct testgroup_t testgroups[] = {
 #ifdef WIN32
 	{ "iocp/", iocp_testcases },
 #endif
+	{ "iocp/bufferevent/", bufferevent_iocp_testcases },
 #ifdef _EVENT_HAVE_OPENSSL
 	{ "ssl/", ssl_testcases },
 #endif
