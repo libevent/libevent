@@ -62,6 +62,7 @@ struct evconnlistener_ops {
 	int (*disable)(struct evconnlistener *);
 	void (*destroy)(struct evconnlistener *);
 	evutil_socket_t (*getfd)(struct evconnlistener *);
+	struct event_base *(*getbase)(struct evconnlistener *);
 };
 
 struct evconnlistener {
@@ -80,22 +81,30 @@ struct evconnlistener_event {
 struct evconnlistener_iocp {
 	struct evconnlistener base;
 	evutil_socket_t fd;
+	struct event_base *event_base;
 	struct event_iocp_port *port;
 	int n_accepting;
 	struct accepting_socket **accepting;
 };
 #endif
 
+struct evconnlistener *
+evconnlistener_new_async(struct event_base *base,
+    evconnlistener_cb cb, void *ptr, unsigned flags, int backlog,
+    evutil_socket_t fd); /* XXXX export this? */
+
 static int event_listener_enable(struct evconnlistener *);
 static int event_listener_disable(struct evconnlistener *);
 static void event_listener_destroy(struct evconnlistener *);
 static evutil_socket_t event_listener_getfd(struct evconnlistener *);
+static struct event_base *event_listener_getbase(struct evconnlistener *);
 
 static const struct evconnlistener_ops evconnlistener_event_ops = {
-	event_listener_enable,	
-	event_listener_disable,	
-	event_listener_destroy,	
-	event_listener_getfd
+	event_listener_enable,
+	event_listener_disable,
+	event_listener_destroy,
+	event_listener_getfd,
+	event_listener_getbase
 };
 
 static void listener_read_cb(evutil_socket_t, short, void *);
@@ -106,6 +115,15 @@ evconnlistener_new(struct event_base *base,
     evutil_socket_t fd)
 {
 	struct evconnlistener_event *lev;
+#ifdef WIN32
+	if (event_base_get_iocp(base)) {
+		const struct win32_extension_fns *ext =
+		    event_get_win32_extension_fns();
+		if (ext->AcceptEx && ext->GetAcceptExSockaddrs)
+			return evconnlistener_new_async(base, cb, ptr, flags,
+			    backlog, fd);
+	}
+#endif
 	if (backlog > 0) {
 		if (listen(fd, backlog) < 0)
 			return NULL;
@@ -213,15 +231,6 @@ event_listener_disable(struct evconnlistener *lev)
 	return event_del(&lev_e->listener);
 }
 
-struct event_base *
-evconnlistener_get_base(struct evconnlistener *lev)
-{
-	/* XXXX UPCAST. */
-	struct evconnlistener_event *lev_e =
-	    EVUTIL_UPCAST(lev, struct evconnlistener_event, base);
-	return event_get_base(&lev_e->listener);
-}
-
 evutil_socket_t
 evconnlistener_get_fd(struct evconnlistener *lev)
 {
@@ -234,6 +243,20 @@ event_listener_getfd(struct evconnlistener *lev)
 	struct evconnlistener_event *lev_e =
 	    EVUTIL_UPCAST(lev, struct evconnlistener_event, base);
 	return event_get_fd(&lev_e->listener);
+}
+
+struct event_base *
+evconnlistener_get_base(struct evconnlistener *lev)
+{
+	return lev->ops->getbase(lev);
+}
+
+static struct event_base *
+event_listener_getbase(struct evconnlistener *lev)
+{
+	struct evconnlistener_event *lev_e =
+	    EVUTIL_UPCAST(lev, struct evconnlistener_event, base);
+	return event_get_base(&lev_e->listener);
 }
 
 static void
@@ -263,11 +286,14 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 
 #ifdef WIN32
 struct accepting_socket {
+	CRITICAL_SECTION lock;
 	struct event_overlapped overlapped;
 	SOCKET s;
 	struct evconnlistener_iocp *lev;
-	int buflen;
-	char addrbuf[1]; /*XXX */
+	ev_uint8_t buflen;
+	ev_uint8_t family;
+	unsigned free_on_cb:1;
+	char addrbuf[1];
 };
 
 static void accepted_socket_cb(struct event_overlapped *o, uintptr_t key,
@@ -296,16 +322,32 @@ new_accepting_socket(struct evconnlistener_iocp *lev, int family)
 	res->s = INVALID_SOCKET;
 	res->lev = lev;
 	res->buflen = buflen;
+	res->family = family;
+
+	InitializeCriticalSection(&res->lock);
+
 	return res;
+}
+
+static void
+free_and_unlock_accepting_socket(struct accepting_socket *as)
+{
+	/* requires lock. */
+	if (res->s != INVALID_SOCKET)
+		closesocket(as->s);
+
+	LeaveCriticalSection(&as->lock);
+	DeleteCriticalSection(&as->lock);
+	mm_free(as);
 }
 
 static int
 start_accepting(struct accepting_socket *as)
 {
+	int result = -1;
 	const struct win32_extension_fns *ext =
 	    event_get_win32_extension_fns();
-	int family = AF_INET; /* XXXX */
-	SOCKET s = socket(family, SOCK_STREAM, 0);
+	SOCKET s = socket(as->family, SOCK_STREAM, 0);
 	DWORD pending = 0;
 	if (s == INVALID_SOCKET)
 		return -1;
@@ -320,7 +362,7 @@ start_accepting(struct accepting_socket *as)
 		evutil_make_socket_nonblocking(s);
 
 	if (event_iocp_port_associate(as->lev->port, s, 1) < 0)
-		return -1;
+		goto done;
 
 	as->s = s;
 
@@ -329,20 +371,30 @@ start_accepting(struct accepting_socket *as)
 		&pending, &as->overlapped.overlapped)) {
 		/* Immediate success! */
 		accepted_socket_cb(&as->overlapped, 1, 0);
-		return 0;
+		result = 0;
 	} else {
 		int err = WSAGetLastError();
 		if (err == ERROR_IO_PENDING)
-			return 0;
-		/* XXXX log the error */
-		return -1;
+			result = 0;
+		event_sock_warn(as->lev->fd, "AcceptEx");
 	}
+
+done:
+	LeaveCriticalSection(&as->lock);
+	return result;
+}
+
+static void
+stop_accepting(struct accepting_socket *as)
+{
+	/* XXX */
 }
 
 static void
 accepted_socket_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n)
 {
 	/* Run this whole thing deferred unless some MT flag is set */
+	/* XXX needs locking. */
 
 	struct sockaddr *sa_local=NULL, *sa_remote=NULL;
 	int socklen_local=0, socklen_remote=0;
@@ -350,7 +402,6 @@ accepted_socket_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n)
 	    EVUTIL_UPCAST(o, struct accepting_socket, overlapped);
 	const struct win32_extension_fns *ext =
 	    event_get_win32_extension_fns();
-
 	EVUTIL_ASSERT(ext->GetAcceptExSockaddrs);
 
 	ext->GetAcceptExSockaddrs(as->addrbuf, 0,
@@ -389,21 +440,24 @@ static evutil_socket_t
 iocp_listener_getfd(struct evconnlistener *lev)
 {
 	struct evconnlistener_iocp *lev_iocp =
-	    EVUTIL_UPCAST(lev, struct evconnlistener_iocp, base);	
+	    EVUTIL_UPCAST(lev, struct evconnlistener_iocp, base);
 	return lev_iocp->fd;
+}
+static struct event_base *
+iocp_listener_getbase(struct evconnlistener *lev)
+{
+	struct evconnlistener_iocp *lev_iocp =
+	    EVUTIL_UPCAST(lev, struct evconnlistener_iocp, base);
+	return lev_iocp->event_basex;
 }
 
 static const struct evconnlistener_ops evconnlistener_iocp_ops = {
-	iocp_listener_enable,	
-	iocp_listener_disable,	
-	iocp_listener_destroy,	
-	iocp_listener_getfd
+	iocp_listener_enable,
+	iocp_listener_disable,
+	iocp_listener_destroy,
+	iocp_listener_getfd,
+	iocp_listener_getbase
 };
-
-struct evconnlistener *
-evconnlistener_new_async(struct event_base *base,
-    evconnlistener_cb cb, void *ptr, unsigned flags, int backlog,
-    evutil_socket_t fd); /* XXXX Use or export this. */
 
 struct evconnlistener *
 evconnlistener_new_async(struct event_base *base,
@@ -413,6 +467,9 @@ evconnlistener_new_async(struct event_base *base,
 	struct sockaddr_storage ss;
 	int socklen = sizeof(ss);
 	struct evconnlistener_iocp *lev;
+	if (!event_base_get_iocp(base))
+		return NULL;
+
 	/* XXXX duplicate code */
 	if (backlog > 0) {
 		if (listen(fd, backlog) < 0)
@@ -435,7 +492,12 @@ evconnlistener_new_async(struct event_base *base,
 	lev->base.user_data = ptr;
 	lev->base.flags = flags;
 
+	lev->port = event_base_get_iocp(base);
 	lev->fd = fd;
+	lev->event_base = base;
+
+	if (event_iocp_port_associate(lev->port, fd, 1) < 0)
+		return -1;
 
 	lev->n_accepting = 1;
 	lev->accepting = mm_calloc(1, sizeof(struct accepting_socket *));
@@ -454,9 +516,13 @@ evconnlistener_new_async(struct event_base *base,
 		return NULL;
 	}
 
-	if (!start_accepting(lev->accepting[0])) {
+	if (start_accepting(lev->accepting[0]) < 0) {
 		event_warnx("Couldn't start accepting on socket");
-		/* XXX free everything */
+		EnterCriticalSection(lev->accepting[0]);
+		free_and_unlock_accepting_socket(lev->accepting[0]);
+		mm_free(lev->accepting);
+		mm_free(lev);
+		closesocket(fd);
 		return NULL;
 	}
 
