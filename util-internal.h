@@ -130,7 +130,7 @@ extern const char EVUTIL_TOLOWER_TABLE[];
     }
  */
 #define EVUTIL_UPCAST(ptr, type, field)				\
-	((type *)((char*)ptr) - evutil_offsetof(type, field))
+	((type *)(((char*)(ptr)) - evutil_offsetof(type, field)))
 
 
 int evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen);
