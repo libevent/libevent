@@ -297,7 +297,7 @@ struct accepting_socket {
 };
 
 static void accepted_socket_cb(struct event_overlapped *o, uintptr_t key,
-    ev_ssize_t n);
+    ev_ssize_t n, int ok);
 
 static struct accepting_socket *
 new_accepting_socket(struct evconnlistener_iocp *lev, int family)
@@ -370,7 +370,7 @@ start_accepting(struct accepting_socket *as)
 		as->buflen/2, as->buflen/2,
 		&pending, &as->overlapped.overlapped)) {
 		/* Immediate success! */
-		accepted_socket_cb(&as->overlapped, 1, 0);
+		accepted_socket_cb(&as->overlapped, 1, 0, 1);
 		result = 0;
 	} else {
 		int err = WSAGetLastError();
@@ -395,10 +395,11 @@ stop_accepting(struct accepting_socket *as)
 #endif
 
 static void
-accepted_socket_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n)
+accepted_socket_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n, int ok)
 {
 	/* Run this whole thing deferred unless some MT flag is set */
 	/* XXX needs locking. */
+	/* XXX use ok */
 
 	struct sockaddr *sa_local=NULL, *sa_remote=NULL;
 	int socklen_local=0, socklen_remote=0;

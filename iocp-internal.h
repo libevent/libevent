@@ -34,7 +34,7 @@ extern "C" {
 struct event_overlapped;
 struct event_iocp_port;
 struct evbuffer;
-typedef void (*iocp_callback)(struct event_overlapped *, uintptr_t, ev_ssize_t);
+typedef void (*iocp_callback)(struct event_overlapped *, uintptr_t, ev_ssize_t, int success);
 
 /* This whole file is actually win32 only. We wrap the structures in a win32
  * ifdef so that we can test-compile code that uses these interfaces on

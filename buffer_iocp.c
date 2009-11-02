@@ -111,7 +111,7 @@ pin_release(struct event_overlapped *eo, unsigned flag)
 
 /** IOCP callback invoked when a read operation is finished. */
 static void
-read_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes)
+read_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes, int ok)
 {
 	struct buffer_overlapped *buf_o = upcast_overlapped(eo);
 	struct evbuffer_overlapped *buf = buf_o->buf;
@@ -119,6 +119,8 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes)
 
 	struct evbuffer_iovec iov[2];
 	int n_vec;
+
+	// XXXX use ok
 
 	EVBUFFER_LOCK(evbuf, EVTHREAD_WRITE);
 	buf->read_in_progress = 0;
@@ -145,8 +147,9 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes)
 
 /** IOCP callback invoked when a write operation is finished. */
 static void
-write_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes)
+write_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes, int ok)
 {
+	// XXX use ok
 	struct buffer_overlapped *buf_o = upcast_overlapped(eo);
 	struct evbuffer_overlapped *buf = buf_o->buf;
 

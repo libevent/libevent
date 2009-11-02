@@ -47,28 +47,29 @@ event_overlapped_init(struct event_overlapped *o, iocp_callback cb)
 }
 
 static void
-handle_entry(OVERLAPPED *o, ULONG_PTR completion_key, DWORD nBytes)
+handle_entry(OVERLAPPED *o, ULONG_PTR completion_key, DWORD nBytes, int ok)
 {
 	struct event_overlapped *eo =
 	    EVUTIL_UPCAST(o, struct event_overlapped, overlapped);
-	eo->cb(eo, completion_key, nBytes);
+	eo->cb(eo, completion_key, nBytes, ok);
 }
 
 static void
 loop(void *_port)
 {
 	struct event_iocp_port *port = _port;
-	OVERLAPPED *overlapped;
-	ULONG_PTR key;
-	DWORD bytes;
 	long ms = port->ms;
 	HANDLE p = port->port;
 
 	if (ms <= 0)
 		ms = INFINITE;
 
-	while (GetQueuedCompletionStatus(p, &bytes, &key,
-		&overlapped, ms)) {
+	while (1) {
+		OVERLAPPED *overlapped=NULL;
+		ULONG_PTR key=0;
+		DWORD bytes=0;
+		int ok = GetQueuedCompletionStatus(p, &bytes, &key,
+			&overlapped, ms);
 		EnterCriticalSection(&port->lock);
 		if (port->shutdown) {
 			if (--port->n_live_threads == 0)
@@ -78,8 +79,10 @@ loop(void *_port)
 		}
 		LeaveCriticalSection(&port->lock);
 
-		if (key != NOTIFICATION_KEY)
-			handle_entry(overlapped, key, bytes);
+		if (key != NOTIFICATION_KEY && overlapped)
+			handle_entry(overlapped, key, bytes, ok);
+		else if (!overlapped)
+			break;
 	}
 	event_warnx("GetQueuedCompletionStatus exited with no event.");
 	EnterCriticalSection(&port->lock);
