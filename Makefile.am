@@ -44,7 +44,7 @@ EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
 	test/Makefile.am test/Makefile.in test/bench.c test/regress.c \
 	test/test-eof.c test/test-weof.c test/test-time.c \
 	test/test-init.c test/test.sh \
-	compat/sys/queue.h compat/sys/_time.h \
+	compat/sys/queue.h compat/sys/_libevent_time.h \
 	WIN32-Code/config.h \
 	WIN32-Code/event-config.h \
 	WIN32-Code/win32.c \

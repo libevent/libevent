@@ -50,7 +50,7 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
-#include <sys/_time.h>
+#include <sys/_libevent_time.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
