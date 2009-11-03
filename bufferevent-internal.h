@@ -227,6 +227,17 @@ void _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 			EVLOCK_UNLOCK(locking->lock, EVTHREAD_WRITE);	\
 	} while(0)
 
+struct evdns_base;
+int _bufferevent_socket_connect_hostname_evdns(
+	struct bufferevent *bufev,
+	struct evdns_base *evdns_base,
+	int family,
+	const char *hostname,
+	int port);
+void _bufferevent_set_socket_connect_hostname_evdns_fn(
+	int (*fn)(struct bufferevent *, struct evdns_base *, int,
+	    const char *, int));
+
 #ifdef __cplusplus
 }
 #endif

@@ -112,7 +112,7 @@ CORE_SRC = event.c buffer.c \
 	bufferevent.c bufferevent_sock.c bufferevent_filter.c \
 	bufferevent_pair.c listener.c \
 	evmap.c	log.c evutil.c strlcpy.c $(SYS_SRC)
-EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
+EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c bufferevent_evdns.c
 
 
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)

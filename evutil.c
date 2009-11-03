@@ -60,6 +60,9 @@
 #ifdef _EVENT_HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
+#ifdef _EVENT_HAVE_NETDB_H
+#include <netdb.h>
+#endif
 
 #ifndef _EVENT_HAVE_GETTIMEOFDAY
 #include <sys/timeb.h>
@@ -318,6 +321,92 @@ evutil_socket_finished_connecting(evutil_socket_t fd)
 	}
 
 	return 1;
+}
+
+/** Internal helper: use the host's (blocking) resolver to look up 'hostname',
+ * and set the sockaddr pointed to by 'sa' to the answer.  Assume we have
+ * *socklen bytes of storage; adjust *socklen to the number of bytes used.
+ * Try to return answers of type 'family', unless family is AF_UNSPEC.
+ * Return 0 on success and -1 on failure.  If 'port' is nonzero, it is
+ * a port number in host order: set the port in any resulting sockaddr to
+ * the specified port.
+ */
+int
+evutil_resolve(int family, const char *hostname, struct sockaddr *sa,
+    ev_socklen_t *socklen, int port)
+{
+#ifdef _EVENT_HAVE_GETADDRINFO_XXX
+	struct addrinfo hint, *hintp=NULL;
+	struct addrinfo *ai=NULL;
+	int r;
+	memset(&hint, 0, sizeof(hint));
+
+	if (family != AF_UNSPEC) {
+		hint.ai_family = family;
+		hintp = &hint;
+	}
+
+	r = getaddrinfo(hostname, NULL, hintp, &ai);
+	if (!ai)
+		return -1;
+	if (r || ai->ai_addrlen > *socklen) {
+		/* log/report error? */
+		freeaddrinfo(ai);
+		return -1;
+	}
+	/* XXX handle multiple return values better. */
+	memcpy(sa, ai->ai_addr, ai->ai_addrlen);
+	if (port) {
+		if (sa->sa_family == AF_INET)
+			((struct sockaddr_in*)sa)->sin_port = htons(port);
+		else if (sa->sa_family == AF_INET6)
+			((struct sockaddr_in6*)sa)->sin6_port = htons(port);
+	}
+	*socklen = ai->ai_addrlen;
+	freeaddrinfo(ai);
+	return 0;
+#else
+	/* XXXX use gethostbyname_r/gethostbyname2_r where available */
+	struct hostent *he;
+	struct sockaddr *sa_ptr;
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+	ev_socklen_t slen;
+	he = gethostbyname(hostname);
+	if (!he || !he->h_length) {
+		return -1;
+	}
+	/* XXX handle multiple return values better. */
+	if (he->h_addrtype == AF_INET) {
+		if (family != AF_INET && family != AF_UNSPEC)
+			return -1;
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_port = htons(port);
+		memcpy(&sin.sin_addr, he->h_addr_list[0], 4);
+		sa_ptr = (struct sockaddr*)&sin;
+		slen = sizeof(struct sockaddr_in);
+	} else if (he->h_addrtype == AF_INET6) {
+		if (family != AF_INET6 && family != AF_UNSPEC)
+			return -1;
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_port = htons(port);
+		memset(&sin6, 0, sizeof(sin6));
+		memcpy(sin6.sin6_addr.s6_addr, &he->h_addr_list[1], 16);
+		sa_ptr = (struct sockaddr*)&sin6;
+		slen = sizeof(struct sockaddr_in6);
+	} else {
+		event_warnx("gethostbyname returned unknown family %d",
+		    he->h_addrtype);
+		return -1;
+	}
+	if (slen > *socklen) {
+		return -1;
+	}
+	memcpy(sa, sa_ptr, slen);
+	*socklen = slen;
+	return 0;
+#endif
 }
 
 #ifdef WIN32

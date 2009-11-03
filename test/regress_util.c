@@ -490,6 +490,53 @@ end:
 
 }
 
+static void
+test_evutil_resolve(void *arg)
+{
+	struct sockaddr_storage ss;
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in *sin;
+	ev_socklen_t socklen = sizeof(ss);
+	char buf[128];
+	const char *cp;
+	int r;
+
+	memset(&ss, 0xff, sizeof(ss)); /* Make sure it starts out confused.*/
+	r = evutil_resolve(AF_INET, "www.google.com", (struct sockaddr*)&ss,
+	    &socklen, 80);
+	if (r<0) {
+		TT_BLATHER(("Couldn't resolve www.google.com"));
+		tt_skip();
+	}
+	tt_int_op(ss.ss_family, ==, AF_INET);
+	tt_int_op(socklen, ==, sizeof(struct sockaddr_in));
+	sin = (struct sockaddr_in*)&ss;
+	tt_int_op(sin->sin_port, ==, htons(80));
+	tt_int_op(sin->sin_addr.s_addr, !=, 0xffffffff);
+
+	cp = evutil_inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+	TT_BLATHER(("www.google.com resolved to %s",cp?cp:"<unwriteable>"));
+
+	memset(&ss, 0xff, sizeof(ss)); /* Make sure it starts out confused.*/
+	socklen = sizeof(ss);
+	r = evutil_resolve(AF_INET6, "ipv6.google.com", (struct sockaddr*)&ss,
+	    &socklen, 80);
+	if (r<0) {
+		TT_BLATHER(("Couldn't do an ipv6 lookup for ipv6.google.com"));
+		goto end;
+	}
+	tt_int_op(ss.ss_family, ==, AF_INET6);
+	tt_int_op(socklen, ==, sizeof(struct sockaddr_in6));
+	sin6 = (struct sockaddr_in6*)&ss;
+	tt_int_op(sin6->sin6_port, ==, htons(80));
+
+	cp = evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
+	TT_BLATHER(("ipv6.google.com resolved to %s",cp?cp:"<unwriteable>"));
+
+end:
+	;
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -500,7 +547,7 @@ struct testcase_t util_testcases[] = {
 	{ "strlcpy", test_evutil_strlcpy, 0, NULL, NULL },
 	{ "log", test_evutil_log, TT_FORK, NULL, NULL },
 	{ "upcast", test_evutil_upcast, 0, NULL, NULL },
+	{ "resolve", test_evutil_resolve, TT_FORK, NULL, NULL },
 	END_OF_TESTCASES,
 };
-
 

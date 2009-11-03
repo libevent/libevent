@@ -33,6 +33,9 @@
 #include "log-internal.h"
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef _EVENT_HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -136,6 +139,9 @@ extern const char EVUTIL_TOLOWER_TABLE[];
 int evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen);
 
 int evutil_socket_finished_connecting(evutil_socket_t fd);
+
+int evutil_resolve(int family, const char *hostname, struct sockaddr *sa,
+    ev_socklen_t *socklen, int port);
 
 /* Evaluates to the same boolean value as 'p', and hints to the compiler that
  * we expect this value to be false. */

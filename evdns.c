@@ -111,6 +111,10 @@
 #include <event2/event_struct.h>
 #include <event2/thread.h>
 
+#include <event2/bufferevent.h>
+#include <event2/bufferevent_struct.h>
+#include "bufferevent-internal.h"
+
 #include "defer-internal.h"
 #include "log-internal.h"
 #include "mm-internal.h"
@@ -3584,6 +3588,13 @@ struct evdns_base *
 evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 {
 	struct evdns_base *base;
+
+	/* Give the bufferevent library a hook into its evdns-enabled
+	 * functionality.  We can't do this correctly or else libevent-core
+	 * will depend on libevent-extras. */
+	_bufferevent_set_socket_connect_hostname_evdns_fn(
+		_bufferevent_socket_connect_hostname_evdns);
+
 	base = mm_malloc(sizeof(struct evdns_base));
 	if (base == NULL)
 		return (NULL);

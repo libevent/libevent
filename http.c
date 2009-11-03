@@ -53,8 +53,10 @@
 
 #include <sys/queue.h>
 
-#ifndef WIN32
+#ifdef _EVENT_HAVE_NETINET_IN_H
 #include <netinet/in.h>
+#endif
+#ifdef _EVENT_HAVE_NETDB_H
 #include <netdb.h>
 #endif
 

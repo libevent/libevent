@@ -205,10 +205,13 @@ extern "C" {
 
 /**
  * The callback that contains the results from a lookup.
+ * - result is one of the DNS_ERR_* values (DNS_ERR_NONE for success)
  * - type is either DNS_IPv4_A or DNS_PTR or DNS_IPv6_AAAA
  * - count contains the number of addresses of form type
  * - ttl is the number of seconds the resolution may be cached for.
- * - addresses needs to be cast according to type
+ * - addresses needs to be cast according to type.  It will be an array of
+ *   4-byte sequences for ipv4, or an array of 16-byte sequences for ipv6,
+ *   or a nul-terminated string for PTR.
  */
 typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, void *addresses, void *arg);
 

@@ -63,6 +63,8 @@
 #include "event2/event.h"
 #include "event2/event_compat.h"
 #include <event2/util.h>
+#include <event2/listener.h>
+#include <event2/bufferevent.h>
 #include "evdns.h"
 #include "log-internal.h"
 #include "regress.h"
@@ -379,7 +381,7 @@ dns_server(void)
 	tt_int_op(evdns_base_count_nameservers(base), ==, 1);
 	/* Now configure a nameserver port. */
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
-        if (sock<=0) {
+        if (sock<0) {
                 tt_abort_perror("socket");
         }
 
@@ -840,6 +842,213 @@ end:
 		evdns_close_server_port(port);
 }
 
+/* === Test for bufferevent_socket_connect_hostname */
+
+static int total_connected_or_failed = 0;
+static struct event_base *be_connect_hostname_base = NULL;
+
+/* Implements a DNS server for the connect_hostname test. */
+static void
+be_connect_hostname_server_cb(struct evdns_server_request *req, void *data)
+{
+	int i;
+	int *n_got_p=data;
+	int added_any=0;
+	++*n_got_p;
+
+	for (i=0;i<req->nquestions;++i) {
+		const int qtype = req->questions[i]->type;
+		const int qclass = req->questions[i]->dns_question_class;
+		const char *qname = req->questions[i]->name;
+		struct in_addr ans;
+
+		if (qtype == EVDNS_TYPE_A &&
+		    qclass == EVDNS_CLASS_INET &&
+		    !evutil_ascii_strcasecmp(qname, "nobodaddy.example.com")) {
+			ans.s_addr = htonl(0x7f000001);
+			evdns_server_request_add_a_reply(req, qname,
+			    1, &ans.s_addr, 2000);
+			added_any = 1;
+		} else if (!evutil_ascii_strcasecmp(qname,
+			"nosuchplace.example.com")) {
+			/* ok, just say notfound. */
+		} else {
+			TT_GRIPE(("Got weird request for %s",qname));
+		}
+	}
+	if (added_any)
+		evdns_server_request_respond(req, 0);
+	else
+		evdns_server_request_respond(req, 3);
+}
+
+/* Implements a listener for connect_hostname test. */
+static void
+nil_accept_cb(struct evconnlistener *l, evutil_socket_t fd, struct sockaddr *s,
+    int socklen, void *arg)
+{
+	int *p = arg;
+	(*p)++;
+	/* don't do anything with the socket; let it close when we exit() */
+}
+
+/* Helper: return the port that a socket is bound on, in host order. */
+static int
+get_socket_port(evutil_socket_t fd)
+{
+	struct sockaddr_storage ss;
+	ev_socklen_t socklen = sizeof(ss);
+	if (getsockname(fd, (struct sockaddr*)&ss, &socklen) != 0)
+		return -1;
+	if (ss.ss_family == AF_INET)
+		return ntohs( ((struct sockaddr_in*)&ss)->sin_port);
+	else if (ss.ss_family == AF_INET6)
+		return ntohs( ((struct sockaddr_in6*)&ss)->sin6_port);
+	else
+		return -1;
+}
+
+/* Bufferevent event callback for the connect_hostname test: remembers what
+ * event we got. */
+static void
+be_connect_hostname_event_cb(struct bufferevent *bev, short what, void *ctx)
+{
+	int *got = ctx;
+	if (!*got) {
+		TT_BLATHER(("Got a bufferevent event %d", what));
+		*got = what;
+
+		if ((what & BEV_EVENT_CONNECTED) || (what & BEV_EVENT_ERROR)) {
+			++total_connected_or_failed;
+			if (total_connected_or_failed >= 5)
+				event_base_loopexit(be_connect_hostname_base,
+				    NULL);
+		}
+	} else {
+		TT_FAIL(("Two events on one bufferevent. %d,%d",
+			(int)*got, (int)what));
+	}
+}
+
+static void
+test_bufferevent_connect_hostname(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evconnlistener *listener = NULL;
+	struct bufferevent *be1=NULL, *be2=NULL, *be3=NULL, *be4=NULL, *be5=NULL;
+	int be1_outcome=0, be2_outcome=0, be3_outcome=0, be4_outcome=0,
+	    be5_outcome=0;
+	struct evdns_base *dns=NULL;
+	struct evdns_server_port *port=NULL;
+	evutil_socket_t server_fd=-1;
+	struct sockaddr_in sin;
+	int listener_port=-1, dns_port=-1;
+	int n_accept=0, n_dns=0;
+	char buf[128];
+
+	be_connect_hostname_base = data->base;
+
+	/* Bind an address and figure out what port it's on. */
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
+	sin.sin_port = 0;
+	listener = evconnlistener_new_bind(data->base, nil_accept_cb,
+	    &n_accept,
+	    LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_EXEC,
+	    -1, (struct sockaddr *)&sin, sizeof(sin));
+	listener_port = get_socket_port(evconnlistener_get_fd(listener));
+
+	/* Start an evdns server that resolves nobodaddy.example.com to
+	 * 127.0.0.1 */
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
+	sin.sin_port = 0;
+	server_fd = socket(AF_INET, SOCK_DGRAM, 0);
+	tt_int_op(server_fd, >=, 0);
+	if (bind(server_fd, (struct sockaddr*)&sin, sizeof(sin))<0) {
+		tt_abort_perror("bind");
+	}
+        evutil_make_socket_nonblocking(server_fd);
+	dns_port = get_socket_port(server_fd);
+	port = evdns_add_server_port_with_base(data->base, server_fd, 0,
+	    be_connect_hostname_server_cb, &n_dns);
+
+	/* Start an evdns_base that uses the server as its resolver. */
+	dns = evdns_base_new(data->base, 0);
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", dns_port);
+	evdns_base_nameserver_ip_add(dns, buf);
+
+	/* Now, finally, at long last, launch the bufferevents.  One should do
+	 * a failing lookup IP, one should do a successful lookup by IP,
+	 * and one should do a successful lookup by hostname. */
+	be1 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
+	be2 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
+	be3 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
+	be4 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
+	be5 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
+
+	bufferevent_setcb(be1, NULL, NULL, be_connect_hostname_event_cb,
+	    &be1_outcome);
+	bufferevent_setcb(be2, NULL, NULL, be_connect_hostname_event_cb,
+	    &be2_outcome);
+	bufferevent_setcb(be3, NULL, NULL, be_connect_hostname_event_cb,
+	    &be3_outcome);
+	bufferevent_setcb(be4, NULL, NULL, be_connect_hostname_event_cb,
+	    &be4_outcome);
+	bufferevent_setcb(be5, NULL, NULL, be_connect_hostname_event_cb,
+	    &be5_outcome);
+
+	/* Launch an async resolve that will fail. */
+	tt_assert(!bufferevent_socket_connect_hostname(be1, dns, AF_INET,
+		"nosuchplace.example.com", listener_port));
+	/* Connect to the IP without resolving. */
+	tt_assert(!bufferevent_socket_connect_hostname(be2, dns, AF_INET,
+		"127.0.0.1", listener_port));
+	/* Launch an async resolve that will succeed. */
+	tt_assert(!bufferevent_socket_connect_hostname(be3, dns, AF_INET,
+		"nobodaddy.example.com", listener_port));
+	/* Use the blocking resolver.  This one will fail if your resolver
+	 * can't resolve localhost to 127.0.0.1 */
+	tt_assert(!bufferevent_socket_connect_hostname(be4, NULL, AF_INET,
+		"localhost", listener_port));
+	/* Use the blocking resolver with a nonexistent hostname. */
+	tt_assert(bufferevent_socket_connect_hostname(be5, NULL, AF_INET,
+		"nonesuch.nowhere.example.com", 80) < 0);
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(be1_outcome, ==, BEV_EVENT_ERROR);
+	tt_int_op(be2_outcome, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be3_outcome, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be4_outcome, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be5_outcome, ==, BEV_EVENT_ERROR);
+
+	tt_int_op(n_accept, ==, 3);
+	tt_int_op(n_dns, ==, 2);
+
+end:
+	if (listener)
+		evconnlistener_free(listener);
+	if (server_fd>=0)
+		EVUTIL_CLOSESOCKET(server_fd);
+	if (port)
+                evdns_close_server_port(port);
+	if (dns)
+		evdns_base_free(dns, 0);
+	if (be1)
+		bufferevent_free(be1);
+	if (be2)
+		bufferevent_free(be2);
+	if (be3)
+		bufferevent_free(be3);
+	if (be4)
+		bufferevent_free(be4);
+	if (be5)
+		bufferevent_free(be5);
+}
+
 #define DNS_LEGACY(name, flags)                                        \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
                     dns_##name }
@@ -854,6 +1063,8 @@ struct testcase_t dns_testcases[] = {
 	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "reissue", dns_reissue_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "inflight", dns_inflight_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "bufferevent_connnect_hostname", test_bufferevent_connect_hostname,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
         END_OF_TESTCASES
 };

@@ -162,6 +162,36 @@ struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socke
  */
 int bufferevent_socket_connect(struct bufferevent *, struct sockaddr *, int);
 
+struct evdns_base;
+/**
+   Resolve the hostname 'hostname' and connect to it as with
+   bufferevent_socket_connect().
+
+   @param bufev An existing bufferevent allocated with bufferevent_socket_new()
+   @param evdns_base Optionally, an evdns_base to use for resolving hostnames
+      asynchronously. May be set to NULL for a blocking resolve.
+   @param family A preferred address family to resolve addresses to, or
+      AF_UNSPEC for no preference.  Only AF_INET, AF_INET6, and AF_UNSPEC are
+      supported.
+   @param hostname The hostname to resolve; see below for notes on recognized
+      formats
+   @param port The port to connect to on the resolved address.
+   @return 0 if successful, -1 on failure.
+
+   Recognized hostname formats are:
+
+       www.example.com      (hostname)
+       1.2.3.4              (ipv4address)
+       ::1                  (ipv6address)
+       [::1]                ([ipv6address])
+
+   Performance note: If you do not provide an evdns_base, this function
+   may block while it waits for a DNS response.  This is probably not
+   what you want.
+ */
+int bufferevent_socket_connect_hostname(struct bufferevent *b,
+    struct evdns_base *, int, const char *, int);
+
 /**
   Assign a bufferevent to a specific event_base.
 
