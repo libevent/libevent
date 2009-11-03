@@ -56,7 +56,7 @@ struct dummy_overlapped {
 };
 
 static void
-dummy_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n)
+dummy_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n, int ok)
 {
 	struct dummy_overlapped *d_o =
 	    EVUTIL_UPCAST(o, struct dummy_overlapped, eo);
