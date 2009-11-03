@@ -97,7 +97,7 @@ run_once(int num_pipes)
 	gettimeofday(&ts, NULL);
 
 	/* provide a default timeout for events */
-	timerclear(&tv_timeout);
+	evutil_timerclear(&tv_timeout);
 	tv_timeout.tv_sec = 60;
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {

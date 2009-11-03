@@ -352,7 +352,7 @@ http_basic_test(void)
 	    "Host: some";
 
 	bufferevent_write(bev, http_request, strlen(http_request));
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_usec = 10000;
 	event_once(-1, EV_TIMEOUT, http_complete_write, bev, &tv);
 
@@ -404,7 +404,7 @@ static void
 http_delay_cb(struct evhttp_request *req, void *arg)
 {
 	struct timeval tv;
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 0;
 	tv.tv_usec = 200 * 1000;
 
@@ -417,7 +417,7 @@ static void
 http_large_delay_cb(struct evhttp_request *req, void *arg)
 {
 	struct timeval tv;
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 3;
 
 	event_once(-1, EV_TIMEOUT, http_delay_reply, req, &tv);
@@ -593,7 +593,7 @@ http_do_cancel(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp_request *req = arg;
 	struct timeval tv;
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 0;
 	tv.tv_usec = 500 * 1000;
 
@@ -633,7 +633,7 @@ http_cancel_test(void)
 	tt_int_op(evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/delay"),
 		  !=, -1);
 
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 0;
 	tv.tv_usec = 100 * 1000;
 
@@ -1226,7 +1226,7 @@ close_detect_done(struct evhttp_request *req, void *arg)
 	test_ok = 1;
 
  end:
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 3;
 	event_loopexit(&tv);
 }
@@ -1258,7 +1258,7 @@ close_detect_cb(struct evhttp_request *req, void *arg)
 		tt_abort_msg("Failed");
 	}
 
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 3;   /* longer than the http time out */
 
 	/* launch a new request on the persistent connection in 3 seconds */
@@ -2050,7 +2050,7 @@ http_connection_retry_test(void)
 	/* start up a web server one second after the connection tried
 	 * to send a request
 	 */
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_sec = 1;
 	event_once(-1, EV_TIMEOUT, http_make_web_server, NULL, &tv);
 

@@ -49,7 +49,7 @@ EXTRA_DIST = \
 	test/Makefile.am test/Makefile.in test/bench.c test/regress.c \
 	test/test-eof.c test/test-weof.c test/test-time.c \
 	test/test-init.c test/test.sh \
-	compat/sys/queue.h compat/sys/_time.h \
+	compat/sys/queue.h \
 	evthread_win32.c \
 	evthread_pthread.c \
 	whatsnew-2.0.txt \

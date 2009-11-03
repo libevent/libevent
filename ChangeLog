@@ -36,6 +36,7 @@ Changes in 2.0.3-alpha:
  o Replace all assert() calls with a variant that is aware of the user-provided logging and panic functions.
  o Add a return value to event_assign so that it can fail rather than asserting when the user gives it bad input.  event_set still dies on bad input.
  o The event_base_new() and event_base_new_with_config() functions now never call exit() on failure.  For backward "compatibility", event_init() still does, but more consistently.
+ o Remove compat/sys/_time.h.  It interfered with system headers on HPUX, and its functionality has been subsumed by event2/util.h and util-internal.h.
 
 
 Changes in 2.0.2-alpha:

@@ -48,11 +48,6 @@
 #undef WIN32_LEAN_AND_MEAN
 #endif
 #include <sys/types.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
-#include <sys/time.h>
-#elif !defined(WIN32)
-#include <sys/_time.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>

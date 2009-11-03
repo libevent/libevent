@@ -540,7 +540,7 @@ test_persistent_timeout(void)
 	struct event ev;
 	int count = 0;
 
-	timerclear(&tv);
+	evutil_timerclear(&tv);
 	tv.tv_usec = 10000;
 
 	event_assign(&ev, global_base, -1, EV_TIMEOUT|EV_PERSIST,

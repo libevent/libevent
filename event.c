@@ -35,12 +35,8 @@
 #undef WIN32_LEAN_AND_MEAN
 #endif
 #include <sys/types.h>
-#ifndef WIN32
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#if !defined(WIN32) && defined(_EVENT_HAVE_SYS_TIME_H)
 #include <sys/time.h>
-#else
-#include <sys/_time.h>
-#endif
 #endif
 #include <sys/queue.h>
 #ifdef _EVENT_HAVE_SYS_SOCKET_H
@@ -1072,7 +1068,7 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 		ev->ev_closure = EV_CLOSURE_SIGNAL;
 	} else {
 		if (events & EV_PERSIST) {
-			timerclear(&ev->ev_io_timeout);
+			evutil_timerclear(&ev->ev_io_timeout);
 			ev->ev_closure = EV_CLOSURE_PERSIST;
 		} else {
 			ev->ev_closure = EV_CLOSURE_NONE;
