@@ -2190,6 +2190,81 @@ http_negative_content_length_test(void)
 		evhttp_free(http);
 }
 
+
+static void
+http_data_length_constraints_test_done(struct evhttp_request *req, void *arg)
+{
+	tt_assert(req);
+ 	tt_int_op(req->response_code, ==, HTTP_BADREQUEST);
+end:
+	event_loopexit(NULL);
+}
+
+static void
+http_data_length_constraints_test(void)
+{
+	short port = -1;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	char long_str[8192];
+
+	test_ok = 0;
+
+	http = http_setup(&port, NULL);
+
+	evcon = evhttp_connection_new("127.0.0.1", port);
+	tt_assert(evcon);
+
+	/* also bind to local host */
+	evhttp_connection_set_local_address(evcon, "127.0.0.1");
+
+	/*
+	 * At this point, we want to schedule an HTTP GET request
+	 * server using our make request method.
+	 */
+
+	req = evhttp_request_new(http_data_length_constraints_test_done, NULL);
+	tt_assert(req);
+
+	memset(long_str, 'a', 8192);
+	long_str[8191] = '\0';
+	/* Add the information that we care about */
+	evhttp_set_max_headers_size(http, 8191);
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+	evhttp_add_header(req->output_headers, "Longheader", long_str);
+
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/?arg=val") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+	event_dispatch();
+
+	req = evhttp_request_new(http_data_length_constraints_test_done, NULL);
+	tt_assert(req);
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+        
+        /* GET /?arg=verylongvalue HTTP/1.1 */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, long_str) == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+	event_dispatch();
+
+	evhttp_set_max_body_size(http, 8190);
+	req = evhttp_request_new(http_data_length_constraints_test_done, NULL);
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+	evbuffer_add_printf(req->output_buffer, long_str);
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+	event_dispatch();
+
+        test_ok = 1;
+ end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+}
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
                     http_##name##_test }
@@ -2224,6 +2299,7 @@ struct testcase_t http_testcases[] = {
 	HTTP_LEGACY(stream_in_cancel),
 
 	HTTP_LEGACY(connection_retry),
+	HTTP_LEGACY(data_length_constraints),
 
 	END_OF_TESTCASES
 };

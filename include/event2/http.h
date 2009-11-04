@@ -172,6 +172,11 @@ evutil_socket_t evhttp_bound_socket_get_fd(struct evhttp_bound_socket *bound_soc
  */
 void evhttp_free(struct evhttp* http);
 
+/** XXX Document. */
+void evhttp_set_max_headers_size(struct evhttp* http, ev_ssize_t max_headers_size);
+/** XXX Document. */
+void evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size);
+
 /**
    Set a callback for a specified URI
 
@@ -365,6 +370,12 @@ void evhttp_request_own(struct evhttp_request *req);
 
 /** Returns 1 if the request is owned by the user */
 int evhttp_request_is_owned(struct evhttp_request *req);
+
+void evhttp_connection_set_max_headers_size(struct evhttp_connection *evcon,
+					    ssize_t new_max_headers_size);
+    
+void evhttp_connection_set_max_body_size(struct evhttp_connection* evcon,
+					 ssize_t new_max_body_size);
 
 /** Frees an http connection */
 void evhttp_connection_free(struct evhttp_connection *evcon);

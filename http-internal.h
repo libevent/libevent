@@ -24,7 +24,8 @@ enum message_read_status {
 	ALL_DATA_READ = 1,
 	MORE_DATA_EXPECTED = 0,
 	DATA_CORRUPTED = -1,
-	REQUEST_CANCELED = -2
+	REQUEST_CANCELED = -2,
+	DATA_TOO_LONG = -3
 };
 
 enum evhttp_connection_error {
@@ -69,6 +70,9 @@ struct evhttp_connection {
 
 	char *address;			/* address to connect to */
 	u_short port;
+
+	size_t max_headers_size;
+	uint64_t max_body_size;
 
 	int flags;
 #define EVHTTP_CON_INCOMING	0x0001	/* only one request on it ever */
@@ -127,8 +131,11 @@ struct evhttp {
 	/* NULL if this server is not a vhost */
         char *vhost_pattern;
 
-        int timeout;
+	int timeout;
 
+	size_t default_max_headers_size;
+	size_t default_max_body_size;
+        
 	void (*gencb)(struct evhttp_request *req, void *);
 	void *gencbarg;
 

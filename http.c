@@ -557,6 +557,25 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 }
 
+void
+evhttp_connection_set_max_headers_size(struct evhttp_connection *evcon,
+    ev_ssize_t new_max_headers_size)
+{
+	if (new_max_headers_size<0)
+		evcon->max_headers_size = EV_SIZE_MAX;
+	else
+		evcon->max_headers_size = new_max_headers_size;
+}
+void
+evhttp_connection_set_max_body_size(struct evhttp_connection* evcon,
+    ev_ssize_t new_max_body_size)
+{
+	if (new_max_body_size<0)
+		evcon->max_body_size = EV_UINT64_MAX;
+	else
+		evcon->max_body_size = new_max_body_size;
+}
+
 static int
 evhttp_connection_incoming_fail(struct evhttp_request *req,
     enum evhttp_connection_error error)
@@ -730,6 +749,8 @@ evhttp_connection_done(struct evhttp_connection *evcon)
  *     data is corrupted
  *   return REQUEST_CANCELED:
  *     request was canceled by the user calling evhttp_cancel_request
+ *   return DATA_TOO_LONG:
+ *     ran over the maximum limit
  */
 
 static enum message_read_status
@@ -760,6 +781,12 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 				/* could not get chunk size */
 				return (DATA_CORRUPTED);
 			}
+			if (req->body_size + ntoread > req->evcon->max_body_size) {
+			  	/* failed body length test */
+				event_debug(("Request body is too long"));
+				return (DATA_TOO_LONG);
+			}
+			req->body_size += ntoread;
 			req->ntoread = ntoread;
 			if (req->ntoread == 0) {
 				/* Last chunk */
@@ -798,6 +825,7 @@ evhttp_read_trailer(struct evhttp_connection *evcon, struct evhttp_request *req)
 
 	switch (evhttp_parse_headers(req, buf)) {
 	case DATA_CORRUPTED:
+	case DATA_TOO_LONG:
 		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 		break;
 	case ALL_DATA_READ:
@@ -825,6 +853,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 			evhttp_read_trailer(evcon, req);
 			return;
 		case DATA_CORRUPTED:
+		case DATA_TOO_LONG:/*separate error for this? XXX */
 			/* corrupted data */
 			evhttp_connection_fail(evcon,
 			    EVCON_HTTP_INVALID_HEADER);
@@ -840,12 +869,22 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	} else if (req->ntoread < 0) {
 		/* Read until connection close. */
 		evbuffer_add_buffer(req->input_buffer, buf);
+		req->body_size += evbuffer_get_length(buf);
 	} else if (req->chunk_cb != NULL ||
 	    evbuffer_get_length(buf) >= req->ntoread) {
 		/* We've postponed moving the data until now, but we're
 		 * about to use it. */
 		req->ntoread -= evbuffer_get_length(buf);
+		req->body_size += evbuffer_get_length(buf);
 		evbuffer_add_buffer(req->input_buffer, buf);
+	}
+
+	if (req->body_size > req->evcon->max_body_size) {
+	 	/* failed body length test */
+		event_debug(("Request body is too long"));
+		evhttp_connection_fail(evcon,
+				       EVCON_HTTP_INVALID_HEADER);
+		return;
 	}
 
 	if (evbuffer_get_length(req->input_buffer) > 0 && req->chunk_cb != NULL) {
@@ -1452,9 +1491,24 @@ evhttp_parse_firstline(struct evhttp_request *req, struct evbuffer *buffer)
 	char *line;
 	enum message_read_status status = ALL_DATA_READ;
 
-	line = evbuffer_readln(buffer, NULL, EVBUFFER_EOL_CRLF);
-	if (line == NULL)
-		return (MORE_DATA_EXPECTED);
+	size_t line_length;
+	/* XXX try */
+	line = evbuffer_readln(buffer, &line_length, EVBUFFER_EOL_CRLF);
+	if (line == NULL) {
+		if (req->evcon != NULL &&
+		    evbuffer_get_length(buffer) > req->evcon->max_headers_size)
+			return (DATA_TOO_LONG);
+		else
+			return (MORE_DATA_EXPECTED);
+	}
+
+	if (req->evcon != NULL &&
+	    line_length > req->evcon->max_headers_size) {
+		mm_free(line);
+		return (DATA_TOO_LONG);
+	}
+
+	req->headers_size = line_length;
 
 	switch (req->kind) {
 	case EVHTTP_REQUEST:
@@ -1499,13 +1553,23 @@ evhttp_append_to_last_header(struct evkeyvalq *headers, const char *line)
 enum message_read_status
 evhttp_parse_headers(struct evhttp_request *req, struct evbuffer* buffer)
 {
+	enum message_read_status errcode = DATA_CORRUPTED;
 	char *line;
 	enum message_read_status status = MORE_DATA_EXPECTED;
 
 	struct evkeyvalq* headers = req->input_headers;
-	while ((line = evbuffer_readln(buffer, NULL, EVBUFFER_EOL_CRLF))
+	size_t line_length;
+	while ((line = evbuffer_readln(buffer, &line_length, EVBUFFER_EOL_CRLF))
 	       != NULL) {
 		char *skey, *svalue;
+
+		req->headers_size += line_length;
+
+		if (req->evcon != NULL &&
+		    req->headers_size > req->evcon->max_headers_size) {
+			errcode = DATA_TOO_LONG;
+			goto error;
+		}
 
 		if (*line == '\0') { /* Last header - Done */
 			status = ALL_DATA_READ;
@@ -1535,11 +1599,16 @@ evhttp_parse_headers(struct evhttp_request *req, struct evbuffer* buffer)
 		mm_free(line);
 	}
 
+	if (status == MORE_DATA_EXPECTED) {
+		if (req->headers_size + evbuffer_get_length(buffer) > req->evcon->max_headers_size)
+			return (DATA_TOO_LONG);
+	}
+
 	return (status);
 
  error:
 	mm_free(line);
-	return (DATA_CORRUPTED);
+	return (errcode);
 }
 
 static int
@@ -1615,7 +1684,7 @@ evhttp_read_firstline(struct evhttp_connection *evcon,
 	enum message_read_status res;
 
 	res = evhttp_parse_firstline(req, bufferevent_get_input(evcon->bufev));
-	if (res == DATA_CORRUPTED) {
+	if (res == DATA_CORRUPTED || res == DATA_TOO_LONG) {
 		/* Error while reading, terminate */
 		event_debug(("%s: bad header lines on %d\n",
 			__func__, evcon->fd));
@@ -1638,7 +1707,7 @@ evhttp_read_header(struct evhttp_connection *evcon,
 	int fd = evcon->fd;
 
 	res = evhttp_parse_headers(req, bufferevent_get_input(evcon->bufev));
-	if (res == DATA_CORRUPTED) {
+	if (res == DATA_CORRUPTED || res == DATA_TOO_LONG) {
 		/* Error while reading, terminate */
 		event_debug(("%s: bad header lines on %d\n", __func__, fd));
 		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
@@ -1713,6 +1782,9 @@ evhttp_connection_base_new(struct event_base *base,
 
 	evcon->fd = -1;
 	evcon->port = port;
+
+	evcon->max_headers_size = EV_SIZE_MAX;
+	evcon->max_body_size = EV_SIZE_MAX;
 
 	evcon->timeout = -1;
 	evcon->retry_cnt = evcon->retry_max = 0;
@@ -2481,6 +2553,8 @@ evhttp_new_object(void)
 	}
 
 	http->timeout = -1;
+	evhttp_set_max_headers_size(http, EV_SIZE_MAX);
+	evhttp_set_max_body_size(http, EV_SIZE_MAX);
 
 	TAILQ_INIT(&http->sockets);
 	TAILQ_INIT(&http->callbacks);
@@ -2598,6 +2672,14 @@ evhttp_set_timeout(struct evhttp* http, int timeout_in_secs)
 	http->timeout = timeout_in_secs;
 }
 
+void evhttp_set_max_headers_size(struct evhttp* http, ssize_t max_headers_size) {
+	http->default_max_headers_size = max_headers_size;
+}
+
+void evhttp_set_max_body_size(struct evhttp* http, ssize_t max_body_size) {
+	http->default_max_body_size = max_body_size;
+}
+
 int
 evhttp_set_cb(struct evhttp *http, const char *uri,
     void (*cb)(struct evhttp_request *, void *), void *cbarg)
@@ -2662,6 +2744,9 @@ evhttp_request_new(void (*cb)(struct evhttp_request *, void *), void *arg)
 		event_warn("%s: calloc", __func__);
 		goto error;
 	}
+
+	req->headers_size = 0;
+	req->body_size = 0;
 
 	req->kind = EVHTTP_RESPONSE;
 	req->input_headers = mm_calloc(1, sizeof(struct evkeyvalq));
@@ -2815,6 +2900,9 @@ evhttp_get_request_connection(
 	if (evcon == NULL)
 		return (NULL);
 
+	evhttp_connection_set_max_headers_size(evcon, http->default_max_headers_size);
+	evhttp_connection_set_max_body_size(evcon, http->default_max_body_size);
+        
 	evcon->flags |= EVHTTP_CON_INCOMING;
 	evcon->state = EVCON_READING_FIRSTLINE;
 
