@@ -215,7 +215,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		} else {
 			connected = 1;
 			_bufferevent_run_eventcb(bufev, BEV_EVENT_CONNECTED);
-			if (!(bufev->enabled & EV_WRITE)) {
+			if (!(bufev->enabled & EV_WRITE) || BEV_IS_ASYNC(bufev)) {
 				event_del(&bufev->ev_write);
 				goto done;
 			}
@@ -332,18 +332,33 @@ bufferevent_socket_connect(struct bufferevent *bev,
 		ownfd = 1;
 	}
 	if (sa) {
-		r = evutil_socket_connect(&fd, sa, socklen);
-		if (r < 0) {
-			_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
-			if (ownfd)
-				EVUTIL_CLOSESOCKET(fd);
-			/* do something about the error? */
+#ifdef WIN32
+		if (bufferevent_async_can_connect(bev)) {
+			bufferevent_setfd(bev, fd);
+			r = bufferevent_async_connect(bev, fd, sa, socklen);
+			if (r < 0)
+				goto freesock;
+			bufev_p->connecting = 1;
+			result = 0;
 			goto done;
-		}
+		} else
+#endif
+		r = evutil_socket_connect(&fd, sa, socklen);
+		if (r < 0)
+			goto freesock;
 	}
+#ifdef WIN32
+	/* ConnectEx() isn't always around, even when IOCP is enabled.
+	 * Here, we borrow the socket object's write handler to fall back
+	 * on a non-blocking connect() when ConnectEx() is unavailable. */
+	if (BEV_IS_ASYNC(bev)) {
+		event_assign(&bev->ev_write, bev->ev_base, fd,
+		    EV_WRITE|EV_PERSIST, bufferevent_writecb, bev);
+	}
+#endif
 	bufferevent_setfd(bev, fd);
 	if (r == 0) {
-		if (! bufferevent_enable(bev, EV_WRITE)) {
+		if (! be_socket_enable(bev, EV_WRITE)) {
 			bufev_p->connecting = 1;
 			result = 0;
 			goto done;
@@ -353,6 +368,14 @@ bufferevent_socket_connect(struct bufferevent *bev,
 		result = 0;
 		_bufferevent_run_eventcb(bev, BEV_EVENT_CONNECTED);
 	}
+
+	goto done;
+
+freesock:
+	_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
+	if (ownfd)
+		EVUTIL_CLOSESOCKET(fd);
+	/* do something about the error? */
 
 done:
 	_bufferevent_decref_and_unlock(bev);

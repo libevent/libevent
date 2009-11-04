@@ -117,6 +117,8 @@ struct evbuffer *evbuffer_overlapped_new(evutil_socket_t fd);
 /** XXXX Document (nickm) */
 evutil_socket_t _evbuffer_overlapped_get_fd(struct evbuffer *buf);
 
+void _evbuffer_overlapped_set_fd(struct evbuffer *buf, evutil_socket_t fd);
+
 /** Start reading data onto the end of an overlapped evbuffer.
 
     An evbuffer can only have one read pending at a time.  While the read
@@ -176,6 +178,10 @@ int event_base_start_iocp(struct event_base *base);
 struct bufferevent *bufferevent_async_new(struct event_base *base,
     evutil_socket_t fd, int options);
 
+/* FIXME document. */
+int bufferevent_async_can_connect(struct bufferevent *bev);
+int bufferevent_async_connect(struct bufferevent *bev, evutil_socket_t fd,
+	const struct sockaddr *sa, int socklen);
 
 #ifdef __cplusplus
 }

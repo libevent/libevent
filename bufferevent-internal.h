@@ -141,6 +141,17 @@ extern const struct bufferevent_ops bufferevent_ops_socket;
 extern const struct bufferevent_ops bufferevent_ops_filter;
 extern const struct bufferevent_ops bufferevent_ops_pair;
 
+#define BEV_IS_SOCKET(bevp) ((bevp)->be_ops == &bufferevent_ops_socket)
+#define BEV_IS_FILTER(bevp) ((bevp)->be_ops == &bufferevent_ops_filter)
+#define BEV_IS_PAIR(bevp) ((bevp)->be_ops == &bufferevent_ops_pair)
+
+#ifdef WIN32
+extern const struct bufferevent_ops bufferevent_ops_async;
+#define BEV_IS_ASYNC(bevp) ((bevp)->be_ops == &bufferevent_ops_async)
+#else
+#define BEV_IS_ASYNC(bevp) 0
+#endif
+
 /** Initialize the shared parts of a bufferevent. */
 int bufferevent_init_common(struct bufferevent_private *, struct event_base *, const struct bufferevent_ops *, enum bufferevent_options options);
 

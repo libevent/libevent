@@ -135,7 +135,7 @@ basic_test_setup(const struct testcase_t *testcase)
 	struct basic_test_data *data = NULL;
 
 #ifndef WIN32
-	if (testcase->flags & TT_ENABLE_IOCP)
+	if (testcase->flags & TT_ENABLE_IOCP_FLAG)
 		return (void*)TT_SKIP;
 #endif
 
@@ -177,7 +177,7 @@ basic_test_setup(const struct testcase_t *testcase)
 		if (!base)
 			exit(1);
 	}
-	if (testcase->flags & TT_ENABLE_IOCP) {
+	if (testcase->flags & TT_ENABLE_IOCP_FLAG) {
 		if (event_base_start_iocp(base)<0) {
 			event_base_free(base);
 			return (void*)TT_SKIP;

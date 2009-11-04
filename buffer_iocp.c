@@ -316,3 +316,14 @@ _evbuffer_overlapped_get_fd(struct evbuffer *buf)
 	struct evbuffer_overlapped *buf_o = upcast_evbuffer(buf);
 	return buf_o ? buf_o->fd : -1;
 }
+
+void
+_evbuffer_overlapped_set_fd(struct evbuffer *buf, evutil_socket_t fd)
+{
+	struct evbuffer_overlapped *buf_o = upcast_evbuffer(buf);
+	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
+	/* XXX is this right?, should it cancel current I/O operations? */
+	if (buf_o)
+		buf_o->fd = fd;
+	EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
+}

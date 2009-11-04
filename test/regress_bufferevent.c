@@ -73,6 +73,9 @@
 #include "event2/util.h"
 
 #include "bufferevent-internal.h"
+#ifdef WIN32
+#include "iocp-internal.h"
+#endif
 
 #include "regress.h"
 
@@ -412,10 +415,14 @@ listen_cb(struct evconnlistener *listener, evutil_socket_t fd,
 	struct event_base *base = arg;
 	struct bufferevent *bev;
 	const char s[] = TEST_STR;
+	TT_BLATHER(("Got a request on socket %d", (int)fd ));
 	bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+	tt_assert(bev);
 	bufferevent_write(bev, s, sizeof(s));
 	bufferevent_setcb(bev, NULL, sender_writecb, sender_errorcb, NULL);
 	bufferevent_enable(bev, EV_WRITE);
+end:
+	;
 }
 
 static void
@@ -459,6 +466,14 @@ test_bufferevent_connect(void *arg)
 	if (strstr((char*)data->setup_data, "lock")) {
 		be_flags |= BEV_OPT_THREADSAFE;
 	}
+#ifdef WIN32
+	if (!strcmp((char*)data->setup_data, "unset_connectex")) {
+		struct win32_extension_fns *ext =
+	            (struct win32_extension_fns *)
+		    event_get_win32_extension_fns();
+		ext->ConnectEx = NULL;
+	}
+#endif
 
 	memset(&localhost, 0, sizeof(localhost));
 
@@ -616,17 +631,23 @@ struct testcase_t bufferevent_iocp_testcases[] = {
         LEGACY(bufferevent_watermarks, TT_ISOLATED|TT_ENABLE_IOCP),
         LEGACY(bufferevent_filters, TT_ISOLATED|TT_ENABLE_IOCP),
 #if 0
-	{ "bufferevent_connect", test_bufferevent_connect, TT_FORK|TT_NEED_BASE,
-	  &basic_setup, (void*)"" },
+	{ "bufferevent_connect", test_bufferevent_connect,
+	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, (void*)"" },
 	{ "bufferevent_connect_defer", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"defer" },
+	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, (void*)"defer" },
 	{ "bufferevent_connect_lock", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup, (void*)"lock" },
+	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS|TT_ENABLE_IOCP, &basic_setup,
+	  (void*)"lock" },
 	{ "bufferevent_connect_lock_defer", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS|TT_ENABLE_IOCP, &basic_setup,
 	  (void*)"defer lock" },
+#endif
 	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
+#if 0
+	{ "bufferevent_connect_nonblocking", test_bufferevent_connect,
+	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
+	  (void*)"unset_connectex" },
 #endif
 
         END_OF_TESTCASES,
