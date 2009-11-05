@@ -55,7 +55,6 @@ EXTRA_DIST = \
 	whatsnew-2.0.txt \
 	bufferevent_async.c \
 	WIN32-Code/event-config.h \
-	WIN32-Code/config.h \
 	WIN32-Code/win32.c \
 	WIN32-Code/tree.h \
 	WIN32-Prj/event_test/event_test.dsp \

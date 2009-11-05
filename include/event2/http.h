@@ -372,10 +372,10 @@ void evhttp_request_own(struct evhttp_request *req);
 int evhttp_request_is_owned(struct evhttp_request *req);
 
 void evhttp_connection_set_max_headers_size(struct evhttp_connection *evcon,
-					    ssize_t new_max_headers_size);
-    
+    ev_ssize_t new_max_headers_size);
+
 void evhttp_connection_set_max_body_size(struct evhttp_connection* evcon,
-					 ssize_t new_max_body_size);
+    ev_ssize_t new_max_body_size);
 
 /** Frees an http connection */
 void evhttp_connection_free(struct evhttp_connection *evcon);
