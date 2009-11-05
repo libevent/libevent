@@ -72,7 +72,7 @@ struct evhttp_connection {
 	u_short port;
 
 	size_t max_headers_size;
-	uint64_t max_body_size;
+	ev_uint64_t max_body_size;
 
 	int flags;
 #define EVHTTP_CON_INCOMING	0x0001	/* only one request on it ever */
@@ -134,8 +134,8 @@ struct evhttp {
 	int timeout;
 
 	size_t default_max_headers_size;
-	size_t default_max_body_size;
-        
+	ev_uint64_t default_max_body_size;
+
 	void (*gencb)(struct evhttp_request *req, void *);
 	void *gencbarg;
 

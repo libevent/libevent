@@ -359,7 +359,7 @@ put_error(struct bufferevent_openssl *bev_ssl, unsigned long err)
 	   than 32 bits of it, since it needs to report errors on systems
 	   where long is only 32 bits.
 	 */
-	bev_ssl->errors[bev_ssl->n_errors++] = (uint32_t) err;
+	bev_ssl->errors[bev_ssl->n_errors++] = (ev_uint32_t) err;
 }
 
 /* Have the base communications channel (either the underlying bufferevent or

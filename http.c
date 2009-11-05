@@ -2672,12 +2672,22 @@ evhttp_set_timeout(struct evhttp* http, int timeout_in_secs)
 	http->timeout = timeout_in_secs;
 }
 
-void evhttp_set_max_headers_size(struct evhttp* http, ssize_t max_headers_size) {
-	http->default_max_headers_size = max_headers_size;
+void
+evhttp_set_max_headers_size(struct evhttp* http, ev_ssize_t max_headers_size)
+{
+	if (max_headers_size < 0)
+		http->default_max_headers_size = EV_SIZE_MAX;
+	else
+		http->default_max_headers_size = max_headers_size;
 }
 
-void evhttp_set_max_body_size(struct evhttp* http, ssize_t max_body_size) {
-	http->default_max_body_size = max_body_size;
+void
+evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size)
+{
+	if (max_body_size < 0)
+		http->default_max_body_size = EV_UINT64_MAX;
+	else
+		http->default_max_body_size = max_body_size;
 }
 
 int
