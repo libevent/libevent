@@ -42,7 +42,7 @@ EXTRA_DIST = \
 	libevent.pc \
 	Doxyfile \
 	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
-	evport.c devpoll.c event_rpcgen.py \
+	evport.c devpoll.c win32select.c event_rpcgen.py \
 	event_iocp.c buffer_iocp.c iocp-internal.h \
 	sample/Makefile.am sample/Makefile.in sample/event-test.c \
 	sample/signal-test.c sample/time-test.c \
@@ -55,7 +55,6 @@ EXTRA_DIST = \
 	whatsnew-2.0.txt \
 	bufferevent_async.c \
 	WIN32-Code/event-config.h \
-	WIN32-Code/win32.c \
 	WIN32-Code/tree.h \
 	WIN32-Prj/event_test/event_test.dsp \
 	WIN32-Prj/event_test/test.txt WIN32-Prj/libevent.dsp \
@@ -75,7 +74,7 @@ SUBDIRS = . include sample test
 if BUILD_WIN32
 
 SYS_LIBS = -lws2_32
-SYS_SRC = WIN32-Code/win32.c evthread_win32.c buffer_iocp.c event_iocp.c \
+SYS_SRC = win32select.c evthread_win32.c buffer_iocp.c event_iocp.c \
 	bufferevent_async.c
 SYS_INCLUDES = -IWIN32-Code
 
