@@ -2051,7 +2051,7 @@ evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
 {
 	struct evbuffer_chain *chain;
 	int idx = 0;
-	size_t len_so_far = 0;
+	ev_ssize_t len_so_far = 0;
 
 	EVBUFFER_LOCK(buffer, EVTHREAD_READ);
 

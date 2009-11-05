@@ -172,7 +172,7 @@ test_evbuffer(void *ptr)
 	tt_assert(evbuffer_get_length(evb) == i * sizeof(buffer));
 
 	/* test remove buffer */
-	sz_tmp = sizeof(buffer)*2.5;
+	sz_tmp = (size_t)(sizeof(buffer)*2.5);
 	evbuffer_remove_buffer(evb, evb_two, sz_tmp);
 	tt_assert(evbuffer_get_length(evb_two) == sz_tmp);
 	tt_assert(evbuffer_get_length(evb) == sizeof(buffer) / 2);
@@ -630,14 +630,14 @@ test_evbuffer_iterative(void *ptr)
 {
 	struct evbuffer *buf = evbuffer_new();
 	const char *abc = "abcdefghijklmnopqrstvuwxyzabcdefghijklmnopqrstvuwxyzabcdefghijklmnopqrstvuwxyzabcdefghijklmnopqrstvuwxyz";
-	int i, j, sum;
+	unsigned i, j, sum;
 
 	sum = 0;
 	for (i = 0; i < 1000; ++i) {
 		for (j = 1; j < strlen(abc); ++j) {
 			char format[32];
 
-			evutil_snprintf(format, sizeof(format), "%%%d.%ds", j, j);
+			evutil_snprintf(format, sizeof(format), "%%%u.%us", j, j);
 			evbuffer_add_printf(buf, format, abc);
 			evbuffer_validate(buf);
 

@@ -482,7 +482,7 @@ end:
 
 static struct evdns_server_port *
 get_generic_server(struct event_base *base,
-    ev_uint64_t portnum,
+    ev_uint16_t portnum,
     evdns_request_callback_fn_type cb,
     void *arg)
 {

@@ -287,7 +287,7 @@ bufferevent_input_filter(struct evbuffer *src, struct evbuffer *dst,
     ev_ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
 	const unsigned char *buffer;
-	int i;
+	unsigned i;
 
 	buffer = evbuffer_pullup(src, evbuffer_get_length(src));
 	for (i = 0; i < evbuffer_get_length(src); i += 2) {
@@ -309,7 +309,7 @@ bufferevent_output_filter(struct evbuffer *src, struct evbuffer *dst,
     ev_ssize_t lim, enum bufferevent_flush_mode state, void *ctx)
 {
 	const unsigned char *buffer;
-	int i;
+	unsigned i;
 
 	buffer = evbuffer_pullup(src, evbuffer_get_length(src));
 	for (i = 0; i < evbuffer_get_length(src); ++i) {

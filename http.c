@@ -781,12 +781,12 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 				/* could not get chunk size */
 				return (DATA_CORRUPTED);
 			}
-			if (req->body_size + ntoread > req->evcon->max_body_size) {
+			if (req->body_size + (size_t)ntoread > req->evcon->max_body_size) {
 			  	/* failed body length test */
 				event_debug(("Request body is too long"));
 				return (DATA_TOO_LONG);
 			}
-			req->body_size += ntoread;
+			req->body_size += (size_t)ntoread;
 			req->ntoread = ntoread;
 			if (req->ntoread == 0) {
 				/* Last chunk */
@@ -2910,8 +2910,8 @@ evhttp_get_request_connection(
 	if (evcon == NULL)
 		return (NULL);
 
-	evhttp_connection_set_max_headers_size(evcon, http->default_max_headers_size);
-	evhttp_connection_set_max_body_size(evcon, http->default_max_body_size);
+	evcon->max_headers_size = http->default_max_headers_size;
+	evcon->max_body_size = http->default_max_body_size;
         
 	evcon->flags |= EVHTTP_CON_INCOMING;
 	evcon->state = EVCON_READING_FIRSTLINE;

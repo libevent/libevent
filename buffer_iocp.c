@@ -121,13 +121,14 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes, int 
 	int n_vec;
 
 	// XXXX use ok
+	EVUTIL_ASSERT(nBytes >= 0); // XXXX Can this be false?
 
 	EVBUFFER_LOCK(evbuf, EVTHREAD_WRITE);
 	buf->read_in_progress = 0;
 	evbuffer_unfreeze(evbuf, 0);
 
 	iov[0].iov_base = buf_o->buffers[0].buf;
-	if (nBytes <= buf_o->buffers[0].len) {
+	if ((size_t)nBytes <= buf_o->buffers[0].len) {
 		iov[0].iov_len = nBytes;
 		n_vec = 1;
 	} else {
