@@ -59,7 +59,8 @@ EXTRA_DIST = \
 	WIN32-Prj/event_test/event_test.dsp \
 	WIN32-Prj/event_test/test.txt WIN32-Prj/libevent.dsp \
 	WIN32-Prj/libevent.dsw WIN32-Prj/signal_test/signal_test.dsp \
-	WIN32-Prj/time_test/time_test.dsp
+	WIN32-Prj/time_test/time_test.dsp \
+	Makefile.nmake test/Makefile.nmake
 
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 if PTHREADS
