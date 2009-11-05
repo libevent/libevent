@@ -52,6 +52,9 @@ extern "C" {
 #ifdef _EVENT_HAVE_STDDEF_H
 #include <stddef.h>
 #endif
+#ifdef _MSC_VER
+#include <BaseTsd.h>
+#endif
 #include <stdarg.h>
 
 /* Integer type definitions for types that are supposed to be defined in the

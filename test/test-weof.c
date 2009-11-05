@@ -9,10 +9,14 @@
 
 #ifdef WIN32
 #include <winsock2.h>
+#else
+#include <unistd.h>
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -21,13 +25,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
-#include <unistd.h>
 #include <errno.h>
 
 #include <event2/event.h>
 #include <event2/event_struct.h>
 #include <event2/event_compat.h>
 #include <event2/util.h>
+
+#ifdef _EVENT___func__
+#define __func__ _EVENT___func__
+#endif
 
 int pair[2];
 int test_okay = 1;
@@ -47,7 +54,7 @@ write_cb(int fd, short event, void *arg)
 	if (len > 0) {
 		if (!called)
 			event_add(arg, NULL);
-		close(pair[0]);
+		EVUTIL_CLOSESOCKET(pair[0]);
 	} else if (called == 1)
 		test_okay = 0;
 

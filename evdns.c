@@ -39,14 +39,14 @@
 #include "event-config.h"
 #endif
 
-#ifdef DNS_USE_FTIME_FOR_ID
+#ifdef _EVENT_DNS_USE_FTIME_FOR_ID
 #include <sys/timeb.h>
 #endif
 
 #ifndef _EVENT_DNS_USE_CPU_CLOCK_FOR_ID
 #ifndef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
-#ifndef DNS_USE_OPENSSL_FOR_ID
-#ifndef DNS_USE_FTIME_FOR_ID
+#ifndef _EVENT_DNS_USE_OPENSSL_FOR_ID
+#ifndef _EVENT_DNS_USE_FTIME_FOR_ID
 #error Must configure at least one id generation method.
 #error Please see the documentation.
 #endif
@@ -60,7 +60,7 @@
 #define _REENTRANT
 
 #ifdef _EVENT_DNS_USE_CPU_CLOCK_FOR_ID
-#ifdef DNS_USE_OPENSSL_FOR_ID
+#ifdef _EVENT_DNS_USE_OPENSSL_FOR_ID
 #error Multiple id options selected
 #endif
 #ifdef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
@@ -69,7 +69,7 @@
 #include <time.h>
 #endif
 
-#ifdef DNS_USE_OPENSSL_FOR_ID
+#ifdef _EVENT_DNS_USE_OPENSSL_FOR_ID
 #ifdef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
 #error Multiple id options selected
 #endif
@@ -1182,7 +1182,7 @@ default_transaction_id_fn(void)
 	trans_id = ts.tv_nsec & 0xffff;
 #endif
 
-#ifdef DNS_USE_FTIME_FOR_ID
+#ifdef _EVENT_DNS_USE_FTIME_FOR_ID
 	struct _timeb tb;
 	_ftime(&tb);
 	trans_id = tb.millitm & 0xffff;
@@ -1194,7 +1194,7 @@ default_transaction_id_fn(void)
 	trans_id = tv.tv_usec & 0xffff;
 #endif
 
-#ifdef DNS_USE_OPENSSL_FOR_ID
+#ifdef _EVENT_DNS_USE_OPENSSL_FOR_ID
 	if (RAND_pseudo_bytes((u8 *) &trans_id, 2) == -1) {
 		/* in the case that the RAND call fails we used to back */
 		/* down to using gettimeofday. */

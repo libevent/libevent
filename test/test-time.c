@@ -9,12 +9,14 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifndef WIN32
 #include <unistd.h>
+#include <sys/time.h>
+#endif
 #include <errno.h>
 
 #include <event2/event.h>

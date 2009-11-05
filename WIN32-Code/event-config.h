@@ -22,7 +22,8 @@
 /* #undef _EVENT_DNS_USE_CPU_CLOCK_FOR_ID */
 
 /* Define is no secure id variant is available */
-#define _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID 1
+/* #define _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID 1 */
+#define _EVENT_DNS_USE_FTIME_FOR_ID 1
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 /* #undef _EVENT_HAVE_ARPA_INET_H */

@@ -9,10 +9,14 @@
 
 #ifdef WIN32
 #include <winsock2.h>
+#else
+#include <unistd.h>
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -20,11 +24,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 
 #include <event.h>
 #include <evutil.h>
+
+#ifdef _EVENT___func__
+#define __func__ _EVENT___func__
+#endif
 
 int test_okay = 1;
 int called = 0;
