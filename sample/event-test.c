@@ -3,9 +3,7 @@
  * cc -I/usr/local/include -o event-test event-test.c -L/usr/local/lib -levent
  */
 
-#ifdef HAVE_CONFIG_H
-#include "event-config.h"
-#endif
+#include <event-config.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>

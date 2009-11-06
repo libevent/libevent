@@ -35,9 +35,7 @@
  */
 
 #include <sys/types.h>
-#ifdef HAVE_CONFIG_H
 #include "event-config.h"
-#endif
 
 #ifdef _EVENT_DNS_USE_FTIME_FOR_ID
 #include <sys/timeb.h>

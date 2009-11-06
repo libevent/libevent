@@ -30,9 +30,7 @@
 #include <winsock2.h>
 #endif
 
-#ifdef HAVE_CONFIG_H
 #include "event-config.h"
-#endif
 
 #include "event2/util.h"
 #include "event2/buffer.h"

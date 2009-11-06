@@ -6,9 +6,7 @@
 
 #include <sys/types.h>
 
-#ifdef HAVE_CONFIG_H
-#include "event-config.h"
-#endif
+#include <event-config.h>
 
 #include <sys/stat.h>
 #ifndef WIN32

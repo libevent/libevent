@@ -5,9 +5,7 @@
 extern "C" {
 #endif
 
-#ifdef HAVE_CONFIG_H
 #include "event-config.h"
-#endif /* HAVE_CONFIG_H */
 
 #ifndef _EVENT_HAVE_STRLCPY
 #include <string.h>

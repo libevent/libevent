@@ -30,9 +30,7 @@
 #include <windows.h>
 #endif
 
-#ifdef HAVE_CONFIG_H
 #include "event-config.h"
-#endif
 
 #ifdef _EVENT___func__
 #define __func__ _EVENT___func__

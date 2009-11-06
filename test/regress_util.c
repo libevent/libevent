@@ -29,9 +29,8 @@
 #include <ws2tcpip.h>
 #endif
 
-#ifdef HAVE_CONFIG_H
 #include "event-config.h"
-#endif
+
 #ifndef WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>

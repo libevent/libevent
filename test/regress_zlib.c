@@ -29,9 +29,7 @@
 #include <windows.h>
 #endif
 
-#ifdef HAVE_CONFIG_H
 #include "event-config.h"
-#endif
 
 #include <sys/types.h>
 #ifndef WIN32

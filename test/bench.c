@@ -33,9 +33,7 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
 #include "event-config.h"
-#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
