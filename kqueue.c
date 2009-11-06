@@ -30,6 +30,8 @@
 #include "event-config.h"
 #endif
 
+#define _GNU_SOURCE
+
 #include <sys/types.h>
 #ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
