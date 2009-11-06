@@ -4,6 +4,7 @@ Changes in 1.4.13-stable:
  o Fix compilation on Android, which forgot to define fd_mask in its sys/select.h
  o Do not drop data from evbuffer when out of memory; reported by Jacek Masiulaniec
  o Rename our replacement compat/sys/_time.h header to avoid build a conflict on HPUX; reported by Kathryn Hogg.
+ o Build kqueue.c correctly on GNU/kFreeBSD platforms. Patch pulled upstream from Debian.
 
 
 Changes in 1.4.12-stable:
