@@ -177,7 +177,7 @@ do_fd_clear(struct event_base *base,
 	return (0);
 }
 
-#define NEVENT 64
+#define NEVENT 32
 void *
 win32_init(struct event_base *_base)
 {
@@ -284,7 +284,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	SOCKET s;
 
 	if (win32op->resize_out_sets) {
-		size_t size = win32op->fd_setsz;
+		size_t size = FD_SET_ALLOC_SIZE(win32op->fd_setsz);
 		if (!(win32op->readset_out = mm_realloc(win32op->readset_out, size)))
 			return (-1);
 		if (!(win32op->exset_out = mm_realloc(win32op->exset_out, size)))
