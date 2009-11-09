@@ -180,6 +180,20 @@ gettime(struct event_base *base, struct timeval *tp)
 	return (evutil_gettimeofday(tp, NULL));
 }
 
+static inline void
+clear_time_cache(struct event_base *base)
+{
+	base->tv_cache.tv_sec = 0;
+}
+
+static inline void
+update_time_cache(struct event_base *base)
+{
+	base->tv_cache.tv_sec = 0;
+	if (!(base->flags & EVENT_BASE_FLAG_NO_CACHE_TIME))
+	    gettime(base, &base->tv_cache);
+}
+
 struct event_base *
 event_init(void)
 {
@@ -281,6 +295,8 @@ event_base_new_with_config(struct event_config *cfg)
 	event_deferred_cb_queue_init(&base->defer_queue);
 	base->defer_queue.notify_fn = notify_base_cbq_callback;
 	base->defer_queue.notify_arg = base;
+	if (cfg)
+		base->flags = cfg->flags;
 
 	evmap_io_initmap(&base->io);
 	evmap_signal_initmap(&base->sigmap);
@@ -1054,8 +1070,7 @@ event_base_loop(struct event_base *base, int flags)
 	 * as we invoke user callbacks. */
 	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 
-	/* clear time cache */
-	base->tv_cache.tv_sec = 0;
+	clear_time_cache(base);
 
 	if (base->sig.ev_signal_added)
 		evsig_base = base;
@@ -1099,14 +1114,14 @@ event_base_loop(struct event_base *base, int flags)
 		/* update last old time */
 		gettime(base, &base->event_tv);
 
-		/* clear time cache */
-		base->tv_cache.tv_sec = 0;
+		clear_time_cache(base);
 
 		res = evsel->dispatch(base, tv_p);
 
 		if (res == -1)
 			return (-1);
-		gettime(base, &base->tv_cache);
+
+		update_time_cache(base);
 
 		timeout_process(base);
 
@@ -1118,8 +1133,7 @@ event_base_loop(struct event_base *base, int flags)
 			done = 1;
 	}
 
-	/* clear time cache */
-	base->tv_cache.tv_sec = 0;
+	clear_time_cache(base);
 
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 

@@ -181,6 +181,8 @@ struct event_base {
 	struct event_iocp_port *iocp;
 #endif
 
+        enum event_base_config_flag flags;
+
 	/* Notify main thread to wake up break, etc. */
 	int th_notify_fd[2];
 	struct event th_notify;

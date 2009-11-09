@@ -40,7 +40,7 @@ Changes in 2.0.3-alpha:
  o Add a new bufferevent_socket_connect_hostname() to encapsulate the resolve-then-connect operation.
  o Build kqueue.c correctly on GNU/kFreeBSD platforms. Patch pulled upstream from Debian.
  o Alternative queue-based timeout algorithm for programs that use a large number of timeouts with the same value.
-
+ o New event_base_config option to disable the timeval cache entirely.
 
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.

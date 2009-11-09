@@ -167,7 +167,11 @@ enum event_base_config_flag {
 	    an event_base. */
 	EVENT_BASE_FLAG_IGNORE_ENV = 0x02,
 	/** Windows only: enable the IOCP dispatcher at startup */
-	EVENT_BASE_FLAG_STARTUP_IOCP = 0x04
+	EVENT_BASE_FLAG_STARTUP_IOCP = 0x04,
+	/** Instead of checking the current time every time the event loop is
+	    ready to run timeout callbacks, check after each timeout callback.
+	 */
+	EVENT_BASE_FLAG_NO_CACHE_TIME = 0x08
 };
 
 /**
