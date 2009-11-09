@@ -3049,7 +3049,7 @@ bind_socket_ai(struct addrinfo *ai, int reuse)
 	int serrno;
 
         /* Create listen socket */
-        fd = socket(AF_INET, SOCK_STREAM, 0);
+        fd = socket(ai ? ai->ai_family : AF_INET, SOCK_STREAM, 0);
         if (fd == -1) {
 			event_sock_warn(-1, "socket");
 			return (-1);
@@ -3095,7 +3095,7 @@ make_addrinfo(const char *address, ev_uint16_t port)
         int ai_result;
 
         memset(&ai, 0, sizeof(ai));
-        ai.ai_family = AF_INET;
+        ai.ai_family = AF_UNSPEC;
         ai.ai_socktype = SOCK_STREAM;
         ai.ai_flags = AI_PASSIVE;  /* turn NULL host name into INADDR_ANY */
         evutil_snprintf(strport, sizeof(strport), "%d", port);

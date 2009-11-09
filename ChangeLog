@@ -42,6 +42,7 @@ Changes in 2.0.3-alpha:
  o Alternative queue-based timeout algorithm for programs that use a large number of timeouts with the same value.
  o New event_base_config option to disable the timeval cache entirely.
  o Make EV_PERSIST timeouts more accurate: schedule the next event based on the scheduled time of the previous event, not based on the current time.
+ o Allow http.c to handle cases where getaddrinfo returns an IPv6 address.  Patch from Ryan Phillips.
 
 
 Changes in 2.0.2-alpha:
