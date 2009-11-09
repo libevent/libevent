@@ -326,8 +326,8 @@ event_base_priority_init(struct event_base *base, int npriorities)
 
 	/* Allocate our priority queues */
 	base->nactivequeues = npriorities;
-	base->activequeues = (struct event_list **)calloc(base->nactivequeues,
-	    npriorities * sizeof(struct event_list *));
+	base->activequeues = (struct event_list **)
+	    calloc(base->nactivequeues, sizeof(struct event_list *));
 	if (base->activequeues == NULL)
 		event_err(1, "%s: calloc", __func__);
 
