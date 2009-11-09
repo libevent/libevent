@@ -41,6 +41,8 @@ Changes in 2.0.3-alpha:
  o Build kqueue.c correctly on GNU/kFreeBSD platforms. Patch pulled upstream from Debian.
  o Alternative queue-based timeout algorithm for programs that use a large number of timeouts with the same value.
  o New event_base_config option to disable the timeval cache entirely.
+ o Make EV_PERSIST timeouts more accurate: schedule the next event based on the scheduled time of the previous event, not based on the current time.
+
 
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.

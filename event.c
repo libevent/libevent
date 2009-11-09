@@ -121,7 +121,7 @@ static int use_monotonic;
 
 /* Prototypes */
 static inline int event_add_internal(struct event *ev,
-    const struct timeval *tv);
+    const struct timeval *tv, int tv_is_absolute);
 static inline int event_del_internal(struct event *ev);
 
 static void	event_queue_insert(struct event_base *, struct event *, int);
@@ -677,15 +677,6 @@ event_haveevents(struct event_base *base)
 }
 
 static inline void
-event_persist_closure(struct event_base *base, struct event *ev)
-{
-	/* reschedule the persistent event if we have a timeout */
-	if (ev->ev_io_timeout.tv_sec || ev->ev_io_timeout.tv_usec)
-		event_add_internal(ev, &ev->ev_io_timeout);
-	(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
-}
-
-static inline void
 event_signal_closure(struct event_base *base, struct event *ev)
 {
 	short ncalls;
@@ -722,6 +713,15 @@ is_common_timeout(const struct timeval *tv,
 	return idx < base->n_common_timeouts;
 }
 
+/* True iff tv1 and tv2 have the same common-timeout index, or if neither
+ * one is a common timeout. */
+static inline int
+is_same_common_timeout(const struct timeval *tv1, const struct timeval *tv2)
+{
+	return (tv1->tv_usec & ~MICROSECONDS_MASK) ==
+	    (tv2->tv_usec & ~MICROSECONDS_MASK);
+}
+
 static inline struct common_timeout_list *
 get_common_timeout_list(struct event_base *base, const struct timeval *tv)
 {
@@ -742,11 +742,9 @@ static void
 common_timeout_schedule(struct common_timeout_list *ctl,
     const struct timeval *now, struct event *head)
 {
-	struct timeval delay;
 	struct timeval timeout = head->ev_timeout;
 	timeout.tv_usec &= MICROSECONDS_MASK;
-	evutil_timersub(&timeout, now, &delay);
-	event_add_internal(&ctl->timeout_event, &delay);
+	event_add_internal(&ctl->timeout_event, &timeout, 1);
 }
 
 static void
@@ -846,6 +844,36 @@ done:
 
 	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
 	return result;
+}
+
+static inline void
+event_persist_closure(struct event_base *base, struct event *ev)
+{
+	/* reschedule the persistent event if we have a timeout. */
+	if (ev->ev_io_timeout.tv_sec || ev->ev_io_timeout.tv_usec) {
+		/* We want it to run at an interval of ev_io_timeout after the
+		 * last time it was _scheduled_ for, not ev_io_timeout after
+		 * _now_. */
+		struct timeval run_at;
+		EVUTIL_ASSERT(is_same_common_timeout(&ev->ev_timeout,
+			&ev->ev_io_timeout));
+		if (is_common_timeout(&ev->ev_timeout, base)) {
+			ev_uint32_t usec_mask;
+			struct timeval delay, last_at;
+			last_at = ev->ev_timeout;
+			delay = ev->ev_io_timeout;
+			usec_mask = delay.tv_usec & ~MICROSECONDS_MASK;
+			last_at.tv_usec &= MICROSECONDS_MASK;
+			delay.tv_usec &= MICROSECONDS_MASK;
+			evutil_timeradd(&last_at, &delay, &run_at);
+			run_at.tv_usec |= usec_mask;
+		} else {
+			evutil_timeradd(&ev->ev_io_timeout, &ev->ev_timeout,
+			    &run_at);
+		}
+		event_add_internal(ev, &run_at, 1);
+	}
+	(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
 }
 
 /*
@@ -1387,7 +1415,7 @@ event_add(struct event *ev, const struct timeval *tv)
 
 	EVBASE_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
-	res = event_add_internal(ev, tv);
+	res = event_add_internal(ev, tv, 0);
 
 	EVBASE_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
 
@@ -1431,7 +1459,8 @@ evthread_notify_base(struct event_base *base)
 }
 
 static inline int
-event_add_internal(struct event *ev, const struct timeval *tv)
+event_add_internal(struct event *ev, const struct timeval *tv,
+    int tv_is_absolute)
 {
 	struct event_base *base = ev->ev_base;
 	int res = 0;
@@ -1483,8 +1512,10 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 		/*
 		 * for persistent timeout events, we remember the
 		 * timeout value and re-add the event.
+		 *
+		 * If tv_is_absolute, this was already set.
 		 */
-		if (ev->ev_closure == EV_CLOSURE_PERSIST)
+		if (ev->ev_closure == EV_CLOSURE_PERSIST && !tv_is_absolute)
 			ev->ev_io_timeout = *tv;
 
 		/*
@@ -1517,8 +1548,12 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 		}
 
 		gettime(base, &now);
+
+
 		common_timeout = is_common_timeout(tv, base);
-		if (common_timeout) {
+		if (tv_is_absolute) {
+			ev->ev_timeout = *tv;
+		} else if (common_timeout) {
 			struct timeval tmp = *tv;
 			tmp.tv_usec &= MICROSECONDS_MASK;
 			evutil_timeradd(&now, &tmp, &ev->ev_timeout);
@@ -1893,8 +1928,8 @@ insert_common_timeout_inorder(struct common_timeout_list *ctl,
 		 * magic values in tv_usec.  Fortunately, they ought to have
 		 * the _same_ magic values in tv_usec.  Let's assert for that.
 		 */
-		EVUTIL_ASSERT((e->ev_timeout.tv_usec & ~MICROSECONDS_MASK)
-		    == (ev->ev_timeout.tv_usec & ~MICROSECONDS_MASK));
+		EVUTIL_ASSERT(
+			is_same_common_timeout(&e->ev_timeout, &ev->ev_timeout));
 		if (evutil_timercmp(&ev->ev_timeout, &e->ev_timeout, >=)) {
 			TAILQ_INSERT_AFTER(&ctl->events, e, ev,
 			    ev_timeout_pos.ev_next_with_common_timeout);
