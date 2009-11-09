@@ -499,8 +499,9 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int errcode, int ret)
 	case SSL_ERROR_WANT_CONNECT:
 	case SSL_ERROR_WANT_ACCEPT:
 	default:
-		/* should be impossible */
-		event_errx(1, "Unexpected OpenSSL error code %d", errcode);
+		/* should be impossible; treat as normal error. */
+		event_warnx("BUG: Unexpected OpenSSL error code %d", errcode);
+		break;
 	}
 
 	while ((err = ERR_get_error())) {
