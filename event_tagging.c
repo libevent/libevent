@@ -546,8 +546,10 @@ evtag_unmarshal_string(struct evbuffer *evbuf, ev_uint32_t need_tag,
 		return (-1);
 
 	*pstring = mm_malloc(tag_len + 1);
-	if (*pstring == NULL)
-		event_err(1, "%s: malloc", __func__);
+	if (*pstring == NULL) {
+		event_warn("%s: malloc", __func__);
+		return -1;
+	}
 	evbuffer_remove(evbuf, *pstring, tag_len);
 	(*pstring)[tag_len] = '\0';
 
