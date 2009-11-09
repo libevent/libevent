@@ -1883,6 +1883,29 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 }
 
 static void
+insert_common_timeout_inorder(struct common_timeout_list *ctl,
+    struct event *ev)
+{
+	struct event *e;
+	TAILQ_FOREACH_REVERSE(e, &ctl->events,
+	    ev_timeout_pos.ev_next_with_common_timeout, event_list) {
+		/* This timercmp is a little sneaky, since both ev and e have
+		 * magic values in tv_usec.  Fortunately, they ought to have
+		 * the _same_ magic values in tv_usec.  Let's assert for that.
+		 */
+		EVUTIL_ASSERT((e->ev_timeout.tv_usec & ~MICROSECONDS_MASK)
+		    == (ev->ev_timeout.tv_usec & ~MICROSECONDS_MASK));
+		if (evutil_timercmp(&ev->ev_timeout, &e->ev_timeout, >=)) {
+			TAILQ_INSERT_AFTER(&ctl->events, e, ev,
+			    ev_timeout_pos.ev_next_with_common_timeout);
+			return;
+		}
+	}
+	TAILQ_INSERT_HEAD(&ctl->events, ev,
+	    ev_timeout_pos.ev_next_with_common_timeout);
+}
+
+static void
 event_queue_insert(struct event_base *base, struct event *ev, int queue)
 {
 	if (ev->ev_flags & queue) {
@@ -1911,8 +1934,7 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		if (is_common_timeout(&ev->ev_timeout, base)) {
 			struct common_timeout_list *ctl =
 			    get_common_timeout_list(base, &ev->ev_timeout);
-			TAILQ_INSERT_TAIL(&ctl->events, ev,
-			    ev_timeout_pos.ev_next_with_common_timeout);
+			insert_common_timeout_inorder(ctl, ev);
 		} else
 			min_heap_push(&base->timeheap, ev);
 		break;
