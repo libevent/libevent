@@ -1155,9 +1155,13 @@ test_loopexit(void)
 
 	evtimer_del(&ev);
 
+	tt_assert(event_base_got_exit(global_base));
+	tt_assert(!event_base_got_break(global_base));
+
 	if (tv.tv_sec < 2)
 		test_ok = 1;
 
+end:
 	cleanup_test();
 }
 
@@ -1183,8 +1187,12 @@ test_loopexit_multiple(void)
 
 	event_base_free(base);
 
+	tt_assert(event_base_got_exit(base));
+	tt_assert(!event_base_got_break(base));
+
 	test_ok = 1;
 
+end:
 	cleanup_test();
 }
 
@@ -1218,9 +1226,13 @@ test_loopbreak(void)
 
 	event_dispatch();
 
+	tt_assert(!event_base_got_exit(global_base));
+	tt_assert(event_base_got_break(global_base));
+
 	evtimer_del(&ev1);
 	evtimer_del(&ev2);
 
+end:
 	cleanup_test();
 }
 
