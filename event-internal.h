@@ -107,6 +107,13 @@ struct event_signal_map {
 	int nentries;
 };
 
+struct common_timeout_list {
+	struct event_list events;
+	struct timeval duration;
+	struct event timeout_event;
+	struct event_base *base;
+};
+
 struct event_base {
 	/** Function pointers and other data to describe this event_base's
 	 * backend. */
@@ -133,6 +140,10 @@ struct event_base {
 	 */
 	struct event_list **activequeues;
 	int nactivequeues;
+
+	struct common_timeout_list **common_timeout_queues;
+	int n_common_timeouts;
+	int n_common_timeouts_allocated;
 
 	/** The event whose callback is executing right now */
 	struct event *current_event;

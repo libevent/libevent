@@ -217,7 +217,8 @@ basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
         }
 
         if (testcase->flags & TT_NEED_BASE) {
-                event_base_free(data->base);
+		if (data->base)
+			event_base_free(data->base);
         }
 
         if (testcase->flags & TT_NEED_DNS) {

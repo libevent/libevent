@@ -80,7 +80,11 @@ struct event_base;
 struct event {
 	TAILQ_ENTRY (event) (ev_active_next);
 	TAILQ_ENTRY (event) (ev_next);
-	int min_heap_idx;	/* for managing timeouts */
+	/* for managing timeouts */
+	union {
+		TAILQ_ENTRY (event) (ev_next_with_common_timeout);
+		int min_heap_idx;
+	} ev_timeout_pos;
 	evutil_socket_t ev_fd;
 
 	struct event_base *ev_base;

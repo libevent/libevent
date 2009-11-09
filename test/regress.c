@@ -548,7 +548,100 @@ test_persistent_timeout(void)
 	event_dispatch();
 
 	event_del(&ev);
+}
 
+static int total_common_counts;
+
+struct common_timeout_info {
+	struct event ev;
+	struct timeval called_at;
+	int which;
+	int count;
+};
+
+static void
+common_timeout_cb(int fd, short event, void *arg)
+{
+	struct common_timeout_info *ti = arg;
+	++ti->count;
+	evutil_gettimeofday(&ti->called_at, NULL);
+	if (ti->count >= 6)
+		event_del(&ti->ev);
+}
+
+static void
+test_common_timeout(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+
+	struct event_base *base = data->base;
+	int i;
+	struct common_timeout_info info[100];
+
+	struct timeval now;
+	struct timeval tmp_100_ms = { 0, 100*1000 };
+	struct timeval tmp_200_ms = { 0, 200*1000 };
+
+	const struct timeval *ms_100, *ms_200;
+
+	ms_100 = event_base_init_common_timeout(base, &tmp_100_ms);
+	ms_200 = event_base_init_common_timeout(base, &tmp_200_ms);
+	tt_assert(ms_100);
+	tt_assert(ms_200);
+	tt_ptr_op(event_base_init_common_timeout(base, &tmp_200_ms),
+	    ==, ms_200);
+	tt_int_op(ms_100->tv_sec, ==, 0);
+	tt_int_op(ms_200->tv_sec, ==, 0);
+	tt_int_op(ms_100->tv_usec, ==, 100000|0x50000000);
+	tt_int_op(ms_200->tv_usec, ==, 200000|0x50100000);
+
+	total_common_counts = 0;
+
+	memset(info, 0, sizeof(info));
+
+	for (i=0; i<100; ++i) {
+		info[i].which = i;
+		event_assign(&info[i].ev, base, -1, EV_TIMEOUT|EV_PERSIST,
+		    common_timeout_cb, &info[i]);
+		if (i % 2) {
+			event_add(&info[i].ev, ms_100);
+		} else {
+			event_add(&info[i].ev, ms_200);
+		}
+	}
+
+	event_base_dispatch(base);
+
+	evutil_gettimeofday(&now, NULL);
+
+	for (i=0; i<10; ++i) {
+		struct timeval tmp;
+		int ms_diff;
+		tt_int_op(info[i].count, ==, 6);
+		evutil_timersub(&now, &info[i].called_at, &tmp);
+		ms_diff = tmp.tv_usec/1000 + tmp.tv_sec*1000;
+		if (i % 2) {
+			tt_int_op(ms_diff, >, 500);
+			tt_int_op(ms_diff, <, 700);
+		} else {
+			tt_int_op(ms_diff, >, -100);
+			tt_int_op(ms_diff, <, 100);
+		}
+	}
+
+	/* Make sure we can free the base with some events in. */
+	for (i=0; i<100; ++i) {
+		if (i % 2) {
+			event_add(&info[i].ev, ms_100);
+		} else {
+			event_add(&info[i].ev, ms_200);
+		}
+	}
+
+end:
+	event_base_free(data->base); /* need to do this here before info is
+				      * out-of-scope */
+	data->base = NULL;
 }
 
 #ifndef WIN32
@@ -1880,6 +1973,8 @@ struct testcase_t main_testcases[] = {
         /* These are still using the old API */
         LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
         LEGACY(priorities, TT_FORK|TT_NEED_BASE),
+	{ "common_timeout", test_common_timeout, TT_FORK|TT_NEED_BASE,
+	  &basic_setup, NULL },
 
         /* These legacy tests may not all need all of these flags. */
         LEGACY(simpleread, TT_ISOLATED),

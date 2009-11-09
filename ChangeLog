@@ -39,6 +39,8 @@ Changes in 2.0.3-alpha:
  o Remove compat/sys/_time.h.  It interfered with system headers on HPUX, and its functionality has been subsumed by event2/util.h and util-internal.h.
  o Add a new bufferevent_socket_connect_hostname() to encapsulate the resolve-then-connect operation.
  o Build kqueue.c correctly on GNU/kFreeBSD platforms. Patch pulled upstream from Debian.
+ o Alternative queue-based timeout algorithm for programs that use a large number of timeouts with the same value.
+
 
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.

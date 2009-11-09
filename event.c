@@ -403,6 +403,23 @@ event_base_free(struct event_base *base)
 		event_del(ev);
 		++n_deleted;
 	}
+	for (i = 0; i < base->n_common_timeouts; ++i) {
+		struct common_timeout_list *ctl =
+		    base->common_timeout_queues[i];
+		event_del(&ctl->timeout_event); /* Internal; doesn't count */
+		for (ev = TAILQ_FIRST(&ctl->events); ev; ) {
+			struct event *next = TAILQ_NEXT(ev,
+			    ev_timeout_pos.ev_next_with_common_timeout);
+			if (!(ev->ev_flags & EVLIST_INTERNAL)) {
+				event_del(ev);
+				++n_deleted;
+			}
+			ev = next;
+		}
+		mm_free(ctl);
+	}
+	if (base->common_timeout_queues)
+		mm_free(base->common_timeout_queues);
 
 	for (i = 0; i < base->nactivequeues; ++i) {
 		for (ev = TAILQ_FIRST(base->activequeues[i]); ev; ) {
@@ -667,6 +684,152 @@ event_signal_closure(struct event_base *base, struct event *ev)
 		if (base->event_break)
 			return;
 	}
+}
+
+#define MICROSECONDS_MASK       0x000fffff
+#define COMMON_TIMEOUT_IDX_MASK 0x0ff00000
+#define COMMON_TIMEOUT_IDX_SHIFT 20
+#define COMMON_TIMEOUT_MASK     0xf0000000
+#define COMMON_TIMEOUT_MAGIC    0x50000000
+
+#define COMMON_TIMEOUT_IDX(tv) \
+	(((tv)->tv_usec & COMMON_TIMEOUT_IDX_MASK)>>COMMON_TIMEOUT_IDX_SHIFT)
+
+static inline int
+is_common_timeout(const struct timeval *tv,
+    const struct event_base *base)
+{
+	int idx;
+	if ((tv->tv_usec & COMMON_TIMEOUT_MASK) != COMMON_TIMEOUT_MAGIC)
+		return 0;
+	idx = COMMON_TIMEOUT_IDX(tv);
+	return idx < base->n_common_timeouts;
+}
+
+static inline struct common_timeout_list *
+get_common_timeout_list(struct event_base *base, const struct timeval *tv)
+{
+	return base->common_timeout_queues[COMMON_TIMEOUT_IDX(tv)];
+}
+
+static inline int
+common_timeout_ok(const struct timeval *tv,
+    struct event_base *base)
+{
+	const struct timeval *expect =
+	    &get_common_timeout_list(base, tv)->duration;
+	return tv->tv_sec == expect->tv_sec &&
+	    tv->tv_usec == expect->tv_usec;
+}
+
+static void
+common_timeout_schedule(struct common_timeout_list *ctl,
+    const struct timeval *now, struct event *head)
+{
+	struct timeval delay;
+	struct timeval timeout = head->ev_timeout;
+	timeout.tv_usec &= MICROSECONDS_MASK;
+	evutil_timersub(&timeout, now, &delay);
+	event_add_internal(&ctl->timeout_event, &delay);
+}
+
+static void
+common_timeout_callback(evutil_socket_t fd, short what, void *arg)
+{
+	struct timeval now;
+	struct common_timeout_list *ctl = arg;
+	struct event_base *base = ctl->base;
+	struct event *ev = NULL;
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	gettime(base, &now);
+	while (1) {
+		ev = TAILQ_FIRST(&ctl->events);
+		if (!ev || ev->ev_timeout.tv_sec > now.tv_sec ||
+		    (ev->ev_timeout.tv_sec == now.tv_sec &&
+			(ev->ev_timeout.tv_usec&MICROSECONDS_MASK) > now.tv_usec))
+			break;
+		event_del_internal(ev);
+		event_active_nolock(ev, EV_TIMEOUT, 1);
+	}
+	if (ev)
+		common_timeout_schedule(ctl, &now, ev);
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+}
+
+#define MAX_COMMON_TIMEOUTS 256
+
+const struct timeval *
+event_base_init_common_timeout(struct event_base *base,
+    const struct timeval *duration)
+{
+	int i;
+	struct timeval tv;
+	const struct timeval *result=NULL;
+	struct common_timeout_list *new_ctl;
+
+	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	if (duration->tv_usec > 1000000) {
+		memcpy(&tv, duration, sizeof(struct timeval));
+		if (is_common_timeout(duration, base))
+			tv.tv_usec &= MICROSECONDS_MASK;
+		tv.tv_sec += tv.tv_usec / 1000000;
+		tv.tv_usec %= 1000000;
+		duration = &tv;
+	}
+	for (i = 0; i < base->n_common_timeouts; ++i) {
+		const struct common_timeout_list *ctl =
+		    base->common_timeout_queues[i];
+		if (duration->tv_sec == ctl->duration.tv_sec &&
+		    duration->tv_usec ==
+		    (ctl->duration.tv_usec & MICROSECONDS_MASK)) {
+			EVUTIL_ASSERT(is_common_timeout(&ctl->duration, base));
+			result = &ctl->duration;
+			goto done;
+		}
+	}
+	if (base->n_common_timeouts == MAX_COMMON_TIMEOUTS) {
+		event_warn("%s: Too many common timeouts already in use; "
+		    "we only support %d per event_base", __func__,
+		    MAX_COMMON_TIMEOUTS);
+		goto done;
+	}
+	if (base->n_common_timeouts_allocated == base->n_common_timeouts) {
+		int n = base->n_common_timeouts < 16 ? 16 :
+		    base->n_common_timeouts*2;
+		struct common_timeout_list **newqueues =
+		    mm_realloc(base->common_timeout_queues,
+			n*sizeof(struct common_timeout_queue *));
+		if (!newqueues) {
+			event_warn("%s: realloc",__func__);
+			goto done;
+		}
+		base->n_common_timeouts_allocated = n;
+		base->common_timeout_queues = newqueues;
+	}
+	new_ctl = mm_calloc(1, sizeof(struct common_timeout_list));
+	if (!new_ctl) {
+		event_warn("%s: calloc",__func__);
+		goto done;
+	}
+	TAILQ_INIT(&new_ctl->events);
+	new_ctl->duration.tv_sec = duration->tv_sec;
+	new_ctl->duration.tv_usec =
+	    duration->tv_usec | COMMON_TIMEOUT_MAGIC |
+	    (base->n_common_timeouts << COMMON_TIMEOUT_IDX_SHIFT);
+	evtimer_assign(&new_ctl->timeout_event, base,
+	    common_timeout_callback, new_ctl);
+	new_ctl->timeout_event.ev_flags |= EVLIST_INTERNAL;
+	event_priority_set(&new_ctl->timeout_event, 0);
+	new_ctl->base = base;
+	base->common_timeout_queues[base->n_common_timeouts++] = new_ctl;
+	result = &new_ctl->duration;
+
+done:
+	if (result)
+		EVUTIL_ASSERT(is_common_timeout(result, base));
+
+	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	return result;
 }
 
 /*
@@ -1166,8 +1329,10 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 
 	/* See if there is a timeout that we should report */
 	if (tv != NULL && (flags & event & EV_TIMEOUT)) {
+		struct timeval tmp = ev->ev_timeout;
 		gettime(ev->ev_base, &now);
-		evutil_timersub(&ev->ev_timeout, &now, &res);
+		tmp.tv_usec &= MICROSECONDS_MASK;
+		evutil_timersub(&tmp, &now, &res);
 		/* correctly remap to real time */
 		evutil_gettimeofday(&now, NULL);
 		evutil_timeradd(&now, &res, tv);
@@ -1299,6 +1464,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 	 */
 	if (res != -1 && tv != NULL) {
 		struct timeval now;
+		int common_timeout;
 
 		/*
 		 * for persistent timeout events, we remember the
@@ -1312,6 +1478,7 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 		 * are not replacing an existing timeout.
 		 */
 		if (ev->ev_flags & EVLIST_TIMEOUT) {
+			/* XXX I believe this is needless. */
 			if (min_heap_elt_is_top(ev))
 				notify = 1;
 			event_queue_remove(base, ev, EVLIST_TIMEOUT);
@@ -1336,18 +1503,35 @@ event_add_internal(struct event *ev, const struct timeval *tv)
 		}
 
 		gettime(base, &now);
-		evutil_timeradd(&now, tv, &ev->ev_timeout);
+		common_timeout = is_common_timeout(tv, base);
+		if (common_timeout) {
+			struct timeval tmp = *tv;
+			tmp.tv_usec &= MICROSECONDS_MASK;
+			evutil_timeradd(&now, &tmp, &ev->ev_timeout);
+			ev->ev_timeout.tv_usec |=
+			    (tv->tv_usec & ~MICROSECONDS_MASK);
+		} else {
+			evutil_timeradd(&now, tv, &ev->ev_timeout);
+		}
 
 		event_debug((
 			 "event_add: timeout in %d seconds, call %p",
 			 (int)tv->tv_sec, ev->ev_callback));
 
 		event_queue_insert(base, ev, EVLIST_TIMEOUT);
-		if (min_heap_elt_is_top(ev)) {
-			/* The earliest timeout is now earlier than it was
-			 * before: we will need to tell the main thread to
-			 * wake up earlier than it would otherwise. */
-			notify = 1;
+		if (common_timeout) {
+			struct common_timeout_list *ctl =
+			    get_common_timeout_list(base, &ev->ev_timeout);
+			if (ev == TAILQ_FIRST(&ctl->events)) {
+				common_timeout_schedule(ctl, &now, ev);
+			}
+		} else {
+			/* See if the earliest timeout is now earlier than it
+			 * was before: if so, we will need to tell the main
+			 * thread to wake up earlier than it would
+			 * otherwise. */
+			if (min_heap_elt_is_top(ev))
+				notify = 1;
 		}
 	}
 
@@ -1578,6 +1762,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	struct event **pev;
 	unsigned int size;
 	struct timeval off;
+	int i;
 
 	if (use_monotonic)
 		return;
@@ -1604,6 +1789,20 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 		struct timeval *ev_tv = &(**pev).ev_timeout;
 		evutil_timersub(ev_tv, &off, ev_tv);
 	}
+	for (i=0; i<base->n_common_timeouts; ++i) {
+		struct event *ev;
+		struct common_timeout_list *ctl =
+		    base->common_timeout_queues[i];
+		TAILQ_FOREACH(ev, &ctl->events,
+		    ev_timeout_pos.ev_next_with_common_timeout) {
+			struct timeval *ev_tv = &ev->ev_timeout;
+			ev_tv->tv_usec &= MICROSECONDS_MASK;
+			evutil_timersub(ev_tv, &off, ev_tv);
+			ev_tv->tv_usec |= COMMON_TIMEOUT_MAGIC |
+			    (i<<COMMON_TIMEOUT_IDX_SHIFT);
+		}
+	}
+
 	/* Now remember what the new time turned out to be. */
 	base->event_tv = *tv;
 }
@@ -1655,7 +1854,14 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 		    ev, ev_active_next);
 		break;
 	case EVLIST_TIMEOUT:
-		min_heap_erase(&base->timeheap, ev);
+		if (is_common_timeout(&ev->ev_timeout, base)) {
+			struct common_timeout_list *ctl =
+			    get_common_timeout_list(base, &ev->ev_timeout);
+			TAILQ_REMOVE(&ctl->events, ev,
+			    ev_timeout_pos.ev_next_with_common_timeout);
+		} else {
+			min_heap_erase(&base->timeheap, ev);
+		}
 		break;
 	default:
 		event_errx(1, "%s: unknown queue %x", __func__, queue);
@@ -1688,7 +1894,13 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		    ev,ev_active_next);
 		break;
 	case EVLIST_TIMEOUT: {
-		min_heap_push(&base->timeheap, ev);
+		if (is_common_timeout(&ev->ev_timeout, base)) {
+			struct common_timeout_list *ctl =
+			    get_common_timeout_list(base, &ev->ev_timeout);
+			TAILQ_INSERT_TAIL(&ctl->events, ev,
+			    ev_timeout_pos.ev_next_with_common_timeout);
+		} else
+			min_heap_push(&base->timeheap, ev);
 		break;
 	}
 	default:
