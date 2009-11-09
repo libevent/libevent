@@ -43,6 +43,7 @@ Changes in 2.0.3-alpha:
  o New event_base_config option to disable the timeval cache entirely.
  o Make EV_PERSIST timeouts more accurate: schedule the next event based on the scheduled time of the previous event, not based on the current time.
  o Allow http.c to handle cases where getaddrinfo returns an IPv6 address.  Patch from Ryan Phillips.
+ o Fix a problem with excessive memory allocation when using multiple event priorities.
 
 
 Changes in 2.0.2-alpha:

@@ -338,7 +338,10 @@ event_base_new_with_config(struct event_config *cfg)
 		event_msgx("libevent using: %s", base->evsel->name);
 
 	/* allocate a single active event queue */
-	event_base_priority_init(base, 1);
+	if (event_base_priority_init(base, 1) < 0) {
+		event_base_free(base);
+		return NULL;
+	}
 
 	/* prepare for threading */
 	base->th_notify_fd[0] = -1;
@@ -438,7 +441,7 @@ event_base_free(struct event_base *base)
 		mm_free(base->common_timeout_queues);
 
 	for (i = 0; i < base->nactivequeues; ++i) {
-		for (ev = TAILQ_FIRST(base->activequeues[i]); ev; ) {
+		for (ev = TAILQ_FIRST(&base->activequeues[i]); ev; ) {
 			struct event *next = TAILQ_NEXT(ev, ev_active_next);
 			if (!(ev->ev_flags & EVLIST_INTERNAL)) {
 				event_del(ev);
@@ -456,13 +459,11 @@ event_base_free(struct event_base *base)
 		base->evsel->dealloc(base);
 
 	for (i = 0; i < base->nactivequeues; ++i)
-		EVUTIL_ASSERT(TAILQ_EMPTY(base->activequeues[i]));
+		EVUTIL_ASSERT(TAILQ_EMPTY(&base->activequeues[i]));
 
 	EVUTIL_ASSERT(min_heap_empty(&base->timeheap));
 	min_heap_dtor(&base->timeheap);
 
-	for (i = 0; i < base->nactivequeues; ++i)
-		mm_free(base->activequeues[i]);
 	mm_free(base->activequeues);
 
 	EVUTIL_ASSERT(TAILQ_EMPTY(&base->eventqueue));
@@ -645,25 +646,21 @@ event_base_priority_init(struct event_base *base, int npriorities)
 		return (0);
 
 	if (base->nactivequeues) {
-		for (i = 0; i < base->nactivequeues; ++i) {
-			mm_free(base->activequeues[i]);
-		}
 		mm_free(base->activequeues);
+		base->nactivequeues = 0;
 	}
 
 	/* Allocate our priority queues */
+	base->activequeues = (struct event_list *)
+	  mm_calloc(npriorities, sizeof(struct event_list));
+	if (base->activequeues == NULL) {
+		event_warn("%s: calloc", __func__);
+		return (-1);
+	}
 	base->nactivequeues = npriorities;
-	base->activequeues = (struct event_list **)mm_calloc(
-	    base->nactivequeues,
-	    npriorities * sizeof(struct event_list *));
-	if (base->activequeues == NULL)
-		event_err(1, "%s: calloc", __func__);
-
+				
 	for (i = 0; i < base->nactivequeues; ++i) {
-		base->activequeues[i] = mm_malloc(sizeof(struct event_list));
-		if (base->activequeues[i] == NULL)
-			event_err(1, "%s: malloc", __func__);
-		TAILQ_INIT(base->activequeues[i]);
+		TAILQ_INIT(&base->activequeues[i]);
 	}
 
 	return (0);
@@ -974,8 +971,8 @@ event_process_active(struct event_base *base)
 	int i, c;
 
 	for (i = 0; i < base->nactivequeues; ++i) {
-		if (TAILQ_FIRST(base->activequeues[i]) != NULL) {
-			activeq = base->activequeues[i];
+		if (TAILQ_FIRST(&base->activequeues[i]) != NULL) {
+			activeq = &base->activequeues[i];
 			c = event_process_active_single_queue(base, activeq);
 			if (c < 0)
 				return;
@@ -1899,7 +1896,7 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 		break;
 	case EVLIST_ACTIVE:
 		base->event_count_active--;
-		TAILQ_REMOVE(base->activequeues[ev->ev_pri],
+		TAILQ_REMOVE(&base->activequeues[ev->ev_pri],
 		    ev, ev_active_next);
 		break;
 	case EVLIST_TIMEOUT:
@@ -1962,7 +1959,7 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		break;
 	case EVLIST_ACTIVE:
 		base->event_count_active++;
-		TAILQ_INSERT_TAIL(base->activequeues[ev->ev_pri],
+		TAILQ_INSERT_TAIL(&base->activequeues[ev->ev_pri],
 		    ev,ev_active_next);
 		break;
 	case EVLIST_TIMEOUT: {
@@ -2212,7 +2209,7 @@ event_base_dump_events(struct event_base *base, FILE *output)
 
 	}
 	for (i = 0; i < base->nactivequeues; ++i) {
-		if (TAILQ_EMPTY(base->activequeues[i]))
+		if (TAILQ_EMPTY(&base->activequeues[i]))
 			continue;
 		fprintf(output, "Active events [priority %d]:\n", i);
 		TAILQ_FOREACH(e, &base->eventqueue, ev_next) {

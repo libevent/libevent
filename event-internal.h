@@ -138,7 +138,7 @@ struct event_base {
 	 * have triggered, and whose callbacks need to be called).  Low
 	 * priority numbers are more important, and stall higher ones.
 	 */
-	struct event_list **activequeues;
+	struct event_list *activequeues;
 	int nactivequeues;
 
 	struct common_timeout_list **common_timeout_queues;
