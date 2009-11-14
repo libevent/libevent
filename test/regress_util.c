@@ -382,7 +382,7 @@ test_evutil_log(void *ptr)
 	tt_int_op(exited,==,0);
 	RESET();
 
-	event_debug("A millisecond passed!  We should log that!");
+	event_debug(("A millisecond passed!  We should log that!"));
 #ifdef USE_DEBUG
 	LOGEQ(_EVENT_LOG_DEBUG, "A millisecond passed!  We should log that!");
 #else

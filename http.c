@@ -1642,8 +1642,8 @@ evhttp_get_body_length(struct evhttp_request *req)
 		req->ntoread = ntoread;
 	}
 
-	event_debug(("%s: bytes to read: %d (in buffer %ld)\n",
-		__func__, req->ntoread,
+	event_debug(("%s: bytes to read: %ld (in buffer %ld)\n",
+		__func__, (long)req->ntoread,
 		evbuffer_get_length(bufferevent_get_input(req->evcon->bufev))));
 
 	return (0);
