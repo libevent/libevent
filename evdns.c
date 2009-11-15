@@ -45,8 +45,10 @@
 #ifndef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
 #ifndef _EVENT_DNS_USE_OPENSSL_FOR_ID
 #ifndef _EVENT_DNS_USE_FTIME_FOR_ID
+#ifndef _EVENT_DNS_USE_ARC4RANDOM_FOR_ID
 #error Must configure at least one id generation method.
 #error Please see the documentation.
+#endif
 #endif
 #endif
 #endif
@@ -1204,6 +1206,11 @@ default_transaction_id_fn(void)
 		abort();
 	}
 #endif
+
+#ifdef _EVENT_DNS_USE_ARC4RANDOM_FOR_ID
+	trans_id = arc4random() & 0xffff;
+#endif
+
 	return trans_id;
 }
 
