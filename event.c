@@ -242,7 +242,7 @@ event_is_method_disabled(const char *name)
 	evutil_snprintf(environment, sizeof(environment), "EVENT_NO%s", name);
 	for (i = 8; environment[i] != '\0'; ++i)
 		environment[i] = toupper(environment[i]);
-	return (getenv(environment) != NULL);
+	return (evutil_getenv(environment) != NULL);
 }
 
 int
@@ -334,7 +334,7 @@ event_base_new_with_config(struct event_config *cfg)
 		return NULL;
 	}
 
-	if (getenv("EVENT_SHOW_METHOD"))
+	if (evutil_getenv("EVENT_SHOW_METHOD"))
 		event_msgx("libevent using: %s", base->evsel->name);
 
 	/* allocate a single active event queue */

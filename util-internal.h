@@ -144,6 +144,8 @@ int evutil_socket_finished_connecting(evutil_socket_t fd);
 int evutil_resolve(int family, const char *hostname, struct sockaddr *sa,
     ev_socklen_t *socklen, int port);
 
+const char *evutil_getenv(const char *name);
+
 /* Evaluates to the same boolean value as 'p', and hints to the compiler that
  * we expect this value to be false. */
 #ifdef __GNUC__X
