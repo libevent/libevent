@@ -6,6 +6,7 @@ Changes in 1.4.13-stable:
  o Rename our replacement compat/sys/_time.h header to avoid build a conflict on HPUX; reported by Kathryn Hogg.
  o Build kqueue.c correctly on GNU/kFreeBSD platforms. Patch pulled upstream from Debian.
  o Fix a problem with excessive memory allocation when using multiple event priorities.
+ o When running set[ug]id, don't check the environment. Based on a patch from OpenBSD.
 
 
 Changes in 1.4.12-stable:

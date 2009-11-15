@@ -143,7 +143,7 @@ evport_init(struct event_base *base)
 	/*
 	 * Disable event ports when this environment variable is set 
 	 */
-	if (getenv("EVENT_NOEVPORT"))
+	if (evutil_getenv("EVENT_NOEVPORT"))
 		return (NULL);
 
 	if (!(evpd = calloc(1, sizeof(struct evport_data))))

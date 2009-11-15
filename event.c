@@ -193,7 +193,7 @@ event_base_new(void)
 	if (base->evbase == NULL)
 		event_errx(1, "%s: no event mechanism available", __func__);
 
-	if (getenv("EVENT_SHOW_METHOD")) 
+	if (evutil_getenv("EVENT_SHOW_METHOD")) 
 		event_msgx("libevent using: %s\n",
 			   base->evsel->name);
 

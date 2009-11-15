@@ -91,6 +91,9 @@ int _evsignal_set_handler(struct event_base *base, int evsignal,
 			  void (*fn)(int));
 int _evsignal_restore_handler(struct event_base *base, int evsignal);
 
+/* defined in evutil.c */
+const char *evutil_getenv(const char *varname);
+
 #ifdef __cplusplus
 }
 #endif

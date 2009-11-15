@@ -113,7 +113,7 @@ epoll_init(struct event_base *base)
 	struct epollop *epollop;
 
 	/* Disable epollueue when this environment variable is set */
-	if (getenv("EVENT_NOEPOLL"))
+	if (evutil_getenv("EVENT_NOEPOLL"))
 		return (NULL);
 
 	/* Initalize the kernel queue */
