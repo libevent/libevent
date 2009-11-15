@@ -539,7 +539,7 @@ event_get_supported_methods(void)
 	}
 
 	/* allocate one more than we need for the NULL pointer */
-	tmp = mm_malloc((i + 1) * sizeof(char *));
+	tmp = mm_calloc((i + 1), sizeof(char *));
 	if (tmp == NULL)
 		return (NULL);
 

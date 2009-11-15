@@ -133,13 +133,13 @@ kq_init(struct event_base *base)
 	kqueueop->pid = getpid();
 
 	/* Initialize fields */
-	kqueueop->changes = mm_malloc(NEVENT * sizeof(struct kevent));
+	kqueueop->changes = mm_calloc(NEVENT, sizeof(struct kevent));
 	if (kqueueop->changes == NULL)
 		goto err;
-	kqueueop->pend_changes = mm_malloc(NEVENT * sizeof(struct kevent));
+	kqueueop->pend_changes = mm_calloc(NEVENT, sizeof(struct kevent));
 	if (kqueueop->pend_changes == NULL)
 		goto err;
-	kqueueop->events = mm_malloc(NEVENT * sizeof(struct kevent));
+	kqueueop->events = mm_calloc(NEVENT, sizeof(struct kevent));
 	if (kqueueop->events == NULL)
 		goto err;
 	kqueueop->events_size = kqueueop->changes_size =

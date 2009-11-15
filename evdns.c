@@ -1110,7 +1110,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 
 	server_req->base.flags = flags;
 	server_req->base.nquestions = 0;
-	server_req->base.questions = mm_malloc(sizeof(struct evdns_server_question *) * questions);
+	server_req->base.questions = mm_calloc(sizeof(struct evdns_server_question *), questions);
 	if (server_req->base.questions == NULL)
 		goto err;
 
@@ -3143,11 +3143,9 @@ evdns_base_set_max_requests_inflight(struct evdns_base *base, int maxinflight)
 		maxinflight = 1;
 	n_heads = (maxinflight+4) / 5;
 	EVUTIL_ASSERT(n_heads > 0);
-	new_heads = mm_malloc(n_heads * sizeof(struct evdns_request*));
+	new_heads = mm_calloc(n_heads, sizeof(struct evdns_request*));
 	if (!new_heads)
 		return (-1);
-	for (i=0; i < n_heads; ++i)
-		new_heads[i] = NULL;
 	if (old_heads) {
 		for (i = 0; i < old_n_heads; ++i) {
 			while (old_heads[i]) {

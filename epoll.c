@@ -117,7 +117,7 @@ epoll_init(struct event_base *base)
 	epollop->epfd = epfd;
 
 	/* Initialize fields */
-	epollop->events = mm_malloc(INITIAL_NEVENT * sizeof(struct epoll_event));
+	epollop->events = mm_calloc(INITIAL_NEVENT, sizeof(struct epoll_event));
 	if (epollop->events == NULL) {
 		mm_free(epollop);
 		return (NULL);
