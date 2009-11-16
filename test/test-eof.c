@@ -12,7 +12,9 @@
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -20,7 +22,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <errno.h>
 
 #include <event.h>
@@ -35,7 +39,7 @@ read_cb(int fd, short event, void *arg)
 	char buf[256];
 	int len;
 
-	len = read(fd, buf, sizeof(buf));
+	len = recv(fd, buf, sizeof(buf), 0);
 
 	printf("%s: read %d%s\n", __func__,
 	    len, len ? "" : " - means EOF");
@@ -64,7 +68,7 @@ main (int argc, char **argv)
 		return (1);
 
 	
-	write(pair[0], test, strlen(test)+1);
+	send(pair[0], test, strlen(test)+1, 0);
 	shutdown(pair[0], SHUT_WR);
 
 	/* Initalize the event library */

@@ -6,15 +6,22 @@
 #include "config.h"
 #endif
 
+#ifdef WIN32
+#include <winsock2.h>
+#endif
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <errno.h>
 
 #include <event.h>

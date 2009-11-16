@@ -221,6 +221,8 @@
 #define _EVENT_inline __inline
 #endif
 
+#define _EVENT___func__ __FUNCTION__
+
 /* Define to `int' if <sys/types.h> does not define. */
 /* #undef _EVENT_pid_t */
 

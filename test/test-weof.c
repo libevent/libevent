@@ -12,7 +12,9 @@
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -21,7 +23,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <errno.h>
 
 #include <event.h>
@@ -37,7 +41,7 @@ write_cb(int fd, short event, void *arg)
 	const char *test = "test string";
 	int len;
 
-	len = write(fd, test, strlen(test) + 1);
+	len = send(fd, test, strlen(test) + 1, 0);
 
 	printf("%s: write %d%s\n", __func__,
 	    len, len ? "" : " - means EOF");
@@ -45,7 +49,7 @@ write_cb(int fd, short event, void *arg)
 	if (len > 0) {
 		if (!called)
 			event_add(arg, NULL);
-		close(pair[0]);
+		EVUTIL_CLOSESOCKET(pair[0]);
 	} else if (called == 1)
 		test_okay = 0;
 
