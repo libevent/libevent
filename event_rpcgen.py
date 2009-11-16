@@ -87,7 +87,7 @@ class Struct:
             self.PrintIdented(file, '  ', dcl)
         print >>file, ''
         for entry in self._entries:
-            print >>file, '  uint8_t %s_set;' % entry.Name()
+            print >>file, '  ev_uint8_t %s_set;' % entry.Name()
         print >>file, '};\n'
 
         print >>file, \
@@ -97,9 +97,9 @@ void %(name)s_clear(struct %(name)s *);
 void %(name)s_marshal(struct evbuffer *, const struct %(name)s *);
 int %(name)s_unmarshal(struct %(name)s *, struct evbuffer *);
 int %(name)s_complete(struct %(name)s *);
-void evtag_marshal_%(name)s(struct evbuffer *, uint32_t, 
+void evtag_marshal_%(name)s(struct evbuffer *, ev_uint32_t, 
     const struct %(name)s *);
-int evtag_unmarshal_%(name)s(struct evbuffer *, uint32_t,
+int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
     struct %(name)s *);""" % { 'name' : self._name }
 
 
@@ -209,7 +209,7 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, uint32_t,
                        '%(name)s_unmarshal(struct %(name)s *tmp, '
                        ' struct evbuffer *evbuf)\n'
                        '{\n'
-                       '  uint32_t tag;\n'
+                       '  ev_uint32_t tag;\n'
                        '  while (EVBUFFER_LENGTH(evbuf) > 0) {\n'
                        '    if (evtag_peek(evbuf, &tag) == -1)\n'
                        '      return (-1);\n'
@@ -260,9 +260,9 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, uint32_t,
         print >>file, (
             'int\n'
             'evtag_unmarshal_%(name)s(struct evbuffer *evbuf, '
-            'uint32_t need_tag, struct %(name)s *msg)\n'
+            'ev_uint32_t need_tag, struct %(name)s *msg)\n'
             '{\n'
-            '  uint32_t tag;\n'
+            '  ev_uint32_t tag;\n'
             '  int res = -1;\n'
             '\n'
             '  struct evbuffer *tmp = evbuffer_new();\n'
@@ -284,7 +284,7 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, uint32_t,
         # Complete message marshaling
         print >>file, (
             'void\n'
-            'evtag_marshal_%(name)s(struct evbuffer *evbuf, uint32_t tag, '
+            'evtag_marshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t tag, '
             'const struct %(name)s *msg)\n'
             '{\n'
             '  struct evbuffer *_buf = evbuffer_new();\n'
@@ -446,7 +446,7 @@ class EntryBytes(Entry):
         Entry.__init__(self, type, name, tag)
 
         self._length = length
-        self._ctype = 'uint8_t'
+        self._ctype = 'ev_uint8_t'
 
     def GetDeclaration(self, funcname):
         code = [ 'int %s(struct %s *, %s **);' % (
@@ -459,7 +459,7 @@ class EntryBytes(Entry):
         return code
         
     def Declaration(self):
-        dcl  = ['uint8_t %s_data[%s];' % (self._name, self._length)]
+        dcl  = ['ev_uint8_t %s_data[%s];' % (self._name, self._length)]
         
         return dcl
 
@@ -533,7 +533,7 @@ class EntryInt(Entry):
         # Init base class
         Entry.__init__(self, type, name, tag)
 
-        self._ctype = 'uint32_t'
+        self._ctype = 'ev_uint32_t'
 
     def CodeUnmarshal(self, buf, tag_name, var_name):
         code = ['if (evtag_unmarshal_int(%s, %s, &%s->%s_data) == -1) {' % (
@@ -550,7 +550,7 @@ class EntryInt(Entry):
         return code
 
     def Declaration(self):
-        dcl  = ['uint32_t %s_data;' % self._name]
+        dcl  = ['ev_uint32_t %s_data;' % self._name]
 
         return dcl
 
@@ -752,15 +752,15 @@ class EntryVarBytes(Entry):
         # Init base class
         Entry.__init__(self, type, name, tag)
 
-        self._ctype = 'uint8_t *'
+        self._ctype = 'ev_uint8_t *'
 
     def GetDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, %s *, uint32_t *);' % (
+        code = [ 'int %s(struct %s *, %s *, ev_uint32_t *);' % (
             funcname, self._struct.Name(), self._ctype ) ]
         return code
         
     def AssignDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, const %s, uint32_t);' % (
+        code = [ 'int %s(struct %s *, const %s, ev_uint32_t);' % (
             funcname, self._struct.Name(), self._ctype ) ]
         return code
         
@@ -768,7 +768,7 @@ class EntryVarBytes(Entry):
         name = self._name
         code = [ 'int',
                  '%s_%s_assign(struct %s *msg, '
-                 'const %s value, uint32_t len)' % (
+                 'const %s value, ev_uint32_t len)' % (
             self._struct.Name(), name,
             self._struct.Name(), self._ctype),
                  '{',
@@ -787,7 +787,7 @@ class EntryVarBytes(Entry):
     def CodeGet(self):
         name = self._name
         code = [ 'int',
-                 '%s_%s_get(struct %s *msg, %s *value, uint32_t *plen)' % (
+                 '%s_%s_get(struct %s *msg, %s *value, ev_uint32_t *plen)' % (
             self._struct.Name(), name,
             self._struct.Name(), self._ctype),
                  '{',
@@ -848,8 +848,8 @@ class EntryVarBytes(Entry):
         return code
 
     def Declaration(self):
-        dcl  = ['uint8_t *%s_data;' % self._name,
-                'uint32_t %s_length;' % self._name]
+        dcl  = ['ev_uint8_t *%s_data;' % self._name,
+                'ev_uint32_t %s_length;' % self._name]
 
         return dcl
 
@@ -1351,11 +1351,17 @@ def BodyPreamble(name):
             ' * by %s/%s.  DO NOT EDIT THIS FILE.\n'
             ' */\n\n' ) % (name, _NAME, _VERSION)
     pre += ( '#include <sys/types.h>\n'
+             '#ifdef _EVENT_HAVE_SYS_TIME_H\n'
              '#include <sys/time.h>\n'
+             '#endif\n'
              '#include <stdlib.h>\n'
              '#include <string.h>\n'
              '#include <assert.h>\n'
-             '#include <event.h>\n\n' )
+             '#define EVENT_NO_STRUCT\n'
+             '#include <event.h>\n\n'
+             '#ifdef _EVENT___func__\n'
+             '#define __func__ _EVENT___func__\n'
+             '#endif\n' )
 
     for statement in cppdirect:
         pre += '%s\n' % statement
