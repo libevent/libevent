@@ -2042,7 +2042,6 @@ http_connection_retry_test(void)
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
 		"/?arg=val") == -1) {
 		tt_abort_msg("Couldn't make request");
-
 	}
 
 	/* start up a web server one second after the connection tried

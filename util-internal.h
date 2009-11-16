@@ -205,6 +205,35 @@ const char *evutil_getenv(const char *name);
 #define EV_SIZE_MAX ((size_t)-1)
 #endif
 
+/* Internal addrinfo error code.  This one is returned from only from
+ * evutil_getaddrinfo_common, when we are sure that we'll have to hit a DNS
+ * server. */
+#define EVUTIL_EAI_NEED_RESOLVE      -90002
+
+struct evdns_base;
+struct evdns_getaddrinfo_request;
+typedef struct evdns_getaddrinfo_request* (*evdns_getaddrinfo_fn)(
+    struct evdns_base *base,
+    const char *nodename, const char *servname,
+    const struct evutil_addrinfo *hints_in,
+    void (*cb)(int, struct evutil_addrinfo *, void *), void *arg);
+
+void evutil_set_evdns_getaddrinfo_fn(evdns_getaddrinfo_fn fn);
+
+struct evutil_addrinfo *evutil_new_addrinfo(struct sockaddr *sa,
+    ev_socklen_t socklen, const struct evutil_addrinfo *hints);
+struct evutil_addrinfo *evutil_addrinfo_append(struct evutil_addrinfo *first,
+    struct evutil_addrinfo *append);
+void evutil_adjust_hints_for_addrconfig(struct evutil_addrinfo *hints);
+int evutil_getaddrinfo_common(const char *nodename, const char *servname,
+    struct evutil_addrinfo *hints, struct evutil_addrinfo **res, int *portnum);
+
+int
+evutil_getaddrinfo_async(struct evdns_base *dns_base,
+    const char *nodename, const char *servname,
+    const struct evutil_addrinfo *hints_in,
+    void (*cb)(int, struct evutil_addrinfo *, void *), void *arg);
+
 #ifdef __cplusplus
 }
 #endif

@@ -26,6 +26,9 @@
 
 #include "event-config.h"
 
+#define _REENTRANT
+#define _GNU_SOURCE
+
 #ifdef WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -59,9 +62,6 @@
 #ifdef _EVENT_HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
-#ifdef _EVENT_HAVE_NETDB_H
-#include <netdb.h>
-#endif
 
 #ifndef _EVENT_HAVE_GETTIMEOFDAY
 #include <sys/timeb.h>
@@ -71,6 +71,7 @@
 #include "event2/util.h"
 #include "util-internal.h"
 #include "log-internal.h"
+#include "mm-internal.h"
 
 #include "strlcpy-internal.h"
 #include "ipv6-internal.h"
@@ -322,90 +323,681 @@ evutil_socket_finished_connecting(evutil_socket_t fd)
 	return 1;
 }
 
-/** Internal helper: use the host's (blocking) resolver to look up 'hostname',
- * and set the sockaddr pointed to by 'sa' to the answer.  Assume we have
- * *socklen bytes of storage; adjust *socklen to the number of bytes used.
- * Try to return answers of type 'family', unless family is AF_UNSPEC.
- * Return 0 on success and -1 on failure.  If 'port' is nonzero, it is
- * a port number in host order: set the port in any resulting sockaddr to
- * the specified port.
+/* We sometimes need to know whether we have an ipv4 address and whether we
+   have an ipv6 address. If 'have_checked_interfaces', then we've already done
+   the test.  If 'had_ipv4_address', then it turns out we had an ipv4 address.
+   If 'had_ipv6_address', then it turns out we had an ipv6 address.   These are
+   set by evutil_check_interfaces. */
+static int have_checked_interfaces, had_ipv4_address, had_ipv6_address;
+
+/* Test whether we have an ipv4 interface and an ipv6 interface.  Return 0 if
+ * the test seemed successful. */
+static int
+evutil_check_interfaces(int force_recheck)
+{
+	const char ZEROES[] = "\x00\x00\x00\x00\x00\x00\x00\x00"
+	    "\x00\x00\x00\x00\x00\x00\x00\x00";
+	evutil_socket_t fd = -1;
+	struct sockaddr_in sin, sin_out;
+	struct sockaddr_in6 sin6, sin6_out;
+	ev_socklen_t sin_out_len = sizeof(sin_out);
+	ev_socklen_t sin6_out_len = sizeof(sin6_out);
+	int r;
+	char buf[128];
+	if (have_checked_interfaces && !force_recheck)
+		return 0;
+
+	/* To check whether we have an interface open for a given protocol, we
+	 * try to make a UDP 'connection' to a remote host on the internet.
+	 * We don't actually use it, so the address doesn't matter, but we
+	 * want to pick one that keep us from using a host- or link-local
+	 * interface. */
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(53);
+	r = evutil_inet_pton(AF_INET, "18.244.0.188", &sin.sin_addr);
+	EVUTIL_ASSERT(r);
+
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_port = htons(53);
+	r = evutil_inet_pton(AF_INET6, "2001:4860:b002::68", &sin6.sin6_addr);
+	EVUTIL_ASSERT(r);
+
+	memset(&sin_out, 0, sizeof(sin_out));
+	memset(&sin6_out, 0, sizeof(sin6_out));
+
+	/* XXX some errnos mean 'no address'; some mean 'not enough sockets'. */
+	if ((fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) >= 0 &&
+	    connect(fd, (struct sockaddr*)&sin, sizeof(sin)) == 0 &&
+	    getsockname(fd, (struct sockaddr*)&sin_out, &sin_out_len) == 0) {
+		/* We might have an IPv4 interface. */
+		ev_uint32_t addr = ntohl(sin_out.sin_addr.s_addr);
+		if (addr == 0 || (addr&0xff000000) == 127 ||
+		    (addr && 0xff) == 255 || (addr & 0xf0) == 14) {
+			evutil_inet_ntop(AF_INET, &sin_out.sin_addr,
+			    buf, sizeof(buf));
+			/* This is a reserved, ipv4compat, ipv4map, loopback,
+			 * link-local or unspecified address.  The host should
+			 * never have given it to us; it could never connect
+			 * to sin. */
+			event_warnx("Got a strange local ipv4 address %s",buf);
+		} else {
+			event_debug(("Detected an IPv4 interface"));
+			had_ipv4_address = 1;
+		}
+	}
+	if (fd >= 0)
+		EVUTIL_CLOSESOCKET(fd);
+
+	if ((fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) >= 0 &&
+	    connect(fd, (struct sockaddr*)&sin6, sizeof(sin6)) == 0 &&
+	    getsockname(fd, (struct sockaddr*)&sin6_out, &sin6_out_len) == 0) {
+		/* We might have an IPv6 interface. */
+		const unsigned char *addr =
+		    (unsigned char*)sin6_out.sin6_addr.s6_addr;
+		if (!memcmp(addr, ZEROES, 8) ||
+		    (addr[0] == 0xfe && (addr[1] & 0xc0) == 0x80)) {
+			/* This is a reserved, ipv4compat, ipv4map, loopback,
+			 * link-local or unspecified address.  The host should
+			 * never have given it to us; it could never connect
+			 * to sin6. */
+			evutil_inet_ntop(AF_INET6, &sin6_out.sin6_addr,
+			    buf, sizeof(buf));
+			event_warnx("Got a strange local ipv6 address %s",buf);
+		} else {
+			event_debug(("Detected an IPv4 interface"));
+			had_ipv6_address = 1;
+		}
+	}
+
+	if (fd >= 0)
+		EVUTIL_CLOSESOCKET(fd);
+
+	return 0;
+}
+
+/* Internal addrinfo flag.  This one is set when we allocate the addrinfo from
+ * inside libevent.  Otherwise, the built-in getaddrinfo() function allocated
+ * it, and we should trust what they said.
+ **/
+#define EVUTIL_AI_LIBEVENT_ALLOCATED 0x80000000
+
+/* Helper: construct a new addrinfo containing the socket address in
+ * 'sa', which must be a sockaddr_in or a sockaddr_in6.  Take the
+ * socktype and protocol info from hints.  If they weren't set, then
+ * allocate both a TCP and a UDP addrinfo.
+ */
+struct evutil_addrinfo *
+evutil_new_addrinfo(struct sockaddr *sa, ev_socklen_t socklen,
+    const struct evutil_addrinfo *hints)
+{
+	size_t extra;
+	struct evutil_addrinfo *res;
+	EVUTIL_ASSERT(hints);
+
+	if (hints->ai_socktype == 0 && hints->ai_protocol == 0) {
+		/* Indecisive user! Give them a UDP and a TCP. */
+		struct evutil_addrinfo *r1, *r2;
+		struct evutil_addrinfo tmp;
+		memcpy(&tmp, hints, sizeof(tmp));
+		tmp.ai_socktype = SOCK_STREAM; tmp.ai_protocol = IPPROTO_TCP;
+		r1 = evutil_new_addrinfo(sa, socklen, &tmp);
+		if (!r1)
+			return NULL;
+		tmp.ai_socktype = SOCK_DGRAM; tmp.ai_protocol = IPPROTO_UDP;
+		r2 = evutil_new_addrinfo(sa, socklen, &tmp);
+		if (!r2) {
+			evutil_freeaddrinfo(r2);
+			return NULL;
+		}
+		r1->ai_next = r2;
+		return r1;
+	}
+
+	/* We're going to allocate extra space to hold the sockaddr. */
+	extra = (hints->ai_family == PF_INET) ? sizeof(struct sockaddr_in) :
+	    sizeof(struct sockaddr_in6);
+	res = mm_calloc(1,sizeof(struct evutil_addrinfo)+socklen);
+	if (!res)
+		return NULL;
+	res->ai_addr = (struct sockaddr*)
+	    (((char*)res) + sizeof(struct evutil_addrinfo));
+	memcpy(res->ai_addr, sa, socklen);
+	res->ai_addrlen = socklen;
+	res->ai_family = sa->sa_family; /* Same or not? XXX */
+	res->ai_flags = EVUTIL_AI_LIBEVENT_ALLOCATED;
+	res->ai_socktype = hints->ai_socktype;
+	res->ai_protocol = hints->ai_protocol;
+
+	return res;
+}
+
+/* Append the addrinfo 'append' to the end of 'first', and return the start of
+ * the list.  Either element can be NULL, in which case we return the element
+ * that is not NULL. */
+struct evutil_addrinfo *
+evutil_addrinfo_append(struct evutil_addrinfo *first,
+    struct evutil_addrinfo *append)
+{
+	struct evutil_addrinfo *ai = first;
+	if (!ai)
+		return append;
+	while (ai->ai_next)
+		ai = ai->ai_next;
+	ai->ai_next = append;
+
+	return first;
+}
+
+/** Parse a service name in 'servname', which can be a decimal port.
+ * Return the port number, or -1 on error.
+ */
+static int
+evutil_parse_servname(const char *servname, const char *protocol,
+    const struct evutil_addrinfo *hints)
+{
+	int n;
+	char *endptr=NULL;
+	n = (int) strtol(servname, &endptr, 10);
+	if (n>=0 && n <= 65535 && servname[0] && endptr && !endptr[0])
+		return n;
+#ifdef _EVENT_HAVE_GETSERVBYNAME
+	if (!(hints->ai_flags & EVUTIL_AI_NUMERICSERV)) {
+		struct servent *ent = getservbyname(servname, protocol);
+		if (ent) {
+			return ntohs(ent->s_port);
+		}
+	}
+#endif
+	return -1;
+}
+
+/* Return a string corresponding to a protocol number that we can pass to
+ * getservyname.  */
+static const char *
+evutil_unparse_protoname(int proto)
+{
+	if (proto == 0)
+		return NULL;
+	else if (proto == IPPROTO_TCP)
+		return "tcp";
+	else if (proto == IPPROTO_UDP)
+		return "udp";
+#ifdef IPPROTO_SCTP
+	else if (proto == IPPROTO_SCTP)
+		return "sctp";
+#endif
+#ifdef _EVENT_HAVE_GETPROTOBYNUMBER
+	{
+		struct protoent *ent = getprotobynumber(proto);
+		if (ent)
+			return ent->p_name;
+	}
+#endif
+	return NULL;
+}
+
+static void
+evutil_getaddrinfo_infer_protocols(struct evutil_addrinfo *hints)
+{
+	/* If we can guess the protocol from the socktype, do so. */
+	if (!hints->ai_protocol && hints->ai_socktype) {
+		if (hints->ai_socktype == SOCK_DGRAM)
+			hints->ai_protocol = IPPROTO_UDP;
+		else if (hints->ai_socktype == SOCK_STREAM)
+			hints->ai_protocol = IPPROTO_TCP;
+	}
+
+	/* Set the socktype if it isn't set. */
+	if (!hints->ai_socktype && hints->ai_protocol) {
+		if (hints->ai_protocol == IPPROTO_UDP)
+			hints->ai_socktype = SOCK_DGRAM;
+		else if (hints->ai_protocol == IPPROTO_TCP)
+			hints->ai_socktype = SOCK_STREAM;
+#ifdef IPPROTO_SCTP
+		else if (hints->ai_protocol == IPPROTO_SCTP)
+			hints->ai_socktype = SOCK_STREAM;
+#endif
+	}
+}
+
+/** Implements the part of looking up hosts by name that's common to both
+ * the blocking and nonblocking resolver:
+ *   - Adjust 'hints' to have a reasonable socktype and protocol.
+ *   - Look up the port based on 'servname', and store it in *portnum,
+ *   - Handle the nodename==NULL case
+ *   - Handle some invalid arguments cases.
+ *   - Handle the cases where nodename is an IPv4 or IPv6 address.
+ *
+ * If we need the resolver to look up the hostname, we return
+ * EVUTIL_EAI_NEED_RESOLVE.  Otherwise, we can completely implement
+ * getaddrinfo: we return 0 or an appropriate EVUTIL_EAI_* error, and
+ * set *res as getaddrinfo would.
  */
 int
-evutil_resolve(int family, const char *hostname, struct sockaddr *sa,
-    ev_socklen_t *socklen, int port)
+evutil_getaddrinfo_common(const char *nodename, const char *servname,
+    struct evutil_addrinfo *hints, struct evutil_addrinfo **res, int *portnum)
 {
-#ifdef _EVENT_HAVE_GETADDRINFO_XXX
-	struct addrinfo hint, *hintp=NULL;
-	struct addrinfo *ai=NULL;
-	int r;
-	memset(&hint, 0, sizeof(hint));
+	int port = 0;
+	const char *pname;
 
-	if (family != AF_UNSPEC) {
-		hint.ai_family = family;
-		hintp = &hint;
+	if (nodename == NULL && servname == NULL)
+		return EVUTIL_EAI_NONAME;
+
+	/* We only understand 3 families */
+	if (hints->ai_family != PF_UNSPEC && hints->ai_family != PF_INET &&
+	    hints->ai_family != PF_INET6)
+		return EVUTIL_EAI_FAMILY;
+
+	evutil_getaddrinfo_infer_protocols(hints);
+
+	/* Look up the port number and protocol, if possible. */
+	pname = evutil_unparse_protoname(hints->ai_protocol);
+	if (servname) {
+		/* XXXX We could look at the protocol we got back from
+		 * getservbyname, but it doesn't seem too useful. */
+		port = evutil_parse_servname(servname, pname, hints);
+		if (port < 0) {
+			return EVUTIL_EAI_NONAME;
+		}
 	}
 
-	r = getaddrinfo(hostname, NULL, hintp, &ai);
-	if (!ai)
-		return -1;
-	if (r || ai->ai_addrlen > *socklen) {
-		/* log/report error? */
-		freeaddrinfo(ai);
-		return -1;
+	/* If we have no node name, then we're supposed to bind to 'any' and
+	 * connect to localhost. */
+	if (nodename == NULL) {
+		struct evutil_addrinfo *res4=NULL, *res6=NULL;
+		if (hints->ai_family != PF_INET) { /* INET6 or UNSPEC. */
+			struct sockaddr_in6 sin6;
+			memset(&sin6, 0, sizeof(sin6));
+			sin6.sin6_family = AF_INET6;
+			sin6.sin6_port = htons(port);
+			if (hints->ai_flags & AI_PASSIVE) {
+				/* Bind to :: */
+			} else {
+				/* connect to ::1 */
+				sin6.sin6_addr.s6_addr[15] = 1;
+			}
+			res6 = evutil_new_addrinfo((struct sockaddr*)&sin6,
+			    sizeof(sin6), hints);
+			if (!res6)
+				return EVUTIL_EAI_MEMORY;
+		}
+
+		if (hints->ai_family != PF_INET6) { /* INET or UNSPEC */
+			struct sockaddr_in sin;
+			memset(&sin, 0, sizeof(sin));
+			sin.sin_family = AF_INET;
+			sin.sin_port = htons(port);
+			if (hints->ai_flags & AI_PASSIVE) {
+				/* Bind to 0.0.0.0 */
+			} else {
+				/* connect to 127.0.0.1 */
+				sin.sin_addr.s_addr = htonl(0x7f000001);
+			}
+			res4 = evutil_new_addrinfo((struct sockaddr*)&sin,
+			    sizeof(sin), hints);
+			if (!res4) {
+				if (res6)
+					evutil_freeaddrinfo(res6);
+				return EVUTIL_EAI_MEMORY;
+			}
+		}
+		*res = evutil_addrinfo_append(res4, res6);
+		return 0;
 	}
-	/* XXX handle multiple return values better. */
-	memcpy(sa, ai->ai_addr, ai->ai_addrlen);
-	if (port) {
-		if (sa->sa_family == AF_INET)
-			((struct sockaddr_in*)sa)->sin_port = htons(port);
-		else if (sa->sa_family == AF_INET6)
-			((struct sockaddr_in6*)sa)->sin6_port = htons(port);
+
+	/* If we can, we should try to parse the hostname without resolving
+	 * it. */
+	/* Try ipv6. */
+	if (hints->ai_family == PF_INET6 || hints->ai_family == PF_UNSPEC){
+		struct sockaddr_in6 sin6;
+		memset(&sin6, 0, sizeof(sin6));
+		if (1==evutil_inet_pton(AF_INET6, nodename, &sin6.sin6_addr)) {
+			/* Got an ipv6 address. */
+			sin6.sin6_family = AF_INET6;
+			sin6.sin6_port = htons(port);
+			*res = evutil_new_addrinfo((struct sockaddr*)&sin6,
+			    sizeof(sin6), hints);
+			if (!*res)
+				return EVUTIL_EAI_MEMORY;
+			return 0;
+		}
 	}
-	*socklen = ai->ai_addrlen;
-	freeaddrinfo(ai);
-	return 0;
-#else
-	/* XXXX use gethostbyname_r/gethostbyname2_r where available */
-	struct hostent *he;
-	struct sockaddr *sa_ptr;
+
+	/* Try ipv4. */
+	if (hints->ai_family == PF_INET || hints->ai_family == PF_UNSPEC) {
+		struct sockaddr_in sin;
+		memset(&sin, 0, sizeof(sin));
+		if (1==evutil_inet_pton(AF_INET, nodename, &sin.sin_addr)) {
+			/* Got an ipv6 address. */
+			sin.sin_family = AF_INET;
+			sin.sin_port = htons(port);
+			*res = evutil_new_addrinfo((struct sockaddr*)&sin,
+			    sizeof(sin), hints);
+			if (!*res)
+				return EVUTIL_EAI_MEMORY;
+			return 0;
+		}
+	}
+
+
+	/* If we have reached this point, we definitely need to do a DNS
+	 * lookup. */
+	if ((hints->ai_flags & EVUTIL_AI_NUMERICHOST)) {
+		/* If we're not allowed to do one, then say so. */
+		return EVUTIL_EAI_NONAME;
+	}
+	*portnum = port;
+	return EVUTIL_EAI_NEED_RESOLVE;
+}
+
+#ifdef _EVENT_HAVE_GETADDRINFO
+#define USE_NATIVE_GETADDRINFO
+#endif
+
+#ifndef USE_NATIVE_GETADDRINFO
+/* Helper for systems with no getaddrinfo(): make one or more addrinfos out of
+ * a struct hostent.
+ */
+static struct evutil_addrinfo *
+addrinfo_from_hostent(const struct hostent *ent,
+    int port, const struct evutil_addrinfo *hints)
+{
+	int i;
 	struct sockaddr_in sin;
 	struct sockaddr_in6 sin6;
-	ev_socklen_t slen;
-	he = gethostbyname(hostname);
-	if (!he || !he->h_length) {
-		return -1;
-	}
-	/* XXX handle multiple return values better. */
-	if (he->h_addrtype == AF_INET) {
-		if (family != AF_INET && family != AF_UNSPEC)
-			return -1;
+	struct sockaddr *sa;
+	int socklen;
+	struct evutil_addrinfo *res=NULL, *ai;
+	void *addrp;
+
+	if (ent->h_addrtype == PF_INET) {
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_family = AF_INET;
 		sin.sin_port = htons(port);
-		memcpy(&sin.sin_addr, he->h_addr_list[0], 4);
-		sa_ptr = (struct sockaddr*)&sin;
-		slen = sizeof(struct sockaddr_in);
-	} else if (he->h_addrtype == AF_INET6) {
-		if (family != AF_INET6 && family != AF_UNSPEC)
-			return -1;
+		sa = (struct sockaddr *)&sin;
+		socklen = sizeof(struct sockaddr_in);
+		addrp = &sin.sin_addr;
+		if (ent->h_length != sizeof(sin.sin_addr)) {
+			event_warnx("Weird h_length from gethostbyname");
+			return NULL;
+		}
+	} else if (ent->h_addrtype == PF_INET6) {
+		memset(&sin6, 0, sizeof(sin6));
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_port = htons(port);
-		memset(&sin6, 0, sizeof(sin6));
-		memcpy(sin6.sin6_addr.s6_addr, &he->h_addr_list[1], 16);
-		sa_ptr = (struct sockaddr*)&sin6;
-		slen = sizeof(struct sockaddr_in6);
+		sa = (struct sockaddr *)&sin6;
+		socklen = sizeof(struct sockaddr_in);
+		addrp = &sin6.sin6_addr;
+		if (ent->h_length != sizeof(sin6.sin6_addr)) {
+			event_warnx("Weird h_length from gethostbyname");
+			return NULL;
+		}
+	} else
+		return NULL;
+
+	for (i = 0; ent->h_addr_list[i]; ++i) {
+		memcpy(addrp, ent->h_addr_list[i], ent->h_length);
+		ai = evutil_new_addrinfo(sa, socklen, hints);
+		if (!ai) {
+			evutil_freeaddrinfo(res);
+			return NULL;
+		}
+		res = evutil_addrinfo_append(res, ai);
+	}
+
+	if (res && ((hints->ai_flags & EVUTIL_AI_CANONNAME) && ent->h_name))
+		res->ai_canonname = mm_strdup(ent->h_name);
+
+	return res;
+}
+#endif
+
+/* If the EVUTIL_AI_ADDRCONFIG flag is set on hints->ai_flags, and
+ * hints->ai_family is PF_UNSPEC, then revise the value of hints->ai_family so
+ * that we'll only get addresses we could maybe connect to.
+ */
+void
+evutil_adjust_hints_for_addrconfig(struct evutil_addrinfo *hints)
+{
+	if (!(hints->ai_flags & EVUTIL_AI_ADDRCONFIG))
+		return;
+	if (hints->ai_family != PF_UNSPEC)
+		return;
+	if (!have_checked_interfaces)
+		evutil_check_interfaces(0);
+	if (had_ipv4_address && !had_ipv6_address) {
+		hints->ai_family = PF_INET;
+	} else if (!had_ipv4_address && had_ipv6_address) {
+		hints->ai_family = PF_INET6;
+	}
+}
+
+int
+evutil_getaddrinfo(const char *nodename, const char *servname,
+    const struct evutil_addrinfo *hints_in, struct evutil_addrinfo **res)
+{
+#ifdef USE_NATIVE_GETADDRINFO
+#if !defined(AI_ADDRCONFIG) || !defined(AI_NUMERICSERV) || defined(WIN32)
+	struct evutil_addrinfo hints;
+	if (hints_in) {
+		memcpy(&hints, hints_in, sizeof(hints));
+		hints_in = &hints;
+
+#ifndef AI_ADDRCONFIG
+		/* Not every system has AI_ADDRCONFIG, so fake it. */
+		if (hints.ai_family == PF_UNSPEC &&
+		    (hints.ai_flags & EVUTIL_AI_ADDRCONFIG)) {
+			evutil_adjust_hints_for_addrconfig(&hints);
+		}
+#endif
+
+#ifndef AI_NUMERICSERV
+		/* Not every system has AI_NUMERICSERV, so fake it. */
+		if (hints.ai_flags & EVUTIL_AI_NUMERICSERV) {
+			if (evutil_parse_servname(servname,
+				NULL, &hints) < 0)
+				return EVUTIL_EAI_NONAME;
+		}
+#endif
+
+#ifdef WIN32
+		/* Windows handles enough cases here weirdly enough that we
+		 * are better off just overriding a bunch of them. */
+		{
+			int err, port;
+			err = evutil_getaddrinfo_common(nodename,servname,&hints,
+			    res, &port);
+			if (err != EVUTIL_EAI_NEED_RESOLVE)
+				return err;
+		}
+#endif
+	}
+#endif
+
+	return getaddrinfo(nodename, servname, hints_in, res);
+#else
+	int port=0, err;
+	struct hostent *ent = NULL;
+	struct evutil_addrinfo hints;
+
+	if (hints_in) {
+		memcpy(&hints, hints_in, sizeof(hints));
 	} else {
-		event_warnx("gethostbyname returned unknown family %d",
-		    he->h_addrtype);
-		return -1;
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = PF_UNSPEC;
 	}
-	if (slen > *socklen) {
-		return -1;
+
+	evutil_adjust_hints_for_addrconfig(&hints);
+
+	err = evutil_getaddrinfo_common(nodename, servname, &hints, res, &port);
+	if (err != EVUTIL_EAI_NEED_RESOLVE) {
+		/* We either succeeded or failed.  No need to continue */
+		return err;
 	}
-	memcpy(sa, sa_ptr, slen);
-	*socklen = slen;
+
+	err = 0;
+	/* Use any of the various gethostbyname_r variants as available. */
+	{
+#ifdef _EVENT_HAVE_GETHOSTBYNAME_R_6_ARG
+		/* This one is what glibc provides. */
+		char buf[2048];
+		struct hostent hostent;
+		int r;
+		r = gethostbyname_r(nodename, &hostent, buf, sizeof(buf), &ent,
+		    &err);
+#elif defined(_EVENT_HAVE_GETHOSTBYNAME_R_5_ARG)
+		char buf[2048];
+		struct hostent hostent;
+		ent = gethostbyname_r(nodename, &hostent, buf, sizeof(buf),
+		    &err);
+#elif defined(_EVENT_HAVE_GETHOSTBYNAME_R_3_ARG)
+		struct hostent_data data;
+		struct hostent hostent;
+		memset(&data, 0, sizeof(data));
+		err = gethostbyname_r(nodename, &hostent, &data);
+		ent = err ? NULL : &hostent;
+#else
+		/* fall back to gethostbyname. */
+		/* XXXX This needs a lock everywhere but Windows. */
+		ent = gethostbyname(nodename);
+#ifdef WIN32
+		err = WSAGetLastError();
+#else
+		err = h_errno;
+#endif
+#endif
+
+		/* Now we have either ent or err set. */
+		if (!ent) {
+			/* XXX is this right for windows ? */
+			switch (err) {
+			case TRY_AGAIN:
+				return EVUTIL_EAI_AGAIN;
+			case NO_RECOVERY:
+			default:
+				return EVUTIL_EAI_FAIL;
+			case HOST_NOT_FOUND:
+				return EVUTIL_EAI_NONAME;
+			case NO_ADDRESS:
+#if NO_DATA != NO_ADDRESS
+			case NO_DATA:
+#endif
+				return EVUTIL_EAI_NODATA;
+			}
+		}
+
+		if (ent->h_addrtype != hints.ai_family &&
+		    hints.ai_family != PF_UNSPEC) {
+			/* This wasn't the type we were hoping for.  Too bad
+			 * we never had a chance to ask gethostbyname for what
+			 * we wanted. */
+			return EVUTIL_EAI_NONAME;
+		}
+
+		/* Make sure we got _some_ answers. */
+		if (ent->h_length == 0)
+			return EVUTIL_EAI_NODATA;
+
+		/* If we got an address type we don't know how to make a
+		   sockaddr for, give up. */
+		if (ent->h_addrtype != PF_INET && ent->h_addrtype != PF_INET6)
+			return EVUTIL_EAI_FAMILY;
+
+		*res = addrinfo_from_hostent(ent, port, &hints);
+		if (! *res)
+			return EVUTIL_EAI_MEMORY;
+	}
+
 	return 0;
 #endif
+}
+
+void
+evutil_freeaddrinfo(struct evutil_addrinfo *ai)
+{
+#ifdef _EVENT_HAVE_GETADDRINFO
+	if (!(ai->ai_flags & EVUTIL_AI_LIBEVENT_ALLOCATED)) {
+		freeaddrinfo(ai);
+		return;
+	}
+#endif
+	while (ai) {
+		struct evutil_addrinfo *next = ai->ai_next;
+		if (ai->ai_canonname)
+			mm_free(ai->ai_canonname);
+		mm_free(ai);
+		ai = next;
+	}
+}
+
+static evdns_getaddrinfo_fn evdns_getaddrinfo_impl = NULL;
+
+void
+evutil_set_evdns_getaddrinfo_fn(evdns_getaddrinfo_fn fn)
+{
+	if (!evdns_getaddrinfo_impl)
+		evdns_getaddrinfo_impl = fn;
+}
+
+/* Internal helper function: act like evdns_getaddrinfo if dns_base is set;
+ * otherwise do a blocking resolve and pass the result to the callback in the
+ * way that evdns_getaddrinfo would.
+ */
+int
+evutil_getaddrinfo_async(struct evdns_base *dns_base,
+    const char *nodename, const char *servname,
+    const struct evutil_addrinfo *hints_in,
+    void (*cb)(int, struct evutil_addrinfo *, void *), void *arg)
+{
+	if (dns_base && evdns_getaddrinfo_impl) {
+		evdns_getaddrinfo_impl(
+			dns_base, nodename, servname, hints_in, cb, arg);
+	} else {
+		struct evutil_addrinfo *ai=NULL;
+		int err;
+		err = evutil_getaddrinfo(nodename, servname, hints_in, &ai);
+		cb(err, ai, arg);
+	}
+	return 0;
+}
+
+const char *
+evutil_gai_strerror(int err)
+{
+	switch (err) {
+	case EVUTIL_EAI_CANCEL: return "Request cancelled";
+#ifdef USE_NATIVE_GETADDRINFO
+	default:
+		return gai_strerror(err);
+#else
+	case 0: return "No error";
+	case EVUTIL_EAI_ADDRFAMILY:
+		return "address family for nodename not supported";
+	case EVUTIL_EAI_AGAIN:
+		return "temporary failure in name resolution";
+	case EVUTIL_EAI_BADFLAGS:
+		return "invalid value for ai_flags";
+	case EVUTIL_EAI_FAIL:
+		return "non-recoverable failure in name resolution";
+	case EVUTIL_EAI_FAMILY:
+		return "ai_family not supported";
+	case EVUTIL_EAI_MEMORY:
+		return "memory allocation failure";
+	case EVUTIL_EAI_NODATA:
+		return "no address associated with nodename";
+	case EVUTIL_EAI_NONAME:
+		return "nodename nor servname provided, or not known";
+	case EVUTIL_EAI_SERVICE:
+		return "servname not supported for ai_socktype";
+	case EVUTIL_EAI_SOCKTYPE:
+		return "ai_socktype not supported";
+	case EVUTIL_EAI_SYSTEM: return "system error";
+	default:
+		return "Unknown error code";
+#endif
+	}
 }
 
 #ifdef WIN32

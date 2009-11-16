@@ -71,6 +71,8 @@ static int dns_ok = 0;
 static int dns_got_cancel = 0;
 static int dns_err = 0;
 
+static int get_socket_port(evutil_socket_t fd);
+
 static void
 dns_gethostbyname_cb(int result, char type, int count, int ttl,
     void *addresses, void *arg)
@@ -480,7 +482,7 @@ end:
 
 static struct evdns_server_port *
 get_generic_server(struct event_base *base,
-    ev_uint16_t portnum,
+    ev_uint16_t *portnum,
     evdns_request_callback_fn_type cb,
     void *arg)
 {
@@ -497,12 +499,14 @@ get_generic_server(struct event_base *base,
 
 	memset(&my_addr, 0, sizeof(my_addr));
 	my_addr.sin_family = AF_INET;
-	my_addr.sin_port = htons(portnum);
+	my_addr.sin_port = htons(*portnum);
 	my_addr.sin_addr.s_addr = htonl(0x7f000001UL);
 	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
 		tt_abort_perror("bind");
 	}
 	port = evdns_add_server_port_with_base(base, sock, 0, cb, arg);
+	if (!*portnum)
+		*portnum = get_socket_port(sock);
 
 	return port;
 end:
@@ -571,10 +575,11 @@ dns_search_test(void *arg)
 	struct event_base *base = data->base;
 	struct evdns_server_port *port = NULL;
 	struct evdns_base *dns = NULL;
+	ev_uint16_t portnum = 53900;/*XXXX let the code pick a port*/
 
 	struct generic_dns_callback_result r1, r2, r3, r4, r5;
 
-	port = get_generic_server(base, 53900, generic_dns_server_cb,
+	port = get_generic_server(base, &portnum, generic_dns_server_cb,
 	    search_table);
 	tt_assert(port);
 
@@ -655,10 +660,11 @@ dns_retry_test(void *arg)
 	struct evdns_server_port *port = NULL;
 	struct evdns_base *dns = NULL;
 	int drop_count = 2;
+	ev_uint16_t portnum = 53900;/*XXXX let the code pick a port*/
 
 	struct generic_dns_callback_result r1;
 
-	port = get_generic_server(base, 53900, fail_server_cb,
+	port = get_generic_server(base, &portnum, fail_server_cb,
 	    &drop_count);
 	tt_assert(port);
 
@@ -743,11 +749,12 @@ dns_reissue_test(void *arg)
 	struct evdns_server_port *port1 = NULL, *port2 = NULL;
 	struct evdns_base *dns = NULL;
 	struct generic_dns_callback_result r1;
+	ev_uint16_t portnum1 = 53900, portnum2=53901;
 
-	port1 = get_generic_server(base, 53900, generic_dns_server_cb,
+	port1 = get_generic_server(base, &portnum1, generic_dns_server_cb,
 	    internal_error_table);
 	tt_assert(port1);
-	port2 = get_generic_server(base, 53901, generic_dns_server_cb,
+	port2 = get_generic_server(base, &portnum2, generic_dns_server_cb,
 	    reissue_table);
 	tt_assert(port2);
 
@@ -802,11 +809,12 @@ dns_inflight_test(void *arg)
 	struct event_base *base = data->base;
 	struct evdns_server_port *port = NULL;
 	struct evdns_base *dns = NULL;
+	ev_uint16_t portnum = 53900;/*XXXX let the code pick a port*/
 
 	struct generic_dns_callback_result r[20];
 	int i;
 
-	port = get_generic_server(base, 53900, generic_dns_server_cb,
+	port = get_generic_server(base, &portnum, generic_dns_server_cb,
 	    reissue_table);
 	tt_assert(port);
 
@@ -845,9 +853,10 @@ end:
 static int total_connected_or_failed = 0;
 static struct event_base *be_connect_hostname_base = NULL;
 
-/* Implements a DNS server for the connect_hostname test. */
+/* Implements a DNS server for the connect_hostname test and the
+ * getaddrinfo_async test */
 static void
-be_connect_hostname_server_cb(struct evdns_server_request *req, void *data)
+be_getaddrinfo_server_cb(struct evdns_server_request *req, void *data)
 {
 	int i;
 	int *n_got_p=data;
@@ -859,6 +868,8 @@ be_connect_hostname_server_cb(struct evdns_server_request *req, void *data)
 		const int qclass = req->questions[i]->dns_question_class;
 		const char *qname = req->questions[i]->name;
 		struct in_addr ans;
+		struct in6_addr ans6;
+		memset(&ans6, 0, sizeof(ans6));
 
 		if (qtype == EVDNS_TYPE_A &&
 		    qclass == EVDNS_CLASS_INET &&
@@ -870,6 +881,72 @@ be_connect_hostname_server_cb(struct evdns_server_request *req, void *data)
 		} else if (!evutil_ascii_strcasecmp(qname,
 			"nosuchplace.example.com")) {
 			/* ok, just say notfound. */
+		} else if (!evutil_ascii_strcasecmp(qname,
+			"both.example.com")) {
+			if (qtype == EVDNS_TYPE_A) {
+				ans.s_addr = htonl(0x50502020);
+				evdns_server_request_add_a_reply(req, qname,
+				    1, &ans.s_addr, 2000);
+				added_any = 1;
+			} else if (qtype == EVDNS_TYPE_AAAA) {
+				ans6.s6_addr[0] = 0x80;
+				ans6.s6_addr[1] = 0xff;
+				ans6.s6_addr[14] = 0xbb;
+				ans6.s6_addr[15] = 0xbb;
+				evdns_server_request_add_aaaa_reply(req, qname,
+				    1, &ans6.s6_addr, 2000);
+				added_any = 1;
+			}
+			evdns_server_request_add_cname_reply(req, qname,
+			    "both-canonical.example.com", 1000);
+		} else if (!evutil_ascii_strcasecmp(qname,
+			"v4only.example.com") ||
+		    !evutil_ascii_strcasecmp(qname, "v4assert.example.com")) {
+			if (qtype == EVDNS_TYPE_A) {
+				ans.s_addr = htonl(0x12345678);
+				evdns_server_request_add_a_reply(req, qname,
+				    1, &ans.s_addr, 2000);
+				added_any = 1;
+			} else if (!evutil_ascii_strcasecmp(qname,
+				"v4assert.example.com")) {
+				TT_FAIL(("Got an AAAA request for v4assert"));
+			}
+		} else if (!evutil_ascii_strcasecmp(qname,
+			"v6only.example.com") ||
+		    !evutil_ascii_strcasecmp(qname, "v6assert.example.com")) {
+			if (qtype == EVDNS_TYPE_AAAA) {
+				ans6.s6_addr[0] = 0x0b;
+				ans6.s6_addr[1] = 0x0b;
+				ans6.s6_addr[14] = 0xf0;
+				ans6.s6_addr[15] = 0x0d;
+				evdns_server_request_add_aaaa_reply(req, qname,
+				    1, &ans6.s6_addr, 2000);
+				added_any = 1;
+			}  else if (!evutil_ascii_strcasecmp(qname,
+				"v6assert.example.com")) {
+				TT_FAIL(("Got a A request for v6assert"));
+			}
+		} else if (!evutil_ascii_strcasecmp(qname,
+			"v6timeout.example.com")) {
+			if (qtype == EVDNS_TYPE_A) {
+				ans.s_addr = htonl(0xabcdef01);
+				evdns_server_request_add_a_reply(req, qname,
+				    1, &ans.s_addr, 2000);
+				added_any = 1;
+			} else if (qtype == EVDNS_TYPE_AAAA) {
+				/* Let the v6 request time out.*/
+				evdns_server_request_drop(req);
+				return;
+			}
+		} else if (!evutil_ascii_strcasecmp(qname,
+			"v6timeout-nonexist.example.com")) {
+			if (qtype == EVDNS_TYPE_A) {
+				/* Fall through, give an nexist. */
+			} else if (qtype == EVDNS_TYPE_AAAA) {
+				/* Let the v6 request time out.*/
+				evdns_server_request_drop(req);
+				return;
+			}
 		} else {
 			TT_GRIPE(("Got weird request for %s",qname));
 		}
@@ -918,6 +995,7 @@ be_connect_hostname_event_cb(struct bufferevent *bev, short what, void *ctx)
 
 		if ((what & BEV_EVENT_CONNECTED) || (what & BEV_EVENT_ERROR)) {
 			++total_connected_or_failed;
+			TT_BLATHER(("Got %d connections or errors.", total_connected_or_failed));
 			if (total_connected_or_failed >= 5)
 				event_base_loopexit(be_connect_hostname_base,
 				    NULL);
@@ -940,7 +1018,8 @@ test_bufferevent_connect_hostname(void *arg)
 	struct evdns_server_port *port=NULL;
 	evutil_socket_t server_fd=-1;
 	struct sockaddr_in sin;
-	int listener_port=-1, dns_port=-1;
+	int listener_port=-1;
+	ev_uint16_t dns_port=0;
 	int n_accept=0, n_dns=0;
 	char buf[128];
 
@@ -957,6 +1036,7 @@ test_bufferevent_connect_hostname(void *arg)
 	    -1, (struct sockaddr *)&sin, sizeof(sin));
 	listener_port = get_socket_port(evconnlistener_get_fd(listener));
 
+#if 0
 	/* Start an evdns server that resolves nobodaddy.example.com to
 	 * 127.0.0.1 */
 	memset(&sin, 0, sizeof(sin));
@@ -971,7 +1051,12 @@ test_bufferevent_connect_hostname(void *arg)
         evutil_make_socket_nonblocking(server_fd);
 	dns_port = get_socket_port(server_fd);
 	port = evdns_add_server_port_with_base(data->base, server_fd, 0,
-	    be_connect_hostname_server_cb, &n_dns);
+	    be_getaddrinfo_server_cb, &n_dns);
+#endif
+	port = get_generic_server(data->base, &dns_port,
+	    be_getaddrinfo_server_cb, &n_dns);
+	tt_assert(port);
+	tt_int_op(dns_port, >=, 0);
 
 	/* Start an evdns_base that uses the server as its resolver. */
 	dns = evdns_base_new(data->base, 0);
@@ -1012,8 +1097,8 @@ test_bufferevent_connect_hostname(void *arg)
 	tt_assert(!bufferevent_socket_connect_hostname(be4, NULL, AF_INET,
 		"localhost", listener_port));
 	/* Use the blocking resolver with a nonexistent hostname. */
-	tt_assert(bufferevent_socket_connect_hostname(be5, NULL, AF_INET,
-		"nonesuch.nowhere.example.com", 80) < 0);
+	tt_assert(!bufferevent_socket_connect_hostname(be5, NULL, AF_INET,
+		"nonesuch.nowhere.example.com", 80));
 
 	event_base_dispatch(data->base);
 
@@ -1047,6 +1132,326 @@ end:
 		bufferevent_free(be5);
 }
 
+
+struct gai_outcome {
+	int err;
+	struct evutil_addrinfo *ai;
+};
+
+static int n_gai_results_pending = 0;
+static struct event_base *exit_base_on_no_pending_results = NULL;
+
+static void
+gai_cb(int err, struct evutil_addrinfo *res, void *ptr)
+{
+	struct gai_outcome *go = ptr;
+	go->err = err;
+	go->ai = res;
+	if (--n_gai_results_pending <= 0 && exit_base_on_no_pending_results)
+		event_base_loopexit(exit_base_on_no_pending_results, NULL);
+	if (n_gai_results_pending < 900)
+		TT_BLATHER(("Got an answer; expecting %d more.",
+			n_gai_results_pending));
+}
+
+static void
+test_getaddrinfo_async(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evutil_addrinfo hints, *a;
+	struct gai_outcome local_outcome;
+	struct gai_outcome a_out[10];
+	int i;
+	struct evdns_getaddrinfo_request *r;
+	char buf[128];
+	struct evdns_server_port *port = NULL;
+	ev_uint16_t dns_port = 0;
+	int n_dns_questions = 0;
+
+	struct evdns_base *dns_base = evdns_base_new(data->base, 0);
+
+	memset(a_out, 0, sizeof(a_out));
+
+	n_gai_results_pending = 10000; /* don't think about exiting yet. */
+
+	/* 1. Try some cases that will never hit the asynchronous resolver. */
+	/* 1a. Simple case with a symbolic service name */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	memset(&local_outcome, 0, sizeof(local_outcome));
+	r = evdns_getaddrinfo(dns_base, "1.2.3.4", "http",
+	    &hints, gai_cb, &local_outcome);
+	tt_int_op(r,==,0);
+	tt_int_op(local_outcome.err,==,0);
+	tt_ptr_op(local_outcome.ai,!=,NULL);
+	test_ai_eq(local_outcome.ai, "1.2.3.4:80", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(local_outcome.ai);
+	local_outcome.ai = NULL;
+
+	/* 1b. EVUTIL_AI_NUMERICHOST is set */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_flags = EVUTIL_AI_NUMERICHOST;
+	memset(&local_outcome, 0, sizeof(local_outcome));
+	r = evdns_getaddrinfo(dns_base, "www.google.com", "80",
+	    &hints, gai_cb, &local_outcome);
+	tt_int_op(r,==,0);
+	tt_int_op(local_outcome.err,==,EVUTIL_EAI_NONAME);
+	tt_ptr_op(local_outcome.ai,==,NULL);
+
+	/* 1c. We give a numeric address (ipv6) */
+	memset(&hints, 0, sizeof(hints));
+	memset(&local_outcome, 0, sizeof(local_outcome));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_protocol = IPPROTO_TCP;
+	r = evdns_getaddrinfo(dns_base, "f::f", "8008",
+	    &hints, gai_cb, &local_outcome);
+	tt_int_op(r,==,0);
+	tt_int_op(local_outcome.err,==,0);
+	tt_assert(local_outcome.ai);
+	tt_ptr_op(local_outcome.ai->ai_next,==,NULL);
+	test_ai_eq(local_outcome.ai, "[f::f]:8008", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(local_outcome.ai);
+	local_outcome.ai = NULL;
+
+	/* 1d. We give a numeric address (ipv4) */
+	memset(&hints, 0, sizeof(hints));
+	memset(&local_outcome, 0, sizeof(local_outcome));
+	hints.ai_family = PF_UNSPEC;
+	r = evdns_getaddrinfo(dns_base, "5.6.7.8", NULL,
+	    &hints, gai_cb, &local_outcome);
+	tt_int_op(r,==,0);
+	tt_int_op(local_outcome.err,==,0);
+	tt_assert(local_outcome.ai);
+	a = ai_find_by_protocol(local_outcome.ai, IPPROTO_TCP);
+	tt_assert(a);
+	test_ai_eq(a, "5.6.7.8", SOCK_STREAM, IPPROTO_TCP);
+	a = ai_find_by_protocol(local_outcome.ai, IPPROTO_UDP);
+	tt_assert(a);
+	test_ai_eq(a, "5.6.7.8", SOCK_DGRAM, IPPROTO_UDP);
+	evutil_freeaddrinfo(local_outcome.ai);
+	local_outcome.ai = NULL;
+
+	/* 1e. nodename is NULL (bind) */
+	memset(&hints, 0, sizeof(hints));
+	memset(&local_outcome, 0, sizeof(local_outcome));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags = EVUTIL_AI_PASSIVE;
+	r = evdns_getaddrinfo(dns_base, NULL, "9090",
+	    &hints, gai_cb, &local_outcome);
+	tt_int_op(r,==,0);
+	tt_int_op(local_outcome.err,==,0);
+	tt_assert(local_outcome.ai);
+	/* we should get a v4 address of 0.0.0.0... */
+	a = ai_find_by_family(local_outcome.ai, PF_INET);
+	tt_assert(a);
+	test_ai_eq(a, "0.0.0.0:9090", SOCK_DGRAM, IPPROTO_UDP);
+	/* ... and a v6 address of ::0 */
+	a = ai_find_by_family(local_outcome.ai, PF_INET6);
+	tt_assert(a);
+	test_ai_eq(a, "[::]:9090", SOCK_DGRAM, IPPROTO_UDP);
+	evutil_freeaddrinfo(local_outcome.ai);
+	local_outcome.ai = NULL;
+
+	/* 1f. nodename is NULL (connect) */
+	memset(&hints, 0, sizeof(hints));
+	memset(&local_outcome, 0, sizeof(local_outcome));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	r = evdns_getaddrinfo(dns_base, NULL, "2",
+	    &hints, gai_cb, &local_outcome);
+	tt_int_op(r,==,0);
+	tt_int_op(local_outcome.err,==,0);
+	tt_assert(local_outcome.ai);
+	/* we should get a v4 address of 127.0.0.1 .... */
+	a = ai_find_by_family(local_outcome.ai, PF_INET);
+	tt_assert(a);
+	test_ai_eq(a, "127.0.0.1:2", SOCK_STREAM, IPPROTO_TCP);
+	/* ... and a v6 address of ::1 */
+	a = ai_find_by_family(local_outcome.ai, PF_INET6);
+	tt_assert(a);
+	test_ai_eq(a, "[::1]:2", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(local_outcome.ai);
+	local_outcome.ai = NULL;
+
+	/* 2. Okay, now we can actually test the asynchronous resolver. */
+	/* Start a dummy local dns server... */
+	port = get_generic_server(data->base, &dns_port,
+	    be_getaddrinfo_server_cb, &n_dns_questions);
+	tt_assert(port);
+	tt_int_op(dns_port, >=, 0);
+	/* ... and tell the evdns_base about it. */
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", dns_port);
+	evdns_base_nameserver_ip_add(dns_base, buf);
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = EVUTIL_AI_CANONNAME;
+	/* 0: Request for both.example.com should return both addresses. */
+	r = evdns_getaddrinfo(dns_base, "both.example.com", "8000",
+	    &hints, gai_cb, &a_out[0]);
+	tt_assert(r);
+
+	/* 1: Request for v4only.example.com should return one address. */
+	r = evdns_getaddrinfo(dns_base, "v4only.example.com", "8001",
+	    &hints, gai_cb, &a_out[1]);
+	tt_assert(r);
+
+	/* 2: Request for v6only.example.com should return one address. */
+	hints.ai_flags = 0;
+	r = evdns_getaddrinfo(dns_base, "v6only.example.com", "8002",
+	    &hints, gai_cb, &a_out[2]);
+	tt_assert(r);
+
+	/* 3: PF_INET request for v4assert.example.com should not generate a
+	 * v6 request.  The server will fail the test if it does. */
+	hints.ai_family = PF_INET;
+	r = evdns_getaddrinfo(dns_base, "v4assert.example.com", "8003",
+	    &hints, gai_cb, &a_out[3]);
+	tt_assert(r);
+
+	/* 4: PF_INET6 request for v6assert.example.com should not generate a
+	 * v4 request.  The server will fail the test if it does. */
+	hints.ai_family = PF_INET6;
+	r = evdns_getaddrinfo(dns_base, "v6assert.example.com", "8004",
+	    &hints, gai_cb, &a_out[4]);
+	tt_assert(r);
+
+	/* 5: PF_INET request for nosuchplace.example.com should give NEXIST. */
+	hints.ai_family = PF_INET;
+	r = evdns_getaddrinfo(dns_base, "nosuchplace.example.com", "8005",
+	    &hints, gai_cb, &a_out[5]);
+	tt_assert(r);
+
+	/* 6: PF_UNSPEC request for nosuchplace.example.com should give NEXIST.
+	 */
+	hints.ai_family = PF_UNSPEC;
+	r = evdns_getaddrinfo(dns_base, "nosuchplace.example.com", "8006",
+	    &hints, gai_cb, &a_out[6]);
+	tt_assert(r);
+
+	/* 7: PF_UNSPEC request for v6timeout.example.com should give an ipv4
+	 * address only. */
+	hints.ai_family = PF_UNSPEC;
+	r = evdns_getaddrinfo(dns_base, "v6timeout.example.com", "8007",
+	    &hints, gai_cb, &a_out[7]);
+	tt_assert(r);
+
+	/* 8: PF_UNSPEC request for v6timeout-nonexist.example.com should give
+	 * a NEXIST */
+	hints.ai_family = PF_UNSPEC;
+	r = evdns_getaddrinfo(dns_base, "v6timeout-nonexist.example.com",
+	    "8008", &hints, gai_cb, &a_out[8]);
+	tt_assert(r);
+
+	/* 9: AI_ADDRCONFIG should at least not crash.  Can't test it more
+	 * without knowing what kind of internet we have. */
+	hints.ai_flags |= EVUTIL_AI_ADDRCONFIG;
+	r = evdns_getaddrinfo(dns_base, "both.example.com",
+	    "8009", &hints, gai_cb, &a_out[9]);
+	tt_assert(r);
+
+	/* XXXXX There are more tests we could do, including:
+
+	   - A test to elicit NODATA.
+	   - A test of cancelling a request.
+
+	 */
+
+	n_gai_results_pending = 10;
+	exit_base_on_no_pending_results = data->base;
+
+	event_base_dispatch(data->base);
+
+	/* 0: both.example.com */
+	tt_int_op(a_out[0].err, ==, 0);
+	tt_assert(a_out[0].ai);
+	tt_assert(a_out[0].ai->ai_next);
+	tt_assert(!a_out[0].ai->ai_next->ai_next);
+	a = ai_find_by_family(a_out[0].ai, PF_INET);
+	tt_assert(a);
+	test_ai_eq(a, "80.80.32.32:8000", SOCK_STREAM, IPPROTO_TCP);
+	a = ai_find_by_family(a_out[0].ai, PF_INET6);
+	tt_assert(a);
+	test_ai_eq(a, "[80ff::bbbb]:8000", SOCK_STREAM, IPPROTO_TCP);
+	tt_assert(a_out[0].ai->ai_canonname);
+	tt_str_op(a_out[0].ai->ai_canonname, ==, "both-canonical.example.com");
+
+	/* 1: v4only.example.com */
+	tt_int_op(a_out[1].err, ==, 0);
+	tt_assert(a_out[1].ai);
+	tt_assert(! a_out[1].ai->ai_next);
+	test_ai_eq(a_out[1].ai, "18.52.86.120:8001", SOCK_STREAM, IPPROTO_TCP);
+	tt_assert(a_out[1].ai->ai_canonname == NULL);
+
+
+	/* 2: v6only.example.com */
+	tt_int_op(a_out[2].err, ==, 0);
+	tt_assert(a_out[2].ai);
+	tt_assert(! a_out[2].ai->ai_next);
+	test_ai_eq(a_out[2].ai, "[b0b::f00d]:8002", SOCK_STREAM, IPPROTO_TCP);
+
+	/* 3: v4assert.example.com */
+	tt_int_op(a_out[3].err, ==, 0);
+	tt_assert(a_out[3].ai);
+	tt_assert(! a_out[3].ai->ai_next);
+	test_ai_eq(a_out[3].ai, "18.52.86.120:8003", SOCK_STREAM, IPPROTO_TCP);
+
+	/* 4: v6assert.example.com */
+	tt_int_op(a_out[4].err, ==, 0);
+	tt_assert(a_out[4].ai);
+	tt_assert(! a_out[4].ai->ai_next);
+	test_ai_eq(a_out[4].ai, "[b0b::f00d]:8004", SOCK_STREAM, IPPROTO_TCP);
+
+	/* 5: nosuchplace.example.com (inet) */
+	tt_int_op(a_out[5].err, ==, EVUTIL_EAI_NONAME);
+	tt_assert(! a_out[5].ai);
+
+	/* 6: nosuchplace.example.com (unspec) */
+	tt_int_op(a_out[6].err, ==, EVUTIL_EAI_NONAME);
+	tt_assert(! a_out[6].ai);
+
+	/* 7: v6timeout.example.com */
+	tt_int_op(a_out[7].err, ==, 0);
+	tt_assert(a_out[7].ai);
+	tt_assert(! a_out[7].ai->ai_next);
+	test_ai_eq(a_out[7].ai, "171.205.239.1:8007", SOCK_STREAM, IPPROTO_TCP);
+
+	/* 8: v6timeout-nonexist.example.com */
+	tt_int_op(a_out[8].err, ==, EVUTIL_EAI_NONAME);
+	tt_assert(! a_out[8].ai);
+
+	/* 9: both (ADDRCONFIG) */
+	tt_int_op(a_out[9].err, ==, 0);
+	tt_assert(a_out[9].ai);
+	a = ai_find_by_family(a_out[9].ai, PF_INET);
+	if (a)
+		test_ai_eq(a, "80.80.32.32:8009", SOCK_STREAM, IPPROTO_TCP);
+	else
+		tt_assert(ai_find_by_family(a_out[9].ai, PF_INET6));
+	a = ai_find_by_family(a_out[9].ai, PF_INET6);
+	if (a)
+		test_ai_eq(a, "[80ff::bbbb]:8009", SOCK_STREAM, IPPROTO_TCP);
+	else
+		tt_assert(ai_find_by_family(a_out[9].ai, PF_INET));
+
+end:
+	if (local_outcome.ai)
+		evutil_freeaddrinfo(local_outcome.ai);
+	for (i=0;i<10;++i) {
+		if (a_out[i].ai)
+			evutil_freeaddrinfo(a_out[i].ai);
+	}
+	if (port)
+                evdns_close_server_port(port);
+	if (dns_base)
+		evdns_base_free(dns_base, 0);
+}
+
+
 #define DNS_LEGACY(name, flags)                                        \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
                     dns_##name }
@@ -1063,6 +1468,9 @@ struct testcase_t dns_testcases[] = {
 	{ "inflight", dns_inflight_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "bufferevent_connnect_hostname", test_bufferevent_connect_hostname,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+
+	{ "getaddrinfo_async", test_getaddrinfo_async,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"" },
 
         END_OF_TESTCASES
 };

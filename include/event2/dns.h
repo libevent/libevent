@@ -597,6 +597,36 @@ struct sockaddr;
  */
 int evdns_server_request_get_requesting_addr(struct evdns_server_request *_req, struct sockaddr *sa, int addr_len);
 
+/** Callback for evdns_getaddrinfo. */
+typedef void (*evdns_getaddrinfo_cb)(int result, struct evutil_addrinfo *res, void *arg);
+
+struct evdns_base;
+struct evdns_getaddrinfo_request;
+/** Make a non-blocking getaddrinfo request using the dns_base in 'dns_base'.
+ *
+ * If we can answer the request immediately (with an error or not!), then we
+ * invoke cb immediately and return NULL.  Otherwise we return
+ * an evdns_getaddrinfo_request and invoke cb later.
+ *
+ * When the callback is invoked, we pass as its first argument the error code
+ * that getaddrinfo would return (or 0 for no error).  As its second argument,
+ * we pass the evutil_addrinfo structures we found (or NULL on error).  We
+ * pass 'arg' as the third argument.
+ *
+ * - The AI_V4MAPPED and AI_ALL flags are not currently implemented.
+ * - We don't look at the /etc/hosts file.
+ */
+struct evdns_getaddrinfo_request *evdns_getaddrinfo(
+    struct evdns_base *dns_base,
+    const char *nodename, const char *servname,
+    const struct evutil_addrinfo *hints_in,
+    evdns_getaddrinfo_cb cb, void *arg);
+
+/* Cancel an in-progress evdns_getaddrinfo.  This MUST NOT be called after the
+ * getaddrinfo's callback has been invoked.  The resolves will be cancelled,
+ * and the callback will be invoked with the error EVUTIL_EAI_CANCEL. */
+void evdns_getaddrinfo_cancel(struct evdns_getaddrinfo_request *req);
+
 #ifdef __cplusplus
 }
 #endif

@@ -48,6 +48,8 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#else
+#include <ws2tcpip.h>
 #endif
 
 #include <sys/queue.h>
@@ -100,8 +102,13 @@
 #define NI_MAXSERV 32
 #define NI_MAXHOST 1025
 
+#ifndef NI_NUMERICHOST
 #define NI_NUMERICHOST 1
+#endif
+
+#ifndef NI_NUMERICSERV
 #define NI_NUMERICSERV 2
+#endif
 
 static int
 fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
@@ -142,50 +149,6 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 
 #endif
 
-#ifndef _EVENT_HAVE_GETADDRINFO
-struct addrinfo {
-	int ai_family;
-	int ai_socktype;
-	int ai_protocol;
-	size_t ai_addrlen;
-	struct sockaddr *ai_addr;
-	struct addrinfo *ai_next;
-};
-static int
-fake_getaddrinfo(const char *hostname, struct addrinfo *ai)
-{
-	struct hostent *he = NULL;
-	struct sockaddr_in *sa;
-	if (hostname) {
-		he = gethostbyname(hostname);
-		if (!he)
-			return (-1);
-	}
-	ai->ai_family = he ? he->h_addrtype : AF_INET;
-	ai->ai_socktype = SOCK_STREAM;
-	ai->ai_protocol = 0;
-	ai->ai_addrlen = sizeof(struct sockaddr_in);
-	if (NULL == (ai->ai_addr = mm_malloc(ai->ai_addrlen)))
-		return (-1);
-	sa = (struct sockaddr_in*)ai->ai_addr;
-	memset(sa, 0, ai->ai_addrlen);
-	if (he) {
-		sa->sin_family = he->h_addrtype;
-		memcpy(&sa->sin_addr, he->h_addr_list[0], he->h_length);
-	} else {
-		sa->sin_family = AF_INET;
-		sa->sin_addr.s_addr = INADDR_ANY;
-	}
-	ai->ai_next = NULL;
-	return (0);
-}
-static void
-fake_freeaddrinfo(struct addrinfo *ai)
-{
-	mm_free(ai->ai_addr);
-}
-#endif
-
 #ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
@@ -193,7 +156,7 @@ fake_freeaddrinfo(struct addrinfo *ai)
 extern int debug;
 
 static int socket_connect(evutil_socket_t kefd, const char *address, unsigned short port);
-static evutil_socket_t bind_socket_ai(struct addrinfo *, int reuse);
+static evutil_socket_t bind_socket_ai(struct evutil_addrinfo *, int reuse);
 static evutil_socket_t bind_socket(const char *, ev_uint16_t, int reuse);
 static void name_from_addr(struct sockaddr *, ev_socklen_t, char **, char **);
 static int evhttp_associate_new_request_with_connection(
@@ -2979,32 +2942,6 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
  * Network helper functions that we do not want to export to the rest of
  * the world.
  */
-#if 0 /* Unused */
-static struct addrinfo *
-addr_from_name(char *address)
-{
-#ifdef _EVENT_HAVE_GETADDRINFO
-        struct addrinfo ai, *aitop;
-        int ai_result;
-
-        memset(&ai, 0, sizeof(ai));
-        ai.ai_family = AF_INET;
-        ai.ai_socktype = SOCK_RAW;
-        ai.ai_flags = 0;
-        if ((ai_result = getaddrinfo(address, NULL, &ai, &aitop)) != 0) {
-                if ( ai_result == EAI_SYSTEM )
-                        event_warn("getaddrinfo");
-                else
-                        event_warnx("getaddrinfo: %s", gai_strerror(ai_result));
-        }
-
-	return (aitop);
-#else
-	EVUTIL_ASSERT(0);
-	return NULL; /* XXXXX Use gethostbyname, if this function is ever used. */
-#endif
-}
-#endif
 
 static void
 name_from_addr(struct sockaddr *sa, ev_socklen_t salen,
@@ -3020,9 +2957,12 @@ name_from_addr(struct sockaddr *sa, ev_socklen_t salen,
 		NI_NUMERICHOST|NI_NUMERICSERV);
 
 	if (ni_result != 0) {
+#ifdef EAI_SYSTEM
+		/* Windows doesn't have an EAI_SYSTEM. */
 		if (ni_result == EAI_SYSTEM)
 			event_err(1, "getnameinfo failed");
 		else
+#endif
 			event_errx(1, "getnameinfo failed: %s", gai_strerror(ni_result));
 		return;
 	}
@@ -3041,7 +2981,7 @@ name_from_addr(struct sockaddr *sa, ev_socklen_t salen,
 /* Create a non-blocking socket and bind it */
 /* todo: rename this function */
 static evutil_socket_t
-bind_socket_ai(struct addrinfo *ai, int reuse)
+bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
 {
         evutil_socket_t fd;
 
@@ -3084,49 +3024,40 @@ bind_socket_ai(struct addrinfo *ai, int reuse)
 	return (-1);
 }
 
-static struct addrinfo *
+static struct evutil_addrinfo *
 make_addrinfo(const char *address, ev_uint16_t port)
 {
-        struct addrinfo *aitop = NULL;
+        struct evutil_addrinfo *ai = NULL;
 
-#ifdef _EVENT_HAVE_GETADDRINFO
-        struct addrinfo ai;
+        struct evutil_addrinfo hints;
         char strport[NI_MAXSERV];
         int ai_result;
 
-        memset(&ai, 0, sizeof(ai));
-        ai.ai_family = AF_UNSPEC;
-        ai.ai_socktype = SOCK_STREAM;
-        ai.ai_flags = AI_PASSIVE;  /* turn NULL host name into INADDR_ANY */
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+	/* turn NULL hostname into INADDR_ANY, and skip looking up any address
+	 * types we don't have an interface to connect to. */
+        hints.ai_flags = EVUTIL_AI_PASSIVE|EVUTIL_AI_ADDRCONFIG;
         evutil_snprintf(strport, sizeof(strport), "%d", port);
-        if ((ai_result = getaddrinfo(address, strport, &ai, &aitop)) != 0) {
-                if ( ai_result == EAI_SYSTEM )
+        if ((ai_result = evutil_getaddrinfo(address, strport, &hints, &ai))
+	    != 0) {
+                if (ai_result == EVUTIL_EAI_SYSTEM)
                         event_warn("getaddrinfo");
                 else
-                        event_warnx("getaddrinfo: %s", gai_strerror(ai_result));
+                        event_warnx("getaddrinfo: %s",
+			    evutil_gai_strerror(ai_result));
 		return (NULL);
         }
-#else
-	static int cur;
-	static struct addrinfo ai[2]; /* We will be returning the address of some of this memory so it has to last even after this call. */
-	if (++cur == 2) cur = 0;   /* allow calling this function twice */
 
-	if (fake_getaddrinfo(address, &ai[cur]) < 0) {
-		event_warn("fake_getaddrinfo");
-		return (NULL);
-	}
-	aitop = &ai[cur];
-	((struct sockaddr_in *) aitop->ai_addr)->sin_port = htons(port);
-#endif
-
-	return (aitop);
+	return (ai);
 }
 
 static evutil_socket_t
 bind_socket(const char *address, ev_uint16_t port, int reuse)
 {
 	evutil_socket_t fd;
-	struct addrinfo *aitop = NULL;
+	struct evutil_addrinfo *aitop = NULL;
 
 	/* just create an unbound socket */
 	if (address == NULL && port == 0)
@@ -3139,11 +3070,7 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 
 	fd = bind_socket_ai(aitop, reuse);
 
-#ifdef _EVENT_HAVE_GETADDRINFO
-	freeaddrinfo(aitop);
-#else
-	fake_freeaddrinfo(aitop);
-#endif
+	evutil_freeaddrinfo(aitop);
 
 	return (fd);
 }
@@ -3151,7 +3078,7 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 static int
 socket_connect(evutil_socket_t fd, const char *address, unsigned short port)
 {
-	struct addrinfo *ai = make_addrinfo(address, port);
+	struct evutil_addrinfo *ai = make_addrinfo(address, port);
 	int res = -1;
 
 	if (ai == NULL) {
@@ -3170,11 +3097,7 @@ socket_connect(evutil_socket_t fd, const char *address, unsigned short port)
 	res = 0;
 
 out:
-#ifdef _EVENT_HAVE_GETADDRINFO
-	freeaddrinfo(ai);
-#else
-	fake_freeaddrinfo(ai);
-#endif
+	evutil_freeaddrinfo(ai);
 
 	return (res);
 }

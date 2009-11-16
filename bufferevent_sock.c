@@ -380,71 +380,57 @@ done:
 	return result;
 }
 
-static int (*_bufferevent_socket_connect_hostname_evdns_fn)(
-	struct bufferevent *, struct evdns_base *, int,
-	const char *, int) = NULL;
-
-void _bufferevent_set_socket_connect_hostname_evdns_fn(
-	int (*fn)(struct bufferevent *, struct evdns_base *, int,
-	    const char *, int))
+static void
+bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
+    void *arg)
 {
-	if (!_bufferevent_socket_connect_hostname_evdns_fn)
-	    _bufferevent_socket_connect_hostname_evdns_fn = fn;
+	struct bufferevent *bev = arg;
+	int r;
+	BEV_LOCK(bev);
+
+	if (result != 0) {
+		/* XXX Communicate the error somehow. */
+		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
+		_bufferevent_decref_and_unlock(bev);
+		if (ai)
+			evutil_freeaddrinfo(ai);
+		return;
+	}
+
+	/* XXX use the other addrinfos? */
+	r = bufferevent_socket_connect(bev, ai->ai_addr, ai->ai_addrlen);
+	_bufferevent_decref_and_unlock(bev);
+	evutil_freeaddrinfo(ai);
 }
 
 int
 bufferevent_socket_connect_hostname(struct bufferevent *bev,
     struct evdns_base *evdns_base, int family, const char *hostname, int port)
 {
-	struct sockaddr_storage ss;
-	ev_socklen_t socklen = sizeof(ss);
-	int socklen_int = sizeof(ss);
+	char portbuf[10];
+	struct evutil_addrinfo hint;
+	int err;
 
 	if (family != AF_INET && family != AF_INET6 && family != AF_UNSPEC)
 		return -1;
 	if (port < 1 || port > 65535)
 		return -1;
 
-	memset(&ss, 0, sizeof(ss));
-	if (!evutil_parse_sockaddr_port(hostname, (struct sockaddr*)&ss,
-		&socklen_int)) {
-		socklen = socklen_int;
-		if (ss.ss_family == AF_INET) {
-			struct sockaddr_in *sin = (struct sockaddr_in*)&ss;
-			if (family == AF_INET6)
-				return -1;
-			if (sin->sin_port)
-				return -1;
-			sin->sin_port = htons(port);
-		} else if (ss.ss_family == AF_INET6) {
-			struct sockaddr_in6 *sin6 = (struct sockaddr_in6*)&ss;
-			if (family == AF_INET)
-				return -1;
-			if (sin6->sin6_port)
-				return -1;
-			sin6->sin6_port = htons(port);
-		}
-		return bufferevent_socket_connect(bev, (struct sockaddr*)&ss,
-		    socklen);
-	}
+	evutil_snprintf(portbuf, sizeof(portbuf), "%d", port);
 
-	if (evdns_base) {
-		EVUTIL_ASSERT(_bufferevent_socket_connect_hostname_evdns_fn);
-		return _bufferevent_socket_connect_hostname_evdns_fn(
-			bev, evdns_base, family, hostname, port);
-	}
+	memset(&hint, 0, sizeof(hint));
+	hint.ai_family = family;
+	hint.ai_protocol = IPPROTO_TCP;
+	hint.ai_socktype = SOCK_STREAM;
 
-	memset(&ss, 0, sizeof(ss));
+	bufferevent_incref(bev);
+	err = evutil_getaddrinfo_async(evdns_base, hostname, portbuf,
+	    &hint, bufferevent_connect_getaddrinfo_cb, bev);
 
-	if (evutil_resolve(family, hostname, (struct sockaddr*)&ss,
-		&socklen, port)<0) {
-		_bufferevent_incref_and_lock(bev);
-		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
-		_bufferevent_decref_and_unlock(bev);
+	if (err == 0)
+		return 0;
+	else
 		return -1;
-	}
-
-	return bufferevent_socket_connect(bev, (struct sockaddr*)&ss, socklen);
 }
 
 /*

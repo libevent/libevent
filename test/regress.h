@@ -97,6 +97,17 @@ void run_legacy_test_fn(void *ptr);
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,	\
 	  test_## name }
 
+struct evutil_addrinfo;
+struct evutil_addrinfo *ai_find_by_family(struct evutil_addrinfo *ai, int f);
+struct evutil_addrinfo *ai_find_by_protocol(struct evutil_addrinfo *ai, int p);
+int _test_ai_eq(const struct evutil_addrinfo *ai, const char *sockaddr_port,
+    int socktype, int protocol, int line);
+
+#define test_ai_eq(ai, str, s, p) do {					\
+		if (_test_ai_eq((ai), (str), (s), (p), __LINE__)<0)	\
+			goto end;					\
+	} while(0)
+
 
 #ifdef __cplusplus
 }

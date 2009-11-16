@@ -58,6 +58,37 @@ main_callback(int result, char type, int count, int ttl,
 }
 
 static void
+gai_callback(int err, struct evutil_addrinfo *ai, void *arg)
+{
+	const char *name = arg;
+	struct evutil_addrinfo *ai_first = NULL;
+	int i;
+	if (err) {
+		printf("%s: %s\n", name, evutil_gai_strerror(err));
+	}
+	if (ai && ai->ai_canonname)
+		printf("    %s ==> %s\n", name, ai->ai_canonname);
+	for (i=0; ai; ai = ai->ai_next, ++i) {
+		char buf[128];
+		if (ai->ai_family == PF_INET) {
+			struct sockaddr_in *sin =
+			    (struct sockaddr_in*)ai->ai_addr;
+			evutil_inet_ntop(AF_INET, &sin->sin_addr, buf,
+			    sizeof(buf));
+			printf("[%d] %s: %s\n",i,name,buf);
+		} else {
+			struct sockaddr_in6 *sin6 =
+			    (struct sockaddr_in6*)ai->ai_addr;
+			evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, buf,
+			    sizeof(buf));
+			printf("[%d] %s: %s\n",i,name,buf);
+		}
+	}
+	if (ai_first)
+		evutil_freeaddrinfo(ai_first);
+}
+
+static void
 evdns_server_callback(struct evdns_server_request *req, void *data)
 {
 	int i, r;
@@ -101,7 +132,7 @@ logfn(int is_warn, const char *msg) {
 int
 main(int c, char **v) {
 	int idx;
-	int reverse = 0, servertest = 0;
+	int reverse = 0, servertest = 0, use_getaddrinfo = 0;
 	struct event_base *event_base = NULL;
 	struct evdns_base *evdns_base = NULL;
 	if (c<2) {
@@ -115,6 +146,8 @@ main(int c, char **v) {
 			reverse = 1;
 		else if (!strcmp(v[idx], "-v"))
 			verbose = 1;
+		else if (!strcmp(v[idx], "-g"))
+			use_getaddrinfo = 1;
 		else if (!strcmp(v[idx], "-servertest"))
 			servertest = 1;
 		else
@@ -148,15 +181,26 @@ main(int c, char **v) {
 		    "/etc/resolv.conf");
 #endif
 	}
+
+	printf("EVUTIL_AI_CANONNAME in example = %d\n", EVUTIL_AI_CANONNAME);
 	for (; idx < c; ++idx) {
 		if (reverse) {
 			struct in_addr addr;
-			if (!inet_aton(v[idx], &addr)) {
+			if (evutil_inet_pton(AF_INET, v[idx], &addr)!=1) {
 				fprintf(stderr, "Skipping non-IP %s\n", v[idx]);
 				continue;
 			}
 			fprintf(stderr, "resolving %s...\n",v[idx]);
 			evdns_base_resolve_reverse(evdns_base, &addr, 0, main_callback, v[idx]);
+		} else if (use_getaddrinfo) {
+			struct evutil_addrinfo hints;
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_family = PF_UNSPEC;
+			hints.ai_protocol = IPPROTO_TCP;
+			hints.ai_flags = EVUTIL_AI_CANONNAME;
+			fprintf(stderr, "resolving (fwd) %s...\n",v[idx]);
+			evdns_getaddrinfo(evdns_base, v[idx], NULL, &hints,
+			    gai_callback, v[idx]);
 		} else {
 			fprintf(stderr, "resolving (fwd) %s...\n",v[idx]);
 			evdns_base_resolve_ipv4(evdns_base, v[idx], 0, main_callback, v[idx]);

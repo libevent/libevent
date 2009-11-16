@@ -56,6 +56,10 @@ extern "C" {
 #include <BaseTsd.h>
 #endif
 #include <stdarg.h>
+#ifdef _EVENT_HAVE_NETDB_H
+#define _GNU_SOURCE
+#include <netdb.h>
+#endif
 
 /* Integer type definitions for types that are supposed to be defined in the
  * C99-specified stdint.h.  Shamefully, some platforms do not include
@@ -323,6 +327,138 @@ int evutil_ascii_strcasecmp(const char *str1, const char *str2);
     ASCII.  That's useful if you're handling data in ASCII-based protocols.
  */
 int evutil_ascii_strncasecmp(const char *str1, const char *str2, size_t n);
+
+/* Here we define evutil_addrinfo to the native addrinfo type, or redefinte it
+ * if this system has no getaddrinfo(). */
+#ifdef _EVENT_HAVE_STRUCT_ADDRINFO
+#define evutil_addrinfo addrinfo
+#else
+struct evutil_addrinfo {
+	int     ai_flags;     /* AI_PASSIVE, AI_CANONNAME, AI_NUMERICHOST */
+	int     ai_family;    /* PF_xxx */
+	int     ai_socktype;  /* SOCK_xxx */
+	int     ai_protocol;  /* 0 or IPPROTO_xxx for IPv4 and IPv6 */
+	size_t  ai_addrlen;   /* length of ai_addr */
+	char   *ai_canonname; /* canonical name for nodename */
+	struct sockaddr  *ai_addr; /* binary address */
+	struct evutil_addrinfo  *ai_next; /* next structure in linked list */
+};
+#endif
+#ifdef EAI_ADDRFAMILY
+#define EVUTIL_EAI_ADDRFAMILY EAI_ADDRFAMILY
+#else
+#define EVUTIL_EAI_ADDRFAMILY -901
+#endif
+#ifdef EAI_AGAIN
+#define EVUTIL_EAI_AGAIN EAI_AGAIN
+#else
+#define EVUTIL_EAI_AGAIN -902
+#endif
+#ifdef EAI_BADFLAGS
+#define EVUTIL_EAI_BADFLAGS EAI_BADFLAGS
+#else
+#define EVUTIL_EAI_BADFLAGS -903
+#endif
+#ifdef EAI_FAIL
+#define EVUTIL_EAI_FAIL EAI_FAIL
+#else
+#define EVUTIL_EAI_FAIL -904
+#endif
+#ifdef EAI_FAMILY
+#define EVUTIL_EAI_FAMILY EAI_FAMILY
+#else
+#define EVUTIL_EAI_FAMILY -905
+#endif
+#ifdef EAI_MEMORY
+#define EVUTIL_EAI_MEMORY EAI_MEMORY
+#else
+#define EVUTIL_EAI_MEMORY -906
+#endif
+/* This test is a bit complicated, since some MS SDKs decide to
+ * remove NODATA or redefine it to be the same as NONAME, in a
+ * fun interpretation of RFC 2553 and RFC 3493. */
+#if defined(EAI_NODATA) && (!defined(EAI_NONAME) || EAI_NODATA != EAI_NONAME)
+#define EVUTIL_EAI_NODATA EAI_NODATA
+#else
+#define EVUTIL_EAI_NODATA -907
+#endif
+#ifdef EAI_NONAME
+#define EVUTIL_EAI_NONAME EAI_NONAME
+#else
+#define EVUTIL_EAI_NONAME -908
+#endif
+#ifdef EAI_SERVICE
+#define EVUTIL_EAI_SERVICE EAI_SERVICE
+#else
+#define EVUTIL_EAI_SERVICE -909
+#endif
+#ifdef EAI_SOCKTYPE
+#define EVUTIL_EAI_SOCKTYPE EAI_SOCKTYPE
+#else
+#define EVUTIL_EAI_SOCKTYPE -910
+#endif
+#ifdef EAI_SYSTEM
+#define EVUTIL_EAI_SYSTEM EAI_SYSTEM
+#else
+#define EVUTIL_EAI_SYSTEM -911
+#endif
+
+#define EVUTIL_EAI_CANCEL -90001
+
+#ifdef AI_PASSIVE
+#define EVUTIL_AI_PASSIVE AI_PASSIVE
+#else
+#define EVUTIL_AI_PASSIVE 0x1000
+#endif
+#ifdef AI_CANONNAME
+#define EVUTIL_AI_CANONNAME AI_CANONNAME
+#else
+#define EVUTIL_AI_CANONNAME 0x2000
+#endif
+#ifdef AI_NUMERICHOST
+#define EVUTIL_AI_NUMERICHOST AI_NUMERICHOST
+#else
+#define EVUTIL_AI_NUMERICHOST 0x4000
+#endif
+#ifdef AI_NUMERICSERV
+#define EVUTIL_AI_NUMERICSERV AI_NUMERICSERV
+#else
+#define EVUTIL_AI_NUMERICSERV 0x8000
+#endif
+#ifdef AI_V4MAPPED
+#define EVUTIL_AI_V4MAPPED AI_V4MAPPED
+#else
+#define EVUTIL_AI_V4MAPPED 0x10000
+#endif
+#ifdef AI_ALL
+#define EVUTIL_AI_ALL AI_ALL
+#else
+#define EVUTIL_AI_ALL 0x20000
+#endif
+#ifdef AI_ADDRCONFIG
+#define EVUTIL_AI_ADDRCONFIG AI_ADDRCONFIG
+#else
+#define EVUTIL_AI_ADDRCONFIG 0x40000
+#endif
+
+struct evutil_addrinfo;
+/* This function clones getaddrinfo for systems that don't have it.  For full
+ * details, see RFC 3493, section 6.1.
+ *
+ * Limitations:
+ * - When the system has no getaddrinfo, we fall back to gethostbyname_r or
+ *   gethostbyname, with their attendant issues.
+ * - The AI_V4MAPPED and AI_ALL flags are not currently implemented.
+ *
+ * For a nonblocking variant, see evdns_getaddrinfo.
+ */
+int evutil_getaddrinfo(const char *nodename, const char *servname,
+    const struct evutil_addrinfo *hints_in, struct evutil_addrinfo **res);
+
+/* Release storage allocated by evutil_getaddrinfo or evdns_getaddrinfo. */
+void evutil_freeaddrinfo(struct evutil_addrinfo *ai);
+
+const char *evutil_gai_strerror(int err);
 
 #ifdef __cplusplus
 }

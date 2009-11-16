@@ -56,10 +56,16 @@
 #define _EVENT_HAVE_FCNTL_H 1
 
 /* Define to 1 if you have the `getaddrinfo' function. */
-/* #undef _EVENT_HAVE_GETADDRINFO */
+#define _EVENT_HAVE_GETADDRINFO 1
 
 /* Define to 1 if you have the `getnameinfo' function. */
-/* #undef _EVENT_HAVE_GETNAMEINFO */
+#define _EVENT_HAVE_GETNAMEINFO 1
+
+/* Define to 1 if you have the `getprotobynumber' function. */
+#define _EVENT_HAVE_GETPROTOBYNUMBER 1
+
+/* Define to 1 if you have the `getservbyname' function. */
+#define _EVENT_HAVE_GETSERVBYNAME 1
 
 /* Define to 1 if you have the `gettimeofday' function. */
 /* #define _EVENT_HAVE_GETTIMEOFDAY 1 */
@@ -165,6 +171,8 @@
 
 /* Define to 1 if you have the `strtoll' function. */
 /* #define _EVENT_HAVE_STRTOLL 1 */
+
+#define _EVENT_HAVE_STRUCT_ADDRINFO 1
 
 /* Define to 1 if the system has the type `struct in6_addr'. */
 #define _EVENT_HAVE_STRUCT_IN6_ADDR 1

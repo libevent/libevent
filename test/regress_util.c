@@ -489,51 +489,267 @@ end:
 
 }
 
-static void
-test_evutil_resolve(void *arg)
+struct evutil_addrinfo *
+ai_find_by_family(struct evutil_addrinfo *ai, int family)
+{
+	while (ai) {
+		if (ai->ai_family == family)
+			return ai;
+		ai = ai->ai_next;
+	}
+	return NULL;
+}
+
+struct evutil_addrinfo *
+ai_find_by_protocol(struct evutil_addrinfo *ai, int protocol)
+{
+	while (ai) {
+		if (ai->ai_protocol == protocol)
+			return ai;
+		ai = ai->ai_next;
+	}
+	return NULL;
+}
+
+
+int
+_test_ai_eq(const struct evutil_addrinfo *ai, const char *sockaddr_port,
+    int socktype, int protocol, int line)
 {
 	struct sockaddr_storage ss;
+        int slen = sizeof(ss);
+	int gotport;
+	char buf[128];
+	memset(&ss, 0, sizeof(ss));
+	if (socktype > 0)
+		tt_int_op(ai->ai_socktype, ==, socktype);
+	if (protocol > 0)
+		tt_int_op(ai->ai_protocol, ==, protocol);
+
+	if (evutil_parse_sockaddr_port(
+		    sockaddr_port, (struct sockaddr*)&ss, &slen)<0) {
+		TT_FAIL(("Couldn't parse expected address %s on line %d",
+			sockaddr_port, line));
+		return -1;
+	}
+	if (ai->ai_family != ss.ss_family) {
+		TT_FAIL(("Address family %d did not match %d on line %d",
+			ai->ai_family, ss.ss_family, line));
+		return -1;
+	}
+	if (ai->ai_addr->sa_family == AF_INET) {
+		struct sockaddr_in *sin = (struct sockaddr_in*)ai->ai_addr;
+		evutil_inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+		gotport = ntohs(sin->sin_port);
+		if (ai->ai_addrlen != sizeof(struct sockaddr_in)) {
+			TT_FAIL(("Addr size mismatch on line %d", line));
+			return -1;
+		}
+	} else {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6*)ai->ai_addr;
+		evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
+		gotport = ntohs(sin6->sin6_port);
+		if (ai->ai_addrlen != sizeof(struct sockaddr_in6)) {
+			TT_FAIL(("Addr size mismatch on line %d", line));
+			return -1;
+		}
+	}
+	if (evutil_sockaddr_cmp(ai->ai_addr, (struct sockaddr*)&ss, 1)) {
+		TT_FAIL(("Wanted %s, got %s:%d on line %d", sockaddr_port,
+			buf, gotport, line));
+		return -1;
+	} else {
+		TT_BLATHER(("Wanted %s, got %s:%d on line %d", sockaddr_port,
+			buf, gotport, line));
+	}
+	return 0;
+end:
+	TT_FAIL(("Test failed on line %d", line));
+	return -1;
+}
+
+static void
+test_evutil_getaddrinfo(void *arg)
+{
+	struct evutil_addrinfo *ai = NULL, *a;
+	struct evutil_addrinfo hints;
+
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_in *sin;
-	ev_socklen_t socklen = sizeof(ss);
 	char buf[128];
 	const char *cp;
 	int r;
 
-	memset(&ss, 0xff, sizeof(ss)); /* Make sure it starts out confused.*/
-	r = evutil_resolve(AF_INET, "www.google.com", (struct sockaddr*)&ss,
-	    &socklen, 80);
-	if (r<0) {
-		TT_BLATHER(("Couldn't resolve www.google.com"));
-		tt_skip();
+	/* Try using it as a pton. */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	r = evutil_getaddrinfo("1.2.3.4", "8080", &hints, &ai);
+	tt_int_op(r, ==, 0);
+	tt_assert(ai);
+	tt_ptr_op(ai->ai_next, ==, NULL); /* no ambiguity */
+	test_ai_eq(ai, "1.2.3.4:8080", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_protocol = IPPROTO_UDP;
+	r = evutil_getaddrinfo("1001:b0b::f00f", "4321", &hints, &ai);
+	tt_int_op(r, ==, 0);
+	tt_assert(ai);
+	tt_ptr_op(ai->ai_next, ==, NULL); /* no ambiguity */
+	test_ai_eq(ai, "[1001:b0b::f00f]:4321", SOCK_DGRAM, IPPROTO_UDP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+
+	/* Try out the behavior of nodename=NULL */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_INET;
+	hints.ai_protocol = IPPROTO_TCP;
+	hints.ai_flags = EVUTIL_AI_PASSIVE; /* as if for bind */
+	r = evutil_getaddrinfo(NULL, "9999", &hints, &ai);
+	tt_int_op(r,==,0);
+	tt_assert(ai);
+	tt_ptr_op(ai->ai_next, ==, NULL);
+	test_ai_eq(ai, "0.0.0.0:9999", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+	hints.ai_flags = 0; /* as if for connect */
+	r = evutil_getaddrinfo(NULL, "9998", &hints, &ai);
+	tt_assert(ai);
+	tt_int_op(r,==,0);
+	test_ai_eq(ai, "127.0.0.1:9998", SOCK_STREAM, IPPROTO_TCP);
+	tt_ptr_op(ai->ai_next, ==, NULL);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+
+	hints.ai_flags = 0; /* as if for connect */
+	hints.ai_family = PF_INET6;
+	r = evutil_getaddrinfo(NULL, "9997", &hints, &ai);
+	tt_assert(ai);
+	tt_int_op(r,==,0);
+	tt_ptr_op(ai->ai_next, ==, NULL);
+	test_ai_eq(ai, "[::1]:9997", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+
+	hints.ai_flags = EVUTIL_AI_PASSIVE; /* as if for bind. */
+	hints.ai_family = PF_INET6;
+	r = evutil_getaddrinfo(NULL, "9996", &hints, &ai);
+	tt_assert(ai);
+	tt_int_op(r,==,0);
+	tt_ptr_op(ai->ai_next, ==, NULL);
+	test_ai_eq(ai, "[::]:9996", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+
+	/* Now try an unspec one. We should get a v6 and a v4. */
+	hints.ai_family = PF_UNSPEC;
+	r = evutil_getaddrinfo(NULL, "9996", &hints, &ai);
+	tt_assert(ai);
+	tt_int_op(r,==,0);
+	a = ai_find_by_family(ai, PF_INET6);
+	tt_assert(a);
+	test_ai_eq(a, "[::]:9996", SOCK_STREAM, IPPROTO_TCP);
+	a = ai_find_by_family(ai, PF_INET);
+	tt_assert(a);
+	test_ai_eq(a, "0.0.0.0:9996", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+
+	/* Try out AI_NUMERICHOST: successful case.  Also try
+	 * multiprotocol. */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_flags = EVUTIL_AI_NUMERICHOST;
+	r = evutil_getaddrinfo("1.2.3.4", NULL, &hints, &ai);
+	tt_int_op(r, ==, 0);
+	a = ai_find_by_protocol(ai, IPPROTO_TCP);
+	tt_assert(a);
+	test_ai_eq(a, "1.2.3.4", SOCK_STREAM, IPPROTO_TCP);
+	a = ai_find_by_protocol(ai, IPPROTO_UDP);
+	tt_assert(a);
+	test_ai_eq(a, "1.2.3.4", SOCK_DGRAM, IPPROTO_UDP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+
+	/* Try the failing case of AI_NUMERICHOST */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_flags = EVUTIL_AI_NUMERICHOST;
+	r = evutil_getaddrinfo("www.google.com", "80", &hints, &ai);
+	tt_int_op(r, ==, EVUTIL_EAI_NONAME);
+	tt_int_op(ai, ==, NULL);
+
+	/* Try symbolic service names wit AI_NUMERICSERV */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = EVUTIL_AI_NUMERICSERV;
+	r = evutil_getaddrinfo("1.2.3.4", "http", &hints, &ai);
+	tt_int_op(r,==,EVUTIL_EAI_NONAME);
+
+	/* Try symbolic service names */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	r = evutil_getaddrinfo("1.2.3.4", "http", &hints, &ai);
+	if (r!=0) {
+		TT_GRIPE(("Symbolic service names seem broken."));
+	} else {
+		tt_assert(ai);
+		test_ai_eq(ai, "1.2.3.4:80", SOCK_STREAM, IPPROTO_TCP);
+		evutil_freeaddrinfo(ai);
+		ai = NULL;
 	}
-	tt_int_op(ss.ss_family, ==, AF_INET);
-	tt_int_op(socklen, ==, sizeof(struct sockaddr_in));
-	sin = (struct sockaddr_in*)&ss;
-	tt_int_op(sin->sin_port, ==, htons(80));
-	tt_int_op(sin->sin_addr.s_addr, !=, 0xffffffff);
 
-	cp = evutil_inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
-	TT_BLATHER(("www.google.com resolved to %s",cp?cp:"<unwriteable>"));
+	/* Now do some actual lookups. */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_INET;
+	hints.ai_protocol = IPPROTO_TCP;
+	hints.ai_socktype = SOCK_STREAM;
+	r = evutil_getaddrinfo("www.google.com", "80", &hints, &ai);
+	if (r != 0) {
+		TT_GRIPE(("Couldn't resolve www.google.com"));
+	} else {
+		tt_assert(ai);
+		tt_int_op(ai->ai_family, ==, PF_INET);
+		tt_int_op(ai->ai_protocol, ==, IPPROTO_TCP);
+		tt_int_op(ai->ai_socktype, ==, SOCK_STREAM);
+		tt_int_op(ai->ai_addrlen, ==, sizeof(struct sockaddr_in));
+		sin = (struct sockaddr_in*)ai->ai_addr;
+		tt_int_op(sin->sin_family, ==, AF_INET);
+		tt_int_op(sin->sin_port, ==, htons(80));
+		tt_int_op(sin->sin_addr.s_addr, !=, 0xffffffff);
 
-	memset(&ss, 0xff, sizeof(ss)); /* Make sure it starts out confused.*/
-	socklen = sizeof(ss);
-	r = evutil_resolve(AF_INET6, "ipv6.google.com", (struct sockaddr*)&ss,
-	    &socklen, 80);
-	if (r<0) {
+		cp = evutil_inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+		TT_BLATHER(("www.google.com resolved to %s",
+			cp?cp:"<unwriteable>"));
+		evutil_freeaddrinfo(ai);
+		ai = NULL;
+	}
+
+	hints.ai_family = PF_INET6;
+	r = evutil_getaddrinfo("ipv6.google.com", "80", &hints, &ai);
+	if (r != 0) {
 		TT_BLATHER(("Couldn't do an ipv6 lookup for ipv6.google.com"));
-		goto end;
-	}
-	tt_int_op(ss.ss_family, ==, AF_INET6);
-	tt_int_op(socklen, ==, sizeof(struct sockaddr_in6));
-	sin6 = (struct sockaddr_in6*)&ss;
-	tt_int_op(sin6->sin6_port, ==, htons(80));
+	} else {
+		tt_assert(ai);
+		tt_int_op(ai->ai_family, ==, PF_INET6);
+		tt_int_op(ai->ai_addrlen, ==, sizeof(struct sockaddr_in6));
+		sin6 = (struct sockaddr_in6*)ai->ai_addr;
+		tt_int_op(sin6->sin6_port, ==, htons(80));
 
-	cp = evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
-	TT_BLATHER(("ipv6.google.com resolved to %s",cp?cp:"<unwriteable>"));
+		cp = evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, buf,
+		    sizeof(buf));
+		TT_BLATHER(("ipv6.google.com resolved to %s",
+			cp?cp:"<unwriteable>"));
+	}
 
 end:
-	;
+	if (ai)
+		evutil_freeaddrinfo(ai);
 }
 
 struct testcase_t util_testcases[] = {
@@ -546,7 +762,7 @@ struct testcase_t util_testcases[] = {
 	{ "strlcpy", test_evutil_strlcpy, 0, NULL, NULL },
 	{ "log", test_evutil_log, TT_FORK, NULL, NULL },
 	{ "upcast", test_evutil_upcast, 0, NULL, NULL },
-	{ "resolve", test_evutil_resolve, TT_FORK, NULL, NULL },
+	{ "getaddrinfo", test_evutil_getaddrinfo, TT_FORK, NULL, NULL },
 	END_OF_TESTCASES,
 };
 

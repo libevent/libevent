@@ -67,6 +67,16 @@ extern "C" {
  */
 int evdns_init(void);
 
+struct evdns_base;
+/**
+   Return the global evdns_base created by event_init() and used by the other
+   deprecated functions.
+
+   @deprecated This function is deprecated because use of the global
+     evdns_base is error-prone.
+ */
+struct evdns_base *evdns_get_global_base(void);
+
 /**
   Shut down the asynchronous DNS resolver and terminate all active requests.
 

@@ -170,13 +170,75 @@ die horribly
 
 AM_CONDITIONAL(BUILD_WIN32, test x$bwin32 = xtrue)
 
+if test x$bwin32 = xtrue; then
+   LIBS="$LIBS -lws2_32"
+fi
+
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
 AC_HEADER_TIME
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop inet_pton signal sigaction strtoll inet_aton pipe eventfd sendfile mmap splice arc4random issetugid geteuid getegid)
+AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop inet_pton signal sigaction strtoll inet_aton pipe eventfd sendfile mmap splice arc4random issetugid geteuid getegid getservbyname getprotobynumber)
+
+
+# Check for gethostbyname_r in all its glorious incompatible versions.
+#   (This is cut-and-pasted from Tor, which based its logic on
+#   Python's configure.in.)
+AH_TEMPLATE(HAVE_GETHOSTBYNAME_R,
+  [Define this if you have any gethostbyname_r()])
+
+AC_CHECK_FUNC(gethostbyname_r, [
+  AC_MSG_CHECKING([how many arguments gethostbyname_r() wants])
+  OLD_CFLAGS=$CFLAGS
+  CFLAGS="$CFLAGS $MY_CPPFLAGS $MY_THREAD_CPPFLAGS $MY_CFLAGS"
+  AC_COMPILE_IFELSE(AC_LANG_PROGRAM([
+#include <netdb.h>
+  ], [[
+    char *cp1, *cp2;
+    struct hostent *h1, *h2;
+    int i1, i2;
+    (void)gethostbyname_r(cp1,h1,cp2,i1,&h2,&i2);
+  ]]),[
+    AC_DEFINE(HAVE_GETHOSTBYNAME_R)
+    AC_DEFINE(HAVE_GETHOSTBYNAME_R_6_ARG, 1,
+     [Define this if gethostbyname_r takes 6 arguments])
+    AC_MSG_RESULT(6)
+  ], [
+    AC_TRY_COMPILE([
+#include <netdb.h>
+    ], [
+      char *cp1, *cp2;
+      struct hostent *h1;
+      int i1, i2;
+      (void)gethostbyname_r(cp1,h1,cp2,i1,&i2);
+    ], [
+      AC_DEFINE(HAVE_GETHOSTBYNAME_R)
+      AC_DEFINE(HAVE_GETHOSTBYNAME_R_5_ARG, 1,
+        [Define this if gethostbyname_r takes 5 arguments])
+      AC_MSG_RESULT(5)
+   ], [
+      AC_TRY_COMPILE([
+#include <netdb.h>
+     ], [
+       char *cp1;
+       struct hostent *h1;
+       struct hostent_data hd;
+       (void) gethostbyname_r(cp1,h1,&hd);
+     ], [
+       AC_DEFINE(HAVE_GETHOSTBYNAME_R)
+       AC_DEFINE(HAVE_GETHOSTBYNAME_R_3_ARG, 1,
+         [Define this if gethostbyname_r takes 3 arguments])
+       AC_MSG_RESULT(3)
+     ], [
+       AC_MSG_RESULT(0)
+     ])
+  ])
+ ])
+ CFLAGS=$OLD_CFLAGS
+])
+
 
 AC_CHECK_SIZEOF(long)
 
@@ -368,8 +430,9 @@ AC_CHECK_SIZEOF(int)
 AC_CHECK_SIZEOF(short)
 AC_CHECK_SIZEOF(size_t)
 
-AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, sa_family_t], , ,
-[#include <sys/types.h>
+AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, sa_family_t, struct addrinfo], , ,
+[#define _GNU_SOURCE
+#include <sys/types.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -378,6 +441,9 @@ AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, sa_family_t], , ,
 #endif
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
 #endif
 #ifdef WIN32
 #define WIN32_WINNT 0x400

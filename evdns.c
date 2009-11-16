@@ -166,8 +166,11 @@ typedef unsigned int uint;
 #define close _close
 #endif
 
-#define MAX_ADDRS 32  /* maximum number of addresses from a single packet */
-/* which we bother recording */
+/* maximum number of addresses from a single packet */
+/* that we bother recording */
+#define MAX_V4_ADDRS 32
+#define MAX_V6_ADDRS 32
+
 
 #define TYPE_A	       EVDNS_TYPE_A
 #define TYPE_CNAME     5
@@ -178,10 +181,10 @@ typedef unsigned int uint;
 
 struct evdns_request {
 	u8 *request;  /* the dns packet data */
+	u8 request_type; /* TYPE_PTR or TYPE_A or TYPE_AAAA */
 	unsigned int request_len;
 	int reissue_count;
 	int tx_count;  /* the number of times that this packet has been sent */
-	unsigned int request_type; /* TYPE_PTR or TYPE_A */
 	void *user_pointer;  /* the pointer given to us for this request */
 	evdns_callback_type user_callback;
 	struct nameserver *ns;	/* the server which we last sent it */
@@ -198,23 +201,26 @@ struct evdns_request {
 	struct event timeout_event;
 
 	u16 trans_id;  /* the transaction id */
-	char request_appended;	/* true if the request pointer is data which follows this struct */
-	char transmit_me;  /* needs to be transmitted */
+	unsigned request_appended :1;	/* true if the request pointer is data which follows this struct */
+	unsigned transmit_me :1;  /* needs to be transmitted */
+
+	/* XXXX This is a horrible hack. */
+	char **put_cname_in_ptr; /* store the cname here if we get one. */
 
 	struct evdns_base *base;
 };
 
 struct reply {
 	unsigned int type;
-	unsigned int have_answer;
+	unsigned int have_answer : 1;
 	union {
 		struct {
 			u32 addrcount;
-			u32 addresses[MAX_ADDRS];
+			u32 addresses[MAX_V4_ADDRS];
 		} a;
 		struct {
 			u32 addrcount;
-			struct in6_addr addresses[MAX_ADDRS];
+			struct in6_addr addresses[MAX_V6_ADDRS];
 		} aaaa;
 		struct {
 			char name[HOST_NAME_MAX];
@@ -332,7 +338,7 @@ struct evdns_base {
 
 	int global_max_requests_inflight;
 
-	struct timeval global_timeout;	/* 5 seconds */
+	struct timeval global_timeout;	/* 5 seconds by default */
 	int global_max_reissues;  /* a reissue occurs when we get some errors from the server */
 	int global_max_retransmits;  /* number of times we'll retransmit a request which timed out */
 	/* number of timeouts in a row before we consider this server to be down */
@@ -345,6 +351,13 @@ struct evdns_base {
 	/** ev_socklen_t for global_outgoing_address. 0 if it isn't set. */
 	ev_socklen_t global_outgoing_addrlen;
 
+	struct timeval global_getaddrinfo_allow_skew;
+
+	int getaddrinfo_ipv4_timeouts;
+	int getaddrinfo_ipv6_timeouts;
+	int getaddrinfo_ipv4_answered;
+	int getaddrinfo_ipv6_answered;
+
 	struct search_state *global_search_state;
 
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
@@ -354,6 +367,12 @@ struct evdns_base {
 };
 
 static struct evdns_base *current_base = NULL;
+
+struct evdns_base *
+evdns_get_global_base(void)
+{
+	return current_base;
+}
 
 /* Given a pointer to an evdns_server_request, get the corresponding */
 /* server_request. */
@@ -1019,7 +1038,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			if ((datalength & 3) != 0) /* not an even number of As. */
 			    goto err;
 			addrcount = datalength >> 2;
-			addrtocopy = MIN(MAX_ADDRS - reply.data.a.addrcount, (unsigned)addrcount);
+			addrtocopy = MIN(MAX_V4_ADDRS - reply.data.a.addrcount, (unsigned)addrcount);
 
 			ttl_r = MIN(ttl_r, ttl);
 			/* we only bother with the first four addresses. */
@@ -1029,7 +1048,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			j += 4*addrtocopy;
 			reply.data.a.addrcount += addrtocopy;
 			reply.have_answer = 1;
-			if (reply.data.a.addrcount == MAX_ADDRS) break;
+			if (reply.data.a.addrcount == MAX_V4_ADDRS) break;
 		} else if (type == TYPE_PTR && class == CLASS_INET) {
 			if (req->request_type != TYPE_PTR) {
 				j += datalength; continue;
@@ -1040,6 +1059,15 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			ttl_r = MIN(ttl_r, ttl);
 			reply.have_answer = 1;
 			break;
+		} else if (type == TYPE_CNAME) {
+			char cname[HOST_NAME_MAX];
+			if (!req->put_cname_in_ptr || *req->put_cname_in_ptr) {
+				j += datalength; continue;
+			}
+			if (name_parse(packet, length, &j, cname,
+				sizeof(cname))<0)
+				goto err;
+			*req->put_cname_in_ptr = mm_strdup(cname);
 		} else if (type == TYPE_AAAA && class == CLASS_INET) {
 			int addrcount, addrtocopy;
 			if (req->request_type != TYPE_AAAA) {
@@ -1048,7 +1076,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			if ((datalength & 15) != 0) /* not an even number of AAAAs. */
 				goto err;
 			addrcount = datalength >> 4;  /* each address is 16 bytes long */
-			addrtocopy = MIN(MAX_ADDRS - reply.data.aaaa.addrcount, (unsigned)addrcount);
+			addrtocopy = MIN(MAX_V6_ADDRS - reply.data.aaaa.addrcount, (unsigned)addrcount);
 			ttl_r = MIN(ttl_r, ttl);
 
 			/* we only bother with the first four addresses. */
@@ -1058,7 +1086,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			reply.data.aaaa.addrcount += addrtocopy;
 			j += 16*addrtocopy;
 			reply.have_answer = 1;
-			if (reply.data.aaaa.addrcount == MAX_ADDRS) break;
+			if (reply.data.aaaa.addrcount == MAX_V6_ADDRS) break;
 		} else {
 			/* skip over any other type of resource */
 			j += datalength;
@@ -3206,6 +3234,14 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting timeout to %s", val);
 		memcpy(&base->global_timeout, &tv, sizeof(struct timeval));
+	} else if (str_matches_option(option, "getaddrinfo-allow-skew:")) {
+		struct timeval tv;
+		if (strtotimeval(val, &tv) == -1) return -1;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting getaddrinfo-allow-skew to %s",
+		    val);
+		memcpy(&base->global_getaddrinfo_allow_skew, &tv,
+		    sizeof(struct timeval));
 	} else if (str_matches_option(option, "max-timeouts:")) {
 		const int maxtimeout = strtoint_clipped(val, 1, 255);
 		if (maxtimeout == -1) return -1;
@@ -3605,11 +3641,10 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 {
 	struct evdns_base *base;
 
-	/* Give the bufferevent library a hook into its evdns-enabled
-	 * functionality.  We can't do this correctly or else libevent-core
-	 * will depend on libevent-extras. */
-	_bufferevent_set_socket_connect_hostname_evdns_fn(
-		_bufferevent_socket_connect_hostname_evdns);
+	/* Give the evutil library a hook into its evdns-enabled
+	 * functionality.  We can't just call evdns_getaddrinfo directly or
+	 * else libevent-core will depend on libevent-extras. */
+	evutil_set_evdns_getaddrinfo_fn(evdns_getaddrinfo);
 
 	base = mm_malloc(sizeof(struct evdns_base));
 	if (base == NULL)
@@ -3637,6 +3672,8 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 	base->global_max_nameserver_timeout = 3;
 	base->global_search_state = NULL;
 	base->global_randomize_case = 1;
+	base->global_getaddrinfo_allow_skew.tv_sec = 3;
+	base->global_getaddrinfo_allow_skew.tv_usec = 0;
 
 	if (initialize_nameservers) {
 		int r;
@@ -3757,3 +3794,419 @@ evdns_shutdown(int fail_requests)
 	evdns_log_fn = NULL;
 }
 
+/* A single request for a getaddrinfo, either v4 or v6. */
+struct getaddrinfo_subrequest {
+	struct evdns_request *r;
+	ev_uint32_t type;
+};
+
+/* State data used to implement an in-progress getaddrinfo. */
+struct evdns_getaddrinfo_request {
+	struct evdns_base *evdns_base;
+	/* Copy of the modified 'hints' data that we'll use to build
+	 * answers. */
+	struct evutil_addrinfo hints;
+	/* The callback to invoke when we're done */
+	evdns_getaddrinfo_cb user_cb;
+	/* User-supplied data to give to the callback. */
+	void *user_data;
+	/* The port to use when building sockaddrs. */
+	ev_uint16_t port;
+	/* The sub_request for an A record (if any) */
+	struct getaddrinfo_subrequest ipv4_request;
+	/* The sub_request for an AAAA record (if any) */
+	struct getaddrinfo_subrequest ipv6_request;
+
+	/* The cname result that we were told (if any) */
+	char *cname_result;
+
+	/* If we have one request answered and one request still inflight,
+	 * then this field holds the answer from the first request... */
+	struct evutil_addrinfo *pending_result;
+	/* And this field holds the error code from the first request... */
+	int pending_error;
+	/* And this event is a timeout that will tell us to cancel the second
+	 * request if it's taking a long time. */
+	struct event timeout;
+};
+
+/* Convert an evdns errors to the equivalent getaddrinfo error. */
+static int
+evdns_err_to_getaddrinfo_err(int e1)
+{
+	/* XXX Do this better! */
+	if (e1 == DNS_ERR_NONE)
+		return 0;
+	else if (e1 == DNS_ERR_NOTEXIST)
+		return EVUTIL_EAI_NONAME;
+	else
+		return EVUTIL_EAI_FAIL;
+}
+
+/* Return the more informative of two getaddrinfo errors. */
+static int
+getaddrinfo_merge_err(int e1, int e2)
+{
+	/* XXXX be cleverer here. */
+	if (e1 == 0)
+		return e2;
+	else
+		return e1;
+}
+
+static void
+free_getaddrinfo_request(struct evdns_getaddrinfo_request *data)
+{
+	if (data->pending_result)
+		evutil_freeaddrinfo(data->pending_result);
+	if (data->cname_result)
+		mm_free(data->cname_result);
+	event_del(&data->timeout);
+	mm_free(data);
+	return;
+}
+
+static void
+add_cname_to_reply(struct evdns_getaddrinfo_request *data,
+    struct evutil_addrinfo *ai)
+{
+	if (data->cname_result && ai) {
+		ai->ai_canonname = data->cname_result;
+		data->cname_result = NULL;
+	}
+}
+
+/* Callback: invoked when one request in a mixed-format A/AAAA getaddrinfo
+ * request has finished, but the other one took too long to answer. Pass
+ * along the answer we got, and cancel the other request.
+ */
+static void
+evdns_getaddrinfo_timeout_cb(evutil_socket_t fd, short what, void *ptr)
+{
+	int v4_timedout = 0, v6_timedout = 0;
+	struct evdns_getaddrinfo_request *data = ptr;
+
+	/* Cancel any pending requests, and note which one */
+	if (data->ipv4_request.r) {
+		evdns_cancel_request(NULL, data->ipv4_request.r);
+		data->ipv4_request.r = NULL;
+		v4_timedout = 1;
+		EVDNS_LOCK(data->evdns_base);
+		++data->evdns_base->getaddrinfo_ipv4_timeouts;
+	}
+	if (data->ipv6_request.r) {
+		evdns_cancel_request(NULL, data->ipv6_request.r);
+		data->ipv6_request.r = NULL;
+		v6_timedout = 1;
+		EVDNS_LOCK(data->evdns_base);
+		++data->evdns_base->getaddrinfo_ipv6_timeouts;
+		EVDNS_UNLOCK(data->evdns_base);
+	}
+
+	/* We only use this timeout callback when we have an answer for
+	 * one address. */
+	EVUTIL_ASSERT(!v4_timedout || !v6_timedout);
+
+	/* Report the outcome of the other request that didn't time out. */
+	if (data->pending_result) {
+		add_cname_to_reply(data, data->pending_result);
+		data->user_cb(0, data->pending_result, data->user_data);
+		data->pending_result = NULL;
+	} else {
+		int e = data->pending_error;
+		if (!e)
+			e = EVUTIL_EAI_AGAIN;
+		data->user_cb(e, NULL, data->user_data);
+	}
+
+	free_getaddrinfo_request(data);
+}
+
+static void
+evdns_getaddrinfo_set_timeout(struct evdns_base *evdns_base,
+    struct evdns_getaddrinfo_request *data)
+{
+	event_add(&data->timeout, &evdns_base->global_getaddrinfo_allow_skew);
+}
+
+static void
+evdns_getaddrinfo_gotresolve(int result, char type, int count,
+    int ttl, void *addresses, void *arg)
+{
+	int i;
+	struct getaddrinfo_subrequest *req = arg;
+	struct getaddrinfo_subrequest *other_req;
+	struct evdns_getaddrinfo_request *data;
+
+	struct evutil_addrinfo *res;
+
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+	struct sockaddr *sa;
+	int socklen, addrlen;
+	void *addrp;
+	int err;
+
+	if (result == DNS_ERR_CANCEL)
+		return;
+
+	EVUTIL_ASSERT(req->type == DNS_IPv4_A || req->type == DNS_IPv6_AAAA);
+	if (req->type == DNS_IPv4_A) {
+		data = EVUTIL_UPCAST(req, struct evdns_getaddrinfo_request, ipv4_request);
+		other_req = &data->ipv6_request;
+		if (result != DNS_ERR_NOTIMPL && result != DNS_ERR_REFUSED &&
+		    result != DNS_ERR_SERVERFAILED) {
+			EVDNS_LOCK(data->evdns_base);
+			++data->evdns_base->getaddrinfo_ipv4_answered;
+			EVDNS_UNLOCK(data->evdns_base);
+		}
+	} else {
+		data = EVUTIL_UPCAST(req, struct evdns_getaddrinfo_request, ipv6_request);
+		other_req = &data->ipv4_request;
+		if (result != DNS_ERR_NOTIMPL && result != DNS_ERR_REFUSED &&
+		    result != DNS_ERR_SERVERFAILED) {
+			EVDNS_LOCK(data->evdns_base);
+			++data->evdns_base->getaddrinfo_ipv6_answered;
+			EVDNS_UNLOCK(data->evdns_base);
+		}
+	}
+
+	req->r = NULL;
+
+	if (result == DNS_ERR_NONE) {
+		if (count == 0)
+			err = EVUTIL_EAI_NODATA;
+		else
+			err = 0;
+	} else {
+		err = evdns_err_to_getaddrinfo_err(result);
+	}
+
+	if (err) {
+		/* Looks like we got an error. */
+		if (other_req->r) {
+			/* The other request is still working; maybe it will
+			 * succeed. */
+			evdns_getaddrinfo_set_timeout(data->evdns_base, data);
+			data->pending_error = err;
+			return;
+		}
+
+		if (data->pending_result) {
+			/* If we have an answer waiting, ignore this error. */
+			add_cname_to_reply(data, data->pending_result);
+			data->user_cb(0, data->pending_result, data->user_data);
+			data->pending_result = NULL;
+		} else {
+			if (data->pending_error)
+				err = getaddrinfo_merge_err(err,
+				    data->pending_error);
+			data->user_cb(err, NULL, data->user_data);
+		}
+		free_getaddrinfo_request(data);
+		return;
+	}
+
+	/* Looks like we got some answers. We should turn them into addrinfos
+	 * and then either queue those or return them all. */
+	EVUTIL_ASSERT(type == DNS_IPv4_A || type == DNS_IPv6_AAAA);
+
+	if (type == DNS_IPv4_A) {
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_port = htons(data->port);
+
+		sa = (struct sockaddr *)&sin;
+		socklen = sizeof(sin);
+		addrlen = 4;
+		addrp = &sin.sin_addr.s_addr;
+	} else {
+		memset(&sin6, 0, sizeof(sin6));
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_port = htons(data->port);
+
+		sa = (struct sockaddr *)&sin6;
+		socklen = sizeof(sin6);
+		addrlen = 16;
+		addrp = &sin6.sin6_addr.s6_addr;
+	}
+
+	res = NULL;
+	for (i=0; i < count; ++i) {
+		struct evutil_addrinfo *ai;
+		memcpy(addrp, ((char*)addresses)+i*addrlen, addrlen);
+		ai = evutil_new_addrinfo(sa, socklen, &data->hints);
+		if (!ai) {
+			if (other_req->r) {
+				evdns_cancel_request(NULL, other_req->r);
+				other_req->r = NULL;
+			}
+			data->user_cb(EVUTIL_EAI_MEMORY, NULL, data->user_data);
+			evutil_freeaddrinfo(res);
+
+			free_getaddrinfo_request(data);
+			return;
+		}
+		res = evutil_addrinfo_append(res, ai);
+	}
+
+	if (other_req->r) {
+		/* The other request is still in progress; wait for it */
+		evdns_getaddrinfo_set_timeout(data->evdns_base, data);
+		data->pending_result = res;
+		return;
+	} else {
+		/* The other request is done or never started; append its
+		 * results (if any) and return them. */
+		if (data->pending_result) {
+			if (req->type == DNS_IPv4_A)
+				res = evutil_addrinfo_append(res,
+				    data->pending_result);
+			else
+				res = evutil_addrinfo_append(
+				    data->pending_result, res);
+			data->pending_result = NULL;
+		}
+
+		/* Call the user callback. */
+		add_cname_to_reply(data, res);
+		data->user_cb(0, res, data->user_data);
+
+		/* Free data. */
+		free_getaddrinfo_request(data);
+	}
+}
+
+struct evdns_getaddrinfo_request *
+evdns_getaddrinfo(struct evdns_base *dns_base,
+    const char *nodename, const char *servname,
+    const struct evutil_addrinfo *hints_in,
+    evdns_getaddrinfo_cb cb, void *arg)
+{
+	struct evdns_getaddrinfo_request *data;
+	struct evutil_addrinfo hints;
+	struct evutil_addrinfo *res = NULL;
+	int err;
+	int port = 0;
+	int want_cname = 0;
+
+	if (!dns_base) {
+		dns_base = current_base;
+		if (!dns_base) {
+			log(EVDNS_LOG_WARN,
+			    "Call to getaddrinfo_async with no "
+			    "evdns_base configured.");
+			cb(EVUTIL_EAI_FAIL, NULL, arg); /* ??? better error? */
+			return NULL;
+		}
+	}
+
+	/* If we _must_ answer this immediately, do so. */
+	if ((hints_in && (hints_in->ai_flags & EVUTIL_AI_NUMERICHOST))) {
+		res = NULL;
+		err = evutil_getaddrinfo(nodename, servname, hints_in, &res);
+		cb(err, res, arg);
+		return NULL;
+	}
+
+	if (hints_in) {
+		memcpy(&hints, hints_in, sizeof(hints));
+	} else {
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = PF_UNSPEC;
+	}
+
+	evutil_adjust_hints_for_addrconfig(&hints);
+
+	/* Now try to see if we _can_ answer immediately. */
+	/* (It would be nice to do this by calling getaddrinfo directly, with
+	 * AI_NUMERICHOST, on plaforms that have it, but we can't: there isn't
+	 * a reliable way to distinguish the "that wasn't a numeric host!" case
+	 * from any other EAI_NONAME cases.) */
+	err = evutil_getaddrinfo_common(nodename, servname, &hints, &res, &port);
+	if (err != EVUTIL_EAI_NEED_RESOLVE) {
+		cb(err, res, arg);
+		return NULL;
+	}
+
+	/* Okay, things are serious now. We're going to need to actually
+	 * launch a request.
+	 */
+	data = mm_calloc(1,sizeof(struct evdns_getaddrinfo_request));
+	if (!data) {
+		cb(EVUTIL_EAI_MEMORY, NULL, arg);
+		return NULL;
+	}
+
+	memcpy(&data->hints, &hints, sizeof(data->hints));
+	data->port = (ev_uint16_t)port;
+	data->ipv4_request.type = DNS_IPv4_A;
+	data->ipv6_request.type = DNS_IPv6_AAAA;
+	data->user_cb = cb;
+	data->user_data = arg;
+	data->evdns_base = dns_base;
+
+	want_cname = (hints.ai_flags & EVUTIL_AI_CANONNAME);
+
+	/* If we are asked for a PF_UNSPEC address, we launch two requests in
+	 * parallel: one for an A address and one for an AAAA address.  We
+	 * can't send just one request, since many servers only answer one
+	 * question per DNS request.
+	 *
+	 * Once we have the answer to one request, we allow for a short
+	 * timeout before we report it, to see if the other one arrives.  If
+	 * they both show up in time, then we report both the answers.
+	 *
+	 * If too many addresses of one type time out or fail, we should stop
+	 * launching those requests. (XXX we don't do that yet.)
+	 */
+
+	if (hints.ai_family != PF_INET6) {
+		log(EVDNS_LOG_DEBUG, "Sending request for %s on ipv4 as %p",
+		    nodename, &data->ipv4_request);
+
+		data->ipv4_request.r = evdns_base_resolve_ipv4(dns_base,
+		    nodename, 0, evdns_getaddrinfo_gotresolve,
+		    &data->ipv4_request);
+		if (want_cname)
+			data->ipv4_request.r->put_cname_in_ptr =
+			    &data->cname_result;
+	}
+	if (hints.ai_family != PF_INET) {
+		log(EVDNS_LOG_DEBUG, "Sending request for %s on ipv6 as %p",
+		    nodename, &data->ipv6_request);
+
+		data->ipv6_request.r = evdns_base_resolve_ipv6(dns_base,
+		    nodename, 0, evdns_getaddrinfo_gotresolve,
+		    &data->ipv6_request);
+		if (want_cname)
+			data->ipv6_request.r->put_cname_in_ptr =
+			    &data->cname_result;
+	}
+
+	evtimer_assign(&data->timeout, dns_base->event_base,
+	    evdns_getaddrinfo_timeout_cb, data);
+
+	if (data->ipv4_request.r || data->ipv6_request.r) {
+		return data;
+	} else {
+		mm_free(data);
+		cb(EVUTIL_EAI_FAIL, NULL, arg);
+		return NULL;
+	}
+}
+
+void
+evdns_getaddrinfo_cancel(struct evdns_getaddrinfo_request *data)
+{
+	event_del(&data->timeout);
+	if (data->ipv4_request.r)
+		evdns_cancel_request(data->evdns_base, data->ipv4_request.r);
+	if (data->ipv6_request.r)
+		evdns_cancel_request(data->evdns_base, data->ipv6_request.r);
+	data->ipv4_request.r = data->ipv6_request.r = NULL;
+
+	data->user_cb(EVUTIL_EAI_CANCEL, NULL, data->user_data);
+
+	free_getaddrinfo_request(data);
+}

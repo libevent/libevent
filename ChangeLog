@@ -47,6 +47,8 @@ Changes in 2.0.3-alpha:
  o Default to using arc4random for DNS transaction IDs on systems that have it; from OpenBSD.
  o Never check the environment when we're running setuid or setgid; from OpenBSD.
  o Options passed to evdns_set_option() no longer need to end with a colon.
+ o Add an evutil_getaddrinfo() function to clone getaddrinfo on platforms that don't have it.
+ o Add an evdns_getaddrinfo() function to provide a nonblocking getaddrinfo using evdns, so programs can perform useful hostname lookup.
 
 
 Changes in 2.0.2-alpha:
