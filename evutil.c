@@ -53,6 +53,7 @@
 #include <sys/timeb.h>
 #endif
 #include <stdio.h>
+#include <signal.h>
 
 #include <sys/queue.h>
 #include "event.h"
