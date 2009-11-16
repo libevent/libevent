@@ -664,7 +664,7 @@ dns_retry_test(void *arg)
 
 	dns = evdns_base_new(base, 0);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
-	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.3", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "timeout", "0.3", DNS_OPTIONS_ALL));
 	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "10", DNS_OPTIONS_ALL));
 
 	evdns_base_resolve_ipv4(dns, "host.example.com", 0,

@@ -46,6 +46,7 @@ Changes in 2.0.3-alpha:
  o Fix a problem with excessive memory allocation when using multiple event priorities.
  o Default to using arc4random for DNS transaction IDs on systems that have it; from OpenBSD.
  o Never check the environment when we're running setuid or setgid; from OpenBSD.
+ o Options passed to evdns_set_option() no longer need to end with a colon.
 
 
 Changes in 2.0.2-alpha:

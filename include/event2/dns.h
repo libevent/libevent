@@ -403,7 +403,8 @@ void evdns_cancel_request(struct evdns_base *base, struct evdns_request *req);
     ndots, timeout, max-timeouts, max-inflight, attempts, randomize-case,
     bind-to.
 
-  The option name needs to end with a colon.
+  In versions before Libevent 2.0.3-alpha, the option name needed to end with
+  a colon.
 
   @param base the evdns_base to which to apply this operation
   @param option the name of the configuration option to be modified

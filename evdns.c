@@ -3174,12 +3174,25 @@ evdns_base_set_option(struct evdns_base *base,
 	return res;
 }
 
+static inline int
+str_matches_option(const char *s1, const char *optionname)
+{
+        /* Option names are given as "option:" We accept either 'option' in
+	 * s1, or 'option:randomjunk'.  The latter form is to implement the
+	 * resolv.conf parser. */
+	size_t optlen = strlen(optionname);
+	if (strlen(s1) == optlen)
+		return !strncmp(s1, optionname, optlen-1);
+	else
+		return !strncmp(s1, optionname, optlen);
+}
+
 static int
 evdns_base_set_option_impl(struct evdns_base *base,
     const char *option, const char *val, int flags)
 {
 	ASSERT_LOCKED(base);
-	if (!strncmp(option, "ndots:", 6)) {
+	if (str_matches_option(option, "ndots:")) {
 		const int ndots = strtoint(val);
 		if (ndots == -1) return -1;
 		if (!(flags & DNS_OPTION_SEARCH)) return 0;
@@ -3187,38 +3200,38 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		if (!base->global_search_state) base->global_search_state = search_state_new();
 		if (!base->global_search_state) return -1;
 		base->global_search_state->ndots = ndots;
-	} else if (!strncmp(option, "timeout:", 8)) {
+	} else if (str_matches_option(option, "timeout:")) {
 		struct timeval tv;
 		if (strtotimeval(val, &tv) == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting timeout to %s", val);
 		memcpy(&base->global_timeout, &tv, sizeof(struct timeval));
-	} else if (!strncmp(option, "max-timeouts:", 12)) {
+	} else if (str_matches_option(option, "max-timeouts:")) {
 		const int maxtimeout = strtoint_clipped(val, 1, 255);
 		if (maxtimeout == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting maximum allowed timeouts to %d",
 			maxtimeout);
 		base->global_max_nameserver_timeout = maxtimeout;
-	} else if (!strncmp(option, "max-inflight:", 13)) {
+	} else if (str_matches_option(option, "max-inflight:")) {
 		const int maxinflight = strtoint_clipped(val, 1, 65000);
 		if (maxinflight == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting maximum inflight requests to %d",
 			maxinflight);
 		evdns_base_set_max_requests_inflight(base, maxinflight);
-	} else if (!strncmp(option, "attempts:", 9)) {
+	} else if (str_matches_option(option, "attempts:")) {
 		int retries = strtoint(val);
 		if (retries == -1) return -1;
 		if (retries > 255) retries = 255;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting retries to %d", retries);
 		base->global_max_retransmits = retries;
-	} else if (!strncmp(option, "randomize-case:", 15)) {
+	} else if (str_matches_option(option, "randomize-case:")) {
 		int randcase = strtoint(val);
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		base->global_randomize_case = randcase;
-	} else if (!strncmp(option, "bind-to:", 8)) {
+	} else if (str_matches_option(option, "bind-to:")) {
 		/* XXX This only applies to successive nameservers, not
 		 * to already-configured ones.	We might want to fix that. */
 		int len = sizeof(base->global_outgoing_address);
