@@ -1566,7 +1566,7 @@ class CCodeGenerator:
                  '#include <event2/buffer.h>\n'
                  '#include <event2/tag.h>\n\n'
                  '#ifdef _EVENT___func__\n'
-                 '#define __func__ _EVENT___FUNC__\n'
+                 '#define __func__ _EVENT___func__\n'
                  '#endif\n\n'
                  )
 
