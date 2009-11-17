@@ -696,6 +696,58 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 #define USE_NATIVE_GETADDRINFO
 #endif
 
+#ifdef USE_NATIVE_GETADDRINFO
+/* A mask of all the flags that we declare, so we can clear them before calling
+ * the native getaddrinfo */
+static const unsigned int ALL_NONNATIVE_AI_FLAGS =
+#ifndef AI_PASSIVE
+    EVUTIL_AI_PASSIVE |
+#endif
+#ifndef AI_CANONNAME
+    EVUTIL_AI_CANONNAME |
+#endif
+#ifndef AI_NUMERICHOST
+    EVUTIL_AI_NUMERICHOST |
+#endif
+#ifndef AI_NUMERICSERV
+    EVUTIL_AI_NUMERICSERV |
+#endif
+#ifndef AI_ADDRCONFIG
+    EVUTIL_AI_ADDRCONFIG |
+#endif
+#ifndef AI_ALL
+    EVUTIL_AI_ALL |
+#endif
+#ifndef AI_V4MAPPED
+    EVUTIL_AI_V4MAPPED |
+#endif
+    EVUTIL_AI_LIBEVENT_ALLOCATED;
+
+static const unsigned int ALL_NATIVE_AI_FLAGS =
+#ifdef AI_PASSIVE
+    AI_PASSIVE |
+#endif
+#ifdef AI_CANONNAME
+    AI_CANONNAME |
+#endif
+#ifdef AI_NUMERICHOST
+    AI_NUMERICHOST |
+#endif
+#ifdef AI_NUMERICSERV
+    AI_NUMERICSERV |
+#endif
+#ifdef AI_ADDRCONFIG
+    AI_ADDRCONFIG |
+#endif
+#ifdef AI_ALL
+    AI_ALL |
+#endif
+#ifdef AI_V4MAPPED
+    AI_V4MAPPED |
+#endif
+    0;
+#endif
+
 #ifndef USE_NATIVE_GETADDRINFO
 /* Helper for systems with no getaddrinfo(): make one or more addrinfos out of
  * a struct hostent.
@@ -779,11 +831,9 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in, struct evutil_addrinfo **res)
 {
 #ifdef USE_NATIVE_GETADDRINFO
-#if !defined(AI_ADDRCONFIG) || !defined(AI_NUMERICSERV) || defined(WIN32)
 	struct evutil_addrinfo hints;
 	if (hints_in) {
 		memcpy(&hints, hints_in, sizeof(hints));
-		hints_in = &hints;
 
 #ifndef AI_ADDRCONFIG
 		/* Not every system has AI_ADDRCONFIG, so fake it. */
@@ -814,9 +864,20 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 		}
 #endif
 	}
-#endif
 
-	return getaddrinfo(nodename, servname, hints_in, res);
+	/* Make sure that we didn't actually steal any AI_FLAGS values that
+	 * the system is using.  (This is a constant expression, and should ge
+	 * optimized out.)
+	 *
+	 * XXXX Turn this into a compile-time failure rather than a run-time
+	 * failure.
+	 */
+	EVUTIL_ASSERT((ALL_NONNATIVE_AI_FLAGS & ALL_NATIVE_AI_FLAGS) == 0);
+
+	/* Clear any flags that only libevent understands. */
+	hints.ai_flags &= ~ALL_NONNATIVE_AI_FLAGS;
+
+	return getaddrinfo(nodename, servname, &hints, res);
 #else
 	int port=0, err;
 	struct hostent *ent = NULL;
