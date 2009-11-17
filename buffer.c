@@ -78,6 +78,9 @@
 #include "event2/event.h"
 #include "event2/buffer.h"
 #include "event2/buffer_compat.h"
+#include "event2/bufferevent.h"
+#include "event2/bufferevent_compat.h"
+#include "event2/bufferevent_struct.h"
 #include "event2/thread.h"
 #include "event-config.h"
 #include "log-internal.h"
@@ -85,6 +88,7 @@
 #include "util-internal.h"
 #include "evthread-internal.h"
 #include "evbuffer-internal.h"
+#include "bufferevent-internal.h"
 
 /* some systems do not have MAP_FAILED */
 #ifndef MAP_FAILED
@@ -276,6 +280,13 @@ _evbuffer_incref(struct evbuffer *buf)
 	EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
 }
 
+void
+_evbuffer_incref_and_lock(struct evbuffer *buf)
+{
+	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
+	++buf->refcnt;
+}
+
 int
 evbuffer_defer_callbacks(struct evbuffer *buffer, struct event_base *base)
 {
@@ -310,6 +321,14 @@ evbuffer_enable_locking(struct evbuffer *buf, void *lock)
 
         return 0;
 #endif
+}
+
+void
+evbuffer_set_parent(struct evbuffer *buf, struct bufferevent *bev)
+{
+	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
+	buf->parent = bev;
+	EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
 }
 
 static void
@@ -362,7 +381,10 @@ evbuffer_invoke_callbacks(struct evbuffer *buffer)
 	if (buffer->deferred_cbs) {
 		if (buffer->deferred.queued)
 			return;
-		_evbuffer_incref(buffer);
+		_evbuffer_incref_and_lock(buffer);
+		if (buffer->parent)
+			bufferevent_incref(buffer->parent);
+		EVBUFFER_UNLOCK(buffer, EVTHREAD_WRITE);
 		event_deferred_cb_schedule(buffer->cb_queue, &buffer->deferred);
 	} else {
 		evbuffer_run_callbacks(buffer);
@@ -372,13 +394,17 @@ evbuffer_invoke_callbacks(struct evbuffer *buffer)
 static void
 evbuffer_deferred_callback(struct deferred_cb *cb, void *arg)
 {
+	struct bufferevent *parent = NULL;
 	struct evbuffer *buffer = arg;
 
 	/* XXXX It would be better to run these callbacks without holding the
 	 * lock */
 	EVBUFFER_LOCK(buffer, EVTHREAD_WRITE);
+	parent = buffer->parent;
 	evbuffer_run_callbacks(buffer);
 	_evbuffer_decref_and_unlock(buffer);
+	if (parent)
+		bufferevent_free(parent);
 }
 
 static void

@@ -47,14 +47,16 @@
 #include <errno.h>
 
 #include "event2/util.h"
-#include "event2/bufferevent.h"
 #include "event2/buffer.h"
+#include "event2/buffer_compat.h"
+#include "event2/bufferevent.h"
 #include "event2/bufferevent_struct.h"
 #include "event2/bufferevent_compat.h"
 #include "event2/event.h"
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "bufferevent-internal.h"
+#include "evbuffer-internal.h"
 #include "util-internal.h"
 
 void
@@ -256,6 +258,9 @@ bufferevent_init_common(struct bufferevent_private *bufev_private,
 	}
 
 	bufev_private->options = options;
+
+	evbuffer_set_parent(bufev->input, bufev);
+	evbuffer_set_parent(bufev->output, bufev);
 
 	return 0;
 }
@@ -494,6 +499,9 @@ _bufferevent_decref_and_unlock(struct bufferevent *bufev)
 	if (bufev->be_ops->destruct)
 		bufev->be_ops->destruct(bufev);
 
+	/* XXX what happens if refcnt for these buffers is > 1?
+	 * The buffers can share a lock with this bufferevent object,
+	 * but the lock might be destroyed below. */
 	/* evbuffer will free the callbacks */
 	evbuffer_free(bufev->input);
 	evbuffer_free(bufev->output);
@@ -631,7 +639,7 @@ _bufferevent_init_generic_timeout_cbs(struct bufferevent *bev)
 {
 	evtimer_assign(&bev->ev_read, bev->ev_base,
 	    bufferevent_generic_read_timeout_cb, bev);
-	evtimer_assign(&bev->ev_read, bev->ev_base,
+	evtimer_assign(&bev->ev_write, bev->ev_base,
 	    bufferevent_generic_write_timeout_cb, bev);
 }
 

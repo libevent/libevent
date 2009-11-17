@@ -124,24 +124,32 @@ void _evbuffer_overlapped_set_fd(struct evbuffer *buf, evutil_socket_t fd);
     An evbuffer can only have one read pending at a time.  While the read
     is in progress, no other data may be added to the end of the buffer.
     The buffer must be created with event_overlapped_init().
+    evbuffer_commit_read() must be called in the completion callback. 
 
     @param buf The buffer to read onto
     @param n The number of bytes to try to read.
+    @param ol Overlapped object with associated completion callback.
     @return 0 on success, -1 on error.
  */
-int evbuffer_launch_read(struct evbuffer *, size_t n);
+int evbuffer_launch_read(struct evbuffer *buf, size_t n, struct event_overlapped *ol);
 
 /** Start writing data from the start of an evbuffer.
 
     An evbuffer can only have one write pending at a time.  While the write is
     in progress, no other data may be removed from the front of the buffer.
     The buffer must be created with event_overlapped_init().
+    evbuffer_commit_write() must be called in the completion callback. 
 
     @param buf The buffer to read onto
     @param n The number of bytes to try to read.
+    @param ol Overlapped object with associated completion callback.
     @return 0 on success, -1 on error.
  */
-int evbuffer_launch_write(struct evbuffer *, ev_ssize_t n);
+int evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t n, struct event_overlapped *ol);
+
+/** XXX document */
+void evbuffer_commit_read(struct evbuffer *, ev_ssize_t);
+void evbuffer_commit_write(struct evbuffer *, ev_ssize_t);
 
 /** Create an IOCP, and launch its worker threads.  Internal use only.
 
@@ -179,6 +187,7 @@ struct bufferevent *bufferevent_async_new(struct event_base *base,
     evutil_socket_t fd, int options);
 
 /* FIXME document. */
+void bufferevent_async_set_connected(struct bufferevent *bev);
 int bufferevent_async_can_connect(struct bufferevent *bev);
 int bufferevent_async_connect(struct bufferevent *bev, evutil_socket_t fd,
 	const struct sockaddr *sa, int socklen);

@@ -152,14 +152,39 @@ end:
 	;
 }
 
+static struct evbuffer *rbuf = NULL, *wbuf = NULL;
+
+static void
+read_complete(struct event_overlapped *eo, uintptr_t key,
+    ev_ssize_t nbytes, int ok)
+{
+	tt_assert(ok);
+	evbuffer_commit_read(rbuf, nbytes);
+end:
+	;
+}
+
+static void
+write_complete(struct event_overlapped *eo, uintptr_t key,
+    ev_ssize_t nbytes, int ok)
+{
+	tt_assert(ok);
+	evbuffer_commit_write(wbuf, nbytes);
+end:
+	;
+}
+
 static void
 test_iocp_evbuffer(void *ptr)
 {
+	struct event_overlapped rol, wol;
 	struct basic_test_data *data = ptr;
 	struct event_iocp_port *port = NULL;
-	struct evbuffer *rbuf = NULL, *wbuf = NULL;
 	char junk[1024];
 	int i;
+
+	event_overlapped_init(&rol, read_complete);
+	event_overlapped_init(&wol, write_complete);
 
 #ifdef WIN32
 	evthread_use_windows_threads();
@@ -185,8 +210,8 @@ test_iocp_evbuffer(void *ptr)
 		evbuffer_add(wbuf, junk, sizeof(junk));
 
 	tt_assert(!evbuffer_get_length(rbuf));
-	tt_assert(!evbuffer_launch_write(wbuf, 512));
-	tt_assert(!evbuffer_launch_read(rbuf, 2048));
+	tt_assert(!evbuffer_launch_write(wbuf, 512, &wol));
+	tt_assert(!evbuffer_launch_read(rbuf, 2048, &rol));
 
 #ifdef WIN32
 	/* FIXME this is stupid. */

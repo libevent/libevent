@@ -212,8 +212,18 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 			goto done;
 		} else {
 			connected = 1;
-			_bufferevent_run_eventcb(bufev, BEV_EVENT_CONNECTED);
-			if (!(bufev->enabled & EV_WRITE) || BEV_IS_ASYNC(bufev)) {
+#ifdef WIN32
+		       	if (BEV_IS_ASYNC(bufev)) {
+				event_del(&bufev->ev_write);
+				bufferevent_async_set_connected(bufev);
+				_bufferevent_run_eventcb(bufev,
+						BEV_EVENT_CONNECTED);
+				goto done;
+			}
+#endif
+			_bufferevent_run_eventcb(bufev,
+					BEV_EVENT_CONNECTED);
+			if (!(bufev->enabled & EV_WRITE)) {
 				event_del(&bufev->ev_write);
 				goto done;
 			}

@@ -48,34 +48,23 @@
 
 #define MAX_WSABUFS 16
 
-/** Wrapper for an OVERLAPPED that holds the necessary info to notice
-    when an overlapped read or write is done on an evbuffer.
- **/
-struct buffer_overlapped {
-	struct event_overlapped event_overlapped;
-
-	/** The first pinned chain in the buffer. */
-	struct evbuffer_chain *first_pinned;
-	/** The buffer itself. */
-	struct evbuffer_overlapped *buf;
-	/** How many chains are pinned; how many of the fields in buffers
-	 * are we using. */
-	int n_buffers;
-	WSABUF buffers[MAX_WSABUFS];
-};
-
 /** An evbuffer that can handle overlapped IO. */
 struct evbuffer_overlapped {
 	struct evbuffer buffer;
 	/** The socket that we're doing overlapped IO on. */
 	evutil_socket_t fd;
-	/** True iff we have scheduled a write. */
-	unsigned write_in_progress : 1;
-	/** True iff we have scheduled a read. */
-	unsigned read_in_progress : 1;
 
-	struct buffer_overlapped read_info;
-	struct buffer_overlapped write_info;
+	/** pending I/O type */
+	unsigned read_in_progress : 1;
+	unsigned write_in_progress : 1;
+
+	/** The first pinned chain in the buffer. */
+	struct evbuffer_chain *first_pinned;
+
+	/** How many chains are pinned; how many of the fields in buffers
+	 * are we using. */
+	int n_buffers;
+	WSABUF buffers[MAX_WSABUFS];
 };
 
 /** Given an evbuffer, return the correponding evbuffer structure, or NULL if
@@ -88,52 +77,40 @@ upcast_evbuffer(struct evbuffer *buf)
 	return EVUTIL_UPCAST(buf, struct evbuffer_overlapped, buffer);
 }
 
-static inline struct buffer_overlapped *
-upcast_overlapped(struct event_overlapped *o)
-{
-	return EVUTIL_UPCAST(o, struct buffer_overlapped, event_overlapped);
-}
-
 /** Unpin all the chains noted as pinned in 'eo'. */
 static void
-pin_release(struct event_overlapped *eo, unsigned flag)
+pin_release(struct evbuffer_overlapped *eo, unsigned flag)
 {
 	int i;
-	struct buffer_overlapped *bo = upcast_overlapped(eo);
-	struct evbuffer_chain *chain = bo->first_pinned;
+	struct evbuffer_chain *chain = eo->first_pinned;
 
-	for (i = 0; i < bo->n_buffers; ++i) {
+	for (i = 0; i < eo->n_buffers; ++i) {
 		EVUTIL_ASSERT(chain);
 		_evbuffer_chain_unpin(chain, flag);
 		chain = chain->next;
 	}
 }
 
-/** IOCP callback invoked when a read operation is finished. */
-static void
-read_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes, int ok)
+void
+evbuffer_commit_read(struct evbuffer *evbuf, ev_ssize_t nBytes)
 {
-	struct buffer_overlapped *buf_o = upcast_overlapped(eo);
-	struct evbuffer_overlapped *buf = buf_o->buf;
-	struct evbuffer *evbuf = &buf->buffer;
-
+	struct evbuffer_overlapped *buf = upcast_evbuffer(evbuf);
 	struct evbuffer_iovec iov[2];
 	int n_vec;
 
-	// XXXX use ok
+	EVBUFFER_LOCK(evbuf, EVTHREAD_WRITE);
+	EVUTIL_ASSERT(buf->read_in_progress && !buf->write_in_progress);
 	EVUTIL_ASSERT(nBytes >= 0); // XXXX Can this be false?
 
-	EVBUFFER_LOCK(evbuf, EVTHREAD_WRITE);
-	buf->read_in_progress = 0;
 	evbuffer_unfreeze(evbuf, 0);
 
-	iov[0].iov_base = buf_o->buffers[0].buf;
-	if ((size_t)nBytes <= buf_o->buffers[0].len) {
+	iov[0].iov_base = buf->buffers[0].buf;
+	if ((size_t)nBytes <= buf->buffers[0].len) {
 		iov[0].iov_len = nBytes;
 		n_vec = 1;
 	} else {
-		iov[0].iov_len = buf_o->buffers[0].len;
-		iov[1].iov_base = buf_o->buffers[1].buf;
+		iov[0].iov_len = buf->buffers[0].len;
+		iov[1].iov_base = buf->buffers[1].buf;
 		iov[1].iov_len = nBytes - iov[0].iov_len;
 		n_vec = 2;
 	}
@@ -141,26 +118,24 @@ read_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes, int 
 	if (evbuffer_commit_space(evbuf, iov, n_vec) < 0)
 		EVUTIL_ASSERT(0); /* XXXX fail nicer. */
 
-	pin_release(eo, EVBUFFER_MEM_PINNED_R);
+	pin_release(buf, EVBUFFER_MEM_PINNED_R);
+
+	buf->read_in_progress = 0;
 
 	_evbuffer_decref_and_unlock(evbuf);
 }
 
-/** IOCP callback invoked when a write operation is finished. */
-static void
-write_completed(struct event_overlapped *eo, uintptr_t _, ev_ssize_t nBytes, int ok)
+void
+evbuffer_commit_write(struct evbuffer *evbuf, ev_ssize_t nBytes)
 {
-	// XXX use ok
-	struct buffer_overlapped *buf_o = upcast_overlapped(eo);
-	struct evbuffer_overlapped *buf = buf_o->buf;
-
-	struct evbuffer *evbuf = &buf->buffer;
+	struct evbuffer_overlapped *buf = upcast_evbuffer(evbuf);
 
 	EVBUFFER_LOCK(evbuf, EVTHREAD_WRITE);
-	buf->write_in_progress = 0;
+	EVUTIL_ASSERT(buf->write_in_progress && !buf->read_in_progress);
 	evbuffer_unfreeze(evbuf, 1);
 	evbuffer_drain(evbuf, nBytes);
-	pin_release(eo,EVBUFFER_MEM_PINNED_W);
+	pin_release(buf,EVBUFFER_MEM_PINNED_W);
+	buf->write_in_progress = 0;
 	_evbuffer_decref_and_unlock(evbuf);
 }
 
@@ -181,7 +156,8 @@ evbuffer_overlapped_new(evutil_socket_t fd)
 }
 
 int
-evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most)
+evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most,
+		struct event_overlapped *ol)
 {
 	struct evbuffer_overlapped *buf_o = upcast_evbuffer(buf);
 	int r = -1;
@@ -195,6 +171,7 @@ evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most)
 	}
 
 	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
+	EVUTIL_ASSERT(!buf_o->read_in_progress);
 	if (buf->freeze_start || buf_o->write_in_progress)
 		goto done;
 	if (!buf->total_len) {
@@ -206,14 +183,14 @@ evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most)
 	}
 	evbuffer_freeze(buf, 1);
 
-	/* XXX we could move much of this into the constructor. */
-	memset(&buf_o->write_info, 0, sizeof(buf_o->write_info));
-	buf_o->write_info.buf = buf_o;
-	buf_o->write_info.event_overlapped.cb = write_completed;
-	chain = buf_o->write_info.first_pinned = buf->first;
+	buf_o->first_pinned = 0;
+	buf_o->n_buffers = 0;
+	memset(buf_o->buffers, 0, sizeof(buf_o->buffers));
+
+	chain = buf_o->first_pinned = buf->first;
 
 	for (i=0; i < MAX_WSABUFS && chain; ++i, chain=chain->next) {
-		WSABUF *b = &buf_o->write_info.buffers[i];
+		WSABUF *b = &buf_o->buffers[i];
 		b->buf = chain->buffer + chain->misalign;
 		_evbuffer_chain_pin(chain, EVBUFFER_MEM_PINNED_W);
 
@@ -227,14 +204,14 @@ evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most)
 		}
 	}
 
-	buf_o->write_info.n_buffers = i;
+	buf_o->n_buffers = i;
 	_evbuffer_incref(buf);
-	if (WSASend(buf_o->fd, buf_o->write_info.buffers, i, &bytesSent, 0,
-		&buf_o->write_info.event_overlapped.overlapped, NULL)) {
+	if (WSASend(buf_o->fd, buf_o->buffers, i, &bytesSent, 0,
+		&ol->overlapped, NULL)) {
 		int error = WSAGetLastError();
 		if (error != WSA_IO_PENDING) {
 			/* An actual error. */
-			pin_release(&buf_o->write_info.event_overlapped, EVBUFFER_MEM_PINNED_W);
+			pin_release(buf_o, EVBUFFER_MEM_PINNED_W);
 			evbuffer_unfreeze(buf, 1);
 			evbuffer_free(buf); /* decref */
 			goto done;
@@ -249,7 +226,8 @@ done:
 }
 
 int
-evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
+evbuffer_launch_read(struct evbuffer *buf, size_t at_most,
+		struct event_overlapped *ol)
 {
 	struct evbuffer_overlapped *buf_o = upcast_evbuffer(buf);
 	int r = -1, i;
@@ -263,28 +241,28 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
 	if (!buf_o)
 		return -1;
 	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
+	EVUTIL_ASSERT(!buf_o->write_in_progress);
 	if (buf->freeze_end || buf_o->read_in_progress)
 		goto done;
+
+	buf_o->first_pinned = 0;
+	buf_o->n_buffers = 0;
+	memset(buf_o->buffers, 0, sizeof(buf_o->buffers));
 
 	if (_evbuffer_expand_fast(buf, at_most) == -1)
 		goto done;
 	evbuffer_freeze(buf, 0);
 
-	/* XXX we could move much of this into the constructor. */
-	memset(&buf_o->read_info, 0, sizeof(buf_o->read_info));
-	buf_o->read_info.buf = buf_o;
-	buf_o->read_info.event_overlapped.cb = read_completed;
-
 	nvecs = _evbuffer_read_setup_vecs(buf, at_most,
 	    vecs, &chain, 1);
 	for (i=0;i<nvecs;++i) {
 		WSABUF_FROM_EVBUFFER_IOV(
-			&buf_o->read_info.buffers[i],
+			&buf_o->buffers[i],
 			&vecs[i]);
 	}
 
-	buf_o->read_info.n_buffers = nvecs;
-	buf_o->read_info.first_pinned = chain;
+	buf_o->n_buffers = nvecs;
+	buf_o->first_pinned = chain;
 	npin=0;
 	for ( ; chain; chain = chain->next) {
 		_evbuffer_chain_pin(chain, EVBUFFER_MEM_PINNED_R);
@@ -293,11 +271,12 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most)
 	EVUTIL_ASSERT(npin == nvecs);
 
 	_evbuffer_incref(buf);
-	if (WSARecv(buf_o->fd, buf_o->read_info.buffers, nvecs, &bytesRead, &flags, &buf_o->read_info.event_overlapped.overlapped, NULL)) {
+	if (WSARecv(buf_o->fd, buf_o->buffers, nvecs, &bytesRead, &flags,
+	            &ol->overlapped, NULL)) {
 		int error = WSAGetLastError();
 		if (error != WSA_IO_PENDING) {
 			/* An actual error. */
-			pin_release(&buf_o->read_info.event_overlapped, EVBUFFER_MEM_PINNED_R);
+			pin_release(buf_o, EVBUFFER_MEM_PINNED_R);
 			evbuffer_unfreeze(buf, 0);
 			evbuffer_free(buf); /* decref */
 			goto done;

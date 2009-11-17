@@ -497,6 +497,13 @@ test_bufferevent_connect(void *arg)
 	bufferevent_enable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
 
+#ifdef WIN32
+	/* FIXME this is to get IOCP to work. it shouldn't be required. */
+	{
+		struct timeval tv = {5000,0};
+		event_base_loopexit(data->base, &tv);
+	}
+#endif
 	event_base_dispatch(data->base);
 
 	tt_int_op(n_strings_read, ==, 2);
@@ -580,6 +587,13 @@ test_bufferevent_connect_fail(void *arg)
 	event_add(&close_listener_event, &one_second);
 	close_listener_event_added = 1;
 
+#ifdef WIN32
+	/* FIXME this is to get IOCP to work. it shouldn't be required. */
+	{
+		struct timeval tv = {5000,0};
+		event_base_loopexit(data->base, &tv);
+	}
+#endif
 	event_base_dispatch(data->base);
 
 	tt_int_op(test_ok, ==, 1);
@@ -628,7 +642,6 @@ struct testcase_t bufferevent_iocp_testcases[] = {
         LEGACY(bufferevent, TT_ISOLATED|TT_ENABLE_IOCP),
         LEGACY(bufferevent_watermarks, TT_ISOLATED|TT_ENABLE_IOCP),
         LEGACY(bufferevent_filters, TT_ISOLATED|TT_ENABLE_IOCP),
-#if 0
 	{ "bufferevent_connect", test_bufferevent_connect,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, (void*)"" },
 	{ "bufferevent_connect_defer", test_bufferevent_connect,
@@ -639,14 +652,11 @@ struct testcase_t bufferevent_iocp_testcases[] = {
 	{ "bufferevent_connect_lock_defer", test_bufferevent_connect,
 	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS|TT_ENABLE_IOCP, &basic_setup,
 	  (void*)"defer lock" },
-#endif
 	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
-#if 0
 	{ "bufferevent_connect_nonblocking", test_bufferevent_connect,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
 	  (void*)"unset_connectex" },
-#endif
 
         END_OF_TESTCASES,
 };

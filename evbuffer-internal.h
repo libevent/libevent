@@ -66,6 +66,7 @@ struct evbuffer_cb_entry {
 #endif
 };
 
+struct bufferevent;
 struct evbuffer_chain;
 struct evbuffer {
 	/** The first chain in this buffer's linked list of chains. */
@@ -135,6 +136,10 @@ struct evbuffer {
 
 	/** A doubly-linked-list of callback functions */
 	TAILQ_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
+
+	/** The parent bufferevent object this evbuffer belongs to.
+	 * NULL if the evbuffer stands alone. */
+	struct bufferevent *parent;
 };
 
 /** A single item in an evbuffer. */
@@ -245,6 +250,8 @@ struct evbuffer_chain_reference {
 
 /** Increase the reference count of buf by one. */
 void _evbuffer_incref(struct evbuffer *buf);
+/** Increase the reference count of buf by one and acquire the lock. */
+void _evbuffer_incref_and_lock(struct evbuffer *buf);
 /** Pin a single buffer chain using a given flag. A pinned chunk may not be
  * moved or freed until it is unpinned. */
 void _evbuffer_chain_pin(struct evbuffer_chain *chain, unsigned flag);
@@ -272,6 +279,9 @@ int _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
 		(i)->buf = (ei)->iov_base;		\
 		(i)->len = (ei)->iov_len;		\
 	} while(0)
+
+/** Set the parent bufferevent object for buf to bev */
+void evbuffer_set_parent(struct evbuffer *buf, struct bufferevent *bev);
 
 #ifdef __cplusplus
 }
