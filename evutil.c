@@ -856,10 +856,16 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 		/* Enough operating systems handle enough common non-resolve
 		 * cases here weirdly enough that we are better off just
 		 * overriding them.  For example:
-		 * - Some believe that giving a numeric port as a servname is
-		 *   totally verboten.  (I think this includes OpenBSD IIUC).
-		 *   [XXXX we don't fix this case completely.]
-		 * - Windows is eccentric.
+		 * - Some older BSDs used to believe that giving a numeric
+		 *   port without giving an ai_socktype was verboten.
+		 *   (XXX we don't yet handle the general case of this.)
+		 *
+		 * - Windows doesn't like to infer the protocol from the
+		 *   socket type, or fill in socket or protocol types much at
+		 *   all.  It also seems to do its own broken implicit
+		 *   always-on version of AI_ADDRCONFIG that keeps it from
+		 *   ever resolving even a literal IPv6 address when
+		 *   ai_addrtype is PF_UNSPEC.
 		 */
 		{
 			int err, port;

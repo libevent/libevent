@@ -613,8 +613,12 @@ struct evdns_getaddrinfo_request;
  * we pass the evutil_addrinfo structures we found (or NULL on error).  We
  * pass 'arg' as the third argument.
  *
+ * Limitations:
+ *
  * - The AI_V4MAPPED and AI_ALL flags are not currently implemented.
  * - We don't look at the /etc/hosts file.
+ * - For ai_socktype, we only handle SOCKTYPE_STREAM, SOCKTYPE_UDP, and 0.
+ * - For ai_protocol, we only handle IPPROTO_TCP, IPPROTO_UDP, and 0.
  */
 struct evdns_getaddrinfo_request *evdns_getaddrinfo(
     struct evdns_base *dns_base,
