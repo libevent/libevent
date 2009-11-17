@@ -502,7 +502,7 @@ evutil_parse_servname(const char *servname, const char *protocol,
 	n = (int) strtol(servname, &endptr, 10);
 	if (n>=0 && n <= 65535 && servname[0] && endptr && !endptr[0])
 		return n;
-#ifdef _EVENT_HAVE_GETSERVBYNAME
+#if defined(_EVENT_HAVE_GETSERVBYNAME) || defined(WIN32)
 	if (!(hints->ai_flags & EVUTIL_AI_NUMERICSERV)) {
 		struct servent *ent = getservbyname(servname, protocol);
 		if (ent) {

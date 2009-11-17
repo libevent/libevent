@@ -171,7 +171,7 @@ die horribly
 AM_CONDITIONAL(BUILD_WIN32, test x$bwin32 = xtrue)
 
 if test x$bwin32 = xtrue; then
-   LIBS="$LIBS -lws2_32"
+   AC_SEARCH_LIBS([getservbyname],[ws2_32])
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.

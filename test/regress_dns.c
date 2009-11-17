@@ -1183,11 +1183,14 @@ test_getaddrinfo_async(void *arg)
 	r = evdns_getaddrinfo(dns_base, "1.2.3.4", "http",
 	    &hints, gai_cb, &local_outcome);
 	tt_int_op(r,==,0);
-	tt_int_op(local_outcome.err,==,0);
-	tt_ptr_op(local_outcome.ai,!=,NULL);
-	test_ai_eq(local_outcome.ai, "1.2.3.4:80", SOCK_STREAM, IPPROTO_TCP);
-	evutil_freeaddrinfo(local_outcome.ai);
-	local_outcome.ai = NULL;
+	if (!local_outcome.err) {
+		tt_ptr_op(local_outcome.ai,!=,NULL);
+		test_ai_eq(local_outcome.ai, "1.2.3.4:80", SOCK_STREAM, IPPROTO_TCP);
+		evutil_freeaddrinfo(local_outcome.ai);
+		local_outcome.ai = NULL;
+	} else {
+		TT_BLATHER(("Apparently we have no getservbyname."));
+	}
 
 	/* 1b. EVUTIL_AI_NUMERICHOST is set */
 	memset(&hints, 0, sizeof(hints));
