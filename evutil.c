@@ -650,7 +650,7 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 	/* If we can, we should try to parse the hostname without resolving
 	 * it. */
 	/* Try ipv6. */
-	if (hints->ai_family == PF_INET6 || hints->ai_family == PF_UNSPEC){
+	if (hints->ai_family == PF_INET6 || hints->ai_family == PF_UNSPEC) {
 		struct sockaddr_in6 sin6;
 		memset(&sin6, 0, sizeof(sin6));
 		if (1==evutil_inet_pton(AF_INET6, nodename, &sin6.sin6_addr)) {
@@ -843,7 +843,8 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 		}
 #endif
 
-#ifndef AI_NUMERICSERV
+#if 0
+		/* XXXX This is now done by the call below. */
 		/* Not every system has AI_NUMERICSERV, so fake it. */
 		if (hints.ai_flags & EVUTIL_AI_NUMERICSERV) {
 			if (evutil_parse_servname(servname,
@@ -852,17 +853,26 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 		}
 #endif
 
-#ifdef WIN32
-		/* Windows handles enough cases here weirdly enough that we
-		 * are better off just overriding a bunch of them. */
+		/* Enough operating systems handle enough common non-resolve
+		 * cases here weirdly enough that we are better off just
+		 * overriding them.  For example:
+		 * - Some believe that giving a numeric port as a servname is
+		 *   totally verboten.  (I think this includes OpenBSD IIUC).
+		 *   [XXXX we don't fix this case completely.]
+		 * - Windows is eccentric.
+		 */
 		{
 			int err, port;
 			err = evutil_getaddrinfo_common(nodename,servname,&hints,
 			    res, &port);
-			if (err != EVUTIL_EAI_NEED_RESOLVE)
+			if (err == 0 ||
+			    err == EVUTIL_EAI_MEMORY ||
+			    err == EVUTIL_EAI_NONAME)
 				return err;
+			/* If we make it here, the system getaddrinfo can
+			 * have a crack at it. */
 		}
-#endif
+
 	}
 
 	/* Make sure that we didn't actually steal any AI_FLAGS values that
