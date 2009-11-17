@@ -31,6 +31,8 @@
 
 #include "event-config.h"
 
+#include <sys/types.h>
+
 #ifndef WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>

@@ -48,6 +48,7 @@
 #include <errno.h>
 #endif
 
+#include <sys/types.h>
 
 #ifndef WIN32
 #include <sys/socket.h>
