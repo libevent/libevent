@@ -490,6 +490,18 @@ evutil_addrinfo_append(struct evutil_addrinfo *first,
 	return first;
 }
 
+static int
+parse_numeric_servname(const char *servname)
+{
+	int n;
+	char *endptr=NULL;
+	n = (int) strtol(servname, &endptr, 10);
+	if (n>=0 && n <= 65535 && servname[0] && endptr && !endptr[0])
+		return n;
+	else
+		return -1;
+}
+
 /** Parse a service name in 'servname', which can be a decimal port.
  * Return the port number, or -1 on error.
  */
@@ -497,10 +509,8 @@ static int
 evutil_parse_servname(const char *servname, const char *protocol,
     const struct evutil_addrinfo *hints)
 {
-	int n;
-	char *endptr=NULL;
-	n = (int) strtol(servname, &endptr, 10);
-	if (n>=0 && n <= 65535 && servname[0] && endptr && !endptr[0])
+	int n = parse_numeric_servname(servname);
+	if (n>=0)
 		return n;
 #if defined(_EVENT_HAVE_GETSERVBYNAME) || defined(WIN32)
 	if (!(hints->ai_flags & EVUTIL_AI_NUMERICSERV)) {
@@ -826,59 +836,146 @@ evutil_adjust_hints_for_addrconfig(struct evutil_addrinfo *hints)
 	}
 }
 
+#ifdef USE_NATIVE_GETADDRINFO
+/* Some older BSDs (like OpenBSD up to 4.6) used to believe that
+   giving a numeric port without giving an ai_socktype was verboten.
+   We test for this so we can apply an appropriate workaround.  If it
+   turns out that the bug is present, then:
+
+    - If nodename==NULL and servname is numeric, we build an answer
+      ourselves using evutil_getaddrinfo_common().
+
+    - If nodename!=NULL and servname is numeric, then we set
+      servname=NULL when calling getaddrinfo, and post-process the
+      result to set the ports on it.
+
+   We test for this bug at runtime, since otherwise we can't have the
+   same binary run on multiple BSD versions.
+*/
+static int
+need_numeric_port_hack(void)
+{
+	static int tested=0;
+	static int need_hack=0;
+	int r, r2;
+	struct evutil_addrinfo *ai=NULL, *ai2=NULL;
+	struct evutil_addrinfo hints;
+	if (tested)
+		return need_hack;
+
+	memset(&hints,0,sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_flags =
+#ifdef AI_NUMERICHOST
+	    AI_NUMERICHOST |
+#endif
+#ifdef AI_NUMERICSERV
+	    AI_NUMERICSERV |
+#endif
+	    0;
+	r = getaddrinfo("1.2.3.4", "80", &hints, &ai);
+	hints.ai_socktype = SOCK_STREAM;
+	r2 = getaddrinfo("1.2.3.4", "80", &hints, &ai2);
+	if (r2 == 0 && r != 0) {
+		need_hack=1;
+	}
+	if (ai)
+		freeaddrinfo(ai);
+	if (ai2)
+		freeaddrinfo(ai2);
+	tested = 1;
+	return need_hack;
+}
+
+static void
+apply_numeric_port_hack(int port, struct evutil_addrinfo **ai)
+{
+	/* Now we run through the list and set the ports on all of the
+	 * results where ports */
+	for ( ; *ai; ai = &(*ai)->ai_next) {
+		struct sockaddr *sa = (*ai)->ai_addr;
+		if (sa && sa->sa_family == AF_INET) {
+			struct sockaddr_in *sin = (struct sockaddr_in*)sa;
+			sin->sin_port = htons(port);
+		} else if (sa && sa->sa_family == AF_INET6) {
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6*)sa;
+			sin6->sin6_port = htons(port);
+		} else {
+			/* A numeric port makes no sense here; remove this one
+			 * from the list. */
+			struct evutil_addrinfo *victim = *ai;
+			*ai = victim->ai_next;
+			victim->ai_next = NULL;
+			freeaddrinfo(victim);
+		}
+	}
+}
+#endif
+
 int
 evutil_getaddrinfo(const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in, struct evutil_addrinfo **res)
 {
 #ifdef USE_NATIVE_GETADDRINFO
 	struct evutil_addrinfo hints;
+	int portnum=-1, need_np_hack, err;
+
 	if (hints_in) {
 		memcpy(&hints, hints_in, sizeof(hints));
+	} else {
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = PF_UNSPEC;
+	}
 
 #ifndef AI_ADDRCONFIG
-		/* Not every system has AI_ADDRCONFIG, so fake it. */
-		if (hints.ai_family == PF_UNSPEC &&
-		    (hints.ai_flags & EVUTIL_AI_ADDRCONFIG)) {
-			evutil_adjust_hints_for_addrconfig(&hints);
-		}
+	/* Not every system has AI_ADDRCONFIG, so fake it. */
+	if (hints.ai_family == PF_UNSPEC &&
+	    (hints.ai_flags & EVUTIL_AI_ADDRCONFIG)) {
+		evutil_adjust_hints_for_addrconfig(&hints);
+	}
 #endif
 
-#if 0
-		/* XXXX This is now done by the call below. */
-		/* Not every system has AI_NUMERICSERV, so fake it. */
-		if (hints.ai_flags & EVUTIL_AI_NUMERICSERV) {
-			if (evutil_parse_servname(servname,
-				NULL, &hints) < 0)
-				return EVUTIL_EAI_NONAME;
-		}
+#ifndef AI_NUMERICSERV
+	/* Not every system has AI_NUMERICSERV, so fake it. */
+	if (hints.ai_flags & EVUTIL_AI_NUMERICSERV) {
+		if (servname && parse_numeric_servname(servname)<0)
+			return EVUTIL_EAI_NONAME;
+	}
 #endif
 
-		/* Enough operating systems handle enough common non-resolve
-		 * cases here weirdly enough that we are better off just
-		 * overriding them.  For example:
-		 * - Some older BSDs used to believe that giving a numeric
-		 *   port without giving an ai_socktype was verboten.
-		 *   (XXX we don't yet handle the general case of this.)
-		 *
-		 * - Windows doesn't like to infer the protocol from the
-		 *   socket type, or fill in socket or protocol types much at
-		 *   all.  It also seems to do its own broken implicit
-		 *   always-on version of AI_ADDRCONFIG that keeps it from
-		 *   ever resolving even a literal IPv6 address when
-		 *   ai_addrtype is PF_UNSPEC.
-		 */
-		{
-			int err, port;
-			err = evutil_getaddrinfo_common(nodename,servname,&hints,
-			    res, &port);
-			if (err == 0 ||
-			    err == EVUTIL_EAI_MEMORY ||
-			    err == EVUTIL_EAI_NONAME)
-				return err;
-			/* If we make it here, the system getaddrinfo can
-			 * have a crack at it. */
-		}
+	/* Enough operating systems handle enough common non-resolve
+	 * cases here weirdly enough that we are better off just
+	 * overriding them.  For example:
+	 *
+	 * - Windows doesn't like to infer the protocol from the
+	 *   socket type, or fill in socket or protocol types much at
+	 *   all.  It also seems to do its own broken implicit
+	 *   always-on version of AI_ADDRCONFIG that keeps it from
+	 *   ever resolving even a literal IPv6 address when
+	 *   ai_addrtype is PF_UNSPEC.
+	 */
+#ifdef WIN32
+	{
+		int tmp_port;
+		err = evutil_getaddrinfo_common(nodename,servname,&hints,
+		    res, &tmp_port);
+		if (err == 0 ||
+		    err == EVUTIL_EAI_MEMORY ||
+		    err == EVUTIL_EAI_NONAME)
+			return err;
+		/* If we make it here, the system getaddrinfo can
+		 * have a crack at it. */
+	}
+#endif
 
+	/* See documentation for need_numeric_port_hack above.*/
+	need_np_hack = need_numeric_port_hack() && servname && !hints.ai_socktype
+	    && ((portnum=parse_numeric_servname(servname)) >= 0);
+	if (need_np_hack) {
+		if (!nodename)
+			return evutil_getaddrinfo_common(
+				NULL,servname,&hints, res, &portnum);
+		servname = NULL;
 	}
 
 	/* Make sure that we didn't actually steal any AI_FLAGS values that
@@ -893,7 +990,10 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 	/* Clear any flags that only libevent understands. */
 	hints.ai_flags &= ~ALL_NONNATIVE_AI_FLAGS;
 
-	return getaddrinfo(nodename, servname, &hints, res);
+	err = getaddrinfo(nodename, servname, &hints, res);
+	if (need_np_hack)
+		apply_numeric_port_hack(portnum, res);
+	return err;
 #else
 	int port=0, err;
 	struct hostent *ent = NULL;
