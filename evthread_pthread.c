@@ -32,6 +32,7 @@
 struct event_base;
 #include <event2/thread.h>
 
+#include <stdlib.h>
 #include "mm-internal.h"
 
 static pthread_mutexattr_t attr_recursive;

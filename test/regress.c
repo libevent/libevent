@@ -1860,6 +1860,13 @@ end:
 	}
 }
 
+#ifdef _EVENT_DISABLE_MM_REPLACEMENT
+static void
+test_mm_functions(void *arg)
+{
+	_tinytest_set_test_skipped();
+}
+#else
 static int
 check_dummy_mem_ok(void *_mem)
 {
@@ -1914,6 +1921,7 @@ end:
 	if (b)
 		event_base_free(b);
 }
+#endif
 
 static void
 many_event_cb(int fd, short event, void *arg)

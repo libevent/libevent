@@ -401,12 +401,14 @@ test_evbuffer_add_file(void *ptr)
 }
 #endif
 
+#ifndef _EVENT_DISABLE_MM_REPLACEMENT
 static void *
 failing_malloc(size_t how_much)
 {
 	errno = ENOMEM;
 	return NULL;
 }
+#endif
 
 static void
 test_evbuffer_readln(void *ptr)
@@ -604,6 +606,7 @@ test_evbuffer_readln(void *ptr)
 	evbuffer_validate(evb);
 
 	/* the next call to readline should fail */
+#ifndef _EVENT_DISABLE_MM_REPLACEMENT
 	event_set_mem_functions(failing_malloc, realloc, free);
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
 	tt_assert(cp == NULL);
@@ -611,6 +614,7 @@ test_evbuffer_readln(void *ptr)
 
 	/* now we should get the next line back */
 	event_set_mem_functions(malloc, realloc, free);
+#endif
 	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
 	tt_line_eq("two line");
 	free(cp); cp = NULL;
