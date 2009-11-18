@@ -125,6 +125,7 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 
 	nfds = pop->nfds;
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
 	if (base->th_base_lock) {
 		/* If we're using this backend in a multithreaded setting,
 		 * then we need to work on a copy of event_set, so that we can
@@ -147,6 +148,9 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 	} else {
 		event_set = pop->event_set;
 	}
+#else
+	event_set = pop->event_set;
+#endif
 
 	if (tv != NULL)
 		msec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;

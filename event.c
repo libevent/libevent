@@ -347,6 +347,7 @@ event_base_new_with_config(struct event_config *cfg)
 	base->th_notify_fd[0] = -1;
 	base->th_notify_fd[1] = -1;
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
 	if (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK)) {
 		int r;
 		EVTHREAD_ALLOC_LOCK(base->th_base_lock);
@@ -358,6 +359,7 @@ event_base_new_with_config(struct event_config *cfg)
 			return NULL;
 		}
 	}
+#endif
 
 #ifdef WIN32
 	if (cfg && (cfg->flags & EVENT_BASE_FLAG_STARTUP_IOCP))
