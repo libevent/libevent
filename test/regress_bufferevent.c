@@ -559,6 +559,7 @@ test_bufferevent_connect_fail(void *arg)
 	struct event close_listener_event;
 	int close_listener_event_added = 0;
 	struct timeval one_second = { 1, 0 };
+	int r;
 
 	test_ok = 0;
 
@@ -578,7 +579,10 @@ test_bufferevent_connect_fail(void *arg)
 	tt_assert(bev);
 	bufferevent_setcb(bev, NULL, NULL, want_fail_eventcb, data->base);
 
-	tt_want(!bufferevent_socket_connect(bev, sa, slen));
+	r = bufferevent_socket_connect(bev, sa, slen);
+	/* XXXX we'd like to test the '0' case everywhere, but FreeBSD tells
+	 * detects the error immediately, which is not really wrong of it. */
+	tt_want(r == 0 || r == -1);
 
 	/* Close the listener socket after a second. This should trigger
 	   "connection refused" on some other platforms, including OSX. */
