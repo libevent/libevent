@@ -374,7 +374,12 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	} else {
 		/* The connect succeeded already. How odd. */
 		result = 0;
-		_bufferevent_run_eventcb(bev, BEV_EVENT_CONNECTED);
+		/* XXXX The strcmp here is a stupid hack to prevent delivering
+		 * a CONNECTED to an SSL bufferevent before its SSL is done
+		 * negotiating.  Really we should find some way to do this that
+		 * isn't an explicit type-check. */
+		if (strcmp(bev->be_ops->type, "ssl"))
+			_bufferevent_run_eventcb(bev, BEV_EVENT_CONNECTED);
 	}
 
 	goto done;
