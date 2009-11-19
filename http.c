@@ -244,8 +244,10 @@ evhttp_htmlescape(const char *html)
 		new_size += strlen(html_replace(html[i], scratch_space));
 
 	p = escaped_html = mm_malloc(new_size + 1);
-	if (escaped_html == NULL)
-		event_err(1, "%s: malloc(%d)", __func__, new_size + 1);
+	if (escaped_html == NULL) {
+		event_warn("%s: malloc(%d)", __func__, new_size + 1);
+		return (NULL);
+	}
 	for (i = 0; i < old_size; ++i) {
 		const char *replaced = html_replace(html[i], scratch_space);
 		/* this is length checked */
@@ -1254,8 +1256,10 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
-	if ((req->response_code_line = mm_strdup(readable)) == NULL)
-		event_err(1, "%s: strdup", __func__);
+	if ((req->response_code_line = mm_strdup(readable)) == NULL) {
+		event_warn("%s: strdup", __func__);
+		return (-1);
+	}
 
 	return (0);
 }
@@ -1310,7 +1314,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	}
 
 	if ((req->uri = mm_strdup(uri)) == NULL) {
-		event_debug(("%s: evhttp_decode_uri", __func__));
+		event_debug(("%s: mm_strdup", __func__));
 		return (-1);
 	}
 
@@ -1889,8 +1893,11 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	req->type = type;
 	if (req->uri != NULL)
 		mm_free(req->uri);
-	if ((req->uri = mm_strdup(uri)) == NULL)
-		event_err(1, "%s: strdup", __func__);
+	if ((req->uri = mm_strdup(uri)) == NULL) {
+		event_warn("%s: strdup", __func__);
+		evhttp_request_free(req);
+		return (-1);
+	}
 
 	/* Set the protocol version if it is not supplied */
 	if (!req->major && !req->minor) {
@@ -2001,6 +2008,11 @@ evhttp_send_error(struct evhttp_request *req, int error, const char *reason)
 	    "</BODY></HTML>\n"
 
 	struct evbuffer *buf = evbuffer_new();
+	if (buf == NULL) {
+		/* if we cannot allocate memory; we just drop the connection */
+		evhttp_connection_free(req->evcon);
+		return;
+	}
 
 	/* close the connection on error */
 	evhttp_add_header(req->output_headers, "Connection", "close");
@@ -2163,6 +2175,9 @@ evhttp_encode_uri(const char *uri)
 	struct evbuffer *buf = evbuffer_new();
 	char *p;
 
+	if (buf == NULL)
+		return (NULL);
+
 	for (p = (char *)uri; *p != '\0'; p++) {
 		if (uri_chars[(unsigned char)(*p)]) {
 			evbuffer_add(buf, p, 1);
@@ -2216,9 +2231,11 @@ evhttp_decode_uri(const char *uri)
 {
 	char *ret;
 
-	if ((ret = mm_malloc(strlen(uri) + 1)) == NULL)
-		event_err(1, "%s: malloc(%lu)", __func__,
+	if ((ret = mm_malloc(strlen(uri) + 1)) == NULL) {
+		event_warn("%s: malloc(%lu)", __func__,
 			  (unsigned long)(strlen(uri) + 1));
+		return (NULL);
+	}
 
 	evhttp_decode_uri_internal(uri, strlen(uri),
 	    ret, 0 /*always_decode_plus*/);
@@ -2244,8 +2261,11 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 	if (strchr(uri, '?') == NULL)
 		return;
 
-	if ((line = mm_strdup(uri)) == NULL)
-		event_err(1, "%s: strdup", __func__);
+	if ((line = mm_strdup(uri)) == NULL) {
+		/* TODO(niels): does this function need to return -1 */
+		event_warn("%s: strdup", __func__);
+		return;
+	}
 
 
 	argument = line;
@@ -2263,8 +2283,11 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 		if (value == NULL)
 			goto error;
 
-		if ((decoded_value = mm_malloc(strlen(value) + 1)) == NULL)
-			event_err(1, "%s: mm_malloc", __func__);
+		if ((decoded_value = mm_malloc(strlen(value) + 1)) == NULL) {
+			/* TODO(niels): do we need to return -1 here? */
+			event_warn("%s: mm_malloc", __func__);
+			break;
+		}
 		evhttp_decode_uri_internal(value, strlen(value),
 		    decoded_value, 1 /*always_decode_plus*/);
 		event_debug(("Query Param: %s -> %s\n", key, decoded_value));
@@ -2383,8 +2406,19 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 		    "<p>The requested URL %s was not found on this server.</p>"\
 		    "</body></html>\n"
 
-		char *escaped_html = evhttp_htmlescape(req->uri);
-		struct evbuffer *buf = evbuffer_new();
+		char *escaped_html;
+		struct evbuffer *buf;
+
+		if ((escaped_html = evhttp_htmlescape(req->uri)) == NULL) {
+			evhttp_connection_free(req->evcon);
+			return;
+		}
+
+		if ((buf = evbuffer_new()) == NULL) {
+			mm_free(escaped_html);
+			evhttp_connection_free(req->evcon);
+			return;
+		}
 
 		evhttp_response_code(req, HTTP_NOTFOUND, "Not Found");
 
@@ -2667,8 +2701,10 @@ evhttp_set_cb(struct evhttp *http, const char *uri,
 			return (-1);
 	}
 
-	if ((http_cb = mm_calloc(1, sizeof(struct evhttp_cb))) == NULL)
-		event_err(1, "%s: calloc", __func__);
+	if ((http_cb = mm_calloc(1, sizeof(struct evhttp_cb))) == NULL) {
+		event_warn("%s: calloc", __func__);
+		return (-2);
+	}
 
 	http_cb->what = mm_strdup(uri);
 	http_cb->cb = cb;
@@ -2897,6 +2933,13 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 	if ((req = evhttp_request_new(evhttp_handle_request, http)) == NULL)
 		return (-1);
 
+	if ((req->remote_host = mm_strdup(evcon->address)) == NULL) {
+		event_warn("%s: strdup", __func__);
+		evhttp_request_free(req);
+		return (-1);
+	}
+	req->remote_port = evcon->port;
+
 	req->evcon = evcon;	/* the request ends up owning the connection */
 	req->flags |= EVHTTP_REQ_OWN_CONNECTION;
 
@@ -2904,9 +2947,6 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 
 	req->kind = EVHTTP_REQUEST;
 
-	if ((req->remote_host = mm_strdup(evcon->address)) == NULL)
-		event_err(1, "%s: strdup", __func__);
-	req->remote_port = evcon->port;
 
 	evhttp_start_read(evcon);
 

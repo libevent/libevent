@@ -184,7 +184,7 @@ void evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size);
    @param path the path for which to invoke the callback
    @param cb the callback function that gets invoked on requesting path
    @param cb_arg an additional context argument for the callback
-   @return 0 on success, -1 if the callback existed already
+   @return 0 on success, -1 if the callback existed already, -2 on failure
 */
 int evhttp_set_cb(struct evhttp *http, const char *path,
     void (*cb)(struct evhttp_request *, void *), void *cb_arg);
@@ -407,7 +407,8 @@ void evhttp_connection_get_peer(struct evhttp_connection *evcon,
 /**
     Make an HTTP request over the specified connection.
 
-    The connection gets ownership of the request.
+    The connection gets ownership of the request.  On failure, the
+    request object is no longer valid as it has been freed.
 
     @param evcon the evhttp_connection object over which to send the request
     @param req the previously created and configured request object
@@ -498,7 +499,7 @@ void evhttp_clear_headers(struct evkeyvalq *headers);
   The returned string must be freed by the caller.
 
   @param uri an unencoded URI
-  @return a newly allocated URI-encoded string
+  @return a newly allocated URI-encoded string or NULL on failure
  */
 char *evhttp_encode_uri(const char *uri);
 
@@ -509,7 +510,7 @@ char *evhttp_encode_uri(const char *uri);
   The returned string must be freed by the caller.
 
   @param uri an encoded URI
-  @return a newly allocated unencoded URI
+  @return a newly allocated unencoded URI or NULL on failure
  */
 char *evhttp_decode_uri(const char *uri);
 
@@ -541,7 +542,7 @@ void evhttp_parse_query(const char *uri, struct evkeyvalq *headers);
  * The returned string needs to be freed by the caller.
  *
  * @param html an unescaped HTML string
- * @return an escaped HTML string
+ * @return an escaped HTML string or NULL on error
  */
 char *evhttp_htmlescape(const char *html);
 
