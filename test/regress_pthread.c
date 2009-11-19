@@ -73,9 +73,11 @@ basic_thread(void *arg)
 	for (i = 0; i < 100; i++) {
 		struct timeval tv;
 		evutil_timerclear(&tv);
-		assert(evtimer_add(&ev, &tv) == 0);
 
 		assert(pthread_mutex_lock(&cw.lock) == 0);
+		/* we need to make sure that even does not happen before
+		 * we get to wait on the conditional variable */
+		assert(evtimer_add(&ev, &tv) == 0);
 		assert(pthread_cond_wait(&cw.cond, &cw.lock) == 0);
 		assert(pthread_mutex_unlock(&cw.lock) == 0);
 

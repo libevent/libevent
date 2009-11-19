@@ -52,6 +52,7 @@ Changes in 2.0.3-alpha:
  o Finally expose the IOCP-based bufferevent backend.  It passes its unit tests, but probably still has some bugs remaining.  Code by Nick Mathewson and Christopher Davis.
  o Numerous other bugfixes.
  o On FreeBSD and other OSes, connect can return ECONREFUSED immediately; instead of failing the function call, pretend with faileld in the callback.
+ o Fix a race condition in the pthreads test case; found by Nick Mathewson
 
 Changes in 2.0.2-alpha:
  o Add a new flag to bufferevents to make all callbacks automatically deferred.
