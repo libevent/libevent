@@ -4,7 +4,7 @@ What's New In Libevent 2.0 so far:
 
   This document describes the key differences between Libevent 1.4 and
   Libevent 2.0, from a user's point of view.  It was most recently
-  updated based on features in subversion trunk as of 16 April 2009.
+  updated based on features in subversion trunk as of 18 November 2009.
 
   NOTE 1: If any features or fixes get backported from trunk to 1.4,
   they should get moved from here into whatsnew-14.txt, since they
@@ -213,7 +213,7 @@ What's New In Libevent 2.0 so far:
   If you want threading support and you're using pthreads, you can just
   call evthread_use_pthreads().  (You'll need to link against the
   libevent_pthreads library in addition to libevent_core.  These functions are
-  not in libevent_core)
+  not in libevent_core.)
 
   If you want threading support and you're using Windows, you can just
   call evthread_use_windows_threads().
@@ -299,6 +299,9 @@ What's New In Libevent 2.0 so far:
   line-ending styles, and which can return the number of characters in
   the line returned.
 
+  You can also call evbuffer_search_eol() to find the end of a line
+  in an evbuffer without ever extracting the line.
+
 4.3. Support for file-based IO in evbuffers.
 
   You can now add chunks of a file into a evbuffer, and Libevent will have
@@ -311,9 +314,12 @@ What's New In Libevent 2.0 so far:
 
 4.4. Support for zero-copy writes in evbuffers.
 
-  You can add a piece of memory to an evbuffer without copying it.  Instead,
-  Libevent adds a new element to the evbuffer's linked list of chunks with a
-  pointer to the memory you supplied.
+  You can add a piece of memory to an evbuffer without copying it.
+  Instead, Libevent adds a new element to the evbuffer's linked list of
+  chunks with a pointer to the memory you supplied.  You can do this
+  either with a reference-counted chunk (via evbuffer_add_reference), or
+  by asking Libevent for a pointer to its internal vectors (via
+  evbuffer_reserve_space or evbuffer_peek()).
 
 4.5. Multiple callbacks per evbuffer
 
@@ -392,20 +398,43 @@ What's New In Libevent 2.0 so far:
 
 5.3. Linked pairs of bufferevents
 
-   You can use bufferevent_pair_new() to produce two linked bufferevents.
-   This is like using socketpair, but doesn't require system-calls.
+   You can use bufferevent_pair_new() to produce two linked
+   bufferevents.  This is like using socketpair, but doesn't require
+   system-calls.
 
-   IMPLEMENTATION NOTE: These don't support timeouts properly yet.
+5.4. SSL support for bufferevents with OpenSSL
 
-5.4. Upcoming bufferevent features (NOT DONE YET)
+   There is now a bufferevent type that supports SSL/TLS using the
+   OpenSSL library.  The code for this is build in a separate
+   library, libevent_openssl, so that your programs don't need to
+   link against OpenSSL unless they actually want SSL support.
 
-   Nick is writing a bufferevents backend that supports IOCP on Windows.
-   Supposedly, this will make Windows IO much faster for programs using
-   bufferevents.  We'll have to see; the first implementation will probably
-   be quite poor.
+   There are two ways to construct one of these bufferevents, both
+   declared in <event2/bufferevent_ssl.h>.  If you want to wrap an
+   SSL layer around an existing bufferevent, you would call the
+   bufferevent_openssl_filter_new() function.  If you want to do SSL
+   on a socket directly, call bufferevent_openssl_socket_new().
 
-   Nick is writing a bufferevents filter to implement OpenSSL over a
+   This is tricky code; there are probably some bugs hiding here.
+
+5.5. IOCP support for bufferevents on Windows
+
+   There is now a bufferevents backend that supports IOCP on Windows.
+   Supposedly, this will eventually make Windows IO much faster for
+   programs using bufferevents.  We'll have to see; the code is not
+   currently optimized at all.  To try it out, call the
+   event_base_start_iocp() method on an event_base before contructing
    bufferevents.
+
+   This is tricky code; there are probably some bugs hiding here.
+
+5.6. Improved connect support for bufferevents.
+
+   You can now create a bufferevent that is not yet connected to any
+   host, and tell it to connect, either by address or by hostname.
+
+   The functions to do this are bufferevent_socket_connect and
+   bufferevent_socket_connect_hostname.
 
 6. Extras improvements
 
@@ -421,6 +450,18 @@ What's New In Libevent 2.0 so far:
 
    TODO(nickm) writeme
 
+6.1.4. Getaddrinfo support
+
+   There's now an asynchronous getaddrinfo clone, evdns_getaddrinfo(),
+   to make the results of the evdns functions more usable.  It doesn't
+   support every feature of a typical platform getaddrinfo() yet, but it
+   is quite close.
+
+   There is also a blocking evutil_getaddrinfo() declared in
+   event2/util.h, to provide a getaddrinfo() implementation for
+   platforms that don't have one, and smooth over the differences in
+   various platforms implementations of RFC3493.
+
 7. Infrastructure improvements
 
 7.1. Better unit test framework
@@ -433,11 +474,8 @@ What's New In Libevent 2.0 so far:
 
 7.2. Better unit tests
 
-   Despite all the code we've added, our unit tests are much better
-   than before.  Right now, iterating over the different backends on
-   my MacBook, I'm getting around 75% test coverage, compared with
-   less than 45% test coverage in Libevent 1.4.
+   Despite all the code we've added, our unit tests are much better than
+   before.  Right now, iterating over the different backends on various
+   platforms, I'm getting between 78% and 81% test coverage, compared
+   with less than 45% test coverage in Libevent 1.4.
 
-   (Right now, evdns.c has the worst test coverage of any significant
-   module, at 57%.  If we exclude it from consideration, we're at 80%
-   test coverage, which is fairly good for a networking library.)

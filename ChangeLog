@@ -49,6 +49,8 @@ Changes in 2.0.3-alpha:
  o Options passed to evdns_set_option() no longer need to end with a colon.
  o Add an evutil_getaddrinfo() function to clone getaddrinfo on platforms that don't have it.
  o Add an evdns_getaddrinfo() function to provide a nonblocking getaddrinfo using evdns, so programs can perform useful hostname lookup.
+ o Finally expose the IOCP-based bufferevent backend.  It passes its unit tests, but probably still has some bugs remaining.  Code by Nick Mathewson and Christopher Davis.
+ o Numerous other bugfixes.
 
 
 Changes in 2.0.2-alpha:
