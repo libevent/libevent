@@ -1036,23 +1036,6 @@ test_bufferevent_connect_hostname(void *arg)
 	    -1, (struct sockaddr *)&sin, sizeof(sin));
 	listener_port = get_socket_port(evconnlistener_get_fd(listener));
 
-#if 0
-	/* Start an evdns server that resolves nobodaddy.example.com to
-	 * 127.0.0.1 */
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
-	sin.sin_port = 0;
-	server_fd = socket(AF_INET, SOCK_DGRAM, 0);
-	tt_int_op(server_fd, >=, 0);
-	if (bind(server_fd, (struct sockaddr*)&sin, sizeof(sin))<0) {
-		tt_abort_perror("bind");
-	}
-        evutil_make_socket_nonblocking(server_fd);
-	dns_port = get_socket_port(server_fd);
-	port = evdns_add_server_port_with_base(data->base, server_fd, 0,
-	    be_getaddrinfo_server_cb, &n_dns);
-#endif
 	port = get_generic_server(data->base, &dns_port,
 	    be_getaddrinfo_server_cb, &n_dns);
 	tt_assert(port);
@@ -1469,7 +1452,7 @@ struct testcase_t dns_testcases[] = {
 	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "reissue", dns_reissue_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "inflight", dns_inflight_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
-	{ "bufferevent_connnect_hostname", test_bufferevent_connect_hostname,
+	{ "bufferevent_connect_hostname", test_bufferevent_connect_hostname,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
 	{ "getaddrinfo_async", test_getaddrinfo_async,
