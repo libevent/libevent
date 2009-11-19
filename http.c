@@ -1849,8 +1849,12 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	if (socket_connect(evcon->fd, evcon->address, evcon->port) == -1) {
 		event_sock_warn(evcon->fd, "%s: connection to \"%s\" failed",
 		    __func__, evcon->address);
-		EVUTIL_CLOSESOCKET(evcon->fd); evcon->fd = -1;
-		return (-1);
+		/* some operating systems return ECONNREFUSED immediately
+		 * when connecting to a local address.  the cleanup is going
+		 * to reschedule this function call.
+		 */
+		evhttp_connection_cb_cleanup(evcon);
+		return (0);
 	}
 
 	/* Set up a callback for successful connection setup */
