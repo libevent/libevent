@@ -240,9 +240,9 @@ int	event_priority_init(int);
  */
 void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
 
-#define evtimer_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
+#define evtimer_set(ev, cb, arg)	event_set((ev), -1, 0, (cb), (arg))
 #define evsignal_set(ev, x, cb, arg)	\
-	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+	event_set((ev), (x), EV_SIGNAL|EV_PERSIST, (cb), (arg))
 
 
 /**
@@ -254,7 +254,7 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
  * @deprecated This macro is deprecated because its naming is inconsistent.
  *    The recommend macro is evtimer_add().
  */
-#define timeout_add(ev, tv)		event_add(ev, tv)
+#define timeout_add(ev, tv)		event_add((ev), (tv))
 
 
 /**
@@ -267,7 +267,7 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
  * @deprecated This macro is deprecated because its naming is inconsistent.
  *    The recommend macro is evtimer_set().
  */
-#define timeout_set(ev, cb, arg)	event_set(ev, -1, 0, cb, arg)
+#define timeout_set(ev, cb, arg)	event_set((ev), -1, 0, (cb), (arg))
 
 /**
  * Disable a timeout event.
@@ -283,7 +283,7 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
    @deprecated This macro is deprecated because its naming is inconsistent.
    The recommend macro is evtimer_pending().
 */
-#define timeout_pending(ev, tv)		event_pending(ev, EV_TIMEOUT, tv)
+#define timeout_pending(ev, tv)		event_pending((ev), EV_TIMEOUT, (tv))
 /**
    @deprecated This macro is deprecated because its naming is inconsistent.
    The recommend macro is evtimer_initialized().
@@ -294,25 +294,25 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
    @deprecated This macro is deprecated because its naming is inconsistent.
     The recommend macro is evsignal_add().
 */
-#define signal_add(ev, tv)		event_add(ev, tv)
+#define signal_add(ev, tv)		event_add((ev), (tv))
 /**
    @deprecated This macro is deprecated because its naming is inconsistent.
     The recommend macro is evsignal_set().
 */
 #define signal_set(ev, x, cb, arg)	\
-	event_set(ev, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+	event_set((ev), (x), EV_SIGNAL|EV_PERSIST, (cb), (arg))
 /**
    @deprecated This macro is deprecated because its naming is inconsistent.
     The recommend macro is evsignal_assign().
 */
 #define signal_assign(ev, b, x, cb, arg)                    \
-	event_assign(ev, b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+	event_assign((ev), (b), (x), EV_SIGNAL|EV_PERSIST, (cb), (arg))
 /**
    @deprecated This macro is deprecated because its naming is inconsistent.
     The recommend macro is evsignal_new().
 */
 #define signal_new(b, x, cb, arg) \
-	event_new(b, x, EV_SIGNAL|EV_PERSIST, cb, arg)
+	event_new((b), (x), EV_SIGNAL|EV_PERSIST, (cb), (arg))
 /**
    @deprecated This macro is deprecated because its naming is inconsistent.
     The recommend macro is evsignal_del().
@@ -322,7 +322,7 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
    @deprecated This macro is deprecated because its naming is inconsistent.
     The recommend macro is evsignal_pending().
 */
-#define signal_pending(ev, tv)		event_pending(ev, EV_SIGNAL, tv)
+#define signal_pending(ev, tv)		event_pending((ev), EV_SIGNAL, (tv))
 /**
    @deprecated This macro is deprecated because its naming is inconsistent.
     The recommend macro is evsignal_initialized().

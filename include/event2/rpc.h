@@ -86,7 +86,7 @@ extern "C" {
    @param value the value to assign
 */
 #define EVTAG_ASSIGN(msg, member, value) \
-	(*(msg)->base->member##_assign)(msg, value)
+	(*(msg)->base->member##_assign)((msg), (value))
 /**
    Assigns a value to the member in the message.
 
@@ -96,7 +96,7 @@ extern "C" {
    @param len the length of the value
 */
 #define EVTAG_ASSIGN_WITH_LEN(msg, member, value, len)	\
-	(*(msg)->base->member##_assign)(msg, value, len)
+	(*(msg)->base->member##_assign)((msg), (value), (len))
 /**
    Returns the value for a member.
 
@@ -106,7 +106,7 @@ extern "C" {
    @return 0 on success, -1 otherwise.
 */
 #define EVTAG_GET(msg, member, pvalue) \
-	(*(msg)->base->member##_get)(msg, pvalue)
+	(*(msg)->base->member##_get)((msg), (pvalue))
 /**
    Returns the value for a member.
 
@@ -117,7 +117,7 @@ extern "C" {
    @return 0 on success, -1 otherwise.
 */
 #define EVTAG_GET_WITH_LEN(msg, member, pvalue, plen)	\
-	(*(msg)->base->member##_get)(msg, pvalue, plen)
+	(*(msg)->base->member##_get)((msg), (pvalue), (plen))
 
 #endif  /* _EVENT2_RPC_COMPAT_H_ */
 
@@ -125,7 +125,7 @@ extern "C" {
    Adds a value to an array.
 */
 #define EVTAG_ARRAY_ADD_VALUE(msg, member, value) \
-	(*(msg)->base->member##_add)(msg, value)
+	(*(msg)->base->member##_add)((msg), (value))
 /**
    Allocates a new entry in the array and returns it.
 */
@@ -135,7 +135,7 @@ extern "C" {
    Gets a variable at the specified offset from the array.
 */
 #define EVTAG_ARRAY_GET(msg, member, offset, pvalue)	\
-	(*(msg)->base->member##_get)(msg, offset, pvalue)
+	(*(msg)->base->member##_get)((msg), (offset), (pvalue))
 /**
    Returns the number of entries in the array.
 */
@@ -342,7 +342,7 @@ int evrpc_register_rpc(struct evrpc_base *, struct evrpc *,
  * @return -1 on error or 0 when successful.
  * @see EVRPC_REGISTER()
  */
-#define EVRPC_UNREGISTER(base, name) evrpc_unregister_rpc(base, #name)
+#define EVRPC_UNREGISTER(base, name) evrpc_unregister_rpc((base), #name)
 
 int evrpc_unregister_rpc(struct evrpc_base *base, const char *name);
 
@@ -369,7 +369,7 @@ struct evrpc_status;
  * @return 0 on success, -1 on failure
  */
 #define EVRPC_MAKE_REQUEST(name, pool, request, reply, cb, cbarg)	\
-	evrpc_send_request_##name(pool, request, reply, cb, cbarg)
+	evrpc_send_request_##name((pool), (request), (reply), (cb), (cbarg))
 
 /**
    Makes an RPC request based on the provided context.
