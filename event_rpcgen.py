@@ -1575,9 +1575,7 @@ class CCodeGenerator:
 
         pre += '\n#include "%s"\n\n' % header_file
 
-        pre += 'void event_err(int eval, const char *fmt, ...);\n'
         pre += 'void event_warn(const char *fmt, ...);\n'
-        pre += 'void event_errx(int eval, const char *fmt, ...);\n'
         pre += 'void event_warnx(const char *fmt, ...);\n\n'
 
         return pre

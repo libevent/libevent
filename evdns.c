@@ -1231,7 +1231,7 @@ default_transaction_id_fn(void)
 		  gettimeofday(&tv, NULL);
 		  trans_id = tv.tv_usec & 0xffff;
 		*/
-		abort();
+		event_errx("RAND_pseudo_bytes failed!");
 	}
 #endif
 
@@ -2180,7 +2180,7 @@ evdns_request_transmit(struct evdns_request *req) {
 	/* if we fail to send this packet then this flag marks it */
 	/* for evdns_transmit */
 	req->transmit_me = 1;
-	if (req->trans_id == 0xffff) abort();
+	EVUTIL_ASSERT(req->trans_id != 0xffff);
 
 	if (req->ns->choked) {
 		/* don't bother trying to write to a socket */
@@ -2991,7 +2991,7 @@ search_make_new(const struct search_state *const state, int n, const char *const
 	}
 
 	/* we ran off the end of the list and still didn't find the requested string */
-	abort();
+	EVUTIL_ASSERT(0);
 	return NULL; /* unreachable; stops warnings in some compilers. */
 }
 

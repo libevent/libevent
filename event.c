@@ -199,8 +199,10 @@ event_init(void)
 {
 	struct event_base *base = event_base_new_with_config(NULL);
 
-	if (base == NULL)
+	if (base == NULL) {
 		event_errx(1, "%s: Unable to construct event_base", __func__);
+		return NULL;
+	}
 
 	current_base = base;
 
@@ -483,7 +485,7 @@ event_base_free(struct event_base *base)
 int
 event_reinit(struct event_base *base)
 {
-	/* XXXX Do we need to grab a lock here? */
+	/* XXXX We need to grab a lock here! */
 	const struct eventop *evsel = base->evsel;
 	int res = 0;
 	struct event *ev;
@@ -507,9 +509,11 @@ event_reinit(struct event_base *base)
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base);
 	base->evbase = evsel->init(base);
-	if (base->evbase == NULL)
+	if (base->evbase == NULL) {
 		event_errx(1, "%s: could not reinitialize event mechanism",
 		    __func__);
+		return (-1);
+	}
 
 	evmap_io_clear(&base->io);
 	evmap_signal_clear(&base->sigmap);
@@ -1884,9 +1888,11 @@ timeout_process(struct event_base *base)
 static void
 event_queue_remove(struct event_base *base, struct event *ev, int queue)
 {
-	if (!(ev->ev_flags & queue))
+	if (!(ev->ev_flags & queue)) {
 		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
 			   ev, ev->ev_fd, queue);
+		return;
+	}
 
 	if (~ev->ev_flags & EVLIST_INTERNAL)
 		base->event_count--;
@@ -1949,6 +1955,7 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 
 		event_errx(1, "%s: %p(fd %d) already on queue %x", __func__,
 			   ev, ev->ev_fd, queue);
+		return;
 	}
 
 	if (~ev->ev_flags & EVLIST_INTERNAL)
