@@ -529,13 +529,17 @@ int event_pending(struct event *, short, struct timeval *);
 
 
 /**
-  Test if an event structure has been initialized.
+  Test if an event structure might be initialized.
 
   The event_initialized() macro can be used to check if an event has been
   initialized.
 
+  Warning: This macro is deprecated because it does not perform a reliable
+    test: While it can tell a zeroed-out piece of memory from an initialized
+    event, it can easily be confused by uninitialized memory.
+
   @param ev an event structure to be tested
-  @return 1 if the structure has been initialized, or 0 if it has not been
+  @return 1 if the structure might be initialized, or 0 if it has not been
           initialized
  */
 #define event_initialized(ev)		_event_initialized((ev), 1)
