@@ -404,6 +404,7 @@ static void
 kq_dealloc(struct event_base *base)
 {
 	struct kqop *kqop = base->evbase;
+	evsig_dealloc(base);
 	kqop_free(kqop);
 }
 
