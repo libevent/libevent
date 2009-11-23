@@ -60,32 +60,53 @@
 #include "util-internal.h"
 
 void
-bufferevent_wm_suspend_read(struct bufferevent *bufev)
+bufferevent_suspend_read(struct bufferevent *bufev, short what)
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	BEV_LOCK(bufev);
-	if (!bufev_private->read_suspended) {
+	if (!bufev_private->read_suspended)
 		bufev->be_ops->disable(bufev, EV_READ);
-		bufev_private->read_suspended = 1;
-	}
+	bufev_private->read_suspended |= what;
 	BEV_UNLOCK(bufev);
 }
 
 void
-bufferevent_wm_unsuspend_read(struct bufferevent *bufev)
+bufferevent_unsuspend_read(struct bufferevent *bufev, short what)
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
-
 	BEV_LOCK(bufev);
-	if (bufev_private->read_suspended) {
-		bufev_private->read_suspended = 0;
-		if (bufev->enabled & EV_READ)
-			bufev->be_ops->enable(bufev, EV_READ);
-	}
+	bufev_private->read_suspended &= ~what;
+	if (!bufev_private->read_suspended)
+		bufev->be_ops->enable(bufev, EV_READ);
 	BEV_UNLOCK(bufev);
 }
+
+void
+bufferevent_suspend_write(struct bufferevent *bufev, short what)
+{
+	struct bufferevent_private *bufev_private =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	BEV_LOCK(bufev);
+	if (!bufev_private->write_suspended)
+		bufev->be_ops->disable(bufev, EV_WRITE);
+	bufev_private->write_suspended |= what;
+	BEV_UNLOCK(bufev);
+}
+
+void
+bufferevent_unsuspend_write(struct bufferevent *bufev, short what)
+{
+	struct bufferevent_private *bufev_private =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	BEV_LOCK(bufev);
+	bufev_private->write_suspended &= ~what;
+	if (!bufev_private->write_suspended)
+		bufev->be_ops->enable(bufev, EV_WRITE);
+	BEV_UNLOCK(bufev);
+}
+
 
 /* Callback to implement watermarks on the input buffer.  Only enabled
  * if the watermark is set. */
@@ -338,10 +359,12 @@ bufferevent_enable(struct bufferevent *bufev, short event)
 	_bufferevent_incref_and_lock(bufev);
 	if (bufev_private->read_suspended)
 		impl_events &= ~EV_READ;
+	if (bufev_private->write_suspended)
+		impl_events &= ~EV_WRITE;
 
 	bufev->enabled |= event;
 
-	if (bufev->be_ops->enable(bufev, impl_events) < 0)
+	if (impl_events && bufev->be_ops->enable(bufev, impl_events) < 0)
 		r = -1;
 
 	_bufferevent_decref_and_unlock(bufev);
