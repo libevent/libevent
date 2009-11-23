@@ -1020,6 +1020,205 @@ test_evbuffer(void) {
 }
 
 static void
+test_evbuffer_readln(void)
+{
+	struct evbuffer *evb = evbuffer_new();
+	struct evbuffer *evb_tmp = evbuffer_new();
+	const char *s;
+	char *cp = NULL;
+	size_t sz;
+
+#define tt_line_eq(content)						\
+	if (!cp || sz != strlen(content) || strcmp(cp, content)) {	\
+		fprintf(stdout, "FAILED\n");				\
+		exit(1);						\
+	}
+#define tt_assert(expression)						\
+	if (!(expression)) {						\
+		fprintf(stdout, "FAILED\n");				\
+		exit(1);						\
+	}								\
+
+	/* Test EOL_ANY. */
+	fprintf(stdout, "Testing evbuffer_readln EOL_ANY: ");
+
+	s = "complex silly newline\r\n\n\r\n\n\rmore\0\n";
+	evbuffer_add(evb, s, strlen(s)+2);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_ANY);
+	tt_line_eq("complex silly newline");
+	free(cp);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_ANY);
+	if (!cp || sz != 5 || memcmp(cp, "more\0\0", 6)) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	if (evb->totallen == 0) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+	s = "\nno newline";
+	evbuffer_add(evb, s, strlen(s));
+	free(cp);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_ANY);
+	tt_line_eq("");
+	free(cp);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_ANY);
+        tt_assert(!cp);
+	evbuffer_drain(evb, EVBUFFER_LENGTH(evb));
+        tt_assert(EVBUFFER_LENGTH(evb) == 0);
+
+	fprintf(stdout, "OK\n");
+
+	/* Test EOL_CRLF */
+	fprintf(stdout, "Testing evbuffer_readln EOL_CRLF: ");
+
+	s = "Line with\rin the middle\nLine with good crlf\r\n\nfinal\n";
+	evbuffer_add(evb, s, strlen(s));
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF);
+	tt_line_eq("Line with\rin the middle");
+	free(cp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF);
+	tt_line_eq("Line with good crlf");
+	free(cp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF);
+	tt_line_eq("");
+	free(cp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF);
+	tt_line_eq("final");
+	s = "x";
+	evbuffer_add(evb, s, 1);
+	free(cp);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF);
+        tt_assert(!cp);
+
+	fprintf(stdout, "OK\n");
+
+	/* Test CRLF_STRICT */
+	fprintf(stdout, "Testing evbuffer_readln CRLF_STRICT: ");
+
+	s = " and a bad crlf\nand a good one\r\n\r\nMore\r";
+	evbuffer_add(evb, s, strlen(s));
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_line_eq("x and a bad crlf\nand a good one");
+	free(cp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_line_eq("");
+	free(cp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+        tt_assert(!cp);
+	evbuffer_add(evb, "\n", 1);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_line_eq("More");
+	free(cp);
+	tt_assert(EVBUFFER_LENGTH(evb) == 0);
+
+	s = "An internal CR\r is not an eol\r\nNor is a lack of one";
+	evbuffer_add(evb, s, strlen(s));
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_line_eq("An internal CR\r is not an eol");
+	free(cp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_assert(!cp);
+
+	evbuffer_add(evb, "\r\n", 2);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_line_eq("Nor is a lack of one");
+	free(cp);
+	tt_assert(EVBUFFER_LENGTH(evb) == 0);
+
+	fprintf(stdout, "OK\n");
+
+	/* Test LF */
+	fprintf(stdout, "Testing evbuffer_readln LF: ");
+
+	s = "An\rand a nl\n\nText";
+	evbuffer_add(evb, s, strlen(s));
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
+	tt_line_eq("An\rand a nl");
+	free(cp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
+	tt_line_eq("");
+	free(cp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
+	tt_assert(!cp);
+	free(cp);
+	evbuffer_add(evb, "\n", 1);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
+	tt_line_eq("Text");
+	free(cp);
+
+	fprintf(stdout, "OK\n");
+
+	/* Test CRLF_STRICT - across boundaries */
+	fprintf(stdout,
+	    "Testing evbuffer_readln CRLF_STRICT across boundaries: ");
+
+	s = " and a bad crlf\nand a good one\r";
+	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_add_buffer(evb, evb_tmp);
+	s = "\n\r";
+	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_add_buffer(evb, evb_tmp);
+	s = "\nMore\r";
+	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_add_buffer(evb, evb_tmp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_line_eq(" and a bad crlf\nand a good one");
+	free(cp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_line_eq("");
+	free(cp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_assert(!cp);
+	free(cp);
+	evbuffer_add(evb, "\n", 1);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_CRLF_STRICT);
+	tt_line_eq("More");
+	free(cp); cp = NULL;
+	if (EVBUFFER_LENGTH(evb) != 0) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	fprintf(stdout, "OK\n");
+
+	/* Test memory problem */
+	fprintf(stdout, "Testing evbuffer_readln memory problem: ");
+
+	s = "one line\ntwo line\nblue line";
+	evbuffer_add(evb_tmp, s, strlen(s));
+	evbuffer_add_buffer(evb, evb_tmp);
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
+	tt_line_eq("one line");
+	free(cp); cp = NULL;
+
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_LF);
+	tt_line_eq("two line");
+	free(cp); cp = NULL;
+
+	fprintf(stdout, "OK\n");
+
+	test_ok = 1;
+	evbuffer_free(evb);
+	evbuffer_free(evb_tmp);
+	if (cp) free(cp);
+}
+
+static void
 test_evbuffer_find(void)
 {
 	u_char* p;
@@ -1640,6 +1839,7 @@ main (int argc, char **argv)
 
 	test_evbuffer();
 	test_evbuffer_find();
+	test_evbuffer_readln();
 	
 	test_bufferevent();
 	test_bufferevent_watermarks();
