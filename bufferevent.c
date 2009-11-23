@@ -443,8 +443,8 @@ bufferevent_setwatermark(struct bufferevent *bufev, short events,
 						    bufev);
 			}
 			evbuffer_cb_set_flags(bufev->input,
-					      bufev_private->read_watermarks_cb,
-					      EVBUFFER_CB_ENABLED);
+				      bufev_private->read_watermarks_cb,
+				      EVBUFFER_CB_ENABLED|EVBUFFER_CB_NODEFER);
 
 			if (evbuffer_get_length(bufev->input) > highmark)
 				bufferevent_wm_suspend_read(bufev);

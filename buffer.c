@@ -123,13 +123,6 @@ static int use_mmap = 1;
 /* Mask of all internal-use-only flags. */
 #define EVBUFFER_CB_INTERNAL_FLAGS  0xffff0000
 
-#if 0
-/* Flag set on suspended callbacks. */
-#define EVBUFFER_CB_SUSPENDED          0x00010000
-/* Flag set if we should invoke the callback on wakeup. */
-#define EVBUFFER_CB_CALL_ON_UNSUSPEND  0x00020000
-#endif
-
 /* Flag set if the callback is using the cb_obsolete function pointer  */
 #define EVBUFFER_CB_OBSOLETE           0x00040000
 
@@ -334,11 +327,23 @@ evbuffer_set_parent(struct evbuffer *buf, struct bufferevent *bev)
 }
 
 static void
-evbuffer_run_callbacks(struct evbuffer *buffer)
+evbuffer_run_callbacks(struct evbuffer *buffer, int running_deferred)
 {
 	struct evbuffer_cb_entry *cbent, *next;
         struct evbuffer_cb_info info;
 	size_t new_size;
+	uint32_t mask, masked_val;
+
+	if (running_deferred) {
+		mask = EVBUFFER_CB_NODEFER|EVBUFFER_CB_ENABLED;
+		masked_val = EVBUFFER_CB_ENABLED;
+	} else if (buffer->deferred_cbs) {
+		mask = EVBUFFER_CB_NODEFER|EVBUFFER_CB_ENABLED;
+		masked_val = EVBUFFER_CB_NODEFER|EVBUFFER_CB_ENABLED;
+	} else {
+		mask = EVBUFFER_CB_ENABLED;
+		masked_val = EVBUFFER_CB_ENABLED;
+	}
 
         ASSERT_EVBUFFER_LOCKED(buffer);
 
@@ -362,18 +367,15 @@ evbuffer_run_callbacks(struct evbuffer *buffer)
 		/* Get the 'next' pointer now in case this callback decides
 		 * to remove itself or something. */
 		next = TAILQ_NEXT(cbent, next);
-		if ((cbent->flags & EVBUFFER_CB_ENABLED)) {
-#if 0
-			if ((cbent->flags & EVBUFFER_CB_SUSPENDED))
-				cbent->flags |= EVBUFFER_CB_CALL_ON_UNSUSPEND;
-			else
-#endif
-                        if ((cbent->flags & EVBUFFER_CB_OBSOLETE))
-                                cbent->cb.cb_obsolete(buffer,
-                                        info.orig_size, new_size, cbent->cbarg);
-                        else
-                                cbent->cb.cb_func(buffer, &info, cbent->cbarg);
-		}
+
+		if ((cbent->flags & mask) != masked_val)
+			continue;
+
+		if ((cbent->flags & EVBUFFER_CB_OBSOLETE))
+			cbent->cb.cb_obsolete(buffer,
+			    info.orig_size, new_size, cbent->cbarg);
+		else
+			cbent->cb.cb_func(buffer, &info, cbent->cbarg);
 	}
 }
 
@@ -388,9 +390,9 @@ evbuffer_invoke_callbacks(struct evbuffer *buffer)
 			bufferevent_incref(buffer->parent);
 		EVBUFFER_UNLOCK(buffer);
 		event_deferred_cb_schedule(buffer->cb_queue, &buffer->deferred);
-	} else {
-		evbuffer_run_callbacks(buffer);
 	}
+
+	evbuffer_run_callbacks(buffer, 0);
 }
 
 static void
@@ -403,7 +405,7 @@ evbuffer_deferred_callback(struct deferred_cb *cb, void *arg)
 	 * lock */
 	EVBUFFER_LOCK(buffer);
 	parent = buffer->parent;
-	evbuffer_run_callbacks(buffer);
+	evbuffer_run_callbacks(buffer, 1);
 	_evbuffer_decref_and_unlock(buffer);
 	if (parent)
 		bufferevent_free(parent);
