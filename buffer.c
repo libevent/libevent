@@ -64,6 +64,7 @@
 #include "event.h"
 #include "config.h"
 #include "evutil.h"
+#include "./log.h"
 
 struct evbuffer *
 evbuffer_new(void)
@@ -259,6 +260,9 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 	char *line;
 	unsigned int i, n_to_copy, n_to_drain;
 
+	if (n_read_out)
+		*n_read_out = 0;
+
 	/* depending on eol_style, set start_of_eol to the first character
 	 * in the newline, and end_of_eol to one after the last character. */
 	switch (eol_style) {
@@ -317,8 +321,7 @@ evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 	n_to_drain = end_of_eol - data;
 
 	if ((line = malloc(n_to_copy+1)) == NULL) {
-		fprintf(stderr, "%s: out of memory\n", __func__);
-		evbuffer_drain(buffer, n_to_drain);		
+		event_warn("%s: out of memory\n", __func__);
 		return (NULL);
 	}
 
