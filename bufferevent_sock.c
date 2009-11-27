@@ -118,10 +118,12 @@ static void
 bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 {
 	struct bufferevent *bufev = arg;
+	struct bufferevent_private *bufev_p =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	struct evbuffer *input;
 	int res = 0;
 	short what = BEV_EVENT_READING;
-	int howmuch = -1;
+	int howmuch = -1, readmax=-1;
 
 	_bufferevent_incref_and_lock(bufev);
 
@@ -144,6 +146,12 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 			goto done;
 		}
 	}
+	readmax = _bufferevent_get_read_max(bufev_p);
+	if (howmuch < 0 || howmuch > readmax) /* The use of -1 for "unlimited"
+					       * uglifies this code. */
+		howmuch = readmax;
+	if (bufev_p->read_suspended)
+		goto done;
 
 	evbuffer_unfreeze(input, 0);
 	res = evbuffer_read(input, fd, howmuch);
@@ -163,6 +171,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	if (res <= 0)
 		goto error;
 
+	_bufferevent_decrement_read_buckets(bufev_p, res);
 
 	/* Invoke the user callback - must always be called last */
 	if (evbuffer_get_length(input) >= bufev->wm_read.low &&
@@ -191,6 +200,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	int res = 0;
 	short what = BEV_EVENT_WRITING;
 	int connected = 0;
+	int atmost = -1;
 
 	_bufferevent_incref_and_lock(bufev);
 
@@ -232,9 +242,14 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		}
 	}
 
+	atmost = _bufferevent_get_write_max(bufev_p);
+
+	if (bufev_p->write_suspended)
+		goto done;
+
 	if (evbuffer_get_length(bufev->output)) {
 		evbuffer_unfreeze(bufev->output, 1);
-		res = evbuffer_write(bufev->output, fd);
+		res = evbuffer_write_atmost(bufev->output, fd, atmost);
 		evbuffer_freeze(bufev->output, 1);
 		if (res == -1) {
 			int err = evutil_socket_geterror(fd);
@@ -250,6 +265,8 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		}
 		if (res <= 0)
 			goto error;
+
+		_bufferevent_decrement_write_buckets(bufev_p, res);
 	}
 
 	if (evbuffer_get_length(bufev->output) == 0)

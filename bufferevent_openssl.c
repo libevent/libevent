@@ -524,20 +524,29 @@ do_read(struct bufferevent_openssl *bev_ssl, int n_to_read)
 	/* Requires lock */
 	struct bufferevent *bev = &bev_ssl->bev.bev;
 	struct evbuffer *input = bev->input;
-	int r, n, i, n_used = 0, blocked = 0;
+	int r, n, i, n_used = 0, blocked = 0, atmost;
 	struct evbuffer_iovec space[2];
+
+	atmost = _bufferevent_get_read_max(&bev_ssl->bev);
+	if (n_to_read > atmost)
+		n_to_read = atmost;
 
 	n = evbuffer_reserve_space(input, n_to_read, space, 2);
 	if (n < 0)
 		return -1;
 
 	for (i=0; i<n; ++i) {
+		if (bev_ssl->bev.read_suspended)
+			break;
 		r = SSL_read(bev_ssl->ssl, space[i].iov_base, space[i].iov_len);
 		if (r>0) {
 			if (bev_ssl->read_blocked_on_write)
 				clear_rbow(bev_ssl);
 			++n_used;
 			space[i].iov_len = r;
+			/* Not exactly right; we probably want to do
+			 * our rate-limiting on the underlying bytes. */
+			_bufferevent_decrement_read_buckets(&bev_ssl->bev, r);
 		} else {
 			int err = SSL_get_error(bev_ssl->ssl, r);
 			print_err(err);
@@ -585,6 +594,8 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 
 	if (bev_ssl->last_write > 0)
 		atmost = bev_ssl->last_write;
+	else
+		atmost = _bufferevent_get_write_max(&bev_ssl->bev);
 
 	n = evbuffer_peek(output, atmost, NULL, space, 8);
 	if (n < 0)
@@ -593,6 +604,9 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 	if (n > 8)
 		n = 8;
 	for (i=0; i < n; ++i) {
+		if (bev_ssl->bev.write_suspended)
+			break;
+
 		r = SSL_write(bev_ssl->ssl, space[i].iov_base,
 		    space[i].iov_len);
 		if (r > 0) {
@@ -600,6 +614,9 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 				clear_wbor(bev_ssl);
 			n_written += r;
 			bev_ssl->last_write = -1;
+			/* Not exactly right; we probably want to do
+			 * our rate-limiting on the underlying bytes. */
+			_bufferevent_decrement_write_buckets(&bev_ssl->bev, r);
 		} else {
 			int err = SSL_get_error(bev_ssl->ssl, r);
 			print_err(err);

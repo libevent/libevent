@@ -105,7 +105,7 @@ event-config.h: config.h
 
 CORE_SRC = event.c evthread.c buffer.c \
 	bufferevent.c bufferevent_sock.c bufferevent_filter.c \
-	bufferevent_pair.c listener.c \
+	bufferevent_pair.c listener.c bufferevent_ratelim.c \
 	evmap.c	log.c evutil.c strlcpy.c $(SYS_SRC)
 EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
 
@@ -136,7 +136,8 @@ noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
 	evrpc-internal.h strlcpy-internal.h evbuffer-internal.h \
 	bufferevent-internal.h http-internal.h event-internal.h \
 	evthread-internal.h ht-internal.h defer-internal.h \
-	minheap-internal.h log-internal.h evsignal-internal.h evmap-internal.h
+	minheap-internal.h log-internal.h evsignal-internal.h evmap-internal.h \
+	ratelim-internal.h
 
 include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h
 
