@@ -1185,10 +1185,10 @@ test_loopexit_multiple(void)
 
 	event_base_dispatch(base);
 
-	event_base_free(base);
-
 	tt_assert(event_base_got_exit(base));
 	tt_assert(!event_base_got_break(base));
+
+	event_base_free(base);
 
 	test_ok = 1;
 

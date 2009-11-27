@@ -217,13 +217,13 @@ basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
                         EVUTIL_CLOSESOCKET(data->pair[1]);
         }
 
+        if (testcase->flags & TT_NEED_DNS) {
+                evdns_shutdown(0);
+        }
+
         if (testcase->flags & TT_NEED_BASE) {
 		if (data->base)
 			event_base_free(data->base);
-        }
-
-        if (testcase->flags & TT_NEED_DNS) {
-                evdns_shutdown(0);
         }
 
 	free(data);
