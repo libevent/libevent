@@ -155,11 +155,11 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 	if (tv != NULL)
 		msec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
 
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	res = poll(event_set, nfds, msec);
 
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	if (res == -1) {
 		if (errno != EINTR) {

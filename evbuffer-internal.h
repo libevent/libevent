@@ -222,21 +222,20 @@ struct evbuffer_chain_reference {
 		((struct evbuffer*)(buffer))->lock_count--;   \
 	} while (0)
 
-#define EVBUFFER_LOCK(buffer, mode)					\
+#define EVBUFFER_LOCK(buffer)						\
 	do {								\
-		EVLOCK_LOCK((buffer)->lock, (mode));			\
+		EVLOCK_LOCK((buffer)->lock, 0);				\
 		_EVBUFFER_INCREMENT_LOCK_COUNT(buffer);			\
 	} while(0)
-#define EVBUFFER_UNLOCK(buffer, mode)					\
+#define EVBUFFER_UNLOCK(buffer)						\
 	do {								\
 		_EVBUFFER_DECREMENT_LOCK_COUNT(buffer);			\
-		EVLOCK_UNLOCK((buffer)->lock, (mode));			\
+		EVLOCK_UNLOCK((buffer)->lock, 0);			\
 	} while(0)
 
 #define EVBUFFER_LOCK2(buffer1, buffer2)				\
 	do {								\
-		EVLOCK_LOCK2((buffer1)->lock, (buffer2)->lock,		\
-		    EVTHREAD_WRITE, EVTHREAD_WRITE);			\
+		EVLOCK_LOCK2((buffer1)->lock, (buffer2)->lock, 0, 0);	\
 		_EVBUFFER_INCREMENT_LOCK_COUNT(buffer1);		\
 		_EVBUFFER_INCREMENT_LOCK_COUNT(buffer2);		\
 	} while(0)
@@ -244,8 +243,7 @@ struct evbuffer_chain_reference {
 	do {								\
 		_EVBUFFER_DECREMENT_LOCK_COUNT(buffer1);		\
 		_EVBUFFER_DECREMENT_LOCK_COUNT(buffer2);		\
-		EVLOCK_UNLOCK2((buffer1)->lock, (buffer2)->lock,	\
-		    EVTHREAD_WRITE, EVTHREAD_WRITE);			\
+		EVLOCK_UNLOCK2((buffer1)->lock, (buffer2)->lock, 0, 0);	\
 	} while(0)
 
 /** Increase the reference count of buf by one. */

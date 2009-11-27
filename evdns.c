@@ -421,16 +421,16 @@ static int strtoint(const char *const str);
 #define EVDNS_LOCK(base)						\
 	do {								\
 		if ((base)->lock) {					\
-			EVLOCK_LOCK((base)->lock, EVTHREAD_WRITE);	\
+			EVLOCK_LOCK((base)->lock, 0);			\
 		}							\
 		++(base)->lock_count;					\
 	} while (0)
 #define EVDNS_UNLOCK(base)						\
 	do {								\
-		EVUTIL_ASSERT((base)->lock_count > 0);				\
+		EVUTIL_ASSERT((base)->lock_count > 0);			\
 		--(base)->lock_count;					\
 		if ((base)->lock) {					\
-			EVLOCK_UNLOCK((base)->lock, EVTHREAD_WRITE);	\
+			EVLOCK_UNLOCK((base)->lock, 0);			\
 		}							\
 	} while (0)
 #define ASSERT_LOCKED(base) EVUTIL_ASSERT((base)->lock_count > 0)

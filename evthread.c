@@ -38,7 +38,7 @@
 #include "util-internal.h"
 
 /* globals */
-static int lock_debugging_enabled = 0;
+int _evthread_lock_debugging_enabled = 0;
 struct evthread_lock_callbacks _evthread_lock_fns = {
 	0, 0, NULL, NULL, NULL, NULL
 };
@@ -58,7 +58,8 @@ int
 evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 {
 	struct evthread_lock_callbacks *target =
-	    lock_debugging_enabled ? &_original_lock_fns : &_evthread_lock_fns;
+	    _evthread_lock_debugging_enabled
+	        ? &_original_lock_fns : &_evthread_lock_fns;
 
 	if (!cbs) {
 		memset(target, 0, sizeof(_evthread_lock_fns));
@@ -149,6 +150,8 @@ evthread_set_lock_create_callbacks(void *(*alloc_fn)(void),
 
 struct debug_lock {
 	unsigned locktype;
+	/* XXXX if we ever use read-write locks, we will need a separate
+	 * lock to protect count. */
 	int count;
 	void *lock;
 };
@@ -176,6 +179,7 @@ debug_lock_free(void *lock_, unsigned locktype)
 {
 	struct debug_lock *lock = lock_;
 	EVUTIL_ASSERT(lock->count == 0);
+	EVUTIL_ASSERT(locktype == lock->locktype);
 	if (_original_lock_fns.free) {
 		_original_lock_fns.free(lock->lock,
 		    lock->locktype|EVTHREAD_LOCKTYPE_RECURSIVE);
@@ -190,6 +194,10 @@ debug_lock_lock(unsigned mode, void *lock_)
 {
 	struct debug_lock *lock = lock_;
 	int res = 0;
+	if (lock->locktype & EVTHREAD_LOCKTYPE_READWRITE)
+		EVUTIL_ASSERT(mode & (EVTHREAD_READ|EVTHREAD_WRITE));
+	else
+		EVUTIL_ASSERT((mode & (EVTHREAD_READ|EVTHREAD_WRITE)) == 0);
 	if (_original_lock_fns.lock)
 		res = _original_lock_fns.lock(mode, lock->lock);
 	if (!res) {
@@ -205,6 +213,10 @@ debug_lock_unlock(unsigned mode, void *lock_)
 {
 	struct debug_lock *lock = lock_;
 	int res = 0;
+	if (lock->locktype & EVTHREAD_LOCKTYPE_READWRITE)
+		EVUTIL_ASSERT(mode & (EVTHREAD_READ|EVTHREAD_WRITE));
+	else
+		EVUTIL_ASSERT((mode & (EVTHREAD_READ|EVTHREAD_WRITE)) == 0);
 	--lock->count;
 	EVUTIL_ASSERT(lock->count >= 0);
 	if (_original_lock_fns.unlock)
@@ -223,11 +235,13 @@ evthread_enable_lock_debuging(void)
 		debug_lock_lock,
 		debug_lock_unlock
 	};
+	if (_evthread_lock_debugging_enabled)
+		return;
 	memcpy(&_original_lock_fns, &_evthread_lock_fns,
 	    sizeof(struct evthread_lock_callbacks));
 	memcpy(&_evthread_lock_fns, &cbs,
 	    sizeof(struct evthread_lock_callbacks));
-	lock_debugging_enabled = 1;
+	_evthread_lock_debugging_enabled = 1;
 }
 
 #endif

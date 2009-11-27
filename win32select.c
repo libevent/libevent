@@ -309,14 +309,14 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 		return (0);
 	}
 
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	res = select(fd_count,
 		     (struct fd_set*)win32op->readset_out,
 		     (struct fd_set*)win32op->writeset_out,
 		     (struct fd_set*)win32op->exset_out, tv);
 
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	event_debug(("%s: select returned %d", __func__, res));
 

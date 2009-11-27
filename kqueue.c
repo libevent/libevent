@@ -238,12 +238,12 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 	SWAP(int, kqop->nchanges, kqop->n_pend_changes);
 	SWAP(int, kqop->changes_size, kqop->pend_changes_size);
 
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	res = kevent(kqop->kq, kqop->pend_changes, kqop->n_pend_changes,
 	    events, kqop->events_size, ts_p);
 
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	kqop->n_pend_changes = 0;
 	if (res == -1) {

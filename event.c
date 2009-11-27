@@ -760,7 +760,7 @@ common_timeout_callback(evutil_socket_t fd, short what, void *arg)
 	struct common_timeout_list *ctl = arg;
 	struct event_base *base = ctl->base;
 	struct event *ev = NULL;
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	gettime(base, &now);
 	while (1) {
 		ev = TAILQ_FIRST(&ctl->events);
@@ -773,7 +773,7 @@ common_timeout_callback(evutil_socket_t fd, short what, void *arg)
 	}
 	if (ev)
 		common_timeout_schedule(ctl, &now, ev);
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 
 #define MAX_COMMON_TIMEOUTS 256
@@ -787,7 +787,7 @@ event_base_init_common_timeout(struct event_base *base,
 	const struct timeval *result=NULL;
 	struct common_timeout_list *new_ctl;
 
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	if (duration->tv_usec > 1000000) {
 		memcpy(&tv, duration, sizeof(struct timeval));
 		if (is_common_timeout(duration, base))
@@ -848,7 +848,7 @@ done:
 	if (result)
 		EVUTIL_ASSERT(is_common_timeout(result, base));
 
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	return result;
 }
 
@@ -915,10 +915,9 @@ event_process_active_single_queue(struct event_base *base,
 
 		base->current_event = ev;
 
-		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, current_event_lock);
+		EVBASE_ACQUIRE_LOCK(base, current_event_lock);
 
-		EVBASE_RELEASE_LOCK(base,
-		    EVTHREAD_WRITE, th_base_lock);
+		EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 		switch (ev->ev_closure) {
 		case EV_CLOSURE_SIGNAL:
@@ -934,8 +933,8 @@ event_process_active_single_queue(struct event_base *base,
 			break;
 		}
 
-		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, current_event_lock);
-		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+		EVBASE_RELEASE_LOCK(base, current_event_lock);
+		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 		base->current_event = NULL;
 
 		if (base->event_break)
@@ -1053,9 +1052,9 @@ event_base_loopbreak(struct event_base *event_base)
 	if (event_base == NULL)
 		return (-1);
 
-	EVBASE_ACQUIRE_LOCK(event_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(event_base, th_base_lock);
 	event_base->event_break = 1;
-	EVBASE_RELEASE_LOCK(event_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(event_base, th_base_lock);
 
 	if (!EVBASE_IN_THREAD(event_base)) {
 		return evthread_notify_base(event_base);
@@ -1068,9 +1067,9 @@ int
 event_base_got_break(struct event_base *event_base)
 {
 	int res;
-	EVBASE_ACQUIRE_LOCK(event_base, EVTHREAD_READ, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(event_base, th_base_lock);
 	res = event_base->event_break;
-	EVBASE_RELEASE_LOCK(event_base, EVTHREAD_READ, th_base_lock);
+	EVBASE_RELEASE_LOCK(event_base, th_base_lock);
 	return res;
 }
 
@@ -1078,9 +1077,9 @@ int
 event_base_got_exit(struct event_base *event_base)
 {
 	int res;
-	EVBASE_ACQUIRE_LOCK(event_base, EVTHREAD_READ, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(event_base, th_base_lock);
 	res = event_base->event_gotterm;
-	EVBASE_RELEASE_LOCK(event_base, EVTHREAD_READ, th_base_lock);
+	EVBASE_RELEASE_LOCK(event_base, th_base_lock);
 	return res;
 }
 
@@ -1102,7 +1101,7 @@ event_base_loop(struct event_base *base, int flags)
 
 	/* Grab the lock.  We will release it inside evsel.dispatch, and again
 	 * as we invoke user callbacks. */
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	clear_time_cache(base);
 
@@ -1169,7 +1168,7 @@ event_base_loop(struct event_base *base, int flags)
 
 	clear_time_cache(base);
 
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	event_debug(("%s: asked to terminate loop.", __func__));
 	return (0);
@@ -1419,11 +1418,11 @@ event_add(struct event *ev, const struct timeval *tv)
 {
 	int res;
 
-	EVBASE_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
 
 	res = event_add_internal(ev, tv, 0);
 
-	EVBASE_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
 
 	return (res);
 }
@@ -1602,11 +1601,11 @@ event_del(struct event *ev)
 {
 	int res;
 
-	EVBASE_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
 
 	res = event_del_internal(ev);
 
-	EVBASE_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
 
 	return (res);
 }
@@ -1634,7 +1633,7 @@ event_del_internal(struct event *ev)
 	base = ev->ev_base;
 	need_cur_lock = (base->current_event == ev);
 	if (need_cur_lock)
-		EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, current_event_lock);
+		EVBASE_ACQUIRE_LOCK(base, current_event_lock);
 
 	EVUTIL_ASSERT(!(ev->ev_flags & ~EVLIST_ALL));
 
@@ -1678,7 +1677,7 @@ event_del_internal(struct event *ev)
 		evthread_notify_base(base);
 
 	if (need_cur_lock)
-		EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, current_event_lock);
+		EVBASE_RELEASE_LOCK(base, current_event_lock);
 
 	return (res);
 }
@@ -1686,11 +1685,11 @@ event_del_internal(struct event *ev)
 void
 event_active(struct event *ev, int res, short ncalls)
 {
-	EVBASE_ACQUIRE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
 
 	event_active_nolock(ev, res, ncalls);
 
-	EVBASE_RELEASE_LOCK(ev->ev_base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
 }
 
 

@@ -144,12 +144,12 @@ select_dispatch(struct event_base *base, struct timeval *tv)
 
 	nfds = sop->event_fds+1;
 
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	res = select(nfds, sop->event_readset_out,
 	    sop->event_writeset_out, NULL, tv);
 
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	check_selectop(sop);
 

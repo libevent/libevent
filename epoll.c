@@ -145,11 +145,11 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 		timeout = MAX_EPOLL_TIMEOUT_MSEC;
 	}
 
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
 
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	if (res == -1) {
 		if (errno != EINTR) {

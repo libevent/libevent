@@ -98,7 +98,7 @@ evbuffer_commit_read(struct evbuffer *evbuf, ev_ssize_t nBytes)
 	struct evbuffer_iovec iov[2];
 	int n_vec;
 
-	EVBUFFER_LOCK(evbuf, EVTHREAD_WRITE);
+	EVBUFFER_LOCK(evbuf);
 	EVUTIL_ASSERT(buf->read_in_progress && !buf->write_in_progress);
 	EVUTIL_ASSERT(nBytes >= 0); // XXXX Can this be false?
 
@@ -130,7 +130,7 @@ evbuffer_commit_write(struct evbuffer *evbuf, ev_ssize_t nBytes)
 {
 	struct evbuffer_overlapped *buf = upcast_evbuffer(evbuf);
 
-	EVBUFFER_LOCK(evbuf, EVTHREAD_WRITE);
+	EVBUFFER_LOCK(evbuf);
 	EVUTIL_ASSERT(buf->write_in_progress && !buf->read_in_progress);
 	evbuffer_unfreeze(evbuf, 1);
 	evbuffer_drain(evbuf, nBytes);
@@ -170,7 +170,7 @@ evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most,
 		return -1;
 	}
 
-	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
+	EVBUFFER_LOCK(buf);
 	EVUTIL_ASSERT(!buf_o->read_in_progress);
 	if (buf->freeze_start || buf_o->write_in_progress)
 		goto done;
@@ -221,7 +221,7 @@ evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most,
 	buf_o->write_in_progress = 1;
 	r = 0;
 done:
-	EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
+	EVBUFFER_UNLOCK(buf);
 	return r;
 }
 
@@ -240,7 +240,7 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most,
 
 	if (!buf_o)
 		return -1;
-	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
+	EVBUFFER_LOCK(buf);
 	EVUTIL_ASSERT(!buf_o->write_in_progress);
 	if (buf->freeze_end || buf_o->read_in_progress)
 		goto done;
@@ -286,7 +286,7 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most,
 	buf_o->read_in_progress = 1;
 	r = 0;
 done:
-	EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
+	EVBUFFER_UNLOCK(buf);
 	return r;
 }
 
@@ -301,9 +301,9 @@ void
 _evbuffer_overlapped_set_fd(struct evbuffer *buf, evutil_socket_t fd)
 {
 	struct evbuffer_overlapped *buf_o = upcast_evbuffer(buf);
-	EVBUFFER_LOCK(buf, EVTHREAD_WRITE);
+	EVBUFFER_LOCK(buf);
 	/* XXX is this right?, should it cancel current I/O operations? */
 	if (buf_o)
 		buf_o->fd = fd;
-	EVBUFFER_UNLOCK(buf, EVTHREAD_WRITE);
+	EVBUFFER_UNLOCK(buf);
 }

@@ -176,11 +176,11 @@ devpoll_dispatch(struct event_base *base, struct timeval *tv)
 	dvp.dp_nfds = devpollop->nevents;
 	dvp.dp_timeout = timeout;
 
-	EVBASE_RELEASE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	res = ioctl(devpollop->dpfd, DP_POLL, &dvp);
 
-	EVBASE_ACQUIRE_LOCK(base, EVTHREAD_WRITE, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	if (res == -1) {
 		if (errno != EINTR) {

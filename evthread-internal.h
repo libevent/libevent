@@ -118,16 +118,16 @@ extern unsigned long (*_evthread_id_fn)(void);
 
 
 /** Lock an event_base, if it is set up for locking.  Acquires the lock
-    in the base structure whose field is named 'lck'. */
-#define EVBASE_ACQUIRE_LOCK(base, mode, lockvar) do {			\
+    in the base structure whose field is named 'lockvar'. */
+#define EVBASE_ACQUIRE_LOCK(base, lockvar) do {				\
 		if (EVBASE_USING_LOCKS(base))				\
-			_evthread_lock_fns.lock(mode, (base)->lockvar);	\
+			_evthread_lock_fns.lock(0, (base)->lockvar);	\
 	} while (0)
 
 /** Unlock an event_base, if it is set up for locking. */
-#define EVBASE_RELEASE_LOCK(base, mode, lockvar) do {			\
+#define EVBASE_RELEASE_LOCK(base, lockvar) do {				\
 		if (EVBASE_USING_LOCKS(base))				\
-			_evthread_lock_fns.unlock(mode, (base)->lockvar); \
+			_evthread_lock_fns.unlock(0, (base)->lockvar);	\
 	} while (0)
 #else /* _EVENT_DISABLE_THREAD_SUPPORT */
 
@@ -141,8 +141,8 @@ extern unsigned long (*_evthread_id_fn)(void);
 #define EVLOCK_UNLOCK2(lock1,lock2,mode1,mode2) _EVUTIL_NIL_STMT
 
 #define EVBASE_IN_THREAD(base)	1
-#define EVBASE_ACQUIRE_LOCK(base, mode, lock) _EVUTIL_NIL_STMT
-#define EVBASE_RELEASE_LOCK(base, mode, lock) _EVUTIL_NIL_STMT
+#define EVBASE_ACQUIRE_LOCK(base, lock) _EVUTIL_NIL_STMT
+#define EVBASE_RELEASE_LOCK(base, lock) _EVUTIL_NIL_STMT
 
 #endif
 
