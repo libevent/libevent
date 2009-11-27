@@ -311,7 +311,7 @@ evbuffer_enable_locking(struct evbuffer *buf, void *lock)
                 return -1;
 
         if (!lock) {
-                EVTHREAD_ALLOC_LOCK(lock);
+                EVTHREAD_ALLOC_LOCK(lock, EVTHREAD_LOCKTYPE_RECURSIVE);
                 if (!lock)
                         return -1;
                 buf->lock = lock;
@@ -441,7 +441,7 @@ _evbuffer_decref_and_unlock(struct evbuffer *buffer)
 
 	EVBUFFER_UNLOCK(buffer, EVTHREAD_WRITE);
         if (buffer->own_lock)
-                EVTHREAD_FREE_LOCK(buffer->lock);
+                EVTHREAD_FREE_LOCK(buffer->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 	mm_free(buffer);
 }
 

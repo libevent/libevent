@@ -38,12 +38,15 @@ struct event_base;
 static pthread_mutexattr_t attr_recursive;
 
 static void *
-evthread_posix_lock_create(void)
+evthread_posix_lock_alloc(unsigned locktype)
 {
+	pthread_mutexattr_t *attr = NULL;
 	pthread_mutex_t *lock = mm_malloc(sizeof(pthread_mutex_t));
 	if (!lock)
 		return NULL;
-	if (pthread_mutex_init(lock, &attr_recursive)) {
+	if (locktype & EVTHREAD_LOCKTYPE_RECURSIVE)
+		attr = &attr_recursive;
+	if (pthread_mutex_init(lock, attr)) {
 		mm_free(lock);
 		return NULL;
 	}
@@ -51,21 +54,28 @@ evthread_posix_lock_create(void)
 }
 
 static void
-evthread_posix_lock_free(void *_lock)
+evthread_posix_lock_free(void *_lock, unsigned locktype)
 {
 	pthread_mutex_t *lock = _lock;
 	pthread_mutex_destroy(lock);
 	mm_free(lock);
 }
 
-static void
-evthread_posix_lock(int mode, void *_lock)
+static int
+evthread_posix_lock(unsigned mode, void *_lock)
 {
 	pthread_mutex_t *lock = _lock;
-	if (0 != (mode & EVTHREAD_LOCK))
-		pthread_mutex_lock(lock);
+	if (mode & EVTHREAD_TRY)
+		return pthread_mutex_trylock(lock);
 	else
-		pthread_mutex_unlock(lock);
+		return pthread_mutex_lock(lock);
+}
+
+static int
+evthread_posix_unlock(unsigned mode, void *_lock)
+{
+	pthread_mutex_t *lock = _lock;
+	return pthread_mutex_unlock(lock);
 }
 
 static unsigned long
@@ -82,16 +92,21 @@ evthread_posix_get_id(void)
 int
 evthread_use_pthreads(void)
 {
+	struct evthread_lock_callbacks cbs = {
+		EVTHREAD_LOCK_API_VERSION,
+		EVTHREAD_LOCKTYPE_RECURSIVE,
+		evthread_posix_lock_alloc,
+		evthread_posix_lock_free,
+		evthread_posix_lock,
+		evthread_posix_unlock
+	};
 	/* Set ourselves up to get recursive locks. */
 	if (pthread_mutexattr_init(&attr_recursive))
 		return -1;
 	if (pthread_mutexattr_settype(&attr_recursive, PTHREAD_MUTEX_RECURSIVE))
 		return -1;
 
-	evthread_set_lock_create_callbacks(
-	    evthread_posix_lock_create,
-	    evthread_posix_lock_free);
-	evthread_set_locking_callback(evthread_posix_lock);
+	evthread_set_lock_callbacks(&cbs);
 	evthread_set_id_callback(evthread_posix_get_id);
 	return 0;
 }

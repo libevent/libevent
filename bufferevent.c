@@ -508,7 +508,8 @@ _bufferevent_decref_and_unlock(struct bufferevent *bufev)
 
 	BEV_UNLOCK(bufev);
 	if (bufev_private->own_lock)
-		EVTHREAD_FREE_LOCK(bufev_private->lock);
+		EVTHREAD_FREE_LOCK(bufev_private->lock,
+		    EVTHREAD_LOCKTYPE_RECURSIVE);
 
 	/* Free the actual allocated memory. */
 	mm_free(bufev - bufev->be_ops->mem_offset);
@@ -549,7 +550,7 @@ bufferevent_enable_locking(struct bufferevent *bufev, void *lock)
 		BEV_UPCAST(bufev)->lock = lock;
 		BEV_UPCAST(bufev)->own_lock = 0;
 	} else if (!lock) {
-		EVTHREAD_ALLOC_LOCK(lock);
+		EVTHREAD_ALLOC_LOCK(lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 		if (!lock)
 			return -1;
 		BEV_UPCAST(bufev)->lock = lock;

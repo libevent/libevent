@@ -88,15 +88,13 @@ void event_deferred_cb_schedule(struct deferred_cb_queue *, struct deferred_cb *
 #define LOCK_DEFERRED_QUEUE(q)						\
 	do {								\
 		if ((q)->lock)						\
-			_evthread_locking_fn(EVTHREAD_LOCK|EVTHREAD_WRITE, \
-			    (q)->lock);					\
+			_evthread_lock_fns.lock(0, (q)->lock);		\
 	} while (0)
 
 #define UNLOCK_DEFERRED_QUEUE(q)					\
 	do {								\
 		if ((q)->lock)						\
-			_evthread_locking_fn(EVTHREAD_UNLOCK|EVTHREAD_WRITE, \
-			    (q)->lock);					\
+			_evthread_lock_fns.unlock(0, (q)->lock);	\
 	} while (0)
 #endif
 

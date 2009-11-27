@@ -352,9 +352,11 @@ event_base_new_with_config(struct event_config *cfg)
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
 	if (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK)) {
 		int r;
-		EVTHREAD_ALLOC_LOCK(base->th_base_lock);
+		EVTHREAD_ALLOC_LOCK(base->th_base_lock,
+		    EVTHREAD_LOCKTYPE_RECURSIVE);
 		base->defer_queue.lock = base->th_base_lock;
-		EVTHREAD_ALLOC_LOCK(base->current_event_lock);
+		EVTHREAD_ALLOC_LOCK(base->current_event_lock,
+		    EVTHREAD_LOCKTYPE_RECURSIVE);
 		r = evthread_make_base_notifiable(base);
 		if (r<0) {
 			event_base_free(base);
@@ -475,8 +477,9 @@ event_base_free(struct event_base *base)
 	evmap_io_clear(&base->io);
 	evmap_signal_clear(&base->sigmap);
 
-	EVTHREAD_FREE_LOCK(base->th_base_lock);
-	EVTHREAD_FREE_LOCK(base->current_event_lock);
+	EVTHREAD_FREE_LOCK(base->th_base_lock, EVTHREAD_LOCKTYPE_RECURSIVE);
+	EVTHREAD_FREE_LOCK(base->current_event_lock,
+	    EVTHREAD_LOCKTYPE_RECURSIVE);
 
 	mm_free(base);
 }
@@ -2083,20 +2086,6 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 }
 #endif
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
-/* support for threading */
-void (*_evthread_locking_fn)(int mode, void *lock) = NULL;
-unsigned long (*_evthread_id_fn)(void) = NULL;
-void *(*_evthread_lock_alloc_fn)(void) = NULL;
-void (*_evthread_lock_free_fn)(void *) = NULL;
-
-void
-evthread_set_locking_callback(void (*locking_fn)(int mode, void *lock))
-{
-	_evthread_locking_fn = locking_fn;
-}
-#endif
-
 #if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
 static void
 evthread_notify_drain_eventfd(int fd, short what, void *arg)
@@ -2119,14 +2108,6 @@ evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 		;
 #endif
 }
-
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
-void
-evthread_set_id_callback(unsigned long (*id_fn)(void))
-{
-	_evthread_id_fn = id_fn;
-}
-#endif
 
 int
 evthread_make_base_notifiable(struct event_base *base)
@@ -2190,16 +2171,6 @@ evthread_make_base_notifiable(struct event_base *base)
 
 	return event_add(&base->th_notify, NULL);
 }
-
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
-void
-evthread_set_lock_create_callbacks(void *(*alloc_fn)(void),
-    void (*free_fn)(void *))
-{
-	_evthread_lock_alloc_fn = alloc_fn;
-	_evthread_lock_free_fn = free_fn;
-}
-#endif
 
 void
 event_base_dump_events(struct event_base *base, FILE *output)

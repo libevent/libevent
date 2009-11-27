@@ -107,7 +107,7 @@ event-config.h: config.h
 	    -e 's/#ifndef /#ifndef _EVENT_/' < config.h >> $@
 	echo "#endif" >> $@
 
-CORE_SRC = event.c buffer.c \
+CORE_SRC = event.c evthread.c buffer.c \
 	bufferevent.c bufferevent_sock.c bufferevent_filter.c \
 	bufferevent_pair.c listener.c \
 	evmap.c	log.c evutil.c strlcpy.c $(SYS_SRC)

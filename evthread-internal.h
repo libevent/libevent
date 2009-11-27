@@ -38,10 +38,8 @@ struct event_base;
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
 /* Global function pointers to lock-related functions. NULL if locking isn't
    enabled. */
-extern void (*_evthread_locking_fn)(int mode, void *lock);
+extern struct evthread_lock_callbacks _evthread_lock_fns;
 extern unsigned long (*_evthread_id_fn)(void);
-extern void *(*_evthread_lock_alloc_fn)(void);
-extern void (*_evthread_lock_free_fn)(void *);
 
 /** True iff the given event_base is set up to use locking */
 #define EVBASE_USING_LOCKS(base)			\
@@ -59,29 +57,30 @@ extern void (*_evthread_lock_free_fn)(void *);
 
 /** Allocate a new lock, and store it in lockvar, a void*.  Sets lockvar to
     NULL if locking is not enabled. */
-#define EVTHREAD_ALLOC_LOCK(lockvar)		\
-	((lockvar) = _evthread_lock_alloc_fn ?	\
-	    _evthread_lock_alloc_fn() : NULL)
+#define EVTHREAD_ALLOC_LOCK(lockvar, locktype)		\
+	((lockvar) = _evthread_lock_fns.alloc ?		\
+	    _evthread_lock_fns.alloc(locktype) : NULL)
 
 /** Free a given lock, if it is present and locking is enabled. */
-#define EVTHREAD_FREE_LOCK(lockvar)				\
-	do {							\
-		if (lockvar && _evthread_lock_free_fn)		\
-			_evthread_lock_free_fn(lockvar);	\
+#define EVTHREAD_FREE_LOCK(lockvar, locktype)				\
+	do {								\
+		void *_lock_tmp_ = (lockvar);				\
+		if (_lock_tmp_ && _evthread_lock_fns.free)		\
+			_evthread_lock_fns.free(_lock_tmp_, (locktype)); \
 	} while (0)
 
 /** Acquire a lock. */
-#define EVLOCK_LOCK(lock,mode)					\
+#define EVLOCK_LOCK(lockvar,mode)					\
 	do {								\
-		if (lock)						\
-			_evthread_locking_fn(EVTHREAD_LOCK|mode, lock);	\
+		if (lockvar)						\
+			_evthread_lock_fns.lock(mode, lockvar);		\
 	} while (0)
 
 /** Release a lock */
-#define EVLOCK_UNLOCK(lock,mode)					\
+#define EVLOCK_UNLOCK(lockvar,mode)					\
 	do {								\
-		if (lock)						\
-			_evthread_locking_fn(EVTHREAD_UNLOCK|mode, lock); \
+		if (lockvar)						\
+			_evthread_lock_fns.unlock(mode, lockvar);	\
 	} while (0)
 
 /** Helper: put lockvar1 and lockvar2 into pointerwise ascending order. */
@@ -119,24 +118,22 @@ extern void (*_evthread_lock_free_fn)(void *);
 
 
 /** Lock an event_base, if it is set up for locking.  Acquires the lock
-    in the base structure whose field is named 'lock'. */
-#define EVBASE_ACQUIRE_LOCK(base, mode, lock) do {			\
+    in the base structure whose field is named 'lck'. */
+#define EVBASE_ACQUIRE_LOCK(base, mode, lockvar) do {			\
 		if (EVBASE_USING_LOCKS(base))				\
-			_evthread_locking_fn(EVTHREAD_LOCK | mode,	\
-			    (base)->lock);				\
+			_evthread_lock_fns.lock(mode, (base)->lockvar);	\
 	} while (0)
 
 /** Unlock an event_base, if it is set up for locking. */
-#define EVBASE_RELEASE_LOCK(base, mode, lock) do {			\
+#define EVBASE_RELEASE_LOCK(base, mode, lockvar) do {			\
 		if (EVBASE_USING_LOCKS(base))				\
-			_evthread_locking_fn(EVTHREAD_UNLOCK | mode,	\
-			    (base)->lock);				\
+			_evthread_lock_fns.unlock(mode, (base)->lockvar); \
 	} while (0)
 #else /* _EVENT_DISABLE_THREAD_SUPPORT */
 
 #define EVTHREAD_GET_ID()	1
-#define EVTHREAD_ALLOC_LOCK(lockvar) _EVUTIL_NIL_STMT
-#define EVTHREAD_FREE_LOCK(lockvar) _EVUTIL_NIL_STMT
+#define EVTHREAD_ALLOC_LOCK(lockvar, locktype) _EVUTIL_NIL_STMT
+#define EVTHREAD_FREE_LOCK(lockvar, locktype) _EVUTIL_NIL_STMT
 
 #define EVLOCK_LOCK(lockvar, mode) _EVUTIL_NIL_STMT
 #define EVLOCK_UNLOCK(lockvar, mode) _EVUTIL_NIL_STMT

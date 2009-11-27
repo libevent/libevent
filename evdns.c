@@ -1688,7 +1688,7 @@ evdns_add_server_port_with_base(struct event_base *base, evutil_socket_t socket,
 		mm_free(port);
 		return NULL;
 	}
-	EVTHREAD_ALLOC_LOCK(port->lock);
+	EVTHREAD_ALLOC_LOCK(port->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 	return port;
 }
 
@@ -2082,7 +2082,7 @@ server_port_free(struct evdns_server_port *port)
 		port->socket = -1;
 	}
 	(void) event_del(&port->event);
-	EVTHREAD_FREE_LOCK(port->lock);
+	EVTHREAD_FREE_LOCK(port->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 	mm_free(port);
 }
 
@@ -3654,7 +3654,7 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 	memset(base, 0, sizeof(struct evdns_base));
 	base->req_waiting_head = NULL;
 
-	EVTHREAD_ALLOC_LOCK(base->lock);
+	EVTHREAD_ALLOC_LOCK(base->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 	EVDNS_LOCK(base);
 
 	/* Set max requests inflight and allocate req_heads. */
@@ -3773,7 +3773,7 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 		base->global_search_state = NULL;
 	}
 	EVDNS_UNLOCK(base);
-	EVTHREAD_FREE_LOCK(base->lock);
+	EVTHREAD_FREE_LOCK(base->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 
 	mm_free(base);
 }

@@ -39,7 +39,7 @@ struct event_base;
 #include "mm-internal.h"
 
 static void *
-evthread_win32_lock_create(void)
+evthread_win32_lock_create(unsigned locktype)
 {
 	CRITICAL_SECTION *lock = mm_malloc(sizeof(CRITICAL_SECTION));
 	if (!lock)
@@ -49,20 +49,29 @@ evthread_win32_lock_create(void)
 }
 
 static void
-evthread_win32_lock_free(void *_lock)
+evthread_win32_lock_free(void *_lock, unsigned locktype)
 {
 	CRITICAL_SECTION *lock = _lock;
 	DeleteCriticalSection(lock);
 }
 
 static void
-evthread_win32_lock(int mode, void *_lock)
+evthread_win32_lock(unsigned mode, void *_lock)
 {
 	CRITICAL_SECTION *lock = _lock;
-	if (0 != (mode & EVTHREAD_LOCK))
+	if ((mode & EVTHREAD_TRY)) {
+		return TryEnterCriticalSection(lock) != 0;
+	} else {
 		EnterCriticalSection(lock);
-	else
-		LeaveCriticalSection(lock);
+		return 0;
+	}
+}
+
+static void
+evthread_win32_unlock(unsigned mode, void *_lock)
+{
+	CRITICAL_SECTION *lock = _lock;
+	LeaveCriticalSection(lock)
 }
 
 static unsigned long
@@ -74,10 +83,16 @@ evthread_win32_get_id(void)
 int
 evthread_use_windows_threads(void)
 {
-	evthread_set_lock_create_callbacks(
-            evthread_win32_lock_create,
-            evthread_win32_lock_free);
-	evthread_set_locking_callback(evthread_win32_lock);
+	struct evthread_lock_callbacks cbs = {
+		EVTHREAD_LOCK_API_VERSION,
+		EVTHREAD_LOCKTYPE_RECURSIVE,
+		evthread_win32_lock_alloc,
+		evthread_win32_lock_free,
+		evthread_win32_lock,
+		evthread_win32_unlock
+	};
+
+	evthread_set_lock_callbacks(&cbs);
 	evthread_set_id_callback(evthread_win32_get_id);
 	return 0;
 }

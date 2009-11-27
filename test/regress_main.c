@@ -350,6 +350,11 @@ main(int argc, const char **argv)
 	tinytest_skip(testgroups, "http/connection_retry");
 #endif
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+	if (!getenv("EVENT_NO_DEBUG_LOCKS"))
+		evthread_enable_lock_debuging();
+#endif
+
         if (tinytest_main(argc,argv,testgroups))
                 return 1;
 
