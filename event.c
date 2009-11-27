@@ -1097,7 +1097,7 @@ event_base_loop(struct event_base *base, int flags)
 	const struct eventop *evsel = base->evsel;
 	struct timeval tv;
 	struct timeval *tv_p;
-	int res, done;
+	int res, done, retval = 0;
 
 	/* Grab the lock.  We will release it inside evsel.dispatch, and again
 	 * as we invoke user callbacks. */
@@ -1141,7 +1141,8 @@ event_base_loop(struct event_base *base, int flags)
 		/* If we have no events, we just exit */
 		if (!event_haveevents(base) && !N_ACTIVE_CALLBACKS(base)) {
 			event_debug(("%s: no events registered.", __func__));
-			return (1);
+			retval = 1;
+			goto done;
 		}
 
 		/* update last old time */
@@ -1151,8 +1152,12 @@ event_base_loop(struct event_base *base, int flags)
 
 		res = evsel->dispatch(base, tv_p);
 
-		if (res == -1)
-			return (-1);
+		if (res == -1) {
+			event_debug(("%s: dispatch returned unsuccessfully.",
+				__func__));
+			retval = -1;
+			goto done;
+		}
 
 		update_time_cache(base);
 
@@ -1165,13 +1170,14 @@ event_base_loop(struct event_base *base, int flags)
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
 	}
+	event_debug(("%s: asked to terminate loop.", __func__));
 
+done:
 	clear_time_cache(base);
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
-	event_debug(("%s: asked to terminate loop.", __func__));
-	return (0);
+	return (retval);
 }
 
 /* Sets up an event for processing once */
