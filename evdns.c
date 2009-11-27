@@ -616,8 +616,9 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 }
 
 static void
-nameserver_up(struct nameserver *const ns) {
-	EVDNS_LOCK(ns->base);
+nameserver_up(struct nameserver *const ns)
+{
+	ASSERT_LOCKED(ns->base);
 	if (ns->state) return;
 	log(EVDNS_LOG_WARN, "Nameserver %s is back up",
 	    debug_ntop((struct sockaddr *)&ns->address));
@@ -3895,6 +3896,7 @@ evdns_getaddrinfo_timeout_cb(evutil_socket_t fd, short what, void *ptr)
 		v4_timedout = 1;
 		EVDNS_LOCK(data->evdns_base);
 		++data->evdns_base->getaddrinfo_ipv4_timeouts;
+		EVDNS_UNLOCK(data->evdns_base);
 	}
 	if (data->ipv6_request.r) {
 		evdns_cancel_request(NULL, data->ipv6_request.r);
