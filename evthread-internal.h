@@ -40,6 +40,7 @@ struct event_base;
    enabled. */
 extern struct evthread_lock_callbacks _evthread_lock_fns;
 extern unsigned long (*_evthread_id_fn)(void);
+extern int _evthread_lock_debugging_enabled;
 
 /** True iff the given event_base is set up to use locking */
 #define EVBASE_USING_LOCKS(base)			\
@@ -129,6 +130,18 @@ extern unsigned long (*_evthread_id_fn)(void);
 		if (EVBASE_USING_LOCKS(base))				\
 			_evthread_lock_fns.unlock(0, (base)->lockvar);	\
 	} while (0)
+
+/** If lock debugging is enabled, and lock is non-null, assert that 'lock' is
+ * locked and held by us. */
+#define EVLOCK_ASSERT_LOCKED(lock)					\
+	do {								\
+		if ((lock) && _evthread_lock_debugging_enabled) {	\
+			EVUTIL_ASSERT(_evthread_is_debug_lock_held(lock)); \
+		}							\
+	} while (0)
+
+int _evthread_is_debug_lock_held(void *lock);
+
 #else /* _EVENT_DISABLE_THREAD_SUPPORT */
 
 #define EVTHREAD_GET_ID()	1
@@ -143,7 +156,7 @@ extern unsigned long (*_evthread_id_fn)(void);
 #define EVBASE_IN_THREAD(base)	1
 #define EVBASE_ACQUIRE_LOCK(base, lock) _EVUTIL_NIL_STMT
 #define EVBASE_RELEASE_LOCK(base, lock) _EVUTIL_NIL_STMT
-
+#define EVLOCK_ASSERT_LOCKED(lock) _EVUTIL_NIL_STMT
 #endif
 
 #ifdef __cplusplus

@@ -265,7 +265,6 @@ struct evdns_server_port {
 
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
 	void *lock;
-	int lock_count;
 #endif
 };
 
@@ -362,7 +361,6 @@ struct evdns_base {
 
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
 	void *lock;
-	int lock_count;
 #endif
 };
 
@@ -418,22 +416,12 @@ static int strtoint(const char *const str);
 #define EVDNS_UNLOCK(base) _EVUTIL_NIL_STMT
 #define ASSERT_LOCKED(base) _EVUTIL_NIL_STMT
 #else
-#define EVDNS_LOCK(base)						\
-	do {								\
-		if ((base)->lock) {					\
-			EVLOCK_LOCK((base)->lock, 0);			\
-		}							\
-		++(base)->lock_count;					\
-	} while (0)
-#define EVDNS_UNLOCK(base)						\
-	do {								\
-		EVUTIL_ASSERT((base)->lock_count > 0);			\
-		--(base)->lock_count;					\
-		if ((base)->lock) {					\
-			EVLOCK_UNLOCK((base)->lock, 0);			\
-		}							\
-	} while (0)
-#define ASSERT_LOCKED(base) EVUTIL_ASSERT((base)->lock_count > 0)
+#define EVDNS_LOCK(base)			\
+	EVLOCK_LOCK((base)->lock, 0)
+#define EVDNS_UNLOCK(base)			\
+	EVLOCK_UNLOCK((base)->lock, 0)
+#define ASSERT_LOCKED(base)			\
+	EVLOCK_ASSERT_LOCKED((base)->lock)
 #endif
 
 #define CLOSE_SOCKET(s) EVUTIL_CLOSESOCKET(s)

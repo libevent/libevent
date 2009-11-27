@@ -121,9 +121,6 @@ struct evbuffer {
 	/** Used to implement deferred callbacks. */
 	struct deferred_cb_queue *cb_queue;
 
-	/** For debugging: how many times have we acquired the lock for this
-	 * evbuffer? */
-        int lock_count;
 	/** A reference count on this evbuffer.  When the reference count
 	 * reaches 0, the buffer is destroyed.  Manipulated with
 	 * evbuffer_incref and evbuffer_decref_and_unlock and
@@ -202,47 +199,24 @@ struct evbuffer_chain_reference {
 /** Return a pointer to extra data allocated along with an evbuffer. */
 #define EVBUFFER_CHAIN_EXTRA(t, c) (t *)((struct evbuffer_chain *)(c) + 1)
 
-/** Assert that somebody (hopefully us) is holding the lock on an evbuffer */
+/** Assert that we are holding the lock on an evbuffer */
 #define ASSERT_EVBUFFER_LOCKED(buffer)                  \
-	do {                                            \
-		EVUTIL_ASSERT((buffer)->lock_count > 0);       \
-	} while (0)
-/** Assert that nobody is holding the lock on an evbuffer */
-#define ASSERT_EVBUFFER_UNLOCKED(buffer)                  \
-	do {                                            \
-		EVUTIL_ASSERT((buffer)->lock_count == 0);	\
-	} while (0)
-#define _EVBUFFER_INCREMENT_LOCK_COUNT(buffer)                 \
-	do {                                                   \
-		((struct evbuffer*)(buffer))->lock_count++;    \
-	} while (0)
-#define _EVBUFFER_DECREMENT_LOCK_COUNT(buffer)		      \
-	do {						      \
-		ASSERT_EVBUFFER_LOCKED(buffer);		      \
-		((struct evbuffer*)(buffer))->lock_count--;   \
-	} while (0)
+	EVLOCK_ASSERT_LOCKED((buffer)->lock)
 
 #define EVBUFFER_LOCK(buffer)						\
 	do {								\
 		EVLOCK_LOCK((buffer)->lock, 0);				\
-		_EVBUFFER_INCREMENT_LOCK_COUNT(buffer);			\
 	} while(0)
 #define EVBUFFER_UNLOCK(buffer)						\
 	do {								\
-		_EVBUFFER_DECREMENT_LOCK_COUNT(buffer);			\
 		EVLOCK_UNLOCK((buffer)->lock, 0);			\
 	} while(0)
-
 #define EVBUFFER_LOCK2(buffer1, buffer2)				\
 	do {								\
 		EVLOCK_LOCK2((buffer1)->lock, (buffer2)->lock, 0, 0);	\
-		_EVBUFFER_INCREMENT_LOCK_COUNT(buffer1);		\
-		_EVBUFFER_INCREMENT_LOCK_COUNT(buffer2);		\
 	} while(0)
 #define EVBUFFER_UNLOCK2(buffer1, buffer2)				\
 	do {								\
-		_EVBUFFER_DECREMENT_LOCK_COUNT(buffer1);		\
-		_EVBUFFER_DECREMENT_LOCK_COUNT(buffer2);		\
 		EVLOCK_UNLOCK2((buffer1)->lock, (buffer2)->lock, 0, 0);	\
 	} while(0)
 

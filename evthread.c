@@ -36,6 +36,7 @@
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "util-internal.h"
+#include "evthread-internal.h"
 
 /* globals */
 int _evthread_lock_debugging_enabled = 0;
@@ -150,6 +151,7 @@ evthread_set_lock_create_callbacks(void *(*alloc_fn)(void),
 
 struct debug_lock {
 	unsigned locktype;
+	unsigned long held_by;
 	/* XXXX if we ever use read-write locks, we will need a separate
 	 * lock to protect count. */
 	int count;
@@ -171,6 +173,7 @@ debug_lock_alloc(unsigned locktype)
 	}
 	result->locktype = locktype;
 	result->count = 0;
+	result->held_by = 0;
 	return result;
 }
 
@@ -204,6 +207,13 @@ debug_lock_lock(unsigned mode, void *lock_)
 		++lock->count;
 		if (!(lock->locktype & EVTHREAD_LOCKTYPE_RECURSIVE))
 			EVUTIL_ASSERT(lock->count == 1);
+		if (_evthread_id_fn) {
+			unsigned long me;
+			me = _evthread_id_fn();
+			if (lock->count > 1)
+				EVUTIL_ASSERT(lock->held_by == me);
+			lock->held_by = me;
+		}
 	}
 	return res;
 }
@@ -217,6 +227,12 @@ debug_lock_unlock(unsigned mode, void *lock_)
 		EVUTIL_ASSERT(mode & (EVTHREAD_READ|EVTHREAD_WRITE));
 	else
 		EVUTIL_ASSERT((mode & (EVTHREAD_READ|EVTHREAD_WRITE)) == 0);
+	if (_evthread_id_fn) {
+		unsigned long me = _evthread_id_fn();
+		EVUTIL_ASSERT(lock->held_by == me);
+		if (lock->count == 1)
+			lock->held_by = 0;
+	}
 	--lock->count;
 	EVUTIL_ASSERT(lock->count >= 0);
 	if (_original_lock_fns.unlock)
@@ -242,6 +258,20 @@ evthread_enable_lock_debuging(void)
 	memcpy(&_evthread_lock_fns, &cbs,
 	    sizeof(struct evthread_lock_callbacks));
 	_evthread_lock_debugging_enabled = 1;
+}
+
+int
+_evthread_is_debug_lock_held(void *lock_)
+{
+	struct debug_lock *lock = lock_;
+	if (! lock->count)
+		return 0;
+	if (_evthread_id_fn) {
+		unsigned long me = _evthread_id_fn();
+		if (lock->held_by != me)
+			return 0;
+	}
+	return 1;
 }
 
 #endif
