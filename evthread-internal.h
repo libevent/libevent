@@ -30,6 +30,7 @@
 extern "C" {
 #endif
 
+#include <event2/thread.h>
 #include "event-config.h"
 #include "util-internal.h"
 
@@ -142,6 +143,22 @@ extern int _evthread_lock_debugging_enabled;
 
 int _evthread_is_debug_lock_held(void *lock);
 
+/** Try to grab the lock for 'lockvar' without blocking, and return 1 if we
+ * manage to get it. */
+static inline int EVLOCK_TRY_LOCK(void *lock);
+static inline int
+EVLOCK_TRY_LOCK(void *lock)
+{
+	if (lock && _evthread_lock_fns.lock) {
+		int r = _evthread_lock_fns.lock(EVTHREAD_TRY, lock);
+		return !r;
+	} else {
+		/* Locking is disabled either globally or for this thing;
+		 * of course we count as having the lock. */
+		return 1;
+	}
+}
+
 #else /* _EVENT_DISABLE_THREAD_SUPPORT */
 
 #define EVTHREAD_GET_ID()	1
@@ -157,6 +174,8 @@ int _evthread_is_debug_lock_held(void *lock);
 #define EVBASE_ACQUIRE_LOCK(base, lock) _EVUTIL_NIL_STMT
 #define EVBASE_RELEASE_LOCK(base, lock) _EVUTIL_NIL_STMT
 #define EVLOCK_ASSERT_LOCKED(lock) _EVUTIL_NIL_STMT
+
+#define EVTHREAD_TRY_LOCK(lock) 1
 #endif
 
 #ifdef __cplusplus
