@@ -146,6 +146,7 @@ kq_init(struct event_base *base)
 	    kqueueop->pend_changes_size = NEVENT;
 
 	/* Check for Mac OS X kqueue bug. */
+	memset(&kqueueop->changes[0], 0, sizeof kqueueop->changes[0]);
 	kqueueop->changes[0].ident = -1;
 	kqueueop->changes[0].filter = EVFILT_READ;
 	kqueueop->changes[0].flags = EV_ADD;
