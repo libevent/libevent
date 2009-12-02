@@ -170,10 +170,10 @@ int evthread_use_windows_threads(void);
 int evthread_use_pthreads(void);
 #define EVTHREAD_USE_PTHREADS_IMPLEMENTED 1
 
+#endif
+
 /* XXXXX */
 void evthread_enable_lock_debuging(void);
-
-#endif
 
 #endif /* _EVENT_DISABLE_THREAD_SUPPORT */
 

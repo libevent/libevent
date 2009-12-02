@@ -55,7 +55,7 @@ evthread_win32_lock_free(void *_lock, unsigned locktype)
 	DeleteCriticalSection(lock);
 }
 
-static void
+static int
 evthread_win32_lock(unsigned mode, void *_lock)
 {
 	CRITICAL_SECTION *lock = _lock;
@@ -67,11 +67,12 @@ evthread_win32_lock(unsigned mode, void *_lock)
 	}
 }
 
-static void
+static int
 evthread_win32_unlock(unsigned mode, void *_lock)
 {
 	CRITICAL_SECTION *lock = _lock;
-	LeaveCriticalSection(lock)
+	LeaveCriticalSection(lock);
+	return 0;
 }
 
 static unsigned long
@@ -86,7 +87,7 @@ evthread_use_windows_threads(void)
 	struct evthread_lock_callbacks cbs = {
 		EVTHREAD_LOCK_API_VERSION,
 		EVTHREAD_LOCKTYPE_RECURSIVE,
-		evthread_win32_lock_alloc,
+		evthread_win32_lock_create,
 		evthread_win32_lock_free,
 		evthread_win32_lock,
 		evthread_win32_unlock
