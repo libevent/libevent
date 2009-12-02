@@ -103,8 +103,8 @@ test_iocp_port(void *ptr)
 	memset(&o1, 0, sizeof(o1));
 	memset(&o2, 0, sizeof(o2));
 
-	EVTHREAD_ALLOC_LOCK(o1.lock);
-	EVTHREAD_ALLOC_LOCK(o2.lock);
+	EVTHREAD_ALLOC_LOCK(o1.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
+	EVTHREAD_ALLOC_LOCK(o2.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 
 	tt_assert(o1.lock);
 	tt_assert(o2.lock);
