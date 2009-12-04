@@ -2248,7 +2248,7 @@ http_data_length_constraints_test(void)
 	evhttp_set_max_body_size(http, 8190);
 	req = evhttp_request_new(http_data_length_constraints_test_done, NULL);
 	evhttp_add_header(req->output_headers, "Host", "somehost");
-	evbuffer_add_printf(req->output_buffer, long_str);
+	evbuffer_add_printf(req->output_buffer, "%s", long_str);
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
 		tt_abort_msg("Couldn't make request");
 	}
