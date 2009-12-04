@@ -2704,7 +2704,7 @@ resolv_conf_parse_line(char *const start, int flags) {
 		const char *const nameserver = NEXT_TOKEN;
 		struct in_addr ina;
 
-		if (inet_aton(nameserver, &ina)) {
+		if (nameserver && inet_aton(nameserver, &ina)) {
 			/* address is valid */
 			evdns_nameserver_add(ina.s_addr);
 		}
