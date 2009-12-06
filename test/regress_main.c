@@ -93,7 +93,7 @@ int in_legacy_test_wrapper = 0;
 
 static void dnslogcb(int w, const char *m)
 {
-        TT_BLATHER((m));
+        TT_BLATHER(("%s", m));
 }
 
 /* creates a temporary file with the data in it */
