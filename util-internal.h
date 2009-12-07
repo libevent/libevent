@@ -136,6 +136,8 @@ extern const char EVUTIL_TOLOWER_TABLE[];
 #define EVUTIL_UPCAST(ptr, type, field)				\
 	((type *)(((char*)(ptr)) - evutil_offsetof(type, field)))
 
+int evutil_read_file(const char *filename, char **content_out, size_t *len_out,
+    int is_binary);
 
 int evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen);
 
