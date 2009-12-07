@@ -1151,6 +1151,9 @@ test_getaddrinfo_async(void *arg)
 
 	struct evdns_base *dns_base = evdns_base_new(data->base, 0);
 
+	/* for localhost */
+	evdns_base_load_hosts(dns_base, NULL);
+
 	memset(a_out, 0, sizeof(a_out));
 
 	n_gai_results_pending = 10000; /* don't think about exiting yet. */
@@ -1257,6 +1260,43 @@ test_getaddrinfo_async(void *arg)
 	a = ai_find_by_family(local_outcome.ai, PF_INET6);
 	tt_assert(a);
 	test_ai_eq(a, "[::1]:2", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(local_outcome.ai);
+	local_outcome.ai = NULL;
+
+	/* 1g. We find localhost immediately. (pf_unspec) */
+	memset(&hints, 0, sizeof(hints));
+	memset(&local_outcome, 0, sizeof(local_outcome));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	r = evdns_getaddrinfo(dns_base, "LOCALHOST", "80",
+	    &hints, gai_cb, &local_outcome);
+	tt_int_op(r,==,0);
+	tt_int_op(local_outcome.err,==,0);
+	tt_assert(local_outcome.ai);
+	/* we should get a v4 address of 127.0.0.1 .... */
+	a = ai_find_by_family(local_outcome.ai, PF_INET);
+	tt_assert(a);
+	test_ai_eq(a, "127.0.0.1:80", SOCK_STREAM, IPPROTO_TCP);
+	/* ... and a v6 address of ::1 */
+	a = ai_find_by_family(local_outcome.ai, PF_INET6);
+	tt_assert(a);
+	test_ai_eq(a, "[::1]:80", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(local_outcome.ai);
+	local_outcome.ai = NULL;
+
+	/* 1g. We find localhost immediately. (pf_inet6) */
+	memset(&hints, 0, sizeof(hints));
+	memset(&local_outcome, 0, sizeof(local_outcome));
+	hints.ai_family = PF_INET6;
+	hints.ai_socktype = SOCK_STREAM;
+	r = evdns_getaddrinfo(dns_base, "LOCALHOST", "9999",
+	    &hints, gai_cb, &local_outcome);
+	tt_int_op(r,==,0);
+	tt_int_op(local_outcome.err,==,0);
+	tt_assert(local_outcome.ai);
+	a = local_outcome.ai;
+	test_ai_eq(a, "[::1]:9999", SOCK_STREAM, IPPROTO_TCP);
+	tt_ptr_op(a->ai_next, ==, NULL);
 	evutil_freeaddrinfo(local_outcome.ai);
 	local_outcome.ai = NULL;
 

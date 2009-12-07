@@ -201,7 +201,8 @@ extern "C" {
 #define DNS_OPTION_SEARCH 1
 #define DNS_OPTION_NAMESERVERS 2
 #define DNS_OPTION_MISC 4
-#define DNS_OPTIONS_ALL 7
+#define DNS_OPTION_HOSTSFILE 8
+#define DNS_OPTIONS_ALL 15
 
 /**
  * The callback that contains the results from a lookup.
@@ -431,7 +432,7 @@ int evdns_base_set_option(struct evdns_base *base, const char *option, const cha
 
   @param base the evdns_base to which to apply this operation
   @param flags any of DNS_OPTION_NAMESERVERS|DNS_OPTION_SEARCH|DNS_OPTION_MISC|
-         DNS_OPTIONS_ALL
+         DNS_OPTIONS_HOSTSFILE|DNS_OPTIONS_ALL
   @param filename the path to the resolv.conf file
   @return 0 if successful, or various positive error codes if an error
           occurred (see above)
@@ -439,6 +440,17 @@ int evdns_base_set_option(struct evdns_base *base, const char *option, const cha
  */
 int evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char *const filename);
 
+/**
+   Load an /etc/hosts-style file from 'hosts_fname' into 'base'.
+
+   If hosts_fname is NULL, add minimal entries for localhost, and nothing
+   else.
+
+   Note that only evdns_getaddrinfo uses the /etc/hosts entries.
+
+   Return 0 on success, negative on failure.
+*/
+int evdns_base_load_hosts(struct evdns_base *base, const char *hosts_fname);
 
 /**
   Obtain nameserver information using the Windows API.
@@ -616,7 +628,6 @@ struct evdns_getaddrinfo_request;
  * Limitations:
  *
  * - The AI_V4MAPPED and AI_ALL flags are not currently implemented.
- * - We don't look at the /etc/hosts file.
  * - For ai_socktype, we only handle SOCKTYPE_STREAM, SOCKTYPE_UDP, and 0.
  * - For ai_protocol, we only handle IPPROTO_TCP, IPPROTO_UDP, and 0.
  */

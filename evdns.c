@@ -363,9 +363,22 @@ struct evdns_base {
 
 	struct search_state *global_search_state;
 
+	TAILQ_HEAD(hosts_list, hosts_entry) hostsdb;
+
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
 	void *lock;
 #endif
+};
+
+struct hosts_entry {
+	TAILQ_ENTRY(hosts_entry) next;
+	union {
+		struct sockaddr sa;
+		struct sockaddr_in sin;
+		struct sockaddr_in6 sin6;
+	} addr;
+	int addrlen;
+	char hostname[1];
 };
 
 static struct evdns_base *current_base = NULL;
@@ -2502,6 +2515,28 @@ evdns_nameserver_add(unsigned long int address) {
 	return evdns_base_nameserver_add(current_base, address);
 }
 
+static void
+sockaddr_setport(struct sockaddr *sa, ev_uint16_t port)
+{
+	if (sa->sa_family == AF_INET) {
+		((struct sockaddr_in *)sa)->sin_port = htons(port);
+	} else if (sa->sa_family == AF_INET6) {
+		((struct sockaddr_in6 *)sa)->sin6_port = htons(port);
+	}
+}
+
+static ev_uint16_t
+sockaddr_getport(struct sockaddr *sa)
+{
+	if (sa->sa_family == AF_INET) {
+		return ntohs(((struct sockaddr_in *)sa)->sin_port);
+	} else if (sa->sa_family == AF_INET6) {
+		return ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
+	} else {
+		return 0;
+	}
+}
+
 /* exported function */
 int
 evdns_base_nameserver_ip_add(struct evdns_base *base, const char *ip_as_string) {
@@ -2516,20 +2551,8 @@ evdns_base_nameserver_ip_add(struct evdns_base *base, const char *ip_as_string) 
 		return 4;
 	}
 	sa = (struct sockaddr *) &ss;
-	if (sa->sa_family == AF_INET) {
-		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
-		if (sin->sin_port == 0)
-			sin->sin_port = htons(53);
-	}
-#ifdef AF_INET6
-	else if (sa->sa_family == AF_INET6) {
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
-		if (sin6->sin6_port == 0)
-			sin6->sin6_port = htons(53);
-	}
-#endif
-	else
-		return -1;
+	if (sockaddr_getport(sa) == 0)
+		sockaddr_setport(sa, 53);
 
 	EVDNS_LOCK(base);
 	res = _evdns_nameserver_add_impl(base, sa, len);
@@ -3370,42 +3393,32 @@ evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char *con
 
 static int
 evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char *const filename) {
-	struct stat st;
-	int fd, n, r;
-	u8 *resolv;
+	size_t n;
+	char *resolv;
 	char *start;
 	int err = 0;
 
 	log(EVDNS_LOG_DEBUG, "Parsing resolv.conf file %s", filename);
 
-	fd = open(filename, O_RDONLY);
-	if (fd < 0) {
-		evdns_resolv_set_defaults(base, flags);
-		return 1;
+	if (flags & DNS_OPTION_HOSTSFILE) {
+#ifdef WIN32
+		evdns_base_load_hosts(base, NULL);
+#else
+		evdns_base_load_hosts(base, "/etc/hosts");
+#endif
 	}
 
-	if (fstat(fd, &st)) { err = 2; goto out1; }
-	if (!st.st_size) {
-		evdns_resolv_set_defaults(base, flags);
-		err = (flags & DNS_OPTION_NAMESERVERS) ? 6 : 0;
-		goto out1;
+	if ((err = evutil_read_file(filename, &resolv, &n, 0)) < 0) {
+		if (err == -1) {
+			/* No file. */
+			evdns_resolv_set_defaults(base, flags);
+			return 1;
+		} else {
+			return 2;
+		}
 	}
-	if (st.st_size > 65535) { err = 3; goto out1; }	 /* no resolv.conf should be any bigger */
 
-	resolv = (u8 *) mm_malloc((size_t)st.st_size + 1);
-	if (!resolv) { err = 4; goto out1; }
-
-	n = 0;
-	while ((r = read(fd, resolv+n, (size_t)st.st_size-n)) > 0) {
-		n += r;
-		if (n == st.st_size)
-			break;
-		EVUTIL_ASSERT(n < st.st_size);
-	}
-	if (r < 0) { err = 5; goto out2; }
-	resolv[n] = 0;	 /* we malloced an extra byte; this should be fine. */
-
-	start = (char *) resolv;
+	start = resolv;
 	for (;;) {
 		char *const newline = strchr(start, '\n');
 		if (!newline) {
@@ -3427,10 +3440,7 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 		search_set_from_hostname(base);
 	}
 
-out2:
 	mm_free(resolv);
-out1:
-	close(fd);
 	return err;
 }
 
@@ -3440,6 +3450,8 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 		current_base = evdns_base_new(NULL, 0);
 	return evdns_base_resolv_conf_parse(current_base, flags, filename);
 }
+
+
 
 #ifdef WIN32
 /* Add multiple nameservers from a space-or-comma-separated list. */
@@ -3703,6 +3715,8 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 	base->global_nameserver_probe_initial_timeout.tv_sec = 10;
 	base->global_nameserver_probe_initial_timeout.tv_usec = 0;
 
+	TAILQ_INIT(&base->hostsdb);
+
 	if (initialize_nameservers) {
 		int r;
 #ifdef WIN32
@@ -3798,6 +3812,15 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 		mm_free(base->global_search_state);
 		base->global_search_state = NULL;
 	}
+
+	{
+		struct hosts_entry *victim;
+		while ((victim = TAILQ_FIRST(&base->hostsdb))) {
+			TAILQ_REMOVE(&base->hostsdb, victim, next);
+			mm_free(victim);
+		}
+	}
+
 	EVDNS_UNLOCK(base);
 	EVTHREAD_FREE_LOCK(base->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 
@@ -3820,6 +3843,111 @@ evdns_shutdown(int fail_requests)
 		evdns_base_free(b, fail_requests);
 	}
 	evdns_log_fn = NULL;
+}
+
+static int
+evdns_base_parse_hosts_line(struct evdns_base *base, char *line)
+{
+	char *strtok_state;
+	static const char *const delims = " \t";
+	char *const addr = strtok_r(line, delims, &strtok_state);
+	char *hostname, *hash;
+	struct sockaddr_storage ss;
+	int socklen = sizeof(ss);
+	ASSERT_LOCKED(base);
+
+#define NEXT_TOKEN strtok_r(NULL, delims, &strtok_state)
+
+	if (!addr || *addr == '#')
+		return 0;
+
+	memset(&ss, 0, sizeof(ss));
+	if (evutil_parse_sockaddr_port(addr, (struct sockaddr*)&ss, &socklen)<0)
+		return -1;
+	if (socklen > sizeof(struct sockaddr_in6))
+		return -1;
+
+	if (sockaddr_getport((struct sockaddr*)&ss))
+		return -1;
+
+	while ((hostname = NEXT_TOKEN)) {
+		struct hosts_entry *he;
+		size_t namelen;
+		if ((hash = strchr(hostname, '#'))) {
+			if (hash == hostname)
+				return 0;
+			*hash = '\0';
+		}
+
+		namelen = strlen(hostname);
+
+		he = mm_calloc(1, sizeof(struct hosts_entry)+namelen);
+		if (!he)
+			return -1;
+		EVUTIL_ASSERT(socklen <= sizeof(he->addr));
+		memcpy(&he->addr, &ss, socklen);
+		memcpy(he->hostname, hostname, namelen+1);
+		he->addrlen = socklen;
+
+		TAILQ_INSERT_TAIL(&base->hostsdb, he, next);
+
+		if (hash)
+			return 0;
+	}
+
+	return 0;
+#undef NEXT_TOKEN
+}
+
+static int
+evdns_base_load_hosts_impl(struct evdns_base *base, const char *hosts_fname)
+{
+	char *str=NULL, *cp, *eol;
+	size_t len;
+	int err=0;
+
+	ASSERT_LOCKED(base);
+
+	if (hosts_fname == NULL ||
+	    (err = evutil_read_file(hosts_fname, &str, &len, 0)) < 0) {
+		char tmp[64];
+		strlcpy(tmp, "127.0.0.1   localhost", sizeof(tmp));
+		evdns_base_parse_hosts_line(base, tmp);
+		strlcpy(tmp, "::1   localhost", sizeof(tmp));
+		evdns_base_parse_hosts_line(base, tmp);
+		return err ? -1 : 0;
+	}
+
+	/* This will break early if there is a NUL in the hosts file.
+	 * Probably not a problem.*/
+	cp = str;
+	for (;;) {
+		eol = strchr(cp, '\n');
+
+		if (eol) {
+			*eol = '\0';
+			evdns_base_parse_hosts_line(base, cp);
+			cp = eol+1;
+		} else {
+			evdns_base_parse_hosts_line(base, cp);
+			break;
+		}
+	}
+
+	mm_free(str);
+	return 0;
+}
+
+int
+evdns_base_load_hosts(struct evdns_base *base, const char *hosts_fname)
+{
+	int res;
+	if (!base)
+		base = current_base;
+	EVDNS_LOCK(base);
+	res = evdns_base_load_hosts_impl(base, hosts_fname);
+	EVDNS_UNLOCK(base);
+	return res;
 }
 
 /* A single request for a getaddrinfo, either v4 or v6. */
@@ -4106,6 +4234,64 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 	}
 }
 
+static struct hosts_entry *
+find_hosts_entry(struct evdns_base *base, const char *hostname,
+    struct hosts_entry *find_after)
+{
+	struct hosts_entry *e;
+
+	if (find_after)
+		e = TAILQ_NEXT(find_after, next);
+	else
+		e = TAILQ_FIRST(&base->hostsdb);
+
+	for (; e; e = TAILQ_NEXT(e, next)) {
+		if (!evutil_ascii_strcasecmp(e->hostname, hostname))
+			return e;
+	}
+	return NULL;
+}
+
+static int
+evdns_getaddrinfo_fromhosts(struct evdns_base *base,
+    const char *nodename, struct evutil_addrinfo *hints, ev_uint16_t port,
+    struct evutil_addrinfo **res)
+{
+	int n_found = 0;
+	struct hosts_entry *e;
+	struct evutil_addrinfo *ai=NULL;
+	int f = hints->ai_family;
+
+	EVDNS_LOCK(base);
+	for (e = find_hosts_entry(base, nodename, NULL); e;
+	    e = find_hosts_entry(base, nodename, e)) {
+		struct evutil_addrinfo *ai_new;
+		++n_found;
+		if ((e->addr.sa.sa_family == AF_INET && f == PF_INET6) ||
+		    (e->addr.sa.sa_family == AF_INET6 && f == PF_INET))
+			continue;
+		ai_new = evutil_new_addrinfo(&e->addr.sa, e->addrlen, hints);
+		if (!ai_new) {
+			n_found = 0;
+			goto out;
+		}
+		sockaddr_setport(ai_new->ai_addr, port);
+		ai = evutil_addrinfo_append(ai, ai_new);
+	}
+	EVDNS_UNLOCK(base);
+out:
+	if (n_found) {
+		/* Note that we return an empty answer if we found entries for
+		 * this hostname but none were of the right address type. */
+		*res = ai;
+		return 0;
+	} else {
+		if (ai)
+			evutil_freeaddrinfo(ai);
+		return -1;
+	}
+}
+
 struct evdns_getaddrinfo_request *
 evdns_getaddrinfo(struct evdns_base *dns_base,
     const char *nodename, const char *servname,
@@ -4155,6 +4341,12 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	err = evutil_getaddrinfo_common(nodename, servname, &hints, &res, &port);
 	if (err != EVUTIL_EAI_NEED_RESOLVE) {
 		cb(err, res, arg);
+		return NULL;
+	}
+
+	/* If there is an entry in the hosts file, we should give it now. */
+	if (!evdns_getaddrinfo_fromhosts(dns_base, nodename, &hints, port, &res)) {
+		cb(0, res, arg);
 		return NULL;
 	}
 
