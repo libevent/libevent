@@ -57,7 +57,9 @@ extern "C" {
 #endif
 #include <stdarg.h>
 #ifdef _EVENT_HAVE_NETDB_H
+#if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
+#endif
 #include <netdb.h>
 #endif
 
