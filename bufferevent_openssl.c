@@ -590,6 +590,8 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 	if (n < 0)
 		return -1;
 
+	if (n > 8)
+		n = 8;
 	for (i=0; i < n; ++i) {
 		r = SSL_write(bev_ssl->ssl, space[i].iov_base,
 		    space[i].iov_len);
