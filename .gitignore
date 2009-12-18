@@ -48,11 +48,10 @@ libevent.pc
 /config.h
 /config.h.in
 /event-config.h
+/install-sh
 /libtool
 /ltmain.sh
 /stamp-h1
-
-/m4
 
 /sample/dns-example
 /sample/event-test
