@@ -1101,8 +1101,10 @@ bufferevent_openssl_new_impl(struct event_base *base,
 	if (options & BEV_OPT_THREADSAFE)
 		bufferevent_enable_locking(&bev_ssl->bev.bev, NULL);
 
-	if (underlying)
+	if (underlying) {
 		_bufferevent_init_generic_timeout_cbs(&bev_ssl->bev.bev);
+		bufferevent_incref(underlying);
+	}
 
 	bev_ssl->state = state;
 	bev_ssl->last_write = -1;

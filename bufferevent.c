@@ -512,11 +512,14 @@ _bufferevent_decref_and_unlock(struct bufferevent *bufev)
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent *underlying;
 
 	if (--bufev_private->refcnt) {
 		BEV_UNLOCK(bufev);
 		return;
 	}
+
+	underlying = bufferevent_get_underlying(bufev);
 
 	/* Clean up the shared info */
 	if (bufev->be_ops->destruct)
@@ -536,6 +539,15 @@ _bufferevent_decref_and_unlock(struct bufferevent *bufev)
 
 	/* Free the actual allocated memory. */
 	mm_free(bufev - bufev->be_ops->mem_offset);
+
+	/* release the reference to underlying now that we no longer need
+	 * the reference to it.  This is mainly in case our lock is shared
+	 * with underlying.
+	 * XXX Should we/can we just refcount evbuffer/bufferevent locks?
+	 * It would probably save us some headaches.
+	 */
+	if (underlying)
+		bufferevent_decref(underlying);
 }
 
 void

@@ -200,6 +200,7 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	   bufferevent_filtered_outbuf_cb, bufev_f);
 
 	_bufferevent_init_generic_timeout_cbs(downcast(bufev_f));
+	bufferevent_incref(underlying);
 
 	return downcast(bufev_f);
 }
