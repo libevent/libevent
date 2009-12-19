@@ -207,7 +207,9 @@
 #define _EVENT_TIME_WITH_SYS_TIME 1
 
 /* Version number of package */
-#define _EVENT_VERSION "1.3.99-trunk"
+#define _EVENT_VERSION "1.4.13-stable-dev"
+
+#define _EVENT_NUMERIC_VERSION 0x01040d01
 
 /* Define to appropriate substitue if compiler doesnt have __func__ */
 /* #undef _EVENT___func__ */

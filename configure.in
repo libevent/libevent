@@ -2,9 +2,11 @@ dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
-AM_INIT_AUTOMAKE(libevent,1.4.13-stable)
+AM_INIT_AUTOMAKE(libevent,1.4.13-stable-dev)
 AM_CONFIG_HEADER(config.h)
 dnl AM_MAINTAINER_MODE
+
+AC_DEFINE(NUMERIC_VERSION, 0x01040d01, [Numeric representation of the version])
 
 dnl Initialize prefix.
 if test "$prefix" = "NONE"; then
