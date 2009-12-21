@@ -170,6 +170,8 @@ debug_lock_alloc(unsigned locktype)
 			mm_free(result);
 			return NULL;
 		}
+	} else {
+		result->lock = NULL;
 	}
 	result->locktype = locktype;
 	result->count = 0;

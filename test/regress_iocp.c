@@ -66,13 +66,13 @@ dummy_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n, int ok)
 	struct dummy_overlapped *d_o =
 	    EVUTIL_UPCAST(o, struct dummy_overlapped, eo);
 
-	EVLOCK_LOCK(d_o->lock, EVTHREAD_WRITE);
+	EVLOCK_LOCK(d_o->lock, 0);
 	if (d_o->call_count < MAX_CALLS) {
 		d_o->keys[d_o->call_count] = key;
 		d_o->sizes[d_o->call_count] = n;
 	}
 	d_o->call_count++;
-	EVLOCK_UNLOCK(d_o->lock, EVTHREAD_WRITE);
+	EVLOCK_UNLOCK(d_o->lock, 0);
 }
 
 static int
@@ -80,14 +80,14 @@ pair_is_in(struct dummy_overlapped *o, uintptr_t key, ev_ssize_t n)
 {
 	int i;
 	int result = 0;
-	EVLOCK_LOCK(o->lock, EVTHREAD_WRITE);
+	EVLOCK_LOCK(o->lock, 0);
 	for (i=0; i < o->call_count; ++i) {
 		if (o->keys[i] == key && o->sizes[i] == n) {
 			result = 1;
 			break;
 		}
 	}
-	EVLOCK_UNLOCK(o->lock, EVTHREAD_WRITE);
+	EVLOCK_UNLOCK(o->lock, 0);
 	return result;
 }
 
@@ -97,9 +97,6 @@ test_iocp_port(void *ptr)
 	struct event_iocp_port *port = NULL;
 	struct dummy_overlapped o1, o2;
 
-#ifdef WIN32
-	evthread_use_windows_threads();
-#endif
 	memset(&o1, 0, sizeof(o1));
 	memset(&o2, 0, sizeof(o2));
 
@@ -186,10 +183,6 @@ test_iocp_evbuffer(void *ptr)
 	event_overlapped_init(&rol, read_complete);
 	event_overlapped_init(&wol, write_complete);
 
-#ifdef WIN32
-	evthread_use_windows_threads();
-#endif
-
 	for (i = 0; i < sizeof(junk); ++i)
 		junk[i] = (char)(i);
 
@@ -238,11 +231,6 @@ test_iocp_bufferevent_async(void *ptr)
 	size_t n;
 	struct timeval one_sec = {1,0};
 
-
-#ifdef WIN32
-	evthread_use_windows_threads();
-#endif
-
 	event_base_start_iocp(data->base);
 	port = event_base_get_iocp(data->base);
 	tt_assert(port);
@@ -274,10 +262,12 @@ end:
 
 
 struct testcase_t iocp_testcases[] = {
-	{ "port", test_iocp_port, TT_FORK, NULL, NULL },
-	{ "evbuffer", test_iocp_evbuffer, TT_FORK|TT_NEED_SOCKETPAIR,
+	{ "port", test_iocp_port, TT_FORK|TT_NEED_THREADS, NULL, NULL },
+	{ "evbuffer", test_iocp_evbuffer,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_THREADS,
 	  &basic_setup, NULL },
 	{ "bufferevent_async", test_iocp_bufferevent_async,
-	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_THREADS|TT_NEED_BASE,
+	  &basic_setup, NULL },
 	END_OF_TESTCASES
 };
