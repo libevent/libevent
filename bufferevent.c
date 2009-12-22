@@ -120,17 +120,10 @@ bufferevent_inbuf_wm_cb(struct evbuffer *buf,
 
 	size = evbuffer_get_length(buf);
 
-	if (cbinfo->n_added > cbinfo->n_deleted) {
-		/* Data got added.  If it put us over the watermark, stop
-		 * reading. */
-		if (size >= bufev->wm_read.high)
-			bufferevent_wm_suspend_read(bufev);
-	} else {
-		/* Data got removed.  If it puts us under the watermark,
-		   stop reading. */
-		if (size < bufev->wm_read.high)
-			bufferevent_wm_unsuspend_read(bufev);
-	}
+	if (size >= bufev->wm_read.high)
+		bufferevent_wm_suspend_read(bufev);
+	else
+		bufferevent_wm_unsuspend_read(bufev);
 }
 
 static void
