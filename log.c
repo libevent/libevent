@@ -113,7 +113,7 @@ event_sock_err(int eval, evutil_socket_t sock, const char *fmt, ...)
 }
 
 void
-event_sock_warn(int sock, const char *fmt, ...)
+event_sock_warn(evutil_socket_t sock, const char *fmt, ...)
 {
 	va_list ap;
 	int err = evutil_socket_geterror(sock);

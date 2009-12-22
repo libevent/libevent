@@ -27,6 +27,8 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
+#include <event2/util.h>
+
 #ifdef __GNUC__
 #define EV_CHECK_FMT(a,b) __attribute__((format(printf, a, b)))
 #else
@@ -37,8 +39,8 @@
 
 void event_err(int eval, const char *fmt, ...) EV_CHECK_FMT(2,3);
 void event_warn(const char *fmt, ...) EV_CHECK_FMT(1,2);
-void event_sock_err(int eval, int sock, const char *fmt, ...) EV_CHECK_FMT(3,4);
-void event_sock_warn(int sock, const char *fmt, ...) EV_CHECK_FMT(2,3);
+void event_sock_err(int eval, evutil_socket_t sock, const char *fmt, ...) EV_CHECK_FMT(3,4);
+void event_sock_warn(evutil_socket_t sock, const char *fmt, ...) EV_CHECK_FMT(2,3);
 void event_errx(int eval, const char *fmt, ...) EV_CHECK_FMT(2,3);
 void event_warnx(const char *fmt, ...) EV_CHECK_FMT(1,2);
 void event_msgx(const char *fmt, ...) EV_CHECK_FMT(1,2);
