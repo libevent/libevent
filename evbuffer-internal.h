@@ -36,6 +36,9 @@ extern "C" {
 #include "util-internal.h"
 #include "defer-internal.h"
 
+/* Experimental cb flag: "never deferred" */
+#define EVBUFFER_CB_NODEFER 2
+
 #ifdef WIN32
 #include <winsock2.h>
 #endif
@@ -59,11 +62,6 @@ struct evbuffer_cb_entry {
 	void *cbarg;
         /** Currently set flags on this callback. */
 	ev_uint32_t flags;
-#if 0
-        /** Size of the evbuffer before this callback was suspended, or 0
-            if this callback is not suspended. */
-	size_t size_before_suspend;
-#endif
 };
 
 struct bufferevent;

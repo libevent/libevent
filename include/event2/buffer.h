@@ -610,9 +610,6 @@ int evbuffer_remove_cb(struct evbuffer *buffer, evbuffer_cb_func cb, void *cbarg
  * should not be invoked. */
 #define EVBUFFER_CB_ENABLED 1
 
-/* Experimental cb flag: "never deferred" */
-#define EVBUFFER_CB_NODEFER 2
-
 /** Change the flags that are set for a callback on a buffer by adding more.
 
     @param buffer the evbuffer that the callback is watching.

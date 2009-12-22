@@ -333,6 +333,7 @@ evbuffer_run_callbacks(struct evbuffer *buffer, int running_deferred)
         struct evbuffer_cb_info info;
 	size_t new_size;
 	uint32_t mask, masked_val;
+	int clear = 1;
 
 	if (running_deferred) {
 		mask = EVBUFFER_CB_NODEFER|EVBUFFER_CB_ENABLED;
@@ -340,6 +341,8 @@ evbuffer_run_callbacks(struct evbuffer *buffer, int running_deferred)
 	} else if (buffer->deferred_cbs) {
 		mask = EVBUFFER_CB_NODEFER|EVBUFFER_CB_ENABLED;
 		masked_val = EVBUFFER_CB_NODEFER|EVBUFFER_CB_ENABLED;
+/* Don't zero-out n_add/n_del, since */
+		clear = 0;
 	} else {
 		mask = EVBUFFER_CB_ENABLED;
 		masked_val = EVBUFFER_CB_ENABLED;
