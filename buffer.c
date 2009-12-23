@@ -332,7 +332,7 @@ evbuffer_run_callbacks(struct evbuffer *buffer, int running_deferred)
 	struct evbuffer_cb_entry *cbent, *next;
         struct evbuffer_cb_info info;
 	size_t new_size;
-	uint32_t mask, masked_val;
+	ev_uint32_t mask, masked_val;
 	int clear = 1;
 
 	if (running_deferred) {

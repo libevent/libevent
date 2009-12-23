@@ -55,9 +55,9 @@ extern "C" {
 #define BEV_SUSPEND_CONNECTING 0x04
 
 struct token_bucket {
-	uint32_t limit;
-	uint32_t rate;
-	uint32_t burst;
+	ev_uint32_t limit;
+	ev_uint32_t rate;
+	ev_uint32_t burst;
 	unsigned last_updated;
 };
 
