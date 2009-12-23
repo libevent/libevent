@@ -50,6 +50,9 @@ extern "C" {
 #define BEV_SUSPEND_WM 0x01
 /* On a base bufferevent: when we have used up our bandwidth buckets. */
 #define BEV_SUSPEND_BW 0x02
+/* On a socket bufferevent: we aren't going to try reading until the
+ * connect operation is done. */
+#define BEV_SUSPEND_CONNECTING 0x04
 
 struct token_bucket {
 	uint32_t limit;

@@ -491,11 +491,11 @@ test_bufferevent_connect(void *arg)
 	bufferevent_setcb(bev1, NULL, NULL, reader_eventcb, data->base);
 	bufferevent_setcb(bev2, NULL, NULL, reader_eventcb, data->base);
 
-	tt_want(!bufferevent_socket_connect(bev1, sa, sizeof(localhost)));
-	tt_want(!bufferevent_socket_connect(bev2, sa, sizeof(localhost)));
-
 	bufferevent_enable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
+
+	tt_want(!bufferevent_socket_connect(bev1, sa, sizeof(localhost)));
+	tt_want(!bufferevent_socket_connect(bev2, sa, sizeof(localhost)));
 
 #ifdef WIN32
 	/* FIXME this is to get IOCP to work. it shouldn't be required. */
