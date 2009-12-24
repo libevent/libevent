@@ -678,6 +678,7 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 	if (bev_ssl->write_blocked_on_read)
 		return;
 	while ((bev_ssl->bev.bev.enabled & EV_READ) &&
+	    (! bev_ssl->bev.read_suspended) &&
 	    (! wm->high || evbuffer_get_length(input) < wm->high)) {
 		int n_to_read =
 		    wm->high ? wm->high - evbuffer_get_length(input)
@@ -708,6 +709,7 @@ consider_writing(struct bufferevent_openssl *bev_ssl)
 		wm = &bev_ssl->underlying->wm_write;
 	}
 	while ((bev_ssl->bev.bev.enabled & EV_WRITE) &&
+	    (! bev_ssl->bev.write_suspended) &&
 	    evbuffer_get_length(output) &&
 	    (!target || (! wm->high || evbuffer_get_length(target) < wm->high))) {
 		int n_to_write;

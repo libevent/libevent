@@ -53,9 +53,6 @@ extern "C" {
 #define BEV_SUSPEND_BW 0x02
 /* On a base bufferevent: when we have emptied the group's bandwidth bucket. */
 #define BEV_SUSPEND_BW_GROUP 0x04
-/* On a socket bufferevent: we aren't going to try reading until the
- * connect operation is done. */
-#define BEV_SUSPEND_CONNECTING 0x08
 
 struct bufferevent_rate_limit_group {
 	/** List of all members in the group */

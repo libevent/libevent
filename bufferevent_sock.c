@@ -222,7 +222,6 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 			goto done;
 		} else {
 			connected = 1;
-			bufferevent_unsuspend_read(bufev, BEV_SUSPEND_CONNECTING);
 #ifdef WIN32
 		       	if (BEV_IS_ASYNC(bufev)) {
 				event_del(&bufev->ev_write);
@@ -408,11 +407,7 @@ freesock:
 	if (ownfd)
 		EVUTIL_CLOSESOCKET(fd);
 	/* do something about the error? */
-
 done:
-	if (result == 0)
-		bufferevent_suspend_read(bev, BEV_SUSPEND_CONNECTING);
-
 	_bufferevent_decref_and_unlock(bev);
 	return result;
 }
@@ -575,6 +570,10 @@ be_socket_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 	    EV_READ|EV_PERSIST, bufferevent_readcb, bufev);
 	event_assign(&bufev->ev_write, bufev->ev_base, fd,
 	    EV_WRITE|EV_PERSIST, bufferevent_writecb, bufev);
+
+	if (fd >= 0)
+		bufferevent_enable(bufev, bufev->enabled);
+
 	BEV_UNLOCK(bufev);
 }
 
