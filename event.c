@@ -180,6 +180,22 @@ gettime(struct event_base *base, struct timeval *tp)
 	return (evutil_gettimeofday(tp, NULL));
 }
 
+int
+event_base_gettimeofday_cached(struct event_base *base, struct timeval *tv)
+{
+	int r;
+	if (!base) {
+		base = current_base;
+		if (!current_base)
+			return evutil_gettimeofday(tv, NULL);
+	}
+
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	r = gettime(base, tv);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return r;
+}
+
 static inline void
 clear_time_cache(struct event_base *base)
 {

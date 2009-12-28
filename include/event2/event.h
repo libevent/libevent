@@ -671,6 +671,20 @@ void event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 
 void event_base_dump_events(struct event_base *, FILE *);
 
+/** Sets 'tv' to the current time (as returned by gettimeofday()),
+    looking at the cached value in 'base' if possible, and calling
+    gettimeofday() or clock_gettime() as appropriate if there is no
+    cached time.
+
+    Generally, this value will only be cached while actually
+    processing event callbacks, and may be very inaccuate if your
+    callbacks take a long time to execute.
+
+    Returns 0 on success, negative on failure.
+ */
+int event_base_gettimeofday_cached(struct event_base *base,
+    struct timeval *tv);
+
 #ifdef __cplusplus
 }
 #endif
