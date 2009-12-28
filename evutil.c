@@ -455,7 +455,7 @@ evutil_new_addrinfo(struct sockaddr *sa, ev_socklen_t socklen,
 		tmp.ai_socktype = SOCK_DGRAM; tmp.ai_protocol = IPPROTO_UDP;
 		r2 = evutil_new_addrinfo(sa, socklen, &tmp);
 		if (!r2) {
-			evutil_freeaddrinfo(r2);
+			evutil_freeaddrinfo(r1);
 			return NULL;
 		}
 		r1->ai_next = r2;
