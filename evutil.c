@@ -535,24 +535,27 @@ evutil_parse_servname(const char *servname, const char *protocol,
 static const char *
 evutil_unparse_protoname(int proto)
 {
-	if (proto == 0)
+	switch (proto) {
+	case 0:
 		return NULL;
-	else if (proto == IPPROTO_TCP)
+	case IPPROTO_TCP:
 		return "tcp";
-	else if (proto == IPPROTO_UDP)
+	case IPPROTO_UDP:
 		return "udp";
 #ifdef IPPROTO_SCTP
-	else if (proto == IPPROTO_SCTP)
+	case IPPROTO_SCTP:
 		return "sctp";
 #endif
+	default:
 #ifdef _EVENT_HAVE_GETPROTOBYNUMBER
-	{
-		struct protoent *ent = getprotobynumber(proto);
-		if (ent)
-			return ent->p_name;
-	}
+		{
+			struct protoent *ent = getprotobynumber(proto);
+			if (ent)
+				return ent->p_name;
+		}
 #endif
-	return NULL;
+		return NULL;
+	}
 }
 
 static void
