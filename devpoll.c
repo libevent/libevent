@@ -42,10 +42,12 @@
 
 #include "event2/event.h"
 #include "event2/event_struct.h"
+#include "event2/thread.h"
 #include "event-internal.h"
 #include "evsignal-internal.h"
 #include "log-internal.h"
 #include "evmap-internal.h"
+#include "evthread-internal.h"
 
 struct devpollop {
 	struct pollfd *events;
