@@ -158,8 +158,10 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	fd = socket(family, SOCK_STREAM, 0);
 	if (fd == -1)
 		return NULL;
-	if (evutil_make_socket_nonblocking(fd) < 0)
+	if (evutil_make_socket_nonblocking(fd) < 0) {
+		EVUTIL_CLOSESOCKET(fd);
 		return NULL;
+	}
 
 #ifndef WIN32
 	if (flags & LEV_OPT_CLOSE_ON_EXEC) {
