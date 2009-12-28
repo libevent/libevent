@@ -184,9 +184,16 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 		ioctlsocket(fd, FIONBIO, (unsigned long*) &nonblocking);
 	}
 #else
-	if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1) {
-		event_warn("fcntl(O_NONBLOCK)");
-		return -1;
+	{
+		long flags;
+		if ((flags = fcntl(fd, F_GETFL, NULL)) < 0) {
+			event_warn("fcntl(F_GETFL)");
+			return -1;
+		}
+		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+			event_warn("fcntl(O_NONBLOCK)");
+			return -1;
+		}
 	}
 #endif
 	return 0;
