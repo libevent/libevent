@@ -672,6 +672,7 @@ dns_retry_test(void *arg)
 	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
 	tt_assert(! evdns_base_set_option(dns, "timeout", "0.3", DNS_OPTIONS_ALL));
 	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "10", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "initial-probe-timeout", "0.5", DNS_OPTIONS_ALL));
 
 	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
 	    generic_dns_callback, &r1);
@@ -687,7 +688,6 @@ dns_retry_test(void *arg)
 	tt_int_op(r1.count, ==, 1);
 	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0x10204080));
 
-
 	/* Now try again, but this time have the server get treated as
 	 * failed, so we can send it a test probe. */
 	drop_count = 4;
@@ -701,8 +701,6 @@ dns_retry_test(void *arg)
 	n_replies_left = 2;
 
 	/* This will run until it answers the "google.com" probe request. */
-	/* XXXX It takes 10 seconds to retry the probe, which makes the test
-	 * slow. */
 	event_base_dispatch(base);
 
 	/* We'll treat the server as failed here. */

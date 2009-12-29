@@ -345,6 +345,10 @@ struct evdns_base {
 	/* true iff we will use the 0x20 hack to prevent poisoning attacks. */
 	int global_randomize_case;
 
+	/* The first time that a nameserver fails, how long do we wait before
+	 * probing to see if it has returned?  */
+	struct timeval global_nameserver_probe_initial_timeout;
+
 	/** Port to bind to for outgoing DNS packets. */
 	struct sockaddr_storage global_outgoing_address;
 	/** ev_socklen_t for global_outgoing_address. 0 if it isn't set. */
@@ -379,11 +383,6 @@ evdns_get_global_base(void)
 	  (((char*)(base_ptr) - evutil_offsetof(struct server_request, base))))
 
 #define REQ_HEAD(base, id) ((base)->req_heads[id % (base)->n_req_heads])
-
-/* These are the timeout values for nameservers. If we find a nameserver is down */
-/* we try to probe it at intervals as given below. Values are in seconds. */
-static const struct timeval global_nameserver_timeouts[] = {{10, 0}, {60, 0}, {300, 0}, {900, 0}, {3600, 0}};
-static const int global_nameserver_timeouts_length = sizeof(global_nameserver_timeouts)/sizeof(struct timeval);
 
 static struct nameserver *nameserver_pick(struct evdns_base *base);
 static void evdns_request_insert(struct evdns_request *req, struct evdns_request **head);
@@ -526,7 +525,8 @@ nameserver_prod_callback(evutil_socket_t fd, short events, void *arg) {
 /* and wait longer to send the next probe packet. */
 static void
 nameserver_probe_failed(struct nameserver *const ns) {
-	const struct timeval * timeout;
+	struct timeval timeout;
+	int i;
 
 	ASSERT_LOCKED(ns->base);
 	(void) evtimer_del(&ns->timeout_event);
@@ -536,12 +536,27 @@ nameserver_probe_failed(struct nameserver *const ns) {
 		return;
 	}
 
-	timeout =
-		&global_nameserver_timeouts[MIN(ns->failed_times,
-										global_nameserver_timeouts_length - 1)];
+#define MAX_PROBE_TIMEOUT 3600
+#define TIMEOUT_BACKOFF_FACTOR 3
+
+	memcpy(&timeout, &ns->base->global_nameserver_probe_initial_timeout,
+	    sizeof(struct timeval));
+	for (i=ns->failed_times; i > 0 && timeout.tv_sec < MAX_PROBE_TIMEOUT; --i) {
+		timeout.tv_sec *= TIMEOUT_BACKOFF_FACTOR;
+		timeout.tv_usec *= TIMEOUT_BACKOFF_FACTOR;
+		if (timeout.tv_usec > 1000000) {
+			timeout.tv_sec += timeout.tv_usec / 1000000;
+			timeout.tv_usec %= 1000000;
+		}
+	}
+	if (timeout.tv_sec > MAX_PROBE_TIMEOUT) {
+		timeout.tv_sec = MAX_PROBE_TIMEOUT;
+		timeout.tv_usec = 0;
+	}
+
 	ns->failed_times++;
 
-	if (evtimer_add(&ns->timeout_event, (struct timeval *) timeout) < 0) {
+	if (evtimer_add(&ns->timeout_event, &timeout) < 0) {
 	  log(EVDNS_LOG_WARN,
 	      "Error from libevent when adding timer event for %s",
 	      debug_ntop((struct sockaddr *)&ns->address));
@@ -573,7 +588,8 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 	ns->state = 0;
 	ns->failed_times = 1;
 
-	if (evtimer_add(&ns->timeout_event, (struct timeval *) &global_nameserver_timeouts[0]) < 0) {
+	if (evtimer_add(&ns->timeout_event,
+		&base->global_nameserver_probe_initial_timeout) < 0) {
 		log(EVDNS_LOG_WARN,
 		    "Error from libevent when adding timer event for %s",
 		    debug_ntop((struct sockaddr*)&ns->address));
@@ -3273,6 +3289,16 @@ evdns_base_set_option_impl(struct evdns_base *base,
 			(struct sockaddr*)&base->global_outgoing_address, &len))
 			return -1;
 		base->global_outgoing_addrlen = len;
+	} else if (str_matches_option(option, "initial-probe-timeout:")) {
+		struct timeval tv;
+		if (strtotimeval(val, &tv) == -1) return -1;
+		if (tv.tv_sec > 3600)
+			tv.tv_sec = 3600;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting initial probe timeout to %s",
+		    val);
+		memcpy(&base->global_nameserver_probe_initial_timeout, &tv,
+		    sizeof(tv));
 	}
 	return 0;
 }
@@ -3674,6 +3700,8 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 	base->global_randomize_case = 1;
 	base->global_getaddrinfo_allow_skew.tv_sec = 3;
 	base->global_getaddrinfo_allow_skew.tv_usec = 0;
+	base->global_nameserver_probe_initial_timeout.tv_sec = 10;
+	base->global_nameserver_probe_initial_timeout.tv_usec = 0;
 
 	if (initialize_nameservers) {
 		int r;
