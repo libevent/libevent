@@ -3130,8 +3130,11 @@ strtotimeval(const char *const str, struct timeval *out)
 	char *endptr;
 	d = strtod(str, &endptr);
 	if (*endptr) return -1;
+	if (d < 0) return -1;
 	out->tv_sec = (int) d;
 	out->tv_usec = (int) ((d - (int) d)*1000000);
+	if (out->tv_sec == 0 && out->tv_usec < 1000) /* less than 1 msec */
+		return -1;
 	return 0;
 }
 
@@ -3200,10 +3203,13 @@ str_matches_option(const char *s1, const char *optionname)
 	 * s1, or 'option:randomjunk'.  The latter form is to implement the
 	 * resolv.conf parser. */
 	size_t optlen = strlen(optionname);
-	if (strlen(s1) == optlen)
-		return !strncmp(s1, optionname, optlen-1);
-	else
+	size_t slen = strlen(s1);
+	if (slen == optlen || slen == optlen - 1)
+		return !strncmp(s1, optionname, slen);
+	else if (slen > optlen)
 		return !strncmp(s1, optionname, optlen);
+	else
+		return 0;
 }
 
 static int
