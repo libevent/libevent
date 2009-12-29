@@ -93,15 +93,6 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 		event_sock_err(1, fd, "%s: read", __func__);
 }
 
-#ifdef _EVENT_HAVE_SETFD
-#define FD_CLOSEONEXEC(x) do { \
-        if (fcntl(x, F_SETFD, 1) == -1) \
-                event_warn("fcntl(%d, F_SETFD)", x); \
-} while (0)
-#else
-#define FD_CLOSEONEXEC(x)
-#endif
-
 int
 evsig_init(struct event_base *base)
 {
@@ -122,8 +113,8 @@ evsig_init(struct event_base *base)
 		return -1;
 	}
 
-	FD_CLOSEONEXEC(base->sig.ev_signal_pair[0]);
-	FD_CLOSEONEXEC(base->sig.ev_signal_pair[1]);
+	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[0]);
+	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[1]);
 	base->sig.sh_old = NULL;
 	base->sig.sh_old_max = 0;
 	base->sig.evsig_caught = 0;

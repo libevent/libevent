@@ -214,6 +214,23 @@ evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 #endif
 }
 
+int
+evutil_make_socket_closeonexec(evutil_socket_t fd)
+{
+#if !defined(WIN32) && defined(_EVENT_HAVE_SETFD)
+	long flags;
+	if ((flags = fcntl(fd, F_GETFD, NULL)) < 0) {
+		event_warn("fcntl(%d, F_GETFD)", fd);
+		return -1;
+	}
+	if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+		event_warn("fcntl(%d, F_SETFD)", fd);
+		return -1;
+	}
+#endif
+	return 0;
+}
+
 ev_int64_t
 evutil_strtoll(const char *s, char **endptr, int base)
 {

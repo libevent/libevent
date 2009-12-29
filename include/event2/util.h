@@ -167,7 +167,15 @@ int evutil_make_socket_nonblocking(evutil_socket_t sock);
     @param sock The socket to make reusable
     @return 0 on success, -1 on failure
  */
-int evutil_make_listen_socket_reuseable(evutil_socket_t);
+int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
+
+/** Do platform-specific operations as needed to close a socket upon a
+    successful execution of one of the exec*() functions.
+ 
+    @param sock The socket to be closed
+    @return 0 on success, -1 on failure
+ */
+int evutil_make_socket_closeonexec(evutil_socket_t sock);
 
 #ifdef WIN32
 /** Do the platform-specific call needed to close a socket returned from

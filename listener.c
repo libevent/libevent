@@ -163,14 +163,12 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 		return NULL;
 	}
 
-#ifndef WIN32
 	if (flags & LEV_OPT_CLOSE_ON_EXEC) {
-		if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
+		if (evutil_make_socket_closeonexec(fd) < 0) {
 			EVUTIL_CLOSESOCKET(fd);
 			return NULL;
 		}
 	}
-#endif
 
 	setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&on, sizeof(on));
 	if (flags & LEV_OPT_REUSEABLE) {

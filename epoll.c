@@ -75,15 +75,6 @@ const struct eventop epollops = {
 	0
 };
 
-#ifdef _EVENT_HAVE_SETFD
-#define FD_CLOSEONEXEC(x) do { \
-        if (fcntl(x, F_SETFD, 1) == -1) \
-                event_warn("fcntl(%d, F_SETFD)", x); \
-} while (0)
-#else
-#define FD_CLOSEONEXEC(x)
-#endif
-
 #define INITIAL_NEVENT 32
 #define MAX_NEVENT 4096
 
@@ -109,7 +100,7 @@ epoll_init(struct event_base *base)
 		return (NULL);
 	}
 
-	FD_CLOSEONEXEC(epfd);
+	evutil_make_socket_closeonexec(epfd);
 
 	if (!(epollop = mm_calloc(1, sizeof(struct epollop))))
 		return (NULL);

@@ -3039,15 +3039,10 @@ bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
 			return (-1);
         }
 
-        if (evutil_make_socket_nonblocking(fd) < 0)
-                goto out;
-
-#ifndef WIN32
-        if (fcntl(fd, F_SETFD, 1) == -1) {
-                event_warn("fcntl(F_SETFD)");
-                goto out;
-        }
-#endif
+	if (evutil_make_socket_nonblocking(fd) < 0)
+		goto out;
+	if (evutil_make_socket_closeonexec(fd) < 0)
+		goto out;
 
         setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));
 	if (reuse)
