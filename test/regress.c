@@ -1683,6 +1683,31 @@ end:
 		event_config_free(cfg);
 }
 
+#ifdef _EVENT_HAVE_SETENV
+#define SETENV_OK
+#elif !defined(_EVENT_HAVE_SETENV) && defined(_EVENT_HAVE_PUTENV)
+static void setenv(const char *k, const char *v, int _o)
+{
+	char b[256];
+	evutil_snprintf(b, sizeof(b), "%s=%s",k,v);
+	putenv(b);
+}
+#define SETENV_OK
+#endif
+
+#ifdef _EVENT_HAVE_UNSETENV
+#define UNSETENV_OK
+#elif !defined(_EVENT_HAVE_UNSETENV) && defined(_EVENT_HAVE_PUTENV)
+static void unsetenv(const char *k)
+{
+	char b[256];
+	evutil_snprintf(b, sizeof(b), "%s=",k);
+	putenv(b);
+}
+#define UNSETENV_OK
+#endif
+
+#if defined(SETENV_OK) && defined(UNSETENV_OK)
 static void
 methodname_to_envvar(const char *mname, char *buf, size_t buflen)
 {
@@ -1692,30 +1717,18 @@ methodname_to_envvar(const char *mname, char *buf, size_t buflen)
 		*cp = toupper(*cp);
 	}
 }
-
-#ifdef WIN32
-static void setenv(const char *k, const char *v, int _o)
-{
-	char b[256];
-	evutil_snprintf(b, sizeof(b), "%s=%s",k,v);
-	putenv(b);
-}
-static void unsetenv(const char *k)
-{
-	char b[256];
-	evutil_snprintf(b, sizeof(b), "%s=",k);
-	putenv(b);
-}
 #endif
 
 static void
 test_base_environ(void *arg)
 {
+	struct event_base *base = NULL;
+	struct event_config *cfg = NULL;
+
+#if defined(SETENV_OK) && defined(UNSETENV_OK)
 	const char **basenames;
 	char varbuf[128];
 	int i, n_methods=0;
-	struct event_base *base = NULL;
-	struct event_config *cfg = NULL;
 	const char *defaultname;
 
 	basenames = event_get_supported_methods();
@@ -1757,6 +1770,9 @@ test_base_environ(void *arg)
 	base = event_base_new_with_config(cfg);
 	tt_assert(base);
 	tt_str_op(defaultname, ==, event_base_get_method(base));
+#else
+	tt_skip();
+#endif
 
 end:
 	if (base)
