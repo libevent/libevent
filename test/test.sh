@@ -1,10 +1,19 @@
 #!/bin/sh
 
-if [ "x$TEST_OUTPUT_FILE" = "x" ]; then
+if test "x$TEST_OUTPUT_FILE" = "x"
+then
    TEST_OUTPUT_FILE=/dev/null
 fi
 
-touch "$TEST_OUTPUT_FILE" || exit 1;
+touch "$TEST_OUTPUT_FILE" || exit 1
+
+TEST_DIR=.
+
+T=`echo "$0" | sed -e 's/test.sh$//'`
+if test -x "$T/test-init"
+then
+ TEST_DIR="$T"
+fi
 
 setup () {
 	 EVENT_NOKQUEUE=yes; export EVENT_NOKQUEUE
@@ -20,8 +29,8 @@ announce () {
     echo $@ >>"$TEST_OUTPUT_FILE"
 }
 
-test () {
-	if ./test-init 2>>"$TEST_OUTPUT_FILE" ;
+run_tests () {
+	if $TEST_DIR/test-init 2>>"$TEST_OUTPUT_FILE" ;
 	then
 	        true
 	else
@@ -30,28 +39,28 @@ test () {
 	fi	
 
 announce -n " test-eof: "
-if ./test-eof >>"$TEST_OUTPUT_FILE" ; 
+if $TEST_DIR/test-eof >>"$TEST_OUTPUT_FILE" ; 
 then 
 	announce OKAY ; 
 else 
 	announce FAILED ; 
 fi
 announce -n " test-weof: "
-if ./test-weof >>"$TEST_OUTPUT_FILE" ; 
+if $TEST_DIR/test-weof >>"$TEST_OUTPUT_FILE" ; 
 then 
 	announce OKAY ; 
 else 
 	announce FAILED ; 
 fi
 announce -n " test-time: "
-if ./test-time >>"$TEST_OUTPUT_FILE" ; 
+if $TEST_DIR/test-time >>"$TEST_OUTPUT_FILE" ; 
 then 
 	announce OKAY ; 
 else 
 	announce FAILED ; 
 fi
 announce -n " regress: "
-if ./regress >>"$TEST_OUTPUT_FILE" ; 
+if $TEST_DIR/regress >>"$TEST_OUTPUT_FILE" ; 
 then 
 	announce OKAY ; 
 else 
@@ -59,44 +68,44 @@ else
 fi
 }
 
-announce "Running tests:"
+announce "Running run_testss:"
 
 # Need to do this by hand?
 setup
 unset EVENT_NOKQUEUE
 export EVENT_NOKQUEUE
 announce "KQUEUE"
-test
+run_tests
 
 setup
 unset EVENT_NODEVPOLL
 export EVENT_NODEVPOLL
 announce "DEVPOLL"
-test
+run_tests
 
 setup
 unset EVENT_NOPOLL
 export EVENT_NOPOLL
 announce "POLL"
-test
+run_tests
 
 setup
 unset EVENT_NOSELECT
 export EVENT_NOSELECT
 announce "SELECT"
-test
+run_tests
 
 setup
 unset EVENT_NOEPOLL
 export EVENT_NOEPOLL
 announce "EPOLL"
-test
+run_tests
 
 setup
 unset EVENT_NOEVPORT
 export EVENT_NOEVPORT
 announce "EVPORT"
-test
+run_tests
 
 
 
