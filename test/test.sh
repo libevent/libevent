@@ -1,5 +1,11 @@
 #!/bin/sh
 
+if [ "x$TEST_OUTPUT_FILE" = "x" ]; then
+   TEST_OUTPUT_FILE=/dev/null
+fi
+
+touch "$TEST_OUTPUT_FILE" || exit 1;
+
 setup () {
 	 EVENT_NOKQUEUE=yes; export EVENT_NOKQUEUE
 	 EVENT_NODEVPOLL=yes; export EVENT_NODEVPOLL
@@ -9,82 +15,87 @@ setup () {
 	 EVENT_NOEVPORT=yes; export EVENT_NOEVPORT
 }
 
+announce () {
+    echo $@
+    echo $@ >>"$TEST_OUTPUT_FILE"
+}
+
 test () {
-	if ./test-init 2>/dev/null ;
+	if ./test-init 2>>"$TEST_OUTPUT_FILE" ;
 	then
 	        true
 	else
-		echo Skipping test
+		announce Skipping test
 		return
 	fi	
 
-echo -n " test-eof: "
-if ./test-eof >/dev/null ; 
+announce -n " test-eof: "
+if ./test-eof >>"$TEST_OUTPUT_FILE" ; 
 then 
-	echo OKAY ; 
+	announce OKAY ; 
 else 
-	echo FAILED ; 
+	announce FAILED ; 
 fi
-echo -n " test-weof: "
-if ./test-weof >/dev/null ; 
+announce -n " test-weof: "
+if ./test-weof >>"$TEST_OUTPUT_FILE" ; 
 then 
-	echo OKAY ; 
+	announce OKAY ; 
 else 
-	echo FAILED ; 
+	announce FAILED ; 
 fi
-echo -n " test-time: "
-if ./test-time >/dev/null ; 
+announce -n " test-time: "
+if ./test-time >>"$TEST_OUTPUT_FILE" ; 
 then 
-	echo OKAY ; 
+	announce OKAY ; 
 else 
-	echo FAILED ; 
+	announce FAILED ; 
 fi
-echo -n " regress: "
-if ./regress >/dev/null ; 
+announce -n " regress: "
+if ./regress >>"$TEST_OUTPUT_FILE" ; 
 then 
-	echo OKAY ; 
+	announce OKAY ; 
 else 
-	echo FAILED ; 
+	announce FAILED ; 
 fi
 }
 
-echo "Running tests:"
+announce "Running tests:"
 
 # Need to do this by hand?
 setup
 unset EVENT_NOKQUEUE
 export EVENT_NOKQUEUE
-echo "KQUEUE"
+announce "KQUEUE"
 test
 
 setup
 unset EVENT_NODEVPOLL
 export EVENT_NODEVPOLL
-echo "DEVPOLL"
+announce "DEVPOLL"
 test
 
 setup
 unset EVENT_NOPOLL
 export EVENT_NOPOLL
-echo "POLL"
+announce "POLL"
 test
 
 setup
 unset EVENT_NOSELECT
 export EVENT_NOSELECT
-echo "SELECT"
+announce "SELECT"
 test
 
 setup
 unset EVENT_NOEPOLL
 export EVENT_NOEPOLL
-echo "EPOLL"
+announce "EPOLL"
 test
 
 setup
 unset EVENT_NOEVPORT
 export EVENT_NOEVPORT
-echo "EVPORT"
+announce "EVPORT"
 test
 
 
