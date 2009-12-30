@@ -2629,7 +2629,7 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 	if (!req) return NULL;
 
 	if (name_len >= sizeof(namebuf)) {
-		free(req);
+		mm_free(req);
 		return NULL;
 	}
 
