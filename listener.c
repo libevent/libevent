@@ -149,15 +149,18 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
     void *ptr, unsigned flags, int backlog, const struct sockaddr *sa,
     int socklen)
 {
+	struct evconnlistener *listener;
 	evutil_socket_t fd;
 	int on = 1;
 	int family = sa ? sa->sa_family : AF_UNSPEC;
 
 	if (backlog == 0)
 		return NULL;
+
 	fd = socket(family, SOCK_STREAM, 0);
 	if (fd == -1)
 		return NULL;
+
 	if (evutil_make_socket_nonblocking(fd) < 0) {
 		EVUTIL_CLOSESOCKET(fd);
 		return NULL;
@@ -182,7 +185,13 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 		}
 	}
 
-	return evconnlistener_new(base, cb, ptr, flags, backlog, fd);
+	listener = evconnlistener_new(base, cb, ptr, flags, backlog, fd);
+	if (!listener) {
+		EVUTIL_CLOSESOCKET(fd);
+		return NULL;				
+	}
+
+	return listener;
 }
 
 void
@@ -545,24 +554,24 @@ evconnlistener_new_async(struct event_base *base,
 	int i;
 
 	if (!event_base_get_iocp(base))
-		return NULL;
+		goto err;
 
 	/* XXXX duplicate code */
 	if (backlog > 0) {
 		if (listen(fd, backlog) < 0)
-			return NULL;
+			goto err;
 	} else if (backlog < 0) {
 		if (listen(fd, 128) < 0)
-			return NULL;
+			goto err;
 	}
 	if (getsockname(fd, (struct sockaddr*)&ss, &socklen)) {
 		event_sock_warn(fd, "getsockname");
-		return NULL;
+		goto err;
 	}
 	lev = mm_calloc(1, sizeof(struct evconnlistener_event));
 	if (!lev) {
 		event_warn("calloc");
-		return NULL;
+		goto err;
 	}
 	lev->base.ops = &evconnlistener_iocp_ops;
 	lev->base.cb = cb;
@@ -574,7 +583,7 @@ evconnlistener_new_async(struct event_base *base,
 	lev->event_base = base;
 
 	if (event_iocp_port_associate(lev->port, fd, 1) < 0)
-		return NULL;
+		goto err_free_lev;
 
 	InitializeCriticalSection(&lev->lock);
 
@@ -583,35 +592,34 @@ evconnlistener_new_async(struct event_base *base,
 	    sizeof(struct accepting_socket *));
 	if (!lev->accepting) {
 		event_warn("calloc");
-		mm_free(lev);
-		closesocket(fd);
-		return NULL;
+		goto err_delete_lock;
 	}
 	for (i = 0; i < lev->n_accepting; ++i) {
 		lev->accepting[i] = new_accepting_socket(lev, ss.ss_family);
 		if (!lev->accepting[i]) {
 			event_warnx("Couldn't create accepting socket");
-			mm_free(lev->accepting);
-			/* DeleteCriticalSection on lev->lock XXXX */
-			/* XXXX free the other elements. */
-			mm_free(lev);
-			closesocket(fd);
-			return NULL;
+			goto err_free_accepting;
 		}
-
 		if (start_accepting(lev->accepting[i]) < 0) {
 			event_warnx("Couldn't start accepting on socket");
 			EnterCriticalSection(&lev->accepting[i]->lock);
 			free_and_unlock_accepting_socket(lev->accepting[i]);
-			mm_free(lev->accepting);
-			mm_free(lev);
-			closesocket(fd);
-			DeleteCriticalSection(&lev->lock);
-			return NULL;
+			goto err_free_accepting;
 		}
 	}
 
 	return &lev->base;
+
+err_free_accepting:
+	mm_free(lev->accepting);
+	/* XXXX free the other elements. */
+err_delete_lock:
+	DeleteCriticalSection(&lev->lock);
+err_free_lev:
+	mm_free(lev);
+err:
+	/* Don't close the fd, it is caller's responsibility. */
+	return NULL;
 }
 
 #endif
