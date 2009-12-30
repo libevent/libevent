@@ -115,15 +115,17 @@ evconnlistener_new(struct event_base *base,
     evutil_socket_t fd)
 {
 	struct evconnlistener_event *lev;
+
 #ifdef WIN32
 	if (event_base_get_iocp(base)) {
 		const struct win32_extension_fns *ext =
-		    event_get_win32_extension_fns();
+			event_get_win32_extension_fns();
 		if (ext->AcceptEx && ext->GetAcceptExSockaddrs)
 			return evconnlistener_new_async(base, cb, ptr, flags,
-			    backlog, fd);
+				backlog, fd);
 	}
 #endif
+
 	if (backlog > 0) {
 		if (listen(fd, backlog) < 0)
 			return NULL;
@@ -131,16 +133,20 @@ evconnlistener_new(struct event_base *base,
 		if (listen(fd, 128) < 0)
 			return NULL;
 	}
+
 	lev = mm_calloc(1, sizeof(struct evconnlistener_event));
 	if (!lev)
 		return NULL;
+	
 	lev->base.ops = &evconnlistener_event_ops;
 	lev->base.cb = cb;
 	lev->base.user_data = ptr;
 	lev->base.flags = flags;
+
 	event_assign(&lev->listener, base, fd, EV_READ|EV_PERSIST,
 	    listener_read_cb, lev);
 	evconnlistener_enable(&lev->base);
+	
 	return &lev->base;
 }
 
@@ -316,6 +322,7 @@ new_accepting_socket(struct evconnlistener_iocp *lev, int family)
 	struct accepting_socket *res;
 	int addrlen;
 	int buflen;
+
 	if (family == AF_INET)
 		addrlen = sizeof(struct sockaddr_in);
 	else if (family == AF_INET6)
@@ -325,7 +332,6 @@ new_accepting_socket(struct evconnlistener_iocp *lev, int family)
 	buflen = (addrlen+16)*2;
 
 	res = mm_calloc(1,sizeof(struct accepting_socket)-1+buflen);
-
 	if (!res)
 		return NULL;
 
@@ -335,8 +341,8 @@ new_accepting_socket(struct evconnlistener_iocp *lev, int family)
 	res->buflen = buflen;
 	res->family = family;
 
-	event_deferred_cb_init(&res->deferred, 
-	    accepted_socket_invoke_user_cb, res);
+	event_deferred_cb_init(&res->deferred,
+		accepted_socket_invoke_user_cb, res);
 
 	InitializeCriticalSection(&res->lock);
 
@@ -410,8 +416,7 @@ accepted_socket_invoke_user_cb(struct deferred_cb *cb, void *arg)
 
 	struct sockaddr *sa_local=NULL, *sa_remote=NULL;
 	int socklen_local=0, socklen_remote=0;
-	const struct win32_extension_fns *ext =
-	    event_get_win32_extension_fns();
+	const struct win32_extension_fns *ext = event_get_win32_extension_fns();
 
 	EVUTIL_ASSERT(ext->GetAcceptExSockaddrs);
 
@@ -421,17 +426,16 @@ accepted_socket_invoke_user_cb(struct deferred_cb *cb, void *arg)
 		return;
 	}
 
-	ext->GetAcceptExSockaddrs(as->addrbuf, 0,
-	    as->buflen/2, as->buflen/2,
-	    &sa_local, &socklen_local,
-	    &sa_remote, &socklen_remote);
+	ext->GetAcceptExSockaddrs(
+		as->addrbuf, 0, as->buflen/2, as->buflen/2,
+		&sa_local, &socklen_local, &sa_remote, &socklen_remote);
 
 	as->lev->base.cb(&as->lev->base, as->s, sa_remote,
 	    socklen_remote, as->lev->base.user_data);
 
 	as->s = INVALID_SOCKET;
 
-	start_accepting(as);/*XXX handle error */
+	start_accepting(as); /* XXXX handle error */
 	LeaveCriticalSection(&as->lock);
 }
 
@@ -475,7 +479,7 @@ iocp_listener_enable(struct evconnlistener *lev)
 			continue;
 		EnterCriticalSection(&as->lock);
 		if (!as->free_on_cb && as->s == INVALID_SOCKET)
-			start_accepting(as); /* detect failure. */
+			start_accepting(as); /* XXXX handle error */
 		LeaveCriticalSection(&as->lock);
 	}
 	LeaveCriticalSection(&lev_iocp->lock);
