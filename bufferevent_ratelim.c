@@ -415,7 +415,7 @@ _bev_group_random_element(struct bufferevent_rate_limit_group *group)
 
 	EVUTIL_ASSERT(! TAILQ_EMPTY(&group->members));
 
-	which = random() % group->n_members;
+	which = _evutil_weakrand() % group->n_members;
 
 	bev = TAILQ_FIRST(&group->members);
 	while (which--)

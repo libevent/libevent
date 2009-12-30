@@ -325,7 +325,7 @@ read_complete(struct event_overlapped *eo, uintptr_t key,
 
 	if (ok && nbytes) {
 		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
-		_bufferevent_derement_read_buckets(&bev_a->bev, nbytes);
+		_bufferevent_decrement_read_buckets(&bev_a->bev, nbytes);
 		if (bev->readcb != NULL &&
 		    evbuffer_get_length(bev->input) >= bev->wm_read.low)
 			_bufferevent_run_readcb(bev);
@@ -359,7 +359,7 @@ write_complete(struct event_overlapped *eo, uintptr_t key,
 
 	if (ok && nbytes) {
 		BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
-		_bufferevent_derement_write_buckets(&bev_a->bev, nbytes);
+		_bufferevent_decrement_write_buckets(&bev_a->bev, nbytes);
 		if (bev->writecb != NULL &&
 		    evbuffer_get_length(bev->output) <= bev->wm_write.low)
 			_bufferevent_run_writecb(bev);

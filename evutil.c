@@ -1759,3 +1759,14 @@ evutil_getenv(const char *varname)
 
 	return getenv(varname);
 }
+
+long
+_evutil_weakrand(void)
+{
+#ifdef WIN32
+	return rand();
+#else
+	return random();
+#endif
+}
+

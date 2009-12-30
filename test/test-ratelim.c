@@ -30,6 +30,11 @@
 #include <assert.h>
 #include <math.h>
 
+#ifdef WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif
+
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
 #include <event2/event.h>
@@ -63,7 +68,11 @@ loud_writecb(struct bufferevent *bev, void *ctx)
 	struct client_state *cs = ctx;
 	struct evbuffer *output = bufferevent_get_output(bev);
 	char buf[1024];
+#ifdef WIN32
+	int r = rand() % 256;
+#else
 	int r = random() % 256;
+#endif
 	memset(buf, r, sizeof(buf));
 	while (evbuffer_get_length(output) < 8192) {
 		evbuffer_add(output, buf, sizeof(buf));
@@ -285,6 +294,15 @@ main(int argc, char **argv)
 	int i,j;
 	double ratio;
 
+#ifdef WIN32
+	WORD wVersionRequested = MAKEWORD(2,2);
+	WSADATA wsaData;
+	int err;
+
+	err = WSAStartup(wVersionRequested, &wsaData);
+#endif
+
+
 	for (i = 1; i < argc; ++i) {
 		for (j = 0; options[j].name; ++j) {
 			if (!strcmp(argv[i],options[j].name)) {
@@ -315,7 +333,11 @@ main(int argc, char **argv)
 	{
 		struct timeval tv;
 		evutil_gettimeofday(&tv, NULL);
+#ifdef WIN32
+		srand(tv.tv_usec);
+#else
 		srandom(tv.tv_usec);
+#endif
 	}
 
 	evthread_enable_lock_debuging();
