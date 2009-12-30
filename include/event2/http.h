@@ -355,11 +355,19 @@ void evhttp_request_free(struct evhttp_request *req);
 
 /**
  * A connection object that can be used to for making HTTP requests.  The
- * connection object tries to establish the connection when it is given an
- * http request object.
+ * connection object tries to resolve address and establish the connection
+ * when it is given an http request object.
  */
 struct evhttp_connection *evhttp_connection_base_new(
 	struct event_base *base, const char *address, unsigned short port);
+
+struct evdns_base;
+/**
+ * Tell the connection object to use evdns_base when resolving hostnames.
+ * If no base is set, it will block when resolving hostnames.
+ */
+void evhttp_connection_set_evdns_base(struct evhttp_connection *evcon,
+	struct evdns_base *base);
 
 /** Takes ownership of the request object
  *
