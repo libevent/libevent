@@ -350,45 +350,39 @@ static int
 start_accepting(struct accepting_socket *as)
 {
 	/* requires lock */
-	int result = -1;
-	const struct win32_extension_fns *ext =
-	    event_get_win32_extension_fns();
-	SOCKET s = socket(as->family, SOCK_STREAM, 0);
+	const struct win32_extension_fns *ext = event_get_win32_extension_fns();
 	DWORD pending = 0;
+	SOCKET s = socket(as->family, SOCK_STREAM, 0);
 	if (s == INVALID_SOCKET)
 		return -1;
 
-	setsockopt(s,
-	    SOL_SOCKET,
-	    SO_UPDATE_ACCEPT_CONTEXT,
-	    (char *)&as->lev->fd,
-	    sizeof(&as->lev->fd));
+	setsockopt(s, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+	    (char *)&as->lev->fd, sizeof(&as->lev->fd));
 
 	if (!(as->lev->base.flags & LEV_OPT_LEAVE_SOCKETS_BLOCKING))
 		evutil_make_socket_nonblocking(s);
 
-	if (event_iocp_port_associate(as->lev->port, s, 1) < 0)
-		goto done;
+	if (event_iocp_port_associate(as->lev->port, s, 1) < 0) {
+		closesocket(s);
+		return -1;
+	}
 
 	as->s = s;
 
 	if (ext->AcceptEx(as->lev->fd, s, as->addrbuf, 0,
-		as->buflen/2, as->buflen/2,
-		&pending, &as->overlapped.overlapped)) {
+		as->buflen/2, as->buflen/2, &pending, &as->overlapped.overlapped))
+	{
 		/* Immediate success! */
 		accepted_socket_cb(&as->overlapped, 1, 0, 1);
-		result = 0;
 	} else {
 		int err = WSAGetLastError();
-		if (err == ERROR_IO_PENDING)
-			result = 0;
-		else
-			event_warnx("AcceptEx: %s",
-			    evutil_socket_error_to_string(err));
+		if (err != ERROR_IO_PENDING) {
+			event_warnx("AcceptEx: %s", evutil_socket_error_to_string(err));
+			return -1;
+		}
 	}
 
-done:
-	return result;
+	return 0;
 }
 
 static void
