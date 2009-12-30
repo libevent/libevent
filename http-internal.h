@@ -115,7 +115,7 @@ TAILQ_HEAD(evconq, evhttp_connection);
 struct evhttp_bound_socket {
 	TAILQ_ENTRY(evhttp_bound_socket) (next);
 
-	struct event  bind_ev;
+	struct evconnlistener *listener;
 };
 
 struct evhttp {
