@@ -312,7 +312,11 @@ main(int argc, char **argv)
 	cfg_connlimit *= ratio;
 	cfg_grouplimit *= ratio;
 
-	srandom(time(NULL));
+	{
+		struct timeval tv;
+		evutil_gettimeofday(&tv, NULL);
+		srandom(tv.tv_usec);
+	}
 
 	evthread_enable_lock_debuging();
 
