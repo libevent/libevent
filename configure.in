@@ -510,10 +510,12 @@ AC_TRY_COMPILE([],
 
 # check if we can compile with pthreads
 have_pthreads=no
-ACX_PTHREAD([
+if test x$bwin32 != xtrue; then
+  ACX_PTHREAD([
 	AC_DEFINE(HAVE_PTHREADS, 1,
 		[Define if we have pthreads on this system])
 	have_pthreads=yes])
+fi
 AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
 
 # check if we should compile locking into the library
