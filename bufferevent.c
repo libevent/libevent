@@ -175,6 +175,8 @@ _bufferevent_run_readcb(struct bufferevent *bufev)
 	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	if (bufev->readcb == NULL)
+		return;
 	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
 		p->readcb_pending = 1;
 		if (!p->deferred.queued) {
@@ -192,6 +194,8 @@ _bufferevent_run_writecb(struct bufferevent *bufev)
 	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	if (bufev->writecb == NULL)
+		return;
 	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
 		p->writecb_pending = 1;
 		if (!p->deferred.queued) {
@@ -209,6 +213,8 @@ _bufferevent_run_eventcb(struct bufferevent *bufev, short what)
 	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	if (bufev->errorcb == NULL)
+		return;
 	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
 		p->eventcb_pending |= what;
 		p->errno_pending = EVUTIL_SOCKET_ERROR();

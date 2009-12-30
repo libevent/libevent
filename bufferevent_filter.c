@@ -329,7 +329,7 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
                         /* Or if we have filled the underlying output buffer. */
                         !be_underlying_writebuf_full(bevf,state));
 
-                if (processed && bufev->writecb &&
+                if (processed &&
                     evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
                         /* call the write callback.*/
                         _bufferevent_run_writecb(bufev);
@@ -394,8 +394,7 @@ be_filter_readcb(struct bufferevent *underlying, void *_me)
 	 * other places that can call process-input, and they should
 	 * force readcb calls as needed. */
 	if (processed_any &&
-	    evbuffer_get_length(bufev->input) >= bufev->wm_read.low &&
-	    bufev->readcb != NULL)
+	    evbuffer_get_length(bufev->input) >= bufev->wm_read.low)
 		_bufferevent_run_readcb(bufev);
 
 	_bufferevent_decref_and_unlock(bufev);
@@ -424,8 +423,7 @@ be_filter_eventcb(struct bufferevent *underlying, short what, void *_me)
 
 	_bufferevent_incref_and_lock(bev);
 	/* All we can really to is tell our own eventcb. */
-	if (bev->errorcb)
-		_bufferevent_run_eventcb(bev, what);
+	_bufferevent_run_eventcb(bev, what);
 	_bufferevent_decref_and_unlock(bev);
 }
 

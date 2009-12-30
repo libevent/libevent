@@ -304,8 +304,7 @@ read_complete(struct event_overlapped *eo, uintptr_t key,
 
 	if (ok && nbytes) {
 		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
-		if (bev->readcb != NULL &&
-		    evbuffer_get_length(bev->input) >= bev->wm_read.low)
+		if (evbuffer_get_length(bev->input) >= bev->wm_read.low)
 			_bufferevent_run_readcb(bev);
 		bev_async_consider_reading(bev_a);
 	} else if (!ok) {
@@ -337,8 +336,7 @@ write_complete(struct event_overlapped *eo, uintptr_t key,
 
 	if (ok && nbytes) {
 		BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
-		if (bev->writecb != NULL && 
-		    evbuffer_get_length(bev->output) <= bev->wm_write.low)
+		if (evbuffer_get_length(bev->output) <= bev->wm_write.low)
 			_bufferevent_run_writecb(bev);
 		bev_async_consider_writing(bev_a);
 	} else if (!ok) {

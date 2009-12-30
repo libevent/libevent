@@ -567,8 +567,7 @@ do_read(struct bufferevent_openssl *bev_ssl, int n_to_read)
 		if (bev_ssl->underlying)
 			BEV_RESET_GENERIC_READ_TIMEOUT(bev);
 
-		if (evbuffer_get_length(input) >= bev->wm_read.low &&
-		    bev->readcb)
+		if (evbuffer_get_length(input) >= bev->wm_read.low)
 			_bufferevent_run_readcb(bev);
 	}
 
@@ -631,8 +630,7 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 		if (bev_ssl->underlying)
 			BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
 
-		if (bev->writecb &&
-		    evbuffer_get_length(output) <= bev->wm_write.low)
+		if (evbuffer_get_length(output) <= bev->wm_write.low)
 			_bufferevent_run_writecb(bev);
 	}
 	return blocked ? 0 : 1;
