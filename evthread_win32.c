@@ -53,6 +53,7 @@ evthread_win32_lock_free(void *_lock, unsigned locktype)
 {
 	CRITICAL_SECTION *lock = _lock;
 	DeleteCriticalSection(lock);
+	mm_free(lock);
 }
 
 static int
