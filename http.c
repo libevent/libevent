@@ -1294,7 +1294,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	}
 
 	if ((req->uri = strdup(uri)) == NULL) {
-		event_debug(("%s: evhttp_decode_uri", __func__));
+		event_debug(("%s: strdup", __func__));
 		return (-1);
 	}
 
