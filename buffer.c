@@ -341,7 +341,8 @@ evbuffer_run_callbacks(struct evbuffer *buffer, int running_deferred)
 	} else if (buffer->deferred_cbs) {
 		mask = EVBUFFER_CB_NODEFER|EVBUFFER_CB_ENABLED;
 		masked_val = EVBUFFER_CB_NODEFER|EVBUFFER_CB_ENABLED;
-/* Don't zero-out n_add/n_del, since */
+		/* Don't zero-out n_add/n_del, since the deferred callbacks
+		   will want to see them. */
 		clear = 0;
 	} else {
 		mask = EVBUFFER_CB_ENABLED;
@@ -361,9 +362,10 @@ evbuffer_run_callbacks(struct evbuffer *buffer, int running_deferred)
         info.orig_size = new_size + buffer->n_del_for_cb - buffer->n_add_for_cb;
         info.n_added = buffer->n_add_for_cb;
         info.n_deleted = buffer->n_del_for_cb;
-        buffer->n_add_for_cb = 0;
-        buffer->n_del_for_cb = 0;
-
+	if (clear) {
+		buffer->n_add_for_cb = 0;
+		buffer->n_del_for_cb = 0;
+	}
 	for (cbent = TAILQ_FIRST(&buffer->callbacks);
 	     cbent != TAILQ_END(&buffer->callbacks);
 	     cbent = next) {

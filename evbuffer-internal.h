@@ -36,7 +36,9 @@ extern "C" {
 #include "util-internal.h"
 #include "defer-internal.h"
 
-/* Experimental cb flag: "never deferred" */
+/* Experimental cb flag: "never deferred."  Implementation note:
+ * these callbacks may get an inaccurate view of n_del/n_added in their
+ * arguments. */
 #define EVBUFFER_CB_NODEFER 2
 
 #ifdef WIN32
