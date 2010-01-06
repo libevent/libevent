@@ -68,6 +68,7 @@ libevent.pc
 /test/regress.gen.h
 /test/test-eof
 /test/test-init
+/test/test-ratelim
 /test/test-time
 /test/test-weof
 

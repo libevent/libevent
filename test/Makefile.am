@@ -5,7 +5,7 @@ AM_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include
 EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c
 
 noinst_PROGRAMS = test-init test-eof test-weof test-time regress \
-	bench bench_cascade bench_http bench_httpclient
+	bench bench_cascade bench_http bench_httpclient test-ratelim
 noinst_HEADERS = tinytest.h tinytest_macros.h regress.h
 
 BUILT_SOURCES = regress.gen.c regress.gen.h
@@ -17,6 +17,8 @@ test_weof_SOURCES = test-weof.c
 test_weof_LDADD = ../libevent_core.la
 test_time_SOURCES = test-time.c
 test_time_LDADD = ../libevent_core.la
+test_ratelim_SOURCES = test-ratelim.c
+test_ratelim_LDADD = ../libevent_core.la -lm
 
 regress_SOURCES = regress.c regress_buffer.c regress_http.c regress_dns.c \
 	regress_rpc.c regress.gen.c regress.gen.h regress_et.c \

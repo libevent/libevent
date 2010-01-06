@@ -127,6 +127,8 @@ upcast_write(struct event_overlapped *eo)
 static void
 bev_async_consider_writing(struct bufferevent_async *b)
 {
+	size_t at_most;
+	int limit;
 	/* Don't write if there's a write in progress, or we do not
 	 * want to write. */
 	if (!b->ok || b->write_in_progress || !(b->bev.bev.enabled&EV_WRITE))
@@ -135,8 +137,18 @@ bev_async_consider_writing(struct bufferevent_async *b)
 	if (!evbuffer_get_length(b->bev.bev.output))
 		return;
 
+	at_most = evbuffer_get_length(b->bev.bev.output);
+
+	/* XXXX This over-commits. */
+	limit = _bufferevent_get_write_max(&b->bev);
+	if (at_most >= limit)
+		at_most = limit;
+
+	if (b->bev.write_suspended)
+		return;
+
 	/*  XXXX doesn't respect low-water mark very well. */
-	if (evbuffer_launch_write(b->bev.bev.output, -1,
+	if (evbuffer_launch_write(b->bev.bev.output, at_most,
 	    &b->write_overlapped)) {
 		EVUTIL_ASSERT(0);/* XXX act sensibly. */
 	} else {
@@ -150,6 +162,7 @@ bev_async_consider_reading(struct bufferevent_async *b)
 	size_t cur_size;
 	size_t read_high;
 	size_t at_most;
+	int limit;
 	/* Don't read if there is a read in progress, or we do not
 	 * want to read. */
 	if (!b->ok || b->read_in_progress || !(b->bev.bev.enabled&EV_READ))
@@ -165,6 +178,14 @@ bev_async_consider_reading(struct bufferevent_async *b)
 	} else {
 		at_most = 16384; /* FIXME totally magic. */
 	}
+
+	/* XXXX This over-commits. */
+	limit = _bufferevent_get_read_max(&b->bev);
+	if (at_most >= limit)
+		at_most = limit;
+
+	if (b->bev.read_suspended)
+		return;
 
 	if (evbuffer_launch_read(b->bev.bev.input, at_most,
 	    &b->read_overlapped)) {
@@ -304,6 +325,7 @@ read_complete(struct event_overlapped *eo, uintptr_t key,
 
 	if (ok && nbytes) {
 		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
+		_bufferevent_decrement_read_buckets(&bev_a->bev, nbytes);
 		if (evbuffer_get_length(bev->input) >= bev->wm_read.low)
 			_bufferevent_run_readcb(bev);
 		bev_async_consider_reading(bev_a);
@@ -336,6 +358,7 @@ write_complete(struct event_overlapped *eo, uintptr_t key,
 
 	if (ok && nbytes) {
 		BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
+		_bufferevent_decrement_write_buckets(&bev_a->bev, nbytes);
 		if (evbuffer_get_length(bev->output) <= bev->wm_write.low)
 			_bufferevent_run_writecb(bev);
 		bev_async_consider_writing(bev_a);

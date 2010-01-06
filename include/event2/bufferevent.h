@@ -499,6 +499,97 @@ int
 bufferevent_pair_new(struct event_base *base, int options,
     struct bufferevent *pair[2]);
 
+
+/**
+   Abstract type used to configure rate-limiting on a bufferevent or a group
+   of bufferevents.
+ */
+struct ev_token_bucket_cfg;
+/**
+   A group of bufferevents which are configured to respect the same rate
+   limit.
+*/
+struct bufferevent_rate_limit_group;
+
+/**
+   Initialize and return a new object to configure the rate-limiting behavior
+   of bufferevents.
+
+   @param read_rate The maximum number of bytes to read per tick on
+     average.
+   @param read_burst The maximum number of bytes to read in any single tick.
+   @param write_rate The maximum number of bytes to write per tick on
+     average.
+   @param write_burst The maximum number of bytes to write in any single tick.
+   @param tick_len The length of a single tick.  Defaults to one second.
+     Any fractions of a millisecond are ignored.
+
+   Note that all rate-limits hare are currently best-effort: future versions
+   of Libevent may implement them more tightly.
+ */
+struct ev_token_bucket_cfg *ev_token_bucket_cfg_new(
+	ev_uint32_t read_rate, ev_uint32_t read_burst,
+	ev_uint32_t write_rate, ev_uint32_t write_burst,
+	const struct timeval *tick_len);
+
+/** Free all storage held in 'cfg'.
+
+    Note: 'cfg' is not currently reference-counted; it is not safe to free it
+    until no bufferevent is using it.
+ */
+void ev_token_bucket_cfg_free(struct ev_token_bucket_cfg *cfg);
+
+/**
+   Set the rate-limit of a the bufferevent 'bev' to the one specified in
+   'cfg'.  If 'cfg' is NULL, disable any per-bufferevent rate-limiting on
+   'bev'.
+
+   Note that only some bufferevent types currently respect rate-limiting.
+   They are: socket-based bufferevents (normal and IOCP-based), and SSL-based
+   bufferevents.
+
+   Return 0 on sucess, -1 on failure.
+ */
+int bufferevent_set_rate_limit(struct bufferevent *bev,
+    struct ev_token_bucket_cfg *cfg);
+/**
+   Create a new rate-limit group for bufferevents.  A rate-limit group
+   constrains the maximum number of bytes sent and received, in toto,
+   by all of its bufferevents.
+
+   @param base An event_base to run any necessary timeouts for the group.
+      Note that all bufferevents in the group do not necessarily need to share
+      this event_base.
+   @param cfg The rate-limit for this group.
+
+   Note that all rate-limits hare are currently best-effort: future versions
+   of Libevent may implement them more tightly.
+
+   Note also that only some bufferevent types currently respect rate-limiting.
+   They are: socket-based bufferevents (normal and IOCP-based), and SSL-based
+   bufferevents.
+ */
+struct bufferevent_rate_limit_group *bufferevent_rate_limit_group_new(
+	struct event_base *base,
+	const struct ev_token_bucket_cfg *cfg);
+/*XXX we need a bufferevent_rate_limit_group_set_cfg */
+
+/**
+   Add 'bev' to the list of bufferevents whose aggregate reading and writing
+   is restricted by 'g'.  If 'g' is NULL, remove 'bev' from its current group.
+
+   A bufferevent may belong to no more than one rate-limit group at a time.
+   If 'bev' is already a member of a group, it will be removed from its old
+   group before being added to 'g'.
+
+   Return 0 on success and -1 on failure.
+ */
+int bufferevent_add_to_rate_limit_group(struct bufferevent *bev,
+    struct bufferevent_rate_limit_group *g);
+
+/** Remove 'bev' from its current rate-limit group (if any). */
+int bufferevent_remove_from_rate_limit_group(struct bufferevent *bev);
+
 #ifdef __cplusplus
 }
 #endif

@@ -35,6 +35,7 @@ extern "C" {
 #include "defer-internal.h"
 #include "evthread-internal.h"
 #include "event2/thread.h"
+#include "ratelim-internal.h"
 
 /* These flags are reasons that we might be declining to actually enable
    reading or writing on a bufferevent.
@@ -43,22 +44,74 @@ extern "C" {
 /* On a all bufferevents, for reading: used when we have read up to the
    watermark value.
 
-   On a filtering bufferxevent, for writing: used when the underlying
+   On a filtering bufferevent, for writing: used when the underlying
    bufferevent's write buffer has been filled up to its watermark
    value.
 */
 #define BEV_SUSPEND_WM 0x01
-/* On a base bufferevent: when we have used up our bandwidth buckets. */
+/* On a base bufferevent: when we have emptied a bandwidth buckets */
 #define BEV_SUSPEND_BW 0x02
-/* On a socket bufferevent: we aren't going to try reading until the
- * connect operation is done. */
-#define BEV_SUSPEND_CONNECTING 0x04
+/* On a base bufferevent: when we have emptied the group's bandwidth bucket. */
+#define BEV_SUSPEND_BW_GROUP 0x04
 
-struct token_bucket {
-	ev_uint32_t limit;
-	ev_uint32_t rate;
-	ev_uint32_t burst;
-	unsigned last_updated;
+struct bufferevent_rate_limit_group {
+	/** List of all members in the group */
+	TAILQ_HEAD(rlim_group_member_list, bufferevent_private) members;
+	/** Current limits for the group. */
+	struct ev_token_bucket rate_limit;
+	struct ev_token_bucket_cfg rate_limit_cfg;
+
+	/** True iff we don't want to read from any member of the group.until
+	 * the token bucket refills.  */
+	unsigned read_suspended : 1;
+	/** True iff we don't want to write from any member of the group.until
+	 * the token bucket refills.  */
+	unsigned write_suspended : 1;
+	/** True iff we were unable to suspend one of the bufferevents in the
+	 * group for reading the last time we tried, and we should try
+	 * again. */
+	unsigned pending_unsuspend_read : 1;
+	/** True iff we were unable to suspend one of the bufferevents in the
+	 * group for writing the last time we tried, and we should try
+	 * again. */
+	unsigned pending_unsuspend_write : 1;
+
+	/** The number of bufferevents in the group. */
+	int n_members;
+
+	/** The smallest number of bytes that any member of the group should
+	 * be limited to read or write at a time. */
+	ev_uint32_t min_share;
+	/** Timeout event that goes off once a tick, when the bucket is ready
+	 * to refill. */
+	struct event master_refill_event;
+	/** Lock to protect the members of this group.  This lock should nest
+	 * within every bufferevent lock: if you are holding this lock, do
+	 * not assume you can lock another bufferevent. */
+	void *lock;
+};
+
+/** Fields for rate-limiting a single bufferevent. */
+struct bufferevent_rate_limit {
+	/* Linked-list elements for storing this bufferevent_private in a
+	 * group.
+	 *
+	 * Note that this field is supposed to be protected by the group
+	 * lock */
+	TAILQ_ENTRY(bufferevent_private) next_in_group;
+	/** The rate-limiting group for this bufferevent, or NULL if it is
+	 * only rate-limited on its own. */
+	struct bufferevent_rate_limit_group *group;
+
+	/* This bufferevent's current limits. */
+	struct ev_token_bucket limit;
+	/* Pointer to the rate-limit configuration for this bufferevent.
+	 * Can be shared.  XXX reference-count this? */
+	struct ev_token_bucket_cfg *cfg;
+
+	/* Timeout event used when one this bufferevent's buckets are
+	 * empty. */
+	struct event refill_bucket_event;
 };
 
 /** Parts of the bufferevent structure that are shared among all bufferevent
@@ -111,6 +164,9 @@ struct bufferevent_private {
 	/** Lock for this bufferevent.  Shared by the inbuf and the outbuf.
 	 * If NULL, locking is disabled. */
 	void *lock;
+
+	/** Rate-limiting information for this bufferevent */
+	struct bufferevent_rate_limit *rate_limiting;
 };
 
 /** Possible operations for a control callback. */
@@ -170,6 +226,7 @@ struct bufferevent_ops {
 
 	/** Called to access miscellaneous fields. */
 	int (*ctrl)(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
+
 };
 
 extern const struct bufferevent_ops bufferevent_ops_socket;
@@ -286,6 +343,15 @@ void _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 		if (locking->lock)					\
 			EVLOCK_UNLOCK(locking->lock, 0);		\
 	} while(0)
+
+/* ==== For rate-limiting. */
+
+int _bufferevent_decrement_write_buckets(struct bufferevent_private *bev,
+    int bytes);
+int _bufferevent_decrement_read_buckets(struct bufferevent_private *bev,
+    int bytes);
+int _bufferevent_get_read_max(struct bufferevent_private *bev);
+int _bufferevent_get_write_max(struct bufferevent_private *bev);
 
 #ifdef __cplusplus
 }

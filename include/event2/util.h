@@ -93,12 +93,16 @@ extern "C" {
 
 #ifdef _EVENT_HAVE_UINT32_T
 #define ev_uint32_t uint32_t
+#define ev_int32_t int32_t
 #elif defined(WIN32)
 #define ev_uint32_t unsigned int
+#define ev_int32_t signed int
 #elif _EVENT_SIZEOF_LONG == 4
 #define ev_uint32_t unsigned long
+#define ev_int32_t signed long
 #elif _EVENT_SIZEOF_INT == 4
 #define ev_uint32_t unsigned int
+#define ev_int32_t signed int
 #else
 #error "No way to define ev_uint32_t"
 #endif

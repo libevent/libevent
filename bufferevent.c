@@ -531,6 +531,15 @@ _bufferevent_decref_and_unlock(struct bufferevent *bufev)
 	evbuffer_free(bufev->input);
 	evbuffer_free(bufev->output);
 
+	if (bufev_private->rate_limiting) {
+		if (bufev_private->rate_limiting->group)
+			bufferevent_remove_from_rate_limit_group(bufev);
+		if (event_initialized(&bufev_private->rate_limiting->refill_bucket_event))
+			event_del(&bufev_private->rate_limiting->refill_bucket_event);
+		mm_free(bufev_private->rate_limiting);
+		bufev_private->rate_limiting = NULL;
+	}
+
 	BEV_UNLOCK(bufev);
 	if (bufev_private->own_lock)
 		EVTHREAD_FREE_LOCK(bufev_private->lock,

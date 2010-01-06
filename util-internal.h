@@ -146,6 +146,8 @@ int evutil_resolve(int family, const char *hostname, struct sockaddr *sa,
 
 const char *evutil_getenv(const char *name);
 
+long _evutil_weakrand(void);
+
 /* Evaluates to the same boolean value as 'p', and hints to the compiler that
  * we expect this value to be false. */
 #ifdef __GNUC__X
