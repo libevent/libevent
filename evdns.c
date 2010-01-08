@@ -101,6 +101,8 @@
 #ifdef WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#define _WIN32_IE 0x400
+#include <shlobj.h>
 #endif
 
 #include <event2/dns.h>
@@ -3391,6 +3393,31 @@ evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char *con
 	return res;
 }
 
+static char *
+evdns_get_default_hosts_filename(void)
+{
+#ifdef WIN32
+	/* Windows is a little coy about where it puts its configuration
+	 * files.  Sure, they're _usually_ in C:\windows\system32, but
+	 * there's no reason in principle they couldn't be in
+	 * W:\hoboken chicken emergency\
+	 */
+	char path[MAX_PATH+1];
+	static const char hostfile[] = "\\drivers\\etc\\hosts";
+	char *path_out;
+	int len_out;
+
+	if (! SHGetSpecialFolderPath(NULL, path, CSIDL_SYSTEM, 0))
+		return NULL;
+	len_out = strlen(path)+strlen(hostfile);
+	path_out = mm_malloc(len_out+1);
+	evutil_snprintf(path_out, len_out, "%s%s", path, hostfile);
+	return path_out;
+#else
+	return mm_strdup("/etc/hosts");
+#endif
+}
+
 static int
 evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char *const filename) {
 	size_t n;
@@ -3401,11 +3428,10 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 	log(EVDNS_LOG_DEBUG, "Parsing resolv.conf file %s", filename);
 
 	if (flags & DNS_OPTION_HOSTSFILE) {
-#ifdef WIN32
-		evdns_base_load_hosts(base, NULL);
-#else
-		evdns_base_load_hosts(base, "/etc/hosts");
-#endif
+		char *fname = evdns_get_default_hosts_filename();
+		evdns_base_load_hosts(base, fname);
+		if (fname)
+			mm_free(fname);
 	}
 
 	if ((err = evutil_read_file(filename, &resolv, &n, 0)) < 0) {
@@ -3648,6 +3674,7 @@ int
 evdns_base_config_windows_nameservers(struct evdns_base *base)
 {
 	int r;
+	char *fname;
 	if (base == NULL)
 		base = current_base;
 	if (base == NULL)
@@ -3658,6 +3685,12 @@ evdns_base_config_windows_nameservers(struct evdns_base *base)
 		return 0;
 	}
 	r = load_nameservers_from_registry(base);
+
+	fname = evdns_get_default_hosts_filename();
+	evdns_base_load_hosts(base, fname);
+	if (fname)
+		mm_free(fname);
+
 	EVDNS_UNLOCK(base);
 	return r;
 }
