@@ -751,7 +751,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 			 */
 			evhttp_connection_start_detectclose(evcon);
 		}
-	} else {
+	} else if (evcon->state != EVCON_DISCONNECTED) {
 		/*
 		 * incoming connection - we need to leave the request on the
 		 * connection so that we can reply to it.
@@ -933,6 +933,7 @@ evhttp_read(int fd, short what, void *arg)
 		return;
 	} else if (n == 0) {
 		/* Connection closed */
+		evcon->state = EVCON_DISCONNECTED;
 		evhttp_connection_done(evcon);
 		return;
 	}
@@ -2190,8 +2191,15 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	struct evhttp *http = arg;
 	struct evhttp_cb *cb = NULL;
 
+	event_debug(("%s: req->uri=%s", __func__, req->uri));
 	if (req->uri == NULL) {
-		evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
+		event_debug(("%s: bad request", __func__));
+		if (req->evcon->state == EVCON_DISCONNECTED) {
+			evhttp_connection_fail(req->evcon, EVCON_HTTP_EOF);
+		} else {
+			event_debug(("%s: sending error", __func__));
+			evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
+		}
 		return;
 	}
 
