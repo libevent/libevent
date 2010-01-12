@@ -70,8 +70,8 @@ static void http_put_cb(struct evhttp_request *req, void *arg);
 static void http_delete_cb(struct evhttp_request *req, void *arg);
 static void http_delay_cb(struct evhttp_request *req, void *arg);
 static void http_large_delay_cb(struct evhttp_request *req, void *arg);
+static void http_badreq_cb(struct evhttp_request *req, void *arg);
 static void http_dispatcher_cb(struct evhttp_request *req, void *arg);
-
 static struct evhttp *
 http_setup(short *pport, struct event_base *base)
 {
@@ -100,6 +100,7 @@ http_setup(short *pport, struct event_base *base)
 	evhttp_set_cb(myhttp, "/deleteit", http_delete_cb, NULL);
 	evhttp_set_cb(myhttp, "/delay", http_delay_cb, NULL);
 	evhttp_set_cb(myhttp, "/largedelay", http_large_delay_cb, NULL);
+	evhttp_set_cb(myhttp, "/badrequest", http_badreq_cb, NULL);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, NULL);
 
 	*pport = port;
@@ -407,6 +408,151 @@ http_delay_cb(struct evhttp_request *req, void *arg)
 	tv.tv_usec = 200 * 1000;
 
 	event_once(-1, EV_TIMEOUT, http_delay_reply, req, &tv);
+}
+
+static void
+http_badreq_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *buf = evbuffer_new();
+
+	evhttp_add_header(req->output_headers, "Content-Type", "text/xml; charset=UTF-8");
+	evbuffer_add_printf(buf, "Hello, %s!", "127.0.0.1");
+
+	evhttp_send_reply(req, HTTP_OK, "OK", buf);
+	evbuffer_free(buf);
+}
+
+static void
+http_badreq_errorcb(struct bufferevent *bev, short what, void *arg)
+{
+	event_debug(("%s: called (what=%04x, arg=%p)", __func__, what, arg));
+	/* ignore */
+}
+
+static void
+http_badreq_readcb(struct bufferevent *bev, void *arg)
+{
+	const char *what = "Hello, 127.0.0.1";
+	const char *bad_request = "400 Bad Request";
+
+	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bev->input)));
+
+	if (evbuffer_find(bev->input,
+		(const unsigned char *) bad_request,
+		strlen(bad_request)) != NULL) {
+		TT_FAIL(("%s: bad request detected", __func__));
+		bufferevent_disable(bev, EV_READ);
+		event_loopexit(NULL);
+		return;
+	}
+
+	if (evbuffer_find(bev->input,
+		(const unsigned char*) what, strlen(what)) != NULL) {
+		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
+		enum message_read_status done;
+
+		req->kind = EVHTTP_RESPONSE;
+		done = evhttp_parse_firstline(req, bev->input);
+		if (done != ALL_DATA_READ)
+			goto out;
+
+		done = evhttp_parse_headers(req, bev->input);
+		if (done != ALL_DATA_READ)
+			goto out;
+
+		if (done == 1 &&
+		    evhttp_find_header(req->input_headers,
+			"Content-Type") != NULL)
+			test_ok++;
+
+	out:
+		evhttp_request_free(req);
+		evbuffer_drain(bev->input, EVBUFFER_LENGTH(bev->input));
+	}
+
+	shutdown(bev->ev_read.ev_fd, SHUT_WR);
+}
+
+static void
+http_badreq_successcb(int fd, short what, void *arg)
+{
+	event_debug(("%s: called (what=%04x, arg=%p)", __func__, what, arg));
+	event_loopexit(NULL);
+}
+
+static void
+http_bad_request_test(void)
+{
+	struct timeval tv;
+	struct bufferevent *bev;
+	int fd;
+	const char *http_request;
+	short port = -1;
+
+	test_ok = 0;
+
+	/* fprintf(stdout, "Testing \"Bad Request\" on connection close: "); */
+
+	http = http_setup(&port, NULL);
+
+	/* bind to a second socket */
+	if (evhttp_bind_socket(http, "127.0.0.1", port + 1) == -1)
+		TT_DIE(("Bind socket failed"));
+
+	/* NULL request test */
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, http_badreq_readcb, http_writecb,
+	    http_badreq_errorcb, NULL);
+	bufferevent_enable(bev, EV_READ);
+
+	/* real NULL request */
+	http_request = "";
+
+	shutdown(fd, SHUT_WR);
+	timerclear(&tv);
+	tv.tv_usec = 10000;
+	event_once(-1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
+
+	event_dispatch();
+
+	bufferevent_free(bev);
+	EVUTIL_CLOSESOCKET(fd);
+
+	if (test_ok != 0) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	/* Second answer (BAD REQUEST) on connection close */
+
+	/* connect to the second port */
+	fd = http_connect("127.0.0.1", port + 1);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, http_badreq_readcb, http_writecb,
+	    http_badreq_errorcb, NULL);
+	bufferevent_enable(bev, EV_READ);
+
+	/* first half of the http request */
+	http_request =
+		"GET /badrequest HTTP/1.0\r\n"	\
+		"Connection: Keep-Alive\r\n"	\
+		"\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	timerclear(&tv);
+	tv.tv_usec = 10000;
+	event_once(-1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
+
+	event_dispatch();
+
+	tt_int_op(test_ok, ==, 2);
+
+end:
+	evhttp_free(http);
 }
 
 static struct evhttp_connection *delayed_client;
@@ -2282,6 +2428,7 @@ struct testcase_t http_testcases[] = {
 	HTTP_LEGACY(persist_connection),
 	HTTP_LEGACY(close_detection),
 	HTTP_LEGACY(close_detection_delay),
+	HTTP_LEGACY(bad_request),
 	HTTP_LEGACY(incomplete),
 	HTTP_LEGACY(incomplete_timeout),
 
