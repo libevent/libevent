@@ -5,6 +5,14 @@ then
 	TEST_OUTPUT_FILE=/dev/null
 fi
 
+# /bin/echo is a little more likely to support -n than sh's builtin echo.
+if test -x /bin/echo
+then
+	ECHO=/bin/echo
+else
+	ECHO=echo
+fi
+
 touch "$TEST_OUTPUT_FILE" || exit 1
 
 TEST_DIR=.
@@ -29,6 +37,12 @@ announce () {
 	echo $@ >>"$TEST_OUTPUT_FILE"
 }
 
+announce_n () {
+	$ECHO -n $@
+	echo $@ >>"$TEST_OUTPUT_FILE"
+}
+
+
 run_tests () {
 	if $TEST_DIR/test-init 2>>"$TEST_OUTPUT_FILE" ;
 	then
@@ -38,28 +52,28 @@ run_tests () {
 		return
 	fi
 
-	announce -n " test-eof: "
+	announce_n " test-eof: "
 	if $TEST_DIR/test-eof >>"$TEST_OUTPUT_FILE" ;
 	then
 		announce OKAY ;
 	else
 		announce FAILED ;
 	fi
-	announce -n " test-weof: "
+	announce_n " test-weof: "
 	if $TEST_DIR/test-weof >>"$TEST_OUTPUT_FILE" ;
 	then
 		announce OKAY ;
 	else
 		announce FAILED ;
 	fi
-	announce -n " test-time: "
+	announce_n " test-time: "
 	if $TEST_DIR/test-time >>"$TEST_OUTPUT_FILE" ;
 	then
 		announce OKAY ;
 	else
 		announce FAILED ;
 	fi
-	announce -n " regress: "
+	announce_n " regress: "
 	if $TEST_DIR/regress >>"$TEST_OUTPUT_FILE" ;
 	then
 		announce OKAY ;
