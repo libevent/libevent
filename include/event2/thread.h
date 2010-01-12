@@ -172,7 +172,9 @@ int evthread_use_pthreads(void);
 
 #endif
 
-/* XXXXX */
+/** Enable debugging wrappers around the current lock callbacks.  If Libevent
+ * makes one of several common locking errors, exit with an assertion failure.
+ **/
 void evthread_enable_lock_debuging(void);
 
 #endif /* _EVENT_DISABLE_THREAD_SUPPORT */
