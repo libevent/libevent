@@ -1739,11 +1739,11 @@ evhttp_read_header(struct evhttp_connection *evcon,
 struct evhttp_connection *
 evhttp_connection_new(const char *address, unsigned short port)
 {
-	return (evhttp_connection_base_new(NULL, address, port));
+	return (evhttp_connection_base_new(NULL, NULL, address, port));
 }
 
 struct evhttp_connection *
-evhttp_connection_base_new(struct event_base *base,
+evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
     const char *address, unsigned short port)
 {
 	struct evhttp_connection *evcon = NULL;
@@ -1785,20 +1785,14 @@ evhttp_connection_base_new(struct event_base *base,
 		bufferevent_base_set(base, evcon->bufev);
 	}
 
+	evcon->dns_base = dnsbase;
+
 	return (evcon);
 
  error:
 	if (evcon != NULL)
 		evhttp_connection_free(evcon);
 	return (NULL);
-}
-
-void
-evhttp_connection_set_evdns_base(struct evhttp_connection *evcon,
-    struct evdns_base *base)
-{
-	EVUTIL_ASSERT(evcon->dns_base == NULL);
-	evcon->dns_base = base;
 }
 
 void
@@ -2925,7 +2919,7 @@ evhttp_get_request_connection(
 
 	/* we need a connection object to put the http request on */
 	evcon = evhttp_connection_base_new(
-		http->base, hostname, atoi(portname));
+		http->base, NULL, hostname, atoi(portname));
 	mm_free(hostname);
 	mm_free(portname);
 	if (evcon == NULL)
