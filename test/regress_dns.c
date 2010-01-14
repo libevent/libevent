@@ -937,6 +937,21 @@ be_getaddrinfo_server_cb(struct evdns_server_request *req, void *data)
 				return;
 			}
 		} else if (!evutil_ascii_strcasecmp(qname,
+			"v4timeout.example.com")) {
+			if (qtype == EVDNS_TYPE_AAAA) {
+				ans6.s6_addr[0] = 0x0a;
+				ans6.s6_addr[1] = 0x0a;
+				ans6.s6_addr[14] = 0xff;
+				ans6.s6_addr[15] = 0x01;
+				evdns_server_request_add_aaaa_reply(req, qname,
+				    1, &ans6.s6_addr, 2000);
+				added_any = 1;
+			} else if (qtype == EVDNS_TYPE_A) {
+				/* Let the v4 request time out.*/
+				evdns_server_request_drop(req);
+				return;
+			}
+		} else if (!evutil_ascii_strcasecmp(qname,
 			"v6timeout-nonexist.example.com")) {
 			if (qtype == EVDNS_TYPE_A) {
 				/* Fall through, give an nexist. */
@@ -945,6 +960,11 @@ be_getaddrinfo_server_cb(struct evdns_server_request *req, void *data)
 				evdns_server_request_drop(req);
 				return;
 			}
+		} else if (!evutil_ascii_strcasecmp(qname,
+			"all-timeout.example.com")) {
+			/* drop all requests */
+			evdns_server_request_drop(req);
+			return;
 		} else {
 			TT_GRIPE(("Got weird request for %s",qname));
 		}
@@ -1136,12 +1156,19 @@ gai_cb(int err, struct evutil_addrinfo *res, void *ptr)
 }
 
 static void
+cancel_gai_cb(evutil_socket_t fd, short what, void *ptr)
+{
+	struct evdns_getaddrinfo_request *r = ptr;
+	evdns_getaddrinfo_cancel(r);
+}
+
+static void
 test_getaddrinfo_async(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct evutil_addrinfo hints, *a;
 	struct gai_outcome local_outcome;
-	struct gai_outcome a_out[10];
+	struct gai_outcome a_out[12];
 	int i;
 	struct evdns_getaddrinfo_request *r;
 	char buf[128];
@@ -1378,14 +1405,33 @@ test_getaddrinfo_async(void *arg)
 	    "8009", &hints, gai_cb, &a_out[9]);
 	tt_assert(r);
 
+	/* 10: PF_UNSPEC for v4timeout.example.com should give an ipv6 address
+	 * only. */
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_flags = 0;
+	r = evdns_getaddrinfo(dns_base, "v4timeout.example.com", "8010",
+	    &hints, gai_cb, &a_out[10]);
+	tt_assert(r);
+
+	/* 11: timeout.example.com: cancel it after 100 msec. */
+	r = evdns_getaddrinfo(dns_base, "all-timeout.example.com", "8011",
+	    &hints, gai_cb, &a_out[11]);
+	tt_assert(r);
+	{
+		struct timeval tv;
+		tv.tv_sec = 0;
+		tv.tv_usec = 100*1000; /* 100 msec */
+		event_base_once(data->base, -1, EV_TIMEOUT, cancel_gai_cb,
+		    r, &tv);
+	}
+
 	/* XXXXX There are more tests we could do, including:
 
 	   - A test to elicit NODATA.
-	   - A test of cancelling a request.
 
 	 */
 
-	n_gai_results_pending = 10;
+	n_gai_results_pending = 12;
 	exit_base_on_no_pending_results = data->base;
 
 	event_base_dispatch(data->base);
@@ -1461,6 +1507,16 @@ test_getaddrinfo_async(void *arg)
 		test_ai_eq(a, "[80ff::bbbb]:8009", SOCK_STREAM, IPPROTO_TCP);
 	else
 		tt_assert(ai_find_by_family(a_out[9].ai, PF_INET));
+
+	/* 10: v4timeout.example.com */
+	tt_int_op(a_out[10].err, ==, 0);
+	tt_assert(a_out[10].ai);
+	tt_assert(! a_out[10].ai->ai_next);
+	test_ai_eq(a_out[10].ai, "[a0a::ff01]:8010", SOCK_STREAM, IPPROTO_TCP);
+
+	/* 11: cancelled request. */
+	tt_int_op(a_out[11].err, ==, EVUTIL_EAI_CANCEL);
+	tt_assert(a_out[11].ai == NULL);
 
 end:
 	if (local_outcome.ai)
