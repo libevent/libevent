@@ -67,8 +67,6 @@
 struct kqop {
 	struct kevent *changes;
 	int changes_size;
-	struct kevent *pend_changes;
-	int pend_changes_size;
 
 	struct kevent *events;
 	int events_size;
@@ -132,14 +130,10 @@ kq_init(struct event_base *base)
 	kqueueop->changes = mm_calloc(NEVENT, sizeof(struct kevent));
 	if (kqueueop->changes == NULL)
 		goto err;
-	kqueueop->pend_changes = mm_calloc(NEVENT, sizeof(struct kevent));
-	if (kqueueop->pend_changes == NULL)
-		goto err;
 	kqueueop->events = mm_calloc(NEVENT, sizeof(struct kevent));
 	if (kqueueop->events == NULL)
 		goto err;
-	kqueueop->events_size = kqueueop->changes_size =
-	    kqueueop->pend_changes_size = NEVENT;
+	kqueueop->events_size = kqueueop->changes_size = NEVENT;
 
 	/* Check for Mac OS X kqueue bug. */
 	memset(&kqueueop->changes[0], 0, sizeof kqueueop->changes[0]);
@@ -198,14 +192,6 @@ kq_setup_kevent(struct kevent *out, evutil_socket_t fd, int filter, short change
 	}
 }
 
-#define SWAP(tp,a,b)				\
-	do {					\
-		tp tmp_swap_var = (a);		\
-		a = b;				\
-		b = tmp_swap_var;		\
-	} while (0);
-
-
 static int
 kq_build_changes_list(const struct event_changelist *changelist,
     struct kqop *kqop)
@@ -248,6 +234,7 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 {
 	struct kqop *kqop = base->evbase;
 	struct kevent *events = kqop->events;
+	struct kevent *changes;
 	struct timespec ts, *ts_p = NULL;
 	int i, n_changes, res;
 
@@ -257,26 +244,27 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 	}
 
 	/* Build "changes" from "base->changes" */
+	EVUTIL_ASSERT(kqop->changes);
 	n_changes = kq_build_changes_list(&base->changelist, kqop);
 	if (n_changes < 0)
 		return -1;
 
 	event_changelist_remove_all(&base->changelist, base);
 
-	/* We can't hold the lock while we're calling kqueue, so another
-	 * thread might potentially mess with changes before the kernel has a
-	 * chance to read it.  Therefore, we need to keep the change list
-	 * we're looking at in pend_changes, and let other threads mess with
-	 * changes. */
-	SWAP(struct kevent *, kqop->changes, kqop->pend_changes);
-	SWAP(int, kqop->changes_size, kqop->pend_changes_size);
+	/* steal the changes array in case some broken code tries to call
+	 * dispatch twice at once. */
+	changes = kqop->changes;
+	kqop->changes = NULL;
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
-	res = kevent(kqop->kq, kqop->pend_changes, n_changes,
+	res = kevent(kqop->kq, changes, n_changes,
 	    events, kqop->events_size, ts_p);
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+
+	EVUTIL_ASSERT(kqop->changes == NULL);
+	kqop->changes = changes;
 
 	if (res == -1) {
 		if (errno != EINTR) {
@@ -353,8 +341,6 @@ kqop_free(struct kqop *kqop)
 {
 	if (kqop->changes)
 		mm_free(kqop->changes);
-	if (kqop->pend_changes)
-		mm_free(kqop->pend_changes);
 	if (kqop->events)
 		mm_free(kqop->events);
 	if (kqop->kq >= 0 && kqop->pid == getpid())
