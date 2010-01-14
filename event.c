@@ -65,6 +65,7 @@
 #include "log-internal.h"
 #include "evmap-internal.h"
 #include "iocp-internal.h"
+#include "changelist-internal.h"
 
 #ifdef _EVENT_HAVE_EVENT_PORTS
 extern const struct eventop evportops;
@@ -318,6 +319,7 @@ event_base_new_with_config(struct event_config *cfg)
 
 	evmap_io_initmap(&base->io);
 	evmap_signal_initmap(&base->sigmap);
+	event_changelist_init(&base->changelist);
 
 	base->evbase = NULL;
 
@@ -492,6 +494,7 @@ event_base_free(struct event_base *base)
 
 	evmap_io_clear(&base->io);
 	evmap_signal_clear(&base->sigmap);
+	event_changelist_freemem(&base->changelist);
 
 	EVTHREAD_FREE_LOCK(base->th_base_lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 	EVTHREAD_FREE_LOCK(base->current_event_lock,
@@ -534,6 +537,7 @@ event_reinit(struct event_base *base)
 		return (-1);
 	}
 
+	event_changelist_freemem(&base->changelist); /* XXX */
 	evmap_io_clear(&base->io);
 	evmap_signal_clear(&base->sigmap);
 

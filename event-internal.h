@@ -114,12 +114,24 @@ struct common_timeout_list {
 	struct event_base *base;
 };
 
+struct event_change;
+
+struct event_changelist {
+	struct event_change *changes;
+	int n_changes;
+	int changes_size;
+};
+
 struct event_base {
 	/** Function pointers and other data to describe this event_base's
 	 * backend. */
 	const struct eventop *evsel;
 	/** Pointer to backend-specific data. */
 	void *evbase;
+
+	/** List of changes to tell backend about at next dispatch.  Only used
+	 * by the O(1) backends. */
+	struct event_changelist changelist;
 
 	/* signal handling info */
 	const struct eventop *evsigsel;
@@ -151,7 +163,7 @@ struct event_base {
 	struct deferred_cb_queue defer_queue;
 
 	/** Mapping from file descriptors to enabled events */
-	struct event_io_map io;
+	struct event_io_map  io;
 
 	/** Mapping from signal numbers to enabled events. */
 	struct event_signal_map sigmap;
