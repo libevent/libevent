@@ -66,12 +66,12 @@
 #include "evdns.h"
 #include "log-internal.h"
 #include "regress.h"
+#include "regress_testutils.h"
 
 static int dns_ok = 0;
 static int dns_got_cancel = 0;
 static int dns_err = 0;
 
-static int get_socket_port(evutil_socket_t fd);
 
 static void
 dns_gethostbyname_cb(int result, char type, int count, int ttl,
@@ -430,89 +430,6 @@ end:
 		evdns_base_free(base, 0);
 }
 
-struct generic_dns_server_table {
-	const char *q;
-	const char *anstype;
-	const char *ans;
-	int seen;
-};
-
-static void
-generic_dns_server_cb(struct evdns_server_request *req, void *data)
-{
-	struct generic_dns_server_table *tab = data;
-	const char *question;
-
-	if (req->nquestions != 1)
-		TT_DIE(("Only handling one question at a time; got %d",
-			req->nquestions));
-
-	question = req->questions[0]->name;
-
-	while (tab->q && evutil_ascii_strcasecmp(question, tab->q) &&
-	    strcmp("*", tab->q))
-		++tab;
-	if (tab->q == NULL)
-		TT_DIE(("Unexpected question: '%s'", question));
-
-	++tab->seen;
-
-	if (!strcmp(tab->anstype, "err")) {
-		int err = atoi(tab->ans);
-		tt_assert(! evdns_server_request_respond(req, err));
-		return;
-	} else if (!strcmp(tab->anstype, "A")) {
-		struct in_addr in;
-		evutil_inet_pton(AF_INET, tab->ans, &in);
-		evdns_server_request_add_a_reply(req, question, 1, &in.s_addr,
-		    100);
-	} else if (!strcmp(tab->anstype, "AAAA")) {
-		struct in6_addr in6;
-		evutil_inet_pton(AF_INET6, tab->ans, &in6);
-		evdns_server_request_add_aaaa_reply(req,
-		    question, 1, &in6.s6_addr, 100);
-	} else {
-		TT_DIE(("Weird table entry with type '%s'", tab->anstype));
-	}
-	tt_assert(! evdns_server_request_respond(req, 0))
-	return;
-end:
-	tt_want(! evdns_server_request_drop(req));
-}
-
-static struct evdns_server_port *
-get_generic_server(struct event_base *base,
-    ev_uint16_t *portnum,
-    evdns_request_callback_fn_type cb,
-    void *arg)
-{
-	struct evdns_server_port *port = NULL;
-	evutil_socket_t sock;
-	struct sockaddr_in my_addr;
-
-	sock = socket(AF_INET, SOCK_DGRAM, 0);
-        if (sock<=0) {
-                tt_abort_perror("socket");
-        }
-
-        evutil_make_socket_nonblocking(sock);
-
-	memset(&my_addr, 0, sizeof(my_addr));
-	my_addr.sin_family = AF_INET;
-	my_addr.sin_port = htons(*portnum);
-	my_addr.sin_addr.s_addr = htonl(0x7f000001UL);
-	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
-		tt_abort_perror("bind");
-	}
-	port = evdns_add_server_port_with_base(base, sock, 0, cb, arg);
-	if (!*portnum)
-		*portnum = get_socket_port(sock);
-
-	return port;
-end:
-	return NULL;
-}
-
 static int n_replies_left;
 static struct event_base *exit_base;
 
@@ -554,7 +471,7 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
 		event_base_loopexit(exit_base, NULL);
 }
 
-static struct generic_dns_server_table search_table[] = {
+static struct regress_dns_server_table search_table[] = {
 	{ "host.a.example.com", "err", "3", 0 },
 	{ "host.b.example.com", "err", "3", 0 },
 	{ "host.c.example.com", "A", "11.22.33.44", 0 },
@@ -573,15 +490,12 @@ dns_search_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
-	struct evdns_server_port *port = NULL;
 	struct evdns_base *dns = NULL;
 	ev_uint16_t portnum = 53900;/*XXXX let the code pick a port*/
 
 	struct generic_dns_callback_result r1, r2, r3, r4, r5;
 
-	port = get_generic_server(base, &portnum, generic_dns_server_cb,
-	    search_table);
-	tt_assert(port);
+	tt_assert(regress_dnsserver(base, &portnum, search_table));
 
 	dns = evdns_base_new(base, 0);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
@@ -614,8 +528,8 @@ dns_search_test(void *arg)
 end:
 	if (dns)
 		evdns_base_free(dns, 0);
-	if (port)
-		evdns_close_server_port(port);
+
+	regress_clean_dnsserver();
 }
 
 static void
@@ -664,8 +578,8 @@ dns_retry_test(void *arg)
 
 	struct generic_dns_callback_result r1;
 
-	port = get_generic_server(base, &portnum, fail_server_cb,
-	    &drop_count);
+	port = regress_get_dnsserver(base, &portnum, NULL,
+	    fail_server_cb, &drop_count);
 	tt_assert(port);
 
 	dns = evdns_base_new(base, 0);
@@ -724,7 +638,7 @@ end:
 		evdns_close_server_port(port);
 }
 
-static struct generic_dns_server_table internal_error_table[] = {
+static struct regress_dns_server_table internal_error_table[] = {
 	/* Error 4 (NOTIMPL) makes us reissue the request to another server
 	   if we can.
 
@@ -734,7 +648,7 @@ static struct generic_dns_server_table internal_error_table[] = {
 	{ NULL, NULL, NULL, 0 }
 };
 
-static struct generic_dns_server_table reissue_table[] = {
+static struct regress_dns_server_table reissue_table[] = {
 	{ "foof.example.com", "A", "240.15.240.15", 0 },
 	{ NULL, NULL, NULL, 0 }
 };
@@ -749,11 +663,11 @@ dns_reissue_test(void *arg)
 	struct generic_dns_callback_result r1;
 	ev_uint16_t portnum1 = 53900, portnum2=53901;
 
-	port1 = get_generic_server(base, &portnum1, generic_dns_server_cb,
-	    internal_error_table);
+	port1 = regress_get_dnsserver(base, &portnum1, NULL,
+	    regress_dns_server_cb, internal_error_table);
 	tt_assert(port1);
-	port2 = get_generic_server(base, &portnum2, generic_dns_server_cb,
-	    reissue_table);
+	port2 = regress_get_dnsserver(base, &portnum2, NULL,
+	    regress_dns_server_cb, reissue_table);
 	tt_assert(port2);
 
 	dns = evdns_base_new(base, 0);
@@ -805,16 +719,13 @@ dns_inflight_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
-	struct evdns_server_port *port = NULL;
 	struct evdns_base *dns = NULL;
 	ev_uint16_t portnum = 53900;/*XXXX let the code pick a port*/
 
 	struct generic_dns_callback_result r[20];
 	int i;
 
-	port = get_generic_server(base, &portnum, generic_dns_server_cb,
-	    reissue_table);
-	tt_assert(port);
+	tt_assert(regress_dnsserver(base, &portnum, reissue_table));
 
 	/* Make sure that having another (very bad!) RNG doesn't mess us
 	 * up. */
@@ -842,8 +753,7 @@ dns_inflight_test(void *arg)
 end:
 	if (dns)
 		evdns_base_free(dns, 0);
-	if (port)
-		evdns_close_server_port(port);
+	regress_clean_dnsserver();
 }
 
 /* === Test for bufferevent_socket_connect_hostname */
@@ -985,22 +895,6 @@ nil_accept_cb(struct evconnlistener *l, evutil_socket_t fd, struct sockaddr *s,
 	/* don't do anything with the socket; let it close when we exit() */
 }
 
-/* Helper: return the port that a socket is bound on, in host order. */
-static int
-get_socket_port(evutil_socket_t fd)
-{
-	struct sockaddr_storage ss;
-	ev_socklen_t socklen = sizeof(ss);
-	if (getsockname(fd, (struct sockaddr*)&ss, &socklen) != 0)
-		return -1;
-	if (ss.ss_family == AF_INET)
-		return ntohs( ((struct sockaddr_in*)&ss)->sin_port);
-	else if (ss.ss_family == AF_INET6)
-		return ntohs( ((struct sockaddr_in6*)&ss)->sin6_port);
-	else
-		return -1;
-}
-
 /* Bufferevent event callback for the connect_hostname test: remembers what
  * event we got. */
 static void
@@ -1052,9 +946,10 @@ test_bufferevent_connect_hostname(void *arg)
 	    &n_accept,
 	    LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_EXEC,
 	    -1, (struct sockaddr *)&sin, sizeof(sin));
-	listener_port = get_socket_port(evconnlistener_get_fd(listener));
+	listener_port = regress_get_socket_port(
+		evconnlistener_get_fd(listener));
 
-	port = get_generic_server(data->base, &dns_port,
+	port = regress_get_dnsserver(data->base, &dns_port, NULL,
 	    be_getaddrinfo_server_cb, &n_dns);
 	tt_assert(port);
 	tt_int_op(dns_port, >=, 0);
@@ -1329,7 +1224,7 @@ test_getaddrinfo_async(void *arg)
 
 	/* 2. Okay, now we can actually test the asynchronous resolver. */
 	/* Start a dummy local dns server... */
-	port = get_generic_server(data->base, &dns_port,
+	port = regress_get_dnsserver(data->base, &dns_port, NULL,
 	    be_getaddrinfo_server_cb, &n_dns_questions);
 	tt_assert(port);
 	tt_int_op(dns_port, >=, 0);

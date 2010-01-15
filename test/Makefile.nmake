@@ -4,6 +4,7 @@ CFLAGS=/I.. /I../include /I../WIN32-Code /I../compat /DWIN32 /DHAVE_CONFIG_H
 CFLAGS=$(CFLAGS) /Ox /W3 /wd4996 /nologo
 
 REGRESS_OBJS=regress.obj regress_buffer.obj regress_http.obj regress_dns.obj \
+	regress_testutils.obj \
         regress_rpc.obj regress.gen.obj \
 	regress_et.obj regress_bufferevent.obj \
 	regress_listener.obj regress_util.obj tinytest.obj \
