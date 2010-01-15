@@ -734,7 +734,7 @@ static struct regress_dns_server_table search_table[] = {
 };
 
 static void
-http_connection_async_test()
+http_connection_async_test(void)
 {
 	short port = -1;
 	struct evhttp_connection *evcon = NULL;
