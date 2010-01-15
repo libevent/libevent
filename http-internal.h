@@ -97,6 +97,7 @@ struct evhttp_connection {
 	void *closecb_arg;
 
 	struct event_base *base;
+	struct evdns_base *dns_base;
 };
 
 struct evhttp_cb {

@@ -353,13 +353,23 @@ void evhttp_request_set_chunked_cb(struct evhttp_request *,
 /** Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
 
+struct evdns_base;
+
 /**
  * A connection object that can be used to for making HTTP requests.  The
- * connection object tries to establish the connection when it is given an
- * http request object.
+ * connection object tries to resolve address and establish the connection
+ * when it is given an http request object.
+ *
+ * @param base the event_base to use for handling the connection
+ * @param dnsbase the dns_base to use for resolving host names; if not
+ *     specified host name resolution will block.
+ * @param address the address to which to connect
+ * @param port the port to connect to
+ * @return an evhttp_connection object that can be used for making requests
  */
 struct evhttp_connection *evhttp_connection_base_new(
-	struct event_base *base, const char *address, unsigned short port);
+	struct event_base *base, struct evdns_base *dnsbase,
+	const char *address, unsigned short port);
 
 /** Takes ownership of the request object
  *

@@ -155,7 +155,6 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 
 extern int debug;
 
-static int socket_connect(evutil_socket_t kefd, const char *address, unsigned short port);
 static evutil_socket_t bind_socket_ai(struct evutil_addrinfo *, int reuse);
 static evutil_socket_t bind_socket(const char *, ev_uint16_t, int reuse);
 static void name_from_addr(struct sockaddr *, ev_socklen_t, char **, char **);
@@ -1149,15 +1148,25 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 }
 
 /*
- * Call back for asynchronous connection attempt.
+ * Event callback for asynchronous connection attempt.
  */
-
 static void
-evhttp_connection_cb(struct bufferevent *bufev, void *arg)
+evhttp_connection_cb(struct bufferevent *bufev, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 	int error;
 	ev_socklen_t errsz = sizeof(error);
+
+	if (!(what & BEV_EVENT_CONNECTED)) {
+		/* some operating systems return ECONNREFUSED immediately
+		 * when connecting to a local address.  the cleanup is going
+		 * to reschedule this function call.
+		 */
+		if (errno == ECONNREFUSED)
+			goto cleanup;
+		evhttp_error_cb(bufev, what, arg);
+		return;
+	}
 
 	/* Check if the connection completed */
 	if (getsockopt(evcon->fd, SOL_SOCKET, SO_ERROR, (void*)&error,
@@ -1730,11 +1739,11 @@ evhttp_read_header(struct evhttp_connection *evcon,
 struct evhttp_connection *
 evhttp_connection_new(const char *address, unsigned short port)
 {
-	return (evhttp_connection_base_new(NULL, address, port));
+	return (evhttp_connection_base_new(NULL, NULL, address, port));
 }
 
 struct evhttp_connection *
-evhttp_connection_base_new(struct event_base *base,
+evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
     const char *address, unsigned short port)
 {
 	struct evhttp_connection *evcon = NULL;
@@ -1775,6 +1784,8 @@ evhttp_connection_base_new(struct event_base *base,
 		evcon->base = base;
 		bufferevent_base_set(base, evcon->bufev);
 	}
+
+	evcon->dns_base = dnsbase;
 
 	return (evcon);
 
@@ -1850,7 +1861,20 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 		return (-1);
 	}
 
-	if (socket_connect(evcon->fd, evcon->address, evcon->port) == -1) {
+	/* Set up a callback for successful connection setup */
+	bufferevent_setfd(evcon->bufev, evcon->fd);
+	bufferevent_setcb(evcon->bufev,
+	    NULL /* evhttp_read_cb */,
+	    NULL /* evhttp_write_cb */,
+	    evhttp_connection_cb,
+	    evcon);
+	bufferevent_settimeout(evcon->bufev, 0,
+	    evcon->timeout != -1 ? evcon->timeout : HTTP_CONNECT_TIMEOUT);
+	/* make sure that we get a write callback */
+	bufferevent_enable(evcon->bufev, EV_WRITE);
+
+	if (bufferevent_socket_connect_hostname(evcon->bufev, evcon->dns_base,
+		AF_UNSPEC, evcon->address, evcon->port) < 0) {
 		event_sock_warn(evcon->fd, "%s: connection to \"%s\" failed",
 		    __func__, evcon->address);
 		/* some operating systems return ECONNREFUSED immediately
@@ -1860,17 +1884,6 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 		evhttp_connection_cb_cleanup(evcon);
 		return (0);
 	}
-
-	/* Set up a callback for successful connection setup */
-	bufferevent_setfd(evcon->bufev, evcon->fd);
-	bufferevent_setcb(evcon->bufev,
-	    NULL /* evhttp_read_cb */,
-	    evhttp_connection_cb,
-	    evhttp_error_cb, evcon);
-	bufferevent_settimeout(evcon->bufev, 0,
-	    evcon->timeout != -1 ? evcon->timeout : HTTP_CONNECT_TIMEOUT);
-	/* make sure that we get a write callback */
-	bufferevent_enable(evcon->bufev, EV_WRITE);
 
 	evcon->state = EVCON_CONNECTING;
 
@@ -2906,7 +2919,7 @@ evhttp_get_request_connection(
 
 	/* we need a connection object to put the http request on */
 	evcon = evhttp_connection_base_new(
-		http->base, hostname, atoi(portname));
+		http->base, NULL, hostname, atoi(portname));
 	mm_free(hostname);
 	mm_free(portname);
 	if (evcon == NULL)
@@ -3114,29 +3127,3 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 	return (fd);
 }
 
-static int
-socket_connect(evutil_socket_t fd, const char *address, unsigned short port)
-{
-	struct evutil_addrinfo *ai = make_addrinfo(address, port);
-	int res = -1;
-
-	if (ai == NULL) {
-		event_debug(("%s: make_addrinfo: \"%s:%d\"",
-			__func__, address, port));
-		return (-1);
-	}
-
-	if (connect(fd, ai->ai_addr, ai->ai_addrlen) == -1) {
-		int err = evutil_socket_geterror(fd);
-		if (! EVUTIL_ERR_CONNECT_RETRIABLE(err))
-			goto out;
-	}
-
-	/* everything is fine */
-	res = 0;
-
-out:
-	evutil_freeaddrinfo(ai);
-
-	return (res);
-}
