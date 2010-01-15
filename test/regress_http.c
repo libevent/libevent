@@ -50,12 +50,15 @@
 #include <string.h>
 #include <errno.h>
 
+#include "event2/dns.h"
+
 #include "event.h"
 #include "evhttp.h"
 #include "log-internal.h"
 #include "util-internal.h"
 #include "http-internal.h"
 #include "regress.h"
+#include "regress_testutils.h"
 
 static struct evhttp *http;
 /* set if a test needs to call loopexit on a base */
@@ -723,6 +726,105 @@ static void
 http_persist_connection_test(void)
 {
 	_http_connection_test(1);
+}
+
+static struct regress_dns_server_table search_table[] = {
+	{ "localhost", "A", "127.0.0.1", 0 },
+	{ NULL, NULL, NULL, 0 }
+};
+
+static void
+http_connection_async_test()
+{
+	short port = -1;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	struct evdns_base *dns_base = NULL;
+	ev_uint16_t portnum = 0;
+	char address[64];
+
+	tt_assert(regress_dnsserver(base, &portnum, search_table));
+
+	dns_base = evdns_base_new(base, 0/* init name servers */);
+	tt_assert(dns_base);
+
+	/* Add ourself as the only nameserver, and make sure we really are
+	 * the only nameserver. */
+	evutil_snprintf(address, sizeof (address), "127.0.0.1:%d", portnum);
+	evdns_base_nameserver_ip_add(dns_base, address);
+
+	test_ok = 0;
+
+	http = http_setup(&port, NULL);
+
+	evcon = evhttp_connection_base_new(base, dns_base, "127.0.0.1", port);
+	tt_assert(evcon);
+
+	/*
+	 * At this point, we want to schedule a request to the HTTP
+	 * server using our make request method.
+	 */
+
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_dispatch();
+
+	tt_assert(test_ok);
+
+	/* try to make another request over the same connection */
+	test_ok = 0;
+
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Host", "somehost");
+
+	/*
+	 * if our connections are not supposed to be persistent; request
+	 * a close from the server.
+	 */
+	evhttp_add_header(req->output_headers, "Connection", "close");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		tt_abort_msg("couldn't make request");
+	}
+
+	event_dispatch();
+
+	/* make another request: request empty reply */
+	test_ok = 0;
+
+	req = evhttp_request_new(http_request_empty_done, NULL);
+
+	/* Add the information that we care about */
+	evhttp_add_header(req->output_headers, "Empty", "itis");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		tt_abort_msg("Couldn't make request");
+		exit(1);
+	}
+
+	event_dispatch();
+
+ end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+        if (dns_base)
+                evdns_base_free(dns_base, 0);
+	regress_clean_dnsserver();
 }
 
 static void
@@ -2426,6 +2528,7 @@ struct testcase_t http_testcases[] = {
 	HTTP_LEGACY(failure),
 	HTTP_LEGACY(connection),
 	HTTP_LEGACY(persist_connection),
+	HTTP_LEGACY(connection_async),
 	HTTP_LEGACY(close_detection),
 	HTTP_LEGACY(close_detection_delay),
 	HTTP_LEGACY(bad_request),
