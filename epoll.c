@@ -50,6 +50,7 @@
 #include "evthread-internal.h"
 #include "log-internal.h"
 #include "evmap-internal.h"
+#include "changelist-internal.h"
 
 struct epollop {
 	struct epoll_event *events;
@@ -58,21 +59,19 @@ struct epollop {
 };
 
 static void *epoll_init	(struct event_base *);
-static int epoll_add(struct event_base *, int fd, short old, short events, void *);
-static int epoll_del(struct event_base *, int fd, short old, short events, void *);
 static int epoll_dispatch	(struct event_base *, struct timeval *);
 static void epoll_dealloc	(struct event_base *);
 
 const struct eventop epollops = {
 	"epoll",
 	epoll_init,
-	epoll_add,
-	epoll_del,
+	event_changelist_add,
+	event_changelist_del,
 	epoll_dispatch,
 	epoll_dealloc,
 	1, /* need reinit */
 	EV_FEATURE_ET|EV_FEATURE_O1,
-	0
+	EVENT_CHANGELIST_FDINFO_SIZE
 };
 
 #define INITIAL_NEVENT 32
@@ -121,6 +120,151 @@ epoll_init(struct event_base *base)
 }
 
 static int
+epoll_apply_changes(struct event_base *base)
+{
+	struct event_changelist *changelist = &base->changelist;
+	struct epollop *epollop = base->evbase;
+	struct event_change *ch;
+	struct epoll_event epev;
+	int i;
+	int op, events;
+
+	for (i = 0; i < changelist->n_changes; ++i) {
+		int precautionary_add = 0;
+		ch = &changelist->changes[i];
+		events = 0;
+
+		/* The logic here is a little tricky.  If we had no events set
+		   on the fd before, we need to set op="ADD" and set
+		   events=the events we want to add.  If we had any events set
+		   on the fd before, and we want any events to remain on the
+		   fd, we need to say op="MOD" and set events=the events we
+		   want to remain.  But if we want to delete the last event,
+		   we say op="DEL" and set events=the remaining events.  What
+		   fun!
+
+		*/
+
+		if ((ch->read_change & EV_CHANGE_ADD) ||
+		    (ch->write_change & EV_CHANGE_ADD)) {
+			/* If we are adding anything at all, we'll want to do
+			 * either an ADD or a MOD. */
+			short new_events = ch->old_events;
+			events = 0;
+			op = EPOLL_CTL_ADD;
+			if (ch->read_change & EV_CHANGE_ADD) {
+				events |= EPOLLIN;
+				new_events |= EV_READ;
+			} else if (ch->read_change & EV_CHANGE_DEL) {
+				new_events &= ~EV_READ;
+			} else if (ch->old_events & EV_READ) {
+				events |= EPOLLIN;
+			}
+			if (ch->write_change & EV_CHANGE_ADD) {
+				events |= EPOLLOUT;
+				new_events |= EV_WRITE;
+			} else if (ch->write_change & EV_CHANGE_DEL) {
+				new_events &= ~EV_WRITE;
+			} else if (ch->old_events & EV_WRITE) {
+				events |= EPOLLOUT;
+			}
+			if ((ch->read_change|ch->write_change) & EV_ET)
+				events |= EPOLLET;
+
+			if (new_events == ch->old_events) {
+				/*
+				  If the changelist has an "add" operation,
+				  but no visible change to the events enabled
+				  on the fd, we need to try the ADD anyway, in
+				  case the fd was closed at some in the
+				  middle.  If it wasn't, the ADD operation
+				  will fail with; that's okay.
+				*/
+				precautionary_add = 1;
+			} else if (ch->old_events) {
+				op = EPOLL_CTL_MOD;
+			}
+
+		} else if ((ch->read_change & EV_CHANGE_DEL) ||
+		    (ch->write_change & EV_CHANGE_DEL)) {
+			/* If we're deleting anything, we'll want to do a MOD
+			 * or a DEL. */
+			op = EPOLL_CTL_DEL;
+
+			if (ch->read_change & EV_CHANGE_DEL) {
+				if (ch->write_change & EV_CHANGE_DEL) {
+					events = EPOLLIN|EPOLLOUT;
+				} else if (ch->old_events & EV_WRITE) {
+					events = EPOLLOUT;
+					op = EPOLL_CTL_MOD;
+				} else {
+					events = EPOLLIN;
+				}
+			} else if (ch->write_change & EV_CHANGE_DEL) {
+				if (ch->old_events & EV_READ) {
+					events = EPOLLIN;
+					op = EPOLL_CTL_MOD;
+				} else {
+					events = EPOLLOUT;
+				}
+			}
+		}
+
+		if (!events)
+			continue;
+
+		memset(&epev, 0, sizeof(epev));
+		epev.data.fd = ch->fd;
+		epev.events = events;
+		if (epoll_ctl(epollop->epfd, op, ch->fd, &epev) == -1) {
+			if (op == EPOLL_CTL_MOD && errno == ENOENT) {
+				/* If a MOD operation fails with ENOENT, the
+				 * fd was probably closed and re-opened.  We
+				 * should retry the operation as an ADD.
+				 */
+				if (epoll_ctl(epollop->epfd, EPOLL_CTL_ADD, ch->fd, &epev) == -1) {
+					event_warn("Epoll MOD retried as ADD; that failed too");
+				} else {
+					event_debug(("  Retried as ADD; succeeded."));
+				}
+			} else if (op == EPOLL_CTL_ADD && errno == EEXIST &&
+			    precautionary_add) {
+				/* If a precautionary ADD operation fails with
+				   EEXIST, that's fine too.
+				 */
+				event_debug(("  ADD was redundant"));
+			} else if (op == EPOLL_CTL_DEL &&
+			    (errno == ENOENT || errno == EBADF)) {
+				/* If a delete fails with one of these errors,
+				 * that's fine too: we closed the fd before we
+				 * got around to calling epoll_dispatch. */
+				event_debug(("  DEL was unnecessary."));
+			} else {
+				event_warn("Epoll %s on fd %d failed.  Old events were %d; read change was %d; write change was %d.",
+				    op == EPOLL_CTL_ADD?"ADD":
+				    op == EPOLL_CTL_DEL?"DEL":
+				    op == EPOLL_CTL_MOD?"MOD":"???",
+				    ch->fd,
+				    ch->old_events,
+				    ch->read_change, ch->write_change
+				    );
+			}
+		} else {
+			event_debug(("Epoll %s(%d) on fd %d okay. [old events were %d; read change was %d; write change was %d]",
+				op == EPOLL_CTL_ADD?"ADD":
+				op == EPOLL_CTL_DEL?"DEL":
+				op == EPOLL_CTL_MOD?"MOD":"???",
+				(int)epev.events,
+				(int)ch->fd,
+				ch->old_events,
+				ch->read_change, ch->write_change));
+		}
+	}
+
+	return (0);
+}
+
+static int
 epoll_dispatch(struct event_base *base, struct timeval *tv)
 {
 	struct epollop *epollop = base->evbase;
@@ -135,6 +279,9 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 		 * see comment on MAX_EPOLL_TIMEOUT_MSEC. */
 		timeout = MAX_EPOLL_TIMEOUT_MSEC;
 	}
+
+	epoll_apply_changes(base);
+	event_changelist_remove_all(&base->changelist, base);
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
@@ -193,70 +340,6 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	return (0);
 }
 
-static int
-epoll_add(struct event_base *base, int fd, short old, short events, void *p)
-{
-	struct epollop *epollop = base->evbase;
-	struct epoll_event epev = {0, {0}};
-	int op, res;
-	(void)p;
-
-	op = EPOLL_CTL_ADD;
-	res = 0;
-
-	events |= old;
-	if (events & EV_READ)
-		res |= EPOLLIN;
-	if (events & EV_WRITE)
-		res |= EPOLLOUT;
-	if (events & EV_ET)
-		res |= EPOLLET;
-
-	if (old != 0)
-		op = EPOLL_CTL_MOD;
-
-	epev.data.fd = fd;
-	epev.events = res;
-	if (epoll_ctl(epollop->epfd, op, fd, &epev) == -1)
-		return (-1);
-
-	return (0);
-}
-
-static int
-epoll_del(struct event_base *base, int fd, short old, short events, void *p)
-{
-	struct epollop *epollop = base->evbase;
-	struct epoll_event epev = {0, {0}};
-	int res, op;
-	(void) p;
-
-	op = EPOLL_CTL_DEL;
-
-	res = 0;
-	if (events & EV_READ)
-		res |= EPOLLIN;
-	if (events & EV_WRITE)
-		res |= EPOLLOUT;
-
-	if ((res & (EPOLLIN|EPOLLOUT)) != (EPOLLIN|EPOLLOUT)) {
-		if ((res & EPOLLIN) && (old & EV_WRITE)) {
-			res = EPOLLOUT;
-			op = EPOLL_CTL_MOD;
-		} else if ((res & EPOLLOUT) && (old & EV_READ)) {
-			res = EPOLLIN;
-			op = EPOLL_CTL_MOD;
-		}
-	}
-
-	epev.data.fd = fd;
-	epev.events = res;
-
-	if (epoll_ctl(epollop->epfd, op, fd, &epev) == -1)
-		return (-1);
-
-	return (0);
-}
 
 static void
 epoll_dealloc(struct event_base *base)
