@@ -1427,16 +1427,55 @@ _event_initialized(struct event *ev, int need_fd)
 	return 1;
 }
 
+void
+event_get_assignment(const struct event *event, struct event_base **base_out, evutil_socket_t *fd_out, short *events_out, event_callback_fn *callback_out, void **arg_out)
+{
+	if (base_out)
+		*base_out = event->ev_base;
+	if (fd_out)
+		*fd_out = event->ev_fd;
+	if (events_out)
+		*events_out = event->ev_events;
+	if (callback_out)
+		*callback_out = event->ev_callback;
+	if (arg_out)
+		*arg_out = event->ev_arg;
+}
+
+size_t
+event_get_struct_event_size(void)
+{
+	return sizeof(struct event);
+}
+
 evutil_socket_t
-event_get_fd(struct event *ev)
+event_get_fd(const struct event *ev)
 {
 	return ev->ev_fd;
 }
 
 struct event_base *
-event_get_base(struct event *ev)
+event_get_base(const struct event *ev)
 {
 	return ev->ev_base;
+}
+
+short
+event_get_events(const struct event *ev)
+{
+	return ev->ev_events;
+}
+
+event_callback_fn
+event_get_callback(const struct event *ev)
+{
+	return ev->ev_callback;
+}
+
+void *
+event_get_callback_arg(const struct event *ev)
+{
+	return ev->ev_arg;
 }
 
 int

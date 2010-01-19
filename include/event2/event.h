@@ -397,6 +397,8 @@ int event_base_got_break(struct event_base *);
 #define evsignal_pending(ev, tv)	event_pending((ev), EV_SIGNAL, (tv))
 #define evsignal_initialized(ev)	_event_initialized((ev), 0)
 
+typedef void (*event_callback_fn)(evutil_socket_t, short, void *);
+
 /**
   Prepare an event structure to be added.
 
@@ -432,7 +434,7 @@ int event_base_got_break(struct event_base *);
   @see event_add(), event_del(), event_once()
 
   */
-int event_assign(struct event *, struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
+int event_assign(struct event *, struct event_base *, evutil_socket_t, short, event_callback_fn, void *);
 
 /**
   Create and allocate a new event structure, ready to be added.
@@ -441,7 +443,7 @@ int event_assign(struct event *, struct event_base *, evutil_socket_t, short, vo
   that must later be deallocated with event_free().
 
  */
-struct event *event_new(struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
+struct event *event_new(struct event_base *, evutil_socket_t, short, event_callback_fn, void *);
 
 /**
    Deallocate a struct event * returned by event_new().
@@ -466,7 +468,7 @@ void event_free(struct event *);
   @return 0 if successful, or -1 if an error occurred
   @see event_once()
  */
-int event_base_once(struct event_base *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *, const struct timeval *);
+int event_base_once(struct event_base *, evutil_socket_t, short, event_callback_fn, void *, const struct timeval *);
 
 /**
   Add an event to the set of monitored events.
@@ -555,12 +557,39 @@ int _event_initialized(struct event *, int check_fd);
 /**
    Get the socket assigned to an event.
 */
-evutil_socket_t event_get_fd(struct event *ev);
+evutil_socket_t event_get_fd(const struct event *ev);
 
 /**
    Get the event_base assigned to an event.
 */
-struct event_base *event_get_base(struct event *ev);
+struct event_base *event_get_base(const struct event *ev);
+
+/**
+   Return the events (EV_READ, EV_WRITE, etc) assigned to an event.
+*/
+short event_get_events(const struct event *ev);
+
+/**
+   Return the callback assigned to an event.
+*/
+event_callback_fn event_get_callback(const struct event *ev);
+
+/**
+   Return the callback argument assigned to an event.
+*/
+void *event_get_callback_arg(const struct event *ev);
+
+void event_get_assignment(const struct event *event, struct event_base **base_out, evutil_socket_t *fd_out, short *events_out, event_callback_fn *callback_out, void **arg_out);
+
+/**
+   Return the size of struct event that the Libevent library was compiled
+   with.
+
+   This will be the same as sizeof(struct event) if you're running with the
+   same version of Libevent that your application was built with, but
+   otherwise might not.
+ */
+size_t event_get_struct_event_size(void);
 
 #ifndef EVENT_FD
 /* We haven't included event_struct.h, so define these as function calls
