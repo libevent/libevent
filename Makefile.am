@@ -37,6 +37,7 @@ pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=libevent.pc
 
 EXTRA_DIST = \
+	LICENSE \
 	autogen.sh evdns.3 \
 	event.3 \
 	libevent.pc \
