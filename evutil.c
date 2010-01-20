@@ -1849,3 +1849,25 @@ _evutil_weakrand(void)
 #endif
 }
 
+int
+evutil_sockaddr_is_loopback(const struct sockaddr *addr)
+{
+	static const char LOOPBACK_S6[16] =
+	    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1";
+	if (addr->sa_family == AF_INET) {
+		struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+		return (ntohl(sin->sin_addr.s_addr) & 0xff000000) == 0x7f000000;
+	} else if (addr->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addr;
+		/*
+		int i;
+		for (i=0;i<14;++i)
+			if (sin6->sin6_addr.s6_addr[i] != 0)
+				return 1;
+		return sin6->sin6_addr.s6_addr[15] == 1;
+		*/
+		return !memcmp(sin6->sin6_addr.s6_addr, LOOPBACK_S6, 16);
+	}
+	return 0;
+}
+

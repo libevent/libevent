@@ -275,6 +275,50 @@ regress_sockaddr_port_parse(void *ptr)
 	}
 }
 
+static struct sa_pred_ent {
+	const char *parse;
+
+	int is_loopback;
+} sa_pred_entries[] = {
+	{ "127.0.0.1",   1 },
+	{ "127.0.3.2",   1 },
+	{ "128.1.2.3",   0 },
+	{ "18.0.0.1",    0 },
+	{ "129.168.1.1", 0 },
+
+	{ "::1",         1 },
+	{ "::0",         0 },
+	{ "f::1",        0 },
+	{ "::501",       0 },
+	{ NULL,          0 },
+
+};
+
+static void
+test_evutil_sockaddr_predicates(void *ptr)
+{
+	struct sockaddr_storage ss;
+	int r, i;
+
+	for (i=0; sa_pred_entries[i].parse; ++i) {
+		struct sa_pred_ent *ent = &sa_pred_entries[i];
+                int len = sizeof(ss);
+
+		r = evutil_parse_sockaddr_port(ent->parse, (struct sockaddr*)&ss, &len);
+
+		if (r<0) {
+			TT_FAIL(("Couldn't parse %s!", ent->parse));
+			continue;
+		}
+
+		/* sockaddr_is_loopback */
+		if (ent->is_loopback != evutil_sockaddr_is_loopback((struct sockaddr*)&ss)) {
+			TT_FAIL(("evutil_sockaddr_loopback(%s) not as expected",
+				ent->parse));
+		}
+	}
+}
+
 static void
 test_evutil_strtoll(void *ptr)
 {
@@ -758,6 +802,7 @@ struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
 	{ "sockaddr_port_parse", regress_sockaddr_port_parse, 0, NULL, NULL },
+	{ "sockaddr_predicates", test_evutil_sockaddr_predicates, 0,NULL,NULL },
 	{ "evutil_snprintf", test_evutil_snprintf, 0, NULL, NULL },
 	{ "evutil_strtoll", test_evutil_strtoll, 0, NULL, NULL },
 	{ "evutil_casecmp", test_evutil_casecmp, 0, NULL, NULL },

@@ -232,11 +232,14 @@ void evutil_adjust_hints_for_addrconfig(struct evutil_addrinfo *hints);
 int evutil_getaddrinfo_common(const char *nodename, const char *servname,
     struct evutil_addrinfo *hints, struct evutil_addrinfo **res, int *portnum);
 
-int
-evutil_getaddrinfo_async(struct evdns_base *dns_base,
+int evutil_getaddrinfo_async(struct evdns_base *dns_base,
     const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in,
     void (*cb)(int, struct evutil_addrinfo *, void *), void *arg);
+
+/** Return true iff sa is a looback address. (That is, it is 127.0.0.1/8, or
+ * ::1). */
+int evutil_sockaddr_is_loopback(const struct sockaddr *sa);
 
 #ifdef __cplusplus
 }

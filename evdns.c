@@ -2448,7 +2448,8 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 	if (ns->socket < 0) { err = 1; goto out1; }
 	evutil_make_socket_nonblocking(ns->socket);
 
-	if (base->global_outgoing_addrlen) {
+	if (base->global_outgoing_addrlen &&
+	    !evutil_sockaddr_is_loopback(address)) {
 		if (bind(ns->socket,
 			(struct sockaddr*)&base->global_outgoing_address,
 			base->global_outgoing_addrlen) < 0) {
