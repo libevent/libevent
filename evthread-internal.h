@@ -175,7 +175,7 @@ EVLOCK_TRY_LOCK(void *lock)
 #define EVBASE_RELEASE_LOCK(base, lock) _EVUTIL_NIL_STMT
 #define EVLOCK_ASSERT_LOCKED(lock) _EVUTIL_NIL_STMT
 
-#define EVTHREAD_TRY_LOCK(lock) 1
+#define EVLOCK_TRY_LOCK(lock) 1
 #endif
 
 #ifdef __cplusplus
