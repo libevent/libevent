@@ -226,7 +226,8 @@ be_pair_enable(struct bufferevent *bufev, short events)
 
 	incref_and_lock(bufev);
 
-	_bufferevent_generic_adj_timeouts(bufev);
+	if (_bufferevent_generic_adj_timeouts(bufev) < 0)
+		return -1;
 
 	/* We're starting to read! Does the other side have anything to write?*/
 	if ((events & EV_READ) && partner &&
@@ -245,8 +246,7 @@ be_pair_enable(struct bufferevent *bufev, short events)
 static int
 be_pair_disable(struct bufferevent *bev, short events)
 {
-	_bufferevent_generic_adj_timeouts(bev);
-	return 0;
+	return _bufferevent_generic_adj_timeouts(bev);
 }
 
 static void

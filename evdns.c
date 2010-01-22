@@ -4113,11 +4113,11 @@ evdns_getaddrinfo_timeout_cb(evutil_socket_t fd, short what, void *ptr)
 	free_getaddrinfo_request(data);
 }
 
-static void
+static int
 evdns_getaddrinfo_set_timeout(struct evdns_base *evdns_base,
     struct evdns_getaddrinfo_request *data)
 {
-	event_add(&data->timeout, &evdns_base->global_getaddrinfo_allow_skew);
+	return event_add(&data->timeout, &evdns_base->global_getaddrinfo_allow_skew);
 }
 
 static void
@@ -4178,6 +4178,7 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		if (other_req->r) {
 			/* The other request is still working; maybe it will
 			 * succeed. */
+			/* XXXX handle failure from set_timeout */
 			evdns_getaddrinfo_set_timeout(data->evdns_base, data);
 			data->pending_error = err;
 			return;
@@ -4243,6 +4244,7 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 
 	if (other_req->r) {
 		/* The other request is still in progress; wait for it */
+		/* XXXX handle failure from set_timeout */
 		evdns_getaddrinfo_set_timeout(data->evdns_base, data);
 		data->pending_result = res;
 		return;

@@ -256,6 +256,8 @@ _bufferevent_get_write_max(struct bufferevent_private *bev)
 int
 _bufferevent_decrement_read_buckets(struct bufferevent_private *bev, int bytes)
 {
+	/* XXXXX Make sure all users of this function check its return value */
+	int r = 0;
 	/* need to hold lock on bev */
 	if (!bev->rate_limiting)
 		return 0;
@@ -264,8 +266,9 @@ _bufferevent_decrement_read_buckets(struct bufferevent_private *bev, int bytes)
 		bev->rate_limiting->limit.read_limit -= bytes;
 		if (bev->rate_limiting->limit.read_limit <= 0) {
 			bufferevent_suspend_read(&bev->bev, BEV_SUSPEND_BW);
-			event_add(&bev->rate_limiting->refill_bucket_event,
-			    &bev->rate_limiting->cfg->tick_timeout);
+			if (event_add(&bev->rate_limiting->refill_bucket_event,
+				&bev->rate_limiting->cfg->tick_timeout) < 0)
+				r = -1;
 		}
 	}
 
@@ -278,12 +281,14 @@ _bufferevent_decrement_read_buckets(struct bufferevent_private *bev, int bytes)
 		UNLOCK_GROUP(bev->rate_limiting->group);
 	}
 
-	return 0;
+	return r;
 }
 
 int
 _bufferevent_decrement_write_buckets(struct bufferevent_private *bev, int bytes)
 {
+	/* XXXXX Make sure all users of this function check its return value */
+	int r = 0;
 	/* need to hold lock */
 	if (!bev->rate_limiting)
 		return 0;
@@ -292,8 +297,9 @@ _bufferevent_decrement_write_buckets(struct bufferevent_private *bev, int bytes)
 		bev->rate_limiting->limit.write_limit -= bytes;
 		if (bev->rate_limiting->limit.write_limit <= 0) {
 			bufferevent_suspend_write(&bev->bev, BEV_SUSPEND_BW);
-			event_add(&bev->rate_limiting->refill_bucket_event,
-			    &bev->rate_limiting->cfg->tick_timeout);
+			if (event_add(&bev->rate_limiting->refill_bucket_event,
+				&bev->rate_limiting->cfg->tick_timeout) < 0)
+				r = -1;
 		}
 	}
 
@@ -306,7 +312,7 @@ _bufferevent_decrement_write_buckets(struct bufferevent_private *bev, int bytes)
 		UNLOCK_GROUP(bev->rate_limiting->group);
 	}
 
-	return 0;
+	return r;
 }
 
 /** Stop reading on every bufferevent in <b>g</b> */
@@ -395,6 +401,7 @@ _bev_refill_callback(evutil_socket_t fd, short what, void *arg)
 		   XXXX if we need to be quiet for more ticks, we should
 		   maybe figure out what timeout we really want.
 		*/
+		/* XXXX Handle event_add failure somehow */
 		event_add(&bev->rate_limiting->refill_bucket_event,
 		    &bev->rate_limiting->cfg->tick_timeout);
 	}
@@ -579,6 +586,7 @@ bufferevent_rate_limit_group_new(struct event_base *base,
 	g->min_share = 64;
 	event_assign(&g->master_refill_event, base, -1, EV_PERSIST,
 	    _bev_group_refill_callback, g);
+	/*XXXX handle event_add failure */
 	event_add(&g->master_refill_event, &cfg->tick_timeout);
 
 	EVTHREAD_ALLOC_LOCK(g->lock, EVTHREAD_LOCKTYPE_RECURSIVE);

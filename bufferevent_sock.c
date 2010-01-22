@@ -78,7 +78,7 @@
 static int be_socket_enable(struct bufferevent *, short);
 static int be_socket_disable(struct bufferevent *, short);
 static void be_socket_destruct(struct bufferevent *);
-static void be_socket_adj_timeouts(struct bufferevent *);
+static int be_socket_adj_timeouts(struct bufferevent *);
 static int be_socket_flush(struct bufferevent *, short, enum bufferevent_flush_mode);
 static int be_socket_ctrl(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
 
@@ -111,6 +111,7 @@ bufferevent_socket_outbuf_cb(struct evbuffer *buf,
 		/* Somebody added data to the buffer, and we would like to
 		 * write, and we were not writing.  So, start writing. */
 		be_socket_add(&bufev->ev_write, &bufev->timeout_write);
+		/* XXXX handle failure from be_socket_add */
 	}
 }
 
@@ -539,13 +540,17 @@ be_socket_destruct(struct bufferevent *bufev)
 		EVUTIL_CLOSESOCKET(fd);
 }
 
-static void
+static int
 be_socket_adj_timeouts(struct bufferevent *bufev)
 {
+	int r = 0;
 	if (event_pending(&bufev->ev_read, EV_READ, NULL))
-		be_socket_add(&bufev->ev_read, &bufev->timeout_read);
+		if (be_socket_add(&bufev->ev_read, &bufev->timeout_read) < 0)
+			r = -1;
 	if (event_pending(&bufev->ev_write, EV_WRITE, NULL))
-		be_socket_add(&bufev->ev_write, &bufev->timeout_write);
+		if (be_socket_add(&bufev->ev_write, &bufev->timeout_write) < 0)
+			r = -1;
+	return r;
 }
 
 static int

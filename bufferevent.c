@@ -370,11 +370,12 @@ bufferevent_enable(struct bufferevent *bufev, short event)
 	return r;
 }
 
-void
+int
 bufferevent_set_timeouts(struct bufferevent *bufev,
 			 const struct timeval *tv_read,
 			 const struct timeval *tv_write)
 {
+	int r = 0;
 	BEV_LOCK(bufev);
 	if (tv_read) {
 		bufev->timeout_read = *tv_read;
@@ -388,8 +389,10 @@ bufferevent_set_timeouts(struct bufferevent *bufev,
 	}
 
 	if (bufev->be_ops->adj_timeouts)
-		bufev->be_ops->adj_timeouts(bufev);
+		r = bufev->be_ops->adj_timeouts(bufev);
 	BEV_UNLOCK(bufev);
+
+	return r;
 }
 
 
@@ -687,26 +690,34 @@ _bufferevent_init_generic_timeout_cbs(struct bufferevent *bev)
 	    bufferevent_generic_write_timeout_cb, bev);
 }
 
-void
+int
 _bufferevent_del_generic_timeout_cbs(struct bufferevent *bev)
 {
-	event_del(&bev->ev_read);
-	event_del(&bev->ev_write);
+	int r1,r2;
+	r1 = event_del(&bev->ev_read);
+	r2 = event_del(&bev->ev_write);
+	if (r2<0 || r2<0)
+		return -1;
+	return 0;
 }
 
-void
+int
 _bufferevent_generic_adj_timeouts(struct bufferevent *bev)
 {
 	const short enabled = bev->enabled;
+	int r1=0, r2=0;
 	if ((enabled & EV_READ) && evutil_timerisset(&bev->timeout_read))
-		event_add(&bev->ev_read, &bev->timeout_read);
+		r1 = event_add(&bev->ev_read, &bev->timeout_read);
 	else
-		event_del(&bev->ev_read);
+		r1 = event_del(&bev->ev_read);
 
 	if ((enabled & EV_WRITE) && evutil_timerisset(&bev->timeout_write))
-		event_add(&bev->ev_write, &bev->timeout_write);
+		r2 = event_add(&bev->ev_write, &bev->timeout_write);
 	else
-		event_del(&bev->ev_write);
+		r2 = event_del(&bev->ev_write);
+	if (r1 < 0 || r2 < 0)
+		return -1;
+	return 0;
 }
 
 int

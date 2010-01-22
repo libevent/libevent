@@ -242,7 +242,8 @@ be_async_enable(struct bufferevent *buf, short what)
 		return -1;
 
 	/* NOTE: This interferes with non-blocking connect */
-	_bufferevent_generic_adj_timeouts(buf);
+	if (_bufferevent_generic_adj_timeouts(buf) < 0)
+		return -1;
 
 	/* If we newly enable reading or writing, and we aren't reading or
 	   writing already, consider launching a new read or write. */

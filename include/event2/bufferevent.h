@@ -371,7 +371,7 @@ short bufferevent_get_enabled(struct bufferevent *bufev);
   @param timeout_read the read timeout, or NULL
   @param timeout_write the write timeout, or NULL
  */
-void bufferevent_set_timeouts(struct bufferevent *bufev,
+int bufferevent_set_timeouts(struct bufferevent *bufev,
     const struct timeval *timeout_read, const struct timeval *timeout_write);
 
 /**

@@ -219,7 +219,7 @@ struct bufferevent_ops {
 	void (*destruct)(struct bufferevent *);
 
 	/** Called when the timeouts on the bufferevent have changed.*/
-	void (*adj_timeouts)(struct bufferevent *);
+	int (*adj_timeouts)(struct bufferevent *);
 
         /** Called to flush data. */
         int (*flush)(struct bufferevent *, short, enum bufferevent_flush_mode);
@@ -304,12 +304,12 @@ int _bufferevent_add_event(struct event *ev, const struct timeval *tv);
 void _bufferevent_init_generic_timeout_cbs(struct bufferevent *bev);
 /** Internal use: Delete the ev_read and ev_write callbacks if they're pending.
  * Call this from the destructor function. */
-void _bufferevent_del_generic_timeout_cbs(struct bufferevent *bev);
+int _bufferevent_del_generic_timeout_cbs(struct bufferevent *bev);
 /** Internal use: Add or delete the generic timeout events as appropriate.
  * (If an event is enabled and a timeout is set, we add the event.  Otherwise
  * we delete it.)  Call this from anything that changes the timeout values,
  * that enabled EV_READ or EV_WRITE, or that disables EV_READ or EV_WRITE. */
-void _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
+int _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 
 /** Internal use: We have just successfully read data into an inbuf, so
  * reset the read timeout (if any). */

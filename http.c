@@ -303,7 +303,7 @@ evhttp_response_needs_body(struct evhttp_request *req)
 		req->type != EVHTTP_REQ_HEAD);
 }
 
-static void
+static int
 evhttp_add_event(struct event *ev, int timeout, int default_timeout)
 {
 	if (timeout != 0) {
@@ -311,9 +311,9 @@ evhttp_add_event(struct event *ev, int timeout, int default_timeout)
 
 		evutil_timerclear(&tv);
 		tv.tv_sec = timeout != -1 ? timeout : default_timeout;
-		event_add(ev, &tv);
+		return event_add(ev, &tv);
 	} else {
-		event_add(ev, NULL);
+		return event_add(ev, NULL);
 	}
 }
 
@@ -1067,6 +1067,7 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 {
 	if (evcon->retry_max < 0 || evcon->retry_cnt < evcon->retry_max) {
 		evtimer_assign(&evcon->retry_ev, evcon->base, evhttp_connection_retry, evcon);
+		/* XXXX handle failure from evhttp_add_event */
 		evhttp_add_event(&evcon->retry_ev,
 		    MIN(3600, 2 << evcon->retry_cnt),
 		    HTTP_CONNECT_TIMEOUT);
