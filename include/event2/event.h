@@ -60,6 +60,34 @@ struct event_base;
 struct event;
 struct event_config;
 
+/** Enable some relatively expensive debugging checks in Libevent that would
+ * normally be turned off.  Generally, these cause code that would otherwise
+ * crash mysteriously to fail earlier with an assertion failure.  Note that
+ * this method MUST be called before any events or event_bases have been
+ * created.
+ *
+ * Debug mode can currently catch the following errors:
+ *    An event is re-assigned while it is added
+ *    Any function is called on a non-assigned event
+ *
+ * Note that debugging mode uses memory to track every event that has been
+ * initialized (via event_assign, event_set, or event_new) but not yet
+ * released (via event_free or event_debug_unassign).  If you want to use
+ * debug mode, and you find yourself running out of memory, you will need
+ * to use event_debug_unassign to explicitly stop tracking events that
+ * are no longer considered set-up.
+ */
+void event_enable_debug_mode(void);
+
+/**
+ * When debugging mode is enabled, informs Libevent that an event should no
+ * longer be considered as assigned. When debugging mode is not enabled, does
+ * nothing.
+ *
+ * This function must only be called on a non-added event.
+ */
+void event_debug_unassign(struct event *);
+
 /**
   Initialize the event API.
 
@@ -171,7 +199,7 @@ enum event_base_config_flag {
 	/** Instead of checking the current time every time the event loop is
 	    ready to run timeout callbacks, check after each timeout callback.
 	 */
-	EVENT_BASE_FLAG_NO_CACHE_TIME = 0x08
+	EVENT_BASE_FLAG_NO_CACHE_TIME = 0x08,
 };
 
 /**
@@ -202,8 +230,8 @@ int event_base_get_features(struct event_base *base);
 */
 int event_config_require_features(struct event_config *cfg, int feature);
 
-/** Sets a flag to configure what parts of the eventual event_base will
- * be initialized, and how they'll work. */
+/** Sets one or more flags to configure what parts of the eventual event_base
+ * will be initialized, and how they'll work. */
 int event_config_set_flag(struct event_config *cfg, int flag);
 
 /**

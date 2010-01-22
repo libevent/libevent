@@ -122,6 +122,10 @@ struct event_changelist {
 	int changes_size;
 };
 
+#ifndef _EVENT_DISABLE_DEBUG_MODE
+extern int _event_debug_mode_on;
+#endif
+
 struct event_base {
 	/** Function pointers and other data to describe this event_base's
 	 * backend. */
