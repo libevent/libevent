@@ -100,7 +100,7 @@ evbuffer_commit_read(struct evbuffer *evbuf, ev_ssize_t nBytes)
 
 	EVBUFFER_LOCK(evbuf);
 	EVUTIL_ASSERT(buf->read_in_progress && !buf->write_in_progress);
-	EVUTIL_ASSERT(nBytes >= 0); // XXXX Can this be false?
+	EVUTIL_ASSERT(nBytes >= 0); /* XXXX Can this be false? */
 
 	evbuffer_unfreeze(evbuf, 0);
 

@@ -77,7 +77,6 @@ loud_writecb(struct bufferevent *bev, void *ctx)
 	while (evbuffer_get_length(output) < 8192) {
 		evbuffer_add(output, buf, sizeof(buf));
 		cs->queued += sizeof(buf);
-		// printf("queued %d\n", (int)sizeof(buf));
 	}
 }
 
@@ -89,7 +88,6 @@ discard_readcb(struct bufferevent *bev, void *ctx)
 	size_t len = evbuffer_get_length(input);
 	evbuffer_drain(input, len);
 	cs->received += len;
-	// printf("read %d bytes\n", (int)len);
 }
 
 static void
@@ -108,9 +106,7 @@ echo_readcb(struct bufferevent *bev, void *ctx)
 	struct evbuffer *input = bufferevent_get_input(bev);
 	struct evbuffer *output = bufferevent_get_output(bev);
 
-	// puts("read.");
 	evbuffer_add_buffer(output, input);
-	// printf("  outbuf len is now %d\n", (int)evbuffer_get_length(output));
 	if (evbuffer_get_length(output) > 1024000)
 		bufferevent_disable(bev, EV_READ);
 }
@@ -191,7 +187,6 @@ test_ratelimiting(void)
 	states = calloc(cfg_n_connections, sizeof(struct client_state));
 
 	for (i = 0; i < cfg_n_connections; ++i) {
-		// printf("creating %d:\n",i);
 		bevs[i] = bufferevent_socket_new(base, -1,
 		    BEV_OPT_CLOSE_ON_FREE|BEV_OPT_THREADSAFE);
 		assert(bevs[i]);

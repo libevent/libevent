@@ -67,7 +67,6 @@ regress_pick_a_port(void *arg)
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
 	struct evconnlistener *listener1 = NULL, *listener2 = NULL;
-	//struct event *connecting;
 	struct sockaddr_in sin;
 	int count1 = 2, count2 = 1;
 	struct sockaddr_storage ss1, ss2;

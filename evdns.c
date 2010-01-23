@@ -2850,7 +2850,7 @@ int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callb
 		? 0 : -1;
 }
 
-/*/////////////////////////////////////////////////////////////////// */
+/* ================================================================= */
 /* Search support */
 /* */
 /* the libc resolver has support for searching a number of domains */
@@ -3121,7 +3121,7 @@ search_request_finished(struct evdns_request *const req) {
 	}
 }
 
-/*/////////////////////////////////////////////////////////////////// */
+/* ================================================================= */
 /* Parsing resolv.conf files */
 
 static void
