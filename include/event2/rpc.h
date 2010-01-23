@@ -467,7 +467,7 @@ enum EVRPC_HOOK_TYPE {
 enum EVRPC_HOOK_RESULT {
 	EVRPC_TERMINATE = -1,	/**< indicates the rpc should be terminated */
 	EVRPC_CONTINUE = 0,	/**< continue processing the rpc */
-	EVRPC_PAUSE = 1,	/**< pause processing request until resumed */
+	EVRPC_PAUSE = 1		/**< pause processing request until resumed */
 };
 
 /** adds a processing hook to either an rpc base or rpc pool

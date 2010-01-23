@@ -1526,7 +1526,7 @@ evtag_fuzz(void *ptr)
 	evtag_marshal_timeval(tmp, 0, &tv);
 	evbuffer_add(tmp, buffer, sizeof(buffer));
 
-	((char *)EVBUFFER_DATA(tmp))[1] = 0xff;
+	((char *)EVBUFFER_DATA(tmp))[1] = '\xff';
 	if (evtag_unmarshal_timeval(tmp, 0, &tv) != -1) {
                 tt_abort_msg("evtag_unmarshal_timeval should have failed");
 	}

@@ -84,11 +84,11 @@ http_setup(short *pport)
 	return (myhttp);
 }
 
-EVRPC_HEADER(Message, msg, kill);
-EVRPC_HEADER(NeverReply, msg, kill);
+EVRPC_HEADER(Message, msg, kill)
+EVRPC_HEADER(NeverReply, msg, kill)
 
-EVRPC_GENERATE(Message, msg, kill);
-EVRPC_GENERATE(NeverReply, msg, kill);
+EVRPC_GENERATE(Message, msg, kill)
+EVRPC_GENERATE(NeverReply, msg, kill)
 
 static int need_input_hook = 0;
 static int need_output_hook = 0;

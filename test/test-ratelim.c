@@ -213,16 +213,16 @@ test_ratelimiting(void)
 		total_received += states[i].received;
 		total_persec += persec;
 		total_sq_persec += persec*persec;
-		printf("%d: %lf per second\n", i, persec);
+		printf("%d: %f per second\n", i, persec);
 	}
-	printf("   total: %lf per second\n",
+	printf("   total: %f per second\n",
 	    ((double)total_received)/cfg_duration);
-	printf(" average: %lf per second\n",
+	printf(" average: %f per second\n",
 	    (((double)total_received)/cfg_duration)/cfg_n_connections);
 
 	variance = total_sq_persec/cfg_n_connections - total_persec*total_persec/(cfg_n_connections*cfg_n_connections);
 
-	printf("  stddev: %lf per second\n", sqrt(variance));
+	printf("  stddev: %f per second\n", sqrt(variance));
 }
 
 static struct option {
@@ -275,7 +275,8 @@ usage(void)
 "Pushes bytes through a number of possibly rate-limited connections, and\n"
 "displays average throughput.\n\n"
 "  -n INT: Number of connections to open (default: 30)\n"
-"  -d INT: Duration of the test in seconds (default: 5 sec)\n"
+"  -d INT: Duration of the test in seconds (default: 5 sec)\n");
+	fprintf(stderr,
 "  -c INT: Connection-rate limit applied to each connection in bytes per second\n"
 "          (default: None.)\n"
 "  -g INT: Group-rate limit applied to sum of all usage in bytes per second\n"

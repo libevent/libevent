@@ -173,7 +173,7 @@ struct bufferevent_private {
 enum bufferevent_ctrl_op {
 	BEV_CTRL_SET_FD,
 	BEV_CTRL_GET_FD,
-	BEV_CTRL_GET_UNDERLYING,
+	BEV_CTRL_GET_UNDERLYING
 };
 
 /** Possible data types for a control callback */

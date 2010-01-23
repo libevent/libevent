@@ -113,10 +113,10 @@ DECLARE_CTYPE_FN(ISXDIGIT)
 DECLARE_CTYPE_FN(ISPRINT)
 DECLARE_CTYPE_FN(ISLOWER)
 DECLARE_CTYPE_FN(ISUPPER)
-extern const char EVUTIL_TOUPPER_TABLE[];
-extern const char EVUTIL_TOLOWER_TABLE[];
-#define EVUTIL_TOLOWER(c) (EVUTIL_TOLOWER_TABLE[(ev_uint8_t)c])
-#define EVUTIL_TOUPPER(c) (EVUTIL_TOUPPER_TABLE[(ev_uint8_t)c])
+extern const unsigned char EVUTIL_TOUPPER_TABLE[];
+extern const unsigned char EVUTIL_TOLOWER_TABLE[];
+#define EVUTIL_TOLOWER(c) ((char)EVUTIL_TOLOWER_TABLE[(ev_uint8_t)c])
+#define EVUTIL_TOUPPER(c) ((char)EVUTIL_TOUPPER_TABLE[(ev_uint8_t)c])
 
 /** Helper macro.  If we know that a given pointer points to a field in a
     structure, return a pointer to the structure itself.  Used to implement
