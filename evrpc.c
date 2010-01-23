@@ -56,7 +56,6 @@
 #include "event2/event_struct.h"
 #include "event2/rpc.h"
 #include "event2/rpc_struct.h"
-#include "event2/rpc_compat.h"
 #include "evrpc-internal.h"
 #include "event2/http.h"
 #include "event2/buffer.h"

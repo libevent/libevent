@@ -39,7 +39,7 @@ extern "C" {
 #endif
 
 /** backwards compatible accessors that work only with gcc */
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__STRICT_ANSI__)
 
 #undef EVTAG_ASSIGN
 #undef EVTAG_GET
