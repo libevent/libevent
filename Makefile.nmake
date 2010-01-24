@@ -11,10 +11,10 @@ CFLAGS=$(CFLAGS) /Ox /W3 /wd4996 /nologo
 
 LIBFLAGS=/nologo
 
-
 CORE_OBJS=event.obj buffer.obj bufferevent.obj bufferevent_sock.obj \
 	bufferevent_pair.obj listener.obj evmap.obj log.obj evutil.obj \
-	strlcpy.obj signal.obj bufferevent_filter.obj evthread.obj
+	strlcpy.obj signal.obj bufferevent_filter.obj evthread.obj \
+	bufferevent_ratelim.obj
 WIN_OBJS=win32select.obj evthread_win32.obj buffer_iocp.obj \
 	event_iocp.obj bufferevent_async.obj
 EXTRA_OBJS=event_tagging.obj http.obj evdns.obj evrpc.obj

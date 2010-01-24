@@ -20,7 +20,7 @@ PROGRAMS=regress.exe \
 #	bench.exe bench_cascade.exe bench_http.exe bench_httpclient.exe
 
 
-LIBS=..\libevent.lib ws2_32.lib advapi32.lib
+LIBS=..\libevent.lib ws2_32.lib shell32.lib advapi32.lib
 
 all: $(PROGRAMS)
 

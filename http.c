@@ -1163,8 +1163,10 @@ evhttp_connection_cb(struct bufferevent *bufev, short what, void *arg)
 		 * when connecting to a local address.  the cleanup is going
 		 * to reschedule this function call.
 		 */
+#ifndef WIN32
 		if (errno == ECONNREFUSED)
 			goto cleanup;
+#endif
 		evhttp_error_cb(bufev, what, arg);
 		return;
 	}

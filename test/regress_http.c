@@ -432,6 +432,14 @@ http_badreq_errorcb(struct bufferevent *bev, short what, void *arg)
 	/* ignore */
 }
 
+#ifndef SHUT_WR
+#ifdef WIN32
+#define SHUT_WR SD_SEND
+#else
+#define SHUT_WR 1
+#endif
+#endif
+
 static void
 http_badreq_readcb(struct bufferevent *bev, void *arg)
 {
@@ -1718,9 +1726,6 @@ http_incomplete_errorcb(struct bufferevent *bev, short what, void *arg)
 static void
 http_incomplete_writecb(struct bufferevent *bev, void *arg)
 {
-#ifndef SHUT_WR
-#define SHUT_WR 1
-#endif
 	if (arg != NULL) {
 		int fd = *(int *)arg;
 		/* terminate the write side to simulate EOF */
