@@ -573,6 +573,7 @@ struct bufferevent_rate_limit_group *bufferevent_rate_limit_group_new(
 	struct event_base *base,
 	const struct ev_token_bucket_cfg *cfg);
 /*XXX we need a bufferevent_rate_limit_group_set_cfg */
+/*XXX we need a bufferevent_rate_limit_group_free */
 
 /**
    Add 'bev' to the list of bufferevents whose aggregate reading and writing
