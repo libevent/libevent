@@ -157,7 +157,10 @@ struct event_debug_entry {
 static inline unsigned
 hash_debug_entry(const struct event_debug_entry *e)
 {
-	return ((unsigned)e->ptr) >> 3;
+	/* Our hashtable implementation is pretty sensitive to low bits,
+	 * and every struct event is over 64 bytes in size, so we can
+	 * just say... */
+	return ((unsigned)e->ptr) >> 6;
 }
 
 static inline int

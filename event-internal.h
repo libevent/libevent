@@ -91,6 +91,8 @@ struct eventop {
 #define EVMAP_USE_HT
 #endif
 
+/* #define HT_CACHE_HASH_VALS */
+
 #ifdef EVMAP_USE_HT
 #include "ht-internal.h"
 struct event_map_entry;

@@ -25,18 +25,21 @@
 #define HT_INITIALIZER()                        \
   { NULL, 0, 0, 0, -1 }
 
+#ifdef HT_CACHE_HASH_VALUES
 #define HT_ENTRY(type)                          \
   struct {                                      \
     struct type *hte_next;                      \
     unsigned hte_hash;                          \
   }
+#else
+#define HT_ENTRY(type)                          \
+  struct {                                      \
+    struct type *hte_next;                      \
+  }
+#endif
 
 #define HT_EMPTY(head)                          \
   ((head)->hth_n_entries == 0)
-
-/* Helper: alias for the bucket containing 'elm'. */
-#define _HT_BUCKET(head, field, elm)                                    \
-  ((head)->hth_table[elm->field.hte_hash % head->hth_table_length])
 
 /* How many elements in 'head'? */
 #define HT_SIZE(head)                           \
@@ -94,8 +97,25 @@ ht_string_hash(const char *s)
   return h;
 }
 
+#ifdef HT_CACHE_HASH_VALUES
 #define _HT_SET_HASH(elm, field, hashfn)        \
-    (elm)->field.hte_hash = hashfn(elm)
+	do { (elm)->field.hte_hash = hashfn(elm); } while(0)
+#define _HT_SET_HASHVAL(elm, field, val)	\
+	do { (elm)->field.hte_hash = (val); } while(0)
+#define _HT_ELT_HASH(elm, field, hashfn)	\
+	((elm)->field.hte_hash)
+#else
+#define _HT_SET_HASH(elm, field, hashfn)	\
+	((void)0)
+#define _HT_ELT_HASH(elm, field, hashfn)	\
+	(hashfn(elm))
+#define _HT_SET_HASHVAL(elm, field, val)	\
+        ((void)0)
+#endif
+
+/* Helper: alias for the bucket containing 'elm'. */
+#define _HT_BUCKET(head, field, elm, hashfn)				\
+	((head)->hth_table[_HT_ELT_HASH(elm,field,hashfn) % head->hth_table_length])
 
 #define HT_FOREACH(x, name, head)                 \
   for ((x) = HT_START(name, head);                \
@@ -122,7 +142,7 @@ ht_string_hash(const char *s)
     struct type **p;                                                    \
     if (!head->hth_table)                                               \
       return NULL;                                                      \
-    p = &_HT_BUCKET(head, field, elm);                                  \
+    p = &_HT_BUCKET(head, field, elm, hashfn);				\
     while (*p) {                                                        \
       if (eqfn(*p, elm))                                                \
         return p;                                                       \
@@ -151,7 +171,7 @@ ht_string_hash(const char *s)
       name##_HT_GROW(head, head->hth_n_entries+1);                      \
     ++head->hth_n_entries;                                              \
     _HT_SET_HASH(elm, field, hashfn);                                   \
-    p = &_HT_BUCKET(head, field, elm);                                  \
+    p = &_HT_BUCKET(head, field, elm, hashfn);				\
     elm->field.hte_next = *p;                                           \
     *p = elm;                                                           \
   }                                                                     \
@@ -247,7 +267,7 @@ ht_string_hash(const char *s)
     if ((*elm)->field.hte_next) {                                       \
       return &(*elm)->field.hte_next;                                   \
     } else {                                                            \
-      unsigned b = ((*elm)->field.hte_hash % head->hth_table_length)+1; \
+      unsigned b = (_HT_ELT_HASH(*elm, field, hashfn) % head->hth_table_length)+1; \
       while (b < head->hth_table_length) {                              \
         if (head->hth_table[b])                                         \
           return &head->hth_table[b];                                   \
@@ -259,7 +279,7 @@ ht_string_hash(const char *s)
   static inline struct type **                                          \
   name##_HT_NEXT_RMV(struct name *head, struct type **elm)              \
   {                                                                     \
-    unsigned h = (*elm)->field.hte_hash;                                \
+    unsigned h = _HT_ELT_HASH(*elm, field, hashfn);		        \
     *elm = (*elm)->field.hte_next;                                      \
     --head->hth_n_entries;                                              \
     if (*elm) {                                                         \
@@ -316,7 +336,7 @@ ht_string_hash(const char *s)
         elm = head->hth_table[b];                                       \
         while (elm) {                                                   \
           next = elm->field.hte_next;                                   \
-          b2 = elm->field.hte_hash % new_len;                           \
+          b2 = _HT_ELT_HASH(elm, field, hashfn) % new_len;              \
           elm->field.hte_next = new_table[b2];                          \
           new_table[b2] = elm;                                          \
           elm = next;                                                   \
@@ -334,7 +354,7 @@ ht_string_hash(const char *s)
       for (b=0; b < head->hth_table_length; ++b) {                      \
         struct type *e, **pE;                                           \
         for (pE = &new_table[b], e = *pE; e != NULL; e = *pE) {         \
-          b2 = e->field.hte_hash % new_len;                             \
+          b2 = _HT_ELT_HASH(e, field, hashfn) % new_len;                \
           if (b2 == b) {                                                \
             pE = &e->field.hte_next;                                    \
           } else {                                                      \
@@ -386,9 +406,9 @@ ht_string_hash(const char *s)
       return 5;                                                         \
     for (n = i = 0; i < head->hth_table_length; ++i) {                  \
       for (elm = head->hth_table[i]; elm; elm = elm->field.hte_next) {  \
-        if (elm->field.hte_hash != hashfn(elm))                         \
+        if (_HT_ELT_HASH(elm, field, hashfn) != hashfn(elm))	        \
           return 1000 + i;                                              \
-        if ((elm->field.hte_hash % head->hth_table_length) != i)        \
+        if ((_HT_ELT_HASH(elm, field, hashfn) % head->hth_table_length) != i) \
           return 10000 + i;                                             \
         ++n;                                                            \
       }                                                                 \
@@ -418,8 +438,8 @@ ht_string_hash(const char *s)
   }
 #define _HT_FOI_INSERT(field, head, elm, newent, var)       \
   {                                                         \
-    newent->field.hte_hash = (elm)->field.hte_hash;         \
-	newent->field.hte_next = NULL;							\
+    _HT_SET_HASHVAL(newent, field, (elm)->field.hte_hash);  \
+    newent->field.hte_next = NULL;                          \
     *var = newent;                                          \
     ++((head)->hth_n_entries);                              \
   }
