@@ -1418,9 +1418,9 @@ server_port_read(struct evdns_server_port *s) {
 static void
 server_port_flush(struct evdns_server_port *port)
 {
+	struct server_request *req = port->pending_replies;
 	ASSERT_LOCKED(port);
-	while (port->pending_replies) {
-		struct server_request *req = port->pending_replies;
+	while (req) {
 		int r = sendto(port->socket, req->response, req->response_len, 0,
 			   (struct sockaddr*) &req->addr, req->addrlen);
 		if (r < 0) {
@@ -1432,6 +1432,9 @@ server_port_flush(struct evdns_server_port *port)
 		if (server_request_free(req)) {
 			/* we released the last reference to req->port. */
 			return;
+		} else {
+			EVUTIL_ASSERT(req != port->pending_replies);
+			req = port->pending_replies;
 		}
 	}
 
