@@ -137,7 +137,7 @@ evconnlistener_new(struct event_base *base,
 	lev = mm_calloc(1, sizeof(struct evconnlistener_event));
 	if (!lev)
 		return NULL;
-	
+
 	lev->base.ops = &evconnlistener_event_ops;
 	lev->base.cb = cb;
 	lev->base.user_data = ptr;
@@ -146,7 +146,7 @@ evconnlistener_new(struct event_base *base,
 	event_assign(&lev->listener, base, fd, EV_READ|EV_PERSIST,
 	    listener_read_cb, lev);
 	evconnlistener_enable(&lev->base);
-	
+
 	return &lev->base;
 }
 
@@ -212,10 +212,11 @@ event_listener_destroy(struct evconnlistener *lev)
 {
 	struct evconnlistener_event *lev_e =
 	    EVUTIL_UPCAST(lev, struct evconnlistener_event, base);
-	
+
 	event_del(&lev_e->listener);
 	if (lev->flags & LEV_OPT_CLOSE_ON_FREE)
 		EVUTIL_CLOSESOCKET(event_get_fd(&lev_e->listener));
+	event_debug_unassign(&lev_e->listener);
 }
 
 int

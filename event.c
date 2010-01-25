@@ -612,6 +612,7 @@ event_base_free(struct event_base *base)
 		EVUTIL_CLOSESOCKET(base->th_notify_fd[1]);
 		base->th_notify_fd[0] = -1;
 		base->th_notify_fd[1] = -1;
+		event_debug_unassign(&base->th_notify);
 	}
 
 	/* Delete all non-internal events. */
@@ -631,6 +632,7 @@ event_base_free(struct event_base *base)
 		struct common_timeout_list *ctl =
 		    base->common_timeout_queues[i];
 		event_del(&ctl->timeout_event); /* Internal; doesn't count */
+		event_debug_unassign(&ctl->timeout_event);
 		for (ev = TAILQ_FIRST(&ctl->events); ev; ) {
 			struct event *next = TAILQ_NEXT(ev,
 			    ev_timeout_pos.ev_next_with_common_timeout);
@@ -1397,6 +1399,7 @@ event_once_cb(evutil_socket_t fd, short events, void *arg)
 	struct event_once *eonce = arg;
 
 	(*eonce->cb)(fd, events, eonce->arg);
+	event_debug_unassign(&eonce->ev);
 	mm_free(eonce);
 }
 

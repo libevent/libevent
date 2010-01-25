@@ -2102,6 +2102,7 @@ server_port_free(struct evdns_server_port *port)
 		port->socket = -1;
 	}
 	(void) event_del(&port->event);
+	event_debug_unassign(&port->event);
 	EVTHREAD_FREE_LOCK(port->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 	mm_free(port);
 }
@@ -2490,6 +2491,7 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 out2:
 	CLOSE_SOCKET(ns->socket);
 out1:
+	event_debug_unassign(&ns->event);
 	mm_free(ns);
 	log(EVDNS_LOG_WARN, "Unable to add nameserver %s: error %d", debug_ntop(address), err);
 	return err;
@@ -3800,6 +3802,19 @@ evdns_err_to_string(int err)
 }
 
 static void
+evdns_nameserver_free(struct nameserver *server)
+{
+	if (server->socket >= 0)
+	CLOSE_SOCKET(server->socket);
+	(void) event_del(&server->event);
+	event_debug_unassign(&server->event);
+	if (server->state == 0)
+		(void) event_del(&server->timeout_event);
+	event_debug_unassign(&server->timeout_event);
+	mm_free(server);
+}
+
+static void
 evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 {
 	struct nameserver *server, *server_next;
@@ -3826,12 +3841,7 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 
 	for (server = base->server_head; server; server = server_next) {
 		server_next = server->next;
-		if (server->socket >= 0)
-			CLOSE_SOCKET(server->socket);
-		(void) event_del(&server->event);
-		if (server->state == 0)
-			(void) event_del(&server->timeout_event);
-		mm_free(server);
+		evdns_nameserver_free(server);
 		if (server_next == base->server_head)
 			break;
 	}

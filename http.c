@@ -953,8 +953,10 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		TAILQ_REMOVE(&http->connections, evcon, next);
 	}
 
-	if (event_initialized(&evcon->retry_ev))
+	if (event_initialized(&evcon->retry_ev)) {
 		event_del(&evcon->retry_ev);
+		event_debug_unassign(&evcon->retry_ev);
+	}
 
 	if (evcon->bufev != NULL)
 		bufferevent_free(evcon->bufev);
@@ -2555,6 +2557,7 @@ evhttp_del_accept_socket(struct evhttp *http, struct evhttp_bound_socket *bound)
 {
 	TAILQ_REMOVE(&http->sockets, bound, next);
 	event_del(&bound->bind_ev);
+	event_debug_unassign(&bound->bind_ev);
 	mm_free(bound);
 }
 

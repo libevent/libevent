@@ -318,6 +318,7 @@ evsig_dealloc(struct event_base *base)
 	int i = 0;
 	if (base->sig.ev_signal_added) {
 		event_del(&base->sig.ev_signal);
+		event_debug_unassign(&base->sig.ev_signal);
 		base->sig.ev_signal_added = 0;
 	}
 	for (i = 0; i < NSIG; ++i) {
