@@ -66,14 +66,16 @@ extern "C" {
 /* Integer type definitions for types that are supposed to be defined in the
  * C99-specified stdint.h.  Shamefully, some platforms do not include
  * stdint.h, so we need to replace it.  (If you are on a platform like this,
- * your C headers are now 10 years out of date.  You should bug them to do
- * something about this.)
+ * your C headers are now over 10 years out of date.  You should bug them to
+ * do something about this.)
  *
  * We define:
  *    ev_uint64_t, ev_uint32_t, ev_uint16_t, ev_uint8_t -- unsigned integer
  *      types of exactly 64, 32, 16, and 8 bits respectively.
  *    ev_int64_t, ev_int32_t, ev_int16_t, ev_int8_t -- signed integer
  *      types of exactly 64, 32, 16, and 8 bits respectively.
+ *    ev_uintptr_t, ev_intptr_t -- unsigned/signed integers large enough
+ *      to hold a pointer without loss of bits.
  */
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t
@@ -123,6 +125,19 @@ extern "C" {
 #define ev_uint8_t uint8_t
 #else
 #define ev_uint8_t unsigned char
+#endif
+
+#ifdef _EVENT_HAVE_UINTPTR_T
+#define ev_uintptr_t uintptr_t
+#define ev_intptr_t intptr_t
+#elif _EVENT_SIZEOF_VOID_P <= 4
+#define ev_uintptr_t ev_uint32_t
+#define ev_uintptr_t ev_int32_t
+#elif _EVENT_SIZEOF_VOID_P <= 8
+#define ev_uintptr_t ev_uint64_t
+#define ev_uintptr_t ev_int64_t
+#else
+#error "No way to define ev_uintptr_t"
 #endif
 
 #ifdef _EVENT_ssize_t
