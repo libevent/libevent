@@ -292,7 +292,7 @@ be_async_flush(struct bufferevent *bev, short what,
 }
 
 static void
-connect_complete(struct event_overlapped *eo, uintptr_t key,
+connect_complete(struct event_overlapped *eo, ev_uintptr_t key,
     ev_ssize_t nbytes, int ok)
 {
 	struct bufferevent_async *bev_a = upcast_connect(eo);
@@ -311,7 +311,7 @@ connect_complete(struct event_overlapped *eo, uintptr_t key,
 }
 
 static void
-read_complete(struct event_overlapped *eo, uintptr_t key,
+read_complete(struct event_overlapped *eo, ev_uintptr_t key,
     ev_ssize_t nbytes, int ok)
 {
 	struct bufferevent_async *bev_a = upcast_read(eo);
@@ -344,7 +344,7 @@ read_complete(struct event_overlapped *eo, uintptr_t key,
 }
 
 static void
-write_complete(struct event_overlapped *eo, uintptr_t key,
+write_complete(struct event_overlapped *eo, ev_uintptr_t key,
     ev_ssize_t nbytes, int ok)
 {
 	struct bufferevent_async *bev_a = upcast_write(eo);

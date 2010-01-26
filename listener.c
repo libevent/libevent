@@ -313,7 +313,7 @@ struct accepting_socket {
 	char addrbuf[1];
 };
 
-static void accepted_socket_cb(struct event_overlapped *o, uintptr_t key,
+static void accepted_socket_cb(struct event_overlapped *o, ev_uintptr_t key,
     ev_ssize_t n, int ok);
 static void accepted_socket_invoke_user_cb(struct deferred_cb *cb, void *arg);
 
@@ -441,7 +441,7 @@ accepted_socket_invoke_user_cb(struct deferred_cb *cb, void *arg)
 }
 
 static void
-accepted_socket_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n, int ok)
+accepted_socket_cb(struct event_overlapped *o, ev_uintptr_t key, ev_ssize_t n, int ok)
 {
 	struct accepting_socket *as =
 	    EVUTIL_UPCAST(o, struct accepting_socket, overlapped);

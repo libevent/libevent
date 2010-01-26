@@ -93,7 +93,7 @@ loop(void *_port)
 
 int
 event_iocp_port_associate(struct event_iocp_port *port, evutil_socket_t fd,
-    uintptr_t key)
+    ev_uintptr_t key)
 {
 	HANDLE h;
 	h = CreateIoCompletionPort((HANDLE)fd, port->port, key, port->n_threads);
@@ -186,8 +186,8 @@ event_iocp_port_launch(void)
 		goto err;
 
 	for (i=0; i<port->n_threads; ++i) {
-		uintptr_t th = _beginthread(loop, 0, port);
-		if (th == (uintptr_t)-1)
+		ev_uintptr_t th = _beginthread(loop, 0, port);
+		if (th == (ev_uintptr_t)-1)
 			goto err;
 		port->threads[i] = (HANDLE)th;
 		++port->n_live_threads;
@@ -254,7 +254,7 @@ event_iocp_shutdown(struct event_iocp_port *port, long waitMsec)
 int
 event_iocp_activate_overlapped(
     struct event_iocp_port *port, struct event_overlapped *o,
-    uintptr_t key, ev_uint32_t n)
+    ev_uintptr_t key, ev_uint32_t n)
 {
 	BOOL r;
 

@@ -34,7 +34,7 @@ extern "C" {
 struct event_overlapped;
 struct event_iocp_port;
 struct evbuffer;
-typedef void (*iocp_callback)(struct event_overlapped *, uintptr_t, ev_ssize_t, int success);
+typedef void (*iocp_callback)(struct event_overlapped *, ev_uintptr_t, ev_ssize_t, int success);
 
 /* This whole file is actually win32 only. We wrap the structures in a win32
  * ifdef so that we can test-compile code that uses these interfaces on
@@ -161,7 +161,7 @@ struct event_iocp_port *event_iocp_port_launch(void);
     fd will happen on one of the iocp's worker threads.
 */
 int event_iocp_port_associate(struct event_iocp_port *port, evutil_socket_t fd,
-    uintptr_t key);
+    ev_uintptr_t key);
 
 /** Tell all threads serving an iocp to stop.  Wait for up to waitMsec for all
     the threads to finish whatever they're doing.  If all the threads are
@@ -173,7 +173,7 @@ int event_iocp_shutdown(struct event_iocp_port *port, long waitMsec);
 /* FIXME document. */
 int event_iocp_activate_overlapped(struct event_iocp_port *port,
     struct event_overlapped *o,
-    uintptr_t key, ev_uint32_t n_bytes);
+    ev_uintptr_t key, ev_uint32_t n_bytes);
 
 struct event_base;
 /* FIXME document. */
