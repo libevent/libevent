@@ -157,10 +157,15 @@ struct event_debug_entry {
 static inline unsigned
 hash_debug_entry(const struct event_debug_entry *e)
 {
+	/* We need to do this silliness to convince compilers that we
+	 * honestly mean to cast e->ptr to an integer, and discard any
+	 * part of it that doesn't fit in an unsigned.
+	 */
+	unsigned u = (unsigned) ((ev_uintptr_t) e->ptr);
 	/* Our hashtable implementation is pretty sensitive to low bits,
 	 * and every struct event is over 64 bytes in size, so we can
-	 * just say... */
-	return ((unsigned)e->ptr) >> 6;
+	 * just say >>6. */
+	return (u >> 6);
 }
 
 static inline int
