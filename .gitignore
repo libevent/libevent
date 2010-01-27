@@ -55,6 +55,7 @@ libevent.pc
 
 /sample/dns-example
 /sample/event-test
+/sample/hello-world
 /sample/le-proxy
 /sample/signal-test
 /sample/time-test
