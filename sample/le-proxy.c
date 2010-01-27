@@ -1,3 +1,9 @@
+/*
+  This example code shows how to write an (optionally encrypting) SSL proxy
+  with Libevent's bufferevent layer.
+
+  XXX It's a little ugly and should probably be cleaned up.
+ */
 
 #include <stdio.h>
 #include <assert.h>

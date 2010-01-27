@@ -1,3 +1,9 @@
+/*
+  This example code shows how to use the high-level, low-level, and
+  server-level interfaces of evdns.
+
+  XXX It's pretty ugly and should probably be cleaned up.
+ */
 
 #include <event-config.h>
 
