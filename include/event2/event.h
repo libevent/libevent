@@ -126,7 +126,7 @@ int event_base_dispatch(struct event_base *);
  @param eb the event_base structure returned by event_base_new()
  @return a string identifying the kernel event mechanism (kqueue, epoll, etc.)
  */
-const char *event_base_get_method(struct event_base *);
+const char *event_base_get_method(const struct event_base *);
 
 /**
    Gets all event notification mechanisms supported by Libevent.
@@ -205,7 +205,7 @@ enum event_base_config_flag {
 /**
  Return a bitmask of the features implemented by an event base.
  */
-int event_base_get_features(struct event_base *base);
+int event_base_get_features(const struct event_base *base);
 
 /**
    Enters a required event method feature that the application demands.
@@ -246,7 +246,7 @@ int event_config_set_flag(struct event_config *cfg, int flag);
      or NULL if no event base can be created with the requested event_config.
   @see event_base_new(), event_base_free(), event_init(), event_assign()
 */
-struct event_base *event_base_new_with_config(struct event_config *cfg);
+struct event_base *event_base_new_with_config(const struct event_config *);
 
 /**
   Deallocate all memory associated with an event_base, and free the base.
@@ -556,7 +556,7 @@ void event_active(struct event *, int, short);
   is to say, it has been added), or 0 if the event is not added.
 
  */
-int event_pending(struct event *, short, struct timeval *);
+int event_pending(const struct event *, short, struct timeval *);
 
 
 /**
@@ -575,7 +575,7 @@ int event_pending(struct event *, short, struct timeval *);
  */
 #define event_initialized(ev)		_event_initialized((ev), 1)
 
-int _event_initialized(struct event *, int check_fd);
+int _event_initialized(const struct event *, int check_fd);
 
 /**
    Get the signal number assigned to an event.

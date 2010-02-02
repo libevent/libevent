@@ -392,7 +392,8 @@ event_base_new(void)
 }
 
 static int
-event_config_is_avoided_method(struct event_config *cfg, const char *method)
+event_config_is_avoided_method(const struct event_config *cfg,
+    const char *method)
 {
 	struct event_config_entry *entry;
 
@@ -418,7 +419,7 @@ event_is_method_disabled(const char *name)
 }
 
 int
-event_base_get_features(struct event_base *base)
+event_base_get_features(const struct event_base *base)
 {
 	return base->evsel->features;
 }
@@ -477,7 +478,7 @@ event_disable_debug_mode(void)
 #endif
 
 struct event_base *
-event_base_new_with_config(struct event_config *cfg)
+event_base_new_with_config(const struct event_config *cfg)
 {
 	int i;
 	struct event_base *base;
@@ -1222,7 +1223,7 @@ event_base_dispatch(struct event_base *event_base)
 }
 
 const char *
-event_base_get_method(struct event_base *base)
+event_base_get_method(const struct event_base *base)
 {
 	EVUTIL_ASSERT(base);
 	return (base->evsel->name);
@@ -1600,7 +1601,7 @@ event_priority_set(struct event *ev, int pri)
  */
 
 int
-event_pending(struct event *ev, short event, struct timeval *tv)
+event_pending(const struct event *ev, short event, struct timeval *tv)
 {
 	struct timeval	now, res;
 	int flags = 0;
@@ -1631,7 +1632,7 @@ event_pending(struct event *ev, short event, struct timeval *tv)
 }
 
 int
-_event_initialized(struct event *ev, int need_fd)
+_event_initialized(const struct event *ev, int need_fd)
 {
 	if (!(ev->ev_flags & EVLIST_INIT))
 		return 0;
