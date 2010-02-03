@@ -156,14 +156,25 @@ extern "C" {
 #define ev_ssize_t ssize_t
 #endif
 
+/* Limits for integer types.
+
+   We're making two assumptions here:
+     - The compiler does constant folding properly.
+     - The platform does signed arithmetic in two's complement.
+*/
+
 #define EV_UINT64_MAX ((((ev_uint64_t)0xffffffffUL) << 32) | 0xffffffffUL)
 #define EV_INT64_MAX  ((((ev_int64_t) 0x7fffffffL) << 32) | 0xffffffffL)
+#define EV_INT64_MIN  ((-EV_INT64_MAX) - 1)
 #define EV_UINT32_MAX ((ev_uint32_t)0xffffffffUL)
 #define EV_INT32_MAX  ((ev_int32_t) 0x7fffffffL)
+#define EV_INT32_MIN  ((-EV_INT32_MAX) - 1)
 #define EV_UINT16_MAX ((ev_uint16_t)0xffffUL)
 #define EV_INT16_MAX  ((ev_int16_t) 0x7fffL)
-#define EV_UINT8_MAX 255
-#define EV_INT8_MAX  127
+#define EV_INT16_MIN  ((-EV_INT16_MAX) - 1)
+#define EV_UINT8_MAX  255
+#define EV_INT8_MAX   127
+#define EV_INT8_MIN   ((-EV_INT8_MAX) - 1)
 
 #if _EVENT_SIZEOF_SIZE_T == 8
 #define EV_SIZE_MAX EV_UINT64_MAX
@@ -174,6 +185,8 @@ extern "C" {
 #else
 #error "No way to define SIZE_MAX"
 #endif
+
+#define EV_SSIZE_MIN ((-EV_SSIZE_MAX) - 1)
 
 #ifdef WIN32
 #define ev_socklen_t int

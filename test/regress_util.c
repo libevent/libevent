@@ -532,7 +532,104 @@ test_evutil_upcast(void *arg)
 
 end:
 	;
+}
 
+static void
+test_evutil_integers(void *arg)
+{
+	ev_int64_t i64;
+	ev_uint64_t u64;
+	ev_int32_t i32;
+	ev_uint32_t u32;
+	ev_int16_t i16;
+	ev_uint16_t u16;
+	ev_int8_t  i8;
+	ev_uint8_t  u8;
+
+	void *ptr;
+	ev_intptr_t iptr;
+	ev_uintptr_t uptr;
+
+	ev_ssize_t ssize;
+
+	tt_int_op(sizeof(u64), ==, 8);
+	tt_int_op(sizeof(i64), ==, 8);
+	tt_int_op(sizeof(u32), ==, 4);
+	tt_int_op(sizeof(i32), ==, 4);
+	tt_int_op(sizeof(u16), ==, 2);
+	tt_int_op(sizeof(i16), ==, 2);
+	tt_int_op(sizeof(u8), ==,  1);
+	tt_int_op(sizeof(i8), ==,  1);
+
+	tt_int_op(sizeof(ev_ssize_t), ==, sizeof(size_t));
+	tt_int_op(sizeof(ev_intptr_t), >=, sizeof(void *));
+	tt_int_op(sizeof(ev_uintptr_t), ==, sizeof(intptr_t));
+
+	u64 = 1000000000;
+	u64 *= 1000000000;
+	tt_assert(u64 / 1000000000 == 1000000000);
+	i64 = -1000000000;
+	i64 *= 1000000000;
+	tt_assert(i64 / 1000000000 == -1000000000);
+
+	u64 = EV_UINT64_MAX;
+	i64 = EV_INT64_MAX;
+	tt_assert(u64 > 0);
+	tt_assert(i64 > 0);
+	u64++;
+	i64++;
+	tt_assert(u64 == 0);
+	tt_assert(i64 == EV_INT64_MIN);
+	tt_assert(i64 < 0);
+
+	u32 = EV_UINT32_MAX;
+	i32 = EV_INT32_MAX;
+	tt_assert(u32 > 0);
+	tt_assert(i32 > 0);
+	u32++;
+	i32++;
+	tt_assert(u32 == 0);
+	tt_assert(i32 == EV_INT32_MIN);
+	tt_assert(i32 < 0);
+
+	u16 = EV_UINT16_MAX;
+	i16 = EV_INT16_MAX;
+	tt_assert(u16 > 0);
+	tt_assert(i16 > 0);
+	u16++;
+	i16++;
+	tt_assert(u16 == 0);
+	tt_assert(i16 == EV_INT16_MIN);
+	tt_assert(i16 < 0);
+
+	u8 = EV_UINT8_MAX;
+	i8 = EV_INT8_MAX;
+	tt_assert(u8 > 0);
+	tt_assert(i8 > 0);
+	u8++;
+	i8++;
+	tt_assert(u8 == 0);
+	tt_assert(i8 == EV_INT8_MIN);
+	tt_assert(i8 < 0);
+
+	ssize = EV_SSIZE_MAX;
+	tt_assert(ssize > 0);
+	ssize++;
+	tt_assert(ssize < 0);
+	tt_assert(ssize == EV_SSIZE_MIN);
+
+	ptr = &ssize;
+	iptr = (ev_intptr_t)ptr;
+	uptr = (ev_uintptr_t)ptr;
+	ptr = (void *)iptr;
+	tt_assert(ptr == &ssize);
+	ptr = (void *)uptr;
+	tt_assert(ptr == &ssize);
+
+	iptr = -1;
+	tt_assert(iptr < 0);
+end:
+	;
 }
 
 struct evutil_addrinfo *
@@ -809,6 +906,7 @@ struct testcase_t util_testcases[] = {
 	{ "strlcpy", test_evutil_strlcpy, 0, NULL, NULL },
 	{ "log", test_evutil_log, TT_FORK, NULL, NULL },
 	{ "upcast", test_evutil_upcast, 0, NULL, NULL },
+	{ "integers", test_evutil_integers, 0, NULL, NULL },
 	{ "getaddrinfo", test_evutil_getaddrinfo, TT_FORK, NULL, NULL },
 	END_OF_TESTCASES,
 };
