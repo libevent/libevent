@@ -296,20 +296,14 @@ struct timezone;
 int evutil_gettimeofday(struct timeval *tv, struct timezone *tz);
 #endif
 
-#ifdef __GNUC__
-/** Helper macro; used to tell the compiler that a given function takes a
- * printf-like format string as argument number 'a', and a set of printf-like
- * arguments starting in argument 'b'. */
-#define EVUTIL_CHECK_FMT(a,b) __attribute__((format(printf, a, b)))
-#else
-#define EVUTIL_CHECK_FMT(a,b)
-#endif
-
 /** Replacement for snprintf to get consistent behavior on platforms for
     which the return value of snprintf does not conform to C99.
  */
 int evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
-	EVUTIL_CHECK_FMT(3,4);
+#ifdef __GNUC__
+	__attribute__((format(printf, 3, 4)))
+#endif
+;
 int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap);
 
 /** Replacement for inet_ntop for platforms which lack it. */
