@@ -492,12 +492,12 @@ int
 bufferevent_pair_new(struct event_base *base, int options,
     struct bufferevent *pair[2]);
 
-
 /**
    Abstract type used to configure rate-limiting on a bufferevent or a group
    of bufferevents.
  */
 struct ev_token_bucket_cfg;
+
 /**
    A group of bufferevents which are configured to respect the same rate
    limit.
@@ -545,6 +545,7 @@ void ev_token_bucket_cfg_free(struct ev_token_bucket_cfg *cfg);
  */
 int bufferevent_set_rate_limit(struct bufferevent *bev,
     struct ev_token_bucket_cfg *cfg);
+
 /**
    Create a new rate-limit group for bufferevents.  A rate-limit group
    constrains the maximum number of bytes sent and received, in toto,
@@ -583,6 +584,62 @@ int bufferevent_add_to_rate_limit_group(struct bufferevent *bev,
 
 /** Remove 'bev' from its current rate-limit group (if any). */
 int bufferevent_remove_from_rate_limit_group(struct bufferevent *bev);
+
+/*@{*/
+/**
+   Return the current read or write bucket size for a bufferevent.
+   If it is not configured with a per-bufferevent ratelimit, return
+   EV_SSIZE_MAX.  This function does not inspect the group limit, if any.
+   Note that it can return a negative value if the bufferevent has been
+   made to read or write more than its limit.
+ */
+ev_ssize_t bufferevent_get_read_limit(struct bufferevent *bev);
+ev_ssize_t bufferevent_get_write_limit(struct bufferevent *bev);
+/*@}*/
+
+/*@{*/
+/**
+   Return the read or write bucket size for a bufferevent rate limit
+   group.  Note that it can return a negative value if bufferevents in
+   the group have been made to read or write more than their limits.
+ */
+ev_ssize_t bufferevent_rate_limit_group_get_read_limit(
+	struct bufferevent_rate_limit_group *);
+ev_ssize_t bufferevent_rate_limit_group_get_write_limit(
+	struct bufferevent_rate_limit_group *);
+/*@}*/
+
+/*@{*/
+/**
+   Subtract a number of bytes from a bufferevent's read or write bucket.
+   The decrement value can be negative, if you want to manually refill
+   the bucket.  If the change puts the bucket above or below zero, the
+   bufferevent will resume or suspend reading writing as appropriate.
+   These functions make no change in the buckets for the bufferevent's
+   group, if any.
+
+   Returns 0 on success, -1 on internal error.
+ */
+int bufferevent_decrement_read_limit(struct bufferevent *bev, ev_ssize_t decr);
+int bufferevent_decrement_write_limit(struct bufferevent *bev, ev_ssize_t decr);
+/*@}*/
+
+/*@{*/
+/**
+   Subtract a number of bytes from a bufferevent rate-limiting group's
+   read or write bucket.  The decrement value can be negative, if you
+   want to manually refill the bucket.  If the change puts the bucket
+   above or below zero, the bufferevents in the group will resume or
+   suspend reading writing as appropriate.
+
+   Returns 0 on success, -1 on internal error.
+ */
+int bufferevent_rate_limit_group_decrement_read(
+	struct bufferevent_rate_limit_group *, ev_ssize_t);
+int bufferevent_rate_limit_group_decrement_write(
+	struct bufferevent_rate_limit_group *, ev_ssize_t);
+/*@}*/
+
 
 #ifdef __cplusplus
 }
