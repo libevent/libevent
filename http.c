@@ -93,6 +93,7 @@
 #include "event2/http_struct.h"
 #include "event2/http_compat.h"
 #include "event2/util.h"
+#include "event2/listener.h"
 #include "log-internal.h"
 #include "util-internal.h"
 #include "http-internal.h"
@@ -2452,23 +2453,11 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 }
 
 static void
-accept_socket(evutil_socket_t fd, short what, void *arg)
+accept_socket_cb(struct evconnlistener *listener, evutil_socket_t nfd, struct sockaddr *peer_sa, int peer_socklen, void *arg)
 {
 	struct evhttp *http = arg;
-	struct sockaddr_storage ss;
-	ev_socklen_t addrlen = sizeof(ss);
-	evutil_socket_t nfd;
 
-	if ((nfd = accept(fd, (struct sockaddr *)&ss, &addrlen)) == -1) {
-		int err = evutil_socket_geterror(fd);
-		if (! EVUTIL_ERR_ACCEPT_RETRIABLE(err))
-			event_warn("%s: bad accept", __func__);
-		return;
-	}
-	if (evutil_make_socket_nonblocking(nfd) < 0)
-		return;
-
-	evhttp_get_request(http, nfd, (struct sockaddr *)&ss, addrlen);
+	evhttp_get_request(http, nfd, peer_sa, peer_socklen);
 }
 
 int
@@ -2522,25 +2511,23 @@ struct evhttp_bound_socket *
 evhttp_accept_socket_with_handle(struct evhttp *http, evutil_socket_t fd)
 {
 	struct evhttp_bound_socket *bound;
-	struct event *ev;
-	int res;
+	struct evconnlistener *listener;
+	const int flags =
+	    LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_EXEC|LEV_OPT_CLOSE_ON_FREE;
 
 	bound = mm_malloc(sizeof(struct evhttp_bound_socket));
 	if (bound == NULL)
 		return (NULL);
 
-	ev = &bound->bind_ev;
-
-	/* Schedule the socket for accepting */
-	event_assign(ev, http->base,
-	    fd, EV_READ | EV_PERSIST, accept_socket, http);
-
-	res = event_add(ev, NULL);
-
-	if (res == -1) {
+	listener = evconnlistener_new(http->base, accept_socket_cb, http,
+	    flags,
+	    0, /* Backlog is '0' because we already said 'listen' */
+	    fd);
+	if (!listener) {
 		mm_free(bound);
 		return (NULL);
 	}
+	bound->listener = listener;
 
 	TAILQ_INSERT_TAIL(&http->sockets, bound, next);
 
@@ -2549,15 +2536,14 @@ evhttp_accept_socket_with_handle(struct evhttp *http, evutil_socket_t fd)
 
 evutil_socket_t evhttp_bound_socket_get_fd(struct evhttp_bound_socket *bound)
 {
-	return bound->bind_ev.ev_fd;
+	return evconnlistener_get_fd(bound->listener);
 }
 
 void
 evhttp_del_accept_socket(struct evhttp *http, struct evhttp_bound_socket *bound)
 {
 	TAILQ_REMOVE(&http->sockets, bound, next);
-	event_del(&bound->bind_ev);
-	event_debug_unassign(&bound->bind_ev);
+	evconnlistener_free(bound->listener);
 	mm_free(bound);
 }
 
@@ -2617,15 +2603,12 @@ evhttp_free(struct evhttp* http)
 	struct evhttp_connection *evcon;
 	struct evhttp_bound_socket *bound;
 	struct evhttp* vhost;
-	evutil_socket_t fd;
 
 	/* Remove the accepting part */
 	while ((bound = TAILQ_FIRST(&http->sockets)) != NULL) {
 		TAILQ_REMOVE(&http->sockets, bound, next);
 
-		fd = bound->bind_ev.ev_fd;
-		event_del(&bound->bind_ev);
-		EVUTIL_CLOSESOCKET(fd);
+		evconnlistener_free(bound->listener);
 
 		mm_free(bound);
 	}
