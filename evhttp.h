@@ -221,7 +221,8 @@ struct {
 
 	struct evbuffer *input_buffer;	/* read data */
 	ev_int64_t ntoread;
-	int chunked;
+	int chunked:1,                  /* a chunked request */
+	    userdone:1;                 /* the user has sent all data */
 
 	struct evbuffer *output_buffer;	/* outgoing post or data */
 
@@ -251,6 +252,9 @@ void evhttp_request_set_chunked_cb(struct evhttp_request *,
 
 /** Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
+
+/** Returns the connection object associated with the request or NULL */
+struct evhttp_connection *evhttp_request_get_connection(struct evhttp_request *req);
 
 /**
  * A connection object that can be used to for making HTTP requests.  The
