@@ -115,20 +115,26 @@ extern "C" {
 
 #ifdef _EVENT_HAVE_UINT16_T
 #define ev_uint16_t uint16_t
+#define ev_int16_t  int16_t
 #elif defined(WIN32)
 #define ev_uint16_t unsigned short
+#define ev_int16_t  signed short
 #elif _EVENT_SIZEOF_INT == 2
 #define ev_uint16_t unsigned int
+#define ev_int16_t  signed int
 #elif _EVENT_SIZEOF_SHORT == 2
 #define ev_uint16_t unsigned short
+#define ev_int16_t  signed short
 #else
 #error "No way to define ev_uint16_t"
 #endif
 
 #ifdef _EVENT_HAVE_UINT8_T
 #define ev_uint8_t uint8_t
+#define ev_int8_t int8_t
 #else
 #define ev_uint8_t unsigned char
+#define ev_int8_t signed char
 #endif
 
 #ifdef _EVENT_HAVE_UINTPTR_T
@@ -148,6 +154,25 @@ extern "C" {
 #define ev_ssize_t _EVENT_ssize_t
 #else
 #define ev_ssize_t ssize_t
+#endif
+
+#define EV_UINT64_MAX ((((ev_uint64_t)0xffffffffUL) << 32) | 0xffffffffUL)
+#define EV_INT64_MAX  ((((ev_int64_t) 0x7fffffffL) << 32) | 0xffffffffL)
+#define EV_UINT32_MAX ((ev_uint32_t)0xffffffffUL)
+#define EV_INT32_MAX  ((ev_int32_t) 0x7fffffffL)
+#define EV_UINT16_MAX ((ev_uint16_t)0xffffUL)
+#define EV_INT16_MAX  ((ev_int16_t) 0x7fffL)
+#define EV_UINT8_MAX 255
+#define EV_INT8_MAX  127
+
+#if _EVENT_SIZEOF_SIZE_T == 8
+#define EV_SIZE_MAX EV_UINT64_MAX
+#define EV_SSIZE_MAX EV_INT64_MAX
+#elif _EVENT_SIZEOF_SIZE_T == 4
+#define EV_SIZE_MAX EV_UINT32_MAX
+#define EV_SSIZE_MAX EV_INT32_MAX
+#else
+#error "No way to define SIZE_MAX"
 #endif
 
 #ifdef WIN32

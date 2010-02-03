@@ -174,41 +174,6 @@ long _evutil_weakrand(void);
 		}							\
 	} while(0)
 
-#ifdef UINT64_MAX
-#define EV_UINT64_MAX UINT64_MAX
-#elif defined(WIN32)
-#define EV_UINT64_MAX 0xffffffffffffffffui64
-#elif _EVENT_SIZEOF_LONG_LONG == 8
-#define EV_UINT64_MAX 0xffffffffffffffffull
-#elif _EVENT_SIZEOF_LONG == 8
-#define EV_UINT64_MAX 0xfffffffffffffffful
-#else
-/* Hope for a two's complement representation */
-#define EV_UINT64_MAX ((ev_uint64_t)-1)
-#endif
-
-#ifdef UINT32_MAX
-#define EV_UINT32_MAX UINT32_MAX
-#elif defined(WIN32)
-#define EV_UINT32_MAX 0xffffffffui64
-#elif _EVENT_SIZEOF_INT == 4
-#define EV_UINT32_MAX 0xffffffffu
-#elif _EVENT_SIZEOF_LONG == 4
-#define EV_UINT32_MAX 0xfffffffful
-#else
-/* Hope for a two's complement representation */
-#define EV_UINT32_MAX ((ev_uint32_t)-1)
-#endif
-
-#if _EVENT_SIZEOF_SIZE_T == 8
-#define EV_SIZE_MAX EV_UINT64_MAX
-#elif  _EVENT_SIZEOF_SIZE_T == 4
-#define EV_SIZE_MAX EV_UINT32_MAX
-#else
-/* Hope for a two's complement representation */
-#define EV_SIZE_MAX ((size_t)-1)
-#endif
-
 /* Internal addrinfo error code.  This one is returned from only from
  * evutil_getaddrinfo_common, when we are sure that we'll have to hit a DNS
  * server. */
