@@ -132,10 +132,10 @@ extern "C" {
 #define ev_intptr_t intptr_t
 #elif _EVENT_SIZEOF_VOID_P <= 4
 #define ev_uintptr_t ev_uint32_t
-#define ev_uintptr_t ev_int32_t
+#define ev_intptr_t ev_int32_t
 #elif _EVENT_SIZEOF_VOID_P <= 8
 #define ev_uintptr_t ev_uint64_t
-#define ev_uintptr_t ev_int64_t
+#define ev_intptr_t ev_int64_t
 #else
 #error "No way to define ev_uintptr_t"
 #endif
