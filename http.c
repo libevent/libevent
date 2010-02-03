@@ -551,8 +551,18 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 		 * these are cases in which we probably should just
 		 * close the connection and not send a reply.  this
 		 * case may happen when a browser keeps a persistent
-		 * connection open and we timeout on the read.
+		 * connection open and we timeout on the read.  when
+		 * the request is still being used for sending, we
+		 * need to disassociated it from the connection here.
 		 */
+		if (!req->userdone) {
+			/* remove it so that it will not be freed */
+			TAILQ_REMOVE(&req->evcon->requests, req, next);
+			/* indicate that this request no longer has a
+			 * connection object
+			 */
+			req->evcon = NULL;
+		}
 		return (-1);
 	case EVCON_HTTP_INVALID_HEADER:
 	case EVCON_HTTP_BUFFER_ERROR:
@@ -609,13 +619,12 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 		cb_arg = NULL;
 	}
 
-	TAILQ_REMOVE(&evcon->requests, req, next);
-	evhttp_request_free(req);
-
 	/* do not fail all requests; the next request is going to get
 	 * send over a new connection.   when a user cancels a request,
 	 * all other pending requests should be processed as normal
 	 */
+	TAILQ_REMOVE(&evcon->requests, req, next);
+	evhttp_request_free(req);
 
 	/* reset the connection */
 	evhttp_connection_reset(evcon);
@@ -943,7 +952,11 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 			(*evcon->closecb)(evcon, evcon->closecb_arg);
 	}
 
-	/* remove all requests that might be queued on this connection */
+	/* remove all requests that might be queued on this
+	 * connection.  for server connections, this should be empty.
+	 * because it gets dequeued either in evhttp_connection_done or
+	 * evhttp_connection_fail.
+	 */
 	while ((req = TAILQ_FIRST(&evcon->requests)) != NULL) {
 		TAILQ_REMOVE(&evcon->requests, req, next);
 		evhttp_request_free(req);
@@ -2055,6 +2068,9 @@ evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 
 	EVUTIL_ASSERT(TAILQ_FIRST(&evcon->requests) == req);
 
+	/* we expect no more calls form the user on this request */
+	req->userdone = 1;
+
 	/* xxx: not sure if we really should expose the data buffer this way */
 	if (databuf != NULL)
 		evbuffer_add_buffer(req->output_buffer, databuf);
@@ -2098,7 +2114,14 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
 void
 evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
 {
-	struct evbuffer *output = bufferevent_get_output(req->evcon->bufev);
+	struct evhttp_connection *evcon = req->evcon;
+	struct evbuffer *output;
+
+	if (evcon == NULL)
+		return;
+
+	output = bufferevent_get_output(evcon->bufev);
+
 	if (evbuffer_get_length(databuf) == 0)
 		return;
 	if (!evhttp_response_needs_body(req))
@@ -2111,7 +2134,7 @@ evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
 	if (req->chunked) {
 		evbuffer_add(output, "\r\n", 2);
 	}
-	evhttp_write_buffer(req->evcon, NULL, NULL);
+	evhttp_write_buffer(evcon, NULL, NULL);
 }
 
 void
@@ -2119,6 +2142,14 @@ evhttp_send_reply_end(struct evhttp_request *req)
 {
 	struct evhttp_connection *evcon = req->evcon;
 	struct evbuffer *output = bufferevent_get_output(evcon->bufev);
+
+	if (evcon == NULL) {
+		evhttp_request_free(req);
+		return;
+	}
+
+	/* we expect no more calls form the user on this request */
+	req->userdone = 1;
 
 	if (req->chunked) {
 		evbuffer_add(output, "0\r\n\r\n", 5);
@@ -2839,6 +2870,13 @@ evhttp_request_is_owned(struct evhttp_request *req)
 {
 	return (req->flags & EVHTTP_USER_OWNED) != 0;
 }
+
+struct evhttp_connection *
+evhttp_request_get_connection(struct evhttp_request *req)
+{
+	return req->evcon;
+}
+
 
 void
 evhttp_request_set_chunked_cb(struct evhttp_request *req,
