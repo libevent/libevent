@@ -2515,6 +2515,117 @@ http_data_length_constraints_test(void)
 		evhttp_free(http);
 }
 
+/*
+ * Testing client reset of server chunked connections
+ */
+
+struct terminate_state {
+	struct evhttp_request *req;
+	struct bufferevent *bev;
+	int fd;
+} terminate_state;
+
+static void
+terminate_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
+{
+	struct terminate_state *state = arg;
+	struct evbuffer *evb = evbuffer_new();
+	struct timeval tv;
+
+	if (evhttp_request_get_connection(state->req) == NULL) {
+		test_ok = 1;
+		evhttp_request_free(state->req);
+		event_loopexit(NULL);
+	}
+
+	evbuffer_add_printf(evb, "%p", evb);
+	evhttp_send_reply_chunk(state->req, evb);
+	evbuffer_free(evb);
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 3000;
+	event_once(-1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
+}
+
+static void
+terminate_chunked_cb(struct evhttp_request *req, void *arg)
+{
+	struct terminate_state *state = arg;
+	struct timeval tv;
+
+	/* we need to hold on to this */
+	evhttp_request_own(req);
+
+	state->req = req;
+
+	evhttp_send_reply_start(req, HTTP_OK, "OK");
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 3000;
+	event_once(-1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
+}
+
+static void
+terminate_chunked_client(int fd, short event, void *arg)
+{
+	struct terminate_state *state = arg;
+	bufferevent_free(state->bev);
+	EVUTIL_CLOSESOCKET(state->fd);
+}
+
+static void
+terminate_readcb(struct bufferevent *bev, void *arg)
+{
+	/* just drop the data */
+	evbuffer_drain(bufferevent_get_input(bev), -1);
+}
+
+
+static void
+http_terminate_chunked_test(void)
+{
+	struct bufferevent *bev = NULL;
+	struct timeval tv;
+	const char *http_request;
+	short port = -1;
+	int fd = -1;
+
+	test_ok = 0;
+
+	http = http_setup(&port, NULL);
+	evhttp_del_cb(http, "/test");
+	tt_assert(evhttp_set_cb(http, "/test",
+		terminate_chunked_cb, &terminate_state) == 0);
+
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_new(fd, terminate_readcb, http_writecb,
+	    http_errorcb, NULL);
+
+	terminate_state.fd = fd;
+	terminate_state.bev = bev;
+
+	/* first half of the http request */
+	http_request =
+	    "GET /test HTTP/1.1\r\n"
+	    "Host: some\r\n\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+	evutil_timerclear(&tv);
+	tv.tv_usec = 10000;
+	event_once(-1, EV_TIMEOUT, terminate_chunked_client, &terminate_state,
+	    &tv);
+
+	event_dispatch();
+
+ end:
+	if (fd >= 0)
+		EVUTIL_CLOSESOCKET(fd);
+	if (http)
+		evhttp_free(http);
+}
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
                     http_##name##_test }
@@ -2539,6 +2650,9 @@ struct testcase_t http_testcases[] = {
 	HTTP_LEGACY(bad_request),
 	HTTP_LEGACY(incomplete),
 	HTTP_LEGACY(incomplete_timeout),
+	{ "terminate_chunked", run_legacy_test_fn,
+	  TT_ISOLATED|TT_LEGACY, &legacy_setup,
+	  http_terminate_chunked_test },
 
 	HTTP_LEGACY(highport),
 	HTTP_LEGACY(dispatcher),
