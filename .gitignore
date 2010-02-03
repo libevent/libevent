@@ -12,6 +12,7 @@
 # Windows stuff
 *.obj
 *.exe
+*.lib
 
 # Patch leaves these lying arround
 *.orig
