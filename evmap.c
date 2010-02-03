@@ -414,7 +414,8 @@ evmap_signal_add(struct event_base *base, int sig, struct event *ev)
 	    base->evsigsel->fdinfo_len);
 
 	if (TAILQ_EMPTY(&ctx->events)) {
-		if (evsel->add(base, EVENT_SIGNAL(ev), 0, EV_SIGNAL, NULL) == -1)
+		if (evsel->add(base, ev->ev_fd, 0, EV_SIGNAL, NULL)
+		    == -1)
 			return (-1);
 	}
 
@@ -436,7 +437,7 @@ evmap_signal_del(struct event_base *base, int sig, struct event *ev)
 	GET_SIGNAL_SLOT(ctx, map, sig, evmap_signal);
 
 	if (TAILQ_FIRST(&ctx->events) == TAILQ_LAST(&ctx->events, event_list)) {
-		if (evsel->del(base, EVENT_SIGNAL(ev), 0, EV_SIGNAL, NULL) == -1)
+		if (evsel->del(base, ev->ev_fd, 0, EV_SIGNAL, NULL) == -1)
 			return (-1);
 	}
 

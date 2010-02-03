@@ -329,6 +329,12 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
 */
 #define signal_initialized(ev)		_event_initialized((ev), 0)
 
+#ifndef EVENT_FD
+/* These macros are obsolete; use event_get_fd and event_get_signal instead. */
+#define EVENT_FD(ev)		((int)event_get_fd(ev))
+#define EVENT_SIGNAL(ev)	event_get_signal(ev)
+#endif
+
 #ifdef __cplusplus
 }
 #endif
