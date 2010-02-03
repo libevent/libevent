@@ -65,13 +65,6 @@ extern "C" {
 /* For int types. */
 #include <event2/util.h>
 
-#ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#undef WIN32_LEAN_AND_MEAN
-#endif
-
-
 /* Just for error reporting - use other constants otherwise */
 #define BEV_EVENT_READING	0x01	/**< error encountered while reading */
 #define BEV_EVENT_WRITING	0x02	/**< error encountered while writing */

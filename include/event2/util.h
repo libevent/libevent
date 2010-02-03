@@ -63,6 +63,10 @@ extern "C" {
 #include <netdb.h>
 #endif
 
+#ifdef WIN32
+#include <winsock2.h>
+#endif
+
 /* Integer type definitions for types that are supposed to be defined in the
  * C99-specified stdint.h.  Shamefully, some platforms do not include
  * stdint.h, so we need to replace it.  (If you are on a platform like this,

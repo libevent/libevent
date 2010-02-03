@@ -49,13 +49,6 @@ extern "C" {
 /* For int types. */
 #include <event2/util.h>
 
-#ifdef WIN32
-#include <winsock2.h>
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#undef WIN32_LEAN_AND_MEAN
-#endif
-
 #define EVLIST_TIMEOUT	0x01
 #define EVLIST_INSERTED	0x02
 #define EVLIST_SIGNAL	0x04

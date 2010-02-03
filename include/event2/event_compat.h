@@ -49,12 +49,6 @@ extern "C" {
 /* For int types. */
 #include <event2/util.h>
 
-#ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#undef WIN32_LEAN_AND_MEAN
-#endif
-
 /**
   Initialize the event API.
 

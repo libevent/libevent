@@ -34,13 +34,6 @@
 extern "C" {
 #endif
 
-#ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <winsock2.h>
-#include <windows.h>
-#undef WIN32_LEAN_AND_MEAN
-#endif
-
 /* In case we haven't included the right headers yet. */
 struct evbuffer;
 struct event_base;
