@@ -73,7 +73,7 @@ main (int argc, char **argv)
 #ifdef WIN32
 	HANDLE socket;
 	// Open a file. 
-	socket = CreateFile("test.txt",     // open File 
+	socket = CreateFileA("test.txt",     // open File 
 			GENERIC_READ,                 // open for reading 
 			0,                            // do not share 
 			NULL,                         // no security 
