@@ -1935,6 +1935,11 @@ evhttp_send(struct evhttp_request *req, struct evbuffer *databuf)
 {
 	struct evhttp_connection *evcon = req->evcon;
 
+	if (evcon == NULL) {
+		evhttp_request_free(req);
+		return;
+	}
+
 	assert(TAILQ_FIRST(&evcon->requests) == req);
 
 	/* we expect no more calls form the user on this request */
