@@ -3415,7 +3415,7 @@ evdns_get_default_hosts_filename(void)
 	char *path_out;
 	int len_out;
 
-	if (! SHGetSpecialFolderPath(NULL, path, CSIDL_SYSTEM, 0))
+	if (! SHGetSpecialFolderPathA(NULL, path, CSIDL_SYSTEM, 0))
 		return NULL;
 	len_out = strlen(path)+strlen(hostfile);
 	path_out = mm_malloc(len_out+1);

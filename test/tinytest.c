@@ -107,7 +107,7 @@ _testcase_run_forked(const struct testgroup_t *group,
 	 */
 	int ok;
 	char buffer[LONGEST_TEST_NAME+256];
-	STARTUPINFO si;
+	STARTUPINFOA si;
 	PROCESS_INFORMATION info;
 	DWORD exitcode;
 
@@ -126,7 +126,7 @@ _testcase_run_forked(const struct testgroup_t *group,
 	memset(&info, 0, sizeof(info));
 	si.cb = sizeof(si);
 
-	ok = CreateProcess(commandname, buffer, NULL, NULL, 0,
+	ok = CreateProcessA(commandname, buffer, NULL, NULL, 0,
 			   0, NULL, NULL, &si, &info);
 	if (!ok) {
 		printf("CreateProcess failed!\n");
