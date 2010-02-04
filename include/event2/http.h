@@ -374,7 +374,12 @@ void evhttp_request_own(struct evhttp_request *req);
 /** Returns 1 if the request is owned by the user */
 int evhttp_request_is_owned(struct evhttp_request *req);
 
-/** Returns the connection object associated with the request or NULL */
+/**
+ * Returns the connection object associated with the request or NULL
+ *
+ * The server needs to either free the request explicitly or call
+ * evhttp_send_reply_end().
+ */
 struct evhttp_connection *evhttp_request_get_connection(struct evhttp_request *req);
 
 void evhttp_connection_set_max_headers_size(struct evhttp_connection *evcon,
