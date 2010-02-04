@@ -3530,7 +3530,7 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 	GetNetworkParams_fn_t fn;
 
 	ASSERT_LOCKED(base);
-	if (!(handle = LoadLibrary("iphlpapi.dll"))) {
+	if (!(handle = LoadLibraryA("iphlpapi.dll"))) {
 		log(EVDNS_LOG_WARN, "Could not open iphlpapi.dll");
 		status = -1;
 		goto done;
@@ -3603,13 +3603,13 @@ config_nameserver_from_reg_key(struct evdns_base *base, HKEY key, const char *su
 	int status = 0;
 
 	ASSERT_LOCKED(base);
-	if (RegQueryValueEx(key, subkey, 0, &type, NULL, &bufsz)
+	if (RegQueryValueExA(key, subkey, 0, &type, NULL, &bufsz)
 	    != ERROR_MORE_DATA)
 		return -1;
 	if (!(buf = mm_malloc(bufsz)))
 		return -1;
 
-	if (RegQueryValueEx(key, subkey, 0, &type, (LPBYTE)buf, &bufsz)
+	if (RegQueryValueExA(key, subkey, 0, &type, (LPBYTE)buf, &bufsz)
 	    == ERROR_SUCCESS && bufsz > 1) {
 		status = evdns_nameserver_ip_add_line(base,buf);
 	}
@@ -3641,12 +3641,12 @@ load_nameservers_from_registry(struct evdns_base *base)
 	if (((int)GetVersion()) > 0) { /* NT */
 		HKEY nt_key = 0, interfaces_key = 0;
 
-		if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0,
+		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0,
 				 KEY_READ, &nt_key) != ERROR_SUCCESS) {
 			log(EVDNS_LOG_DEBUG,"Couldn't open nt key, %d",(int)GetLastError());
 			return -1;
 		}
-		r = RegOpenKeyEx(nt_key, "Interfaces", 0,
+		r = RegOpenKeyExA(nt_key, "Interfaces", 0,
 			     KEY_QUERY_VALUE|KEY_ENUMERATE_SUB_KEYS,
 			     &interfaces_key);
 		if (r != ERROR_SUCCESS) {
@@ -3661,7 +3661,7 @@ load_nameservers_from_registry(struct evdns_base *base)
 		RegCloseKey(nt_key);
 	} else {
 		HKEY win_key = 0;
-		if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WIN_NS_9X_KEY, 0,
+		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_9X_KEY, 0,
 				 KEY_READ, &win_key) != ERROR_SUCCESS) {
 			log(EVDNS_LOG_DEBUG, "Couldn't open registry key, %d", (int)GetLastError());
 			return -1;
