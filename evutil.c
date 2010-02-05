@@ -1242,13 +1242,15 @@ evutil_getaddrinfo_async(struct evdns_base *dns_base,
 const char *
 evutil_gai_strerror(int err)
 {
+	/* As a sneaky side-benefit, this case statement will get most
+	 * compilers to tell us if any of the error codes we defined
+	 * conflict with the platform's native error codes. */
 	switch (err) {
-	case EVUTIL_EAI_CANCEL: return "Request cancelled";
-#ifdef USE_NATIVE_GETADDRINFO
-	default:
-		return gai_strerror(err);
-#else
-	case 0: return "No error";
+	case EVUTIL_EAI_CANCEL:
+		return "Request cancelled";
+	case 0:
+		return "No error";
+
 	case EVUTIL_EAI_ADDRFAMILY:
 		return "address family for nodename not supported";
 	case EVUTIL_EAI_AGAIN:
@@ -1269,8 +1271,12 @@ evutil_gai_strerror(int err)
 		return "servname not supported for ai_socktype";
 	case EVUTIL_EAI_SOCKTYPE:
 		return "ai_socktype not supported";
-	case EVUTIL_EAI_SYSTEM: return "system error";
+	case EVUTIL_EAI_SYSTEM:
+		return "system error";
 	default:
+#ifdef USE_NATIVE_GETADDRINFO
+		return gai_strerror(err);
+#else
 		return "Unknown error code";
 #endif
 	}
