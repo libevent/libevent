@@ -410,6 +410,15 @@ evutil_socket_finished_connecting(evutil_socket_t fd)
 	return 1;
 }
 
+#if (EVUTIL_AI_PASSIVE|EVUTIL_AI_CANONNAME|EVUTIL_AI_NUMERICHOST| \
+     EVUTIL_AI_NUMERICSERV|EVUTIL_AI_V4MAPPED|EVUTIL_AI_ALL| \
+     EVUTIL_AI_ADDRCONFIG) != \
+    (EVUTIL_AI_PASSIVE^EVUTIL_AI_CANONNAME^EVUTIL_AI_NUMERICHOST^ \
+     EVUTIL_AI_NUMERICSERV^EVUTIL_AI_V4MAPPED^EVUTIL_AI_ALL^ \
+     EVUTIL_AI_ADDRCONFIG)
+#error "Some of our EVUTIL_AI_* flags seem to overlap with system AI_* flags"
+#endif
+
 /* We sometimes need to know whether we have an ipv4 address and whether we
    have an ipv6 address. If 'have_checked_interfaces', then we've already done
    the test.  If 'had_ipv4_address', then it turns out we had an ipv4 address.
