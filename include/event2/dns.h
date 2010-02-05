@@ -410,10 +410,9 @@ void evdns_cancel_request(struct evdns_base *base, struct evdns_request *req);
   @param base the evdns_base to which to apply this operation
   @param option the name of the configuration option to be modified
   @param val the value to be set
-  @param flags either 0 | DNS_OPTION_SEARCH | DNS_OPTION_MISC
   @return 0 if successful, or -1 if an error occurred
  */
-int evdns_base_set_option(struct evdns_base *base, const char *option, const char *val, int flags);
+int evdns_base_set_option(struct evdns_base *base, const char *option, const char *val);
 
 
 /**

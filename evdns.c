@@ -3236,11 +3236,11 @@ evdns_base_set_max_requests_inflight(struct evdns_base *base, int maxinflight)
 /* exported function */
 int
 evdns_base_set_option(struct evdns_base *base,
-    const char *option, const char *val, int flags)
+    const char *option, const char *val)
 {
 	int res;
 	EVDNS_LOCK(base);
-	res = evdns_base_set_option_impl(base, option, val, flags);
+	res = evdns_base_set_option_impl(base, option, val, DNS_OPTIONS_ALL);
 	EVDNS_UNLOCK(base);
 	return res;
 }
@@ -3341,7 +3341,7 @@ evdns_set_option(const char *option, const char *val, int flags)
 {
 	if (!current_base)
 		current_base = evdns_base_new(NULL, 0);
-	return evdns_base_set_option(current_base, option, val, flags);
+	return evdns_base_set_option(current_base, option, val);
 }
 
 static void
@@ -3378,7 +3378,7 @@ resolv_conf_parse_line(struct evdns_base *base, char *const start, int flags) {
 		const char *option;
 		while ((option = NEXT_TOKEN)) {
 			const char *val = strchr(option, ':');
-			evdns_base_set_option(base, option, val ? val+1 : "", flags);
+			evdns_base_set_option_impl(base, option, val ? val+1 : "", flags);
 		}
 	}
 #undef NEXT_TOKEN

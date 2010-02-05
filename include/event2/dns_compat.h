@@ -247,7 +247,7 @@ int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callb
 
   @param option the name of the configuration option to be modified
   @param val the value to be set
-  @param flags either 0 | DNS_OPTION_SEARCH | DNS_OPTION_MISC
+  @param flags Ignored.
   @return 0 if successful, or -1 if an error occurred
  */
 int evdns_set_option(const char *option, const char *val, int flags);

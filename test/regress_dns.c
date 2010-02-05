@@ -584,9 +584,9 @@ dns_retry_test(void *arg)
 
 	dns = evdns_base_new(base, 0);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
-	tt_assert(! evdns_base_set_option(dns, "timeout", "0.3", DNS_OPTIONS_ALL));
-	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "10", DNS_OPTIONS_ALL));
-	tt_assert(! evdns_base_set_option(dns, "initial-probe-timeout", "0.5", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "timeout", "0.3"));
+	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "10"));
+	tt_assert(! evdns_base_set_option(dns, "initial-probe-timeout", "0.5"));
 
 	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
 	    generic_dns_callback, &r1);
@@ -605,8 +605,8 @@ dns_retry_test(void *arg)
 	/* Now try again, but this time have the server get treated as
 	 * failed, so we can send it a test probe. */
 	drop_count = 4;
-	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "3", DNS_OPTIONS_ALL));
-	tt_assert(! evdns_base_set_option(dns, "attempts:", "4", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "3"));
+	tt_assert(! evdns_base_set_option(dns, "attempts:", "4"));
 	memset(&r1, 0, sizeof(r1));
 
 	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
@@ -672,9 +672,9 @@ dns_reissue_test(void *arg)
 
 	dns = evdns_base_new(base, 0);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
-	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.3", DNS_OPTIONS_ALL));
-	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "2", DNS_OPTIONS_ALL));
-	tt_assert(! evdns_base_set_option(dns, "attempts:", "5", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.3"));
+	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "2"));
+	tt_assert(! evdns_base_set_option(dns, "attempts:", "5"));
 
 	memset(&r1, 0, sizeof(r1));
 	evdns_base_resolve_ipv4(dns, "foof.example.com", 0,
@@ -733,8 +733,8 @@ dns_inflight_test(void *arg)
 
 	dns = evdns_base_new(base, 0);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
-	tt_assert(! evdns_base_set_option(dns, "max-inflight:", "3", DNS_OPTIONS_ALL));
-	tt_assert(! evdns_base_set_option(dns, "randomize-case:", "0", DNS_OPTIONS_ALL));
+	tt_assert(! evdns_base_set_option(dns, "max-inflight:", "3"));
+	tt_assert(! evdns_base_set_option(dns, "randomize-case:", "0"));
 
 	for(i=0;i<20;++i)
 		evdns_base_resolve_ipv4(dns, "foof.example.com", 0, generic_dns_callback, &r[i]);
