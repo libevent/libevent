@@ -704,6 +704,7 @@ end:
 		evdns_close_server_port(port2);
 }
 
+#if 0
 static void
 dumb_bytes_fn(char *p, size_t n)
 {
@@ -713,6 +714,7 @@ dumb_bytes_fn(char *p, size_t n)
 	for(i=0;i<n;++i)
 		p[i] = (char)(rand() & 7);
 }
+#endif
 
 static void
 dns_inflight_test(void *arg)
@@ -727,9 +729,11 @@ dns_inflight_test(void *arg)
 
 	tt_assert(regress_dnsserver(base, &portnum, reissue_table));
 
+#if 0
 	/* Make sure that having another (very bad!) RNG doesn't mess us
 	 * up. */
 	evdns_set_random_bytes_fn(dumb_bytes_fn);
+#endif
 
 	dns = evdns_base_new(base, 0);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));

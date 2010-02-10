@@ -1859,9 +1859,9 @@ long
 _evutil_weakrand(void)
 {
 #ifdef WIN32
-	return rand();
+       return rand();
 #else
-	return random();
+       return random();
 #endif
 }
 

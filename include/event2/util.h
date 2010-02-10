@@ -525,6 +525,18 @@ void evutil_freeaddrinfo(struct evutil_addrinfo *ai);
 
 const char *evutil_gai_strerror(int err);
 
+/* Generate n bytes of secure pseudorandom data, and store them in buf.
+ *
+ * By default, Libevent uses an ARC4-based random number generator, seeded
+ * using the platform's entropy source (/dev/urandom on Unix-like systems;
+ * CryptGenRandom on Windows).
+ */
+void evutil_secure_rng_get_bytes(void *buf, size_t n);
+
+int evutil_secure_rng_init(void);
+
+void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
+
 #ifdef __cplusplus
 }
 #endif

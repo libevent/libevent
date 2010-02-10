@@ -44,7 +44,7 @@ EXTRA_DIST = \
 	Doxyfile \
 	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
 	evport.c devpoll.c win32select.c event_rpcgen.py \
-	event_iocp.c buffer_iocp.c iocp-internal.h \
+	event_iocp.c buffer_iocp.c iocp-internal.h arc4random.c \
 	sample/Makefile.am sample/Makefile.in sample/event-test.c \
 	sample/signal-test.c sample/time-test.c \
 	test/Makefile.am test/Makefile.in test/bench.c test/regress.c \
@@ -107,7 +107,7 @@ event-config.h: config.h
 CORE_SRC = event.c evthread.c buffer.c \
 	bufferevent.c bufferevent_sock.c bufferevent_filter.c \
 	bufferevent_pair.c listener.c bufferevent_ratelim.c \
-	evmap.c	log.c evutil.c strlcpy.c $(SYS_SRC)
+	evmap.c	log.c evutil.c evutil_rand.c strlcpy.c $(SYS_SRC)
 EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
 
 
