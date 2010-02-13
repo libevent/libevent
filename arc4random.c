@@ -43,6 +43,10 @@
 #define ARC4RANDOM_EXPORT
 #endif
 
+#ifndef ARC4RANDOM_UINT32
+#define ARC4RANDOM_UINT32 uint32_t
+#endif
+
 #ifndef ARC4RANDOM_NO_INCLUDES
 #ifdef WIN32
 #include <wincrypt.h>
@@ -283,10 +287,10 @@ arc4random_addrandom(const unsigned char *dat, int datlen)
 #endif
 
 #ifndef ARC4RANDOM_NORANDOM
-ARC4RANDOM_EXPORT unsigned int
+ARC4RANDOM_EXPORT ARC4RANDOM_UINT32
 arc4random(void)
 {
-	unsigned int val;
+	ARC4RANDOM_UINT32 val;
 	_ARC4_LOCK();
 	arc4_count -= 4;
 	arc4_stir_if_needed();
@@ -324,7 +328,7 @@ arc4random_buf(void *_buf, size_t n)
 ARC4RANDOM_EXPORT unsigned int
 arc4random_uniform(unsigned int upper_bound)
 {
-	unsigned int r, min;
+	ARC4RANDOM_UINT32 r, min;
 
 	if (upper_bound < 2)
 		return 0;

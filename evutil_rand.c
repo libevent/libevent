@@ -39,11 +39,39 @@
 
 #ifdef _EVENT_HAVE_ARC4RANDOM
 #include <stdlib.h>
+#include <string.h>
 int
 evutil_secure_rng_init(void)
 {
 	return 0;
 }
+
+#ifndef _EVENT_HAVE_ARC4RANDOM_BUF
+static void
+arc4random_buf(void *buf, size_t n)
+{
+	unsigned char *b = buf;
+	/* Make sure that we start out with b at a 4-byte alignment; plenty
+	 * of CPUs care about this for 32-bit access. */
+	if (n >= 4 && ((ev_uintptr_t)b) & 3) {
+		ev_uint32_t u = arc4random();
+		int n_bytes = 4 - (((ev_uintptr_t)b) & 3);
+		memcpy(b, &u, n_bytes);
+		b += n_bytes;
+		n -= n_bytes;
+	}
+	while (n >= 4) {
+		*(ev_uint32_t*)b = arc4random();
+		b += 4;
+		n -= 4;
+	}
+	if (n) {
+		ev_uint32_t u = arc4random();
+		memcpy(b, &u, n);
+	}
+}
+#endif
+
 #else /* !_EVENT_HAVE_ARC4RANDOM { */
 
 #ifdef _EVENT_ssize_t
@@ -54,6 +82,7 @@ evutil_secure_rng_init(void)
 #define _ARC4_UNLOCK() EVLOCK_UNLOCK(arc4rand_lock, 0)
 static void *arc4rand_lock;
 
+#define ARC4RANDOM_UINT32 ev_uint32_t
 #define ARC4RANDOM_NOSTIR
 #define ARC4RANDOM_NORANDOM
 #define ARC4RANDOM_NOUNIFORM
@@ -87,6 +116,6 @@ evutil_secure_rng_get_bytes(void *buf, size_t n)
 void
 evutil_secure_rng_add_bytes(const char *buf, size_t n)
 {
-	arc4random_addrandom((const unsigned char*)buf, n);
+	arc4random_addrandom((unsigned char*)buf, n);
 }
 
