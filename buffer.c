@@ -2239,7 +2239,7 @@ done:
  */
 int
 evbuffer_add_file(struct evbuffer *outbuf, int fd,
-    off_t offset, size_t length)
+    off_t offset, off_t length)
 {
 #if defined(USE_SENDFILE) || defined(_EVENT_HAVE_MMAP)
 	struct evbuffer_chain *chain;
