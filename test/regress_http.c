@@ -2536,6 +2536,7 @@ terminate_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 		test_ok = 1;
 		evhttp_request_free(state->req);
 		event_loopexit(NULL);
+		return;
 	}
 
 	evbuffer_add_printf(evb, "%p", evb);
@@ -2552,9 +2553,6 @@ terminate_chunked_cb(struct evhttp_request *req, void *arg)
 {
 	struct terminate_state *state = arg;
 	struct timeval tv;
-
-	/* we need to hold on to this */
-	evhttp_request_own(req);
 
 	state->req = req;
 
