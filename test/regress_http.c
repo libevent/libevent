@@ -2523,6 +2523,7 @@ struct terminate_state {
 	struct evhttp_request *req;
 	struct bufferevent *bev;
 	int fd;
+	int gotclosecb: 1;
 } terminate_state;
 
 static void
@@ -2549,11 +2550,23 @@ terminate_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 }
 
 static void
+terminate_chunked_close_cb(struct evhttp_connection *evcon, void *arg)
+{
+	struct terminate_state *state = arg;
+	state->gotclosecb = 1;
+}
+
+static void
 terminate_chunked_cb(struct evhttp_request *req, void *arg)
 {
 	struct terminate_state *state = arg;
 	struct timeval tv;
 
+	/* we want to know if this connection closes on us */
+	evhttp_connection_set_closecb(
+		evhttp_request_get_connection(req),
+		terminate_chunked_close_cb, arg);
+	
 	state->req = req;
 
 	evhttp_send_reply_start(req, HTTP_OK, "OK");
@@ -2603,6 +2616,7 @@ http_terminate_chunked_test(void)
 
 	terminate_state.fd = fd;
 	terminate_state.bev = bev;
+	terminate_state.gotclosecb = 0;
 
 	/* first half of the http request */
 	http_request =
@@ -2616,6 +2630,9 @@ http_terminate_chunked_test(void)
 	    &tv);
 
 	event_dispatch();
+
+	if (terminate_state.gotclosecb == 0)
+		test_ok = 0;
 
  end:
 	if (fd >= 0)
