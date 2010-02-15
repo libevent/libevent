@@ -274,7 +274,7 @@
 /* #undef _EVENT_HAVE_WORKING_KQUEUE */
 
 /* Numeric representation of the version */
-#define _EVENT_NUMERIC_VERSION 0x02000302
+#define _EVENT_NUMERIC_VERSION 0x02000303
 
 /* Name of package */
 #define _EVENT_PACKAGE "libevent"
