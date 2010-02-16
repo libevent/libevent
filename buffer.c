@@ -535,13 +535,15 @@ int
 evbuffer_commit_space(struct evbuffer *buf,
     struct evbuffer_iovec *vec, int n_vecs)
 {
-	struct evbuffer_chain *prev = buf->previous_to_last;
-	struct evbuffer_chain *last = buf->last;
+	struct evbuffer_chain *last, *prev;
 	int result = -1;
 	size_t added;
 
-
 	EVBUFFER_LOCK(buf);
+
+	prev = buf->previous_to_last;
+	last = buf->last;
+
 	if (buf->freeze_end)
 		goto done;
 	if (n_vecs < 1 || n_vecs > 2)
@@ -1616,7 +1618,7 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
 int
 evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 {
-	struct evbuffer_chain *chain = buf->last;
+	struct evbuffer_chain *chain;
 	int n = EVBUFFER_MAX_READ;
         int result;
 
@@ -1630,6 +1632,8 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 #endif
 
         EVBUFFER_LOCK(buf);
+
+	chain = buf->last;
 
 	if (buf->freeze_end) {
 		result = -1;
