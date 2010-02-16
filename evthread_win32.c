@@ -38,13 +38,18 @@ struct event_base;
 
 #include "mm-internal.h"
 
+#define SPIN_COUNT 2000
+
 static void *
 evthread_win32_lock_create(unsigned locktype)
 {
 	CRITICAL_SECTION *lock = mm_malloc(sizeof(CRITICAL_SECTION));
 	if (!lock)
 		return NULL;
-	InitializeCriticalSection(lock);
+	if (InitializeCriticalSectionAndSpinCount(lock, SPIN_COUNT) == 0) {
+		mm_free(lock);
+		return NULL;
+	}
 	return lock;
 }
 

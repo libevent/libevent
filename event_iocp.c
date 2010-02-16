@@ -193,7 +193,7 @@ event_iocp_port_launch(void)
 		++port->n_live_threads;
 	}
 
-	InitializeCriticalSection(&port->lock);
+	InitializeCriticalSectionAndSpinCount(&port->lock, 1000);
 
 	return port;
 err:
