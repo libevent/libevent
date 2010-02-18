@@ -95,7 +95,7 @@ readcb(struct bufferevent *bev, void *arg)
 
 		if (evbuffer_get_length(evbuf) == 8333) {
 			test_ok++;
-                }
+		}
 
 		evbuffer_free(evbuf);
 	}
@@ -106,7 +106,7 @@ writecb(struct bufferevent *bev, void *arg)
 {
 	if (evbuffer_get_length(bev->output) == 0) {
 		test_ok++;
-        }
+	}
 }
 
 static void
@@ -202,11 +202,11 @@ wm_readcb(struct bufferevent *bev, void *arg)
 static void
 wm_writecb(struct bufferevent *bev, void *arg)
 {
-        assert(evbuffer_get_length(bev->output) <= 100);
+	assert(evbuffer_get_length(bev->output) <= 100);
 	if (evbuffer_get_length(bev->output) == 0) {
-                evbuffer_drain(bev->output, evbuffer_get_length(bev->output));
+		evbuffer_drain(bev->output, evbuffer_get_length(bev->output));
 		test_ok++;
-        }
+	}
 }
 
 static void
@@ -243,9 +243,9 @@ test_bufferevent_watermarks_impl(int use_pair)
 	/* limit the reading on the receiving bufferevent */
 	bufferevent_setwatermark(bev2, EV_READ, 10, 20);
 
-        /* Tell the sending bufferevent not to notify us till it's down to
-           100 bytes. */
-        bufferevent_setwatermark(bev1, EV_WRITE, 100, 2000);
+	/* Tell the sending bufferevent not to notify us till it's down to
+	   100 bytes. */
+	bufferevent_setwatermark(bev1, EV_WRITE, 100, 2000);
 
 	bufferevent_write(bev1, buffer, sizeof(buffer));
 
@@ -253,9 +253,9 @@ test_bufferevent_watermarks_impl(int use_pair)
 
 	tt_int_op(test_ok, ==, 2);
 
-        /* The write callback drained all the data from outbuf, so we
-         * should have removed the write event... */
-        tt_assert(!event_pending(&bev2->ev_write, EV_WRITE, NULL));
+	/* The write callback drained all the data from outbuf, so we
+	 * should have removed the write event... */
+	tt_assert(!event_pending(&bev2->ev_write, EV_WRITE, NULL));
 
 end:
 	bufferevent_free(bev1);
@@ -328,7 +328,7 @@ test_bufferevent_filters_impl(int use_pair)
 	char buffer[8333];
 	int i;
 
-        test_ok = 0;
+	test_ok = 0;
 
 	if (use_pair) {
 		struct bufferevent *pair[2];
@@ -467,7 +467,7 @@ test_bufferevent_connect(void *arg)
 #ifdef WIN32
 	if (!strcmp((char*)data->setup_data, "unset_connectex")) {
 		struct win32_extension_fns *ext =
-	            (struct win32_extension_fns *)
+		    (struct win32_extension_fns *)
 		    event_get_win32_extension_fns();
 		ext->ConnectEx = NULL;
 	}
@@ -615,12 +615,12 @@ end:
 
 struct testcase_t bufferevent_testcases[] = {
 
-        LEGACY(bufferevent, TT_ISOLATED),
-        LEGACY(bufferevent_pair, TT_ISOLATED),
-        LEGACY(bufferevent_watermarks, TT_ISOLATED),
-        LEGACY(bufferevent_pair_watermarks, TT_ISOLATED),
-        LEGACY(bufferevent_filters, TT_ISOLATED),
-        LEGACY(bufferevent_pair_filters, TT_ISOLATED),
+	LEGACY(bufferevent, TT_ISOLATED),
+	LEGACY(bufferevent_pair, TT_ISOLATED),
+	LEGACY(bufferevent_watermarks, TT_ISOLATED),
+	LEGACY(bufferevent_pair_watermarks, TT_ISOLATED),
+	LEGACY(bufferevent_filters, TT_ISOLATED),
+	LEGACY(bufferevent_pair_filters, TT_ISOLATED),
 	{ "bufferevent_connect", test_bufferevent_connect, TT_FORK|TT_NEED_BASE,
 	  &basic_setup, (void*)"" },
 	{ "bufferevent_connect_defer", test_bufferevent_connect,
@@ -633,19 +633,19 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 #ifdef _EVENT_HAVE_LIBZ
-        LEGACY(bufferevent_zlib, TT_ISOLATED),
+	LEGACY(bufferevent_zlib, TT_ISOLATED),
 #else
-        { "bufferevent_zlib", NULL, TT_SKIP, NULL, NULL },
+	{ "bufferevent_zlib", NULL, TT_SKIP, NULL, NULL },
 #endif
 
-        END_OF_TESTCASES,
+	END_OF_TESTCASES,
 };
 
 struct testcase_t bufferevent_iocp_testcases[] = {
 
-        LEGACY(bufferevent, TT_ISOLATED|TT_ENABLE_IOCP),
-        LEGACY(bufferevent_watermarks, TT_ISOLATED|TT_ENABLE_IOCP),
-        LEGACY(bufferevent_filters, TT_ISOLATED|TT_ENABLE_IOCP),
+	LEGACY(bufferevent, TT_ISOLATED|TT_ENABLE_IOCP),
+	LEGACY(bufferevent_watermarks, TT_ISOLATED|TT_ENABLE_IOCP),
+	LEGACY(bufferevent_filters, TT_ISOLATED|TT_ENABLE_IOCP),
 	{ "bufferevent_connect", test_bufferevent_connect,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, (void*)"" },
 	{ "bufferevent_connect_defer", test_bufferevent_connect,
@@ -662,5 +662,5 @@ struct testcase_t bufferevent_iocp_testcases[] = {
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
 	  (void*)"unset_connectex" },
 
-        END_OF_TESTCASES,
+	END_OF_TESTCASES,
 };

@@ -221,8 +221,8 @@ struct bufferevent_ops {
 	/** Called when the timeouts on the bufferevent have changed.*/
 	int (*adj_timeouts)(struct bufferevent *);
 
-        /** Called to flush data. */
-        int (*flush)(struct bufferevent *, short, enum bufferevent_flush_mode);
+	/** Called to flush data. */
+	int (*flush)(struct bufferevent *, short, enum bufferevent_flush_mode);
 
 	/** Called to access miscellaneous fields. */
 	int (*ctrl)(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);

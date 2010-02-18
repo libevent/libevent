@@ -86,7 +86,7 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 	static char signals[1];
 	ev_ssize_t n;
 
-        (void)arg; /* Suppress "unused variable" warning. */
+	(void)arg; /* Suppress "unused variable" warning. */
 
 	n = recv(fd, signals, sizeof(signals), 0);
 	if (n == -1)
@@ -120,7 +120,7 @@ evsig_init(struct event_base *base)
 	base->sig.evsig_caught = 0;
 	memset(&base->sig.evsigcaught, 0, sizeof(sig_atomic_t)*NSIG);
 
-        evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
+	evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
 
 	event_assign(&base->sig.ev_signal, base, base->sig.ev_signal_pair[1],
 		EV_READ | EV_PERSIST, evsig_cb, &base->sig.ev_signal);

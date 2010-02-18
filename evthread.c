@@ -60,7 +60,7 @@ evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 {
 	struct evthread_lock_callbacks *target =
 	    _evthread_lock_debugging_enabled
-	        ? &_original_lock_fns : &_evthread_lock_fns;
+	    ? &_original_lock_fns : &_evthread_lock_fns;
 
 	if (!cbs) {
 		memset(target, 0, sizeof(_evthread_lock_fns));

@@ -54,8 +54,8 @@ struct pollidx {
 
 struct pollop {
 	int event_count;		/* Highest number alloc */
-	int nfds;                       /* Highest number used */
-	int realloc_copy;               /* True iff we must realloc
+	int nfds;			/* Highest number used */
+	int realloc_copy;		/* True iff we must realloc
 					 * event_set_copy */
 	struct pollfd *event_set;
 	struct pollfd *event_set_copy;
@@ -74,7 +74,7 @@ const struct eventop pollops = {
 	poll_del,
 	poll_dispatch,
 	poll_dealloc,
-    0, /* doesn't need_reinit */
+	0, /* doesn't need_reinit */
 	EV_FEATURE_FDS,
 	sizeof(struct pollidx),
 };
@@ -163,7 +163,7 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 
 	if (res == -1) {
 		if (errno != EINTR) {
-                        event_warn("poll");
+			event_warn("poll");
 			return (-1);
 		}
 

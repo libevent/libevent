@@ -135,7 +135,7 @@ struct testcase_t listener_testcases[] = {
 	{ "randport", regress_pick_a_port, TT_FORK|TT_NEED_BASE,
 	  &basic_setup, NULL},
 
-        END_OF_TESTCASES,
+	END_OF_TESTCASES,
 };
 
 struct testcase_t listener_iocp_testcases[] = {
@@ -143,5 +143,5 @@ struct testcase_t listener_iocp_testcases[] = {
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP,
 	  &basic_setup, NULL},
 
-        END_OF_TESTCASES,
+	END_OF_TESTCASES,
 };

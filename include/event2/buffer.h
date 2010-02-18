@@ -114,7 +114,7 @@ struct evbuffer_iovec {
   Allocate storage for a new evbuffer.
 
   @return a pointer to a newly allocated evbuffer struct, or NULL if an error
-          occurred
+	occurred
  */
 struct evbuffer *evbuffer_new(void);
 
@@ -425,7 +425,7 @@ int evbuffer_write(struct evbuffer *buffer, evutil_socket_t fd);
   @param buffer the evbuffer to be written and drained
   @param fd the file descriptor to be written to
   @param howmuch the largest allowable number of bytes to write, or -1
-        to write as many bytes as we can.
+	to write as many bytes as we can.
   @return the number of bytes written, or -1 if an error occurred
   @see evbuffer_read()
  */
@@ -516,10 +516,10 @@ struct evbuffer_ptr evbuffer_search_eol(struct evbuffer *buffer,
 
 /** Structure passed to an evbuffer callback */
 struct evbuffer_cb_info {
-        /** The size of */
-        size_t orig_size;
-        size_t n_added;
-        size_t n_deleted;
+	/** The size of */
+	size_t orig_size;
+	size_t n_added;
+	size_t n_deleted;
 };
 
 /** Function to peek at data inside an evbuffer without removing it or
@@ -581,7 +581,7 @@ struct evbuffer_cb_entry;
 
   @param buffer the evbuffer to be monitored
   @param cb the callback function to invoke when the evbuffer is modified,
-            or NULL to remove all callbacks.
+	or NULL to remove all callbacks.
   @param cbarg an argument to be provided to the callback function
   @return a handle to the callback on success, or NULL on failure.
  */
@@ -657,7 +657,7 @@ void evbuffer_cb_unsuspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb
 
   @param buf the evbuffer to make contiguous
   @param size the number of bytes to make contiguous, or -1 to make the
-         entire buffer contiguous.
+	entire buffer contiguous.
   @return a pointer to the contiguous memory array
 */
 

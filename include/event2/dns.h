@@ -244,7 +244,7 @@ const char *evdns_err_to_string(int err);
   @see evdns_base_nameserver_ip_add()
  */
 int evdns_base_nameserver_add(struct evdns_base *base,
-                              unsigned long int address);
+    unsigned long int address);
 
 /**
   Get the number of configured nameservers.
@@ -302,7 +302,7 @@ int evdns_base_resume(struct evdns_base *base);
   @see evdns_base_nameserver_add()
  */
 int evdns_base_nameserver_ip_add(struct evdns_base *base,
-                                 const char *ip_as_string);
+    const char *ip_as_string);
 
 struct evdns_request;
 
@@ -406,10 +406,10 @@ int evdns_base_set_option(struct evdns_base *base, const char *option, const cha
 
   @param base the evdns_base to which to apply this operation
   @param flags any of DNS_OPTION_NAMESERVERS|DNS_OPTION_SEARCH|DNS_OPTION_MISC|
-         DNS_OPTIONS_HOSTSFILE|DNS_OPTIONS_ALL
+    DNS_OPTIONS_HOSTSFILE|DNS_OPTIONS_ALL
   @param filename the path to the resolv.conf file
   @return 0 if successful, or various positive error codes if an error
-          occurred (see above)
+    occurred (see above)
   @see resolv.conf(3), evdns_config_windows_nameservers()
  */
 int evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char *const filename);

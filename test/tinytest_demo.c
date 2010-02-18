@@ -189,7 +189,7 @@ struct testgroup_t groups[] = {
 	/* Every group has a 'prefix', and an array of tests.  That's it. */
 	{ "demo/", demo_tests },
 
-        END_OF_GROUPS
+	END_OF_GROUPS
 };
 
 

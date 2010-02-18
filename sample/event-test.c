@@ -77,13 +77,13 @@ main (int argc, char **argv)
 #ifdef WIN32
 	HANDLE socket;
 	/* Open a file. */
-	socket = CreateFileA("test.txt",               /* open File */
-			GENERIC_READ,                 /* open for reading */
-			0,                            /* do not share */
-			NULL,                         /* no security */
-			OPEN_EXISTING,                /* existing file only */
-			FILE_ATTRIBUTE_NORMAL,        /* normal file */
-			NULL);                        /* no attr. template */
+	socket = CreateFileA("test.txt",	/* open File */
+			GENERIC_READ,		/* open for reading */
+			0,			/* do not share */
+			NULL,			/* no security */
+			OPEN_EXISTING,		/* existing file only */
+			FILE_ATTRIBUTE_NORMAL,	/* normal file */
+			NULL);			/* no attr. template */
 
 	if(socket == INVALID_HANDLE_VALUE)
 		return 1;

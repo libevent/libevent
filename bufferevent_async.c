@@ -73,8 +73,8 @@ const struct bufferevent_ops bufferevent_ops_async = {
 	be_async_disable,
 	be_async_destruct,
 	_bufferevent_generic_adj_timeouts,
-        be_async_flush,
-        be_async_ctrl,
+	be_async_flush,
+	be_async_ctrl,
 };
 
 struct bufferevent_async {

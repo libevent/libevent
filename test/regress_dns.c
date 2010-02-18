@@ -90,7 +90,7 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 		goto out;
 	}
 
-        TT_BLATHER(("type: %d, count: %d, ttl: %d: ", type, count, ttl));
+	TT_BLATHER(("type: %d, count: %d, ttl: %d: ", type, count, ttl));
 
 	switch (type) {
 	case DNS_IPv6_AAAA: {
@@ -118,7 +118,7 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 		if (ttl < 0)
 			goto out;
 		for (i = 0; i < count; ++i)
-                        TT_BLATHER(("%s ", inet_ntoa(in_addrs[i])));
+			TT_BLATHER(("%s ", inet_ntoa(in_addrs[i])));
 		break;
 	}
 	case DNS_PTR:
@@ -148,10 +148,10 @@ dns_gethostbyname(void)
 	evdns_resolve_ipv4("www.monkey.org", 0, dns_gethostbyname_cb, NULL);
 	event_dispatch();
 
-        tt_int_op(dns_ok, ==, DNS_IPv4_A);
-        test_ok = dns_ok;
+	tt_int_op(dns_ok, ==, DNS_IPv4_A);
+	test_ok = dns_ok;
 end:
-        ;
+	;
 }
 
 static void
@@ -161,14 +161,14 @@ dns_gethostbyname6(void)
 	evdns_resolve_ipv6("www.ietf.org", 0, dns_gethostbyname_cb, NULL);
 	event_dispatch();
 
-        if (!dns_ok && dns_err == DNS_ERR_TIMEOUT) {
-                tt_skip();
-        }
+	if (!dns_ok && dns_err == DNS_ERR_TIMEOUT) {
+		tt_skip();
+	}
 
-        tt_int_op(dns_ok, ==, DNS_IPv6_AAAA);
-        test_ok = 1;
+	tt_int_op(dns_ok, ==, DNS_IPv6_AAAA);
+	test_ok = 1;
 end:
-        ;
+	;
 }
 
 static void
@@ -180,10 +180,10 @@ dns_gethostbyaddr(void)
 	evdns_resolve_reverse(&in, 0, dns_gethostbyname_cb, NULL);
 	event_dispatch();
 
-        tt_int_op(dns_ok, ==, DNS_PTR);
-        test_ok = dns_ok;
+	tt_int_op(dns_ok, ==, DNS_PTR);
+	test_ok = dns_ok;
 end:
-        ;
+	;
 }
 
 static void
@@ -194,24 +194,24 @@ dns_resolve_reverse(void *ptr)
 	struct evdns_base *dns = evdns_base_new(base, 1/* init name servers */);
 	struct evdns_request *req = NULL;
 
-        tt_assert(base);
-        tt_assert(dns);
+	tt_assert(base);
+	tt_assert(dns);
 	in.s_addr = htonl(0x7f000001ul); /* 127.0.0.1 */
 	dns_ok = 0;
 
 	req = evdns_base_resolve_reverse(
 		dns, &in, 0, dns_gethostbyname_cb, base);
-        tt_assert(req);
+	tt_assert(req);
 
 	event_base_dispatch(base);
 
-        tt_int_op(dns_ok, ==, DNS_PTR);
+	tt_int_op(dns_ok, ==, DNS_PTR);
 
 end:
-        if (dns)
-                evdns_base_free(dns, 0);
-        if (base)
-                event_base_free(base);
+	if (dns)
+		evdns_base_free(dns, 0);
+	if (base)
+		event_base_free(base);
 }
 
 static int n_server_responses = 0;
@@ -262,7 +262,7 @@ dns_server_request_cb(struct evdns_server_request *req, void *data)
 			    "ZZ-INET6.EXAMPLE.COM", 54322);
 			if (r<0)
 				dns_ok = 0;
-                } else if (qtype == EVDNS_TYPE_A &&
+		} else if (qtype == EVDNS_TYPE_A &&
 		    qclass == EVDNS_CLASS_INET &&
 		    !evutil_ascii_strcasecmp(qname, "drop.example.com")) {
 			if (evdns_server_request_drop(req)<0)
@@ -362,7 +362,7 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 static void
 dns_server(void)
 {
-        evutil_socket_t sock=-1;
+	evutil_socket_t sock=-1;
 	struct sockaddr_in my_addr;
 	struct evdns_server_port *port=NULL;
 	struct in_addr resolve_addr;
@@ -381,11 +381,11 @@ dns_server(void)
 	tt_int_op(evdns_base_count_nameservers(base), ==, 1);
 	/* Now configure a nameserver port. */
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
-        if (sock<0) {
-                tt_abort_perror("socket");
-        }
+	if (sock<0) {
+		tt_abort_perror("socket");
+	}
 
-        evutil_make_socket_nonblocking(sock);
+	evutil_make_socket_nonblocking(sock);
 
 	memset(&my_addr, 0, sizeof(my_addr));
 	my_addr.sin_family = AF_INET;
@@ -403,12 +403,12 @@ dns_server(void)
 					   dns_server_gethostbyname_cb, NULL);
 	resolve_addr.s_addr = htonl(0xc0a80b0bUL); /* 192.168.11.11 */
 	evdns_base_resolve_reverse(base, &resolve_addr, 0,
-            dns_server_gethostbyname_cb, NULL);
+	    dns_server_gethostbyname_cb, NULL);
 	memcpy(resolve_addr6.s6_addr,
 	    "\xff\xf0\x00\x00\x00\x00\xaa\xaa"
 	    "\x11\x11\x00\x00\x00\x00\xef\xef", 16);
 	evdns_base_resolve_reverse_ipv6(base, &resolve_addr6, 0,
-            dns_server_gethostbyname_cb, (void*)6);
+	    dns_server_gethostbyname_cb, (void*)6);
 
 	req = evdns_base_resolve_ipv4(base,
 	    "drop.example.com", DNS_QUERY_NO_SEARCH,
@@ -419,13 +419,13 @@ dns_server(void)
 	event_dispatch();
 
 	tt_assert(dns_got_cancel);
-        test_ok = dns_ok;
+	test_ok = dns_ok;
 
 end:
-        if (port)
-                evdns_close_server_port(port);
-        if (sock >= 0)
-                EVUTIL_CLOSESOCKET(sock);
+	if (port)
+		evdns_close_server_port(port);
+	if (sock >= 0)
+		EVUTIL_CLOSESOCKET(sock);
 	if (base)
 		evdns_base_free(base, 0);
 }
@@ -963,7 +963,7 @@ test_bufferevent_connect_hostname(void *arg)
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", dns_port);
 	evdns_base_nameserver_ip_add(dns, buf);
 
-	/* Now, finally, at long last, launch the bufferevents.  One should do
+	/* Now, finally, at long last, launch the bufferevents.	 One should do
 	 * a failing lookup IP, one should do a successful lookup by IP,
 	 * and one should do a successful lookup by hostname. */
 	be1 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
@@ -1017,7 +1017,7 @@ end:
 	if (server_fd>=0)
 		EVUTIL_CLOSESOCKET(server_fd);
 	if (port)
-                evdns_close_server_port(port);
+		evdns_close_server_port(port);
 	if (dns)
 		evdns_base_free(dns, 0);
 	if (be1)
@@ -1257,14 +1257,14 @@ test_getaddrinfo_async(void *arg)
 	tt_assert(r);
 
 	/* 3: PF_INET request for v4assert.example.com should not generate a
-	 * v6 request.  The server will fail the test if it does. */
+	 * v6 request.	The server will fail the test if it does. */
 	hints.ai_family = PF_INET;
 	r = evdns_getaddrinfo(dns_base, "v4assert.example.com", "8003",
 	    &hints, gai_cb, &a_out[3]);
 	tt_assert(r);
 
 	/* 4: PF_INET6 request for v6assert.example.com should not generate a
-	 * v4 request.  The server will fail the test if it does. */
+	 * v4 request.	The server will fail the test if it does. */
 	hints.ai_family = PF_INET6;
 	r = evdns_getaddrinfo(dns_base, "v6assert.example.com", "8004",
 	    &hints, gai_cb, &a_out[4]);
@@ -1297,7 +1297,7 @@ test_getaddrinfo_async(void *arg)
 	    "8008", &hints, gai_cb, &a_out[8]);
 	tt_assert(r);
 
-	/* 9: AI_ADDRCONFIG should at least not crash.  Can't test it more
+	/* 9: AI_ADDRCONFIG should at least not crash.	Can't test it more
 	 * without knowing what kind of internet we have. */
 	hints.ai_flags |= EVUTIL_AI_ADDRCONFIG;
 	r = evdns_getaddrinfo(dns_base, "both.example.com",
@@ -1425,22 +1425,22 @@ end:
 			evutil_freeaddrinfo(a_out[i].ai);
 	}
 	if (port)
-                evdns_close_server_port(port);
+		evdns_close_server_port(port);
 	if (dns_base)
 		evdns_base_free(dns_base, 0);
 }
 
 
-#define DNS_LEGACY(name, flags)                                        \
+#define DNS_LEGACY(name, flags)					       \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
-                    dns_##name }
+		    dns_##name }
 
 struct testcase_t dns_testcases[] = {
-        DNS_LEGACY(server, TT_FORK|TT_NEED_BASE),
-        DNS_LEGACY(gethostbyname, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
-        DNS_LEGACY(gethostbyname6, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
-        DNS_LEGACY(gethostbyaddr, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
-        { "resolve_reverse", dns_resolve_reverse, TT_FORK, NULL, NULL },
+	DNS_LEGACY(server, TT_FORK|TT_NEED_BASE),
+	DNS_LEGACY(gethostbyname, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
+	DNS_LEGACY(gethostbyname6, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
+	DNS_LEGACY(gethostbyaddr, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
+	{ "resolve_reverse", dns_resolve_reverse, TT_FORK, NULL, NULL },
 	{ "search", dns_search_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "reissue", dns_reissue_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
@@ -1451,6 +1451,6 @@ struct testcase_t dns_testcases[] = {
 	{ "getaddrinfo_async", test_getaddrinfo_async,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"" },
 
-        END_OF_TESTCASES
+	END_OF_TESTCASES
 };
 

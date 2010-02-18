@@ -99,11 +99,11 @@ regress_get_dnsserver(struct event_base *base,
 	struct sockaddr_in my_addr;
 
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
-        if (sock <= 0) {
-                tt_abort_perror("socket");
-        }
+	if (sock <= 0) {
+		tt_abort_perror("socket");
+	}
 
-        evutil_make_socket_nonblocking(sock);
+	evutil_make_socket_nonblocking(sock);
 
 	memset(&my_addr, 0, sizeof(my_addr));
 	my_addr.sin_family = AF_INET;
@@ -126,10 +126,10 @@ end:
 void
 regress_clean_dnsserver(void)
 {
-        if (dns_port)
-                evdns_close_server_port(dns_port);
-        if (dns_sock >= 0)
-                EVUTIL_CLOSESOCKET(dns_sock);
+	if (dns_port)
+		evdns_close_server_port(dns_port);
+	if (dns_sock >= 0)
+		EVUTIL_CLOSESOCKET(dns_sock);
 }
 
 void

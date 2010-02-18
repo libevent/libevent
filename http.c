@@ -115,37 +115,37 @@ static int
 fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	size_t hostlen, char *serv, size_t servlen, int flags)
 {
-        struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+	struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 
-        if (serv != NULL) {
-				char tmpserv[16];
-				evutil_snprintf(tmpserv, sizeof(tmpserv),
-					"%d", ntohs(sin->sin_port));
-                if (strlcpy(serv, tmpserv, servlen) >= servlen)
-                        return (-1);
-        }
+	if (serv != NULL) {
+		char tmpserv[16];
+		evutil_snprintf(tmpserv, sizeof(tmpserv),
+		    "%d", ntohs(sin->sin_port));
+		if (strlcpy(serv, tmpserv, servlen) >= servlen)
+			return (-1);
+	}
 
-        if (host != NULL) {
-                if (flags & NI_NUMERICHOST) {
-                        if (strlcpy(host, inet_ntoa(sin->sin_addr),
-                            hostlen) >= hostlen)
-                                return (-1);
-                        else
-                                return (0);
-                } else {
-						struct hostent *hp;
-                        hp = gethostbyaddr((char *)&sin->sin_addr,
-                            sizeof(struct in_addr), AF_INET);
-                        if (hp == NULL)
-                                return (-2);
+	if (host != NULL) {
+		if (flags & NI_NUMERICHOST) {
+			if (strlcpy(host, inet_ntoa(sin->sin_addr),
+			    hostlen) >= hostlen)
+				return (-1);
+			else
+				return (0);
+		} else {
+			struct hostent *hp;
+			hp = gethostbyaddr((char *)&sin->sin_addr,
+			    sizeof(struct in_addr), AF_INET);
+			if (hp == NULL)
+				return (-2);
 
-                        if (strlcpy(host, hp->h_name, hostlen) >= hostlen)
-                                return (-1);
-                        else
-                                return (0);
-                }
-        }
-        return (0);
+			if (strlcpy(host, hp->h_name, hostlen) >= hostlen)
+				return (-1);
+			else
+				return (0);
+		}
+	}
+	return (0);
 }
 
 #endif
@@ -292,8 +292,8 @@ evhttp_method(enum evhttp_cmd_type type)
 /**
  * Determines if a response should have a body.
  * Follows the rules in RFC 2616 section 4.3.
- * @return 1 if the response MUST have a body;
- *         0 if the response MUST NOT have a body.
+ * @return 1 if the response MUST have a body; 0 if the response MUST NOT have
+ *     a body.
  */
 static int
 evhttp_response_needs_body(struct evhttp_request *req)
@@ -663,7 +663,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 
 	if (con_outgoing) {
 		/* idle or close the connection */
-	        int need_close;
+		int need_close;
 		TAILQ_REMOVE(&evcon->requests, req, next);
 		req->evcon = NULL;
 
@@ -1320,9 +1320,9 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	} else if (strcmp(method, "HEAD") == 0) {
 		req->type = EVHTTP_REQ_HEAD;
 	} else if (strcmp(method, "PUT") == 0) {
-                req->type = EVHTTP_REQ_PUT;
+		req->type = EVHTTP_REQ_PUT;
 	} else if (strcmp(method, "DELETE") == 0) {
-                req->type = EVHTTP_REQ_DELETE;
+		req->type = EVHTTP_REQ_DELETE;
 	} else {
 		event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
@@ -2959,7 +2959,7 @@ evhttp_get_request_connection(
 
 	evcon->max_headers_size = http->default_max_headers_size;
 	evcon->max_body_size = http->default_max_body_size;
-        
+
 	evcon->flags |= EVHTTP_CON_INCOMING;
 	evcon->state = EVCON_READING_FIRSTLINE;
 
@@ -3072,26 +3072,26 @@ name_from_addr(struct sockaddr *sa, ev_socklen_t salen,
 static evutil_socket_t
 bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
 {
-        evutil_socket_t fd;
+	evutil_socket_t fd;
 
 	int on = 1, r;
 	int serrno;
 
-        /* Create listen socket */
-        fd = socket(ai ? ai->ai_family : AF_INET, SOCK_STREAM, 0);
-        if (fd == -1) {
+	/* Create listen socket */
+	fd = socket(ai ? ai->ai_family : AF_INET, SOCK_STREAM, 0);
+	if (fd == -1) {
 			event_sock_warn(-1, "socket");
 			return (-1);
-        }
+	}
 
 	if (evutil_make_socket_nonblocking(fd) < 0)
 		goto out;
 	if (evutil_make_socket_closeonexec(fd) < 0)
 		goto out;
 
-        setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));
+	setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));
 	if (reuse)
-                evutil_make_listen_socket_reuseable(fd);
+		evutil_make_listen_socket_reuseable(fd);
 
 	if (ai != NULL) {
 		r = bind(fd, ai->ai_addr, ai->ai_addrlen);
@@ -3111,28 +3111,28 @@ bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
 static struct evutil_addrinfo *
 make_addrinfo(const char *address, ev_uint16_t port)
 {
-        struct evutil_addrinfo *ai = NULL;
+	struct evutil_addrinfo *ai = NULL;
 
-        struct evutil_addrinfo hints;
-        char strport[NI_MAXSERV];
-        int ai_result;
+	struct evutil_addrinfo hints;
+	char strport[NI_MAXSERV];
+	int ai_result;
 
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_STREAM;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
 	/* turn NULL hostname into INADDR_ANY, and skip looking up any address
 	 * types we don't have an interface to connect to. */
-        hints.ai_flags = EVUTIL_AI_PASSIVE|EVUTIL_AI_ADDRCONFIG;
-        evutil_snprintf(strport, sizeof(strport), "%d", port);
-        if ((ai_result = evutil_getaddrinfo(address, strport, &hints, &ai))
+	hints.ai_flags = EVUTIL_AI_PASSIVE|EVUTIL_AI_ADDRCONFIG;
+	evutil_snprintf(strport, sizeof(strport), "%d", port);
+	if ((ai_result = evutil_getaddrinfo(address, strport, &hints, &ai))
 	    != 0) {
-                if (ai_result == EVUTIL_EAI_SYSTEM)
-                        event_warn("getaddrinfo");
-                else
-                        event_warnx("getaddrinfo: %s",
+		if (ai_result == EVUTIL_EAI_SYSTEM)
+			event_warn("getaddrinfo");
+		else
+			event_warnx("getaddrinfo: %s",
 			    evutil_gai_strerror(ai_result));
 		return (NULL);
-        }
+	}
 
 	return (ai);
 }

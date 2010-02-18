@@ -149,7 +149,7 @@ zlib_input_filter(struct evbuffer *src, struct evbuffer *dst,
 
 	} while (evbuffer_get_length(src) > 0);
 
-        ++infilter_calls;
+	++infilter_calls;
 
 	return (BEV_OK);
 }
@@ -226,7 +226,7 @@ readcb(struct bufferevent *bev, void *arg)
 
 		if (evbuffer_get_length(evbuf) == 8333) {
 			++readcb_finished;
-                }
+		}
 
 		evbuffer_free(evbuf);
 	}
@@ -237,7 +237,7 @@ writecb(struct bufferevent *bev, void *arg)
 {
 	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
 		++writecb_finished;
-        }
+	}
 }
 
 static void
@@ -253,10 +253,10 @@ test_bufferevent_zlib(void *arg)
 	char buffer[8333];
 	z_stream z_input, z_output;
 	int i, pair[2]={-1,-1}, r;
-        (void)arg;
+	(void)arg;
 
 	infilter_calls = outfilter_calls = readcb_finished = writecb_finished
-            = errorcb_invoked = 0;
+	    = errorcb_invoked = 0;
 
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
 		tt_abort_perror("socketpair");
@@ -299,17 +299,17 @@ test_bufferevent_zlib(void *arg)
 
 	event_dispatch();
 
-        tt_want(infilter_calls);
-        tt_want(outfilter_calls);
-        tt_want(readcb_finished);
-        tt_want(writecb_finished);
-        tt_want(!errorcb_invoked);
+	tt_want(infilter_calls);
+	tt_want(outfilter_calls);
+	tt_want(readcb_finished);
+	tt_want(writecb_finished);
+	tt_want(!errorcb_invoked);
 
-        test_ok = 1;
+	test_ok = 1;
 end:
-        if (bev1)
-                bufferevent_free(bev1);
-        if (bev2)
+	if (bev1)
+		bufferevent_free(bev1);
+	if (bev2)
 		bufferevent_free(bev2);
 
 	if (pair[0] >= 0)

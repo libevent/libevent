@@ -411,9 +411,9 @@ int event_base_got_break(struct event_base *);
 #define evtimer_initialized(ev)		_event_initialized((ev), 0)
 
 #define evsignal_add(ev, tv)		event_add((ev), (tv))
-#define evsignal_assign(ev, b, x, cb, arg)                   \
+#define evsignal_assign(ev, b, x, cb, arg)			\
 	event_assign((ev), (b), (x), EV_SIGNAL|EV_PERSIST, cb, (arg))
-#define evsignal_new(b, x, cb, arg) \
+#define evsignal_new(b, x, cb, arg)				\
 	event_new((b), (x), EV_SIGNAL|EV_PERSIST, (cb), (arg))
 #define evsignal_del(ev)		event_del(ev)
 #define evsignal_pending(ev, tv)	event_pending((ev), EV_SIGNAL, (tv))

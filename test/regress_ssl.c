@@ -396,5 +396,5 @@ struct testcase_t ssl_testcases[] = {
 	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
-        END_OF_TESTCASES,
+	END_OF_TESTCASES,
 };

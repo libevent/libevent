@@ -104,7 +104,7 @@ struct event_overlapped {
 
     @param overlapped The struct event_overlapped to initialize
     @param cb The callback that should be invoked once the IO operation has
-        finished.
+	finished.
  */
 void event_overlapped_init(struct event_overlapped *, iocp_callback cb);
 

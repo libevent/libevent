@@ -57,7 +57,7 @@
 #include "log-internal.h"
 
 static void _warn_helper(int severity, const char *errstr, const char *fmt,
-                         va_list ap);
+    va_list ap);
 static void event_log(int severity, const char *msg);
 
 static event_fatal_cb fatal_fn = NULL;

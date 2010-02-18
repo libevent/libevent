@@ -126,17 +126,17 @@ void
 regress_threads(void *arg)
 {
 	struct event_base *base;
-        (void) arg;
+	(void) arg;
 
 	pthread_mutex_init(&count_lock, NULL);
 
-        if (evthread_use_pthreads()<0)
+	if (evthread_use_pthreads()<0)
 		tt_abort_msg("Couldn't initialize pthreads!");
 
-        base = event_base_new();
-        if (evthread_make_base_notifiable(base)<0) {
-                tt_abort_msg("Couldn't make base notifiable!");
-        }
+	base = event_base_new();
+	if (evthread_make_base_notifiable(base)<0) {
+		tt_abort_msg("Couldn't make base notifiable!");
+	}
 
 	pthread_basic(base);
 
@@ -144,5 +144,5 @@ regress_threads(void *arg)
 
 	event_base_free(base);
 end:
-        ;
+	;
 }

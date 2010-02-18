@@ -830,8 +830,8 @@ http_connection_async_test(void)
 		evhttp_connection_free(evcon);
 	if (http)
 		evhttp_free(http);
-        if (dns_base)
-                evdns_base_free(dns_base, 0);
+	if (dns_base)
+		evdns_base_free(dns_base, 0);
 	regress_clean_dnsserver();
 }
 
@@ -1658,7 +1658,7 @@ static void
 http_base_test(void)
 {
 	struct event_base *tmp;
-        struct bufferevent *bev;
+	struct bufferevent *bev;
 	int fd;
 	const char *http_request;
 	short port = -1;
@@ -2491,8 +2491,8 @@ http_data_length_constraints_test(void)
 	req = evhttp_request_new(http_data_length_constraints_test_done, NULL);
 	tt_assert(req);
 	evhttp_add_header(req->output_headers, "Host", "somehost");
-        
-        /* GET /?arg=verylongvalue HTTP/1.1 */
+
+	/* GET /?arg=verylongvalue HTTP/1.1 */
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, long_str) == -1) {
 		tt_abort_msg("Couldn't make request");
 	}
@@ -2507,7 +2507,7 @@ http_data_length_constraints_test(void)
 	}
 	event_dispatch();
 
-        test_ok = 1;
+	test_ok = 1;
  end:
 	if (evcon)
 		evhttp_connection_free(evcon);
@@ -2566,7 +2566,7 @@ terminate_chunked_cb(struct evhttp_request *req, void *arg)
 	evhttp_connection_set_closecb(
 		evhttp_request_get_connection(req),
 		terminate_chunked_close_cb, arg);
-	
+
 	state->req = req;
 
 	evhttp_send_reply_start(req, HTTP_OK, "OK");
@@ -2643,7 +2643,7 @@ http_terminate_chunked_test(void)
 
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
-                    http_##name##_test }
+		    http_##name##_test }
 
 struct testcase_t http_testcases[] = {
 	{ "primitives", http_primitives, 0, NULL, NULL },

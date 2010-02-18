@@ -96,7 +96,7 @@ static struct ipv6_entry {
 	{ "ffff", { 0, 0, 0, 0 }, BAD },
 	{ "fffff::", { 0, 0, 0, 0 }, BAD },
 	{ "fffff::", { 0, 0, 0, 0 }, BAD },
-        { "::1.0.1.1000", { 0, 0, 0, 0 }, BAD },
+	{ "::1.0.1.1000", { 0, 0, 0, 0 }, BAD },
 	{ "1:2:33333:4::", { 0, 0, 0, 0 }, BAD },
 	{ "1:2:3:4:5:6:7:8:9", { 0, 0, 0, 0 }, BAD },
 	{ "1::2::3", { 0, 0, 0, 0 }, BAD },
@@ -229,7 +229,7 @@ regress_sockaddr_port_parse(void *ptr)
 
 	for (i = 0; sa_port_ents[i].parse; ++i) {
 		struct sa_port_ent *ent = &sa_port_ents[i];
-                int len = sizeof(ss);
+		int len = sizeof(ss);
 		memset(&ss, 0, sizeof(ss));
 		r = evutil_parse_sockaddr_port(ent->parse, (struct sockaddr*)&ss, &len);
 		if (r < 0) {
@@ -249,13 +249,13 @@ regress_sockaddr_port_parse(void *ptr)
 			sin.sin_family = AF_INET;
 			sin.sin_port = htons(ent->port);
 			r = evutil_inet_pton(AF_INET, ent->addr, &sin.sin_addr);
-                        if (1 != r) {
+			if (1 != r) {
 				TT_FAIL(("Couldn't parse ipv4 target %s.", ent->addr));
 			} else if (memcmp(&sin, &ss, sizeof(sin))) {
 				TT_FAIL(("Parse for %s was not as expected.", ent->parse));
 			} else if (len != sizeof(sin)) {
-                                TT_FAIL(("Length for %s not as expected.",ent->parse));
-                        }
+				TT_FAIL(("Length for %s not as expected.",ent->parse));
+			}
 		} else {
 			struct sockaddr_in6 sin6;
 			memset(&sin6, 0, sizeof(sin6));
@@ -270,7 +270,7 @@ regress_sockaddr_port_parse(void *ptr)
 			} else if (memcmp(&sin6, &ss, sizeof(sin6))) {
 				TT_FAIL(("Parse for %s was not as expected.", ent->parse));
 			} else if (len != sizeof(sin6)) {
-                                TT_FAIL(("Length for %s not as expected.",ent->parse));
+				TT_FAIL(("Length for %s not as expected.",ent->parse));
 			}
 		}
 	}
@@ -281,17 +281,17 @@ static struct sa_pred_ent {
 
 	int is_loopback;
 } sa_pred_entries[] = {
-	{ "127.0.0.1",   1 },
-	{ "127.0.3.2",   1 },
-	{ "128.1.2.3",   0 },
-	{ "18.0.0.1",    0 },
+	{ "127.0.0.1",	 1 },
+	{ "127.0.3.2",	 1 },
+	{ "128.1.2.3",	 0 },
+	{ "18.0.0.1",	 0 },
 	{ "129.168.1.1", 0 },
 
-	{ "::1",         1 },
-	{ "::0",         0 },
-	{ "f::1",        0 },
-	{ "::501",       0 },
-	{ NULL,          0 },
+	{ "::1",	 1 },
+	{ "::0",	 0 },
+	{ "f::1",	 0 },
+	{ "::501",	 0 },
+	{ NULL,		 0 },
 
 };
 
@@ -303,7 +303,7 @@ test_evutil_sockaddr_predicates(void *ptr)
 
 	for (i=0; sa_pred_entries[i].parse; ++i) {
 		struct sa_pred_ent *ent = &sa_pred_entries[i];
-                int len = sizeof(ss);
+		int len = sizeof(ss);
 
 		r = evutil_parse_sockaddr_port(ent->parse, (struct sockaddr*)&ss, &len);
 
@@ -323,12 +323,12 @@ test_evutil_sockaddr_predicates(void *ptr)
 static void
 test_evutil_strtoll(void *ptr)
 {
-        const char *s;
-        char *endptr;
+	const char *s;
+	char *endptr;
 
-        tt_want(evutil_strtoll("5000000000", NULL, 10) ==
+	tt_want(evutil_strtoll("5000000000", NULL, 10) ==
 		((ev_int64_t)5000000)*1000);
-        tt_want(evutil_strtoll("-5000000000", NULL, 10) ==
+	tt_want(evutil_strtoll("-5000000000", NULL, 10) ==
 		((ev_int64_t)5000000)*-1000);
 	s = " 99999stuff";
 	tt_want(evutil_strtoll(s, &endptr, 10) == (ev_int64_t)99999);
@@ -342,12 +342,12 @@ test_evutil_snprintf(void *ptr)
 	char buf[16];
 	int r;
 	r = evutil_snprintf(buf, sizeof(buf), "%d %d", 50, 100);
-        tt_str_op(buf, ==, "50 100");
-        tt_int_op(r, ==, 6);
+	tt_str_op(buf, ==, "50 100");
+	tt_int_op(r, ==, 6);
 
 	r = evutil_snprintf(buf, sizeof(buf), "longish %d", 1234567890);
-        tt_str_op(buf, ==, "longish 1234567");
-        tt_int_op(r, ==, 18);
+	tt_str_op(buf, ==, "longish 1234567");
+	tt_int_op(r, ==, 18);
 
       end:
 	;
@@ -431,7 +431,7 @@ test_evutil_log(void *ptr)
 
 	event_debug(("A millisecond passed!  We should log that!"));
 #ifdef USE_DEBUG
-	LOGEQ(_EVENT_LOG_DEBUG, "A millisecond passed!  We should log that!");
+	LOGEQ(_EVENT_LOG_DEBUG, "A millisecond passed!	We should log that!");
 #else
 	tt_int_op(logsev,==,0);
 	tt_ptr_op(logmsg,==,NULL);
@@ -661,7 +661,7 @@ _test_ai_eq(const struct evutil_addrinfo *ai, const char *sockaddr_port,
     int socktype, int protocol, int line)
 {
 	struct sockaddr_storage ss;
-        int slen = sizeof(ss);
+	int slen = sizeof(ss);
 	int gotport;
 	char buf[128];
 	memset(&ss, 0, sizeof(ss));

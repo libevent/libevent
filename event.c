@@ -839,7 +839,7 @@ event_config_avoid_method(struct event_config *cfg, const char *method)
 
 int
 event_config_require_features(struct event_config *cfg,
-                              int features)
+    int features)
 {
 	if (!cfg)
 		return (-1);
@@ -850,7 +850,7 @@ event_config_require_features(struct event_config *cfg,
 int
 event_priority_init(int npriorities)
 {
-  return event_base_priority_init(current_base, npriorities);
+	return event_base_priority_init(current_base, npriorities);
 }
 
 int
@@ -1219,7 +1219,7 @@ event_dispatch(void)
 int
 event_base_dispatch(struct event_base *event_base)
 {
-  return (event_base_loop(event_base, 0));
+	return (event_base_loop(event_base, 0));
 }
 
 const char *
@@ -1416,7 +1416,7 @@ event_once_cb(evutil_socket_t fd, short events, void *arg)
 int
 event_once(evutil_socket_t fd, short events,
     void (*callback)(evutil_socket_t, short, void *),
-	void *arg, const struct timeval *tv)
+    void *arg, const struct timeval *tv)
 {
 	return event_base_once(current_base, fd, events, callback, arg, tv);
 }
@@ -1425,7 +1425,7 @@ event_once(evutil_socket_t fd, short events,
 int
 event_base_once(struct event_base *base, evutil_socket_t fd, short events,
     void (*callback)(evutil_socket_t, short, void *),
-	void *arg, const struct timeval *tv)
+    void *arg, const struct timeval *tv)
 {
 	struct event_once *eonce;
 	struct timeval etv;

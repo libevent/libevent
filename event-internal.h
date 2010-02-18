@@ -199,7 +199,7 @@ struct event_base {
 	struct event_iocp_port *iocp;
 #endif
 
-        enum event_base_config_flag flags;
+	enum event_base_config_flag flags;
 
 	/* Notify main thread to wake up break, etc. */
 	int th_notify_fd[2];
@@ -219,7 +219,7 @@ struct event_config {
 	TAILQ_HEAD(event_configq, event_config_entry) entries;
 
 	enum event_method_feature require_features;
-        enum event_base_config_flag flags;
+	enum event_base_config_flag flags;
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */

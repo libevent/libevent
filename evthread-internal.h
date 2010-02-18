@@ -103,8 +103,8 @@ extern int _evthread_lock_debugging_enabled;
 		void *_lock2_tmplock = (lock2);				\
 		_EVLOCK_SORTLOCKS(_lock1_tmplock,_lock2_tmplock);	\
 		EVLOCK_LOCK(_lock1_tmplock,mode1);			\
-                if (_lock2_tmplock != _lock1_tmplock)                   \
-                        EVLOCK_LOCK(_lock2_tmplock,mode2);              \
+		if (_lock2_tmplock != _lock1_tmplock)			\
+			EVLOCK_LOCK(_lock2_tmplock,mode2);		\
 	} while (0)
 
 /** Release both lock1 and lock2.  */
@@ -113,8 +113,8 @@ extern int _evthread_lock_debugging_enabled;
 		void *_lock1_tmplock = (lock1);				\
 		void *_lock2_tmplock = (lock2);				\
 		_EVLOCK_SORTLOCKS(_lock1_tmplock,_lock2_tmplock);	\
-                if (_lock2_tmplock != _lock1_tmplock)                   \
-                        EVLOCK_UNLOCK(_lock2_tmplock,mode2);            \
+		if (_lock2_tmplock != _lock1_tmplock)			\
+			EVLOCK_UNLOCK(_lock2_tmplock,mode2);		\
 		EVLOCK_UNLOCK(_lock1_tmplock,mode1);			\
 	} while (0)
 

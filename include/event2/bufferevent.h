@@ -35,7 +35,7 @@
   circumstances.
 
   Libevent provides an abstraction on top of the regular event callbacks.
-  This abstraction is called a buffered event.  A buffered event provides
+  This abstraction is called a buffered event.	A buffered event provides
   input and output buffers that get filled and drained automatically.  The
   user of a buffered event no longer deals directly with the I/O, but
   instead is reading from input and writing to output buffers.
@@ -131,7 +131,7 @@ enum bufferevent_options {
 	    It is safe to set the fd to -1, so long as you later
 	    set it with bufferevent_setfd or bufferevent_socket_connect().
   @return a pointer to a newly allocated bufferevent struct, or NULL if an
-          error occurred
+	  error occurred
   @see bufferevent_free()
   */
 struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socket_t fd, int options);
@@ -173,13 +173,13 @@ struct evdns_base;
 
    Recognized hostname formats are:
 
-       www.example.com      (hostname)
-       1.2.3.4              (ipv4address)
-       ::1                  (ipv6address)
-       [::1]                ([ipv6address])
+       www.example.com	(hostname)
+       1.2.3.4		(ipv4address)
+       ::1		(ipv6address)
+       [::1]		([ipv6address])
 
    Performance note: If you do not provide an evdns_base, this function
-   may block while it waits for a DNS response.  This is probably not
+   may block while it waits for a DNS response.	 This is probably not
    what you want.
  */
 int bufferevent_socket_connect_hostname(struct bufferevent *b,
@@ -219,13 +219,13 @@ void bufferevent_free(struct bufferevent *bufev);
 
   @param bufev the bufferevent object for which to change callbacks
   @param readcb callback to invoke when there is data to be read, or NULL if
-         no callback is desired
+	 no callback is desired
   @param writecb callback to invoke when the file descriptor is ready for
-         writing, or NULL if no callback is desired
+	 writing, or NULL if no callback is desired
   @param eventcb callback to invoke when there is an event on the file
-         descriptor
+	 descriptor
   @param cbarg an argument that will be supplied to each of the callbacks
-         (readcb, writecb, and errorcb)
+	 (readcb, writecb, and errorcb)
   @see bufferevent_new()
   */
 void bufferevent_setcb(struct bufferevent *bufev,
@@ -271,7 +271,7 @@ int bufferevent_write(struct bufferevent *bufev,
 
 
 /**
-  Write data from an evbuffer to a bufferevent buffer.  The evbuffer is
+  Write data from an evbuffer to a bufferevent buffer.	The evbuffer is
   being drained as a result.
 
   @param bufev the bufferevent to be written to
@@ -295,7 +295,7 @@ int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf);
 size_t bufferevent_read(struct bufferevent *bufev, void *data, size_t size);
 
 /**
-  Read data from a bufferevent buffer into an evbuffer.  This avoids
+  Read data from a bufferevent buffer into an evbuffer.	 This avoids
   memory copies.
 
   @param bufev the bufferevent to be read from
@@ -371,7 +371,7 @@ int bufferevent_set_timeouts(struct bufferevent *bufev,
   Sets the watermarks for read and write events.
 
   On input, a bufferevent does not invoke the user read callback unless
-  there is at least low watermark data in the buffer.   If the read buffer
+  there is at least low watermark data in the buffer.	If the read buffer
   is beyond the high watermark, the bufferevent stops reading from the network.
 
   On output, the user write callback is invoked whenever the buffered data
@@ -514,7 +514,7 @@ struct bufferevent_rate_limit_group;
    @param write_rate The maximum number of bytes to write per tick on
      average.
    @param write_burst The maximum number of bytes to write in any single tick.
-   @param tick_len The length of a single tick.  Defaults to one second.
+   @param tick_len The length of a single tick.	 Defaults to one second.
      Any fractions of a millisecond are ignored.
 
    Note that all rate-limits hare are currently best-effort: future versions
@@ -613,7 +613,7 @@ ev_ssize_t bufferevent_rate_limit_group_get_write_limit(
 /**
    Subtract a number of bytes from a bufferevent's read or write bucket.
    The decrement value can be negative, if you want to manually refill
-   the bucket.  If the change puts the bucket above or below zero, the
+   the bucket.	If the change puts the bucket above or below zero, the
    bufferevent will resume or suspend reading writing as appropriate.
    These functions make no change in the buckets for the bufferevent's
    group, if any.
@@ -628,7 +628,7 @@ int bufferevent_decrement_write_limit(struct bufferevent *bev, ev_ssize_t decr);
 /**
    Subtract a number of bytes from a bufferevent rate-limiting group's
    read or write bucket.  The decrement value can be negative, if you
-   want to manually refill the bucket.  If the change puts the bucket
+   want to manually refill the bucket.	If the change puts the bucket
    above or below zero, the bufferevents in the group will resume or
    suspend reading writing as appropriate.
 

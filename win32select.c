@@ -206,13 +206,13 @@ win32_init(struct event_base *_base)
 
 	return (winop);
  err:
-        XFREE(winop->readset_in);
-        XFREE(winop->writeset_in);
-        XFREE(winop->readset_out);
-        XFREE(winop->writeset_out);
-        XFREE(winop->exset_out);
-        XFREE(winop);
-        return (NULL);
+	XFREE(winop->readset_in);
+	XFREE(winop->writeset_in);
+	XFREE(winop->readset_out);
+	XFREE(winop->writeset_out);
+	XFREE(winop->exset_out);
+	XFREE(winop);
+	return (NULL);
 }
 
 int
@@ -299,7 +299,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	fd_set_copy(win32op->writeset_out, win32op->writeset_in);
 
 	fd_count =
-           (win32op->readset_out->fd_count > win32op->writeset_out->fd_count) ?
+	    (win32op->readset_out->fd_count > win32op->writeset_out->fd_count) ?
 	    win32op->readset_out->fd_count : win32op->writeset_out->fd_count;
 
 	if (!fd_count) {

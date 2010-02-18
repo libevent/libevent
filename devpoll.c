@@ -129,7 +129,7 @@ devpoll_init(struct event_base *base)
 
 	/* Initialize the kernel queue */
 	if ((dpfd = open("/dev/poll", O_RDWR)) == -1) {
-                event_warn("open: /dev/poll");
+		event_warn("open: /dev/poll");
 		mm_free(devpollop);
 		return (NULL);
 	}
@@ -202,10 +202,10 @@ devpoll_dispatch(struct event_base *base, struct timeval *tv)
 		int which = 0;
 		int what = events[i].revents;
 
-                if (what & POLLHUP)
-                        what |= POLLIN | POLLOUT;
-                else if (what & POLLERR)
-                        what |= POLLIN | POLLOUT;
+		if (what & POLLHUP)
+			what |= POLLIN | POLLOUT;
+		else if (what & POLLERR)
+			what |= POLLIN | POLLOUT;
 
 		if (what & POLLIN)
 			which |= EV_READ;

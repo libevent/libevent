@@ -98,13 +98,13 @@ extern "C" {
  * when you care about ASCII's notion of character types, because you are about
  * to send those types onto the wire.
  */
-#define DECLARE_CTYPE_FN(name)                                          \
-        static int EVUTIL_##name(char c);                               \
-        extern const ev_uint32_t EVUTIL_##name##_TABLE[];               \
-        static inline int EVUTIL_##name(char c) {                       \
-                ev_uint8_t u = c;                                       \
-                return !!(EVUTIL_##name##_TABLE[(u >> 5) & 7] & (1 << (u & 31))); \
-        }
+#define DECLARE_CTYPE_FN(name)						\
+	static int EVUTIL_##name(char c);				\
+	extern const ev_uint32_t EVUTIL_##name##_TABLE[];		\
+	static inline int EVUTIL_##name(char c) {			\
+		ev_uint8_t u = c;					\
+		return !!(EVUTIL_##name##_TABLE[(u >> 5) & 7] & (1 << (u & 31))); \
+	}
 DECLARE_CTYPE_FN(ISALPHA)
 DECLARE_CTYPE_FN(ISALNUM)
 DECLARE_CTYPE_FN(ISSPACE)
@@ -123,14 +123,14 @@ extern const unsigned char EVUTIL_TOLOWER_TABLE[];
     our half-baked C OO.  Example:
 
     struct subtype {
-         int x;
-	 struct supertype common;
-	 int y;
+	int x;
+	struct supertype common;
+	int y;
     };
     ...
     void fn(struct supertype *super) {
-         struct subtype *sub = EVUTIL_UPCAST(super, struct subtype, common);
-         ...
+	struct subtype *sub = EVUTIL_UPCAST(super, struct subtype, common);
+	...
     }
  */
 #define EVUTIL_UPCAST(ptr, type, field)				\

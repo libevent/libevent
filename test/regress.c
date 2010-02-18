@@ -136,14 +136,14 @@ basic_read_cb(int fd, short event, void *data)
 		tt_fail_perror("read (callback)");
 	} else {
 		switch (arg->callcount++) {
-		case 0:  /* first call: expect to read data; cycle */
+		case 0:	 /* first call: expect to read data; cycle */
 			if (len > 0)
 				return;
 
 			tt_fail_msg("EOF before data read");
 			break;
 
-		case 1:  /* second call: expect EOF; stop */
+		case 1:	 /* second call: expect EOF; stop */
 			if (len > 0)
 				tt_fail_msg("not all data read on first cycle");
 			break;
@@ -301,8 +301,8 @@ combined_write_cb(int fd, short event, void *arg)
 static int
 setup_test(const char *name)
 {
-        if (in_legacy_test_wrapper)
-                return 0;
+	if (in_legacy_test_wrapper)
+		return 0;
 
 	fprintf(stdout, "%s", name);
 
@@ -311,10 +311,10 @@ setup_test(const char *name)
 		exit(1);
 	}
 
-        if (evutil_make_socket_nonblocking(pair[0]) == -1)
+	if (evutil_make_socket_nonblocking(pair[0]) == -1)
 		fprintf(stderr, "fcntl(O_NONBLOCK)");
 
-        if (evutil_make_socket_nonblocking(pair[1]) == -1)
+	if (evutil_make_socket_nonblocking(pair[1]) == -1)
 		fprintf(stderr, "fcntl(O_NONBLOCK)");
 
 	test_ok = 0;
@@ -325,8 +325,8 @@ setup_test(const char *name)
 static int
 cleanup_test(void)
 {
-        if (in_legacy_test_wrapper)
-                return 0;
+	if (in_legacy_test_wrapper)
+		return 0;
 
 #ifndef WIN32
 	close(pair[0]);
@@ -341,7 +341,7 @@ cleanup_test(void)
 		fprintf(stdout, "FAILED\n");
 		exit(1);
 	}
-        test_ok = 0;
+	test_ok = 0;
 	return (0);
 }
 
@@ -829,8 +829,8 @@ test_signal_dealloc(void)
 	evsignal_add(&ev, NULL);
 	evsignal_del(&ev);
 	event_base_free(base);
-        /* If we got here without asserting, we're fine. */
-        test_ok = 1;
+	/* If we got here without asserting, we're fine. */
+	test_ok = 1;
 	cleanup_test();
 }
 
@@ -859,7 +859,7 @@ test_signal_pipeloss(void)
 
 /*
  * make two bases to catch signals, use both of them.  this only works
- * for event mechanisms that use our signal pipe trick.  kqueue handles
+ * for event mechanisms that use our signal pipe trick.	 kqueue handles
  * signals internally, and all interested kqueues get all the signals.
  */
 static void
@@ -867,12 +867,12 @@ test_signal_switchbase(void)
 {
 	struct event ev1, ev2;
 	struct event_base *base1, *base2;
-        int is_kqueue;
+	int is_kqueue;
 	test_ok = 0;
 	printf("Signal switchbase: ");
 	base1 = event_init();
 	base2 = event_init();
-        is_kqueue = !strcmp(event_get_method(),"kqueue");
+	is_kqueue = !strcmp(event_get_method(),"kqueue");
 	evsignal_set(&ev1, SIGUSR1, signal_cb, &ev1);
 	evsignal_set(&ev2, SIGUSR1, signal_cb, &ev2);
 	if (event_base_set(base1, &ev1) ||
@@ -890,11 +890,11 @@ test_signal_switchbase(void)
 	/* can handle signal before loop is called */
 	raise(SIGUSR1);
 	event_base_loop(base2, EVLOOP_NONBLOCK);
-        if (is_kqueue) {
-                if (!test_ok)
-                        goto end;
-                test_ok = 0;
-        }
+	if (is_kqueue) {
+		if (!test_ok)
+			goto end;
+		test_ok = 0;
+	}
 	event_base_loop(base1, EVLOOP_NONBLOCK);
 	if (test_ok && !is_kqueue) {
 		test_ok = 0;
@@ -1040,7 +1040,7 @@ test_free_active_base(void *ptr)
 		event_assign(&ev1, base1, data->pair[1], EV_READ,
 			     dummy_read_cb, NULL);
 		event_add(&ev1, NULL);
-		event_base_free(base1);  /* should not crash */
+		event_base_free(base1);	 /* should not crash */
 	} else {
 		tt_fail_msg("failed to create event_base for test");
 	}
@@ -1367,11 +1367,11 @@ test_priorities_impl(int npriorities)
 static void
 test_priorities(void)
 {
-        test_priorities_impl(1);
-        if (test_ok)
-                test_priorities_impl(2);
-        if (test_ok)
-                test_priorities_impl(3);
+	test_priorities_impl(1);
+	if (test_ok)
+		test_priorities_impl(2);
+	if (test_ok)
+		test_priorities_impl(3);
 }
 
 
@@ -1474,17 +1474,17 @@ evtag_int_test(void *ptr)
 		int oldlen, newlen;
 		oldlen = EVBUFFER_LENGTH(tmp);
 		evtag_encode_int(tmp, integers[i]);
-                newlen = EVBUFFER_LENGTH(tmp);
+		newlen = EVBUFFER_LENGTH(tmp);
 		TT_BLATHER(("encoded 0x%08x with %d bytes",
-                        (unsigned)integers[i], newlen - oldlen));
+			(unsigned)integers[i], newlen - oldlen));
 		big_int = integers[i];
 		big_int *= 1000000000; /* 1 billion */
 		evtag_encode_int64(tmp, big_int);
 	}
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
-                tt_int_op(evtag_decode_int(&integer, tmp), !=, -1);
-                tt_uint_op(integer, ==, integers[i]);
+		tt_int_op(evtag_decode_int(&integer, tmp), !=, -1);
+		tt_uint_op(integer, ==, integers[i]);
 		tt_int_op(evtag_decode_int64(&big_int, tmp), !=, -1);
 		tt_assert((big_int / 1000000000) == integers[i]);
 	}
@@ -1528,7 +1528,7 @@ evtag_fuzz(void *ptr)
 
 	((char *)EVBUFFER_DATA(tmp))[1] = '\xff';
 	if (evtag_unmarshal_timeval(tmp, 0, &tv) != -1) {
-                tt_abort_msg("evtag_unmarshal_timeval should have failed");
+		tt_abort_msg("evtag_unmarshal_timeval should have failed");
 	}
 
 end:
@@ -1552,16 +1552,16 @@ evtag_tag_encoding(void *ptr)
 		oldlen = EVBUFFER_LENGTH(tmp);
 		evtag_encode_tag(tmp, integers[i]);
 		newlen = EVBUFFER_LENGTH(tmp);
-                TT_BLATHER(("encoded 0x%08x with %d bytes",
-                        (unsigned)integers[i], newlen - oldlen));
+		TT_BLATHER(("encoded 0x%08x with %d bytes",
+			(unsigned)integers[i], newlen - oldlen));
 	}
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
-                tt_int_op(evtag_decode_tag(&integer, tmp), !=, -1);
-                tt_uint_op(integer, ==, integers[i]);
+		tt_int_op(evtag_decode_tag(&integer, tmp), !=, -1);
+		tt_uint_op(integer, ==, integers[i]);
 	}
 
-        tt_uint_op(EVBUFFER_LENGTH(tmp), ==, 0);
+	tt_uint_op(EVBUFFER_LENGTH(tmp), ==, 0);
 
 end:
 	evbuffer_free(tmp);
@@ -1604,7 +1604,7 @@ test_methods(void *ptr)
 	const char *backend;
 	int n_methods = 0;
 
-        tt_assert(methods);
+	tt_assert(methods);
 
 	backend = methods[0];
 	while (*methods != NULL) {
@@ -1628,10 +1628,10 @@ test_methods(void *ptr)
 	}
 
 end:
-        if (base)
-                event_base_free(base);
-        if (cfg)
-                event_config_free(cfg);
+	if (base)
+		event_base_free(base);
+	if (cfg)
+		event_config_free(cfg);
 }
 
 static void
@@ -1993,8 +1993,8 @@ end:
 }
 
 struct testcase_t main_testcases[] = {
-        /* Some converted-over tests */
-        { "methods", test_methods, TT_FORK, NULL, NULL },
+	/* Some converted-over tests */
+	{ "methods", test_methods, TT_FORK, NULL, NULL },
 	{ "version", test_version, 0, NULL, NULL },
 	BASIC(base_features, TT_FORK|TT_NO_LOGS),
 	{ "base_environ", test_base_environ, TT_FORK, NULL, NULL },
@@ -2006,22 +2006,22 @@ struct testcase_t main_testcases[] = {
 
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 
-        /* These are still using the old API */
-        LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
-        LEGACY(priorities, TT_FORK|TT_NEED_BASE),
+	/* These are still using the old API */
+	LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
+	LEGACY(priorities, TT_FORK|TT_NEED_BASE),
 	{ "common_timeout", test_common_timeout, TT_FORK|TT_NEED_BASE,
 	  &basic_setup, NULL },
 
-        /* These legacy tests may not all need all of these flags. */
-        LEGACY(simpleread, TT_ISOLATED),
-        LEGACY(simpleread_multiple, TT_ISOLATED),
-        LEGACY(simplewrite, TT_ISOLATED),
-        LEGACY(multiple, TT_ISOLATED),
-        LEGACY(persistent, TT_ISOLATED),
-        LEGACY(combined, TT_ISOLATED),
-        LEGACY(simpletimeout, TT_ISOLATED),
-        LEGACY(loopbreak, TT_ISOLATED),
-        LEGACY(loopexit, TT_ISOLATED),
+	/* These legacy tests may not all need all of these flags. */
+	LEGACY(simpleread, TT_ISOLATED),
+	LEGACY(simpleread_multiple, TT_ISOLATED),
+	LEGACY(simplewrite, TT_ISOLATED),
+	LEGACY(multiple, TT_ISOLATED),
+	LEGACY(persistent, TT_ISOLATED),
+	LEGACY(combined, TT_ISOLATED),
+	LEGACY(simpletimeout, TT_ISOLATED),
+	LEGACY(loopbreak, TT_ISOLATED),
+	LEGACY(loopexit, TT_ISOLATED),
 	LEGACY(loopexit_multiple, TT_ISOLATED),
 	LEGACY(nonpersist_readd, TT_ISOLATED),
 	LEGACY(multiple_events_for_same_fd, TT_ISOLATED),
@@ -2033,9 +2033,9 @@ struct testcase_t main_testcases[] = {
 	BASIC(many_events, TT_ISOLATED),
 
 #ifndef WIN32
-        LEGACY(fork, TT_ISOLATED),
+	LEGACY(fork, TT_ISOLATED),
 #endif
-        END_OF_TESTCASES
+	END_OF_TESTCASES
 };
 
 struct testcase_t evtag_testcases[] = {
@@ -2052,13 +2052,13 @@ struct testcase_t signal_testcases[] = {
 	LEGACY(simplesignal, TT_ISOLATED),
 	LEGACY(multiplesignal, TT_ISOLATED),
 	LEGACY(immediatesignal, TT_ISOLATED),
-        LEGACY(signal_dealloc, TT_ISOLATED),
+	LEGACY(signal_dealloc, TT_ISOLATED),
 	LEGACY(signal_pipeloss, TT_ISOLATED),
 	LEGACY(signal_switchbase, TT_ISOLATED),
 	LEGACY(signal_restore, TT_ISOLATED),
 	LEGACY(signal_assert, TT_ISOLATED),
 	LEGACY(signal_while_processing, TT_ISOLATED),
 #endif
-        END_OF_TESTCASES
+	END_OF_TESTCASES
 };
 

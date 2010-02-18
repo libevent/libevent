@@ -147,7 +147,7 @@ static __inline struct type *						\
 name##_SPLAY_MIN_MAX(struct name *head, int val)			\
 {									\
 	name##_SPLAY_MINMAX(head, val);					\
-        return (SPLAY_ROOT(head));					\
+	return (SPLAY_ROOT(head));					\
 }
 
 /* Main splay operation.
@@ -824,7 +824,7 @@ static __inline struct type *						\
 name##_SPLAY_MIN_MAX(struct name *head, int val)			\
 {									\
 	name##_SPLAY_MINMAX(head, val);					\
-        return (SPLAY_ROOT(head));					\
+	return (SPLAY_ROOT(head));					\
 }
 
 /* Main splay operation.

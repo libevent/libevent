@@ -93,7 +93,7 @@ int in_legacy_test_wrapper = 0;
 
 static void dnslogcb(int w, const char *m)
 {
-        TT_BLATHER(("%s", m));
+	TT_BLATHER(("%s", m));
 }
 
 /* creates a temporary file with the data in it */
@@ -183,11 +183,11 @@ basic_test_setup(const struct testcase_t *testcase)
 		}
 	}
 
-        if (testcase->flags & TT_NEED_DNS) {
-                evdns_set_log_fn(dnslogcb);
-                if (evdns_init())
-                        return NULL; /* fast failure */ /*XXX asserts. */
-        }
+	if (testcase->flags & TT_NEED_DNS) {
+		evdns_set_log_fn(dnslogcb);
+		if (evdns_init())
+			return NULL; /* fast failure */ /*XXX asserts. */
+	}
 
 	if (testcase->flags & TT_NO_LOGS)
 		event_set_log_callback(ignore_log_cb);
@@ -211,20 +211,20 @@ basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
 		event_set_log_callback(NULL);
 
 	if (testcase->flags & TT_NEED_SOCKETPAIR) {
-                if (data->pair[0] != -1)
-                        EVUTIL_CLOSESOCKET(data->pair[0]);
-                if (data->pair[1] != -1)
-                        EVUTIL_CLOSESOCKET(data->pair[1]);
-        }
+		if (data->pair[0] != -1)
+			EVUTIL_CLOSESOCKET(data->pair[0]);
+		if (data->pair[1] != -1)
+			EVUTIL_CLOSESOCKET(data->pair[1]);
+	}
 
-        if (testcase->flags & TT_NEED_DNS) {
-                evdns_shutdown(0);
-        }
+	if (testcase->flags & TT_NEED_DNS) {
+		evdns_shutdown(0);
+	}
 
-        if (testcase->flags & TT_NEED_BASE) {
+	if (testcase->flags & TT_NEED_BASE) {
 		if (data->base)
 			event_base_free(data->base);
-        }
+	}
 
 	free(data);
 
@@ -263,9 +263,9 @@ run_legacy_test_fn(void *ptr)
 	struct basic_test_data *data = ptr;
 	test_ok = called = 0;
 
-        in_legacy_test_wrapper = 1;
+	in_legacy_test_wrapper = 1;
 	data->legacy_test_fn(); /* This part actually calls the test */
-        in_legacy_test_wrapper = 0;
+	in_legacy_test_wrapper = 0;
 
 	if (!test_ok)
 		tt_abort_msg("Legacy unit test failed");
@@ -325,7 +325,7 @@ struct testgroup_t testgroups[] = {
 #ifdef _EVENT_HAVE_OPENSSL
 	{ "ssl/", ssl_testcases },
 #endif
-        END_OF_GROUPS
+	END_OF_GROUPS
 };
 
 int
@@ -355,8 +355,8 @@ main(int argc, const char **argv)
 		evthread_enable_lock_debuging();
 #endif
 
-        if (tinytest_main(argc,argv,testgroups))
-                return 1;
+	if (tinytest_main(argc,argv,testgroups))
+		return 1;
 
 	return 0;
 }

@@ -807,15 +807,15 @@ log_change_callback(struct evbuffer *buffer,
     void *arg)
 {
 
-        size_t old_len = cbinfo->orig_size;
-        size_t new_len = old_len + cbinfo->n_added - cbinfo->n_deleted;
+	size_t old_len = cbinfo->orig_size;
+	size_t new_len = old_len + cbinfo->n_added - cbinfo->n_deleted;
 	struct evbuffer *out = arg;
 	evbuffer_add_printf(out, "%lu->%lu; ", (unsigned long)old_len,
 			    (unsigned long)new_len);
 }
 static void
 self_draining_callback(struct evbuffer *evbuffer, size_t old_len,
-		       size_t new_len, void *arg)
+		size_t new_len, void *arg)
 {
 	if (new_len > old_len)
 		evbuffer_drain(evbuffer, new_len);

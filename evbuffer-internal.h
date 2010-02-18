@@ -51,18 +51,18 @@ extern "C" {
 /** A single evbuffer callback for an evbuffer. This function will be invoked
  * when bytes are added to or removed from the evbuffer. */
 struct evbuffer_cb_entry {
-        /** Structures to implement a doubly-linked queue of callbacks */
+	/** Structures to implement a doubly-linked queue of callbacks */
 	TAILQ_ENTRY(evbuffer_cb_entry) next;
-        /** The callback function to invoke when this callback is called.
+	/** The callback function to invoke when this callback is called.
 	    If EVBUFFER_CB_OBSOLETE is set in flags, the cb_obsolete field is
 	    valid; otherwise, cb_func is valid. */
-        union {
-                evbuffer_cb_func cb_func;
-                evbuffer_cb cb_obsolete;
-        } cb;
-        /** Argument to pass to cb. */
+	union {
+		evbuffer_cb_func cb_func;
+		evbuffer_cb cb_obsolete;
+	} cb;
+	/** Argument to pass to cb. */
 	void *cbarg;
-        /** Currently set flags on this callback. */
+	/** Currently set flags on this callback. */
 	ev_uint32_t flags;
 };
 
@@ -89,14 +89,14 @@ struct evbuffer {
 
 	/** Number of bytes we have added to the buffer since we last tried to
 	 * invoke callbacks. */
-        size_t n_add_for_cb;
+	size_t n_add_for_cb;
 	/** Number of bytes we have removed from the buffer since we last
 	 * tried to invoke callbacks. */
-        size_t n_del_for_cb;
+	size_t n_del_for_cb;
 
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
 	/** A lock used to mediate access to this buffer. */
-        void *lock;
+	void *lock;
 #endif
 	/** True iff we should free the lock field when we free this
 	 * evbuffer. */
@@ -109,7 +109,7 @@ struct evbuffer {
 	unsigned freeze_end : 1;
 	/** True iff this evbuffer's callbacks are not invoked immediately
 	 * upon a change in the buffer, but instead are deferred to be invoked
-	 * from the event_base's loop.  Useful for preventing enormous stack
+	 * from the event_base's loop.	Useful for preventing enormous stack
 	 * overflows when we have mutually recursive callbacks, and for
 	 * serializing callbacks in a single thread. */
 	unsigned deferred_cbs : 1;
@@ -121,8 +121,8 @@ struct evbuffer {
 	/** Used to implement deferred callbacks. */
 	struct deferred_cb_queue *cb_queue;
 
-	/** A reference count on this evbuffer.  When the reference count
-	 * reaches 0, the buffer is destroyed.  Manipulated with
+	/** A reference count on this evbuffer.	 When the reference count
+	 * reaches 0, the buffer is destroyed.	Manipulated with
 	 * evbuffer_incref and evbuffer_decref_and_unlock and
 	 * evbuffer_free. */
 	int refcnt;
@@ -158,10 +158,10 @@ struct evbuffer_chain {
 
 	/** Set if special handling is required for this chain */
 	unsigned flags;
-#define EVBUFFER_MMAP		0x0001  /**< memory in buffer is mmaped */
-#define EVBUFFER_SENDFILE	0x0002  /**< a chain used for sendfile */
+#define EVBUFFER_MMAP		0x0001	/**< memory in buffer is mmaped */
+#define EVBUFFER_SENDFILE	0x0002	/**< a chain used for sendfile */
 #define EVBUFFER_REFERENCE	0x0004	/**< a chain with a mem reference */
-#define EVBUFFER_IMMUTABLE	0x0008  /**< read-only chain */
+#define EVBUFFER_IMMUTABLE	0x0008	/**< read-only chain */
 	/** a chain that mustn't be reallocated or freed, or have its contents
 	 * memmoved, until the chain is un-pinned. */
 #define EVBUFFER_MEM_PINNED_R	0x0010
@@ -200,7 +200,7 @@ struct evbuffer_chain_reference {
 #define EVBUFFER_CHAIN_EXTRA(t, c) (t *)((struct evbuffer_chain *)(c) + 1)
 
 /** Assert that we are holding the lock on an evbuffer */
-#define ASSERT_EVBUFFER_LOCKED(buffer)                  \
+#define ASSERT_EVBUFFER_LOCKED(buffer)			\
 	EVLOCK_ASSERT_LOCKED((buffer)->lock)
 
 #define EVBUFFER_LOCK(buffer)						\

@@ -293,13 +293,13 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
    @deprecated This macro is deprecated because its naming is inconsistent.
     The recommend macro is evsignal_set().
 */
-#define signal_set(ev, x, cb, arg)	\
+#define signal_set(ev, x, cb, arg)				\
 	event_set((ev), (x), EV_SIGNAL|EV_PERSIST, (cb), (arg))
 /**
    @deprecated This macro is deprecated because its naming is inconsistent.
     The recommend macro is evsignal_assign().
 */
-#define signal_assign(ev, b, x, cb, arg)                    \
+#define signal_assign(ev, b, x, cb, arg)			\
 	event_assign((ev), (b), (x), EV_SIGNAL|EV_PERSIST, (cb), (arg))
 /**
    @deprecated This macro is deprecated because its naming is inconsistent.

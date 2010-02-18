@@ -116,7 +116,7 @@ bufferevent_inbuf_wm_cb(struct evbuffer *buf,
     void *arg)
 {
 	struct bufferevent *bufev = arg;
-        size_t size;
+	size_t size;
 
 	size = evbuffer_get_length(buf);
 
@@ -312,11 +312,6 @@ bufferevent_get_output(struct bufferevent *bufev)
 	return bufev->output;
 }
 
-/*
- * Returns 0 on success;
- *        -1 on failure.
- */
-
 int
 bufferevent_write(struct bufferevent *bufev, const void *data, size_t size)
 {
@@ -494,8 +489,8 @@ bufferevent_flush(struct bufferevent *bufev,
 {
 	int r = -1;
 	BEV_LOCK(bufev);
-        if (bufev->be_ops->flush)
-                r = bufev->be_ops->flush(bufev, iotype, mode);
+	if (bufev->be_ops->flush)
+		r = bufev->be_ops->flush(bufev, iotype, mode);
 	BEV_UNLOCK(bufev);
 	return r;
 }

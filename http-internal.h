@@ -125,12 +125,12 @@ struct evhttp {
 	TAILQ_HEAD(boundq, evhttp_bound_socket) sockets;
 
 	TAILQ_HEAD(httpcbq, evhttp_cb) callbacks;
-        struct evconq connections;
+	struct evconq connections;
 
 	TAILQ_HEAD(vhostsq, evhttp) virtualhosts;
 
 	/* NULL if this server is not a vhost */
-        char *vhost_pattern;
+	char *vhost_pattern;
 
 	int timeout;
 

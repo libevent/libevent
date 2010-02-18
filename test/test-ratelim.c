@@ -281,9 +281,9 @@ usage(void)
 "  -d INT: Duration of the test in seconds (default: 5 sec)\n");
 	fprintf(stderr,
 "  -c INT: Connection-rate limit applied to each connection in bytes per second\n"
-"          (default: None.)\n"
+"	   (default: None.)\n"
 "  -g INT: Group-rate limit applied to sum of all usage in bytes per second\n"
-"          (default: None.)\n"
+"	   (default: None.)\n"
 "  -t INT: Granularity of timing, in milliseconds (default: 1000 msec)\n");
 }
 

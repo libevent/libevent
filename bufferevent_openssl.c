@@ -329,7 +329,7 @@ const struct bufferevent_ops bufferevent_ops_openssl = {
 	be_openssl_disable,
 	be_openssl_destruct,
 	be_openssl_adj_timeouts,
-        be_openssl_flush,
+	be_openssl_flush,
 	be_openssl_ctrl,
 };
 
@@ -694,7 +694,7 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 	    (! wm->high || evbuffer_get_length(input) < wm->high)) {
 		int n_to_read =
 		    wm->high ? wm->high - evbuffer_get_length(input)
-		             : READ_DEFAULT;
+			     : READ_DEFAULT;
 		r = do_read(bev_ssl, n_to_read);
 		if (r <= 0)
 			break;
@@ -951,7 +951,7 @@ bufferevent_ssl_renegotiate(struct bufferevent *bev)
 
 static void
 be_openssl_outbuf_cb(struct evbuffer *buf,
-        const struct evbuffer_cb_info *cbinfo, void *arg)
+    const struct evbuffer_cb_info *cbinfo, void *arg)
 {
 	struct bufferevent_openssl *bev_ssl = arg;
 	int r = 0;

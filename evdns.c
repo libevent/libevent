@@ -453,14 +453,14 @@ static void _evdns_log(int warn, const char *fmt, ...) EVDNS_LOG_CHECK;
 static void
 _evdns_log(int warn, const char *fmt, ...)
 {
-  va_list args;
-  static char buf[512];
-  if (!evdns_log_fn)
-    return;
-  va_start(args,fmt);
-  evutil_vsnprintf(buf, sizeof(buf), fmt, args);
-  evdns_log_fn(warn, buf);
-  va_end(args);
+	va_list args;
+	static char buf[512];
+	if (!evdns_log_fn)
+		return;
+	va_start(args,fmt);
+	evutil_vsnprintf(buf, sizeof(buf), fmt, args);
+	evdns_log_fn(warn, buf);
+	va_end(args);
 }
 
 #define log _evdns_log
@@ -1346,9 +1346,9 @@ nameserver_write_waiting(struct nameserver *ns, char waiting) {
 	    ns->socket, EV_READ | (waiting ? EV_WRITE : 0) | EV_PERSIST,
 	    nameserver_ready_callback, ns);
 	if (event_add(&ns->event, NULL) < 0) {
-	  log(EVDNS_LOG_WARN, "Error from libevent when adding event for %s",
-	      debug_ntop((struct sockaddr *)&ns->address));
-	  /* ???? Do more? */
+		log(EVDNS_LOG_WARN, "Error from libevent when adding event for %s",
+		    debug_ntop((struct sockaddr *)&ns->address));
+		/* ???? Do more? */
 	}
 }
 
@@ -2058,7 +2058,7 @@ evdns_request_transmit_to(struct evdns_request *req, struct nameserver *server) 
 	int r;
 	ASSERT_LOCKED(req->base);
 	r = sendto(server->socket, req->request, req->request_len, 0,
-                (struct sockaddr *)&server->address, server->addrlen);
+	    (struct sockaddr *)&server->address, server->addrlen);
 	if (r < 0) {
 		int err = evutil_socket_geterror(server->socket);
 		if (EVUTIL_ERR_RW_RETRIABLE(err))
@@ -3128,7 +3128,7 @@ evdns_base_set_option(struct evdns_base *base,
 static inline int
 str_matches_option(const char *s1, const char *optionname)
 {
-        /* Option names are given as "option:" We accept either 'option' in
+	/* Option names are given as "option:" We accept either 'option' in
 	 * s1, or 'option:randomjunk'.  The latter form is to implement the
 	 * resolv.conf parser. */
 	size_t optlen = strlen(optionname);

@@ -198,7 +198,7 @@ rpc_basic_test(void)
 	if (evhttp_make_request(evcon, req,
 		EVHTTP_REQ_POST,
 		"/.rpc.Message") == -1) {
-                tt_abort();
+		tt_abort();
 	}
 
 	test_ok = 0;
@@ -209,7 +209,7 @@ rpc_basic_test(void)
 
 	rpc_teardown(base);
 
-        tt_assert(test_ok == 1);
+	tt_assert(test_ok == 1);
 
 end:
 	evhttp_free(http);
@@ -251,7 +251,7 @@ rpc_basic_message(void)
 	rpc_setup(&http, &port, &base);
 
 	evcon = evhttp_connection_new("127.0.0.1", port);
-        tt_assert(evcon);
+	tt_assert(evcon);
 
 	/*
 	 * At this point, we want to schedule an HTTP POST request
@@ -467,7 +467,7 @@ rpc_basic_client(void)
 
 	event_dispatch();
 
-        tt_assert(test_ok == 1);
+	tt_assert(test_ok == 1);
 
 	/* we do it twice to make sure that reuse works correctly */
 	kill_clear(kill);
@@ -476,7 +476,7 @@ rpc_basic_client(void)
 
 	event_dispatch();
 
-        tt_assert(test_ok == 2);
+	tt_assert(test_ok == 2);
 
 	/* we do it trice to make sure other stuff works, too */
 	kill_clear(kill);
@@ -492,18 +492,18 @@ rpc_basic_client(void)
 
 	rpc_teardown(base);
 
-        tt_assert(test_ok == 3);
+	tt_assert(test_ok == 3);
 
 end:
-        if (msg)
-                msg_free(msg);
-        if (kill)
-                kill_free(kill);
+	if (msg)
+		msg_free(msg);
+	if (kill)
+		kill_free(kill);
 
-        if (pool)
-                evrpc_pool_free(pool);
-        if (http)
-                evhttp_free(http);
+	if (pool)
+		evrpc_pool_free(pool);
+	if (http)
+		evhttp_free(http);
 
 	need_input_hook = 0;
 	need_output_hook = 0;
@@ -544,20 +544,20 @@ rpc_basic_queued_client(void)
 
 	rpc_teardown(base);
 
-        tt_assert(test_ok == 2);
+	tt_assert(test_ok == 2);
 
 end:
-        if (msg)
-                msg_free(msg);
-        if (kill_one)
-                kill_free(kill_one);
-        if (kill_two)
-                kill_free(kill_two);
+	if (msg)
+		msg_free(msg);
+	if (kill_one)
+		kill_free(kill_one);
+	if (kill_two)
+		kill_free(kill_two);
 
-        if (pool)
-                evrpc_pool_free(pool);
-        if (http)
-                evhttp_free(http);
+	if (pool)
+		evrpc_pool_free(pool);
+	if (http)
+		evhttp_free(http);
 }
 
 static void
@@ -643,22 +643,22 @@ rpc_basic_client_with_pause(void)
 
 	event_dispatch();
 
-        tt_int_op(test_ok, ==, 1);
-        tt_int_op(hook_pause_cb_called, ==, 4);
+	tt_int_op(test_ok, ==, 1);
+	tt_int_op(hook_pause_cb_called, ==, 4);
 
 end:
-        if (base)
-                rpc_teardown(base);
+	if (base)
+		rpc_teardown(base);
 
-        if (msg)
-                msg_free(msg);
-        if (kill)
-                kill_free(kill);
+	if (msg)
+		msg_free(msg);
+	if (kill)
+		kill_free(kill);
 
-        if (pool)
-                evrpc_pool_free(pool);
-        if (http)
-                evhttp_free(http);
+	if (pool)
+		evrpc_pool_free(pool);
+	if (http)
+		evhttp_free(http);
 }
 
 static void
@@ -696,18 +696,18 @@ rpc_client_timeout(void)
 
 	rpc_teardown(base);
 
-        tt_assert(test_ok == 2);
+	tt_assert(test_ok == 2);
 
 end:
-        if (msg)
-                msg_free(msg);
-        if (kill)
-                kill_free(kill);
+	if (msg)
+		msg_free(msg);
+	if (kill)
+		kill_free(kill);
 
-        if (pool)
-                evrpc_pool_free(pool);
-        if (http)
-                evhttp_free(http);
+	if (pool)
+		evrpc_pool_free(pool);
+	if (http)
+		evhttp_free(http);
 }
 
 static void
@@ -773,18 +773,18 @@ rpc_test(void)
 
 	msg2 = msg_new();
 	if (evtag_unmarshal_msg(tmp, 0xdeaf, msg2) == -1)
-                tt_abort_msg("Failed to unmarshal message.");
+		tt_abort_msg("Failed to unmarshal message.");
 
 	evutil_gettimeofday(&tv_end, NULL);
 	evutil_timersub(&tv_end, &tv_start, &tv_end);
-        TT_BLATHER(("(%.1f us/add) ",
-                (float)tv_end.tv_sec/(float)i * 1000000.0 +
-                tv_end.tv_usec / (float)i));
+	TT_BLATHER(("(%.1f us/add) ",
+		(float)tv_end.tv_sec/(float)i * 1000000.0 +
+		tv_end.tv_usec / (float)i));
 
 	if (!EVTAG_HAS(msg2, from_name) ||
 	    !EVTAG_HAS(msg2, to_name) ||
 	    !EVTAG_HAS(msg2, attack)) {
-                tt_abort_msg("Missing data structures.");
+		tt_abort_msg("Missing data structures.");
 	}
 
 	if (EVTAG_GET(msg2, attack, &attack) == -1) {
@@ -792,7 +792,7 @@ rpc_test(void)
 	}
 
 	if (EVTAG_ARRAY_LEN(msg2, run) != i) {
-                tt_abort_msg("Wrong number of run messages.");
+		tt_abort_msg("Wrong number of run messages.");
 	}
 
 	/* get the very first run message */
@@ -834,7 +834,7 @@ rpc_test(void)
 		tt_uint_op(short_number, ==, 0xdead0a0b);
 
 	}
-        tt_int_op(EVTAG_ARRAY_LEN(attack, how_often), ==, 3);
+	tt_int_op(EVTAG_ARRAY_LEN(attack, how_often), ==, 3);
 
 	for (i = 0; i < 3; ++i) {
 		ev_uint32_t res;
@@ -846,29 +846,29 @@ rpc_test(void)
 		}
 	}
 
-        test_ok = 1;
+	test_ok = 1;
 end:
-        if (msg)
-                msg_free(msg);
-        if (msg2)
-                msg_free(msg2);
-        if (tmp)
-                evbuffer_free(tmp);
+	if (msg)
+		msg_free(msg);
+	if (msg2)
+		msg_free(msg2);
+	if (tmp)
+		evbuffer_free(tmp);
 }
 
 #define RPC_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_FORK|TT_NEED_BASE|TT_LEGACY,	\
-		    &legacy_setup,				    \
-                    rpc_##name }
+		    &legacy_setup,					\
+		    rpc_##name }
 
 struct testcase_t rpc_testcases[] = {
-        RPC_LEGACY(basic_test),
-        RPC_LEGACY(basic_message),
-        RPC_LEGACY(basic_client),
-        RPC_LEGACY(basic_queued_client),
-        RPC_LEGACY(basic_client_with_pause),
-        RPC_LEGACY(client_timeout),
-        RPC_LEGACY(test),
+	RPC_LEGACY(basic_test),
+	RPC_LEGACY(basic_message),
+	RPC_LEGACY(basic_client),
+	RPC_LEGACY(basic_queued_client),
+	RPC_LEGACY(basic_client_with_pause),
+	RPC_LEGACY(client_timeout),
+	RPC_LEGACY(test),
 
-        END_OF_TESTCASES,
+	END_OF_TESTCASES,
 };

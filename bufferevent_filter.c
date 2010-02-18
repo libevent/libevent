@@ -74,22 +74,21 @@ static void bufferevent_filtered_outbuf_cb(struct evbuffer *buf,
 struct bufferevent_filtered {
 	struct bufferevent_private bev;
 
-        /** The bufferevent that we read/write filtered data from/to. */
+	/** The bufferevent that we read/write filtered data from/to. */
 	struct bufferevent *underlying;
-        /** A callback on our outbuf to notice when somebody adds data */
+	/** A callback on our outbuf to notice when somebody adds data */
 	struct evbuffer_cb_entry *outbuf_cb;
-        /** True iff we have received an EOF callback from the underlying
-         * bufferevent. */
+	/** True iff we have received an EOF callback from the underlying
+	 * bufferevent. */
 	unsigned got_eof;
 
-        /** Function to free context when we're done. */
+	/** Function to free context when we're done. */
 	void (*free_context)(void *);
-        /** Input filter */
+	/** Input filter */
 	bufferevent_filter_cb process_in;
-        /** Output filter */
+	/** Output filter */
 	bufferevent_filter_cb process_out;
-
-        /** User-supplied argument to the filters. */
+	/** User-supplied argument to the filters. */
 	void *context;
 };
 
@@ -100,7 +99,7 @@ const struct bufferevent_ops bufferevent_ops_filter = {
 	be_filter_disable,
 	be_filter_destruct,
 	_bufferevent_generic_adj_timeouts,
-        be_filter_flush,
+	be_filter_flush,
 	be_filter_ctrl,
 };
 
@@ -127,10 +126,10 @@ static int
 be_underlying_writebuf_full(struct bufferevent_filtered *bevf,
     enum bufferevent_flush_mode state)
 {
-        struct bufferevent *u = bevf->underlying;
-        return state == BEV_NORMAL &&
-            u->wm_write.high &&
-            evbuffer_get_length(u->output) >= u->wm_write.high;
+	struct bufferevent *u = bevf->underlying;
+	return state == BEV_NORMAL &&
+	    u->wm_write.high &&
+	    evbuffer_get_length(u->output) >= u->wm_write.high;
 }
 
 /** Return 1 if our input buffer is at or over its high watermark such that we
@@ -139,10 +138,10 @@ static int
 be_readbuf_full(struct bufferevent_filtered *bevf,
     enum bufferevent_flush_mode state)
 {
-        struct bufferevent *bufev = downcast(bevf);
-        return state == BEV_NORMAL &&
-            bufev->wm_read.high &&
-            evbuffer_get_length(bufev->input) >= bufev->wm_read.high;
+	struct bufferevent *bufev = downcast(bevf);
+	return state == BEV_NORMAL &&
+	    bufev->wm_read.high &&
+	    evbuffer_get_length(bufev->input) >= bufev->wm_read.high;
 }
 
 
@@ -194,7 +193,7 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	bufev_f->context = ctx;
 
 	bufferevent_setcb(bufev_f->underlying,
-            be_filter_readcb, be_filter_writecb, be_filter_eventcb, bufev_f);
+	    be_filter_readcb, be_filter_writecb, be_filter_eventcb, bufev_f);
 
 	bufev_f->outbuf_cb = evbuffer_add_cb(downcast(bufev_f)->output,
 	   bufferevent_filtered_outbuf_cb, bufev_f);
@@ -243,29 +242,29 @@ be_filter_process_input(struct bufferevent_filtered *bevf,
 	enum bufferevent_filter_result res;
 	struct bufferevent *bev = downcast(bevf);
 
-        if (state == BEV_NORMAL) {
-                /* If we're in 'normal' mode, don't urge data on the filter
-                 * unless we're reading data and under our high-water mark.*/
-                if (!(bev->enabled & EV_READ) ||
-                    be_readbuf_full(bevf, state))
-                        return BEV_OK;
-        }
+	if (state == BEV_NORMAL) {
+		/* If we're in 'normal' mode, don't urge data on the filter
+		 * unless we're reading data and under our high-water mark.*/
+		if (!(bev->enabled & EV_READ) ||
+		    be_readbuf_full(bevf, state))
+			return BEV_OK;
+	}
 
 	do {
-                ev_ssize_t limit = -1;
-                if (state == BEV_NORMAL && bev->wm_read.high)
-                        limit = bev->wm_read.high -
-                            evbuffer_get_length(bev->input);
+		ev_ssize_t limit = -1;
+		if (state == BEV_NORMAL && bev->wm_read.high)
+			limit = bev->wm_read.high -
+			    evbuffer_get_length(bev->input);
 
 		res = bevf->process_in(bevf->underlying->input,
-                    bev->input, limit, state, bevf->context);
+		    bev->input, limit, state, bevf->context);
 
 		if (res == BEV_OK)
 			*processed_out = 1;
 	} while (res == BEV_OK &&
 		 (bev->enabled & EV_READ) &&
 		 evbuffer_get_length(bevf->underlying->input) &&
-	         !be_readbuf_full(bevf, state));
+		 !be_readbuf_full(bevf, state));
 
 	if (*processed_out)
 		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
@@ -281,71 +280,71 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
 {
 	/* Requires references and lock: might call writecb */
 	enum bufferevent_filter_result res = BEV_OK;
-        struct bufferevent *bufev = downcast(bevf);
-        int again = 0;
+	struct bufferevent *bufev = downcast(bevf);
+	int again = 0;
 
-        if (state == BEV_NORMAL) {
-                /* If we're in 'normal' mode, don't urge data on the
-                 * filter unless we're writing data, and the underlying
-                 * bufferevent is accepting data, and we have data to
-                 * give the filter.  If we're in 'flush' or 'finish',
-                 * call the filter no matter what. */
-                if (!(bufev->enabled & EV_WRITE) ||
-                    be_underlying_writebuf_full(bevf, state) ||
-                    !evbuffer_get_length(bufev->output))
-                        return BEV_OK;
-        }
+	if (state == BEV_NORMAL) {
+		/* If we're in 'normal' mode, don't urge data on the
+		 * filter unless we're writing data, and the underlying
+		 * bufferevent is accepting data, and we have data to
+		 * give the filter.  If we're in 'flush' or 'finish',
+		 * call the filter no matter what. */
+		if (!(bufev->enabled & EV_WRITE) ||
+		    be_underlying_writebuf_full(bevf, state) ||
+		    !evbuffer_get_length(bufev->output))
+			return BEV_OK;
+	}
 
-        /* disable the callback that calls this function
-           when the user adds to the output buffer. */
-        evbuffer_cb_set_flags(bufev->output, bevf->outbuf_cb, 0);
+	/* disable the callback that calls this function
+	   when the user adds to the output buffer. */
+	evbuffer_cb_set_flags(bufev->output, bevf->outbuf_cb, 0);
 
-        do {
-                int processed = 0;
-                again = 0;
+	do {
+		int processed = 0;
+		again = 0;
 
-                do {
-                        ev_ssize_t limit = -1;
-                        if (state == BEV_NORMAL &&
-                            bevf->underlying->wm_write.high)
-                                limit = bevf->underlying->wm_write.high -
-                                    evbuffer_get_length(bevf->underlying->output);
+		do {
+			ev_ssize_t limit = -1;
+			if (state == BEV_NORMAL &&
+			    bevf->underlying->wm_write.high)
+				limit = bevf->underlying->wm_write.high -
+				    evbuffer_get_length(bevf->underlying->output);
 
-                        res = bevf->process_out(downcast(bevf)->output,
-                            bevf->underlying->output,
-                            limit,
-                            state,
-                            bevf->context);
+			res = bevf->process_out(downcast(bevf)->output,
+			    bevf->underlying->output,
+			    limit,
+			    state,
+			    bevf->context);
 
-                        if (res == BEV_OK)
-                                processed = *processed_out = 1;
-                } while (/* Stop if the filter wasn't successful...*/
-                        res == BEV_OK &&
-                        /* Or if we aren't writing any more. */
-                        (bufev->enabled & EV_WRITE) &&
-                        /* Of if we have nothing more to write and we are
-                         * not flushing. */
-                        evbuffer_get_length(bufev->output) &&
-                        /* Or if we have filled the underlying output buffer. */
-                        !be_underlying_writebuf_full(bevf,state));
+			if (res == BEV_OK)
+				processed = *processed_out = 1;
+		} while (/* Stop if the filter wasn't successful...*/
+			res == BEV_OK &&
+			/* Or if we aren't writing any more. */
+			(bufev->enabled & EV_WRITE) &&
+			/* Of if we have nothing more to write and we are
+			 * not flushing. */
+			evbuffer_get_length(bufev->output) &&
+			/* Or if we have filled the underlying output buffer. */
+			!be_underlying_writebuf_full(bevf,state));
 
-                if (processed &&
-                    evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
-                        /* call the write callback.*/
-                        _bufferevent_run_writecb(bufev);
+		if (processed &&
+		    evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
+			/* call the write callback.*/
+			_bufferevent_run_writecb(bufev);
 
-                        if (res == BEV_OK &&
-                            (bufev->enabled & EV_WRITE) &&
-                            evbuffer_get_length(bufev->output) &&
-                            !be_underlying_writebuf_full(bevf, state)) {
-                                again = 1;
-                        }
-                }
-        } while (again);
+			if (res == BEV_OK &&
+			    (bufev->enabled & EV_WRITE) &&
+			    evbuffer_get_length(bufev->output) &&
+			    !be_underlying_writebuf_full(bevf, state)) {
+				again = 1;
+			}
+		}
+	} while (again);
 
-        /* reenable the outbuf_cb */
-        evbuffer_cb_set_flags(bufev->output,bevf->outbuf_cb,
-            EVBUFFER_CB_ENABLED);
+	/* reenable the outbuf_cb */
+	evbuffer_cb_set_flags(bufev->output,bevf->outbuf_cb,
+	    EVBUFFER_CB_ENABLED);
 
 	if (*processed_out)
 		BEV_RESET_GENERIC_WRITE_TIMEOUT(bufev);
@@ -366,7 +365,7 @@ bufferevent_filtered_outbuf_cb(struct evbuffer *buf,
 		/* Somebody added more data to the output buffer. Try to
 		 * process it, if we should. */
 		_bufferevent_incref_and_lock(bev);
-                be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
+		be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
 		_bufferevent_decref_and_unlock(bev);
 	}
 }
@@ -407,10 +406,10 @@ be_filter_writecb(struct bufferevent *underlying, void *_me)
 {
 	struct bufferevent_filtered *bevf = _me;
 	struct bufferevent *bev = downcast(bevf);
-        int processed_any = 0;
+	int processed_any = 0;
 
 	_bufferevent_incref_and_lock(bev);
-        be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
+	be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
 	_bufferevent_decref_and_unlock(bev);
 }
 
@@ -443,9 +442,9 @@ be_filter_flush(struct bufferevent *bufev,
 	if (iotype & EV_WRITE) {
 		be_filter_process_output(bevf, mode, &processed_any);
 	}
-        /* XXX check the return value? */
-        /* XXX does this want to recursively call lower-level flushes? */
-        bufferevent_flush(bevf->underlying, iotype, mode);
+	/* XXX check the return value? */
+	/* XXX does this want to recursively call lower-level flushes? */
+	bufferevent_flush(bevf->underlying, iotype, mode);
 
 	_bufferevent_decref_and_unlock(bufev);
 

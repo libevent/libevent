@@ -85,7 +85,7 @@ typedef void (*evbuffer_cb)(struct evbuffer *buffer, size_t old_len, size_t new_
 
   @param buffer the evbuffer to be monitored
   @param cb the callback function to invoke when the evbuffer is modified,
-            or NULL to remove all callbacks.
+	 or NULL to remove all callbacks.
   @param cbarg an argument to be provided to the callback function
  */
 void evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);

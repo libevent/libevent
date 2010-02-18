@@ -83,10 +83,10 @@ ev_token_bucket_update(struct ev_token_bucket *bucket,
 		return 0;
 
 	/* Naively, we would say
-	       bucket->limit += n_ticks * cfg->rate;
+		bucket->limit += n_ticks * cfg->rate;
 
-	       if (bucket->limit > cfg->maximum)
-	           bucket->limit = cfg->maximum;
+		if (bucket->limit > cfg->maximum)
+			bucket->limit = cfg->maximum;
 
 	   But we're worried about overflow, so we do it like this:
 	*/

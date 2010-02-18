@@ -261,7 +261,7 @@ evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
 	mm_free((char *)rpc->uri);
 	mm_free(rpc);
 
-        registered_uri = evrpc_construct_uri(name);
+	registered_uri = evrpc_construct_uri(name);
 
 	/* remove the http server callback */
 	EVUTIL_ASSERT(evhttp_del_cb(base->http_server, registered_uri) == 0);

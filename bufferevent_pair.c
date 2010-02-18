@@ -113,7 +113,7 @@ int
 bufferevent_pair_new(struct event_base *base, int options,
     struct bufferevent *pair[2])
 {
-        struct bufferevent_pair *bufev1 = NULL, *bufev2 = NULL;
+	struct bufferevent_pair *bufev1 = NULL, *bufev2 = NULL;
 	int tmp_options;
 
 	options |= BEV_OPT_DEFER_CALLBACKS;

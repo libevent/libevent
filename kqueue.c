@@ -268,7 +268,7 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 
 	if (res == -1) {
 		if (errno != EINTR) {
-                        event_warn("kevent");
+			event_warn("kevent");
 			return (-1);
 		}
 

@@ -272,7 +272,7 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most,
 
 	_evbuffer_incref(buf);
 	if (WSARecv(buf_o->fd, buf_o->buffers, nvecs, &bytesRead, &flags,
-	            &ol->overlapped, NULL)) {
+		    &ol->overlapped, NULL)) {
 		int error = WSAGetLastError();
 		if (error != WSA_IO_PENDING) {
 			/* An actual error. */

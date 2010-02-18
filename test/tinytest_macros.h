@@ -80,7 +80,7 @@
 #define tt_fail() TT_FAIL(("%s", "(Failed.)"))
 
 /* End the current test, and indicate we are skipping it. */
-#define tt_skip()                               \
+#define tt_skip()						\
 	TT_STMT_BEGIN						\
 	_tinytest_set_test_skipped();				\
 	TT_EXIT_TEST_FUNCTION;					\

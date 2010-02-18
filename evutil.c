@@ -1373,9 +1373,9 @@ evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
 int
 evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
 {
-        int r;
-        if (!buflen)
-                return 0;
+	int r;
+	if (!buflen)
+		return 0;
 #ifdef _MSC_VER
 	r = _vsnprintf(buf, buflen, format, ap);
 	if (r < 0)
@@ -1401,10 +1401,10 @@ evutil_inet_ntop(int af, const void *src, char *dst, size_t len)
 		const ev_uint32_t a = ntohl(in->s_addr);
 		int r;
 		r = evutil_snprintf(dst, len, "%d.%d.%d.%d",
-							(int)(ev_uint8_t)((a>>24)&0xff),
-							(int)(ev_uint8_t)((a>>16)&0xff),
-							(int)(ev_uint8_t)((a>>8 )&0xff),
-							(int)(ev_uint8_t)((a    )&0xff));
+		    (int)(ev_uint8_t)((a>>24)&0xff),
+		    (int)(ev_uint8_t)((a>>16)&0xff),
+		    (int)(ev_uint8_t)((a>>8 )&0xff),
+		    (int)(ev_uint8_t)((a    )&0xff));
 		if (r<0||(size_t)r>=len)
 			return NULL;
 		else
@@ -1418,20 +1418,20 @@ evutil_inet_ntop(int af, const void *src, char *dst, size_t len)
 		ev_uint16_t words[8];
 		for (i = 0; i < 8; ++i) {
 			words[i] =
-				(((ev_uint16_t)addr->s6_addr[2*i])<<8) + addr->s6_addr[2*i+1];
+			    (((ev_uint16_t)addr->s6_addr[2*i])<<8) + addr->s6_addr[2*i+1];
 		}
 		if (words[0] == 0 && words[1] == 0 && words[2] == 0 && words[3] == 0 &&
-			words[4] == 0 && ((words[5] == 0 && words[6] && words[7]) ||
-							  (words[5] == 0xffff))) {
+		    words[4] == 0 && ((words[5] == 0 && words[6] && words[7]) ||
+			(words[5] == 0xffff))) {
 			/* This is an IPv4 address. */
 			if (words[5] == 0) {
 				evutil_snprintf(buf, sizeof(buf), "::%d.%d.%d.%d",
-								addr->s6_addr[12], addr->s6_addr[13],
-								addr->s6_addr[14], addr->s6_addr[15]);
+				    addr->s6_addr[12], addr->s6_addr[13],
+				    addr->s6_addr[14], addr->s6_addr[15]);
 			} else {
 				evutil_snprintf(buf, sizeof(buf), "::%x:%d.%d.%d.%d", words[5],
-								addr->s6_addr[12], addr->s6_addr[13],
-								addr->s6_addr[14], addr->s6_addr[15]);
+				    addr->s6_addr[12], addr->s6_addr[13],
+				    addr->s6_addr[14], addr->s6_addr[15]);
 			}
 			if (strlen(buf) > len)
 				return NULL;
@@ -1677,7 +1677,7 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 			return -1;
 		memset(out, 0, *outlen);
 		memcpy(out, &sin6, sizeof(sin6));
-                *outlen = sizeof(sin6);
+		*outlen = sizeof(sin6);
 		return 0;
 	}
 	else
@@ -1696,7 +1696,7 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 			return -1;
 		memset(out, 0, *outlen);
 		memcpy(out, &sin, sizeof(sin));
-                *outlen = sizeof(sin);
+		*outlen = sizeof(sin);
 		return 0;
 	}
 }
@@ -1859,9 +1859,9 @@ long
 _evutil_weakrand(void)
 {
 #ifdef WIN32
-       return rand();
+	return rand();
 #else
-       return random();
+	return random();
 #endif
 }
 

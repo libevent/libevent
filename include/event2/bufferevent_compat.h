@@ -55,17 +55,17 @@
   enabling the bufferevent for the first time.
 
   @param fd the file descriptor from which data is read and written to.
-         This file descriptor is not allowed to be a pipe(2).
+	 This file descriptor is not allowed to be a pipe(2).
   @param readcb callback to invoke when there is data to be read, or NULL if
-         no callback is desired
+	 no callback is desired
   @param writecb callback to invoke when the file descriptor is ready for
-         writing, or NULL if no callback is desired
+	 writing, or NULL if no callback is desired
   @param errorcb callback to invoke when there is an error on the file
-         descriptor
+	 descriptor
   @param cbarg an argument that will be supplied to each of the callbacks
-         (readcb, writecb, and errorcb)
+	 (readcb, writecb, and errorcb)
   @return a pointer to a newly allocated bufferevent struct, or NULL if an
-          error occurred
+	  error occurred
   @see bufferevent_base_set(), bufferevent_free()
   */
 struct bufferevent *bufferevent_new(evutil_socket_t fd,

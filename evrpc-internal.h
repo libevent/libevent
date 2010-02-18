@@ -169,13 +169,13 @@ struct evrpc_request_wrapper {
 
 	TAILQ_ENTRY(evrpc_request_wrapper) next;
 
-        /* pool on which this rpc request is being made */
-        struct evrpc_pool *pool;
+	/* pool on which this rpc request is being made */
+	struct evrpc_pool *pool;
 
-        /* connection on which the request is being sent */
+	/* connection on which the request is being sent */
 	struct evhttp_connection *evcon;
 
-        /* the actual  request */
+	/* the actual  request */
 	struct evhttp_request *req;
 
 	/* event for implementing request timeouts */

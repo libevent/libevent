@@ -60,7 +60,7 @@ read_cb(int fd, short event, void *arg)
 	len = recv(fd, &buf, sizeof(buf), 0);
 
 	/*printf("%s: %s %d%s\n", __func__, event & EV_ET ? "etread" : "read",
-	         len, len ? "" : " - means EOF");
+		len, len ? "" : " - means EOF");
 	*/
 
 	called++;
@@ -85,10 +85,10 @@ static void
 test_edgetriggered(void *et)
 {
 	struct event *ev = NULL;
-    struct event_base *base = NULL;
+	struct event_base *base = NULL;
 	const char *test = "test string";
 	evutil_socket_t pair[2] = {-1,-1};
-    int supports_et;
+	int supports_et;
 	int success;
 
 	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0, pair) == -1) {
@@ -114,7 +114,7 @@ test_edgetriggered(void *et)
 				supports_et?"":"not "));
 
 	/* Initalize one event */
-    ev = event_new(base, pair[1], EV_READ|EV_ET|EV_PERSIST, read_cb, &ev);
+	ev = event_new(base, pair[1], EV_READ|EV_ET|EV_PERSIST, read_cb, &ev);
 
 	event_add(ev, NULL);
 
