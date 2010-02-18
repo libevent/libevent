@@ -46,6 +46,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "event2/event.h"
 #include "event2/util.h"
@@ -712,6 +713,57 @@ end:
 }
 
 static void
+test_evutil_rand(void *arg)
+{
+	char buf1[32];
+	char buf2[32];
+	int counts[256];
+	int i, j, k, n=0;
+
+	memset(buf2, 0, sizeof(buf2));
+	memset(counts, 0, sizeof(counts));
+
+	for (k=0;k<32;++k) {
+		/* Try a few different start and end points; try to catch
+		 * the various misaligned cases of arc4random_buf */
+		int startpoint = _evutil_weakrand() % 4;
+		int endpoint = 32 - (_evutil_weakrand() % 4);
+
+		memset(buf2, 0, sizeof(buf2));
+
+		/* Do 6 runs over buf1, or-ing the result into buf2 each
+		 * time, to make sure we're setting each byte that we mean
+		 * to set. */
+		for (i=0;i<8;++i) {
+			memset(buf1, 0, sizeof(buf1));
+			evutil_secure_rng_get_bytes(buf1 + startpoint,
+			    endpoint-startpoint);
+			n += endpoint - startpoint;
+			for (j=0; j<32; ++j) {
+				if (j >= startpoint && j < endpoint) {
+					buf2[j] |= buf1[j];
+					++counts[(unsigned char)buf1[j]];
+				} else {
+					assert(buf1[j] == 0);
+					tt_int_op(buf1[j], ==, 0);
+
+				}
+			}
+		}
+
+		/* This will give a false positive with P=(256**8)==(2**64)
+		 * for each character. */
+		for (j=startpoint;j<endpoint;++j) {
+			tt_int_op(buf2[j], !=, 0);
+		}
+	}
+
+	/* for (i=0;i<256;++i) { printf("%3d %2d\n", i, counts[i]); } */
+end:
+	;
+}
+
+static void
 test_evutil_getaddrinfo(void *arg)
 {
 	struct evutil_addrinfo *ai = NULL, *a;
@@ -907,6 +959,7 @@ struct testcase_t util_testcases[] = {
 	{ "log", test_evutil_log, TT_FORK, NULL, NULL },
 	{ "upcast", test_evutil_upcast, 0, NULL, NULL },
 	{ "integers", test_evutil_integers, 0, NULL, NULL },
+	{ "rand", test_evutil_rand, TT_FORK, NULL, NULL },
 	{ "getaddrinfo", test_evutil_getaddrinfo, TT_FORK, NULL, NULL },
 	END_OF_TESTCASES,
 };
