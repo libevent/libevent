@@ -117,7 +117,7 @@ evconnlistener_new(struct event_base *base,
 	struct evconnlistener_event *lev;
 
 #ifdef WIN32
-	if (event_base_get_iocp(base)) {
+	if (base && event_base_get_iocp(base)) {
 		const struct win32_extension_fns *ext =
 			event_get_win32_extension_fns();
 		if (ext->AcceptEx && ext->GetAcceptExSockaddrs)
@@ -345,7 +345,7 @@ new_accepting_socket(struct evconnlistener_iocp *lev, int family)
 	event_deferred_cb_init(&res->deferred,
 		accepted_socket_invoke_user_cb, res);
 
-	InitializeCriticalSection(&res->lock);
+	InitializeCriticalSectionAndSpinCount(&res->lock, 1000);
 
 	return res;
 }
@@ -558,7 +558,7 @@ evconnlistener_new_async(struct event_base *base,
 	struct evconnlistener_iocp *lev;
 	int i;
 
-	if (!event_base_get_iocp(base))
+	if (!base || !event_base_get_iocp(base))
 		goto err;
 
 	/* XXXX duplicate code */
@@ -590,7 +590,7 @@ evconnlistener_new_async(struct event_base *base,
 	if (event_iocp_port_associate(lev->port, fd, 1) < 0)
 		goto err_free_lev;
 
-	InitializeCriticalSection(&lev->lock);
+	InitializeCriticalSectionAndSpinCount(&lev->lock, 1000);
 
 	lev->n_accepting = N_SOCKETS_PER_LISTENER;
 	lev->accepting = mm_calloc(lev->n_accepting,
