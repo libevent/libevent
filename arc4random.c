@@ -50,6 +50,7 @@
 #ifndef ARC4RANDOM_NO_INCLUDES
 #ifdef WIN32
 #include <wincrypt.h>
+#include <process.h>
 #else
 #include <fcntl.h>
 #include <unistd.h>
@@ -215,6 +216,10 @@ arc4_stir(void)
 		(void)arc4_getbyte();
 	arc4_count = BYTES_BEFORE_RESEED;
 }
+
+#ifdef WIN32
+#define getpid _getpid
+#endif
 
 static void
 arc4_stir_if_needed(void)
