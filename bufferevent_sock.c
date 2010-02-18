@@ -223,7 +223,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		} else {
 			connected = 1;
 #ifdef WIN32
-		       	if (BEV_IS_ASYNC(bufev)) {
+			if (BEV_IS_ASYNC(bufev)) {
 				event_del(&bufev->ev_write);
 				bufferevent_async_set_connected(bufev);
 				_bufferevent_run_eventcb(bufev,

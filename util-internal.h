@@ -165,7 +165,7 @@ long _evutil_weakrand(void);
 			event_errx(_EVENT_ERR_ABORT,			\
 			    "%s:%d: Assertion %s failed in %s",		\
 			    __FILE__,__LINE__,#cond,__func__);		\
-			/* In case a user-supplied handler tries to */ 	\
+			/* In case a user-supplied handler tries to */	\
 			/* return control to us, log and abort here. */	\
 			(void)fprintf(stderr,				\
 			    "%s:%d: Assertion %s failed in %s",		\

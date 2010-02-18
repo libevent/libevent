@@ -158,7 +158,7 @@ accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
 		    BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
 	else {
 		SSL *ssl = SSL_new(ssl_ctx);
- 		b_out = bufferevent_openssl_socket_new(base, -1, ssl,
+		b_out = bufferevent_openssl_socket_new(base, -1, ssl,
 		    BUFFEREVENT_SSL_CONNECTING,
 		    BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
 	}

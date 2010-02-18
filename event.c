@@ -211,7 +211,7 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		find.ptr = (ev);					\
 		EVLOCK_LOCK(_event_debug_map_lock, 0);			\
 		dent = HT_REMOVE(event_debug_map, &global_debug_map, &find); \
-		if (dent) 						\
+		if (dent)						\
 			mm_free(dent);					\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
@@ -1537,7 +1537,7 @@ event_set(struct event *ev, evutil_socket_t fd, short events,
 {
 	int r;
 	r = event_assign(ev, current_base, fd, events, callback, arg);
-       	EVUTIL_ASSERT(r == 0);
+	EVUTIL_ASSERT(r == 0);
 }
 
 struct event *

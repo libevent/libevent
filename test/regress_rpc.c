@@ -590,7 +590,7 @@ static void
 rpc_hook_pause_cb(int fd, short what, void *arg)
 {
 	struct _rpc_hook_ctx *ctx = arg;
- 	++hook_pause_cb_called;
+	++hook_pause_cb_called;
 	evrpc_resume_request(ctx->vbase, ctx->ctx, EVRPC_CONTINUE);
 }
 

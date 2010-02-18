@@ -755,7 +755,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 				return (DATA_CORRUPTED);
 			}
 			if (req->body_size + (size_t)ntoread > req->evcon->max_body_size) {
-			  	/* failed body length test */
+				/* failed body length test */
 				event_debug(("Request body is too long"));
 				return (DATA_TOO_LONG);
 			}
@@ -853,7 +853,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 
 	if (req->body_size > req->evcon->max_body_size) {
-	 	/* failed body length test */
+		/* failed body length test */
 		event_debug(("Request body is too long"));
 		evhttp_connection_fail(evcon,
 				       EVCON_HTTP_INVALID_HEADER);

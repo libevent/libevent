@@ -38,7 +38,7 @@
  *
  * I ask and expect, but do not require, that all derivative works contain an
  * attribution similar to:
- * 	Parts developed by Adam Langley <agl@imperialviolet.org>
+ *     Parts developed by Adam Langley <agl@imperialviolet.org>
  *
  * You may wish to replace the word "Parts" with something else depending on
  * the amount of original code.

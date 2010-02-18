@@ -180,7 +180,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = BASIC_REQUEST_BODY;
 
- 	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bufferevent_get_input(bev))));
+	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bufferevent_get_input(bev))));
 
 	if (evbuffer_find(bufferevent_get_input(bev),
 		(const unsigned char*) what, strlen(what)) != NULL) {
@@ -301,11 +301,11 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 	memset(state, 0, sizeof(struct chunk_req_state));
 	state->req = req;
 
- 	if (strcmp(evhttp_request_uri(req), "/streamed") == 0) {
- 		evhttp_add_header(req->output_headers, "Content-Length", "39");
- 	}
+	if (strcmp(evhttp_request_uri(req), "/streamed") == 0) {
+		evhttp_add_header(req->output_headers, "Content-Length", "39");
+	}
 
- 	/* generate a chunked/streamed reply */
+	/* generate a chunked/streamed reply */
 	evhttp_send_reply_start(req, HTTP_OK, "Everything is fine");
 
 	/* but trickle it across several iterations to ensure we're not
@@ -2445,7 +2445,7 @@ static void
 http_data_length_constraints_test_done(struct evhttp_request *req, void *arg)
 {
 	tt_assert(req);
- 	tt_int_op(req->response_code, ==, HTTP_BADREQUEST);
+	tt_int_op(req->response_code, ==, HTTP_BADREQUEST);
 end:
 	event_loopexit(NULL);
 }

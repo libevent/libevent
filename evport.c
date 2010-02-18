@@ -100,9 +100,9 @@ struct fd_info {
     (FDI_HAS_WRITE(fdi) ? POLLOUT : 0)
 
 struct evport_data {
-	int 		ed_port;	/* event port for system events  */
-	int		ed_nevents;	/* number of allocated fdi's 	 */
-	struct fd_info *ed_fds;		/* allocated fdi table 		 */
+	int		ed_port;	/* event port for system events  */
+	int		ed_nevents;	/* number of allocated fdi's	 */
+	struct fd_info *ed_fds;		/* allocated fdi table		 */
 	/* fdi's that we need to reassoc */
 	int ed_pending[EVENTS_PER_GETN]; /* fd's with pending events */
 };
@@ -110,7 +110,7 @@ struct evport_data {
 static void*	evport_init	(struct event_base *);
 static int evport_add(struct event_base *, int fd, short old, short events, void *);
 static int evport_del(struct event_base *, int fd, short old, short events, void *);
-static int 	evport_dispatch	(struct event_base *, struct timeval *);
+static int	evport_dispatch	(struct event_base *, struct timeval *);
 static void	evport_dealloc	(struct event_base *);
 
 const struct eventop evportops = {

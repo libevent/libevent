@@ -265,7 +265,7 @@ be_filter_process_input(struct bufferevent_filtered *bevf,
 	} while (res == BEV_OK &&
 		 (bev->enabled & EV_READ) &&
 		 evbuffer_get_length(bevf->underlying->input) &&
-  		 !be_readbuf_full(bevf, state));
+	         !be_readbuf_full(bevf, state));
 
 	if (*processed_out)
 		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
