@@ -37,45 +37,6 @@
 #include <sys/types.h>
 #include "event-config.h"
 
-#ifdef _EVENT_DNS_USE_FTIME_FOR_ID
-#include <sys/timeb.h>
-#endif
-
-#ifndef _EVENT_DNS_USE_CPU_CLOCK_FOR_ID
-#ifndef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
-#ifndef _EVENT_DNS_USE_OPENSSL_FOR_ID
-#ifndef _EVENT_DNS_USE_FTIME_FOR_ID
-#ifndef _EVENT_DNS_USE_ARC4RANDOM_FOR_ID
-#error Must configure at least one id generation method.
-#error Please see the documentation.
-#endif
-#endif
-#endif
-#endif
-#endif
-
-/* #define _POSIX_C_SOURCE 200507 */
-#define _GNU_SOURCE
-/* for strtok_r */
-#define _REENTRANT
-
-#ifdef _EVENT_DNS_USE_CPU_CLOCK_FOR_ID
-#ifdef _EVENT_DNS_USE_OPENSSL_FOR_ID
-#error Multiple id options selected
-#endif
-#ifdef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
-#error Multiple id options selected
-#endif
-#include <time.h>
-#endif
-
-#ifdef _EVENT_DNS_USE_OPENSSL_FOR_ID
-#ifdef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
-#error Multiple id options selected
-#endif
-#include <openssl/rand.h>
-#endif
-
 #ifndef _FORTIFY_SOURCE
 #define _FORTIFY_SOURCE 3
 #endif
@@ -1213,97 +1174,15 @@ err:
 #undef GET8
 }
 
-static u16
-default_transaction_id_fn(void)
-{
-	u16 trans_id;
-#ifdef _EVENT_DNS_USE_CPU_CLOCK_FOR_ID
-	struct timespec ts;
-	static int clkid = -1;
-	if (clkid == -1) {
-		clkid = CLOCK_REALTIME;
-#ifdef CLOCK_MONOTONIC
-		if (clock_gettime(CLOCK_MONOTONIC, &ts) != -1)
-			clkid = CLOCK_MONOTONIC;
-#endif
-	}
-	if (clock_gettime(clkid, &ts) == -1)
-		event_err(1, "clock_gettime");
-	trans_id = ts.tv_nsec & 0xffff;
-#endif
-
-#ifdef _EVENT_DNS_USE_FTIME_FOR_ID
-	struct _timeb tb;
-	_ftime(&tb);
-	trans_id = tb.millitm & 0xffff;
-#endif
-
-#ifdef _EVENT_DNS_USE_GETTIMEOFDAY_FOR_ID
-	struct timeval tv;
-	evutil_gettimeofday(&tv, NULL);
-	trans_id = tv.tv_usec & 0xffff;
-#endif
-
-#ifdef _EVENT_DNS_USE_OPENSSL_FOR_ID
-	if (RAND_pseudo_bytes((u8 *) &trans_id, 2) == -1) {
-		/* in the case that the RAND call fails we used to back */
-		/* down to using gettimeofday. */
-		/*
-		  struct timeval tv;
-		  gettimeofday(&tv, NULL);
-		  trans_id = tv.tv_usec & 0xffff;
-		*/
-		event_errx("RAND_pseudo_bytes failed!");
-	}
-#endif
-
-#ifdef _EVENT_DNS_USE_ARC4RANDOM_FOR_ID
-	trans_id = arc4random() & 0xffff;
-#endif
-
-	return trans_id;
-}
-
-static ev_uint16_t (*trans_id_function)(void) = default_transaction_id_fn;
-
-static void
-default_random_bytes_fn(char *buf, size_t n)
-{
-	unsigned i;
-	for (i = 0; i < n; i += 2) {
-		u16 tid = trans_id_function();
-		buf[i] = (tid >> 8) & 0xff;
-		if (i+1<n)
-			buf[i+1] = tid & 0xff;
-	}
-}
-
-static void (*rand_bytes_function)(char *buf, size_t n) =
-	default_random_bytes_fn;
-
-static u16
-trans_id_from_random_bytes_fn(void)
-{
-	u16 tid;
-	rand_bytes_function((char*) &tid, sizeof(tid));
-	return tid;
-}
 
 void
 evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void))
 {
-	if (fn)
-		trans_id_function = fn;
-	else
-		trans_id_function = default_transaction_id_fn;
-	rand_bytes_function = default_random_bytes_fn;
 }
 
 void
 evdns_set_random_bytes_fn(void (*fn)(char *, size_t))
 {
-	rand_bytes_function = fn;
-	trans_id_function = trans_id_from_random_bytes_fn;
 }
 
 /* Try to choose a strong transaction id which isn't already in flight */
@@ -1311,7 +1190,8 @@ static u16
 transaction_id_pick(struct evdns_base *base) {
 	ASSERT_LOCKED(base);
 	for (;;) {
-		u16 trans_id = trans_id_function();
+		u16 trans_id;
+		evutil_secure_rng_get_bytes(&trans_id, sizeof(trans_id));
 
 		if (trans_id == 0xffff) continue;
 		/* now check to see if that id is already inflight */
@@ -2675,7 +2555,7 @@ request_new(struct evdns_base *base, int type, const char *name, int flags,
 		unsigned i;
 		char randbits[(sizeof(namebuf)+7)/8];
 		strlcpy(namebuf, name, sizeof(namebuf));
-		rand_bytes_function(randbits, (name_len+7)/8);
+		evutil_secure_rng_get_bytes(randbits, (name_len+7)/8);
 		for (i = 0; i < name_len; ++i) {
 			if (EVUTIL_ISALPHA(namebuf[i])) {
 				if ((randbits[i >> 3] & (1<<(i & 7))))
@@ -3719,6 +3599,12 @@ struct evdns_base *
 evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 {
 	struct evdns_base *base;
+
+	if (evutil_secure_rng_init() < 0) {
+		log(EVDNS_LOG_WARN, "Unable to seed random number generator; "
+		    "DNS can't run.");
+		return NULL;
+	}
 
 	/* Give the evutil library a hook into its evdns-enabled
 	 * functionality.  We can't just call evdns_getaddrinfo directly or

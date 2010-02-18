@@ -58,31 +58,6 @@
  * (see http://www.imperialviolet.org/page25.html#e498). Otherwise,
  * please continue.
  *
- * This code is based on Libevent and you must call event_init before
- * any of the APIs in this file. You must also seed the OpenSSL random
- * source if you are using OpenSSL for ids (see below).
- *
- * This library is designed to be included and shipped with your source
- * code. You statically link with it. You should also test for the
- * existence of strtok_r and define HAVE_STRTOK_R if you have it.
- *
- * The DNS protocol requires a good source of id numbers and these
- * numbers should be unpredictable for spoofing reasons. There are
- * three methods for generating them here and you must define exactly
- * one of them. In increasing order of preference:
- *
- * DNS_USE_GETTIMEOFDAY_FOR_ID:
- *   Using the bottom 16 bits of the usec result from gettimeofday. This
- *   is a pretty poor solution but should work anywhere.
- * DNS_USE_CPU_CLOCK_FOR_ID:
- *   Using the bottom 16 bits of the nsec result from the CPU's time
- *   counter. This is better, but may not work everywhere. Requires
- *   POSIX realtime support and you'll need to link against -lrt on
- *   glibc systems at least.
- * DNS_USE_OPENSSL_FOR_ID:
- *   Uses the OpenSSL RAND_bytes call to generate the data. You must
- *   have seeded the pool before making any calls to this library.
- *
  * The library keeps track of the state of nameservers and will avoid
  * them when they go down. Otherwise it will round robin between them.
  *
@@ -513,6 +488,9 @@ void evdns_set_log_fn(evdns_debug_log_fn_type fn);
    is bad for security.
 
    @param fn the new callback, or NULL to use the default.
+
+   NOTE: This function has no effect in Libevent 2.0.4-alpha and later,
+   since Libevent now provides its own secure RNG.
  */
 void evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void));
 
@@ -521,6 +499,9 @@ void evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void));
    the same function as passed to evdns_set_transaction_id_fn to generate
    bytes two at a time.  If a function is provided here, it's also used
    to generate transaction IDs.
+
+   NOTE: This function has no effect in Libevent 2.0.4-alpha and later,
+   since Libevent now provides its own secure RNG.
 */
 void evdns_set_random_bytes_fn(void (*fn)(char *, size_t));
 

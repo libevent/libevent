@@ -183,7 +183,7 @@ AC_C_INLINE
 AC_HEADER_TIME
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop inet_pton signal sigaction strtoll inet_aton pipe eventfd sendfile mmap splice arc4random issetugid geteuid getegid getservbyname getprotobynumber setenv unsetenv putenv)
+AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop inet_pton signal sigaction strtoll inet_aton pipe eventfd sendfile mmap splice arc4random arc4random_buf issetugid geteuid getegid getservbyname getprotobynumber setenv unsetenv putenv)
 
 # Check for gethostbyname_r in all its glorious incompatible versions.
 #   (This is cut-and-pasted from Tor, which based its logic on
@@ -243,14 +243,6 @@ AC_CHECK_FUNC(gethostbyname_r, [
 
 
 AC_CHECK_SIZEOF(long)
-
-if test "x$ac_cv_func_arc4random" = "xyes" ; then
-   AC_DEFINE(DNS_USE_ARC4RANDOM_FOR_ID, 1, [Define if we should use arc4random to generate dns transation IDs])
-elif test "x$ac_cv_func_clock_gettime" = "xyes"; then
-   AC_DEFINE(DNS_USE_CPU_CLOCK_FOR_ID, 1, [Define if we should use clock_gettime to generate dns transation IDs])
-else
-   AC_DEFINE(DNS_USE_GETTIMEOFDAY_FOR_ID, 1, [Define if s no secure id variant is available])
-fi
 
 AC_MSG_CHECKING(for F_SETFD in fcntl.h)
 AC_EGREP_CPP(yes,
