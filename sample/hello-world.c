@@ -11,6 +11,10 @@
 #include <errno.h>
 #include <stdio.h>
 #include <signal.h>
+#ifndef WIN32
+#include <netinet/in.h>
+#include <sys/socket.h>
+#endif
 
 #include <event2/bufferevent.h>
 #include <event2/buffer.h>
