@@ -878,7 +878,7 @@ event_base_priority_init(struct event_base *base, int npriorities)
 		return (-1);
 	}
 	base->nactivequeues = npriorities;
-				
+
 	for (i = 0; i < base->nactivequeues; ++i) {
 		TAILQ_INIT(&base->activequeues[i]);
 	}

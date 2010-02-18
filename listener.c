@@ -194,7 +194,7 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	listener = evconnlistener_new(base, cb, ptr, flags, backlog, fd);
 	if (!listener) {
 		EVUTIL_CLOSESOCKET(fd);
-		return NULL;				
+		return NULL;
 	}
 
 	return listener;

@@ -1434,7 +1434,7 @@ evhttp_add_header(struct evkeyvalq *headers,
 		event_debug(("%s: dropping illegal header key\n", __func__));
 		return (-1);
 	}
-	
+
 	if (!evhttp_header_is_valid_value(value)) {
 		event_debug(("%s: dropping illegal header value\n", __func__));
 		return (-1);

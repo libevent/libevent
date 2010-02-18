@@ -232,7 +232,7 @@ int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
 
 /** Do platform-specific operations as needed to close a socket upon a
     successful execution of one of the exec*() functions.
- 
+
     @param sock The socket to be closed
     @return 0 on success, -1 on failure
  */

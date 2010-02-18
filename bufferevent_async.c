@@ -203,7 +203,7 @@ be_async_outbuf_callback(struct evbuffer *buf,
 	struct bufferevent *bev = arg;
 	struct bufferevent_async *bev_async = upcast(bev);
 
-	/* If we added data to the outbuf and were not writing before, 
+	/* If we added data to the outbuf and were not writing before,
 	 * we may want to write now. */
 
 	_bufferevent_incref_and_lock(bev);
