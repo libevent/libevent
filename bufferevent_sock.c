@@ -276,8 +276,9 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	 * low watermark.
 	 */
 	if ((res || !connected) &&
-	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low)
+	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
 		_bufferevent_run_writecb(bufev);
+	}
 
 	goto done;
 
@@ -390,14 +391,10 @@ bufferevent_socket_connect(struct bufferevent *bev,
 			goto done;
 		}
 	} else {
-		/* The connect succeeded already. How odd. */
+		/* The connect succeeded already. How very BSD of it. */
 		result = 0;
-		/* XXXX The strcmp here is a stupid hack to prevent delivering
-		 * a CONNECTED to an SSL bufferevent before its SSL is done
-		 * negotiating.  Really we should find some way to do this that
-		 * isn't an explicit type-check. */
-		if (strcmp(bev->be_ops->type, "ssl"))
-			_bufferevent_run_eventcb(bev, BEV_EVENT_CONNECTED);
+		bufev_p->connecting = 1;
+		event_active(&bev->ev_write, EV_WRITE, 1);
 	}
 
 	goto done;
