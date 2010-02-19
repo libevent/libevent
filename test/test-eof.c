@@ -58,7 +58,7 @@ read_cb(int fd, short event, void *arg)
 #endif
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
 	struct event ev;
 	const char *test = "test string";

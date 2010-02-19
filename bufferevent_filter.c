@@ -456,7 +456,7 @@ be_filter_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
     union bufferevent_ctrl_data *data)
 {
 	struct bufferevent_filtered *bevf;
-	switch(op) {
+	switch (op) {
 	case BEV_CTRL_GET_UNDERLYING:
 		bevf = upcast(bev);
 		data->ptr = bevf->underlying;

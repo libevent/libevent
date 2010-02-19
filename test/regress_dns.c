@@ -711,7 +711,7 @@ dumb_bytes_fn(char *p, size_t n)
 	unsigned i;
 	/* This gets us 6 bits of entropy per transaction ID, which means we
 	 * will have probably have collisions and need to pick again. */
-	for(i=0;i<n;++i)
+	for (i=0;i<n;++i)
 		p[i] = (char)(rand() & 7);
 }
 #endif
@@ -740,7 +740,7 @@ dns_inflight_test(void *arg)
 	tt_assert(! evdns_base_set_option(dns, "max-inflight:", "3"));
 	tt_assert(! evdns_base_set_option(dns, "randomize-case:", "0"));
 
-	for(i=0;i<20;++i)
+	for (i=0;i<20;++i)
 		evdns_base_resolve_ipv4(dns, "foof.example.com", 0, generic_dns_callback, &r[i]);
 
 	n_replies_left = 20;

@@ -142,7 +142,6 @@ extern "C" {
 #define EVTAG_ARRAY_LEN(msg, member) ((msg)->member##_length)
 
 
-
 struct evbuffer;
 struct event_base;
 struct evrpc_req_generic;

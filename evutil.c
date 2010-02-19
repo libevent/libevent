@@ -328,7 +328,7 @@ evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
 	struct _timeb tb;
 
-	if(tv == NULL)
+	if (tv == NULL)
 		return -1;
 
 	_ftime(&tb);

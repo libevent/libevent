@@ -86,10 +86,10 @@ devpoll_commit(struct devpollop *devpollop)
 	 */
 	if (pwrite(devpollop->dpfd, devpollop->changes,
 		sizeof(struct pollfd) * devpollop->nchanges, 0) == -1)
-		return(-1);
+		return (-1);
 
 	devpollop->nchanges = 0;
-	return(0);
+	return (0);
 }
 
 static int
@@ -110,7 +110,7 @@ devpoll_queue(struct devpollop *devpollop, int fd, int events) {
 	pfd->events = events;
 	pfd->revents = 0;
 
-	return(0);
+	return (0);
 }
 
 static void *

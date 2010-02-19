@@ -880,7 +880,7 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 	/* means that the next 14 bits are a pointer within the current */
 	/* packet. */
 
-	for(;;) {
+	for (;;) {
 		u8 label_len;
 		if (j >= length) return -1;
 		GET8(label_len);
@@ -1441,7 +1441,7 @@ dnslabel_table_add(struct dnslabel_table *table, const char *label, off_t pos)
 		return (-1);
 	v = mm_strdup(label);
 	if (v == NULL)
-		return (-1);
+		return(-1);
 	p = table->n_labels++;
 	table->labels[p].v = v;
 	table->labels[p].pos = pos;
@@ -3364,7 +3364,6 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 		current_base = evdns_base_new(NULL, 0);
 	return evdns_base_resolv_conf_parse(current_base, flags, filename);
 }
-
 
 
 #ifdef WIN32

@@ -83,7 +83,7 @@ http_ref_cb(struct evhttp_request *req, void *arg)
 #endif
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
 	struct event_base *base = event_base_new();
 	struct evhttp *http = evhttp_new(base);

@@ -84,7 +84,6 @@ static struct timeval tset;
 static struct timeval tcalled;
 
 
-
 #define TEST1	"this is a test"
 #define SECONDS	1
 
@@ -1592,7 +1591,6 @@ evtag_test_peek(void *ptr)
 end:
 	evbuffer_free(tmp);
 }
-
 
 
 static void

@@ -64,7 +64,7 @@ timeout_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
 	struct event timeout;
 	struct timeval tv;

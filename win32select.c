@@ -320,7 +320,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 
 	event_debug(("%s: select returned %d", __func__, res));
 
-	if(res <= 0) {
+	if (res <= 0) {
 		evsig_process(base);
 		return res;
 	} else if (base->sig.evsig_caught) {

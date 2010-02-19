@@ -115,7 +115,7 @@ int min_heap_erase(min_heap_t* s, struct event* e)
 
 int min_heap_reserve(min_heap_t* s, unsigned n)
 {
-	if(s->a < n)
+	if (s->a < n)
 	{
 		struct event** p;
 		unsigned a = s->a ? s->a * 2 : 8;
@@ -147,7 +147,7 @@ void min_heap_shift_down_(min_heap_t* s, unsigned hole_index, struct event* e)
     while(min_child <= s->n)
 	{
 	min_child -= min_child == s->n || min_heap_elem_greater(s->p[min_child], s->p[min_child - 1]);
-	if(!(min_heap_elem_greater(e, s->p[min_child])))
+	if (!(min_heap_elem_greater(e, s->p[min_child])))
 	    break;
 	(s->p[hole_index] = s->p[min_child])->ev_timeout_pos.min_heap_idx = hole_index;
 	hole_index = min_child;

@@ -61,7 +61,6 @@ static int num_pipes, num_active, num_writes;
 static struct event *events;
 
 
-
 static void
 read_cb(int fd, short which, void *arg)
 {
@@ -118,7 +117,7 @@ run_once(void)
 }
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
 #ifndef WIN32
 	struct rlimit rl;

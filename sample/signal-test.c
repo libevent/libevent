@@ -46,7 +46,7 @@ signal_cb(int fd, short event, void *arg)
 }
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
 	struct event signal_int;
 	struct event_base* base;

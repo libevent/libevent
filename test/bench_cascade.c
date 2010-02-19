@@ -127,7 +127,7 @@ run_once(int num_pipes)
 }
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
 #ifndef WIN32
 	struct rlimit rl;
