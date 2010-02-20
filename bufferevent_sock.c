@@ -417,6 +417,9 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	int r;
 	BEV_LOCK(bev);
 
+	bufferevent_unsuspend_write(bev, BEV_SUSPEND_LOOKUP);
+	bufferevent_unsuspend_read(bev, BEV_SUSPEND_LOOKUP);
+
 	if (result != 0) {
 		/* XXX Communicate the error somehow. */
 		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
@@ -452,14 +455,20 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	hint.ai_protocol = IPPROTO_TCP;
 	hint.ai_socktype = SOCK_STREAM;
 
+	bufferevent_suspend_write(bev, BEV_SUSPEND_LOOKUP);
+	bufferevent_suspend_read(bev, BEV_SUSPEND_LOOKUP);
+
 	bufferevent_incref(bev);
 	err = evutil_getaddrinfo_async(evdns_base, hostname, portbuf,
 	    &hint, bufferevent_connect_getaddrinfo_cb, bev);
 
-	if (err == 0)
+	if (err == 0) {
 		return 0;
-	else
+	} else {
+		bufferevent_unsuspend_write(bev, BEV_SUSPEND_LOOKUP);
+		bufferevent_unsuspend_read(bev, BEV_SUSPEND_LOOKUP);
 		return -1;
+	}
 }
 
 /*
