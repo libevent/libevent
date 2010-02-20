@@ -328,6 +328,11 @@ int _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 		if (evutil_timerisset(&(bev)->timeout_write))		\
 			event_add(&(bev)->ev_write, &(bev)->timeout_write); \
 	} while (0)
+#define BEV_DEL_GENERIC_READ_TIMEOUT(bev)	\
+		event_del(&(bev)->ev_read)
+#define BEV_DEL_GENERIC_WRITE_TIMEOUT(bev)	\
+		event_del(&(bev)->ev_write)
+
 
 /** Internal: Given a bufferevent, return its corresponding
  * bufferevent_private. */

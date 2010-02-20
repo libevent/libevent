@@ -222,7 +222,10 @@ static int
 be_filter_enable(struct bufferevent *bev, short event)
 {
 	struct bufferevent_filtered *bevf = upcast(bev);
-	_bufferevent_generic_adj_timeouts(bev);
+	if (event & EV_READ)
+		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
+	if (event & EV_WRITE)
+		BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
 	return bufferevent_enable(bevf->underlying, event);
 }
 
@@ -230,7 +233,10 @@ static int
 be_filter_disable(struct bufferevent *bev, short event)
 {
 	struct bufferevent_filtered *bevf = upcast(bev);
-	_bufferevent_generic_adj_timeouts(bev);
+	if (event & EV_READ)
+		BEV_DEL_GENERIC_READ_TIMEOUT(bev);
+	if (event & EV_WRITE)
+		BEV_DEL_GENERIC_WRITE_TIMEOUT(bev);
 	return bufferevent_disable(bevf->underlying, event);
 }
 

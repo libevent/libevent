@@ -613,6 +613,142 @@ end:
 		event_del(&close_listener_event);
 }
 
+struct timeout_cb_result {
+	struct timeval read_timeout_at;
+	struct timeval write_timeout_at;
+	struct timeval last_wrote_at;
+	int n_read_timeouts;
+	int n_write_timeouts;
+	int total_calls;
+};
+
+static long
+msec_diff(const struct timeval *start, const struct timeval *end)
+{
+	long ms = end->tv_sec - start->tv_sec;
+	ms *= 1000;
+	ms += ((end->tv_usec - start->tv_usec)+500) / 1000;
+	return ms;
+}
+
+static void
+bev_timeout_write_cb(struct bufferevent *bev, void *arg)
+{
+	struct timeout_cb_result *res = arg;
+	evutil_gettimeofday(&res->last_wrote_at, NULL);
+}
+
+static void
+bev_timeout_event_cb(struct bufferevent *bev, short what, void *arg)
+{
+	struct timeout_cb_result *res = arg;
+	++res->total_calls;
+
+	if ((what & (BEV_EVENT_READING|BEV_EVENT_TIMEOUT))
+	    == (BEV_EVENT_READING|BEV_EVENT_TIMEOUT)) {
+		evutil_gettimeofday(&res->read_timeout_at, NULL);
+		++res->n_read_timeouts;
+	}
+	if ((what & (BEV_EVENT_WRITING|BEV_EVENT_TIMEOUT))
+	    == (BEV_EVENT_WRITING|BEV_EVENT_TIMEOUT)) {
+		evutil_gettimeofday(&res->write_timeout_at, NULL);
+		++res->n_write_timeouts;
+	}
+}
+
+static void
+test_bufferevent_timeouts(void *arg)
+{
+	/* "arg" is a string containing "pair" and/or "nodata" */
+	struct bufferevent *bev1 = NULL, *bev2 = NULL;
+	struct basic_test_data *data = arg;
+	int use_pair = 0;
+	struct timeval tv_w, tv_r, started_at;
+	struct timeout_cb_result res1, res2;
+	char buf[1024];
+
+	memset(&res1, 0, sizeof(res1));
+	memset(&res2, 0, sizeof(res2));
+
+	if (strstr((char*)data->setup_data, "pair"))
+		use_pair = 1;
+
+	if (use_pair) {
+		struct bufferevent *p[2];
+		tt_int_op(0, ==, bufferevent_pair_new(data->base, 0, p));
+		bev1 = p[0];
+		bev2 = p[1];
+	} else {
+		bev1 = bufferevent_socket_new(data->base, data->pair[0], 0);
+		bev2 = bufferevent_socket_new(data->base, data->pair[1], 0);
+	}
+
+	/* Do this nice and early. */
+	bufferevent_disable(bev2, EV_READ);
+
+	/* bev1 will try to write and read.  Both will time out. */
+	evutil_gettimeofday(&started_at, NULL);
+	tv_w.tv_sec = tv_r.tv_sec = 0;
+	tv_w.tv_usec = 100*1000;
+	tv_r.tv_usec = 150*1000;
+	bufferevent_setcb(bev1, NULL, bev_timeout_write_cb,
+	    bev_timeout_event_cb, &res1);
+	bufferevent_setwatermark(bev1, EV_WRITE, 1024*1024+10, 0);
+	bufferevent_set_timeouts(bev1, &tv_r, &tv_w);
+	if (use_pair) {
+		/* For a pair, the fact that the other side isn't reading
+		 * makes the writer stall */
+		bufferevent_write(bev1, "ABCDEFG", 7);
+	} else {
+		/* For a real socket, the kernel's TCP buffers can eat a
+		 * fair number of bytes; make sure that at some point we
+		 * have some bytes that will stall. */
+		struct evbuffer *output = bufferevent_get_output(bev1);
+		int i;
+		memset(buf, 0xbb, sizeof(buf));
+		for (i=0;i<1024;++i) {
+			evbuffer_add_reference(output, buf, sizeof(buf),
+			    NULL, NULL);
+		}
+	}
+	bufferevent_enable(bev1, EV_READ|EV_WRITE);
+
+	/* bev2 has nothing to say, and isn't listening. */
+	bufferevent_setcb(bev2, NULL,  bev_timeout_write_cb,
+	    bev_timeout_event_cb, &res2);
+	tv_w.tv_sec = tv_r.tv_sec = 0;
+	tv_w.tv_usec = 200*1000;
+	tv_r.tv_usec = 100*1000;
+	bufferevent_set_timeouts(bev2, &tv_r, &tv_w);
+	bufferevent_enable(bev2, EV_WRITE);
+
+	tv_r.tv_sec = 1;
+	tv_r.tv_usec = 0;
+
+	event_base_loopexit(data->base, &tv_r);
+	event_base_dispatch(data->base);
+
+	/* XXXX Test that actually reading or writing a little resets the
+	 * timeouts. */
+
+	/* Each buf1 timeout happens, and happens only once. */
+	tt_want(res1.n_read_timeouts);
+	tt_want(res1.n_write_timeouts);
+	tt_want(res1.n_read_timeouts == 1);
+	tt_want(res1.n_write_timeouts == 1);
+
+	tt_int_op(abs(msec_diff(&started_at, &res1.read_timeout_at)-150),
+	    <=, 40);
+	tt_int_op(abs(msec_diff(&started_at, &res1.write_timeout_at)-100),
+	    <=, 30);
+
+end:
+	if (bev1)
+		bufferevent_free(bev1);
+	if (bev2)
+		bufferevent_free(bev2);
+}
+
 struct testcase_t bufferevent_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED),
@@ -632,6 +768,10 @@ struct testcase_t bufferevent_testcases[] = {
 	  (void*)"defer lock" },
 	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "bufferevent_timeouts", test_bufferevent_timeouts,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR, &basic_setup, (void*)"" },
+	{ "bufferevent_pair_timeouts", test_bufferevent_timeouts,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"pair" },
 #ifdef _EVENT_HAVE_LIBZ
 	LEGACY(bufferevent_zlib, TT_ISOLATED),
 #else

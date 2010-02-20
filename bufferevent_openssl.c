@@ -982,7 +982,10 @@ be_openssl_enable(struct bufferevent *bev, short events)
 		r2 = start_writing(bev_ssl);
 
 	if (bev_ssl->underlying) {
-		_bufferevent_generic_adj_timeouts(bev);
+		if (events & EV_READ)
+			BEV_RESET_GENERIC_READ_TIMEOUT(bev);
+		if (events & EV_WRITE)
+			BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
 
 		if (events & EV_READ)
 			consider_reading(bev_ssl);
@@ -1004,8 +1007,12 @@ be_openssl_disable(struct bufferevent *bev, short events)
 	if (events & EV_WRITE)
 		stop_writing(bev_ssl);
 
-	if (bev_ssl->underlying)
-		_bufferevent_generic_adj_timeouts(bev);
+	if (bev_ssl->underlying) {
+		if (events & EV_READ)
+			BEV_DEL_GENERIC_READ_TIMEOUT(bev);
+		if (events & EV_WRITE)
+			BEV_DEL_GENERIC_WRITE_TIMEOUT(bev);
+	}
 	return 0;
 }
 

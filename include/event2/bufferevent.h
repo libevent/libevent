@@ -360,6 +360,25 @@ short bufferevent_get_enabled(struct bufferevent *bufev);
 /**
   Set the read and write timeout for a buffered event.
 
+  A bufferevent's timeout will fire the first time that the indicated
+  amount of time has elapsed since a successful read or write operation,
+  during which the bufferevent was trying to read or write.
+
+  (In other words, if reading or writing is disabled, or if the
+  bufferevent's read or write operation has been suspended because
+  there's no data to write, or not enough banwidth, or so on, the
+  timeout isn't active.  The timeout only becomes active when we we're
+  willing to actually read or write.)
+
+  Calling bufferevent_enable or setting a timeout for a bufferevent
+  whose timeout is already pending resets its timeout.
+
+  If the timeout elapses, the corresponding operation (EV_READ or
+  EV_WRITE) becomes disabled until you re-enable it again.  The
+  bufferevent's event callback is called with the
+  BEV_EVENT_TIMEOUT|BEV_EVENT_READING or
+  BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING.
+
   @param bufev the bufferevent to be modified
   @param timeout_read the read timeout, or NULL
   @param timeout_write the write timeout, or NULL

@@ -104,10 +104,13 @@ bufferevent_socket_outbuf_cb(struct evbuffer *buf,
     void *arg)
 {
 	struct bufferevent *bufev = arg;
+	struct bufferevent_private *bufev_p =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 
 	if (cbinfo->n_added &&
 	    (bufev->enabled & EV_WRITE) &&
-	    !event_pending(&bufev->ev_write, EV_WRITE, NULL)) {
+	    !event_pending(&bufev->ev_write, EV_WRITE, NULL) &&
+	    !bufev_p->write_suspended) {
 		/* Somebody added data to the buffer, and we would like to
 		 * write, and we were not writing.  So, start writing. */
 		be_socket_add(&bufev->ev_write, &bufev->timeout_write);
@@ -184,7 +187,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	goto done;
 
  error:
-	event_del(&bufev->ev_read);
+	bufferevent_disable(bufev, EV_READ);
 	_bufferevent_run_eventcb(bufev, what);
 
  done:
@@ -268,8 +271,9 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		_bufferevent_decrement_write_buckets(bufev_p, res);
 	}
 
-	if (evbuffer_get_length(bufev->output) == 0)
+	if (evbuffer_get_length(bufev->output) == 0) {
 		event_del(&bufev->ev_write);
+	}
 
 	/*
 	 * Invoke the user callback if our buffer is drained or below the
@@ -283,12 +287,13 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	goto done;
 
  reschedule:
-	if (evbuffer_get_length(bufev->output) == 0)
+	if (evbuffer_get_length(bufev->output) == 0) {
 		event_del(&bufev->ev_write);
+	}
 	goto done;
 
  error:
-	event_del(&bufev->ev_write);
+	bufferevent_disable(bufev, EV_WRITE);
 	_bufferevent_run_eventcb(bufev, what);
 
  done:
@@ -553,9 +558,10 @@ be_socket_adj_timeouts(struct bufferevent *bufev)
 	if (event_pending(&bufev->ev_read, EV_READ, NULL))
 		if (be_socket_add(&bufev->ev_read, &bufev->timeout_read) < 0)
 			r = -1;
-	if (event_pending(&bufev->ev_write, EV_WRITE, NULL))
+	if (event_pending(&bufev->ev_write, EV_WRITE, NULL)) {
 		if (be_socket_add(&bufev->ev_write, &bufev->timeout_write) < 0)
 			r = -1;
+	}
 	return r;
 }
 

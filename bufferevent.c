@@ -676,6 +676,7 @@ bufferevent_generic_read_timeout_cb(evutil_socket_t fd, short event, void *ctx)
 {
 	struct bufferevent *bev = ctx;
 	_bufferevent_incref_and_lock(bev);
+	bufferevent_disable(bev, EV_READ);
 	_bufferevent_run_eventcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_READING);
 	_bufferevent_decref_and_unlock(bev);
 }
@@ -684,6 +685,7 @@ bufferevent_generic_write_timeout_cb(evutil_socket_t fd, short event, void *ctx)
 {
 	struct bufferevent *bev = ctx;
 	_bufferevent_incref_and_lock(bev);
+	bufferevent_disable(bev, EV_WRITE);
 	_bufferevent_run_eventcb(bev, BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING);
 	_bufferevent_decref_and_unlock(bev);
 }
@@ -712,13 +714,18 @@ int
 _bufferevent_generic_adj_timeouts(struct bufferevent *bev)
 {
 	const short enabled = bev->enabled;
+	struct bufferevent_private *bev_p =
+	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
 	int r1=0, r2=0;
-	if ((enabled & EV_READ) && evutil_timerisset(&bev->timeout_read))
+	if ((enabled & EV_READ) && !bev_p->read_suspended &&
+	    evutil_timerisset(&bev->timeout_read))
 		r1 = event_add(&bev->ev_read, &bev->timeout_read);
 	else
 		r1 = event_del(&bev->ev_read);
 
-	if ((enabled & EV_WRITE) && evutil_timerisset(&bev->timeout_write))
+	if ((enabled & EV_WRITE) && !bev_p->write_suspended &&
+	    evutil_timerisset(&bev->timeout_write) &&
+	    evbuffer_get_length(bev->output))
 		r2 = event_add(&bev->ev_write, &bev->timeout_write);
 	else
 		r2 = event_del(&bev->ev_write);
