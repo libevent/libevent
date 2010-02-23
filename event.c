@@ -293,6 +293,9 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 	((void)0)
 #endif
 
+#define EVENT_BASE_ASSERT_LOCKED(base)		\
+	EVLOCK_ASSERT_LOCKED((base)->th_base_lock)
+
 static void
 detect_monotonic(void)
 {
@@ -313,6 +316,8 @@ detect_monotonic(void)
 static int
 gettime(struct event_base *base, struct timeval *tp)
 {
+	EVENT_BASE_ASSERT_LOCKED(base);
+
 	if (base->tv_cache.tv_sec) {
 		*tp = base->tv_cache;
 		return (0);
@@ -699,14 +704,17 @@ event_base_free(struct event_base *base)
 int
 event_reinit(struct event_base *base)
 {
-	/* XXXX We need to grab a lock here! */
-	const struct eventop *evsel = base->evsel;
+	const struct eventop *evsel;
 	int res = 0;
 	struct event *ev;
 
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+
+	evsel = base->evsel;
+
 	/* check if this event mechanism requires reinit */
 	if (!evsel->need_reinit)
-		return (0);
+		goto done;
 
 	/* prevent internal delete */
 	if (base->sig.ev_signal_added) {
@@ -726,7 +734,8 @@ event_reinit(struct event_base *base)
 	if (base->evbase == NULL) {
 		event_errx(1, "%s: could not reinitialize event mechanism",
 		    __func__);
-		return (-1);
+		res = -1;
+		goto done;
 	}
 
 	event_changelist_freemem(&base->changelist); /* XXX */
@@ -743,6 +752,8 @@ event_reinit(struct event_base *base)
 		}
 	}
 
+done:
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	return (res);
 }
 
@@ -901,12 +912,16 @@ event_signal_closure(struct event_base *base, struct event *ev)
 	/* Allows deletes to work */
 	ncalls = ev->ev_ncalls;
 	ev->ev_pncalls = &ncalls;
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	while (ncalls) {
 		ncalls--;
 		ev->ev_ncalls = ncalls;
 		(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
+#if 0
+		/* XXXX we can't do this without a lock on the base. */
 		if (base->event_break)
 			return;
+#endif
 	}
 }
 
@@ -1090,6 +1105,7 @@ event_persist_closure(struct event_base *base, struct event *ev)
 		}
 		event_add_internal(ev, &run_at, 1);
 	}
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
 }
 
@@ -1128,8 +1144,6 @@ event_process_active_single_queue(struct event_base *base,
 
 		EVBASE_ACQUIRE_LOCK(base, current_event_lock);
 
-		EVBASE_RELEASE_LOCK(base, th_base_lock);
-
 		switch (ev->ev_closure) {
 		case EV_CLOSURE_SIGNAL:
 			event_signal_closure(base, ev);
@@ -1139,6 +1153,7 @@ event_process_active_single_queue(struct event_base *base,
 			break;
 		default:
 		case EV_CLOSURE_NONE:
+			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			(*ev->ev_callback)(
 				(int)ev->ev_fd, ev->ev_res, ev->ev_arg);
 			break;
@@ -1620,7 +1635,7 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 	/* See if there is a timeout that we should report */
 	if (tv != NULL && (flags & event & EV_TIMEOUT)) {
 		struct timeval tmp = ev->ev_timeout;
-		gettime(ev->ev_base, &now);
+		event_base_gettimeofday_cached(ev->ev_base, &now);
 		tmp.tv_usec &= MICROSECONDS_MASK;
 		evutil_timersub(&tmp, &now, &res);
 		/* correctly remap to real time */
@@ -1760,6 +1775,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	int res = 0;
 	int notify = 0;
 
+	EVENT_BASE_ASSERT_LOCKED(base);
 	_event_debug_assert_is_setup(ev);
 
 	event_debug((
@@ -1917,6 +1933,8 @@ event_del_internal(struct event *ev)
 	if (ev->ev_base == NULL)
 		return (-1);
 
+	EVENT_BASE_ASSERT_LOCKED(ev->ev_base);
+
 	/* If the main thread is currently executing this event's callback,
 	 * and we are not the main thread, then we want to wait until the
 	 * callback is done before we start removing the event.  That way,
@@ -2001,6 +2019,8 @@ event_active_nolock(struct event *ev, int res, short ncalls)
 	}
 
 	base = ev->ev_base;
+
+	EVENT_BASE_ASSERT_LOCKED(base);
 
 	ev->ev_res = res;
 
@@ -2186,6 +2206,8 @@ timeout_process(struct event_base *base)
 static void
 event_queue_remove(struct event_base *base, struct event *ev, int queue)
 {
+	EVENT_BASE_ASSERT_LOCKED(base);
+
 	if (!(ev->ev_flags & queue)) {
 		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
 			   ev, ev->ev_fd, queue);
@@ -2246,6 +2268,8 @@ insert_common_timeout_inorder(struct common_timeout_list *ctl,
 static void
 event_queue_insert(struct event_base *base, struct event *ev, int queue)
 {
+	EVENT_BASE_ASSERT_LOCKED(base);
+
 	if (ev->ev_flags & queue) {
 		/* Double insertion is possible for active events */
 		if (queue & EVLIST_ACTIVE)
