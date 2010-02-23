@@ -727,6 +727,27 @@ bufferevent_get_write_limit(struct bufferevent *bev)
 	return r;
 }
 
+ev_ssize_t
+bufferevent_get_max_to_read(struct bufferevent *bev)
+{
+	ev_ssize_t r;
+	BEV_LOCK(bev);
+	r = _bufferevent_get_read_max(BEV_UPCAST(bev));
+	BEV_UNLOCK(bev);
+	return r;
+}
+
+ev_ssize_t
+bufferevent_get_max_to_write(struct bufferevent *bev)
+{
+	ev_ssize_t r;
+	BEV_LOCK(bev);
+	r = _bufferevent_get_write_max(BEV_UPCAST(bev));
+	BEV_UNLOCK(bev);
+	return r;
+}
+
+
 /* Mostly you don't want to use this function from inside libevent;
  * _bufferevent_get_read_max() is more likely what you want*/
 ev_ssize_t

@@ -597,6 +597,9 @@ ev_ssize_t bufferevent_get_read_limit(struct bufferevent *bev);
 ev_ssize_t bufferevent_get_write_limit(struct bufferevent *bev);
 /*@}*/
 
+ev_ssize_t bufferevent_get_max_to_read(struct bufferevent *bev);
+ev_ssize_t bufferevent_get_max_to_write(struct bufferevent *bev);
+
 /*@{*/
 /**
    Return the read or write bucket size for a bufferevent rate limit
