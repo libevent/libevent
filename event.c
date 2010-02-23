@@ -1083,24 +1083,35 @@ event_persist_closure(struct event_base *base, struct event *ev)
 {
 	/* reschedule the persistent event if we have a timeout. */
 	if (ev->ev_io_timeout.tv_sec || ev->ev_io_timeout.tv_usec) {
-		/* We want it to run at an interval of ev_io_timeout after the
-		 * last time it was _scheduled_ for, not ev_io_timeout after
-		 * _now_. */
+		/* If there was a timeout, we want it to run at an interval of
+		 * ev_io_timeout after the last time it was _scheduled_ for,
+		 * not ev_io_timeout after _now_.  If it fired for another
+		 * reason, though, the timeout ought to start ticking _now_. */
 		struct timeval run_at;
 		EVUTIL_ASSERT(is_same_common_timeout(&ev->ev_timeout,
 			&ev->ev_io_timeout));
 		if (is_common_timeout(&ev->ev_timeout, base)) {
 			ev_uint32_t usec_mask;
-			struct timeval delay, last_at;
-			last_at = ev->ev_timeout;
+			struct timeval delay, relative_to;
 			delay = ev->ev_io_timeout;
 			usec_mask = delay.tv_usec & ~MICROSECONDS_MASK;
-			last_at.tv_usec &= MICROSECONDS_MASK;
 			delay.tv_usec &= MICROSECONDS_MASK;
-			evutil_timeradd(&last_at, &delay, &run_at);
+			if (ev->ev_res & EV_TIMEOUT) {
+				relative_to = ev->ev_timeout;
+				relative_to.tv_usec &= MICROSECONDS_MASK;
+			} else {
+				gettime(base, &relative_to);
+			}
+			evutil_timeradd(&relative_to, &delay, &run_at);
 			run_at.tv_usec |= usec_mask;
 		} else {
-			evutil_timeradd(&ev->ev_io_timeout, &ev->ev_timeout,
+			struct timeval relative_to;
+			if (ev->ev_res & EV_TIMEOUT) {
+				relative_to = ev->ev_timeout;
+			} else {
+				gettime(base, &relative_to);
+			}
+			evutil_timeradd(&ev->ev_io_timeout, &relative_to,
 			    &run_at);
 		}
 		event_add_internal(ev, &run_at, 1);
