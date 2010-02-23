@@ -413,7 +413,7 @@ evbuffer_deferred_callback(struct deferred_cb *cb, void *arg)
 	evbuffer_run_callbacks(buffer, 1);
 	_evbuffer_decref_and_unlock(buffer);
 	if (parent)
-		bufferevent_free(parent);
+		bufferevent_decref(parent);
 }
 
 static void
