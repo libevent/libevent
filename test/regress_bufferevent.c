@@ -319,7 +319,6 @@ bufferevent_output_filter(struct evbuffer *src, struct evbuffer *dst,
 	return (BEV_OK);
 }
 
-
 static void
 test_bufferevent_filters_impl(int use_pair)
 {
@@ -659,10 +658,10 @@ bev_timeout_event_cb(struct bufferevent *bev, short what, void *arg)
 static void
 test_bufferevent_timeouts(void *arg)
 {
-	/* "arg" is a string containing "pair" and/or "nodata" */
+	/* "arg" is a string containing "pair" and/or "filter". */
 	struct bufferevent *bev1 = NULL, *bev2 = NULL;
 	struct basic_test_data *data = arg;
-	int use_pair = 0;
+	int use_pair = 0, use_filter = 0;
 	struct timeval tv_w, tv_r, started_at;
 	struct timeout_cb_result res1, res2;
 	char buf[1024];
@@ -672,6 +671,8 @@ test_bufferevent_timeouts(void *arg)
 
 	if (strstr((char*)data->setup_data, "pair"))
 		use_pair = 1;
+	if (strstr((char*)data->setup_data, "filter"))
+		use_filter = 1;
 
 	if (use_pair) {
 		struct bufferevent *p[2];
@@ -681,6 +682,21 @@ test_bufferevent_timeouts(void *arg)
 	} else {
 		bev1 = bufferevent_socket_new(data->base, data->pair[0], 0);
 		bev2 = bufferevent_socket_new(data->base, data->pair[1], 0);
+	}
+
+	tt_assert(bev1);
+	tt_assert(bev2);
+
+	if (use_filter) {
+		struct bufferevent *bevf1, *bevf2;
+		bevf1 = bufferevent_filter_new(bev1, NULL, NULL,
+		    BEV_OPT_CLOSE_ON_FREE, NULL, NULL);
+		bevf2 = bufferevent_filter_new(bev1, NULL, NULL,
+		    BEV_OPT_CLOSE_ON_FREE, NULL, NULL);
+		tt_assert(bevf1);
+		tt_assert(bevf2);
+		bev1 = bevf1;
+		bev2 = bevf2;
 	}
 
 	/* Do this nice and early. */
@@ -768,10 +784,14 @@ struct testcase_t bufferevent_testcases[] = {
 	  (void*)"defer lock" },
 	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
-	{ "bufferevent_timeouts", test_bufferevent_timeouts,
+	{ "bufferevent_timeout", test_bufferevent_timeouts,
 	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR, &basic_setup, (void*)"" },
-	{ "bufferevent_pair_timeouts", test_bufferevent_timeouts,
+	{ "bufferevent_timeout_pair", test_bufferevent_timeouts,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"pair" },
+	{ "bufferevent_timeout_filter", test_bufferevent_timeouts,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"filter" },
+	{ "bufferevent_timeout_filter_pair", test_bufferevent_timeouts,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"filter pair" },
 #ifdef _EVENT_HAVE_LIBZ
 	LEGACY(bufferevent_zlib, TT_ISOLATED),
 #else
