@@ -611,7 +611,7 @@ test_persistent_active_timeout(void *ptr)
 	test_timeval_diff_eq(&start, &res.tvs[1], 300);
 	test_timeval_diff_eq(&start, &res.tvs[2], 500);
 end:
-	;
+	event_del(&ev);
 }
 
 static int total_common_counts;
