@@ -621,15 +621,6 @@ struct timeout_cb_result {
 	int total_calls;
 };
 
-static long
-msec_diff(const struct timeval *start, const struct timeval *end)
-{
-	long ms = end->tv_sec - start->tv_sec;
-	ms *= 1000;
-	ms += ((end->tv_usec - start->tv_usec)+500) / 1000;
-	return ms;
-}
-
 static void
 bev_timeout_write_cb(struct bufferevent *bev, void *arg)
 {
@@ -753,10 +744,8 @@ test_bufferevent_timeouts(void *arg)
 	tt_want(res1.n_read_timeouts == 1);
 	tt_want(res1.n_write_timeouts == 1);
 
-	tt_int_op(abs(msec_diff(&started_at, &res1.read_timeout_at)-150),
-	    <=, 40);
-	tt_int_op(abs(msec_diff(&started_at, &res1.write_timeout_at)-100),
-	    <=, 30);
+	test_timeval_diff_eq(&started_at, &res1.read_timeout_at, 150);
+	test_timeval_diff_eq(&started_at, &res1.write_timeout_at, 100);
 
 end:
 	if (bev1)
