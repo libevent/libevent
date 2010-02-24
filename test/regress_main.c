@@ -76,6 +76,15 @@
 #include "tinytest_macros.h"
 #include "../iocp-internal.h"
 
+long
+timeval_msec_diff(const struct timeval *start, const struct timeval *end)
+{
+	long ms = end->tv_sec - start->tv_sec;
+	ms *= 1000;
+	ms += ((end->tv_usec - start->tv_usec)+500) / 1000;
+	return ms;
+
+}
 
 /* ============================================================ */
 /* Code to wrap up old legacy test cases that used setup() and cleanup().

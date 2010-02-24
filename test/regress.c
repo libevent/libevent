@@ -549,6 +549,71 @@ test_persistent_timeout(void)
 	event_del(&ev);
 }
 
+struct persist_active_timeout_called {
+	int n;
+	short events[16];
+	struct timeval tvs[16];
+};
+
+static void
+activate_cb(int fd, short event, void *arg)
+{
+	struct event *ev = arg;
+	event_active(ev, EV_READ, 1);
+}
+
+static void
+persist_active_timeout_cb(int fd, short event, void *arg)
+{
+	struct persist_active_timeout_called *c = arg;
+	if (c->n < 15) {
+		c->events[c->n] = event;
+		evutil_gettimeofday(&c->tvs[c->n], NULL);
+		++c->n;
+	}
+}
+
+static void
+test_persistent_active_timeout(void *ptr)
+{
+	struct timeval tv, tv2, tv_exit, start;
+	struct event ev;
+	struct persist_active_timeout_called res;
+
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+
+	memset(&res, 0, sizeof(res));
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 200 * 1000;
+	event_assign(&ev, base, -1, EV_TIMEOUT|EV_PERSIST,
+	    persist_active_timeout_cb, &res);
+	event_add(&ev, &tv);
+
+	tv2.tv_sec = 0;
+	tv2.tv_usec = 100 * 1000;
+	event_base_once(base, -1, EV_TIMEOUT, activate_cb, &ev, &tv2);
+
+	tv_exit.tv_sec = 0;
+	tv_exit.tv_usec = 600 * 1000;
+	event_base_loopexit(base, &tv_exit);
+
+	evutil_gettimeofday(&start, NULL);
+
+	event_base_dispatch(base);
+
+	tt_int_op(res.n, ==, 3);
+	tt_int_op(res.events[0], ==, EV_READ);
+	tt_int_op(res.events[1], ==, EV_TIMEOUT);
+	tt_int_op(res.events[2], ==, EV_TIMEOUT);
+	test_timeval_diff_eq(&start, &res.tvs[0], 100);
+	test_timeval_diff_eq(&start, &res.tvs[1], 300);
+	test_timeval_diff_eq(&start, &res.tvs[2], 500);
+end:
+	;
+}
+
 static int total_common_counts;
 
 struct common_timeout_info {
@@ -2006,6 +2071,8 @@ struct testcase_t main_testcases[] = {
 
 	/* These are still using the old API */
 	LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
+	{ "persistent_active_timeout", test_persistent_active_timeout,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	LEGACY(priorities, TT_FORK|TT_NEED_BASE),
 	{ "common_timeout", test_common_timeout, TT_FORK|TT_NEED_BASE,
 	  &basic_setup, NULL },

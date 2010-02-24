@@ -90,6 +90,7 @@ void run_legacy_test_fn(void *ptr);
 /* All the flags that a legacy test needs. */
 #define TT_ISOLATED TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE
 
+
 #define BASIC(name,flags)						\
 	{ #name, test_## name, flags, &basic_setup, NULL }
 
@@ -108,6 +109,10 @@ int _test_ai_eq(const struct evutil_addrinfo *ai, const char *sockaddr_port,
 			goto end;					\
 	} while(0)
 
+#define test_timeval_diff_eq(tv1, tv2, diff)				\
+	tt_int_op(abs(timeval_msec_diff((tv1), (tv2)) - diff), <=, 30)
+
+long timeval_msec_diff(const struct timeval *start, const struct timeval *end);
 
 #ifdef __cplusplus
 }
