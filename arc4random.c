@@ -74,6 +74,11 @@ struct arc4_stream {
 	unsigned char s[256];
 };
 
+#ifdef WIN32
+#define getpid _getpid
+#define pid_t int
+#endif
+
 static int rs_initialized;
 static struct arc4_stream rs;
 static pid_t arc4_stir_pid;
@@ -217,9 +222,6 @@ arc4_stir(void)
 	arc4_count = BYTES_BEFORE_RESEED;
 }
 
-#ifdef WIN32
-#define getpid _getpid
-#endif
 
 static void
 arc4_stir_if_needed(void)
