@@ -242,10 +242,10 @@ be_async_enable(struct bufferevent *buf, short what)
 		return -1;
 
 	/* NOTE: This interferes with non-blocking connect */
-	if (event & EV_READ)
-		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
-	if (event & EV_WRITE)
-		BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
+	if (what & EV_READ)
+		BEV_RESET_GENERIC_READ_TIMEOUT(buf);
+	if (what & EV_WRITE)
+		BEV_RESET_GENERIC_WRITE_TIMEOUT(buf);
 
 	/* If we newly enable reading or writing, and we aren't reading or
 	   writing already, consider launching a new read or write. */
@@ -264,9 +264,9 @@ be_async_disable(struct bufferevent *bev, short what)
 	 * canceling any in-progress read or write operation, though it might
 	 * not work. */
 
-	if (event & EV_READ)
+	if (what & EV_READ)
 		BEV_DEL_GENERIC_READ_TIMEOUT(bev);
-	if (event & EV_WRITE)
+	if (what & EV_WRITE)
 		BEV_DEL_GENERIC_WRITE_TIMEOUT(bev);
 
 	return 0;

@@ -223,7 +223,7 @@ struct event_config {
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
-#ifndef _EVENT_HAVE_TAILQFOREACH
+#if defined(_EVENT_HAVE_SYS_QUEUE_H) && !defined(_EVENT_HAVE_TAILQFOREACH)
 #define	TAILQ_FIRST(head)		((head)->tqh_first)
 #define	TAILQ_END(head)			NULL
 #define	TAILQ_NEXT(elm, field)		((elm)->field.tqe_next)
