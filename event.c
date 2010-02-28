@@ -489,9 +489,11 @@ event_base_new_with_config(const struct event_config *cfg)
 	struct event_base *base;
 	int should_check_environment;
 
+#ifndef _EVENT_DISABLE_DEBUG_MODE
 	if (_event_debug_mode_on && !_event_debug_map_lock) {
 		EVTHREAD_ALLOC_LOCK(_event_debug_map_lock, 0);
 	}
+#endif
 
 	if ((base = mm_calloc(1, sizeof(struct event_base))) == NULL) {
 		event_warn("%s: calloc", __func__);
