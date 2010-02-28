@@ -29,7 +29,8 @@ ACLOCAL_AMFLAGS = -I m4
 # We are starting the numbering at 2 rather than 1 to avoid confusion.
 #
 #      2:0:0 -- Libevent 2.0.1-alpha.
-VERSION_INFO = 2:0:0
+#      3:0:0 -- Libevent 2.0.4-alpha
+VERSION_INFO = 3:0:0
 
 bin_SCRIPTS = event_rpcgen.py
 

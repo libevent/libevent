@@ -274,7 +274,7 @@
 /* #undef _EVENT_HAVE_WORKING_KQUEUE */
 
 /* Numeric representation of the version */
-#define _EVENT_NUMERIC_VERSION 0x02000303
+#define _EVENT_NUMERIC_VERSION 0x02000400
 
 /* Name of package */
 #define _EVENT_PACKAGE "libevent"
@@ -324,7 +324,7 @@
 #define _EVENT_TIME_WITH_SYS_TIME 1
 
 /* Version number of package */
-#define _EVENT_VERSION "2.0.3-alpha-dev"
+#define _EVENT_VERSION "2.0.4-alpha"
 
 /* Define to appropriate substitue if compiler doesnt have __func__ */
 #define _EVENT___func__ __FUNCTION__
