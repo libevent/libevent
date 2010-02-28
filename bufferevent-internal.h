@@ -137,6 +137,9 @@ struct bufferevent_private {
 	unsigned writecb_pending : 1;
 	/** Flag: set if we are currently busy connecting. */
 	unsigned connecting : 1;
+	/** Flag: set if a connect failed prematurely; this is a hack for
+	 * getting around the bufferevent abstraction. */
+	unsigned connection_refused : 1;
 	/** Set to the events pending if we have deferred callbacks and
 	 * an events callback is pending. */
 	short eventcb_pending;

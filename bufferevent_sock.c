@@ -213,6 +213,12 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	}
 	if (bufev_p->connecting) {
 		int c = evutil_socket_finished_connecting(fd);
+		/* we need to fake the error if the connection was refused
+		 * immediately - usually connection to localhost on BSD */
+		if (bufev_p->connection_refused) {
+		  bufev_p->connection_refused = 0;
+		  c = -1;
+		}
 
 		if (c == 0)
 			goto done;
@@ -395,11 +401,19 @@ bufferevent_socket_connect(struct bufferevent *bev,
 			result = 0;
 			goto done;
 		}
-	} else {
+	} if (r == 1) {
 		/* The connect succeeded already. How very BSD of it. */
 		result = 0;
 		bufev_p->connecting = 1;
 		event_active(&bev->ev_write, EV_WRITE, 1);
+	} else {
+		/* The connect failed already.  How very BSD of it. */
+		if (! be_socket_enable(bev, EV_WRITE)) {
+			bufev_p->connection_refused = 1;
+			bufev_p->connecting = 1;
+			result = 0;
+			goto done;
+		}
 	}
 
 	goto done;

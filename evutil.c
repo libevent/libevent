@@ -355,7 +355,7 @@ evutil_socket_geterror(evutil_socket_t sock)
 }
 #endif
 
-/* 1 for connected, 0 for not yet, -1 for error. */
+/* 2 for connection refused, 1 for connected, 0 for not yet, -1 for error. */
 int
 evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen)
 {
@@ -374,6 +374,8 @@ evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen)
 		int e = evutil_socket_geterror(*fd_ptr);
 		if (EVUTIL_ERR_CONNECT_RETRIABLE(e))
 			return 0;
+		if (EVUTIL_ERR_CONNECT_REFUSED(e))
+			return 2;
 		goto err;
 	} else {
 		return 1;
