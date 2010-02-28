@@ -401,19 +401,17 @@ bufferevent_socket_connect(struct bufferevent *bev,
 			result = 0;
 			goto done;
 		}
-	} if (r == 1) {
+	} else if (r == 1) {
 		/* The connect succeeded already. How very BSD of it. */
 		result = 0;
 		bufev_p->connecting = 1;
 		event_active(&bev->ev_write, EV_WRITE, 1);
 	} else {
 		/* The connect failed already.  How very BSD of it. */
-		if (! be_socket_enable(bev, EV_WRITE)) {
-			bufev_p->connection_refused = 1;
-			bufev_p->connecting = 1;
-			result = 0;
-			goto done;
-		}
+		bufev_p->connection_refused = 1;
+		bufev_p->connecting = 1;
+		result = 0;
+		event_active(&bev->ev_write, EV_WRITE, 1);
 	}
 
 	goto done;
