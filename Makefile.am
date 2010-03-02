@@ -41,7 +41,7 @@ EXTRA_DIST = \
 	LICENSE \
 	autogen.sh evdns.3 \
 	event.3 \
-	libevent.pc \
+	libevent.pc.in \
 	Doxyfile \
 	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
 	evport.c devpoll.c win32select.c event_rpcgen.py \
