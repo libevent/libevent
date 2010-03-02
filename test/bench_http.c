@@ -47,11 +47,12 @@
 #include <event.h>
 #include <evutil.h>
 #include <evhttp.h>
+#include <event2/thread.h>
 
 static void http_basic_cb(struct evhttp_request *req, void *arg);
 
 static char *content;
-static size_t content_len;
+static size_t content_len = 0;
 
 static void
 http_basic_cb(struct evhttp_request *req, void *arg)
@@ -85,12 +86,23 @@ http_ref_cb(struct evhttp_request *req, void *arg)
 int
 main(int argc, char **argv)
 {
-	struct event_base *base = event_base_new();
-	struct evhttp *http = evhttp_new(base);
+	struct event_base *base;
+	struct evhttp *http;
 	int c;
+	int use_iocp = 0;
 
+#ifdef WIN32
+        WSADATA WSAData;
+        WSAStartup(0x101, &WSAData);
+#else
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		return (1);
+#endif
+
+	base = event_base_new();
 	unsigned short port = 8080;
-	while ((c = getopt(argc, argv, "p:l:")) != -1) {
+
+	while ((c = getopt(argc, argv, "p:l:i")) != -1) {
 		switch (c) {
 		case 'p':
 			port = atoi(optarg);
@@ -102,16 +114,20 @@ main(int argc, char **argv)
 				exit(1);
 			}
 			break;
+#ifdef WIN32
+		case 'i':
+			use_iocp = 1;
+			evthread_use_windows_threads();
+			event_base_start_iocp(base);
+			break;
+#endif
 		default:
 			fprintf(stderr, "Illegal argument \"%c\"\n", c);
 			exit(1);
 		}
 	}
 
-#ifndef WIN32
-	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
-		return (1);
-#endif
+	http = evhttp_new(base);
 
 	content = malloc(content_len);
 	if (content == NULL) {
@@ -131,11 +147,16 @@ main(int argc, char **argv)
 	fprintf(stderr, "/ref - basic content (reference)\n");
 #endif
 
-	fprintf(stderr, "Serving %d bytes on port %d\n",
-	    (int)content_len, port);
+	fprintf(stderr, "Serving %d bytes on port %d using %s\n",
+	    (int)content_len, port,
+	    use_iocp? "IOCP" : event_base_get_method(base));
 
 	evhttp_bind_socket(http, "0.0.0.0", port);
 
+	if (use_iocp) {
+		struct timeval tv={99999999,0};
+		event_base_loopexit(base, &tv);
+	}
 	event_base_dispatch(base);
 
 	/* NOTREACHED */
