@@ -1016,17 +1016,16 @@ evbuffer_strchr(struct evbuffer_ptr *it, const char chr)
 {
 	struct evbuffer_chain *chain = it->_internal.chain;
 	unsigned i = it->_internal.pos_in_chain;
-	int count = 0;
 	while (chain != NULL) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
-		for (; i < chain->off; ++i, ++count) {
-			if (buffer[i] == chr) {
-				it->_internal.chain = chain;
-				it->_internal.pos_in_chain = i;
-				it->pos += count;
-				return (count);
-			}
+		char *cp = memchr(buffer+i, chr, chain->off-i);
+		if (cp) {
+			it->_internal.chain = chain;
+			it->_internal.pos_in_chain = cp - buffer;
+			it->pos += (cp - buffer);
+			return it->pos;
 		}
+		it->pos += chain->off - i;
 		i = 0;
 		chain = chain->next;
 	}
@@ -1034,25 +1033,48 @@ evbuffer_strchr(struct evbuffer_ptr *it, const char chr)
 	return (-1);
 }
 
-static inline int
-evbuffer_strpbrk(struct evbuffer_ptr *it, const char *chrset)
+static inline char *
+find_eol_char(char *s, size_t len)
+{
+#define CHUNK_SZ 128
+	/* Lots of benchmarking found this approach to be faster in practice
+	 * than doing two memchrs over the whole buffer, doin a memchr on each
+	 * char of the buffer, or trying to emulate memchr by hand. */
+	char *s_end, *cr, *lf;
+	s_end = s+len;
+	while (s < s_end) {
+		size_t chunk = (s + CHUNK_SZ < s_end) ? CHUNK_SZ : (s_end - s);
+		cr = memchr(s, '\r', chunk);
+		lf = memchr(s, '\n', chunk);
+		if (cr) {
+			if (lf && lf < cr)
+				return lf;
+			return cr;
+		} else if (lf) {
+			return lf;
+		}
+		s += CHUNK_SZ;
+	}
+
+	return NULL;
+#undef CHUNK_SZ
+}
+
+static int
+evbuffer_find_eol_char(struct evbuffer_ptr *it)
 {
 	struct evbuffer_chain *chain = it->_internal.chain;
 	unsigned i = it->_internal.pos_in_chain;
-	int count = 0;
 	while (chain != NULL) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
-		for (; i < chain->off; ++i, ++count) {
-			const char *p = chrset;
-			while (*p) {
-				if (buffer[i] == *p++) {
-					it->_internal.chain = chain;
-					it->_internal.pos_in_chain = i;
-					it->pos += count;
-					return (count);
-				}
-			}
+		char *cp = find_eol_char(buffer+i, chain->off-i);
+		if (cp) {
+			it->_internal.chain = chain;
+			it->_internal.pos_in_chain = cp - buffer;
+			it->pos += (cp - buffer) - i;
+			return it->pos;
 		}
+		it->pos += chain->off - i;
 		i = 0;
 		chain = chain->next;
 	}
@@ -1132,7 +1154,7 @@ evbuffer_search_eol(struct evbuffer *buffer,
 	 * characters we are going to drain afterwards. */
 	switch (eol_style) {
 	case EVBUFFER_EOL_ANY:
-		if (evbuffer_strpbrk(&it, "\r\n") < 0)
+		if (evbuffer_find_eol_char(&it) < 0)
 			goto done;
 		memcpy(&it2, &it, sizeof(it));
 		extra_drain = evbuffer_strspn(&it2, "\r\n");
@@ -1146,7 +1168,7 @@ evbuffer_search_eol(struct evbuffer *buffer,
 	}
 	case EVBUFFER_EOL_CRLF:
 		while (1) {
-			if (evbuffer_strpbrk(&it, "\r\n") < 0)
+			if (evbuffer_find_eol_char(&it) < 0)
 				goto done;
 			if (evbuffer_getchr(&it) == '\n') {
 				extra_drain = 1;
