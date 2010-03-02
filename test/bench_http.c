@@ -29,19 +29,19 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #ifdef WIN32
-#include <windows.h>
+#include <winsock2.h>
 #else
 #include <sys/socket.h>
 #include <sys/resource.h>
+#include <sys/time.h>
+#include <unistd.h>
 #endif
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 
 #include <event.h>
@@ -88,8 +88,10 @@ main(int argc, char **argv)
 {
 	struct event_base *base;
 	struct evhttp *http;
+	int i;
 	int c;
 	int use_iocp = 0;
+	unsigned short port = 8080;
 
 #ifdef WIN32
         WSADATA WSAData;
@@ -100,15 +102,25 @@ main(int argc, char **argv)
 #endif
 
 	base = event_base_new();
-	unsigned short port = 8080;
 
-	while ((c = getopt(argc, argv, "p:l:i")) != -1) {
+	for (i = 1; i < argc; ++i) {
+		if (*argv[i] != '-')
+			continue;
+
+		c = argv[i][1];
+
+		if ((c == 'p' || c == 'l') && i + 1 >= argc) {
+			fprintf(stderr, "-%c requires argument.\n", c);
+			exit(1);
+		} 
+
+		
 		switch (c) {
 		case 'p':
-			port = atoi(optarg);
+			port = atoi(argv[i+1]);
 			break;
 		case 'l':
-			content_len = atol(optarg);
+			content_len = atol(argv[i+1]);
 			if (content_len == 0) {
 				fprintf(stderr, "Bad content length\n");
 				exit(1);
