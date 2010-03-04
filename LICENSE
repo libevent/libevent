@@ -46,6 +46,12 @@ win32select.c:
 evport.c:
    Copyright (c) 2007 Sun Microsystems
 
+ht-internal.h:
+   Copyright (c) 2002 Christopher Clark
+
+minheap-internal.h:
+   Copyright (c) 2006 Maxim Yegorushkin <maxim.yegorushkin@gmail.com>
+
 ==============================
 
 The arc4module is available under the following, sometimes called the
