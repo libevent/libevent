@@ -86,7 +86,7 @@ AC_SUBST(OPENSSL_LIBS)
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in.h netinet/in6.h sys/socket.h sys/uio.h arpa/inet.h sys/eventfd.h sys/mman.h sys/sendfile.h netdb.h)
+AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in.h netinet/in6.h sys/socket.h sys/uio.h arpa/inet.h sys/eventfd.h sys/mman.h sys/sendfile.h netdb.h sys/sysctl.h)
 if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
 	AC_EGREP_CPP(yes,
@@ -156,6 +156,12 @@ if test "x$ac_cv_header_sys_time_h" = "xyes"; then
 		[Define if timerisset is defined in <sys/time.h>])
 	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
 )
+fi
+
+if test "x$ac_cv_header_sys_sysctl_h" = "xyes"; then
+	AC_CHECK_DECLS([CTL_KERN, KERN_RANDOM, RANDOM_UUID, KERN_ARAND], [], [],
+	   [[#include <sys/sysctl.h>]]
+	)
 fi
 
 dnl - check if the macro WIN32 is defined on this compiler.
