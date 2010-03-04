@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Niels Provos and Nick Mathewson
+ * Copyright (c) 2009-2010 Niels Provos and Nick Mathewson
  *
  * All rights reserved.
  *
