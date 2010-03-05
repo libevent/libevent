@@ -1698,7 +1698,7 @@ evhttp_read_header(struct evhttp_connection *evcon,
 		   struct evhttp_request *req)
 {
 	enum message_read_status res;
-	int fd = evcon->fd;
+	evutil_socket_t fd = evcon->fd;
 
 	res = evhttp_parse_headers(req, bufferevent_get_input(evcon->bufev));
 	if (res == DATA_CORRUPTED || res == DATA_TOO_LONG) {

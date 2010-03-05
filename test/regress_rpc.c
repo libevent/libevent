@@ -587,7 +587,7 @@ struct _rpc_hook_ctx {
 static int hook_pause_cb_called=0;
 
 static void
-rpc_hook_pause_cb(int fd, short what, void *arg)
+rpc_hook_pause_cb(evutil_socket_t fd, short what, void *arg)
 {
 	struct _rpc_hook_ctx *ctx = arg;
 	++hook_pause_cb_called;

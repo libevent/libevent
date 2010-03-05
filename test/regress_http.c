@@ -127,7 +127,7 @@ http_connect(const char *address, u_short port)
 #endif
 	struct sockaddr *sa;
 	int slen;
-	int fd;
+	evutil_socket_t fd;
 
 #ifdef WIN32
 	if (!(he = gethostbyname(address))) {
@@ -314,7 +314,7 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 }
 
 static void
-http_complete_write(int fd, short what, void *arg)
+http_complete_write(evutil_socket_t fd, short what, void *arg)
 {
 	struct bufferevent *bev = arg;
 	const char *http_request = "host\r\n"
@@ -328,7 +328,7 @@ http_basic_test(void)
 {
 	struct timeval tv;
 	struct bufferevent *bev;
-	int fd;
+	evutil_socket_t fd;
 	const char *http_request;
 	short port = -1;
 
@@ -485,7 +485,7 @@ http_badreq_readcb(struct bufferevent *bev, void *arg)
 }
 
 static void
-http_badreq_successcb(int fd, short what, void *arg)
+http_badreq_successcb(evutil_socket_t fd, short what, void *arg)
 {
 	event_debug(("%s: called (what=%04x, arg=%p)", __func__, what, arg));
 	event_loopexit(NULL);
@@ -496,7 +496,7 @@ http_bad_request_test(void)
 {
 	struct timeval tv;
 	struct bufferevent *bev;
-	int fd;
+	evutil_socket_t fd;
 	const char *http_request;
 	short port = -1;
 
@@ -609,7 +609,7 @@ static void
 http_delete_test(void)
 {
 	struct bufferevent *bev;
-	int fd;
+	evutil_socket_t fd;
 	const char *http_request;
 	short port = -1;
 
@@ -758,7 +758,7 @@ http_connection_async_test(void)
 
 	/* Add ourself as the only nameserver, and make sure we really are
 	 * the only nameserver. */
-	evutil_snprintf(address, sizeof (address), "127.0.0.1:%d", portnum);
+	evutil_snprintf(address, sizeof(address), "127.0.0.1:%d", portnum);
 	evdns_base_nameserver_ip_add(dns_base, address);
 
 	test_ok = 0;
@@ -1440,7 +1440,7 @@ static void
 http_failure_test(void)
 {
 	struct bufferevent *bev;
-	int fd;
+	evutil_socket_t fd;
 	const char *http_request;
 	short port = -1;
 
@@ -1486,7 +1486,7 @@ close_detect_done(struct evhttp_request *req, void *arg)
 }
 
 static void
-close_detect_launch(int fd, short what, void *arg)
+close_detect_launch(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 	struct evhttp_request *req;
@@ -1659,7 +1659,7 @@ http_base_test(void)
 {
 	struct event_base *tmp;
 	struct bufferevent *bev;
-	int fd;
+	evutil_socket_t fd;
 	const char *http_request;
 	short port = -1;
 
@@ -1727,7 +1727,7 @@ static void
 http_incomplete_writecb(struct bufferevent *bev, void *arg)
 {
 	if (arg != NULL) {
-		int fd = *(int *)arg;
+		evutil_socket_t fd = *(evutil_socket_t *)arg;
 		/* terminate the write side to simulate EOF */
 		shutdown(fd, SHUT_WR);
 	}
@@ -1742,7 +1742,7 @@ static void
 _http_incomplete_test(int use_timeout)
 {
 	struct bufferevent *bev;
-	int fd;
+	evutil_socket_t fd;
 	const char *http_request;
 	short port = -1;
 	struct timeval tv_start, tv_end;
@@ -1944,7 +1944,7 @@ static void
 http_chunk_out_test(void)
 {
 	struct bufferevent *bev;
-	int fd;
+	evutil_socket_t fd;
 	const char *http_request;
 	short port = -1;
 	struct timeval tv_start, tv_end;
@@ -2198,7 +2198,7 @@ http_connection_retry_done(struct evhttp_request *req, void *arg)
 }
 
 static void
-http_make_web_server(int fd, short what, void *arg)
+http_make_web_server(evutil_socket_t fd, short what, void *arg)
 {
 	short port = -1;
 	http = http_setup(&port, NULL);
@@ -2522,7 +2522,7 @@ http_data_length_constraints_test(void)
 struct terminate_state {
 	struct evhttp_request *req;
 	struct bufferevent *bev;
-	int fd;
+	evutil_socket_t fd;
 	int gotclosecb: 1;
 } terminate_state;
 
@@ -2577,7 +2577,7 @@ terminate_chunked_cb(struct evhttp_request *req, void *arg)
 }
 
 static void
-terminate_chunked_client(int fd, short event, void *arg)
+terminate_chunked_client(evutil_socket_t fd, short event, void *arg)
 {
 	struct terminate_state *state = arg;
 	bufferevent_free(state->bev);
@@ -2599,7 +2599,7 @@ http_terminate_chunked_test(void)
 	struct timeval tv;
 	const char *http_request;
 	short port = -1;
-	int fd = -1;
+	evutil_socket_t fd = -1;
 
 	test_ok = 0;
 

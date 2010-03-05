@@ -92,10 +92,10 @@ void event_changelist_remove_all(struct event_changelist *changelist,
 void event_changelist_freemem(struct event_changelist *changelist);
 
 /** Implementation of eventop_add that queues the event in a changelist. */
-int event_changelist_add(struct event_base *base, int fd, short old, short events,
+int event_changelist_add(struct event_base *base, evutil_socket_t fd, short old, short events,
     void *p);
 /** Implementation of eventop_del that queues the event in a changelist. */
-int event_changelist_del(struct event_base *base, int fd, short old, short events,
+int event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, short events,
     void *p);
 
 #endif

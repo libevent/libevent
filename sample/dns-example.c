@@ -168,7 +168,7 @@ main(int c, char **v) {
 	evdns_set_log_fn(logfn);
 
 	if (servertest) {
-		int sock;
+		evutil_socket_t sock;
 		struct sockaddr_in my_addr;
 		sock = socket(PF_INET, SOCK_DGRAM, 0);
 		evutil_make_socket_nonblocking(sock);

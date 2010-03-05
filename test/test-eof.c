@@ -34,7 +34,7 @@ int test_okay = 1;
 int called = 0;
 
 static void
-read_cb(int fd, short event, void *arg)
+read_cb(evutil_socket_t fd, short event, void *arg)
 {
 	char buf[256];
 	int len;

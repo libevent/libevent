@@ -33,7 +33,7 @@
 int called = 0;
 
 static void
-signal_cb(int fd, short event, void *arg)
+signal_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct event *signal = arg;
 

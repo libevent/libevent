@@ -46,7 +46,7 @@ struct cond_wait {
 };
 
 static void
-basic_timeout(int fd, short what, void *arg)
+basic_timeout(evutil_socket_t fd, short what, void *arg)
 {
 	struct cond_wait *cw = arg;
 	assert(pthread_mutex_lock(&cw->lock) == 0);

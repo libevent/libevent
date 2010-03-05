@@ -107,7 +107,7 @@ errorcb(struct bufferevent *b, short what, void *arg)
 }
 
 static void
-frob_socket(int sock)
+frob_socket(evutil_socket_t sock)
 {
 	struct linger l;
 	int one = 1;
@@ -121,7 +121,7 @@ frob_socket(int sock)
 static int
 launch_request(void)
 {
-	int sock;
+	evutil_socket_t sock;
 	struct sockaddr_in sin;
 	struct bufferevent *b;
 

@@ -104,7 +104,7 @@ struct basic_cb_args
 };
 
 static void
-simple_read_cb(int fd, short event, void *arg)
+simple_read_cb(evutil_socket_t fd, short event, void *arg)
 {
 	char buf[256];
 	int len;
@@ -123,7 +123,7 @@ simple_read_cb(int fd, short event, void *arg)
 }
 
 static void
-basic_read_cb(int fd, short event, void *data)
+basic_read_cb(evutil_socket_t fd, short event, void *data)
 {
 	char buf[256];
 	int len;
@@ -157,12 +157,12 @@ basic_read_cb(int fd, short event, void *data)
 }
 
 static void
-dummy_read_cb(int fd, short event, void *arg)
+dummy_read_cb(evutil_socket_t fd, short event, void *arg)
 {
 }
 
 static void
-simple_write_cb(int fd, short event, void *arg)
+simple_write_cb(evutil_socket_t fd, short event, void *arg)
 {
 	int len;
 
@@ -174,7 +174,7 @@ simple_write_cb(int fd, short event, void *arg)
 }
 
 static void
-multiple_write_cb(int fd, short event, void *arg)
+multiple_write_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct event *ev = arg;
 	int len;
@@ -207,7 +207,7 @@ multiple_write_cb(int fd, short event, void *arg)
 }
 
 static void
-multiple_read_cb(int fd, short event, void *arg)
+multiple_read_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct event *ev = arg;
 	int len;
@@ -229,7 +229,7 @@ multiple_read_cb(int fd, short event, void *arg)
 }
 
 static void
-timeout_cb(int fd, short event, void *arg)
+timeout_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct timeval tv;
 	int diff;
@@ -254,7 +254,7 @@ struct both {
 };
 
 static void
-combined_read_cb(int fd, short event, void *arg)
+combined_read_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct both *both = arg;
 	char buf[128];
@@ -272,7 +272,7 @@ combined_read_cb(int fd, short event, void *arg)
 }
 
 static void
-combined_write_cb(int fd, short event, void *arg)
+combined_write_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct both *both = arg;
 	char buf[128];
@@ -380,7 +380,7 @@ test_simplewrite(void)
 }
 
 static void
-simpleread_multiple_cb(int fd, short event, void *arg)
+simpleread_multiple_cb(evutil_socket_t fd, short event, void *arg)
 {
 	if (++called == 2)
 		test_ok = 1;
@@ -517,7 +517,7 @@ test_simpletimeout(void)
 }
 
 static void
-periodic_timeout_cb(int fd, short event, void *arg)
+periodic_timeout_cb(evutil_socket_t fd, short event, void *arg)
 {
 	int *count = arg;
 
@@ -556,14 +556,14 @@ struct persist_active_timeout_called {
 };
 
 static void
-activate_cb(int fd, short event, void *arg)
+activate_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct event *ev = arg;
 	event_active(ev, EV_READ, 1);
 }
 
 static void
-persist_active_timeout_cb(int fd, short event, void *arg)
+persist_active_timeout_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct persist_active_timeout_called *c = arg;
 	if (c->n < 15) {
@@ -624,7 +624,7 @@ struct common_timeout_info {
 };
 
 static void
-common_timeout_cb(int fd, short event, void *arg)
+common_timeout_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct common_timeout_info *ti = arg;
 	++ti->count;
@@ -709,12 +709,12 @@ end:
 }
 
 #ifndef WIN32
-static void signal_cb(int fd, short event, void *arg);
+static void signal_cb(evutil_socket_t fd, short event, void *arg);
 
 extern struct event_base *current_base;
 
 static void
-child_signal_cb(int fd, short event, void *arg)
+child_signal_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct timeval tv;
 	int *pint = arg;
@@ -803,7 +803,7 @@ signal_cb_sa(int sig)
 }
 
 static void
-signal_cb(int fd, short event, void *arg)
+signal_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct event *ev = arg;
 
@@ -1055,7 +1055,7 @@ signal_cb_swp(int sig, short event, void *arg)
 		event_loopexit(NULL);
 }
 static void
-timeout_cb_swp(int fd, short event, void *arg)
+timeout_cb_swp(evutil_socket_t fd, short event, void *arg)
 {
 	if (called == -1) {
 		struct timeval tv = {5, 0};
@@ -1261,14 +1261,14 @@ end:
 }
 
 static void
-break_cb(int fd, short events, void *arg)
+break_cb(evutil_socket_t fd, short events, void *arg)
 {
 	test_ok = 1;
 	event_loopbreak();
 }
 
 static void
-fail_cb(int fd, short events, void *arg)
+fail_cb(evutil_socket_t fd, short events, void *arg)
 {
 	test_ok = 0;
 }
@@ -1302,7 +1302,7 @@ end:
 
 static struct event *readd_test_event_last_added = NULL;
 static void
-re_add_read_cb(int fd, short event, void *arg)
+re_add_read_cb(evutil_socket_t fd, short event, void *arg)
 {
 	char buf[256];
 	int len;
@@ -1362,7 +1362,7 @@ struct test_pri_event {
 };
 
 static void
-test_priorities_cb(int fd, short what, void *arg)
+test_priorities_cb(evutil_socket_t fd, short what, void *arg)
 {
 	struct test_pri_event *pri = arg;
 	struct timeval tv;
@@ -1440,7 +1440,7 @@ test_priorities(void)
 
 
 static void
-test_multiple_cb(int fd, short event, void *arg)
+test_multiple_cb(evutil_socket_t fd, short event, void *arg)
 {
 	if (event & EV_READ)
 		test_ok |= 1;
@@ -1477,7 +1477,7 @@ int evtag_encode_tag(struct evbuffer *evbuf, ev_uint32_t number);
 int evtag_decode_tag(ev_uint32_t *pnumber, struct evbuffer *evbuf);
 
 static void
-read_once_cb(int fd, short event, void *arg)
+read_once_cb(evutil_socket_t fd, short event, void *arg)
 {
 	char buf[256];
 	int len;
@@ -1845,7 +1845,7 @@ end:
 }
 
 static void
-read_called_once_cb(int fd, short event, void *arg)
+read_called_once_cb(evutil_socket_t fd, short event, void *arg)
 {
 	tt_int_op(event, ==, EV_READ);
 	called += 1;
@@ -1854,7 +1854,7 @@ end:
 }
 
 static void
-timeout_called_once_cb(int fd, short event, void *arg)
+timeout_called_once_cb(evutil_socket_t fd, short event, void *arg)
 {
 	tt_int_op(event, ==, EV_TIMEOUT);
 	called += 100;
@@ -2003,7 +2003,7 @@ end:
 #endif
 
 static void
-many_event_cb(int fd, short event, void *arg)
+many_event_cb(evutil_socket_t fd, short event, void *arg)
 {
 	int *calledp = arg;
 	*calledp += 1;

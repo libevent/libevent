@@ -38,7 +38,7 @@ int test_okay = 1;
 int called = 0;
 
 static void
-write_cb(int fd, short event, void *arg)
+write_cb(evutil_socket_t fd, short event, void *arg)
 {
 	const char *test = "test string";
 	int len;

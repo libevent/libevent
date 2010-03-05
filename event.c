@@ -2420,7 +2420,7 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 
 #if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
 static void
-evthread_notify_drain_eventfd(int fd, short what, void *arg)
+evthread_notify_drain_eventfd(evutil_socket_t fd, short what, void *arg)
 {
 	ev_uint64_t msg;
 

@@ -62,7 +62,7 @@ static struct event *events;
 
 
 static void
-read_cb(int fd, short which, void *arg)
+read_cb(evutil_socket_t fd, short which, void *arg)
 {
 	long idx = (long) arg, widx = idx + 1;
 	u_char ch;

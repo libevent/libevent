@@ -52,7 +52,7 @@
 static int was_et = 0;
 
 static void
-read_cb(int fd, short event, void *arg)
+read_cb(evutil_socket_t fd, short event, void *arg)
 {
 	char buf;
 	int len;

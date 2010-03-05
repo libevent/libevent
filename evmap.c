@@ -628,7 +628,7 @@ event_changelist_get_or_construct(struct event_changelist *changelist,
 }
 
 int
-event_changelist_add(struct event_base *base, int fd, short old, short events,
+event_changelist_add(struct event_base *base, evutil_socket_t fd, short old, short events,
     void *p)
 {
 	struct event_changelist *changelist = &base->changelist;
@@ -659,7 +659,7 @@ event_changelist_add(struct event_base *base, int fd, short old, short events,
 }
 
 int
-event_changelist_del(struct event_base *base, int fd, short old, short events,
+event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, short events,
     void *p)
 {
 	struct event_changelist *changelist = &base->changelist;

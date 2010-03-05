@@ -59,7 +59,7 @@ static int *pipes;
 static struct event *events;
 
 static void
-read_cb(int fd, short which, void *arg)
+read_cb(evutil_socket_t fd, short which, void *arg)
 {
 	char ch;
 	long idx = (long) arg;
