@@ -94,8 +94,8 @@ main(int argc, char **argv)
 	unsigned short port = 8080;
 
 #ifdef WIN32
-        WSADATA WSAData;
-        WSAStartup(0x101, &WSAData);
+	WSADATA WSAData;
+	WSAStartup(0x101, &WSAData);
 #else
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 		return (1);
@@ -112,9 +112,8 @@ main(int argc, char **argv)
 		if ((c == 'p' || c == 'l') && i + 1 >= argc) {
 			fprintf(stderr, "-%c requires argument.\n", c);
 			exit(1);
-		} 
+		}
 
-		
 		switch (c) {
 		case 'p':
 			port = atoi(argv[i+1]);

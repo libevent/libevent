@@ -107,7 +107,7 @@ int _test_ai_eq(const struct evutil_addrinfo *ai, const char *sockaddr_port,
 #define test_ai_eq(ai, str, s, p) do {					\
 		if (_test_ai_eq((ai), (str), (s), (p), __LINE__)<0)	\
 			goto end;					\
-	} while(0)
+	} while (0)
 
 #define test_timeval_diff_eq(tv1, tv2, diff)				\
 	tt_int_op(abs(timeval_msec_diff((tv1), (tv2)) - diff), <=, 30)

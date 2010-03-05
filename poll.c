@@ -61,11 +61,11 @@ struct pollop {
 	struct pollfd *event_set_copy;
 };
 
-static void *poll_init	(struct event_base *);
+static void *poll_init(struct event_base *);
 static int poll_add(struct event_base *, int, short old, short events, void *_idx);
 static int poll_del(struct event_base *, int, short old, short events, void *_idx);
-static int poll_dispatch	(struct event_base *, struct timeval *);
-static void poll_dealloc	(struct event_base *);
+static int poll_dispatch(struct event_base *, struct timeval *);
+static void poll_dealloc(struct event_base *);
 
 const struct eventop pollops = {
 	"poll",

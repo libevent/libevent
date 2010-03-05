@@ -99,9 +99,9 @@ ht_string_hash(const char *s)
 
 #ifdef HT_CACHE_HASH_VALUES
 #define _HT_SET_HASH(elm, field, hashfn)        \
-	do { (elm)->field.hte_hash = hashfn(elm); } while(0)
+	do { (elm)->field.hte_hash = hashfn(elm); } while (0)
 #define _HT_SET_HASHVAL(elm, field, val)	\
-	do { (elm)->field.hte_hash = (val); } while(0)
+	do { (elm)->field.hte_hash = (val); } while (0)
 #define _HT_ELT_HASH(elm, field, hashfn)	\
 	((elm)->field.hte_hash)
 #else

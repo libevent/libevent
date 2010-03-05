@@ -119,9 +119,9 @@ int min_heap_reserve(min_heap_t* s, unsigned n)
 	{
 		struct event** p;
 		unsigned a = s->a ? s->a * 2 : 8;
-		if(a < n)
+		if (a < n)
 			a = n;
-		if(!(p = (struct event**)realloc(s->p, a * sizeof *p)))
+		if (!(p = (struct event**)realloc(s->p, a * sizeof *p)))
 			return -1;
 		s->p = p;
 		s->a = a;
@@ -132,7 +132,7 @@ int min_heap_reserve(min_heap_t* s, unsigned n)
 void min_heap_shift_up_(min_heap_t* s, unsigned hole_index, struct event* e)
 {
     unsigned parent = (hole_index - 1) / 2;
-    while(hole_index && min_heap_elem_greater(s->p[parent], e))
+    while (hole_index && min_heap_elem_greater(s->p[parent], e))
     {
 	(s->p[hole_index] = s->p[parent])->ev_timeout_pos.min_heap_idx = hole_index;
 	hole_index = parent;
@@ -144,7 +144,7 @@ void min_heap_shift_up_(min_heap_t* s, unsigned hole_index, struct event* e)
 void min_heap_shift_down_(min_heap_t* s, unsigned hole_index, struct event* e)
 {
     unsigned min_child = 2 * (hole_index + 1);
-    while(min_child <= s->n)
+    while (min_child <= s->n)
 	{
 	min_child -= min_child == s->n || min_heap_elem_greater(s->p[min_child], s->p[min_child - 1]);
 	if (!(min_heap_elem_greater(e, s->p[min_child])))

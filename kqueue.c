@@ -76,11 +76,11 @@ struct kqop {
 
 static void kqop_free(struct kqop *kqop);
 
-static void *kq_init	(struct event_base *);
-static int kq_sig_add (struct event_base *, int, short, short, void *);
-static int kq_sig_del (struct event_base *, int, short, short, void *);
-static int kq_dispatch	(struct event_base *, struct timeval *);
-static void kq_dealloc (struct event_base *);
+static void *kq_init(struct event_base *);
+static int kq_sig_add(struct event_base *, int, short, short, void *);
+static int kq_sig_del(struct event_base *, int, short, short, void *);
+static int kq_dispatch(struct event_base *, struct timeval *);
+static void kq_dealloc(struct event_base *);
 
 const struct eventop kqops = {
 	"kqueue",

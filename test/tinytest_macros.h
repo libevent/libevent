@@ -28,7 +28,7 @@
 
 /* Helpers for defining statement-like macros */
 #define TT_STMT_BEGIN do {
-#define TT_STMT_END } while(0)
+#define TT_STMT_END } while (0)
 
 /* Redefine this if your test functions want to abort with something besides
  * "goto end;" */

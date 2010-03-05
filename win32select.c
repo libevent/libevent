@@ -46,7 +46,7 @@
 #include "event2/thread.h"
 #include "evthread-internal.h"
 
-#define XFREE(ptr) do { if (ptr) mm_free(ptr); } while(0)
+#define XFREE(ptr) do { if (ptr) mm_free(ptr); } while (0)
 
 extern struct event_list timequeue;
 extern struct event_list addqueue;
@@ -75,11 +75,11 @@ struct win32op {
 	unsigned signals_are_broken : 1;
 };
 
-static void *win32_init	(struct event_base *);
+static void *win32_init(struct event_base *);
 static int win32_add(struct event_base *, evutil_socket_t, short old, short events, void *_idx);
 static int win32_del(struct event_base *, evutil_socket_t, short old, short events, void *_idx);
-static int win32_dispatch	(struct event_base *base, struct timeval *);
-static void win32_dealloc	(struct event_base *);
+static int win32_dispatch(struct event_base *base, struct timeval *);
+static void win32_dealloc(struct event_base *);
 
 struct eventop win32ops = {
 	"win32",

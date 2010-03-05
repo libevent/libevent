@@ -58,9 +58,9 @@ struct epollop {
 	int epfd;
 };
 
-static void *epoll_init	(struct event_base *);
-static int epoll_dispatch	(struct event_base *, struct timeval *);
-static void epoll_dealloc	(struct event_base *);
+static void *epoll_init(struct event_base *);
+static int epoll_dispatch(struct event_base *, struct timeval *);
+static void epoll_dealloc(struct event_base *);
 
 const struct eventop epollops = {
 	"epoll",

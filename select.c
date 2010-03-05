@@ -71,11 +71,11 @@ struct selectop {
 	fd_set *event_writeset_out;
 };
 
-static void *select_init	(struct event_base *);
+static void *select_init(struct event_base *);
 static int select_add(struct event_base *, int, short old, short events, void*);
 static int select_del(struct event_base *, int, short old, short events, void*);
-static int select_dispatch	(struct event_base *, struct timeval *);
-static void select_dealloc     (struct event_base *);
+static int select_dispatch(struct event_base *, struct timeval *);
+static void select_dealloc(struct event_base *);
 
 const struct eventop selectops = {
 	"select",

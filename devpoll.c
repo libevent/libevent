@@ -58,11 +58,11 @@ struct devpollop {
 	int nchanges;
 };
 
-static void *devpoll_init	(struct event_base *);
+static void *devpoll_init(struct event_base *);
 static int devpoll_add(struct event_base *, int fd, short old, short events, void *);
 static int devpoll_del(struct event_base *, int fd, short old, short events, void *);
-static int devpoll_dispatch	(struct event_base *, struct timeval *);
-static void devpoll_dealloc	(struct event_base *);
+static int devpoll_dispatch(struct event_base *, struct timeval *);
+static void devpoll_dealloc(struct event_base *);
 
 const struct eventop devpollops = {
 	"devpoll",
@@ -103,7 +103,7 @@ devpoll_queue(struct devpollop *devpollop, int fd, int events) {
 		 * adding more
 		 */
 		if (devpoll_commit(devpollop) != 0)
-			return(-1);
+			return (-1);
 	}
 
 	pfd = &devpollop->changes[devpollop->nchanges++];
@@ -245,7 +245,7 @@ devpoll_add(struct event_base *base, int fd, short old, short events, void *p)
 		res |= POLLOUT;
 
 	if (devpoll_queue(devpollop, fd, res) != 0)
-		return(-1);
+		return (-1);
 
 	return (0);
 }
@@ -271,7 +271,7 @@ devpoll_del(struct event_base *base, int fd, short old, short events, void *p)
 	 */
 
 	if (devpoll_queue(devpollop, fd, POLLREMOVE) != 0)
-		return(-1);
+		return (-1);
 
 	if ((res & (POLLIN|POLLOUT)) != (POLLIN|POLLOUT)) {
 		/*

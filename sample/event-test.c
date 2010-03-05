@@ -93,30 +93,30 @@ main(int argc, char **argv)
 	const char *fifo = "event.fifo";
 	int socket;
 
-	if (lstat (fifo, &st) == 0) {
+	if (lstat(fifo, &st) == 0) {
 		if ((st.st_mode & S_IFMT) == S_IFREG) {
 			errno = EEXIST;
 			perror("lstat");
-			exit (1);
+			exit(1);
 		}
 	}
 
-	unlink (fifo);
-	if (mkfifo (fifo, 0600) == -1) {
+	unlink(fifo);
+	if (mkfifo(fifo, 0600) == -1) {
 		perror("mkfifo");
-		exit (1);
+		exit(1);
 	}
 
 	/* Linux pipes are broken, we need O_RDWR instead of O_RDONLY */
 #ifdef __linux
-	socket = open (fifo, O_RDWR | O_NONBLOCK, 0);
+	socket = open(fifo, O_RDWR | O_NONBLOCK, 0);
 #else
-	socket = open (fifo, O_RDONLY | O_NONBLOCK, 0);
+	socket = open(fifo, O_RDONLY | O_NONBLOCK, 0);
 #endif
 
 	if (socket == -1) {
 		perror("open");
-		exit (1);
+		exit(1);
 	}
 
 	fprintf(stderr, "Write data to %s\n", fifo);

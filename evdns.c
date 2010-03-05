@@ -808,7 +808,7 @@ reply_handle(struct evdns_request *const req, u16 flags, u32 ttl, struct reply *
 			}
 		}
 
-		switch(error) {
+		switch (error) {
 		case DNS_ERR_NOTIMPL:
 		case DNS_ERR_REFUSED:
 			/* we regard these errors as marking a bad nameserver */
@@ -867,9 +867,9 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 	int name_end = -1;
 	int j = *idx;
 	int ptr_count = 0;
-#define GET32(x) do { if (j + 4 > length) goto err; memcpy(&_t32, packet + j, 4); j += 4; x = ntohl(_t32); } while(0)
-#define GET16(x) do { if (j + 2 > length) goto err; memcpy(&_t, packet + j, 2); j += 2; x = ntohs(_t); } while(0)
-#define GET8(x) do { if (j >= length) goto err; x = packet[j++]; } while(0)
+#define GET32(x) do { if (j + 4 > length) goto err; memcpy(&_t32, packet + j, 4); j += 4; x = ntohl(_t32); } while (0)
+#define GET16(x) do { if (j + 2 > length) goto err; memcpy(&_t, packet + j, 2); j += 2; x = ntohs(_t); } while (0)
+#define GET8(x) do { if (j >= length) goto err; x = packet[j++]; } while (0)
 
 	char *cp = name_out;
 	const char *const end = name_out + name_out_len;
@@ -965,7 +965,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 		if (name_parse(packet, length, &j, tmp_name,	\
 			sizeof(tmp_name))<0)			\
 			goto err;				\
-	} while(0)
+	} while (0)
 #define TEST_NAME							\
 	do { tmp_name[0] = '\0';					\
 		cmp_name[0] = '\0';					\
@@ -983,7 +983,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			if (evutil_ascii_strcasecmp(tmp_name, cmp_name) == 0) \
 				name_matches = 1;			\
 		}							\
-	} while(0)
+	} while (0)
 
 	reply.type = req->request_type;
 
@@ -1441,7 +1441,7 @@ dnslabel_table_add(struct dnslabel_table *table, const char *label, off_t pos)
 		return (-1);
 	v = mm_strdup(label);
 	if (v == NULL)
-		return(-1);
+		return (-1);
 	p = table->n_labels++;
 	table->labels[p].v = v;
 	table->labels[p].pos = pos;

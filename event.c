@@ -215,7 +215,7 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 			mm_free(dent);					\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
-	} while(0)
+	} while (0)
 #define _event_debug_note_add(ev)	do {				\
 	if (_event_debug_mode_on) {					\
 		struct event_debug_entry *dent,find;			\
@@ -231,7 +231,7 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
-	} while(0)
+	} while (0)
 #define _event_debug_note_del(ev) do {					\
 	if (_event_debug_mode_on) {					\
 		struct event_debug_entry *dent,find;			\
@@ -247,7 +247,7 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
-	} while(0)
+	} while (0)
 #define _event_debug_assert_is_setup(ev) do {				\
 	if (_event_debug_mode_on) {					\
 		struct event_debug_entry *dent,find;			\

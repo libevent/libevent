@@ -206,19 +206,19 @@ struct evbuffer_chain_reference {
 #define EVBUFFER_LOCK(buffer)						\
 	do {								\
 		EVLOCK_LOCK((buffer)->lock, 0);				\
-	} while(0)
+	} while (0)
 #define EVBUFFER_UNLOCK(buffer)						\
 	do {								\
 		EVLOCK_UNLOCK((buffer)->lock, 0);			\
-	} while(0)
+	} while (0)
 #define EVBUFFER_LOCK2(buffer1, buffer2)				\
 	do {								\
 		EVLOCK_LOCK2((buffer1)->lock, (buffer2)->lock, 0, 0);	\
-	} while(0)
+	} while (0)
 #define EVBUFFER_UNLOCK2(buffer1, buffer2)				\
 	do {								\
 		EVLOCK_UNLOCK2((buffer1)->lock, (buffer2)->lock, 0, 0);	\
-	} while(0)
+	} while (0)
 
 /** Increase the reference count of buf by one. */
 void _evbuffer_incref(struct evbuffer *buf);
@@ -250,7 +250,7 @@ int _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
 #define WSABUF_FROM_EVBUFFER_IOV(i,ei) do {		\
 		(i)->buf = (ei)->iov_base;		\
 		(i)->len = (ei)->iov_len;		\
-	} while(0)
+	} while (0)
 
 /** Set the parent bufferevent object for buf to bev */
 void evbuffer_set_parent(struct evbuffer *buf, struct bufferevent *bev);

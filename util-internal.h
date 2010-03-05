@@ -179,7 +179,7 @@ long _evutil_weakrand(void);
 			    __FILE__,__LINE__,#cond,__func__);		\
 			abort();					\
 		}							\
-	} while(0)
+	} while (0)
 
 /* Internal addrinfo error code.  This one is returned from only from
  * evutil_getaddrinfo_common, when we are sure that we'll have to hit a DNS
