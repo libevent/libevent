@@ -1277,7 +1277,9 @@ evutil_gai_strerror(int err)
 	case EVUTIL_EAI_SYSTEM:
 		return "system error";
 	default:
-#ifdef USE_NATIVE_GETADDRINFO
+#if defined(USE_NATIVE_GETADDRINFO) && defined(WIN32)
+		return gai_strerrorA(err);
+#elif defined(USE_NATIVE_GETADDRINFO)
 		return gai_strerror(err);
 #else
 		return "Unknown error code";
