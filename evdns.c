@@ -105,6 +105,7 @@
 
 #define EVDNS_LOG_DEBUG 0
 #define EVDNS_LOG_WARN 1
+#define EVDNS_LOG_MSG 2
 
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 255
@@ -435,12 +436,23 @@ debug_ntop(const struct sockaddr *sa)
 	return "<unknown>";
 }
 
+static void
+default_evdns_log_fn(int warning, const char *buf)
+{
+	if (warning == EVDNS_LOG_WARN)
+		event_warnx("[evdns] %s", buf);
+	else if (warning == EVDNS_LOG_MSG)
+		event_msgx("[evdns] %s", buf);
+	else
+		event_debug(("[evdns] %s", buf));
+}
+
 static evdns_debug_log_fn_type evdns_log_fn = NULL;
 
 void
 evdns_set_log_fn(evdns_debug_log_fn_type fn)
 {
-  evdns_log_fn = fn;
+	evdns_log_fn = fn;
 }
 
 #ifdef __GNUC__
@@ -459,8 +471,15 @@ _evdns_log(int warn, const char *fmt, ...)
 		return;
 	va_start(args,fmt);
 	evutil_vsnprintf(buf, sizeof(buf), fmt, args);
-	evdns_log_fn(warn, buf);
 	va_end(args);
+	if (evdns_log_fn) {
+		if (warn == EVDNS_LOG_MSG)
+			warn = EVDNS_LOG_WARN;
+		evdns_log_fn(warn, buf);
+	} else {
+		default_evdns_log_fn(warn, buf);
+	}
+
 }
 
 #define log _evdns_log
@@ -555,12 +574,12 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 	/* then don't do anything */
 	if (!ns->state) return;
 
-	log(EVDNS_LOG_WARN, "Nameserver %s has failed: %s",
+	log(EVDNS_LOG_MSG, "Nameserver %s has failed: %s",
 		debug_ntop((struct sockaddr*)&ns->address), msg);
 	base->global_good_nameservers--;
 	EVUTIL_ASSERT(base->global_good_nameservers >= 0);
 	if (base->global_good_nameservers == 0) {
-		log(EVDNS_LOG_WARN, "All nameservers have failed");
+		log(EVDNS_LOG_MSG, "All nameservers have failed");
 	}
 
 	ns->state = 0;
@@ -602,7 +621,7 @@ nameserver_up(struct nameserver *const ns)
 {
 	ASSERT_LOCKED(ns->base);
 	if (ns->state) return;
-	log(EVDNS_LOG_WARN, "Nameserver %s is back up",
+	log(EVDNS_LOG_MSG, "Nameserver %s is back up",
 	    debug_ntop((struct sockaddr *)&ns->address));
 	evtimer_del(&ns->timeout_event);
 	if (ns->probe_request) {
@@ -1288,8 +1307,9 @@ server_port_read(struct evdns_server_port *s) {
 			int err = evutil_socket_geterror(s->socket);
 			if (EVUTIL_ERR_RW_RETRIABLE(err))
 				return;
-			log(EVDNS_LOG_WARN, "Error %s (%d) while reading request.",
-				evutil_socket_error_to_string(err), err);
+			log(EVDNS_LOG_WARN,
+			    "Error %s (%d) while reading request.",
+			    evutil_socket_error_to_string(err), err);
 			return;
 		}
 		request_parse(packet, r, s, (struct sockaddr*) &addr, addrlen);

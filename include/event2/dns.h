@@ -476,7 +476,9 @@ typedef void (*evdns_debug_log_fn_type)(int is_warning, const char *msg);
 
 
 /**
-  Set the callback function to handle log messages.
+  Set the callback function to handle DNS log messages.  If this
+  callback is not set, evdns log messages are handled with the regular
+  Libevent logging system.
 
   @param fn the callback to be invoked when a log message is generated
  */
