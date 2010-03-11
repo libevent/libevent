@@ -73,19 +73,10 @@ struct evbuffer {
 	struct evbuffer_chain *first;
 	/** The last chain in this buffer's linked list of chains. */
 	struct evbuffer_chain *last;
-	/** The next-to-last chain in this buffer's linked list of chains.
-	 * NULL if the buffer has 0 or 1 chains.  Used in case there's an
-	 * ongoing read that needs to be split across multiple chains: we want
-	 * to add a new chain as a read target, but we don't want to lose our
-	 * pointer to the next-to-last chain if the read turns out to be
-	 * incomplete.
-	 */
-	/* FIXME: This should probably be called last_with_space and
-	 * repurposed accordingly. */
-	struct evbuffer_chain *previous_to_last;
 
 	/** The last chain that has any data in it.  If all chains in the
-	 * buffer are empty, points to the first chain */
+	 * buffer are empty, points to the first chain.  If the buffer has no
+	 * chains, this is NULL. */
 	struct evbuffer_chain *last_with_data;
 
 	/** Total amount of bytes stored in all chains.*/

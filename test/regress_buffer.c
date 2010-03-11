@@ -66,18 +66,13 @@
 static int
 _evbuffer_validate(struct evbuffer *buf)
 {
-	struct evbuffer_chain *chain, *previous = NULL;
+	struct evbuffer_chain *chain;
 	size_t sum = 0;
 	int found_last_with_data = 0;
 
 	if (buf->first == NULL) {
 		tt_assert(buf->last == NULL);
-		tt_assert(buf->previous_to_last == NULL);
 		tt_assert(buf->total_len == 0);
-	}
-
-	if (buf->previous_to_last == NULL) {
-		tt_assert(buf->first == buf->last);
 	}
 
 	chain = buf->first;
@@ -86,11 +81,9 @@ _evbuffer_validate(struct evbuffer *buf)
 			found_last_with_data = 1;
 		sum += chain->off;
 		if (chain->next == NULL) {
-			tt_assert(buf->previous_to_last == previous);
 			tt_assert(buf->last == chain);
 		}
 		tt_assert(chain->buffer_len >= chain->misalign + chain->off);
-		previous = chain;
 		chain = chain->next;
 	}
 

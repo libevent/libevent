@@ -219,7 +219,6 @@ evbuffer_chain_insert(struct evbuffer *buf, struct evbuffer_chain *chain)
 	ASSERT_EVBUFFER_LOCKED(buf);
 	if (buf->first == NULL) {
 		buf->first = buf->last = chain;
-		buf->previous_to_last = NULL;
 		buf->last_with_data = chain;
 	} else {
 		/* the last chain is empty so we can just drop it */
@@ -227,10 +226,8 @@ evbuffer_chain_insert(struct evbuffer *buf, struct evbuffer_chain *chain)
 			if (buf->last_with_data == buf->last)
 				buf->last_with_data = chain;
 			evbuffer_chain_free(buf->last);
-			buf->previous_to_last->next = chain;
 			buf->last = chain;
 		} else {
-			buf->previous_to_last = buf->last;
 			buf->last->next = chain;
 			buf->last = chain;
 		}
@@ -625,7 +622,6 @@ done:
 		ASSERT_EVBUFFER_LOCKED(dst);	\
 		(dst)->first = NULL;		\
 		(dst)->last = NULL;		\
-		(dst)->previous_to_last = NULL; \
 		(dst)->last_with_data = NULL;	\
 		(dst)->total_len = 0;		\
 	} while (0)
@@ -634,7 +630,6 @@ done:
 		ASSERT_EVBUFFER_LOCKED(dst);			   \
 		ASSERT_EVBUFFER_LOCKED(src);			   \
 		(dst)->first = (src)->first;			   \
-		(dst)->previous_to_last = (src)->previous_to_last; \
 		(dst)->last_with_data = (src)->last_with_data;	   \
 		(dst)->last = (src)->last;			   \
 		(dst)->total_len = (src)->total_len;		   \
@@ -644,8 +639,6 @@ done:
 		ASSERT_EVBUFFER_LOCKED(dst);				\
 		ASSERT_EVBUFFER_LOCKED(src);				\
 		(dst)->last->next = (src)->first;			\
-		(dst)->previous_to_last = (src)->previous_to_last ?	\
-		    (src)->previous_to_last : (dst)->last;		\
 		if ((src)->last_with_data)				\
 			(dst)->last_with_data = (src)->last_with_data;	\
 		(dst)->last = (src)->last;				\
@@ -658,8 +651,6 @@ done:
 		(src)->last->next = (dst)->first;		   \
 		(dst)->first = (src)->first;			   \
 		(dst)->total_len += (src)->total_len;		   \
-		if ((dst)->previous_to_last == NULL)		   \
-			(dst)->previous_to_last = (src)->last;	   \
 		if ((dst)->last_with_data == NULL)		   \
 			(dst)->last_with_data = (src)->last_with_data; \
 	} while (0)
@@ -784,8 +775,6 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 		}
 
 		buf->first = chain;
-		if (buf->first == buf->last)
-			buf->previous_to_last = NULL;
 		chain->misalign += len;
 		chain->off -= len;
 	}
@@ -843,8 +832,6 @@ evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 	buf->first = chain;
 	if (chain == NULL)
 		buf->last = NULL;
-	if (buf->first == buf->last)
-		buf->previous_to_last = NULL;
 
 	if (datlen) {
 		memcpy(data, chain->buffer + chain->misalign, datlen);
@@ -873,7 +860,7 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 	/*XXX We should have an option to force this to be zero-copy.*/
 
 	/*XXX can fail badly on sendfile case. */
-	struct evbuffer_chain *chain, *previous, *previous_to_previous = NULL;
+	struct evbuffer_chain *chain, *previous;
 	size_t nread = 0;
 	int result;
 
@@ -907,7 +894,6 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 		EVUTIL_ASSERT(chain != src->last_with_data);
 		nread += chain->off;
 		datlen -= chain->off;
-		previous_to_previous = previous;
 		previous = chain;
 		chain = chain->next;
 	}
@@ -919,13 +905,10 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 		} else {
 			dst->last->next = src->first;
 		}
-		dst->previous_to_last = previous_to_previous;
 		dst->last = previous;
 		dst->last_with_data = dst->last;
 		previous->next = NULL;
 		src->first = chain;
-		if (src->first == src->last)
-			src->previous_to_last = NULL;
 
 		dst->total_len += nread;
 		dst->n_add_for_cb += nread;
@@ -1038,12 +1021,8 @@ evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size)
 		memcpy(buffer, chain->buffer + chain->misalign, size);
 		chain->misalign += size;
 		chain->off -= size;
-		if (chain == buf->last)
-			buf->previous_to_last = tmp;
 	} else {
 		buf->last = tmp;
-		/* the last is already the first, so we have no previous */
-		buf->previous_to_last = NULL;
 	}
 
 	tmp->next = chain;
@@ -1441,8 +1420,6 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 	if ((tmp = evbuffer_chain_new(datlen)) == NULL)
 		goto done;
 	buf->first = tmp;
-	if (buf->previous_to_last == NULL)
-		buf->previous_to_last = tmp;
 	if (buf->last_with_data == NULL)
 		buf->last_with_data = tmp;
 	else if (chain && buf->last_with_data == chain && 0==chain->off)
@@ -1528,8 +1505,6 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 	/* fix up the chain */
 	if (buf->first == chain)
 		buf->first = tmp;
-	if (buf->previous_to_last)
-		buf->previous_to_last->next = tmp;
 	buf->last = tmp;
 	if (buf->last->off || buf->last_with_data == chain)
 		buf->last_with_data = tmp;
@@ -1605,7 +1580,6 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen, int n)
 		if (tmp == NULL)
 			return (-1);
 
-		buf->previous_to_last = buf->last;
 		buf->last->next = tmp;
 		buf->last = tmp;
 		/* (we would only set last_with_data if we added the first
@@ -1636,22 +1610,17 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen, int n)
 			if (rmv_all) {
 				ZERO_CHAIN(buf);
 			} else {
-				/* XXX This error case should set
-				 * previous_to_last to something better. */
 				buf->last = buf->last_with_data;
 				buf->last_with_data->next = NULL;
-				buf->previous_to_last = NULL;
 			}
 			return (-1);
 		}
 
 		if (rmv_all) {
 			buf->first = buf->last = buf->last_with_data = tmp;
-			buf->previous_to_last = NULL;
 		} else {
 			buf->last_with_data->next = tmp;
 			buf->last = tmp;
-			buf->previous_to_last = buf->last_with_data;
 		}
 		return (0);
 	}
