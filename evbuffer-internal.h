@@ -84,6 +84,10 @@ struct evbuffer {
 	 * repurposed accordingly. */
 	struct evbuffer_chain *previous_to_last;
 
+	/** The last chain that has any data in it.  If all chains in the
+	 * buffer are empty, points to the first chain */
+	struct evbuffer_chain *last_with_data;
+
 	/** Total amount of bytes stored in all chains.*/
 	size_t total_len;
 

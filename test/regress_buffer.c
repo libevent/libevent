@@ -68,6 +68,7 @@ _evbuffer_validate(struct evbuffer *buf)
 {
 	struct evbuffer_chain *chain, *previous = NULL;
 	size_t sum = 0;
+	int found_last_with_data = 0;
 
 	if (buf->first == NULL) {
 		tt_assert(buf->last == NULL);
@@ -81,6 +82,8 @@ _evbuffer_validate(struct evbuffer *buf)
 
 	chain = buf->first;
 	while (chain != NULL) {
+		if (chain == buf->last_with_data)
+			found_last_with_data = 1;
 		sum += chain->off;
 		if (chain->next == NULL) {
 			tt_assert(buf->previous_to_last == previous);
@@ -89,6 +92,23 @@ _evbuffer_validate(struct evbuffer *buf)
 		tt_assert(chain->buffer_len >= chain->misalign + chain->off);
 		previous = chain;
 		chain = chain->next;
+	}
+
+	if (buf->first)
+		tt_assert(buf->last_with_data);
+	if (buf->last_with_data) {
+		tt_assert(found_last_with_data);
+		chain = buf->last_with_data;
+		if (chain->off == 0 || buf->total_len == 0) {
+			tt_assert(chain->off == 0)
+			tt_assert(chain == buf->first);
+			tt_assert(buf->total_len == 0);
+		}
+		chain = chain->next;
+		while (chain != NULL) {
+			tt_assert(chain->off == 0);
+			chain = chain->next;
+		}
 	}
 
 	tt_assert(sum == buf->total_len);
@@ -239,8 +259,10 @@ test_evbuffer_reserve2(void *ptr)
 	cp = v[0].iov_base;
 	remaining = v[0].iov_len - 512;
 	v[0].iov_len = 512;
+	evbuffer_validate(buf);
 	tt_int_op(0, ==, evbuffer_commit_space(buf, v, 1));
 	tt_int_op(evbuffer_get_length(buf), ==, 512);
+	evbuffer_validate(buf);
 
 	/* Ask for another same-chunk request, in an existing chunk. Use 8
 	 * bytes of it. */
@@ -253,6 +275,7 @@ test_evbuffer_reserve2(void *ptr)
 	tt_int_op(0, ==, evbuffer_commit_space(buf, v, 1));
 	tt_int_op(evbuffer_get_length(buf), ==, 520);
 	remaining -= 8;
+	evbuffer_validate(buf);
 
 	/* Now ask for a request that will be split. Use only one byte of it,
 	   though. */
@@ -268,6 +291,7 @@ test_evbuffer_reserve2(void *ptr)
 	tt_int_op(0, ==, evbuffer_commit_space(buf, v, 1));
 	tt_int_op(evbuffer_get_length(buf), ==, 521);
 	remaining -= 1;
+	evbuffer_validate(buf);
 
 	/* Now ask for a request that will be split. Use some of the first
 	 * part and some of the second. */
@@ -283,7 +307,7 @@ test_evbuffer_reserve2(void *ptr)
 	v[1].iov_len = 60;
 	tt_int_op(0, ==, evbuffer_commit_space(buf, v, 2));
 	tt_int_op(evbuffer_get_length(buf), ==, 981);
-
+	evbuffer_validate(buf);
 
 	/* Now peek to make sure stuff got made how we like. */
 	memset(v,0,sizeof(v));
@@ -358,6 +382,7 @@ test_evbuffer_reference(void *ptr)
 
 	tt_assert(!memcmp(evbuffer_pullup(dst, strlen(data)),
 			  data, strlen(data)));
+	evbuffer_validate(dst);
 
  end:
 	evbuffer_free(dst);
@@ -394,6 +419,7 @@ test_evbuffer_add_file(void *ptr)
 	if (memcmp(compare, data, strlen(data)))
 		tt_abort_msg("Data from add_file differs.");
 
+	evbuffer_validate(src);
  end:
 	EVUTIL_CLOSESOCKET(pair[0]);
 	EVUTIL_CLOSESOCKET(pair[1]);
@@ -711,6 +737,7 @@ test_evbuffer_ptr_set(void *ptr)
 	v[0].iov_len = 5000;
 	memset(v[0].iov_base, 1, v[0].iov_len);
 	evbuffer_commit_space(buf, v, 1);
+	evbuffer_validate(buf);
 
 	evbuffer_reserve_space(buf, 4000, v, 1);
 	v[0].iov_len = 4000;
@@ -721,6 +748,7 @@ test_evbuffer_ptr_set(void *ptr)
 	v[0].iov_len = 3000;
 	memset(v[0].iov_base, 3, v[0].iov_len);
 	evbuffer_commit_space(buf, v, 1);
+	evbuffer_validate(buf);
 
 	tt_int_op(evbuffer_get_length(buf), ==, 12000);
 
@@ -867,7 +895,9 @@ test_evbuffer_callbacks(void *ptr)
 	evbuffer_add_printf(buf, "This will not.");
 	tt_str_op(evbuffer_pullup(buf, -1), ==, "This will not.");
 
+	evbuffer_validate(buf);
 	evbuffer_drain(buf, evbuffer_get_length(buf));
+	evbuffer_validate(buf);
 
 #if 0
 	/* Now let's try a suspended callback. */
@@ -938,6 +968,7 @@ test_evbuffer_add_reference(void *ptr)
 	/* Make sure that prepending does not meddle with immutable data */
 	tt_int_op(evbuffer_prepend(buf1, "I have ", 7), ==, 0);
 	tt_int_op(memcmp(chunk1, "If you", 6), ==, 0);
+	evbuffer_validate(buf1);
 
 	/* Make sure that when the chunk is over, the callback is invoked. */
 	evbuffer_drain(buf1, 7); /* Remove prepended stuff. */
@@ -949,6 +980,7 @@ test_evbuffer_add_reference(void *ptr)
 	tt_assert(ref_done_cb_called_with_data == chunk1);
 	tt_assert(ref_done_cb_called_with_len == len1);
 	tt_int_op(ref_done_cb_called_count, ==, 1);
+	evbuffer_validate(buf1);
 
 	/* Drain some of the remaining chunk, then add it to another buffer */
 	evbuffer_drain(buf1, 6); /* Remove the ", you ". */
@@ -964,6 +996,7 @@ test_evbuffer_add_reference(void *ptr)
 	evbuffer_drain(buf2, evbuffer_get_length(buf2));
 	tt_int_op(ref_done_cb_called_count, ==, 2);
 	tt_assert(ref_done_cb_called_with == (void*)222);
+	evbuffer_validate(buf2);
 
 	/* Now add more stuff to buf1 and make sure that it gets removed on
 	 * free. */
