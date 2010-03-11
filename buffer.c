@@ -1770,7 +1770,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, ev_vecs, 2,
 		    &chain, 1);
 
-		for (i=0; i < n_vecs; ++i)
+		for (i=0; i < nvecs; ++i)
 			WSABUF_FROM_EVBUFFER_IOV(&vecs[i], &ev_vecs[i]);
 #endif
 
