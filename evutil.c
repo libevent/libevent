@@ -323,6 +323,7 @@ evutil_strtoll(const char *s, char **endptr, int base)
 }
 
 #ifndef _EVENT_HAVE_GETTIMEOFDAY
+/* No gettimeofday; this muse be windows. */
 int
 evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
@@ -331,6 +332,14 @@ evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
 	if (tv == NULL)
 		return -1;
 
+	/* XXXX
+	 * _ftime is not the greatest interface here; GetSystemTimeAsFileTime
+	 * would give us better resolution, whereas something cobbled together
+	 * with GetTickCount could maybe give us monotonic behavior.
+	 *
+	 * Either way, I think this value might be skewed to ignore the
+	 * timezone, and just return local time.  That's not so good.
+	 */
 	_ftime(&tb);
 	tv->tv_sec = (long) tb.time;
 	tv->tv_usec = ((int) tb.millitm) * 1000;

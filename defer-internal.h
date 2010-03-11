@@ -50,12 +50,15 @@ struct deferred_cb {
 	void *arg;
 };
 
-
+/** A deferred_cb_queue is a list of deferred_cb that we can add to and run. */
 struct deferred_cb_queue {
+	/** Lock used to protect the queue. */
 	void *lock;
 
+	/** How many entries are in the queue? */
 	int active_count;
 
+	/** Function called when adding to the queue from another thread. */
 	void (*notify_fn)(struct deferred_cb_queue *, void *);
 	void *notify_arg;
 
