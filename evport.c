@@ -64,6 +64,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <event2/thread.h>
+
+#include "evthread-internal.h"
 #include "event-internal.h"
 #include "log-internal.h"
 #include "evsignal-internal.h"
