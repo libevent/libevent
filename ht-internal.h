@@ -1,4 +1,4 @@
-/* Possibly Copyright 2002 Christopher Clark */
+/* Based on work Copyright 2002 Christopher Clark */
 /* Copyright 2005-2010 Nick Mathewson */
 /* Copyright 2009-2010 Niels Provos and Nick Mathewson */
 /* See license at end. */
@@ -447,9 +447,8 @@ ht_string_hash(const char *s)
 /*
  * Copyright 2005, Nick Mathewson.  Implementation logic is adapted from code
  * by Cristopher Clark, retrofit to allow drop-in memory management, and to
- * use the same interface as Niels Provos's tree.h.  I'm not sure whether this
- * is a derived work any more, but whether it is or not, the license below
- * applies.
+ * use the same interface as Niels Provos's tree.h.  This is probably still
+ * a derived work, so the original license below still applies.
  *
  * Copyright (c) 2002, Christopher Clark
  * All rights reserved.
