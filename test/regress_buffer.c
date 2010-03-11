@@ -328,6 +328,80 @@ end:
 	evbuffer_free(buf);
 }
 
+static void
+test_evbuffer_reserve_many(void *ptr)
+{
+	/* This is a glass-box test to handle expanding a buffer with more
+	 * chunks and reallocating chunks as needed */
+	struct evbuffer *buf = evbuffer_new();
+	struct evbuffer_iovec v[8];
+	int n;
+	size_t sz;
+	int add_data = ptr && !strcmp(ptr, "add");
+	int fill_first = ptr && !strcmp(ptr, "fill");
+	char *cp1, *cp2;
+
+	/* When reserving the the first chunk, we just allocate it */
+	n = evbuffer_reserve_space(buf, 128, v, 2);
+	evbuffer_validate(buf);
+	tt_int_op(n, ==, 1);
+	tt_assert(v[0].iov_len >= 128);
+	sz = v[0].iov_len;
+	cp1 = v[0].iov_base;
+	if (add_data) {
+		*(char*)v[0].iov_base = 'X';
+		v[0].iov_len = 1;
+		n = evbuffer_commit_space(buf, v, 1);
+		tt_int_op(n, ==, 0);
+	} else if (fill_first) {
+		memset(v[0].iov_base, 'X', v[0].iov_len);
+		n = evbuffer_commit_space(buf, v, 1);
+		tt_int_op(n, ==, 0);
+		n = evbuffer_reserve_space(buf, 128, v, 2);
+		tt_int_op(n, ==, 1);
+		sz = v[0].iov_len;
+		tt_assert(v[0].iov_base != cp1);
+		cp1 = v[0].iov_base;
+	}
+
+	/* Make another chunk get added. */
+	n = evbuffer_reserve_space(buf, sz+128, v, 2);
+	evbuffer_validate(buf);
+	tt_int_op(n, ==, 2);
+	sz = v[0].iov_len + v[1].iov_len;
+	tt_int_op(sz, >=, v[0].iov_len+128);
+	if (add_data) {
+		tt_assert(v[0].iov_base == cp1 + 1);
+	} else {
+		tt_assert(v[0].iov_base == cp1);
+	}
+	cp1 = v[0].iov_base;
+	cp2 = v[1].iov_base;
+
+	/* And a third chunk. */
+	n = evbuffer_reserve_space(buf, sz+128, v, 3);
+	evbuffer_validate(buf);
+	tt_int_op(n, ==, 3);
+	tt_assert(cp1 == v[0].iov_base);
+	tt_assert(cp2 == v[1].iov_base);
+	sz = v[0].iov_len + v[1].iov_len + v[2].iov_len;
+
+	/* Now force a reallocation by asking for more space in only 2
+	 * buffers. */
+	n = evbuffer_reserve_space(buf, sz+128, v, 2);
+	evbuffer_validate(buf);
+	if (add_data) {
+		tt_int_op(n, ==, 2);
+		tt_assert(cp1 == v[0].iov_base);
+	} else {
+		tt_int_op(n, ==, 1);
+	}
+
+end:
+	evbuffer_free(buf);
+}
+
+
 static int reference_cb_called;
 static void
 reference_cb(const void *data, size_t len, void *extra)
@@ -1277,6 +1351,9 @@ static const struct testcase_setup_t nil_setup = {
 struct testcase_t evbuffer_testcases[] = {
 	{ "evbuffer", test_evbuffer, 0, NULL, NULL },
 	{ "reserve2", test_evbuffer_reserve2, 0, NULL, NULL },
+	{ "reserve_many", test_evbuffer_reserve_many, 0, NULL, NULL },
+	{ "reserve_many2", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"add" },
+	{ "reserve_many3", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"fill" },
 	{ "reference", test_evbuffer_reference, 0, NULL, NULL },
 	{ "iterative", test_evbuffer_iterative, 0, NULL, NULL },
 	{ "readln", test_evbuffer_readln, TT_NO_LOGS, &basic_setup, NULL },
