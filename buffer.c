@@ -1639,17 +1639,18 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen, int n)
 #ifdef _EVENT_HAVE_SYS_UIO_H
 /* number of iovec we use for writev, fragmentation is going to determine
  * how much we end up writing */
-#define NUM_IOVEC 128
+#define NUM_WRITE_IOVEC 128
 #define IOV_TYPE struct iovec
 #define IOV_PTR_FIELD iov_base
 #define IOV_LEN_FIELD iov_len
 #else
-#define NUM_IOVEC 16
+#define NUM_WRITE_IOVEC 16
 #define IOV_TYPE WSABUF
 #define IOV_PTR_FIELD buf
 #define IOV_LEN_FIELD len
 #endif
 #endif
+#define NUM_READ_IOVEC 4
 
 #define EVBUFFER_MAX_READ	4096
 
@@ -1710,7 +1711,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 	int result;
 
 #ifdef USE_IOVEC_IMPL
-	int nvecs;
+	int nvecs, i, remaining;
 #else
 	unsigned char *p;
 #endif
@@ -1753,28 +1754,24 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 
 #ifdef USE_IOVEC_IMPL
 	/* Since we can use iovecs, we're willing to use the last
-	 * _two_ chains. */
-	if (_evbuffer_expand_fast(buf, howmuch, 2) == -1) {
+	 * NUM_READ_IOVEC chains. */
+	if (_evbuffer_expand_fast(buf, howmuch, NUM_READ_IOVEC) == -1) {
 		result = -1;
 		goto done;
 	} else {
-		IOV_TYPE vecs[2];
+		IOV_TYPE vecs[NUM_READ_IOVEC];
 #ifdef _EVBUFFER_IOVEC_IS_NATIVE
-		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, vecs, 2,
-		    &chain, 1);
+		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, vecs,
+		    NUM_READ_IOVEC, &chain, 1);
 #else
 		/* We aren't using the native struct iovec.  Therefore,
 		   we are on win32. */
-		struct evbuffer_iovec ev_vecs[2];
+		struct evbuffer_iovec ev_vecs[NUM_READ_IOVEC];
 		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, ev_vecs, 2,
 		    &chain, 1);
 
-		if (nvecs == 2) {
-			WSABUF_FROM_EVBUFFER_IOV(&vecs[1], &ev_vecs[1]);
-			WSABUF_FROM_EVBUFFER_IOV(&vecs[0], &ev_vecs[0]);
-		} else if (nvecs == 1) {
-			WSABUF_FROM_EVBUFFER_IOV(&vecs[0], &ev_vecs[0]);
-		}
+		for (i=0; i < n_vecs; ++i)
+			WSABUF_FROM_EVBUFFER_IOV(&vecs[i], &ev_vecs[i]);
 #endif
 
 #ifdef WIN32
@@ -1827,19 +1824,18 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 	}
 
 #ifdef USE_IOVEC_IMPL
-	if (nvecs == 2) {
+	remaining = n;
+	for (i=0; i < nvecs; ++i) {
 		ev_ssize_t space = CHAIN_SPACE_LEN(chain);
-		if (space < n) {
+		if (space < remaining) {
 			chain->off += space;
-			chain->next->off += n-space;
-			buf->last_with_data = chain->next;
+			remaining -= space;
 		} else {
-			chain->off += n;
+			chain->off += remaining;
 			buf->last_with_data = chain;
+			break;
 		}
-	} else {
-		chain->off += n;
-		buf->last_with_data = chain;
+		chain = chain->next;
 	}
 #else
 	chain->off += n;
@@ -1861,7 +1857,7 @@ static inline int
 evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
     ev_ssize_t howmuch)
 {
-	IOV_TYPE iov[NUM_IOVEC];
+	IOV_TYPE iov[NUM_WRITE_IOVEC];
 	struct evbuffer_chain *chain = buffer->first;
 	int n, i = 0;
 
@@ -1872,7 +1868,7 @@ evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
 	/* XXX make this top out at some maximal data length?  if the
 	 * buffer has (say) 1MB in it, split over 128 chains, there's
 	 * no way it all gets written in one go. */
-	while (chain != NULL && i < NUM_IOVEC && howmuch) {
+	while (chain != NULL && i < NUM_WRITE_IOVEC && howmuch) {
 #ifdef USE_SENDFILE
 		/* we cannot write the file info via writev */
 		if (chain->flags & EVBUFFER_SENDFILE)
