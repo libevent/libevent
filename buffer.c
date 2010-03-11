@@ -525,9 +525,9 @@ evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
 		vec[0].iov_len = CHAIN_SPACE_LEN(chain);
 		n = 1;
 	} else {
-		if (_evbuffer_expand_fast(buf, size)<0)
+		if (_evbuffer_expand_fast(buf, size, n_vecs)<0)
 			goto done;
-		n = _evbuffer_read_setup_vecs(buf, size, vec, &chain, 0);
+		n = _evbuffer_read_setup_vecs(buf, size, vec, n_vecs, &chain, 0);
 	}
 
 done:
@@ -556,50 +556,64 @@ int
 evbuffer_commit_space(struct evbuffer *buf,
     struct evbuffer_iovec *vec, int n_vecs)
 {
-	struct evbuffer_chain *last, *prev;
+	struct evbuffer_chain *firstchain, *chain;
 	int result = -1;
-	size_t added;
+	size_t added = 0;
+	int i;
 
 	EVBUFFER_LOCK(buf);
 
-	prev = buf->previous_to_last;
-	last = buf->last;
-
 	if (buf->freeze_end)
 		goto done;
-	if (n_vecs < 1 || n_vecs > 2)
+	if (n_vecs == 0) {
+		result = 0;
 		goto done;
-	if (n_vecs == 2) {
-		if (!prev || !last ||
-		    vec[0].iov_base != CHAIN_SPACE_PTR(prev) ||
-		    vec[1].iov_base != CHAIN_SPACE_PTR(last) ||
-		    vec[0].iov_len > CHAIN_SPACE_LEN(prev) ||
-		    vec[1].iov_len > CHAIN_SPACE_LEN(last))
+	} else if (n_vecs == 1 &&
+	    (buf->last && vec[0].iov_base == CHAIN_SPACE_PTR(buf->last))) {
+		/* The user only got or used one chain; it might not
+		 * be the first one with space in it. */
+		if (vec[0].iov_len > CHAIN_SPACE_LEN(buf->last))
 			goto done;
-
-		prev->off += vec[0].iov_len;
-		last->off += vec[1].iov_len;
-		added = vec[0].iov_len + vec[1].iov_len;
-	} else {
-		/* n_vecs == 1 */
-		struct evbuffer_chain *chain;
-		if (prev && vec[0].iov_base == CHAIN_SPACE_PTR(prev))
-			chain = prev;
-		else if (last && vec[0].iov_base == CHAIN_SPACE_PTR(last))
-			chain = last;
-		else
-			goto done;
-		if (vec[0].iov_len > CHAIN_SPACE_LEN(chain))
-			goto done;
-
-		chain->off += vec[0].iov_len;
+		buf->last->off += vec[0].iov_len;
 		added = vec[0].iov_len;
+		if (added)
+			buf->last_with_data = buf->last;
+		goto okay;
 	}
 
+	/* Advance 'firstchain' to the first chain with space in it. */
+	firstchain = buf->last_with_data;
+	if (!firstchain)
+		goto done;
+	if (CHAIN_SPACE_LEN(firstchain) == 0) {
+		firstchain = firstchain->next;
+	}
+
+	chain = firstchain;
+	/* pass 1: make sure that the pointers and lengths of vecs[] are in
+	 * bounds before we try to commit anything. */
+	for (i=0; i<n_vecs; ++i) {
+		if (!chain)
+			goto done;
+		if (vec[i].iov_base != CHAIN_SPACE_PTR(chain) ||
+		    vec[i].iov_len > CHAIN_SPACE_LEN(chain))
+			goto done;
+		chain = chain->next;
+	}
+	/* pass 2: actually adjust all the chains. */
+	chain = firstchain;
+	for (i=0; i<n_vecs; ++i) {
+		chain->off += vec[i].iov_len;
+		added += vec[i].iov_len;
+		if (vec[i].iov_len)
+			buf->last_with_data = chain;
+		chain = chain->next;
+	}
+
+okay:
 	buf->total_len += added;
 	buf->n_add_for_cb += added;
 	result = 0;
-	advance_last_with_data(buf);
 	evbuffer_invoke_callbacks(buf);
 
 done:
@@ -1529,17 +1543,21 @@ err:
 	return result;
 }
 
-/* Make sure that datlen bytes are available for writing in the last two
+/* Make sure that datlen bytes are available for writing in the last n
  * chains.  Never copies or moves data. */
 int
-_evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
+_evbuffer_expand_fast(struct evbuffer *buf, size_t datlen, int n)
 {
-	struct evbuffer_chain *chain = buf->last, *tmp;
-	size_t avail, avail_in_prev = 0;
+	struct evbuffer_chain *chain = buf->last, *tmp, *next;
+	size_t avail;
+	int used;
 
 	ASSERT_EVBUFFER_LOCKED(buf);
+	EVUTIL_ASSERT(n >= 2);
 
 	if (chain == NULL || (chain->flags & EVBUFFER_IMMUTABLE)) {
+		/* There is no last chunk, or we can't touch the last chunk.
+		 * Just add a new chunk. */
 		chain = evbuffer_chain_new(datlen);
 		if (chain == NULL)
 			return (-1);
@@ -1548,57 +1566,95 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
 		return (0);
 	}
 
-	/* How many bytes can we stick at the end of chain? */
-
-	if (chain->off) {
-		avail = chain->buffer_len - (chain->off + chain->misalign);
-		avail_in_prev = 0;
-	} else {
-		/* No data in chain; realign it. */
-		chain->misalign = 0;
-		avail = chain->buffer_len;
-		/* Can we stick some data in the penultimate chain? */
-		if (buf->previous_to_last) {
-			struct evbuffer_chain *prev = buf->previous_to_last;
-			avail_in_prev = CHAIN_SPACE_LEN(prev);
+	used = 0; /* number of chains we're using space in. */
+	avail = 0; /* how much space they have. */
+	/* How many bytes can we stick at the end of buffer as it is?  Iterate
+	 * over the chains at the end of the buffer, tring to see how much
+	 * space we have in the first n. */
+	for (chain = buf->last_with_data; chain; chain = chain->next) {
+		if (chain->off) {
+			size_t space = CHAIN_SPACE_LEN(chain);
+			EVUTIL_ASSERT(chain == buf->last_with_data);
+			if (space) {
+				avail += space;
+				++used;
+			}
+		} else {
+			/* No data in chain; realign it. */
+			chain->misalign = 0;
+			avail += chain->buffer_len;
+			++used;
 		}
+		if (avail >= datlen) {
+			/* There is already enough space.  Just return */
+			return (0);
+		}
+		if (used == n)
+			break;
 	}
 
-	/* If we can fit all the data, then we don't have to do anything */
-	if (avail+avail_in_prev >= datlen)
-		return (0);
+	/* There wasn't enough space in the first n chains with space in
+	 * them. Either add a new chain with enough space, or replace all
+	 * empty chains with one that has enough space, depending on n. */
+	if (used < n) {
+		/* The loop ran off the end of the chains before it hit n
+		 * chains; we can add another. */
+		EVUTIL_ASSERT(chain == NULL);
 
-	/* Otherwise, we need a bigger chunk. */
-	if (chain->off == 0) {
-		/* If there are no bytes on this chain, free it and
-		   replace it with a better one. */
-		/* XXX round up. */
-		tmp = evbuffer_chain_new(datlen-avail_in_prev);
-		if (tmp == NULL)
-			return -1;
-		/* XXX write functions to in new chains */
-		if (buf->first == chain)
-			buf->first = tmp;
-		if (buf->previous_to_last)
-			buf->previous_to_last->next = tmp;
-		buf->last = tmp;
-		if (chain == buf->last_with_data)
-			buf->last_with_data = tmp;
-		evbuffer_chain_free(chain);
-	} else {
-		/* Add a new chunk big enough to hold what won't fit
-		 * in chunk. */
-		/*XXX round this up. */
-		tmp = evbuffer_chain_new(datlen-avail);
+		tmp = evbuffer_chain_new(datlen - avail);
 		if (tmp == NULL)
 			return (-1);
 
-		buf->previous_to_last = chain;
-		chain->next = tmp;
+		buf->previous_to_last = buf->last;
+		buf->last->next = tmp;
 		buf->last = tmp;
-	}
+		/* (we would only set last_with_data if we added the first
+		 * chain. But if the buffer had no chains, we would have
+		 * just allocated a new chain earlier) */
+		return (0);
+	} else {
+		/* Nuke _all_ the empty chains. */
+		int rmv_all = 0; /* True iff we removed last_with_data. */
+		chain = buf->last_with_data;
+		if (!chain->off) {
+			EVUTIL_ASSERT(chain == buf->first);
+			rmv_all = 1;
+			avail = 0;
+		} else {
+			avail = CHAIN_SPACE_LEN(chain);
+			chain = chain->next;
+		}
 
-	return (0);
+
+		for (; chain; chain = next) {
+			next = chain->next;
+			EVUTIL_ASSERT(chain->off == 0);
+			evbuffer_chain_free(chain);
+		}
+		tmp = evbuffer_chain_new(datlen - avail);
+		if (tmp == NULL) {
+			if (rmv_all) {
+				ZERO_CHAIN(buf);
+			} else {
+				/* XXX This error case should set
+				 * previous_to_last to something better. */
+				buf->last = buf->last_with_data;
+				buf->last_with_data->next = NULL;
+				buf->previous_to_last = NULL;
+			}
+			return (-1);
+		}
+
+		if (rmv_all) {
+			buf->first = buf->last = buf->last_with_data = tmp;
+			buf->previous_to_last = NULL;
+		} else {
+			buf->last_with_data->next = tmp;
+			buf->last = tmp;
+			buf->previous_to_last = buf->last_with_data;
+		}
+		return (0);
+	}
 }
 
 /*
@@ -1633,7 +1689,8 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
 
     @param buf The buffer to read into
     @param howmuch How much we want to read.
-    @param vecs An array of two iovecs or WSABUFs.
+    @param vecs An array of two or more iovecs or WSABUFs.
+    @param n_vecs_avail The length of vecs
     @param chainp A pointer to a variable to hold the first chain we're
       reading into.
     @param exact Boolean: if true, we do not provide more than 'howmuch'
@@ -1642,52 +1699,36 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen)
  */
 int
 _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
-    struct evbuffer_iovec *vecs, struct evbuffer_chain **chainp, int exact)
+    struct evbuffer_iovec *vecs, int n_vecs_avail,
+    struct evbuffer_chain **chainp, int exact)
 {
-	struct evbuffer_chain *chain;
-	int nvecs;
+	struct evbuffer_chain *chain, *firstchain;
+	size_t so_far;
+	int i;
+	ASSERT_EVBUFFER_LOCKED(buf);
 
 	if (howmuch < 0)
 		return -1;
 
-	chain = buf->last;
+	so_far = 0;
+	/* Let firstchain be the first chain with any space on it */
+	firstchain =  buf->last_with_data;
+	if (CHAIN_SPACE_LEN(firstchain) == 0)
+		firstchain = firstchain->next;
 
-	if (chain->off == 0 && buf->previous_to_last &&
-	    CHAIN_SPACE_LEN(buf->previous_to_last)) {
-		/* The last chain is empty, so it's safe to
-		   use the space in the next-to-last chain.
-		*/
-		struct evbuffer_chain *prev = buf->previous_to_last;
-		vecs[0].iov_base = CHAIN_SPACE_PTR(prev);
-		vecs[0].iov_len = CHAIN_SPACE_LEN(prev);
-		vecs[1].iov_base = CHAIN_SPACE_PTR(chain);
-		vecs[1].iov_len = CHAIN_SPACE_LEN(chain);
-		if (vecs[0].iov_len >= (size_t)howmuch) {
-			/* The next-to-last chain has enough
-			 * space on its own. */
-			chain = prev;
-			nvecs = 1;
-		} else {
-			/* We'll need both chains. */
-			chain = prev;
-			nvecs = 2;
-			if (exact &&
-			    (vecs[0].iov_len + vecs[1].iov_len > (size_t)howmuch)) {
-				vecs[1].iov_len = howmuch - vecs[0].iov_len;
-			}
-		}
-	} else {
-		/* There's data in the last chain, so we're
-		 * not allowed to use the next-to-last. */
-		nvecs = 1;
-		vecs[0].iov_base = CHAIN_SPACE_PTR(chain);
-		vecs[0].iov_len = CHAIN_SPACE_LEN(chain);
-		if (exact && (vecs[0].iov_len > (size_t)howmuch))
-			vecs[0].iov_len = howmuch;
+	chain = firstchain;
+	for (i = 0; i < n_vecs_avail && so_far < howmuch; ++i) {
+		size_t avail = CHAIN_SPACE_LEN(chain);
+		if (avail > howmuch && exact)
+			avail = howmuch;
+		vecs[i].iov_base = CHAIN_SPACE_PTR(chain);
+		vecs[i].iov_len = avail;
+		so_far += avail;
+		chain = chain->next;
 	}
 
-	*chainp = chain;
-	return nvecs;
+	*chainp = firstchain;
+	return i;
 }
 
 /* TODO(niels): should this function return ev_ssize_t and take ev_ssize_t
@@ -1744,19 +1785,19 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 #ifdef USE_IOVEC_IMPL
 	/* Since we can use iovecs, we're willing to use the last
 	 * _two_ chains. */
-	if (_evbuffer_expand_fast(buf, howmuch) == -1) {
+	if (_evbuffer_expand_fast(buf, howmuch, 2) == -1) {
 		result = -1;
 		goto done;
 	} else {
 		IOV_TYPE vecs[2];
 #ifdef _EVBUFFER_IOVEC_IS_NATIVE
-		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, vecs,
+		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, vecs, 2,
 		    &chain, 1);
 #else
 		/* We aren't using the native struct iovec.  Therefore,
 		   we are on win32. */
 		struct evbuffer_iovec ev_vecs[2];
-		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, ev_vecs,
+		nvecs = _evbuffer_read_setup_vecs(buf, howmuch, ev_vecs, 2,
 		    &chain, 1);
 
 		if (nvecs == 2) {
@@ -1822,14 +1863,18 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 		if (space < n) {
 			chain->off += space;
 			chain->next->off += n-space;
+			buf->last_with_data = chain->next;
 		} else {
 			chain->off += n;
+			buf->last_with_data = chain;
 		}
 	} else {
 		chain->off += n;
+		buf->last_with_data = chain;
 	}
 #else
 	chain->off += n;
+	buf->last_with_data = chain;
 #endif
 	buf->total_len += n;
 	buf->n_add_for_cb += n;

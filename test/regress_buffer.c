@@ -296,6 +296,7 @@ test_evbuffer_reserve2(void *ptr)
 	/* Now ask for a request that will be split. Use some of the first
 	 * part and some of the second. */
 	n = evbuffer_reserve_space(buf, remaining+64, v, 2);
+	evbuffer_validate(buf);
 	tt_int_op(n, ==, 2);
 	tt_assert(cp + 521 == v[0].iov_base);
 	tt_int_op(remaining, ==, v[0].iov_len);
