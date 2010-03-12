@@ -648,7 +648,8 @@ event_base_free(struct event_base *base)
 	if (base->th_notify_fd[0] != -1) {
 		event_del(&base->th_notify);
 		EVUTIL_CLOSESOCKET(base->th_notify_fd[0]);
-		EVUTIL_CLOSESOCKET(base->th_notify_fd[1]);
+		if (base->th_notify_fd[1] != -1)
+			EVUTIL_CLOSESOCKET(base->th_notify_fd[1]);
 		base->th_notify_fd[0] = -1;
 		base->th_notify_fd[1] = -1;
 		event_debug_unassign(&base->th_notify);
