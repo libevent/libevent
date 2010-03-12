@@ -37,28 +37,23 @@ bin_SCRIPTS = event_rpcgen.py
 pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=libevent.pc
 
+# These sources are conditionally added to SYS_SRC by configure.in
+PLATFORM_DEPENDENT_SRC = \
+	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
+	evport.c devpoll.c
+	arc4random.c \
+	evthread_pthread.c
+
 EXTRA_DIST = \
+	evdns.3 event.3 \
 	LICENSE \
-	autogen.sh evdns.3 \
-	event.3 \
+	autogen.sh
 	libevent.pc.in \
 	Doxyfile \
-	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
-	evport.c devpoll.c win32select.c event_rpcgen.py \
-	event_iocp.c buffer_iocp.c iocp-internal.h arc4random.c \
-	sample/Makefile.am sample/Makefile.in sample/event-test.c \
-	sample/signal-test.c sample/time-test.c \
-	test/Makefile.am test/Makefile.in test/bench.c test/regress.c \
-	test/test-eof.c test/test-weof.c test/test-time.c \
-	test/test-init.c test/test.sh \
-	compat/sys/queue.h \
-	evthread_win32.c \
-	evthread_pthread.c \
 	whatsnew-2.0.txt \
-	bufferevent_async.c \
-	WIN32-Code/event-config.h \
-	WIN32-Code/tree.h \
-	Makefile.nmake test/Makefile.nmake
+	Makefile.nmake test/Makefile.nmake \
+	event_rpcgen.py \
+	$(PLATFORM_DEPENDENT_SRC)
 
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 if PTHREADS
@@ -139,8 +134,11 @@ noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
 	bufferevent-internal.h http-internal.h event-internal.h \
 	evthread-internal.h ht-internal.h defer-internal.h \
 	minheap-internal.h log-internal.h evsignal-internal.h evmap-internal.h \
-	changelist-internal.h \
-	ratelim-internal.h
+	changelist-internal.h iocp-internal.h \
+	ratelim-internal.h \
+	WIN32-Code/event-config.h \
+	WIN32-Code/tree.h \
+	compat/sys/queue.h
 
 include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h
 

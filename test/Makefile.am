@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 AM_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include
 
-EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c
+EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c test.sh
 
 noinst_PROGRAMS = test-init test-eof test-weof test-time regress \
 	bench bench_cascade bench_http bench_httpclient test-ratelim
