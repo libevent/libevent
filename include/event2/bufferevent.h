@@ -585,8 +585,19 @@ int bufferevent_set_rate_limit(struct bufferevent *bev,
 struct bufferevent_rate_limit_group *bufferevent_rate_limit_group_new(
 	struct event_base *base,
 	const struct ev_token_bucket_cfg *cfg);
-/*XXX we need a bufferevent_rate_limit_group_set_cfg */
-/*XXX we need a bufferevent_rate_limit_group_free */
+/**
+   Change the rate-limiting settings for a given rate-limiting group.
+
+   Return 0 on success, -1 on failure.
+*/
+int bufferevent_rate_limit_group_set_cfg(
+	struct bufferevent_rate_limit_group *,
+	const struct ev_token_bucket_cfg *);
+/**
+   Free a rate-limiting group.  The group must have no members when
+   this function is called.
+*/
+void bufferevent_rate_limit_group_free(struct bufferevent_rate_limit_group *);
 
 /**
    Add 'bev' to the list of bufferevents whose aggregate reading and writing
