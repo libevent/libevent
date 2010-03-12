@@ -1,4 +1,7 @@
-AUTOMAKE_OPTIONS = foreign
+# 'foreign' means that we're not enforcing GNU package rules strictly.
+# '1.7' means that we need automake 1.7 or later (and we do).
+AUTOMAKE_OPTIONS = foreign 1.7
+
 ACLOCAL_AMFLAGS = -I m4
 
 # This is the version info for the libevent binary API.  It has three
