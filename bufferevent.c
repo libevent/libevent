@@ -267,6 +267,10 @@ bufferevent_init_common(struct bufferevent_private *bufev_private,
 	if (options & BEV_OPT_THREADSAFE) {
 		if (bufferevent_enable_locking(bufev, NULL) < 0) {
 			/* cleanup */
+			evbuffer_free(bufev->input);
+			evbuffer_free(bufev->output);
+			bufev->input = NULL;
+			bufev->output = NULL;
 			return -1;
 		}
 	}
