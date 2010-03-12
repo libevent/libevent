@@ -37,17 +37,16 @@ bin_SCRIPTS = event_rpcgen.py
 pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=libevent.pc
 
-# These sources are conditionally added to SYS_SRC by configure.in
+# These sources are conditionally added by configure.in or conditionally
+# included from other files.
 PLATFORM_DEPENDENT_SRC = \
-	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
-	evport.c devpoll.c
-	arc4random.c \
-	evthread_pthread.c
+	epoll_sub.c \
+	arc4random.c
 
 EXTRA_DIST = \
 	evdns.3 event.3 \
 	LICENSE \
-	autogen.sh
+	autogen.sh \
 	libevent.pc.in \
 	Doxyfile \
 	whatsnew-2.0.txt \
@@ -80,6 +79,28 @@ SYS_INCLUDES =
 
 endif
 
+if SELECT_BACKEND
+SYS_SRC += select.c
+endif
+if POLL_BACKEND
+SYS_SRC += poll.c
+endif
+if DEVPOLL_BACKEND
+SYS_SRC += devpoll.c
+endif
+if KQUEUE_BACKEND
+SYS_SRC += kqueue.c
+endif
+if EPOLL_BACKEND
+SYS_SRC += epoll.c
+endif
+if EVPORT_BACKEND
+SYS_SRC += evport.c
+endif
+if SIGNAL_SUPPORT
+SYS_SRC += signal.c
+endif
+
 BUILT_SOURCES = event-config.h
 
 event-config.h: config.h
@@ -105,7 +126,6 @@ CORE_SRC = event.c evthread.c buffer.c \
 	bufferevent_pair.c listener.c bufferevent_ratelim.c \
 	evmap.c	log.c evutil.c evutil_rand.c strlcpy.c $(SYS_SRC)
 EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
-
 
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
