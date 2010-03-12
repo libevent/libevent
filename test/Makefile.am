@@ -8,6 +8,8 @@ noinst_PROGRAMS = test-init test-eof test-weof test-time regress \
 	bench bench_cascade bench_http bench_httpclient test-ratelim
 noinst_HEADERS = tinytest.h tinytest_macros.h regress.h
 
+TESTS = $(top_srcdir)/test/test.sh
+
 BUILT_SOURCES = regress.gen.c regress.gen.h
 test_init_SOURCES = test-init.c
 test_init_LDADD = ../libevent_core.la
@@ -61,9 +63,6 @@ regress.gen.c regress.gen.h: regress.rpc $(top_srcdir)/event_rpcgen.py
 
 DISTCLEANFILES = *~
 
-test: test-init test-eof test-weof test-time regress
-
-verify: test
-	@$(srcdir)/test.sh
+verify: check
 
 bench test-init test-eof test-weof test-time: ../libevent.la

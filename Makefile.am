@@ -150,8 +150,7 @@ INCLUDES = -I$(srcdir)/compat -I$(srcdir)/include $(SYS_INCLUDES)
 
 man_MANS = event.3 evdns.3
 
-verify: libevent.la
-	cd test && make verify
+verify: check
 
 doxygen: FORCE
 	doxygen $(srcdir)/Doxyfile
