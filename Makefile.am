@@ -146,7 +146,7 @@ libevent_extra_la_LDFLAGS = -version-info $(VERSION_INFO)
 if OPENSSL
 libevent_openssl_la_SOURCES = bufferevent_openssl.c
 libevent_openssl_la_LIBADD = -lcrypto -lssl
-libevent_openssl_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
+libevent_openssl_la_LDFLAGS = -version-info $(VERSION_INFO)
 endif
 
 noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
