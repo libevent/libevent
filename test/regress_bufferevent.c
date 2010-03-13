@@ -682,7 +682,7 @@ test_bufferevent_timeouts(void *arg)
 		struct bufferevent *bevf1, *bevf2;
 		bevf1 = bufferevent_filter_new(bev1, NULL, NULL,
 		    BEV_OPT_CLOSE_ON_FREE, NULL, NULL);
-		bevf2 = bufferevent_filter_new(bev1, NULL, NULL,
+		bevf2 = bufferevent_filter_new(bev2, NULL, NULL,
 		    BEV_OPT_CLOSE_ON_FREE, NULL, NULL);
 		tt_assert(bevf1);
 		tt_assert(bevf2);
