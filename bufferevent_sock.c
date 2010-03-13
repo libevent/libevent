@@ -86,7 +86,7 @@ static void be_socket_setfd(struct bufferevent *, evutil_socket_t);
 
 const struct bufferevent_ops bufferevent_ops_socket = {
 	"socket",
-	0,
+	evutil_offsetof(struct bufferevent_private, bev),
 	be_socket_enable,
 	be_socket_disable,
 	be_socket_destruct,

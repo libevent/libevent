@@ -94,7 +94,7 @@ struct bufferevent_filtered {
 
 const struct bufferevent_ops bufferevent_ops_filter = {
 	"filter",
-	evutil_offsetof(struct bufferevent_filtered, bev),
+	evutil_offsetof(struct bufferevent_filtered, bev.bev),
 	be_filter_enable,
 	be_filter_disable,
 	be_filter_destruct,
