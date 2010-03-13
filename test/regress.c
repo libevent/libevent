@@ -282,6 +282,8 @@ combined_write_cb(evutil_socket_t fd, short event, void *arg)
 	if (len > both->nread)
 		len = both->nread;
 
+	memset(buf, 'q', len);
+
 	len = write(fd, buf, len);
 	if (len == -1)
 		fprintf(stderr, "%s: write\n", __func__);
