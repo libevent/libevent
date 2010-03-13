@@ -280,11 +280,12 @@ void bufferevent_incref(struct bufferevent *bufev);
 /** Internal: Lock bufev and increase its reference count.
  * unlocking it otherwise. */
 void _bufferevent_incref_and_lock(struct bufferevent *bufev);
-/** Internal: Increment the reference count on bufev. */
-void bufferevent_decref(struct bufferevent *bufev);
+/** Internal: Decrement the reference count on bufev.  Returns 1 if it freed
+ * the bufferevent.*/
+int bufferevent_decref(struct bufferevent *bufev);
 /** Internal: Drop the reference count on bufev, freeing as necessary, and
- * unlocking it otherwise. */
-void _bufferevent_decref_and_unlock(struct bufferevent *bufev);
+ * unlocking it otherwise.  Returns 1 if it freed the bufferevent. */
+int _bufferevent_decref_and_unlock(struct bufferevent *bufev);
 
 /** Internal: If callbacks are deferred and we have a read callback, schedule
  * a readcb.  Otherwise just run the readcb. */

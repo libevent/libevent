@@ -504,16 +504,36 @@ _bufferevent_incref_and_lock(struct bufferevent *bufev)
 	++bufev_private->refcnt;
 }
 
-void
+#if 0
+static void
+_bufferevent_transfer_lock_ownership(struct bufferevent *donor,
+    struct bufferevent *recipient)
+{
+	struct bufferevent_private *d = BEV_UPCAST(donor);
+	struct bufferevent_private *r = BEV_UPCAST(recipient);
+	if (d->lock != r->lock)
+		return;
+	if (r->own_lock)
+		return;
+	if (d->own_lock) {
+		d->own_lock = 0;
+		r->own_lock = 1;
+	}
+}
+#endif
+
+int
 _bufferevent_decref_and_unlock(struct bufferevent *bufev)
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	struct bufferevent *underlying;
 
+	EVUTIL_ASSERT(bufev_private->refcnt > 0);
+
 	if (--bufev_private->refcnt) {
 		BEV_UNLOCK(bufev);
-		return;
+		return 0;
 	}
 
 	underlying = bufferevent_get_underlying(bufev);
@@ -550,21 +570,27 @@ _bufferevent_decref_and_unlock(struct bufferevent *bufev)
 	/* Free the actual allocated memory. */
 	mm_free(bufev - bufev->be_ops->mem_offset);
 
-	/* release the reference to underlying now that we no longer need
-	 * the reference to it.  This is mainly in case our lock is shared
-	 * with underlying.
+	/* Release the reference to underlying now that we no longer need the
+	 * reference to it.  We wait this long mainly in case our lock is
+	 * shared with underlying.
+	 *
+	 * The 'destruct' function will also drop a reference to underlying
+	 * if BEV_OPT_CLOSE_ON_FREE is set.
+	 *
 	 * XXX Should we/can we just refcount evbuffer/bufferevent locks?
 	 * It would probably save us some headaches.
 	 */
 	if (underlying)
 		bufferevent_decref(underlying);
+
+	return 1;
 }
 
-void
+int
 bufferevent_decref(struct bufferevent *bufev)
 {
 	BEV_LOCK(bufev);
-	_bufferevent_decref_and_unlock(bufev);
+	return _bufferevent_decref_and_unlock(bufev);
 }
 
 void

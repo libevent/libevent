@@ -1030,8 +1030,13 @@ be_openssl_destruct(struct bufferevent *bev)
 
 	if (bev_ssl->bev.options & BEV_OPT_CLOSE_ON_FREE) {
 		if (bev_ssl->underlying) {
-			bufferevent_free(bev_ssl->underlying);
-			bev_ssl->underlying = NULL;
+			if (BEV_UPCAST(bev_ssl->underlying)->refcnt < 2) {
+				event_warnx("BEV_OPT_CLOSE_ON_FREE set on an "
+				    "bufferevent with too few references");
+			} else {
+				bufferevent_free(bev_ssl->underlying);
+				bev_ssl->underlying = NULL;
+			}
 		}
 		SSL_free(bev_ssl->ssl);
 	}

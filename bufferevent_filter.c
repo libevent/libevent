@@ -187,6 +187,7 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	}
 
 	bufev_f->underlying = underlying;
+
 	bufev_f->process_in = input_filter;
 	bufev_f->process_out = output_filter;
 	bufev_f->free_context = free_context;
@@ -212,8 +213,19 @@ be_filter_destruct(struct bufferevent *bev)
 	if (bevf->free_context)
 		bevf->free_context(bevf->context);
 
-	if (bevf->bev.options & BEV_OPT_CLOSE_ON_FREE)
-		bufferevent_free(bevf->underlying);
+	if (bevf->bev.options & BEV_OPT_CLOSE_ON_FREE) {
+		/* Yes, there is also a decref in bufferevent_decref.
+		 * That decref corresponds to the incref when we set
+		 * underlying for the first time.  This decref is an
+		 * extra one to remove the last reference.
+		 */
+		if (BEV_UPCAST(bevf->underlying)->refcnt < 2) {
+			event_warnx("BEV_OPT_CLOSE_ON_FREE set on an "
+			    "bufferevent with too few references");
+		} else {
+			bufferevent_free(bevf->underlying);
+		}
+	}
 
 	_bufferevent_del_generic_timeout_cbs(bev);
 }

@@ -435,6 +435,8 @@ _evbuffer_decref_and_unlock(struct evbuffer *buffer)
 	struct evbuffer_chain *chain, *next;
 	ASSERT_EVBUFFER_LOCKED(buffer);
 
+	EVUTIL_ASSERT(buffer->refcnt > 0);
+
 	if (--buffer->refcnt > 0) {
 		EVBUFFER_UNLOCK(buffer);
 		return;
