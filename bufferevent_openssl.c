@@ -1207,7 +1207,9 @@ bufferevent_openssl_filter_new(struct event_base *base,
     enum bufferevent_ssl_state state,
     int options)
 {
-	int close_flag = options & BEV_OPT_CLOSE_ON_FREE;
+	/* We don't tell the BIO to close the bufferevent; we do it ourselves
+	 * on be_openssl_destruct */
+	int close_flag = 0; /* options & BEV_OPT_CLOSE_ON_FREE; */
 	BIO *bio;
 	if (!underlying)
 		return NULL;
