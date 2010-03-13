@@ -3775,6 +3775,8 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 		}
 	}
 
+	mm_free(base->req_heads);
+
 	EVDNS_UNLOCK(base);
 	EVTHREAD_FREE_LOCK(base->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 
