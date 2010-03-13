@@ -495,7 +495,7 @@ static void
 http_bad_request_test(void)
 {
 	struct timeval tv;
-	struct bufferevent *bev;
+	struct bufferevent *bev = NULL;
 	evutil_socket_t fd;
 	const char *http_request;
 	short port = -1;
@@ -564,6 +564,8 @@ http_bad_request_test(void)
 
 end:
 	evhttp_free(http);
+	if (bev)
+		bufferevent_free(bev);
 }
 
 static struct evhttp_connection *delayed_client;
@@ -2530,7 +2532,7 @@ static void
 terminate_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 {
 	struct terminate_state *state = arg;
-	struct evbuffer *evb = evbuffer_new();
+	struct evbuffer *evb;
 	struct timeval tv;
 
 	if (evhttp_request_get_connection(state->req) == NULL) {
@@ -2540,6 +2542,7 @@ terminate_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 		return;
 	}
 
+	evb = evbuffer_new();
 	evbuffer_add_printf(evb, "%p", evb);
 	evhttp_send_reply_chunk(state->req, evb);
 	evbuffer_free(evb);

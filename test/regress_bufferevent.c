@@ -345,10 +345,10 @@ test_bufferevent_filters_impl(int use_pair)
 		buffer[i] = i;
 
 	bev1 = bufferevent_filter_new(bev1, NULL, bufferevent_output_filter,
-				      0, NULL, NULL);
+				      BEV_OPT_CLOSE_ON_FREE, NULL, NULL);
 
 	bev2 = bufferevent_filter_new(bev2, bufferevent_input_filter,
-				      NULL, 0, NULL, NULL);
+				      NULL, BEV_OPT_CLOSE_ON_FREE, NULL, NULL);
 	bufferevent_setcb(bev1, NULL, writecb, errorcb, NULL);
 	bufferevent_setcb(bev2, readcb, NULL, errorcb, NULL);
 

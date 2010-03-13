@@ -438,7 +438,9 @@ struct generic_dns_callback_result {
 	char type;
 	int count;
 	int ttl;
+	size_t addrs_len;
 	void *addrs;
+	char addrs_buf[256];
 };
 
 static void
@@ -459,12 +461,15 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
 	else if (type == DNS_PTR)
 		len = strlen(addresses)+1;
 	else {
-		len = 0;
+		res->addrs_len = len = 0;
 		res->addrs = NULL;
 	}
 	if (len) {
-		res->addrs = malloc(len);
-		memcpy(res->addrs, addresses, len);
+		res->addrs_len = len;
+		if (len > 256)
+			len = 256;
+		memcpy(res->addrs_buf, addresses, len);
+		res->addrs = res->addrs_buf;
 	}
 
 	if (--n_replies_left == 0)
