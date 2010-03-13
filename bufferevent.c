@@ -568,7 +568,7 @@ _bufferevent_decref_and_unlock(struct bufferevent *bufev)
 		    EVTHREAD_LOCKTYPE_RECURSIVE);
 
 	/* Free the actual allocated memory. */
-	mm_free(bufev - bufev->be_ops->mem_offset);
+	mm_free(((char*)bufev) - bufev->be_ops->mem_offset);
 
 	/* Release the reference to underlying now that we no longer need the
 	 * reference to it.  We wait this long mainly in case our lock is
