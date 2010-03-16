@@ -2014,9 +2014,11 @@ many_event_cb(evutil_socket_t fd, short event, void *arg)
 static void
 test_many_events(void *arg)
 {
-	/* Try 64 events that should all be aready at once.  This will
-	 * exercise the "resize" code on most of the backends. */
-#define MANY 64
+	/* Try 70 events that should all be aready at once.  This will
+	 * exercise the "resize" code on most of the backends, and will make
+	 * sure that we can get past the 64-handle limit of some windows
+	 * functions. */
+#define MANY 70
 
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
