@@ -674,6 +674,19 @@ int bufferevent_rate_limit_group_decrement_write(
 /*@}*/
 
 
+/** Set the variable pointed to by total_read_out to the total number of bytes
+ * ever read on grp, and the variable pointed to by total_written_out to the
+ * total number of bytes ever written on grp. */
+void bufferevent_rate_limit_group_get_totals(
+    struct bufferevent_rate_limit_group *grp,
+    ev_uint64_t *total_read_out, ev_uint64_t *total_written_out);
+
+/** Reset the number of bytes read or written on grp as given by
+ * bufferevent_rate_limit_group_reset_totals(). */
+void
+bufferevent_rate_limit_group_reset_totals(
+	struct bufferevent_rate_limit_group *grp);
+
 #ifdef __cplusplus
 }
 #endif

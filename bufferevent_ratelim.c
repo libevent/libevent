@@ -282,6 +282,7 @@ _bufferevent_decrement_read_buckets(struct bufferevent_private *bev, int bytes)
 	if (bev->rate_limiting->group) {
 		LOCK_GROUP(bev->rate_limiting->group);
 		bev->rate_limiting->group->rate_limit.read_limit -= bytes;
+		bev->rate_limiting->group->total_read += bytes;
 		if (bev->rate_limiting->group->rate_limit.read_limit <= 0) {
 			_bev_group_suspend_reading(bev->rate_limiting->group);
 		}
@@ -313,6 +314,7 @@ _bufferevent_decrement_write_buckets(struct bufferevent_private *bev, int bytes)
 	if (bev->rate_limiting->group) {
 		LOCK_GROUP(bev->rate_limiting->group);
 		bev->rate_limiting->group->rate_limit.write_limit -= bytes;
+		bev->rate_limiting->group->total_written += bytes;
 		if (bev->rate_limiting->group->rate_limit.write_limit <= 0) {
 			_bev_group_suspend_writing(bev->rate_limiting->group);
 		}
@@ -908,3 +910,19 @@ bufferevent_rate_limit_group_decrement_write(
 	return r;
 }
 
+void
+bufferevent_rate_limit_group_get_totals(struct bufferevent_rate_limit_group *grp,
+    ev_uint64_t *total_read_out, ev_uint64_t *total_written_out)
+{
+	EVUTIL_ASSERT(grp != NULL);
+	if (total_read_out)
+		*total_read_out = grp->total_read;
+	if (total_written_out)
+		*total_written_out = grp->total_written;
+}
+
+void
+bufferevent_rate_limit_group_reset_totals(struct bufferevent_rate_limit_group *grp)
+{
+	grp->total_read = grp->total_written = 0;
+}

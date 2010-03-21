@@ -79,6 +79,13 @@ struct bufferevent_rate_limit_group {
 	 * again. */
 	unsigned pending_unsuspend_write : 1;
 
+	/*@{*/
+	/** Total number of bytes read or written in this group since last
+	 * reset. */
+	ev_uint64_t total_read;
+	ev_uint64_t total_written;
+	/*@}*/
+
 	/** The number of bufferevents in the group. */
 	int n_members;
 
