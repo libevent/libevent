@@ -1399,6 +1399,15 @@ event_base_loop(struct event_base *base, int flags)
 	 * as we invoke user callbacks. */
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
+	if (base->running_loop) {
+		event_warn("%s: reentrant invocation.  Only one event_base_loop"
+		    " can run on each event_base at once.", __func__);
+		EVBASE_RELEASE_LOCK(base, th_base_lock);
+		return -1;
+	}
+
+	base->running_loop = 1;
+
 	clear_time_cache(base);
 
 	if (base->sig.ev_signal_added)
@@ -1470,6 +1479,7 @@ event_base_loop(struct event_base *base, int flags)
 
 done:
 	clear_time_cache(base);
+	base->running_loop = 0;
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
