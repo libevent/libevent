@@ -1,4 +1,7 @@
-AUTOMAKE_OPTIONS = foreign
+# 'foreign' means that we're not enforcing GNU package rules strictly.
+# '1.7' means that we need automake 1.7 or later (and we do).
+AUTOMAKE_OPTIONS = foreign 1.7
+
 ACLOCAL_AMFLAGS = -I m4
 
 # This is the version info for the libevent binary API.  It has three
@@ -32,33 +35,26 @@ ACLOCAL_AMFLAGS = -I m4
 #      3:0:0 -- Libevent 2.0.4-alpha
 VERSION_INFO = 3:0:0
 
-bin_SCRIPTS = event_rpcgen.py
+dist_bin_SCRIPTS = event_rpcgen.py
 
 pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=libevent.pc
 
+# These sources are conditionally added by configure.in or conditionally
+# included from other files.
+PLATFORM_DEPENDENT_SRC = \
+	epoll_sub.c \
+	arc4random.c
+
 EXTRA_DIST = \
+	evdns.3 event.3 \
 	LICENSE \
-	autogen.sh evdns.3 \
-	event.3 \
+	autogen.sh \
 	libevent.pc.in \
 	Doxyfile \
-	kqueue.c epoll_sub.c epoll.c select.c poll.c signal.c \
-	evport.c devpoll.c win32select.c event_rpcgen.py \
-	event_iocp.c buffer_iocp.c iocp-internal.h arc4random.c \
-	sample/Makefile.am sample/Makefile.in sample/event-test.c \
-	sample/signal-test.c sample/time-test.c \
-	test/Makefile.am test/Makefile.in test/bench.c test/regress.c \
-	test/test-eof.c test/test-weof.c test/test-time.c \
-	test/test-init.c test/test.sh \
-	compat/sys/queue.h \
-	evthread_win32.c \
-	evthread_pthread.c \
 	whatsnew-2.0.txt \
-	bufferevent_async.c \
-	WIN32-Code/event-config.h \
-	WIN32-Code/tree.h \
-	Makefile.nmake test/Makefile.nmake
+	Makefile.nmake test/Makefile.nmake \
+	$(PLATFORM_DEPENDENT_SRC)
 
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 if PTHREADS
@@ -83,6 +79,28 @@ SYS_LIBS =
 SYS_SRC =
 SYS_INCLUDES =
 
+endif
+
+if SELECT_BACKEND
+SYS_SRC += select.c
+endif
+if POLL_BACKEND
+SYS_SRC += poll.c
+endif
+if DEVPOLL_BACKEND
+SYS_SRC += devpoll.c
+endif
+if KQUEUE_BACKEND
+SYS_SRC += kqueue.c
+endif
+if EPOLL_BACKEND
+SYS_SRC += epoll.c
+endif
+if EVPORT_BACKEND
+SYS_SRC += evport.c
+endif
+if SIGNAL_SUPPORT
+SYS_SRC += signal.c
 endif
 
 BUILT_SOURCES = event-config.h
@@ -111,7 +129,6 @@ CORE_SRC = event.c evthread.c buffer.c \
 	evmap.c	log.c evutil.c evutil_rand.c strlcpy.c $(SYS_SRC)
 EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
 
-
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_la_LDFLAGS = -version-info $(VERSION_INFO)
@@ -131,7 +148,7 @@ libevent_extra_la_LDFLAGS = -version-info $(VERSION_INFO)
 if OPENSSL
 libevent_openssl_la_SOURCES = bufferevent_openssl.c
 libevent_openssl_la_LIBADD = -lcrypto -lssl
-libevent_openssl_la_LDFLAGS = -release $(RELEASE) -version-info $(VERSION_INFO)
+libevent_openssl_la_LDFLAGS = -version-info $(VERSION_INFO)
 endif
 
 noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
@@ -139,8 +156,11 @@ noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
 	bufferevent-internal.h http-internal.h event-internal.h \
 	evthread-internal.h ht-internal.h defer-internal.h \
 	minheap-internal.h log-internal.h evsignal-internal.h evmap-internal.h \
-	changelist-internal.h \
-	ratelim-internal.h
+	changelist-internal.h iocp-internal.h \
+	ratelim-internal.h \
+	WIN32-Code/event-config.h \
+	WIN32-Code/tree.h \
+	compat/sys/queue.h
 
 include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h
 
@@ -150,8 +170,7 @@ INCLUDES = -I$(srcdir)/compat -I$(srcdir)/include $(SYS_INCLUDES)
 
 man_MANS = event.3 evdns.3
 
-verify: libevent.la
-	cd test && make verify
+verify: check
 
 doxygen: FORCE
 	doxygen $(srcdir)/Doxyfile

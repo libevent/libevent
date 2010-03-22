@@ -260,32 +260,23 @@ needsignal=no
 haveselect=no
 AC_CHECK_FUNCS(select, [haveselect=yes], )
 if test "x$haveselect" = "xyes" ; then
-	AC_LIBOBJ(select)
 	needsignal=yes
 fi
+AM_CONDITIONAL(SELECT_BACKEND, [test "x$haveselect" = "xyes"])
 
 havepoll=no
 AC_CHECK_FUNCS(poll, [havepoll=yes], )
 if test "x$havepoll" = "xyes" ; then
-	AC_LIBOBJ(poll)
 	needsignal=yes
 fi
-
-haveepoll=no
-AC_CHECK_FUNCS(epoll_ctl, [haveepoll=yes], )
-if test "x$haveepoll" = "xyes" ; then
-	AC_DEFINE(HAVE_EPOLL, 1,
-		[Define if your system supports the epoll system calls])
-	AC_LIBOBJ(epoll)
-	needsignal=yes
-fi
+AM_CONDITIONAL(POLL_BACKEND, [test "x$havepoll" = "xyes"])
 
 havedevpoll=no
 if test "x$ac_cv_header_sys_devpoll_h" = "xyes"; then
 	AC_DEFINE(HAVE_DEVPOLL, 1,
 		    [Define if /dev/poll is available])
-        AC_LIBOBJ(devpoll)
 fi
+AM_CONDITIONAL(DEVPOLL_BACKEND, [test "ac_cv_header_sys_devpoll_h" = "xyes"])
 
 havekqueue=no
 if test "x$ac_cv_header_sys_event_h" = "xyes"; then
@@ -340,11 +331,20 @@ main(int argc, char **argv)
 }, [AC_MSG_RESULT(yes)
     AC_DEFINE(HAVE_WORKING_KQUEUE, 1,
 		[Define if kqueue works correctly with pipes])
-    AC_LIBOBJ(kqueue)], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+    havekqueue=yes
+    ], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
 	fi
 fi
+AM_CONDITIONAL(KQUEUE_BACKEND, [test "x$havekqueue" = "xyes"])
 
 haveepollsyscall=no
+haveepoll=no
+AC_CHECK_FUNCS(epoll_ctl, [haveepoll=yes], )
+if test "x$haveepoll" = "xyes" ; then
+	AC_DEFINE(HAVE_EPOLL, 1,
+		[Define if your system supports the epoll system calls])
+	needsignal=yes
+fi
 if test "x$ac_cv_header_sys_epoll_h" = "xyes"; then
 	if test "x$haveepoll" = "xno" ; then
 		AC_MSG_CHECKING(for epoll system call)
@@ -373,28 +373,27 @@ main(int argc, char **argv)
     AC_DEFINE(HAVE_EPOLL, 1,
 	[Define if your system supports the epoll system calls])
     needsignal=yes
+    have_epoll=yes
     AC_LIBOBJ(epoll_sub)
-    AC_LIBOBJ(epoll)], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+    ], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
 	fi
 fi
+AM_CONDITIONAL(EPOLL_BACKEND, [test "x$haveepoll" = "xyes"])
 
 haveeventports=no
 AC_CHECK_FUNCS(port_create, [haveeventports=yes], )
 if test "x$haveeventports" = "xyes" ; then
 	AC_DEFINE(HAVE_EVENT_PORTS, 1,
 		[Define if your system supports event ports])
-	AC_LIBOBJ(evport)
 	needsignal=yes
 fi
+AM_CONDITIONAL(EVPORT_BACKEND, [test "x$haveeventports" = "xyes"])
+
 if test "x$bwin32" = "xtrue"; then
 	needsignal=yes
 fi
-if test "x$bwin32" = "xtrue"; then
-	needsignal=yes
-fi
-if test "x$needsignal" = "xyes" ; then
-	AC_LIBOBJ(signal)
-fi
+
+AM_CONDITIONAL(SIGNAL_SUPPORT, [test "x$needsignal" = "xyes"])
 
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T

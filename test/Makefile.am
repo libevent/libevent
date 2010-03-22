@@ -2,11 +2,13 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 
 AM_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include
 
-EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c
+EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c test.sh
 
 noinst_PROGRAMS = test-init test-eof test-weof test-time regress \
 	bench bench_cascade bench_http bench_httpclient test-ratelim
 noinst_HEADERS = tinytest.h tinytest_macros.h regress.h
+
+TESTS = $(top_srcdir)/test/test.sh
 
 BUILT_SOURCES = regress.gen.c regress.gen.h
 test_init_SOURCES = test-init.c
@@ -61,9 +63,6 @@ regress.gen.c regress.gen.h: regress.rpc $(top_srcdir)/event_rpcgen.py
 
 DISTCLEANFILES = *~
 
-test: test-init test-eof test-weof test-time regress
-
-verify: test
-	@$(srcdir)/test.sh
+verify: check
 
 bench test-init test-eof test-weof test-time: ../libevent.la
