@@ -35,7 +35,7 @@ ACLOCAL_AMFLAGS = -I m4
 #      3:0:0 -- Libevent 2.0.4-alpha
 VERSION_INFO = 3:0:0
 
-bin_SCRIPTS = event_rpcgen.py
+dist_bin_SCRIPTS = event_rpcgen.py
 
 pkgconfigdir=$(libdir)/pkgconfig
 pkgconfig_DATA=libevent.pc
@@ -54,7 +54,6 @@ EXTRA_DIST = \
 	Doxyfile \
 	whatsnew-2.0.txt \
 	Makefile.nmake test/Makefile.nmake \
-	event_rpcgen.py \
 	$(PLATFORM_DEPENDENT_SRC)
 
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
