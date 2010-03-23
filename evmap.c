@@ -447,7 +447,7 @@ evmap_signal_del(struct event_base *base, int sig, struct event *ev)
 }
 
 void
-evmap_signal_active(struct event_base *base, int sig, int ncalls)
+evmap_signal_active(struct event_base *base, evutil_socket_t sig, int ncalls)
 {
 	struct event_signal_map *map = &base->sigmap;
 	struct evmap_signal *ctx;
