@@ -258,9 +258,11 @@ yes
 
 needsignal=no
 haveselect=no
-AC_CHECK_FUNCS(select, [haveselect=yes], )
-if test "x$haveselect" = "xyes" ; then
-	needsignal=yes
+if test x$bwin32 != xtrue; then
+    AC_CHECK_FUNCS(select, [haveselect=yes], )
+    if test "x$haveselect" = "xyes" ; then
+ 	needsignal=yes
+    fi
 fi
 AM_CONDITIONAL(SELECT_BACKEND, [test "x$haveselect" = "xyes"])
 
