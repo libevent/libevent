@@ -45,8 +45,15 @@ extern "C" {
 #include <winsock2.h>
 #endif
 #include <sys/queue.h>
-/* minimum allocation for a chain. */
-#define MIN_BUFFER_SIZE	256
+
+/* Minimum allocation for a chain.  We define this so that we're burning no
+ * more than 5% of each allocation on overhead.  It would be nice to lose even
+ * less space, though. */
+#if _EVENT_SIZEOF_VOID_P < 8
+#define MIN_BUFFER_SIZE	512
+#else
+#define MIN_BUFFER_SIZE	1024
+#endif
 
 /** A single evbuffer callback for an evbuffer. This function will be invoked
  * when bytes are added to or removed from the evbuffer. */
