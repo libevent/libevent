@@ -1310,9 +1310,10 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	/* If there are no chains allocated for this buffer, allocate one
 	 * big enough to hold all the data. */
 	if (chain == NULL) {
-		if (evbuffer_expand(buf, datlen) == -1)
+		chain = evbuffer_chain_new(datlen);
+		if (!chain)
 			goto done;
-		chain = buf->last;
+		evbuffer_chain_insert(buf, chain);
 	}
 
 	if ((chain->flags & EVBUFFER_IMMUTABLE) == 0) {
@@ -1389,10 +1390,10 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 	chain = buf->first;
 
 	if (chain == NULL) {
-		if (evbuffer_expand(buf, datlen) == -1)
+		chain = evbuffer_chain_new(datlen);
+		if (!chain)
 			goto done;
-		chain = buf->first;
-		chain->misalign = chain->buffer_len;
+		evbuffer_chain_insert(buf, chain);
 	}
 
 	/* we cannot touch immutable buffers */
