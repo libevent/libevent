@@ -1398,8 +1398,13 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 
 	/* we cannot touch immutable buffers */
 	if ((chain->flags & EVBUFFER_IMMUTABLE) == 0) {
+		/* If this chain is empty, we can treat it as
+		 * 'empty at the beginning' rather than 'empty at the end' */
+		if (chain->off == 0)
+			chain->misalign = chain->buffer_len;
+
 		if ((size_t)chain->misalign >= datlen) {
-			/* we have enough space */
+			/* we have enough space to fit everything */
 			memcpy(chain->buffer + chain->misalign - datlen,
 			    data, datlen);
 			chain->off += datlen;
@@ -1408,6 +1413,7 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 			buf->n_add_for_cb += datlen;
 			goto out;
 		} else if (chain->misalign) {
+			/* we can only fit some of the data. */
 			memcpy(chain->buffer,
 			    (char*)data + datlen - chain->misalign,
 			    chain->misalign);
