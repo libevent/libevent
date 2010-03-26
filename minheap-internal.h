@@ -62,7 +62,7 @@ int min_heap_elem_greater(struct event *a, struct event *b)
 }
 
 void min_heap_ctor(min_heap_t* s) { s->p = 0; s->n = 0; s->a = 0; }
-void min_heap_dtor(min_heap_t* s) { mm_free(s->p); }
+void min_heap_dtor(min_heap_t* s) { if (s->p) mm_free(s->p); }
 void min_heap_elem_init(struct event* e) { e->ev_timeout_pos.min_heap_idx = -1; }
 int min_heap_empty(min_heap_t* s) { return 0u == s->n; }
 unsigned min_heap_size(min_heap_t* s) { return s->n; }
