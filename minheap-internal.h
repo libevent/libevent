@@ -153,7 +153,7 @@ void min_heap_shift_down_(min_heap_t* s, unsigned hole_index, struct event* e)
 	hole_index = min_child;
 	min_child = 2 * (hole_index + 1);
 	}
-    min_heap_shift_up_(s, hole_index,  e);
+    (s->p[hole_index] = e)->ev_timeout_pos.min_heap_idx = hole_index;
 }
 
 #endif /* _MIN_HEAP_H_ */
