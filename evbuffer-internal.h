@@ -81,10 +81,20 @@ struct evbuffer {
 	/** The last chain in this buffer's linked list of chains. */
 	struct evbuffer_chain *last;
 
-	/** The last chain that has any data in it.  If all chains in the
-	 * buffer are empty, points to the first chain.  If the buffer has no
-	 * chains, this is NULL. */
-	struct evbuffer_chain *last_with_data;
+	/** Pointer to the next pointer pointing at the 'last_with_data' chain.
+	 *
+	 * To unpack:
+	 *
+	 * The last_with_data chain is the last chain that has any data in it.
+	 * If all chains in the buffer are empty, it is the first chain.
+	 * If the buffer has no chains, it is NULL.
+	 *
+	 * The last_with_datap pointer points at _whatever 'next' pointer_
+	 * points at the last_with_datap chain.  If the last_with_data chain
+	 * is the first chain, or it is NULL, then the last_with_datap pointer
+	 * is &buf->first.
+	 */
+	struct evbuffer_chain **last_with_datap;
 
 	/** Total amount of bytes stored in all chains.*/
 	size_t total_len;
@@ -246,7 +256,7 @@ int _evbuffer_expand_fast(struct evbuffer *, size_t, int);
  * Returns the number of vecs used.
  */
 int _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
-    struct evbuffer_iovec *vecs, int n_vecs, struct evbuffer_chain **chainp, int exact);
+    struct evbuffer_iovec *vecs, int n_vecs, struct evbuffer_chain ***chainp, int exact);
 
 /* Helper macro: copies an evbuffer_iovec in ei to a win32 WSABUF in i. */
 #define WSABUF_FROM_EVBUFFER_IOV(i,ei) do {		\

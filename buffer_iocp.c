@@ -233,7 +233,7 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most,
 	int r = -1, i;
 	int nvecs;
 	int npin=0;
-	struct evbuffer_chain *chain=NULL;
+	struct evbuffer_chain *chain=NULL, **chainp;
 	DWORD bytesRead;
 	DWORD flags = 0;
 	struct evbuffer_iovec vecs[MAX_WSABUFS];
@@ -257,7 +257,7 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most,
 	 * not "2".  But commit_read() above can't handle more than two
 	 * buffers yet. */
 	nvecs = _evbuffer_read_setup_vecs(buf, at_most,
-	    vecs, 2, &chain, 1);
+	    vecs, 2, &chainp, 1);
 	for (i=0;i<nvecs;++i) {
 		WSABUF_FROM_EVBUFFER_IOV(
 			&buf_o->buffers[i],
@@ -265,7 +265,7 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most,
 	}
 
 	buf_o->n_buffers = nvecs;
-	buf_o->first_pinned = chain;
+	buf_o->first_pinned = chain= *chainp;
 	npin=0;
 	for ( ; chain; chain = chain->next) {
 		_evbuffer_chain_pin(chain, EVBUFFER_MEM_PINNED_R);

@@ -68,7 +68,7 @@ _evbuffer_validate(struct evbuffer *buf)
 {
 	struct evbuffer_chain *chain;
 	size_t sum = 0;
-	int found_last_with_data = 0;
+	int found_last_with_datap = 0;
 
 	if (buf->first == NULL) {
 		tt_assert(buf->last == NULL);
@@ -76,9 +76,14 @@ _evbuffer_validate(struct evbuffer *buf)
 	}
 
 	chain = buf->first;
+
+	tt_assert(buf->last_with_datap);
+	if (buf->last_with_datap == &buf->first)
+		found_last_with_datap = 1;
+
 	while (chain != NULL) {
-		if (chain == buf->last_with_data)
-			found_last_with_data = 1;
+		if (&chain->next == buf->last_with_datap)
+			found_last_with_datap = 1;
 		sum += chain->off;
 		if (chain->next == NULL) {
 			tt_assert(buf->last == chain);
@@ -88,10 +93,10 @@ _evbuffer_validate(struct evbuffer *buf)
 	}
 
 	if (buf->first)
-		tt_assert(buf->last_with_data);
-	if (buf->last_with_data) {
-		tt_assert(found_last_with_data);
-		chain = buf->last_with_data;
+		tt_assert(*buf->last_with_datap);
+
+	if (*buf->last_with_datap) {
+		chain = *buf->last_with_datap;
 		if (chain->off == 0 || buf->total_len == 0) {
 			tt_assert(chain->off == 0)
 			tt_assert(chain == buf->first);
@@ -102,7 +107,10 @@ _evbuffer_validate(struct evbuffer *buf)
 			tt_assert(chain->off == 0);
 			chain = chain->next;
 		}
+	} else {
+		tt_assert(buf->last_with_datap == &buf->first);
 	}
+	tt_assert(found_last_with_datap);
 
 	tt_assert(sum == buf->total_len);
 	return 1;
@@ -111,7 +119,7 @@ _evbuffer_validate(struct evbuffer *buf)
 }
 
 #define evbuffer_validate(buf)			\
-	TT_STMT_BEGIN if (!_evbuffer_validate(buf)) goto end; TT_STMT_END
+	TT_STMT_BEGIN if (!_evbuffer_validate(buf)) TT_DIE(("Buffer format invalid")); TT_STMT_END
 
 static void
 test_evbuffer(void *ptr)
@@ -481,7 +489,9 @@ test_evbuffer_add_file(void *ptr)
 		evbuffer_validate(src);
 	}
 
+	evbuffer_validate(src);
 	tt_assert(evbuffer_read(src, pair[1], strlen(data)) == strlen(data));
+	evbuffer_validate(src);
 	compare = (char *)evbuffer_pullup(src, strlen(data));
 	tt_assert(compare != NULL);
 	if (memcmp(compare, data, strlen(data)))
@@ -933,16 +943,20 @@ test_evbuffer_callbacks(void *ptr)
 	 * adds a summary of length changes to buf_out1/buf_out2 when called. */
 	/* size: 0-> 36. */
 	evbuffer_add_printf(buf, "The %d magic words are spotty pudding", 2);
+	evbuffer_validate(buf);
 	evbuffer_cb_clear_flags(buf, cb2, EVBUFFER_CB_ENABLED);
 	evbuffer_drain(buf, 10); /*36->26*/
+	evbuffer_validate(buf);
 	evbuffer_prepend(buf, "Hello", 5);/*26->31*/
 	evbuffer_cb_set_flags(buf, cb2, EVBUFFER_CB_ENABLED);
 	evbuffer_add_reference(buf, "Goodbye", 7, NULL, NULL); /*31->38*/
 	evbuffer_remove_cb_entry(buf, cb1);
+	evbuffer_validate(buf);
 	evbuffer_drain(buf, evbuffer_get_length(buf)); /*38->0*/;
 	tt_assert(-1 == evbuffer_remove_cb(buf, log_change_callback, NULL));
 	evbuffer_add(buf, "X", 1); /* 0->1 */
 	tt_assert(!evbuffer_remove_cb(buf, log_change_callback, buf_out2));
+	evbuffer_validate(buf);
 
 	tt_str_op(evbuffer_pullup(buf_out1, -1), ==,
 		  "0->36; 36->26; 26->31; 31->38; ");
@@ -950,7 +964,6 @@ test_evbuffer_callbacks(void *ptr)
 		  "0->36; 31->38; 38->0; 0->1; ");
 	evbuffer_drain(buf_out1, evbuffer_get_length(buf_out1));
 	evbuffer_drain(buf_out2, evbuffer_get_length(buf_out2));
-
 	/* Let's test the obsolete buffer_setcb function too. */
 	cb1 = evbuffer_add_cb(buf, log_change_callback, buf_out1);
 	cb2 = evbuffer_add_cb(buf, log_change_callback, buf_out2);
@@ -962,11 +975,9 @@ test_evbuffer_callbacks(void *ptr)
 	evbuffer_setcb(buf, NULL, NULL);
 	evbuffer_add_printf(buf, "This will not.");
 	tt_str_op(evbuffer_pullup(buf, -1), ==, "This will not.");
-
 	evbuffer_validate(buf);
 	evbuffer_drain(buf, evbuffer_get_length(buf));
 	evbuffer_validate(buf);
-
 #if 0
 	/* Now let's try a suspended callback. */
 	cb1 = evbuffer_add_cb(buf, log_change_callback, buf_out1);
@@ -1128,6 +1139,7 @@ test_evbuffer_prepend(void *ptr)
 	evbuffer_add_printf(buf1, "Here is string %d. ", n++);
 	evbuffer_prepend_buffer(buf2, buf1);
 	evbuffer_validate(buf2);
+	evbuffer_validate(buf1);
 	n = evbuffer_remove(buf2, tmp, sizeof(tmp)-1);
 	tmp[n]='\0';
 	tt_str_op(tmp,==,"Here is string 1000. Here is string 999. ");
@@ -1362,13 +1374,13 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "search", test_evbuffer_search, 0, NULL, NULL },
 	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
 	{ "add_reference", test_evbuffer_add_reference, 0, NULL, NULL },
-	{ "prepend", test_evbuffer_prepend, 0, NULL, NULL },
+	{ "prepend", test_evbuffer_prepend, TT_FORK, NULL, NULL },
 	{ "peek", test_evbuffer_peek, 0, NULL, NULL },
 	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },
 	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
 #ifndef WIN32
 	/* TODO: need a temp file implementation for Windows */
-	{ "add_file", test_evbuffer_add_file, 0, NULL, NULL },
+	{ "add_file", test_evbuffer_add_file, TT_FORK, NULL, NULL },
 #endif
 
 	END_OF_TESTCASES
