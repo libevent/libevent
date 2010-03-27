@@ -2010,12 +2010,12 @@ evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
 	if (howmuch < 0 || howmuch > buffer->total_len)
 		howmuch = buffer->total_len;
 
-	{
+	if (howmuch > 0) {
 #ifdef USE_SENDFILE
 		struct evbuffer_chain *chain = buffer->first;
 		if (chain != NULL && (chain->flags & EVBUFFER_SENDFILE))
 			n = evbuffer_write_sendfile(buffer, fd, howmuch);
-		else
+		else {
 #endif
 #ifdef USE_IOVEC_IMPL
 		n = evbuffer_write_iovec(buffer, fd, howmuch);
@@ -2027,6 +2027,9 @@ evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
 #else
 		void *p = evbuffer_pullup(buffer, howmuch);
 		n = write(fd, p, howmuch);
+#endif
+#ifdef USE_SENDFILE
+		}
 #endif
 	}
 
