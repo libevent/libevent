@@ -118,6 +118,50 @@ _evbuffer_validate(struct evbuffer *buf)
 	return 0;
 }
 
+static void
+evbuffer_get_waste(struct evbuffer *buf, size_t *allocatedp, size_t *wastedp, size_t *usedp)
+{
+	struct evbuffer_chain *chain;
+	size_t a, w, u;
+	int n = 0;
+	u = a = w = 0;
+
+	chain = buf->first;
+	/* skip empty at start */
+	while (chain && chain->off==0) {
+		++n;
+		a += chain->buffer_len;
+		chain = chain->next;
+	}
+	/* first nonempty chain: stuff at the end only is wasted. */
+	if (chain) {
+		++n;
+		a += chain->buffer_len;
+		u += chain->off;
+		if (chain->next && chain->next->off)
+			w += chain->buffer_len - (chain->misalign + chain->off);
+		chain = chain->next;
+	}
+	/* subsequent nonempty chains */
+	while (chain && chain->off) {
+		++n;
+		a += chain->buffer_len;
+		w += chain->misalign;
+		u += chain->off;
+		if (chain->next && chain->next->off)
+			w += chain->buffer_len - (chain->misalign + chain->off);
+		chain = chain->next;
+	}
+	/* subsequent empty chains */
+	while (chain) {
+		++n;
+		a += chain->buffer_len;
+	}
+	*allocatedp = a;
+	*wastedp = w;
+	*usedp = u;
+}
+
 #define evbuffer_validate(buf)			\
 	TT_STMT_BEGIN if (!_evbuffer_validate(buf)) TT_DIE(("Buffer format invalid")); TT_STMT_END
 
@@ -736,23 +780,40 @@ test_evbuffer_iterative(void *ptr)
 {
 	struct evbuffer *buf = evbuffer_new();
 	const char *abc = "abcdefghijklmnopqrstvuwxyzabcdefghijklmnopqrstvuwxyzabcdefghijklmnopqrstvuwxyzabcdefghijklmnopqrstvuwxyz";
-	unsigned i, j, sum;
+	unsigned i, j, sum, n;
 
 	sum = 0;
+	n = 0;
 	for (i = 0; i < 1000; ++i) {
 		for (j = 1; j < strlen(abc); ++j) {
 			char format[32];
-
 			evutil_snprintf(format, sizeof(format), "%%%u.%us", j, j);
 			evbuffer_add_printf(buf, format, abc);
-			evbuffer_validate(buf);
+
+			/* Only check for rep violations every so often.
+			   Walking over the whole list of chains can get
+			   pretty expensive as it gets long.
+			 */
+			if ((n % 337) == 0)
+				evbuffer_validate(buf);
 
 			sum += j;
+			n++;
 		}
 	}
+	evbuffer_validate(buf);
 
 	tt_uint_op(sum, ==, evbuffer_get_length(buf));
 
+	{
+		size_t a,w,u;
+		a=w=u=0;
+		evbuffer_get_waste(buf, &a, &w, &u);
+		if (0)
+			printf("Allocated: %u.\nWasted: %u.\nUsed: %u.",
+			    (unsigned)a, (unsigned)w, (unsigned)u);
+		tt_assert( ((double)w)/a < .125);
+	}
  end:
 	evbuffer_free(buf);
 

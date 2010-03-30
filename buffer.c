@@ -138,6 +138,8 @@ static void evbuffer_chain_align(struct evbuffer_chain *chain);
 static void evbuffer_deferred_callback(struct deferred_cb *cb, void *arg);
 static int evbuffer_ptr_memcmp(const struct evbuffer *buf,
     const struct evbuffer_ptr *pos, const char *mem, size_t len);
+static struct evbuffer_chain *evbuffer_expand_singlechain(struct evbuffer *buf,
+    size_t datlen);
 
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
@@ -214,32 +216,65 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 	mm_free(chain);
 }
 
+static void
+evbuffer_free_all_chains(struct evbuffer_chain *chain)
+{
+	struct evbuffer_chain *next;
+	for (; chain; chain = next) {
+		next = chain->next;
+		evbuffer_chain_free(chain);
+	}
+}
 
-static inline void
-evbuffer_chain_insert(struct evbuffer *buf, struct evbuffer_chain *chain)
+static int
+evbuffer_chains_all_empty(struct evbuffer_chain *chain)
+{
+	for (; chain; chain = chain->next) {
+		if (chain->off)
+			return 0;
+	}
+	return 1;
+}
+
+static void
+evbuffer_chain_insert(struct evbuffer *buf,
+    struct evbuffer_chain *chain)
 {
 	ASSERT_EVBUFFER_LOCKED(buf);
-	if (buf->first == NULL) {
+	if (*buf->last_with_datap == NULL) {
+		/* There are no chains data on the buffer at all. */
+		EVUTIL_ASSERT(buf->last_with_datap == &buf->first);
+		EVUTIL_ASSERT(buf->first == NULL);
 		buf->first = buf->last = chain;
-		buf->last_with_datap = &buf->first;
 	} else {
-		/* the last chain is empty so we can just drop it */
-		if (buf->last->off == 0 && !CHAIN_PINNED(buf->last)) {
-			/* NOT CLOSE TO RIGHT XXXX */
-			if (*buf->last_with_datap == buf->last) {
-				*buf->last_with_datap = chain;
-			}
-			evbuffer_chain_free(buf->last);
-			buf->last = chain;
-		} else {
+		struct evbuffer_chain **ch = buf->last_with_datap;
+		/* Find the first victim chain.  It might be *last_with_datap */
+		while ((*ch) && ((*ch)->off != 0 || CHAIN_PINNED(*ch)))
+			ch = &(*ch)->next;
+		if (*ch == NULL) {
+			/* There is no victim; just append this new chain. */
 			buf->last->next = chain;
 			if (chain->off)
 				buf->last_with_datap = &buf->last->next;
-			buf->last = chain;
+		} else {
+			/* Replace all victim chains with this chain. */
+			EVUTIL_ASSERT(evbuffer_chains_all_empty(*ch));
+			evbuffer_free_all_chains(*ch);
+			*ch = chain;
 		}
+		buf->last = chain;
 	}
-
 	buf->total_len += chain->off;
+}
+
+static inline struct evbuffer_chain *
+evbuffer_chain_insert_new(struct evbuffer *buf, size_t datlen)
+{
+	struct evbuffer_chain *chain;
+	if ((chain = evbuffer_chain_new(datlen)) == NULL)
+		return NULL;
+	evbuffer_chain_insert(buf, chain);
+	return chain;
 }
 
 void
@@ -521,12 +556,12 @@ evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
 	if (n_vecs < 1)
 		goto done;
 	if (n_vecs == 1) {
-		if (evbuffer_expand(buf, size) == -1)
+		if ((chain = evbuffer_expand_singlechain(buf, size)) == NULL)
 			goto done;
-		chain = buf->last;
 
 		vec[0].iov_base = CHAIN_SPACE_PTR(chain);
 		vec[0].iov_len = CHAIN_SPACE_LEN(chain);
+		EVUTIL_ASSERT(vec[0].iov_len >= size);
 		n = 1;
 	} else {
 		if (_evbuffer_expand_fast(buf, size, n_vecs)<0)
@@ -1502,67 +1537,116 @@ evbuffer_chain_align(struct evbuffer_chain *chain)
 	chain->misalign = 0;
 }
 
-/* Expands the available space in the event buffer to at least datlen */
+#define MAX_TO_COPY_IN_EXPAND 4096
+#define MAX_TO_REALIGN_IN_EXPAND 2048
 
-int
-evbuffer_expand(struct evbuffer *buf, size_t datlen)
+/* Expands the available space in the event buffer to at least datlen, all in
+ * a single chunk.  Return that chunk. */
+static struct evbuffer_chain *
+evbuffer_expand_singlechain(struct evbuffer *buf, size_t datlen)
 {
-	/* XXX we should either make this function less costly, or call it
-	 * less often.	*/
-	struct evbuffer_chain *chain, *tmp;
-	size_t need, length;
-	int result = -1;
+	struct evbuffer_chain *chain, **chainp;
+	struct evbuffer_chain *result = NULL;
+	ASSERT_EVBUFFER_LOCKED(buf);
 
-	EVBUFFER_LOCK(buf);
+	chainp = buf->last_with_datap;
+	if (*chainp && CHAIN_SPACE_LEN(*chainp) == 0)
+		chainp = &(*chainp)->next;
 
-	chain = buf->last;
+	/* 'chain' now points to the first chain with writable space (if any)
+	 * We will either use it, realign it, replace it, or resize it. */
+	chain = *chainp;
 
 	if (chain == NULL ||
 	    (chain->flags & (EVBUFFER_IMMUTABLE|EVBUFFER_MEM_PINNED_ANY))) {
-		chain = evbuffer_chain_new(datlen);
-		if (chain == NULL)
-			goto err;
-
-		evbuffer_chain_insert(buf, chain);
-		goto ok;
+		/* We can't use the last_with_data chain at all.  Just add a
+		 * new one that's big enough. */
+		goto insert_new;
 	}
-
-	need = chain->misalign + chain->off + datlen;
 
 	/* If we can fit all the data, then we don't have to do anything */
-	if (chain->buffer_len >= need)
-		goto ok;
-
-	/* If the misalignment plus the remaining space fulfills our
-	 * data needs, we just force an alignment to happen.
-	 * Afterwards, we have enough space.
-	 */
-	if (chain->buffer_len - chain->off >= datlen) {
-		evbuffer_chain_align(chain);
+	if (CHAIN_SPACE_LEN(chain) >= datlen) {
+		result = chain;
 		goto ok;
 	}
 
-	/* figure out how much space we need */
-	length = chain->buffer_len - chain->misalign + datlen;
-	tmp = evbuffer_chain_new(length);
-	if (tmp == NULL)
+	/* If the chain is completely empty, just replace it by adding a new
+	 * empty chain. */
+	if (chain->off == 0) {
+		goto insert_new;
+	}
+
+	/* If the misalignment plus the remaining space fulfills our data
+	 * needs, we could just force an alignment to happen.  Afterwards, we
+	 * have enough space.  But only do this if we're saving at least 1/2
+	 * the chain size and moving no more than MAX_TO_REALIGN_IN_EXPAND
+	 * bytes.  Otherwise the space savings are probably offset by the time
+	 * lost in copying.
+	 */
+	if (chain->buffer_len - chain->off >= datlen &&
+	    (chain->off < chain->buffer_len / 2) &&
+	    (chain->off <= MAX_TO_REALIGN_IN_EXPAND))  {
+		evbuffer_chain_align(chain);
+		result = chain;
+		goto ok;
+	}
+
+	/* At this point, we can either resize the last chunk with space in
+	 * it, use the next chunk after it, or   If we add a new chunk, we waste
+	 * CHAIN_SPACE_LEN(chain) bytes in the former last chunk.  If we
+	 * resize, we have to copy chain->off bytes.
+	 */
+
+	/* Would expanding this chunk be affordable and worthwhile? */
+	if (CHAIN_SPACE_LEN(chain) < chain->buffer_len / 8 ||
+	    chain->off > MAX_TO_COPY_IN_EXPAND) {
+		/* It's not worth resizing this chain. Can the next one be
+		 * used? */
+		if (chain->next && CHAIN_SPACE_LEN(chain->next) >= datlen) {
+			/* Yes, we can just use the next chain (which should
+			 * be empty. */
+			result = chain->next;
+			goto ok;
+		} else {
+			/* No; append a new chain (which will free all
+			 * terminal empty chains.) */
+			goto insert_new;
+		}
+	} else {
+		/* Okay, we're going to try to resize this chain: Not doing so
+		 * would waste at least 1/8 of its current allocation, and we
+		 * can do so without having to copy more than
+		 * MAX_TO_COPY_IN_EXPAND bytes. */
+		/* figure out how much space we need */
+		size_t length = chain->off + datlen;
+		struct evbuffer_chain *tmp = evbuffer_chain_new(length);
+		if (tmp == NULL)
+			goto err;
+
+		/* copy the data over that we had so far */
+		tmp->off = chain->off;
+		memcpy(tmp->buffer, chain->buffer + chain->misalign,
+		    chain->off);
+		/* fix up the list */
+		EVUTIL_ASSERT(*chainp == chain);
+		result = *chainp = tmp;
+
+		if (buf->last == chain)
+			buf->last = tmp;
+
+		tmp->next = chain->next;
+		evbuffer_chain_free(chain);
+		goto ok;
+	}
+
+insert_new:
+	result = evbuffer_chain_insert_new(buf, datlen);
+	if (!result)
 		goto err;
-	/* copy the data over that we had so far */
-	tmp->off = chain->off;
-	tmp->misalign = 0;
-	memcpy(tmp->buffer, chain->buffer + chain->misalign, chain->off);
-
-	/* fix up the chain */
-	if (buf->first == chain)
-		buf->first = tmp;
-	buf->last = tmp;
-
-	evbuffer_chain_free(chain);
-
 ok:
-	result = 0;
+	EVUTIL_ASSERT(result);
+	EVUTIL_ASSERT(CHAIN_SPACE_LEN(result) >= datlen);
 err:
-	EVBUFFER_UNLOCK(buf);
 	return result;
 }
 
@@ -1673,6 +1757,17 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen, int n)
 		}
 		return (0);
 	}
+}
+
+int
+evbuffer_expand(struct evbuffer *buf, size_t datlen)
+{
+	struct evbuffer_chain *chain;
+
+	EVBUFFER_LOCK(buf);
+	chain = evbuffer_expand_singlechain(buf, datlen);
+	EVBUFFER_UNLOCK(buf);
+	return chain ? 0 : -1;
 }
 
 /*
@@ -1848,12 +1943,10 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 	/* If we don't have FIONREAD, we might waste some space here */
 	/* XXX we _will_ waste some space here if there is any space left
 	 * over on buf->last. */
-	if (evbuffer_expand(buf, howmuch) == -1) {
+	if ((chain = evbuffer_expand_singlechain(buf, howmuch)) == NULL) {
 		result = -1;
 		goto done;
 	}
-
-	chain = buf->last;
 
 	/* We can append new data at this point */
 	p = chain->buffer + chain->misalign + chain->off;
@@ -2274,6 +2367,8 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 	size_t space;
 	int sz, result = -1;
 	va_list aq;
+	struct evbuffer_chain *chain;
+
 
 	EVBUFFER_LOCK(buf);
 
@@ -2282,15 +2377,18 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 	}
 
 	/* make sure that at least some space is available */
-	if (evbuffer_expand(buf, 64) == -1)
+	if ((chain = evbuffer_expand_singlechain(buf, 64)) == NULL)
 		goto done;
 
 	for (;;) {
-		struct evbuffer_chain *chain = buf->last;
+#if 0
 		size_t used = chain->misalign + chain->off;
 		buffer = (char *)chain->buffer + chain->misalign + chain->off;
 		EVUTIL_ASSERT(chain->buffer_len >= used);
 		space = chain->buffer_len - used;
+#endif
+		buffer = (char*) CHAIN_SPACE_PTR(chain);
+		space = CHAIN_SPACE_LEN(chain);
 
 #ifndef va_copy
 #define	va_copy(dst, src)	memcpy(&(dst), &(src), sizeof(va_list))
@@ -2308,11 +2406,12 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 			buf->total_len += sz;
 			buf->n_add_for_cb += sz;
 
+			advance_last_with_data(buf);
 			evbuffer_invoke_callbacks(buf);
 			result = sz;
 			goto done;
 		}
-		if (evbuffer_expand(buf, sz + 1) == -1)
+		if ((chain = evbuffer_expand_singlechain(buf, sz + 1)) == NULL)
 			goto done;
 	}
 	/* NOTREACHED */
