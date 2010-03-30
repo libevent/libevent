@@ -626,53 +626,61 @@ done:
 	return result;
 }
 
-#define ZERO_CHAIN(dst) do { \
-		ASSERT_EVBUFFER_LOCKED(dst);	\
-		(dst)->first = NULL;		\
-		(dst)->last = NULL;		\
-		(dst)->last_with_datap = &(dst)->first;	\
-		(dst)->total_len = 0;		\
-	} while (0)
+static inline void
+ZERO_CHAIN(struct evbuffer *dst)
+{
+	ASSERT_EVBUFFER_LOCKED(dst);
+	dst->first = NULL;
+	dst->last = NULL;
+	dst->last_with_datap = &(dst)->first;
+	dst->total_len = 0;
+}
 
-#define COPY_CHAIN(dst, src) do { \
-		ASSERT_EVBUFFER_LOCKED(dst);			   \
-		ASSERT_EVBUFFER_LOCKED(src);			   \
-		(dst)->first = (src)->first;			   \
-		if ((src)->last_with_datap == &(src)->first)	   \
-			(dst)->last_with_datap = &(dst)->first;	   \
-		else							\
-			(dst)->last_with_datap = (src)->last_with_datap; \
-		(dst)->last = (src)->last;			   \
-		(dst)->total_len = (src)->total_len;		   \
-	} while (0)
+static inline void
+COPY_CHAIN(struct evbuffer *dst, struct evbuffer *src)
+{
+	ASSERT_EVBUFFER_LOCKED(dst);
+	ASSERT_EVBUFFER_LOCKED(src);
+	dst->first = src->first;
+	if (src->last_with_datap == &src->first)
+		dst->last_with_datap = &dst->first;
+	else
+		dst->last_with_datap = src->last_with_datap;
+	dst->last = src->last;
+	dst->total_len = src->total_len;
+}
 
-#define APPEND_CHAIN(dst, src) do {					\
-		ASSERT_EVBUFFER_LOCKED(dst);				\
-		ASSERT_EVBUFFER_LOCKED(src);				\
-		(dst)->last->next = (src)->first;			\
-		if ((src)->last_with_datap == &(src)->first)		\
-			(dst)->last_with_datap = &(dst)->last->next;	\
-		else							\
-			(dst)->last_with_datap = (src)->last_with_datap; \
-		(dst)->last = (src)->last;				\
-		(dst)->total_len += (src)->total_len;			\
-	} while (0)
+static void
+APPEND_CHAIN(struct evbuffer *dst, struct evbuffer *src)
+{
+	ASSERT_EVBUFFER_LOCKED(dst);
+	ASSERT_EVBUFFER_LOCKED(src);
+	dst->last->next = src->first;
+	if (src->last_with_datap == &src->first)
+		dst->last_with_datap = &dst->last->next;
+	else
+		dst->last_with_datap = src->last_with_datap;
+	dst->last = src->last;
+	dst->total_len += src->total_len;
+}
 
-#define PREPEND_CHAIN(dst, src) do {					\
-		ASSERT_EVBUFFER_LOCKED(dst);				\
-		ASSERT_EVBUFFER_LOCKED(src);				\
-		(src)->last->next = (dst)->first;			\
-		(dst)->first = (src)->first;				\
-		(dst)->total_len += (src)->total_len;			\
-		if (*(dst)->last_with_datap == NULL) {			\
-			if ((src)->last_with_datap == &(src)->first)	\
-				(dst)->last_with_datap = &(dst)->first;	\
-			else						\
-				(dst)->last_with_datap = (src)->last_with_datap; \
-		} else if ((dst)->last_with_datap == &(dst)->first) {	\
-			(dst)->last_with_datap = &(src)->last->next;	\
-		}							\
-	} while (0)
+static void
+PREPEND_CHAIN(struct evbuffer *dst, struct evbuffer *src)
+{
+	ASSERT_EVBUFFER_LOCKED(dst);
+	ASSERT_EVBUFFER_LOCKED(src);
+	src->last->next = dst->first;
+	dst->first = src->first;
+	dst->total_len += src->total_len;
+	if (*dst->last_with_datap == NULL) {
+		if (src->last_with_datap == &(src)->first)
+			dst->last_with_datap = &dst->first;
+		else
+			dst->last_with_datap = src->last_with_datap;
+	} else if (dst->last_with_datap == &dst->first) {
+		dst->last_with_datap = &src->last->next;
+	}
+}
 
 int
 evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
