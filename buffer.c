@@ -1969,7 +1969,7 @@ evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
 		goto done;
 	}
 
-	if (howmuch < 0)
+	if (howmuch < 0 || howmuch > buffer->total_len)
 		howmuch = buffer->total_len;
 
 	{
