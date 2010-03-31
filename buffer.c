@@ -701,7 +701,9 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	}
 
 	if (out_total_len == 0) {
-		/* XXX need to free old outbuf chains */
+		/* There might be an empty chain at the start of outbuf; free
+		 * it. */
+		evbuffer_free_all_chains(outbuf->first);
 		COPY_CHAIN(outbuf, inbuf);
 	} else {
 		APPEND_CHAIN(outbuf, inbuf);
@@ -740,7 +742,9 @@ evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	}
 
 	if (out_total_len == 0) {
-		/* XXX need to free old outbuf chains */
+		/* There might be an empty chain at the start of outbuf; free
+		 * it. */
+		evbuffer_free_all_chains(outbuf->first);
 		COPY_CHAIN(outbuf, inbuf);
 	} else {
 		PREPEND_CHAIN(outbuf, inbuf);
