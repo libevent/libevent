@@ -52,6 +52,7 @@
 #include <stdlib.h>
 #endif
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #ifdef _EVENT_HAVE_ARPA_INET_H
@@ -1892,5 +1893,17 @@ evutil_sockaddr_is_loopback(const struct sockaddr *addr)
 		return !memcmp(sin6->sin6_addr.s6_addr, LOOPBACK_S6, 16);
 	}
 	return 0;
+}
+
+#define MAX_SECONDS_IN_MSEC_LONG \
+	(((LONG_MAX) - 999) / 1000) 
+                            
+long
+evutil_tv_to_msec(const struct timeval *tv)
+{
+	if (tv->tv_usec > 1000000 || tv->tv_sec > MAX_SECONDS_IN_MSEC_LONG)
+		return -1;
+
+	return (tv->tv_sec * 1000) + (tv->tv_usec / 1000);
 }
 

@@ -213,6 +213,8 @@ int evutil_getaddrinfo_async(struct evdns_base *dns_base,
  * ::1). */
 int evutil_sockaddr_is_loopback(const struct sockaddr *sa);
 
+long evutil_tv_to_msec(const struct timeval *tv);
+
 #ifdef __cplusplus
 }
 #endif

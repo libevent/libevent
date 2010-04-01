@@ -35,6 +35,7 @@
 #include <sys/queue.h>
 #include <poll.h>
 #include <signal.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -117,7 +118,8 @@ poll_check_ok(struct pollop *pop)
 static int
 poll_dispatch(struct event_base *base, struct timeval *tv)
 {
-	int res, i, j, msec = -1, nfds;
+	int res, i, j, nfds;
+	long msec = -1;
 	struct pollop *pop = base->evbase;
 	struct pollfd *event_set;
 
@@ -152,8 +154,11 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 	event_set = pop->event_set;
 #endif
 
-	if (tv != NULL)
-		msec = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
+	if (tv != NULL) {
+		msec = evutil_tv_to_msec(tv);
+		if (msec < 0 || msec > INT_MAX)
+			msec = INT_MAX;
+	}
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 

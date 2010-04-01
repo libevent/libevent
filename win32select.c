@@ -30,6 +30,7 @@
 #include <windows.h>
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -112,12 +113,6 @@ realloc_fd_sets(struct win32op *op, size_t new_size)
 	op->resize_out_sets = 1;
 	op->fd_setsz = new_size;
 	return (0);
-}
-
-static int
-timeval_to_ms(struct timeval *tv)
-{
-	return ((tv->tv_sec * 1000) + (tv->tv_usec / 1000));
 }
 
 static int
@@ -303,8 +298,12 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	    win32op->readset_out->fd_count : win32op->writeset_out->fd_count;
 
 	if (!fd_count) {
+		long msec = evutil_tv_to_msec(tv);
+		/* Sleep's DWORD argument is unsigned long */
+		if (msec < 0)
+			msec = LONG_MAX;
 		/* Windows doesn't like you to call select() with no sockets */
-		Sleep(timeval_to_ms(tv));
+		Sleep(msec);
 		evsig_process(base);
 		return (0);
 	}

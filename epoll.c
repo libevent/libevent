@@ -35,6 +35,7 @@
 #include <sys/queue.h>
 #include <sys/epoll.h>
 #include <signal.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -269,15 +270,16 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 {
 	struct epollop *epollop = base->evbase;
 	struct epoll_event *events = epollop->events;
-	int i, res, timeout = -1;
+	int i, res;
+	long timeout = -1;
 
-	if (tv != NULL)
-		timeout = tv->tv_sec * 1000 + (tv->tv_usec + 999) / 1000;
-
-	if (timeout > MAX_EPOLL_TIMEOUT_MSEC) {
-		/* Linux kernels can wait forever if the timeout is too big;
-		 * see comment on MAX_EPOLL_TIMEOUT_MSEC. */
-		timeout = MAX_EPOLL_TIMEOUT_MSEC;
+	if (tv != NULL) {
+		timeout = evutil_tv_to_msec(tv);
+		if (timeout < 0 || timeout > MAX_EPOLL_TIMEOUT_MSEC) {
+			/* Linux kernels can wait forever if the timeout is
+			 * too big; see comment on MAX_EPOLL_TIMEOUT_MSEC. */
+			timeout = MAX_EPOLL_TIMEOUT_MSEC;
+		}
 	}
 
 	epoll_apply_changes(base);
