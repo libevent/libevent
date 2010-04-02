@@ -893,7 +893,7 @@ evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 		data += chain->off;
 		datlen -= chain->off;
 
-		if (chain == *buf->last_with_datap) {
+		if (buf->last_with_datap == &chain->next) {
 			buf->last_with_datap = &buf->first;
 		}
 
