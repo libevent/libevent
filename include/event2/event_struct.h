@@ -95,13 +95,13 @@ struct event {
 	union {
 		/* used for io events */
 		struct {
-			TAILQ_ENTRY (event) (ev_io_next);
+			LIST_ENTRY (event) (ev_io_next);
 			struct timeval ev_timeout;
 		} ev_io;
 
 		/* used by signal events */
 		struct {
-			TAILQ_ENTRY (event) (ev_signal_next);
+			LIST_ENTRY (event) (ev_signal_next);
 			short ev_ncalls;
 			/* Allows deletes in callback */
 			short *ev_pncalls;

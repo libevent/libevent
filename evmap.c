@@ -55,7 +55,7 @@
 	write on a given fd, and the number of each.
   */
 struct evmap_io {
-	struct event_list events;
+	struct event_dlist events;
 	ev_uint16_t nread;
 	ev_uint16_t nwrite;
 };
@@ -63,7 +63,7 @@ struct evmap_io {
 /* An entry for an evmap_signal list: notes all the events that want to know
    when a signal triggers. */
 struct evmap_signal {
-	struct event_list events;
+	struct event_dlist events;
 };
 
 /* On some platforms, fds start at 0 and increment by 1 as they are
@@ -248,7 +248,7 @@ evmap_signal_clear(struct event_signal_map *ctx)
 static void
 evmap_io_init(struct evmap_io *entry)
 {
-	TAILQ_INIT(&entry->events);
+	LIST_INIT(&entry->events);
 	entry->nread = 0;
 	entry->nwrite = 0;
 }
@@ -314,7 +314,7 @@ evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 
 	ctx->nread = (ev_uint16_t) nread;
 	ctx->nwrite = (ev_uint16_t) nwrite;
-	TAILQ_INSERT_TAIL(&ctx->events, ev, ev_io_next);
+	LIST_INSERT_HEAD(&ctx->events, ev, ev_io_next);
 
 	return (retval);
 }
@@ -370,7 +370,7 @@ evmap_io_del(struct event_base *base, evutil_socket_t fd, struct event *ev)
 
 	ctx->nread = nread;
 	ctx->nwrite = nwrite;
-	TAILQ_REMOVE(&ctx->events, ev, ev_io_next);
+	LIST_REMOVE(ev, ev_io_next);
 
 	return (retval);
 }
@@ -388,7 +388,7 @@ evmap_io_active(struct event_base *base, evutil_socket_t fd, short events)
 	GET_IO_SLOT(ctx, io, fd, evmap_io);
 
 	EVUTIL_ASSERT(ctx);
-	TAILQ_FOREACH(ev, &ctx->events, ev_io_next) {
+	LIST_FOREACH(ev, &ctx->events, ev_io_next) {
 		if (ev->ev_events & events)
 			event_active_nolock(ev, ev->ev_events & events, 1);
 	}
@@ -399,7 +399,7 @@ evmap_io_active(struct event_base *base, evutil_socket_t fd, short events)
 static void
 evmap_signal_init(struct evmap_signal *entry)
 {
-	TAILQ_INIT(&entry->events);
+	LIST_INIT(&entry->events);
 }
 
 
@@ -418,13 +418,13 @@ evmap_signal_add(struct event_base *base, int sig, struct event *ev)
 	GET_SIGNAL_SLOT_AND_CTOR(ctx, map, sig, evmap_signal, evmap_signal_init,
 	    base->evsigsel->fdinfo_len);
 
-	if (TAILQ_EMPTY(&ctx->events)) {
+	if (LIST_EMPTY(&ctx->events)) {
 		if (evsel->add(base, ev->ev_fd, 0, EV_SIGNAL, NULL)
 		    == -1)
 			return (-1);
 	}
 
-	TAILQ_INSERT_TAIL(&ctx->events, ev, ev_signal_next);
+	LIST_INSERT_HEAD(&ctx->events, ev, ev_signal_next);
 
 	return (1);
 }
@@ -441,12 +441,12 @@ evmap_signal_del(struct event_base *base, int sig, struct event *ev)
 
 	GET_SIGNAL_SLOT(ctx, map, sig, evmap_signal);
 
-	if (TAILQ_FIRST(&ctx->events) == TAILQ_LAST(&ctx->events, event_list)) {
+	LIST_REMOVE(ev, ev_signal_next);
+
+	if (LIST_FIRST(&ctx->events) == NULL) {
 		if (evsel->del(base, ev->ev_fd, 0, EV_SIGNAL, NULL) == -1)
 			return (-1);
 	}
-
-	TAILQ_REMOVE(&ctx->events, ev, ev_signal_next);
 
 	return (1);
 }
@@ -461,7 +461,7 @@ evmap_signal_active(struct event_base *base, evutil_socket_t sig, int ncalls)
 	EVUTIL_ASSERT(sig < map->nentries);
 	GET_SIGNAL_SLOT(ctx, map, sig, evmap_signal);
 
-	TAILQ_FOREACH(ev, &ctx->events, ev_signal_next)
+	LIST_FOREACH(ev, &ctx->events, ev_signal_next)
 		event_active_nolock(ev, EV_SIGNAL, ncalls);
 }
 
