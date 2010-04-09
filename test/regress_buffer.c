@@ -1263,7 +1263,9 @@ test_evbuffer_prepend(void *ptr)
 	buf1 = evbuffer_new();
 	tt_assert(buf1);
 
-	evbuffer_add(buf1, "This string has 29 characters", 29);
+	/* Case 0: The evbuffer is entirely empty. */
+	evbuffer_prepend(buf1, "This string has 29 characters", 29);
+	evbuffer_validate(buf1);
 
 	/* Case 1: Prepend goes entirely in new chunk. */
 	evbuffer_prepend(buf1, "Short.", 6);
