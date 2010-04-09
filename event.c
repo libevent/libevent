@@ -2514,8 +2514,12 @@ static void
 evthread_notify_drain_eventfd(evutil_socket_t fd, short what, void *arg)
 {
 	ev_uint64_t msg;
+	ev_ssize_t r;
 
-	read(fd, (void*) &msg, sizeof(msg));
+	r = read(fd, (void*) &msg, sizeof(msg));
+	if (r<0 && errno != EAGAIN) {
+		event_sock_warn(fd, "Error reading from eventfd");
+	}
 }
 #endif
 

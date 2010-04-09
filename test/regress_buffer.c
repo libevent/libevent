@@ -510,13 +510,35 @@ test_evbuffer_reference(void *ptr)
 }
 
 #ifndef WIN32
+int _evbuffer_testing_use_sendfile(void);
+int _evbuffer_testing_use_mmap(void);
+int _evbuffer_testing_use_linear_file_access(void);
+
 static void
 test_evbuffer_add_file(void *ptr)
 {
+	const char *impl = ptr;
 	struct evbuffer *src = evbuffer_new();
 	const char *data = "this is what we add as file system data.";
 	const char *compare;
 	evutil_socket_t fd, pair[2];
+
+	tt_assert(impl);
+	if (!strcmp(impl, "sendfile")) {
+		if (!_evbuffer_testing_use_sendfile())
+			tt_skip();
+		TT_BLATHER(("Using sendfile-based implementaion"));
+	} else if (!strcmp(impl, "mmap")) {
+		if (!_evbuffer_testing_use_mmap())
+			tt_skip();
+		TT_BLATHER(("Using mmap-based implementaion"));
+	} else if (!strcmp(impl, "linear")) {
+		if (!_evbuffer_testing_use_linear_file_access())
+			tt_skip();
+		TT_BLATHER(("Using read-based implementaion"));
+	} else {
+		TT_DIE(("Didn't recognize the implementation"));
+	}
 
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
 		tt_abort_msg("socketpair failed");
@@ -1441,7 +1463,12 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
 #ifndef WIN32
 	/* TODO: need a temp file implementation for Windows */
-	{ "add_file", test_evbuffer_add_file, TT_FORK, NULL, NULL },
+	{ "add_file_sendfile", test_evbuffer_add_file, TT_FORK, &nil_setup,
+	  (void*)"sendfile" },
+	{ "add_file_mmap", test_evbuffer_add_file, TT_FORK, &nil_setup,
+	  (void*)"mmap" },
+	{ "add_file_linear", test_evbuffer_add_file, TT_FORK, &nil_setup,
+	  (void*)"linear" },
 #endif
 
 	END_OF_TESTCASES

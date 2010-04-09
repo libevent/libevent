@@ -2755,3 +2755,51 @@ evbuffer_cb_unsuspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb)
 	}
 }
 #endif
+
+/* These hooks are exposed so that the unit tests can temporarily disable
+ * sendfile support in order to test mmap, or both to test linear
+ * access. Don't use it; if we need to add a way to disable sendfile support
+ * in the future, it will probably be via an alternate version of
+ * evbuffer_add_file() with a 'flags' argument.
+ */
+int _evbuffer_testing_use_sendfile(void);
+int _evbuffer_testing_use_mmap(void);
+int _evbuffer_testing_use_linear_file_access(void);
+
+int
+_evbuffer_testing_use_sendfile(void)
+{
+	int ok = 0;
+#ifdef USE_SENDFILE
+	use_sendfile = 1;
+	ok = 1;
+#endif
+#ifdef _EVENT_HAVE_MMAP
+	use_mmap = 0;
+#endif
+	return ok;
+}
+int
+_evbuffer_testing_use_mmap(void)
+{
+	int ok = 0;
+#ifdef USE_SENDFILE
+	use_sendfile = 0;
+#endif
+#ifdef _EVENT_HAVE_MMAP
+	use_mmap = 1;
+	ok = 1;
+#endif
+	return ok;
+}
+int
+_evbuffer_testing_use_linear_file_access(void)
+{
+#ifdef USE_SENDFILE
+	use_sendfile = 0;
+#endif
+#ifdef _EVENT_HAVE_MMAP
+	use_mmap = 0;
+#endif
+	return 1;
+}
