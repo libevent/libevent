@@ -56,8 +56,8 @@
   */
 struct evmap_io {
 	struct event_list events;
-	unsigned int nread;
-	unsigned int nwrite;
+	ev_uint16_t nread;
+	ev_uint16_t nwrite;
 };
 
 /* An entry for an evmap_signal list: notes all the events that want to know
@@ -295,6 +295,11 @@ evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 		if (++nwrite == 1)
 			res |= EV_WRITE;
 	}
+	if (EVUTIL_UNLIKELY(nread > 0xffff || nwrite > 0xffff)) {
+		event_warnx("Too many events reading or writing on fd %d",
+		    (int)fd);
+		return -1;
+	}
 
 	if (res) {
 		void *extra = ((char*)ctx) + sizeof(struct evmap_io);
@@ -307,8 +312,8 @@ evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 		retval = 1;
 	}
 
-	ctx->nread = nread;
-	ctx->nwrite = nwrite;
+	ctx->nread = (ev_uint16_t) nread;
+	ctx->nwrite = (ev_uint16_t) nwrite;
 	TAILQ_INSERT_TAIL(&ctx->events, ev, ev_io_next);
 
 	return (retval);
