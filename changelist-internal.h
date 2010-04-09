@@ -88,7 +88,7 @@ void event_changelist_init(struct event_changelist *changelist);
  * after making all the changes in the changelist. */
 void event_changelist_remove_all(struct event_changelist *changelist,
     struct event_base *base);
-/** Free all memory held in a changelist, and return it. */
+/** Free all memory held in a changelist. */
 void event_changelist_freemem(struct event_changelist *changelist);
 
 /** Implementation of eventop_add that queues the event in a changelist. */

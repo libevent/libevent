@@ -83,6 +83,8 @@ struct event_map_entry {
 	} ent;
 };
 
+/* Helper used by the event_io_map hashtable code; tries to return a good hash
+ * of the fd in e->fd. */
 static inline unsigned
 hashsocket(struct event_map_entry *e)
 {
@@ -94,6 +96,8 @@ hashsocket(struct event_map_entry *e)
 	return h;
 }
 
+/* Helper used by the event_io_map hashtable code; returns true iff e1 and e2
+ * have the same e->fd. */
 static inline int
 eqsocket(struct event_map_entry *e1, struct event_map_entry *e2)
 {
@@ -261,9 +265,7 @@ evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	int nread, nwrite, retval = 0;
 	short res = 0, old = 0;
 
-	EVUTIL_ASSERT(fd == ev->ev_fd); /*XXX(nickm) always true? */
-	/*XXX(nickm) Should we assert that ev is not already inserted, or should
-	 * we make this function idempotent? */
+	EVUTIL_ASSERT(fd == ev->ev_fd);
 
 	if (fd < 0)
 		return 0;
@@ -300,7 +302,7 @@ evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 		 * level-triggered, we should probably assert on
 		 * this. */
 		if (evsel->add(base, ev->ev_fd,
-					   old, (ev->ev_events & EV_ET) | res, extra) == -1)
+			old, (ev->ev_events & EV_ET) | res, extra) == -1)
 			return (-1);
 		retval = 1;
 	}
@@ -326,9 +328,7 @@ evmap_io_del(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	if (fd < 0)
 		return 0;
 
-	EVUTIL_ASSERT(fd == ev->ev_fd); /*XXX(nickm) always true? */
-	/*XXX(nickm) Should we assert that ev is not already inserted, or should
-	 * we make this function idempotent? */
+	EVUTIL_ASSERT(fd == ev->ev_fd);
 
 #ifndef EVMAP_USE_HT
 	if (fd >= io->nentries)
@@ -674,11 +674,12 @@ event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, sho
 
 	/* A delete removes any previous add, rather than replacing it:
 	   on those platforms where "add, delete, dispatch" is not the same
-	   as "no-op" dispatch, we want the no-op behavior.
+	   as "no-op, dispatch", we want the no-op behavior.
 
-	   If we have a no-op item, we could it from the list entirely, but
-	   really there's not much point: skipping the no-op change when we do
-	   the dispatch later is far cheaper than rejuggling the array now.
+	   If we have a no-op item, we could remove it it from the list
+	   entirely, but really there's not much point: skipping the no-op
+	   change when we do the dispatch later is far cheaper than rejuggling
+	   the array now.
 	 */
 
 	if (events & (EV_READ|EV_SIGNAL)) {
