@@ -453,6 +453,80 @@ end:
 	evbuffer_free(buf);
 }
 
+static void
+test_evbuffer_expand(void *ptr)
+{
+	char data[4096];
+	struct evbuffer *buf;
+	size_t a,w,u;
+	void *buffer;
+
+	memset(data, 'X', sizeof(data));
+
+	/* Make sure that expand() works on an empty buffer */
+	buf = evbuffer_new();
+	tt_int_op(evbuffer_expand(buf, 20000), ==, 0);
+	evbuffer_validate(buf);
+	a=w=u=0;
+	evbuffer_get_waste(buf, &a,&w,&u);
+	tt_assert(w == 0);
+	tt_assert(u == 0);
+	tt_assert(a >= 20000);
+	tt_assert(buf->first);
+	tt_assert(buf->first == buf->last);
+	tt_assert(buf->first->off == 0);
+	tt_assert(buf->first->buffer_len >= 20000);
+
+	/* Make sure that expand() works as a no-op when there's enough
+	 * contiguous space already. */
+	buffer = buf->first->buffer;
+	evbuffer_add(buf, data, 1024);
+	tt_int_op(evbuffer_expand(buf, 1024), ==, 0);
+	tt_assert(buf->first->buffer == buffer);
+	evbuffer_validate(buf);
+	evbuffer_free(buf);
+
+	/* Make sure that expand() can work by moving misaligned data
+	 * when it makes sense to do so. */
+	buf = evbuffer_new();
+	evbuffer_add(buf, data, 400);
+	{
+		int n = buf->first->buffer_len - buf->first->off - 1;
+		tt_assert(n < sizeof(data));
+		evbuffer_add(buf, data, n);
+	}
+	tt_assert(buf->first == buf->last);
+	tt_assert(buf->first->off == buf->first->buffer_len - 1);
+	evbuffer_drain(buf, buf->first->off - 1);
+	tt_assert(1 == evbuffer_get_length(buf));
+	tt_assert(buf->first->misalign > 0);
+	tt_assert(buf->first->off == 1);
+	buffer = buf->first->buffer;
+	tt_assert(evbuffer_expand(buf, 40) == 0);
+	tt_assert(buf->first == buf->last);
+	tt_assert(buf->first->off == 1);
+	tt_assert(buf->first->buffer == buffer);
+	tt_assert(buf->first->misalign == 0);
+	evbuffer_validate(buf);
+	evbuffer_free(buf);
+
+	/* add, expand, pull-up: This used to crash libevent. */
+	buf = evbuffer_new();
+
+	evbuffer_add(buf, data, sizeof(data));
+	evbuffer_add(buf, data, sizeof(data));
+	evbuffer_add(buf, data, sizeof(data));
+
+	evbuffer_validate(buf);
+	evbuffer_expand(buf, 1024);
+	evbuffer_validate(buf);
+	evbuffer_pullup(buf, -1);
+	evbuffer_validate(buf);
+
+end:
+	evbuffer_free(buf);
+}
+
 
 static int reference_cb_called;
 static void
@@ -1449,6 +1523,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "reserve_many", test_evbuffer_reserve_many, 0, NULL, NULL },
 	{ "reserve_many2", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"add" },
 	{ "reserve_many3", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"fill" },
+	{ "expand", test_evbuffer_expand, 0, NULL, NULL },
 	{ "reference", test_evbuffer_reference, 0, NULL, NULL },
 	{ "iterative", test_evbuffer_iterative, 0, NULL, NULL },
 	{ "readln", test_evbuffer_readln, TT_NO_LOGS, &basic_setup, NULL },

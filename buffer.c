@@ -1550,6 +1550,10 @@ evbuffer_expand_singlechain(struct evbuffer *buf, size_t datlen)
 	ASSERT_EVBUFFER_LOCKED(buf);
 
 	chainp = buf->last_with_datap;
+
+	/* XXX If *chainp is no longer writeable, but has enough space in its
+	 * misalign, this might be a bad idea: we could still use *chainp, not
+	 * (*chainp)->next. */
 	if (*chainp && CHAIN_SPACE_LEN(*chainp) == 0)
 		chainp = &(*chainp)->next;
 
