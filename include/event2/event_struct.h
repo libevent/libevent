@@ -69,6 +69,16 @@ struct {								\
 }
 #endif /* !TAILQ_ENTRY */
 
+/* Fix so that people don't have to run with <sys/queue.h> */
+#ifndef LIST_ENTRY
+#define _EVENT_DEFINED_LISTENTRY
+#define LIST_ENTRY(type)						\
+struct {								\
+	struct type *le_next;	/* next element */			\
+	struct type **le_prev;	/* address of previous next element */	\
+}
+#endif /* !TAILQ_ENTRY */
+
 struct event_base;
 struct event {
 	TAILQ_ENTRY (event) (ev_active_next);
@@ -130,6 +140,14 @@ struct evkeyvalq;
 TAILQ_HEAD (event_list, event);
 TAILQ_HEAD (evkeyvalq, evkeyval);
 #endif /* _EVENT_DEFINED_TQENTRY */
+
+#ifdef _EVENT_DEFINED_LISTENTRY
+#undef LIST_ENTRY
+struct event_dlist;
+#undef _EVENT_DEFINED_LISTENTRY
+#else
+LIST_HEAD (event_dlist, event);
+#endif /* _EVENT_DEFINED_LISTENTRY */
 
 #ifdef __cplusplus
 }
