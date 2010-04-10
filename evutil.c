@@ -1904,6 +1904,6 @@ evutil_tv_to_msec(const struct timeval *tv)
 	if (tv->tv_usec > 1000000 || tv->tv_sec > MAX_SECONDS_IN_MSEC_LONG)
 		return -1;
 
-	return (tv->tv_sec * 1000) + (tv->tv_usec / 1000);
+	return (tv->tv_sec * 1000) + ((tv->tv_usec + 999) / 1000);
 }
 
