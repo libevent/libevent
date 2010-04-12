@@ -1,4 +1,4 @@
-AUTOMAKE_OPTIONS = foreign no-dependencies
+AUTOMAKE_OPTIONS = foreign
 
 AM_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include
 
