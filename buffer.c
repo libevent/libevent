@@ -1863,7 +1863,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 	unsigned char *p;
 #endif
 #if defined(FIONREAD) && defined(WIN32)
-	long lng = n;
+	unsigned long lng = EVBUFFER_MAX_READ;
 #endif
 
 	EVBUFFER_LOCK(buf);
@@ -2019,7 +2019,7 @@ evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
 		if (chain->flags & EVBUFFER_SENDFILE)
 			break;
 #endif
-		iov[i].IOV_PTR_FIELD = chain->buffer + chain->misalign;
+		iov[i].IOV_PTR_FIELD = (void *) (chain->buffer + chain->misalign);
 		if ((size_t)howmuch >= chain->off) {
 			iov[i++].IOV_LEN_FIELD = chain->off;
 			howmuch -= chain->off;
