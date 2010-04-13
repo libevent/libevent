@@ -268,6 +268,16 @@ int evbuffer_add(struct evbuffer *buf, const void *data, size_t datlen);
 int evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen);
 
 /**
+  Read data from an event buffer, and leave the buffer unchanged.
+
+  @param buf the event buffer to be read from
+  @param data the destination buffer to store the result
+  @param datlen the maximum size of the destination buffer
+  @return the number of bytes read, or -1 if we can't drain the buffer.
+ */
+ev_ssize_t evbuffer_copyout(struct evbuffer *buf, void *data_out, size_t datlen);
+
+/**
   Read data from an event buffer into another event buffer draining
   the bytes from the src buffer read.  This function avoids memcpy
   as possible.

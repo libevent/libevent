@@ -861,15 +861,28 @@ done:
 }
 
 /* Reads data from an event buffer and drains the bytes read */
-
 int
 evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 {
+	ev_ssize_t n;
+	EVBUFFER_LOCK(buf);
+	n = evbuffer_copyout(buf, data_out, datlen);
+	if (n > 0) {
+		if (evbuffer_drain(buf, n)<0)
+			n = -1;
+	}
+	EVBUFFER_UNLOCK(buf);
+	return (int)n;
+}
+
+ev_ssize_t
+evbuffer_copyout(struct evbuffer *buf, void *data_out, size_t datlen)
+{
 	/*XXX fails badly on sendfile case. */
-	struct evbuffer_chain *chain, *tmp;
+	struct evbuffer_chain *chain;
 	char *data = data_out;
 	size_t nread;
-	int result = 0;
+	ev_ssize_t result = 0;
 
 	EVBUFFER_LOCK(buf);
 
@@ -893,30 +906,14 @@ evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 		data += chain->off;
 		datlen -= chain->off;
 
-		if (buf->last_with_datap == &chain->next) {
-			buf->last_with_datap = &buf->first;
-		}
-
-		tmp = chain;
 		chain = chain->next;
-		evbuffer_chain_free(tmp);
+		EVUTIL_ASSERT(chain || datlen==0);
 	}
-
-	buf->first = chain;
-	if (chain == NULL)
-		buf->last = NULL;
 
 	if (datlen) {
+		EVUTIL_ASSERT(chain);
 		memcpy(data, chain->buffer + chain->misalign, datlen);
-		chain->misalign += datlen;
-		chain->off -= datlen;
 	}
-
-	buf->total_len -= nread;
-
-	buf->n_del_for_cb += nread;
-	if (nread)
-		evbuffer_invoke_callbacks(buf);
 
 	result = nread;
 done:
