@@ -488,7 +488,7 @@ end:
 	if (logmsg)
 		free(logmsg);
 	if (fd >= 0)
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 }
 
 static void

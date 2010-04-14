@@ -207,7 +207,7 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 		goto tidy_up_and_fail;
 	if (size != sizeof(listen_addr))
 		goto abort_tidy_up_and_fail;
-	EVUTIL_CLOSESOCKET(listener);
+	evutil_closesocket(listener);
 	/* Now check we are talking to ourself by matching port and host on the
 	   two sockets.	 */
 	if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
@@ -228,11 +228,11 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 	if (saved_errno < 0)
 		saved_errno = WSAGetLastError();
 	if (listener != -1)
-		EVUTIL_CLOSESOCKET(listener);
+		evutil_closesocket(listener);
 	if (connector != -1)
-		EVUTIL_CLOSESOCKET(connector);
+		evutil_closesocket(connector);
 	if (acceptor != -1)
-		EVUTIL_CLOSESOCKET(acceptor);
+		evutil_closesocket(acceptor);
 
 	EVUTIL_SET_SOCKET_ERROR(saved_errno);
 	return -1;
@@ -293,6 +293,16 @@ evutil_make_socket_closeonexec(evutil_socket_t fd)
 	}
 #endif
 	return 0;
+}
+
+int
+evutil_closesocket(evutil_socket_t sock)
+{
+#ifndef WIN32
+	return close(sock);
+#else
+	return closesocket(sock);
+#endif
 }
 
 ev_int64_t
@@ -394,7 +404,7 @@ evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen)
 
 err:
 	if (made_fd) {
-		EVUTIL_CLOSESOCKET(*fd_ptr);
+		evutil_closesocket(*fd_ptr);
 		*fd_ptr = -1;
 	}
 	return -1;
@@ -497,7 +507,7 @@ evutil_check_interfaces(int force_recheck)
 		}
 	}
 	if (fd >= 0)
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 
 	if ((fd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) >= 0 &&
 	    connect(fd, (struct sockaddr*)&sin6, sizeof(sin6)) == 0 &&
@@ -521,7 +531,7 @@ evutil_check_interfaces(int force_recheck)
 	}
 
 	if (fd >= 0)
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 
 	return 0;
 }

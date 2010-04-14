@@ -977,7 +977,7 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		bufferevent_free(evcon->bufev);
 
 	if (evcon->fd != -1)
-		EVUTIL_CLOSESOCKET(evcon->fd);
+		evutil_closesocket(evcon->fd);
 
 	if (evcon->bind_address != NULL)
 		mm_free(evcon->bind_address);
@@ -1043,7 +1043,7 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 		if (evhttp_connected(evcon) && evcon->closecb != NULL)
 			(*evcon->closecb)(evcon, evcon->closecb_arg);
 
-		EVUTIL_CLOSESOCKET(evcon->fd);
+		evutil_closesocket(evcon->fd);
 		evcon->fd = -1;
 	}
 
@@ -2518,7 +2518,7 @@ evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint
 
 	if (listen(fd, 128) == -1) {
 		event_sock_warn(fd, "%s: listen", __func__);
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 		return (NULL);
 	}
 
@@ -3008,7 +3008,7 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 	evcon = evhttp_get_request_connection(http, fd, sa, salen);
 	if (evcon == NULL) {
 		event_sock_warn(fd, "%s: cannot get connection on %d", __func__, fd);
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 		return;
 	}
 
@@ -3104,7 +3104,7 @@ bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
 
  out:
 	serrno = EVUTIL_SOCKET_ERROR();
-	EVUTIL_CLOSESOCKET(fd);
+	evutil_closesocket(fd);
 	EVUTIL_SET_SOCKET_ERROR(serrno);
 	return (-1);
 }

@@ -541,7 +541,7 @@ close_socket_cb(evutil_socket_t fd, short what, void *arg)
 {
 	evutil_socket_t *fdp = arg;
 	if (*fdp >= 0) {
-		EVUTIL_CLOSESOCKET(*fdp);
+		evutil_closesocket(*fdp);
 		*fdp = -1;
 	}
 }
@@ -603,7 +603,7 @@ test_bufferevent_connect_fail(void *arg)
 
 end:
 	if (fake_listener >= 0)
-		EVUTIL_CLOSESOCKET(fake_listener);
+		evutil_closesocket(fake_listener);
 
 	if (bev)
 		bufferevent_free(bev);

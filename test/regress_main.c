@@ -221,9 +221,9 @@ basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
 
 	if (testcase->flags & TT_NEED_SOCKETPAIR) {
 		if (data->pair[0] != -1)
-			EVUTIL_CLOSESOCKET(data->pair[0]);
+			evutil_closesocket(data->pair[0]);
 		if (data->pair[1] != -1)
-			EVUTIL_CLOSESOCKET(data->pair[1]);
+			evutil_closesocket(data->pair[1]);
 	}
 
 	if (testcase->flags & TT_NEED_DNS) {

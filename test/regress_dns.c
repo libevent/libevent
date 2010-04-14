@@ -425,7 +425,7 @@ end:
 	if (port)
 		evdns_close_server_port(port);
 	if (sock >= 0)
-		EVUTIL_CLOSESOCKET(sock);
+		evutil_closesocket(sock);
 	if (base)
 		evdns_base_free(base, 0);
 }
@@ -1020,7 +1020,7 @@ end:
 	if (listener)
 		evconnlistener_free(listener);
 	if (server_fd>=0)
-		EVUTIL_CLOSESOCKET(server_fd);
+		evutil_closesocket(server_fd);
 	if (port)
 		evdns_close_server_port(port);
 	if (dns)

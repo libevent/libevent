@@ -639,8 +639,8 @@ test_evbuffer_add_file(void *ptr)
 
 	evbuffer_validate(src);
  end:
-	EVUTIL_CLOSESOCKET(pair[0]);
-	EVUTIL_CLOSESOCKET(pair[1]);
+	evutil_closesocket(pair[0]);
+	evutil_closesocket(pair[1]);
 	evbuffer_free(src);
 }
 #endif

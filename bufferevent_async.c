@@ -285,7 +285,7 @@ be_async_destruct(struct bufferevent *bev)
 	/* delete this in case non-blocking connect was used */
 	event_del(&bev->ev_write);
 	if (bev_p->options & BEV_OPT_CLOSE_ON_FREE)
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 	_bufferevent_del_generic_timeout_cbs(bev);
 }
 

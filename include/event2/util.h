@@ -238,15 +238,14 @@ int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
  */
 int evutil_make_socket_closeonexec(evutil_socket_t sock);
 
-#ifdef WIN32
 /** Do the platform-specific call needed to close a socket returned from
-    socket() or accept(). */
-#define EVUTIL_CLOSESOCKET(s) closesocket(s)
-#else
-/** Do the platform-specific call needed to close a socket returned from
-    socket() or accept(). */
-#define EVUTIL_CLOSESOCKET(s) close(s)
-#endif
+    socket() or accept().
+
+    @param sock The socket to be closed
+    @return 0 on success, -1 on failure
+ */
+int evutil_closesocket(evutil_socket_t sock);
+#define EVUTIL_CLOSESOCKET(s) evutil_closesocket(s)
 
 /* Winsock handles socket errors differently from the rest of the world.
  * Elsewhere, a socket error is like any other error and is stored in errno.

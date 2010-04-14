@@ -313,7 +313,7 @@ end:
 		bufferevent_free(bev2);
 
 	if (pair[0] >= 0)
-		EVUTIL_CLOSESOCKET(pair[0]);
+		evutil_closesocket(pair[0]);
 	if (pair[1] >= 0)
-		EVUTIL_CLOSESOCKET(pair[1]);
+		evutil_closesocket(pair[1]);
 }

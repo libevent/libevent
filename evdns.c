@@ -402,8 +402,6 @@ static int strtoint(const char *const str);
 	EVLOCK_ASSERT_LOCKED((base)->lock)
 #endif
 
-#define CLOSE_SOCKET(s) EVUTIL_CLOSESOCKET(s)
-
 static const char *
 debug_ntoa(u32 address)
 {
@@ -2003,7 +2001,7 @@ server_port_free(struct evdns_server_port *port)
 	EVUTIL_ASSERT(!port->refcnt);
 	EVUTIL_ASSERT(!port->pending_replies);
 	if (port->socket > 0) {
-		CLOSE_SOCKET(port->socket);
+		evutil_closesocket(port->socket);
 		port->socket = -1;
 	}
 	(void) event_del(&port->event);
@@ -2257,7 +2255,7 @@ evdns_base_clear_nameservers_and_suspend(struct evdns_base *base)
 		if (evtimer_initialized(&server->timeout_event))
 			(void) evtimer_del(&server->timeout_event);
 		if (server->socket >= 0)
-			CLOSE_SOCKET(server->socket);
+			evutil_closesocket(server->socket);
 		mm_free(server);
 		if (next == started_at)
 			break;
@@ -2394,7 +2392,7 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 	return 0;
 
 out2:
-	CLOSE_SOCKET(ns->socket);
+	evutil_closesocket(ns->socket);
 out1:
 	event_debug_unassign(&ns->event);
 	mm_free(ns);
@@ -3715,7 +3713,7 @@ static void
 evdns_nameserver_free(struct nameserver *server)
 {
 	if (server->socket >= 0)
-	CLOSE_SOCKET(server->socket);
+	evutil_closesocket(server->socket);
 	(void) event_del(&server->event);
 	event_debug_unassign(&server->event);
 	if (server->state == 0)

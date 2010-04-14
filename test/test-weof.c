@@ -51,7 +51,7 @@ write_cb(evutil_socket_t fd, short event, void *arg)
 	if (len > 0) {
 		if (!called)
 			event_add(arg, NULL);
-		EVUTIL_CLOSESOCKET(pair[0]);
+		evutil_closesocket(pair[0]);
 	} else if (called == 1)
 		test_okay = 0;
 

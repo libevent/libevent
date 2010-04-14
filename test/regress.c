@@ -2088,7 +2088,7 @@ end:
 		if (ev[i])
 			event_free(ev[i]);
 		if (sock[i] >= 0)
-			EVUTIL_CLOSESOCKET(sock[i]);
+			evutil_closesocket(sock[i]);
 	}
 #undef MANY
 }

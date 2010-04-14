@@ -419,7 +419,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 freesock:
 	_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
 	if (ownfd)
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 	/* do something about the error? */
 done:
 	_bufferevent_decref_and_unlock(bev);

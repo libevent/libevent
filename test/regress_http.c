@@ -364,7 +364,7 @@ http_basic_test(void)
 
 	/* connect to the second port */
 	bufferevent_free(bev);
-	EVUTIL_CLOSESOCKET(fd);
+	evutil_closesocket(fd);
 
 	fd = http_connect("127.0.0.1", port + 1);
 
@@ -383,7 +383,7 @@ http_basic_test(void)
 	event_dispatch();
 
 	bufferevent_free(bev);
-	EVUTIL_CLOSESOCKET(fd);
+	evutil_closesocket(fd);
 
 	evhttp_free(http);
 
@@ -529,7 +529,7 @@ http_bad_request_test(void)
 	event_dispatch();
 
 	bufferevent_free(bev);
-	EVUTIL_CLOSESOCKET(fd);
+	evutil_closesocket(fd);
 
 	if (test_ok != 0) {
 		fprintf(stdout, "FAILED\n");
@@ -636,7 +636,7 @@ http_delete_test(void)
 	event_dispatch();
 
 	bufferevent_free(bev);
-	EVUTIL_CLOSESOCKET(fd);
+	evutil_closesocket(fd);
 
 	evhttp_free(http);
 
@@ -1463,7 +1463,7 @@ http_failure_test(void)
 	event_dispatch();
 
 	bufferevent_free(bev);
-	EVUTIL_CLOSESOCKET(fd);
+	evutil_closesocket(fd);
 
 	evhttp_free(http);
 
@@ -1693,7 +1693,7 @@ http_base_test(void)
 	event_base_dispatch(base);
 
 	bufferevent_free(bev);
-	EVUTIL_CLOSESOCKET(fd);
+	evutil_closesocket(fd);
 
 	evhttp_free(http);
 
@@ -1776,7 +1776,7 @@ _http_incomplete_test(int use_timeout)
 
 	bufferevent_free(bev);
 	if (use_timeout) {
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 	}
 
 	evhttp_free(http);
@@ -2387,7 +2387,7 @@ http_multi_line_header_test(void)
 	if (bev)
 		bufferevent_free(bev);
 	if (fd >= 0)
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 	if (http)
 		evhttp_free(http);
 }
@@ -2584,7 +2584,7 @@ terminate_chunked_client(evutil_socket_t fd, short event, void *arg)
 {
 	struct terminate_state *state = arg;
 	bufferevent_free(state->bev);
-	EVUTIL_CLOSESOCKET(state->fd);
+	evutil_closesocket(state->fd);
 }
 
 static void
@@ -2639,7 +2639,7 @@ http_terminate_chunked_test(void)
 
  end:
 	if (fd >= 0)
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 	if (http)
 		evhttp_free(http);
 }

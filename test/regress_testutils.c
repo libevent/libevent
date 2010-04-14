@@ -129,7 +129,7 @@ regress_clean_dnsserver(void)
 	if (dns_port)
 		evdns_close_server_port(dns_port);
 	if (dns_sock >= 0)
-		EVUTIL_CLOSESOCKET(dns_sock);
+		evutil_closesocket(dns_sock);
 }
 
 void

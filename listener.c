@@ -168,13 +168,13 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 		return NULL;
 
 	if (evutil_make_socket_nonblocking(fd) < 0) {
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 		return NULL;
 	}
 
 	if (flags & LEV_OPT_CLOSE_ON_EXEC) {
 		if (evutil_make_socket_closeonexec(fd) < 0) {
-			EVUTIL_CLOSESOCKET(fd);
+			evutil_closesocket(fd);
 			return NULL;
 		}
 	}
@@ -186,14 +186,14 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 
 	if (sa) {
 		if (bind(fd, sa, socklen)<0) {
-			EVUTIL_CLOSESOCKET(fd);
+			evutil_closesocket(fd);
 			return NULL;
 		}
 	}
 
 	listener = evconnlistener_new(base, cb, ptr, flags, backlog, fd);
 	if (!listener) {
-		EVUTIL_CLOSESOCKET(fd);
+		evutil_closesocket(fd);
 		return NULL;
 	}
 
@@ -215,7 +215,7 @@ event_listener_destroy(struct evconnlistener *lev)
 
 	event_del(&lev_e->listener);
 	if (lev->flags & LEV_OPT_CLOSE_ON_FREE)
-		EVUTIL_CLOSESOCKET(event_get_fd(&lev_e->listener));
+		evutil_closesocket(event_get_fd(&lev_e->listener));
 	event_debug_unassign(&lev_e->listener);
 }
 

@@ -145,8 +145,8 @@ test_edgetriggered(void *et)
 	}
 	if (base)
 		event_base_free(base);
-	EVUTIL_CLOSESOCKET(pair[0]);
-	EVUTIL_CLOSESOCKET(pair[1]);
+	evutil_closesocket(pair[0]);
+	evutil_closesocket(pair[1]);
 }
 
 struct testcase_t edgetriggered_testcases[] = {
