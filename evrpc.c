@@ -444,6 +444,18 @@ error:
 	return;
 }
 
+void *
+evrpc_get_request(struct evrpc_req_generic *req)
+{
+	return req->request;
+}
+
+void *
+evrpc_get_reply(struct evrpc_req_generic *req)
+{
+	return req->reply;
+}
+
 static void
 evrpc_request_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 {

@@ -259,6 +259,10 @@ struct evrpc_request_wrapper *evrpc_make_request_ctx(
 /** completes the server response to an rpc request */
 void evrpc_request_done(struct evrpc_req_generic *req);
 
+/** accessors for request and reply */
+void *evrpc_get_request(struct evrpc_req_generic *req);
+void *evrpc_get_reply(struct evrpc_req_generic *req);
+
 /** Creates the reply to an RPC request
  *
  * EVRPC_REQUEST_DONE is used to answer a request; the reply is expected
