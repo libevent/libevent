@@ -33,6 +33,9 @@ Makefile.in
 *.lo
 *.la
 
+# ctags stuff
+TAGS
+
 # Stuff made by our makefiles
 libevent.pc
 
