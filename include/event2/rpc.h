@@ -319,10 +319,10 @@ void evrpc_free(struct evrpc_base *base);
 #define EVRPC_REGISTER(base, name, request, reply, callback, cbarg)	\
 	evrpc_register_generic(base, #name,				\
 	    (void (*)(struct evrpc_req_generic *, void *))callback, cbarg, \
-	    (void *(*)(void))request##_new,				\
+	    (void *(*)(void *))request##_new, NULL,			\
 	    (void (*)(void *))request##_free,				\
 	    (int (*)(void *, struct evbuffer *))request##_unmarshal,	\
-	    (void *(*)(void))reply##_new, \
+	    (void *(*)(void *))reply##_new, NULL,			\
 	    (void (*)(void *))reply##_free, \
 	    (int (*)(void *))reply##_complete, \
 	    (void (*)(struct evbuffer *, void *))reply##_marshal)
@@ -575,9 +575,9 @@ int evrpc_send_request_generic(struct evrpc_pool *pool,
 int
 evrpc_register_generic(struct evrpc_base *base, const char *name,
     void (*callback)(struct evrpc_req_generic *, void *), void *cbarg,
-    void *(*req_new)(void), void (*req_free)(void *),
+    void *(*req_new)(void *), void *req_new_arg, void (*req_free)(void *),
     int (*req_unmarshal)(void *, struct evbuffer *),
-    void *(*rpl_new)(void), void (*rpl_free)(void *),
+    void *(*rpl_new)(void *), void *rpl_new_arg, void (*rpl_free)(void *),
     int (*rpl_complete)(void *),
     void (*rpl_marshal)(struct evbuffer *, void *));
 

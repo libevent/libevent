@@ -117,6 +117,7 @@ class StructCCode(Struct):
 
         print >>file, \
 """struct %(name)s *%(name)s_new(void);
+struct %(name)s *%(name)s_new_with_arg(void *);
 void %(name)s_free(struct %(name)s *);
 void %(name)s_clear(struct %(name)s *);
 void %(name)s_marshal(struct evbuffer *, const struct %(name)s *);
@@ -156,6 +157,12 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
         print >>file, (
             'struct %(name)s *\n'
             '%(name)s_new(void)\n'
+            '{\n'
+            '  return %(name)s_new_with_arg(NULL);\n'
+            '}\n'
+            '\n'
+            'struct %(name)s *\n'
+            '%(name)s_new_with_arg(void *unused)\n'
             '{\n'
             '  struct %(name)s *tmp;\n'
             '  if ((tmp = malloc(sizeof(struct %(name)s))) == NULL) {\n'

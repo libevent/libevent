@@ -63,7 +63,8 @@ struct evrpc {
 	const char* uri;
 
 	/* creates a new request structure */
-	void *(*request_new)(void);
+	void *(*request_new)(void *);
+	void *request_new_arg;
 
 	/* frees the request structure */
 	void (*request_free)(void *);
@@ -72,9 +73,10 @@ struct evrpc {
 	int (*request_unmarshal)(void *, struct evbuffer *);
 
 	/* creates a new reply structure */
-	void *(*reply_new)(void);
+	void *(*reply_new)(void *);
+	void *reply_new_arg;
 
-	/* creates a new reply structure */
+	/* frees the reply structure */
 	void (*reply_free)(void *);
 
 	/* verifies that the reply is valid */
