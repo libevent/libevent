@@ -148,6 +148,7 @@ evbuffer_overlapped_new(evutil_socket_t fd)
 
 	TAILQ_INIT(&evo->buffer.callbacks);
 	evo->buffer.refcnt = 1;
+	evo->buffer.last_with_datap = &evo->buffer.first;
 
 	evo->buffer.is_overlapped = 1;
 	evo->fd = fd;
