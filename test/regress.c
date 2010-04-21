@@ -1831,6 +1831,18 @@ test_base_environ(void *arg)
 	int i, n_methods=0;
 	const char *defaultname;
 
+	/* See if unsetenv works before we rely on it. */
+	setenv("EVENT_NOWAFFLES", "1", 1);
+	unsetenv("EVENT_NOWAFFLES");
+	if (getenv("EVENT_NOWAFFLES") != NULL) {
+#ifndef _EVENT_HAVE_UNSETENV
+		TT_DECLARE("NOTE", ("Can't fake unsetenv; skipping test"));
+#else
+		TT_DECLARE("NOTE", ("unsetenv doesn't work; skipping test"));
+#endif
+		tt_skip();
+	}
+
 	basenames = event_get_supported_methods();
 	for (i = 0; basenames[i]; ++i) {
 		methodname_to_envvar(basenames[i], varbuf, sizeof(varbuf));
