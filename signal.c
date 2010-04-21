@@ -185,12 +185,14 @@ _evsig_set_handler(struct event_base *base,
 	if (sigaction(evsignal, &sa, sig->sh_old[evsignal]) == -1) {
 		event_warn("sigaction");
 		mm_free(sig->sh_old[evsignal]);
+		sig->sh_old[evsignal] = NULL;
 		return (-1);
 	}
 #else
 	if ((sh = signal(evsignal, handler)) == SIG_ERR) {
 		event_warn("signal");
 		mm_free(sig->sh_old[evsignal]);
+		sig->sh_old[evsignal] = NULL;
 		return (-1);
 	}
 	*sig->sh_old[evsignal] = sh;
