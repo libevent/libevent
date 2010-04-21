@@ -959,6 +959,10 @@ evutil_adjust_hints_for_addrconfig(struct evutil_addrinfo *hints)
 }
 
 #ifdef USE_NATIVE_GETADDRINFO
+static int need_numeric_port_hack_=0;
+static int need_socktype_protocol_hack_=0;
+static int tested_for_getaddrinfo_hacks=0;
+
 /* Some older BSDs (like OpenBSD up to 4.6) used to believe that
    giving a numeric port without giving an ai_socktype was verboten.
    We test for this so we can apply an appropriate workaround.  If it
@@ -973,17 +977,17 @@ evutil_adjust_hints_for_addrconfig(struct evutil_addrinfo *hints)
 
    We test for this bug at runtime, since otherwise we can't have the
    same binary run on multiple BSD versions.
+
+   - Some versions of Solaris believe that it's nice to leave to protocol
+     field set to 0.  We test for this so we can apply an appropriate
+     workaround.
 */
-static int
-need_numeric_port_hack(void)
+static void
+test_for_getaddrinfo_hacks(void)
 {
-	static int tested=0;
-	static int need_hack=0;
 	int r, r2;
 	struct evutil_addrinfo *ai=NULL, *ai2=NULL;
 	struct evutil_addrinfo hints;
-	if (tested)
-		return need_hack;
 
 	memset(&hints,0,sizeof(hints));
 	hints.ai_family = PF_UNSPEC;
@@ -999,21 +1003,40 @@ need_numeric_port_hack(void)
 	hints.ai_socktype = SOCK_STREAM;
 	r2 = getaddrinfo("1.2.3.4", "80", &hints, &ai2);
 	if (r2 == 0 && r != 0) {
-		need_hack=1;
+		need_numeric_port_hack_=1;
 	}
+	if (ai2 && ai2->ai_protocol == 0) {
+		need_socktype_protocol_hack_=1;
+	}
+
 	if (ai)
 		freeaddrinfo(ai);
 	if (ai2)
 		freeaddrinfo(ai2);
-	tested = 1;
-	return need_hack;
+	tested_for_getaddrinfo_hacks=1;
+}
+
+static inline int
+need_numeric_port_hack(void)
+{
+	if (!tested_for_getaddrinfo_hacks)
+		test_for_getaddrinfo_hacks();
+	return need_numeric_port_hack_;
+}
+
+static inline int
+need_socktype_protocol_hack(void)
+{
+	if (!tested_for_getaddrinfo_hacks)
+		test_for_getaddrinfo_hacks();
+	return need_socktype_protocol_hack_;
 }
 
 static void
 apply_numeric_port_hack(int port, struct evutil_addrinfo **ai)
 {
 	/* Now we run through the list and set the ports on all of the
-	 * results where ports */
+	 * results where ports would make sense. */
 	for ( ; *ai; ai = &(*ai)->ai_next) {
 		struct sockaddr *sa = (*ai)->ai_addr;
 		if (sa && sa->sa_family == AF_INET) {
@@ -1100,6 +1123,10 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 		servname = NULL;
 	}
 
+	if (need_socktype_protocol_hack()) {
+		evutil_getaddrinfo_infer_protocols(&hints);
+	}
+
 	/* Make sure that we didn't actually steal any AI_FLAGS values that
 	 * the system is using.  (This is a constant expression, and should ge
 	 * optimized out.)
@@ -1115,6 +1142,12 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 	err = getaddrinfo(nodename, servname, &hints, res);
 	if (need_np_hack)
 		apply_numeric_port_hack(portnum, res);
+
+	if (need_socktype_protocol_hack()) {
+		struct evutil_addrinfo *ai;
+		for (ai = *res; ai; ai = ai->ai_next)
+			evutil_getaddrinfo_infer_protocols(ai);
+	} 
 	return err;
 #else
 	int port=0, err;
