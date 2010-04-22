@@ -148,6 +148,12 @@ typedef unsigned int uint;
 /* persistent handle */
 struct evdns_request {
 	struct request *current_req;
+
+	/* elements used by the searching code */
+	int search_index;
+	struct search_state *search_state;
+	char *search_origname;	/* needs to be free()ed */
+	int search_flags;
 };
 
 struct request {
@@ -159,13 +165,6 @@ struct request {
 	void *user_pointer;  /* the pointer given to us for this request */
 	evdns_callback_type user_callback;
 	struct nameserver *ns;	/* the server which we last sent it */
-
-	// XXX this could be moved to the evdns_request handle 
-	/* elements used by the searching code */
-	int search_index;
-	struct search_state *search_state;
-	char *search_origname;	/* needs to be free()ed */
-	int search_flags;
 
 	/* these objects are kept in a circular list */
 	struct request *next, *prev;
@@ -378,8 +377,8 @@ static void nameserver_ready_callback(evutil_socket_t fd, short events, void *ar
 static int evdns_transmit(struct evdns_base *base);
 static int evdns_request_transmit(struct request *req);
 static void nameserver_send_probe(struct nameserver *const ns);
-static void search_request_finished(struct request *const);
-static int search_try_next(struct request *const req);
+static void search_request_finished(struct evdns_request *const);
+static int search_try_next(struct evdns_request *const req);
 static struct request *search_request_new(struct evdns_base *base, struct evdns_request *handle, int type, const char *const name, int flags, evdns_callback_type user_callback, void *user_arg);
 static void evdns_requests_pump_waiting_queue(struct evdns_base *base);
 static u16 transaction_id_pick(struct evdns_base *base);
@@ -660,7 +659,6 @@ request_finished(struct request *const req, struct request **head, int free_hand
 
 	log(EVDNS_LOG_DEBUG, "Removing timeout for request %lx",
 	    (unsigned long) req);
-	search_request_finished(req);
 	if (was_inflight) {
 		evtimer_del(&req->timeout_event);
 		base->global_requests_inflight--;
@@ -676,8 +674,10 @@ request_finished(struct request *const req, struct request **head, int free_hand
 		/* so everything gets free()ed when we: */
 	}
 
-	if (free_handle && req->handle)
+	if (free_handle && req->handle) {
+		search_request_finished(req->handle);
 		mm_free(req->handle);
+	}
 
 	mm_free(req);
 
@@ -864,10 +864,11 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 			nameserver_up(req->ns);
 		}
 
-		if (req->search_state && req->request_type != TYPE_PTR) {
+		if (req->handle && req->handle->search_state
+		    && req->request_type != TYPE_PTR) {
 			/* if we have a list of domains to search in,
 			 * try the next one */
-			if (!search_try_next(req)) {
+			if (!search_try_next(req->handle)) {
 				/* a new request was issued so this
 				 * request is finished and */
 				/* the user callback will be made when
@@ -2984,18 +2985,19 @@ search_request_new(struct evdns_base *base, struct evdns_request *handle,
 		if (string_num_dots(name) >= base->global_search_state->ndots) {
 			req = request_new(base, handle, type, name, flags, user_callback, user_arg);
 			if (!req) return NULL;
-			req->search_index = -1;
+			handle->search_index = -1;
 		} else {
 			char *const new_name = search_make_new(base->global_search_state, 0, name);
 			if (!new_name) return NULL;
 			req = request_new(base, handle, type, new_name, flags, user_callback, user_arg);
 			mm_free(new_name);
 			if (!req) return NULL;
-			req->search_index = 0;
+			handle->search_index = 0;
 		}
-		req->search_origname = mm_strdup(name);
-		req->search_state = base->global_search_state;
-		req->search_flags = flags;
+		EVUTIL_ASSERT(handle->search_origname == NULL);
+		handle->search_origname = mm_strdup(name);
+		handle->search_state = base->global_search_state;
+		handle->search_flags = flags;
 		base->global_search_state->refcount++;
 		request_submit(req);
 		return req;
@@ -3013,21 +3015,22 @@ search_request_new(struct evdns_base *base, struct evdns_request *handle,
 /*   0 another request has been submitted */
 /*   1 no more requests needed */
 static int
-search_try_next(struct request *const req) {
+search_try_next(struct evdns_request *const handle) {
+	struct request *req = handle->current_req;
 	struct evdns_base *base = req->base;
 	ASSERT_LOCKED(base);
-	if (req->search_state) {
+	if (handle->search_state) {
 		/* it is part of a search */
 		char *new_name;
 		struct request *newreq;
-		req->search_index++;
-		if (req->search_index >= req->search_state->num_domains) {
+		handle->search_index++;
+		if (handle->search_index >= handle->search_state->num_domains) {
 			/* no more postfixes to try, however we may need to try */
 			/* this name without a postfix */
-			if (string_num_dots(req->search_origname) < req->search_state->ndots) {
+			if (string_num_dots(handle->search_origname) < handle->search_state->ndots) {
 				/* yep, we need to try it raw */
-				newreq = request_new(base, req->handle, req->request_type, req->search_origname, req->search_flags, req->user_callback, req->user_pointer);
-				log(EVDNS_LOG_DEBUG, "Search: trying raw query %s", req->search_origname);
+				newreq = request_new(base, req->handle, req->request_type, handle->search_origname, handle->search_flags, req->user_callback, req->user_pointer);
+				log(EVDNS_LOG_DEBUG, "Search: trying raw query %s", handle->search_origname);
 				if (newreq) {
 					request_submit(newreq);
 					return 0;
@@ -3036,18 +3039,12 @@ search_try_next(struct request *const req) {
 			return 1;
 		}
 
-		new_name = search_make_new(req->search_state, req->search_index, req->search_origname);
+		new_name = search_make_new(handle->search_state, handle->search_index, handle->search_origname);
 		if (!new_name) return 1;
-		log(EVDNS_LOG_DEBUG, "Search: now trying %s (%d)", new_name, req->search_index);
-		newreq = request_new(base, req->handle, req->request_type, new_name, req->search_flags, req->user_callback, req->user_pointer);
+		log(EVDNS_LOG_DEBUG, "Search: now trying %s (%d)", new_name, handle->search_index);
+		newreq = request_new(base, req->handle, req->request_type, new_name, handle->search_flags, req->user_callback, req->user_pointer);
 		mm_free(new_name);
 		if (!newreq) return 1;
-		newreq->search_origname = req->search_origname;
-		req->search_origname = NULL;
-		newreq->search_state = req->search_state;
-		newreq->search_flags = req->search_flags;
-		newreq->search_index = req->search_index;
-		newreq->search_state->refcount++;
 		request_submit(newreq);
 		return 0;
 	}
@@ -3055,15 +3052,15 @@ search_try_next(struct request *const req) {
 }
 
 static void
-search_request_finished(struct request *const req) {
-	ASSERT_LOCKED(req->base);
-	if (req->search_state) {
-		search_state_decref(req->search_state);
-		req->search_state = NULL;
+search_request_finished(struct evdns_request *const handle) {
+	ASSERT_LOCKED(handle->current_req->base);
+	if (handle->search_state) {
+		search_state_decref(handle->search_state);
+		handle->search_state = NULL;
 	}
-	if (req->search_origname) {
-		mm_free(req->search_origname);
-		req->search_origname = NULL;
+	if (handle->search_origname) {
+		mm_free(handle->search_origname);
+		handle->search_origname = NULL;
 	}
 }
 
