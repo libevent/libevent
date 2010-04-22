@@ -3032,6 +3032,7 @@ search_try_next(struct evdns_request *const handle) {
 				newreq = request_new(base, req->handle, req->request_type, handle->search_origname, handle->search_flags, req->user_callback, req->user_pointer);
 				log(EVDNS_LOG_DEBUG, "Search: trying raw query %s", handle->search_origname);
 				if (newreq) {
+					search_request_finished(handle);
 					request_submit(newreq);
 					return 0;
 				}
