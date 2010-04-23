@@ -148,7 +148,10 @@ typedef unsigned int uint;
 
 #define CLASS_INET     EVDNS_CLASS_INET
 
-/* persistent handle */
+/* Persistent handle.  We keep this separate from 'struct request' since we
+ * need some object to last for as long as an evdns_request is outstanding so
+ * that it can be cancelled, whereas a search request can lead to multiple
+ * 'struct request' instances being created over its lifetime. */
 struct evdns_request {
 	struct request *current_req;
 
@@ -182,7 +185,7 @@ struct request {
 	char **put_cname_in_ptr; /* store the cname here if we get one. */
 
 	struct evdns_base *base;
-	
+
 	struct evdns_request *handle;
 };
 
