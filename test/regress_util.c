@@ -276,6 +276,43 @@ regress_sockaddr_port_parse(void *ptr)
 	}
 }
 
+
+static void
+regress_sockaddr_port_format(void *ptr)
+{
+	struct sockaddr_storage ss;
+	int len;
+	const char *cp;
+	char cbuf[128];
+	int r;
+
+	len = sizeof(ss);
+	r = evutil_parse_sockaddr_port("192.168.1.1:80",
+	    (struct sockaddr*)&ss, &len);
+	tt_int_op(r,==,0);
+	cp = evutil_format_sockaddr_port(
+		(struct sockaddr*)&ss, cbuf, sizeof(cbuf));
+	tt_ptr_op(cp,==,cbuf);
+	tt_str_op(cp,==,"192.168.1.1:80");
+
+	len = sizeof(ss);
+	r = evutil_parse_sockaddr_port("[ff00::8010]:999",
+	    (struct sockaddr*)&ss, &len);
+	tt_int_op(r,==,0);
+	cp = evutil_format_sockaddr_port(
+		(struct sockaddr*)&ss, cbuf, sizeof(cbuf));
+	tt_ptr_op(cp,==,cbuf);
+	tt_str_op(cp,==,"[ff00::8010]:999");
+
+	ss.ss_family=99;
+	cp = evutil_format_sockaddr_port(
+		(struct sockaddr*)&ss, cbuf, sizeof(cbuf));
+	tt_ptr_op(cp,==,cbuf);
+	tt_str_op(cp,==,"<addr with socktype 99>");
+end:
+	;
+}
+
 static struct sa_pred_ent {
 	const char *parse;
 
@@ -951,6 +988,7 @@ struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
 	{ "sockaddr_port_parse", regress_sockaddr_port_parse, 0, NULL, NULL },
+	{ "sockaddr_port_format", regress_sockaddr_port_format, 0, NULL, NULL },
 	{ "sockaddr_predicates", test_evutil_sockaddr_predicates, 0,NULL,NULL },
 	{ "evutil_snprintf", test_evutil_snprintf, 0, NULL, NULL },
 	{ "evutil_strtoll", test_evutil_strtoll, 0, NULL, NULL },

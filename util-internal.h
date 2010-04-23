@@ -213,6 +213,14 @@ int evutil_getaddrinfo_async(struct evdns_base *dns_base,
  * ::1). */
 int evutil_sockaddr_is_loopback(const struct sockaddr *sa);
 
+
+/**
+    Formats a sockaddr sa into a string buffer of size outlen stored in out.
+    Returns a pointer to out.  Always writes something into out, so it's safe
+    to use the output of this function without checking it for NULL.
+ */
+const char *evutil_format_sockaddr_port(const struct sockaddr *sa, char *out, size_t outlen);
+
 long evutil_tv_to_msec(const struct timeval *tv);
 
 #ifdef __cplusplus

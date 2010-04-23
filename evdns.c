@@ -119,11 +119,6 @@
 #define ASSERT_VALID_REQUEST(req) \
 	EVUTIL_ASSERT((req)->handle && (req)->handle->current_req == (req))
 
-#ifdef __USE_ISOC99B
-/* libevent doesn't work without this */
-typedef unsigned int uint;
-#endif
-
 #define u64 ev_uint64_t
 #define u32 ev_uint32_t
 #define u16 ev_uint16_t
@@ -415,38 +410,6 @@ static int strtoint(const char *const str);
 	EVLOCK_ASSERT_LOCKED((base)->lock)
 #endif
 
-static const char *
-debug_ntoa(u32 address)
-{
-	static char buf[32];
-	u32 a = ntohl(address);
-	evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d",
-					(int)(u8)((a>>24)&0xff),
-					(int)(u8)((a>>16)&0xff),
-					(int)(u8)((a>>8 )&0xff),
-					(int)(u8)((a	)&0xff));
-	return buf;
-}
-
-static const char *
-debug_ntop(const struct sockaddr *sa)
-{
-	if (sa->sa_family == AF_INET) {
-		struct sockaddr_in *sin = (struct sockaddr_in *) sa;
-		return debug_ntoa(sin->sin_addr.s_addr);
-	}
-#ifdef AF_INET6
-	if (sa->sa_family == AF_INET6) {
-		static char buf[128];
-		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *) sa;
-		const char *result;
-		result = evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
-		return result ? result : "unknown";
-	}
-#endif
-	return "<unknown>";
-}
-
 static void
 default_evdns_log_fn(int warning, const char *buf)
 {
@@ -477,7 +440,7 @@ static void
 _evdns_log(int warn, const char *fmt, ...)
 {
 	va_list args;
-	static char buf[512];
+	char buf[512];
 	if (!evdns_log_fn)
 		return;
 	va_start(args,fmt);
@@ -565,10 +528,12 @@ nameserver_probe_failed(struct nameserver *const ns) {
 	ns->failed_times++;
 
 	if (evtimer_add(&ns->timeout_event, &timeout) < 0) {
-	  log(EVDNS_LOG_WARN,
-	      "Error from libevent when adding timer event for %s",
-	      debug_ntop((struct sockaddr *)&ns->address));
-	  /* ???? Do more? */
+		char addrbuf[128];
+		log(EVDNS_LOG_WARN,
+		    "Error from libevent when adding timer event for %s",
+		    evutil_format_sockaddr_port(
+			    (struct sockaddr *)&ns->address,
+			    addrbuf, sizeof(addrbuf)));
 	}
 }
 
@@ -579,6 +544,7 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 	struct request *req, *started_at;
 	struct evdns_base *base = ns->base;
 	int i;
+	char addrbuf[128];
 
 	ASSERT_LOCKED(base);
 	/* if this nameserver has already been marked as failed */
@@ -586,7 +552,11 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 	if (!ns->state) return;
 
 	log(EVDNS_LOG_MSG, "Nameserver %s has failed: %s",
-		debug_ntop((struct sockaddr*)&ns->address), msg);
+	    evutil_format_sockaddr_port(
+		    (struct sockaddr *)&ns->address,
+		    addrbuf, sizeof(addrbuf)),
+	    msg);
+
 	base->global_good_nameservers--;
 	EVUTIL_ASSERT(base->global_good_nameservers >= 0);
 	if (base->global_good_nameservers == 0) {
@@ -600,7 +570,9 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 		&base->global_nameserver_probe_initial_timeout) < 0) {
 		log(EVDNS_LOG_WARN,
 		    "Error from libevent when adding timer event for %s",
-		    debug_ntop((struct sockaddr*)&ns->address));
+		    evutil_format_sockaddr_port(
+			    (struct sockaddr *)&ns->address,
+			    addrbuf, sizeof(addrbuf)));
 		/* ???? Do more? */
 	}
 
@@ -630,10 +602,13 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 static void
 nameserver_up(struct nameserver *const ns)
 {
+	char addrbuf[128];
 	ASSERT_LOCKED(ns->base);
 	if (ns->state) return;
 	log(EVDNS_LOG_MSG, "Nameserver %s is back up",
-	    debug_ntop((struct sockaddr *)&ns->address));
+	    evutil_format_sockaddr_port(
+		    (struct sockaddr *)&ns->address,
+		    addrbuf, sizeof(addrbuf)));
 	evtimer_del(&ns->timeout_event);
 	if (ns->probe_request) {
 		evdns_cancel_request(ns->base, ns->probe_request);
@@ -830,6 +805,7 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 static void
 reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply) {
 	int error;
+	char addrbuf[128];
 	static const int error_codes[] = {
 		DNS_ERR_FORMAT, DNS_ERR_SERVERFAILED, DNS_ERR_NOTEXIST,
 		DNS_ERR_NOTIMPL, DNS_ERR_REFUSED
@@ -869,9 +845,11 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 			 * means "that request was very confusing."
 			 * Treat this as a timeout, not a failure.
 			 */
-			log(EVDNS_LOG_DEBUG, "Got a SERVERFAILED from nameserver %s; "
-				"will allow the request to time out.",
-				debug_ntop((struct sockaddr *)&req->ns->address));
+			log(EVDNS_LOG_DEBUG, "Got a SERVERFAILED from nameserver"
+				"at %s; will allow the request to time out.",
+			    evutil_format_sockaddr_port(
+				    (struct sockaddr *)&req->ns->address,
+				    addrbuf, sizeof(addrbuf)));
 			break;
 		default:
 			/* we got a good reply from the nameserver */
@@ -1287,6 +1265,7 @@ nameserver_read(struct nameserver *ns) {
 	struct sockaddr_storage ss;
 	ev_socklen_t addrlen = sizeof(ss);
 	u8 packet[1500];
+	char addrbuf[128];
 	ASSERT_LOCKED(ns->base);
 
 	for (;;) {
@@ -1304,7 +1283,9 @@ nameserver_read(struct nameserver *ns) {
 			(struct sockaddr*)&ns->address, 0)) {
 			log(EVDNS_LOG_WARN, "Address mismatch on received "
 			    "DNS packet.  Apparent source was %s",
-			    debug_ntop((struct sockaddr*)&ss));
+			    evutil_format_sockaddr_port(
+				    (struct sockaddr *)&ss,
+				    addrbuf, sizeof(addrbuf)));
 			return;
 		}
 
@@ -1390,8 +1371,11 @@ nameserver_write_waiting(struct nameserver *ns, char waiting) {
 	    ns->socket, EV_READ | (waiting ? EV_WRITE : 0) | EV_PERSIST,
 	    nameserver_ready_callback, ns);
 	if (event_add(&ns->event, NULL) < 0) {
+		char addrbuf[128];
 		log(EVDNS_LOG_WARN, "Error from libevent when adding event for %s",
-		    debug_ntop((struct sockaddr *)&ns->address));
+		    evutil_format_sockaddr_port(
+			    (struct sockaddr *)&ns->address,
+			    addrbuf, sizeof(addrbuf)));
 		/* ???? Do more? */
 	}
 }
@@ -2195,12 +2179,15 @@ static void
 nameserver_send_probe(struct nameserver *const ns) {
 	struct evdns_request *handle;
 	struct request *req;
+	char addrbuf[128];
 	/* here we need to send a probe to a given nameserver */
 	/* in the hope that it is up now. */
 
 	ASSERT_LOCKED(ns->base);
 	log(EVDNS_LOG_DEBUG, "Sending probe to %s",
-		debug_ntop((struct sockaddr *)&ns->address));
+	    evutil_format_sockaddr_port(
+		    (struct sockaddr *)&ns->address,
+		    addrbuf, sizeof(addrbuf)));
 	handle = mm_calloc(1, sizeof(*handle));
 	if (!handle) return;
 	req = request_new(ns->base, handle, TYPE_A, "google.com", DNS_QUERY_NO_SEARCH, nameserver_probe_callback, ns);
@@ -2357,6 +2344,7 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 	const struct nameserver *server = base->server_head, *const started_at = base->server_head;
 	struct nameserver *ns;
 	int err = 0;
+	char addrbuf[128];
 
 	ASSERT_LOCKED(base);
 	if (server) {
@@ -2402,7 +2390,8 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 		goto out2;
 	}
 
-	log(EVDNS_LOG_DEBUG, "Added nameserver %s", debug_ntop(address));
+	log(EVDNS_LOG_DEBUG, "Added nameserver %s",
+	    evutil_format_sockaddr_port(address, addrbuf, sizeof(addrbuf)));
 
 	/* insert this nameserver into the list of them */
 	if (!base->server_head) {
@@ -2426,14 +2415,14 @@ out2:
 out1:
 	event_debug_unassign(&ns->event);
 	mm_free(ns);
-	log(EVDNS_LOG_WARN, "Unable to add nameserver %s: error %d", debug_ntop(address), err);
+	log(EVDNS_LOG_WARN, "Unable to add nameserver %s: error %d",
+	    evutil_format_sockaddr_port(address, addrbuf, sizeof(addrbuf)), err);
 	return err;
 }
 
 /* exported function */
 int
-evdns_base_nameserver_add(struct evdns_base *base,
-						  unsigned long int address)
+evdns_base_nameserver_add(struct evdns_base *base, unsigned long int address)
 {
 	struct sockaddr_in sin;
 	int res;
