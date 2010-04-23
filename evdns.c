@@ -116,6 +116,9 @@
 #undef MIN
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
+#define ASSERT_VALID_REQUEST(req) \
+	EVUTIL_ASSERT((req)->handle && (req)->handle->current_req == (req))
+
 #ifdef __USE_ISOC99B
 /* libevent doesn't work without this */
 typedef unsigned int uint;
@@ -654,6 +657,8 @@ request_finished(struct request *const req, struct request **head, int free_hand
 	struct evdns_base *base = req->base;
 	int was_inflight = (head != &base->req_waiting_head);
 	EVDNS_LOCK(base);
+	ASSERT_VALID_REQUEST(req);
+
 	if (head)
 		evdns_request_remove(req, head);
 
@@ -674,9 +679,13 @@ request_finished(struct request *const req, struct request **head, int free_hand
 		/* so everything gets free()ed when we: */
 	}
 
-	if (free_handle && req->handle) {
-		search_request_finished(req->handle);
-		mm_free(req->handle);
+	if (req->handle) {
+		EVUTIL_ASSERT(req->handle->current_req == req);
+		if (free_handle) {
+			search_request_finished(req->handle);
+			mm_free(req->handle);
+		} else
+			req->handle->current_req = NULL;
 	}
 
 	mm_free(req);
@@ -695,6 +704,7 @@ static int
 request_reissue(struct request *req) {
 	const struct nameserver *const last_ns = req->ns;
 	ASSERT_LOCKED(req->base);
+	ASSERT_VALID_REQUEST(req);
 	/* the last nameserver should have been marked as failing */
 	/* by the caller of this function, therefore pick will try */
 	/* not to return it */
@@ -823,6 +833,7 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 	};
 
 	ASSERT_LOCKED(req->base);
+	ASSERT_VALID_REQUEST(req);
 
 	if (flags & 0x020f || !reply || !reply->have_answer) {
 		/* there was an error */
@@ -864,8 +875,8 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 			nameserver_up(req->ns);
 		}
 
-		if (req->handle && req->handle->search_state
-		    && req->request_type != TYPE_PTR) {
+		if (req->handle->search_state &&
+		    req->request_type != TYPE_PTR) {
 			/* if we have a list of domains to search in,
 			 * try the next one */
 			if (!search_try_next(req->handle)) {
@@ -874,7 +885,6 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 				/* the user callback will be made when
 				 * that request (or a */
 				/* child of it) finishes. */
-				request_finished(req, &REQ_HEAD(req->base, req->trans_id), 0);
 				return;
 			}
 		}
@@ -2088,6 +2098,7 @@ static int
 evdns_request_transmit_to(struct request *req, struct nameserver *server) {
 	int r;
 	ASSERT_LOCKED(req->base);
+	ASSERT_VALID_REQUEST(req);
 	r = sendto(server->socket, req->request, req->request_len, 0,
 	    (struct sockaddr *)&server->address, server->addrlen);
 	if (r < 0) {
@@ -2114,6 +2125,7 @@ evdns_request_transmit(struct request *req) {
 	int retcode = 0, r;
 
 	ASSERT_LOCKED(req->base);
+	ASSERT_VALID_REQUEST(req);
 	/* if we fail to send this packet then this flag marks it */
 	/* for evdns_transmit */
 	req->transmit_me = 1;
@@ -2495,6 +2507,7 @@ static void
 evdns_request_remove(struct request *req, struct request **head)
 {
 	ASSERT_LOCKED(req->base);
+	ASSERT_VALID_REQUEST(req);
 
 #if 0
 	{
@@ -2531,6 +2544,7 @@ evdns_request_remove(struct request *req, struct request **head)
 static void
 evdns_request_insert(struct request *req, struct request **head) {
 	ASSERT_LOCKED(req->base);
+	ASSERT_VALID_REQUEST(req);
 	if (!*head) {
 		*head = req;
 		req->next = req->prev = req;
@@ -2619,7 +2633,8 @@ request_new(struct evdns_base *base, struct evdns_request *handle, int type,
 	req->ns = issuing_now ? nameserver_pick(base) : NULL;
 	req->next = req->prev = NULL;
 	req->handle = handle;
-	handle->current_req = req;
+	if (handle)
+		handle->current_req = req;
 
 	return req;
 err1:
@@ -2631,6 +2646,7 @@ static void
 request_submit(struct request *const req) {
 	struct evdns_base *base = req->base;
 	ASSERT_LOCKED(base);
+	ASSERT_VALID_REQUEST(req);
 	if (req->ns) {
 		/* if it has a nameserver assigned then this is going */
 		/* straight into the inflight queue */
@@ -2648,6 +2664,8 @@ void
 evdns_cancel_request(struct evdns_base *base, struct evdns_request *handle)
 {
 	struct request *req = handle->current_req;
+
+	ASSERT_VALID_REQUEST(req);
 
 	if (!base)
 		base = req->base;
@@ -2977,6 +2995,7 @@ search_request_new(struct evdns_base *base, struct evdns_request *handle,
 		   evdns_callback_type user_callback, void *user_arg) {
 	ASSERT_LOCKED(base);
 	EVUTIL_ASSERT(type == TYPE_A || type == TYPE_AAAA);
+	EVUTIL_ASSERT(handle->current_req == NULL);
 	if ( ((flags & DNS_QUERY_NO_SEARCH) == 0) &&
 	     base->global_search_state &&
 		 base->global_search_state->num_domains) {
@@ -3018,23 +3037,22 @@ static int
 search_try_next(struct evdns_request *const handle) {
 	struct request *req = handle->current_req;
 	struct evdns_base *base = req->base;
+	struct request *newreq;
 	ASSERT_LOCKED(base);
 	if (handle->search_state) {
 		/* it is part of a search */
 		char *new_name;
-		struct request *newreq;
 		handle->search_index++;
 		if (handle->search_index >= handle->search_state->num_domains) {
 			/* no more postfixes to try, however we may need to try */
 			/* this name without a postfix */
 			if (string_num_dots(handle->search_origname) < handle->search_state->ndots) {
 				/* yep, we need to try it raw */
-				newreq = request_new(base, req->handle, req->request_type, handle->search_origname, handle->search_flags, req->user_callback, req->user_pointer);
+				newreq = request_new(base, NULL, req->request_type, handle->search_origname, handle->search_flags, req->user_callback, req->user_pointer);
 				log(EVDNS_LOG_DEBUG, "Search: trying raw query %s", handle->search_origname);
 				if (newreq) {
 					search_request_finished(handle);
-					request_submit(newreq);
-					return 0;
+					goto submit_next;
 				}
 			}
 			return 1;
@@ -3043,13 +3061,19 @@ search_try_next(struct evdns_request *const handle) {
 		new_name = search_make_new(handle->search_state, handle->search_index, handle->search_origname);
 		if (!new_name) return 1;
 		log(EVDNS_LOG_DEBUG, "Search: now trying %s (%d)", new_name, handle->search_index);
-		newreq = request_new(base, req->handle, req->request_type, new_name, handle->search_flags, req->user_callback, req->user_pointer);
+		newreq = request_new(base, NULL, req->request_type, new_name, handle->search_flags, req->user_callback, req->user_pointer);
 		mm_free(new_name);
 		if (!newreq) return 1;
-		request_submit(newreq);
-		return 0;
+		goto submit_next;
 	}
 	return 1;
+
+submit_next:
+	request_finished(req, &REQ_HEAD(req->base, req->trans_id), 0);
+	handle->current_req = newreq;
+	newreq->handle = handle;
+	request_submit(newreq);
+	return 0;
 }
 
 static void
