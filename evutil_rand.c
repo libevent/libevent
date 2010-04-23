@@ -43,6 +43,8 @@
 int
 evutil_secure_rng_init(void)
 {
+	/* call arc4random() now to force it to self-initialize */
+	(void) arc4random();
 	return 0;
 }
 
