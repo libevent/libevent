@@ -201,16 +201,16 @@ arc4_seed_sysctl_linux(void)
 }
 #endif
 
-#if _EVENT_HAVE_DECL_CTL_KERN && _EVENT_HAVE_DECL_KERN_ARAND
+#if _EVENT_HAVE_DECL_CTL_KERN && _EVENT_HAVE_DECL_KERN_ARND
 #define TRY_SEED_SYSCTL_BSD
 static int
 arc4_seed_sysctl_bsd(void)
 {
 	/* Based on code from William Ahern and from OpenBSD, this function
-	 * tries to use the KERN_ARAND syscall to get entropy from the kernel.
+	 * tries to use the KERN_ARND syscall to get entropy from the kernel.
 	 * This can work even if /dev/urandom is inaccessible for some reason
 	 * (e.g., we're running in a chroot). */
-	int mib[] = { CTL_KERN, KERN_ARAND };
+	int mib[] = { CTL_KERN, KERN_ARND };
 	unsigned char buf[ADD_ENTROPY];
 	size_t len, n;
 	int i, any_set;
@@ -218,7 +218,7 @@ arc4_seed_sysctl_bsd(void)
 	memset(buf, 0, sizeof(buf));
 
 	len = sizeof(buf);
-	if (sysctl(mib, 2, rnd, &len, NULL, 0) == -1) {
+	if (sysctl(mib, 2, buf, &len, NULL, 0) == -1) {
 		for (len = 0; len < sizeof(buf); len += sizeof(unsigned)) {
 			n = sizeof(unsigned);
 			if (n + len > sizeof(buf))

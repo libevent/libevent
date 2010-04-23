@@ -46,7 +46,7 @@ AC_ARG_ENABLE(debug-mode,
 AC_PROG_LIBTOOL
 
 dnl   Uncomment "AC_DISABLE_SHARED" to make shared librraries not get
-dnl   built by default.  You can also turn shared libs on and off from 
+dnl   built by default.  You can also turn shared libs on and off from
 dnl   the command line with --enable-shared and --disable-shared.
 dnl AC_DISABLE_SHARED
 AC_SUBST(LIBTOOL_DEPS)
@@ -159,8 +159,9 @@ if test "x$ac_cv_header_sys_time_h" = "xyes"; then
 fi
 
 if test "x$ac_cv_header_sys_sysctl_h" = "xyes"; then
-	AC_CHECK_DECLS([CTL_KERN, KERN_RANDOM, RANDOM_UUID, KERN_ARAND], [], [],
-	   [[#include <sys/sysctl.h>]]
+	AC_CHECK_DECLS([CTL_KERN, KERN_RANDOM, RANDOM_UUID, KERN_ARND], [], [],
+	   [[#include <sys/types.h>
+	     #include <sys/sysctl.h>]]
 	)
 fi
 
