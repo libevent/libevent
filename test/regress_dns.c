@@ -537,6 +537,71 @@ end:
 	regress_clean_dnsserver();
 }
 
+static int request_count = 0;
+static struct evdns_request *current_req = NULL;
+
+static void
+search_cancel_server_cb(struct evdns_server_request *req, void *data)
+{
+	const char *question;
+
+	if (req->nquestions != 1)
+		TT_DIE(("Only handling one question at a time; got %d",
+			req->nquestions));
+
+	question = req->questions[0]->name;
+
+	TT_BLATHER(("got question, %s", question));
+
+	tt_assert(request_count > 0);
+	tt_assert(!evdns_server_request_respond(req, 3));
+
+	if (!--request_count)
+		evdns_cancel_request(NULL, current_req);
+
+end:
+	;
+}
+
+static void
+dns_search_cancel_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+	struct evdns_server_port *port = NULL;
+	ev_uint16_t portnum = 53900;/*XXXX let the code pick a port*/
+	struct generic_dns_callback_result r1;
+
+	port = regress_get_dnsserver(base, &portnum, NULL,
+	    search_cancel_server_cb, NULL);
+	tt_assert(port);
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
+
+	evdns_base_search_add(dns, "a.example.com");
+	evdns_base_search_add(dns, "b.example.com");
+	evdns_base_search_add(dns, "c.example.com");
+	evdns_base_search_add(dns, "d.example.com");
+
+	exit_base = base;
+	request_count = 3;
+	n_replies_left = 1;
+	
+	current_req = evdns_base_resolve_ipv4(dns, "host", 0,
+					generic_dns_callback, &r1);
+	event_base_dispatch(base);
+
+	tt_int_op(r1.result, ==, DNS_ERR_CANCEL);
+
+end:
+	if (port)
+		evdns_close_server_port(port);
+	if (dns)
+		evdns_base_free(dns, 0);
+}
+
 static void
 fail_server_cb(struct evdns_server_request *req, void *data)
 {
@@ -1447,6 +1512,8 @@ struct testcase_t dns_testcases[] = {
 	DNS_LEGACY(gethostbyaddr, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
 	{ "resolve_reverse", dns_resolve_reverse, TT_FORK, NULL, NULL },
 	{ "search", dns_search_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "search_cancel", dns_search_cancel_test,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "reissue", dns_reissue_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "inflight", dns_inflight_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
