@@ -774,6 +774,7 @@ evrpc_resume_request(void *vbase, void *ctx, enum EVRPC_HOOK_RESULT res)
 
 	(*pause->cb)(pause->ctx, res);
 	TAILQ_REMOVE(head, pause, next);
+	mm_free(pause);
 	return (0);
 }
 
