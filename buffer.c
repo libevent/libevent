@@ -1010,7 +1010,7 @@ done:
 unsigned char *
 evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size)
 {
-	struct evbuffer_chain *chain, *next, *tmp;
+	struct evbuffer_chain *chain, *next, *tmp, *last_with_data;
 	unsigned char *buffer, *result = NULL;
 	ev_ssize_t remaining;
 	int removed_last_with_data = 0;
@@ -1078,13 +1078,14 @@ evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size)
 	/* TODO(niels): deal with buffers that point to NULL like sendfile */
 
 	/* Copy and free every chunk that will be entirely pulled into tmp */
+	last_with_data = *buf->last_with_datap;
 	for (; chain != NULL && (size_t)size >= chain->off; chain = next) {
 		next = chain->next;
 
 		memcpy(buffer, chain->buffer + chain->misalign, chain->off);
 		size -= chain->off;
 		buffer += chain->off;
-		if (chain == *buf->last_with_datap)
+		if (chain == last_with_data)
 			removed_last_with_data = 1;
 		if (&chain->next == buf->last_with_datap)
 			removed_last_with_datap = 1;
