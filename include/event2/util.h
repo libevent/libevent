@@ -532,8 +532,38 @@ const char *evutil_gai_strerror(int err);
  */
 void evutil_secure_rng_get_bytes(void *buf, size_t n);
 
+/**
+ * Seed the secure random number generator if needed, and return 0 on
+ * success or -1 on failure.
+ *
+ * It is okay to call this function more than once; it will still return
+ * 0 if the RNG has been successfully seeded and -1 if it can't be
+ * seeded.
+ *
+ * Ordinarily you don't need to call this function from your own code;
+ * Libevent will seed the RNG itself the first time it needs good random
+ * numbers.  You only need to call it if (a) you want to double-check
+ * that one of the seeding methods did succeed, or (b) you plan to drop
+ * the capability to seed (by chrooting, or dropping capabilities, or
+ * whatever), and you want to make sure that seeding happens before your
+ * program loses the ability to do it.
+ */
 int evutil_secure_rng_init(void);
 
+/** Seed the random number generator with extra random bytes.
+
+    You should almost never need to call this function; it should be
+    sufficient to invoke evutil_secure_rng_init(), or let Libevent take
+    care of calling evutil_secure_rng_init() on its own.
+
+    If you call this function as a _replacement_ for the regular
+    entropy sources, then you need to be sure that your input
+    contains a fairly large amount of strong entropy.  Doing so is
+    notoriously hard: most people who try get it wrong.  Watch out!
+
+    @param dat a buffer full of a strong source of random numbers
+    @param datlen the number of bytes to read from datlen
+ */
 void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
 
 #ifdef __cplusplus
