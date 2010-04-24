@@ -1657,22 +1657,16 @@ http_parse_query_test(void *ptr)
 }
 
 static void
-http_base_test(void)
+http_base_test(void *ptr)
 {
-	struct event_base *tmp;
+	struct event_base *base = NULL;
 	struct bufferevent *bev;
 	evutil_socket_t fd;
 	const char *http_request;
 	short port = -1;
 
+	test_ok = 0;
 	base = event_init();
-
-	/*
-	 * create another bogus base - which is being used by all subsequen
-	 * tests - yuck!
-	 */
-	tmp = event_init();
-
 	http = http_setup(&port, base);
 
 	fd = http_connect("127.0.0.1", port);
@@ -1697,10 +1691,11 @@ http_base_test(void)
 
 	evhttp_free(http);
 
-	event_base_free(base);
-	base = tmp;
+	tt_int_op(test_ok, ==, 2);
 
-	test_ok = (test_ok == 2);
+end:
+	if (base)
+		event_base_free(base);
 }
 
 /*
@@ -2650,7 +2645,7 @@ http_terminate_chunked_test(void)
 
 struct testcase_t http_testcases[] = {
 	{ "primitives", http_primitives, 0, NULL, NULL },
-	HTTP_LEGACY(base),
+	{ "base", http_base_test, TT_FORK|TT_NEED_BASE, NULL, NULL },
 	{ "bad_headers", http_bad_header_test, 0, NULL, NULL },
 	{ "parse_query", http_parse_query_test, 0, NULL, NULL },
 	HTTP_LEGACY(basic),
