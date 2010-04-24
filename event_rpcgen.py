@@ -1134,20 +1134,29 @@ class EntryArray(Entry):
             'msg->%(name)s_data[msg->%(name)s_length - 1]' % self.GetTranslation(),
             'value')
         code = [
+            'static int',
+            '%(parent_name)s_%(name)s_expand_to_hold_more('
+            'struct %(parent_name)s *msg)',
+            '{',
+            '  int tobe_allocated = msg->%(name)s_num_allocated;',
+            '  %(ctype)s* new_data = NULL;',
+            '  tobe_allocated = !tobe_allocated ? 1 : tobe_allocated << 1;',
+            '  new_data = (%(ctype)s*) realloc(msg->%(name)s_data,',
+            '      tobe_allocated * sizeof(%(ctype)s));',
+            '  if (new_data == NULL)',
+            '    return -1;',
+            '  msg->%(name)s_data = new_data;',
+            '  msg->%(name)s_num_allocated = tobe_allocated;',
+            '  return 0;'
+            '}',
+            '',
             '%(ctype)s %(optpointer)s',
             '%(parent_name)s_%(name)s_add('
             'struct %(parent_name)s *msg%(optaddarg)s)',
             '{',
             '  if (++msg->%(name)s_length >= msg->%(name)s_num_allocated) {',
-            '    int tobe_allocated = msg->%(name)s_num_allocated;',
-            '    %(ctype)s* new_data = NULL;',
-            '    tobe_allocated = !tobe_allocated ? 1 : tobe_allocated << 1;',
-            '    new_data = (%(ctype)s*) realloc(msg->%(name)s_data,',
-            '        tobe_allocated * sizeof(%(ctype)s));',
-            '    if (new_data == NULL)',
+            '    if (%(parent_name)s_%(name)s_expand_to_hold_more(msg)<0)',
             '      goto error;',
-            '    msg->%(name)s_data = new_data;',
-            '    msg->%(name)s_num_allocated = tobe_allocated;',
             '  }' ]
 
         code = TranslateList(code, self.GetTranslation())
@@ -1193,17 +1202,14 @@ class EntryArray(Entry):
                                           'buf' : buf,
                                           'tag' : tag_name,
                                           'init' : self._entry.GetInitializer()})
-        if self._optaddarg:
-            code = [
-                'if (%(parent_name)s_%(name)s_add(%(var)s, %(init)s) == NULL)',
-                '  return (-1);' ]
-        else:
-            code = [
-                'if (%(parent_name)s_%(name)s_add(%(var)s) == NULL)',
-                '  return (-1);' ]
+        code = [
+            'if (%(var)s->%(name)s_length >= %(var)s->%(name)s_num_allocated &&',
+            '    %(parent_name)s_%(name)s_expand_to_hold_more(%(var)s) < 0) {',
+            '  puts("HEY NOW");',
+            '  return (-1);',
+            '}']
 
         # the unmarshal code directly returns
-        code += [ '--%(var)s->%(name)s_length;' % translate ]
         code = TranslateList(code, translate)
 
         self._index = '%(var)s->%(name)s_length' % translate
