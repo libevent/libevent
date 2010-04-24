@@ -2426,6 +2426,9 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	struct evhttp_cb *cb = NULL;
 	const char *hostname;
 
+	/* we have a new request on which the user needs to take action */
+	req->userdone = 0;
+
 	if (req->uri == NULL) {
 		evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
 		return;
@@ -2988,6 +2991,13 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 
 	req->evcon = evcon;	/* the request ends up owning the connection */
 	req->flags |= EVHTTP_REQ_OWN_CONNECTION;
+
+	/* We did not present the request to the user user yet, so treat it as
+	 * if the user was done with the request.  This allows us to free the 
+	 * request on a persistent connection if the client drops it without
+	 * sending a request.
+	 */
+	req->userdone = 1;
 
 	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
