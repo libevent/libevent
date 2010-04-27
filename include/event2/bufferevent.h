@@ -119,7 +119,13 @@ enum bufferevent_options {
 	BEV_OPT_THREADSAFE = (1<<1),
 
 	/** If set, callbacks are run deferred in the event loop. */
-	BEV_OPT_DEFER_CALLBACKS = (1<<2)
+	BEV_OPT_DEFER_CALLBACKS = (1<<2),
+
+	/** If set, callbacks are executed without locks being held on the
+	* bufferevent.  This option currently requires that
+	* BEV_OPT_DEFER_CALLBACKS also be set; a future version of Libevent
+	* might remove the requirement.*/
+	BEV_OPT_UNLOCK_CALLBACKS = (1<<3)
 };
 
 /**
