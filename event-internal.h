@@ -158,6 +158,9 @@ struct event_changelist {
 #ifndef _EVENT_DISABLE_DEBUG_MODE
 /* Global internal flag: set to one if debug mode is on. */
 extern int _event_debug_mode_on;
+#define EVENT_DEBUG_MODE_IS_ON() (_event_debug_mode_on)
+#else
+#define EVENT_DEBUG_MODE_IS_ON() (0)
 #endif
 
 struct event_base {

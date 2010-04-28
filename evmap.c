@@ -264,6 +264,7 @@ evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	struct evmap_io *ctx = NULL;
 	int nread, nwrite, retval = 0;
 	short res = 0, old = 0;
+	struct event *old_ev;
 
 	EVUTIL_ASSERT(fd == ev->ev_fd);
 
@@ -298,6 +299,13 @@ evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 	if (EVUTIL_UNLIKELY(nread > 0xffff || nwrite > 0xffff)) {
 		event_warnx("Too many events reading or writing on fd %d",
 		    (int)fd);
+		return -1;
+	}
+	if (EVENT_DEBUG_MODE_IS_ON() &&
+	    (old_ev = TAILQ_FIRST(&ctx->events)) &&
+	    (old_ev->ev_events&EV_ET) != (ev->ev_events&EV_ET)) {
+		event_warnx("Tried to mix edge-triggered and non-edge-triggered"
+		    " events on fd %d", (int)fd);
 		return -1;
 	}
 

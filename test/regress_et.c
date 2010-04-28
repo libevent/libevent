@@ -149,7 +149,49 @@ test_edgetriggered(void *et)
 	evutil_closesocket(pair[1]);
 }
 
+static void
+test_edgetriggered_mix_error(void *data_)
+{
+	struct basic_test_data *data = data_;
+	struct event_base *base;
+	struct event *ev_et=NULL, *ev_lt=NULL;
+
+#ifdef _EVENT_DISABLE_DEBUG_MODE
+	if (1)
+		tt_skip();
+#endif
+
+	event_enable_debug_mode();
+
+	base = event_base_new();
+
+	/* try mixing edge-triggered and level-triggered to make sure it fails*/
+	ev_et = event_new(base, data->pair[0], EV_READ|EV_ET, read_cb, ev_et);
+	ev_lt = event_new(base, data->pair[0], EV_READ, read_cb, ev_lt);
+
+	/* Add edge-triggered, then level-triggered.  Get an error. */
+	tt_int_op(0, ==, event_add(ev_et, NULL));
+	tt_int_op(-1, ==, event_add(ev_lt, NULL));
+	tt_int_op(EV_READ, ==, event_pending(ev_et, EV_READ, NULL));
+	tt_int_op(0, ==, event_pending(ev_lt, EV_READ, NULL));
+
+	tt_int_op(0, ==, event_del(ev_et));
+	/* Add level-triggered, then edge-triggered.  Get an error. */
+	tt_int_op(0, ==, event_add(ev_lt, NULL));
+	tt_int_op(-1, ==, event_add(ev_et, NULL));
+	tt_int_op(EV_READ, ==, event_pending(ev_lt, EV_READ, NULL));
+	tt_int_op(0, ==, event_pending(ev_et, EV_READ, NULL));
+
+end:
+	if (ev_et)
+		event_free(ev_et);
+	if (ev_lt)
+		event_free(ev_lt);
+}
+
 struct testcase_t edgetriggered_testcases[] = {
 	{ "et", test_edgetriggered, TT_FORK, NULL, NULL },
+	{ "et_mix_error", test_edgetriggered_mix_error,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NO_LOGS, &basic_setup, NULL },
 	END_OF_TESTCASES
 };
