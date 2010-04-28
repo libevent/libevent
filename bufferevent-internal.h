@@ -352,15 +352,13 @@ int _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 /** Internal: Grab the lock (if any) on a bufferevent */
 #define BEV_LOCK(b) do {						\
 		struct bufferevent_private *locking =  BEV_UPCAST(b);	\
-		if (locking->lock)					\
-			EVLOCK_LOCK(locking->lock, 0);			\
+		EVLOCK_LOCK(locking->lock, 0);				\
 	} while (0)
 
 /** Internal: Release the lock (if any) on a bufferevent */
 #define BEV_UNLOCK(b) do {						\
 		struct bufferevent_private *locking =  BEV_UPCAST(b);	\
-		if (locking->lock)					\
-			EVLOCK_UNLOCK(locking->lock, 0);		\
+		EVLOCK_UNLOCK(locking->lock, 0);			\
 	} while (0)
 
 /* ==== For rate-limiting. */
