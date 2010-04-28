@@ -178,6 +178,8 @@ eq_debug_entry(const struct event_debug_entry *a,
 }
 
 int _event_debug_mode_on = 0;
+/* Set if it's too late to enable event_debug_mode. */
+static int event_debug_mode_too_late = 0;
 static void *_event_debug_map_lock = NULL;
 static HT_HEAD(event_debug_map, event_debug_entry) global_debug_map =
 	HT_INITIALIZER();
@@ -207,6 +209,7 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
+	event_debug_mode_too_late = 1;					\
 	} while (0)
 /* Macro: record that ev is no longer setup */
 #define _event_debug_note_teardown(ev) do {				\
@@ -219,6 +222,7 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 			mm_free(dent);					\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
+	event_debug_mode_too_late = 1;					\
 	} while (0)
 /* Macro: record that ev is now added */
 #define _event_debug_note_add(ev)	do {				\
@@ -236,6 +240,7 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
+	event_debug_mode_too_late = 1;					\
 	} while (0)
 /* Macro: record that ev is no longer added */
 #define _event_debug_note_del(ev) do {					\
@@ -253,6 +258,7 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
+	event_debug_mode_too_late = 1;					\
 	} while (0)
 /* Macro: assert that ev is setup (i.e., okay to add or inspect) */
 #define _event_debug_assert_is_setup(ev) do {				\
@@ -285,7 +291,6 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
 	} while (0)
-
 #else
 #define _event_debug_note_setup(ev) \
 	((void)0)
@@ -479,6 +484,9 @@ event_enable_debug_mode(void)
 #ifndef _EVENT_DISABLE_DEBUG_MODE
 	if (_event_debug_mode_on)
 		event_errx(1, "%s was called twice!", __func__);
+	if (event_debug_mode_too_late)
+		event_errx(1, "%s must be called *before* creating any events "
+		    "or event_bases",__func__);
 
 	_event_debug_mode_on = 1;
 
@@ -513,6 +521,7 @@ event_base_new_with_config(const struct event_config *cfg)
 	int should_check_environment;
 
 #ifndef _EVENT_DISABLE_DEBUG_MODE
+	event_debug_mode_too_late = 1;
 	if (_event_debug_mode_on && !_event_debug_map_lock) {
 		EVTHREAD_ALLOC_LOCK(_event_debug_map_lock, 0);
 	}
