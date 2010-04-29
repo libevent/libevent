@@ -1256,15 +1256,14 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 {
 	char *protocol;
 	char *number;
-	char *readable;
+	char *readable = "";
 
 	protocol = strsep(&line, " ");
 	if (line == NULL)
 		return (-1);
 	number = strsep(&line, " ");
-	if (line == NULL)
-		return (-1);
-	readable = line;
+	if (line != NULL)
+		readable = line;
 
 	if (strcmp(protocol, "HTTP/1.0") == 0) {
 		req->major = 1;
