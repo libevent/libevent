@@ -2361,7 +2361,7 @@ insert_common_timeout_inorder(struct common_timeout_list *ctl,
 	 * the end of 'ev' to find the right insertion point.
 	 */
 	TAILQ_FOREACH_REVERSE(e, &ctl->events,
-	    ev_timeout_pos.ev_next_with_common_timeout, event_list) {
+	    event_list, ev_timeout_pos.ev_next_with_common_timeout) {
 		/* This timercmp is a little sneaky, since both ev and e have
 		 * magic values in tv_usec.  Fortunately, they ought to have
 		 * the _same_ magic values in tv_usec.  Let's assert for that.
