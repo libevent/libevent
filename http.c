@@ -2335,7 +2335,7 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 
 		value = argument;
 		key = strsep(&value, "=");
-		if (value == NULL)
+		if (value == NULL || *key == '\0')
 			goto error;
 
 		if ((decoded_value = mm_malloc(strlen(value) + 1)) == NULL) {
