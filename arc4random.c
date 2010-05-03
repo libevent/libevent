@@ -201,6 +201,49 @@ arc4_seed_sysctl_linux(void)
 }
 #endif
 
+#ifdef __linux__
+#define TRY_SEED_PROC_SYS_KERNEL_RANDOM_UUID
+static int
+arc4_seed_proc_sys_kernel_random_uuid(void)
+{
+	/* Occasionally, somebody will make /proc/sys accessible in a chroot,
+	 * but not /dev/urandom.  Let's try /proc/sys/kernel/random/uuid.
+	 * Its format is stupid, so we need to decode it from hex.
+	 */
+	int fd;
+	char buf[128];
+	unsigned char entropy[64];
+	int bytes, n, i, nybbles;
+	for (bytes = 0; bytes<ADD_ENTROPY; ) {
+		fd = open("/proc/sys/kernel/random/uuid", O_RDONLY, 0);
+		if (fd < 0)
+			return -1;
+		n = read(fd, buf, sizeof(buf));
+		close(fd);
+		if (n<=0)
+			return -1;
+		memset(entropy, 0, sizeof(entropy));
+		for (i=nybbles=0; i<n; ++i) {
+			if (EVUTIL_ISXDIGIT(buf[i])) {
+				int nyb = evutil_hex_char_to_int(buf[i]);
+				if (nybbles & 1) {
+					entropy[nybbles/2] |= nyb;
+				} else {
+					entropy[nybbles/2] |= nyb<<4;
+				}
+				++nybbles;
+			}
+		}
+		if (nybbles < 2)
+			return -1;
+		arc4_addrandom(entropy, nybbles/2);
+		bytes += nybbles/2;
+	}
+	memset(entropy, 0, sizeof(entropy));
+	memset(buf, 0, sizeof(buf));
+	return 0;
+}
+
 #if _EVENT_HAVE_DECL_CTL_KERN && _EVENT_HAVE_DECL_KERN_ARND
 #define TRY_SEED_SYSCTL_BSD
 static int
@@ -284,16 +327,22 @@ arc4_seed(void)
 	if (0 == arc4_seed_win32())
 		ok = 1;
 #endif
+#ifdef TRY_SEED_URANDOM
+	if (0 == arc4_seed_urandom())
+		ok = 1;
+#endif
+#define TRY_SEED_PROC_SYS_KERNEL_RANDOM_UUID
+	if (0 == arc4_seed_proc_sys_kernel_random_uuid())
+		ok = 1;
+#endif
 #ifdef TRY_SEED_SYSCTL_LINUX
-	if (0 == arc4_seed_sysctl_linux())
+	/* Apparently Linux is deprecating sysctl, and spewing warning
+	 * messages when you try to use it. */
+	if (!ok && 0 == arc4_seed_sysctl_linux())
 		ok = 1;
 #endif
 #ifdef TRY_SEED_SYSCTL_BSD
 	if (0 == arc4_seed_sysctl_bsd())
-		ok = 1;
-#endif
-#ifdef TRY_SEED_URANDOM
-	if (0 == arc4_seed_urandom())
 		ok = 1;
 #endif
 	return ok ? 0 : -1;

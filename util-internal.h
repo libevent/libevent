@@ -223,6 +223,8 @@ const char *evutil_format_sockaddr_port(const struct sockaddr *sa, char *out, si
 
 long evutil_tv_to_msec(const struct timeval *tv);
 
+int evutil_hex_char_to_int(char c);
+
 #ifdef __cplusplus
 }
 #endif
