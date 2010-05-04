@@ -33,12 +33,19 @@ extern "C" {
 #endif
 
 #ifndef _EVENT_DISABLE_MM_REPLACEMENT
-/* Internal use only: Memory allocation functions. */
-void *mm_malloc(size_t sz);
-void *mm_calloc(size_t count, size_t size);
-char *mm_strdup(const char *s);
-void *mm_realloc(void *p, size_t sz);
-void mm_free(void *p);
+/* Internal use only: Memory allocation functions. We give them nice short
+ * mm_names for our own use, but make sure that the symbols have longer names
+ * so they don't conflict with other libraries (like, say, libmm). */
+void *event_mm_malloc_(size_t sz);
+void *event_mm_calloc_(size_t count, size_t size);
+char *event_mm_strdup_(const char *s);
+void *event_mm_realloc_(void *p, size_t sz);
+void event_mm_free_(void *p);
+#define mm_malloc(sz) event_mm_malloc_(sz)
+#define mm_calloc(count, size) event_mm_calloc_((count), (size))
+#define mm_strdup(s) event_mm_strdup_(s)
+#define mm_realloc(p, sz) event_mm_realloc_((p), (sz))
+#define mm_free(p) event_mm_free_(p)
 #else
 #define mm_malloc(sz) malloc(sz)
 #define mm_calloc(n, sz) calloc((n), (sz))

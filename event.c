@@ -2451,7 +2451,7 @@ static void *(*_mm_realloc_fn)(void *p, size_t sz) = NULL;
 static void (*_mm_free_fn)(void *p) = NULL;
 
 void *
-mm_malloc(size_t sz)
+event_mm_malloc_(size_t sz)
 {
 	if (_mm_malloc_fn)
 		return _mm_malloc_fn(sz);
@@ -2460,7 +2460,7 @@ mm_malloc(size_t sz)
 }
 
 void *
-mm_calloc(size_t count, size_t size)
+event_mm_calloc_(size_t count, size_t size)
 {
 	if (_mm_malloc_fn) {
 		size_t sz = count * size;
@@ -2473,7 +2473,7 @@ mm_calloc(size_t count, size_t size)
 }
 
 char *
-mm_strdup(const char *str)
+event_mm_strdup_(const char *str)
 {
 	if (_mm_malloc_fn) {
 		size_t ln = strlen(str);
@@ -2490,7 +2490,7 @@ mm_strdup(const char *str)
 }
 
 void *
-mm_realloc(void *ptr, size_t sz)
+event_mm_realloc_(void *ptr, size_t sz)
 {
 	if (_mm_realloc_fn)
 		return _mm_realloc_fn(ptr, sz);
@@ -2499,7 +2499,7 @@ mm_realloc(void *ptr, size_t sz)
 }
 
 void
-mm_free(void *ptr)
+event_mm_free_(void *ptr)
 {
 	if (_mm_free_fn)
 		_mm_free_fn(ptr);
