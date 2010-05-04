@@ -117,10 +117,12 @@ static const struct eventop *eventops[] = {
 };
 
 /* Global state; deprecated */
-struct event_base *current_base = NULL;
+struct event_base *event_global_current_base_ = NULL;
+#define current_base event_global_current_base_
+extern struct event_base *evsig_base;
 
 /* Global state */
-extern struct event_base *evsig_base;
+
 static int use_monotonic;
 
 /* Prototypes */

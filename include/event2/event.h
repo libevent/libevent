@@ -85,11 +85,9 @@ void event_debug_unassign(struct event *);
 /**
   Initialize the event API.
 
-  Use event_base_new() to initialize a new event base, but does not set
-  the current_base global.   If using only event_base_new(), each event
-  added must have an event base set with event_base_set()
+  Use event_base_new() to initialize a new event base.
 
-  @see event_base_set(), event_base_free(), event_init(),
+  @see event_base_set(), event_base_free(),
     event_base_new_with_config()
  */
 struct event_base *event_base_new(void);

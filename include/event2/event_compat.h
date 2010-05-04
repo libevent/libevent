@@ -53,8 +53,8 @@ extern "C" {
   Initialize the event API.
 
   The event API needs to be initialized with event_init() before it can be
-  used.  Sets the current_base global representing the default base for
-  events that have no base associated with them.
+  used.  Sets the global current base that gets used for events that have no
+  base associated with them.
 
   @deprecated This function is deprecated because it replaces the "current"
     event_base, and is totally unsafe for multithreaded use.  The replacement
