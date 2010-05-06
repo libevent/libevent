@@ -969,26 +969,37 @@ nil_accept_cb(struct evconnlistener *l, evutil_socket_t fd, struct sockaddr *s,
 	/* don't do anything with the socket; let it close when we exit() */
 }
 
+struct be_conn_hostname_result {
+	int dnserr;
+	int what;
+};
+
 /* Bufferevent event callback for the connect_hostname test: remembers what
  * event we got. */
 static void
 be_connect_hostname_event_cb(struct bufferevent *bev, short what, void *ctx)
 {
-	int *got = ctx;
-	if (!*got) {
+	struct be_conn_hostname_result *got = ctx;
+	if (!got->what) {
 		TT_BLATHER(("Got a bufferevent event %d", what));
-		*got = what;
+		got->what = what;
 
 		if ((what & BEV_EVENT_CONNECTED) || (what & BEV_EVENT_ERROR)) {
+			int r;
 			++total_connected_or_failed;
 			TT_BLATHER(("Got %d connections or errors.", total_connected_or_failed));
+			if ((r = bufferevent_socket_get_dns_error(bev))) {
+				got->dnserr = r;
+				TT_BLATHER(("DNS error %d: %s", r,
+					   evutil_gai_strerror(r)));
+			}
 			if (total_connected_or_failed >= 5)
 				event_base_loopexit(be_connect_hostname_base,
 				    NULL);
 		}
 	} else {
 		TT_FAIL(("Two events on one bufferevent. %d,%d",
-			(int)*got, (int)what));
+			got->what, (int)what));
 	}
 }
 
@@ -998,8 +1009,8 @@ test_bufferevent_connect_hostname(void *arg)
 	struct basic_test_data *data = arg;
 	struct evconnlistener *listener = NULL;
 	struct bufferevent *be1=NULL, *be2=NULL, *be3=NULL, *be4=NULL, *be5=NULL;
-	int be1_outcome=0, be2_outcome=0, be3_outcome=0, be4_outcome=0,
-	    be5_outcome=0;
+	struct be_conn_hostname_result be1_outcome={0,0}, be2_outcome={0,0},
+	       be3_outcome={0,0}, be4_outcome={0,0}, be5_outcome={0,0};
 	struct evdns_base *dns=NULL;
 	struct evdns_server_port *port=NULL;
 	evutil_socket_t server_fd=-1;
@@ -1072,11 +1083,16 @@ test_bufferevent_connect_hostname(void *arg)
 
 	event_base_dispatch(data->base);
 
-	tt_int_op(be1_outcome, ==, BEV_EVENT_ERROR);
-	tt_int_op(be2_outcome, ==, BEV_EVENT_CONNECTED);
-	tt_int_op(be3_outcome, ==, BEV_EVENT_CONNECTED);
-	tt_int_op(be4_outcome, ==, BEV_EVENT_CONNECTED);
-	tt_int_op(be5_outcome, ==, BEV_EVENT_ERROR);
+	tt_int_op(be1_outcome.what, ==, BEV_EVENT_ERROR);
+	tt_int_op(be1_outcome.dnserr, ==, EVUTIL_EAI_NONAME);
+	tt_int_op(be2_outcome.what, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be2_outcome.dnserr, ==, 0);
+	tt_int_op(be3_outcome.what, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be3_outcome.dnserr, ==, 0);
+	tt_int_op(be4_outcome.what, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be4_outcome.dnserr, ==, 0);
+	tt_int_op(be5_outcome.what, ==, BEV_EVENT_ERROR);
+	tt_int_op(be5_outcome.dnserr, ==, EVUTIL_EAI_NONAME);
 
 	tt_int_op(n_accept, ==, 3);
 	tt_int_op(n_dns, ==, 2);

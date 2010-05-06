@@ -165,6 +165,9 @@ struct bufferevent_private {
 	 * an events callback is pending. */
 	int errno_pending;
 
+	/** The DNS error code for bufferevent_socket_connect_hostname */
+	int dns_error;
+
 	/** Used to implement deferred callbacks */
 	struct deferred_cb deferred;
 

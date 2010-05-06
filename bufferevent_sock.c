@@ -431,6 +431,8 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
     void *arg)
 {
 	struct bufferevent *bev = arg;
+	struct bufferevent_private *bev_p =
+	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
 	int r;
 	BEV_LOCK(bev);
 
@@ -438,7 +440,7 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	bufferevent_unsuspend_read(bev, BEV_SUSPEND_LOOKUP);
 
 	if (result != 0) {
-		/* XXX Communicate the error somehow. */
+		bev_p->dns_error = result;
 		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
 		_bufferevent_decref_and_unlock(bev);
 		if (ai)
@@ -459,11 +461,17 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	char portbuf[10];
 	struct evutil_addrinfo hint;
 	int err;
+	struct bufferevent_private *bev_p =
+	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
 
 	if (family != AF_INET && family != AF_INET6 && family != AF_UNSPEC)
 		return -1;
 	if (port < 1 || port > 65535)
 		return -1;
+
+	BEV_LOCK(bev);
+	bev_p->dns_error = 0;
+	BEV_UNLOCK(bev);
 
 	evutil_snprintf(portbuf, sizeof(portbuf), "%d", port);
 
@@ -486,6 +494,20 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 		bufferevent_unsuspend_read(bev, BEV_SUSPEND_LOOKUP);
 		return -1;
 	}
+}
+
+int
+bufferevent_socket_get_dns_error(struct bufferevent *bev)
+{
+	int rv;
+	struct bufferevent_private *bev_p =
+	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+
+	BEV_LOCK(bev);
+	rv = bev_p->dns_error;
+	BEV_LOCK(bev);
+
+	return rv;
 }
 
 /*

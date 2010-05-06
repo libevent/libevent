@@ -192,6 +192,16 @@ int bufferevent_socket_connect_hostname(struct bufferevent *b,
     struct evdns_base *, int, const char *, int);
 
 /**
+   Return the error code for the last failed DNS lookup attempt made by
+   bufferevent_socket_connect_hostname().
+
+   @param bev The bufferevent object.
+   @return DNS error code.
+   @see evutil_gai_strerror()
+*/
+int bufferevent_socket_get_dns_error(struct bufferevent *bev);
+
+/**
   Assign a bufferevent to a specific event_base.
 
   @param base an event_base returned by event_init()
