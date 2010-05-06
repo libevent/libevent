@@ -47,7 +47,6 @@ PLATFORM_DEPENDENT_SRC = \
 	arc4random.c
 
 EXTRA_DIST = \
-	evdns.3 event.3 \
 	LICENSE \
 	autogen.sh \
 	libevent.pc.in \
@@ -167,8 +166,6 @@ include_HEADERS = event.h evhttp.h evdns.h evrpc.h evutil.h
 nodist_include_HEADERS = event-config.h
 
 INCLUDES = -I$(srcdir)/compat -I$(srcdir)/include $(SYS_INCLUDES)
-
-man_MANS = event.3 evdns.3
 
 verify: check
 
