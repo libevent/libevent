@@ -128,13 +128,19 @@ CORE_SRC = event.c evthread.c buffer.c \
 	evmap.c	log.c evutil.c evutil_rand.c strlcpy.c $(SYS_SRC)
 EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
 
+if BUILD_WIN32
+NO_UNDEFINED = -no-undefined
+else
+NO_UNDEFINED =
+endif
+
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
-libevent_la_LDFLAGS = -version-info $(VERSION_INFO) -no-undefined
+libevent_la_LDFLAGS = -version-info $(VERSION_INFO) $(NO_UNDEFINED)
 
 libevent_core_la_SOURCES = $(CORE_SRC)
 libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
-libevent_core_la_LDFLAGS = -version-info $(VERSION_INFO) -no-undefined
+libevent_core_la_LDFLAGS = -version-info $(VERSION_INFO) $(NO_UNDEFINED)
 
 if PTHREADS
 libevent_pthreads_la_SOURCES = evthread_pthread.c
@@ -142,12 +148,12 @@ endif
 
 libevent_extra_la_SOURCES = $(EXTRA_SRC)
 libevent_extra_la_LIBADD = libevent_core.la $(SYS_LIBS)
-libevent_extra_la_LDFLAGS = -version-info $(VERSION_INFO) -no-undefined
+libevent_extra_la_LDFLAGS = -version-info $(VERSION_INFO) $(NO_UNDEFINED)
 
 if OPENSSL
 libevent_openssl_la_SOURCES = bufferevent_openssl.c
 libevent_openssl_la_LIBADD = libevent_core.la -lcrypto -lssl
-libevent_openssl_la_LDFLAGS = -version-info $(VERSION_INFO) -no-undefined
+libevent_openssl_la_LDFLAGS = -version-info $(VERSION_INFO) $(NO_UNDEFINED)
 endif
 
 noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
