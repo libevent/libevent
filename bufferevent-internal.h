@@ -352,6 +352,10 @@ int _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
  * bufferevent_private. */
 #define BEV_UPCAST(b) EVUTIL_UPCAST((b), struct bufferevent_private, bev)
 
+#ifdef _EVENT_DISABLE_THREAD_SUPPORT
+#define BEV_LOCK(b) _EVUTIL_NIL_STMT
+#define BEV_UNLOCK(b) _EVUTIL_NIL_STMT
+#else
 /** Internal: Grab the lock (if any) on a bufferevent */
 #define BEV_LOCK(b) do {						\
 		struct bufferevent_private *locking =  BEV_UPCAST(b);	\
@@ -363,6 +367,8 @@ int _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 		struct bufferevent_private *locking =  BEV_UPCAST(b);	\
 		EVLOCK_UNLOCK(locking->lock, 0);			\
 	} while (0)
+#endif
+
 
 /* ==== For rate-limiting. */
 
