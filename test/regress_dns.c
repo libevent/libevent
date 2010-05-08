@@ -1011,6 +1011,7 @@ test_bufferevent_connect_hostname(void *arg)
 	struct bufferevent *be1=NULL, *be2=NULL, *be3=NULL, *be4=NULL, *be5=NULL;
 	struct be_conn_hostname_result be1_outcome={0,0}, be2_outcome={0,0},
 	       be3_outcome={0,0}, be4_outcome={0,0}, be5_outcome={0,0};
+	int expect_err5;
 	struct evdns_base *dns=NULL;
 	struct evdns_server_port *port=NULL;
 	evutil_socket_t server_fd=-1;
@@ -1080,6 +1081,18 @@ test_bufferevent_connect_hostname(void *arg)
 	/* Use the blocking resolver with a nonexistent hostname. */
 	tt_assert(!bufferevent_socket_connect_hostname(be5, NULL, AF_INET,
 		"nonesuch.nowhere.example.com", 80));
+	{
+		/* The blocking resolver will use the system nameserver, which
+		 * might tell us anything.  (Yes, some twits even pretend that
+		 * example.com is real.) Let's see what answer to expect. */
+		struct evutil_addrinfo hints, *ai = NULL;
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = PF_UNSPEC;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = IPPROTO_TCP;
+		expect_err5 = evutil_getaddrinfo(
+			"nonesuch.nowhere.example.com", "80", &hints, &ai);
+	}
 
 	event_base_dispatch(data->base);
 
@@ -1091,8 +1104,10 @@ test_bufferevent_connect_hostname(void *arg)
 	tt_int_op(be3_outcome.dnserr, ==, 0);
 	tt_int_op(be4_outcome.what, ==, BEV_EVENT_CONNECTED);
 	tt_int_op(be4_outcome.dnserr, ==, 0);
-	tt_int_op(be5_outcome.what, ==, BEV_EVENT_ERROR);
-	tt_int_op(be5_outcome.dnserr, ==, EVUTIL_EAI_NONAME);
+	if (expect_err5) {
+		tt_int_op(be5_outcome.what, ==, BEV_EVENT_ERROR);
+		tt_int_op(be5_outcome.dnserr, ==, expect_err5);
+	}
 
 	tt_int_op(n_accept, ==, 3);
 	tt_int_op(n_dns, ==, 2);
