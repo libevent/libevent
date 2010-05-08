@@ -63,6 +63,16 @@ main(int argc, char **argv)
 {
 	struct event ev;
 
+#ifdef WIN32
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	int	err;
+
+	wVersionRequested = MAKEWORD(2, 2);
+
+	err = WSAStartup(wVersionRequested, &wsaData);
+#endif
+
 #ifndef WIN32
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 		return (1);

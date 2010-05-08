@@ -30,7 +30,7 @@ static int
 rand_int(int n)
 {
 #ifdef WIN32
-	return (int)(rand() * n);
+	return (int)(rand() % n);
 #else
 	return (int)(random() % n);
 #endif
@@ -62,6 +62,15 @@ main(int argc, char **argv)
 {
 	struct timeval tv;
 	int i;
+#ifdef WIN32
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	int	err;
+
+	wVersionRequested = MAKEWORD(2, 2);
+
+	err = WSAStartup(wVersionRequested, &wsaData);
+#endif
 
 	/* Initalize the event library */
 	event_init();
