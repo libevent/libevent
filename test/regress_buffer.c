@@ -1538,13 +1538,11 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "peek", test_evbuffer_peek, 0, NULL, NULL },
 	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },
 	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
-#ifndef WIN32
 	/* TODO: need a temp file implementation for Windows */
 	{ "add_file_sendfile", test_evbuffer_add_file, TT_FORK, &nil_setup,
 	  (void*)"sendfile" },
 	{ "add_file_mmap", test_evbuffer_add_file, TT_FORK, &nil_setup,
 	  (void*)"mmap" },
-#endif
 	{ "add_file_linear", test_evbuffer_add_file, TT_FORK, &nil_setup,
 	  (void*)"linear" },
 
