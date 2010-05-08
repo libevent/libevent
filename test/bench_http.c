@@ -49,6 +49,10 @@
 #include <evhttp.h>
 #include <event2/thread.h>
 
+#ifdef WIN32
+#include "iocp-internal.h"
+#endif
+
 static void http_basic_cb(struct evhttp_request *req, void *arg);
 
 static char *content;
