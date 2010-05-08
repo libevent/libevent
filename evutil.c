@@ -1055,6 +1055,26 @@ apply_numeric_port_hack(int port, struct evutil_addrinfo **ai)
 		}
 	}
 }
+
+static void
+apply_socktype_protocol_hack(struct evutil_addrinfo *ai)
+{
+	struct evutil_addrinfo *ai_new;
+	for (; ai; ai = ai->ai_next) {
+		evutil_getaddrinfo_infer_protocols(ai);
+		if (ai->ai_socktype || ai->ai_protocol)
+			continue;
+		ai_new = mm_malloc(sizeof(*ai_new));
+		memcpy(ai_new, ai, sizeof(*ai_new));
+		ai->ai_socktype = SOCK_STREAM;
+		ai->ai_protocol = IPPROTO_TCP;
+		ai_new->ai_socktype = SOCK_DGRAM;
+		ai_new->ai_protocol = IPPROTO_UDP;
+	
+		ai_new->ai_next = ai->ai_next;
+		ai->ai_next = ai_new;
+	}
+}
 #endif
 
 int
@@ -1144,9 +1164,7 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 		apply_numeric_port_hack(portnum, res);
 
 	if (need_socktype_protocol_hack()) {
-		struct evutil_addrinfo *ai;
-		for (ai = *res; ai; ai = ai->ai_next)
-			evutil_getaddrinfo_infer_protocols(ai);
+		apply_socktype_protocol_hack(*res);
 	} 
 	return err;
 #else
