@@ -28,6 +28,8 @@
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
+#include <io.h>
+#include <fcntl.h>
 #endif
 
 #include "event-config.h"
@@ -43,7 +45,6 @@
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
-#include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
 #endif
@@ -125,8 +126,30 @@ regress_make_tmpfile(const void *data, size_t datalen)
 	unlink(tmpfilename);
 	return (fd);
 #else
-	/* we need a windows implementation here */
-	return (-1);
+	/* XXXX actually delete the file later */
+	char tmpfilepath[MAX_PATH];
+	char tmpfilename[MAX_PATH];
+	DWORD r, written;
+	int tries = 16;
+	HANDLE h;
+	r = GetTempPathA(MAX_PATH, tmpfilepath);
+	if (r > MAX_PATH || r == 0)
+		return (-1);
+	for (; tries > 0; --tries) {
+		r = GetTempFileNameA(tmpfilepath, "LIBEVENT", 0, tmpfilename);
+		if (r == 0)
+			return (-1);
+		h = CreateFileA(tmpfilename, GENERIC_READ|GENERIC_WRITE,
+		    0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (h != INVALID_HANDLE_VALUE)
+			break;
+	}
+	if (tries == 0)
+		return (-1);
+	written = 0;
+	WriteFile(h, data, datalen, &written, NULL);
+	/* Closing the fd returned by this function will indeed close h. */
+	return _open_osfhandle((intptr_t)h,_O_RDONLY);
 #endif
 }
 

@@ -583,7 +583,6 @@ test_evbuffer_reference(void *ptr)
 	evbuffer_free(src);
 }
 
-#ifndef WIN32
 int _evbuffer_testing_use_sendfile(void);
 int _evbuffer_testing_use_mmap(void);
 int _evbuffer_testing_use_linear_file_access(void);
@@ -643,7 +642,6 @@ test_evbuffer_add_file(void *ptr)
 	evutil_closesocket(pair[1]);
 	evbuffer_free(src);
 }
-#endif
 
 #ifndef _EVENT_DISABLE_MM_REPLACEMENT
 static void *
@@ -1544,9 +1542,9 @@ struct testcase_t evbuffer_testcases[] = {
 	  (void*)"sendfile" },
 	{ "add_file_mmap", test_evbuffer_add_file, TT_FORK, &nil_setup,
 	  (void*)"mmap" },
+#endif
 	{ "add_file_linear", test_evbuffer_add_file, TT_FORK, &nil_setup,
 	  (void*)"linear" },
-#endif
 
 	END_OF_TESTCASES
 };
