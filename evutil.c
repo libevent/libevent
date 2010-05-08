@@ -1070,7 +1070,7 @@ apply_socktype_protocol_hack(struct evutil_addrinfo *ai)
 		ai->ai_protocol = IPPROTO_TCP;
 		ai_new->ai_socktype = SOCK_DGRAM;
 		ai_new->ai_protocol = IPPROTO_UDP;
-	
+
 		ai_new->ai_next = ai->ai_next;
 		ai->ai_next = ai_new;
 	}
@@ -1165,7 +1165,7 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 
 	if (need_socktype_protocol_hack()) {
 		apply_socktype_protocol_hack(*res);
-	} 
+	}
 	return err;
 #else
 	int port=0, err;
@@ -1986,8 +1986,8 @@ evutil_sockaddr_is_loopback(const struct sockaddr *addr)
 }
 
 #define MAX_SECONDS_IN_MSEC_LONG \
-	(((LONG_MAX) - 999) / 1000) 
-                            
+	(((LONG_MAX) - 999) / 1000)
+
 long
 evutil_tv_to_msec(const struct timeval *tv)
 {
