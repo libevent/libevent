@@ -141,6 +141,13 @@ static int evbuffer_ptr_memcmp(const struct evbuffer *buf,
 static struct evbuffer_chain *evbuffer_expand_singlechain(struct evbuffer *buf,
     size_t datlen);
 
+#ifdef WIN32
+static int evbuffer_readfile(struct evbuffer *buf, evutil_socket_t fd,
+    int howmuch);
+#else
+#define evbuffer_readfile evbuffer_read
+#endif
+
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
 {
@@ -1998,6 +2005,56 @@ done:
 	return result;
 }
 
+#ifdef WIN32
+static int
+evbuffer_readfile(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
+{
+	int result;
+	int nchains, n;
+	struct evbuffer_iovec v[2];
+
+	EVBUFFER_LOCK(buf);
+
+	if (buf->freeze_end) {
+		result = -1;
+		goto done;
+	}
+
+	if (howmuch < 0)
+		howmuch = 16384;
+
+
+	/* XXX we _will_ waste some space here if there is any space left
+	 * over on buf->last. */
+	nchains = evbuffer_reserve_space(buf, howmuch, v, 2);
+        if (nchains < 1 || nchains > 2) {
+		result = -1;
+		goto done;
+	}
+	n = read(fd, v[0].iov_base, v[0].iov_len);
+	if (n <= 0) {
+		result = n;
+		goto done;
+	}
+	v[0].iov_len = n;
+	if (nchains > 1) {
+		n = read(fd, v[1].iov_base, v[1].iov_len);
+		if (n <= 0) {
+			result = v[0].iov_len;
+			evbuffer_commit_space(buf, v, 1);
+			goto done;
+		}
+		v[1].iov_len = n;
+	}
+	evbuffer_commit_space(buf, v, nchains);
+
+	result = n;
+done:
+	EVBUFFER_UNLOCK(buf);
+	return result;
+}
+#endif
+
 #ifdef USE_IOVEC_IMPL
 static inline int
 evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
@@ -2592,7 +2649,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		 * can abort without side effects if the read fails.
 		 */
 		while (length) {
-			read = evbuffer_read(tmp, fd, length);
+			read = evbuffer_readfile(tmp, fd, length);
 			if (read == -1) {
 				evbuffer_free(tmp);
 				return (-1);

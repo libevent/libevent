@@ -596,6 +596,8 @@ test_evbuffer_add_file(void *ptr)
 	const char *compare;
 	evutil_socket_t fd, pair[2];
 
+	/* Add a test for a big file. XXXX */
+
 	tt_assert(impl);
 	if (!strcmp(impl, "sendfile")) {
 		if (!_evbuffer_testing_use_sendfile())
