@@ -201,6 +201,47 @@ arc4_seed_sysctl_linux(void)
 }
 #endif
 
+#if _EVENT_HAVE_DECL_CTL_KERN && _EVENT_HAVE_DECL_KERN_ARND
+#define TRY_SEED_SYSCTL_BSD
+static int
+arc4_seed_sysctl_bsd(void)
+{
+	/* Based on code from William Ahern and from OpenBSD, this function
+	 * tries to use the KERN_ARND syscall to get entropy from the kernel.
+	 * This can work even if /dev/urandom is inaccessible for some reason
+	 * (e.g., we're running in a chroot). */
+	int mib[] = { CTL_KERN, KERN_ARND };
+	unsigned char buf[ADD_ENTROPY];
+	size_t len, n;
+	int i, any_set;
+
+	memset(buf, 0, sizeof(buf));
+
+	len = sizeof(buf);
+	if (sysctl(mib, 2, buf, &len, NULL, 0) == -1) {
+		for (len = 0; len < sizeof(buf); len += sizeof(unsigned)) {
+			n = sizeof(unsigned);
+			if (n + len > sizeof(buf))
+			    n = len - sizeof(buf);
+			if (sysctl(mib, 2, &buf[len], &n, NULL, 0) == -1)
+				return -1;
+		}
+	}
+	/* make sure that the buffer actually got set. */
+	for (i=any_set=0; i<sizeof(buf); ++i) {
+		any_set |= buf[i];
+	}
+	if (!any_set)
+		return -1;
+
+	arc4_addrandom(buf, sizeof(buf));
+	memset(buf, 0, sizeof(buf));
+	arc4_seeded_ok = 1;
+	return 0;
+}
+#endif
+#endif /* defined(_EVENT_HAVE_SYS_SYSCTL_H) */
+
 #ifdef __linux__
 #define TRY_SEED_PROC_SYS_KERNEL_RANDOM_UUID
 static int
@@ -243,47 +284,7 @@ arc4_seed_proc_sys_kernel_random_uuid(void)
 	memset(buf, 0, sizeof(buf));
 	return 0;
 }
-
-#if _EVENT_HAVE_DECL_CTL_KERN && _EVENT_HAVE_DECL_KERN_ARND
-#define TRY_SEED_SYSCTL_BSD
-static int
-arc4_seed_sysctl_bsd(void)
-{
-	/* Based on code from William Ahern and from OpenBSD, this function
-	 * tries to use the KERN_ARND syscall to get entropy from the kernel.
-	 * This can work even if /dev/urandom is inaccessible for some reason
-	 * (e.g., we're running in a chroot). */
-	int mib[] = { CTL_KERN, KERN_ARND };
-	unsigned char buf[ADD_ENTROPY];
-	size_t len, n;
-	int i, any_set;
-
-	memset(buf, 0, sizeof(buf));
-
-	len = sizeof(buf);
-	if (sysctl(mib, 2, buf, &len, NULL, 0) == -1) {
-		for (len = 0; len < sizeof(buf); len += sizeof(unsigned)) {
-			n = sizeof(unsigned);
-			if (n + len > sizeof(buf))
-			    n = len - sizeof(buf);
-			if (sysctl(mib, 2, &buf[len], &n, NULL, 0) == -1)
-				return -1;
-		}
-	}
-	/* make sure that the buffer actually got set. */
-	for (i=any_set=0; i<sizeof(buf); ++i) {
-		any_set |= buf[i];
-	}
-	if (!any_set)
-		return -1;
-
-	arc4_addrandom(buf, sizeof(buf));
-	memset(buf, 0, sizeof(buf));
-	arc4_seeded_ok = 1;
-	return 0;
-}
 #endif
-#endif /* defined(_EVENT_HAVE_SYS_SYSCTL_H) */
 
 #ifndef WIN32
 #define TRY_SEED_URANDOM
@@ -331,7 +332,7 @@ arc4_seed(void)
 	if (0 == arc4_seed_urandom())
 		ok = 1;
 #endif
-#define TRY_SEED_PROC_SYS_KERNEL_RANDOM_UUID
+#ifdef TRY_SEED_PROC_SYS_KERNEL_RANDOM_UUID
 	if (0 == arc4_seed_proc_sys_kernel_random_uuid())
 		ok = 1;
 #endif
