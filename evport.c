@@ -124,7 +124,8 @@ const struct eventop evportops = {
 	evport_dispatch,
 	evport_dealloc,
 	1, /* need reinit */
-	0
+	0, /* features */
+	0, /* fdinfo length */
 };
 
 /*

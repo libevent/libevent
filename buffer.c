@@ -615,7 +615,7 @@ evbuffer_commit_space(struct evbuffer *buf,
 		result = 0;
 		goto done;
 	} else if (n_vecs == 1 &&
-	    (buf->last && vec[0].iov_base == CHAIN_SPACE_PTR(buf->last))) {
+	    (buf->last && vec[0].iov_base == (void*)CHAIN_SPACE_PTR(buf->last))) {
 		/* The user only got or used one chain; it might not
 		 * be the first one with space in it. */
 		if (vec[0].iov_len > CHAIN_SPACE_LEN(buf->last))
@@ -641,7 +641,7 @@ evbuffer_commit_space(struct evbuffer *buf,
 	for (i=0; i<n_vecs; ++i) {
 		if (!chain)
 			goto done;
-		if (vec[i].iov_base != CHAIN_SPACE_PTR(chain) ||
+		if (vec[i].iov_base != (void*)CHAIN_SPACE_PTR(chain) ||
 		    vec[i].iov_len > CHAIN_SPACE_LEN(chain))
 			goto done;
 		chain = chain->next;
