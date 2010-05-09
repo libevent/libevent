@@ -20,7 +20,8 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 
 AC_PROG_GCC_TRADITIONAL
-if test "$GCC" = yes ; then
+
+if test "$GCC" = "yes" ; then
         # Enable many gcc warnings by default...
         CFLAGS="$CFLAGS -Wall"
 	# And disable the strict-aliasing optimization, since it breaks
@@ -515,11 +516,12 @@ AC_TRY_COMPILE([],
 
 # check if we can compile with pthreads
 have_pthreads=no
-if test x$bwin32 != xtrue; then
+if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
   ACX_PTHREAD([
 	AC_DEFINE(HAVE_PTHREADS, 1,
 		[Define if we have pthreads on this system])
 	have_pthreads=yes])
+  CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
 fi
 AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
 

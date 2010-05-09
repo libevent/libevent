@@ -27,8 +27,6 @@
 
 #include "event-config.h"
 
-#define _REENTRANT
-
 #ifdef _EVENT_HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif

@@ -26,7 +26,6 @@
 
 #include "event-config.h"
 
-#define _REENTRANT
 #define _GNU_SOURCE
 
 #ifdef WIN32
