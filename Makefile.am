@@ -33,7 +33,8 @@ ACLOCAL_AMFLAGS = -I m4
 #
 #      2:0:0 -- Libevent 2.0.1-alpha.
 #      3:0:0 -- Libevent 2.0.4-alpha
-VERSION_INFO = 3:0:0
+#      4:0:0 -- Libevent 2.0.5-beta
+VERSION_INFO = 4:0:0
 
 dist_bin_SCRIPTS = event_rpcgen.py
 
