@@ -137,6 +137,11 @@ extern "C" {
 #define ev_int8_t signed char
 #endif
 
+/* Some openbsd autoconf versions get the name of this macro wrong. */
+#if defined(_EVENT_SIZEOF_VOID__) && !defined(_EVENT_SIZEOF_VOID_P)
+#define _EVENT_SIZEOF_VOID_P _EVENT_SIZEOF_VOID__
+#endif
+
 #ifdef _EVENT_HAVE_UINTPTR_T
 #define ev_uintptr_t uintptr_t
 #define ev_intptr_t intptr_t
