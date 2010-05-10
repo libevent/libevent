@@ -6,6 +6,8 @@ AM_INIT_AUTOMAKE(libevent,1.4.13-stable-dev)
 AM_CONFIG_HEADER(config.h)
 dnl AM_MAINTAINER_MODE
 
+AC_CANONICAL_HOST
+
 AC_DEFINE(NUMERIC_VERSION, 0x01040d01, [Numeric representation of the version])
 
 dnl Initialize prefix.
@@ -25,6 +27,25 @@ if test "$GCC" = yes ; then
         # our sockaddr-handling code in strange ways.
         CFLAGS="$CFLAGS -fno-strict-aliasing"
 fi
+
+dnl Libevent 1.4 isn't multithreaded, but some of its functions are
+dnl documented to be reentrant.  If you don't define the right macros
+dnl on some platforms, you get non-reentrant versions of the libc
+dnl functinos (like an errno that's shared by all threads).
+AC_MSG_CHECKING([whether we need extra flags to make libc reentrant])
+case $host in
+   *solaris* | *-osf* | *-hpux* )
+     AC_MSG_RESULT([-D_REENTRANT])
+     CFLAGS="$CFLAGS -D_REENTRANT"
+     ;;
+   *-aix* | *-freebsd* | *-darwin* )
+     AC_MSG_RESULT([-D_THREAD_SAFE])
+     CFLAGS="$CFLAGS -D_THREAD_SAFE"
+     ;;
+   *)
+     AC_MSG_RESULT(no)
+     ;;
+esac
 
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--enable-gcc-warnings, enable verbose warnings with GCC))
