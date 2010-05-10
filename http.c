@@ -1230,7 +1230,7 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 {
 	char *protocol;
 	char *number;
-	char *readable = "";
+	const char *readable = "";
 
 	protocol = strsep(&line, " ");
 	if (line == NULL)
