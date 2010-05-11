@@ -74,80 +74,26 @@ evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 	}
 }
 
-#ifndef DISABLE_OBSOLETE_LOCK_API
-/* Obsolete: for compatibility only.  Remove these before 2.0.x-stable! */
-
-static void (*_obsolete_locking_fn)(int, void *) = NULL;
-static void *(*_obsolete_lock_alloc_fn)(void) = NULL;
-static void (*_obsolete_lock_free_fn)(void *) = NULL;
-
 static void
-api_warn(void)
+api_error(void)
 {
-	static int warned = 0;
-	if (!warned) {
-		warned = 1;
-		event_warnx("evthread_set_locking_callback and "
-		    "evthread_set_lock_create_callbacks are obsolete; use "
-		    "evthread_set_lock_callbacks instead.");
-	}
-}
-
-static void *
-compat_lock_alloc(unsigned locktype)
-{
-	if (_obsolete_lock_alloc_fn)
-		return _obsolete_lock_alloc_fn();
-	return NULL;
-}
-
-static void
-compat_lock_free(void *lock, unsigned locktype)
-{
-	if (_obsolete_lock_free_fn)
-		_obsolete_lock_free_fn(lock);
-}
-
-static int
-compat_lock_lock(unsigned mode, void *lock)
-{
-	_obsolete_locking_fn(EVTHREAD_LOCK|EVTHREAD_WRITE, lock);
-	return 0;
-}
-
-
-static int
-compat_lock_unlock(unsigned mode, void *lock)
-{
-	_obsolete_locking_fn(EVTHREAD_UNLOCK|EVTHREAD_WRITE, lock);
-	return 0;
+	event_errx(1, "evthread_set_locking_callback and "
+	    "evthread_set_lock_create_callbacks are obsolete; use "
+	    "evthread_set_lock_callbacks instead.");
 }
 
 void
 evthread_set_locking_callback(void (*locking_fn)(int mode, void *lock))
 {
-	api_warn();
-	if (locking_fn) {
-		_evthread_lock_fns.lock = compat_lock_lock;
-		_evthread_lock_fns.unlock = compat_lock_unlock;
-	} else {
-		_evthread_lock_fns.lock = NULL;
-		_evthread_lock_fns.unlock = NULL;
-	}
-	_obsolete_locking_fn = locking_fn;
+	api_error();
 }
 
 void
 evthread_set_lock_create_callbacks(void *(*alloc_fn)(void),
     void (*free_fn)(void *))
 {
-	api_warn();
-	_obsolete_lock_alloc_fn = alloc_fn;
-	_obsolete_lock_free_fn = free_fn;
-	_evthread_lock_fns.alloc = alloc_fn ? compat_lock_alloc : NULL;
-	_evthread_lock_fns.free = free_fn ? compat_lock_free : NULL;
+	api_error();
 }
-#endif
 
 struct debug_lock {
 	unsigned locktype;
