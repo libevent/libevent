@@ -401,7 +401,9 @@ sender_errorcb(struct bufferevent *bev, short what, void *ctx)
 	TT_FAIL(("Got sender error %d",(int)what));
 }
 
+static int bufferevent_connect_test_flags = 0;
 static int n_strings_read = 0;
+static int n_reads_invoked = 0;
 
 #define TEST_STR "Now is the time for all good events to signal for " \
 	"the good of their protocol"
@@ -413,7 +415,7 @@ listen_cb(struct evconnlistener *listener, evutil_socket_t fd,
 	struct bufferevent *bev;
 	const char s[] = TEST_STR;
 	TT_BLATHER(("Got a request on socket %d", (int)fd ));
-	bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+	bev = bufferevent_socket_new(base, fd, bufferevent_connect_test_flags);
 	tt_assert(bev);
 	bufferevent_write(bev, s, sizeof(s));
 	bufferevent_setcb(bev, NULL, sender_writecb, sender_errorcb, NULL);
@@ -448,6 +450,12 @@ end:
 }
 
 static void
+reader_readcb(struct bufferevent *bev, void *ctx)
+{
+	n_reads_invoked++;
+}
+
+static void
 test_bufferevent_connect(void *arg)
 {
 	struct basic_test_data *data = arg;
@@ -460,9 +468,13 @@ test_bufferevent_connect(void *arg)
 	if (strstr((char*)data->setup_data, "defer")) {
 		be_flags |= BEV_OPT_DEFER_CALLBACKS;
 	}
+	if (strstr((char*)data->setup_data, "unlocked")) {
+		be_flags |= BEV_OPT_UNLOCK_CALLBACKS;
+	}
 	if (strstr((char*)data->setup_data, "lock")) {
 		be_flags |= BEV_OPT_THREADSAFE;
 	}
+	bufferevent_connect_test_flags = be_flags;
 #ifdef WIN32
 	if (!strcmp((char*)data->setup_data, "unset_connectex")) {
 		struct win32_extension_fns *ext =
@@ -487,8 +499,8 @@ test_bufferevent_connect(void *arg)
 	bev2 = bufferevent_socket_new(data->base, -1, be_flags);
 	tt_assert(bev1);
 	tt_assert(bev2);
-	bufferevent_setcb(bev1, NULL, NULL, reader_eventcb, data->base);
-	bufferevent_setcb(bev2, NULL, NULL, reader_eventcb, data->base);
+	bufferevent_setcb(bev1, reader_readcb,NULL, reader_eventcb, data->base);
+	bufferevent_setcb(bev2, reader_readcb,NULL, reader_eventcb, data->base);
 
 	bufferevent_enable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
@@ -506,6 +518,7 @@ test_bufferevent_connect(void *arg)
 	event_base_dispatch(data->base);
 
 	tt_int_op(n_strings_read, ==, 2);
+	tt_int_op(n_reads_invoked, >=, 2);
 end:
 	if (lev)
 		evconnlistener_free(lev);
@@ -771,6 +784,9 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_connect_lock_defer", test_bufferevent_connect,
 	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup,
 	  (void*)"defer lock" },
+	{ "bufferevent_connect_unlocked_cbs", test_bufferevent_connect,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup,
+	  (void*)"lock defer unlocked" },
 	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "bufferevent_timeout", test_bufferevent_timeouts,
