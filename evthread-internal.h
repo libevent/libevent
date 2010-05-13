@@ -43,10 +43,6 @@ extern struct evthread_lock_callbacks _evthread_lock_fns;
 extern unsigned long (*_evthread_id_fn)(void);
 extern int _evthread_lock_debugging_enabled;
 
-/** True iff the given event_base is set up to use locking */
-#define EVBASE_USING_LOCKS(base)			\
-	(base != NULL && (base)->th_base_lock != NULL)
-
 /** Return the ID of the current thread, or 1 if threading isn't enabled. */
 #define EVTHREAD_GET_ID() \
 	(_evthread_id_fn ? _evthread_id_fn() : 1)
@@ -122,14 +118,12 @@ extern int _evthread_lock_debugging_enabled;
 /** Lock an event_base, if it is set up for locking.  Acquires the lock
     in the base structure whose field is named 'lockvar'. */
 #define EVBASE_ACQUIRE_LOCK(base, lockvar) do {				\
-		if (EVBASE_USING_LOCKS(base))				\
-			_evthread_lock_fns.lock(0, (base)->lockvar);	\
+		EVLOCK_LOCK((base)->lockvar, 0);			\
 	} while (0)
 
 /** Unlock an event_base, if it is set up for locking. */
 #define EVBASE_RELEASE_LOCK(base, lockvar) do {				\
-		if (EVBASE_USING_LOCKS(base))				\
-			_evthread_lock_fns.unlock(0, (base)->lockvar);	\
+		EVLOCK_UNLOCK((base)->lockvar, 0);			\
 	} while (0)
 
 /** If lock debugging is enabled, and lock is non-null, assert that 'lock' is
