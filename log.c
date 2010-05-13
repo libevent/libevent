@@ -59,6 +59,7 @@
 static void _warn_helper(int severity, const char *errstr, const char *fmt,
     va_list ap);
 static void event_log(int severity, const char *msg);
+static void event_exit(int errcode) EV_NORETURN;
 
 static event_fatal_cb fatal_fn = NULL;
 
@@ -71,9 +72,10 @@ event_set_fatal_callback(event_fatal_cb cb)
 static void
 event_exit(int errcode)
 {
-	if (fatal_fn)
+	if (fatal_fn) {
 		fatal_fn(errcode);
-	else if (errcode == _EVENT_ERR_ABORT)
+		exit(errcode); /* should never be reached */
+	} else if (errcode == _EVENT_ERR_ABORT)
 		abort();
 	else
 		exit(errcode);

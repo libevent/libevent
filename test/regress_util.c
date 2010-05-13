@@ -423,14 +423,67 @@ logfn(int severity, const char *msg)
 		logmsg = strdup(msg);
 }
 
-static int exited = 0;
-static int exitcode = 0;
+static int fatal_want_severity = 0;
+static const char *fatal_want_message = NULL;
 static void
-fatalfn(int c)
+fatalfn(int exitcode)
 {
-	exited = 1;
-	exitcode = c;
+	if (logsev != fatal_want_severity ||
+	    !logmsg ||
+	    strcmp(logmsg, fatal_want_message))
+		exit(0);
+	else
+		exit(exitcode);
 }
+
+#ifndef WIN32
+#define CAN_CHECK_ERR
+static void
+check_error_logging(void (*fn)(void), int wantexitcode,
+    int wantseverity, const char *wantmsg)
+{
+	pid_t pid;
+	int status = 0, exitcode;
+	fatal_want_severity = wantseverity;
+	fatal_want_message = wantmsg;
+	if ((pid = fork()) == 0) {
+		/* child process */
+		fn();
+		exit(0); /* should be unreachable. */
+	} else {
+		wait(&status);
+		exitcode = WEXITSTATUS(status);
+		tt_int_op(wantexitcode, ==, exitcode);
+	}
+end:
+	;
+}
+
+static void
+errx_fn(void)
+{
+	event_errx(2, "Fatal error; too many kumquats (%d)", 5);
+}
+
+static void
+err_fn(void)
+{
+	errno = ENOENT;
+	event_err(5,"Couldn't open %s", "/very/bad/file");
+}
+
+static void
+sock_err_fn(void)
+{
+	evutil_socket_t fd = socket(AF_INET, SOCK_STREAM, 0);
+#ifdef WIN32
+	EVUTIL_SET_SOCKET_ERROR(WSAEWOULDBLOCK);
+#else
+	errno = EAGAIN;
+#endif
+	event_sock_err(20, fd, "Unhappy socket");
+}
+#endif
 
 static void
 test_evutil_log(void *ptr)
@@ -441,7 +494,7 @@ test_evutil_log(void *ptr)
 	event_set_log_callback(logfn);
 	event_set_fatal_callback(fatalfn);
 #define RESET() do {				\
-		logsev = exited = exitcode = 0;	\
+		logsev = 0;	\
 		if (logmsg) free(logmsg);	\
 		logmsg = NULL;			\
 	} while (0)
@@ -451,19 +504,22 @@ test_evutil_log(void *ptr)
 		tt_str_op(logmsg,==,msg);	\
 	} while (0)
 
-	event_errx(2, "Fatal error; too many kumquats (%d)", 5);
-	LOGEQ(_EVENT_LOG_ERR, "Fatal error; too many kumquats (5)");
-	tt_int_op(exitcode,==,2);
+#ifdef CAN_CHECK_ERR
+	/* We need to disable these tests for now.  Previously, the logging
+	 * module didn't enforce the requirement that a fatal callback
+	 * actually exit.  Now, it exits no matter what, so if we wan to
+	 * reinstate these tests, we'll need to fork for each one. */
+	check_error_logging(errx_fn, 2, _EVENT_LOG_ERR,
+	    "Fatal error; too many kumquats (5)");
 	RESET();
+#endif
 
 	event_warnx("Far too many %s (%d)", "wombats", 99);
 	LOGEQ(_EVENT_LOG_WARN, "Far too many wombats (99)");
-	tt_int_op(exited,==,0);
 	RESET();
 
 	event_msgx("Connecting lime to coconut");
 	LOGEQ(_EVENT_LOG_MSG, "Connecting lime to coconut");
-	tt_int_op(exited,==,0);
 	RESET();
 
 	event_debug(("A millisecond passed!  We should log that!"));
@@ -481,16 +537,14 @@ test_evutil_log(void *ptr)
 	evutil_snprintf(buf, sizeof(buf),
 	    "Couldn't open /bad/file: %s",strerror(ENOENT));
 	LOGEQ(_EVENT_LOG_WARN,buf);
-	tt_int_op(exited, ==, 0);
 	RESET();
 
-	errno = ENOENT;
-	event_err(5,"Couldn't open %s", "/very/bad/file");
+#ifdef CAN_CHECK_ERR
 	evutil_snprintf(buf, sizeof(buf),
 	    "Couldn't open /very/bad/file: %s",strerror(ENOENT));
-	LOGEQ(_EVENT_LOG_ERR,buf);
-	tt_int_op(exitcode, ==, 5);
+	check_error_logging(err_fn, 5, _EVENT_LOG_ERR, buf);
 	RESET();
+#endif
 
 	/* Try with a socket errno. */
 	fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -506,18 +560,12 @@ test_evutil_log(void *ptr)
 #endif
 	event_sock_warn(fd, "Unhappy socket");
 	LOGEQ(_EVENT_LOG_WARN, buf);
-	tt_int_op(exited,==,0);
 	RESET();
 
-#ifdef WIN32
-	EVUTIL_SET_SOCKET_ERROR(WSAEWOULDBLOCK);
-#else
-	errno = EAGAIN;
-#endif
-	event_sock_err(200, fd, "Unhappy socket");
-	LOGEQ(_EVENT_LOG_ERR, buf);
-	tt_int_op(exitcode,==,200);
+#ifdef CAN_CHECK_ERR
+	check_error_logging(sock_err_fn, 20, _EVENT_LOG_ERR, buf);
 	RESET();
+#endif
 
 #undef RESET
 #undef LOGEQ
