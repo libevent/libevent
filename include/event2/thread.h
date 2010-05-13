@@ -59,12 +59,6 @@ extern "C" {
 
 #include <event-config.h>
 
-/** A flag passed to an obsolete locking callback to indicate that this call
- * is for acquiring a lock. */
-#define EVTHREAD_LOCK	0x01
-/** A flag passed to an obsolete locking callback to indicate that this call
- * is for releasing a lock. */
-#define EVTHREAD_UNLOCK	0x02
 /** A flag passed to a locking callback when the lock was allocated as a
  * read-write lock, and we want to acquire or release the lock for writing. */
 #define EVTHREAD_WRITE	0x04
