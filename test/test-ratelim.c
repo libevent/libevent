@@ -120,6 +120,22 @@ echo_readcb(struct bufferevent *bev, void *ctx)
 }
 
 static void
+echo_writecb(struct bufferevent *bev, void *ctx)
+{
+	struct evbuffer *output = bufferevent_get_output(bev);
+	if (evbuffer_get_length(output) < 512000)
+		bufferevent_enable(bev, EV_READ);
+}
+
+static void
+echo_eventcb(struct bufferevent *bev, short what, void *ctx)
+{
+	if (what & (BEV_EVENT_EOF|BEV_EVENT_ERROR)) {
+		bufferevent_free(bev);
+	}
+}
+
+static void
 echo_listenercb(struct evconnlistener *listener, evutil_socket_t newsock,
     struct sockaddr *sourceaddr, int socklen, void *ctx)
 {
@@ -128,7 +144,7 @@ echo_listenercb(struct evconnlistener *listener, evutil_socket_t newsock,
 	struct bufferevent *bev;
 
 	bev = bufferevent_socket_new(base, newsock, flags);
-	bufferevent_setcb(bev, echo_readcb, NULL, NULL, NULL);
+	bufferevent_setcb(bev, echo_readcb, echo_writecb, echo_eventcb, NULL);
 	if (conn_bucket_cfg)
 		bufferevent_set_rate_limit(bev, conn_bucket_cfg);
 	if (ratelim_group)
@@ -225,6 +241,19 @@ test_ratelimiting(void)
 	event_base_loopexit(base, &tv);
 
 	event_base_dispatch(base);
+
+	for (i = 0; i < cfg_n_connections; ++i)
+		bufferevent_free(bevs[i]);
+	evconnlistener_free(listener);
+
+	/* This should get _everybody_ freed */
+	tv.tv_sec = 0;
+	tv.tv_usec = 300000;
+	event_base_loopexit(base, &tv);
+	event_base_dispatch(base);
+
+	if (ratelim_group)
+		bufferevent_rate_limit_group_free(ratelim_group);
 
 	total_received = 0;
 	total_persec = 0.0;
@@ -350,7 +379,10 @@ main(int argc, char **argv)
 	err = WSAStartup(wVersionRequested, &wsaData);
 #endif
 
-
+#ifndef WIN32
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		return 1;
+#endif
 	for (i = 1; i < argc; ++i) {
 		for (j = 0; options[j].name; ++j) {
 			if (!strcmp(argv[i],options[j].name)) {
