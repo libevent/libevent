@@ -249,9 +249,9 @@ evhttp_htmlescape(const char *html)
 	}
 	for (i = 0; i < old_size; ++i) {
 		const char *replaced = html_replace(html[i], scratch_space);
-		/* this is length checked */
-		strcpy(p, replaced);
-		p += strlen(replaced);
+		size_t len = strlen(replaced);
+		memcpy(p, replaced, len);
+		p += len;
 	}
 
 	*p = '\0';
