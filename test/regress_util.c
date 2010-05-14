@@ -42,6 +42,9 @@
 #ifdef _EVENT_HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
+#ifdef _EVENT_HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>

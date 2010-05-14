@@ -89,7 +89,7 @@ fi
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in.h netinet/in6.h sys/socket.h sys/uio.h arpa/inet.h sys/eventfd.h sys/mman.h sys/sendfile.h netdb.h)
+AC_CHECK_HEADERS(fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in.h netinet/in6.h sys/socket.h sys/uio.h arpa/inet.h sys/eventfd.h sys/mman.h sys/sendfile.h sys/wait.h netdb.h)
 AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
