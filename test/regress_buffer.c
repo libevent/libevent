@@ -595,7 +595,7 @@ test_evbuffer_add_file(void *ptr)
 	const char *data = "this is what we add as file system data.";
 	size_t datalen;
 	const char *compare;
-	evutil_socket_t fd, pair[2];
+	evutil_socket_t fd = -1, pair[2] = {-1, -1};
 	int r=0, n_written=0;
 
 	/* Add a test for a big file. XXXX */
@@ -647,8 +647,10 @@ test_evbuffer_add_file(void *ptr)
 
 	evbuffer_validate(src);
  end:
-	evutil_closesocket(pair[0]);
-	evutil_closesocket(pair[1]);
+	if (pair[0] >= 0)
+		evutil_closesocket(pair[0]);
+	if (pair[1] >= 0)
+		evutil_closesocket(pair[1]);
 	evbuffer_free(src);
 }
 
