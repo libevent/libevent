@@ -550,7 +550,6 @@ struct evutil_addrinfo *
 evutil_new_addrinfo(struct sockaddr *sa, ev_socklen_t socklen,
     const struct evutil_addrinfo *hints)
 {
-	size_t extra;
 	struct evutil_addrinfo *res;
 	EVUTIL_ASSERT(hints);
 
@@ -574,8 +573,6 @@ evutil_new_addrinfo(struct sockaddr *sa, ev_socklen_t socklen,
 	}
 
 	/* We're going to allocate extra space to hold the sockaddr. */
-	extra = (hints->ai_family == PF_INET) ? sizeof(struct sockaddr_in) :
-	    sizeof(struct sockaddr_in6);
 	res = mm_calloc(1,sizeof(struct evutil_addrinfo)+socklen);
 	if (!res)
 		return NULL;
