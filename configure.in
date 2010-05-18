@@ -565,6 +565,11 @@ if test x$enable_gcc_warnings = xyes; then
 #error
 #endif]), have_gcc42=yes, have_gcc42=no)
 
+  AC_COMPILE_IFELSE(AC_LANG_PROGRAM([], [
+#if !defined(__GNUC__) || (__GNUC__ < 4) || (__GNUC__ == 4 && __GNUC_MINOR__ < 5)
+#error
+#endif]), have_gcc45=yes, have_gcc45=no)
+
   CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch-enum -Werror"
   CFLAGS="$CFLAGS -Wno-unused-parameter -Wno-sign-compare -Wstrict-aliasing"
 
@@ -579,6 +584,10 @@ if test x$enable_gcc_warnings = xyes; then
     CFLAGS="$CFLAGS -Waddress -Wnormalized=id -Woverride-init"
   fi
 
+  if test x$have_gcc45 = xyes ; then
+    # These warnings work on gcc 4.5
+    CFLAGS="$CFLAGS -Wlogical-op"
+  fi
 ##This will break the world on some 64-bit architectures
 # CFLAGS="$CFLAGS -Winline"
 
