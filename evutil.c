@@ -492,7 +492,7 @@ evutil_check_interfaces(int force_recheck)
 		/* We might have an IPv4 interface. */
 		ev_uint32_t addr = ntohl(sin_out.sin_addr.s_addr);
 		if (addr == 0 || (addr&0xff000000) == 127 ||
-		    (addr && 0xff) == 255 || (addr & 0xf0) == 14) {
+		    (addr & 0xff) == 255 || (addr & 0xf0) == 14) {
 			evutil_inet_ntop(AF_INET, &sin_out.sin_addr,
 			    buf, sizeof(buf));
 			/* This is a reserved, ipv4compat, ipv4map, loopback,
