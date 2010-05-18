@@ -2692,8 +2692,12 @@ evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags,
 		if (req)
 			request_submit(req);
 	} else {
-		req = search_request_new(base, handle, TYPE_A, name, flags,
-					 callback, ptr);
+		search_request_new(base, handle, TYPE_A, name, flags,
+		    callback, ptr);
+	}
+	if (handle->current_req == NULL) {
+		mm_free(handle);
+		handle = NULL;
 	}
 	EVDNS_UNLOCK(base);
 	return handle;
@@ -2726,8 +2730,12 @@ evdns_base_resolve_ipv6(struct evdns_base *base,
 		if (req)
 			request_submit(req);
 	} else {
-		req = search_request_new(base, handle, TYPE_AAAA, name, flags,
-					 callback, ptr);
+		search_request_new(base, handle, TYPE_AAAA, name, flags,
+		    callback, ptr);
+	}
+	if (handle->current_req == NULL) {
+		mm_free(handle);
+		handle = NULL;
 	}
 	EVDNS_UNLOCK(base);
 	return handle;
@@ -2760,6 +2768,10 @@ evdns_base_resolve_reverse(struct evdns_base *base, const struct in_addr *in, in
 	req = request_new(base, handle, TYPE_PTR, buf, flags, callback, ptr);
 	if (req)
 		request_submit(req);
+	if (handle->current_req == NULL) {
+		mm_free(handle);
+		handle = NULL;
+	}
 	EVDNS_UNLOCK(base);
 	return (handle);
 }
@@ -2796,6 +2808,10 @@ evdns_base_resolve_reverse_ipv6(struct evdns_base *base, const struct in6_addr *
 	req = request_new(base, handle, TYPE_PTR, buf, flags, callback, ptr);
 	if (req)
 		request_submit(req);
+	if (handle->current_req == NULL) {
+		mm_free(handle);
+		handle = NULL;
+	}
 	EVDNS_UNLOCK(base);
 	return (handle);
 }
