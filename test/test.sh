@@ -83,7 +83,13 @@ run_tests () {
 		FAILED=yes
 	fi
 	announce_n " regress: "
-	if $TEST_DIR/regress >>"$TEST_OUTPUT_FILE" ;
+	if test "$TEST_OUTPUT_FILE" = "/dev/null" ;
+	then
+		$TEST_DIR/regress --quiet
+	else
+		$TEST_DIR/regress >>"$TEST_OUTPUT_FILE"
+	fi
+	if test "$?" = "0" ;
 	then
 		announce OKAY ;
 	else
