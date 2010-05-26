@@ -836,7 +836,6 @@ test_immediatesignal(void)
 	struct event ev;
 
 	test_ok = 0;
-	printf("Immediate signal: ");
 	evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
 	evsignal_add(&ev, NULL);
 	raise(SIGUSR1);
@@ -851,7 +850,6 @@ test_signal_dealloc(void)
 	/* make sure that evsignal_event is event_del'ed and pipe closed */
 	struct event ev;
 	struct event_base *base = event_init();
-	printf("Signal dealloc: ");
 	evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
 	evsignal_add(&ev, NULL);
 	evsignal_del(&ev);
@@ -868,7 +866,6 @@ test_signal_pipeloss(void)
 	struct event_base *base1, *base2;
 	int pipe1;
 	test_ok = 0;
-	printf("Signal pipeloss: ");
 	base1 = event_init();
 	pipe1 = base1->sig.ev_signal_pair[0];
 	base2 = event_init();
@@ -896,7 +893,6 @@ test_signal_switchbase(void)
 	struct event_base *base1, *base2;
 	int is_kqueue;
 	test_ok = 0;
-	printf("Signal switchbase: ");
 	base1 = event_init();
 	base2 = event_init();
 	is_kqueue = !strcmp(event_get_method(),"kqueue");
@@ -948,7 +944,6 @@ test_signal_assert(void)
 	struct event ev;
 	struct event_base *base = event_init();
 	test_ok = 0;
-	printf("Signal handler assert: ");
 	/* use SIGCONT so we don't kill ourselves when we signal to nowhere */
 	evsignal_set(&ev, SIGCONT, signal_cb, &ev);
 	evsignal_add(&ev, NULL);
@@ -983,7 +978,6 @@ test_signal_restore(void)
 #endif
 
 	test_ok = 0;
-	printf("Signal handler restore: ");
 #ifdef _EVENT_HAVE_SIGACTION
 	sa.sa_handler = signal_cb_sa;
 	sa.sa_flags = 0x0;
