@@ -249,7 +249,8 @@ void evhttp_set_timeout(struct evhttp *http, int timeout_in_secs);
  *
  * @param req a request object
  * @param error the HTTP error code
- * @param reason a brief explanation of the error
+ * @param reason a brief explanation of the error.  If this is NULL, we'll
+ *    just use the standard meaning of the error code.
  */
 void evhttp_send_error(struct evhttp_request *req, int error,
     const char *reason);
