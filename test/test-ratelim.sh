@@ -1,5 +1,7 @@
 #!/bin/sh
 
+FAILED=no
+
 if test "x$TEST_OUTPUT_FILE" = "x"
 then
 	TEST_OUTPUT_FILE=/dev/null
@@ -44,6 +46,7 @@ run_tests () {
 		announce OKAY
 	else
 		announce FAILED
+		FAILED=yes
 	fi
 
 	announce_n "  Connection limit, no group limit:"
@@ -52,6 +55,7 @@ run_tests () {
 		announce OKAY ;
 	else
 		announce FAILED ;
+		FAILED=yes
 	fi
 
 	announce_n "  Connection limit and group limit:"
@@ -60,9 +64,14 @@ run_tests () {
 		announce OKAY ;
 	else
 		announce FAILED ;
+		FAILED=yes
 	fi
 }
 
 announce "Running rate-limiting tests:"
 
 run_tests
+
+if test "$FAILED" = "yes"; then
+	exit 1
+fi

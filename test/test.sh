@@ -1,5 +1,7 @@
 #!/bin/sh
 
+FAILED=no
+
 if test "x$TEST_OUTPUT_FILE" = "x"
 then
 	TEST_OUTPUT_FILE=/dev/null
@@ -62,6 +64,7 @@ run_tests () {
 		announce OKAY ;
 	else
 		announce FAILED ;
+		FAILED=yes
 	fi
 	announce_n " test-weof: "
 	if $TEST_DIR/test-weof >>"$TEST_OUTPUT_FILE" ;
@@ -69,6 +72,7 @@ run_tests () {
 		announce OKAY ;
 	else
 		announce FAILED ;
+		FAILED=yes
 	fi
 	announce_n " test-time: "
 	if $TEST_DIR/test-time >>"$TEST_OUTPUT_FILE" ;
@@ -76,6 +80,7 @@ run_tests () {
 		announce OKAY ;
 	else
 		announce FAILED ;
+		FAILED=yes
 	fi
 	announce_n " regress: "
 	if $TEST_DIR/regress >>"$TEST_OUTPUT_FILE" ;
@@ -83,6 +88,7 @@ run_tests () {
 		announce OKAY ;
 	else
 		announce FAILED ;
+		FAILED=yes
 	fi
 }
 
@@ -123,3 +129,7 @@ setup
 unset EVENT_NOWIN32
 announce "WIN32"
 run_tests
+
+if test "$FAILED" = "yes"; then
+	exit 1
+fi
