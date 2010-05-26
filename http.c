@@ -2520,7 +2520,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	req->userdone = 0;
 
 	if (req->uri == NULL) {
-		evhttp_send_error(req, HTTP_BADREQUEST, "Bad Request");
+		evhttp_send_error(req, HTTP_BADREQUEST, NULL);
 		return;
 	}
 

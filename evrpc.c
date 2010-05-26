@@ -324,7 +324,7 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 error:
 	if (rpc_state != NULL)
 		evrpc_reqstate_free(rpc_state);
-	evhttp_send_error(req, HTTP_SERVUNAVAIL, "Service Error");
+	evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
 	return;
 }
 
@@ -363,7 +363,7 @@ evrpc_request_cb_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 error:
 	if (rpc_state != NULL)
 		evrpc_reqstate_free(rpc_state);
-	evhttp_send_error(req, HTTP_SERVUNAVAIL, "Service Error");
+	evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
 	return;
 }
 
@@ -440,7 +440,7 @@ evrpc_request_done(struct evrpc_req_generic *rpc_state)
 error:
 	if (rpc_state != NULL)
 		evrpc_reqstate_free(rpc_state);
-	evhttp_send_error(req, HTTP_SERVUNAVAIL, "Service Error");
+	evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
 	return;
 }
 
@@ -479,7 +479,7 @@ evrpc_request_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 error:
 	if (rpc_state != NULL)
 		evrpc_reqstate_free(rpc_state);
-	evhttp_send_error(req, HTTP_SERVUNAVAIL, "Service Error");
+	evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
 	return;
 }
 
