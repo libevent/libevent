@@ -1,3 +1,30 @@
+Changes in 1.4.14-stable
+ o Add a .gitignore file for the 1.4 branch. (d014edb)
+ o Backport evbuffer_readln(). (b04cc60 Nicholas Marriott)
+ o Make the evbuffer_readln backport follow the current API (c545485)
+ o Valgrind fix: Clear struct kevent before checking for OSX bug. (5713d5d William Ahern)
+ o Fix a crash when reading badly formatted resolve.conf (5b10d00 Yasuoka Masahiko)
+ o Fix memory-leak of signal handler array with kqueue. [backport] (01f3775)
+ o Update sample/signal-test.c to use newer APIs and not leak. (891765c Evan Jones)
+ o Correct all versions in 1.4 branch (ac0d213)
+ o Make evutil_make_socket_nonblocking() leave any other flags alone. (81c26ba Jardel Weyrich)
+ o Adjusted fcntl() retval comparison on evutil_make_socket_nonblocking(). (5f2e250 Jardel Weyrich)
+ o Correct a debug message in evhttp_parse_request_line (35df59e)
+ o Merge branch 'readln-backport' into patches-1.4 (8771d5b)
+ o Do not send an HTTP error when we've already closed or responded. (4fd2dd9 Pavel Plesov)
+ o Re-add event_siglcb; some old code _was_ still using it. :( (bd03d06)
+ o Make Libevent 1.4 build on win32 with Unicode enabled. (bce58d6 Brodie Thiesfield)
+ o Distribute nmake makefile for 1.4 (20d706d)
+ o do not fail while sending on http connections the client closed. (5c8b446)
+ o make evhttp_send() safe against terminated connections, too (01ea0c5)
+ o Fix a free(NULL) in min_heap.h (2458934)
+ o Fix memory leak when setting up priorities; reported by Alexander Drozdov (cb1a722)
+ o Clean up properly when adding a signal handler fails. (ae6ece0 Gilad Benjamini)
+ o Do not abort HTTP requests missing a reason string. (29d7b32 Pierre Phaneuf)
+ o Fix compile warning in http.c (906d573)
+ o Define _REENTRANT as needed on Solaris, elsewhere (6cbea13)
+
+
 Changes in 1.4.13-stable:
  o If the kernel tells us that there are a negative number of bytes to read from a socket, do not believe it.  Fixes bug 2841177; found by Alexander Pronchenkov.
  o Do not allocate the maximum event queue and fd array for the epoll backend at startup.  Instead, start out accepting 32 events at a time, and double the queue's size when it seems that the OS is generating events faster than we're requesting them.  Saves up to 512K per epoll-based event_base.  Resolves bug 2839240.
