@@ -127,8 +127,8 @@ evutil_read_file(const char *filename, char **content_out, size_t *len_out,
 			break;
 		EVUTIL_ASSERT(read_so_far < st.st_size);
 	}
+	close(fd);
 	if (r < 0) {
-		close(fd);
 		mm_free(mem);
 		return -2;
 	}
