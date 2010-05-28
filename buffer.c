@@ -1856,22 +1856,37 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
 	return i;
 }
 
+static int
+get_n_bytes_readable_on_socket(evutil_socket_t fd)
+{
+#if defined(FIONREAD) && defined(WIN32)
+	unsigned long lng = EVBUFFER_MAX_READ;
+	if (ioctlsocket(fd, FIONREAD, &lng) < 0)
+		return -1;
+	return (int)lng;
+#elif defined(FIONREAD)
+	int n = EVBUFFER_MAX_READ;
+	if (ioctl(fd, FIONREAD, &n) < 0)
+		return -1;
+	return n;
+#else
+	return EVBUFFER_MAX_READ;
+#endif
+}
+
 /* TODO(niels): should this function return ev_ssize_t and take ev_ssize_t
  * as howmuch? */
 int
 evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 {
 	struct evbuffer_chain *chain, **chainp;
-	int n = EVBUFFER_MAX_READ;
+	int n;
 	int result;
 
 #ifdef USE_IOVEC_IMPL
 	int nvecs, i, remaining;
 #else
 	unsigned char *p;
-#endif
-#if defined(FIONREAD) && defined(WIN32)
-	unsigned long lng = EVBUFFER_MAX_READ;
 #endif
 
 	EVBUFFER_LOCK(buf);
@@ -1883,27 +1898,9 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 		goto done;
 	}
 
-#if defined(FIONREAD)
-#ifdef WIN32
-	if (ioctlsocket(fd, FIONREAD, &lng) == -1 || (n=lng) <= 0) {
-#else
-	if (ioctl(fd, FIONREAD, &n) == -1 || n <= 0) {
-#endif
+	n = get_n_bytes_readable_on_socket(fd);
+	if (n <= 0 || n > EVBUFFER_MAX_READ)
 		n = EVBUFFER_MAX_READ;
-	} else if (n > EVBUFFER_MAX_READ && n > howmuch) {
-		/*
-		 * It's possible that a lot of data is available for
-		 * reading.  We do not want to exhaust resources
-		 * before the reader has a chance to do something
-		 * about it.  If the reader does not tell us how much
-		 * data we should read, we artificially limit it.
-		 */
-		if (chain == NULL || n < EVBUFFER_MAX_READ)
-			n = EVBUFFER_MAX_READ;
-		else if ((size_t)n > chain->buffer_len << 2)
-			n = chain->buffer_len << 2;
-	}
-#endif
 	if (howmuch < 0 || howmuch > n)
 		howmuch = n;
 
