@@ -2145,12 +2145,14 @@ void
 evhttp_send_reply_end(struct evhttp_request *req)
 {
 	struct evhttp_connection *evcon = req->evcon;
-	struct evbuffer *output = bufferevent_get_output(evcon->bufev);
+	struct evbuffer *output;
 
 	if (evcon == NULL) {
 		evhttp_request_free(req);
 		return;
 	}
+
+	output = bufferevent_get_output(evcon->bufev);
 
 	/* we expect no more calls form the user on this request */
 	req->userdone = 1;
