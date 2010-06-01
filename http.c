@@ -342,7 +342,6 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	evcon->cb = cb;
 	evcon->cb_arg = arg;
 
-	bufferevent_disable(evcon->bufev, EV_READ);
 	bufferevent_enable(evcon->bufev, EV_WRITE);
 }
 
