@@ -306,6 +306,21 @@ be_pair_flush(struct bufferevent *bev, short iotype,
 	return 0;
 }
 
+struct bufferevent *
+bufferevent_pair_get_partner(struct bufferevent *bev)
+{
+	struct bufferevent_pair *bev_p;
+	struct bufferevent *partner;
+	bev_p = upcast(bev);
+	if (! bev_p)
+		return NULL;
+
+	incref_and_lock(bev);
+	partner = downcast(bev_p->partner);
+	decref_and_unlock(bev);
+	return partner;
+}
+
 const struct bufferevent_ops bufferevent_ops_pair = {
 	"pair_elt",
 	evutil_offsetof(struct bufferevent_pair, bev.bev),

@@ -523,9 +523,14 @@ bufferevent_filter_new(struct bufferevent *underlying,
    @param pair A pointer to an array to hold the two new bufferevent objects.
    @return 0 on success, -1 on failure.
  */
-int
-bufferevent_pair_new(struct event_base *base, int options,
+int bufferevent_pair_new(struct event_base *base, int options,
     struct bufferevent *pair[2]);
+
+/**
+   Given one bufferevent returned by bufferevent_pair_new(), returns the
+   other one if it still exists.  Otherwise returns NULL.
+ */
+struct bufferevent *bufferevent_pair_get_partner(struct bufferevent *bev);
 
 /**
    Abstract type used to configure rate-limiting on a bufferevent or a group
