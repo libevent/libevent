@@ -191,7 +191,7 @@ enum event_base_config_flag {
 	/** Instead of checking the current time every time the event loop is
 	    ready to run timeout callbacks, check after each timeout callback.
 	 */
-	EVENT_BASE_FLAG_NO_CACHE_TIME = 0x08,
+	EVENT_BASE_FLAG_NO_CACHE_TIME = 0x08
 };
 
 /**
