@@ -8,4 +8,4 @@ aclocal -I m4 && \
 	autoheader && \
 	$LIBTOOLIZE && \
 	autoconf && \
-	automake --add-missing --copy
+	automake --add-missing --force-missing --copy
