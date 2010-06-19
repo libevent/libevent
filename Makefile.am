@@ -4,6 +4,18 @@ AUTOMAKE_OPTIONS = foreign 1.7
 
 ACLOCAL_AMFLAGS = -I m4
 
+# This is the "Release" of the Libevent ABI.  It takes precedence over
+# the VERSION_INFO, so that two versions of Libevent with the same
+# "Release" are never binary-compatible.
+#
+# This number incremented once for the 2.0 release candidate, and
+# shouldn't increment again until Libevent 3.0.  Also, we shouldn't
+# increment to Libevent 3.0 unless we know in advance we're breaking
+# the ABI.
+#
+#RELEASE = -release 2.0
+RELEASE =
+
 # This is the version info for the libevent binary API.  It has three
 # numbers:
 #   Current  -- the number of the binary API that we're implementing
@@ -12,29 +24,49 @@ ACLOCAL_AMFLAGS = -I m4
 #   Age      -- How many previous binary API versions do we also
 #               support?
 #
-# If we release a new version that does not change the binary API,
-# increment Revision.
+# To increment a VERSION_INFO (current:revision:age):
+#    If the ABI didn't change:
+#        Return (current:revision+1:age)
+#    If the ABI changed, but it's backward-compatible:
+#        Return (current+1:0:age+1)
+#    If the ABI changed and it isn't backward-compatible:
+#        Return (current+1:0:0)
 #
-# If we release a new version that changes the binary API, but does
-# not break programs compiled against the old binary API, increment
-# Current and Age.  Set Revision to 0, since this is the first
-# implementation of the new API.
-#
-# Otherwise, we're changing the binary API and breaking bakward
-# compatibility with old binaries.  Increment Current.  Set Age to 0,
-# since we're backward compatible with no previous APIs.  Set Revision
-# to 0 too.
-#
-# ABI version history for this package effectively begins with package
-# version 2.0, because package version 1.4 erroneously applied both
-# -release and -version-info to the same libraries; -release takes
-# precedence, so the -version-info history of 1.4 libraries is moot.
-# We are starting the numbering at 2 rather than 1 to avoid confusion.
-#
-#      2:0:0 -- Libevent 2.0.1-alpha.
-#      3:0:0 -- Libevent 2.0.4-alpha
-#      4:0:0 -- Libevent 2.0.5-beta
+# Once an RC is out, DO NOT MAKE ANY ABI-BREAKING CHANGES IN THAT SERIES.
 VERSION_INFO = 4:0:0
+
+# History:          RELEASE    VERSION_INFO
+#  2.0.1-alpha --     2.0        1:0:0
+#  2.0.2-alpha --                2:0:0
+#  2.0.3-alpha --                2:0:0  (should have incremented; didn't.)
+#  2.0.4-alpha --                3:0:0
+#  2.0.5-beta  --                4:0:0
+# Planned:
+#  2.0.6-rc  --       2.0        2:0:0
+#  2.0.7-stable --    2.0        2:1:0  (Assuming no ABI change)
+#
+# If Libevent 2.1.1 makes 'struct event' etc opaque in the headers:
+#  2.1.1-alpha --     2.x        1:0:0
+# If Libevent 2.1.1 does not makes 'struct event' opaque in the headers:
+#  2.1.1-alpha --     2.1        1:0:0
+
+# ABI version history for this package effectively restarts every time
+# we change RELEASE.  Version 1.4.x had RELEASE of 1.4.
+#
+# Ideally, we would not be using RELEASE at all; instead we could just
+# use the VERSION_INFO field to label our backward-incompatible ABI
+# changes, and those would be few and far between.  Unfortunately,
+# Libevent still exposes far too many volatile structures in its
+# headers, so we pretty much have to assume that most development
+# series will break ABI compatibility.  For now, it's simplest just to
+# keep incrementing the RELEASE between series and resetting VERSION_INFO.
+#
+# Eventually, when we get to the point where the structures in the
+# headers are all non-changing (or not there at all!), we can shift to
+# a more normal worldview where backward-incompatible ABI changes are
+# nice and rare.  For the next couple of years, though, 'struct event'
+# is user-visible, and so we can pretty much guarantee that release
+# series won't be binary-compatible.
 
 dist_bin_SCRIPTS = event_rpcgen.py
 
