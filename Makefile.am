@@ -137,26 +137,29 @@ NO_UNDEFINED =
 MAYBE_CORE = libevent_core.la
 endif
 
+GENERIC_LDFLAGS = -version-info $(VERSION_INFO) $(RELEASE) $(NO_UNDEFINED)
+
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
-libevent_la_LDFLAGS = -version-info $(VERSION_INFO) $(NO_UNDEFINED)
+libevent_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 libevent_core_la_SOURCES = $(CORE_SRC)
 libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
-libevent_core_la_LDFLAGS = -version-info $(VERSION_INFO) $(NO_UNDEFINED)
+libevent_core_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 if PTHREADS
 libevent_pthreads_la_SOURCES = evthread_pthread.c
+libevent_pthreads_la_LDFLAGS = $(GENERIC_LDFLAGS)
 endif
 
 libevent_extra_la_SOURCES = $(EXTRA_SRC)
 libevent_extra_la_LIBADD = $(MAYBE_CORE) $(SYS_LIBS)
-libevent_extra_la_LDFLAGS = -version-info $(VERSION_INFO) $(NO_UNDEFINED)
+libevent_extra_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 if OPENSSL
 libevent_openssl_la_SOURCES = bufferevent_openssl.c
 libevent_openssl_la_LIBADD = $(MAYBE_CORE) -lcrypto -lssl
-libevent_openssl_la_LDFLAGS = -version-info $(VERSION_INFO) $(NO_UNDEFINED)
+libevent_openssl_la_LDFLAGS = $(GENERIC_LDFLAGS)
 endif
 
 noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
