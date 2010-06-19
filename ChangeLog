@@ -1,3 +1,6 @@
+Changes in 1.4.14b-stable
+ o Set the VERSION_INFO correctly for 1.4.14
+
 Changes in 1.4.14-stable
  o Add a .gitignore file for the 1.4 branch. (d014edb)
  o Backport evbuffer_readln(). (b04cc60 Nicholas Marriott)

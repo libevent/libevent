@@ -207,7 +207,7 @@
 #define _EVENT_TIME_WITH_SYS_TIME 1
 
 /* Version number of package */
-#define _EVENT_VERSION "1.4.14-stable"
+#define _EVENT_VERSION "1.4.14b-stable"
 
 #define _EVENT_NUMERIC_VERSION 0x01040e00
 
