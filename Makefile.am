@@ -24,12 +24,35 @@ RELEASE = 1.4
 # compatibility with old binaries.  Increment Current.  Set Age to 0,
 # since we're backward compatible with no previous APIs.  Set Revision
 # to 0 too.
+VERSION_INFO = 4:0:2
 
+###
 # History:
-#  Libevent 1.4.1 was 2:0:0
-#  Libevent 1.4.2 should be 3:0:0
-#  Libevent 1.4.5 is 3:0:1 (we forgot to increment in the past)
-VERSION_INFO = 3:3:2
+#   We started using Libtool around version 1.0d.  For all versions from
+#   1.0d through 1.3e, we set RELEASE to the version name, and
+#   VERSION_INFO to something haphazard.  The didn't matter, since
+#   setting RELEASE meant that no version of Libevent was treated as
+#   binary-compatible with any other version.
+#
+#   As of 1.4.0-beta, we set RELEASE to "1.4", so that releases in the
+#   1.4.x series could be potentially binary-compatible with one another,
+#   but not with any other series.  (They aren't.)  We didn't necessarily
+#   set VERSION_INFO correctly, or update it as often as we should have.
+#   The VERSION_INFO values were:
+#    1.4.0-beta .. 1.4.4-stable     : 2:0:0   [See note 1]
+#    1.4.5-stable                   : 3:0:1   (compatible ABI change)
+#    1.4.6-stable                   : 3:1:1   (no ABI change)
+#    1.4.7-stable                   : 3:1:1   [see note 1]
+#    1.4.8-stable                   : 3:2:1   (no ABI change)
+#    1.4.9-stable                   : 3:2:1   [see note 1]
+#    1.4.10-stable                  : 3:3:1   (no ABI change)
+#    1.4.11-stable .. 1.4.13-stable : 3:3:1   [see note 1]
+#    1.4.14a-stable:                : 3:3:2   [see note 2]
+#    1.4.14b-stable:                : 4:0:2   (compatible ABI change)
+#
+# [1]: Using the same VERSION_INFO value was wrong; we should have been
+#      updating the Revision field.
+# [2]: We set the VERSION_INFO completely wrong on 1.4.14b-stable
 
 bin_SCRIPTS = event_rpcgen.py
 
