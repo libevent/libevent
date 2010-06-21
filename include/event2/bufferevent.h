@@ -424,6 +424,18 @@ void bufferevent_setwatermark(struct bufferevent *bufev, short events,
     size_t lowmark, size_t highmark);
 
 /**
+   Acquire the lock on a bufferevent.  Has no effect if locking was not
+   enabled with BEV_OPT_THREADSAFE.
+ */
+void bufferevent_lock(struct bufferevent *bufev);
+
+/**
+   Release the lock on a bufferevent.  Has no effect if locking was not
+   enabled with BEV_OPT_THREADSAFE.
+ */
+void bufferevent_unlock(struct bufferevent *bufev);
+
+/**
    Flags that can be passed into filters to let them know how to
    deal with the incoming data.
 */

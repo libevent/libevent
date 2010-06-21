@@ -825,3 +825,17 @@ _bufferevent_add_event(struct event *ev, const struct timeval *tv)
 	else
 		return event_add(ev, tv);
 }
+
+/* For use by user programs only; internally, we should be calling
+   either _bufferevent_incref_and_lock(), or BEV_LOCK. */
+void
+bufferevent_lock(struct bufferevent *bev)
+{
+	_bufferevent_incref_and_lock(bev);
+}
+
+void
+bufferevent_unlock(struct bufferevent *bev)
+{
+	_bufferevent_decref_and_unlock(bev);
+}
