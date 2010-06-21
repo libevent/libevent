@@ -2167,6 +2167,14 @@ end:
 #undef MANY
 }
 
+static void
+test_struct_event_size(void *arg)
+{
+	tt_int_op(event_get_struct_event_size(), <=, sizeof(struct event));
+end:
+	;
+}
+
 struct testcase_t main_testcases[] = {
 	/* Some converted-over tests */
 	{ "methods", test_methods, TT_FORK, NULL, NULL },
@@ -2211,6 +2219,8 @@ struct testcase_t main_testcases[] = {
 	  NULL },
 	{ "mm_functions", test_mm_functions, TT_FORK, NULL, NULL },
 	BASIC(many_events, TT_ISOLATED),
+
+	{ "struct_event_size", test_struct_event_size, 0, NULL, NULL },
 
 #ifndef WIN32
 	LEGACY(fork, TT_ISOLATED),
