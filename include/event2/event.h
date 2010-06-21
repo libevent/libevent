@@ -610,8 +610,9 @@ void event_get_assignment(const struct event *event, struct event_base **base_ou
    otherwise might not.
 
    Note that it might be SMALLER than sizeof(struct event) if some future
-   version of Libevent adds extra buffer space to the end of struct event
-   to ensure 
+   version of Libevent adds extra padding to the end of struct event.
+   We might do this to help ensure ABI-compatibility between different
+   versions of Libevent.
  */
 size_t event_get_struct_event_size(void);
 
