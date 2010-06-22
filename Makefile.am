@@ -166,7 +166,7 @@ NO_UNDEFINED = -no-undefined
 MAYBE_CORE = libevent_core.la
 else
 NO_UNDEFINED =
-MAYBE_CORE = libevent_core.la
+MAYBE_CORE =
 endif
 
 GENERIC_LDFLAGS = -version-info $(VERSION_INFO) $(RELEASE) $(NO_UNDEFINED)
