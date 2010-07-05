@@ -2564,16 +2564,15 @@ evthread_make_base_notifiable(struct event_base *base)
 	if (base->th_notify_fd[0] >= 0) {
 		notify = evthread_notify_base_eventfd;
 		cb = evthread_notify_drain_eventfd;
-	} else
+	}
 #endif
 #if defined(_EVENT_HAVE_PIPE)
-	{
+	if (base->th_notify_fd[0] < 0) {
 		if ((base->evsel->features & EV_FEATURE_FDS)) {
 			if (pipe(base->th_notify_fd) < 0)
 				event_warn("%s: pipe", __func__);
 		}
 	}
-	if (base->th_notify_fd[0] < 0)
 #endif
 
 #ifdef WIN32
@@ -2581,7 +2580,7 @@ evthread_make_base_notifiable(struct event_base *base)
 #else
 #define LOCAL_SOCKETPAIR_AF AF_UNIX
 #endif
-	{
+	if (base->th_notify_fd[0] < 0) {
 		if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0,
 			base->th_notify_fd) == -1) {
 			event_sock_warn(-1, "%s: socketpair", __func__);
