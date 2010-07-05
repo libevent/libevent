@@ -38,9 +38,12 @@ main(int argc, char **argv)
 	struct event_base *base;
 	struct evconnlistener *listener;
 	struct event *signal_event;
-	// struct sockaddr_storage ss;
 
 	struct sockaddr_in sin;
+#ifdef WIN32
+	WSADATA wsa_data;
+	WSAStartup(0x0201, &wsa_data);
+#endif
 
 	base = event_base_new();
 	if (!base) {
