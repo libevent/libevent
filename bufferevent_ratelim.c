@@ -245,6 +245,8 @@ _bufferevent_get_rlim_max(struct bufferevent_private *bev, int is_write)
 		CLAMPTO(share);
 	}
 
+	if (max_so_far < 0)
+		max_so_far = 0;
 	return max_so_far;
 }
 
