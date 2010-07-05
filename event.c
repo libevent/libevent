@@ -1835,7 +1835,7 @@ evthread_notify_base_default(struct event_base *base)
 #else
 	r = write(base->th_notify_fd[1], buf, 1);
 #endif
-	return (r < 0) ? -1 : 0;
+	return (r < 0 && errno != EAGAIN) ? -1 : 0;
 }
 
 #if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
@@ -2594,10 +2594,15 @@ evthread_make_base_notifiable(struct event_base *base)
 	base->th_notify_fn = notify;
 
 	/*
-	  This can't be right, can it?  We want writes to this socket to
-	  just succeed.
-	  evutil_make_socket_nonblocking(base->th_notify_fd[1]);
+	  Making the second socket nonblocking is a bit subtle, given that we
+	  ignore any EAGAIN returns when writing to it, and you don't usally
+	  do that for a nonblocking socket. But if the kernel gives us EAGAIN,
+	  then there's no need to add any more data to the buffer, since
+	  the main thread is already either about to wake up and drain it,
+	  or woken up and in the process of draining it.
 	*/
+	if (base->th_notify_fd[1] > 0)
+		evutil_make_socket_nonblocking(base->th_notify_fd[1]);
 
 	/* prepare an event that we can use for wakeup */
 	event_assign(&base->th_notify, base, base->th_notify_fd[0],
