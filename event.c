@@ -2536,7 +2536,7 @@ evthread_notify_drain_eventfd(evutil_socket_t fd, short what, void *arg)
 static void
 evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 {
-	unsigned char buf[128];
+	unsigned char buf[1024];
 #ifdef WIN32
 	while (recv(fd, (char*)buf, sizeof(buf), 0) > 0)
 		;
