@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "event-config.h"
+#include "event2/event-config.h"
 
 #define _GNU_SOURCE
 

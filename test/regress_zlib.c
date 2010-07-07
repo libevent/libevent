@@ -29,7 +29,7 @@
 #include <windows.h>
 #endif
 
-#include "event-config.h"
+#include "event2/event-config.h"
 
 #include <sys/types.h>
 #ifndef WIN32

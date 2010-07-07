@@ -25,7 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "event-config.h"
+#include "event2/event-config.h"
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -82,7 +82,7 @@
 #include "event2/bufferevent_compat.h"
 #include "event2/bufferevent_struct.h"
 #include "event2/thread.h"
-#include "event-config.h"
+#include "event2/event-config.h"
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "util-internal.h"

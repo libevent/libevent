@@ -5,7 +5,7 @@
   XXX It's pretty ugly and should probably be cleaned up.
  */
 
-#include <event-config.h>
+#include <event2/event-config.h>
 
 #include <sys/types.h>
 

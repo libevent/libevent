@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = foreign
 
-AM_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include
+AM_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include -I../include
 
 EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c test.sh
 
@@ -44,7 +44,7 @@ endif
 
 regress_LDADD = ../libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
 regress_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat \
-	-I$(top_srcdir)/include  $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
+	-I$(top_srcdir)/include -I../include $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
 regress_LDFLAGS = $(PTHREAD_CFLAGS)
 
 if OPENSSL

@@ -33,7 +33,7 @@ static char *rcsid = "$OpenBSD: strlcpy.c,v 1.5 2001/05/13 15:40:16 deraadt Exp 
 
 #include <sys/types.h>
 
-#include "event-config.h"
+#include "event2/event-config.h"
 
 #ifndef _EVENT_HAVE_STRLCPY
 #include "strlcpy-internal.h"

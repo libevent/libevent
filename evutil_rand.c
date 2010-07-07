@@ -32,7 +32,7 @@
  * so that other people can rip it out and use it for whatever.
  */
 
-#include "event-config.h"
+#include "event2/event-config.h"
 
 #include "util-internal.h"
 #include "evthread-internal.h"

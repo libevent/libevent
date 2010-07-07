@@ -25,7 +25,7 @@
  *
  */
 
-#include "event-config.h"
+#include "event2/event-config.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>

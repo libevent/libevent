@@ -38,7 +38,7 @@
 #include <errno.h>
 
 #include "event2/util.h"
-#include "event-config.h"
+#include "event2/event-config.h"
 #include "util-internal.h"
 #include "log-internal.h"
 #include "event2/event.h"

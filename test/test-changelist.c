@@ -2,7 +2,7 @@
  *  based on test-eof.c
  */
 
-#include "event-config.h"
+#include "event2/event-config.h"
 
 #ifdef WIN32
 #include <winsock2.h>

@@ -35,7 +35,7 @@
  */
 
 #include <sys/types.h>
-#include "event-config.h"
+#include "event2/event-config.h"
 
 #ifndef _FORTIFY_SOURCE
 #define _FORTIFY_SOURCE 3

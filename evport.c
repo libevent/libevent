@@ -50,7 +50,7 @@
  * As in the select(2) implementation, signals are handled by evsignal.
  */
 
-#include "event-config.h"
+#include "event2/event-config.h"
 
 #include <sys/time.h>
 #include <sys/queue.h>

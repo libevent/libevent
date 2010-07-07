@@ -8,7 +8,7 @@
  * cc -I/usr/local/include -o event-test event-test.c -L/usr/local/lib -levent
  */
 
-#include <event-config.h>
+#include <event2/event-config.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>

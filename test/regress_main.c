@@ -32,7 +32,7 @@
 #include <fcntl.h>
 #endif
 
-#include "event-config.h"
+#include "event2/event-config.h"
 
 #ifdef _EVENT___func__
 #define __func__ _EVENT___func__
@@ -71,7 +71,7 @@
 #include <event2/dns_compat.h>
 #include <event2/thread.h>
 
-#include "event-config.h"
+#include "event2/event-config.h"
 #include "regress.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"

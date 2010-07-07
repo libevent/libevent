@@ -57,7 +57,7 @@
 extern "C" {
 #endif
 
-#include <event-config.h>
+#include <event2/event-config.h>
 
 /** A flag passed to a locking callback when the lock was allocated as a
  * read-write lock, and we want to acquire or release the lock for writing. */

@@ -26,7 +26,7 @@
 #ifndef _EVENT_UTIL_INTERNAL_H
 #define _EVENT_UTIL_INTERNAL_H
 
-#include "event-config.h"
+#include "event2/event-config.h"
 #include <errno.h>
 
 /* For EVUTIL_ASSERT */

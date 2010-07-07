@@ -10,7 +10,7 @@
 
 #include <sys/types.h>
 
-#include <event-config.h>
+#include <event2/event-config.h>
 
 #include <sys/stat.h>
 #ifndef WIN32
