@@ -235,7 +235,8 @@ epoll_apply_changes(struct event_base *base)
 				 */
 				event_debug(("  ADD was redundant"));
 			} else if (op == EPOLL_CTL_DEL &&
-			    (errno == ENOENT || errno == EBADF)) {
+			    (errno == ENOENT || errno == EBADF ||
+				errno == EPERM)) {
 				/* If a delete fails with one of these errors,
 				 * that's fine too: we closed the fd before we
 				 * got around to calling epoll_dispatch. */
