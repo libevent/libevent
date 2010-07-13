@@ -169,7 +169,7 @@ evutil_make_socket_nonblocking(int fd)
 	}
 #else
 	{
-		long flags;
+		int flags;
 		if ((flags = fcntl(fd, F_GETFL, NULL)) < 0) {
 			event_warn("fcntl(%d, F_GETFL)", fd);
 			return -1;
