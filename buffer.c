@@ -1844,8 +1844,8 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
 	chain = *firstchainp;
 	for (i = 0; i < n_vecs_avail && so_far < howmuch; ++i) {
 		size_t avail = CHAIN_SPACE_LEN(chain);
-		if (avail > howmuch && exact)
-			avail = howmuch;
+		if (avail > (howmuch - so_far) && exact)
+			avail = howmuch - so_far;
 		vecs[i].iov_base = CHAIN_SPACE_PTR(chain);
 		vecs[i].iov_len = avail;
 		so_far += avail;
