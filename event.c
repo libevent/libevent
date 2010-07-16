@@ -954,6 +954,8 @@ event_signal_closure(struct event_base *base, struct event *ev)
 	while (ncalls) {
 		ncalls--;
 		ev->ev_ncalls = ncalls;
+		if (ncalls == 0)
+			ev->ev_pncalls = NULL;
 		(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
 #if 0
 		/* XXXX we can't do this without a lock on the base. */
@@ -1876,6 +1878,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	struct event_base *base = ev->ev_base;
 	int res = 0;
 	int notify = 0;
+	int need_cur_lock;
 
 	EVENT_BASE_ASSERT_LOCKED(base);
 	_event_debug_assert_is_setup(ev);
@@ -1899,6 +1902,15 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 			1 + min_heap_size(&base->timeheap)) == -1)
 			return (-1);  /* ENOMEM == errno */
 	}
+
+	/* If the main thread is currently executing a signal event's
+	 * callback, and we are not the main thread, then we want to wait
+	 * until the callback is done before we mess with the event, or else
+	 * we can race on ev_ncalls and ev_pncalls below. */
+	need_cur_lock = (base->current_event == ev) &&
+	    (ev->ev_events & EV_SIGNAL);
+	if (need_cur_lock)
+		EVBASE_ACQUIRE_LOCK(base, current_event_lock);
 
 	if ((ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL)) &&
 	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE))) {
@@ -2002,6 +2014,9 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		evthread_notify_base(base);
 
 	_event_debug_note_add(ev);
+
+	if (need_cur_lock)
+		EVBASE_RELEASE_LOCK(base, current_event_lock);
 
 	return (res);
 }
@@ -2113,6 +2128,7 @@ void
 event_active_nolock(struct event *ev, int res, short ncalls)
 {
 	struct event_base *base;
+	int need_cur_lock = 0;
 
 	/* We get different kinds of events, add them together */
 	if (ev->ev_flags & EVLIST_ACTIVE) {
@@ -2127,11 +2143,16 @@ event_active_nolock(struct event *ev, int res, short ncalls)
 	ev->ev_res = res;
 
 	if (ev->ev_events & EV_SIGNAL) {
+		need_cur_lock = (base->current_event == ev);
+		if (need_cur_lock)
+			EVBASE_ACQUIRE_LOCK(base, current_event_lock);
 		ev->ev_ncalls = ncalls;
 		ev->ev_pncalls = NULL;
 	}
 
 	event_queue_insert(base, ev, EVLIST_ACTIVE);
+	if (need_cur_lock)
+		EVBASE_RELEASE_LOCK(base, current_event_lock);
 }
 
 void
