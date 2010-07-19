@@ -15,7 +15,6 @@
 #include <sys/time.h>
 #endif
 
-
 #ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -32,9 +31,9 @@
 
 static void
 write_cb(evutil_socket_t fd, short event, void *arg)
-{  
+{
 	printf("write callback. should only see this once\n");
-        
+
 	/* got what we want remove the event */
 	event_del(*(struct event**)arg);
 
@@ -48,7 +47,7 @@ write_cb(evutil_socket_t fd, short event, void *arg)
 
 static void
 timeout_cb(evutil_socket_t fd, short event, void *arg)
-{  
+{
 	printf("timeout fired, time to end test\n");
 	event_del(*(struct event**)arg);
 	return;
@@ -111,17 +110,17 @@ main(int argc, char **argv)
 
 	/* attempt to calculate our cpu usage over the test should be
 	   virtually nil */
-	
+
 	tickspassed = ((((timeEnd.tv_sec - timeBegin.tv_sec) * 1000000.0) +
 			(timeEnd.tv_usec - timeBegin.tv_usec)) *
 		       ((1.0 * CLOCKS_PER_SEC) / 1000000));
-	
+
 	usage = 100.0 * (((int)(ticksEnd-ticksBegin) * 1.0) / tickspassed);
 
 	printf("ticks used=%d, ticks passed=%d, cpu usage=%.2f%%\n",
 	       (int)(ticksEnd-ticksBegin),
 	       tickspassed,
-	       usage); 
+	       usage);
 
 	if (usage > 50.0) /* way too high */
 	  return 1;
