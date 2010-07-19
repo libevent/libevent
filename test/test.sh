@@ -82,6 +82,14 @@ run_tests () {
 		announce FAILED ;
 		FAILED=yes
 	fi
+	announce_n " test-changelist: "
+	if $TEST_DIR/test-changelist >>"$TEST_OUTPUT_FILE" ;
+	then
+		announce OKAY ;
+	else
+		announce FAILED ;
+		FAILED=yes
+	fi
 	announce_n " regress: "
 	if test "$TEST_OUTPUT_FILE" = "/dev/null" ;
 	then
