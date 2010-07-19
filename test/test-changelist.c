@@ -16,7 +16,6 @@
 #endif
 
 
-
 #ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -50,10 +49,6 @@ write_cb(evutil_socket_t fd, short event, void *arg)
 static void
 timeout_cb(evutil_socket_t fd, short event, void *arg)
 {  
-
-	char buf[256];
-	int len;
-
 	printf("timeout fired, time to end test\n");
 	event_del(*(struct event**)arg);
 	return;
