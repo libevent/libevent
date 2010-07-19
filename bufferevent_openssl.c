@@ -617,6 +617,12 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 		if (bev_ssl->bev.write_suspended)
 			break;
 
+		/* SSL_write will (reasonably) return 0 if we tell it to
+		   send 0 data.  Skip this case so we don't interpret the
+		   result as an error */
+		if (space[i].iov_len == 0)
+			continue;
+
 		r = SSL_write(bev_ssl->ssl, space[i].iov_base,
 		    space[i].iov_len);
 		if (r > 0) {
