@@ -685,14 +685,11 @@ event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, sho
 	if (!change)
 		return -1;
 
-	/* A delete removes any previous add, rather than replacing it:
-	   on those platforms where "add, delete, dispatch" is not the same
-	   as "no-op, dispatch", we want the no-op behavior.
-
-	   As well as checking the current operation we should also check
-	   the original set of events to make sure were not ignoring
-	   the case where the add operation is present on an event that
-	   was already set.
+	/* A delete on an event set that doesn't contain the event to be
+	   deleted produces a no-op.  This effectively emoves any previous
+	   uncommitted add, rather than replacing it: on those platforms where
+	   "add, delete, dispatch" is not the same as "no-op, dispatch", we
+	   want the no-op behavior.
 
 	   If we have a no-op item, we could remove it it from the list
 	   entirely, but really there's not much point: skipping the no-op
@@ -704,15 +701,13 @@ event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, sho
 	 */
 
 	if (events & (EV_READ|EV_SIGNAL)) {
-		if (!(change->old_events & (EV_READ | EV_SIGNAL)) &&
-		    (change->read_change & EV_CHANGE_ADD))
+		if (!(change->old_events & (EV_READ | EV_SIGNAL)))
 			change->read_change = 0;
 		else
 			change->read_change = EV_CHANGE_DEL;
 	}
 	if (events & EV_WRITE) {
-		if (!(change->old_events & EV_WRITE) &&
-		    (change->write_change & EV_CHANGE_ADD))
+		if (!(change->old_events & EV_WRITE))
 			change->write_change = 0;
 		else
 			change->write_change = EV_CHANGE_DEL;
