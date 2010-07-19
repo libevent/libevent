@@ -689,20 +689,30 @@ event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, sho
 	   on those platforms where "add, delete, dispatch" is not the same
 	   as "no-op, dispatch", we want the no-op behavior.
 
+	   As well as checking the current operation we should also check
+	   the original set of events to make sure were not ignoring
+	   the case where the add operation is present on an event that 
+	   was already set.
+
 	   If we have a no-op item, we could remove it it from the list
 	   entirely, but really there's not much point: skipping the no-op
 	   change when we do the dispatch later is far cheaper than rejuggling
 	   the array now.
+
+	   As this stands, it also lets through deletions of events that are 
+	   not currently set.
 	 */
 
 	if (events & (EV_READ|EV_SIGNAL)) {
-		if (change->read_change & EV_CHANGE_ADD)
+                if (!(change->old_events & (EV_READ | EV_SIGNAL)) && 
+                    (change->read_change & EV_CHANGE_ADD))
 			change->read_change = 0;
 		else
 			change->read_change = EV_CHANGE_DEL;
 	}
 	if (events & EV_WRITE) {
-		if (change->write_change & EV_CHANGE_ADD)
+                if (!(change->old_events & EV_WRITE) && 
+                    (change->write_change & EV_CHANGE_ADD))
 			change->write_change = 0;
 		else
 			change->write_change = EV_CHANGE_DEL;

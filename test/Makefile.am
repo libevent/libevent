@@ -5,7 +5,8 @@ AM_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include
 EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c test.sh
 
 noinst_PROGRAMS = test-init test-eof test-weof test-time regress \
-	bench bench_cascade bench_http bench_httpclient test-ratelim
+	bench bench_cascade bench_http bench_httpclient test-ratelim \
+	test-changelist
 noinst_HEADERS = tinytest.h tinytest_macros.h regress.h
 
 TESTS = $(top_srcdir)/test/test.sh
@@ -15,6 +16,8 @@ test_init_SOURCES = test-init.c
 test_init_LDADD = ../libevent_core.la
 test_eof_SOURCES = test-eof.c
 test_eof_LDADD = ../libevent_core.la
+test_changelist_SOURCES = test-changelist.c
+test_changelist_LDADD = ../libevent_core.la
 test_weof_SOURCES = test-weof.c
 test_weof_LDADD = ../libevent_core.la
 test_time_SOURCES = test-time.c
@@ -65,4 +68,4 @@ DISTCLEANFILES = *~
 
 verify: check
 
-bench test-init test-eof test-weof test-time: ../libevent.la
+bench test-init test-eof test-weof test-time test-changelist: ../libevent.la
