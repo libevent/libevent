@@ -1600,11 +1600,13 @@ struct evdns_server_port *
 evdns_add_server_port_with_base(struct event_base *base, evutil_socket_t socket, int is_tcp, evdns_request_callback_fn_type cb, void *user_data)
 {
 	struct evdns_server_port *port;
+	if (is_tcp)
+		return NULL; /* TCP sockets not yet implemented */
 	if (!(port = mm_malloc(sizeof(struct evdns_server_port))))
 		return NULL;
 	memset(port, 0, sizeof(struct evdns_server_port));
 
-	EVUTIL_ASSERT(!is_tcp); /* TCP sockets not yet implemented */
+
 	port->socket = socket;
 	port->refcnt = 1;
 	port->choked = 0;
