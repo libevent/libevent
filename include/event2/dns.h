@@ -554,13 +554,13 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
 
     @param base The event base to handle events for the server port.
     @param socket A UDP socket to accept DNS requests.
-    @param is_tcp Always 0 for now.
+    @param flags Always 0 for now.
     @param callback A function to invoke whenever we get a DNS request
       on the socket.
     @param user_data Data to pass to the callback.
     @return an evdns_server_port structure for this server port.
  */
-struct evdns_server_port *evdns_add_server_port_with_base(struct event_base *base, evutil_socket_t socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
+struct evdns_server_port *evdns_add_server_port_with_base(struct event_base *base, evutil_socket_t socket, int flags, evdns_request_callback_fn_type callback, void *user_data);
 /** Close down a DNS server port, and free associated structures. */
 void evdns_close_server_port(struct evdns_server_port *port);
 

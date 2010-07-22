@@ -321,7 +321,7 @@ void evdns_search_ndots_set(const int ndots);
     function is evdns_add_server_port_with_base().
 
 */
-struct evdns_server_port *evdns_add_server_port(evutil_socket_t socket, int is_tcp, evdns_request_callback_fn_type callback, void *user_data);
+struct evdns_server_port *evdns_add_server_port(evutil_socket_t socket, int flags, evdns_request_callback_fn_type callback, void *user_data);
 
 #ifdef WIN32
 int evdns_config_windows_nameservers(void);
