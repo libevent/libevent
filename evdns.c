@@ -1721,7 +1721,7 @@ done:
 
 /* exported function */
 int
-evdns_server_request_add_a_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl)
+evdns_server_request_add_a_reply(struct evdns_server_request *req, const char *name, int n, const void *addrs, int ttl)
 {
 	return evdns_server_request_add_reply(
 		  req, EVDNS_ANSWER_SECTION, name, TYPE_A, CLASS_INET,
@@ -1730,7 +1730,7 @@ evdns_server_request_add_a_reply(struct evdns_server_request *req, const char *n
 
 /* exported function */
 int
-evdns_server_request_add_aaaa_reply(struct evdns_server_request *req, const char *name, int n, void *addrs, int ttl)
+evdns_server_request_add_aaaa_reply(struct evdns_server_request *req, const char *name, int n, const void *addrs, int ttl)
 {
 	return evdns_server_request_add_reply(
 		  req, EVDNS_ANSWER_SECTION, name, TYPE_AAAA, CLASS_INET,
@@ -1743,8 +1743,10 @@ evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct in_a
 {
 	u32 a;
 	char buf[32];
-	EVUTIL_ASSERT(in || inaddr_name);
-	EVUTIL_ASSERT(!(in && inaddr_name));
+	if (in && inaddr_name)
+		return -1;
+	else if (!in && !inaddr_name)
+		return -1;
 	if (in) {
 		a = ntohl(in->s_addr);
 		evutil_snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
