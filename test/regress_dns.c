@@ -1087,7 +1087,7 @@ test_bufferevent_connect_hostname(void *arg)
 		 * example.com is real.) Let's see what answer to expect. */
 		struct evutil_addrinfo hints, *ai = NULL;
 		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = PF_UNSPEC;
+		hints.ai_family = AF_INET;
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_protocol = IPPROTO_TCP;
 		expect_err5 = evutil_getaddrinfo(
