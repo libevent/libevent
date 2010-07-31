@@ -67,6 +67,7 @@
 #include "iocp-internal.h"
 #include "changelist-internal.h"
 #include "ht-internal.h"
+#include "util-internal.h"
 
 #ifdef _EVENT_HAVE_EVENT_PORTS
 extern const struct eventop evportops;
@@ -446,7 +447,7 @@ event_is_method_disabled(const char *name)
 
 	evutil_snprintf(environment, sizeof(environment), "EVENT_NO%s", name);
 	for (i = 8; environment[i] != '\0'; ++i)
-		environment[i] = toupper(environment[i]);
+		environment[i] = EVUTIL_TOUPPER(environment[i]);
 	/* Note that evutil_getenv() ignores the environment entirely if
 	 * we're setuid */
 	return (evutil_getenv(environment) != NULL);

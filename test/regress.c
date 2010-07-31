@@ -1875,7 +1875,7 @@ methodname_to_envvar(const char *mname, char *buf, size_t buflen)
 	char *cp;
 	evutil_snprintf(buf, buflen, "EVENT_NO%s", mname);
 	for (cp = buf; *cp; ++cp) {
-		*cp = toupper(*cp);
+		*cp = EVUTIL_TOUPPER(*cp);
 	}
 }
 #endif
