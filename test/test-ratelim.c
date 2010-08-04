@@ -72,6 +72,8 @@ struct client_state {
 	ev_uint64_t received;
 };
 
+static int n_echo_conns_open = 0;
+
 static void
 loud_writecb(struct bufferevent *bev, void *ctx)
 {
@@ -133,6 +135,7 @@ static void
 echo_eventcb(struct bufferevent *bev, short what, void *ctx)
 {
 	if (what & (BEV_EVENT_EOF|BEV_EVENT_ERROR)) {
+		--n_echo_conns_open;
 		bufferevent_free(bev);
 	}
 }
@@ -151,6 +154,7 @@ echo_listenercb(struct evconnlistener *listener, evutil_socket_t newsock,
 		bufferevent_set_rate_limit(bev, conn_bucket_cfg);
 	if (ratelim_group)
 		bufferevent_add_to_rate_limit_group(bev, ratelim_group);
+	++n_echo_conns_open;
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 }
 
@@ -166,6 +170,7 @@ test_ratelimiting(void)
 
 	struct bufferevent **bevs;
 	struct client_state *states;
+	struct bufferevent_rate_limit_group *group = NULL;
 
 	int i;
 
@@ -207,7 +212,7 @@ test_ratelimiting(void)
 			cfg_grouplimit, cfg_grouplimit * 4,
 			cfg_grouplimit, cfg_grouplimit * 4,
 			&cfg_tick);
-		ratelim_group = bufferevent_rate_limit_group_new(
+		group = ratelim_group = bufferevent_rate_limit_group_new(
 			base, group_bucket_cfg);
 		expected_total_persec = cfg_grouplimit;
 		expected_avg_persec = cfg_grouplimit / cfg_n_connections;
@@ -247,18 +252,27 @@ test_ratelimiting(void)
 
 	event_base_dispatch(base);
 
-	for (i = 0; i < cfg_n_connections; ++i)
+	ratelim_group = NULL; /* So no more responders get added */
+
+	for (i = 0; i < cfg_n_connections; ++i) {
 		bufferevent_free(bevs[i]);
+	}
 	evconnlistener_free(listener);
 
-	/* This should get _everybody_ freed */
-	tv.tv_sec = 0;
-	tv.tv_usec = 300000;
-	event_base_loopexit(base, &tv);
-	event_base_dispatch(base);
+	/* Make sure no new echo_conns get added to the group. */
+	ratelim_group = NULL;
 
-	if (ratelim_group)
-		bufferevent_rate_limit_group_free(ratelim_group);
+	/* This should get _everybody_ freed */
+	while (n_echo_conns_open) {
+		printf("waiting for %d conns\n", n_echo_conns_open);
+		tv.tv_sec = 0;
+		tv.tv_usec = 300000;
+		event_base_loopexit(base, &tv);
+		event_base_dispatch(base);
+	}
+
+	if (group)
+		bufferevent_rate_limit_group_free(group);
 
 	total_received = 0;
 	total_persec = 0.0;
