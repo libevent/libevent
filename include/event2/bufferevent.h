@@ -626,6 +626,26 @@ struct bufferevent_rate_limit_group *bufferevent_rate_limit_group_new(
 int bufferevent_rate_limit_group_set_cfg(
 	struct bufferevent_rate_limit_group *,
 	const struct ev_token_bucket_cfg *);
+
+/**
+   Change the smallest quantum we're willing to allocate to any single
+   bufferevent in a group for reading or writing at a time.
+
+   The rationale is that, because of TCP/IP protocol overheads and kernel
+   behavior, if a rate-limiting group is so tight on bandwidth that you're
+   only willing to send 1 byte per tick per bufferevent, you might instead
+   want to batch up the reads and writes so that you send N bytes per
+   1/N of the bufferevents (chosen at random) each tick, so you still wind
+   up send 1 byte per tick per bufferevent on average, but you don't send
+   so many tiny packets.
+
+   The default min-share is currently 64 bytes.
+
+   Returns 0 on success, -1 on faulre.
+ */
+int bufferevent_rate_limit_group_set_min_share(
+	struct bufferevent_rate_limit_group *, size_t);
+
 /**
    Free a rate-limiting group.  The group must have no members when
    this function is called.

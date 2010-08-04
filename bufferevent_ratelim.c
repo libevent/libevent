@@ -646,6 +646,14 @@ bufferevent_rate_limit_group_set_cfg(
 	return 0;
 }
 
+int
+bufferevent_rate_limit_group_set_min_share(
+	struct bufferevent_rate_limit_group *g,
+	size_t share)
+{
+	g->min_share = share;
+	return 0;
+}
 
 void
 bufferevent_rate_limit_group_free(struct bufferevent_rate_limit_group *g)
