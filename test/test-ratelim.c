@@ -54,6 +54,7 @@ static int cfg_duration = 5;
 static int cfg_connlimit = 0;
 static int cfg_grouplimit = 0;
 static int cfg_tick_msec = 1000;
+static int cfg_min_share = -1;
 
 static int cfg_connlimit_tolerance = -1;
 static int cfg_grouplimit_tolerance = -1;
@@ -212,6 +213,9 @@ test_ratelimiting(void)
 		expected_avg_persec = cfg_grouplimit / cfg_n_connections;
 		if (cfg_connlimit > 0 && expected_avg_persec > cfg_connlimit)
 			expected_avg_persec = cfg_connlimit;
+		if (cfg_min_share >= 0)
+			bufferevent_rate_limit_group_set_min_share(
+				ratelim_group, cfg_min_share);
 	}
 
 	if (expected_avg_persec < 0 && cfg_connlimit > 0)
@@ -314,6 +318,7 @@ static struct option {
 	{ "-c", &cfg_connlimit, 0, 0 },
 	{ "-g", &cfg_grouplimit, 0, 0 },
 	{ "-t", &cfg_tick_msec, 10, 0 },
+	{ "--min-share", &cfg_min_share, 0, 0 },
 	{ "--check-connlimit", &cfg_connlimit_tolerance, 0, 0 },
 	{ "--check-grouplimit", &cfg_grouplimit_tolerance, 0, 0 },
 	{ "--check-stddev", &cfg_stddev_tolerance, 0, 0 },
