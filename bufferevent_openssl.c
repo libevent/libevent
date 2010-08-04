@@ -273,6 +273,11 @@ BIO_new_bufferevent(struct bufferevent *bufferevent, int close_flag)
    we have a good way to get notified when they become readable/writable.)
    -------------------- */
 
+struct bio_data_counts {
+	unsigned long n_written;
+	unsigned long n_read;
+};
+
 struct bufferevent_openssl {
 	/* Shared fields with common bufferevent implementation code.
 	   If we were set up with an underlying bufferevent, we use the
@@ -289,6 +294,10 @@ struct bufferevent_openssl {
 	/* A callback that's invoked when data arrives on our outbuf so we
 	   know to write data to the SSL. */
 	struct evbuffer_cb_entry *outbuf_cb;
+
+	/* A count of how much data the bios have read/written total.  Used
+	   for rate-limiting. */
+	struct bio_data_counts counts;
 
 	/* If this value is greater than 0, then the last SSL_write blocked,
 	 * and we need to try it again with this many bytes. */
@@ -525,6 +534,31 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int errcode, int ret)
 	stop_writing(bev_ssl);
 }
 
+static void
+init_bio_counts(struct bufferevent_openssl *bev_ssl)
+{
+	bev_ssl->counts.n_written =
+	    BIO_number_written(SSL_get_wbio(bev_ssl->ssl));
+	bev_ssl->counts.n_read =
+	    BIO_number_read(SSL_get_wbio(bev_ssl->ssl));
+}
+
+static inline void
+decrement_buckets(struct bufferevent_openssl *bev_ssl)
+{
+	unsigned long num_w = BIO_number_written(SSL_get_wbio(bev_ssl->ssl));
+	unsigned long num_r = BIO_number_read(SSL_get_wbio(bev_ssl->ssl));
+	/* These next two subtractions can wrap around. That's okay. */
+	unsigned long w = num_w - bev_ssl->counts.n_written;
+	unsigned long r = num_r - bev_ssl->counts.n_read;
+	if (w)
+		_bufferevent_decrement_write_buckets(&bev_ssl->bev, w);
+	if (r)
+		_bufferevent_decrement_read_buckets(&bev_ssl->bev, r);
+	bev_ssl->counts.n_written = num_w;
+	bev_ssl->counts.n_read = num_r;
+}
+
 /* returns -1 on internal error, 0 on stall, 1 on progress */
 static int
 do_read(struct bufferevent_openssl *bev_ssl, int n_to_read)
@@ -553,9 +587,7 @@ do_read(struct bufferevent_openssl *bev_ssl, int n_to_read)
 					return -1;
 			++n_used;
 			space[i].iov_len = r;
-			/* Not exactly right; we probably want to do
-			 * our rate-limiting on the underlying bytes. */
-			_bufferevent_decrement_read_buckets(&bev_ssl->bev, r);
+			decrement_buckets(bev_ssl);
 		} else {
 			int err = SSL_get_error(bev_ssl->ssl, r);
 			print_err(err);
@@ -631,9 +663,7 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 					return -1;
 			n_written += r;
 			bev_ssl->last_write = -1;
-			/* Not exactly right; we probably want to do
-			 * our rate-limiting on the underlying bytes. */
-			_bufferevent_decrement_write_buckets(&bev_ssl->bev, r);
+			decrement_buckets(bev_ssl);
 		} else {
 			int err = SSL_get_error(bev_ssl->ssl, r);
 			print_err(err);
@@ -855,6 +885,7 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 		r = SSL_do_handshake(bev_ssl->ssl);
 		break;
 	}
+	decrement_buckets(bev_ssl);
 
 	if (r==1) {
 		/* We're done! */
@@ -1166,6 +1197,8 @@ bufferevent_openssl_new_impl(struct event_base *base,
 
 	bev_ssl->state = state;
 	bev_ssl->last_write = -1;
+
+	init_bio_counts(bev_ssl);
 
 	switch (state) {
 	case BUFFEREVENT_SSL_ACCEPTING:
