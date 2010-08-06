@@ -150,6 +150,8 @@ int evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int sock
 
 int evutil_socket_finished_connecting(evutil_socket_t fd);
 
+int evutil_ersatz_socketpair(int, int , int, evutil_socket_t[]);
+
 int evutil_resolve(int family, const char *hostname, struct sockaddr *sa,
     ev_socklen_t *socklen, int port);
 

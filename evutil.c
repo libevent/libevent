@@ -145,6 +145,14 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 #ifndef WIN32
 	return socketpair(family, type, protocol, fd);
 #else
+	return evutil_ersatz_socketpair(family, type, protocol, fd);
+#endif
+}
+
+int
+evutil_ersatz_socketpair(int family, int type, int protocol,
+    evutil_socket_t fd[2])
+{
 	/* This code is originally from Tor.  Used with permission. */
 
 	/* This socketpair does not work when localhost is down. So
@@ -152,12 +160,17 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 	 * for now, and really, when localhost is down sometimes, we
 	 * have other problems too.
 	 */
+#ifdef WIN32
+#define ERR(e) WSA##e
+#else
+#define ERR(e) e
+#endif
 	evutil_socket_t listener = -1;
 	evutil_socket_t connector = -1;
 	evutil_socket_t acceptor = -1;
 	struct sockaddr_in listen_addr;
 	struct sockaddr_in connect_addr;
-	int size;
+	ev_socklen_t size;
 	int saved_errno = -1;
 
 	if (protocol
@@ -166,11 +179,11 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 		    && family != AF_UNIX
 #endif
 		)) {
-		EVUTIL_SET_SOCKET_ERROR(WSAEAFNOSUPPORT);
+		EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
 		return -1;
 	}
 	if (!fd) {
-		EVUTIL_SET_SOCKET_ERROR(WSAEINVAL);
+		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
 		return -1;
 	}
 
@@ -222,10 +235,10 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 	return 0;
 
  abort_tidy_up_and_fail:
-	saved_errno = WSAECONNABORTED;
+	saved_errno = ERR(ECONNABORTED);
  tidy_up_and_fail:
 	if (saved_errno < 0)
-		saved_errno = WSAGetLastError();
+		saved_errno = EVUTIL_SOCKET_ERROR();
 	if (listener != -1)
 		evutil_closesocket(listener);
 	if (connector != -1)
@@ -235,7 +248,7 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 
 	EVUTIL_SET_SOCKET_ERROR(saved_errno);
 	return -1;
-#endif
+#undef ERR
 }
 
 int
