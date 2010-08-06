@@ -3507,7 +3507,7 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 		status = -1;
 		goto done;
 	}
-	if (!(fn = (GetNetworkParams_fn_t) GetProcAddress(handle, TEXT("GetNetworkParams")))) {
+	if (!(fn = (GetNetworkParams_fn_t) GetProcAddress(handle, "GetNetworkParams"))) {
 		log(EVDNS_LOG_WARN, "Could not get address of function.");
 		status = -1;
 		goto done;
