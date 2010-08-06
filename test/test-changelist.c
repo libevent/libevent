@@ -6,6 +6,7 @@
 
 #ifdef WIN32
 #include <winsock2.h>
+#include <windows.h>
 #else
 #include <unistd.h>
 #endif
@@ -28,6 +29,88 @@
 #include <event2/util.h>
 #include <time.h>
 
+struct cpu_usage_timer {
+#ifdef WIN32
+	HANDLE thread;
+	FILETIME usertimeBegin;
+	FILETIME kerneltimeBegin;
+#else
+	clock_t ticksBegin;
+#endif
+	struct timeval timeBegin;
+};
+static void
+start_cpu_usage_timer(struct cpu_usage_timer *timer)
+{
+#ifdef WIN32
+	int r;
+	FILETIME createtime, exittime;
+	timer->thread = GetCurrentThread();
+	r = GetThreadTimes(timer->thread, &createtime, &exittime,
+	    &timer->usertimeBegin, &timer->kerneltimeBegin);
+	if (r==0) printf("GetThreadTimes failed.");
+#else
+	timer->ticksBegin = clock();
+#endif
+
+	evutil_gettimeofday(&timer->timeBegin, NULL);
+}
+#ifdef WIN32
+static ev_int64_t
+filetime_to_100nsec(const FILETIME *ft)
+{
+	/* Number of 100-nanosecond units */
+	ev_int64_t n = ft->dwHighDateTime;
+	n <<= 32;
+	n += ft->dwLowDateTime;
+	return n;
+}
+static double
+filetime_diff(const FILETIME *ftStart, const FILETIME *ftEnd)
+{
+	ev_int64_t s, e, diff;
+	double r;
+	s = filetime_to_100nsec(ftStart);
+	e = filetime_to_100nsec(ftEnd);
+	diff = e - s;
+	r = (double) diff;
+	return r / 1.0e7;
+}
+#endif
+
+static void
+get_cpu_usage(struct cpu_usage_timer *timer, double *secElapsedOut,
+    double *secUsedOut, double *usageOut)
+{
+#ifdef WIN32
+	double usertime_seconds, kerneltime_seconds;
+	FILETIME createtime, exittime, usertimeEnd, kerneltimeEnd;
+	int r;
+#else
+	clock_t ticksEnd;
+#endif
+	struct timeval timeEnd, timeDiff;
+	double secondsPassed, secondsUsed;
+
+#ifdef WIN32
+	r = GetThreadTimes(timer->thread, &createtime, &exittime,
+	    &usertimeEnd, &kerneltimeEnd);
+	if (r==0) printf("GetThreadTimes failed.");
+	usertime_seconds = filetime_diff(&timer->usertimeBegin, &usertimeEnd);
+	kerneltime_seconds = filetime_diff(&timer->kerneltimeBegin, &kerneltimeEnd);
+	secondsUsed = kerneltime_seconds + usertime_seconds;
+#else
+	ticksEnd = clock();
+	secondsUsed = (ticksEnd - timer->ticksBegin) / (double)CLOCKS_PER_SEC;
+#endif
+	evutil_gettimeofday(&timeEnd, NULL);
+	evutil_timersub(&timeEnd, &timer->timeBegin, &timeDiff);
+	secondsPassed = timeDiff.tv_sec + (timeDiff.tv_usec / 1.0e6);
+
+	*secElapsedOut = secondsPassed;
+	*secUsedOut = secondsUsed;
+	*usageOut = secondsUsed / secondsPassed;
+}
 
 static void
 write_cb(evutil_socket_t fd, short event, void *arg)
@@ -62,14 +145,10 @@ main(int argc, char **argv)
 
 	int pair[2];
 	int res;
-	int tickspassed;
-	struct timeval timeBegin;
-	struct timeval timeEnd;
 	struct timeval tv;
+	struct cpu_usage_timer timer;
 
-	clock_t ticksBegin;
-	clock_t ticksEnd;
-	double usage;
+	double usage, secPassed, secUsed;
 
 #ifdef WIN32
 	WORD wVersionRequested;
@@ -98,29 +177,19 @@ main(int argc, char **argv)
 
 	event_add(ev, NULL);
 
-	ticksBegin = clock();
-
-	evutil_gettimeofday(&timeBegin,NULL);
+	start_cpu_usage_timer(&timer);
 
 	res = event_base_dispatch(base);
 
-	evutil_gettimeofday(&timeEnd,NULL);
-
-	ticksEnd = clock();
+	get_cpu_usage(&timer, &secPassed, &secUsed, &usage);
 
 	/* attempt to calculate our cpu usage over the test should be
 	   virtually nil */
 
-	tickspassed = ((((timeEnd.tv_sec - timeBegin.tv_sec) * 1000000.0) +
-			(timeEnd.tv_usec - timeBegin.tv_usec)) *
-		       ((1.0 * CLOCKS_PER_SEC) / 1000000));
-
-	usage = 100.0 * (((int)(ticksEnd-ticksBegin) * 1.0) / tickspassed);
-
-	printf("ticks used=%d, ticks passed=%d, cpu usage=%.2f%%\n",
-	       (int)(ticksEnd-ticksBegin),
-	       tickspassed,
-	       usage);
+	printf("usec used=%d, usec passed=%d, cpu usage=%.2f%%\n",
+	    (int)(secUsed*1e6),
+	    (int)(secPassed*1e6),
+	    usage*100);
 
 	if (usage > 50.0) /* way too high */
 	  return 1;
