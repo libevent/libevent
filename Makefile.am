@@ -13,8 +13,8 @@ ACLOCAL_AMFLAGS = -I m4
 # increment to Libevent 3.0 unless we know in advance we're breaking
 # the ABI.
 #
-#RELEASE = -release 2.0
-RELEASE =
+RELEASE = -release 2.0
+#RELEASE =
 
 # This is the version info for the libevent binary API.  It has three
 # numbers:
@@ -33,7 +33,7 @@ RELEASE =
 #        Return (current+1:0:0)
 #
 # Once an RC is out, DO NOT MAKE ANY ABI-BREAKING CHANGES IN THAT SERIES.
-VERSION_INFO = 4:0:0
+VERSION_INFO = 2:0:0
 
 # History:          RELEASE    VERSION_INFO
 #  2.0.1-alpha --     2.0        1:0:0
@@ -41,12 +41,12 @@ VERSION_INFO = 4:0:0
 #  2.0.3-alpha --                2:0:0  (should have incremented; didn't.)
 #  2.0.4-alpha --                3:0:0
 #  2.0.5-beta  --                4:0:0
-# Planned:
 #  2.0.6-rc  --       2.0        2:0:0
+# Planned:
 #  2.0.7-stable --    2.0        2:1:0  (Assuming no ABI change)
 #
 # If Libevent 2.1.1 makes 'struct event' etc opaque in the headers:
-#  2.1.1-alpha --     2.x        1:0:0
+#  2.1.1-alpha --     2.1        1:0:0
 # If Libevent 2.1.1 does not makes 'struct event' opaque in the headers:
 #  2.1.1-alpha --     2.1        1:0:0
 
