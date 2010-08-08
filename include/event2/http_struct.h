@@ -118,6 +118,20 @@ struct {
 	void (*chunk_cb)(struct evhttp_request *, void *);
 };
 
+/**
+ * structure to hold parsed uri
+ */
+struct evhttp_uri {
+	char *scheme; /* scheme; e.g http, ftp etc */
+	char *host; /* hostname, or NULL */
+	char *user; /* usename, or NULL */
+	char *pass; /* password, or NULL */
+	int port; /* port, or zero */
+	char *query; /* path + query: e.g. /path/to?param=foo, or NULL */
+	char *fragment; /* fragment or NULL */
+};
+
+
 #ifdef __cplusplus
 }
 #endif

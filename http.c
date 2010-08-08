@@ -3334,3 +3334,163 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 	return (fd);
 }
 
+struct evhttp_uri *evhttp_uri_parse(const char *source_uri)
+{
+	char *readbuf = 0, *readp = 0, *token = 0, *query = 0, *host = 0, *port = 0;
+
+	struct evhttp_uri *uri = calloc(1, sizeof(*uri));
+	if (uri == NULL) {
+		event_err(1, "%s: calloc", __func__);
+		return NULL;
+	}
+
+	readbuf = strdup(source_uri);
+	if (readbuf == NULL) {
+		event_err(1, "%s: strdup", __func__);
+		free(uri);
+		return NULL;
+	}
+
+	readp = readbuf;
+	token = NULL;
+
+	/* 1. scheme:// */
+	token = strstr(readp, "://");
+	if (!token) {
+		/* unsupported uri */
+		free(readbuf);
+		free(uri);
+		return NULL;
+	}
+
+	*token = '\0';
+	uri->scheme = strdup(readp);
+
+	readp = token;
+	readp += 3; /* eat :// */
+
+	/* 2. query */
+	query = strchr(readp, '/');
+	if (query) {
+		char *fragment = strchr(query, '#');
+		if (fragment) {
+			*fragment++ = '\0'; /* eat '#' */
+			uri->fragment = strdup(fragment);
+		}
+
+		uri->query = strdup(query);
+		*query = '\0'; /* eat '/' */
+	}
+
+	/* 3. user:pass@host:port */
+	host = strchr(readp, '@');
+	if (host) {
+		char *pass = 0;
+		/* got user:pass@host:port */
+		*host++ = '\0'; /* eat @ */;
+		pass = strchr(readp, ':');
+		if (pass) {
+			*pass++ = '\0'; /* eat ':' */
+			uri->pass = strdup(pass);
+		}
+
+		uri->user = strdup(readp);
+		readp = host;
+	}
+
+	/* 4. host:port */
+	port = strchr(readp, ':');
+	if (port) {
+		*port++ = '\0'; /* eat ':' */
+		uri->port = atoi(port);
+	}
+
+	/* 5. host */
+	uri->host = strdup(readp);
+
+	free(readbuf);
+
+	return uri;
+}
+
+void evhttp_uri_free(struct evhttp_uri *uri)
+{
+	if (uri == NULL)
+		return;
+
+#define _URI_FREE_STR(f)		\
+	if (uri->f) {			\
+		free(uri->f);		\
+	}
+
+	_URI_FREE_STR(scheme);
+	_URI_FREE_STR(user);
+	_URI_FREE_STR(pass);
+	_URI_FREE_STR(host);
+	_URI_FREE_STR(query);
+	_URI_FREE_STR(fragment);
+
+	free(uri);
+
+#undef _URI_FREE_STR
+}
+
+char *evhttp_uri_join(struct evhttp_uri *uri, void *buf, size_t limit)
+{
+	struct evbuffer *tmp = 0;
+	unsigned char *joined = 0;
+	size_t joined_size = 0;
+
+#define _URI_ADD(f)	evbuffer_add(tmp, uri->f, strlen(uri->f))
+	if (!uri || !uri->scheme || !buf || !limit)
+		return NULL;
+
+	tmp = evbuffer_new();
+	if (!tmp)
+		return NULL;
+
+	_URI_ADD(scheme);
+	evbuffer_add(tmp, "://", 3);
+	if (uri->host && *uri->host) {
+		if (uri->user && *uri->user) {
+			_URI_ADD(user);
+			if (uri->pass && *uri->pass) {
+				evbuffer_add(tmp, ":", 1);
+				_URI_ADD(pass);
+			}
+			evbuffer_add(tmp, "@", 1);
+		}
+
+		_URI_ADD(host);
+
+		if (uri->port > 0)
+			evbuffer_add_printf(tmp,":%u", uri->port);
+	}
+
+	if (uri->query && *uri->query)
+		_URI_ADD(query);
+
+	if (uri->fragment && *uri->fragment) {
+		if (!uri->query || !*uri->query)
+			evbuffer_add(tmp, "/", 1);
+
+		evbuffer_add(tmp, "#", 1);
+		_URI_ADD(fragment);
+	}
+
+	evbuffer_add(tmp, "\0", 1); /* NUL */
+
+	joined = evbuffer_pullup(tmp, -1);
+	joined_size = evbuffer_get_length(tmp);
+
+	if (joined_size < limit)
+		memcpy(buf, joined, joined_size);
+	else {
+		memcpy(buf, joined, limit-1);
+		*((char *)buf+ limit - 1) = '\0';
+	}
+	evbuffer_free(tmp);
+
+	return (char *)buf;
+#undef _URI_ADD
+}

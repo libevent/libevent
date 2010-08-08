@@ -607,6 +607,38 @@ int evhttp_parse_query__checked_20(const char *uri, struct evkeyvalq *headers);
  */
 char *evhttp_htmlescape(const char *html);
 
+struct evhttp_uri;
+
+/**
+   Helper function to parse out uri.
+
+   Parsing a uri like
+
+      scheme://[[user[:pass]@]foo.com[:port]]/[path][?q=test&s=some+thing][#fragment]
+
+   @param source_uri the request URI
+   @return uri container to hold parsed data, or NULL if there is error
+   @see evhttp_uri_free()
+ */
+struct evhttp_uri *evhttp_uri_parse(const char *source_uri);
+
+/**
+ * Free the memory allocated for the uri and parsed data
+ * @param uri container with parsed data
+   @see evhttp_uri_parse()
+ */
+void evhttp_uri_free(struct evhttp_uri *uri);
+
+/**
+ * Join together the uri parts from parsed data
+ * @param uri container with parsed data
+ * @param buf destination buffer
+ * @param limit destination buffer size
+ * @return an joined uri as string or NULL on error
+   @see evhttp_uri_parse()
+ */
+char *evhttp_uri_join(struct evhttp_uri *uri, void *buf, size_t limit);
+
 #ifdef __cplusplus
 }
 #endif

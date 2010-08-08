@@ -1708,6 +1708,81 @@ end:
 }
 
 static void
+http_parse_uri_test(void *ptr)
+{
+	struct evhttp_uri *uri = NULL;
+	char url_tmp[4096];
+
+#define TT_URI(want) do { 						\
+	char *ret = evhttp_uri_join(uri, url_tmp, sizeof(url_tmp));	\
+	tt_want(ret != NULL);						\
+	tt_want(ret == url_tmp);					\
+	tt_want(strcmp(ret, want) == 0);				\
+	} while(0)
+
+	tt_want(evhttp_uri_join(0, 0, 0) == NULL);
+	tt_want(evhttp_uri_join(0, url_tmp, 0) == NULL);
+	tt_want(evhttp_uri_join(0, url_tmp, sizeof(url_tmp)) == NULL);
+	tt_want(evhttp_uri_join(uri, url_tmp, sizeof(url_tmp)) == NULL);
+
+	tt_want(evhttp_uri_parse("mailto:foo@bar") == NULL);
+
+	uri = evhttp_uri_parse("http://www.test.com/?q=test");
+	tt_want(strcmp(uri->scheme, "http") == 0);
+	tt_want(strcmp(uri->host, "www.test.com") == 0);
+	tt_want(strcmp(uri->query, "/?q=test") == 0);
+	tt_want(uri->user == NULL);
+	tt_want(uri->pass == NULL);
+	tt_want(uri->port == 0);
+	tt_want(uri->fragment == NULL);
+	TT_URI("http://www.test.com/?q=test");
+	evhttp_uri_free(uri);
+
+	uri = evhttp_uri_parse("ftp://www.test.com/?q=test");
+	tt_want(strcmp(uri->scheme, "ftp") == 0);
+	tt_want(strcmp(uri->host, "www.test.com") == 0);
+	tt_want(strcmp(uri->query, "/?q=test") == 0);
+	tt_want(uri->user == NULL);
+	tt_want(uri->pass == NULL);
+	tt_want(uri->port == 0);
+	tt_want(uri->fragment == NULL);
+	TT_URI("ftp://www.test.com/?q=test");
+	evhttp_uri_free(uri);
+
+	uri = evhttp_uri_parse("scheme://user:pass@foo.com:42/?q=test&s=some+thing#fragment");
+	tt_want(strcmp(uri->scheme, "scheme") == 0);
+	tt_want(strcmp(uri->user, "user") == 0);
+	tt_want(strcmp(uri->pass, "pass") == 0);
+	tt_want(strcmp(uri->host, "foo.com") == 0);
+	tt_want(uri->port == 42);
+	tt_want(strcmp(uri->query, "/?q=test&s=some+thing") == 0);
+	tt_want(strcmp(uri->fragment, "fragment") == 0);
+	TT_URI("scheme://user:pass@foo.com:42/?q=test&s=some+thing#fragment");
+	evhttp_uri_free(uri);
+
+	uri = evhttp_uri_parse("scheme://user@foo.com/#fragment");
+	tt_want(strcmp(uri->scheme, "scheme") == 0);
+	tt_want(strcmp(uri->user, "user") == 0);
+	tt_want(uri->pass == NULL);
+	tt_want(strcmp(uri->host, "foo.com") == 0);
+	tt_want(uri->port == 0);
+	tt_want(strcmp(uri->query, "/") == 0);
+	tt_want(strcmp(uri->fragment, "fragment") == 0);
+	TT_URI("scheme://user@foo.com/#fragment");
+	evhttp_uri_free(uri);
+	uri = evhttp_uri_parse("file:///some/path/to/the/file");
+	tt_want(strcmp(uri->scheme, "file") == 0);
+	tt_want(uri->user == NULL);
+	tt_want(uri->pass == NULL);
+	tt_want(strcmp(uri->host, "") == 0);
+	tt_want(uri->port == 0);
+	tt_want(strcmp(uri->query, "/some/path/to/the/file") == 0);
+	tt_want(uri->fragment == NULL);
+	TT_URI("file:///some/path/to/the/file");
+	evhttp_uri_free(uri);
+}
+
+static void
 http_uriencode_test(void *ptr)
 {
 	char *s=NULL, *s2=NULL;
@@ -2801,6 +2876,7 @@ struct testcase_t http_testcases[] = {
 	{ "base", http_base_test, TT_FORK|TT_NEED_BASE, NULL, NULL },
 	{ "bad_headers", http_bad_header_test, 0, NULL, NULL },
 	{ "parse_query", http_parse_query_test, 0, NULL, NULL },
+	{ "parse_uri", http_parse_uri_test, 0, NULL, NULL },
 	{ "uriencode", http_uriencode_test, 0, NULL, NULL },
 	HTTP_LEGACY(basic),
 	HTTP_LEGACY(cancel),
