@@ -716,6 +716,13 @@ bufferevent_add_to_rate_limit_group(struct bufferevent *bev,
 int
 bufferevent_remove_from_rate_limit_group(struct bufferevent *bev)
 {
+	return bufferevent_remove_from_rate_limit_group_internal(bev, 1);
+}
+
+int
+bufferevent_remove_from_rate_limit_group_internal(struct bufferevent *bev,
+    int unsuspend)
+{
 	struct bufferevent_private *bevp =
 	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
 	BEV_LOCK(bev);
@@ -728,8 +735,10 @@ bufferevent_remove_from_rate_limit_group(struct bufferevent *bev)
 		TAILQ_REMOVE(&g->members, bevp, rate_limiting->next_in_group);
 		UNLOCK_GROUP(g);
 	}
-	bufferevent_unsuspend_read(bev, BEV_SUSPEND_BW_GROUP);
-	bufferevent_unsuspend_write(bev, BEV_SUSPEND_BW_GROUP);
+	if (unsuspend) {
+		bufferevent_unsuspend_read(bev, BEV_SUSPEND_BW_GROUP);
+		bufferevent_unsuspend_write(bev, BEV_SUSPEND_BW_GROUP);
+	}
 	BEV_UNLOCK(bev);
 	return 0;
 }

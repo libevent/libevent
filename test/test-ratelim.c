@@ -187,7 +187,11 @@ test_ratelimiting(void)
 	sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
 	sin.sin_port = 0; /* unspecified port */
 
+	if (0)
+		event_enable_debug_mode();
+
 	base = event_base_new();
+
 	listener = evconnlistener_new_bind(base, echo_listenercb, base,
 	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE, -1,
 	    (struct sockaddr *)&sin, sizeof(sin));

@@ -608,7 +608,7 @@ _bufferevent_decref_and_unlock(struct bufferevent *bufev)
 
 	if (bufev_private->rate_limiting) {
 		if (bufev_private->rate_limiting->group)
-			bufferevent_remove_from_rate_limit_group(bufev);
+			bufferevent_remove_from_rate_limit_group_internal(bufev,0);
 		if (event_initialized(&bufev_private->rate_limiting->refill_bucket_event))
 			event_del(&bufev_private->rate_limiting->refill_bucket_event);
 		event_debug_unassign(&bufev_private->rate_limiting->refill_bucket_event);

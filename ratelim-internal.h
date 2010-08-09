@@ -84,6 +84,9 @@ int ev_token_bucket_init(struct ev_token_bucket *bucket,
     ev_uint32_t current_tick,
     int reinitialize);
 
+int bufferevent_remove_from_rate_limit_group_internal(struct bufferevent *bev,
+    int unsuspend);
+
 /** Decrease the read limit of 'b' by 'n' bytes */
 #define ev_token_bucket_decrement_read(b,n)	\
 	do {					\
