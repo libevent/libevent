@@ -172,6 +172,10 @@ static void evhttp_read_header(struct evhttp_connection *evcon,
 static int evhttp_add_header_internal(struct evkeyvalq *headers,
     const char *key, const char *value);
 static const char *evhttp_response_phrase_internal(int code);
+static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, ev_socklen_t);
+static void evhttp_write_buffer(struct evhttp_connection *,
+    void (*)(struct evhttp_connection *, void *), void *);
+static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
 
 /* callbacks for bufferevent */
 static void evhttp_read_cb(struct bufferevent *, void *);
@@ -260,6 +264,9 @@ evhttp_htmlescape(const char *html)
 	return (escaped_html);
 }
 
+/** Given an evhttp_cmd_type, returns a constant string containing the
+ * equivalent HTTP command, or NULL if the evhttp_command_type is
+ * unrecognized. */
 static const char *
 evhttp_method(enum evhttp_cmd_type type)
 {
@@ -304,6 +311,9 @@ evhttp_response_needs_body(struct evhttp_request *req)
 		req->type != EVHTTP_REQ_HEAD);
 }
 
+/** Helper: adds the event 'ev' with the timeout 'timeout', or with
+ * default_timeout if timeout is -1.
+ */
 static int
 evhttp_add_event(struct event *ev, int timeout, int default_timeout)
 {
@@ -318,7 +328,11 @@ evhttp_add_event(struct event *ev, int timeout, int default_timeout)
 	}
 }
 
-void
+/** Helper: called after we've added some data to an evcon's bufferevent's
+ * output buffer.  Sets the evconn's writing-is-done callback, and puts
+ * the bufferevent into writing mode.
+ */
+static void
 evhttp_write_buffer(struct evhttp_connection *evcon,
     void (*cb)(struct evhttp_connection *, void *), void *arg)
 {
@@ -332,6 +346,7 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	bufferevent_enable(evcon->bufev, EV_WRITE);
 }
 
+/** Helper: returns true iff evconn is in any connected state. */
 static int
 evhttp_connected(struct evhttp_connection *evcon)
 {
@@ -350,8 +365,9 @@ evhttp_connected(struct evhttp_connection *evcon)
 	}
 }
 
-/*
- * Create the headers needed for an HTTP request
+/* Create the headers needed for an outgoing HTTP request, adds them to
+ * the request's header list, and writes the request line to the
+ * connection's output buffer.
  */
 static void
 evhttp_make_header_request(struct evhttp_connection *evcon,
@@ -370,6 +386,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	/* Add the content length on a post or put request if missing */
 	if ((req->type == EVHTTP_REQ_POST || req->type == EVHTTP_REQ_PUT) &&
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
+		/* XXX what if long is 64 bits? -NM */
 		char size[12];
 		evutil_snprintf(size, sizeof(size), "%ld",
 		    (long)evbuffer_get_length(req->output_buffer));
@@ -377,6 +394,9 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	}
 }
 
+/** Return true if the list of headers in 'headers', intepreted with respect
+ * to flags, means that we should send a "connection: close" when the request
+ * is done. */
 static int
 evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 {
@@ -390,6 +410,7 @@ evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 	}
 }
 
+/* Return true iff 'headers' contains 'Connection: keep-alive' */
 static int
 evhttp_is_connection_keepalive(struct evkeyvalq* headers)
 {
@@ -398,6 +419,7 @@ evhttp_is_connection_keepalive(struct evkeyvalq* headers)
 	    && evutil_ascii_strncasecmp(connection, "keep-alive", 10) == 0);
 }
 
+/* Add a correct "Date" header to headers, unless it already has one. */
 static void
 evhttp_maybe_add_date_header(struct evkeyvalq *headers)
 {
@@ -421,22 +443,24 @@ evhttp_maybe_add_date_header(struct evkeyvalq *headers)
 	}
 }
 
+/* Add a "Content-Length" header with value 'content_length' to headers,
+ * unless it already has a content-length or transfer-encoding header. */
 static void
 evhttp_maybe_add_content_length_header(struct evkeyvalq *headers,
-    long content_length)
+    long content_length) /* XXX use size_t or int64, not long. */
 {
 	if (evhttp_find_header(headers, "Transfer-Encoding") == NULL &&
 	    evhttp_find_header(headers,	"Content-Length") == NULL) {
-		char len[12];
+		char len[12]; /* XXX what if long is 64 bits? -NM */
 		evutil_snprintf(len, sizeof(len), "%ld", content_length);
 		evhttp_add_header(headers, "Content-Length", len);
 	}
 }
 
 /*
- * Create the headers needed for an HTTP reply
+ * Create the headers needed for an HTTP reply in req->output_headers,
+ * and write the first HTTP response for req line to evcon.
  */
-
 static void
 evhttp_make_header_response(struct evhttp_connection *evcon,
     struct evhttp_request *req)
@@ -447,6 +471,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	    req->major, req->minor, req->response_code,
 	    req->response_code_line);
 
+	/* XXX shouldn't these check for >= rather than == ? - NM */
 	if (req->major == 1) {
 		if (req->minor == 1)
 			evhttp_maybe_add_date_header(req->output_headers);
@@ -490,7 +515,10 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	}
 }
 
-void
+/** Generate all headers appropriate for sending the http request in req (or
+ * the response, if we're sending a response), and write them to evcon's
+ * bufferevent. Also writes all data from req->output_buffer */
+static void
 evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
 	struct evkeyval *header;
@@ -584,6 +612,10 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 	return (0);
 }
 
+/* Called when evcon has experienced a (non-recoverable? -NM) error, as
+ * given in error. If it's an outgoing connection, reset the connection,
+ * retry any pending requests, and inform the user.  If it's incoming,
+ * delegates to evhttp_connection_incoming_fail(). */
 void
 evhttp_connection_fail(struct evhttp_connection *evcon,
     enum evhttp_connection_error error)
@@ -638,6 +670,8 @@ evhttp_connection_fail(struct evhttp_connection *evcon,
 		(*cb)(NULL, cb_arg);
 }
 
+/* Bufferevent callback: invoked when any data has been written from an
+ * http connection's bufferevent */
 static void
 evhttp_write_cb(struct bufferevent *bufev, void *arg)
 {
@@ -1029,7 +1063,8 @@ evhttp_request_dispatch(struct evhttp_connection* evcon)
 	evhttp_write_buffer(evcon, evhttp_write_connectioncb, NULL);
 }
 
-/* Reset our connection state */
+/* Reset our connection state: disables reading/writing, closes our fd (if
+* any), clears out buffers, and puts us in state DISCONNECTED. */
 void
 evhttp_connection_reset(struct evhttp_connection *evcon)
 {
@@ -1335,6 +1370,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		req->major = 1;
 		req->minor = 1;
 	} else {
+		/* XXX So, http/1.2 kills us?  Is that right? -NM */
 		event_debug(("%s: bad version %s on request %p from %s",
 			__func__, version, req, req->remote_host));
 		return (-1);
@@ -2530,7 +2566,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	hostname = evhttp_find_header(req->input_headers, "Host");
 	if (hostname != NULL) {
 		struct evhttp *vhost;
-		TAILQ_FOREACH(vhost, &http->virtualhosts, next) {
+		TAILQ_FOREACH(vhost, &http->virtualhosts, next_vhost) {
 			if (prefix_suffix_match(vhost->vhost_pattern, hostname,
 				1 /* ignorecase */)) {
 				evhttp_handle_request(req, vhost);
@@ -2584,6 +2620,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	}
 }
 
+/* Listener callback when a connection arrives at a server. */
 static void
 accept_socket_cb(struct evconnlistener *listener, evutil_socket_t nfd, struct sockaddr *peer_sa, int peer_socklen, void *arg)
 {
@@ -2757,7 +2794,7 @@ evhttp_free(struct evhttp* http)
 	}
 
 	while ((vhost = TAILQ_FIRST(&http->virtualhosts)) != NULL) {
-		TAILQ_REMOVE(&http->virtualhosts, vhost, next);
+		TAILQ_REMOVE(&http->virtualhosts, vhost, next_vhost);
 
 		evhttp_free(vhost);
 	}
@@ -2781,7 +2818,7 @@ evhttp_add_virtual_host(struct evhttp* http, const char *pattern,
 	if (vhost->vhost_pattern == NULL)
 		return (-1);
 
-	TAILQ_INSERT_TAIL(&http->virtualhosts, vhost, next);
+	TAILQ_INSERT_TAIL(&http->virtualhosts, vhost, next_vhost);
 
 	return (0);
 }
@@ -2792,7 +2829,7 @@ evhttp_remove_virtual_host(struct evhttp* http, struct evhttp* vhost)
 	if (vhost->vhost_pattern == NULL)
 		return (-1);
 
-	TAILQ_REMOVE(&http->virtualhosts, vhost, next);
+	TAILQ_REMOVE(&http->virtualhosts, vhost, next_vhost);
 
 	mm_free(vhost->vhost_pattern);
 	vhost->vhost_pattern = NULL;
@@ -3101,7 +3138,7 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 	return (0);
 }
 
-void
+static void
 evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
     struct sockaddr *sa, ev_socklen_t salen)
 {
