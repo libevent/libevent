@@ -38,6 +38,8 @@ TAGS
 
 # Stuff made by our makefiles
 libevent.pc
+libevent_pthreads.pc
+libevent_openssl.pc
 
 ## The initial / makes these files only get ignored in particular directories.
 /autom4te.cache

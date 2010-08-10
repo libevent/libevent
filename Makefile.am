@@ -91,9 +91,11 @@ EXTRA_DIST = \
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 if PTHREADS
 lib_LTLIBRARIES += libevent_pthreads.la
+pkgconfig_DATA += libevent_pthreads.pc
 endif
 if OPENSSL
 lib_LTLIBRARIES += libevent_openssl.la
+pkgconfig_DATA += libevent_openssl.pc
 endif
 
 SUBDIRS = . include sample test
