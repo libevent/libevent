@@ -74,27 +74,6 @@ evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 	}
 }
 
-static void
-api_error(void)
-{
-	event_errx(1, "evthread_set_locking_callback and "
-	    "evthread_set_lock_create_callbacks are obsolete; use "
-	    "evthread_set_lock_callbacks instead.");
-}
-
-void
-evthread_set_locking_callback(void (*locking_fn)(int mode, void *lock))
-{
-	api_error();
-}
-
-void
-evthread_set_lock_create_callbacks(void *(*alloc_fn)(void),
-    void (*free_fn)(void *))
-{
-	api_error();
-}
-
 struct debug_lock {
 	unsigned locktype;
 	unsigned long held_by;

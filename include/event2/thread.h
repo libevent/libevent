@@ -72,20 +72,6 @@ extern "C" {
 
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
 
-/**
-   @deprecated Use evthread_set_lock_callbacks instead.  This API will
-     go away before Libevent 2.0.x-stable.
-*/
-void evthread_set_lock_create_callbacks(
-    void *(*alloc_fn)(void), void (*free_fn)(void *));
-
-/**
-   @deprecated Use evthread_set_lock_callbacks instead.  This API will
-     go away before Libevent 2.0.x-stable.
- */
-void evthread_set_locking_callback(
-    void (*locking_fn)(int mode, void *lock));
-
 #define EVTHREAD_LOCK_API_VERSION 1
 
 /** A recursive lock is one that can be acquired multiple times at once by the
