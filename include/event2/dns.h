@@ -179,6 +179,9 @@ extern "C" {
 #define DNS_OPTION_HOSTSFILE 8
 #define DNS_OPTIONS_ALL 15
 
+/* Obsolete name for DNS_QUERY_NO_SEARCH */
+#define DNS_NO_SEARCH DNS_QUERY_NO_SEARCH
+
 /**
  * The callback that contains the results from a lookup.
  * - result is one of the DNS_ERR_* values (DNS_ERR_NONE for success)
@@ -506,8 +509,6 @@ void evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void));
    since Libevent now provides its own secure RNG.
 */
 void evdns_set_random_bytes_fn(void (*fn)(char *, size_t));
-
-#define DNS_NO_SEARCH 1
 
 /*
  * Functions used to implement a DNS server.
