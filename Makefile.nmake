@@ -2,7 +2,7 @@
 # tons of important things.  DO NOT RELY ON IT TO BUILD A GOOD LIBEVENT.
 
 # Needed for correctness
-CFLAGS=/Iinclude /Icompat /IWIN32-Code /DWIN32 /DHAVE_CONFIG_H /I.
+CFLAGS=/IWIN32-Code /Iinclude /Icompat /DWIN32 /DHAVE_CONFIG_H /I.
 
 # For optimization and warnings
 CFLAGS=$(CFLAGS) /Ox /W3 /wd4996 /nologo
