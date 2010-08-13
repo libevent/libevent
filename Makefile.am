@@ -77,7 +77,8 @@ EXTRA_DIST = autogen.sh event.h event-internal.h log.h evsignal.h evdns.3 \
 	WIN32-Prj/libevent.dsw WIN32-Prj/signal_test/signal_test.dsp \
 	WIN32-Prj/time_test/time_test.dsp WIN32-Prj/regress/regress.vcproj \
 	WIN32-Prj/libevent.sln WIN32-Prj/libevent.vcproj \
-	Makefile.nmake test/Makefile.nmake
+	Makefile.nmake test/Makefile.nmake \
+	LICENSE
 
 lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
 
