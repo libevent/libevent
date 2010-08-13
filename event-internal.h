@@ -272,7 +272,7 @@ struct event_base {
 };
 
 struct event_config_entry {
-	TAILQ_ENTRY(event_config_entry) (next);
+	TAILQ_ENTRY(event_config_entry) next;
 
 	const char *avoid_method;
 };

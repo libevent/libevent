@@ -71,11 +71,11 @@ struct {								\
 
 struct event_base;
 struct event {
-	TAILQ_ENTRY (event) (ev_active_next);
-	TAILQ_ENTRY (event) (ev_next);
+	TAILQ_ENTRY(event) ev_active_next;
+	TAILQ_ENTRY(event) ev_next;
 	/* for managing timeouts */
 	union {
-		TAILQ_ENTRY (event) (ev_next_with_common_timeout);
+		TAILQ_ENTRY(event) ev_next_with_common_timeout;
 		int min_heap_idx;
 	} ev_timeout_pos;
 	evutil_socket_t ev_fd;
@@ -85,13 +85,13 @@ struct event {
 	union {
 		/* used for io events */
 		struct {
-			TAILQ_ENTRY (event) (ev_io_next);
+			TAILQ_ENTRY(event) ev_io_next;
 			struct timeval ev_timeout;
 		} ev_io;
 
 		/* used by signal events */
 		struct {
-			TAILQ_ENTRY (event) (ev_signal_next);
+			TAILQ_ENTRY(event) ev_signal_next;
 			short ev_ncalls;
 			/* Allows deletes in callback */
 			short *ev_pncalls;

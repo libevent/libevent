@@ -41,7 +41,7 @@ typedef void (*deferred_cb_fn)(struct deferred_cb *, void *);
  * an event_base's event_loop, rather than running immediately. */
 struct deferred_cb {
 	/** Links to the adjacent active (pending) deferred_cb objects. */
-	TAILQ_ENTRY (deferred_cb) (cb_next);
+	TAILQ_ENTRY (deferred_cb) cb_next;
 	/** True iff this deferred_cb is pending in an event_base. */
 	unsigned queued : 1;
 	/** The function to execute when the callback runs. */

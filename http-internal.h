@@ -58,7 +58,7 @@ struct event_base;
 
 struct evhttp_connection {
 	/* we use tailq only if they were created for an http server */
-	TAILQ_ENTRY(evhttp_connection) (next);
+	TAILQ_ENTRY(evhttp_connection) next;
 
 	evutil_socket_t fd;
 	struct bufferevent *bufev;
@@ -114,7 +114,7 @@ TAILQ_HEAD(evconq, evhttp_connection);
 
 /* each bound socket is stored in one of these */
 struct evhttp_bound_socket {
-	TAILQ_ENTRY(evhttp_bound_socket) (next);
+	TAILQ_ENTRY(evhttp_bound_socket) next;
 
 	struct evconnlistener *listener;
 };

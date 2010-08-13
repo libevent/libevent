@@ -35,7 +35,7 @@ struct evrpc_request_wrapper;
 #define EVRPC_URI_PREFIX "/.rpc."
 
 struct evrpc_hook {
-	TAILQ_ENTRY(evrpc_hook) (next);
+	TAILQ_ENTRY(evrpc_hook) next;
 
 	/* returns EVRPC_TERMINATE; if the rpc should be aborted.
 	 * a hook is is allowed to rewrite the evbuffer
@@ -95,14 +95,14 @@ struct evrpc_pool {
 };
 
 struct evrpc_hook_ctx {
-	TAILQ_ENTRY(evrpc_hook_ctx) (next);
+	TAILQ_ENTRY(evrpc_hook_ctx) next;
 
 	void *ctx;
 	void (*cb)(void *, enum EVRPC_HOOK_RESULT);
 };
 
 struct evrpc_meta {
-	TAILQ_ENTRY(evrpc_meta) (next);
+	TAILQ_ENTRY(evrpc_meta) next;
 	char *key;
 
 	void *data;
