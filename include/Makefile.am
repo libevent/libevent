@@ -27,5 +27,7 @@ EVENT2_EXPORT = \
 
 EXTRA_SRC = $(EVENT2_EXPORT)
 
-nobase_include_HEADERS = $(EVENT2_EXPORT) ./event2/event-config.h
+nobase_include_HEADERS = $(EVENT2_EXPORT)
+
+nobase_nodist_include_HEADERS = ./event2/event-config.h
 
