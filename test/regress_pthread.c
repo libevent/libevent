@@ -30,35 +30,59 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef _EVENT_HAVE_PTHREADS
 #include <pthread.h>
+#elif defined(WIN32)
+#include <process.h>
+#endif
 #include <assert.h>
 
 #include "event2/util.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/thread.h"
+#include "evthread-internal.h"
 #include "regress.h"
 #include "tinytest_macros.h"
 
+#ifdef _EVENT_HAVE_PTHREADS
+#define THREAD_T pthread_t
+#define THREAD_FN void *
+#define THREAD_RETURN() return (NULL)
+#define THREAD_START(threadvar, fn, arg) \
+	pthread_create(&(threadvar), NULL, fn, arg)
+#define THREAD_JOIN(th) pthread_join(th, NULL)
+#else
+#define THREAD_T HANDLE
+#define THREAD_FN unsigned __stdcall
+#define THREAD_RETURN() return (0)
+#define THREAD_START(threadvar, fn, arg) do {		\
+	uintptr_t threadhandle = _beginthreadex(NULL,0,fn,(arg),0,NULL); \
+	(threadvar) = (HANDLE) threadhandle; \
+	} while (0)
+#define THREAD_JOIN(th) WaitForSingleObject(th, INFINITE)
+#endif
+
 struct cond_wait {
-	pthread_mutex_t lock;
-	pthread_cond_t cond;
+	void *lock;
+	void *cond;
 };
 
 static void
 basic_timeout(evutil_socket_t fd, short what, void *arg)
 {
 	struct cond_wait *cw = arg;
-	assert(pthread_mutex_lock(&cw->lock) == 0);
-	assert(pthread_cond_broadcast(&cw->cond) == 0);
-	assert(pthread_mutex_unlock(&cw->lock) == 0);
+	EVLOCK_LOCK(cw->lock, 0);
+	EVTHREAD_COND_BROADCAST(cw->cond);
+	EVLOCK_UNLOCK(cw->lock, 0);
+
 }
 
 #define NUM_THREADS	100
-static pthread_mutex_t count_lock;
+void *count_lock;
 static int count;
 
-static void *
+static THREAD_FN
 basic_thread(void *arg)
 {
 	struct cond_wait cw;
@@ -66,48 +90,61 @@ basic_thread(void *arg)
 	struct event ev;
 	int i = 0;
 
-	assert(pthread_mutex_init(&cw.lock, NULL) == 0);
-	assert(pthread_cond_init(&cw.cond, NULL) == 0);
+	EVTHREAD_ALLOC_LOCK(cw.lock, 0);
+	EVTHREAD_ALLOC_COND(cw.cond);
+	assert(cw.lock);
+	assert(cw.cond);
 
 	evtimer_assign(&ev, base, basic_timeout, &cw);
 	for (i = 0; i < 100; i++) {
 		struct timeval tv;
 		evutil_timerclear(&tv);
 
-		assert(pthread_mutex_lock(&cw.lock) == 0);
+		EVLOCK_LOCK(cw.lock, 0);
 		/* we need to make sure that even does not happen before
 		 * we get to wait on the conditional variable */
 		assert(evtimer_add(&ev, &tv) == 0);
-		assert(pthread_cond_wait(&cw.cond, &cw.lock) == 0);
-		assert(pthread_mutex_unlock(&cw.lock) == 0);
 
-		assert(pthread_mutex_lock(&count_lock) == 0);
+		assert(EVTHREAD_COND_WAIT(cw.cond, cw.lock) == 0);
+		EVLOCK_UNLOCK(cw.lock, 0);
+
+		EVLOCK_LOCK(count_lock, 0);
 		++count;
-		assert(pthread_mutex_unlock(&count_lock) == 0);
+		EVLOCK_UNLOCK(count_lock, 0);
 	}
 
 	/* exit the loop only if all threads fired all timeouts */
-	assert(pthread_mutex_lock(&count_lock) == 0);
+	EVLOCK_LOCK(count_lock, 0);
 	if (count >= NUM_THREADS * 100)
 		event_base_loopexit(base, NULL);
-	assert(pthread_mutex_unlock(&count_lock) == 0);
+	EVLOCK_UNLOCK(count_lock, 0);
 
-	assert(pthread_cond_destroy(&cw.cond) == 0);
-	assert(pthread_mutex_destroy(&cw.lock) == 0);
+	EVTHREAD_FREE_LOCK(cw.lock, 0);
+	EVTHREAD_FREE_COND(cw.cond);
 
-	return (NULL);
+	THREAD_RETURN();
 }
 
 static void
-pthread_basic(struct event_base *base)
+thread_basic(void *arg)
 {
-	pthread_t threads[NUM_THREADS];
+	THREAD_T threads[NUM_THREADS];
 	struct event ev;
 	struct timeval tv;
 	int i;
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+
+	EVTHREAD_ALLOC_LOCK(count_lock, 0);
+	tt_assert(count_lock);
+
+	tt_assert(base);
+	if (evthread_make_base_notifiable(base)<0) {
+		tt_abort_msg("Couldn't make base notifiable!");
+	}
 
 	for (i = 0; i < NUM_THREADS; ++i)
-		pthread_create(&threads[i], NULL, basic_thread, base);
+		THREAD_START(threads[i], basic_thread, base);
 
 	evtimer_assign(&ev, base, NULL, NULL);
 	evutil_timerclear(&tv);
@@ -117,32 +154,17 @@ pthread_basic(struct event_base *base)
 	event_base_dispatch(base);
 
 	for (i = 0; i < NUM_THREADS; ++i)
-		pthread_join(threads[i], NULL);
+		THREAD_JOIN(threads[i]);
 
 	event_del(&ev);
-}
-
-void
-regress_threads(void *arg)
-{
-	struct event_base *base;
-	(void) arg;
-
-	pthread_mutex_init(&count_lock, NULL);
-
-	if (evthread_use_pthreads()<0)
-		tt_abort_msg("Couldn't initialize pthreads!");
-
-	base = event_base_new();
-	if (evthread_make_base_notifiable(base)<0) {
-		tt_abort_msg("Couldn't make base notifiable!");
-	}
-
-	pthread_basic(base);
-
-	pthread_mutex_destroy(&count_lock);
-
-	event_base_free(base);
+	EVTHREAD_FREE_LOCK(count_lock, 0);
 end:
 	;
 }
+
+struct testcase_t thread_testcases[] = {
+	{ "basic", thread_basic, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE,
+	  &basic_setup, NULL },
+	END_OF_TESTCASES
+};
+

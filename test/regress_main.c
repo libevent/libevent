@@ -325,15 +325,12 @@ const struct testcase_setup_t legacy_setup = {
 
 /* ============================================================ */
 
-
+#if (!defined(_EVENT_HAVE_PTHREADS) && !defined(WIN32)) || defined(_EVENT_DISABLE_THREAD_SUPPORT)
 struct testcase_t thread_testcases[] = {
-#if defined(_EVENT_HAVE_PTHREADS) && !defined(_EVENT_DISABLE_THREAD_SUPPORT)
-	{ "pthreads", regress_threads, TT_FORK, NULL, NULL, },
-#else
-	{ "pthreads", NULL, TT_SKIP, NULL, NULL },
-#endif
+	{ "basic", NULL, TT_SKIP, NULL, NULL },
 	END_OF_TESTCASES
 };
+#endif
 
 struct testgroup_t testgroups[] = {
 	{ "main/", main_testcases },

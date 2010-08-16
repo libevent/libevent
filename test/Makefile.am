@@ -35,6 +35,9 @@ if PTHREADS
 regress_pthread_SOURCES = regress_pthread.c
 PTHREAD_LIBS += ../libevent_pthreads.la
 endif
+if BUILD_WIN32
+regress_pthread_SOURCES = regress_pthread.c
+endif
 if ZLIB_REGRESS
 regress_zlib_SOURCES = regress_zlib.c
 endif
