@@ -82,12 +82,13 @@ static void
 pin_release(struct evbuffer_overlapped *eo, unsigned flag)
 {
 	int i;
-	struct evbuffer_chain *chain = eo->first_pinned;
+	struct evbuffer_chain *next, *chain = eo->first_pinned;
 
 	for (i = 0; i < eo->n_buffers; ++i) {
 		EVUTIL_ASSERT(chain);
+		next = chain->next;
 		_evbuffer_chain_unpin(chain, flag);
-		chain = chain->next;
+		chain = next;
 	}
 }
 
@@ -95,8 +96,9 @@ void
 evbuffer_commit_read(struct evbuffer *evbuf, ev_ssize_t nBytes)
 {
 	struct evbuffer_overlapped *buf = upcast_evbuffer(evbuf);
-	struct evbuffer_iovec iov[2];
-	int n_vec;
+	struct evbuffer_chain **chainp;
+	size_t remaining, len;
+	unsigned i;
 
 	EVBUFFER_LOCK(evbuf);
 	EVUTIL_ASSERT(buf->read_in_progress && !buf->write_in_progress);
@@ -104,23 +106,26 @@ evbuffer_commit_read(struct evbuffer *evbuf, ev_ssize_t nBytes)
 
 	evbuffer_unfreeze(evbuf, 0);
 
-	iov[0].iov_base = buf->buffers[0].buf;
-	if ((size_t)nBytes <= buf->buffers[0].len) {
-		iov[0].iov_len = nBytes;
-		n_vec = 1;
-	} else {
-		iov[0].iov_len = buf->buffers[0].len;
-		iov[1].iov_base = buf->buffers[1].buf;
-		iov[1].iov_len = nBytes - iov[0].iov_len;
-		n_vec = 2;
+	chainp = evbuf->last_with_datap;
+	if (!((*chainp)->flags & EVBUFFER_MEM_PINNED_R))
+		chainp = &(*chainp)->next;
+	remaining = nBytes;
+	for (i = 0; remaining > 0 && i < buf->n_buffers; ++i) {
+		EVUTIL_ASSERT(*chainp);
+		len = buf->buffers[i].len;
+		if (remaining < len)
+			len = remaining;
+		(*chainp)->off += len;
+		evbuf->last_with_datap = chainp;
+		remaining -= len;
+		chainp = &(*chainp)->next;
 	}
-
-	if (evbuffer_commit_space(evbuf, iov, n_vec) < 0)
-		EVUTIL_ASSERT(0); /* XXXX fail nicer. */
 
 	pin_release(buf, EVBUFFER_MEM_PINNED_R);
 
 	buf->read_in_progress = 0;
+
+	evbuf->total_len += nBytes;
 
 	_evbuffer_decref_and_unlock(evbuf);
 }
@@ -184,7 +189,7 @@ evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most,
 	}
 	evbuffer_freeze(buf, 1);
 
-	buf_o->first_pinned = 0;
+	buf_o->first_pinned = NULL;
 	buf_o->n_buffers = 0;
 	memset(buf_o->buffers, 0, sizeof(buf_o->buffers));
 
@@ -246,19 +251,16 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most,
 	if (buf->freeze_end || buf_o->read_in_progress)
 		goto done;
 
-	buf_o->first_pinned = 0;
+	buf_o->first_pinned = NULL;
 	buf_o->n_buffers = 0;
 	memset(buf_o->buffers, 0, sizeof(buf_o->buffers));
 
-	if (_evbuffer_expand_fast(buf, at_most, 2) == -1)
+	if (_evbuffer_expand_fast(buf, at_most, MAX_WSABUFS) == -1)
 		goto done;
 	evbuffer_freeze(buf, 0);
 
-	/* XXX This and evbuffer_read_setup_vecs() should say MAX_WSABUFS,
-	 * not "2".  But commit_read() above can't handle more than two
-	 * buffers yet. */
 	nvecs = _evbuffer_read_setup_vecs(buf, at_most,
-	    vecs, 2, &chainp, 1);
+	    vecs, MAX_WSABUFS, &chainp, 1);
 	for (i=0;i<nvecs;++i) {
 		WSABUF_FROM_EVBUFFER_IOV(
 			&buf_o->buffers[i],
@@ -266,7 +268,8 @@ evbuffer_launch_read(struct evbuffer *buf, size_t at_most,
 	}
 
 	buf_o->n_buffers = nvecs;
-	buf_o->first_pinned = chain= *chainp;
+	buf_o->first_pinned = chain = *chainp;
+
 	npin=0;
 	for ( ; chain; chain = chain->next) {
 		_evbuffer_chain_pin(chain, EVBUFFER_MEM_PINNED_R);

@@ -575,7 +575,8 @@ evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
 	} else {
 		if (_evbuffer_expand_fast(buf, size, n_vecs)<0)
 			goto done;
-		n = _evbuffer_read_setup_vecs(buf, size, vec, n_vecs, &chainp, 0);
+		n = _evbuffer_read_setup_vecs(buf, size, vec, n_vecs,
+				&chainp, 0);
 	}
 
 done:
@@ -670,6 +671,12 @@ done:
 	return result;
 }
 
+static inline int
+HAS_PINNED_R(struct evbuffer *buf)
+{
+	return (buf->last && CHAIN_PINNED_R(buf->last));
+}
+
 static inline void
 ZERO_CHAIN(struct evbuffer *dst)
 {
@@ -678,6 +685,71 @@ ZERO_CHAIN(struct evbuffer *dst)
 	dst->last = NULL;
 	dst->last_with_datap = &(dst)->first;
 	dst->total_len = 0;
+}
+
+/* Prepares the contents of src to be moved to another buffer by removing
+ * read-pinned chains. The first pinned chain is saved in first, and the
+ * last in last. If src has no read-pinned chains, first and last are set
+ * to NULL. */
+static int
+PRESERVE_PINNED(struct evbuffer *src, struct evbuffer_chain **first,
+		struct evbuffer_chain **last)
+{
+	struct evbuffer_chain *chain, **pinned;
+
+	ASSERT_EVBUFFER_LOCKED(src);
+
+	if (!HAS_PINNED_R(src)) {
+		*first = *last = NULL;
+		return 0;
+	}
+
+	pinned = src->last_with_datap;
+	if (!CHAIN_PINNED_R(*pinned))
+		pinned = &(*pinned)->next;
+	EVUTIL_ASSERT(CHAIN_PINNED_R(*pinned));
+	chain = *first = *pinned;
+	*last = src->last;
+
+	/* If there's data in the first pinned chain, we need to allocate
+	 * a new chain and copy the data over. */
+	if (chain->off) {
+		struct evbuffer_chain *tmp;
+
+		EVUTIL_ASSERT(pinned == src->last_with_datap);
+		tmp = evbuffer_chain_new(chain->off);
+		if (!tmp)
+			return -1;
+		memcpy(tmp->buffer, chain->buffer + chain->misalign,
+			chain->off);
+		tmp->off = chain->off;
+		*src->last_with_datap = tmp;
+		src->last = tmp;
+		chain->misalign += chain->off;
+		chain->off = 0;
+	} else {
+		src->last = *src->last_with_datap;
+		*pinned = NULL;
+	}
+
+	return 0;
+}
+
+static inline void
+RESTORE_PINNED(struct evbuffer *src, struct evbuffer_chain *pinned,
+		struct evbuffer_chain *last)
+{
+	ASSERT_EVBUFFER_LOCKED(src);
+
+	if (!pinned) {
+		ZERO_CHAIN(src);
+		return;
+	}
+
+	src->first = pinned;
+	src->last = last;
+	src->last_with_datap = &src->first;
+	src->total_len = 0;
 }
 
 static inline void
@@ -729,6 +801,7 @@ PREPEND_CHAIN(struct evbuffer *dst, struct evbuffer *src)
 int
 evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 {
+	struct evbuffer_chain *pinned, *last;
 	size_t in_total_len, out_total_len;
 	int result = 0;
 
@@ -744,6 +817,11 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		goto done;
 	}
 
+	if (PRESERVE_PINNED(inbuf, &pinned, &last) < 0) {
+		result = -1;
+		goto done;
+	}
+
 	if (out_total_len == 0) {
 		/* There might be an empty chain at the start of outbuf; free
 		 * it. */
@@ -753,8 +831,8 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		APPEND_CHAIN(outbuf, inbuf);
 	}
 
-	/* remove everything from inbuf */
-	ZERO_CHAIN(inbuf);
+	RESTORE_PINNED(inbuf, pinned, last);
+
 	inbuf->n_del_for_cb += in_total_len;
 	outbuf->n_add_for_cb += in_total_len;
 
@@ -769,6 +847,7 @@ done:
 int
 evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 {
+	struct evbuffer_chain *pinned, *last;
 	size_t in_total_len, out_total_len;
 	int result = 0;
 
@@ -785,6 +864,11 @@ evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		goto done;
 	}
 
+	if (PRESERVE_PINNED(inbuf, &pinned, &last) < 0) {
+		result = -1;
+		goto done;
+	}
+
 	if (out_total_len == 0) {
 		/* There might be an empty chain at the start of outbuf; free
 		 * it. */
@@ -794,8 +878,8 @@ evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 		PREPEND_CHAIN(outbuf, inbuf);
 	}
 
-	/* remove everything from inbuf */
-	ZERO_CHAIN(inbuf);
+	RESTORE_PINNED(inbuf, pinned, last);
+
 	inbuf->n_del_for_cb += in_total_len;
 	outbuf->n_add_for_cb += in_total_len;
 
@@ -810,7 +894,7 @@ int
 evbuffer_drain(struct evbuffer *buf, size_t len)
 {
 	struct evbuffer_chain *chain, *next;
-	size_t old_len;
+	size_t remaining, old_len;
 	int result = 0;
 
 	EVBUFFER_LOCK(buf);
@@ -824,12 +908,10 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 		goto done;
 	}
 
-
-	if (len >= old_len && !(buf->last && CHAIN_PINNED_R(buf->last))) {
+	if (len >= old_len && !HAS_PINNED_R(buf)) {
 		len = old_len;
 		for (chain = buf->first; chain != NULL; chain = next) {
 			next = chain->next;
-
 			evbuffer_chain_free(chain);
 		}
 
@@ -839,10 +921,12 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 			len = old_len;
 
 		buf->total_len -= len;
-
-		for (chain = buf->first; len >= chain->off; chain = next) {
+		remaining = len;
+		for (chain = buf->first;
+		     remaining >= chain->off;
+		     chain = next) {
 			next = chain->next;
-			len -= chain->off;
+			remaining -= chain->off;
 
 			if (chain == *buf->last_with_datap) {
 				buf->last_with_datap = &buf->first;
@@ -850,14 +934,20 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 			if (&chain->next == buf->last_with_datap)
 				buf->last_with_datap = &buf->first;
 
-			if (len == 0 && CHAIN_PINNED_R(chain))
+			if (CHAIN_PINNED_R(chain)) {
+				EVUTIL_ASSERT(remaining == 0);
+				chain->misalign += chain->off;
+				chain->off = 0;
 				break;
-			evbuffer_chain_free(chain);
+			} else
+				evbuffer_chain_free(chain);
 		}
 
 		buf->first = chain;
-		chain->misalign += len;
-		chain->off -= len;
+		if (chain) {
+			chain->misalign += remaining;
+			chain->off -= remaining;
+		}
 	}
 
 	buf->n_del_for_cb += len;
