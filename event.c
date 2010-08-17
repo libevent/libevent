@@ -962,7 +962,7 @@ static int
 event_haveevents(struct event_base *base)
 {
 	/* Caller must hold th_base_lock */
-	return (base->event_count > 0);
+	return (base->virtual_event_count > 0 || base->event_count > 0);
 }
 
 /* "closure" function called when processing active signal events */
@@ -2706,4 +2706,20 @@ event_base_dump_events(struct event_base *base, FILE *output)
 					(e->ev_res&EV_TIMEOUT)?" Timeout active":"");
 		}
 	}
+}
+
+void
+event_base_add_virtual(struct event_base *base)
+{
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	base->virtual_event_count++;
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+}
+
+void
+event_base_del_virtual(struct event_base *base)
+{
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	base->virtual_event_count--;
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }

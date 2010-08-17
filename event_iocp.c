@@ -36,6 +36,7 @@
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "event-internal.h"
+#include "evthread-internal.h"
 
 #define NOTIFICATION_KEY ((ULONG_PTR)-1)
 
@@ -277,4 +278,3 @@ event_base_get_iocp(struct event_base *base)
 	return NULL;
 #endif
 }
-
