@@ -788,7 +788,7 @@ _bufferevent_del_generic_timeout_cbs(struct bufferevent *bev)
 	int r1,r2;
 	r1 = event_del(&bev->ev_read);
 	r2 = event_del(&bev->ev_write);
-	if (r2<0 || r2<0)
+	if (r1<0 || r2<0)
 		return -1;
 	return 0;
 }
