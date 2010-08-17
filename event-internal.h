@@ -216,9 +216,6 @@ struct event_base {
 	/** The total size of common_timeout_queues. */
 	int n_common_timeouts_allocated;
 
-	/** The event whose callback is executing right now */
-	struct event *current_event;
-
 	/** List of defered_cb that are active.  We run these after the active
 	 * events. */
 	struct deferred_cb_queue defer_queue;
@@ -247,9 +244,13 @@ struct event_base {
 	unsigned long th_owner_id;
 	/** A lock to prevent conflicting accesses to this event_base */
 	void *th_base_lock;
-	/** A lock to prevent event_del from deleting an event while its
-	 * callback is executing. */
-	void *current_event_lock;
+	/** The event whose callback is executing right now */
+	struct event *current_event;
+	/** A condition that gets signalled when we're done processing an
+	 * event with waiters on it. */
+	void *current_event_cond;
+	/** Number of threads blocking on current_event_cond. */
+	int current_event_waiters;
 #endif
 
 #ifdef WIN32
