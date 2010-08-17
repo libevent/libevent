@@ -34,6 +34,7 @@ struct event_base;
 
 #include <stdlib.h>
 #include "mm-internal.h"
+#include "evthread-internal.h"
 
 static pthread_mutexattr_t attr_recursive;
 
@@ -89,6 +90,66 @@ evthread_posix_get_id(void)
 	return r.id;
 }
 
+static void *
+evthread_posix_cond_alloc(unsigned condflags)
+{
+	pthread_cond_t *cond = mm_malloc(sizeof(pthread_cond_t));
+	if (!cond)
+		return NULL;
+	if (pthread_cond_init(cond, NULL)) {
+		mm_free(cond);
+		return NULL;
+	}
+	return cond;
+}
+
+static void
+evthread_posix_cond_free(void *_cond)
+{
+	pthread_cond_t *cond = _cond;
+	pthread_cond_destroy(cond);
+	mm_free(cond);
+}
+
+static int
+evthread_posix_cond_signal(void *_cond, int broadcast)
+{
+	pthread_cond_t *cond = _cond;
+	int r;
+	if (broadcast)
+		r = pthread_cond_broadcast(cond);
+	else
+		r = pthread_cond_signal(cond);
+	return r ? -1 : 0;
+}
+
+static int
+evthread_posix_cond_wait(void *_cond, void *_lock, const struct timeval *tv)
+{
+	int r;
+	pthread_cond_t *cond = _cond;
+	pthread_mutex_t *lock = _lock;
+
+	if (tv) {
+		struct timeval now, abstime;
+		struct timespec ts;
+		evutil_gettimeofday(&now, NULL);
+		evutil_timeradd(&now, tv, &abstime);
+		ts.tv_sec = abstime.tv_sec;
+		ts.tv_nsec = abstime.tv_usec*1000;
+		r = pthread_cond_timedwait(cond, lock, &ts);
+		if (r == ETIMEDOUT)
+			return 1;
+		else if (r)
+			return -1;
+		else
+			return 0;
+	} else {
+		r = pthread_cond_wait(cond, lock);
+		return r ? -1 : 0;
+	}
+}
+
 int
 evthread_use_pthreads(void)
 {
@@ -100,6 +161,13 @@ evthread_use_pthreads(void)
 		evthread_posix_lock,
 		evthread_posix_unlock
 	};
+	struct evthread_condition_callbacks cond_cbs = {
+		EVTHREAD_CONDITION_API_VERSION,
+		evthread_posix_cond_alloc,
+		evthread_posix_cond_free,
+		evthread_posix_cond_signal,
+		evthread_posix_cond_wait
+	};
 	/* Set ourselves up to get recursive locks. */
 	if (pthread_mutexattr_init(&attr_recursive))
 		return -1;
@@ -107,6 +175,7 @@ evthread_use_pthreads(void)
 		return -1;
 
 	evthread_set_lock_callbacks(&cbs);
+	evthread_set_condition_callbacks(&cond_cbs);
 	evthread_set_id_callback(evthread_posix_get_id);
 	return 0;
 }

@@ -118,9 +118,60 @@ struct evthread_lock_callbacks {
  *
  * Note that if you're using Windows or the Pthreads threading library, you
  * probably shouldn't call this function; instead, use
- * evthread_use_windos_threads() or evthread_use_posix_threads() if you can.
+ * evthread_use_windows_threads() or evthread_use_posix_threads() if you can.
  */
 int evthread_set_lock_callbacks(const struct evthread_lock_callbacks *);
+
+#define EVTHREAD_CONDITION_API_VERSION 1
+
+struct timeval;
+
+/** This structure describes the interface a threading library uses for
+ * condition variables.  It's used to tell evthread_set_condition_callbacks
+ * how to use locking on this platform.
+ */
+struct evthread_condition_callbacks {
+	/** The current version of the conditions API.  Set this to
+	 * EVTHREAD_CONDITION_API_VERSION */
+	int condition_api_version;
+	/** Function to allocate and initialize a new condition variable.
+	 * Returns the condition variable on success, and NULL on failure.
+	 * The 'condtype' argument will be 0 with this API version.
+	 */
+	void *(*alloc_condition)(unsigned condtype);
+	/** Function to free a condition variable. */
+	void (*free_condition)(void *cond);
+	/** Function to signal a condition variable.  If 'broadcast' is 1, all
+	 * threads waiting on 'cond' should be woken; otherwise, only on one
+	 * thread is worken.  Should return 0 on success, -1 on failure.
+	 * This function will only be called while holding the associated
+	 * lock for the condition.
+	 */
+	int (*signal_condition)(void *cond, int broadcast);
+	/** Function to wait for a condition variable.  The lock 'lock'
+	 * will be held when this function is called; should be released
+	 * while waiting for the condition to be come signalled, and
+	 * should be held again when this function returns.
+	 * If timeout is provided, it is interval of seconds to wait for
+	 * the event to become signalled; if it is NULL, the function
+	 * should wait indefinitely.
+	 *
+	 * The function should return -1 on error; 0 if the condition
+	 * was signalled, or 1 on a timeout. */
+	int (*wait_condition)(void *cond, void *lock,
+	    const struct timeval *timeout);
+};
+
+/** Sets a group of functions that Libevent should use for condition variables.
+ * For full information on the required callback API, see the
+ * documentation for the individual members of evthread_condition_callbacks.
+ *
+ * Note that if you're using Windows or the Pthreads threading library, you
+ * probably shouldn't call this function; instead, use
+ * evthread_use_windows_threads() or evthread_use_posix_threads() if you can.
+ */
+int evthread_set_condition_callbacks(
+	const struct evthread_condition_callbacks *);
 
 /**
    Sets the function for determining the thread id.

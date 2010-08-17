@@ -40,6 +40,7 @@ struct event_base;
 /* Global function pointers to lock-related functions. NULL if locking isn't
    enabled. */
 extern struct evthread_lock_callbacks _evthread_lock_fns;
+extern struct evthread_condition_callbacks _evthread_cond_fns;
 extern unsigned long (*_evthread_id_fn)(void);
 extern int _evthread_lock_debugging_enabled;
 
@@ -126,6 +127,9 @@ extern int _evthread_lock_debugging_enabled;
 		EVLOCK_UNLOCK((base)->lockvar, 0);			\
 	} while (0)
 
+int _evthread_is_debug_lock_held(void *lock);
+void *_evthread_debug_get_real_lock(void *lock);
+
 /** If lock debugging is enabled, and lock is non-null, assert that 'lock' is
  * locked and held by us. */
 #define EVLOCK_ASSERT_LOCKED(lock)					\
@@ -134,8 +138,6 @@ extern int _evthread_lock_debugging_enabled;
 			EVUTIL_ASSERT(_evthread_is_debug_lock_held(lock)); \
 		}							\
 	} while (0)
-
-int _evthread_is_debug_lock_held(void *lock);
 
 /** Try to grab the lock for 'lockvar' without blocking, and return 1 if we
  * manage to get it. */
@@ -152,6 +154,35 @@ EVLOCK_TRY_LOCK(void *lock)
 		return 1;
 	}
 }
+
+/** Allocate a new condition variable and store it in the void *, condvar */
+#define EVTHREAD_ALLOC_COND(condvar)					\
+	do {								\
+		(condvar) = _evthread_cond_fns.alloc_condition ?	\
+		    _evthread_cond_fns.alloc_condition(0) : NULL;	\
+	} while (0)
+/** Deallocate and free a condition variable in condvar */
+#define EVTHREAD_FREE_COND(cond)					\
+	do {								\
+		if (cond)						\
+			_evthread_cond_fns.free_condition((cond));	\
+	} while (0)
+/** Signal one thread waiting on cond */
+#define EVTHREAD_COND_SIGNAL(cond)					\
+	( (cond) ? _evthread_cond_fns.signal_condition((cond), 0) : 0 )
+/** Signal all threads waiting on cond */
+#define EVTHREAD_COND_BROADCAST(cond)					\
+	( (cond) ? _evthread_cond_fns.signal_condition((cond), 1) : 0 )
+/** Wait until the condition 'cond' is signalled.  Must be called while
+ * holding 'lock'.  The lock will be released until the condition is
+ * signalled, at which point it will be acquired again.  Returns 0 for
+ * success, -1 for failure. */
+#define EVTHREAD_COND_WAIT(cond, lock)					\
+	( (cond) ? _evthread_cond_fns.wait_condition((cond), (lock), NULL) : 0 )
+/** As EVTHREAD_COND_WAIT, but gives up after 'tv' has elapsed.  Returns 1
+ * on timeout. */
+#define EVTHREAD_COND_WAIT_TIMED(cond, lock, tv)			\
+	( (cond) ? _evthread_cond_fns.wait_condition((cond), (lock), (tv)) : 0 )
 
 #else /* _EVENT_DISABLE_THREAD_SUPPORT */
 
@@ -170,6 +201,14 @@ EVLOCK_TRY_LOCK(void *lock)
 #define EVLOCK_ASSERT_LOCKED(lock) _EVUTIL_NIL_STMT
 
 #define EVLOCK_TRY_LOCK(lock) 1
+
+#define EVTHREAD_ALLOC_COND(condvar) _EVUTIL_NIL_STMT
+#define EVTHREAD_FREE_COND(cond) _EVUTIL_NIL_STMT
+#define EVTHREAD_COND_SIGNAL(cond) _EVUTIL_NIL_STMT
+#define EVTHREAD_COND_BROADCAST(cond) _EVUTIL_NIL_STMT
+#define EVTHREAD_COND_WAIT(cond, lock) _EVUTIL_NIL_STMT
+#define EVTHREAD_COND_WAIT_TIMED(cond, lock, howlong) _EVUTIL_NIL_STMT
+
 #endif
 
 #ifdef __cplusplus
