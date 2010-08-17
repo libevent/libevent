@@ -30,13 +30,13 @@ regress_SOURCES = regress.c regress_buffer.c regress_http.c regress_dns.c \
 	regress_rpc.c regress.gen.c regress.gen.h regress_et.c \
 	regress_bufferevent.c regress_listener.c \
 	regress_util.c tinytest.c regress_main.c regress_minheap.c \
-	$(regress_pthread_SOURCES) $(regress_zlib_SOURCES)
+	$(regress_thread_SOURCES) $(regress_zlib_SOURCES)
 if PTHREADS
-regress_pthread_SOURCES = regress_pthread.c
+regress_thread_SOURCES = regress_thread.c
 PTHREAD_LIBS += ../libevent_pthreads.la
 endif
 if BUILD_WIN32
-regress_pthread_SOURCES = regress_pthread.c
+regress_thread_SOURCES = regress_thread.c
 endif
 if ZLIB_REGRESS
 regress_zlib_SOURCES = regress_zlib.c
