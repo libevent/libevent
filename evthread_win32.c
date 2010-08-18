@@ -67,7 +67,7 @@ evthread_win32_lock(unsigned mode, void *_lock)
 {
 	CRITICAL_SECTION *lock = _lock;
 	if ((mode & EVTHREAD_TRY)) {
-		return TryEnterCriticalSection(lock) != 0;
+		return ! TryEnterCriticalSection(lock);
 	} else {
 		EnterCriticalSection(lock);
 		return 0;
