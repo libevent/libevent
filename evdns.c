@@ -158,6 +158,15 @@ typedef unsigned int uint;
 
 #define CLASS_INET     EVDNS_CLASS_INET
 
+#ifdef HAVE_SETFD
+#define FD_CLOSEONEXEC(x) do { \
+	if (fcntl(x, F_SETFD, 1) == -1) \
+		event_warn("fcntl(%d, F_SETFD)", x); \
+} while (0)
+#else
+#define FD_CLOSEONEXEC(x)
+#endif
+
 struct request {
 	u8 *request;  /* the dns packet data */
 	unsigned int request_len;
@@ -2132,7 +2141,8 @@ _evdns_nameserver_add_impl(unsigned long int address, int port) {
 
 	ns->socket = socket(PF_INET, SOCK_DGRAM, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
-        evutil_make_socket_nonblocking(ns->socket);
+	FD_CLOSEONEXEC(ns->socket);
+	evutil_make_socket_nonblocking(ns->socket);
 
 	ns->address = address;
 	ns->port = htons(port);
