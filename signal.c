@@ -89,8 +89,11 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 	(void)arg; /* Suppress "unused variable" warning. */
 
 	n = recv(fd, signals, sizeof(signals), 0);
-	if (n == -1)
-		event_sock_err(1, fd, "%s: read", __func__);
+	if (n == -1) {
+		int err = evutil_socket_geterror(fd);
+		if (! EVUTIL_ERR_RW_RETRIABLE(err))
+			event_sock_err(1, fd, "%s: recv", __func__);
+	}
 }
 
 int
@@ -121,6 +124,7 @@ evsig_init(struct event_base *base)
 	memset(&base->sig.evsigcaught, 0, sizeof(sig_atomic_t)*NSIG);
 
 	evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
+	evutil_make_socket_nonblocking(base->sig.ev_signal_pair[1]);
 
 	event_assign(&base->sig.ev_signal, base, base->sig.ev_signal_pair[1],
 		EV_READ | EV_PERSIST, evsig_cb, &base->sig.ev_signal);
