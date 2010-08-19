@@ -162,9 +162,9 @@ typedef unsigned int uint;
 #define FD_CLOSEONEXEC(x) do { \
 	if (fcntl(x, F_SETFD, 1) == -1) \
 		event_warn("fcntl(%d, F_SETFD)", x); \
-} while (0)
+	} while (0)
 #else
-#define FD_CLOSEONEXEC(x)
+#define FD_CLOSEONEXEC(x) (void)0
 #endif
 
 struct request {
