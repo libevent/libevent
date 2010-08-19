@@ -246,13 +246,14 @@ main(int argc, char **argv)
         if ((kq = kqueue()) == -1)
 		exit(1);
 
+	memset(&ev, 0, sizeof(ev));
 	ev.ident = fd[[1]];
 	ev.filter = EVFILT_WRITE;
 	ev.flags = EV_ADD | EV_ENABLE;
 	n = kevent(kq, &ev, 1, NULL, 0, NULL);
 	if (n == -1)
 		exit(1);
-	
+
 	read(fd[[0]], buf, sizeof(buf));
 
 	ts.tv_sec = 0;
