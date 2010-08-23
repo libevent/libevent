@@ -187,8 +187,7 @@ evthread_debug_lock_mark_unlocked(unsigned mode, struct debug_lock *lock)
 	else
 		EVUTIL_ASSERT((mode & (EVTHREAD_READ|EVTHREAD_WRITE)) == 0);
 	if (_evthread_id_fn) {
-		unsigned long me = _evthread_id_fn();
-		EVUTIL_ASSERT(lock->held_by == me);
+		EVUTIL_ASSERT(lock->held_by == _evthread_id_fn());
 		if (lock->count == 1)
 			lock->held_by = 0;
 	}

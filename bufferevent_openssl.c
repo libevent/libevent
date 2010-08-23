@@ -879,7 +879,7 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 	default:
 	case BUFFEREVENT_SSL_OPEN:
 		EVUTIL_ASSERT(0);
-		break;
+		return -1;
 	case BUFFEREVENT_SSL_CONNECTING:
 	case BUFFEREVENT_SSL_ACCEPTING:
 		r = SSL_do_handshake(bev_ssl->ssl);

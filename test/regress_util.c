@@ -49,7 +49,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 #include "event2/event.h"
 #include "event2/util.h"
@@ -832,7 +831,7 @@ test_evutil_rand(void *arg)
 					buf2[j] |= buf1[j];
 					++counts[(unsigned char)buf1[j]];
 				} else {
-					assert(buf1[j] == 0);
+					tt_assert(buf1[j] == 0);
 					tt_int_op(buf1[j], ==, 0);
 
 				}

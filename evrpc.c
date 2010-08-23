@@ -94,19 +94,23 @@ evrpc_free(struct evrpc_base *base)
 	struct evrpc *rpc;
 	struct evrpc_hook *hook;
 	struct evrpc_hook_ctx *pause;
+	int r;
 
 	while ((rpc = TAILQ_FIRST(&base->registered_rpcs)) != NULL) {
-		EVUTIL_ASSERT(evrpc_unregister_rpc(base, rpc->uri));
+		r = evrpc_unregister_rpc(base, rpc->uri);
+		EVUTIL_ASSERT(r);
 	}
 	while ((pause = TAILQ_FIRST(&base->paused_requests)) != NULL) {
 		TAILQ_REMOVE(&base->paused_requests, pause, next);
 		mm_free(pause);
 	}
 	while ((hook = TAILQ_FIRST(&base->input_hooks)) != NULL) {
-		EVUTIL_ASSERT(evrpc_remove_hook(base, EVRPC_INPUT, hook));
+		r = evrpc_remove_hook(base, EVRPC_INPUT, hook);
+		EVUTIL_ASSERT(r);
 	}
 	while ((hook = TAILQ_FIRST(&base->output_hooks)) != NULL) {
-		EVUTIL_ASSERT(evrpc_remove_hook(base, EVRPC_OUTPUT, hook));
+		r = evrpc_remove_hook(base, EVRPC_OUTPUT, hook);
+		EVUTIL_ASSERT(r);
 	}
 	mm_free(base);
 }
@@ -246,6 +250,7 @@ evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
 {
 	char *registered_uri = NULL;
 	struct evrpc *rpc;
+	int r;
 
 	/* find the right rpc; linear search might be slow */
 	TAILQ_FOREACH(rpc, &base->registered_rpcs, next) {
@@ -264,7 +269,8 @@ evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
 	registered_uri = evrpc_construct_uri(name);
 
 	/* remove the http server callback */
-	EVUTIL_ASSERT(evhttp_del_cb(base->http_server, registered_uri) == 0);
+	r = evhttp_del_cb(base->http_server, registered_uri);
+	EVUTIL_ASSERT(r == 0);
 
 	mm_free(registered_uri);
 	return (0);
@@ -526,6 +532,7 @@ evrpc_pool_free(struct evrpc_pool *pool)
 	struct evrpc_request_wrapper *request;
 	struct evrpc_hook_ctx *pause;
 	struct evrpc_hook *hook;
+	int r;
 
 	while ((request = TAILQ_FIRST(&pool->requests)) != NULL) {
 		TAILQ_REMOVE(&pool->requests, request, next);
@@ -543,11 +550,13 @@ evrpc_pool_free(struct evrpc_pool *pool)
 	}
 
 	while ((hook = TAILQ_FIRST(&pool->input_hooks)) != NULL) {
-		EVUTIL_ASSERT(evrpc_remove_hook(pool, EVRPC_INPUT, hook));
+		r = evrpc_remove_hook(pool, EVRPC_INPUT, hook);
+		EVUTIL_ASSERT(r);
 	}
 
 	while ((hook = TAILQ_FIRST(&pool->output_hooks)) != NULL) {
-		EVUTIL_ASSERT(evrpc_remove_hook(pool, EVRPC_OUTPUT, hook));
+		r = evrpc_remove_hook(pool, EVRPC_OUTPUT, hook);
+		EVUTIL_ASSERT(r);
 	}
 
 	mm_free(pool);
@@ -1019,10 +1028,13 @@ evrpc_hook_add_meta(void *ctx, const char *key,
 	if ((store = req->hook_meta) == NULL)
 		store = req->hook_meta = evrpc_hook_meta_new();
 
-	EVUTIL_ASSERT((meta = mm_malloc(sizeof(struct evrpc_meta))) != NULL);
-	EVUTIL_ASSERT((meta->key = mm_strdup(key)) != NULL);
+	meta = mm_malloc(sizeof(struct evrpc_meta));
+	EVUTIL_ASSERT(meta != NULL);
+	meta->key = mm_strdup(key);
+	EVUTIL_ASSERT(meta->key != NULL);
 	meta->data_size = data_size;
-	EVUTIL_ASSERT((meta->data = mm_malloc(data_size)) != NULL);
+	meta->data = mm_malloc(data_size);
+	EVUTIL_ASSERT(meta->data != NULL);
 	memcpy(meta->data, data, data_size);
 
 	TAILQ_INSERT_TAIL(&store->meta_data, meta, next);

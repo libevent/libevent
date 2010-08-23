@@ -233,6 +233,7 @@ evbuffer_free_all_chains(struct evbuffer_chain *chain)
 	}
 }
 
+#ifndef NDEBUG
 static int
 evbuffer_chains_all_empty(struct evbuffer_chain *chain)
 {
@@ -242,6 +243,7 @@ evbuffer_chains_all_empty(struct evbuffer_chain *chain)
 	}
 	return 1;
 }
+#endif
 
 static void
 evbuffer_chain_insert(struct evbuffer *buf,

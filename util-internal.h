@@ -168,6 +168,10 @@ long _evutil_weakrand(void);
 #endif
 
 /* Replacement for assert() that calls event_errx on failure. */
+#ifdef NDEBUG
+#define EVUTIL_ASSERT(cond) _EVUTIL_NIL_STMT
+#define EVUTIL_FAILURE_CHECK(cond) 0
+#else
 #define EVUTIL_ASSERT(cond)						\
 	do {								\
 		if (EVUTIL_UNLIKELY(!(cond))) {				\
@@ -182,6 +186,8 @@ long _evutil_weakrand(void);
 			abort();					\
 		}							\
 	} while (0)
+#define EVUTIL_FAILURE_CHECK(cond) EVUTIL_UNLIKELY(cond)
+#endif
 
 /* Internal addrinfo error code.  This one is returned from only from
  * evutil_getaddrinfo_common, when we are sure that we'll have to hit a DNS

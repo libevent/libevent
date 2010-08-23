@@ -24,6 +24,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* The old tests here need assertions to work. */
+#undef NDEBUG
+
 #include "event2/event-config.h"
 
 #include <sys/types.h>

@@ -24,6 +24,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* The old tests here need assertions to work. */
+#undef NDEBUG
+
 #ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
