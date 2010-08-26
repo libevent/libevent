@@ -747,9 +747,16 @@ event_reinit(struct event_base *base)
 
 	evsel = base->evsel;
 
+#if 0
+	/* Right now, reinit always takes effect, since even if the
+	   backend doesn't require it, the signal socketpair code does.
+
+	   XXX
+	 */
 	/* check if this event mechanism requires reinit */
 	if (!evsel->need_reinit)
 		goto done;
+#endif
 
 	/* prevent internal delete */
 	if (base->sig.ev_signal_added) {
