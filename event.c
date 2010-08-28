@@ -639,6 +639,20 @@ event_base_start_iocp(struct event_base *base)
 }
 
 void
+event_base_stop_iocp(struct event_base *base)
+{
+#ifdef WIN32
+	int rv;
+
+	if (!base->iocp)
+		return;
+	rv = event_iocp_shutdown(base->iocp, -1);
+	EVUTIL_ASSERT(rv >= 0);
+	base->iocp = NULL;
+#endif
+}
+
+void
 event_base_free(struct event_base *base)
 {
 	int i, n_deleted=0;
@@ -653,6 +667,10 @@ event_base_free(struct event_base *base)
 
 	/* XXX(niels) - check for internal events first */
 	EVUTIL_ASSERT(base);
+
+#ifdef WIN32
+	event_base_stop_iocp(base);
+#endif
 
 	/* threading fds if we have them */
 	if (base->th_notify_fd[0] != -1) {

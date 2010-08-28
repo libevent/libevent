@@ -73,7 +73,8 @@ loop(void *_port)
 		EnterCriticalSection(&port->lock);
 		if (port->shutdown) {
 			if (--port->n_live_threads == 0)
-				ReleaseSemaphore(port->shutdownSemaphore, 1, NULL);
+				ReleaseSemaphore(port->shutdownSemaphore, 1,
+						NULL);
 			LeaveCriticalSection(&port->lock);
 			return;
 		}
@@ -233,13 +234,18 @@ event_iocp_notify_all(struct event_iocp_port *port)
 int
 event_iocp_shutdown(struct event_iocp_port *port, long waitMsec)
 {
+	DWORD ms = INFINITE;
 	int n;
+
 	EnterCriticalSection(&port->lock);
 	port->shutdown = 1;
 	LeaveCriticalSection(&port->lock);
 	event_iocp_notify_all(port);
 
-	WaitForSingleObject(port->shutdownSemaphore, waitMsec);
+	if (waitMsec >= 0)
+		ms = waitMsec;
+
+	WaitForSingleObject(port->shutdownSemaphore, ms);
 	EnterCriticalSection(&port->lock);
 	n = port->n_live_threads;
 	LeaveCriticalSection(&port->lock);

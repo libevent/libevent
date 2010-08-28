@@ -255,7 +255,6 @@ test_iocp_bufferevent_async(void *ptr)
 	buf[n]='\0';
 	tt_str_op(buf, ==, "Hello world");
 
-	tt_want(!event_iocp_shutdown(port, 2000));
 end:
 	/* FIXME: free stuff. */;
 }
