@@ -227,6 +227,16 @@ int event_config_require_features(struct event_config *cfg, int feature);
 int event_config_set_flag(struct event_config *cfg, int flag);
 
 /**
+ * Records a hint for the number of CPUs in the system. This is used for
+ * tuning thread pools, etc, for optimal performance.
+ *
+ * @param cfg the event configuration object
+ * @param cpus the number of cpus
+ * @return 0 on success, -1 on failure.
+ */
+int event_config_set_num_cpus_hint(struct event_config *cfg, int cpus);
+
+/**
   Initialize the event API.
 
   Use event_base_new_with_config() to initialize a new event base, taking

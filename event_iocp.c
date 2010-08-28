@@ -162,8 +162,10 @@ event_get_win32_extension_fns(void)
 	return &the_extension_fns;
 }
 
+#define N_CPUS_DEFAULT 2
+
 struct event_iocp_port *
-event_iocp_port_launch(void)
+event_iocp_port_launch(int n_cpus)
 {
 	struct event_iocp_port *port;
 	int i;
@@ -173,12 +175,16 @@ event_iocp_port_launch(void)
 
 	if (!(port = mm_calloc(1, sizeof(struct event_iocp_port))))
 		return NULL;
-	port->n_threads = 2;
+
+	if (n_cpus <= 0)
+		n_cpus = N_CPUS_DEFAULT;
+	port->n_threads = n_cpus * 2;
 	port->threads = calloc(port->n_threads, sizeof(HANDLE));
 	if (!port->threads)
 		goto err;
 
-	port->port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, port->n_threads);
+	port->port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0,
+			n_cpus);
 	port->ms = -1;
 	if (!port->port)
 		goto err;

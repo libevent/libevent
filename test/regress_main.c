@@ -209,7 +209,7 @@ basic_test_setup(const struct testcase_t *testcase)
 			exit(1);
 	}
 	if (testcase->flags & TT_ENABLE_IOCP_FLAG) {
-		if (event_base_start_iocp(base)<0) {
+		if (event_base_start_iocp(base, 0)<0) {
 			event_base_free(base);
 			return (void*)TT_SKIP;
 		}

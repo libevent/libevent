@@ -285,6 +285,7 @@ struct event_config_entry {
 struct event_config {
 	TAILQ_HEAD(event_configq, event_config_entry) entries;
 
+	int n_cpus_hint;
 	enum event_method_feature require_features;
 	enum event_base_config_flag flags;
 };

@@ -155,7 +155,7 @@ void evbuffer_commit_write(struct evbuffer *, ev_ssize_t);
 
     This interface is unstable, and will change.
  */
-struct event_iocp_port *event_iocp_port_launch(void);
+struct event_iocp_port *event_iocp_port_launch(int n_cpus);
 
 /** Associate a file descriptor with an iocp, such that overlapped IO on the
     fd will happen on one of the iocp's worker threads.
@@ -181,7 +181,7 @@ struct event_base;
 struct event_iocp_port *event_base_get_iocp(struct event_base *base);
 
 /* FIXME document. */
-int event_base_start_iocp(struct event_base *base);
+int event_base_start_iocp(struct event_base *base, int n_cpus);
 void event_base_stop_iocp(struct event_base *base);
 
 /* FIXME document. */

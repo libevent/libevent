@@ -615,19 +615,19 @@ event_base_new_with_config(const struct event_config *cfg)
 
 #ifdef WIN32
 	if (cfg && (cfg->flags & EVENT_BASE_FLAG_STARTUP_IOCP))
-		event_base_start_iocp(base);
+		event_base_start_iocp(base, cfg->n_cpus_hint);
 #endif
 
 	return (base);
 }
 
 int
-event_base_start_iocp(struct event_base *base)
+event_base_start_iocp(struct event_base *base, int n_cpus)
 {
 #ifdef WIN32
 	if (base->iocp)
 		return 0;
-	base->iocp = event_iocp_port_launch();
+	base->iocp = event_iocp_port_launch(n_cpus);
 	if (!base->iocp) {
 		event_warnx("%s: Couldn't launch IOCP", __func__);
 		return -1;
@@ -915,6 +915,15 @@ event_config_require_features(struct event_config *cfg,
 	if (!cfg)
 		return (-1);
 	cfg->require_features = features;
+	return (0);
+}
+
+int
+event_config_set_num_cpus_hint(struct event_config *cfg, int cpus)
+{
+	if (!cfg)
+		return (-1);
+	cfg->n_cpus_hint = cpus;
 	return (0);
 }
 
