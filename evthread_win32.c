@@ -253,20 +253,30 @@ evthread_win32_cond_wait(void *_cond, void *_lock, const struct timeval *tv)
 			--cond->n_waiting;
 			result = 0;
 			waiting = 0;
+			goto out;
 		} else if (res != WAIT_OBJECT_0) {
 			result = (res==WAIT_TIMEOUT) ? 1 : -1;
 			--cond->n_waiting;
 			waiting = 0;
+			goto out;
 		} else if (ms != INFINITE) {
 			endTime = GetTickCount();
 			if (startTime + ms_orig <= endTime) {
 				result = 1; /* Timeout */
 				--cond->n_waiting;
 				waiting = 0;
+				goto out;
 			} else {
 				ms = startTime + ms_orig - endTime;
 			}
 		}
+		/* If we make it here, we are still waiting. */
+		if (cond->n_to_wake == 0) {
+			/* There is nobody else who should wake up; reset
+			 * the event. */
+			ResetEvent(cond->event);
+		}
+	out:
 		LeaveCriticalSection(&cond->lock);
 	} while (waiting);
 
