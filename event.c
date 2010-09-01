@@ -742,6 +742,7 @@ event_reinit(struct event_base *base)
 	const struct eventop *evsel;
 	int res = 0;
 	struct event *ev;
+	int was_notifiable = 0;
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
@@ -769,6 +770,23 @@ event_reinit(struct event_base *base)
 			    EVLIST_ACTIVE);
 		base->sig.ev_signal_added = 0;
 	}
+	if (base->th_notify_fd[0] != -1) {
+		/* we cannot call event_del here because the base has
+		 * not been reinitialized yet. */
+		was_notifiable = 1;
+		event_queue_remove(base, &base->th_notify,
+		    EVLIST_INSERTED);
+		if (base->th_notify.ev_flags & EVLIST_ACTIVE)
+			event_queue_remove(base, &base->th_notify,
+			    EVLIST_ACTIVE);
+		base->sig.ev_signal_added = 0;
+		EVUTIL_CLOSESOCKET(base->th_notify_fd[0]);
+		if (base->th_notify_fd[1] != -1)
+			EVUTIL_CLOSESOCKET(base->th_notify_fd[1]);
+		base->th_notify_fd[0] = -1;
+		base->th_notify_fd[1] = -1;
+		event_debug_unassign(&base->th_notify);
+	}
 
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base);
@@ -793,6 +811,9 @@ event_reinit(struct event_base *base)
 				res = -1;
 		}
 	}
+
+	if (was_notifiable && res == 0)
+		res = evthread_make_base_notifiable(base);
 
 done:
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
