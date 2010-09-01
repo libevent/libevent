@@ -1285,9 +1285,10 @@ event_process_active_single_queue(struct event_base *base,
 }
 
 /*
-   Process all the defered_cb entries in 'queue'.  If *breakptr becomes set to
-   1, stop.  Requires that we start out holding the lock on 'queue'; releases
-   the lock around 'queue' for each deferred_cb we process.
+   Process up to MAX_DEFERRED of the defered_cb entries in 'queue'.  If
+   *breakptr becomes set to 1, stop.  Requires that we start out holding
+   the lock on 'queue'; releases the lock around 'queue' for each deferred_cb
+   we process.
  */
 static int
 event_process_deferred_callbacks(struct deferred_cb_queue *queue, int *breakptr)
@@ -1295,6 +1296,7 @@ event_process_deferred_callbacks(struct deferred_cb_queue *queue, int *breakptr)
 	int count = 0;
 	struct deferred_cb *cb;
 
+#define MAX_DEFERRED 16
 	while ((cb = TAILQ_FIRST(&queue->deferred_cb_list))) {
 		cb->queued = 0;
 		TAILQ_REMOVE(&queue->deferred_cb_list, cb, cb_next);
@@ -1302,12 +1304,14 @@ event_process_deferred_callbacks(struct deferred_cb_queue *queue, int *breakptr)
 		UNLOCK_DEFERRED_QUEUE(queue);
 
 		cb->cb(cb, cb->arg);
-		++count;
-		if (*breakptr)
-			return -1;
 
 		LOCK_DEFERRED_QUEUE(queue);
+		if (*breakptr)
+			return -1;
+		if (++count == MAX_DEFERRED)
+			break;
 	}
+#undef MAX_DEFERRED
 	return count;
 }
 
