@@ -84,22 +84,10 @@ void event_deferred_cb_cancel(struct deferred_cb_queue *, struct deferred_cb *);
  */
 void event_deferred_cb_schedule(struct deferred_cb_queue *, struct deferred_cb *);
 
-#ifdef _EVENT_DISABLE_THREAD_SUPPORT
-#define LOCK_DEFERRED_QUEUE(q) (void)0
-#define UNLOCK_DEFERRED_QUEUE(q) (void)0
-#else
 #define LOCK_DEFERRED_QUEUE(q)						\
-	do {								\
-		if ((q)->lock)						\
-			_evthread_lock_fns.lock(0, (q)->lock);		\
-	} while (0)
-
+	EVLOCK_LOCK((q)->lock, 0)
 #define UNLOCK_DEFERRED_QUEUE(q)					\
-	do {								\
-		if ((q)->lock)						\
-			_evthread_lock_fns.unlock(0, (q)->lock);	\
-	} while (0)
-#endif
+	EVLOCK_UNLOCK((q)->lock, 0)
 
 #ifdef __cplusplus
 }
