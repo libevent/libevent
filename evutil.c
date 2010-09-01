@@ -1859,21 +1859,21 @@ evutil_sockaddr_cmp(const struct sockaddr *sa1, const struct sockaddr *sa2,
  * fails on non-ASCII platforms, but so does every other place where we
  * take a char and write it onto the network.
  **/
-const ev_uint32_t EVUTIL_ISALPHA_TABLE[8] =
+static const ev_uint32_t EVUTIL_ISALPHA_TABLE[8] =
   { 0, 0, 0x7fffffe, 0x7fffffe, 0, 0, 0, 0 };
-const ev_uint32_t EVUTIL_ISALNUM_TABLE[8] =
+static const ev_uint32_t EVUTIL_ISALNUM_TABLE[8] =
   { 0, 0x3ff0000, 0x7fffffe, 0x7fffffe, 0, 0, 0, 0 };
-const ev_uint32_t EVUTIL_ISSPACE_TABLE[8] = { 0x3e00, 0x1, 0, 0, 0, 0, 0, 0 };
-const ev_uint32_t EVUTIL_ISXDIGIT_TABLE[8] =
+static const ev_uint32_t EVUTIL_ISSPACE_TABLE[8] = { 0x3e00, 0x1, 0, 0, 0, 0, 0, 0 };
+static const ev_uint32_t EVUTIL_ISXDIGIT_TABLE[8] =
   { 0, 0x3ff0000, 0x7e, 0x7e, 0, 0, 0, 0 };
-const ev_uint32_t EVUTIL_ISDIGIT_TABLE[8] = { 0, 0x3ff0000, 0, 0, 0, 0, 0, 0 };
-const ev_uint32_t EVUTIL_ISPRINT_TABLE[8] =
+static const ev_uint32_t EVUTIL_ISDIGIT_TABLE[8] = { 0, 0x3ff0000, 0, 0, 0, 0, 0, 0 };
+static const ev_uint32_t EVUTIL_ISPRINT_TABLE[8] =
   { 0, 0xffffffff, 0xffffffff, 0x7fffffff, 0, 0, 0, 0x0 };
-const ev_uint32_t EVUTIL_ISUPPER_TABLE[8] = { 0, 0, 0x7fffffe, 0, 0, 0, 0, 0 };
-const ev_uint32_t EVUTIL_ISLOWER_TABLE[8] = { 0, 0, 0, 0x7fffffe, 0, 0, 0, 0 };
+static const ev_uint32_t EVUTIL_ISUPPER_TABLE[8] = { 0, 0, 0x7fffffe, 0, 0, 0, 0, 0 };
+static const ev_uint32_t EVUTIL_ISLOWER_TABLE[8] = { 0, 0, 0, 0x7fffffe, 0, 0, 0, 0 };
 /* Upper-casing and lowercasing tables to map characters to upper/lowercase
  * equivalents. */
-const unsigned char EVUTIL_TOUPPER_TABLE[256] = {
+static const unsigned char EVUTIL_TOUPPER_TABLE[256] = {
   0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
   16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
   32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,
@@ -1891,7 +1891,7 @@ const unsigned char EVUTIL_TOUPPER_TABLE[256] = {
   224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,
 };
-const unsigned char EVUTIL_TOLOWER_TABLE[256] = {
+static const unsigned char EVUTIL_TOLOWER_TABLE[256] = {
   0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
   16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,
   32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,
@@ -1910,6 +1910,28 @@ const unsigned char EVUTIL_TOLOWER_TABLE[256] = {
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,
 };
 
+#define IMPL_CTYPE_FN(name)						\
+	int EVUTIL_##name(char c) {					\
+		ev_uint8_t u = c;					\
+		return !!(EVUTIL_##name##_TABLE[(u >> 5) & 7] & (1 << (u & 31))); \
+	}
+IMPL_CTYPE_FN(ISALPHA)
+IMPL_CTYPE_FN(ISALNUM)
+IMPL_CTYPE_FN(ISSPACE)
+IMPL_CTYPE_FN(ISDIGIT)
+IMPL_CTYPE_FN(ISXDIGIT)
+IMPL_CTYPE_FN(ISPRINT)
+IMPL_CTYPE_FN(ISLOWER)
+IMPL_CTYPE_FN(ISUPPER)
+
+char EVUTIL_TOLOWER(char c)
+{
+	return ((char)EVUTIL_TOLOWER_TABLE[(ev_uint8_t)c]);
+}
+char EVUTIL_TOUPPER(char c)
+{
+	return ((char)EVUTIL_TOUPPER_TABLE[(ev_uint8_t)c]);
+}
 int
 evutil_ascii_strcasecmp(const char *s1, const char *s2)
 {
