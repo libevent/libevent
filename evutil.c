@@ -364,26 +364,41 @@ evutil_strtoll(const char *s, char **endptr, int base)
 }
 
 #ifndef _EVENT_HAVE_GETTIMEOFDAY
-/* No gettimeofday; this muse be windows. */
+/* No gettimeofday; this must be windows. */
 int
 evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
-	struct _timeb tb;
+#ifdef _MSC_VER
+#define U64_LITERAL(n) n##ui64
+#else
+#define U64_LITERAL(n) n##llu
+#endif
+
+	/* Conversion logic taken from Tor, which in turn took it
+	 * from Perl.  GetSystemTimeAsFileTime returns its value as
+	 * an unaligned (!) 64-bit value containing the number of
+	 * 100-nanosecond intervals since 1 January 1601 UTC. */
+#define EPOCH_BIAS U64_LITERAL(116444736000000000)
+#define UNITS_PER_SEC U64_LITERAL(10000000)
+#define USEC_PER_SEC U64_LITERAL(1000000)
+#define UNITS_PER_USEC U64_LITERAL(10)
+	union {
+		FILETIME ft_ft;
+		ev_uint64_t ft_64;
+	} ft;
 
 	if (tv == NULL)
 		return -1;
 
-	/* XXXX
-	 * _ftime is not the greatest interface here; GetSystemTimeAsFileTime
-	 * would give us better resolution, whereas something cobbled together
-	 * with GetTickCount could maybe give us monotonic behavior.
-	 *
-	 * Either way, I think this value might be skewed to ignore the
-	 * timezone, and just return local time.  That's not so good.
-	 */
-	_ftime(&tb);
-	tv->tv_sec = (long) tb.time;
-	tv->tv_usec = ((int) tb.millitm) * 1000;
+	GetSystemTimeAsFileTime(&ft.ft_ft);
+
+	if (EVUTIL_UNLIKELY(ft.ft_64 < EPOCH_BIAS)) {
+		/* Time before the unix epoch. */
+		return -1;
+	}
+	ft.ft_64 -= EPOCH_BIAS;
+	tv->tv_sec = (long) (ft.ft_64 / UNITS_PER_SEC);
+	tv->tv_usec = (long) ((ft.ft_64 / UNITS_PER_USEC) % USEC_PER_SEC);
 	return 0;
 }
 #endif
