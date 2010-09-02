@@ -124,12 +124,6 @@
 #define u16 ev_uint16_t
 #define u8  ev_uint8_t
 
-#ifdef WIN32
-#define open _open
-#define read _read
-#define close _close
-#endif
-
 /* maximum number of addresses from a single packet */
 /* that we bother recording */
 #define MAX_V4_ADDRS 32
