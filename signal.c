@@ -147,7 +147,7 @@ evsig_init(struct event_base *base)
  * we can restore the original handler when we clear the current one. */
 int
 _evsig_set_handler(struct event_base *base,
-    int evsignal, void (*__cdecl handler)(int))
+    int evsignal, void (__cdecl *handler)(int))
 {
 #ifdef _EVENT_HAVE_SIGACTION
 	struct sigaction sa;
