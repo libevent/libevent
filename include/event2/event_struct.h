@@ -69,6 +69,15 @@ struct {								\
 }
 #endif /* !TAILQ_ENTRY */
 
+#ifndef TAILQ_HEAD
+#define _EVENT_DEFINED_TQHEAD
+#define TAILQ_HEAD(name, type)			\
+struct name {					\
+	struct type *tqh_first;			\
+	struct type **tqh_last;			\
+}
+#endif
+
 struct event_base;
 struct event {
 	TAILQ_ENTRY(event) ev_active_next;
@@ -121,15 +130,16 @@ struct evkeyval {
 	char *value;
 };
 
-#ifdef _EVENT_DEFINED_TQENTRY
-#undef TAILQ_ENTRY
-struct event_list;
-struct evkeyvalq;
-#undef _EVENT_DEFINED_TQENTRY
-#else
 TAILQ_HEAD (event_list, event);
 TAILQ_HEAD (evkeyvalq, evkeyval);
-#endif /* _EVENT_DEFINED_TQENTRY */
+
+#ifdef _EVENT_DEFINED_TQENTRY
+#undef TAILQ_ENTRY
+#endif
+
+#ifdef _EVENT_DEFINED_TQHEAD
+#undef TAILQ_HEAD
+#endif
 
 #ifdef __cplusplus
 }
