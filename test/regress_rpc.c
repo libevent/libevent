@@ -63,25 +63,25 @@
 #include "regress.gen.h"
 
 #include "regress.h"
+#include "regress_testutils.h"
 
 static struct evhttp *
-http_setup(short *pport)
+http_setup(ev_uint16_t *pport)
 {
-	int i;
 	struct evhttp *myhttp;
-	short port = -1;
+	ev_uint16_t port;
+	struct evhttp_bound_socket *sock;
+
+	myhttp = evhttp_new(NULL);
+	if (!myhttp)
+		event_errx(1, "Could not start web server");
 
 	/* Try a few different ports */
-	for (i = 0; i < 50; ++i) {
-		myhttp = evhttp_start("127.0.0.1", 8080 + i);
-		if (myhttp != NULL) {
-			port = 8080 + i;
-			break;
-		}
-	}
+	sock = evhttp_bind_socket_with_handle(myhttp, "127.0.0.1", 0);
+	if (!sock)
+		event_errx(1, "Couldn't open web port");
 
-	if (port == -1)
-		event_errx(1, "Could not start web server");
+	port = regress_get_socket_port(evhttp_bound_socket_get_fd(sock));
 
 	*pport = port;
 	return (myhttp);
@@ -126,9 +126,9 @@ NeverReplyCb(EVRPC_STRUCT(NeverReply)* rpc, void *arg)
 }
 
 static void
-rpc_setup(struct evhttp **phttp, short *pport, struct evrpc_base **pbase)
+rpc_setup(struct evhttp **phttp, ev_uint16_t *pport, struct evrpc_base **pbase)
 {
-	short port;
+	ev_uint16_t port;
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 
@@ -175,7 +175,7 @@ rpc_postrequest_failure(struct evhttp_request *req, void *arg)
 static void
 rpc_basic_test(void)
 {
-	short port;
+	ev_uint16_t port;
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 	struct evhttp_connection *evcon = NULL;
@@ -244,7 +244,7 @@ rpc_postrequest_done(struct evhttp_request *req, void *arg)
 static void
 rpc_basic_message(void)
 {
-	short port;
+	ev_uint16_t port;
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 	struct evhttp_connection *evcon = NULL;
@@ -297,7 +297,7 @@ end:
 }
 
 static struct evrpc_pool *
-rpc_pool_with_connection(short port)
+rpc_pool_with_connection(ev_uint16_t port)
 {
 	struct evhttp_connection *evcon;
 	struct evrpc_pool *pool;
@@ -435,7 +435,7 @@ rpc_hook_remove_header(void *ctx, struct evhttp_request *req,
 static void
 rpc_basic_client(void)
 {
-	short port;
+	ev_uint16_t port;
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 	struct evrpc_pool *pool = NULL;
@@ -519,7 +519,7 @@ end:
 static void
 rpc_basic_queued_client(void)
 {
-	short port;
+	ev_uint16_t port;
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 	struct evrpc_pool *pool = NULL;
@@ -617,7 +617,7 @@ rpc_hook_pause(void *ctx, struct evhttp_request *req, struct evbuffer *evbuf,
 static void
 rpc_basic_client_with_pause(void)
 {
-	short port;
+	ev_uint16_t port;
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 	struct evrpc_pool *pool = NULL;
@@ -668,7 +668,7 @@ end:
 static void
 rpc_client_timeout(void)
 {
-	short port;
+	ev_uint16_t port;
 	struct evhttp *http = NULL;
 	struct evrpc_base *base = NULL;
 	struct evrpc_pool *pool = NULL;

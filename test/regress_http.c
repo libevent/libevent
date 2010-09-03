@@ -75,24 +75,34 @@ static void http_delay_cb(struct evhttp_request *req, void *arg);
 static void http_large_delay_cb(struct evhttp_request *req, void *arg);
 static void http_badreq_cb(struct evhttp_request *req, void *arg);
 static void http_dispatcher_cb(struct evhttp_request *req, void *arg);
-static struct evhttp *
-http_setup(short *pport, struct event_base *base)
+static int
+http_bind(struct evhttp *myhttp, ev_uint16_t *pport)
 {
-	int i;
+	int port;
+	struct evhttp_bound_socket *sock;
+
+	sock = evhttp_bind_socket_with_handle(myhttp, "127.0.0.1", *pport);
+	if (sock == NULL)
+		event_errx(1, "Could not start web server");
+
+	port = regress_get_socket_port(evhttp_bound_socket_get_fd(sock));
+	if (port < 0)
+		return -1;
+	*pport = (ev_uint16_t) port;
+
+	return 0;
+}
+
+static struct evhttp *
+http_setup(ev_uint16_t *pport, struct event_base *base)
+{
 	struct evhttp *myhttp;
-	short port = -1;
 
 	/* Try a few different ports */
 	myhttp = evhttp_new(base);
-	for (i = 0; i < 50; ++i) {
-		if (evhttp_bind_socket(myhttp, "127.0.0.1", 8080 + i) != -1) {
-			port = 8080 + i;
-			break;
-		}
-	}
 
-	if (port == -1)
-		event_errx(1, "Could not start web server");
+	if (http_bind(myhttp, pport) < 0)
+		return NULL;
 
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, NULL);
@@ -105,8 +115,6 @@ http_setup(short *pport, struct event_base *base)
 	evhttp_set_cb(myhttp, "/largedelay", http_large_delay_cb, NULL);
 	evhttp_set_cb(myhttp, "/badrequest", http_badreq_cb, NULL);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, NULL);
-
-	*pport = port;
 	return (myhttp);
 }
 
@@ -330,14 +338,14 @@ http_basic_test(void)
 	struct bufferevent *bev;
 	evutil_socket_t fd;
 	const char *http_request;
-	short port = -1;
+	ev_uint16_t port = 0, port2 = 0;
 
 	test_ok = 0;
 
 	http = http_setup(&port, NULL);
 
 	/* bind to a second socket */
-	if (evhttp_bind_socket(http, "127.0.0.1", port + 1) == -1) {
+	if (http_bind(http, &port2) == -1) {
 		fprintf(stdout, "FAILED (bind)\n");
 		exit(1);
 	}
@@ -366,7 +374,7 @@ http_basic_test(void)
 	bufferevent_free(bev);
 	evutil_closesocket(fd);
 
-	fd = http_connect("127.0.0.1", port + 1);
+	fd = http_connect("127.0.0.1", port2);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_new(fd, http_readcb, http_writecb,
@@ -498,7 +506,7 @@ http_bad_request_test(void)
 	struct bufferevent *bev = NULL;
 	evutil_socket_t fd;
 	const char *http_request;
-	short port = -1;
+	ev_uint16_t port, port2;
 
 	test_ok = 0;
 
@@ -507,7 +515,7 @@ http_bad_request_test(void)
 	http = http_setup(&port, NULL);
 
 	/* bind to a second socket */
-	if (evhttp_bind_socket(http, "127.0.0.1", port + 1) == -1)
+	if (http_bind(http, &port2) == -1)
 		TT_DIE(("Bind socket failed"));
 
 	/* NULL request test */
@@ -539,7 +547,7 @@ http_bad_request_test(void)
 	/* Second answer (BAD REQUEST) on connection close */
 
 	/* connect to the second port */
-	fd = http_connect("127.0.0.1", port + 1);
+	fd = http_connect("127.0.0.1", port2);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_new(fd, http_badreq_readcb, http_writecb,
@@ -613,7 +621,7 @@ http_delete_test(void)
 	struct bufferevent *bev;
 	evutil_socket_t fd;
 	const char *http_request;
-	short port = -1;
+	ev_uint16_t port;
 
 	test_ok = 0;
 
@@ -651,7 +659,7 @@ static void http_request_empty_done(struct evhttp_request *, void *);
 static void
 _http_connection_test(int persistent)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 
@@ -746,7 +754,7 @@ static struct regress_dns_server_table search_table[] = {
 static void
 http_connection_async_test(void)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	struct evdns_base *dns_base = NULL;
@@ -863,7 +871,7 @@ http_do_cancel(evutil_socket_t fd, short what, void *arg)
 static void
 http_cancel_test(void)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	struct timeval tv;
@@ -979,7 +987,7 @@ http_request_expect_error(struct evhttp_request *req, void *arg)
 static void
 http_virtual_host_test(void)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	struct evhttp *second = NULL, *third = NULL;
@@ -1150,7 +1158,7 @@ http_dispatcher_test_done(struct evhttp_request *req, void *arg)
 static void
 http_dispatcher_test(void)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 
@@ -1199,7 +1207,7 @@ void http_postrequest_done(struct evhttp_request *, void *);
 static void
 http_post_test(void)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 
@@ -1317,7 +1325,7 @@ void http_putrequest_done(struct evhttp_request *, void *);
 static void
 http_put_test(void)
 {
-  short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 
@@ -1444,7 +1452,7 @@ http_failure_test(void)
 	struct bufferevent *bev;
 	evutil_socket_t fd;
 	const char *http_request;
-	short port = -1;
+	ev_uint16_t port = 0;
 
 	test_ok = 0;
 
@@ -1527,7 +1535,7 @@ close_detect_cb(struct evhttp_request *req, void *arg)
 static void
 _http_close_detection(int with_delay)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 
@@ -1663,7 +1671,7 @@ http_base_test(void *ptr)
 	struct bufferevent *bev;
 	evutil_socket_t fd;
 	const char *http_request;
-	short port = -1;
+	ev_uint16_t port = 0;
 
 	test_ok = 0;
 	base = event_init();
@@ -1741,7 +1749,7 @@ _http_incomplete_test(int use_timeout)
 	struct bufferevent *bev;
 	evutil_socket_t fd;
 	const char *http_request;
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct timeval tv_start, tv_end;
 
 	test_ok = 0;
@@ -1943,7 +1951,7 @@ http_chunk_out_test(void)
 	struct bufferevent *bev;
 	evutil_socket_t fd;
 	const char *http_request;
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct timeval tv_start, tv_end;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
@@ -2014,7 +2022,7 @@ http_chunk_out_test(void)
 static void
 http_stream_out_test(void)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 
@@ -2085,7 +2093,7 @@ _http_stream_in_test(char const *url,
 	struct evhttp_connection *evcon;
 	struct evbuffer *reply = evbuffer_new();
 	struct evhttp_request *req = NULL;
-	short port = -1;
+	ev_uint16_t port = 0;
 
 	http = http_setup(&port, NULL);
 
@@ -2154,7 +2162,7 @@ http_stream_in_cancel_test(void)
 {
 	struct evhttp_connection *evcon;
 	struct evhttp_request *req = NULL;
-	short port = -1;
+	ev_uint16_t port = 0;
 
 	http = http_setup(&port, NULL);
 
@@ -2197,23 +2205,24 @@ http_connection_retry_done(struct evhttp_request *req, void *arg)
 static void
 http_make_web_server(evutil_socket_t fd, short what, void *arg)
 {
-	short port = -1;
+	ev_uint16_t port = *(ev_uint16_t*)arg;
 	http = http_setup(&port, NULL);
 }
 
 static void
 http_connection_retry_test(void)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	struct timeval tv, tv_start, tv_end;
 
 	test_ok = 0;
 
-	/* auto detect the port */
+	/* auto detect a port */
 	http = http_setup(&port, NULL);
 	evhttp_free(http);
+	http = NULL;
 
 	evcon = evhttp_connection_new("127.0.0.1", port);
 	tt_assert(evcon);
@@ -2299,7 +2308,7 @@ http_connection_retry_test(void)
 	 */
 	evutil_timerclear(&tv);
 	tv.tv_sec = 1;
-	event_once(-1, EV_TIMEOUT, http_make_web_server, NULL, &tv);
+	event_once(-1, EV_TIMEOUT, http_make_web_server, &port, &tv);
 
 	evutil_gettimeofday(&tv_start, NULL);
 	event_dispatch();
@@ -2351,7 +2360,7 @@ http_multi_line_header_test(void)
 	struct bufferevent *bev= NULL;
 	evutil_socket_t fd = -1;
 	const char *http_start_request;
-	short port = -1;
+	ev_uint16_t port = 0;
 
 	test_ok = 0;
 
@@ -2402,7 +2411,7 @@ http_request_bad(struct evhttp_request *req, void *arg)
 static void
 http_negative_content_length_test(void)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 
@@ -2450,7 +2459,7 @@ end:
 static void
 http_data_length_constraints_test(void)
 {
-	short port = -1;
+	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	char long_str[8192];
@@ -2596,7 +2605,7 @@ http_terminate_chunked_test(void)
 	struct bufferevent *bev = NULL;
 	struct timeval tv;
 	const char *http_request;
-	short port = -1;
+	ev_uint16_t port = 0;
 	evutil_socket_t fd = -1;
 
 	test_ok = 0;

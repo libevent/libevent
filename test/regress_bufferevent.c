@@ -470,7 +470,10 @@ test_bufferevent_connect(void *arg)
 	struct evconnlistener *lev=NULL;
 	struct bufferevent *bev1=NULL, *bev2=NULL;
 	struct sockaddr_in localhost;
-	struct sockaddr *sa = (struct sockaddr*)&localhost;
+	struct sockaddr_storage ss;
+	struct sockaddr *sa;
+	ev_socklen_t slen;
+
 	int be_flags=BEV_OPT_CLOSE_ON_FREE;
 
 	if (strstr((char*)data->setup_data, "defer")) {
@@ -494,14 +497,21 @@ test_bufferevent_connect(void *arg)
 
 	memset(&localhost, 0, sizeof(localhost));
 
-	localhost.sin_port = htons(27015);
+	localhost.sin_port = 0; /* pick-a-port */
 	localhost.sin_addr.s_addr = htonl(0x7f000001L);
 	localhost.sin_family = AF_INET;
-
+	sa = (struct sockaddr *)&localhost;
 	lev = evconnlistener_new_bind(data->base, listen_cb, data->base,
 	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
 	    16, sa, sizeof(localhost));
 	tt_assert(lev);
+
+	sa = (struct sockaddr *)&ss;
+	slen = sizeof(ss);
+	if (evconnlistener_get_address(lev, sa, &slen) < 0) {
+		tt_abort_perror("getsockname");
+	}
+
 	tt_assert(!evconnlistener_enable(lev));
 	bev1 = bufferevent_socket_new(data->base, -1, be_flags);
 	bev2 = bufferevent_socket_new(data->base, -1, be_flags);
@@ -584,7 +594,7 @@ test_bufferevent_connect_fail(void *arg)
 	test_ok = 0;
 
 	memset(&localhost, 0, sizeof(localhost));
-	localhost.sin_port = 0;
+	localhost.sin_port = 0; /* have the kernel pick a port */
 	localhost.sin_addr.s_addr = htonl(0x7f000001L);
 	localhost.sin_family = AF_INET;
 

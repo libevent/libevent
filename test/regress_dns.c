@@ -364,6 +364,8 @@ dns_server(void)
 {
 	evutil_socket_t sock=-1;
 	struct sockaddr_in my_addr;
+	struct sockaddr_storage ss;
+	ev_socklen_t slen;
 	struct evdns_server_port *port=NULL;
 	struct in_addr resolve_addr;
 	struct in6_addr resolve_addr6;
@@ -374,11 +376,6 @@ dns_server(void)
 
 	base = evdns_base_new(NULL, 0);
 
-	/* Add ourself as the only nameserver, and make sure we really are
-	 * the only nameserver. */
-	evdns_base_nameserver_ip_add(base, "127.0.0.1:35353");
-
-	tt_int_op(evdns_base_count_nameservers(base), ==, 1);
 	/* Now configure a nameserver port. */
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sock<0) {
@@ -389,12 +386,22 @@ dns_server(void)
 
 	memset(&my_addr, 0, sizeof(my_addr));
 	my_addr.sin_family = AF_INET;
-	my_addr.sin_port = htons(35353);
+	my_addr.sin_port = 0; /* kernel picks */
 	my_addr.sin_addr.s_addr = htonl(0x7f000001UL);
 	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
 		tt_abort_perror("bind");
 	}
+	slen = sizeof(ss);
+	if (getsockname(sock, (struct sockaddr*)&ss, &slen) < 0) {
+		tt_abort_perror("getsockname");
+	}
+
 	port = evdns_add_server_port(sock, 0, dns_server_request_cb, NULL);
+
+	/* Add ourself as the only nameserver, and make sure we really are
+	 * the only nameserver. */
+	evdns_base_nameserver_sockaddr_add(base, (struct sockaddr*)&ss, slen, 0);
+	tt_int_op(evdns_base_count_nameservers(base), ==, 1);
 
 	/* Send some queries. */
 	evdns_base_resolve_ipv4(base, "zz.example.com", DNS_QUERY_NO_SEARCH,
@@ -496,14 +503,16 @@ dns_search_test(void *arg)
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
 	struct evdns_base *dns = NULL;
-	ev_uint16_t portnum = 53900;/*XXXX let the code pick a port*/
+	ev_uint16_t portnum = 0;
+	char buf[64];
 
 	struct generic_dns_callback_result r1, r2, r3, r4, r5;
 
 	tt_assert(regress_dnsserver(base, &portnum, search_table));
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, 0);
-	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
 	evdns_base_search_add(dns, "a.example.com");
 	evdns_base_search_add(dns, "b.example.com");
@@ -570,15 +579,17 @@ dns_search_cancel_test(void *arg)
 	struct event_base *base = data->base;
 	struct evdns_base *dns = NULL;
 	struct evdns_server_port *port = NULL;
-	ev_uint16_t portnum = 53900;/*XXXX let the code pick a port*/
+	ev_uint16_t portnum = 0;
 	struct generic_dns_callback_result r1;
+	char buf[64];
 
 	port = regress_get_dnsserver(base, &portnum, NULL,
 	    search_cancel_server_cb, NULL);
 	tt_assert(port);
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, 0);
-	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
 	evdns_base_search_add(dns, "a.example.com");
 	evdns_base_search_add(dns, "b.example.com");
@@ -588,7 +599,7 @@ dns_search_cancel_test(void *arg)
 	exit_base = base;
 	request_count = 3;
 	n_replies_left = 1;
-	
+
 	current_req = evdns_base_resolve_ipv4(dns, "host", 0,
 					generic_dns_callback, &r1);
 	event_base_dispatch(base);
@@ -644,16 +655,18 @@ dns_retry_test(void *arg)
 	struct evdns_server_port *port = NULL;
 	struct evdns_base *dns = NULL;
 	int drop_count = 2;
-	ev_uint16_t portnum = 53900;/*XXXX let the code pick a port*/
+	ev_uint16_t portnum = 0;
+	char buf[64];
 
 	struct generic_dns_callback_result r1;
 
 	port = regress_get_dnsserver(base, &portnum, NULL,
 	    fail_server_cb, &drop_count);
 	tt_assert(port);
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, 0);
-	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 	tt_assert(! evdns_base_set_option(dns, "timeout", "0.3"));
 	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "10"));
 	tt_assert(! evdns_base_set_option(dns, "initial-probe-timeout", "0.5"));
@@ -731,7 +744,8 @@ dns_reissue_test(void *arg)
 	struct evdns_server_port *port1 = NULL, *port2 = NULL;
 	struct evdns_base *dns = NULL;
 	struct generic_dns_callback_result r1;
-	ev_uint16_t portnum1 = 53900, portnum2=53901;
+	ev_uint16_t portnum1 = 0, portnum2=0;
+	char buf1[64], buf2[64];
 
 	port1 = regress_get_dnsserver(base, &portnum1, NULL,
 	    regress_dns_server_cb, internal_error_table);
@@ -739,9 +753,11 @@ dns_reissue_test(void *arg)
 	port2 = regress_get_dnsserver(base, &portnum2, NULL,
 	    regress_dns_server_cb, reissue_table);
 	tt_assert(port2);
+	evutil_snprintf(buf1, sizeof(buf1), "127.0.0.1:%d", (int)portnum1);
+	evutil_snprintf(buf2, sizeof(buf2), "127.0.0.1:%d", (int)portnum2);
 
 	dns = evdns_base_new(base, 0);
-	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf1));
 	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.3"));
 	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "2"));
 	tt_assert(! evdns_base_set_option(dns, "attempts:", "5"));
@@ -751,7 +767,7 @@ dns_reissue_test(void *arg)
 	    generic_dns_callback, &r1);
 
 	/* Add this after, so that we are sure to get a reissue. */
-	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53901"));
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf2));
 
 	n_replies_left = 1;
 	exit_base = base;
@@ -792,21 +808,17 @@ dns_inflight_test(void *arg)
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
 	struct evdns_base *dns = NULL;
-	ev_uint16_t portnum = 53900;/*XXXX let the code pick a port*/
+	ev_uint16_t portnum = 0;
+	char buf[64];
 
 	struct generic_dns_callback_result r[20];
 	int i;
 
 	tt_assert(regress_dnsserver(base, &portnum, reissue_table));
-
-#if 0
-	/* Make sure that having another (very bad!) RNG doesn't mess us
-	 * up. */
-	evdns_set_random_bytes_fn(dumb_bytes_fn);
-#endif
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
 	dns = evdns_base_new(base, 0);
-	tt_assert(!evdns_base_nameserver_ip_add(dns, "127.0.0.1:53900"));
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 	tt_assert(! evdns_base_set_option(dns, "max-inflight:", "3"));
 	tt_assert(! evdns_base_set_option(dns, "randomize-case:", "0"));
 
@@ -1042,7 +1054,7 @@ test_bufferevent_connect_hostname(void *arg)
 
 	/* Start an evdns_base that uses the server as its resolver. */
 	dns = evdns_base_new(data->base, 0);
-	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", dns_port);
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)dns_port);
 	evdns_base_nameserver_ip_add(dns, buf);
 
 	/* Now, finally, at long last, launch the bufferevents.	 One should do
