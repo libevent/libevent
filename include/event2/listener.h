@@ -112,6 +112,11 @@ struct event_base *evconnlistener_get_base(struct evconnlistener *lev);
 /** Return the socket that an evconnlistner is listening on. */
 evutil_socket_t evconnlistener_get_fd(struct evconnlistener *lev);
 
+/** Set ss to the address that an evconnlistner is listening on; returns 0
+ * on success, -1 on failure. */
+int evconnlistener_get_address(struct evconnlistener *lev,
+    struct sockaddr *sa, ev_socklen_t *socklen);
+
 #ifdef __cplusplus
 }
 #endif

@@ -261,6 +261,16 @@ event_listener_getfd(struct evconnlistener *lev)
 	return event_get_fd(&lev_e->listener);
 }
 
+int
+evconnlistener_get_address(struct evconnlistener *lev,
+    struct sockaddr *sa, ev_socklen_t *socklen)
+{
+	evutil_socket_t s = evconnlistener_get_fd(lev);
+	if (s <= 0)
+		return -1;
+	return getsockname(s, sa, socklen);
+}
+
 struct event_base *
 evconnlistener_get_base(struct evconnlistener *lev)
 {
