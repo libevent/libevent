@@ -288,7 +288,7 @@ int evdns_base_clear_nameservers_and_suspend(struct evdns_base *base);
 int evdns_base_resume(struct evdns_base *base);
 
 /**
-  Add a nameserver.
+  Add a nameserver by string address.
 
   This function parses a n IPv4 or IPv6 address from a string and adds it as a
   nameserver.  It supports the following formats:
@@ -306,6 +306,13 @@ int evdns_base_resume(struct evdns_base *base);
  */
 int evdns_base_nameserver_ip_add(struct evdns_base *base,
     const char *ip_as_string);
+
+/**
+   Add a nameserver by sockaddr.
+ **/
+int
+evdns_base_nameserver_sockaddr_add(struct evdns_base *base,
+    const struct sockaddr *sa, ev_socklen_t len, unsigned flags);
 
 struct evdns_request;
 

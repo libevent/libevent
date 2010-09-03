@@ -2499,6 +2499,18 @@ evdns_nameserver_ip_add(const char *ip_as_string) {
 	return evdns_base_nameserver_ip_add(current_base, ip_as_string);
 }
 
+int
+evdns_base_nameserver_sockaddr_add(struct evdns_base *base,
+    const struct sockaddr *sa, ev_socklen_t len, unsigned flags)
+{
+	int res;
+	EVUTIL_ASSERT(base);
+	EVDNS_LOCK(base);
+	res = _evdns_nameserver_add_impl(base, sa, len);
+	EVDNS_UNLOCK(base);
+	return res;
+}
+
 /* remove from the queue */
 static void
 evdns_request_remove(struct request *req, struct request **head)
