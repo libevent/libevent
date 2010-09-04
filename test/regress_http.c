@@ -506,7 +506,7 @@ http_bad_request_test(void)
 	struct bufferevent *bev = NULL;
 	evutil_socket_t fd;
 	const char *http_request;
-	ev_uint16_t port, port2;
+	ev_uint16_t port=0, port2=0;
 
 	test_ok = 0;
 
