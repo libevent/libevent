@@ -621,7 +621,7 @@ http_delete_test(void)
 	struct bufferevent *bev;
 	evutil_socket_t fd;
 	const char *http_request;
-	ev_uint16_t port;
+	ev_uint16_t port = 0;
 
 	test_ok = 0;
 
