@@ -78,6 +78,14 @@
 #include "strlcpy-internal.h"
 #include "ipv6-internal.h"
 
+#ifdef WIN32
+#define open _open
+#define read _read
+#define close _close
+#define fstat _fstat
+#define stat _stat
+#endif
+
 /**
    Read the contents of 'filename' into a newly allocated NUL-terminated
    string.  Set *content_out to hold this string, and *len_out to hold its
