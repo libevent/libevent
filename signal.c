@@ -62,6 +62,12 @@
 #include "log-internal.h"
 #include "evmap-internal.h"
 
+#ifndef WIN32
+/* Windows wants us to call our signal handlers as __cdecl.  Nobody else
+ * expects you to do anything crazy like this.  */
+#define __cdecl
+#endif
+
 static int evsig_add(struct event_base *, int, short, short, void *);
 static int evsig_del(struct event_base *, int, short, short, void *);
 
@@ -77,7 +83,7 @@ static const struct eventop evsigops = {
 
 struct event_base *evsig_base = NULL;
 
-static void evsig_handler(int sig);
+static void __cdecl evsig_handler(int sig);
 
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
@@ -141,7 +147,7 @@ evsig_init(struct event_base *base)
  * we can restore the original handler when we clear the current one. */
 int
 _evsig_set_handler(struct event_base *base,
-		      int evsignal, void (*handler)(int))
+    int evsignal, void (__cdecl *handler)(int))
 {
 #ifdef _EVENT_HAVE_SIGACTION
 	struct sigaction sa;
@@ -270,7 +276,7 @@ evsig_del(struct event_base *base, int evsignal, short old, short events, void *
 	return (_evsig_restore_handler(base, evsignal));
 }
 
-static void
+static void __cdecl
 evsig_handler(int sig)
 {
 	int save_errno = errno;
