@@ -85,7 +85,8 @@ run_once(void)
 	static struct timeval ts, te;
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
-		event_del(&events[i]);
+		if (event_initialized(&events[i]))
+			event_del(&events[i]);
 		event_set(&events[i], cp[0], EV_READ | EV_PERSIST, read_cb, (void *) i);
 		event_add(&events[i], NULL);
 	}
