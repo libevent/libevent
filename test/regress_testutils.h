@@ -57,5 +57,10 @@ int regress_dnsserver(struct event_base *base, ev_uint16_t *port,
 /* clean up the global dns server resources */
 void regress_clean_dnsserver(void);
 
+struct evconnlistener;
+struct sockaddr;
+int regress_get_listener_addr(struct evconnlistener *lev,
+    struct sockaddr *sa, ev_socklen_t *socklen);
+
 #endif /* _TESTUTILS_H */
 

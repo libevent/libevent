@@ -79,6 +79,7 @@
 #endif
 
 #include "regress.h"
+#include "regress_testutils.h"
 
 /*
  * simple bufferevent test
@@ -508,7 +509,7 @@ test_bufferevent_connect(void *arg)
 
 	sa = (struct sockaddr *)&ss;
 	slen = sizeof(ss);
-	if (evconnlistener_get_address(lev, sa, &slen) < 0) {
+	if (regress_get_listener_addr(lev, sa, &slen) < 0) {
 		tt_abort_perror("getsockname");
 	}
 

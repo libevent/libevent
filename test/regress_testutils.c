@@ -183,3 +183,13 @@ regress_dnsserver(struct event_base *base, ev_uint16_t *port,
 	    regress_dns_server_cb, search_table);
 	return dns_port != NULL;
 }
+
+int
+regress_get_listener_addr(struct evconnlistener *lev,
+    struct sockaddr *sa, ev_socklen_t *socklen)
+{
+	evutil_socket_t s = evconnlistener_get_fd(lev);
+	if (s <= 0)
+		return -1;
+	return getsockname(s, sa, socklen);
+}
