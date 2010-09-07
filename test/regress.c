@@ -470,6 +470,8 @@ end:
 		evutil_closesocket(pair2[1]);
 	if (rev)
 		event_free(rev);
+	if (wev)
+		event_free(wev);
 	if (closeev)
 		event_free(closeev);
 	if (base)

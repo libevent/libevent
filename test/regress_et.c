@@ -153,7 +153,7 @@ static void
 test_edgetriggered_mix_error(void *data_)
 {
 	struct basic_test_data *data = data_;
-	struct event_base *base;
+	struct event_base *base = NULL;
 	struct event *ev_et=NULL, *ev_lt=NULL;
 
 #ifdef _EVENT_DISABLE_DEBUG_MODE
@@ -187,6 +187,8 @@ end:
 		event_free(ev_et);
 	if (ev_lt)
 		event_free(ev_lt);
+	if (base)
+		event_base_free(base);
 }
 
 struct testcase_t edgetriggered_testcases[] = {

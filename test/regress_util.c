@@ -421,8 +421,11 @@ logfn(int severity, const char *msg)
 {
 	logsev = severity;
 	tt_want(msg);
-	if (msg)
+	if (msg) {
+		if (logmsg)
+			free(logmsg);
 		logmsg = strdup(msg);
+	}
 }
 
 static int fatal_want_severity = 0;
