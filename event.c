@@ -471,7 +471,7 @@ static void
 notify_base_cbq_callback(struct deferred_cb_queue *cb, void *baseptr)
 {
 	struct event_base *base = baseptr;
-	if (!EVBASE_IN_THREAD(base))
+	if (EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
 }
 
@@ -742,6 +742,7 @@ event_reinit(struct event_base *base)
 	const struct eventop *evsel;
 	int res = 0;
 	struct event *ev;
+	int was_notifiable = 0;
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
@@ -769,6 +770,23 @@ event_reinit(struct event_base *base)
 			    EVLIST_ACTIVE);
 		base->sig.ev_signal_added = 0;
 	}
+	if (base->th_notify_fd[0] != -1) {
+		/* we cannot call event_del here because the base has
+		 * not been reinitialized yet. */
+		was_notifiable = 1;
+		event_queue_remove(base, &base->th_notify,
+		    EVLIST_INSERTED);
+		if (base->th_notify.ev_flags & EVLIST_ACTIVE)
+			event_queue_remove(base, &base->th_notify,
+			    EVLIST_ACTIVE);
+		base->sig.ev_signal_added = 0;
+		EVUTIL_CLOSESOCKET(base->th_notify_fd[0]);
+		if (base->th_notify_fd[1] != -1)
+			EVUTIL_CLOSESOCKET(base->th_notify_fd[1]);
+		base->th_notify_fd[0] = -1;
+		base->th_notify_fd[1] = -1;
+		event_debug_unassign(&base->th_notify);
+	}
 
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base);
@@ -793,6 +811,9 @@ event_reinit(struct event_base *base)
 				res = -1;
 		}
 	}
+
+	if (was_notifiable && res == 0)
+		res = evthread_make_base_notifiable(base);
 
 done:
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
@@ -1369,18 +1390,20 @@ event_loopbreak(void)
 int
 event_base_loopbreak(struct event_base *event_base)
 {
+	int r = 0;
 	if (event_base == NULL)
 		return (-1);
 
 	EVBASE_ACQUIRE_LOCK(event_base, th_base_lock);
 	event_base->event_break = 1;
-	EVBASE_RELEASE_LOCK(event_base, th_base_lock);
 
-	if (!EVBASE_IN_THREAD(event_base)) {
-		return evthread_notify_base(event_base);
+	if (EVBASE_NEED_NOTIFY(event_base)) {
+		r = evthread_notify_base(event_base);
 	} else {
-		return (0);
+		r = (0);
 	}
+	EVBASE_RELEASE_LOCK(event_base, th_base_lock);
+	return r;
 }
 
 int
@@ -1879,8 +1902,12 @@ evthread_notify_base_eventfd(struct event_base *base)
 static int
 evthread_notify_base(struct event_base *base)
 {
+	EVENT_BASE_ASSERT_LOCKED(base);
 	if (!base->th_notify_fn)
 		return -1;
+	if (base->is_notify_pending)
+		return 0;
+	base->is_notify_pending = 1;
 	return base->th_notify_fn(base);
 }
 
@@ -2029,7 +2056,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
-	if (res != -1 && notify && !EVBASE_IN_THREAD(base))
+	if (res != -1 && notify && EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
 
 	_event_debug_note_add(ev);
@@ -2123,7 +2150,7 @@ event_del_internal(struct event *ev)
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
-	if (res != -1 && notify && !EVBASE_IN_THREAD(base))
+	if (res != -1 && notify && EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
 
 	_event_debug_note_del(ev);
@@ -2224,8 +2251,6 @@ event_deferred_cb_schedule(struct deferred_cb_queue *queue,
 		cb->queued = 1;
 		TAILQ_INSERT_TAIL(&queue->deferred_cb_list, cb, cb_next);
 		++queue->active_count;
-		/* XXXX Can we get away with doing this only when adding
-		 * the first active deferred_cb to the queue? */
 		if (queue->notify_fn)
 			queue->notify_fn(queue, queue->notify_arg);
 	}
@@ -2571,11 +2596,15 @@ evthread_notify_drain_eventfd(evutil_socket_t fd, short what, void *arg)
 {
 	ev_uint64_t msg;
 	ev_ssize_t r;
+	struct event_base *base = arg;
 
 	r = read(fd, (void*) &msg, sizeof(msg));
 	if (r<0 && errno != EAGAIN) {
 		event_sock_warn(fd, "Error reading from eventfd");
 	}
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	base->is_notify_pending = 0;
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 #endif
 
@@ -2583,6 +2612,7 @@ static void
 evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 {
 	unsigned char buf[1024];
+	struct event_base *base = arg;
 #ifdef WIN32
 	while (recv(fd, (char*)buf, sizeof(buf), 0) > 0)
 		;
@@ -2590,6 +2620,10 @@ evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 	while (read(fd, (char*)buf, sizeof(buf)) > 0)
 		;
 #endif
+
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	base->is_notify_pending = 0;
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 
 int

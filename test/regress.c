@@ -62,6 +62,7 @@
 #include "event2/buffer_compat.h"
 #include "event2/util.h"
 #include "event-internal.h"
+#include "evthread-internal.h"
 #include "util-internal.h"
 #include "log-internal.h"
 
@@ -805,6 +806,9 @@ test_fork(void)
 
 	setup_test("After fork: ");
 
+	tt_assert(current_base);
+	evthread_make_base_notifiable(current_base);
+
 	write(pair[0], TEST1, strlen(TEST1)+1);
 
 	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
@@ -863,6 +867,7 @@ test_fork(void)
 
 	evsignal_del(&sig_ev);
 
+	end:
 	cleanup_test();
 }
 

@@ -262,6 +262,9 @@ struct event_base {
 	enum event_base_config_flag flags;
 
 	/* Notify main thread to wake up break, etc. */
+	/** True if the base already has a pending notify, and we don't need
+	 * to add any more. */
+	int is_notify_pending;
 	/** A socketpair used by some th_notify functions to wake up the main
 	 * thread. */
 	int th_notify_fd[2];

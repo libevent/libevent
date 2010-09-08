@@ -40,12 +40,18 @@
 #include <process.h>
 #endif
 #include <assert.h>
+#ifdef _EVENT_HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#include "sys/queue.h"
 
 #include "event2/util.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/thread.h"
 #include "evthread-internal.h"
+#include "event-internal.h"
 #include "regress.h"
 #include "tinytest_macros.h"
 
@@ -131,7 +137,7 @@ basic_thread(void *arg)
 
 	/* exit the loop only if all threads fired all timeouts */
 	EVLOCK_LOCK(count_lock, 0);
-	if (count >= NUM_THREADS * 100)
+	if (count >= NUM_THREADS * NUM_ITERATIONS)
 		event_base_loopexit(base, NULL);
 	EVLOCK_UNLOCK(count_lock, 0);
 
@@ -139,6 +145,27 @@ basic_thread(void *arg)
 	EVTHREAD_FREE_COND(cw.cond);
 
 	THREAD_RETURN();
+}
+
+static int got_sigchld = 0;
+static void
+sigchld_cb(evutil_socket_t fd, short event, void *arg)
+{
+	struct timeval tv;
+	struct event_base *base = arg;
+
+	got_sigchld++;
+	tv.tv_usec = 100000;
+	tv.tv_sec = 0;
+	event_base_loopexit(base, &tv);
+}
+
+
+static int notification_fd_used = 0;
+static void
+notify_fd_cb(evutil_socket_t fd, short event, void *arg)
+{
+	++notification_fd_used;
 }
 
 static void
@@ -151,6 +178,10 @@ thread_basic(void *arg)
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
 
+	int forking = data->setup_data && !strcmp(data->setup_data, "forking");
+	struct event *notification_event = NULL;
+	struct event *sigchld_event = NULL;
+
 	EVTHREAD_ALLOC_LOCK(count_lock, 0);
 	tt_assert(count_lock);
 
@@ -159,6 +190,42 @@ thread_basic(void *arg)
 		tt_abort_msg("Couldn't make base notifiable!");
 	}
 
+#ifndef WIN32
+	if (forking) {
+		pid_t pid;
+		int status;
+		sigchld_event = evsignal_new(base, SIGCHLD, sigchld_cb, base);
+		/* This piggybacks on the th_notify_fd weirdly, and looks
+		 * inside libevent internals.  Not a good idea in non-testing
+		 * code! */
+		notification_event = event_new(base,
+		    base->th_notify_fd[0], EV_READ|EV_PERSIST, notify_fd_cb,
+		    NULL);
+		event_add(sigchld_event, NULL);
+		event_add(notification_event, NULL);
+
+		if ((pid = fork()) == 0) {
+			if (event_reinit(base) < 0) {
+				TT_FAIL(("reinit"));
+				exit(1);
+			}
+	 		goto child;
+		}
+
+		event_base_dispatch(base);
+
+		if (waitpid(pid, &status, 0) == -1)
+			tt_abort_perror("waitpid");
+		TT_BLATHER(("Waitpid okay\n"));
+
+		tt_assert(got_sigchld);
+		tt_int_op(notification_fd_used, ==, 0);
+
+		goto end;
+	}
+
+child:
+#endif
 	for (i = 0; i < NUM_THREADS; ++i)
 		THREAD_START(threads[i], basic_thread, base);
 
@@ -177,8 +244,15 @@ thread_basic(void *arg)
 	tt_int_op(count, ==, NUM_THREADS * NUM_ITERATIONS);
 
 	EVTHREAD_FREE_LOCK(count_lock, 0);
+
+	TT_BLATHER(("notifiations==%d", notification_fd_used));
+
 end:
-	;
+
+	if (notification_event)
+		event_free(notification_event);
+	if (sigchld_event)
+		event_free(sigchld_event);
 }
 
 #undef NUM_THREADS
@@ -313,10 +387,16 @@ end:
 }
 
 #define TEST(name)							\
-	    { #name, thread_##name, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE, \
-	      &basic_setup, NULL }
+	{ #name, thread_##name, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE,	\
+	  &basic_setup, NULL }
+
 struct testcase_t thread_testcases[] = {
-	TEST(basic),
+	{ "basic", thread_basic, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE,
+	  &basic_setup, NULL },
+#ifndef WIN32
+	{ "forking", thread_basic, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE,
+	  &basic_setup, (char*)"forking" },
+#endif
 	TEST(conditions_simple),
 	END_OF_TESTCASES
 };
