@@ -615,19 +615,19 @@ event_base_new_with_config(const struct event_config *cfg)
 
 #ifdef WIN32
 	if (cfg && (cfg->flags & EVENT_BASE_FLAG_STARTUP_IOCP))
-		event_base_start_iocp(base);
+		event_base_start_iocp(base, cfg->n_cpus_hint);
 #endif
 
 	return (base);
 }
 
 int
-event_base_start_iocp(struct event_base *base)
+event_base_start_iocp(struct event_base *base, int n_cpus)
 {
 #ifdef WIN32
 	if (base->iocp)
 		return 0;
-	base->iocp = event_iocp_port_launch();
+	base->iocp = event_iocp_port_launch(n_cpus);
 	if (!base->iocp) {
 		event_warnx("%s: Couldn't launch IOCP", __func__);
 		return -1;
@@ -635,6 +635,20 @@ event_base_start_iocp(struct event_base *base)
 	return 0;
 #else
 	return -1;
+#endif
+}
+
+void
+event_base_stop_iocp(struct event_base *base)
+{
+#ifdef WIN32
+	int rv;
+
+	if (!base->iocp)
+		return;
+	rv = event_iocp_shutdown(base->iocp, -1);
+	EVUTIL_ASSERT(rv >= 0);
+	base->iocp = NULL;
 #endif
 }
 
@@ -653,6 +667,10 @@ event_base_free(struct event_base *base)
 
 	/* XXX(niels) - check for internal events first */
 	EVUTIL_ASSERT(base);
+
+#ifdef WIN32
+	event_base_stop_iocp(base);
+#endif
 
 	/* threading fds if we have them */
 	if (base->th_notify_fd[0] != -1) {
@@ -922,6 +940,15 @@ event_config_require_features(struct event_config *cfg,
 }
 
 int
+event_config_set_num_cpus_hint(struct event_config *cfg, int cpus)
+{
+	if (!cfg)
+		return (-1);
+	cfg->n_cpus_hint = cpus;
+	return (0);
+}
+
+int
 event_priority_init(int npriorities)
 {
 	return event_base_priority_init(current_base, npriorities);
@@ -965,7 +992,7 @@ static int
 event_haveevents(struct event_base *base)
 {
 	/* Caller must hold th_base_lock */
-	return (base->event_count > 0);
+	return (base->virtual_event_count > 0 || base->event_count > 0);
 }
 
 /* "closure" function called when processing active signal events */
@@ -1279,9 +1306,10 @@ event_process_active_single_queue(struct event_base *base,
 }
 
 /*
-   Process all the defered_cb entries in 'queue'.  If *breakptr becomes set to
-   1, stop.  Requires that we start out holding the lock on 'queue'; releases
-   the lock around 'queue' for each deferred_cb we process.
+   Process up to MAX_DEFERRED of the defered_cb entries in 'queue'.  If
+   *breakptr becomes set to 1, stop.  Requires that we start out holding
+   the lock on 'queue'; releases the lock around 'queue' for each deferred_cb
+   we process.
  */
 static int
 event_process_deferred_callbacks(struct deferred_cb_queue *queue, int *breakptr)
@@ -1289,6 +1317,7 @@ event_process_deferred_callbacks(struct deferred_cb_queue *queue, int *breakptr)
 	int count = 0;
 	struct deferred_cb *cb;
 
+#define MAX_DEFERRED 16
 	while ((cb = TAILQ_FIRST(&queue->deferred_cb_list))) {
 		cb->queued = 0;
 		TAILQ_REMOVE(&queue->deferred_cb_list, cb, cb_next);
@@ -1296,12 +1325,14 @@ event_process_deferred_callbacks(struct deferred_cb_queue *queue, int *breakptr)
 		UNLOCK_DEFERRED_QUEUE(queue);
 
 		cb->cb(cb, cb->arg);
-		++count;
-		if (*breakptr)
-			return -1;
 
 		LOCK_DEFERRED_QUEUE(queue);
+		if (*breakptr)
+			return -1;
+		if (++count == MAX_DEFERRED)
+			break;
 	}
+#undef MAX_DEFERRED
 	return count;
 }
 
@@ -2722,4 +2753,20 @@ event_base_dump_events(struct event_base *base, FILE *output)
 					(e->ev_res&EV_TIMEOUT)?" Timeout active":"");
 		}
 	}
+}
+
+void
+event_base_add_virtual(struct event_base *base)
+{
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	base->virtual_event_count++;
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+}
+
+void
+event_base_del_virtual(struct event_base *base)
+{
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	base->virtual_event_count--;
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }

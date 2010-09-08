@@ -155,7 +155,7 @@ void evbuffer_commit_write(struct evbuffer *, ev_ssize_t);
 
     This interface is unstable, and will change.
  */
-struct event_iocp_port *event_iocp_port_launch(void);
+struct event_iocp_port *event_iocp_port_launch(int n_cpus);
 
 /** Associate a file descriptor with an iocp, such that overlapped IO on the
     fd will happen on one of the iocp's worker threads.
@@ -164,9 +164,10 @@ int event_iocp_port_associate(struct event_iocp_port *port, evutil_socket_t fd,
     ev_uintptr_t key);
 
 /** Tell all threads serving an iocp to stop.  Wait for up to waitMsec for all
-    the threads to finish whatever they're doing.  If all the threads are
-    done, free the port and return 0.  Otherwise, return -1.  If you get a -1
-    return value, it is safe to call this function again.
+    the threads to finish whatever they're doing.  If waitMsec is -1, wait
+    as long as required.  If all the threads are done, free the port and return
+    0. Otherwise, return -1.  If you get a -1 return value, it is safe to call
+    this function again.
 */
 int event_iocp_shutdown(struct event_iocp_port *port, long waitMsec);
 
@@ -180,7 +181,8 @@ struct event_base;
 struct event_iocp_port *event_base_get_iocp(struct event_base *base);
 
 /* FIXME document. */
-int event_base_start_iocp(struct event_base *base);
+int event_base_start_iocp(struct event_base *base, int n_cpus);
+void event_base_stop_iocp(struct event_base *base);
 
 /* FIXME document. */
 struct bufferevent *bufferevent_async_new(struct event_base *base,

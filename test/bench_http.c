@@ -133,7 +133,7 @@ main(int argc, char **argv)
 		case 'i':
 			use_iocp = 1;
 			evthread_use_windows_threads();
-			event_base_start_iocp(base);
+			event_base_start_iocp(base, 0);
 			break;
 #endif
 		default:

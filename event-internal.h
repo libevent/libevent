@@ -182,6 +182,8 @@ struct event_base {
 	/** Data to implement the common signal handelr code. */
 	struct evsig_info sig;
 
+	/** Number of virtual events */
+	int virtual_event_count;
 	/** Number of total events added to this event_base */
 	int event_count;
 	/** Number of total events active in this event_base */
@@ -286,6 +288,7 @@ struct event_config_entry {
 struct event_config {
 	TAILQ_HEAD(event_configq, event_config_entry) entries;
 
+	int n_cpus_hint;
 	enum event_method_feature require_features;
 	enum event_base_config_flag flags;
 };
@@ -315,6 +318,10 @@ int _evsig_set_handler(struct event_base *base, int evsignal,
 int _evsig_restore_handler(struct event_base *base, int evsignal);
 
 void event_active_nolock(struct event *ev, int res, short count);
+
+/* FIXME document. */
+void event_base_add_virtual(struct event_base *base);
+void event_base_del_virtual(struct event_base *base);
 
 #ifdef __cplusplus
 }

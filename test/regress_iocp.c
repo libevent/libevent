@@ -29,6 +29,7 @@
 #include <event2/event.h>
 #include <event2/thread.h>
 #include <event2/buffer.h>
+#include <event2/buffer_compat.h>
 #include <event2/bufferevent.h>
 
 #include <winsock2.h>
@@ -44,6 +45,7 @@
 #undef WIN32_LEAN_AND_MEAN
 
 #include "iocp-internal.h"
+#include "evbuffer-internal.h"
 #include "evthread-internal.h"
 
 /* FIXME remove these ones */
@@ -52,6 +54,62 @@
 #include "event-internal.h"
 
 #define MAX_CALLS 16
+
+static void *count_lock = NULL, *count_cond = NULL;
+static int count = 0;
+
+static void
+count_init(void)
+{
+	EVTHREAD_ALLOC_LOCK(count_lock, 0);
+	EVTHREAD_ALLOC_COND(count_cond);
+
+	tt_assert(count_lock);
+	tt_assert(count_cond);
+
+end:
+	;
+}
+
+static void
+count_free(void)
+{
+	EVTHREAD_FREE_LOCK(count_lock, 0);
+	EVTHREAD_FREE_COND(count_cond);
+}
+
+static void
+count_incr(void)
+{
+	EVLOCK_LOCK(count_lock, 0);
+	count++;
+	EVTHREAD_COND_BROADCAST(count_cond);
+	EVLOCK_UNLOCK(count_lock, 0);
+}
+
+static int
+count_wait_for(int i, int ms)
+{
+	struct timeval tv;
+	DWORD elapsed;
+	int rv = -1;
+
+	EVLOCK_LOCK(count_lock, 0);
+	while (ms > 0 && count != i) {
+		tv.tv_sec = 0;
+		tv.tv_usec = ms * 1000;
+		elapsed = GetTickCount();
+		EVTHREAD_COND_WAIT_TIMED(count_cond, count_lock, &tv);
+		elapsed = GetTickCount() - elapsed;
+		ms -= elapsed;
+	}
+	if (count == i)
+		rv = 0;
+	EVLOCK_UNLOCK(count_lock, 0);
+
+	return rv;
+}
+
 struct dummy_overlapped {
 	struct event_overlapped eo;
 	void *lock;
@@ -73,6 +131,8 @@ dummy_cb(struct event_overlapped *o, uintptr_t key, ev_ssize_t n, int ok)
 	}
 	d_o->call_count++;
 	EVLOCK_UNLOCK(d_o->lock, 0);
+
+	count_incr();
 }
 
 static int
@@ -100,6 +160,7 @@ test_iocp_port(void *ptr)
 	memset(&o1, 0, sizeof(o1));
 	memset(&o2, 0, sizeof(o2));
 
+	count_init();
 	EVTHREAD_ALLOC_LOCK(o1.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 	EVTHREAD_ALLOC_LOCK(o2.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 
@@ -109,7 +170,7 @@ test_iocp_port(void *ptr)
 	event_overlapped_init(&o1.eo, dummy_cb);
 	event_overlapped_init(&o2.eo, dummy_cb);
 
-	port = event_iocp_port_launch();
+	port = event_iocp_port_launch(0);
 	tt_assert(port);
 
 	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 10, 100));
@@ -124,10 +185,7 @@ test_iocp_port(void *ptr)
 	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 13, 103));
 	tt_assert(!event_iocp_activate_overlapped(port, &o2.eo, 23, 203));
 
-#ifdef WIN32
-	/* FIXME Be smarter. */
-	Sleep(1000);
-#endif
+	tt_int_op(count_wait_for(8, 2000), ==, 0);
 
 	tt_want(!event_iocp_shutdown(port, 2000));
 
@@ -145,8 +203,9 @@ test_iocp_port(void *ptr)
 	tt_want(pair_is_in(&o2, 23, 203));
 
 end:
-	/* FIXME free the locks. */
-	;
+	EVTHREAD_FREE_LOCK(o1.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
+	EVTHREAD_FREE_LOCK(o2.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
+	count_free();
 }
 
 static struct evbuffer *rbuf = NULL, *wbuf = NULL;
@@ -157,6 +216,7 @@ read_complete(struct event_overlapped *eo, uintptr_t key,
 {
 	tt_assert(ok);
 	evbuffer_commit_read(rbuf, nbytes);
+	count_incr();
 end:
 	;
 }
@@ -167,6 +227,7 @@ write_complete(struct event_overlapped *eo, uintptr_t key,
 {
 	tt_assert(ok);
 	evbuffer_commit_write(wbuf, nbytes);
+	count_incr();
 end:
 	;
 }
@@ -177,9 +238,12 @@ test_iocp_evbuffer(void *ptr)
 	struct event_overlapped rol, wol;
 	struct basic_test_data *data = ptr;
 	struct event_iocp_port *port = NULL;
+	struct evbuffer *buf;
+	struct evbuffer_chain *chain;
 	char junk[1024];
 	int i;
 
+	count_init();
 	event_overlapped_init(&rol, read_complete);
 	event_overlapped_init(&wol, write_complete);
 
@@ -191,7 +255,7 @@ test_iocp_evbuffer(void *ptr)
 	evbuffer_enable_locking(rbuf, NULL);
 	evbuffer_enable_locking(wbuf, NULL);
 
-	port = event_iocp_port_launch();
+	port = event_iocp_port_launch(0);
 	tt_assert(port);
 	tt_assert(rbuf);
 	tt_assert(wbuf);
@@ -202,14 +266,18 @@ test_iocp_evbuffer(void *ptr)
 	for (i=0;i<10;++i)
 		evbuffer_add(wbuf, junk, sizeof(junk));
 
+	buf = evbuffer_new();
+	tt_assert(buf != NULL);
+	evbuffer_add(rbuf, junk, sizeof(junk));
+	tt_assert(!evbuffer_launch_read(rbuf, 2048, &rol));
+	evbuffer_add_buffer(buf, rbuf);
+	tt_int_op(evbuffer_get_length(buf), ==, sizeof(junk));
+	for (chain = buf->first; chain; chain = chain->next)
+		tt_int_op(chain->flags & EVBUFFER_MEM_PINNED_ANY, ==, 0);
 	tt_assert(!evbuffer_get_length(rbuf));
 	tt_assert(!evbuffer_launch_write(wbuf, 512, &wol));
-	tt_assert(!evbuffer_launch_read(rbuf, 2048, &rol));
 
-#ifdef WIN32
-	/* FIXME this is stupid. */
-	Sleep(1000);
-#endif
+	tt_int_op(count_wait_for(2, 2000), ==, 0);
 
 	tt_int_op(evbuffer_get_length(rbuf),==,512);
 
@@ -217,8 +285,20 @@ test_iocp_evbuffer(void *ptr)
 
 	tt_want(!event_iocp_shutdown(port, 2000));
 end:
+	count_free();
 	evbuffer_free(rbuf);
 	evbuffer_free(wbuf);
+	evbuffer_free(buf);
+}
+
+static int got_readcb = 0;
+
+static void
+async_readcb(struct bufferevent *bev, void *arg)
+{
+	/* Disabling read should cause the loop to quit */
+	bufferevent_disable(bev, EV_READ);
+	got_readcb++;
 }
 
 static void
@@ -229,9 +309,8 @@ test_iocp_bufferevent_async(void *ptr)
 	struct bufferevent *bea1=NULL, *bea2=NULL;
 	char buf[128];
 	size_t n;
-	struct timeval one_sec = {1,0};
 
-	event_base_start_iocp(data->base);
+	event_base_start_iocp(data->base, 0);
 	port = event_base_get_iocp(data->base);
 	tt_assert(port);
 
@@ -242,27 +321,27 @@ test_iocp_bufferevent_async(void *ptr)
 	tt_assert(bea1);
 	tt_assert(bea2);
 
-	/*FIXME set some callbacks */
+	bufferevent_setcb(bea2, async_readcb, NULL, NULL, NULL);
 	bufferevent_enable(bea1, EV_WRITE);
 	bufferevent_enable(bea2, EV_READ);
 
 	bufferevent_write(bea1, "Hello world", strlen("Hello world")+1);
 
-	event_base_loopexit(data->base, &one_sec);
 	event_base_dispatch(data->base);
 
+	tt_int_op(got_readcb, ==, 1);
 	n = bufferevent_read(bea2, buf, sizeof(buf)-1);
 	buf[n]='\0';
 	tt_str_op(buf, ==, "Hello world");
 
-	tt_want(!event_iocp_shutdown(port, 2000));
 end:
-	/* FIXME: free stuff. */;
+	bufferevent_free(bea1);
+	bufferevent_free(bea2);
 }
 
 
 struct testcase_t iocp_testcases[] = {
-	{ "port", test_iocp_port, TT_FORK|TT_NEED_THREADS, NULL, NULL },
+	{ "port", test_iocp_port, TT_FORK|TT_NEED_THREADS, &basic_setup, NULL },
 	{ "evbuffer", test_iocp_evbuffer,
 	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_THREADS,
 	  &basic_setup, NULL },

@@ -36,6 +36,7 @@
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "event-internal.h"
+#include "evthread-internal.h"
 
 #define NOTIFICATION_KEY ((ULONG_PTR)-1)
 
@@ -73,7 +74,8 @@ loop(void *_port)
 		EnterCriticalSection(&port->lock);
 		if (port->shutdown) {
 			if (--port->n_live_threads == 0)
-				ReleaseSemaphore(port->shutdownSemaphore, 1, NULL);
+				ReleaseSemaphore(port->shutdownSemaphore, 1,
+						NULL);
 			LeaveCriticalSection(&port->lock);
 			return;
 		}
@@ -160,8 +162,10 @@ event_get_win32_extension_fns(void)
 	return &the_extension_fns;
 }
 
+#define N_CPUS_DEFAULT 2
+
 struct event_iocp_port *
-event_iocp_port_launch(void)
+event_iocp_port_launch(int n_cpus)
 {
 	struct event_iocp_port *port;
 	int i;
@@ -171,12 +175,16 @@ event_iocp_port_launch(void)
 
 	if (!(port = mm_calloc(1, sizeof(struct event_iocp_port))))
 		return NULL;
-	port->n_threads = 2;
+
+	if (n_cpus <= 0)
+		n_cpus = N_CPUS_DEFAULT;
+	port->n_threads = n_cpus * 2;
 	port->threads = calloc(port->n_threads, sizeof(HANDLE));
 	if (!port->threads)
 		goto err;
 
-	port->port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, port->n_threads);
+	port->port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0,
+			n_cpus);
 	port->ms = -1;
 	if (!port->port)
 		goto err;
@@ -233,13 +241,18 @@ event_iocp_notify_all(struct event_iocp_port *port)
 int
 event_iocp_shutdown(struct event_iocp_port *port, long waitMsec)
 {
+	DWORD ms = INFINITE;
 	int n;
+
 	EnterCriticalSection(&port->lock);
 	port->shutdown = 1;
 	LeaveCriticalSection(&port->lock);
 	event_iocp_notify_all(port);
 
-	WaitForSingleObject(port->shutdownSemaphore, waitMsec);
+	if (waitMsec >= 0)
+		ms = waitMsec;
+
+	WaitForSingleObject(port->shutdownSemaphore, ms);
 	EnterCriticalSection(&port->lock);
 	n = port->n_live_threads;
 	LeaveCriticalSection(&port->lock);
@@ -271,4 +284,3 @@ event_base_get_iocp(struct event_base *base)
 	return NULL;
 #endif
 }
-
