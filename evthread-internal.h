@@ -48,11 +48,19 @@ extern int _evthread_lock_debugging_enabled;
 #define EVTHREAD_GET_ID() \
 	(_evthread_id_fn ? _evthread_id_fn() : 1)
 
-/** Return true iff we're in the thread that is currently running a given
- * event_base's loop. */
+/** Return true iff we're in the thread that is currently (or most recently)
+ * running a given event_base's loop. Requires lock. */
 #define EVBASE_IN_THREAD(base)				 \
 	(_evthread_id_fn == NULL ||			 \
 	(base)->th_owner_id == _evthread_id_fn())
+
+/** Return true iff we need to notify the base's main thread about changes to
+ * its state, because it's currently running the main loop in another
+ * thread. Requires lock. */
+#define EVBASE_NEED_NOTIFY(base)			 \
+	(_evthread_id_fn != NULL &&			 \
+	    (base)->running_loop &&			 \
+	    (base)->th_owner_id != _evthread_id_fn())
 
 /** Allocate a new lock, and store it in lockvar, a void*.  Sets lockvar to
     NULL if locking is not enabled. */
@@ -196,6 +204,7 @@ EVLOCK_TRY_LOCK(void *lock)
 #define EVLOCK_UNLOCK2(lock1,lock2,mode1,mode2) _EVUTIL_NIL_STMT
 
 #define EVBASE_IN_THREAD(base)	1
+#define EVBASE_NEED_NOTIFY(base) 0
 #define EVBASE_ACQUIRE_LOCK(base, lock) _EVUTIL_NIL_STMT
 #define EVBASE_RELEASE_LOCK(base, lock) _EVUTIL_NIL_STMT
 #define EVLOCK_ASSERT_LOCKED(lock) _EVUTIL_NIL_STMT

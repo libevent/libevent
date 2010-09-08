@@ -471,7 +471,7 @@ static void
 notify_base_cbq_callback(struct deferred_cb_queue *cb, void *baseptr)
 {
 	struct event_base *base = baseptr;
-	if (!EVBASE_IN_THREAD(base))
+	if (EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
 }
 
@@ -1390,18 +1390,20 @@ event_loopbreak(void)
 int
 event_base_loopbreak(struct event_base *event_base)
 {
+	int r = 0;
 	if (event_base == NULL)
 		return (-1);
 
 	EVBASE_ACQUIRE_LOCK(event_base, th_base_lock);
 	event_base->event_break = 1;
-	EVBASE_RELEASE_LOCK(event_base, th_base_lock);
 
-	if (!EVBASE_IN_THREAD(event_base)) {
-		return evthread_notify_base(event_base);
+	if (EVBASE_NEED_NOTIFY(event_base)) {
+		r = evthread_notify_base(event_base);
 	} else {
-		return (0);
+		r = (0);
 	}
+	EVBASE_RELEASE_LOCK(event_base, th_base_lock);
+	return r;
 }
 
 int
@@ -2050,7 +2052,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
-	if (res != -1 && notify && !EVBASE_IN_THREAD(base))
+	if (res != -1 && notify && EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
 
 	_event_debug_note_add(ev);
@@ -2144,7 +2146,7 @@ event_del_internal(struct event *ev)
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
-	if (res != -1 && notify && !EVBASE_IN_THREAD(base))
+	if (res != -1 && notify && EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
 
 	_event_debug_note_del(ev);
