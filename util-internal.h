@@ -105,25 +105,16 @@ extern "C" {
  * when you care about ASCII's notion of character types, because you are about
  * to send those types onto the wire.
  */
-#define DECLARE_CTYPE_FN(name)						\
-	static int EVUTIL_##name(char c);				\
-	extern const ev_uint32_t EVUTIL_##name##_TABLE[];		\
-	static inline int EVUTIL_##name(char c) {			\
-		ev_uint8_t u = c;					\
-		return !!(EVUTIL_##name##_TABLE[(u >> 5) & 7] & (1 << (u & 31))); \
-	}
-DECLARE_CTYPE_FN(ISALPHA)
-DECLARE_CTYPE_FN(ISALNUM)
-DECLARE_CTYPE_FN(ISSPACE)
-DECLARE_CTYPE_FN(ISDIGIT)
-DECLARE_CTYPE_FN(ISXDIGIT)
-DECLARE_CTYPE_FN(ISPRINT)
-DECLARE_CTYPE_FN(ISLOWER)
-DECLARE_CTYPE_FN(ISUPPER)
-extern const unsigned char EVUTIL_TOUPPER_TABLE[];
-extern const unsigned char EVUTIL_TOLOWER_TABLE[];
-#define EVUTIL_TOLOWER(c) ((char)EVUTIL_TOLOWER_TABLE[(ev_uint8_t)c])
-#define EVUTIL_TOUPPER(c) ((char)EVUTIL_TOUPPER_TABLE[(ev_uint8_t)c])
+int EVUTIL_ISALPHA(char c);
+int EVUTIL_ISALNUM(char c);
+int EVUTIL_ISSPACE(char c);
+int EVUTIL_ISDIGIT(char c);
+int EVUTIL_ISXDIGIT(char c);
+int EVUTIL_ISPRINT(char c);
+int EVUTIL_ISLOWER(char c);
+int EVUTIL_ISUPPER(char c);
+char EVUTIL_TOUPPER(char c);
+char EVUTIL_TOLOWER(char c);
 
 /** Helper macro.  If we know that a given pointer points to a field in a
     structure, return a pointer to the structure itself.  Used to implement
