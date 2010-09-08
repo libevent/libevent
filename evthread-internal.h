@@ -189,6 +189,10 @@ int _evthreadimpl_cond_wait(void *cond, void *lock, const struct timeval *tv);
 #define EVTHREAD_GET_ID() _evthreadimpl_get_id()
 #define EVBASE_IN_THREAD(base)				\
 	((base)->th_owner_id == _evthreadimpl_get_id())
+#define EVBASE_NEED_NOTIFY(base)			 \
+	((base)->running_loop &&			 \
+	    ((base)->th_owner_id != _evthreadimpl_get_id()))
+
 #define EVTHREAD_ALLOC_LOCK(lockvar, locktype)		\
 	((lockvar) = _evthreadimpl_lock_alloc(locktype))
 
