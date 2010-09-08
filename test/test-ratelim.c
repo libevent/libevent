@@ -323,6 +323,10 @@ test_ratelimiting(void)
 		ok = 0;
 	}
 
+	event_base_free(base);
+	free(bevs);
+	free(states);
+
 	return ok ? 0 : 1;
 }
 
