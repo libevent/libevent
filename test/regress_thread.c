@@ -454,7 +454,6 @@ thread_deferred_cb_skew(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct timeval tv_timer = {4, 0};
-	struct event event_threads;
 	struct deferred_cb_queue *queue;
 	int i;
 
