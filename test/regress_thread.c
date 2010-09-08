@@ -33,8 +33,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef WIN32
+#ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+#ifdef _EVENT_HAVE_SYS_WAIT_H
+#include <sys/wait.h>
 #endif
 
 #ifdef _EVENT_HAVE_PTHREADS
