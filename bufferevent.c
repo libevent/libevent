@@ -78,7 +78,7 @@ bufferevent_unsuspend_read(struct bufferevent *bufev, short what)
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	BEV_LOCK(bufev);
 	bufev_private->read_suspended &= ~what;
-	if (!bufev_private->read_suspended)
+	if (!bufev_private->read_suspended && (bufev->enabled & EV_READ))
 		bufev->be_ops->enable(bufev, EV_READ);
 	BEV_UNLOCK(bufev);
 }
@@ -102,7 +102,7 @@ bufferevent_unsuspend_write(struct bufferevent *bufev, short what)
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	BEV_LOCK(bufev);
 	bufev_private->write_suspended &= ~what;
-	if (!bufev_private->write_suspended)
+	if (!bufev_private->write_suspended && (bufev->enabled & EV_WRITE))
 		bufev->be_ops->enable(bufev, EV_WRITE);
 	BEV_UNLOCK(bufev);
 }
