@@ -2767,6 +2767,7 @@ void
 event_base_del_virtual(struct event_base *base)
 {
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	EVUTIL_ASSERT(base->virtual_event_count > 0);
 	base->virtual_event_count--;
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }

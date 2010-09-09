@@ -405,7 +405,6 @@ connect_complete(struct event_overlapped *eo, ev_uintptr_t key,
 
 	EVUTIL_ASSERT(bev_a->bev.connecting);
 	bev_a->bev.connecting = 0;
-	event_base_del_virtual(bev->ev_base);
 
 	if (ok)
 		bufferevent_async_set_connected(bev);
