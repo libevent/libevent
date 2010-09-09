@@ -49,6 +49,7 @@
 #ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#include <time.h>
 
 #include "sys/queue.h"
 
