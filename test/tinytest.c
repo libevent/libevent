@@ -29,7 +29,6 @@
 #include <assert.h>
 
 #ifdef WIN32
-#include <winsock2.h>
 #include <windows.h>
 #else
 #include <sys/types.h>
@@ -37,8 +36,13 @@
 #include <unistd.h>
 #endif
 
-#include <event2/util.h>
+#ifndef __GNUC__
+#define __attribute__(x)
+#endif
 
+#ifdef TINYTEST_LOCAL
+#include "tinytest_local.h"
+#endif
 #include "tinytest.h"
 #include "tinytest_macros.h"
 
@@ -57,13 +61,16 @@ const char *verbosity_flag = "";
 enum outcome { SKIP=2, OK=1, FAIL=0 };
 static enum outcome cur_test_outcome = 0;
 const char *cur_test_prefix = NULL; /**< prefix of the current test group */
-/** Name of the  current test, if we haven't logged is yet. Used for --quiet */
+/** Name of the current test, if we haven't logged is yet. Used for --quiet */
 const char *cur_test_name = NULL;
 
 #ifdef WIN32
 /** Pointer to argv[0] for win32. */
 static const char *commandname = NULL;
 #endif
+
+static void usage(struct testgroup_t *groups, int list_groups)
+  __attribute__((noreturn));
 
 static enum outcome
 _testcase_run_bare(const struct testcase_t *testcase)
@@ -119,7 +126,7 @@ _testcase_run_forked(const struct testgroup_t *group,
 	if (opt_verbosity>0)
 		printf("[forking] ");
 
-	evutil_snprintf(buffer, sizeof(buffer), "%s --RUNNING-FORKED %s %s%s",
+	snprintf(buffer, sizeof(buffer), "%s --RUNNING-FORKED %s %s%s",
 		 commandname, verbosity_flag, group->prefix, testcase->name);
 
 	memset(&si, 0, sizeof(si));
@@ -161,7 +168,7 @@ _testcase_run_forked(const struct testgroup_t *group,
 		test_r = _testcase_run_bare(testcase);
 		assert(0<=(int)test_r && (int)test_r<=2);
 		b[0] = "NYS"[test_r];
-		write_r = write(outcome_pipe[1], b, 1);
+		write_r = (int)write(outcome_pipe[1], b, 1);
 		if (write_r != 1) {
 			perror("write outcome to pipe");
 			exit(1);
@@ -174,7 +181,7 @@ _testcase_run_forked(const struct testgroup_t *group,
 		/* Close this now, so that if the other side closes it,
 		 * our read fails. */
 		close(outcome_pipe[1]);
-		r = read(outcome_pipe[0], b, 1);
+		r = (int)read(outcome_pipe[0], b, 1);
 		if (r == 0) {
 			printf("[Lost connection!] ");
 			return 0;
@@ -213,7 +220,7 @@ testcase_run_one(const struct testgroup_t *group,
 	if ((testcase->flags & TT_FORK) && !(opt_forked||opt_nofork)) {
 		outcome = _testcase_run_forked(group, testcase);
 	} else {
-		outcome  = _testcase_run_bare(testcase);
+		outcome = _testcase_run_bare(testcase);
 	}
 
 	if (outcome == OK) {
@@ -241,14 +248,14 @@ int
 _tinytest_set_flag(struct testgroup_t *groups, const char *arg, unsigned long flag)
 {
 	int i, j;
-	int length = LONGEST_TEST_NAME;
+	size_t length = LONGEST_TEST_NAME;
 	char fullname[LONGEST_TEST_NAME];
 	int found=0;
 	if (strstr(arg, ".."))
 		length = strstr(arg,"..")-arg;
 	for (i=0; groups[i].prefix; ++i) {
 		for (j=0; groups[i].cases[j].name; ++j) {
-			evutil_snprintf(fullname, sizeof(fullname), "%s%s",
+			snprintf(fullname, sizeof(fullname), "%s%s",
 				 groups[i].prefix, groups[i].cases[j].name);
 			if (!flag) /* Hack! */
 				printf("    %s\n", fullname);
@@ -266,6 +273,7 @@ usage(struct testgroup_t *groups, int list_groups)
 {
 	puts("Options are: [--verbose|--quiet|--terse] [--no-fork]");
 	puts("  Specify tests by name, or using a prefix ending with '..'");
+	puts("  To skip a test, list give its name prefixed with a colon.");
 	puts("  Use --list-tests for a list of tests.");
 	if (list_groups) {
 		puts("Known tests are:");
@@ -306,8 +314,15 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 				return -1;
 			}
 		} else {
-			++n;
-			if (!_tinytest_set_flag(groups, v[i], _TT_ENABLED)) {
+			const char *test = v[i];
+			int flag = _TT_ENABLED;
+			if (test[0] == ':') {
+				++test;
+				flag = TT_SKIP;
+			} else {
+				++n;
+			}
+			if (!_tinytest_set_flag(groups, test, flag)) {
 				printf("No such test as %s!\n", v[i]);
 				return -1;
 			}

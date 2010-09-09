@@ -1,13 +1,13 @@
 AUTOMAKE_OPTIONS = foreign
 
-AM_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include -I../include
+AM_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include -I../include -DTINYTEST_LOCAL
 
 EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c test.sh
 
 noinst_PROGRAMS = test-init test-eof test-weof test-time regress \
 	bench bench_cascade bench_http bench_httpclient test-ratelim \
 	test-changelist
-noinst_HEADERS = tinytest.h tinytest_macros.h regress.h
+noinst_HEADERS = tinytest.h tinytest_macros.h regress.h tinytest_local.h
 
 TESTS = $(top_srcdir)/test/test.sh
 

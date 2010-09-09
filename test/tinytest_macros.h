@@ -45,7 +45,7 @@
 	TT_STMT_END
 #endif
 
-/* Announce a failure.  Args are parenthesized printf args. */
+/* Announce a failure. Args are parenthesized printf args. */
 #define TT_GRIPE(args) TT_DECLARE("FAIL", args)
 
 /* Announce a non-failure if we're verbose. */
@@ -110,18 +110,39 @@
 /* Assert b, and stop the test if b fails. */
 #define tt_assert(b) tt_assert_msg((b), "assert("#b")")
 
-#define tt_assert_test_type(a,b,str_test,type,test,fmt)			\
+#define tt_assert_test_fmt_type(a,b,str_test,type,test,printf_type,printf_fmt, \
+				setup_block,cleanup_block)		\
 	TT_STMT_BEGIN							\
 	type _val1 = (type)(a);						\
 	type _val2 = (type)(b);						\
-	if (!(test)) {							\
-		TT_DIE(("assert(%s): "fmt" vs "fmt,			\
-			str_test, _val1, _val2));			\
-	} else {							\
-		TT_BLATHER(("assert(%s): "fmt" vs "fmt,			\
-			    str_test, _val1, _val2));			\
+	int _tt_status = (test);					\
+	if (!_tt_status || _tinytest_get_verbosity()>1)	{		\
+		printf_type _print;					\
+		printf_type _print1;					\
+		printf_type _print2;					\
+		type _value = _val1;					\
+		setup_block;						\
+		_print1 = _print;					\
+		_value = _val2;						\
+		setup_block;						\
+		_print2 = _print;					\
+		TT_DECLARE(_tt_status?"	 OK":"FAIL",			\
+			   ("assert(%s): "printf_fmt" vs "printf_fmt,	\
+			    str_test, _print1, _print2));		\
+		_print = _print1;					\
+		cleanup_block;						\
+		_print = _print2;					\
+		cleanup_block;						\
+		if (!_tt_status) {					\
+			_tinytest_set_test_failed();			\
+			TT_EXIT_TEST_FUNCTION;				\
+		}							\
 	}								\
 	TT_STMT_END
+
+#define tt_assert_test_type(a,b,str_test,type,test,fmt)			\
+	tt_assert_test_fmt_type(a,b,str_test,type,test,type,fmt,	\
+				{_print=_value;},{})
 
 /* Helper: assert that a op b, when cast to type.  Format the values with
  * printf format fmt on failure. */
@@ -134,6 +155,7 @@
 #define tt_uint_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,unsigned long,		\
 			    (_val1 op _val2),"%lu")
+
 #define tt_ptr_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,void*,			\
 			    (_val1 op _val2),"%p")

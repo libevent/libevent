@@ -53,7 +53,7 @@ test_strcmp(void *data)
 	}
 
 	/* Pretty often, calling tt_abort_msg to indicate failure is more
-	   heavy-weight than you want.  Instead, just say: */
+	   heavy-weight than you want.	Instead, just say: */
 	tt_assert(strcmp("testcase", "testcase") == 0);
 
 	/* Occasionally, you don't want to stop the current testcase just
@@ -86,12 +86,12 @@ test_strcmp(void *data)
 
 /* Now let's mess with setup and teardown functions!  These are handy if
    you have a bunch of tests that all need a similar environment, and you
-   wnat to reconstruct that environment freshly for each one. */
+   want to reconstruct that environment freshly for each one. */
 
 /* First you declare a type to hold the environment info, and functions to
    set it up and tear it down. */
 struct data_buffer {
-	/* We're just going to have couple of character buffer.  Using
+	/* We're just going to have couple of character buffer.	 Using
 	   setup/teardown functions is probably overkill for this case.
 
 	   You could also do file descriptors, complicated handles, temporary
@@ -164,7 +164,7 @@ test_memcpy(void *ptr)
 
 /* ============================================================ */
 
-/* Now we need to make sure that our tests get invoked.   First, you take
+/* Now we need to make sure that our tests get invoked.	  First, you take
    a bunch of related tests and put them into an array of struct testcase_t.
 */
 
@@ -183,7 +183,7 @@ struct testcase_t demo_tests[] = {
 };
 
 /* Next, we make an array of testgroups.  This is mandatory.  Unlike more
-   heavy-duty testing frameworks, groups can't next. */
+   heavy-duty testing frameworks, groups can't nest. */
 struct testgroup_t groups[] = {
 
 	/* Every group has a 'prefix', and an array of tests.  That's it. */
@@ -196,8 +196,8 @@ struct testgroup_t groups[] = {
 int
 main(int c, const char **v)
 {
-	/* Finally, just call tinytest_main().  It lets you specify verbose
-	   or quiet output with --verbose and --quiet.  You can list
+	/* Finally, just call tinytest_main().	It lets you specify verbose
+	   or quiet output with --verbose and --quiet.	You can list
 	   specific tests:
 
 	       tinytest-demo demo/memcpy
