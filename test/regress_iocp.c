@@ -238,7 +238,7 @@ test_iocp_evbuffer(void *ptr)
 	struct event_overlapped rol, wol;
 	struct basic_test_data *data = ptr;
 	struct event_iocp_port *port = NULL;
-	struct evbuffer *buf;
+	struct evbuffer *buf=NULL;
 	struct evbuffer_chain *chain;
 	char junk[1024];
 	int i;
@@ -288,7 +288,7 @@ end:
 	count_free();
 	evbuffer_free(rbuf);
 	evbuffer_free(wbuf);
-	evbuffer_free(buf);
+	if (buf) evbuffer_free(buf);
 }
 
 static int got_readcb = 0;
