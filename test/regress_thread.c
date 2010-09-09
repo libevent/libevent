@@ -154,6 +154,8 @@ basic_thread(void *arg)
 	THREAD_RETURN();
 }
 
+static int notification_fd_used = 0;
+#ifndef WIN32
 static int got_sigchld = 0;
 static void
 sigchld_cb(evutil_socket_t fd, short event, void *arg)
@@ -168,12 +170,12 @@ sigchld_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 
-static int notification_fd_used = 0;
 static void
 notify_fd_cb(evutil_socket_t fd, short event, void *arg)
 {
 	++notification_fd_used;
 }
+#endif
 
 static void
 thread_basic(void *arg)
@@ -185,7 +187,6 @@ thread_basic(void *arg)
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
 
-	int forking = data->setup_data && !strcmp(data->setup_data, "forking");
 	struct event *notification_event = NULL;
 	struct event *sigchld_event = NULL;
 
@@ -198,7 +199,7 @@ thread_basic(void *arg)
 	}
 
 #ifndef WIN32
-	if (forking) {
+	if (data->setup_data && !strcmp(data->setup_data, "forking")) {
 		pid_t pid;
 		int status;
 		sigchld_event = evsignal_new(base, SIGCHLD, sigchld_cb, base);
