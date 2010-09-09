@@ -181,6 +181,20 @@ respond_to_number(struct bufferevent *bev, void *ctx)
 	++n;
 	evbuffer_add_printf(bufferevent_get_output(bev),
 	    "%d\n", n);
+	TT_BLATHER(("Done reading; now writing."));
+	// bufferevent_enable(bev, EV_WRITE);
+	bufferevent_disable(bev, EV_READ);
+}
+
+static void
+done_writing_cb(struct bufferevent *bev, void *ctx)
+{
+	struct evbuffer *b = bufferevent_get_output(bev);
+	if (evbuffer_get_length(b))
+		return;
+	TT_BLATHER(("Done writing."));
+	// bufferevent_disable(bev, EV_WRITE);
+	bufferevent_enable(bev, EV_READ);
 }
 
 static void
@@ -278,9 +292,9 @@ regress_bufferevent_openssl(void *arg)
 	bufferevent_enable(bev1, EV_READ|EV_WRITE);
 	bufferevent_enable(bev2, EV_READ|EV_WRITE);
 
-	bufferevent_setcb(bev1, respond_to_number, NULL, eventcb,
+	bufferevent_setcb(bev1, respond_to_number, done_writing_cb, eventcb,
 	    (void*)"client");
-	bufferevent_setcb(bev2, respond_to_number, NULL, eventcb,
+	bufferevent_setcb(bev2, respond_to_number, done_writing_cb, eventcb,
 	    (void*)"server");
 
 	evbuffer_add_printf(bufferevent_get_output(bev1), "1\n");
