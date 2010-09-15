@@ -191,10 +191,7 @@ devpoll_dispatch(struct event_base *base, struct timeval *tv)
 			return (-1);
 		}
 
-		evsig_process(base);
 		return (0);
-	} else if (base->sig.evsig_caught) {
-		evsig_process(base);
 	}
 
 	event_debug(("%s: devpoll_wait reports %d", __func__, res));

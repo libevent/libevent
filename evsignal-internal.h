@@ -46,8 +46,6 @@ struct evsig_info {
 	/* Count of the number of signals we're currently watching. */
 	int ev_n_signals_added;
 
-	volatile sig_atomic_t evsig_caught;
-
 	/* Array of previous signal handler objects before Libevent started
 	 * messing with them.  Used to restore old signal handlers. */
 #ifdef _EVENT_HAVE_SIGACTION
@@ -59,7 +57,6 @@ struct evsig_info {
 	int sh_old_max;
 };
 int evsig_init(struct event_base *);
-void evsig_process(struct event_base *);
 void evsig_dealloc(struct event_base *);
 
 void evsig_set_base(struct event_base *base);

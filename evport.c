@@ -310,7 +310,6 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 
 	if (res == -1) {
 		if (errno == EINTR || errno == EAGAIN) {
-			evsig_process(base);
 			return (0);
 		} else if (errno == ETIME) {
 			if (nevents == 0)
@@ -319,8 +318,6 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 			event_warn("port_getn");
 			return (-1);
 		}
-	} else if (base->sig.evsig_caught) {
-		evsig_process(base);
 	}
 
 	event_debug(("%s: port_getn reports %d events", __func__, nevents));

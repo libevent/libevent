@@ -194,7 +194,6 @@ evsig_init(struct event_base *base)
 	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[1]);
 	base->sig.sh_old = NULL;
 	base->sig.sh_old_max = 0;
-	base->sig.evsig_caught = 0;
 
 	evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
 	evutil_make_socket_nonblocking(base->sig.ev_signal_pair[1]);
@@ -397,11 +396,6 @@ evsig_handler(int sig)
 #ifdef WIN32
 	EVUTIL_SET_SOCKET_ERROR(socket_errno);
 #endif
-}
-
-void
-evsig_process(struct event_base *base)
-{
 }
 
 void

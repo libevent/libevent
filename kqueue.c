@@ -379,6 +379,8 @@ kq_sig_add(struct event_base *base, int nsignal, short old, short events, void *
 	if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
 		return (-1);
 
+	/* XXXX The manpage suggest we could use SIG_IGN instead of a
+	 * do-nothing handler */
 	if (_evsig_set_handler(base, nsignal, kq_sighandler) == -1)
 		return (-1);
 
