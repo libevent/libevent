@@ -47,7 +47,6 @@ struct evsig_info {
 	int ev_n_signals_added;
 
 	volatile sig_atomic_t evsig_caught;
-	sig_atomic_t evsigcaught[NSIG];
 
 	/* Array of previous signal handler objects before Libevent started
 	 * messing with them.  Used to restore old signal handlers. */

@@ -108,6 +108,7 @@ static void *evsig_base_lock = NULL;
 static struct event_base *evsig_base = NULL;
 /* A copy of evsig_base->sigev_n_signals_added. */
 static int evsig_base_n_signals_added = 0;
+static evutil_socket_t evsig_base_fd = -1;
 
 static void __cdecl evsig_handler(int sig);
 
@@ -120,6 +121,7 @@ evsig_set_base(struct event_base *base)
 	EVSIGBASE_LOCK();
 	evsig_base = base;
 	evsig_base_n_signals_added = base->sig.ev_n_signals_added;
+	evsig_base_fd = base->sig.ev_signal_pair[0];
 	EVSIGBASE_UNLOCK();
 }
 
@@ -127,17 +129,40 @@ evsig_set_base(struct event_base *base)
 static void
 evsig_cb(evutil_socket_t fd, short what, void *arg)
 {
-	static char signals[1];
+	static char signals[1024];
 	ev_ssize_t n;
+	int i;
+	int ncaught[NSIG];
+	struct event_base *base;
 
-	(void)arg; /* Suppress "unused variable" warning. */
+	base = arg;
 
-	n = recv(fd, signals, sizeof(signals), 0);
-	if (n == -1) {
-		int err = evutil_socket_geterror(fd);
-		if (! EVUTIL_ERR_RW_RETRIABLE(err))
-			event_sock_err(1, fd, "%s: recv", __func__);
+	memset(&ncaught, 0, sizeof(ncaught));
+
+	while (1) {
+		n = recv(fd, signals, sizeof(signals), 0);
+		if (n == -1) {
+			int err = evutil_socket_geterror(fd);
+			if (! EVUTIL_ERR_RW_RETRIABLE(err))
+				event_sock_err(1, fd, "%s: recv", __func__);
+			break;
+		} else if (n == 0) {
+			/* XXX warn? */
+			break;
+		}
+		for (i = 0; i < n; ++i) {
+			ev_uint8_t sig = signals[i];
+			if (sig < NSIG)
+				ncaught[sig]++;
+		}
 	}
+
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	for (i = 0; i < NSIG; ++i) {
+		if (ncaught[i])
+			evmap_signal_active(base, i, ncaught[i]);
+	}
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 
 int
@@ -170,13 +195,12 @@ evsig_init(struct event_base *base)
 	base->sig.sh_old = NULL;
 	base->sig.sh_old_max = 0;
 	base->sig.evsig_caught = 0;
-	memset(&base->sig.evsigcaught, 0, sizeof(sig_atomic_t)*NSIG);
 
 	evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
 	evutil_make_socket_nonblocking(base->sig.ev_signal_pair[1]);
 
 	event_assign(&base->sig.ev_signal, base, base->sig.ev_signal_pair[1],
-		EV_READ | EV_PERSIST, evsig_cb, &base->sig.ev_signal);
+		EV_READ | EV_PERSIST, evsig_cb, base);
 
 	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
 
@@ -275,6 +299,7 @@ evsig_add(struct event_base *base, int evsignal, short old, short events, void *
 	}
 	evsig_base = base;
 	evsig_base_n_signals_added = ++sig->ev_n_signals_added;
+	evsig_base_fd = base->sig.ev_signal_pair[0];
 	EVSIGBASE_UNLOCK();
 
 	event_debug(("%s: %d: changing signal handler", __func__, evsignal));
@@ -352,6 +377,7 @@ evsig_handler(int sig)
 #ifdef WIN32
 	int socket_errno = EVUTIL_SOCKET_ERROR();
 #endif
+	ev_uint8_t msg;
 
 	if (evsig_base == NULL) {
 		event_warn(
@@ -360,15 +386,13 @@ evsig_handler(int sig)
 		return;
 	}
 
-	evsig_base->sig.evsigcaught[sig]++;
-	evsig_base->sig.evsig_caught = 1;
-
 #ifndef _EVENT_HAVE_SIGACTION
 	signal(sig, evsig_handler);
 #endif
 
 	/* Wake up our notification mechanism */
-	send(evsig_base->sig.ev_signal_pair[0], "a", 1, 0);
+	msg = sig;
+	send(evsig_base_fd, &msg, 1, 0);
 	errno = save_errno;
 #ifdef WIN32
 	EVUTIL_SET_SOCKET_ERROR(socket_errno);
@@ -378,19 +402,6 @@ evsig_handler(int sig)
 void
 evsig_process(struct event_base *base)
 {
-	struct evsig_info *sig = &base->sig;
-	sig_atomic_t ncalls;
-	int i;
-
-	base->sig.evsig_caught = 0;
-	for (i = 1; i < NSIG; ++i) {
-		ncalls = sig->evsigcaught[i];
-		if (ncalls == 0)
-			continue;
-		sig->evsigcaught[i] -= ncalls;
-
-		evmap_signal_active(base, i, ncalls);
-	}
 }
 
 void
@@ -411,6 +422,7 @@ evsig_dealloc(struct event_base *base)
 	if (base == evsig_base) {
 		evsig_base = NULL;
 		evsig_base_n_signals_added = 0;
+		evsig_base_fd = -1;
 	}
 	EVSIGBASE_UNLOCK();
 
