@@ -204,7 +204,6 @@ evsig_init(struct event_base *base)
 	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
 
 	base->evsigsel = &evsigops;
-	base->evsigbase = &base->sig;
 
 	return 0;
 }
