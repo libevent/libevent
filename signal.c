@@ -61,10 +61,29 @@
 #include "evsignal-internal.h"
 #include "log-internal.h"
 #include "evmap-internal.h"
+#include "evthread-internal.h"
+
+/*
+  signal.c
+
+  This is the signal-handling implementation we use for backends that don't
+  have a better way to do signal handling.  It uses sigaction() or signal()
+  to set a signal handler, and a socket pair to tell the event base when
+
+  Note that I said "the event base" : only one event base can be set up to use
+  this at a time.  For historical reasons and backward compatibility, if you
+  add an event for a signal to event_base A, then add an event for a signal
+  (any signal!) to event_base B, event_base B will get informed about the
+  signal, but event_base A won't.
+
+  It would be neat to change this behavior in some future version of Libevent.
+  kqueue already does something far more sensible.  We can make all backends
+  on Linux do a reasonable thing using signalfd.
+*/
 
 #ifndef WIN32
 /* Windows wants us to call our signal handlers as __cdecl.  Nobody else
- * expects you to do anything crazy like this.  */
+ * expects you to do anything crazy like this. */
 #define __cdecl
 #endif
 
@@ -81,9 +100,28 @@ static const struct eventop evsigops = {
 	0, 0, 0
 };
 
-struct event_base *evsig_base = NULL;
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+/* Lock for evsig_base and evsig_base_n_signals_added fields. */
+static void *evsig_base_lock = NULL;
+#endif
+/* The event base that's currently getting informed about signals. */
+static struct event_base *evsig_base = NULL;
+/* A copy of evsig_base->sigev_n_signals_added. */
+static int evsig_base_n_signals_added = 0;
 
 static void __cdecl evsig_handler(int sig);
+
+#define EVSIGBASE_LOCK() EVLOCK_LOCK(evsig_base_lock, 0)
+#define EVSIGBASE_UNLOCK() EVLOCK_UNLOCK(evsig_base_lock, 0)
+
+void
+evsig_set_base(struct event_base *base)
+{
+	EVSIGBASE_LOCK();
+	evsig_base = base;
+	evsig_base_n_signals_added = base->sig.ev_n_signals_added;
+	EVSIGBASE_UNLOCK();
+}
 
 /* Callback for when the signal handler write a byte to our signaling socket */
 static void
@@ -105,6 +143,11 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 int
 evsig_init(struct event_base *base)
 {
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+	if (! evsig_base_lock)
+		EVTHREAD_ALLOC_LOCK(evsig_base_lock, 0);
+#endif
+
 	/*
 	 * Our signal handler is going to write to one end of the socket
 	 * pair to wake up our event loop.  The event loop then scans for
@@ -219,20 +262,41 @@ evsig_add(struct event_base *base, int evsignal, short old, short events, void *
 
 	EVUTIL_ASSERT(evsignal >= 0 && evsignal < NSIG);
 
-	event_debug(("%s: %d: changing signal handler", __func__, evsignal));
-	if (_evsig_set_handler(base, evsignal, evsig_handler) == -1)
-		return (-1);
-
 	/* catch signals if they happen quickly */
+	EVSIGBASE_LOCK();
+	if (evsig_base != base && evsig_base_n_signals_added) {
+		event_warnx("Added a signal to event base %p with signals "
+		    "already added to event_base %p.  Only one can have "
+		    "signals at a time with the %s backend.  The base with "
+		    "the most recently added signal or the most recent "
+		    "event_base_loop() call gets preference; do "
+		    "not rely on this behavior in future Libevent versions.",
+		    base, evsig_base, base->evsel->name);
+	}
 	evsig_base = base;
+	evsig_base_n_signals_added = ++sig->ev_n_signals_added;
+	EVSIGBASE_UNLOCK();
+
+	event_debug(("%s: %d: changing signal handler", __func__, evsignal));
+	if (_evsig_set_handler(base, evsignal, evsig_handler) == -1) {
+		goto err;
+	}
+
 
 	if (!sig->ev_signal_added) {
 		if (event_add(&sig->ev_signal, NULL))
-			return (-1);
+			goto err;
 		sig->ev_signal_added = 1;
 	}
 
 	return (0);
+
+err:
+	EVSIGBASE_LOCK();
+	--evsig_base_n_signals_added;
+	--sig->ev_n_signals_added;
+	EVSIGBASE_UNLOCK();
+	return (-1);
 }
 
 int
@@ -272,6 +336,11 @@ evsig_del(struct event_base *base, int evsignal, short old, short events, void *
 	EVUTIL_ASSERT(evsignal >= 0 && evsignal < NSIG);
 
 	event_debug(("%s: %d: restoring signal handler", __func__, evsignal));
+
+	EVSIGBASE_LOCK();
+	--evsig_base_n_signals_added;
+	--base->sig.ev_n_signals_added;
+	EVSIGBASE_UNLOCK();
 
 	return (_evsig_restore_handler(base, evsignal));
 }
@@ -333,10 +402,17 @@ evsig_dealloc(struct event_base *base)
 		event_debug_unassign(&base->sig.ev_signal);
 		base->sig.ev_signal_added = 0;
 	}
+
 	for (i = 0; i < NSIG; ++i) {
 		if (i < base->sig.sh_old_max && base->sig.sh_old[i] != NULL)
 			_evsig_restore_handler(base, i);
 	}
+	EVSIGBASE_LOCK();
+	if (base == evsig_base) {
+		evsig_base = NULL;
+		evsig_base_n_signals_added = 0;
+	}
+	EVSIGBASE_UNLOCK();
 
 	if (base->sig.ev_signal_pair[0] != -1) {
 		evutil_closesocket(base->sig.ev_signal_pair[0]);

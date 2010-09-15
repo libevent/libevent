@@ -120,7 +120,6 @@ static const struct eventop *eventops[] = {
 /* Global state; deprecated */
 struct event_base *event_global_current_base_ = NULL;
 #define current_base event_global_current_base_
-extern struct event_base *evsig_base;
 
 /* Global state */
 
@@ -1488,8 +1487,9 @@ event_base_loop(struct event_base *base, int flags)
 
 	clear_time_cache(base);
 
-	if (base->sig.ev_signal_added)
-		evsig_base = base;
+	if (base->sig.ev_signal_added && base->sig.ev_n_signals_added)
+		evsig_set_base(base);
+
 	done = 0;
 
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
