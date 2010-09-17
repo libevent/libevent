@@ -72,6 +72,11 @@
 #include "ht-internal.h"
 #include "util-internal.h"
 
+
+#ifdef EVENT__HAVE_WORKING_KQUEUE
+#include "kqueue-internal.h"
+#endif
+
 #ifdef EVENT__HAVE_EVENT_PORTS
 extern const struct eventop evportops;
 #endif
@@ -927,8 +932,11 @@ event_reinit(struct event_base *base)
 		had_signal_added = 1;
 		base->sig.ev_signal_added = 0;
 	}
-	if (base->th_notify_fd[0] != -1) {
+	if (base->th_notify_fn != NULL) {
 		was_notifiable = 1;
+		base->th_notify_fn = NULL;
+	}
+	if (base->th_notify_fd[0] != -1) {
 		event_del(&base->th_notify);
 		EVUTIL_CLOSESOCKET(base->th_notify_fd[0]);
 		if (base->th_notify_fd[1] != -1)
@@ -936,7 +944,6 @@ event_reinit(struct event_base *base)
 		base->th_notify_fd[0] = -1;
 		base->th_notify_fd[1] = -1;
 		event_debug_unassign(&base->th_notify);
-		base->th_notify_fn = NULL;
 	}
 
 	/* Replace the original evsel. */
@@ -3055,6 +3062,16 @@ evthread_make_base_notifiable(struct event_base *base)
 		/* The base is already notifiable: we're doing fine. */
 		return 0;
 	}
+
+
+#if defined(EVENT__HAVE_WORKING_KQUEUE)
+	if (base->evsel == &kqops && event_kq_add_notify_event_(base) == 0) {
+		base->th_notify_fn = event_kq_notify_base_;
+		/* No need to add an event here; the backend can wake
+		 * itself up just fine. */
+		return 0;
+	}
+#endif
 
 #ifdef EVENT__HAVE_EVENTFD
 	base->th_notify_fd[0] = evutil_eventfd_(0,

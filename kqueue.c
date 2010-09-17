@@ -65,6 +65,8 @@
 #include "evthread-internal.h"
 #include "changelist-internal.h"
 
+#include "kqueue-internal.h"
+
 #define NEVENT		64
 
 struct kqop {
@@ -74,6 +76,7 @@ struct kqop {
 	struct kevent *events;
 	int events_size;
 	int kq;
+	int notify_event_added;
 	pid_t pid;
 };
 
@@ -369,6 +372,10 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 			which |= EV_WRITE;
 		} else if (events[i].filter == EVFILT_SIGNAL) {
 			which |= EV_SIGNAL;
+#ifdef EVFILT_USER
+		} else if (events[i].filter == EVFILT_USER) {
+			base->is_notify_pending = 0;
+#endif
 		}
 
 		if (!which)
@@ -471,6 +478,72 @@ kq_sig_del(struct event_base *base, int nsignal, short old, short events, void *
 		return (-1);
 
 	return (0);
+}
+
+
+/* OSX 10.6 and FreeBSD 8.1 add support for EVFILT_USER, which we can use
+ * to wake up the event loop from another thread. */
+
+/* Magic number we use for our filter ID. */
+#define NOTIFY_IDENT 42
+
+int
+event_kq_add_notify_event_(struct event_base *base)
+{
+	struct kqop *kqop = base->evbase;
+#if defined(EVFILT_USER) && defined(NOTE_TRIGGER)
+	struct kevent kev;
+	struct timespec timeout = { 0, 0 };
+#endif
+
+	if (kqop->notify_event_added)
+		return 0;
+
+#if defined(EVFILT_USER) && defined(NOTE_TRIGGER)
+	memset(&kev, 0, sizeof(kev));
+	kev.ident = NOTIFY_IDENT;
+	kev.filter = EVFILT_USER;
+	kev.flags = EV_ADD | EV_CLEAR;
+
+	if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1) {
+		event_warn("kevent: adding EVFILT_USER event");
+		return -1;
+	}
+
+	kqop->notify_event_added = 1;
+
+	return 0;
+#else
+	return -1;
+#endif
+}
+
+int
+event_kq_notify_base_(struct event_base *base)
+{
+	struct kqop *kqop = base->evbase;
+#if defined(EVFILT_USER) && defined(NOTE_TRIGGER)
+	struct kevent kev;
+	struct timespec timeout = { 0, 0 };
+#endif
+	if (! kqop->notify_event_added)
+		return -1;
+
+#if defined(EVFILT_USER) && defined(NOTE_TRIGGER)
+	memset(&kev, 0, sizeof(kev));
+	kev.ident = NOTIFY_IDENT;
+	kev.filter = EVFILT_USER;
+	kev.fflags = NOTE_TRIGGER;
+
+	if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1) {
+		event_warn("kevent: triggering EVFILT_USER event");
+		return -1;
+	}
+
+	return 0;
+#else
+	return -1;
+#endif
 }
 
 #endif /* EVENT__HAVE_KQUEUE */
