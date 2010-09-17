@@ -136,6 +136,7 @@ evsig_init(struct event_base *base)
 		EV_READ | EV_PERSIST, evsig_cb, &base->sig.ev_signal);
 
 	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
+	event_priority_set(&base->sig.ev_signal, 0);
 
 	base->evsigsel = &evsigops;
 	base->evsigbase = &base->sig;
