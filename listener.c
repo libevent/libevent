@@ -67,6 +67,7 @@ struct evconnlistener_ops {
 struct evconnlistener {
 	const struct evconnlistener_ops *ops;
 	evconnlistener_cb cb;
+	evconnlistener_errorcb errorcb;
 	void *user_data;
 	unsigned flags;
 };
@@ -275,6 +276,12 @@ event_listener_getbase(struct evconnlistener *lev)
 	return event_get_base(&lev_e->listener);
 }
 
+void evconnlistener_set_error_cb(struct evconnlistener *lev,
+    evconnlistener_errorcb errorcb)
+{
+	lev->errorcb = errorcb;
+}
+
 static void
 listener_read_cb(evutil_socket_t fd, short what, void *p)
 {
@@ -297,7 +304,10 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 	err = evutil_socket_geterror(fd);
 	if (EVUTIL_ERR_ACCEPT_RETRIABLE(err))
 		return;
-	event_sock_warn(fd, "Error from accept() call");
+	if (lev->errorcb != NULL)
+		lev->errorcb(lev, lev->user_data);
+	else
+		event_sock_warn(fd, "Error from accept() call");
 }
 
 #ifdef WIN32
