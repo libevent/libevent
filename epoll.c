@@ -248,26 +248,35 @@ epoll_apply_changes(struct event_base *base)
 				 * should retry the operation as an ADD.
 				 */
 				if (epoll_ctl(epollop->epfd, EPOLL_CTL_ADD, ch->fd, &epev) == -1) {
-					event_warn("Epoll MOD retried as ADD; that failed too");
+					event_warn("Epoll MOD(%d) on %d retried as ADD; that failed too",
+					    (int)epev.events, ch->fd);
 				} else {
-					event_debug(("  Retried as ADD; succeeded."));
+					event_debug(("Epoll MOD(%d) on %d retried as ADD; succeeded.",
+						(int)epev.events,
+						ch->fd));
 				}
 			} else if (op == EPOLL_CTL_ADD && errno == EEXIST &&
 			    precautionary_add) {
 				/* If a precautionary ADD operation fails with
 				   EEXIST, that's fine too.
 				 */
-				event_debug(("  ADD was redundant"));
+				event_debug(("Epoll ADD(%d) on fd %d gave %s: ADD was redundant",
+					(int)epev.events,
+					ch->fd, strerror(errno)));
 			} else if (op == EPOLL_CTL_DEL &&
 			    (errno == ENOENT || errno == EBADF ||
 				errno == EPERM)) {
 				/* If a delete fails with one of these errors,
 				 * that's fine too: we closed the fd before we
 				 * got around to calling epoll_dispatch. */
-				event_debug(("  DEL was unnecessary."));
+				event_debug(("Epoll DEL(%d) on fd %d gave %s: DEL was unnecessary.",
+					(int)epev.events,
+					ch->fd,
+					strerror(errno)));
 			} else {
-				event_warn("Epoll %s on fd %d failed.  Old events were %d; read change was %d (%s); write change was %d (%s).",
+				event_warn("Epoll %s(%d) on fd %d failed.  Old events were %d; read change was %d (%s); write change was %d (%s)",
 				    epoll_op_to_string(op),
+				    (int)epev.events,
 				    ch->fd,
 				    ch->old_events,
 				    ch->read_change,
