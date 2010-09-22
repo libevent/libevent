@@ -1958,8 +1958,9 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	_event_debug_assert_is_setup(ev);
 
 	event_debug((
-		 "event_add: event: %p, %s%s%scall %p",
+		 "event_add: event: %p (fd %d), %s%s%scall %p",
 		 ev,
+		 (int)ev->ev_fd,
 		 ev->ev_events & EV_READ ? "EV_READ " : " ",
 		 ev->ev_events & EV_WRITE ? "EV_WRITE " : " ",
 		 tv ? "EV_TIMEOUT " : " ",
@@ -2121,8 +2122,8 @@ event_del_internal(struct event *ev)
 	struct event_base *base;
 	int res = 0, notify = 0;
 
-	event_debug(("event_del: %p, callback %p",
-		 ev, ev->ev_callback));
+	event_debug(("event_del: %p (fd %d), callback %p",
+		ev, (int)ev->ev_fd, ev->ev_callback));
 
 	/* An event without a base has not been added */
 	if (ev->ev_base == NULL)
@@ -2211,6 +2212,10 @@ void
 event_active_nolock(struct event *ev, int res, short ncalls)
 {
 	struct event_base *base;
+
+	event_debug(("event_active: %p (fd %d), res %d, callback %p",
+		ev, (int)ev->ev_fd, (int)res, ev->ev_callback));
+
 
 	/* We get different kinds of events, add them together */
 	if (ev->ev_flags & EVLIST_ACTIVE) {
