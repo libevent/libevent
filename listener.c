@@ -472,7 +472,7 @@ accepted_socket_cb(struct event_overlapped *o, ev_uintptr_t key, ev_ssize_t n, i
 		/* Some error on accept that we couldn't actually handle. */
 		event_sock_warn(as->s, "Unexpected error on AcceptEx");
 		LeaveCriticalSection(&as->lock);
-		/* XXXX recover better. */
+		/* XXXX send error to user */
 	}
 }
 

@@ -133,10 +133,49 @@ end:
 		evconnlistener_free(listener2);
 }
 
+static void
+errorcb(struct evconnlistener *lis, void *data_)
+{
+	int *data = data_;
+	*data = 1000;
+	evconnlistener_disable(lis);
+}
+
+static void
+regress_listener_error(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evconnlistener *listener = NULL;
+	int count = 1;
+
+	/* send, so that pair[0] will look 'readable'*/
+	send(data->pair[1], "hello", 5, 0);
+
+	/* Start a listener with a bogus socket. */
+	listener = evconnlistener_new(base, acceptcb, &count,
+	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE, 0,
+	    data->pair[0]);
+	tt_assert(listener);
+
+	evconnlistener_set_error_cb(listener, errorcb);
+
+	tt_assert(listener);
+
+	event_base_dispatch(base);
+	tt_int_op(count,==,1000); /* set by error cb */
+
+end:
+	evconnlistener_free(listener);
+}
 
 struct testcase_t listener_testcases[] = {
 
 	{ "randport", regress_pick_a_port, TT_FORK|TT_NEED_BASE,
+	  &basic_setup, NULL},
+
+	{ "error", regress_listener_error,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR,
 	  &basic_setup, NULL},
 
 	END_OF_TESTCASES,
@@ -145,6 +184,10 @@ struct testcase_t listener_testcases[] = {
 struct testcase_t listener_iocp_testcases[] = {
 	{ "randport", regress_pick_a_port,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP,
+	  &basic_setup, NULL},
+
+	{ "error", regress_listener_error,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_ENABLE_IOCP,
 	  &basic_setup, NULL},
 
 	END_OF_TESTCASES,
