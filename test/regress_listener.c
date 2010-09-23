@@ -77,6 +77,10 @@ regress_pick_a_port(void *arg)
 
 	evutil_socket_t fd1 = -1, fd2 = -1, fd3 = -1;
 
+	if (data->setup_data && strstr((char*)data->setup_data, "ts")) {
+		flags |= LEV_OPT_THREADSAFE;
+	}
+
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
@@ -148,13 +152,18 @@ regress_listener_error(void *arg)
 	struct event_base *base = data->base;
 	struct evconnlistener *listener = NULL;
 	int count = 1;
+	unsigned int flags = LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE;
+
+	if (data->setup_data && strstr((char*)data->setup_data, "ts")) {
+		flags |= LEV_OPT_THREADSAFE;
+	}
 
 	/* send, so that pair[0] will look 'readable'*/
 	send(data->pair[1], "hello", 5, 0);
 
 	/* Start a listener with a bogus socket. */
 	listener = evconnlistener_new(base, acceptcb, &count,
-	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE, 0,
+	    flags, 0,
 	    data->pair[0]);
 	tt_assert(listener);
 
@@ -166,7 +175,8 @@ regress_listener_error(void *arg)
 	tt_int_op(count,==,1000); /* set by error cb */
 
 end:
-	evconnlistener_free(listener);
+	if (listener)
+		evconnlistener_free(listener);
 }
 
 struct testcase_t listener_testcases[] = {
@@ -174,9 +184,16 @@ struct testcase_t listener_testcases[] = {
 	{ "randport", regress_pick_a_port, TT_FORK|TT_NEED_BASE,
 	  &basic_setup, NULL},
 
+	{ "randport_ts", regress_pick_a_port, TT_FORK|TT_NEED_BASE,
+	  &basic_setup, (char*)"ts"},
+
 	{ "error", regress_listener_error,
 	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR,
 	  &basic_setup, NULL},
+
+	{ "error_ts", regress_listener_error,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR,
+	  &basic_setup, (char*)"ts"},
 
 	END_OF_TESTCASES,
 };
@@ -187,7 +204,8 @@ struct testcase_t listener_iocp_testcases[] = {
 	  &basic_setup, NULL},
 
 	{ "error", regress_listener_error,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_ENABLE_IOCP,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_ENABLE_IOCP
+	     |TT_SKIP/*Remove once err-handling on IOCP listeners is ok*/,
 	  &basic_setup, NULL},
 
 	END_OF_TESTCASES,

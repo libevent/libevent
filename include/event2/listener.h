@@ -66,6 +66,9 @@ typedef void (*evconnlistener_errorcb)(struct evconnlistener *, void *);
 /** Flag: Indicates that we should disable the timeout (if any) between when
  * this socket is closed and when we can listen again on the same port. */
 #define LEV_OPT_REUSEABLE		(1u<<3)
+/** Flag: Indicates that the listener should be locked so it's safe to use
+ * from multiple threadcs at once. */
+#define LEV_OPT_THREADSAFE		(1u<<4)
 
 /**
    Allocate a new evconnlistener object to listen for incoming TCP connections
