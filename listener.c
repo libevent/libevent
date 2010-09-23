@@ -743,7 +743,7 @@ evconnlistener_new_async(struct event_base *base,
 		event_sock_warn(fd, "getsockname");
 		goto err;
 	}
-	lev = mm_calloc(1, sizeof(struct evconnlistener_event));
+	lev = mm_calloc(1, sizeof(struct evconnlistener_iocp));
 	if (!lev) {
 		event_warn("calloc");
 		goto err;
