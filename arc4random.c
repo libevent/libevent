@@ -179,7 +179,8 @@ arc4_seed_sysctl_linux(void)
 	int mib[] = { CTL_KERN, KERN_RANDOM, RANDOM_UUID };
 	unsigned char buf[ADD_ENTROPY];
 	size_t len, n;
-	int i, any_set;
+	unsigned i;
+	int any_set;
 
 	memset(buf, 0, sizeof(buf));
 
@@ -190,7 +191,7 @@ arc4_seed_sysctl_linux(void)
 			return -1;
 	}
 	/* make sure that the buffer actually got set. */
-	for (i=any_set=0; i<sizeof(buf); ++i) {
+	for (i=0,any_set=0; i<sizeof(buf); ++i) {
 		any_set |= buf[i];
 	}
 	if (!any_set)

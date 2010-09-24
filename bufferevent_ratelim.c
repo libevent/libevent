@@ -56,9 +56,9 @@ ev_token_bucket_init(struct ev_token_bucket *bucket,
 		   leave "last_updated" as it is; the next update will add the
 		   appropriate amount of bandwidth to the bucket.
 		*/
-		if (bucket->read_limit > cfg->read_maximum)
+		if (bucket->read_limit > (ev_int64_t) cfg->read_maximum)
 			bucket->read_limit = cfg->read_maximum;
-		if (bucket->write_limit > cfg->write_maximum)
+		if (bucket->write_limit > (ev_int64_t) cfg->write_maximum)
 			bucket->write_limit = cfg->write_maximum;
 	} else {
 		bucket->read_limit = cfg->read_rate;
@@ -221,7 +221,7 @@ _bufferevent_get_rlim_max(struct bufferevent_private *bev, int is_write)
 	if (bev->rate_limiting->group) {
 		struct bufferevent_rate_limit_group *g =
 		    bev->rate_limiting->group;
-		ev_uint32_t share;
+		ev_int32_t share;
 		LOCK_GROUP(g);
 		if (GROUP_SUSPENDED(g)) {
 			/* We can get here if we failed to lock this
@@ -632,9 +632,9 @@ bufferevent_rate_limit_group_set_cfg(
 		&g->rate_limit_cfg.tick_timeout, &cfg->tick_timeout, ==);
 	memcpy(&g->rate_limit_cfg, cfg, sizeof(g->rate_limit_cfg));
 
-	if (g->rate_limit.read_limit > cfg->read_maximum)
+	if (g->rate_limit.read_limit > (ev_int32_t)cfg->read_maximum)
 		g->rate_limit.read_limit = cfg->read_maximum;
-	if (g->rate_limit.write_limit > cfg->write_maximum)
+	if (g->rate_limit.write_limit > (ev_int32_t)cfg->write_maximum)
 		g->rate_limit.write_limit = cfg->write_maximum;
 
 	if (!same_tick) {
@@ -651,6 +651,9 @@ bufferevent_rate_limit_group_set_min_share(
 	struct bufferevent_rate_limit_group *g,
 	size_t share)
 {
+	if (share > EV_INT32_MAX)
+		return -1;
+
 	g->min_share = share;
 	return 0;
 }

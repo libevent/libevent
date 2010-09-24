@@ -119,7 +119,8 @@ evutil_read_file(const char *filename, char **content_out, size_t *len_out,
 	fd = open(filename, mode);
 	if (fd < 0)
 		return -1;
-	if (fstat(fd, &st)) {
+	if (fstat(fd, &st) || st.st_size < 0 ||
+	    st.st_size > EV_SSIZE_MAX-1 ) {
 		close(fd);
 		return -2;
 	}
@@ -131,9 +132,9 @@ evutil_read_file(const char *filename, char **content_out, size_t *len_out,
 	read_so_far = 0;
 	while ((r = read(fd, mem+read_so_far, st.st_size - read_so_far)) > 0) {
 		read_so_far += r;
-		if (read_so_far >= st.st_size)
+		if (read_so_far >= (size_t)st.st_size)
 			break;
-		EVUTIL_ASSERT(read_so_far < st.st_size);
+		EVUTIL_ASSERT(read_so_far < (size_t)st.st_size);
 	}
 	close(fd);
 	if (r < 0) {
@@ -1766,7 +1767,7 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 		sin6.sin6_port = htons(port);
 		if (1 != evutil_inet_pton(AF_INET6, addr_part, &sin6.sin6_addr))
 			return -1;
-		if (sizeof(sin6) > *outlen)
+		if ((int)sizeof(sin6) > *outlen)
 			return -1;
 		memset(out, 0, *outlen);
 		memcpy(out, &sin6, sizeof(sin6));
@@ -1785,7 +1786,7 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 		sin.sin_port = htons(port);
 		if (1 != evutil_inet_pton(AF_INET, addr_part, &sin.sin_addr))
 			return -1;
-		if (sizeof(sin) > *outlen)
+		if ((int)sizeof(sin) > *outlen)
 			return -1;
 		memset(out, 0, *outlen);
 		memcpy(out, &sin, sizeof(sin));
