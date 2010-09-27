@@ -224,6 +224,10 @@ long evutil_tv_to_msec(const struct timeval *tv);
 
 int evutil_hex_char_to_int(char c);
 
+#ifdef WIN32
+HANDLE evutil_load_windows_system_library(const TCHAR *library_name);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

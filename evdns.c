@@ -3509,7 +3509,8 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 	GetNetworkParams_fn_t fn;
 
 	ASSERT_LOCKED(base);
-	if (!(handle = LoadLibrary(TEXT("iphlpapi.dll")))) {
+	if (!(handle = evutil_load_windows_system_library(
+			TEXT("iphlpapi.dll")))) {
 		log(EVDNS_LOG_WARN, "Could not open iphlpapi.dll");
 		status = -1;
 		goto done;
