@@ -35,6 +35,7 @@
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
 #include <io.h>
+#include <tchar.h>
 #endif
 
 #include <sys/types.h>
@@ -2060,3 +2061,19 @@ evutil_hex_char_to_int(char c)
 	}
 	return -1;
 }
+
+#ifdef WIN32
+HANDLE
+evutil_load_windows_system_library(const TCHAR *library_name)
+{
+  TCHAR path[MAX_PATH];
+  unsigned n;
+  n = GetSystemDirectory(path, MAX_PATH);
+  if (n == 0 || n + _tcslen(library_name) + 2 >= MAX_PATH)
+    return 0;
+  _tcscat(path, TEXT("\\"));
+  _tcscat(path, library_name);
+  return LoadLibrary(path);
+}
+#endif
+

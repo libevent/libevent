@@ -1037,6 +1037,22 @@ end:
 		evutil_freeaddrinfo(ai);
 }
 
+#ifdef WIN32
+static void
+test_evutil_loadsyslib(void *arg)
+{
+	HANDLE h=NULL;
+
+	h = evutil_load_windows_system_library(TEXT("kernel32.dll"));
+	tt_assert(h);
+
+end:
+	if (h)
+		CloseHandle(h);
+
+}
+#endif
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -1052,6 +1068,9 @@ struct testcase_t util_testcases[] = {
 	{ "integers", test_evutil_integers, 0, NULL, NULL },
 	{ "rand", test_evutil_rand, TT_FORK, NULL, NULL },
 	{ "getaddrinfo", test_evutil_getaddrinfo, TT_FORK, NULL, NULL },
+#ifdef WIN32
+	{ "loadsyslib", test_evutil_loadsyslib, TT_FORK, NULL, NULL },
+#endif
 	END_OF_TESTCASES,
 };
 
