@@ -154,7 +154,6 @@ kq_init(struct event_base *base)
 	}
 
 	base->evsigsel = &kqsigops;
-	base->evsigbase = kqueueop;
 
 	return (kqueueop);
 err:
