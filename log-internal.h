@@ -37,7 +37,7 @@
 #define EV_NORETURN
 #endif
 
-#define _EVENT_ERR_ABORT 0xdeaddead
+#define _EVENT_ERR_ABORT ((int)0xdeaddead)
 
 void event_err(int eval, const char *fmt, ...) EV_CHECK_FMT(2,3) EV_NORETURN;
 void event_warn(const char *fmt, ...) EV_CHECK_FMT(1,2);

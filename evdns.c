@@ -3901,7 +3901,7 @@ evdns_base_parse_hosts_line(struct evdns_base *base, char *line)
 	memset(&ss, 0, sizeof(ss));
 	if (evutil_parse_sockaddr_port(addr, (struct sockaddr*)&ss, &socklen)<0)
 		return -1;
-	if (socklen > sizeof(struct sockaddr_in6))
+	if (socklen > (int)sizeof(struct sockaddr_in6))
 		return -1;
 
 	if (sockaddr_getport((struct sockaddr*)&ss))
@@ -3921,7 +3921,7 @@ evdns_base_parse_hosts_line(struct evdns_base *base, char *line)
 		he = mm_calloc(1, sizeof(struct hosts_entry)+namelen);
 		if (!he)
 			return -1;
-		EVUTIL_ASSERT(socklen <= sizeof(he->addr));
+		EVUTIL_ASSERT(socklen <= (int)sizeof(he->addr));
 		memcpy(&he->addr, &ss, socklen);
 		memcpy(he->hostname, hostname, namelen+1);
 		he->addrlen = socklen;

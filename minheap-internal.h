@@ -95,7 +95,7 @@ int min_heap_elt_is_top(const struct event *e)
 
 int min_heap_erase(min_heap_t* s, struct event* e)
 {
-	if (((unsigned int)-1) != e->ev_timeout_pos.min_heap_idx)
+	if (-1 != e->ev_timeout_pos.min_heap_idx)
 	{
 		struct event *last = s->p[--s->n];
 		unsigned parent = (e->ev_timeout_pos.min_heap_idx - 1) / 2;

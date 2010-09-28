@@ -194,9 +194,10 @@ static int
 decode_tag_internal(ev_uint32_t *ptag, struct evbuffer *evbuf, int dodrain)
 {
 	ev_uint32_t number = 0;
-	int len = evbuffer_get_length(evbuf);
+	size_t len = evbuffer_get_length(evbuf);
 	ev_uint8_t *data;
-	int count = 0, shift = 0, done = 0;
+	size_t count = 0;
+	int  shift = 0, done = 0;
 
 	/*
 	 * the encoding of a number is at most one byte more than its
@@ -225,7 +226,7 @@ decode_tag_internal(ev_uint32_t *ptag, struct evbuffer *evbuf, int dodrain)
 	if (ptag != NULL)
 		*ptag = number;
 
-	return (count);
+	return count > INT_MAX ? INT_MAX : (int)(count);
 }
 
 int
@@ -524,11 +525,11 @@ evtag_unmarshal_fixed(struct evbuffer *src, ev_uint32_t need_tag, void *data,
 	int tag_len;
 
 	/* Now unmarshal a tag and check that it matches the tag we want */
-	if ((tag_len = evtag_unmarshal_header(src, &tag)) == -1 ||
+	if ((tag_len = evtag_unmarshal_header(src, &tag)) < 0 ||
 	    tag != need_tag)
 		return (-1);
 
-	if (tag_len != len)
+	if ((size_t)tag_len != len)
 		return (-1);
 
 	evbuffer_remove(src, data, len);
