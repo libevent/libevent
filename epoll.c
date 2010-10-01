@@ -349,7 +349,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 				ev |= EV_WRITE;
 		}
 
-		if (!events)
+		if (!ev)
 			continue;
 
 		evmap_io_active(base, events[i].data.fd, ev | EV_ET);
