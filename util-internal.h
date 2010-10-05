@@ -101,6 +101,23 @@ extern "C" {
 #define socklen_t _EVENT_socklen_t
 #endif
 
+/* Arguments for shutdown() */
+#ifdef SHUT_RD
+#define EVUTIL_SHUT_RD SHUT_RD
+#else
+#define EVUTIL_SHUT_RD 0
+#endif
+#ifdef SHUT_WR
+#define EVUTIL_SHUT_WR SHUT_WR
+#else
+#define EVUTIL_SHUT_WR 1
+#endif
+#ifdef SHUT_BOTH
+#define EVUTIL_SHUT_BOTH SHUT_BOTH
+#else
+#define EVUTIL_SHUT_BOTH 2
+#endif
+
 /* Locale-independent replacements for some ctypes functions.  Use these
  * when you care about ASCII's notion of character types, because you are about
  * to send those types onto the wire.

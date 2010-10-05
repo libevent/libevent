@@ -976,7 +976,7 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		bufferevent_free(evcon->bufev);
 
 	if (evcon->fd != -1) {
-		shutdown(evcon->fd, 1);
+		shutdown(evcon->fd, EVUTIL_SHUT_WR);
 		evutil_closesocket(evcon->fd);
 	}
 
@@ -1043,8 +1043,8 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 		/* inform interested parties about connection close */
 		if (evhttp_connected(evcon) && evcon->closecb != NULL)
 			(*evcon->closecb)(evcon, evcon->closecb_arg);
-		
-		shutdown(evcon->fd, 1);
+
+		shutdown(evcon->fd, EVUTIL_SHUT_WR);
 		evutil_closesocket(evcon->fd);
 		evcon->fd = -1;
 	}
