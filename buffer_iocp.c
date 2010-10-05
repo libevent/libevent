@@ -197,7 +197,7 @@ evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most,
 
 	for (i=0; i < MAX_WSABUFS && chain; ++i, chain=chain->next) {
 		WSABUF *b = &buf_o->buffers[i];
-		b->buf = chain->buffer + chain->misalign;
+		b->buf = (char*)( chain->buffer + chain->misalign );
 		_evbuffer_chain_pin(chain, EVBUFFER_MEM_PINNED_W);
 
 		if ((size_t)at_most > chain->off) {

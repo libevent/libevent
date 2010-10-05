@@ -1141,8 +1141,8 @@ http_dispatcher_test_done(struct evhttp_request *req, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
-		fprintf(stderr, "FAILED (length %zu vs %zu)\n",
-		    EVBUFFER_LENGTH(req->input_buffer), strlen(what));
+		fprintf(stderr, "FAILED (length %lu vs %lu)\n",
+		    (unsigned long)EVBUFFER_LENGTH(req->input_buffer), (unsigned long)strlen(what));
 		exit(1);
 	}
 
@@ -1257,8 +1257,8 @@ http_post_cb(struct evhttp_request *req, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(POST_DATA)) {
-		fprintf(stdout, "FAILED (length: %zu vs %zu)\n",
-		    EVBUFFER_LENGTH(req->input_buffer), strlen(POST_DATA));
+		fprintf(stdout, "FAILED (length: %lu vs %lu)\n",
+		    (unsigned long) EVBUFFER_LENGTH(req->input_buffer), (unsigned long) strlen(POST_DATA));
 		exit(1);
 	}
 
@@ -1300,8 +1300,8 @@ http_postrequest_done(struct evhttp_request *req, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
-		fprintf(stderr, "FAILED (length %zu vs %zu)\n",
-		    EVBUFFER_LENGTH(req->input_buffer), strlen(what));
+		fprintf(stderr, "FAILED (length %lu vs %lu)\n",
+		    (unsigned long)EVBUFFER_LENGTH(req->input_buffer), (unsigned long)strlen(what));
 		exit(1);
 	}
 
@@ -1374,8 +1374,8 @@ http_put_cb(struct evhttp_request *req, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(PUT_DATA)) {
-		fprintf(stdout, "FAILED (length: %zu vs %zu)\n",
-		    EVBUFFER_LENGTH(req->input_buffer), strlen(PUT_DATA));
+		fprintf(stdout, "FAILED (length: %lu vs %lu)\n",
+		    (unsigned long)EVBUFFER_LENGTH(req->input_buffer), (unsigned long)strlen(PUT_DATA));
 		exit(1);
 	}
 
@@ -1417,8 +1417,8 @@ http_putrequest_done(struct evhttp_request *req, void *arg)
 	}
 
 	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
-		fprintf(stderr, "FAILED (length %zu vs %zu)\n",
-		    EVBUFFER_LENGTH(req->input_buffer), strlen(what));
+		fprintf(stderr, "FAILED (length %lu vs %lu)\n",
+		    (unsigned long)EVBUFFER_LENGTH(req->input_buffer), (unsigned long)strlen(what));
 		exit(1);
 	}
 
@@ -2111,9 +2111,10 @@ _http_stream_in_test(char const *url,
 	event_dispatch();
 
 	if (evbuffer_get_length(reply) != expected_len) {
-		TT_DIE(("reply length %zu; expected %zu; FAILED (%s)\n",
-				EVBUFFER_LENGTH(reply), expected_len,
-				evbuffer_pullup(reply, -1)));
+		TT_DIE(("reply length %lu; expected %lu; FAILED (%s)\n",
+				(unsigned long)EVBUFFER_LENGTH(reply),
+				(unsigned long)expected_len,
+				(char*)evbuffer_pullup(reply, -1)));
 	}
 
 	if (memcmp(evbuffer_pullup(reply, -1), expected, expected_len) != 0) {

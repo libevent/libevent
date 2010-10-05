@@ -195,14 +195,22 @@ main(int argc, char **argv)
 	throughput = total_n_handled /
 	    (total.tv_sec+ ((double)total.tv_usec)/1000000.0);
 
+#ifdef WIN32
+#define I64_FMT "%I64d"
+#define I64_TYP __int64
+#else
+#define I64_FMT "%lld"
+#define I64_TYP long long int
+#endif
+
 	printf("\n%d requests in %d.%06d sec. (%.2f throughput)\n"
 	    "Each took about %.02f msec latency\n"
-	    "%lld bytes read. %d errors.\n",
+	    I64_FMT "bytes read. %d errors.\n",
 	    total_n_handled,
 	    (int)total.tv_sec, (int)total.tv_usec,
 	    throughput,
 	    (double)(usec/1000) / total_n_handled,
-	    (long long)total_n_bytes, n_errors);
+	    (I64_TYP)total_n_bytes, n_errors);
 
 	return 0;
 }

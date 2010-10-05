@@ -289,8 +289,11 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 	int err;
 	while (1) {
 		struct sockaddr_storage ss;
+#ifdef WIN32
+		int socklen = sizeof(ss);
+#else
 		socklen_t socklen = sizeof(ss);
-
+#endif
 		evutil_socket_t new_fd = accept(fd, (struct sockaddr*)&ss, &socklen);
 		if (new_fd < 0)
 			break;

@@ -1263,7 +1263,8 @@ nameserver_read(struct nameserver *ns) {
 	ASSERT_LOCKED(ns->base);
 
 	for (;;) {
-		const int r = recvfrom(ns->socket, packet, sizeof(packet), 0,
+		const int r = recvfrom(ns->socket, (void*)packet,
+		    sizeof(packet), 0,
 		    (struct sockaddr*)&ss, &addrlen);
 		if (r < 0) {
 			int err = evutil_socket_geterror(ns->socket);
@@ -1300,7 +1301,7 @@ server_port_read(struct evdns_server_port *s) {
 
 	for (;;) {
 		addrlen = sizeof(struct sockaddr_storage);
-		r = recvfrom(s->socket, packet, sizeof(packet), 0,
+		r = recvfrom(s->socket, (void*)packet, sizeof(packet), 0,
 					 (struct sockaddr*) &addr, &addrlen);
 		if (r < 0) {
 			int err = evutil_socket_geterror(s->socket);
@@ -2084,7 +2085,7 @@ evdns_request_transmit_to(struct request *req, struct nameserver *server) {
 	int r;
 	ASSERT_LOCKED(req->base);
 	ASSERT_VALID_REQUEST(req);
-	r = sendto(server->socket, req->request, req->request_len, 0,
+	r = sendto(server->socket, (void*)req->request, req->request_len, 0,
 	    (struct sockaddr *)&server->address, server->addrlen);
 	if (r < 0) {
 		int err = evutil_socket_geterror(server->socket);

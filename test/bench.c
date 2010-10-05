@@ -67,7 +67,7 @@ read_cb(evutil_socket_t fd, short which, void *arg)
 	long idx = (long) arg, widx = idx + 1;
 	u_char ch;
 
-	count += recv(fd, &ch, sizeof(ch), 0);
+	count += recv(fd, (char*)&ch, sizeof(ch), 0);
 	if (writes) {
 		if (widx >= num_pipes)
 			widx -= num_pipes;

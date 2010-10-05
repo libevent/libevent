@@ -390,7 +390,7 @@ evsig_handler(int sig)
 
 	/* Wake up our notification mechanism */
 	msg = sig;
-	send(evsig_base_fd, &msg, 1, 0);
+	send(evsig_base_fd, (char*)&msg, 1, 0);
 	errno = save_errno;
 #ifdef WIN32
 	EVUTIL_SET_SOCKET_ERROR(socket_errno);
