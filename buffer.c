@@ -74,6 +74,7 @@
 #ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#include <limits.h>
 
 #include "event2/event.h"
 #include "event2/buffer.h"
@@ -1884,7 +1885,17 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 #ifdef _EVENT_HAVE_SYS_UIO_H
 /* number of iovec we use for writev, fragmentation is going to determine
  * how much we end up writing */
-#define NUM_WRITE_IOVEC 128
+
+#define DEFAULT_WRITE_IOVEC 128
+
+#if defined(UIO_MAXIOV) && UIO_MAXIOV < DEFAULT_WRITE_IOVEC
+#define NUM_WRITE_IOVEC UIO_MAXIOV
+#elif defined(IOV_MAX) && IOV_MAX < DEFAULT_WRITE_IOVEC
+#define NUM_WRITE_IOVEC IOV_MAX
+#else
+#define NUM_WRITE_IOVEC DEFAULT_WRITE_IOVEC
+#endif
+
 #define IOV_TYPE struct iovec
 #define IOV_PTR_FIELD iov_base
 #define IOV_LEN_FIELD iov_len
