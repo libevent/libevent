@@ -2399,25 +2399,24 @@ evhttp_decode_uri(const char *uri)
  * The arguments are separated by key and value.
  */
 
-void
+int
 evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 {
 	char *line;
 	char *argument;
 	char *p;
+	int result = -1;
 
 	TAILQ_INIT(headers);
 
 	/* No arguments - we are done */
 	if (strchr(uri, '?') == NULL)
-		return;
+		return 0;
 
 	if ((line = mm_strdup(uri)) == NULL) {
-		/* TODO(niels): does this function need to return -1 */
 		event_warn("%s: strdup", __func__);
-		return;
+		return -1;
 	}
-
 
 	argument = line;
 
@@ -2431,13 +2430,13 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 
 		value = argument;
 		key = strsep(&value, "=");
-		if (value == NULL || *key == '\0')
+		if (value == NULL || *key == '\0') {
 			goto error;
+		}
 
 		if ((decoded_value = mm_malloc(strlen(value) + 1)) == NULL) {
-			/* TODO(niels): do we need to return -1 here? */
 			event_warn("%s: mm_malloc", __func__);
-			break;
+			goto error;
 		}
 		evhttp_decode_uri_internal(value, strlen(value),
 		    decoded_value, 1 /*always_decode_plus*/);
@@ -2446,8 +2445,13 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 		mm_free(decoded_value);
 	}
 
- error:
+	result = 0;
+	goto done;
+error:
+	evhttp_clear_headers(headers);
+done:
 	mm_free(line);
+	return result;
 }
 
 static struct evhttp_cb *

@@ -541,9 +541,9 @@ char *evhttp_decode_uri(const char *uri);
 
    @param uri the request URI
    @param headers the head of the evkeyval queue
+   @return 0 on success, -1 on failure
  */
-void evhttp_parse_query(const char *uri, struct evkeyvalq *headers);
-
+int evhttp_parse_query(const char *uri, struct evkeyvalq *headers);
 
 /**
  * Escape HTML character entities in a string.

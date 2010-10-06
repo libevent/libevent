@@ -1639,28 +1639,71 @@ static void
 http_parse_query_test(void *ptr)
 {
 	struct evkeyvalq headers;
+	int r;
 
 	TAILQ_INIT(&headers);
 
-	evhttp_parse_query("http://www.test.com/?q=test", &headers);
+	r = evhttp_parse_query("http://www.test.com/?q=test", &headers);
 	tt_want(validate_header(&headers, "q", "test") == 0);
+	tt_int_op(r, ==, 0);
 	evhttp_clear_headers(&headers);
 
-	evhttp_parse_query("http://www.test.com/?q=test&foo=bar", &headers);
+	r = evhttp_parse_query("http://www.test.com/?q=test&foo=bar", &headers);
 	tt_want(validate_header(&headers, "q", "test") == 0);
 	tt_want(validate_header(&headers, "foo", "bar") == 0);
+	tt_int_op(r, ==, 0);
 	evhttp_clear_headers(&headers);
 
-	evhttp_parse_query("http://www.test.com/?q=test+foo", &headers);
+	r = evhttp_parse_query("http://www.test.com/?q=test+foo", &headers);
 	tt_want(validate_header(&headers, "q", "test foo") == 0);
+	tt_int_op(r, ==, 0);
 	evhttp_clear_headers(&headers);
 
-	evhttp_parse_query("http://www.test.com/?q=test%0Afoo", &headers);
+	r = evhttp_parse_query("http://www.test.com/?q=test%0Afoo", &headers);
 	tt_want(validate_header(&headers, "q", "test\nfoo") == 0);
+	tt_int_op(r, ==, 0);
 	evhttp_clear_headers(&headers);
 
-	evhttp_parse_query("http://www.test.com/?q=test%0Dfoo", &headers);
+	r = evhttp_parse_query("http://www.test.com/?q=test%0Dfoo", &headers);
 	tt_want(validate_header(&headers, "q", "test\rfoo") == 0);
+	tt_int_op(r, ==, 0);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=test&&q2", &headers);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=test+this", &headers);
+	tt_want(validate_header(&headers, "q", "test this") == 0);
+	tt_int_op(r, ==, 0);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=test&q2=foo", &headers);
+	tt_int_op(r, ==, 0);
+	tt_want(validate_header(&headers, "q", "test") == 0);
+	tt_want(validate_header(&headers, "q2", "foo") == 0);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q&q2=foo", &headers);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=foo&q2", &headers);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=foo&q2&q3=x", &headers);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=&q2=&q3=", &headers);
+	tt_int_op(r, ==, 0);
+	tt_want(validate_header(&headers, "q", "") == 0);
+	tt_want(validate_header(&headers, "q2", "") == 0);
+	tt_want(validate_header(&headers, "q3", "") == 0);
+	evhttp_clear_headers(&headers);
+
+end:
 	evhttp_clear_headers(&headers);
 }
 
