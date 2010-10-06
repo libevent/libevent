@@ -543,7 +543,13 @@ char *evhttp_decode_uri(const char *uri);
    @param headers the head of the evkeyval queue
    @return 0 on success, -1 on failure
  */
-int evhttp_parse_query(const char *uri, struct evkeyvalq *headers);
+#define evhttp_parse_query(uri, headers) \
+	evhttp_parse_query__checked_20((uri), (headers))
+
+/* Do not call this function directly; it is a temporary alias introduced
+ * to avoid changing the old signature for evhttp_parse_query
+ */
+int evhttp_parse_query__checked_20(const char *uri, struct evkeyvalq *headers);
 
 /**
  * Escape HTML character entities in a string.

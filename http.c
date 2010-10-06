@@ -2400,7 +2400,7 @@ evhttp_decode_uri(const char *uri)
  */
 
 int
-evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
+evhttp_parse_query__checked_20(const char *uri, struct evkeyvalq *headers)
 {
 	char *line;
 	char *argument;
@@ -2453,6 +2453,20 @@ done:
 	mm_free(line);
 	return result;
 }
+
+#undef evhttp_parse_query
+void evhttp_parse_query(const char *uri, struct evkeyvalq *headers);
+/* We define this here so as to avoid changing the ABI for evhttp_parse_query
+ * in 2.0.8.  The next time we break ABI compatibility, we can go back to
+ * having the function above be called evhttp_parse_query
+ */
+void
+evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
+{
+	evhttp_parse_query__checked_20(uri, headers);
+}
+
+
 
 static struct evhttp_cb *
 evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
