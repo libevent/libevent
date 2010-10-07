@@ -88,8 +88,8 @@ struct evconnlistener_iocp {
 	struct event_base *event_base;
 	struct event_iocp_port *port;
 	short n_accepting;
-	short shutting_down;
-	short enabled;
+	unsigned shutting_down : 1;
+	unsigned enabled : 1;
 	struct accepting_socket **accepting;
 };
 #endif
