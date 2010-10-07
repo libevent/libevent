@@ -89,6 +89,7 @@ struct evconnlistener_iocp {
 	struct event_iocp_port *port;
 	short n_accepting;
 	short shutting_down;
+	short enabled;
 	struct accepting_socket **accepting;
 };
 #endif
@@ -472,6 +473,10 @@ start_accepting(struct accepting_socket *as)
 	DWORD pending = 0;
 	SOCKET s = socket(as->family, SOCK_STREAM, 0);
 	int error = 0;
+
+	if (!as->lev->enabled)
+		return 0;
+
 	if (s == INVALID_SOCKET) {
 		error = WSAGetLastError();
 		goto report_err;
@@ -633,6 +638,7 @@ iocp_listener_enable(struct evconnlistener *lev)
 	    EVUTIL_UPCAST(lev, struct evconnlistener_iocp, base);
 
 	LOCK(lev);
+	lev_iocp->enabled = 1;
 	for (i = 0; i < lev_iocp->n_accepting; ++i) {
 		struct accepting_socket *as = lev_iocp->accepting[i];
 		if (!as)
@@ -654,6 +660,7 @@ iocp_listener_disable_impl(struct evconnlistener *lev, int shutdown)
 	    EVUTIL_UPCAST(lev, struct evconnlistener_iocp, base);
 
 	LOCK(lev);
+	lev_iocp->enabled = 0;
 	for (i = 0; i < lev_iocp->n_accepting; ++i) {
 		struct accepting_socket *as = lev_iocp->accepting[i];
 		if (!as)
@@ -757,6 +764,7 @@ evconnlistener_new_async(struct event_base *base,
 	lev->port = event_base_get_iocp(base);
 	lev->fd = fd;
 	lev->event_base = base;
+	lev->enabled = 1;
 
 	if (event_iocp_port_associate(lev->port, fd, 1) < 0)
 		goto err_free_lev;

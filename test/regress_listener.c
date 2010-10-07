@@ -204,8 +204,7 @@ struct testcase_t listener_iocp_testcases[] = {
 	  &basic_setup, NULL},
 
 	{ "error", regress_listener_error,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_ENABLE_IOCP
-	     |TT_SKIP/*Remove once err-handling on IOCP listeners is ok*/,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_ENABLE_IOCP,
 	  &basic_setup, NULL},
 
 	END_OF_TESTCASES,
