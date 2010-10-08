@@ -506,14 +506,17 @@ void evhttp_clear_headers(struct evkeyvalq *headers);
 
 
 /**
-  Helper function to encode a URI.
+   Helper function to encode a string for inclusion in a URI.  All
+   characters are replaced by their hex-escaped (%00) equivalents,
+   except for characters explicitly unreserved by RFC3986 -- that is,
+   ASCII alphanumeric characters, hyphen, dot, underscore, and tilde.
 
-  The returned string must be freed by the caller.
+   The returned string must be freed by the caller.
 
-  @param uri an unencoded URI
-  @return a newly allocated URI-encoded string or NULL on failure
+   @param str an unencoded string
+   @return a newly allocated URI-encoded string or NULL on failure
  */
-char *evhttp_encode_uri(const char *uri);
+char *evhttp_encode_uri(const char *str);
 
 
 /**
