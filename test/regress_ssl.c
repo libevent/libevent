@@ -182,7 +182,7 @@ respond_to_number(struct bufferevent *bev, void *ctx)
 	evbuffer_add_printf(bufferevent_get_output(bev),
 	    "%d\n", n);
 	TT_BLATHER(("Done reading; now writing."));
-	// bufferevent_enable(bev, EV_WRITE);
+	bufferevent_enable(bev, EV_WRITE);
 	bufferevent_disable(bev, EV_READ);
 }
 
@@ -193,7 +193,7 @@ done_writing_cb(struct bufferevent *bev, void *ctx)
 	if (evbuffer_get_length(b))
 		return;
 	TT_BLATHER(("Done writing."));
-	// bufferevent_disable(bev, EV_WRITE);
+	bufferevent_disable(bev, EV_WRITE);
 	bufferevent_enable(bev, EV_READ);
 }
 
