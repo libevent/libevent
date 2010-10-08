@@ -507,7 +507,7 @@ void evhttp_clear_headers(struct evkeyvalq *headers);
 
 /**
    Helper function to encode a string for inclusion in a URI.  All
-   characters are replaced by their hex-escaped (%00) equivalents,
+   characters are replaced by their hex-escaped (%22) equivalents,
    except for characters explicitly unreserved by RFC3986 -- that is,
    ASCII alphanumeric characters, hyphen, dot, underscore, and tilde.
 
@@ -518,17 +518,55 @@ void evhttp_clear_headers(struct evkeyvalq *headers);
  */
 char *evhttp_encode_uri(const char *str);
 
+/**
+   As evhttp_encode_uri, but if 'size' is nonnegative, treat the string
+   as being 'size' bytes long.  This allows you to encode strings that
+   may contain 0-valued bytes.
+
+   The returned string must be freed by the caller.
+
+   @param str an unencoded string
+   @param size the length of the string to encode, or -1 if the string
+      is NUL-terminated
+   @param space_to_plus if true, space characters in 'str' are encoded
+      as +, not %20.
+   @return a newly allocate URI-encoded string, or NULL on failure.
+ */
+char *evhttp_uriencode(const char *str, ev_ssize_t size, int space_to_plus);
 
 /**
-  Helper function to decode a URI.
+  Helper function to sort of decode a URI-encoded string.  Unlike
+  evhttp_get_decoded_uri, it decodes all plus characters that appear
+  _after_ the first question mark character, but no plusses that occur
+  before.  This is not a good way to decode URIs in whole or in part.
 
-  The returned string must be freed by the caller.
+  The returned string must be freed by the caller
+
+  @deprecated  This function is deprecated; you probably want to use
+     evhttp_get_decoded_uri instead.
 
   @param uri an encoded URI
   @return a newly allocated unencoded URI or NULL on failure
  */
 char *evhttp_decode_uri(const char *uri);
 
+/**
+  Helper function to decode a URI-escaped string or HTTP parameter.
+
+  If 'decode_plus' is 1, then we decode the string as an HTTP parameter
+  value, and convert all plus ('+') characters to spaces.  If
+  'decode_plus' is 0, we leave all plus characters unchanged.
+
+  The returned string must be freed by the caller.
+
+  @param uri a URI-encode encoded URI
+  @param decode_plus determines whether we convert '+' to sapce.
+  @param size_out if size_out is not NULL, *size_out is set to the size of the
+     returned string
+  @return a newly allocated unencoded URI or NULL on failure
+ */
+char *evhttp_uridecode(const char *uri, int decode_plus,
+    size_t *size_out);
 
 /**
    Helper function to parse out arguments in a query.
