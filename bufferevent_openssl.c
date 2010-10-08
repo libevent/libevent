@@ -376,10 +376,9 @@ static int
 start_reading(struct bufferevent_openssl *bev_ssl)
 {
 	if (bev_ssl->underlying) {
-		short e = EV_READ;
-		if (bev_ssl->read_blocked_on_write)
-			e |= EV_WRITE;
-		return bufferevent_enable(bev_ssl->underlying, e);
+		bufferevent_unsuspend_read(bev_ssl->underlying,
+		    BEV_SUSPEND_FILT_READ);
+		return 0;
 	} else {
 		struct bufferevent *bev = &bev_ssl->bev.bev;
 		int r;
@@ -397,12 +396,9 @@ start_reading(struct bufferevent_openssl *bev_ssl)
 static int
 start_writing(struct bufferevent_openssl *bev_ssl)
 {
-	int r;
+	int r = 0;
 	if (bev_ssl->underlying) {
-		short e = EV_WRITE;
-		if (bev_ssl->write_blocked_on_read)
-			e |= EV_READ;
-		r = bufferevent_enable(bev_ssl->underlying, e);
+		;
 	} else {
 		struct bufferevent *bev = &bev_ssl->bev.bev;
 		r = _bufferevent_add_event(&bev->ev_write, &bev->timeout_write);
@@ -418,9 +414,10 @@ stop_reading(struct bufferevent_openssl *bev_ssl)
 {
 	if (bev_ssl->write_blocked_on_read)
 		return;
-	if (bev_ssl->underlying)
-		bufferevent_disable(bev_ssl->underlying, EV_READ);
-	else {
+	if (bev_ssl->underlying) {
+		bufferevent_suspend_read(bev_ssl->underlying,
+		    BEV_SUSPEND_FILT_READ);
+	} else {
 		struct bufferevent *bev = &bev_ssl->bev.bev;
 		event_del(&bev->ev_read);
 	}
@@ -431,9 +428,9 @@ stop_writing(struct bufferevent_openssl *bev_ssl)
 {
 	if (bev_ssl->read_blocked_on_write)
 		return;
-	if (bev_ssl->underlying)
-		bufferevent_disable(bev_ssl->underlying, EV_WRITE);
-	else {
+	if (bev_ssl->underlying) {
+		;
+	} else {
 		struct bufferevent *bev = &bev_ssl->bev.bev;
 		event_del(&bev->ev_write);
 	}
@@ -901,13 +898,13 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 		print_err(err);
 		switch (err) {
 		case SSL_ERROR_WANT_WRITE:
-			if (!bev_ssl->underlying) {
+			if (!bev_ssl->underlying) {		/* XXXX ???? */
 				stop_reading(bev_ssl);
 				return start_writing(bev_ssl);
 			}
 			return 0;
 		case SSL_ERROR_WANT_READ:
-			if (!bev_ssl->underlying) {
+			if (!bev_ssl->underlying) {		/* XXXX ???? */
 				stop_writing(bev_ssl);
 				return start_reading(bev_ssl);
 			}
@@ -1219,9 +1216,10 @@ bufferevent_openssl_new_impl(struct event_base *base,
 		goto err;
 	}
 
-	if (underlying)
+	if (underlying) {
 		bufferevent_enable(underlying, EV_READ|EV_WRITE);
-	else {
+		/* XXXX ???? */
+	} else {
 		bev_ssl->bev.bev.enabled = EV_READ|EV_WRITE;
 		if (bev_ssl->fd_is_set) {
 			/* XXX Is this quite right? */

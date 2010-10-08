@@ -56,6 +56,11 @@ extern "C" {
 /* On a socket bufferevent: can't do any operations while we're waiting for
  * name lookup to finish. */
 #define BEV_SUSPEND_LOOKUP 0x08
+/* On a base bufferevent, for reading: used when a filter has choked this
+ * (underlying) bufferevent because it has stopped reading from it. */
+#define BEV_SUSPEND_FILT_READ 0x10
+
+typedef ev_uint16_t bufferevent_suspend_flags;
 
 struct bufferevent_rate_limit_group {
 	/** List of all members in the group */
@@ -154,12 +159,12 @@ struct bufferevent_private {
 	/** If set, read is suspended until one or more conditions are over.
 	 * The actual value here is a bitfield of those conditions; see the
 	 * BEV_SUSPEND_* flags above. */
-	short read_suspended;
+	bufferevent_suspend_flags read_suspended;
 
 	/** If set, writing is suspended until one or more conditions are over.
 	 * The actual value here is a bitfield of those conditions; see the
 	 * BEV_SUSPEND_* flags above. */
-	short write_suspended;
+	bufferevent_suspend_flags write_suspended;
 
 	/** Set to the current socket errno if we have deferred callbacks and
 	 * an events callback is pending. */
@@ -265,17 +270,17 @@ int bufferevent_init_common(struct bufferevent_private *, struct event_base *, c
 
 /** For internal use: temporarily stop all reads on bufev, until the conditions
  * in 'what' are over. */
-void bufferevent_suspend_read(struct bufferevent *bufev, short what);
+void bufferevent_suspend_read(struct bufferevent *bufev, bufferevent_suspend_flags what);
 /** For internal use: clear the conditions 'what' on bufev, and re-enable
  * reading if there are no conditions left. */
-void bufferevent_unsuspend_read(struct bufferevent *bufev, short what);
+void bufferevent_unsuspend_read(struct bufferevent *bufev, bufferevent_suspend_flags what);
 
 /** For internal use: temporarily stop all writes on bufev, until the conditions
  * in 'what' are over. */
-void bufferevent_suspend_write(struct bufferevent *bufev, short what);
+void bufferevent_suspend_write(struct bufferevent *bufev, bufferevent_suspend_flags what);
 /** For internal use: clear the conditions 'what' on bufev, and re-enable
  * writing if there are no conditions left. */
-void bufferevent_unsuspend_write(struct bufferevent *bufev, short what);
+void bufferevent_unsuspend_write(struct bufferevent *bufev, bufferevent_suspend_flags what);
 
 #define bufferevent_wm_suspend_read(b) \
 	bufferevent_suspend_read((b), BEV_SUSPEND_WM)

@@ -168,6 +168,9 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	struct bufferevent_filtered *bufev_f;
 	int tmp_options = options & ~BEV_OPT_THREADSAFE;
 
+	if (!underlying)
+		return NULL;
+
 	if (!input_filter)
 		input_filter = be_null_filter;
 	if (!output_filter)
@@ -202,6 +205,9 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	_bufferevent_init_generic_timeout_cbs(downcast(bufev_f));
 	bufferevent_incref(underlying);
 
+	bufferevent_enable(underlying, EV_READ|EV_WRITE);
+	bufferevent_suspend_read(underlying, BEV_SUSPEND_FILT_READ);
+
 	return downcast(bufev_f);
 }
 
@@ -225,6 +231,11 @@ be_filter_destruct(struct bufferevent *bev)
 		} else {
 			bufferevent_free(bevf->underlying);
 		}
+	} else {
+		if (bevf->underlying) {
+			bufferevent_unsuspend_read(bevf->underlying,
+			    BEV_SUSPEND_FILT_READ);
+		}
 	}
 
 	_bufferevent_del_generic_timeout_cbs(bev);
@@ -234,22 +245,29 @@ static int
 be_filter_enable(struct bufferevent *bev, short event)
 {
 	struct bufferevent_filtered *bevf = upcast(bev);
-	if (event & EV_READ)
-		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
 	if (event & EV_WRITE)
 		BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
-	return bufferevent_enable(bevf->underlying, event);
+
+	if (event & EV_READ) {
+		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
+		bufferevent_unsuspend_read(bevf->underlying,
+		    BEV_SUSPEND_FILT_READ);
+	}
+	return 0;
 }
 
 static int
 be_filter_disable(struct bufferevent *bev, short event)
 {
 	struct bufferevent_filtered *bevf = upcast(bev);
-	if (event & EV_READ)
-		BEV_DEL_GENERIC_READ_TIMEOUT(bev);
 	if (event & EV_WRITE)
 		BEV_DEL_GENERIC_WRITE_TIMEOUT(bev);
-	return bufferevent_disable(bevf->underlying, event);
+	if (event & EV_READ) {
+		BEV_DEL_GENERIC_READ_TIMEOUT(bev);
+		bufferevent_suspend_read(bevf->underlying,
+		    BEV_SUSPEND_FILT_READ);
+	}
+	return 0;
 }
 
 static enum bufferevent_filter_result
