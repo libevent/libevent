@@ -2725,6 +2725,7 @@ evthread_make_base_notifiable(struct event_base *base)
 
 	/* we need to mark this as internal event */
 	base->th_notify.ev_flags |= EVLIST_INTERNAL;
+	event_priority_set(&base->th_notify, 0);
 
 	return event_add(&base->th_notify, NULL);
 }
