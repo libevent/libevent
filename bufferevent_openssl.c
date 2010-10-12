@@ -540,14 +540,14 @@ init_bio_counts(struct bufferevent_openssl *bev_ssl)
 	bev_ssl->counts.n_written =
 	    BIO_number_written(SSL_get_wbio(bev_ssl->ssl));
 	bev_ssl->counts.n_read =
-	    BIO_number_read(SSL_get_wbio(bev_ssl->ssl));
+	    BIO_number_read(SSL_get_rbio(bev_ssl->ssl));
 }
 
 static inline void
 decrement_buckets(struct bufferevent_openssl *bev_ssl)
 {
 	unsigned long num_w = BIO_number_written(SSL_get_wbio(bev_ssl->ssl));
-	unsigned long num_r = BIO_number_read(SSL_get_wbio(bev_ssl->ssl));
+	unsigned long num_r = BIO_number_read(SSL_get_rbio(bev_ssl->ssl));
 	/* These next two subtractions can wrap around. That's okay. */
 	unsigned long w = num_w - bev_ssl->counts.n_written;
 	unsigned long r = num_r - bev_ssl->counts.n_read;
