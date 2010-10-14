@@ -58,6 +58,7 @@
 #ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#include <limits.h>
 
 #include "event2/event.h"
 #include "event2/tag.h"
