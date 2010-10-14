@@ -573,7 +573,7 @@ if test x$enable_gcc_warnings = xyes; then
 #endif]), have_gcc45=yes, have_gcc45=no)
 
   CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch-enum -Werror"
-  CFLAGS="$CFLAGS -Wno-unused-parameter -Wno-sign-compare -Wstrict-aliasing"
+  CFLAGS="$CFLAGS -Wno-unused-parameter -Wstrict-aliasing"
 
   if test x$have_gcc4 = xyes ; then
     # These warnings break gcc 3.3.5 and work on gcc 4.0.2
