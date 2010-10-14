@@ -845,7 +845,7 @@ rpc_test(void)
 		if (EVTAG_ARRAY_GET(attack, how_often, i, &res) == -1) {
 			TT_DIE(("Cannot get %dth how_often msg.", i));
 		}
-		if (res != i) {
+		if ((int)res != i) {
 			TT_DIE(("Wrong message encoded %d != %d", i, res));
 		}
 	}

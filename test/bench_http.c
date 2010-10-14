@@ -150,7 +150,7 @@ main(int argc, char **argv)
 		exit(1);
 	} else {
 		int i = 0;
-		for (i = 0; i < content_len; ++i)
+		for (i = 0; i < (int)content_len; ++i)
 			content[i] = (i & 255);
 	}
 

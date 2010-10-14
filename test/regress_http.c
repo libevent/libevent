@@ -290,7 +290,7 @@ http_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 	evhttp_send_reply_chunk(state->req, evb);
 	evbuffer_free(evb);
 
-	if (++state->i < sizeof(CHUNKS)/sizeof(CHUNKS[0])) {
+	if (++state->i < (int) (sizeof(CHUNKS)/sizeof(CHUNKS[0]))) {
 		event_once(-1, EV_TIMEOUT,
 		    http_chunked_trickle_cb, state, &when);
 	} else {

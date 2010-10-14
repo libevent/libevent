@@ -152,7 +152,7 @@ test_bufferevent_impl(int use_pair)
 	tt_int_op(bufferevent_get_enabled(bev1), ==, EV_WRITE);
 	tt_int_op(bufferevent_get_enabled(bev2), ==, EV_WRITE|EV_READ);
 
-	for (i = 0; i < sizeof(buffer); i++)
+	for (i = 0; i < (int)sizeof(buffer); i++)
 		buffer[i] = i;
 
 	bufferevent_write(bev1, buffer, sizeof(buffer));
@@ -246,7 +246,7 @@ test_bufferevent_watermarks_impl(int use_pair)
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
 
-	for (i = 0; i < sizeof(buffer); i++)
+	for (i = 0; i < (int)sizeof(buffer); i++)
 		buffer[i] = (char)i;
 
 	/* limit the reading on the receiving bufferevent */
@@ -350,7 +350,7 @@ test_bufferevent_filters_impl(int use_pair)
 	bev1_base = bev1;
 	bev2_base = bev2;
 
-	for (i = 0; i < sizeof(buffer); i++)
+	for (i = 0; i < (int)sizeof(buffer); i++)
 		buffer[i] = i;
 
 	bev1 = bufferevent_filter_new(bev1, NULL, bufferevent_output_filter,

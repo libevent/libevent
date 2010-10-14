@@ -290,7 +290,7 @@ test_bufferevent_zlib(void *arg)
 
 	bufferevent_enable(bev2, EV_READ);
 
-	for (i = 0; i < sizeof(buffer); i++)
+	for (i = 0; i < (int)sizeof(buffer); i++)
 		buffer[i] = i;
 
 	/* break it up into multiple buffer chains */

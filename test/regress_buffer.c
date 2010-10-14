@@ -492,7 +492,7 @@ test_evbuffer_expand(void *ptr)
 	evbuffer_add(buf, data, 400);
 	{
 		int n = buf->first->buffer_len - buf->first->off - 1;
-		tt_assert(n < sizeof(data));
+		tt_assert(n < (int)sizeof(data));
 		evbuffer_add(buf, data, n);
 	}
 	tt_assert(buf->first == buf->last);
@@ -645,7 +645,7 @@ test_evbuffer_add_file(void *ptr)
 	tt_int_op(n_written, ==, datalen);
 
 	evbuffer_validate(src);
-	tt_assert(evbuffer_read(src, pair[1], strlen(data)) == datalen);
+	tt_int_op(evbuffer_read(src, pair[1], strlen(data)), ==, datalen);
 	evbuffer_validate(src);
 	compare = (char *)evbuffer_pullup(src, datalen);
 	tt_assert(compare != NULL);

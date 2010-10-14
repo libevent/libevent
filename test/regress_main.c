@@ -117,7 +117,7 @@ regress_make_tmpfile(const void *data, size_t datalen)
 	fd = mkstemp(tmpfilename);
 	if (fd == -1)
 		return (-1);
-	if (write(fd, data, datalen) != datalen) {
+	if (write(fd, data, datalen) != (int)datalen) {
 		close(fd);
 		return (-1);
 	}
