@@ -1271,6 +1271,8 @@ bufferevent_openssl_socket_new(struct event_base *base,
 	/* Does the SSL already have an fd? */
 	BIO *bio = SSL_get_wbio(ssl);
 	long have_fd = -1;
+	const int shutdown_flag = !!(options & BEV_OPT_CLOSE_ON_FREE);
+
 	if (bio)
 		have_fd = BIO_get_fd(bio, NULL);
 
@@ -1286,13 +1288,11 @@ bufferevent_openssl_socket_new(struct event_base *base,
 			   This is probably an error on our part.  Fail. */
 			return NULL;
 		}
+		(void) BIO_set_close(bio, shutdown_flag);
 	} else {
 		/* The SSL isn't configured with a BIO with an fd. */
 		if (fd >= 0) {
 			/* ... and we have an fd we want to use. */
-			int shutdown_flag = 0;
-			if (options & BEV_OPT_CLOSE_ON_FREE)
-				shutdown_flag = 1;
 			bio = BIO_new_socket(fd, shutdown_flag);
 			SSL_set_bio(ssl, bio, bio);
 		} else {
