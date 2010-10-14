@@ -898,13 +898,13 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 		print_err(err);
 		switch (err) {
 		case SSL_ERROR_WANT_WRITE:
-			if (!bev_ssl->underlying) {		/* XXXX ???? */
+			if (!bev_ssl->underlying) {
 				stop_reading(bev_ssl);
 				return start_writing(bev_ssl);
 			}
 			return 0;
 		case SSL_ERROR_WANT_READ:
-			if (!bev_ssl->underlying) {		/* XXXX ???? */
+			if (!bev_ssl->underlying) {
 				stop_writing(bev_ssl);
 				return start_reading(bev_ssl);
 			}
@@ -1218,13 +1218,15 @@ bufferevent_openssl_new_impl(struct event_base *base,
 
 	if (underlying) {
 		bufferevent_enable(underlying, EV_READ|EV_WRITE);
-		/* XXXX ???? */
+		if (state == BUFFEREVENT_SSL_OPEN)
+			bufferevent_suspend_read(underlying,
+			    BEV_SUSPEND_FILT_READ);
 	} else {
 		bev_ssl->bev.bev.enabled = EV_READ|EV_WRITE;
 		if (bev_ssl->fd_is_set) {
-			/* XXX Is this quite right? */
-			if (event_add(&bev_ssl->bev.bev.ev_read, NULL) < 0)
-				goto err;
+			if (state != BUFFEREVENT_SSL_OPEN)
+				if (event_add(&bev_ssl->bev.bev.ev_read, NULL) < 0)
+					goto err;
 			if (event_add(&bev_ssl->bev.bev.ev_write, NULL) < 0)
 				goto err;
 		}
