@@ -156,6 +156,9 @@ static int n_connected = 0;
 static int got_close = 0;
 static int got_error = 0;
 static int renegotiate_at = -1;
+static int stop_when_connected = 0;
+static int pending_connect_events = 0;
+static struct event_base *exit_base = NULL;
 
 static void
 respond_to_number(struct bufferevent *bev, void *ctx)
@@ -213,6 +216,10 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 		} else {
 			tt_assert(peer_cert != NULL);
 		}
+		if (stop_when_connected) {
+			if (--pending_connect_events == 0)
+				event_base_loopexit(exit_base, NULL);
+		}
 	} else if (what & BEV_EVENT_EOF) {
 		TT_BLATHER(("Got a good EOF"));
 		++got_close;
@@ -227,6 +234,31 @@ end:
 }
 
 static void
+open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
+    struct event_base *base, int is_open, int flags, SSL *ssl1, SSL *ssl2,
+    int *fd_pair, struct bufferevent **underlying_pair)
+{
+	int state1 = is_open ? BUFFEREVENT_SSL_OPEN :BUFFEREVENT_SSL_CONNECTING;
+	int state2 = is_open ? BUFFEREVENT_SSL_OPEN :BUFFEREVENT_SSL_ACCEPTING;
+	if (fd_pair) {
+		*bev1_out = bufferevent_openssl_socket_new(
+			base, fd_pair[0], ssl1, state1, flags);
+		*bev2_out = bufferevent_openssl_socket_new(
+			base, fd_pair[1], ssl2, state2, flags);
+	} else {
+		*bev1_out = bufferevent_openssl_filter_new(
+			base, underlying_pair[0], ssl1, state1, flags);
+		*bev2_out = bufferevent_openssl_filter_new(
+			base, underlying_pair[1], ssl2, state2, flags);
+
+	}
+	bufferevent_setcb(*bev1_out, respond_to_number, done_writing_cb,
+	    eventcb, (void*)"client");
+	bufferevent_setcb(*bev2_out, respond_to_number, done_writing_cb,
+	    eventcb, (void*)"server");
+}
+
+static void
 regress_bufferevent_openssl(void *arg)
 {
 	struct basic_test_data *data = arg;
@@ -235,6 +267,12 @@ regress_bufferevent_openssl(void *arg)
 	SSL *ssl1, *ssl2;
 	X509 *cert = getcert();
 	EVP_PKEY *key = getkey();
+	const int start_open = strstr((char*)data->setup_data, "open")!=NULL;
+	const int filter = strstr((char*)data->setup_data, "filter")!=NULL;
+	int flags = BEV_OPT_DEFER_CALLBACKS;
+	struct bufferevent *bev_ll[2] = { NULL, NULL };
+	int *fd_pair = NULL;
+
 	tt_assert(cert);
 	tt_assert(key);
 
@@ -246,56 +284,48 @@ regress_bufferevent_openssl(void *arg)
 	SSL_use_certificate(ssl2, cert);
 	SSL_use_PrivateKey(ssl2, key);
 
+	if (! start_open)
+		flags |= BEV_OPT_CLOSE_ON_FREE;
+
 	if (strstr((char*)data->setup_data, "renegotiate"))
 		renegotiate_at = 600;
 
-	if (strstr((char*)data->setup_data, "socketpair")) {
-		bev1 = bufferevent_openssl_socket_new(
-			data->base,
-			data->pair[0],
-			ssl1,
-			BUFFEREVENT_SSL_CONNECTING,
-			BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
-		bev2 = bufferevent_openssl_socket_new(
-			data->base,
-			data->pair[1],
-			ssl2,
-			BUFFEREVENT_SSL_ACCEPTING,
-			BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
-
-		tt_int_op(bufferevent_getfd(bev1), ==, data->pair[0]);
-	} else if (strstr((char*)data->setup_data, "filter")) {
-		struct bufferevent *bev_ll1, *bev_ll2;
-		bev_ll1 = bufferevent_socket_new(data->base, data->pair[0],
-		    BEV_OPT_CLOSE_ON_FREE);
-		bev_ll2 = bufferevent_socket_new(data->base, data->pair[1],
-		    BEV_OPT_CLOSE_ON_FREE);
-		tt_assert(bev_ll1);
-		tt_assert(bev_ll2);
-		bev1 = bufferevent_openssl_filter_new(
-			data->base,
-			bev_ll1,
-			ssl1,
-			BUFFEREVENT_SSL_CONNECTING,
-			BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
-		bev2 = bufferevent_openssl_filter_new(
-			data->base,
-			bev_ll2,
-			ssl2,
-			BUFFEREVENT_SSL_ACCEPTING,
-			BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
-		tt_ptr_op(bufferevent_get_underlying(bev1), ==, bev_ll1);
+	if (!filter) {
+		tt_assert(strstr((char*)data->setup_data, "socketpair"));
+		fd_pair = data->pair;
 	} else {
-		TT_DIE(("Bad setup data %s", (char*)data->setup_data));
+		bev_ll[0] = bufferevent_socket_new(data->base, data->pair[0],
+		    BEV_OPT_CLOSE_ON_FREE);
+		bev_ll[1] = bufferevent_socket_new(data->base, data->pair[1],
+		    BEV_OPT_CLOSE_ON_FREE);
+	}
+
+	open_ssl_bufevs(&bev1, &bev2, data->base, 0, flags, ssl1, ssl2,
+	    fd_pair, bev_ll);
+
+	if (!filter) {
+		tt_int_op(bufferevent_getfd(bev1), ==, data->pair[0]);
+	} else {
+		tt_ptr_op(bufferevent_get_underlying(bev1), ==, bev_ll[0]);
+	}
+
+	if (start_open) {
+		pending_connect_events = 2;
+		stop_when_connected = 1;
+		exit_base = data->base;
+		event_base_dispatch(data->base);
+		/* Okay, now the renegotiation is done.  Make new
+		 * bufferevents to test opening in BUFFEREVENT_SSL_OPEN */
+		flags |= BEV_OPT_CLOSE_ON_FREE;
+		bufferevent_free(bev1);
+		bufferevent_free(bev2);
+		bev1 = bev2 = NULL;
+		open_ssl_bufevs(&bev1, &bev2, data->base, 1, flags, ssl1, ssl2,
+		    fd_pair, bev_ll);
 	}
 
 	bufferevent_enable(bev1, EV_READ|EV_WRITE);
 	bufferevent_enable(bev2, EV_READ|EV_WRITE);
-
-	bufferevent_setcb(bev1, respond_to_number, done_writing_cb, eventcb,
-	    (void*)"client");
-	bufferevent_setcb(bev2, respond_to_number, done_writing_cb, eventcb,
-	    (void*)"server");
 
 	evbuffer_add_printf(bufferevent_get_output(bev1), "1\n");
 
@@ -406,6 +436,10 @@ struct testcase_t ssl_testcases[] = {
 	{ "bufferevent_renegotiate_filter", regress_bufferevent_openssl,
 	  TT_ISOLATED,
 	  &basic_setup, (void*)"filter renegotiate" },
+	{ "bufferevent_socketpair_startopen", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup, (void*)"socketpair open" },
+	{ "bufferevent_filter_startopen", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup, (void*)"filter open" },
 
 	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
