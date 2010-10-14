@@ -247,7 +247,7 @@ test_iocp_evbuffer(void *ptr)
 	event_overlapped_init(&rol, read_complete);
 	event_overlapped_init(&wol, write_complete);
 
-	for (i = 0; i < sizeof(junk); ++i)
+	for (i = 0; i < (int)sizeof(junk); ++i)
 		junk[i] = (char)(i);
 
 	rbuf = evbuffer_overlapped_new(data->pair[0]);

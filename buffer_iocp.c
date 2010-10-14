@@ -110,7 +110,7 @@ evbuffer_commit_read(struct evbuffer *evbuf, ev_ssize_t nBytes)
 	if (!((*chainp)->flags & EVBUFFER_MEM_PINNED_R))
 		chainp = &(*chainp)->next;
 	remaining = nBytes;
-	for (i = 0; remaining > 0 && i < buf->n_buffers; ++i) {
+	for (i = 0; remaining > 0 && i < (unsigned)buf->n_buffers; ++i) {
 		EVUTIL_ASSERT(*chainp);
 		len = buf->buffers[i].len;
 		if (remaining < len)

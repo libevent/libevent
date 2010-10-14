@@ -195,7 +195,7 @@ bev_async_consider_writing(struct bufferevent_async *beva)
 
 	/* XXXX This over-commits. */
 	limit = _bufferevent_get_write_max(&beva->bev);
-	if (at_most >= limit)
+	if (at_most >= (size_t)limit && limit >= 0)
 		at_most = limit;
 
 	if (beva->bev.write_suspended) {
@@ -249,7 +249,7 @@ bev_async_consider_reading(struct bufferevent_async *beva)
 
 	/* XXXX This over-commits. */
 	limit = _bufferevent_get_read_max(&beva->bev);
-	if (at_most >= limit)
+	if (at_most >= (size_t)limit && limit >= 0)
 		at_most = limit;
 
 	if (beva->bev.read_suspended) {
