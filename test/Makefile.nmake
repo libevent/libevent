@@ -1,5 +1,5 @@
 
-CFLAGS=/I.. /I../WIN32-Code /I../include /I../compat /DWIN32 /DHAVE_CONFIG_H
+CFLAGS=/I.. /I../WIN32-Code /I../include /I../compat /DWIN32 /DHAVE_CONFIG_H /DTINYTEST_LOCAL
 
 CFLAGS=$(CFLAGS) /Ox /W3 /wd4996 /nologo
 

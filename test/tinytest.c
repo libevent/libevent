@@ -28,6 +28,10 @@
 #include <string.h>
 #include <assert.h>
 
+#ifdef TINYTEST_LOCAL
+#include "tinytest_local.h"
+#endif
+
 #ifdef WIN32
 #include <windows.h>
 #else
@@ -40,9 +44,6 @@
 #define __attribute__(x)
 #endif
 
-#ifdef TINYTEST_LOCAL
-#include "tinytest_local.h"
-#endif
 #include "tinytest.h"
 #include "tinytest_macros.h"
 
