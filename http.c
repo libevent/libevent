@@ -3337,19 +3337,18 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 struct evhttp_uri *
 evhttp_uri_parse(const char *source_uri)
 {
-	char *readbuf = 0, *readp = 0, *token = 0, *query = 0, *host = 0, *port = 0;
+	char *readbuf = NULL, *readp = NULL, *token = NULL, *query = NULL, *host = NULL, *port = NULL;
 
 	struct evhttp_uri *uri = mm_calloc(1, sizeof(struct evhttp_uri));
 	if (uri == NULL) {
 		event_err(1, "%s: calloc", __func__);
-		return NULL;
+		goto err;
 	}
 
 	readbuf = mm_strdup(source_uri);
 	if (readbuf == NULL) {
 		event_err(1, "%s: strdup", __func__);
-		mm_free(uri);
-		return NULL;
+		goto err;
 	}
 
 	readp = readbuf;
@@ -3359,9 +3358,7 @@ evhttp_uri_parse(const char *source_uri)
 	token = strstr(readp, "://");
 	if (!token) {
 		/* unsupported uri */
-		mm_free(readbuf);
-		mm_free(uri);
-		return NULL;
+		goto err;
 	}
 
 	*token = '\0';
@@ -3412,13 +3409,17 @@ evhttp_uri_parse(const char *source_uri)
 	mm_free(readbuf);
 
 	return uri;
+err:
+	if (uri)
+		evhttp_uri_free(uri);
+	if (readbuf)
+		mm_free(readbuf);
+	return NULL;
 }
 
-void evhttp_uri_free(struct evhttp_uri *uri)
+void
+evhttp_uri_free(struct evhttp_uri *uri)
 {
-	if (uri == NULL)
-		return;
-
 #define _URI_FREE_STR(f)		\
 	if (uri->f) {			\
 		mm_free(uri->f);		\
