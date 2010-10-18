@@ -178,7 +178,7 @@ static void evhttp_read_cb(struct bufferevent *, void *);
 static void evhttp_write_cb(struct bufferevent *, void *);
 static void evhttp_error_cb(struct bufferevent *bufev, short what, void *arg);
 static int evhttp_decode_uri_internal(const char *uri, size_t length,
-    char *ret, int always_decode_plus);
+    char *ret, int decode_plus);
 
 #ifndef _EVENT_HAVE_STRSEP
 /* strsep replacement for platforms that lack it.  Only works if
@@ -2295,12 +2295,13 @@ evhttp_send_page(struct evhttp_request *req, struct evbuffer *databuf)
 }
 
 static const char uri_chars[256] = {
+	/* 0 */
 	0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
-	0, 1, 0, 0, 1, 0, 0, 1,   1, 1, 1, 1, 1, 1, 1, 1,
-	1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 0, 0, 1, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 1, 1, 0,
+	1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 0, 0, 0, 0, 0, 0,
 	/* 64 */
-	1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1,
+	0, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1,
 	1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 0, 0, 0, 0, 1,
 	0, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 1, 1, 1, 1, 1,
 	1, 1, 1, 1, 1, 1, 1, 1,   1, 1, 1, 0, 0, 0, 1, 0,
@@ -2317,49 +2318,70 @@ static const char uri_chars[256] = {
 };
 
 /*
- * Helper functions to encode/decode a URI.
+ * Helper functions to encode/decode a string for inclusion in a URI.
  * The returned string must be freed by the caller.
  */
 char *
-evhttp_encode_uri(const char *uri)
+evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 {
 	struct evbuffer *buf = evbuffer_new();
-	char *p;
+	const char *p, *end;
+	char *result;
 
 	if (buf == NULL)
 		return (NULL);
 
-	for (p = (char *)uri; *p != '\0'; p++) {
+	if (len >= 0)
+		end = uri+len;
+	else
+		end = uri+strlen(uri);
+
+	for (p = uri; p < end; p++) {
 		if (uri_chars[(unsigned char)(*p)]) {
 			evbuffer_add(buf, p, 1);
+		} else if (*p == ' ' && space_as_plus) {
+			evbuffer_add(buf, "+", 1);
 		} else {
 			evbuffer_add_printf(buf, "%%%02X", (unsigned char)(*p));
 		}
 	}
-	evbuffer_add(buf, "", 1);
-	p = mm_strdup((char*)evbuffer_pullup(buf, -1));
+	evbuffer_add(buf, "", 1); /* NUL-terminator. */
+	result = mm_malloc(evbuffer_get_length(buf));
+	if (!result)
+		return NULL;
+	evbuffer_remove(buf, result, evbuffer_get_length(buf));
 	evbuffer_free(buf);
 
-	return (p);
+	return (result);
+}
+
+char *
+evhttp_encode_uri(const char *str)
+{
+	return evhttp_uriencode(str, -1, 0);
 }
 
 /*
- * @param always_decode_plus: when true we transform plus to space even
- *     if we have not seen a ?.
+ * @param decode_plus_ctl: if 1, we decode plus into space.  If 0, we don't.
+ *     If -1, when true we transform plus to space only after we've seen
+ *     a ?.  -1 is deprecated.
+ * @return the number of bytes written to 'ret'.
  */
 static int
 evhttp_decode_uri_internal(
-	const char *uri, size_t length, char *ret, int always_decode_plus)
+	const char *uri, size_t length, char *ret, int decode_plus_ctl)
 {
 	char c;
-	int j, in_query = always_decode_plus;
+	int j;
+	int decode_plus = (decode_plus_ctl == 1) ? 1: 0;
 	unsigned i;
 
 	for (i = j = 0; i < length; i++) {
 		c = uri[i];
 		if (c == '?') {
-			in_query = 1;
-		} else if (c == '+' && in_query) {
+			if (decode_plus_ctl < 0)
+				decode_plus = 1;
+		} else if (c == '+' && decode_plus) {
 			c = ' ';
 		} else if (c == '%' && EVUTIL_ISXDIGIT(uri[i+1]) &&
 		    EVUTIL_ISXDIGIT(uri[i+2])) {
@@ -2377,6 +2399,7 @@ evhttp_decode_uri_internal(
 	return (j);
 }
 
+/* deprecated */
 char *
 evhttp_decode_uri(const char *uri)
 {
@@ -2389,7 +2412,30 @@ evhttp_decode_uri(const char *uri)
 	}
 
 	evhttp_decode_uri_internal(uri, strlen(uri),
-	    ret, 0 /*always_decode_plus*/);
+	    ret, -1 /*always_decode_plus*/);
+
+	return (ret);
+}
+
+char *
+evhttp_uridecode(const char *uri, int decode_plus, size_t *size_out)
+{
+	char *ret;
+	int n;
+
+	if ((ret = mm_malloc(strlen(uri) + 1)) == NULL) {
+		event_warn("%s: malloc(%lu)", __func__,
+			  (unsigned long)(strlen(uri) + 1));
+		return (NULL);
+	}
+
+	n = evhttp_decode_uri_internal(uri, strlen(uri),
+	    ret, !!decode_plus/*always_decode_plus*/);
+
+	if (size_out) {
+		EVUTIL_ASSERT(n >= 0);
+		*size_out = (size_t)n;
+	}
 
 	return (ret);
 }
@@ -2399,25 +2445,24 @@ evhttp_decode_uri(const char *uri)
  * The arguments are separated by key and value.
  */
 
-void
-evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
+int
+evhttp_parse_query__checked_20(const char *uri, struct evkeyvalq *headers)
 {
 	char *line;
 	char *argument;
 	char *p;
+	int result = -1;
 
 	TAILQ_INIT(headers);
 
 	/* No arguments - we are done */
 	if (strchr(uri, '?') == NULL)
-		return;
+		return 0;
 
 	if ((line = mm_strdup(uri)) == NULL) {
-		/* TODO(niels): does this function need to return -1 */
 		event_warn("%s: strdup", __func__);
-		return;
+		return -1;
 	}
-
 
 	argument = line;
 
@@ -2431,13 +2476,13 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 
 		value = argument;
 		key = strsep(&value, "=");
-		if (value == NULL || *key == '\0')
+		if (value == NULL || *key == '\0') {
 			goto error;
+		}
 
 		if ((decoded_value = mm_malloc(strlen(value) + 1)) == NULL) {
-			/* TODO(niels): do we need to return -1 here? */
 			event_warn("%s: mm_malloc", __func__);
-			break;
+			goto error;
 		}
 		evhttp_decode_uri_internal(value, strlen(value),
 		    decoded_value, 1 /*always_decode_plus*/);
@@ -2446,9 +2491,28 @@ evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 		mm_free(decoded_value);
 	}
 
- error:
+	result = 0;
+	goto done;
+error:
+	evhttp_clear_headers(headers);
+done:
 	mm_free(line);
+	return result;
 }
+
+#undef evhttp_parse_query
+void evhttp_parse_query(const char *uri, struct evkeyvalq *headers);
+/* We define this here so as to avoid changing the ABI for evhttp_parse_query
+ * in 2.0.8.  The next time we break ABI compatibility, we can go back to
+ * having the function above be called evhttp_parse_query
+ */
+void
+evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
+{
+	evhttp_parse_query__checked_20(uri, headers);
+}
+
+
 
 static struct evhttp_cb *
 evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
@@ -2466,7 +2530,7 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 	if ((translated = mm_malloc(offset + 1)) == NULL)
 		return (NULL);
 	offset = evhttp_decode_uri_internal(req->uri, offset,
-	    translated, 0 /* always_decode_plus */);
+	    translated, 0 /* decode_plus */);
 
 	TAILQ_FOREACH(cb, callbacks, next) {
 		int res = 0;
@@ -2994,10 +3058,15 @@ evhttp_request_set_chunked_cb(struct evhttp_request *req,
  */
 
 const char *
-evhttp_request_get_uri(struct evhttp_request *req) {
+evhttp_request_get_uri(const struct evhttp_request *req) {
 	if (req->uri == NULL)
 		event_debug(("%s: request %p has no uri\n", __func__, req));
 	return (req->uri);
+}
+
+enum evhttp_cmd_type
+evhttp_request_get_command(const struct evhttp_request *req) {
+	return (req->type);
 }
 
 /** Returns the input headers */

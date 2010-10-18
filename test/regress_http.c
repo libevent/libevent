@@ -1639,29 +1639,172 @@ static void
 http_parse_query_test(void *ptr)
 {
 	struct evkeyvalq headers;
+	int r;
 
 	TAILQ_INIT(&headers);
 
-	evhttp_parse_query("http://www.test.com/?q=test", &headers);
+	r = evhttp_parse_query("http://www.test.com/?q=test", &headers);
 	tt_want(validate_header(&headers, "q", "test") == 0);
+	tt_int_op(r, ==, 0);
 	evhttp_clear_headers(&headers);
 
-	evhttp_parse_query("http://www.test.com/?q=test&foo=bar", &headers);
+	r = evhttp_parse_query("http://www.test.com/?q=test&foo=bar", &headers);
 	tt_want(validate_header(&headers, "q", "test") == 0);
 	tt_want(validate_header(&headers, "foo", "bar") == 0);
+	tt_int_op(r, ==, 0);
 	evhttp_clear_headers(&headers);
 
-	evhttp_parse_query("http://www.test.com/?q=test+foo", &headers);
+	r = evhttp_parse_query("http://www.test.com/?q=test+foo", &headers);
 	tt_want(validate_header(&headers, "q", "test foo") == 0);
+	tt_int_op(r, ==, 0);
 	evhttp_clear_headers(&headers);
 
-	evhttp_parse_query("http://www.test.com/?q=test%0Afoo", &headers);
+	r = evhttp_parse_query("http://www.test.com/?q=test%0Afoo", &headers);
 	tt_want(validate_header(&headers, "q", "test\nfoo") == 0);
+	tt_int_op(r, ==, 0);
 	evhttp_clear_headers(&headers);
 
-	evhttp_parse_query("http://www.test.com/?q=test%0Dfoo", &headers);
+	r = evhttp_parse_query("http://www.test.com/?q=test%0Dfoo", &headers);
 	tt_want(validate_header(&headers, "q", "test\rfoo") == 0);
+	tt_int_op(r, ==, 0);
 	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=test&&q2", &headers);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=test+this", &headers);
+	tt_want(validate_header(&headers, "q", "test this") == 0);
+	tt_int_op(r, ==, 0);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=test&q2=foo", &headers);
+	tt_int_op(r, ==, 0);
+	tt_want(validate_header(&headers, "q", "test") == 0);
+	tt_want(validate_header(&headers, "q2", "foo") == 0);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q&q2=foo", &headers);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=foo&q2", &headers);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=foo&q2&q3=x", &headers);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query("http://www.test.com/?q=&q2=&q3=", &headers);
+	tt_int_op(r, ==, 0);
+	tt_want(validate_header(&headers, "q", "") == 0);
+	tt_want(validate_header(&headers, "q2", "") == 0);
+	tt_want(validate_header(&headers, "q3", "") == 0);
+	evhttp_clear_headers(&headers);
+
+end:
+	evhttp_clear_headers(&headers);
+}
+
+static void
+http_uriencode_test(void *ptr)
+{
+	char *s=NULL, *s2=NULL;
+	size_t sz;
+
+#define ENC(from,want,plus) do {				\
+		s = evhttp_uriencode((from), -1, (plus));	\
+		tt_assert(s);					\
+		tt_str_op(s,==,(want));				\
+		sz = -1;					\
+		s2 = evhttp_uridecode((s), (plus), &sz);	\
+		tt_assert(s2);					\
+		tt_str_op(s2,==,(from));			\
+		tt_int_op(sz,==,strlen(from));			\
+		free(s);					\
+		free(s2);					\
+		s = s2 = NULL;					\
+	} while (0)
+
+#define DEC(from,want,dp) do {					\
+		s = evhttp_uridecode((from),(dp),&sz);		\
+		tt_assert(s);					\
+		tt_str_op(s,==,(want));				\
+		tt_int_op(sz,==,strlen(want));			\
+		free(s);					\
+		s = NULL;					\
+	} while (0)
+
+#define OLD_DEC(from,want)  do {				\
+		s = evhttp_decode_uri((from));			\
+		tt_assert(s);					\
+		tt_str_op(s,==,(want));				\
+		free(s);					\
+		s = NULL;					\
+	} while (0)
+
+
+      	ENC("Hello", "Hello",0);
+	ENC("99", "99",0);
+	ENC("", "",0);
+	ENC(
+	 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789-.~_",
+	 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789-.~_",0);
+	ENC(" ", "%20",0);
+	ENC(" ", "+",1);
+	ENC("\xff\xf0\xe0", "%FF%F0%E0",0);
+	ENC("\x01\x19", "%01%19",1);
+	ENC("http://www.ietf.org/rfc/rfc3986.txt",
+	    "http%3A%2F%2Fwww.ietf.org%2Frfc%2Frfc3986.txt",1);
+
+	ENC("1+2=3", "1%2B2%3D3",1);
+	ENC("1+2=3", "1%2B2%3D3",0);
+
+	/* Now try encoding with internal NULs. */
+	s = evhttp_uriencode("hello\0world", 11, 0);
+	tt_assert(s);
+	tt_str_op(s,==,"hello%00world");
+	free(s);
+	s = NULL;
+
+	/* Now try out some decoding cases that we don't generate with
+	 * encode_uri: Make sure that malformed stuff doesn't crash... */
+	DEC("%%xhello th+ere \xff",
+	    "%%xhello th+ere \xff", 0);
+	/* Make sure plus decoding works */
+	DEC("plus+should%20work+", "plus should work ",1);
+	/* Try some lowercase hex */
+	DEC("%f0%a0%b0", "\xf0\xa0\xb0",1);
+
+	/* Try an internal NUL. */
+	sz = 0;
+	s = evhttp_uridecode("%00%00x%00%00", 1, &sz);
+	tt_int_op(sz,==,5);
+	tt_assert(!memcmp(s, "\0\0x\0\0", 5));
+	free(s);
+	s = NULL;
+
+	/* Try with size == NULL */
+	sz = 0;
+	s = evhttp_uridecode("%00%00x%00%00", 1, NULL);
+	tt_assert(!memcmp(s, "\0\0x\0\0", 5));
+	free(s);
+	s = NULL;
+
+	/* Test out the crazy old behavior of the deprecated
+	 * evhttp_decode_uri */
+	OLD_DEC("http://example.com/normal+path/?key=val+with+spaces",
+	        "http://example.com/normal+path/?key=val with spaces");
+
+end:
+	if (s)
+		free(s);
+	if (s2)
+		free(s2);
+#undef ENC
+#undef DEC
+#undef OLD_DEC
 }
 
 static void
@@ -2658,6 +2801,7 @@ struct testcase_t http_testcases[] = {
 	{ "base", http_base_test, TT_FORK|TT_NEED_BASE, NULL, NULL },
 	{ "bad_headers", http_bad_header_test, 0, NULL, NULL },
 	{ "parse_query", http_parse_query_test, 0, NULL, NULL },
+	{ "uriencode", http_uriencode_test, 0, NULL, NULL },
 	HTTP_LEGACY(basic),
 	HTTP_LEGACY(cancel),
 	HTTP_LEGACY(virtual_host),
