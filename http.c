@@ -3334,20 +3334,21 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 	return (fd);
 }
 
-struct evhttp_uri *evhttp_uri_parse(const char *source_uri)
+struct evhttp_uri *
+evhttp_uri_parse(const char *source_uri)
 {
 	char *readbuf = 0, *readp = 0, *token = 0, *query = 0, *host = 0, *port = 0;
 
-	struct evhttp_uri *uri = calloc(1, sizeof(*uri));
+	struct evhttp_uri *uri = mm_calloc(1, sizeof(struct evhttp_uri));
 	if (uri == NULL) {
 		event_err(1, "%s: calloc", __func__);
 		return NULL;
 	}
 
-	readbuf = strdup(source_uri);
+	readbuf = mm_strdup(source_uri);
 	if (readbuf == NULL) {
 		event_err(1, "%s: strdup", __func__);
-		free(uri);
+		mm_free(uri);
 		return NULL;
 	}
 
@@ -3358,13 +3359,13 @@ struct evhttp_uri *evhttp_uri_parse(const char *source_uri)
 	token = strstr(readp, "://");
 	if (!token) {
 		/* unsupported uri */
-		free(readbuf);
-		free(uri);
+		mm_free(readbuf);
+		mm_free(uri);
 		return NULL;
 	}
 
 	*token = '\0';
-	uri->scheme = strdup(readp);
+	uri->scheme = mm_strdup(readp);
 
 	readp = token;
 	readp += 3; /* eat :// */
@@ -3375,10 +3376,10 @@ struct evhttp_uri *evhttp_uri_parse(const char *source_uri)
 		char *fragment = strchr(query, '#');
 		if (fragment) {
 			*fragment++ = '\0'; /* eat '#' */
-			uri->fragment = strdup(fragment);
+			uri->fragment = mm_strdup(fragment);
 		}
 
-		uri->query = strdup(query);
+		uri->query = mm_strdup(query);
 		*query = '\0'; /* eat '/' */
 	}
 
@@ -3391,10 +3392,10 @@ struct evhttp_uri *evhttp_uri_parse(const char *source_uri)
 		pass = strchr(readp, ':');
 		if (pass) {
 			*pass++ = '\0'; /* eat ':' */
-			uri->pass = strdup(pass);
+			uri->pass = mm_strdup(pass);
 		}
 
-		uri->user = strdup(readp);
+		uri->user = mm_strdup(readp);
 		readp = host;
 	}
 
@@ -3406,9 +3407,9 @@ struct evhttp_uri *evhttp_uri_parse(const char *source_uri)
 	}
 
 	/* 5. host */
-	uri->host = strdup(readp);
+	uri->host = mm_strdup(readp);
 
-	free(readbuf);
+	mm_free(readbuf);
 
 	return uri;
 }
@@ -3420,7 +3421,7 @@ void evhttp_uri_free(struct evhttp_uri *uri)
 
 #define _URI_FREE_STR(f)		\
 	if (uri->f) {			\
-		free(uri->f);		\
+		mm_free(uri->f);		\
 	}
 
 	_URI_FREE_STR(scheme);
@@ -3430,12 +3431,13 @@ void evhttp_uri_free(struct evhttp_uri *uri)
 	_URI_FREE_STR(query);
 	_URI_FREE_STR(fragment);
 
-	free(uri);
+	mm_free(uri);
 
 #undef _URI_FREE_STR
 }
 
-char *evhttp_uri_join(struct evhttp_uri *uri, void *buf, size_t limit)
+char *
+evhttp_uri_join(struct evhttp_uri *uri, void *buf, size_t limit)
 {
 	struct evbuffer *tmp = 0;
 	unsigned char *joined = 0;
