@@ -3437,10 +3437,9 @@ void evhttp_uri_free(struct evhttp_uri *uri)
 }
 
 char *
-evhttp_uri_join(struct evhttp_uri *uri, void *buf, size_t limit)
+evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit)
 {
 	struct evbuffer *tmp = 0;
-	unsigned char *joined = 0;
 	size_t joined_size = 0;
 
 #define _URI_ADD(f)	evbuffer_add(tmp, uri->f, strlen(uri->f))
@@ -3482,15 +3481,15 @@ evhttp_uri_join(struct evhttp_uri *uri, void *buf, size_t limit)
 
 	evbuffer_add(tmp, "\0", 1); /* NUL */
 
-	joined = evbuffer_pullup(tmp, -1);
 	joined_size = evbuffer_get_length(tmp);
 
-	if (joined_size < limit)
-		memcpy(buf, joined, joined_size);
-	else {
-		memcpy(buf, joined, limit-1);
-		*((char *)buf+ limit - 1) = '\0';
+	if (joined_size > limit) {
+		/* It doesn't fit. */
+		evbuffer_free(tmp);
+		return NULL;
 	}
+       	evbuffer_remove(tmp, buf, joined_size);
+
 	evbuffer_free(tmp);
 
 	return (char *)buf;

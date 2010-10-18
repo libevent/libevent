@@ -637,7 +637,7 @@ void evhttp_uri_free(struct evhttp_uri *uri);
  * @return an joined uri as string or NULL on error
    @see evhttp_uri_parse()
  */
-char *evhttp_uri_join(struct evhttp_uri *uri, void *buf, size_t limit);
+char *evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit);
 
 #ifdef __cplusplus
 }
