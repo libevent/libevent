@@ -25,8 +25,6 @@
  *
  */
 
-#include "event2/event-config.h"
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef WIN32
@@ -44,14 +42,11 @@
 #include <string.h>
 #include <errno.h>
 
-#include <event.h>
-#include <evutil.h>
-#include <evhttp.h>
+#include <event2/event.h>
+#include <event2/buffer.h>
+#include <event2/util.h>
+#include <event2/http.h>
 #include <event2/thread.h>
-
-#ifdef WIN32
-#include "iocp-internal.h"
-#endif
 
 static void http_basic_cb(struct evhttp_request *req, void *arg);
 
@@ -71,8 +66,7 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	evbuffer_free(evb);
 }
 
-/* cheasy way of detecting evbuffer_add_reference */
-#ifdef _EVENT2_EVENT_H_
+#if LIBEVENT_VERSION_NUMBER >= 0x02000200
 static void
 http_ref_cb(struct evhttp_request *req, void *arg)
 {
@@ -90,6 +84,7 @@ http_ref_cb(struct evhttp_request *req, void *arg)
 int
 main(int argc, char **argv)
 {
+	struct event_config *cfg = event_config_new();
 	struct event_base *base;
 	struct evhttp *http;
 	int i;
@@ -104,8 +99,6 @@ main(int argc, char **argv)
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 		return (1);
 #endif
-
-	base = event_base_new();
 
 	for (i = 1; i < argc; ++i) {
 		if (*argv[i] != '-')
@@ -133,13 +126,19 @@ main(int argc, char **argv)
 		case 'i':
 			use_iocp = 1;
 			evthread_use_windows_threads();
-			event_base_start_iocp(base, 0);
+			event_config_set_flag(cfg,EVENT_BASE_FLAG_STARTUP_IOCP);
 			break;
 #endif
 		default:
 			fprintf(stderr, "Illegal argument \"%c\"\n", c);
 			exit(1);
 		}
+	}
+
+	base = event_base_new_with_config(cfg);
+	if (!base) {
+		fprintf(stderr, "creating event_base failed. Exiting.\n");
+		return 1;
 	}
 
 	http = evhttp_new(base);
