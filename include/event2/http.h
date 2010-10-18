@@ -450,7 +450,9 @@ void evhttp_cancel_request(struct evhttp_request *req);
 
 
 /** Returns the request URI */
-const char *evhttp_request_get_uri(struct evhttp_request *req);
+const char *evhttp_request_get_uri(const struct evhttp_request *req);
+/** Returns the request command */
+enum evhttp_cmd_type evhttp_request_get_command(const struct evhttp_request *req);
 /** Returns the input headers */
 struct evkeyvalq *evhttp_request_get_input_headers(struct evhttp_request *req);
 /** Returns the output headers */

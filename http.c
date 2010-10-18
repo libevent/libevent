@@ -3058,10 +3058,15 @@ evhttp_request_set_chunked_cb(struct evhttp_request *req,
  */
 
 const char *
-evhttp_request_get_uri(struct evhttp_request *req) {
+evhttp_request_get_uri(const struct evhttp_request *req) {
 	if (req->uri == NULL)
 		event_debug(("%s: request %p has no uri\n", __func__, req));
 	return (req->uri);
+}
+
+enum evhttp_cmd_type
+evhttp_request_get_command(const struct evhttp_request *req) {
+	return (req->type);
 }
 
 /** Returns the input headers */
