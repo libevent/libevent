@@ -2317,6 +2317,9 @@ static const char uri_chars[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0,   0, 0, 0, 0, 0, 0, 0, 0,
 };
 
+#define CHAR_IS_UNRESERVED(c)			\
+	(uri_chars[(unsigned char)(c)])
+
 /*
  * Helper functions to encode/decode a string for inclusion in a URI.
  * The returned string must be freed by the caller.
@@ -2337,7 +2340,7 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 		end = uri+strlen(uri);
 
 	for (p = uri; p < end; p++) {
-		if (uri_chars[(unsigned char)(*p)]) {
+		if (CHAR_IS_UNRESERVED(*p)) {
 			evbuffer_add(buf, p, 1);
 		} else if (*p == ' ' && space_as_plus) {
 			evbuffer_add(buf, "+", 1);
@@ -3334,16 +3337,208 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 	return (fd);
 }
 
+/* Return true of the string starting at s and ending immediately before eos
+ * is a valid URI scheme according to RFC3986
+ */
+static int
+scheme_ok(const char *s, const char *eos)
+{
+	/* scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." ) */
+	EVUTIL_ASSERT(eos >= s);
+	if (s == eos)
+		return 0;
+	if (!EVUTIL_ISALPHA(*s))
+		return 0;
+	while (++s < eos) {
+		if (! EVUTIL_ISALNUM(*s) &&
+		    *s != '+' && *s != '-' && *s != '.')
+			return 0;
+	}
+	return 1;
+}
+
+#define SUBDELIMS "!$&'()*+,;="
+
+/* Return true iff [s..eos) is a valid userinfo */
+static int
+userinfo_ok(const char *s, const char *eos)
+{
+	while (s < eos) {
+		if (CHAR_IS_UNRESERVED(*s) ||
+		    strchr(SUBDELIMS, *s) ||
+		    *s == ':')
+			++s;
+		else if (*s == '%' && s+2 < eos &&
+		    EVUTIL_ISXDIGIT(s[1]) &&
+		    EVUTIL_ISXDIGIT(s[2]))
+			s += 3;
+		else
+			return 0;
+	}
+	return 1;
+}
+
+static int
+regname_ok(const char *s, const char *eos)
+{
+	while (s && s<eos) {
+		if (CHAR_IS_UNRESERVED(*s) ||
+		    strchr(SUBDELIMS, *s))
+			++s;
+		else if (*s == '%' &&
+		    EVUTIL_ISXDIGIT(s[1]) &&
+		    EVUTIL_ISXDIGIT(s[2]))
+			s += 3;
+		else
+			return 0;
+	}
+	return 1;
+}
+
+static int
+parse_port(const char *s, const char *eos)
+{
+	int portnum = 0;
+	if (s == eos)
+		return 0; /* The RFC allows an empty port. */
+	while (s < eos) {
+		if (! EVUTIL_ISDIGIT(*s))
+			return -1;
+		portnum = (portnum * 10) + (*s - '0');
+		++s;
+	}
+	return portnum;
+}
+
+/* returns 0 for bad, 1 for ipv6, 2 for IPvFuture */
+static int
+bracket_addr_ok(const char *s, const char *eos)
+{
+	if (s + 3 > eos || *s != '[' || *(eos-1) != ']')
+		return 0;
+	if (s[1] == 'v') {
+		/* IPvFuture, or junk.
+		   "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )
+		 */
+		s += 2; /* skip [v */
+		--eos;
+		if (!EVUTIL_ISXDIGIT(*s)) /*require at least one*/
+			return 0;
+		while (s < eos && *s != '.') {
+			if (EVUTIL_ISXDIGIT(*s))
+				++s;
+			else
+				return 0;
+		}
+		if (*s != '.')
+			return 0;
+		++s;
+		while (s < eos) {
+			if (CHAR_IS_UNRESERVED(*s) ||
+			    strchr(SUBDELIMS, *s) ||
+			    *s == ':')
+				++s;
+			else
+				return 0;
+		}
+		return 2;
+	} else {
+		/* IPv6, or junk */
+		char buf[64];
+		int n_chars = eos-s-2;
+		struct in6_addr in6;
+		if (n_chars >= 64) /* way too long */
+			return 0;
+		memcpy(buf, s+1, n_chars);
+		buf[n_chars]='\0';
+		return (evutil_inet_pton(AF_INET6,buf,&in6)==1) ? 1 : 0;
+	}
+}
+
+static int
+parse_authority(struct evhttp_uri *uri, char *s, char *eos)
+{
+	char *cp, *port;
+	EVUTIL_ASSERT(eos);
+	if (eos == s) {
+		uri->host = mm_strdup("");
+		return 0;
+	}
+
+	/* Optionally, we start with "userinfo@" */
+
+	cp = strchr(s, '@');
+	if (cp && cp < eos) {
+		if (! userinfo_ok(s,cp))
+			return -1;
+		*cp++ = '\0';
+		uri->userinfo = mm_strdup(s);
+	} else {
+		cp = s;
+	}
+	/* Optionally, we end with ":port" */
+	for (port=eos-1; port >= cp && EVUTIL_ISDIGIT(*port); --port)
+		;
+	if (port >= cp && *port == ':') {
+		if ((uri->port = parse_port(port+1, eos))<0)
+			return -1;
+		eos = port;
+	}
+	/* Now, cp..eos holds the "host" port, which can be an IPv4Address,
+	 * an IP-Literal, or a reg-name */
+	EVUTIL_ASSERT(eos >= cp);
+	if (*cp == '[' && eos >= cp+2 && *(eos-1) == ']') {
+		/* IPv6address, IP-Literal, or junk. */
+		if (! bracket_addr_ok(cp, eos))
+			return -1;
+	} else {
+		/* Make sure the host part is ok. */
+		if (! regname_ok(cp,eos)) /* Match IPv4Address or reg-name */
+			return -1;
+	}
+	uri->host = mm_malloc(eos-cp+1);
+	memcpy(uri->host, cp, eos-cp);
+	uri->host[eos-cp] = '\0';
+	return 0;
+
+}
+
+/* Return the character after the longest prefix of 'cp' that matches...
+ *   *pchar / "/" if allow_qchars is false, or
+ *   *(pchar / "/" / "?") if allow_chars is true.
+ */
+static char *
+end_of_path(char *cp, int allow_qchars)
+{
+	while (*cp) {
+		if (CHAR_IS_UNRESERVED(*cp) ||
+		    strchr(SUBDELIMS, *cp) ||
+		    *cp == ':' || *cp == '@' || *cp == '/')
+			++cp;
+		else if (*cp == '%' && EVUTIL_ISXDIGIT(cp[1]) &&
+		    EVUTIL_ISXDIGIT(cp[2]))
+			cp += 3;
+		else if (*cp == '?' && allow_qchars)
+			++cp;
+		else
+			return cp;
+	}
+	return cp;
+}
+
 struct evhttp_uri *
 evhttp_uri_parse(const char *source_uri)
 {
-	char *readbuf = NULL, *readp = NULL, *token = NULL, *query = NULL, *host = NULL, *port = NULL;
+	char *readbuf = NULL, *readp = NULL, *token = NULL, *query = NULL;
+	char *path = NULL, *fragment = NULL;
+	int got_authority = 0;
 
 	struct evhttp_uri *uri = mm_calloc(1, sizeof(struct evhttp_uri));
 	if (uri == NULL) {
 		event_err(1, "%s: calloc", __func__);
 		goto err;
 	}
+	uri->port = -1;
 
 	readbuf = mm_strdup(source_uri);
 	if (readbuf == NULL) {
@@ -3354,57 +3549,79 @@ evhttp_uri_parse(const char *source_uri)
 	readp = readbuf;
 	token = NULL;
 
-	/* 1. scheme:// */
-	token = strstr(readp, "://");
-	if (!token) {
-		/* unsupported uri */
+	/* We try to follow RFC3986 here as much as we can, and match
+	   the productions
+
+	      URI = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
+
+              relative-ref  = relative-part [ "?" query ] [ "#" fragment ]
+
+	 */
+
+	/* 1. scheme: */
+	token = strchr(readp, ':');
+	if (token && scheme_ok(readp,token)) {
+		*token = '\0';
+		uri->scheme = mm_strdup(readp);
+
+		readp = token+1; /* eat : */
+	}
+
+	/* 2. Optionally, "//" then an 'authority' part. */
+	if (readp[0]=='/' && readp[1] == '/') {
+		char *authority;
+		readp += 2;
+		authority = readp;
+		path = strchr(readp, '/'); /*XXXX path can be empty; we can
+					    * have a query though */
+		if (!path)
+			path = strchr(readp, '\0');
+		if (parse_authority(uri, authority, path) < 0)
+			goto err;
+		readp = path;
+		got_authority = 1;
+	}
+
+	/* 3. Query: path-abempty, path-absolute, path-rootless, or path-empty
+	 */
+	path = readp;
+	readp = end_of_path(path, 0);
+
+	/* Query */
+	if (*readp == '?') {
+		*readp = '\0';
+		++readp;
+		query = readp;
+		readp = end_of_path(readp, 1);
+	}
+	/* fragment */
+	if (*readp == '#') {
+		*readp = '\0';
+		++readp;
+		fragment = readp;
+		readp = end_of_path(readp, 1);
+	}
+	if (*readp != '\0') {
 		goto err;
 	}
 
-	*token = '\0';
-	uri->scheme = mm_strdup(readp);
+	/* If you didn't get an authority, the path can't begin with "//" */
+	if (!got_authority && path[0]=='/' && path[1]=='/')
+		goto err;
+	/* If you did get an authority, the path must begin with "/" or be
+	 * empty. */
+	if (got_authority && path[0] != '/' && path[0] != '\0')
+		goto err;
 
-	readp = token;
-	readp += 3; /* eat :// */
+	if (path)
+		uri->path = mm_strdup(path);
+	else
+		uri->path = mm_strdup("");
 
-	/* 2. query */
-	query = strchr(readp, '/');
-	if (query) {
-		char *fragment = strchr(query, '#');
-		if (fragment) {
-			*fragment++ = '\0'; /* eat '#' */
-			uri->fragment = mm_strdup(fragment);
-		}
-
+	if (query)
 		uri->query = mm_strdup(query);
-		*query = '\0'; /* eat '/' */
-	}
-
-	/* 3. user:pass@host:port */
-	host = strchr(readp, '@');
-	if (host) {
-		char *pass = 0;
-		/* got user:pass@host:port */
-		*host++ = '\0'; /* eat @ */;
-		pass = strchr(readp, ':');
-		if (pass) {
-			*pass++ = '\0'; /* eat ':' */
-			uri->pass = mm_strdup(pass);
-		}
-
-		uri->user = mm_strdup(readp);
-		readp = host;
-	}
-
-	/* 4. host:port */
-	port = strchr(readp, ':');
-	if (port) {
-		*port++ = '\0'; /* eat ':' */
-		uri->port = atoi(port);
-	}
-
-	/* 5. host */
-	uri->host = mm_strdup(readp);
+	if (fragment)
+		uri->fragment = mm_strdup(fragment);
 
 	mm_free(readbuf);
 
@@ -3426,8 +3643,7 @@ evhttp_uri_free(struct evhttp_uri *uri)
 	}
 
 	_URI_FREE_STR(scheme);
-	_URI_FREE_STR(user);
-	_URI_FREE_STR(pass);
+	_URI_FREE_STR(userinfo);
 	_URI_FREE_STR(host);
 	_URI_FREE_STR(query);
 	_URI_FREE_STR(fragment);
@@ -3442,40 +3658,42 @@ evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit)
 {
 	struct evbuffer *tmp = 0;
 	size_t joined_size = 0;
+	char *output = NULL;
 
 #define _URI_ADD(f)	evbuffer_add(tmp, uri->f, strlen(uri->f))
-	if (!uri || !uri->scheme || !buf || !limit)
+
+	if (!uri || !buf || !limit)
 		return NULL;
 
 	tmp = evbuffer_new();
 	if (!tmp)
 		return NULL;
 
-	_URI_ADD(scheme);
-	evbuffer_add(tmp, "://", 3);
-	if (uri->host && *uri->host) {
-		if (uri->user && *uri->user) {
-			_URI_ADD(user);
-			if (uri->pass && *uri->pass) {
-				evbuffer_add(tmp, ":", 1);
-				_URI_ADD(pass);
-			}
-			evbuffer_add(tmp, "@", 1);
-		}
-
+	if (uri->scheme) {
+		_URI_ADD(scheme);
+		evbuffer_add(tmp, ":", 1);
+	}
+	if (uri->host) {
+		evbuffer_add(tmp, "//", 2);
+		if (uri->userinfo)
+			evbuffer_add_printf(tmp,"%s@", uri->userinfo);
 		_URI_ADD(host);
+		if (uri->port >= 0)
+			evbuffer_add_printf(tmp,":%d", uri->port);
 
-		if (uri->port > 0)
-			evbuffer_add_printf(tmp,":%u", uri->port);
+		if (uri->path && uri->path[0] != '/' && uri->path[0] != '\0')
+			goto err;
 	}
 
-	if (uri->query && *uri->query)
+	if (uri->path)
+		_URI_ADD(path);
+
+	if (uri->query) {
+		evbuffer_add(tmp, "?", 1);
 		_URI_ADD(query);
+	}
 
-	if (uri->fragment && *uri->fragment) {
-		if (!uri->query || !*uri->query)
-			evbuffer_add(tmp, "/", 1);
-
+	if (uri->fragment) {
 		evbuffer_add(tmp, "#", 1);
 		_URI_ADD(fragment);
 	}
@@ -3491,8 +3709,10 @@ evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit)
 	}
        	evbuffer_remove(tmp, buf, joined_size);
 
+	output = buf;
+err:
 	evbuffer_free(tmp);
 
-	return (char *)buf;
+	return output;
 #undef _URI_ADD
 }

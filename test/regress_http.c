@@ -1725,15 +1725,23 @@ http_parse_uri_test(void *ptr)
 	tt_want(evhttp_uri_join(0, url_tmp, sizeof(url_tmp)) == NULL);
 	tt_want(evhttp_uri_join(uri, url_tmp, sizeof(url_tmp)) == NULL);
 
-	tt_want(evhttp_uri_parse("mailto:foo@bar") == NULL);
+	uri = evhttp_uri_parse("mailto:foo@bar");
+	tt_want(uri != NULL);
+	tt_want(uri->host == NULL);
+	tt_want(uri->userinfo == NULL);
+	tt_want(uri->port == -1);
+	tt_want(!strcmp(uri->scheme, "mailto"));
+	tt_want(!strcmp(uri->path, "foo@bar"));
+	tt_want(uri->query == NULL);
+	tt_want(uri->fragment == NULL);
 
 	uri = evhttp_uri_parse("http://www.test.com/?q=test");
 	tt_want(strcmp(uri->scheme, "http") == 0);
 	tt_want(strcmp(uri->host, "www.test.com") == 0);
-	tt_want(strcmp(uri->query, "/?q=test") == 0);
-	tt_want(uri->user == NULL);
-	tt_want(uri->pass == NULL);
-	tt_want(uri->port == 0);
+	tt_want(strcmp(uri->path, "/") == 0);
+	tt_want(strcmp(uri->query, "q=test") == 0);
+	tt_want(uri->userinfo == NULL);
+	tt_want(uri->port == -1);
 	tt_want(uri->fragment == NULL);
 	TT_URI("http://www.test.com/?q=test");
 	evhttp_uri_free(uri);
@@ -1741,45 +1749,140 @@ http_parse_uri_test(void *ptr)
 	uri = evhttp_uri_parse("ftp://www.test.com/?q=test");
 	tt_want(strcmp(uri->scheme, "ftp") == 0);
 	tt_want(strcmp(uri->host, "www.test.com") == 0);
-	tt_want(strcmp(uri->query, "/?q=test") == 0);
-	tt_want(uri->user == NULL);
-	tt_want(uri->pass == NULL);
-	tt_want(uri->port == 0);
+	tt_want(strcmp(uri->path, "/") == 0);
+	tt_want(strcmp(uri->query, "q=test") == 0);
+	tt_want(uri->userinfo == NULL);
+	tt_want(uri->port == -1);
 	tt_want(uri->fragment == NULL);
 	TT_URI("ftp://www.test.com/?q=test");
 	evhttp_uri_free(uri);
 
+	uri = evhttp_uri_parse("ftp://[::1]:999/?q=test");
+	tt_want(strcmp(uri->scheme, "ftp") == 0);
+	tt_want(strcmp(uri->host, "[::1]") == 0);
+	tt_want(strcmp(uri->path, "/") == 0);
+	tt_want(strcmp(uri->query, "q=test") == 0);
+	tt_want(uri->userinfo == NULL);
+	tt_want(uri->port == 999);
+	tt_want(uri->fragment == NULL);
+	TT_URI("ftp://[::1]:999/?q=test");
+	evhttp_uri_free(uri);
+
+	uri = evhttp_uri_parse("ftp://[ff00::127.0.0.1]/?q=test");
+	tt_want(strcmp(uri->scheme, "ftp") == 0);
+	tt_want(strcmp(uri->host, "[ff00::127.0.0.1]") == 0);
+	tt_want(strcmp(uri->path, "/") == 0);
+	tt_want(strcmp(uri->query, "q=test") == 0);
+	tt_want(uri->userinfo == NULL);
+	tt_want(uri->port == -1);
+	tt_want(uri->fragment == NULL);
+	TT_URI("ftp://[ff00::127.0.0.1]/?q=test");
+	evhttp_uri_free(uri);
+
+	uri = evhttp_uri_parse("ftp://[v99.not_anytime_soon]/?q=test");
+	tt_want(strcmp(uri->scheme, "ftp") == 0);
+	tt_want(strcmp(uri->host, "[v99.not_anytime_soon]") == 0);
+	tt_want(strcmp(uri->path, "/") == 0);
+	tt_want(strcmp(uri->query, "q=test") == 0);
+	tt_want(uri->userinfo == NULL);
+	tt_want(uri->port == -1);
+	tt_want(uri->fragment == NULL);
+	TT_URI("ftp://[v99.not_anytime_soon]/?q=test");
+	evhttp_uri_free(uri);
+
 	uri = evhttp_uri_parse("scheme://user:pass@foo.com:42/?q=test&s=some+thing#fragment");
 	tt_want(strcmp(uri->scheme, "scheme") == 0);
-	tt_want(strcmp(uri->user, "user") == 0);
-	tt_want(strcmp(uri->pass, "pass") == 0);
+	tt_want(strcmp(uri->userinfo, "user:pass") == 0);
 	tt_want(strcmp(uri->host, "foo.com") == 0);
 	tt_want(uri->port == 42);
-	tt_want(strcmp(uri->query, "/?q=test&s=some+thing") == 0);
+	tt_want(strcmp(uri->path, "/") == 0);
+	tt_want(strcmp(uri->query, "q=test&s=some+thing") == 0);
 	tt_want(strcmp(uri->fragment, "fragment") == 0);
 	TT_URI("scheme://user:pass@foo.com:42/?q=test&s=some+thing#fragment");
 	evhttp_uri_free(uri);
 
 	uri = evhttp_uri_parse("scheme://user@foo.com/#fragment");
 	tt_want(strcmp(uri->scheme, "scheme") == 0);
-	tt_want(strcmp(uri->user, "user") == 0);
-	tt_want(uri->pass == NULL);
+	tt_want(strcmp(uri->userinfo, "user") == 0);
 	tt_want(strcmp(uri->host, "foo.com") == 0);
-	tt_want(uri->port == 0);
-	tt_want(strcmp(uri->query, "/") == 0);
+	tt_want(uri->port == -1);
+	tt_want(strcmp(uri->path, "/") == 0);
+	tt_want(uri->query == NULL);
 	tt_want(strcmp(uri->fragment, "fragment") == 0);
 	TT_URI("scheme://user@foo.com/#fragment");
 	evhttp_uri_free(uri);
+
 	uri = evhttp_uri_parse("file:///some/path/to/the/file");
 	tt_want(strcmp(uri->scheme, "file") == 0);
-	tt_want(uri->user == NULL);
-	tt_want(uri->pass == NULL);
+	tt_want(uri->userinfo == NULL);
 	tt_want(strcmp(uri->host, "") == 0);
-	tt_want(uri->port == 0);
-	tt_want(strcmp(uri->query, "/some/path/to/the/file") == 0);
+	tt_want(uri->port == -1);
+	tt_want(strcmp(uri->path, "/some/path/to/the/file") == 0);
+	tt_want(uri->query == NULL);
 	tt_want(uri->fragment == NULL);
 	TT_URI("file:///some/path/to/the/file");
 	evhttp_uri_free(uri);
+
+	uri = evhttp_uri_parse("///some/path/to/the-file");
+	tt_want(uri != NULL);
+	tt_want(uri->scheme == NULL);
+	tt_want(uri->userinfo == NULL);
+	tt_want(strcmp(uri->host, "") == 0);
+	tt_want(uri->port == -1);
+	tt_want(strcmp(uri->path, "/some/path/to/the-file") == 0);
+	tt_want(uri->query == NULL);
+	tt_want(uri->fragment == NULL);
+	TT_URI("///some/path/to/the-file");
+	evhttp_uri_free(uri);
+
+	uri = evhttp_uri_parse("/s:ome/path/to/the-file?q=99#fred");
+	tt_want(uri != NULL);
+	tt_want(uri->scheme == NULL);
+	tt_want(uri->userinfo == NULL);
+	tt_want(uri->host == NULL);
+	tt_want(uri->port == -1);
+	tt_want(strcmp(uri->path, "/s:ome/path/to/the-file") == 0);
+	tt_want(strcmp(uri->query, "q=99") == 0);
+	tt_want(strcmp(uri->fragment, "fred") == 0);
+	TT_URI("/s:ome/path/to/the-file?q=99#fred");
+	evhttp_uri_free(uri);
+
+	uri = evhttp_uri_parse("relative/path/with/co:lon");
+	tt_want(uri != NULL);
+	tt_want(uri->scheme == NULL);
+	tt_want(uri->userinfo == NULL);
+	tt_want(uri->host == NULL);
+	tt_want(uri->port == -1);
+	tt_want(strcmp(uri->path, "relative/path/with/co:lon") == 0);
+	tt_want(uri->query == NULL);
+	tt_want(uri->fragment == NULL);
+	TT_URI("relative/path/with/co:lon");
+	evhttp_uri_free(uri);
+
+	uri = evhttp_uri_parse("bob?q=99&q2=q?33#fr?ed");
+	tt_want(uri != NULL);
+	tt_want(uri->scheme == NULL);
+	tt_want(uri->userinfo == NULL);
+	tt_want(uri->host == NULL);
+	tt_want(uri->port == -1);
+	tt_want(strcmp(uri->path, "bob") == 0);
+	tt_want(strcmp(uri->query, "q=99&q2=q?33") == 0);
+	tt_want(strcmp(uri->fragment, "fr?ed") == 0);
+	TT_URI("bob?q=99&q2=q?33#fr?ed");
+	evhttp_uri_free(uri);
+
+	uri = evhttp_uri_parse("#fr?ed");
+	tt_want(uri != NULL);
+	tt_want(uri->scheme == NULL);
+	tt_want(uri->userinfo == NULL);
+	tt_want(uri->host == NULL);
+	tt_want(uri->port == -1);
+	tt_want(strcmp(uri->path, "") == 0);
+	tt_want(uri->query == NULL);
+	tt_want(strcmp(uri->fragment, "fr?ed") == 0);
+	TT_URI("#fr?ed");
+	evhttp_uri_free(uri);
+
 }
 
 static void

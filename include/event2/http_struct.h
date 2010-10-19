@@ -123,11 +123,11 @@ struct {
  */
 struct evhttp_uri {
 	char *scheme; /* scheme; e.g http, ftp etc */
-	char *host; /* hostname, or NULL */
-	char *user; /* usename, or NULL */
-	char *pass; /* password, or NULL */
+	char *host; /* hostname, IP address, or NULL */
+	char *userinfo; /* userinfo (typically username:pass), or NULL */
 	int port; /* port, or zero */
-	char *query; /* path + query: e.g. /path/to?param=foo, or NULL */
+	char *path; /* path, or NULL */
+	char *query; /* query, or NULL */
 	char *fragment; /* fragment or NULL */
 };
 
