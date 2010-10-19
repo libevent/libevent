@@ -2449,30 +2449,39 @@ evhttp_uridecode(const char *uri, int decode_plus, size_t *size_out)
  */
 
 int
-evhttp_parse_query__checked_20(const char *uri, struct evkeyvalq *headers)
+evhttp_parse_query__checked_20(const char *str, struct evkeyvalq *headers,
+    int is_whole_uri)
 {
-	char *line;
+	char *line=NULL;
 	char *argument;
 	char *p;
+	const char *query_part;
 	int result = -1;
+	struct evhttp_uri *uri=NULL;
 
 	TAILQ_INIT(headers);
 
-	/* No arguments - we are done */
-	if (strchr(uri, '?') == NULL)
-		return 0;
-
-	if ((line = mm_strdup(uri)) == NULL) {
-		event_warn("%s: strdup", __func__);
-		return -1;
+	if (is_whole_uri) {
+		uri = evhttp_uri_parse(str);
+		if (!uri)
+			goto error;
+		query_part = uri->query;
+	} else {
+		query_part = str;
 	}
 
-	argument = line;
+	/* No arguments - we are done */
+	if (!query_part || !strlen(query_part)) {
+		result = 0;
+		goto done;
+	}
 
-	/* We already know that there has to be a ? */
-	strsep(&argument, "?");
+	if ((line = mm_strdup(query_part)) == NULL) {
+		event_warn("%s: strdup", __func__);
+		goto error;
+	}
 
-	p = argument;
+	p = argument = line;
 	while (p != NULL && *p != '\0') {
 		char *key, *value, *decoded_value;
 		argument = strsep(&p, "&");
@@ -2499,7 +2508,10 @@ evhttp_parse_query__checked_20(const char *uri, struct evkeyvalq *headers)
 error:
 	evhttp_clear_headers(headers);
 done:
-	mm_free(line);
+	if (line)
+		mm_free(line);
+	if (uri)
+		evhttp_uri_free(uri);
 	return result;
 }
 
@@ -2512,10 +2524,8 @@ void evhttp_parse_query(const char *uri, struct evkeyvalq *headers);
 void
 evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 {
-	evhttp_parse_query__checked_20(uri, headers);
+	evhttp_parse_query__checked_20(uri, headers, 1);
 }
-
-
 
 static struct evhttp_cb *
 evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)

@@ -573,7 +573,7 @@ char *evhttp_uridecode(const char *uri, int decode_plus,
 /**
    Helper function to parse out arguments in a query.
 
-   Parsing a uri like
+   Parsing a URI like
 
       http://foo.com/?q=test&s=some+thing
 
@@ -582,17 +582,41 @@ char *evhttp_uridecode(const char *uri, int decode_plus,
    The first entry is: key="q", value="test"
    The second entry is: key="s", value="some thing"
 
+   @deprecated This function is deprecated as of Libevent 2.0.9.  Use
+     evhttp_uri_parse and evhttp_parse_query_str instead.
+
    @param uri the request URI
    @param headers the head of the evkeyval queue
    @return 0 on success, -1 on failure
  */
 #define evhttp_parse_query(uri, headers) \
-	evhttp_parse_query__checked_20((uri), (headers))
+	evhttp_parse_query__checked_20((uri), (headers), 1)
+
+/**
+   Helper function to parse out arguments from the query portion of an
+   HTTP URI.
+
+   Parsing a query string like
+
+     q=test&s=some+thing
+
+   will result in two entries in the key value queue.
+
+   The first entry is: key="q", value="test"
+   The second entry is: key="s", value="some thing"
+
+   @param query_parse the query portion of the URI
+   @param headers the head of the evkeyval queue
+   @return 0 on success, -1 on failure
+ */
+#define evhttp_parse_query_str(query, headers)			\
+	evhttp_parse_query__checked_20((uri), (headers), 0)
 
 /* Do not call this function directly; it is a temporary alias introduced
  * to avoid changing the old signature for evhttp_parse_query
  */
-int evhttp_parse_query__checked_20(const char *uri, struct evkeyvalq *headers);
+int evhttp_parse_query__checked_20(const char *uri, struct evkeyvalq *headers,
+    int is_whole_url);
 
 /**
  * Escape HTML character entities in a string.
@@ -637,8 +661,8 @@ struct evhttp_uri {
  * specified, the port is set to -1.
  *
  * Note that no decoding is performed on percent-escaped characters in
- * the string; if you want to parse them, use evhttp_uridecode as
- * appropriate.
+ * the string; if you want to parse them, use evhttp_uridecode or
+ * evhttp_parse_query_str as appropriate.
  *
  * Note also that most URI schemes will have additional constraints that
  * this function does not know about, and cannot check.  For example,
