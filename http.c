@@ -3399,12 +3399,12 @@ static int
 parse_port(const char *s, const char *eos)
 {
 	int portnum = 0;
-	if (s == eos)
-		return 0; /* The RFC allows an empty port. */
 	while (s < eos) {
 		if (! EVUTIL_ISDIGIT(*s))
 			return -1;
 		portnum = (portnum * 10) + (*s - '0');
+		if (portnum < 0)
+			return -1;
 		++s;
 	}
 	return portnum;
@@ -3480,7 +3480,10 @@ parse_authority(struct evhttp_uri *uri, char *s, char *eos)
 	for (port=eos-1; port >= cp && EVUTIL_ISDIGIT(*port); --port)
 		;
 	if (port >= cp && *port == ':') {
-		if ((uri->port = parse_port(port+1, eos))<0)
+		if (port+1 == eos) /* Leave port unspecified; the RFC allows a
+				    * nil port */
+			uri->port = -1;
+		else if ((uri->port = parse_port(port+1, eos))<0)
 			return -1;
 		eos = port;
 	}
@@ -3501,6 +3504,17 @@ parse_authority(struct evhttp_uri *uri, char *s, char *eos)
 	uri->host[eos-cp] = '\0';
 	return 0;
 
+}
+
+static char *
+end_of_authority(char *cp)
+{
+	while (*cp) {
+		if (*cp == '?' || *cp == '#' || *cp == '/')
+			return cp;
+		++cp;
+	}
+	return cp;
 }
 
 /* Return the character after the longest prefix of 'cp' that matches...
@@ -3524,6 +3538,19 @@ end_of_path(char *cp, int allow_qchars)
 			return cp;
 	}
 	return cp;
+}
+
+static int
+path_matches_noscheme(const char *cp)
+{
+	while (*cp) {
+		if (*cp == ':')
+			return 0;
+		else if (*cp == '/')
+			return 1;
+		++cp;
+	}
+	return 1;
 }
 
 struct evhttp_uri *
@@ -3572,10 +3599,7 @@ evhttp_uri_parse(const char *source_uri)
 		char *authority;
 		readp += 2;
 		authority = readp;
-		path = strchr(readp, '/'); /*XXXX path can be empty; we can
-					    * have a query though */
-		if (!path)
-			path = strchr(readp, '\0');
+		path = end_of_authority(readp);
 		if (parse_authority(uri, authority, path) < 0)
 			goto err;
 		readp = path;
@@ -3605,6 +3629,8 @@ evhttp_uri_parse(const char *source_uri)
 		goto err;
 	}
 
+	/* These next two cases may be unreachable; I'm leaving them
+	 * in to be defensive. */
 	/* If you didn't get an authority, the path can't begin with "//" */
 	if (!got_authority && path[0]=='/' && path[1]=='/')
 		goto err;
@@ -3612,11 +3638,15 @@ evhttp_uri_parse(const char *source_uri)
 	 * empty. */
 	if (got_authority && path[0] != '/' && path[0] != '\0')
 		goto err;
+	/* (End of maybe-unreachable cases) */
 
-	if (path)
-		uri->path = mm_strdup(path);
-	else
-		uri->path = mm_strdup("");
+	/* If there was no scheme, the first part of the path (if any) must
+	 * have no colon in it. */
+	if (! uri->scheme && !path_matches_noscheme(path))
+		goto err;
+
+	EVUTIL_ASSERT(path);
+	uri->path = mm_strdup(path);
 
 	if (query)
 		uri->query = mm_strdup(query);
