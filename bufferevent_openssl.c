@@ -732,6 +732,14 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 		if (r <= 0)
 			break;
 	}
+
+	if (!bev_ssl->underlying) {
+		/* Should be redundant, but let's avoid busy-looping */
+		if (bev_ssl->bev.read_suspended ||
+		    !(bev_ssl->bev.bev.enabled & EV_READ)) {
+			event_del(&bev_ssl->bev.bev.ev_read);
+		}
+	}
 }
 
 static void
@@ -767,8 +775,15 @@ consider_writing(struct bufferevent_openssl *bev_ssl)
 			break;
 	}
 
-	if (!bev_ssl->underlying && !evbuffer_get_length(output))
-		event_del(&bev_ssl->bev.bev.ev_write);
+	if (!bev_ssl->underlying) {
+		if (evbuffer_get_length(output) == 0) {
+			event_del(&bev_ssl->bev.bev.ev_write);
+		} else if (bev_ssl->bev.write_suspended ||
+		    !(bev_ssl->bev.bev.enabled & EV_WRITE)) {
+			/* Should be redundant, but let's avoid busy-looping */
+			event_del(&bev_ssl->bev.bev.ev_write);
+		}
+	}
 }
 
 static void
