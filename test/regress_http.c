@@ -58,10 +58,7 @@
 #include "event2/http_compat.h"
 #include "event2/http_struct.h"
 #include "event2/buffer.h"
-#include "event2/buffer_compat.h"
 #include "event2/bufferevent.h"
-#include "event2/bufferevent_compat.h"
-#include "event2/bufferevent_struct.h"
 #include "log-internal.h"
 #include "util-internal.h"
 #include "http-internal.h"
@@ -191,15 +188,43 @@ http_connect(const char *address, u_short port)
 	return (fd);
 }
 
+/* Helper: do a strcmp on the contents of buf and the string s. */
+static int
+evbuffer_datacmp(struct evbuffer *buf, const char *s)
+{
+	size_t b_sz = evbuffer_get_length(buf);
+	size_t s_sz = strlen(s);
+	unsigned char *d;
+	int r;
+
+	if (b_sz < s_sz)
+		return -1;
+
+	d = evbuffer_pullup(buf, s_sz);
+	if ((r = memcmp(d, s, s_sz)))
+		return r;
+
+	if (b_sz > s_sz)
+		return 1;
+	else
+		return 0;
+}
+
+/* Helper: Return true iff buf contains s */
+static int
+evbuffer_contains(struct evbuffer *buf, const char *s)
+{
+	struct evbuffer_ptr ptr;
+	ptr = evbuffer_search(buf, s, strlen(s), NULL);
+	return ptr.pos != -1;
+}
+
 static void
 http_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = BASIC_REQUEST_BODY;
 
-	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bufferevent_get_input(bev))));
-
-	if (evbuffer_find(bufferevent_get_input(bev),
-		(const unsigned char*) what, strlen(what)) != NULL) {
+	if (evbuffer_contains(bufferevent_get_input(bev), what)) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		enum message_read_status done;
 
@@ -230,7 +255,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 static void
 http_writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bufferevent_get_output(bev)) == 0) {
+	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
 		/* enable reading of the reply */
 		bufferevent_enable(bev, EV_READ);
 		test_ok++;
@@ -299,7 +324,7 @@ http_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 	evbuffer_free(evb);
 
 	if (++state->i < (int) (sizeof(CHUNKS)/sizeof(CHUNKS[0]))) {
-		event_once(-1, EV_TIMEOUT,
+		event_base_once(NULL, -1, EV_TIMEOUT,
 		    http_chunked_trickle_cb, state, &when);
 	} else {
 		evhttp_send_reply_end(state->req);
@@ -326,7 +351,7 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 
 	/* but trickle it across several iterations to ensure we're not
 	 * assuming it comes all at once */
-	event_once(-1, EV_TIMEOUT, http_chunked_trickle_cb, state, &when);
+	event_base_once(NULL, -1, EV_TIMEOUT, http_chunked_trickle_cb, state, &when);
 }
 
 static void
@@ -361,7 +386,8 @@ http_basic_test(void)
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd, http_readcb, http_writecb,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, NULL);
 
 	/* first half of the http request */
@@ -372,7 +398,7 @@ http_basic_test(void)
 	bufferevent_write(bev, http_request, strlen(http_request));
 	evutil_timerclear(&tv);
 	tv.tv_usec = 10000;
-	event_once(-1, EV_TIMEOUT, http_complete_write, bev, &tv);
+	event_base_once(NULL, -1, EV_TIMEOUT, http_complete_write, bev, &tv);
 
 	event_dispatch();
 
@@ -385,7 +411,8 @@ http_basic_test(void)
 	fd = http_connect("127.0.0.1", port2);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd, http_readcb, http_writecb,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, NULL);
 
 	http_request =
@@ -426,7 +453,7 @@ http_delay_cb(struct evhttp_request *req, void *arg)
 	tv.tv_sec = 0;
 	tv.tv_usec = 200 * 1000;
 
-	event_once(-1, EV_TIMEOUT, http_delay_reply, req, &tv);
+	event_base_once(NULL, -1, EV_TIMEOUT, http_delay_reply, req, &tv);
 }
 
 static void
@@ -462,28 +489,23 @@ http_badreq_readcb(struct bufferevent *bev, void *arg)
 	const char *what = "Hello, 127.0.0.1";
 	const char *bad_request = "400 Bad Request";
 
-	event_debug(("%s: %s\n", __func__, EVBUFFER_DATA(bev->input)));
-
-	if (evbuffer_find(bev->input,
-		(const unsigned char *) bad_request,
-		strlen(bad_request)) != NULL) {
-		TT_FAIL(("%s: bad request detected", __func__));
+	if (evbuffer_contains(bufferevent_get_input(bev), bad_request)) {
+		TT_FAIL(("%s:bad request detected", __func__));
 		bufferevent_disable(bev, EV_READ);
 		event_loopexit(NULL);
 		return;
 	}
 
-	if (evbuffer_find(bev->input,
-		(const unsigned char*) what, strlen(what)) != NULL) {
+	if (evbuffer_contains(bufferevent_get_input(bev), what)) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		enum message_read_status done;
 
 		req->kind = EVHTTP_RESPONSE;
-		done = evhttp_parse_firstline(req, bev->input);
+		done = evhttp_parse_firstline(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
-		done = evhttp_parse_headers(req, bev->input);
+		done = evhttp_parse_headers(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
@@ -494,10 +516,10 @@ http_badreq_readcb(struct bufferevent *bev, void *arg)
 
 	out:
 		evhttp_request_free(req);
-		evbuffer_drain(bev->input, EVBUFFER_LENGTH(bev->input));
+		evbuffer_drain(bufferevent_get_input(bev), evbuffer_get_length(bufferevent_get_input(bev)));
 	}
 
-	shutdown(bev->ev_read.ev_fd, SHUT_WR);
+	shutdown(bufferevent_getfd(bev), SHUT_WR);
 }
 
 static void
@@ -530,7 +552,8 @@ http_bad_request_test(void)
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd, http_badreq_readcb, http_writecb,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev, http_badreq_readcb, http_writecb,
 	    http_badreq_errorcb, NULL);
 	bufferevent_enable(bev, EV_READ);
 
@@ -540,7 +563,7 @@ http_bad_request_test(void)
 	shutdown(fd, SHUT_WR);
 	timerclear(&tv);
 	tv.tv_usec = 10000;
-	event_once(-1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
+	event_base_once(NULL, -1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
 
 	event_dispatch();
 
@@ -558,7 +581,8 @@ http_bad_request_test(void)
 	fd = http_connect("127.0.0.1", port2);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd, http_badreq_readcb, http_writecb,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev, http_badreq_readcb, http_writecb,
 	    http_badreq_errorcb, NULL);
 	bufferevent_enable(bev, EV_READ);
 
@@ -572,7 +596,7 @@ http_bad_request_test(void)
 
 	timerclear(&tv);
 	tv.tv_usec = 10000;
-	event_once(-1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
+	event_base_once(NULL, -1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
 
 	event_dispatch();
 
@@ -593,7 +617,7 @@ http_large_delay_cb(struct evhttp_request *req, void *arg)
 	evutil_timerclear(&tv);
 	tv.tv_sec = 3;
 
-	event_once(-1, EV_TIMEOUT, http_delay_reply, req, &tv);
+	event_base_once(NULL, -1, EV_TIMEOUT, http_delay_reply, req, &tv);
 	evhttp_connection_fail(delayed_client, EVCON_HTTP_EOF);
 }
 
@@ -638,7 +662,8 @@ http_delete_test(void)
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd, http_readcb, http_writecb,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, NULL);
 
 	http_request =
@@ -911,7 +936,7 @@ http_cancel_test(void)
 	tv.tv_sec = 0;
 	tv.tv_usec = 100 * 1000;
 
-	event_once(-1, EV_TIMEOUT, http_do_cancel, req, &tv);
+	event_base_once(NULL, -1, EV_TIMEOUT, http_do_cancel, req, &tv);
 
 	event_dispatch();
 
@@ -967,12 +992,12 @@ http_request_done(struct evhttp_request *req, void *arg)
 		exit(1);
 	}
 
-	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
+	if (evbuffer_get_length(req->input_buffer) != strlen(what)) {
 		fprintf(stderr, "FAILED\n");
 		exit(1);
 	}
 
-	if (memcmp(EVBUFFER_DATA(req->input_buffer), what, strlen(what)) != 0) {
+	if (evbuffer_datacmp(req->input_buffer, what) != 0) {
 		fprintf(stderr, "FAILED\n");
 		exit(1);
 	}
@@ -1109,7 +1134,7 @@ http_request_empty_done(struct evhttp_request *req, void *arg)
 		exit(1);
 	}
 
-	if (EVBUFFER_LENGTH(req->input_buffer) != 0) {
+	if (evbuffer_get_length(req->input_buffer) != 0) {
 		fprintf(stderr, "FAILED\n");
 		exit(1);
 	}
@@ -1150,13 +1175,13 @@ http_dispatcher_test_done(struct evhttp_request *req, void *arg)
 		exit(1);
 	}
 
-	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
+	if (evbuffer_get_length(req->input_buffer) != strlen(what)) {
 		fprintf(stderr, "FAILED (length %lu vs %lu)\n",
-		    (unsigned long)EVBUFFER_LENGTH(req->input_buffer), (unsigned long)strlen(what));
+		    (unsigned long)evbuffer_get_length(req->input_buffer), (unsigned long)strlen(what));
 		exit(1);
 	}
 
-	if (memcmp(EVBUFFER_DATA(req->input_buffer), what, strlen(what)) != 0) {
+	if (evbuffer_datacmp(req->input_buffer, what) != 0) {
 		fprintf(stderr, "FAILED (data)\n");
 		exit(1);
 	}
@@ -1266,16 +1291,15 @@ http_post_cb(struct evhttp_request *req, void *arg)
 		exit(1);
 	}
 
-	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(POST_DATA)) {
+	if (evbuffer_get_length(req->input_buffer) != strlen(POST_DATA)) {
 		fprintf(stdout, "FAILED (length: %lu vs %lu)\n",
-		    (unsigned long) EVBUFFER_LENGTH(req->input_buffer), (unsigned long) strlen(POST_DATA));
+		    (unsigned long) evbuffer_get_length(req->input_buffer), (unsigned long) strlen(POST_DATA));
 		exit(1);
 	}
 
-	if (memcmp(EVBUFFER_DATA(req->input_buffer), POST_DATA,
-		strlen(POST_DATA))) {
+	if (evbuffer_datacmp(req->input_buffer, POST_DATA) != 0) {
 		fprintf(stdout, "FAILED (data)\n");
-		fprintf(stdout, "Got :%s\n", EVBUFFER_DATA(req->input_buffer));
+		fprintf(stdout, "Got :%s\n", evbuffer_pullup(req->input_buffer,-1));
 		fprintf(stdout, "Want:%s\n", POST_DATA);
 		exit(1);
 	}
@@ -1309,13 +1333,13 @@ http_postrequest_done(struct evhttp_request *req, void *arg)
 		exit(1);
 	}
 
-	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
+	if (evbuffer_get_length(req->input_buffer) != strlen(what)) {
 		fprintf(stderr, "FAILED (length %lu vs %lu)\n",
-		    (unsigned long)EVBUFFER_LENGTH(req->input_buffer), (unsigned long)strlen(what));
+		    (unsigned long)evbuffer_get_length(req->input_buffer), (unsigned long)strlen(what));
 		exit(1);
 	}
 
-	if (memcmp(EVBUFFER_DATA(req->input_buffer), what, strlen(what)) != 0) {
+	if (evbuffer_datacmp(req->input_buffer, what) != 0) {
 		fprintf(stderr, "FAILED (data)\n");
 		exit(1);
 	}
@@ -1383,16 +1407,15 @@ http_put_cb(struct evhttp_request *req, void *arg)
 		exit(1);
 	}
 
-	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(PUT_DATA)) {
+	if (evbuffer_get_length(req->input_buffer) != strlen(PUT_DATA)) {
 		fprintf(stdout, "FAILED (length: %lu vs %lu)\n",
-		    (unsigned long)EVBUFFER_LENGTH(req->input_buffer), (unsigned long)strlen(PUT_DATA));
+		    (unsigned long)evbuffer_get_length(req->input_buffer), (unsigned long)strlen(PUT_DATA));
 		exit(1);
 	}
 
-	if (memcmp(EVBUFFER_DATA(req->input_buffer), PUT_DATA,
-		strlen(PUT_DATA))) {
+	if (evbuffer_datacmp(req->input_buffer, PUT_DATA) != 0) {
 		fprintf(stdout, "FAILED (data)\n");
-		fprintf(stdout, "Got :%s\n", EVBUFFER_DATA(req->input_buffer));
+		fprintf(stdout, "Got :%s\n", evbuffer_pullup(req->input_buffer,-1));
 		fprintf(stdout, "Want:%s\n", PUT_DATA);
 		exit(1);
 	}
@@ -1426,13 +1449,14 @@ http_putrequest_done(struct evhttp_request *req, void *arg)
 		exit(1);
 	}
 
-	if (EVBUFFER_LENGTH(req->input_buffer) != strlen(what)) {
+	if (evbuffer_get_length(req->input_buffer) != strlen(what)) {
 		fprintf(stderr, "FAILED (length %lu vs %lu)\n",
-		    (unsigned long)EVBUFFER_LENGTH(req->input_buffer), (unsigned long)strlen(what));
+		    (unsigned long)evbuffer_get_length(req->input_buffer), (unsigned long)strlen(what));
 		exit(1);
 	}
 
-	if (memcmp(EVBUFFER_DATA(req->input_buffer), what, strlen(what)) != 0) {
+
+	if (evbuffer_datacmp(req->input_buffer, what) != 0) {
 		fprintf(stderr, "FAILED (data)\n");
 		exit(1);
 	}
@@ -1445,8 +1469,7 @@ static void
 http_failure_readcb(struct bufferevent *bev, void *arg)
 {
 	const char *what = "400 Bad Request";
-	if (evbuffer_find(bufferevent_get_input(bev),
-		(const unsigned char*) what, strlen(what)) != NULL) {
+	if (evbuffer_contains(bufferevent_get_input(bev), what)) {
 		test_ok = 2;
 		bufferevent_disable(bev, EV_READ);
 		event_loopexit(NULL);
@@ -1471,7 +1494,8 @@ http_failure_test(void)
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd, http_failure_readcb, http_writecb,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev, http_failure_readcb, http_writecb,
 	    http_errorcb, NULL);
 
 	http_request = "illegal request\r\n";
@@ -1536,7 +1560,7 @@ close_detect_cb(struct evhttp_request *req, void *arg)
 	tv.tv_sec = 3;   /* longer than the http time out */
 
 	/* launch a new request on the persistent connection in 3 seconds */
-	event_once(-1, EV_TIMEOUT, close_detect_launch, evcon, &tv);
+	event_base_once(NULL, -1, EV_TIMEOUT, close_detect_launch, evcon, &tv);
  end:
 	;
 }
@@ -1833,7 +1857,8 @@ http_base_test(void *ptr)
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd, http_readcb, http_writecb,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, NULL);
 	bufferevent_base_set(base, bev);
 
@@ -1874,7 +1899,7 @@ http_incomplete_readcb(struct bufferevent *bev, void *arg)
 static void
 http_incomplete_errorcb(struct bufferevent *bev, short what, void *arg)
 {
-	if (what == (EVBUFFER_READ | EVBUFFER_EOF))
+	if (what == (BEV_EVENT_READING|BEV_EVENT_EOF))
 		test_ok++;
 	else
 		test_ok = -2;
@@ -1889,7 +1914,7 @@ http_incomplete_writecb(struct bufferevent *bev, void *arg)
 		/* terminate the write side to simulate EOF */
 		shutdown(fd, SHUT_WR);
 	}
-	if (EVBUFFER_LENGTH(bufferevent_get_output(bev)) == 0) {
+	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
 		/* enable reading of the reply */
 		bufferevent_enable(bev, EV_READ);
 		test_ok++;
@@ -1913,7 +1938,8 @@ _http_incomplete_test(int use_timeout)
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev,
 	    http_incomplete_readcb, http_incomplete_writecb,
 	    http_incomplete_errorcb, use_timeout ? NULL : &fd);
 
@@ -1977,7 +2003,7 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 
 	test_ok = -1;
 
-	if ((what & EVBUFFER_EOF) != 0) {
+	if ((what & BEV_EVENT_EOF) != 0) {
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		const char *header;
 		enum message_read_status done;
@@ -2061,7 +2087,7 @@ out:
 static void
 http_chunked_writecb(struct bufferevent *bev, void *arg)
 {
-	if (EVBUFFER_LENGTH(bufferevent_get_output(bev)) == 0) {
+	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
 		/* enable reading of the reply */
 		bufferevent_enable(bev, EV_READ);
 		test_ok++;
@@ -2082,7 +2108,7 @@ http_chunked_request_done(struct evhttp_request *req, void *arg)
 		exit(1);
 	}
 
-	if (EVBUFFER_LENGTH(req->input_buffer) != 13 + 18 + 8) {
+	if (evbuffer_get_length(req->input_buffer) != 13 + 18 + 8) {
 		fprintf(stderr, "FAILED\n");
 		exit(1);
 	}
@@ -2117,7 +2143,8 @@ http_chunk_out_test(void)
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev,
 	    http_chunked_readcb, http_chunked_writecb,
 	    http_chunked_errorcb, NULL);
 
@@ -2265,7 +2292,7 @@ _http_stream_in_test(char const *url,
 
 	if (evbuffer_get_length(reply) != expected_len) {
 		TT_DIE(("reply length %lu; expected %lu; FAILED (%s)\n",
-				(unsigned long)EVBUFFER_LENGTH(reply),
+				(unsigned long)evbuffer_get_length(reply),
 				(unsigned long)expected_len,
 				(char*)evbuffer_pullup(reply, -1)));
 	}
@@ -2349,7 +2376,7 @@ http_connection_retry_done(struct evhttp_request *req, void *arg)
 		tt_abort_msg("(content type)\n");
 	}
 
-	tt_uint_op(EVBUFFER_LENGTH(req->input_buffer), ==, 0);
+	tt_uint_op(evbuffer_get_length(req->input_buffer), ==, 0);
 
 	test_ok = 1;
  end:
@@ -2462,7 +2489,7 @@ http_connection_retry_test(void)
 	 */
 	evutil_timerclear(&tv);
 	tv.tv_sec = 1;
-	event_once(-1, EV_TIMEOUT, http_make_web_server, &port, &tv);
+	event_base_once(NULL, -1, EV_TIMEOUT, http_make_web_server, &port, &tv);
 
 	evutil_gettimeofday(&tv_start, NULL);
 	event_dispatch();
@@ -2523,7 +2550,8 @@ http_multi_line_header_test(void)
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd, http_readcb, http_writecb,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, NULL);
 
 	http_start_request =
@@ -2707,7 +2735,7 @@ terminate_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 3000;
-	event_once(-1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
+	event_base_once(NULL, -1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
 }
 
 static void
@@ -2734,7 +2762,7 @@ terminate_chunked_cb(struct evhttp_request *req, void *arg)
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 3000;
-	event_once(-1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
+	event_base_once(NULL, -1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
 }
 
 static void
@@ -2772,7 +2800,8 @@ http_terminate_chunked_test(void)
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_new(fd, terminate_readcb, http_writecb,
+	bev = bufferevent_socket_new(NULL, fd, 0);
+	bufferevent_setcb(bev, terminate_readcb, http_writecb,
 	    http_errorcb, NULL);
 
 	terminate_state.fd = fd;
@@ -2787,7 +2816,7 @@ http_terminate_chunked_test(void)
 	bufferevent_write(bev, http_request, strlen(http_request));
 	evutil_timerclear(&tv);
 	tv.tv_usec = 10000;
-	event_once(-1, EV_TIMEOUT, terminate_chunked_client, &terminate_state,
+	event_base_once(NULL, -1, EV_TIMEOUT, terminate_chunked_client, &terminate_state,
 	    &tv);
 
 	event_dispatch();
