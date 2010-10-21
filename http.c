@@ -2465,7 +2465,7 @@ evhttp_parse_query__checked_20(const char *str, struct evkeyvalq *headers,
 		uri = evhttp_uri_parse(str);
 		if (!uri)
 			goto error;
-		query_part = uri->query;
+		query_part = evhttp_uri_get_query(uri);
 	} else {
 		query_part = str;
 	}
@@ -3347,6 +3347,25 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 	return (fd);
 }
 
+struct evhttp_uri {
+	char *scheme; /* scheme; e.g http, ftp etc */
+	char *userinfo; /* userinfo (typically username:pass), or NULL */
+	char *host; /* hostname, IP address, or NULL */
+	int port; /* port, or zero */
+	char *path; /* path, or "". */
+	char *query; /* query, or NULL */
+	char *fragment; /* fragment or NULL */
+};
+
+struct evhttp_uri *
+evhttp_uri_new(void)
+{
+	struct evhttp_uri *uri = mm_calloc(sizeof(struct evhttp_uri), 1);
+	if (uri)
+		uri->port = -1;
+	return uri;
+}
+
 /* Return true of the string starting at s and ending immediately before eos
  * is a valid URI scheme according to RFC3986
  */
@@ -3689,7 +3708,6 @@ evhttp_uri_free(struct evhttp_uri *uri)
 	_URI_FREE_STR(fragment);
 
 	mm_free(uri);
-
 #undef _URI_FREE_STR
 }
 
@@ -3755,4 +3773,122 @@ err:
 
 	return output;
 #undef _URI_ADD
+}
+
+const char *
+evhttp_uri_get_scheme(const struct evhttp_uri *uri)
+{
+	return uri->scheme;
+}
+const char *
+evhttp_uri_get_userinfo(const struct evhttp_uri *uri)
+{
+	return uri->userinfo;
+}
+const char *
+evhttp_uri_get_host(const struct evhttp_uri *uri)
+{
+	return uri->host;
+}
+int
+evhttp_uri_get_port(const struct evhttp_uri *uri)
+{
+	return uri->port;
+}
+const char *
+evhttp_uri_get_path(const struct evhttp_uri *uri)
+{
+	return uri->path;
+}
+const char *
+evhttp_uri_get_query(const struct evhttp_uri *uri)
+{
+	return uri->query;
+}
+const char *
+evhttp_uri_get_fragment(const struct evhttp_uri *uri)
+{
+	return uri->fragment;
+}
+
+#define _URI_SET_STR(f) do {					\
+	if (uri->f)						\
+		mm_free(uri->f);				\
+	if (f) {						\
+		if ((uri->f = mm_strdup(f)) == NULL) {		\
+			event_warn("%s: strdup()", __func__);	\
+			return -1;				\
+		}						\
+	} else {						\
+		uri->f = NULL;					\
+	}							\
+	} while(0)
+
+int
+evhttp_uri_set_scheme(struct evhttp_uri *uri, const char *scheme)
+{
+	if (scheme && !scheme_ok(scheme, scheme+strlen(scheme)))
+		return -1;
+
+	_URI_SET_STR(scheme);
+	return 0;
+}
+int
+evhttp_uri_set_userinfo(struct evhttp_uri *uri, const char *userinfo)
+{
+	if (userinfo && !userinfo_ok(userinfo, userinfo+strlen(userinfo)))
+		return -1;
+	_URI_SET_STR(userinfo);
+	return 0;
+}
+int
+evhttp_uri_set_host(struct evhttp_uri *uri, const char *host)
+{
+	if (host) {
+		if (host[0] == '[') {
+			if (! bracket_addr_ok(host, host+strlen(host)))
+				return -1;
+		} else {
+			if (! regname_ok(host, host+strlen(host)))
+				return -1;
+		}
+	}
+
+	_URI_SET_STR(host);
+	return 0;
+}
+int
+evhttp_uri_set_port(struct evhttp_uri *uri, int port)
+{
+	if (port < -1)
+		return -1;
+	uri->port = port;
+	return 0;
+}
+#define end_of_cpath(cp,aq) ((const char*)(end_of_path(((char*)(cp)), (aq))))
+
+int
+evhttp_uri_set_path(struct evhttp_uri *uri, const char *path)
+{
+	if (path && end_of_cpath(path, 0) != path+strlen(path))
+		return -1;
+
+	_URI_SET_STR(path);
+	return 0;
+}
+int
+evhttp_uri_set_query(struct evhttp_uri *uri, const char *query)
+{
+	if (query && end_of_cpath(query, 1) != query+strlen(query))
+		return -1;
+	_URI_SET_STR(query);
+	return 0;
+}
+int
+evhttp_uri_set_fragment(struct evhttp_uri *uri, const char *fragment)
+{
+	if (fragment && end_of_cpath(fragment, 1) != fragment+strlen(fragment))
+		return -1;
+	_URI_SET_STR(fragment);
+	return 0;
 }

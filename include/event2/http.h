@@ -632,17 +632,70 @@ int evhttp_parse_query__checked_20(const char *uri, struct evkeyvalq *headers,
 char *evhttp_htmlescape(const char *html);
 
 /**
- * A structure to hold a parsed URI.
+ * A structure to hold a parsed URI or Relative-Ref conforming to RFC3986.
  */
-struct evhttp_uri {
-	char *scheme; /* scheme; e.g http, ftp etc */
-	char *host; /* hostname, IP address, or NULL */
-	char *userinfo; /* userinfo (typically username:pass), or NULL */
-	int port; /* port, or zero */
-	char *path; /* path, or "". */
-	char *query; /* query, or NULL */
-	char *fragment; /* fragment or NULL */
-};
+struct evhttp_uri;
+
+/**
+ * Return a new empty evhttp_uri with no fields set.
+ */
+struct evhttp_uri *evhttp_uri_new(void);
+
+/** Return the scheme of an evhttp_uri, or NULL if there is no scheme has
+ * been set and the evhttp_uri contains a Relative-Ref. */
+const char *evhttp_uri_get_scheme(const struct evhttp_uri *uri);
+/**
+ * Return the userinfo part of an evhttp_uri, or NULL if it has no userinfo
+ * set.
+ */
+const char *evhttp_uri_get_userinfo(const struct evhttp_uri *uri);
+/**
+ * Return the host part of an evhttp_uri, or NULL if it has no host set.
+ * The host may either be a regular hostname (conforming to the RFC 3986
+ * "regname" production), or an IPv4 address, or the empty string, or a
+ * bracketed IPv6 address, or a bracketed 'IP-Future' address.
+ *
+ * Note that having a NULL host means that the URI has no authority
+ * section, but having an empty-string host means that the URI has an
+ * authority section with no host part.  For example,
+ * "mailto:user@example.com" has a host of NULL, but "file:///etc/motd"
+ * has a host of "".
+ */
+const char *evhttp_uri_get_host(const struct evhttp_uri *uri);
+/** Return the port part of an evhttp_uri, or -1 if there is no port set. */
+int evhttp_uri_get_port(const struct evhttp_uri *uri);
+/** Return the path part of an evhttp_uri, or NULL if it has no path set */
+const char *evhttp_uri_get_path(const struct evhttp_uri *uri);
+/** Return the query part of an evhttp_uri (excluding the leading "?"), or
+ * NULL if it has no query set */
+const char *evhttp_uri_get_query(const struct evhttp_uri *uri);
+/** Return the fragment part of an evhttp_uri (excluding the leading "#"),
+ * or NULL if it has no fragment set */
+const char *evhttp_uri_get_fragment(const struct evhttp_uri *uri);
+
+/** Set the scheme of an evhttp_uri, or clear the scheme if scheme==NULL.
+ * Returns 0 on success, -1 if scheme is not well-formed. */
+int evhttp_uri_set_scheme(struct evhttp_uri *uri, const char *scheme);
+/** Set the userinfo of an evhttp_uri, or clear the userinfo if userinfo==NULL.
+ * Returns 0 on success, -1 if userinfo is not well-formed. */
+int evhttp_uri_set_userinfo(struct evhttp_uri *uri, const char *userinfo);
+/** Set the host of an evhttp_uri, or clear the host if host==NULL.
+ * Returns 0 on success, -1 if host is not well-formed. */
+int evhttp_uri_set_host(struct evhttp_uri *uri, const char *host);
+/** Set the port of an evhttp_uri, or clear the port if port==-1.
+ * Returns 0 on success, -1 if port is not well-formed. */
+int evhttp_uri_set_port(struct evhttp_uri *uri, int port);
+/** Set the path of an evhttp_uri, or clear the path if path==NULL.
+ * Returns 0 on success, -1 if path is not well-formed. */
+int evhttp_uri_set_path(struct evhttp_uri *uri, const char *path);
+/** Set the query of an evhttp_uri, or clear the query if query==NULL.
+ * The query should not include a leading "?".
+ * Returns 0 on success, -1 if query is not well-formed. */
+int evhttp_uri_set_query(struct evhttp_uri *uri, const char *query);
+/** Set the fragment of an evhttp_uri, or clear the fragment if fragment==NULL.
+ * The fragment should not include a leading "#".
+ * Returns 0 on success, -1 if fragment is not well-formed. */
+int evhttp_uri_set_fragment(struct evhttp_uri *uri, const char *fragment);
 
 /**
  * Helper function to parse a URI-Reference as specified by RFC3986.
