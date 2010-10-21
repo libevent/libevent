@@ -52,8 +52,16 @@
 
 #include "event2/dns.h"
 
-#include "event.h"
-#include "evhttp.h"
+#include "event2/event.h"
+#include "event2/event_compat.h"
+#include "event2/http.h"
+#include "event2/http_compat.h"
+#include "event2/http_struct.h"
+#include "event2/buffer.h"
+#include "event2/buffer_compat.h"
+#include "event2/bufferevent.h"
+#include "event2/bufferevent_compat.h"
+#include "event2/bufferevent_struct.h"
 #include "log-internal.h"
 #include "util-internal.h"
 #include "http-internal.h"
