@@ -90,10 +90,10 @@
 	TT_STMT_BEGIN					\
 	if (!(b)) {					\
 		_tinytest_set_test_failed();		\
-		TT_GRIPE((msg));			\
+		TT_GRIPE(("%s",msg));			\
 		fail;					\
 	} else {					\
-		TT_BLATHER((msg));			\
+		TT_BLATHER(("%s",msg));			\
 	}						\
 	TT_STMT_END
 
@@ -111,7 +111,7 @@
 #define tt_assert(b) tt_assert_msg((b), "assert("#b")")
 
 #define tt_assert_test_fmt_type(a,b,str_test,type,test,printf_type,printf_fmt, \
-				setup_block,cleanup_block)		\
+    setup_block,cleanup_block,die_on_fail)				\
 	TT_STMT_BEGIN							\
 	type _val1 = (type)(a);						\
 	type _val2 = (type)(b);						\
@@ -135,33 +135,50 @@
 		cleanup_block;						\
 		if (!_tt_status) {					\
 			_tinytest_set_test_failed();			\
-			TT_EXIT_TEST_FUNCTION;				\
+			die_on_fail ;					\
 		}							\
 	}								\
 	TT_STMT_END
 
-#define tt_assert_test_type(a,b,str_test,type,test,fmt)			\
+#define tt_assert_test_type(a,b,str_test,type,test,fmt,die_on_fail)	\
 	tt_assert_test_fmt_type(a,b,str_test,type,test,type,fmt,	\
-				{_print=_value;},{})
+	    {_print=_value;},{},die_on_fail)
 
 /* Helper: assert that a op b, when cast to type.  Format the values with
  * printf format fmt on failure. */
 #define tt_assert_op_type(a,op,b,type,fmt)				\
-	tt_assert_test_type(a,b,#a" "#op" "#b,type,(_val1 op _val2),fmt)
+	tt_assert_test_type(a,b,#a" "#op" "#b,type,(_val1 op _val2),fmt, \
+	    TT_EXIT_TEST_FUNCTION)
 
 #define tt_int_op(a,op,b)			\
-	tt_assert_test_type(a,b,#a" "#op" "#b,long,(_val1 op _val2),"%ld")
+	tt_assert_test_type(a,b,#a" "#op" "#b,long,(_val1 op _val2), \
+	    "%ld",TT_EXIT_TEST_FUNCTION)
 
 #define tt_uint_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,unsigned long,		\
-			    (_val1 op _val2),"%lu")
+	    (_val1 op _val2),"%lu",TT_EXIT_TEST_FUNCTION)
 
 #define tt_ptr_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,void*,			\
-			    (_val1 op _val2),"%p")
+	    (_val1 op _val2),"%p",TT_EXIT_TEST_FUNCTION)
 
 #define tt_str_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,const char *,		\
-			    (strcmp(_val1,_val2) op 0),"<%s>")
+	    (strcmp(_val1,_val2) op 0),"<%s>",TT_EXIT_TEST_FUNCTION)
+
+#define tt_want_int_op(a,op,b)						\
+	tt_assert_test_type(a,b,#a" "#op" "#b,long,(_val1 op _val2),"%ld",(void)0)
+
+#define tt_want_uint_op(a,op,b)						\
+	tt_assert_test_type(a,b,#a" "#op" "#b,unsigned long,		\
+	    (_val1 op _val2),"%lu",(void)0)
+
+#define tt_want_ptr_op(a,op,b)						\
+	tt_assert_test_type(a,b,#a" "#op" "#b,void*,			\
+	    (_val1 op _val2),"%p",(void)0)
+
+#define tt_want_str_op(a,op,b)						\
+	tt_assert_test_type(a,b,#a" "#op" "#b,const char *,		\
+	    (strcmp(_val1,_val2) op 0),"<%s>",(void)0)
 
 #endif
