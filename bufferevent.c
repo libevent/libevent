@@ -364,6 +364,12 @@ bufferevent_get_output(struct bufferevent *bufev)
 	return bufev->output;
 }
 
+struct event_base *
+bufferevent_get_base(struct bufferevent *bufev)
+{
+	return bufev->ev_base;
+}
+
 int
 bufferevent_write(struct bufferevent *bufev, const void *data, size_t size)
 {

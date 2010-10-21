@@ -211,6 +211,10 @@ int bufferevent_socket_get_dns_error(struct bufferevent *bev);
  */
 int bufferevent_base_set(struct event_base *base, struct bufferevent *bufev);
 
+/**
+   Return the event_base used by a bufferevent
+*/
+struct event_base *bufferevent_get_base(struct bufferevent *bev);
 
 /**
   Assign a priority to a bufferevent.
