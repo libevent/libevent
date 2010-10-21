@@ -670,6 +670,8 @@ _http_connection_test(int persistent)
 	evcon = evhttp_connection_new("127.0.0.1", port);
 	tt_assert(evcon);
 
+	tt_assert(evhttp_connection_get_base(evcon) == NULL);
+
 	/*
 	 * At this point, we want to schedule a request to the HTTP
 	 * server using our make request method.

@@ -3045,6 +3045,11 @@ evhttp_request_get_connection(struct evhttp_request *req)
 	return req->evcon;
 }
 
+struct event_base *
+evhttp_connection_get_base(struct evhttp_connection *conn)
+{
+	return conn->base;
+}
 
 void
 evhttp_request_set_chunked_cb(struct evhttp_request *req,

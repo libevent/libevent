@@ -383,6 +383,11 @@ int evhttp_request_is_owned(struct evhttp_request *req);
  */
 struct evhttp_connection *evhttp_request_get_connection(struct evhttp_request *req);
 
+/**
+ * Returns the underlying event_base for this connection
+ */
+struct event_base *evhttp_connection_get_base(struct evhttp_connection *req);
+
 void evhttp_connection_set_max_headers_size(struct evhttp_connection *evcon,
     ev_ssize_t new_max_headers_size);
 
