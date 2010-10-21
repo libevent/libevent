@@ -170,8 +170,8 @@ struct evbuffer_chain {
 
 	/** Set if special handling is required for this chain */
 	unsigned flags;
-#define EVBUFFER_MMAP		0x0001	/**< memory in buffer is mmaped */
-#define EVBUFFER_SENDFILE	0x0002	/**< a chain used for sendfile */
+#define EVBUFFER_FILESEGMENT	0x0001  /**< A chain used for a file segment */
+#define EVBUFFER_SENDFILE	0x0002	/**< a chain used with sendfile */
 #define EVBUFFER_REFERENCE	0x0004	/**< a chain with a mem reference */
 #define EVBUFFER_IMMUTABLE	0x0008	/**< read-only chain */
 	/** a chain that mustn't be reallocated or freed, or have its contents
@@ -192,19 +192,43 @@ struct evbuffer_chain {
 	unsigned char *buffer;
 };
 
-/* this is currently used by both mmap and sendfile */
-/* TODO(niels): something strange needs to happen for Windows here, I am not
- * sure what that is, but it needs to get looked into.
- */
-struct evbuffer_chain_fd {
-	int fd;	/**< the fd associated with this chain */
-};
-
-/** callback for a reference buffer; lets us know what to do with it when
- * we're done with it. */
+/** callback for a reference chain; lets us know what to do with it when
+ * we're done with it. Lives at the end of an evbuffer_chain with the
+ * EVBUFFER_REFERENCE flag set */
 struct evbuffer_chain_reference {
 	evbuffer_ref_cleanup_cb cleanupfn;
 	void *extra;
+};
+
+/** File segment for a file-segment chain.  Lives at the end of an
+ * evbuffer_chain with the EVBUFFER_FILESEGMENT flag set.  */
+struct evbuffer_chain_file_segment {
+	struct evbuffer_file_segment *segment;
+};
+
+/* Declared in event2/buffer.h; defined here. */
+struct evbuffer_file_segment {
+	void *lock; /**< lock prevent concurrent access to refcnt */
+	int refcnt; /**< Reference count for this file segment */
+	unsigned flags; /**< combination of EVBUF_FS_* flags  */
+
+	/** What kind of file segment is this? */
+	enum {EVBUF_FS_MMAP, EVBUF_FS_SENDFILE, EVBUF_FS_IO} type;
+
+	/** The fd that we read the data from. */
+	int fd;
+	/** If we're using mmap, this is the raw mapped memory. */
+	void *mapping;
+	/** If we're using mmap or IO, this is the content of the file
+	 * segment. */
+	char *contents;
+	/** If we're using mmap, this is the offset within 'mapping' where
+	 * this data segment begins.  If we're using sendfile, this is the
+	 * offset within the file where this data begins.  If we're using IO,
+	 * this is 0. */
+	off_t offset;
+	/** The length of this segment. */
+	off_t length;
 };
 
 #define EVBUFFER_CHAIN_SIZE sizeof(struct evbuffer_chain)

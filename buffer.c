@@ -63,6 +63,10 @@
 #ifdef _EVENT_HAVE_SYS_SENDFILE_H
 #include <sys/sendfile.h>
 #endif
+#ifdef _EVENT_HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+
 
 #include <errno.h>
 #include <stdio.h>
@@ -111,14 +115,6 @@
 #define SENDFILE_IS_SOLARIS	1
 #endif
 
-#ifdef USE_SENDFILE
-static int use_sendfile = 1;
-#endif
-#ifdef _EVENT_HAVE_MMAP
-static int use_mmap = 1;
-#endif
-
-
 /* Mask of user-selectable callback flags. */
 #define EVBUFFER_CB_USER_FLAGS	    0xffff
 /* Mask of all internal-use-only flags. */
@@ -143,13 +139,6 @@ static int evbuffer_ptr_memcmp(const struct evbuffer *buf,
     const struct evbuffer_ptr *pos, const char *mem, size_t len);
 static struct evbuffer_chain *evbuffer_expand_singlechain(struct evbuffer *buf,
     size_t datlen);
-
-#ifdef WIN32
-static int evbuffer_readfile(struct evbuffer *buf, evutil_socket_t fd,
-    ev_ssize_t howmuch);
-#else
-#define evbuffer_readfile evbuffer_read
-#endif
 
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
@@ -187,40 +176,24 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 		chain->flags |= EVBUFFER_DANGLING;
 		return;
 	}
-	if (chain->flags & (EVBUFFER_MMAP|EVBUFFER_SENDFILE|
-		EVBUFFER_REFERENCE)) {
-		if (chain->flags & EVBUFFER_REFERENCE) {
-			struct evbuffer_chain_reference *info =
-			    EVBUFFER_CHAIN_EXTRA(
-				    struct evbuffer_chain_reference,
-				    chain);
-			if (info->cleanupfn)
-				(*info->cleanupfn)(chain->buffer,
-				    chain->buffer_len,
-				    info->extra);
-		}
-#ifdef _EVENT_HAVE_MMAP
-		if (chain->flags & EVBUFFER_MMAP) {
-			struct evbuffer_chain_fd *info =
-			    EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_fd,
-				chain);
-			if (munmap(chain->buffer, chain->buffer_len) == -1)
-				event_warn("%s: munmap failed", __func__);
-			if (close(info->fd) == -1)
-				event_warn("%s: close(%d) failed",
-				    __func__, info->fd);
-		}
-#endif
-#ifdef USE_SENDFILE
-		if (chain->flags & EVBUFFER_SENDFILE) {
-			struct evbuffer_chain_fd *info =
-			    EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_fd,
-				chain);
-			if (close(info->fd) == -1)
-				event_warn("%s: close(%d) failed",
-				    __func__, info->fd);
-		}
-#endif
+
+	if (chain->flags & EVBUFFER_REFERENCE) {
+		struct evbuffer_chain_reference *info =
+		    EVBUFFER_CHAIN_EXTRA(
+			    struct evbuffer_chain_reference,
+			    chain);
+		if (info->cleanupfn)
+			(*info->cleanupfn)(chain->buffer,
+			    chain->buffer_len,
+			    info->extra);
+	}
+	if (chain->flags & EVBUFFER_FILESEGMENT) {
+		struct evbuffer_chain_file_segment *info =
+		    EVBUFFER_CHAIN_EXTRA(
+			    struct evbuffer_chain_file_segment,
+			    chain);
+		if (info->segment)
+			evbuffer_file_segment_free(info->segment);
 	}
 
 	mm_free(chain);
@@ -2124,56 +2097,6 @@ done:
 	return result;
 }
 
-#ifdef WIN32
-static int
-evbuffer_readfile(struct evbuffer *buf, evutil_socket_t fd, ev_ssize_t howmuch)
-{
-	int result;
-	int nchains, n;
-	struct evbuffer_iovec v[2];
-
-	EVBUFFER_LOCK(buf);
-
-	if (buf->freeze_end) {
-		result = -1;
-		goto done;
-	}
-
-	if (howmuch < 0)
-		howmuch = 16384;
-
-
-	/* XXX we _will_ waste some space here if there is any space left
-	 * over on buf->last. */
-	nchains = evbuffer_reserve_space(buf, howmuch, v, 2);
-	if (nchains < 1 || nchains > 2) {
-		result = -1;
-		goto done;
-	}
-	n = read((int)fd, v[0].iov_base, (unsigned int)v[0].iov_len);
-	if (n <= 0) {
-		result = n;
-		goto done;
-	}
-	v[0].iov_len = (IOV_LEN_TYPE) n; /* XXXX another problem with big n.*/
-	if (nchains > 1) {
-		n = read((int)fd, v[1].iov_base, (unsigned int)v[1].iov_len);
-		if (n <= 0) {
-			result = (unsigned long) v[0].iov_len;
-			evbuffer_commit_space(buf, v, 1);
-			goto done;
-		}
-		v[1].iov_len = n;
-	}
-	evbuffer_commit_space(buf, v, nchains);
-
-	result = n;
-done:
-	EVBUFFER_UNLOCK(buf);
-	return result;
-}
-#endif
-
 #ifdef USE_IOVEC_IMPL
 static inline int
 evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
@@ -2225,44 +2148,46 @@ evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
 
 #ifdef USE_SENDFILE
 static inline int
-evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
+evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t dest_fd,
     ev_ssize_t howmuch)
 {
 	struct evbuffer_chain *chain = buffer->first;
-	struct evbuffer_chain_fd *info =
-	    EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_fd, chain);
+	struct evbuffer_chain_file_segment *info =
+	    EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_file_segment,
+		chain);
+	const int source_fd = info->segment->fd;
 #if defined(SENDFILE_IS_MACOSX) || defined(SENDFILE_IS_FREEBSD)
 	int res;
-	off_t len = chain->off;
+	ev_off_t len = chain->off;
 #elif defined(SENDFILE_IS_LINUX) || defined(SENDFILE_IS_SOLARIS)
 	ev_ssize_t res;
-	off_t offset = chain->misalign;
+	ev_off_t offset = chain->misalign;
 #endif
 
 	ASSERT_EVBUFFER_LOCKED(buffer);
 
 #if defined(SENDFILE_IS_MACOSX)
-	res = sendfile(info->fd, fd, chain->misalign, &len, NULL, 0);
+	res = sendfile(source_fd, dest_fd, chain->misalign, &len, NULL, 0);
 	if (res == -1 && !EVUTIL_ERR_RW_RETRIABLE(errno))
 		return (-1);
 
 	return (len);
 #elif defined(SENDFILE_IS_FREEBSD)
-	res = sendfile(info->fd, fd, chain->misalign, chain->off, NULL, &len, 0);
+	res = sendfile(source_fd, dest_fd, chain->misalign, chain->off, NULL, &len, 0);
 	if (res == -1 && !EVUTIL_ERR_RW_RETRIABLE(errno))
 		return (-1);
 
 	return (len);
 #elif defined(SENDFILE_IS_LINUX)
 	/* TODO(niels): implement splice */
-	res = sendfile(fd, info->fd, &offset, chain->off);
+	res = sendfile(dest_fd, source_fd, &offset, chain->off);
 	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
 		/* if this is EAGAIN or EINTR return 0; otherwise, -1 */
 		return (0);
 	}
 	return (res);
 #elif defined(SENDFILE_IS_SOLARIS)
-	res = sendfile(fd, info->fd, &offset, chain->off);
+	res = sendfile(dest_fd, source_fd, &offset, chain->off);
 	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
 		/* if this is EAGAIN or EINTR return 0; otherwise, -1 */
 		return (0);
@@ -2654,153 +2579,226 @@ done:
 	return result;
 }
 
-/* TODO(niels): maybe we don't want to own the fd, however, in that
- * case, we should dup it - dup is cheap.  Perhaps, we should use a
- * callback instead?
- */
 /* TODO(niels): we may want to add to automagically convert to mmap, in
  * case evbuffer_remove() or evbuffer_pullup() are being used.
  */
-int
-evbuffer_add_file(struct evbuffer *outbuf, int fd,
-    ev_off_t offset, ev_off_t length)
+struct evbuffer_file_segment *
+evbuffer_file_segment_new(
+	int fd, ev_off_t offset, ev_off_t length, unsigned flags)
 {
-#if defined(USE_SENDFILE) || defined(_EVENT_HAVE_MMAP)
-	struct evbuffer_chain *chain;
-	struct evbuffer_chain_fd *info;
+	struct evbuffer_file_segment *seg =
+	    mm_calloc(sizeof(struct evbuffer_file_segment), 1);
+	if (!seg)
+		return NULL;
+	seg->refcnt = 1;
+	seg->fd = fd;
+	seg->flags = flags;
+
+#ifdef WIN32
+#define lseek _lseeki64
+#define fstat _fstat
+#define stat _stat
 #endif
-	int ok = 1;
+	if (length == -1) {
+		struct stat st;
+		if (fstat(fd, &st) < 0)
+			goto err;
+		length = st.st_size;
+	}
+	seg->length = length;
 
 #if defined(USE_SENDFILE)
-	if (use_sendfile) {
-		chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_fd));
-		if (chain == NULL) {
-			event_warn("%s: out of memory", __func__);
-			return (-1);
-		}
-
-		chain->flags |= EVBUFFER_SENDFILE | EVBUFFER_IMMUTABLE;
-		chain->buffer = NULL;	/* no reading possible */
-		chain->buffer_len = length + offset;
-		chain->off = length;
-		chain->misalign = offset;
-
-		info = EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_fd, chain);
-		info->fd = fd;
-
-		EVBUFFER_LOCK(outbuf);
-		if (outbuf->freeze_end) {
-			mm_free(chain);
-			ok = 0;
-		} else {
-			outbuf->n_add_for_cb += length;
-			evbuffer_chain_insert(outbuf, chain);
-		}
-	} else
+	if (!(flags & EVBUF_FS_DISABLE_SENDFILE)) {
+		seg->offset = offset;
+		seg->type = EVBUF_FS_SENDFILE;
+		goto done;
+	}
 #endif
 #if defined(_EVENT_HAVE_MMAP)
-	if (use_mmap) {
-		void *mapped = mmap(NULL, length + offset, PROT_READ,
-#ifdef MAP_NOCACHE
-		    MAP_NOCACHE |
-#endif
-#ifdef MAP_FILE
-		    MAP_FILE |
-#endif
-		    MAP_PRIVATE,
-		    fd, 0);
+	/* TODO: Implement an mmap-alike for windows. */
+	if (!(flags & EVBUF_FS_DISABLE_MMAP)) {
 		/* some mmap implementations require offset to be a multiple of
 		 * the page size.  most users of this api, are likely to use 0
 		 * so mapping everything is not likely to be a problem.
 		 * TODO(niels): determine page size and round offset to that
 		 * page size to avoid mapping too much memory.
 		 */
+		void *mapped = mmap(NULL, length + offset, PROT_READ,
+#ifdef MAP_NOCACHE
+		    MAP_NOCACHE | /* ??? */
+#endif
+#ifdef MAP_FILE
+		    MAP_FILE |
+#endif
+		    MAP_PRIVATE,
+		    fd, 0);
 		if (mapped == MAP_FAILED) {
 			event_warn("%s: mmap(%d, %d, %zu) failed",
 			    __func__, fd, 0, (size_t)(offset + length));
-			return (-1);
-		}
-		chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_fd));
-		if (chain == NULL) {
-			event_warn("%s: out of memory", __func__);
-			munmap(mapped, length);
-			return (-1);
-		}
-
-		chain->flags |= EVBUFFER_MMAP | EVBUFFER_IMMUTABLE;
-		chain->buffer = mapped;
-		chain->buffer_len = length + offset;
-		chain->off = length + offset;
-
-		info = EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_fd, chain);
-		info->fd = fd;
-
-		EVBUFFER_LOCK(outbuf);
-		if (outbuf->freeze_end) {
-			info->fd = -1;
-			evbuffer_chain_free(chain);
-			ok = 0;
 		} else {
-			outbuf->n_add_for_cb += length;
-
-			evbuffer_chain_insert(outbuf, chain);
-
-			/* we need to subtract whatever we don't need */
-			evbuffer_drain(outbuf, offset);
-		}
-	} else
-#endif
-	{
-		/* the default implementation */
-		struct evbuffer *tmp = evbuffer_new();
-		ev_ssize_t read;
-
-		if (tmp == NULL)
-			return (-1);
-
-#ifdef WIN32
-#define lseek _lseeki64
-#endif
-		if (lseek(fd, offset, SEEK_SET) == -1) {
-			evbuffer_free(tmp);
-			return (-1);
-		}
-
-		/* we add everything to a temporary buffer, so that we
-		 * can abort without side effects if the read fails.
-		 */
-		while (length) {
-			read = evbuffer_readfile(tmp, fd, (ev_ssize_t)length);
-			if (read == -1) {
-				evbuffer_free(tmp);
-				return (-1);
-			}
-
-			length -= read;
-		}
-
-		EVBUFFER_LOCK(outbuf);
-		if (outbuf->freeze_end) {
-			evbuffer_free(tmp);
-			ok = 0;
-		} else {
-			evbuffer_add_buffer(outbuf, tmp);
-			evbuffer_free(tmp);
-
-#ifdef WIN32
-#define close _close
-#endif
-			close(fd);
+			seg->mapping = mapped;
+			seg->contents = ((char*)mapped)+offset;
+			seg->offset = offset;
+			seg->type = EVBUF_FS_MMAP;
+			goto done;
 		}
 	}
+#endif
 
-	if (ok)
-		evbuffer_invoke_callbacks(outbuf);
-	EVBUFFER_UNLOCK(outbuf);
+	{
+		ev_off_t start_pos = lseek(fd, 0, SEEK_CUR), pos;
+		ev_off_t read_so_far = 0;
+		char *mem;
+		int e;
+		ev_ssize_t n = 0;
+		if (!(mem = mm_malloc(length)))
+			goto err;
+		if (start_pos < 0) {
+			mm_free(mem);
+			goto err;
+		}
+		if (lseek(fd, offset, SEEK_SET) < 0) {
+			mm_free(mem);
+			goto err;
+		}
+		while (read_so_far < length) {
+			n = read(fd, mem+read_so_far, length-read_so_far);
+			if (n <= 0)
+				break;
+			read_so_far += n;
+		}
 
-	return ok ? 0 : -1;
+		e = errno;
+		pos = lseek(fd, start_pos, SEEK_SET);
+		if (n < 0 || (n == 0 && length > read_so_far)) {
+			mm_free(mem);
+			errno = e;
+			goto err;
+		} else if (pos < 0) {
+			mm_free(mem);
+			goto err;
+		}
+
+		seg->contents = mem;
+		seg->type = EVBUF_FS_IO;
+	}
+
+done:
+	if (!(flags & EVBUF_FS_DISABLE_LOCKING)) {
+		EVTHREAD_ALLOC_LOCK(seg->lock, 0);
+	}
+	return seg;
+err:
+	mm_free(seg);
+	return NULL;
 }
 
+void
+evbuffer_file_segment_free(struct evbuffer_file_segment *seg)
+{
+	int refcnt;
+	EVLOCK_LOCK(seg->lock, 0);
+	refcnt = --seg->refcnt;
+	EVLOCK_UNLOCK(seg->lock, 0);
+	if (refcnt > 0)
+		return;
+	EVUTIL_ASSERT(refcnt == 0);
+
+	if (seg->type == EVBUF_FS_SENDFILE) {
+		;
+	} else if (seg->type == EVBUF_FS_MMAP) {
+		if (munmap(seg->mapping, seg->length) == -1)
+			event_warn("%s: munmap failed", __func__);
+	} else {
+		EVUTIL_ASSERT(seg->type == EVBUF_FS_IO);
+		mm_free(seg->contents);
+	}
+
+	if ((seg->flags & EVBUF_FS_CLOSE_ON_FREE) && seg->fd >= 0) {
+		close(seg->fd);
+	}
+
+	EVTHREAD_FREE_LOCK(seg->lock, 0);
+	mm_free(seg);
+}
+
+int
+evbuffer_add_file_segment(struct evbuffer *buf,
+    struct evbuffer_file_segment *seg, ev_off_t offset, ev_off_t length)
+{
+	struct evbuffer_chain *chain;
+	struct evbuffer_chain_file_segment *extra;
+
+	EVLOCK_LOCK(seg->lock, 0);
+	++seg->refcnt;
+	EVLOCK_UNLOCK(seg->lock, 0);
+
+	EVBUFFER_LOCK(buf);
+
+	if (buf->freeze_end)
+		goto err;
+
+	if (length < 0) {
+		if (offset > seg->length)
+			goto err;
+		length = seg->length - offset;
+	}
+
+	/* Can we actually add this? */
+	if (offset+length > seg->length)
+		goto err;
+
+	chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_file_segment));
+	if (!chain)
+		goto err;
+	extra = EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_file_segment, chain);
+
+	chain->flags |= EVBUFFER_IMMUTABLE|EVBUFFER_FILESEGMENT;
+	if (seg->type == EVBUF_FS_SENDFILE) {
+		chain->flags |= EVBUFFER_SENDFILE;
+		chain->misalign = seg->offset + offset;
+		chain->off = length;
+		chain->buffer_len = chain->misalign + length;
+	} else if (seg->type == EVBUF_FS_MMAP) {
+		chain->buffer = (unsigned char*)(seg->contents + offset);
+		chain->buffer_len = length;
+		chain->off = length;
+	} else {
+		EVUTIL_ASSERT(seg->type == EVBUF_FS_IO);
+		chain->buffer = (unsigned char*)(seg->contents + offset);
+		chain->buffer_len = length;
+		chain->off = length;
+	}
+
+	extra->segment = seg;
+	buf->n_add_for_cb += length;
+	evbuffer_chain_insert(buf, chain);
+
+	evbuffer_invoke_callbacks(buf);
+
+	EVBUFFER_UNLOCK(buf);
+
+	return 0;
+err:
+	EVBUFFER_UNLOCK(buf);
+	evbuffer_file_segment_free(seg);
+	return -1;
+}
+
+int
+evbuffer_add_file(struct evbuffer *buf, int fd, ev_off_t offset, ev_off_t length)
+{
+	struct evbuffer_file_segment *seg;
+	unsigned flags = EVBUF_FS_CLOSE_ON_FREE;
+	int r;
+
+	seg = evbuffer_file_segment_new(fd, offset, length, flags);
+	if (!seg)
+		return -1;
+	r = evbuffer_add_file_segment(buf, seg, 0, length);
+	evbuffer_file_segment_free(seg);
+	return r;
+}
 
 void
 evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
@@ -2936,50 +2934,3 @@ evbuffer_cb_unsuspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb)
 }
 #endif
 
-/* These hooks are exposed so that the unit tests can temporarily disable
- * sendfile support in order to test mmap, or both to test linear
- * access. Don't use it; if we need to add a way to disable sendfile support
- * in the future, it will probably be via an alternate version of
- * evbuffer_add_file() with a 'flags' argument.
- */
-int _evbuffer_testing_use_sendfile(void);
-int _evbuffer_testing_use_mmap(void);
-int _evbuffer_testing_use_linear_file_access(void);
-
-int
-_evbuffer_testing_use_sendfile(void)
-{
-	int ok = 0;
-#ifdef USE_SENDFILE
-	use_sendfile = 1;
-	ok = 1;
-#endif
-#ifdef _EVENT_HAVE_MMAP
-	use_mmap = 0;
-#endif
-	return ok;
-}
-int
-_evbuffer_testing_use_mmap(void)
-{
-	int ok = 0;
-#ifdef USE_SENDFILE
-	use_sendfile = 0;
-#endif
-#ifdef _EVENT_HAVE_MMAP
-	use_mmap = 1;
-	ok = 1;
-#endif
-	return ok;
-}
-int
-_evbuffer_testing_use_linear_file_access(void)
-{
-#ifdef USE_SENDFILE
-	use_sendfile = 0;
-#endif
-#ifdef _EVENT_HAVE_MMAP
-	use_mmap = 0;
-#endif
-	return 1;
-}
