@@ -1789,6 +1789,46 @@ http_parse_uri_test(void *ptr)
 	TT_URI("mailto:foo@bar");
 	evhttp_uri_free(uri);
 
+	uri = evhttp_uri_new();
+	/* Bad URI usage: setting invalid values */
+	tt_want(-1 == evhttp_uri_set_scheme(uri,""));
+	tt_want(-1 == evhttp_uri_set_scheme(uri,"33"));
+	tt_want(-1 == evhttp_uri_set_scheme(uri,"hi!"));
+	tt_want(-1 == evhttp_uri_set_userinfo(uri,"hello@"));
+	tt_want(-1 == evhttp_uri_set_host(uri,"[1.2.3.4]"));
+	tt_want(-1 == evhttp_uri_set_host(uri,"["));
+	tt_want(-1 == evhttp_uri_set_host(uri,"www.[foo].com"));
+	tt_want(-1 == evhttp_uri_set_port(uri,-3));
+	tt_want(-1 == evhttp_uri_set_path(uri,"hello?world"));
+	tt_want(-1 == evhttp_uri_set_query(uri,"hello#world"));
+	tt_want(-1 == evhttp_uri_set_fragment(uri,"hello#world"));
+	/* Valid URI usage: setting valid values */
+	tt_want(0 == evhttp_uri_set_scheme(uri,"http"));
+	tt_want(0 == evhttp_uri_set_scheme(uri,NULL));
+	tt_want(0 == evhttp_uri_set_userinfo(uri,"username:pass"));
+	tt_want(0 == evhttp_uri_set_userinfo(uri,NULL));
+	tt_want(0 == evhttp_uri_set_host(uri,"www.example.com"));
+	tt_want(0 == evhttp_uri_set_host(uri,"1.2.3.4"));
+	tt_want(0 == evhttp_uri_set_host(uri,"[1:2:3:4::]"));
+	tt_want(0 == evhttp_uri_set_host(uri,"[v7.wobblewobble]"));
+	tt_want(0 == evhttp_uri_set_host(uri,NULL));
+	tt_want(0 == evhttp_uri_set_host(uri,""));
+	tt_want(0 == evhttp_uri_set_port(uri, -1));
+	tt_want(0 == evhttp_uri_set_port(uri, 80));
+	tt_want(0 == evhttp_uri_set_port(uri, 65535));
+	tt_want(0 == evhttp_uri_set_path(uri, ""));
+	tt_want(0 == evhttp_uri_set_path(uri, "/documents/public/index.html"));
+	tt_want(0 == evhttp_uri_set_path(uri, NULL));
+	tt_want(0 == evhttp_uri_set_query(uri, "key=val&key2=val2"));
+	tt_want(0 == evhttp_uri_set_query(uri, "keyvalblarg"));
+	tt_want(0 == evhttp_uri_set_query(uri, ""));
+	tt_want(0 == evhttp_uri_set_query(uri, NULL));
+	tt_want(0 == evhttp_uri_set_fragment(uri, ""));
+	tt_want(0 == evhttp_uri_set_fragment(uri, "here?i?am"));
+	tt_want(0 == evhttp_uri_set_fragment(uri, NULL));
+	evhttp_uri_free(uri);
+
+	/* Valid parsing */
 	uri = evhttp_uri_parse("http://www.test.com/?q=t%33est");
 	tt_want(strcmp(evhttp_uri_get_scheme(uri), "http") == 0);
 	tt_want(strcmp(evhttp_uri_get_host(uri), "www.test.com") == 0);
