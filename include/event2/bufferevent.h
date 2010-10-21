@@ -204,8 +204,11 @@ int bufferevent_socket_get_dns_error(struct bufferevent *bev);
 /**
   Assign a bufferevent to a specific event_base.
 
+  NOTE that only socket bufferevents support this function.
+
   @param base an event_base returned by event_init()
   @param bufev a bufferevent struct returned by bufferevent_new()
+     or bufferevent_socket_new()
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_new()
  */
@@ -218,6 +221,8 @@ struct event_base *bufferevent_get_base(struct bufferevent *bev);
 
 /**
   Assign a priority to a bufferevent.
+
+  Only supported for socket bufferevents.
 
   @param bufev a bufferevent struct
   @param pri the priority to be assigned
