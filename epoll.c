@@ -169,43 +169,46 @@ epoll_apply_changes(struct event_base *base)
 
 		*/
 
+		/* TODO: Turn this into a switch or a table lookup. */
+
 		if ((ch->read_change & EV_CHANGE_ADD) ||
 		    (ch->write_change & EV_CHANGE_ADD)) {
 			/* If we are adding anything at all, we'll want to do
 			 * either an ADD or a MOD. */
-			short new_events = ch->old_events;
 			events = 0;
 			op = EPOLL_CTL_ADD;
 			if (ch->read_change & EV_CHANGE_ADD) {
 				events |= EPOLLIN;
-				new_events |= EV_READ;
 			} else if (ch->read_change & EV_CHANGE_DEL) {
-				new_events &= ~EV_READ;
+				;
 			} else if (ch->old_events & EV_READ) {
 				events |= EPOLLIN;
 			}
 			if (ch->write_change & EV_CHANGE_ADD) {
 				events |= EPOLLOUT;
-				new_events |= EV_WRITE;
 			} else if (ch->write_change & EV_CHANGE_DEL) {
-				new_events &= ~EV_WRITE;
+				;
 			} else if (ch->old_events & EV_WRITE) {
 				events |= EPOLLOUT;
 			}
 			if ((ch->read_change|ch->write_change) & EV_ET)
 				events |= EPOLLET;
 
-			if (new_events == ch->old_events) {
-				/*
-				  If the changelist has an "add" operation,
-				  but no visible change to the events enabled
-				  on the fd, we need to try the ADD anyway, in
-				  case the fd was closed at some in the
-				  middle.  If it wasn't, the ADD operation
-				  will fail with EEXIST; and we retry it as a
-				  MOD. */
-				op = EPOLL_CTL_ADD;
-			} else if (ch->old_events) {
+			if (ch->old_events) {
+				/* If MOD fails, we retry as an ADD, and if
+				 * ADD fails we will retry as a MOD.  So the
+				 * only hard part here is to guess which one
+				 * will work.  As a heuristic, we'll try
+				 * MOD first if we think there were old
+				 * events and ADD if we think there were none.
+				 *
+				 * We can be wrong about the MOD if the file
+				 * has in fact been closed and re-opened.
+				 *
+				 * We can be wrong about the ADD if the
+				 * the fd has been re-created with a dup()
+				 * of the same file that it was before.
+				 */
 				op = EPOLL_CTL_MOD;
 			}
 		} else if ((ch->read_change & EV_CHANGE_DEL) ||
