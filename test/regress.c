@@ -2061,6 +2061,76 @@ end:
 	}
 }
 
+#ifndef WIN32
+/* You can't do this test on windows, since dup2 doesn't work on sockets */
+
+static void
+dfd_cb(evutil_socket_t fd, short e, void *data)
+{
+	*(int*)data = (int)e;
+}
+
+/* Regression test for our workaround for a fun epoll/linux related bug
+ * where fd2 = dup(fd1); add(fd2); close(fd2); dup2(fd1,fd2); add(fd2)
+ * will get you an EEXIST */
+static void
+test_dup_fd(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct event *ev1=NULL, *ev2=NULL;
+	int fd, dfd=-1;
+	int ev1_got, ev2_got;
+
+	tt_int_op(write(data->pair[0], "Hello world",
+		strlen("Hello world")), >, 0);
+	fd = data->pair[1];
+
+	dfd = dup(fd);
+	tt_int_op(dfd, >=, 0);
+
+	ev1 = event_new(base, fd, EV_READ|EV_PERSIST, dfd_cb, &ev1_got);
+	ev2 = event_new(base, dfd, EV_READ|EV_PERSIST, dfd_cb, &ev2_got);
+	ev1_got = ev2_got = 0;
+	event_add(ev1, NULL);
+	event_add(ev2, NULL);
+	event_base_loop(base, EVLOOP_ONCE);
+	tt_int_op(ev1_got, ==, EV_READ);
+	tt_int_op(ev2_got, ==, EV_READ);
+
+	/* Now close and delete dfd then dispatch.  We need to do the
+	 * dispatch here so that when we add it later, we think there
+	 * was an intermediate delete. */
+	close(dfd);
+	event_del(ev2);
+	ev1_got = ev2_got = 0;
+	event_base_loop(base, EVLOOP_ONCE);
+	tt_want_int_op(ev1_got, ==, EV_READ);
+	tt_int_op(ev2_got, ==, 0);
+
+	/* Re-duplicate the fd.  We need to get the same duplicated
+	 * value that we closed to provoke the epoll quirk.  Also, we
+	 * need to change the events to write, or else the old lingering
+	 * read event will make the test pass whether the change was
+	 * successful or not. */
+	tt_int_op(dup2(fd, dfd), ==, dfd);
+	event_free(ev2);
+	ev2 = event_new(base, dfd, EV_WRITE|EV_PERSIST, dfd_cb, &ev2_got);
+	event_add(ev2, NULL);
+	ev1_got = ev2_got = 0;
+	event_base_loop(base, EVLOOP_ONCE);
+	tt_want_int_op(ev1_got, ==, EV_READ);
+	tt_int_op(ev2_got, ==, EV_WRITE);
+
+end:
+	if (ev1)
+		event_free(ev1);
+	if (ev2)
+		event_free(ev2);
+	close(dfd);
+}
+#endif
+
 #ifdef _EVENT_DISABLE_MM_REPLACEMENT
 static void
 test_mm_functions(void *arg)
@@ -2229,6 +2299,9 @@ struct testcase_t main_testcases[] = {
 	{ "event_once", test_event_once, TT_ISOLATED, &basic_setup, NULL },
 	{ "event_pending", test_event_pending, TT_ISOLATED, &basic_setup,
 	  NULL },
+#ifndef WIN32
+	{ "dup_fd", test_dup_fd, TT_ISOLATED, &basic_setup, NULL },
+#endif
 	{ "mm_functions", test_mm_functions, TT_FORK, NULL, NULL },
 	BASIC(many_events, TT_ISOLATED),
 

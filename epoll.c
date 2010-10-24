@@ -155,7 +155,6 @@ epoll_apply_changes(struct event_base *base)
 	int op, events;
 
 	for (i = 0; i < changelist->n_changes; ++i) {
-		int precautionary_add = 0;
 		ch = &changelist->changes[i];
 		events = 0;
 
@@ -203,13 +202,12 @@ epoll_apply_changes(struct event_base *base)
 				  on the fd, we need to try the ADD anyway, in
 				  case the fd was closed at some in the
 				  middle.  If it wasn't, the ADD operation
-				  will fail with; that's okay.
-				*/
-				precautionary_add = 1;
+				  will fail with EEXIST; and we retry it as a
+				  MOD. */
+				op = EPOLL_CTL_ADD;
 			} else if (ch->old_events) {
 				op = EPOLL_CTL_MOD;
 			}
-
 		} else if ((ch->read_change & EV_CHANGE_DEL) ||
 		    (ch->write_change & EV_CHANGE_DEL)) {
 			/* If we're deleting anything, we'll want to do a MOD
@@ -255,14 +253,22 @@ epoll_apply_changes(struct event_base *base)
 						(int)epev.events,
 						ch->fd));
 				}
-			} else if (op == EPOLL_CTL_ADD && errno == EEXIST &&
-			    precautionary_add) {
-				/* If a precautionary ADD operation fails with
-				   EEXIST, that's fine too.
-				 */
-				event_debug(("Epoll ADD(%d) on fd %d gave %s: ADD was redundant",
-					(int)epev.events,
-					ch->fd, strerror(errno)));
+			} else if (op == EPOLL_CTL_ADD && errno == EEXIST) {
+				/* If an ADD operation fails with EEXIST,
+				 * either the operation was redundant (as with a
+				 * precautionary add), or we ran into a fun
+				 * kernel bug where using dup*() to duplicate the
+				 * same file into the same fd gives you the same epitem
+				 * rather than a fresh one.  For the second case,
+				 * we must retry with MOD. */
+				if (epoll_ctl(epollop->epfd, EPOLL_CTL_MOD, ch->fd, &epev) == -1) {
+					event_warn("Epoll ADD(%d) on %d retried as MOD; that failed too",
+					    (int)epev.events, ch->fd);
+				} else {
+					event_debug(("Epoll ADD(%d) on %d retried as MOD; succeeded.",
+						(int)epev.events,
+						ch->fd));
+				}
 			} else if (op == EPOLL_CTL_DEL &&
 			    (errno == ENOENT || errno == EBADF ||
 				errno == EPERM)) {
