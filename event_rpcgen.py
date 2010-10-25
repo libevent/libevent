@@ -1627,6 +1627,11 @@ class Usage(RpcGenError):
 
 class CommandLine:
     def __init__(self, argv):
+        """Initialize a command-line to launch event_rpcgen, as if
+           from a command-line with CommandLine(sys.argv).  If you're
+           calling this directly, remember to provide a dummy value
+           for sys.argv[0]
+        """
         self.filename = None
         self.header_file = None
         self.impl_file = None
