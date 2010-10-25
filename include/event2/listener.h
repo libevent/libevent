@@ -75,7 +75,9 @@ typedef void (*evconnlistener_errorcb)(struct evconnlistener *, void *);
    on a given file descriptor.
 
    @param base The event base to associate the listener with.
-   @param cb A callback to be invoked when a new connection arrives.
+   @param cb A callback to be invoked when a new connection arrives.  If the
+      callback is NULL, the listener will be treated as disabled until the
+      callback is set.
    @param ptr A user-supplied pointer to give to the callback.
    @param flags Any number of LEV_OPT_* flags
    @param backlog Passed to the listen() call to determine the length of the
@@ -93,7 +95,9 @@ struct evconnlistener *evconnlistener_new(struct event_base *base,
    on a given address.
 
    @param base The event base to associate the listener with.
-   @param cb A callback to be invoked when a new connection arrives.
+   @param cb A callback to be invoked when a new connection arrives. If the
+      callback is NULL, the listener will be treated as disabled until the
+      callback is set.
    @param ptr A user-supplied pointer to give to the callback.
    @param flags Any number of LEV_OPT_* flags
    @param backlog Passed to the listen() call to determine the length of the
@@ -122,6 +126,11 @@ struct event_base *evconnlistener_get_base(struct evconnlistener *lev);
 
 /** Return the socket that an evconnlistner is listening on. */
 evutil_socket_t evconnlistener_get_fd(struct evconnlistener *lev);
+
+/** Change the callback on the listener to cb and its user_data to arg.
+ */
+void evconnlistener_set_cb(struct evconnlistener *lev,
+    evconnlistener_cb cb, void *arg);
 
 /** Set an evconnlistener's error callback. */
 void evconnlistener_set_error_cb(struct evconnlistener *lev,

@@ -63,6 +63,7 @@ struct evhttp;
 struct evhttp_request;
 struct evkeyvalq;
 struct evhttp_bound_socket;
+struct evconnlistener;
 
 /**
  * Create a new HTTP server.
@@ -129,6 +130,18 @@ int evhttp_accept_socket(struct evhttp *http, evutil_socket_t fd);
  * @see evhttp_accept_socket(), evhttp_del_accept_socket()
  */
 struct evhttp_bound_socket *evhttp_accept_socket_with_handle(struct evhttp *http, evutil_socket_t fd);
+
+/**
+ * The most low-level evhttp_bind/accept method: takes an evconnlistener, and
+ * returns an evhttp_bound_socket.  The listener will be freed when the bound
+ * socket is freed.
+ */
+struct evhttp_bound_socket *evhttp_bind_listener(struct evhttp *http, struct evconnlistener *listener);
+
+/**
+ * Return the listener used to implement a bound socket.
+ */
+struct evconnlistener *evhttp_bound_socket_get_listener(struct evhttp_bound_socket *bound);
 
 /**
  * Makes an HTTP server stop accepting connections on the specified socket
