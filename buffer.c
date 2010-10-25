@@ -192,8 +192,13 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 		    EVBUFFER_CHAIN_EXTRA(
 			    struct evbuffer_chain_file_segment,
 			    chain);
-		if (info->segment)
+		if (info->segment) {
+#ifdef WIN32
+			if (info->segment->type == EVBUF_FS_MMAP)
+				UnmapViewOfFile(chain->buffer);
+#endif
 			evbuffer_file_segment_free(info->segment);
+		}
 	}
 
 	mm_free(chain);
@@ -2615,7 +2620,6 @@ evbuffer_file_segment_new(
 	}
 #endif
 #if defined(_EVENT_HAVE_MMAP)
-	/* TODO: Implement an mmap-alike for windows. */
 	if (!(flags & EVBUF_FS_DISABLE_MMAP)) {
 		off_t offset_rounded = 0, offset_leftover = 0;
 		void *mapped;
@@ -2651,6 +2655,24 @@ evbuffer_file_segment_new(
 			seg->mapping = mapped;
 			seg->contents = (char*)mapped+offset_leftover;
 			seg->offset = 0;
+			seg->type = EVBUF_FS_MMAP;
+			goto done;
+		}
+	}
+#endif
+#ifdef WIN32
+	if (!(flags & EVBUF_FS_DISABLE_MMAP)) {
+		long h = (long)_get_osfhandle(fd);
+		HANDLE m;
+		ev_uint64_t total_size = length+offset;
+		if (h == (long)INVALID_HANDLE_VALUE)
+			return NULL;
+		m = CreateFileMapping((HANDLE)h, NULL, PAGE_READONLY,
+		    (total_size >> 32), total_size & 0xfffffffful,
+		    NULL);
+		if (m != INVALID_HANDLE_VALUE) { /* Does h leak? */
+			seg->mapping_handle = m;
+			seg->offset = offset;
 			seg->type = EVBUF_FS_MMAP;
 			goto done;
 		}
@@ -2719,8 +2741,12 @@ evbuffer_file_segment_free(struct evbuffer_file_segment *seg)
 	if (seg->type == EVBUF_FS_SENDFILE) {
 		;
 	} else if (seg->type == EVBUF_FS_MMAP) {
+#ifdef WIN32
+		CloseHandle(seg->mapping_handle);
+#elif defined (_EVENT_HAVE_MMAP)
 		if (munmap(seg->mapping, seg->length) == -1)
 			event_warn("%s: munmap failed", __func__);
+#endif
 	} else {
 		EVUTIL_ASSERT(seg->type == EVBUF_FS_IO);
 		mm_free(seg->contents);
@@ -2772,9 +2798,36 @@ evbuffer_add_file_segment(struct evbuffer *buf,
 		chain->off = length;
 		chain->buffer_len = chain->misalign + length;
 	} else if (seg->type == EVBUF_FS_MMAP) {
+#ifdef WIN32
+		ev_uint64_t total_offset = seg->offset+offset;
+		ev_uint64_t offset_rounded=0, offset_remaining=0;
+		LPVOID data;
+		if (total_offset) {
+			SYSTEM_INFO si;
+			memset(&si, 0, sizeof(si)); /* cargo cult */
+			GetSystemInfo(&si);
+			offset_remaining = total_offset % si.dwAllocationGranularity;
+			offset_rounded = total_offset - offset_remaining;
+		}
+		data = MapViewOfFile(
+			seg->mapping_handle,
+			FILE_MAP_READ,
+			offset_rounded >> 32,
+			offset_rounded & 0xfffffffful,
+			length);
+		if (data == NULL) {
+			mm_free(chain);
+			goto err;
+		}
+		chain->buffer = (unsigned char*) data;
+		chain->buffer_len = length+offset_remaining;
+		chain->misalign = offset_remaining;
+		chain->off = length;
+#else
 		chain->buffer = (unsigned char*)(seg->contents + offset);
 		chain->buffer_len = length;
 		chain->off = length;
+#endif
 	} else {
 		EVUTIL_ASSERT(seg->type == EVBUF_FS_IO);
 		chain->buffer = (unsigned char*)(seg->contents + offset);
