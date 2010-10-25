@@ -2617,13 +2617,25 @@ evbuffer_file_segment_new(
 #if defined(_EVENT_HAVE_MMAP)
 	/* TODO: Implement an mmap-alike for windows. */
 	if (!(flags & EVBUF_FS_DISABLE_MMAP)) {
-		/* some mmap implementations require offset to be a multiple of
-		 * the page size.  most users of this api, are likely to use 0
-		 * so mapping everything is not likely to be a problem.
-		 * TODO(niels): determine page size and round offset to that
-		 * page size to avoid mapping too much memory.
-		 */
-		void *mapped = mmap(NULL, length + offset, PROT_READ,
+		off_t offset_rounded = 0, offset_leftover = 0;
+		void *mapped;
+		if (offset) {
+			/* mmap implementations don't generally like us
+			 * to have an offset that isn't a round  */
+#ifdef SC_PAGE_SIZE
+			long page_size = sysconf(SC_PAGE_SIZE);
+#elif defined(_SC_PAGE_SIZE)
+			long page_size = sysconf(_SC_PAGE_SIZE);
+#else
+			long page_size = 1;
+#endif
+			if (page_size == -1)
+				goto err;
+			offset_leftover = offset % page_size;
+			offset_rounded = offset - offset_leftover;
+		}
+		mapped = mmap(NULL, length + offset_leftover,
+		    PROT_READ,
 #ifdef MAP_NOCACHE
 		    MAP_NOCACHE | /* ??? */
 #endif
@@ -2631,14 +2643,14 @@ evbuffer_file_segment_new(
 		    MAP_FILE |
 #endif
 		    MAP_PRIVATE,
-		    fd, 0);
+		    fd, offset_rounded);
 		if (mapped == MAP_FAILED) {
 			event_warn("%s: mmap(%d, %d, %zu) failed",
 			    __func__, fd, 0, (size_t)(offset + length));
 		} else {
 			seg->mapping = mapped;
-			seg->contents = ((char*)mapped)+offset;
-			seg->offset = offset;
+			seg->contents = (char*)mapped+offset_leftover;
+			seg->offset = 0;
 			seg->type = EVBUF_FS_MMAP;
 			goto done;
 		}
