@@ -880,9 +880,12 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	    evbuffer_get_length(buf) >= (size_t)req->ntoread) {
 		/* We've postponed moving the data until now, but we're
 		 * about to use it. */
-		req->ntoread -= evbuffer_get_length(buf);
-		req->body_size += evbuffer_get_length(buf);
-		evbuffer_add_buffer(req->input_buffer, buf);
+		size_t n = evbuffer_get_length(buf);
+		if (n > (size_t) req->ntoread)
+			n = (size_t) req->ntoread;
+		req->ntoread -= n;
+		req->body_size += n;
+		evbuffer_remove_buffer(buf, req->input_buffer, n);
 	}
 
 	if (req->body_size > req->evcon->max_body_size) {
