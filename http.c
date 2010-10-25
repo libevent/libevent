@@ -874,8 +874,8 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		}
 	} else if (req->ntoread < 0) {
 		/* Read until connection close. */
-		evbuffer_add_buffer(req->input_buffer, buf);
 		req->body_size += evbuffer_get_length(buf);
+		evbuffer_add_buffer(req->input_buffer, buf);
 	} else if (req->chunk_cb != NULL ||
 	    evbuffer_get_length(buf) >= (size_t)req->ntoread) {
 		/* We've postponed moving the data until now, but we're
