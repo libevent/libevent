@@ -375,8 +375,8 @@ int evbuffer_add_reference(struct evbuffer *outbuf,
   @return 0 if successful, or -1 if an error occurred
 */
 
-int evbuffer_add_file(struct evbuffer *output, int fd, off_t offset,
-    off_t length);
+int evbuffer_add_file(struct evbuffer *output, int fd, ev_off_t offset,
+    ev_off_t length);
 
 /**
   Append a formatted string to the end of an evbuffer.

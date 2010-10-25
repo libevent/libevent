@@ -161,6 +161,12 @@ extern "C" {
 #define ev_ssize_t ssize_t
 #endif
 
+#ifdef WIN32
+#define ev_off_t ev_int64_t
+#else
+#define ev_off_t off_t
+#endif
+
 /* Limits for integer types.
 
    We're making two assumptions here:

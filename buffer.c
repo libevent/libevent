@@ -2642,7 +2642,7 @@ done:
  */
 int
 evbuffer_add_file(struct evbuffer *outbuf, int fd,
-    off_t offset, off_t length)
+    ev_off_t offset, ev_off_t length)
 {
 #if defined(USE_SENDFILE) || defined(_EVENT_HAVE_MMAP)
 	struct evbuffer_chain *chain;
@@ -2738,7 +2738,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 			return (-1);
 
 #ifdef WIN32
-#define lseek _lseek
+#define lseek _lseeki64
 #endif
 		if (lseek(fd, offset, SEEK_SET) == -1) {
 			evbuffer_free(tmp);
