@@ -2764,28 +2764,46 @@ evhttp_accept_socket_with_handle(struct evhttp *http, evutil_socket_t fd)
 	const int flags =
 	    LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_EXEC|LEV_OPT_CLOSE_ON_FREE;
 
+	listener = evconnlistener_new(http->base, NULL, NULL,
+	    flags,
+	    0, /* Backlog is '0' because we already said 'listen' */
+	    fd);
+	if (!listener)
+		return (NULL);
+
+	bound = evhttp_bind_listener(http, listener);
+	if (!bound) {
+		evconnlistener_free(listener);
+		return (NULL);
+	}
+	return (bound);
+}
+
+struct evhttp_bound_socket *
+evhttp_bind_listener(struct evhttp *http, struct evconnlistener *listener)
+{
+	struct evhttp_bound_socket *bound;
+
 	bound = mm_malloc(sizeof(struct evhttp_bound_socket));
 	if (bound == NULL)
 		return (NULL);
 
-	listener = evconnlistener_new(http->base, accept_socket_cb, http,
-	    flags,
-	    0, /* Backlog is '0' because we already said 'listen' */
-	    fd);
-	if (!listener) {
-		mm_free(bound);
-		return (NULL);
-	}
 	bound->listener = listener;
-
 	TAILQ_INSERT_TAIL(&http->sockets, bound, next);
 
-	return (bound);
+	evconnlistener_set_cb(listener, accept_socket_cb, http);
+	return bound;
 }
 
 evutil_socket_t evhttp_bound_socket_get_fd(struct evhttp_bound_socket *bound)
 {
 	return evconnlistener_get_fd(bound->listener);
+}
+
+struct evconnlistener *
+evhttp_bound_socket_get_listener(struct evhttp_bound_socket *bound)
+{
+	return bound->listener;
 }
 
 void
