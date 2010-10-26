@@ -138,8 +138,8 @@ ev_token_bucket_get_tick(const struct timeval *tv,
 }
 
 struct ev_token_bucket_cfg *
-ev_token_bucket_cfg_new(ev_uint32_t read_rate, ev_uint32_t read_burst,
-    ev_uint32_t write_rate, ev_uint32_t write_burst,
+ev_token_bucket_cfg_new(size_t read_rate, size_t read_burst,
+    size_t write_rate, size_t write_burst,
     const struct timeval *tick_len)
 {
 	struct ev_token_bucket_cfg *r;
@@ -151,6 +151,11 @@ ev_token_bucket_cfg_new(ev_uint32_t read_rate, ev_uint32_t read_burst,
 	}
 	if (read_rate > read_burst || write_rate > write_burst ||
 	    read_rate < 1 || write_rate < 1)
+		return NULL;
+	if (read_rate > EV_RATE_LIMIT_MAX ||
+	    write_rate > EV_RATE_LIMIT_MAX ||
+	    read_burst > EV_RATE_LIMIT_MAX ||
+	    write_burst > EV_RATE_LIMIT_MAX)
 		return NULL;
 	r = mm_calloc(1, sizeof(struct ev_token_bucket_cfg));
 	if (!r)
@@ -221,7 +226,7 @@ _bufferevent_get_rlim_max(struct bufferevent_private *bev, int is_write)
 	if (bev->rate_limiting->group) {
 		struct bufferevent_rate_limit_group *g =
 		    bev->rate_limiting->group;
-		ev_int32_t share;
+		ev_ssize_t share;
 		LOCK_GROUP(g);
 		if (GROUP_SUSPENDED(g)) {
 			/* We can get here if we failed to lock this
@@ -655,9 +660,9 @@ bufferevent_rate_limit_group_set_cfg(
 		&g->rate_limit_cfg.tick_timeout, &cfg->tick_timeout, ==);
 	memcpy(&g->rate_limit_cfg, cfg, sizeof(g->rate_limit_cfg));
 
-	if (g->rate_limit.read_limit > (ev_int32_t)cfg->read_maximum)
+	if (g->rate_limit.read_limit > (ev_ssize_t)cfg->read_maximum)
 		g->rate_limit.read_limit = cfg->read_maximum;
-	if (g->rate_limit.write_limit > (ev_int32_t)cfg->write_maximum)
+	if (g->rate_limit.write_limit > (ev_ssize_t)cfg->write_maximum)
 		g->rate_limit.write_limit = cfg->write_maximum;
 
 	if (!same_tick) {
@@ -674,7 +679,7 @@ bufferevent_rate_limit_group_set_min_share(
 	struct bufferevent_rate_limit_group *g,
 	size_t share)
 {
-	if (share > EV_INT32_MAX)
+	if (share > EV_SSIZE_MAX)
 		return -1;
 
 	g->min_share = share;
@@ -865,7 +870,7 @@ int
 bufferevent_decrement_read_limit(struct bufferevent *bev, ev_ssize_t decr)
 {
 	int r = 0;
-	ev_int32_t old_limit, new_limit;
+	ev_ssize_t old_limit, new_limit;
 	struct bufferevent_private *bevp;
 	BEV_LOCK(bev);
 	bevp = BEV_UPCAST(bev);
@@ -894,7 +899,7 @@ bufferevent_decrement_write_limit(struct bufferevent *bev, ev_ssize_t decr)
 	/* XXXX this is mostly copy-and-paste from
 	 * bufferevent_decrement_read_limit */
 	int r = 0;
-	ev_int32_t old_limit, new_limit;
+	ev_ssize_t old_limit, new_limit;
 	struct bufferevent_private *bevp;
 	BEV_LOCK(bev);
 	bevp = BEV_UPCAST(bev);
@@ -922,7 +927,7 @@ bufferevent_rate_limit_group_decrement_read(
 	struct bufferevent_rate_limit_group *grp, ev_ssize_t decr)
 {
 	int r = 0;
-	ev_int32_t old_limit, new_limit;
+	ev_ssize_t old_limit, new_limit;
 	LOCK_GROUP(grp);
 	old_limit = grp->rate_limit.read_limit;
 	new_limit = (grp->rate_limit.read_limit -= decr);
@@ -942,7 +947,7 @@ bufferevent_rate_limit_group_decrement_write(
 	struct bufferevent_rate_limit_group *grp, ev_ssize_t decr)
 {
 	int r = 0;
-	ev_int32_t old_limit, new_limit;
+	ev_ssize_t old_limit, new_limit;
 	LOCK_GROUP(grp);
 	old_limit = grp->rate_limit.write_limit;
 	new_limit = (grp->rate_limit.write_limit -= decr);

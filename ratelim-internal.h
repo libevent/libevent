@@ -38,7 +38,7 @@ extern "C" {
 struct ev_token_bucket {
 	/** How many bytes are we willing to read or write right now? These
 	 * values are signed so that we can do "defecit spending" */
-	ev_int32_t read_limit, write_limit;
+	ev_ssize_t read_limit, write_limit;
 	/** When was this bucket last updated?  Measured in abstract 'ticks'
 	 * relative to the token bucket configuration. */
 	ev_uint32_t last_updated;
@@ -47,13 +47,13 @@ struct ev_token_bucket {
 /** Configuration info for a token bucket or set of token buckets. */
 struct ev_token_bucket_cfg {
 	/** How many bytes are we willing to read on average per tick? */
-	ev_uint32_t read_rate;
+	size_t read_rate;
 	/** How many bytes are we willing to read at most in any one tick? */
-	ev_uint32_t read_maximum;
+	size_t read_maximum;
 	/** How many bytes are we willing to write on average per tick? */
-	ev_uint32_t write_rate;
+	size_t write_rate;
 	/** How many bytes are we willing to write at most in any one tick? */
-	ev_uint32_t write_maximum;
+	size_t write_maximum;
 
 	/* How long is a tick?  Note that fractions of a millisecond are
 	 * ignored. */
