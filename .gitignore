@@ -61,7 +61,6 @@ libevent_openssl.pc
 /depcomp
 /config.h
 /config.h.in
-/event-config.h
 /install-sh
 /libtool
 /ltmain.sh
