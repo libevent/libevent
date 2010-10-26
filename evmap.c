@@ -104,9 +104,9 @@ eqsocket(struct event_map_entry *e1, struct event_map_entry *e2)
 	return e1->fd == e2->fd;
 }
 
-HT_PROTOTYPE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket);
+HT_PROTOTYPE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket)
 HT_GENERATE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket,
-			0.5, mm_malloc, mm_realloc, mm_free);
+			0.5, mm_malloc, mm_realloc, mm_free)
 
 #define GET_IO_SLOT(x, map, slot, type)					\
 	do {								\
