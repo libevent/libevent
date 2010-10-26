@@ -529,6 +529,10 @@ if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
 		[Define if we have pthreads on this system])
 	have_pthreads=yes])
   CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+  AC_CHECK_SIZEOF(pthread_t, ,
+     [AC_INCLUDES_DEFAULT()
+      #include <pthread.h> ]
+  )
 fi
 AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
 

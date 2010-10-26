@@ -33,6 +33,7 @@ struct event_base;
 #include <event2/thread.h>
 
 #include <stdlib.h>
+#include <string.h>
 #include "mm-internal.h"
 #include "evthread-internal.h"
 
@@ -84,10 +85,17 @@ evthread_posix_get_id(void)
 {
 	union {
 		pthread_t thr;
+#if _EVENT_SIZEOF_PTHREAD_T > _EVENT_SIZEOF_LONG
+		ev_uint64_t id;
+#else
 		unsigned long id;
+#endif
 	} r;
+#if _EVENT_SIZEOF_PTHREAD_T < _EVENT_SIZEOF_LONG
+	memset(&r, 0, sizeof(r));
+#endif
 	r.thr = pthread_self();
-	return r.id;
+	return (unsigned long)r.id;
 }
 
 static void *
