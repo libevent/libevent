@@ -607,8 +607,7 @@ char *evhttp_uridecode(const char *uri, int decode_plus,
    @param headers the head of the evkeyval queue
    @return 0 on success, -1 on failure
  */
-#define evhttp_parse_query(uri, headers) \
-	evhttp_parse_query__checked_20((uri), (headers), 1)
+int evhttp_parse_query(const char *uri, struct evkeyvalq *headers);
 
 /**
    Helper function to parse out arguments from the query portion of an
@@ -627,14 +626,7 @@ char *evhttp_uridecode(const char *uri, int decode_plus,
    @param headers the head of the evkeyval queue
    @return 0 on success, -1 on failure
  */
-#define evhttp_parse_query_str(query, headers)			\
-	evhttp_parse_query__checked_20((uri), (headers), 0)
-
-/* Do not call this function directly; it is a temporary alias introduced
- * to avoid changing the old signature for evhttp_parse_query
- */
-int evhttp_parse_query__checked_20(const char *uri, struct evkeyvalq *headers,
-    int is_whole_url);
+int evhttp_parse_query_str(const char *uri, struct evkeyvalq *headers);
 
 /**
  * Escape HTML character entities in a string.
