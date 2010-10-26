@@ -136,6 +136,8 @@ static int use_mmap = 1;
 #define CHAIN_PINNED_R(ch)  (((ch)->flags & EVBUFFER_MEM_PINNED_R) != 0)
 
 static void evbuffer_chain_align(struct evbuffer_chain *chain);
+static int evbuffer_chain_should_realign(struct evbuffer_chain *chain,
+    size_t datalen);
 static void evbuffer_deferred_callback(struct deferred_cb *cb, void *arg);
 static int evbuffer_ptr_memcmp(const struct evbuffer *buf,
     const struct evbuffer_ptr *pos, const char *mem, size_t len);
@@ -1503,7 +1505,8 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 			buf->total_len += datlen;
 			buf->n_add_for_cb += datlen;
 			goto out;
-		} else if ((size_t)chain->misalign >= datlen && !CHAIN_PINNED(chain)) {
+		} else if (!CHAIN_PINNED(chain) &&
+		    evbuffer_chain_should_realign(chain, datlen)) {
 			/* we can fit the data into the misalignment */
 			evbuffer_chain_align(chain);
 
@@ -1638,6 +1641,17 @@ evbuffer_chain_align(struct evbuffer_chain *chain)
 #define MAX_TO_COPY_IN_EXPAND 4096
 #define MAX_TO_REALIGN_IN_EXPAND 2048
 
+/** Helper: return true iff we should realign chain to fit datalen bytes of
+    data in it. */
+static int
+evbuffer_chain_should_realign(struct evbuffer_chain *chain,
+    size_t datlen)
+{
+	return chain->buffer_len - chain->off >= datlen &&
+	    (chain->off < chain->buffer_len / 2) &&
+	    (chain->off <= MAX_TO_REALIGN_IN_EXPAND);
+}
+
 /* Expands the available space in the event buffer to at least datlen, all in
  * a single chunk.  Return that chunk. */
 static struct evbuffer_chain *
@@ -1680,14 +1694,11 @@ evbuffer_expand_singlechain(struct evbuffer *buf, size_t datlen)
 
 	/* If the misalignment plus the remaining space fulfills our data
 	 * needs, we could just force an alignment to happen.  Afterwards, we
-	 * have enough space.  But only do this if we're saving at least 1/2
-	 * the chain size and moving no more than MAX_TO_REALIGN_IN_EXPAND
-	 * bytes.  Otherwise the space savings are probably offset by the time
-	 * lost in copying.
+	 * have enough space.  But only do this if we're saving a lot of space
+	 * and not moving too much data.  Otherwise the space savings are
+	 * probably offset by the time lost in copying.
 	 */
-	if (chain->buffer_len - chain->off >= datlen &&
-	    (chain->off < chain->buffer_len / 2) &&
-	    (chain->off <= MAX_TO_REALIGN_IN_EXPAND))  {
+	if (evbuffer_chain_should_realign(chain, datlen)) {
 		evbuffer_chain_align(chain);
 		result = chain;
 		goto ok;
