@@ -12,6 +12,7 @@
 
 #include "event2/event_struct.h"
 #include "util-internal.h"
+#include "defer-internal.h"
 
 #define HTTP_CONNECT_TIMEOUT	45
 #define HTTP_WRITE_TIMEOUT	50
@@ -95,6 +96,8 @@ struct evhttp_connection {
 
 	void (*closecb)(struct evhttp_connection *, void *);
 	void *closecb_arg;
+
+	struct deferred_cb read_more_deferred_cb;
 
 	struct event_base *base;
 	struct evdns_base *dns_base;

@@ -919,6 +919,9 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	bufferevent_enable(evcon->bufev, EV_READ);
 }
 
+#define get_deferred_queue(evcon)		\
+	(event_base_get_deferred_cb_queue((evcon)->base))
+
 /*
  * Gets called when more data becomes available
  */
@@ -928,6 +931,10 @@ evhttp_read_cb(struct bufferevent *bufev, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
+
+	/* Cancel if it's pending. */
+	event_deferred_cb_cancel(get_deferred_queue(evcon),
+	    &evcon->read_more_deferred_cb);
 
 	switch (evcon->state) {
 	case EVCON_READING_FIRSTLINE:
@@ -956,6 +963,13 @@ evhttp_read_cb(struct bufferevent *bufev, void *arg)
 		event_errx(1, "%s: illegal connection state %d",
 			   __func__, evcon->state);
 	}
+}
+
+static void
+evhttp_deferred_read_cb(struct deferred_cb *cb, void *data)
+{
+	struct evhttp_connection *evcon = data;
+	evhttp_read_cb(evcon->bufev, evcon);
 }
 
 static void
@@ -1010,6 +1024,9 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 
 	if (evcon->bufev != NULL)
 		bufferevent_free(evcon->bufev);
+
+	event_deferred_cb_cancel(get_deferred_queue(evcon),
+	    &evcon->read_more_deferred_cb);
 
 	if (evcon->fd != -1) {
 		shutdown(evcon->fd, EVUTIL_SHUT_WR);
@@ -1844,6 +1861,10 @@ evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
 		bufferevent_base_set(base, evcon->bufev);
 	}
 
+
+	event_deferred_cb_init(&evcon->read_more_deferred_cb,
+	    evhttp_deferred_read_cb, evcon);
+
 	evcon->dns_base = dnsbase;
 
 	return (evcon);
@@ -2036,6 +2057,13 @@ evhttp_start_read(struct evhttp_connection *evcon)
 	bufferevent_disable(evcon->bufev, EV_WRITE);
 	bufferevent_enable(evcon->bufev, EV_READ);
 	evcon->state = EVCON_READING_FIRSTLINE;
+
+	/* If there's still data pending, process it next time through the
+	 * loop.  Don't do it now; that could get recusive. */
+	if (evbuffer_get_length(bufferevent_get_input(evcon->bufev))) {
+		event_deferred_cb_schedule(get_deferred_queue(evcon),
+		    &evcon->read_more_deferred_cb);
+	}
 }
 
 static void
