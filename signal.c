@@ -379,7 +379,7 @@ evsig_handler(int sig)
 	ev_uint8_t msg;
 
 	if (evsig_base == NULL) {
-		event_warn(
+		event_warnx(
 			"%s: received signal %d, but have no base configured",
 			__func__, sig);
 		return;

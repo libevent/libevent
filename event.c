@@ -1151,7 +1151,7 @@ event_base_init_common_timeout(struct event_base *base,
 		}
 	}
 	if (base->n_common_timeouts == MAX_COMMON_TIMEOUTS) {
-		event_warn("%s: Too many common timeouts already in use; "
+		event_warnx("%s: Too many common timeouts already in use; "
 		    "we only support %d per event_base", __func__,
 		    MAX_COMMON_TIMEOUTS);
 		goto done;
@@ -1477,7 +1477,7 @@ event_base_loop(struct event_base *base, int flags)
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	if (base->running_loop) {
-		event_warn("%s: reentrant invocation.  Only one event_base_loop"
+		event_warnx("%s: reentrant invocation.  Only one event_base_loop"
 		    " can run on each event_base at once.", __func__);
 		EVBASE_RELEASE_LOCK(base, th_base_lock);
 		return -1;
