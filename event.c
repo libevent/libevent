@@ -824,7 +824,7 @@ event_reinit(struct event_base *base)
 			if (evmap_io_add(base, ev->ev_fd, ev) == -1)
 				res = -1;
 		} else if (ev->ev_events & EV_SIGNAL) {
-			if (evmap_signal_add(base, ev->ev_fd, ev) == -1)
+			if (evmap_signal_add(base, (int)ev->ev_fd, ev) == -1)
 				res = -1;
 		}
 	}
@@ -1995,7 +1995,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		if (ev->ev_events & (EV_READ|EV_WRITE))
 			res = evmap_io_add(base, ev->ev_fd, ev);
 		else if (ev->ev_events & EV_SIGNAL)
-			res = evmap_signal_add(base, ev->ev_fd, ev);
+			res = evmap_signal_add(base, (int)ev->ev_fd, ev);
 		if (res != -1)
 			event_queue_insert(base, ev, EVLIST_INSERTED);
 		if (res == 1) {
@@ -2173,7 +2173,7 @@ event_del_internal(struct event *ev)
 		if (ev->ev_events & (EV_READ|EV_WRITE))
 			res = evmap_io_del(base, ev->ev_fd, ev);
 		else
-			res = evmap_signal_del(base, ev->ev_fd, ev);
+			res = evmap_signal_del(base, (int)ev->ev_fd, ev);
 		if (res == 1) {
 			/* evmap says we need to notify the main thread. */
 			notify = 1;
