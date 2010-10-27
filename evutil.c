@@ -266,8 +266,11 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 {
 #ifdef WIN32
 	{
-		unsigned long nonblocking = 1;
-		ioctlsocket(fd, FIONBIO, (unsigned long*) &nonblocking);
+		u_long nonblocking = 1;
+		if (ioctlsocket(fd, FIONBIO, &nonblocking) == SOCKET_ERROR) {
+			event_warn("fcntl(%d, F_GETFL)", (int)fd);
+			return -1;
+		}
 	}
 #else
 	{
