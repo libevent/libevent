@@ -33,7 +33,7 @@
 #define __func__ _EVENT___func__
 #endif
 
-int pair[2];
+evutil_socket_t pair[2];
 int test_okay = 1;
 int called = 0;
 

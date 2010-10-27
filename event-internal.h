@@ -267,7 +267,7 @@ struct event_base {
 	int is_notify_pending;
 	/** A socketpair used by some th_notify functions to wake up the main
 	 * thread. */
-	int th_notify_fd[2];
+	evutil_socket_t th_notify_fd[2];
 	/** An event used by some th_notify functions to wake up the main
 	 * thread. */
 	struct event th_notify;

@@ -62,7 +62,7 @@ main(int argc, char **argv)
 {
 	struct event ev;
 	const char *test = "test string";
-	int pair[2];
+	evutil_socket_t pair[2];
 
 #ifdef WIN32
 	WORD wVersionRequested;
