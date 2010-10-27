@@ -32,7 +32,8 @@ RELEASE = -release 2.0
 #    If the ABI changed and it isn't backward-compatible:
 #        Return (current+1:0:0)
 #
-# Once an RC is out, DO NOT MAKE ANY ABI-BREAKING CHANGES IN THAT SERIES.
+# Once an RC is out, DO NOT MAKE ANY ABI-BREAKING CHANGES IN THAT SERIES
+# UNLESS YOU REALLY REALLY HAVE TO.
 VERSION_INFO = 4:0:2
 
 # History:          RELEASE    VERSION_INFO
@@ -45,12 +46,12 @@ VERSION_INFO = 4:0:2
 #  2.0.7-rc    --     2.0        3:0:1
 #  2.0.8-rc    --     2.0        4:0:2
 # Planned:
-#  2.0.9-stable--     2.0        4:1:2 (Assuming no ABI change)
+#  2.0.9-stable--     2.0        5:0:0 (ABI changed slightly)
 #
-# If Libevent 2.1.1 makes 'struct event' etc opaque in the headers:
+#
+# For Libevent 2.1:
 #  2.1.1-alpha --     2.1        1:0:0
-# If Libevent 2.1.1 does not makes 'struct event' opaque in the headers:
-#  2.1.1-alpha --     2.1        1:0:0
+
 
 # ABI version history for this package effectively restarts every time
 # we change RELEASE.  Version 1.4.x had RELEASE of 1.4.

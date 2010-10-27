@@ -2486,8 +2486,8 @@ evhttp_uridecode(const char *uri, int decode_plus, size_t *size_out)
  * The arguments are separated by key and value.
  */
 
-int
-evhttp_parse_query__checked_20(const char *str, struct evkeyvalq *headers,
+static int
+evhttp_parse_query_impl(const char *str, struct evkeyvalq *headers,
     int is_whole_uri)
 {
 	char *line=NULL;
@@ -2553,16 +2553,15 @@ done:
 	return result;
 }
 
-#undef evhttp_parse_query
-void evhttp_parse_query(const char *uri, struct evkeyvalq *headers);
-/* We define this here so as to avoid changing the ABI for evhttp_parse_query
- * in 2.0.8.  The next time we break ABI compatibility, we can go back to
- * having the function above be called evhttp_parse_query
- */
-void
+int
 evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 {
-	evhttp_parse_query__checked_20(uri, headers, 1);
+	return evhttp_parse_query_impl(uri, headers, 1);
+}
+int
+evhttp_parse_query_str(const char *uri, struct evkeyvalq *headers)
+{
+	return evhttp_parse_query_impl(uri, headers, 0);
 }
 
 static struct evhttp_cb *
