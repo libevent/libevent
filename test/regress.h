@@ -56,7 +56,7 @@ void regress_threads(void *);
 void test_bufferevent_zlib(void *);
 
 /* Helpers to wrap old testcases */
-extern int pair[2];
+extern evutil_socket_t pair[2];
 extern int test_ok;
 extern int called;
 extern struct event_base *global_base;
@@ -66,7 +66,7 @@ evutil_socket_t regress_make_tmpfile(const void *data, size_t datalen);
 
 struct basic_test_data {
 	struct event_base *base;
-	int pair[2];
+	evutil_socket_t pair[2];
 
 	void (*legacy_test_fn)(void);
 

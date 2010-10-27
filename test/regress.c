@@ -72,7 +72,7 @@
 #include "regress.gen.h"
 #endif
 
-int pair[2];
+evutil_socket_t pair[2];
 int test_ok;
 int called;
 struct event_base *global_base;

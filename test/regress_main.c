@@ -162,7 +162,7 @@ static void *
 basic_test_setup(const struct testcase_t *testcase)
 {
 	struct event_base *base = NULL;
-	int spair[2] = { -1, -1 };
+	evutil_socket_t spair[2] = { -1, -1 };
 	struct basic_test_data *data = NULL;
 
 #ifndef WIN32
