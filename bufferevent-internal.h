@@ -96,7 +96,7 @@ struct bufferevent_rate_limit_group {
 
 	/** The smallest number of bytes that any member of the group should
 	 * be limited to read or write at a time. */
-	ev_int32_t min_share;
+	ev_ssize_t min_share;
 	/** Timeout event that goes off once a tick, when the bucket is ready
 	 * to refill. */
 	struct event master_refill_event;

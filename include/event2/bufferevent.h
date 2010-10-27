@@ -565,6 +565,9 @@ struct ev_token_bucket_cfg;
 */
 struct bufferevent_rate_limit_group;
 
+/** Maximum configurable rate- or burst-limit. */
+#define EV_RATE_LIMIT_MAX EV_SSIZE_MAX
+
 /**
    Initialize and return a new object to configure the rate-limiting behavior
    of bufferevents.
@@ -582,8 +585,8 @@ struct bufferevent_rate_limit_group;
    of Libevent may implement them more tightly.
  */
 struct ev_token_bucket_cfg *ev_token_bucket_cfg_new(
-	ev_uint32_t read_rate, ev_uint32_t read_burst,
-	ev_uint32_t write_rate, ev_uint32_t write_burst,
+	size_t read_rate, size_t read_burst,
+	size_t write_rate, size_t write_burst,
 	const struct timeval *tick_len);
 
 /** Free all storage held in 'cfg'.
