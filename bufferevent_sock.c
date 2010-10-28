@@ -127,7 +127,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	struct evbuffer *input;
 	int res = 0;
 	short what = BEV_EVENT_READING;
-	int howmuch = -1, readmax=-1;
+	ev_ssize_t howmuch = -1, readmax=-1;
 
 	_bufferevent_incref_and_lock(bufev);
 
@@ -449,7 +449,7 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	}
 
 	/* XXX use the other addrinfos? */
-	r = bufferevent_socket_connect(bev, ai->ai_addr, ai->ai_addrlen);
+	r = bufferevent_socket_connect(bev, ai->ai_addr, (int)ai->ai_addrlen);
 	_bufferevent_decref_and_unlock(bev);
 	evutil_freeaddrinfo(ai);
 }

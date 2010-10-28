@@ -97,7 +97,7 @@ struct eventop win32ops = {
 #define FD_SET_ALLOC_SIZE(n) ((sizeof(struct win_fd_set) + ((n)-1)*sizeof(SOCKET)))
 
 static int
-realloc_fd_sets(struct win32op *op, size_t new_size)
+realloc_fd_sets(struct win32op *op, int new_size)
 {
 	size_t size;
 
