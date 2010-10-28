@@ -55,6 +55,7 @@
 #ifdef WIN32
 #include "iocp-internal.h"
 #include "defer-internal.h"
+#include "event-internal.h"
 #endif
 
 struct evconnlistener_ops {
@@ -90,6 +91,7 @@ struct evconnlistener_iocp {
 	struct event_iocp_port *port;
 	short n_accepting;
 	unsigned shutting_down : 1;
+	unsigned event_added : 1;
 	struct accepting_socket **accepting;
 };
 #endif
@@ -442,6 +444,26 @@ static void accepted_socket_cb(struct event_overlapped *o, ev_uintptr_t key,
     ev_ssize_t n, int ok);
 static void accepted_socket_invoke_user_cb(struct deferred_cb *cb, void *arg);
 
+static void
+iocp_listener_event_add(struct evconnlistener_iocp *lev)
+{
+	if (lev->event_added)
+		return;
+
+	lev->event_added = 1;
+	event_base_add_virtual(lev->event_base);
+}
+
+static void
+iocp_listener_event_del(struct evconnlistener_iocp *lev)
+{
+	if (!lev->event_added)
+		return;
+
+	lev->event_added = 0;
+	event_base_del_virtual(lev->event_base);
+}
+
 static struct accepting_socket *
 new_accepting_socket(struct evconnlistener_iocp *lev, int family)
 {
@@ -660,6 +682,7 @@ iocp_listener_enable(struct evconnlistener *lev)
 	    EVUTIL_UPCAST(lev, struct evconnlistener_iocp, base);
 
 	LOCK(lev);
+	iocp_listener_event_add(lev_iocp);
 	for (i = 0; i < lev_iocp->n_accepting; ++i) {
 		struct accepting_socket *as = lev_iocp->accepting[i];
 		if (!as)
@@ -681,6 +704,7 @@ iocp_listener_disable_impl(struct evconnlistener *lev, int shutdown)
 	    EVUTIL_UPCAST(lev, struct evconnlistener_iocp, base);
 
 	LOCK(lev);
+	iocp_listener_event_del(lev_iocp);
 	for (i = 0; i < lev_iocp->n_accepting; ++i) {
 		struct accepting_socket *as = lev_iocp->accepting[i];
 		if (!as)
@@ -813,6 +837,8 @@ evconnlistener_new_async(struct event_base *base,
 		}
 		++lev->base.refcnt;
 	}
+
+	iocp_listener_event_add(lev);
 
 	return &lev->base;
 
