@@ -460,6 +460,7 @@ thread_deferred_cb_skew(void *arg)
 	struct basic_test_data *data = arg;
 	struct timeval tv_timer = {4, 0};
 	struct deferred_cb_queue *queue;
+	time_t elapsed;
 	int i;
 
 	queue = event_base_get_deferred_cb_queue(data->base);
@@ -475,8 +476,12 @@ thread_deferred_cb_skew(void *arg)
 			NULL, NULL);
 	event_base_dispatch(data->base);
 
+	elapsed = timer_end - timer_start;
 	TT_BLATHER(("callback count, %u", callback_count));
-	tt_int_op(timer_end - timer_start, ==, 4);
+	TT_BLATHER(("elapsed time, %u", (unsigned)elapsed));
+	/* XXX be more intelligent here.  just make sure skew is
+	 * within 2 seconds for now. */
+	tt_assert(elapsed >= 4 && elapsed <= 6);
 
 end:
 	for (i = 0; i < QUEUE_THREAD_COUNT; ++i)
