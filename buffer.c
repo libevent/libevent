@@ -572,7 +572,7 @@ evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
 			goto done;
 
 		vec[0].iov_base = CHAIN_SPACE_PTR(chain);
-		vec[0].iov_len = CHAIN_SPACE_LEN(chain);
+		vec[0].iov_len = (size_t) CHAIN_SPACE_LEN(chain);
 		EVUTIL_ASSERT(size<0 || (size_t)vec[0].iov_len >= (size_t)size);
 		n = 1;
 	} else {
@@ -1496,7 +1496,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	}
 
 	if ((chain->flags & EVBUFFER_IMMUTABLE) == 0) {
-		remain = chain->buffer_len - chain->misalign - chain->off;
+		remain = (size_t)(chain->buffer_len - chain->misalign - chain->off);
 		if (remain >= datlen) {
 			/* there's enough space to hold all the data in the
 			 * current last chain */
@@ -1596,11 +1596,11 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 			/* we can only fit some of the data. */
 			memcpy(chain->buffer,
 			    (char*)data + datlen - chain->misalign,
-			    chain->misalign);
-			chain->off += chain->misalign;
-			buf->total_len += chain->misalign;
-			buf->n_add_for_cb += chain->misalign;
-			datlen -= chain->misalign;
+			    (size_t)chain->misalign);
+			chain->off += (size_t)chain->misalign;
+			buf->total_len += (size_t)chain->misalign;
+			buf->n_add_for_cb += (size_t)chain->misalign;
+			datlen -= (size_t)chain->misalign;
 			chain->misalign = 0;
 		}
 	}
@@ -1619,7 +1619,7 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 
 	memcpy(tmp->buffer + tmp->misalign, data, datlen);
 	buf->total_len += datlen;
-	buf->n_add_for_cb += chain->misalign;
+	buf->n_add_for_cb += (size_t)chain->misalign;
 
 out:
 	evbuffer_invoke_callbacks(buf);
@@ -1794,7 +1794,7 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen, int n)
 	 * space we have in the first n. */
 	for (chain = *buf->last_with_datap; chain; chain = chain->next) {
 		if (chain->off) {
-			size_t space = CHAIN_SPACE_LEN(chain);
+			size_t space = (size_t) CHAIN_SPACE_LEN(chain);
 			EVUTIL_ASSERT(chain == *buf->last_with_datap);
 			if (space) {
 				avail += space;
@@ -1841,7 +1841,7 @@ _evbuffer_expand_fast(struct evbuffer *buf, size_t datlen, int n)
 			rmv_all = 1;
 			avail = 0;
 		} else {
-			avail = CHAIN_SPACE_LEN(chain);
+			avail = (size_t) CHAIN_SPACE_LEN(chain);
 			chain = chain->next;
 		}
 
@@ -1960,7 +1960,7 @@ _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
 
 	chain = *firstchainp;
 	for (i = 0; i < n_vecs_avail && so_far < (size_t)howmuch; ++i) {
-		size_t avail = CHAIN_SPACE_LEN(chain);
+		size_t avail = (size_t) CHAIN_SPACE_LEN(chain);
 		if (avail > (howmuch - so_far) && exact)
 			avail = howmuch - so_far;
 		vecs[i].iov_base = CHAIN_SPACE_PTR(chain);
@@ -2093,7 +2093,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 #ifdef USE_IOVEC_IMPL
 	remaining = n;
 	for (i=0; i < nvecs; ++i) {
-		ev_ssize_t space = CHAIN_SPACE_LEN(*chainp);
+		ev_ssize_t space = (ev_ssize_t) CHAIN_SPACE_LEN(*chainp);
 		if (space < remaining) {
 			(*chainp)->off += space;
 			remaining -= (int)space;
@@ -2563,7 +2563,7 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 		space = chain->buffer_len - used;
 #endif
 		buffer = (char*) CHAIN_SPACE_PTR(chain);
-		space = CHAIN_SPACE_LEN(chain);
+		space = (size_t) CHAIN_SPACE_LEN(chain);
 
 #ifndef va_copy
 #define	va_copy(dst, src)	memcpy(&(dst), &(src), sizeof(va_list))
@@ -2765,7 +2765,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		 * can abort without side effects if the read fails.
 		 */
 		while (length) {
-			read = evbuffer_readfile(tmp, fd, length);
+			read = evbuffer_readfile(tmp, fd, (ev_ssize_t)length);
 			if (read == -1) {
 				evbuffer_free(tmp);
 				return (-1);

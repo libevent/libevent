@@ -125,7 +125,7 @@ evutil_read_file(const char *filename, char **content_out, size_t *len_out,
 		close(fd);
 		return -2;
 	}
-	mem = mm_malloc(st.st_size + 1);
+	mem = mm_malloc((size_t)st.st_size + 1);
 	if (!mem) {
 		close(fd);
 		return -2;
