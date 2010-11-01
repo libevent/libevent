@@ -134,7 +134,7 @@ evutil_read_file(const char *filename, char **content_out, size_t *len_out,
 #ifdef WIN32
 #define N_TO_READ(x) ((x) > INT_MAX) ? INT_MAX : ((int)(x))
 #else
-#defien N_TO_READ(x) (x)
+#define N_TO_READ(x) (x)
 #endif
 	while ((r = read(fd, mem+read_so_far, N_TO_READ(st.st_size - read_so_far))) > 0) {
 		read_so_far += r;
