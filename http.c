@@ -240,7 +240,8 @@ html_replace(char ch, char *buf)
 char *
 evhttp_htmlescape(const char *html)
 {
-	int i, new_size = 0, old_size = strlen(html);
+	int i;
+	size_t new_size = 0, old_size = strlen(html);
 	char *escaped_html, *p;
 	char scratch_space[2];
 
@@ -762,7 +763,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 static enum message_read_status
 evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 {
-	int len;
+	ev_ssize_t len;
 
 	while ((len = evbuffer_get_length(buf)) > 0) {
 		if (req->ntoread < 0) {
@@ -3371,7 +3372,7 @@ bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
 		evutil_make_listen_socket_reuseable(fd);
 
 	if (ai != NULL) {
-		r = bind(fd, ai->ai_addr, ai->ai_addrlen);
+		r = bind(fd, ai->ai_addr, (ev_socklen_t)ai->ai_addrlen);
 		if (r == -1)
 			goto out;
 	}
@@ -3563,7 +3564,7 @@ bracket_addr_ok(const char *s, const char *eos)
 	} else {
 		/* IPv6, or junk */
 		char buf[64];
-		int n_chars = eos-s-2;
+		ev_ssize_t n_chars = eos-s-2;
 		struct in6_addr in6;
 		if (n_chars >= 64) /* way too long */
 			return 0;

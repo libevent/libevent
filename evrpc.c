@@ -210,7 +210,7 @@ static char *
 evrpc_construct_uri(const char *uri)
 {
 	char *constructed_uri;
-	int constructed_uri_len;
+	size_t constructed_uri_len;
 
 	constructed_uri_len = strlen(EVRPC_URI_PREFIX) + strlen(uri) + 1;
 	if ((constructed_uri = mm_malloc(constructed_uri_len)) == NULL)

@@ -256,7 +256,8 @@ evtag_marshal_buffer(struct evbuffer *evbuf, ev_uint32_t tag,
     struct evbuffer *data)
 {
 	evtag_encode_tag(evbuf, tag);
-	evtag_encode_int(evbuf, evbuffer_get_length(data));
+	/* XXX support more than UINT32_MAX data */
+	evtag_encode_int(evbuf, (ev_uint32_t)evbuffer_get_length(data));
 	evbuffer_add_buffer(evbuf, data);
 }
 
@@ -287,7 +288,8 @@ evtag_marshal_int64(struct evbuffer *evbuf, ev_uint32_t tag,
 void
 evtag_marshal_string(struct evbuffer *buf, ev_uint32_t tag, const char *string)
 {
-	evtag_marshal(buf, tag, string, strlen(string));
+	/* TODO support strings longer than UINT32_MAX ? */
+	evtag_marshal(buf, tag, string, (ev_uint32_t)strlen(string));
 }
 
 void
@@ -302,7 +304,7 @@ evtag_marshal_timeval(struct evbuffer *evbuf, ev_uint32_t tag, struct timeval *t
 #define DECODE_INT_INTERNAL(number, maxnibbles, pnumber, evbuf, offset) \
 do {									\
 	ev_uint8_t *data;						\
-	int len = evbuffer_get_length(evbuf) - offset;			\
+	ev_ssize_t len = evbuffer_get_length(evbuf) - offset;		\
 	int nibbles = 0;						\
 									\
 	if (len <= 0)							\
@@ -329,7 +331,7 @@ do {									\
 									\
 	*pnumber = number;						\
 									\
-	return (len);							\
+	return (int)(len);						\
 } while (0)
 
 /* Internal: decode an integer from an evbuffer, without draining it.

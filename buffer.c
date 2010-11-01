@@ -146,7 +146,7 @@ static struct evbuffer_chain *evbuffer_expand_singlechain(struct evbuffer *buf,
 
 #ifdef WIN32
 static int evbuffer_readfile(struct evbuffer *buf, evutil_socket_t fd,
-    int howmuch);
+    ev_ssize_t howmuch);
 #else
 #define evbuffer_readfile evbuffer_read
 #endif
@@ -1025,6 +1025,7 @@ done:
 
 /* reads data from the src buffer to the dst buffer, avoids memcpy as
  * possible. */
+/*  XXXX should return ev_ssize_t */
 int
 evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
     size_t datlen)
@@ -1054,7 +1055,7 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 	if (datlen >= src->total_len) {
 		datlen = src->total_len;
 		evbuffer_add_buffer(dst, src);
-		result = datlen;
+		result = (int)datlen; /*XXXX should return ev_ssize_t*/
 		goto done;
 	}
 
@@ -1102,7 +1103,7 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 		evbuffer_invoke_callbacks(dst);
 		evbuffer_invoke_callbacks(src);
 	}
-	result = nread;
+	result = (int)nread;/*XXXX should change return type */
 
 done:
 	EVBUFFER_UNLOCK2(src, dst);
@@ -1231,11 +1232,11 @@ evbuffer_readline(struct evbuffer *buffer)
 	return evbuffer_readln(buffer, NULL, EVBUFFER_EOL_ANY);
 }
 
-static inline int
+static inline ev_ssize_t
 evbuffer_strchr(struct evbuffer_ptr *it, const char chr)
 {
 	struct evbuffer_chain *chain = it->_internal.chain;
-	unsigned i = it->_internal.pos_in_chain;
+	size_t i = it->_internal.pos_in_chain;
 	while (chain != NULL) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
 		char *cp = memchr(buffer+i, chr, chain->off-i);
@@ -1280,11 +1281,11 @@ find_eol_char(char *s, size_t len)
 #undef CHUNK_SZ
 }
 
-static int
+static ev_ssize_t
 evbuffer_find_eol_char(struct evbuffer_ptr *it)
 {
 	struct evbuffer_chain *chain = it->_internal.chain;
-	unsigned i = it->_internal.pos_in_chain;
+	size_t i = it->_internal.pos_in_chain;
 	while (chain != NULL) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
 		char *cp = find_eol_char(buffer+i, chain->off-i);
@@ -1308,7 +1309,7 @@ evbuffer_strspn(
 {
 	int count = 0;
 	struct evbuffer_chain *chain = ptr->_internal.chain;
-	unsigned i = ptr->_internal.pos_in_chain;
+	size_t i = ptr->_internal.pos_in_chain;
 
 	if (!chain)
 		return -1;
@@ -1346,7 +1347,7 @@ static inline char
 evbuffer_getchr(struct evbuffer_ptr *it)
 {
 	struct evbuffer_chain *chain = it->_internal.chain;
-	int off = it->_internal.pos_in_chain;
+	size_t off = it->_internal.pos_in_chain;
 
 	return chain->buffer[chain->misalign + off];
 }
@@ -1910,11 +1911,13 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 #define IOV_TYPE struct iovec
 #define IOV_PTR_FIELD iov_base
 #define IOV_LEN_FIELD iov_len
+#define IOV_LEN_TYPE size_t
 #else
 #define NUM_WRITE_IOVEC 16
 #define IOV_TYPE WSABUF
 #define IOV_PTR_FIELD buf
 #define IOV_LEN_FIELD len
+#define IOV_LEN_TYPE unsigned long
 #endif
 #endif
 #define NUM_READ_IOVEC 4
@@ -2093,7 +2096,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 		ev_ssize_t space = CHAIN_SPACE_LEN(*chainp);
 		if (space < remaining) {
 			(*chainp)->off += space;
-			remaining -= space;
+			remaining -= (int)space;
 		} else {
 			(*chainp)->off += remaining;
 			buf->last_with_datap = chainp;
@@ -2118,7 +2121,7 @@ done:
 
 #ifdef WIN32
 static int
-evbuffer_readfile(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
+evbuffer_readfile(struct evbuffer *buf, evutil_socket_t fd, ev_ssize_t howmuch)
 {
 	int result;
 	int nchains, n;
@@ -2142,16 +2145,16 @@ evbuffer_readfile(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 		result = -1;
 		goto done;
 	}
-	n = read(fd, v[0].iov_base, v[0].iov_len);
+	n = read((int)fd, v[0].iov_base, (unsigned int)v[0].iov_len);
 	if (n <= 0) {
 		result = n;
 		goto done;
 	}
-	v[0].iov_len = n;
+	v[0].iov_len = (IOV_LEN_TYPE) n; /* XXXX another problem with big n.*/
 	if (nchains > 1) {
-		n = read(fd, v[1].iov_base, v[1].iov_len);
+		n = read((int)fd, v[1].iov_base, (unsigned int)v[1].iov_len);
 		if (n <= 0) {
-			result = v[0].iov_len;
+			result = (unsigned long) v[0].iov_len;
 			evbuffer_commit_space(buf, v, 1);
 			goto done;
 		}
@@ -2190,10 +2193,12 @@ evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
 #endif
 		iov[i].IOV_PTR_FIELD = (void *) (chain->buffer + chain->misalign);
 		if ((size_t)howmuch >= chain->off) {
-			iov[i++].IOV_LEN_FIELD = chain->off;
+			/* XXXcould be problematic when windows supports mmap*/
+			iov[i++].IOV_LEN_FIELD = (IOV_LEN_TYPE)chain->off;
 			howmuch -= chain->off;
 		} else {
-			iov[i++].IOV_LEN_FIELD = howmuch;
+			/* XXXcould be problematic when windows supports mmap*/
+			iov[i++].IOV_LEN_FIELD = (IOV_LEN_TYPE)howmuch;
 			break;
 		}
 		chain = chain->next;
