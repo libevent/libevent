@@ -152,13 +152,13 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	}
 	readmax = _bufferevent_get_read_max(bufev_p);
 	if (howmuch < 0 || howmuch > readmax) /* The use of -1 for "unlimited"
-					       * uglifies this code. */
+					       * uglifies this code. XXXX */
 		howmuch = readmax;
 	if (bufev_p->read_suspended)
 		goto done;
 
 	evbuffer_unfreeze(input, 0);
-	res = evbuffer_read(input, fd, howmuch);
+	res = evbuffer_read(input, fd, (int)howmuch); /* XXXX evbuffer_read would do better to take and return ev_ssize_t */
 	evbuffer_freeze(input, 0);
 
 	if (res == -1) {
@@ -203,7 +203,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	int res = 0;
 	short what = BEV_EVENT_WRITING;
 	int connected = 0;
-	int atmost = -1;
+	ev_ssize_t atmost = -1;
 
 	_bufferevent_incref_and_lock(bufev);
 

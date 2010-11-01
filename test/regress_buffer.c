@@ -139,17 +139,17 @@ evbuffer_get_waste(struct evbuffer *buf, size_t *allocatedp, size_t *wastedp, si
 		a += chain->buffer_len;
 		u += chain->off;
 		if (chain->next && chain->next->off)
-			w += chain->buffer_len - (chain->misalign + chain->off);
+			w += (size_t)(chain->buffer_len - (chain->misalign + chain->off));
 		chain = chain->next;
 	}
 	/* subsequent nonempty chains */
 	while (chain && chain->off) {
 		++n;
 		a += chain->buffer_len;
-		w += chain->misalign;
+		w += (size_t)chain->misalign;
 		u += chain->off;
 		if (chain->next && chain->next->off)
-			w += chain->buffer_len - (chain->misalign + chain->off);
+			w += (size_t) (chain->buffer_len - (chain->misalign + chain->off));
 		chain = chain->next;
 	}
 	/* subsequent empty chains */

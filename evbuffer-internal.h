@@ -161,7 +161,7 @@ struct evbuffer_chain {
 
 	/** unused space at the beginning of buffer or an offset into a
 	 * file for sendfile buffers. */
-	off_t misalign;
+	ev_off_t misalign;
 
 	/** Offset into buffer + misalign at which to start writing.
 	 * In other words, the total number of bytes actually stored
@@ -262,8 +262,10 @@ int _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
 /* Helper macro: copies an evbuffer_iovec in ei to a win32 WSABUF in i. */
 #define WSABUF_FROM_EVBUFFER_IOV(i,ei) do {		\
 		(i)->buf = (ei)->iov_base;		\
-		(i)->len = (ei)->iov_len;		\
+		(i)->len = (unsigned long)(ei)->iov_len;	\
 	} while (0)
+/* XXXX the cast above is safe for now, but not if we allow mmaps on win64.
+ * See note in buffer_iocp's launch_write function */
 
 /** Set the parent bufferevent object for buf to bev */
 void evbuffer_set_parent(struct evbuffer *buf, struct bufferevent *bev);
