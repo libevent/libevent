@@ -240,7 +240,7 @@ html_replace(char ch, char *buf)
 char *
 evhttp_htmlescape(const char *html)
 {
-	int i;
+	size_t i;
 	size_t new_size = 0, old_size = strlen(html);
 	char *escaped_html, *p;
 	char scratch_space[2];
@@ -250,7 +250,7 @@ evhttp_htmlescape(const char *html)
 
 	p = escaped_html = mm_malloc(new_size + 1);
 	if (escaped_html == NULL) {
-		event_warn("%s: malloc(%d)", __func__, new_size + 1);
+		event_warn("%s: malloc(%ld)", __func__, (long)(new_size + 1));
 		return (NULL);
 	}
 	for (i = 0; i < old_size; ++i) {
