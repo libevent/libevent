@@ -149,6 +149,14 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 
 #endif
 
+#define REQ_VERSION_BEFORE(req, major_v, minor_v)			\
+	((req)->major < (major_v) ||					\
+	    ((req)->major == (major_v) && (req)->minor < (minor_v)))
+
+#define REQ_VERSION_ATLEAST(req, major_v, minor_v)			\
+	((req)->major > (major_v) ||					\
+	    ((req)->major == (major_v) && (req)->minor >= (minor_v)))
+
 #ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
@@ -470,9 +478,8 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	    req->major, req->minor, req->response_code,
 	    req->response_code_line);
 
-	/* XXX shouldn't these check for >= rather than == ? - NM */
 	if (req->major == 1) {
-		if (req->minor == 1)
+		if (req->minor >= 1)
 			evhttp_maybe_add_date_header(req->output_headers);
 
 		/*
@@ -483,7 +490,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 			evhttp_add_header(req->output_headers,
 			    "Connection", "keep-alive");
 
-		if ((req->minor == 1 || is_keepalive) &&
+		if ((req->minor >= 1 || is_keepalive) &&
 		    evhttp_response_needs_body(req)) {
 			/*
 			 * we need to add the content length if the
@@ -1392,10 +1399,16 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		req->major = 1;
 		req->minor = 1;
 	} else {
-		/* XXX So, http/1.2 kills us?  Is that right? -NM */
-		event_debug(("%s: bad version %s on request %p from %s",
-			__func__, version, req, req->remote_host));
-		return (-1);
+		int major, minor;
+		char ch;
+		int n = sscanf(version, "HTTP/%d.%d%c", &major, &minor, &ch);
+		if (n > 2 || major > 1) {
+			event_debug(("%s: bad version %s on request %p from %s",
+				__func__, version, req, req->remote_host));
+			return (-1);
+		}
+		req->major = major;
+		req->minor = minor;
 	}
 
 	if ((req->uri = mm_strdup(uri)) == NULL) {
@@ -2074,7 +2087,7 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
 	need_close =
-	    (req->minor == 0 &&
+	    (REQ_VERSION_BEFORE(req, 1, 1) &&
 		!evhttp_is_connection_keepalive(req->input_headers))||
 	    evhttp_is_connection_close(req->flags, req->input_headers) ||
 	    evhttp_is_connection_close(req->flags, req->output_headers);
@@ -2169,7 +2182,7 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
 {
 	evhttp_response_code(req, code, reason);
 	if (evhttp_find_header(req->output_headers, "Content-Length") == NULL &&
-	    req->major == 1 && req->minor == 1 &&
+	    REQ_VERSION_ATLEAST(req, 1, 1) &&
 	    evhttp_response_needs_body(req)) {
 		/*
 		 * prefer HTTP/1.1 chunked encoding to closing the connection;
