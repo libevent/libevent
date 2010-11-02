@@ -2179,6 +2179,8 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
 		evhttp_add_header(req->output_headers, "Transfer-Encoding",
 		    "chunked");
 		req->chunked = 1;
+	} else {
+		req->chunked = 0;
 	}
 	evhttp_make_header(req->evcon, req);
 	evhttp_write_buffer(req->evcon, NULL, NULL);
