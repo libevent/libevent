@@ -1522,8 +1522,8 @@ dnsname_to_labels(u8 *const buf, size_t buf_len, off_t j,
 			if (table) dnslabel_table_add(table, start, j);
 			buf[j++] = (ev_uint8_t)label_len;
 
-			memcpy(buf + j, start, end - start);
-			j += (int)(end - start);
+			memcpy(buf + j, start, label_len);
+			j += (int) label_len;
 			break;
 		} else {
 			/* append length of the label. */
@@ -1533,8 +1533,8 @@ dnsname_to_labels(u8 *const buf, size_t buf_len, off_t j,
 			if (table) dnslabel_table_add(table, start, j);
 			buf[j++] = (ev_uint8_t)label_len;
 
-			memcpy(buf + j, start, name - start);
-			j += (int)(name - start);
+			memcpy(buf + j, start, label_len);
+			j += (int) label_len;
 			/* hop over the '.' */
 			name++;
 		}
