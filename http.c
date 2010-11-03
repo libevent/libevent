@@ -3173,6 +3173,12 @@ evhttp_request_get_command(const struct evhttp_request *req) {
 	return (req->type);
 }
 
+int
+evhttp_request_get_response_code(const struct evhttp_request *req)
+{
+	return req->response_code;
+}
+
 /** Returns the input headers */
 struct evkeyvalq *evhttp_request_get_input_headers(struct evhttp_request *req)
 {
