@@ -67,7 +67,7 @@
 
 static struct evhttp *http;
 /* set if a test needs to call loopexit on a base */
-static struct event_base *base;
+static struct event_base *exit_base;
 
 static char const BASIC_REQUEST_BODY[] = "This is funny";
 
@@ -246,8 +246,8 @@ http_readcb(struct bufferevent *bev, void *arg)
 	 out:
 		evhttp_request_free(req);
 		bufferevent_disable(bev, EV_READ);
-		if (base)
-			event_base_loopexit(base, NULL);
+		if (exit_base)
+			event_base_loopexit(exit_base, NULL);
 		else if (my_base)
 			event_base_loopexit(my_base, NULL);
 		else
@@ -711,7 +711,7 @@ _http_connection_test(struct basic_test_data *data, int persistent)
 
 	tt_assert(evhttp_connection_get_base(evcon) == data->base);
 
-	base = data->base;
+	exit_base = data->base;
 	/*
 	 * At this point, we want to schedule a request to the HTTP
 	 * server using our make request method.
@@ -804,7 +804,7 @@ http_connection_async_test(void *arg)
 	ev_uint16_t portnum = 0;
 	char address[64];
 
-	base = data->base;
+	exit_base = data->base;
 	tt_assert(regress_dnsserver(data->base, &portnum, search_table));
 
 	dns_base = evdns_base_new(data->base, 0/* init name servers */);
@@ -923,7 +923,7 @@ http_cancel_test(void *arg)
 	struct evhttp_request *req = NULL;
 	struct timeval tv;
 
-	base = data->base;
+	exit_base = data->base;
 
 	test_ok = 0;
 
@@ -1017,8 +1017,8 @@ http_request_done(struct evhttp_request *req, void *arg)
 	}
 
 	test_ok = 1;
-	if (base)
-		event_base_loopexit(base, NULL);
+	if (exit_base)
+		event_base_loopexit(exit_base, NULL);
 	else
 		event_loopexit(NULL);
 }
@@ -1048,7 +1048,7 @@ http_virtual_host_test(void *arg)
 	struct evhttp_request *req = NULL;
 	struct evhttp *second = NULL, *third = NULL;
 
-	base = data->base;
+	exit_base = data->base;
 
 	http = http_setup(&port, data->base);
 
@@ -2286,7 +2286,7 @@ static void
 http_incomplete_readcb(struct bufferevent *bev, void *arg)
 {
 	test_ok = -1;
-	event_base_loopexit(base,NULL);
+	event_base_loopexit(exit_base,NULL);
 }
 
 static void
@@ -2296,7 +2296,7 @@ http_incomplete_errorcb(struct bufferevent *bev, short what, void *arg)
 		test_ok++;
 	else
 		test_ok = -2;
-	event_base_loopexit(base,NULL);
+	event_base_loopexit(exit_base,NULL);
 }
 
 static void
@@ -2323,7 +2323,7 @@ _http_incomplete_test(struct basic_test_data *data, int use_timeout)
 	ev_uint16_t port = 0;
 	struct timeval tv_start, tv_end;
 
-	base = data->base;
+	exit_base = data->base;
 
 	test_ok = 0;
 
