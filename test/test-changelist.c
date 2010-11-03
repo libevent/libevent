@@ -143,7 +143,7 @@ main(int argc, char **argv)
 	struct event* timeout;
 	struct event_base* base;
 
-	int pair[2];
+	evutil_socket_t pair[2];
 	int res;
 	struct timeval tv;
 	struct cpu_usage_timer timer;

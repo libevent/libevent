@@ -127,7 +127,7 @@ http_setup(ev_uint16_t *pport, struct event_base *base)
 #define NI_MAXSERV 1024
 #endif
 
-static int
+static evutil_socket_t
 http_connect(const char *address, u_short port)
 {
 	/* Stupid code for connecting */

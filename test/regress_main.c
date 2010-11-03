@@ -107,7 +107,7 @@ static void dnslogcb(int w, const char *m)
 }
 
 /* creates a temporary file with the data in it */
-evutil_socket_t
+int
 regress_make_tmpfile(const void *data, size_t datalen)
 {
 #ifndef WIN32
@@ -147,7 +147,7 @@ regress_make_tmpfile(const void *data, size_t datalen)
 	if (tries == 0)
 		return (-1);
 	written = 0;
-	WriteFile(h, data, datalen, &written, NULL);
+	WriteFile(h, data, (DWORD)datalen, &written, NULL);
 	/* Closing the fd returned by this function will indeed close h. */
 	return _open_osfhandle((intptr_t)h,_O_RDONLY);
 #endif
