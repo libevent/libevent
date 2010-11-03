@@ -143,6 +143,10 @@
  * 'struct request' instances being created over its lifetime. */
 struct evdns_request {
 	struct request *current_req;
+	struct evdns_base *base;
+
+	int pending_cb; /* Waiting for its callback to be invoked; not
+			 * owned by event base any more. */
 
 	/* elements used by the searching code */
 	int search_index;
@@ -653,11 +657,20 @@ request_finished(struct request *const req, struct request **head, int free_hand
 
 	if (req->handle) {
 		EVUTIL_ASSERT(req->handle->current_req == req);
+
 		if (free_handle) {
 			search_request_finished(req->handle);
-			mm_free(req->handle);
-		} else
 			req->handle->current_req = NULL;
+			if (! req->handle->pending_cb) {
+				/* If we're planning to run the callback,
+				 * don't free the handle until later. */
+				mm_free(req->handle);
+			}
+			req->handle = NULL; /* If we have a bug, let's crash
+					     * early */
+		} else {
+			req->handle->current_req = NULL;
+		}
 	}
 
 	mm_free(req);
@@ -723,6 +736,7 @@ evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 /* TODO(nickm) document */
 struct deferred_reply_callback {
 	struct deferred_cb deferred;
+	struct evdns_request *handle;
 	u8 request_type;
 	u8 have_reply;
 	u32 ttl;
@@ -769,6 +783,10 @@ reply_run_callback(struct deferred_cb *d, void *user_pointer)
 		EVUTIL_ASSERT(0);
 	}
 
+	if (cb->handle && cb->handle->pending_cb) {
+		mm_free(cb->handle);
+	}
+
 	mm_free(cb);
 }
 
@@ -786,6 +804,11 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 	if (reply) {
 		d->have_reply = 1;
 		memcpy(&d->reply, reply, sizeof(struct reply));
+	}
+
+	if (req->handle) {
+		req->handle->pending_cb = 1;
+		d->handle = req->handle;
 	}
 
 	event_deferred_cb_init(&d->deferred, reply_run_callback,
@@ -2637,8 +2660,10 @@ request_new(struct evdns_base *base, struct evdns_request *handle, int type,
 	req->ns = issuing_now ? nameserver_pick(base) : NULL;
 	req->next = req->prev = NULL;
 	req->handle = handle;
-	if (handle)
+	if (handle) {
 		handle->current_req = req;
+		handle->base = base;
+	}
 
 	return req;
 err1:
@@ -2667,14 +2692,24 @@ request_submit(struct request *const req) {
 void
 evdns_cancel_request(struct evdns_base *base, struct evdns_request *handle)
 {
-	struct request *req = handle->current_req;
+	struct request *req;
 
-	ASSERT_VALID_REQUEST(req);
-
-	if (!base)
-		base = req->base;
+	if (!base) {
+		/* This redundancy is silly; can we fix it? (Not for 2.0) XXXX */
+		base = handle->base;
+		if (!base && handle->current_req)
+			base = handle->current_req->base;
+	}
 
 	EVDNS_LOCK(base);
+	if (handle->pending_cb) {
+		EVDNS_UNLOCK(base);
+		return;
+	}
+
+	req = handle->current_req;
+	ASSERT_VALID_REQUEST(req);
+
 	reply_schedule_callback(req, 0, DNS_ERR_CANCEL, NULL);
 	if (req->ns) {
 		/* remove from inflight queue */
