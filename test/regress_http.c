@@ -54,7 +54,6 @@
 
 #include "event2/event.h"
 #include "event2/http.h"
-#include "event2/http_compat.h"
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
 #include "log-internal.h"
@@ -347,7 +346,7 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 	state->req = req;
 	state->base = arg;
 
-	if (strcmp(evhttp_request_uri(req), "/streamed") == 0) {
+	if (strcmp(evhttp_request_get_uri(req), "/streamed") == 0) {
 		evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Length", "39");
 	}
 
