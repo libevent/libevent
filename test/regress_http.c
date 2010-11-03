@@ -53,7 +53,6 @@
 #include "event2/dns.h"
 
 #include "event2/event.h"
-#include "event2/event_compat.h"
 #include "event2/http.h"
 #include "event2/http_compat.h"
 #include "event2/http_struct.h"
@@ -250,8 +249,10 @@ http_readcb(struct bufferevent *bev, void *arg)
 			event_base_loopexit(exit_base, NULL);
 		else if (my_base)
 			event_base_loopexit(my_base, NULL);
-		else
-			event_loopexit(NULL);
+		else {
+			fprintf(stderr, "No way to exit loop!\n");
+			exit(1);
+		}
 	}
 }
 
@@ -269,7 +270,7 @@ static void
 http_errorcb(struct bufferevent *bev, short what, void *arg)
 {
 	test_ok = -2;
-	event_loopexit(NULL);
+	event_base_loopexit(arg, NULL);
 }
 
 static void
@@ -499,7 +500,7 @@ http_badreq_readcb(struct bufferevent *bev, void *arg)
 	if (evbuffer_contains(bufferevent_get_input(bev), bad_request)) {
 		TT_FAIL(("%s:bad request detected", __func__));
 		bufferevent_disable(bev, EV_READ);
-		event_loopexit(NULL);
+		event_base_loopexit(arg, NULL);
 		return;
 	}
 
@@ -1019,10 +1020,8 @@ http_request_done(struct evhttp_request *req, void *arg)
 	}
 
 	test_ok = 1;
-	if (exit_base)
-		event_base_loopexit(exit_base, NULL);
-	else
-		event_loopexit(NULL);
+	EVUTIL_ASSERT(exit_base);
+	event_base_loopexit(exit_base, NULL);
 }
 
 static void
@@ -1034,10 +1033,8 @@ http_request_expect_error(struct evhttp_request *req, void *arg)
 	}
 
 	test_ok = 1;
-	if (arg)
-		event_base_loopexit(arg, NULL);
-	else
-		event_loopexit(NULL);
+	EVUTIL_ASSERT(arg);
+	event_base_loopexit(arg, NULL);
 }
 
 /* test virtual hosts */
@@ -1165,10 +1162,8 @@ http_request_empty_done(struct evhttp_request *req, void *arg)
 	}
 
 	test_ok = 1;
-	if (arg)
-		event_base_loopexit(arg, NULL);
-	else
-		event_loopexit(NULL);
+	EVUTIL_ASSERT(arg);
+	event_base_loopexit(arg, NULL);
 }
 
 /*
@@ -2250,15 +2245,15 @@ http_base_test(void *ptr)
 	ev_uint16_t port = 0;
 
 	test_ok = 0;
-	base = event_init();
+	base = event_base_new();
 	http = http_setup(&port, base);
 
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_socket_new(NULL, fd, 0);
+	bev = bufferevent_socket_new(base, fd, 0);
 	bufferevent_setcb(bev, http_readcb, http_writecb,
-	    http_errorcb, NULL);
+	    http_errorcb, base);
 	bufferevent_base_set(base, bev);
 
 	http_request =
@@ -3261,7 +3256,7 @@ http_terminate_chunked_test(void *arg)
 
 struct testcase_t http_testcases[] = {
 	{ "primitives", http_primitives, 0, NULL, NULL },
-	{ "base", http_base_test, TT_FORK|TT_NEED_BASE, NULL, NULL },
+	{ "base", http_base_test, TT_FORK, NULL, NULL },
 	{ "bad_headers", http_bad_header_test, 0, NULL, NULL },
 	{ "parse_query", http_parse_query_test, 0, NULL, NULL },
 	{ "parse_uri", http_parse_uri_test, 0, NULL, NULL },
