@@ -343,6 +343,15 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	evcon->cb_arg = arg;
 
 	bufferevent_enable(evcon->bufev, EV_WRITE);
+
+	/* Disable the read callback: we don't actually care about data;
+	 * we only care about close detection.  (We don't disable reading,
+	 * since we *do* want to learn about any close events.) */
+	bufferevent_setcb(evcon->bufev,
+	    NULL, /*read*/
+	    evhttp_write_cb,
+	    evhttp_error_cb,
+	    evcon);
 }
 
 /** Helper: returns true iff evconn is in any connected state. */
@@ -2056,6 +2065,12 @@ evhttp_start_read(struct evhttp_connection *evcon)
 	bufferevent_disable(evcon->bufev, EV_WRITE);
 	bufferevent_enable(evcon->bufev, EV_READ);
 	evcon->state = EVCON_READING_FIRSTLINE;
+	/* Reset the bufferevent callbacks */
+	bufferevent_setcb(evcon->bufev,
+	    evhttp_read_cb,
+	    evhttp_write_cb,
+	    evhttp_error_cb,
+	    evcon);
 
 	/* If there's still data pending, process it next time through the
 	 * loop.  Don't do it now; that could get recusive. */
