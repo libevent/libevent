@@ -1398,9 +1398,11 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	} else if (strcmp(method, "PATCH") == 0) {
 		req->type = EVHTTP_REQ_PATCH;
 	} else {
+		req->type = _EVHTTP_REQ_UNKNOWN;
 		event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
-		return (-1);
+		/* No error yet; we'll give a better error later when
+		 * we see that req->type is unsupported. */
 	}
 
 	if (strcmp(version, "HTTP/1.0") == 0) {

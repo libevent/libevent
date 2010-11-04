@@ -41,6 +41,9 @@ struct evbuffer;
 struct addrinfo;
 struct evhttp_request;
 
+/* Indicates an unknown request method. */
+#define _EVHTTP_REQ_UNKNOWN (1<<15)
+
 enum evhttp_connection_state {
 	EVCON_DISCONNECTED,	/**< not currently connected not trying either*/
 	EVCON_CONNECTING,	/**< tries to currently connect */
