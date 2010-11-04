@@ -526,6 +526,8 @@ start_accepting(struct accepting_socket *as)
 		goto report_err;
 	}
 
+	/* XXXX It turns out we need to do this again later.  Does this call
+	 * have any effect? */
 	setsockopt(s, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
 	    (char *)&as->lev->fd, sizeof(&as->lev->fd));
 
@@ -609,6 +611,12 @@ accepted_socket_invoke_user_cb(struct deferred_cb *dcb, void *arg)
 		sock = as->s;
 		cb = lev->cb;
 		as->s = INVALID_SOCKET;
+
+		/* We need to call this so getsockname, getpeername, and
+		 * shutdown work correctly on the accepted socket. */
+		/* XXXX handle error? */
+		setsockopt(as->s, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+		    (char *)&as->lev->fd, sizeof(&as->lev->fd));
 	}
 	data = lev->user_data;
 
