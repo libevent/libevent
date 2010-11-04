@@ -693,6 +693,127 @@ http_delete_test(void *arg)
 	;
 }
 
+static void
+http_allowed_methods_eventcb(struct bufferevent *bev, short what, void *arg)
+{
+	char **output = arg;
+	if ((what & (BEV_EVENT_ERROR|BEV_EVENT_EOF))) {
+		char buf[4096];
+		int n;
+		n = evbuffer_remove(bufferevent_get_input(bev), buf,
+		    sizeof(buf)-1);
+		if (n >= 0) {
+			buf[n]='\0';
+			if (*output)
+				free(*output);
+			*output = strdup(buf);
+		}
+		event_base_loopexit(exit_base, NULL);
+	}
+}
+
+static void
+http_allowed_methods_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev1, *bev2, *bev3;
+	evutil_socket_t fd1, fd2, fd3;
+	const char *http_request;
+	char *result1=NULL, *result2=NULL, *result3=NULL;
+	ev_uint16_t port = 0;
+
+	exit_base = data->base;
+	test_ok = 0;
+
+	http = http_setup(&port, data->base);
+
+	fd1 = http_connect("127.0.0.1", port);
+
+	/* GET is out; PATCH is in. */
+	evhttp_set_allowed_methods(http, EVHTTP_REQ_PATCH);
+
+	/* Stupid thing to send a request */
+	bev1 = bufferevent_socket_new(data->base, fd1, 0);
+	bufferevent_enable(bev1, EV_READ|EV_WRITE);
+	bufferevent_setcb(bev1, NULL, NULL,
+	    http_allowed_methods_eventcb, &result1);
+
+	http_request =
+	    "GET /index.html HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev1, http_request, strlen(http_request));
+
+	puts("A");
+	event_base_dispatch(data->base);
+	puts("AA");
+
+	fd2 = http_connect("127.0.0.1", port);
+
+	bev2 = bufferevent_socket_new(data->base, fd2, 0);
+	bufferevent_enable(bev2, EV_READ|EV_WRITE);
+	bufferevent_setcb(bev2, NULL, NULL,
+	    http_allowed_methods_eventcb, &result2);
+
+	http_request =
+	    "PATCH /test HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev2, http_request, strlen(http_request));
+
+	event_base_dispatch(data->base);
+
+	fd3 = http_connect("127.0.0.1", port);
+
+	bev3 = bufferevent_socket_new(data->base, fd3, 0);
+	bufferevent_enable(bev3, EV_READ|EV_WRITE);
+	bufferevent_setcb(bev3, NULL, NULL,
+	    http_allowed_methods_eventcb, &result3);
+
+	http_request =
+	    "FLOOP /test HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev3, http_request, strlen(http_request));
+
+	event_base_dispatch(data->base);
+
+	bufferevent_free(bev1);
+	bufferevent_free(bev2);
+	bufferevent_free(bev3);
+	evutil_closesocket(fd1);
+	evutil_closesocket(fd2);
+	evutil_closesocket(fd3);
+
+	evhttp_free(http);
+
+	/* Method known but disallowed */
+	tt_assert(result1);
+	tt_assert(!strncmp(result1, "HTTP/1.1 501 ", strlen("HTTP/1.1 501 ")));
+
+	/* Method known and allowed */
+	tt_assert(result2);
+	tt_assert(!strncmp(result2, "HTTP/1.1 200 ", strlen("HTTP/1.1 200 ")));
+
+	/* Method unknown */
+	tt_assert(result3);
+	tt_assert(!strncmp(result3, "HTTP/1.1 501 ", strlen("HTTP/1.1 501 ")));
+
+ end:
+	if (result1)
+		free(result1);
+	if (result2)
+		free(result2);
+	if (result3)
+		free(result3);
+}
+
 static void http_request_done(struct evhttp_request *, void *);
 static void http_request_empty_done(struct evhttp_request *, void *);
 
@@ -3265,6 +3386,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(post),
 	HTTP(put),
 	HTTP(delete),
+	HTTP(allowed_methods),
 	HTTP(failure),
 	HTTP(connection),
 	HTTP(persist_connection),
