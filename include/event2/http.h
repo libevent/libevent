@@ -57,7 +57,9 @@ struct event_base;
 #define HTTP_NOTMODIFIED	304	/**< page was not modified from last */
 #define HTTP_BADREQUEST		400	/**< invalid http request was made */
 #define HTTP_NOTFOUND		404	/**< could not find content for uri */
-#define HTTP_BADMETHOD		405 	/**< method not allowed */
+#define HTTP_BADMETHOD		405 	/**< method not allowed for this uri */
+#define HTTP_INTERNAL           500     /**< internal error */
+#define HTTP_NOTIMPLEMENTED     501     /**< not implemented */
 #define HTTP_SERVUNAVAIL	503	/**< the server is not available */
 
 struct evhttp;
@@ -185,7 +187,9 @@ void evhttp_set_max_headers_size(struct evhttp* http, ev_ssize_t max_headers_siz
 void evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size);
 
 /**
-  Sets the what HTTP methods are supported in requests accepted by this server.
+  Sets the what HTTP methods are supported in requests accepted by this
+  server, and passed to user callbacks.
+
   If not supported they will generate a "405 Method not allowed" response.
 
   By default this includes the following methods: GET, POST, HEAD, PUT, DELETE
@@ -193,7 +197,7 @@ void evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size);
   @param http the http server on which to set the methods
   @param methods bit mask constructed from evhttp_cmd_type values
 */
-void evhttp_set_allowed_methods(struct evhttp* http, short methods);
+void evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods);
 
 /**
    Set a callback for a specified URI
@@ -339,7 +343,13 @@ void evhttp_send_reply_end(struct evhttp_request *req);
  * Interfaces for making requests
  */
 
-/** the different request types supported by evhttp */
+/** The different request types supported by evhttp.  These are as specified
+ * in RFC2616, except for PATCH which is specified by RFC5789.
+ *
+ * By default, only some of these methods are accepted and passed to user
+ * callbacks; use evhttp_set_allowed_methods() to change which methods
+ * are allowed.
+ */
 enum evhttp_cmd_type {
 	EVHTTP_REQ_GET     = 1 << 0,
 	EVHTTP_REQ_POST    = 1 << 1,

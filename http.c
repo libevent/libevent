@@ -1396,7 +1396,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	} else if (strcmp(method, "TRACE") == 0) {
 		req->type = EVHTTP_REQ_TRACE;
 	} else if (strcmp(method, "PATCH") == 0) {
-		req->type = EVHTTP_REQ_PATCH; 
+		req->type = EVHTTP_REQ_PATCH;
 	} else {
 		event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
@@ -2692,8 +2692,9 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	}
 
 	if ((http->allowed_methods & req->type) == 0) {
-		event_debug(("Rejecting disallowed method %d (allowed: %d)\n", req->type, http->allowed_methods));		
-		evhttp_send_error(req, HTTP_BADMETHOD, NULL);
+		event_debug(("Rejecting disallowed method %x (allowed: %x)\n",
+			(unsigned)req->type, (unsigned)http->allowed_methods));
+		evhttp_send_error(req, HTTP_NOTIMPLEMENTED, NULL);
 		return;
 	}
 
@@ -2883,9 +2884,9 @@ evhttp_new_object(void)
 	evhttp_set_max_headers_size(http, EV_SIZE_MAX);
 	evhttp_set_max_body_size(http, EV_SIZE_MAX);
 	evhttp_set_allowed_methods(http, EVHTTP_REQ_GET |
-			                 EVHTTP_REQ_POST | 
-			                 EVHTTP_REQ_HEAD | 
-			                 EVHTTP_REQ_PUT | 
+			                 EVHTTP_REQ_POST |
+			                 EVHTTP_REQ_HEAD |
+			                 EVHTTP_REQ_PUT |
 			                 EVHTTP_REQ_DELETE);
 
 	TAILQ_INIT(&http->sockets);
@@ -3020,7 +3021,7 @@ evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size)
 }
 
 void
-evhttp_set_allowed_methods(struct evhttp* http, short methods)
+evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods)
 {
 	http->allowed_methods = methods;
 }

@@ -145,8 +145,9 @@ struct evhttp {
 	size_t default_max_headers_size;
 	ev_uint64_t default_max_body_size;
 
-	/* bitmask of all allowed methods */
-	short allowed_methods;
+	/* Bitmask of all HTTP methods that we accept and pass to user
+	 * callbacks. */
+	ev_uint16_t allowed_methods;
 
 	/* Fallback callback if all the other callbacks for this connection
 	   don't match. */
