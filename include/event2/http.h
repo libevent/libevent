@@ -57,6 +57,7 @@ struct event_base;
 #define HTTP_NOTMODIFIED	304	/**< page was not modified from last */
 #define HTTP_BADREQUEST		400	/**< invalid http request was made */
 #define HTTP_NOTFOUND		404	/**< could not find content for uri */
+#define HTTP_BADMETHOD		405 	/**< method not allowed */
 #define HTTP_SERVUNAVAIL	503	/**< the server is not available */
 
 struct evhttp;
@@ -182,6 +183,17 @@ void evhttp_free(struct evhttp* http);
 void evhttp_set_max_headers_size(struct evhttp* http, ev_ssize_t max_headers_size);
 /** XXX Document. */
 void evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size);
+
+/**
+  Sets the what HTTP methods are supported in requests accepted by this server.
+  If not supported they will generate a "405 Method not allowed" response.
+
+  By default this includes the following methods: GET, POST, HEAD, PUT, DELETE
+
+  @param http the http server on which to set the methods
+  @param methods bit mask constructed from evhttp_cmd_type values
+*/
+void evhttp_set_allowed_methods(struct evhttp* http, short methods);
 
 /**
    Set a callback for a specified URI
@@ -329,11 +341,15 @@ void evhttp_send_reply_end(struct evhttp_request *req);
 
 /** the different request types supported by evhttp */
 enum evhttp_cmd_type {
-	EVHTTP_REQ_GET,
-	EVHTTP_REQ_POST,
-	EVHTTP_REQ_HEAD,
-	EVHTTP_REQ_PUT,
-	EVHTTP_REQ_DELETE
+	EVHTTP_REQ_GET     = 1 << 0,
+	EVHTTP_REQ_POST    = 1 << 1,
+	EVHTTP_REQ_HEAD    = 1 << 2,
+	EVHTTP_REQ_PUT     = 1 << 3,
+	EVHTTP_REQ_DELETE  = 1 << 4,
+	EVHTTP_REQ_OPTIONS = 1 << 5,
+	EVHTTP_REQ_TRACE   = 1 << 6,
+	EVHTTP_REQ_CONNECT = 1 << 7,
+	EVHTTP_REQ_PATCH   = 1 << 8
 };
 
 /** a request object can represent either a request or a reply */

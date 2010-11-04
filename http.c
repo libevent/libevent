@@ -288,6 +288,18 @@ evhttp_method(enum evhttp_cmd_type type)
 	case EVHTTP_REQ_DELETE:
 		method = "DELETE";
 		break;
+	case EVHTTP_REQ_OPTIONS:
+		method = "OPTIONS";
+		break;
+	case EVHTTP_REQ_TRACE:
+		method = "TRACE";
+		break;
+	case EVHTTP_REQ_CONNECT:
+		method = "CONNECT";
+		break;
+	case EVHTTP_REQ_PATCH:
+		method = "PATCH";
+		break;
 	default:
 		method = NULL;
 		break;
@@ -1379,6 +1391,12 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		req->type = EVHTTP_REQ_PUT;
 	} else if (strcmp(method, "DELETE") == 0) {
 		req->type = EVHTTP_REQ_DELETE;
+	} else if (strcmp(method, "OPTIONS") == 0) {
+		req->type = EVHTTP_REQ_OPTIONS;
+	} else if (strcmp(method, "TRACE") == 0) {
+		req->type = EVHTTP_REQ_TRACE;
+	} else if (strcmp(method, "PATCH") == 0) {
+		req->type = EVHTTP_REQ_PATCH; 
 	} else {
 		event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
@@ -2668,8 +2686,14 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	/* we have a new request on which the user needs to take action */
 	req->userdone = 0;
 
-	if (req->uri == NULL) {
+	if (req->type == 0 || req->uri == NULL) {
 		evhttp_send_error(req, HTTP_BADREQUEST, NULL);
+		return;
+	}
+
+	if ((http->allowed_methods & req->type) == 0) {
+		event_debug(("Rejecting disallowed method %d (allowed: %d)\n", req->type, http->allowed_methods));		
+		evhttp_send_error(req, HTTP_BADMETHOD, NULL);
 		return;
 	}
 
@@ -2858,6 +2882,11 @@ evhttp_new_object(void)
 	http->timeout = -1;
 	evhttp_set_max_headers_size(http, EV_SIZE_MAX);
 	evhttp_set_max_body_size(http, EV_SIZE_MAX);
+	evhttp_set_allowed_methods(http, EVHTTP_REQ_GET |
+			                 EVHTTP_REQ_POST | 
+			                 EVHTTP_REQ_HEAD | 
+			                 EVHTTP_REQ_PUT | 
+			                 EVHTTP_REQ_DELETE);
 
 	TAILQ_INIT(&http->sockets);
 	TAILQ_INIT(&http->callbacks);
@@ -2988,6 +3017,12 @@ evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size)
 		http->default_max_body_size = EV_UINT64_MAX;
 	else
 		http->default_max_body_size = max_body_size;
+}
+
+void
+evhttp_set_allowed_methods(struct evhttp* http, short methods)
+{
+	http->allowed_methods = methods;
 }
 
 int

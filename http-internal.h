@@ -145,6 +145,9 @@ struct evhttp {
 	size_t default_max_headers_size;
 	ev_uint64_t default_max_body_size;
 
+	/* bitmask of all allowed methods */
+	short allowed_methods;
+
 	/* Fallback callback if all the other callbacks for this connection
 	   don't match. */
 	void (*gencb)(struct evhttp_request *req, void *);
