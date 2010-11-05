@@ -126,6 +126,11 @@ struct evhttp_bound_socket {
 	struct evconnlistener *listener;
 };
 
+struct evhttp_server_alias {
+	TAILQ_ENTRY(evhttp_server_alias) next;
+	char *alias;
+};
+
 struct evhttp {
 	/* Next vhost, if this is a vhost. */
 	TAILQ_ENTRY(evhttp) next_vhost;
@@ -139,6 +144,8 @@ struct evhttp {
 	struct evconq connections;
 
 	TAILQ_HEAD(vhostsq, evhttp) virtualhosts;
+
+	TAILQ_HEAD(aliasq, evhttp_server_alias) aliases;
 
 	/* NULL if this server is not a vhost */
 	char *vhost_pattern;

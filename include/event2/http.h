@@ -264,6 +264,25 @@ int evhttp_add_virtual_host(struct evhttp* http, const char *pattern,
 int evhttp_remove_virtual_host(struct evhttp* http, struct evhttp* vhost);
 
 /**
+   Add a server alias to an http object. The http object can be a virtual
+   host or the main server. 
+
+   @param http the evhttp object
+   @param alias the alias to add
+   @see evhttp_add_remove_alias() 
+*/
+int evhttp_add_server_alias(struct evhttp *http, const char *alias);
+
+/**
+   Remove a server alias from an http object.
+ 
+   @param http the evhttp object
+   @param alias the alias to remove
+   @see evhttp_add_server_alias() 
+*/
+int evhttp_remove_server_alias(struct evhttp *http, const char *alias);
+
+/**
  * Set the timeout for an HTTP request.
  *
  * @param http an evhttp object
@@ -492,8 +511,15 @@ int evhttp_make_request(struct evhttp_connection *evcon,
 */
 void evhttp_cancel_request(struct evhttp_request *req);
 
+/**
+ * A structure to hold a parsed URI or Relative-Ref conforming to RFC3986.
+ */
+struct evhttp_uri;
+
 /** Returns the request URI */
 const char *evhttp_request_get_uri(const struct evhttp_request *req);
+/** Returns the request URI (parsed) */
+const struct evhttp_uri *evhttp_request_get_evhttp_uri(const struct evhttp_request *req);
 /** Returns the request command */
 enum evhttp_cmd_type evhttp_request_get_command(const struct evhttp_request *req);
 
@@ -507,6 +533,11 @@ struct evkeyvalq *evhttp_request_get_output_headers(struct evhttp_request *req);
 struct evbuffer *evhttp_request_get_input_buffer(struct evhttp_request *req);
 /** Returns the output buffer */
 struct evbuffer *evhttp_request_get_output_buffer(struct evhttp_request *req);
+/** Returns the host associated with the request. If a client sends an absolute
+    URI, the host part of that is preferred. Otherwise, the input headers are
+    searched for a Host: header. NULL is returned if no absolute URI or Host:
+    header is provided. */
+const char *evhttp_request_get_host(struct evhttp_request *req);
 
 /* Interfaces for dealing with HTTP headers */
 
@@ -668,11 +699,6 @@ int evhttp_parse_query_str(const char *uri, struct evkeyvalq *headers);
  * @return an escaped HTML string or NULL on error
  */
 char *evhttp_htmlescape(const char *html);
-
-/**
- * A structure to hold a parsed URI or Relative-Ref conforming to RFC3986.
- */
-struct evhttp_uri;
 
 /**
  * Return a new empty evhttp_uri with no fields set.

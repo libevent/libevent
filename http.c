@@ -191,6 +191,8 @@ static void evhttp_write_cb(struct bufferevent *, void *);
 static void evhttp_error_cb(struct bufferevent *bufev, short what, void *arg);
 static int evhttp_decode_uri_internal(const char *uri, size_t length,
     char *ret, int decode_plus);
+static int evhttp_find_vhost(struct evhttp *http, struct evhttp **outhttp,
+		  const char *hostname);
 
 #ifndef _EVENT_HAVE_STRSEP
 /* strsep replacement for platforms that lack it.  Only works if
@@ -627,6 +629,10 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 		if (req->uri) {
 			mm_free(req->uri);
 			req->uri = NULL;
+		}
+		if (req->uri_elems) {
+			evhttp_uri_free(req->uri_elems);
+			req->uri_elems = NULL;
 		}
 
 		/*
@@ -1391,6 +1397,8 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	char *method;
 	char *uri;
 	char *version;
+	const char *hostname;
+	const char *scheme;
 
 	/* Parse the request line */
 	method = strsep(&line, " ");
@@ -1436,8 +1444,19 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
-	/* determine if it's a proxy request */
-	if (strlen(req->uri) > 0 && req->uri[0] != '/')
+	if ((req->uri_elems = evhttp_uri_parse(req->uri)) == NULL) {
+		return -1;
+	}
+
+	/* If we have an absolute-URI, check to see if it is an http request
+	   for a known vhost or server alias. If we don't know about this
+	   host, we consider it a proxy request. */
+	scheme = evhttp_uri_get_scheme(req->uri_elems);
+	hostname = evhttp_uri_get_host(req->uri_elems);
+	if (scheme && (!evutil_ascii_strcasecmp(scheme, "http") ||
+             !evutil_ascii_strcasecmp(scheme, "https")) &&
+	    hostname &&
+	    !evhttp_find_vhost(req->evcon->http_server, NULL, hostname))
 		req->flags |= EVHTTP_PROXY_REQUEST;
 
 	return (0);
@@ -2639,24 +2658,18 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 	struct evhttp_cb *cb;
 	size_t offset = 0;
 	char *translated;
-
+	const char *path;
+	
 	/* Test for different URLs */
-	char *p = req->uri;
-	while (*p != '\0' && *p != '?')
-		++p;
-	offset = (size_t)(p - req->uri);
-
+	path = evhttp_uri_get_path(req->uri_elems);
+	offset = strlen(path);
 	if ((translated = mm_malloc(offset + 1)) == NULL)
 		return (NULL);
-	offset = evhttp_decode_uri_internal(req->uri, offset,
-	    translated, 0 /* decode_plus */);
+	evhttp_decode_uri_internal(path, offset, translated,
+	    0 /* decode_plus */);
 
 	TAILQ_FOREACH(cb, callbacks, next) {
-		int res = 0;
-		res = ((strncmp(cb->what, translated, offset) == 0) &&
-		    (cb->what[offset] == '\0'));
-
-		if (res) {
+		if (!strcmp(cb->what, translated)) {
 			mm_free(translated);
 			return (cb);
 		}
@@ -2697,6 +2710,78 @@ prefix_suffix_match(const char *pattern, const char *name, int ignorecase)
 	/* NOTREACHED */
 }
 
+/*
+   Search the vhost hierarchy beginning with http for a server alias
+   matching hostname.  If a match is found, and outhttp is non-null,
+   outhttp is set to the matching http object and 1 is returned.
+*/
+
+static int
+evhttp_find_alias(struct evhttp *http, struct evhttp **outhttp,
+		  const char *hostname)
+{
+	struct evhttp_server_alias *alias;
+	struct evhttp *vhost;
+
+	TAILQ_FOREACH(alias, &http->aliases, next) {
+		/* XXX Do we need to handle IP addresses? */
+		if (!evutil_ascii_strcasecmp(alias->alias, hostname)) {
+			if (outhttp)
+				*outhttp = http;
+			return 1;
+		}
+	}
+
+	/* XXX It might be good to avoid recursion here, but I don't
+	   see a way to do that w/o a list. */
+	TAILQ_FOREACH(vhost, &http->virtualhosts, next_vhost) {
+		if (evhttp_find_alias(vhost, outhttp, hostname))
+			return 1;
+	}
+
+	return 0;
+}
+
+/*
+   Attempts to find the best http object to handle a request for a hostname.
+   All aliases for the root http object and vhosts are searched for an exact
+   match. Then, the vhost hierarchy is traversed again for a matching
+   pattern.
+
+   If an alias or vhost is matched, 1 is returned, and outhttp, if non-null,
+   is set with the best matching http object. If there are no matches, the
+   root http object is stored in outhttp and 0 is returned.
+*/
+
+static int
+evhttp_find_vhost(struct evhttp *http, struct evhttp **outhttp,
+		  const char *hostname)
+{
+	struct evhttp *vhost;
+	struct evhttp *oldhttp;
+	int match_found = 0;
+
+	if (evhttp_find_alias(http, outhttp, hostname))
+		return 1;
+
+	do {
+		oldhttp = http;
+		TAILQ_FOREACH(vhost, &http->virtualhosts, next_vhost) {
+			if (prefix_suffix_match(vhost->vhost_pattern,
+				hostname, 1 /* ignorecase */)) {
+				http = vhost;
+				match_found = 1;
+				break;
+			}
+		}
+	} while (oldhttp != http);
+
+	if (outhttp)
+		*outhttp = http;
+
+	return match_found;
+}
+
 static void
 evhttp_handle_request(struct evhttp_request *req, void *arg)
 {
@@ -2720,16 +2805,9 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	}
 
 	/* handle potential virtual hosts */
-	hostname = evhttp_find_header(req->input_headers, "Host");
+	hostname = evhttp_request_get_host(req);
 	if (hostname != NULL) {
-		struct evhttp *vhost;
-		TAILQ_FOREACH(vhost, &http->virtualhosts, next_vhost) {
-			if (prefix_suffix_match(vhost->vhost_pattern, hostname,
-				1 /* ignorecase */)) {
-				evhttp_handle_request(req, vhost);
-				return;
-			}
-		}
+		evhttp_find_vhost(http, &http, hostname);
 	}
 
 	if ((cb = evhttp_dispatch_callback(&http->callbacks, req)) != NULL) {
@@ -2872,7 +2950,8 @@ evhttp_bind_listener(struct evhttp *http, struct evconnlistener *listener)
 	return bound;
 }
 
-evutil_socket_t evhttp_bound_socket_get_fd(struct evhttp_bound_socket *bound)
+evutil_socket_t
+evhttp_bound_socket_get_fd(struct evhttp_bound_socket *bound)
 {
 	return evconnlistener_get_fd(bound->listener);
 }
@@ -2914,6 +2993,7 @@ evhttp_new_object(void)
 	TAILQ_INIT(&http->callbacks);
 	TAILQ_INIT(&http->connections);
 	TAILQ_INIT(&http->virtualhosts);
+	TAILQ_INIT(&http->aliases);
 
 	return (http);
 }
@@ -2952,6 +3032,7 @@ evhttp_free(struct evhttp* http)
 	struct evhttp_connection *evcon;
 	struct evhttp_bound_socket *bound;
 	struct evhttp* vhost;
+	struct evhttp_server_alias *alias;
 
 	/* Remove the accepting part */
 	while ((bound = TAILQ_FIRST(&http->sockets)) != NULL) {
@@ -2981,6 +3062,12 @@ evhttp_free(struct evhttp* http)
 
 	if (http->vhost_pattern != NULL)
 		mm_free(http->vhost_pattern);
+
+	while ((alias = TAILQ_FIRST(&http->aliases)) != NULL) {
+		TAILQ_REMOVE(&http->aliases, alias, next);
+		mm_free(alias->alias);
+		mm_free(alias);
+	}
 
 	mm_free(http);
 }
@@ -3015,6 +3102,43 @@ evhttp_remove_virtual_host(struct evhttp* http, struct evhttp* vhost)
 	vhost->vhost_pattern = NULL;
 
 	return (0);
+}
+
+int
+evhttp_add_server_alias(struct evhttp *http, const char *alias)
+{
+	struct evhttp_server_alias *evalias;
+
+	evalias = mm_calloc(1, sizeof(*evalias));
+	if (!evalias)
+		return -1;
+
+	evalias->alias = mm_strdup(alias);
+	if (!evalias->alias) {
+		mm_free(evalias);
+		return -1;
+	}
+
+	TAILQ_INSERT_TAIL(&http->aliases, evalias, next);
+
+	return 0;
+}
+
+int
+evhttp_remove_server_alias(struct evhttp *http, const char *alias)
+{
+	struct evhttp_server_alias *evalias;
+
+	TAILQ_FOREACH(evalias, &http->aliases, next) {
+		if (evutil_ascii_strcasecmp(evalias->alias, alias) == 0) {
+			TAILQ_REMOVE(&http->aliases, evalias, next);
+			mm_free(evalias->alias);
+			mm_free(evalias);
+			return 0;
+		}	
+	}
+
+	return -1;	
 }
 
 void
@@ -3165,9 +3289,13 @@ evhttp_request_free(struct evhttp_request *req)
 		mm_free(req->remote_host);
 	if (req->uri != NULL)
 		mm_free(req->uri);
+	if (req->uri_elems != NULL)
+		evhttp_uri_free(req->uri_elems);
 	if (req->response_code_line != NULL)
 		mm_free(req->response_code_line);
-
+	if (req->host_cache != NULL)
+		mm_free(req->host_cache);
+		
 	evhttp_clear_headers(req->input_headers);
 	mm_free(req->input_headers);
 
@@ -3223,6 +3351,52 @@ evhttp_request_get_uri(const struct evhttp_request *req) {
 	if (req->uri == NULL)
 		event_debug(("%s: request %p has no uri\n", __func__, req));
 	return (req->uri);
+}
+
+const struct evhttp_uri *
+evhttp_request_get_evhttp_uri(const struct evhttp_request *req) {
+	if (req->uri_elems == NULL)
+		event_debug(("%s: request %p has no uri elems\n",
+			    __func__, req));
+	return (req->uri_elems);
+}
+
+const char *
+evhttp_request_get_host(struct evhttp_request *req)
+{
+	const char *host = NULL;
+
+	if (req->host_cache)
+		return req->host_cache;
+
+	if (req->uri_elems)
+		host = evhttp_uri_get_host(req->uri_elems);
+	if (!host && req->input_headers) {
+		const char *p;
+		size_t len;
+	
+		host = evhttp_find_header(req->input_headers, "Host");
+		/* The Host: header may include a port. Remove it here
+                   to be consistent with uri_elems case above. */
+		if (host) {
+			p = host + strlen(host) - 1;
+			while (p > host && EVUTIL_ISDIGIT(*p))
+				--p;
+			if (p > host && *p == ':') {
+				len = p - host;
+				req->host_cache = mm_malloc(len + 1);
+				if (!req->host_cache) {
+					event_warn("%s: malloc", __func__);
+					return NULL;
+				}
+				memcpy(req->host_cache, host, len);
+				req->host_cache[len] = '\0';
+				host = req->host_cache;
+			}
+		}
+	}
+	
+	return host;
 }
 
 enum evhttp_cmd_type

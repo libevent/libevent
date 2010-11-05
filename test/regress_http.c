@@ -431,12 +431,32 @@ http_basic_test(void *arg)
 
 	event_base_dispatch(data->base);
 
+	tt_assert(test_ok == 5);
+
+	/* Connect to the second port again. This time, send an absolute uri. */
 	bufferevent_free(bev);
 	evutil_closesocket(fd);
 
-	evhttp_free(http);
+	fd = http_connect("127.0.0.1", port2);
 
-	tt_assert(test_ok == 5);
+	/* Stupid thing to send a request */
+	bev = bufferevent_socket_new(data->base, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
+	    http_errorcb, data->base);
+
+	http_request =
+	    "GET http://somehost.net/test HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	event_base_dispatch(data->base);
+
+	tt_assert(test_ok == 7);
+
+	evhttp_free(http);
  end:
 	;
 }
@@ -1163,6 +1183,9 @@ http_virtual_host_test(void *arg)
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	struct evhttp *second = NULL, *third = NULL;
+	evutil_socket_t fd;
+	struct bufferevent *bev;
+	const char *http_request;
 
 	exit_base = data->base;
 
@@ -1181,6 +1204,10 @@ http_virtual_host_test(void *arg)
 	if (evhttp_add_virtual_host(http, "bar.*.foo.com", third) == -1) {
 		tt_abort_msg("Couldn't add wildcarded vhost");
 	}
+
+	/* add some aliases to the vhosts */
+	tt_assert(evhttp_add_server_alias(second, "manolito.info") == 0);
+	tt_assert(evhttp_add_server_alias(third, "bonkers.org") == 0);
 
 	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
 	tt_assert(evcon);
@@ -1237,6 +1264,68 @@ http_virtual_host_test(void *arg)
 	event_base_dispatch(data->base);
 
 	tt_assert(test_ok == 1)
+
+	test_ok = 0;
+
+	/* make a request with the right host and expect a response */
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
+
+	/* Add the information that we care about */
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "manolito.info");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
+		"/funnybunny") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+
+	event_base_dispatch(data->base);
+
+	tt_assert(test_ok == 1)
+
+	test_ok = 0;
+
+	/* make a request with the right host and expect a response */
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
+
+	/* Add the Host header. This time with the optional port. */
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "bonkers.org:8000");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
+		"/blackcoffee") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+
+	event_base_dispatch(data->base);
+
+	tt_assert(test_ok == 1)
+
+	test_ok = 0;
+
+	/* Now make a raw request with an absolute URI. */
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_socket_new(data->base, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
+	    http_errorcb, NULL);
+
+	/* The host in the URI should override the Host: header */
+	http_request =
+	    "GET http://manolito.info/funnybunny HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(test_ok, ==, 2);
+
+	bufferevent_free(bev);
+	evutil_closesocket(fd);
 
  end:
 	if (evcon)
