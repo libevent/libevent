@@ -746,9 +746,7 @@ http_allowed_methods_test(void *arg)
 
 	bufferevent_write(bev1, http_request, strlen(http_request));
 
-	puts("A");
 	event_base_dispatch(data->base);
-	puts("AA");
 
 	fd2 = http_connect("127.0.0.1", port);
 
