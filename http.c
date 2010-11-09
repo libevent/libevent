@@ -1312,6 +1312,22 @@ evhttp_valid_response_code(int code)
 	return (1);
 }
 
+static int
+evhttp_parse_http_version(const char *version, struct evhttp_request *req)
+{
+	int major, minor;
+	char ch;
+	int n = sscanf(version, "HTTP/%d.%d%c", &major, &minor, &ch);
+	if (n > 2 || major > 1) {
+		event_debug(("%s: bad version %s on message %p from %s",
+			__func__, version, req, req->remote_host));
+		return (-1);
+	}
+	req->major = major;
+	req->minor = minor;
+	return (0);
+}
+
 /* Parses the status line of a web server */
 
 static int
@@ -1328,17 +1344,8 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 	if (line != NULL)
 		readable = line;
 
-	if (strcmp(protocol, "HTTP/1.0") == 0) {
-		req->major = 1;
-		req->minor = 0;
-	} else if (strcmp(protocol, "HTTP/1.1") == 0) {
-		req->major = 1;
-		req->minor = 1;
-	} else {
-		event_debug(("%s: bad protocol \"%s\"",
-			__func__, protocol));
+	if (evhttp_parse_http_version(protocol, req) < 0)
 		return (-1);
-	}
 
 	req->response_code = atoi(number);
 	if (!evhttp_valid_response_code(req->response_code)) {
@@ -1392,24 +1399,8 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
-	if (strcmp(version, "HTTP/1.0") == 0) {
-		req->major = 1;
-		req->minor = 0;
-	} else if (strcmp(version, "HTTP/1.1") == 0) {
-		req->major = 1;
-		req->minor = 1;
-	} else {
-		int major, minor;
-		char ch;
-		int n = sscanf(version, "HTTP/%d.%d%c", &major, &minor, &ch);
-		if (n > 2 || major > 1) {
-			event_debug(("%s: bad version %s on request %p from %s",
-				__func__, version, req, req->remote_host));
-			return (-1);
-		}
-		req->major = major;
-		req->minor = minor;
-	}
+	if (evhttp_parse_http_version(version, req) < 0)
+		return (-1);
 
 	if ((req->uri = mm_strdup(uri)) == NULL) {
 		event_debug(("%s: mm_strdup", __func__));
