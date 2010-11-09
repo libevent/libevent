@@ -1088,6 +1088,13 @@ be_openssl_destruct(struct bufferevent *bev)
 			}
 		}
 		SSL_free(bev_ssl->ssl);
+	} else {
+		if (bev_ssl->underlying) {
+			bufferevent_setcb(bev_ssl->underlying,
+			    NULL,NULL,NULL,NULL);
+			bufferevent_unsuspend_read(bev_ssl->underlying,
+			    BEV_SUSPEND_FILT_READ);
+		}
 	}
 }
 

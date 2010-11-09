@@ -233,6 +233,8 @@ be_filter_destruct(struct bufferevent *bev)
 		}
 	} else {
 		if (bevf->underlying) {
+			bufferevent_setcb(bevf->underlying,
+			    NULL, NULL, NULL, NULL);
 			bufferevent_unsuspend_read(bevf->underlying,
 			    BEV_SUSPEND_FILT_READ);
 		}
