@@ -87,8 +87,8 @@
 #define __cdecl
 #endif
 
-static int evsig_add(struct event_base *, int, short, short, void *);
-static int evsig_del(struct event_base *, int, short, short, void *);
+static int evsig_add(struct event_base *, evutil_socket_t, short, short, void *);
+static int evsig_del(struct event_base *, evutil_socket_t, short, short, void *);
 
 static const struct eventop evsigops = {
 	"signal",
@@ -278,7 +278,7 @@ _evsig_set_handler(struct event_base *base,
 }
 
 static int
-evsig_add(struct event_base *base, int evsignal, short old, short events, void *p)
+evsig_add(struct event_base *base, evutil_socket_t evsignal, short old, short events, void *p)
 {
 	struct evsig_info *sig = &base->sig;
 	(void)p;
@@ -301,8 +301,8 @@ evsig_add(struct event_base *base, int evsignal, short old, short events, void *
 	evsig_base_fd = base->sig.ev_signal_pair[0];
 	EVSIGBASE_UNLOCK();
 
-	event_debug(("%s: %d: changing signal handler", __func__, evsignal));
-	if (_evsig_set_handler(base, evsignal, evsig_handler) == -1) {
+	event_debug(("%s: %d: changing signal handler", __func__, (int)evsignal));
+	if (_evsig_set_handler(base, (int)evsignal, evsig_handler) == -1) {
 		goto err;
 	}
 
@@ -355,7 +355,7 @@ _evsig_restore_handler(struct event_base *base, int evsignal)
 }
 
 static int
-evsig_del(struct event_base *base, int evsignal, short old, short events, void *p)
+evsig_del(struct event_base *base, evutil_socket_t evsignal, short old, short events, void *p)
 {
 	EVUTIL_ASSERT(evsignal >= 0 && evsignal < NSIG);
 
@@ -366,7 +366,7 @@ evsig_del(struct event_base *base, int evsignal, short old, short events, void *
 	--base->sig.ev_n_signals_added;
 	EVSIGBASE_UNLOCK();
 
-	return (_evsig_restore_handler(base, evsignal));
+	return (_evsig_restore_handler(base, (int)evsignal));
 }
 
 static void __cdecl

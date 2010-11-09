@@ -33,7 +33,7 @@
 #define __func__ _EVENT___func__
 #endif
 
-int pair[2];
+evutil_socket_t pair[2];
 int test_okay = 1;
 int called = 0;
 
@@ -43,7 +43,7 @@ write_cb(evutil_socket_t fd, short event, void *arg)
 	const char *test = "test string";
 	int len;
 
-	len = send(fd, test, strlen(test) + 1, 0);
+	len = send(fd, test, (int)strlen(test) + 1, 0);
 
 	printf("%s: write %d%s\n", __func__,
 	    len, len ? "" : " - means EOF");

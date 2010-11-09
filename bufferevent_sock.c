@@ -127,7 +127,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	struct evbuffer *input;
 	int res = 0;
 	short what = BEV_EVENT_READING;
-	int howmuch = -1, readmax=-1;
+	ev_ssize_t howmuch = -1, readmax=-1;
 
 	_bufferevent_incref_and_lock(bufev);
 
@@ -152,13 +152,13 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	}
 	readmax = _bufferevent_get_read_max(bufev_p);
 	if (howmuch < 0 || howmuch > readmax) /* The use of -1 for "unlimited"
-					       * uglifies this code. */
+					       * uglifies this code. XXXX */
 		howmuch = readmax;
 	if (bufev_p->read_suspended)
 		goto done;
 
 	evbuffer_unfreeze(input, 0);
-	res = evbuffer_read(input, fd, howmuch);
+	res = evbuffer_read(input, fd, (int)howmuch); /* XXXX evbuffer_read would do better to take and return ev_ssize_t */
 	evbuffer_freeze(input, 0);
 
 	if (res == -1) {
@@ -203,7 +203,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	int res = 0;
 	short what = BEV_EVENT_WRITING;
 	int connected = 0;
-	int atmost = -1;
+	ev_ssize_t atmost = -1;
 
 	_bufferevent_incref_and_lock(bufev);
 
@@ -449,7 +449,7 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	}
 
 	/* XXX use the other addrinfos? */
-	r = bufferevent_socket_connect(bev, ai->ai_addr, ai->ai_addrlen);
+	r = bufferevent_socket_connect(bev, ai->ai_addr, (int)ai->ai_addrlen);
 	_bufferevent_decref_and_unlock(bev);
 	evutil_freeaddrinfo(ai);
 }

@@ -139,17 +139,17 @@ evbuffer_get_waste(struct evbuffer *buf, size_t *allocatedp, size_t *wastedp, si
 		a += chain->buffer_len;
 		u += chain->off;
 		if (chain->next && chain->next->off)
-			w += chain->buffer_len - (chain->misalign + chain->off);
+			w += (size_t)(chain->buffer_len - (chain->misalign + chain->off));
 		chain = chain->next;
 	}
 	/* subsequent nonempty chains */
 	while (chain && chain->off) {
 		++n;
 		a += chain->buffer_len;
-		w += chain->misalign;
+		w += (size_t)chain->misalign;
 		u += chain->off;
 		if (chain->next && chain->next->off)
-			w += chain->buffer_len - (chain->misalign + chain->off);
+			w += (size_t) (chain->buffer_len - (chain->misalign + chain->off));
 		chain = chain->next;
 	}
 	/* subsequent empty chains */
@@ -491,7 +491,7 @@ test_evbuffer_expand(void *ptr)
 	buf = evbuffer_new();
 	evbuffer_add(buf, data, 400);
 	{
-		int n = buf->first->buffer_len - buf->first->off - 1;
+		int n = (int)(buf->first->buffer_len - buf->first->off - 1);
 		tt_assert(n < (int)sizeof(data));
 		evbuffer_add(buf, data, n);
 	}
@@ -595,7 +595,8 @@ test_evbuffer_add_file(void *ptr)
 	const char *data = "this is what we add as file system data.";
 	size_t datalen;
 	const char *compare;
-	evutil_socket_t fd = -1, pair[2] = {-1, -1};
+	int fd = -1;
+	evutil_socket_t pair[2] = {-1, -1};
 	int r=0, n_written=0;
 
 	/* Add a test for a big file. XXXX */
@@ -645,7 +646,7 @@ test_evbuffer_add_file(void *ptr)
 	tt_int_op(n_written, ==, datalen);
 
 	evbuffer_validate(src);
-	tt_int_op(evbuffer_read(src, pair[1], strlen(data)), ==, datalen);
+	tt_int_op(evbuffer_read(src, pair[1], (int)strlen(data)), ==, datalen);
 	evbuffer_validate(src);
 	compare = (char *)evbuffer_pullup(src, datalen);
 	tt_assert(compare != NULL);

@@ -62,7 +62,7 @@ main(int argc, char **argv)
 {
 	struct event ev;
 	const char *test = "test string";
-	int pair[2];
+	evutil_socket_t pair[2];
 
 #ifdef WIN32
 	WORD wVersionRequested;
@@ -78,7 +78,7 @@ main(int argc, char **argv)
 		return (1);
 
 
-	send(pair[0], test, strlen(test)+1, 0);
+	send(pair[0], test, (int)strlen(test)+1, 0);
 	shutdown(pair[0], SHUT_WR);
 
 	/* Initalize the event library */

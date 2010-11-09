@@ -317,6 +317,13 @@
 #define _EVENT_SIZEOF_SIZE_T 4
 #endif
 
+/* The size of `void *', as computed by sizeof. */
+#ifdef _WIN64
+#define _EVENT_SIZEOF_VOID_P 8
+#else
+#define _EVENT_SIZEOF_VOID_P 4
+#endif
+
 /* Define to 1 if you have the ANSI C header files. */
 #define _EVENT_STDC_HEADERS 1
 

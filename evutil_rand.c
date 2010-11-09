@@ -34,6 +34,8 @@
 
 #include "event2/event-config.h"
 
+#include <limits.h>
+
 #include "util-internal.h"
 #include "evthread-internal.h"
 
@@ -118,6 +120,7 @@ evutil_secure_rng_get_bytes(void *buf, size_t n)
 void
 evutil_secure_rng_add_bytes(const char *buf, size_t n)
 {
-	arc4random_addrandom((unsigned char*)buf, n);
+	arc4random_addrandom((unsigned char*)buf,
+	    n>(size_t)INT_MAX ? INT_MAX : (int)n);
 }
 

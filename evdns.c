@@ -1171,7 +1171,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 			goto err;
 		GET16(type);
 		GET16(class);
-		namelen = strlen(tmp_name);
+		namelen = (int)strlen(tmp_name);
 		q = mm_malloc(sizeof(struct evdns_server_question) + namelen);
 		if (!q)
 			goto err;
@@ -1346,8 +1346,8 @@ server_port_flush(struct evdns_server_port *port)
 	struct server_request *req = port->pending_replies;
 	ASSERT_LOCKED(port);
 	while (req) {
-		int r = sendto(port->socket, req->response, req->response_len, 0,
-			   (struct sockaddr*) &req->addr, req->addrlen);
+		int r = sendto(port->socket, req->response, (int)req->response_len, 0,
+			   (struct sockaddr*) &req->addr, (ev_socklen_t)req->addrlen);
 		if (r < 0) {
 			int err = evutil_socket_geterror(port->socket);
 			if (EVUTIL_ERR_RW_RETRIABLE(err))
@@ -1508,7 +1508,7 @@ dnslabel_table_add(struct dnslabel_table *table, const char *label, off_t pos)
 /* */
 static off_t
 dnsname_to_labels(u8 *const buf, size_t buf_len, off_t j,
-				  const char *name, const int name_len,
+				  const char *name, const size_t name_len,
 				  struct dnslabel_table *table) {
 	const char *end = name + name_len;
 	int ref = 0;
@@ -1539,25 +1539,25 @@ dnsname_to_labels(u8 *const buf, size_t buf_len, off_t j,
 		}
 		name = strchr(name, '.');
 		if (!name) {
-			const unsigned int label_len = end - start;
+			const size_t label_len = end - start;
 			if (label_len > 63) return -1;
 			if ((size_t)(j+label_len+1) > buf_len) return -2;
 			if (table) dnslabel_table_add(table, start, j);
-			buf[j++] = label_len;
+			buf[j++] = (ev_uint8_t)label_len;
 
-			memcpy(buf + j, start, end - start);
-			j += end - start;
+			memcpy(buf + j, start, label_len);
+			j += (int) label_len;
 			break;
 		} else {
 			/* append length of the label. */
-			const unsigned int label_len = name - start;
+			const size_t label_len = name - start;
 			if (label_len > 63) return -1;
 			if ((size_t)(j+label_len+1) > buf_len) return -2;
 			if (table) dnslabel_table_add(table, start, j);
-			buf[j++] = label_len;
+			buf[j++] = (ev_uint8_t)label_len;
 
-			memcpy(buf + j, start, name - start);
-			j += name - start;
+			memcpy(buf + j, start, label_len);
+			j += (int) label_len;
 			/* hop over the '.' */
 			name++;
 		}
@@ -1587,7 +1587,7 @@ evdns_request_len(const size_t name_len) {
 /* */
 /* Returns the amount of space used. Negative on error. */
 static int
-evdns_request_data_build(const char *const name, const int name_len,
+evdns_request_data_build(const char *const name, const size_t name_len,
     const u16 trans_id, const u16 type, const u16 class,
     u8 *const buf, size_t buf_len) {
 	off_t j = 0;  /* current offset into buf */
@@ -1908,8 +1908,8 @@ evdns_server_request_respond(struct evdns_server_request *_req, int err)
 			goto done;
 	}
 
-	r = sendto(port->socket, req->response, req->response_len, 0,
-			   (struct sockaddr*) &req->addr, req->addrlen);
+	r = sendto(port->socket, req->response, (int)req->response_len, 0,
+			   (struct sockaddr*) &req->addr, (ev_socklen_t)req->addrlen);
 	if (r<0) {
 		int sock_err = evutil_socket_geterror(port->socket);
 		if (EVUTIL_ERR_RW_RETRIABLE(sock_err))
@@ -2942,7 +2942,7 @@ evdns_search_clear(void) {
 
 static void
 search_postfix_add(struct evdns_base *base, const char *domain) {
-	int domain_len;
+	size_t domain_len;
 	struct search_domain *sdomain;
 	while (domain[0] == '.') domain++;
 	domain_len = strlen(domain);
@@ -2956,7 +2956,7 @@ search_postfix_add(struct evdns_base *base, const char *domain) {
 	if (!sdomain) return;
 	memcpy( ((u8 *) sdomain) + sizeof(struct search_domain), domain, domain_len);
 	sdomain->next = base->global_search_state->head;
-	sdomain->len = domain_len;
+	sdomain->len = (int) domain_len;
 
 	base->global_search_state->head = sdomain;
 }
@@ -3019,7 +3019,7 @@ search_set_from_hostname(struct evdns_base *base) {
 /* warning: returns malloced string */
 static char *
 search_make_new(const struct search_state *const state, int n, const char *const base_name) {
-	const int base_len = strlen(base_name);
+	const size_t base_len = strlen(base_name);
 	const char need_to_append_dot = base_name[base_len - 1] == '.' ? 0 : 1;
 	struct search_domain *dom;
 
@@ -3429,7 +3429,7 @@ evdns_get_default_hosts_filename(void)
 	char path[MAX_PATH+1];
 	static const char hostfile[] = "\\drivers\\etc\\hosts";
 	char *path_out;
-	int len_out;
+	size_t len_out;
 
 	if (! SHGetSpecialFolderPathA(NULL, path, CSIDL_SYSTEM, 0))
 		return NULL;

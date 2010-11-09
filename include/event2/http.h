@@ -57,6 +57,9 @@ struct event_base;
 #define HTTP_NOTMODIFIED	304	/**< page was not modified from last */
 #define HTTP_BADREQUEST		400	/**< invalid http request was made */
 #define HTTP_NOTFOUND		404	/**< could not find content for uri */
+#define HTTP_BADMETHOD		405 	/**< method not allowed for this uri */
+#define HTTP_INTERNAL           500     /**< internal error */
+#define HTTP_NOTIMPLEMENTED     501     /**< not implemented */
 #define HTTP_SERVUNAVAIL	503	/**< the server is not available */
 
 struct evhttp;
@@ -182,6 +185,19 @@ void evhttp_free(struct evhttp* http);
 void evhttp_set_max_headers_size(struct evhttp* http, ev_ssize_t max_headers_size);
 /** XXX Document. */
 void evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size);
+
+/**
+  Sets the what HTTP methods are supported in requests accepted by this
+  server, and passed to user callbacks.
+
+  If not supported they will generate a "405 Method not allowed" response.
+
+  By default this includes the following methods: GET, POST, HEAD, PUT, DELETE
+
+  @param http the http server on which to set the methods
+  @param methods bit mask constructed from evhttp_cmd_type values
+*/
+void evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods);
 
 /**
    Set a callback for a specified URI
@@ -327,13 +343,23 @@ void evhttp_send_reply_end(struct evhttp_request *req);
  * Interfaces for making requests
  */
 
-/** the different request types supported by evhttp */
+/** The different request types supported by evhttp.  These are as specified
+ * in RFC2616, except for PATCH which is specified by RFC5789.
+ *
+ * By default, only some of these methods are accepted and passed to user
+ * callbacks; use evhttp_set_allowed_methods() to change which methods
+ * are allowed.
+ */
 enum evhttp_cmd_type {
-	EVHTTP_REQ_GET,
-	EVHTTP_REQ_POST,
-	EVHTTP_REQ_HEAD,
-	EVHTTP_REQ_PUT,
-	EVHTTP_REQ_DELETE
+	EVHTTP_REQ_GET     = 1 << 0,
+	EVHTTP_REQ_POST    = 1 << 1,
+	EVHTTP_REQ_HEAD    = 1 << 2,
+	EVHTTP_REQ_PUT     = 1 << 3,
+	EVHTTP_REQ_DELETE  = 1 << 4,
+	EVHTTP_REQ_OPTIONS = 1 << 5,
+	EVHTTP_REQ_TRACE   = 1 << 6,
+	EVHTTP_REQ_CONNECT = 1 << 7,
+	EVHTTP_REQ_PATCH   = 1 << 8
 };
 
 /** a request object can represent either a request or a reply */
@@ -391,7 +417,7 @@ int evhttp_request_is_owned(struct evhttp_request *req);
 /**
  * Returns the connection object associated with the request or NULL
  *
- * The server needs to either free the request explicitly or call
+ * The user needs to either free the request explicitly or call
  * evhttp_send_reply_end().
  */
 struct evhttp_connection *evhttp_request_get_connection(struct evhttp_request *req);
@@ -466,11 +492,13 @@ int evhttp_make_request(struct evhttp_connection *evcon,
 */
 void evhttp_cancel_request(struct evhttp_request *req);
 
-
 /** Returns the request URI */
 const char *evhttp_request_get_uri(const struct evhttp_request *req);
 /** Returns the request command */
 enum evhttp_cmd_type evhttp_request_get_command(const struct evhttp_request *req);
+
+int evhttp_request_get_response_code(const struct evhttp_request *req);
+
 /** Returns the input headers */
 struct evkeyvalq *evhttp_request_get_input_headers(struct evhttp_request *req);
 /** Returns the output headers */

@@ -83,8 +83,8 @@
 #define open _open
 #define read _read
 #define close _close
-#define fstat _fstat
-#define stat _stat
+#define fstat _fstati64
+#define stat _stati64
 #endif
 
 /**
@@ -125,13 +125,18 @@ evutil_read_file(const char *filename, char **content_out, size_t *len_out,
 		close(fd);
 		return -2;
 	}
-	mem = mm_malloc(st.st_size + 1);
+	mem = mm_malloc((size_t)st.st_size + 1);
 	if (!mem) {
 		close(fd);
 		return -2;
 	}
 	read_so_far = 0;
-	while ((r = read(fd, mem+read_so_far, st.st_size - read_so_far)) > 0) {
+#ifdef WIN32
+#define N_TO_READ(x) ((x) > INT_MAX) ? INT_MAX : ((int)(x))
+#else
+#define N_TO_READ(x) (x)
+#endif
+	while ((r = read(fd, mem+read_so_far, N_TO_READ(st.st_size - read_so_far))) > 0) {
 		read_so_far += r;
 		if (read_so_far >= (size_t)st.st_size)
 			break;
@@ -1717,7 +1722,7 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 		if (!(cp = strchr(ip_as_string, ']'))) {
 			return -1;
 		}
-		len = cp-(ip_as_string + 1);
+		len = (int) ( cp-(ip_as_string + 1) );
 		if (len > (int)sizeof(buf)-1) {
 			return -1;
 		}

@@ -194,7 +194,9 @@ bev_async_consider_writing(struct bufferevent_async *beva)
 	at_most = evbuffer_get_length(bev->output);
 
 	/* XXXX This over-commits. */
-	limit = _bufferevent_get_write_max(&beva->bev);
+	/* This is safe so long as bufferevent_get_write_max never returns
+	 * more than INT_MAX.  That's true for now. XXXX */
+	limit = (int)_bufferevent_get_write_max(&beva->bev);
 	if (at_most >= (size_t)limit && limit >= 0)
 		at_most = limit;
 
@@ -248,7 +250,8 @@ bev_async_consider_reading(struct bufferevent_async *beva)
 	}
 
 	/* XXXX This over-commits. */
-	limit = _bufferevent_get_read_max(&beva->bev);
+	/* XXXX see also not above on cast on _bufferevent_get_write_max() */
+	limit = (int)_bufferevent_get_read_max(&beva->bev);
 	if (at_most >= (size_t)limit && limit >= 0)
 		at_most = limit;
 

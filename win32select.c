@@ -66,7 +66,7 @@ struct idx_info {
 };
 
 struct win32op {
-	int fd_setsz;
+	unsigned num_fds_in_fd_sets;
 	int resize_out_sets;
 	struct win_fd_set *readset_in;
 	struct win_fd_set *writeset_in;
@@ -97,21 +97,21 @@ struct eventop win32ops = {
 #define FD_SET_ALLOC_SIZE(n) ((sizeof(struct win_fd_set) + ((n)-1)*sizeof(SOCKET)))
 
 static int
-realloc_fd_sets(struct win32op *op, size_t new_size)
+grow_fd_sets(struct win32op *op, unsigned new_num_fds)
 {
 	size_t size;
 
-	EVUTIL_ASSERT(new_size >= op->readset_in->fd_count &&
-	       new_size >= op->writeset_in->fd_count);
-	EVUTIL_ASSERT(new_size >= 1);
+	EVUTIL_ASSERT(new_num_fds >= op->readset_in->fd_count &&
+	       new_num_fds >= op->writeset_in->fd_count);
+	EVUTIL_ASSERT(new_num_fds >= 1);
 
-	size = FD_SET_ALLOC_SIZE(new_size);
+	size = FD_SET_ALLOC_SIZE(new_num_fds);
 	if (!(op->readset_in = mm_realloc(op->readset_in, size)))
 		return (-1);
 	if (!(op->writeset_in = mm_realloc(op->writeset_in, size)))
 		return (-1);
 	op->resize_out_sets = 1;
-	op->fd_setsz = new_size;
+	op->num_fds_in_fd_sets = new_num_fds;
 	return (0);
 }
 
@@ -126,8 +126,8 @@ do_fd_set(struct win32op *op, struct idx_info *ent, evutil_socket_t s, int read)
 		if (ent->write_pos_plus1 > 0)
 			return (0);
 	}
-	if ((int)set->fd_count == op->fd_setsz) {
-		if (realloc_fd_sets(op, op->fd_setsz*2))
+	if (set->fd_count == op->num_fds_in_fd_sets) {
+		if (grow_fd_sets(op, op->num_fds_in_fd_sets*2))
 			return (-1);
 		/* set pointer will have changed and needs reiniting! */
 		set = read ? op->readset_in : op->writeset_in;
@@ -180,7 +180,7 @@ win32_init(struct event_base *_base)
 	size_t size;
 	if (!(winop = mm_calloc(1, sizeof(struct win32op))))
 		return NULL;
-	winop->fd_setsz = NEVENT;
+	winop->num_fds_in_fd_sets = NEVENT;
 	size = FD_SET_ALLOC_SIZE(NEVENT);
 	if (!(winop->readset_in = mm_malloc(size)))
 		goto err;
@@ -279,7 +279,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	SOCKET s;
 
 	if (win32op->resize_out_sets) {
-		size_t size = FD_SET_ALLOC_SIZE(win32op->fd_setsz);
+		size_t size = FD_SET_ALLOC_SIZE(win32op->num_fds_in_fd_sets);
 		if (!(win32op->readset_out = mm_realloc(win32op->readset_out, size)))
 			return (-1);
 		if (!(win32op->exset_out = mm_realloc(win32op->exset_out, size)))

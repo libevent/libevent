@@ -201,10 +201,14 @@ evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most,
 		_evbuffer_chain_pin(chain, EVBUFFER_MEM_PINNED_W);
 
 		if ((size_t)at_most > chain->off) {
-			b->len = chain->off;
+			/* XXXX Cast is safe for now, since win32 has no
+			   mmaped chains.  But later, we need to have this
+			   add more WSAbufs if chain->off is greater than
+			   ULONG_MAX */
+			b->len = (unsigned long)chain->off;
 			at_most -= chain->off;
 		} else {
-			b->len = at_most;
+			b->len = (unsigned long)at_most;
 			++i;
 			break;
 		}

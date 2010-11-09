@@ -149,6 +149,14 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 
 #endif
 
+#define REQ_VERSION_BEFORE(req, major_v, minor_v)			\
+	((req)->major < (major_v) ||					\
+	    ((req)->major == (major_v) && (req)->minor < (minor_v)))
+
+#define REQ_VERSION_ATLEAST(req, major_v, minor_v)			\
+	((req)->major > (major_v) ||					\
+	    ((req)->major == (major_v) && (req)->minor >= (minor_v)))
+
 #ifndef MIN
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #endif
@@ -240,7 +248,8 @@ html_replace(char ch, char *buf)
 char *
 evhttp_htmlescape(const char *html)
 {
-	int i, new_size = 0, old_size = strlen(html);
+	size_t i;
+	size_t new_size = 0, old_size = strlen(html);
 	char *escaped_html, *p;
 	char scratch_space[2];
 
@@ -249,7 +258,7 @@ evhttp_htmlescape(const char *html)
 
 	p = escaped_html = mm_malloc(new_size + 1);
 	if (escaped_html == NULL) {
-		event_warn("%s: malloc(%d)", __func__, new_size + 1);
+		event_warn("%s: malloc(%ld)", __func__, (long)(new_size + 1));
 		return (NULL);
 	}
 	for (i = 0; i < old_size; ++i) {
@@ -287,6 +296,18 @@ evhttp_method(enum evhttp_cmd_type type)
 		break;
 	case EVHTTP_REQ_DELETE:
 		method = "DELETE";
+		break;
+	case EVHTTP_REQ_OPTIONS:
+		method = "OPTIONS";
+		break;
+	case EVHTTP_REQ_TRACE:
+		method = "TRACE";
+		break;
+	case EVHTTP_REQ_CONNECT:
+		method = "CONNECT";
+		break;
+	case EVHTTP_REQ_PATCH:
+		method = "PATCH";
 		break;
 	default:
 		method = NULL;
@@ -342,8 +363,16 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	evcon->cb = cb;
 	evcon->cb_arg = arg;
 
-	bufferevent_disable(evcon->bufev, EV_READ);
 	bufferevent_enable(evcon->bufev, EV_WRITE);
+
+	/* Disable the read callback: we don't actually care about data;
+	 * we only care about close detection.  (We don't disable reading,
+	 * since we *do* want to learn about any close events.) */
+	bufferevent_setcb(evcon->bufev,
+	    NULL, /*read*/
+	    evhttp_write_cb,
+	    evhttp_error_cb,
+	    evcon);
 }
 
 /** Helper: returns true iff evconn is in any connected state. */
@@ -470,9 +499,8 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	    req->major, req->minor, req->response_code,
 	    req->response_code_line);
 
-	/* XXX shouldn't these check for >= rather than == ? - NM */
 	if (req->major == 1) {
-		if (req->minor == 1)
+		if (req->minor >= 1)
 			evhttp_maybe_add_date_header(req->output_headers);
 
 		/*
@@ -483,7 +511,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 			evhttp_add_header(req->output_headers,
 			    "Connection", "keep-alive");
 
-		if ((req->minor == 1 || is_keepalive) &&
+		if ((req->minor >= 1 || is_keepalive) &&
 		    evhttp_response_needs_body(req)) {
 			/*
 			 * we need to add the content length if the
@@ -762,7 +790,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 static enum message_read_status
 evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 {
-	int len;
+	ev_ssize_t len;
 
 	while ((len = evbuffer_get_length(buf)) > 0) {
 		if (req->ntoread < 0) {
@@ -1305,6 +1333,22 @@ evhttp_valid_response_code(int code)
 	return (1);
 }
 
+static int
+evhttp_parse_http_version(const char *version, struct evhttp_request *req)
+{
+	int major, minor;
+	char ch;
+	int n = sscanf(version, "HTTP/%d.%d%c", &major, &minor, &ch);
+	if (n > 2 || major > 1) {
+		event_debug(("%s: bad version %s on message %p from %s",
+			__func__, version, req, req->remote_host));
+		return (-1);
+	}
+	req->major = major;
+	req->minor = minor;
+	return (0);
+}
+
 /* Parses the status line of a web server */
 
 static int
@@ -1321,17 +1365,8 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 	if (line != NULL)
 		readable = line;
 
-	if (strcmp(protocol, "HTTP/1.0") == 0) {
-		req->major = 1;
-		req->minor = 0;
-	} else if (strcmp(protocol, "HTTP/1.1") == 0) {
-		req->major = 1;
-		req->minor = 1;
-	} else {
-		event_debug(("%s: bad protocol \"%s\"",
-			__func__, protocol));
+	if (evhttp_parse_http_version(protocol, req) < 0)
 		return (-1);
-	}
 
 	req->response_code = atoi(number);
 	if (!evhttp_valid_response_code(req->response_code)) {
@@ -1379,24 +1414,22 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		req->type = EVHTTP_REQ_PUT;
 	} else if (strcmp(method, "DELETE") == 0) {
 		req->type = EVHTTP_REQ_DELETE;
+	} else if (strcmp(method, "OPTIONS") == 0) {
+		req->type = EVHTTP_REQ_OPTIONS;
+	} else if (strcmp(method, "TRACE") == 0) {
+		req->type = EVHTTP_REQ_TRACE;
+	} else if (strcmp(method, "PATCH") == 0) {
+		req->type = EVHTTP_REQ_PATCH;
 	} else {
+		req->type = _EVHTTP_REQ_UNKNOWN;
 		event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
-		return (-1);
+		/* No error yet; we'll give a better error later when
+		 * we see that req->type is unsupported. */
 	}
 
-	if (strcmp(version, "HTTP/1.0") == 0) {
-		req->major = 1;
-		req->minor = 0;
-	} else if (strcmp(version, "HTTP/1.1") == 0) {
-		req->major = 1;
-		req->minor = 1;
-	} else {
-		/* XXX So, http/1.2 kills us?  Is that right? -NM */
-		event_debug(("%s: bad version %s on request %p from %s",
-			__func__, version, req, req->remote_host));
+	if (evhttp_parse_http_version(version, req) < 0)
 		return (-1);
-	}
 
 	if ((req->uri = mm_strdup(uri)) == NULL) {
 		event_debug(("%s: mm_strdup", __func__));
@@ -2057,6 +2090,12 @@ evhttp_start_read(struct evhttp_connection *evcon)
 	bufferevent_disable(evcon->bufev, EV_WRITE);
 	bufferevent_enable(evcon->bufev, EV_READ);
 	evcon->state = EVCON_READING_FIRSTLINE;
+	/* Reset the bufferevent callbacks */
+	bufferevent_setcb(evcon->bufev,
+	    evhttp_read_cb,
+	    evhttp_write_cb,
+	    evhttp_error_cb,
+	    evcon);
 
 	/* If there's still data pending, process it next time through the
 	 * loop.  Don't do it now; that could get recusive. */
@@ -2074,7 +2113,7 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
 	need_close =
-	    (req->minor == 0 &&
+	    (REQ_VERSION_BEFORE(req, 1, 1) &&
 		!evhttp_is_connection_keepalive(req->input_headers))||
 	    evhttp_is_connection_close(req->flags, req->input_headers) ||
 	    evhttp_is_connection_close(req->flags, req->output_headers);
@@ -2169,7 +2208,7 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
 {
 	evhttp_response_code(req, code, reason);
 	if (evhttp_find_header(req->output_headers, "Content-Length") == NULL &&
-	    req->major == 1 && req->minor == 1 &&
+	    REQ_VERSION_ATLEAST(req, 1, 1) &&
 	    evhttp_response_needs_body(req)) {
 		/*
 		 * prefer HTTP/1.1 chunked encoding to closing the connection;
@@ -2179,6 +2218,8 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
 		evhttp_add_header(req->output_headers, "Transfer-Encoding",
 		    "chunked");
 		req->chunked = 1;
+	} else {
+		req->chunked = 0;
 	}
 	evhttp_make_header(req->evcon, req);
 	evhttp_write_buffer(req->evcon, NULL, NULL);
@@ -2666,8 +2707,15 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	/* we have a new request on which the user needs to take action */
 	req->userdone = 0;
 
-	if (req->uri == NULL) {
+	if (req->type == 0 || req->uri == NULL) {
 		evhttp_send_error(req, HTTP_BADREQUEST, NULL);
+		return;
+	}
+
+	if ((http->allowed_methods & req->type) == 0) {
+		event_debug(("Rejecting disallowed method %x (allowed: %x)\n",
+			(unsigned)req->type, (unsigned)http->allowed_methods));
+		evhttp_send_error(req, HTTP_NOTIMPLEMENTED, NULL);
 		return;
 	}
 
@@ -2856,6 +2904,11 @@ evhttp_new_object(void)
 	http->timeout = -1;
 	evhttp_set_max_headers_size(http, EV_SIZE_MAX);
 	evhttp_set_max_body_size(http, EV_SIZE_MAX);
+	evhttp_set_allowed_methods(http, EVHTTP_REQ_GET |
+			                 EVHTTP_REQ_POST |
+			                 EVHTTP_REQ_HEAD |
+			                 EVHTTP_REQ_PUT |
+			                 EVHTTP_REQ_DELETE);
 
 	TAILQ_INIT(&http->sockets);
 	TAILQ_INIT(&http->callbacks);
@@ -2986,6 +3039,12 @@ evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size)
 		http->default_max_body_size = EV_UINT64_MAX;
 	else
 		http->default_max_body_size = max_body_size;
+}
+
+void
+evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods)
+{
+	http->allowed_methods = methods;
 }
 
 int
@@ -3169,6 +3228,12 @@ evhttp_request_get_uri(const struct evhttp_request *req) {
 enum evhttp_cmd_type
 evhttp_request_get_command(const struct evhttp_request *req) {
 	return (req->type);
+}
+
+int
+evhttp_request_get_response_code(const struct evhttp_request *req)
+{
+	return req->response_code;
 }
 
 /** Returns the input headers */
@@ -3371,7 +3436,7 @@ bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
 		evutil_make_listen_socket_reuseable(fd);
 
 	if (ai != NULL) {
-		r = bind(fd, ai->ai_addr, ai->ai_addrlen);
+		r = bind(fd, ai->ai_addr, (ev_socklen_t)ai->ai_addrlen);
 		if (r == -1)
 			goto out;
 	}
@@ -3563,7 +3628,7 @@ bracket_addr_ok(const char *s, const char *eos)
 	} else {
 		/* IPv6, or junk */
 		char buf[64];
-		int n_chars = eos-s-2;
+		ev_ssize_t n_chars = eos-s-2;
 		struct in6_addr in6;
 		if (n_chars >= 64) /* way too long */
 			return 0;

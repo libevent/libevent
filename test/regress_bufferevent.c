@@ -189,7 +189,7 @@ static void
 wm_readcb(struct bufferevent *bev, void *arg)
 {
 	struct evbuffer *evbuf = evbuffer_new();
-	int len = evbuffer_get_length(bev->input);
+	int len = (int)evbuffer_get_length(bev->input);
 	static int nread;
 
 	assert(len >= 10 && len <= 20);

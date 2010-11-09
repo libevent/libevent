@@ -378,11 +378,11 @@ int _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 /* ==== For rate-limiting. */
 
 int _bufferevent_decrement_write_buckets(struct bufferevent_private *bev,
-    int bytes);
+    ev_ssize_t bytes);
 int _bufferevent_decrement_read_buckets(struct bufferevent_private *bev,
-    int bytes);
-int _bufferevent_get_read_max(struct bufferevent_private *bev);
-int _bufferevent_get_write_max(struct bufferevent_private *bev);
+    ev_ssize_t bytes);
+ev_ssize_t _bufferevent_get_read_max(struct bufferevent_private *bev);
+ev_ssize_t _bufferevent_get_write_max(struct bufferevent_private *bev);
 
 #ifdef __cplusplus
 }

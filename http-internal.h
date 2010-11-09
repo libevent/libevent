@@ -41,6 +41,9 @@ struct evbuffer;
 struct addrinfo;
 struct evhttp_request;
 
+/* Indicates an unknown request method. */
+#define _EVHTTP_REQ_UNKNOWN (1<<15)
+
 enum evhttp_connection_state {
 	EVCON_DISCONNECTED,	/**< not currently connected not trying either*/
 	EVCON_CONNECTING,	/**< tries to currently connect */
@@ -144,6 +147,10 @@ struct evhttp {
 
 	size_t default_max_headers_size;
 	ev_uint64_t default_max_body_size;
+
+	/* Bitmask of all HTTP methods that we accept and pass to user
+	 * callbacks. */
+	ev_uint16_t allowed_methods;
 
 	/* Fallback callback if all the other callbacks for this connection
 	   don't match. */

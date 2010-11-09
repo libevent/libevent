@@ -94,8 +94,8 @@ static struct timeval tcalled;
 #endif
 
 #ifdef WIN32
-#define write(fd,buf,len) send((fd),(buf),(len),0)
-#define read(fd,buf,len) recv((fd),(buf),(len),0)
+#define write(fd,buf,len) send((fd),(buf),(int)(len),0)
+#define read(fd,buf,len) recv((fd),(buf),(int)(len),0)
 #endif
 
 struct basic_cb_args
@@ -1272,7 +1272,7 @@ test_event_base_new(void *ptr)
 	struct event ev1;
 	struct basic_cb_args args;
 
-	int towrite = strlen(TEST1)+1;
+	int towrite = (int)strlen(TEST1)+1;
 	int len = write(data->pair[0], TEST1, towrite);
 
 	if (len < 0)
@@ -1646,9 +1646,9 @@ evtag_int_test(void *ptr)
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
 		int oldlen, newlen;
-		oldlen = EVBUFFER_LENGTH(tmp);
+		oldlen = (int)EVBUFFER_LENGTH(tmp);
 		evtag_encode_int(tmp, integers[i]);
-		newlen = EVBUFFER_LENGTH(tmp);
+		newlen = (int)EVBUFFER_LENGTH(tmp);
 		TT_BLATHER(("encoded 0x%08x with %d bytes",
 			(unsigned)integers[i], newlen - oldlen));
 		big_int = integers[i];
@@ -1723,9 +1723,9 @@ evtag_tag_encoding(void *ptr)
 
 	for (i = 0; i < TEST_MAX_INT; i++) {
 		int oldlen, newlen;
-		oldlen = EVBUFFER_LENGTH(tmp);
+		oldlen = (int)EVBUFFER_LENGTH(tmp);
 		evtag_encode_tag(tmp, integers[i]);
-		newlen = EVBUFFER_LENGTH(tmp);
+		newlen = (int)EVBUFFER_LENGTH(tmp);
 		TT_BLATHER(("encoded 0x%08x with %d bytes",
 			(unsigned)integers[i], newlen - oldlen));
 	}

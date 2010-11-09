@@ -192,11 +192,11 @@ static int _bev_group_suspend_writing(struct bufferevent_rate_limit_group *g);
     the maximum amount we should read if is_read.  Return that maximum, or
     0 if our bucket is wholly exhausted.
  */
-static inline int
+static inline ev_ssize_t
 _bufferevent_get_rlim_max(struct bufferevent_private *bev, int is_write)
 {
 	/* needs lock on bev. */
-	int max_so_far = is_write?MAX_TO_WRITE_EVER:MAX_TO_READ_EVER;
+	ev_ssize_t max_so_far = is_write?MAX_TO_WRITE_EVER:MAX_TO_READ_EVER;
 
 #define LIM(x)						\
 	(is_write ? (x).write_limit : (x).read_limit)
@@ -255,20 +255,20 @@ _bufferevent_get_rlim_max(struct bufferevent_private *bev, int is_write)
 	return max_so_far;
 }
 
-int
+ev_ssize_t
 _bufferevent_get_read_max(struct bufferevent_private *bev)
 {
 	return _bufferevent_get_rlim_max(bev, 0);
 }
 
-int
+ev_ssize_t
 _bufferevent_get_write_max(struct bufferevent_private *bev)
 {
 	return _bufferevent_get_rlim_max(bev, 1);
 }
 
 int
-_bufferevent_decrement_read_buckets(struct bufferevent_private *bev, int bytes)
+_bufferevent_decrement_read_buckets(struct bufferevent_private *bev, ev_ssize_t bytes)
 {
 	/* XXXXX Make sure all users of this function check its return value */
 	int r = 0;
@@ -300,7 +300,7 @@ _bufferevent_decrement_read_buckets(struct bufferevent_private *bev, int bytes)
 }
 
 int
-_bufferevent_decrement_write_buckets(struct bufferevent_private *bev, int bytes)
+_bufferevent_decrement_write_buckets(struct bufferevent_private *bev, ev_ssize_t bytes)
 {
 	/* XXXXX Make sure all users of this function check its return value */
 	int r = 0;
