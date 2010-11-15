@@ -301,8 +301,12 @@ int event_base_set(struct event_base *, struct event *);
  event_loop() flags
  */
 /*@{*/
-#define EVLOOP_ONCE	0x01	/**< Block at most once. */
-#define EVLOOP_NONBLOCK	0x02	/**< Do not block. */
+/** Block until we have an active event, then exit once all active events
+ * have had their callbacks run. */
+#define EVLOOP_ONCE	0x01
+/** Do not block: see which events are ready now, run the callbacks
+ * highest-priority ones, then exit. */
+#define EVLOOP_NONBLOCK	0x02
 /*@}*/
 
 /**
