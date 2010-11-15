@@ -1550,7 +1550,7 @@ event_base_loop(struct event_base *base, int flags)
 		if (N_ACTIVE_CALLBACKS(base)) {
 			int n = event_process_active(base);
 			if ((flags & EVLOOP_ONCE)
-			    && base->event_count_active == 0
+			    && N_ACTIVE_CALLBACKS(base) == 0
 			    && n != 0)
 				done = 1;
 		} else if (flags & EVLOOP_NONBLOCK)
