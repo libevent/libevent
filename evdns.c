@@ -139,7 +139,7 @@
 
 /* Persistent handle.  We keep this separate from 'struct request' since we
  * need some object to last for as long as an evdns_request is outstanding so
- * that it can be cancelled, whereas a search request can lead to multiple
+ * that it can be canceled, whereas a search request can lead to multiple
  * 'struct request' instances being created over its lifetime. */
 struct evdns_request {
 	struct request *current_req;
@@ -4052,11 +4052,14 @@ struct evdns_getaddrinfo_request {
 	/* If we have one request answered and one request still inflight,
 	 * then this field holds the answer from the first request... */
 	struct evutil_addrinfo *pending_result;
-	/* And this field holds the error code from the first request... */
-	int pending_error;
 	/* And this event is a timeout that will tell us to cancel the second
 	 * request if it's taking a long time. */
 	struct event timeout;
+
+	/* And this field holds the error code from the first request... */
+	int pending_error;
+	/* If this is set, the user canceled this request. */
+	unsigned user_canceled : 1;
 };
 
 /* Convert an evdns errors to the equivalent getaddrinfo error. */
@@ -4159,6 +4162,13 @@ evdns_getaddrinfo_set_timeout(struct evdns_base *evdns_base,
 	return event_add(&data->timeout, &evdns_base->global_getaddrinfo_allow_skew);
 }
 
+static inline int
+evdns_result_is_answer(int result)
+{
+	return (result != DNS_ERR_NOTIMPL && result != DNS_ERR_REFUSED &&
+	    result != DNS_ERR_SERVERFAILED && result != DNS_ERR_CANCEL);
+}
+
 static void
 evdns_getaddrinfo_gotresolve(int result, char type, int count,
     int ttl, void *addresses, void *arg)
@@ -4177,15 +4187,11 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 	void *addrp;
 	int err;
 
-	if (result == DNS_ERR_CANCEL)
-		return;
-
 	EVUTIL_ASSERT(req->type == DNS_IPv4_A || req->type == DNS_IPv6_AAAA);
 	if (req->type == DNS_IPv4_A) {
 		data = EVUTIL_UPCAST(req, struct evdns_getaddrinfo_request, ipv4_request);
 		other_req = &data->ipv6_request;
-		if (result != DNS_ERR_NOTIMPL && result != DNS_ERR_REFUSED &&
-		    result != DNS_ERR_SERVERFAILED) {
+		if (evdns_result_is_answer(result)) {
 			EVDNS_LOCK(data->evdns_base);
 			++data->evdns_base->getaddrinfo_ipv4_answered;
 			EVDNS_UNLOCK(data->evdns_base);
@@ -4193,13 +4199,15 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 	} else {
 		data = EVUTIL_UPCAST(req, struct evdns_getaddrinfo_request, ipv6_request);
 		other_req = &data->ipv4_request;
-		if (result != DNS_ERR_NOTIMPL && result != DNS_ERR_REFUSED &&
-		    result != DNS_ERR_SERVERFAILED) {
+		if (evdns_result_is_answer(result)) {
 			EVDNS_LOCK(data->evdns_base);
 			++data->evdns_base->getaddrinfo_ipv6_answered;
 			EVDNS_UNLOCK(data->evdns_base);
 		}
 	}
+
+	if (result == DNS_ERR_CANCEL && ! data->user_canceled)
+		return;
 
 	req->r = NULL;
 
@@ -4223,8 +4231,11 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			return;
 		}
 
-		if (data->pending_result) {
-			/* If we have an answer waiting, ignore this error. */
+		if (data->user_canceled) {
+			data->user_cb(EVUTIL_EAI_CANCEL, NULL, data->user_data);
+		} else if (data->pending_result) {
+			/* If we have an answer waiting, and we weren't
+			 * canceled, ignore this error. */
 			add_cname_to_reply(data, data->pending_result);
 			data->user_cb(0, data->pending_result, data->user_data);
 			data->pending_result = NULL;
@@ -4234,6 +4245,10 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 				    data->pending_error);
 			data->user_cb(err, NULL, data->user_data);
 		}
+		free_getaddrinfo_request(data);
+		return;
+	} else if (data->user_canceled) {
+		data->user_cb(EVUTIL_EAI_CANCEL, NULL, data->user_data);
 		free_getaddrinfo_request(data);
 		return;
 	}
@@ -4496,13 +4511,9 @@ void
 evdns_getaddrinfo_cancel(struct evdns_getaddrinfo_request *data)
 {
 	event_del(&data->timeout);
+	data->user_canceled = 1;
 	if (data->ipv4_request.r)
 		evdns_cancel_request(data->evdns_base, data->ipv4_request.r);
 	if (data->ipv6_request.r)
 		evdns_cancel_request(data->evdns_base, data->ipv6_request.r);
-	data->ipv4_request.r = data->ipv6_request.r = NULL;
-
-	data->user_cb(EVUTIL_EAI_CANCEL, NULL, data->user_data);
-
-	free_getaddrinfo_request(data);
 }

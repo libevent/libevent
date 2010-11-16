@@ -1348,7 +1348,7 @@ evutil_gai_strerror(int err)
 	 * conflict with the platform's native error codes. */
 	switch (err) {
 	case EVUTIL_EAI_CANCEL:
-		return "Request cancelled";
+		return "Request canceled";
 	case 0:
 		return "No error";
 
