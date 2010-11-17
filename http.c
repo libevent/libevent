@@ -3858,6 +3858,7 @@ evhttp_uri_free(struct evhttp_uri *uri)
 	_URI_FREE_STR(scheme);
 	_URI_FREE_STR(userinfo);
 	_URI_FREE_STR(host);
+	_URI_FREE_STR(path);
 	_URI_FREE_STR(query);
 	_URI_FREE_STR(fragment);
 
