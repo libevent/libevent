@@ -398,7 +398,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	/* Add the content length on a post request if missing */
 	if (req->type == EVHTTP_REQ_POST &&
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
-		char size[12];
+		char size[22];
 		evutil_snprintf(size, sizeof(size), "%ld",
 		    (long)EVBUFFER_LENGTH(req->output_buffer));
 		evhttp_add_header(req->output_headers, "Content-Length", size);
@@ -455,7 +455,7 @@ evhttp_maybe_add_content_length_header(struct evkeyvalq *headers,
 {
 	if (evhttp_find_header(headers, "Transfer-Encoding") == NULL &&
 	    evhttp_find_header(headers,	"Content-Length") == NULL) {
-		char len[12];
+		char len[22];
 		evutil_snprintf(len, sizeof(len), "%ld", content_length);
 		evhttp_add_header(headers, "Content-Length", len);
 	}
