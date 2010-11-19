@@ -4060,6 +4060,9 @@ struct evdns_getaddrinfo_request {
 	int pending_error;
 	/* If this is set, the user canceled this request. */
 	unsigned user_canceled : 1;
+	/* If this is set, the user can no longer cancel this request; we're
+	 * just waiting for the free. */
+	unsigned request_done : 1;
 };
 
 /* Convert an evdns errors to the equivalent getaddrinfo error. */
@@ -4189,29 +4192,32 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 	int socklen, addrlen;
 	void *addrp;
 	int err;
+	int user_canceled;
 
 	EVUTIL_ASSERT(req->type == DNS_IPv4_A || req->type == DNS_IPv6_AAAA);
 	if (req->type == DNS_IPv4_A) {
 		data = EVUTIL_UPCAST(req, struct evdns_getaddrinfo_request, ipv4_request);
 		other_req = &data->ipv6_request;
-		if (evdns_result_is_answer(result)) {
-			EVDNS_LOCK(data->evdns_base);
-			++data->evdns_base->getaddrinfo_ipv4_answered;
-			EVDNS_UNLOCK(data->evdns_base);
-		}
 	} else {
 		data = EVUTIL_UPCAST(req, struct evdns_getaddrinfo_request, ipv6_request);
 		other_req = &data->ipv4_request;
-		if (evdns_result_is_answer(result)) {
-			EVDNS_LOCK(data->evdns_base);
-			++data->evdns_base->getaddrinfo_ipv6_answered;
-			EVDNS_UNLOCK(data->evdns_base);
-		}
 	}
+
+	EVDNS_LOCK(data->evdns_base);
+	if (evdns_result_is_answer(result)) {
+		if (req->type == DNS_IPv4_A)
+			++data->evdns_base->getaddrinfo_ipv4_answered;
+		else
+			++data->evdns_base->getaddrinfo_ipv6_answered;
+	}
+	user_canceled = data->user_canceled;
+	if (other_req->r == NULL)
+		data->request_done = 1;
+	EVDNS_UNLOCK(data->evdns_base);
 
 	req->r = NULL;
 
-	if (result == DNS_ERR_CANCEL && ! data->user_canceled) {
+	if (result == DNS_ERR_CANCEL && ! user_canceled) {
 		/* Internal cancel request from timeout or internal error.
 		 * we already answered the user. */
 		if (other_req->r == NULL)
@@ -4239,7 +4245,7 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			return;
 		}
 
-		if (data->user_canceled) {
+		if (user_canceled) {
 			data->user_cb(EVUTIL_EAI_CANCEL, NULL, data->user_data);
 		} else if (data->pending_result) {
 			/* If we have an answer waiting, and we weren't
@@ -4255,7 +4261,7 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		}
 		free_getaddrinfo_request(data);
 		return;
-	} else if (data->user_canceled) {
+	} else if (user_canceled) {
 		if (other_req->r) {
 			/* The other request is still working; let it hit this
 			 * callback with EVUTIL_EAI_CANCEL callback and report
@@ -4524,10 +4530,16 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 void
 evdns_getaddrinfo_cancel(struct evdns_getaddrinfo_request *data)
 {
+	EVDNS_LOCK(data->evdns_base);
+	if (data->request_done) {
+		EVDNS_UNLOCK(data->evdns_base);
+		return;
+	}
 	event_del(&data->timeout);
 	data->user_canceled = 1;
 	if (data->ipv4_request.r)
 		evdns_cancel_request(data->evdns_base, data->ipv4_request.r);
 	if (data->ipv6_request.r)
 		evdns_cancel_request(data->evdns_base, data->ipv6_request.r);
+	EVDNS_UNLOCK(data->evdns_base);
 }
