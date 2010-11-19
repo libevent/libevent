@@ -4089,6 +4089,8 @@ getaddrinfo_merge_err(int e1, int e2)
 static void
 free_getaddrinfo_request(struct evdns_getaddrinfo_request *data)
 {
+	/* DO NOT CALL this if either of the requests is pending.  Only once
+	 * both callbacks have been invoked is it safe to free the request */
 	if (data->pending_result)
 		evutil_freeaddrinfo(data->pending_result);
 	if (data->cname_result)
@@ -4121,7 +4123,6 @@ evdns_getaddrinfo_timeout_cb(evutil_socket_t fd, short what, void *ptr)
 	/* Cancel any pending requests, and note which one */
 	if (data->ipv4_request.r) {
 		evdns_cancel_request(NULL, data->ipv4_request.r);
-		data->ipv4_request.r = NULL;
 		v4_timedout = 1;
 		EVDNS_LOCK(data->evdns_base);
 		++data->evdns_base->getaddrinfo_ipv4_timeouts;
@@ -4129,7 +4130,6 @@ evdns_getaddrinfo_timeout_cb(evutil_socket_t fd, short what, void *ptr)
 	}
 	if (data->ipv6_request.r) {
 		evdns_cancel_request(NULL, data->ipv6_request.r);
-		data->ipv6_request.r = NULL;
 		v6_timedout = 1;
 		EVDNS_LOCK(data->evdns_base);
 		++data->evdns_base->getaddrinfo_ipv6_timeouts;
@@ -4152,7 +4152,10 @@ evdns_getaddrinfo_timeout_cb(evutil_socket_t fd, short what, void *ptr)
 		data->user_cb(e, NULL, data->user_data);
 	}
 
-	free_getaddrinfo_request(data);
+	if (!v4_timedout && !v6_timedout) {
+		/* should be impossible? XXXX */
+		free_getaddrinfo_request(data);
+	}
 }
 
 static int
@@ -4206,10 +4209,15 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		}
 	}
 
-	if (result == DNS_ERR_CANCEL && ! data->user_canceled)
-		return;
-
 	req->r = NULL;
+
+	if (result == DNS_ERR_CANCEL && ! data->user_canceled) {
+		/* Internal cancel request from timeout or internal error.
+		 * we already answered the user. */
+		if (other_req->r == NULL)
+			free_getaddrinfo_request(data);
+		return;
+	}
 
 	if (result == DNS_ERR_NONE) {
 		if (count == 0)
@@ -4249,8 +4257,9 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		return;
 	} else if (data->user_canceled) {
 		if (other_req->r) {
-			/* The other request is still working; let it
-			 * hit the callback and report the failure. */
+			/* The other request is still working; let it hit this
+			 * callback with EVUTIL_EAI_CANCEL callback and report
+			 * the failure. */
 			return;
 		}
 		data->user_cb(EVUTIL_EAI_CANCEL, NULL, data->user_data);
@@ -4290,12 +4299,12 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		if (!ai) {
 			if (other_req->r) {
 				evdns_cancel_request(NULL, other_req->r);
-				other_req->r = NULL;
 			}
 			data->user_cb(EVUTIL_EAI_MEMORY, NULL, data->user_data);
 			evutil_freeaddrinfo(res);
 
-			free_getaddrinfo_request(data);
+			if (other_req->r == NULL)
+				free_getaddrinfo_request(data);
 			return;
 		}
 		res = evutil_addrinfo_append(res, ai);
