@@ -4248,6 +4248,11 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		free_getaddrinfo_request(data);
 		return;
 	} else if (data->user_canceled) {
+		if (other_req->r) {
+			/* The other request is still working; let it
+			 * hit the callback and report the failure. */
+			return;
+		}
 		data->user_cb(EVUTIL_EAI_CANCEL, NULL, data->user_data);
 		free_getaddrinfo_request(data);
 		return;
