@@ -1108,20 +1108,12 @@ evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void))
 static u16
 transaction_id_pick(void) {
 	for (;;) {
-		const struct request *req = req_head, *started_at;
 		u16 trans_id = trans_id_function();
 
 		if (trans_id == 0xffff) continue;
-		/* now check to see if that id is already inflight */
-		req = started_at = req_head;
-		if (req) {
-			do {
-				if (req->trans_id == trans_id) break;
-				req = req->next;
-			} while (req != started_at);
-		}
-		/* we didn't find it, so this is a good id */
-		if (req == started_at) return trans_id;
+
+		if (request_find_from_trans_id(trans_id) == NULL)
+			return trans_id;
 	}
 }
 
