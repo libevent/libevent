@@ -2676,8 +2676,12 @@ evthread_make_base_notifiable(struct event_base *base)
 		return 0;
 
 #if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
-	base->th_notify_fd[0] = eventfd(0, 0);
+#ifndef EFD_CLOEXEC
+#define EFD_CLOEXEC 0
+#endif
+	base->th_notify_fd[0] = eventfd(0, EFD_CLOEXEC);
 	if (base->th_notify_fd[0] >= 0) {
+		evutil_make_socket_closeonexec(base->th_notify_fd[0]);
 		notify = evthread_notify_base_eventfd;
 		cb = evthread_notify_drain_eventfd;
 	}
@@ -2685,8 +2689,12 @@ evthread_make_base_notifiable(struct event_base *base)
 #if defined(_EVENT_HAVE_PIPE)
 	if (base->th_notify_fd[0] < 0) {
 		if ((base->evsel->features & EV_FEATURE_FDS)) {
-			if (pipe(base->th_notify_fd) < 0)
+			if (pipe(base->th_notify_fd) < 0) {
 				event_warn("%s: pipe", __func__);
+			} else {
+				evutil_make_socket_closeonexec(base->th_notify_fd[0]);
+				evutil_make_socket_closeonexec(base->th_notify_fd[1]);
+			}
 		}
 	}
 #endif
@@ -2701,6 +2709,9 @@ evthread_make_base_notifiable(struct event_base *base)
 			base->th_notify_fd) == -1) {
 			event_sock_warn(-1, "%s: socketpair", __func__);
 			return (-1);
+		} else {
+			evutil_make_socket_closeonexec(base->th_notify_fd[0]);
+			evutil_make_socket_closeonexec(base->th_notify_fd[1]);
 		}
 	}
 
