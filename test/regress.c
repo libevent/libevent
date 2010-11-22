@@ -1900,9 +1900,9 @@ test_base_environ(void *arg)
 
 #if defined(SETENV_OK) && defined(UNSETENV_OK)
 	const char **basenames;
-	char varbuf[128];
 	int i, n_methods=0;
-	const char *defaultname;
+	char varbuf[128];
+	const char *defaultname, *ignoreenvname;
 
 	/* See if unsetenv works before we rely on it. */
 	setenv("EVENT_NOWAFFLES", "1", 1);
@@ -1932,8 +1932,14 @@ test_base_environ(void *arg)
 	base = NULL;
 
 	/* Can we disable the method with EVENT_NOfoo ? */
-	methodname_to_envvar(defaultname, varbuf, sizeof(varbuf));
-	setenv(varbuf, "1", 1);
+	if (!strcmp(defaultname, "epoll (with changelist)")) {
+ 		setenv("EVENT_NOEPOLL", "1", 1);
+		ignoreenvname = "epoll";
+	} else {
+		methodname_to_envvar(defaultname, varbuf, sizeof(varbuf));
+		setenv(varbuf, "1", 1);
+		ignoreenvname = defaultname;
+	}
 
 	/* Use an empty cfg rather than NULL so a failure doesn't exit() */
 	cfg = event_config_new();
@@ -1954,7 +1960,7 @@ test_base_environ(void *arg)
 	event_config_set_flag(cfg, EVENT_BASE_FLAG_IGNORE_ENV);
 	base = event_base_new_with_config(cfg);
 	tt_assert(base);
-	tt_str_op(defaultname, ==, event_base_get_method(base));
+	tt_str_op(ignoreenvname, ==, event_base_get_method(base));
 #else
 	tt_skip();
 #endif

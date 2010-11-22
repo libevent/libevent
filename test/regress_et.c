@@ -104,7 +104,8 @@ test_edgetriggered(void *et)
 	base = event_base_new();
 
 	if (!strcmp(event_base_get_method(base), "epoll") ||
-		!strcmp(event_base_get_method(base), "kqueue"))
+	    !strcmp(event_base_get_method(base), "epoll (with changelist)") ||
+	    !strcmp(event_base_get_method(base), "kqueue"))
 		supports_et = 1;
 	else
 		supports_et = 0;
