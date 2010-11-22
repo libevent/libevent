@@ -1543,6 +1543,136 @@ end:
 		evdns_base_free(dns_base, 0);
 }
 
+struct gaic_request_status {
+	int magic;
+	struct event_base *base;
+	struct evdns_base *dns_base;
+	struct evdns_getaddrinfo_request *request;
+	struct event cancel_event;
+	int canceled;
+};
+
+#define GAIC_MAGIC 0x1234abcd
+
+static int pending = 0;
+
+static void
+gaic_cancel_request_cb(evutil_socket_t fd, short what, void *arg)
+{
+	struct gaic_request_status *status = arg;
+
+	tt_assert(status->magic == GAIC_MAGIC);
+	status->canceled = 1;
+	evdns_getaddrinfo_cancel(status->request);
+	return;
+end:
+	event_base_loopexit(status->base, NULL);
+}
+
+static void
+gaic_server_cb(struct evdns_server_request *req, void *arg)
+{
+	ev_uint32_t answer = 0x7f000001;
+	tt_assert(req->nquestions);
+	evdns_server_request_add_a_reply(req, req->questions[0]->name, 1,
+	    &answer, 100);
+	evdns_server_request_respond(req, 0);
+	return;
+end:
+	evdns_server_request_respond(req, DNS_ERR_REFUSED);
+}
+
+
+static void
+gaic_getaddrinfo_cb(int result, struct evutil_addrinfo *res, void *arg)
+{
+	struct gaic_request_status *status = arg;
+	struct event_base *base = status->base;
+	tt_assert(status->magic == GAIC_MAGIC);
+
+	if (result == EVUTIL_EAI_CANCEL) {
+		tt_assert(status->canceled);
+	}
+	event_del(&status->cancel_event);
+
+	memset(status, 0xf0, sizeof(*status));
+	free(status);
+
+end:
+	if (--pending <= 0)
+		event_base_loopexit(base, NULL);
+}
+
+static void
+gaic_launch(struct event_base *base, struct evdns_base *dns_base)
+{
+	struct gaic_request_status *status = calloc(1,sizeof(*status));
+	struct timeval tv = { 0, 10000 };
+	status->magic = GAIC_MAGIC;
+	status->base = base;
+	status->dns_base = dns_base;
+	event_assign(&status->cancel_event, base, -1, 0, gaic_cancel_request_cb,
+	    status);
+	status->request = evdns_getaddrinfo(dns_base,
+	    "foobar.bazquux.example.com", "80", NULL, gaic_getaddrinfo_cb,
+	    status);
+	event_add(&status->cancel_event, &tv);
+	++pending;
+}
+
+static void
+test_getaddrinfo_async_cancel_stress(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns_base = NULL;
+	struct evdns_server_port *server = NULL;
+	evutil_socket_t fd = -1;
+	struct sockaddr_in sin;
+	struct sockaddr_storage ss;
+	ev_socklen_t slen;
+	int i;
+
+	base = event_base_new();
+	dns_base = evdns_base_new(base, 0);
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_port = 0;
+	sin.sin_addr.s_addr = htonl(0x7f000001);
+	if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		tt_abort_perror("socket");
+	}
+	evutil_make_socket_nonblocking(fd);
+	if (bind(fd, (struct sockaddr*)&sin, sizeof(sin))<0) {
+		tt_abort_perror("bind");
+	}
+	server = evdns_add_server_port_with_base(base, fd, 0, gaic_server_cb,
+	    base);
+
+	memset(&ss, 0, sizeof(ss));
+	slen = sizeof(ss);
+	if (getsockname(fd, (struct sockaddr*)&ss, &slen)<0) {
+		tt_abort_perror("getsockname");
+	}
+	evdns_base_nameserver_sockaddr_add(dns_base,
+	    (struct sockaddr*)&ss, slen, 0);
+
+	for (i = 0; i < 1000; ++i) {
+		gaic_launch(base, dns_base);
+	}
+
+	event_base_dispatch(base);
+
+end:
+	if (dns_base)
+		evdns_base_free(dns_base, 1);
+	if (server)
+		evdns_close_server_port(server);
+	if (fd >= 0)
+		evutil_closesocket(fd);
+}
+
 
 #define DNS_LEGACY(name, flags)					       \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
@@ -1564,6 +1694,8 @@ struct testcase_t dns_testcases[] = {
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
 	{ "getaddrinfo_async", test_getaddrinfo_async,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"" },
+	{ "getaddrinfo_cancel_stress", test_getaddrinfo_async_cancel_stress,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"" },
 
 	END_OF_TESTCASES

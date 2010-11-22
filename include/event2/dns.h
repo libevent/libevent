@@ -628,7 +628,7 @@ struct evdns_getaddrinfo_request *evdns_getaddrinfo(
     evdns_getaddrinfo_cb cb, void *arg);
 
 /* Cancel an in-progress evdns_getaddrinfo.  This MUST NOT be called after the
- * getaddrinfo's callback has been invoked.  The resolves will be cancelled,
+ * getaddrinfo's callback has been invoked.  The resolves will be canceled,
  * and the callback will be invoked with the error EVUTIL_EAI_CANCEL. */
 void evdns_getaddrinfo_cancel(struct evdns_getaddrinfo_request *req);
 
