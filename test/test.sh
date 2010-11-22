@@ -111,8 +111,24 @@ announce "Running tests:"
 
 # Need to do this by hand?
 setup
+unset EVENT_NOEVPORT
+announce "EVPORT"
+run_tests
+
+setup
 unset EVENT_NOKQUEUE
 announce "KQUEUE"
+run_tests
+
+setup
+unset EVENT_NOEPOLL
+announce "EPOLL"
+run_tests
+
+setup
+unset EVENT_NOEPOLL
+EVENT_EPOLL_USE_CHANGELIST=yes; export EVENT_EPOLL_USE_CHANGELIST
+announce "EPOLL (changelist)"
 run_tests
 
 setup
@@ -128,22 +144,6 @@ run_tests
 setup
 unset EVENT_NOSELECT
 announce "SELECT"
-run_tests
-
-setup
-unset EVENT_NOEPOLL
-announce "EPOLL"
-run_tests
-
-setup
-unset EVENT_NOEPOLL
-EVENT_EPOLL_USE_CHANGELIST=yes; export EVENT_EPOLL_USE_CHANGELIST
-announce "EPOLL (changelist)"
-run_tests
-
-setup
-unset EVENT_NOEVPORT
-announce "EVPORT"
 run_tests
 
 setup
