@@ -1804,15 +1804,11 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 }
 
 int
-_event_initialized(const struct event *ev, int need_fd)
+event_initialized(const struct event *ev)
 {
 	if (!(ev->ev_flags & EVLIST_INIT))
 		return 0;
-#ifdef WIN32
-	/* XXX Is this actually a sensible thing to check? -NM */
-	if (need_fd && (ev)->ev_fd == (evutil_socket_t)INVALID_HANDLE_VALUE)
-		return 0;
-#endif
+
 	return 1;
 }
 

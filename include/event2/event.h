@@ -439,7 +439,7 @@ int event_base_got_break(struct event_base *);
  */
 #define evtimer_del(ev)			event_del(ev)
 #define evtimer_pending(ev, tv)		event_pending((ev), EV_TIMEOUT, (tv))
-#define evtimer_initialized(ev)		_event_initialized((ev), 0)
+#define evtimer_initialized(ev)		event_initialized(ev)
 
 #define evsignal_add(ev, tv)		event_add((ev), (tv))
 #define evsignal_assign(ev, b, x, cb, arg)			\
@@ -448,7 +448,7 @@ int event_base_got_break(struct event_base *);
 	event_new((b), (x), EV_SIGNAL|EV_PERSIST, (cb), (arg))
 #define evsignal_del(ev)		event_del(ev)
 #define evsignal_pending(ev, tv)	event_pending((ev), EV_SIGNAL, (tv))
-#define evsignal_initialized(ev)	_event_initialized((ev), 0)
+#define evsignal_initialized(ev)	event_initialized(ev)
 
 typedef void (*event_callback_fn)(evutil_socket_t, short, void *);
 
@@ -587,20 +587,19 @@ int event_pending(const struct event *, short, struct timeval *);
 /**
   Test if an event structure might be initialized.
 
-  The event_initialized() macro can be used to check if an event has been
+  The event_initialized() function can be used to check if an event has been
   initialized.
 
-  Warning: This macro is deprecated because it does not perform a reliable
-    test: While it can tell a zeroed-out piece of memory from an initialized
-    event, it can easily be confused by uninitialized memory.
+  Warning: This function is only useful for distinguishing a a zeroed-out
+    piece of memory from an initialized event, it can easily be confused by
+    uninitialized memory.  Thus, it should ONLY be used to distinguish an
+    initialized event from zero.
 
   @param ev an event structure to be tested
   @return 1 if the structure might be initialized, or 0 if it has not been
           initialized
  */
-#define event_initialized(ev)		_event_initialized((ev), 1)
-
-int _event_initialized(const struct event *, int check_fd);
+int event_initialized(const struct event *ev);
 
 /**
    Get the signal number assigned to an event.

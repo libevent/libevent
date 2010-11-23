@@ -282,7 +282,7 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
    @deprecated This macro is deprecated because its naming is inconsistent.
    The recommend macro is evtimer_initialized().
 */
-#define timeout_initialized(ev)		_event_initialized((ev), 0)
+#define timeout_initialized(ev)		event_initialized(ev)
 
 /**
    @deprecated This macro is deprecated because its naming is inconsistent.
@@ -309,7 +309,7 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
    @deprecated This macro is deprecated because its naming is inconsistent.
     The recommend macro is evsignal_initialized().
 */
-#define signal_initialized(ev)		_event_initialized((ev), 0)
+#define signal_initialized(ev)		event_initialized(ev)
 
 #ifndef EVENT_FD
 /* These macros are obsolete; use event_get_fd and event_get_signal instead. */
