@@ -638,8 +638,7 @@ request_finished(struct request *const req, struct request **head, int free_hand
 	if (head)
 		evdns_request_remove(req, head);
 
-	log(EVDNS_LOG_DEBUG, "Removing timeout for request %lx",
-	    (unsigned long) req);
+	log(EVDNS_LOG_DEBUG, "Removing timeout for request %p", req);
 	if (was_inflight) {
 		evtimer_del(&req->timeout_event);
 		base->global_requests_inflight--;
@@ -2076,7 +2075,7 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 	(void) fd;
 	(void) events;
 
-	log(EVDNS_LOG_DEBUG, "Request %lx timed out", (unsigned long) arg);
+	log(EVDNS_LOG_DEBUG, "Request %p timed out", arg);
 	EVDNS_LOCK(base);
 
 	req->ns->timedout++;
@@ -2161,11 +2160,11 @@ evdns_request_transmit(struct request *req) {
 	default:
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
-		    "Setting timeout for request %lx", (unsigned long) req);
+		    "Setting timeout for request %p", req);
 		if (evtimer_add(&req->timeout_event, &req->base->global_timeout) < 0) {
 			log(EVDNS_LOG_WARN,
-		      "Error from libevent when adding timer for request %lx",
-				(unsigned long) req);
+		      "Error from libevent when adding timer for request %p",
+			    req);
 			/* ???? Do more? */
 		}
 		req->tx_count++;

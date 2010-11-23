@@ -89,7 +89,6 @@ test_edgetriggered(void *et)
 	const char *test = "test string";
 	evutil_socket_t pair[2] = {-1,-1};
 	int supports_et;
-	int success;
 
 	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0, pair) == -1) {
 		tt_abort_perror("socketpair");
@@ -135,8 +134,6 @@ test_edgetriggered(void *et)
 	} else {
 		tt_int_op(called, ==, 2);
 		tt_assert(!was_et);
-		success = (called == 2) && !was_et;
-
 	}
 
  end:

@@ -1996,19 +1996,18 @@ get_n_bytes_readable_on_socket(evutil_socket_t fd)
 int
 evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 {
-	struct evbuffer_chain *chain, **chainp;
+	struct evbuffer_chain **chainp;
 	int n;
 	int result;
 
 #ifdef USE_IOVEC_IMPL
 	int nvecs, i, remaining;
 #else
+	struct evbuffer_chain *chain;
 	unsigned char *p;
 #endif
 
 	EVBUFFER_LOCK(buf);
-
-	chain = buf->last;
 
 	if (buf->freeze_end) {
 		result = -1;

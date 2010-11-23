@@ -252,7 +252,7 @@ errorcb(struct bufferevent *bev, short what, void *arg)
 void
 test_bufferevent_zlib(void *arg)
 {
-	struct bufferevent *bev1=NULL, *bev2=NULL, *bev1_orig, *bev2_orig;
+	struct bufferevent *bev1=NULL, *bev2=NULL;
 	char buffer[8333];
 	z_stream z_input, z_output;
 	int i, pair[2]={-1,-1}, r;
@@ -268,8 +268,8 @@ test_bufferevent_zlib(void *arg)
 	evutil_make_socket_nonblocking(pair[0]);
 	evutil_make_socket_nonblocking(pair[1]);
 
-	bev1_orig = bev1 = bufferevent_socket_new(NULL, pair[0], 0);
-	bev2_orig = bev2 = bufferevent_socket_new(NULL, pair[1], 0);
+	bev1 = bufferevent_socket_new(NULL, pair[0], 0);
+	bev2 = bufferevent_socket_new(NULL, pair[1], 0);
 
 	memset(&z_output, 0, sizeof(z_output));
 	r = deflateInit(&z_output, Z_DEFAULT_COMPRESSION);

@@ -101,7 +101,7 @@ struct {
 
 	struct evbuffer *input_buffer;	/* read data */
 	ev_int64_t ntoread;
-	int chunked:1,			/* a chunked request */
+	unsigned chunked:1,		/* a chunked request */
 	    userdone:1;			/* the user has sent all data */
 
 	struct evbuffer *output_buffer;	/* outgoing post or data */

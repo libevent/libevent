@@ -426,6 +426,7 @@ be_filter_readcb(struct bufferevent *underlying, void *_me)
 	else
 		state = BEV_NORMAL;
 
+	/* XXXX use return value */
 	res = be_filter_process_input(bevf, state, &processed_any);
 
 	/* XXX This should be in process_input, not here.  There are

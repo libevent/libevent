@@ -1205,7 +1205,7 @@ test_getaddrinfo_async(void *arg)
 	memset(&local_outcome, 0, sizeof(local_outcome));
 	r = evdns_getaddrinfo(dns_base, "1.2.3.4", "http",
 	    &hints, gai_cb, &local_outcome);
-	tt_int_op(r,==,0);
+	tt_assert(! r);
 	if (!local_outcome.err) {
 		tt_ptr_op(local_outcome.ai,!=,NULL);
 		test_ai_eq(local_outcome.ai, "1.2.3.4:80", SOCK_STREAM, IPPROTO_TCP);
@@ -1233,7 +1233,7 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_protocol = IPPROTO_TCP;
 	r = evdns_getaddrinfo(dns_base, "f::f", "8008",
 	    &hints, gai_cb, &local_outcome);
-	tt_int_op(r,==,0);
+	tt_assert(!r);
 	tt_int_op(local_outcome.err,==,0);
 	tt_assert(local_outcome.ai);
 	tt_ptr_op(local_outcome.ai->ai_next,==,NULL);
@@ -1247,7 +1247,7 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_family = PF_UNSPEC;
 	r = evdns_getaddrinfo(dns_base, "5.6.7.8", NULL,
 	    &hints, gai_cb, &local_outcome);
-	tt_int_op(r,==,0);
+	tt_assert(!r);
 	tt_int_op(local_outcome.err,==,0);
 	tt_assert(local_outcome.ai);
 	a = ai_find_by_protocol(local_outcome.ai, IPPROTO_TCP);
@@ -1267,7 +1267,7 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_flags = EVUTIL_AI_PASSIVE;
 	r = evdns_getaddrinfo(dns_base, NULL, "9090",
 	    &hints, gai_cb, &local_outcome);
-	tt_int_op(r,==,0);
+	tt_assert(!r);
 	tt_int_op(local_outcome.err,==,0);
 	tt_assert(local_outcome.ai);
 	/* we should get a v4 address of 0.0.0.0... */
@@ -1288,7 +1288,7 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_socktype = SOCK_STREAM;
 	r = evdns_getaddrinfo(dns_base, NULL, "2",
 	    &hints, gai_cb, &local_outcome);
-	tt_int_op(r,==,0);
+	tt_assert(!r);
 	tt_int_op(local_outcome.err,==,0);
 	tt_assert(local_outcome.ai);
 	/* we should get a v4 address of 127.0.0.1 .... */
@@ -1309,7 +1309,7 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_socktype = SOCK_STREAM;
 	r = evdns_getaddrinfo(dns_base, "LOCALHOST", "80",
 	    &hints, gai_cb, &local_outcome);
-	tt_int_op(r,==,0);
+	tt_assert(!r);
 	tt_int_op(local_outcome.err,==,0);
 	tt_assert(local_outcome.ai);
 	/* we should get a v4 address of 127.0.0.1 .... */
@@ -1330,7 +1330,7 @@ test_getaddrinfo_async(void *arg)
 	hints.ai_socktype = SOCK_STREAM;
 	r = evdns_getaddrinfo(dns_base, "LOCALHOST", "9999",
 	    &hints, gai_cb, &local_outcome);
-	tt_int_op(r,==,0);
+	tt_assert(! r);
 	tt_int_op(local_outcome.err,==,0);
 	tt_assert(local_outcome.ai);
 	a = local_outcome.ai;

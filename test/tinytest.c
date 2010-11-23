@@ -175,6 +175,7 @@ _testcase_run_forked(const struct testgroup_t *group,
 			exit(1);
 		}
 		exit(0);
+		return FAIL; /* unreachable */
 	} else {
 		/* parent */
 		int status, r;
@@ -240,6 +241,7 @@ testcase_run_one(const struct testgroup_t *group,
 
 	if (opt_forked) {
 		exit(outcome==OK ? 0 : (outcome==SKIP?MAGIC_EXITCODE : 1));
+		return 1; /* unreachable */
 	} else {
 		return (int)outcome;
 	}

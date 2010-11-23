@@ -686,8 +686,6 @@ end:
 	event_del(&ev);
 }
 
-static int total_common_counts;
-
 struct common_timeout_info {
 	struct event ev;
 	struct timeval called_at;
@@ -730,8 +728,6 @@ test_common_timeout(void *ptr)
 	tt_int_op(ms_200->tv_sec, ==, 0);
 	tt_int_op(ms_100->tv_usec, ==, 100000|0x50000000);
 	tt_int_op(ms_200->tv_usec, ==, 200000|0x50100000);
-
-	total_common_counts = 0;
 
 	memset(info, 0, sizeof(info));
 
@@ -1415,10 +1411,9 @@ static void
 re_add_read_cb(evutil_socket_t fd, short event, void *arg)
 {
 	char buf[256];
-	int len;
 	struct event *ev_other = arg;
 	readd_test_event_last_added = ev_other;
-	len = read(fd, buf, sizeof(buf));
+	(void) read(fd, buf, sizeof(buf));
 	event_add(ev_other, NULL);
 	++test_ok;
 }
@@ -1427,13 +1422,12 @@ static void
 test_nonpersist_readd(void)
 {
 	struct event ev1, ev2;
-	int n, m;
-
+	
 	setup_test("Re-add nonpersistent events: ");
 	event_set(&ev1, pair[0], EV_READ, re_add_read_cb, &ev2);
 	event_set(&ev2, pair[1], EV_READ, re_add_read_cb, &ev1);
-	n = write(pair[0], "Hello", 5);
-	m = write(pair[1], "Hello", 5);
+	(void) write(pair[0], "Hello", 5);
+	(void) write(pair[1], "Hello", 5);
 	if (event_add(&ev1, NULL) == -1 ||
 	    event_add(&ev2, NULL) == -1) {
 		test_ok = 0;

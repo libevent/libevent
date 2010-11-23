@@ -144,7 +144,6 @@ main(int argc, char **argv)
 	struct event_base* base;
 
 	evutil_socket_t pair[2];
-	int res;
 	struct timeval tv;
 	struct cpu_usage_timer timer;
 
@@ -179,7 +178,7 @@ main(int argc, char **argv)
 
 	start_cpu_usage_timer(&timer);
 
-	res = event_base_dispatch(base);
+	event_base_dispatch(base);
 
 	get_cpu_usage(&timer, &secPassed, &secUsed, &usage);
 
