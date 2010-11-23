@@ -432,8 +432,8 @@ AC_CHECK_TYPES([fd_mask], , ,
 [#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#ifdef HAVE_SELECT_H
-#include <select.h>
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
 #endif])
 
 AC_CHECK_SIZEOF(long long)
