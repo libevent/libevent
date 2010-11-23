@@ -226,7 +226,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		enum message_read_status done;
 
-		//req->kind = EVHTTP_RESPONSE;
+		/* req->kind = EVHTTP_RESPONSE; */
 		done = evhttp_parse_firstline(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
@@ -506,7 +506,7 @@ http_badreq_readcb(struct bufferevent *bev, void *arg)
 		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
 		enum message_read_status done;
 
-		//req->kind = EVHTTP_RESPONSE;
+		/* req->kind = EVHTTP_RESPONSE; */
 		done = evhttp_parse_firstline(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
@@ -2521,7 +2521,7 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 		const char *header;
 		enum message_read_status done;
 
-		//req->kind = EVHTTP_RESPONSE;
+		/* req->kind = EVHTTP_RESPONSE; */
 		done = evhttp_parse_firstline(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
