@@ -280,6 +280,10 @@ void event_base_free(struct event_base *);
 #define _EVENT_LOG_MSG   1
 #define _EVENT_LOG_WARN  2
 #define _EVENT_LOG_ERR   3
+
+/*
+  A callback function used to intercept Libevent's log messages.
+ */
 typedef void (*event_log_cb)(int severity, const char *msg);
 /**
   Redirect Libevent's log messages.
@@ -287,6 +291,9 @@ typedef void (*event_log_cb)(int severity, const char *msg);
   @param cb a function taking two arguments: an integer severity between
      _EVENT_LOG_DEBUG and _EVENT_LOG_ERR, and a string.  If cb is NULL,
 	 then the default log is used.
+
+  NOTE: The function you provide *must not* call any other libevent
+  functionality.  Doing so can produce undefined behavior.
   */
 void event_set_log_callback(event_log_cb cb);
 
