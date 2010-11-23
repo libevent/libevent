@@ -632,7 +632,16 @@ event_callback_fn event_get_callback(const struct event *ev);
 */
 void *event_get_callback_arg(const struct event *ev);
 
-void event_get_assignment(const struct event *event, struct event_base **base_out, evutil_socket_t *fd_out, short *events_out, event_callback_fn *callback_out, void **arg_out);
+/**
+   Extract _all_ of arguments given to construct a given event.  The
+   event_base is copied into *base_out, the fd is copied into *fd_out, and so
+   on.
+
+   If any of the "_out" arguments is NULL, it will be ignored.
+ */
+void event_get_assignment(const struct event *event,
+    struct event_base **base_out, evutil_socket_t *fd_out, short *events_out,
+    event_callback_fn *callback_out, void **arg_out);
 
 /**
    Return the size of struct event that the Libevent library was compiled
