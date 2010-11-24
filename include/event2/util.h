@@ -65,6 +65,8 @@ extern "C" {
 
 #ifdef WIN32
 #include <winsock2.h>
+#else
+#include <sys/socket.h>
 #endif
 
 /* Integer type definitions for types that are supposed to be defined in the
