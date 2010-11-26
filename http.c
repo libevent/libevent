@@ -1734,6 +1734,28 @@ evhttp_get_body_length(struct evhttp_request *req)
 	return (0);
 }
 
+static int
+evhttp_method_may_have_body(enum evhttp_cmd_type type)
+{
+	switch (type) {
+	case EVHTTP_REQ_POST:
+	case EVHTTP_REQ_PUT:
+	case EVHTTP_REQ_PATCH:
+		return 1;
+	case EVHTTP_REQ_TRACE:
+		return 0;
+	/* XXX May any of the below methods have a body? */
+	case EVHTTP_REQ_GET:
+	case EVHTTP_REQ_HEAD:
+	case EVHTTP_REQ_DELETE:
+	case EVHTTP_REQ_OPTIONS:
+	case EVHTTP_REQ_CONNECT:
+		return 0;
+	default:
+		return 0;
+	}
+}
+
 static void
 evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
@@ -1741,7 +1763,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 
 	/* If this is a request without a body, then we are done */
 	if (req->kind == EVHTTP_REQUEST &&
-	    (req->type != EVHTTP_REQ_POST && req->type != EVHTTP_REQ_PUT)) {
+	    !evhttp_method_may_have_body(req->type)) {
 		evhttp_connection_done(evcon);
 		return;
 	}
@@ -1754,6 +1776,12 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		if (evhttp_get_body_length(req) == -1) {
 			evhttp_connection_fail(evcon,
 			    EVCON_HTTP_INVALID_HEADER);
+			return;
+		}
+		if (req->kind == EVHTTP_REQUEST && req->ntoread < 1) {
+			/* An incoming request with no content-length and no
+			 * transfer-encoding has no body. */
+			evhttp_connection_done(evcon);
 			return;
 		}
 	}
