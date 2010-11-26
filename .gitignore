@@ -72,6 +72,7 @@ libevent_openssl.pc
 /sample/dns-example
 /sample/event-test
 /sample/hello-world
+/sample/http-server
 /sample/le-proxy
 /sample/signal-test
 /sample/time-test
