@@ -213,7 +213,7 @@ send_document_cb(struct evhttp_request *req, void *arg)
 		/* Otherwise it's a file; add it to the buffer to get
 		 * sent via sendfile */
 		const char *type = guess_content_type(decoded_path);
-		if ((fd = open(whole_path, O_RDONLY) < 0)) {
+		if ((fd = open(whole_path, O_RDONLY)) < 0) {
 			perror("open");
 			goto err;
 		}
