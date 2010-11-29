@@ -126,9 +126,11 @@ struct evhttp_bound_socket {
 	struct evconnlistener *listener;
 };
 
+/* server alias list item. */
 struct evhttp_server_alias {
 	TAILQ_ENTRY(evhttp_server_alias) next;
-	char *alias;
+
+	char *alias; /* the server alias. */
 };
 
 struct evhttp {
