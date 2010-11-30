@@ -247,7 +247,7 @@ send_document_cb(struct evhttp_request *req, void *arg)
 			    "    <li><a href=\"%s\">%s</a>\n",
 			    name, name);/* XXX escape this */
 #ifdef WIN32
-		} while (FindNextFile(d, &ent));
+		} while (FindNextFileA(d, &ent));
 #else
 		}
 #endif
