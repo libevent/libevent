@@ -58,6 +58,7 @@ struct event_base;
 #define HTTP_BADREQUEST		400	/**< invalid http request was made */
 #define HTTP_NOTFOUND		404	/**< could not find content for uri */
 #define HTTP_BADMETHOD		405 	/**< method not allowed for this uri */
+#define HTTP_EXPECTATIONFAILED	417	/**< we can't handle this expectation */
 #define HTTP_INTERNAL           500     /**< internal error */
 #define HTTP_NOTIMPLEMENTED     501     /**< not implemented */
 #define HTTP_SERVUNAVAIL	503	/**< the server is not available */

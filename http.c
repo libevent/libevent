@@ -377,6 +377,29 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	    evcon);
 }
 
+static void
+evhttp_send_continue_done(struct evhttp_connection *evcon, void *arg)
+{
+	bufferevent_disable(evcon->bufev, EV_WRITE);
+}
+
+static void
+evhttp_send_continue(struct evhttp_connection *evcon,
+			struct evhttp_request *req)
+{
+	bufferevent_enable(evcon->bufev, EV_WRITE);
+	evbuffer_add_printf(bufferevent_get_output(evcon->bufev),
+			"HTTP/%d.%d 100 Continue\r\n\r\n",
+			req->major, req->minor);
+	evcon->cb = evhttp_send_continue_done;
+	evcon->cb_arg = NULL;
+	bufferevent_setcb(evcon->bufev,
+	    evhttp_read_cb,
+	    evhttp_write_cb,
+	    evhttp_error_cb,
+	    evcon);
+}
+
 /** Helper: returns true iff evconn is in any connected state. */
 static int
 evhttp_connected(struct evhttp_connection *evcon)
@@ -574,6 +597,9 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 		 * For a request, we add the POST data, for a reply, this
 		 * is the regular data.
 		 */
+		/* XXX We might want to support waiting (a limited amount of
+		   time) for a continue status line from the server before
+		   sending POST/PUT message bodies. */
 		evbuffer_add_buffer(output, req->output_buffer);
 	}
 }
@@ -1804,6 +1830,30 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 			return;
 		}
 	}
+
+	/* Should we send a 100 Continue status line? */
+	if (req->kind == EVHTTP_REQUEST && REQ_VERSION_ATLEAST(req, 1, 1)) { 
+		const char *expect;
+
+		expect = evhttp_find_header(req->input_headers, "Expect");
+		if (expect) {
+			if (!evutil_ascii_strcasecmp(expect, "100-continue")) {
+				/* XXX It would be nice to do some sanity
+				   checking here. Does the resource exist?
+				   Should the resource accept post requests? If
+				   no, we should respond with an error. For
+				   now, just optimistically tell the client to
+				   send their message body. */
+				if (!evbuffer_get_length(bufferevent_get_input(evcon->bufev)))
+					evhttp_send_continue(evcon, req);
+			} else {
+				evhttp_send_error(req, HTTP_EXPECTATIONFAILED,
+					NULL);
+				return;
+			}
+		}
+	}
+
 	evhttp_read_body(evcon, req);
 	/* note the request may have been freed in evhttp_read_body */
 }
@@ -1861,6 +1911,11 @@ evhttp_read_header(struct evhttp_connection *evcon,
 		break;
 
 	case EVHTTP_RESPONSE:
+		/* Start over if we got a 100 Continue response. */
+		if (req->response_code == 100) {
+			evhttp_start_read(evcon);
+			return;
+		}
 		if (!evhttp_response_needs_body(req)) {
 			event_debug(("%s: skipping body for code %d\n",
 					__func__, req->response_code));

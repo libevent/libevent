@@ -1503,10 +1503,31 @@ http_post_test(void *arg)
 
 	event_base_dispatch(data->base);
 
+	tt_int_op(test_ok, ==, 1);
+
+	test_ok = 0;
+
+	req = evhttp_request_new(http_postrequest_done, data->base);
+	tt_assert(req);
+
+	/* Now try with 100-continue. */
+
+	/* Add the information that we care about */
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "100-continue");
+	evbuffer_add_printf(evhttp_request_get_output_buffer(req), POST_DATA);
+
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/postit") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(test_ok, ==, 1);
+
 	evhttp_connection_free(evcon);
 	evhttp_free(http);
 
-	tt_int_op(test_ok, ==, 1);
  end:
 	;
 }
