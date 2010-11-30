@@ -30,6 +30,10 @@
 #include <event2/util.h>
 #include <event2/keyvalq_struct.h>
 
+#ifdef _EVENT_HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
 char uri_root[512];
 
 static const struct table_entry {
