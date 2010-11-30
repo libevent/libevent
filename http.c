@@ -1231,7 +1231,7 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 
 	switch (evcon->state) {
 	case EVCON_CONNECTING:
-		if (what == BEV_EVENT_TIMEOUT) {
+		if (what & BEV_EVENT_TIMEOUT) {
 			event_debug(("%s: connection timeout for \"%s:%d\" on %d",
 				__func__, evcon->address, evcon->port,
 				evcon->fd));
