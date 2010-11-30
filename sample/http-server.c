@@ -11,10 +11,14 @@
 #include <string.h>
 
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #ifdef WIN32
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
+#include <io.h>
+#include <fcntl.h>
 #else
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -32,6 +36,14 @@
 
 #ifdef _EVENT_HAVE_NETINET_IN_H
 #include <netinet/in.h>
+#endif
+
+#ifdef WIN32
+#define stat _stat
+#define fstat _fstat
+#define open _open
+#define close _close
+#define O_RDONLY _O_RDONLY
 #endif
 
 char uri_root[512];
@@ -182,15 +194,35 @@ send_document_cb(struct evhttp_request *req, void *arg)
 	if (S_ISDIR(st.st_mode)) {
 		/* If it's a directory, read the comments and make a little
 		 * index page */
+#ifdef WIN32
+		HANDLE d;
+		WIN32_FIND_DATAA ent;
+		char *pattern;
+		size_t dirlen;
+#else
 		DIR *d;
 		struct dirent *ent;
+#endif
 		const char *trailing_slash = "";
 
 		if (!strlen(path) || path[strlen(path)-1] != '/')
 			trailing_slash = "/";
 
+#ifdef WIN32
+		dirlen = strlen(whole_path);
+		pattern = malloc(dirlen+3);
+		memcpy(pattern, whole_path, dirlen);
+		pattern[dirlen] = '\\';
+		pattern[dirlen+1] = '*';
+		pattern[dirlen+2] = '\0';
+		d = FindFirstFileA(pattern, &ent);
+		free(pattern);
+		if (d == INVALID_HANDLE_VALUE) 
+			goto err;
+#else
 		if (!(d = opendir(whole_path)))
 			goto err;
+#endif
 		close(fd);
 
 		evbuffer_add_printf(evb, "<html>\n <head>\n"
@@ -204,13 +236,27 @@ send_document_cb(struct evhttp_request *req, void *arg)
 		    uri_root, path, /* XXX html-escape this? */
 		    trailing_slash,
 		    decoded_path /* XXX html-escape this */);
+#ifdef WIN32
+		do {
+			const char *name = ent.cFileName;
+#else
 		while ((ent = readdir(d))) {
+			const char *name = ent->d_name;
+#endif
 			evbuffer_add_printf(evb,
 			    "    <li><a href=\"%s\">%s</a>\n",
-			    ent->d_name, ent->d_name);/* XXX escape this */
+			    name, name);/* XXX escape this */
+#ifdef WIN32
+		} while (FindNextFile(d, &ent));
+#else
 		}
+#endif
 		evbuffer_add_printf(evb, "</ul></body></html>\n");
+#ifdef WIN32
+		CloseHandle(d);
+#else
 		closedir(d);
+#endif
 		evhttp_add_header(evhttp_request_get_output_headers(req),
 		    "Content-Type", "text/html");
 	} else {
