@@ -525,10 +525,10 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int errcode, int ret)
 	if (dirty_shutdown && bev_ssl->allow_dirty_shutdown)
 		event = BEV_EVENT_EOF;
 
-	_bufferevent_run_eventcb(&bev_ssl->bev.bev, event);
-
 	stop_reading(bev_ssl);
 	stop_writing(bev_ssl);
+
+	_bufferevent_run_eventcb(&bev_ssl->bev.bev, event);
 }
 
 static void
