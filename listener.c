@@ -615,7 +615,7 @@ accepted_socket_invoke_user_cb(struct deferred_cb *dcb, void *arg)
 		/* We need to call this so getsockname, getpeername, and
 		 * shutdown work correctly on the accepted socket. */
 		/* XXXX handle error? */
-		setsockopt(as->s, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+		setsockopt(sock, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
 		    (char *)&as->lev->fd, sizeof(&as->lev->fd));
 	}
 	data = lev->user_data;
