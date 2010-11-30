@@ -1183,6 +1183,8 @@ evhttp_connection_start_detectclose(struct evhttp_connection *evcon)
 static void
 evhttp_connection_stop_detectclose(struct evhttp_connection *evcon)
 {
+	evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
+
 	bufferevent_disable(evcon->bufev, EV_READ);
 }
 
