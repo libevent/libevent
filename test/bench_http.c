@@ -42,11 +42,11 @@
 #include <string.h>
 #include <errno.h>
 
-#include <event2/event.h>
-#include <event2/buffer.h>
-#include <event2/util.h>
-#include <event2/http.h>
-#include <event2/thread.h>
+#include "event2/event.h"
+#include "event2/buffer.h"
+#include "event2/util.h"
+#include "event2/http.h"
+#include "event2/thread.h"
 
 static void http_basic_cb(struct evhttp_request *req, void *arg);
 

@@ -26,11 +26,11 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <event2/event.h>
-#include <event2/thread.h>
-#include <event2/buffer.h>
-#include <event2/buffer_compat.h>
-#include <event2/bufferevent.h>
+#include "event2/event.h"
+#include "event2/thread.h"
+#include "event2/buffer.h"
+#include "event2/buffer_compat.h"
+#include "event2/bufferevent.h"
 
 #include <winsock2.h>
 #include <ws2tcpip.h>

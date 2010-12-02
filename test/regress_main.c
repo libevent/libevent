@@ -64,12 +64,12 @@
 #include <string.h>
 #include <assert.h>
 
-#include <event2/util.h>
-#include <event2/event.h>
-#include <event2/event_compat.h>
-#include <event2/dns.h>
-#include <event2/dns_compat.h>
-#include <event2/thread.h>
+#include "event2/util.h"
+#include "event2/event.h"
+#include "event2/event_compat.h"
+#include "event2/dns.h"
+#include "event2/dns_compat.h"
+#include "event2/thread.h"
 
 #include "event2/event-config.h"
 #include "regress.h"

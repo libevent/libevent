@@ -24,10 +24,10 @@
 #include <signal.h>
 #include <errno.h>
 
-#include <event2/event.h>
-#include <event2/event_struct.h>
-#include <event2/event_compat.h>
-#include <event2/util.h>
+#include "event2/event.h"
+#include "event2/event_struct.h"
+#include "event2/event_compat.h"
+#include "event2/util.h"
 
 #ifdef _EVENT___func__
 #define __func__ _EVENT___func__

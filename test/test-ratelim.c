@@ -39,12 +39,12 @@
 #endif
 #include <signal.h>
 
-#include <event2/bufferevent.h>
-#include <event2/buffer.h>
-#include <event2/event.h>
-#include <event2/util.h>
-#include <event2/listener.h>
-#include <event2/thread.h>
+#include "event2/bufferevent.h"
+#include "event2/buffer.h"
+#include "event2/event.h"
+#include "event2/util.h"
+#include "event2/listener.h"
+#include "event2/thread.h"
 
 static int cfg_verbose = 0;
 static int cfg_help = 0;

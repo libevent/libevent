@@ -25,8 +25,8 @@
 #include <string.h>
 #include <errno.h>
 
-#include <event2/event.h>
-#include <event2/util.h>
+#include "event2/event.h"
+#include "event2/util.h"
 #include <time.h>
 
 struct cpu_usage_timer {

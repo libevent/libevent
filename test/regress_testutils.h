@@ -27,7 +27,7 @@
 #ifndef _TESTUTILS_H
 #define _TESTUTILS_H
 
-#include <event2/dns.h>
+#include "event2/dns.h"
 
 struct regress_dns_server_table {
 	const char *q;

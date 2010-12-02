@@ -25,7 +25,7 @@
  */
 
 #include <stdlib.h>
-#include <event2/event_struct.h>
+#include "event2/event_struct.h"
 
 #include "tinytest.h"
 #include "tinytest_macros.h"
