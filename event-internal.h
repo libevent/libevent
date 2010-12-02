@@ -273,6 +273,9 @@ struct event_base {
 	/** Flags that this base was configured with */
 	enum event_base_config_flag flags;
 
+	struct timeval max_dispatch_time;
+	int max_dispatch_callbacks;
+
 	/* Notify main thread to wake up break, etc. */
 	/** True if the base already has a pending notify, and we don't need
 	 * to add any more. */
@@ -299,6 +302,8 @@ struct event_config {
 	TAILQ_HEAD(event_configq, event_config_entry) entries;
 
 	int n_cpus_hint;
+	struct timeval max_dispatch_interval;
+	int max_dispatch_callbacks;
 	enum event_method_feature require_features;
 	enum event_base_config_flag flags;
 };

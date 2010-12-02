@@ -537,6 +537,24 @@ int event_config_set_flag(struct event_config *cfg, int flag);
 int event_config_set_num_cpus_hint(struct event_config *cfg, int cpus);
 
 /**
+ * Record an interval and/or a number of callbacks after which the event base
+ * should check for new events.  By default, the event base will run as many
+ * events are as activated at the higest activated priority before checking
+ * for new events.  If you configure it by setting max_interval, it will check
+ * the time after each callback, and not allow more than max_interval to
+ * elapse before checking for new events.  If you configure it by setting
+ * max_callbacks to a value >= 0, it will run no more than max_callbacks
+ * callbacks before checking for new events.
+ *
+ * This option can decrease the latency of high-priority events, and
+ * avoid priority inversions where multiple low-priority events keep us from
+ * polling for high-priority events, but at the expense of slightly decreasing
+ * the throughput.  Use it with caution!
+ **/
+int event_config_set_max_dispatch_interval(struct event_config *cfg,
+    const struct timeval *max_interval, int max_callbacks);
+
+/**
   Initialize the event API.
 
   Use event_base_new_with_config() to initialize a new event base, taking
