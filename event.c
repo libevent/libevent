@@ -2240,6 +2240,9 @@ event_active_nolock(struct event *ev, int res, short ncalls)
 	}
 
 	event_queue_insert(base, ev, EVLIST_ACTIVE);
+
+	if (EVBASE_NEED_NOTIFY(base))
+		evthread_notify_base(base);
 }
 
 void
