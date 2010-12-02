@@ -54,11 +54,17 @@
 #include <errno.h>
 #include <assert.h>
 
+#include "event2/buffer.h"
 #include "event2/event.h"
-#include "evhttp.h"
-#include "log-internal.h"
+#include "event2/event_compat.h"
+#include "event2/http.h"
+#include "event2/http_compat.h"
+#include "event2/http_struct.h"
+#include "event2/rpc.h"
 #include "event2/rpc.h"
 #include "event2/rpc_struct.h"
+#include "event2/tag.h"
+#include "log-internal.h"
 
 #include "regress.gen.h"
 
