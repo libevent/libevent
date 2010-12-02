@@ -34,7 +34,7 @@
 #endif
 
 struct event_base;
-#include <event2/thread.h>
+#include "event2/thread.h"
 
 #include "mm-internal.h"
 #include "evthread-internal.h"

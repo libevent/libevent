@@ -47,7 +47,7 @@
        reported spuriously.
  */
 
-#include <event2/util.h>
+#include "event2/util.h"
 
 /** Represents a */
 struct event_change {

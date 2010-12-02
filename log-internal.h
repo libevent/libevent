@@ -27,7 +27,7 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
-#include <event2/util.h>
+#include "event2/util.h"
 
 #ifdef __GNUC__
 #define EV_CHECK_FMT(a,b) __attribute__((format(printf, a, b)))

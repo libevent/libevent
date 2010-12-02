@@ -30,7 +30,7 @@
 extern "C" {
 #endif
 
-#include <event2/util.h>
+#include "event2/util.h"
 
 /** A token bucket is an internal structure that tracks how many bytes we are
  * currently willing to read or write on a given bufferevent or group of
