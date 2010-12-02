@@ -31,7 +31,7 @@ extern "C" {
 #endif
 
 #include "event2/event-config.h"
-#include "evutil.h"
+#include "event2/util.h"
 #include "defer-internal.h"
 #include "evthread-internal.h"
 #include "event2/thread.h"
