@@ -52,6 +52,10 @@ extern "C" {
 
 /* A good no-op to use in macro definitions. */
 #define _EVUTIL_NIL_STMT ((void)0)
+/* Suppresses the compiler's "unused variable" warnings for unused assert. */
+#define _EVUTIL_NIL_CONDITION(condition) do { \
+	(void)sizeof(condition); \
+} while(0)
 
 /* Internal use only: macros to match patterns of error codes in a
    cross-platform way.  We need these macros because of two historical
@@ -177,7 +181,7 @@ long _evutil_weakrand(void);
 
 /* Replacement for assert() that calls event_errx on failure. */
 #ifdef NDEBUG
-#define EVUTIL_ASSERT(cond) _EVUTIL_NIL_STMT
+#define EVUTIL_ASSERT(cond) _EVUTIL_NIL_CONDITION(cond)
 #define EVUTIL_FAILURE_CHECK(cond) 0
 #else
 #define EVUTIL_ASSERT(cond)						\

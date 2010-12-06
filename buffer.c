@@ -246,6 +246,12 @@ evbuffer_chains_all_empty(struct evbuffer_chain *chain)
 	}
 	return 1;
 }
+#else
+/* The definition is needed for EVUTIL_ASSERT, which uses sizeof to avoid
+"unused variable" warnings. */
+static inline int evbuffer_chains_all_empty(struct evbuffer_chain *chain) {
+	return 1;
+}
 #endif
 
 static void
