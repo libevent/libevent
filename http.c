@@ -1846,6 +1846,11 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 				   no, we should respond with an error. For
 				   now, just optimistically tell the client to
 				   send their message body. */
+				if (req->ntoread > req->evcon->max_body_size) {
+					evhttp_send_error(req, HTTP_ENTITYTOOLARGE,
+							  NULL);
+					return;
+				}
 				if (!evbuffer_get_length(bufferevent_get_input(evcon->bufev)))
 					evhttp_send_continue(evcon, req);
 			} else {

@@ -3274,6 +3274,15 @@ end:
 }
 
 static void
+http_large_entity_test_done(struct evhttp_request *req, void *arg)
+{
+	tt_assert(req);
+	tt_int_op(evhttp_request_get_response_code(req), ==, HTTP_ENTITYTOOLARGE);
+end:
+	event_base_loopexit(arg, NULL);
+}
+
+static void
 http_data_length_constraints_test(void *arg)
 {
 	struct basic_test_data *data = arg;
@@ -3331,6 +3340,15 @@ http_data_length_constraints_test(void *arg)
 	}
 	event_base_dispatch(data->base);
 
+	req = evhttp_request_new(http_large_entity_test_done, data->base);
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "100-continue");
+	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+	event_base_dispatch(data->base);
+        
 	test_ok = 1;
  end:
 	if (evcon)
