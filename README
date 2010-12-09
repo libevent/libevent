@@ -15,13 +15,13 @@ $ ./configure && make
       first need to run the included "autogen.sh" script in order to
       generate the configure script.)
 
-Install as root via
-
-# make install
-
 You can run the regression tests by running
 
 $ make verify
+
+Install as root via
+
+# make install
 
 Before, reporting any problems, please run the regression tests.
 

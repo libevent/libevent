@@ -8,11 +8,7 @@ What's New In Libevent 2.0 so far:
   Libevent 2.0, from a user's point of view.  It was most recently
   updated based on features in git master as of August 2010.
 
-  NOTE 1: If any features or fixes get backported from trunk to 1.4,
-  they should get moved from here into whatsnew-14.txt, since they
-  will no longer be differences between 1.4 and this version.
-
-  NOTE 2: I am very sure that I missed some thing on this list.  Caveat
+  NOTE: I am very sure that I missed some thing on this list.  Caveat
   haxxor.
 
 1.2. Better documentation
@@ -56,15 +52,16 @@ What's New In Libevent 2.0 so far:
 
   Finally, there are *structure headers*, like event2/event_struct.h.
   These headers contain definitions of some structures that Libevent has
-  historically exposed.  Exposing them caused problems in the past, since
-  programs that were compiled to work with one version of Libevent would
-  often stop working with another version that changed the size or layout
-  of some object.  We've moving them into separate headers so that
-  programmers can know that their code is not depending on any unstable
-  aspect of the Libvent ABI.  New programs should generally not include
-  these headers unless they really know what they are doing, and are
-  willing to rebuild their software whenever they want to link it against a
-  new version of libevent.
+  historically exposed.  Exposing them caused problems in the past,
+  since programs that were compiled to work with one version of Libevent
+  would often stop working with another version that changed the size or
+  layout of some object.  We've moving them into separate headers so
+  that programmers can know that their code is not depending on any
+  unstable aspect of the Libvent ABI.  New programs should generally not
+  include these headers unless they really know what they are doing, are
+  willing to rebuild their software whenever they want to link it
+  against a new version of Libevent, and are willing to risk their code
+  breaking if and when data structures change.
 
   Functionality that once was located in event.h is now more subdivided.
   The core event logic is now in event2/event.h.  The "evbuffer" functions
@@ -116,8 +113,8 @@ What's New In Libevent 2.0 so far:
       #include <event.h>
       ...
       struct event *ev = malloc(sizeof(struct event));
-      /* This call will cause a stack overrun if you compile with one version
-         of libevent and link dynamically against another. */
+      /* This call will cause a buffer overrun if you compile with one version
+         of Libevent and link dynamically against another. */
       event_set(ev, fd, EV_READ, cb, NULL);
       /* If you forget this call, your code will break in hard-to-diagnose
          ways in the presence of multiple event bases. */
@@ -314,8 +311,8 @@ What's New In Libevent 2.0 so far:
 
   Unfortunately, the main windows backend is still select()-based: from
   testing the IOCP backends on the mailing list, it seems that there isn't
-  actually a way to tell for certain whether a socket is writable with IOCP
-  without .  Libevent 2.1 may add a multithreaded WaitForMultipleEvents-based
+  actually a way to tell for certain whether a socket is writable with IOCP.
+  Libevent 2.1 may add a multithreaded WaitForMultipleEvents-based
   backend for better performance with many inactive sockets and better
   integration with Windows events.
 
