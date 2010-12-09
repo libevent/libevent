@@ -244,7 +244,8 @@ int event_config_set_flag(struct event_config *cfg, int flag);
 
 /**
  * Records a hint for the number of CPUs in the system. This is used for
- * tuning thread pools, etc, for optimal performance.
+ * tuning thread pools, etc, for optimal performance.  In Libevent 2.0,
+ * it is only on Windows, and only when IOCP is in use.
  *
  * @param cfg the event configuration object
  * @param cpus the number of cpus
