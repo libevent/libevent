@@ -211,9 +211,7 @@ What's New In Libevent 2.0 so far:
 
 2.8. evthread_* functions for thread-safe structures.
 
-  Libevent structures can now be built with locking support.  You can enable
-  this on a per-event-base level by writing functions to implement mutexes
-  and thread IDs, and passing them to evthread_set_lock_callbacks.  This
+  Libevent structures can now be built with locking support.  This code
   makes it safe to add, remove, and activate events on an event base from a
   different thread.  (Previously, if you wanted to write multithreaded code
   with Libevent, you could only an event_base or its events in one thread at
@@ -227,6 +225,11 @@ What's New In Libevent 2.0 so far:
   If you want threading support and you're using Windows, you can just
   call evthread_use_windows_threads().
 
+  If you are using some locking system besides Windows and pthreads, You
+  can enable this on a per-event-base level by writing functions to
+  implement mutexes, conditions, and thread IDs, and passing them to
+  evthread_set_lock_callbacks and related functions in event2/thread.h.
+
   Once locking functions are enabled, every new event_base is created with a
   lock.  You can prevent a single event_base from being built with a lock
   disabled by using the EVENT_BASE_FLAG_NOLOCK flag in its
@@ -236,7 +239,7 @@ What's New In Libevent 2.0 so far:
   the event loop.
 
   To make an evbuffer or a bufferevent object threadsafe, call its
-  _enable_locking() function.
+  *_enable_locking() function.
 
   The HTTP api is not currently threadsafe.
 
@@ -287,6 +290,13 @@ What's New In Libevent 2.0 so far:
   redundant adds and deletes, and performs no more operations than necessary
   at the kernel level.
 
+  This logic is on for the kqueue backend, and available (but off by
+  default) for the epoll backend.  To turn it on for the epoll backend,
+  set the EVENT_BASE_FLAG_EPOLL_USE_CHANGELIST flag in the
+  event_base_cofig, or set the EVENT_EPOLL_USE_CHANGELIST environment
+  variable.  Doing this with epoll may result in weird bugs if you give
+  any fds closed by dup() or its variants.
+
 3.2. Improved notification on Linux
 
   When we need to wake the event loop up from another thread, we use
@@ -295,8 +305,8 @@ What's New In Libevent 2.0 so far:
 
 3.3. Windows: better support for everything
 
-  Bufferevents on windows can use a new mechanism (off-by-default; see below)
-  to send their data via windows overlapped IO and get their notifications
+  Bufferevents on Windows can use a new mechanism (off-by-default; see below)
+  to send their data via Windows overlapped IO and get their notifications
   via the IOCP API.  This should be much faster than using event-based
   notification.
 
@@ -309,7 +319,7 @@ What's New In Libevent 2.0 so far:
   event are now done with O(1) hash tables rather than O(lg n) red-black
   trees.
 
-  Unfortunately, the main windows backend is still select()-based: from
+  Unfortunately, the main Windows backend is still select()-based: from
   testing the IOCP backends on the mailing list, it seems that there isn't
   actually a way to tell for certain whether a socket is writable with IOCP.
   Libevent 2.1 may add a multithreaded WaitForMultipleEvents-based
@@ -333,11 +343,12 @@ What's New In Libevent 2.0 so far:
   Needless to say, this is a terrible interface for networked IO.
 
   Now, evbuffers are implemented as a linked list of memory chunks, like
-  most Unix kernels use for network IO.  Data is added at the end of the
-  linked list and removed from the front, so that we don't ever need
-  realloc huge chunks or memmove the whole buffer contents.
+  most Unix kernels use for network IO.  (See Linux's skbuf interfaces,
+  or *BSD's mbufs).  Data is added at the end of the linked list and
+  removed from the front, so that we don't ever need realloc huge chunks
+  or memmove the whole buffer contents.
 
-  To avoid multiple calls to read and write, we use the readv/writev
+  To avoid excessive calls to read and write, we use the readv/writev
   interfaces (or WSASend/WSARecv on Windows) to do IO on multiple chunks at
   once with a single system call.
 
@@ -505,13 +516,13 @@ What's New In Libevent 2.0 so far:
 
 6. Other improvements
 
-6.1. DNS
+6.1. DNS improvements
 
-6.1.1. IPv6 nameservers
+6.1.1. DNS: IPv6 nameservers
 
    The evdns code now lets you have nameservers whose addresses are IPv6.
 
-6.1.2: Better security.
+6.1.2. DNS: Better security
 
    Libevent 2.0 tries harder to resist DNS answer-sniping attacks than
    earlier versions of evdns.  See comments in the code for full details.
@@ -521,7 +532,7 @@ What's New In Libevent 2.0 so far:
    internal RNG to generate DNS transaction IDs, so you don't need to supply
    your own.
 
-6.1.3. Getaddrinfo support
+6.1.3. DNS: Getaddrinfo support
 
    There's now an asynchronous getaddrinfo clone, evdns_getaddrinfo(),
    to make the results of the evdns functions more usable.  It doesn't
@@ -536,7 +547,7 @@ What's New In Libevent 2.0 so far:
    Bufferevents provide bufferevent_connect_hostname(), which combines
    the name lookup and connect operations.
 
-6.1.4. No more evdns globals
+6.1.4. DNS: No more evdns globals
 
    Like an event base, evdns operations are now supposed to use an evdns_base
    argument.  This makes them easier to wrap for other (more OO) languages,
@@ -549,7 +560,7 @@ What's New In Libevent 2.0 so far:
    TCP connections.  Just use the evconnlistener_*() functions in the
    event2/listener.h header.
 
-   The listener code supports IOCP on windows if available.
+   The listener code supports IOCP on Windows if available.
 
 6.3. Secure RNG support
 
@@ -559,6 +570,25 @@ What's New In Libevent 2.0 so far:
    based on the arc4random code originally from OpenBSD.  Libevent (and you)
    can use the evutil_secure_rng_*() functions to access a fairly secure
    random stream of bytes.
+
+6.4. HTTP
+
+   The evhttp uriencoding and uridecoding APIs have updated versions
+   that behave more correctly, and can handle strings with internal NULs.
+
+   The evhttp query parsing and URI parsing logic can now detect errors
+   more usefully.  Moreover, we include an actual URI parsing function
+   (evhttp_uri_parse()) to correctly parse URIs, so as to discourage
+   people from rolling their own ad-hoc parsing functions.
+
+   There are now accessor functions for the useful fields of struct http
+   and friends; it shouldn't be necessary to access them directly any
+   more.
+
+   Libevent now lets you declare support for all specified HTTP methods,
+   including OPTIONS, PATCH, and so on.  The default list is unchanged.
+
+   Numerous evhttp bugs also got fixed.
 
 7. Infrastructure improvements
 
