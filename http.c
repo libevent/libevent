@@ -1834,7 +1834,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 
 	/* Should we send a 100 Continue status line? */
-	if (req->kind == EVHTTP_REQUEST && REQ_VERSION_ATLEAST(req, 1, 1)) { 
+	if (req->kind == EVHTTP_REQUEST && REQ_VERSION_ATLEAST(req, 1, 1)) {
 		const char *expect;
 
 		expect = evhttp_find_header(req->input_headers, "Expect");
@@ -2750,7 +2750,7 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 	size_t offset = 0;
 	char *translated;
 	const char *path;
-	
+
 	/* Test for different URLs */
 	path = evhttp_uri_get_path(req->uri_elems);
 	offset = strlen(path);
@@ -3226,10 +3226,10 @@ evhttp_remove_server_alias(struct evhttp *http, const char *alias)
 			mm_free(evalias->alias);
 			mm_free(evalias);
 			return 0;
-		}	
+		}
 	}
 
-	return -1;	
+	return -1;
 }
 
 void
@@ -3386,7 +3386,7 @@ evhttp_request_free(struct evhttp_request *req)
 		mm_free(req->response_code_line);
 	if (req->host_cache != NULL)
 		mm_free(req->host_cache);
-		
+
 	evhttp_clear_headers(req->input_headers);
 	mm_free(req->input_headers);
 
@@ -3465,7 +3465,7 @@ evhttp_request_get_host(struct evhttp_request *req)
 	if (!host && req->input_headers) {
 		const char *p;
 		size_t len;
-	
+
 		host = evhttp_find_header(req->input_headers, "Host");
 		/* The Host: header may include a port. Remove it here
                    to be consistent with uri_elems case above. */
@@ -3486,7 +3486,7 @@ evhttp_request_get_host(struct evhttp_request *req)
 			}
 		}
 	}
-	
+
 	return host;
 }
 
@@ -3589,7 +3589,7 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 	req->flags |= EVHTTP_REQ_OWN_CONNECTION;
 
 	/* We did not present the request to the user user yet, so treat it as
-	 * if the user was done with the request.  This allows us to free the 
+	 * if the user was done with the request.  This allows us to free the
 	 * request on a persistent connection if the client drops it without
 	 * sending a request.
 	 */

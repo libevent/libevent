@@ -217,7 +217,7 @@ send_document_cb(struct evhttp_request *req, void *arg)
 		pattern[dirlen+2] = '\0';
 		d = FindFirstFileA(pattern, &ent);
 		free(pattern);
-		if (d == INVALID_HANDLE_VALUE) 
+		if (d == INVALID_HANDLE_VALUE)
 			goto err;
 #else
 		if (!(d = opendir(whole_path)))

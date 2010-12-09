@@ -3348,7 +3348,7 @@ http_data_length_constraints_test(void *arg)
 		tt_abort_msg("Couldn't make request");
 	}
 	event_base_dispatch(data->base);
-        
+
 	test_ok = 1;
  end:
 	if (evcon)

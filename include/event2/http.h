@@ -267,20 +267,20 @@ int evhttp_remove_virtual_host(struct evhttp* http, struct evhttp* vhost);
 
 /**
    Add a server alias to an http object. The http object can be a virtual
-   host or the main server. 
+   host or the main server.
 
    @param http the evhttp object
    @param alias the alias to add
-   @see evhttp_add_remove_alias() 
+   @see evhttp_add_remove_alias()
 */
 int evhttp_add_server_alias(struct evhttp *http, const char *alias);
 
 /**
    Remove a server alias from an http object.
- 
+
    @param http the evhttp object
    @param alias the alias to remove
-   @see evhttp_add_server_alias() 
+   @see evhttp_add_server_alias()
 */
 int evhttp_remove_server_alias(struct evhttp *http, const char *alias);
 

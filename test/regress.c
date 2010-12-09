@@ -1422,7 +1422,7 @@ static void
 test_nonpersist_readd(void)
 {
 	struct event ev1, ev2;
-	
+
 	setup_test("Re-add nonpersistent events: ");
 	event_set(&ev1, pair[0], EV_READ, re_add_read_cb, &ev2);
 	event_set(&ev2, pair[1], EV_READ, re_add_read_cb, &ev1);
