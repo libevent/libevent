@@ -271,10 +271,10 @@ int evdns_set_option(const char *option, const char *val, int flags);
     function is evdns_base_resolv_conf_parse().
 
   @param flags any of DNS_OPTION_NAMESERVERS|DNS_OPTION_SEARCH|DNS_OPTION_MISC|
-         DNS_OPTIONS_ALL
+    DNS_OPTIONS_ALL
   @param filename the path to the resolv.conf file
   @return 0 if successful, or various positive error codes if an error
-          occurred (see above)
+    occurred (see above)
   @see resolv.conf(3), evdns_config_windows_nameservers()
  */
 int evdns_resolv_conf_parse(int flags, const char *const filename);

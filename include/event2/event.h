@@ -754,9 +754,10 @@ const struct timeval *event_base_init_common_timeout(struct event_base *base,
  @param realloc_fn A replacement for realloc
  @param free_fn A replacement for free.
  **/
-void event_set_mem_functions(void *(*malloc_fn)(size_t sz),
-                             void *(*realloc_fn)(void *ptr, size_t sz),
-                             void (*free_fn)(void *ptr));
+void event_set_mem_functions(
+	void *(*malloc_fn)(size_t sz),
+	void *(*realloc_fn)(void *ptr, size_t sz),
+	void (*free_fn)(void *ptr));
 #define EVENT_SET_MEM_FUNCTIONS_IMPLEMENTED
 #endif
 

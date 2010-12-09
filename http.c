@@ -1482,7 +1482,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	scheme = evhttp_uri_get_scheme(req->uri_elems);
 	hostname = evhttp_uri_get_host(req->uri_elems);
 	if (scheme && (!evutil_ascii_strcasecmp(scheme, "http") ||
-             !evutil_ascii_strcasecmp(scheme, "https")) &&
+		       !evutil_ascii_strcasecmp(scheme, "https")) &&
 	    hostname &&
 	    !evhttp_find_vhost(req->evcon->http_server, NULL, hostname))
 		req->flags |= EVHTTP_PROXY_REQUEST;
@@ -3074,11 +3074,12 @@ evhttp_new_object(void)
 	http->timeout = -1;
 	evhttp_set_max_headers_size(http, EV_SIZE_MAX);
 	evhttp_set_max_body_size(http, EV_SIZE_MAX);
-	evhttp_set_allowed_methods(http, EVHTTP_REQ_GET |
-			                 EVHTTP_REQ_POST |
-			                 EVHTTP_REQ_HEAD |
-			                 EVHTTP_REQ_PUT |
-			                 EVHTTP_REQ_DELETE);
+	evhttp_set_allowed_methods(http,
+	    EVHTTP_REQ_GET |
+	    EVHTTP_REQ_POST |
+	    EVHTTP_REQ_HEAD |
+	    EVHTTP_REQ_PUT |
+	    EVHTTP_REQ_DELETE);
 
 	TAILQ_INIT(&http->sockets);
 	TAILQ_INIT(&http->callbacks);
@@ -3468,7 +3469,7 @@ evhttp_request_get_host(struct evhttp_request *req)
 
 		host = evhttp_find_header(req->input_headers, "Host");
 		/* The Host: header may include a port. Remove it here
-                   to be consistent with uri_elems case above. */
+		   to be consistent with uri_elems case above. */
 		if (host) {
 			p = host + strlen(host) - 1;
 			while (p > host && EVUTIL_ISDIGIT(*p))
@@ -4029,7 +4030,7 @@ evhttp_uri_parse(const char *source_uri)
 
 	      URI = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
 
-              relative-ref  = relative-part [ "?" query ] [ "#" fragment ]
+	      relative-ref  = relative-part [ "?" query ] [ "#" fragment ]
 
 	 */
 
