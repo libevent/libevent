@@ -9,12 +9,10 @@ ACLOCAL_AMFLAGS = -I m4
 # "Release" are never binary-compatible.
 #
 # This number incremented once for the 2.0 release candidate, and
-# shouldn't increment again until Libevent 3.0.  Also, we shouldn't
-# increment to Libevent 3.0 unless we know in advance we're breaking
-# the ABI.
+# will increment for each series until we revise our interfaces enough
+# that we can seriously expect ABI compatibility between series.
 #
 RELEASE = -release 2.0
-#RELEASE =
 
 # This is the version info for the libevent binary API.  It has three
 # numbers:
@@ -34,7 +32,7 @@ RELEASE = -release 2.0
 #
 # Once an RC is out, DO NOT MAKE ANY ABI-BREAKING CHANGES IN THAT SERIES
 # UNLESS YOU REALLY REALLY HAVE TO.
-VERSION_INFO = 5:0:0
+VERSION_INFO = 5:1:0
 
 # History:          RELEASE    VERSION_INFO
 #  2.0.1-alpha --     2.0        1:0:0
@@ -47,9 +45,7 @@ VERSION_INFO = 5:0:0
 #  2.0.8-rc    --     2.0        4:0:2
 #  2.0.9-rc    --     2.0        5:0:0 (ABI changed slightly)
 # Planned:
-#  2.0.10-stable--    2.0        6:0:1 if the ABI changes compatibly,
-#                             or 5:1:0 if the ABI does not change,
-#                             or 6:0:0 if the ABI breaks
+#  2.0.10-stable--    2.0        5:1:0 (No ABI change)
 #
 # For Libevent 2.1:
 #  2.1.1-alpha --     2.1        1:0:0
