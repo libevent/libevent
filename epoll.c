@@ -356,8 +356,20 @@ epoll_apply_one_change(struct event_base *base,
 		memset(&epev, 0, sizeof(epev));
 		epev.data.fd = ch->fd;
 		epev.events = events;
-		if (epoll_ctl(epollop->epfd, op, ch->fd, &epev) == -1) {
-			if (op == EPOLL_CTL_MOD && errno == ENOENT) {
+		if (epoll_ctl(epollop->epfd, op, ch->fd, &epev) == 0) {
+			event_debug(("Epoll %s(%d) on fd %d okay. [old events were %d; read change was %d; write change was %d]",
+				epoll_op_to_string(op),
+				(int)epev.events,
+				(int)ch->fd,
+				ch->old_events,
+				ch->read_change,
+				ch->write_change));
+			return 0;
+		}
+
+		switch (op) {
+			case EPOLL_CTL_MOD:
+				if (errno == ENOENT) {
 				/* If a MOD operation fails with ENOENT, the
 				 * fd was probably closed and re-opened.  We
 				 * should retry the operation as an ADD.
@@ -370,8 +382,12 @@ epoll_apply_one_change(struct event_base *base,
 					event_debug(("Epoll MOD(%d) on %d retried as ADD; succeeded.",
 						(int)epev.events,
 						ch->fd));
+					return 0;
 				}
-			} else if (op == EPOLL_CTL_ADD && errno == EEXIST) {
+				}
+				break;
+			case EPOLL_CTL_ADD:
+				if (errno == EEXIST) {
 				/* If an ADD operation fails with EEXIST,
 				 * either the operation was redundant (as with a
 				 * precautionary add), or we ran into a fun
@@ -387,10 +403,13 @@ epoll_apply_one_change(struct event_base *base,
 					event_debug(("Epoll ADD(%d) on %d retried as MOD; succeeded.",
 						(int)epev.events,
 						ch->fd));
+					return 0;
 				}
-			} else if (op == EPOLL_CTL_DEL &&
-			    (errno == ENOENT || errno == EBADF ||
-				errno == EPERM)) {
+				}
+				break;
+			case EPOLL_CTL_DEL:
+				if (errno == ENOENT || errno == EBADF ||
+				    errno == EPERM) {
 				/* If a delete fails with one of these errors,
 				 * that's fine too: we closed the fd before we
 				 * got around to calling epoll_dispatch. */
@@ -398,7 +417,14 @@ epoll_apply_one_change(struct event_base *base,
 					(int)epev.events,
 					ch->fd,
 					strerror(errno)));
-			} else {
+				return 0;
+				}
+				break;
+			default:
+				break;
+		}
+
+		if (1) {
 				event_warn("Epoll %s(%d) on fd %d failed.  Old events were %d; read change was %d (%s); write change was %d (%s)",
 				    epoll_op_to_string(op),
 				    (int)epev.events,
@@ -408,19 +434,9 @@ epoll_apply_one_change(struct event_base *base,
 				    change_to_string(ch->read_change),
 				    ch->write_change,
 				    change_to_string(ch->write_change));
-				return -1;
 			}
-		} else {
-			event_debug(("Epoll %s(%d) on fd %d okay. [old events were %d; read change was %d; write change was %d]",
-				epoll_op_to_string(op),
-				(int)epev.events,
-				(int)ch->fd,
-				ch->old_events,
-				ch->read_change,
-				ch->write_change));
-		}
+		return -1;
 	}
-	return 0;
 }
 
 static int
