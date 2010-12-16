@@ -39,6 +39,23 @@
 
 #define _EVENT_ERR_ABORT ((int)0xdeaddead)
 
+#define USE_GLOBAL_FOR_DEBUG_LOGGING
+
+#if !defined(_EVENT_DISABLE_DEBUG_MODE) || defined(USE_DEBUG)
+#define EVENT_DEBUG_LOGGING_ENABLED
+#endif
+
+#ifdef EVENT_DEBUG_LOGGING_ENABLED
+#ifdef USE_GLOBAL_FOR_DEBUG_LOGGING
+extern ev_uint32_t _event_debug_logging_mask;
+#define _event_debug_get_logging_mask() (_event_debug_logging_mask)
+#else
+ev_uint32_t _event_debug_get_logging_mask(void);
+#endif
+#else
+#define _event_debug_get_logging_mask() (0)
+#endif
+
 void event_err(int eval, const char *fmt, ...) EV_CHECK_FMT(2,3) EV_NORETURN;
 void event_warn(const char *fmt, ...) EV_CHECK_FMT(1,2);
 void event_sock_err(int eval, evutil_socket_t sock, const char *fmt, ...) EV_CHECK_FMT(3,4) EV_NORETURN;
@@ -48,10 +65,14 @@ void event_warnx(const char *fmt, ...) EV_CHECK_FMT(1,2);
 void event_msgx(const char *fmt, ...) EV_CHECK_FMT(1,2);
 void _event_debugx(const char *fmt, ...) EV_CHECK_FMT(1,2);
 
-#ifdef USE_DEBUG
-#define event_debug(x) _event_debugx x
+#ifdef EVENT_DEBUG_LOGGING_ENABLED
+#define event_debug(x) do {			\
+	if (_event_debug_get_logging_mask()) {	\
+		_event_debugx x;		\
+	}					\
+	} while (0)
 #else
-#define event_debug(x) do {;} while (0)
+#define event_debug(x) ((void)0)
 #endif
 
 #undef EV_CHECK_FMT
