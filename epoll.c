@@ -223,6 +223,7 @@ epoll_op_to_string(int op)
       the fd, we need to say op="MOD" and set events=the events we want to
       remain.  But if we want to delete the last event, we say op="DEL" and
       set events=(any non-null pointer).
+
   [*1] This MOD is only a guess.  MOD might fail with ENOENT if the file was
        closed and a new file was opened with the same fd.  If so, we'll retry
        with ADD.
@@ -340,103 +341,99 @@ epoll_apply_one_change(struct event_base *base,
 	int op, events = 0;
 	int idx;
 
-	if (1) {
-		idx = INDEX(ch);
-		op = op_table[idx].op;
-		events = op_table[idx].events;
+	idx = INDEX(ch);
+	op = op_table[idx].op;
+	events = op_table[idx].events;
 
-		if (!events) {
-			EVUTIL_ASSERT(op == 0);
-			return 0;
-		}
-
-		if ((ch->read_change|ch->write_change) & EV_CHANGE_ET)
-			events |= EPOLLET;
-
-		memset(&epev, 0, sizeof(epev));
-		epev.data.fd = ch->fd;
-		epev.events = events;
-		if (epoll_ctl(epollop->epfd, op, ch->fd, &epev) == 0) {
-			event_debug(("Epoll %s(%d) on fd %d okay. [old events were %d; read change was %d; write change was %d]",
-				epoll_op_to_string(op),
-				(int)epev.events,
-				(int)ch->fd,
-				ch->old_events,
-				ch->read_change,
-				ch->write_change));
-			return 0;
-		}
-
-		switch (op) {
-			case EPOLL_CTL_MOD:
-				if (errno == ENOENT) {
-				/* If a MOD operation fails with ENOENT, the
-				 * fd was probably closed and re-opened.  We
-				 * should retry the operation as an ADD.
-				 */
-				if (epoll_ctl(epollop->epfd, EPOLL_CTL_ADD, ch->fd, &epev) == -1) {
-					event_warn("Epoll MOD(%d) on %d retried as ADD; that failed too",
-					    (int)epev.events, ch->fd);
-					return -1;
-				} else {
-					event_debug(("Epoll MOD(%d) on %d retried as ADD; succeeded.",
-						(int)epev.events,
-						ch->fd));
-					return 0;
-				}
-				}
-				break;
-			case EPOLL_CTL_ADD:
-				if (errno == EEXIST) {
-				/* If an ADD operation fails with EEXIST,
-				 * either the operation was redundant (as with a
-				 * precautionary add), or we ran into a fun
-				 * kernel bug where using dup*() to duplicate the
-				 * same file into the same fd gives you the same epitem
-				 * rather than a fresh one.  For the second case,
-				 * we must retry with MOD. */
-				if (epoll_ctl(epollop->epfd, EPOLL_CTL_MOD, ch->fd, &epev) == -1) {
-					event_warn("Epoll ADD(%d) on %d retried as MOD; that failed too",
-					    (int)epev.events, ch->fd);
-					return -1;
-				} else {
-					event_debug(("Epoll ADD(%d) on %d retried as MOD; succeeded.",
-						(int)epev.events,
-						ch->fd));
-					return 0;
-				}
-				}
-				break;
-			case EPOLL_CTL_DEL:
-				if (errno == ENOENT || errno == EBADF ||
-				    errno == EPERM) {
-				/* If a delete fails with one of these errors,
-				 * that's fine too: we closed the fd before we
-				 * got around to calling epoll_dispatch. */
-				event_debug(("Epoll DEL(%d) on fd %d gave %s: DEL was unnecessary.",
-					(int)epev.events,
-					ch->fd,
-					strerror(errno)));
-				return 0;
-				}
-				break;
-			default:
-				break;
-		}
-
-		if (1) {
-				event_warn("Epoll %s(%d) on fd %d failed.  Old events were %d; read change was %d (%s); write change was %d (%s)",
-				    epoll_op_to_string(op),
-				    (int)epev.events,
-				    ch->fd,
-				    ch->old_events,
-				    ch->read_change,
-				    change_to_string(ch->read_change),
-				    ch->write_change,
-				    change_to_string(ch->write_change));
-			}
-		return -1;
+	if (!events) {
+		EVUTIL_ASSERT(op == 0);
+		return 0;
 	}
+
+	if ((ch->read_change|ch->write_change) & EV_CHANGE_ET)
+		events |= EPOLLET;
+
+	memset(&epev, 0, sizeof(epev));
+	epev.data.fd = ch->fd;
+	epev.events = events;
+	if (epoll_ctl(epollop->epfd, op, ch->fd, &epev) == 0) {
+		event_debug(("Epoll %s(%d) on fd %d okay. [old events were %d; read change was %d; write change was %d]",
+			epoll_op_to_string(op),
+			(int)epev.events,
+			(int)ch->fd,
+			ch->old_events,
+			ch->read_change,
+			ch->write_change));
+		return 0;
+	}
+
+	switch (op) {
+	case EPOLL_CTL_MOD:
+		if (errno == ENOENT) {
+			/* If a MOD operation fails with ENOENT, the
+			 * fd was probably closed and re-opened.  We
+			 * should retry the operation as an ADD.
+			 */
+			if (epoll_ctl(epollop->epfd, EPOLL_CTL_ADD, ch->fd, &epev) == -1) {
+				event_warn("Epoll MOD(%d) on %d retried as ADD; that failed too",
+				    (int)epev.events, ch->fd);
+				return -1;
+			} else {
+				event_debug(("Epoll MOD(%d) on %d retried as ADD; succeeded.",
+					(int)epev.events,
+					ch->fd));
+				return 0;
+			}
+		}
+		break;
+	case EPOLL_CTL_ADD:
+		if (errno == EEXIST) {
+			/* If an ADD operation fails with EEXIST,
+			 * either the operation was redundant (as with a
+			 * precautionary add), or we ran into a fun
+			 * kernel bug where using dup*() to duplicate the
+			 * same file into the same fd gives you the same epitem
+			 * rather than a fresh one.  For the second case,
+			 * we must retry with MOD. */
+			if (epoll_ctl(epollop->epfd, EPOLL_CTL_MOD, ch->fd, &epev) == -1) {
+				event_warn("Epoll ADD(%d) on %d retried as MOD; that failed too",
+				    (int)epev.events, ch->fd);
+				return -1;
+			} else {
+				event_debug(("Epoll ADD(%d) on %d retried as MOD; succeeded.",
+					(int)epev.events,
+					ch->fd));
+				return 0;
+			}
+		}
+		break;
+	case EPOLL_CTL_DEL:
+		if (errno == ENOENT || errno == EBADF || errno == EPERM) {
+			/* If a delete fails with one of these errors,
+			 * that's fine too: we closed the fd before we
+			 * got around to calling epoll_dispatch. */
+			event_debug(("Epoll DEL(%d) on fd %d gave %s: DEL was unnecessary.",
+				(int)epev.events,
+				ch->fd,
+				strerror(errno)));
+			return 0;
+		}
+		break;
+	default:
+		break;
+	}
+
+	event_warn("Epoll %s(%d) on fd %d failed.  Old events were %d; read change was %d (%s); write change was %d (%s)",
+	    epoll_op_to_string(op),
+	    (int)epev.events,
+	    ch->fd,
+	    ch->old_events,
+	    ch->read_change,
+	    change_to_string(ch->read_change),
+	    ch->write_change,
+	    change_to_string(ch->write_change));
+
+	return -1;
 }
 
 static int
