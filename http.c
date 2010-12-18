@@ -1110,7 +1110,7 @@ evhttp_connection_set_local_address(struct evhttp_connection *evcon,
 	if (evcon->bind_address)
 		mm_free(evcon->bind_address);
 	if ((evcon->bind_address = mm_strdup(address)) == NULL)
-		event_err(1, "%s: strdup", __func__);
+		event_warn("%s: strdup", __func__);
 }
 
 void
@@ -4032,14 +4032,14 @@ evhttp_uri_parse(const char *source_uri)
 
 	struct evhttp_uri *uri = mm_calloc(1, sizeof(struct evhttp_uri));
 	if (uri == NULL) {
-		event_err(1, "%s: calloc", __func__);
+		event_warn("%s: calloc", __func__);
 		goto err;
 	}
 	uri->port = -1;
 
 	readbuf = mm_strdup(source_uri);
 	if (readbuf == NULL) {
-		event_err(1, "%s: strdup", __func__);
+		event_warn("%s: strdup", __func__);
 		goto err;
 	}
 
@@ -4061,7 +4061,7 @@ evhttp_uri_parse(const char *source_uri)
 		*token = '\0';
 		uri->scheme = mm_strdup(readp);
 		if (uri->scheme == NULL) {
-			event_err(1, "%s: strdup", __func__);
+			event_warn("%s: strdup", __func__);
 			goto err;
 		}
 		readp = token+1; /* eat : */
@@ -4121,21 +4121,21 @@ evhttp_uri_parse(const char *source_uri)
 	EVUTIL_ASSERT(path);
 	uri->path = mm_strdup(path);
 	if (uri->path == NULL) {
-		event_err(1, "%s: strdup", __func__);
+		event_warn("%s: strdup", __func__);
 		goto err;
 	}
 
 	if (query) {
 		uri->query = mm_strdup(query);
 		if (uri->query == NULL) {
-			event_err(1, "%s: strdup", __func__);
+			event_warn("%s: strdup", __func__);
 			goto err;
 		}
 	}
 	if (fragment) {
 		uri->fragment = mm_strdup(fragment);
 		if (uri->fragment == NULL) {
-			event_err(1, "%s: strdup", __func__);
+			event_warn("%s: strdup", __func__);
 			goto err;
 		}
 	}
