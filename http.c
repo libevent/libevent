@@ -2491,6 +2491,10 @@ evhttp_response_code(struct evhttp_request *req, int code, const char *reason)
 	if (reason == NULL)
 		reason = evhttp_response_phrase_internal(code);
 	req->response_code_line = mm_strdup(reason);
+	if (req->response_code_line == NULL) {
+		event_warn("%s: strdup", __func__);
+		/* XXX what else can we do? */
+	}
 }
 
 void
@@ -3280,6 +3284,11 @@ evhttp_set_cb(struct evhttp *http, const char *uri,
 	}
 
 	http_cb->what = mm_strdup(uri);
+	if (http_cb->what == NULL) {
+		event_warn("%s: strdup", __func__);
+		mm_free(http_cb);
+		return (-3);
+	}
 	http_cb->cb = cb;
 	http_cb->cbarg = cbarg;
 
@@ -3911,6 +3920,10 @@ parse_authority(struct evhttp_uri *uri, char *s, char *eos)
 	EVUTIL_ASSERT(eos);
 	if (eos == s) {
 		uri->host = mm_strdup("");
+		if (uri->host == NULL) {
+			event_warn("%s: strdup", __func__);
+			return -1;
+		}
 		return 0;
 	}
 
@@ -3922,6 +3935,10 @@ parse_authority(struct evhttp_uri *uri, char *s, char *eos)
 			return -1;
 		*cp++ = '\0';
 		uri->userinfo = mm_strdup(s);
+		if (uri->userinfo == NULL) {
+			event_warn("%s: strdup", __func__);
+			return -1;
+		}
 	} else {
 		cp = s;
 	}
@@ -3949,6 +3966,10 @@ parse_authority(struct evhttp_uri *uri, char *s, char *eos)
 			return -1;
 	}
 	uri->host = mm_malloc(eos-cp+1);
+	if (uri->host == NULL) {
+		event_warn("%s: malloc", __func__);
+		return -1;
+	}
 	memcpy(uri->host, cp, eos-cp);
 	uri->host[eos-cp] = '\0';
 	return 0;
@@ -4039,7 +4060,10 @@ evhttp_uri_parse(const char *source_uri)
 	if (token && scheme_ok(readp,token)) {
 		*token = '\0';
 		uri->scheme = mm_strdup(readp);
-
+		if (uri->scheme == NULL) {
+			event_err(1, "%s: strdup", __func__);
+			goto err;
+		}
 		readp = token+1; /* eat : */
 	}
 
@@ -4096,11 +4120,25 @@ evhttp_uri_parse(const char *source_uri)
 
 	EVUTIL_ASSERT(path);
 	uri->path = mm_strdup(path);
+	if (uri->path == NULL) {
+		event_err(1, "%s: strdup", __func__);
+		goto err;
+	}
 
-	if (query)
+	if (query) {
 		uri->query = mm_strdup(query);
-	if (fragment)
+		if (uri->query == NULL) {
+			event_err(1, "%s: strdup", __func__);
+			goto err;
+		}
+	}
+	if (fragment) {
 		uri->fragment = mm_strdup(fragment);
+		if (uri->fragment == NULL) {
+			event_err(1, "%s: strdup", __func__);
+			goto err;
+		}
+	}
 
 	mm_free(readbuf);
 

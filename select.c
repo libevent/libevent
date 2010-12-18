@@ -99,7 +99,10 @@ select_init(struct event_base *base)
 	if (!(sop = mm_calloc(1, sizeof(struct selectop))))
 		return (NULL);
 
-	select_resize(sop, howmany(32 + 1, NFDBITS)*sizeof(fd_mask));
+	if (select_resize(sop, howmany(32 + 1, NFDBITS)*sizeof(fd_mask))) {
+		mm_free(sop);
+		return (NULL);
+	}
 
 	evsig_init(base);
 
@@ -198,8 +201,10 @@ select_resize(struct selectop *sop, int fdsz)
 	if ((readset_in = mm_realloc(sop->event_readset_in, fdsz)) == NULL)
 		goto error;
 	sop->event_readset_in = readset_in;
-	if ((writeset_in = mm_realloc(sop->event_writeset_in, fdsz)) == NULL)
+	if ((writeset_in = mm_realloc(sop->event_writeset_in, fdsz)) == NULL) {
+		mm_free(readset_in);
 		goto error;
+	}
 	sop->event_writeset_in = writeset_in;
 	sop->resize_out_sets = 1;
 
