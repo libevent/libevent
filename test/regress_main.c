@@ -106,13 +106,15 @@ static void dnslogcb(int w, const char *m)
 	TT_BLATHER(("%s", m));
 }
 
-/* creates a temporary file with the data in it */
+/* creates a temporary file with the data in it.  If *filename_out gets set,
+ * the caller should try to unlink it. */
 int
-regress_make_tmpfile(const void *data, size_t datalen)
+regress_make_tmpfile(const void *data, size_t datalen, char **filename_out)
 {
 #ifndef WIN32
 	char tmpfilename[32];
 	int fd;
+	*filename_out = NULL;
 	strcpy(tmpfilename, "/tmp/eventtmp.XXXXXX");
 	fd = mkstemp(tmpfilename);
 	if (fd == -1)
@@ -147,6 +149,7 @@ regress_make_tmpfile(const void *data, size_t datalen)
 	if (tries == 0)
 		return (-1);
 	written = 0;
+	*filename_out = strdup(tmpfilename);
 	WriteFile(h, data, (DWORD)datalen, &written, NULL);
 	/* Closing the fd returned by this function will indeed close h. */
 	return _open_osfhandle((intptr_t)h,_O_RDONLY);

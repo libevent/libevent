@@ -58,6 +58,7 @@
 
 #include "evbuffer-internal.h"
 #include "log-internal.h"
+#include "util-internal.h"
 
 #include "regress.h"
 
@@ -583,45 +584,168 @@ test_evbuffer_reference(void *ptr)
 	evbuffer_free(src);
 }
 
+static struct event_base *addfile_test_event_base = NULL;
+static int addfile_test_done_writing = 0;
+static int addfile_test_total_written = 0;
+static int addfile_test_total_read = 0;
+
+static void
+addfile_test_writecb(evutil_socket_t fd, short what, void *arg)
+{
+	struct evbuffer *b = arg;
+	int r;
+	evbuffer_validate(b);
+	while (evbuffer_get_length(b)) {
+		r = evbuffer_write(b, fd);
+		if (r > 0) {
+			addfile_test_total_written += r;
+			TT_BLATHER(("Wrote %d/%d bytes", r, addfile_test_total_written));
+		} else {
+			int e = evutil_socket_geterror(fd);
+			if (EVUTIL_ERR_RW_RETRIABLE(e))
+				return;
+			tt_fail_perror("write");
+			event_base_loopexit(addfile_test_event_base,NULL);
+		}
+		evbuffer_validate(b);
+	}
+	addfile_test_done_writing = 1;
+	return;
+end:
+	event_base_loopexit(addfile_test_event_base,NULL);
+}
+
+static void
+addfile_test_readcb(evutil_socket_t fd, short what, void *arg)
+{
+	struct evbuffer *b = arg;
+	int e, r = 0;
+	do {
+		int r = evbuffer_read(b, fd, 1024);
+		if (r > 0) {
+			addfile_test_total_read += r;
+			TT_BLATHER(("Read %d/%d bytes", r, addfile_test_total_read));
+		}
+	} while (r > 0);
+	if (r < 0) {
+		e = evutil_socket_geterror(fd);
+		if (! EVUTIL_ERR_RW_RETRIABLE(e)) {
+			tt_fail_perror("read");
+			event_base_loopexit(addfile_test_event_base,NULL);
+		}
+	}
+	if (addfile_test_done_writing &&
+	    addfile_test_total_read >= addfile_test_total_written) {
+		event_base_loopexit(addfile_test_event_base,NULL);
+	}
+}
+
 static void
 test_evbuffer_add_file(void *ptr)
 {
-	const char *impl = ptr;
-	struct evbuffer *src = evbuffer_new();
-	const char *data = "this is what we add as file system data.";
-	size_t datalen;
+	struct basic_test_data *testdata = ptr;
+	const char *impl = testdata->setup_data;
+	struct evbuffer *src = evbuffer_new(), *dest = evbuffer_new();
+	char *tmpfilename = NULL;
+	char *data = NULL;
+	const char *expect_data;
+	size_t datalen, expect_len;
 	const char *compare;
 	int fd = -1;
-	evutil_socket_t pair[2] = {-1, -1};
-	int r=0, n_written=0;
 	int want_type = 0;
 	unsigned flags = 0;
-	int use_segment = 1;
+	int use_segment = 1, use_bigfile = 0, map_from_offset = 0,
+	    view_from_offset = 0;
 	struct evbuffer_file_segment *seg = NULL;
+	ev_off_t starting_offset = 0, mapping_len = -1;
+	ev_off_t segment_offset = 0, segment_len = -1;
+	struct event *rev=NULL, *wev=NULL;
+	struct event_base *base = testdata->base;
+	evutil_socket_t pair[2] = {-1, -1};
 
-	/* Add a test for a big file. XXXX */
-
+	/* This test is highly parameterized based on substrings of its
+	 * argument.  The strings are: */
 	tt_assert(impl);
-	if (!strcmp(impl, "nosegment")) {
+	if (strstr(impl, "nosegment")) {
+		/* If nosegment is set, use the older evbuffer_add_file
+		 * interface */
 		use_segment = 0;
-	} else if (!strcmp(impl, "sendfile")) {
+	}
+	if (strstr(impl, "bigfile")) {
+		/* If bigfile is set, use a 512K file.  Else use a smaller
+		 * one. */
+		use_bigfile = 1;
+	}
+	if (strstr(impl, "map_offset")) {
+		/* If map_offset is set, we build the file segment starting
+		 * from a point other than byte 0 and ending somewhere other
+		 * than the last byte.  Otherwise we map the whole thing */
+		map_from_offset = 1;
+	}
+	if (strstr(impl, "offset_in_segment")) {
+		/* If offset_in_segment is set, we add a subsection of the
+		 * file semgment starting from a point other than byte 0 of
+		 * the segment. */
+		view_from_offset = 1;
+	}
+	if (strstr(impl, "sendfile")) {
+		/* If sendfile is set, we try to use a sendfile/splice style
+		 * backend. */
 		flags = EVBUF_FS_DISABLE_MMAP;
 		want_type = EVBUF_FS_SENDFILE;
-	} else if (!strcmp(impl, "mmap")) {
+	} else if (strstr(impl, "mmap")) {
+		/* If sendfile is set, we try to use a mmap/CreateFileMapping
+		 * style backend. */
 		flags = EVBUF_FS_DISABLE_SENDFILE;
 		want_type = EVBUF_FS_MMAP;
-	} else if (!strcmp(impl, "linear")) {
+	} else if (strstr(impl, "linear")) {
+		/* If linear is set, we try to use a read-the-whole-thing
+		 * backend. */
 		flags = EVBUF_FS_DISABLE_SENDFILE|EVBUF_FS_DISABLE_MMAP;
 		want_type = EVBUF_FS_IO;
+	} else if (strstr(impl, "default")) {
+		/* The caller doesn't care which backend we use. */
+		;
 	} else {
+		/* The caller must choose a backend. */
 		TT_DIE(("Didn't recognize the implementation"));
 	}
 
-	datalen = strlen(data);
-	fd = regress_make_tmpfile(data, datalen);
+	if (use_bigfile) {
+		unsigned int i;
+		datalen = 1024*512;
+		data = malloc(1024*512);
+		tt_assert(data);
+		for (i = 0; i < datalen; ++i)
+			data[i] = _evutil_weakrand();
+	} else {
+		data = strdup("here is a relatively small string.");
+		tt_assert(data);
+		datalen = strlen(data);
+	}
+
+	fd = regress_make_tmpfile(data, datalen, &tmpfilename);
+
+	if (map_from_offset) {
+		starting_offset = datalen/4 + 1;
+		mapping_len = datalen / 2 - 1;
+		expect_data = data + starting_offset;
+		expect_len = mapping_len;
+	} else {
+		expect_data = data;
+		expect_len = datalen;
+	}
+	if (view_from_offset) {
+		tt_assert(use_segment); /* Can't do this with add_file*/
+		segment_offset = expect_len / 3;
+		segment_len = expect_len / 2;
+		expect_data = expect_data + segment_offset;
+		expect_len = segment_len;
+	}
 
 	if (use_segment) {
-		seg = evbuffer_file_segment_new(fd, 0, datalen, flags);
+		seg = evbuffer_file_segment_new(fd, starting_offset,
+		    mapping_len, flags);
 		tt_assert(seg);
 		if ((int)seg->type != (int)want_type)
 			tt_skip();
@@ -636,43 +760,62 @@ test_evbuffer_add_file(void *ptr)
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
 		tt_abort_msg("socketpair failed");
 #endif
+	evutil_make_socket_nonblocking(pair[0]);
+	evutil_make_socket_nonblocking(pair[1]);
 
 	tt_assert(fd != -1);
 
 	if (use_segment) {
-		tt_assert(evbuffer_add_file_segment(src, seg, 0, -1)!=-1);
+		tt_assert(evbuffer_add_file_segment(src, seg,
+			segment_offset, segment_len)!=-1);
 	} else {
-		tt_assert(evbuffer_add_file(src, fd, 0, -1) != -1);
+		tt_assert(evbuffer_add_file(src, fd, starting_offset,
+			mapping_len) != -1);
 	}
 
 	evbuffer_validate(src);
 
-	while (evbuffer_get_length(src) &&
-	    (r = evbuffer_write(src, pair[0])) > 0) {
-		evbuffer_validate(src);
-		n_written += r;
-	}
-	tt_int_op(r, !=, -1);
-	tt_int_op(n_written, ==, datalen);
+	addfile_test_event_base = base;
+	wev = event_new(base, pair[0], EV_WRITE|EV_PERSIST,
+	    addfile_test_writecb, src);
+	rev = event_new(base, pair[1], EV_READ|EV_PERSIST,
+	    addfile_test_readcb, dest);
+
+	event_add(wev, NULL);
+	event_add(rev, NULL);
+	event_base_dispatch(base);
 
 	evbuffer_validate(src);
-	tt_int_op(evbuffer_read(src, pair[1], (int)strlen(data)), ==, datalen);
-	evbuffer_validate(src);
-	compare = (char *)evbuffer_pullup(src, datalen);
+	evbuffer_validate(dest);
+
+	tt_assert(addfile_test_done_writing);
+	tt_int_op(addfile_test_total_written, ==, expect_len);
+	tt_int_op(addfile_test_total_read, ==, expect_len);
+
+	compare = (char *)evbuffer_pullup(dest, expect_len);
 	tt_assert(compare != NULL);
-	if (memcmp(compare, data, datalen)) {
+	if (memcmp(compare, expect_data, expect_len)) {
 		tt_abort_msg("Data from add_file differs.");
 	}
 
-	evbuffer_validate(src);
+	evbuffer_validate(dest);
  end:
+	if (data)
+		free(data);
+	if (seg)
+		evbuffer_file_segment_free(seg);
+	if (src)
+		evbuffer_free(src);
+	if (dest)
+		evbuffer_free(dest);
 	if (pair[0] >= 0)
 		evutil_closesocket(pair[0]);
 	if (pair[1] >= 0)
 		evutil_closesocket(pair[1]);
-	evbuffer_free(src);
-	if (seg)
-		evbuffer_file_segment_free(seg);
+	if (tmpfilename) {
+		unlink(tmpfilename);
+		free(tmpfilename);
+	}
 }
 
 #ifndef _EVENT_DISABLE_MM_REPLACEMENT
@@ -1568,15 +1711,30 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "peek", test_evbuffer_peek, 0, NULL, NULL },
 	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },
 	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
-	/* TODO: need a temp file implementation for Windows */
-	{ "add_file_sendfile", test_evbuffer_add_file, TT_FORK, &nil_setup,
-	  (void*)"sendfile" },
-	{ "add_file_mmap", test_evbuffer_add_file, TT_FORK, &nil_setup,
-	  (void*)"mmap" },
-	{ "add_file_linear", test_evbuffer_add_file, TT_FORK, &nil_setup,
-	  (void*)"linear" },
-	{ "add_file_nosegment", test_evbuffer_add_file, TT_FORK, &nil_setup,
-	  (void*)"nosegment" },
+
+#define ADDFILE_TEST(name, parameters)					\
+	{ name, test_evbuffer_add_file, TT_FORK|TT_NEED_BASE,		\
+	  &basic_setup, (void*)(parameters) }
+
+#define ADDFILE_TEST_GROUP(name, parameters)			\
+	ADDFILE_TEST(name "_sendfile", "sendfile " parameters), \
+	ADDFILE_TEST(name "_mmap", "mmap " parameters),		\
+	ADDFILE_TEST(name "_linear", "linear " parameters)
+
+	ADDFILE_TEST_GROUP("add_file", ""),
+	ADDFILE_TEST("add_file_nosegment", "default nosegment"),
+
+	ADDFILE_TEST_GROUP("add_big_file", "bigfile"),
+	ADDFILE_TEST("add_big_file_nosegment", "default nosegment bigfile"),
+
+	ADDFILE_TEST_GROUP("add_file_offset", "bigfile map_offset"),
+	ADDFILE_TEST("add_file_offset_nosegment",
+	    "default nosegment bigfile map_offset"),
+
+	ADDFILE_TEST_GROUP("add_file_offset2", "bigfile offset_in_segment"),
+
+	ADDFILE_TEST_GROUP("add_file_offset3",
+	    "bigfile offset_in_segment map_offset"),
 
 	END_OF_TESTCASES
 };
