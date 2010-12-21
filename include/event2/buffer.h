@@ -368,15 +368,116 @@ int evbuffer_add_reference(struct evbuffer *outbuf,
   The results of using evbuffer_remove() or evbuffer_pullup() are
   undefined.
 
+  For more fine-grained control, use evbuffer_add_file_segment.
+
   @param outbuf the output buffer
   @param fd the file descriptor
   @param off the offset from which to read data
-  @param length how much data to read
+  @param length how much data to read, or -1 to read as much as possible.
+    (-1 requires that 'fd' support fstat.)
   @return 0 if successful, or -1 if an error occurred
 */
 
 int evbuffer_add_file(struct evbuffer *output, int fd, ev_off_t offset,
     ev_off_t length);
+
+/**
+  An evbuffer_file_segment holds a reference to a range of a file --
+  possibly the whole file! -- for use in writing from an evbuffer to a
+  socket.  It could be implemented with mmap, sendfile, splice, or (if all
+  else fails) by just pulling all the data into RAM.  A single
+  evbuffer_file_segment can be added more than once, and to more than one
+  evbuffer.
+ */
+struct evbuffer_file_segment;
+
+/**
+    Flag for creating evbuffer_file_segment: If this flag is set, then when
+    the evbuffer_file_segment is freed and no longer in use by any
+    evbuffer, the underlying fd is closed.
+ */
+#define EVBUF_FS_CLOSE_ON_FREE    0x01
+/**
+   Flag for creating evbuffer_file_segment: Disable memory-map based
+   implementations.
+ */
+#define EVBUF_FS_DISABLE_MMAP     0x02
+/**
+   Flag for creating evbuffer_file_segment: Disable direct fd-to-fd
+   implementations (including sendfile and splice).
+
+   You might want to use this option if data needs to be taken from the
+   evbuffer by any means other than writing it to the network: the sendfile
+   backend is fast, but it only works for sending files directly to the
+   network.
+ */
+#define EVBUF_FS_DISABLE_SENDFILE 0x04
+/**
+   Flag for creating evbuffer_file_segment: Do not allocate a lock for this
+   segment.  If this option is set, then neither the segment nor any
+   evbuffer it is added to may ever be accessed from more than one thread
+   at a time.
+ */
+#define EVBUF_FS_DISABLE_LOCKING  0x08
+
+/**
+   Create and return a new evbuffer_file_segment for reading data from a
+   file and sending it out via an evbuffer.
+
+   This function avoids unnecessary data copies between userland and
+   kernel.  Where available, it uses sendfile or splice.
+
+   The file descriptor must not be closed so long as any evbuffer is using
+   this segment.
+
+   The results of using evbuffer_remove() or evbuffer_pullup() or any other
+   function that reads bytes from an evbuffer on any evbuffer containing
+   the newly returned segment are undefined, unless you pass the
+   EVBUF_FS_DISABLE_SENDFILE flag to this function.
+
+   @param fd an open file to read from.
+   @param offset an index within the file at which to start reading
+   @param length how much data to read, or -1 to read as much as possible.
+      (-1 requires that 'fd' support fstat.)
+   @param flags any number of the EVBUF_FS_* flags
+   @return a new evbuffer_file_segment, or NULL on failure.
+ **/
+struct evbuffer_file_segment *evbuffer_file_segment_new(
+	int fd, ev_off_t offset, ev_off_t length, unsigned flags);
+
+/**
+   Free an evbuffer_file_segment
+
+   It is safe to call this function even if the segment has been added to
+   one or more evbuffers.  The evbuffer_file_segment will not be freed
+   until no more references to it exist.
+ */
+void evbuffer_file_segment_free(struct evbuffer_file_segment *seg);
+
+/**
+   Insert some or all of an evbuffer_file_segment at the end of an evbuffer
+
+   Note that the offset and length parameters of this function have a
+   different meaning from those provided to evbuffer_file_segment_new: When
+   you create the segment, the offset is the offset _within the file_, and
+   the length is the length _of the segment_, whereas when you add a
+   segment to an evbuffer, the offset is _within the segment_ and the
+   length is the length of the _part of the segment you want to use.
+
+   In other words, if you have a 10 KiB file, and you create an
+   evbuffer_file_segment for it with offset 20 and length 1000, it will
+   refer to bytes 20..1019 inclusive.  If you then pass this segment to
+   evbuffer_add_file_segment and specify an offset of 20 and a length of
+   50, you will be adding bytes 40..99 inclusive.
+
+   @param buf the evbuffer to append to
+   @param seg the segment to add
+   @param offset the offset within the segment to start from
+   @param length the amount of data to add, or -1 to add it all.
+   @return 0 on success, -1 on failure.
+ */
+int evbuffer_add_file_segment(struct evbuffer *buf,
+    struct evbuffer_file_segment *seg, ev_off_t offset, ev_off_t length);
 
 /**
   Append a formatted string to the end of an evbuffer.
