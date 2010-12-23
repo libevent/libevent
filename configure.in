@@ -14,6 +14,14 @@ if test "$prefix" = "NONE"; then
    prefix="/usr/local"
 fi
 
+dnl Try and get a full POSIX environment on obscure systems
+ifdef([AC_USE_SYSTEM_EXTENSIONS], [
+AC_USE_SYSTEM_EXTENSIONS
+], [
+AC_AIX
+AC_MINIX
+])
+
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
