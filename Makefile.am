@@ -125,7 +125,10 @@ if SIGNAL_SUPPORT
 SYS_SRC += signal.c
 endif
 
-BUILT_SOURCES = ./include/event2/event-config.h
+BUILT_SOURCES = ./include/event2/event-config.h event-private.h
+
+event-private.h: config.h
+	cp config.h $@
 
 ./include/event2/event-config.h: config.h
 	@MKDIR_P@ ./include/event2
@@ -143,6 +146,7 @@ BUILT_SOURCES = ./include/event2/event-config.h
 
 	sed -e 's/#define /#define _EVENT_/' \
 	    -e 's/#undef /#undef _EVENT_/' \
+	    -e 's/# define /# define _EVENT_/' \
 	    -e 's/#ifndef /#ifndef _EVENT_/' < config.h >> $@
 	echo "#endif" >> $@
 
@@ -206,5 +210,5 @@ doxygen: FORCE
 	doxygen $(srcdir)/Doxyfile
 FORCE:
 
-DISTCLEANFILES = *~ libevent.pc ./include/event2/event-config.h
+DISTCLEANFILES = *~ libevent.pc ./include/event2/event-config.h event-private.h
 
