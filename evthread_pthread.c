@@ -25,8 +25,10 @@
  */
 #include "event2/event-config.h"
 
-/* With glibc we need to define this to get PTHREAD_MUTEX_RECURSIVE. */
-#define _GNU_SOURCE
+/* With glibc we need to define this to get PTHREAD_MUTEX_RECURSIVE.
+ * _GNU_SOURCE, now from event-private
+ */
+#include "event-private.h"
 #include <pthread.h>
 
 struct event_base;
