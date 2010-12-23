@@ -196,6 +196,7 @@ noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
 	minheap-internal.h log-internal.h evsignal-internal.h evmap-internal.h \
 	changelist-internal.h iocp-internal.h \
 	ratelim-internal.h \
+	event-private.h \
 	WIN32-Code/event2/event-config.h \
 	WIN32-Code/tree.h \
 	compat/sys/queue.h
