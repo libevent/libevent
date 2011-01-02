@@ -367,6 +367,12 @@ evport_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		if (pevt->portev_events & POLLOUT)
 			res |= EV_WRITE;
 
+		/*
+		 * Check for the error situations or a hangup situation
+		 */
+		if (pevt->portev_events & (POLLERR|POLLHUP|POLLNVAL))
+			res |= EV_READ|EV_WRITE;
+
 		assert(epdp->ed_nevents > fd);
 		fdi = &(epdp->ed_fds[fd]);
 
