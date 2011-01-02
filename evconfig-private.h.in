@@ -1,4 +1,4 @@
-/* evconfig-private.h template - see "Configuration Header Templates" 
+/* evconfig-private.h template - see "Configuration Header Templates" */
 /* in AC manual.  Kevin Bowling <kevin.bowling@kev009.com */
 
 /* Enable extensions on AIX 3, Interix.  */

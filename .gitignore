@@ -68,6 +68,7 @@ libevent_openssl.pc
 /stamp-h1
 
 /include/event2/event-config.h
+/evconfig-private.h
 
 /sample/dns-example
 /sample/event-test
