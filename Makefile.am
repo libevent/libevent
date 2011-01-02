@@ -125,10 +125,7 @@ if SIGNAL_SUPPORT
 SYS_SRC += signal.c
 endif
 
-BUILT_SOURCES = ./include/event2/event-config.h event-private.h
-
-event-private.h: config.h
-	cp config.h $@
+BUILT_SOURCES = ./include/event2/event-config.h
 
 ./include/event2/event-config.h: config.h
 	@MKDIR_P@ ./include/event2
@@ -196,7 +193,7 @@ noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
 	minheap-internal.h log-internal.h evsignal-internal.h evmap-internal.h \
 	changelist-internal.h iocp-internal.h \
 	ratelim-internal.h \
-	event-private.h \
+	evconfig-private.h \
 	WIN32-Code/event2/event-config.h \
 	WIN32-Code/tree.h \
 	compat/sys/queue.h
@@ -211,5 +208,5 @@ doxygen: FORCE
 	doxygen $(srcdir)/Doxyfile
 FORCE:
 
-DISTCLEANFILES = *~ libevent.pc ./include/event2/event-config.h event-private.h
+DISTCLEANFILES = *~ libevent.pc ./include/event2/event-config.h
 

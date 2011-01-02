@@ -28,7 +28,7 @@
 /* With glibc we need to define this to get PTHREAD_MUTEX_RECURSIVE.
  * _GNU_SOURCE, now from event-private
  */
-#include "event-private.h"
+#include "evconfig-private.h"
 #include <pthread.h>
 
 struct event_base;
