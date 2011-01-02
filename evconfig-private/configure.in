@@ -1,0 +1,17 @@
+dnl private configure.in for libevent
+dnl Kevin Bowling <kevin.bowling@kev009.com>
+AC_PREREQ(2.59c)
+AC_INIT(configure.in)
+
+AC_CONFIG_HEADER(config.h)
+
+dnl Try and get a full POSIX environment on obscure systems
+ifdef([AC_USE_SYSTEM_EXTENSIONS], [
+AC_USE_SYSTEM_EXTENSIONS
+], [
+AC_AIX
+AC_GNU_SOURCE
+AC_MINIX
+])
+
+AC_OUTPUT

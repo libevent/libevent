@@ -608,5 +608,6 @@ if test x$enable_gcc_warnings = xyes; then
 
 fi
 
+AC_CONFIG_SUBDIRS( [evconfig-private] )
 AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc] )
 AC_OUTPUT(Makefile include/Makefile test/Makefile sample/Makefile)
