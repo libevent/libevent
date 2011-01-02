@@ -66,6 +66,7 @@ libevent_openssl.pc
 /ltmain.sh
 /missing
 /stamp-h1
+/stamp-h2
 
 /include/event2/event-config.h
 /evconfig-private.h

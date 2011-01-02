@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include "event2/event-config.h"
+#include "evconfig-private.h"
 
 #ifndef _EVENT_HAVE_STRLCPY
 #include <string.h>

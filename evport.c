@@ -51,6 +51,7 @@
  */
 
 #include "event2/event-config.h"
+#include "evconfig-private.h"
 
 #include <sys/time.h>
 #include <sys/queue.h>

@@ -30,11 +30,13 @@
 #ifndef _EVENT_IPV6_INTERNAL_H
 #define _EVENT_IPV6_INTERNAL_H
 
+#include "event2/event-config.h"
+#include "evconfig-private.h"
+
 #include <sys/types.h>
 #ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#include "event2/event-config.h"
 #include "event2/util.h"
 
 #ifdef __cplusplus

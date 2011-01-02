@@ -24,11 +24,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "event2/event-config.h"
-
-/* With glibc we need to define this to get PTHREAD_MUTEX_RECURSIVE.
- * _GNU_SOURCE, now from event-private
- */
 #include "evconfig-private.h"
+
+/* With glibc we need to define _GNU_SOURCE to get PTHREAD_MUTEX_RECURSIVE.
+ * This comes from evconfig-private.h
+ */
 #include <pthread.h>
 
 struct event_base;

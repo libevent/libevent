@@ -32,6 +32,8 @@ extern "C" {
 #endif
 
 #include "event2/event-config.h"
+#include "evconfig-private.h"
+
 #include <sys/queue.h>
 #include "event2/event_struct.h"
 #include "minheap-internal.h"
