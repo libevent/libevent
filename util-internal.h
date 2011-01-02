@@ -52,9 +52,13 @@ extern "C" {
 
 /* A good no-op to use in macro definitions. */
 #define _EVUTIL_NIL_STMT ((void)0)
-/* Suppresses the compiler's "unused variable" warnings for unused assert. */
+/* A no-op that tricks the compiler into thinking a condition is used while
+ * definitely not making any code for it.  Used to compile out asserts while
+ * avoiding "unused variable" warnings.  The "!" forces the compiler to
+ * do the sizeof() on an int, in case "condition" is a bitfield value.
+ */
 #define _EVUTIL_NIL_CONDITION(condition) do { \
-	(void)sizeof(condition); \
+	(void)sizeof(!(condition));  \
 } while(0)
 
 /* Internal use only: macros to match patterns of error codes in a
