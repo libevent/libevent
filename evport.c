@@ -336,10 +336,14 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 		 * (because we have to pass this to the callback)
 		 */
 		res = 0;
-		if (pevt->portev_events & POLLIN)
-			res |= EV_READ;
-		if (pevt->portev_events & POLLOUT)
-			res |= EV_WRITE;
+		if (pevt->portev_events & (POLLERR|POLLHUP)) {
+			res = EV_READ | EV_WRITE;
+		} else {
+			if (pevt->portev_events & POLLIN)
+				res |= EV_READ;
+			if (pevt->portev_events & POLLOUT)
+				res |= EV_WRITE;
+		}
 
 		EVUTIL_ASSERT(epdp->ed_nevents > fd);
 		fdi = &(epdp->ed_fds[fd]);
