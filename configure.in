@@ -1,6 +1,6 @@
 dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
-AC_PREREQ(2.59c)
+AC_PREREQ(2.59)
 AC_INIT(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -27,7 +27,7 @@ dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_LN_S
-AC_PROG_MKDIR_P
+# AC_PROG_MKDIR_P - $(MKDIR_P) should be defined by AM_INIT_AUTOMAKE
 
 AC_PROG_GCC_TRADITIONAL
 
