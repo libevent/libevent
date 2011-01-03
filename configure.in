@@ -6,7 +6,7 @@ dnl See LICENSE for copying information.
 dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
-AC_PREREQ(2.59c)
+AC_PREREQ(2.59)
 AC_INIT(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -37,7 +37,7 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AC_PROG_LN_S
-AC_PROG_MKDIR_P
+# AC_PROG_MKDIR_P - $(MKDIR_P) should be defined by AM_INIT_AUTOMAKE
 
 # AC_PROG_SED is only available in Autoconf >= 2.59b; workaround for older
 # versions
