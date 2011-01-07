@@ -29,6 +29,7 @@
 #define _MIN_HEAP_H_
 
 #include "event2/event-config.h"
+#include "evconfig-private.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/util.h"

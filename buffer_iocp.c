@@ -30,12 +30,13 @@
    This module implements overlapped read and write functions for evbuffer
    objects on Windows.
 */
+#include "event2/event-config.h"
+#include "evconfig-private.h"
 
 #include "event2/buffer.h"
 #include "event2/buffer_compat.h"
 #include "event2/util.h"
 #include "event2/thread.h"
-#include "event2/event-config.h"
 #include "util-internal.h"
 #include "evthread-internal.h"
 #include "evbuffer-internal.h"

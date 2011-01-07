@@ -1,12 +1,12 @@
 dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
-AC_PREREQ(2.59c)
+AC_PREREQ(2.59)
 AC_INIT(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE(libevent,2.1.0-alpha-dev)
-AM_CONFIG_HEADER(config.h)
+AM_CONFIG_HEADER(config.h  evconfig-private.h:evconfig-private.h.in)
 AC_DEFINE(NUMERIC_VERSION, 0x02010001, [Numeric representation of the version])
 
 dnl Initialize prefix.
@@ -14,11 +14,20 @@ if test "$prefix" = "NONE"; then
    prefix="/usr/local"
 fi
 
+dnl Try and get a full POSIX environment on obscure systems
+ifdef([AC_USE_SYSTEM_EXTENSIONS], [
+AC_USE_SYSTEM_EXTENSIONS
+], [
+AC_AIX
+AC_GNU_SOURCE
+AC_MINIX
+])
+
 dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_LN_S
-AC_PROG_MKDIR_P
+# AC_PROG_MKDIR_P - $(MKDIR_P) should be defined by AM_INIT_AUTOMAKE
 
 AC_PROG_GCC_TRADITIONAL
 

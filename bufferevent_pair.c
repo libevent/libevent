@@ -23,14 +23,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "event2/event-config.h"
+#include "evconfig-private.h"
 
 #include <sys/types.h>
 
 #ifdef WIN32
 #include <winsock2.h>
 #endif
-
-#include "event2/event-config.h"
 
 #include "event2/util.h"
 #include "event2/buffer.h"

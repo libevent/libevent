@@ -31,9 +31,10 @@
 static char *rcsid = "$OpenBSD: strlcpy.c,v 1.5 2001/05/13 15:40:16 deraadt Exp $";
 #endif /* LIBC_SCCS and not lint */
 
-#include <sys/types.h>
-
 #include "event2/event-config.h"
+#include "evconfig-private.h"
+
+#include <sys/types.h>
 
 #ifndef _EVENT_HAVE_STRLCPY
 #include "strlcpy-internal.h"

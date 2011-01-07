@@ -26,6 +26,7 @@
  */
 
 #include "event2/event-config.h"
+#include "evconfig-private.h"
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -34,8 +35,9 @@
 #endif
 
 #ifdef _EVENT_HAVE_VASPRINTF
-/* If we have vasprintf, we need to define this before we include stdio.h. */
-#define _GNU_SOURCE
+/* If we have vasprintf, we need to define _GNU_SOURCE before we include 
+ * stdio.h.  This comes from evconfig-private.h.
+ */
 #endif
 
 #include <sys/types.h>
@@ -87,7 +89,6 @@
 #include "event2/bufferevent_compat.h"
 #include "event2/bufferevent_struct.h"
 #include "event2/thread.h"
-#include "event2/event-config.h"
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "util-internal.h"

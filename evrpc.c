@@ -25,6 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "event2/event-config.h"
+#include "evconfig-private.h"
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN

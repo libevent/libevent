@@ -33,6 +33,7 @@
  */
 
 #include "event2/event-config.h"
+#include "evconfig-private.h"
 
 #include <limits.h>
 

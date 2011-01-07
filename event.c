@@ -25,6 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "event2/event-config.h"
+#include "evconfig-private.h"
 
 #ifdef WIN32
 #include <winsock2.h>

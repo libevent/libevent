@@ -26,6 +26,7 @@
  */
 
 #include "event2/event-config.h"
+#include "evconfig-private.h"
 
 #ifdef _EVENT_HAVE_SYS_TYPES_H
 #include <sys/types.h>
