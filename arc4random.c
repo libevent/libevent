@@ -49,6 +49,7 @@
 #endif
 
 #ifndef ARC4RANDOM_NO_INCLUDES
+#include "evconfig-private.h"
 #ifdef WIN32
 #include <wincrypt.h>
 #include <process.h>
