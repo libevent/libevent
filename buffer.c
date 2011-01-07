@@ -36,7 +36,7 @@
 
 #ifdef _EVENT_HAVE_VASPRINTF
 /* If we have vasprintf, we need to define _GNU_SOURCE before we include 
- * stdio.h.  This comes from event-private.h.
+ * stdio.h.  This comes from evconfig-private.h.
  */
 #endif
 

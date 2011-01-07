@@ -27,7 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "event2/event-config.h"
-#include "event-private.h"
+#include "evconfig-private.h"
 
 #include <sys/types.h>
 #ifdef _EVENT_HAVE_SYS_TIME_H
