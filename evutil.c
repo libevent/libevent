@@ -972,8 +972,13 @@ addrinfo_from_hostent(const struct hostent *ent,
 		res = evutil_addrinfo_append(res, ai);
 	}
 
-	if (res && ((hints->ai_flags & EVUTIL_AI_CANONNAME) && ent->h_name))
+	if (res && ((hints->ai_flags & EVUTIL_AI_CANONNAME) && ent->h_name)) {
 		res->ai_canonname = mm_strdup(ent->h_name);
+		if (res->ai_canonname == NULL) {
+			evutil_freeaddrinfo(res);
+			return NULL;
+		}
+	}
 
 	return res;
 }
