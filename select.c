@@ -90,6 +90,7 @@ const struct eventop selectops = {
 };
 
 static int select_resize(struct selectop *sop, int fdsz);
+static void select_free_selectop(struct selectop *sop);
 
 static void *
 select_init(struct event_base *base)
@@ -100,9 +101,7 @@ select_init(struct event_base *base)
 		return (NULL);
 
 	if (select_resize(sop, howmany(32 + 1, NFDBITS)*sizeof(fd_mask))) {
-		/* select_resize might have left this around. */
-		if (sop->event_readset_in)
-			mm_free(sop->event_readset_in);
+		select_free_selectop(sop);
 		return (NULL);
 	}
 
@@ -306,11 +305,8 @@ select_del(struct event_base *base, int fd, short old, short events, void *p)
 }
 
 static void
-select_dealloc(struct event_base *base)
+select_free_selectop(struct selectop *sop)
 {
-	struct selectop *sop = base->evbase;
-
-	evsig_dealloc(base);
 	if (sop->event_readset_in)
 		mm_free(sop->event_readset_in);
 	if (sop->event_writeset_in)
@@ -322,4 +318,12 @@ select_dealloc(struct event_base *base)
 
 	memset(sop, 0, sizeof(struct selectop));
 	mm_free(sop);
+}
+
+static void
+select_dealloc(struct event_base *base)
+{
+	evsig_dealloc(base);
+
+	select_free_selectop(base->evbase);
 }
