@@ -59,10 +59,19 @@ typedef int sa_family_t;
 
 #ifndef _EVENT_HAVE_STRUCT_SOCKADDR_IN6
 struct sockaddr_in6 {
+	/* This will fail if we find a struct sockaddr that doesn't have
+	 * sa_family as the first element. */
 	sa_family_t sin6_family;
 	ev_uint16_t sin6_port;
 	struct in6_addr sin6_addr;
 };
+#endif
+
+#ifndef AF_INET6
+#define AF_INET6 3333
+#endif
+#ifndef PF_INET6
+#define PF_INET6 AF_INET6
 #endif
 
 #ifdef __cplusplus

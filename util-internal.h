@@ -38,6 +38,8 @@
 #endif
 #include "event2/util.h"
 
+#include "ipv6-internal.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -213,9 +215,7 @@ struct sockaddr_storage {
 	union {
 		struct sockaddr ss_sa;
 		struct sockaddr_in ss_sin;
-#ifdef _EVENT_HAVE_STRUCT_SOCKADDR_IN6
 		struct sockaddr_in6 ss_sin6;
-#endif
 		char ss_padding[128];
 	} ss_union;
 };
