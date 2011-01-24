@@ -351,6 +351,8 @@ evutil_strtoll(const char *s, char **endptr, int base)
 	r = (ev_int64_t) _atoi64(s);
 	while (isspace(*s))
 		++s;
+	if (*s == '-')
+		++s;
 	while (isdigit(*s))
 		++s;
 	if (endptr)
@@ -358,6 +360,36 @@ evutil_strtoll(const char *s, char **endptr, int base)
 	return r;
 #elif defined(WIN32)
 	return (ev_int64_t) _strtoi64(s, endptr, base);
+#elif defined(_EVENT_SIZEOF_LONG_LONG) && _EVENT_SIZEOF_LONG_LONG == 8
+	long long r;
+	int n;
+	if (base != 10 && base != 16)
+		return 0;
+	if (base == 10) {
+		n = sscanf(s, "%lld", &r);
+	} else {
+		unsigned long long ru=0;
+		n = sscanf(s, "%llx", &ru);
+		if (ru > EV_INT64_MAX)
+			return 0;
+		r = (long long) ru;
+	}
+	if (n != 1)
+		return 0;
+	while (EVUTIL_ISSPACE(*s))
+		++s;
+	if (*s == '-')
+		++s;
+	if (base == 10) {
+		while (EVUTIL_ISDIGIT(*s))
+			++s;
+	} else {
+		while (EVUTIL_ISXDIGIT(*s))
+			++s;
+	}
+	if (endptr)
+		*endptr = (char*) s;
+	return r;
 #else
 #error "I don't know how to parse 64-bit integers."
 #endif
