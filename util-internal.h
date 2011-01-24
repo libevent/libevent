@@ -205,6 +205,23 @@ long _evutil_weakrand(void);
 #define EVUTIL_FAILURE_CHECK(cond) EVUTIL_UNLIKELY(cond)
 #endif
 
+#ifndef _EVENT_HAVE_STRUCT_SOCKADDR_STORAGE
+/* Replacement for sockaddr storage that we can use internally on platforms
+ * that lack it.  It is not space-efficient, but neither is sockaddr_storage.
+ */
+struct sockaddr_storage {
+	union {
+		struct sockaddr ss_sa;
+		struct sockaddr_in ss_sin;
+#ifdef _EVENT_HAVE_STRUCT_SOCKADDR_IN6
+		struct sockaddr_in6 ss_sin6;
+#endif
+		char ss_padding[128];
+	} ss_union;
+};
+#define ss_family ss_union.ss_sa.sa_family
+#endif
+
 /* Internal addrinfo error code.  This one is returned from only from
  * evutil_getaddrinfo_common, when we are sure that we'll have to hit a DNS
  * server. */
