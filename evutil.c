@@ -350,6 +350,8 @@ evutil_strtoll(const char *s, char **endptr, int base)
 	r = (ev_int64_t) _atoi64(s);
 	while (isspace(*s))
 		++s;
+	if (*s == '-')
+		++s;
 	while (isdigit(*s))
 		++s;
 	if (endptr)
@@ -357,6 +359,36 @@ evutil_strtoll(const char *s, char **endptr, int base)
 	return r;
 #elif defined(WIN32)
 	return (ev_int64_t) _strtoi64(s, endptr, base);
+#elif defined(_EVENT_SIZEOF_LONG_LONG) && _EVENT_SIZEOF_LONG_LONG == 8
+	long long r;
+	int n;
+	if (base != 10 && base != 16)
+		return 0;
+	if (base == 10) {
+		n = sscanf(s, "%lld", &r);
+	} else {
+		unsigned long long ru=0;
+		n = sscanf(s, "%llx", &ru);
+		if (ru > EV_INT64_MAX)
+			return 0;
+		r = (long long) ru;
+	}
+	if (n != 1)
+		return 0;
+	while (EVUTIL_ISSPACE(*s))
+		++s;
+	if (*s == '-')
+		++s;
+	if (base == 10) {
+		while (EVUTIL_ISDIGIT(*s))
+			++s;
+	} else {
+		while (EVUTIL_ISXDIGIT(*s))
+			++s;
+	}
+	if (endptr)
+		*endptr = (char*) s;
+	return r;
 #else
 #error "I don't know how to parse 64-bit integers."
 #endif
@@ -735,6 +767,10 @@ evutil_getaddrinfo_infer_protocols(struct evutil_addrinfo *hints)
 	}
 }
 
+#if AF_UNSPEC != PF_UNSPEC
+#error "I cannot build on a system where AF_UNSPEC != PF_UNSPEC"
+#endif
+
 /** Implements the part of looking up hosts by name that's common to both
  * the blocking and nonblocking resolver:
  *   - Adjust 'hints' to have a reasonable socktype and protocol.
@@ -785,7 +821,7 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 			memset(&sin6, 0, sizeof(sin6));
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_port = htons(port);
-			if (hints->ai_flags & AI_PASSIVE) {
+			if (hints->ai_flags & EVUTIL_AI_PASSIVE) {
 				/* Bind to :: */
 			} else {
 				/* connect to ::1 */
@@ -802,7 +838,7 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 			memset(&sin, 0, sizeof(sin));
 			sin.sin_family = AF_INET;
 			sin.sin_port = htons(port);
-			if (hints->ai_flags & AI_PASSIVE) {
+			if (hints->ai_flags & EVUTIL_AI_PASSIVE) {
 				/* Bind to 0.0.0.0 */
 			} else {
 				/* connect to 127.0.0.1 */

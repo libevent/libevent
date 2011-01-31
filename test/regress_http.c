@@ -56,6 +56,7 @@
 #include "event2/http.h"
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
+#include "event2/util.h"
 #include "log-internal.h"
 #include "util-internal.h"
 #include "http-internal.h"
@@ -128,38 +129,23 @@ static evutil_socket_t
 http_connect(const char *address, u_short port)
 {
 	/* Stupid code for connecting */
-#ifdef WIN32
-	struct hostent *he;
-	struct sockaddr_in sin;
-#else
-	struct addrinfo ai, *aitop;
+	struct evutil_addrinfo ai, *aitop;
 	char strport[NI_MAXSERV];
-#endif
+
 	struct sockaddr *sa;
 	int slen;
 	evutil_socket_t fd;
 
-#ifdef WIN32
-	if (!(he = gethostbyname(address))) {
-		event_warn("gethostbyname");
-	}
-	memcpy(&sin.sin_addr, he->h_addr_list[0], he->h_length);
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(port);
-	slen = sizeof(struct sockaddr_in);
-	sa = (struct sockaddr*)&sin;
-#else
 	memset(&ai, 0, sizeof(ai));
 	ai.ai_family = AF_INET;
 	ai.ai_socktype = SOCK_STREAM;
 	evutil_snprintf(strport, sizeof(strport), "%d", port);
-	if (getaddrinfo(address, strport, &ai, &aitop) != 0) {
+	if (evutil_getaddrinfo(address, strport, &ai, &aitop) != 0) {
 		event_warn("getaddrinfo");
 		return (-1);
 	}
 	sa = aitop->ai_addr;
 	slen = aitop->ai_addrlen;
-#endif
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd == -1)
@@ -178,9 +164,7 @@ http_connect(const char *address, u_short port)
 #endif
 	}
 
-#ifndef WIN32
-	freeaddrinfo(aitop);
-#endif
+	evutil_freeaddrinfo(aitop);
 
 	return (fd);
 }
