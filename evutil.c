@@ -803,7 +803,7 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 			memset(&sin6, 0, sizeof(sin6));
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_port = htons(port);
-			if (hints->ai_flags & AI_PASSIVE) {
+			if (hints->ai_flags & EVUTIL_AI_PASSIVE) {
 				/* Bind to :: */
 			} else {
 				/* connect to ::1 */
@@ -820,7 +820,7 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 			memset(&sin, 0, sizeof(sin));
 			sin.sin_family = AF_INET;
 			sin.sin_port = htons(port);
-			if (hints->ai_flags & AI_PASSIVE) {
+			if (hints->ai_flags & EVUTIL_AI_PASSIVE) {
 				/* Bind to 0.0.0.0 */
 			} else {
 				/* connect to 127.0.0.1 */
