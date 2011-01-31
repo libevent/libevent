@@ -753,6 +753,10 @@ evutil_getaddrinfo_infer_protocols(struct evutil_addrinfo *hints)
 	}
 }
 
+#if AF_UNSPEC != PF_UNSPEC
+#error "I cannot build on a system where AF_UNSPEC != PF_UNSPEC"
+#endif
+
 /** Implements the part of looking up hosts by name that's common to both
  * the blocking and nonblocking resolver:
  *   - Adjust 'hints' to have a reasonable socktype and protocol.
