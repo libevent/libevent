@@ -212,6 +212,8 @@ AC_HEADER_TIME
 dnl Checks for library functions.
 AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop inet_pton signal sigaction strtoll inet_aton pipe eventfd sendfile mmap splice arc4random arc4random_buf issetugid geteuid getegid getservbyname getprotobynumber setenv unsetenv putenv)
 
+if test "$ac_cv_func_getaddrinfo" != "yes" ; then
+
 # Check for gethostbyname_r in all its glorious incompatible versions.
 #   (This is cut-and-pasted from Tor, which based its logic on
 #   Python's configure.in.)
@@ -268,6 +270,7 @@ AC_CHECK_FUNC(gethostbyname_r, [
  CFLAGS=$OLD_CFLAGS
 ])
 
+fi
 
 AC_CHECK_SIZEOF(long)
 

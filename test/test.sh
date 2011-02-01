@@ -7,12 +7,18 @@ then
 	TEST_OUTPUT_FILE=/dev/null
 fi
 
-# /bin/echo is a little more likely to support -n than sh's builtin echo.
-if test -x /bin/echo
+# /bin/echo is a little more likely to support -n than sh's builtin echo,
+# printf is even more likely
+if test "`printf hello 2>&1`" = "hello"
 then
-	ECHO=/bin/echo
+	ECHO_N="printf"
 else
-	ECHO=echo
+	if test -x /bin/echo
+	then
+		ECHO_N="/bin/echo -n"
+	else
+		ECHO_N="echo -n"
+	fi
 fi
 
 if test "$TEST_OUTPUT_FILE" != "/dev/null"
@@ -45,7 +51,7 @@ announce () {
 }
 
 announce_n () {
-	$ECHO -n "$@"
+	$ECHO_N "$@"
 	echo "$@" >>"$TEST_OUTPUT_FILE"
 }
 
