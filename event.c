@@ -2027,17 +2027,6 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		if (ev->ev_closure == EV_CLOSURE_PERSIST && !tv_is_absolute)
 			ev->ev_io_timeout = *tv;
 
-		/*
-		 * we already reserved memory above for the case where we
-		 * are not replacing an existing timeout.
-		 */
-		if (ev->ev_flags & EVLIST_TIMEOUT) {
-			/* XXX I believe this is needless. */
-			if (min_heap_elt_is_top(ev))
-				notify = 1;
-			/*event_queue_remove(base, ev, EVLIST_TIMEOUT);*/
-		}
-
 		/* Check if it is active due to a timeout.  Rescheduling
 		 * this timeout before the callback can be executed
 		 * removes it from the active list. */
