@@ -133,6 +133,8 @@ static inline int event_del_internal(struct event *ev);
 
 static void	event_queue_insert(struct event_base *, struct event *, int);
 static void	event_queue_remove(struct event_base *, struct event *, int);
+static void	event_queue_reinsert(struct event_base *,struct event *ev,int);
+
 static int	event_haveevents(struct event_base *);
 
 static int	event_process_active(struct event_base *);
@@ -145,6 +147,9 @@ static inline void	event_signal_closure(struct event_base *, struct event *ev);
 static inline void	event_persist_closure(struct event_base *, struct event *ev);
 
 static int	evthread_notify_base(struct event_base *base);
+
+static void insert_common_timeout_inorder(struct common_timeout_list *ctl,
+    struct event *ev);
 
 #ifndef _EVENT_DISABLE_DEBUG_MODE
 /* These functions implement a hashtable of which 'struct event *' structures
@@ -2030,7 +2035,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 			/* XXX I believe this is needless. */
 			if (min_heap_elt_is_top(ev))
 				notify = 1;
-			event_queue_remove(base, ev, EVLIST_TIMEOUT);
+			/*event_queue_remove(base, ev, EVLIST_TIMEOUT);*/
 		}
 
 		/* Check if it is active due to a timeout.  Rescheduling
@@ -2070,7 +2075,8 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 			 "event_add: timeout in %d seconds, call %p",
 			 (int)tv->tv_sec, ev->ev_callback));
 
-		event_queue_insert(base, ev, EVLIST_TIMEOUT);
+		event_queue_reinsert(base, ev, EVLIST_TIMEOUT);
+
 		if (common_timeout) {
 			struct common_timeout_list *ctl =
 			    get_common_timeout_list(base, &ev->ev_timeout);
@@ -2455,6 +2461,32 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 		break;
 	default:
 		event_errx(1, "%s: unknown queue %x", __func__, queue);
+	}
+}
+
+/* Remove and reinsert 'ev' into the appropriate queue.  Only EVLIST_TIMEOUT
+ * is supported. */
+static void
+event_queue_reinsert(struct event_base *base, struct event *ev, int queue)
+{
+	if (!(ev->ev_flags & queue)) {
+		event_queue_insert(base, ev, queue);
+		return;
+	}
+
+	if (queue != EVLIST_TIMEOUT) {
+		event_errx(1, "%s: Unsupported queue %x", __func__, queue);
+		return; /* unreached */
+	}
+
+	if (is_common_timeout(&ev->ev_timeout, base)) {
+		struct common_timeout_list *ctl =
+		    get_common_timeout_list(base, &ev->ev_timeout);
+		TAILQ_REMOVE(&ctl->events, ev,
+		    ev_timeout_pos.ev_next_with_common_timeout);
+		insert_common_timeout_inorder(ctl, ev);
+	} else {
+		min_heap_adjust(&base->timeheap, ev);
 	}
 }
 

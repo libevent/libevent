@@ -53,6 +53,7 @@ static inline struct event*  min_heap_top(min_heap_t* s);
 static inline int	     min_heap_reserve(min_heap_t* s, unsigned n);
 static inline int	     min_heap_push(min_heap_t* s, struct event* e);
 static inline struct event*  min_heap_pop(min_heap_t* s);
+static inline int	     min_heap_adjust(min_heap_t *s, struct event* e);
 static inline int	     min_heap_erase(min_heap_t* s, struct event* e);
 static inline void	     min_heap_shift_up_(min_heap_t* s, unsigned hole_index, struct event* e);
 static inline void	     min_heap_shift_down_(min_heap_t* s, unsigned hole_index, struct event* e);
@@ -110,6 +111,23 @@ int min_heap_erase(min_heap_t* s, struct event* e)
 		else
 			min_heap_shift_down_(s, e->ev_timeout_pos.min_heap_idx, last);
 		e->ev_timeout_pos.min_heap_idx = -1;
+		return 0;
+	}
+	return -1;
+}
+
+int min_heap_adjust(min_heap_t *s, struct event *e)
+{
+	if (-1 == e->ev_timeout_pos.min_heap_idx) {
+		return min_heap_push(s, e);
+	} else {
+		unsigned parent = (e->ev_timeout_pos.min_heap_idx - 1) / 2;
+		/* The position of e has changed; we shift it up or down
+		 * as needed.  We can't need to do both. */
+		if (e->ev_timeout_pos.min_heap_idx > 0 && min_heap_elem_greater(s->p[parent], e))
+			min_heap_shift_up_(s, e->ev_timeout_pos.min_heap_idx, e);
+		else
+			min_heap_shift_down_(s, e->ev_timeout_pos.min_heap_idx, e);
 		return 0;
 	}
 	return -1;
