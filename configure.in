@@ -224,14 +224,14 @@ AC_CHECK_FUNC(gethostbyname_r, [
   AC_MSG_CHECKING([how many arguments gethostbyname_r() wants])
   OLD_CFLAGS=$CFLAGS
   CFLAGS="$CFLAGS $MY_CPPFLAGS $MY_THREAD_CPPFLAGS $MY_CFLAGS"
-  AC_COMPILE_IFELSE(AC_LANG_PROGRAM([
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([
 #include <netdb.h>
   ], [[
     char *cp1, *cp2;
     struct hostent *h1, *h2;
     int i1, i2;
     (void)gethostbyname_r(cp1,h1,cp2,i1,&h2,&i2);
-  ]]),[
+  ]])],[
     AC_DEFINE(HAVE_GETHOSTBYNAME_R)
     AC_DEFINE(HAVE_GETHOSTBYNAME_R_6_ARG, 1,
      [Define this if gethostbyname_r takes 6 arguments])
@@ -575,20 +575,20 @@ AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" 
 # released versions.  (Some relevant gcc versions can't handle these.)
 if test x$enable_gcc_warnings = xyes && test "$GCC" = "yes"; then
 
-  AC_COMPILE_IFELSE(AC_LANG_PROGRAM([], [
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
 #if !defined(__GNUC__) || (__GNUC__ < 4)
 #error
-#endif]), have_gcc4=yes, have_gcc4=no)
+#endif])], have_gcc4=yes, have_gcc4=no)
 
-  AC_COMPILE_IFELSE(AC_LANG_PROGRAM([], [
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
 #if !defined(__GNUC__) || (__GNUC__ < 4) || (__GNUC__ == 4 && __GNUC_MINOR__ < 2)
 #error
-#endif]), have_gcc42=yes, have_gcc42=no)
+#endif])], have_gcc42=yes, have_gcc42=no)
 
-  AC_COMPILE_IFELSE(AC_LANG_PROGRAM([], [
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
 #if !defined(__GNUC__) || (__GNUC__ < 4) || (__GNUC__ == 4 && __GNUC_MINOR__ < 5)
 #error
-#endif]), have_gcc45=yes, have_gcc45=no)
+#endif])], have_gcc45=yes, have_gcc45=no)
 
   CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch-enum -Werror"
   CFLAGS="$CFLAGS -Wno-unused-parameter -Wstrict-aliasing"
