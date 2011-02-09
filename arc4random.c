@@ -352,7 +352,7 @@ arc4_seed(void)
 	return ok ? 0 : -1;
 }
 
-static void
+static int
 arc4_stir(void)
 {
 	int     i;
@@ -363,6 +363,8 @@ arc4_stir(void)
 	}
 
 	arc4_seed();
+	if (!arc4_seeded_ok)
+		return -1;
 
 	/*
 	 * Discard early keystream, as per recommendations in
@@ -385,6 +387,8 @@ arc4_stir(void)
 	for (i = 0; i < 12*256; i++)
 		(void)arc4_getbyte();
 	arc4_count = BYTES_BEFORE_RESEED;
+
+	return 0;
 }
 
 
