@@ -748,8 +748,9 @@ const struct timeval *event_base_init_common_timeout(struct event_base *base,
 
  Note that all memory returned from Libevent will be allocated by the
  replacement functions rather than by malloc() and realloc().  Thus, if you
- have replaced those functions, it may not be appropriate to free() memory
- that you get from Libevent.
+ have replaced those functions, it will not be appropriate to free() memory
+ that you get from Libevent.  Instead, you must use the free_fn replacement
+ that you provided.
 
  @param malloc_fn A replacement for malloc.
  @param realloc_fn A replacement for realloc
