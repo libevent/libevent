@@ -97,6 +97,7 @@ run_tests () {
 		announce FAILED ;
 		FAILED=yes
 	fi
+	test -x $TEST_DIR/regress || return
 	announce_n " regress: "
 	if test "$TEST_OUTPUT_FILE" = "/dev/null" ;
 	then

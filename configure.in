@@ -42,6 +42,9 @@ if test "$GCC" = "yes" ; then
 	CFLAGS="$CFLAGS -fno-strict-aliasing"
 fi
 
+enable_libevent_install_def=yes
+enable_libevent_regress_def=yes
+
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--enable-gcc-warnings, enable verbose warnings with GCC))
 AC_ARG_ENABLE(thread-support,
@@ -56,6 +59,12 @@ AC_ARG_ENABLE(openssl,
 AC_ARG_ENABLE(debug-mode,
      AS_HELP_STRING(--disable-debug-mode, disable support for running in debug mode),
         [], [enable_debug_mode=yes])
+AC_ARG_ENABLE([libevent-install],
+     AS_HELP_STRING([--disable-libevent-install, disable installation of libevent]),
+	[], [enable_libevent_install=$enable_libevent_install_def])
+AC_ARG_ENABLE([libevent-regress],
+     AS_HELP_STRING([--disable-libevent-regress, skip regress in  make check]),
+	[], [enable_libevent_regress=$enable_libevent_regress_def])
 
 AC_PROG_LIBTOOL
 
@@ -64,6 +73,14 @@ dnl   built by default.  You can also turn shared libs on and off from
 dnl   the command line with --enable-shared and --disable-shared.
 dnl AC_DISABLE_SHARED
 AC_SUBST(LIBTOOL_DEPS)
+
+AM_CONDITIONAL([BUILD_REGRESS], [test "$enable_libevent_regress" = "yes"])
+if test "$enable_libevent_regress" = "yes" ; then
+    CHECK_REGRESS=regress
+else
+    CHECK_REGRESS=
+fi
+AC_SUBST([CHECK_REGRESS])
 
 dnl Checks for libraries.
 AC_SEARCH_LIBS([inet_ntoa], [nsl])
@@ -671,6 +688,8 @@ if test "$GCC" = yes ; then
     esac
 fi
 AC_SUBST([LIBEVENT_GC_SECTIONS])
+
+AM_CONDITIONAL([INSTALL_LIBEVENT], [test "$enable_libevent_install" = "yes"])
 
 AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc] )
 AC_OUTPUT(Makefile include/Makefile test/Makefile sample/Makefile)
