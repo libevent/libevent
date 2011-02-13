@@ -628,5 +628,37 @@ if test x$enable_gcc_warnings = xyes && test "$GCC" = "yes"; then
 
 fi
 
+LIBEVENT_GC_SECTIONS=
+if test "$GCC" = yes ; then
+    AC_CACHE_CHECK(
+	[if linker supports omitting unused code and data],
+	[libevent_cv_gc_sections_works],
+	[
+	    origCFLAGS="$CFLAGS"
+	    CFLAGS="$CFLAGS -Wl,--gc-sections"
+	    AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([[]], [[]])],
+		[
+		    if grep gc-sections conftest.err ; then
+			libevent_cv_gc_sections_works=no
+		    else
+			libevent_cv_gc_sections_works=yes
+		    fi
+		],
+		[libevent_cv_gc_sections_works=no]
+	    )
+	    CFLAGS="$origCFLAGS"
+	    AS_UNSET([origCFLAGS])
+	]
+    )
+    case "$libevent_cv_gc_sections_works" in
+     yes)
+	CFLAGS="-ffunction-sections -fdata-sections $CFLAGS"
+	LIBEVENT_GC_SECTIONS="-Wl,--gc-sections"
+	;;
+    esac
+fi
+AC_SUBST([LIBEVENT_GC_SECTIONS])
+
 AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc] )
 AC_OUTPUT(Makefile include/Makefile test/Makefile sample/Makefile)
