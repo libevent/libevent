@@ -7,6 +7,7 @@
 
 #include <event2/event-config.h>
 
+/* Compatibility for possible missing IPv6 declarations */
 #include "../ipv6-internal.h"
 
 #include <sys/types.h>
