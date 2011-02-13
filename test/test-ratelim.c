@@ -49,6 +49,8 @@
 #include "event2/listener.h"
 #include "event2/thread.h"
 
+#include "../util-internal.h"
+
 static int cfg_verbose = 0;
 static int cfg_help = 0;
 

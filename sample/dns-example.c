@@ -7,6 +7,8 @@
 
 #include <event2/event-config.h>
 
+#include "../ipv6-internal.h"
+
 #include <sys/types.h>
 
 #ifdef WIN32

@@ -41,6 +41,8 @@
 # endif
 #endif
 
+#include <../util-internal.h>
+
 #ifdef WIN32
 #define stat _stat
 #define fstat _fstat
@@ -369,9 +371,11 @@ main(int argc, char **argv)
 		if (ss.ss_family == AF_INET) {
 			got_port = ntohs(((struct sockaddr_in*)&ss)->sin_port);
 			inaddr = &((struct sockaddr_in*)&ss)->sin_addr;
+#ifdef AF_INET6
 		} else if (ss.ss_family == AF_INET6) {
 			got_port = ntohs(((struct sockaddr_in6*)&ss)->sin6_port);
 			inaddr = &((struct sockaddr_in6*)&ss)->sin6_addr;
+#endif
 		} else {
 			fprintf(stderr, "Weird address family %d\n",
 			    ss.ss_family);
