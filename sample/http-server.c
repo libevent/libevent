@@ -36,6 +36,9 @@
 
 #ifdef _EVENT_HAVE_NETINET_IN_H
 #include <netinet/in.h>
+# ifdef _XOPEN_SOURCE_EXTENDED
+#  include <arpa/inet.h>
+# endif
 #endif
 
 #ifdef WIN32
