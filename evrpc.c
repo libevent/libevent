@@ -585,8 +585,8 @@ evrpc_pool_add_connection(struct evrpc_pool *pool,
 	 * unless a timeout was specifically set for a connection,
 	 * the connection inherits the timeout from the pool.
 	 */
-	if (connection->timeout == -1)
-		connection->timeout = pool->timeout;
+	if (!evutil_timerisset(&connection->timeout))
+		evhttp_connection_set_timeout(connection, pool->timeout);
 
 	/*
 	 * if we have any requests pending, schedule them with the new
@@ -613,7 +613,7 @@ evrpc_pool_set_timeout(struct evrpc_pool *pool, int timeout_in_secs)
 {
 	struct evhttp_connection *evcon;
 	TAILQ_FOREACH(evcon, &pool->connections, next) {
-		evcon->timeout = timeout_in_secs;
+		evhttp_connection_set_timeout(evcon, timeout_in_secs);
 	}
 	pool->timeout = timeout_in_secs;
 }

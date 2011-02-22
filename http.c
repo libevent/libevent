@@ -1342,14 +1342,11 @@ evhttp_connection_cb(struct bufferevent *bufev, short what, void *arg)
 	    evhttp_error_cb,
 	    evcon);
 
-	if (evcon->timeout == -1)
+	if (!evutil_timerisset(&evcon->timeout)) {
 		bufferevent_settimeout(evcon->bufev,
 		    HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT);
-	else {
-		struct timeval tv;
-		tv.tv_sec = evcon->timeout;
-		tv.tv_usec = 0;
-		bufferevent_set_timeouts(evcon->bufev, &tv, &tv);
+	} else {
+		bufferevent_set_timeouts(evcon->bufev, &evcon->timeout, &evcon->timeout);
 	}
 
 	/* try to start requests that have queued up on this connection */
@@ -1986,7 +1983,7 @@ evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
 	evcon->max_headers_size = EV_SIZE_MAX;
 	evcon->max_body_size = EV_SIZE_MAX;
 
-	evcon->timeout = -1;
+	evutil_timerclear(&evcon->timeout);
 	evcon->retry_cnt = evcon->retry_max = 0;
 
 	if ((evcon->address = mm_strdup(address)) == NULL) {
@@ -2038,14 +2035,27 @@ void
 evhttp_connection_set_timeout(struct evhttp_connection *evcon,
     int timeout_in_secs)
 {
-	evcon->timeout = timeout_in_secs;
+	if (timeout_in_secs == -1)
+		evhttp_connection_set_timeout_tv(evcon, NULL);
+	else {
+		struct timeval tv;
+		tv.tv_sec = timeout_in_secs;
+		tv.tv_usec = 0;
+		evhttp_connection_set_timeout_tv(evcon, &tv);
+	}
+}
 
-	if (evcon->timeout == -1)
-		bufferevent_settimeout(evcon->bufev,
-		    HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT);
-	else
-		bufferevent_settimeout(evcon->bufev,
-		    evcon->timeout, evcon->timeout);
+void
+evhttp_connection_set_timeout_tv(struct evhttp_connection *evcon,
+    const struct timeval* tv)
+{
+	if (tv) {
+		evcon->timeout = *tv;
+		bufferevent_set_timeouts(evcon->bufev, &evcon->timeout, &evcon->timeout);
+	} else {
+		evutil_timerclear(&evcon->timeout);
+		bufferevent_settimeout(evcon->bufev, HTTP_READ_TIMEOUT, HTTP_WRITE_TIMEOUT);
+	}
 }
 
 void
@@ -2097,8 +2107,10 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	    NULL /* evhttp_write_cb */,
 	    evhttp_connection_cb,
 	    evcon);
-	bufferevent_settimeout(evcon->bufev, 0,
-	    evcon->timeout != -1 ? evcon->timeout : HTTP_CONNECT_TIMEOUT);
+	if (!evutil_timerisset(&evcon->timeout))
+		bufferevent_settimeout(evcon->bufev, 0, HTTP_CONNECT_TIMEOUT);
+	else
+		bufferevent_set_timeouts(evcon->bufev, NULL, &evcon->timeout);
 	/* make sure that we get a write callback */
 	bufferevent_enable(evcon->bufev, EV_WRITE);
 
@@ -3081,7 +3093,7 @@ evhttp_new_object(void)
 		return (NULL);
 	}
 
-	http->timeout = -1;
+	evutil_timerclear(&http->timeout);
 	evhttp_set_max_headers_size(http, EV_SIZE_MAX);
 	evhttp_set_max_body_size(http, EV_SIZE_MAX);
 	evhttp_set_allowed_methods(http,
@@ -3246,7 +3258,24 @@ evhttp_remove_server_alias(struct evhttp *http, const char *alias)
 void
 evhttp_set_timeout(struct evhttp* http, int timeout_in_secs)
 {
-	http->timeout = timeout_in_secs;
+	if (timeout_in_secs == -1) {
+		evhttp_set_timeout_tv(http, NULL);
+	} else {
+		struct timeval tv;
+		tv.tv_sec = timeout_in_secs;
+		tv.tv_usec = 0;
+		evhttp_set_timeout_tv(http, &tv);
+	}
+}
+
+void
+evhttp_set_timeout_tv(struct evhttp* http, const struct timeval* tv)
+{
+	if (tv) {
+		http->timeout = *tv;
+	} else {
+		evutil_timerclear(&http->timeout);
+	}
 }
 
 void
@@ -3635,8 +3664,8 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 	}
 
 	/* the timeout can be used by the server to close idle connections */
-	if (http->timeout != -1)
-		evhttp_connection_set_timeout(evcon, http->timeout);
+	if (evutil_timerisset(&http->timeout))
+		evhttp_connection_set_timeout_tv(evcon, &http->timeout);
 
 	/*
 	 * if we want to accept more than one request on a connection,

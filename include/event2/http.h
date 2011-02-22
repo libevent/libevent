@@ -295,6 +295,14 @@ int evhttp_remove_server_alias(struct evhttp *http, const char *alias);
  */
 void evhttp_set_timeout(struct evhttp *http, int timeout_in_secs);
 
+/**
+ * Set the timeout for an HTTP request.
+ *
+ * @param http an evhttp object
+ * @param tv the timeout, or NULL
+ */
+void evhttp_set_timeout_tv(struct evhttp *http, const struct timeval* tv);
+
 /* Request/Response functionality */
 
 /**
@@ -468,9 +476,14 @@ void evhttp_connection_set_local_address(struct evhttp_connection *evcon,
 void evhttp_connection_set_local_port(struct evhttp_connection *evcon,
     ev_uint16_t port);
 
-/** Sets the timeout for events related to this connection */
+/** Sets the timeout in seconds for events related to this connection */
 void evhttp_connection_set_timeout(struct evhttp_connection *evcon,
     int timeout_in_secs);
+
+/** Sets the timeout for events related to this connection.  Takes a struct
+ * timeval. */
+void evhttp_connection_set_timeout_tv(struct evhttp_connection *evcon,
+    const struct timeval *tv);
 
 /** Sets the retry limit for this connection - -1 repeats indefinitely */
 void evhttp_connection_set_retries(struct evhttp_connection *evcon,

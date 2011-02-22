@@ -83,7 +83,7 @@ struct evhttp_connection {
 #define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
 #define EVHTTP_CON_CLOSEDETECT  0x0004  /* detecting if persistent close */
 
-	int timeout;			/* timeout in seconds for events */
+	struct timeval timeout;		/* timeout for events */
 	int retry_cnt;			/* retry count */
 	int retry_max;			/* maximum number of retries */
 
@@ -152,7 +152,7 @@ struct evhttp {
 	/* NULL if this server is not a vhost */
 	char *vhost_pattern;
 
-	int timeout;
+	struct timeval timeout;
 
 	size_t default_max_headers_size;
 	ev_uint64_t default_max_body_size;
