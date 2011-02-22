@@ -42,9 +42,6 @@ if test "$GCC" = "yes" ; then
 	CFLAGS="$CFLAGS -fno-strict-aliasing"
 fi
 
-enable_libevent_install_def=yes
-enable_libevent_regress_def=yes
-
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--enable-gcc-warnings, enable verbose warnings with GCC))
 AC_ARG_ENABLE(thread-support,
@@ -61,10 +58,10 @@ AC_ARG_ENABLE(debug-mode,
         [], [enable_debug_mode=yes])
 AC_ARG_ENABLE([libevent-install],
      AS_HELP_STRING([--disable-libevent-install, disable installation of libevent]),
-	[], [enable_libevent_install=$enable_libevent_install_def])
+	[], [enable_libevent_install=yes])
 AC_ARG_ENABLE([libevent-regress],
      AS_HELP_STRING([--disable-libevent-regress, skip regress in  make check]),
-	[], [enable_libevent_regress=$enable_libevent_regress_def])
+	[], [enable_libevent_regress=yes])
 
 AC_PROG_LIBTOOL
 
