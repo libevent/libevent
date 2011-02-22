@@ -50,7 +50,7 @@ if BUILD_WIN32
 regress_SOURCES += regress_iocp.c
 endif
 
-regress_LDADD = @LIBEVENT_GC_SECTIONS@ ../libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
+regress_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
 regress_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat \
 	-I$(top_srcdir)/include -I../include $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
 regress_LDFLAGS = $(PTHREAD_CFLAGS)
@@ -61,13 +61,13 @@ regress_LDADD += ../libevent_openssl.la -lcrypto -lssl
 endif
 
 bench_SOURCES = bench.c
-bench_LDADD = @LIBEVENT_GC_SECTIONS@ ../libevent.la
+bench_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la
 bench_cascade_SOURCES = bench_cascade.c
-bench_cascade_LDADD = @LIBEVENT_GC_SECTIONS@ ../libevent.la
+bench_cascade_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la
 bench_http_SOURCES = bench_http.c
-bench_http_LDADD = @LIBEVENT_GC_SECTIONS@ ../libevent.la
+bench_http_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la
 bench_httpclient_SOURCES = bench_httpclient.c
-bench_httpclient_LDADD = @LIBEVENT_GC_SECTIONS@ ../libevent_core.la
+bench_httpclient_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent_core.la
 
 regress.gen.c regress.gen.h: regress.rpc $(top_srcdir)/event_rpcgen.py
 	$(top_srcdir)/event_rpcgen.py $(srcdir)/regress.rpc || echo "No Python installed"
