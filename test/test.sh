@@ -9,9 +9,9 @@ fi
 
 # /bin/echo is a little more likely to support -n than sh's builtin echo,
 # printf is even more likely
-if test "`printf hello 2>&1`" = "hello"
+if test "`printf %s hello 2>&1`" = "hello"
 then
-	ECHO_N="printf"
+	ECHO_N="printf %s"
 else
 	if test -x /bin/echo
 	then
