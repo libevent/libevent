@@ -1475,7 +1475,8 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
-	if ((req->uri_elems = evhttp_uri_parse(req->uri)) == NULL) {
+	if ((req->uri_elems = evhttp_uri_parse_with_flags(req->uri,
+		    EVHTTP_URI_NONCONFORMANT)) == NULL) {
 		return -1;
 	}
 
@@ -3812,6 +3813,7 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 }
 
 struct evhttp_uri {
+	unsigned flags;
 	char *scheme; /* scheme; e.g http, ftp etc */
 	char *userinfo; /* userinfo (typically username:pass), or NULL */
 	char *host; /* hostname, IP address, or NULL */
@@ -3830,7 +3832,13 @@ evhttp_uri_new(void)
 	return uri;
 }
 
-/* Return true of the string starting at s and ending immediately before eos
+void
+evhttp_uri_set_flags(struct evhttp_uri *uri, unsigned flags)
+{
+	uri->flags = flags;
+}
+
+/* Return true if the string starting at s and ending immediately before eos
  * is a valid URI scheme according to RFC3986
  */
 static int
@@ -4022,13 +4030,41 @@ end_of_authority(char *cp)
 	return cp;
 }
 
+enum uri_part {
+	PART_PATH,
+	PART_QUERY,
+	PART_FRAGMENT
+};
+
 /* Return the character after the longest prefix of 'cp' that matches...
  *   *pchar / "/" if allow_qchars is false, or
- *   *(pchar / "/" / "?") if allow_chars is true.
+ *   *(pchar / "/" / "?") if allow_qchars is true.
  */
 static char *
-end_of_path(char *cp, int allow_qchars)
+end_of_path(char *cp, enum uri_part part, unsigned flags)
 {
+	if (flags & EVHTTP_URI_NONCONFORMANT) {
+		/* If NONCONFORMANT:
+		 *   Path is everything up to a # or ? or nul.
+		 *   Query is everything up a # or nul
+		 *   Fragment is everything up to a nul.
+		 */
+		switch (part) {
+		case PART_PATH:
+			while (*cp && *cp != '#' && *cp != '?')
+				++cp;
+			break;
+		case PART_QUERY:
+			while (*cp && *cp != '#')
+				++cp;
+			break;
+		case PART_FRAGMENT:
+			cp += strlen(cp);
+			break;
+		};
+		return cp;
+	}
+
 	while (*cp) {
 		if (CHAR_IS_UNRESERVED(*cp) ||
 		    strchr(SUBDELIMS, *cp) ||
@@ -4037,7 +4073,7 @@ end_of_path(char *cp, int allow_qchars)
 		else if (*cp == '%' && EVUTIL_ISXDIGIT(cp[1]) &&
 		    EVUTIL_ISXDIGIT(cp[2]))
 			cp += 3;
-		else if (*cp == '?' && allow_qchars)
+		else if (*cp == '?' && part != PART_PATH)
 			++cp;
 		else
 			return cp;
@@ -4061,6 +4097,12 @@ path_matches_noscheme(const char *cp)
 struct evhttp_uri *
 evhttp_uri_parse(const char *source_uri)
 {
+	return evhttp_uri_parse_with_flags(source_uri, 0);
+}
+
+struct evhttp_uri *
+evhttp_uri_parse_with_flags(const char *source_uri, unsigned flags)
+{
 	char *readbuf = NULL, *readp = NULL, *token = NULL, *query = NULL;
 	char *path = NULL, *fragment = NULL;
 	int got_authority = 0;
@@ -4071,6 +4113,7 @@ evhttp_uri_parse(const char *source_uri)
 		goto err;
 	}
 	uri->port = -1;
+	uri->flags = flags;
 
 	readbuf = mm_strdup(source_uri);
 	if (readbuf == NULL) {
@@ -4087,7 +4130,6 @@ evhttp_uri_parse(const char *source_uri)
 	      URI = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
 
 	      relative-ref  = relative-part [ "?" query ] [ "#" fragment ]
-
 	 */
 
 	/* 1. scheme: */
@@ -4117,21 +4159,21 @@ evhttp_uri_parse(const char *source_uri)
 	/* 3. Query: path-abempty, path-absolute, path-rootless, or path-empty
 	 */
 	path = readp;
-	readp = end_of_path(path, 0);
+	readp = end_of_path(path, PART_PATH, flags);
 
 	/* Query */
 	if (*readp == '?') {
 		*readp = '\0';
 		++readp;
 		query = readp;
-		readp = end_of_path(readp, 1);
+		readp = end_of_path(readp, PART_QUERY, flags);
 	}
 	/* fragment */
 	if (*readp == '#') {
 		*readp = '\0';
 		++readp;
 		fragment = readp;
-		readp = end_of_path(readp, 1);
+		readp = end_of_path(readp, PART_FRAGMENT, flags);
 	}
 	if (*readp != '\0') {
 		goto err;
@@ -4359,12 +4401,13 @@ evhttp_uri_set_port(struct evhttp_uri *uri, int port)
 	uri->port = port;
 	return 0;
 }
-#define end_of_cpath(cp,aq) ((const char*)(end_of_path(((char*)(cp)), (aq))))
+#define end_of_cpath(cp,p,f) \
+	((const char*)(end_of_path(((char*)(cp)), (p), (f))))
 
 int
 evhttp_uri_set_path(struct evhttp_uri *uri, const char *path)
 {
-	if (path && end_of_cpath(path, 0) != path+strlen(path))
+	if (path && end_of_cpath(path, PART_PATH, uri->flags) != path+strlen(path))
 		return -1;
 
 	_URI_SET_STR(path);
@@ -4373,7 +4416,7 @@ evhttp_uri_set_path(struct evhttp_uri *uri, const char *path)
 int
 evhttp_uri_set_query(struct evhttp_uri *uri, const char *query)
 {
-	if (query && end_of_cpath(query, 1) != query+strlen(query))
+	if (query && end_of_cpath(query, PART_QUERY, uri->flags) != query+strlen(query))
 		return -1;
 	_URI_SET_STR(query);
 	return 0;
@@ -4381,7 +4424,7 @@ evhttp_uri_set_query(struct evhttp_uri *uri, const char *query)
 int
 evhttp_uri_set_fragment(struct evhttp_uri *uri, const char *fragment)
 {
-	if (fragment && end_of_cpath(fragment, 1) != fragment+strlen(fragment))
+	if (fragment && end_of_cpath(fragment, PART_FRAGMENT, uri->flags) != fragment+strlen(fragment))
 		return -1;
 	_URI_SET_STR(fragment);
 	return 0;

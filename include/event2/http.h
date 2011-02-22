@@ -723,6 +723,12 @@ char *evhttp_htmlescape(const char *html);
  */
 struct evhttp_uri *evhttp_uri_new(void);
 
+/**
+ * Changes the flags set on a given URI.  See EVHTTP_URI_* for
+ * a list of flags.
+ **/
+void evhttp_uri_set_flags(struct evhttp_uri *uri, unsigned flags);
+
 /** Return the scheme of an evhttp_uri, or NULL if there is no scheme has
  * been set and the evhttp_uri contains a Relative-Ref. */
 const char *evhttp_uri_get_scheme(const struct evhttp_uri *uri);
@@ -808,9 +814,29 @@ int evhttp_uri_set_fragment(struct evhttp_uri *uri, const char *fragment);
  * accepts all of them as valid.
  *
  * @param source_uri the request URI
+ * @param flags Zero or more EVHTTP_URI_* flags to affect the behavior
+ *              of the parser.
  * @return uri container to hold parsed data, or NULL if there is error
  * @see evhttp_uri_free()
  */
+struct evhttp_uri *evhttp_uri_parse_with_flags(const char *source_uri,
+    unsigned flags);
+
+/** Tolerate URIs that do not conform to RFC3986.
+ *
+ * Unfortunately, some HTTP clients generate URIs that, according to RFC3986,
+ * are not conformant URIs.  If you need to support these URIs, you can
+ * do so by passing this flag to evhttp_uri_parse_with_flags.
+ *
+ * Currently, these changes are:
+ * <ul>
+ *   <li> Nonconformant URIs are allowed to contain otherwise unreasonable
+ *        characters in their path, query, and fragment components.
+ * </ul>
+ */
+#define EVHTTP_URI_NONCONFORMANT 0x01
+
+/** Alias for evhttp_uri_parse_with_flags(source_uri, 0) */
 struct evhttp_uri *evhttp_uri_parse(const char *source_uri);
 
 /**
@@ -833,7 +859,7 @@ void evhttp_uri_free(struct evhttp_uri *uri);
  * @param buf destination buffer
  * @param limit destination buffer size
  * @return an joined uri as string or NULL on error
-   @see evhttp_uri_parse()
+ * @see evhttp_uri_parse()
  */
 char *evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit);
 
