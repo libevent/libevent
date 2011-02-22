@@ -68,6 +68,8 @@
 #include "regress.h"
 #include "regress_testutils.h"
 
+#include "../util-internal.h"
+
 /* globals */
 static struct evdns_server_port *dns_port;
 evutil_socket_t dns_sock = -1;

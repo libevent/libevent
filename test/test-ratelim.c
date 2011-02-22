@@ -36,6 +36,9 @@
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
+# ifdef _XOPEN_SOURCE_EXTENDED
+#  include <arpa/inet.h>
+# endif
 #endif
 #include <signal.h>
 
@@ -45,6 +48,8 @@
 #include "event2/util.h"
 #include "event2/listener.h"
 #include "event2/thread.h"
+
+#include "../util-internal.h"
 
 static int cfg_verbose = 0;
 static int cfg_help = 0;

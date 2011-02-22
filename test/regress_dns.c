@@ -71,6 +71,8 @@
 #include "regress.h"
 #include "regress_testutils.h"
 
+#include "../util-internal.h"
+
 static int dns_ok = 0;
 static int dns_got_cancel = 0;
 static int dns_err = 0;

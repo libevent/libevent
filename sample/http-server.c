@@ -36,7 +36,13 @@
 
 #ifdef _EVENT_HAVE_NETINET_IN_H
 #include <netinet/in.h>
+# ifdef _XOPEN_SOURCE_EXTENDED
+#  include <arpa/inet.h>
+# endif
 #endif
+
+/* Compatibility for possible missing IPv6 declarations */
+#include "../util-internal.h"
 
 #ifdef WIN32
 #define stat _stat

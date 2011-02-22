@@ -31,6 +31,9 @@
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
+# ifdef _XOPEN_SOURCE_EXTENDED
+#  include <arpa/inet.h>
+# endif
 #endif
 #include <stdlib.h>
 #include <errno.h>

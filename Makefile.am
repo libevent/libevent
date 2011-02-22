@@ -59,7 +59,7 @@ VERSION_INFO = 1:0:0
 dist_bin_SCRIPTS = event_rpcgen.py
 
 pkgconfigdir=$(libdir)/pkgconfig
-pkgconfig_DATA=libevent.pc
+LIBEVENT_PKGCONFIG=libevent.pc
 
 # These sources are conditionally added by configure.in or conditionally
 # included from other files.
@@ -76,14 +76,21 @@ EXTRA_DIST = \
 	Makefile.nmake test/Makefile.nmake \
 	$(PLATFORM_DEPENDENT_SRC)
 
-lib_LTLIBRARIES = libevent.la libevent_core.la libevent_extra.la
+LIBEVENT_LIBS_LA = libevent.la libevent_core.la libevent_extra.la
 if PTHREADS
-lib_LTLIBRARIES += libevent_pthreads.la
-pkgconfig_DATA += libevent_pthreads.pc
+LIBEVENT_LIBS_LA += libevent_pthreads.la
+LIBEVENT_PKGCONFIG += libevent_pthreads.pc
 endif
 if OPENSSL
-lib_LTLIBRARIES += libevent_openssl.la
-pkgconfig_DATA += libevent_openssl.pc
+LIBEVENT_LIBS_LA += libevent_openssl.la
+LIBEVENT_PKGCONFIG += libevent_openssl.pc
+endif
+
+if INSTALL_LIBEVENT
+lib_LTLIBRARIES = $(LIBEVENT_LIBS_LA)
+pkgconfig_DATA = $(LIBEVENT_PKGCONFIG)
+else
+noinst_LTLIBRARIES =  $(LIBEVENT_LIBS_LA)
 endif
 
 SUBDIRS = . include sample test

@@ -13,6 +13,9 @@
 #include <signal.h>
 #ifndef WIN32
 #include <netinet/in.h>
+# ifdef _XOPEN_SOURCE_EXTENDED
+#  include <arpa/inet.h>
+# endif
 #include <sys/socket.h>
 #endif
 

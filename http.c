@@ -57,6 +57,9 @@
 #ifdef _EVENT_HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
+#ifdef _EVENT_HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
 #ifdef _EVENT_HAVE_NETDB_H
 #include <netdb.h>
 #endif
