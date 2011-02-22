@@ -107,6 +107,10 @@ int event_reinit(struct event_base *base);
 /**
   Threadsafe event dispatching loop.
 
+  This loop will run the event base until either there are no more added
+  events, or until something calls event_base_loopbreak() or
+  evenet_base_loopexit().
+
   @param eb the event_base structure returned by event_init()
   @see event_init(), event_dispatch()
  */
@@ -322,7 +326,7 @@ void event_set_fatal_callback(event_fatal_cb cb);
 int event_base_set(struct event_base *, struct event *);
 
 /**
- event_loop() flags
+ event_base_loop() flags
  */
 /*@{*/
 /** Block until we have an active event, then exit once all active events
@@ -337,6 +341,11 @@ int event_base_set(struct event_base *, struct event *);
   Handle events (threadsafe version).
 
   This is a more flexible version of event_base_dispatch().
+
+  By default, this loop will run the event base until either there are no more
+  added events, or until something calls event_base_loopbreak() or
+  evenet_base_loopexit().  You can override this behavior with the 'flags'
+  argument.
 
   @param eb the event_base structure returned by event_init()
   @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK
