@@ -154,7 +154,10 @@ struct evconnlistener *evhttp_bound_socket_get_listener(struct evhttp_bound_sock
  * This may be useful when a socket has been sent via file descriptor passing
  * and is no longer needed by the current process.
  *
- * This function does not close the socket.
+ * If you created this bound socket with evhttp_bind_socket_with_handle or
+ * evhttp_accept_socket_with_handle, this function closes the fd you provided.
+ * If you created this bound socket with evhttp_bind_listener, this function
+ * frees the listener you provided.
  *
  * \a bound_socket is an invalid pointer after this call returns.
  *

@@ -949,7 +949,9 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		evbuffer_remove_buffer(buf, req->input_buffer, n);
 	}
 
-	if (req->body_size > req->evcon->max_body_size) {
+	if (req->body_size > req->evcon->max_body_size ||
+	    (!req->chunked && req->ntoread >= 0 &&
+		(size_t)req->ntoread > req->evcon->max_body_size)) {
 		/* failed body length test */
 		event_debug(("Request body is too long"));
 		evhttp_connection_fail(evcon,

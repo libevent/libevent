@@ -75,7 +75,7 @@ What's New In Libevent 2.0 so far:
   evutil.h) will continue to work by including the corresponding new
   headers.  Old code should not be broken by this change.
 
-2.2. New thread-safe, binary-compatibile, harder-to-mess-up APIs
+2.2. New thread-safe, binary-compatible, harder-to-mess-up APIs
 
   Some aspects of the historical Libevent API have encouraged
   non-threadsafe code, or forced code built against one version of Libevent
