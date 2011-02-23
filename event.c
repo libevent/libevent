@@ -2418,6 +2418,18 @@ timeout_process(struct event_base *base)
 	}
 }
 
+#if (EVLIST_INTERNAL >> 4) != 1
+#error "Mismatch for value of EVLIST_INTERNAL"
+#endif
+/* These are a fancy way to spell
+     if (~ev->ev_flags & EVLIST_INTERNAL)
+         base->event_count--/++;
+*/
+#define DECR_EVENT_COUNT(base,ev) \
+	((base)->event_count -= (~((ev)->ev_flags >> 4) & 1))
+#define INCR_EVENT_COUNT(base, ev) \
+	((base)->event_count += (~((ev)->ev_flags >> 4) & 1))
+
 static void
 event_queue_remove_inserted(struct event_base *base, struct event *ev)
 {
@@ -2427,8 +2439,7 @@ event_queue_remove_inserted(struct event_base *base, struct event *ev)
 			   ev, ev->ev_fd, EVLIST_INSERTED);
 		return;
 	}
-	if (~ev->ev_flags & EVLIST_INTERNAL)
-		base->event_count--;
+	DECR_EVENT_COUNT(base, ev);
 	ev->ev_flags &= ~EVLIST_INSERTED;
 	TAILQ_REMOVE(&base->eventqueue, ev, ev_next);
 }
@@ -2441,8 +2452,7 @@ event_queue_remove_active(struct event_base *base, struct event *ev)
 			   ev, ev->ev_fd, EVLIST_ACTIVE);
 		return;
 	}
-	if (~ev->ev_flags & EVLIST_INTERNAL)
-		base->event_count--;
+	DECR_EVENT_COUNT(base, ev);
 	ev->ev_flags &= ~EVLIST_ACTIVE;
 	base->event_count_active--;
 	TAILQ_REMOVE(&base->activequeues[ev->ev_pri],
@@ -2457,8 +2467,7 @@ event_queue_remove_timeout(struct event_base *base, struct event *ev)
 			   ev, ev->ev_fd, EVLIST_TIMEOUT);
 		return;
 	}
-	if (~ev->ev_flags & EVLIST_INTERNAL)
-		base->event_count--;
+	DECR_EVENT_COUNT(base, ev);
 	ev->ev_flags &= ~EVLIST_TIMEOUT;
 
 	if (is_common_timeout(&ev->ev_timeout, base)) {
@@ -2513,8 +2522,7 @@ event_queue_insert_inserted(struct event_base *base, struct event *ev)
 		return;
 	}
 
-	if (~ev->ev_flags & EVLIST_INTERNAL)
-		base->event_count++;
+	INCR_EVENT_COUNT(base, ev);
 
 	ev->ev_flags |= EVLIST_INSERTED;
 
@@ -2531,8 +2539,7 @@ event_queue_insert_active(struct event_base *base, struct event *ev)
 		return;
 	}
 
-	if (~ev->ev_flags & EVLIST_INTERNAL)
-		base->event_count++;
+	INCR_EVENT_COUNT(base, ev);
 
 	ev->ev_flags |= EVLIST_ACTIVE;
 
@@ -2552,8 +2559,7 @@ event_queue_insert_timeout(struct event_base *base, struct event *ev)
 		return;
 	}
 
-	if (~ev->ev_flags & EVLIST_INTERNAL)
-		base->event_count++;
+	INCR_EVENT_COUNT(base, ev);
 
 	ev->ev_flags |= EVLIST_TIMEOUT;
 
