@@ -51,7 +51,7 @@ regress_SOURCES += regress_iocp.c
 endif
 
 regress_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
-regress_CFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat \
+regress_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat \
 	-I$(top_srcdir)/include -I../include $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
 regress_LDFLAGS = $(PTHREAD_CFLAGS)
 
