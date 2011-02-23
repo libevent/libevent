@@ -131,8 +131,12 @@ static inline int event_add_internal(struct event *ev,
     const struct timeval *tv, int tv_is_absolute);
 static inline int event_del_internal(struct event *ev);
 
-static void	event_queue_insert(struct event_base *, struct event *, int);
-static void	event_queue_remove(struct event_base *, struct event *, int);
+static void	event_queue_insert_active(struct event_base *, struct event *);
+static void	event_queue_insert_timeout(struct event_base *, struct event *);
+static void	event_queue_insert_inserted(struct event_base *, struct event *);
+static void	event_queue_remove_active(struct event_base *, struct event *);
+static void	event_queue_remove_timeout(struct event_base *, struct event *);
+static void	event_queue_remove_inserted(struct event_base *, struct event *);
 static int	event_haveevents(struct event_base *);
 
 static int	event_process_active(struct event_base *);
@@ -781,22 +785,18 @@ event_reinit(struct event_base *base)
 	if (base->sig.ev_signal_added) {
 		/* we cannot call event_del here because the base has
 		 * not been reinitialized yet. */
-		event_queue_remove(base, &base->sig.ev_signal,
-		    EVLIST_INSERTED);
+		event_queue_remove_inserted(base, &base->sig.ev_signal);
 		if (base->sig.ev_signal.ev_flags & EVLIST_ACTIVE)
-			event_queue_remove(base, &base->sig.ev_signal,
-			    EVLIST_ACTIVE);
+			event_queue_remove_active(base, &base->sig.ev_signal);
 		base->sig.ev_signal_added = 0;
 	}
 	if (base->th_notify_fd[0] != -1) {
 		/* we cannot call event_del here because the base has
 		 * not been reinitialized yet. */
 		was_notifiable = 1;
-		event_queue_remove(base, &base->th_notify,
-		    EVLIST_INSERTED);
+		event_queue_remove_inserted(base, &base->th_notify);
 		if (base->th_notify.ev_flags & EVLIST_ACTIVE)
-			event_queue_remove(base, &base->th_notify,
-			    EVLIST_ACTIVE);
+			event_queue_remove_active(base, &base->th_notify);
 		base->sig.ev_signal_added = 0;
 		EVUTIL_CLOSESOCKET(base->th_notify_fd[0]);
 		if (base->th_notify_fd[1] != -1)
@@ -1257,7 +1257,7 @@ event_process_active_single_queue(struct event_base *base,
 
 	for (ev = TAILQ_FIRST(activeq); ev; ev = TAILQ_FIRST(activeq)) {
 		if (ev->ev_events & EV_PERSIST)
-			event_queue_remove(base, ev, EVLIST_ACTIVE);
+			event_queue_remove_active(base, ev);
 		else
 			event_del_internal(ev);
 		if (!(ev->ev_flags & EVLIST_INTERNAL))
@@ -1997,7 +1997,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		else if (ev->ev_events & EV_SIGNAL)
 			res = evmap_signal_add(base, (int)ev->ev_fd, ev);
 		if (res != -1)
-			event_queue_insert(base, ev, EVLIST_INSERTED);
+			event_queue_insert_inserted(base, ev);
 		if (res == 1) {
 			/* evmap says we need to notify the main thread. */
 			notify = 1;
@@ -2030,7 +2030,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 			/* XXX I believe this is needless. */
 			if (min_heap_elt_is_top(ev))
 				notify = 1;
-			event_queue_remove(base, ev, EVLIST_TIMEOUT);
+			event_queue_remove_timeout(base, ev);
 		}
 
 		/* Check if it is active due to a timeout.  Rescheduling
@@ -2048,7 +2048,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 				}
 			}
 
-			event_queue_remove(base, ev, EVLIST_ACTIVE);
+			event_queue_remove_active(base, ev);
 		}
 
 		gettime(base, &now);
@@ -2070,7 +2070,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 			 "event_add: timeout in %d seconds, call %p",
 			 (int)tv->tv_sec, ev->ev_callback));
 
-		event_queue_insert(base, ev, EVLIST_TIMEOUT);
+		event_queue_insert_timeout(base, ev);
 		if (common_timeout) {
 			struct common_timeout_list *ctl =
 			    get_common_timeout_list(base, &ev->ev_timeout);
@@ -2162,14 +2162,14 @@ event_del_internal(struct event *ev)
 		 * dispatch loop early anyway, so we wouldn't gain anything by
 		 * doing it.
 		 */
-		event_queue_remove(base, ev, EVLIST_TIMEOUT);
+		event_queue_remove_timeout(base, ev);
 	}
 
 	if (ev->ev_flags & EVLIST_ACTIVE)
-		event_queue_remove(base, ev, EVLIST_ACTIVE);
+		event_queue_remove_active(base, ev);
 
 	if (ev->ev_flags & EVLIST_INSERTED) {
-		event_queue_remove(base, ev, EVLIST_INSERTED);
+		event_queue_remove_inserted(base, ev);
 		if (ev->ev_events & (EV_READ|EV_WRITE))
 			res = evmap_io_del(base, ev->ev_fd, ev);
 		else
@@ -2240,7 +2240,7 @@ event_active_nolock(struct event *ev, int res, short ncalls)
 		ev->ev_pncalls = NULL;
 	}
 
-	event_queue_insert(base, ev, EVLIST_ACTIVE);
+	event_queue_insert_active(base, ev);
 
 	if (EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
@@ -2418,43 +2418,56 @@ timeout_process(struct event_base *base)
 	}
 }
 
-/* Remove 'ev' from 'queue' (EVLIST_...) in base. */
 static void
-event_queue_remove(struct event_base *base, struct event *ev, int queue)
+event_queue_remove_inserted(struct event_base *base, struct event *ev)
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
-
-	if (!(ev->ev_flags & queue)) {
+	if (EVUTIL_FAILURE_CHECK(!(ev->ev_flags & EVLIST_INSERTED))) {
 		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
-			   ev, ev->ev_fd, queue);
+			   ev, ev->ev_fd, EVLIST_INSERTED);
 		return;
 	}
-
 	if (~ev->ev_flags & EVLIST_INTERNAL)
 		base->event_count--;
+	ev->ev_flags &= ~EVLIST_INSERTED;
+	TAILQ_REMOVE(&base->eventqueue, ev, ev_next);
+}
+static void
+event_queue_remove_active(struct event_base *base, struct event *ev)
+{
+	EVENT_BASE_ASSERT_LOCKED(base);
+	if (EVUTIL_FAILURE_CHECK(!(ev->ev_flags & EVLIST_ACTIVE))) {
+		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
+			   ev, ev->ev_fd, EVLIST_ACTIVE);
+		return;
+	}
+	if (~ev->ev_flags & EVLIST_INTERNAL)
+		base->event_count--;
+	ev->ev_flags &= ~EVLIST_ACTIVE;
+	base->event_count_active--;
+	TAILQ_REMOVE(&base->activequeues[ev->ev_pri],
+	    ev, ev_active_next);
+}
+static void
+event_queue_remove_timeout(struct event_base *base, struct event *ev)
+{
+	EVENT_BASE_ASSERT_LOCKED(base);
+	if (EVUTIL_FAILURE_CHECK(!(ev->ev_flags & EVLIST_TIMEOUT))) {
+		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
+			   ev, ev->ev_fd, EVLIST_TIMEOUT);
+		return;
+	}
+	if (~ev->ev_flags & EVLIST_INTERNAL)
+		base->event_count--;
+	ev->ev_flags &= ~EVLIST_TIMEOUT;
 
-	ev->ev_flags &= ~queue;
-	switch (queue) {
-	case EVLIST_INSERTED:
-		TAILQ_REMOVE(&base->eventqueue, ev, ev_next);
-		break;
-	case EVLIST_ACTIVE:
-		base->event_count_active--;
-		TAILQ_REMOVE(&base->activequeues[ev->ev_pri],
-		    ev, ev_active_next);
-		break;
-	case EVLIST_TIMEOUT:
-		if (is_common_timeout(&ev->ev_timeout, base)) {
-			struct common_timeout_list *ctl =
-			    get_common_timeout_list(base, &ev->ev_timeout);
-			TAILQ_REMOVE(&ctl->events, ev,
-			    ev_timeout_pos.ev_next_with_common_timeout);
-		} else {
-			min_heap_erase(&base->timeheap, ev);
-		}
-		break;
-	default:
-		event_errx(1, "%s: unknown queue %x", __func__, queue);
+	if (is_common_timeout(&ev->ev_timeout, base)) {
+		struct common_timeout_list *ctl =
+		    get_common_timeout_list(base, &ev->ev_timeout);
+		TAILQ_REMOVE(&ctl->events, ev,
+		    ev_timeout_pos.ev_next_with_common_timeout);
+	} else {
+		min_heap_erase(&base->timeheap, ev);
 	}
 }
 
@@ -2490,44 +2503,66 @@ insert_common_timeout_inorder(struct common_timeout_list *ctl,
 }
 
 static void
-event_queue_insert(struct event_base *base, struct event *ev, int queue)
+event_queue_insert_inserted(struct event_base *base, struct event *ev)
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
 
-	if (ev->ev_flags & queue) {
-		/* Double insertion is possible for active events */
-		if (queue & EVLIST_ACTIVE)
-			return;
-
-		event_errx(1, "%s: %p(fd %d) already on queue %x", __func__,
-			   ev, ev->ev_fd, queue);
+	if (EVUTIL_FAILURE_CHECK(ev->ev_flags & EVLIST_INSERTED)) {
+		event_errx(1, "%s: %p(fd %d) already inserted", __func__,
+			   ev, ev->ev_fd);
 		return;
 	}
 
 	if (~ev->ev_flags & EVLIST_INTERNAL)
 		base->event_count++;
 
-	ev->ev_flags |= queue;
-	switch (queue) {
-	case EVLIST_INSERTED:
-		TAILQ_INSERT_TAIL(&base->eventqueue, ev, ev_next);
-		break;
-	case EVLIST_ACTIVE:
-		base->event_count_active++;
-		TAILQ_INSERT_TAIL(&base->activequeues[ev->ev_pri],
-		    ev,ev_active_next);
-		break;
-	case EVLIST_TIMEOUT: {
-		if (is_common_timeout(&ev->ev_timeout, base)) {
-			struct common_timeout_list *ctl =
-			    get_common_timeout_list(base, &ev->ev_timeout);
-			insert_common_timeout_inorder(ctl, ev);
-		} else
-			min_heap_push(&base->timeheap, ev);
-		break;
+	ev->ev_flags |= EVLIST_INSERTED;
+
+	TAILQ_INSERT_TAIL(&base->eventqueue, ev, ev_next);
+}
+
+static void
+event_queue_insert_active(struct event_base *base, struct event *ev)
+{
+	EVENT_BASE_ASSERT_LOCKED(base);
+
+	if (ev->ev_flags & EVLIST_ACTIVE) {
+		/* Double insertion is possible for active events */
+		return;
 	}
-	default:
-		event_errx(1, "%s: unknown queue %x", __func__, queue);
+
+	if (~ev->ev_flags & EVLIST_INTERNAL)
+		base->event_count++;
+
+	ev->ev_flags |= EVLIST_ACTIVE;
+
+	base->event_count_active++;
+	TAILQ_INSERT_TAIL(&base->activequeues[ev->ev_pri],
+	    ev,ev_active_next);
+}
+
+static void
+event_queue_insert_timeout(struct event_base *base, struct event *ev)
+{
+	EVENT_BASE_ASSERT_LOCKED(base);
+
+	if (EVUTIL_FAILURE_CHECK(ev->ev_flags & EVLIST_TIMEOUT)) {
+		event_errx(1, "%s: %p(fd %d) already on timeout", __func__,
+			   ev, ev->ev_fd);
+		return;
+	}
+
+	if (~ev->ev_flags & EVLIST_INTERNAL)
+		base->event_count++;
+
+	ev->ev_flags |= EVLIST_TIMEOUT;
+
+	if (is_common_timeout(&ev->ev_timeout, base)) {
+		struct common_timeout_list *ctl =
+		    get_common_timeout_list(base, &ev->ev_timeout);
+		insert_common_timeout_inorder(ctl, ev);
+	} else {
+		min_heap_push(&base->timeheap, ev);
 	}
 }
 
