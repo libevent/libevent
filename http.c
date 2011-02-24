@@ -1156,7 +1156,7 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 {
 	struct evbuffer *tmp;
 
-	bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
+	bufferevent_disable_hard(evcon->bufev, EV_READ|EV_WRITE);
 
 	if (evcon->fd != -1) {
 		/* inform interested parties about connection close */

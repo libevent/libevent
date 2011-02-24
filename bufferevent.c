@@ -474,6 +474,24 @@ bufferevent_settimeout(struct bufferevent *bufev,
 
 
 int
+bufferevent_disable_hard(struct bufferevent *bufev, short event)
+{
+	int r = 0;
+	struct bufferevent_private *bufev_private =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+
+	BEV_LOCK(bufev);
+	bufev->enabled &= ~event;
+
+	bufev_private->connecting = 0;
+	if (bufev->be_ops->disable(bufev, event) < 0)
+		r = -1;
+
+	BEV_UNLOCK(bufev);
+	return r;
+}
+
+int
 bufferevent_disable(struct bufferevent *bufev, short event)
 {
 	int r = 0;
