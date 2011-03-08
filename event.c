@@ -331,6 +331,10 @@ detect_monotonic(void)
 #endif
 }
 
+/* How often (in seconds) do we check for changes in wall clock time relative
+ * to monotonic time?  Set this to -1 for 'never.' */
+#define CLOCK_SYNC_INTERVAL -1
+
 /** Set 'tp' to the current time according to 'base'.  We must hold the lock
  * on 'base'.  If there is a cached time, return it.  Otherwise, use
  * clock_gettime or gettimeofday as appropriate to find out the right time.
@@ -355,6 +359,14 @@ gettime(struct event_base *base, struct timeval *tp)
 
 		tp->tv_sec = ts.tv_sec;
 		tp->tv_usec = ts.tv_nsec / 1000;
+		if (base->last_updated_clock_diff + CLOCK_SYNC_INTERVAL
+		    < ts.tv_sec) {
+			struct timeval tv;
+			evutil_gettimeofday(&tv,NULL);
+			evutil_timersub(&tv, tp, &base->tv_clock_diff);
+			base->last_updated_clock_diff = ts.tv_sec;
+		}
+
 		return (0);
 	}
 #endif
@@ -373,7 +385,16 @@ event_base_gettimeofday_cached(struct event_base *base, struct timeval *tv)
 	}
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-	r = gettime(base, tv);
+	if (base->tv_cache.tv_sec == 0) {
+		r = evutil_gettimeofday(tv, NULL);
+	} else {
+#if defined(_EVENT_HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+		evutil_timeradd(&base->tv_cache, &base->tv_clock_diff, tv);
+#else
+		*tv = base->tv_cache;
+#endif
+		r = 0;
+	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	return r;
 }
@@ -1779,7 +1800,6 @@ event_priority_set(struct event *ev, int pri)
 int
 event_pending(const struct event *ev, short event, struct timeval *tv)
 {
-	struct timeval	now, res;
 	int flags = 0;
 
 	_event_debug_assert_is_setup(ev);
@@ -1796,12 +1816,13 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 	/* See if there is a timeout that we should report */
 	if (tv != NULL && (flags & event & EV_TIMEOUT)) {
 		struct timeval tmp = ev->ev_timeout;
-		event_base_gettimeofday_cached(ev->ev_base, &now);
 		tmp.tv_usec &= MICROSECONDS_MASK;
-		evutil_timersub(&tmp, &now, &res);
-		/* correctly remap to real time */
-		evutil_gettimeofday(&now, NULL);
-		evutil_timeradd(&now, &res, tv);
+#if defined(_EVENT_HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+		/* correctly remamp to real time */
+		evutil_timeradd(&ev->ev_base->tv_clock_diff, &tmp, tv);
+#else
+		*tv = tmp;
+#endif
 	}
 
 	return (flags & event);
