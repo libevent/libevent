@@ -101,6 +101,7 @@
 #include "util-internal.h"
 #include "http-internal.h"
 #include "mm-internal.h"
+#include "bufferevent-internal.h"
 
 #ifndef _EVENT_HAVE_GETNAMEINFO
 #define NI_MAXSERV 32
@@ -1157,7 +1158,18 @@ evhttp_connection_reset(struct evhttp_connection *evcon)
 {
 	struct evbuffer *tmp;
 
-	bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
+	/* XXXX This is not actually an optimal fix.  Instead we ought to have
+	   an API for "stop connecting", or use bufferevent_setfd to turn off
+	   connecting.  But for Libevent 2.0, this seems like a minimal change
+	   least likely to disrupt the rest of the bufferevent and http code.
+
+	   Why is this here?  If the fd is set in the bufferevent, and the
+	   bufferevent is connecting, then you can't actually stop the
+	   bufferevent from trying to connect with bufferevent_disable().  The
+	   connect will never trigger, since we close the fd, but the timeout
+	   might.  That caused an assertion failure in evhttp_connection_fail.
+	*/
+	bufferevent_disable_hard(evcon->bufev, EV_READ|EV_WRITE);
 
 	if (evcon->fd != -1) {
 		/* inform interested parties about connection close */
