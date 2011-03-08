@@ -374,19 +374,6 @@ int bufferevent_enable(struct bufferevent *bufev, short event);
  */
 int bufferevent_disable(struct bufferevent *bufev, short event);
 
-
-/**
-  Disable a bufferevent.  Equivalent to bufferevent_disable(), but
-  first resets 'connecting' flag to force EV_WRITE down for sure.
-
-  @param bufev the bufferevent to be disabled
-  @param event any combination of EV_READ | EV_WRITE.
-  @return 0 if successful, or -1 if an error occurred
-  @see bufferevent_disable()
- */
-int bufferevent_disable_hard(struct bufferevent *bufev, short event);
-
-
 /**
    Return the events that are enabled on a given bufferevent.
 

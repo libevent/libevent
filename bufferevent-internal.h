@@ -36,6 +36,7 @@ extern "C" {
 #include "evthread-internal.h"
 #include "event2/thread.h"
 #include "ratelim-internal.h"
+#include "event2/bufferevent_struct.h"
 
 /* These flags are reasons that we might be declining to actually enable
    reading or writing on a bufferevent.
@@ -286,6 +287,20 @@ void bufferevent_unsuspend_write(struct bufferevent *bufev, bufferevent_suspend_
 	bufferevent_suspend_read((b), BEV_SUSPEND_WM)
 #define bufferevent_wm_unsuspend_read(b) \
 	bufferevent_unsuspend_read((b), BEV_SUSPEND_WM)
+
+/*
+  Disable a bufferevent.  Equivalent to bufferevent_disable(), but
+  first resets 'connecting' flag to force EV_WRITE down for sure.
+
+  XXXX this method will go away in the future; try not to add new users.
+    See comment in evhttp_connection_reset() for discussion.
+
+  @param bufev the bufferevent to be disabled
+  @param event any combination of EV_READ | EV_WRITE.
+  @return 0 if successful, or -1 if an error occurred
+  @see bufferevent_disable()
+ */
+int bufferevent_disable_hard(struct bufferevent *bufev, short event);
 
 /** Internal: Set up locking on a bufferevent.  If lock is set, use it.
  * Otherwise, use a new lock. */
