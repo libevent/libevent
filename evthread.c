@@ -109,7 +109,10 @@ evthread_set_condition_callbacks(const struct evthread_condition_callbacks *cbs)
 	return 0;
 }
 
+#define DEBUG_LOCK_SIG	0xdeb0b10c
+
 struct debug_lock {
+	unsigned signature;
 	unsigned locktype;
 	unsigned long held_by;
 	/* XXXX if we ever use read-write locks, we will need a separate
@@ -133,6 +136,7 @@ debug_lock_alloc(unsigned locktype)
 	} else {
 		result->lock = NULL;
 	}
+	result->signature = DEBUG_LOCK_SIG;
 	result->locktype = locktype;
 	result->count = 0;
 	result->held_by = 0;
@@ -145,6 +149,7 @@ debug_lock_free(void *lock_, unsigned locktype)
 	struct debug_lock *lock = lock_;
 	EVUTIL_ASSERT(lock->count == 0);
 	EVUTIL_ASSERT(locktype == lock->locktype);
+	EVUTIL_ASSERT(DEBUG_LOCK_SIG == lock->signature);
 	if (_original_lock_fns.free) {
 		_original_lock_fns.free(lock->lock,
 		    lock->locktype|EVTHREAD_LOCKTYPE_RECURSIVE);
@@ -157,6 +162,7 @@ debug_lock_free(void *lock_, unsigned locktype)
 static void
 evthread_debug_lock_mark_locked(unsigned mode, struct debug_lock *lock)
 {
+	EVUTIL_ASSERT(DEBUG_LOCK_SIG == lock->signature);
 	++lock->count;
 	if (!(lock->locktype & EVTHREAD_LOCKTYPE_RECURSIVE))
 		EVUTIL_ASSERT(lock->count == 1);
@@ -189,12 +195,15 @@ debug_lock_lock(unsigned mode, void *lock_)
 static void
 evthread_debug_lock_mark_unlocked(unsigned mode, struct debug_lock *lock)
 {
+	EVUTIL_ASSERT(DEBUG_LOCK_SIG == lock->signature);
 	if (lock->locktype & EVTHREAD_LOCKTYPE_READWRITE)
 		EVUTIL_ASSERT(mode & (EVTHREAD_READ|EVTHREAD_WRITE));
 	else
 		EVUTIL_ASSERT((mode & (EVTHREAD_READ|EVTHREAD_WRITE)) == 0);
 	if (_evthread_id_fn) {
-		EVUTIL_ASSERT(lock->held_by == _evthread_id_fn());
+		unsigned long me;
+		me = _evthread_id_fn();
+		EVUTIL_ASSERT(lock->held_by == me);
 		if (lock->count == 1)
 			lock->held_by = 0;
 	}
@@ -218,6 +227,7 @@ debug_cond_wait(void *_cond, void *_lock, const struct timeval *tv)
 {
 	int r;
 	struct debug_lock *lock = _lock;
+	EVUTIL_ASSERT(DEBUG_LOCK_SIG == lock->signature);
 	EVLOCK_ASSERT_LOCKED(_lock);
 	evthread_debug_lock_mark_unlocked(0, lock);
 	r = _original_cond_fns.wait_condition(_cond, lock->lock, tv);
