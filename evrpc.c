@@ -99,7 +99,7 @@ evrpc_free(struct evrpc_base *base)
 
 	while ((rpc = TAILQ_FIRST(&base->registered_rpcs)) != NULL) {
 		r = evrpc_unregister_rpc(base, rpc->uri);
-		EVUTIL_ASSERT(r);
+		EVUTIL_ASSERT(r == 0);
 	}
 	while ((pause = TAILQ_FIRST(&base->paused_requests)) != NULL) {
 		TAILQ_REMOVE(&base->paused_requests, pause, next);
@@ -264,9 +264,6 @@ evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
 	}
 	TAILQ_REMOVE(&base->registered_rpcs, rpc, next);
 
-	mm_free((char *)rpc->uri);
-	mm_free(rpc);
-
 	registered_uri = evrpc_construct_uri(name);
 
 	/* remove the http server callback */
@@ -274,6 +271,9 @@ evrpc_unregister_rpc(struct evrpc_base *base, const char *name)
 	EVUTIL_ASSERT(r == 0);
 
 	mm_free(registered_uri);
+
+	mm_free((char *)rpc->uri);
+	mm_free(rpc);
 	return (0);
 }
 
