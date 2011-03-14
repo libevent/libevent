@@ -1777,7 +1777,8 @@ evhttp_parse_headers(struct evhttp_request *req, struct evbuffer* buffer)
 	}
 
 	if (status == MORE_DATA_EXPECTED) {
-		if (req->headers_size + evbuffer_get_length(buffer) > req->evcon->max_headers_size)
+		if (req->evcon != NULL &&
+		req->headers_size + evbuffer_get_length(buffer) > req->evcon->max_headers_size)
 			return (DATA_TOO_LONG);
 	}
 
