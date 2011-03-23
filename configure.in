@@ -673,26 +673,67 @@ LIBEVENT_GC_SECTIONS=
 if test "$GCC" = yes && test "$enable_function_sections" = yes ; then
     AC_CACHE_CHECK(
 	[if linker supports omitting unused code and data],
-	[libevent_cv_gc_sections_works],
+	[libevent_cv_gc_sections_runs],
 	[
+	    dnl  NetBSD will link but likely not run with --gc-sections
+	    dnl  http://bugs.ntp.org/1844
+	    dnl  http://gnats.netbsd.org/40401
+	    dnl  --gc-sections causes attempt to load as linux elf, with
+	    dnl  wrong syscalls in place.  Test a little gauntlet of
+	    dnl  simple stdio read code checking for errors, expecting
+	    dnl  enough syscall differences that the NetBSD code will
+	    dnl  fail even with Linux emulation working as designed.
+	    dnl  A shorter test could be refined by someone with access
+	    dnl  to a NetBSD host with Linux emulation working.
 	    origCFLAGS="$CFLAGS"
 	    CFLAGS="$CFLAGS -Wl,--gc-sections"
 	    AC_LINK_IFELSE(
-		[AC_LANG_PROGRAM([[]], [[]])],
+		[AC_LANG_PROGRAM(
+		    [[
+			#include <stdlib.h>
+			#include <stdio.h>
+		    ]],
+		    [[
+			FILE *	fpC;
+			char	buf[32];
+			size_t	cch;
+			int	read_success_once;
+
+			fpC = fopen("conftest.c", "r");
+			if (NULL == fpC)
+				exit(1);
+			do {
+				cch = fread(buf, sizeof(buf), 1, fpC);
+				read_success_once |= (0 != cch);
+			} while (0 != cch);
+			if (!read_success_once)
+				exit(2);
+			if (!feof(fpC))
+				exit(3);
+			if (0 != fclose(fpC))
+				exit(4);
+
+			exit(EXIT_SUCCESS);
+		    ]]
+		)],
 		[
-		    if grep gc-sections conftest.err ; then
-			libevent_cv_gc_sections_works=no
+                    dnl We have to do this invocation manually so that we can
+                    dnl get the output of conftest.err to make sure it doesn't
+                    dnl mention gc-sections.
+		    if test "X$cross_compiling" = "Xyes" || grep gc-sections conftest.err ; then
+			libevent_cv_gc_sections_runs=no
 		    else
-			libevent_cv_gc_sections_works=yes
+			libevent_cv_gc_sections_runs=no
+			./conftest >/dev/null 2>&1 && libevent_cv_gc_sections_runs=yes
 		    fi
 		],
-		[libevent_cv_gc_sections_works=no]
+		[libevent_cv_gc_sections_runs=no]
 	    )
 	    CFLAGS="$origCFLAGS"
 	    AS_UNSET([origCFLAGS])
 	]
     )
-    case "$libevent_cv_gc_sections_works" in
+    case "$libevent_cv_gc_sections_runs" in
      yes)
 	CFLAGS="-ffunction-sections -fdata-sections $CFLAGS"
 	LIBEVENT_GC_SECTIONS="-Wl,--gc-sections"

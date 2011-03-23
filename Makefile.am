@@ -206,7 +206,7 @@ noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
 	WIN32-Code/tree.h \
 	compat/sys/queue.h
 
-EVENT1_HDRs = event.h evhttp.h evdns.h evrpc.h evutil.h
+EVENT1_HDRS = event.h evhttp.h evdns.h evrpc.h evutil.h
 
 if INSTALL_LIBEVENT
 include_HEADERS = $(EVENT1_HDRS)
