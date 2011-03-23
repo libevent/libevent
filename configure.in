@@ -706,6 +706,9 @@ if test "$GCC" = yes && test "$enable_function_sections" = yes ; then
 		    ]]
 		)],
 		[
+                    dnl We have to do this invocation manually so that we can
+                    dnl get the output of conftest.err to make sure it doesn't
+                    dnl mention gc-sections.
 		    if test "X$cross_compiling" = "Xyes" || grep gc-sections conftest.err ; then
 			libevent_cv_gc_sections_runs=no
 		    else
