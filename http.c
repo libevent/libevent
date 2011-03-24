@@ -1230,6 +1230,8 @@ evhttp_connection_retry(evutil_socket_t fd, short what, void *arg)
 static void
 evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 {
+	struct evcon_requestq requests;
+
 	if (evcon->retry_max < 0 || evcon->retry_cnt < evcon->retry_max) {
 		evtimer_assign(&evcon->retry_ev, evcon->base, evhttp_connection_retry, evcon);
 		/* XXXX handle failure from evhttp_add_event */
@@ -1241,10 +1243,23 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 	}
 	evhttp_connection_reset(evcon);
 
-	/* for now, we just signal all requests by executing their callbacks */
+	/*
+	 * User callback can do evhttp_make_request() on the same
+	 * evcon so new request will be added to evcon->requests.  To
+	 * avoid freeing it prematurely we iterate over the copy of
+	 * the queue.
+	 */
+	TAILQ_INIT(&requests);
 	while (TAILQ_FIRST(&evcon->requests) != NULL) {
 		struct evhttp_request *request = TAILQ_FIRST(&evcon->requests);
 		TAILQ_REMOVE(&evcon->requests, request, next);
+		TAILQ_INSERT_TAIL(&requests, request, next);
+	}
+
+	/* for now, we just signal all requests by executing their callbacks */
+	while (TAILQ_FIRST(&requests) != NULL) {
+		struct evhttp_request *request = TAILQ_FIRST(&requests);
+		TAILQ_REMOVE(&requests, request, next);
 		request->evcon = NULL;
 
 		/* we might want to set an error here */
