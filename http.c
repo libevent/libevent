@@ -1022,9 +1022,22 @@ evhttp_read_cb(struct bufferevent *bufev, void *arg)
 	case EVCON_READING_TRAILER:
 		evhttp_read_trailer(evcon, req);
 		break;
+	case EVCON_IDLE:
+		{
+			struct evbuffer *input;
+			size_t total_len;
+
+			input = bufferevent_get_input(evcon->bufev);
+			total_len = evbuffer_get_length(input);
+			event_debug(("%s: read %d bytes in EVCON_IDLE state,"
+                                    " resetting connection",
+					__func__, (int)total_len));
+
+			evhttp_connection_reset(evcon);
+		}
+		break;
 	case EVCON_DISCONNECTED:
 	case EVCON_CONNECTING:
-	case EVCON_IDLE:
 	case EVCON_WRITING:
 	default:
 		event_errx(1, "%s: illegal connection state %d",
@@ -1218,6 +1231,8 @@ evhttp_connection_retry(evutil_socket_t fd, short what, void *arg)
 static void
 evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 {
+	struct evcon_requestq requests;
+
 	if (evcon->retry_max < 0 || evcon->retry_cnt < evcon->retry_max) {
 		evtimer_assign(&evcon->retry_ev, evcon->base, evhttp_connection_retry, evcon);
 		/* XXXX handle failure from evhttp_add_event */
@@ -1229,10 +1244,23 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 	}
 	evhttp_connection_reset(evcon);
 
-	/* for now, we just signal all requests by executing their callbacks */
+	/*
+	 * User callback can do evhttp_make_request() on the same
+	 * evcon so new request will be added to evcon->requests.  To
+	 * avoid freeing it prematurely we iterate over the copy of
+	 * the queue.
+	 */
+	TAILQ_INIT(&requests);
 	while (TAILQ_FIRST(&evcon->requests) != NULL) {
 		struct evhttp_request *request = TAILQ_FIRST(&evcon->requests);
 		TAILQ_REMOVE(&evcon->requests, request, next);
+		TAILQ_INSERT_TAIL(&requests, request, next);
+	}
+
+	/* for now, we just signal all requests by executing their callbacks */
+	while (TAILQ_FIRST(&requests) != NULL) {
+		struct evhttp_request *request = TAILQ_FIRST(&requests);
+		TAILQ_REMOVE(&requests, request, next);
 		request->evcon = NULL;
 
 		/* we might want to set an error here */
@@ -2176,11 +2204,20 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	req->evcon = evcon;
 	EVUTIL_ASSERT(!(req->flags & EVHTTP_REQ_OWN_CONNECTION));
 
-	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
-
 	/* If the connection object is not connected; make it so */
-	if (!evhttp_connected(evcon))
-		return (evhttp_connection_connect(evcon));
+	if (!evhttp_connected(evcon)) {
+		int res = evhttp_connection_connect(evcon);
+		/*
+		 * Enqueue the request only if we aren't going to
+		 * return failure from evhttp_make_request().
+		 */
+		if (res == 0)
+			TAILQ_INSERT_TAIL(&evcon->requests, req, next);
+
+		return res;
+	}
+
+	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
 	/*
 	 * If it's connected already and we are the first in the queue,
