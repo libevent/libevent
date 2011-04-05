@@ -525,6 +525,15 @@ evutil_socket_finished_connecting(evutil_socket_t fd)
    set by evutil_check_interfaces. */
 static int have_checked_interfaces, had_ipv4_address, had_ipv6_address;
 
+/* Macro: True iff the IPv4 address 'addr', in host order, is in 127.0.0.0/8
+ */
+#define EVUTIL_V4ADDR_IS_LOCALHOST(addr) (((addr)>>24) == 127)
+
+/* Macro: True iff the IPv4 address 'addr', in host order, is a class D
+ * (multiclass) address.
+ */
+#define EVUTIL_V4ADDR_IS_CLASSD(addr) ((((addr)>>24) & 0xf0) == 0xe0)
+
 /* Test whether we have an ipv4 interface and an ipv6 interface.  Return 0 if
  * the test seemed successful. */
 static int
@@ -568,8 +577,9 @@ evutil_check_interfaces(int force_recheck)
 	    getsockname(fd, (struct sockaddr*)&sin_out, &sin_out_len) == 0) {
 		/* We might have an IPv4 interface. */
 		ev_uint32_t addr = ntohl(sin_out.sin_addr.s_addr);
-		if (addr == 0 || (addr&0xff000000) == 127 ||
-		    (addr & 0xff) == 255 || (addr & 0xf0) == 14) {
+		if (addr == 0 ||
+		    EVUTIL_V4ADDR_IS_LOCALHOST(addr) ||
+		    EVUTIL_V4ADDR_IS_CLASSD(addr)) {
 			evutil_inet_ntop(AF_INET, &sin_out.sin_addr,
 			    buf, sizeof(buf));
 			/* This is a reserved, ipv4compat, ipv4map, loopback,
