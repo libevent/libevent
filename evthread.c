@@ -217,6 +217,7 @@ debug_cond_wait(void *_cond, void *_lock, const struct timeval *tv)
 {
 	int r;
 	struct debug_lock *lock = _lock;
+	EVUTIL_ASSERT(lock);
 	EVLOCK_ASSERT_LOCKED(_lock);
 	evthread_debug_lock_mark_unlocked(0, lock);
 	r = _original_cond_fns.wait_condition(_cond, lock->lock, tv);
