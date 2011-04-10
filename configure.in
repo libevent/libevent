@@ -56,6 +56,13 @@ fi
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--disable-gcc-warnings, disable verbose warnings with GCC))
 
+AC_ARG_ENABLE(gcc-hardening,
+     AS_HELP_STRING(--enable-gcc-hardening, enable compiler security checks),
+[if test x$enableval = xyes; then
+    CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
+    CFLAGS="$CFLAGS -fwrapv -fPIE -Wstack-protector"
+    CFLAGS="$CFLAGS --param ssp-buffer-size=1"
+fi])
 
 AC_ARG_ENABLE(thread-support,
      AS_HELP_STRING(--disable-thread-support, disable support for threading),
