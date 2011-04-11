@@ -451,6 +451,7 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	/* XXX use the other addrinfos? */
 	/* XXX use this return value */
 	r = bufferevent_socket_connect(bev, ai->ai_addr, (int)ai->ai_addrlen);
+	(void)r;
 	_bufferevent_decref_and_unlock(bev);
 	evutil_freeaddrinfo(ai);
 }

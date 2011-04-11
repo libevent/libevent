@@ -428,6 +428,7 @@ be_filter_readcb(struct bufferevent *underlying, void *_me)
 
 	/* XXXX use return value */
 	res = be_filter_process_input(bevf, state, &processed_any);
+	(void)res;
 
 	/* XXX This should be in process_input, not here.  There are
 	 * other places that can call process-input, and they should
