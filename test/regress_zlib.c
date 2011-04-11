@@ -276,6 +276,7 @@ test_bufferevent_zlib(void *arg)
 	tt_int_op(r, ==, Z_OK);
 	memset(&z_input, 0, sizeof(z_input));
 	r = inflateInit(&z_input);
+	tt_int_op(r, ==, Z_OK);
 
 	/* initialize filters */
 	bev1 = bufferevent_filter_new(bev1, NULL, zlib_output_filter,
