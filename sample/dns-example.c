@@ -120,6 +120,8 @@ evdns_server_callback(struct evdns_server_request *req, void *data)
 			printf(" -- replying for %s (PTR)\n", req->questions[i]->name);
 			r = evdns_server_request_add_ptr_reply(req, NULL, req->questions[i]->name,
 											"foo.bar.example.com", 10);
+			if (r<0)
+				printf("ugh, no luck");
 		} else {
 			printf(" -- skipping %s [%d %d]\n", req->questions[i]->name,
 				   req->questions[i]->type, req->questions[i]->dns_question_class);
