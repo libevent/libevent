@@ -1995,7 +1995,7 @@ server_request_free(struct server_request *req)
 		EVDNS_LOCK(req->port);
 		lock=1;
 		if (req->port->pending_replies == req) {
-			if (req->next_pending)
+			if (req->next_pending && req->next_pending != req)
 				req->port->pending_replies = req->next_pending;
 			else
 				req->port->pending_replies = NULL;
