@@ -796,6 +796,12 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 {
 	struct deferred_reply_callback *d = mm_calloc(1, sizeof(*d));
 
+	if (!d) {
+		event_warn("%s: Couldn't allocate space for deferred callback.",
+		    __func__);
+		return;
+	}
+
 	ASSERT_LOCKED(req->base);
 
 	d->request_type = req->request_type;

@@ -149,6 +149,7 @@ void evmap_io_clear(struct event_io_map *ctx)
 		next = HT_NEXT_RMV(event_io_map, ctx, ent);
 		mm_free(this);
 	}
+	HT_CLEAR(event_io_map, ctx); /* remove all storage held by the ctx. */
 }
 #endif
 
