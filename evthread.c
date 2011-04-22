@@ -76,8 +76,21 @@ evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 	    ? &_original_lock_fns : &_evthread_lock_fns;
 
 	if (!cbs) {
+		if (target->alloc)
+			event_warnx("Trying to disable lock functions after "
+			    "they have been set up will probaby not work.");
 		memset(target, 0, sizeof(_evthread_lock_fns));
 		return 0;
+	}
+	if (target->alloc) {
+		/* Uh oh; we already had locking callbacks set up.*/
+		if (!memcmp(target, cbs, sizeof(_evthread_lock_fns))) {
+			/* no change -- allow this. */
+			return 0;
+		}
+		event_warnx("Can't change lock callbacks once they have been "
+		    "initialized.");
+		return -1;
 	}
 	if (cbs->alloc && cbs->free && cbs->lock && cbs->unlock) {
 		memcpy(target, cbs, sizeof(_evthread_lock_fns));
@@ -95,8 +108,24 @@ evthread_set_condition_callbacks(const struct evthread_condition_callbacks *cbs)
 	    ? &_original_cond_fns : &_evthread_cond_fns;
 
 	if (!cbs) {
+		if (target->alloc_condition)
+			event_warnx("Trying to disable condition functions "
+			    "after they have been set up will probaby not "
+			    "work.");
 		memset(target, 0, sizeof(_evthread_cond_fns));
-	} else if (cbs->alloc_condition && cbs->free_condition &&
+		return 0;
+	}
+	if (target->alloc_condition) {
+		/* Uh oh; we already had condition callbacks set up.*/
+		if (!memcmp(target, cbs, sizeof(_evthread_cond_fns))) {
+			/* no change -- allow this. */
+			return 0;
+		}
+		event_warnx("Can't change condition callbacks once they "
+		    "have been initialized.");
+		return -1;
+	}
+	if (cbs->alloc_condition && cbs->free_condition &&
 	    cbs->signal_condition && cbs->wait_condition) {
 		memcpy(target, cbs, sizeof(_evthread_cond_fns));
 	}
