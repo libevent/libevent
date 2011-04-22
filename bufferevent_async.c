@@ -63,6 +63,11 @@
 #include "util-internal.h"
 #include "iocp-internal.h"
 
+#ifndef SO_UPDATE_CONNECT_CONTEXT
+/* Mingw is sometimes missing this */
+#define SO_UPDATE_CONNECT_CONTEXT 0x7010
+#endif
+
 /* prototypes */
 static int be_async_enable(struct bufferevent *, short);
 static int be_async_disable(struct bufferevent *, short);
@@ -403,11 +408,15 @@ connect_complete(struct event_overlapped *eo, ev_uintptr_t key,
 {
 	struct bufferevent_async *bev_a = upcast_connect(eo);
 	struct bufferevent *bev = &bev_a->bev.bev;
+	evutil_socket_t sock;
 
 	BEV_LOCK(bev);
 
 	EVUTIL_ASSERT(bev_a->bev.connecting);
 	bev_a->bev.connecting = 0;
+	sock = _evbuffer_overlapped_get_fd(bev_a->bev.bev.input);
+	/* XXXX Handle error? */
+	setsockopt(sock, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
 
 	if (ok)
 		bufferevent_async_set_connected(bev);
