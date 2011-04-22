@@ -345,6 +345,24 @@ EVLOCK_TRY_LOCK(void *lock)
 
 int _evthread_is_debug_lock_held(void *lock);
 void *_evthread_debug_get_real_lock(void *lock);
+
+void *evthread_setup_global_lock_(void *lock_, unsigned locktype,
+    int enable_locks);
+
+#define EVTHREAD_SETUP_GLOBAL_LOCK(lockvar, locktype)			\
+	do {								\
+		lockvar = evthread_setup_global_lock_(lockvar,		\
+		    (locktype), enable_locks);				\
+		if (!lockvar) {						\
+			event_warn("Couldn't allocate %s", #lockvar);	\
+			return -1;					\
+		}							\
+	} while (0);
+
+int event_global_setup_locks_(const int enable_locks);
+int evsig_global_setup_locks_(const int enable_locks);
+int evutil_secure_rng_global_setup_locks_(const int enable_locks);
+
 #endif
 
 #ifdef __cplusplus
