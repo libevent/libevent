@@ -2701,10 +2701,13 @@ evdns_cancel_request(struct evdns_base *base, struct evdns_request *handle)
 {
 	struct request *req;
 
+	if (!handle->current_req)
+		return;
+
 	if (!base) {
 		/* This redundancy is silly; can we fix it? (Not for 2.0) XXXX */
 		base = handle->base;
-		if (!base && handle->current_req)
+		if (!base)
 			base = handle->current_req->base;
 	}
 

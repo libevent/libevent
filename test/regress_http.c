@@ -570,6 +570,8 @@ http_bad_request_test(void *arg)
 	/* real NULL request */
 	http_request = "";
 
+	bufferevent_write(bev, http_request, strlen(http_request));
+
 	shutdown(fd, SHUT_WR);
 	timerclear(&tv);
 	tv.tv_usec = 10000;

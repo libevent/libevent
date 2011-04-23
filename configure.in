@@ -646,6 +646,16 @@ if test x$enable_gcc_warnings = xyes && test "$GCC" = "yes"; then
 #error
 #endif])], have_gcc45=yes, have_gcc45=no)
 
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
+#if !defined(__clang__)
+#error
+#endif])], have_clang=yes, have_clang=no)
+
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
+#if !defined(__clang__) || (__clang_major__ > 2) || (__clang_major__ == 2 && __clang_minor__ > 9)
+#error
+#endif])], have_clang29orlower=yes, have_clang29orlower=no)
+
   CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch-enum -Werror"
   CFLAGS="$CFLAGS -Wno-unused-parameter -Wstrict-aliasing"
 
@@ -657,13 +667,27 @@ if test x$enable_gcc_warnings = xyes && test "$GCC" = "yes"; then
 
   if test x$have_gcc42 = xyes ; then
     # These warnings break gcc 4.0.2 and work on gcc 4.2
-    CFLAGS="$CFLAGS -Waddress -Wnormalized=id -Woverride-init"
+    CFLAGS="$CFLAGS -Waddress"
+  fi
+
+  if test x$have_gcc42 = xyes && test x$have_clang29orlower = xno; then
+    # These warnings break gcc 4.0.2 and clang, but work on gcc 4.2
+    # We only disable these for clang 2.9 and lower, in case they are
+    # supported in later versions.
+    CFLAGS="$CFLAGS -Wnormalized=id -Woverride-init"
   fi
 
   if test x$have_gcc45 = xyes ; then
     # These warnings work on gcc 4.5
     CFLAGS="$CFLAGS -Wlogical-op"
   fi
+
+  if test x$have_clang = xyes; then
+    # Disable the unused-function warnings, because these trigger
+    # for minheap-internal.h related code.
+    CFLAGS="$CFLAGS -Wno-unused-function"
+  fi
+
 ##This will break the world on some 64-bit architectures
 # CFLAGS="$CFLAGS -Winline"
 
