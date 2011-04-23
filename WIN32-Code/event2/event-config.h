@@ -192,6 +192,9 @@
 /* Define to 1 if `sin_len' is member of `struct sockaddr_in'. */
 /* #undef _EVENT_HAVE_STRUCT_SOCKADDR_IN_SIN_LEN */
 
+/* Define to 1 if the system has the type `struct sockaddr_storage'. */
+#define _EVENT_HAVE_STRUCT_SOCKADDR_STORAGE 1
+
 /* Define to 1 if you have the <sys/devpoll.h> header file. */
 /* #undef _EVENT_HAVE_SYS_DEVPOLL_H */
 
