@@ -4,9 +4,12 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include -I.
 
 EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c test.sh
 
-noinst_PROGRAMS = test-init test-eof test-weof test-time @CHECK_REGRESS@ \
+noinst_PROGRAMS = test-init test-eof test-weof test-time \
 	bench bench_cascade bench_http bench_httpclient test-ratelim \
 	test-changelist
+if BUILD_REGRESS
+noinst_PROGRAMS += regress
+endif
 EXTRA_PROGRAMS = regress
 noinst_HEADERS = tinytest.h tinytest_macros.h regress.h tinytest_local.h
 
