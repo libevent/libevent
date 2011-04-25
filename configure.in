@@ -87,12 +87,6 @@ dnl AC_DISABLE_SHARED
 AC_SUBST(LIBTOOL_DEPS)
 
 AM_CONDITIONAL([BUILD_REGRESS], [test "$enable_libevent_regress" = "yes"])
-if test "$enable_libevent_regress" = "yes" ; then
-    CHECK_REGRESS='regress$(EXEENT)'
-else
-    CHECK_REGRESS=
-fi
-AC_SUBST([CHECK_REGRESS])
 
 dnl Checks for libraries.
 AC_SEARCH_LIBS([inet_ntoa], [nsl])
