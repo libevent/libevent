@@ -1024,6 +1024,7 @@ evhttp_read_cb(struct bufferevent *bufev, void *arg)
 		break;
 	case EVCON_IDLE:
 		{
+#ifdef USE_DEBUG
 			struct evbuffer *input;
 			size_t total_len;
 
@@ -1032,6 +1033,7 @@ evhttp_read_cb(struct bufferevent *bufev, void *arg)
 			event_debug(("%s: read %d bytes in EVCON_IDLE state,"
                                     " resetting connection",
 					__func__, (int)total_len));
+#endif
 
 			evhttp_connection_reset(evcon);
 		}
