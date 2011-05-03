@@ -333,7 +333,7 @@ int event_base_set(struct event_base *, struct event *);
  * have had their callbacks run. */
 #define EVLOOP_ONCE	0x01
 /** Do not block: see which events are ready now, run the callbacks
- * highest-priority ones, then exit. */
+ * of the highest-priority ones, then exit. */
 #define EVLOOP_NONBLOCK	0x02
 /*@}*/
 
