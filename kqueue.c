@@ -229,6 +229,23 @@ kq_build_changes_list(const struct event_changelist *changelist,
 }
 
 static int
+kq_grow_events(struct kqop *kqop, size_t new_size)
+{
+	struct kevent *newresult;
+
+	newresult = mm_realloc(kqop->events,
+	    new_size * sizeof(struct kevent));
+
+	if (newresult) {
+		kqop->events = newresult;
+		kqop->events_size = new_size;
+		return 0;
+	} else {
+		return -1;
+	}
+}
+
+static int
 kq_dispatch(struct event_base *base, struct timeval *tv)
 {
 	struct kqop *kqop = base->evbase;
@@ -254,6 +271,25 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 	 * dispatch twice at once. */
 	changes = kqop->changes;
 	kqop->changes = NULL;
+
+	/* Make sure that 'events' is at least as long as the list of changes:
+	 * otherwise errors in the changes can get reported as a -1 return
+	 * value from kevent() rather than as EV_ERROR events in the events
+	 * array.
+	 *
+	 * (We could instead handle -1 return values from kevent() by
+	 * retrying with a smaller changes array or a larger events array,
+	 * but this approach seems less risky for now.)
+	 */
+	if (kqop->events_size < n_changes) {
+		int new_size = kqop->events_size;
+		do {
+			new_size *= 2;
+		} while (new_size < n_changes);
+
+		kq_grow_events(kqop, new_size);
+		events = kqop->events;
+	}
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
@@ -319,17 +355,9 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 	}
 
 	if (res == kqop->events_size) {
-		struct kevent *newresult;
-		int size = kqop->events_size;
 		/* We used all the events space that we have. Maybe we should
 		   make it bigger. */
-		size *= 2;
-		newresult = mm_realloc(kqop->events,
-		    size * sizeof(struct kevent));
-		if (newresult) {
-			kqop->events = newresult;
-			kqop->events_size = size;
-		}
+		kq_grow_events(kqop, kqop->events_size * 2);
 	}
 
 	return (0);
