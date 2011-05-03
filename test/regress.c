@@ -2217,6 +2217,11 @@ test_many_events(void *arg)
 	struct event *ev[MANY];
 	int called[MANY];
 	int i;
+	int loopflags = EVLOOP_NONBLOCK, evflags=0;
+	if (one_at_a_time) {
+		loopflags |= EVLOOP_ONCE;
+		evflags = EV_PERSIST;
+	}
 
 	memset(sock, 0xff, sizeof(sock));
 	memset(ev, 0, sizeof(ev));
@@ -2229,14 +2234,14 @@ test_many_events(void *arg)
 		sock[i] = socket(AF_INET, SOCK_DGRAM, 0);
 		tt_assert(sock[i] >= 0);
 		called[i] = 0;
-		ev[i] = event_new(base, sock[i], EV_WRITE|EV_PERSIST,
+		ev[i] = event_new(base, sock[i], EV_WRITE|evflags,
 		    many_event_cb, &called[i]);
 		event_add(ev[i], NULL);
 		if (one_at_a_time)
 			event_base_loop(base, EVLOOP_NONBLOCK|EVLOOP_ONCE);
 	}
 
-	event_base_loop(base, EVLOOP_NONBLOCK|EVLOOP_ONCE);
+	event_base_loop(base, loopflags);
 
 	for (i = 0; i < MANY; ++i) {
 		if (one_at_a_time)
