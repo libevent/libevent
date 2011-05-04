@@ -15,7 +15,7 @@ http_server_sources = http-server.c
 if OPENSSL
 noinst_PROGRAMS += le-proxy
 le_proxy_sources = le-proxy.c
-le_proxy_LDADD = $(LDADD) ../libevent_openssl.la -lcrypto -lssl
+le_proxy_LDADD = $(LDADD) ../libevent_openssl.la -lssl -lcrypto
 endif
 
 verify:

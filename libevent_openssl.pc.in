@@ -11,6 +11,6 @@ Version: @VERSION@
 Requires: libevent
 Conflicts:
 Libs: -L${libdir} -levent_openssl
-Libs.private: @LIBS@ -lcrypto -lssl
+Libs.private: @LIBS@ -lssl -lcrypto
 Cflags: -I${includedir}
 
