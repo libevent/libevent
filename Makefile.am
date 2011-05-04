@@ -189,7 +189,7 @@ libevent_extra_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 if OPENSSL
 libevent_openssl_la_SOURCES = bufferevent_openssl.c
-libevent_openssl_la_LIBADD = $(MAYBE_CORE) -lcrypto -lssl
+libevent_openssl_la_LIBADD = $(MAYBE_CORE) -lssl -lcrypto
 libevent_openssl_la_LDFLAGS = $(GENERIC_LDFLAGS)
 endif
 
