@@ -84,6 +84,19 @@ AC_SEARCH_LIBS([inet_aton], [resolv])
 AC_SEARCH_LIBS([clock_gettime], [rt])
 AC_SEARCH_LIBS([sendfile], [sendfile])
 
+dnl - check if the macro WIN32 is defined on this compiler.
+dnl - (this is how we check for a windows version of GCC)
+AC_MSG_CHECKING(for WIN32)
+AC_TRY_COMPILE(,
+	[
+#ifndef WIN32
+die horribly
+#endif
+	],
+	bwin32=true; AC_MSG_RESULT(yes),
+	bwin32=false; AC_MSG_RESULT(no),
+)
+
 AC_CHECK_HEADERS([zlib.h])
 
 if test "x$ac_cv_header_zlib_h" = "xyes"; then
@@ -201,19 +214,6 @@ if test "x$ac_cv_header_sys_sysctl_h" = "xyes"; then
 	     #include <sys/sysctl.h>]]
 	)
 fi
-
-dnl - check if the macro WIN32 is defined on this compiler.
-dnl - (this is how we check for a windows version of GCC)
-AC_MSG_CHECKING(for WIN32)
-AC_TRY_COMPILE(,
-	[
-#ifndef WIN32
-die horribly
-#endif
-	],
-	bwin32=true; AC_MSG_RESULT(yes),
-	bwin32=false; AC_MSG_RESULT(no),
-)
 
 AM_CONDITIONAL(BUILD_WIN32, test x$bwin32 = xtrue)
 
