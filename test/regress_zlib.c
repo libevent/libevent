@@ -46,7 +46,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <zlib.h>
 #include <assert.h>
 #include <errno.h>
 
@@ -57,6 +56,28 @@
 #include "event2/bufferevent.h"
 
 #include "regress.h"
+
+/* zlib 1.2.4 and 1.2.5 do some "clever" things with macros.  Instead of
+   saying "(defined(FOO) ? FOO : 0)" they like to say "FOO-0", on the theory
+   that nobody will care if the compile outputs a no-such-identifier warning.
+
+   Sorry, but we like -Werror over here, so I guess we need to define these.
+   I hope that zlib 1.2.6 doesn't break these too.
+*/
+#ifndef _LARGEFILE64_SOURCE
+#define _LARGEFILE64_SOURCE 0
+#endif
+#ifndef _LFS64_LARGEFILE
+#define _LFS64_LARGEFILE 0
+#endif
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 0
+#endif
+#ifndef off64_t
+#define off64_t ev_int64_t
+#endif
+
+#include <zlib.h>
 
 static int infilter_calls;
 static int outfilter_calls;
