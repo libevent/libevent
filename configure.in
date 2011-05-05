@@ -110,7 +110,7 @@ OPENSSL_LIBS=""
 have_openssl=no
 AC_SEARCH_LIBS([SSL_new], [ssl],
 		[have_openssl=yes
-	        OPENSSL_LIBS="$LIBS"
+		OPENSSL_LIBS="$LIBS -lcrypto"
 		AC_DEFINE(HAVE_OPENSSL, 1, [Define if the system has openssl])])
 LIBS="$save_LIBS"
 AC_SUBST(OPENSSL_LIBS)
