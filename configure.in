@@ -116,15 +116,30 @@ fi
 AM_CONDITIONAL(ZLIB_REGRESS, [test "$have_zlib" = "yes"])
 
 dnl See if we have openssl.  This doesn't go in LIBS either.
+if test "$bwin32" = true; then
+  EV_LIB_WS32=-lws2_32
+  EV_LIB_GDI=-lgdi32
+else
+  EV_LIB_WS32=
+  EV_LIB_GDI=
+fi
+AC_SUBST(EV_LIB_WS32)
+AC_SUBST(EV_LIB_GDI)
+
+AC_CHECK_HEADERS([openssl/bio.h])
+
 if test "$enable_openssl" = "yes"; then
 save_LIBS="$LIBS"
 LIBS=""
 OPENSSL_LIBS=""
 have_openssl=no
 AC_SEARCH_LIBS([SSL_new], [ssl],
-		[have_openssl=yes
-		OPENSSL_LIBS="$LIBS -lcrypto"
-		AC_DEFINE(HAVE_OPENSSL, 1, [Define if the system has openssl])])
+	[have_openssl=yes
+	OPENSSL_LIBS="$LIBS -lcrypto $EV_LIB_GDI $EV_LIB_WS32"
+	AC_DEFINE(HAVE_OPENSSL, 1, [Define if the system has openssl])],
+	[have_openssl=no
+	AC_DEFINE(HAVE_OPENSSL, 0, [Define if the system lacks openssl])],
+	[-lcrypto $EV_LIB_GDI $EV_LIB_WS32])
 LIBS="$save_LIBS"
 AC_SUBST(OPENSSL_LIBS)
 fi
