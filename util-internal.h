@@ -181,7 +181,7 @@ long _evutil_weakrand(void);
 
 /* Evaluates to the same boolean value as 'p', and hints to the compiler that
  * we expect this value to be false. */
-#ifdef __GNUC__
+#if defined(__GNUC__) && __GNUC__ >= 3         /* gcc 3.0 or later */
 #define EVUTIL_UNLIKELY(p) __builtin_expect(!!(p),0)
 #else
 #define EVUTIL_UNLIKELY(p) (p)
