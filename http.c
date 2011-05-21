@@ -1472,6 +1472,8 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	char *version;
 	const char *hostname;
 	const char *scheme;
+	size_t method_len;
+	enum evhttp_cmd_type type;
 
 	/* Parse the request line */
 	method = strsep(&line, " ");
@@ -1484,30 +1486,121 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	if (line != NULL)
 		return (-1);
 
+	method_len = (uri - method) - 1;
+	type       = _EVHTTP_REQ_UNKNOWN;
+
 	/* First line */
-	if (strcmp(method, "GET") == 0) {
-		req->type = EVHTTP_REQ_GET;
-	} else if (strcmp(method, "POST") == 0) {
-		req->type = EVHTTP_REQ_POST;
-	} else if (strcmp(method, "HEAD") == 0) {
-		req->type = EVHTTP_REQ_HEAD;
-	} else if (strcmp(method, "PUT") == 0) {
-		req->type = EVHTTP_REQ_PUT;
-	} else if (strcmp(method, "DELETE") == 0) {
-		req->type = EVHTTP_REQ_DELETE;
-	} else if (strcmp(method, "OPTIONS") == 0) {
-		req->type = EVHTTP_REQ_OPTIONS;
-	} else if (strcmp(method, "TRACE") == 0) {
-		req->type = EVHTTP_REQ_TRACE;
-	} else if (strcmp(method, "PATCH") == 0) {
-		req->type = EVHTTP_REQ_PATCH;
-	} else {
-		req->type = _EVHTTP_REQ_UNKNOWN;
-		event_debug(("%s: bad method %s on request %p from %s",
+	switch (method_len) {
+	    case 3:
+		/* The length of the method string is 3, meaning it can only be one of two methods: GET or PUT */
+            
+		/* Since both GET and PUT share the same character 'T' at the end,
+		 * if the string doesn't have 'T', we can immediately determine this
+		 * is an invalid HTTP method */
+            
+		if (method[2] != 'T') {
+		    break;
+		}
+            
+		switch (*method) {
+		    case 'G':
+			/* This first byte is 'G', so make sure the next byte is
+			 * 'E', if it isn't then this isn't a valid method */
+                    
+			if (method[1] == 'E') {
+			    type = EVHTTP_REQ_GET;
+			}
+                    
+			break;
+		    case 'P':
+			/* First byte is P, check second byte for 'U', if not,
+			 * we know it's an invalid method */
+			if (method[1] == 'U') {
+			    type = EVHTTP_REQ_PUT;
+			}
+			break;
+		    default:
+			break;
+		}
+		break;
+	    case 4:
+		/* The method length is 4 bytes, leaving only the methods "POST" and "HEAD" */
+		switch (*method) {
+		    case 'P':
+			if (method[3] == 'T' && method[2] == 'S' && method[1] == 'O') {
+			    type = EVHTTP_REQ_POST;
+			}
+			break;
+		    case 'H':
+			if (method[3] == 'D' && method[2] == 'A' && method[1] == 'E') {
+			    type = EVHTTP_REQ_HEAD;
+			}
+			break;
+		    default:
+			break;
+		}
+	    case 5:
+		/* Method length is 5 bytes, which can only encompass PATCH and TRACE */
+		switch (*method) {
+		    case 'P':
+			if (method[4] == 'H' && method[3] == 'C' && method[2] == 'T' && method[1] == 'A') {
+			    type = EVHTTP_REQ_PATCH;
+			}
+			break;
+		    case 'T':
+			if (method[4] == 'E' && method[3] == 'C' && method[2] == 'A' && method[1] == 'R') {
+			    type = EVHTTP_REQ_TRACE;
+			}
+                    
+			break;
+		    default:
+			break;
+		}
+		break;
+	    case 6:
+		/* Method length is 6, only valid method 6 bytes in length is DELEte */
+            
+		/* If the first byte isn't 'D' then it's invalid */
+		if (*method != 'D') {
+		    break;
+		}
+
+		if (method[5] == 'E' && method[4] == 'T' && method[3] == 'E' && method[2] == 'L' && method[1] == 'E') {
+		    type = EVHTTP_REQ_DELETE;
+		}
+
+		break;
+	    case 7:
+		/* Method length is 7, only valid methods are "OPTIONS" and "CONNECT" */
+		switch (*method) {
+		    case 'O':
+			if (method[6] == 'S' && method[5] == 'N' && method[4] == 'O' &&
+				method[3] == 'I' && method[2] == 'T' && method[1] == 'P') {
+			    type = EVHTTP_REQ_OPTIONS;
+			}
+                   
+		       	break;
+		    case 'C':
+			if (method[6] == 'T' && method[5] == 'C' && method[4] == 'E' &&
+				method[3] == 'N' && method[2] == 'N' && method[1] == 'O') {
+			    type = EVHTTP_REQ_CONNECT;
+			}
+                    
+			break;
+		    default:
+			break;
+		}
+		break;
+	} /* switch */
+
+	if (type == _EVHTTP_REQ_UNKNOWN) {
+	        event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
-		/* No error yet; we'll give a better error later when
-		 * we see that req->type is unsupported. */
+                /* No error yet; we'll give a better error later when
+                 * we see that req->type is unsupported. */
 	}
+	    
+	req->type = type;
 
 	if (evhttp_parse_http_version(version, req) < 0)
 		return (-1);
