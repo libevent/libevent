@@ -2194,20 +2194,20 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	req->evcon = evcon;
 	EVUTIL_ASSERT(!(req->flags & EVHTTP_REQ_OWN_CONNECTION));
 
+       TAILQ_INSERT_TAIL(&evcon->requests, req, next);
+
 	/* If the connection object is not connected; make it so */
 	if (!evhttp_connected(evcon)) {
 		int res = evhttp_connection_connect(evcon);
-		/*
-		 * Enqueue the request only if we aren't going to
-		 * return failure from evhttp_make_request().
-		 */
-		if (res == 0)
-			TAILQ_INSERT_TAIL(&evcon->requests, req, next);
+	       /* evhttp_connection_fail(), which is called through
+		* evhttp_connection_connect(), assumes that req lies in
+		* evcon->requests.  Thus, enqueue the request in advance and r
+		* it in the error case. */
+	       if (res != 0)
+		       TAILQ_REMOVE(&evcon->requests, req, next);
 
 		return res;
 	}
-
-	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
 	/*
 	 * If it's connected already and we are the first in the queue,
