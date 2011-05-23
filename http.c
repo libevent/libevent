@@ -220,29 +220,30 @@ strsep(char **s, const char *del)
 }
 #endif
 
-static const char *
-html_replace(char ch, char *buf)
+static size_t
+html_replace(const char ch, const char **escaped)
 {
 	switch (ch) {
 	case '<':
-		return "&lt;";
+		*escaped = "&lt;";
+		return 4;
 	case '>':
-		return "&gt;";
+		*escaped = "&gt;";
+		return 4;
 	case '"':
-		return "&quot;";
+		*escaped = "&quot;";
+		return 6;
 	case '\'':
-		return "&#039;";
+		*escaped = "&#039;";
+		return 6;
 	case '&':
-		return "&amp;";
+		*escaped = "&amp;";
+		return 5;
 	default:
 		break;
 	}
 
-	/* Echo the character back */
-	buf[0] = ch;
-	buf[1] = '\0';
-
-	return buf;
+	return 1;
 }
 
 /*
@@ -256,21 +257,34 @@ char *
 evhttp_htmlescape(const char *html)
 {
 	size_t i;
-	size_t new_size = 0, old_size = strlen(html);
+	size_t new_size = 0, old_size = 0;
 	char *escaped_html, *p;
-	char scratch_space[2];
 
-	for (i = 0; i < old_size; ++i)
-		new_size += strlen(html_replace(html[i], scratch_space));
+	if (html == NULL)
+		return (NULL);
 
+	old_size = strlen(html);
+	for (i = 0; i < old_size; ++i) {
+		const char *replaced = NULL;
+		const size_t replace_size = html_replace(html[i], &replaced);
+		if (replace_size > EV_SIZE_MAX - new_size) {
+			event_warn("%s: html_replace overflow", __func__);
+			return (NULL);
+		}
+		new_size += replace_size;
+	}
+
+	if (new_size == EV_SIZE_MAX)
+		return (NULL);
 	p = escaped_html = mm_malloc(new_size + 1);
 	if (escaped_html == NULL) {
-		event_warn("%s: malloc(%ld)", __func__, (long)(new_size + 1));
+		event_warn("%s: malloc(%lu)", __func__,
+		           (unsigned long)(new_size + 1));
 		return (NULL);
 	}
 	for (i = 0; i < old_size; ++i) {
-		const char *replaced = html_replace(html[i], scratch_space);
-		size_t len = strlen(replaced);
+		const char *replaced = &html[i];
+		const size_t len = html_replace(html[i], &replaced);
 		memcpy(p, replaced, len);
 		p += len;
 	}
