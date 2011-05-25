@@ -137,8 +137,7 @@ AC_SEARCH_LIBS([SSL_new], [ssl],
 	[have_openssl=yes
 	OPENSSL_LIBS="$LIBS -lcrypto $EV_LIB_GDI $EV_LIB_WS32"
 	AC_DEFINE(HAVE_OPENSSL, 1, [Define if the system has openssl])],
-	[have_openssl=no
-	AC_DEFINE(HAVE_OPENSSL, 0, [Define if the system lacks openssl])],
+	[have_openssl=no],
 	[-lcrypto $EV_LIB_GDI $EV_LIB_WS32])
 LIBS="$save_LIBS"
 AC_SUBST(OPENSSL_LIBS)
