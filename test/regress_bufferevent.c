@@ -551,7 +551,7 @@ want_fail_eventcb(struct bufferevent *bev, short what, void *ctx)
 	if (what & BEV_EVENT_ERROR) {
 		s = bufferevent_getfd(bev);
 		err = evutil_socket_error_to_string(evutil_socket_geterror(s));
-		TT_BLATHER(("connection failure %s", err));
+		TT_BLATHER(("connection failure on %d: %s", s, err));
 		test_ok = 1;
 	} else {
 		TT_FAIL(("didn't fail? what %hd", what));

@@ -1152,6 +1152,9 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	GET16(answers);
 	GET16(authority);
 	GET16(additional);
+	(void)answers;
+	(void)additional;
+	(void)authority;
 
 	if (flags & 0x8000) return -1; /* Must not be an answer. */
 	flags &= 0x0110; /* Only RD and CD get preserved. */
