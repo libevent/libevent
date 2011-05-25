@@ -107,12 +107,12 @@ run_once(void)
 	count = 0;
 	writes = num_writes;
 	{ int xcount = 0;
-	gettimeofday(&ts, NULL);
+	evutil_gettimeofday(&ts, NULL);
 	do {
 		event_loop(EVLOOP_ONCE | EVLOOP_NONBLOCK);
 		xcount++;
 	} while (count != fired);
-	gettimeofday(&te, NULL);
+	evutil_gettimeofday(&te, NULL);
 
 	if (xcount != count) fprintf(stderr, "Xcount: %d, Rcount: %d\n", xcount, count);
 	}

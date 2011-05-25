@@ -97,7 +97,7 @@ run_once(int num_pipes)
 	}
 
 	/* measurements includes event setup */
-	gettimeofday(&ts, NULL);
+	evutil_gettimeofday(&ts, NULL);
 
 	/* provide a default timeout for events */
 	evutil_timerclear(&tv_timeout);
@@ -116,7 +116,7 @@ run_once(int num_pipes)
 
 	event_dispatch();
 
-	gettimeofday(&te, NULL);
+	evutil_gettimeofday(&te, NULL);
 	evutil_timersub(&te, &ts, &te);
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
