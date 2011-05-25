@@ -855,7 +855,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 
 		/* evbuffer_get_length returns size_t, but len variable is ssize_t,
 		 * check for overflow conditions */
-		if (buflen > SSIZE_MAX) {
+		if (buflen > EV_SSIZE_MAX) {
 			return DATA_CORRUPTED;
 		}
 
@@ -883,8 +883,8 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			}
 
 			/* ntoread is signed int64, body_size is unsigned size_t, check for under/overflow conditions */
-			if ((ntoread + req->body_size) < ntoread) {
-				return DATA_CORRUPTED;
+			if (ntoread > EV_SIZE_MAX - req->body_size) {
+			    return DATA_CORRUPTED;
 			}
 
 			if (req->body_size + (size_t)ntoread > req->evcon->max_body_size) {
@@ -892,6 +892,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 				event_debug(("Request body is too long"));
 				return (DATA_TOO_LONG);
 			}
+
 			req->body_size += (size_t)ntoread;
 			req->ntoread = ntoread;
 			if (req->ntoread == 0) {
@@ -903,7 +904,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 
 		/* req->ntoread is signed int64, len is ssize_t, based on arch,
 		 * ssize_t could only be 32b, check for these conditions */
-		if (req->ntoread > SSIZE_MAX) {
+		if (req->ntoread > EV_SSIZE_MAX) {
 			return DATA_CORRUPTED;
 		}
 
@@ -979,8 +980,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		}
 	} else if (req->ntoread < 0) {
 		/* Read until connection close. */
-		/* check for overflow condition */
-		if ((req->body_size + evbuffer_get_length(buf)) < req->body_size) {
+		if ((size_t)(req->body_size + evbuffer_get_length(buf)) < req->body_size) {
 			evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 			return;
 		}
@@ -1946,7 +1946,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 				   send their message body. */
 				if (req->ntoread > 0) {
 					/* ntoread is ev_int64_t, max_body_size is ev_uint64_t */ 
-					if ((req->evcon->max_body_size <= INT64_MAX) && (ev_uint64_t)req->ntoread > req->evcon->max_body_size) {
+					if ((req->evcon->max_body_size <= EV_INT64_MAX) && (ev_uint64_t)req->ntoread > req->evcon->max_body_size) {
 						evhttp_send_error(req, HTTP_ENTITYTOOLARGE, NULL);
 						return;
 					}
