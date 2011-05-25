@@ -39,6 +39,7 @@ dnl the 'host' machine is where the resulting stuff runs.
 
 dnl Checks for programs.
 AC_PROG_CC
+AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AC_PROG_LN_S
 # AC_PROG_MKDIR_P - $(MKDIR_P) should be defined by AM_INIT_AUTOMAKE
@@ -148,8 +149,7 @@ AC_SEARCH_LIBS([SSL_new], [ssl],
 	[have_openssl=yes
 	OPENSSL_LIBS="$LIBS -lcrypto $EV_LIB_GDI $EV_LIB_WS32"
 	AC_DEFINE(HAVE_OPENSSL, 1, [Define if the system has openssl])],
-	[have_openssl=no
-	AC_DEFINE(HAVE_OPENSSL, 0, [Define if the system lacks openssl])],
+	[have_openssl=no],
 	[-lcrypto $EV_LIB_GDI $EV_LIB_WS32])
 LIBS="$save_LIBS"
 AC_SUBST(OPENSSL_LIBS)

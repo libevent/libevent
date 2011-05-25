@@ -29,8 +29,11 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
 #include <sys/socket.h>
@@ -41,7 +44,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <errno.h>
 
 #include <event.h>
@@ -92,7 +97,7 @@ run_once(int num_pipes)
 	}
 
 	/* measurements includes event setup */
-	gettimeofday(&ts, NULL);
+	evutil_gettimeofday(&ts, NULL);
 
 	/* provide a default timeout for events */
 	evutil_timerclear(&tv_timeout);
@@ -111,7 +116,7 @@ run_once(int num_pipes)
 
 	event_dispatch();
 
-	gettimeofday(&te, NULL);
+	evutil_gettimeofday(&te, NULL);
 	evutil_timersub(&te, &ts, &te);
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
