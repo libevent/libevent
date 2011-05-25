@@ -29,7 +29,9 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #ifdef WIN32
 #include <windows.h>
 #else
@@ -41,7 +43,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #include <errno.h>
 
 #include <event.h>
