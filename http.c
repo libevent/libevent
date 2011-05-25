@@ -979,13 +979,20 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		}
 	} else if (req->ntoread < 0) {
 		/* Read until connection close. */
+		/* check for overflow condition */
+		if ((req->body_size + evbuffer_get_length(buf)) < req->body_size) {
+			evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
+			return;
+		}
+
 		req->body_size += evbuffer_get_length(buf);
 		evbuffer_add_buffer(req->input_buffer, buf);
-	} else if (req->chunk_cb != NULL ||
-	    evbuffer_get_length(buf) >= (size_t)req->ntoread) {
+	} else if (req->chunk_cb != NULL || evbuffer_get_length(buf) >= (size_t)req->ntoread) {
+		/* XXX: the above get_length comparison has to be fixed for overflow conditions! */
 		/* We've postponed moving the data until now, but we're
 		 * about to use it. */
 		size_t n = evbuffer_get_length(buf);
+
 		if (n > (size_t) req->ntoread)
 			n = (size_t) req->ntoread;
 		req->ntoread -= n;
@@ -996,6 +1003,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	if (req->body_size > req->evcon->max_body_size ||
 	    (!req->chunked && req->ntoread >= 0 &&
 		(size_t)req->ntoread > req->evcon->max_body_size)) {
+		/* XXX: The above casted comparison must checked for overflow */
 		/* failed body length test */
 		event_debug(("Request body is too long"));
 		evhttp_connection_fail(evcon,
@@ -1936,11 +1944,12 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 				   no, we should respond with an error. For
 				   now, just optimistically tell the client to
 				   send their message body. */
-				if (req->ntoread > 0 &&
-				    (size_t)req->ntoread > req->evcon->max_body_size) {
-					evhttp_send_error(req, HTTP_ENTITYTOOLARGE,
-							  NULL);
-					return;
+				if (req->ntoread > 0) {
+					/* ntoread is ev_int64_t, max_body_size is ev_uint64_t */ 
+					if ((req->evcon->max_body_size <= INT64_MAX) && (ev_uint64_t)req->ntoread > req->evcon->max_body_size) {
+						evhttp_send_error(req, HTTP_ENTITYTOOLARGE, NULL);
+						return;
+					}
 				}
 				if (!evbuffer_get_length(bufferevent_get_input(evcon->bufev)))
 					evhttp_send_continue(evcon, req);
