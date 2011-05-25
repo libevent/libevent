@@ -840,9 +840,25 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 static enum message_read_status
 evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 {
-	ev_ssize_t len;
+        ev_ssize_t len;
 
-	while ((len = evbuffer_get_length(buf)) > 0) {
+	if (req == NULL || buf == NULL) {
+	    return DATA_CORRUPTED;
+	}
+
+	while (1) {
+		size_t buflen;
+
+		if ((buflen = evbuffer_get_length(buf)) == 0) {
+			break;
+		}
+
+		/* evbuffer_get_length returns size_t, but len variable is ssize_t,
+		 * check for overflow conditions */
+		if (buflen > SSIZE_MAX) {
+			return DATA_CORRUPTED;
+		}
+
 		if (req->ntoread < 0) {
 			/* Read chunk size */
 			ev_int64_t ntoread;
@@ -865,6 +881,12 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 				/* could not get chunk size */
 				return (DATA_CORRUPTED);
 			}
+
+			/* ntoread is signed int64, body_size is unsigned size_t, check for under/overflow conditions */
+			if ((ntoread + req->body_size) < ntoread) {
+				return DATA_CORRUPTED;
+			}
+
 			if (req->body_size + (size_t)ntoread > req->evcon->max_body_size) {
 				/* failed body length test */
 				event_debug(("Request body is too long"));
@@ -879,12 +901,17 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			continue;
 		}
 
+		/* req->ntoread is signed int64, len is ssize_t, based on arch,
+		 * ssize_t could only be 32b, check for these conditions */
+		if (req->ntoread > SSIZE_MAX) {
+			return DATA_CORRUPTED;
+		}
+
 		/* don't have enough to complete a chunk; wait for more */
 		if (len < req->ntoread)
 			return (MORE_DATA_EXPECTED);
 
 		/* Completed chunk */
-		/* XXXX fixme: what if req->ntoread is > SIZE_T_MAX? */
 		evbuffer_remove_buffer(buf, req->input_buffer, (size_t)req->ntoread);
 		req->ntoread = -1;
 		if (req->chunk_cb != NULL) {
