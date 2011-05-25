@@ -27,7 +27,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <sys/socket.h>
@@ -92,7 +92,7 @@ main(int argc, char **argv)
 	int use_iocp = 0;
 	unsigned short port = 8080;
 
-#ifdef WIN32
+#ifdef _WIN32
 	WSADATA WSAData;
 	WSAStartup(0x101, &WSAData);
 #else
@@ -122,7 +122,7 @@ main(int argc, char **argv)
 				exit(1);
 			}
 			break;
-#ifdef WIN32
+#ifdef _WIN32
 		case 'i':
 			use_iocp = 1;
 			evthread_use_windows_threads();

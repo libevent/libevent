@@ -39,7 +39,7 @@ typedef void (*iocp_callback)(struct event_overlapped *, ev_uintptr_t, ev_ssize_
 /* This whole file is actually win32 only. We wrap the structures in a win32
  * ifdef so that we can test-compile code that uses these interfaces on
  * non-win32 platforms. */
-#ifdef WIN32
+#ifdef _WIN32
 
 /**
    Internal use only.  Wraps an OVERLAPPED that we're using for libevent

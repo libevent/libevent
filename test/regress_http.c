@@ -25,7 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
@@ -39,7 +39,7 @@
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
-#ifndef WIN32
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <signal.h>
 #include <unistd.h>
@@ -154,7 +154,7 @@ http_connect(const char *address, u_short port)
 
 	evutil_make_socket_nonblocking(fd);
 	if (connect(fd, sa, slen) == -1) {
-#ifdef WIN32
+#ifdef _WIN32
 		int tmp_err = WSAGetLastError();
 		if (tmp_err != WSAEINPROGRESS && tmp_err != WSAEINVAL &&
 		    tmp_err != WSAEWOULDBLOCK)
@@ -487,7 +487,7 @@ http_badreq_errorcb(struct bufferevent *bev, short what, void *arg)
 }
 
 #ifndef SHUT_WR
-#ifdef WIN32
+#ifdef _WIN32
 #define SHUT_WR SD_SEND
 #else
 #define SHUT_WR 1

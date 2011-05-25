@@ -42,7 +42,7 @@ extern "C" {
  * arguments. */
 #define EVBUFFER_CB_NODEFER 2
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #endif
 #include <sys/queue.h>
@@ -126,7 +126,7 @@ struct evbuffer {
 	 * overflows when we have mutually recursive callbacks, and for
 	 * serializing callbacks in a single thread. */
 	unsigned deferred_cbs : 1;
-#ifdef WIN32
+#ifdef _WIN32
 	/** True iff this buffer is set up for overlapped IO. */
 	unsigned is_overlapped : 1;
 #endif
@@ -205,7 +205,7 @@ struct evbuffer_chain_reference {
  * evbuffer_chain with the EVBUFFER_FILESEGMENT flag set.  */
 struct evbuffer_chain_file_segment {
 	struct evbuffer_file_segment *segment;
-#ifdef WIN32
+#ifdef _WIN32
 	/** If we're using CreateFileMapping, this is the handle to the view. */
 	HANDLE view_handle;
 #endif
@@ -224,7 +224,7 @@ struct evbuffer_file_segment {
 	int fd;
 	/** If we're using mmap, this is the raw mapped memory. */
 	void *mapping;
-#ifdef WIN32
+#ifdef _WIN32
 	/** If we're using CreateFileMapping, this is the mapping */
 	HANDLE mapping_handle;
 #endif

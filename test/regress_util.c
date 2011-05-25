@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
@@ -33,7 +33,7 @@
 
 #include <sys/types.h>
 
-#ifndef WIN32
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -441,7 +441,7 @@ fatalfn(int exitcode)
 		exit(exitcode);
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 #define CAN_CHECK_ERR
 static void
 check_error_logging(void (*fn)(void), int wantexitcode,
@@ -481,7 +481,7 @@ static void
 sock_err_fn(void)
 {
 	evutil_socket_t fd = socket(AF_INET, SOCK_STREAM, 0);
-#ifdef WIN32
+#ifdef _WIN32
 	EVUTIL_SET_SOCKET_ERROR(WSAEWOULDBLOCK);
 #else
 	errno = EAGAIN;
@@ -553,7 +553,7 @@ test_evutil_log(void *ptr)
 
 	/* Try with a socket errno. */
 	fd = socket(AF_INET, SOCK_STREAM, 0);
-#ifdef WIN32
+#ifdef _WIN32
 	evutil_snprintf(buf, sizeof(buf),
 	    "Unhappy socket: %s",
 	    evutil_socket_error_to_string(WSAEWOULDBLOCK));
@@ -1037,7 +1037,7 @@ end:
 		evutil_freeaddrinfo(ai);
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 static void
 test_evutil_loadsyslib(void *arg)
 {
@@ -1068,7 +1068,7 @@ struct testcase_t util_testcases[] = {
 	{ "integers", test_evutil_integers, 0, NULL, NULL },
 	{ "rand", test_evutil_rand, TT_FORK, NULL, NULL },
 	{ "getaddrinfo", test_evutil_getaddrinfo, TT_FORK, NULL, NULL },
-#ifdef WIN32
+#ifdef _WIN32
 	{ "loadsyslib", test_evutil_loadsyslib, TT_FORK, NULL, NULL },
 #endif
 	END_OF_TESTCASES,

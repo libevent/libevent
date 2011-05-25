@@ -279,7 +279,7 @@ event_iocp_activate_overlapped(
 struct event_iocp_port *
 event_base_get_iocp(struct event_base *base)
 {
-#ifdef WIN32
+#ifdef _WIN32
 	return base->iocp;
 #else
 	return NULL;

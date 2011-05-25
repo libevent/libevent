@@ -24,14 +24,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
 #endif
 
 #include <sys/types.h>
 
-#ifndef WIN32
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <netinet/in.h>
 # ifdef _XOPEN_SOURCE_EXTENDED
@@ -119,7 +119,7 @@ regress_pick_a_port(void *arg)
 	evutil_socket_connect(&fd2, (struct sockaddr*)&ss1, slen1);
 	evutil_socket_connect(&fd3, (struct sockaddr*)&ss2, slen2);
 
-#ifdef WIN32
+#ifdef _WIN32
 	Sleep(100); /* XXXX this is a stupid stopgap. */
 #endif
 	event_base_dispatch(base);

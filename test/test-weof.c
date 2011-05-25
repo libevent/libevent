@@ -4,7 +4,7 @@
  */
 #include "event2/event-config.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <unistd.h>
@@ -63,7 +63,7 @@ main(int argc, char **argv)
 {
 	struct event ev;
 
-#ifdef WIN32
+#ifdef _WIN32
 	WORD wVersionRequested;
 	WSADATA wsaData;
 	int	err;
@@ -73,7 +73,7 @@ main(int argc, char **argv)
 	err = WSAStartup(wVersionRequested, &wsaData);
 #endif
 
-#ifndef WIN32
+#ifndef _WIN32
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 		return (1);
 #endif

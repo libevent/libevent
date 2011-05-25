@@ -29,7 +29,7 @@
 
 #include <sys/types.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <mswsock.h>
@@ -53,7 +53,7 @@
 #include "util-internal.h"
 #include "log-internal.h"
 #include "evthread-internal.h"
-#ifdef WIN32
+#ifdef _WIN32
 #include "iocp-internal.h"
 #include "defer-internal.h"
 #include "event-internal.h"
@@ -84,7 +84,7 @@ struct evconnlistener_event {
 	struct event listener;
 };
 
-#ifdef WIN32
+#ifdef _WIN32
 struct evconnlistener_iocp {
 	struct evconnlistener base;
 	evutil_socket_t fd;
@@ -154,7 +154,7 @@ evconnlistener_new(struct event_base *base,
 {
 	struct evconnlistener_event *lev;
 
-#ifdef WIN32
+#ifdef _WIN32
 	if (base && event_base_get_iocp(base)) {
 		const struct win32_extension_fns *ext =
 			event_get_win32_extension_fns();
@@ -379,7 +379,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 	LOCK(lev);
 	while (1) {
 		struct sockaddr_storage ss;
-#ifdef WIN32
+#ifdef _WIN32
 		int socklen = sizeof(ss);
 #else
 		socklen_t socklen = sizeof(ss);
@@ -427,7 +427,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 	}
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 struct accepting_socket {
 	CRITICAL_SECTION lock;
 	struct event_overlapped overlapped;

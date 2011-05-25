@@ -27,14 +27,14 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
 #endif
 #include <sys/types.h>
-#if !defined(WIN32) && defined(_EVENT_HAVE_SYS_TIME_H)
+#if !defined(_WIN32) && defined(_EVENT_HAVE_SYS_TIME_H)
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
@@ -88,7 +88,7 @@ extern const struct eventop kqops;
 #ifdef _EVENT_HAVE_DEVPOLL
 extern const struct eventop devpollops;
 #endif
-#ifdef WIN32
+#ifdef _WIN32
 extern const struct eventop win32ops;
 #endif
 
@@ -112,7 +112,7 @@ static const struct eventop *eventops[] = {
 #ifdef _EVENT_HAVE_SELECT
 	&selectops,
 #endif
-#ifdef WIN32
+#ifdef _WIN32
 	&win32ops,
 #endif
 	NULL
@@ -634,7 +634,7 @@ event_base_new_with_config(const struct event_config *cfg)
 	}
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 	if (cfg && (cfg->flags & EVENT_BASE_FLAG_STARTUP_IOCP))
 		event_base_start_iocp(base, cfg->n_cpus_hint);
 #endif
@@ -645,7 +645,7 @@ event_base_new_with_config(const struct event_config *cfg)
 int
 event_base_start_iocp(struct event_base *base, int n_cpus)
 {
-#ifdef WIN32
+#ifdef _WIN32
 	if (base->iocp)
 		return 0;
 	base->iocp = event_iocp_port_launch(n_cpus);
@@ -662,7 +662,7 @@ event_base_start_iocp(struct event_base *base, int n_cpus)
 void
 event_base_stop_iocp(struct event_base *base)
 {
-#ifdef WIN32
+#ifdef _WIN32
 	int rv;
 
 	if (!base->iocp)
@@ -689,7 +689,7 @@ event_base_free(struct event_base *base)
 	/* XXX(niels) - check for internal events first */
 	EVUTIL_ASSERT(base);
 
-#ifdef WIN32
+#ifdef _WIN32
 	event_base_stop_iocp(base);
 #endif
 
@@ -1924,7 +1924,7 @@ evthread_notify_base_default(struct event_base *base)
 	char buf[1];
 	int r;
 	buf[0] = (char) 0;
-#ifdef WIN32
+#ifdef _WIN32
 	r = send(base->th_notify_fd[1], buf, 1, 0);
 #else
 	r = write(base->th_notify_fd[1], buf, 1);
@@ -2614,7 +2614,7 @@ event_mm_strdup_(const char *str)
 			memcpy(p, str, ln+1);
 		return p;
 	} else
-#ifdef WIN32
+#ifdef _WIN32
 		return _strdup(str);
 #else
 		return strdup(str);
@@ -2673,7 +2673,7 @@ evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 {
 	unsigned char buf[1024];
 	struct event_base *base = arg;
-#ifdef WIN32
+#ifdef _WIN32
 	while (recv(fd, (char*)buf, sizeof(buf), 0) > 0)
 		;
 #else
@@ -2723,7 +2723,7 @@ evthread_make_base_notifiable(struct event_base *base)
 	}
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #define LOCAL_SOCKETPAIR_AF AF_INET
 #else
 #define LOCAL_SOCKETPAIR_AF AF_UNIX

@@ -183,7 +183,7 @@ int evthread_set_condition_callbacks(
 void evthread_set_id_callback(
     unsigned long (*id_fn)(void));
 
-#if defined(WIN32) && !defined(_EVENT_DISABLE_THREAD_SUPPORT)
+#if defined(_WIN32) && !defined(_EVENT_DISABLE_THREAD_SUPPORT)
 /** Sets up Libevent for use with Windows builtin locking and thread ID
 	functions.  Unavailable if Libevent is not built for Windows.
 

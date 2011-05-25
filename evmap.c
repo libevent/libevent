@@ -26,20 +26,20 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
 #endif
 #include <sys/types.h>
-#if !defined(WIN32) && defined(_EVENT_HAVE_SYS_TIME_H)
+#if !defined(_WIN32) && defined(_EVENT_HAVE_SYS_TIME_H)
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef WIN32
+#ifndef _WIN32
 #include <unistd.h>
 #endif
 #include <errno.h>

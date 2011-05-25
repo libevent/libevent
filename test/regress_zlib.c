@@ -27,7 +27,7 @@
 /* The old tests here need assertions to work. */
 #undef NDEBUG
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
 #endif
@@ -35,7 +35,7 @@
 #include "event2/event-config.h"
 
 #include <sys/types.h>
-#ifndef WIN32
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>

@@ -9,7 +9,7 @@
 #include <event2/event-config.h>
 
 #include <sys/stat.h>
-#ifndef WIN32
+#ifndef _WIN32
 #include <sys/queue.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -50,7 +50,7 @@ main(int argc, char **argv)
 {
 	struct event signal_int;
 	struct event_base* base;
-#ifdef WIN32
+#ifdef _WIN32
 	WORD wVersionRequested;
 	WSADATA wsaData;
 	int	err;

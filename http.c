@@ -42,7 +42,7 @@
 #include <sys/ioccom.h>
 #endif
 
-#ifndef WIN32
+#ifndef _WIN32
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -64,7 +64,7 @@
 #include <netdb.h>
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #endif
 
@@ -72,7 +72,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef WIN32
+#ifndef _WIN32
 #include <syslog.h>
 #endif
 #include <signal.h>
@@ -497,12 +497,12 @@ evhttp_maybe_add_date_header(struct evkeyvalq *headers)
 {
 	if (evhttp_find_header(headers, "Date") == NULL) {
 		char date[50];
-#ifndef WIN32
+#ifndef _WIN32
 		struct tm cur;
 #endif
 		struct tm *cur_p;
 		time_t t = time(NULL);
-#ifdef WIN32
+#ifdef _WIN32
 		cur_p = gmtime(&t);
 #else
 		gmtime_r(&t, &cur);
@@ -1360,7 +1360,7 @@ evhttp_connection_cb(struct bufferevent *bufev, short what, void *arg)
 		 * when connecting to a local address.  the cleanup is going
 		 * to reschedule this function call.
 		 */
-#ifndef WIN32
+#ifndef _WIN32
 		if (errno == ECONNREFUSED)
 			goto cleanup;
 #endif

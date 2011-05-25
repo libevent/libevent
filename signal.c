@@ -29,7 +29,7 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <windows.h>
@@ -82,7 +82,7 @@
   on Linux do a reasonable thing using signalfd.
 */
 
-#ifndef WIN32
+#ifndef _WIN32
 /* Windows wants us to call our signal handlers as __cdecl.  Nobody else
  * expects you to do anything crazy like this. */
 #define __cdecl
@@ -181,7 +181,7 @@ evsig_init(struct event_base *base)
 	 */
 	if (evutil_socketpair(
 		    AF_UNIX, SOCK_STREAM, 0, base->sig.ev_signal_pair) == -1) {
-#ifdef WIN32
+#ifdef _WIN32
 		/* Make this nonfatal on win32, where sometimes people
 		   have localhost firewalled. */
 		event_sock_warn(-1, "%s: socketpair", __func__);
@@ -374,7 +374,7 @@ static void __cdecl
 evsig_handler(int sig)
 {
 	int save_errno = errno;
-#ifdef WIN32
+#ifdef _WIN32
 	int socket_errno = EVUTIL_SOCKET_ERROR();
 #endif
 	ev_uint8_t msg;
@@ -394,7 +394,7 @@ evsig_handler(int sig)
 	msg = sig;
 	send(evsig_base_fd, (char*)&msg, 1, 0);
 	errno = save_errno;
-#ifdef WIN32
+#ifdef _WIN32
 	EVUTIL_SET_SOCKET_ERROR(socket_errno);
 #endif
 }

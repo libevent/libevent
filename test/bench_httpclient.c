@@ -26,7 +26,7 @@
  */
 
 #include <sys/types.h>
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <sys/socket.h>
@@ -201,7 +201,7 @@ main(int argc, char **argv)
 	throughput = total_n_handled /
 	    (total.tv_sec+ ((double)total.tv_usec)/1000000.0);
 
-#ifdef WIN32
+#ifdef _WIN32
 #define I64_FMT "%I64d"
 #define I64_TYP __int64
 #else

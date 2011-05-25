@@ -32,7 +32,7 @@
 #ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef WIN32
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
@@ -134,7 +134,7 @@ run_once(int num_pipes)
 int
 main(int argc, char **argv)
 {
-#ifndef WIN32
+#ifndef _WIN32
 	struct rlimit rl;
 #endif
 	int i, c;
@@ -152,7 +152,7 @@ main(int argc, char **argv)
 		}
 	}
 
-#ifndef WIN32
+#ifndef _WIN32
 	rl.rlim_cur = rl.rlim_max = num_pipes * 2 + 50;
 	if (setrlimit(RLIMIT_NOFILE, &rl) == -1) {
 		perror("setrlimit");

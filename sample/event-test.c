@@ -12,7 +12,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifndef WIN32
+#ifndef _WIN32
 #include <sys/queue.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -34,7 +34,7 @@ fifo_read(int fd, short event, void *arg)
 	char buf[255];
 	int len;
 	struct event *ev = arg;
-#ifdef WIN32
+#ifdef _WIN32
 	DWORD dwBytesRead;
 #endif
 
@@ -43,7 +43,7 @@ fifo_read(int fd, short event, void *arg)
 
 	fprintf(stderr, "fifo_read called with fd: %d, event: %d, arg: %p\n",
 		fd, event, arg);
-#ifdef WIN32
+#ifdef _WIN32
 	len = ReadFile((HANDLE)fd, buf, sizeof(buf) - 1, &dwBytesRead, NULL);
 
 	/* Check for end of file. */
@@ -74,7 +74,7 @@ int
 main(int argc, char **argv)
 {
 	struct event evfifo;
-#ifdef WIN32
+#ifdef _WIN32
 	HANDLE socket;
 	/* Open a file. */
 	socket = CreateFileA("test.txt",	/* open File */
@@ -125,7 +125,7 @@ main(int argc, char **argv)
 	event_init();
 
 	/* Initalize one event */
-#ifdef WIN32
+#ifdef _WIN32
 	event_set(&evfifo, (int)socket, EV_READ, fifo_read, &evfifo);
 #else
 	event_set(&evfifo, socket, EV_READ, fifo_read, &evfifo);
@@ -135,7 +135,7 @@ main(int argc, char **argv)
 	event_add(&evfifo, NULL);
 
 	event_dispatch();
-#ifdef WIN32
+#ifdef _WIN32
 	CloseHandle(socket);
 #endif
 	return (0);

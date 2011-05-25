@@ -30,7 +30,7 @@
 #include <assert.h>
 #include <math.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
@@ -85,7 +85,7 @@ loud_writecb(struct bufferevent *bev, void *ctx)
 	struct client_state *cs = ctx;
 	struct evbuffer *output = bufferevent_get_output(bev);
 	char buf[1024];
-#ifdef WIN32
+#ifdef _WIN32
 	int r = rand() % 256;
 #else
 	int r = random() % 256;
@@ -404,7 +404,7 @@ main(int argc, char **argv)
 	int i,j;
 	double ratio;
 
-#ifdef WIN32
+#ifdef _WIN32
 	WORD wVersionRequested = MAKEWORD(2,2);
 	WSADATA wsaData;
 	int err;
@@ -412,7 +412,7 @@ main(int argc, char **argv)
 	err = WSAStartup(wVersionRequested, &wsaData);
 #endif
 
-#ifndef WIN32
+#ifndef _WIN32
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 		return 1;
 #endif
@@ -446,7 +446,7 @@ main(int argc, char **argv)
 	{
 		struct timeval tv;
 		evutil_gettimeofday(&tv, NULL);
-#ifdef WIN32
+#ifdef _WIN32
 		srand(tv.tv_usec);
 #else
 		srandom(tv.tv_usec);

@@ -27,7 +27,7 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #define WIN32_LEAN_AND_MEAN
@@ -78,7 +78,7 @@
 #include "strlcpy-internal.h"
 #include "ipv6-internal.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #define open _open
 #define read _read
 #define close _close
@@ -130,7 +130,7 @@ evutil_read_file(const char *filename, char **content_out, size_t *len_out,
 		return -2;
 	}
 	read_so_far = 0;
-#ifdef WIN32
+#ifdef _WIN32
 #define N_TO_READ(x) ((x) > INT_MAX) ? INT_MAX : ((int)(x))
 #else
 #define N_TO_READ(x) (x)
@@ -156,7 +156,7 @@ evutil_read_file(const char *filename, char **content_out, size_t *len_out,
 int
 evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 {
-#ifndef WIN32
+#ifndef _WIN32
 	return socketpair(family, type, protocol, fd);
 #else
 	return evutil_ersatz_socketpair(family, type, protocol, fd);
@@ -174,7 +174,7 @@ evutil_ersatz_socketpair(int family, int type, int protocol,
 	 * for now, and really, when localhost is down sometimes, we
 	 * have other problems too.
 	 */
-#ifdef WIN32
+#ifdef _WIN32
 #define ERR(e) WSA##e
 #else
 #define ERR(e) e
@@ -268,7 +268,7 @@ evutil_ersatz_socketpair(int family, int type, int protocol,
 int
 evutil_make_socket_nonblocking(evutil_socket_t fd)
 {
-#ifdef WIN32
+#ifdef _WIN32
 	{
 		u_long nonblocking = 1;
 		if (ioctlsocket(fd, FIONBIO, &nonblocking) == SOCKET_ERROR) {
@@ -295,7 +295,7 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 int
 evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 {
-#ifndef WIN32
+#ifndef _WIN32
 	int one = 1;
 	/* REUSEADDR on Unix means, "don't hang on to this address after the
 	 * listener is closed."  On Windows, though, it means "don't keep other
@@ -310,7 +310,7 @@ evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 int
 evutil_make_socket_closeonexec(evutil_socket_t fd)
 {
-#if !defined(WIN32) && defined(_EVENT_HAVE_SETFD)
+#if !defined(_WIN32) && defined(_EVENT_HAVE_SETFD)
 	int flags;
 	if ((flags = fcntl(fd, F_GETFD, NULL)) < 0) {
 		event_warn("fcntl(%d, F_GETFD)", fd);
@@ -327,7 +327,7 @@ evutil_make_socket_closeonexec(evutil_socket_t fd)
 int
 evutil_closesocket(evutil_socket_t sock)
 {
-#ifndef WIN32
+#ifndef _WIN32
 	return close(sock);
 #else
 	return closesocket(sock);
@@ -341,7 +341,7 @@ evutil_strtoll(const char *s, char **endptr, int base)
 	return (ev_int64_t)strtoll(s, endptr, base);
 #elif _EVENT_SIZEOF_LONG == 8
 	return (ev_int64_t)strtol(s, endptr, base);
-#elif defined(WIN32) && defined(_MSC_VER) && _MSC_VER < 1300
+#elif defined(_WIN32) && defined(_MSC_VER) && _MSC_VER < 1300
 	/* XXXX on old versions of MS APIs, we only support base
 	 * 10. */
 	ev_int64_t r;
@@ -357,7 +357,7 @@ evutil_strtoll(const char *s, char **endptr, int base)
 	if (endptr)
 		*endptr = (char*) s;
 	return r;
-#elif defined(WIN32)
+#elif defined(_WIN32)
 	return (ev_int64_t) _strtoi64(s, endptr, base);
 #elif defined(_EVENT_SIZEOF_LONG_LONG) && _EVENT_SIZEOF_LONG_LONG == 8
 	long long r;
@@ -434,7 +434,7 @@ evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
 }
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 int
 evutil_socket_geterror(evutil_socket_t sock)
 {
@@ -714,7 +714,7 @@ evutil_parse_servname(const char *servname, const char *protocol,
 	int n = parse_numeric_servname(servname);
 	if (n>=0)
 		return n;
-#if defined(_EVENT_HAVE_GETSERVBYNAME) || defined(WIN32)
+#if defined(_EVENT_HAVE_GETSERVBYNAME) || defined(_WIN32)
 	if (!(hints->ai_flags & EVUTIL_AI_NUMERICSERV)) {
 		struct servent *ent = getservbyname(servname, protocol);
 		if (ent) {
@@ -1214,7 +1214,7 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 	 *   ever resolving even a literal IPv6 address when
 	 *   ai_addrtype is PF_UNSPEC.
 	 */
-#ifdef WIN32
+#ifdef _WIN32
 	{
 		int tmp_port;
 		err = evutil_getaddrinfo_common(nodename,servname,&hints,
@@ -1311,7 +1311,7 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 		/* fall back to gethostbyname. */
 		/* XXXX This needs a lock everywhere but Windows. */
 		ent = gethostbyname(nodename);
-#ifdef WIN32
+#ifdef _WIN32
 		err = WSAGetLastError();
 #else
 		err = h_errno;
@@ -1447,7 +1447,7 @@ evutil_gai_strerror(int err)
 	case EVUTIL_EAI_SYSTEM:
 		return "system error";
 	default:
-#if defined(USE_NATIVE_GETADDRINFO) && defined(WIN32)
+#if defined(USE_NATIVE_GETADDRINFO) && defined(_WIN32)
 		return gai_strerrorA(err);
 #elif defined(USE_NATIVE_GETADDRINFO)
 		return gai_strerror(err);
@@ -1457,7 +1457,7 @@ evutil_gai_strerror(int err)
 	}
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 #define E(code, s) { code, (s " [" #code " ]") }
 static struct { int code; const char *msg; } windows_socket_errors[] = {
   E(WSAEINTR, "Interrupted function call"),
@@ -2091,7 +2091,7 @@ evutil_getenv(const char *varname)
 long
 _evutil_weakrand(void)
 {
-#ifdef WIN32
+#ifdef _WIN32
 	return rand();
 #else
 	return random();
@@ -2150,7 +2150,7 @@ evutil_hex_char_to_int(char c)
 	return -1;
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 HANDLE
 evutil_load_windows_system_library(const TCHAR *library_name)
 {

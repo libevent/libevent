@@ -61,7 +61,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdarg.h>
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #ifndef _WIN32_IE
@@ -89,7 +89,7 @@
 #include "ipv6-internal.h"
 #include "util-internal.h"
 #include "evthread-internal.h"
-#ifdef WIN32
+#ifdef _WIN32
 #include <ctype.h>
 #include <winsock2.h>
 #include <windows.h>
@@ -3437,7 +3437,7 @@ evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char *con
 static char *
 evdns_get_default_hosts_filename(void)
 {
-#ifdef WIN32
+#ifdef _WIN32
 	/* Windows is a little coy about where it puts its configuration
 	 * files.  Sure, they're _usually_ in C:\windows\system32, but
 	 * there's no reason in principle they couldn't be in
@@ -3519,7 +3519,7 @@ evdns_resolv_conf_parse(int flags, const char *const filename) {
 }
 
 
-#ifdef WIN32
+#ifdef _WIN32
 /* Add multiple nameservers from a space-or-comma-separated list. */
 static int
 evdns_nameserver_ip_add_line(struct evdns_base *base, const char *ips) {
@@ -3799,7 +3799,7 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 
 	if (initialize_nameservers) {
 		int r;
-#ifdef WIN32
+#ifdef _WIN32
 		r = evdns_base_config_windows_nameservers(base);
 #else
 		r = evdns_base_resolv_conf_parse(base, DNS_OPTIONS_ALL, "/etc/resolv.conf");

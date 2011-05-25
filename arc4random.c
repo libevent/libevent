@@ -50,7 +50,7 @@
 
 #ifndef ARC4RANDOM_NO_INCLUDES
 #include "evconfig-private.h"
-#ifdef WIN32
+#ifdef _WIN32
 #include <wincrypt.h>
 #include <process.h>
 #else
@@ -79,7 +79,7 @@ struct arc4_stream {
 	unsigned char s[256];
 };
 
-#ifdef WIN32
+#ifdef _WIN32
 #define getpid _getpid
 #define pid_t int
 #endif
@@ -120,7 +120,7 @@ arc4_addrandom(const unsigned char *dat, int datlen)
 	rs.j = rs.i;
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 static ssize_t
 read_all(int fd, unsigned char *buf, size_t count)
 {
@@ -140,7 +140,7 @@ read_all(int fd, unsigned char *buf, size_t count)
 }
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #define TRY_SEED_WIN32
 static int
 arc4_seed_win32(void)
@@ -290,7 +290,7 @@ arc4_seed_proc_sys_kernel_random_uuid(void)
 }
 #endif
 
-#ifndef WIN32
+#ifndef _WIN32
 #define TRY_SEED_URANDOM
 static int
 arc4_seed_urandom(void)

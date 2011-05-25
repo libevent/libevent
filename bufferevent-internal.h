@@ -260,7 +260,7 @@ extern const struct bufferevent_ops bufferevent_ops_pair;
 #define BEV_IS_FILTER(bevp) ((bevp)->be_ops == &bufferevent_ops_filter)
 #define BEV_IS_PAIR(bevp) ((bevp)->be_ops == &bufferevent_ops_pair)
 
-#ifdef WIN32
+#ifdef _WIN32
 extern const struct bufferevent_ops bufferevent_ops_async;
 #define BEV_IS_ASYNC(bevp) ((bevp)->be_ops == &bufferevent_ops_async)
 #else

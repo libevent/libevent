@@ -42,7 +42,7 @@
 
 #ifdef _EVENT_HAVE_PTHREADS
 #include <pthread.h>
-#elif defined(WIN32)
+#elif defined(_WIN32)
 #include <process.h>
 #endif
 #include <assert.h>
@@ -156,7 +156,7 @@ basic_thread(void *arg)
 }
 
 static int notification_fd_used = 0;
-#ifndef WIN32
+#ifndef _WIN32
 static int got_sigchld = 0;
 static void
 sigchld_cb(evutil_socket_t fd, short event, void *arg)
@@ -199,7 +199,7 @@ thread_basic(void *arg)
 		tt_abort_msg("Couldn't make base notifiable!");
 	}
 
-#ifndef WIN32
+#ifndef _WIN32
 	if (data->setup_data && !strcmp(data->setup_data, "forking")) {
 		pid_t pid;
 		int status;
@@ -403,7 +403,7 @@ end:
 #define CB_COUNT 128
 #define QUEUE_THREAD_COUNT 8
 
-#ifdef WIN32
+#ifdef _WIN32
 #define SLEEP_MS(ms) Sleep(ms)
 #else
 #define SLEEP_MS(ms) usleep((ms) * 1000)
@@ -500,7 +500,7 @@ end:
 struct testcase_t thread_testcases[] = {
 	{ "basic", thread_basic, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE,
 	  &basic_setup, NULL },
-#ifndef WIN32
+#ifndef _WIN32
 	{ "forking", thread_basic, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE,
 	  &basic_setup, (char*)"forking" },
 #endif

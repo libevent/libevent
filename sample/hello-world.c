@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <signal.h>
-#ifndef WIN32
+#ifndef _WIN32
 #include <netinet/in.h>
 # ifdef _XOPEN_SOURCE_EXTENDED
 #  include <arpa/inet.h>
@@ -43,7 +43,7 @@ main(int argc, char **argv)
 	struct event *signal_event;
 
 	struct sockaddr_in sin;
-#ifdef WIN32
+#ifdef _WIN32
 	WSADATA wsa_data;
 	WSAStartup(0x0201, &wsa_data);
 #endif

@@ -12,7 +12,7 @@
 
 #include <sys/types.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
@@ -184,7 +184,7 @@ main(int c, char **v) {
 		evdns_add_server_port_with_base(event_base, sock, 0, evdns_server_callback, NULL);
 	}
 	if (idx < c) {
-#ifdef WIN32
+#ifdef _WIN32
 		evdns_base_config_windows_nameservers(evdns_base);
 #else
 		evdns_base_resolv_conf_parse(evdns_base, DNS_OPTION_NAMESERVERS,

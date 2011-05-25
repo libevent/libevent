@@ -177,7 +177,7 @@ extern "C" {
 /* For int types. */
 #include <evutil.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif

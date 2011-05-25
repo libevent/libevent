@@ -63,7 +63,7 @@ extern "C" {
 #include <netdb.h>
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <sys/socket.h>
@@ -86,7 +86,7 @@ extern "C" {
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t
 #define ev_int64_t int64_t
-#elif defined(WIN32)
+#elif defined(_WIN32)
 #define ev_uint64_t unsigned __int64
 #define ev_int64_t signed __int64
 #elif _EVENT_SIZEOF_LONG_LONG == 8
@@ -102,7 +102,7 @@ extern "C" {
 #ifdef _EVENT_HAVE_UINT32_T
 #define ev_uint32_t uint32_t
 #define ev_int32_t int32_t
-#elif defined(WIN32)
+#elif defined(_WIN32)
 #define ev_uint32_t unsigned int
 #define ev_int32_t signed int
 #elif _EVENT_SIZEOF_LONG == 4
@@ -118,7 +118,7 @@ extern "C" {
 #ifdef _EVENT_HAVE_UINT16_T
 #define ev_uint16_t uint16_t
 #define ev_int16_t  int16_t
-#elif defined(WIN32)
+#elif defined(_WIN32)
 #define ev_uint16_t unsigned short
 #define ev_int16_t  signed short
 #elif _EVENT_SIZEOF_INT == 2
@@ -163,7 +163,7 @@ extern "C" {
 #define ev_ssize_t ssize_t
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #define ev_off_t ev_int64_t
 #else
 #define ev_off_t off_t
@@ -201,7 +201,7 @@ extern "C" {
 
 #define EV_SSIZE_MIN ((-EV_SSIZE_MAX) - 1)
 
-#ifdef WIN32
+#ifdef _WIN32
 #define ev_socklen_t int
 #elif defined(_EVENT_socklen_t)
 #define ev_socklen_t _EVENT_socklen_t
@@ -216,7 +216,7 @@ extern "C" {
 #endif
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 /** A type wide enough to hold the output of "socket()" or "accept()".  On
  * Windows, this is an intptr_t; elsewhere, it is an int. */
 #define evutil_socket_t intptr_t
@@ -273,7 +273,7 @@ int evutil_closesocket(evutil_socket_t sock);
  * function, and don't let you use strerror for the error codes.  And handling
  * EWOULDBLOCK is ... different. */
 
-#ifdef WIN32
+#ifdef _WIN32
 /** Return the most recent socket error.  Not idempotent on all platforms. */
 #define EVUTIL_SOCKET_ERROR() WSAGetLastError()
 /** Replace the most recent socket error with errcode */
