@@ -96,12 +96,12 @@ AC_SEARCH_LIBS([inet_aton], [resolv])
 AC_SEARCH_LIBS([clock_gettime], [rt])
 AC_SEARCH_LIBS([sendfile], [sendfile])
 
-dnl - check if the macro WIN32 is defined on this compiler.
-dnl - (this is how we check for a windows version of GCC)
+dnl - check if the macro _WIN32 is defined on this compiler.
+dnl - (this is how we check for a windows compiler)
 AC_MSG_CHECKING(for WIN32)
 AC_TRY_COMPILE(,
 	[
-#ifndef WIN32
+#ifndef _WIN32
 die horribly
 #endif
 	],
@@ -537,7 +537,7 @@ AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, sa_family_t, struct addrin
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
-#ifdef WIN32
+#ifdef _WIN32
 #define WIN32_WINNT 0x400
 #define _WIN32_WINNT 0x400
 #define WIN32_LEAN_AND_MEAN
@@ -560,7 +560,7 @@ AC_CHECK_MEMBERS([struct in6_addr.s6_addr32, struct in6_addr.s6_addr16, struct s
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#ifdef WIN32
+#ifdef _WIN32
 #define WIN32_WINNT 0x400
 #define _WIN32_WINNT 0x400
 #define WIN32_LEAN_AND_MEAN
