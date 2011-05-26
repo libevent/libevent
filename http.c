@@ -840,8 +840,6 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 static enum message_read_status
 evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 {
-        ev_ssize_t len;
-
 	if (req == NULL || buf == NULL) {
 	    return DATA_CORRUPTED;
 	}
@@ -909,7 +907,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 		}
 
 		/* don't have enough to complete a chunk; wait for more */
-		if (len < req->ntoread)
+		if (buflen < req->ntoread)
 			return (MORE_DATA_EXPECTED);
 
 		/* Completed chunk */
