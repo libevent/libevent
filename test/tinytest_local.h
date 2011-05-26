@@ -6,4 +6,7 @@
 #include "event2/util.h"
 #include "util-internal.h"
 
+#ifdef snprintf
+#undef snprintf
+#endif
 #define snprintf evutil_snprintf
