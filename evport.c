@@ -86,7 +86,12 @@
  */
 
 struct fd_info {
-	short fdi_what;		/* combinations of EV_READ and EV_WRITE */
+	/* combinations of EV_READ and EV_WRITE */
+	short fdi_what;
+	/* Index of this fd within ed_pending, plus 1.  Zero if this fd is
+	 * not in ed_pending.  (The +1 is a hack so that memset(0) will set
+	 * it to a nil index. */
+	int pending_idx_plus_1;
 };
 
 #define FDI_HAS_READ(fdi)  ((fdi)->fdi_what & EV_READ)
@@ -250,6 +255,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 		if (fdi != NULL && FDI_HAS_EVENTS(fdi)) {
 			reassociate(epdp, fdi, fd);
 			epdp->ed_pending[i] = -1;
+			fdi->pending_idx_plus_1 = 0;
 		}
 	}
 
@@ -277,10 +283,12 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 	for (i = 0; i < nevents; ++i) {
 		port_event_t *pevt = &pevtlist[i];
 		int fd = (int) pevt->portev_object;
+		struct fd_info *fdi = evmap_io_get_fdinfo(&base->io, fd);
 
 		check_evportop(epdp);
 		check_event(pevt);
 		epdp->ed_pending[i] = fd;
+		fdi->pending_idx_plus_1 = i + 1;
 
 		/*
 		 * Figure out what kind of event it was
@@ -338,17 +346,9 @@ evport_del(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct evport_data *evpd = base->evbase;
 	struct fd_info *fdi = p;
-	int i;
-	int associated = 1;
+	int associated = ! fdi->pending_idx_plus_1;
 
 	check_evportop(evpd);
-
-	for (i = 0; i < EVENTS_PER_GETN; ++i) {
-		if (evpd->ed_pending[i] == fd) {
-			associated = 0;
-			break;
-		}
-	}
 
 	fdi->fdi_what &= ~(events &(EV_READ|EV_WRITE));
 
@@ -370,7 +370,10 @@ evport_del(struct event_base *base, int fd, short old, short events, void *p)
 		}
 	} else {
 		if ((fdi->fdi_what & (EV_READ|EV_WRITE)) == 0) {
+			const int i = fdi->pending_idx_plus_1 - 1;
+			EVUTIL_ASSERT(evpd->ed_pending[i] == fd);
 			evpd->ed_pending[i] = -1;
+			fdi->pending_idx_plus_1 = 0;
 		}
 	}
 	return 0;
