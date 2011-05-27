@@ -74,14 +74,6 @@
 #include "evmap-internal.h"
 
 /*
- * Default value for ed_nevents, which is the maximum file descriptor number we
- * can handle. If an event comes in for a file descriptor F > nevents, we will
- * grow the array of file descriptors, doubling its size.
- */
-#define DEFAULT_NFDS	16
-
-
-/*
  * EVENTS_PER_GETN is the maximum number of events to retrieve from port_getn on
  * any particular call. You can speed things up by increasing this, but it will
  * (obviously) require more memory.
@@ -105,8 +97,6 @@ struct fd_info {
 
 struct evport_data {
 	int		ed_port;	/* event port for system events  */
-	int		ed_nevents;	/* number of allocated fdi's	 */
-	struct fd_info *ed_fds;		/* allocated fdi table		 */
 	/* fdi's that we need to reassoc */
 	int ed_pending[EVENTS_PER_GETN]; /* fd's with pending events */
 };
@@ -126,7 +116,7 @@ const struct eventop evportops = {
 	evport_dealloc,
 	1, /* need reinit */
 	0, /* features */
-	0, /* fdinfo length */
+	sizeof(struct fd_info), /* fdinfo length */
 };
 
 /*
@@ -147,16 +137,6 @@ evport_init(struct event_base *base)
 		return (NULL);
 	}
 
-	/*
-	 * Initialize file descriptor structure
-	 */
-	evpd->ed_fds = mm_calloc(DEFAULT_NFDS, sizeof(struct fd_info));
-	if (evpd->ed_fds == NULL) {
-		close(evpd->ed_port);
-		mm_free(evpd);
-		return (NULL);
-	}
-	evpd->ed_nevents = DEFAULT_NFDS;
 	for (i = 0; i < EVENTS_PER_GETN; i++)
 		evpd->ed_pending[i] = -1;
 
@@ -176,9 +156,7 @@ static void
 check_evportop(struct evport_data *evpd)
 {
 	EVUTIL_ASSERT(evpd);
-	EVUTIL_ASSERT(evpd->ed_nevents > 0);
 	EVUTIL_ASSERT(evpd->ed_port > 0);
-	EVUTIL_ASSERT(evpd->ed_fds > 0);
 }
 
 /*
@@ -201,33 +179,6 @@ check_event(port_event_t* pevt)
 #define check_evportop(epop)
 #define check_event(pevt)
 #endif /* CHECK_INVARIANTS */
-
-/*
- * Doubles the size of the allocated file descriptor array.
- */
-static int
-grow(struct evport_data *epdp, int factor)
-{
-	struct fd_info *tmp;
-	int oldsize = epdp->ed_nevents;
-	int newsize = factor * oldsize;
-	EVUTIL_ASSERT(factor > 1);
-
-	check_evportop(epdp);
-
-	tmp = mm_realloc(epdp->ed_fds, sizeof(struct fd_info) * newsize);
-	if (NULL == tmp)
-		return -1;
-	epdp->ed_fds = tmp;
-	memset((char*) (epdp->ed_fds + oldsize), 0,
-	    (newsize - oldsize)*sizeof(struct fd_info));
-	epdp->ed_nevents = newsize;
-
-	check_evportop(epdp);
-
-	return 0;
-}
-
 
 /*
  * (Re)associates the given file descriptor with the event port. The OS events
@@ -291,12 +242,12 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 	 */
 	for (i = 0; i < EVENTS_PER_GETN; ++i) {
 		struct fd_info *fdi = NULL;
-		if (epdp->ed_pending[i] != -1) {
-			fdi = &(epdp->ed_fds[epdp->ed_pending[i]]);
+		const int fd = epdp->ed_pending[i];
+		if (fd != -1) {
+			fdi = evmap_io_get_fdinfo(&base->io, fd);
 		}
 
 		if (fdi != NULL && FDI_HAS_EVENTS(fdi)) {
-			int fd = epdp->ed_pending[i];
 			reassociate(epdp, fdi, fd);
 			epdp->ed_pending[i] = -1;
 		}
@@ -324,7 +275,6 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 	event_debug(("%s: port_getn reports %d events", __func__, nevents));
 
 	for (i = 0; i < nevents; ++i) {
-		struct fd_info *fdi;
 		port_event_t *pevt = &pevtlist[i];
 		int fd = (int) pevt->portev_object;
 
@@ -352,9 +302,6 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 		if (pevt->portev_events & (POLLERR|POLLHUP|POLLNVAL))
 			res |= EV_READ|EV_WRITE;
 
-		EVUTIL_ASSERT(epdp->ed_nevents > fd);
-		fdi = &(epdp->ed_fds[fd]);
-
 		evmap_io_active(base, fd, res);
 	} /* end of all events gotten */
 
@@ -373,27 +320,10 @@ static int
 evport_add(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct evport_data *evpd = base->evbase;
-	struct fd_info *fdi;
-	int factor;
-	(void)p;
+	struct fd_info *fdi = p;
 
 	check_evportop(evpd);
 
-	/*
-	 * If necessary, grow the file descriptor info table
-	 */
-
-	factor = 1;
-	while (fd >= factor * evpd->ed_nevents)
-		factor *= 2;
-
-	if (factor > 1) {
-		if (-1 == grow(evpd, factor)) {
-			return (-1);
-		}
-	}
-
-	fdi = &evpd->ed_fds[fd];
 	fdi->fdi_what |= events;
 
 	return reassociate(evpd, fdi, fd);
@@ -407,16 +337,11 @@ static int
 evport_del(struct event_base *base, int fd, short old, short events, void *p)
 {
 	struct evport_data *evpd = base->evbase;
-	struct fd_info *fdi;
+	struct fd_info *fdi = p;
 	int i;
 	int associated = 1;
-	(void)p;
 
 	check_evportop(evpd);
-
-	if (evpd->ed_nevents < fd) {
-		return (-1);
-	}
 
 	for (i = 0; i < EVENTS_PER_GETN; ++i) {
 		if (evpd->ed_pending[i] == fd) {
@@ -425,11 +350,7 @@ evport_del(struct event_base *base, int fd, short old, short events, void *p)
 		}
 	}
 
-	fdi = &evpd->ed_fds[fd];
-	if (events & EV_READ)
-		fdi->fdi_what &= ~EV_READ;
-	if (events & EV_WRITE)
-		fdi->fdi_what &= ~EV_WRITE;
+	fdi->fdi_what &= ~(events &(EV_READ|EV_WRITE));
 
 	if (associated) {
 		if (!FDI_HAS_EVENTS(fdi) &&
@@ -465,7 +386,5 @@ evport_dealloc(struct event_base *base)
 
 	close(evpd->ed_port);
 
-	if (evpd->ed_fds)
-		mm_free(evpd->ed_fds);
 	mm_free(evpd);
 }
