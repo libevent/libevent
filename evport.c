@@ -177,7 +177,6 @@ check_event(port_event_t* pevt)
 	 * PORT_SOURCE_FD.
 	 */
 	EVUTIL_ASSERT(pevt->portev_source == PORT_SOURCE_FD);
-	EVUTIL_ASSERT(pevt->portev_user == NULL);
 }
 
 #else
@@ -196,7 +195,7 @@ reassociate(struct evport_data *epdp, struct fd_info *fdip, int fd)
 
 	if (sysevents != 0) {
 		if (port_associate(epdp->ed_port, PORT_SOURCE_FD,
-				   fd, sysevents, NULL) == -1) {
+				   fd, sysevents, fdip) == -1) {
 			event_warn("port_associate");
 			return (-1);
 		}
@@ -283,7 +282,8 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 	for (i = 0; i < nevents; ++i) {
 		port_event_t *pevt = &pevtlist[i];
 		int fd = (int) pevt->portev_object;
-		struct fd_info *fdi = evmap_io_get_fdinfo(&base->io, fd);
+		struct fd_info *fdi = pevt->portev_user;
+		//EVUTIL_ASSERT(evmap_io_get_fdinfo(&base->io, fd) == fdi);
 
 		check_evportop(epdp);
 		check_event(pevt);
