@@ -73,12 +73,8 @@
 #include "evsignal-internal.h"
 #include "evmap-internal.h"
 
-/*
- * EVENTS_PER_GETN is the maximum number of events to retrieve from port_getn on
- * any particular call. You can speed things up by increasing this, but it will
- * (obviously) require more memory.
- */
-#define EVENTS_PER_GETN 8
+#define INITIAL_EVENTS_PER_GETN 8
+#define MAX_EVENTS_PER_GETN 4096
 
 /*
  * Per-file-descriptor information about what events we're subscribed to. These
@@ -104,8 +100,13 @@ struct evport_data {
 	int		ed_port;	/* event port for system events  */
 	/* How many elements of ed_pending should we look at? */
 	int ed_npending;
+	/* How many elements are allocated in ed_pending and pevtlist? */
+	int ed_maxevents;
 	/* fdi's that we need to reassoc */
-	int ed_pending[EVENTS_PER_GETN]; /* fd's with pending events */
+	int *ed_pending;
+	/* storage space for incoming events. */ 
+	port_event_t *ed_pevtlist;
+	
 };
 
 static void*	evport_init(struct event_base *);
@@ -113,6 +114,7 @@ static int evport_add(struct event_base *, int fd, short old, short events, void
 static int evport_del(struct event_base *, int fd, short old, short events, void *);
 static int	evport_dispatch(struct event_base *, struct timeval *);
 static void	evport_dealloc(struct event_base *);
+static int	grow(struct evport_data *, int min_events);
 
 const struct eventop evportops = {
 	"evport",
@@ -134,7 +136,6 @@ static void*
 evport_init(struct event_base *base)
 {
 	struct evport_data *evpd;
-//	int i;
 
 	if (!(evpd = mm_calloc(1, sizeof(struct evport_data))))
 		return (NULL);
@@ -144,11 +145,45 @@ evport_init(struct event_base *base)
 		return (NULL);
 	}
 
+	if (grow(evpd, INITIAL_EVENTS_PER_GETN) < 0) {
+		close(evpd->ed_port);
+		mm_free(evpd);
+		return NULL;
+	}
+		
 	evpd->ed_npending = 0;
 
 	evsig_init(base);
 
 	return (evpd);
+}
+
+static int
+grow(struct evport_data *data, int min_events)
+{
+	int newsize;
+	int *new_pending;
+	port_event_t *new_pevtlist;
+	if (data->ed_maxevents) {
+		newsize = data->ed_maxevents;
+		do {
+			newsize *= 2;
+		} while (newsize < min_events);
+	} else {
+		newsize = min_events;
+	}
+
+	new_pending = mm_realloc(data->ed_pending, sizeof(int)*newsize);
+	if (new_pending == NULL)
+		return -1;
+	data->ed_pending = new_pending;
+	new_pevtlist = mm_realloc(data->ed_pevtlist, sizeof(port_event_t)*newsize);
+	if (new_pevtlist == NULL)
+		return -1;
+	data->ed_pevtlist = new_pevtlist; 
+
+	data->ed_maxevents = newsize;
+	return 0;
 }
 
 #ifdef CHECK_INVARIANTS
@@ -217,12 +252,12 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 {
 	int i, res;
 	struct evport_data *epdp = base->evbase;
-	port_event_t pevtlist[EVENTS_PER_GETN];
+	port_event_t *pevtlist = epdp->ed_pevtlist;
 
 	/*
 	 * port_getn will block until it has at least nevents events. It will
 	 * also return how many it's given us (which may be more than we asked
-	 * for, as long as it's less than our maximum (EVENTS_PER_GETN)) in
+	 * for, as long as it's less than our maximum (ed_maxevents)) in
 	 * nevents.
 	 */
 	int nevents = 1;
@@ -263,7 +298,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
-	res = port_getn(epdp->ed_port, pevtlist, EVENTS_PER_GETN,
+	res = port_getn(epdp->ed_port, pevtlist, epdp->ed_maxevents,
 	    (unsigned int *) &nevents, ts_p);
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
@@ -316,6 +351,13 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 		evmap_io_active(base, fd, res);
 	} /* end of all events gotten */
 	epdp->ed_npending = nevents;
+
+	if (nevents == epdp->ed_maxevents &&
+	    epdp->ed_maxevents < MAX_EVENTS_PER_GETN) {
+		/* we used all the space this time.  We should be ready
+		 * for more events next time around. */
+		grow(epdp, epdp->ed_maxevents * 2);
+	}
 
 	check_evportop(epdp);
 
@@ -392,6 +434,11 @@ evport_dealloc(struct event_base *base)
 	evsig_dealloc(base);
 
 	close(evpd->ed_port);
+
+	if (evpd->ed_pending)
+		mm_free(evpd->ed_pending);
+	if (evpd->ed_pevtlist)
+		mm_free(evpd->ed_pevtlist);
 
 	mm_free(evpd);
 }
