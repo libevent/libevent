@@ -882,7 +882,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			}
 
 			/* ntoread is signed int64, body_size is unsigned size_t, check for under/overflow conditions */
-			if (ntoread > EV_SIZE_MAX - req->body_size) {
+			if ((ev_uint64_t)ntoread > EV_SIZE_MAX - req->body_size) {
 			    return DATA_CORRUPTED;
 			}
 
@@ -908,7 +908,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 		}
 
 		/* don't have enough to complete a chunk; wait for more */
-		if (buflen < req->ntoread)
+		if (req->ntoread > 0 && buflen < (ev_uint64_t)req->ntoread)
 			return (MORE_DATA_EXPECTED);
 
 		/* Completed chunk */
