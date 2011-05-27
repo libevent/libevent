@@ -102,6 +102,8 @@ struct fd_info {
 
 struct evport_data {
 	int		ed_port;	/* event port for system events  */
+	/* How many elements of ed_pending should we look at? */
+	int ed_npending;
 	/* fdi's that we need to reassoc */
 	int ed_pending[EVENTS_PER_GETN]; /* fd's with pending events */
 };
@@ -132,7 +134,7 @@ static void*
 evport_init(struct event_base *base)
 {
 	struct evport_data *evpd;
-	int i;
+//	int i;
 
 	if (!(evpd = mm_calloc(1, sizeof(struct evport_data))))
 		return (NULL);
@@ -142,8 +144,7 @@ evport_init(struct event_base *base)
 		return (NULL);
 	}
 
-	for (i = 0; i < EVENTS_PER_GETN; i++)
-		evpd->ed_pending[i] = -1;
+	evpd->ed_npending = 0;
 
 	evsig_init(base);
 
@@ -244,16 +245,18 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 	 * last time which need reassociation. See comment at the end of the
 	 * loop below.
 	 */
-	for (i = 0; i < EVENTS_PER_GETN; ++i) {
+	for (i = 0; i < epdp->ed_npending; ++i) {
 		struct fd_info *fdi = NULL;
 		const int fd = epdp->ed_pending[i];
 		if (fd != -1) {
+			/* We might have cleared out this event; we need
+			 * to be sure that it's still set. */
 			fdi = evmap_io_get_fdinfo(&base->io, fd);
 		}
 
 		if (fdi != NULL && FDI_HAS_EVENTS(fdi)) {
 			reassociate(epdp, fdi, fd);
-			epdp->ed_pending[i] = -1;
+//			epdp->ed_pending[i] = -1;
 			fdi->pending_idx_plus_1 = 0;
 		}
 	}
@@ -312,6 +315,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 
 		evmap_io_active(base, fd, res);
 	} /* end of all events gotten */
+	epdp->ed_npending = nevents;
 
 	check_evportop(epdp);
 
