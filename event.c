@@ -825,6 +825,7 @@ event_reinit(struct event_base *base)
 		base->th_notify_fd[0] = -1;
 		base->th_notify_fd[1] = -1;
 		event_debug_unassign(&base->th_notify);
+		base->th_notify_fn = NULL;
 	}
 
 	if (base->evsel->dealloc != NULL)
@@ -2696,8 +2697,10 @@ evthread_make_base_notifiable(struct event_base *base)
 	if (!base)
 		return -1;
 
-	if (base->th_notify_fd[0] >= 0)
+	if (base->th_notify_fn != NULL) {
+		/* The base is already notifiable: we're doing fine. */
 		return 0;
+	}
 
 #if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
 #ifndef EFD_CLOEXEC
