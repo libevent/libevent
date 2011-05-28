@@ -3040,9 +3040,9 @@ http_connection_fail_test(void *arg)
        evhttp_free(http);
        http = NULL;
 
-       /* Pick an unroutable address.  The limited broadcast address should do
-        * when working with TCP. */
-       evcon = evhttp_connection_base_new(data->base, NULL, "255.255.255.255", 80);
+       /* Pick an unroutable address.  This administratively scoped multicast
+	* address should do when working with TCP. */
+       evcon = evhttp_connection_base_new(data->base, NULL, "239.10.20.30", 80);
        tt_assert(evcon);
 
        /*
