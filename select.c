@@ -172,9 +172,9 @@ select_dispatch(struct event_base *base, struct timeval *tv)
 	event_debug(("%s: select reports %d", __func__, res));
 
 	check_selectop(sop);
-	i = random() % (nfds+1);
-	for (j = 0; j <= nfds; ++j) {
-		if (++i >= nfds+1)
+	i = random() % nfds;
+	for (j = 0; j < nfds; ++j) {
+		if (++i >= nfds)
 			i = 0;
 		res = 0;
 		if (FD_ISSET(i, sop->event_readset_out))
