@@ -2218,7 +2218,6 @@ test_many_events(void *arg)
 	int called[MANY];
 	int i;
 	int loopflags = EVLOOP_NONBLOCK, evflags=0;
-	const int is_evport = !strcmp(event_base_get_method(base),"evport");
 	if (one_at_a_time) {
 		loopflags |= EVLOOP_ONCE;
 		evflags = EV_PERSIST;
@@ -2227,10 +2226,6 @@ test_many_events(void *arg)
 	memset(sock, 0xff, sizeof(sock));
 	memset(ev, 0, sizeof(ev));
 	memset(called, 0, sizeof(called));
-	if (is_evport && one_at_a_time) {
-		TT_DECLARE("NOTE", ("evport can't pass this in 2.0; skipping\n"));
-		tt_skip();
-	}
 
 	for (i = 0; i < MANY; ++i) {
 		/* We need an event that will hit the backend, and that will
