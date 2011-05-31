@@ -1373,21 +1373,17 @@ evbuffer_search_eol(struct evbuffer *buffer,
 		break;
 	}
 	case EVBUFFER_EOL_CRLF:
-		while (1) {
-			if (evbuffer_find_eol_char(&it) < 0)
-				goto done;
-			if (evbuffer_getchr(&it) == '\n') {
-				extra_drain = 1;
-				break;
-			} else if (!evbuffer_ptr_memcmp(
-				    buffer, &it, "\r\n", 2)) {
-				extra_drain = 2;
-				break;
-			} else {
-				if (evbuffer_ptr_set(buffer, &it, 1,
-					EVBUFFER_PTR_ADD)<0)
-					goto done;
-			}
+		// Is a LF
+		if (evbuffer_strchr(&it, '\n') < 0)
+			goto done;
+		extra_drain = 1;
+		// Optionally preceeded by a CR
+		if (it.pos < 1) break;
+		memcpy(&it2, &it, sizeof(it));
+		if (evbuffer_ptr_set(buffer, &it2, it2.pos - 1, EVBUFFER_PTR_SET)<0) break;
+		if (evbuffer_getchr(&it2) == '\r') {
+			memcpy(&it, &it2, sizeof(it));
+			extra_drain = 2;
 		}
 		break;
 	case EVBUFFER_EOL_LF:
