@@ -140,6 +140,8 @@ static int evbuffer_ptr_memcmp(const struct evbuffer *buf,
     const struct evbuffer_ptr *pos, const char *mem, size_t len);
 static struct evbuffer_chain *evbuffer_expand_singlechain(struct evbuffer *buf,
     size_t datlen);
+static int evbuffer_ptr_subtract(struct evbuffer *buf, struct evbuffer_ptr *pos,
+    size_t howfar);
 
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
@@ -1373,14 +1375,18 @@ evbuffer_search_eol(struct evbuffer *buffer,
 		break;
 	}
 	case EVBUFFER_EOL_CRLF:
-		// Is a LF
+		/* Look for a LF ... */
 		if (evbuffer_strchr(&it, '\n') < 0)
 			goto done;
 		extra_drain = 1;
-		// Optionally preceeded by a CR
+		/* ... optionally preceeded by a CR. */
 		if (it.pos < 1) break;
+		/* This potentially does an extra linear walk over the first
+		 * few chains.  Probably, that's not too expensive unless you
+		 * have a really pathological setup. */
 		memcpy(&it2, &it, sizeof(it));
-		if (evbuffer_ptr_set(buffer, &it2, it2.pos - 1, EVBUFFER_PTR_SET)<0) break;
+		if (evbuffer_ptr_subtract(buffer, &it2, 1)<0)
+			break;
 		if (evbuffer_getchr(&it2) == '\r') {
 			memcpy(&it, &it2, sizeof(it));
 			extra_drain = 2;
@@ -2269,6 +2275,29 @@ evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len)
 	}
 	EVBUFFER_UNLOCK(buffer);
 	return search;
+}
+
+/* Subract <b>howfar</b> from the position of <b>pos</b> within
+ * <b>buf</b>. Returns 0 on success, -1 on failure.
+ *
+ * This isn't exposed yet, because of potential inefficiency issues.
+ * Maybe it should be. */
+static int
+evbuffer_ptr_subtract(struct evbuffer *buf, struct evbuffer_ptr *pos,
+    size_t howfar)
+{
+	if (howfar > (size_t)pos->pos)
+		return -1;
+	if (howfar <= pos->_internal.pos_in_chain) {
+		pos->_internal.pos_in_chain -= howfar;
+		pos->pos -= howfar;
+		return 0;
+	} else {
+		const size_t newpos = pos->pos - howfar;
+		/* Here's the inefficient part: it walks over the
+		 * chains until we hit newpos. */
+		return evbuffer_ptr_set(buf, pos, newpos, EVBUFFER_PTR_SET);
+	}
 }
 
 int
