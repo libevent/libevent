@@ -98,6 +98,19 @@ die horribly
 	bwin32=false; AC_MSG_RESULT(no),
 )
 
+dnl - check if the macro __CYGWIN__ is defined on this compiler.
+dnl - (this is how we check for a cygwin version of GCC)
+AC_MSG_CHECKING(for CYGWIN)
+AC_TRY_COMPILE(,
+	[
+#ifndef __CYGWIN__
+die horribly
+#endif
+	],
+	cygwin=true; AC_MSG_RESULT(yes),
+	cygwin=false; AC_MSG_RESULT(no),
+)
+
 AC_CHECK_HEADERS([zlib.h])
 
 if test "x$ac_cv_header_zlib_h" = "xyes"; then
@@ -231,6 +244,8 @@ if test "x$ac_cv_header_sys_sysctl_h" = "xyes"; then
 fi
 
 AM_CONDITIONAL(BUILD_WIN32, test x$bwin32 = xtrue)
+AM_CONDITIONAL(BUILD_CYGWIN, test x$cygwin = xtrue)
+AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin = xtrue)
 
 if test x$bwin32 = xtrue; then
    AC_SEARCH_LIBS([getservbyname],[ws2_32])

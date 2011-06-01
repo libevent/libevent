@@ -172,7 +172,7 @@ CORE_SRC = event.c evthread.c buffer.c \
 	evmap.c	log.c evutil.c evutil_rand.c strlcpy.c $(SYS_SRC)
 EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
 
-if BUILD_WIN32
+if BUILD_WITH_NO_UNDEFINED
 NO_UNDEFINED = -no-undefined
 MAYBE_CORE = libevent_core.la
 else
@@ -192,6 +192,7 @@ libevent_core_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 if PTHREADS
 libevent_pthreads_la_SOURCES = evthread_pthread.c
+libevent_pthreads_la_LIBADD = $(MAYBE_CORE)
 libevent_pthreads_la_LDFLAGS = $(GENERIC_LDFLAGS)
 endif
 
