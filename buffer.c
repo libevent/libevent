@@ -2840,7 +2840,7 @@ evbuffer_add_file_segment(struct evbuffer *buf,
 			FILE_MAP_READ,
 			offset_rounded >> 32,
 			offset_rounded & 0xfffffffful,
-			length);
+			length + offset_remaining);
 		if (data == NULL) {
 			mm_free(chain);
 			goto err;
