@@ -604,6 +604,7 @@ event_base_new_with_config(const struct event_config *cfg)
 	if (base->evbase == NULL) {
 		event_warnx("%s: no event mechanism available",
 		    __func__);
+		base->evsel = NULL;
 		event_base_free(base);
 		return NULL;
 	}

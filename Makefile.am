@@ -35,6 +35,20 @@ RELEASE = -release 2.1
 VERSION_INFO = 1:0:0
 
 # History:          RELEASE    VERSION_INFO
+#  2.0.1-alpha --     2.0        1:0:0
+#  2.0.2-alpha --                2:0:0
+#  2.0.3-alpha --                2:0:0  (should have incremented; didn't.)
+#  2.0.4-alpha --                3:0:0
+#  2.0.5-beta  --                4:0:0
+#  2.0.6-rc    --     2.0        2:0:0
+#  2.0.7-rc    --     2.0        3:0:1
+#  2.0.8-rc    --     2.0        4:0:2
+#  2.0.9-rc    --     2.0        5:0:0 (ABI changed slightly)
+#  2.0.10-stable--    2.0        5:1:0 (No ABI change)
+#  2.0.11-stable--    2.0        6:0:1 (ABI changed, backward-compatible)
+#  2.0.12-stable--    2.0        6:1:1 (No ABI change)
+#
+# For Libevent 2.1:
 #  2.1.1-alpha --     2.1        1:0:0
 
 
