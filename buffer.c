@@ -1374,13 +1374,15 @@ evbuffer_search_eol(struct evbuffer *buffer,
 		extra_drain = 2;
 		break;
 	}
-	case EVBUFFER_EOL_CRLF:
+	case EVBUFFER_EOL_CRLF: {
+		ev_ssize_t start_pos = it.pos;
 		/* Look for a LF ... */
 		if (evbuffer_strchr(&it, '\n') < 0)
 			goto done;
 		extra_drain = 1;
 		/* ... optionally preceeded by a CR. */
-		if (it.pos < 1) break;
+		if (it.pos == start_pos)
+			break; /* If the first character is \n, don't back up */
 		/* This potentially does an extra linear walk over the first
 		 * few chains.  Probably, that's not too expensive unless you
 		 * have a really pathological setup. */
@@ -1392,6 +1394,7 @@ evbuffer_search_eol(struct evbuffer *buffer,
 			extra_drain = 2;
 		}
 		break;
+	}
 	case EVBUFFER_EOL_LF:
 		if (evbuffer_strchr(&it, '\n') < 0)
 			goto done;
