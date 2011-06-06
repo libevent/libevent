@@ -1230,7 +1230,7 @@ evbuffer_strchr(struct evbuffer_ptr *it, const char chr)
 		if (cp) {
 			it->_internal.chain = chain;
 			it->_internal.pos_in_chain = cp - buffer;
-			it->pos += (cp - buffer);
+			it->pos += (cp - buffer - i);
 			return it->pos;
 		}
 		it->pos += chain->off - i;
