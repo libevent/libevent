@@ -881,11 +881,61 @@ test_evbuffer_readln(void *ptr)
 	free(cp); cp = NULL;
 	evbuffer_validate(evb);
 
-	test_ok = 1;
  end:
 	evbuffer_free(evb);
 	evbuffer_free(evb_tmp);
 	if (cp) free(cp);
+}
+
+static void
+test_evbuffer_search_eol(void *ptr)
+{
+	struct evbuffer *buf = evbuffer_new();
+	struct evbuffer_ptr ptr1, ptr2;
+	const char *s;
+	size_t eol_len;
+
+	s = "string! \r\n\r\nx\n";
+	evbuffer_add(buf, s, strlen(s));
+	eol_len = -1;
+	ptr1 = evbuffer_search_eol(buf, NULL, &eol_len, EVBUFFER_EOL_CRLF);
+	tt_int_op(ptr1.pos, ==, 8);
+	tt_int_op(eol_len, ==, 2);
+
+	eol_len = -1;
+	ptr2 = evbuffer_search_eol(buf, &ptr1, &eol_len, EVBUFFER_EOL_CRLF);
+	tt_int_op(ptr2.pos, ==, 8);
+	tt_int_op(eol_len, ==, 2);
+
+	evbuffer_ptr_set(buf, &ptr1, 1, EVBUFFER_PTR_ADD);
+	eol_len = -1;
+	ptr2 = evbuffer_search_eol(buf, &ptr1, &eol_len, EVBUFFER_EOL_CRLF);
+	tt_int_op(ptr2.pos, ==, 9);
+	tt_int_op(eol_len, ==, 1);
+
+	eol_len = -1;
+	ptr2 = evbuffer_search_eol(buf, &ptr1, &eol_len, EVBUFFER_EOL_CRLF_STRICT);
+	tt_int_op(ptr2.pos, ==, 10);
+	tt_int_op(eol_len, ==, 2);
+
+	eol_len = -1;
+	ptr1 = evbuffer_search_eol(buf, NULL, &eol_len, EVBUFFER_EOL_LF);
+	tt_int_op(ptr1.pos, ==, 9);
+	tt_int_op(eol_len, ==, 1);
+
+	eol_len = -1;
+	ptr2 = evbuffer_search_eol(buf, &ptr1, &eol_len, EVBUFFER_EOL_LF);
+	tt_int_op(ptr2.pos, ==, 9);
+	tt_int_op(eol_len, ==, 1);
+
+	evbuffer_ptr_set(buf, &ptr1, 1, EVBUFFER_PTR_ADD);
+	eol_len = -1;
+	ptr2 = evbuffer_search_eol(buf, &ptr1, &eol_len, EVBUFFER_EOL_LF);
+	tt_int_op(ptr2.pos, ==, 11);
+	tt_int_op(eol_len, ==, 1);
+
+end:
+	evbuffer_free(buf);
 }
 
 static void
@@ -1073,6 +1123,7 @@ test_evbuffer_search(void *ptr)
 	tt_int_op(pos.pos, ==, -1);
 	pos = evbuffer_search_range(buf, "ack", 3, NULL, &end);
 	tt_int_op(pos.pos, ==, -1);
+
 
 end:
 	if (buf)
@@ -1548,6 +1599,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "reference", test_evbuffer_reference, 0, NULL, NULL },
 	{ "iterative", test_evbuffer_iterative, 0, NULL, NULL },
 	{ "readln", test_evbuffer_readln, TT_NO_LOGS, &basic_setup, NULL },
+	{ "search_eol", test_evbuffer_search_eol, 0, NULL, NULL },
 	{ "find", test_evbuffer_find, 0, NULL, NULL },
 	{ "ptr_set", test_evbuffer_ptr_set, 0, NULL, NULL },
 	{ "search", test_evbuffer_search, 0, NULL, NULL },
