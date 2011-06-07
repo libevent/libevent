@@ -1222,6 +1222,8 @@ test_evbuffer_ptr_set(void *ptr)
 	tt_assert(pos.pos == 10000);
 	tt_assert(evbuffer_ptr_set(buf, &pos, 1000, EVBUFFER_PTR_ADD) == 0);
 	tt_assert(pos.pos == 11000);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 1000, EVBUFFER_PTR_ADD) == 0);
+	tt_assert(pos.pos == 12000);
 	tt_assert(evbuffer_ptr_set(buf, &pos, 1000, EVBUFFER_PTR_ADD) == -1);
 	tt_assert(pos.pos == -1);
 

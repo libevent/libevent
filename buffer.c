@@ -2307,6 +2307,7 @@ evbuffer_ptr_set(struct evbuffer *buf, struct evbuffer_ptr *pos,
 {
 	size_t left = position;
 	struct evbuffer_chain *chain = NULL;
+	int result = 0;
 
 	EVBUFFER_LOCK(buf);
 
@@ -2333,14 +2334,18 @@ evbuffer_ptr_set(struct evbuffer *buf, struct evbuffer_ptr *pos,
 	if (chain) {
 		pos->_internal.chain = chain;
 		pos->_internal.pos_in_chain = position + left;
+	} else if (left == 0 && buf->last) {
+		pos->_internal.chain = buf->last;
+		pos->_internal.pos_in_chain = buf->last->off;
 	} else {
 		pos->_internal.chain = NULL;
 		pos->pos = -1;
+		result = -1;
 	}
 
 	EVBUFFER_UNLOCK(buf);
 
-	return chain != NULL ? 0 : -1;
+	return result;
 }
 
 /**
