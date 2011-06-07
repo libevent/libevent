@@ -1280,6 +1280,10 @@ test_evbuffer_search(void *ptr)
 	pos = evbuffer_search_range(buf, "ack", 3, NULL, &end);
 	tt_int_op(pos.pos, ==, -1);
 
+	/* Set "end" to the last byte in the buffer. */
+	evbuffer_ptr_set(buf, &end, 17, EVBUFFER_PTR_SET);
+	pos = evbuffer_search_range(buf, "attack", 6, NULL, &end);
+	tt_int_op(pos.pos, ==, 11);
 
 end:
 	if (buf)
