@@ -3309,8 +3309,11 @@ evhttp_new_object(void)
 struct evhttp *
 evhttp_new(struct event_base *base)
 {
-	struct evhttp *http = evhttp_new_object();
+	struct evhttp *http = NULL;
 
+	http = evhttp_new_object();
+	if (http == NULL)
+		return (NULL);
 	http->base = base;
 
 	return (http);
@@ -3323,8 +3326,11 @@ evhttp_new(struct event_base *base)
 struct evhttp *
 evhttp_start(const char *address, unsigned short port)
 {
-	struct evhttp *http = evhttp_new_object();
+	struct evhttp *http = NULL;
 
+	http = evhttp_new_object();
+	if (http == NULL)
+		return (NULL);
 	if (evhttp_bind_socket(http, address, port) == -1) {
 		mm_free(http);
 		return (NULL);
