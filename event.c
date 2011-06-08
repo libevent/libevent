@@ -681,13 +681,19 @@ event_base_free(struct event_base *base)
 	/* XXXX grab the lock? If there is contention when one thread frees
 	 * the base, then the contending thread will be very sad soon. */
 
+	/* event_base_free(NULL) is how to free the current_base if we
+	 * made it with event_init and forgot to hold a reference to it. */
 	if (base == NULL && current_base)
 		base = current_base;
+	/* If we're freeing current_base, there won't be a current_base. */
 	if (base == current_base)
 		current_base = NULL;
-
+	/* Don't actually free NULL. */
+	if (base == NULL) {
+		event_warnx("%s: no base to free", __func__);
+		return;
+	}
 	/* XXX(niels) - check for internal events first */
-	EVUTIL_ASSERT(base);
 
 #ifdef WIN32
 	event_base_stop_iocp(base);
