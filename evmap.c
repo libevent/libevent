@@ -127,7 +127,8 @@ HT_GENERATE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket,
 		    },							\
 		    {							\
 			    _ent = mm_calloc(1,sizeof(struct event_map_entry)+fdinfo_len); \
-			    EVUTIL_ASSERT(_ent);				\
+			    if (EVUTIL_UNLIKELY(_ent == NULL))		\
+				    return (-1);			\
 			    _ent->fd = slot;				\
 			    (ctor)(&_ent->ent.type);			\
 			    _HT_FOI_INSERT(map_node, map, &_key, _ent, ptr) \
@@ -159,14 +160,16 @@ void evmap_io_clear(struct event_io_map *ctx)
 	(x) = (struct type *)((map)->entries[slot])
 /* As GET_SLOT, but construct the entry for 'slot' if it is not present,
    by allocating enough memory for a 'struct type', and initializing the new
-   value by calling the function 'ctor' on it.
+   value by calling the function 'ctor' on it.  Makes the function
+   return -1 on allocation failure.
  */
 #define GET_SIGNAL_SLOT_AND_CTOR(x, map, slot, type, ctor, fdinfo_len)	\
 	do {								\
 		if ((map)->entries[slot] == NULL) {			\
 			(map)->entries[slot] =				\
 			    mm_calloc(1,sizeof(struct type)+fdinfo_len); \
-			EVUTIL_ASSERT((map)->entries[slot] != NULL);		\
+			if (EVUTIL_UNLIKELY((map)->entries[slot] == NULL)) \
+				return (-1);				\
 			(ctor)((struct type *)(map)->entries[slot]);	\
 		}							\
 		(x) = (struct type *)((map)->entries[slot]);		\
