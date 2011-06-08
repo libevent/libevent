@@ -459,8 +459,8 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	if ((req->type == EVHTTP_REQ_POST || req->type == EVHTTP_REQ_PUT) &&
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		char size[22];
-		evutil_snprintf(size, sizeof(size), "%ld",
-		    (long)evbuffer_get_length(req->output_buffer));
+		evutil_snprintf(size, sizeof(size), EV_SIZE_FMT,
+		    EV_SIZE_ARG(evbuffer_get_length(req->output_buffer)));
 		evhttp_add_header(req->output_headers, "Content-Length", size);
 	}
 }
@@ -518,12 +518,13 @@ evhttp_maybe_add_date_header(struct evkeyvalq *headers)
  * unless it already has a content-length or transfer-encoding header. */
 static void
 evhttp_maybe_add_content_length_header(struct evkeyvalq *headers,
-    long content_length) /* XXX use size_t or int64, not long. */
+    size_t content_length)
 {
 	if (evhttp_find_header(headers, "Transfer-Encoding") == NULL &&
 	    evhttp_find_header(headers,	"Content-Length") == NULL) {
 		char len[22];
-		evutil_snprintf(len, sizeof(len), "%ld", content_length);
+		evutil_snprintf(len, sizeof(len), EV_SIZE_FMT,
+		    EV_SIZE_ARG(content_length));
 		evhttp_add_header(headers, "Content-Length", len);
 	}
 }
@@ -563,7 +564,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 			 */
 			evhttp_maybe_add_content_length_header(
 				req->output_headers,
-				(long)evbuffer_get_length(req->output_buffer));
+				evbuffer_get_length(req->output_buffer));
 		}
 	}
 
@@ -1076,9 +1077,10 @@ evhttp_read_cb(struct bufferevent *bufev, void *arg)
 
 			input = bufferevent_get_input(evcon->bufev);
 			total_len = evbuffer_get_length(input);
-			event_debug(("%s: read %d bytes in EVCON_IDLE state,"
-                                    " resetting connection",
-					__func__, (int)total_len));
+			event_debug(("%s: read "EV_SIZE_FMT
+				" bytes in EVCON_IDLE state,"
+				" resetting connection",
+				__func__, EV_SIZE_ARG(total_len)));
 #endif
 
 			evhttp_connection_reset(evcon);
@@ -1870,9 +1872,9 @@ evhttp_get_body_length(struct evhttp_request *req)
 		req->ntoread = ntoread;
 	}
 
-	event_debug(("%s: bytes to read: %ld (in buffer %ld)\n",
-		__func__, (long)req->ntoread,
-		evbuffer_get_length(bufferevent_get_input(req->evcon->bufev))));
+	event_debug(("%s: bytes to read: "EV_I64_FMT" (in buffer "EV_SIZE_FMT")\n",
+		__func__, EV_I64_ARG(req->ntoread),
+		EV_SIZE_ARG(evbuffer_get_length(bufferevent_get_input(req->evcon->bufev)))));
 
 	return (0);
 }
