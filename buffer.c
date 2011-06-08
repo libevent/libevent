@@ -934,10 +934,8 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 		}
 
 		buf->first = chain;
-		if (chain) {
-			chain->misalign += remaining;
-			chain->off -= remaining;
-		}
+		chain->misalign += remaining;
+		chain->off -= remaining;
 	}
 
 	buf->n_del_for_cb += len;
