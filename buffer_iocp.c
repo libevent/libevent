@@ -151,6 +151,8 @@ evbuffer_overlapped_new(evutil_socket_t fd)
 	struct evbuffer_overlapped *evo;
 
 	evo = mm_calloc(1, sizeof(struct evbuffer_overlapped));
+	if (!evo)
+		return NULL;
 
 	TAILQ_INIT(&evo->buffer.callbacks);
 	evo->buffer.refcnt = 1;
