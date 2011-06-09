@@ -388,6 +388,18 @@ char *evbuffer_readln(struct evbuffer *buffer, size_t *n_read_out,
 int evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf);
 
 /**
+  Copy data from one evbuffer into another evbuffer.
+  
+  This is a non-destructive add.  The data from one buffer is copied
+  into the other buffer.  However, no unnecessary memory copies occur.
+  
+  @param outbuf the output buffer
+  @param inbuf the input buffer
+  @return 0 if successful, or -1 if an error occurred
+ */
+int evbuffer_add_buffer_reference(struct evbuffer *outbuf, struct evbuffer *inbuf);
+
+/**
    A cleanup function for a piece of memory added to an evbuffer by
    reference.
 
