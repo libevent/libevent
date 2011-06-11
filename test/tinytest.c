@@ -66,8 +66,8 @@ const char *cur_test_prefix = NULL; /**< prefix of the current test group */
 const char *cur_test_name = NULL;
 
 #ifdef _WIN32
-/** Pointer to argv[0] for win32. */
-static const char *commandname = NULL;
+/* Copy of argv[0] for win32. */
+static char commandname[MAX_PATH+1];
 #endif
 
 static void usage(struct testgroup_t *groups, int list_groups)
@@ -291,7 +291,12 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 	int i, j, n=0;
 
 #ifdef _WIN32
-	commandname = v[0];
+	const char *sp = strrchr(v[0], '.');
+	const char *extension = "";
+	if (!sp || stricmp(sp, ".exe"))
+		extension = ".exe"; /* Add an exe so CreateProcess will work */
+	snprintf(commandname, sizeof(commandname), "%s%s", v[0], extension);
+	commandname[MAX_PATH]='\0';
 #endif
 	for (i=1; i<c; ++i) {
 		if (v[i][0] == '-') {
