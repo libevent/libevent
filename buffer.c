@@ -1334,6 +1334,9 @@ evbuffer_getchr(struct evbuffer_ptr *it)
 	struct evbuffer_chain *chain = it->_internal.chain;
 	size_t off = it->_internal.pos_in_chain;
 
+	if (chain == NULL)
+		return -1; /* XXX Better invalid char value? */
+
 	return chain->buffer[chain->misalign + off];
 }
 
@@ -1345,6 +1348,14 @@ evbuffer_search_eol(struct evbuffer *buffer,
 	struct evbuffer_ptr it, it2;
 	size_t extra_drain = 0;
 	int ok = 0;
+
+	/* Avoid locking in trivial edge cases */
+	if (start && start->_internal.chain == NULL) {
+		it.pos = -1;
+		if (eol_len_out)
+			*eol_len_out = extra_drain;
+		return it;
+	}
 
 	EVBUFFER_LOCK(buffer);
 
@@ -2334,9 +2345,10 @@ evbuffer_ptr_set(struct evbuffer *buf, struct evbuffer_ptr *pos,
 	if (chain) {
 		pos->_internal.chain = chain;
 		pos->_internal.pos_in_chain = position + left;
-	} else if (left == 0 && buf->last) {
-		pos->_internal.chain = buf->last;
-		pos->_internal.pos_in_chain = buf->last->off;
+	} else if (left == 0) {
+		/* The first byte in the (nonexistent) chain after the last chain */
+		pos->_internal.chain = NULL;
+		pos->_internal.pos_in_chain = 0;
 	} else {
 		pos->_internal.chain = NULL;
 		pos->pos = -1;
@@ -2465,6 +2477,10 @@ evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
 	struct evbuffer_chain *chain;
 	int idx = 0;
 	ev_ssize_t len_so_far = 0;
+
+	/* Avoid locking in trivial edge cases */
+	if (start_at && start_at->_internal.chain == NULL)
+		return 0;
 
 	EVBUFFER_LOCK(buffer);
 

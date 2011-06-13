@@ -1090,6 +1090,12 @@ test_evbuffer_search_eol(void *ptr)
 	tt_int_op(ptr2.pos, ==, 11);
 	tt_int_op(eol_len, ==, 1);
 
+	tt_assert(evbuffer_ptr_set(buf, &ptr1, evbuffer_get_length(buf), EVBUFFER_PTR_SET) == 0);
+	eol_len = -1;
+	ptr2 = evbuffer_search_eol(buf, &ptr1, &eol_len, EVBUFFER_EOL_LF);
+	tt_int_op(ptr2.pos, ==, -1);
+	tt_int_op(eol_len, ==, 0);
+
 end:
 	evbuffer_free(buf);
 }
@@ -1190,6 +1196,15 @@ test_evbuffer_ptr_set(void *ptr)
 	struct evbuffer_ptr pos;
 	struct evbuffer_iovec v[1];
 
+	tt_int_op(evbuffer_get_length(buf), ==, 0);
+
+	tt_assert(evbuffer_ptr_set(buf, &pos, 0, EVBUFFER_PTR_SET) == 0);
+	tt_assert(pos.pos == 0);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 1, EVBUFFER_PTR_ADD) == -1);
+	tt_assert(pos.pos == -1);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 1, EVBUFFER_PTR_SET) == -1);
+	tt_assert(pos.pos == -1);
+
 	/* create some chains */
 	evbuffer_reserve_space(buf, 5000, v, 1);
 	v[0].iov_len = 5000;
@@ -1239,6 +1254,18 @@ test_evbuffer_search(void *ptr)
 	struct evbuffer *tmp = evbuffer_new();
 	struct evbuffer_ptr pos, end;
 
+	pos = evbuffer_search(buf, "x", 1, NULL);
+	tt_int_op(pos.pos, ==, -1);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 0, EVBUFFER_PTR_SET) == 0);
+	pos = evbuffer_search(buf, "x", 1, &pos);
+	tt_int_op(pos.pos, ==, -1);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 0, EVBUFFER_PTR_SET) == 0);
+	pos = evbuffer_search_range(buf, "x", 1, &pos, &pos);
+	tt_int_op(pos.pos, ==, -1);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 0, EVBUFFER_PTR_SET) == 0);
+	pos = evbuffer_search_range(buf, "x", 1, &pos, NULL);
+	tt_int_op(pos.pos, ==, -1);
+
 	/* set up our chains */
 	evbuffer_add_printf(tmp, "hello");  /* 5 chars */
 	evbuffer_add_buffer(buf, tmp);
@@ -1282,10 +1309,20 @@ test_evbuffer_search(void *ptr)
 	pos = evbuffer_search_range(buf, "ack", 3, NULL, &end);
 	tt_int_op(pos.pos, ==, -1);
 
-	/* Set "end" to the last byte in the buffer. */
-	evbuffer_ptr_set(buf, &end, 17, EVBUFFER_PTR_SET);
+	/* Set "end" after the last byte in the buffer. */
+	tt_assert(evbuffer_ptr_set(buf, &end, 17, EVBUFFER_PTR_SET) == 0);
+
 	pos = evbuffer_search_range(buf, "attack", 6, NULL, &end);
 	tt_int_op(pos.pos, ==, 11);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 11, EVBUFFER_PTR_SET) == 0);
+	pos = evbuffer_search_range(buf, "attack", 6, &pos, &end);
+	tt_int_op(pos.pos, ==, 11);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 17, EVBUFFER_PTR_SET) == 0);
+	pos = evbuffer_search_range(buf, "attack", 6, &pos, &end);
+	tt_int_op(pos.pos, ==, -1);
+	tt_assert(evbuffer_ptr_set(buf, &pos, 17, EVBUFFER_PTR_SET) == 0);
+	pos = evbuffer_search_range(buf, "attack", 6, &pos, NULL);
+	tt_int_op(pos.pos, ==, -1);
 
 end:
 	if (buf)
@@ -1635,6 +1672,13 @@ test_evbuffer_peek(void *info)
 	tt_int_op(i, ==, 2);
 	tt_iov_eq(&v[0], "Contents of chunk [2]\n");
 	tt_iov_eq(&v[1], "Contents of chunk [3]\n"); /*more than we asked for*/
+
+	/* peek at the end of the buffer */
+	memset(v, 0, sizeof(v));
+	tt_assert(evbuffer_ptr_set(buf, &ptr, evbuffer_get_length(buf), EVBUFFER_PTR_SET) == 0);
+	i = evbuffer_peek(buf, 44, &ptr, v, 20);
+	tt_int_op(i, ==, 0);
+	tt_assert(v[0].iov_base == NULL);
 
 end:
 	if (buf)
