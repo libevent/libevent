@@ -132,6 +132,13 @@
 #define CHAIN_PINNED(ch)  (((ch)->flags & EVBUFFER_MEM_PINNED_ANY) != 0)
 #define CHAIN_PINNED_R(ch)  (((ch)->flags & EVBUFFER_MEM_PINNED_R) != 0)
 
+/* evbuffer_ptr support */
+#define PTR_NOT_FOUND(ptr) do {			\
+	(ptr)->pos = -1;					\
+	(ptr)->_internal.chain = NULL;		\
+	(ptr)->_internal.pos_in_chain = 0;	\
+} while (0)
+
 static void evbuffer_chain_align(struct evbuffer_chain *chain);
 static int evbuffer_chain_should_realign(struct evbuffer_chain *chain,
     size_t datalen);
@@ -1351,9 +1358,7 @@ evbuffer_search_eol(struct evbuffer *buffer,
 
 	/* Avoid locking in trivial edge cases */
 	if (start && start->_internal.chain == NULL) {
-		it.pos = -1;
-		it._internal.chain = NULL;
-		it._internal.pos_in_chain = 0;
+		PTR_NOT_FOUND(&it);
 		if (eol_len_out)
 			*eol_len_out = extra_drain;
 		return it;
@@ -1419,9 +1424,8 @@ evbuffer_search_eol(struct evbuffer *buffer,
 done:
 	EVBUFFER_UNLOCK(buffer);
 
-	if (!ok) {
-		it.pos = -1;
-	}
+	if (!ok)
+		PTR_NOT_FOUND(&it);
 	if (eol_len_out)
 		*eol_len_out = extra_drain;
 
@@ -2352,8 +2356,7 @@ evbuffer_ptr_set(struct evbuffer *buf, struct evbuffer_ptr *pos,
 		pos->_internal.chain = NULL;
 		pos->_internal.pos_in_chain = 0;
 	} else {
-		pos->_internal.chain = NULL;
-		pos->pos = -1;
+		PTR_NOT_FOUND(pos);
 		result = -1;
 	}
 
@@ -2464,8 +2467,7 @@ evbuffer_search_range(struct evbuffer *buffer, const char *what, size_t len, con
 	}
 
 not_found:
-	pos.pos = -1;
-	pos._internal.chain = NULL;
+	PTR_NOT_FOUND(&pos);
 done:
 	EVBUFFER_UNLOCK(buffer);
 	return pos;
