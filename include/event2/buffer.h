@@ -81,11 +81,15 @@ struct evbuffer;
     through a buffer.  Calls to any function that modifies or re-packs the
     buffer contents may invalidate all evbuffer_ptrs for that buffer.  Do not
     modify these values except with evbuffer_ptr_set.
+
+    An evbuffer_ptr can represent any position from the start of a buffer up
+    to a position immediately after the end of a buffer.
  */
 struct evbuffer_ptr {
 	ev_ssize_t pos;
 
-	/* Do not alter the values of fields. */
+	/* Do not alter or rely on the values of fields: they are for internal
+	 * use */
 	struct {
 		void *chain;
 		size_t pos_in_chain;
@@ -594,8 +598,17 @@ enum evbuffer_ptr_how {
 /**
    Sets the search pointer in the buffer to position.
 
-   If evbuffer_ptr is not initialized.  This function can only be called
+   There are two ways to use this function: you can call
+      evbuffer_ptr_set(buf, &pos, N, EVBUFFER_PTR_SET)
+   to move 'pos' to a position 'N' bytes after the start of the buffer, or
+      evbuffer_ptr_set(buf, &pos, N, EVBUFFER_PTR_SET)
+   to move 'pos' forward by 'N' bytes.
+
+   If evbuffer_ptr is not initialized, this function can only be called
    with EVBUFFER_PTR_SET.
+
+   An evbuffer_ptr can represent any position from the start of the buffer to
+   a position immediately after the end of the buffer.
 
    @param buffer the evbuffer to be search
    @param ptr a pointer to a struct evbuffer_ptr
