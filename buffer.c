@@ -1297,7 +1297,7 @@ evbuffer_strspn(
 	size_t i = ptr->_internal.pos_in_chain;
 
 	if (!chain)
-		return -1;
+		return 0;
 
 	while (1) {
 		char *buffer = (char *)chain->buffer + chain->misalign;
@@ -1328,16 +1328,16 @@ evbuffer_strspn(
 }
 
 
-static inline char
+static inline int
 evbuffer_getchr(struct evbuffer_ptr *it)
 {
 	struct evbuffer_chain *chain = it->_internal.chain;
 	size_t off = it->_internal.pos_in_chain;
 
 	if (chain == NULL)
-		return -1; /* XXX Better invalid char value? */
+		return -1;
 
-	return chain->buffer[chain->misalign + off];
+	return (unsigned char)chain->buffer[chain->misalign + off];
 }
 
 struct evbuffer_ptr
@@ -1352,6 +1352,8 @@ evbuffer_search_eol(struct evbuffer *buffer,
 	/* Avoid locking in trivial edge cases */
 	if (start && start->_internal.chain == NULL) {
 		it.pos = -1;
+		it._internal.chain = NULL;
+		it._internal.pos_in_chain = 0;
 		if (eol_len_out)
 			*eol_len_out = extra_drain;
 		return it;
@@ -2300,7 +2302,7 @@ evbuffer_ptr_subtract(struct evbuffer *buf, struct evbuffer_ptr *pos,
 {
 	if (howfar > (size_t)pos->pos)
 		return -1;
-	if (howfar <= pos->_internal.pos_in_chain) {
+	if (pos->_internal.chain && howfar <= pos->_internal.pos_in_chain) {
 		pos->_internal.pos_in_chain -= howfar;
 		pos->pos -= howfar;
 		return 0;
