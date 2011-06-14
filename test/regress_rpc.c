@@ -71,6 +71,8 @@
 #include "regress.h"
 #include "regress_testutils.h"
 
+#ifndef NO_PYTHON_EXISTS
+
 static struct evhttp *
 http_setup(ev_uint16_t *pport)
 {
@@ -870,6 +872,13 @@ end:
 	{ #name, run_legacy_test_fn, TT_FORK|TT_NEED_BASE|TT_LEGACY,	\
 		    &legacy_setup,					\
 		    rpc_##name }
+#else
+/* NO_PYTHON_EXISTS */
+
+#define RPC_LEGACY(name) \
+	{ #name, NULL, TT_SKIP, NULL, NULL }
+
+#endif
 
 struct testcase_t rpc_testcases[] = {
 	RPC_LEGACY(basic_test),

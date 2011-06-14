@@ -72,7 +72,13 @@ bench_httpclient_SOURCES = bench_httpclient.c
 bench_httpclient_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent_core.la
 
 regress.gen.c regress.gen.h: regress.rpc $(top_srcdir)/event_rpcgen.py
-	$(top_srcdir)/event_rpcgen.py $(srcdir)/regress.rpc || echo "No Python installed"
+	if $(top_srcdir)/event_rpcgen.py $(srcdir)/regress.rpc ; then \
+	   echo "HI"; \
+	else \
+	   echo "No Python installed; can't test RPC."; \
+	   echo ""> regress.gen.c; \
+	   echo "#define NO_PYTHON_EXISTS" > regress.gen.h; \
+	fi
 
 DISTCLEANFILES = *~
 
