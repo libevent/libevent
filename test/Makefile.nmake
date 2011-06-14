@@ -50,6 +50,11 @@ bench_http.exe: bench_http.obj
 bench_httpclient.exe: bench_httpclient.obj
 	$(CC) $(CFLAGS) $(LIBS) bench_httpclient.obj
 
+regress.gen.c regress.gen.h: regress.rpc ../event_rpcgen.py
+	echo // > regress.gen.c
+	echo #define NO_PYTHON_EXISTS > regress.gen.h
+	-python ..\event_rpcgen.py regress.rpc
+
 clean:
 	-del $(REGRESS_OBJS)
 	-del $(OTHER_OBJS)
