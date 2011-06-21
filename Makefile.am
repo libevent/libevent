@@ -70,7 +70,9 @@ VERSION_INFO = 6:1:1
 # is user-visible, and so we can pretty much guarantee that release
 # series won't be binary-compatible.
 
+if INSTALL_LIBEVENT
 dist_bin_SCRIPTS = event_rpcgen.py
+endif
 
 pkgconfigdir=$(libdir)/pkgconfig
 LIBEVENT_PKGCONFIG=libevent.pc
@@ -84,6 +86,7 @@ PLATFORM_DEPENDENT_SRC = \
 EXTRA_DIST = \
 	LICENSE \
 	autogen.sh \
+	event_rpcgen.py \
 	libevent.pc.in \
 	Doxyfile \
 	whatsnew-2.0.txt \
