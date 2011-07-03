@@ -223,7 +223,6 @@ ht_string_hash(const char *s)
                        void *data)                                      \
   {                                                                     \
     unsigned idx;                                                       \
-    int remove;                                                         \
     struct type **p, **nextp, *next;                                    \
     if (!head->hth_table)                                               \
       return;                                                           \
@@ -232,8 +231,7 @@ ht_string_hash(const char *s)
       while (*p) {                                                      \
         nextp = &(*p)->field.hte_next;                                  \
         next = *nextp;                                                  \
-        remove = fn(*p, data);                                          \
-        if (remove) {                                                   \
+        if (fn(*p, data)) {                                             \
           --head->hth_n_entries;                                        \
           *p = next;                                                    \
         } else {                                                        \
