@@ -55,14 +55,14 @@
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
-#ifdef _EVENT_HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif
 #ifdef _EVENT_HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 #ifdef _EVENT_HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
+#endif
+#ifdef _EVENT_HAVE_ARPA_INET_H
+#include <arpa/inet.h>
 #endif
 
 #ifndef _EVENT_HAVE_GETTIMEOFDAY
