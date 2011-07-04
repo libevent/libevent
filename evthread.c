@@ -76,12 +76,25 @@ evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 	    ? &_original_lock_fns : &_evthread_lock_fns;
 
 	if (!cbs) {
+		if (target->alloc)
+			event_warnx("Trying to disable lock functions after "
+			    "they have been set up will probaby not work.");
 		memset(target, 0, sizeof(_evthread_lock_fns));
 		return 0;
 	}
+	if (target->alloc) {
+		/* Uh oh; we already had locking callbacks set up.*/
+		if (!memcmp(target, cbs, sizeof(_evthread_lock_fns))) {
+			/* no change -- allow this. */
+			return 0;
+		}
+		event_warnx("Can't change lock callbacks once they have been "
+		    "initialized.");
+		return -1;
+	}
 	if (cbs->alloc && cbs->free && cbs->lock && cbs->unlock) {
 		memcpy(target, cbs, sizeof(_evthread_lock_fns));
-		return 0;
+		return event_global_setup_locks_(1);
 	} else {
 		return -1;
 	}
@@ -95,8 +108,24 @@ evthread_set_condition_callbacks(const struct evthread_condition_callbacks *cbs)
 	    ? &_original_cond_fns : &_evthread_cond_fns;
 
 	if (!cbs) {
+		if (target->alloc_condition)
+			event_warnx("Trying to disable condition functions "
+			    "after they have been set up will probaby not "
+			    "work.");
 		memset(target, 0, sizeof(_evthread_cond_fns));
-	} else if (cbs->alloc_condition && cbs->free_condition &&
+		return 0;
+	}
+	if (target->alloc_condition) {
+		/* Uh oh; we already had condition callbacks set up.*/
+		if (!memcmp(target, cbs, sizeof(_evthread_cond_fns))) {
+			/* no change -- allow this. */
+			return 0;
+		}
+		event_warnx("Can't change condition callbacks once they "
+		    "have been initialized.");
+		return -1;
+	}
+	if (cbs->alloc_condition && cbs->free_condition &&
 	    cbs->signal_condition && cbs->wait_condition) {
 		memcpy(target, cbs, sizeof(_evthread_cond_fns));
 	}
@@ -247,6 +276,9 @@ evthread_enable_lock_debuging(void)
 	    sizeof(struct evthread_condition_callbacks));
 	_evthread_cond_fns.wait_condition = debug_cond_wait;
 	_evthread_lock_debugging_enabled = 1;
+
+	/* XXX return value should get checked. */
+	event_global_setup_locks_(0);
 }
 
 int
@@ -269,6 +301,62 @@ _evthread_debug_get_real_lock(void *lock_)
 	struct debug_lock *lock = lock_;
 	return lock->lock;
 }
+
+void *
+evthread_setup_global_lock_(void *lock_, unsigned locktype, int enable_locks)
+{
+	/* there are four cases here:
+	   1) we're turning on debugging; locking is not on.
+	   2) we're turning on debugging; locking is on.
+	   3) we're turning on locking; debugging is not on.
+	   4) we're turning on locking; debugging is on. */
+
+	if (!enable_locks && _original_lock_fns.alloc == NULL) {
+		/* Case 1: allocate a debug lock. */
+		EVUTIL_ASSERT(lock_ == NULL);
+		return debug_lock_alloc(locktype);
+	} else if (!enable_locks && _original_lock_fns.alloc != NULL) {
+		/* Case 2: wrap the lock in a debug lock. */
+		struct debug_lock *lock;
+		EVUTIL_ASSERT(lock_ != NULL);
+
+		if (!(locktype & EVTHREAD_LOCKTYPE_RECURSIVE)) {
+			/* We can't wrap it: We need a recursive lock */
+			_original_lock_fns.free(lock_, locktype);
+			return debug_lock_alloc(locktype);
+		}
+		lock = mm_malloc(sizeof(struct debug_lock));
+		if (!lock) {
+			_original_lock_fns.free(lock_, locktype);
+			return NULL;
+		}
+		lock->lock = lock_;
+		lock->locktype = locktype;
+		lock->count = 0;
+		lock->held_by = 0;
+		return lock;
+	} else if (enable_locks && ! _evthread_lock_debugging_enabled) {
+		/* Case 3: allocate a regular lock */
+		EVUTIL_ASSERT(lock_ == NULL);
+		return _evthread_lock_fns.alloc(locktype);
+	} else {
+		/* Case 4: Fill in a debug lock with a real lock */
+		struct debug_lock *lock = lock_;
+		EVUTIL_ASSERT(enable_locks &&
+		              _evthread_lock_debugging_enabled);
+		EVUTIL_ASSERT(lock->locktype == locktype);
+		EVUTIL_ASSERT(lock->lock == NULL);
+		lock->lock = _original_lock_fns.alloc(
+			locktype|EVTHREAD_LOCKTYPE_RECURSIVE);
+		if (!lock->lock) {
+			lock->count = -200;
+			mm_free(lock);
+			return NULL;
+		}
+		return lock;
+	}
+}
+
 
 #ifndef EVTHREAD_EXPOSE_STRUCTS
 unsigned long

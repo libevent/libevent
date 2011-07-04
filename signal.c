@@ -168,11 +168,6 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 int
 evsig_init(struct event_base *base)
 {
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
-	if (! evsig_base_lock)
-		EVTHREAD_ALLOC_LOCK(evsig_base_lock, 0);
-#endif
-
 	/*
 	 * Our signal handler is going to write to one end of the socket
 	 * pair to wake up our event loop.  The event loop then scans for
@@ -436,3 +431,12 @@ evsig_dealloc(struct event_base *base)
 		base->sig.sh_old = NULL;
 	}
 }
+
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+int
+evsig_global_setup_locks_(const int enable_locks)
+{
+	EVTHREAD_SETUP_GLOBAL_LOCK(evsig_base_lock, 0);
+	return 0;
+}
+#endif
