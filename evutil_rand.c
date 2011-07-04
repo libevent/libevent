@@ -50,6 +50,11 @@ evutil_secure_rng_init(void)
 	(void) arc4random();
 	return 0;
 }
+int
+evutil_secure_rng_global_setup_locks_(const int enable_locks)
+{
+	return 0;
+}
 
 #ifndef _EVENT_HAVE_ARC4RANDOM_BUF
 static void
@@ -94,13 +99,19 @@ static void *arc4rand_lock;
 
 #include "./arc4random.c"
 
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+int
+evutil_secure_rng_global_setup_locks_(const int enable_locks)
+{
+	EVTHREAD_SETUP_GLOBAL_LOCK(arc4rand_lock, 0);
+	return 0;
+}
+#endif
+
 int
 evutil_secure_rng_init(void)
 {
 	int val;
-	if (!arc4rand_lock) {
-		EVTHREAD_ALLOC_LOCK(arc4rand_lock, 0);
-	}
 
 	_ARC4_LOCK();
 	if (!arc4_seeded_ok)
