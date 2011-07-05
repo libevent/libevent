@@ -29,6 +29,12 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
+#ifdef __APPLE__
+/* Apple wants us to define this if we might ever pass more than
+ * FD_SETSIZE bits to select(). */
+#define _DARWIN_UNLIMITED_SELECT
+#endif
+
 #include <sys/types.h>
 #ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
