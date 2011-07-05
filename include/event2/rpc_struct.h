@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-/** @file rpc_struct.h
+/** @file event2/rpc_struct.h
 
   Structures used by rpc.h.  Using these structures directly may harm
   forward compatibility: be careful!

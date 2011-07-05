@@ -27,7 +27,7 @@
 #ifndef _EVENT2_RPC_COMPAT_H_
 #define _EVENT2_RPC_COMPAT_H_
 
-/** @file rpc_compat.h
+/** @file event2/rpc_compat.h
 
   Deprecated versions of the functions in rpc.h: provided only for
   backwards compatibility.

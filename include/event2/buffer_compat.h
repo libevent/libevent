@@ -27,7 +27,7 @@
 #ifndef _EVENT2_BUFFER_COMPAT_H_
 #define _EVENT2_BUFFER_COMPAT_H_
 
-/** @file buffer_compat.h
+/** @file event2/buffer_compat.h
 
 	Obsolete and deprecated versions of the functions in buffer.h: provided
 	only for backward compatibility.

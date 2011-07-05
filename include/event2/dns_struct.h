@@ -27,7 +27,7 @@
 #ifndef _EVENT2_DNS_STRUCT_H_
 #define _EVENT2_DNS_STRUCT_H_
 
-/** @file dns_struct.h
+/** @file event2/dns_struct.h
 
   Data structures for dns.  Using these structures may hurt forward
   compatibility with later versions of Libevent: be careful!

@@ -27,13 +27,23 @@
 #ifndef _EVENT2_TAG_COMPAT_H_
 #define _EVENT2_TAG_COMPAT_H_
 
-/** @file tag_compat.h
+/** @file event2/tag_compat.h
 
     Obsolete/deprecated functions from tag.h; provided only for backwards
     compatibility.
  */
 
+/**
+   @name Misnamed functions
+
+   @deprecated These macros are deprecated because their names don't follow
+     Libevent's naming conventions.  Use evtag_encode_int and
+     evtag_encode_int64 instead.
+
+   @{
+*/
 #define encode_int(evbuf, number) evtag_encode_int((evbuf), (number))
 #define encode_int64(evbuf, number) evtag_encode_int64((evbuf), (number))
+/**@}*/
 
 #endif /* _EVENT2_TAG_H_ */

@@ -54,6 +54,10 @@
   If multiple bases are in use, bufferevent_base_set() must be called before
   enabling the bufferevent for the first time.
 
+  @deprecated This function is deprecated because it uses the current
+    event base, and as such can be error prone for multithreaded programs.
+    Use bufferevent_socket_new() instead.
+
   @param fd the file descriptor from which data is read and written to.
 	 This file descriptor is not allowed to be a pipe(2).
   @param readcb callback to invoke when there is data to be read, or NULL if

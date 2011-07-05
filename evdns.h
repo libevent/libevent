@@ -27,6 +27,16 @@
 #ifndef _EVDNS_H_
 #define _EVDNS_H_
 
+/** @file evdns.h
+
+  A dns subsystem for Libevent.
+
+  The <evdns.h> header is deprecated in Libevent 2.0 and later; please
+  use <event2/evdns.h> instead.  Depending on what functionality you
+  need, you may also want to include more of the other event2/*.h
+  headers.
+ */
+
 #include <event.h>
 #include <event2/dns.h>
 #include <event2/dns_compat.h>

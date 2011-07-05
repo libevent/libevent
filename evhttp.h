@@ -27,6 +27,16 @@
 #ifndef _EVHTTP_H_
 #define _EVHTTP_H_
 
+/** @file evhttp.h
+
+  An http implementation subsystem for Libevent.
+
+  The <evhttp.h> header is deprecated in Libevent 2.0 and later; please
+  use <event2/http.h> instead.  Depending on what functionality you
+  need, you may also want to include more of the other event2/*.h
+  headers.
+ */
+
 #include <event.h>
 #include <event2/http.h>
 #include <event2/http_struct.h>
