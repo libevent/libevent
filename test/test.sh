@@ -65,6 +65,8 @@ run_tests () {
 		return
 	fi
 
+	$TEST_DIR/test-eof
+
 	announce_n " test-eof: "
 	if $TEST_DIR/test-eof >>"$TEST_OUTPUT_FILE" ;
 	then
@@ -114,49 +116,27 @@ run_tests () {
 	fi
 }
 
+do_test() {
+	setup
+	announce "$1 $2"
+	unset EVENT_NO$1
+	if test "$2" = "(changelist)" ; then
+	    EVENT_EPOLL_USE_CHANGELIST=yes; export EVENT_EPOLL_USE_CHANGELIST
+        fi
+	run_tests
+}
+
 announce "Running tests:"
 
 # Need to do this by hand?
-setup
-unset EVENT_NOEVPORT
-announce "EVPORT"
-run_tests
-
-setup
-unset EVENT_NOKQUEUE
-announce "KQUEUE"
-run_tests
-
-setup
-unset EVENT_NOEPOLL
-announce "EPOLL"
-run_tests
-
-setup
-unset EVENT_NOEPOLL
-EVENT_EPOLL_USE_CHANGELIST=yes; export EVENT_EPOLL_USE_CHANGELIST
-announce "EPOLL (changelist)"
-run_tests
-
-setup
-unset EVENT_NODEVPOLL
-announce "DEVPOLL"
-run_tests
-
-setup
-unset EVENT_NOPOLL
-announce "POLL"
-run_tests
-
-setup
-unset EVENT_NOSELECT
-announce "SELECT"
-run_tests
-
-setup
-unset EVENT_NOWIN32
-announce "WIN32"
-run_tests
+do_test EVPORT
+do_test KQUEUE
+do_test EPOLL
+do_test EPOLL "(changelist)"
+do_test DEVPOLL
+do_test POLL
+do_test SELECT
+do_test WIN32
 
 if test "$FAILED" = "yes"; then
 	exit 1
