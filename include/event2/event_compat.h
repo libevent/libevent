@@ -27,11 +27,19 @@
 #ifndef _EVENT2_EVENT_COMPAT_H_
 #define _EVENT2_EVENT_COMPAT_H_
 
-/** @file event_compat.h
+/** @file event2/event_compat.h
 
   Potentially non-threadsafe versions of the functions in event.h: provided
   only for backwards compatibility.
 
+  In the oldest versions of Libevent, event_base was not a first-class
+  structure.  Instead, there was a single event base that every function
+  manipulated.  Later, when separate event bases were added, the old functions
+  that didn't take an event_base argument needed to work by manipulating the
+  "current" event base.  This could lead to thread-safety issues, and obscure,
+  hard-to-diagnose bugs.
+
+  @deprecated All functions in this file are by definition deprecated.
  */
 
 #ifdef __cplusplus
@@ -67,31 +75,26 @@ struct event_base *event_init(void);
 /**
   Loop to process events.
 
-  In order to process events, an application needs to call
-  event_dispatch().  This function only returns on error, and should
-  replace the event core of the application program.
+  Like event_base_dispatch(), but uses the "current" base.
 
   @deprecated This function is deprecated because it is easily confused by
     multiple calls to event_init(), and because it is not safe for
     multithreaded use.  The replacement is event_base_dispatch().
 
-  @see event_base_dispatch()
+  @see event_base_dispatch(), event_init()
  */
 int event_dispatch(void);
 
 /**
   Handle events.
 
-  This is a more flexible version of event_dispatch().
+  This function behaves like event_base_loop(), but uses the "current" base
 
   @deprecated This function is deprecated because it uses the event base from
     the last call to event_init, and is therefore not safe for multithreaded
     use.  The replacement is event_base_loop().
 
-  @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK
-  @return 0 if successful, -1 if an error occurred, or 1 if no events were
-    registered.
-  @see event_base_loopexit(), event_base_loop()
+  @see event_base_loop(), event_init()
 */
 int event_loop(int);
 
@@ -99,19 +102,14 @@ int event_loop(int);
 /**
   Exit the event loop after the specified time.
 
-  The next event_loop() iteration after the given timer expires will
-  complete normally (handling all queued events) then exit without
-  blocking for events again.
+  This function behaves like event_base_loopexit(), except that it uses the
+  "current" base.
 
-  Subsequent invocations of event_loop() will proceed normally.
+  @deprecated This function is deprecated because it uses the event base from
+    the last call to event_init, and is therefore not safe for multithreaded
+    use.  The replacement is event_base_loopexit().
 
-  @deprecated This function is deprecated because it is easily confused by
-    multiple calls to event_init(), and because it is not safe for
-    multithreaded use.  The replacement is event_base_loopexit().
-
-  @param tv the amount of time after which the loop should terminate.
-  @return 0 if successful, or -1 if an error occurred
-  @see event_loop(), event_base_loop(), event_base_loopexit()
+  @see event_init, event_base_loopexit()
   */
 int event_loopexit(const struct timeval *);
 
@@ -119,42 +117,25 @@ int event_loopexit(const struct timeval *);
 /**
   Abort the active event_loop() immediately.
 
-  event_loop() will abort the loop after the next event is completed;
-  event_loopbreak() is typically invoked from this event's callback.
-  This behavior is analogous to the "break;" statement.
+  This function behaves like event_base_loopbreakt(), except that it uses the
+  "current" base.
 
-  Subsequent invocations of event_loop() will proceed normally.
+  @deprecated This function is deprecated because it uses the event base from
+    the last call to event_init, and is therefore not safe for multithreaded
+    use.  The replacement is event_base_loopbreak().
 
-  @deprecated This function is deprecated because it is easily confused by
-    multiple calls to event_init(), and because it is not safe for
-    multithreaded use.  The replacement is event_base_loopbreak().
-
-  @return 0 if successful, or -1 if an error occurred
-  @see event_base_loopbreak(), event_loopexit()
+  @see event_base_loopbreak(), event_init()
  */
 int event_loopbreak(void);
 
 /**
   Schedule a one-time event to occur.
 
-  The function event_once() is similar to event_set().  However, it schedules
-  a callback to be called exactly once and does not require the caller to
-  prepare an event structure.
+  @deprecated This function is obsolete, and has been replaced by
+    event_base_once(). Its use is deprecated because it relies on the
+    "current" base configured by event_init().
 
-  @deprecated This function is deprecated because it is easily confused by
-    multiple calls to event_init(), and because it is not safe for
-    multithreaded use.  The replacement is event_base_once().
-
-  @param fd a file descriptor to monitor
-  @param events event(s) to monitor; can be any of EV_TIMEOUT | EV_READ |
-         EV_WRITE
-  @param callback callback function to be invoked when the event occurs
-  @param arg an argument to be passed to the callback function
-  @param timeout the maximum amount of time to wait for the event, or NULL
-         to wait forever
-  @return 0 if successful, or -1 if an error occurred
-  @see event_set()
-
+  @see event_base_once()
  */
 int event_once(evutil_socket_t , short,
     void (*)(evutil_socket_t, short, void *), void *, const struct timeval *);
@@ -163,11 +144,11 @@ int event_once(evutil_socket_t , short,
 /**
   Get the kernel event notification mechanism used by Libevent.
 
-  @return a string identifying the kernel event mechanism (kqueue, epoll, etc.)
+  @deprecated This function is obsolete, and has been replaced by
+    event_base_get_method(). Its use is deprecated because it relies on the
+    "current" base configured by event_init().
 
-  @deprecated This function is deprecated because it is easily confused by
-    multiple calls to event_init(), and because it is not safe for
-    multithreaded use.  The replacement is event_base_get_method().
+  @see event_base_get_method()
  */
 const char *event_get_method(void);
 
@@ -175,61 +156,19 @@ const char *event_get_method(void);
 /**
   Set the number of different event priorities.
 
-  By default Libevent schedules all active events with the same priority.
-  However, some time it is desirable to process some events with a higher
-  priority than others.  For that reason, Libevent supports strict priority
-  queues.  Active events with a lower priority are always processed before
-  events with a higher priority.
-
-  The number of different priorities can be set initially with the
-  event_priority_init() function.  This function should be called before the
-  first call to event_dispatch().  The event_priority_set() function can be
-  used to assign a priority to an event.  By default, Libevent assigns the
-  middle priority to all events unless their priority is explicitly set.
-
   @deprecated This function is deprecated because it is easily confused by
     multiple calls to event_init(), and because it is not safe for
     multithreaded use.  The replacement is event_base_priority_init().
 
-  @param npriorities the maximum number of priorities
-  @return 0 if successful, or -1 if an error occurred
-  @see event_base_priority_init(), event_priority_set()
-
+  @see event_base_priority_init()
  */
 int	event_priority_init(int);
 
 /**
   Prepare an event structure to be added.
 
-  The function event_set() prepares the event structure ev to be used in
-  future calls to event_add() and event_del().  The event will be prepared to
-  call the function specified by the fn argument with an int argument
-  indicating the file descriptor, a short argument indicating the type of
-  event, and a void * argument given in the arg argument.  The fd indicates
-  the file descriptor that should be monitored for events.  The events can be
-  either EV_READ, EV_WRITE, or both.  Indicating that an application can read
-  or write from the file descriptor respectively without blocking.
-
-  The function fn will be called with the file descriptor that triggered the
-  event and the type of event which will be either EV_TIMEOUT, EV_SIGNAL,
-  EV_READ, or EV_WRITE.  The additional flag EV_PERSIST makes an event_add()
-  persistent until event_del() has been called.
-
-  For read and write events, edge-triggered behavior can be requested
-  with the EV_ET flag.  Not all backends support edge-triggered
-  behavior.  When an edge-triggered event is activated, the EV_ET flag
-  is added to its events argument.
-
-  @param ev an event struct to be modified
-  @param fd the file descriptor to be monitored
-  @param event desired events to monitor; can be EV_READ and/or EV_WRITE
-  @param fn callback function to be invoked when the event occurs
-  @param arg an argument to be passed to the callback function
-
-  @see event_add(), event_del(), event_once()
-
   @deprecated event_set() is not recommended for new code, because it requires
-     a subsequent call to event_base_set() to be safe under many circumstances.
+     a subsequent call to event_base_set() to be safe under most circumstances.
      Use event_assign() or event_new() instead.
  */
 void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
@@ -240,76 +179,33 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
 
 
 /**
- * Add a timeout event.
- *
- * @param ev the event struct to be disabled
- * @param tv the timeout value, in seconds
- *
- * @deprecated This macro is deprecated because its naming is inconsistent.
- *    The recommend macro is evtimer_add().
+   @name timeout_* macros
+
+   @deprecated These macros are deprecated because their naming is inconsisten
+     with the rest of Libevent.  Use the evtimer_* macros instead.
+   @{
  */
 #define timeout_add(ev, tv)		event_add((ev), (tv))
-
-
-/**
- * Define a timeout event.
- *
- * @param ev the event struct to be defined
- * @param cb the callback to be invoked when the timeout expires
- * @param arg the argument to be passed to the callback
- *
- * @deprecated This macro is deprecated because its naming is inconsistent.
- *    The recommend macro is evtimer_set().
- */
 #define timeout_set(ev, cb, arg)	event_set((ev), -1, 0, (cb), (arg))
-
-/**
- * Disable a timeout event.
- *
- * @param ev the timeout event to be disabled
- *
- * @deprecated This macro is deprecated because its naming is inconsistent.
- *    The recommend macro is evtimer_del().
- */
 #define timeout_del(ev)			event_del(ev)
-
-/**
-   @deprecated This macro is deprecated because its naming is inconsistent.
-   The recommend macro is evtimer_pending().
-*/
 #define timeout_pending(ev, tv)		event_pending((ev), EV_TIMEOUT, (tv))
-/**
-   @deprecated This macro is deprecated because its naming is inconsistent.
-   The recommend macro is evtimer_initialized().
-*/
 #define timeout_initialized(ev)		event_initialized(ev)
+/**@}*/
 
 /**
-   @deprecated This macro is deprecated because its naming is inconsistent.
-    The recommend macro is evsignal_add().
-*/
+   @name signal_* macros
+
+   @deprecated These macros are deprecated because their naming is inconsisten
+     with the rest of Libevent.  Use the evsignal_* macros instead.
+   @{
+ */
 #define signal_add(ev, tv)		event_add((ev), (tv))
-/**
-   @deprecated This macro is deprecated because its naming is inconsistent.
-    The recommend macro is evsignal_set().
-*/
 #define signal_set(ev, x, cb, arg)				\
 	event_set((ev), (x), EV_SIGNAL|EV_PERSIST, (cb), (arg))
-/**
-   @deprecated This macro is deprecated because its naming is inconsistent.
-    The recommend macro is evsignal_del().
-*/
 #define signal_del(ev)			event_del(ev)
-/**
-   @deprecated This macro is deprecated because its naming is inconsistent.
-    The recommend macro is evsignal_pending().
-*/
 #define signal_pending(ev, tv)		event_pending((ev), EV_SIGNAL, (tv))
-/**
-   @deprecated This macro is deprecated because its naming is inconsistent.
-    The recommend macro is evsignal_initialized().
-*/
 #define signal_initialized(ev)		event_initialized(ev)
+/**@}*/
 
 #ifndef EVENT_FD
 /* These macros are obsolete; use event_get_fd and event_get_signal instead. */

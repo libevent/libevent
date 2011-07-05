@@ -38,7 +38,7 @@ extern "C" {
 struct evbuffer;
 struct event_base;
 
-/** @file http.h
+/** @file event2/http.h
  *
  * Basic support for HTTP serving.
  *

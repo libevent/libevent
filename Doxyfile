@@ -45,6 +45,15 @@ OPTIMIZE_OUTPUT_FOR_C  = YES
 
 SORT_BRIEF_DOCS        = YES
 
+# If the FULL_PATH_NAMES tag is set to YES then the STRIP_FROM_PATH tag 
+# can be used to strip a user-defined part of the path. Stripping is 
+# only done if one of the specified strings matches the left-hand part of 
+# the path. The tag can be used to show relative paths in the file list. 
+# If left blank the directory from which doxygen is run is used as the 
+# path to strip.
+
+STRIP_FROM_PATH        = include/
+
 #---------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
@@ -226,7 +235,7 @@ INCLUDE_FILE_PATTERNS  =
 # undefined via #undef or recursively expanded use the := operator 
 # instead of the = operator.
 
-PREDEFINED             = TAILQ_ENTRY RB_ENTRY _EVENT_DEFINED_TQENTRY
+PREDEFINED             = TAILQ_ENTRY RB_ENTRY _EVENT_DEFINED_TQENTRY _EVENT_IN_DOXYGEN
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then 
 # this tag can be used to specify a list of macro names that should be expanded. 

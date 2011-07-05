@@ -27,10 +27,11 @@
 #ifndef _EVENT2_DNS_COMPAT_H_
 #define _EVENT2_DNS_COMPAT_H_
 
-/** @file dns_compat.h
+/** @file event2/dns_compat.h
 
   Potentially non-threadsafe versions of the functions in dns.h: provided
   only for backwards compatibility.
+
 
  */
 

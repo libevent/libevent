@@ -26,7 +26,7 @@
 #ifndef _EVENT2_BUFFEREVENT_SSL_H_
 #define _EVENT2_BUFFEREVENT_SSL_H_
 
-/** @file bufferevent_ssl.h
+/** @file event2/bufferevent_ssl.h
 
     OpenSSL support for bufferevents.
  */
@@ -39,15 +39,31 @@
 extern "C" {
 #endif
 
+/* This is what openssl's SSL objects are underneath. */
 struct ssl_st;
 
+/**
+   The state of an SSL object to be used when creating a new
+   SSL bufferevent.
+ */
 enum bufferevent_ssl_state {
 	BUFFEREVENT_SSL_OPEN = 0,
 	BUFFEREVENT_SSL_CONNECTING = 1,
 	BUFFEREVENT_SSL_ACCEPTING = 2
 };
 
-#ifdef _EVENT_HAVE_OPENSSL
+#if defined(_EVENT_HAVE_OPENSSL) || defined(_EVENT_IN_DOXYGEN)
+/**
+   Create a new SSL bufferevent to send its data over another bufferevent.
+
+   @param base An event_base to use to detect reading and writing.  It
+      must also be the base for the underlying bufferevent.
+   @param underlying A socket to use for this SSL
+   @param ssl A SSL* object from openssl.
+   @param state The current state of the SSL connection
+   @param options One or more bufferevent_options
+   @return A new bufferevent on success, or NULL on failure
+*/
 struct bufferevent *
 bufferevent_openssl_filter_new(struct event_base *base,
     struct bufferevent *underlying,
@@ -55,6 +71,16 @@ bufferevent_openssl_filter_new(struct event_base *base,
     enum bufferevent_ssl_state state,
     int options);
 
+/**
+   Create a new SSL bufferevent to send its data over an SSL * on a socket.
+
+   @param base An event_base to use to detect reading and writing
+   @param fd A socket to use for this SSL
+   @param ssl A SSL* object from openssl.
+   @param state The current state of the SSL connection
+   @param options One or more bufferevent_options
+   @return A new bufferevent on success, or NULL on failure.
+*/
 struct bufferevent *
 bufferevent_openssl_socket_new(struct event_base *base,
     evutil_socket_t fd,
@@ -62,11 +88,14 @@ bufferevent_openssl_socket_new(struct event_base *base,
     enum bufferevent_ssl_state state,
     int options);
 
+/** Return the underlying openssl SSL * object for an SSL bufferevent. */
 struct ssl_st *
 bufferevent_openssl_get_ssl(struct bufferevent *bufev);
 
+/** Tells a bufferevent to begin SSL renegotiation. */
 int bufferevent_ssl_renegotiate(struct bufferevent *bev);
 
+/** Return the most recent OpenSSL error reported on an SSL bufferevent. */
 unsigned long bufferevent_get_openssl_error(struct bufferevent *bev);
 
 #endif

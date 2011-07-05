@@ -27,7 +27,7 @@
 #ifndef _EVENT2_HTTP_STRUCT_H_
 #define _EVENT2_HTTP_STRUCT_H_
 
-/** @file http_struct.h
+/** @file event2/http_struct.h
 
   Data structures for http.  Using these structures may hurt forward
   compatibility with later versions of Libevent: be careful!

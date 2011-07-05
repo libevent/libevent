@@ -27,7 +27,7 @@
 #ifndef _EVENT2_TAG_H_
 #define _EVENT2_TAG_H_
 
-/** @file tag.h
+/** @file event2/tag.h
 
   Helper functions for reading and writing tagged data onto buffers.
 
