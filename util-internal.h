@@ -270,6 +270,43 @@ int evutil_hex_char_to_int(char c);
 HANDLE evutil_load_windows_system_library(const TCHAR *library_name);
 #endif
 
+#ifndef EV_SIZE_FMT
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
+#define EV_U64_FMT "%I64u"
+#define EV_I64_FMT "%I64d"
+#define EV_I64_ARG(x) ((__int64)(x))
+#define EV_U64_ARG(x) ((unsigned __int64)(x))
+#else
+#define EV_U64_FMT "%llu"
+#define EV_I64_FMT "%lld"
+#define EV_I64_ARG(x) ((long long)(x))
+#define EV_U64_ARG(x) ((unsigned long long)(x))
+#endif
+#endif
+
+#if defined(__STDC__) && defined(__STDC_VERSION__)
+#if (__STDC_VERSION__ >= 199901L)
+#define EV_SIZE_FMT "%zu"
+#define EV_SSIZE_FMT "%zd"
+#define EV_SIZE_ARG(x) (x)
+#define EV_SSIZE_ARG(x) (x)
+#endif
+#endif
+
+#ifndef EV_SIZE_FMT
+#if (_EVENT_SIZEOF_SIZE_T <= _EVENT_SIZEOF_LONG)
+#define EV_SIZE_FMT "%lu"
+#define EV_SSIZE_FMT "%ld"
+#define EV_SIZE_ARG(x) ((unsigned long)(x))
+#define EV_SSIZE_ARG(x) ((long)(x))
+#else
+#define EV_SIZE_FMT EV_U64_FMT
+#define EV_SSIZE_FMT EV_I64_FMT
+#define EV_SIZE_ARG(x) EV_U64_ARG(x)
+#define EV_SSIZE_ARG(x) EV_I64_ARG(x)
+#endif
+#endif
+
 #ifdef __cplusplus
 }
 #endif
