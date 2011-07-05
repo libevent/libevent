@@ -69,19 +69,39 @@ extern "C" {
 #include <sys/socket.h>
 #endif
 
-/* Integer type definitions for types that are supposed to be defined in the
+/* Some openbsd autoconf versions get the name of this macro wrong. */
+#if defined(_EVENT_SIZEOF_VOID__) && !defined(_EVENT_SIZEOF_VOID_P)
+#define _EVENT_SIZEOF_VOID_P _EVENT_SIZEOF_VOID__
+#endif
+
+/**
+ * @name Standard integer types.
+ *
+ * Integer type definitions for types that are supposed to be defined in the
  * C99-specified stdint.h.  Shamefully, some platforms do not include
  * stdint.h, so we need to replace it.  (If you are on a platform like this,
  * your C headers are now over 10 years out of date.  You should bug them to
  * do something about this.)
  *
  * We define:
- *    ev_uint64_t, ev_uint32_t, ev_uint16_t, ev_uint8_t -- unsigned integer
- *      types of exactly 64, 32, 16, and 8 bits respectively.
- *    ev_int64_t, ev_int32_t, ev_int16_t, ev_int8_t -- signed integer
- *      types of exactly 64, 32, 16, and 8 bits respectively.
- *    ev_uintptr_t, ev_intptr_t -- unsigned/signed integers large enough
- *      to hold a pointer without loss of bits.
+ *
+ * <dl>
+ *   <dt>ev_uint64_t, ev_uint32_t, ev_uint16_t, ev_uint8_t</dt>
+ *      <dd>unsigned integer types of exactly 64, 32, 16, and 8 bits
+ *          respectively.</dd>
+ *    <dt>ev_int64_t, ev_int32_t, ev_int16_t, ev_int8_t</dt>
+ *      <dd>signed integer types of exactly 64, 32, 16, and 8 bits
+ *          respectively.</dd>
+ *    <dt>ev_uintptr_t, ev_intptr_t</dt>
+ *      <dd>unsigned/signed integers large enough
+ *      to hold a pointer without loss of bits.</dd>
+ *    <dt>ev_ssize_t</dt>
+ *      <dd>A signed type of the same size as size_t</dd>
+ *    <dt>ev_off_t</dt>
+ *      <dd>A signed type typically used to represent offsets within a
+ *      (potentially large) file</dd>
+ *
+ * @{
  */
 #ifdef _EVENT_HAVE_UINT64_T
 #define ev_uint64_t uint64_t
@@ -95,6 +115,9 @@ extern "C" {
 #elif _EVENT_SIZEOF_LONG == 8
 #define ev_uint64_t unsigned long
 #define ev_int64_t long
+#elif defined(_EVENT_IN_DOXYGEN)
+#define ev_uint64_t ...
+#define ev_int64_t ...
 #else
 #error "No way to define ev_uint64_t"
 #endif
@@ -111,6 +134,9 @@ extern "C" {
 #elif _EVENT_SIZEOF_INT == 4
 #define ev_uint32_t unsigned int
 #define ev_int32_t signed int
+#elif defined(_EVENT_IN_DOXYGEN)
+#define ev_uint32_t ...
+#define ev_int32_t ...
 #else
 #error "No way to define ev_uint32_t"
 #endif
@@ -127,6 +153,9 @@ extern "C" {
 #elif _EVENT_SIZEOF_SHORT == 2
 #define ev_uint16_t unsigned short
 #define ev_int16_t  signed short
+#elif defined(_EVENT_IN_DOXYGEN)
+#define ev_uint16_t ...
+#define ev_int16_t ...
 #else
 #error "No way to define ev_uint16_t"
 #endif
@@ -134,14 +163,12 @@ extern "C" {
 #ifdef _EVENT_HAVE_UINT8_T
 #define ev_uint8_t uint8_t
 #define ev_int8_t int8_t
+#elif defined(_EVENT_IN_DOXYGEN)
+#define ev_uint8_t ...
+#define ev_int8_t ...
 #else
 #define ev_uint8_t unsigned char
 #define ev_int8_t signed char
-#endif
-
-/* Some openbsd autoconf versions get the name of this macro wrong. */
-#if defined(_EVENT_SIZEOF_VOID__) && !defined(_EVENT_SIZEOF_VOID_P)
-#define _EVENT_SIZEOF_VOID_P _EVENT_SIZEOF_VOID__
 #endif
 
 #ifdef _EVENT_HAVE_UINTPTR_T
@@ -153,6 +180,9 @@ extern "C" {
 #elif _EVENT_SIZEOF_VOID_P <= 8
 #define ev_uintptr_t ev_uint64_t
 #define ev_intptr_t ev_int64_t
+#elif defined(_EVENT_IN_DOXYGEN)
+#define ev_uintptr_t ...
+#define ev_intptr_t ...
 #else
 #error "No way to define ev_uintptr_t"
 #endif
@@ -168,6 +198,7 @@ extern "C" {
 #else
 #define ev_off_t off_t
 #endif
+/**@}*/
 
 /* Limits for integer types.
 
@@ -176,6 +207,14 @@ extern "C" {
      - The platform does signed arithmetic in two's complement.
 */
 
+/**
+   @name Limits for integer types
+
+   These macros hold the largest or smallest values possible for the
+   ev_[u]int*_t types.
+
+   @{
+*/
 #define EV_UINT64_MAX ((((ev_uint64_t)0xffffffffUL) << 32) | 0xffffffffUL)
 #define EV_INT64_MAX  ((((ev_int64_t) 0x7fffffffL) << 32) | 0xffffffffL)
 #define EV_INT64_MIN  ((-EV_INT64_MAX) - 1)
@@ -188,18 +227,28 @@ extern "C" {
 #define EV_UINT8_MAX  255
 #define EV_INT8_MAX   127
 #define EV_INT8_MIN   ((-EV_INT8_MAX) - 1)
+/** @} */
 
+/**
+   @name Limits for SIZE_T and SSIZE_T
+
+   @{
+*/
 #if _EVENT_SIZEOF_SIZE_T == 8
 #define EV_SIZE_MAX EV_UINT64_MAX
 #define EV_SSIZE_MAX EV_INT64_MAX
 #elif _EVENT_SIZEOF_SIZE_T == 4
 #define EV_SIZE_MAX EV_UINT32_MAX
 #define EV_SSIZE_MAX EV_INT32_MAX
+#elif defined(_EVENT_IN_DOXYGEN)
+#define EV_SIZE_MAX ...
+#define EV_SSIZE_MAX ...
 #else
 #error "No way to define SIZE_MAX"
 #endif
 
 #define EV_SSIZE_MIN ((-EV_SSIZE_MAX) - 1)
+/**@}*/
 
 #ifdef WIN32
 #define ev_socklen_t int
@@ -216,17 +265,20 @@ extern "C" {
 #endif
 #endif
 
-#ifdef WIN32
-/** A type wide enough to hold the output of "socket()" or "accept()".  On
+/**
+ * A type wide enough to hold the output of "socket()" or "accept()".  On
  * Windows, this is an intptr_t; elsewhere, it is an int. */
+#ifdef WIN32
 #define evutil_socket_t intptr_t
 #else
 #define evutil_socket_t int
 #endif
 
-/** Create two new sockets that are connected to each other.  On Unix, this
-    simply calls socketpair().  On Windows, it uses the loopback network
-    interface on 127.0.0.1, and only AF_INET,SOCK_STREAM are supported.
+/** Create two new sockets that are connected to each other.
+
+    On Unix, this simply calls socketpair().  On Windows, it uses the
+    loopback network interface on 127.0.0.1, and only
+    AF_INET,SOCK_STREAM are supported.
 
     (This may fail on some Windows hosts where firewall software has cleverly
     decided to keep 127.0.0.1 from talking to itself.)
@@ -241,9 +293,13 @@ int evutil_socketpair(int d, int type, int protocol, evutil_socket_t sv[2]);
  */
 int evutil_make_socket_nonblocking(evutil_socket_t sock);
 
-/** Do platform-specific operations on a listener socket to make sure that
-    another program will be able to bind this address right after we've
-    closed the listener
+/** Do platform-specific operations to make a listener socket reusable.
+
+    Specifically, we want to make sure that another program will be able
+    to bind this address right after we've closed the listener.
+
+    This differs from Windows's interpretation of "reusable", which
+    allows multiple listeners to bind the same address at the same time.
 
     @param sock The socket to make reusable
     @return 0 on success, -1 on failure
@@ -267,11 +323,6 @@ int evutil_make_socket_closeonexec(evutil_socket_t sock);
 int evutil_closesocket(evutil_socket_t sock);
 #define EVUTIL_CLOSESOCKET(s) evutil_closesocket(s)
 
-/* Winsock handles socket errors differently from the rest of the world.
- * Elsewhere, a socket error is like any other error and is stored in errno.
- * But winsock functions require you to retrieve the error with a special
- * function, and don't let you use strerror for the error codes.  And handling
- * EWOULDBLOCK is ... different. */
 
 #ifdef WIN32
 /** Return the most recent socket error.  Not idempotent on all platforms. */
@@ -283,6 +334,30 @@ int evutil_closesocket(evutil_socket_t sock);
 int evutil_socket_geterror(evutil_socket_t sock);
 /** Convert a socket error to a string. */
 const char *evutil_socket_error_to_string(int errcode);
+#elif defined(_EVENT_IN_DOXYGEN)
+/**
+   @name Socket error functions
+
+   These functions are needed for making programs compatible between
+   Windows and Unix-like platforms.
+
+   You see, Winsock handles socket errors differently from the rest of
+   the world.  Elsewhere, a socket error is like any other error and is
+   stored in errno.  But winsock functions require you to retrieve the
+   error with a special function, and don't let you use strerror for
+   the error codes.  And handling EWOULDBLOCK is ... different.
+
+   @{
+*/
+/** Return the most recent socket error.  Not idempotent on all platforms. */
+#define EVUTIL_SOCKET_ERROR() ...
+/** Replace the most recent socket error with errcode */
+#define EVUTIL_SET_SOCKET_ERROR(errcode) ...
+/** Return the most recent socket error to occur on sock. */
+#define evutil_socket_geterror(sock) ...
+/** Convert a socket error to a string. */
+#define evutil_socket_error_to_string(errcode) ...
+/**@}*/
 #else
 #define EVUTIL_SOCKET_ERROR() (errno)
 #define EVUTIL_SET_SOCKET_ERROR(errcode)		\
@@ -291,9 +366,14 @@ const char *evutil_socket_error_to_string(int errcode);
 #define evutil_socket_error_to_string(errcode) (strerror(errcode))
 #endif
 
-/*
- * Manipulation macros for struct timeval.  We define replacements
+
+/**
+ * @name Manipulation macros for struct timeval.
+ *
+ * We define replacements
  * for timeradd, timersub, timerclear, timercmp, and timerisset.
+ *
+ * @{
  */
 #ifdef _EVENT_HAVE_TIMERADD
 #define evutil_timeradd(tvp, uvp, vvp) timeradd((tvp), (uvp), (vvp))
@@ -324,6 +404,7 @@ const char *evutil_socket_error_to_string(int errcode);
 #else
 #define	evutil_timerclear(tvp)	(tvp)->tv_sec = (tvp)->tv_usec = 0
 #endif
+/**@}*/
 
 /** Return true iff the tvp is related to uvp according to the relational
  * operator cmp.  Recognized values for cmp are ==, <=, <, >=, and >. */
@@ -338,7 +419,7 @@ const char *evutil_socket_error_to_string(int errcode);
 #define	evutil_timerisset(tvp)	((tvp)->tv_sec || (tvp)->tv_usec)
 #endif
 
-/* Replacement for offsetof on platforms that don't define it. */
+/** Replacement for offsetof on platforms that don't define it. */
 #ifdef offsetof
 #define evutil_offsetof(type, field) offsetof(type, field)
 #else
@@ -349,7 +430,7 @@ const char *evutil_socket_error_to_string(int errcode);
 /** Parse a 64-bit value from a string.  Arguments are as for strtol. */
 ev_int64_t evutil_strtoll(const char *s, char **endptr, int base);
 
-/* Replacement for gettimeofday on platforms that lack it. */
+/** Replacement for gettimeofday on platforms that lack it. */
 #ifdef _EVENT_HAVE_GETTIMEOFDAY
 #define evutil_gettimeofday(tv, tz) gettimeofday((tv), (tz))
 #else
@@ -365,6 +446,9 @@ int evutil_snprintf(char *buf, size_t buflen, const char *format, ...)
 	__attribute__((format(printf, 3, 4)))
 #endif
 ;
+/** Replacement for vsnprintf to get consistent behavior on platforms for
+    which the return value of snprintf does not conform to C99.
+ */
 int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap);
 
 /** Replacement for inet_ntop for platforms which lack it. */
@@ -412,11 +496,16 @@ int evutil_ascii_strcasecmp(const char *str1, const char *str2);
  */
 int evutil_ascii_strncasecmp(const char *str1, const char *str2, size_t n);
 
-/* Here we define evutil_addrinfo to the native addrinfo type, or redefinte it
+/* Here we define evutil_addrinfo to the native addrinfo type, or redefine it
  * if this system has no getaddrinfo(). */
 #ifdef _EVENT_HAVE_STRUCT_ADDRINFO
 #define evutil_addrinfo addrinfo
 #else
+/** A definition of struct addrinfo for systems that lack it.
+
+    (This is just an alias for struct addrinfo if the system defines
+    struct addrinfo.)
+*/
 struct evutil_addrinfo {
 	int     ai_flags;     /* AI_PASSIVE, AI_CANONNAME, AI_NUMERICHOST */
 	int     ai_family;    /* PF_xxx */
@@ -428,6 +517,13 @@ struct evutil_addrinfo {
 	struct evutil_addrinfo  *ai_next; /* next structure in linked list */
 };
 #endif
+/** @name evutil_getaddrinfo() error codes
+
+    These values are possible error codes for evutil_getaddrinfo() and
+    related functions.
+
+    @{
+*/
 #ifdef EAI_ADDRFAMILY
 #define EVUTIL_EAI_ADDRFAMILY EAI_ADDRFAMILY
 #else
@@ -524,9 +620,11 @@ struct evutil_addrinfo {
 #else
 #define EVUTIL_AI_ADDRCONFIG 0x40000
 #endif
+/**@}*/
 
 struct evutil_addrinfo;
-/* This function clones getaddrinfo for systems that don't have it.  For full
+/**
+ * This function clones getaddrinfo for systems that don't have it.  For full
  * details, see RFC 3493, section 6.1.
  *
  * Limitations:
@@ -539,12 +637,12 @@ struct evutil_addrinfo;
 int evutil_getaddrinfo(const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in, struct evutil_addrinfo **res);
 
-/* Release storage allocated by evutil_getaddrinfo or evdns_getaddrinfo. */
+/** Release storage allocated by evutil_getaddrinfo or evdns_getaddrinfo. */
 void evutil_freeaddrinfo(struct evutil_addrinfo *ai);
 
 const char *evutil_gai_strerror(int err);
 
-/* Generate n bytes of secure pseudorandom data, and store them in buf.
+/** Generate n bytes of secure pseudorandom data, and store them in buf.
  *
  * By default, Libevent uses an ARC4-based random number generator, seeded
  * using the platform's entropy source (/dev/urandom on Unix-like systems;

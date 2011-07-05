@@ -47,7 +47,7 @@
  * the source verbatim in their source distributions)
  */
 
-/** @file dns.h
+/** @file event2/dns.h
  *
  * Welcome, gentle reader
  *

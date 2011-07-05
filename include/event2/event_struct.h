@@ -27,11 +27,13 @@
 #ifndef _EVENT2_EVENT_STRUCT_H_
 #define _EVENT2_EVENT_STRUCT_H_
 
-/** @file event_struct.h
+/** @file event2/event_struct.h
 
-  Structures used by event.h.  Using these structures directly may harm
-  forward compatibility: be careful!
+  Structures used by event.h.  Using these structures directly WILL harm
+  forward compatibility: be careful.
 
+  No field declared in this file should be used directly in user code.  Except
+  for historical reasons, these fields would not be exposed at all.
  */
 
 #ifdef __cplusplus

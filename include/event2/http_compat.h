@@ -27,7 +27,7 @@
 #ifndef _EVENT2_HTTP_COMPAT_H_
 #define _EVENT2_HTTP_COMPAT_H_
 
-/** @file http_compat.h
+/** @file event2/http_compat.h
 
   Potentially non-threadsafe versions of the functions in http.h: provided
   only for backwards compatibility.

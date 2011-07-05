@@ -45,6 +45,15 @@ OPTIMIZE_OUTPUT_FOR_C  = YES
 
 SORT_BRIEF_DOCS        = YES
 
+# If the FULL_PATH_NAMES tag is set to YES then the STRIP_FROM_PATH tag 
+# can be used to strip a user-defined part of the path. Stripping is 
+# only done if one of the specified strings matches the left-hand part of 
+# the path. The tag can be used to show relative paths in the file list. 
+# If left blank the directory from which doxygen is run is used as the 
+# path to strip.
+
+STRIP_FROM_PATH        = include/
+
 #---------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
@@ -54,21 +63,25 @@ SORT_BRIEF_DOCS        = YES
 # directories like "/usr/src/myproject". Separate the files or directories 
 # with spaces.
 
-INPUT                  = event.h evdns.h evhttp.h evrpc.h \
-		       include/event2/event.h include/event2/event_struct.h \
-		       include/event2/event_compat.h \
-		       include/event2/buffer_compat.h \
-		       include/event2/buffer.h include/event2/thread.h \
-		       include/event2/tag.h include/event2/bufferevent.h \
-		       include/event2/bufferevent_struct.h \
-		       include/event2/bufferevent_compat.h \
-		       include/event2/util.h \
-		       include/event2/rpc.h include/event2/rpc_struct.h \
-		       include/event2/rpc_compat.h \
-		       include/event2/dns.h include/event2/dns_struct.h \
-		       include/event2/dns_compat.h \
-		       include/event2/http.h include/event2/http_struct.h \
-		       include/event2/http_compat.h
+INPUT                  = \
+        include/event2/buffer.h \
+        include/event2/buffer_compat.h \
+        include/event2/bufferevent.h \
+        include/event2/bufferevent_compat.h \
+        include/event2/bufferevent_ssl.h \
+        include/event2/dns.h \
+        include/event2/dns_compat.h \
+        include/event2/event.h \
+        include/event2/event_compat.h \
+        include/event2/http.h \
+        include/event2/http_compat.h \
+        include/event2/listener.h \
+        include/event2/rpc.h \
+        include/event2/rpc_compat.h \
+        include/event2/tag.h \
+        include/event2/tag_compat.h \
+        include/event2/thread.h \
+        include/event2/util.h
 
 #---------------------------------------------------------------------------
 # configuration options related to the HTML output
@@ -140,7 +153,7 @@ PDF_HYPERLINKS         = NO
 # plain latex in the generated Makefile. Set this option to YES to get a 
 # higher quality PDF documentation.
 
-USE_PDFLATEX           = NO
+USE_PDFLATEX           = YES
 
 # If the LATEX_BATCHMODE tag is set to YES, doxygen will add the \\batchmode. 
 # command to the generated LaTeX files. This will instruct LaTeX to keep 
@@ -162,7 +175,7 @@ LATEX_HIDE_INDICES     = NO
 # If the GENERATE_MAN tag is set to YES (the default) Doxygen will 
 # generate man pages
 
-GENERATE_MAN           = YES
+GENERATE_MAN           = NO
 
 # The MAN_EXTENSION tag determines the extension that is added to 
 # the generated man pages (default is the subroutine's section .3)
@@ -226,7 +239,7 @@ INCLUDE_FILE_PATTERNS  =
 # undefined via #undef or recursively expanded use the := operator 
 # instead of the = operator.
 
-PREDEFINED             = TAILQ_ENTRY RB_ENTRY _EVENT_DEFINED_TQENTRY
+PREDEFINED             = TAILQ_ENTRY RB_ENTRY _EVENT_DEFINED_TQENTRY _EVENT_IN_DOXYGEN
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then 
 # this tag can be used to specify a list of macro names that should be expanded. 

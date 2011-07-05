@@ -27,6 +27,16 @@
 #ifndef _EVRPC_H_
 #define _EVRPC_H_
 
+/** @file evrpc.h
+
+  An RPC system for Libevent.
+
+  The <evrpc.h> header is deprecated in Libevent 2.0 and later; please
+  use <event2/rpc.h> instead.  Depending on what functionality you
+  need, you may also want to include more of the other event2/*.h
+  headers.
+ */
+
 #include <event.h>
 #include <event2/rpc.h>
 #include <event2/rpc_struct.h>
