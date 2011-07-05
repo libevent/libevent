@@ -380,6 +380,11 @@ test_evutil_snprintf(void *ptr)
 {
 	char buf[16];
 	int r;
+	ev_uint64_t u64 = ((ev_uint64_t)1000000000)*200;
+	ev_int64_t i64 = -1 * (ev_int64_t) u64;
+	size_t size = 8000;
+	ev_ssize_t ssize = -9000;
+
 	r = evutil_snprintf(buf, sizeof(buf), "%d %d", 50, 100);
 	tt_str_op(buf, ==, "50 100");
 	tt_int_op(r, ==, 6);
@@ -387,6 +392,19 @@ test_evutil_snprintf(void *ptr)
 	r = evutil_snprintf(buf, sizeof(buf), "longish %d", 1234567890);
 	tt_str_op(buf, ==, "longish 1234567");
 	tt_int_op(r, ==, 18);
+
+	r = evutil_snprintf(buf, sizeof(buf), EV_U64_FMT, EV_U64_ARG(u64));
+	tt_str_op(buf, ==, "200000000000");
+	tt_int_op(r, ==, 12);
+
+	r = evutil_snprintf(buf, sizeof(buf), EV_I64_FMT, EV_I64_ARG(i64));
+	tt_str_op(buf, ==, "-200000000000");
+	tt_int_op(r, ==, 13);
+
+	r = evutil_snprintf(buf, sizeof(buf), EV_SIZE_FMT" "EV_SSIZE_FMT,
+	    EV_SIZE_ARG(size), EV_SSIZE_ARG(ssize));
+	tt_str_op(buf, ==, "8000 -9000");
+	tt_int_op(r, ==, 10);
 
       end:
 	;
