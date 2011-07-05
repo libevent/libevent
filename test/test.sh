@@ -65,8 +65,6 @@ run_tests () {
 		return
 	fi
 
-	$TEST_DIR/test-eof
-
 	announce_n " test-eof: "
 	if $TEST_DIR/test-eof >>"$TEST_OUTPUT_FILE" ;
 	then
