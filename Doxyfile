@@ -63,21 +63,25 @@ STRIP_FROM_PATH        = include/
 # directories like "/usr/src/myproject". Separate the files or directories 
 # with spaces.
 
-INPUT                  = event.h evdns.h evhttp.h evrpc.h \
-		       include/event2/event.h include/event2/event_struct.h \
-		       include/event2/event_compat.h \
-		       include/event2/buffer_compat.h \
-		       include/event2/buffer.h include/event2/thread.h \
-		       include/event2/tag.h include/event2/bufferevent.h \
-		       include/event2/bufferevent_struct.h \
-		       include/event2/bufferevent_compat.h \
-		       include/event2/util.h \
-		       include/event2/rpc.h include/event2/rpc_struct.h \
-		       include/event2/rpc_compat.h \
-		       include/event2/dns.h include/event2/dns_struct.h \
-		       include/event2/dns_compat.h \
-		       include/event2/http.h include/event2/http_struct.h \
-		       include/event2/http_compat.h
+INPUT                  = \
+        include/event2/buffer.h \
+        include/event2/buffer_compat.h \
+        include/event2/bufferevent.h \
+        include/event2/bufferevent_compat.h \
+        include/event2/bufferevent_ssl.h \
+        include/event2/dns.h \
+        include/event2/dns_compat.h \
+        include/event2/event.h \
+        include/event2/event_compat.h \
+        include/event2/http.h \
+        include/event2/http_compat.h \
+        include/event2/listener.h \
+        include/event2/rpc.h \
+        include/event2/rpc_compat.h \
+        include/event2/tag.h \
+        include/event2/tag_compat.h \
+        include/event2/thread.h \
+        include/event2/util.h
 
 #---------------------------------------------------------------------------
 # configuration options related to the HTML output
@@ -149,7 +153,7 @@ PDF_HYPERLINKS         = NO
 # plain latex in the generated Makefile. Set this option to YES to get a 
 # higher quality PDF documentation.
 
-USE_PDFLATEX           = NO
+USE_PDFLATEX           = YES
 
 # If the LATEX_BATCHMODE tag is set to YES, doxygen will add the \\batchmode. 
 # command to the generated LaTeX files. This will instruct LaTeX to keep 
@@ -171,7 +175,7 @@ LATEX_HIDE_INDICES     = NO
 # If the GENERATE_MAN tag is set to YES (the default) Doxygen will 
 # generate man pages
 
-GENERATE_MAN           = YES
+GENERATE_MAN           = NO
 
 # The MAN_EXTENSION tag determines the extension that is added to 
 # the generated man pages (default is the subroutine's section .3)
