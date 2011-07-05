@@ -50,16 +50,21 @@
 #include "log-internal.h"
 #include "evmap-internal.h"
 
-#ifndef howmany
-#define howmany(x, y)   (((x)+((y)-1))/(y))
-#endif
-
 #ifndef _EVENT_HAVE_FD_MASK
 /* This type is mandatory, but Android doesn't define it. */
-#undef NFDBITS
-#define NFDBITS (sizeof(long)*8)
 typedef unsigned long fd_mask;
 #endif
+
+#ifndef NFDBITS
+#define NFDBITS (sizeof(fd_mask)*8)
+#endif
+
+/* Divide positive x by y, rounding up. */
+#define DIV_ROUNDUP(x, y)   (((x)+((y)-1))/(y))
+
+/* How many bytes to allocate for N fds? */
+#define SELECT_ALLOC_SIZE(n) \
+	(DIV_ROUNDUP(n, NFDBITS) * sizeof(fd_mask))
 
 struct selectop {
 	int event_fds;		/* Highest fd in fd set */
@@ -100,7 +105,7 @@ select_init(struct event_base *base)
 	if (!(sop = mm_calloc(1, sizeof(struct selectop))))
 		return (NULL);
 
-	if (select_resize(sop, howmany(32 + 1, NFDBITS)*sizeof(fd_mask))) {
+	if (select_resize(sop, SELECT_ALLOC_SIZE(32 + 1))) {
 		select_free_selectop(sop);
 		return (NULL);
 	}
@@ -253,8 +258,7 @@ select_add(struct event_base *base, int fd, short old, short events, void *p)
 		/* In theory we should worry about overflow here.  In
 		 * reality, though, the highest fd on a unixy system will
 		 * not overflow here. XXXX */
-		while (fdsz <
-		    (int) (howmany(fd + 1, NFDBITS) * sizeof(fd_mask)))
+		while (fdsz < (int) SELECT_ALLOC_SIZE(fd + 1))
 			fdsz *= 2;
 
 		if (fdsz != sop->event_fdsz) {
