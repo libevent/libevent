@@ -381,7 +381,7 @@ test_evutil_snprintf(void *ptr)
 	char buf[16];
 	int r;
 	ev_uint64_t u64 = ((ev_uint64_t)1000000000)*200;
-	ev_uint64_t i64 = -1 * (ev_int64_t) u64;
+	ev_int64_t i64 = -1 * (ev_int64_t) u64;
 	size_t size = 8000;
 	ev_ssize_t ssize = -9000;
 
