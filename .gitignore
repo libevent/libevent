@@ -53,6 +53,7 @@ libevent_openssl.pc
 
 /aclocal.m4
 /compile
+/doxygen
 /config.guess
 /config.log
 /config.status
