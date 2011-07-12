@@ -50,11 +50,13 @@ evutil_secure_rng_init(void)
 	(void) arc4random();
 	return 0;
 }
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 int
 evutil_secure_rng_global_setup_locks_(const int enable_locks)
 {
 	return 0;
 }
+#endif
 
 static void
 ev_arc4random_buf(void *buf, size_t n)
@@ -111,6 +113,22 @@ evutil_secure_rng_global_setup_locks_(const int enable_locks)
 	return 0;
 }
 #endif
+
+static void
+evutil_free_secure_rng_globals_locks(void)
+{
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+	if (arc4rand_lock != NULL) {
+		EVTHREAD_FREE_LOCK(arc4rand_lock, 0);
+	}
+#endif
+	return;
+}
+void
+evutil_free_secure_rng_globals_(void) {
+{
+    evutil_free_secure_rng_globals_locks();
+}
 
 int
 evutil_secure_rng_init(void)

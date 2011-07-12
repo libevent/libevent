@@ -3124,6 +3124,51 @@ event_base_del_virtual_(struct event_base *base)
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 
+static void
+event_free_debug_globals_locks(void)
+{
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_DEBUG_MODE
+	if (event_debug_map_lock_ != NULL) {
+		EVTHREAD_FREE_LOCK(event_debug_map_lock_, 0);
+	}
+#endif /* EVENT__DISABLE_DEBUG_MODE */
+#endif /* EVENT__DISABLE_THREAD_SUPPORT */
+	return;
+}
+
+static void
+event_free_debug_globals(void)
+{
+	event_free_debug_globals_locks();
+}
+
+static void
+event_free_evsig_globals(void)
+{
+	evsig_free_globals_();
+}
+
+static void
+event_free_evutil_globals(void)
+{
+	evutil_free_globals_();
+}
+
+static void
+event_free_globals(void)
+{
+	event_free_debug_globals();
+	event_free_evsig_globals();
+	event_free_evutil_globals();
+}
+
+void
+libevent_global_shutdown(void)
+{
+	event_free_globals();
+}
+
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 int
 event_global_setup_locks_(const int enable_locks)

@@ -156,6 +156,7 @@ main(int argc, char **argv)
 	close(socket);
 	unlink(fifo);
 #endif
+	libevent_global_shutdown();
 	return (0);
 }
 

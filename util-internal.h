@@ -347,6 +347,9 @@ int evutil_hex_char_to_int_(char c);
 
 void evutil_usleep_(const struct timeval *tv);
 
+void evutil_free_secure_rng_globals_(void);
+void evutil_free_globals_(void);
+
 #ifdef _WIN32
 HANDLE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
