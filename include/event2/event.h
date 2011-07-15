@@ -1005,9 +1005,11 @@ void event_free(struct event *);
   schedules a callback to be called exactly once, and does not require the
   caller to prepare an event structure.
 
-  Note that in Libevent 2.0 and earlier, if the event is never triggered,
-  the internal memory used to hold it will never be freed.  This may be
-  fixed in a later version of Libevent.
+  Note that in Libevent 2.0 and earlier, if the event is never triggered, the
+  internal memory used to hold it will never be freed.  In Libevent 2.1,
+  the internal memory will get freed by event_base_free() if the event
+  is never triggered.  The 'arg' value, however, will not get freed in either
+  case--you'll need to free that on your own if you want it to go away.
 
   @param base an event_base
   @param fd a file descriptor to monitor, or -1 for no fd.

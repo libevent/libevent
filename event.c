@@ -805,6 +805,12 @@ event_base_free(struct event_base *base)
 		event_debug(("%s: %d events were still set in base",
 			__func__, n_deleted));
 
+	while (LIST_FIRST(&base->once_events)) {
+		struct event_once *eonce = LIST_FIRST(&base->once_events);
+		LIST_REMOVE(eonce, next_once);
+		mm_free(eonce);
+	}
+
 	if (base->evsel != NULL && base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base);
 
@@ -1771,22 +1777,18 @@ done:
 	return (retval);
 }
 
-/* Sets up an event for processing once */
-struct event_once {
-	struct event ev;
-
-	void (*cb)(evutil_socket_t, short, void *);
-	void *arg;
-};
-
 /* One-time callback to implement event_base_once: invokes the user callback,
  * then deletes the allocated storage */
 static void
 event_once_cb(evutil_socket_t fd, short events, void *arg)
 {
 	struct event_once *eonce = arg;
+	struct event_base *base = eonce->ev.ev_base;
 
 	(*eonce->cb)(fd, events, eonce->arg);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	LIST_REMOVE(eonce, next_once);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	event_debug_unassign(&eonce->ev);
 	mm_free(eonce);
 }
@@ -1808,6 +1810,7 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 {
 	struct event_once *eonce;
 	int res = 0;
+	int activate = 0;
 
 	/* We cannot support signals that just fire once, or persistent
 	 * events. */
@@ -1828,8 +1831,7 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 			 * don't put it on the timeout queue.  This is one
 			 * idiom for scheduling a callback, so let's make
 			 * it fast (and order-preserving). */
-			event_active(&eonce->ev, EV_TIMEOUT, 1);
-			return 0;
+			activate = 1;
 		}
 	} else if (events & (EV_READ|EV_WRITE)) {
 		events &= EV_READ|EV_WRITE;
@@ -1841,11 +1843,20 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 		return (-1);
 	}
 
-	if (res == 0)
-		res = event_add(&eonce->ev, tv);
-	if (res != 0) {
-		mm_free(eonce);
-		return (res);
+	if (res == 0) {
+		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+		if (activate)
+			event_active_nolock_(&eonce->ev, EV_TIMEOUT, 1);
+		else
+			res = event_add_nolock_(&eonce->ev, tv, 0);
+
+		if (res != 0) {
+			mm_free(eonce);
+			return (res);
+		} else {
+			LIST_INSERT_HEAD(&base->once_events, eonce, next_once);
+		}
+		EVBASE_RELEASE_LOCK(base, th_base_lock);
 	}
 
 	return (0);

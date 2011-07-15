@@ -179,6 +179,15 @@ extern int event_debug_mode_on_;
 
 TAILQ_HEAD(evcallback_list, event_callback);
 
+/* Sets up an event for processing once */
+struct event_once {
+	LIST_ENTRY(event_once) next_once;
+	struct event ev;
+
+	void (*cb)(evutil_socket_t, short, void *);
+	void *arg;
+};
+
 struct event_base {
 	/** Function pointers and other data to describe this event_base's
 	 * backend. */
@@ -310,6 +319,10 @@ struct event_base {
 	/** Saved seed for weak random number generator. Some backends use
 	 * this to produce fairness among sockets. Protected by th_base_lock. */
 	struct evutil_weakrand_state weakrand_seed;
+
+	/** List of event_onces that have not yet fired. */
+	LIST_HEAD(once_event_list, event_once) once_events;
+
 };
 
 struct event_config_entry {
