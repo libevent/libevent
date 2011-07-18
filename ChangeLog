@@ -1,5 +1,32 @@
-Changes in version 2.0.13-stable (?? Jul 2011)
+Changes in version 2.0.13-stable (18 Jul 2011)
+BUGFIXES
+ o Avoid race-condition when initializing global locks (b683cae)
+ o Fix bug in SSL bufferevents backed by a bev with a write high-watermarks (e050703 Joachim Bauch)
+ o Speed up invoke_callbacks on evbuffers when there are no callbacks (f87f568 Mark Ellzey)
+ o Avoid a segfault when all methods are disabled or broken (27ce38b)
+ o Fix incorrect results from evbuffer_search_eol(EOL_LF) (4461f1a)
+ o Add some missing checks for mm_calloc failures (89d5e09)
+ o Replace an assertion for event_base_free(NULL) with a check-and-warn (09fe97d)
+ o Report kqueue ebadf, epipe, and eperm as EV_READ events (1fd34ab)
+ o Check if the `evhttp_new_object' function in `http.c' returns NULL. (446cc7a Mansour Moufid)
+ o Use the correct printf args when formatting size_t (3203f88)
+ o Complain if the caller tries to change threading cbs after setting them (cb6ecee)
 
+DOCUMENTATION FIXES AND IMPROVEMENTS
+ o Revise the event/evbuffer/bufferevent doxygen for clarity and accuracy (2888fac)
+ o Update Doxyfile to produce more useful output (aea0555)
+
+TEST FIXES
+ o Fix up test_evutil_snprintf (caf695a)
+ o Fix tinytest invocation from windows shell (57def34 Ed Day)
+
+BUILD FIXES
+ o Use AM_CPPFLAGS in sample/Makefile.am, not AM_CFLAGS (4a5c82d)
+ o Fix select.c compilation on systems with no NFDBITS (49d1136)
+ o Fix a few warnings on OpenBSD (8ee9f9c Nicholas Marriott)
+ o Don't break when building tests from git without python installed (b031adf)
+ o Don't install event_rpcgen.py when --disable-libevent-install is used (e23cda3 Harlan Stenn)
+ o Fix AIX build issue with TAILQ_FOREACH definition (e934096)
 
 
 Changes in version 2.0.12-stable (4 Jun 2011)
