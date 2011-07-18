@@ -76,7 +76,7 @@ regress.gen.c regress.gen.h: regress.rpc $(top_srcdir)/event_rpcgen.py
 	   echo "HI"; \
 	else \
 	   echo "No Python installed; can't test RPC."; \
-	   echo ""> regress.gen.c; \
+	   echo " "> regress.gen.c; \
 	   echo "#define NO_PYTHON_EXISTS" > regress.gen.h; \
 	fi
 
