@@ -89,7 +89,9 @@ arc4random_buf(void *buf, size_t n)
 #define ARC4RANDOM_EXPORT static
 #define _ARC4_LOCK() EVLOCK_LOCK(arc4rand_lock, 0)
 #define _ARC4_UNLOCK() EVLOCK_UNLOCK(arc4rand_lock, 0)
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
 static void *arc4rand_lock;
+#endif
 
 #define ARC4RANDOM_UINT32 ev_uint32_t
 #define ARC4RANDOM_NOSTIR
