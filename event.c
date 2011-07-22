@@ -1439,8 +1439,12 @@ event_process_active(struct event_base *base)
 	for (i = 0; i < base->nactivequeues; ++i) {
 		if (TAILQ_FIRST(&base->activequeues[i]) != NULL) {
 			activeq = &base->activequeues[i];
-			c = event_process_active_single_queue(base, activeq,
-			    maxcb, endtime);
+			if (i == 0)
+				c = event_process_active_single_queue(base, activeq,
+				    INT_MAX, NULL);
+			else
+				c = event_process_active_single_queue(base, activeq,
+				    maxcb, endtime);
 			if (c < 0)
 				return -1;
 			else if (c > 0)
