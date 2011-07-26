@@ -814,6 +814,9 @@ be_openssl_eventcb(struct bufferevent *bev_base, short what, void *ctx)
 	} else if (what & BEV_EVENT_TIMEOUT) {
 		/* We sure didn't set this.  Propagate it to the user. */
 		event = what;
+	} else if (what & BEV_EVENT_ERROR) {
+		/* An error occurred on the connection.  Propagate it to the user. */
+		event = what;
 	} else if (what & BEV_EVENT_CONNECTED) {
 		/* Ignore it.  We're saying SSL_connect() already, which will
 		   eat it. */
