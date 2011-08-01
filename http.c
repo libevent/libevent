@@ -1588,6 +1588,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		    default:
 			break;
 		}
+		break;
 	    case 5:
 		/* Method length is 5 bytes, which can only encompass PATCH and TRACE */
 		switch (*method) {
