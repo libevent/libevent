@@ -181,7 +181,7 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
 /**
    @name timeout_* macros
 
-   @deprecated These macros are deprecated because their naming is inconsisten
+   @deprecated These macros are deprecated because their naming is inconsistent
      with the rest of Libevent.  Use the evtimer_* macros instead.
    @{
  */
@@ -195,7 +195,7 @@ void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t,
 /**
    @name signal_* macros
 
-   @deprecated These macros are deprecated because their naming is inconsisten
+   @deprecated These macros are deprecated because their naming is inconsistent
      with the rest of Libevent.  Use the evsignal_* macros instead.
    @{
  */
