@@ -77,6 +77,9 @@ AC_ARG_ENABLE([libevent-regress],
 AC_ARG_ENABLE([function-sections],
      AS_HELP_STRING([--enable-function-sections, make static library allow smaller binaries with --gc-sections]),
 	[], [enable_function_sections=no])
+AC_ARG_ENABLE(event-debugging,
+		AS_HELP_STRING([--enable-event-debugging, enable event usage debugging]),
+	[], [enable_event_debugging=no])
 
 
 AC_PROG_LIBTOOL
@@ -646,6 +649,11 @@ fi
 if test x$enable_debug_mode = xno; then
   AC_DEFINE(DISABLE_DEBUG_MODE, 1,
         [Define if libevent should build without support for a debug mode])
+fi
+
+# check if we should enable event debugging
+if test x$enable_event_debugging = xyes; then
+	CFLAGS="$CFLAGS -DUSE_DEBUG"
 fi
 
 # check if we have and should use openssl
