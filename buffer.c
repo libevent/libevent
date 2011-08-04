@@ -221,10 +221,11 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 		    EVBUFFER_CHAIN_EXTRA(
 			    struct evbuffer_multicast_parent,
 			    chain);
+		EVUTIL_ASSERT(info->source != NULL);
 		EVUTIL_ASSERT(info->parent != NULL);
-		EVBUFFER_LOCK(info);
+		EVBUFFER_LOCK(info->source);
 		evbuffer_chain_decref(info->parent);
-		EVBUFFER_UNLOCK(info);
+		_evbuffer_decref_and_unlock(info->source);
 	}
 
 	mm_free(chain);
@@ -325,11 +326,8 @@ static inline void
 evbuffer_chain_decref(struct evbuffer_chain *chain)
 {
     EVUTIL_ASSERT(chain->refcnt > 0);
-    if (--chain->refcnt > 0) {
-        return;
-    }
-    
-    evbuffer_chain_free(chain);
+    --chain->refcnt;
+    // chain will be freed when parent buffer is released
 }
 
 struct evbuffer *
@@ -837,28 +835,12 @@ APPEND_CHAIN_MULTICAST(struct evbuffer *dst, struct evbuffer *src)
 			return;
 		}
 		extra = EVBUFFER_CHAIN_EXTRA(struct evbuffer_multicast_parent, tmp);
-		if (chain->flags & EVBUFFER_MULTICAST) {
-			// source chain is a reference itself
-			struct evbuffer_multicast_parent *info =
-				EVBUFFER_CHAIN_EXTRA(
-					struct evbuffer_multicast_parent,
-					chain);
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
-			extra->lock = info->lock;
-#endif
-			EVBUFFER_LOCK(info);
-			evbuffer_chain_incref(info->parent);
-			EVBUFFER_UNLOCK(info);
-			extra->parent = info->parent;
-		} else {
-			// reference source chain which now becomes immutable
-			evbuffer_chain_incref(chain);
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
-			extra->lock = src->lock;
-#endif
-			extra->parent = chain;
-			chain->flags |= EVBUFFER_IMMUTABLE;
-		}
+		// reference source chain which now becomes immutable
+		_evbuffer_incref(src);
+		extra->source = src;
+		evbuffer_chain_incref(chain);
+		extra->parent = chain;
+		chain->flags |= EVBUFFER_IMMUTABLE;
 		tmp->buffer_len = chain->buffer_len;
 		tmp->misalign = chain->misalign;
 		tmp->off = chain->off;
@@ -953,7 +935,7 @@ evbuffer_add_buffer_reference(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	}
 
 	for (; chain; chain = chain->next) {
-		if ((chain->flags & (EVBUFFER_FILESEGMENT|EVBUFFER_SENDFILE)) != 0) {
+		if ((chain->flags & (EVBUFFER_FILESEGMENT|EVBUFFER_SENDFILE|EVBUFFER_MULTICAST)) != 0) {
 			// chain type can not be referenced
 			result = -1;
 			goto done;

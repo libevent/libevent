@@ -248,9 +248,8 @@ struct evbuffer_file_segment {
 /** Information about the multicast parent of a chain.  Lives at the
  * end of an evbuffer_chain with the EVBUFFER_MULTICAST flag set.  */
 struct evbuffer_multicast_parent {
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
-	void *lock; /**< lock prevent concurrent access to the parent */
-#endif
+	/** source buffer the multicast parent belongs to */
+	struct evbuffer *source;
 	/** multicast parent for this chain */
 	struct evbuffer_chain *parent;
 };
