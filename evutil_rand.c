@@ -55,10 +55,12 @@ evutil_secure_rng_global_setup_locks_(const int enable_locks)
 	return 0;
 }
 
-#ifndef _EVENT_HAVE_ARC4RANDOM_BUF
 static void
-arc4random_buf(void *buf, size_t n)
+ev_arc4random_buf(void *buf, size_t n)
 {
+#ifdef _EVENT_HAVE_ARC4RANDOM_BUF
+	return arc4random_buf(buf, n);
+#else
 	unsigned char *b = buf;
 	/* Make sure that we start out with b at a 4-byte alignment; plenty
 	 * of CPUs care about this for 32-bit access. */
@@ -78,8 +80,8 @@ arc4random_buf(void *buf, size_t n)
 		ev_uint32_t u = arc4random();
 		memcpy(b, &u, n);
 	}
-}
 #endif
+}
 
 #else /* !_EVENT_HAVE_ARC4RANDOM { */
 
@@ -122,12 +124,18 @@ evutil_secure_rng_init(void)
 	return val;
 }
 
+static void
+ev_arc4random_buf(void *buf, size_t n)
+{
+	arc4random_buf(buf, n);
+}
+
 #endif /* } !_EVENT_HAVE_ARC4RANDOM */
 
 void
 evutil_secure_rng_get_bytes(void *buf, size_t n)
 {
-	arc4random_buf(buf, n);
+	ev_arc4random_buf(buf, n);
 }
 
 void
