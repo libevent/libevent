@@ -166,6 +166,10 @@ extern "C" {
 #define DNS_ERR_SHUTDOWN 68
 /** The request was canceled via a call to evdns_cancel_request */
 #define DNS_ERR_CANCEL 69
+/** There were no answers and no error condition in the DNS packet.
+ * This can happen when you ask for an address that exists, but a record
+ * type that doesn't. */
+#define DNS_ERR_NODATA 70
 
 #define DNS_IPv4_A 1
 #define DNS_PTR 2
