@@ -206,7 +206,7 @@ struct event_base;
 
   @param event_base the event base to associate the dns client with
   @param initialize_nameservers 1 if resolve.conf processing should occur
-  @return 0 if successful, or -1 if an error occurred
+  @return evdns_base object if successful, or NULL if an error occurred.
   @see evdns_base_free()
  */
 struct evdns_base * evdns_base_new(struct event_base *event_base, int initialize_nameservers);
