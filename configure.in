@@ -43,6 +43,15 @@ if test "$GCC" = "yes" ; then
 	CFLAGS="$CFLAGS -fno-strict-aliasing"
 fi
 
+# OS X Lion started deprecating the system openssl. Let's just disable
+# all deprecation warnings on OS X.
+case "$host_os" in
+
+ darwin*)
+    CFLAGS="$CFLAGS -Wno-deprecated-declarations"
+    ;;
+esac
+
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--enable-gcc-warnings, enable verbose warnings with GCC))
 AC_ARG_ENABLE(thread-support,
