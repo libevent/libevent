@@ -645,6 +645,8 @@ request_finished(struct request *const req, struct request **head, int free_hand
 	} else {
 		base->global_requests_waiting--;
 	}
+	/* it was initialized during request_new / evtimer_assign */
+	event_debug_unassign(&req->timeout_event);
 
 	if (!req->request_appended) {
 		/* need to free the request data on it's own */
