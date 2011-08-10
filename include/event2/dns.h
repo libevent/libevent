@@ -377,7 +377,7 @@ struct evdns_request *evdns_base_resolve_reverse_ipv6(struct evdns_base *base, c
 
   @param base the evdns_base that was used to make the request
   @param req the evdns_request that was returned by calling a resolve function
-  @see evdns_base_resolve_ip4(), evdns_base_resolve_ipv6, evdns_base_resolve_reverse
+  @see evdns_base_resolve_ipv4(), evdns_base_resolve_ipv6, evdns_base_resolve_reverse
 */
 void evdns_cancel_request(struct evdns_base *base, struct evdns_request *req);
 
