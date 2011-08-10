@@ -399,9 +399,11 @@ evsig_dealloc(struct event_base *base)
 	int i = 0;
 	if (base->sig.ev_signal_added) {
 		event_del(&base->sig.ev_signal);
-		event_debug_unassign(&base->sig.ev_signal);
 		base->sig.ev_signal_added = 0;
 	}
+	/* debug event is created in evsig_init/event_assign even when
+	 * ev_signal_added == 0, so unassign is required */
+	event_debug_unassign(&base->sig.ev_signal);
 
 	for (i = 0; i < NSIG; ++i) {
 		if (i < base->sig.sh_old_max && base->sig.sh_old[i] != NULL)
