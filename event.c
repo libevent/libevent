@@ -2433,8 +2433,8 @@ timeout_process(struct event_base *base)
 		/* delete this event from the I/O queues */
 		event_del_internal(ev);
 
-		event_debug(("timeout_process: call %p",
-			 ev->ev_callback));
+		event_debug(("timeout_process: event: %p, call %p",
+			 ev, ev->ev_callback));
 		event_active_nolock(ev, EV_TIMEOUT, 1);
 	}
 }
