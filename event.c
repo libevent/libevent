@@ -2348,7 +2348,7 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 
 	EVUTIL_ASSERT(tv->tv_sec >= 0);
 	EVUTIL_ASSERT(tv->tv_usec >= 0);
-	event_debug(("timeout_next: in %d seconds", (int)tv->tv_sec));
+	event_debug(("timeout_next: in %d seconds, %d useconds", (int)tv->tv_sec, (int)tv->tv_usec));
 
 out:
 	return (res);
