@@ -164,12 +164,6 @@ err:
 	return (NULL);
 }
 
-static void
-kq_sighandler(int sig)
-{
-	/* Do nothing here */
-}
-
 #define ADD_UDATA 0x30303
 
 static void
@@ -432,9 +426,13 @@ kq_sig_add(struct event_base *base, int nsignal, short old, short events, void *
 	if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
 		return (-1);
 
-	/* XXXX The manpage suggest we could use SIG_IGN instead of a
-	 * do-nothing handler */
-	if (_evsig_set_handler(base, nsignal, kq_sighandler) == -1)
+        /* We can set the handler for most signals to SIG_IGN and
+         * still have them reported to us in the queue.  However,
+         * if the handler for SIGCHLD is SIG_IGN, the system reaps
+         * zombie processes for us, and we don't get any notification.
+         * This appears to be the only signal with this quirk. */
+	if (_evsig_set_handler(base, nsignal,
+                               nsignal == SIGCHLD ? SIG_DFL : SIG_IGN) == -1)
 		return (-1);
 
 	return (0);
