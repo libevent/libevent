@@ -57,6 +57,10 @@ struct deferred_cb_queue {
 	/** Lock used to protect the queue. */
 	void *lock;
 
+	/** Which event_base does this queue associate itself with?
+	 * (Used for timing) */
+	struct event_base *base;
+
 	/** How many entries are in the queue? */
 	int active_count;
 

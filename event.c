@@ -573,6 +573,7 @@ event_base_new_with_config(const struct event_config *cfg)
 	base->th_notify_fd[1] = -1;
 
 	event_deferred_cb_queue_init(&base->defer_queue);
+	base->defer_queue.base = base;
 	base->defer_queue.notify_fn = notify_base_cbq_callback;
 	base->defer_queue.notify_arg = base;
 	if (cfg)
@@ -1376,7 +1377,8 @@ event_process_active_single_queue(struct event_base *base,
 			return count;
 		if (count && endtime) {
 			struct timeval now;
-			evutil_gettimeofday(&now, NULL);
+			update_time_cache(base);
+			gettime(base, &now);
 			if (evutil_timercmp(&now, endtime, >=))
 				return count;
 		}
@@ -1416,7 +1418,8 @@ event_process_deferred_callbacks(struct deferred_cb_queue *queue, int *breakptr,
 			break;
 		if (endtime) {
 			struct timeval now;
-			evutil_gettimeofday(&now, NULL);
+			update_time_cache(queue->base);
+			gettime(queue->base, &now);
 			if (evutil_timercmp(&now, endtime, >=))
 				return count;
 		}
@@ -1441,7 +1444,8 @@ event_process_active(struct event_base *base)
 	const int maxcb = base->max_dispatch_callbacks;
 	const int limit_after_prio = base->limit_callbacks_after_prio;
 	if (base->max_dispatch_time.tv_sec >= 0) {
-		evutil_gettimeofday(&tv, NULL);
+		update_time_cache(base);
+		gettime(base, &tv);
 		evutil_timeradd(&base->max_dispatch_time, &tv, &tv);
 		endtime = &tv;
 	} else {
