@@ -2087,8 +2087,8 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		}
 
 		event_debug((
-			 "event_add: timeout in %d seconds, call %p",
-			 (int)tv->tv_sec, ev->ev_callback));
+			 "event_add: timeout in %d seconds %d useconds, call %p",
+			 (int)tv->tv_sec, (int)tv->tv_usec, ev->ev_callback));
 
 		event_queue_reinsert_timeout(base, ev);
 
@@ -2348,7 +2348,7 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 
 	EVUTIL_ASSERT(tv->tv_sec >= 0);
 	EVUTIL_ASSERT(tv->tv_usec >= 0);
-	event_debug(("timeout_next: in %d seconds", (int)tv->tv_sec));
+	event_debug(("timeout_next: in %d seconds, %d useconds", (int)tv->tv_sec, (int)tv->tv_usec));
 
 out:
 	return (res);
