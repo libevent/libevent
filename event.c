@@ -587,16 +587,23 @@ event_base_new_with_config(const struct event_config *cfg)
 	should_check_environment =
 	    !(cfg && (cfg->flags & EVENT_BASE_FLAG_IGNORE_ENV));
 
-	if (cfg)
+	if (cfg) {
 		memcpy(&base->max_dispatch_time,
 		    &cfg->max_dispatch_interval, sizeof(struct timeval));
-	else
+		base->limit_callbacks_after_prio =
+		    cfg->limit_callbacks_after_prio;
+	} else {
 		base->max_dispatch_time.tv_sec = -1;
+		base->limit_callbacks_after_prio = 1;
+	}
 	if (cfg && cfg->max_dispatch_callbacks >= 0) {
 		base->max_dispatch_callbacks = cfg->max_dispatch_callbacks;
 	} else {
 		base->max_dispatch_callbacks = INT_MAX;
 	}
+	if (base->max_dispatch_callbacks == INT_MAX &&
+	    base->max_dispatch_time.tv_sec == -1)
+		base->limit_callbacks_after_prio = INT_MAX;
 
 	for (i = 0; eventops[i] && !base->evbase; i++) {
 		if (cfg != NULL) {
@@ -924,6 +931,7 @@ event_config_new(void)
 	TAILQ_INIT(&cfg->entries);
 	cfg->max_dispatch_interval.tv_sec = -1;
 	cfg->max_dispatch_callbacks = INT_MAX;
+	cfg->limit_callbacks_after_prio = 1;
 
 	return (cfg);
 }
@@ -995,7 +1003,7 @@ event_config_set_num_cpus_hint(struct event_config *cfg, int cpus)
 
 int
 event_config_set_max_dispatch_interval(struct event_config *cfg,
-    const struct timeval *max_interval, int max_callbacks)
+    const struct timeval *max_interval, int max_callbacks, int min_priority)
 {
 	if (max_interval)
 		memcpy(&cfg->max_dispatch_interval, max_interval,
@@ -1003,7 +1011,10 @@ event_config_set_max_dispatch_interval(struct event_config *cfg,
 	else
 		cfg->max_dispatch_interval.tv_sec = -1;
 	cfg->max_dispatch_callbacks =
-	    max_callbacks >= 0 ? max_callbacks : INT_MAX ;
+	    max_callbacks >= 0 ? max_callbacks : INT_MAX;
+	if (min_priority <= 0)
+		min_priority = 1;
+	cfg->limit_callbacks_after_prio = min_priority;
 	return (0);
 }
 
@@ -1428,6 +1439,7 @@ event_process_active(struct event_base *base)
 	const struct timeval *endtime;
 	struct timeval tv;
 	const int maxcb = base->max_dispatch_callbacks;
+	const int limit_after_prio = base->limit_callbacks_after_prio;
 	if (base->max_dispatch_time.tv_sec >= 0) {
 		evutil_gettimeofday(&tv, NULL);
 		evutil_timeradd(&base->max_dispatch_time, &tv, &tv);
@@ -1439,7 +1451,7 @@ event_process_active(struct event_base *base)
 	for (i = 0; i < base->nactivequeues; ++i) {
 		if (TAILQ_FIRST(&base->activequeues[i]) != NULL) {
 			activeq = &base->activequeues[i];
-			if (i == 0)
+			if (i < limit_after_prio)
 				c = event_process_active_single_queue(base, activeq,
 				    INT_MAX, NULL);
 			else

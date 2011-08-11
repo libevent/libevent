@@ -550,9 +550,23 @@ int event_config_set_num_cpus_hint(struct event_config *cfg, int cpus);
  * avoid priority inversions where multiple low-priority events keep us from
  * polling for high-priority events, but at the expense of slightly decreasing
  * the throughput.  Use it with caution!
+ *
+ * @param cfg The event_base configuration object.
+ * @param max_interval An interval after which Libevent should stop running
+ *     callbacks and check for more events, or NULL if there should be
+ *     no such interval.
+ * @param max_callbacks A number of callbacks after which Libevent should
+ *     stop running callbacks and check for more events, or -1 if there
+ *     should be no such limit.
+ * @param min_priority A priority below which max_interval and max_callbacks
+ *     should not be enforced.  If this is set to 0, they are enforced
+ *     for events of every priority; if it's set to 1, they're enforced
+ *     for events of priority 1 and above, and so on.
+ * @return 0 on success, -1 on failure.
  **/
 int event_config_set_max_dispatch_interval(struct event_config *cfg,
-    const struct timeval *max_interval, int max_callbacks);
+    const struct timeval *max_interval, int max_callbacks,
+    int min_priority);
 
 /**
   Initialize the event API.
