@@ -923,7 +923,7 @@ event_config_new(void)
 
 	TAILQ_INIT(&cfg->entries);
 	cfg->max_dispatch_interval.tv_sec = -1;
-	cfg->max_dispatch_callbacks = -1;
+	cfg->max_dispatch_callbacks = INT_MAX;
 
 	return (cfg);
 }
@@ -1002,7 +1002,8 @@ event_config_set_max_dispatch_interval(struct event_config *cfg,
 		    sizeof(struct timeval));
 	else
 		cfg->max_dispatch_interval.tv_sec = -1;
-	cfg->max_dispatch_callbacks = max_callbacks;
+	cfg->max_dispatch_callbacks =
+	    max_callbacks >= 0 ? max_callbacks : INT_MAX ;
 	return (0);
 }
 
