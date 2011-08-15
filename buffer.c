@@ -2267,12 +2267,18 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t fd,
 	}
 	return (res);
 #elif defined(SENDFILE_IS_SOLARIS)
-	res = sendfile(fd, info->fd, &offset, chain->off);
-	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
-		/* if this is EAGAIN or EINTR return 0; otherwise, -1 */
-		return (0);
+	{
+		const off_t offset_orig = offset;
+		res = sendfile(fd, info->fd, &offset, chain->off);
+		if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
+			if (offset - offset_orig)
+				return offset - offset_orig;
+			/* if this is EAGAIN or EINTR and no bytes were
+			 * written, return 0 */
+			return (0);
+		}
+		return (res);
 	}
-	return (res);
 #endif
 }
 #endif
