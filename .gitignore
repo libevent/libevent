@@ -85,6 +85,7 @@ libevent_openssl.pc
 /test/regress
 /test/regress.gen.c
 /test/regress.gen.h
+/test/rpcgen-attempted
 /test/test-eof
 /test/test-init
 /test/test-ratelim
