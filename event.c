@@ -2087,8 +2087,8 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		}
 
 		event_debug((
-			 "event_add: timeout in %d seconds %d useconds, call %p",
-			 (int)tv->tv_sec, (int)tv->tv_usec, ev->ev_callback));
+			 "event_add: event %p, timeout in %d seconds %d useconds, call %p",
+			 ev, (int)tv->tv_sec, (int)tv->tv_usec, ev->ev_callback));
 
 		event_queue_reinsert_timeout(base, ev);
 
@@ -2348,7 +2348,7 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 
 	EVUTIL_ASSERT(tv->tv_sec >= 0);
 	EVUTIL_ASSERT(tv->tv_usec >= 0);
-	event_debug(("timeout_next: in %d seconds, %d useconds", (int)tv->tv_sec, (int)tv->tv_usec));
+	event_debug(("timeout_next: event: %p, in %d seconds, %d useconds", ev, (int)tv->tv_sec, (int)tv->tv_usec));
 
 out:
 	return (res);
@@ -2433,8 +2433,8 @@ timeout_process(struct event_base *base)
 		/* delete this event from the I/O queues */
 		event_del_internal(ev);
 
-		event_debug(("timeout_process: call %p",
-			 ev->ev_callback));
+		event_debug(("timeout_process: event: %p, call %p",
+			 ev, ev->ev_callback));
 		event_active_nolock(ev, EV_TIMEOUT, 1);
 	}
 }
