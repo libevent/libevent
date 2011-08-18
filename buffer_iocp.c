@@ -126,6 +126,9 @@ evbuffer_commit_read(struct evbuffer *evbuf, ev_ssize_t nBytes)
 	buf->read_in_progress = 0;
 
 	evbuf->total_len += nBytes;
+	evbuf->n_add_for_cb += nBytes;
+
+	evbuffer_invoke_callbacks(evbuf);
 
 	_evbuffer_decref_and_unlock(evbuf);
 }
