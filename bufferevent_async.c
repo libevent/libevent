@@ -188,7 +188,7 @@ bev_async_consider_writing(struct bufferevent_async *beva)
 
 	/* Don't write if there's a write in progress, or we do not
 	 * want to write, or when there's nothing left to write. */
-	if (beva->write_in_progress)
+	if (beva->write_in_progress || beva->bev.connecting)
 		return;
 	if (!beva->ok || !(bev->enabled&EV_WRITE) ||
 	    !evbuffer_get_length(bev->output)) {
@@ -234,7 +234,7 @@ bev_async_consider_reading(struct bufferevent_async *beva)
 
 	/* Don't read if there is a read in progress, or we do not
 	 * want to read. */
-	if (beva->read_in_progress)
+	if (beva->read_in_progress || beva->bev.connecting)
 		return;
 	if (!beva->ok || !(bev->enabled&EV_READ)) {
 		bev_async_del_read(beva);
@@ -324,7 +324,11 @@ be_async_enable(struct bufferevent *buf, short what)
 	if (!bev_async->ok)
 		return -1;
 
-	/* NOTE: This interferes with non-blocking connect */
+	if (bev_async->bev.connecting) {
+		/* Don't launch anything during connection attempts. */
+		return 0;
+	}
+
 	if (what & EV_READ)
 		BEV_RESET_GENERIC_READ_TIMEOUT(buf);
 	if (what & EV_WRITE)
