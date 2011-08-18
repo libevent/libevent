@@ -637,13 +637,15 @@ bufferevent_rate_limit_group_new(struct event_base *base,
 
 	ev_token_bucket_init(&g->rate_limit, cfg, tick, 0);
 
-	g->min_share = 64;
 	event_assign(&g->master_refill_event, base, -1, EV_PERSIST,
 	    _bev_group_refill_callback, g);
 	/*XXXX handle event_add failure */
 	event_add(&g->master_refill_event, &cfg->tick_timeout);
 
 	EVTHREAD_ALLOC_LOCK(g->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
+
+	bufferevent_rate_limit_group_set_min_share(g, 64);
+
 	return g;
 }
 
@@ -671,6 +673,9 @@ bufferevent_rate_limit_group_set_cfg(
 		event_add(&g->master_refill_event, &cfg->tick_timeout);
 	}
 
+	/* The new limits might force us to adjust min_share differently. */
+	bufferevent_rate_limit_group_set_min_share(g, g->configured_min_share);
+
 	UNLOCK_GROUP(g);
 	return 0;
 }
@@ -682,6 +687,15 @@ bufferevent_rate_limit_group_set_min_share(
 {
 	if (share > EV_SSIZE_MAX)
 		return -1;
+
+	g->configured_min_share = share;
+
+	/* Can't set share to less than the one-tick maximum.  IOW, at steady
+	 * state, at least one connection can go per tick. */
+	if (share > g->rate_limit_cfg.read_rate)
+		share = g->rate_limit_cfg.read_rate;
+	if (share > g->rate_limit_cfg.write_rate)
+		share = g->rate_limit_cfg.write_rate;
 
 	g->min_share = share;
 	return 0;
