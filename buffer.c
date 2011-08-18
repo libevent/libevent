@@ -432,7 +432,7 @@ evbuffer_run_callbacks(struct evbuffer *buffer, int running_deferred)
 	}
 }
 
-static inline void
+void
 evbuffer_invoke_callbacks(struct evbuffer *buffer)
 {
 	if (TAILQ_EMPTY(&buffer->callbacks)) {

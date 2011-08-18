@@ -303,6 +303,8 @@ int _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
 /** Set the parent bufferevent object for buf to bev */
 void evbuffer_set_parent(struct evbuffer *buf, struct bufferevent *bev);
 
+void evbuffer_invoke_callbacks(struct evbuffer *buf);
+
 #ifdef __cplusplus
 }
 #endif
