@@ -43,6 +43,7 @@
 #include "bufferevent-internal.h"
 #include "mm-internal.h"
 #include "util-internal.h"
+#include "event-internal.h"
 
 int
 ev_token_bucket_init(struct ev_token_bucket *bucket,
@@ -165,7 +166,8 @@ ev_token_bucket_cfg_new(size_t read_rate, size_t read_burst,
 	r->read_maximum = read_burst;
 	r->write_maximum = write_burst;
 	memcpy(&r->tick_timeout, tick_len, sizeof(struct timeval));
-	r->msec_per_tick = (tick_len->tv_sec * 1000) + tick_len->tv_usec/1000;
+	r->msec_per_tick = (tick_len->tv_sec * 1000) +
+	    (tick_len->tv_usec & COMMON_TIMEOUT_MICROSECONDS_MASK)/1000;
 	return r;
 }
 
@@ -518,6 +520,7 @@ _bev_group_refill_callback(evutil_socket_t fd, short what, void *arg)
 	event_base_gettimeofday_cached(event_get_base(&g->master_refill_event), &now);
 
 	LOCK_GROUP(g);
+
 	tick = ev_token_bucket_get_tick(&now, &g->rate_limit_cfg);
 	ev_token_bucket_update(&g->rate_limit, &g->rate_limit_cfg, tick);
 

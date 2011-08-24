@@ -146,6 +146,9 @@ struct common_timeout_list {
 	struct event_base *base;
 };
 
+/** Mask used to get the real tv_usec value from a common timeout. */
+#define COMMON_TIMEOUT_MICROSECONDS_MASK       0x000fffff
+
 struct event_change;
 
 /* List of 'changes' since the last call to eventop.dispatch.  Only maintained
