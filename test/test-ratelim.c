@@ -65,6 +65,10 @@ static int cfg_connlimit_tolerance = -1;
 static int cfg_grouplimit_tolerance = -1;
 static int cfg_stddev_tolerance = -1;
 
+#ifdef _WIN32
+static int cfg_enable_iocp = 0;
+#endif
+
 static struct timeval cfg_tick = { 0, 500*1000 };
 
 static struct ev_token_bucket_cfg *conn_bucket_cfg = NULL;
@@ -186,6 +190,7 @@ test_ratelimiting(void)
 	double variance;
 	double expected_total_persec = -1.0, expected_avg_persec = -1.0;
 	int ok = 1;
+	struct event_config *base_cfg;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -195,7 +200,16 @@ test_ratelimiting(void)
 	if (0)
 		event_enable_debug_mode();
 
-	base = event_base_new();
+	base_cfg = event_config_new();
+
+#ifdef _WIN32
+	if (cfg_enable_iocp) {
+		evthread_use_windows_threads();
+		event_config_set_flag(base_cfg, EVENT_BASE_FLAG_STARTUP_IOCP);
+	}
+#endif
+
+	base = event_base_new_with_config(base_cfg);
 
 	listener = evconnlistener_new_bind(base, echo_listenercb, base,
 	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE, -1,
@@ -349,6 +363,9 @@ static struct option {
 	{ "--check-connlimit", &cfg_connlimit_tolerance, 0, 0 },
 	{ "--check-grouplimit", &cfg_grouplimit_tolerance, 0, 0 },
 	{ "--check-stddev", &cfg_stddev_tolerance, 0, 0 },
+#ifdef _WIN32
+	{ "--iocp", &cfg_enable_iocp, 0, 1 },
+#endif
 	{ NULL, NULL, -1, 0 },
 };
 
