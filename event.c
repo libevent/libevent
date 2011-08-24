@@ -1104,7 +1104,7 @@ event_signal_closure(struct event_base *base, struct event *ev)
  * of index into the event_base's aray of common timeouts.
  */
 
-#define MICROSECONDS_MASK       0x000fffff
+#define MICROSECONDS_MASK       COMMON_TIMEOUT_MICROSECONDS_MASK
 #define COMMON_TIMEOUT_IDX_MASK 0x0ff00000
 #define COMMON_TIMEOUT_IDX_SHIFT 20
 #define COMMON_TIMEOUT_MASK     0xf0000000
