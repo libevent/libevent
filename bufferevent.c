@@ -59,6 +59,9 @@
 #include "evbuffer-internal.h"
 #include "util-internal.h"
 
+static void _bufferevent_cancel_all(struct bufferevent *bev);
+
+
 void
 bufferevent_suspend_read(struct bufferevent *bufev, bufferevent_suspend_flags what)
 {
@@ -674,6 +677,7 @@ bufferevent_free(struct bufferevent *bufev)
 {
 	BEV_LOCK(bufev);
 	bufferevent_setcb(bufev, NULL, NULL, NULL, NULL);
+	_bufferevent_cancel_all(bufev);
 	_bufferevent_decref_and_unlock(bufev);
 }
 
@@ -748,6 +752,17 @@ bufferevent_getfd(struct bufferevent *bev)
 		res = bev->be_ops->ctrl(bev, BEV_CTRL_GET_FD, &d);
 	BEV_UNLOCK(bev);
 	return (res<0) ? -1 : d.fd;
+}
+
+static void
+_bufferevent_cancel_all(struct bufferevent *bev)
+{
+	union bufferevent_ctrl_data d;
+	memset(&d, 0, sizeof(d));
+	BEV_LOCK(bev);
+	if (bev->be_ops->ctrl)
+		bev->be_ops->ctrl(bev, BEV_CTRL_CANCEL_ALL, &d);
+	BEV_UNLOCK(bev);
 }
 
 short

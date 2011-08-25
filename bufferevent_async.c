@@ -268,8 +268,8 @@ bev_async_consider_reading(struct bufferevent_async *beva)
 	bufferevent_incref(bev);
 	if (evbuffer_launch_read(bev->input, at_most, &beva->read_overlapped)) {
 		beva->ok = 0;
-		bufferevent_decref(bev);
 		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
+		bufferevent_decref(bev);
 	} else {
 		beva->read_in_progress = at_most;
 		_bufferevent_decrement_read_buckets(&beva->bev, at_most);
@@ -379,8 +379,10 @@ be_async_destruct(struct bufferevent *bev)
 	bev_async_del_write(bev_async);
 
 	fd = _evbuffer_overlapped_get_fd(bev->input);
-	if (bev_p->options & BEV_OPT_CLOSE_ON_FREE)
+	if (bev_p->options & BEV_OPT_CLOSE_ON_FREE) {
+		/* XXXX possible double-close */
 		evutil_closesocket(fd);
+	}
 	/* delete this in case non-blocking connect was used */
 	if (event_initialized(&bev->ev_write)) {
 		event_del(&bev->ev_write);
@@ -669,8 +671,20 @@ be_async_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 		_evbuffer_overlapped_set_fd(bev->output, data->fd);
 		return 0;
 	}
+	case BEV_CTRL_CANCEL_ALL: {
+		struct bufferevent_async *bev_a = upcast(bev);
+		evutil_socket_t fd = _evbuffer_overlapped_get_fd(bev->input);
+		if (fd != (evutil_socket_t)INVALID_SOCKET &&
+		    (bev_a->bev.options & BEV_OPT_CLOSE_ON_FREE)) {
+			closesocket(fd);
+		}
+		bev_a->ok = 0;
+		return 0;
+	}
 	case BEV_CTRL_GET_UNDERLYING:
 	default:
 		return -1;
 	}
 }
+
+
