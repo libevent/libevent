@@ -209,7 +209,7 @@ if OPENSSL
 libevent_openssl_la_SOURCES = bufferevent_openssl.c
 libevent_openssl_la_LIBADD = $(MAYBE_CORE) $(OPENSSL_LIBS)
 libevent_openssl_la_LDFLAGS = $(GENERIC_LDFLAGS)
-libevent_openssl_la_CPPFLAGS = $(OPENSSL_INCS)
+libevent_openssl_la_CPPFLAGS = $(OPENSSL_INCS) $(AM_CPPFLAGS)
 endif
 
 noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
