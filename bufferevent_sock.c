@@ -113,8 +113,9 @@ bufferevent_socket_outbuf_cb(struct evbuffer *buf,
 	    !bufev_p->write_suspended) {
 		/* Somebody added data to the buffer, and we would like to
 		 * write, and we were not writing.  So, start writing. */
-		be_socket_add(&bufev->ev_write, &bufev->timeout_write);
-		/* XXXX handle failure from be_socket_add */
+		if (be_socket_add(&bufev->ev_write, &bufev->timeout_write) == -1) {
+		    // Should we log this?
+		}
 	}
 }
 

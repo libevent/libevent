@@ -445,9 +445,9 @@ evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen)
 	int made_fd = 0;
 
 	if (*fd_ptr < 0) {
-		made_fd = 1;
 		if ((*fd_ptr = socket(sa->sa_family, SOCK_STREAM, 0)) < 0)
 			goto err;
+		made_fd = 1;
 		if (evutil_make_socket_nonblocking(*fd_ptr) < 0) {
 			goto err;
 		}

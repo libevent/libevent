@@ -338,6 +338,7 @@ static void
 evrpc_request_cb_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 {
 	struct evrpc_req_generic *rpc_state = arg;
+	EVUTIL_ASSERT(rpc_state);
 	struct evrpc *rpc = rpc_state->rpc;
 	struct evhttp_request *req = rpc_state->http_req;
 
@@ -399,8 +400,13 @@ evrpc_request_done_closure(void *, enum EVRPC_HOOK_RESULT);
 void
 evrpc_request_done(struct evrpc_req_generic *rpc_state)
 {
-	struct evhttp_request *req = rpc_state->http_req;
-	struct evrpc *rpc = rpc_state->rpc;
+	struct evhttp_request *req;
+	struct evrpc *rpc;
+
+	EVUTIL_ASSERT(rpc_state);
+
+	req = rpc_state->http_req;
+	rpc = rpc_state->rpc;
 
 	if (rpc->reply_complete(rpc_state->reply) == -1) {
 		/* the reply was not completely filled in.  error out */
@@ -466,6 +472,7 @@ static void
 evrpc_request_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 {
 	struct evrpc_req_generic *rpc_state = arg;
+	EVUTIL_ASSERT(rpc_state);
 	struct evhttp_request *req = rpc_state->http_req;
 
 	if (hook_res == EVRPC_TERMINATE)

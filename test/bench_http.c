@@ -112,11 +112,20 @@ main(int argc, char **argv)
 		}
 
 		switch (c) {
+		char ** eptr;
 		case 'p':
-			port = atoi(argv[i+1]);
+			port = (int)strtol(argv[i+1], eptr, 10);
+			if (!(argv[i+1] && (**eptr == '\0'))) {
+				fprintf(stderr, "Bad port\n");
+				exit(1);
+			}
 			break;
 		case 'l':
-			content_len = atol(argv[i+1]);
+			content_len = (int)strtol(argv[i+1], eptr, 10);
+			if (!(argv[i+1] && (**eptr == '\0'))) {
+				fprintf(stderr, "Bad content length\n");
+				exit(1);
+			}
 			if (content_len == 0) {
 				fprintf(stderr, "Bad content length\n");
 				exit(1);

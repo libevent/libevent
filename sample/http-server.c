@@ -133,7 +133,8 @@ dump_request_cb(struct evhttp_request *req, void *arg)
 		int n;
 		char cbuf[128];
 		n = evbuffer_remove(buf, cbuf, sizeof(buf)-1);
-		fwrite(cbuf, 1, n, stdout);
+		if (n > 0)
+		    fwrite(cbuf, 1, n, stdout);
 	}
 	puts(">>>");
 
@@ -179,6 +180,8 @@ send_document_cb(struct evhttp_request *req, void *arg)
 
 	/* We need to decode it, to see what path the user really wanted. */
 	decoded_path = evhttp_uridecode(path, 0, NULL);
+	if (decoded_path == NULL)
+		goto err;
 	/* Don't allow any ".."s in the path, to avoid exposing stuff outside
 	 * of the docroot.  This test is both overzealous and underzealous:
 	 * it forbids aceptable paths like "/this/one..here", but it doesn't
