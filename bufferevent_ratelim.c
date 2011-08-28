@@ -190,6 +190,8 @@ ev_token_bucket_cfg_free(struct ev_token_bucket_cfg *cfg)
 
 static int _bev_group_suspend_reading(struct bufferevent_rate_limit_group *g);
 static int _bev_group_suspend_writing(struct bufferevent_rate_limit_group *g);
+static void _bev_group_unsuspend_reading(struct bufferevent_rate_limit_group *g);
+static void _bev_group_unsuspend_writing(struct bufferevent_rate_limit_group *g);
 
 /** Helper: figure out the maximum amount we should write if is_write, or
     the maximum amount we should read if is_read.  Return that maximum, or
@@ -286,6 +288,10 @@ _bufferevent_decrement_read_buckets(struct bufferevent_private *bev, ev_ssize_t 
 			if (event_add(&bev->rate_limiting->refill_bucket_event,
 				&bev->rate_limiting->cfg->tick_timeout) < 0)
 				r = -1;
+		} else if (bev->read_suspended & BEV_SUSPEND_BW) {
+			if (!(bev->write_suspended & BEV_SUSPEND_BW))
+				event_del(&bev->rate_limiting->refill_bucket_event);
+			bufferevent_unsuspend_read(&bev->bev, BEV_SUSPEND_BW);
 		}
 	}
 
@@ -295,6 +301,8 @@ _bufferevent_decrement_read_buckets(struct bufferevent_private *bev, ev_ssize_t 
 		bev->rate_limiting->group->total_read += bytes;
 		if (bev->rate_limiting->group->rate_limit.read_limit <= 0) {
 			_bev_group_suspend_reading(bev->rate_limiting->group);
+		} else if (bev->rate_limiting->group->read_suspended) {
+			_bev_group_unsuspend_reading(bev->rate_limiting->group);
 		}
 		UNLOCK_GROUP(bev->rate_limiting->group);
 	}
@@ -318,6 +326,10 @@ _bufferevent_decrement_write_buckets(struct bufferevent_private *bev, ev_ssize_t
 			if (event_add(&bev->rate_limiting->refill_bucket_event,
 				&bev->rate_limiting->cfg->tick_timeout) < 0)
 				r = -1;
+		} else if (bev->write_suspended & BEV_SUSPEND_BW) {
+			if (!(bev->read_suspended & BEV_SUSPEND_BW))
+				event_del(&bev->rate_limiting->refill_bucket_event);
+			bufferevent_unsuspend_write(&bev->bev, BEV_SUSPEND_BW);
 		}
 	}
 
@@ -327,6 +339,8 @@ _bufferevent_decrement_write_buckets(struct bufferevent_private *bev, ev_ssize_t
 		bev->rate_limiting->group->total_written += bytes;
 		if (bev->rate_limiting->group->rate_limit.write_limit <= 0) {
 			_bev_group_suspend_writing(bev->rate_limiting->group);
+		} else if (bev->rate_limiting->group->write_suspended) {
+			_bev_group_unsuspend_writing(bev->rate_limiting->group);
 		}
 		UNLOCK_GROUP(bev->rate_limiting->group);
 	}

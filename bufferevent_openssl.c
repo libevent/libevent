@@ -1168,6 +1168,7 @@ be_openssl_ctrl(struct bufferevent *bev,
 			return -1;
 		data->ptr = bev_ssl->underlying;
 		return 0;
+	case BEV_CTRL_CANCEL_ALL:
 	default:
 		return -1;
 	}
