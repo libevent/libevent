@@ -173,6 +173,10 @@ main(int c, char **v) {
 		evutil_socket_t sock;
 		struct sockaddr_in my_addr;
 		sock = socket(PF_INET, SOCK_DGRAM, 0);
+		if (sock == -1) {
+			perror("socket");
+			exit(1);
+		}
 		evutil_make_socket_nonblocking(sock);
 		my_addr.sin_family = AF_INET;
 		my_addr.sin_port = htons(10053);
