@@ -91,6 +91,7 @@ main(int argc, char **argv)
 	int c;
 	int use_iocp = 0;
 	unsigned short port = 8080;
+	char *endptr = NULL;
 
 #ifdef WIN32
 	WSADATA WSAData;
@@ -112,21 +113,24 @@ main(int argc, char **argv)
 		}
 
 		switch (c) {
-		char ** eptr;
 		case 'p':
-			port = (int)strtol(argv[i+1], eptr, 10);
-			if (!(argv[i+1] && (**eptr == '\0'))) {
+			if (i+1 >= argc || !argv[i+1]) {
+				fprintf(stderr, "Missing port\n");
+				exit(1);
+			}
+			port = (int)strtol(argv[i+1], &endptr, 10);
+			if (*endptr != '\0') {
 				fprintf(stderr, "Bad port\n");
 				exit(1);
 			}
 			break;
 		case 'l':
-			content_len = (int)strtol(argv[i+1], eptr, 10);
-			if (!(argv[i+1] && (**eptr == '\0'))) {
-				fprintf(stderr, "Bad content length\n");
+			if (i+1 >= argc || !argv[i+1]) {
+				fprintf(stderr, "Missing content length\n");
 				exit(1);
 			}
-			if (content_len == 0) {
+			content_len = (size_t)strtol(argv[i+1], &endptr, 10);
+			if (*endptr != '\0' || content_len == 0) {
 				fprintf(stderr, "Bad content length\n");
 				exit(1);
 			}
