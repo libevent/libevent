@@ -338,9 +338,12 @@ static void
 evrpc_request_cb_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 {
 	struct evrpc_req_generic *rpc_state = arg;
+	struct evrpc *rpc;
+	struct evhttp_request *req;
+
 	EVUTIL_ASSERT(rpc_state);
-	struct evrpc *rpc = rpc_state->rpc;
-	struct evhttp_request *req = rpc_state->http_req;
+	rpc = rpc_state->rpc;
+	req = rpc_state->http_req;
 
 	if (hook_res == EVRPC_TERMINATE)
 		goto error;
@@ -472,8 +475,9 @@ static void
 evrpc_request_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 {
 	struct evrpc_req_generic *rpc_state = arg;
+	struct evhttp_request *req;
 	EVUTIL_ASSERT(rpc_state);
-	struct evhttp_request *req = rpc_state->http_req;
+	req = rpc_state->http_req;
 
 	if (hook_res == EVRPC_TERMINATE)
 		goto error;
