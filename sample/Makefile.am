@@ -13,6 +13,7 @@ hello_world_sources = hello-world.c
 http_server_sources = http-server.c
 
 if OPENSSL
+AM_CPPFLAGS += $(OPENSSL_INCS)
 noinst_PROGRAMS += le-proxy
 le_proxy_sources = le-proxy.c
 le_proxy_LDADD = $(LDADD) ../libevent_openssl.la
