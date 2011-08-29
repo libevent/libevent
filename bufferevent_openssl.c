@@ -1249,6 +1249,7 @@ bufferevent_openssl_new_impl(struct event_base *base,
 	}
 
 	if (underlying) {
+		bufferevent_setwatermark(underlying, EV_READ, 0, 0);
 		bufferevent_enable(underlying, EV_READ|EV_WRITE);
 		if (state == BUFFEREVENT_SSL_OPEN)
 			bufferevent_suspend_read(underlying,
