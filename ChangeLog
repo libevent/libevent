@@ -1,3 +1,28 @@
+Changes in version 2.0.14-stable (?? ??? 2011)
+BUGFIXES (bufferevents and evbuffers):
+ o Propagate errors on the underlying bufferevent to the user. (4a34394 Joachim Bauch)
+ o Ignore OpenSSL deprecation warnings on OS X (5d1b255 Sebastian Hahn)
+ o Fix handling of group rate limits under 64 bytes of burst (6d5440e)
+ o Solaris sendfile: correctly detect amount of data sent (643922e Michael Herf)
+ o Make rate limiting work with common_timeout logic (5b18f13)
+
+BUGFIXES (IOCP):
+ o IOCP: don't launch reads or writes on an unconnected socket (495c227)
+ o Make IOCP rate-limiting group support stricter and less surprising. (a98da7b)
+ o Have test-ratelim.c support IOCP (0ff2c5a)
+ o Make overlapped reads result in evbuffer callbacks getting invoked (6acfbdd)
+ o Correctly terminate IO on an async bufferevent on bufferevent_free (e6af35d)
+
+BUGFIXES (other):
+ o Fix evsig_dealloc memory leak with debugging turned on. (9b724b2 Leonid Evdokimov)
+ o Fix request_finished memory leak with debugging turned on. (aff6ba1 Leonid Evdokimov)
+
+BUILD AND TESTING FIXES:
+ o Allow OS-neutral builds for platforms where some versions have arc4random_buf (b442302 Mitchell Livingston)
+ o Try to fix 'make distcheck' errors when building out-of-tree (04656ea Dave Hart)
+ o Clean up some problems identified by Coverity. (7c11e51 Harlan Stenn)
+
+
 Changes in version 2.0.13-stable (18 Jul 2011)
 BUGFIXES
  o Avoid race-condition when initializing global locks (b683cae)
