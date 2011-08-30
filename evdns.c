@@ -133,6 +133,7 @@
 #define TYPE_A	       EVDNS_TYPE_A
 #define TYPE_CNAME     5
 #define TYPE_PTR       EVDNS_TYPE_PTR
+#define TYPE_SOA       EVDNS_TYPE_SOA
 #define TYPE_AAAA      EVDNS_TYPE_AAAA
 
 #define CLASS_INET     EVDNS_CLASS_INET
@@ -760,7 +761,7 @@ reply_run_callback(struct deferred_cb *d, void *user_pointer)
 			    cb->reply.data.a.addresses,
 			    user_pointer);
 		else
-			cb->user_callback(cb->err, 0, 0, 0, NULL, user_pointer);
+			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
 		break;
 	case TYPE_PTR:
 		if (cb->have_reply) {
@@ -768,7 +769,7 @@ reply_run_callback(struct deferred_cb *d, void *user_pointer)
 			cb->user_callback(DNS_ERR_NONE, DNS_PTR, 1, cb->ttl,
 			    &name, user_pointer);
 		} else {
-			cb->user_callback(cb->err, 0, 0, 0, NULL, user_pointer);
+			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
 		}
 		break;
 	case TYPE_AAAA:
@@ -778,7 +779,7 @@ reply_run_callback(struct deferred_cb *d, void *user_pointer)
 			    cb->reply.data.aaaa.addresses,
 			    user_pointer);
 		else
-			cb->user_callback(cb->err, 0, 0, 0, NULL, user_pointer);
+			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
 		break;
 	default:
 		EVUTIL_ASSERT(0);
@@ -895,7 +896,7 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 		}
 
 		/* all else failed. Pass the failure up */
-		reply_schedule_callback(req, 0, error, NULL);
+		reply_schedule_callback(req, ttl, error, NULL);
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
 	} else {
 		/* all ok, tell the user */
@@ -998,8 +999,8 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 
 	/* If it's not an answer, it doesn't correspond to any request. */
 	if (!(flags & 0x8000)) return -1;  /* must be an answer */
-	if (flags & 0x020f) {
-		/* there was an error */
+	if ((flags & 0x020f) && (flags & 0x020f) != DNS_ERR_NOTEXIST) {
+		/* there was an error and it's not NXDOMAIN */
 		goto err;
 	}
 	/* if (!answers) return; */  /* must have an answer of some form */
@@ -1120,6 +1121,35 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			j += datalength;
 		}
 	}
+
+	if (!reply.have_answer) {
+		for (i = 0; i < authority; ++i) {
+			u16 type, class;
+			SKIP_NAME;
+			GET16(type);
+			GET16(class);
+			GET32(ttl);
+			GET16(datalength);
+			if (type == TYPE_SOA && class == CLASS_INET) {
+				u32 serial, refresh, retry, expire, minimum;
+				SKIP_NAME;
+				SKIP_NAME;
+				GET32(serial);
+				GET32(refresh);
+				GET32(retry);
+				GET32(expire);
+				GET32(minimum);
+				ttl_r = MIN(ttl_r, ttl);
+				ttl_r = MIN(ttl_r, minimum);
+			} else {
+				/* skip over any other type of resource */
+				j += datalength;
+			}
+		}
+	}
+
+	if (ttl_r == 0xffffffff)
+		ttl_r = 0;
 
 	reply_handle(req, flags, ttl_r, &reply);
 	return 0;
