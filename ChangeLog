@@ -5,6 +5,7 @@ BUGFIXES (bufferevents and evbuffers):
  o Fix handling of group rate limits under 64 bytes of burst (6d5440e)
  o Solaris sendfile: correctly detect amount of data sent (643922e Michael Herf)
  o Make rate limiting work with common_timeout logic (5b18f13)
+ o clear read watermark on underlying bufferevent when creating filtering bev to fix potentially failing fragmented ssl handshakes (54f7e61 Joachim Bauch)
 
 BUGFIXES (IOCP):
  o IOCP: don't launch reads or writes on an unconnected socket (495c227)
