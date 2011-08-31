@@ -1,10 +1,13 @@
-Changes in version 2.0.14-stable (?? ??? 2011)
+Changes in version 2.0.15-stable (?? ??? 2011)
+
+Changes in version 2.0.14-stable (31 Aug 2011)
 BUGFIXES (bufferevents and evbuffers):
  o Propagate errors on the underlying bufferevent to the user. (4a34394 Joachim Bauch)
  o Ignore OpenSSL deprecation warnings on OS X (5d1b255 Sebastian Hahn)
  o Fix handling of group rate limits under 64 bytes of burst (6d5440e)
  o Solaris sendfile: correctly detect amount of data sent (643922e Michael Herf)
  o Make rate limiting work with common_timeout logic (5b18f13)
+ o clear read watermark on underlying bufferevent when creating filtering bev to fix potentially failing fragmented ssl handshakes (54f7e61 Joachim Bauch)
 
 BUGFIXES (IOCP):
  o IOCP: don't launch reads or writes on an unconnected socket (495c227)
