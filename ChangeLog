@@ -1,4 +1,4 @@
-Changes in version 2.0.14-stable (?? ??? 2011)
+Changes in version 2.0.14-stable (31 Aug 2011)
 BUGFIXES (bufferevents and evbuffers):
  o Propagate errors on the underlying bufferevent to the user. (4a34394 Joachim Bauch)
  o Ignore OpenSSL deprecation warnings on OS X (5d1b255 Sebastian Hahn)
