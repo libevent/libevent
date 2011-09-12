@@ -193,8 +193,21 @@ extern "C" {
 #define ev_ssize_t ssize_t
 #endif
 
+/* Note that we define ev_off_t based on the compile-time size of off_t that
+ * we used to build Libevent, and not based on the current size of off_t.
+ * (For example, we don't define ev_off_t to off_t.).  We do this because
+ * some systems let you build your software with different off_t sizes
+ * at runtime, and so putting in any dependency on off_t would risk API
+ * mismatch.
+ */
 #ifdef _WIN32
 #define ev_off_t ev_int64_t
+#elif _EVENT_SIZEOF_OFF_T == 8
+#define ev_off_t ev_int64_t
+#elif _EVENT_SIZEOF_OFF_T == 4
+#define ev_off_t ev_int32_t
+#elif defined(_EVENT_IN_DOXYGEN)
+#define ev_off_t ...
 #else
 #define ev_off_t off_t
 #endif
