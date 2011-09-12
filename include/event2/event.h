@@ -314,18 +314,21 @@ typedef void (*event_fatal_cb)(int err);
 void event_set_fatal_callback(event_fatal_cb cb);
 
 #define EVENT_DBG_ALL 0xffffffffu
+#define EVENT_DBG_NONE 0
 
 /**
  Turn on debugging logs and have them sent to the default log handler.
 
- This is a global setting; you must call this before any calls that create an
- event-base.
+ This is a global setting; if you are going to call it, you must call this
+ before any calls that create an event-base.  You must call it before any
+ multithreaded use of Libevent.
 
  Debug logs are verbose.
 
  @param which Controls which debug messages are turned on.  This option is
    unused for now; for forward compatibility, you must pass in the constant
-   "EVENT_DBG_ALL"
+   "EVENT_DBG_ALL" to turn debugging logs on, or "EVENT_DBG_NONE" to turn
+   debugging logs off.
  */
 void event_enable_debug_logging(ev_uint32_t which);
 
