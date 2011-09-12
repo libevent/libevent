@@ -845,13 +845,17 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 		/* there was an error */
 		if (flags & 0x0200) {
 			error = DNS_ERR_TRUNCATED;
-		} else {
+		} else if (flags & 0x000f) {
 			u16 error_code = (flags & 0x000f) - 1;
 			if (error_code > 4) {
 				error = DNS_ERR_UNKNOWN;
 			} else {
 				error = error_codes[error_code];
 			}
+		} else if (reply && !reply->have_answer) {
+			error = DNS_ERR_NODATA;
+		} else {
+			error = DNS_ERR_UNKNOWN;
 		}
 
 		switch (error) {
@@ -3873,6 +3877,7 @@ evdns_err_to_string(int err)
 	case DNS_ERR_TIMEOUT: return "request timed out";
 	case DNS_ERR_SHUTDOWN: return "dns subsystem shut down";
 	case DNS_ERR_CANCEL: return "dns request canceled";
+	case DNS_ERR_NODATA: return "no records in the reply";
 	default: return "[Unknown error code]";
     }
 }

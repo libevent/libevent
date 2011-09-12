@@ -166,6 +166,10 @@ extern "C" {
 #define DNS_ERR_SHUTDOWN 68
 /** The request was canceled via a call to evdns_cancel_request */
 #define DNS_ERR_CANCEL 69
+/** There were no answers and no error condition in the DNS packet.
+ * This can happen when you ask for an address that exists, but a record
+ * type that doesn't. */
+#define DNS_ERR_NODATA 70
 
 #define DNS_IPv4_A 1
 #define DNS_PTR 2
@@ -206,7 +210,7 @@ struct event_base;
 
   @param event_base the event base to associate the dns client with
   @param initialize_nameservers 1 if resolve.conf processing should occur
-  @return 0 if successful, or -1 if an error occurred
+  @return evdns_base object if successful, or NULL if an error occurred.
   @see evdns_base_free()
  */
 struct evdns_base * evdns_base_new(struct event_base *event_base, int initialize_nameservers);
