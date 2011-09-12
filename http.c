@@ -1375,6 +1375,7 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
 	} else if (what & (BEV_EVENT_EOF|BEV_EVENT_ERROR)) {
 		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
+	} else if (what == BEV_EVENT_CONNECTED) {
 	} else {
 		evhttp_connection_fail(evcon, EVCON_HTTP_BUFFER_ERROR);
 	}
@@ -2153,7 +2154,7 @@ evhttp_connection_new(const char *address, unsigned short port)
 }
 
 struct evhttp_connection *
-evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
+evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev,
     const char *address, unsigned short port)
 {
 	struct evhttp_connection *evcon = NULL;
@@ -2179,12 +2180,18 @@ evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
 		goto error;
 	}
 
-	if ((evcon->bufev = bufferevent_new(-1,
-		    evhttp_read_cb,
-		    evhttp_write_cb,
-		    evhttp_error_cb, evcon)) == NULL) {
-		event_warn("%s: bufferevent_new failed", __func__);
-		goto error;
+	if (bev == NULL) {
+		if ((evcon->bufev = bufferevent_new(-1,
+					evhttp_read_cb,
+					evhttp_write_cb,
+					evhttp_error_cb, evcon)) == NULL) {
+			event_warn("%s: bufferevent_new failed", __func__);
+			goto error;
+		}
+	}
+	else {
+		bufferevent_setcb(bev, evhttp_read_cb, evhttp_write_cb, evhttp_error_cb, evcon);
+		evcon->bufev = bev;
 	}
 
 	evcon->state = EVCON_DISCONNECTED;
@@ -2207,6 +2214,18 @@ evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
 	if (evcon != NULL)
 		evhttp_connection_free(evcon);
 	return (NULL);
+}
+
+struct bufferevent* evhttp_connection_get_bufferevent(struct evhttp_connection *evcon)
+{
+	return evcon->bufev;
+}
+
+struct evhttp_connection *
+evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
+    const char *address, unsigned short port)
+{
+	return evhttp_connection_base_bufferevent_new(base, dnsbase, NULL, address, port);
 }
 
 void
@@ -3562,6 +3581,14 @@ evhttp_set_gencb(struct evhttp *http,
 	http->gencbarg = cbarg;
 }
 
+void
+evhttp_set_bevcb(struct evhttp *http,
+    struct bufferevent* (*cb)(struct event_base *, void *), void *cbarg)
+{
+	http->bevcb = cb;
+	http->bevcbarg = cbarg;
+}
+
 /*
  * Request related functions
  */
@@ -3786,6 +3813,7 @@ evhttp_get_request_connection(
 {
 	struct evhttp_connection *evcon;
 	char *hostname = NULL, *portname = NULL;
+	struct bufferevent* bev = NULL;
 
 	name_from_addr(sa, salen, &hostname, &portname);
 	if (hostname == NULL || portname == NULL) {
@@ -3798,8 +3826,11 @@ evhttp_get_request_connection(
 			__func__, hostname, portname, fd));
 
 	/* we need a connection object to put the http request on */
-	evcon = evhttp_connection_base_new(
-		http->base, NULL, hostname, atoi(portname));
+	if (http->bevcb != NULL) {
+		bev = (*http->bevcb)(http->base, http->bevcbarg);
+	}
+	evcon = evhttp_connection_base_bufferevent_new(
+		http->base, NULL, bev, hostname, atoi(portname));
 	mm_free(hostname);
 	mm_free(portname);
 	if (evcon == NULL)

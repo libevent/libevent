@@ -37,6 +37,7 @@ extern "C" {
 /* In case we haven't included the right headers yet. */
 struct evbuffer;
 struct event_base;
+struct bufferevent;
 
 /** @file event2/http.h
  *
@@ -69,6 +70,7 @@ struct evhttp_request;
 struct evkeyvalq;
 struct evhttp_bound_socket;
 struct evconnlistener;
+struct evdns_base;
 
 /**
  * Create a new HTTP server.
@@ -232,6 +234,23 @@ int evhttp_del_cb(struct evhttp *, const char *);
 */
 void evhttp_set_gencb(struct evhttp *http,
     void (*cb)(struct evhttp_request *, void *), void *arg);
+
+/**
+   Set a callback used to create new bufferevents for connections
+   to a given evhttp object.
+
+   You can use this to override the default bufferevent type -- for example,
+   to make this evhttp object use SSL bufferevents rather than unencrypted
+   ones.
+
+   New bufferevents must be allocated with no fd set on them.
+
+   @param http the evhttp server object for which to set the callback
+   @param cb the callback to invoke for incoming connections
+   @param arg an context argument for the callback
+ */
+void evhttp_set_bevcb(struct evhttp *http,
+    struct bufferevent *(*cb)(struct event_base *, void *), void *arg);
 
 /**
    Adds a virtual host to the http server.
@@ -398,6 +417,29 @@ enum evhttp_cmd_type {
 enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
 
 /**
+ * Create and return a connection object that can be used to for making HTTP
+ * requests.  The connection object tries to resolve address and establish the
+ * connection when it is given an http request object.
+ *
+ * @param base the event_base to use for handling the connection
+ * @param dnsbase the dns_base to use for resolving host names; if not
+ *     specified host name resolution will block.
+ * @param bev a bufferevent to use for connecting to the server; if NULL, a
+ *     socket-based bufferevent will be created.  This buffrevent will be freed
+ *     when the connection closes.  It must have no fd set on it.
+ * @param address the address to which to connect
+ * @param port the port to connect to
+ * @return an evhttp_connection object that can be used for making requests
+ */
+struct evhttp_connection *evhttp_connection_base_bufferevent_new(
+	struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev, const char *address, unsigned short port);
+
+/**
+ * Return the bufferevent that an evhttp_connection is using.
+ */
+struct bufferevent* evhttp_connection_get_bufferevent(struct evhttp_connection *evcon);
+
+/**
  * Creates a new request object that needs to be filled in with the request
  * parameters.  The callback is executed when the request completed or an
  * error occurred.
@@ -418,12 +460,10 @@ void evhttp_request_set_chunked_cb(struct evhttp_request *,
 /** Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
 
-struct evdns_base;
-
 /**
- * A connection object that can be used to for making HTTP requests.  The
- * connection object tries to resolve address and establish the connection
- * when it is given an http request object.
+ * Create and return a connection object that can be used to for making HTTP
+ * requests.  The connection object tries to resolve address and establish the
+ * connection when it is given an http request object.
  *
  * @param base the event_base to use for handling the connection
  * @param dnsbase the dns_base to use for resolving host names; if not
