@@ -64,6 +64,25 @@ static void event_exit(int errcode) EV_NORETURN;
 
 static event_fatal_cb fatal_fn = NULL;
 
+#ifdef EVENT_DEBUG_LOGGING_ENABLED
+#ifdef USE_DEBUG
+#define DEFAULT_MASK EVENT_DBG_ALL
+#else
+#define DEFAULT_MASK 0
+#endif
+
+#ifdef USE_GLOBAL_FOR_DEBUG_LOGGING
+ev_uint32_t _event_debug_logging_mask = DEFAULT_MASK;
+#else
+static ev_uint32_t _event_debug_logging_mask = DEFAULT_MASK;
+ev_uint32_t
+_event_debug_get_logging_mask(void)
+{
+	return _event_debug_logging_mask;
+}
+#endif
+#endif /* EVENT_DEBUG_LOGGING_ENABLED */
+
 void
 event_set_fatal_callback(event_fatal_cb cb)
 {
