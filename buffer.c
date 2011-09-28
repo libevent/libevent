@@ -1557,6 +1557,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	memcpy(tmp->buffer, data, datlen);
 	tmp->off = datlen;
 	evbuffer_chain_insert(buf, tmp);
+	buf->n_add_for_cb += datlen;
 
 out:
 	evbuffer_invoke_callbacks(buf);
