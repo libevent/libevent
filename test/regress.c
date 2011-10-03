@@ -316,7 +316,10 @@ test_simpleread(void)
 	/* Very simple read test */
 	setup_test("Simple read: ");
 
-	write(pair[0], TEST1, strlen(TEST1)+1);
+	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
+		tt_fail_perror("write");
+	}
+
 	shutdown(pair[0], SHUT_WR);
 
 	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
@@ -358,7 +361,10 @@ test_simpleread_multiple(void)
 	/* Very simple read test */
 	setup_test("Simple read to multiple evens: ");
 
-	write(pair[0], TEST1, strlen(TEST1)+1);
+	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
+		tt_fail_perror("write");
+	}
+
 	shutdown(pair[0], SHUT_WR);
 
 	event_set(&one, pair[1], EV_READ, simpleread_multiple_cb, NULL);
@@ -807,7 +813,9 @@ test_fork(void)
 	tt_assert(current_base);
 	evthread_make_base_notifiable(current_base);
 
-	write(pair[0], TEST1, strlen(TEST1)+1);
+	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
+		tt_fail_perror("write");
+	}
 
 	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
 	if (event_add(&ev, NULL) == -1)
@@ -840,7 +848,9 @@ test_fork(void)
 	/* wait for the child to read the data */
 	sleep(1);
 
-	write(pair[0], TEST1, strlen(TEST1)+1);
+	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
+		tt_fail_perror("write");
+	}
 
 	if (waitpid(pid, &status, 0) == -1) {
 		fprintf(stdout, "FAILED (fork)\n");
@@ -853,7 +863,10 @@ test_fork(void)
 	}
 
 	/* test that the current event loop still works */
-	write(pair[0], TEST1, strlen(TEST1)+1);
+	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
+		fprintf(stderr, "%s: write\n", __func__);
+	}
+
 	shutdown(pair[0], SHUT_WR);
 
 	event_dispatch();
@@ -1413,7 +1426,11 @@ re_add_read_cb(evutil_socket_t fd, short event, void *arg)
 	char buf[256];
 	struct event *ev_other = arg;
 	readd_test_event_last_added = ev_other;
-	(void) read(fd, buf, sizeof(buf));
+
+	if (read(fd, buf, sizeof(buf)) < 0) {
+		tt_fail_perror("read");
+	}
+
 	event_add(ev_other, NULL);
 	++test_ok;
 }
@@ -1426,8 +1443,15 @@ test_nonpersist_readd(void)
 	setup_test("Re-add nonpersistent events: ");
 	event_set(&ev1, pair[0], EV_READ, re_add_read_cb, &ev2);
 	event_set(&ev2, pair[1], EV_READ, re_add_read_cb, &ev1);
-	(void) write(pair[0], "Hello", 5);
-	(void) write(pair[1], "Hello", 5);
+
+	if (write(pair[0], "Hello", 5) < 0) {
+		tt_fail_perror("write(pair[0])");
+	}
+
+	if (write(pair[1], "Hello", 5) < 0) {
+		tt_fail_perror("write(pair[1])\n");
+	}
+
 	if (event_add(&ev1, NULL) == -1 ||
 	    event_add(&ev2, NULL) == -1) {
 		test_ok = 0;
@@ -1565,7 +1589,11 @@ test_multiple_events_for_same_fd(void)
    event_add(&e2, NULL);
    event_loop(EVLOOP_ONCE);
    event_del(&e2);
-   write(pair[1], TEST1, strlen(TEST1)+1);
+
+   if (write(pair[1], TEST1, strlen(TEST1)+1) < 0) {
+	   tt_fail_perror("write");
+   }
+
    event_loop(EVLOOP_ONCE);
    event_del(&e1);
 
@@ -1592,8 +1620,12 @@ read_once_cb(evutil_socket_t fd, short event, void *arg)
 		test_ok = 0;
 	} else if (len) {
 		/* Assumes global pair[0] can be used for writing */
-		write(pair[0], TEST1, strlen(TEST1)+1);
-		test_ok = 1;
+		if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
+			tt_fail_perror("write");
+			test_ok = 0;
+		} else {
+			test_ok = 1;
+		}
 	}
 
 	called++;
@@ -1608,7 +1640,9 @@ test_want_only_once(void)
 	/* Very simple read test */
 	setup_test("Want read only once: ");
 
-	write(pair[0], TEST1, strlen(TEST1)+1);
+	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
+		tt_fail_perror("write");
+	}
 
 	/* Setup the loop termination */
 	evutil_timerclear(&tv);
@@ -2003,7 +2037,10 @@ test_event_once(void *ptr)
 	r = event_base_once(data->base, -1, 0, NULL, NULL, NULL);
 	tt_int_op(r, <, 0);
 
-	write(data->pair[1], TEST1, strlen(TEST1)+1);
+	if (write(data->pair[1], TEST1, strlen(TEST1)+1) < 0) {
+		tt_fail_perror("write");
+	}
+
 	shutdown(data->pair[1], SHUT_WR);
 
 	event_base_dispatch(data->base);
