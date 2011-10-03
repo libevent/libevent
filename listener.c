@@ -193,7 +193,8 @@ evconnlistener_new(struct event_base *base,
 	event_assign(&lev->listener, base, fd, EV_READ|EV_PERSIST,
 	    listener_read_cb, lev);
 
-	evconnlistener_enable(&lev->base);
+    if (!(flags & LEV_OPT_DISABLED))
+        evconnlistener_enable(&lev->base);
 
 	return &lev->base;
 }

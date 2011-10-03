@@ -69,6 +69,9 @@ typedef void (*evconnlistener_errorcb)(struct evconnlistener *, void *);
 /** Flag: Indicates that the listener should be locked so it's safe to use
  * from multiple threadcs at once. */
 #define LEV_OPT_THREADSAFE		(1u<<4)
+/** Flag: Indicates that the listener should be created in disabled
+ * state. Use evconnlistener_enable() to enable it later. */
+#define LEV_OPT_DISABLED		(1u<<5)
 
 /**
    Allocate a new evconnlistener object to listen for incoming TCP connections
