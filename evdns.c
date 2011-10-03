@@ -1143,6 +1143,10 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 				GET32(retry);
 				GET32(expire);
 				GET32(minimum);
+				(void)expire;
+				(void)retry;
+				(void)refresh;
+				(void)serial;
 				ttl_r = MIN(ttl_r, ttl);
 				ttl_r = MIN(ttl_r, minimum);
 			} else {
