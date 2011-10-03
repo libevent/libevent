@@ -317,7 +317,7 @@ test_simpleread(void)
 	setup_test("Simple read: ");
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
-		fprintf(stderr, "%s: write\n", __func__);
+		tt_fail_perror("write");
 	}
 
 	shutdown(pair[0], SHUT_WR);
@@ -362,7 +362,7 @@ test_simpleread_multiple(void)
 	setup_test("Simple read to multiple evens: ");
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
-		fprintf(stderr, "%s: write\n", __func__);
+		tt_fail_perror("write");
 	}
 
 	shutdown(pair[0], SHUT_WR);
@@ -814,7 +814,7 @@ test_fork(void)
 	evthread_make_base_notifiable(current_base);
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
-		fprintf(stderr, "%s: write\n", __func__);
+		tt_fail_perror("write");
 	}
 
 	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
@@ -849,7 +849,7 @@ test_fork(void)
 	sleep(1);
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
-		fprintf(stderr, "%s: write\n", __func__);
+		tt_fail_perror("write");
 	}
 
 	if (waitpid(pid, &status, 0) == -1) {
@@ -1428,7 +1428,7 @@ re_add_read_cb(evutil_socket_t fd, short event, void *arg)
 	readd_test_event_last_added = ev_other;
 
 	if (read(fd, buf, sizeof(buf)) < 0) {
-		fprintf(stderr, "%s: read\n", __func__);
+		tt_fail_perror("read");
 	}
 
 	event_add(ev_other, NULL);
@@ -1445,11 +1445,11 @@ test_nonpersist_readd(void)
 	event_set(&ev2, pair[1], EV_READ, re_add_read_cb, &ev1);
 
 	if (write(pair[0], "Hello", 5) < 0) {
-		fprintf(stderr, "%s: write\n", __func__);
+		tt_fail_perror("write(pair[0])");
 	}
 
 	if (write(pair[1], "Hello", 5) < 0) {
-		fprintf(stderr, "%s: write\n", __func__);
+		tt_fail_perror("write(pair[1])\n");
 	}
 
 	if (event_add(&ev1, NULL) == -1 ||
@@ -1591,7 +1591,7 @@ test_multiple_events_for_same_fd(void)
    event_del(&e2);
 
    if (write(pair[1], TEST1, strlen(TEST1)+1) < 0) {
-	fprintf(stderr, "%s: write\n", __func__);
+	   tt_fail_perror("write");
    }
 
    event_loop(EVLOOP_ONCE);
@@ -1621,7 +1621,7 @@ read_once_cb(evutil_socket_t fd, short event, void *arg)
 	} else if (len) {
 		/* Assumes global pair[0] can be used for writing */
 		if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
-			fprintf(stderr, "%s: write\n", __func__);
+			tt_fail_perror("write");
 			test_ok = 0;
 		} else {
 			test_ok = 1;
@@ -1641,7 +1641,7 @@ test_want_only_once(void)
 	setup_test("Want read only once: ");
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
-		fprintf(stderr, "%s: write\n", __func__);
+		tt_fail_perror("write");
 	}
 
 	/* Setup the loop termination */
@@ -2038,7 +2038,7 @@ test_event_once(void *ptr)
 	tt_int_op(r, <, 0);
 
 	if (write(data->pair[1], TEST1, strlen(TEST1)+1) < 0) {
-		fprintf(stderr, "%s: write\n", __func__);
+		tt_fail_perror("write");
 	}
 
 	shutdown(data->pair[1], SHUT_WR);
