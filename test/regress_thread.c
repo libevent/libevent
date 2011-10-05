@@ -493,6 +493,75 @@ end:
 		THREAD_JOIN(load_threads[i]);
 }
 
+static struct event time_events[5];
+static struct timeval times[5];
+static struct event_base *exit_base = NULL;
+static void
+note_time_cb(evutil_socket_t fd, short what, void *arg)
+{
+	evutil_gettimeofday(arg, NULL);
+	if (arg == &times[4]) {
+		event_base_loopbreak(exit_base);
+	}
+}
+static THREAD_FN
+register_events_subthread(void *arg)
+{
+	struct timeval tv = {0,0};
+	SLEEP_MS(100);
+	event_active(&time_events[0], EV_TIMEOUT, 1);
+	SLEEP_MS(100);
+	event_active(&time_events[1], EV_TIMEOUT, 1);
+	SLEEP_MS(100);
+	tv.tv_usec = 100*1000;
+	event_add(&time_events[2], &tv);
+	tv.tv_usec = 150*1000;
+	event_add(&time_events[3], &tv);
+	SLEEP_MS(200);
+	event_active(&time_events[4], EV_TIMEOUT, 1);
+
+	THREAD_RETURN();
+}
+
+static void
+thread_no_events(void *arg)
+{
+	THREAD_T thread;
+	struct basic_test_data *data = arg;
+	struct timeval starttime, endtime;
+	int i;
+	exit_base = data->base;
+
+	memset(times,0,sizeof(times));
+	for (i=0;i<5;++i) {
+		event_assign(&time_events[i], data->base,
+		    -1, 0, note_time_cb, &times[i]);
+	}
+
+	evutil_gettimeofday(&starttime, NULL);
+	THREAD_START(thread, register_events_subthread, data->base);
+	event_base_loop(data->base, EVLOOP_NO_EXIT_ON_EMPTY);
+	evutil_gettimeofday(&endtime, NULL);
+	tt_assert(event_base_got_break(data->base));
+	THREAD_JOIN(thread);
+	for (i=0; i<5; ++i) {
+		struct timeval diff;
+		double sec;
+		evutil_timersub(&times[i], &starttime, &diff);
+		sec = diff.tv_sec + diff.tv_usec/1.0e6;
+		TT_BLATHER(("event %d at %.4f seconds", i, sec));
+	}
+	test_timeval_diff_eq(&starttime, &times[0], 100);
+	test_timeval_diff_eq(&starttime, &times[1], 200);
+	test_timeval_diff_eq(&starttime, &times[2], 400);
+	test_timeval_diff_eq(&starttime, &times[3], 450);
+	test_timeval_diff_eq(&starttime, &times[4], 500);
+	test_timeval_diff_eq(&starttime, &endtime,  500);
+
+end:
+	;
+}
+
 #define TEST(name)							\
 	{ #name, thread_##name, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE,	\
 	  &basic_setup, NULL }
@@ -506,6 +575,7 @@ struct testcase_t thread_testcases[] = {
 #endif
 	TEST(conditions_simple),
 	TEST(deferred_cb_skew),
+	TEST(no_events),
 	END_OF_TESTCASES
 };
 

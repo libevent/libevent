@@ -681,6 +681,11 @@ int event_base_set(struct event_base *, struct event *);
 /** Do not block: see which events are ready now, run the callbacks
  * of the highest-priority ones, then exit. */
 #define EVLOOP_NONBLOCK	0x02
+/** Do not exit the loop because we have no pending events.  Instead, keep
+ * running until event_base_loopexit() or event_base_loopbreak() makes us
+ * stop.
+ */
+#define EVLOOP_NO_EXIT_ON_EMPTY 0x04
 /**@}*/
 
 /**
