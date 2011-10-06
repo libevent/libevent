@@ -141,7 +141,6 @@ struct evbuffer_iovec {
 	occurred
  */
 struct evbuffer *evbuffer_new(void);
-
 /**
   Deallocate storage for an evbuffer.
 
@@ -174,6 +173,41 @@ void evbuffer_lock(struct evbuffer *buf);
    with evbuffer_enable_locking.
 */
 void evbuffer_unlock(struct evbuffer *buf);
+
+
+/** If this flag is set, then we will not use evbuffer_peek(),
+ * evbuffer_remove(), evbuffer_remove_buffer(), and so on to read bytes
+ * from this buffer: we'll only take bytes out of this buffer by
+ * writing them to the network (as with evbuffer_write_atmost), by
+ * removing them without observing them (as with evbuffer_drain),
+ * or by copying them all out at once (as with evbuffer_add_buffer).
+ *
+ * Using this option allows the implementation to use sendfile-based
+ * operations for evbuffer_add_file(); see that function for more
+ * information.
+ *
+ * This flag is on by default for bufferevents that can take advantage
+ * of it; you should never actually need to set it on a bufferevent's
+ * output buffer.
+ */
+#define EVBUFFER_FLAG_DRAINS_TO_FD 1
+
+/** Change the flags that are set for an evbuffer by adding more.
+ *
+ * @param buffer the evbuffer that the callback is watching.
+ * @param cb the callback whose status we want to change.
+ * @param flags One or more EVBUFFER_FLAG_* options
+ * @return 0 on success, -1 on failure.
+ */
+int evbuffer_set_flags(struct evbuffer *buf, ev_uint64_t flags);
+/** Change the flags that are set for an evbuffer by removing some.
+ *
+ * @param buffer the evbuffer that the callback is watching.
+ * @param cb the callback whose status we want to change.
+ * @param flags One or more EVBUFFER_FLAG_* options
+ * @return 0 on success, -1 on failure.
+ */
+int evbuffer_clear_flags(struct evbuffer *buf, ev_uint64_t flags);
 
 /**
   Returns the total number of bytes stored in the evbuffer
@@ -408,8 +442,9 @@ int evbuffer_add_reference(struct evbuffer *outbuf,
   Copy data from a file into the evbuffer for writing to a socket.
 
   This function avoids unnecessary data copies between userland and
-  kernel.  Where available, it uses sendfile or splice; failing those,
-  it tries to use mmap.
+  kernel.  If sendfile is available and the EVBUFFER_FLAG_DRAINS_TO_FD
+  flag is set, it uses those functions.  Otherwise, it tries to use
+  mmap (or CreateFileMapping on Windows).
 
   The function owns the resulting file descriptor and will close it
   when finished transferring data.

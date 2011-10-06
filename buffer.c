@@ -327,6 +327,24 @@ evbuffer_new(void)
 	return (buffer);
 }
 
+int
+evbuffer_set_flags(struct evbuffer *buf, ev_uint64_t flags)
+{
+	EVBUFFER_LOCK(buf);
+	buf->flags |= (ev_uint32_t)flags;
+	EVBUFFER_UNLOCK(buf);
+	return 0;
+}
+
+int
+evbuffer_clear_flags(struct evbuffer *buf, ev_uint64_t flags)
+{
+	EVBUFFER_LOCK(buf);
+	buf->flags &= ~(ev_uint32_t)flags;
+	EVBUFFER_UNLOCK(buf);
+	return 0;
+}
+
 void
 _evbuffer_incref(struct evbuffer *buf)
 {
@@ -2681,10 +2699,19 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 	struct evbuffer_chain *chain;
 	struct evbuffer_chain_fd *info;
 #endif
+#if defined(USE_SENDFILE)
+	int sendfile_okay = 1;
+#endif
 	int ok = 1;
 
 #if defined(USE_SENDFILE)
 	if (use_sendfile) {
+		EVBUFFER_LOCK(outbuf);
+		sendfile_okay = outbuf->flags & EVBUFFER_FLAG_DRAINS_TO_FD;
+		EVBUFFER_UNLOCK(outbuf);
+	}
+
+	if (use_sendfile && sendfile_okay) {
 		chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_fd));
 		if (chain == NULL) {
 			event_warn("%s: out of memory", __func__);

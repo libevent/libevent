@@ -618,6 +618,9 @@ test_evbuffer_add_file(void *ptr)
 		TT_DIE(("Didn't recognize the implementation"));
 	}
 
+	/* Say that it drains to a fd so that we can use sendfile. */
+	evbuffer_set_flags(src, EVBUFFER_FLAG_DRAINS_TO_FD);
+
 #if defined(_EVENT_HAVE_SENDFILE) && defined(__sun__) && defined(__svr4__)
 	/* We need to use a pair of AF_INET sockets, since Solaris
 	   doesn't support sendfile() over AF_UNIX. */
