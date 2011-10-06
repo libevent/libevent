@@ -652,7 +652,7 @@ test_evbuffer_add_file(void *ptr)
 	size_t datalen, expect_len;
 	const char *compare;
 	int fd = -1;
-	int want_type = 0;
+	int want_ismapping = -1, want_cansendfile = -1;
 	unsigned flags = 0;
 	int use_segment = 1, use_bigfile = 0, map_from_offset = 0,
 	    view_from_offset = 0;
@@ -692,17 +692,20 @@ test_evbuffer_add_file(void *ptr)
 		/* If sendfile is set, we try to use a sendfile/splice style
 		 * backend. */
 		flags = EVBUF_FS_DISABLE_MMAP;
-		want_type = EVBUF_FS_SENDFILE;
+		want_cansendfile = 1;
+		want_ismapping = 0;
 	} else if (strstr(impl, "mmap")) {
 		/* If sendfile is set, we try to use a mmap/CreateFileMapping
 		 * style backend. */
 		flags = EVBUF_FS_DISABLE_SENDFILE;
-		want_type = EVBUF_FS_MMAP;
+		want_ismapping = 1;
+		want_cansendfile = 0;
 	} else if (strstr(impl, "linear")) {
 		/* If linear is set, we try to use a read-the-whole-thing
 		 * backend. */
 		flags = EVBUF_FS_DISABLE_SENDFILE|EVBUF_FS_DISABLE_MMAP;
-		want_type = EVBUF_FS_IO;
+		want_ismapping = 0;
+		want_cansendfile = 0;
 	} else if (strstr(impl, "default")) {
 		/* The caller doesn't care which backend we use. */
 		;
@@ -747,8 +750,14 @@ test_evbuffer_add_file(void *ptr)
 		seg = evbuffer_file_segment_new(fd, starting_offset,
 		    mapping_len, flags);
 		tt_assert(seg);
-		if ((int)seg->type != (int)want_type)
-			tt_skip();
+		if (want_ismapping >= 0) {
+			if (seg->is_mapping != (unsigned)want_ismapping)
+				tt_skip();
+		}
+		if (want_cansendfile >= 0) {
+			if (seg->can_sendfile != (unsigned)want_cansendfile)
+				tt_skip();
+		}
 	}
 
 	/* Say that it drains to a fd so that we can use sendfile. */

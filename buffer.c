@@ -149,6 +149,8 @@ static struct evbuffer_chain *evbuffer_expand_singlechain(struct evbuffer *buf,
     size_t datlen);
 static int evbuffer_ptr_subtract(struct evbuffer *buf, struct evbuffer_ptr *pos,
     size_t howfar);
+static int evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg);
+
 
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
@@ -204,7 +206,7 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 			    chain);
 		if (info->segment) {
 #ifdef _WIN32
-			if (info->segment->type == EVBUF_FS_MMAP)
+			if (info->segment->is_mapping)
 				UnmapViewOfFile(chain->buffer);
 #endif
 			evbuffer_file_segment_free(info->segment);
@@ -2680,6 +2682,7 @@ evbuffer_file_segment_new(
 	seg->refcnt = 1;
 	seg->fd = fd;
 	seg->flags = flags;
+	seg->file_offset = offset;
 
 #ifdef _WIN32
 #define lseek _lseeki64
@@ -2696,11 +2699,37 @@ evbuffer_file_segment_new(
 
 #if defined(USE_SENDFILE)
 	if (!(flags & EVBUF_FS_DISABLE_SENDFILE)) {
-		seg->offset = offset;
-		seg->type = EVBUF_FS_SENDFILE;
+		seg->can_sendfile = 1;
 		goto done;
 	}
 #endif
+
+	if (evbuffer_file_segment_materialize(seg)<0)
+		goto err;
+
+done:
+	if (!(flags & EVBUF_FS_DISABLE_LOCKING)) {
+		EVTHREAD_ALLOC_LOCK(seg->lock, 0);
+	}
+	return seg;
+err:
+	mm_free(seg);
+	return NULL;
+}
+
+/* DOCDOC */
+/* Requires lock */
+static int
+evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
+{
+	const unsigned flags = seg->flags;
+	const int fd = seg->fd;
+	const ev_off_t length = seg->length;
+	const ev_off_t offset = seg->file_offset;
+
+	if (seg->contents)
+		return 0; /* already materialized */
+
 #if defined(_EVENT_HAVE_MMAP)
 	if (!(flags & EVBUF_FS_DISABLE_MMAP)) {
 		off_t offset_rounded = 0, offset_leftover = 0;
@@ -2736,8 +2765,8 @@ evbuffer_file_segment_new(
 		} else {
 			seg->mapping = mapped;
 			seg->contents = (char*)mapped+offset_leftover;
-			seg->offset = 0;
-			seg->type = EVBUF_FS_MMAP;
+			seg->mmap_offset = 0;
+			seg->is_mapping = 1;
 			goto done;
 		}
 	}
@@ -2754,8 +2783,8 @@ evbuffer_file_segment_new(
 		    NULL);
 		if (m != INVALID_HANDLE_VALUE) { /* Does h leak? */
 			seg->mapping_handle = m;
-			seg->offset = offset;
-			seg->type = EVBUF_FS_MMAP;
+			seg->mmap_offset = offset;
+			seg->is_mapping = 1;
 			goto done;
 		}
 	}
@@ -2795,17 +2824,12 @@ evbuffer_file_segment_new(
 		}
 
 		seg->contents = mem;
-		seg->type = EVBUF_FS_IO;
 	}
 
 done:
-	if (!(flags & EVBUF_FS_DISABLE_LOCKING)) {
-		EVTHREAD_ALLOC_LOCK(seg->lock, 0);
-	}
-	return seg;
+	return 0;
 err:
-	mm_free(seg);
-	return NULL;
+	return -1;
 }
 
 void
@@ -2819,17 +2843,14 @@ evbuffer_file_segment_free(struct evbuffer_file_segment *seg)
 		return;
 	EVUTIL_ASSERT(refcnt == 0);
 
-	if (seg->type == EVBUF_FS_SENDFILE) {
-		;
-	} else if (seg->type == EVBUF_FS_MMAP) {
+	if (seg->is_mapping) {
 #ifdef _WIN32
 		CloseHandle(seg->mapping_handle);
 #elif defined (_EVENT_HAVE_MMAP)
 		if (munmap(seg->mapping, seg->length) == -1)
 			event_warn("%s: munmap failed", __func__);
 #endif
-	} else {
-		EVUTIL_ASSERT(seg->type == EVBUF_FS_IO);
+	} else if (seg->contents) {
 		mm_free(seg->contents);
 	}
 
@@ -2847,12 +2868,23 @@ evbuffer_add_file_segment(struct evbuffer *buf,
 {
 	struct evbuffer_chain *chain;
 	struct evbuffer_chain_file_segment *extra;
-
-	EVLOCK_LOCK(seg->lock, 0);
-	++seg->refcnt;
-	EVLOCK_UNLOCK(seg->lock, 0);
+	int can_use_sendfile = 0;
 
 	EVBUFFER_LOCK(buf);
+	EVLOCK_LOCK(seg->lock, 0);
+	if (buf->flags & EVBUFFER_FLAG_DRAINS_TO_FD) {
+		can_use_sendfile = 1;
+	} else {
+		if (!seg->contents) {
+			if (evbuffer_file_segment_materialize(seg)<0) {
+				EVLOCK_UNLOCK(seg->lock, 0);
+				EVBUFFER_UNLOCK(buf);
+				return -1;
+			}
+		}
+	}
+	++seg->refcnt;
+	EVLOCK_UNLOCK(seg->lock, 0);
 
 	if (buf->freeze_end)
 		goto err;
@@ -2873,14 +2905,14 @@ evbuffer_add_file_segment(struct evbuffer *buf,
 	extra = EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_file_segment, chain);
 
 	chain->flags |= EVBUFFER_IMMUTABLE|EVBUFFER_FILESEGMENT;
-	if (seg->type == EVBUF_FS_SENDFILE) {
+	if (can_use_sendfile && seg->can_sendfile) {
 		chain->flags |= EVBUFFER_SENDFILE;
-		chain->misalign = seg->offset + offset;
+		chain->misalign = seg->file_offset + offset;
 		chain->off = length;
 		chain->buffer_len = chain->misalign + length;
-	} else if (seg->type == EVBUF_FS_MMAP) {
+	} else if (seg->is_mapping) {
 #ifdef _WIN32
-		ev_uint64_t total_offset = seg->offset+offset;
+		ev_uint64_t total_offset = seg->mmap_offset+offset;
 		ev_uint64_t offset_rounded=0, offset_remaining=0;
 		LPVOID data;
 		if (total_offset) {
@@ -2910,7 +2942,6 @@ evbuffer_add_file_segment(struct evbuffer *buf,
 		chain->off = length;
 #endif
 	} else {
-		EVUTIL_ASSERT(seg->type == EVBUF_FS_IO);
 		chain->buffer = (unsigned char*)(seg->contents + offset);
 		chain->buffer_len = length;
 		chain->off = length;

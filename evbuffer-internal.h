@@ -220,7 +220,8 @@ struct evbuffer_file_segment {
 	unsigned flags; /**< combination of EVBUF_FS_* flags  */
 
 	/** What kind of file segment is this? */
-	enum {EVBUF_FS_MMAP, EVBUF_FS_SENDFILE, EVBUF_FS_IO} type;
+	unsigned can_sendfile : 1;
+	unsigned is_mapping : 1;
 
 	/** The fd that we read the data from. */
 	int fd;
@@ -233,11 +234,11 @@ struct evbuffer_file_segment {
 	/** If we're using mmap or IO, this is the content of the file
 	 * segment. */
 	char *contents;
+	/** Position of this segment within the file. */
+	ev_off_t file_offset;
 	/** If we're using mmap, this is the offset within 'mapping' where
-	 * this data segment begins.  If we're using sendfile, this is the
-	 * offset within the file where this data begins.  If we're using IO,
-	 * this is 0. */
-	ev_off_t offset;
+	 * this data segment begins. */
+	ev_off_t mmap_offset;
 	/** The length of this segment. */
 	ev_off_t length;
 };
