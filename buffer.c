@@ -315,6 +315,24 @@ evbuffer_new(void)
 	return (buffer);
 }
 
+int
+evbuffer_set_flags(struct evbuffer *buf, ev_uint64_t flags)
+{
+	EVBUFFER_LOCK(buf);
+	buf->flags |= (ev_uint32_t)flags;
+	EVBUFFER_UNLOCK(buf);
+	return 0;
+}
+
+int
+evbuffer_clear_flags(struct evbuffer *buf, ev_uint64_t flags)
+{
+	EVBUFFER_LOCK(buf);
+	buf->flags &= ~(ev_uint32_t)flags;
+	EVBUFFER_UNLOCK(buf);
+	return 0;
+}
+
 void
 _evbuffer_incref(struct evbuffer *buf)
 {
@@ -2742,7 +2760,6 @@ evbuffer_file_segment_new(
 		}
 	}
 #endif
-
 	{
 		ev_off_t start_pos = lseek(fd, 0, SEEK_CUR), pos;
 		ev_off_t read_so_far = 0;
