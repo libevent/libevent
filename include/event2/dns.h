@@ -270,7 +270,7 @@ int evdns_base_count_nameservers(struct evdns_base *base);
 /**
   Remove all configured nameservers, and suspend all pending resolves.
 
-  Resolves will not necessarily be re-attempted until evdns_resume() is called.
+  Resolves will not necessarily be re-attempted until evdns_base_resume() is called.
 
   @param base the evdns_base to which to apply this operation
   @return 0 if successful, or -1 if an error occurred
@@ -283,7 +283,7 @@ int evdns_base_clear_nameservers_and_suspend(struct evdns_base *base);
   Resume normal operation and continue any suspended resolve requests.
 
   Re-attempt resolves left in limbo after an earlier call to
-  evdns_clear_nameservers_and_suspend().
+  evdns_base_clear_nameservers_and_suspend().
 
   @param base the evdns_base to which to apply this operation
   @return 0 if successful, or -1 if an error occurred
