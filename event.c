@@ -1028,14 +1028,17 @@ event_priority_init(int npriorities)
 int
 event_base_priority_init(struct event_base *base, int npriorities)
 {
-	int i;
+	int i, r;
+	r = -1;
+
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	if (N_ACTIVE_CALLBACKS(base) || npriorities < 1
 	    || npriorities >= EVENT_MAX_PRIORITIES)
-		return (-1);
+		goto err;
 
 	if (npriorities == base->nactivequeues)
-		return (0);
+		goto ok;
 
 	if (base->nactivequeues) {
 		mm_free(base->activequeues);
@@ -1047,7 +1050,7 @@ event_base_priority_init(struct event_base *base, int npriorities)
 	  mm_calloc(npriorities, sizeof(struct event_list));
 	if (base->activequeues == NULL) {
 		event_warn("%s: calloc", __func__);
-		return (-1);
+		goto err;
 	}
 	base->nactivequeues = npriorities;
 
@@ -1055,13 +1058,22 @@ event_base_priority_init(struct event_base *base, int npriorities)
 		TAILQ_INIT(&base->activequeues[i]);
 	}
 
-	return (0);
+ok:
+	r = 0;
+err:
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return (r);
 }
 
 int
 event_base_get_npriorities(struct event_base *base)
 {
-	return (base->nactivequeues);
+
+	int n;
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	n = base->nactivequeues;
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return (n);
 }
 
 /* Returns true iff we're currently watching any events. */
