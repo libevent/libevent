@@ -1167,6 +1167,15 @@ ev_uint32_t event_get_version_number(void);
 int	event_base_priority_init(struct event_base *, int);
 
 /**
+  Get the number of different event priorities.
+
+  @param eb the event_base structure returned by event_base_new()
+  @return Number of different event priorities
+  @see event_base_priority_init()
+*/
+int	event_base_get_npriorities(struct event_base *eb);
+
+/**
   Assign a priority to an event.
 
   @param ev an event struct

@@ -1058,6 +1058,12 @@ event_base_priority_init(struct event_base *base, int npriorities)
 	return (0);
 }
 
+int
+event_base_get_npriorities(struct event_base *base)
+{
+	return (base->nactivequeues);
+}
+
 /* Returns true iff we're currently watching any events. */
 static int
 event_haveevents(struct event_base *base)
