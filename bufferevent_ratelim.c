@@ -178,12 +178,9 @@ ev_token_bucket_cfg_free(struct ev_token_bucket_cfg *cfg)
 	mm_free(cfg);
 }
 
-/* No matter how big our bucket gets, don't try to read more than this
- * much in a single read operation. */
-#define MAX_TO_READ_EVER 16384
-/* No matter how big our bucket gets, don't try to write more than this
- * much in a single write operation. */
-#define MAX_TO_WRITE_EVER 16384
+/* Default values for max_single_read & max_single_write variables. */
+#define MAX_SINGLE_READ_DEFAULT 16384
+#define MAX_SINGLE_WRITE_DEFAULT 16384
 
 #define LOCK_GROUP(g) EVLOCK_LOCK((g)->lock, 0)
 #define UNLOCK_GROUP(g) EVLOCK_UNLOCK((g)->lock, 0)
@@ -201,7 +198,7 @@ static inline ev_ssize_t
 _bufferevent_get_rlim_max(struct bufferevent_private *bev, int is_write)
 {
 	/* needs lock on bev. */
-	ev_ssize_t max_so_far = is_write?MAX_TO_WRITE_EVER:MAX_TO_READ_EVER;
+	ev_ssize_t max_so_far = is_write?bev->max_single_write:bev->max_single_read;
 
 #define LIM(x)						\
 	(is_write ? (x).write_limit : (x).read_limit)
@@ -851,6 +848,56 @@ bufferevent_get_write_limit(struct bufferevent *bev)
 	return r;
 }
 
+int
+bufferevent_set_max_single_read(struct bufferevent *bev, size_t size)
+{
+	struct bufferevent_private *bevp;
+	BEV_LOCK(bev);
+	bevp = BEV_UPCAST(bev);
+	if (size == 0 || size > EV_SSIZE_MAX)
+		bevp->max_single_read = MAX_SINGLE_READ_DEFAULT;
+	else
+		bevp->max_single_read = size;
+	BEV_UNLOCK(bev);
+	return 0;
+}
+
+int
+bufferevent_set_max_single_write(struct bufferevent *bev, size_t size)
+{
+	struct bufferevent_private *bevp;
+	BEV_LOCK(bev);
+	bevp = BEV_UPCAST(bev);
+	if (size == 0 || size > EV_SSIZE_MAX)
+		bevp->max_single_write = MAX_SINGLE_WRITE_DEFAULT;
+	else
+		bevp->max_single_write = size;
+	BEV_UNLOCK(bev);
+	return 0;
+}
+
+ev_ssize_t
+bufferevent_get_max_single_read(struct bufferevent *bev)
+{
+	ev_ssize_t r;
+
+	BEV_LOCK(bev);
+	r = BEV_UPCAST(bev)->max_single_read;
+	BEV_UNLOCK(bev);
+	return r;
+}
+
+ev_ssize_t
+bufferevent_get_max_single_write(struct bufferevent *bev)
+{
+	ev_ssize_t r;
+
+	BEV_LOCK(bev);
+	r = BEV_UPCAST(bev)->max_single_write;
+	BEV_UNLOCK(bev);
+	return r;
+}
+
 ev_ssize_t
 bufferevent_get_max_to_read(struct bufferevent *bev)
 {
@@ -1009,4 +1056,14 @@ void
 bufferevent_rate_limit_group_reset_totals(struct bufferevent_rate_limit_group *grp)
 {
 	grp->total_read = grp->total_written = 0;
+}
+
+int
+_bufferevent_ratelim_init(struct bufferevent_private *bev)
+{
+	bev->rate_limiting = NULL;
+	bev->max_single_read = MAX_SINGLE_READ_DEFAULT;
+	bev->max_single_write = MAX_SINGLE_WRITE_DEFAULT;
+
+	return 0;
 }

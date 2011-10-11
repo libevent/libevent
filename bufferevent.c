@@ -298,6 +298,8 @@ bufferevent_init_common(struct bufferevent_private *bufev_private,
 
 	bufev->be_ops = ops;
 
+	_bufferevent_ratelim_init(bufev_private);
+
 	/*
 	 * Set to EV_WRITE so that using bufferevent_write is going to
 	 * trigger a callback.  Reading needs to be explicitly enabled

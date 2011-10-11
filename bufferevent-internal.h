@@ -190,6 +190,14 @@ struct bufferevent_private {
 	 * If NULL, locking is disabled. */
 	void *lock;
 
+	/** No matter how big our bucket gets, don't try to read more than this
+	 * much in a single read operation. */
+	ev_ssize_t max_single_read;
+
+	/** No matter how big our bucket gets, don't try to write more than this
+	 * much in a single write operation. */
+	ev_ssize_t max_single_write;
+
 	/** Rate-limiting information for this bufferevent */
 	struct bufferevent_rate_limit *rate_limiting;
 };
@@ -402,6 +410,8 @@ int _bufferevent_decrement_read_buckets(struct bufferevent_private *bev,
     ev_ssize_t bytes);
 ev_ssize_t _bufferevent_get_read_max(struct bufferevent_private *bev);
 ev_ssize_t _bufferevent_get_write_max(struct bufferevent_private *bev);
+
+int _bufferevent_ratelim_init(struct bufferevent_private *bev);
 
 #ifdef __cplusplus
 }

@@ -725,6 +725,30 @@ int bufferevent_add_to_rate_limit_group(struct bufferevent *bev,
 int bufferevent_remove_from_rate_limit_group(struct bufferevent *bev);
 
 /**
+   Set the size limit for single read operation.
+
+   Set to 0 for a reasonable default.
+
+   Return 0 on success and -1 on failure.
+ */
+int bufferevent_set_max_single_read(struct bufferevent *bev, size_t size);
+
+/**
+   Set the size limit for single write operation.
+
+   Set to 0 for a reasonable default.
+
+   Return 0 on success and -1 on failure.
+ */
+int bufferevent_set_max_single_write(struct bufferevent *bev, size_t size);
+
+/** Get the current size limit for single read operation. */
+ev_ssize_t bufferevent_get_max_single_read(struct bufferevent *bev);
+
+/** Get the current size limit for single write operation. */
+ev_ssize_t bufferevent_get_max_single_write(struct bufferevent *bev);
+
+/**
    @name Rate limit inspection
 
    Return the current read or write bucket size for a bufferevent.
