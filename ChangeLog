@@ -1,4 +1,27 @@
-Changes in version 2.0.15-stable (?? ??? 2011)
+Changes in version 2.0.15-stable (12 Oct 2011)
+BUGFIXES (DNS):
+ o DNS: add ttl for negative answers using RFC 2308 idea. (f72e8f6 Leonid Evdokimov)
+ o Add DNS_ERR_NODATA error code to handle empty replies. (94fba5b Leonid Evdokimov)
+
+BUFGIXES (bufferevents and evbuffers):
+ o Make evbuffer callbacks get the right n_added value after evbuffer_add (1ef1f68)
+ o Prefer mmap to sendfile unless a DRAINS_TO_FD flag is set. Allows add_file to work with SSL. (0ba0af9)
+
+BUGFIXES (event loop):
+ o When a signal callback is activated to run multiple times, allow event_base_loopbreak to work even before they all have run. (4e8eb6a)
+
+DOCUMENTATION FIXES:
+ o Fix docstring in dns.h (2b6eae5 Leonid Evdokimov)
+ o refer to non-deprecated evdns functions in comments (ba5c27d Greg Hazel)
+
+BUILD AND TESTING FIXES:
+ o le-proxy and regress depend on openssl directly (9ae061a Sergey Avseyev)
+ o Use _SOURCES, not _sources, in sample/Makefile.am (7f82382)
+ o Fixed compiler warnings for unchecked read/write calls. (c3b62fd Mark Ellzey)
+ o Make write-checking fixes use tt_fail_perror (2b76847)
+ o Fix some "value never used" warnings with gcc 4.6.1 (39c0cf7)
+
+
 
 Changes in version 2.0.14-stable (31 Aug 2011)
 BUGFIXES (bufferevents and evbuffers):
