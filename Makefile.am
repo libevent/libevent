@@ -49,6 +49,7 @@ VERSION_INFO = 6:3:1
 #  2.0.12-stable--    2.0        6:1:1 (No ABI change)
 #  2.0.13-stable--    2.0        6:2:1 (No ABI change)
 #  2.0.14-stable--    2.0        6:3:1 (No ABI change)
+#  2.0.15-stable--    2.0        7:0:2 (ABI changed, backward-compatible)
 #
 # For Libevent 2.1:
 #  2.1.1-alpha --     2.1        1:0:0
