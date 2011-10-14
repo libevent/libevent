@@ -56,6 +56,7 @@
 #include "../util-internal.h"
 #include "../log-internal.h"
 #include "../strlcpy-internal.h"
+#include "../mm-internal.h"
 
 #include "regress.h"
 
@@ -1071,6 +1072,108 @@ end:
 }
 #endif
 
+/** Test mm_malloc(). */
+static void
+test_event_malloc(void *arg)
+{
+	void *p = NULL;
+	(void)arg;
+
+	/* mm_malloc(0) should simply return NULL. */
+	errno = 0;
+	p = mm_malloc(0);
+	tt_assert(p == NULL);
+	tt_int_op(errno, ==, 0);
+
+	/* Trivial case. */
+	errno = 0;
+	p = mm_malloc(8);
+	tt_assert(p != NULL);
+	tt_int_op(errno, ==, 0);
+	mm_free(p);
+
+ end:
+	errno = 0;
+	return;
+}
+
+static void
+test_event_calloc(void *arg)
+{
+	void *p = NULL;
+	(void)arg;
+
+	/* mm_calloc() should simply return NULL
+	 * if either argument is zero. */
+	errno = 0;
+	p = mm_calloc(0, 0);
+	tt_assert(p == NULL);
+	tt_int_op(errno, ==, 0);
+	errno = 0;
+	p = mm_calloc(0, 1);
+	tt_assert(p == NULL);
+	tt_int_op(errno, ==, 0);
+	errno = 0;
+	p = mm_calloc(1, 0);
+	tt_assert(p == NULL);
+	tt_int_op(errno, ==, 0);
+
+	/* Trivial case. */
+	errno = 0;
+	p = mm_calloc(8, 8);
+	tt_assert(p != NULL);
+	tt_int_op(errno, ==, 0);
+	mm_free(p);
+
+	/* mm_calloc() should set errno = ENOMEM and return NULL
+	 * in case of potential overflow. */
+	errno = 0;
+	p = mm_calloc(EV_SIZE_MAX/2, EV_SIZE_MAX/2 + 8);
+	tt_assert(p == NULL);
+	tt_int_op(errno, ==, ENOMEM);
+
+ end:
+	errno = 0;
+	return;
+}
+
+static void
+test_event_strdup(void *arg)
+{
+	void *p = NULL;
+	(void)arg;
+
+	/* mm_strdup(NULL) should set errno = EINVAL and return NULL. */
+	errno = 0;
+	p = mm_strdup(NULL);
+	tt_assert(p == NULL);
+	tt_int_op(errno, ==, EINVAL);
+
+	/* Trivial cases. */
+
+	errno = 0;
+	p = mm_strdup("");
+	tt_assert(p != NULL);
+	tt_int_op(errno, ==, 0);
+	tt_str_op(p, ==, "");
+	mm_free(p);
+
+	errno = 0;
+	p = mm_strdup("foo");
+	tt_assert(p != NULL);
+	tt_int_op(errno, ==, 0);
+	tt_str_op(p, ==, "foo");
+	mm_free(p);
+
+	/* XXX
+	 * mm_strdup(str) where str is a string of length EV_SIZE_MAX
+	 * should set errno = ENOMEM and return NULL. */
+
+ end:
+	errno = 0;
+	return;
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -1089,6 +1192,9 @@ struct testcase_t util_testcases[] = {
 #ifdef _WIN32
 	{ "loadsyslib", test_evutil_loadsyslib, TT_FORK, NULL, NULL },
 #endif
+	{ "mm_malloc", test_event_malloc, 0, NULL, NULL },
+	{ "mm_calloc", test_event_calloc, 0, NULL, NULL },
+	{ "mm_strdup", test_event_strdup, 0, NULL, NULL },
 	END_OF_TESTCASES,
 };
 

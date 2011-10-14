@@ -2754,6 +2754,9 @@ static void (*_mm_free_fn)(void *p) = NULL;
 void *
 event_mm_malloc_(size_t sz)
 {
+	if (sz == 0)
+		return NULL;
+
 	if (_mm_malloc_fn)
 		return _mm_malloc_fn(sz);
 	else
@@ -2763,31 +2766,51 @@ event_mm_malloc_(size_t sz)
 void *
 event_mm_calloc_(size_t count, size_t size)
 {
+	if (count == 0 || size == 0)
+		return NULL;
+
 	if (_mm_malloc_fn) {
 		size_t sz = count * size;
-		void *p = _mm_malloc_fn(sz);
+		void *p = NULL;
+		if (count > EV_SIZE_MAX / size)
+			goto error;
+		p = _mm_malloc_fn(sz);
 		if (p)
-			memset(p, 0, sz);
-		return p;
+			return memset(p, 0, sz);
 	} else
 		return calloc(count, size);
+
+error:
+	errno = ENOMEM;
+	return NULL;
 }
 
 char *
 event_mm_strdup_(const char *str)
 {
+	if (!str) {
+		errno = EINVAL;
+		return NULL;
+	}
+
 	if (_mm_malloc_fn) {
 		size_t ln = strlen(str);
-		void *p = _mm_malloc_fn(ln+1);
+		void *p = NULL;
+		if (ln == EV_SIZE_MAX)
+			goto error;
+		p = _mm_malloc_fn(ln+1);
 		if (p)
-			memcpy(p, str, ln+1);
-		return p;
+			return memcpy(p, str, ln+1);
 	} else
 #ifdef _WIN32
 		return _strdup(str);
 #else
 		return strdup(str);
 #endif
+
+error:
+	errno = ENOMEM;
+	return NULL;
 }
 
 void *
