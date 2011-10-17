@@ -193,7 +193,7 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 		return;
 	}
 	
-	// save to release chain, it's either a referencing
+	// safe to release chain, it's either a referencing
 	// chain or all references to it have been freed
 	if (chain->flags & EVBUFFER_REFERENCE) {
 		struct evbuffer_chain_reference *info =
