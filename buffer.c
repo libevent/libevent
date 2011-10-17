@@ -192,7 +192,9 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 		// chain is still referenced by other chains
 		return;
 	}
-    
+	
+	// save to release chain, it's either a referencing
+	// chain or all references to it have been freed
 	if (chain->flags & EVBUFFER_REFERENCE) {
 		struct evbuffer_chain_reference *info =
 		    EVBUFFER_CHAIN_EXTRA(
@@ -221,6 +223,10 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 		    EVBUFFER_CHAIN_EXTRA(
 			    struct evbuffer_multicast_parent,
 			    chain);
+		// referencing chain is being freed, decrease
+		// refcounts of source chain and associated
+		// evbuffer (which get freed once both reach
+		// zero)
 		EVUTIL_ASSERT(info->source != NULL);
 		EVUTIL_ASSERT(info->parent != NULL);
 		EVBUFFER_LOCK(info->source);
@@ -835,9 +841,12 @@ APPEND_CHAIN_MULTICAST(struct evbuffer *dst, struct evbuffer *src)
 			return;
 		}
 		extra = EVBUFFER_CHAIN_EXTRA(struct evbuffer_multicast_parent, tmp);
-		// reference source chain which now becomes immutable
+		// reference evbuffer containing source chain so it
+		// doesn't get released while the chain is still
+		// being referenced to
 		_evbuffer_incref(src);
 		extra->source = src;
+		// reference source chain which now becomes immutable
 		evbuffer_chain_incref(chain);
 		extra->parent = chain;
 		chain->flags |= EVBUFFER_IMMUTABLE;
