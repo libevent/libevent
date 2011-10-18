@@ -1637,6 +1637,119 @@ gaic_launch(struct event_base *base, struct evdns_base *dns_base)
 	++pending;
 }
 
+static int allocated_chunks = 0;
+
+static void*
+cnt_malloc(size_t sz)
+{
+	allocated_chunks += 1;
+	return malloc(sz);
+}
+
+static void*
+cnt_realloc(void *old, size_t sz)
+{
+	if (!old)
+		allocated_chunks += 1;
+	if (!sz)
+		allocated_chunks -= 1;
+	return realloc(old, sz);
+}
+
+static void
+cnt_free(void *ptr)
+{
+	allocated_chunks -= 1;
+	return free(ptr);
+}
+
+struct testleak_env_t {
+	struct event_base* base;
+	struct evdns_base* dns_base;
+	struct evdns_request* req;
+	struct generic_dns_callback_result r;
+};
+
+static void*
+testleak_setup(const struct testcase_t *testcase)
+{
+	struct testleak_env_t* env;
+
+	allocated_chunks = 0;
+	event_set_mem_functions(cnt_malloc, cnt_realloc, cnt_free);
+	event_enable_debug_mode();
+
+	env = calloc(1, sizeof(struct testleak_env_t));
+	env->base = event_base_new();
+	env->dns_base = evdns_base_new(env->base, 0);
+	env->req = evdns_base_resolve_ipv4(
+		env->dns_base, "example.com", DNS_QUERY_NO_SEARCH,
+		generic_dns_callback, &env->r);
+	return env;
+}
+
+static int
+testleak_cleanup(const struct testcase_t *testcase, void *env_)
+{
+	int ok = 0;
+	struct testleak_env_t* env = env_;
+	/* FIXME: that's `1' because of event_debug_map_HT_GROW */
+	tt_int_op(allocated_chunks, ==, 1);
+	ok = 1;
+end:
+	if (env->dns_base)
+		evdns_base_free(env->dns_base, 0);
+	if (env->base)
+		event_base_free(env->base);
+	if (env)
+		free(env);
+	return ok;
+}
+
+static struct testcase_setup_t testleak_funcs = {
+	testleak_setup, testleak_cleanup
+};
+
+static void
+test_dbg_leak_cancel(void *env_)
+{
+	/* cancel, loop, free/dns, free/base */
+	struct testleak_env_t* env = env_;
+	int send_err_shutdown = 1;
+	evdns_cancel_request(env->dns_base, env->req);
+	env->req = 0;
+
+	/* `req` is freed in callback, that's why one loop is required. */
+	event_base_loop(env->base, EVLOOP_NONBLOCK);
+
+	/* send_err_shutdown means nothing as soon as our request is
+	 * already canceled */
+	evdns_base_free(env->dns_base, send_err_shutdown);
+	env->dns_base = 0;
+	event_base_free(env->base);
+	env->base = 0;
+}
+
+static void
+test_dbg_leak_shutdown(void *env_)
+{
+	/* free/dns, loop, free/base */
+	struct testleak_env_t* env = env_;
+	int send_err_shutdown = 1;
+
+	/* `req` is freed both with `send_err_shutdown` and without it,
+	 * the only difference is `evdns_callback` call */
+	env->req = 0;
+
+	evdns_base_free(env->dns_base, send_err_shutdown);
+	env->dns_base = 0;
+
+	/* `req` is freed in callback, that's why one loop is required */
+	event_base_loop(env->base, EVLOOP_NONBLOCK);
+	event_base_free(env->base);
+	env->base = 0;
+}
+
 static void
 test_getaddrinfo_async_cancel_stress(void *ptr)
 {
@@ -1713,6 +1826,9 @@ struct testcase_t dns_testcases[] = {
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"" },
 	{ "getaddrinfo_cancel_stress", test_getaddrinfo_async_cancel_stress,
 	  TT_FORK, NULL, NULL },
+
+	{ "leak_shutdown", test_dbg_leak_shutdown, TT_FORK, &testleak_funcs, NULL },
+	{ "leak_cancel", test_dbg_leak_cancel, TT_FORK, &testleak_funcs, NULL },
 
 	END_OF_TESTCASES
 };
