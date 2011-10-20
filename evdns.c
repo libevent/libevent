@@ -1046,7 +1046,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 		 */
 		TEST_NAME;
 		j += 4;
-		if (j >= length) goto err;
+		if (j > length) goto err;
 	}
 
 	if (!name_matches)

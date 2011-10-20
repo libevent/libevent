@@ -159,6 +159,23 @@ regress_dns_server_cb(struct evdns_server_request *req, void *data)
 		int err = atoi(tab->ans);
 		tt_assert(! evdns_server_request_respond(req, err));
 		return;
+	} else if (!strcmp(tab->anstype, "errsoa")) {
+		int err = atoi(tab->ans);
+		char soa_record[] =
+			"\x04" "dns1" "\x05" "icann" "\x03" "org" "\0"
+			"\x0a" "hostmaster" "\x05" "icann" "\x03" "org" "\0"
+			"\x77\xde\x5e\xba" /* serial */
+			"\x00\x00\x1c\x20" /* refreshtime = 2h */
+			"\x00\x00\x0e\x10" /* retry = 1h */
+			"\x00\x12\x75\x00" /* expiration = 14d */
+			"\x00\x00\x0e\x10" /* min.ttl = 1h */
+			;
+		evdns_server_request_add_reply(
+			req, EVDNS_AUTHORITY_SECTION,
+			"example.com", EVDNS_TYPE_SOA, EVDNS_CLASS_INET,
+			42, sizeof(soa_record) - 1, 0, soa_record);
+		tt_assert(! evdns_server_request_respond(req, err));
+		return;
 	} else if (!strcmp(tab->anstype, "A")) {
 		struct in_addr in;
 		evutil_inet_pton(AF_INET, tab->ans, &in);

@@ -495,6 +495,9 @@ static struct regress_dns_server_table search_table[] = {
 	{ "host2.a.example.com", "err", "3", 0 },
 	{ "host2.b.example.com", "A", "200.100.0.100", 0 },
 	{ "host2.c.example.com", "err", "3", 0 },
+	{ "hostn.a.example.com", "errsoa", "0", 0 },
+	{ "hostn.b.example.com", "errsoa", "3", 0 },
+	{ "hostn.c.example.com", "err", "0", 0 },
 
 	{ "host", "err", "3", 0 },
 	{ "host2", "err", "3", 0 },
@@ -511,7 +514,7 @@ dns_search_test(void *arg)
 	ev_uint16_t portnum = 0;
 	char buf[64];
 
-	struct generic_dns_callback_result r1, r2, r3, r4, r5;
+	struct generic_dns_callback_result r[8];
 
 	tt_assert(regress_dnsserver(base, &portnum, search_table));
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
@@ -523,26 +526,35 @@ dns_search_test(void *arg)
 	evdns_base_search_add(dns, "b.example.com");
 	evdns_base_search_add(dns, "c.example.com");
 
-	n_replies_left = 5;
+	n_replies_left = sizeof(r)/sizeof(r[0]);
 	exit_base = base;
 
-	evdns_base_resolve_ipv4(dns, "host", 0, generic_dns_callback, &r1);
-	evdns_base_resolve_ipv4(dns, "host2", 0, generic_dns_callback, &r2);
-	evdns_base_resolve_ipv4(dns, "host", DNS_NO_SEARCH, generic_dns_callback, &r3);
-	evdns_base_resolve_ipv4(dns, "host2", DNS_NO_SEARCH, generic_dns_callback, &r4);
-	evdns_base_resolve_ipv4(dns, "host3", 0, generic_dns_callback, &r5);
+	evdns_base_resolve_ipv4(dns, "host", 0, generic_dns_callback, &r[0]);
+	evdns_base_resolve_ipv4(dns, "host2", 0, generic_dns_callback, &r[1]);
+	evdns_base_resolve_ipv4(dns, "host", DNS_NO_SEARCH, generic_dns_callback, &r[2]);
+	evdns_base_resolve_ipv4(dns, "host2", DNS_NO_SEARCH, generic_dns_callback, &r[3]);
+	evdns_base_resolve_ipv4(dns, "host3", 0, generic_dns_callback, &r[4]);
+	evdns_base_resolve_ipv4(dns, "hostn.a.example.com", DNS_NO_SEARCH, generic_dns_callback, &r[5]);
+	evdns_base_resolve_ipv4(dns, "hostn.b.example.com", DNS_NO_SEARCH, generic_dns_callback, &r[6]);
+	evdns_base_resolve_ipv4(dns, "hostn.c.example.com", DNS_NO_SEARCH, generic_dns_callback, &r[7]);
 
 	event_base_dispatch(base);
 
-	tt_int_op(r1.type, ==, DNS_IPv4_A);
-	tt_int_op(r1.count, ==, 1);
-	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0x0b16212c));
-	tt_int_op(r2.type, ==, DNS_IPv4_A);
-	tt_int_op(r2.count, ==, 1);
-	tt_int_op(((ev_uint32_t*)r2.addrs)[0], ==, htonl(0xc8640064));
-	tt_int_op(r3.result, ==, DNS_ERR_NOTEXIST);
-	tt_int_op(r4.result, ==, DNS_ERR_NOTEXIST);
-	tt_int_op(r5.result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r[0].type, ==, DNS_IPv4_A);
+	tt_int_op(r[0].count, ==, 1);
+	tt_int_op(((ev_uint32_t*)r[0].addrs)[0], ==, htonl(0x0b16212c));
+	tt_int_op(r[1].type, ==, DNS_IPv4_A);
+	tt_int_op(r[1].count, ==, 1);
+	tt_int_op(((ev_uint32_t*)r[1].addrs)[0], ==, htonl(0xc8640064));
+	tt_int_op(r[2].result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r[3].result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r[4].result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r[5].result, ==, DNS_ERR_NODATA);
+	tt_int_op(r[5].ttl, ==, 42);
+	tt_int_op(r[6].result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r[6].ttl, ==, 42);
+	tt_int_op(r[7].result, ==, DNS_ERR_NODATA);
+	tt_int_op(r[7].ttl, ==, 0);
 
 end:
 	if (dns)
