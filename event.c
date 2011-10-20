@@ -250,8 +250,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 			dent->added = 1;				\
 		} else {						\
 			event_errx(_EVENT_ERR_ABORT,			\
-			    "%s: noting an add on a non-setup event %p", \
-			    __func__, (ev));				\
+			    "%s: noting an add on a non-setup event %p" \
+			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    __func__, (ev), (ev)->ev_events,		\
+			    (ev)->ev_fd, (ev)->ev_flags);		\
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
@@ -268,8 +270,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 			dent->added = 0;				\
 		} else {						\
 			event_errx(_EVENT_ERR_ABORT,			\
-			    "%s: noting a del on a non-setup event %p", \
-			    __func__, (ev));				\
+			    "%s: noting a del on a non-setup event %p"	\
+			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    __func__, (ev), (ev)->ev_events,		\
+			    (ev)->ev_fd, (ev)->ev_flags);		\
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
@@ -284,8 +288,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
 		if (!dent) {						\
 			event_errx(_EVENT_ERR_ABORT,			\
-			    "%s called on a non-initialized event %p",	\
-			    __func__, (ev));				\
+			    "%s called on a non-initialized event %p"	\
+			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    __func__, (ev), (ev)->ev_events,		\
+			    (ev)->ev_fd, (ev)->ev_flags);		\
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
@@ -300,8 +306,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
 		if (dent && dent->added) {				\
 			event_errx(_EVENT_ERR_ABORT,			\
-			    "%s called on an already added event %p",	\
-			    __func__, (ev));				\
+			    "%s called on an already added event %p"	\
+			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    __func__, (ev), (ev)->ev_events,		\
+			    (ev)->ev_fd, (ev)->ev_flags);		\
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
