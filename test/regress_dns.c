@@ -1637,16 +1637,20 @@ gaic_launch(struct event_base *base, struct evdns_base *dns_base)
 	++pending;
 }
 
+/* FIXME: We should move this to regress_main.c if anything else needs it.*/
+
+/* Trivial replacements for malloc/free/realloc to check for memory leaks.
+ * Not threadsafe. */
 static int allocated_chunks = 0;
 
-static void*
+static void *
 cnt_malloc(size_t sz)
 {
 	allocated_chunks += 1;
 	return malloc(sz);
 }
 
-static void*
+static void *
 cnt_realloc(void *old, size_t sz)
 {
 	if (!old)
@@ -1664,21 +1668,22 @@ cnt_free(void *ptr)
 }
 
 struct testleak_env_t {
-	struct event_base* base;
-	struct evdns_base* dns_base;
-	struct evdns_request* req;
+	struct event_base *base;
+	struct evdns_base *dns_base;
+	struct evdns_request *req;
 	struct generic_dns_callback_result r;
 };
 
-static void*
+static void *
 testleak_setup(const struct testcase_t *testcase)
 {
-	struct testleak_env_t* env;
+	struct testleak_env_t *env;
 
 	allocated_chunks = 0;
 	event_set_mem_functions(cnt_malloc, cnt_realloc, cnt_free);
 	event_enable_debug_mode();
 
+	/* not mm_calloc: we don't want to mess with the count. */
 	env = calloc(1, sizeof(struct testleak_env_t));
 	env->base = event_base_new();
 	env->dns_base = evdns_base_new(env->base, 0);
@@ -1692,7 +1697,7 @@ static int
 testleak_cleanup(const struct testcase_t *testcase, void *env_)
 {
 	int ok = 0;
-	struct testleak_env_t* env = env_;
+	struct testleak_env_t *env = env_;
 	/* FIXME: that's `1' because of event_debug_map_HT_GROW */
 	tt_int_op(allocated_chunks, ==, 1);
 	ok = 1;
@@ -1714,7 +1719,7 @@ static void
 test_dbg_leak_cancel(void *env_)
 {
 	/* cancel, loop, free/dns, free/base */
-	struct testleak_env_t* env = env_;
+	struct testleak_env_t *env = env_;
 	int send_err_shutdown = 1;
 	evdns_cancel_request(env->dns_base, env->req);
 	env->req = 0;
@@ -1734,7 +1739,7 @@ static void
 test_dbg_leak_shutdown(void *env_)
 {
 	/* free/dns, loop, free/base */
-	struct testleak_env_t* env = env_;
+	struct testleak_env_t *env = env_;
 	int send_err_shutdown = 1;
 
 	/* `req` is freed both with `send_err_shutdown` and without it,
