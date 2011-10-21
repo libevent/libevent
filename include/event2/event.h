@@ -1255,6 +1255,20 @@ void event_base_dump_events(struct event_base *, FILE *);
 int event_base_gettimeofday_cached(struct event_base *base,
     struct timeval *tv);
 
+/** Update cached_tv in the 'base' to the current time
+ *
+ * You can use this function is useful for selectively increasing
+ * the accuracy of the cached time value in 'base' during callbacks
+ * that take a long time to execute.
+ *
+ * This function has no effect if the base is currently not in its
+ * event loop, or if timeval caching is disabled via
+ * EVENT_BASE_FLAG_NO_CACHE_TIME.
+ *
+ * @return 0 on success, -1 on failure
+ */
+int event_base_update_cache_time(struct event_base *base);
+
 #ifdef __cplusplus
 }
 #endif

@@ -435,6 +435,22 @@ update_time_cache(struct event_base *base)
 	    gettime(base, &base->tv_cache);
 }
 
+int
+event_base_update_cache_time(struct event_base *base)
+{
+
+	if (!base) {
+		base = current_base;
+		if (!current_base)
+			return -1;
+	}
+
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	update_time_cache(base);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return 0;
+}
+
 struct event_base *
 event_init(void)
 {
