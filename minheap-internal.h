@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2010 Niels Provos and Nick Mathewson
+ * Copyright (c) 2007-2011 Niels Provos and Nick Mathewson
  *
  * Copyright (c) 2006 Maxim Yegorushkin <maxim.yegorushkin@gmail.com>
  *
