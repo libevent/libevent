@@ -150,6 +150,19 @@ struct evhttp_bound_socket *evhttp_bind_listener(struct evhttp *http, struct evc
  */
 struct evconnlistener *evhttp_bound_socket_get_listener(struct evhttp_bound_socket *bound);
 
+typedef void evhttp_bound_socket_foreach_fn(struct evhttp_bound_socket *, void *);
+/**
+ * Applies the function specified in the first argument to all
+ * evhttp_bound_sockets associated with "http". The user must not
+ * attempt to free or remove any connections, sockets or listeners
+ * in the callback "function".
+ *
+ * @param http pointer to an evhttp object
+ * @param function function to apply to every bound socket
+ * @param argument pointer value passed to function for every socket iterated
+ */
+void evhttp_foreach_bound_socket(struct evhttp *http, evhttp_bound_socket_foreach_fn *function, void *argument);
+
 /**
  * Makes an HTTP server stop accepting connections on the specified socket
  *
