@@ -950,6 +950,21 @@ struct event_base;
  */
 int evbuffer_defer_callbacks(struct evbuffer *buffer, struct event_base *base);
 
+/**
+  Append data from 1 or more iovec's to an evbuffer
+
+  Calculates the number of bytes needed for an iovec structure and guarantees
+  all data will fit into a single chain. Can be used in lieu of functionality
+  which calls evbuffer_add() constantly before being used to increase
+  performance.
+
+  @param buffer the destination buffer
+  @param vec the source iovec
+  @param n_vec the number of iovec structures.
+  @return the number of bytes successfully written to the output buffer.
+*/
+size_t evbuffer_add_iovec(struct evbuffer * buffer, struct evbuffer_iovec * vec, int n_vec);
+
 #ifdef __cplusplus
 }
 #endif

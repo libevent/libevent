@@ -1827,6 +1827,49 @@ end:
 		evbuffer_free(tmp_buf);
 }
 
+static void
+test_evbuffer_add_iovec(void * ptr)
+{
+	struct evbuffer * buf = NULL;
+	struct evbuffer_iovec vec[4];
+	const char * data[] = {
+		"Guilt resembles a sword with two edges.",
+		"On the one hand, it cuts for Justice, imposing practical morality upon those who fear it.",
+		"Conscience does not always adhere to rational judgment.",
+		"Guilt is always a self-imposed burden, but it is not always rightly imposed."
+	};
+	size_t expected_length = 0;
+	size_t returned_length = 0;
+	int i;
+
+	buf = evbuffer_new();
+
+	for (i = 0; i < 4; i++) {
+		vec[i].iov_len  = strlen(data[i]);
+		vec[i].iov_base = data[i];
+		expected_length += vec[i].iov_len;
+	}
+
+	returned_length = evbuffer_add_iovec(buf, vec, 4);
+
+	tt_int_op(returned_length, ==, evbuffer_get_length(buf));
+	tt_int_op(evbuffer_get_length(buf), ==, expected_length);
+
+	for (i = 0; i < 4; i++) {
+		char charbuf[1024];
+
+		memset(charbuf, 0, 1024);
+		evbuffer_remove(buf, charbuf, strlen(data[i]));
+		tt_assert(strcmp(charbuf, data[i]) == 0);
+	}
+
+	tt_assert(evbuffer_get_length(buf) == 0);
+end:
+	if (buf) {
+		evbuffer_free(buf);
+	}
+}
+
 static void *
 setup_passthrough(const struct testcase_t *testcase)
 {
@@ -1865,6 +1908,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "peek", test_evbuffer_peek, 0, NULL, NULL },
 	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },
 	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
+	{ "add_iovec", test_evbuffer_add_iovec, 0, NULL, NULL},
 
 #define ADDFILE_TEST(name, parameters)					\
 	{ name, test_evbuffer_add_file, TT_FORK|TT_NEED_BASE,		\
