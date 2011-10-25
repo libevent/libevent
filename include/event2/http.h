@@ -384,7 +384,7 @@ void evhttp_send_reply_start(struct evhttp_request *req, int code,
 void evhttp_send_reply_chunk(struct evhttp_request *req,
     struct evbuffer *databuf);
 /**
-   Complete a chunked reply.
+   Complete a chunked reply, freeing the request as appropriate.
 
    @param req a request object
 */
