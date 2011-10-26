@@ -120,8 +120,10 @@ epoll_init(struct event_base *base)
 
 	evutil_make_socket_closeonexec(epfd);
 
-	if (!(epollop = mm_calloc(1, sizeof(struct epollop))))
+	if (!(epollop = mm_calloc(1, sizeof(struct epollop)))) {
+		close(epfd);
 		return (NULL);
+	}
 
 	epollop->epfd = epfd;
 
@@ -129,6 +131,7 @@ epoll_init(struct event_base *base)
 	epollop->events = mm_calloc(INITIAL_NEVENT, sizeof(struct epoll_event));
 	if (epollop->events == NULL) {
 		mm_free(epollop);
+		close(epfd);
 		return (NULL);
 	}
 	epollop->nevents = INITIAL_NEVENT;
