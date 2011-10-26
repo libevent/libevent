@@ -1,4 +1,4 @@
-/* tinytest_demo.c -- Copyright 2009-2010 Nick Mathewson
+/* tinytest_demo.c -- Copyright 2009-2011 Nick Mathewson
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

@@ -1,6 +1,6 @@
 /*
  * Copyright 2000-2007 Niels Provos <provos@citi.umich.edu>
- * Copyright 2007-2010 Niels Provos, Nick Mathewson
+ * Copyright 2007-2011 Niels Provos, Nick Mathewson
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -121,8 +121,10 @@ epoll_init(struct event_base *base)
 
 	evutil_make_socket_closeonexec(epfd);
 
-	if (!(epollop = mm_calloc(1, sizeof(struct epollop))))
+	if (!(epollop = mm_calloc(1, sizeof(struct epollop)))) {
+		close(epfd);
 		return (NULL);
+	}
 
 	epollop->epfd = epfd;
 
@@ -130,6 +132,7 @@ epoll_init(struct event_base *base)
 	epollop->events = mm_calloc(INITIAL_NEVENT, sizeof(struct epoll_event));
 	if (epollop->events == NULL) {
 		mm_free(epollop);
+		close(epfd);
 		return (NULL);
 	}
 	epollop->nevents = INITIAL_NEVENT;
