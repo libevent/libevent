@@ -33,7 +33,7 @@
 
   The <evrpc.h> header is deprecated in Libevent 2.0 and later; please
   use <event2/rpc.h> instead.  Depending on what functionality you
-  need, you may also want to include more of the other event2/*.h
+  need, you may also want to include more of the other <event2/...>
   headers.
  */
 
