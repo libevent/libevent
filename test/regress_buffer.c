@@ -285,6 +285,42 @@ test_evbuffer(void *ptr)
 }
 
 static void
+no_cleanup(const void *data, size_t datalen, void *extra)
+{
+}
+
+static void
+test_evbuffer_remove_buffer_with_empty(void *ptr)
+{
+    struct evbuffer *src = evbuffer_new();
+    struct evbuffer *dst = evbuffer_new();
+    char buf[2];
+
+    evbuffer_validate(src);
+    evbuffer_validate(dst);
+
+    /* setup the buffers */
+    /* we need more data in src than we will move later */
+    evbuffer_add(src, buf, sizeof(buf));
+    /* we need one buffer in dst and one empty buffer at the end */
+    evbuffer_add(dst, buf, sizeof(buf));
+    evbuffer_add_reference(dst, buf, 0, no_cleanup, NULL);
+
+    evbuffer_validate(src);
+    evbuffer_validate(dst);
+
+    /* move one byte over */
+    evbuffer_remove_buffer(src, dst, 1);
+
+    evbuffer_validate(src);
+    evbuffer_validate(dst);
+
+end:
+    evbuffer_free(src);
+    evbuffer_free(dst);
+}
+
+static void
 test_evbuffer_reserve2(void *ptr)
 {
 	/* Test the two-vector cases of reserve/commit. */
@@ -1594,6 +1630,7 @@ static const struct testcase_setup_t nil_setup = {
 
 struct testcase_t evbuffer_testcases[] = {
 	{ "evbuffer", test_evbuffer, 0, NULL, NULL },
+	{ "remove_buffer_with_empty", test_evbuffer_remove_buffer_with_empty, 0, NULL, NULL },
 	{ "reserve2", test_evbuffer_reserve2, 0, NULL, NULL },
 	{ "reserve_many", test_evbuffer_reserve_many, 0, NULL, NULL },
 	{ "reserve_many2", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"add" },
