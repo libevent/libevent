@@ -254,6 +254,31 @@ static inline int evbuffer_chains_all_empty(struct evbuffer_chain *chain) {
 }
 #endif
 
+/* Free all trailing chains in 'buf' that are neither pinned nor empty, prior
+ * to replacing them all with a new chain.  Return a pointer to the place
+ * where the new chain will go.
+ *
+ * Internal; requires lock.  The caller must fix up buf->last and buf->first
+ * as needed; they might have been freed.
+ */
+static struct evbuffer_chain **
+evbuffer_free_trailing_empty_chains(struct evbuffer *buf)
+{
+	struct evbuffer_chain **ch = buf->last_with_datap;
+	/* Find the first victim chain.  It might be *last_with_datap */
+	while ((*ch) && ((*ch)->off != 0 || CHAIN_PINNED(*ch)))
+		ch = &(*ch)->next;
+	if (*ch) {
+		EVUTIL_ASSERT(evbuffer_chains_all_empty(*ch));
+		evbuffer_free_all_chains(*ch);
+		*ch = NULL;
+	}
+	return ch;
+}
+
+/* Add a single chain 'chain' to the end of 'buf', freeing trailing empty
+ * chains as necessary.  Requires lock.  Does not schedule callbacks.
+ */
 static void
 evbuffer_chain_insert(struct evbuffer *buf,
     struct evbuffer_chain *chain)
@@ -1104,10 +1129,13 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 
 	if (nread) {
 		/* we can remove the chain */
+		struct evbuffer_chain **chp;
+		chp = evbuffer_free_trailing_empty_chains(dst);
+
 		if (dst->first == NULL) {
 			dst->first = src->first;
 		} else {
-			dst->last->next = src->first;
+			*chp = src->first;
 		}
 		dst->last = previous;
 		previous->next = NULL;
@@ -1125,6 +1153,9 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 	chain->off -= datlen;
 	nread += datlen;
 
+	/* You might think we would want to increment dst->n_add_for_cb
+	 * here too.  But evbuffer_add above already took care of that.
+	 */
 	src->total_len -= nread;
 	src->n_del_for_cb += nread;
 
