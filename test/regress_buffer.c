@@ -301,7 +301,8 @@ test_evbuffer_remove_buffer_with_empty(void *ptr)
 
     /* setup the buffers */
     /* we need more data in src than we will move later */
-    evbuffer_add(src, buf, sizeof(buf));
+    evbuffer_add_reference(src, buf, sizeof(buf), no_cleanup, NULL);
+    evbuffer_add_reference(src, buf, sizeof(buf), no_cleanup, NULL);
     /* we need one buffer in dst and one empty buffer at the end */
     evbuffer_add(dst, buf, sizeof(buf));
     evbuffer_add_reference(dst, buf, 0, no_cleanup, NULL);
@@ -309,8 +310,8 @@ test_evbuffer_remove_buffer_with_empty(void *ptr)
     evbuffer_validate(src);
     evbuffer_validate(dst);
 
-    /* move one byte over */
-    evbuffer_remove_buffer(src, dst, 1);
+    /* move three bytes over */
+    evbuffer_remove_buffer(src, dst, 3);
 
     evbuffer_validate(src);
     evbuffer_validate(dst);
