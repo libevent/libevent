@@ -24,7 +24,7 @@ What's New In Libevent 2.0 so far:
 
   COMPATIBILITY:
 
-  Nearly all existing code that worked with should Libevent 1.4 should still
+  Nearly all existing code that worked with Libevent 1.4 should still
   work correctly with Libevent 2.0.  However, if you are writing new code,
   or if you want to port old code, we strongly recommend using the new APIs
   and avoiding deprecated APIs as much as possible.
