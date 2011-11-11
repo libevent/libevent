@@ -1837,6 +1837,7 @@ test_evbuffer_add_iovec(void * ptr)
 		"On the one hand, it cuts for Justice, imposing practical morality upon those who fear it.",
 		"Conscience does not always adhere to rational judgment.",
 		"Guilt is always a self-imposed burden, but it is not always rightly imposed."
+		/* -- R.A. Salvatore, _Sojurn_ */
 	};
 	size_t expected_length = 0;
 	size_t returned_length = 0;
@@ -1846,7 +1847,7 @@ test_evbuffer_add_iovec(void * ptr)
 
 	for (i = 0; i < 4; i++) {
 		vec[i].iov_len  = strlen(data[i]);
-		vec[i].iov_base = data[i];
+		vec[i].iov_base = (char*) data[i];
 		expected_length += vec[i].iov_len;
 	}
 

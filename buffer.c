@@ -603,11 +603,16 @@ evbuffer_add_iovec(struct evbuffer * buf, struct evbuffer_iovec * vec, int n_vec
 		to_alloc += vec[n].iov_len;
 	}
 
-	if (evbuffer_expand(buf, to_alloc) < 0) {
+	if (_evbuffer_expand_fast(buf, to_alloc, 2) < 0) {
 		goto done;
 	}
 
 	for (n = 0; n < n_vec; n++) {
+		/* XXX each 'add' call here does a bunch of setup that's
+		 * obviated by _evbuffer_expand_fast, and some cleanup that we
+		 * would like to do only once.  Instead we should just extract
+		 * the part of the code that's needed. */
+
 		if (evbuffer_add(buf, vec[n].iov_base, vec[n].iov_len) < 0) {
 			goto done;
 		}
