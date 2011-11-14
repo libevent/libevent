@@ -437,6 +437,12 @@ _evthreadimpl_is_lock_debugging_enabled(void)
 {
 	return _evthread_lock_debugging_enabled;
 }
+
+int
+_evthreadimpl_locking_enabled(void)
+{
+	return _evthread_lock_fns.lock != NULL;
+}
 #endif
 
 #endif
