@@ -625,7 +625,8 @@ event_base_new_with_config(const struct event_config *cfg)
 	/* prepare for threading */
 
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
-	if (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK)) {
+	if (EVTHREAD_LOCKING_ENABLED() &&
+	    (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK))) {
 		int r;
 		EVTHREAD_ALLOC_LOCK(base->th_base_lock,
 		    EVTHREAD_LOCKTYPE_RECURSIVE);

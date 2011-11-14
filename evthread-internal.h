@@ -173,6 +173,10 @@ EVLOCK_TRY_LOCK(void *lock)
 #define EVTHREAD_COND_WAIT_TIMED(cond, lock, tv)			\
 	( (cond) ? _evthread_cond_fns.wait_condition((cond), (lock), (tv)) : 0 )
 
+/** True iff locking functions have been configured. */
+#define EVTHREAD_LOCKING_ENABLED()		\
+	(_evthread_lock_fns.lock != NULL)
+
 #elif ! defined(_EVENT_DISABLE_THREAD_SUPPORT)
 
 unsigned long _evthreadimpl_get_id(void);
@@ -185,6 +189,7 @@ void *_evthreadimpl_cond_alloc(unsigned condtype);
 void _evthreadimpl_cond_free(void *cond);
 int _evthreadimpl_cond_signal(void *cond, int broadcast);
 int _evthreadimpl_cond_wait(void *cond, void *lock, const struct timeval *tv);
+int _evthreadimpl_locking_enabled(void);
 
 #define EVTHREAD_GET_ID() _evthreadimpl_get_id()
 #define EVBASE_IN_THREAD(base)				\
@@ -281,6 +286,9 @@ EVLOCK_TRY_LOCK(void *lock)
 #define EVTHREAD_COND_WAIT_TIMED(cond, lock, tv)			\
 	( (cond) ? _evthreadimpl_cond_wait((cond), (lock), (tv)) : 0 )
 
+#define EVTHREAD_LOCKING_ENABLED()		\
+	(_evthreadimpl_locking_enabled())
+
 #else /* _EVENT_DISABLE_THREAD_SUPPORT */
 
 #define EVTHREAD_GET_ID()	1
@@ -306,6 +314,8 @@ EVLOCK_TRY_LOCK(void *lock)
 #define EVTHREAD_COND_BROADCAST(cond) _EVUTIL_NIL_STMT
 #define EVTHREAD_COND_WAIT(cond, lock) _EVUTIL_NIL_STMT
 #define EVTHREAD_COND_WAIT_TIMED(cond, lock, howlong) _EVUTIL_NIL_STMT
+
+#define EVTHREAD_LOCKING_ENABLED() 0
 
 #endif
 
