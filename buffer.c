@@ -1498,6 +1498,11 @@ evbuffer_search_eol(struct evbuffer *buffer,
 			goto done;
 		extra_drain = 1;
 		break;
+	case EVBUFFER_EOL_NUL:
+		if (evbuffer_strchr(&it, '\0') < 0)
+			goto done;
+		extra_drain = 1;
+		break;
 	default:
 		goto done;
 	}

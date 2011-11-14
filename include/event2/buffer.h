@@ -387,7 +387,9 @@ enum evbuffer_eol_style {
 	/** An EOL is a CR followed by an LF. */
 	EVBUFFER_EOL_CRLF_STRICT,
 	/** An EOL is a LF. */
-	EVBUFFER_EOL_LF
+	EVBUFFER_EOL_LF,
+	/** An EOL is a NUL character (that is, a single byte with value 0) */
+	EVBUFFER_EOL_NUL
 };
 
 /**
