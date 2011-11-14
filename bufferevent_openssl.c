@@ -722,15 +722,13 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 	}
 	if (bev_ssl->write_blocked_on_read)
 		return;
-	while ((bev_ssl->bev.bev.enabled & EV_READ) &&
+	if ((bev_ssl->bev.bev.enabled & EV_READ) &&
 	    (! bev_ssl->bev.read_suspended) &&
 	    (! wm->high || evbuffer_get_length(input) < wm->high)) {
 		int n_to_read =
 		    wm->high ? wm->high - evbuffer_get_length(input)
 			     : READ_DEFAULT;
 		r = do_read(bev_ssl, n_to_read);
-		if (r <= 0)
-			break;
 	}
 
 	if (!bev_ssl->underlying) {
