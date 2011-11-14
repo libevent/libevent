@@ -165,6 +165,13 @@ main(int c, char **v) {
 		++idx;
 	}
 
+#ifdef WIN32
+	{
+		WSADATA WSAData;
+		WSAStartup(0x101, &WSAData);
+	}
+#endif
+
 	event_base = event_base_new();
 	evdns_base = evdns_base_new(event_base, 0);
 	evdns_set_log_fn(logfn);
@@ -188,12 +195,17 @@ main(int c, char **v) {
 		evdns_add_server_port_with_base(event_base, sock, 0, evdns_server_callback, NULL);
 	}
 	if (idx < c) {
+		int res;
 #ifdef _WIN32
-		evdns_base_config_windows_nameservers(evdns_base);
+		res = evdns_base_config_windows_nameservers(evdns_base);
 #else
-		evdns_base_resolv_conf_parse(evdns_base, DNS_OPTION_NAMESERVERS,
+		res = evdns_base_resolv_conf_parse(evdns_base, DNS_OPTION_NAMESERVERS,
 		    "/etc/resolv.conf");
 #endif
+		if (res < 0) {
+			fprintf(stderr, "Couldn't configure nameservers");
+			return 1;
+		}
 	}
 
 	printf("EVUTIL_AI_CANONNAME in example = %d\n", EVUTIL_AI_CANONNAME);
