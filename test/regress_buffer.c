@@ -1020,6 +1020,32 @@ test_evbuffer_readln(void *ptr)
 	free(cp);
 	evbuffer_validate(evb);
 
+	/* Test NUL */
+	tt_int_op(evbuffer_get_length(evb), ==, 0);
+	{
+		char x[] =
+		    "NUL\n\0\0"
+		    "The all-zeros character which may serve\0"
+		    "to accomplish time fill\0and media fill";
+		/* Add all but the final NUL of x. */
+		evbuffer_add(evb, x, sizeof(x)-1);
+	}
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_NUL);
+	tt_line_eq("NUL\n");
+	free(cp);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_NUL);
+	tt_line_eq("");
+	free(cp);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_NUL);
+	tt_line_eq("The all-zeros character which may serve");
+	free(cp);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_NUL);
+	tt_line_eq("to accomplish time fill");
+	free(cp);
+	cp = evbuffer_readln(evb, &sz, EVBUFFER_EOL_NUL);
+	tt_ptr_op(cp, ==, NULL);
+	evbuffer_drain(evb, -1);
+
 	/* Test CRLF_STRICT - across boundaries*/
 	s = " and a bad crlf\nand a good one\r";
 	evbuffer_add(evb_tmp, s, strlen(s));
