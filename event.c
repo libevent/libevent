@@ -633,6 +633,7 @@ event_base_new_with_config(const struct event_config *cfg)
 		EVTHREAD_ALLOC_COND(base->current_event_cond);
 		r = evthread_make_base_notifiable(base);
 		if (r<0) {
+			event_warnx("%s: Unable to make base notifiable.", __func__);
 			event_base_free(base);
 			return NULL;
 		}
