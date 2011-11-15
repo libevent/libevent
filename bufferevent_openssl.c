@@ -759,7 +759,7 @@ consider_writing(struct bufferevent_openssl *bev_ssl)
 		target = bev_ssl->underlying->output;
 		wm = &bev_ssl->underlying->wm_write;
 	}
-	if ((bev_ssl->bev.bev.enabled & EV_WRITE) &&
+	while ((bev_ssl->bev.bev.enabled & EV_WRITE) &&
 	    (! bev_ssl->bev.write_suspended) &&
 	    evbuffer_get_length(output) &&
 	    (!target || (! wm->high || evbuffer_get_length(target) < wm->high))) {
@@ -769,6 +769,8 @@ consider_writing(struct bufferevent_openssl *bev_ssl)
 		else
 			n_to_write = WRITE_FRAME;
 		r = do_write(bev_ssl, n_to_write);
+		if (r <= 0)
+			break;
 	}
 
 	if (!bev_ssl->underlying) {
