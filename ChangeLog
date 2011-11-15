@@ -1,3 +1,39 @@
+Changes in version 2.0.16-stable (?? Nov 2011)
+BUGFIXES (Libevent core):
+ o epoll: close fd on alloc fail at initialization (1aee718 Jamie Iles)
+ o Fix compile warning from saying event2/*.h inside a comment (447b0ba)
+ o Avoid potential SSL read spinlocks (fc52dba Mark Ellzey)
+ o openssl bufferevent has the same issue with writing as prior commit. (7353663 Mark Ellzey)
+ o Warn when unable to construct base because of failing make_base_notifiable (4e797f3)
+ o Don't try to make notifiable event_base when no threading fns are configured (e787413)
+
+BUGFIXES (evbuffers and buffervents):
+ o Fix an evbuffer crash in evbuffer_remove_buffer() (c37069c)
+
+BUGFIXES (DNS):
+ o Empty DNS reply with OK status is another way to say NODATA. (21a08d6 Leonid Evdokimov)
+
+CLEANUPS:
+ o Style and comment tweaks for dns/leak* tests (5e42202)
+ o Update copyright dates to 2011. (3c824bd)
+
+DEBUGGING SUPPORT:
+ o More detailed message in case of libevent self-debugging failure. (9e6a4ef Leonid Evdokimov)
+
+TESTING:
+ o Tests for 94fba5b and f72e8f6 (d58c15e Leonid Evdokimov)
+ o Test for commit aff6ba1 (f7841bf Leonid Evdokimov)
+ o unit test for remove_buffer bug (90bd620 Greg Hazel)
+ o improve test to remove at least one buffer from src (7eb52eb Greg Hazel)
+ o Fix DNS memleak checks when running with malloc-replacement/debugging disabled (b17b0ee)
+
+DOCUMENTATION AND SAMPLE CODE:
+ o Add note about evhttp_send_reply_end to its doxygen (724bfb5)
+ o Fix typo in whatsnew-2.0.txt (674bc6a Mansour Moufid)
+ o Improve win32 behavior of dns-sample.c codex (a3f320e Gisle Vanem)
+
+
+
 Changes in version 2.0.15-stable (12 Oct 2011)
 BUGFIXES (DNS):
  o DNS: add ttl for negative answers using RFC 2308 idea. (f72e8f6 Leonid Evdokimov)

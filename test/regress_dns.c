@@ -1637,6 +1637,7 @@ gaic_launch(struct event_base *base, struct evdns_base *dns_base)
 	++pending;
 }
 
+#ifdef EVENT_SET_MEM_FUNCTIONS_IMPLEMENTED
 /* FIXME: We should move this to regress_main.c if anything else needs it.*/
 
 /* Trivial replacements for malloc/free/realloc to check for memory leaks.
@@ -1698,8 +1699,12 @@ testleak_cleanup(const struct testcase_t *testcase, void *env_)
 {
 	int ok = 0;
 	struct testleak_env_t *env = env_;
+#ifdef _EVENT_DISABLE_DEBUG_MODE
+	tt_int_op(allocated_chunks, ==, 0);
+#else
 	/* FIXME: that's `1' because of event_debug_map_HT_GROW */
 	tt_int_op(allocated_chunks, ==, 1);
+#endif
 	ok = 1;
 end:
 	if (env->dns_base)
@@ -1754,6 +1759,7 @@ test_dbg_leak_shutdown(void *env_)
 	event_base_free(env->base);
 	env->base = 0;
 }
+#endif
 
 static void
 test_getaddrinfo_async_cancel_stress(void *ptr)
@@ -1832,8 +1838,10 @@ struct testcase_t dns_testcases[] = {
 	{ "getaddrinfo_cancel_stress", test_getaddrinfo_async_cancel_stress,
 	  TT_FORK, NULL, NULL },
 
+#ifdef EVENT_SET_MEM_FUNCTIONS_IMPLEMENTED
 	{ "leak_shutdown", test_dbg_leak_shutdown, TT_FORK, &testleak_funcs, NULL },
 	{ "leak_cancel", test_dbg_leak_cancel, TT_FORK, &testleak_funcs, NULL },
+#endif
 
 	END_OF_TESTCASES
 };
