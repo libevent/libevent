@@ -772,6 +772,14 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 		if (do_read(bev_ssl, n_to_read) <= 0)
 			break;
 
+		/* Read all pending data.  This won't hit the network
+		 * again, and will (most importantly) put us in a state
+		 * where we don't need to read anything else until the
+		 * socket is readable again.  It'll potentially make us
+		 * overrun our read high-watermark (somewhat
+		 * regrettable).  The damage to the rate-limit has
+		 * already been done, since OpenSSL went and read a
+		 * whole SSL record anyway. */
 		n_to_read = SSL_pending(bev_ssl->ssl);
 	}
 
