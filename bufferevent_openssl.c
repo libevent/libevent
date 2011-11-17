@@ -711,6 +711,10 @@ bytes_to_read(struct bufferevent_openssl *bev)
 {
 	struct evbuffer *input = bev->bev.bev.input;
 	struct event_watermark *wm = &bev->bev.bev.wm_read;
+	int result = READ_DEFAULT;
+	ev_ssize_t limit;
+	/* XXX 99% of this is generic code that nearly all bufferevents will
+	 * want. */
 
 	if (bev->write_blocked_on_read) {
 		return 0;
@@ -729,10 +733,18 @@ bytes_to_read(struct bufferevent_openssl *bev)
 			return 0;
 		}
 
-		return wm->high - evbuffer_get_length(input);
+		result = wm->high - evbuffer_get_length(input);
+	} else {
+		result = READ_DEFAULT;
 	}
 
-	return READ_DEFAULT;
+	/* Respect the rate limit */
+	limit = _bufferevent_get_read_max(&bev->bev);
+	if (result > limit) {
+		result = limit;
+	}
+
+	return result;
 }
 
 
