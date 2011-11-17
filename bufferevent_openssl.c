@@ -766,10 +766,13 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 	if (bev_ssl->write_blocked_on_read)
 		return;
 
-	while ((n_to_read = bytes_to_read(bev_ssl)) != 0) {
-		r = do_read(bev_ssl, n_to_read);
-		if (r <= 0)
+	n_to_read = bytes_to_read(bev_ssl);
+
+	while (n_to_read) {
+		if (do_read(bev_ssl, n_to_read) <= 0)
 			break;
+
+		n_to_read = SSL_pending(bev_ssl->ssl);
 	}
 
 	if (!bev_ssl->underlying) {
