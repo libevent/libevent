@@ -704,6 +704,38 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 
 #define READ_DEFAULT 4096
 
+/* Try to figure out how many bytes to read; return 0 if we shouldn't be
+ * reading. */
+static int
+bytes_to_read(struct bufferevent_openssl *bev)
+{
+	struct evbuffer *input = bev->bev.bev.input;
+	struct event_watermark *wm = &bev->bev.bev.wm_read;
+
+	if (bev->write_blocked_on_read) {
+		return 0;
+	}
+
+	if (! (bev->bev.bev.enabled & EV_READ)) {
+		return 0;
+	}
+
+	if (bev->bev.read_suspended) {
+		return 0;
+	}
+
+	if (wm->high) {
+		if (evbuffer_get_length(input) >= wm->high) {
+			return 0;
+		}
+
+		return wm->high - evbuffer_get_length(input);
+	}
+
+	return READ_DEFAULT;
+}
+
+
 /* Things look readable.  If write is blocked on read, write till it isn't.
  * Read from the underlying buffer until we block or we hit our high-water
  * mark.
@@ -712,8 +744,7 @@ static void
 consider_reading(struct bufferevent_openssl *bev_ssl)
 {
 	int r;
-	struct evbuffer *input = bev_ssl->bev.bev.input;
-	struct event_watermark *wm = &bev_ssl->bev.bev.wm_read;
+	int n_to_read;
 
 	while (bev_ssl->write_blocked_on_read) {
 		r = do_write(bev_ssl, WRITE_FRAME);
@@ -722,12 +753,8 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 	}
 	if (bev_ssl->write_blocked_on_read)
 		return;
-	while ((bev_ssl->bev.bev.enabled & EV_READ) &&
-	    (! bev_ssl->bev.read_suspended) &&
-	    (! wm->high || evbuffer_get_length(input) < wm->high)) {
-		int n_to_read =
-		    wm->high ? wm->high - evbuffer_get_length(input)
-			     : READ_DEFAULT;
+
+	while ((n_to_read = bytes_to_read(bev_ssl)) != 0) {
 		r = do_read(bev_ssl, n_to_read);
 		if (r <= 0)
 			break;
