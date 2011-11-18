@@ -32,7 +32,7 @@ RELEASE = -release 2.0
 #
 # Once an RC is out, DO NOT MAKE ANY ABI-BREAKING CHANGES IN THAT SERIES
 # UNLESS YOU REALLY REALLY HAVE TO.
-VERSION_INFO = 6:3:1
+VERSION_INFO = 6:4:1
 
 # History:          RELEASE    VERSION_INFO
 #  2.0.1-alpha --     2.0        1:0:0
@@ -49,7 +49,8 @@ VERSION_INFO = 6:3:1
 #  2.0.12-stable--    2.0        6:1:1 (No ABI change)
 #  2.0.13-stable--    2.0        6:2:1 (No ABI change)
 #  2.0.14-stable--    2.0        6:3:1 (No ABI change)
-#  2.0.15-stable--    2.0        7:0:2 (ABI changed, backward-compatible)
+#  2.0.15-stable--    2.0        6:3:1 (Forgot to update :( )
+#  2.0.16-stable--    2.0        6:4:1 (No ABI change)
 #
 # For Libevent 2.1:
 #  2.1.1-alpha --     2.1        1:0:0
