@@ -705,6 +705,50 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 
 #define READ_DEFAULT 4096
 
+/* Try to figure out how many bytes to read; return 0 if we shouldn't be
+ * reading. */
+static int
+bytes_to_read(struct bufferevent_openssl *bev)
+{
+	struct evbuffer *input = bev->bev.bev.input;
+	struct event_watermark *wm = &bev->bev.bev.wm_read;
+	int result = READ_DEFAULT;
+	ev_ssize_t limit;
+	/* XXX 99% of this is generic code that nearly all bufferevents will
+	 * want. */
+
+	if (bev->write_blocked_on_read) {
+		return 0;
+	}
+
+	if (! (bev->bev.bev.enabled & EV_READ)) {
+		return 0;
+	}
+
+	if (bev->bev.read_suspended) {
+		return 0;
+	}
+
+	if (wm->high) {
+		if (evbuffer_get_length(input) >= wm->high) {
+			return 0;
+		}
+
+		result = wm->high - evbuffer_get_length(input);
+	} else {
+		result = READ_DEFAULT;
+	}
+
+	/* Respect the rate limit */
+	limit = _bufferevent_get_read_max(&bev->bev);
+	if (result > limit) {
+		result = limit;
+	}
+
+	return result;
+}
+
+
 /* Things look readable.  If write is blocked on read, write till it isn't.
  * Read from the underlying buffer until we block or we hit our high-water
  * mark.
@@ -713,8 +757,7 @@ static void
 consider_reading(struct bufferevent_openssl *bev_ssl)
 {
 	int r;
-	struct evbuffer *input = bev_ssl->bev.bev.input;
-	struct event_watermark *wm = &bev_ssl->bev.bev.wm_read;
+	int n_to_read;
 
 	while (bev_ssl->write_blocked_on_read) {
 		r = do_write(bev_ssl, WRITE_FRAME);
@@ -723,13 +766,22 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 	}
 	if (bev_ssl->write_blocked_on_read)
 		return;
-	if ((bev_ssl->bev.bev.enabled & EV_READ) &&
-	    (! bev_ssl->bev.read_suspended) &&
-	    (! wm->high || evbuffer_get_length(input) < wm->high)) {
-		int n_to_read =
-		    wm->high ? wm->high - evbuffer_get_length(input)
-			     : READ_DEFAULT;
-		r = do_read(bev_ssl, n_to_read);
+
+	n_to_read = bytes_to_read(bev_ssl);
+
+	while (n_to_read) {
+		if (do_read(bev_ssl, n_to_read) <= 0)
+			break;
+
+		/* Read all pending data.  This won't hit the network
+		 * again, and will (most importantly) put us in a state
+		 * where we don't need to read anything else until the
+		 * socket is readable again.  It'll potentially make us
+		 * overrun our read high-watermark (somewhat
+		 * regrettable).  The damage to the rate-limit has
+		 * already been done, since OpenSSL went and read a
+		 * whole SSL record anyway. */
+		n_to_read = SSL_pending(bev_ssl->ssl);
 	}
 
 	if (!bev_ssl->underlying) {
@@ -760,7 +812,7 @@ consider_writing(struct bufferevent_openssl *bev_ssl)
 		target = bev_ssl->underlying->output;
 		wm = &bev_ssl->underlying->wm_write;
 	}
-	if ((bev_ssl->bev.bev.enabled & EV_WRITE) &&
+	while ((bev_ssl->bev.bev.enabled & EV_WRITE) &&
 	    (! bev_ssl->bev.write_suspended) &&
 	    evbuffer_get_length(output) &&
 	    (!target || (! wm->high || evbuffer_get_length(target) < wm->high))) {
@@ -770,6 +822,8 @@ consider_writing(struct bufferevent_openssl *bev_ssl)
 		else
 			n_to_write = WRITE_FRAME;
 		r = do_write(bev_ssl, n_to_write);
+		if (r <= 0)
+			break;
 	}
 
 	if (!bev_ssl->underlying) {
