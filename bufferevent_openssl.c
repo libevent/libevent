@@ -483,7 +483,7 @@ clear_wbor(struct bufferevent_openssl *bev_ssl)
 }
 
 static void
-conn_closed(struct bufferevent_openssl *bev_ssl, int errcode, int ret)
+conn_closed(struct bufferevent_openssl *bev_ssl, int when, int errcode, int ret)
 {
 	int event = BEV_EVENT_ERROR;
 	int dirty_shutdown = 0;
@@ -529,6 +529,8 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int errcode, int ret)
 	stop_reading(bev_ssl);
 	stop_writing(bev_ssl);
 
+	/* when is BEV_EVENT_{READING|WRITING} */
+	event = when | event;
 	_bufferevent_run_eventcb(&bev_ssl->bev.bev, event);
 }
 
@@ -604,7 +606,7 @@ do_read(struct bufferevent_openssl *bev_ssl, int n_to_read)
 						return -1;
 				break;
 			default:
-				conn_closed(bev_ssl, err, r);
+				conn_closed(bev_ssl, BEV_EVENT_READING, err, r);
 				break;
 			}
 			blocked = 1;
@@ -682,7 +684,7 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 				bev_ssl->last_write = space[i].iov_len;
 				break;
 			default:
-				conn_closed(bev_ssl, err, r);
+				conn_closed(bev_ssl, BEV_EVENT_WRITING, err, r);
 				bev_ssl->last_write = -1;
 				break;
 			}
@@ -979,7 +981,7 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 			}
 			return 0;
 		default:
-			conn_closed(bev_ssl, err, r);
+			conn_closed(bev_ssl, BEV_EVENT_READING, err, r);
 			return -1;
 		}
 	}
