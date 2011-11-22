@@ -88,6 +88,22 @@ bufferevent_openssl_socket_new(struct event_base *base,
     enum bufferevent_ssl_state state,
     int options);
 
+/** Control whether to report dirty SSL shutdowns.
+
+If the peer closes the TCP connection before closing the SSL channel, the
+protocol is SSL >= v3, and allow_dirty_shutdown=0 (default), you will receive
+BEV_EVENT_ERROR.
+
+If instead allow_dirty_shutdown=1, you will receive BEV_EVENT_EOF.
+
+On the other hand, if the protocol is < SSLv3, you will always receive
+BEV_EVENT_EOF.
+*/
+
+int bufferevent_openssl_get_allow_dirty_shutdown(struct bufferevent *bev);
+void bufferevent_openssl_set_allow_dirty_shutdown(struct bufferevent *bev,
+    int allow_dirty_shutdown);
+
 /** Return the underlying openssl SSL * object for an SSL bufferevent. */
 struct ssl_st *
 bufferevent_openssl_get_ssl(struct bufferevent *bufev);

@@ -313,7 +313,7 @@ struct bufferevent_openssl {
 	unsigned read_blocked_on_write : 1;
 	/* When we next get data, we should say "write" instead of "read". */
 	unsigned write_blocked_on_read : 1;
-	/* XXX */
+	/* Treat TCP close before SSL close on SSL >= v3 as clean EOF. */
 	unsigned allow_dirty_shutdown : 1;
 	/* XXXX */
 	unsigned fd_is_set : 1;
@@ -1387,6 +1387,27 @@ bufferevent_openssl_socket_new(struct event_base *base,
 
 	return bufferevent_openssl_new_impl(
 		base, NULL, fd, ssl, state, options);
+}
+
+int bufferevent_openssl_get_allow_dirty_shutdown(struct bufferevent *bev)
+{
+	int allow_dirty_shutdown = 0;
+	struct bufferevent_openssl *bev_ssl;
+	BEV_LOCK(bev);
+	bev_ssl = upcast(bev);
+	allow_dirty_shutdown = bev_ssl->allow_dirty_shutdown;
+	BEV_UNLOCK(bev);
+	return allow_dirty_shutdown;
+}
+
+void bufferevent_openssl_set_allow_dirty_shutdown(struct bufferevent *bev,
+    int allow_dirty_shutdown)
+{
+	struct bufferevent_openssl *bev_ssl;
+	BEV_LOCK(bev);
+	bev_ssl = upcast(bev);
+	bev_ssl->allow_dirty_shutdown = allow_dirty_shutdown;
+	BEV_UNLOCK(bev);
 }
 
 unsigned long
