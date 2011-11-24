@@ -1389,24 +1389,28 @@ bufferevent_openssl_socket_new(struct event_base *base,
 		base, NULL, fd, ssl, state, options);
 }
 
-int bufferevent_openssl_get_allow_dirty_shutdown(struct bufferevent *bev)
+int
+bufferevent_openssl_get_allow_dirty_shutdown(struct bufferevent *bev)
 {
-	int allow_dirty_shutdown = 0;
+	int allow_dirty_shutdown = -1;
 	struct bufferevent_openssl *bev_ssl;
 	BEV_LOCK(bev);
 	bev_ssl = upcast(bev);
-	allow_dirty_shutdown = bev_ssl->allow_dirty_shutdown;
+	if (bev_ssl)
+		allow_dirty_shutdown = bev_ssl->allow_dirty_shutdown;
 	BEV_UNLOCK(bev);
 	return allow_dirty_shutdown;
 }
 
-void bufferevent_openssl_set_allow_dirty_shutdown(struct bufferevent *bev,
+void
+bufferevent_openssl_set_allow_dirty_shutdown(struct bufferevent *bev,
     int allow_dirty_shutdown)
 {
 	struct bufferevent_openssl *bev_ssl;
 	BEV_LOCK(bev);
 	bev_ssl = upcast(bev);
-	bev_ssl->allow_dirty_shutdown = allow_dirty_shutdown;
+	if (bev_ssl)
+		bev_ssl->allow_dirty_shutdown = !!allow_dirty_shutdown;
 	BEV_UNLOCK(bev);
 }
 
