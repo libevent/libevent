@@ -2769,7 +2769,9 @@ evbuffer_file_segment_new(
 	if (evbuffer_file_segment_materialize(seg)<0)
 		goto err;
 
+#if defined(USE_SENDFILE)
 done:
+#endif
 	if (!(flags & EVBUF_FS_DISABLE_LOCKING)) {
 		EVTHREAD_ALLOC_LOCK(seg->lock, 0);
 	}
@@ -2839,7 +2841,7 @@ evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
 		HANDLE m;
 		ev_uint64_t total_size = length+offset;
 		if (h == (long)INVALID_HANDLE_VALUE)
-			return NULL;
+			goto err;
 		m = CreateFileMapping((HANDLE)h, NULL, PAGE_READONLY,
 		    (total_size >> 32), total_size & 0xfffffffful,
 		    NULL);
