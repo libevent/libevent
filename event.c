@@ -1038,7 +1038,8 @@ event_signal_closure(struct event_base *base, struct event *ev)
 
 	/* Allows deletes to work */
 	ncalls = ev->ev_ncalls;
-	ev->ev_pncalls = &ncalls;
+	if (ncalls != 0)
+		ev->ev_pncalls = &ncalls;
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	while (ncalls) {
 		ncalls--;
@@ -1051,8 +1052,11 @@ event_signal_closure(struct event_base *base, struct event *ev)
 		should_break = base->event_break;
 		EVBASE_RELEASE_LOCK(base, th_base_lock);
 
-		if (should_break)
+		if (should_break) {
+			if (ncalls != 0)
+				ev->ev_pncalls = NULL;
 			return;
+		}
 	}
 }
 
