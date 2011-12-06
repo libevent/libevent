@@ -1665,7 +1665,7 @@ static void
 cnt_free(void *ptr)
 {
 	allocated_chunks -= 1;
-	return free(ptr);
+	free(ptr);
 }
 
 struct testleak_env_t {
