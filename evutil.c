@@ -35,6 +35,10 @@
 #undef WIN32_LEAN_AND_MEAN
 #include <io.h>
 #include <tchar.h>
+#undef _WIN32_WINNT
+/* For structs needed by GetAdaptersAddresses */
+#define _WIN32_WINNT 0x0501
+#include <iphlpapi.h>
 #endif
 
 #include <sys/types.h>
@@ -69,6 +73,9 @@
 #include <time.h>
 #endif
 #include <sys/stat.h>
+#ifdef _EVENT_HAVE_IFADDRS_H
+#include <ifaddrs.h>
+#endif
 
 #include "event2/util.h"
 #include "util-internal.h"
@@ -534,28 +541,149 @@ static int have_checked_interfaces, had_ipv4_address, had_ipv6_address;
  */
 #define EVUTIL_V4ADDR_IS_CLASSD(addr) ((((addr)>>24) & 0xf0) == 0xe0)
 
+static void
+evutil_found_ifaddr(const struct sockaddr *sa)
+{
+	const char ZEROES[] = "\x00\x00\x00\x00\x00\x00\x00\x00"
+	    "\x00\x00\x00\x00\x00\x00\x00\x00";
+	char buf[128];
+
+	printf("Sockaddr is %s\n", evutil_format_sockaddr_port(sa, buf, sizeof(buf)));
+
+	if (sa->sa_family == AF_INET) {
+		const struct sockaddr_in *sin = (struct sockaddr_in *)sa;
+		ev_uint32_t addr = ntohl(sin->sin_addr.s_addr);
+		if (addr == 0 ||
+		    EVUTIL_V4ADDR_IS_LOCALHOST(addr) ||
+		    EVUTIL_V4ADDR_IS_CLASSD(addr)) {
+			/* Not actually a usable external address. */
+		} else {
+			event_debug(("Detected an IPv4 interface"));
+			had_ipv4_address = 1;
+		}
+	} else if (sa->sa_family == AF_INET6) {
+		const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
+		const unsigned char *addr =
+		    (unsigned char*)sin6->sin6_addr.s6_addr;
+		if (!memcmp(addr, ZEROES, 8) ||
+		    ((addr[0] & 0xfe) == 0xfc) ||
+		    (addr[0] == 0xfe && (addr[1] & 0xc0) == 0x80) ||
+		    (addr[0] == 0xfe && (addr[1] & 0xc0) == 0xc0) ||
+		    (addr[0] == 0xff)) {
+			/* This is a reserved, ipv4compat, ipv4map, loopback,
+			 * link-local, multicast, or unspecified address. */
+		} else {
+			event_debug(("Detected an IPv6 interface"));
+			had_ipv6_address = 1;
+		}
+	}
+}
+
+static int
+evutil_check_ifaddrs(void)
+{
+#if defined(_EVENT_HAVE_GETIFADDRS)
+	/* Most free Unixy systems provide getifaddrs, which gives us a linked list
+	 * of struct ifaddrs. */
+	struct ifaddrs *ifa = NULL;
+	const struct ifaddrs *i;
+	if (getifaddrs(&ifa) < 0) {
+		event_warn("Unable to call getifaddrs()");
+		return -1;
+	}
+
+	for (i = ifa; i; i = i->ifa_next) {
+		if (!i->ifa_addr)
+			continue;
+		evutil_found_ifaddr(i->ifa_addr);
+	}
+
+	freeifaddrs(ifa);
+	return 0;
+#elif defined(_WIN32)
+	/* Windows XP began to provide GetAdaptersAddresses. Windows 2000 had a
+	   "GetAdaptersInfo", but that's deprecated; let's just try
+	   GetAdaptersAddresses and fall back to connect+getsockname.
+	*/
+	HANDLE lib = evutil_load_windows_system_library(TEXT("ihplapi.dll"));
+	GetAdaptersAddresses_fn_t fn;
+	ULONG size, res;
+	IP_ADAPTER_ADDRESSES *addresses = NULL, *address;
+	int result = -1;
+
+#define FLAGS (GAA_FLAG_SKIP_ANYCAST | \
+               GAA_FLAG_SKIP_MULTICAST | \
+               GAA_FLAG_SKIP_DNS_SERVER)
+
+	if (!lib)
+		goto done;
+
+	if (!(fn = (GetAdaptersAddresses_fn_t) GetProcAddress(lib, "GetAdaptersAddresses")))
+		goto done;
+
+	/* Guess how much space we need. */
+	size = 15*1024;
+	addresses = mm_malloc(size);
+	if (!addresses)
+		goto done;
+	res = fn(AF_UNSPEC, FLAGS, NULL, addresses, &size);
+	if (res == ERROR_BUFFER_OVERFLOW) {
+		/* we didn't guess that we needed enough space; try again */
+		mm_free(addresses);
+		addresses = tor_malloc(size);
+		if (!addresses)
+			goto done;
+		res = fn(AF_UNSPEC, FLAGS, NULL, addresses, &size);
+	}
+	if (res != NO_ERROR)
+		goto done;
+
+	result = smartlist_create();
+	for (address = addresses; address; address = address->Next) {
+		IP_ADAPTER_UNICAST_ADDRESS *a;
+		for (a = address->FirstUnicastAddress; a; a = a->Next) {
+			/* Yes, it's a linked list inside a linked list */
+			struct sockaddr *sa = a->Address.lpSockaddr;
+			evutil_found_ifaddr(sa);
+		}
+	}
+
+	result = 0;
+done:
+	if (lib)
+		FreeLibrary(lib);
+	if (addresses)
+		mm_free(addresses);
+	return result;
+#else
+	return -1;
+#endif
+}
+
 /* Test whether we have an ipv4 interface and an ipv6 interface.  Return 0 if
  * the test seemed successful. */
 static int
 evutil_check_interfaces(int force_recheck)
 {
-	const char ZEROES[] = "\x00\x00\x00\x00\x00\x00\x00\x00"
-	    "\x00\x00\x00\x00\x00\x00\x00\x00";
 	evutil_socket_t fd = -1;
 	struct sockaddr_in sin, sin_out;
 	struct sockaddr_in6 sin6, sin6_out;
 	ev_socklen_t sin_out_len = sizeof(sin_out);
 	ev_socklen_t sin6_out_len = sizeof(sin6_out);
 	int r;
-	char buf[128];
 	if (have_checked_interfaces && !force_recheck)
 		return 0;
 
-	/* To check whether we have an interface open for a given protocol, we
-	 * try to make a UDP 'connection' to a remote host on the internet.
-	 * We don't actually use it, so the address doesn't matter, but we
-	 * want to pick one that keep us from using a host- or link-local
-	 * interface. */
+	if (evutil_check_ifaddrs() == 0) {
+		/* Use a nice sane interface, if this system has one. */
+		return 0;
+	}
+
+	/* Ugh. There was no nice sane interface.  So to check whether we have
+	 * an interface open for a given protocol, will try to make a UDP
+	 * 'connection' to a remote host on the internet.  We don't actually
+	 * use it, so the address doesn't matter, but we want to pick one that
+	 * keep us from using a host- or link-local interface. */
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(53);
@@ -576,21 +704,7 @@ evutil_check_interfaces(int force_recheck)
 	    connect(fd, (struct sockaddr*)&sin, sizeof(sin)) == 0 &&
 	    getsockname(fd, (struct sockaddr*)&sin_out, &sin_out_len) == 0) {
 		/* We might have an IPv4 interface. */
-		ev_uint32_t addr = ntohl(sin_out.sin_addr.s_addr);
-		if (addr == 0 ||
-		    EVUTIL_V4ADDR_IS_LOCALHOST(addr) ||
-		    EVUTIL_V4ADDR_IS_CLASSD(addr)) {
-			evutil_inet_ntop(AF_INET, &sin_out.sin_addr,
-			    buf, sizeof(buf));
-			/* This is a reserved, ipv4compat, ipv4map, loopback,
-			 * link-local or unspecified address.  The host should
-			 * never have given it to us; it could never connect
-			 * to sin. */
-			event_warnx("Got a strange local ipv4 address %s",buf);
-		} else {
-			event_debug(("Detected an IPv4 interface"));
-			had_ipv4_address = 1;
-		}
+		evutil_found_ifaddr((struct sockaddr*) &sin_out);
 	}
 	if (fd >= 0)
 		evutil_closesocket(fd);
@@ -599,21 +713,7 @@ evutil_check_interfaces(int force_recheck)
 	    connect(fd, (struct sockaddr*)&sin6, sizeof(sin6)) == 0 &&
 	    getsockname(fd, (struct sockaddr*)&sin6_out, &sin6_out_len) == 0) {
 		/* We might have an IPv6 interface. */
-		const unsigned char *addr =
-		    (unsigned char*)sin6_out.sin6_addr.s6_addr;
-		if (!memcmp(addr, ZEROES, 8) ||
-		    (addr[0] == 0xfe && (addr[1] & 0xc0) == 0x80)) {
-			/* This is a reserved, ipv4compat, ipv4map, loopback,
-			 * link-local or unspecified address.  The host should
-			 * never have given it to us; it could never connect
-			 * to sin6. */
-			evutil_inet_ntop(AF_INET6, &sin6_out.sin6_addr,
-			    buf, sizeof(buf));
-			event_warnx("Got a strange local ipv6 address %s",buf);
-		} else {
-			event_debug(("Detected an IPv4 interface"));
-			had_ipv6_address = 1;
-		}
+		evutil_found_ifaddr((struct sockaddr*) &sin6_out);
 	}
 
 	if (fd >= 0)
