@@ -178,7 +178,35 @@ LIBEVENT_OPENSSL
 
 dnl Checks for header files.
 AC_HEADER_STDC
-AC_CHECK_HEADERS([fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in.h netinet/in6.h sys/socket.h sys/uio.h arpa/inet.h sys/eventfd.h sys/mman.h sys/sendfile.h sys/wait.h netdb.h ifaddrs.h])
+AC_CHECK_HEADERS([ \
+  arpa/inet.h \
+  fcntl.h \
+  ifaddrs.h \
+  inttypes.h \
+  netdb.h \
+  netinet/in.h \
+  netinet/in6.h \
+  poll.h \
+  port.h \
+  stdarg.h \
+  stddef.h \
+  stdint.h \
+  sys/devpoll.h \
+  sys/epoll.h \
+  sys/event.h \
+  sys/eventfd.h \
+  sys/ioctl.h \
+  sys/mman.h \
+  sys/param.h \
+  sys/queue.h \
+  sys/select.h \
+  sys/sendfile.h \
+  sys/socket.h \
+  sys/time.h \
+  sys/uio.h \
+  sys/wait.h \
+  unistd.h \
+])
 AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -276,8 +304,37 @@ AC_C_INLINE
 AC_HEADER_TIME
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS([gettimeofday vasprintf fcntl clock_gettime strtok_r strsep])
-AC_CHECK_FUNCS([getnameinfo strlcpy inet_ntop inet_pton signal sigaction strtoll inet_aton pipe eventfd sendfile mmap splice arc4random arc4random_buf issetugid geteuid getegid getprotobynumber setenv unsetenv putenv getifaddrs])
+AC_CHECK_FUNCS([ \
+  arc4random \
+  arc4random_buf \
+  clock_gettime \
+  eventfd \
+  fcntl \
+  getegid \
+  geteuid \
+  getifaddrs \
+  getnameinfo \
+  getprotobynumber \
+  gettimeofday \
+  inet_aton \
+  inet_ntop \
+  inet_pton \
+  issetugid \
+  mmap \
+  pipe \
+  putenv \
+  sendfile \
+  setenv \
+  sigaction \
+  signal \
+  splice \
+  strlcpy \
+  strsep \
+  strtok_r \
+  strtoll \
+  unsetenv \
+  vasprintf \
+])
 
 AC_CACHE_CHECK(
     [for getaddrinfo],
