@@ -150,7 +150,6 @@ static struct evbuffer_chain *evbuffer_expand_singlechain(struct evbuffer *buf,
 static int evbuffer_ptr_subtract(struct evbuffer *buf, struct evbuffer_ptr *pos,
     size_t howfar);
 static inline void evbuffer_chain_incref(struct evbuffer_chain *chain);
-static inline void evbuffer_chain_decref(struct evbuffer_chain *chain);
 
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
@@ -178,18 +177,24 @@ evbuffer_chain_new(size_t size)
 	 */
 	chain->buffer = EVBUFFER_CHAIN_EXTRA(u_char, chain);
 
+	chain->refcnt = 1;
+
 	return (chain);
 }
 
 static inline void
 evbuffer_chain_free(struct evbuffer_chain *chain)
 {
-	if (CHAIN_PINNED(chain)) {
-		chain->flags |= EVBUFFER_DANGLING;
+	EVUTIL_ASSERT(chain->refcnt > 0);
+	if (--chain->refcnt > 0) {
+		// chain is still referenced by other chains
 		return;
 	}
-	if (chain->refcnt > 0) {
-		// chain is still referenced by other chains
+	
+	if (CHAIN_PINNED(chain)) {
+		// will get freed once no longer dangling
+		chain->refcnt++;
+		chain->flags |= EVBUFFER_DANGLING;
 		return;
 	}
 	
@@ -230,7 +235,7 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 		EVUTIL_ASSERT(info->source != NULL);
 		EVUTIL_ASSERT(info->parent != NULL);
 		EVBUFFER_LOCK(info->source);
-		evbuffer_chain_decref(info->parent);
+		evbuffer_chain_free(info->parent);
 		_evbuffer_decref_and_unlock(info->source);
 	}
 
@@ -326,14 +331,6 @@ static inline void
 evbuffer_chain_incref(struct evbuffer_chain *chain)
 {
     ++chain->refcnt;
-}
-
-static inline void
-evbuffer_chain_decref(struct evbuffer_chain *chain)
-{
-    EVUTIL_ASSERT(chain->refcnt > 0);
-    --chain->refcnt;
-    // chain will be freed when parent buffer is released
 }
 
 struct evbuffer *

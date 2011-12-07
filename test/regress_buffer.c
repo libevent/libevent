@@ -1590,6 +1590,42 @@ end:
 		evbuffer_free(buf2);
 }
 
+static void
+test_evbuffer_multicast_drain(void *ptr)
+{
+	const char chunk1[] = "If you have found the answer to such a problem";
+	const char chunk2[] = "you ought to write it up for publication";
+			  /* -- Knuth's "Notes on the Exercises" from TAOCP */
+	size_t len1 = strlen(chunk1), len2=strlen(chunk2);
+
+	struct evbuffer *buf1 = NULL, *buf2 = NULL;
+
+	buf1 = evbuffer_new();
+	tt_assert(buf1);
+
+	evbuffer_add(buf1, chunk1, len1);
+	evbuffer_add(buf1, ", ", 2);
+	evbuffer_add(buf1, chunk2, len2);
+	tt_int_op(evbuffer_get_length(buf1), ==, len1+len2+2);
+
+	buf2 = evbuffer_new();
+	tt_assert(buf2);
+
+    tt_int_op(evbuffer_add_buffer_reference(buf2, buf1), ==, 0);
+	tt_int_op(evbuffer_get_length(buf2), ==, len1+len2+2);
+    tt_int_op(evbuffer_drain(buf1, evbuffer_get_length(buf1)), ==, 0);
+	tt_int_op(evbuffer_get_length(buf2), ==, len1+len2+2);
+    tt_int_op(evbuffer_drain(buf2, evbuffer_get_length(buf2)), ==, 0);
+	evbuffer_validate(buf1);
+	evbuffer_validate(buf2);
+
+end:
+	if (buf1)
+		evbuffer_free(buf1);
+	if (buf2)
+		evbuffer_free(buf2);
+}
+
 /* Some cases that we didn't get in test_evbuffer() above, for more coverage. */
 static void
 test_evbuffer_prepend(void *ptr)
@@ -1881,6 +1917,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
 	{ "add_reference", test_evbuffer_add_reference, 0, NULL, NULL },
 	{ "multicast", test_evbuffer_multicast, 0, NULL, NULL },
+	{ "multicast_drain", test_evbuffer_multicast_drain, 0, NULL, NULL },
 	{ "prepend", test_evbuffer_prepend, TT_FORK, NULL, NULL },
 	{ "peek", test_evbuffer_peek, 0, NULL, NULL },
 	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },

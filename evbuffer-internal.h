@@ -186,7 +186,7 @@ struct evbuffer_chain {
 	/** a chain that is a referenced copy of another chain */
 #define EVBUFFER_MULTICAST	0x0080
 
-	/** number of multicast references to this chain */
+	/** number of references to this chain */
 	int refcnt;
 
 	/** Usually points to the read-write memory belonging to this
