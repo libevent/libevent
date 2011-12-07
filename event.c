@@ -1765,7 +1765,6 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
     void *arg, const struct timeval *tv)
 {
 	struct event_once *eonce;
-	struct timeval etv;
 	int res = 0;
 
 	/* We cannot support signals that just fire once, or persistent
@@ -1780,12 +1779,16 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 	eonce->arg = arg;
 
 	if (events == EV_TIMEOUT) {
-		if (tv == NULL) {
-			evutil_timerclear(&etv);
-			tv = &etv;
-		}
-
 		evtimer_assign(&eonce->ev, base, event_once_cb, eonce);
+
+		if (tv == NULL || ! evutil_timerisset(tv)) {
+			/* If the event is going to become active immediately,
+			 * don't put it on the timeout queue.  This is one
+			 * idiom for scheduling a callback, so let's make
+			 * it fast (and order-preserving). */
+			event_active(&eonce->ev, EV_TIMEOUT, 1);
+			return 0;
+		}
 	} else if (events & (EV_READ|EV_WRITE)) {
 		events &= EV_READ|EV_WRITE;
 

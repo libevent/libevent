@@ -2019,6 +2019,15 @@ end:
 }
 
 static void
+immediate_called_twice_cb(evutil_socket_t fd, short event, void *arg)
+{
+	tt_int_op(event, ==, EV_TIMEOUT);
+	called += 1000;
+end:
+	;
+}
+
+static void
 test_event_once(void *ptr)
 {
 	struct basic_test_data *data = ptr;
@@ -2036,6 +2045,14 @@ test_event_once(void *ptr)
 	tt_int_op(r, ==, 0);
 	r = event_base_once(data->base, -1, 0, NULL, NULL, NULL);
 	tt_int_op(r, <, 0);
+	r = event_base_once(data->base, -1, EV_TIMEOUT,
+	    immediate_called_twice_cb, NULL, NULL);
+	tt_int_op(r, ==, 0);
+	tv.tv_sec = 0;
+	tv.tv_usec = 0;
+	r = event_base_once(data->base, -1, EV_TIMEOUT,
+	    immediate_called_twice_cb, NULL, &tv);
+	tt_int_op(r, ==, 0);
 
 	if (write(data->pair[1], TEST1, strlen(TEST1)+1) < 0) {
 		tt_fail_perror("write");
@@ -2045,7 +2062,7 @@ test_event_once(void *ptr)
 
 	event_base_dispatch(data->base);
 
-	tt_int_op(called, ==, 101);
+	tt_int_op(called, ==, 2101);
 end:
 	;
 }
