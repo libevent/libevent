@@ -1036,7 +1036,7 @@ evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 {
 	ev_ssize_t n;
 	EVBUFFER_LOCK(buf);
-	n = evbuffer_copyout(buf, data_out, datlen);
+	n = evbuffer_copyout_from(buf, NULL, data_out, datlen);
 	if (n > 0) {
 		if (evbuffer_drain(buf, n)<0)
 			n = -1;
@@ -1048,18 +1048,34 @@ evbuffer_remove(struct evbuffer *buf, void *data_out, size_t datlen)
 ev_ssize_t
 evbuffer_copyout(struct evbuffer *buf, void *data_out, size_t datlen)
 {
+	return evbuffer_copyout_from(buf, NULL, data_out, datlen);
+}
+
+ev_ssize_t
+evbuffer_copyout_from(struct evbuffer *buf, const struct evbuffer_ptr *pos,
+    void *data_out, size_t datlen)
+{
 	/*XXX fails badly on sendfile case. */
 	struct evbuffer_chain *chain;
 	char *data = data_out;
 	size_t nread;
 	ev_ssize_t result = 0;
+	size_t pos_in_chain;
 
 	EVBUFFER_LOCK(buf);
 
-	chain = buf->first;
+	if (pos) {
+		chain = pos->_internal.chain;
+		pos_in_chain = pos->_internal.pos_in_chain;
+		if (datlen + pos->pos > buf->total_len)
+			datlen = buf->total_len - pos->pos;
+	} else {
+		chain = buf->first;
+		pos_in_chain = 0;
+		if (datlen > buf->total_len)
+			datlen = buf->total_len;
+	}
 
-	if (datlen >= buf->total_len)
-		datlen = buf->total_len;
 
 	if (datlen == 0)
 		goto done;
@@ -1071,18 +1087,23 @@ evbuffer_copyout(struct evbuffer *buf, void *data_out, size_t datlen)
 
 	nread = datlen;
 
-	while (datlen && datlen >= chain->off) {
-		memcpy(data, chain->buffer + chain->misalign, chain->off);
-		data += chain->off;
-		datlen -= chain->off;
+	while (datlen && datlen >= chain->off - pos_in_chain) {
+		size_t copylen = chain->off - pos_in_chain;
+		memcpy(data,
+		    chain->buffer + chain->misalign + pos_in_chain,
+		    copylen);
+		data += copylen;
+		datlen -= copylen;
 
 		chain = chain->next;
+		pos_in_chain = 0;
 		EVUTIL_ASSERT(chain || datlen==0);
 	}
 
 	if (datlen) {
 		EVUTIL_ASSERT(chain);
-		memcpy(data, chain->buffer + chain->misalign, datlen);
+		memcpy(data, chain->buffer + chain->misalign + pos_in_chain,
+		    datlen);
 	}
 
 	result = nread;

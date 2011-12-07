@@ -1897,6 +1897,87 @@ end:
 	}
 }
 
+static void
+test_evbuffer_copyout(void *dummy)
+{
+	const char string[] =
+	    "Still they skirmish to and fro, men my messmates on the snow "
+	    "When we headed off the aurochs turn for turn; "
+	    "When the rich Allobrogenses never kept amanuenses, "
+	    "And our only plots were piled in lakes at Berne.";
+	/* -- Kipling, "In The Neolithic Age" */
+	char tmp[256];
+	struct evbuffer_ptr ptr;
+	struct evbuffer *buf;
+
+	(void)dummy;
+
+	buf = evbuffer_new();
+	tt_assert(buf);
+
+	tt_int_op(strlen(string), ==, 206);
+
+	/* Ensure separate chains */
+	evbuffer_add_reference(buf, string, 80, no_cleanup, NULL);
+	evbuffer_add_reference(buf, string+80, 80, no_cleanup, NULL);
+	evbuffer_add(buf, string+160, strlen(string)-160);
+
+	tt_int_op(206, ==, evbuffer_get_length(buf));
+
+	/* First, let's test plain old copyout. */
+
+	/* Copy a little from the beginning. */
+	tt_int_op(10, ==, evbuffer_copyout(buf, tmp, 10));
+	tt_int_op(0, ==, memcmp(tmp, "Still they", 10));
+
+	/* Now copy more than a little from the beginning */
+	memset(tmp, 0, sizeof(tmp));
+	tt_int_op(100, ==, evbuffer_copyout(buf, tmp, 100));
+	tt_int_op(0, ==, memcmp(tmp, string, 100));
+
+	/* Copy too much; ensure truncation. */
+	memset(tmp, 0, sizeof(tmp));
+	tt_int_op(206, ==, evbuffer_copyout(buf, tmp, 230));
+	tt_int_op(0, ==, memcmp(tmp, string, 206));
+
+	/* That was supposed to be nondestructive, btw */
+	tt_int_op(206, ==, evbuffer_get_length(buf));
+
+	/* Now it's time to test copyout_from!  First, let's start in the
+	 * first chain. */
+	evbuffer_ptr_set(buf, &ptr, 15, EVBUFFER_PTR_SET);
+	memset(tmp, 0, sizeof(tmp));
+	tt_int_op(10, ==, evbuffer_copyout_from(buf, &ptr, tmp, 10));
+	tt_int_op(0, ==, memcmp(tmp, "mish to an", 10));
+
+	/* Right up to the end of the first chain */
+	memset(tmp, 0, sizeof(tmp));
+	tt_int_op(65, ==, evbuffer_copyout_from(buf, &ptr, tmp, 65));
+	tt_int_op(0, ==, memcmp(tmp, string+15, 65));
+
+	/* Span into the second chain */
+	memset(tmp, 0, sizeof(tmp));
+	tt_int_op(90, ==, evbuffer_copyout_from(buf, &ptr, tmp, 90));
+	tt_int_op(0, ==, memcmp(tmp, string+15, 90));
+
+	/* Span into the third chain */
+	memset(tmp, 0, sizeof(tmp));
+	tt_int_op(160, ==, evbuffer_copyout_from(buf, &ptr, tmp, 160));
+	tt_int_op(0, ==, memcmp(tmp, string+15, 160));
+
+	/* Overrun */
+	memset(tmp, 0, sizeof(tmp));
+	tt_int_op(206-15, ==, evbuffer_copyout_from(buf, &ptr, tmp, 999));
+	tt_int_op(0, ==, memcmp(tmp, string+15, 206-15));
+
+	/* That was supposed to be nondestructive, too */
+	tt_int_op(206, ==, evbuffer_get_length(buf));
+
+end:
+	if (buf)
+		evbuffer_free(buf);
+}
+
 static void *
 setup_passthrough(const struct testcase_t *testcase)
 {
@@ -1936,6 +2017,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },
 	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
 	{ "add_iovec", test_evbuffer_add_iovec, 0, NULL, NULL},
+	{ "copyout", test_evbuffer_copyout, 0, NULL, NULL},
 
 #define ADDFILE_TEST(name, parameters)					\
 	{ name, test_evbuffer_add_file, TT_FORK|TT_NEED_BASE,		\

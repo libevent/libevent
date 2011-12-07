@@ -353,6 +353,20 @@ int evbuffer_remove(struct evbuffer *buf, void *data, size_t datlen);
 ev_ssize_t evbuffer_copyout(struct evbuffer *buf, void *data_out, size_t datlen);
 
 /**
+  Read data from the middle of an evbuffer, and leave the buffer unchanged.
+
+  If more bytes are requested than are available in the evbuffer, we
+  only extract as many bytes as were available.
+
+  @param buf the evbuffer to be read from
+  @param pos the position to start reading from
+  @param data_out the destination buffer to store the result
+  @param datlen the maximum size of the destination buffer
+  @return the number of bytes read, or -1 if we can't drain the buffer.
+ */
+ev_ssize_t evbuffer_copyout_from(struct evbuffer *buf, const struct evbuffer_ptr *pos, void *data_out, size_t datlen);
+
+/**
   Read data from an evbuffer into another evbuffer, draining
   the bytes from the source buffer.  This function avoids copy
   operations to the extent possible.
