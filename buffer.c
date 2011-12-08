@@ -150,7 +150,7 @@ static struct evbuffer_chain *evbuffer_expand_singlechain(struct evbuffer *buf,
 static int evbuffer_ptr_subtract(struct evbuffer *buf, struct evbuffer_ptr *pos,
     size_t howfar);
 static int evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg);
-
+static inline void evbuffer_chain_incref(struct evbuffer_chain *chain);
 
 static struct evbuffer_chain *
 evbuffer_chain_new(size_t size)
@@ -178,17 +178,29 @@ evbuffer_chain_new(size_t size)
 	 */
 	chain->buffer = EVBUFFER_CHAIN_EXTRA(u_char, chain);
 
+	chain->refcnt = 1;
+
 	return (chain);
 }
 
 static inline void
 evbuffer_chain_free(struct evbuffer_chain *chain)
 {
+	EVUTIL_ASSERT(chain->refcnt > 0);
+	if (--chain->refcnt > 0) {
+		// chain is still referenced by other chains
+		return;
+	}
+	
 	if (CHAIN_PINNED(chain)) {
+		// will get freed once no longer dangling
+		chain->refcnt++;
 		chain->flags |= EVBUFFER_DANGLING;
 		return;
 	}
-
+	
+	// safe to release chain, it's either a referencing
+	// chain or all references to it have been freed
 	if (chain->flags & EVBUFFER_REFERENCE) {
 		struct evbuffer_chain_reference *info =
 		    EVBUFFER_CHAIN_EXTRA(
@@ -211,6 +223,21 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 #endif
 			evbuffer_file_segment_free(info->segment);
 		}
+	}
+	if (chain->flags & EVBUFFER_MULTICAST) {
+		struct evbuffer_multicast_parent *info =
+		    EVBUFFER_CHAIN_EXTRA(
+			    struct evbuffer_multicast_parent,
+			    chain);
+		// referencing chain is being freed, decrease
+		// refcounts of source chain and associated
+		// evbuffer (which get freed once both reach
+		// zero)
+		EVUTIL_ASSERT(info->source != NULL);
+		EVUTIL_ASSERT(info->parent != NULL);
+		EVBUFFER_LOCK(info->source);
+		evbuffer_chain_free(info->parent);
+		_evbuffer_decref_and_unlock(info->source);
 	}
 
 	mm_free(chain);
@@ -314,6 +341,12 @@ _evbuffer_chain_unpin(struct evbuffer_chain *chain, unsigned flag)
 	chain->flags &= ~flag;
 	if (chain->flags & EVBUFFER_DANGLING)
 		evbuffer_chain_free(chain);
+}
+
+static inline void
+evbuffer_chain_incref(struct evbuffer_chain *chain)
+{
+    ++chain->refcnt;
 }
 
 struct evbuffer *
@@ -853,6 +886,46 @@ APPEND_CHAIN(struct evbuffer *dst, struct evbuffer *src)
 	dst->total_len += src->total_len;
 }
 
+static inline void
+APPEND_CHAIN_MULTICAST(struct evbuffer *dst, struct evbuffer *src)
+{
+	struct evbuffer_chain *tmp;
+	struct evbuffer_chain *chain = src->first;
+	struct evbuffer_multicast_parent *extra;
+
+	ASSERT_EVBUFFER_LOCKED(dst);
+	ASSERT_EVBUFFER_LOCKED(src);
+
+	for (; chain; chain = chain->next) {
+		if (!chain->off || chain->flags & EVBUFFER_DANGLING) {
+			// skip empty chains
+			continue;
+		}
+
+		tmp = evbuffer_chain_new(sizeof(struct evbuffer_multicast_parent));
+		if (!tmp) {
+			event_warn("%s: out of memory", __func__);
+			return;
+		}
+		extra = EVBUFFER_CHAIN_EXTRA(struct evbuffer_multicast_parent, tmp);
+		// reference evbuffer containing source chain so it
+		// doesn't get released while the chain is still
+		// being referenced to
+		_evbuffer_incref(src);
+		extra->source = src;
+		// reference source chain which now becomes immutable
+		evbuffer_chain_incref(chain);
+		extra->parent = chain;
+		chain->flags |= EVBUFFER_IMMUTABLE;
+		tmp->buffer_len = chain->buffer_len;
+		tmp->misalign = chain->misalign;
+		tmp->off = chain->off;
+		tmp->flags |= EVBUFFER_MULTICAST|EVBUFFER_IMMUTABLE;
+		tmp->buffer = chain->buffer;
+		evbuffer_chain_insert(dst, tmp);
+	}
+}
+
 static void
 PREPEND_CHAIN(struct evbuffer *dst, struct evbuffer *src)
 {
@@ -910,6 +983,49 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	outbuf->n_add_for_cb += in_total_len;
 
 	evbuffer_invoke_callbacks(inbuf);
+	evbuffer_invoke_callbacks(outbuf);
+
+done:
+	EVBUFFER_UNLOCK2(inbuf, outbuf);
+	return result;
+}
+
+int
+evbuffer_add_buffer_reference(struct evbuffer *outbuf, struct evbuffer *inbuf)
+{
+	size_t in_total_len, out_total_len;
+	struct evbuffer_chain *chain;
+	int result = 0;
+
+	EVBUFFER_LOCK2(inbuf, outbuf);
+	in_total_len = inbuf->total_len;
+	out_total_len = outbuf->total_len;
+	chain = inbuf->first;
+
+	if (in_total_len == 0)
+		goto done;
+
+	if (outbuf->freeze_end || outbuf == inbuf) {
+		result = -1;
+		goto done;
+	}
+
+	for (; chain; chain = chain->next) {
+		if ((chain->flags & (EVBUFFER_FILESEGMENT|EVBUFFER_SENDFILE|EVBUFFER_MULTICAST)) != 0) {
+			// chain type can not be referenced
+			result = -1;
+			goto done;
+		}
+	}
+
+	if (out_total_len == 0) {
+		/* There might be an empty chain at the start of outbuf; free
+		 * it. */
+		evbuffer_free_all_chains(outbuf->first);
+	}
+	APPEND_CHAIN_MULTICAST(outbuf, inbuf);
+
+	outbuf->n_add_for_cb += in_total_len;
 	evbuffer_invoke_callbacks(outbuf);
 
 done:

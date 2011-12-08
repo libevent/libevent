@@ -185,6 +185,11 @@ struct evbuffer_chain {
 	/** a chain that should be freed, but can't be freed until it is
 	 * un-pinned. */
 #define EVBUFFER_DANGLING	0x0040
+	/** a chain that is a referenced copy of another chain */
+#define EVBUFFER_MULTICAST	0x0080
+
+	/** number of references to this chain */
+	int refcnt;
 
 	/** Usually points to the read-write memory belonging to this
 	 * buffer allocated as part of the evbuffer_chain allocation.
@@ -241,6 +246,15 @@ struct evbuffer_file_segment {
 	ev_off_t mmap_offset;
 	/** The length of this segment. */
 	ev_off_t length;
+};
+
+/** Information about the multicast parent of a chain.  Lives at the
+ * end of an evbuffer_chain with the EVBUFFER_MULTICAST flag set.  */
+struct evbuffer_multicast_parent {
+	/** source buffer the multicast parent belongs to */
+	struct evbuffer *source;
+	/** multicast parent for this chain */
+	struct evbuffer_chain *parent;
 };
 
 #define EVBUFFER_CHAIN_SIZE sizeof(struct evbuffer_chain)
