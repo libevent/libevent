@@ -332,6 +332,7 @@ AC_CHECK_FUNCS([ \
   strsep \
   strtok_r \
   strtoll \
+  sysctl \
   unsetenv \
   vasprintf \
 ])

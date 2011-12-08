@@ -167,7 +167,7 @@ arc4_seed_win32(void)
 }
 #endif
 
-#if defined(_EVENT_HAVE_SYS_SYSCTL_H)
+#if defined(_EVENT_HAVE_SYS_SYSCTL_H) && defined(_EVENT_HAVE_SYSCTL)
 #if _EVENT_HAVE_DECL_CTL_KERN && _EVENT_HAVE_DECL_KERN_RANDOM && _EVENT_HAVE_DECL_RANDOM_UUID
 #define TRY_SEED_SYSCTL_LINUX
 static int
