@@ -1618,13 +1618,13 @@ test_evbuffer_multicast(void *ptr)
 	buf2 = evbuffer_new();
 	tt_assert(buf2);
 
-    tt_int_op(evbuffer_add_buffer_reference(buf2, buf1), ==, 0);
-    // nested references are not allowed
-    tt_int_op(evbuffer_add_buffer_reference(buf2, buf2), ==, -1);
-    tt_int_op(evbuffer_add_buffer_reference(buf1, buf2), ==, -1);
+	tt_int_op(evbuffer_add_buffer_reference(buf2, buf1), ==, 0);
+	// nested references are not allowed
+	tt_int_op(evbuffer_add_buffer_reference(buf2, buf2), ==, -1);
+	tt_int_op(evbuffer_add_buffer_reference(buf1, buf2), ==, -1);
 
-    // both buffers contain the same amount of data
-    tt_int_op(evbuffer_get_length(buf1), ==, evbuffer_get_length(buf1));
+	// both buffers contain the same amount of data
+	tt_int_op(evbuffer_get_length(buf1), ==, evbuffer_get_length(buf1));
 
 	/* Make sure we can drain a little from the first buffer. */
 	tt_int_op(evbuffer_remove(buf1, tmp, 6), ==, 6);
@@ -1648,10 +1648,10 @@ test_evbuffer_multicast(void *ptr)
 	tt_int_op(memcmp(chunk1, "If you", 6), ==, 0);
 	evbuffer_validate(buf2);
 
-    /* Make sure the data can be read from the second buffer when the first is freed */
+	/* Make sure the data can be read from the second buffer when the first is freed */
 	evbuffer_free(buf1);
 	buf1 = NULL;
-    
+
 	tt_int_op(evbuffer_remove(buf2, tmp, 6), ==, 6);
 	tt_int_op(memcmp(tmp, "I have", 6), ==, 0);
 
@@ -1686,11 +1686,11 @@ test_evbuffer_multicast_drain(void *ptr)
 	buf2 = evbuffer_new();
 	tt_assert(buf2);
 
-    tt_int_op(evbuffer_add_buffer_reference(buf2, buf1), ==, 0);
+	tt_int_op(evbuffer_add_buffer_reference(buf2, buf1), ==, 0);
 	tt_int_op(evbuffer_get_length(buf2), ==, len1+len2+2);
-    tt_int_op(evbuffer_drain(buf1, evbuffer_get_length(buf1)), ==, 0);
+	tt_int_op(evbuffer_drain(buf1, evbuffer_get_length(buf1)), ==, 0);
 	tt_int_op(evbuffer_get_length(buf2), ==, len1+len2+2);
-    tt_int_op(evbuffer_drain(buf2, evbuffer_get_length(buf2)), ==, 0);
+	tt_int_op(evbuffer_drain(buf2, evbuffer_get_length(buf2)), ==, 0);
 	evbuffer_validate(buf1);
 	evbuffer_validate(buf2);
 

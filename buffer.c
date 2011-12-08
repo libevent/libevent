@@ -35,7 +35,7 @@
 #endif
 
 #ifdef _EVENT_HAVE_VASPRINTF
-/* If we have vasprintf, we need to define _GNU_SOURCE before we include 
+/* If we have vasprintf, we need to define _GNU_SOURCE before we include
  * stdio.h.  This comes from evconfig-private.h.
  */
 #endif
@@ -191,14 +191,14 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 		// chain is still referenced by other chains
 		return;
 	}
-	
+
 	if (CHAIN_PINNED(chain)) {
 		// will get freed once no longer dangling
 		chain->refcnt++;
 		chain->flags |= EVBUFFER_DANGLING;
 		return;
 	}
-	
+
 	// safe to release chain, it's either a referencing
 	// chain or all references to it have been freed
 	if (chain->flags & EVBUFFER_REFERENCE) {
