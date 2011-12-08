@@ -546,9 +546,6 @@ evutil_found_ifaddr(const struct sockaddr *sa)
 {
 	const char ZEROES[] = "\x00\x00\x00\x00\x00\x00\x00\x00"
 	    "\x00\x00\x00\x00\x00\x00\x00\x00";
-	char buf[128];
-
-	printf("Sockaddr is %s\n", evutil_format_sockaddr_port(sa, buf, sizeof(buf)));
 
 	if (sa->sa_family == AF_INET) {
 		const struct sockaddr_in *sin = (struct sockaddr_in *)sa;
