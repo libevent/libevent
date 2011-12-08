@@ -1780,6 +1780,10 @@ test_evbuffer_peek(void *info)
 		evbuffer_add_buffer(buf, tmp_buf);
 	}
 
+	/* How many chunks do we need for everything? */
+	i = evbuffer_peek(buf, -1, NULL, NULL, 0);
+	tt_int_op(i, ==, 16);
+
 	/* Simple peek: get everything. */
 	i = evbuffer_peek(buf, -1, NULL, v, 20);
 	tt_int_op(i, ==, 16); /* we used only 16 chunks. */
