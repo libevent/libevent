@@ -428,6 +428,12 @@ struct evhttp_connection *evhttp_connection_base_new(
 	struct event_base *base, struct evdns_base *dnsbase,
 	const char *address, unsigned short port);
 
+/**
+ * Return the bufferevent that an evhttp_connection is using.
+ */
+struct bufferevent *evhttp_connection_get_bufferevent(
+	struct evhttp_connection *evcon);
+
 /** Takes ownership of the request object
  *
  * Can be used in a request callback to keep onto the request until

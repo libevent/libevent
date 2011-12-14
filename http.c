@@ -2117,6 +2117,12 @@ evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
 	return (NULL);
 }
 
+struct bufferevent *
+evhttp_connection_get_bufferevent(struct evhttp_connection *evcon)
+{
+	return evcon->bufev;
+}
+
 void
 evhttp_connection_set_base(struct evhttp_connection *evcon,
     struct event_base *base)
