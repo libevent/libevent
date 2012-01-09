@@ -1127,7 +1127,7 @@ event_signal_closure(struct event_base *base, struct event *ev)
 		ev->ev_ncalls = ncalls;
 		if (ncalls == 0)
 			ev->ev_pncalls = NULL;
-		(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
+		(*ev->ev_callback)(ev->ev_fd, ev->ev_res, ev->ev_arg);
 
 		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 		should_break = base->event_break;
@@ -1358,7 +1358,7 @@ event_persist_closure(struct event_base *base, struct event *ev)
 		event_add_internal(ev, &run_at, 1);
 	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
-	(*ev->ev_callback)((int)ev->ev_fd, ev->ev_res, ev->ev_arg);
+	(*ev->ev_callback)(ev->ev_fd, ev->ev_res, ev->ev_arg);
 }
 
 /*
@@ -1409,7 +1409,7 @@ event_process_active_single_queue(struct event_base *base,
 		case EV_CLOSURE_NONE:
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			(*ev->ev_callback)(
-				(int)ev->ev_fd, ev->ev_res, ev->ev_arg);
+				ev->ev_fd, ev->ev_res, ev->ev_arg);
 			break;
 		}
 

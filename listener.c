@@ -392,6 +392,12 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 		evutil_socket_t new_fd = accept(fd, (struct sockaddr*)&ss, &socklen);
 		if (new_fd < 0)
 			break;
+		if (socklen == 0) {
+			/* This can happen with some older linux kernels in
+			 * response to nmap. */
+			evutil_closesocket(new_fd);
+			continue;
+		}
 
 		if (!(lev->flags & LEV_OPT_LEAVE_SOCKETS_BLOCKING))
 			evutil_make_socket_nonblocking(new_fd);
