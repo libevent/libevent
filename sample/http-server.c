@@ -134,7 +134,7 @@ dump_request_cb(struct evhttp_request *req, void *arg)
 		char cbuf[128];
 		n = evbuffer_remove(buf, cbuf, sizeof(buf)-1);
 		if (n > 0)
-		    fwrite(cbuf, 1, n, stdout);
+			(void) fwrite(cbuf, 1, n, stdout);
 	}
 	puts(">>>");
 
