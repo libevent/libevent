@@ -83,6 +83,16 @@ struct name {					\
 }
 #endif
 
+/* Fix so that people don't have to run with <sys/queue.h> */
+#ifndef LIST_ENTRY
+#define _EVENT_DEFINED_LISTENTRY
+#define LIST_ENTRY(type)						\
+struct {								\
+	struct type *le_next;	/* next element */			\
+	struct type **le_prev;	/* address of previous next element */	\
+}
+#endif /* !TAILQ_ENTRY */
+
 struct event_base;
 struct event {
 	TAILQ_ENTRY(event) ev_active_next;
@@ -99,13 +109,13 @@ struct event {
 	union {
 		/* used for io events */
 		struct {
-			TAILQ_ENTRY(event) ev_io_next;
+			LIST_ENTRY (event) ev_io_next;
 			struct timeval ev_timeout;
 		} ev_io;
 
 		/* used by signal events */
 		struct {
-			TAILQ_ENTRY(event) ev_signal_next;
+			LIST_ENTRY (event) ev_signal_next;
 			short ev_ncalls;
 			/* Allows deletes in callback */
 			short *ev_pncalls;
@@ -133,6 +143,14 @@ TAILQ_HEAD (event_list, event);
 #ifdef _EVENT_DEFINED_TQHEAD
 #undef TAILQ_HEAD
 #endif
+
+#ifdef _EVENT_DEFINED_LISTENTRY
+#undef LIST_ENTRY
+struct event_dlist;
+#undef _EVENT_DEFINED_LISTENTRY
+#else
+LIST_HEAD (event_dlist, event);
+#endif /* _EVENT_DEFINED_LISTENTRY */
 
 #ifdef __cplusplus
 }

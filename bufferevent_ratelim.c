@@ -360,7 +360,7 @@ _bev_group_suspend_reading(struct bufferevent_rate_limit_group *g)
 	   bufferevent, it will find out later when it looks at its limit
 	   and sees that its group is suspended.
 	*/
-	TAILQ_FOREACH(bev, &g->members, rate_limiting->next_in_group) {
+	LIST_FOREACH(bev, &g->members, rate_limiting->next_in_group) {
 		if (EVLOCK_TRY_LOCK(bev->lock)) {
 			bufferevent_suspend_read(&bev->bev,
 			    BEV_SUSPEND_BW_GROUP);
@@ -378,7 +378,7 @@ _bev_group_suspend_writing(struct bufferevent_rate_limit_group *g)
 	struct bufferevent_private *bev;
 	g->write_suspended = 1;
 	g->pending_unsuspend_write = 0;
-	TAILQ_FOREACH(bev, &g->members, rate_limiting->next_in_group) {
+	LIST_FOREACH(bev, &g->members, rate_limiting->next_in_group) {
 		if (EVLOCK_TRY_LOCK(bev->lock)) {
 			bufferevent_suspend_write(&bev->bev,
 			    BEV_SUSPEND_BW_GROUP);
@@ -450,13 +450,13 @@ _bev_group_random_element(struct bufferevent_rate_limit_group *group)
 	if (!group->n_members)
 		return NULL;
 
-	EVUTIL_ASSERT(! TAILQ_EMPTY(&group->members));
+	EVUTIL_ASSERT(! LIST_EMPTY(&group->members));
 
 	which = _evutil_weakrand() % group->n_members;
 
-	bev = TAILQ_FIRST(&group->members);
+	bev = LIST_FIRST(&group->members);
 	while (which--)
-		bev = TAILQ_NEXT(bev, rate_limiting->next_in_group);
+		bev = LIST_NEXT(bev, rate_limiting->next_in_group);
 
 	return bev;
 }
@@ -471,12 +471,12 @@ _bev_group_random_element(struct bufferevent_rate_limit_group *group)
 #define FOREACH_RANDOM_ORDER(block)			\
 	do {						\
 		first = _bev_group_random_element(g);	\
-		for (bev = first; bev != TAILQ_END(&g->members); \
-		    bev = TAILQ_NEXT(bev, rate_limiting->next_in_group)) { \
+		for (bev = first; bev != LIST_END(&g->members); \
+		    bev = LIST_NEXT(bev, rate_limiting->next_in_group)) { \
 			block ;					 \
 		}						 \
-		for (bev = TAILQ_FIRST(&g->members); bev && bev != first; \
-		    bev = TAILQ_NEXT(bev, rate_limiting->next_in_group)) { \
+		for (bev = LIST_FIRST(&g->members); bev && bev != first; \
+		    bev = LIST_NEXT(bev, rate_limiting->next_in_group)) { \
 			block ;						\
 		}							\
 	} while (0)
@@ -647,7 +647,7 @@ bufferevent_rate_limit_group_new(struct event_base *base,
 	if (!g)
 		return NULL;
 	memcpy(&g->rate_limit_cfg, cfg, sizeof(g->rate_limit_cfg));
-	TAILQ_INIT(&g->members);
+	LIST_INIT(&g->members);
 
 	ev_token_bucket_init(&g->rate_limit, cfg, tick, 0);
 
@@ -757,7 +757,7 @@ bufferevent_add_to_rate_limit_group(struct bufferevent *bev,
 	LOCK_GROUP(g);
 	bevp->rate_limiting->group = g;
 	++g->n_members;
-	TAILQ_INSERT_TAIL(&g->members, bevp, rate_limiting->next_in_group);
+	LIST_INSERT_HEAD(&g->members, bevp, rate_limiting->next_in_group);
 
 	rsuspend = g->read_suspended;
 	wsuspend = g->write_suspended;
@@ -792,7 +792,7 @@ bufferevent_remove_from_rate_limit_group_internal(struct bufferevent *bev,
 		LOCK_GROUP(g);
 		bevp->rate_limiting->group = NULL;
 		--g->n_members;
-		TAILQ_REMOVE(&g->members, bevp, rate_limiting->next_in_group);
+		LIST_REMOVE(bevp, rate_limiting->next_in_group);
 		UNLOCK_GROUP(g);
 	}
 	if (unsuspend) {

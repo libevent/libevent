@@ -66,7 +66,7 @@ typedef ev_uint16_t bufferevent_suspend_flags;
 
 struct bufferevent_rate_limit_group {
 	/** List of all members in the group */
-	TAILQ_HEAD(rlim_group_member_list, bufferevent_private) members;
+	LIST_HEAD(rlim_group_member_list, bufferevent_private) members;
 	/** Current limits for the group. */
 	struct ev_token_bucket rate_limit;
 	struct ev_token_bucket_cfg rate_limit_cfg;
@@ -117,7 +117,7 @@ struct bufferevent_rate_limit {
 	 *
 	 * Note that this field is supposed to be protected by the group
 	 * lock */
-	TAILQ_ENTRY(bufferevent_private) next_in_group;
+	LIST_ENTRY(bufferevent_private) next_in_group;
 	/** The rate-limiting group for this bufferevent, or NULL if it is
 	 * only rate-limited on its own. */
 	struct bufferevent_rate_limit_group *group;

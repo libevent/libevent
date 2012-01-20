@@ -60,7 +60,7 @@ extern "C" {
  * when bytes are added to or removed from the evbuffer. */
 struct evbuffer_cb_entry {
 	/** Structures to implement a doubly-linked queue of callbacks */
-	TAILQ_ENTRY(evbuffer_cb_entry) next;
+	LIST_ENTRY(evbuffer_cb_entry) next;
 	/** The callback function to invoke when this callback is called.
 	    If EVBUFFER_CB_OBSOLETE is set in flags, the cb_obsolete field is
 	    valid; otherwise, cb_func is valid. */
@@ -147,7 +147,7 @@ struct evbuffer {
 	struct deferred_cb deferred;
 
 	/** A doubly-linked-list of callback functions */
-	TAILQ_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
+	LIST_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;
 
 	/** The parent bufferevent object this evbuffer belongs to.
 	 * NULL if the evbuffer stands alone. */
