@@ -1468,7 +1468,7 @@ evhttp_parse_http_version(const char *version, struct evhttp_request *req)
 	int major, minor;
 	char ch;
 	int n = sscanf(version, "HTTP/%d.%d%c", &major, &minor, &ch);
-	if (n > 2 || major > 1) {
+	if (n != 2 || major > 1) {
 		event_debug(("%s: bad version %s on message %p from %s",
 			__func__, version, req, req->remote_host));
 		return (-1);
