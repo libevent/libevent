@@ -2849,3 +2849,38 @@ event_global_setup_locks_(const int enable_locks)
 	return 0;
 }
 #endif
+
+void
+event_base_assert_ok(struct event_base *base)
+{
+	int i;
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	evmap_check_integrity(base);
+
+	/* Check the heap property */
+	for (i = 1; i < (int)base->timeheap.n; ++i) {
+		int parent = (i - 1) / 2;
+		struct event *ev, *p_ev;
+		ev = base->timeheap.p[i];
+		p_ev = base->timeheap.p[parent];
+		EVUTIL_ASSERT(ev->ev_flags & EV_TIMEOUT);
+		EVUTIL_ASSERT(evutil_timercmp(&p_ev->ev_timeout, &ev->ev_timeout, <=));
+		EVUTIL_ASSERT(ev->ev_timeout_pos.min_heap_idx == i);
+	}
+
+	/* Check that the common timeouts are fine */
+	for (i = 0; i < base->n_common_timeouts; ++i) {
+		struct common_timeout_list *ctl = base->common_timeout_queues[i];
+		struct event *last=NULL, *ev;
+		TAILQ_FOREACH(ev, &ctl->events, ev_timeout_pos.ev_next_with_common_timeout) {
+			if (last)
+				EVUTIL_ASSERT(evutil_timercmp(&last->ev_timeout, &ev->ev_timeout, <=));
+			EVUTIL_ASSERT(ev->ev_flags & EV_TIMEOUT);
+			EVUTIL_ASSERT(is_common_timeout(&ev->ev_timeout,base));
+			EVUTIL_ASSERT(COMMON_TIMEOUT_IDX(&ev->ev_timeout) == i);
+			last = ev;
+		}
+	}
+
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+}
