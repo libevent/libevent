@@ -76,6 +76,7 @@
 #include "tinytest.h"
 #include "tinytest_macros.h"
 #include "../iocp-internal.h"
+#include "../event-internal.h"
 
 long
 timeval_msec_diff(const struct timeval *start, const struct timeval *end)
@@ -254,8 +255,10 @@ basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
 	}
 
 	if (testcase->flags & TT_NEED_BASE) {
-		if (data->base)
+		if (data->base) {
+			event_base_assert_ok(data->base);
 			event_base_free(data->base);
+		}
 	}
 
 	free(data);
