@@ -576,6 +576,11 @@ evutil_found_ifaddr(const struct sockaddr *sa)
 	}
 }
 
+#ifdef _WIN32
+typedef ULONG (WINAPI *GetAdaptersAddresses_fn_t)(
+              ULONG, ULONG, PVOID, PIP_ADAPTER_ADDRESSES, PULONG);
+#endif
+
 static int
 evutil_check_ifaddrs(void)
 {
@@ -627,7 +632,7 @@ evutil_check_ifaddrs(void)
 	if (res == ERROR_BUFFER_OVERFLOW) {
 		/* we didn't guess that we needed enough space; try again */
 		mm_free(addresses);
-		addresses = tor_malloc(size);
+		addresses = mm_malloc(size);
 		if (!addresses)
 			goto done;
 		res = fn(AF_UNSPEC, FLAGS, NULL, addresses, &size);
@@ -635,7 +640,6 @@ evutil_check_ifaddrs(void)
 	if (res != NO_ERROR)
 		goto done;
 
-	result = smartlist_create();
 	for (address = addresses; address; address = address->Next) {
 		IP_ADAPTER_UNICAST_ADDRESS *a;
 		for (a = address->FirstUnicastAddress; a; a = a->Next) {
