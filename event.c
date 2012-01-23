@@ -856,6 +856,13 @@ event_reinit(struct event_base *base)
 
 	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
 		if (ev->ev_events & (EV_READ|EV_WRITE)) {
+			if (ev == &base->sig.ev_signal) {
+				/* If we run into the ev_signal event, it's only
+				 * in eventqueue because some signal event was
+				 * added, which made evsig_add re-add ev_signal.
+				 * So don't double-add it. */
+				continue;
+			}
 			if (evmap_io_add(base, ev->ev_fd, ev) == -1)
 				res = -1;
 		} else if (ev->ev_events & EV_SIGNAL) {
