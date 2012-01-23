@@ -820,6 +820,10 @@ event_reinit(struct event_base *base)
 		if (base->sig.ev_signal.ev_flags & EVLIST_ACTIVE)
 			event_queue_remove(base, &base->sig.ev_signal,
 			    EVLIST_ACTIVE);
+		if (base->sig.ev_signal_pair[0] != -1)
+			EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);
+		if (base->sig.ev_signal_pair[1] != -1)
+			EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[1]);
 		base->sig.ev_signal_added = 0;
 	}
 	if (base->th_notify_fd[0] != -1) {
