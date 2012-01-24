@@ -493,9 +493,8 @@ thread_deferred_cb_skew(void *arg)
 	TT_BLATHER(("elapsed time, %u usec", elapsed_usec));
 
 	/* XXX be more intelligent here.  just make sure skew is
-	 * within .3 seconds for now. */
-
-	tt_assert(elapsed_usec >= 700000 && elapsed_usec <= 1200000);
+	 * within .4 seconds for now. */
+	tt_assert(elapsed_usec >= 600000 && elapsed_usec <= 1400000);
 
 end:
 	for (i = 0; i < QUEUE_THREAD_COUNT; ++i)
