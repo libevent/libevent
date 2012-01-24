@@ -628,7 +628,7 @@ http_large_delay_cb(struct evhttp_request *req, void *arg)
 {
 	struct timeval tv;
 	evutil_timerclear(&tv);
-	tv.tv_sec = 3;
+	tv.tv_usec = 500000;
 
 	event_base_once(arg, -1, EV_TIMEOUT, http_delay_reply, req, &tv);
 	evhttp_connection_fail(delayed_client, EVCON_HTTP_EOF);
@@ -1769,7 +1769,7 @@ close_detect_done(struct evhttp_request *req, void *arg)
 
  end:
 	evutil_timerclear(&tv);
-	tv.tv_sec = 3;
+	tv.tv_usec = 150000;
 	event_base_loopexit(arg, &tv);
 }
 
@@ -1803,9 +1803,10 @@ close_detect_cb(struct evhttp_request *req, void *arg)
 	}
 
 	evutil_timerclear(&tv);
-	tv.tv_sec = 3;   /* longer than the http time out */
+	tv.tv_sec = 0;   /* longer than the http time out */
+	tv.tv_usec = 600000;   /* longer than the http time out */
 
-	/* launch a new request on the persistent connection in 3 seconds */
+	/* launch a new request on the persistent connection in .3 seconds */
 	event_base_once(base, -1, EV_TIMEOUT, close_detect_launch, evcon, &tv);
  end:
 	;
@@ -1818,15 +1819,19 @@ _http_close_detection(struct basic_test_data *data, int with_delay)
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
+	const struct timeval sec_tenth = { 0, 100000 };
 
 	test_ok = 0;
 	http = http_setup(&port, data->base);
 
-	/* 2 second timeout */
-	evhttp_set_timeout(http, 1);
+	/* .1 second timeout */
+	evhttp_set_timeout_tv(http, &sec_tenth);
 
 	evcon = evhttp_connection_base_new(data->base, NULL,
 	    "127.0.0.1", port);
+	evhttp_connection_set_timeout_tv(evcon, &sec_tenth);
+
+
 	tt_assert(evcon);
 	delayed_client = evcon;
 
@@ -3143,7 +3148,12 @@ http_connection_retry_test(void *arg)
 	 */
 	test_ok = 0;
 
-	evhttp_connection_set_timeout(evcon, 1);
+	{
+		const struct timeval tv_timeout = { 0, 300000 };
+		const struct timeval tv_retry = { 0, 200000 };
+		evhttp_connection_set_timeout_tv(evcon, &tv_timeout);
+		evhttp_connection_set_initial_retry_tv(evcon, &tv_retry);
+	}
 	evhttp_connection_set_retries(evcon, 1);
 
 	req = evhttp_request_new(http_connection_retry_done, data->base);
@@ -3160,9 +3170,9 @@ http_connection_retry_test(void *arg)
 	evutil_gettimeofday(&tv_start, NULL);
 	event_base_dispatch(data->base);
 	evutil_gettimeofday(&tv_end, NULL);
-	evutil_timersub(&tv_end, &tv_start, &tv_end);
-	tt_int_op(tv_end.tv_sec, >, 1);
-	tt_int_op(tv_end.tv_sec, <, 6);
+
+	/* fails fast, .2 sec to wait to retry, fails fast again. */
+	test_timeval_diff_eq(&tv_start, &tv_end, 200);
 
 	tt_assert(test_ok == 1);
 
@@ -3186,22 +3196,19 @@ http_connection_retry_test(void *arg)
 		tt_abort_msg("Couldn't make request");
 	}
 
-	/* start up a web server one second after the connection tried
+	/* start up a web server .2 seconds after the connection tried
 	 * to send a request
 	 */
 	evutil_timerclear(&tv);
-	tv.tv_sec = 1;
+	tv.tv_usec = 200000;
 	http_make_web_server_base = data->base;
 	event_base_once(data->base, -1, EV_TIMEOUT, http_make_web_server, &port, &tv);
 
 	evutil_gettimeofday(&tv_start, NULL);
 	event_base_dispatch(data->base);
 	evutil_gettimeofday(&tv_end, NULL);
-
-	evutil_timersub(&tv_end, &tv_start, &tv_end);
-
-	tt_int_op(tv_end.tv_sec, >, 1);
-	tt_int_op(tv_end.tv_sec, <, 6);
+	/* We'll wait twice as long as we did last time. */
+	test_timeval_diff_eq(&tv_start, &tv_end, 400);
 
 	tt_int_op(test_ok, ==, 1);
 

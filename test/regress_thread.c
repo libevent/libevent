@@ -60,6 +60,7 @@
 #include "evthread-internal.h"
 #include "event-internal.h"
 #include "defer-internal.h"
+#include "util-internal.h"
 #include "regress.h"
 #include "tinytest_macros.h"
 
@@ -403,19 +404,22 @@ end:
 #define CB_COUNT 128
 #define QUEUE_THREAD_COUNT 8
 
-#ifdef _WIN32
-#define SLEEP_MS(ms) Sleep(ms)
-#else
-#define SLEEP_MS(ms) usleep((ms) * 1000)
-#endif
+static void
+SLEEP_MS(int ms)
+{
+	struct timeval tv;
+	tv.tv_sec = ms/1000;
+	tv.tv_usec = (ms%1000)*1000;
+	evutil_usleep(&tv);
+}
 
 struct deferred_test_data {
 	struct deferred_cb cbs[CB_COUNT];
 	struct deferred_cb_queue *queue;
 };
 
-static time_t timer_start = 0;
-static time_t timer_end = 0;
+static struct timeval timer_start = {0,0};
+static struct timeval timer_end = {0,0};
 static unsigned callback_count = 0;
 static THREAD_T load_threads[QUEUE_THREAD_COUNT];
 static struct deferred_test_data deferred_data[QUEUE_THREAD_COUNT];
@@ -445,7 +449,7 @@ load_deferred_queue(void *arg)
 static void
 timer_callback(evutil_socket_t fd, short what, void *arg)
 {
-	timer_end = time(NULL);
+	evutil_gettimeofday(&timer_end, NULL);
 }
 
 static void
@@ -463,9 +467,10 @@ static void
 thread_deferred_cb_skew(void *arg)
 {
 	struct basic_test_data *data = arg;
-	struct timeval tv_timer = {4, 0};
+	struct timeval tv_timer = {1, 0};
 	struct deferred_cb_queue *queue;
-	time_t elapsed;
+	struct timeval elapsed;
+	int elapsed_usec;
 	int i;
 
 	queue = event_base_get_deferred_cb_queue(data->base);
@@ -474,19 +479,23 @@ thread_deferred_cb_skew(void *arg)
 	for (i = 0; i < QUEUE_THREAD_COUNT; ++i)
 		deferred_data[i].queue = queue;
 
-	timer_start = time(NULL);
+	evutil_gettimeofday(&timer_start, NULL);
 	event_base_once(data->base, -1, EV_TIMEOUT, timer_callback, NULL,
 			&tv_timer);
 	event_base_once(data->base, -1, EV_TIMEOUT, start_threads_callback,
 			NULL, NULL);
 	event_base_dispatch(data->base);
 
-	elapsed = timer_end - timer_start;
+	evutil_timersub(&timer_end, &timer_start, &elapsed);
 	TT_BLATHER(("callback count, %u", callback_count));
-	TT_BLATHER(("elapsed time, %u", (unsigned)elapsed));
+	elapsed_usec =
+	    (unsigned)(elapsed.tv_sec*1000000 + elapsed.tv_usec);
+	TT_BLATHER(("elapsed time, %u usec", elapsed_usec));
+
 	/* XXX be more intelligent here.  just make sure skew is
-	 * within 2 seconds for now. */
-	tt_assert(elapsed >= 4 && elapsed <= 6);
+	 * within .3 seconds for now. */
+
+	tt_assert(elapsed_usec >= 700000 && elapsed_usec <= 1200000);
 
 end:
 	for (i = 0; i < QUEUE_THREAD_COUNT; ++i)

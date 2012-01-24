@@ -746,8 +746,8 @@ test_bufferevent_timeouts(void *arg)
 	bufferevent_set_timeouts(bev2, &tv_r, &tv_w);
 	bufferevent_enable(bev2, EV_WRITE);
 
-	tv_r.tv_sec = 1;
-	tv_r.tv_usec = 0;
+	tv_r.tv_sec = 0;
+	tv_r.tv_usec = 350000;
 
 	event_base_loopexit(data->base, &tv_r);
 	event_base_dispatch(data->base);

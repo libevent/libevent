@@ -687,8 +687,8 @@ rpc_client_timeout(void)
 
 	pool = rpc_pool_with_connection(port);
 
-	/* set the timeout to 5 seconds */
-	evrpc_pool_set_timeout(pool, 5);
+	/* set the timeout to 1 second. */
+	evrpc_pool_set_timeout(pool, 1);
 
 	/* set up the basic message */
 	msg = msg_new();

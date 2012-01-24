@@ -684,9 +684,9 @@ dns_retry_test(void *arg)
 
 	dns = evdns_base_new(base, 0);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
-	tt_assert(! evdns_base_set_option(dns, "timeout", "0.3"));
+	tt_assert(! evdns_base_set_option(dns, "timeout", "0.2"));
 	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "10"));
-	tt_assert(! evdns_base_set_option(dns, "initial-probe-timeout", "0.5"));
+	tt_assert(! evdns_base_set_option(dns, "initial-probe-timeout", "0.1"));
 
 	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
 	    generic_dns_callback, &r1);
@@ -705,8 +705,8 @@ dns_retry_test(void *arg)
 	/* Now try again, but this time have the server get treated as
 	 * failed, so we can send it a test probe. */
 	drop_count = 4;
-	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "3"));
-	tt_assert(! evdns_base_set_option(dns, "attempts:", "4"));
+	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "2"));
+	tt_assert(! evdns_base_set_option(dns, "attempts:", "3"));
 	memset(&r1, 0, sizeof(r1));
 
 	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
@@ -883,6 +883,8 @@ be_getaddrinfo_server_cb(struct evdns_server_request *req, void *data)
 		struct in6_addr ans6;
 		memset(&ans6, 0, sizeof(ans6));
 
+		TT_BLATHER(("Got question about %s, type=%d", qname, qtype));
+
 		if (qtype == EVDNS_TYPE_A &&
 		    qclass == EVDNS_CLASS_INET &&
 		    !evutil_ascii_strcasecmp(qname, "nobodaddy.example.com")) {
@@ -983,10 +985,13 @@ be_getaddrinfo_server_cb(struct evdns_server_request *req, void *data)
 			TT_GRIPE(("Got weird request for %s",qname));
 		}
 	}
-	if (added_any)
+	if (added_any) {
+		TT_BLATHER(("answering"));
 		evdns_server_request_respond(req, 0);
-	else
+	} else {
+		TT_BLATHER(("saying nexist."));
 		evdns_server_request_respond(req, 3);
+	}
 }
 
 /* Implements a listener for connect_hostname test. */
@@ -1214,6 +1219,9 @@ test_getaddrinfo_async(void *arg)
 
 	/* for localhost */
 	evdns_base_load_hosts(dns_base, NULL);
+
+	tt_assert(! evdns_base_set_option(dns_base, "timeout", "0.3"));
+	tt_assert(! evdns_base_set_option(dns_base, "getaddrinfo-allow-skew", "0.2"));
 
 	memset(a_out, 0, sizeof(a_out));
 

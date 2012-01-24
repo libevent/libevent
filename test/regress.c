@@ -87,7 +87,6 @@ static struct timeval tcalled;
 
 
 #define TEST1	"this is a test"
-#define SECONDS	1
 
 #ifndef SHUT_WR
 #define SHUT_WR 1
@@ -233,21 +232,7 @@ multiple_read_cb(evutil_socket_t fd, short event, void *arg)
 static void
 timeout_cb(evutil_socket_t fd, short event, void *arg)
 {
-	struct timeval tv;
-	int diff;
-
 	evutil_gettimeofday(&tcalled, NULL);
-	if (evutil_timercmp(&tcalled, &tset, >))
-		evutil_timersub(&tcalled, &tset, &tv);
-	else
-		evutil_timersub(&tset, &tcalled, &tv);
-
-	diff = tv.tv_sec*1000 + tv.tv_usec/1000 - SECONDS * 1000;
-	if (diff < 0)
-		diff = -diff;
-
-	if (diff < 100)
-		test_ok = 1;
 }
 
 struct both {
@@ -578,19 +563,26 @@ end:
 static void
 test_simpletimeout(void)
 {
-	struct timeval tv;
+	struct timeval tv, elapsed;
 	struct event ev;
 
 	setup_test("Simple timeout: ");
 
-	tv.tv_usec = 0;
-	tv.tv_sec = SECONDS;
+	tv.tv_usec = 200*1000;
+	tv.tv_sec = 0;
+	evutil_timerclear(&tcalled);
 	evtimer_set(&ev, timeout_cb, NULL);
 	evtimer_add(&ev, &tv);
 
 	evutil_gettimeofday(&tset, NULL);
 	event_dispatch();
+	evutil_timersub(&tcalled, &tset, &elapsed);
+	tt_int_op(0, ==, elapsed.tv_sec);
+	tt_int_op(elapsed.tv_usec, >, 150000);
+	tt_int_op(elapsed.tv_usec, <, 300000);
 
+	test_ok = 1;
+end:
 	cleanup_test();
 }
 
@@ -707,7 +699,7 @@ common_timeout_cb(evutil_socket_t fd, short event, void *arg)
 	struct common_timeout_info *ti = arg;
 	++ti->count;
 	evutil_gettimeofday(&ti->called_at, NULL);
-	if (ti->count >= 6)
+	if (ti->count >= 4)
 		event_del(&ti->ev);
 }
 
@@ -720,7 +712,7 @@ test_common_timeout(void *ptr)
 	int i;
 	struct common_timeout_info info[100];
 
-	struct timeval now;
+	struct timeval start;
 	struct timeval tmp_100_ms = { 0, 100*1000 };
 	struct timeval tmp_200_ms = { 0, 200*1000 };
 
@@ -751,23 +743,23 @@ test_common_timeout(void *ptr)
 	}
 
 	event_base_assert_ok(base);
+	evutil_gettimeofday(&start, NULL);
 	event_base_dispatch(base);
 
-	evutil_gettimeofday(&now, NULL);
 	event_base_assert_ok(base);
 
 	for (i=0; i<10; ++i) {
 		struct timeval tmp;
-		int ms_diff;
-		tt_int_op(info[i].count, ==, 6);
-		evutil_timersub(&now, &info[i].called_at, &tmp);
-		ms_diff = tmp.tv_usec/1000 + tmp.tv_sec*1000;
+		int ms_elapsed;
+		tt_int_op(info[i].count, ==, 4);
+		evutil_timersub(&info[i].called_at, &start, &tmp);
+		ms_elapsed = tmp.tv_usec/1000 + tmp.tv_sec*1000;
 		if (i % 2) {
-			tt_int_op(ms_diff, >, 500);
-			tt_int_op(ms_diff, <, 700);
+			tt_int_op(ms_elapsed, >, 300);
+			tt_int_op(ms_elapsed, <, 500);
 		} else {
-			tt_int_op(ms_diff, >, -100);
-			tt_int_op(ms_diff, <, 100);
+			tt_int_op(ms_elapsed, >, 700);
+			tt_int_op(ms_elapsed, <, 900);
 		}
 	}
 
@@ -927,7 +919,8 @@ test_simplesignal(void)
 	evsignal_add(&ev, NULL);
 
 	memset(&itv, 0, sizeof(itv));
-	itv.it_value.tv_sec = 1;
+	itv.it_value.tv_sec = 0;
+	itv.it_value.tv_usec = 100000;
 	if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
 		goto skip_simplesignal;
 
@@ -954,7 +947,8 @@ test_multiplesignal(void)
 	evsignal_add(&ev_two, NULL);
 
 	memset(&itv, 0, sizeof(itv));
-	itv.it_value.tv_sec = 1;
+	itv.it_value.tv_sec = 0;
+	itv.it_value.tv_usec = 100000;
 	if (setitimer(ITIMER_REAL, &itv, NULL) == -1)
 		goto skip_simplesignal;
 
@@ -1343,23 +1337,22 @@ test_loopexit(void)
 	evtimer_set(&ev, timeout_cb, NULL);
 	evtimer_add(&ev, &tv);
 
-	tv.tv_usec = 0;
-	tv.tv_sec = 1;
+	tv.tv_usec = 300*1000;
+	tv.tv_sec = 0;
 	event_loopexit(&tv);
 
 	evutil_gettimeofday(&tv_start, NULL);
 	event_dispatch();
 	evutil_gettimeofday(&tv_end, NULL);
-	evutil_timersub(&tv_end, &tv_start, &tv_end);
 
 	evtimer_del(&ev);
 
 	tt_assert(event_base_got_exit(global_base));
 	tt_assert(!event_base_got_break(global_base));
 
-	if (tv.tv_sec < 2)
-		test_ok = 1;
+	test_timeval_diff_eq(&tv_start, &tv_end, 300);
 
+	test_ok = 1;
 end:
 	cleanup_test();
 }
@@ -1367,27 +1360,31 @@ end:
 static void
 test_loopexit_multiple(void)
 {
-	struct timeval tv;
+	struct timeval tv, tv_start, tv_end;
 	struct event_base *base;
 
 	setup_test("Loop Multiple exit: ");
 
 	base = event_base_new();
 
-	tv.tv_usec = 0;
-	tv.tv_sec = 1;
+	tv.tv_usec = 200*1000;
+	tv.tv_sec = 0;
 	event_base_loopexit(base, &tv);
 
 	tv.tv_usec = 0;
-	tv.tv_sec = 2;
+	tv.tv_sec = 3;
 	event_base_loopexit(base, &tv);
 
+	evutil_gettimeofday(&tv_start, NULL);
 	event_base_dispatch(base);
+	evutil_gettimeofday(&tv_end, NULL);
 
 	tt_assert(event_base_got_exit(base));
 	tt_assert(!event_base_got_break(base));
 
 	event_base_free(base);
+
+	test_timeval_diff_eq(&tv_start, &tv_end, 200);
 
 	test_ok = 1;
 
@@ -1662,7 +1659,7 @@ test_want_only_once(void)
 
 	/* Setup the loop termination */
 	evutil_timerclear(&tv);
-	tv.tv_sec = 1;
+	tv.tv_usec = 300*1000;
 	event_loopexit(&tv);
 
 	event_set(&ev, pair[1], EV_READ, read_once_cb, &ev);
