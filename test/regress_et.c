@@ -101,7 +101,6 @@ test_edgetriggered(void *et)
 
 	send(pair[0], test, (int)strlen(test)+1, 0);
 	shutdown(pair[0], SHUT_WR);
-	sleep(1);
 
 	/* Initalize the event library */
 	base = event_base_new();
