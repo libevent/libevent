@@ -864,6 +864,10 @@ event_reinit(struct event_base *base)
 		event_queue_remove_inserted(base, &base->sig.ev_signal);
 		if (base->sig.ev_signal.ev_flags & EVLIST_ACTIVE)
 			event_queue_remove_active(base, &base->sig.ev_signal);
+		if (base->sig.ev_signal_pair[0] != -1)
+			EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);
+		if (base->sig.ev_signal_pair[1] != -1)
+			EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[1]);
 		base->sig.ev_signal_added = 0;
 	}
 	if (base->th_notify_fd[0] != -1) {
@@ -899,6 +903,13 @@ event_reinit(struct event_base *base)
 
 	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
 		if (ev->ev_events & (EV_READ|EV_WRITE)) {
+			if (ev == &base->sig.ev_signal) {
+				/* If we run into the ev_signal event, it's only
+				 * in eventqueue because some signal event was
+				 * added, which made evsig_add re-add ev_signal.
+				 * So don't double-add it. */
+				continue;
+			}
 			if (evmap_io_add(base, ev->ev_fd, ev) == -1)
 				res = -1;
 		} else if (ev->ev_events & EV_SIGNAL) {
@@ -3048,3 +3059,38 @@ event_global_setup_locks_(const int enable_locks)
 	return 0;
 }
 #endif
+
+void
+event_base_assert_ok(struct event_base *base)
+{
+	int i;
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	evmap_check_integrity(base);
+
+	/* Check the heap property */
+	for (i = 1; i < (int)base->timeheap.n; ++i) {
+		int parent = (i - 1) / 2;
+		struct event *ev, *p_ev;
+		ev = base->timeheap.p[i];
+		p_ev = base->timeheap.p[parent];
+		EVUTIL_ASSERT(ev->ev_flags & EV_TIMEOUT);
+		EVUTIL_ASSERT(evutil_timercmp(&p_ev->ev_timeout, &ev->ev_timeout, <=));
+		EVUTIL_ASSERT(ev->ev_timeout_pos.min_heap_idx == i);
+	}
+
+	/* Check that the common timeouts are fine */
+	for (i = 0; i < base->n_common_timeouts; ++i) {
+		struct common_timeout_list *ctl = base->common_timeout_queues[i];
+		struct event *last=NULL, *ev;
+		TAILQ_FOREACH(ev, &ctl->events, ev_timeout_pos.ev_next_with_common_timeout) {
+			if (last)
+				EVUTIL_ASSERT(evutil_timercmp(&last->ev_timeout, &ev->ev_timeout, <=));
+			EVUTIL_ASSERT(ev->ev_flags & EV_TIMEOUT);
+			EVUTIL_ASSERT(is_common_timeout(&ev->ev_timeout,base));
+			EVUTIL_ASSERT(COMMON_TIMEOUT_IDX(&ev->ev_timeout) == i);
+			last = ev;
+		}
+	}
+
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+}

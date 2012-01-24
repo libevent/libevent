@@ -87,4 +87,6 @@ void evmap_signal_active(struct event_base *base, evutil_socket_t signum, int nc
 
 void *evmap_io_get_fdinfo(struct event_io_map *ctx, evutil_socket_t fd);
 
+void evmap_check_integrity(struct event_base *base);
+
 #endif /* _EVMAP_H_ */
