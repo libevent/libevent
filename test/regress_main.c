@@ -85,7 +85,6 @@ timeval_msec_diff(const struct timeval *start, const struct timeval *end)
 	ms *= 1000;
 	ms += ((end->tv_usec - start->tv_usec)+500) / 1000;
 	return ms;
-
 }
 
 /* ============================================================ */

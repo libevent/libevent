@@ -563,7 +563,7 @@ end:
 static void
 test_simpletimeout(void)
 {
-	struct timeval tv, elapsed;
+	struct timeval tv;
 	struct event ev;
 
 	setup_test("Simple timeout: ");
@@ -576,10 +576,7 @@ test_simpletimeout(void)
 
 	evutil_gettimeofday(&tset, NULL);
 	event_dispatch();
-	evutil_timersub(&tcalled, &tset, &elapsed);
-	tt_int_op(0, ==, elapsed.tv_sec);
-	tt_int_op(elapsed.tv_usec, >, 150000);
-	tt_int_op(elapsed.tv_usec, <, 300000);
+	test_timeval_diff_eq(&tset, &tcalled, 200);
 
 	test_ok = 1;
 end:
@@ -750,16 +747,11 @@ test_common_timeout(void *ptr)
 
 	for (i=0; i<10; ++i) {
 		struct timeval tmp;
-		int ms_elapsed;
 		tt_int_op(info[i].count, ==, 4);
-		evutil_timersub(&info[i].called_at, &start, &tmp);
-		ms_elapsed = tmp.tv_usec/1000 + tmp.tv_sec*1000;
 		if (i % 2) {
-			tt_int_op(ms_elapsed, >, 300);
-			tt_int_op(ms_elapsed, <, 500);
+			test_timeval_diff_eq(&start, &info[i].called_at, 400);
 		} else {
-			tt_int_op(ms_elapsed, >, 700);
-			tt_int_op(ms_elapsed, <, 900);
+			test_timeval_diff_eq(&start, &info[i].called_at, 800);
 		}
 	}
 
@@ -2108,10 +2100,8 @@ test_event_pending(void *ptr)
 	tt_assert( event_pending(t, EV_TIMEOUT, &tv2));
 
 	tt_assert(evutil_timercmp(&tv2, &now, >));
-	evutil_timeradd(&now, &tv, &tv);
-	evutil_timersub(&tv2, &tv, &diff);
-	tt_int_op(diff.tv_sec, ==, 0);
-	tt_int_op(labs(diff.tv_usec), <, 1000);
+
+	test_timeval_diff_eq(&now, &tv2, 500);
 
 end:
 	if (r) {
