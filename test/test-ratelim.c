@@ -23,6 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "../util-internal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,7 +50,6 @@
 #include "event2/listener.h"
 #include "event2/thread.h"
 
-#include "../util-internal.h"
 
 static int cfg_verbose = 0;
 static int cfg_help = 0;

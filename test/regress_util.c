@@ -23,6 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "../util-internal.h"
+
 #ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -53,7 +55,6 @@
 #include "event2/event.h"
 #include "event2/util.h"
 #include "../ipv6-internal.h"
-#include "../util-internal.h"
 #include "../log-internal.h"
 #include "../strlcpy-internal.h"
 #include "../mm-internal.h"

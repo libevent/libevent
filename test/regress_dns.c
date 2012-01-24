@@ -24,6 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "../util-internal.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -70,8 +71,6 @@
 #include "log-internal.h"
 #include "regress.h"
 #include "regress_testutils.h"
-
-#include "../util-internal.h"
 
 static int dns_ok = 0;
 static int dns_got_cancel = 0;

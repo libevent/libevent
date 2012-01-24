@@ -25,6 +25,9 @@
  *
  */
 
+/* for EVUTIL_ERR_CONNECT_RETRIABLE macro */
+#include "util-internal.h"
+
 #include <sys/types.h>
 #ifdef _WIN32
 #include <winsock2.h>
@@ -43,9 +46,6 @@
 #include "event2/bufferevent.h"
 #include "event2/buffer.h"
 #include "event2/util.h"
-
-/* for EVUTIL_ERR_CONNECT_RETRIABLE macro */
-#include "util-internal.h"
 
 const char *resource = NULL;
 struct event_base *base = NULL;

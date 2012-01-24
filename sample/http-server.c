@@ -6,6 +6,9 @@
 
  */
 
+/* Compatibility for possible missing IPv6 declarations */
+#include "../util-internal.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,9 +46,6 @@
 #  include <arpa/inet.h>
 # endif
 #endif
-
-/* Compatibility for possible missing IPv6 declarations */
-#include "../util-internal.h"
 
 #ifdef _WIN32
 #define stat _stat
