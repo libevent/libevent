@@ -54,21 +54,24 @@ static int was_et = 0;
 static void
 read_cb(evutil_socket_t fd, short event, void *arg)
 {
-	char buf;
-	int len;
+//	char buf;
+//	int len;
 
-	len = recv(fd, &buf, sizeof(buf), 0);
-
-	/*printf("%s: %s %d%s\n", __func__, event & EV_ET ? "etread" : "read",
-		len, len ? "" : " - means EOF");
-	*/
+	/* On Linux 3.2.1 (at least, as patched by Fedora and tested by Nick),
+	 * doing this "recv" resets the readability of the socket, even though
+	 * there is no state change.  Yuck!  Linux 3.1.9 didn't have this
+	 * problem.
+	 */
+//	len = recv(fd, &buf, sizeof(buf), 0);
 
 	called++;
 	if (event & EV_ET)
 		was_et = 1;
 
+#if 0
 	if (!len)
 		event_del(arg);
+#endif
 }
 
 #ifndef SHUT_WR
@@ -98,6 +101,7 @@ test_edgetriggered(void *et)
 
 	send(pair[0], test, (int)strlen(test)+1, 0);
 	shutdown(pair[0], SHUT_WR);
+	sleep(1);
 
 	/* Initalize the event library */
 	base = event_base_new();
