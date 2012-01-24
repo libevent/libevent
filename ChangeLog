@@ -1,3 +1,38 @@
+Changes in version 2.0.17-stable (?? ??? 2012)
+
+ {LAST UPDATED AS OF 5408ff3b89677c77b4cb67afd8c65b36dc23a930}
+
+BUGFIXES (core):
+ o Be absolutely sure to clear pncalls before leaving event_signal_closure (11f36a5)
+ o check for sysctl before we use it (358c745 Mike Frysinger)
+ o Remove bogus casts of socket to int before calling ev_callback (f032516)
+ o Make evconnlistener work around bug in older Linux when getting nmapped (ecfc720)
+ o Fix a list corruption bug when using event_reinit() with signals present (6e41cdc)
+ o Fix a fd leak in event_reinit() (3f18ad1)
+
+BUGFIXES (evbuffer and bufferevents):
+ o Fix behavior of evbuffer_peek(buf,-1,NULL,NULL,0) (c986f23 Zack Weinberg)
+
+BUGFIXES (evhttp):
+ o Force strict validation of HTTP version in response. (790f6b3 Catalin Patulea)
+
+BUILD FIXES:
+ o Fix a silly compilation error with the sun compiler (1927776 Colin Watt)
+ o Suppress a gcc warning from ignoring fwrite return in http-sample.c (7206e8c)
+
+DOCUMENTATION FIXES:
+ o Slightly clarify evbuffer_peek documentation (7bbf6ca)
+
+NEW APIS:
+ o Backport evhttp_connection_get_bufferevent to Libevent 2.0 (da70fa7 Arno Bakker)
+
+TESTS AND TEST FIXES:
+ o Fix a race condition in the dns/bufferevent_connect_hostname test. (cba48c7)
+ o Add function to check referential integrity of an event_base (27737d5)
+ o Check event_base correctness at end of each unit test (3312b02)
+ o Workaround in the unit tests for an apparent epoll bug in Linux 3.2 (dab9187)
+
+
 Changes in version 2.0.16-stable (18 Nov 2011)
 BUGFIXES (core):
  o More detailed message in case of libevent self-debugging failure. (9e6a4ef Leonid Evdokimov)
