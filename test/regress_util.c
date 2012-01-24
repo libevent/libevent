@@ -1174,6 +1174,34 @@ test_event_strdup(void *arg)
 	return;
 }
 
+static void
+test_evutil_usleep(void *arg)
+{
+	struct timeval tv1, tv2, tv3, diff1, diff2;
+	const struct timeval quarter_sec = {0, 250*1000};
+	const struct timeval tenth_sec = {0, 100*1000};
+	long usec1, usec2;
+
+	evutil_gettimeofday(&tv1, NULL);
+	evutil_usleep(&quarter_sec);
+	evutil_gettimeofday(&tv2, NULL);
+	evutil_usleep(&tenth_sec);
+	evutil_gettimeofday(&tv3, NULL);
+
+	evutil_timersub(&tv2, &tv1, &diff1);
+	evutil_timersub(&tv3, &tv2, &diff2);
+	usec1 = diff1.tv_sec * 1000000 + diff1.tv_usec;
+	usec2 = diff2.tv_sec * 1000000 + diff2.tv_usec;
+
+	tt_int_op(usec1, >, 200000);
+	tt_int_op(usec1, <, 300000);
+	tt_int_op(usec2, >,  80000);
+	tt_int_op(usec2, <, 120000);
+
+end:
+	;
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -1195,6 +1223,7 @@ struct testcase_t util_testcases[] = {
 	{ "mm_malloc", test_event_malloc, 0, NULL, NULL },
 	{ "mm_calloc", test_event_calloc, 0, NULL, NULL },
 	{ "mm_strdup", test_event_strdup, 0, NULL, NULL },
+	{ "usleep", test_evutil_usleep, 0, NULL, NULL },
 	END_OF_TESTCASES,
 };
 

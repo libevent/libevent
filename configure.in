@@ -321,6 +321,7 @@ AC_CHECK_FUNCS([ \
   inet_pton \
   issetugid \
   mmap \
+  nanosleep \
   pipe \
   putenv \
   sendfile \
@@ -334,6 +335,7 @@ AC_CHECK_FUNCS([ \
   strtoll \
   sysctl \
   unsetenv \
+  usleep \
   vasprintf \
 ])
 

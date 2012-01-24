@@ -67,7 +67,10 @@
 #ifdef _EVENT_HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
-
+#if !defined(_EVENT_HAVE_NANOSLEEP) && !defined(EVENT_HAVE_USLEEP) && \
+	!defined(_WIN32)
+#include <sys/select.h>
+#endif
 #ifndef _EVENT_HAVE_GETTIMEOFDAY
 #include <sys/timeb.h>
 #include <time.h>
@@ -2266,3 +2269,28 @@ evutil_load_windows_system_library(const TCHAR *library_name)
 }
 #endif
 
+void
+evutil_usleep(const struct timeval *tv)
+{
+	if (!tv)
+		return;
+#if defined(_WIN32)
+	{
+		long msec = evutil_tv_to_msec(tv);
+		Sleep((DWORD)msec);
+	}
+#elif defined(_EVENT_HAVE_NANOSLEEP_X)
+	{
+		struct timespec ts;
+		ts.tv_sec = tv->tv_sec;
+		ts.tv_nsec = tv->tv_usec*1000;
+		nanosleep(&ts, NULL);
+	}
+#elif defined(_EVENT_HAVE_USLEEP)
+	/* Some systems don't like to usleep more than 999999 usec */
+	sleep(tv->tv_sec);
+	usleep(tv->tv_usec);
+#else
+	select(0, NULL, NULL, NULL, tv);
+#endif
+}
