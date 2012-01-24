@@ -857,7 +857,10 @@ test_fork(void)
 	}
 
 	/* wait for the child to read the data */
-	sleep(1);
+	{
+		const struct timeval tv = { 0, 100000 };
+		evutil_usleep(&tv);
+	}
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
 		tt_fail_perror("write");
