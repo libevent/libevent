@@ -538,6 +538,13 @@ void evhttp_connection_set_timeout(struct evhttp_connection *evcon,
 void evhttp_connection_set_timeout_tv(struct evhttp_connection *evcon,
     const struct timeval *tv);
 
+/** Sets the delay before retrying requests on this connection. This is only
+ * used if evhttp_connection_set_retries is used to make the number of retries
+ * at least one. Each retry after the first is twice as long as the one before
+ * it. */
+void evhttp_connection_set_initial_retry_tv(struct evhttp_connection *evcon,
+    const struct timeval *tv);
+
 /** Sets the retry limit for this connection - -1 repeats indefinitely */
 void evhttp_connection_set_retries(struct evhttp_connection *evcon,
     int retry_max);

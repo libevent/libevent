@@ -352,23 +352,6 @@ evhttp_response_needs_body(struct evhttp_request *req)
 		req->type != EVHTTP_REQ_HEAD);
 }
 
-/** Helper: adds the event 'ev' with the timeout 'timeout', or with
- * default_timeout if timeout is -1.
- */
-static int
-evhttp_add_event(struct event *ev, int timeout, int default_timeout)
-{
-	if (timeout != 0) {
-		struct timeval tv;
-
-		evutil_timerclear(&tv);
-		tv.tv_sec = timeout != -1 ? timeout : default_timeout;
-		return event_add(ev, &tv);
-	} else {
-		return event_add(ev, NULL);
-	}
-}
-
 /** Helper: called after we've added some data to an evcon's bufferevent's
  * output buffer.  Sets the evconn's writing-is-done callback, and puts
  * the bufferevent into writing mode.
@@ -1284,11 +1267,23 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 	struct evcon_requestq requests;
 
 	if (evcon->retry_max < 0 || evcon->retry_cnt < evcon->retry_max) {
+		struct timeval tv_retry = evcon->initial_retry_timeout;
+		int i;
 		evtimer_assign(&evcon->retry_ev, evcon->base, evhttp_connection_retry, evcon);
 		/* XXXX handle failure from evhttp_add_event */
-		evhttp_add_event(&evcon->retry_ev,
-		    MIN(3600, 2 << evcon->retry_cnt),
-		    HTTP_CONNECT_TIMEOUT);
+		for (i=0; i < evcon->retry_cnt; ++i) {
+			tv_retry.tv_usec *= 2;
+			if (tv_retry.tv_usec > 1000000) {
+				tv_retry.tv_usec -= 1000000;
+				tv_retry.tv_sec += 1;
+			}
+			tv_retry.tv_sec *= 2;
+			if (tv_retry.tv_sec > 3600) {
+				tv_retry.tv_sec = 3600;
+				tv_retry.tv_usec = 0;
+			}
+		}
+		event_add(&evcon->retry_ev, &tv_retry);
 		evcon->retry_cnt++;
 		return;
 	}
@@ -2193,6 +2188,9 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 	evcon->state = EVCON_DISCONNECTED;
 	TAILQ_INIT(&evcon->requests);
 
+	evcon->initial_retry_timeout.tv_sec = 2;
+	evcon->initial_retry_timeout.tv_usec = 0;
+
 	if (base != NULL) {
 		evcon->base = base;
 		if (bufferevent_get_base(bev) != base)
@@ -2260,6 +2258,18 @@ evhttp_connection_set_timeout_tv(struct evhttp_connection *evcon,
 		const struct timeval write_tv = { HTTP_WRITE_TIMEOUT, 0 };
 		evutil_timerclear(&evcon->timeout);
 		bufferevent_set_timeouts(evcon->bufev, &read_tv, &write_tv);
+	}
+}
+
+void
+evhttp_connection_set_initial_retry_tv(struct evhttp_connection *evcon,
+    const struct timeval *tv)
+{
+	if (tv) {
+		evcon->initial_retry_timeout = *tv;
+	} else {
+		evutil_timerclear(&evcon->initial_retry_timeout);
+		evcon->initial_retry_timeout.tv_sec = 2;
 	}
 }
 

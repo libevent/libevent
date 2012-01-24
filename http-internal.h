@@ -86,6 +86,9 @@ struct evhttp_connection {
 	struct timeval timeout;		/* timeout for events */
 	int retry_cnt;			/* retry count */
 	int retry_max;			/* maximum number of retries */
+	struct timeval initial_retry_timeout; /* Timeout for low long to wait
+					       * after first failing attempt
+					       * before retry */
 
 	enum evhttp_connection_state state;
 
