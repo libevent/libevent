@@ -746,7 +746,6 @@ test_common_timeout(void *ptr)
 	event_base_assert_ok(base);
 
 	for (i=0; i<10; ++i) {
-		struct timeval tmp;
 		tt_int_op(info[i].count, ==, 4);
 		if (i % 2) {
 			test_timeval_diff_eq(&start, &info[i].called_at, 400);
@@ -2077,7 +2076,7 @@ test_event_pending(void *ptr)
 {
 	struct basic_test_data *data = ptr;
 	struct event *r=NULL, *w=NULL, *t=NULL;
-	struct timeval tv, now, tv2, diff;
+	struct timeval tv, now, tv2;
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 500 * 1000;
