@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#include "../util-internal.h"
 #include "event2/event-config.h"
 
 #ifdef WIN32
@@ -54,24 +54,17 @@ static int was_et = 0;
 static void
 read_cb(evutil_socket_t fd, short event, void *arg)
 {
-//	char buf;
-//	int len;
+	char buf;
+	int len;
 
-	/* On Linux 3.2.1 (at least, as patched by Fedora and tested by Nick),
-	 * doing this "recv" resets the readability of the socket, even though
-	 * there is no state change.  Yuck!  Linux 3.1.9 didn't have this
-	 * problem.
-	 */
-//	len = recv(fd, &buf, sizeof(buf), 0);
+	len = recv(fd, &buf, sizeof(buf), 0);
 
 	called++;
 	if (event & EV_ET)
 		was_et = 1;
 
-#if 0
 	if (!len)
 		event_del(arg);
-#endif
 }
 
 #ifndef SHUT_WR
@@ -93,9 +86,21 @@ test_edgetriggered(void *et)
 	evutil_socket_t pair[2] = {-1,-1};
 	int supports_et;
 
+	/* On Linux 3.2.1 (at least, as patched by Fedora and tested by Nick),
+	 * doing a "recv" on an AF_UNIX socket resets the readability of the
+	 * socket, even though there is no state change, so we don't actually
+	 * get edge-triggered behavior.  Yuck!  Linux 3.1.9 didn't have this
+	 * problem.
+	 */
+#ifdef __linux__
+	if (evutil_ersatz_socketpair(AF_INET, SOCK_STREAM, 0, pair) == -1) {
+		tt_abort_perror("socketpair");
+	}
+#else
 	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0, pair) == -1) {
 		tt_abort_perror("socketpair");
 	}
+#endif
 
 	called = was_et = 0;
 
