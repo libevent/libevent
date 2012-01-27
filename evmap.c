@@ -488,6 +488,65 @@ evmap_io_get_fdinfo(struct event_io_map *map, evutil_socket_t fd)
 		return NULL;
 }
 
+int
+evmap_io_reinit(struct event_base *base)
+{
+	int res = 0;
+	evutil_socket_t i;
+	void *extra;
+	short events;
+	const struct eventop *evsel = base->evsel;
+	struct event_io_map *io = &base->io;
+
+#ifdef EVMAP_USE_HT
+	struct event_map_entry **mapent;
+	HT_FOREACH(mapent, event_io_map, io) {
+		struct evmap_io *ctx = &(*mapent)->ent.evmap_io;
+		i = (*mapent)->fd;
+#else
+	for (i = 0; i < io->nentries; ++i) {
+		struct evmap_io *ctx = io->entries[i];
+		if (!ctx)
+			continue;
+#endif
+		events = 0;
+		extra = ((char*)ctx) + sizeof(struct evmap_io);
+		if (ctx->nread)
+			events |= EV_READ;
+		if (ctx->nread)
+			events |= EV_WRITE;
+		if (evsel->fdinfo_len)
+			memset(extra, 0, evsel->fdinfo_len);
+		if (events && LIST_FIRST(&ctx->events) &&
+		    (LIST_FIRST(&ctx->events)->ev_events & EV_ET))
+			events |= EV_ET;
+		if (evsel->add(base, i, 0, events, extra) == -1)
+			res = -1;
+	}
+
+	return res;
+}
+
+int
+evmap_signal_reinit(struct event_base *base)
+{
+	struct event_signal_map *sigmap = &base->sigmap;
+	const struct eventop *evsel = base->evsigsel;
+	int res = 0;
+	int i;
+
+	for (i = 0; i < sigmap->nentries; ++i) {
+		struct evmap_signal *ctx = sigmap->entries[i];
+		if (!ctx)
+			continue;
+		if (!LIST_EMPTY(&ctx->events)) {
+			if (evsel->add(base, i, 0, EV_SIGNAL, NULL) == -1)
+				res = -1;
+		}
+	}
+	return res;
+}
+
 /** Per-fd structure for use with changelists.  It keeps track, for each fd or
  * signal using the changelist, of where its entry in the changelist is.
  */
