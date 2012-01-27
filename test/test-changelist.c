@@ -169,8 +169,8 @@ main(int argc, char **argv)
 	/* and watch for writability on one end of the pipe */
 	ev = event_new(base,pair[1],EV_WRITE | EV_PERSIST, write_cb, &ev);
 
-	tv.tv_sec  = 5;
-	tv.tv_usec = 0;
+	tv.tv_sec  = 1;
+	tv.tv_usec = 500*1000;
 
 	evtimer_add(timeout, &tv);
 
