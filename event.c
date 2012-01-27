@@ -860,30 +860,24 @@ event_reinit(struct event_base *base)
 	int res = 0;
 	struct event *ev;
 	int was_notifiable = 0;
+	int had_signal_added = 0;
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	evsel = base->evsel;
 
-#if 0
-	/* Right now, reinit always takes effect, since even if the
-	   backend doesn't require it, the signal socketpair code does.
-
-	   XXX
-	 */
-	/* check if this event mechanism requires reinit */
-	if (!evsel->need_reinit)
-		goto done;
-#endif
-
-	/* We're going to call event_del() on our notify events (the ones that
-	 * tell about signals and wakeup events).  But we don't actually want
-	 * to tell the backend to change its state, since it might still share
-	 * some resource (a kqueue, an epoll fd) with the parent process, and
-	 * we don't want to delete the fds from _that_ backend, we temporarily
-	 * stub out the evsel with a replacement.
-	 */
-	base->evsel = &nil_eventop;
+	/* check if this event mechanism requires reinit on the backend */
+	if (evsel->need_reinit) {
+		/* We're going to call event_del() on our notify events (the
+		 * ones that tell about signals and wakeup events).  But we
+		 * don't actually want to tell the backend to change its
+		 * state, since it might still share some resource (a kqueue,
+		 * an epoll fd) with the parent process, and we don't want to
+		 * delete the fds from _that_ backend, we temporarily stub out
+		 * the evsel with a replacement.
+		 */
+		base->evsel = &nil_eventop;
+	}
 
 	/* We need to re-create a new signal-notification fd and a new
 	 * thread-notification fd.  Otherwise, we'll still share those with
@@ -899,6 +893,7 @@ event_reinit(struct event_base *base)
 			EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);
 		if (base->sig.ev_signal_pair[1] != -1)
 			EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[1]);
+		had_signal_added = 1;
 		base->sig.ev_signal_added = 0;
 	}
 	if (base->th_notify_fd[0] != -1) {
@@ -912,37 +907,46 @@ event_reinit(struct event_base *base)
 		event_debug_unassign(&base->th_notify);
 		base->th_notify_fn = NULL;
 	}
+
 	/* Replace the original evsel. */
         base->evsel = evsel;
 
-	/* Reconstruct the backend through brute-force, so that we do not
-	 * share any structures with the parent process. For some backends,
-	 * this is necessary: epoll and kqueue, for instance, have events
-	 * associated with a kernel structure. If didn't reinitialize, we'd
-	 * share that structure with the parent process, and any changes made
-	 * by the parent would affect our backend's behavior (and vice versa).
-	 */
-	if (base->evsel->dealloc != NULL)
-		base->evsel->dealloc(base);
-	base->evbase = evsel->init(base);
-	if (base->evbase == NULL) {
-		event_errx(1, "%s: could not reinitialize event mechanism",
-		    __func__);
-		res = -1;
-		goto done;
+	if (evsel->need_reinit) {
+		/* Reconstruct the backend through brute-force, so that we do
+		 * not share any structures with the parent process. For some
+		 * backends, this is necessary: epoll and kqueue, for
+		 * instance, have events associated with a kernel
+		 * structure. If didn't reinitialize, we'd share that
+		 * structure with the parent process, and any changes made by
+		 * the parent would affect our backend's behavior (and vice
+		 * versa).
+		 */
+		if (base->evsel->dealloc != NULL)
+			base->evsel->dealloc(base);
+		base->evbase = evsel->init(base);
+		if (base->evbase == NULL) {
+			event_errx(1,
+			   "%s: could not reinitialize event mechanism",
+			   __func__);
+			res = -1;
+			goto done;
+		}
+
+		/* Empty out the changelist (if any): we are starting from a
+		 * blank slate. */
+		event_changelist_freemem(&base->changelist);
+
+		/* Tell the event maps to re-inform the backend about all
+		 * pending events. This will make the signal notification
+		 * event get re-created if necessary. */
+		if (evmap_io_reinit(base) < 0)
+			res = -1;
+		if (evmap_signal_reinit(base) < 0)
+			res = -1;
+	} else {
+		if (had_signal_added)
+			res = evsig_init(base);
 	}
-
-	/* Empty out the changelist (if any): we are starting from a blank
-	 * slate. */
-	event_changelist_freemem(&base->changelist);
-
-	/* Tell the event maps to re-inform the backend about all pending
-	 * events. This will make the signal notification event get re-created
-	 * if necessary. */
-	if (evmap_io_reinit(base) < 0)
-		res = -1;
-	if (evmap_signal_reinit(base) < 0)
-		res = -1;
 
 	/* If we were notifiable before, and nothing just exploded, become
 	 * notifiable again. */

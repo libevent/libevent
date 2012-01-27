@@ -188,6 +188,9 @@ evsig_init(struct event_base *base)
 
 	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[0]);
 	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[1]);
+	if (base->sig.sh_old) {
+		mm_free(base->sig.sh_old);
+	}
 	base->sig.sh_old = NULL;
 	base->sig.sh_old_max = 0;
 
@@ -329,6 +332,12 @@ _evsig_restore_handler(struct event_base *base, int evsignal)
 #else
 	ev_sighandler_t *sh;
 #endif
+
+	if (evsignal >= sig->sh_old_max) {
+		/* Can't actually restore. */
+		/* XXXX.*/
+		return 0;
+	}
 
 	/* restore previous handler */
 	sh = sig->sh_old[evsignal];
