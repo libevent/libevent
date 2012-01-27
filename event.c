@@ -590,7 +590,9 @@ event_base_new_with_config(const struct event_config *cfg)
 	gettime(base, &base->event_tv);
 
 	min_heap_ctor(&base->timeheap);
+#ifdef _EVENT_USE_EVENTLIST
 	TAILQ_INIT(&base->eventqueue);
+#endif
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
 	base->th_notify_fd[0] = -1;
@@ -764,14 +766,8 @@ event_base_free(struct event_base *base)
 	}
 
 	/* Delete all non-internal events. */
-	for (ev = TAILQ_FIRST(&base->eventqueue); ev; ) {
-		struct event *next = TAILQ_NEXT(ev, ev_next);
-		if (!(ev->ev_flags & EVLIST_INTERNAL)) {
-			event_del(ev);
-			++n_deleted;
-		}
-		ev = next;
-	}
+	evmap_signal_delete_all(base);
+	evmap_io_delete_all(base);
 	while ((ev = min_heap_top(&base->timeheap)) != NULL) {
 		event_del(ev);
 		++n_deleted;
@@ -821,7 +817,9 @@ event_base_free(struct event_base *base)
 
 	mm_free(base->activequeues);
 
+#ifdef _EVENT_USE_EVENTLIST
 	EVUTIL_ASSERT(TAILQ_EMPTY(&base->eventqueue));
+#endif
 
 	evmap_io_clear(&base->io);
 	evmap_signal_clear(&base->sigmap);
@@ -2638,7 +2636,9 @@ event_queue_remove_inserted(struct event_base *base, struct event *ev)
 	}
 	DECR_EVENT_COUNT(base, ev);
 	ev->ev_flags &= ~EVLIST_INSERTED;
+#ifdef _EVENT_USE_EVENTLIST
 	TAILQ_REMOVE(&base->eventqueue, ev, ev_next);
+#endif
 }
 static void
 event_queue_remove_active(struct event_base *base, struct event *ev)
@@ -2743,7 +2743,9 @@ event_queue_insert_inserted(struct event_base *base, struct event *ev)
 
 	ev->ev_flags |= EVLIST_INSERTED;
 
+#ifdef _EVENT_USE_EVENTLIST
 	TAILQ_INSERT_TAIL(&base->eventqueue, ev, ev_next);
+#endif
 }
 
 static void
@@ -3030,6 +3032,8 @@ evthread_make_base_notifiable(struct event_base *base)
 void
 event_base_dump_events(struct event_base *base, FILE *output)
 {
+#ifdef _EVENT_USE_EVENTLIST
+	/* re-enable XXXXXX */
 	struct event *e;
 	int i;
 	fprintf(output, "Inserted events:\n");
@@ -3056,6 +3060,7 @@ event_base_dump_events(struct event_base *base, FILE *output)
 					(e->ev_res&EV_TIMEOUT)?" Timeout active":"");
 		}
 	}
+#endif
 }
 
 void

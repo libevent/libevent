@@ -547,6 +547,45 @@ evmap_signal_reinit(struct event_base *base)
 	return res;
 }
 
+int
+evmap_io_delete_all(struct event_base *base)
+{
+	struct event_io_map *io = &base->io;
+
+#ifdef EVMAP_USE_HT
+	struct event_map_entry **mapent;
+	HT_FOREACH(mapent, event_io_map, io) {
+		struct evmap_io *ctx = &(*mapent)->ent.evmap_io;
+#else
+	evutil_socket_t i;
+	for (i = 0; i < io->nentries; ++i) {
+		struct evmap_io *ctx = io->entries[i];
+		if (!ctx)
+			continue;
+#endif
+		while (LIST_FIRST(&ctx->events))
+			event_del(LIST_FIRST(&ctx->events));
+	}
+
+	return 0;
+}
+
+int
+evmap_signal_delete_all(struct event_base *base)
+{
+	struct event_signal_map *sigmap = &base->sigmap;
+	int i;
+
+	for (i = 0; i < sigmap->nentries; ++i) {
+		struct evmap_signal *ctx = sigmap->entries[i];
+		if (!ctx)
+			continue;
+		while (!LIST_EMPTY(&ctx->events))
+			event_del(LIST_FIRST(&ctx->events));
+	}
+	return 0;
+}
+
 /** Per-fd structure for use with changelists.  It keeps track, for each fd or
  * signal using the changelist, of where its entry in the changelist is.
  */
@@ -798,6 +837,8 @@ evmap_check_integrity(struct event_base *base)
 	int nsignals, ntimers, nio;
 	nsignals = ntimers = nio = 0;
 
+#ifdef _EVENT_USE_EVENTLIST
+	/* XXXXX no-eventlist implementations can use some of this, surely? */
 	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
 		EVUTIL_ASSERT(ev->ev_flags & EVLIST_INSERTED);
 		EVUTIL_ASSERT(ev->ev_flags & EVLIST_INIT);
@@ -848,6 +889,7 @@ evmap_check_integrity(struct event_base *base)
 		}
 	}
 
+#endif
 	EVUTIL_ASSERT(nio == 0);
 	EVUTIL_ASSERT(nsignals == 0);
 	/* There is no "EVUTIL_ASSERT(ntimers == 0)": eventqueue is only for

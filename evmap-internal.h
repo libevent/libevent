@@ -90,6 +90,9 @@ void *evmap_io_get_fdinfo(struct event_io_map *ctx, evutil_socket_t fd);
 int evmap_io_reinit(struct event_base *base);
 int evmap_signal_reinit(struct event_base *base);
 
+int evmap_io_delete_all(struct event_base *base);
+int evmap_signal_delete_all(struct event_base *base);
+
 void evmap_check_integrity(struct event_base *base);
 
 #endif /* _EVMAP_H_ */
