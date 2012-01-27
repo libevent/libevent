@@ -581,10 +581,9 @@ event_change_get_fdinfo(struct event_base *base,
 	return (void*)ptr;
 }
 
-#ifdef DEBUG_CHANGELIST
 /** Make sure that the changelist is consistent with the evmap structures. */
 static void
-event_changelist_check(struct event_base *base)
+event_changelist_assert_ok(struct event_base *base)
 {
 	int i;
 	struct event_changelist *changelist = &base->changelist;
@@ -612,6 +611,9 @@ event_changelist_check(struct event_base *base)
 		}
 	}
 }
+
+#ifdef DEBUG_CHANGELIST
+#define event_changelist_check(base)  event_changelist_assert_ok((base))
 #else
 #define event_changelist_check(base)  ((void)0)
 #endif
@@ -849,6 +851,8 @@ evmap_check_integrity(struct event_base *base)
 	EVUTIL_ASSERT(nio == 0);
 	EVUTIL_ASSERT(nsignals == 0);
 	/* There is no "EVUTIL_ASSERT(ntimers == 0)": eventqueue is only for
-	 * pending signals and io events.
-	 */
+	 * pending signals and io events. */
+
+	if (base->evsel->add == event_changelist_add)
+		event_changelist_assert_ok(base);
 }
