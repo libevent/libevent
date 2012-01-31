@@ -858,7 +858,6 @@ event_reinit(struct event_base *base)
 {
 	const struct eventop *evsel;
 	int res = 0;
-	struct event *ev;
 	int was_notifiable = 0;
 	int had_signal_added = 0;
 
