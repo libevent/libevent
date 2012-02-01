@@ -167,6 +167,7 @@ struct request {
 	struct nameserver *ns;	/* the server which we last sent it */
 
 	/* these objects are kept in a circular list */
+	/* XXX We could turn this into a CIRCLEQ. */
 	struct request *next, *prev;
 
 	struct event timeout_event;
@@ -2472,9 +2473,7 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 		ns->next = base->server_head->next;
 		ns->prev = base->server_head;
 		base->server_head->next = ns;
-		if (base->server_head->prev == base->server_head) {
-			base->server_head->prev = ns;
-		}
+		ns->next->prev = ns;
 	}
 
 	base->global_good_nameservers++;
