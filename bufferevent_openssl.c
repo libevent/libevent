@@ -783,9 +783,14 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 		 * regrettable).  The damage to the rate-limit has
 		 * already been done, since OpenSSL went and read a
 		 * whole SSL record anyway. */
-		n_to_read = SSL_pending(bev_ssl->ssl);
+        if (bev_ssl->underlying) {
+            n_to_read = evbuffer_get_length(bev_ssl->underlying->input);
+        }
+        else { 
+            n_to_read = SSL_pending(bev_ssl->ssl);
+        }
 	}
-
+	
 	if (!bev_ssl->underlying) {
 		/* Should be redundant, but let's avoid busy-looping */
 		if (bev_ssl->bev.read_suspended ||
