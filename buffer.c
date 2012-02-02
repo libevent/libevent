@@ -188,19 +188,19 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 {
 	EVUTIL_ASSERT(chain->refcnt > 0);
 	if (--chain->refcnt > 0) {
-		// chain is still referenced by other chains
+		/* chain is still referenced by other chains */
 		return;
 	}
 
 	if (CHAIN_PINNED(chain)) {
-		// will get freed once no longer dangling
+		/* will get freed once no longer dangling */
 		chain->refcnt++;
 		chain->flags |= EVBUFFER_DANGLING;
 		return;
 	}
 
-	// safe to release chain, it's either a referencing
-	// chain or all references to it have been freed
+	/* safe to release chain, it's either a referencing
+	 * chain or all references to it have been freed */
 	if (chain->flags & EVBUFFER_REFERENCE) {
 		struct evbuffer_chain_reference *info =
 		    EVBUFFER_CHAIN_EXTRA(
@@ -229,10 +229,10 @@ evbuffer_chain_free(struct evbuffer_chain *chain)
 		    EVBUFFER_CHAIN_EXTRA(
 			    struct evbuffer_multicast_parent,
 			    chain);
-		// referencing chain is being freed, decrease
-		// refcounts of source chain and associated
-		// evbuffer (which get freed once both reach
-		// zero)
+		/* referencing chain is being freed, decrease
+		 * refcounts of source chain and associated
+		 * evbuffer (which get freed once both reach
+		 * zero) */
 		EVUTIL_ASSERT(info->source != NULL);
 		EVUTIL_ASSERT(info->parent != NULL);
 		EVBUFFER_LOCK(info->source);
@@ -898,7 +898,7 @@ APPEND_CHAIN_MULTICAST(struct evbuffer *dst, struct evbuffer *src)
 
 	for (; chain; chain = chain->next) {
 		if (!chain->off || chain->flags & EVBUFFER_DANGLING) {
-			// skip empty chains
+			/* skip empty chains */
 			continue;
 		}
 
@@ -908,12 +908,12 @@ APPEND_CHAIN_MULTICAST(struct evbuffer *dst, struct evbuffer *src)
 			return;
 		}
 		extra = EVBUFFER_CHAIN_EXTRA(struct evbuffer_multicast_parent, tmp);
-		// reference evbuffer containing source chain so it
-		// doesn't get released while the chain is still
-		// being referenced to
+		/* reference evbuffer containing source chain so it
+		 * doesn't get released while the chain is still
+		 * being referenced to */
 		_evbuffer_incref(src);
 		extra->source = src;
-		// reference source chain which now becomes immutable
+		/* reference source chain which now becomes immutable */
 		evbuffer_chain_incref(chain);
 		extra->parent = chain;
 		chain->flags |= EVBUFFER_IMMUTABLE;
@@ -1012,7 +1012,7 @@ evbuffer_add_buffer_reference(struct evbuffer *outbuf, struct evbuffer *inbuf)
 
 	for (; chain; chain = chain->next) {
 		if ((chain->flags & (EVBUFFER_FILESEGMENT|EVBUFFER_SENDFILE|EVBUFFER_MULTICAST)) != 0) {
-			// chain type can not be referenced
+			/* chain type can not be referenced */
 			result = -1;
 			goto done;
 		}

@@ -291,7 +291,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 
 		if (fdi != NULL && FDI_HAS_EVENTS(fdi)) {
 			reassociate(epdp, fdi, fd);
-//			epdp->ed_pending[i] = -1;
+			/* epdp->ed_pending[i] = -1; */
 			fdi->pending_idx_plus_1 = 0;
 		}
 	}
@@ -321,7 +321,7 @@ evport_dispatch(struct event_base *base, struct timeval *tv)
 		port_event_t *pevt = &pevtlist[i];
 		int fd = (int) pevt->portev_object;
 		struct fd_info *fdi = pevt->portev_user;
-		//EVUTIL_ASSERT(evmap_io_get_fdinfo(&base->io, fd) == fdi);
+		/*EVUTIL_ASSERT(evmap_io_get_fdinfo(&base->io, fd) == fdi);*/
 
 		check_evportop(epdp);
 		check_event(pevt);

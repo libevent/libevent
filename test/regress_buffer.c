@@ -1619,11 +1619,11 @@ test_evbuffer_multicast(void *ptr)
 	tt_assert(buf2);
 
 	tt_int_op(evbuffer_add_buffer_reference(buf2, buf1), ==, 0);
-	// nested references are not allowed
+	/* nested references are not allowed */
 	tt_int_op(evbuffer_add_buffer_reference(buf2, buf2), ==, -1);
 	tt_int_op(evbuffer_add_buffer_reference(buf1, buf2), ==, -1);
 
-	// both buffers contain the same amount of data
+	/* both buffers contain the same amount of data */
 	tt_int_op(evbuffer_get_length(buf1), ==, evbuffer_get_length(buf1));
 
 	/* Make sure we can drain a little from the first buffer. */
