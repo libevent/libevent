@@ -784,6 +784,23 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 		 * already been done, since OpenSSL went and read a
 		 * whole SSL record anyway. */
 		n_to_read = SSL_pending(bev_ssl->ssl);
+
+		/* XXX This if statement is actually a bad bug, added to avoid
+		 * XXX a worse bug.
+		 *
+		 * The bad bug: It can potentially cause resource unfairness
+		 * by reading too much data from the underlying bufferevent;
+		 * it can potentially cause read looping if the underlying
+		 * bufferevent is a bufferevent_pair and deferred callbacks
+		 * aren't used.
+		 *
+		 * The worse bug: If we didn't do this, then we would
+		 * potentially not read any more from bev_ssl->underlying
+		 * until more data arrived there, which could lead to us
+		 * waiting forever.
+		 */
+		if (!n_to_read && bev_ssl->underlying)
+			n_to_read = bytes_to_read(bev_ssl);
 	}
 
 	if (!bev_ssl->underlying) {
