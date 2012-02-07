@@ -1,6 +1,6 @@
-Changes in version 2.0.17-stable (?? ??? 2012)
+Changes in version 2.0.17-stable (?? Feb 2012)
 
- {LAST UPDATED AS OF 5408ff3b89677c77b4cb67afd8c65b36dc23a930}
+ {LAST UPDATED AS OF 5b4b8126de52c8a895094cfea61724a91e179e71}
 
 BUGFIXES (core):
  o Be absolutely sure to clear pncalls before leaving event_signal_closure (11f36a5)
@@ -9,12 +9,18 @@ BUGFIXES (core):
  o Make evconnlistener work around bug in older Linux when getting nmapped (ecfc720)
  o Fix a list corruption bug when using event_reinit() with signals present (6e41cdc)
  o Fix a fd leak in event_reinit() (3f18ad1)
+ o Do a memberwise comparison of threading function tables (c94a5f2 Nate R)
+ o Use C-style comments in C source files (for compatibility with compilers such as xlc on AIX). (d84d917 Greg Hewgill)
 
 BUGFIXES (evbuffer and bufferevents):
  o Fix behavior of evbuffer_peek(buf,-1,NULL,NULL,0) (c986f23 Zack Weinberg)
+ o Loop on filtering SSL reads until we are blocked or exhausted. (5b4b812)
 
 BUGFIXES (evhttp):
  o Force strict validation of HTTP version in response. (790f6b3 Catalin Patulea)
+
+BUGFIXES (evdns):
+ o evdns: fix a bug in circular-queue implementation (d6094b1)
 
 BUILD FIXES:
  o Fix a silly compilation error with the sun compiler (1927776 Colin Watt)
@@ -31,7 +37,7 @@ TESTS AND TEST FIXES:
  o Add function to check referential integrity of an event_base (27737d5)
  o Check event_base correctness at end of each unit test (3312b02)
  o Workaround in the unit tests for an apparent epoll bug in Linux 3.2 (dab9187)
-
+ o Better workaround for Linux 3.2 edge-triggered epoll bug (9f9e259)
 
 Changes in version 2.0.16-stable (18 Nov 2011)
 BUGFIXES (core):
