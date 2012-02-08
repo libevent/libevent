@@ -27,6 +27,8 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
+#ifdef _EVENT_HAVE_EPOLL
+
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/resource.h>
@@ -582,3 +584,5 @@ epoll_dealloc(struct event_base *base)
 	memset(epollop, 0, sizeof(struct epollop));
 	mm_free(epollop);
 }
+
+#endif /* _EVENT_HAVE_EPOLL */

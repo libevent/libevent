@@ -29,6 +29,8 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
+#ifdef _EVENT_HAVE_KQUEUE
+
 #include <sys/types.h>
 #ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -465,3 +467,5 @@ kq_sig_del(struct event_base *base, int nsignal, short old, short events, void *
 
 	return (0);
 }
+
+#endif /* _EVENT_HAVE_KQUEUE */
