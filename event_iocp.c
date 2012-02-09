@@ -184,7 +184,7 @@ event_iocp_port_launch(int n_cpus)
 	if (n_cpus <= 0)
 		n_cpus = N_CPUS_DEFAULT;
 	port->n_threads = n_cpus * 2;
-	port->threads = calloc(port->n_threads, sizeof(HANDLE));
+	port->threads = mm_calloc(port->n_threads, sizeof(HANDLE));
 	if (!port->threads)
 		goto err;
 
