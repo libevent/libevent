@@ -1,6 +1,4 @@
-Changes in version 2.0.17-stable (?? Feb 2012)
-
- {LAST UPDATED AS OF 5b4b8126de52c8a895094cfea61724a91e179e71}
+Changes in version 2.0.17-stable (10 Feb 2012)
 
 BUGFIXES (core):
  o Be absolutely sure to clear pncalls before leaving event_signal_closure (11f36a5)
@@ -11,6 +9,8 @@ BUGFIXES (core):
  o Fix a fd leak in event_reinit() (3f18ad1)
  o Do a memberwise comparison of threading function tables (c94a5f2 Nate R)
  o Use C-style comments in C source files (for compatibility with compilers such as xlc on AIX). (d84d917 Greg Hewgill)
+ o Avoid crash when freeing event_iocp and using event_set_mem_functions (19715a6
+ o In the kqueue backend, do not report EBADF as an EV_READ (5d7bfa1 Nicholas Marriott)
 
 BUGFIXES (evbuffer and bufferevents):
  o Fix behavior of evbuffer_peek(buf,-1,NULL,NULL,0) (c986f23 Zack Weinberg)
@@ -28,6 +28,7 @@ BUILD FIXES:
 
 DOCUMENTATION FIXES:
  o Slightly clarify evbuffer_peek documentation (7bbf6ca)
+ o Update copyright notices to 2012 (e49e289)
 
 NEW APIS:
  o Backport evhttp_connection_get_bufferevent to Libevent 2.0 (da70fa7 Arno Bakker)
