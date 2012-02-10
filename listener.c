@@ -190,6 +190,8 @@ evconnlistener_new(struct event_base *base,
 	lev->base.accept4_flags = 0;
 	if (!(flags & LEV_OPT_LEAVE_SOCKETS_BLOCKING))
 		lev->base.accept4_flags |= EVUTIL_SOCK_NONBLOCK;
+	if (flags & LEV_OPT_CLOSE_ON_EXEC)
+		lev->base.accept4_flags |= EVUTIL_SOCK_CLOEXEC;
 
 	if (flags & LEV_OPT_THREADSAFE) {
 		EVTHREAD_ALLOC_LOCK(lev->base.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
