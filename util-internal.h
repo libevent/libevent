@@ -38,6 +38,9 @@
 #ifdef _EVENT_HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
+#ifdef _EVENT_HAVE_SYS_EVENTFD_H
+#include <sys/eventfd.h>
+#endif
 #include "event2/util.h"
 
 #include "ipv6-internal.h"
@@ -310,6 +313,34 @@ HANDLE evutil_load_windows_system_library(const TCHAR *library_name);
 #define EV_SSIZE_ARG(x) EV_I64_ARG(x)
 #endif
 #endif
+
+evutil_socket_t evutil_socket(int domain, int type, int protocol);
+evutil_socket_t evutil_accept4(evutil_socket_t sockfd, struct sockaddr *addr,
+    socklen_t *addrlen, int flags);
+int evutil_make_internal_pipe(evutil_socket_t fd[2]);
+evutil_socket_t evutil_eventfd(unsigned initval, int flags);
+
+#ifdef SOCK_NONBLOCK
+#define EVUTIL_SOCK_NONBLOCK SOCK_NONBLOCK
+#else
+#define EVUTIL_SOCK_NONBLOCK 0x4000000
+#endif
+#ifdef SOCK_CLOEXEC
+#define EVUTIL_SOCK_CLOEXEC SOCK_CLOEXEC
+#else
+#define EVUTIL_SOCK_CLOEXEC 0x80000000
+#endif
+#ifdef EFD_NONBLOCK
+#define EVUTIL_EFD_NONBLOCK EFD_NONBLOCK
+#else
+#define EVUTIL_EFD_NONBLOCK 0x4000
+#endif
+#ifdef EFD_CLOEXEC
+#define EVUTIL_EFD_CLOEXEC EFD_CLOEXEC
+#else
+#define EVUTIL_EFD_CLOEXEC 0x8000
+#endif
+
 
 #ifdef __cplusplus
 }
