@@ -80,6 +80,7 @@ struct evconnlistener {
 	void *user_data;
 	unsigned flags;
 	short refcnt;
+	int accept4_flags;
 	unsigned enabled : 1;
 };
 
@@ -186,6 +187,10 @@ evconnlistener_new(struct event_base *base,
 	lev->base.flags = flags;
 	lev->base.refcnt = 1;
 
+	lev->base.accept4_flags = 0;
+	if (!(flags & LEV_OPT_LEAVE_SOCKETS_BLOCKING))
+		lev->base.accept4_flags |= EVUTIL_SOCK_NONBLOCK;
+
 	if (flags & LEV_OPT_THREADSAFE) {
 		EVTHREAD_ALLOC_LOCK(lev->base.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 	}
@@ -193,8 +198,8 @@ evconnlistener_new(struct event_base *base,
 	event_assign(&lev->listener, base, fd, EV_READ|EV_PERSIST,
 	    listener_read_cb, lev);
 
-    if (!(flags & LEV_OPT_DISABLED))
-        evconnlistener_enable(&lev->base);
+	if (!(flags & LEV_OPT_DISABLED))
+	    evconnlistener_enable(&lev->base);
 
 	return &lev->base;
 }
@@ -208,25 +213,17 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	evutil_socket_t fd;
 	int on = 1;
 	int family = sa ? sa->sa_family : AF_UNSPEC;
+	int socktype = SOCK_STREAM | EVUTIL_SOCK_NONBLOCK;
 
 	if (backlog == 0)
 		return NULL;
 
-	fd = socket(family, SOCK_STREAM, 0);
+	if (flags & LEV_OPT_CLOSE_ON_EXEC)
+		socktype |= EVUTIL_SOCK_CLOEXEC;
+
+	fd = evutil_socket(family, socktype, 0);
 	if (fd == -1)
 		return NULL;
-
-	if (evutil_make_socket_nonblocking(fd) < 0) {
-		evutil_closesocket(fd);
-		return NULL;
-	}
-
-	if (flags & LEV_OPT_CLOSE_ON_EXEC) {
-		if (evutil_make_socket_closeonexec(fd) < 0) {
-			evutil_closesocket(fd);
-			return NULL;
-		}
-	}
 
 	setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&on, sizeof(on));
 	if (flags & LEV_OPT_REUSEABLE) {
@@ -389,7 +386,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 #else
 		socklen_t socklen = sizeof(ss);
 #endif
-		evutil_socket_t new_fd = accept(fd, (struct sockaddr*)&ss, &socklen);
+		evutil_socket_t new_fd = evutil_accept4(fd, (struct sockaddr*)&ss, &socklen, lev->accept4_flags);
 		if (new_fd < 0)
 			break;
 		if (socklen == 0) {
@@ -398,9 +395,6 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 			evutil_closesocket(new_fd);
 			continue;
 		}
-
-		if (!(lev->flags & LEV_OPT_LEAVE_SOCKETS_BLOCKING))
-			evutil_make_socket_nonblocking(new_fd);
 
 		if (lev->cb == NULL) {
 			UNLOCK(lev);
