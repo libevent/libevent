@@ -310,6 +310,7 @@ AC_CHECK_FUNCS([ \
   arc4random_buf \
   clock_gettime \
   eventfd \
+  epoll_create1 \
   fcntl \
   getegid \
   geteuid \
