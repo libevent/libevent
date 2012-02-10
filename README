@@ -71,6 +71,8 @@ use and development: http://archives.seul.org/libevent/users/
 The following people have helped with suggestions, ideas, code or
 fixing bugs:
 
+  Arno Bakker
+  Maseeb Abdul
   Alejo
   Weston Andros Adamson
   William Ahern
@@ -99,12 +101,16 @@ fixing bugs:
   Shie Erlich
   Leonid Evdokimov
   Christophe Fillot
+  Mike Frysinger
+  Remi Gacogne
   Alexander von Gernler
   Artur Grabowski
   Dave Hart
   Greg Hazel
   Michael Herf
   Sebastian Hahn
+  Mark Heily
+  Greg Hewgill
   Aaron Hopkins
   Tani Hosokawa
   Jamie Iles
@@ -143,28 +149,33 @@ fixing bugs:
   Phil Oleson
   Dave Pacheco
   Tassilo von Parseval
+  Catalin Patulea
   Simon Perreault
   Pierre Phaneuf
   Ryan Phillips
   Dimitre Piskyulev
   Pavel Plesov
   Jon Poland
+  Nate R
   Robert Ransom
   Bert JW Regeer
   Peter Rosin
+  Wang Qin
   Hanna Schroeter
   Ralf Schmitt
   Mike Smellie
   Kevin Springborn
   Harlan Stenn
-  Ferenc Szalai
+  Steve Snyder
   Dug Song
   Dongsheng Song
+  Ferenc Szalai
   Brodie Thiesfield
   Jason Toffaletti
   Gisle Vanem
   Bas Verhoeven
   Constantine Verutin
+  Colin Watt
   Zack Weinberg
   Jardel Weyrich
   Alex
