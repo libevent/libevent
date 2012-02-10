@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 Niels Provos and Nick Mathewson
+ * Copyright 2008-2012 Niels Provos and Nick Mathewson
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

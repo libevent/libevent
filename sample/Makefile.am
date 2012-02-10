@@ -1,3 +1,9 @@
+# sample/Makefile.am for libevent
+# Copyright 2000-2007 Niels Provos
+# Copyright 2007-2012 Niels Provos and Nick Mathewson
+#
+# See LICENSE for copying information.
+
 AUTOMAKE_OPTIONS = foreign no-dependencies
 
 LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la

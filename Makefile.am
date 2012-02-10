@@ -1,3 +1,9 @@
+# Makefile.am for libevent
+# Copyright 2000-2007 Niels Provos
+# Copyright 2007-2012 Niels Provos and Nick Mathewson
+#
+# See LICENSE for copying information.
+
 # 'foreign' means that we're not enforcing GNU package rules strictly.
 # '1.7' means that we need automake 1.7 or later (and we do).
 AUTOMAKE_OPTIONS = foreign 1.7

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2005 Niels Provos <provos@citi.umich.edu>
+# Copyright (c) 2005-2007 Niels Provos <provos@citi.umich.edu>
+# Copyright (c) 2007-2012 Niels Provos and Nick Mathewson
 # All rights reserved.
 #
 # Generates marshaling code based on libevent.
