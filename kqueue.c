@@ -328,10 +328,15 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 			case EINVAL:
 				continue;
 
-			/* Can occur on a delete if the fd is closed.  Can
-			 * occur on an add if the fd was one side of a pipe,
-			 * and the other side was closed. */
+			/* Can occur on a delete if the fd is closed. */
 			case EBADF:
+				/* XXXX On NetBSD, we can also get EBADF if we
+				 * try to add the write side of a pipe, but
+				 * the read side has already been closed.
+				 * Other BSDs call this situation 'EPIPE'. It
+				 * would be good if we had a way to report
+				 * this situation. */
+				continue;
 			/* These two can occur on an add if the fd was one side
 			 * of a pipe, and the other side was closed. */
 			case EPERM:
