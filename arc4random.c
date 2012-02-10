@@ -1,6 +1,7 @@
 /* Portable arc4random.c based on arc4random.c from OpenBSD.
  * Portable version by Chris Davis, adapted for Libevent by Nick Mathewson
  * Copyright (c) 2010 Chris Davis, Niels Provos, and Nick Mathewson
+ * Copyright (c) 2010-2012 Niels Provos and Nick Mathewson
  *
  * Note that in Libevent, this file isn't compiled directly.  Instead,
  * it's included from evutil_rand.c

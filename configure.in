@@ -1,5 +1,10 @@
-dnl configure.in for libevent
-dnl Dug Song <dugsong@monkey.org>
+dnl Copyright 2000-2007 Niels Provos
+dnl Copyright 2007-2012 Niels Provos and Nick Mathewson
+dnl
+dnl See LICENSE for copying information.
+dnl
+dnl Original version Dug Song <dugsong@monkey.org>
+
 AC_PREREQ(2.59)
 AC_INIT(event.c)
 
