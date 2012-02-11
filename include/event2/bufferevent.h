@@ -301,6 +301,26 @@ void bufferevent_setcb(struct bufferevent *bufev,
     bufferevent_event_cb eventcb, void *cbarg);
 
 /**
+ Retrieves the callbacks for a bufferevent.
+
+ @param bufev the bufferevent to examine.
+ @param readcb_ptr if readcb_ptr is nonnull, *readcb_ptr is set to the current
+    read callback for the bufferevent.
+ @param writecb_ptr if writecb_ptr is nonnull, *writecb_ptr is set to the
+    current write callback for the bufferevent.
+ @param eventcb_ptr if eventcb_ptr is nonnull, *eventcb_ptr is set to the
+    current event callback for the bufferevent.
+ @param cbarg_ptr if cbarg_ptr is nonnull, *cbarg_ptr is set to the current
+    callback argument for the bufferevent.
+ @see buffervent_setcb()
+*/
+void bufferevent_getcb(struct bufferevent *bufev,
+    bufferevent_data_cb *readcb_ptr,
+    bufferevent_data_cb *writecb_ptr,
+    bufferevent_event_cb *eventcb_ptr,
+    void **cbarg_ptr);
+
+/**
   Changes the file descriptor on which the bufferevent operates.
   Not supported for all bufferevent types.
 

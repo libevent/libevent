@@ -132,7 +132,7 @@ test_bufferevent_impl(int use_pair)
 		tt_assert(0 == bufferevent_pair_new(NULL, 0, pair));
 		bev1 = pair[0];
 		bev2 = pair[1];
-		bufferevent_setcb(bev1, readcb, writecb, errorcb, NULL);
+		bufferevent_setcb(bev1, readcb, writecb, errorcb, bev1);
 		bufferevent_setcb(bev2, readcb, writecb, errorcb, NULL);
 		tt_int_op(bufferevent_getfd(bev1), ==, -1);
 		tt_ptr_op(bufferevent_get_underlying(bev1), ==, NULL);
@@ -145,6 +145,18 @@ test_bufferevent_impl(int use_pair)
 		tt_ptr_op(bufferevent_get_underlying(bev1), ==, NULL);
 		tt_ptr_op(bufferevent_pair_get_partner(bev1), ==, NULL);
 		tt_ptr_op(bufferevent_pair_get_partner(bev2), ==, NULL);
+	}
+
+	{
+		/* Test getcb. */
+		bufferevent_data_cb r, w;
+		bufferevent_event_cb e;
+		void *a;
+		bufferevent_getcb(bev1, &r, &w, &e, &a);
+		tt_ptr_op(r, ==, readcb);
+		tt_ptr_op(w, ==, writecb);
+		tt_ptr_op(e, ==, errorcb);
+		tt_ptr_op(a, ==, use_pair ? bev1 : NULL);
 	}
 
 	bufferevent_disable(bev1, EV_READ);
