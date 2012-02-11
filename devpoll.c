@@ -129,7 +129,7 @@ devpoll_init(struct event_base *base)
 		nfiles = rl.rlim_cur;
 
 	/* Initialize the kernel queue */
-	if ((dpfd = open("/dev/poll", O_RDWR)) == -1) {
+	if ((dpfd = evutil_open_closeonexec("/dev/poll", O_RDWR, 0)) == -1) {
 		event_warn("open: /dev/poll");
 		mm_free(devpollop);
 		return (NULL);

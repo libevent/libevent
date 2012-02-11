@@ -161,6 +161,8 @@ char EVUTIL_TOLOWER(char c);
 #define EVUTIL_UPCAST(ptr, type, field)				\
 	((type *)(((char*)(ptr)) - evutil_offsetof(type, field)))
 
+int evutil_open_closeonexec(const char *pathname, int flags, mode_t mode);
+
 int evutil_read_file(const char *filename, char **content_out, size_t *len_out,
     int is_binary);
 
