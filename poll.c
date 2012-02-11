@@ -29,6 +29,8 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
+#ifdef _EVENT_HAVE_POLL
+
 #include <sys/types.h>
 #ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -332,3 +334,5 @@ poll_dealloc(struct event_base *base)
 	memset(pop, 0, sizeof(struct pollop));
 	mm_free(pop);
 }
+
+#endif /* _EVENT_HAVE_POLL */
