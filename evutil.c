@@ -88,7 +88,7 @@
 #endif
 
 int
-evutil_open_closeonexec(const char *pathname, int flags, mode_t mode)
+evutil_open_closeonexec(const char *pathname, int flags, unsigned mode)
 {
 	int fd;
 
@@ -96,7 +96,10 @@ evutil_open_closeonexec(const char *pathname, int flags, mode_t mode)
 	flags |= O_CLOEXEC;
 #endif
 
-	fd = open(pathname, flags, mode);
+	if (flags & O_CREAT)
+		fd = open(pathname, flags, (mode_t)mode);
+	else
+		fd = open(pathname, flags);
 	if (fd < 0)
 		return -1;
 
