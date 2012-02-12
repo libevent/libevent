@@ -163,6 +163,11 @@ char EVUTIL_TOLOWER(char c);
 #define EVUTIL_UPCAST(ptr, type, field)				\
 	((type *)(((char*)(ptr)) - evutil_offsetof(type, field)))
 
+/* As open(pathname, flags, mode), except that the file is always opened with
+ * the close-on-exec flag set. (And the mode argument is mandatory.)
+ */
+int evutil_open_closeonexec(const char *pathname, int flags, unsigned mode);
+
 int evutil_read_file(const char *filename, char **content_out, size_t *len_out,
     int is_binary);
 

@@ -96,6 +96,30 @@
 #define stat _stati64
 #endif
 
+int
+evutil_open_closeonexec(const char *pathname, int flags, unsigned mode)
+{
+	int fd;
+
+#ifdef O_CLOEXEC
+	flags |= O_CLOEXEC;
+#endif
+
+	if (flags & O_CREAT)
+		fd = open(pathname, flags, (mode_t)mode);
+	else
+		fd = open(pathname, flags);
+	if (fd < 0)
+		return -1;
+
+#if !defined(O_CLOEXEC) && defined(FD_CLOEXEC)
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
+		return -1;
+#endif
+
+	return fd;
+}
+
 /**
    Read the contents of 'filename' into a newly allocated NUL-terminated
    string.  Set *content_out to hold this string, and *len_out to hold its
@@ -126,7 +150,7 @@ evutil_read_file(const char *filename, char **content_out, size_t *len_out,
 		mode |= O_BINARY;
 #endif
 
-	fd = open(filename, mode);
+	fd = evutil_open_closeonexec(filename, mode, 0);
 	if (fd < 0)
 		return -1;
 	if (fstat(fd, &st) || st.st_size < 0 ||
