@@ -85,14 +85,33 @@ int evmap_signal_add(struct event_base *base, int signum, struct event *ev);
 int evmap_signal_del(struct event_base *base, int signum, struct event *ev);
 void evmap_signal_active(struct event_base *base, evutil_socket_t signum, int ncalls);
 
+/* Return the fdinfo object associated with a given fd.  If the fd has no
+ * events associated with it, the result may be NULL.
+ */
 void *evmap_io_get_fdinfo(struct event_io_map *ctx, evutil_socket_t fd);
 
-int evmap_io_reinit(struct event_base *base);
-int evmap_signal_reinit(struct event_base *base);
+/* Helper for event_reinit(): Tell the backend to re-add every fd and signal
+ * for which we have a pending event.
+ */
+int evmap_reinit(struct event_base *base);
 
-int evmap_io_delete_all(struct event_base *base);
-int evmap_signal_delete_all(struct event_base *base);
+/* Helper for event_base_free(): Call event_del() on every pending fd and
+ * signal event.
+ */
+void evmap_delete_all(struct event_base *base);
 
+/* Helper for event_base_assert_ok(): Check referential integrity of the
+ * evmaps.
+ */
 void evmap_check_integrity(struct event_base *base);
+
+/* Helper: Call fn on every fd or signal event, passing as its arguments the
+ * provided event_base, the event, and arg.  If fn returns 0, process the next
+ * event.  If it returns any other value, return that value and process no
+ * more events.
+ */
+int evmap_foreach_event(struct event_base *base,
+    event_base_foreach_event_cb fn,
+    void *arg);
 
 #endif /* _EVMAP_H_ */
