@@ -25,16 +25,16 @@
 #define HT_INITIALIZER()                        \
   { NULL, 0, 0, 0, -1 }
 
-#ifdef HT_CACHE_HASH_VALUES
+#ifdef HT_NO_CACHE_HASH_VALUES
 #define HT_ENTRY(type)                          \
   struct {                                      \
     struct type *hte_next;                      \
-    unsigned hte_hash;                          \
   }
 #else
 #define HT_ENTRY(type)                          \
   struct {                                      \
     struct type *hte_next;                      \
+    unsigned hte_hash;                          \
   }
 #endif
 
@@ -97,7 +97,7 @@ ht_string_hash(const char *s)
   return h;
 }
 
-#ifdef HT_CACHE_HASH_VALUES
+#ifndef HT_NO_CACHE_HASH_VALUES
 #define _HT_SET_HASH(elm, field, hashfn)        \
 	do { (elm)->field.hte_hash = hashfn(elm); } while (0)
 #define _HT_SET_HASHVAL(elm, field, val)	\

@@ -112,6 +112,7 @@ struct eventop {
 /* #define HT_CACHE_HASH_VALS */
 
 #ifdef EVMAP_USE_HT
+#define HT_NO_CACHE_HASH_VALUES
 #include "ht-internal.h"
 struct event_map_entry;
 HT_HEAD(event_io_map, event_map_entry);
