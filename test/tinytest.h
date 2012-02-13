@@ -23,15 +23,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _TINYTEST_H
-#define _TINYTEST_H
+#ifndef TINYTEST_H_INCLUDED_
+#define TINYTEST_H_INCLUDED_
 
 /** Flag for a test that needs to run in a subprocess. */
 #define TT_FORK  (1<<0)
 /** Runtime flag for a test we've decided to skip. */
 #define TT_SKIP  (1<<1)
 /** Internal runtime flag for a test we've decided to run. */
-#define _TT_ENABLED  (1<<2)
+#define TT_ENABLED_  (1<<2)
 /** If you add your own flags, make them start at this point. */
 #define TT_FIRST_USER_FLAG (1<<3)
 
@@ -65,18 +65,18 @@ struct testgroup_t {
 #define END_OF_GROUPS { NULL, NULL}
 
 /** Implementation: called from a test to indicate failure, before logging. */
-void _tinytest_set_test_failed(void);
+void tinytest_set_test_failed_(void);
 /** Implementation: called from a test to indicate that we're skipping. */
-void _tinytest_set_test_skipped(void);
+void tinytest_set_test_skipped_(void);
 /** Implementation: return 0 for quiet, 1 for normal, 2 for loud. */
-int _tinytest_get_verbosity(void);
+int tinytest_get_verbosity_(void);
 /** Implementation: Set a flag on tests matching a name; returns number
  * of tests that matched. */
-int _tinytest_set_flag(struct testgroup_t *, const char *, unsigned long);
+int tinytest_set_flag_(struct testgroup_t *, const char *, unsigned long);
 
 /** Set all tests in 'groups' matching the name 'named' to be skipped. */
 #define tinytest_skip(groups, named) \
-	_tinytest_set_flag(groups, named, TT_SKIP)
+	tinytest_set_flag_(groups, named, TT_SKIP)
 
 /** Run a single testcase in a single group. */
 int testcase_run_one(const struct testgroup_t *,const struct testcase_t *);
