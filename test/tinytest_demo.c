@@ -39,7 +39,7 @@
 /* ============================================================ */
 
 /* First, let's see if strcmp is working.  (All your test cases should be
- * functions declared to take a single void * as) an argument. */
+ * functions declared to take a single void * as an argument.) */
 void
 test_strcmp(void *data)
 {
