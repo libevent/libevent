@@ -65,7 +65,7 @@ regress_LDFLAGS = $(PTHREAD_CFLAGS)
 
 if OPENSSL
 regress_SOURCES += regress_ssl.c
-regress_LDADD += ../libevent_openssl.la -lssl -lcrypto
+regress_LDADD += ../libevent_openssl.la -lssl -lcrypto ${OPENSSL_LIBADD}
 endif
 
 bench_SOURCES = bench.c

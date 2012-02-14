@@ -13,7 +13,7 @@ case "$enable_openssl" in
 	OPENSSL_LIBS=`$PKG_CONFIG --libs openssl 2>/dev/null`
 	case "$OPENSSL_LIBS" in
 	 '') ;;
-	 *) OPENSSL_LIBS="$OPENSSL_LIBS $EV_LIB_GDI $EV_LIB_WS32"
+	 *) OPENSSL_LIBS="$OPENSSL_LIBS $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LIBADD"
 	    have_openssl=yes
 	    ;;
 	esac
@@ -28,9 +28,9 @@ case "$enable_openssl" in
 	OPENSSL_LIBS=""
 	AC_SEARCH_LIBS([SSL_new], [ssl],
 	    [have_openssl=yes
-	    OPENSSL_LIBS="$LIBS -lcrypto $EV_LIB_GDI $EV_LIB_WS32"],
+	    OPENSSL_LIBS="$LIBS -lcrypto $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LIBADD"],
 	    [have_openssl=no],
-	    [-lcrypto $EV_LIB_GDI $EV_LIB_WS32])
+	    [-lcrypto $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LIBADD])
 	LIBS="$save_LIBS"
 	;;
     esac
