@@ -102,9 +102,14 @@ evutil_open_closeonexec(const char *pathname, int flags, unsigned mode)
 	int fd;
 
 #ifdef O_CLOEXEC
-	flags |= O_CLOEXEC;
+	if (flags & O_CREAT)
+		fd = open(pathname, flags|O_CLOEXEC, (mode_t)mode);
+	else
+		fd = open(pathname, flags|O_CLOEXEC);
+	if (fd >= 0 || errno == EINVAL)
+		return fd;
+	/* If we got an EINVAL, fall through and try without O_CLOEXEC */
 #endif
-
 	if (flags & O_CREAT)
 		fd = open(pathname, flags, (mode_t)mode);
 	else
@@ -112,7 +117,7 @@ evutil_open_closeonexec(const char *pathname, int flags, unsigned mode)
 	if (fd < 0)
 		return -1;
 
-#if !defined(O_CLOEXEC) && defined(FD_CLOEXEC)
+#if defined(FD_CLOEXEC)
 	if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0)
 		return -1;
 #endif
