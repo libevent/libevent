@@ -154,7 +154,7 @@ else
 fi
 AC_SUBST(EV_LIB_WS32)
 AC_SUBST(EV_LIB_GDI)
-AC_SUBST(OPENSSL_LDFLAGS)
+AC_SUBST(OPENSSL_LIBADD)
 
 AC_CHECK_HEADERS([openssl/bio.h])
 
@@ -165,10 +165,10 @@ OPENSSL_LIBS=""
 have_openssl=no
 AC_SEARCH_LIBS([SSL_new], [ssl],
 	[have_openssl=yes
-	OPENSSL_LIBS="$LIBS -lcrypto $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LDFLAGS"
+	OPENSSL_LIBS="$LIBS -lcrypto $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LIBADD"
 	AC_DEFINE(HAVE_OPENSSL, 1, [Define if the system has openssl])],
 	[have_openssl=no],
-	[-lcrypto $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LDFLAGS])
+	[-lcrypto $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LIBADD])
 LIBS="$save_LIBS"
 AC_SUBST(OPENSSL_LIBS)
 fi
