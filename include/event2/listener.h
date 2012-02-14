@@ -72,6 +72,12 @@ typedef void (*evconnlistener_errorcb)(struct evconnlistener *, void *);
 /** Flag: Indicates that the listener should be created in disabled
  * state. Use evconnlistener_enable() to enable it later. */
 #define LEV_OPT_DISABLED		(1u<<5)
+/** Flag: Indicates that the listener should defer accept() until data is
+ * available, if possible.  Ignored on platforms that do not support this.
+ *
+ * This option can help performance for protocols where the client transmits
+ * immediately after connecting. */
+#define LEV_OPT_DEFERRED_ACCEPT		(1u<<6)
 
 /**
    Allocate a new evconnlistener object to listen for incoming TCP connections

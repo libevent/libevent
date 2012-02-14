@@ -232,6 +232,10 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 		evutil_make_listen_socket_reuseable(fd);
 	}
 
+	if (flags & LEV_OPT_DEFERRED_ACCEPT) {
+		evutil_make_tcp_listen_socket_deferred(fd);
+	}
+
 	if (sa) {
 		if (bind(fd, sa, socklen)<0) {
 			evutil_closesocket(fd);
