@@ -896,7 +896,12 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 				    addrbuf, sizeof(addrbuf)));
 			break;
 		default:
-			/* we got a good reply from the nameserver */
+			/* we got a good reply from the nameserver: it is up. */
+			if (req->handle == req->ns->probe_request) {
+				/* Avoid double-free */
+				req->ns->probe_request = NULL;
+			}
+
 			nameserver_up(req->ns);
 		}
 
