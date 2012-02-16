@@ -1,0 +1,191 @@
+
+Contains stuff through a270728e28e9b4107a9839d9dd8d30182139114c
+
+ Performance:
+
+   o Replace several TAILQ users with LIST. LIST can be a little faster than
+     TAILQ for cases where we don't need queue-like behavior. (f9db33d,
+     6494772, d313c29, 974d004)
+   o Optimize the case where we reinsert an existing timeout (e47042f)
+   o Remove a needless base-notify when rescheduling the first timeout (77a96fd)
+   o Save a needless comparison when removing/adjusting timeouts (dd5189b)
+   o possible optimization: split event_queue_insert/remove into separate functions. needs testing (efc4dc5)
+   o Make event_count maintainance branchless at the expense of an extra shift. Needs benchmarking (d1cee3b)
+   o In the 2.1 branch, let's try out lazy gettimeofday/clock_gettime comparison (2a83ecc)
+   o Roughly 20% speed increase when line-draining a buffer using EVBUFFER_EOL_CRLF (5dde0f0 Mina Naguib)
+   o Try to squeeze a little more speed out of EVBUFFER_EOL_CRLF (7b9d139)
+   o Fix a bug in the improved EOL_CRLF code (d927965)
+   o Remove a needless branch in evbuffer_drain() (d19a326)
+   o Optimization in event_process_active(): ignore maxcb & endtime for highest priority events. (a9866aa Alexander Drozdov)
+   o Bypass event_add when using event_base_once() for a 0-sec timeout (35c5c95)
+   o Infrastructure for using faster/fewer syscalls when creating sockets (a1c042b)
+   o Minimize syscalls during socket creation in listener.c (7e9e289)
+   o The LEV_OPT_CLOSE_ON_EXEC flag now applies to accepted listener sockets too (4970329)
+   o Use a wrapper function to create the notification pipe/socketpair/eventfd (ca76cd9)
+   o Use pipes for telling signals to main thread when possible (a35f396)
+   o Save syscalls when constructing listener sockets for evhttp (af6c9d8)
+   o Save some syscalls when creating evdns sockets (713e570)
+   o Save some syscalls when constructing a socket for a bufferevent (33fca62)
+   o Prefer epoll_create1 on Linuxen that have it (bac906c)
+   o Fix compilation on osx (2b0a2c4)
+   o Infrastructure for using faster/fewer syscalls when creating sockets (a1c042b)
+   o Minimize syscalls during socket creation in listener.c (7e9e289)
+   o The LEV_OPT_CLOSE_ON_EXEC flag now applies to accepted listener sockets too (4970329)
+   o Use a wrapper function to create the notification pipe/socketpair/eventfd (ca76cd9)
+   o Use pipes for telling signals to main thread when possible (a35f396)
+   o Save syscalls when constructing listener sockets for evhttp (af6c9d8)
+   o Save some syscalls when creating evdns sockets (713e570)
+   o Save some syscalls when constructing a socket for a bufferevent (33fca62)
+   o Prefer epoll_create1 on Linuxen that have it (bac906c)
+   o Fix compilation on osx (2b0a2c4)
+   o If open(O_CLOEXEC) fails, fall back to fcntl(CLOEXEC) (2ed4430)
+   o Support TCP_DEFER_ACCEPT sockopts for listeners (5880e4a Mark Ellzey)
+   o Add another caveat to the TCP_DEFER_ACCEPT documentation (a270728)
+
+
+ Epoll backend:
+   o Use current event set rather than current pending change when deciding whether to no-op a del (04ba27e Mike Smellie)
+   o Replace big chain of if/thens in epoll.c with a table lookup (8c83eb6)
+   o Clean up error handling in epoll_apply_one_change() a little (2d55a19)
+
+ Windows:
+   o Use GetSystemTimeAsFileTime to implement gettimeofday on win32. It's faster and more accurate than our old approach. (b8b8aa5)
+
+ New functions and features:
+   o Add event_enable_debug_logging() to control use of debug logs (e30a82f)
+   o Add evbuffer_add_file_segment() so one fd can be used efficiently in more than one evbuffer_add_file at a time (e72afae, c2d9884, 3f405d2, 0aad014)
+   o Fix windows file segment mappings (8254de7)
+   o Allow evbuffer_ptr_set to yield a point just after the end of the buffer. (e6fe1da)
+   o Allow evbuffer_ptr to point to position 0 in an empty evbuffer (7aeb2fd Nir Soffer)
+   o Set the special "not found" evbuffer_ptr consistantly. (e3e97ae Nir Soffer)
+   o support adding buffers to other buffers non-destructively (9d7368a Joachim Bauch)
+   o prevent nested multicast references, reworked locking (26041a8 Joachim Bauch)
+   o Add event_config function to limit time/callbacks between calls to dispatch (fd4de1e)
+   o Make sure max_dispatch_callbacks is never negative (9fa56bd)
+   o Make max_dispatch_interval able to apply only to low-priority events (a37a0c0)
+   o Make the priority inversion code use gettime(), not evutil_gettimeofday() (3c63edd)
+   o Build with large-file support on platforms where it matters (8a23104)
+   o Implement --enable-gcc-hardening configure option (7550267 Sebastian Hahn)
+   o Allow evconnlistener to be created in disabled state. (9593a33 Alexander Drozdov)
+   o New EVLOOP_NO_EXIT_ON_EMPTY option to keep looping even when no events are pending (084e68f)
+   o Make evbuffer_file_segment_types adaptable (c6bbbf1)
+   o Add event_base_get_npriorities() function. (ee3a4ee Alexander Drozdov)
+   o Make evbase_priority_init() and evbase_get_npriorities() threadsafe (3c55b5e)
+   o bufferevent: Add functions to set/get max_single_read/write values. (998c813 Alexander Drozdov)
+   o New event_base_update_cache_time() to set cached_tv to current time (212533e Abel Mathew)
+   o Added evbuffer_add_iovec and unit tests. (aaec5ac Mark Ellzey, 27b5398)
+   o Add evbuffer_copyout_from to copy data from the middle of a buffer (27e2225)
+   o Use getifaddrs to detect our interfaces if possible (7085a45)
+   o Fix compilation of windows evutil_check_ifaddrs (40a3c52)
+   o Add a bufferevent_getcb() to find a bufferevent's current callbacks (a650394)
+
+ Evhttp:
+   o Add new evhttp_{connection_}set_timeout_tv() functions to set finger-grained http timeouts (6350e6c Constantine Verutin)
+   o Performance tweak to evhttp_parse_request_line. (aee1a97 Mark Ellzey)
+   o Add missing break to evhttp_parse_request_line (0fcc536)
+   o Add evhttp callback for bufferevent creation; this lets evhttp support SSL. (8d3a850)
+   o Remove calls to deprecated bufferevent functions from evhttp.c (4d63758)
+   o evhttp: Add evhttp_foreach_bound_socket. (a2c48e3 Samy Al Bahra)
+
+
+ Bufferevents:
+   o bev_ssl: Be more specific in event callbacks. evhttp in particular gets confused without at least one of BEV_EVENT_{READING|WRITING}. (f7eb69a Catalin Patulea)
+
+ Build improvements
+   o Add AC_USE_SYSTEM_EXTENSIONS to configure.in. Requires follow on patches for correctness and robustness. (1fa7dbe Kevin Bowling)
+   o Filter '# define' statements from autoconf and generate event-private.h (321b558 Kevin Bowling)
+   o Remove internal usage of _GNU_SOURCE (3b26541 Kevin Bowling)
+   o Eliminate a couple more manual internal _GNU_SOURCE defines (c51ef93 Kevin Bowling)
+   o Add AC_GNU_SOURCE to the fallback case. (ea8fa4c Kevin Bowling)
+   o Use a Configuration Header Template for evconfig-private.h (868f888 Kevin Bowling)
+   o Fix a comment warning and add evconfig-private.h to .gitignore (f6d66bc Kevin Bowling)
+   o Include evconfig-private.h in internal files for great good. (0915ca0 Kevin Bowling)
+   o Backport libevent to vanilla Autoconf 2.59 (as used in RHEL5) (ad03952 Kevin Bowling)
+   o Prefer the ./configure evconfig-private.h in MinGW, just in case. (f964b72 Kevin Bowling)
+   o Shell hack for weird mkdir -p commands (fd7b5a8 Kevin Bowling)
+   o Add evconfig-private to remaining files (ded0a09 Kevin Bowling)
+   o Allow use of --enable-silent-rules for quieter compilation with automake 1.11 (f1f8514 Dave Hart)
+f)
+   o Use "_WIN32", not WIN32: it's standard and we don't need to fake it (9f560b)
+   o In configure, test for _WIN32 not WIN32. (85078b1 Peter Rosin)
+   o Do not define WIN32 in Makefile.nmake (d41f3ea Peter Rosin)
+   o Provide the autoconf m4 macros for the new OpenSSL via pkg-config stuff. (674dc3d Harlan Stenn)
+   o Use pkg-config (if available) to handle OpenSSL. (1c63860 Harlan Stenn)
+   o We need AM_CPPFLAGS when compiling bufferevent_openssl.c (6d2613b Harlan Stenn)
+   o Fix OSX build: $(OPENSSL_INCS) needs to be after $(AM_CPPFLAGS). (46f1769 Zack Weinberg)
+   o Make gcc warnings on by default, and --enable-gcc-warnings only add -Werror (d46517e Sebastian Hahn)
+   o Split up extra-long AC_CHECK_FUNCS/HEADERS lines in configure.in (88a30ad)
+   o Move libevent 1.x headers to include/, to put all public headers in one place. (bbea8d6)
+   o Put #ifdef around some files to support alternate build systems. (76d4c92 Ross Lagerwall)
+   o Also make win32select.c conditional for IDE users (bf2c5a7)
+
+
+ Debugging:
+   o Add a magic number to debug_locks to better catch lock-coding errors. (b4a29c0 Dave Hart)
+   o munge the debug_lock signature before freeing it: it might help us catch use-after-free (f28084d)
+   o Added --enable-event-debugging in configure (bc7b4e4, a9c2c9a Mark Ellzey)
+   o Debug addition for printing usec on TIMEOUT debugging. (ac43ce0 Mark Ellzey)
+   o Added usec debug in another area for debug (3baab0d Mark Ellzey)
+   o added timeout debug logs to include event ptr. (4b7d298 Mark Ellzey)
+   o more event dbg updates (6727543 Mark Ellzey)
+   o Clarify event_enable_debug_logging a little (6207826)
+   o Make --enable-verbose-debug option match its help text (10c3450)
+   o Add argument checks to some memory functions in `event.c'. (c8953d1 Mansour Moufid)
+
+
+ Evport backend:
+   o evport: use evmap_io to track fdinfo status. Should save time and RAM. (4687ce4)
+   o evport: Remove a linear search over recent events when reactivating them (0f77efe)
+   o evport: Use portev_user to remember fdinfo struct (276ec0e)
+   o evport: don't scan more events in ed_pending than needed (849a5cf)
+   o evport: Remove artificial low limit on max events per getn call (c04d927)
+   o Reenable main/many_events_slow_add for evport in 2.1 (e903db3)
+
+
+ Huh what:
+   o Allow base-notification functions to exist without setting an fd (94b8e67)
+   o Use the free-trailing-chains function in evbuffer_insert_chain too (b18c04d)
+   o Allow users to set allow_dirty_shutdown (099d27d Catalin Patulea)
+   o Tweak allow_dirty_shutdown documentation (a44cd2b)
+   o Fix two issues in the allow_dirty_shutdown code. (f3b89de)
+   o Changed use of refcounts to make sure referenced chains are freed in all cases. (a8e5e2f Joachim Bauch)
+   o fix windows compilation issues with new file segment code (da45aa7)
+
+ Testing:
+   o More abstraction in test.sh (cd74c4e)
+   o Add failing test for evbuffer_search_range. (8e26154 Nir Soffer)
+   o Tweaks to return types with end-of-buf ptrs (9ab8ab8)
+   o New EVBUFFER_EOL_NUL to read NUL-terminated strings from an evbuffer (d7a8b36 Andrea Montefusco, 54142c9)
+   o Add an (internal) usleep function for use by unit tests (f25d9d3)
+   o Synchronize with upstream tinytest (6c81be7)
+   o Make test-changelist faster (7622d26)
+
+
+ Documentation:
+   o Improve evbuffer_ptr documentation (261ba63)
+   o added comments to describe refcounting of multicase chains (ba24f61 Joachim Bauch)
+   o Reduce the timeout in the main/fork test. (ab14f7c)
+   o New evhttp function to adjust initial retry timeout (350a3c4)
+   o Make regression tests run over 3x faster. (67a1763)
+   o Use test_timeval_diff_eq more consistently (b77b43f)
+   o Allow more slop in deferred_cb_skew test; freebsd needs it (b9f7e5f)
+   o When including an -internal.h header outside the main tree, do so early (95e2455)
+
+
+ OSX:
+   o Use "unlimited select" on OSX so that we can have more than FD_SETSIZE fds (1fb5cc6)
+
+
+ KQueue:
+   o Use SIG_IGN instead of a do-nothing handler for signal events with kqueue (148458e Zack Weinberg)
+
+
+ Code improvement and refactoring:
+   o Make event_reinit() more robust and maintainable (272033e)
+   o Restore fast-path event_reinit() for slower backends (2c4b5de)
+   o Check changelist as part of checking representational integrity (39b3f38)
+   o Fix a compile warning in event_reinit (e4a56ed Sebastian Hahn)
+
+
+
+

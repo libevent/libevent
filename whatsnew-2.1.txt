@@ -1,0 +1,17 @@
+                         What's new in Libevent 2.1
+
+0. Before we start
+
+0.1. About this document
+
+  This document describes the key differences between Libevent 1.4 and
+  Libevent 2.0, from a user's point of view.  It's a work in progress.
+
+  For better documentation about libevent, see the links at
+  http://libevent.org/
+
+  To
+
+0.2. Where to get help
+
+
