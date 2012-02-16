@@ -311,10 +311,12 @@ AC_HEADER_TIME
 
 dnl Checks for library functions.
 AC_CHECK_FUNCS([ \
+  accept4 \
   arc4random \
   arc4random_buf \
   clock_gettime \
   eventfd \
+  epoll_create1 \
   fcntl \
   getegid \
   geteuid \
@@ -329,6 +331,7 @@ AC_CHECK_FUNCS([ \
   mmap \
   nanosleep \
   pipe \
+  pipe2 \
   putenv \
   sendfile \
   setenv \

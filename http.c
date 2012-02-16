@@ -3984,16 +3984,12 @@ bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
 	int serrno;
 
 	/* Create listen socket */
-	fd = socket(ai ? ai->ai_family : AF_INET, SOCK_STREAM, 0);
+	fd = evutil_socket(ai ? ai->ai_family : AF_INET,
+	    SOCK_STREAM|EVUTIL_SOCK_NONBLOCK|EVUTIL_SOCK_CLOEXEC, 0);
 	if (fd == -1) {
 			event_sock_warn(-1, "socket");
 			return (-1);
 	}
-
-	if (evutil_make_socket_nonblocking(fd) < 0)
-		goto out;
-	if (evutil_make_socket_closeonexec(fd) < 0)
-		goto out;
 
 	setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));
 	if (reuse)

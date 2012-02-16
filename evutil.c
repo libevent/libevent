@@ -331,6 +331,24 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 	return 0;
 }
 
+/* Faster version of evutil_make_socket_nonblocking for internal use.
+ *
+ * Requires that no F_SETFL flags were previously set on the fd.
+ */
+static int
+evutil_fast_socket_nonblocking(evutil_socket_t fd)
+{
+#ifdef _WIN32
+	return evutil_make_socket_nonblocking(fd);
+#else
+	if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1) {
+		event_warn("fcntl(%d, F_SETFL)", fd);
+		return -1;
+	}
+	return 0;
+#endif
+}
+
 int
 evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 {
@@ -356,6 +374,22 @@ evutil_make_socket_closeonexec(evutil_socket_t fd)
 		return -1;
 	}
 	if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+		event_warn("fcntl(%d, F_SETFD)", fd);
+		return -1;
+	}
+#endif
+	return 0;
+}
+
+/* Faster version of evutil_make_socket_closeonexec for internal use.
+ *
+ * Requires that no F_SETFD flags were previously set on the fd.
+ */
+static int
+evutil_fast_socket_closeonexec(evutil_socket_t fd)
+{
+#if !defined(_WIN32) && defined(_EVENT_HAVE_SETFD)
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
 		event_warn("fcntl(%d, F_SETFD)", fd);
 		return -1;
 	}
@@ -2323,3 +2357,168 @@ evutil_usleep(const struct timeval *tv)
 	select(0, NULL, NULL, NULL, tv);
 #endif
 }
+
+/* Internal wrapper around 'socket' to provide Linux-style support for
+ * syscall-saving methods where available.
+ *
+ * In addition to regular socket behavior, you can use a bitwise or to set the
+ * flags EVUTIL_SOCK_NONBLOCK and EVUTIL_SOCK_CLOEXEC in the 'type' argument,
+ * to make the socket nonblocking or close-on-exec with as few syscalls as
+ * possible.
+ */
+evutil_socket_t
+evutil_socket(int domain, int type, int protocol)
+{
+	evutil_socket_t r;
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+	r = socket(domain, type, protocol);
+	if (r < 0 && !(type & (SOCK_NONBLOCK|SOCK_CLOEXEC)))
+		return -1;
+#endif
+#define SOCKET_TYPE_MASK (~(EVUTIL_SOCK_NONBLOCK|EVUTIL_SOCK_CLOEXEC))
+	r = socket(domain, type & SOCKET_TYPE_MASK, protocol);
+	if (r < 0)
+		return -1;
+	if (type & EVUTIL_SOCK_NONBLOCK) {
+		if (evutil_fast_socket_nonblocking(r) < 0) {
+			evutil_closesocket(r);
+			return -1;
+		}
+	}
+	if (type & EVUTIL_SOCK_CLOEXEC) {
+		if (evutil_fast_socket_closeonexec(r) < 0) {
+			evutil_closesocket(r);
+			return -1;
+		}
+	}
+	return r;
+}
+
+/* Internal wrapper around 'accept' or 'accept4' to provide Linux-style
+ * support for syscall-saving methods where available.
+ *
+ * In addition to regular accept behavior, you can set one or more of flags
+ * EVUTIL_SOCK_NONBLOCK and EVUTIL_SOCK_CLOEXEC in the 'flags' argument, to
+ * make the socket nonblocking or close-on-exec with as few syscalls as
+ * possible.
+ */
+evutil_socket_t
+evutil_accept4(evutil_socket_t sockfd, struct sockaddr *addr,
+    socklen_t *addrlen, int flags)
+{
+#if defined(_EVENT_HAVE_ACCEPT4) && defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)
+	return accept4(sockfd, addr, addrlen, flags);
+#else
+	evutil_socket_t result = accept(sockfd, addr, addrlen);
+	if (result < 0)
+		return result;
+
+	if (flags & EVUTIL_SOCK_CLOEXEC) {
+		if (evutil_fast_socket_closeonexec(result) < 0) {
+			evutil_closesocket(result);
+			return -1;
+		}
+	}
+	if (flags & EVUTIL_SOCK_NONBLOCK) {
+		if (evutil_fast_socket_nonblocking(result) < 0) {
+			evutil_closesocket(result);
+			return -1;
+		}
+	}
+	return result;
+#endif
+}
+
+/* Internal function: Set fd[0] and fd[1] to a pair of fds such that writes on
+ * fd[0] get read from fd[1].  Make both fds nonblocking and close-on-exec.
+ * Return 0 on success, -1 on failure.
+ */
+int
+evutil_make_internal_pipe(evutil_socket_t fd[2])
+{
+	/*
+	  Making the second socket nonblocking is a bit subtle, given that we
+	  ignore any EAGAIN returns when writing to it, and you don't usally
+	  do that for a nonblocking socket. But if the kernel gives us EAGAIN,
+	  then there's no need to add any more data to the buffer, since
+	  the main thread is already either about to wake up and drain it,
+	  or woken up and in the process of draining it.
+	*/
+
+#if defined(_EVENT_HAVE_PIPE2)
+	if (pipe2(fd, O_NONBLOCK|O_CLOEXEC) == 0)
+		return 0;
+#endif
+#if defined(_EVENT_HAVE_PIPE)
+	if (pipe(fd) == 0) {
+		if (evutil_fast_socket_nonblocking(fd[0]) < 0 ||
+		    evutil_fast_socket_nonblocking(fd[1]) < 0 ||
+		    evutil_fast_socket_closeonexec(fd[0]) < 0 ||
+		    evutil_fast_socket_closeonexec(fd[1]) < 0) {
+			close(fd[0]);
+			close(fd[1]);
+			fd[0] = fd[1] = -1;
+			return -1;
+		}
+		return 0;
+	} else {
+		event_warn("%s: pipe", __func__);
+	}
+#endif
+
+#ifdef _WIN32
+#define LOCAL_SOCKETPAIR_AF AF_INET
+#else
+#define LOCAL_SOCKETPAIR_AF AF_UNIX
+#endif
+	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0, fd) == 0) {
+		if (evutil_fast_socket_nonblocking(fd[0]) < 0 ||
+		    evutil_fast_socket_nonblocking(fd[1]) < 0 ||
+		    evutil_fast_socket_closeonexec(fd[0]) < 0 ||
+		    evutil_fast_socket_closeonexec(fd[1]) < 0) {
+			evutil_closesocket(fd[0]);
+			evutil_closesocket(fd[1]);
+			fd[0] = fd[1] = -1;
+			return -1;
+		}
+		return 0;
+	}
+	fd[0] = fd[1] = -1;
+	return -1;
+}
+
+/* Wrapper around eventfd on systems that provide it.  Unlike the system
+ * eventfd, it always supports EVUTIL_EFD_CLOEXEC and EVUTIL_EFD_NONBLOCK as
+ * flags.  Returns -1 on error or if eventfd is not supported.
+ */
+evutil_socket_t
+evutil_eventfd(unsigned initval, int flags)
+{
+#if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
+	int r;
+#if defined(EFD_CLOEXEC) && defined(EFD_NONBLOCK)
+	r = eventfd(initval, flags);
+	if (r >= 0 || flags == 0)
+		return r;
+#endif
+	r = eventfd(initval, 0);
+	if (r < 0)
+		return r;
+	if (flags & EVUTIL_EFD_CLOEXEC) {
+		if (evutil_fast_socket_closeonexec(r) < 0) {
+			evutil_closesocket(r);
+			return -1;
+		}
+	}
+	if (flags & EVUTIL_EFD_NONBLOCK) {
+		if (evutil_fast_socket_nonblocking(r) < 0) {
+			evutil_closesocket(r);
+			return -1;
+		}
+	}
+	return r;
+#else
+	return -1;
+#endif
+}
+

@@ -46,9 +46,6 @@
 #ifdef _EVENT_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef _EVENT_HAVE_SYS_EVENTFD_H
-#include <sys/eventfd.h>
-#endif
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
@@ -2118,7 +2115,6 @@ evthread_notify_base_default(struct event_base *base)
 	return (r < 0 && errno != EAGAIN) ? -1 : 0;
 }
 
-#if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
 /* Helper callback: wake an event_base from another thread.  This version
  * assumes that you have a working eventfd() implementation. */
 static int
@@ -2132,7 +2128,6 @@ evthread_notify_base_eventfd(struct event_base *base)
 
 	return (r < 0) ? -1 : 0;
 }
-#endif
 
 /** Tell the thread currently running the event_loop for base (if any) that it
  * needs to stop waiting in its dispatch function (if it is) and process all
@@ -2910,7 +2905,6 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 }
 #endif
 
-#if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
 static void
 evthread_notify_drain_eventfd(evutil_socket_t fd, short what, void *arg)
 {
@@ -2926,7 +2920,6 @@ evthread_notify_drain_eventfd(evutil_socket_t fd, short what, void *arg)
 	base->is_notify_pending = 0;
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
-#endif
 
 static void
 evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
@@ -2949,8 +2942,8 @@ evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 int
 evthread_make_base_notifiable(struct event_base *base)
 {
-	void (*cb)(evutil_socket_t, short, void *) = evthread_notify_drain_default;
-	int (*notify)(struct event_base *) = evthread_notify_base_default;
+	void (*cb)(evutil_socket_t, short, void *);
+	int (*notify)(struct event_base *);
 
 	/* XXXX grab the lock here? */
 	if (!base)
@@ -2961,60 +2954,20 @@ evthread_make_base_notifiable(struct event_base *base)
 		return 0;
 	}
 
-#if defined(_EVENT_HAVE_EVENTFD) && defined(_EVENT_HAVE_SYS_EVENTFD_H)
-#ifndef EFD_CLOEXEC
-#define EFD_CLOEXEC 0
-#endif
-	base->th_notify_fd[0] = eventfd(0, EFD_CLOEXEC);
+	base->th_notify_fd[0] = evutil_eventfd(0,
+	    EVUTIL_EFD_CLOEXEC|EVUTIL_EFD_NONBLOCK);
 	if (base->th_notify_fd[0] >= 0) {
-		evutil_make_socket_closeonexec(base->th_notify_fd[0]);
+		base->th_notify_fd[1] = -1;
 		notify = evthread_notify_base_eventfd;
 		cb = evthread_notify_drain_eventfd;
+	} else if (evutil_make_internal_pipe(base->th_notify_fd) == 0) {
+		notify = evthread_notify_base_default;
+		cb = evthread_notify_drain_default;
+	} else {
+		return -1;
 	}
-#endif
-#if defined(_EVENT_HAVE_PIPE)
-	if (base->th_notify_fd[0] < 0) {
-		if ((base->evsel->features & EV_FEATURE_FDS)) {
-			if (pipe(base->th_notify_fd) < 0) {
-				event_warn("%s: pipe", __func__);
-			} else {
-				evutil_make_socket_closeonexec(base->th_notify_fd[0]);
-				evutil_make_socket_closeonexec(base->th_notify_fd[1]);
-			}
-		}
-	}
-#endif
-
-#ifdef _WIN32
-#define LOCAL_SOCKETPAIR_AF AF_INET
-#else
-#define LOCAL_SOCKETPAIR_AF AF_UNIX
-#endif
-	if (base->th_notify_fd[0] < 0) {
-		if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0,
-			base->th_notify_fd) == -1) {
-			event_sock_warn(-1, "%s: socketpair", __func__);
-			return (-1);
-		} else {
-			evutil_make_socket_closeonexec(base->th_notify_fd[0]);
-			evutil_make_socket_closeonexec(base->th_notify_fd[1]);
-		}
-	}
-
-	evutil_make_socket_nonblocking(base->th_notify_fd[0]);
 
 	base->th_notify_fn = notify;
-
-	/*
-	  Making the second socket nonblocking is a bit subtle, given that we
-	  ignore any EAGAIN returns when writing to it, and you don't usally
-	  do that for a nonblocking socket. But if the kernel gives us EAGAIN,
-	  then there's no need to add any more data to the buffer, since
-	  the main thread is already either about to wake up and drain it,
-	  or woken up and in the process of draining it.
-	*/
-	if (base->th_notify_fd[1] > 0)
-		evutil_make_socket_nonblocking(base->th_notify_fd[1]);
 
 	/* prepare an event that we can use for wakeup */
 	event_assign(&base->th_notify, base, base->th_notify_fd[0],

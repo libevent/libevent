@@ -122,7 +122,7 @@ evsig_set_base(struct event_base *base)
 	EVSIGBASE_LOCK();
 	evsig_base = base;
 	evsig_base_n_signals_added = base->sig.ev_n_signals_added;
-	evsig_base_fd = base->sig.ev_signal_pair[0];
+	evsig_base_fd = base->sig.ev_signal_pair[1];
 	EVSIGBASE_UNLOCK();
 }
 
@@ -141,7 +141,11 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 	memset(&ncaught, 0, sizeof(ncaught));
 
 	while (1) {
+#ifdef _WIN32
 		n = recv(fd, signals, sizeof(signals), 0);
+#else
+		n = read(fd, signals, sizeof(signals));
+#endif
 		if (n == -1) {
 			int err = evutil_socket_geterror(fd);
 			if (! EVUTIL_ERR_RW_RETRIABLE(err))
@@ -174,8 +178,7 @@ evsig_init(struct event_base *base)
 	 * pair to wake up our event loop.  The event loop then scans for
 	 * signals that got delivered.
 	 */
-	if (evutil_socketpair(
-		    AF_UNIX, SOCK_STREAM, 0, base->sig.ev_signal_pair) == -1) {
+	if (evutil_make_internal_pipe(base->sig.ev_signal_pair) == -1) {
 #ifdef _WIN32
 		/* Make this nonfatal on win32, where sometimes people
 		   have localhost firewalled. */
@@ -186,18 +189,13 @@ evsig_init(struct event_base *base)
 		return -1;
 	}
 
-	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[0]);
-	evutil_make_socket_closeonexec(base->sig.ev_signal_pair[1]);
 	if (base->sig.sh_old) {
 		mm_free(base->sig.sh_old);
 	}
 	base->sig.sh_old = NULL;
 	base->sig.sh_old_max = 0;
 
-	evutil_make_socket_nonblocking(base->sig.ev_signal_pair[0]);
-	evutil_make_socket_nonblocking(base->sig.ev_signal_pair[1]);
-
-	event_assign(&base->sig.ev_signal, base, base->sig.ev_signal_pair[1],
+	event_assign(&base->sig.ev_signal, base, base->sig.ev_signal_pair[0],
 		EV_READ | EV_PERSIST, evsig_cb, base);
 
 	base->sig.ev_signal.ev_flags |= EVLIST_INTERNAL;
@@ -297,7 +295,7 @@ evsig_add(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 	}
 	evsig_base = base;
 	evsig_base_n_signals_added = ++sig->ev_n_signals_added;
-	evsig_base_fd = base->sig.ev_signal_pair[0];
+	evsig_base_fd = base->sig.ev_signal_pair[1];
 	EVSIGBASE_UNLOCK();
 
 	event_debug(("%s: %d: changing signal handler", __func__, (int)evsignal));
@@ -396,7 +394,11 @@ evsig_handler(int sig)
 
 	/* Wake up our notification mechanism */
 	msg = sig;
+#ifdef _WIN32
 	send(evsig_base_fd, (char*)&msg, 1, 0);
+#else
+	write(evsig_base_fd, (char*)&msg, 1);
+#endif
 	errno = save_errno;
 #ifdef _WIN32
 	EVUTIL_SET_SOCKET_ERROR(socket_errno);

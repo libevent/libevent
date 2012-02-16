@@ -365,10 +365,9 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	if (fd < 0) {
 		if (!sa)
 			goto done;
-		fd = socket(sa->sa_family, SOCK_STREAM, 0);
+		fd = evutil_socket(sa->sa_family,
+		    SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0);
 		if (fd < 0)
-			goto done;
-		if (evutil_make_socket_nonblocking(fd)<0)
 			goto done;
 		ownfd = 1;
 	}

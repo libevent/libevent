@@ -2458,10 +2458,9 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 
 	evtimer_assign(&ns->timeout_event, ns->base->event_base, nameserver_prod_callback, ns);
 
-	ns->socket = socket(address->sa_family, SOCK_DGRAM, 0);
+	ns->socket = evutil_socket(address->sa_family,
+	    SOCK_DGRAM|EVUTIL_SOCK_NONBLOCK|EVUTIL_SOCK_CLOEXEC, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
-	evutil_make_socket_closeonexec(ns->socket);
-	evutil_make_socket_nonblocking(ns->socket);
 
 	if (base->global_outgoing_addrlen &&
 	    !evutil_sockaddr_is_loopback(address)) {

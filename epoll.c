@@ -110,18 +110,23 @@ const struct eventop epollops = {
 static void *
 epoll_init(struct event_base *base)
 {
-	int epfd;
+	int epfd = -1;
 	struct epollop *epollop;
 
-	/* Initialize the kernel queue.  (The size field is ignored since
-	 * 2.6.8.) */
-	if ((epfd = epoll_create(32000)) == -1) {
-		if (errno != ENOSYS)
-			event_warn("epoll_create");
-		return (NULL);
+#ifdef _EVENT_HAVE_EPOLL_CREATE1
+	/* First, try the shiny new epoll_create1 interface, if we have it. */
+	epfd = epoll_create1(EPOLL_CLOEXEC);
+#endif
+	if (epfd == -1) {
+		/* Initialize the kernel queue using the old interface.  (The
+		size field is ignored   since 2.6.8.) */
+		if ((epfd = epoll_create(32000)) == -1) {
+			if (errno != ENOSYS)
+				event_warn("epoll_create");
+			return (NULL);
+		}
+		evutil_make_socket_closeonexec(epfd);
 	}
-
-	evutil_make_socket_closeonexec(epfd);
 
 	if (!(epollop = mm_calloc(1, sizeof(struct epollop)))) {
 		close(epfd);
