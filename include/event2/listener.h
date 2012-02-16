@@ -76,7 +76,12 @@ typedef void (*evconnlistener_errorcb)(struct evconnlistener *, void *);
  * available, if possible.  Ignored on platforms that do not support this.
  *
  * This option can help performance for protocols where the client transmits
- * immediately after connecting. */
+ * immediately after connecting.
+ *
+ * This option is only supported by evconnlistener_new_bind(): it can't
+ * work with evconnlistener_new_fd(), since the listener needs to be told
+ * to use the option before it is actually bound.
+ */
 #define LEV_OPT_DEFERRED_ACCEPT		(1u<<6)
 
 /**
