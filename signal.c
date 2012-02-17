@@ -397,7 +397,10 @@ evsig_handler(int sig)
 #ifdef _WIN32
 	send(evsig_base_fd, (char*)&msg, 1, 0);
 #else
-	write(evsig_base_fd, (char*)&msg, 1);
+	{
+		int r = write(evsig_base_fd, (char*)&msg, 1);
+		(void)r; /* Suppress 'unused return value' and 'unused var' */
+	}
 #endif
 	errno = save_errno;
 #ifdef _WIN32
