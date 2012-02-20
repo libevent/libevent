@@ -488,63 +488,173 @@ evmap_io_get_fdinfo(struct event_io_map *map, evutil_socket_t fd)
 		return NULL;
 }
 
-int
-evmap_io_reinit(struct event_base *base)
-{
-	int res = 0;
-	evutil_socket_t i;
-	void *extra;
-	short events;
-	const struct eventop *evsel = base->evsel;
-	struct event_io_map *io = &base->io;
+/* Callback type for evmap_io_foreach_fd */
+typedef int (*evmap_io_foreach_fd_cb)(
+	struct event_base *, evutil_socket_t, struct evmap_io *, void *);
 
+/* Multipurpose helper function: Iterate over every file descriptor event_base
+ * for which we could have EV_READ or EV_WRITE events.  For each such fd, call
+ * fn(base, signum, evmap_io, arg), where fn is the user-provided
+ * function, base is the event_base, signum is the signal number, evmap_io
+ * is an evmap_io structure containing a list of events pending on the
+ * file descriptor, and arg is the user-supplied argument.
+ *
+ * If fn returns 0, continue on to the next signal. Otherwise, return the same
+ * value that fn returned.
+ *
+ * Note that there is no guarantee that the file descriptors will be processed
+ * in any particular order.
+ */
+static int
+evmap_io_foreach_fd(struct event_base *base,
+    evmap_io_foreach_fd_cb fn,
+    void *arg)
+{
+	evutil_socket_t fd;
+	struct event_io_map *iomap = &base->io;
+	int r = 0;
 #ifdef EVMAP_USE_HT
 	struct event_map_entry **mapent;
 	HT_FOREACH(mapent, event_io_map, io) {
 		struct evmap_io *ctx = &(*mapent)->ent.evmap_io;
-		i = (*mapent)->fd;
+		fd = (*mapent)->fd;
 #else
-	for (i = 0; i < io->nentries; ++i) {
-		struct evmap_io *ctx = io->entries[i];
+	for (fd = 0; fd < iomap->nentries; ++fd) {
+		struct evmap_io *ctx = iomap->entries[fd];
 		if (!ctx)
 			continue;
 #endif
-		events = 0;
-		extra = ((char*)ctx) + sizeof(struct evmap_io);
-		if (ctx->nread)
-			events |= EV_READ;
-		if (ctx->nread)
-			events |= EV_WRITE;
-		if (evsel->fdinfo_len)
-			memset(extra, 0, evsel->fdinfo_len);
-		if (events && LIST_FIRST(&ctx->events) &&
-		    (LIST_FIRST(&ctx->events)->ev_events & EV_ET))
-			events |= EV_ET;
-		if (evsel->add(base, i, 0, events, extra) == -1)
-			res = -1;
+		if ((r = fn(base, fd, ctx, arg)))
+			break;
 	}
+	return r;
+}
 
-	return res;
+/* Callback type for evmap_signal_foreach_signal */
+typedef int (*evmap_signal_foreach_signal_cb)(
+	struct event_base *, int, struct evmap_signal *, void *);
+
+/* Multipurpose helper function: Iterate over every signal number in the
+ * event_base for which we could have signal events.  For each such signal,
+ * call fn(base, signum, evmap_signal, arg), where fn is the user-provided
+ * function, base is the event_base, signum is the signal number, evmap_signal
+ * is an evmap_signal structure containing a list of events pending on the
+ * signal, and arg is the user-supplied argument.
+ *
+ * If fn returns 0, continue on to the next signal. Otherwise, return the same
+ * value that fn returned.
+ */
+static int
+evmap_signal_foreach_signal(struct event_base *base,
+    evmap_signal_foreach_signal_cb fn,
+    void *arg)
+{
+	struct event_signal_map *sigmap = &base->sigmap;
+	int r = 0;
+	int signum;
+
+	for (signum = 0; signum < sigmap->nentries; ++signum) {
+		struct evmap_signal *ctx = sigmap->entries[signum];
+		if (!ctx)
+			continue;
+		if ((r = fn(base, signum, ctx, arg)))
+			break;
+	}
+	return r;
+}
+
+/* Helper for evmap_reinit: tell the backend to add every fd for which we have
+ * pending events, with the appropriate combination of EV_READ, EV_WRITE, and
+ * EV_ET. */
+static int
+evmap_io_reinit_iter_fn(struct event_base *base, evutil_socket_t fd,
+    struct evmap_io *ctx, void *arg)
+{
+	const struct eventop *evsel = base->evsel;
+	void *extra;
+	int *result = arg;
+	short events = 0;
+	struct event *ev;
+	EVUTIL_ASSERT(ctx);
+
+	extra = ((char*)ctx) + sizeof(struct evmap_io);
+	if (ctx->nread)
+		events |= EV_READ;
+	if (ctx->nread)
+		events |= EV_WRITE;
+	if (evsel->fdinfo_len)
+		memset(extra, 0, evsel->fdinfo_len);
+	if (events &&
+	    (ev = LIST_FIRST(&ctx->events)) &&
+	    (ev->ev_events & EV_ET))
+		events |= EV_ET;
+	if (evsel->add(base, fd, 0, events, extra) == -1)
+		*result = -1;
+
+	return 0;
+}
+
+/* Helper for evmap_reinit: tell the backend to add every signal for which we
+ * have pending events.  */
+static int
+evmap_signal_reinit_iter_fn(struct event_base *base,
+    int signum, struct evmap_signal *ctx, void *arg)
+{
+	const struct eventop *evsel = base->evsigsel;
+	int *result = arg;
+
+	if (!LIST_EMPTY(&ctx->events)) {
+		if (evsel->add(base, signum, 0, EV_SIGNAL, NULL) == -1)
+			*result = -1;
+	}
+	return 0;
 }
 
 int
-evmap_signal_reinit(struct event_base *base)
+evmap_reinit(struct event_base *base)
 {
-	struct event_signal_map *sigmap = &base->sigmap;
-	const struct eventop *evsel = base->evsigsel;
-	int res = 0;
-	int i;
+	int result = 0;
 
-	for (i = 0; i < sigmap->nentries; ++i) {
-		struct evmap_signal *ctx = sigmap->entries[i];
-		if (!ctx)
-			continue;
-		if (!LIST_EMPTY(&ctx->events)) {
-			if (evsel->add(base, i, 0, EV_SIGNAL, NULL) == -1)
-				res = -1;
-		}
-	}
-	return res;
+	evmap_io_foreach_fd(base, evmap_io_reinit_iter_fn, &result);
+	if (result < 0)
+		return -1;
+	evmap_signal_foreach_signal(base, evmap_signal_reinit_iter_fn, &result);
+	if (result < 0)
+		return -1;
+	return 0;
+}
+
+/* Helper for evmap_delete_all: delete every event in an event_dlist. */
+static int
+delete_all_in_dlist(struct event_dlist *dlist)
+{
+	struct event *ev;
+	while ((ev = LIST_FIRST(dlist)))
+		event_del(ev);
+	return 0;
+}
+
+/* Helper for evmap_delete_all: delete every event pending on an fd. */
+static int
+evmap_io_delete_all_iter_fn(struct event_base *base, evutil_socket_t fd,
+    struct evmap_io *io_info, void *arg)
+{
+	return delete_all_in_dlist(&io_info->events);
+}
+
+/* Helper for evmap_delete_all: delete every event pending on a signal. */
+static int
+evmap_signal_delete_all_iter_fn(struct event_base *base, int signum,
+    struct evmap_signal *sig_info, void *arg)
+{
+	return delete_all_in_dlist(&sig_info->events);
+}
+
+void
+evmap_delete_all(struct event_base *base)
+{
+	evmap_signal_foreach_signal(base, evmap_signal_delete_all_iter_fn, NULL);
+	evmap_io_foreach_fd(base, evmap_io_delete_all_iter_fn, NULL);
 }
 
 /** Per-fd structure for use with changelists.  It keeps track, for each fd or
@@ -782,77 +892,115 @@ event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, sho
 	return (0);
 }
 
+/* Helper for evmap_check_integrity: verify that all of the events pending on
+ * given fd are set up correctly, and that the nread and nwrite counts on that
+ * fd are correct. */
+static int
+evmap_io_check_integrity_fn(struct event_base *base, evutil_socket_t fd,
+    struct evmap_io *io_info, void *arg)
+{
+	struct event *ev;
+	int n_read = 0, n_write = 0;
+
+	/* First, make sure the list itself isn't corrupt. Otherwise,
+	 * running LIST_FOREACH could be an exciting adventure. */
+	EVUTIL_ASSERT_LIST_OK(&io_info->events, event, ev_io_next);
+
+	LIST_FOREACH(ev, &io_info->events, ev_io_next) {
+		EVUTIL_ASSERT(ev->ev_flags & EVLIST_INSERTED);
+		EVUTIL_ASSERT(ev->ev_fd == fd);
+		EVUTIL_ASSERT(!(ev->ev_events & EV_SIGNAL));
+		EVUTIL_ASSERT((ev->ev_events & (EV_READ|EV_WRITE)));
+		if (ev->ev_events & EV_READ)
+			++n_read;
+		if (ev->ev_events & EV_WRITE)
+			++n_write;
+	}
+
+	EVUTIL_ASSERT(n_read == io_info->nread);
+	EVUTIL_ASSERT(n_write == io_info->nwrite);
+
+	return 0;
+}
+
+/* Helper for evmap_check_integrity: verify that all of the events pending
+ * on given signal are set up correctly. */
+static int
+evmap_signal_check_integrity_fn(struct event_base *base,
+    int signum, struct evmap_signal *sig_info, void *arg)
+{
+	struct event *ev;
+	/* First, make sure the list itself isn't corrupt. */
+	EVUTIL_ASSERT_LIST_OK(&sig_info->events, event, ev_signal_next);
+
+	LIST_FOREACH(ev, &sig_info->events, ev_io_next) {
+		EVUTIL_ASSERT(ev->ev_flags & EVLIST_INSERTED);
+		EVUTIL_ASSERT(ev->ev_fd == signum);
+		EVUTIL_ASSERT((ev->ev_events & EV_SIGNAL));
+		EVUTIL_ASSERT(!(ev->ev_events & (EV_READ|EV_WRITE)));
+	}
+	return 0;
+}
+
 void
 evmap_check_integrity(struct event_base *base)
 {
-#define EVLIST_X_SIGFOUND 0x1000
-#define EVLIST_X_IOFOUND 0x2000
-
-	evutil_socket_t i;
-	struct event *ev;
-	struct event_io_map *io = &base->io;
-	struct event_signal_map *sigmap = &base->sigmap;
-#ifdef EVMAP_USE_HT
-	struct event_map_entry **mapent;
-#endif
-	int nsignals, ntimers, nio;
-	nsignals = ntimers = nio = 0;
-
-	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
-		EVUTIL_ASSERT(ev->ev_flags & EVLIST_INSERTED);
-		EVUTIL_ASSERT(ev->ev_flags & EVLIST_INIT);
-		ev->ev_flags &= ~(EVLIST_X_SIGFOUND|EVLIST_X_IOFOUND);
-	}
-
-#ifdef EVMAP_USE_HT
-	HT_FOREACH(mapent, event_io_map, io) {
-		struct evmap_io *ctx = &(*mapent)->ent.evmap_io;
-		i = (*mapent)->fd;
-#else
-	for (i = 0; i < io->nentries; ++i) {
-		struct evmap_io *ctx = io->entries[i];
-
-		if (!ctx)
-			continue;
-#endif
-
-		LIST_FOREACH(ev, &ctx->events, ev_io_next) {
-			EVUTIL_ASSERT(!(ev->ev_flags & EVLIST_X_IOFOUND));
-			EVUTIL_ASSERT(ev->ev_fd == i);
-			ev->ev_flags |= EVLIST_X_IOFOUND;
-			nio++;
-		}
-	}
-
-	for (i = 0; i < sigmap->nentries; ++i) {
-		struct evmap_signal *ctx = sigmap->entries[i];
-		if (!ctx)
-			continue;
-
-		LIST_FOREACH(ev, &ctx->events, ev_signal_next) {
-			EVUTIL_ASSERT(!(ev->ev_flags & EVLIST_X_SIGFOUND));
-			EVUTIL_ASSERT(ev->ev_fd == i);
-			ev->ev_flags |= EVLIST_X_SIGFOUND;
-			nsignals++;
-		}
-	}
-
-	TAILQ_FOREACH(ev, &base->eventqueue, ev_next) {
-		if (ev->ev_events & (EV_READ|EV_WRITE)) {
-			EVUTIL_ASSERT(ev->ev_flags & EVLIST_X_IOFOUND);
-			--nio;
-		}
-		if (ev->ev_events & EV_SIGNAL) {
-			EVUTIL_ASSERT(ev->ev_flags & EVLIST_X_SIGFOUND);
-			--nsignals;
-		}
-	}
-
-	EVUTIL_ASSERT(nio == 0);
-	EVUTIL_ASSERT(nsignals == 0);
-	/* There is no "EVUTIL_ASSERT(ntimers == 0)": eventqueue is only for
-	 * pending signals and io events. */
+	evmap_io_foreach_fd(base, evmap_io_check_integrity_fn, NULL);
+	evmap_signal_foreach_signal(base, evmap_signal_check_integrity_fn, NULL);
 
 	if (base->evsel->add == event_changelist_add)
 		event_changelist_assert_ok(base);
 }
+
+/* Helper type for evmap_foreach_event: Bundles a function to call on every
+ * event, and the user-provided void* to use as its third argument. */
+struct evmap_foreach_event_helper {
+	int (*fn)(struct event_base *, struct event *, void *);
+	void *arg;
+};
+
+/* Helper for evmap_foreach_event: calls a provided function on every event
+ * pending on a given fd.  */
+static int
+evmap_io_foreach_event_fn(struct event_base *base, evutil_socket_t fd,
+    struct evmap_io *io_info, void *arg)
+{
+	struct evmap_foreach_event_helper *h = arg;
+	struct event *ev;
+	int r;
+	LIST_FOREACH(ev, &io_info->events, ev_io_next) {
+		if ((r = h->fn(base, ev, h->arg)))
+			return r;
+	}
+	return 0;
+}
+
+/* Helper for evmap_foreach_event: calls a provided function on every event
+ * pending on a given signal.  */
+static int
+evmap_signal_foreach_event_fn(struct event_base *base, int signum,
+    struct evmap_signal *sig_info, void *arg)
+{
+	struct event *ev;
+	struct evmap_foreach_event_helper *h = arg;
+	int r;
+	LIST_FOREACH(ev, &sig_info->events, ev_signal_next) {
+		if ((r = h->fn(base, ev, h->arg)))
+			return r;
+	}
+	return 0;
+}
+
+int
+evmap_foreach_event(struct event_base *base,
+    int (*fn)(struct event_base *, struct event *, void *), void *arg)
+{
+	struct evmap_foreach_event_helper h;
+	int r;
+	h.fn = fn;
+	h.arg = arg;
+	if ((r = evmap_io_foreach_fd(base, evmap_io_foreach_event_fn, &h)))
+		return r;
+	return evmap_signal_foreach_signal(base, evmap_signal_foreach_event_fn, &h);
+}
+

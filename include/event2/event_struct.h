@@ -96,7 +96,9 @@ struct {								\
 struct event_base;
 struct event {
 	TAILQ_ENTRY(event) ev_active_next;
+#ifdef _EVENT_USE_EVENTLIST
 	TAILQ_ENTRY(event) ev_next;
+#endif
 	/* for managing timeouts */
 	union {
 		TAILQ_ENTRY(event) ev_next_with_common_timeout;

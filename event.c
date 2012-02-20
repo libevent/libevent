@@ -588,7 +588,9 @@ event_base_new_with_config(const struct event_config *cfg)
 	gettime(base, &base->event_tv);
 
 	min_heap_ctor(&base->timeheap);
+#ifdef _EVENT_USE_EVENTLIST
 	TAILQ_INIT(&base->eventqueue);
+#endif
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
 	base->th_notify_fd[0] = -1;
@@ -762,14 +764,8 @@ event_base_free(struct event_base *base)
 	}
 
 	/* Delete all non-internal events. */
-	for (ev = TAILQ_FIRST(&base->eventqueue); ev; ) {
-		struct event *next = TAILQ_NEXT(ev, ev_next);
-		if (!(ev->ev_flags & EVLIST_INTERNAL)) {
-			event_del(ev);
-			++n_deleted;
-		}
-		ev = next;
-	}
+	evmap_delete_all(base);
+
 	while ((ev = min_heap_top(&base->timeheap)) != NULL) {
 		event_del(ev);
 		++n_deleted;
@@ -819,7 +815,9 @@ event_base_free(struct event_base *base)
 
 	mm_free(base->activequeues);
 
+#ifdef _EVENT_USE_EVENTLIST
 	EVUTIL_ASSERT(TAILQ_EMPTY(&base->eventqueue));
+#endif
 
 	evmap_io_clear(&base->io);
 	evmap_signal_clear(&base->sigmap);
@@ -936,9 +934,7 @@ event_reinit(struct event_base *base)
 		/* Tell the event maps to re-inform the backend about all
 		 * pending events. This will make the signal notification
 		 * event get re-created if necessary. */
-		if (evmap_io_reinit(base) < 0)
-			res = -1;
-		if (evmap_signal_reinit(base) < 0)
+		if (evmap_reinit(base) < 0)
 			res = -1;
 	} else {
 		if (had_signal_added)
@@ -2633,7 +2629,9 @@ event_queue_remove_inserted(struct event_base *base, struct event *ev)
 	}
 	DECR_EVENT_COUNT(base, ev);
 	ev->ev_flags &= ~EVLIST_INSERTED;
+#ifdef _EVENT_USE_EVENTLIST
 	TAILQ_REMOVE(&base->eventqueue, ev, ev_next);
+#endif
 }
 static void
 event_queue_remove_active(struct event_base *base, struct event *ev)
@@ -2738,7 +2736,9 @@ event_queue_insert_inserted(struct event_base *base, struct event *ev)
 
 	ev->ev_flags |= EVLIST_INSERTED;
 
+#ifdef _EVENT_USE_EVENTLIST
 	TAILQ_INSERT_TAIL(&base->eventqueue, ev, ev_next);
+#endif
 }
 
 static void
@@ -2980,35 +2980,125 @@ evthread_make_base_notifiable(struct event_base *base)
 	return event_add(&base->th_notify, NULL);
 }
 
+int
+event_base_foreach_event_(struct event_base *base,
+    int (*fn)(struct event_base *, struct event *, void *), void *arg)
+{
+	int r, i;
+	unsigned u;
+	struct event *ev;
+
+	/* Start out with all the EVLIST_INSERTED events. */
+	if ((r = evmap_foreach_event(base, fn, arg)))
+		return r;
+
+	/* Okay, now we deal with those events that have timeouts and are in
+	 * the min-heap. */
+	for (u = 0; u < base->timeheap.n; ++u) {
+		ev = base->timeheap.p[u];
+		if (ev->ev_flags & EVLIST_INSERTED) {
+			/* we already processed this one */
+			continue;
+		}
+		if ((r = fn(base, ev, arg)))
+			return r;
+	}
+
+	/* Now for the events in one of the timeout queues.
+	 * the min-heap. */
+	for (i = 0; i < base->n_common_timeouts; ++i) {
+		struct common_timeout_list *ctl =
+		    base->common_timeout_queues[i];
+		TAILQ_FOREACH(ev, &ctl->events,
+		    ev_timeout_pos.ev_next_with_common_timeout) {
+			if (ev->ev_flags & EVLIST_INSERTED) {
+				/* we already processed this one */
+				continue;
+			}
+			if ((r = fn(base, ev, arg)))
+				return r;
+		}
+	}
+
+	/* Finally, we deal wit all the active events that we haven't touched
+	 * yet. */
+	for (i = 0; i < base->nactivequeues; ++i) {
+		TAILQ_FOREACH(ev, &base->activequeues[i], ev_active_next) {
+			if (ev->ev_flags & (EVLIST_INSERTED|EVLIST_TIMEOUT)) {
+				/* we already processed this one */
+				continue;
+			}
+			if ((r = fn(base, ev, arg)))
+				return r;
+		}
+	}
+
+	return 0;
+}
+
+/* Helper for event_base_dump_events: called on each event in the event base;
+ * dumps only the inserted events. */
+static int
+dump_inserted_event_fn(struct event_base *base, struct event *e, void *arg)
+{
+	FILE *output = arg;
+	const char *gloss = (e->ev_events & EV_SIGNAL) ?
+	    "sig" : "fd ";
+
+	if (! (e->ev_flags & (EVLIST_INSERTED|EVLIST_TIMEOUT)))
+		return 0;
+
+	fprintf(output, "  %p [%s %ld]%s%s%s%s",
+	    (void*)e, gloss, (long)e->ev_fd,
+	    (e->ev_events&EV_READ)?" Read":"",
+	    (e->ev_events&EV_WRITE)?" Write":"",
+	    (e->ev_events&EV_SIGNAL)?" Signal":"",
+	    (e->ev_events&EV_PERSIST)?" Persist":"");
+	if (e->ev_flags & EVLIST_TIMEOUT) {
+		struct timeval tv;
+		tv.tv_sec = e->ev_timeout.tv_sec;
+		tv.tv_usec = e->ev_timeout.tv_usec & MICROSECONDS_MASK;
+#if defined(_EVENT_HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+		evutil_timeradd(&tv, &base->tv_clock_diff, &tv);
+#endif
+		fprintf(output, " Timeout=%ld.%06d",
+		    (long)tv.tv_sec, (int)(tv.tv_usec & MICROSECONDS_MASK));
+	}
+	fputc('\n', output);
+
+	return 0;
+}
+
+/* Helper for event_base_dump_events: called on each event in the event base;
+ * dumps only the active events. */
+static int
+dump_active_event_fn(struct event_base *base, struct event *e, void *arg)
+{
+	FILE *output = arg;
+	const char *gloss = (e->ev_events & EV_SIGNAL) ?
+	    "sig" : "fd ";
+
+	if (! (e->ev_flags & EVLIST_ACTIVE))
+		return 0;
+
+	fprintf(output, "  %p [%s %ld, priority=%d]%s%s%s%s\n",
+	    (void*)e, gloss, (long)e->ev_fd, e->ev_pri,
+	    (e->ev_res&EV_READ)?" Read active":"",
+	    (e->ev_res&EV_WRITE)?" Write active":"",
+	    (e->ev_res&EV_SIGNAL)?" Signal active":"",
+	    (e->ev_res&EV_TIMEOUT)?" Timeout active":"");
+
+	return 0;
+}
+
 void
 event_base_dump_events(struct event_base *base, FILE *output)
 {
-	struct event *e;
-	int i;
 	fprintf(output, "Inserted events:\n");
-	TAILQ_FOREACH(e, &base->eventqueue, ev_next) {
-		fprintf(output, "  %p [fd %ld]%s%s%s%s%s\n",
-				(void*)e, (long)e->ev_fd,
-				(e->ev_events&EV_READ)?" Read":"",
-				(e->ev_events&EV_WRITE)?" Write":"",
-				(e->ev_events&EV_SIGNAL)?" Signal":"",
-				(e->ev_events&EV_TIMEOUT)?" Timeout":"",
-				(e->ev_events&EV_PERSIST)?" Persist":"");
+	event_base_foreach_event_(base, dump_inserted_event_fn, output);
 
-	}
-	for (i = 0; i < base->nactivequeues; ++i) {
-		if (TAILQ_EMPTY(&base->activequeues[i]))
-			continue;
-		fprintf(output, "Active events [priority %d]:\n", i);
-		TAILQ_FOREACH(e, &base->eventqueue, ev_next) {
-			fprintf(output, "  %p [fd %ld]%s%s%s%s\n",
-					(void*)e, (long)e->ev_fd,
-					(e->ev_res&EV_READ)?" Read active":"",
-					(e->ev_res&EV_WRITE)?" Write active":"",
-					(e->ev_res&EV_SIGNAL)?" Signal active":"",
-					(e->ev_res&EV_TIMEOUT)?" Timeout active":"");
-		}
-	}
+	fprintf(output, "Active events:\n");
+	event_base_foreach_event_(base, dump_active_event_fn, output);
 }
 
 void
@@ -3050,6 +3140,8 @@ event_base_assert_ok(struct event_base *base)
 {
 	int i;
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+
+	/* First do checks on the per-fd and per-signal lists */
 	evmap_check_integrity(base);
 
 	/* Check the heap property */
@@ -3058,7 +3150,7 @@ event_base_assert_ok(struct event_base *base)
 		struct event *ev, *p_ev;
 		ev = base->timeheap.p[i];
 		p_ev = base->timeheap.p[parent];
-		EVUTIL_ASSERT(ev->ev_flags & EV_TIMEOUT);
+		EVUTIL_ASSERT(ev->ev_flags & EVLIST_TIMEOUT);
 		EVUTIL_ASSERT(evutil_timercmp(&p_ev->ev_timeout, &ev->ev_timeout, <=));
 		EVUTIL_ASSERT(ev->ev_timeout_pos.min_heap_idx == i);
 	}
@@ -3067,13 +3159,26 @@ event_base_assert_ok(struct event_base *base)
 	for (i = 0; i < base->n_common_timeouts; ++i) {
 		struct common_timeout_list *ctl = base->common_timeout_queues[i];
 		struct event *last=NULL, *ev;
+
+		EVUTIL_ASSERT_TAILQ_OK(&ctl->events, event, ev_timeout_pos.ev_next_with_common_timeout);
+
 		TAILQ_FOREACH(ev, &ctl->events, ev_timeout_pos.ev_next_with_common_timeout) {
 			if (last)
 				EVUTIL_ASSERT(evutil_timercmp(&last->ev_timeout, &ev->ev_timeout, <=));
-			EVUTIL_ASSERT(ev->ev_flags & EV_TIMEOUT);
+			EVUTIL_ASSERT(ev->ev_flags & EVLIST_TIMEOUT);
 			EVUTIL_ASSERT(is_common_timeout(&ev->ev_timeout,base));
 			EVUTIL_ASSERT(COMMON_TIMEOUT_IDX(&ev->ev_timeout) == i);
 			last = ev;
+		}
+	}
+
+	/* Check the active queues. */
+	for (i = 0; i < base->nactivequeues; ++i) {
+		struct event *ev;
+		EVUTIL_ASSERT_TAILQ_OK(&base->activequeues[i], event, ev_active_next);
+		TAILQ_FOREACH(ev, &base->activequeues[i], ev_active_next) {
+			EVUTIL_ASSERT(ev->ev_pri == i);
+			EVUTIL_ASSERT(ev->ev_flags & EVLIST_ACTIVE);
 		}
 	}
 

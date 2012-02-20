@@ -233,8 +233,10 @@ struct event_base {
 	/** Mapping from signal numbers to enabled (added) events. */
 	struct event_signal_map sigmap;
 
+#ifdef _EVENT_USE_EVENTLIST
 	/** All events that have been enabled (added) in this event_base */
 	struct event_list eventqueue;
+#endif
 
 	/** Stored timeval; used to detect when time is running backwards. */
 	struct timeval event_tv;
@@ -364,6 +366,20 @@ void event_base_del_virtual(struct event_base *base);
     Returns on success; aborts on failure.
 */
 void event_base_assert_ok(struct event_base *base);
+
+/* Callback type for event_base_foreach_event. */
+typedef int (*event_base_foreach_event_cb)(struct event_base *base, struct event *, void *);
+
+/* Helper function: Call 'fn' exactly once every inserted or active event in
+ * the event_base 'base'.
+ *
+ * If fn returns 0, continue on to the next event. Otherwise, return the same
+ * value that fn returned.
+ *
+ * Requires that 'base' be locked.
+ */
+int event_base_foreach_event_(struct event_base *base,
+    event_base_foreach_event_cb cb, void *arg);
 
 #ifdef __cplusplus
 }

@@ -1239,6 +1239,16 @@ void event_set_mem_functions(
 #define EVENT_SET_MEM_FUNCTIONS_IMPLEMENTED
 #endif
 
+/**
+   Writes a human-readable description of all inserted and/or active
+   events to a provided stdio stream.
+
+   This is intended for debugging; its format is not guaranteed to be the same
+   between libevent versions.
+
+   @param base An event_base on which to scan the events.
+   @param output A stdio file to write on.
+ */
 void event_base_dump_events(struct event_base *, FILE *);
 
 /** Sets 'tv' to the current time (as returned by gettimeofday()),
