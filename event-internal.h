@@ -233,11 +233,6 @@ struct event_base {
 	/** Mapping from signal numbers to enabled (added) events. */
 	struct event_signal_map sigmap;
 
-#ifdef _EVENT_USE_EVENTLIST
-	/** All events that have been enabled (added) in this event_base */
-	struct event_list eventqueue;
-#endif
-
 	/** Stored timeval; used to detect when time is running backwards. */
 	struct timeval event_tv;
 
