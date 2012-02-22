@@ -2389,7 +2389,9 @@ evutil_socket(int domain, int type, int protocol)
 	evutil_socket_t r;
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
 	r = socket(domain, type, protocol);
-	if (r < 0 && !(type & (SOCK_NONBLOCK|SOCK_CLOEXEC)))
+	if (r >= 0)
+		return r;
+	else if ((type & (SOCK_NONBLOCK|SOCK_CLOEXEC)) == 0)
 		return -1;
 #endif
 #define SOCKET_TYPE_MASK (~(EVUTIL_SOCK_NONBLOCK|EVUTIL_SOCK_CLOEXEC))
