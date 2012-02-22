@@ -2425,10 +2425,13 @@ evutil_socket_t
 evutil_accept4(evutil_socket_t sockfd, struct sockaddr *addr,
     socklen_t *addrlen, int flags)
 {
+	evutil_socket_t result;
 #if defined(_EVENT_HAVE_ACCEPT4) && defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)
-	return accept4(sockfd, addr, addrlen, flags);
-#else
-	evutil_socket_t result = accept(sockfd, addr, addrlen);
+	result = accept4(sockfd, addr, addrlen, flags);
+	if (result >= 0 || errno != EINVAL)
+		return result;
+#endif
+	result = accept(sockfd, addr, addrlen);
 	if (result < 0)
 		return result;
 
@@ -2445,7 +2448,6 @@ evutil_accept4(evutil_socket_t sockfd, struct sockaddr *addr,
 		}
 	}
 	return result;
-#endif
 }
 
 /* Internal function: Set fd[0] and fd[1] to a pair of fds such that writes on
