@@ -12,7 +12,7 @@ EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c rpcgen_wrapper.sh test.sh
 
 noinst_PROGRAMS = test-init test-eof test-weof test-time \
 	bench bench_cascade bench_http bench_httpclient test-ratelim \
-	test-changelist
+	test-changelist test-fdleak
 if BUILD_REGRESS
 noinst_PROGRAMS += regress
 endif
@@ -38,6 +38,8 @@ test_time_SOURCES = test-time.c
 test_time_LDADD = ../libevent_core.la
 test_ratelim_SOURCES = test-ratelim.c
 test_ratelim_LDADD = ../libevent_core.la -lm
+test_fdleak_SOURCES = test-fdleak.c
+test_fdleak_LDADD = ../libevent_core.la
 
 regress_SOURCES = regress.c regress_buffer.c regress_http.c regress_dns.c \
 	regress_testutils.c regress_testutils.h \
@@ -95,4 +97,5 @@ DISTCLEANFILES = *~
 
 verify: check
 
-bench test-init test-eof test-weof test-time test-changelist: ../libevent.la
+bench test-init test-eof test-weof test-time test-changelist \
+	test-fdleak: ../libevent.la

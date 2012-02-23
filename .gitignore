@@ -94,4 +94,5 @@ libevent_openssl.pc
 /test/test-time
 /test/test-weof
 /test/test-changelist
+/test/test-fdleak
 
