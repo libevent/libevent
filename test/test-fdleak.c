@@ -26,32 +26,23 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include <sys/time.h>
 #include <sys/resource.h>
-#include <signal.h>
 
 #include "event2/event-config.h"
 #include "event2/event.h"
 #include "event2/bufferevent.h"
 #include "event2/listener.h"
-#include "event2/event_struct.h"
 
-/* This test opens a server socket, and forks a child which connects to that
-   server socket many times. It sets a low number for the max open file limit
-   to catch any file descriptor leaks.
-   This test will not work on Windows, at least until it gets fork(). */
+/* This test opens a server socket, and many client sockets which connect to
+   the server socket many times. It sets a low number for the max open file
+   limit to catch any file descriptor leaks. */
 
 #define PORT 31456
 
 /* Number of requests to make. Setting this too high might result in the machine
    running out of ephemeral ports */
-#define MAX_REQUESTS 2000
-
-/* Pid of the child process */
-static pid_t pid;
+#define MAX_REQUESTS 4000
 
 /* Provide storage for the address, both for the server & the clients */
 static struct sockaddr_in sin;
@@ -101,28 +92,10 @@ listener_accept_cb(struct evconnlistener *listener, evutil_socket_t sock,
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 }
 
-/* Handle the child exiting. If the child exited with status 0,
-   shutdown. Otherwise, exit with status 1 to indicate failure. */
+/* Start the server listening on PORT and start the first client. */
 static void
-sigchld_handler(evutil_socket_t fd, short event, void *arg)
+start_loop(void)
 {
-	int status;
-	struct event *signal = arg;
-
-	wait(&status);
-	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
-		exit(1);
-	}
-
-	event_base_loopbreak(event_get_base(signal));
-}
-
-/* Start the server listening on PORT and set up a signal handler to handle
-   the child exiting. */
-static void
-start_server(void)
-{
-	struct event sig_chld;
 	struct event_base *base;
 	struct evconnlistener *listener;
 
@@ -132,10 +105,6 @@ start_server(void)
 		exit(1);
 	}
 
-	event_assign(&sig_chld, base, SIGCHLD, EV_SIGNAL|EV_PERSIST,
-	sigchld_handler, &sig_chld);
-	event_add(&sig_chld, NULL);
-
 	listener = evconnlistener_new_bind(base, listener_accept_cb, NULL,
 	LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
 	-1, (struct sockaddr *)&sin, sizeof(sin));
@@ -144,8 +113,7 @@ start_server(void)
 		exit(1);
 	}
 
-	/* Signal the child to start sending connections. */
-	kill(pid, SIGUSR1);
+	start_client(base);
 
 	event_base_dispatch(base);
 }
@@ -157,8 +125,7 @@ Client functions
 */
 
 /* Check that the server sends back the same byte that the client sent.
-   If MAX_REQUESTS have been reached, exit.
-   Otherwise, start another client. */
+   If MAX_REQUESTS have been reached, exit. Otherwise, start another client. */
 static void
 client_read_cb(struct bufferevent *bev, void *ctx)
 {
@@ -168,7 +135,7 @@ client_read_cb(struct bufferevent *bev, void *ctx)
 	bufferevent_read(bev, &tmp, 1);
 	if (tmp != 'A') {
 		puts("Incorrect data received!");
-		_Exit(1);
+		exit(2);
 	}
 	bufferevent_free(bev);
 
@@ -189,7 +156,7 @@ client_write_cb(struct bufferevent *bev, short events, void *ctx)
 		bufferevent_write(bev, &tmp, 1);
 	} else if (events & BEV_EVENT_ERROR) {
 		puts("Client socket got error!");
-		_Exit(1);
+		exit(2);
 	}
 
 	bufferevent_enable(bev, EV_READ);
@@ -207,44 +174,21 @@ start_client(struct event_base *base)
                                        sizeof(sin)) < 0) {
 		perror("Could not connect!");
 		bufferevent_free(bev);
-		_Exit(1);
+		exit(2);
 	}
-}
-
-/* Start the client loop. MAX_REQUESTS clients connect sequentially to the
-   server, each one making a simple transfer before starting the next client. */
-static void
-start_client_loop(sigset_t *set)
-{
-	struct event_base *base = event_base_new();
-
-	/* Wait for SIGUSR1 from the server to indicate that it is ready to
-           listen. */
-	sigwaitinfo(set, NULL);
-
-	start_client(base);
-	event_base_dispatch(base);
 }
 
 int
 main(int argc, char **argv)
 {
-	sigset_t set;
-
 	/* Set the fd limit to a low value so that any fd leak is caught without
 	making many requests. */
 	struct rlimit rl;
 	rl.rlim_cur = rl.rlim_max = 20;
 	if (setrlimit(RLIMIT_NOFILE, &rl) == -1) {
 		perror("setrlimit");
-		exit(1);
+		exit(3);
 	}
-
-	/* Block SIGUSR1 for both the client & the server. The client receives
-           the signal using sigwaitinfo. */
-	sigemptyset(&set);
-	sigaddset(&set, SIGUSR1);
-	sigprocmask(SIG_BLOCK, &set, NULL);
 
 	/* Set up an address, used by both client & server. */
 	memset(&sin, 0, sizeof(sin));
@@ -252,18 +196,7 @@ main(int argc, char **argv)
 	sin.sin_addr.s_addr = htonl(0x7f000001);
 	sin.sin_port = htons(PORT);
 
-	/* Fork. The child starts the client loop and the parent starts the
-	   server. */
-	pid = fork();
-	if (pid == -1) {
-		perror("Could not fork!");
-		exit(1);
-	} else if (pid == 0) {
-		start_client_loop(&set);
-		_Exit(0);
-	}
-
-	start_server();
+	start_loop();
 
 	return 0;
 }
