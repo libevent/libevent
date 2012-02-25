@@ -26,6 +26,10 @@
 
 #include "event2/event-config.h"
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #include <string.h>
 #include <stdlib.h>
 #ifdef _EVENT_HAVE_SYS_TIME_H
@@ -186,7 +190,7 @@ start_client(struct event_base *base)
 int
 main(int argc, char **argv)
 {
-#if !defined(_WIN32) && defined(_EVENT_HAVE_SETRLIMIT)
+#ifdef _EVENT_HAVE_SETRLIMIT
 	/* Set the fd limit to a low value so that any fd leak is caught without
 	making many requests. */
 	struct rlimit rl;
@@ -195,6 +199,11 @@ main(int argc, char **argv)
 		perror("setrlimit");
 		exit(3);
 	}
+#endif
+
+#ifdef _WIN32
+	WSADATA WSAData;
+	WSAStartup(0x101, &WSAData);
 #endif
 
 	/* Set up an address, used by both client & server. */
