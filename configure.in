@@ -206,6 +206,7 @@ AC_CHECK_HEADERS([ \
   sys/mman.h \
   sys/param.h \
   sys/queue.h \
+  sys/resource.h \
   sys/select.h \
   sys/sendfile.h \
   sys/socket.h \
@@ -336,6 +337,7 @@ AC_CHECK_FUNCS([ \
   putenv \
   sendfile \
   setenv \
+  setrlimit \
   sigaction \
   signal \
   splice \

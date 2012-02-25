@@ -24,12 +24,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "event2/event-config.h"
+
 #include <string.h>
 #include <stdlib.h>
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
+#ifdef _EVENT_HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
+#endif
 
-#include "event2/event-config.h"
 #include "event2/event.h"
 #include "event2/bufferevent.h"
 #include "event2/listener.h"
@@ -181,6 +186,7 @@ start_client(struct event_base *base)
 int
 main(int argc, char **argv)
 {
+#if !defined(_WIN32) && defined(_EVENT_HAVE_SETRLIMIT)
 	/* Set the fd limit to a low value so that any fd leak is caught without
 	making many requests. */
 	struct rlimit rl;
@@ -189,6 +195,7 @@ main(int argc, char **argv)
 		perror("setrlimit");
 		exit(3);
 	}
+#endif
 
 	/* Set up an address, used by both client & server. */
 	memset(&sin, 0, sizeof(sin));
