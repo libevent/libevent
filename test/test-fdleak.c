@@ -41,12 +41,13 @@
 
 #include "event2/event.h"
 #include "event2/bufferevent.h"
+#include "event2/buffer.h"
 #include "event2/listener.h"
 
 /* This test opens a server socket, and many client sockets which connect to
    the server socket many times. It sets a low number for the max open file
    limit to catch any file descriptor leaks. */
-
+/* XXX This keeps two instances of this test from running in parallel. */
 #define PORT 31456
 
 /* Number of requests to make. Setting this too high might result in the machine
@@ -71,16 +72,20 @@ Server functions
 static void
 server_read_cb(struct bufferevent *bev, void *ctx)
 {
-	unsigned char tmp;
-	bufferevent_read(bev, &tmp, 1);
-	bufferevent_write(bev, &tmp, 1);
+	while (evbuffer_get_length(bufferevent_get_input(bev))) {
+		unsigned char tmp;
+		bufferevent_read(bev, &tmp, 1);
+		bufferevent_write(bev, &tmp, 1);
+	}
 }
 
 /* Wait for an EOF and then free the bufferevent */
 static void
 server_write_cb(struct bufferevent *bev, short events, void *ctx)
+/*XXX rename */
 {
 	if (events & BEV_EVENT_ERROR) {
+		/* XXX won't capture net errors on windows */
 		perror("Error from bufferevent");
 		exit(1);
 	} else if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
@@ -159,6 +164,7 @@ client_read_cb(struct bufferevent *bev, void *ctx)
 /* Send a byte to the server. */
 static void
 client_write_cb(struct bufferevent *bev, short events, void *ctx)
+/*XXX rename */
 {
 	if (events & BEV_EVENT_CONNECTED) {
 		unsigned char tmp = 'A';
@@ -178,9 +184,11 @@ start_client(struct event_base *base)
 	struct bufferevent *bev = bufferevent_socket_new(base, -1,
                                                          BEV_OPT_CLOSE_ON_FREE);
 	bufferevent_setcb(bev, client_read_cb, NULL, client_write_cb, NULL);
-
+	fprintf(stdout, ".");
+	fflush(stdout);
 	if (bufferevent_socket_connect(bev, (struct sockaddr *)&sin,
                                        sizeof(sin)) < 0) {
+		/* XXX won't capture net errors on windows */
 		perror("Could not connect!");
 		bufferevent_free(bev);
 		exit(2);
@@ -216,3 +224,5 @@ main(int argc, char **argv)
 
 	return 0;
 }
+
+/* XXX why does this test cause so much latency sometimes (OSX 10.5)? */
