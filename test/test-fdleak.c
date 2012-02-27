@@ -57,6 +57,13 @@ static int num_requests;
 
 static void start_client(struct event_base *base);
 
+static void
+my_perror(const char *s)
+{
+	fprintf(stderr, "%s: %s",
+	    s, evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+}
+
 /*
 ===============================================
 Server functions
@@ -79,8 +86,7 @@ static void
 server_event_cb(struct bufferevent *bev, short events, void *ctx)
 {
 	if (events & BEV_EVENT_ERROR) {
-		/* XXX won't capture net errors on windows */
-		perror("Error from bufferevent");
+		my_perror("Error from bufferevent");
 		exit(1);
 	} else if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR)) {
 		bufferevent_free(bev);
@@ -120,8 +126,7 @@ start_loop(void)
 	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
 	    -1, (struct sockaddr *)&sin, sizeof(sin));
 	if (listener == NULL) {
-		/* XXX won't capture net errors on windows */
-		perror("Could not create listener!");
+		my_perror("Could not create listener!");
 		exit(1);
 	}
 	fd = evconnlistener_get_fd(listener);
@@ -130,8 +135,7 @@ start_loop(void)
 		exit(1);
 	}
 	if (getsockname(fd, (struct sockaddr *)&ss, &socklen) < 0) {
-		printf("getsockname(): %s",
-		    evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+		my_perror("getsockname()");
 		exit(1);
 	}
 	memcpy(&sin, &ss, sizeof(sin));
@@ -199,8 +203,7 @@ start_client(struct event_base *base)
 
 	if (bufferevent_socket_connect(bev, (struct sockaddr *)&sin,
                                        sizeof(sin)) < 0) {
-		/* XXX won't capture net errors on windows */
-		perror("Could not connect!");
+		my_perror("Could not connect!");
 		bufferevent_free(bev);
 		exit(2);
 	}
@@ -215,7 +218,7 @@ main(int argc, char **argv)
 	struct rlimit rl;
 	rl.rlim_cur = rl.rlim_max = 20;
 	if (setrlimit(RLIMIT_NOFILE, &rl) == -1) {
-		perror("setrlimit");
+		my_perror("setrlimit");
 		exit(3);
 	}
 #endif
