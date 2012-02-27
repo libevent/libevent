@@ -76,8 +76,7 @@ server_read_cb(struct bufferevent *bev, void *ctx)
 
 /* Wait for an EOF and then free the bufferevent */
 static void
-server_write_cb(struct bufferevent *bev, short events, void *ctx)
-/*XXX rename */
+server_event_cb(struct bufferevent *bev, short events, void *ctx)
 {
 	if (events & BEV_EVENT_ERROR) {
 		/* XXX won't capture net errors on windows */
@@ -97,7 +96,7 @@ listener_accept_cb(struct evconnlistener *listener, evutil_socket_t sock,
 	struct bufferevent *bev = bufferevent_socket_new(base, sock,
                                                          BEV_OPT_CLOSE_ON_FREE);
 
-	bufferevent_setcb(bev, server_read_cb, NULL, server_write_cb, NULL);
+	bufferevent_setcb(bev, server_read_cb, NULL, server_event_cb, NULL);
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 }
 
@@ -178,8 +177,7 @@ client_read_cb(struct bufferevent *bev, void *ctx)
 
 /* Send a byte to the server. */
 static void
-client_write_cb(struct bufferevent *bev, short events, void *ctx)
-/*XXX rename */
+client_event_cb(struct bufferevent *bev, short events, void *ctx)
 {
 	if (events & BEV_EVENT_CONNECTED) {
 		unsigned char tmp = 'A';
@@ -198,7 +196,7 @@ start_client(struct event_base *base)
 {
 	struct bufferevent *bev = bufferevent_socket_new(base, -1,
                                                          BEV_OPT_CLOSE_ON_FREE);
-	bufferevent_setcb(bev, client_read_cb, NULL, client_write_cb, NULL);
+	bufferevent_setcb(bev, client_read_cb, NULL, client_event_cb, NULL);
 	fprintf(stdout, ".");
 	fflush(stdout);
 	if (bufferevent_socket_connect(bev, (struct sockaddr *)&sin,
