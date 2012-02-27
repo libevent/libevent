@@ -139,7 +139,6 @@ start_loop(void)
 		puts("AF mismatch from getsockname().");
 		exit(1);
 	}
-	printf("Using port %d\n", (int) ntohs(sin.sin_port));
 
 	start_client(base);
 
@@ -197,8 +196,7 @@ start_client(struct event_base *base)
 	struct bufferevent *bev = bufferevent_socket_new(base, -1,
                                                          BEV_OPT_CLOSE_ON_FREE);
 	bufferevent_setcb(bev, client_read_cb, NULL, client_event_cb, NULL);
-	fprintf(stdout, ".");
-	fflush(stdout);
+
 	if (bufferevent_socket_connect(bev, (struct sockaddr *)&sin,
                                        sizeof(sin)) < 0) {
 		/* XXX won't capture net errors on windows */
