@@ -32,6 +32,7 @@
 #endif
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -43,12 +44,6 @@
 #include "event2/bufferevent.h"
 #include "event2/buffer.h"
 #include "event2/listener.h"
-
-/* This test opens a server socket, and many client sockets which connect to
-   the server socket many times. It sets a low number for the max open file
-   limit to catch any file descriptor leaks. */
-/* XXX This keeps two instances of this test from running in parallel. */
-#define PORT 31456
 
 /* Number of requests to make. Setting this too high might result in the machine
    running out of ephemeral ports */
@@ -112,6 +107,9 @@ start_loop(void)
 {
 	struct event_base *base;
 	struct evconnlistener *listener;
+	struct sockaddr_storage ss;
+	ev_socklen_t socklen = sizeof(ss);
+	evutil_socket_t fd;
 
 	base = event_base_new();
 	if (base == NULL) {
@@ -120,12 +118,29 @@ start_loop(void)
 	}
 
 	listener = evconnlistener_new_bind(base, listener_accept_cb, NULL,
-	LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
-	-1, (struct sockaddr *)&sin, sizeof(sin));
+	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
+	    -1, (struct sockaddr *)&sin, sizeof(sin));
 	if (listener == NULL) {
+		/* XXX won't capture net errors on windows */
 		perror("Could not create listener!");
 		exit(1);
 	}
+	fd = evconnlistener_get_fd(listener);
+	if (fd < 0) {
+		puts("Couldn't get fd from listener");
+		exit(1);
+	}
+	if (getsockname(fd, (struct sockaddr *)&ss, &socklen) < 0) {
+		printf("getsockname(): %s",
+		    evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+		exit(1);
+	}
+	memcpy(&sin, &ss, sizeof(sin));
+	if (sin.sin_family != AF_INET) {
+		puts("AF mismatch from getsockname().");
+		exit(1);
+	}
+	printf("Using port %d\n", (int) ntohs(sin.sin_port));
 
 	start_client(base);
 
@@ -177,7 +192,7 @@ client_write_cb(struct bufferevent *bev, short events, void *ctx)
 	bufferevent_enable(bev, EV_READ);
 }
 
-/* Open a client socket to connect to localhost on PORT. */
+/* Open a client socket to connect to localhost on sin */
 static void
 start_client(struct event_base *base)
 {
@@ -218,7 +233,7 @@ main(int argc, char **argv)
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(0x7f000001);
-	sin.sin_port = htons(PORT);
+	sin.sin_port = 0; /* Tell the implementation to pick a port. */
 
 	start_loop();
 
