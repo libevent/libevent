@@ -394,7 +394,7 @@ HANDLE evutil_load_windows_system_library(const TCHAR *library_name);
 
 evutil_socket_t evutil_socket(int domain, int type, int protocol);
 evutil_socket_t evutil_accept4(evutil_socket_t sockfd, struct sockaddr *addr,
-    socklen_t *addrlen, int flags);
+    ev_socklen_t *addrlen, int flags);
 int evutil_make_internal_pipe(evutil_socket_t fd[2]);
 evutil_socket_t evutil_eventfd(unsigned initval, int flags);
 

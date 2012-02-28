@@ -2423,7 +2423,7 @@ evutil_socket(int domain, int type, int protocol)
  */
 evutil_socket_t
 evutil_accept4(evutil_socket_t sockfd, struct sockaddr *addr,
-    socklen_t *addrlen, int flags)
+    ev_socklen_t *addrlen, int flags)
 {
 	evutil_socket_t result;
 #if defined(_EVENT_HAVE_ACCEPT4) && defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)
