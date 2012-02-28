@@ -549,32 +549,32 @@ struct evutil_addrinfo {
 
     @{
 */
-#ifdef EAI_ADDRFAMILY
+#if defined(EAI_ADDRFAMILY) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_EAI_ADDRFAMILY EAI_ADDRFAMILY
 #else
 #define EVUTIL_EAI_ADDRFAMILY -901
 #endif
-#ifdef EAI_AGAIN
+#if defined(EAI_AGAIN) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_EAI_AGAIN EAI_AGAIN
 #else
 #define EVUTIL_EAI_AGAIN -902
 #endif
-#ifdef EAI_BADFLAGS
+#if defined(EAI_BADFLAGS) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_EAI_BADFLAGS EAI_BADFLAGS
 #else
 #define EVUTIL_EAI_BADFLAGS -903
 #endif
-#ifdef EAI_FAIL
+#if defined(EAI_FAIL) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_EAI_FAIL EAI_FAIL
 #else
 #define EVUTIL_EAI_FAIL -904
 #endif
-#ifdef EAI_FAMILY
+#if defined(EAI_FAMILY) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_EAI_FAMILY EAI_FAMILY
 #else
 #define EVUTIL_EAI_FAMILY -905
 #endif
-#ifdef EAI_MEMORY
+#if defined(EAI_MEMORY) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_EAI_MEMORY EAI_MEMORY
 #else
 #define EVUTIL_EAI_MEMORY -906
@@ -582,27 +582,27 @@ struct evutil_addrinfo {
 /* This test is a bit complicated, since some MS SDKs decide to
  * remove NODATA or redefine it to be the same as NONAME, in a
  * fun interpretation of RFC 2553 and RFC 3493. */
-#if defined(EAI_NODATA) && (!defined(EAI_NONAME) || EAI_NODATA != EAI_NONAME)
+#if defined(EAI_NODATA) && defined(_EVENT_HAVE_GETADDRINFO) && (!defined(EAI_NONAME) || EAI_NODATA != EAI_NONAME)
 #define EVUTIL_EAI_NODATA EAI_NODATA
 #else
 #define EVUTIL_EAI_NODATA -907
 #endif
-#ifdef EAI_NONAME
+#if defined(EAI_NONAME) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_EAI_NONAME EAI_NONAME
 #else
 #define EVUTIL_EAI_NONAME -908
 #endif
-#ifdef EAI_SERVICE
+#if defined(EAI_SERVICE) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_EAI_SERVICE EAI_SERVICE
 #else
 #define EVUTIL_EAI_SERVICE -909
 #endif
-#ifdef EAI_SOCKTYPE
+#if defined(EAI_SOCKTYPE) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_EAI_SOCKTYPE EAI_SOCKTYPE
 #else
 #define EVUTIL_EAI_SOCKTYPE -910
 #endif
-#ifdef EAI_SYSTEM
+#if defined(EAI_SYSTEM) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_EAI_SYSTEM EAI_SYSTEM
 #else
 #define EVUTIL_EAI_SYSTEM -911
@@ -610,37 +610,37 @@ struct evutil_addrinfo {
 
 #define EVUTIL_EAI_CANCEL -90001
 
-#ifdef AI_PASSIVE
+#if defined(AI_PASSIVE) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_AI_PASSIVE AI_PASSIVE
 #else
 #define EVUTIL_AI_PASSIVE 0x1000
 #endif
-#ifdef AI_CANONNAME
+#if defined(AI_CANONNAME) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_AI_CANONNAME AI_CANONNAME
 #else
 #define EVUTIL_AI_CANONNAME 0x2000
 #endif
-#ifdef AI_NUMERICHOST
+#if defined(AI_NUMERICHOST) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_AI_NUMERICHOST AI_NUMERICHOST
 #else
 #define EVUTIL_AI_NUMERICHOST 0x4000
 #endif
-#ifdef AI_NUMERICSERV
+#if defined(AI_NUMERICSERV) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_AI_NUMERICSERV AI_NUMERICSERV
 #else
 #define EVUTIL_AI_NUMERICSERV 0x8000
 #endif
-#ifdef AI_V4MAPPED
+#if defined(AI_V4MAPPED) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_AI_V4MAPPED AI_V4MAPPED
 #else
 #define EVUTIL_AI_V4MAPPED 0x10000
 #endif
-#ifdef AI_ALL
+#if defined(AI_ALL) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_AI_ALL AI_ALL
 #else
 #define EVUTIL_AI_ALL 0x20000
 #endif
-#ifdef AI_ADDRCONFIG
+#if defined(AI_ADDRCONFIG) && defined(_EVENT_HAVE_GETADDRINFO)
 #define EVUTIL_AI_ADDRCONFIG AI_ADDRCONFIG
 #else
 #define EVUTIL_AI_ADDRCONFIG 0x40000
