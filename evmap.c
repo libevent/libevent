@@ -121,7 +121,7 @@ HT_GENERATE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket,
 	do {								\
 		struct event_map_entry _key, *_ent;			\
 		_key.fd = slot;						\
-		_HT_FIND_OR_INSERT(event_io_map, map_node, hashsocket, map, \
+		HT_FIND_OR_INSERT_(event_io_map, map_node, hashsocket, map, \
 		    event_map_entry, &_key, ptr,			\
 		    {							\
 			    _ent = *ptr;				\
@@ -132,7 +132,7 @@ HT_GENERATE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket,
 				    return (-1);			\
 			    _ent->fd = slot;				\
 			    (ctor)(&_ent->ent.type);			\
-			    _HT_FOI_INSERT(map_node, map, &_key, _ent, ptr) \
+			    HT_FOI_INSERT_(map_node, map, &_key, _ent, ptr) \
 				});					\
 		(x) = &_ent->ent.type;					\
 	} while (0)
@@ -515,7 +515,7 @@ evmap_io_foreach_fd(struct event_base *base,
 	int r = 0;
 #ifdef EVMAP_USE_HT
 	struct event_map_entry **mapent;
-	HT_FOREACH(mapent, event_io_map, io) {
+	HT_FOREACH(mapent, event_io_map, iomap) {
 		struct evmap_io *ctx = &(*mapent)->ent.evmap_io;
 		fd = (*mapent)->fd;
 #else
@@ -691,6 +691,23 @@ event_change_get_fdinfo(struct event_base *base,
 	return (void*)ptr;
 }
 
+/** Callback helper for event_changelist_assert_ok */
+static int
+event_changelist_assert_ok_foreach_iter_fn(
+	struct event_base *base,
+	evutil_socket_t fd, struct evmap_io *io, void *arg)
+{
+	struct event_changelist *changelist = &base->changelist;
+	struct event_changelist_fdinfo *f;
+	f = (void*)
+	    ( ((char*)io) + sizeof(struct evmap_io) );
+	if (f->idxplus1) {
+		struct event_change *c = &changelist->changes[f->idxplus1 - 1];
+		EVUTIL_ASSERT(c->fd == fd);
+	}
+	return 0;
+}
+
 /** Make sure that the changelist is consistent with the evmap structures. */
 static void
 event_changelist_assert_ok(struct event_base *base)
@@ -708,18 +725,9 @@ event_changelist_assert_ok(struct event_base *base)
 		EVUTIL_ASSERT(f->idxplus1 == i + 1);
 	}
 
-	for (i = 0; i < base->io.nentries; ++i) {
-		struct evmap_io *io = base->io.entries[i];
-		struct event_changelist_fdinfo *f;
-		if (!io)
-			continue;
-		f = (void*)
-		    ( ((char*)io) + sizeof(struct evmap_io) );
-		if (f->idxplus1) {
-			struct event_change *c = &changelist->changes[f->idxplus1 - 1];
-			EVUTIL_ASSERT(c->fd == i);
-		}
-	}
+	evmap_io_foreach_fd(base,
+	    event_changelist_assert_ok_foreach_iter_fn,
+	    NULL);
 }
 
 #ifdef DEBUG_CHANGELIST
