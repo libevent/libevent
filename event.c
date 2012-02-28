@@ -2827,8 +2827,15 @@ event_mm_calloc_(size_t count, size_t size)
 		p = _mm_malloc_fn(sz);
 		if (p)
 			return memset(p, 0, sz);
-	} else
-		return calloc(count, size);
+	} else {
+		void *p = calloc(count, size);
+#ifdef _WIN32
+		/* Windows calloc doesn't reliably set ENOMEM */
+		if (p == NULL)
+			goto error;
+#endif
+		return p;
+	}
 
 error:
 	errno = ENOMEM;
