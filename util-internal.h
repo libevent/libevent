@@ -112,10 +112,6 @@ extern "C" {
 
 #endif
 
-#ifdef _EVENT_socklen_t
-#define socklen_t _EVENT_socklen_t
-#endif
-
 /* Arguments for shutdown() */
 #ifdef SHUT_RD
 #define EVUTIL_SHUT_RD SHUT_RD

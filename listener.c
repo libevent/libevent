@@ -387,11 +387,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 	LOCK(lev);
 	while (1) {
 		struct sockaddr_storage ss;
-#ifdef _WIN32
-		int socklen = sizeof(ss);
-#else
-		socklen_t socklen = sizeof(ss);
-#endif
+		ev_socklen_t socklen = sizeof(ss);
 		evutil_socket_t new_fd = evutil_accept4(fd, (struct sockaddr*)&ss, &socklen, lev->accept4_flags);
 		if (new_fd < 0)
 			break;
