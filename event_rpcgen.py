@@ -1532,7 +1532,7 @@ class CCodeGenerator:
         # Use the complete provided path to the input file, with all
         # non-identifier characters replaced with underscores, to
         # reduce the chance of a collision between guard macros.
-        return '_' + nonident.sub('_', name).upper() + '_'
+        return 'EVENT_RPCOUT_' + nonident.sub('_', name).upper() + '_'
 
     def HeaderPreamble(self, name):
         guard = self.GuardName(name)
@@ -1579,8 +1579,8 @@ class CCodeGenerator:
                  '#include <event2/event.h>\n'
                  '#include <event2/buffer.h>\n'
                  '#include <event2/tag.h>\n\n'
-                 '#ifdef _EVENT___func__\n'
-                 '#define __func__ _EVENT___func__\n'
+                 '#ifdef EVENT____func__\n'
+                 '#define __func__ EVENT____func__\n'
                  '#endif\n\n'
                  )
 
