@@ -2192,7 +2192,7 @@ static const unsigned char EVUTIL_TOLOWER_TABLE[256] = {
 };
 
 #define IMPL_CTYPE_FN(name)						\
-	int EVUTIL_##name(char c) {					\
+	int EVUTIL_##name##_(char c) {					\
 		ev_uint8_t u = c;					\
 		return !!(EVUTIL_##name##_TABLE[(u >> 5) & 7] & (1 << (u & 31))); \
 	}
