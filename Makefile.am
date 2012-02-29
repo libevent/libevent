@@ -162,7 +162,7 @@ endif
 
 BUILT_SOURCES = ./include/event2/event-config.h
 
-./include/event2/event-config.h: config.h
+./include/event2/event-config.h: config.h Makefile.am
 	$(MKDIR_P) ./include/event2 || true
 	echo '/* event2/event-config.h' > $@
 	echo ' *' >> $@
