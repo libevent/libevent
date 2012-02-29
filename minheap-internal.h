@@ -25,8 +25,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _MIN_HEAP_H_
-#define _MIN_HEAP_H_
+#ifndef MINHEAP_INTERNAL_H_INCLUDED_
+#define MINHEAP_INTERNAL_H_INCLUDED_
 
 #include "event2/event-config.h"
 #include "evconfig-private.h"
@@ -186,4 +186,4 @@ void min_heap_shift_down_(min_heap_t* s, unsigned hole_index, struct event* e)
     (s->p[hole_index] = e)->ev_timeout_pos.min_heap_idx = hole_index;
 }
 
-#endif /* _MIN_HEAP_H_ */
+#endif /* MINHEAP_INTERNAL_H_INCLUDED_ */

@@ -1,5 +1,5 @@
-#ifndef _STRLCPY_INTERNAL_H_
-#define _STRLCPY_INTERNAL_H_
+#ifndef STRLCPY_INTERNAL_H_INCLUDED_
+#define STRLCPY_INTERNAL_H_INCLUDED_
 
 #ifdef __cplusplus
 extern "C" {

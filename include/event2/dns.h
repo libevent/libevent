@@ -132,8 +132,8 @@
  * with the next probe.
  */
 
-#ifndef _EVENT2_DNS_H_
-#define _EVENT2_DNS_H_
+#ifndef EVENT2_DNS_H_INCLUDED_
+#define EVENT2_DNS_H_INCLUDED_
 
 #ifdef __cplusplus
 extern "C" {
@@ -640,4 +640,4 @@ void evdns_getaddrinfo_cancel(struct evdns_getaddrinfo_request *req);
 }
 #endif
 
-#endif  /* !_EVENT2_DNS_H_ */
+#endif  /* !EVENT2_DNS_H_INCLUDED_ */

@@ -23,8 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _BUFFEREVENT_INTERNAL_H_
-#define _BUFFEREVENT_INTERNAL_H_
+#ifndef BUFFEREVENT_INTERNAL_H_INCLUDED_
+#define BUFFEREVENT_INTERNAL_H_INCLUDED_
 
 #ifdef __cplusplus
 extern "C" {
@@ -418,4 +418,4 @@ int _bufferevent_ratelim_init(struct bufferevent_private *bev);
 #endif
 
 
-#endif /* _BUFFEREVENT_INTERNAL_H_ */
+#endif /* BUFFEREVENT_INTERNAL_H_INCLUDED_ */

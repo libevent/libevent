@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT2_HTTP_H_
-#define _EVENT2_HTTP_H_
+#ifndef EVENT2_HTTP_H_INCLUDED_
+#define EVENT2_HTTP_H_INCLUDED_
 
 /* For int types. */
 #include <event2/util.h>
@@ -927,4 +927,4 @@ char *evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit);
 }
 #endif
 
-#endif /* _EVENT2_HTTP_H_ */
+#endif /* EVENT2_HTTP_H_INCLUDED_ */

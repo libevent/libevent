@@ -23,8 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT2_THREAD_H_
-#define _EVENT2_THREAD_H_
+#ifndef EVENT2_THREAD_H_INCLUDED_
+#define EVENT2_THREAD_H_INCLUDED_
 
 /** @file event2/thread.h
 
@@ -233,4 +233,4 @@ int evthread_make_base_notifiable(struct event_base *base);
 }
 #endif
 
-#endif /* _EVENT2_THREAD_H_ */
+#endif /* EVENT2_THREAD_H_INCLUDED_ */

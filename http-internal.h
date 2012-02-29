@@ -7,8 +7,8 @@
  * need to know about these.
  */
 
-#ifndef _HTTP_INTERNAL_H_
-#define _HTTP_INTERNAL_H_
+#ifndef HTTP_INTERNAL_H_INCLUDED_
+#define HTTP_INTERNAL_H_INCLUDED_
 
 #include "event2/event_struct.h"
 #include "util-internal.h"

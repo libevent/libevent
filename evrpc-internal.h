@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVRPC_INTERNAL_H_
-#define _EVRPC_INTERNAL_H_
+#ifndef EVRPC_INTERNAL_H_INCLUDED_
+#define EVRPC_INTERNAL_H_INCLUDED_
 
 #include "http-internal.h"
 
@@ -201,4 +201,4 @@ struct evrpc_request_wrapper {
 	int (*reply_unmarshal)(void *, struct evbuffer*);
 };
 
-#endif /* _EVRPC_INTERNAL_H_ */
+#endif /* EVRPC_INTERNAL_H_INCLUDED_ */

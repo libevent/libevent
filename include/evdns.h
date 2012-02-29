@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVDNS_H_
-#define _EVDNS_H_
+#ifndef EVENT1_EVDNS_H_INCLUDED_
+#define EVENT1_EVDNS_H_INCLUDED_
 
 /** @file evdns.h
 
@@ -42,4 +42,4 @@
 #include <event2/dns_compat.h>
 #include <event2/dns_struct.h>
 
-#endif /* _EVDNS_H_ */
+#endif /* EVENT1_EVDNS_H_INCLUDED_ */

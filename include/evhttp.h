@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVHTTP_H_
-#define _EVHTTP_H_
+#ifndef EVENT1_EVHTTP_H_INCLUDED_
+#define EVENT1_EVHTTP_H_INCLUDED_
 
 /** @file evhttp.h
 
@@ -42,4 +42,4 @@
 #include <event2/http_struct.h>
 #include <event2/http_compat.h>
 
-#endif /* _EVHTTP_H_ */
+#endif /* EVENT1_EVHTTP_H_INCLUDED_ */

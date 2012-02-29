@@ -23,8 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT2_BUFFEREVENT_SSL_H_
-#define _EVENT2_BUFFEREVENT_SSL_H_
+#ifndef EVENT2_BUFFEREVENT_SSL_H_INCLUDED_
+#define EVENT2_BUFFEREVENT_SSL_H_INCLUDED_
 
 /** @file event2/bufferevent_ssl.h
 
@@ -124,4 +124,4 @@ unsigned long bufferevent_get_openssl_error(struct bufferevent *bev);
 }
 #endif
 
-#endif /* _EVENT2_BUFFEREVENT_SSL_H_ */
+#endif /* EVENT2_BUFFEREVENT_SSL_H_INCLUDED_ */

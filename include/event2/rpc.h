@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT2_RPC_H_
-#define _EVENT2_RPC_H_
+#ifndef EVENT2_RPC_H_INCLUDED_
+#define EVENT2_RPC_H_INCLUDED_
 
 #ifdef __cplusplus
 extern "C" {
@@ -76,7 +76,7 @@ extern "C" {
 #define EVTAG_HAS(msg, member) \
 	((msg)->member##_set == 1)
 
-#ifndef _EVENT2_RPC_COMPAT_H_
+#ifndef EVENT2_RPC_COMPAT_H_INCLUDED_
 
 /**
    Assigns a value to the member in the message.
@@ -119,7 +119,7 @@ extern "C" {
 #define EVTAG_GET_WITH_LEN(msg, member, pvalue, plen)	\
 	(*(msg)->base->member##_get)((msg), (pvalue), (plen))
 
-#endif  /* _EVENT2_RPC_COMPAT_H_ */
+#endif  /* EVENT2_RPC_COMPAT_H_INCLUDED_ */
 
 /**
    Adds a value to an array.
@@ -593,4 +593,4 @@ void evrpc_request_set_cb(struct evrpc_request_wrapper *ctx,
 }
 #endif
 
-#endif /* _EVENT2_RPC_H_ */
+#endif /* EVENT2_RPC_H_INCLUDED_ */

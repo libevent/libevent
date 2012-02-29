@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT_INTERNAL_H_
-#define _EVENT_INTERNAL_H_
+#ifndef EVENT_INTERNAL_H_INCLUDED_
+#define EVENT_INTERNAL_H_INCLUDED_
 
 #ifdef __cplusplus
 extern "C" {
@@ -380,5 +380,5 @@ int event_base_foreach_event_(struct event_base *base,
 }
 #endif
 
-#endif /* _EVENT_INTERNAL_H_ */
+#endif /* EVENT_INTERNAL_H_INCLUDED_ */
 

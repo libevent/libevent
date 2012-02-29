@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT2_HTTP_COMPAT_H_
-#define _EVENT2_HTTP_COMPAT_H_
+#ifndef EVENT2_HTTP_COMPAT_H_INCLUDED_
+#define EVENT2_HTTP_COMPAT_H_INCLUDED_
 
 /** @file event2/http_compat.h
 
@@ -87,4 +87,4 @@ void evhttp_connection_set_base(struct evhttp_connection *evcon,
 }
 #endif
 
-#endif /* _EVENT2_EVENT_COMPAT_H_ */
+#endif /* EVENT2_EVENT_COMPAT_H_INCLUDED_ */

@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVBUFFER_INTERNAL_H_
-#define _EVBUFFER_INTERNAL_H_
+#ifndef EVBUFFER_INTERNAL_H_INCLUDED_
+#define EVBUFFER_INTERNAL_H_INCLUDED_
 
 #ifdef __cplusplus
 extern "C" {
@@ -326,4 +326,4 @@ void evbuffer_invoke_callbacks(struct evbuffer *buf);
 }
 #endif
 
-#endif /* _EVBUFFER_INTERNAL_H_ */
+#endif /* EVBUFFER_INTERNAL_H_INCLUDED_ */

@@ -23,8 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _DEFER_INTERNAL_H_
-#define _DEFER_INTERNAL_H_
+#ifndef DEFER_INTERNAL_H_INCLUDED_
+#define DEFER_INTERNAL_H_INCLUDED_
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,5 +102,5 @@ void event_deferred_cb_schedule(struct deferred_cb_queue *, struct deferred_cb *
 void event_deferred_cb_queue_init(struct deferred_cb_queue *);
 struct deferred_cb_queue *event_base_get_deferred_cb_queue(struct event_base *);
 
-#endif /* _EVENT_INTERNAL_H_ */
+#endif /* EVENT_INTERNAL_H_INCLUDED_ */
 

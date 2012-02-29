@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT2_EVENT_H_
-#define _EVENT2_EVENT_H_
+#ifndef EVENT2_EVENT_H_INCLUDED_
+#define EVENT2_EVENT_H_INCLUDED_
 
 /**
    @mainpage
@@ -1283,4 +1283,4 @@ int event_base_update_cache_time(struct event_base *base);
 }
 #endif
 
-#endif /* _EVENT2_EVENT_H_ */
+#endif /* EVENT2_EVENT_H_INCLUDED_ */

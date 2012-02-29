@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT2_TAG_COMPAT_H_
-#define _EVENT2_TAG_COMPAT_H_
+#ifndef EVENT2_TAG_COMPAT_H_INCLUDED_
+#define EVENT2_TAG_COMPAT_H_INCLUDED_
 
 /** @file event2/tag_compat.h
 
@@ -46,4 +46,4 @@
 #define encode_int64(evbuf, number) evtag_encode_int64((evbuf), (number))
 /**@}*/
 
-#endif /* _EVENT2_TAG_H_ */
+#endif /* EVENT2_TAG_H_INCLUDED_ */

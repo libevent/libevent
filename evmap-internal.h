@@ -23,8 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVMAP_H_
-#define _EVMAP_H_
+#ifndef EVMAP_INTERNAL_H_INCLUDED_
+#define EVMAP_INTERNAL_H_INCLUDED_
 
 /** @file evmap-internal.h
  *
@@ -114,4 +114,4 @@ int evmap_foreach_event(struct event_base *base,
     event_base_foreach_event_cb fn,
     void *arg);
 
-#endif /* _EVMAP_H_ */
+#endif /* EVMAP_INTERNAL_H_INCLUDED_ */

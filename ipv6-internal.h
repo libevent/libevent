@@ -27,8 +27,8 @@
 /* Internal use only: Fake IPv6 structures and values on platforms that
  * do not have them */
 
-#ifndef _EVENT_IPV6_INTERNAL_H
-#define _EVENT_IPV6_INTERNAL_H
+#ifndef IPV6_INTERNAL_H_INCLUDED_
+#define IPV6_INTERNAL_H_INCLUDED_
 
 #include "event2/event-config.h"
 #include "evconfig-private.h"

@@ -23,8 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVTHREAD_INTERNAL_H_
-#define _EVTHREAD_INTERNAL_H_
+#ifndef EVTHREAD_INTERNAL_H_INCLUDED_
+#define EVTHREAD_INTERNAL_H_INCLUDED_
 
 #ifdef __cplusplus
 extern "C" {
@@ -381,4 +381,4 @@ int evutil_secure_rng_global_setup_locks_(const int enable_locks);
 }
 #endif
 
-#endif /* _EVTHREAD_INTERNAL_H_ */
+#endif /* EVTHREAD_INTERNAL_H_INCLUDED_ */

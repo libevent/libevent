@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT2_TAG_H_
-#define _EVENT2_TAG_H_
+#ifndef EVENT2_TAG_H_INCLUDED_
+#define EVENT2_TAG_H_INCLUDED_
 
 /** @file event2/tag.h
 
@@ -121,4 +121,4 @@ int evtag_unmarshal_timeval(struct evbuffer *evbuf, ev_uint32_t need_tag,
 }
 #endif
 
-#endif /* _EVENT2_TAG_H_ */
+#endif /* EVENT2_TAG_H_INCLUDED_ */

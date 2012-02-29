@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT2_DNS_COMPAT_H_
-#define _EVENT2_DNS_COMPAT_H_
+#ifndef EVENT2_DNS_COMPAT_H_INCLUDED_
+#define EVENT2_DNS_COMPAT_H_INCLUDED_
 
 /** @file event2/dns_compat.h
 
@@ -333,4 +333,4 @@ int evdns_config_windows_nameservers(void);
 }
 #endif
 
-#endif /* _EVENT2_EVENT_COMPAT_H_ */
+#endif /* EVENT2_EVENT_COMPAT_H_INCLUDED_ */

@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _REGRESS_H_
-#define _REGRESS_H_
+#ifndef REGRESS_H_INCLUDED_
+#define REGRESS_H_INCLUDED_
 
 #ifdef __cplusplus
 extern "C" {
@@ -122,4 +122,4 @@ long timeval_msec_diff(const struct timeval *start, const struct timeval *end);
 }
 #endif
 
-#endif /* _REGRESS_H_ */
+#endif /* REGRESS_H_INCLUDED_ */

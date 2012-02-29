@@ -5,8 +5,8 @@
 
 /* Based on ideas by Christopher Clark and interfaces from Niels Provos. */
 
-#ifndef _EVENT_HT_H
-#define _EVENT_HT_H
+#ifndef HT_INTERNAL_H_INCLUDED_
+#define HT_INTERNAL_H_INCLUDED_
 
 #define HT_HEAD(name, type)                                             \
   struct name {                                                         \

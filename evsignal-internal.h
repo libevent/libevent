@@ -24,8 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVSIGNAL_H_
-#define _EVSIGNAL_H_
+#ifndef EVSIGNAL_INTERNAL_H_INCLUDED_
+#define EVSIGNAL_INTERNAL_H_INCLUDED_
 
 #ifndef evutil_socket_t
 #include "event2/util.h"
@@ -61,4 +61,4 @@ void evsig_dealloc(struct event_base *);
 
 void evsig_set_base(struct event_base *base);
 
-#endif /* _EVSIGNAL_H_ */
+#endif /* EVSIGNAL_INTERNAL_H_INCLUDED_ */

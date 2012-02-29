@@ -23,8 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EVENT2_UTIL_H_
-#define _EVENT2_UTIL_H_
+#ifndef EVENT2_UTIL_H_INCLUDED_
+#define EVENT2_UTIL_H_INCLUDED_
 
 /** @file event2/util.h
 
@@ -713,4 +713,4 @@ void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
 }
 #endif
 
-#endif /* _EVUTIL_H_ */
+#endif /* EVENT1_EVUTIL_H_INCLUDED_ */
