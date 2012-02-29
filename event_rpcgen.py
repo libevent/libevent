@@ -148,7 +148,7 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
                        ' */\n') % self._name
 
         print >>file, \
-              'static struct %(name)s_access_ __%(name)s_base = {' % \
+              'static struct %(name)s_access_ %(name)s_base__ = {' % \
               { 'name' : self._name }
         for entry in self._entries:
             self.PrintIndented(file, '  ', entry.CodeBase())
@@ -170,7 +170,7 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             '    event_warn("%%s: malloc", __func__);\n'
             '    return (NULL);\n'
             '  }\n'
-            '  tmp->base = &__%(name)s_base;\n') % { 'name' : self._name }
+            '  tmp->base = &%(name)s_base__;\n') % { 'name' : self._name }
 
         for entry in self._entries:
             self.PrintIndented(file, '  ', entry.CodeInitialize('tmp'))
@@ -332,11 +332,11 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             'evtag_marshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t tag, '
             'const struct %(name)s *msg)\n'
             '{\n'
-            '  struct evbuffer *_buf = evbuffer_new();\n'
-            '  assert(_buf != NULL);\n'
-            '  %(name)s_marshal(_buf, msg);\n'
-            '  evtag_marshal_buffer(evbuf, tag, _buf);\n '
-            '  evbuffer_free(_buf);\n'
+            '  struct evbuffer *buf_ = evbuffer_new();\n'
+            '  assert(buf_ != NULL);\n'
+            '  %(name)s_marshal(buf_, msg);\n'
+            '  evtag_marshal_buffer(evbuf, tag, buf_);\n '
+            '  evbuffer_free(buf_);\n'
             '}\n' ) % { 'name' : self._name }
 
 class Entry:
