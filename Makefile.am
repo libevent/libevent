@@ -176,10 +176,10 @@ BUILT_SOURCES = ./include/event2/event-config.h
 	echo '#ifndef _EVENT2_EVENT_CONFIG_H_' >> $@
 	echo '#define _EVENT2_EVENT_CONFIG_H_' >> $@
 
-	sed -e 's/#define /#define _EVENT_/' \
-	    -e 's/#undef /#undef _EVENT_/' \
-	    -e 's/# define /# define _EVENT_/' \
-	    -e 's/#ifndef /#ifndef _EVENT_/' < config.h >> $@
+	sed -e 's/#define /#define EVENT__/' \
+	    -e 's/#undef /#undef EVENT__/' \
+	    -e 's/# define /# define EVENT__/' \
+	    -e 's/#ifndef /#ifndef EVENT__/' < config.h >> $@
 	echo "#endif" >> $@
 
 CORE_SRC = event.c evthread.c buffer.c \
