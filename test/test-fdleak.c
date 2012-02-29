@@ -33,10 +33,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef _EVENT_HAVE_SYS_RESOURCE_H
+#ifdef EVENT__HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
 
@@ -212,7 +212,7 @@ start_client(struct event_base *base)
 int
 main(int argc, char **argv)
 {
-#ifdef _EVENT_HAVE_SETRLIMIT
+#ifdef EVENT__HAVE_SETRLIMIT
 	/* Set the fd limit to a low value so that any fd leak is caught without
 	making many requests. */
 	struct rlimit rl;

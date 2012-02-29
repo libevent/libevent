@@ -26,7 +26,7 @@
 #include <event2/dns_struct.h>
 #include <event2/util.h>
 
-#ifdef _EVENT_HAVE_NETINET_IN6_H
+#ifdef EVENT__HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
 

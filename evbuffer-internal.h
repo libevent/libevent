@@ -50,7 +50,7 @@ extern "C" {
 /* Minimum allocation for a chain.  We define this so that we're burning no
  * more than 5% of each allocation on overhead.  It would be nice to lose even
  * less space, though. */
-#if _EVENT_SIZEOF_VOID_P < 8
+#if EVENT__SIZEOF_VOID_P < 8
 #define MIN_BUFFER_SIZE	512
 #else
 #define MIN_BUFFER_SIZE	1024
@@ -107,7 +107,7 @@ struct evbuffer {
 	 * tried to invoke callbacks. */
 	size_t n_del_for_cb;
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	/** A lock used to mediate access to this buffer. */
 	void *lock;
 #endif

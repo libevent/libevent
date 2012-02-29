@@ -29,10 +29,10 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifdef _EVENT_HAVE_KQUEUE
+#ifdef EVENT__HAVE_KQUEUE
 
 #include <sys/types.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
@@ -43,14 +43,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#ifdef _EVENT_HAVE_INTTYPES_H
+#ifdef EVENT__HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
 
 /* Some platforms apparently define the udata field of struct kevent as
  * intptr_t, whereas others define it as void*.  There doesn't seem to be an
  * easy way to tell them apart via autoconf, so we need to use OS macros. */
-#if defined(_EVENT_HAVE_INTTYPES_H) && !defined(__OpenBSD__) && !defined(__FreeBSD__) && !defined(__darwin__) && !defined(__APPLE__)
+#if defined(EVENT__HAVE_INTTYPES_H) && !defined(__OpenBSD__) && !defined(__FreeBSD__) && !defined(__darwin__) && !defined(__APPLE__)
 #define PTR_TO_UDATA(x)	((intptr_t)(x))
 #define INT_TO_UDATA(x) ((intptr_t)(x))
 #else
@@ -473,4 +473,4 @@ kq_sig_del(struct event_base *base, int nsignal, short old, short events, void *
 	return (0);
 }
 
-#endif /* _EVENT_HAVE_KQUEUE */
+#endif /* EVENT__HAVE_KQUEUE */

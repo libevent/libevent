@@ -27,12 +27,12 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifdef _EVENT_HAVE_EPOLL
+#ifdef EVENT__HAVE_EPOLL
 
 #include <stdint.h>
 #include <sys/types.h>
 #include <sys/resource.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
@@ -44,7 +44,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#ifdef _EVENT_HAVE_FCNTL_H
+#ifdef EVENT__HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
 
@@ -113,7 +113,7 @@ epoll_init(struct event_base *base)
 	int epfd = -1;
 	struct epollop *epollop;
 
-#ifdef _EVENT_HAVE_EPOLL_CREATE1
+#ifdef EVENT__HAVE_EPOLL_CREATE1
 	/* First, try the shiny new epoll_create1 interface, if we have it. */
 	epfd = epoll_create1(EPOLL_CLOEXEC);
 #endif
@@ -590,4 +590,4 @@ epoll_dealloc(struct event_base *base)
 	mm_free(epollop);
 }
 
-#endif /* _EVENT_HAVE_EPOLL */
+#endif /* EVENT__HAVE_EPOLL */

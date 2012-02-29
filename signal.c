@@ -36,22 +36,22 @@
 #undef WIN32_LEAN_AND_MEAN
 #endif
 #include <sys/types.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
-#ifdef _EVENT_HAVE_SYS_SOCKET_H
+#ifdef EVENT__HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _EVENT_HAVE_UNISTD_H
+#ifdef EVENT__HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <errno.h>
-#ifdef _EVENT_HAVE_FCNTL_H
+#ifdef EVENT__HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
 
@@ -101,7 +101,7 @@ static const struct eventop evsigops = {
 	0, 0, 0
 };
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 /* Lock for evsig_base and evsig_base_n_signals_added fields. */
 static void *evsig_base_lock = NULL;
 #endif
@@ -212,7 +212,7 @@ int
 _evsig_set_handler(struct event_base *base,
     int evsignal, void (__cdecl *handler)(int))
 {
-#ifdef _EVENT_HAVE_SIGACTION
+#ifdef EVENT__HAVE_SIGACTION
 	struct sigaction sa;
 #else
 	ev_sighandler_t sh;
@@ -249,7 +249,7 @@ _evsig_set_handler(struct event_base *base,
 	}
 
 	/* save previous handler and setup new handler */
-#ifdef _EVENT_HAVE_SIGACTION
+#ifdef EVENT__HAVE_SIGACTION
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = handler;
 	sa.sa_flags |= SA_RESTART;
@@ -325,7 +325,7 @@ _evsig_restore_handler(struct event_base *base, int evsignal)
 {
 	int ret = 0;
 	struct evsig_info *sig = &base->sig;
-#ifdef _EVENT_HAVE_SIGACTION
+#ifdef EVENT__HAVE_SIGACTION
 	struct sigaction *sh;
 #else
 	ev_sighandler_t *sh;
@@ -340,7 +340,7 @@ _evsig_restore_handler(struct event_base *base, int evsignal)
 	/* restore previous handler */
 	sh = sig->sh_old[evsignal];
 	sig->sh_old[evsignal] = NULL;
-#ifdef _EVENT_HAVE_SIGACTION
+#ifdef EVENT__HAVE_SIGACTION
 	if (sigaction(evsignal, sh, NULL) == -1) {
 		event_warn("sigaction");
 		ret = -1;
@@ -388,7 +388,7 @@ evsig_handler(int sig)
 		return;
 	}
 
-#ifndef _EVENT_HAVE_SIGACTION
+#ifndef EVENT__HAVE_SIGACTION
 	signal(sig, evsig_handler);
 #endif
 
@@ -449,7 +449,7 @@ evsig_dealloc(struct event_base *base)
 	}
 }
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 int
 evsig_global_setup_locks_(const int enable_locks)
 {

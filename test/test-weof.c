@@ -33,10 +33,10 @@
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef _EVENT_HAVE_SYS_SOCKET_H
+#ifdef EVENT__HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <fcntl.h>
@@ -51,8 +51,8 @@
 #include "event2/event_compat.h"
 #include "event2/util.h"
 
-#ifdef _EVENT___func__
-#define __func__ _EVENT___func__
+#ifdef EVENT____func__
+#define __func__ EVENT____func__
 #endif
 
 evutil_socket_t pair[2];

@@ -41,10 +41,10 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #endif
-#ifdef _EVENT_HAVE_NETINET_IN6_H
+#ifdef EVENT__HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
-#ifdef _EVENT_HAVE_SYS_WAIT_H
+#ifdef EVENT__HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
 #include <signal.h>
@@ -247,7 +247,7 @@ regress_sockaddr_port_parse(void *ptr)
 		if (ent->safamily == AF_INET) {
 			struct sockaddr_in sin;
 			memset(&sin, 0, sizeof(sin));
-#ifdef _EVENT_HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
 			sin.sin_len = sizeof(sin);
 #endif
 			sin.sin_family = AF_INET;
@@ -263,7 +263,7 @@ regress_sockaddr_port_parse(void *ptr)
 		} else {
 			struct sockaddr_in6 sin6;
 			memset(&sin6, 0, sizeof(sin6));
-#ifdef _EVENT_HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
 			sin6.sin6_len = sizeof(sin6);
 #endif
 			sin6.sin6_family = AF_INET6;

@@ -384,7 +384,7 @@ int _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
  * bufferevent_private. */
 #define BEV_UPCAST(b) EVUTIL_UPCAST((b), struct bufferevent_private, bev)
 
-#ifdef _EVENT_DISABLE_THREAD_SUPPORT
+#ifdef EVENT__DISABLE_THREAD_SUPPORT
 #define BEV_LOCK(b) _EVUTIL_NIL_STMT
 #define BEV_UNLOCK(b) _EVUTIL_NIL_STMT
 #else

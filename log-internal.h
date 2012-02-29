@@ -41,7 +41,7 @@
 
 #define USE_GLOBAL_FOR_DEBUG_LOGGING
 
-#if !defined(_EVENT_DISABLE_DEBUG_MODE) || defined(USE_DEBUG)
+#if !defined(EVENT__DISABLE_DEBUG_MODE) || defined(USE_DEBUG)
 #define EVENT_DEBUG_LOGGING_ENABLED
 #endif
 

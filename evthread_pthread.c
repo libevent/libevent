@@ -87,13 +87,13 @@ evthread_posix_get_id(void)
 {
 	union {
 		pthread_t thr;
-#if _EVENT_SIZEOF_PTHREAD_T > _EVENT_SIZEOF_LONG
+#if EVENT__SIZEOF_PTHREAD_T > EVENT__SIZEOF_LONG
 		ev_uint64_t id;
 #else
 		unsigned long id;
 #endif
 	} r;
-#if _EVENT_SIZEOF_PTHREAD_T < _EVENT_SIZEOF_LONG
+#if EVENT__SIZEOF_PTHREAD_T < EVENT__SIZEOF_LONG
 	memset(&r, 0, sizeof(r));
 #endif
 	r.thr = pthread_self();

@@ -35,10 +35,10 @@
 #include "log-internal.h"
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef _EVENT_HAVE_SYS_SOCKET_H
+#ifdef EVENT__HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
-#ifdef _EVENT_HAVE_SYS_EVENTFD_H
+#ifdef EVENT__HAVE_SYS_EVENTFD_H
 #include <sys/eventfd.h>
 #endif
 #include "event2/util.h"
@@ -50,11 +50,11 @@ extern "C" {
 #endif
 
 /* If we need magic to say "inline", get it for free internally. */
-#ifdef _EVENT_inline
-#define inline _EVENT_inline
+#ifdef EVENT__inline
+#define inline EVENT__inline
 #endif
-#ifdef _EVENT___func__
-#define __func__ _EVENT___func__
+#ifdef EVENT____func__
+#define __func__ EVENT____func__
 #endif
 
 /* A good no-op to use in macro definitions. */
@@ -286,7 +286,7 @@ long _evutil_weakrand(void);
 #define EVUTIL_FAILURE_CHECK(cond) EVUTIL_UNLIKELY(cond)
 #endif
 
-#ifndef _EVENT_HAVE_STRUCT_SOCKADDR_STORAGE
+#ifndef EVENT__HAVE_STRUCT_SOCKADDR_STORAGE
 /* Replacement for sockaddr storage that we can use internally on platforms
  * that lack it.  It is not space-efficient, but neither is sockaddr_storage.
  */
@@ -375,7 +375,7 @@ HANDLE evutil_load_windows_system_library(const TCHAR *library_name);
 #endif
 
 #ifndef EV_SIZE_FMT
-#if (_EVENT_SIZEOF_SIZE_T <= _EVENT_SIZEOF_LONG)
+#if (EVENT__SIZEOF_SIZE_T <= EVENT__SIZEOF_LONG)
 #define EV_SIZE_FMT "%lu"
 #define EV_SSIZE_FMT "%ld"
 #define EV_SIZE_ARG(x) ((unsigned long)(x))

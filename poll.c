@@ -29,10 +29,10 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifdef _EVENT_HAVE_POLL
+#ifdef EVENT__HAVE_POLL
 
 #include <sys/types.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
@@ -130,7 +130,7 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 
 	nfds = pop->nfds;
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	if (base->th_base_lock) {
 		/* If we're using this backend in a multithreaded setting,
 		 * then we need to work on a copy of event_set, so that we can
@@ -335,4 +335,4 @@ poll_dealloc(struct event_base *base)
 	mm_free(pop);
 }
 
-#endif /* _EVENT_HAVE_POLL */
+#endif /* EVENT__HAVE_POLL */

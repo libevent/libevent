@@ -30,7 +30,7 @@
 
 #include <sys/types.h>
 
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 
@@ -38,7 +38,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _EVENT_HAVE_STDARG_H
+#ifdef EVENT__HAVE_STDARG_H
 #include <stdarg.h>
 #endif
 
@@ -307,7 +307,7 @@ bufferevent_init_common(struct bufferevent_private *bufev_private,
 	 */
 	bufev->enabled = EV_WRITE;
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	if (options & BEV_OPT_THREADSAFE) {
 		if (bufferevent_enable_locking(bufev, NULL) < 0) {
 			/* cleanup */
@@ -718,7 +718,7 @@ bufferevent_incref(struct bufferevent *bufev)
 int
 bufferevent_enable_locking(struct bufferevent *bufev, void *lock)
 {
-#ifdef _EVENT_DISABLE_THREAD_SUPPORT
+#ifdef EVENT__DISABLE_THREAD_SUPPORT
 	return -1;
 #else
 	struct bufferevent *underlying;

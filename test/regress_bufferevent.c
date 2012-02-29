@@ -38,7 +38,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
@@ -58,7 +58,7 @@
 #include <errno.h>
 #include <assert.h>
 
-#ifdef _EVENT_HAVE_ARPA_INET_H
+#ifdef EVENT__HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
 
@@ -814,7 +814,7 @@ struct testcase_t bufferevent_testcases[] = {
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"filter" },
 	{ "bufferevent_timeout_filter_pair", test_bufferevent_timeouts,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"filter pair" },
-#ifdef _EVENT_HAVE_LIBZ
+#ifdef EVENT__HAVE_LIBZ
 	LEGACY(bufferevent_zlib, TT_ISOLATED),
 #else
 	{ "bufferevent_zlib", NULL, TT_SKIP, NULL, NULL },

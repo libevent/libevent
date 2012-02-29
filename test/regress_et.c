@@ -31,7 +31,7 @@
 #endif
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef _EVENT_HAVE_SYS_SOCKET_H
+#ifdef EVENT__HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
 #include <fcntl.h>
@@ -162,7 +162,7 @@ test_edgetriggered_mix_error(void *data_)
 	struct event_base *base = NULL;
 	struct event *ev_et=NULL, *ev_lt=NULL;
 
-#ifdef _EVENT_DISABLE_DEBUG_MODE
+#ifdef EVENT__DISABLE_DEBUG_MODE
 	if (1)
 		tt_skip();
 #endif

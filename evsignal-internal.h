@@ -48,7 +48,7 @@ struct evsig_info {
 
 	/* Array of previous signal handler objects before Libevent started
 	 * messing with them.  Used to restore old signal handlers. */
-#ifdef _EVENT_HAVE_SIGACTION
+#ifdef EVENT__HAVE_SIGACTION
 	struct sigaction **sh_old;
 #else
 	ev_sighandler_t **sh_old;

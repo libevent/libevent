@@ -470,7 +470,7 @@ main(int argc, char **argv)
 #endif
 	}
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	evthread_enable_lock_debuging();
 #endif
 

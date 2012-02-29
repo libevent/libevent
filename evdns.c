@@ -59,16 +59,16 @@
 
 #include <string.h>
 #include <fcntl.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef _EVENT_HAVE_STDINT_H
+#ifdef EVENT__HAVE_STDINT_H
 #include <stdint.h>
 #endif
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#ifdef _EVENT_HAVE_UNISTD_H
+#ifdef EVENT__HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <limits.h>
@@ -115,7 +115,7 @@
 #include <arpa/inet.h>
 #endif
 
-#ifdef _EVENT_HAVE_NETINET_IN6_H
+#ifdef EVENT__HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
 
@@ -253,7 +253,7 @@ struct evdns_server_port {
 	struct server_request *pending_replies;
 	struct event_base *event_base;
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	void *lock;
 #endif
 };
@@ -355,7 +355,7 @@ struct evdns_base {
 
 	TAILQ_HEAD(hosts_list, hosts_entry) hostsdb;
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	void *lock;
 #endif
 };
@@ -413,7 +413,7 @@ static void evdns_base_free_and_unlock(struct evdns_base *base, int fail_request
 
 static int strtoint(const char *const str);
 
-#ifdef _EVENT_DISABLE_THREAD_SUPPORT
+#ifdef EVENT__DISABLE_THREAD_SUPPORT
 #define EVDNS_LOCK(base)  _EVUTIL_NIL_STMT
 #define EVDNS_UNLOCK(base) _EVUTIL_NIL_STMT
 #define ASSERT_LOCKED(base) _EVUTIL_NIL_STMT
@@ -2140,7 +2140,7 @@ evdns_server_request_get_requesting_addr(struct evdns_server_request *_req, stru
 static void
 evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 	struct request *const req = (struct request *) arg;
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	struct evdns_base *base = req->base;
 #endif
 	(void) fd;
@@ -3229,7 +3229,7 @@ evdns_resolv_set_defaults(struct evdns_base *base, int flags) {
 	if (flags & DNS_OPTION_NAMESERVERS) evdns_base_nameserver_ip_add(base,"127.0.0.1");
 }
 
-#ifndef _EVENT_HAVE_STRTOK_R
+#ifndef EVENT__HAVE_STRTOK_R
 static char *
 strtok_r(char *s, const char *delim, char **state) {
 	char *cp, *start;

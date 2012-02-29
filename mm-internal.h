@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-#ifndef _EVENT_DISABLE_MM_REPLACEMENT
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
 /* Internal use only: Memory allocation functions. We give them nice short
  * mm_names for our own use, but make sure that the symbols have longer names
  * so they don't conflict with other libraries (like, say, libmm). */

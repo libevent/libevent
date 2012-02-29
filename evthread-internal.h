@@ -46,7 +46,7 @@ struct event_base;
 #define EVTHREAD_EXPOSE_STRUCTS
 #endif
 
-#if ! defined(_EVENT_DISABLE_THREAD_SUPPORT) && defined(EVTHREAD_EXPOSE_STRUCTS)
+#if ! defined(EVENT__DISABLE_THREAD_SUPPORT) && defined(EVTHREAD_EXPOSE_STRUCTS)
 /* Global function pointers to lock-related functions. NULL if locking isn't
    enabled. */
 extern struct evthread_lock_callbacks _evthread_lock_fns;
@@ -179,7 +179,7 @@ EVLOCK_TRY_LOCK(void *lock)
 #define EVTHREAD_LOCKING_ENABLED()		\
 	(_evthread_lock_fns.lock != NULL)
 
-#elif ! defined(_EVENT_DISABLE_THREAD_SUPPORT)
+#elif ! defined(EVENT__DISABLE_THREAD_SUPPORT)
 
 unsigned long _evthreadimpl_get_id(void);
 int _evthreadimpl_is_lock_debugging_enabled(void);
@@ -291,7 +291,7 @@ EVLOCK_TRY_LOCK(void *lock)
 #define EVTHREAD_LOCKING_ENABLED()		\
 	(_evthreadimpl_locking_enabled())
 
-#else /* _EVENT_DISABLE_THREAD_SUPPORT */
+#else /* EVENT__DISABLE_THREAD_SUPPORT */
 
 #define EVTHREAD_GET_ID()	1
 #define EVTHREAD_ALLOC_LOCK(lockvar, locktype) _EVUTIL_NIL_STMT
@@ -322,7 +322,7 @@ EVLOCK_TRY_LOCK(void *lock)
 #endif
 
 /* This code is shared between both lock impls */
-#if ! defined(_EVENT_DISABLE_THREAD_SUPPORT)
+#if ! defined(EVENT__DISABLE_THREAD_SUPPORT)
 /** Helper: put lockvar1 and lockvar2 into pointerwise ascending order. */
 #define _EVLOCK_SORTLOCKS(lockvar1, lockvar2)				\
 	do {								\

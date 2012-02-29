@@ -35,7 +35,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
@@ -1102,12 +1102,12 @@ test_signal_restore(void)
 {
 	struct event ev;
 	struct event_base *base = event_init();
-#ifdef _EVENT_HAVE_SIGACTION
+#ifdef EVENT__HAVE_SIGACTION
 	struct sigaction sa;
 #endif
 
 	test_ok = 0;
-#ifdef _EVENT_HAVE_SIGACTION
+#ifdef EVENT__HAVE_SIGACTION
 	sa.sa_handler = signal_cb_sa;
 	sa.sa_flags = 0x0;
 	sigemptyset(&sa.sa_mask);
@@ -1888,9 +1888,9 @@ end:
 		event_config_free(cfg);
 }
 
-#ifdef _EVENT_HAVE_SETENV
+#ifdef EVENT__HAVE_SETENV
 #define SETENV_OK
-#elif !defined(_EVENT_HAVE_SETENV) && defined(_EVENT_HAVE_PUTENV)
+#elif !defined(EVENT__HAVE_SETENV) && defined(EVENT__HAVE_PUTENV)
 static void setenv(const char *k, const char *v, int _o)
 {
 	char b[256];
@@ -1900,9 +1900,9 @@ static void setenv(const char *k, const char *v, int _o)
 #define SETENV_OK
 #endif
 
-#ifdef _EVENT_HAVE_UNSETENV
+#ifdef EVENT__HAVE_UNSETENV
 #define UNSETENV_OK
-#elif !defined(_EVENT_HAVE_UNSETENV) && defined(_EVENT_HAVE_PUTENV)
+#elif !defined(EVENT__HAVE_UNSETENV) && defined(EVENT__HAVE_PUTENV)
 static void unsetenv(const char *k)
 {
 	char b[256];
@@ -1940,7 +1940,7 @@ test_base_environ(void *arg)
 	setenv("EVENT_NOWAFFLES", "1", 1);
 	unsetenv("EVENT_NOWAFFLES");
 	if (getenv("EVENT_NOWAFFLES") != NULL) {
-#ifndef _EVENT_HAVE_UNSETENV
+#ifndef EVENT__HAVE_UNSETENV
 		TT_DECLARE("NOTE", ("Can't fake unsetenv; skipping test"));
 #else
 		TT_DECLARE("NOTE", ("unsetenv doesn't work; skipping test"));
@@ -2187,7 +2187,7 @@ end:
 }
 #endif
 
-#ifdef _EVENT_DISABLE_MM_REPLACEMENT
+#ifdef EVENT__DISABLE_MM_REPLACEMENT
 static void
 test_mm_functions(void *arg)
 {

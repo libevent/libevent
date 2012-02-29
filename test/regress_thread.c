@@ -34,20 +34,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef _EVENT_HAVE_UNISTD_H
+#ifdef EVENT__HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef _EVENT_HAVE_SYS_WAIT_H
+#ifdef EVENT__HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
 
-#ifdef _EVENT_HAVE_PTHREADS
+#ifdef EVENT__HAVE_PTHREADS
 #include <pthread.h>
 #elif defined(_WIN32)
 #include <process.h>
 #endif
 #include <assert.h>
-#ifdef _EVENT_HAVE_UNISTD_H
+#ifdef EVENT__HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 #include <time.h>
@@ -64,7 +64,7 @@
 #include "regress.h"
 #include "tinytest_macros.h"
 
-#ifdef _EVENT_HAVE_PTHREADS
+#ifdef EVENT__HAVE_PTHREADS
 #define THREAD_T pthread_t
 #define THREAD_FN void *
 #define THREAD_RETURN() return (NULL)

@@ -185,10 +185,10 @@ extern "C" {
 #endif
 
 #include <event2/event-config.h>
-#ifdef _EVENT_HAVE_SYS_TYPES_H
+#ifdef EVENT__HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 
@@ -1130,10 +1130,10 @@ const char *event_get_version(void);
 ev_uint32_t event_get_version_number(void);
 
 /** As event_get_version, but gives the version of Libevent's headers. */
-#define LIBEVENT_VERSION _EVENT_VERSION
+#define LIBEVENT_VERSION EVENT__VERSION
 /** As event_get_version_number, but gives the version number of Libevent's
  * headers. */
-#define LIBEVENT_VERSION_NUMBER _EVENT_NUMERIC_VERSION
+#define LIBEVENT_VERSION_NUMBER EVENT__NUMERIC_VERSION
 
 /** Largest number of priorities that Libevent can support. */
 #define EVENT_MAX_PRIORITIES 256
@@ -1207,7 +1207,7 @@ int	event_priority_set(struct event *, int);
 const struct timeval *event_base_init_common_timeout(struct event_base *base,
     const struct timeval *duration);
 
-#if !defined(_EVENT_DISABLE_MM_REPLACEMENT) || defined(_EVENT_IN_DOXYGEN)
+#if !defined(EVENT__DISABLE_MM_REPLACEMENT) || defined(_EVENT_IN_DOXYGEN)
 /**
  Override the functions that Libevent uses for memory management.
 

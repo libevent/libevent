@@ -56,7 +56,7 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifdef _EVENT_HAVE_EVENT_PORTS
+#ifdef EVENT__HAVE_EVENT_PORTS
 
 #include <sys/time.h>
 #include <sys/queue.h>
@@ -448,4 +448,4 @@ evport_dealloc(struct event_base *base)
 	mm_free(evpd);
 }
 
-#endif /* _EVENT_HAVE_EVENT_PORTS */
+#endif /* EVENT__HAVE_EVENT_PORTS */

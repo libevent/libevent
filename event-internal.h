@@ -162,7 +162,7 @@ struct event_changelist {
 	int changes_size;
 };
 
-#ifndef _EVENT_DISABLE_DEBUG_MODE
+#ifndef EVENT__DISABLE_DEBUG_MODE
 /* Global internal flag: set to one if debug mode is on. */
 extern int _event_debug_mode_on;
 #define EVENT_DEBUG_MODE_IS_ON() (_event_debug_mode_on)
@@ -243,7 +243,7 @@ struct event_base {
 	 * too often. */
 	struct timeval tv_cache;
 
-#if defined(_EVENT_HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	/** Difference between internal time (maybe from clock_gettime) and
 	 * gettimeofday. */
 	struct timeval tv_clock_diff;
@@ -251,7 +251,7 @@ struct event_base {
 	time_t last_updated_clock_diff;
 #endif
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	/* threading support */
 	/** The thread currently running the event_loop for this base */
 	unsigned long th_owner_id;
@@ -312,7 +312,7 @@ struct event_config {
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
-#if defined(_EVENT_HAVE_SYS_QUEUE_H) && !defined(_EVENT_HAVE_TAILQFOREACH)
+#if defined(EVENT__HAVE_SYS_QUEUE_H) && !defined(EVENT__HAVE_TAILQFOREACH)
 #ifndef TAILQ_FIRST
 #define	TAILQ_FIRST(head)		((head)->tqh_first)
 #endif

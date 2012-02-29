@@ -29,7 +29,7 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifdef _EVENT_HAVE_SELECT
+#ifdef EVENT__HAVE_SELECT
 
 #ifdef __APPLE__
 /* Apple wants us to define this if we might ever pass more than
@@ -38,10 +38,10 @@
 #endif
 
 #include <sys/types.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#ifdef _EVENT_HAVE_SYS_SELECT_H
+#ifdef EVENT__HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
 #include <sys/queue.h>
@@ -59,7 +59,7 @@
 #include "log-internal.h"
 #include "evmap-internal.h"
 
-#ifndef _EVENT_HAVE_FD_MASK
+#ifndef EVENT__HAVE_FD_MASK
 /* This type is mandatory, but Android doesn't define it. */
 typedef unsigned long fd_mask;
 #endif
@@ -341,4 +341,4 @@ select_dealloc(struct event_base *base)
 	select_free_selectop(base->evbase);
 }
 
-#endif /* _EVENT_HAVE_SELECT */
+#endif /* EVENT__HAVE_SELECT */

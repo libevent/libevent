@@ -26,8 +26,8 @@
 
 #include <event.h>
 
-#ifdef _EVENT___func__
-#define __func__ _EVENT___func__
+#ifdef EVENT____func__
+#define __func__ EVENT____func__
 #endif
 
 int called = 0;

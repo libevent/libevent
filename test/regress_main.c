@@ -35,14 +35,14 @@
 
 #include "event2/event-config.h"
 
-#ifdef _EVENT___func__
-#define __func__ _EVENT___func__
+#ifdef EVENT____func__
+#define __func__ EVENT____func__
 #endif
 
 #if 0
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef _EVENT_HAVE_SYS_TIME_H
+#ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/queue.h>
@@ -331,7 +331,7 @@ const struct testcase_setup_t legacy_setup = {
 
 /* ============================================================ */
 
-#if (!defined(_EVENT_HAVE_PTHREADS) && !defined(_WIN32)) || defined(_EVENT_DISABLE_THREAD_SUPPORT)
+#if (!defined(EVENT__HAVE_PTHREADS) && !defined(_WIN32)) || defined(EVENT__DISABLE_THREAD_SUPPORT)
 struct testcase_t thread_testcases[] = {
 	{ "basic", NULL, TT_SKIP, NULL, NULL },
 	END_OF_TESTCASES
@@ -357,7 +357,7 @@ struct testgroup_t testgroups[] = {
 	{ "iocp/bufferevent/", bufferevent_iocp_testcases },
 	{ "iocp/listener/", listener_iocp_testcases },
 #endif
-#ifdef _EVENT_HAVE_OPENSSL
+#ifdef EVENT__HAVE_OPENSSL
 	{ "ssl/", ssl_testcases },
 #endif
 	END_OF_GROUPS
@@ -385,7 +385,7 @@ main(int argc, const char **argv)
 	tinytest_skip(testgroups, "http/connection_retry");
 #endif
 
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	if (!getenv("EVENT_NO_DEBUG_LOCKS"))
 		evthread_enable_lock_debuging();
 #endif
