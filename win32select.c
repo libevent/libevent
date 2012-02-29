@@ -80,8 +80,8 @@ struct win32op {
 };
 
 static void *win32_init(struct event_base *);
-static int win32_add(struct event_base *, evutil_socket_t, short old, short events, void *_idx);
-static int win32_del(struct event_base *, evutil_socket_t, short old, short events, void *_idx);
+static int win32_add(struct event_base *, evutil_socket_t, short old, short events, void *idx_);
+static int win32_del(struct event_base *, evutil_socket_t, short old, short events, void *idx_);
 static int win32_dispatch(struct event_base *base, struct timeval *);
 static void win32_dealloc(struct event_base *);
 
@@ -177,7 +177,7 @@ do_fd_clear(struct event_base *base,
 
 #define NEVENT 32
 void *
-win32_init(struct event_base *_base)
+win32_init(struct event_base *base)
 {
 	struct win32op *winop;
 	size_t size;
@@ -199,7 +199,7 @@ win32_init(struct event_base *_base)
 	winop->readset_out->fd_count = winop->writeset_out->fd_count
 		= winop->exset_out->fd_count = 0;
 
-	if (evsig_init_(_base) < 0)
+	if (evsig_init_(base) < 0)
 		winop->signals_are_broken = 1;
 
 	return (winop);
@@ -215,10 +215,10 @@ win32_init(struct event_base *_base)
 
 int
 win32_add(struct event_base *base, evutil_socket_t fd,
-			 short old, short events, void *_idx)
+			 short old, short events, void *idx_)
 {
 	struct win32op *win32op = base->evbase;
-	struct idx_info *idx = _idx;
+	struct idx_info *idx = idx_;
 
 	if ((events & EV_SIGNAL) && win32op->signals_are_broken)
 		return (-1);
@@ -240,10 +240,10 @@ win32_add(struct event_base *base, evutil_socket_t fd,
 
 int
 win32_del(struct event_base *base, evutil_socket_t fd, short old, short events,
-		  void *_idx)
+		  void *idx_)
 {
 	struct win32op *win32op = base->evbase;
-	struct idx_info *idx = _idx;
+	struct idx_info *idx = idx_;
 
 	event_debug(("%s: Removing event for %d", __func__, fd));
 	if (events & EV_READ)
@@ -357,11 +357,11 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 }
 
 void
-win32_dealloc(struct event_base *_base)
+win32_dealloc(struct event_base *base)
 {
-	struct win32op *win32op = _base->evbase;
+	struct win32op *win32op = base->evbase;
 
-	evsig_dealloc_(_base);
+	evsig_dealloc_(base);
 	if (win32op->readset_in)
 		mm_free(win32op->readset_in);
 	if (win32op->writeset_in)

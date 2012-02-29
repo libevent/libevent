@@ -61,9 +61,9 @@ handle_entry(OVERLAPPED *o, ULONG_PTR completion_key, DWORD nBytes, int ok)
 }
 
 static void
-loop(void *_port)
+loop(void *port_)
 {
-	struct event_iocp_port *port = _port;
+	struct event_iocp_port *port = port_;
 	long ms = port->ms;
 	HANDLE p = port->port;
 

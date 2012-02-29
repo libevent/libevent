@@ -66,8 +66,8 @@ struct pollop {
 };
 
 static void *poll_init(struct event_base *);
-static int poll_add(struct event_base *, int, short old, short events, void *_idx);
-static int poll_del(struct event_base *, int, short old, short events, void *_idx);
+static int poll_add(struct event_base *, int, short old, short events, void *idx);
+static int poll_del(struct event_base *, int, short old, short events, void *idx);
 static int poll_dispatch(struct event_base *, struct timeval *);
 static void poll_dealloc(struct event_base *);
 
@@ -211,11 +211,11 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 }
 
 static int
-poll_add(struct event_base *base, int fd, short old, short events, void *_idx)
+poll_add(struct event_base *base, int fd, short old, short events, void *idx_)
 {
 	struct pollop *pop = base->evbase;
 	struct pollfd *pfd = NULL;
-	struct pollidx *idx = _idx;
+	struct pollidx *idx = idx_;
 	int i;
 
 	EVUTIL_ASSERT((events & EV_SIGNAL) == 0);
@@ -272,11 +272,11 @@ poll_add(struct event_base *base, int fd, short old, short events, void *_idx)
  */
 
 static int
-poll_del(struct event_base *base, int fd, short old, short events, void *_idx)
+poll_del(struct event_base *base, int fd, short old, short events, void *idx_)
 {
 	struct pollop *pop = base->evbase;
 	struct pollfd *pfd = NULL;
-	struct pollidx *idx = _idx;
+	struct pollidx *idx = idx_;
 	int i;
 
 	EVUTIL_ASSERT((events & EV_SIGNAL) == 0);

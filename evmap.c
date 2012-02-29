@@ -111,30 +111,30 @@ HT_GENERATE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket,
 
 #define GET_IO_SLOT(x, map, slot, type)					\
 	do {								\
-		struct event_map_entry _key, *_ent;			\
-		_key.fd = slot;						\
-		_ent = HT_FIND(event_io_map, map, &_key);		\
-		(x) = _ent ? &_ent->ent.type : NULL;			\
+		struct event_map_entry key_, *ent_;			\
+		key_.fd = slot;						\
+		ent_ = HT_FIND(event_io_map, map, &key_);		\
+		(x) = ent_ ? &ent_->ent.type : NULL;			\
 	} while (0);
 
 #define GET_IO_SLOT_AND_CTOR(x, map, slot, type, ctor, fdinfo_len)	\
 	do {								\
-		struct event_map_entry _key, *_ent;			\
-		_key.fd = slot;						\
+		struct event_map_entry key_, *ent_;			\
+		key_.fd = slot;						\
 		HT_FIND_OR_INSERT_(event_io_map, map_node, hashsocket, map, \
-		    event_map_entry, &_key, ptr,			\
+		    event_map_entry, &key_, ptr,			\
 		    {							\
-			    _ent = *ptr;				\
+			    ent_ = *ptr;				\
 		    },							\
 		    {							\
-			    _ent = mm_calloc(1,sizeof(struct event_map_entry)+fdinfo_len); \
-			    if (EVUTIL_UNLIKELY(_ent == NULL))		\
+			    ent_ = mm_calloc(1,sizeof(struct event_map_entry)+fdinfo_len); \
+			    if (EVUTIL_UNLIKELY(ent_ == NULL))		\
 				    return (-1);			\
-			    _ent->fd = slot;				\
-			    (ctor)(&_ent->ent.type);			\
-			    HT_FOI_INSERT_(map_node, map, &_key, _ent, ptr) \
+			    ent_->fd = slot;				\
+			    (ctor)(&ent_->ent.type);			\
+			    HT_FOI_INSERT_(map_node, map, &key_, ent_, ptr) \
 				});					\
-		(x) = &_ent->ent.type;					\
+		(x) = &ent_->ent.type;					\
 	} while (0)
 
 void evmap_io_initmap_(struct event_io_map *ctx)

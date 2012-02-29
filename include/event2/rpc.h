@@ -272,8 +272,8 @@ void *evrpc_get_reply(struct evrpc_req_generic *req);
  * @param rpc_req the rpc request structure provided to the server callback
  */
 #define EVRPC_REQUEST_DONE(rpc_req) do { \
-  struct evrpc_req_generic *_req = (struct evrpc_req_generic *)(rpc_req); \
-  evrpc_request_done(_req);					\
+  struct evrpc_req_generic *req_ = (struct evrpc_req_generic *)(rpc_req); \
+  evrpc_request_done(req_);					\
 } while (0)
 
 

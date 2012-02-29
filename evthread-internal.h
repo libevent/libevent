@@ -81,9 +81,9 @@ extern int evthread_lock_debugging_enabled_;
 /** Free a given lock, if it is present and locking is enabled. */
 #define EVTHREAD_FREE_LOCK(lockvar, locktype)				\
 	do {								\
-		void *_lock_tmp_ = (lockvar);				\
-		if (_lock_tmp_ && evthread_lock_fns_.free)		\
-			evthread_lock_fns_.free(_lock_tmp_, (locktype)); \
+		void *lock_tmp_ = (lockvar);				\
+		if (lock_tmp_ && evthread_lock_fns_.free)		\
+			evthread_lock_fns_.free(lock_tmp_, (locktype)); \
 	} while (0)
 
 /** Acquire a lock. */
@@ -205,9 +205,9 @@ int evthreadimpl_locking_enabled_(void);
 
 #define EVTHREAD_FREE_LOCK(lockvar, locktype)				\
 	do {								\
-		void *_lock_tmp_ = (lockvar);				\
-		if (_lock_tmp_)						\
-			evthreadimpl_lock_free_(_lock_tmp_, (locktype)); \
+		void *lock_tmp_ = (lockvar);				\
+		if (lock_tmp_)						\
+			evthreadimpl_lock_free_(lock_tmp_, (locktype)); \
 	} while (0)
 
 /** Acquire a lock. */
@@ -337,22 +337,22 @@ EVLOCK_TRY_LOCK_(void *lock)
  * so that two threads locking two locks with LOCK2 will not deadlock. */
 #define EVLOCK_LOCK2(lock1,lock2,mode1,mode2)				\
 	do {								\
-		void *_lock1_tmplock = (lock1);				\
-		void *_lock2_tmplock = (lock2);				\
-		EVLOCK_SORTLOCKS_(_lock1_tmplock,_lock2_tmplock);	\
-		EVLOCK_LOCK(_lock1_tmplock,mode1);			\
-		if (_lock2_tmplock != _lock1_tmplock)			\
-			EVLOCK_LOCK(_lock2_tmplock,mode2);		\
+		void *lock1_tmplock_ = (lock1);				\
+		void *lock2_tmplock_ = (lock2);				\
+		EVLOCK_SORTLOCKS_(lock1_tmplock_,lock2_tmplock_);	\
+		EVLOCK_LOCK(lock1_tmplock_,mode1);			\
+		if (lock2_tmplock_ != lock1_tmplock_)			\
+			EVLOCK_LOCK(lock2_tmplock_,mode2);		\
 	} while (0)
 /** Release both lock1 and lock2.  */
 #define EVLOCK_UNLOCK2(lock1,lock2,mode1,mode2)				\
 	do {								\
-		void *_lock1_tmplock = (lock1);				\
-		void *_lock2_tmplock = (lock2);				\
-		EVLOCK_SORTLOCKS_(_lock1_tmplock,_lock2_tmplock);	\
-		if (_lock2_tmplock != _lock1_tmplock)			\
-			EVLOCK_UNLOCK(_lock2_tmplock,mode2);		\
-		EVLOCK_UNLOCK(_lock1_tmplock,mode1);			\
+		void *lock1_tmplock_ = (lock1);				\
+		void *lock2_tmplock_ = (lock2);				\
+		EVLOCK_SORTLOCKS_(lock1_tmplock_,lock2_tmplock_);	\
+		if (lock2_tmplock_ != lock1_tmplock_)			\
+			EVLOCK_UNLOCK(lock2_tmplock_,mode2);		\
+		EVLOCK_UNLOCK(lock1_tmplock_,mode1);			\
 	} while (0)
 
 int evthread_is_debug_lock_held_(void *lock);

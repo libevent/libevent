@@ -1736,9 +1736,9 @@ evdns_close_server_port(struct evdns_server_port *port)
 
 /* exported function */
 int
-evdns_server_request_add_reply(struct evdns_server_request *_req, int section, const char *name, int type, int class, int ttl, int datalen, int is_name, const char *data)
+evdns_server_request_add_reply(struct evdns_server_request *req_, int section, const char *name, int type, int class, int ttl, int datalen, int is_name, const char *data)
 {
-	struct server_request *req = TO_SERVER_REQUEST(_req);
+	struct server_request *req = TO_SERVER_REQUEST(req_);
 	struct server_reply_item **itemp, *item;
 	int *countp;
 	int result = -1;
@@ -1966,9 +1966,9 @@ overflow:
 
 /* exported function */
 int
-evdns_server_request_respond(struct evdns_server_request *_req, int err)
+evdns_server_request_respond(struct evdns_server_request *req_, int err)
 {
-	struct server_request *req = TO_SERVER_REQUEST(_req);
+	struct server_request *req = TO_SERVER_REQUEST(req_);
 	struct evdns_server_port *port = req->port;
 	int r = -1;
 
@@ -2114,18 +2114,18 @@ server_port_free(struct evdns_server_port *port)
 
 /* exported function */
 int
-evdns_server_request_drop(struct evdns_server_request *_req)
+evdns_server_request_drop(struct evdns_server_request *req_)
 {
-	struct server_request *req = TO_SERVER_REQUEST(_req);
+	struct server_request *req = TO_SERVER_REQUEST(req_);
 	server_request_free(req);
 	return 0;
 }
 
 /* exported function */
 int
-evdns_server_request_get_requesting_addr(struct evdns_server_request *_req, struct sockaddr *sa, int addr_len)
+evdns_server_request_get_requesting_addr(struct evdns_server_request *req_, struct sockaddr *sa, int addr_len)
 {
-	struct server_request *req = TO_SERVER_REQUEST(_req);
+	struct server_request *req = TO_SERVER_REQUEST(req_);
 	if (addr_len < (int)req->addrlen)
 		return -1;
 	memcpy(sa, &(req->addr), req->addrlen);

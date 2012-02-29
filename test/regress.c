@@ -1891,7 +1891,7 @@ end:
 #ifdef EVENT__HAVE_SETENV
 #define SETENV_OK
 #elif !defined(EVENT__HAVE_SETENV) && defined(EVENT__HAVE_PUTENV)
-static void setenv(const char *k, const char *v, int _o)
+static void setenv(const char *k, const char *v, int o_)
 {
 	char b[256];
 	evutil_snprintf(b, sizeof(b), "%s=%s",k,v);
@@ -2195,9 +2195,9 @@ test_mm_functions(void *arg)
 }
 #else
 static int
-check_dummy_mem_ok(void *_mem)
+check_dummy_mem_ok(void *mem_)
 {
-	char *mem = _mem;
+	char *mem = mem_;
 	mem -= 16;
 	return !memcmp(mem, "{[<guardedram>]}", 16);
 }
@@ -2211,22 +2211,22 @@ dummy_malloc(size_t len)
 }
 
 static void *
-dummy_realloc(void *_mem, size_t len)
+dummy_realloc(void *mem_, size_t len)
 {
-	char *mem = _mem;
+	char *mem = mem_;
 	if (!mem)
 		return dummy_malloc(len);
-	tt_want(check_dummy_mem_ok(_mem));
+	tt_want(check_dummy_mem_ok(mem_));
 	mem -= 16;
 	mem = realloc(mem, len+16);
 	return mem+16;
 }
 
 static void
-dummy_free(void *_mem)
+dummy_free(void *mem_)
 {
-	char *mem = _mem;
-	tt_want(check_dummy_mem_ok(_mem));
+	char *mem = mem_;
+	tt_want(check_dummy_mem_ok(mem_));
 	mem -= 16;
 	free(mem);
 }

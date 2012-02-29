@@ -413,9 +413,9 @@ bufferevent_filtered_outbuf_cb(struct evbuffer *buf,
 
 /* Called when the underlying socket has read. */
 static void
-be_filter_readcb(struct bufferevent *underlying, void *_me)
+be_filter_readcb(struct bufferevent *underlying, void *me_)
 {
-	struct bufferevent_filtered *bevf = _me;
+	struct bufferevent_filtered *bevf = me_;
 	enum bufferevent_filter_result res;
 	enum bufferevent_flush_mode state;
 	struct bufferevent *bufev = downcast(bevf);
@@ -445,9 +445,9 @@ be_filter_readcb(struct bufferevent *underlying, void *_me)
 /* Called when the underlying socket has drained enough that we can write to
    it. */
 static void
-be_filter_writecb(struct bufferevent *underlying, void *_me)
+be_filter_writecb(struct bufferevent *underlying, void *me_)
 {
-	struct bufferevent_filtered *bevf = _me;
+	struct bufferevent_filtered *bevf = me_;
 	struct bufferevent *bev = downcast(bevf);
 	int processed_any = 0;
 
@@ -458,9 +458,9 @@ be_filter_writecb(struct bufferevent *underlying, void *_me)
 
 /* Called when the underlying socket has given us an error */
 static void
-be_filter_eventcb(struct bufferevent *underlying, short what, void *_me)
+be_filter_eventcb(struct bufferevent *underlying, short what, void *me_)
 {
-	struct bufferevent_filtered *bevf = _me;
+	struct bufferevent_filtered *bevf = me_;
 	struct bufferevent *bev = downcast(bevf);
 
 	bufferevent_incref_and_lock_(bev);

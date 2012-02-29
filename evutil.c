@@ -2359,7 +2359,7 @@ evutil_usleep_(const struct timeval *tv)
 		long msec = evutil_tv_to_msec_(tv);
 		Sleep((DWORD)msec);
 	}
-#elif defined(_EVENT_HAVE_NANOSLEEP_X)
+#elif defined(EVENT__HAVE_NANOSLEEP_XXX)
 	{
 		struct timespec ts;
 		ts.tv_sec = tv->tv_sec;

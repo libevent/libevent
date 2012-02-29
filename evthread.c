@@ -262,15 +262,15 @@ debug_lock_unlock(unsigned mode, void *lock_)
 }
 
 static int
-debug_cond_wait(void *_cond, void *_lock, const struct timeval *tv)
+debug_cond_wait(void *cond_, void *lock_, const struct timeval *tv)
 {
 	int r;
-	struct debug_lock *lock = _lock;
+	struct debug_lock *lock = lock_;
 	EVUTIL_ASSERT(lock);
 	EVUTIL_ASSERT(DEBUG_LOCK_SIG == lock->signature);
-	EVLOCK_ASSERT_LOCKED(_lock);
+	EVLOCK_ASSERT_LOCKED(lock_);
 	evthread_debug_lock_mark_unlocked(0, lock);
-	r = original_cond_fns_.wait_condition(_cond, lock->lock, tv);
+	r = original_cond_fns_.wait_condition(cond_, lock->lock, tv);
 	evthread_debug_lock_mark_locked(0, lock);
 	return r;
 }

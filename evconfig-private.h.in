@@ -1,7 +1,7 @@
 /* evconfig-private.h template - see "Configuration Header Templates" */
 /* in AC manual.  Kevin Bowling <kevin.bowling@kev009.com */
-#ifndef _EVENT_EVCONFIG__PRIVATE_H
-#define _EVENT_EVCONFIG__PRIVATE_H
+#ifndef EVCONFIG_PRIVATE_H_INCLUDED_
+#define EVCONFIG_PRIVATE_H_INCLUDED_
 
 /* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE

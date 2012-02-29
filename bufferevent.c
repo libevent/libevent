@@ -131,7 +131,7 @@ bufferevent_inbuf_wm_cb(struct evbuffer *buf,
 }
 
 static void
-bufferevent_run_deferred_callbacks_locked(struct deferred_cb *_, void *arg)
+bufferevent_run_deferred_callbacks_locked(struct deferred_cb *cb, void *arg)
 {
 	struct bufferevent_private *bufev_private = arg;
 	struct bufferevent *bufev = &bufev_private->bev;
@@ -164,7 +164,7 @@ bufferevent_run_deferred_callbacks_locked(struct deferred_cb *_, void *arg)
 }
 
 static void
-bufferevent_run_deferred_callbacks_unlocked(struct deferred_cb *_, void *arg)
+bufferevent_run_deferred_callbacks_unlocked(struct deferred_cb *cb, void *arg)
 {
 	struct bufferevent_private *bufev_private = arg;
 	struct bufferevent *bufev = &bufev_private->bev;
@@ -608,7 +608,7 @@ bufferevent_incref_and_lock_(struct bufferevent *bufev)
 
 #if 0
 static void
-_bufferevent_transfer_lock_ownership(struct bufferevent *donor,
+bufferevent_transfer_lock_ownership_(struct bufferevent *donor,
     struct bufferevent *recipient)
 {
 	struct bufferevent_private *d = BEV_UPCAST(donor);

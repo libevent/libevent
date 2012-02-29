@@ -70,8 +70,8 @@ extern "C" {
 #endif
 
 /* Some openbsd autoconf versions get the name of this macro wrong. */
-#if defined(_EVENT_SIZEOF_VOID__) && !defined(EVENT__SIZEOF_VOID_P)
-#define EVENT__SIZEOF_VOID_P _EVENT_SIZEOF_VOID__
+#if defined(EVENT__SIZEOF_VOID__) && !defined(EVENT__SIZEOF_VOID_P)
+#define EVENT__SIZEOF_VOID_P EVENT__SIZEOF_VOID__
 #endif
 
 /**
@@ -422,7 +422,7 @@ const char *evutil_socket_error_to_string(int errcode);
 			(vvp)->tv_usec += 1000000;			\
 		}							\
 	} while (0)
-#endif /* !_EVENT_HAVE_HAVE_TIMERADD */
+#endif /* !EVENT__HAVE_TIMERADD */
 
 #ifdef EVENT__HAVE_TIMERCLEAR
 #define evutil_timerclear(tvp) timerclear(tvp)
