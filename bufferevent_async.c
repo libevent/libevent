@@ -143,7 +143,7 @@ bev_async_del_write(struct bufferevent_async *beva)
 
 	if (beva->write_added) {
 		beva->write_added = 0;
-		event_base_del_virtual(bev->ev_base);
+		event_base_del_virtual_(bev->ev_base);
 	}
 }
 
@@ -154,7 +154,7 @@ bev_async_del_read(struct bufferevent_async *beva)
 
 	if (beva->read_added) {
 		beva->read_added = 0;
-		event_base_del_virtual(bev->ev_base);
+		event_base_del_virtual_(bev->ev_base);
 	}
 }
 
@@ -165,7 +165,7 @@ bev_async_add_write(struct bufferevent_async *beva)
 
 	if (!beva->write_added) {
 		beva->write_added = 1;
-		event_base_add_virtual(bev->ev_base);
+		event_base_add_virtual_(bev->ev_base);
 	}
 }
 
@@ -176,7 +176,7 @@ bev_async_add_read(struct bufferevent_async *beva)
 
 	if (!beva->read_added) {
 		beva->read_added = 1;
-		event_base_add_virtual(bev->ev_base);
+		event_base_add_virtual_(bev->ev_base);
 	}
 }
 
@@ -211,10 +211,10 @@ bev_async_consider_writing(struct bufferevent_async *beva)
 	}
 
 	/*  XXXX doesn't respect low-water mark very well. */
-	bufferevent_incref(bev);
-	if (evbuffer_launch_write(bev->output, at_most,
+	bufferevent_incref_(bev);
+	if (evbuffer_launch_write_(bev->output, at_most,
 	    &beva->write_overlapped)) {
-		bufferevent_decref(bev);
+		bufferevent_decref_(bev);
 		beva->ok = 0;
 		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR);
 	} else {
@@ -266,11 +266,11 @@ bev_async_consider_reading(struct bufferevent_async *beva)
 		return;
 	}
 
-	bufferevent_incref(bev);
-	if (evbuffer_launch_read(bev->input, at_most, &beva->read_overlapped)) {
+	bufferevent_incref_(bev);
+	if (evbuffer_launch_read_(bev->input, at_most, &beva->read_overlapped)) {
 		beva->ok = 0;
 		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR);
-		bufferevent_decref(bev);
+		bufferevent_decref_(bev);
 	} else {
 		beva->read_in_progress = at_most;
 		bufferevent_decrement_read_buckets_(&beva->bev, at_most);
@@ -427,14 +427,14 @@ connect_complete(struct event_overlapped *eo, ev_uintptr_t key,
 	setsockopt(sock, SOL_SOCKET, SO_UPDATE_CONNECT_CONTEXT, NULL, 0);
 
 	if (ok)
-		bufferevent_async_set_connected(bev);
+		bufferevent_async_set_connected_(bev);
 	else
 		bev_async_set_wsa_error(bev, eo);
 
 	bufferevent_run_eventcb_(bev,
 			ok? BEV_EVENT_CONNECTED : BEV_EVENT_ERROR);
 
-	event_base_del_virtual(bev->ev_base);
+	event_base_del_virtual_(bev->ev_base);
 
 	bufferevent_decref_and_unlock_(bev);
 }
@@ -451,7 +451,7 @@ read_complete(struct event_overlapped *eo, ev_uintptr_t key,
 	EVUTIL_ASSERT(bev_a->read_in_progress);
 
 	amount_unread = bev_a->read_in_progress - nbytes;
-	evbuffer_commit_read(bev->input, nbytes);
+	evbuffer_commit_read_(bev->input, nbytes);
 	bev_a->read_in_progress = 0;
 	if (amount_unread)
 		bufferevent_decrement_read_buckets_(&bev_a->bev, -amount_unread);
@@ -492,7 +492,7 @@ write_complete(struct event_overlapped *eo, ev_uintptr_t key,
 	EVUTIL_ASSERT(bev_a->write_in_progress);
 
 	amount_unwritten = bev_a->write_in_progress - nbytes;
-	evbuffer_commit_write(bev->output, nbytes);
+	evbuffer_commit_write_(bev->output, nbytes);
 	bev_a->write_in_progress = 0;
 
 	if (amount_unwritten)
@@ -525,7 +525,7 @@ write_complete(struct event_overlapped *eo, ev_uintptr_t key,
 }
 
 struct bufferevent *
-bufferevent_async_new(struct event_base *base,
+bufferevent_async_new_(struct event_base *base,
     evutil_socket_t fd, int options)
 {
 	struct bufferevent_async *bev_a;
@@ -534,10 +534,10 @@ bufferevent_async_new(struct event_base *base,
 
 	options |= BEV_OPT_THREADSAFE;
 
-	if (!(iocp = event_base_get_iocp(base)))
+	if (!(iocp = event_base_get_iocp_(base)))
 		return NULL;
 
-	if (fd >= 0 && event_iocp_port_associate(iocp, fd, 1)<0) {
+	if (fd >= 0 && event_iocp_port_associate_(iocp, fd, 1)<0) {
 		int err = GetLastError();
 		/* We may have alrady associated this fd with a port.
 		 * Let's hope it's this port, and that the error code
@@ -550,26 +550,26 @@ bufferevent_async_new(struct event_base *base,
 		return NULL;
 
 	bev = &bev_a->bev.bev;
-	if (!(bev->input = evbuffer_overlapped_new(fd))) {
+	if (!(bev->input = evbuffer_overlapped_new_(fd))) {
 		mm_free(bev_a);
 		return NULL;
 	}
-	if (!(bev->output = evbuffer_overlapped_new(fd))) {
+	if (!(bev->output = evbuffer_overlapped_new_(fd))) {
 		evbuffer_free(bev->input);
 		mm_free(bev_a);
 		return NULL;
 	}
 
-	if (bufferevent_init_common(&bev_a->bev, base, &bufferevent_ops_async,
+	if (bufferevent_init_common_(&bev_a->bev, base, &bufferevent_ops_async,
 		options)<0)
 		goto err;
 
 	evbuffer_add_cb(bev->input, be_async_inbuf_callback, bev);
 	evbuffer_add_cb(bev->output, be_async_outbuf_callback, bev);
 
-	event_overlapped_init(&bev_a->connect_overlapped, connect_complete);
-	event_overlapped_init(&bev_a->read_overlapped, read_complete);
-	event_overlapped_init(&bev_a->write_overlapped, write_complete);
+	event_overlapped_init_(&bev_a->connect_overlapped, connect_complete);
+	event_overlapped_init_(&bev_a->read_overlapped, read_complete);
+	event_overlapped_init_(&bev_a->write_overlapped, write_complete);
 
 	bev_a->ok = fd >= 0;
 	if (bev_a->ok)
@@ -582,7 +582,7 @@ err:
 }
 
 void
-bufferevent_async_set_connected(struct bufferevent *bev)
+bufferevent_async_set_connected_(struct bufferevent *bev)
 {
 	struct bufferevent_async *bev_async = upcast(bev);
 	bev_async->ok = 1;
@@ -592,13 +592,13 @@ bufferevent_async_set_connected(struct bufferevent *bev)
 }
 
 int
-bufferevent_async_can_connect(struct bufferevent *bev)
+bufferevent_async_can_connect_(struct bufferevent *bev)
 {
 	const struct win32_extension_fns *ext =
-	    event_get_win32_extension_fns();
+	    event_get_win32_extension_fns_();
 
 	if (BEV_IS_ASYNC(bev) &&
-	    event_base_get_iocp(bev->ev_base) &&
+	    event_base_get_iocp_(bev->ev_base) &&
 	    ext && ext->ConnectEx)
 		return 1;
 
@@ -606,14 +606,14 @@ bufferevent_async_can_connect(struct bufferevent *bev)
 }
 
 int
-bufferevent_async_connect(struct bufferevent *bev, evutil_socket_t fd,
+bufferevent_async_connect_(struct bufferevent *bev, evutil_socket_t fd,
 	const struct sockaddr *sa, int socklen)
 {
 	BOOL rc;
 	struct bufferevent_async *bev_async = upcast(bev);
 	struct sockaddr_storage ss;
 	const struct win32_extension_fns *ext =
-	    event_get_win32_extension_fns();
+	    event_get_win32_extension_fns_();
 
 	EVUTIL_ASSERT(ext && ext->ConnectEx && fd >= 0 && sa != NULL);
 
@@ -638,15 +638,15 @@ bufferevent_async_connect(struct bufferevent *bev, evutil_socket_t fd,
 	    WSAGetLastError() != WSAEINVAL)
 		return -1;
 
-	event_base_add_virtual(bev->ev_base);
-	bufferevent_incref(bev);
+	event_base_add_virtual_(bev->ev_base);
+	bufferevent_incref_(bev);
 	rc = ext->ConnectEx(fd, sa, socklen, NULL, 0, NULL,
 			    &bev_async->connect_overlapped.overlapped);
 	if (rc || WSAGetLastError() == ERROR_IO_PENDING)
 		return 0;
 
-	event_base_del_virtual(bev->ev_base);
-	bufferevent_decref(bev);
+	event_base_del_virtual_(bev->ev_base);
+	bufferevent_decref_(bev);
 
 	return -1;
 }
@@ -664,9 +664,9 @@ be_async_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 
 		if (data->fd == evbuffer_overlapped_get_fd_(bev->input))
 			return 0;
-		if (!(iocp = event_base_get_iocp(bev->ev_base)))
+		if (!(iocp = event_base_get_iocp_(bev->ev_base)))
 			return -1;
-		if (event_iocp_port_associate(iocp, data->fd, 1) < 0)
+		if (event_iocp_port_associate_(iocp, data->fd, 1) < 0)
 			return -1;
 		evbuffer_overlapped_set_fd_(bev->input, data->fd);
 		evbuffer_overlapped_set_fd_(bev->output, data->fd);

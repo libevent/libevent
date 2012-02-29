@@ -56,9 +56,9 @@ struct evsig_info {
 	/* Size of sh_old. */
 	int sh_old_max;
 };
-int evsig_init(struct event_base *);
-void evsig_dealloc(struct event_base *);
+int evsig_init_(struct event_base *);
+void evsig_dealloc_(struct event_base *);
 
-void evsig_set_base(struct event_base *base);
+void evsig_set_base_(struct event_base *base);
 
 #endif /* EVSIGNAL_INTERNAL_H_INCLUDED_ */

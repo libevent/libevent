@@ -88,8 +88,8 @@ static void kq_dealloc(struct event_base *);
 const struct eventop kqops = {
 	"kqueue",
 	kq_init,
-	event_changelist_add,
-	event_changelist_del,
+	event_changelist_add_,
+	event_changelist_del_,
 	kq_dispatch,
 	kq_dealloc,
 	1 /* need reinit */,
@@ -267,7 +267,7 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 	if (n_changes < 0)
 		return -1;
 
-	event_changelist_remove_all(&base->changelist, base);
+	event_changelist_remove_all_(&base->changelist, base);
 
 	/* steal the changes array in case some broken code tries to call
 	 * dispatch twice at once. */
@@ -375,9 +375,9 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 			continue;
 
 		if (events[i].filter == EVFILT_SIGNAL) {
-			evmap_signal_active(base, events[i].ident, 1);
+			evmap_signal_active_(base, events[i].ident, 1);
 		} else {
-			evmap_io_active(base, events[i].ident, which | EV_ET);
+			evmap_io_active_(base, events[i].ident, which | EV_ET);
 		}
 	}
 
@@ -407,7 +407,7 @@ static void
 kq_dealloc(struct event_base *base)
 {
 	struct kqop *kqop = base->evbase;
-	evsig_dealloc(base);
+	evsig_dealloc_(base);
 	kqop_free(kqop);
 }
 

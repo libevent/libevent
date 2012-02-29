@@ -69,8 +69,8 @@ static void epoll_dealloc(struct event_base *);
 static const struct eventop epollops_changelist = {
 	"epoll (with changelist)",
 	epoll_init,
-	event_changelist_add,
-	event_changelist_del,
+	event_changelist_add_,
+	event_changelist_del_,
 	epoll_dispatch,
 	epoll_dealloc,
 	1, /* need reinit */
@@ -146,10 +146,10 @@ epoll_init(struct event_base *base)
 
 	if ((base->flags & EVENT_BASE_FLAG_EPOLL_USE_CHANGELIST) != 0 ||
 	    ((base->flags & EVENT_BASE_FLAG_IGNORE_ENV) == 0 &&
-		evutil_getenv("EVENT_EPOLL_USE_CHANGELIST") != NULL))
+		evutil_getenv_("EVENT_EPOLL_USE_CHANGELIST") != NULL))
 		base->evsel = &epollops_changelist;
 
-	evsig_init(base);
+	evsig_init_(base);
 
 	return (epollop);
 }
@@ -509,7 +509,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	long timeout = -1;
 
 	if (tv != NULL) {
-		timeout = evutil_tv_to_msec(tv);
+		timeout = evutil_tv_to_msec_(tv);
 		if (timeout < 0 || timeout > MAX_EPOLL_TIMEOUT_MSEC) {
 			/* Linux kernels can wait forever if the timeout is
 			 * too big; see comment on MAX_EPOLL_TIMEOUT_MSEC. */
@@ -518,7 +518,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	}
 
 	epoll_apply_changes(base);
-	event_changelist_remove_all(&base->changelist, base);
+	event_changelist_remove_all_(&base->changelist, base);
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
@@ -554,7 +554,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 		if (!ev)
 			continue;
 
-		evmap_io_active(base, events[i].data.fd, ev | EV_ET);
+		evmap_io_active_(base, events[i].data.fd, ev | EV_ET);
 	}
 
 	if (res == epollop->nevents && epollop->nevents < MAX_NEVENT) {
@@ -580,7 +580,7 @@ epoll_dealloc(struct event_base *base)
 {
 	struct epollop *epollop = base->evbase;
 
-	evsig_dealloc(base);
+	evsig_dealloc_(base);
 	if (epollop->events)
 		mm_free(epollop->events);
 	if (epollop->epfd >= 0)

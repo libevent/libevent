@@ -94,7 +94,7 @@ bufferevent_pair_elt_new(struct event_base *base,
 	struct bufferevent_pair *bufev;
 	if (! (bufev = mm_calloc(1, sizeof(struct bufferevent_pair))))
 		return NULL;
-	if (bufferevent_init_common(&bufev->bev, base, &bufferevent_ops_pair,
+	if (bufferevent_init_common_(&bufev->bev, base, &bufferevent_ops_pair,
 		options)) {
 		mm_free(bufev);
 		return NULL;
@@ -130,7 +130,7 @@ bufferevent_pair_new(struct event_base *base, int options,
 
 	if (options & BEV_OPT_THREADSAFE) {
 		/*XXXX check return */
-		bufferevent_enable_locking(downcast(bufev2), bufev1->bev.lock);
+		bufferevent_enable_locking_(downcast(bufev2), bufev1->bev.lock);
 	}
 
 	bufev1->partner = bufev2;

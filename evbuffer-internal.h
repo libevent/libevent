@@ -318,9 +318,9 @@ int evbuffer_read_setup_vecs_(struct evbuffer *buf, ev_ssize_t howmuch,
  * See note in buffer_iocp's launch_write function */
 
 /** Set the parent bufferevent object for buf to bev */
-void evbuffer_set_parent(struct evbuffer *buf, struct bufferevent *bev);
+void evbuffer_set_parent_(struct evbuffer *buf, struct bufferevent *bev);
 
-void evbuffer_invoke_callbacks(struct evbuffer *buf);
+void evbuffer_invoke_callbacks_(struct evbuffer *buf);
 
 #ifdef __cplusplus
 }

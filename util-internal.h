@@ -206,16 +206,16 @@ extern "C" {
  * when you care about ASCII's notion of character types, because you are about
  * to send those types onto the wire.
  */
-int EVUTIL_ISALPHA(char c);
-int EVUTIL_ISALNUM(char c);
-int EVUTIL_ISSPACE(char c);
-int EVUTIL_ISDIGIT(char c);
-int EVUTIL_ISXDIGIT(char c);
-int EVUTIL_ISPRINT(char c);
-int EVUTIL_ISLOWER(char c);
-int EVUTIL_ISUPPER(char c);
-char EVUTIL_TOUPPER(char c);
-char EVUTIL_TOLOWER(char c);
+int EVUTIL_ISALPHA_(char c);
+int EVUTIL_ISALNUM_(char c);
+int EVUTIL_ISSPACE_(char c);
+int EVUTIL_ISDIGIT_(char c);
+int EVUTIL_ISXDIGIT_(char c);
+int EVUTIL_ISPRINT_(char c);
+int EVUTIL_ISLOWER_(char c);
+int EVUTIL_ISUPPER_(char c);
+char EVUTIL_TOUPPER_(char c);
+char EVUTIL_TOLOWER_(char c);
 
 /** Helper macro.  If we know that a given pointer points to a field in a
     structure, return a pointer to the structure itself.  Used to implement
@@ -238,21 +238,21 @@ char EVUTIL_TOLOWER(char c);
 /* As open(pathname, flags, mode), except that the file is always opened with
  * the close-on-exec flag set. (And the mode argument is mandatory.)
  */
-int evutil_open_closeonexec(const char *pathname, int flags, unsigned mode);
+int evutil_open_closeonexec_(const char *pathname, int flags, unsigned mode);
 
-int evutil_read_file(const char *filename, char **content_out, size_t *len_out,
+int evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
     int is_binary);
 
-int evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen);
+int evutil_socket_connect_(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen);
 
-int evutil_socket_finished_connecting(evutil_socket_t fd);
+int evutil_socket_finished_connecting_(evutil_socket_t fd);
 
-int evutil_ersatz_socketpair(int, int , int, evutil_socket_t[]);
+int evutil_ersatz_socketpair_(int, int , int, evutil_socket_t[]);
 
-int evutil_resolve(int family, const char *hostname, struct sockaddr *sa,
+int evutil_resolve_(int family, const char *hostname, struct sockaddr *sa,
     ev_socklen_t *socklen, int port);
 
-const char *evutil_getenv(const char *name);
+const char *evutil_getenv_(const char *name);
 
 long evutil_weakrand_(void);
 
@@ -302,7 +302,7 @@ struct sockaddr_storage {
 #endif
 
 /* Internal addrinfo error code.  This one is returned from only from
- * evutil_getaddrinfo_common, when we are sure that we'll have to hit a DNS
+ * evutil_getaddrinfo_common_, when we are sure that we'll have to hit a DNS
  * server. */
 #define EVUTIL_EAI_NEED_RESOLVE      -90002
 
@@ -314,24 +314,24 @@ typedef struct evdns_getaddrinfo_request* (*evdns_getaddrinfo_fn)(
     const struct evutil_addrinfo *hints_in,
     void (*cb)(int, struct evutil_addrinfo *, void *), void *arg);
 
-void evutil_set_evdns_getaddrinfo_fn(evdns_getaddrinfo_fn fn);
+void evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo_fn fn);
 
-struct evutil_addrinfo *evutil_new_addrinfo(struct sockaddr *sa,
+struct evutil_addrinfo *evutil_new_addrinfo_(struct sockaddr *sa,
     ev_socklen_t socklen, const struct evutil_addrinfo *hints);
-struct evutil_addrinfo *evutil_addrinfo_append(struct evutil_addrinfo *first,
+struct evutil_addrinfo *evutil_addrinfo_append_(struct evutil_addrinfo *first,
     struct evutil_addrinfo *append);
-void evutil_adjust_hints_for_addrconfig(struct evutil_addrinfo *hints);
-int evutil_getaddrinfo_common(const char *nodename, const char *servname,
+void evutil_adjust_hints_for_addrconfig_(struct evutil_addrinfo *hints);
+int evutil_getaddrinfo_common_(const char *nodename, const char *servname,
     struct evutil_addrinfo *hints, struct evutil_addrinfo **res, int *portnum);
 
-int evutil_getaddrinfo_async(struct evdns_base *dns_base,
+int evutil_getaddrinfo_async_(struct evdns_base *dns_base,
     const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in,
     void (*cb)(int, struct evutil_addrinfo *, void *), void *arg);
 
 /** Return true iff sa is a looback address. (That is, it is 127.0.0.1/8, or
  * ::1). */
-int evutil_sockaddr_is_loopback(const struct sockaddr *sa);
+int evutil_sockaddr_is_loopback_(const struct sockaddr *sa);
 
 
 /**
@@ -339,16 +339,16 @@ int evutil_sockaddr_is_loopback(const struct sockaddr *sa);
     Returns a pointer to out.  Always writes something into out, so it's safe
     to use the output of this function without checking it for NULL.
  */
-const char *evutil_format_sockaddr_port(const struct sockaddr *sa, char *out, size_t outlen);
+const char *evutil_format_sockaddr_port_(const struct sockaddr *sa, char *out, size_t outlen);
 
-long evutil_tv_to_msec(const struct timeval *tv);
+long evutil_tv_to_msec_(const struct timeval *tv);
 
-int evutil_hex_char_to_int(char c);
+int evutil_hex_char_to_int_(char c);
 
-void evutil_usleep(const struct timeval *tv);
+void evutil_usleep_(const struct timeval *tv);
 
 #ifdef _WIN32
-HANDLE evutil_load_windows_system_library(const TCHAR *library_name);
+HANDLE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 
 #ifndef EV_SIZE_FMT
@@ -388,11 +388,11 @@ HANDLE evutil_load_windows_system_library(const TCHAR *library_name);
 #endif
 #endif
 
-evutil_socket_t evutil_socket(int domain, int type, int protocol);
-evutil_socket_t evutil_accept4(evutil_socket_t sockfd, struct sockaddr *addr,
+evutil_socket_t evutil_socket_(int domain, int type, int protocol);
+evutil_socket_t evutil_accept4_(evutil_socket_t sockfd, struct sockaddr *addr,
     ev_socklen_t *addrlen, int flags);
-int evutil_make_internal_pipe(evutil_socket_t fd[2]);
-evutil_socket_t evutil_eventfd(unsigned initval, int flags);
+int evutil_make_internal_pipe_(evutil_socket_t fd[2]);
+evutil_socket_t evutil_eventfd_(unsigned initval, int flags);
 
 #ifdef SOCK_NONBLOCK
 #define EVUTIL_SOCK_NONBLOCK SOCK_NONBLOCK

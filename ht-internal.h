@@ -60,7 +60,7 @@
 #define HT_INIT(name, head)          name##_HT_INIT(head)
 /* Helper: */
 static inline unsigned
-ht_improve_hash(unsigned h)
+ht_improve_hash_(unsigned h)
 {
   /* Aim to protect against poor hash functions by adding logic here
    * - logic taken from java 1.4 hashtable source */
@@ -74,7 +74,7 @@ ht_improve_hash(unsigned h)
 #if 0
 /** Basic string hash function, from Java standard String.hashCode(). */
 static inline unsigned
-ht_string_hash(const char *s)
+ht_string_hash_(const char *s)
 {
   unsigned h = 0;
   int m = 1;
@@ -88,7 +88,7 @@ ht_string_hash(const char *s)
 
 /** Basic string hash function, from Python's str.__hash__() */
 static inline unsigned
-ht_string_hash(const char *s)
+ht_string_hash_(const char *s)
 {
   unsigned h;
   const unsigned char *cp = (const unsigned char *)s;

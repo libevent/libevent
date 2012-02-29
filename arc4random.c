@@ -261,7 +261,7 @@ arc4_seed_proc_sys_kernel_random_uuid(void)
 	unsigned char entropy[64];
 	int bytes, n, i, nybbles;
 	for (bytes = 0; bytes<ADD_ENTROPY; ) {
-		fd = evutil_open_closeonexec("/proc/sys/kernel/random/uuid", O_RDONLY, 0);
+		fd = evutil_open_closeonexec_("/proc/sys/kernel/random/uuid", O_RDONLY, 0);
 		if (fd < 0)
 			return -1;
 		n = read(fd, buf, sizeof(buf));
@@ -270,8 +270,8 @@ arc4_seed_proc_sys_kernel_random_uuid(void)
 			return -1;
 		memset(entropy, 0, sizeof(entropy));
 		for (i=nybbles=0; i<n; ++i) {
-			if (EVUTIL_ISXDIGIT(buf[i])) {
-				int nyb = evutil_hex_char_to_int(buf[i]);
+			if (EVUTIL_ISXDIGIT_(buf[i])) {
+				int nyb = evutil_hex_char_to_int_(buf[i]);
 				if (nybbles & 1) {
 					entropy[nybbles/2] |= nyb;
 				} else {
@@ -305,7 +305,7 @@ arc4_seed_urandom(void)
 	size_t n;
 
 	for (i = 0; filenames[i]; ++i) {
-		fd = evutil_open_closeonexec(filenames[i], O_RDONLY, 0);
+		fd = evutil_open_closeonexec_(filenames[i], O_RDONLY, 0);
 		if (fd<0)
 			continue;
 		n = read_all(fd, buf, sizeof(buf));

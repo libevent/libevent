@@ -93,7 +93,7 @@ test_edgetriggered(void *et)
 	 * problem.
 	 */
 #ifdef __linux__
-	if (evutil_ersatz_socketpair(AF_INET, SOCK_STREAM, 0, pair) == -1) {
+	if (evutil_ersatz_socketpair_(AF_INET, SOCK_STREAM, 0, pair) == -1) {
 		tt_abort_perror("socketpair");
 	}
 #else

@@ -161,7 +161,7 @@ evthread_win32_condvar_wait(void *_cond, void *_lock, const struct timeval *tv)
 	BOOL result;
 
 	if (tv)
-		ms = evutil_tv_to_msec(tv);
+		ms = evutil_tv_to_msec_(tv);
 	else
 		ms = INFINITE;
 	result = SleepConditionVariableCS_fn(cond, lock, ms);
@@ -238,7 +238,7 @@ evthread_win32_cond_wait(void *_cond, void *_lock, const struct timeval *tv)
 	int result = -1;
 	DWORD ms = INFINITE, ms_orig = INFINITE, startTime, endTime;
 	if (tv)
-		ms_orig = ms = evutil_tv_to_msec(tv);
+		ms_orig = ms = evutil_tv_to_msec_(tv);
 
 	EnterCriticalSection(&cond->lock);
 	++cond->n_waiting;

@@ -348,11 +348,11 @@ int evsig_set_handler_(struct event_base *base, int evsignal,
 int evsig_restore_handler_(struct event_base *base, int evsignal);
 
 
-void event_active_nolock(struct event *ev, int res, short count);
+void event_active_nolock_(struct event *ev, int res, short count);
 
 /* FIXME document. */
-void event_base_add_virtual(struct event_base *base);
-void event_base_del_virtual(struct event_base *base);
+void event_base_add_virtual_(struct event_base *base);
+void event_base_del_virtual_(struct event_base *base);
 
 /** For debugging: unless assertions are disabled, verify the referential
     integrity of the internal data structures of 'base'.  This operation can
@@ -360,7 +360,7 @@ void event_base_del_virtual(struct event_base *base);
 
     Returns on success; aborts on failure.
 */
-void event_base_assert_ok(struct event_base *base);
+void event_base_assert_ok_(struct event_base *base);
 
 /* Callback type for event_base_foreach_event. */
 typedef int (*event_base_foreach_event_cb)(struct event_base *base, struct event *, void *);

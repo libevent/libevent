@@ -132,9 +132,9 @@ extern int evthread_lock_debugging_enabled_;
 
 /** Try to grab the lock for 'lockvar' without blocking, and return 1 if we
  * manage to get it. */
-static inline int EVLOCK_TRY_LOCK(void *lock);
+static inline int EVLOCK_TRY_LOCK_(void *lock);
 static inline int
-EVLOCK_TRY_LOCK(void *lock)
+EVLOCK_TRY_LOCK_(void *lock)
 {
 	if (lock && evthread_lock_fns_.lock) {
 		int r = evthread_lock_fns_.lock(EVTHREAD_TRY, lock);
@@ -246,9 +246,9 @@ int evthreadimpl_locking_enabled_(void);
 
 /** Try to grab the lock for 'lockvar' without blocking, and return 1 if we
  * manage to get it. */
-static inline int EVLOCK_TRY_LOCK(void *lock);
+static inline int EVLOCK_TRY_LOCK_(void *lock);
 static inline int
-EVLOCK_TRY_LOCK(void *lock)
+EVLOCK_TRY_LOCK_(void *lock)
 {
 	if (lock) {
 		int r = evthreadimpl_lock_lock_(EVTHREAD_TRY, lock);
@@ -308,7 +308,7 @@ EVLOCK_TRY_LOCK(void *lock)
 #define EVBASE_RELEASE_LOCK(base, lock) EVUTIL_NIL_STMT_
 #define EVLOCK_ASSERT_LOCKED(lock) EVUTIL_NIL_STMT_
 
-#define EVLOCK_TRY_LOCK(lock) 1
+#define EVLOCK_TRY_LOCK_(lock) 1
 
 #define EVTHREAD_ALLOC_COND(condvar) EVUTIL_NIL_STMT_
 #define EVTHREAD_FREE_COND(cond) EVUTIL_NIL_STMT_

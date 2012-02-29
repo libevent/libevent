@@ -212,11 +212,11 @@ http_readcb(struct bufferevent *bev, void *arg)
 		enum message_read_status done;
 
 		/* req->kind = EVHTTP_RESPONSE; */
-		done = evhttp_parse_firstline(req, bufferevent_get_input(bev));
+		done = evhttp_parse_firstline_(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
-		done = evhttp_parse_headers(req, bufferevent_get_input(bev));
+		done = evhttp_parse_headers_(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
@@ -512,11 +512,11 @@ http_badreq_readcb(struct bufferevent *bev, void *arg)
 		enum message_read_status done;
 
 		/* req->kind = EVHTTP_RESPONSE; */
-		done = evhttp_parse_firstline(req, bufferevent_get_input(bev));
+		done = evhttp_parse_firstline_(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
-		done = evhttp_parse_headers(req, bufferevent_get_input(bev));
+		done = evhttp_parse_headers_(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
@@ -631,7 +631,7 @@ http_large_delay_cb(struct evhttp_request *req, void *arg)
 	tv.tv_usec = 500000;
 
 	event_base_once(arg, -1, EV_TIMEOUT, http_delay_reply, req, &tv);
-	evhttp_connection_fail(delayed_client, EVCON_HTTP_EOF);
+	evhttp_connection_fail_(delayed_client, EVCON_HTTP_EOF);
 }
 
 /*
@@ -2648,11 +2648,11 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 		enum message_read_status done;
 
 		/* req->kind = EVHTTP_RESPONSE; */
-		done = evhttp_parse_firstline(req, bufferevent_get_input(bev));
+		done = evhttp_parse_firstline_(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
-		done = evhttp_parse_headers(req, bufferevent_get_input(bev));
+		done = evhttp_parse_headers_(req, bufferevent_get_input(bev));
 		if (done != ALL_DATA_READ)
 			goto out;
 
@@ -3016,7 +3016,7 @@ static void
 http_connection_fail_done(struct evhttp_request *req, void *arg)
 {
        /* An ENETUNREACH error results in an unrecoverable
-        * evhttp_connection error (see evhttp_connection_fail()).  The
+        * evhttp_connection error (see evhttp_connection_fail_()).  The
         * connection will be reset, and the user will be notified with a NULL
         * req parameter. */
        tt_assert(!req);

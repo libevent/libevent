@@ -377,7 +377,7 @@ static int
 start_reading(struct bufferevent_openssl *bev_ssl)
 {
 	if (bev_ssl->underlying) {
-		bufferevent_unsuspend_read(bev_ssl->underlying,
+		bufferevent_unsuspend_read_(bev_ssl->underlying,
 		    BEV_SUSPEND_FILT_READ);
 		return 0;
 	} else {
@@ -416,7 +416,7 @@ stop_reading(struct bufferevent_openssl *bev_ssl)
 	if (bev_ssl->write_blocked_on_read)
 		return;
 	if (bev_ssl->underlying) {
-		bufferevent_suspend_read(bev_ssl->underlying,
+		bufferevent_suspend_read_(bev_ssl->underlying,
 		    BEV_SUSPEND_FILT_READ);
 	} else {
 		struct bufferevent *bev = &bev_ssl->bev.bev;
@@ -1174,7 +1174,7 @@ be_openssl_destruct(struct bufferevent *bev)
 			if (bev_ssl->underlying->errorcb == be_openssl_eventcb)
 				bufferevent_setcb(bev_ssl->underlying,
 				    NULL,NULL,NULL,NULL);
-			bufferevent_unsuspend_read(bev_ssl->underlying,
+			bufferevent_unsuspend_read_(bev_ssl->underlying,
 			    BEV_SUSPEND_FILT_READ);
 		}
 	}
@@ -1272,7 +1272,7 @@ bufferevent_openssl_new_impl(struct event_base *base,
 
 	bev_p = &bev_ssl->bev;
 
-	if (bufferevent_init_common(bev_p, base,
+	if (bufferevent_init_common_(bev_p, base,
 		&bufferevent_ops_openssl, tmp_options) < 0)
 		goto err;
 
@@ -1287,11 +1287,11 @@ bufferevent_openssl_new_impl(struct event_base *base,
 	    be_openssl_outbuf_cb, bev_ssl);
 
 	if (options & BEV_OPT_THREADSAFE)
-		bufferevent_enable_locking(&bev_ssl->bev.bev, NULL);
+		bufferevent_enable_locking_(&bev_ssl->bev.bev, NULL);
 
 	if (underlying) {
 		bufferevent_init_generic_timeout_cbs_(&bev_ssl->bev.bev);
-		bufferevent_incref(underlying);
+		bufferevent_incref_(underlying);
 	}
 
 	bev_ssl->state = state;
@@ -1322,7 +1322,7 @@ bufferevent_openssl_new_impl(struct event_base *base,
 		bufferevent_setwatermark(underlying, EV_READ, 0, 0);
 		bufferevent_enable(underlying, EV_READ|EV_WRITE);
 		if (state == BUFFEREVENT_SSL_OPEN)
-			bufferevent_suspend_read(underlying,
+			bufferevent_suspend_read_(underlying,
 			    BEV_SUSPEND_FILT_READ);
 	} else {
 		bev_ssl->bev.bev.enabled = EV_READ|EV_WRITE;

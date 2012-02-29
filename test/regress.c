@@ -666,11 +666,11 @@ test_persistent_active_timeout(void *ptr)
 	tv_exit.tv_usec = 600 * 1000;
 	event_base_loopexit(base, &tv_exit);
 
-	event_base_assert_ok(base);
+	event_base_assert_ok_(base);
 	evutil_gettimeofday(&start, NULL);
 
 	event_base_dispatch(base);
-	event_base_assert_ok(base);
+	event_base_assert_ok_(base);
 
 	tt_int_op(res.n, ==, 3);
 	tt_int_op(res.events[0], ==, EV_READ);
@@ -739,11 +739,11 @@ test_common_timeout(void *ptr)
 		}
 	}
 
-	event_base_assert_ok(base);
+	event_base_assert_ok_(base);
 	evutil_gettimeofday(&start, NULL);
 	event_base_dispatch(base);
 
-	event_base_assert_ok(base);
+	event_base_assert_ok_(base);
 
 	for (i=0; i<10; ++i) {
 		tt_int_op(info[i].count, ==, 4);
@@ -811,18 +811,18 @@ test_fork(void)
 	evsignal_set(&sig_ev, SIGCHLD, child_signal_cb, &got_sigchld);
 	evsignal_add(&sig_ev, NULL);
 
-	event_base_assert_ok(current_base);
+	event_base_assert_ok_(current_base);
 	TT_BLATHER(("Before fork"));
 	if ((pid = fork()) == 0) {
 		/* in the child */
 		TT_BLATHER(("In child, before reinit"));
-		event_base_assert_ok(current_base);
+		event_base_assert_ok_(current_base);
 		if (event_reinit(current_base) == -1) {
 			fprintf(stdout, "FAILED (reinit)\n");
 			exit(1);
 		}
 		TT_BLATHER(("After reinit"));
-		event_base_assert_ok(current_base);
+		event_base_assert_ok_(current_base);
 		TT_BLATHER(("After assert-ok"));
 
 		evsignal_del(&sig_ev);
@@ -842,7 +842,7 @@ test_fork(void)
 	/* wait for the child to read the data */
 	{
 		const struct timeval tv = { 0, 100000 };
-		evutil_usleep(&tv);
+		evutil_usleep_(&tv);
 	}
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
@@ -1919,7 +1919,7 @@ methodname_to_envvar(const char *mname, char *buf, size_t buflen)
 	char *cp;
 	evutil_snprintf(buf, buflen, "EVENT_NO%s", mname);
 	for (cp = buf; *cp; ++cp) {
-		*cp = EVUTIL_TOUPPER(*cp);
+		*cp = EVUTIL_TOUPPER_(*cp);
 	}
 }
 #endif

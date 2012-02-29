@@ -47,7 +47,7 @@
 #include "event-internal.h"
 
 int
-ev_token_bucket_init(struct ev_token_bucket *bucket,
+ev_token_bucket_init_(struct ev_token_bucket *bucket,
     const struct ev_token_bucket_cfg *cfg,
     ev_uint32_t current_tick,
     int reinitialize)
@@ -71,7 +71,7 @@ ev_token_bucket_init(struct ev_token_bucket *bucket,
 }
 
 int
-ev_token_bucket_update(struct ev_token_bucket *bucket,
+ev_token_bucket_update_(struct ev_token_bucket *bucket,
     const struct ev_token_bucket_cfg *cfg,
     ev_uint32_t current_tick)
 {
@@ -117,14 +117,14 @@ bufferevent_update_buckets(struct bufferevent_private *bev)
 	struct timeval now;
 	unsigned tick;
 	event_base_gettimeofday_cached(bev->bev.ev_base, &now);
-	tick = ev_token_bucket_get_tick(&now, bev->rate_limiting->cfg);
+	tick = ev_token_bucket_get_tick_(&now, bev->rate_limiting->cfg);
 	if (tick != bev->rate_limiting->limit.last_updated)
-		ev_token_bucket_update(&bev->rate_limiting->limit,
+		ev_token_bucket_update_(&bev->rate_limiting->limit,
 		    bev->rate_limiting->cfg, tick);
 }
 
 ev_uint32_t
-ev_token_bucket_get_tick(const struct timeval *tv,
+ev_token_bucket_get_tick_(const struct timeval *tv,
     const struct ev_token_bucket_cfg *cfg)
 {
 	/* This computation uses two multiplies and a divide.  We could do
@@ -235,10 +235,10 @@ bufferevent_get_rlim_max_(struct bufferevent_private *bev, int is_write)
 			 * particular bufferevent while suspending the whole
 			 * group. */
 			if (is_write)
-				bufferevent_suspend_write(&bev->bev,
+				bufferevent_suspend_write_(&bev->bev,
 				    BEV_SUSPEND_BW_GROUP);
 			else
-				bufferevent_suspend_read(&bev->bev,
+				bufferevent_suspend_read_(&bev->bev,
 				    BEV_SUSPEND_BW_GROUP);
 			share = 0;
 		} else {
@@ -281,14 +281,14 @@ bufferevent_decrement_read_buckets_(struct bufferevent_private *bev, ev_ssize_t 
 	if (bev->rate_limiting->cfg) {
 		bev->rate_limiting->limit.read_limit -= bytes;
 		if (bev->rate_limiting->limit.read_limit <= 0) {
-			bufferevent_suspend_read(&bev->bev, BEV_SUSPEND_BW);
+			bufferevent_suspend_read_(&bev->bev, BEV_SUSPEND_BW);
 			if (event_add(&bev->rate_limiting->refill_bucket_event,
 				&bev->rate_limiting->cfg->tick_timeout) < 0)
 				r = -1;
 		} else if (bev->read_suspended & BEV_SUSPEND_BW) {
 			if (!(bev->write_suspended & BEV_SUSPEND_BW))
 				event_del(&bev->rate_limiting->refill_bucket_event);
-			bufferevent_unsuspend_read(&bev->bev, BEV_SUSPEND_BW);
+			bufferevent_unsuspend_read_(&bev->bev, BEV_SUSPEND_BW);
 		}
 	}
 
@@ -319,14 +319,14 @@ bufferevent_decrement_write_buckets_(struct bufferevent_private *bev, ev_ssize_t
 	if (bev->rate_limiting->cfg) {
 		bev->rate_limiting->limit.write_limit -= bytes;
 		if (bev->rate_limiting->limit.write_limit <= 0) {
-			bufferevent_suspend_write(&bev->bev, BEV_SUSPEND_BW);
+			bufferevent_suspend_write_(&bev->bev, BEV_SUSPEND_BW);
 			if (event_add(&bev->rate_limiting->refill_bucket_event,
 				&bev->rate_limiting->cfg->tick_timeout) < 0)
 				r = -1;
 		} else if (bev->write_suspended & BEV_SUSPEND_BW) {
 			if (!(bev->read_suspended & BEV_SUSPEND_BW))
 				event_del(&bev->rate_limiting->refill_bucket_event);
-			bufferevent_unsuspend_write(&bev->bev, BEV_SUSPEND_BW);
+			bufferevent_unsuspend_write_(&bev->bev, BEV_SUSPEND_BW);
 		}
 	}
 
@@ -354,15 +354,15 @@ bev_group_suspend_reading_(struct bufferevent_rate_limit_group *g)
 	g->read_suspended = 1;
 	g->pending_unsuspend_read = 0;
 
-	/* Note that in this loop we call EVLOCK_TRY_LOCK instead of BEV_LOCK,
+	/* Note that in this loop we call EVLOCK_TRY_LOCK_ instead of BEV_LOCK,
 	   to prevent a deadlock.  (Ordinarily, the group lock nests inside
 	   the bufferevent locks.  If we are unable to lock any individual
 	   bufferevent, it will find out later when it looks at its limit
 	   and sees that its group is suspended.
 	*/
 	LIST_FOREACH(bev, &g->members, rate_limiting->next_in_group) {
-		if (EVLOCK_TRY_LOCK(bev->lock)) {
-			bufferevent_suspend_read(&bev->bev,
+		if (EVLOCK_TRY_LOCK_(bev->lock)) {
+			bufferevent_suspend_read_(&bev->bev,
 			    BEV_SUSPEND_BW_GROUP);
 			EVLOCK_UNLOCK(bev->lock, 0);
 		}
@@ -379,8 +379,8 @@ bev_group_suspend_writing_(struct bufferevent_rate_limit_group *g)
 	g->write_suspended = 1;
 	g->pending_unsuspend_write = 0;
 	LIST_FOREACH(bev, &g->members, rate_limiting->next_in_group) {
-		if (EVLOCK_TRY_LOCK(bev->lock)) {
-			bufferevent_suspend_write(&bev->bev,
+		if (EVLOCK_TRY_LOCK_(bev->lock)) {
+			bufferevent_suspend_write_(&bev->bev,
 			    BEV_SUSPEND_BW_GROUP);
 			EVLOCK_UNLOCK(bev->lock, 0);
 		}
@@ -405,22 +405,22 @@ bev_refill_callback_(evutil_socket_t fd, short what, void *arg)
 
 	/* First, update the bucket */
 	event_base_gettimeofday_cached(bev->bev.ev_base, &now);
-	tick = ev_token_bucket_get_tick(&now,
+	tick = ev_token_bucket_get_tick_(&now,
 	    bev->rate_limiting->cfg);
-	ev_token_bucket_update(&bev->rate_limiting->limit,
+	ev_token_bucket_update_(&bev->rate_limiting->limit,
 	    bev->rate_limiting->cfg,
 	    tick);
 
 	/* Now unsuspend any read/write operations as appropriate. */
 	if ((bev->read_suspended & BEV_SUSPEND_BW)) {
 		if (bev->rate_limiting->limit.read_limit > 0)
-			bufferevent_unsuspend_read(&bev->bev, BEV_SUSPEND_BW);
+			bufferevent_unsuspend_read_(&bev->bev, BEV_SUSPEND_BW);
 		else
 			again = 1;
 	}
 	if ((bev->write_suspended & BEV_SUSPEND_BW)) {
 		if (bev->rate_limiting->limit.write_limit > 0)
-			bufferevent_unsuspend_write(&bev->bev, BEV_SUSPEND_BW);
+			bufferevent_unsuspend_write_(&bev->bev, BEV_SUSPEND_BW);
 		else
 			again = 1;
 	}
@@ -489,8 +489,8 @@ bev_group_unsuspend_reading_(struct bufferevent_rate_limit_group *g)
 
 	g->read_suspended = 0;
 	FOREACH_RANDOM_ORDER({
-		if (EVLOCK_TRY_LOCK(bev->lock)) {
-			bufferevent_unsuspend_read(&bev->bev,
+		if (EVLOCK_TRY_LOCK_(bev->lock)) {
+			bufferevent_unsuspend_read_(&bev->bev,
 			    BEV_SUSPEND_BW_GROUP);
 			EVLOCK_UNLOCK(bev->lock, 0);
 		} else {
@@ -508,8 +508,8 @@ bev_group_unsuspend_writing_(struct bufferevent_rate_limit_group *g)
 	g->write_suspended = 0;
 
 	FOREACH_RANDOM_ORDER({
-		if (EVLOCK_TRY_LOCK(bev->lock)) {
-			bufferevent_unsuspend_write(&bev->bev,
+		if (EVLOCK_TRY_LOCK_(bev->lock)) {
+			bufferevent_unsuspend_write_(&bev->bev,
 			    BEV_SUSPEND_BW_GROUP);
 			EVLOCK_UNLOCK(bev->lock, 0);
 		} else {
@@ -533,8 +533,8 @@ bev_group_refill_callback_(evutil_socket_t fd, short what, void *arg)
 
 	LOCK_GROUP(g);
 
-	tick = ev_token_bucket_get_tick(&now, &g->rate_limit_cfg);
-	ev_token_bucket_update(&g->rate_limit, &g->rate_limit_cfg, tick);
+	tick = ev_token_bucket_get_tick_(&now, &g->rate_limit_cfg);
+	ev_token_bucket_update_(&g->rate_limit, &g->rate_limit_cfg, tick);
 
 	if (g->pending_unsuspend_read ||
 	    (g->read_suspended && (g->rate_limit.read_limit >= g->min_share))) {
@@ -572,8 +572,8 @@ bufferevent_set_rate_limit(struct bufferevent *bev,
 		if (bevp->rate_limiting) {
 			rlim = bevp->rate_limiting;
 			rlim->cfg = NULL;
-			bufferevent_unsuspend_read(bev, BEV_SUSPEND_BW);
-			bufferevent_unsuspend_write(bev, BEV_SUSPEND_BW);
+			bufferevent_unsuspend_read_(bev, BEV_SUSPEND_BW);
+			bufferevent_unsuspend_write_(bev, BEV_SUSPEND_BW);
 			if (event_initialized(&rlim->refill_bucket_event))
 				event_del(&rlim->refill_bucket_event);
 		}
@@ -582,7 +582,7 @@ bufferevent_set_rate_limit(struct bufferevent *bev,
 	}
 
 	event_base_gettimeofday_cached(bev->ev_base, &now);
-	tick = ev_token_bucket_get_tick(&now, cfg);
+	tick = ev_token_bucket_get_tick_(&now, cfg);
 
 	if (bevp->rate_limiting && bevp->rate_limiting->cfg == cfg) {
 		/* no-op */
@@ -600,7 +600,7 @@ bufferevent_set_rate_limit(struct bufferevent *bev,
 	reinit = rlim->cfg != NULL;
 
 	rlim->cfg = cfg;
-	ev_token_bucket_init(&rlim->limit, cfg, tick, reinit);
+	ev_token_bucket_init_(&rlim->limit, cfg, tick, reinit);
 
 	if (reinit) {
 		EVUTIL_ASSERT(event_initialized(&rlim->refill_bucket_event));
@@ -610,15 +610,15 @@ bufferevent_set_rate_limit(struct bufferevent *bev,
 	    bev_refill_callback_, bevp);
 
 	if (rlim->limit.read_limit > 0) {
-		bufferevent_unsuspend_read(bev, BEV_SUSPEND_BW);
+		bufferevent_unsuspend_read_(bev, BEV_SUSPEND_BW);
 	} else {
-		bufferevent_suspend_read(bev, BEV_SUSPEND_BW);
+		bufferevent_suspend_read_(bev, BEV_SUSPEND_BW);
 		suspended=1;
 	}
 	if (rlim->limit.write_limit > 0) {
-		bufferevent_unsuspend_write(bev, BEV_SUSPEND_BW);
+		bufferevent_unsuspend_write_(bev, BEV_SUSPEND_BW);
 	} else {
-		bufferevent_suspend_write(bev, BEV_SUSPEND_BW);
+		bufferevent_suspend_write_(bev, BEV_SUSPEND_BW);
 		suspended = 1;
 	}
 
@@ -641,7 +641,7 @@ bufferevent_rate_limit_group_new(struct event_base *base,
 	ev_uint32_t tick;
 
 	event_base_gettimeofday_cached(base, &now);
-	tick = ev_token_bucket_get_tick(&now, cfg);
+	tick = ev_token_bucket_get_tick_(&now, cfg);
 
 	g = mm_calloc(1, sizeof(struct bufferevent_rate_limit_group));
 	if (!g)
@@ -649,7 +649,7 @@ bufferevent_rate_limit_group_new(struct event_base *base,
 	memcpy(&g->rate_limit_cfg, cfg, sizeof(g->rate_limit_cfg));
 	LIST_INIT(&g->members);
 
-	ev_token_bucket_init(&g->rate_limit, cfg, tick, 0);
+	ev_token_bucket_init_(&g->rate_limit, cfg, tick, 0);
 
 	event_assign(&g->master_refill_event, base, -1, EV_PERSIST,
 	    bev_group_refill_callback_, g);
@@ -765,9 +765,9 @@ bufferevent_add_to_rate_limit_group(struct bufferevent *bev,
 	UNLOCK_GROUP(g);
 
 	if (rsuspend)
-		bufferevent_suspend_read(bev, BEV_SUSPEND_BW_GROUP);
+		bufferevent_suspend_read_(bev, BEV_SUSPEND_BW_GROUP);
 	if (wsuspend)
-		bufferevent_suspend_write(bev, BEV_SUSPEND_BW_GROUP);
+		bufferevent_suspend_write_(bev, BEV_SUSPEND_BW_GROUP);
 
 	BEV_UNLOCK(bev);
 	return 0;
@@ -776,11 +776,11 @@ bufferevent_add_to_rate_limit_group(struct bufferevent *bev,
 int
 bufferevent_remove_from_rate_limit_group(struct bufferevent *bev)
 {
-	return bufferevent_remove_from_rate_limit_group_internal(bev, 1);
+	return bufferevent_remove_from_rate_limit_group_internal_(bev, 1);
 }
 
 int
-bufferevent_remove_from_rate_limit_group_internal(struct bufferevent *bev,
+bufferevent_remove_from_rate_limit_group_internal_(struct bufferevent *bev,
     int unsuspend)
 {
 	struct bufferevent_private *bevp =
@@ -796,8 +796,8 @@ bufferevent_remove_from_rate_limit_group_internal(struct bufferevent *bev,
 		UNLOCK_GROUP(g);
 	}
 	if (unsuspend) {
-		bufferevent_unsuspend_read(bev, BEV_SUSPEND_BW_GROUP);
-		bufferevent_unsuspend_write(bev, BEV_SUSPEND_BW_GROUP);
+		bufferevent_unsuspend_read_(bev, BEV_SUSPEND_BW_GROUP);
+		bufferevent_unsuspend_write_(bev, BEV_SUSPEND_BW_GROUP);
 	}
 	BEV_UNLOCK(bev);
 	return 0;
@@ -958,14 +958,14 @@ bufferevent_decrement_read_limit(struct bufferevent *bev, ev_ssize_t decr)
 
 	new_limit = (bevp->rate_limiting->limit.read_limit -= decr);
 	if (old_limit > 0 && new_limit <= 0) {
-		bufferevent_suspend_read(bev, BEV_SUSPEND_BW);
+		bufferevent_suspend_read_(bev, BEV_SUSPEND_BW);
 		if (event_add(&bevp->rate_limiting->refill_bucket_event,
 			&bevp->rate_limiting->cfg->tick_timeout) < 0)
 			r = -1;
 	} else if (old_limit <= 0 && new_limit > 0) {
 		if (!(bevp->write_suspended & BEV_SUSPEND_BW))
 			event_del(&bevp->rate_limiting->refill_bucket_event);
-		bufferevent_unsuspend_read(bev, BEV_SUSPEND_BW);
+		bufferevent_unsuspend_read_(bev, BEV_SUSPEND_BW);
 	}
 
 	BEV_UNLOCK(bev);
@@ -987,14 +987,14 @@ bufferevent_decrement_write_limit(struct bufferevent *bev, ev_ssize_t decr)
 
 	new_limit = (bevp->rate_limiting->limit.write_limit -= decr);
 	if (old_limit > 0 && new_limit <= 0) {
-		bufferevent_suspend_write(bev, BEV_SUSPEND_BW);
+		bufferevent_suspend_write_(bev, BEV_SUSPEND_BW);
 		if (event_add(&bevp->rate_limiting->refill_bucket_event,
 			&bevp->rate_limiting->cfg->tick_timeout) < 0)
 			r = -1;
 	} else if (old_limit <= 0 && new_limit > 0) {
 		if (!(bevp->read_suspended & BEV_SUSPEND_BW))
 			event_del(&bevp->rate_limiting->refill_bucket_event);
-		bufferevent_unsuspend_write(bev, BEV_SUSPEND_BW);
+		bufferevent_unsuspend_write_(bev, BEV_SUSPEND_BW);
 	}
 
 	BEV_UNLOCK(bev);

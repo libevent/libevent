@@ -94,7 +94,7 @@ pin_release(struct evbuffer_overlapped *eo, unsigned flag)
 }
 
 void
-evbuffer_commit_read(struct evbuffer *evbuf, ev_ssize_t nBytes)
+evbuffer_commit_read_(struct evbuffer *evbuf, ev_ssize_t nBytes)
 {
 	struct evbuffer_overlapped *buf = upcast_evbuffer(evbuf);
 	struct evbuffer_chain **chainp;
@@ -129,13 +129,13 @@ evbuffer_commit_read(struct evbuffer *evbuf, ev_ssize_t nBytes)
 	evbuf->total_len += nBytes;
 	evbuf->n_add_for_cb += nBytes;
 
-	evbuffer_invoke_callbacks(evbuf);
+	evbuffer_invoke_callbacks_(evbuf);
 
 	evbuffer_decref_and_unlock_(evbuf);
 }
 
 void
-evbuffer_commit_write(struct evbuffer *evbuf, ev_ssize_t nBytes)
+evbuffer_commit_write_(struct evbuffer *evbuf, ev_ssize_t nBytes)
 {
 	struct evbuffer_overlapped *buf = upcast_evbuffer(evbuf);
 
@@ -149,7 +149,7 @@ evbuffer_commit_write(struct evbuffer *evbuf, ev_ssize_t nBytes)
 }
 
 struct evbuffer *
-evbuffer_overlapped_new(evutil_socket_t fd)
+evbuffer_overlapped_new_(evutil_socket_t fd)
 {
 	struct evbuffer_overlapped *evo;
 
@@ -168,7 +168,7 @@ evbuffer_overlapped_new(evutil_socket_t fd)
 }
 
 int
-evbuffer_launch_write(struct evbuffer *buf, ev_ssize_t at_most,
+evbuffer_launch_write_(struct evbuffer *buf, ev_ssize_t at_most,
 		struct event_overlapped *ol)
 {
 	struct evbuffer_overlapped *buf_o = upcast_evbuffer(buf);
@@ -242,7 +242,7 @@ done:
 }
 
 int
-evbuffer_launch_read(struct evbuffer *buf, size_t at_most,
+evbuffer_launch_read_(struct evbuffer *buf, size_t at_most,
 		struct event_overlapped *ol)
 {
 	struct evbuffer_overlapped *buf_o = upcast_evbuffer(buf);

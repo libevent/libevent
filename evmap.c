@@ -137,12 +137,12 @@ HT_GENERATE(event_io_map, event_map_entry, map_node, hashsocket, eqsocket,
 		(x) = &_ent->ent.type;					\
 	} while (0)
 
-void evmap_io_initmap(struct event_io_map *ctx)
+void evmap_io_initmap_(struct event_io_map *ctx)
 {
 	HT_INIT(event_io_map, ctx);
 }
 
-void evmap_io_clear(struct event_io_map *ctx)
+void evmap_io_clear_(struct event_io_map *ctx)
 {
 	struct event_map_entry **ent, **next, *this;
 	for (ent = HT_START(event_io_map, ctx); ent; ent = next) {
@@ -184,14 +184,14 @@ void evmap_io_clear(struct event_io_map *ctx)
 	GET_SIGNAL_SLOT_AND_CTOR(x,map,slot,type,ctor,fdinfo_len)
 #define FDINFO_OFFSET sizeof(struct evmap_io)
 void
-evmap_io_initmap(struct event_io_map* ctx)
+evmap_io_initmap_(struct event_io_map* ctx)
 {
-	evmap_signal_initmap(ctx);
+	evmap_signal_initmap_(ctx);
 }
 void
-evmap_io_clear(struct event_io_map* ctx)
+evmap_io_clear_(struct event_io_map* ctx)
 {
-	evmap_signal_clear(ctx);
+	evmap_signal_clear_(ctx);
 }
 #endif
 
@@ -224,14 +224,14 @@ evmap_make_space(struct event_signal_map *map, int slot, int msize)
 }
 
 void
-evmap_signal_initmap(struct event_signal_map *ctx)
+evmap_signal_initmap_(struct event_signal_map *ctx)
 {
 	ctx->nentries = 0;
 	ctx->entries = NULL;
 }
 
 void
-evmap_signal_clear(struct event_signal_map *ctx)
+evmap_signal_clear_(struct event_signal_map *ctx)
 {
 	if (ctx->entries != NULL) {
 		int i;
@@ -261,7 +261,7 @@ evmap_io_init(struct evmap_io *entry)
 /* return -1 on error, 0 on success if nothing changed in the event backend,
  * and 1 on success if something did. */
 int
-evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
+evmap_io_add_(struct event_base *base, evutil_socket_t fd, struct event *ev)
 {
 	const struct eventop *evsel = base->evsel;
 	struct event_io_map *io = &base->io;
@@ -334,7 +334,7 @@ evmap_io_add(struct event_base *base, evutil_socket_t fd, struct event *ev)
 /* return -1 on error, 0 on success if nothing changed in the event backend,
  * and 1 on success if something did. */
 int
-evmap_io_del(struct event_base *base, evutil_socket_t fd, struct event *ev)
+evmap_io_del_(struct event_base *base, evutil_socket_t fd, struct event *ev)
 {
 	const struct eventop *evsel = base->evsel;
 	struct event_io_map *io = &base->io;
@@ -388,7 +388,7 @@ evmap_io_del(struct event_base *base, evutil_socket_t fd, struct event *ev)
 }
 
 void
-evmap_io_active(struct event_base *base, evutil_socket_t fd, short events)
+evmap_io_active_(struct event_base *base, evutil_socket_t fd, short events)
 {
 	struct event_io_map *io = &base->io;
 	struct evmap_io *ctx;
@@ -402,7 +402,7 @@ evmap_io_active(struct event_base *base, evutil_socket_t fd, short events)
 	EVUTIL_ASSERT(ctx);
 	LIST_FOREACH(ev, &ctx->events, ev_io_next) {
 		if (ev->ev_events & events)
-			event_active_nolock(ev, ev->ev_events & events, 1);
+			event_active_nolock_(ev, ev->ev_events & events, 1);
 	}
 }
 
@@ -416,7 +416,7 @@ evmap_signal_init(struct evmap_signal *entry)
 
 
 int
-evmap_signal_add(struct event_base *base, int sig, struct event *ev)
+evmap_signal_add_(struct event_base *base, int sig, struct event *ev)
 {
 	const struct eventop *evsel = base->evsigsel;
 	struct event_signal_map *map = &base->sigmap;
@@ -442,7 +442,7 @@ evmap_signal_add(struct event_base *base, int sig, struct event *ev)
 }
 
 int
-evmap_signal_del(struct event_base *base, int sig, struct event *ev)
+evmap_signal_del_(struct event_base *base, int sig, struct event *ev)
 {
 	const struct eventop *evsel = base->evsigsel;
 	struct event_signal_map *map = &base->sigmap;
@@ -464,7 +464,7 @@ evmap_signal_del(struct event_base *base, int sig, struct event *ev)
 }
 
 void
-evmap_signal_active(struct event_base *base, evutil_socket_t sig, int ncalls)
+evmap_signal_active_(struct event_base *base, evutil_socket_t sig, int ncalls)
 {
 	struct event_signal_map *map = &base->sigmap;
 	struct evmap_signal *ctx;
@@ -474,11 +474,11 @@ evmap_signal_active(struct event_base *base, evutil_socket_t sig, int ncalls)
 	GET_SIGNAL_SLOT(ctx, map, sig, evmap_signal);
 
 	LIST_FOREACH(ev, &ctx->events, ev_signal_next)
-		event_active_nolock(ev, EV_SIGNAL, ncalls);
+		event_active_nolock_(ev, EV_SIGNAL, ncalls);
 }
 
 void *
-evmap_io_get_fdinfo(struct event_io_map *map, evutil_socket_t fd)
+evmap_io_get_fdinfo_(struct event_io_map *map, evutil_socket_t fd)
 {
 	struct evmap_io *ctx;
 	GET_IO_SLOT(ctx, map, fd, evmap_io);
@@ -563,7 +563,7 @@ evmap_signal_foreach_signal(struct event_base *base,
 	return r;
 }
 
-/* Helper for evmap_reinit: tell the backend to add every fd for which we have
+/* Helper for evmap_reinit_: tell the backend to add every fd for which we have
  * pending events, with the appropriate combination of EV_READ, EV_WRITE, and
  * EV_ET. */
 static int
@@ -594,7 +594,7 @@ evmap_io_reinit_iter_fn(struct event_base *base, evutil_socket_t fd,
 	return 0;
 }
 
-/* Helper for evmap_reinit: tell the backend to add every signal for which we
+/* Helper for evmap_reinit_: tell the backend to add every signal for which we
  * have pending events.  */
 static int
 evmap_signal_reinit_iter_fn(struct event_base *base,
@@ -611,7 +611,7 @@ evmap_signal_reinit_iter_fn(struct event_base *base,
 }
 
 int
-evmap_reinit(struct event_base *base)
+evmap_reinit_(struct event_base *base)
 {
 	int result = 0;
 
@@ -624,7 +624,7 @@ evmap_reinit(struct event_base *base)
 	return 0;
 }
 
-/* Helper for evmap_delete_all: delete every event in an event_dlist. */
+/* Helper for evmap_delete_all_: delete every event in an event_dlist. */
 static int
 delete_all_in_dlist(struct event_dlist *dlist)
 {
@@ -634,7 +634,7 @@ delete_all_in_dlist(struct event_dlist *dlist)
 	return 0;
 }
 
-/* Helper for evmap_delete_all: delete every event pending on an fd. */
+/* Helper for evmap_delete_all_: delete every event pending on an fd. */
 static int
 evmap_io_delete_all_iter_fn(struct event_base *base, evutil_socket_t fd,
     struct evmap_io *io_info, void *arg)
@@ -642,7 +642,7 @@ evmap_io_delete_all_iter_fn(struct event_base *base, evutil_socket_t fd,
 	return delete_all_in_dlist(&io_info->events);
 }
 
-/* Helper for evmap_delete_all: delete every event pending on a signal. */
+/* Helper for evmap_delete_all_: delete every event pending on a signal. */
 static int
 evmap_signal_delete_all_iter_fn(struct event_base *base, int signum,
     struct evmap_signal *sig_info, void *arg)
@@ -651,7 +651,7 @@ evmap_signal_delete_all_iter_fn(struct event_base *base, int signum,
 }
 
 void
-evmap_delete_all(struct event_base *base)
+evmap_delete_all_(struct event_base *base)
 {
 	evmap_signal_foreach_signal(base, evmap_signal_delete_all_iter_fn, NULL);
 	evmap_io_foreach_fd(base, evmap_io_delete_all_iter_fn, NULL);
@@ -666,7 +666,7 @@ struct event_changelist_fdinfo {
 };
 
 void
-event_changelist_init(struct event_changelist *changelist)
+event_changelist_init_(struct event_changelist *changelist)
 {
 	changelist->changes = NULL;
 	changelist->changes_size = 0;
@@ -737,7 +737,7 @@ event_changelist_assert_ok(struct event_base *base)
 #endif
 
 void
-event_changelist_remove_all(struct event_changelist *changelist,
+event_changelist_remove_all_(struct event_changelist *changelist,
     struct event_base *base)
 {
 	int i;
@@ -758,11 +758,11 @@ event_changelist_remove_all(struct event_changelist *changelist,
 }
 
 void
-event_changelist_freemem(struct event_changelist *changelist)
+event_changelist_freemem_(struct event_changelist *changelist)
 {
 	if (changelist->changes)
 		mm_free(changelist->changes);
-	event_changelist_init(changelist); /* zero it all out. */
+	event_changelist_init_(changelist); /* zero it all out. */
 }
 
 /** Increase the size of 'changelist' to hold more changes. */
@@ -824,7 +824,7 @@ event_changelist_get_or_construct(struct event_changelist *changelist,
 }
 
 int
-event_changelist_add(struct event_base *base, evutil_socket_t fd, short old, short events,
+event_changelist_add_(struct event_base *base, evutil_socket_t fd, short old, short events,
     void *p)
 {
 	struct event_changelist *changelist = &base->changelist;
@@ -855,7 +855,7 @@ event_changelist_add(struct event_base *base, evutil_socket_t fd, short old, sho
 }
 
 int
-event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, short events,
+event_changelist_del_(struct event_base *base, evutil_socket_t fd, short old, short events,
     void *p)
 {
 	struct event_changelist *changelist = &base->changelist;
@@ -900,7 +900,7 @@ event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, sho
 	return (0);
 }
 
-/* Helper for evmap_check_integrity: verify that all of the events pending on
+/* Helper for evmap_check_integrity_: verify that all of the events pending on
  * given fd are set up correctly, and that the nread and nwrite counts on that
  * fd are correct. */
 static int
@@ -931,7 +931,7 @@ evmap_io_check_integrity_fn(struct event_base *base, evutil_socket_t fd,
 	return 0;
 }
 
-/* Helper for evmap_check_integrity: verify that all of the events pending
+/* Helper for evmap_check_integrity_: verify that all of the events pending
  * on given signal are set up correctly. */
 static int
 evmap_signal_check_integrity_fn(struct event_base *base,
@@ -951,23 +951,23 @@ evmap_signal_check_integrity_fn(struct event_base *base,
 }
 
 void
-evmap_check_integrity(struct event_base *base)
+evmap_check_integrity_(struct event_base *base)
 {
 	evmap_io_foreach_fd(base, evmap_io_check_integrity_fn, NULL);
 	evmap_signal_foreach_signal(base, evmap_signal_check_integrity_fn, NULL);
 
-	if (base->evsel->add == event_changelist_add)
+	if (base->evsel->add == event_changelist_add_)
 		event_changelist_assert_ok(base);
 }
 
-/* Helper type for evmap_foreach_event: Bundles a function to call on every
+/* Helper type for evmap_foreach_event_: Bundles a function to call on every
  * event, and the user-provided void* to use as its third argument. */
 struct evmap_foreach_event_helper {
 	int (*fn)(struct event_base *, struct event *, void *);
 	void *arg;
 };
 
-/* Helper for evmap_foreach_event: calls a provided function on every event
+/* Helper for evmap_foreach_event_: calls a provided function on every event
  * pending on a given fd.  */
 static int
 evmap_io_foreach_event_fn(struct event_base *base, evutil_socket_t fd,
@@ -983,7 +983,7 @@ evmap_io_foreach_event_fn(struct event_base *base, evutil_socket_t fd,
 	return 0;
 }
 
-/* Helper for evmap_foreach_event: calls a provided function on every event
+/* Helper for evmap_foreach_event_: calls a provided function on every event
  * pending on a given signal.  */
 static int
 evmap_signal_foreach_event_fn(struct event_base *base, int signum,
@@ -1000,7 +1000,7 @@ evmap_signal_foreach_event_fn(struct event_base *base, int signum,
 }
 
 int
-evmap_foreach_event(struct event_base *base,
+evmap_foreach_event_(struct event_base *base,
     int (*fn)(struct event_base *, struct event *, void *), void *arg)
 {
 	struct evmap_foreach_event_helper h;

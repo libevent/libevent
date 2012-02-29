@@ -100,7 +100,7 @@
 #endif
 
 int
-evutil_open_closeonexec(const char *pathname, int flags, unsigned mode)
+evutil_open_closeonexec_(const char *pathname, int flags, unsigned mode)
 {
 	int fd;
 
@@ -139,7 +139,7 @@ evutil_open_closeonexec(const char *pathname, int flags, unsigned mode)
    Used internally only; may go away in a future version.
  */
 int
-evutil_read_file(const char *filename, char **content_out, size_t *len_out,
+evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
     int is_binary)
 {
 	int fd, r;
@@ -158,7 +158,7 @@ evutil_read_file(const char *filename, char **content_out, size_t *len_out,
 		mode |= O_BINARY;
 #endif
 
-	fd = evutil_open_closeonexec(filename, mode, 0);
+	fd = evutil_open_closeonexec_(filename, mode, 0);
 	if (fd < 0)
 		return -1;
 	if (fstat(fd, &st) || st.st_size < 0 ||
@@ -201,12 +201,12 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 #ifndef _WIN32
 	return socketpair(family, type, protocol, fd);
 #else
-	return evutil_ersatz_socketpair(family, type, protocol, fd);
+	return evutil_ersatz_socketpair_(family, type, protocol, fd);
 #endif
 }
 
 int
-evutil_ersatz_socketpair(int family, int type, int protocol,
+evutil_ersatz_socketpair_(int family, int type, int protocol,
     evutil_socket_t fd[2])
 {
 	/* This code is originally from Tor.  Used with permission. */
@@ -465,15 +465,15 @@ evutil_strtoll(const char *s, char **endptr, int base)
 	}
 	if (n != 1)
 		return 0;
-	while (EVUTIL_ISSPACE(*s))
+	while (EVUTIL_ISSPACE_(*s))
 		++s;
 	if (*s == '-')
 		++s;
 	if (base == 10) {
-		while (EVUTIL_ISDIGIT(*s))
+		while (EVUTIL_ISDIGIT_(*s))
 			++s;
 	} else {
-		while (EVUTIL_ISXDIGIT(*s))
+		while (EVUTIL_ISXDIGIT_(*s))
 			++s;
 	}
 	if (endptr)
@@ -544,7 +544,7 @@ evutil_socket_geterror(evutil_socket_t sock)
 /* XXX we should use an enum here. */
 /* 2 for connection refused, 1 for connected, 0 for not yet, -1 for error. */
 int
-evutil_socket_connect(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen)
+evutil_socket_connect_(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen)
 {
 	int made_fd = 0;
 
@@ -581,7 +581,7 @@ err:
    error case, set the current socket errno to the error that happened during
    the connect operation. */
 int
-evutil_socket_finished_connecting(evutil_socket_t fd)
+evutil_socket_finished_connecting_(evutil_socket_t fd)
 {
 	int e;
 	ev_socklen_t elen = sizeof(e);
@@ -690,7 +690,7 @@ evutil_check_ifaddrs(void)
 	   "GetAdaptersInfo", but that's deprecated; let's just try
 	   GetAdaptersAddresses and fall back to connect+getsockname.
 	*/
-	HANDLE lib = evutil_load_windows_system_library(TEXT("ihplapi.dll"));
+	HANDLE lib = evutil_load_windows_system_library_(TEXT("ihplapi.dll"));
 	GetAdaptersAddresses_fn_t fn;
 	ULONG size, res;
 	IP_ADAPTER_ADDRESSES *addresses = NULL, *address;
@@ -818,7 +818,7 @@ evutil_check_interfaces(int force_recheck)
  * allocate both a TCP and a UDP addrinfo.
  */
 struct evutil_addrinfo *
-evutil_new_addrinfo(struct sockaddr *sa, ev_socklen_t socklen,
+evutil_new_addrinfo_(struct sockaddr *sa, ev_socklen_t socklen,
     const struct evutil_addrinfo *hints)
 {
 	struct evutil_addrinfo *res;
@@ -830,11 +830,11 @@ evutil_new_addrinfo(struct sockaddr *sa, ev_socklen_t socklen,
 		struct evutil_addrinfo tmp;
 		memcpy(&tmp, hints, sizeof(tmp));
 		tmp.ai_socktype = SOCK_STREAM; tmp.ai_protocol = IPPROTO_TCP;
-		r1 = evutil_new_addrinfo(sa, socklen, &tmp);
+		r1 = evutil_new_addrinfo_(sa, socklen, &tmp);
 		if (!r1)
 			return NULL;
 		tmp.ai_socktype = SOCK_DGRAM; tmp.ai_protocol = IPPROTO_UDP;
-		r2 = evutil_new_addrinfo(sa, socklen, &tmp);
+		r2 = evutil_new_addrinfo_(sa, socklen, &tmp);
 		if (!r2) {
 			evutil_freeaddrinfo(r1);
 			return NULL;
@@ -863,7 +863,7 @@ evutil_new_addrinfo(struct sockaddr *sa, ev_socklen_t socklen,
  * the list.  Either element can be NULL, in which case we return the element
  * that is not NULL. */
 struct evutil_addrinfo *
-evutil_addrinfo_append(struct evutil_addrinfo *first,
+evutil_addrinfo_append_(struct evutil_addrinfo *first,
     struct evutil_addrinfo *append)
 {
 	struct evutil_addrinfo *ai = first;
@@ -979,7 +979,7 @@ evutil_getaddrinfo_infer_protocols(struct evutil_addrinfo *hints)
  * set *res as getaddrinfo would.
  */
 int
-evutil_getaddrinfo_common(const char *nodename, const char *servname,
+evutil_getaddrinfo_common_(const char *nodename, const char *servname,
     struct evutil_addrinfo *hints, struct evutil_addrinfo **res, int *portnum)
 {
 	int port = 0;
@@ -1021,7 +1021,7 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 				/* connect to ::1 */
 				sin6.sin6_addr.s6_addr[15] = 1;
 			}
-			res6 = evutil_new_addrinfo((struct sockaddr*)&sin6,
+			res6 = evutil_new_addrinfo_((struct sockaddr*)&sin6,
 			    sizeof(sin6), hints);
 			if (!res6)
 				return EVUTIL_EAI_MEMORY;
@@ -1038,7 +1038,7 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 				/* connect to 127.0.0.1 */
 				sin.sin_addr.s_addr = htonl(0x7f000001);
 			}
-			res4 = evutil_new_addrinfo((struct sockaddr*)&sin,
+			res4 = evutil_new_addrinfo_((struct sockaddr*)&sin,
 			    sizeof(sin), hints);
 			if (!res4) {
 				if (res6)
@@ -1046,7 +1046,7 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 				return EVUTIL_EAI_MEMORY;
 			}
 		}
-		*res = evutil_addrinfo_append(res4, res6);
+		*res = evutil_addrinfo_append_(res4, res6);
 		return 0;
 	}
 
@@ -1060,7 +1060,7 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 			/* Got an ipv6 address. */
 			sin6.sin6_family = AF_INET6;
 			sin6.sin6_port = htons(port);
-			*res = evutil_new_addrinfo((struct sockaddr*)&sin6,
+			*res = evutil_new_addrinfo_((struct sockaddr*)&sin6,
 			    sizeof(sin6), hints);
 			if (!*res)
 				return EVUTIL_EAI_MEMORY;
@@ -1076,7 +1076,7 @@ evutil_getaddrinfo_common(const char *nodename, const char *servname,
 			/* Got an ipv6 address. */
 			sin.sin_family = AF_INET;
 			sin.sin_port = htons(port);
-			*res = evutil_new_addrinfo((struct sockaddr*)&sin,
+			*res = evutil_new_addrinfo_((struct sockaddr*)&sin,
 			    sizeof(sin), hints);
 			if (!*res)
 				return EVUTIL_EAI_MEMORY;
@@ -1194,12 +1194,12 @@ addrinfo_from_hostent(const struct hostent *ent,
 
 	for (i = 0; ent->h_addr_list[i]; ++i) {
 		memcpy(addrp, ent->h_addr_list[i], ent->h_length);
-		ai = evutil_new_addrinfo(sa, socklen, hints);
+		ai = evutil_new_addrinfo_(sa, socklen, hints);
 		if (!ai) {
 			evutil_freeaddrinfo(res);
 			return NULL;
 		}
-		res = evutil_addrinfo_append(res, ai);
+		res = evutil_addrinfo_append_(res, ai);
 	}
 
 	if (res && ((hints->ai_flags & EVUTIL_AI_CANONNAME) && ent->h_name)) {
@@ -1219,7 +1219,7 @@ addrinfo_from_hostent(const struct hostent *ent,
  * that we'll only get addresses we could maybe connect to.
  */
 void
-evutil_adjust_hints_for_addrconfig(struct evutil_addrinfo *hints)
+evutil_adjust_hints_for_addrconfig_(struct evutil_addrinfo *hints)
 {
 	if (!(hints->ai_flags & EVUTIL_AI_ADDRCONFIG))
 		return;
@@ -1245,7 +1245,7 @@ static int tested_for_getaddrinfo_hacks=0;
    turns out that the bug is present, then:
 
     - If nodename==NULL and servname is numeric, we build an answer
-      ourselves using evutil_getaddrinfo_common().
+      ourselves using evutil_getaddrinfo_common_().
 
     - If nodename!=NULL and servname is numeric, then we set
       servname=NULL when calling getaddrinfo, and post-process the
@@ -1375,7 +1375,7 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 	/* Not every system has AI_ADDRCONFIG, so fake it. */
 	if (hints.ai_family == PF_UNSPEC &&
 	    (hints.ai_flags & EVUTIL_AI_ADDRCONFIG)) {
-		evutil_adjust_hints_for_addrconfig(&hints);
+		evutil_adjust_hints_for_addrconfig_(&hints);
 	}
 #endif
 
@@ -1401,7 +1401,7 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 #ifdef _WIN32
 	{
 		int tmp_port;
-		err = evutil_getaddrinfo_common(nodename,servname,&hints,
+		err = evutil_getaddrinfo_common_(nodename,servname,&hints,
 		    res, &tmp_port);
 		if (err == 0 ||
 		    err == EVUTIL_EAI_MEMORY ||
@@ -1417,7 +1417,7 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 	    && ((portnum=parse_numeric_servname(servname)) >= 0);
 	if (need_np_hack) {
 		if (!nodename)
-			return evutil_getaddrinfo_common(
+			return evutil_getaddrinfo_common_(
 				NULL,servname,&hints, res, &portnum);
 		servname = NULL;
 	}
@@ -1462,9 +1462,9 @@ evutil_getaddrinfo(const char *nodename, const char *servname,
 		hints.ai_family = PF_UNSPEC;
 	}
 
-	evutil_adjust_hints_for_addrconfig(&hints);
+	evutil_adjust_hints_for_addrconfig_(&hints);
 
-	err = evutil_getaddrinfo_common(nodename, servname, &hints, res, &port);
+	err = evutil_getaddrinfo_common_(nodename, servname, &hints, res, &port);
 	if (err != EVUTIL_EAI_NEED_RESOLVE) {
 		/* We either succeeded or failed.  No need to continue */
 		return err;
@@ -1568,7 +1568,7 @@ evutil_freeaddrinfo(struct evutil_addrinfo *ai)
 static evdns_getaddrinfo_fn evdns_getaddrinfo_impl = NULL;
 
 void
-evutil_set_evdns_getaddrinfo_fn(evdns_getaddrinfo_fn fn)
+evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo_fn fn)
 {
 	if (!evdns_getaddrinfo_impl)
 		evdns_getaddrinfo_impl = fn;
@@ -1579,7 +1579,7 @@ evutil_set_evdns_getaddrinfo_fn(evdns_getaddrinfo_fn fn)
  * way that evdns_getaddrinfo would.
  */
 int
-evutil_getaddrinfo_async(struct evdns_base *dns_base,
+evutil_getaddrinfo_async_(struct evdns_base *dns_base,
     const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in,
     void (*cb)(int, struct evutil_addrinfo *, void *), void *arg)
@@ -1884,7 +1884,7 @@ evutil_inet_pton(int af, const char *src, void *dst)
 		else {
 			int byte1,byte2,byte3,byte4;
 			char more;
-			for (eow = dot-1; eow >= src && EVUTIL_ISDIGIT(*eow); --eow)
+			for (eow = dot-1; eow >= src && EVUTIL_ISDIGIT_(*eow); --eow)
 				;
 			++eow;
 
@@ -1909,7 +1909,7 @@ evutil_inet_pton(int af, const char *src, void *dst)
 		while (src < eow) {
 			if (i > 7)
 				return 0;
-			if (EVUTIL_ISXDIGIT(*src)) {
+			if (EVUTIL_ISXDIGIT_(*src)) {
 				char *next;
 				long r = strtol(src, &next, 16);
 				if (next > 4+src)
@@ -2068,7 +2068,7 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 }
 
 const char *
-evutil_format_sockaddr_port(const struct sockaddr *sa, char *out, size_t outlen)
+evutil_format_sockaddr_port_(const struct sockaddr *sa, char *out, size_t outlen)
 {
 	char b[128];
 	const char *res=NULL;
@@ -2205,11 +2205,11 @@ IMPL_CTYPE_FN(ISPRINT)
 IMPL_CTYPE_FN(ISLOWER)
 IMPL_CTYPE_FN(ISUPPER)
 
-char EVUTIL_TOLOWER(char c)
+char EVUTIL_TOLOWER_(char c)
 {
 	return ((char)EVUTIL_TOLOWER_TABLE[(ev_uint8_t)c]);
 }
-char EVUTIL_TOUPPER(char c)
+char EVUTIL_TOUPPER_(char c)
 {
 	return ((char)EVUTIL_TOUPPER_TABLE[(ev_uint8_t)c]);
 }
@@ -2218,8 +2218,8 @@ evutil_ascii_strcasecmp(const char *s1, const char *s2)
 {
 	char c1, c2;
 	while (1) {
-		c1 = EVUTIL_TOLOWER(*s1++);
-		c2 = EVUTIL_TOLOWER(*s2++);
+		c1 = EVUTIL_TOLOWER_(*s1++);
+		c2 = EVUTIL_TOLOWER_(*s2++);
 		if (c1 < c2)
 			return -1;
 		else if (c1 > c2)
@@ -2232,8 +2232,8 @@ int evutil_ascii_strncasecmp(const char *s1, const char *s2, size_t n)
 {
 	char c1, c2;
 	while (n--) {
-		c1 = EVUTIL_TOLOWER(*s1++);
-		c2 = EVUTIL_TOLOWER(*s2++);
+		c1 = EVUTIL_TOLOWER_(*s1++);
+		c2 = EVUTIL_TOLOWER_(*s2++);
 		if (c1 < c2)
 			return -1;
 		else if (c1 > c2)
@@ -2264,7 +2264,7 @@ evutil_issetugid(void)
 }
 
 const char *
-evutil_getenv(const char *varname)
+evutil_getenv_(const char *varname)
 {
 	if (evutil_issetugid())
 		return NULL;
@@ -2283,7 +2283,7 @@ evutil_weakrand_(void)
 }
 
 int
-evutil_sockaddr_is_loopback(const struct sockaddr *addr)
+evutil_sockaddr_is_loopback_(const struct sockaddr *addr)
 {
 	static const char LOOPBACK_S6[16] =
 	    "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\1";
@@ -2301,7 +2301,7 @@ evutil_sockaddr_is_loopback(const struct sockaddr *addr)
 	(((LONG_MAX) - 999) / 1000)
 
 long
-evutil_tv_to_msec(const struct timeval *tv)
+evutil_tv_to_msec_(const struct timeval *tv)
 {
 	if (tv->tv_usec > 1000000 || tv->tv_sec > MAX_SECONDS_IN_MSEC_LONG)
 		return -1;
@@ -2310,7 +2310,7 @@ evutil_tv_to_msec(const struct timeval *tv)
 }
 
 int
-evutil_hex_char_to_int(char c)
+evutil_hex_char_to_int_(char c)
 {
 	switch(c)
 	{
@@ -2336,7 +2336,7 @@ evutil_hex_char_to_int(char c)
 
 #ifdef _WIN32
 HANDLE
-evutil_load_windows_system_library(const TCHAR *library_name)
+evutil_load_windows_system_library_(const TCHAR *library_name)
 {
   TCHAR path[MAX_PATH];
   unsigned n;
@@ -2350,13 +2350,13 @@ evutil_load_windows_system_library(const TCHAR *library_name)
 #endif
 
 void
-evutil_usleep(const struct timeval *tv)
+evutil_usleep_(const struct timeval *tv)
 {
 	if (!tv)
 		return;
 #if defined(_WIN32)
 	{
-		long msec = evutil_tv_to_msec(tv);
+		long msec = evutil_tv_to_msec_(tv);
 		Sleep((DWORD)msec);
 	}
 #elif defined(_EVENT_HAVE_NANOSLEEP_X)
@@ -2384,7 +2384,7 @@ evutil_usleep(const struct timeval *tv)
  * possible.
  */
 evutil_socket_t
-evutil_socket(int domain, int type, int protocol)
+evutil_socket_(int domain, int type, int protocol)
 {
 	evutil_socket_t r;
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
@@ -2422,7 +2422,7 @@ evutil_socket(int domain, int type, int protocol)
  * possible.
  */
 evutil_socket_t
-evutil_accept4(evutil_socket_t sockfd, struct sockaddr *addr,
+evutil_accept4_(evutil_socket_t sockfd, struct sockaddr *addr,
     ev_socklen_t *addrlen, int flags)
 {
 	evutil_socket_t result;
@@ -2455,7 +2455,7 @@ evutil_accept4(evutil_socket_t sockfd, struct sockaddr *addr,
  * Return 0 on success, -1 on failure.
  */
 int
-evutil_make_internal_pipe(evutil_socket_t fd[2])
+evutil_make_internal_pipe_(evutil_socket_t fd[2])
 {
 	/*
 	  Making the second socket nonblocking is a bit subtle, given that we
@@ -2513,7 +2513,7 @@ evutil_make_internal_pipe(evutil_socket_t fd[2])
  * flags.  Returns -1 on error or if eventfd is not supported.
  */
 evutil_socket_t
-evutil_eventfd(unsigned initval, int flags)
+evutil_eventfd_(unsigned initval, int flags)
 {
 #if defined(EVENT__HAVE_EVENTFD) && defined(EVENT__HAVE_SYS_EVENTFD_H)
 	int r;

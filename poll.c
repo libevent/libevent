@@ -91,7 +91,7 @@ poll_init(struct event_base *base)
 	if (!(pollop = mm_calloc(1, sizeof(struct pollop))))
 		return (NULL);
 
-	evsig_init(base);
+	evsig_init_(base);
 
 	return (pollop);
 }
@@ -158,7 +158,7 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 #endif
 
 	if (tv != NULL) {
-		msec = evutil_tv_to_msec(tv);
+		msec = evutil_tv_to_msec_(tv);
 		if (msec < 0 || msec > INT_MAX)
 			msec = INT_MAX;
 	}
@@ -204,7 +204,7 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 		if (res == 0)
 			continue;
 
-		evmap_io_active(base, event_set[i].fd, res);
+		evmap_io_active_(base, event_set[i].fd, res);
 	}
 
 	return (0);
@@ -310,7 +310,7 @@ poll_del(struct event_base *base, int fd, short old, short events, void *_idx)
 		 */
 		memcpy(&pop->event_set[i], &pop->event_set[pop->nfds],
 		       sizeof(struct pollfd));
-		idx = evmap_io_get_fdinfo(&base->io, pop->event_set[i].fd);
+		idx = evmap_io_get_fdinfo_(&base->io, pop->event_set[i].fd);
 		EVUTIL_ASSERT(idx);
 		EVUTIL_ASSERT(idx->idxplus1 == pop->nfds + 1);
 		idx->idxplus1 = i + 1;
@@ -325,7 +325,7 @@ poll_dealloc(struct event_base *base)
 {
 	struct pollop *pop = base->evbase;
 
-	evsig_dealloc(base);
+	evsig_dealloc_(base);
 	if (pop->event_set)
 		mm_free(pop->event_set);
 	if (pop->event_set_copy)

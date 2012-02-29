@@ -119,7 +119,7 @@ select_init(struct event_base *base)
 		return (NULL);
 	}
 
-	evsig_init(base);
+	evsig_init_(base);
 
 	return (sop);
 }
@@ -199,7 +199,7 @@ select_dispatch(struct event_base *base, struct timeval *tv)
 		if (res == 0)
 			continue;
 
-		evmap_io_active(base, i, res);
+		evmap_io_active_(base, i, res);
 	}
 	check_selectop(sop);
 
@@ -336,7 +336,7 @@ select_free_selectop(struct selectop *sop)
 static void
 select_dealloc(struct event_base *base)
 {
-	evsig_dealloc(base);
+	evsig_dealloc_(base);
 
 	select_free_selectop(base->evbase);
 }

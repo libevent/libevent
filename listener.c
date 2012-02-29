@@ -160,9 +160,9 @@ evconnlistener_new(struct event_base *base,
 	struct evconnlistener_event *lev;
 
 #ifdef _WIN32
-	if (base && event_base_get_iocp(base)) {
+	if (base && event_base_get_iocp_(base)) {
 		const struct win32_extension_fns *ext =
-			event_get_win32_extension_fns();
+			event_get_win32_extension_fns_();
 		if (ext->AcceptEx && ext->GetAcceptExSockaddrs)
 			return evconnlistener_new_async(base, cb, ptr, flags,
 				backlog, fd);
@@ -223,7 +223,7 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	if (flags & LEV_OPT_CLOSE_ON_EXEC)
 		socktype |= EVUTIL_SOCK_CLOEXEC;
 
-	fd = evutil_socket(family, socktype, 0);
+	fd = evutil_socket_(family, socktype, 0);
 	if (fd == -1)
 		return NULL;
 
@@ -388,7 +388,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 	while (1) {
 		struct sockaddr_storage ss;
 		ev_socklen_t socklen = sizeof(ss);
-		evutil_socket_t new_fd = evutil_accept4(fd, (struct sockaddr*)&ss, &socklen, lev->accept4_flags);
+		evutil_socket_t new_fd = evutil_accept4_(fd, (struct sockaddr*)&ss, &socklen, lev->accept4_flags);
 		if (new_fd < 0)
 			break;
 		if (socklen == 0) {
@@ -459,7 +459,7 @@ iocp_listener_event_add(struct evconnlistener_iocp *lev)
 		return;
 
 	lev->event_added = 1;
-	event_base_add_virtual(lev->event_base);
+	event_base_add_virtual_(lev->event_base);
 }
 
 static void
@@ -469,7 +469,7 @@ iocp_listener_event_del(struct evconnlistener_iocp *lev)
 		return;
 
 	lev->event_added = 0;
-	event_base_del_virtual(lev->event_base);
+	event_base_del_virtual_(lev->event_base);
 }
 
 static struct accepting_socket *
@@ -491,13 +491,13 @@ new_accepting_socket(struct evconnlistener_iocp *lev, int family)
 	if (!res)
 		return NULL;
 
-	event_overlapped_init(&res->overlapped, accepted_socket_cb);
+	event_overlapped_init_(&res->overlapped, accepted_socket_cb);
 	res->s = INVALID_SOCKET;
 	res->lev = lev;
 	res->buflen = buflen;
 	res->family = family;
 
-	event_deferred_cb_init(&res->deferred,
+	event_deferred_cb_init_(&res->deferred,
 		accepted_socket_invoke_user_cb, res);
 
 	InitializeCriticalSectionAndSpinCount(&res->lock, 1000);
@@ -521,7 +521,7 @@ static int
 start_accepting(struct accepting_socket *as)
 {
 	/* requires lock */
-	const struct win32_extension_fns *ext = event_get_win32_extension_fns();
+	const struct win32_extension_fns *ext = event_get_win32_extension_fns_();
 	DWORD pending = 0;
 	SOCKET s = socket(as->family, SOCK_STREAM, 0);
 	int error = 0;
@@ -542,7 +542,7 @@ start_accepting(struct accepting_socket *as)
 	if (!(as->lev->base.flags & LEV_OPT_LEAVE_SOCKETS_BLOCKING))
 		evutil_make_socket_nonblocking(s);
 
-	if (event_iocp_port_associate(as->lev->port, s, 1) < 0) {
+	if (event_iocp_port_associate_(as->lev->port, s, 1) < 0) {
 		closesocket(s);
 		return -1;
 	}
@@ -565,8 +565,8 @@ start_accepting(struct accepting_socket *as)
 
 report_err:
 	as->error = error;
-	event_deferred_cb_schedule(
-		event_base_get_deferred_cb_queue(as->lev->event_base),
+	event_deferred_cb_schedule_(
+		event_base_get_deferred_cb_queue_(as->lev->event_base),
 		&as->deferred);
 	return 0;
 }
@@ -587,7 +587,7 @@ accepted_socket_invoke_user_cb(struct deferred_cb *dcb, void *arg)
 
 	struct sockaddr *sa_local=NULL, *sa_remote=NULL;
 	int socklen_local=0, socklen_remote=0;
-	const struct win32_extension_fns *ext = event_get_win32_extension_fns();
+	const struct win32_extension_fns *ext = event_get_win32_extension_fns_();
 	struct evconnlistener *lev = &as->lev->base;
 	evutil_socket_t sock=-1;
 	void *data;
@@ -657,8 +657,8 @@ accepted_socket_cb(struct event_overlapped *o, ev_uintptr_t key, ev_ssize_t n, i
 	EnterCriticalSection(&as->lock);
 	if (ok) {
 		/* XXXX Don't do this if some EV_MT flag is set. */
-		event_deferred_cb_schedule(
-			event_base_get_deferred_cb_queue(as->lev->event_base),
+		event_deferred_cb_schedule_(
+			event_base_get_deferred_cb_queue_(as->lev->event_base),
 			&as->deferred);
 		LeaveCriticalSection(&as->lock);
 	} else if (as->free_on_cb) {
@@ -682,8 +682,8 @@ accepted_socket_cb(struct event_overlapped *o, ev_uintptr_t key, ev_ssize_t n, i
 		} else {
 			as->error = WSAGetLastError();
 		}
-		event_deferred_cb_schedule(
-			event_base_get_deferred_cb_queue(as->lev->event_base),
+		event_deferred_cb_schedule_(
+			event_base_get_deferred_cb_queue_(as->lev->event_base),
 			&as->deferred);
 		LeaveCriticalSection(&as->lock);
 	}
@@ -795,7 +795,7 @@ evconnlistener_new_async(struct event_base *base,
 
 	flags |= LEV_OPT_THREADSAFE;
 
-	if (!base || !event_base_get_iocp(base))
+	if (!base || !event_base_get_iocp_(base))
 		goto err;
 
 	/* XXXX duplicate code */
@@ -822,12 +822,12 @@ evconnlistener_new_async(struct event_base *base,
 	lev->base.refcnt = 1;
 	lev->base.enabled = 1;
 
-	lev->port = event_base_get_iocp(base);
+	lev->port = event_base_get_iocp_(base);
 	lev->fd = fd;
 	lev->event_base = base;
 
 
-	if (event_iocp_port_associate(lev->port, fd, 1) < 0)
+	if (event_iocp_port_associate_(lev->port, fd, 1) < 0)
 		goto err_free_lev;
 
 	EVTHREAD_ALLOC_LOCK(lev->base.lock, EVTHREAD_LOCKTYPE_RECURSIVE);

@@ -402,9 +402,9 @@ int
 evbuffer_defer_callbacks(struct evbuffer *buffer, struct event_base *base)
 {
 	EVBUFFER_LOCK(buffer);
-	buffer->cb_queue = event_base_get_deferred_cb_queue(base);
+	buffer->cb_queue = event_base_get_deferred_cb_queue_(base);
 	buffer->deferred_cbs = 1;
-	event_deferred_cb_init(&buffer->deferred,
+	event_deferred_cb_init_(&buffer->deferred,
 	    evbuffer_deferred_callback, buffer);
 	EVBUFFER_UNLOCK(buffer);
 	return 0;
@@ -435,7 +435,7 @@ evbuffer_enable_locking(struct evbuffer *buf, void *lock)
 }
 
 void
-evbuffer_set_parent(struct evbuffer *buf, struct bufferevent *bev)
+evbuffer_set_parent_(struct evbuffer *buf, struct bufferevent *bev)
 {
 	EVBUFFER_LOCK(buf);
 	buf->parent = bev;
@@ -501,7 +501,7 @@ evbuffer_run_callbacks(struct evbuffer *buffer, int running_deferred)
 }
 
 void
-evbuffer_invoke_callbacks(struct evbuffer *buffer)
+evbuffer_invoke_callbacks_(struct evbuffer *buffer)
 {
 	if (LIST_EMPTY(&buffer->callbacks)) {
 		buffer->n_add_for_cb = buffer->n_del_for_cb = 0;
@@ -513,9 +513,9 @@ evbuffer_invoke_callbacks(struct evbuffer *buffer)
 			return;
 		evbuffer_incref_and_lock_(buffer);
 		if (buffer->parent)
-			bufferevent_incref(buffer->parent);
+			bufferevent_incref_(buffer->parent);
 		EVBUFFER_UNLOCK(buffer);
-		event_deferred_cb_schedule(buffer->cb_queue, &buffer->deferred);
+		event_deferred_cb_schedule_(buffer->cb_queue, &buffer->deferred);
 	}
 
 	evbuffer_run_callbacks(buffer, 0);
@@ -534,7 +534,7 @@ evbuffer_deferred_callback(struct deferred_cb *cb, void *arg)
 	evbuffer_run_callbacks(buffer, 1);
 	evbuffer_decref_and_unlock_(buffer);
 	if (parent)
-		bufferevent_decref(parent);
+		bufferevent_decref_(parent);
 }
 
 static void
@@ -567,7 +567,7 @@ evbuffer_decref_and_unlock_(struct evbuffer *buffer)
 	}
 	evbuffer_remove_all_callbacks(buffer);
 	if (buffer->deferred_cbs)
-		event_deferred_cb_cancel(buffer->cb_queue, &buffer->deferred);
+		event_deferred_cb_cancel_(buffer->cb_queue, &buffer->deferred);
 
 	EVBUFFER_UNLOCK(buffer);
 	if (buffer->own_lock)
@@ -770,7 +770,7 @@ okay:
 	buf->total_len += added;
 	buf->n_add_for_cb += added;
 	result = 0;
-	evbuffer_invoke_callbacks(buf);
+	evbuffer_invoke_callbacks_(buf);
 
 done:
 	EVBUFFER_UNLOCK(buf);
@@ -982,8 +982,8 @@ evbuffer_add_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	inbuf->n_del_for_cb += in_total_len;
 	outbuf->n_add_for_cb += in_total_len;
 
-	evbuffer_invoke_callbacks(inbuf);
-	evbuffer_invoke_callbacks(outbuf);
+	evbuffer_invoke_callbacks_(inbuf);
+	evbuffer_invoke_callbacks_(outbuf);
 
 done:
 	EVBUFFER_UNLOCK2(inbuf, outbuf);
@@ -1026,7 +1026,7 @@ evbuffer_add_buffer_reference(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	APPEND_CHAIN_MULTICAST(outbuf, inbuf);
 
 	outbuf->n_add_for_cb += in_total_len;
-	evbuffer_invoke_callbacks(outbuf);
+	evbuffer_invoke_callbacks_(outbuf);
 
 done:
 	EVBUFFER_UNLOCK2(inbuf, outbuf);
@@ -1072,8 +1072,8 @@ evbuffer_prepend_buffer(struct evbuffer *outbuf, struct evbuffer *inbuf)
 	inbuf->n_del_for_cb += in_total_len;
 	outbuf->n_add_for_cb += in_total_len;
 
-	evbuffer_invoke_callbacks(inbuf);
-	evbuffer_invoke_callbacks(outbuf);
+	evbuffer_invoke_callbacks_(inbuf);
+	evbuffer_invoke_callbacks_(outbuf);
 done:
 	EVBUFFER_UNLOCK2(inbuf, outbuf);
 	return result;
@@ -1139,7 +1139,7 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 
 	buf->n_del_for_cb += len;
 	/* Tell someone about changes in this buffer */
-	evbuffer_invoke_callbacks(buf);
+	evbuffer_invoke_callbacks_(buf);
 
 done:
 	EVBUFFER_UNLOCK(buf);
@@ -1311,8 +1311,8 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 	src->n_del_for_cb += nread;
 
 	if (nread) {
-		evbuffer_invoke_callbacks(dst);
-		evbuffer_invoke_callbacks(src);
+		evbuffer_invoke_callbacks_(dst);
+		evbuffer_invoke_callbacks_(src);
 	}
 	result = (int)nread;/*XXXX should change return type */
 
@@ -1778,7 +1778,7 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 	buf->n_add_for_cb += datlen;
 
 out:
-	evbuffer_invoke_callbacks(buf);
+	evbuffer_invoke_callbacks_(buf);
 	result = 0;
 done:
 	EVBUFFER_UNLOCK(buf);
@@ -1852,7 +1852,7 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 	buf->n_add_for_cb += (size_t)chain->misalign;
 
 out:
-	evbuffer_invoke_callbacks(buf);
+	evbuffer_invoke_callbacks_(buf);
 	result = 0;
 done:
 	EVBUFFER_UNLOCK(buf);
@@ -2341,7 +2341,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 	buf->n_add_for_cb += n;
 
 	/* Tell someone about changes in this buffer */
-	evbuffer_invoke_callbacks(buf);
+	evbuffer_invoke_callbacks_(buf);
 	result = n;
 done:
 	EVBUFFER_UNLOCK(buf);
@@ -2807,7 +2807,7 @@ evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
 			buf->n_add_for_cb += sz;
 
 			advance_last_with_data(buf);
-			evbuffer_invoke_callbacks(buf);
+			evbuffer_invoke_callbacks_(buf);
 			result = sz;
 			goto done;
 		}
@@ -2865,7 +2865,7 @@ evbuffer_add_reference(struct evbuffer *outbuf,
 	evbuffer_chain_insert(outbuf, chain);
 	outbuf->n_add_for_cb += datlen;
 
-	evbuffer_invoke_callbacks(outbuf);
+	evbuffer_invoke_callbacks_(outbuf);
 
 	result = 0;
 done:
@@ -3159,7 +3159,7 @@ evbuffer_add_file_segment(struct evbuffer *buf,
 	buf->n_add_for_cb += length;
 	evbuffer_chain_insert(buf, chain);
 
-	evbuffer_invoke_callbacks(buf);
+	evbuffer_invoke_callbacks_(buf);
 
 	EVBUFFER_UNLOCK(buf);
 

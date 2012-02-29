@@ -65,13 +65,13 @@ struct ev_token_bucket_cfg {
 
 /** The current tick is 'current_tick': add bytes to 'bucket' as specified in
  * 'cfg'. */
-int ev_token_bucket_update(struct ev_token_bucket *bucket,
+int ev_token_bucket_update_(struct ev_token_bucket *bucket,
     const struct ev_token_bucket_cfg *cfg,
     ev_uint32_t current_tick);
 
 /** In which tick does 'tv' fall according to 'cfg'?  Note that ticks can
  * overflow easily; your code needs to handle this. */
-ev_uint32_t ev_token_bucket_get_tick(const struct timeval *tv,
+ev_uint32_t ev_token_bucket_get_tick_(const struct timeval *tv,
     const struct ev_token_bucket_cfg *cfg);
 
 /** Adjust 'bucket' to respect 'cfg', and note that it was last updated in
@@ -79,12 +79,12 @@ ev_uint32_t ev_token_bucket_get_tick(const struct timeval *tv,
  * configuration of 'bucket'; otherwise, we are setting it up for the first
  * time.
  */
-int ev_token_bucket_init(struct ev_token_bucket *bucket,
+int ev_token_bucket_init_(struct ev_token_bucket *bucket,
     const struct ev_token_bucket_cfg *cfg,
     ev_uint32_t current_tick,
     int reinitialize);
 
-int bufferevent_remove_from_rate_limit_group_internal(struct bufferevent *bev,
+int bufferevent_remove_from_rate_limit_group_internal_(struct bufferevent *bev,
     int unsuspend);
 
 /** Decrease the read limit of 'b' by 'n' bytes */

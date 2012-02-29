@@ -167,27 +167,27 @@ test_iocp_port(void *ptr)
 	tt_assert(o1.lock);
 	tt_assert(o2.lock);
 
-	event_overlapped_init(&o1.eo, dummy_cb);
-	event_overlapped_init(&o2.eo, dummy_cb);
+	event_overlapped_init_(&o1.eo, dummy_cb);
+	event_overlapped_init_(&o2.eo, dummy_cb);
 
-	port = event_iocp_port_launch(0);
+	port = event_iocp_port_launch_(0);
 	tt_assert(port);
 
-	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 10, 100));
-	tt_assert(!event_iocp_activate_overlapped(port, &o2.eo, 20, 200));
+	tt_assert(!event_iocp_activate_overlapped_(port, &o1.eo, 10, 100));
+	tt_assert(!event_iocp_activate_overlapped_(port, &o2.eo, 20, 200));
 
-	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 11, 101));
-	tt_assert(!event_iocp_activate_overlapped(port, &o2.eo, 21, 201));
+	tt_assert(!event_iocp_activate_overlapped_(port, &o1.eo, 11, 101));
+	tt_assert(!event_iocp_activate_overlapped_(port, &o2.eo, 21, 201));
 
-	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 12, 102));
-	tt_assert(!event_iocp_activate_overlapped(port, &o2.eo, 22, 202));
+	tt_assert(!event_iocp_activate_overlapped_(port, &o1.eo, 12, 102));
+	tt_assert(!event_iocp_activate_overlapped_(port, &o2.eo, 22, 202));
 
-	tt_assert(!event_iocp_activate_overlapped(port, &o1.eo, 13, 103));
-	tt_assert(!event_iocp_activate_overlapped(port, &o2.eo, 23, 203));
+	tt_assert(!event_iocp_activate_overlapped_(port, &o1.eo, 13, 103));
+	tt_assert(!event_iocp_activate_overlapped_(port, &o2.eo, 23, 203));
 
 	tt_int_op(count_wait_for(8, 2000), ==, 0);
 
-	tt_want(!event_iocp_shutdown(port, 2000));
+	tt_want(!event_iocp_shutdown_(port, 2000));
 
 	tt_int_op(o1.call_count, ==, 4);
 	tt_int_op(o2.call_count, ==, 4);
@@ -215,7 +215,7 @@ read_complete(struct event_overlapped *eo, uintptr_t key,
     ev_ssize_t nbytes, int ok)
 {
 	tt_assert(ok);
-	evbuffer_commit_read(rbuf, nbytes);
+	evbuffer_commit_read_(rbuf, nbytes);
 	count_incr();
 end:
 	;
@@ -226,7 +226,7 @@ write_complete(struct event_overlapped *eo, uintptr_t key,
     ev_ssize_t nbytes, int ok)
 {
 	tt_assert(ok);
-	evbuffer_commit_write(wbuf, nbytes);
+	evbuffer_commit_write_(wbuf, nbytes);
 	count_incr();
 end:
 	;
@@ -244,24 +244,24 @@ test_iocp_evbuffer(void *ptr)
 	int i;
 
 	count_init();
-	event_overlapped_init(&rol, read_complete);
-	event_overlapped_init(&wol, write_complete);
+	event_overlapped_init_(&rol, read_complete);
+	event_overlapped_init_(&wol, write_complete);
 
 	for (i = 0; i < (int)sizeof(junk); ++i)
 		junk[i] = (char)(i);
 
-	rbuf = evbuffer_overlapped_new(data->pair[0]);
-	wbuf = evbuffer_overlapped_new(data->pair[1]);
+	rbuf = evbuffer_overlapped_new_(data->pair[0]);
+	wbuf = evbuffer_overlapped_new_(data->pair[1]);
 	evbuffer_enable_locking(rbuf, NULL);
 	evbuffer_enable_locking(wbuf, NULL);
 
-	port = event_iocp_port_launch(0);
+	port = event_iocp_port_launch_(0);
 	tt_assert(port);
 	tt_assert(rbuf);
 	tt_assert(wbuf);
 
-	tt_assert(!event_iocp_port_associate(port, data->pair[0], 100));
-	tt_assert(!event_iocp_port_associate(port, data->pair[1], 100));
+	tt_assert(!event_iocp_port_associate_(port, data->pair[0], 100));
+	tt_assert(!event_iocp_port_associate_(port, data->pair[1], 100));
 
 	for (i=0;i<10;++i)
 		evbuffer_add(wbuf, junk, sizeof(junk));
@@ -269,13 +269,13 @@ test_iocp_evbuffer(void *ptr)
 	buf = evbuffer_new();
 	tt_assert(buf != NULL);
 	evbuffer_add(rbuf, junk, sizeof(junk));
-	tt_assert(!evbuffer_launch_read(rbuf, 2048, &rol));
+	tt_assert(!evbuffer_launch_read_(rbuf, 2048, &rol));
 	evbuffer_add_buffer(buf, rbuf);
 	tt_int_op(evbuffer_get_length(buf), ==, sizeof(junk));
 	for (chain = buf->first; chain; chain = chain->next)
 		tt_int_op(chain->flags & EVBUFFER_MEM_PINNED_ANY, ==, 0);
 	tt_assert(!evbuffer_get_length(rbuf));
-	tt_assert(!evbuffer_launch_write(wbuf, 512, &wol));
+	tt_assert(!evbuffer_launch_write_(wbuf, 512, &wol));
 
 	tt_int_op(count_wait_for(2, 2000), ==, 0);
 
@@ -283,7 +283,7 @@ test_iocp_evbuffer(void *ptr)
 
 	/* FIXME Actually test some stuff here. */
 
-	tt_want(!event_iocp_shutdown(port, 2000));
+	tt_want(!event_iocp_shutdown_(port, 2000));
 end:
 	count_free();
 	evbuffer_free(rbuf);
@@ -310,13 +310,13 @@ test_iocp_bufferevent_async(void *ptr)
 	char buf[128];
 	size_t n;
 
-	event_base_start_iocp(data->base, 0);
-	port = event_base_get_iocp(data->base);
+	event_base_start_iocp_(data->base, 0);
+	port = event_base_get_iocp_(data->base);
 	tt_assert(port);
 
-	bea1 = bufferevent_async_new(data->base, data->pair[0],
+	bea1 = bufferevent_async_new_(data->base, data->pair[0],
 	    BEV_OPT_DEFER_CALLBACKS);
-	bea2 = bufferevent_async_new(data->base, data->pair[1],
+	bea2 = bufferevent_async_new_(data->base, data->pair[1],
 	    BEV_OPT_DEFER_CALLBACKS);
 	tt_assert(bea1);
 	tt_assert(bea2);

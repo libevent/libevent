@@ -410,7 +410,7 @@ SLEEP_MS(int ms)
 	struct timeval tv;
 	tv.tv_sec = ms/1000;
 	tv.tv_usec = (ms%1000)*1000;
-	evutil_usleep(&tv);
+	evutil_usleep_(&tv);
 }
 
 struct deferred_test_data {
@@ -438,8 +438,8 @@ load_deferred_queue(void *arg)
 	size_t i;
 
 	for (i = 0; i < CB_COUNT; ++i) {
-		event_deferred_cb_init(&data->cbs[i], deferred_callback, NULL);
-		event_deferred_cb_schedule(data->queue, &data->cbs[i]);
+		event_deferred_cb_init_(&data->cbs[i], deferred_callback, NULL);
+		event_deferred_cb_schedule_(data->queue, &data->cbs[i]);
 		SLEEP_MS(1);
 	}
 
@@ -473,7 +473,7 @@ thread_deferred_cb_skew(void *arg)
 	int elapsed_usec;
 	int i;
 
-	queue = event_base_get_deferred_cb_queue(data->base);
+	queue = event_base_get_deferred_cb_queue_(data->base);
 	tt_assert(queue);
 
 	for (i = 0; i < QUEUE_THREAD_COUNT; ++i)

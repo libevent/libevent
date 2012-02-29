@@ -294,7 +294,7 @@ regress_sockaddr_port_format(void *ptr)
 	r = evutil_parse_sockaddr_port("192.168.1.1:80",
 	    (struct sockaddr*)&ss, &len);
 	tt_int_op(r,==,0);
-	cp = evutil_format_sockaddr_port(
+	cp = evutil_format_sockaddr_port_(
 		(struct sockaddr*)&ss, cbuf, sizeof(cbuf));
 	tt_ptr_op(cp,==,cbuf);
 	tt_str_op(cp,==,"192.168.1.1:80");
@@ -303,13 +303,13 @@ regress_sockaddr_port_format(void *ptr)
 	r = evutil_parse_sockaddr_port("[ff00::8010]:999",
 	    (struct sockaddr*)&ss, &len);
 	tt_int_op(r,==,0);
-	cp = evutil_format_sockaddr_port(
+	cp = evutil_format_sockaddr_port_(
 		(struct sockaddr*)&ss, cbuf, sizeof(cbuf));
 	tt_ptr_op(cp,==,cbuf);
 	tt_str_op(cp,==,"[ff00::8010]:999");
 
 	ss.ss_family=99;
-	cp = evutil_format_sockaddr_port(
+	cp = evutil_format_sockaddr_port_(
 		(struct sockaddr*)&ss, cbuf, sizeof(cbuf));
 	tt_ptr_op(cp,==,cbuf);
 	tt_str_op(cp,==,"<addr with socktype 99>");
@@ -354,7 +354,7 @@ test_evutil_sockaddr_predicates(void *ptr)
 		}
 
 		/* sockaddr_is_loopback */
-		if (ent->is_loopback != evutil_sockaddr_is_loopback((struct sockaddr*)&ss)) {
+		if (ent->is_loopback != evutil_sockaddr_is_loopback_((struct sockaddr*)&ss)) {
 			TT_FAIL(("evutil_sockaddr_loopback(%s) not as expected",
 				ent->parse));
 		}
@@ -1063,7 +1063,7 @@ test_evutil_loadsyslib(void *arg)
 {
 	HANDLE h=NULL;
 
-	h = evutil_load_windows_system_library(TEXT("kernel32.dll"));
+	h = evutil_load_windows_system_library_(TEXT("kernel32.dll"));
 	tt_assert(h);
 
 end:
@@ -1184,9 +1184,9 @@ test_evutil_usleep(void *arg)
 	long usec1, usec2;
 
 	evutil_gettimeofday(&tv1, NULL);
-	evutil_usleep(&quarter_sec);
+	evutil_usleep_(&quarter_sec);
 	evutil_gettimeofday(&tv2, NULL);
-	evutil_usleep(&tenth_sec);
+	evutil_usleep_(&tenth_sec);
 	evutil_gettimeofday(&tv3, NULL);
 
 	evutil_timersub(&tv2, &tv1, &diff1);

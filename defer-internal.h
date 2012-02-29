@@ -80,15 +80,15 @@ struct deferred_cb_queue {
    @param cb The function to run when the deferred_cb executes.
    @param arg The function's second argument.
  */
-void event_deferred_cb_init(struct deferred_cb *, deferred_cb_fn, void *);
+void event_deferred_cb_init_(struct deferred_cb *, deferred_cb_fn, void *);
 /**
    Cancel a deferred_cb if it is currently scheduled in an event_base.
  */
-void event_deferred_cb_cancel(struct deferred_cb_queue *, struct deferred_cb *);
+void event_deferred_cb_cancel_(struct deferred_cb_queue *, struct deferred_cb *);
 /**
    Activate a deferred_cb if it is not currently scheduled in an event_base.
  */
-void event_deferred_cb_schedule(struct deferred_cb_queue *, struct deferred_cb *);
+void event_deferred_cb_schedule_(struct deferred_cb_queue *, struct deferred_cb *);
 
 #define LOCK_DEFERRED_QUEUE(q)						\
 	EVLOCK_LOCK((q)->lock, 0)
@@ -99,8 +99,8 @@ void event_deferred_cb_schedule(struct deferred_cb_queue *, struct deferred_cb *
 }
 #endif
 
-void event_deferred_cb_queue_init(struct deferred_cb_queue *);
-struct deferred_cb_queue *event_base_get_deferred_cb_queue(struct event_base *);
+void event_deferred_cb_queue_init_(struct deferred_cb_queue *);
+struct deferred_cb_queue *event_base_get_deferred_cb_queue_(struct event_base *);
 
 #endif /* EVENT_INTERNAL_H_INCLUDED_ */
 

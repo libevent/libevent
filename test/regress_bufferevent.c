@@ -503,7 +503,7 @@ test_bufferevent_connect(void *arg)
 	if (!strcmp((char*)data->setup_data, "unset_connectex")) {
 		struct win32_extension_fns *ext =
 		    (struct win32_extension_fns *)
-		    event_get_win32_extension_fns();
+		    event_get_win32_extension_fns_();
 		ext->ConnectEx = NULL;
 	}
 #endif

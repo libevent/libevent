@@ -163,7 +163,7 @@ do_fd_clear(struct event_base *base,
 		SOCKET s2;
 		s2 = set->fd_array[i] = set->fd_array[set->fd_count];
 
-		ent2 = evmap_io_get_fdinfo(&base->io, s2);
+		ent2 = evmap_io_get_fdinfo_(&base->io, s2);
 
 		if (!ent2) /* This indicates a bug. */
 			return (0);
@@ -199,7 +199,7 @@ win32_init(struct event_base *_base)
 	winop->readset_out->fd_count = winop->writeset_out->fd_count
 		= winop->exset_out->fd_count = 0;
 
-	if (evsig_init(_base) < 0)
+	if (evsig_init_(_base) < 0)
 		winop->signals_are_broken = 1;
 
 	return (winop);
@@ -301,7 +301,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	    win32op->readset_out->fd_count : win32op->writeset_out->fd_count;
 
 	if (!fd_count) {
-		long msec = evutil_tv_to_msec(tv);
+		long msec = evutil_tv_to_msec_(tv);
 		/* Sleep's DWORD argument is unsigned long */
 		if (msec < 0)
 			msec = LONG_MAX;
@@ -331,7 +331,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 			if (++i >= win32op->readset_out->fd_count)
 				i = 0;
 			s = win32op->readset_out->fd_array[i];
-			evmap_io_active(base, s, EV_READ);
+			evmap_io_active_(base, s, EV_READ);
 		}
 	}
 	if (win32op->exset_out->fd_count) {
@@ -340,7 +340,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 			if (++i >= win32op->exset_out->fd_count)
 				i = 0;
 			s = win32op->exset_out->fd_array[i];
-			evmap_io_active(base, s, EV_WRITE);
+			evmap_io_active_(base, s, EV_WRITE);
 		}
 	}
 	if (win32op->writeset_out->fd_count) {
@@ -350,7 +350,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 			if (++i >= win32op->writeset_out->fd_count)
 				i = 0;
 			s = win32op->writeset_out->fd_array[i];
-			evmap_io_active(base, s, EV_WRITE);
+			evmap_io_active_(base, s, EV_WRITE);
 		}
 	}
 	return (0);
@@ -361,7 +361,7 @@ win32_dealloc(struct event_base *_base)
 {
 	struct win32op *win32op = _base->evbase;
 
-	evsig_dealloc(_base);
+	evsig_dealloc_(_base);
 	if (win32op->readset_in)
 		mm_free(win32op->readset_in);
 	if (win32op->writeset_in)

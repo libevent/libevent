@@ -279,52 +279,52 @@ extern const struct bufferevent_ops bufferevent_ops_async;
 #endif
 
 /** Initialize the shared parts of a bufferevent. */
-int bufferevent_init_common(struct bufferevent_private *, struct event_base *, const struct bufferevent_ops *, enum bufferevent_options options);
+int bufferevent_init_common_(struct bufferevent_private *, struct event_base *, const struct bufferevent_ops *, enum bufferevent_options options);
 
 /** For internal use: temporarily stop all reads on bufev, until the conditions
  * in 'what' are over. */
-void bufferevent_suspend_read(struct bufferevent *bufev, bufferevent_suspend_flags what);
+void bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what);
 /** For internal use: clear the conditions 'what' on bufev, and re-enable
  * reading if there are no conditions left. */
-void bufferevent_unsuspend_read(struct bufferevent *bufev, bufferevent_suspend_flags what);
+void bufferevent_unsuspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what);
 
 /** For internal use: temporarily stop all writes on bufev, until the conditions
  * in 'what' are over. */
-void bufferevent_suspend_write(struct bufferevent *bufev, bufferevent_suspend_flags what);
+void bufferevent_suspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags what);
 /** For internal use: clear the conditions 'what' on bufev, and re-enable
  * writing if there are no conditions left. */
-void bufferevent_unsuspend_write(struct bufferevent *bufev, bufferevent_suspend_flags what);
+void bufferevent_unsuspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags what);
 
 #define bufferevent_wm_suspend_read(b) \
-	bufferevent_suspend_read((b), BEV_SUSPEND_WM)
+	bufferevent_suspend_read_((b), BEV_SUSPEND_WM)
 #define bufferevent_wm_unsuspend_read(b) \
-	bufferevent_unsuspend_read((b), BEV_SUSPEND_WM)
+	bufferevent_unsuspend_read_((b), BEV_SUSPEND_WM)
 
 /*
   Disable a bufferevent.  Equivalent to bufferevent_disable(), but
   first resets 'connecting' flag to force EV_WRITE down for sure.
 
   XXXX this method will go away in the future; try not to add new users.
-    See comment in evhttp_connection_reset() for discussion.
+    See comment in evhttp_connection_reset_() for discussion.
 
   @param bufev the bufferevent to be disabled
   @param event any combination of EV_READ | EV_WRITE.
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_disable()
  */
-int bufferevent_disable_hard(struct bufferevent *bufev, short event);
+int bufferevent_disable_hard_(struct bufferevent *bufev, short event);
 
 /** Internal: Set up locking on a bufferevent.  If lock is set, use it.
  * Otherwise, use a new lock. */
-int bufferevent_enable_locking(struct bufferevent *bufev, void *lock);
+int bufferevent_enable_locking_(struct bufferevent *bufev, void *lock);
 /** Internal: Increment the reference count on bufev. */
-void bufferevent_incref(struct bufferevent *bufev);
+void bufferevent_incref_(struct bufferevent *bufev);
 /** Internal: Lock bufev and increase its reference count.
  * unlocking it otherwise. */
 void bufferevent_incref_and_lock_(struct bufferevent *bufev);
 /** Internal: Decrement the reference count on bufev.  Returns 1 if it freed
  * the bufferevent.*/
-int bufferevent_decref(struct bufferevent *bufev);
+int bufferevent_decref_(struct bufferevent *bufev);
 /** Internal: Drop the reference count on bufev, freeing as necessary, and
  * unlocking it otherwise.  Returns 1 if it freed the bufferevent. */
 int bufferevent_decref_and_unlock_(struct bufferevent *bufev);

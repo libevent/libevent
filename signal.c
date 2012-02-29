@@ -117,7 +117,7 @@ static void __cdecl evsig_handler(int sig);
 #define EVSIGBASE_UNLOCK() EVLOCK_UNLOCK(evsig_base_lock, 0)
 
 void
-evsig_set_base(struct event_base *base)
+evsig_set_base_(struct event_base *base)
 {
 	EVSIGBASE_LOCK();
 	evsig_base = base;
@@ -165,20 +165,20 @@ evsig_cb(evutil_socket_t fd, short what, void *arg)
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	for (i = 0; i < NSIG; ++i) {
 		if (ncaught[i])
-			evmap_signal_active(base, i, ncaught[i]);
+			evmap_signal_active_(base, i, ncaught[i]);
 	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 
 int
-evsig_init(struct event_base *base)
+evsig_init_(struct event_base *base)
 {
 	/*
 	 * Our signal handler is going to write to one end of the socket
 	 * pair to wake up our event loop.  The event loop then scans for
 	 * signals that got delivered.
 	 */
-	if (evutil_make_internal_pipe(base->sig.ev_signal_pair) == -1) {
+	if (evutil_make_internal_pipe_(base->sig.ev_signal_pair) == -1) {
 #ifdef _WIN32
 		/* Make this nonfatal on win32, where sometimes people
 		   have localhost firewalled. */
@@ -409,14 +409,14 @@ evsig_handler(int sig)
 }
 
 void
-evsig_dealloc(struct event_base *base)
+evsig_dealloc_(struct event_base *base)
 {
 	int i = 0;
 	if (base->sig.ev_signal_added) {
 		event_del(&base->sig.ev_signal);
 		base->sig.ev_signal_added = 0;
 	}
-	/* debug event is created in evsig_init/event_assign even when
+	/* debug event is created in evsig_init_/event_assign even when
 	 * ev_signal_added == 0, so unassign is required */
 	event_debug_unassign(&base->sig.ev_signal);
 

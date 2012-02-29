@@ -213,7 +213,7 @@ basic_test_setup(const struct testcase_t *testcase)
 			exit(1);
 	}
 	if (testcase->flags & TT_ENABLE_IOCP_FLAG) {
-		if (event_base_start_iocp(base, 0)<0) {
+		if (event_base_start_iocp_(base, 0)<0) {
 			event_base_free(base);
 			return (void*)TT_SKIP;
 		}
@@ -259,7 +259,7 @@ basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
 
 	if (testcase->flags & TT_NEED_BASE) {
 		if (data->base) {
-			event_base_assert_ok(data->base);
+			event_base_assert_ok_(data->base);
 			event_base_free(data->base);
 		}
 	}

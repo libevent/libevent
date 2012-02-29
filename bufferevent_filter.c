@@ -182,13 +182,13 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	if (!bufev_f)
 		return NULL;
 
-	if (bufferevent_init_common(&bufev_f->bev, underlying->ev_base,
+	if (bufferevent_init_common_(&bufev_f->bev, underlying->ev_base,
 				    &bufferevent_ops_filter, tmp_options) < 0) {
 		mm_free(bufev_f);
 		return NULL;
 	}
 	if (options & BEV_OPT_THREADSAFE) {
-		bufferevent_enable_locking(downcast(bufev_f), NULL);
+		bufferevent_enable_locking_(downcast(bufev_f), NULL);
 	}
 
 	bufev_f->underlying = underlying;
@@ -205,10 +205,10 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	   bufferevent_filtered_outbuf_cb, bufev_f);
 
 	bufferevent_init_generic_timeout_cbs_(downcast(bufev_f));
-	bufferevent_incref(underlying);
+	bufferevent_incref_(underlying);
 
 	bufferevent_enable(underlying, EV_READ|EV_WRITE);
-	bufferevent_suspend_read(underlying, BEV_SUSPEND_FILT_READ);
+	bufferevent_suspend_read_(underlying, BEV_SUSPEND_FILT_READ);
 
 	return downcast(bufev_f);
 }
@@ -222,7 +222,7 @@ be_filter_destruct(struct bufferevent *bev)
 		bevf->free_context(bevf->context);
 
 	if (bevf->bev.options & BEV_OPT_CLOSE_ON_FREE) {
-		/* Yes, there is also a decref in bufferevent_decref.
+		/* Yes, there is also a decref in bufferevent_decref_.
 		 * That decref corresponds to the incref when we set
 		 * underlying for the first time.  This decref is an
 		 * extra one to remove the last reference.
@@ -238,7 +238,7 @@ be_filter_destruct(struct bufferevent *bev)
 			if (bevf->underlying->errorcb == be_filter_eventcb)
 				bufferevent_setcb(bevf->underlying,
 				    NULL, NULL, NULL, NULL);
-			bufferevent_unsuspend_read(bevf->underlying,
+			bufferevent_unsuspend_read_(bevf->underlying,
 			    BEV_SUSPEND_FILT_READ);
 		}
 	}
@@ -255,7 +255,7 @@ be_filter_enable(struct bufferevent *bev, short event)
 
 	if (event & EV_READ) {
 		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
-		bufferevent_unsuspend_read(bevf->underlying,
+		bufferevent_unsuspend_read_(bevf->underlying,
 		    BEV_SUSPEND_FILT_READ);
 	}
 	return 0;
@@ -269,7 +269,7 @@ be_filter_disable(struct bufferevent *bev, short event)
 		BEV_DEL_GENERIC_WRITE_TIMEOUT(bev);
 	if (event & EV_READ) {
 		BEV_DEL_GENERIC_READ_TIMEOUT(bev);
-		bufferevent_suspend_read(bevf->underlying,
+		bufferevent_suspend_read_(bevf->underlying,
 		    BEV_SUSPEND_FILT_READ);
 	}
 	return 0;

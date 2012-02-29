@@ -115,9 +115,9 @@ regress_pick_a_port(void *arg)
 	tt_ptr_op(evconnlistener_get_base(listener2), ==, base);
 
 	fd1 = fd2 = fd3 = -1;
-	evutil_socket_connect(&fd1, (struct sockaddr*)&ss1, slen1);
-	evutil_socket_connect(&fd2, (struct sockaddr*)&ss1, slen1);
-	evutil_socket_connect(&fd3, (struct sockaddr*)&ss2, slen2);
+	evutil_socket_connect_(&fd1, (struct sockaddr*)&ss1, slen1);
+	evutil_socket_connect_(&fd2, (struct sockaddr*)&ss1, slen1);
+	evutil_socket_connect_(&fd3, (struct sockaddr*)&ss2, slen2);
 
 #ifdef _WIN32
 	Sleep(100); /* XXXX this is a stupid stopgap. */

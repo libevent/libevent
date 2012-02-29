@@ -302,7 +302,7 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 	if (TAILQ_FIRST(&rpc->base->input_hooks) != NULL) {
 		int hook_res;
 
-		evrpc_hook_associate_meta(&rpc_state->hook_meta, req->evcon);
+		evrpc_hook_associate_meta_(&rpc_state->hook_meta, req->evcon);
 
 		/*
 		 * allow hooks to modify the outgoing request
@@ -330,7 +330,7 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 
 error:
 	if (rpc_state != NULL)
-		evrpc_reqstate_free(rpc_state);
+		evrpc_reqstate_free_(rpc_state);
 	evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
 	return;
 }
@@ -373,14 +373,14 @@ evrpc_request_cb_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 
 error:
 	if (rpc_state != NULL)
-		evrpc_reqstate_free(rpc_state);
+		evrpc_reqstate_free_(rpc_state);
 	evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
 	return;
 }
 
 
 void
-evrpc_reqstate_free(struct evrpc_req_generic* rpc_state)
+evrpc_reqstate_free_(struct evrpc_req_generic* rpc_state)
 {
 	struct evrpc *rpc;
 	EVUTIL_ASSERT(rpc_state != NULL);
@@ -388,7 +388,7 @@ evrpc_reqstate_free(struct evrpc_req_generic* rpc_state)
 
 	/* clean up all memory */
 	if (rpc_state->hook_meta != NULL)
-		evrpc_hook_context_free(rpc_state->hook_meta);
+		evrpc_hook_context_free_(rpc_state->hook_meta);
 	if (rpc_state->request != NULL)
 		rpc->request_free(rpc_state->request);
 	if (rpc_state->reply != NULL)
@@ -428,7 +428,7 @@ evrpc_request_done(struct evrpc_req_generic *rpc_state)
 	if (TAILQ_FIRST(&rpc->base->output_hooks) != NULL) {
 		int hook_res;
 
-		evrpc_hook_associate_meta(&rpc_state->hook_meta, req->evcon);
+		evrpc_hook_associate_meta_(&rpc_state->hook_meta, req->evcon);
 
 		/* do hook based tweaks to the request */
 		hook_res = evrpc_process_hooks(&rpc->base->output_hooks,
@@ -455,7 +455,7 @@ evrpc_request_done(struct evrpc_req_generic *rpc_state)
 
 error:
 	if (rpc_state != NULL)
-		evrpc_reqstate_free(rpc_state);
+		evrpc_reqstate_free_(rpc_state);
 	evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
 	return;
 }
@@ -490,13 +490,13 @@ evrpc_request_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 	}
 	evhttp_send_reply(req, HTTP_OK, "OK", rpc_state->rpc_data);
 
-	evrpc_reqstate_free(rpc_state);
+	evrpc_reqstate_free_(rpc_state);
 
 	return;
 
 error:
 	if (rpc_state != NULL)
-		evrpc_reqstate_free(rpc_state);
+		evrpc_reqstate_free_(rpc_state);
 	evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
 	return;
 }
@@ -532,7 +532,7 @@ static void
 evrpc_request_wrapper_free(struct evrpc_request_wrapper *request)
 {
 	if (request->hook_meta != NULL)
-		evrpc_hook_context_free(request->hook_meta);
+		evrpc_hook_context_free_(request->hook_meta);
 	mm_free(request->name);
 	mm_free(request);
 }
@@ -681,7 +681,7 @@ evrpc_schedule_request(struct evhttp_connection *connection,
 	if (TAILQ_FIRST(&pool->output_hooks) != NULL) {
 		int hook_res;
 
-		evrpc_hook_associate_meta(&ctx->hook_meta, connection);
+		evrpc_hook_associate_meta_(&ctx->hook_meta, connection);
 
 		/* apply hooks to the outgoing request */
 		hook_res = evrpc_process_hooks(&pool->output_hooks,
@@ -878,7 +878,7 @@ evrpc_reply_done(struct evhttp_request *req, void *arg)
 	}
 
 	if (TAILQ_FIRST(&pool->input_hooks) != NULL) {
-		evrpc_hook_associate_meta(&ctx->hook_meta, ctx->evcon);
+		evrpc_hook_associate_meta_(&ctx->hook_meta, ctx->evcon);
 
 		/* apply hooks to the incoming request */
 		hook_res = evrpc_process_hooks(&pool->input_hooks,
@@ -977,7 +977,7 @@ evrpc_request_timeout(evutil_socket_t fd, short what, void *arg)
 	struct evhttp_connection *evcon = ctx->evcon;
 	EVUTIL_ASSERT(evcon != NULL);
 
-	evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
+	evhttp_connection_fail_(evcon, EVCON_HTTP_TIMEOUT);
 }
 
 /*
@@ -999,7 +999,7 @@ evrpc_meta_data_free(struct evrpc_meta_list *meta_data)
 }
 
 static struct evrpc_hook_meta *
-evrpc_hook_meta_new(void)
+evrpc_hook_meta_new_(void)
 {
 	struct evrpc_hook_meta *ctx;
 	ctx = mm_malloc(sizeof(struct evrpc_hook_meta));
@@ -1012,17 +1012,17 @@ evrpc_hook_meta_new(void)
 }
 
 static void
-evrpc_hook_associate_meta(struct evrpc_hook_meta **pctx,
+evrpc_hook_associate_meta_(struct evrpc_hook_meta **pctx,
     struct evhttp_connection *evcon)
 {
 	struct evrpc_hook_meta *ctx = *pctx;
 	if (ctx == NULL)
-		*pctx = ctx = evrpc_hook_meta_new();
+		*pctx = ctx = evrpc_hook_meta_new_();
 	ctx->evcon = evcon;
 }
 
 static void
-evrpc_hook_context_free(struct evrpc_hook_meta *ctx)
+evrpc_hook_context_free_(struct evrpc_hook_meta *ctx)
 {
 	evrpc_meta_data_free(&ctx->meta_data);
 	mm_free(ctx);
@@ -1038,7 +1038,7 @@ evrpc_hook_add_meta(void *ctx, const char *key,
 	struct evrpc_meta *meta = NULL;
 
 	if ((store = req->hook_meta) == NULL)
-		store = req->hook_meta = evrpc_hook_meta_new();
+		store = req->hook_meta = evrpc_hook_meta_new_();
 
 	meta = mm_malloc(sizeof(struct evrpc_meta));
 	EVUTIL_ASSERT(meta != NULL);

@@ -214,7 +214,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		goto error;
 	}
 	if (bufev_p->connecting) {
-		int c = evutil_socket_finished_connecting(fd);
+		int c = evutil_socket_finished_connecting_(fd);
 		/* we need to fake the error if the connection was refused
 		 * immediately - usually connection to localhost on BSD */
 		if (bufev_p->connection_refused) {
@@ -236,7 +236,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 #ifdef _WIN32
 			if (BEV_IS_ASYNC(bufev)) {
 				event_del(&bufev->ev_write);
-				bufferevent_async_set_connected(bufev);
+				bufferevent_async_set_connected_(bufev);
 				bufferevent_run_eventcb_(bufev,
 						BEV_EVENT_CONNECTED);
 				goto done;
@@ -316,14 +316,14 @@ bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
 	struct bufferevent *bufev;
 
 #ifdef _WIN32
-	if (base && event_base_get_iocp(base))
-		return bufferevent_async_new(base, fd, options);
+	if (base && event_base_get_iocp_(base))
+		return bufferevent_async_new_(base, fd, options);
 #endif
 
 	if ((bufev_p = mm_calloc(1, sizeof(struct bufferevent_private)))== NULL)
 		return NULL;
 
-	if (bufferevent_init_common(bufev_p, base, &bufferevent_ops_socket,
+	if (bufferevent_init_common_(bufev_p, base, &bufferevent_ops_socket,
 				    options) < 0) {
 		mm_free(bufev_p);
 		return NULL;
@@ -365,7 +365,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	if (fd < 0) {
 		if (!sa)
 			goto done;
-		fd = evutil_socket(sa->sa_family,
+		fd = evutil_socket_(sa->sa_family,
 		    SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0);
 		if (fd < 0)
 			goto done;
@@ -373,9 +373,9 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	}
 	if (sa) {
 #ifdef _WIN32
-		if (bufferevent_async_can_connect(bev)) {
+		if (bufferevent_async_can_connect_(bev)) {
 			bufferevent_setfd(bev, fd);
-			r = bufferevent_async_connect(bev, fd, sa, socklen);
+			r = bufferevent_async_connect_(bev, fd, sa, socklen);
 			if (r < 0)
 				goto freesock;
 			bufev_p->connecting = 1;
@@ -383,7 +383,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 			goto done;
 		} else
 #endif
-		r = evutil_socket_connect(&fd, sa, socklen);
+		r = evutil_socket_connect_(&fd, sa, socklen);
 		if (r < 0)
 			goto freesock;
 	}
@@ -438,8 +438,8 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	int r;
 	BEV_LOCK(bev);
 
-	bufferevent_unsuspend_write(bev, BEV_SUSPEND_LOOKUP);
-	bufferevent_unsuspend_read(bev, BEV_SUSPEND_LOOKUP);
+	bufferevent_unsuspend_write_(bev, BEV_SUSPEND_LOOKUP);
+	bufferevent_unsuspend_read_(bev, BEV_SUSPEND_LOOKUP);
 
 	if (result != 0) {
 		bev_p->dns_error = result;
@@ -484,18 +484,18 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	hint.ai_protocol = IPPROTO_TCP;
 	hint.ai_socktype = SOCK_STREAM;
 
-	bufferevent_suspend_write(bev, BEV_SUSPEND_LOOKUP);
-	bufferevent_suspend_read(bev, BEV_SUSPEND_LOOKUP);
+	bufferevent_suspend_write_(bev, BEV_SUSPEND_LOOKUP);
+	bufferevent_suspend_read_(bev, BEV_SUSPEND_LOOKUP);
 
-	bufferevent_incref(bev);
-	err = evutil_getaddrinfo_async(evdns_base, hostname, portbuf,
+	bufferevent_incref_(bev);
+	err = evutil_getaddrinfo_async_(evdns_base, hostname, portbuf,
 	    &hint, bufferevent_connect_getaddrinfo_cb, bev);
 
 	if (err == 0) {
 		return 0;
 	} else {
-		bufferevent_unsuspend_write(bev, BEV_SUSPEND_LOOKUP);
-		bufferevent_unsuspend_read(bev, BEV_SUSPEND_LOOKUP);
+		bufferevent_unsuspend_write_(bev, BEV_SUSPEND_LOOKUP);
+		bufferevent_unsuspend_read_(bev, BEV_SUSPEND_LOOKUP);
 		return -1;
 	}
 }

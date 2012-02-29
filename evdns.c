@@ -547,7 +547,7 @@ nameserver_probe_failed(struct nameserver *const ns) {
 		char addrbuf[128];
 		log(EVDNS_LOG_WARN,
 		    "Error from libevent when adding timer event for %s",
-		    evutil_format_sockaddr_port(
+		    evutil_format_sockaddr_port_(
 			    (struct sockaddr *)&ns->address,
 			    addrbuf, sizeof(addrbuf)));
 	}
@@ -568,7 +568,7 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 	if (!ns->state) return;
 
 	log(EVDNS_LOG_MSG, "Nameserver %s has failed: %s",
-	    evutil_format_sockaddr_port(
+	    evutil_format_sockaddr_port_(
 		    (struct sockaddr *)&ns->address,
 		    addrbuf, sizeof(addrbuf)),
 	    msg);
@@ -586,7 +586,7 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 		&base->global_nameserver_probe_initial_timeout) < 0) {
 		log(EVDNS_LOG_WARN,
 		    "Error from libevent when adding timer event for %s",
-		    evutil_format_sockaddr_port(
+		    evutil_format_sockaddr_port_(
 			    (struct sockaddr *)&ns->address,
 			    addrbuf, sizeof(addrbuf)));
 		/* ???? Do more? */
@@ -622,7 +622,7 @@ nameserver_up(struct nameserver *const ns)
 	ASSERT_LOCKED(ns->base);
 	if (ns->state) return;
 	log(EVDNS_LOG_MSG, "Nameserver %s is back up",
-	    evutil_format_sockaddr_port(
+	    evutil_format_sockaddr_port_(
 		    (struct sockaddr *)&ns->address,
 		    addrbuf, sizeof(addrbuf)));
 	evtimer_del(&ns->timeout_event);
@@ -836,10 +836,10 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 		d->handle = req->handle;
 	}
 
-	event_deferred_cb_init(&d->deferred, reply_run_callback,
+	event_deferred_cb_init_(&d->deferred, reply_run_callback,
 	    req->user_pointer);
-	event_deferred_cb_schedule(
-		event_base_get_deferred_cb_queue(req->base->event_base),
+	event_deferred_cb_schedule_(
+		event_base_get_deferred_cb_queue_(req->base->event_base),
 		&d->deferred);
 }
 
@@ -893,7 +893,7 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 			 */
 			log(EVDNS_LOG_DEBUG, "Got a SERVERFAILED from nameserver"
 				"at %s; will allow the request to time out.",
-			    evutil_format_sockaddr_port(
+			    evutil_format_sockaddr_port_(
 				    (struct sockaddr *)&req->ns->address,
 				    addrbuf, sizeof(addrbuf)));
 			break;
@@ -1371,7 +1371,7 @@ nameserver_read(struct nameserver *ns) {
 			(struct sockaddr*)&ns->address, 0)) {
 			log(EVDNS_LOG_WARN, "Address mismatch on received "
 			    "DNS packet.  Apparent source was %s",
-			    evutil_format_sockaddr_port(
+			    evutil_format_sockaddr_port_(
 				    (struct sockaddr *)&ss,
 				    addrbuf, sizeof(addrbuf)));
 			return;
@@ -1461,7 +1461,7 @@ nameserver_write_waiting(struct nameserver *ns, char waiting) {
 	if (event_add(&ns->event, NULL) < 0) {
 		char addrbuf[128];
 		log(EVDNS_LOG_WARN, "Error from libevent when adding event for %s",
-		    evutil_format_sockaddr_port(
+		    evutil_format_sockaddr_port_(
 			    (struct sockaddr *)&ns->address,
 			    addrbuf, sizeof(addrbuf)));
 		/* ???? Do more? */
@@ -2277,7 +2277,7 @@ nameserver_send_probe(struct nameserver *const ns) {
 
 	ASSERT_LOCKED(ns->base);
 	log(EVDNS_LOG_DEBUG, "Sending probe to %s",
-	    evutil_format_sockaddr_port(
+	    evutil_format_sockaddr_port_(
 		    (struct sockaddr *)&ns->address,
 		    addrbuf, sizeof(addrbuf)));
 	handle = mm_calloc(1, sizeof(*handle));
@@ -2458,12 +2458,12 @@ evdns_nameserver_add_impl_(struct evdns_base *base, const struct sockaddr *addre
 
 	evtimer_assign(&ns->timeout_event, ns->base->event_base, nameserver_prod_callback, ns);
 
-	ns->socket = evutil_socket(address->sa_family,
+	ns->socket = evutil_socket_(address->sa_family,
 	    SOCK_DGRAM|EVUTIL_SOCK_NONBLOCK|EVUTIL_SOCK_CLOEXEC, 0);
 	if (ns->socket < 0) { err = 1; goto out1; }
 
 	if (base->global_outgoing_addrlen &&
-	    !evutil_sockaddr_is_loopback(address)) {
+	    !evutil_sockaddr_is_loopback_(address)) {
 		if (bind(ns->socket,
 			(struct sockaddr*)&base->global_outgoing_address,
 			base->global_outgoing_addrlen) < 0) {
@@ -2483,7 +2483,7 @@ evdns_nameserver_add_impl_(struct evdns_base *base, const struct sockaddr *addre
 	}
 
 	log(EVDNS_LOG_DEBUG, "Added nameserver %s",
-	    evutil_format_sockaddr_port(address, addrbuf, sizeof(addrbuf)));
+	    evutil_format_sockaddr_port_(address, addrbuf, sizeof(addrbuf)));
 
 	/* insert this nameserver into the list of them */
 	if (!base->server_head) {
@@ -2506,7 +2506,7 @@ out1:
 	event_debug_unassign(&ns->event);
 	mm_free(ns);
 	log(EVDNS_LOG_WARN, "Unable to add nameserver %s: error %d",
-	    evutil_format_sockaddr_port(address, addrbuf, sizeof(addrbuf)), err);
+	    evutil_format_sockaddr_port_(address, addrbuf, sizeof(addrbuf)), err);
 	return err;
 }
 
@@ -2699,7 +2699,7 @@ request_new(struct evdns_base *base, struct evdns_request *handle, int type,
 		strlcpy(namebuf, name, sizeof(namebuf));
 		evutil_secure_rng_get_bytes(randbits, (name_len+7)/8);
 		for (i = 0; i < name_len; ++i) {
-			if (EVUTIL_ISALPHA(namebuf[i])) {
+			if (EVUTIL_ISALPHA_(namebuf[i])) {
 				if ((randbits[i >> 3] & (1<<(i & 7))))
 					namebuf[i] |= 0x20;
 				else
@@ -3532,7 +3532,7 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 			mm_free(fname);
 	}
 
-	if ((err = evutil_read_file(filename, &resolv, &n, 0)) < 0) {
+	if ((err = evutil_read_file_(filename, &resolv, &n, 0)) < 0) {
 		if (err == -1) {
 			/* No file. */
 			evdns_resolv_set_defaults(base, flags);
@@ -3619,7 +3619,7 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 	GetNetworkParams_fn_t fn;
 
 	ASSERT_LOCKED(base);
-	if (!(handle = evutil_load_windows_system_library(
+	if (!(handle = evutil_load_windows_system_library_(
 			TEXT("iphlpapi.dll")))) {
 		log(EVDNS_LOG_WARN, "Could not open iphlpapi.dll");
 		status = -1;
@@ -3819,7 +3819,7 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 	/* Give the evutil library a hook into its evdns-enabled
 	 * functionality.  We can't just call evdns_getaddrinfo directly or
 	 * else libevent-core will depend on libevent-extras. */
-	evutil_set_evdns_getaddrinfo_fn(evdns_getaddrinfo);
+	evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo);
 
 	base = mm_malloc(sizeof(struct evdns_base));
 	if (base == NULL)
@@ -4057,7 +4057,7 @@ evdns_base_load_hosts_impl(struct evdns_base *base, const char *hosts_fname)
 	ASSERT_LOCKED(base);
 
 	if (hosts_fname == NULL ||
-	    (err = evutil_read_file(hosts_fname, &str, &len, 0)) < 0) {
+	    (err = evutil_read_file_(hosts_fname, &str, &len, 0)) < 0) {
 		char tmp[64];
 		strlcpy(tmp, "127.0.0.1   localhost", sizeof(tmp));
 		evdns_base_parse_hosts_line(base, tmp);
@@ -4376,7 +4376,7 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 	for (i=0; i < count; ++i) {
 		struct evutil_addrinfo *ai;
 		memcpy(addrp, ((char*)addresses)+i*addrlen, addrlen);
-		ai = evutil_new_addrinfo(sa, socklen, &data->hints);
+		ai = evutil_new_addrinfo_(sa, socklen, &data->hints);
 		if (!ai) {
 			if (other_req->r) {
 				evdns_cancel_request(NULL, other_req->r);
@@ -4389,7 +4389,7 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 				free_getaddrinfo_request(data);
 			return;
 		}
-		res = evutil_addrinfo_append(res, ai);
+		res = evutil_addrinfo_append_(res, ai);
 	}
 
 	if (other_req->r) {
@@ -4403,10 +4403,10 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		 * results (if any) and return them. */
 		if (data->pending_result) {
 			if (req->type == DNS_IPv4_A)
-				res = evutil_addrinfo_append(res,
+				res = evutil_addrinfo_append_(res,
 				    data->pending_result);
 			else
-				res = evutil_addrinfo_append(
+				res = evutil_addrinfo_append_(
 				    data->pending_result, res);
 			data->pending_result = NULL;
 		}
@@ -4456,13 +4456,13 @@ evdns_getaddrinfo_fromhosts(struct evdns_base *base,
 		if ((e->addr.sa.sa_family == AF_INET && f == PF_INET6) ||
 		    (e->addr.sa.sa_family == AF_INET6 && f == PF_INET))
 			continue;
-		ai_new = evutil_new_addrinfo(&e->addr.sa, e->addrlen, hints);
+		ai_new = evutil_new_addrinfo_(&e->addr.sa, e->addrlen, hints);
 		if (!ai_new) {
 			n_found = 0;
 			goto out;
 		}
 		sockaddr_setport(ai_new->ai_addr, port);
-		ai = evutil_addrinfo_append(ai, ai_new);
+		ai = evutil_addrinfo_append_(ai, ai_new);
 	}
 	EVDNS_UNLOCK(base);
 out:
@@ -4517,14 +4517,14 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 		hints.ai_family = PF_UNSPEC;
 	}
 
-	evutil_adjust_hints_for_addrconfig(&hints);
+	evutil_adjust_hints_for_addrconfig_(&hints);
 
 	/* Now try to see if we _can_ answer immediately. */
 	/* (It would be nice to do this by calling getaddrinfo directly, with
 	 * AI_NUMERICHOST, on plaforms that have it, but we can't: there isn't
 	 * a reliable way to distinguish the "that wasn't a numeric host!" case
 	 * from any other EAI_NONAME cases.) */
-	err = evutil_getaddrinfo_common(nodename, servname, &hints, &res, &port);
+	err = evutil_getaddrinfo_common_(nodename, servname, &hints, &res, &port);
 	if (err != EVUTIL_EAI_NEED_RESOLVE) {
 		cb(err, res, arg);
 		return NULL;
