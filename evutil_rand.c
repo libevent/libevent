@@ -90,8 +90,8 @@ ev_arc4random_buf(void *buf, size_t n)
 #define ssize_t _EVENT_SSIZE_t
 #endif
 #define ARC4RANDOM_EXPORT static
-#define _ARC4_LOCK() EVLOCK_LOCK(arc4rand_lock, 0)
-#define _ARC4_UNLOCK() EVLOCK_UNLOCK(arc4rand_lock, 0)
+#define ARC4_LOCK_() EVLOCK_LOCK(arc4rand_lock, 0)
+#define ARC4_UNLOCK_() EVLOCK_UNLOCK(arc4rand_lock, 0)
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 static void *arc4rand_lock;
 #endif
@@ -117,11 +117,11 @@ evutil_secure_rng_init(void)
 {
 	int val;
 
-	_ARC4_LOCK();
+	ARC4_LOCK_();
 	if (!arc4_seeded_ok)
 		arc4_stir();
 	val = arc4_seeded_ok ? 0 : -1;
-	_ARC4_UNLOCK();
+	ARC4_UNLOCK_();
 	return val;
 }
 

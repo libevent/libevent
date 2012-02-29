@@ -221,7 +221,7 @@ err:
 }
 
 static void
-_event_iocp_port_unlock_and_free(struct event_iocp_port *port)
+event_iocp_port_unlock_and_free_(struct event_iocp_port *port)
 {
 	DeleteCriticalSection(&port->lock);
 	CloseHandle(port->port);
@@ -262,7 +262,7 @@ event_iocp_shutdown(struct event_iocp_port *port, long waitMsec)
 	n = port->n_live_threads;
 	LeaveCriticalSection(&port->lock);
 	if (n == 0) {
-		_event_iocp_port_unlock_and_free(port);
+		event_iocp_port_unlock_and_free_(port);
 		return 0;
 	} else {
 		return -1;

@@ -124,7 +124,7 @@ struct evbuffer_ptr {
 	struct {
 		void *chain;
 		size_t pos_in_chain;
-	} _internal;
+	} internal_;
 };
 
 /** Describes a single extent of memory inside an evbuffer.  Used for
@@ -135,7 +135,7 @@ struct evbuffer_ptr {
 #ifdef EVENT__HAVE_SYS_UIO_H
 #define evbuffer_iovec iovec
 /* Internal use -- defined only if we are using the native struct iovec */
-#define _EVBUFFER_IOVEC_IS_NATIVE
+#define EVBUFFER_IOVEC_IS_NATIVE_
 #else
 struct evbuffer_iovec {
 	/** The start of the extent of memory. */

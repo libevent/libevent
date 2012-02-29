@@ -595,10 +595,10 @@ void event_base_free(struct event_base *);
 /** @name Log severities
  */
 /**@{*/
-#define _EVENT_LOG_DEBUG 0
-#define _EVENT_LOG_MSG   1
-#define _EVENT_LOG_WARN  2
-#define _EVENT_LOG_ERR   3
+#define EVENT_LOG_DEBUG 0
+#define EVENT_LOG_MSG   1
+#define EVENT_LOG_WARN  2
+#define EVENT_LOG_ERR   3
 /**@}*/
 
 /**
@@ -611,7 +611,7 @@ typedef void (*event_log_cb)(int severity, const char *msg);
   Redirect Libevent's log messages.
 
   @param cb a function taking two arguments: an integer severity between
-     _EVENT_LOG_DEBUG and _EVENT_LOG_ERR, and a string.  If cb is NULL,
+     EVENT_LOG_DEBUG and EVENT_LOG_ERR, and a string.  If cb is NULL,
 	 then the default log is used.
 
   NOTE: The function you provide *must not* call any other libevent
@@ -635,7 +635,7 @@ typedef void (*event_fatal_cb)(int err);
  something is wrong with your program, or with Libevent: any subsequent calls
  to Libevent may result in undefined behavior.
 
- Libevent will (almost) always log an _EVENT_LOG_ERR message before calling
+ Libevent will (almost) always log an EVENT_LOG_ERR message before calling
  this function; look at the last log message to see why Libevent has died.
  */
 void event_set_fatal_callback(event_fatal_cb cb);

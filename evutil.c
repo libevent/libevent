@@ -2273,7 +2273,7 @@ evutil_getenv(const char *varname)
 }
 
 long
-_evutil_weakrand(void)
+evutil_weakrand_(void)
 {
 #ifdef _WIN32
 	return rand();

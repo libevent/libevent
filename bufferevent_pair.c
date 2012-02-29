@@ -67,10 +67,10 @@ static inline void
 incref_and_lock(struct bufferevent *b)
 {
 	struct bufferevent_pair *bevp;
-	_bufferevent_incref_and_lock(b);
+	bufferevent_incref_and_lock_(b);
 	bevp = upcast(b);
 	if (bevp->partner)
-		_bufferevent_incref_and_lock(downcast(bevp->partner));
+		bufferevent_incref_and_lock_(downcast(bevp->partner));
 }
 
 static inline void
@@ -78,8 +78,8 @@ decref_and_unlock(struct bufferevent *b)
 {
 	struct bufferevent_pair *bevp = upcast(b);
 	if (bevp->partner)
-		_bufferevent_decref_and_unlock(downcast(bevp->partner));
-	_bufferevent_decref_and_unlock(b);
+		bufferevent_decref_and_unlock_(downcast(bevp->partner));
+	bufferevent_decref_and_unlock_(b);
 }
 
 /* XXX Handle close */
@@ -104,7 +104,7 @@ bufferevent_pair_elt_new(struct event_base *base,
 		return NULL;
 	}
 
-	_bufferevent_init_generic_timeout_cbs(&bufev->bev.bev);
+	bufferevent_init_generic_timeout_cbs_(&bufev->bev.bev);
 
 	return bufev;
 }
@@ -186,10 +186,10 @@ be_pair_transfer(struct bufferevent *src, struct bufferevent *dst,
 	dst_size = evbuffer_get_length(dst->input);
 
 	if (dst_size >= dst->wm_read.low) {
-		_bufferevent_run_readcb(dst);
+		bufferevent_run_readcb_(dst);
 	}
 	if (src_size <= src->wm_write.low) {
-		_bufferevent_run_writecb(src);
+		bufferevent_run_writecb_(src);
 	}
 done:
 	evbuffer_freeze(src->output, 1);
@@ -275,7 +275,7 @@ be_pair_destruct(struct bufferevent *bev)
 		bev_p->partner = NULL;
 	}
 
-	_bufferevent_del_generic_timeout_cbs(bev);
+	bufferevent_del_generic_timeout_cbs_(bev);
 }
 
 static int
@@ -300,7 +300,7 @@ be_pair_flush(struct bufferevent *bev, short iotype,
 		be_pair_transfer(bev, partner, 1);
 
 	if (mode == BEV_FINISHED) {
-		_bufferevent_run_eventcb(partner, iotype|BEV_EVENT_EOF);
+		bufferevent_run_eventcb_(partner, iotype|BEV_EVENT_EOF);
 	}
 	decref_and_unlock(bev);
 	return 0;
@@ -327,7 +327,7 @@ const struct bufferevent_ops bufferevent_ops_pair = {
 	be_pair_enable,
 	be_pair_disable,
 	be_pair_destruct,
-	_bufferevent_generic_adj_timeouts,
+	bufferevent_generic_adj_timeouts_,
 	be_pair_flush,
 	NULL, /* ctrl */
 };

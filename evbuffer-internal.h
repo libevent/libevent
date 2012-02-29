@@ -283,21 +283,21 @@ struct evbuffer_multicast_parent {
 	} while (0)
 
 /** Increase the reference count of buf by one. */
-void _evbuffer_incref(struct evbuffer *buf);
+void evbuffer_incref_(struct evbuffer *buf);
 /** Increase the reference count of buf by one and acquire the lock. */
-void _evbuffer_incref_and_lock(struct evbuffer *buf);
+void evbuffer_incref_and_lock_(struct evbuffer *buf);
 /** Pin a single buffer chain using a given flag. A pinned chunk may not be
  * moved or freed until it is unpinned. */
-void _evbuffer_chain_pin(struct evbuffer_chain *chain, unsigned flag);
+void evbuffer_chain_pin_(struct evbuffer_chain *chain, unsigned flag);
 /** Unpin a single buffer chain using a given flag. */
-void _evbuffer_chain_unpin(struct evbuffer_chain *chain, unsigned flag);
+void evbuffer_chain_unpin_(struct evbuffer_chain *chain, unsigned flag);
 /** As evbuffer_free, but requires that we hold a lock on the buffer, and
  * releases the lock before freeing it and the buffer. */
-void _evbuffer_decref_and_unlock(struct evbuffer *buffer);
+void evbuffer_decref_and_unlock_(struct evbuffer *buffer);
 
 /** As evbuffer_expand, but does not guarantee that the newly allocated memory
  * is contiguous.  Instead, it may be split across two or more chunks. */
-int _evbuffer_expand_fast(struct evbuffer *, size_t, int);
+int evbuffer_expand_fast_(struct evbuffer *, size_t, int);
 
 /** Helper: prepares for a readv/WSARecv call by expanding the buffer to
  * hold enough memory to read 'howmuch' bytes in possibly noncontiguous memory.
@@ -305,7 +305,7 @@ int _evbuffer_expand_fast(struct evbuffer *, size_t, int);
  * extent, and *chainp to point to the first chain that we'll try to read into.
  * Returns the number of vecs used.
  */
-int _evbuffer_read_setup_vecs(struct evbuffer *buf, ev_ssize_t howmuch,
+int evbuffer_read_setup_vecs_(struct evbuffer *buf, ev_ssize_t howmuch,
     struct evbuffer_iovec *vecs, int n_vecs, struct evbuffer_chain ***chainp,
     int exact);
 

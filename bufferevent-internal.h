@@ -321,27 +321,27 @@ int bufferevent_enable_locking(struct bufferevent *bufev, void *lock);
 void bufferevent_incref(struct bufferevent *bufev);
 /** Internal: Lock bufev and increase its reference count.
  * unlocking it otherwise. */
-void _bufferevent_incref_and_lock(struct bufferevent *bufev);
+void bufferevent_incref_and_lock_(struct bufferevent *bufev);
 /** Internal: Decrement the reference count on bufev.  Returns 1 if it freed
  * the bufferevent.*/
 int bufferevent_decref(struct bufferevent *bufev);
 /** Internal: Drop the reference count on bufev, freeing as necessary, and
  * unlocking it otherwise.  Returns 1 if it freed the bufferevent. */
-int _bufferevent_decref_and_unlock(struct bufferevent *bufev);
+int bufferevent_decref_and_unlock_(struct bufferevent *bufev);
 
 /** Internal: If callbacks are deferred and we have a read callback, schedule
  * a readcb.  Otherwise just run the readcb. */
-void _bufferevent_run_readcb(struct bufferevent *bufev);
+void bufferevent_run_readcb_(struct bufferevent *bufev);
 /** Internal: If callbacks are deferred and we have a write callback, schedule
  * a writecb.  Otherwise just run the writecb. */
-void _bufferevent_run_writecb(struct bufferevent *bufev);
+void bufferevent_run_writecb_(struct bufferevent *bufev);
 /** Internal: If callbacks are deferred and we have an eventcb, schedule
  * it to run with events "what".  Otherwise just run the eventcb. */
-void _bufferevent_run_eventcb(struct bufferevent *bufev, short what);
+void bufferevent_run_eventcb_(struct bufferevent *bufev, short what);
 
 /** Internal: Add the event 'ev' with timeout tv, unless tv is set to 0, in
  * which case add ev with no timeout. */
-int _bufferevent_add_event(struct event *ev, const struct timeval *tv);
+int bufferevent_add_event_(struct event *ev, const struct timeval *tv);
 
 /* =========
  * These next functions implement timeouts for bufferevents that aren't doing
@@ -350,15 +350,15 @@ int _bufferevent_add_event(struct event *ev, const struct timeval *tv);
 /** Internal use: Set up the ev_read and ev_write callbacks so that
  * the other "generic_timeout" functions will work on it.  Call this from
  * the constructor function. */
-void _bufferevent_init_generic_timeout_cbs(struct bufferevent *bev);
+void bufferevent_init_generic_timeout_cbs_(struct bufferevent *bev);
 /** Internal use: Delete the ev_read and ev_write callbacks if they're pending.
  * Call this from the destructor function. */
-int _bufferevent_del_generic_timeout_cbs(struct bufferevent *bev);
+int bufferevent_del_generic_timeout_cbs_(struct bufferevent *bev);
 /** Internal use: Add or delete the generic timeout events as appropriate.
  * (If an event is enabled and a timeout is set, we add the event.  Otherwise
  * we delete it.)  Call this from anything that changes the timeout values,
  * that enabled EV_READ or EV_WRITE, or that disables EV_READ or EV_WRITE. */
-int _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
+int bufferevent_generic_adj_timeouts_(struct bufferevent *bev);
 
 /** Internal use: We have just successfully read data into an inbuf, so
  * reset the read timeout (if any). */
@@ -385,8 +385,8 @@ int _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 #define BEV_UPCAST(b) EVUTIL_UPCAST((b), struct bufferevent_private, bev)
 
 #ifdef EVENT__DISABLE_THREAD_SUPPORT
-#define BEV_LOCK(b) _EVUTIL_NIL_STMT
-#define BEV_UNLOCK(b) _EVUTIL_NIL_STMT
+#define BEV_LOCK(b) EVUTIL_NIL_STMT_
+#define BEV_UNLOCK(b) EVUTIL_NIL_STMT_
 #else
 /** Internal: Grab the lock (if any) on a bufferevent */
 #define BEV_LOCK(b) do {						\
@@ -404,14 +404,14 @@ int _bufferevent_generic_adj_timeouts(struct bufferevent *bev);
 
 /* ==== For rate-limiting. */
 
-int _bufferevent_decrement_write_buckets(struct bufferevent_private *bev,
+int bufferevent_decrement_write_buckets_(struct bufferevent_private *bev,
     ev_ssize_t bytes);
-int _bufferevent_decrement_read_buckets(struct bufferevent_private *bev,
+int bufferevent_decrement_read_buckets_(struct bufferevent_private *bev,
     ev_ssize_t bytes);
-ev_ssize_t _bufferevent_get_read_max(struct bufferevent_private *bev);
-ev_ssize_t _bufferevent_get_write_max(struct bufferevent_private *bev);
+ev_ssize_t bufferevent_get_read_max_(struct bufferevent_private *bev);
+ev_ssize_t bufferevent_get_write_max_(struct bufferevent_private *bev);
 
-int _bufferevent_ratelim_init(struct bufferevent_private *bev);
+int bufferevent_ratelim_init_(struct bufferevent_private *bev);
 
 #ifdef __cplusplus
 }

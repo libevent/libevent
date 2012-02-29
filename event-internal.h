@@ -45,13 +45,13 @@ extern "C" {
 /* map union members back */
 
 /* mutually exclusive */
-#define ev_signal_next	_ev.ev_signal.ev_signal_next
-#define ev_io_next	_ev.ev_io.ev_io_next
-#define ev_io_timeout	_ev.ev_io.ev_timeout
+#define ev_signal_next	ev_.ev_signal.ev_signal_next
+#define ev_io_next	ev_.ev_io.ev_io_next
+#define ev_io_timeout	ev_.ev_io.ev_timeout
 
 /* used only by signals */
-#define ev_ncalls	_ev.ev_signal.ev_ncalls
-#define ev_pncalls	_ev.ev_signal.ev_pncalls
+#define ev_ncalls	ev_.ev_signal.ev_ncalls
+#define ev_pncalls	ev_.ev_signal.ev_pncalls
 
 /* Possible values for ev_closure in struct event. */
 #define EV_CLOSURE_NONE 0
@@ -164,8 +164,8 @@ struct event_changelist {
 
 #ifndef EVENT__DISABLE_DEBUG_MODE
 /* Global internal flag: set to one if debug mode is on. */
-extern int _event_debug_mode_on;
-#define EVENT_DEBUG_MODE_IS_ON() (_event_debug_mode_on)
+extern int event_debug_mode_on_;
+#define EVENT_DEBUG_MODE_IS_ON() (event_debug_mode_on_)
 #else
 #define EVENT_DEBUG_MODE_IS_ON() (0)
 #endif
@@ -343,9 +343,9 @@ struct event_config {
 #define N_ACTIVE_CALLBACKS(base)					\
 	((base)->event_count_active + (base)->defer_queue.active_count)
 
-int _evsig_set_handler(struct event_base *base, int evsignal,
+int evsig_set_handler_(struct event_base *base, int evsignal,
 			  void (*fn)(int));
-int _evsig_restore_handler(struct event_base *base, int evsignal);
+int evsig_restore_handler_(struct event_base *base, int evsignal);
 
 
 void event_active_nolock(struct event *ev, int res, short count);

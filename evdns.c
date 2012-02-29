@@ -414,9 +414,9 @@ static void evdns_base_free_and_unlock(struct evdns_base *base, int fail_request
 static int strtoint(const char *const str);
 
 #ifdef EVENT__DISABLE_THREAD_SUPPORT
-#define EVDNS_LOCK(base)  _EVUTIL_NIL_STMT
-#define EVDNS_UNLOCK(base) _EVUTIL_NIL_STMT
-#define ASSERT_LOCKED(base) _EVUTIL_NIL_STMT
+#define EVDNS_LOCK(base)  EVUTIL_NIL_STMT_
+#define EVDNS_UNLOCK(base) EVUTIL_NIL_STMT_
+#define ASSERT_LOCKED(base) EVUTIL_NIL_STMT_
 #else
 #define EVDNS_LOCK(base)			\
 	EVLOCK_LOCK((base)->lock, 0)
@@ -451,9 +451,9 @@ evdns_set_log_fn(evdns_debug_log_fn_type fn)
 #define EVDNS_LOG_CHECK
 #endif
 
-static void _evdns_log(int warn, const char *fmt, ...) EVDNS_LOG_CHECK;
+static void evdns_log_(int warn, const char *fmt, ...) EVDNS_LOG_CHECK;
 static void
-_evdns_log(int warn, const char *fmt, ...)
+evdns_log_(int warn, const char *fmt, ...)
 {
 	va_list args;
 	char buf[512];
@@ -472,7 +472,7 @@ _evdns_log(int warn, const char *fmt, ...)
 
 }
 
-#define log _evdns_log
+#define log evdns_log_
 
 /* This walks the list of inflight requests to find the */
 /* one with a matching transaction id. Returns NULL on */
@@ -939,8 +939,8 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 	int name_end = -1;
 	int j = *idx;
 	int ptr_count = 0;
-#define GET32(x) do { if (j + 4 > length) goto err; memcpy(&_t32, packet + j, 4); j += 4; x = ntohl(_t32); } while (0)
-#define GET16(x) do { if (j + 2 > length) goto err; memcpy(&_t, packet + j, 2); j += 2; x = ntohs(_t); } while (0)
+#define GET32(x) do { if (j + 4 > length) goto err; memcpy(&t32_, packet + j, 4); j += 4; x = ntohl(t32_); } while (0)
+#define GET16(x) do { if (j + 2 > length) goto err; memcpy(&t_, packet + j, 2); j += 2; x = ntohs(t_); } while (0)
 #define GET8(x) do { if (j >= length) goto err; x = packet[j++]; } while (0)
 
 	char *cp = name_out;
@@ -994,8 +994,8 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 static int
 reply_parse(struct evdns_base *base, u8 *packet, int length) {
 	int j = 0, k = 0;  /* index into packet */
-	u16 _t;	 /* used by the macros */
-	u32 _t32;  /* used by the macros */
+	u16 t_;	 /* used by the macros */
+	u32 t32_;  /* used by the macros */
 	char tmp_name[256], cmp_name[256]; /* used by the macros */
 	int name_matches = 0;
 
@@ -1196,7 +1196,7 @@ static int
 request_parse(u8 *packet, int length, struct evdns_server_port *port, struct sockaddr *addr, ev_socklen_t addrlen)
 {
 	int j = 0;	/* index into packet */
-	u16 _t;	 /* used by the macros */
+	u16 t_;	 /* used by the macros */
 	char tmp_name[256]; /* used by the macros */
 
 	int i;
@@ -1582,20 +1582,20 @@ dnsname_to_labels(u8 *const buf, size_t buf_len, off_t j,
 				  struct dnslabel_table *table) {
 	const char *end = name + name_len;
 	int ref = 0;
-	u16 _t;
+	u16 t_;
 
 #define APPEND16(x) do {						\
 		if (j + 2 > (off_t)buf_len)				\
 			goto overflow;					\
-		_t = htons(x);						\
-		memcpy(buf + j, &_t, 2);				\
+		t_ = htons(x);						\
+		memcpy(buf + j, &t_, 2);				\
 		j += 2;							\
 	} while (0)
 #define APPEND32(x) do {						\
 		if (j + 4 > (off_t)buf_len)				\
 			goto overflow;					\
-		_t32 = htonl(x);					\
-		memcpy(buf + j, &_t32, 4);				\
+		t32_ = htonl(x);					\
+		memcpy(buf + j, &t32_, 4);				\
 		j += 4;							\
 	} while (0)
 
@@ -1661,7 +1661,7 @@ evdns_request_data_build(const char *const name, const size_t name_len,
     const u16 trans_id, const u16 type, const u16 class,
     u8 *const buf, size_t buf_len) {
 	off_t j = 0;  /* current offset into buf */
-	u16 _t;	 /* used by the macros */
+	u16 t_;	 /* used by the macros */
 
 	APPEND16(trans_id);
 	APPEND16(0x0100);  /* standard query, recusion needed */
@@ -1873,8 +1873,8 @@ evdns_server_request_format_response(struct server_request *req, int err)
 	unsigned char buf[1500];
 	size_t buf_len = sizeof(buf);
 	off_t j = 0, r;
-	u16 _t;
-	u32 _t32;
+	u16 t_;
+	u32 t32_;
 	int i;
 	u16 flags;
 	struct dnslabel_table table;
@@ -1932,8 +1932,8 @@ evdns_server_request_format_response(struct server_request *req, int err)
 				if (r < 0)
 					goto overflow;
 				j = r;
-				_t = htons( (short) (j-name_start) );
-				memcpy(buf+len_idx, &_t, 2);
+				t_ = htons( (short) (j-name_start) );
+				memcpy(buf+len_idx, &t_, 2);
 			} else {
 				APPEND16(item->datalen);
 				if (j+item->datalen > (off_t)buf_len)
@@ -2430,7 +2430,7 @@ evdns_resume(void)
 }
 
 static int
-_evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *address, int addrlen) {
+evdns_nameserver_add_impl_(struct evdns_base *base, const struct sockaddr *address, int addrlen) {
 	/* first check to see if we already have this nameserver */
 
 	const struct nameserver *server = base->server_head, *const started_at = base->server_head;
@@ -2520,7 +2520,7 @@ evdns_base_nameserver_add(struct evdns_base *base, unsigned long int address)
 	sin.sin_port = htons(53);
 	sin.sin_family = AF_INET;
 	EVDNS_LOCK(base);
-	res = _evdns_nameserver_add_impl(base, (struct sockaddr*)&sin, sizeof(sin));
+	res = evdns_nameserver_add_impl_(base, (struct sockaddr*)&sin, sizeof(sin));
 	EVDNS_UNLOCK(base);
 	return res;
 }
@@ -2572,7 +2572,7 @@ evdns_base_nameserver_ip_add(struct evdns_base *base, const char *ip_as_string) 
 		sockaddr_setport(sa, 53);
 
 	EVDNS_LOCK(base);
-	res = _evdns_nameserver_add_impl(base, sa, len);
+	res = evdns_nameserver_add_impl_(base, sa, len);
 	EVDNS_UNLOCK(base);
 	return res;
 }
@@ -2591,7 +2591,7 @@ evdns_base_nameserver_sockaddr_add(struct evdns_base *base,
 	int res;
 	EVUTIL_ASSERT(base);
 	EVDNS_LOCK(base);
-	res = _evdns_nameserver_add_impl(base, sa, len);
+	res = evdns_nameserver_add_impl_(base, sa, len);
 	EVDNS_UNLOCK(base);
 	return res;
 }

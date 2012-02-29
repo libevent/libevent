@@ -188,11 +188,11 @@ eq_debug_entry(const struct event_debug_entry *a,
 	return a->ptr == b->ptr;
 }
 
-int _event_debug_mode_on = 0;
+int event_debug_mode_on_ = 0;
 /* Set if it's too late to enable event_debug_mode. */
 static int event_debug_mode_too_late = 0;
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
-static void *_event_debug_map_lock = NULL;
+static void *event_debug_map_lock_ = NULL;
 #endif
 static HT_HEAD(event_debug_map, event_debug_entry) global_debug_map =
 	HT_INITIALIZER();
@@ -203,11 +203,11 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
     eq_debug_entry, 0.5, mm_malloc, mm_realloc, mm_free)
 
 /* Macro: record that ev is now setup (that is, ready for an add) */
-#define _event_debug_note_setup(ev) do {				\
-	if (_event_debug_mode_on) {					\
+#define event_debug_note_setup_(ev) do {				\
+	if (event_debug_mode_on_) {					\
 		struct event_debug_entry *dent,find;			\
 		find.ptr = (ev);					\
-		EVLOCK_LOCK(_event_debug_map_lock, 0);			\
+		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
 		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
 		if (dent) {						\
 			dent->added = 0;				\
@@ -220,110 +220,110 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 			dent->added = 0;				\
 			HT_INSERT(event_debug_map, &global_debug_map, dent); \
 		}							\
-		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
+		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
 	}								\
 	event_debug_mode_too_late = 1;					\
 	} while (0)
 /* Macro: record that ev is no longer setup */
-#define _event_debug_note_teardown(ev) do {				\
-	if (_event_debug_mode_on) {					\
+#define event_debug_note_teardown_(ev) do {				\
+	if (event_debug_mode_on_) {					\
 		struct event_debug_entry *dent,find;			\
 		find.ptr = (ev);					\
-		EVLOCK_LOCK(_event_debug_map_lock, 0);			\
+		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
 		dent = HT_REMOVE(event_debug_map, &global_debug_map, &find); \
 		if (dent)						\
 			mm_free(dent);					\
-		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
+		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
 	}								\
 	event_debug_mode_too_late = 1;					\
 	} while (0)
 /* Macro: record that ev is now added */
-#define _event_debug_note_add(ev)	do {				\
-	if (_event_debug_mode_on) {					\
+#define event_debug_note_add_(ev)	do {				\
+	if (event_debug_mode_on_) {					\
 		struct event_debug_entry *dent,find;			\
 		find.ptr = (ev);					\
-		EVLOCK_LOCK(_event_debug_map_lock, 0);			\
+		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
 		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
 		if (dent) {						\
 			dent->added = 1;				\
 		} else {						\
-			event_errx(_EVENT_ERR_ABORT,			\
+			event_errx(EVENT_ERR_ABORT_,			\
 			    "%s: noting an add on a non-setup event %p" \
 			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
 			    __func__, (ev), (ev)->ev_events,		\
 			    (ev)->ev_fd, (ev)->ev_flags);		\
 		}							\
-		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
+		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
 	}								\
 	event_debug_mode_too_late = 1;					\
 	} while (0)
 /* Macro: record that ev is no longer added */
-#define _event_debug_note_del(ev) do {					\
-	if (_event_debug_mode_on) {					\
+#define event_debug_note_del_(ev) do {					\
+	if (event_debug_mode_on_) {					\
 		struct event_debug_entry *dent,find;			\
 		find.ptr = (ev);					\
-		EVLOCK_LOCK(_event_debug_map_lock, 0);			\
+		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
 		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
 		if (dent) {						\
 			dent->added = 0;				\
 		} else {						\
-			event_errx(_EVENT_ERR_ABORT,			\
+			event_errx(EVENT_ERR_ABORT_,			\
 			    "%s: noting a del on a non-setup event %p"	\
 			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
 			    __func__, (ev), (ev)->ev_events,		\
 			    (ev)->ev_fd, (ev)->ev_flags);		\
 		}							\
-		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
+		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
 	}								\
 	event_debug_mode_too_late = 1;					\
 	} while (0)
 /* Macro: assert that ev is setup (i.e., okay to add or inspect) */
-#define _event_debug_assert_is_setup(ev) do {				\
-	if (_event_debug_mode_on) {					\
+#define event_debug_assert_is_setup_(ev) do {				\
+	if (event_debug_mode_on_) {					\
 		struct event_debug_entry *dent,find;			\
 		find.ptr = (ev);					\
-		EVLOCK_LOCK(_event_debug_map_lock, 0);			\
+		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
 		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
 		if (!dent) {						\
-			event_errx(_EVENT_ERR_ABORT,			\
+			event_errx(EVENT_ERR_ABORT_,			\
 			    "%s called on a non-initialized event %p"	\
 			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
 			    __func__, (ev), (ev)->ev_events,		\
 			    (ev)->ev_fd, (ev)->ev_flags);		\
 		}							\
-		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
+		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
 	}								\
 	} while (0)
 /* Macro: assert that ev is not added (i.e., okay to tear down or set
  * up again) */
-#define _event_debug_assert_not_added(ev) do {				\
-	if (_event_debug_mode_on) {					\
+#define event_debug_assert_not_added_(ev) do {				\
+	if (event_debug_mode_on_) {					\
 		struct event_debug_entry *dent,find;			\
 		find.ptr = (ev);					\
-		EVLOCK_LOCK(_event_debug_map_lock, 0);			\
+		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
 		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
 		if (dent && dent->added) {				\
-			event_errx(_EVENT_ERR_ABORT,			\
+			event_errx(EVENT_ERR_ABORT_,			\
 			    "%s called on an already added event %p"	\
 			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
 			    __func__, (ev), (ev)->ev_events,		\
 			    (ev)->ev_fd, (ev)->ev_flags);		\
 		}							\
-		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
+		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
 	}								\
 	} while (0)
 #else
-#define _event_debug_note_setup(ev) \
+#define event_debug_note_setup_(ev) \
 	((void)0)
-#define _event_debug_note_teardown(ev) \
+#define event_debug_note_teardown_(ev) \
 	((void)0)
-#define _event_debug_note_add(ev) \
+#define event_debug_note_add_(ev) \
 	((void)0)
-#define _event_debug_note_del(ev) \
+#define event_debug_note_del_(ev) \
 	((void)0)
-#define _event_debug_assert_is_setup(ev) \
+#define event_debug_assert_is_setup_(ev) \
 	((void)0)
-#define _event_debug_assert_not_added(ev) \
+#define event_debug_assert_not_added_(ev) \
 	((void)0)
 #endif
 
@@ -540,13 +540,13 @@ void
 event_enable_debug_mode(void)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	if (_event_debug_mode_on)
+	if (event_debug_mode_on_)
 		event_errx(1, "%s was called twice!", __func__);
 	if (event_debug_mode_too_late)
 		event_errx(1, "%s must be called *before* creating any events "
 		    "or event_bases",__func__);
 
-	_event_debug_mode_on = 1;
+	event_debug_mode_on_ = 1;
 
 	HT_INIT(event_debug_map, &global_debug_map);
 #endif
@@ -558,14 +558,14 @@ event_disable_debug_mode(void)
 {
 	struct event_debug_entry **ent, *victim;
 
-	EVLOCK_LOCK(_event_debug_map_lock, 0);
+	EVLOCK_LOCK(event_debug_map_lock_, 0);
 	for (ent = HT_START(event_debug_map, &global_debug_map); ent; ) {
 		victim = *ent;
 		ent = HT_NEXT_RMV(event_debug_map,&global_debug_map, ent);
 		mm_free(victim);
 	}
 	HT_CLEAR(event_debug_map, &global_debug_map);
-	EVLOCK_UNLOCK(_event_debug_map_lock , 0);
+	EVLOCK_UNLOCK(event_debug_map_lock_ , 0);
 }
 #endif
 
@@ -1845,7 +1845,7 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 	if (!base)
 		base = current_base;
 
-	_event_debug_assert_not_added(ev);
+	event_debug_assert_not_added_(ev);
 
 	ev->ev_base = base;
 
@@ -1881,7 +1881,7 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 		ev->ev_pri = base->nactivequeues / 2;
 	}
 
-	_event_debug_note_setup(ev);
+	event_debug_note_setup_(ev);
 
 	return 0;
 }
@@ -1893,7 +1893,7 @@ event_base_set(struct event_base *base, struct event *ev)
 	if (ev->ev_flags != EVLIST_INIT)
 		return (-1);
 
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 
 	ev->ev_base = base;
 	ev->ev_pri = base->nactivequeues/2;
@@ -1928,11 +1928,11 @@ event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(
 void
 event_free(struct event *ev)
 {
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 
 	/* make sure that this event won't be coming back to haunt us. */
 	event_del(ev);
-	_event_debug_note_teardown(ev);
+	event_debug_note_teardown_(ev);
 	mm_free(ev);
 
 }
@@ -1940,8 +1940,8 @@ event_free(struct event *ev)
 void
 event_debug_unassign(struct event *ev)
 {
-	_event_debug_assert_not_added(ev);
-	_event_debug_note_teardown(ev);
+	event_debug_assert_not_added_(ev);
+	event_debug_note_teardown_(ev);
 
 	ev->ev_flags &= ~EVLIST_INIT;
 }
@@ -1954,7 +1954,7 @@ event_debug_unassign(struct event *ev)
 int
 event_priority_set(struct event *ev, int pri)
 {
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 
 	if (ev->ev_flags & EVLIST_ACTIVE)
 		return (-1);
@@ -1975,7 +1975,7 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 {
 	int flags = 0;
 
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 
 	if (ev->ev_flags & EVLIST_INSERTED)
 		flags |= (ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL));
@@ -2013,7 +2013,7 @@ event_initialized(const struct event *ev)
 void
 event_get_assignment(const struct event *event, struct event_base **base_out, evutil_socket_t *fd_out, short *events_out, event_callback_fn *callback_out, void **arg_out)
 {
-	_event_debug_assert_is_setup(event);
+	event_debug_assert_is_setup_(event);
 
 	if (base_out)
 		*base_out = event->ev_base;
@@ -2036,35 +2036,35 @@ event_get_struct_event_size(void)
 evutil_socket_t
 event_get_fd(const struct event *ev)
 {
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 	return ev->ev_fd;
 }
 
 struct event_base *
 event_get_base(const struct event *ev)
 {
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 	return ev->ev_base;
 }
 
 short
 event_get_events(const struct event *ev)
 {
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 	return ev->ev_events;
 }
 
 event_callback_fn
 event_get_callback(const struct event *ev)
 {
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 	return ev->ev_callback;
 }
 
 void *
 event_get_callback_arg(const struct event *ev)
 {
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 	return ev->ev_arg;
 }
 
@@ -2147,7 +2147,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	int notify = 0;
 
 	EVENT_BASE_ASSERT_LOCKED(base);
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 
 	event_debug((
 		 "event_add: event: %p (fd %d), %s%s%scall %p",
@@ -2273,7 +2273,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	if (res != -1 && notify && EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
 
-	_event_debug_note_add(ev);
+	event_debug_note_add_(ev);
 
 	return (res);
 }
@@ -2367,7 +2367,7 @@ event_del_internal(struct event *ev)
 	if (res != -1 && notify && EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
 
-	_event_debug_note_del(ev);
+	event_debug_note_del_(ev);
 
 	return (res);
 }
@@ -2382,7 +2382,7 @@ event_active(struct event *ev, int res, short ncalls)
 
 	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
 
-	_event_debug_assert_is_setup(ev);
+	event_debug_assert_is_setup_(ev);
 
 	event_active_nolock(ev, res, ncalls);
 
@@ -2797,9 +2797,9 @@ event_get_method(void)
 }
 
 #ifndef EVENT__DISABLE_MM_REPLACEMENT
-static void *(*_mm_malloc_fn)(size_t sz) = NULL;
-static void *(*_mm_realloc_fn)(void *p, size_t sz) = NULL;
-static void (*_mm_free_fn)(void *p) = NULL;
+static void *(*mm_malloc_fn_)(size_t sz) = NULL;
+static void *(*mm_realloc_fn_)(void *p, size_t sz) = NULL;
+static void (*mm_free_fn_)(void *p) = NULL;
 
 void *
 event_mm_malloc_(size_t sz)
@@ -2807,8 +2807,8 @@ event_mm_malloc_(size_t sz)
 	if (sz == 0)
 		return NULL;
 
-	if (_mm_malloc_fn)
-		return _mm_malloc_fn(sz);
+	if (mm_malloc_fn_)
+		return mm_malloc_fn_(sz);
 	else
 		return malloc(sz);
 }
@@ -2819,12 +2819,12 @@ event_mm_calloc_(size_t count, size_t size)
 	if (count == 0 || size == 0)
 		return NULL;
 
-	if (_mm_malloc_fn) {
+	if (mm_malloc_fn_) {
 		size_t sz = count * size;
 		void *p = NULL;
 		if (count > EV_SIZE_MAX / size)
 			goto error;
-		p = _mm_malloc_fn(sz);
+		p = mm_malloc_fn_(sz);
 		if (p)
 			return memset(p, 0, sz);
 	} else {
@@ -2850,12 +2850,12 @@ event_mm_strdup_(const char *str)
 		return NULL;
 	}
 
-	if (_mm_malloc_fn) {
+	if (mm_malloc_fn_) {
 		size_t ln = strlen(str);
 		void *p = NULL;
 		if (ln == EV_SIZE_MAX)
 			goto error;
-		p = _mm_malloc_fn(ln+1);
+		p = mm_malloc_fn_(ln+1);
 		if (p)
 			return memcpy(p, str, ln+1);
 	} else
@@ -2873,8 +2873,8 @@ error:
 void *
 event_mm_realloc_(void *ptr, size_t sz)
 {
-	if (_mm_realloc_fn)
-		return _mm_realloc_fn(ptr, sz);
+	if (mm_realloc_fn_)
+		return mm_realloc_fn_(ptr, sz);
 	else
 		return realloc(ptr, sz);
 }
@@ -2882,8 +2882,8 @@ event_mm_realloc_(void *ptr, size_t sz)
 void
 event_mm_free_(void *ptr)
 {
-	if (_mm_free_fn)
-		_mm_free_fn(ptr);
+	if (mm_free_fn_)
+		mm_free_fn_(ptr);
 	else
 		free(ptr);
 }
@@ -2893,9 +2893,9 @@ event_set_mem_functions(void *(*malloc_fn)(size_t sz),
 			void *(*realloc_fn)(void *ptr, size_t sz),
 			void (*free_fn)(void *ptr))
 {
-	_mm_malloc_fn = malloc_fn;
-	_mm_realloc_fn = realloc_fn;
-	_mm_free_fn = free_fn;
+	mm_malloc_fn_ = malloc_fn;
+	mm_realloc_fn_ = realloc_fn;
+	mm_free_fn_ = free_fn;
 }
 #endif
 
@@ -3119,7 +3119,7 @@ int
 event_global_setup_locks_(const int enable_locks)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	EVTHREAD_SETUP_GLOBAL_LOCK(_event_debug_map_lock, 0);
+	EVTHREAD_SETUP_GLOBAL_LOCK(event_debug_map_lock_, 0);
 #endif
 	if (evsig_global_setup_locks_(enable_locks) < 0)
 		return -1;

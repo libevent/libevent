@@ -438,7 +438,7 @@ kq_sig_add(struct event_base *base, int nsignal, short old, short events, void *
          * if the handler for SIGCHLD is SIG_IGN, the system reaps
          * zombie processes for us, and we don't get any notification.
          * This appears to be the only signal with this quirk. */
-	if (_evsig_set_handler(base, nsignal,
+	if (evsig_set_handler_(base, nsignal,
                                nsignal == SIGCHLD ? SIG_DFL : SIG_IGN) == -1)
 		return (-1);
 
@@ -467,7 +467,7 @@ kq_sig_del(struct event_base *base, int nsignal, short old, short events, void *
 	if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
 		return (-1);
 
-	if (_evsig_restore_handler(base, nsignal) == -1)
+	if (evsig_restore_handler_(base, nsignal) == -1)
 		return (-1);
 
 	return (0);

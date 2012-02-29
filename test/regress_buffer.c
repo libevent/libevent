@@ -65,7 +65,7 @@
 /* Validates that an evbuffer is good. Returns false if it isn't, true if it
  * is*/
 static int
-_evbuffer_validate(struct evbuffer *buf)
+evbuffer_validate_(struct evbuffer *buf)
 {
 	struct evbuffer_chain *chain;
 	size_t sum = 0;
@@ -164,7 +164,7 @@ evbuffer_get_waste(struct evbuffer *buf, size_t *allocatedp, size_t *wastedp, si
 }
 
 #define evbuffer_validate(buf)			\
-	TT_STMT_BEGIN if (!_evbuffer_validate(buf)) TT_DIE(("Buffer format invalid")); TT_STMT_END
+	TT_STMT_BEGIN if (!evbuffer_validate_(buf)) TT_DIE(("Buffer format invalid")); TT_STMT_END
 
 static void
 test_evbuffer(void *ptr)
@@ -757,7 +757,7 @@ test_evbuffer_add_file(void *ptr)
 		data = malloc(1024*512);
 		tt_assert(data);
 		for (i = 0; i < datalen; ++i)
-			data[i] = _evutil_weakrand();
+			data[i] = evutil_weakrand_();
 	} else {
 		data = strdup("here is a relatively small string.");
 		tt_assert(data);

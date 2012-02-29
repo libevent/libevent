@@ -209,7 +209,7 @@ evsig_init(struct event_base *base)
 /* Helper: set the signal handler for evsignal to handler in base, so that
  * we can restore the original handler when we clear the current one. */
 int
-_evsig_set_handler(struct event_base *base,
+evsig_set_handler_(struct event_base *base,
     int evsignal, void (__cdecl *handler)(int))
 {
 #ifdef EVENT__HAVE_SIGACTION
@@ -299,7 +299,7 @@ evsig_add(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 	EVSIGBASE_UNLOCK();
 
 	event_debug(("%s: %d: changing signal handler", __func__, (int)evsignal));
-	if (_evsig_set_handler(base, (int)evsignal, evsig_handler) == -1) {
+	if (evsig_set_handler_(base, (int)evsignal, evsig_handler) == -1) {
 		goto err;
 	}
 
@@ -321,7 +321,7 @@ err:
 }
 
 int
-_evsig_restore_handler(struct event_base *base, int evsignal)
+evsig_restore_handler_(struct event_base *base, int evsignal)
 {
 	int ret = 0;
 	struct evsig_info *sig = &base->sig;
@@ -369,7 +369,7 @@ evsig_del(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 	--base->sig.ev_n_signals_added;
 	EVSIGBASE_UNLOCK();
 
-	return (_evsig_restore_handler(base, (int)evsignal));
+	return (evsig_restore_handler_(base, (int)evsignal));
 }
 
 static void __cdecl
@@ -422,7 +422,7 @@ evsig_dealloc(struct event_base *base)
 
 	for (i = 0; i < NSIG; ++i) {
 		if (i < base->sig.sh_old_max && base->sig.sh_old[i] != NULL)
-			_evsig_restore_handler(base, i);
+			evsig_restore_handler_(base, i);
 	}
 	EVSIGBASE_LOCK();
 	if (base == evsig_base) {

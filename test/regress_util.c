@@ -534,22 +534,22 @@ test_evutil_log(void *ptr)
 	 * module didn't enforce the requirement that a fatal callback
 	 * actually exit.  Now, it exits no matter what, so if we wan to
 	 * reinstate these tests, we'll need to fork for each one. */
-	check_error_logging(errx_fn, 2, _EVENT_LOG_ERR,
+	check_error_logging(errx_fn, 2, EVENT_LOG_ERR,
 	    "Fatal error; too many kumquats (5)");
 	RESET();
 #endif
 
 	event_warnx("Far too many %s (%d)", "wombats", 99);
-	LOGEQ(_EVENT_LOG_WARN, "Far too many wombats (99)");
+	LOGEQ(EVENT_LOG_WARN, "Far too many wombats (99)");
 	RESET();
 
 	event_msgx("Connecting lime to coconut");
-	LOGEQ(_EVENT_LOG_MSG, "Connecting lime to coconut");
+	LOGEQ(EVENT_LOG_MSG, "Connecting lime to coconut");
 	RESET();
 
 	event_debug(("A millisecond passed! We should log that!"));
 #ifdef USE_DEBUG
-	LOGEQ(_EVENT_LOG_DEBUG, "A millisecond passed! We should log that!");
+	LOGEQ(EVENT_LOG_DEBUG, "A millisecond passed! We should log that!");
 #else
 	tt_int_op(logsev,==,0);
 	tt_ptr_op(logmsg,==,NULL);
@@ -561,13 +561,13 @@ test_evutil_log(void *ptr)
 	event_warn("Couldn't open %s", "/bad/file");
 	evutil_snprintf(buf, sizeof(buf),
 	    "Couldn't open /bad/file: %s",strerror(ENOENT));
-	LOGEQ(_EVENT_LOG_WARN,buf);
+	LOGEQ(EVENT_LOG_WARN,buf);
 	RESET();
 
 #ifdef CAN_CHECK_ERR
 	evutil_snprintf(buf, sizeof(buf),
 	    "Couldn't open /very/bad/file: %s",strerror(ENOENT));
-	check_error_logging(err_fn, 5, _EVENT_LOG_ERR, buf);
+	check_error_logging(err_fn, 5, EVENT_LOG_ERR, buf);
 	RESET();
 #endif
 
@@ -584,11 +584,11 @@ test_evutil_log(void *ptr)
 	errno = EAGAIN;
 #endif
 	event_sock_warn(fd, "Unhappy socket");
-	LOGEQ(_EVENT_LOG_WARN, buf);
+	LOGEQ(EVENT_LOG_WARN, buf);
 	RESET();
 
 #ifdef CAN_CHECK_ERR
-	check_error_logging(sock_err_fn, 20, _EVENT_LOG_ERR, buf);
+	check_error_logging(sock_err_fn, 20, EVENT_LOG_ERR, buf);
 	RESET();
 #endif
 
@@ -767,7 +767,7 @@ ai_find_by_protocol(struct evutil_addrinfo *ai, int protocol)
 
 
 int
-_test_ai_eq(const struct evutil_addrinfo *ai, const char *sockaddr_port,
+test_ai_eq_(const struct evutil_addrinfo *ai, const char *sockaddr_port,
     int socktype, int protocol, int line)
 {
 	struct sockaddr_storage ss;
@@ -836,8 +836,8 @@ test_evutil_rand(void *arg)
 	for (k=0;k<32;++k) {
 		/* Try a few different start and end points; try to catch
 		 * the various misaligned cases of arc4random_buf */
-		int startpoint = _evutil_weakrand() % 4;
-		int endpoint = 32 - (_evutil_weakrand() % 4);
+		int startpoint = evutil_weakrand_() % 4;
+		int endpoint = 32 - (evutil_weakrand_() % 4);
 
 		memset(buf2, 0, sizeof(buf2));
 

@@ -185,17 +185,17 @@ ev_token_bucket_cfg_free(struct ev_token_bucket_cfg *cfg)
 #define LOCK_GROUP(g) EVLOCK_LOCK((g)->lock, 0)
 #define UNLOCK_GROUP(g) EVLOCK_UNLOCK((g)->lock, 0)
 
-static int _bev_group_suspend_reading(struct bufferevent_rate_limit_group *g);
-static int _bev_group_suspend_writing(struct bufferevent_rate_limit_group *g);
-static void _bev_group_unsuspend_reading(struct bufferevent_rate_limit_group *g);
-static void _bev_group_unsuspend_writing(struct bufferevent_rate_limit_group *g);
+static int bev_group_suspend_reading_(struct bufferevent_rate_limit_group *g);
+static int bev_group_suspend_writing_(struct bufferevent_rate_limit_group *g);
+static void bev_group_unsuspend_reading_(struct bufferevent_rate_limit_group *g);
+static void bev_group_unsuspend_writing_(struct bufferevent_rate_limit_group *g);
 
 /** Helper: figure out the maximum amount we should write if is_write, or
     the maximum amount we should read if is_read.  Return that maximum, or
     0 if our bucket is wholly exhausted.
  */
 static inline ev_ssize_t
-_bufferevent_get_rlim_max(struct bufferevent_private *bev, int is_write)
+bufferevent_get_rlim_max_(struct bufferevent_private *bev, int is_write)
 {
 	/* needs lock on bev. */
 	ev_ssize_t max_so_far = is_write?bev->max_single_write:bev->max_single_read;
@@ -258,19 +258,19 @@ _bufferevent_get_rlim_max(struct bufferevent_private *bev, int is_write)
 }
 
 ev_ssize_t
-_bufferevent_get_read_max(struct bufferevent_private *bev)
+bufferevent_get_read_max_(struct bufferevent_private *bev)
 {
-	return _bufferevent_get_rlim_max(bev, 0);
+	return bufferevent_get_rlim_max_(bev, 0);
 }
 
 ev_ssize_t
-_bufferevent_get_write_max(struct bufferevent_private *bev)
+bufferevent_get_write_max_(struct bufferevent_private *bev)
 {
-	return _bufferevent_get_rlim_max(bev, 1);
+	return bufferevent_get_rlim_max_(bev, 1);
 }
 
 int
-_bufferevent_decrement_read_buckets(struct bufferevent_private *bev, ev_ssize_t bytes)
+bufferevent_decrement_read_buckets_(struct bufferevent_private *bev, ev_ssize_t bytes)
 {
 	/* XXXXX Make sure all users of this function check its return value */
 	int r = 0;
@@ -297,9 +297,9 @@ _bufferevent_decrement_read_buckets(struct bufferevent_private *bev, ev_ssize_t 
 		bev->rate_limiting->group->rate_limit.read_limit -= bytes;
 		bev->rate_limiting->group->total_read += bytes;
 		if (bev->rate_limiting->group->rate_limit.read_limit <= 0) {
-			_bev_group_suspend_reading(bev->rate_limiting->group);
+			bev_group_suspend_reading_(bev->rate_limiting->group);
 		} else if (bev->rate_limiting->group->read_suspended) {
-			_bev_group_unsuspend_reading(bev->rate_limiting->group);
+			bev_group_unsuspend_reading_(bev->rate_limiting->group);
 		}
 		UNLOCK_GROUP(bev->rate_limiting->group);
 	}
@@ -308,7 +308,7 @@ _bufferevent_decrement_read_buckets(struct bufferevent_private *bev, ev_ssize_t 
 }
 
 int
-_bufferevent_decrement_write_buckets(struct bufferevent_private *bev, ev_ssize_t bytes)
+bufferevent_decrement_write_buckets_(struct bufferevent_private *bev, ev_ssize_t bytes)
 {
 	/* XXXXX Make sure all users of this function check its return value */
 	int r = 0;
@@ -335,9 +335,9 @@ _bufferevent_decrement_write_buckets(struct bufferevent_private *bev, ev_ssize_t
 		bev->rate_limiting->group->rate_limit.write_limit -= bytes;
 		bev->rate_limiting->group->total_written += bytes;
 		if (bev->rate_limiting->group->rate_limit.write_limit <= 0) {
-			_bev_group_suspend_writing(bev->rate_limiting->group);
+			bev_group_suspend_writing_(bev->rate_limiting->group);
 		} else if (bev->rate_limiting->group->write_suspended) {
-			_bev_group_unsuspend_writing(bev->rate_limiting->group);
+			bev_group_unsuspend_writing_(bev->rate_limiting->group);
 		}
 		UNLOCK_GROUP(bev->rate_limiting->group);
 	}
@@ -347,7 +347,7 @@ _bufferevent_decrement_write_buckets(struct bufferevent_private *bev, ev_ssize_t
 
 /** Stop reading on every bufferevent in <b>g</b> */
 static int
-_bev_group_suspend_reading(struct bufferevent_rate_limit_group *g)
+bev_group_suspend_reading_(struct bufferevent_rate_limit_group *g)
 {
 	/* Needs group lock */
 	struct bufferevent_private *bev;
@@ -372,7 +372,7 @@ _bev_group_suspend_reading(struct bufferevent_rate_limit_group *g)
 
 /** Stop writing on every bufferevent in <b>g</b> */
 static int
-_bev_group_suspend_writing(struct bufferevent_rate_limit_group *g)
+bev_group_suspend_writing_(struct bufferevent_rate_limit_group *g)
 {
 	/* Needs group lock */
 	struct bufferevent_private *bev;
@@ -391,7 +391,7 @@ _bev_group_suspend_writing(struct bufferevent_rate_limit_group *g)
 /** Timer callback invoked on a single bufferevent with one or more exhausted
     buckets when they are ready to refill. */
 static void
-_bev_refill_callback(evutil_socket_t fd, short what, void *arg)
+bev_refill_callback_(evutil_socket_t fd, short what, void *arg)
 {
 	unsigned tick;
 	struct timeval now;
@@ -440,7 +440,7 @@ _bev_refill_callback(evutil_socket_t fd, short what, void *arg)
 
 /** Helper: grab a random element from a bufferevent group. */
 static struct bufferevent_private *
-_bev_group_random_element(struct bufferevent_rate_limit_group *group)
+bev_group_random_element_(struct bufferevent_rate_limit_group *group)
 {
 	int which;
 	struct bufferevent_private *bev;
@@ -452,7 +452,7 @@ _bev_group_random_element(struct bufferevent_rate_limit_group *group)
 
 	EVUTIL_ASSERT(! LIST_EMPTY(&group->members));
 
-	which = _evutil_weakrand() % group->n_members;
+	which = evutil_weakrand_() % group->n_members;
 
 	bev = LIST_FIRST(&group->members);
 	while (which--)
@@ -470,7 +470,7 @@ _bev_group_random_element(struct bufferevent_rate_limit_group *group)
  */
 #define FOREACH_RANDOM_ORDER(block)			\
 	do {						\
-		first = _bev_group_random_element(g);	\
+		first = bev_group_random_element_(g);	\
 		for (bev = first; bev != LIST_END(&g->members); \
 		    bev = LIST_NEXT(bev, rate_limiting->next_in_group)) { \
 			block ;					 \
@@ -482,7 +482,7 @@ _bev_group_random_element(struct bufferevent_rate_limit_group *group)
 	} while (0)
 
 static void
-_bev_group_unsuspend_reading(struct bufferevent_rate_limit_group *g)
+bev_group_unsuspend_reading_(struct bufferevent_rate_limit_group *g)
 {
 	int again = 0;
 	struct bufferevent_private *bev, *first;
@@ -501,7 +501,7 @@ _bev_group_unsuspend_reading(struct bufferevent_rate_limit_group *g)
 }
 
 static void
-_bev_group_unsuspend_writing(struct bufferevent_rate_limit_group *g)
+bev_group_unsuspend_writing_(struct bufferevent_rate_limit_group *g)
 {
 	int again = 0;
 	struct bufferevent_private *bev, *first;
@@ -523,7 +523,7 @@ _bev_group_unsuspend_writing(struct bufferevent_rate_limit_group *g)
     and unsuspend group members as needed.
  */
 static void
-_bev_group_refill_callback(evutil_socket_t fd, short what, void *arg)
+bev_group_refill_callback_(evutil_socket_t fd, short what, void *arg)
 {
 	struct bufferevent_rate_limit_group *g = arg;
 	unsigned tick;
@@ -538,11 +538,11 @@ _bev_group_refill_callback(evutil_socket_t fd, short what, void *arg)
 
 	if (g->pending_unsuspend_read ||
 	    (g->read_suspended && (g->rate_limit.read_limit >= g->min_share))) {
-		_bev_group_unsuspend_reading(g);
+		bev_group_unsuspend_reading_(g);
 	}
 	if (g->pending_unsuspend_write ||
 	    (g->write_suspended && (g->rate_limit.write_limit >= g->min_share))){
-		_bev_group_unsuspend_writing(g);
+		bev_group_unsuspend_writing_(g);
 	}
 
 	/* XXXX Rather than waiting to the next tick to unsuspend stuff
@@ -607,7 +607,7 @@ bufferevent_set_rate_limit(struct bufferevent *bev,
 		event_del(&rlim->refill_bucket_event);
 	}
 	evtimer_assign(&rlim->refill_bucket_event, bev->ev_base,
-	    _bev_refill_callback, bevp);
+	    bev_refill_callback_, bevp);
 
 	if (rlim->limit.read_limit > 0) {
 		bufferevent_unsuspend_read(bev, BEV_SUSPEND_BW);
@@ -652,7 +652,7 @@ bufferevent_rate_limit_group_new(struct event_base *base,
 	ev_token_bucket_init(&g->rate_limit, cfg, tick, 0);
 
 	event_assign(&g->master_refill_event, base, -1, EV_PERSIST,
-	    _bev_group_refill_callback, g);
+	    bev_group_refill_callback_, g);
 	/*XXXX handle event_add failure */
 	event_add(&g->master_refill_event, &cfg->tick_timeout);
 
@@ -743,7 +743,7 @@ bufferevent_add_to_rate_limit_group(struct bufferevent *bev,
 			return -1;
 		}
 		evtimer_assign(&rlim->refill_bucket_event, bev->ev_base,
-		    _bev_refill_callback, bevp);
+		    bev_refill_callback_, bevp);
 		bevp->rate_limiting = rlim;
 	}
 
@@ -811,7 +811,7 @@ bufferevent_remove_from_rate_limit_group_internal(struct bufferevent *bev,
  * === */
 
 /* Mostly you don't want to use this function from inside libevent;
- * _bufferevent_get_read_max() is more likely what you want*/
+ * bufferevent_get_read_max_() is more likely what you want*/
 ev_ssize_t
 bufferevent_get_read_limit(struct bufferevent *bev)
 {
@@ -830,7 +830,7 @@ bufferevent_get_read_limit(struct bufferevent *bev)
 }
 
 /* Mostly you don't want to use this function from inside libevent;
- * _bufferevent_get_write_max() is more likely what you want*/
+ * bufferevent_get_write_max_() is more likely what you want*/
 ev_ssize_t
 bufferevent_get_write_limit(struct bufferevent *bev)
 {
@@ -903,7 +903,7 @@ bufferevent_get_max_to_read(struct bufferevent *bev)
 {
 	ev_ssize_t r;
 	BEV_LOCK(bev);
-	r = _bufferevent_get_read_max(BEV_UPCAST(bev));
+	r = bufferevent_get_read_max_(BEV_UPCAST(bev));
 	BEV_UNLOCK(bev);
 	return r;
 }
@@ -913,14 +913,14 @@ bufferevent_get_max_to_write(struct bufferevent *bev)
 {
 	ev_ssize_t r;
 	BEV_LOCK(bev);
-	r = _bufferevent_get_write_max(BEV_UPCAST(bev));
+	r = bufferevent_get_write_max_(BEV_UPCAST(bev));
 	BEV_UNLOCK(bev);
 	return r;
 }
 
 
 /* Mostly you don't want to use this function from inside libevent;
- * _bufferevent_get_read_max() is more likely what you want*/
+ * bufferevent_get_read_max_() is more likely what you want*/
 ev_ssize_t
 bufferevent_rate_limit_group_get_read_limit(
 	struct bufferevent_rate_limit_group *grp)
@@ -933,7 +933,7 @@ bufferevent_rate_limit_group_get_read_limit(
 }
 
 /* Mostly you don't want to use this function from inside libevent;
- * _bufferevent_get_write_max() is more likely what you want. */
+ * bufferevent_get_write_max_() is more likely what you want. */
 ev_ssize_t
 bufferevent_rate_limit_group_get_write_limit(
 	struct bufferevent_rate_limit_group *grp)
@@ -1012,9 +1012,9 @@ bufferevent_rate_limit_group_decrement_read(
 	new_limit = (grp->rate_limit.read_limit -= decr);
 
 	if (old_limit > 0 && new_limit <= 0) {
-		_bev_group_suspend_reading(grp);
+		bev_group_suspend_reading_(grp);
 	} else if (old_limit <= 0 && new_limit > 0) {
-		_bev_group_unsuspend_reading(grp);
+		bev_group_unsuspend_reading_(grp);
 	}
 
 	UNLOCK_GROUP(grp);
@@ -1032,9 +1032,9 @@ bufferevent_rate_limit_group_decrement_write(
 	new_limit = (grp->rate_limit.write_limit -= decr);
 
 	if (old_limit > 0 && new_limit <= 0) {
-		_bev_group_suspend_writing(grp);
+		bev_group_suspend_writing_(grp);
 	} else if (old_limit <= 0 && new_limit > 0) {
-		_bev_group_unsuspend_writing(grp);
+		bev_group_unsuspend_writing_(grp);
 	}
 
 	UNLOCK_GROUP(grp);
@@ -1059,7 +1059,7 @@ bufferevent_rate_limit_group_reset_totals(struct bufferevent_rate_limit_group *g
 }
 
 int
-_bufferevent_ratelim_init(struct bufferevent_private *bev)
+bufferevent_ratelim_init_(struct bufferevent_private *bev)
 {
 	bev->rate_limiting = NULL;
 	bev->max_single_read = MAX_SINGLE_READ_DEFAULT;

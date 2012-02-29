@@ -115,9 +115,9 @@ void event_overlapped_init(struct event_overlapped *, iocp_callback cb);
 struct evbuffer *evbuffer_overlapped_new(evutil_socket_t fd);
 
 /** XXXX Document (nickm) */
-evutil_socket_t _evbuffer_overlapped_get_fd(struct evbuffer *buf);
+evutil_socket_t evbuffer_overlapped_get_fd_(struct evbuffer *buf);
 
-void _evbuffer_overlapped_set_fd(struct evbuffer *buf, evutil_socket_t fd);
+void evbuffer_overlapped_set_fd_(struct evbuffer *buf, evutil_socket_t fd);
 
 /** Start reading data onto the end of an overlapped evbuffer.
 

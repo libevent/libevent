@@ -100,7 +100,7 @@ const struct bufferevent_ops bufferevent_ops_filter = {
 	be_filter_enable,
 	be_filter_disable,
 	be_filter_destruct,
-	_bufferevent_generic_adj_timeouts,
+	bufferevent_generic_adj_timeouts_,
 	be_filter_flush,
 	be_filter_ctrl,
 };
@@ -204,7 +204,7 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	bufev_f->outbuf_cb = evbuffer_add_cb(downcast(bufev_f)->output,
 	   bufferevent_filtered_outbuf_cb, bufev_f);
 
-	_bufferevent_init_generic_timeout_cbs(downcast(bufev_f));
+	bufferevent_init_generic_timeout_cbs_(downcast(bufev_f));
 	bufferevent_incref(underlying);
 
 	bufferevent_enable(underlying, EV_READ|EV_WRITE);
@@ -243,7 +243,7 @@ be_filter_destruct(struct bufferevent *bev)
 		}
 	}
 
-	_bufferevent_del_generic_timeout_cbs(bev);
+	bufferevent_del_generic_timeout_cbs_(bev);
 }
 
 static int
@@ -372,7 +372,7 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
 		if (processed &&
 		    evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
 			/* call the write callback.*/
-			_bufferevent_run_writecb(bufev);
+			bufferevent_run_writecb_(bufev);
 
 			if (res == BEV_OK &&
 			    (bufev->enabled & EV_WRITE) &&
@@ -405,9 +405,9 @@ bufferevent_filtered_outbuf_cb(struct evbuffer *buf,
 		int processed_any = 0;
 		/* Somebody added more data to the output buffer. Try to
 		 * process it, if we should. */
-		_bufferevent_incref_and_lock(bev);
+		bufferevent_incref_and_lock_(bev);
 		be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
-		_bufferevent_decref_and_unlock(bev);
+		bufferevent_decref_and_unlock_(bev);
 	}
 }
 
@@ -421,7 +421,7 @@ be_filter_readcb(struct bufferevent *underlying, void *_me)
 	struct bufferevent *bufev = downcast(bevf);
 	int processed_any = 0;
 
-	_bufferevent_incref_and_lock(bufev);
+	bufferevent_incref_and_lock_(bufev);
 
 	if (bevf->got_eof)
 		state = BEV_FINISHED;
@@ -437,9 +437,9 @@ be_filter_readcb(struct bufferevent *underlying, void *_me)
 	 * force readcb calls as needed. */
 	if (processed_any &&
 	    evbuffer_get_length(bufev->input) >= bufev->wm_read.low)
-		_bufferevent_run_readcb(bufev);
+		bufferevent_run_readcb_(bufev);
 
-	_bufferevent_decref_and_unlock(bufev);
+	bufferevent_decref_and_unlock_(bufev);
 }
 
 /* Called when the underlying socket has drained enough that we can write to
@@ -451,9 +451,9 @@ be_filter_writecb(struct bufferevent *underlying, void *_me)
 	struct bufferevent *bev = downcast(bevf);
 	int processed_any = 0;
 
-	_bufferevent_incref_and_lock(bev);
+	bufferevent_incref_and_lock_(bev);
 	be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
-	_bufferevent_decref_and_unlock(bev);
+	bufferevent_decref_and_unlock_(bev);
 }
 
 /* Called when the underlying socket has given us an error */
@@ -463,10 +463,10 @@ be_filter_eventcb(struct bufferevent *underlying, short what, void *_me)
 	struct bufferevent_filtered *bevf = _me;
 	struct bufferevent *bev = downcast(bevf);
 
-	_bufferevent_incref_and_lock(bev);
+	bufferevent_incref_and_lock_(bev);
 	/* All we can really to is tell our own eventcb. */
-	_bufferevent_run_eventcb(bev, what);
-	_bufferevent_decref_and_unlock(bev);
+	bufferevent_run_eventcb_(bev, what);
+	bufferevent_decref_and_unlock_(bev);
 }
 
 static int
@@ -477,7 +477,7 @@ be_filter_flush(struct bufferevent *bufev,
 	int processed_any = 0;
 	EVUTIL_ASSERT(bevf);
 
-	_bufferevent_incref_and_lock(bufev);
+	bufferevent_incref_and_lock_(bufev);
 
 	if (iotype & EV_READ) {
 		be_filter_process_input(bevf, mode, &processed_any);
@@ -489,7 +489,7 @@ be_filter_flush(struct bufferevent *bufev,
 	/* XXX does this want to recursively call lower-level flushes? */
 	bufferevent_flush(bevf->underlying, iotype, mode);
 
-	_bufferevent_decref_and_unlock(bufev);
+	bufferevent_decref_and_unlock_(bufev);
 
 	return processed_any;
 }

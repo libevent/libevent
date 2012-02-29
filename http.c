@@ -1532,7 +1532,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		return (-1);
 
 	method_len = (uri - method) - 1;
-	type       = _EVHTTP_REQ_UNKNOWN;
+	type       = EVHTTP_REQ_UNKNOWN_;
 
 	/* First line */
 	switch (method_len) {
@@ -1639,7 +1639,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		break;
 	} /* switch */
 
-	if (type == _EVHTTP_REQ_UNKNOWN) {
+	if (type == EVHTTP_REQ_UNKNOWN_) {
 	        event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
                 /* No error yet; we'll give a better error later when
@@ -4480,20 +4480,20 @@ err:
 void
 evhttp_uri_free(struct evhttp_uri *uri)
 {
-#define _URI_FREE_STR(f)		\
+#define URI_FREE_STR_(f)		\
 	if (uri->f) {			\
 		mm_free(uri->f);		\
 	}
 
-	_URI_FREE_STR(scheme);
-	_URI_FREE_STR(userinfo);
-	_URI_FREE_STR(host);
-	_URI_FREE_STR(path);
-	_URI_FREE_STR(query);
-	_URI_FREE_STR(fragment);
+	URI_FREE_STR_(scheme);
+	URI_FREE_STR_(userinfo);
+	URI_FREE_STR_(host);
+	URI_FREE_STR_(path);
+	URI_FREE_STR_(query);
+	URI_FREE_STR_(fragment);
 
 	mm_free(uri);
-#undef _URI_FREE_STR
+#undef URI_FREE_STR_
 }
 
 char *
@@ -4503,7 +4503,7 @@ evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit)
 	size_t joined_size = 0;
 	char *output = NULL;
 
-#define _URI_ADD(f)	evbuffer_add(tmp, uri->f, strlen(uri->f))
+#define URI_ADD_(f)	evbuffer_add(tmp, uri->f, strlen(uri->f))
 
 	if (!uri || !buf || !limit)
 		return NULL;
@@ -4513,14 +4513,14 @@ evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit)
 		return NULL;
 
 	if (uri->scheme) {
-		_URI_ADD(scheme);
+		URI_ADD_(scheme);
 		evbuffer_add(tmp, ":", 1);
 	}
 	if (uri->host) {
 		evbuffer_add(tmp, "//", 2);
 		if (uri->userinfo)
 			evbuffer_add_printf(tmp,"%s@", uri->userinfo);
-		_URI_ADD(host);
+		URI_ADD_(host);
 		if (uri->port >= 0)
 			evbuffer_add_printf(tmp,":%d", uri->port);
 
@@ -4529,16 +4529,16 @@ evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit)
 	}
 
 	if (uri->path)
-		_URI_ADD(path);
+		URI_ADD_(path);
 
 	if (uri->query) {
 		evbuffer_add(tmp, "?", 1);
-		_URI_ADD(query);
+		URI_ADD_(query);
 	}
 
 	if (uri->fragment) {
 		evbuffer_add(tmp, "#", 1);
-		_URI_ADD(fragment);
+		URI_ADD_(fragment);
 	}
 
 	evbuffer_add(tmp, "\0", 1); /* NUL */
@@ -4557,7 +4557,7 @@ err:
 	evbuffer_free(tmp);
 
 	return output;
-#undef _URI_ADD
+#undef URI_ADD_
 }
 
 const char *
@@ -4596,7 +4596,7 @@ evhttp_uri_get_fragment(const struct evhttp_uri *uri)
 	return uri->fragment;
 }
 
-#define _URI_SET_STR(f) do {					\
+#define URI_SET_STR_(f) do {					\
 	if (uri->f)						\
 		mm_free(uri->f);				\
 	if (f) {						\
@@ -4615,7 +4615,7 @@ evhttp_uri_set_scheme(struct evhttp_uri *uri, const char *scheme)
 	if (scheme && !scheme_ok(scheme, scheme+strlen(scheme)))
 		return -1;
 
-	_URI_SET_STR(scheme);
+	URI_SET_STR_(scheme);
 	return 0;
 }
 int
@@ -4623,7 +4623,7 @@ evhttp_uri_set_userinfo(struct evhttp_uri *uri, const char *userinfo)
 {
 	if (userinfo && !userinfo_ok(userinfo, userinfo+strlen(userinfo)))
 		return -1;
-	_URI_SET_STR(userinfo);
+	URI_SET_STR_(userinfo);
 	return 0;
 }
 int
@@ -4639,7 +4639,7 @@ evhttp_uri_set_host(struct evhttp_uri *uri, const char *host)
 		}
 	}
 
-	_URI_SET_STR(host);
+	URI_SET_STR_(host);
 	return 0;
 }
 int
@@ -4659,7 +4659,7 @@ evhttp_uri_set_path(struct evhttp_uri *uri, const char *path)
 	if (path && end_of_cpath(path, PART_PATH, uri->flags) != path+strlen(path))
 		return -1;
 
-	_URI_SET_STR(path);
+	URI_SET_STR_(path);
 	return 0;
 }
 int
@@ -4667,7 +4667,7 @@ evhttp_uri_set_query(struct evhttp_uri *uri, const char *query)
 {
 	if (query && end_of_cpath(query, PART_QUERY, uri->flags) != query+strlen(query))
 		return -1;
-	_URI_SET_STR(query);
+	URI_SET_STR_(query);
 	return 0;
 }
 int
@@ -4675,6 +4675,6 @@ evhttp_uri_set_fragment(struct evhttp_uri *uri, const char *fragment)
 {
 	if (fragment && end_of_cpath(fragment, PART_FRAGMENT, uri->flags) != fragment+strlen(fragment))
 		return -1;
-	_URI_SET_STR(fragment);
+	URI_SET_STR_(fragment);
 	return 0;
 }

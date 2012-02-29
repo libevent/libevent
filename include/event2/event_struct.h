@@ -66,7 +66,7 @@ extern "C" {
 
 /* Fix so that people don't have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
-#define _EVENT_DEFINED_TQENTRY
+#define EVENT_DEFINED_TQENTRY_
 #define TAILQ_ENTRY(type)						\
 struct {								\
 	struct type *tqe_next;	/* next element */			\
@@ -75,7 +75,7 @@ struct {								\
 #endif /* !TAILQ_ENTRY */
 
 #ifndef TAILQ_HEAD
-#define _EVENT_DEFINED_TQHEAD
+#define EVENT_DEFINED_TQHEAD_
 #define TAILQ_HEAD(name, type)			\
 struct name {					\
 	struct type *tqh_first;			\
@@ -85,7 +85,7 @@ struct name {					\
 
 /* Fix so that people don't have to run with <sys/queue.h> */
 #ifndef LIST_ENTRY
-#define _EVENT_DEFINED_LISTENTRY
+#define EVENT_DEFINED_LISTENTRY_
 #define LIST_ENTRY(type)						\
 struct {								\
 	struct type *le_next;	/* next element */			\
@@ -120,7 +120,7 @@ struct event {
 			/* Allows deletes in callback */
 			short *ev_pncalls;
 		} ev_signal;
-	} _ev;
+	} ev_;
 
 	short ev_events;
 	short ev_res;		/* result passed to event callback */
@@ -136,21 +136,21 @@ struct event {
 
 TAILQ_HEAD (event_list, event);
 
-#ifdef _EVENT_DEFINED_TQENTRY
+#ifdef EVENT_DEFINED_TQENTRY_
 #undef TAILQ_ENTRY
 #endif
 
-#ifdef _EVENT_DEFINED_TQHEAD
+#ifdef EVENT_DEFINED_TQHEAD_
 #undef TAILQ_HEAD
 #endif
 
-#ifdef _EVENT_DEFINED_LISTENTRY
+#ifdef EVENT_DEFINED_LISTENTRY_
 #undef LIST_ENTRY
 struct event_dlist;
-#undef _EVENT_DEFINED_LISTENTRY
+#undef EVENT_DEFINED_LISTENTRY_
 #else
 LIST_HEAD (event_dlist, event);
-#endif /* _EVENT_DEFINED_LISTENTRY */
+#endif /* EVENT_DEFINED_LISTENTRY_ */
 
 #ifdef __cplusplus
 }

@@ -590,7 +590,7 @@ done:
 
 /* we just pause the rpc and continue it in the next callback */
 
-struct _rpc_hook_ctx {
+struct rpc_hook_ctx_ {
 	void *vbase;
 	void *ctx;
 };
@@ -600,7 +600,7 @@ static int hook_pause_cb_called=0;
 static void
 rpc_hook_pause_cb(evutil_socket_t fd, short what, void *arg)
 {
-	struct _rpc_hook_ctx *ctx = arg;
+	struct rpc_hook_ctx_ *ctx = arg;
 	++hook_pause_cb_called;
 	evrpc_resume_request(ctx->vbase, ctx->ctx, EVRPC_CONTINUE);
 	free(arg);
@@ -610,7 +610,7 @@ static int
 rpc_hook_pause(void *ctx, struct evhttp_request *req, struct evbuffer *evbuf,
     void *arg)
 {
-	struct _rpc_hook_ctx *tmp = malloc(sizeof(*tmp));
+	struct rpc_hook_ctx_ *tmp = malloc(sizeof(*tmp));
 	struct timeval tv;
 
 	assert(tmp != NULL);

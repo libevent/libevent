@@ -122,7 +122,7 @@ evrpc_add_hook(void *vbase,
     int (*cb)(void *, struct evhttp_request *, struct evbuffer *, void *),
     void *cb_arg)
 {
-	struct _evrpc_hooks *base = vbase;
+	struct evrpc_hooks_ *base = vbase;
 	struct evrpc_hook_list *head = NULL;
 	struct evrpc_hook *hook = NULL;
 	switch (hook_type) {
@@ -168,7 +168,7 @@ evrpc_remove_hook_internal(struct evrpc_hook_list *head, void *handle)
 int
 evrpc_remove_hook(void *vbase, enum EVRPC_HOOK_TYPE hook_type, void *handle)
 {
-	struct _evrpc_hooks *base = vbase;
+	struct evrpc_hooks_ *base = vbase;
 	struct evrpc_hook_list *head = NULL;
 	switch (hook_type) {
 	case EVRPC_INPUT:
@@ -766,7 +766,7 @@ static int
 evrpc_pause_request(void *vbase, void *ctx,
     void (*cb)(void *, enum EVRPC_HOOK_RESULT))
 {
-	struct _evrpc_hooks *base = vbase;
+	struct evrpc_hooks_ *base = vbase;
 	struct evrpc_hook_ctx *pause = mm_malloc(sizeof(*pause));
 	if (pause == NULL)
 		return (-1);
@@ -781,7 +781,7 @@ evrpc_pause_request(void *vbase, void *ctx,
 int
 evrpc_resume_request(void *vbase, void *ctx, enum EVRPC_HOOK_RESULT res)
 {
-	struct _evrpc_hooks *base = vbase;
+	struct evrpc_hooks_ *base = vbase;
 	struct evrpc_pause_list *head = &base->pause_requests;
 	struct evrpc_hook_ctx *pause;
 

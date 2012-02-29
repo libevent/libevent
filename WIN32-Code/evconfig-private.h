@@ -1,5 +1,5 @@
-#if !defined(_EVENT_EVCONFIG__PRIVATE_H) && !defined(__MINGW32__)
-#define _EVENT_EVCONFIG__PRIVATE_H
+#if !defined(EVENT_EVCONFIG__PRIVATE_H_) && !defined(__MINGW32__)
+#define EVENT_EVCONFIG__PRIVATE_H_
 
 /* Nothing to see here.  Move along. */
 

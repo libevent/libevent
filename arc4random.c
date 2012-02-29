@@ -438,9 +438,9 @@ ARC4RANDOM_EXPORT int
 arc4random_stir(void)
 {
 	int val;
-	_ARC4_LOCK();
+	ARC4_LOCK_();
 	val = arc4_stir();
-	_ARC4_UNLOCK();
+	ARC4_UNLOCK_();
 	return val;
 }
 #endif
@@ -450,7 +450,7 @@ ARC4RANDOM_EXPORT void
 arc4random_addrandom(const unsigned char *dat, int datlen)
 {
 	int j;
-	_ARC4_LOCK();
+	ARC4_LOCK_();
 	if (!rs_initialized)
 		arc4_stir();
 	for (j = 0; j < datlen; j += 256) {
@@ -460,7 +460,7 @@ arc4random_addrandom(const unsigned char *dat, int datlen)
 		 * crazy like passing us all the files in /var/log. */
 		arc4_addrandom(dat + j, datlen - j);
 	}
-	_ARC4_UNLOCK();
+	ARC4_UNLOCK_();
 }
 #endif
 
@@ -469,11 +469,11 @@ ARC4RANDOM_EXPORT ARC4RANDOM_UINT32
 arc4random(void)
 {
 	ARC4RANDOM_UINT32 val;
-	_ARC4_LOCK();
+	ARC4_LOCK_();
 	arc4_count -= 4;
 	arc4_stir_if_needed();
 	val = arc4_getword();
-	_ARC4_UNLOCK();
+	ARC4_UNLOCK_();
 	return val;
 }
 #endif
@@ -482,14 +482,14 @@ ARC4RANDOM_EXPORT void
 arc4random_buf(void *_buf, size_t n)
 {
 	unsigned char *buf = _buf;
-	_ARC4_LOCK();
+	ARC4_LOCK_();
 	arc4_stir_if_needed();
 	while (n--) {
 		if (--arc4_count <= 0)
 			arc4_stir();
 		buf[n] = arc4_getbyte();
 	}
-	_ARC4_UNLOCK();
+	ARC4_UNLOCK_();
 }
 
 #ifndef ARC4RANDOM_NOUNIFORM

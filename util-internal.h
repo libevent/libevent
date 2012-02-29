@@ -58,13 +58,13 @@ extern "C" {
 #endif
 
 /* A good no-op to use in macro definitions. */
-#define _EVUTIL_NIL_STMT ((void)0)
+#define EVUTIL_NIL_STMT_ ((void)0)
 /* A no-op that tricks the compiler into thinking a condition is used while
  * definitely not making any code for it.  Used to compile out asserts while
  * avoiding "unused variable" warnings.  The "!" forces the compiler to
  * do the sizeof() on an int, in case "condition" is a bitfield value.
  */
-#define _EVUTIL_NIL_CONDITION(condition) do { \
+#define EVUTIL_NIL_CONDITION_(condition) do { \
 	(void)sizeof(!(condition));  \
 } while(0)
 
@@ -254,7 +254,7 @@ int evutil_resolve(int family, const char *hostname, struct sockaddr *sa,
 
 const char *evutil_getenv(const char *name);
 
-long _evutil_weakrand(void);
+long evutil_weakrand_(void);
 
 /* Evaluates to the same boolean value as 'p', and hints to the compiler that
  * we expect this value to be false. */
@@ -266,13 +266,13 @@ long _evutil_weakrand(void);
 
 /* Replacement for assert() that calls event_errx on failure. */
 #ifdef NDEBUG
-#define EVUTIL_ASSERT(cond) _EVUTIL_NIL_CONDITION(cond)
+#define EVUTIL_ASSERT(cond) EVUTIL_NIL_CONDITION_(cond)
 #define EVUTIL_FAILURE_CHECK(cond) 0
 #else
 #define EVUTIL_ASSERT(cond)						\
 	do {								\
 		if (EVUTIL_UNLIKELY(!(cond))) {				\
-			event_errx(_EVENT_ERR_ABORT,			\
+			event_errx(EVENT_ERR_ABORT_,			\
 			    "%s:%d: Assertion %s failed in %s",		\
 			    __FILE__,__LINE__,#cond,__func__);		\
 			/* In case a user-supplied handler tries to */	\

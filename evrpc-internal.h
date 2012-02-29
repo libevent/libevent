@@ -56,7 +56,7 @@ TAILQ_HEAD(evrpc_hook_list, evrpc_hook);
 struct evrpc_hook_ctx;
 TAILQ_HEAD(evrpc_pause_list, evrpc_hook_ctx);
 
-struct _evrpc_hooks {
+struct evrpc_hooks_ {
 	/* hooks for processing outbound and inbound rpcs */
 	struct evrpc_hook_list in_hooks;
 	struct evrpc_hook_list out_hooks;
@@ -69,7 +69,7 @@ struct _evrpc_hooks {
 #define paused_requests common.pause_requests
 
 struct evrpc_base {
-	struct _evrpc_hooks common;
+	struct evrpc_hooks_ common;
 
 	/* the HTTP server under which we register our RPC calls */
 	struct evhttp* http_server;
@@ -83,7 +83,7 @@ void evrpc_reqstate_free(struct evrpc_req_generic* rpc_state);
 
 /* A pool for holding evhttp_connection objects */
 struct evrpc_pool {
-	struct _evrpc_hooks common;
+	struct evrpc_hooks_ common;
 
 	struct event_base *base;
 

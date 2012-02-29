@@ -97,7 +97,7 @@ const struct bufferevent_ops bufferevent_ops_socket = {
 };
 
 #define be_socket_add(ev, t)			\
-	_bufferevent_add_event((ev), (t))
+	bufferevent_add_event_((ev), (t))
 
 static void
 bufferevent_socket_outbuf_cb(struct evbuffer *buf,
@@ -131,7 +131,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	short what = BEV_EVENT_READING;
 	ev_ssize_t howmuch = -1, readmax=-1;
 
-	_bufferevent_incref_and_lock(bufev);
+	bufferevent_incref_and_lock_(bufev);
 
 	if (event == EV_TIMEOUT) {
 		what |= BEV_EVENT_TIMEOUT;
@@ -152,7 +152,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 			goto done;
 		}
 	}
-	readmax = _bufferevent_get_read_max(bufev_p);
+	readmax = bufferevent_get_read_max_(bufev_p);
 	if (howmuch < 0 || howmuch > readmax) /* The use of -1 for "unlimited"
 					       * uglifies this code. XXXX */
 		howmuch = readmax;
@@ -177,11 +177,11 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	if (res <= 0)
 		goto error;
 
-	_bufferevent_decrement_read_buckets(bufev_p, res);
+	bufferevent_decrement_read_buckets_(bufev_p, res);
 
 	/* Invoke the user callback - must always be called last */
 	if (evbuffer_get_length(input) >= bufev->wm_read.low)
-		_bufferevent_run_readcb(bufev);
+		bufferevent_run_readcb_(bufev);
 
 	goto done;
 
@@ -190,10 +190,10 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 
  error:
 	bufferevent_disable(bufev, EV_READ);
-	_bufferevent_run_eventcb(bufev, what);
+	bufferevent_run_eventcb_(bufev, what);
 
  done:
-	_bufferevent_decref_and_unlock(bufev);
+	bufferevent_decref_and_unlock_(bufev);
 }
 
 static void
@@ -207,7 +207,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	int connected = 0;
 	ev_ssize_t atmost = -1;
 
-	_bufferevent_incref_and_lock(bufev);
+	bufferevent_incref_and_lock_(bufev);
 
 	if (event == EV_TIMEOUT) {
 		what |= BEV_EVENT_TIMEOUT;
@@ -229,7 +229,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		if (c < 0) {
 			event_del(&bufev->ev_write);
 			event_del(&bufev->ev_read);
-			_bufferevent_run_eventcb(bufev, BEV_EVENT_ERROR);
+			bufferevent_run_eventcb_(bufev, BEV_EVENT_ERROR);
 			goto done;
 		} else {
 			connected = 1;
@@ -237,12 +237,12 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 			if (BEV_IS_ASYNC(bufev)) {
 				event_del(&bufev->ev_write);
 				bufferevent_async_set_connected(bufev);
-				_bufferevent_run_eventcb(bufev,
+				bufferevent_run_eventcb_(bufev,
 						BEV_EVENT_CONNECTED);
 				goto done;
 			}
 #endif
-			_bufferevent_run_eventcb(bufev,
+			bufferevent_run_eventcb_(bufev,
 					BEV_EVENT_CONNECTED);
 			if (!(bufev->enabled & EV_WRITE) ||
 			    bufev_p->write_suspended) {
@@ -252,7 +252,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		}
 	}
 
-	atmost = _bufferevent_get_write_max(bufev_p);
+	atmost = bufferevent_get_write_max_(bufev_p);
 
 	if (bufev_p->write_suspended)
 		goto done;
@@ -276,7 +276,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		if (res <= 0)
 			goto error;
 
-		_bufferevent_decrement_write_buckets(bufev_p, res);
+		bufferevent_decrement_write_buckets_(bufev_p, res);
 	}
 
 	if (evbuffer_get_length(bufev->output) == 0) {
@@ -289,7 +289,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	 */
 	if ((res || !connected) &&
 	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
-		_bufferevent_run_writecb(bufev);
+		bufferevent_run_writecb_(bufev);
 	}
 
 	goto done;
@@ -302,10 +302,10 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 
  error:
 	bufferevent_disable(bufev, EV_WRITE);
-	_bufferevent_run_eventcb(bufev, what);
+	bufferevent_run_eventcb_(bufev, what);
 
  done:
-	_bufferevent_decref_and_unlock(bufev);
+	bufferevent_decref_and_unlock_(bufev);
 }
 
 struct bufferevent *
@@ -356,7 +356,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	int result=-1;
 	int ownfd = 0;
 
-	_bufferevent_incref_and_lock(bev);
+	bufferevent_incref_and_lock_(bev);
 
 	if (!bufev_p)
 		goto done;
@@ -419,12 +419,12 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	goto done;
 
 freesock:
-	_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
+	bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR);
 	if (ownfd)
 		evutil_closesocket(fd);
 	/* do something about the error? */
 done:
-	_bufferevent_decref_and_unlock(bev);
+	bufferevent_decref_and_unlock_(bev);
 	return result;
 }
 
@@ -443,8 +443,8 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 
 	if (result != 0) {
 		bev_p->dns_error = result;
-		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
-		_bufferevent_decref_and_unlock(bev);
+		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR);
+		bufferevent_decref_and_unlock_(bev);
 		if (ai)
 			evutil_freeaddrinfo(ai);
 		return;
@@ -454,7 +454,7 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	/* XXX use this return value */
 	r = bufferevent_socket_connect(bev, ai->ai_addr, (int)ai->ai_addrlen);
 	(void)r;
-	_bufferevent_decref_and_unlock(bev);
+	bufferevent_decref_and_unlock_(bev);
 	evutil_freeaddrinfo(ai);
 }
 

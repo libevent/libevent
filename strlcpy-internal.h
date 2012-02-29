@@ -10,8 +10,8 @@ extern "C" {
 
 #ifndef EVENT__HAVE_STRLCPY
 #include <string.h>
-size_t _event_strlcpy(char *dst, const char *src, size_t siz);
-#define strlcpy _event_strlcpy
+size_t event_strlcpy_(char *dst, const char *src, size_t siz);
+#define strlcpy event_strlcpy_
 #endif
 
 #ifdef __cplusplus

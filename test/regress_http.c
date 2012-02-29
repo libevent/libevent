@@ -823,7 +823,7 @@ static void http_request_done(struct evhttp_request *, void *);
 static void http_request_empty_done(struct evhttp_request *, void *);
 
 static void
-_http_connection_test(struct basic_test_data *data, int persistent)
+http_connection_test_(struct basic_test_data *data, int persistent)
 {
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
@@ -907,12 +907,12 @@ _http_connection_test(struct basic_test_data *data, int persistent)
 static void
 http_connection_test(void *arg)
 {
-	_http_connection_test(arg, 0);
+	http_connection_test_(arg, 0);
 }
 static void
 http_persist_connection_test(void *arg)
 {
-	_http_connection_test(arg, 1);
+	http_connection_test_(arg, 1);
 }
 
 static struct regress_dns_server_table search_table[] = {
@@ -1814,7 +1814,7 @@ close_detect_cb(struct evhttp_request *req, void *arg)
 
 
 static void
-_http_close_detection(struct basic_test_data *data, int with_delay)
+http_close_detection_(struct basic_test_data *data, int with_delay)
 {
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
@@ -1866,12 +1866,12 @@ _http_close_detection(struct basic_test_data *data, int with_delay)
 static void
 http_close_detection_test(void *arg)
 {
-	_http_close_detection(arg, 0);
+	http_close_detection_(arg, 0);
 }
 static void
 http_close_detection_delay_test(void *arg)
 {
-	_http_close_detection(arg, 1);
+	http_close_detection_(arg, 1);
 }
 
 static void
@@ -2559,7 +2559,7 @@ http_incomplete_writecb(struct bufferevent *bev, void *arg)
 }
 
 static void
-_http_incomplete_test(struct basic_test_data *data, int use_timeout)
+http_incomplete_test_(struct basic_test_data *data, int use_timeout)
 {
 	struct bufferevent *bev;
 	evutil_socket_t fd;
@@ -2616,12 +2616,12 @@ _http_incomplete_test(struct basic_test_data *data, int use_timeout)
 static void
 http_incomplete_test(void *arg)
 {
-	_http_incomplete_test(arg, 0);
+	http_incomplete_test_(arg, 0);
 }
 static void
 http_incomplete_timeout_test(void *arg)
 {
-	_http_incomplete_test(arg, 1);
+	http_incomplete_test_(arg, 1);
 }
 
 /*
@@ -2910,7 +2910,7 @@ http_stream_in_done(struct evhttp_request *req, void *arg)
  * Makes a request and reads the response in chunks.
  */
 static void
-_http_stream_in_test(struct basic_test_data *data, char const *url,
+http_stream_in_test_(struct basic_test_data *data, char const *url,
     size_t expected_len, char const *expected)
 {
 	struct evhttp_connection *evcon;
@@ -2958,10 +2958,10 @@ _http_stream_in_test(struct basic_test_data *data, char const *url,
 static void
 http_stream_in_test(void *arg)
 {
-	_http_stream_in_test(arg, "/chunked", 13 + 18 + 8,
+	http_stream_in_test_(arg, "/chunked", 13 + 18 + 8,
 	    "This is funnybut not hilarious.bwv 1052");
 
-	_http_stream_in_test(arg, "/test", strlen(BASIC_REQUEST_BODY),
+	http_stream_in_test_(arg, "/test", strlen(BASIC_REQUEST_BODY),
 	    BASIC_REQUEST_BODY);
 }
 
