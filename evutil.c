@@ -76,8 +76,8 @@
 #endif
 #ifndef EVENT__HAVE_GETTIMEOFDAY
 #include <sys/timeb.h>
-#include <time.h>
 #endif
+#include <time.h>
 #include <sys/stat.h>
 #ifdef EVENT__HAVE_IFADDRS_H
 #include <ifaddrs.h>
@@ -2359,7 +2359,7 @@ evutil_usleep_(const struct timeval *tv)
 		long msec = evutil_tv_to_msec_(tv);
 		Sleep((DWORD)msec);
 	}
-#elif defined(EVENT__HAVE_NANOSLEEP_XXX)
+#elif defined(EVENT__HAVE_NANOSLEEP)
 	{
 		struct timespec ts;
 		ts.tv_sec = tv->tv_sec;
