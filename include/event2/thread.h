@@ -69,7 +69,7 @@ extern "C" {
 #define EVTHREAD_TRY    0x10
 /**@}*/
 
-#if !defined(EVENT__DISABLE_THREAD_SUPPORT) || defined(_EVENT_IN_DOXYGEN)
+#if !defined(EVENT__DISABLE_THREAD_SUPPORT) || defined(EVENT_IN_DOXYGEN_)
 
 #define EVTHREAD_LOCK_API_VERSION 1
 
@@ -187,7 +187,7 @@ int evthread_set_condition_callbacks(
 void evthread_set_id_callback(
     unsigned long (*id_fn)(void));
 
-#if (defined(_WIN32) && !defined(EVENT__DISABLE_THREAD_SUPPORT)) || defined(_EVENT_IN_DOXYGEN)
+#if (defined(_WIN32) && !defined(EVENT__DISABLE_THREAD_SUPPORT)) || defined(EVENT_IN_DOXYGEN_)
 /** Sets up Libevent for use with Windows builtin locking and thread ID
     functions.  Unavailable if Libevent is not built for Windows.
 
@@ -199,7 +199,7 @@ int evthread_use_windows_threads(void);
 #define EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED 1
 #endif
 
-#if defined(EVENT__HAVE_PTHREADS) || defined(_EVENT_IN_DOXYGEN)
+#if defined(EVENT__HAVE_PTHREADS) || defined(EVENT_IN_DOXYGEN_)
 /** Sets up Libevent for use with Pthreads locking and thread ID functions.
     Unavailable if Libevent is not build for use with pthreads.  Requires
     libraries to link against Libevent_pthreads as well as Libevent.

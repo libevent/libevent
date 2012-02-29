@@ -109,7 +109,7 @@ extern "C" {
    @see event2/bufferevent.h
  */
 struct bufferevent
-#ifdef _EVENT_IN_DOXYGEN
+#ifdef EVENT_IN_DOXYGEN_
 {}
 #endif
 ;

@@ -115,7 +115,7 @@ extern "C" {
 #elif EVENT__SIZEOF_LONG == 8
 #define ev_uint64_t unsigned long
 #define ev_int64_t long
-#elif defined(_EVENT_IN_DOXYGEN)
+#elif defined(EVENT_IN_DOXYGEN_)
 #define ev_uint64_t ...
 #define ev_int64_t ...
 #else
@@ -134,7 +134,7 @@ extern "C" {
 #elif EVENT__SIZEOF_INT == 4
 #define ev_uint32_t unsigned int
 #define ev_int32_t signed int
-#elif defined(_EVENT_IN_DOXYGEN)
+#elif defined(EVENT_IN_DOXYGEN_)
 #define ev_uint32_t ...
 #define ev_int32_t ...
 #else
@@ -153,7 +153,7 @@ extern "C" {
 #elif EVENT__SIZEOF_SHORT == 2
 #define ev_uint16_t unsigned short
 #define ev_int16_t  signed short
-#elif defined(_EVENT_IN_DOXYGEN)
+#elif defined(EVENT_IN_DOXYGEN_)
 #define ev_uint16_t ...
 #define ev_int16_t ...
 #else
@@ -163,7 +163,7 @@ extern "C" {
 #ifdef EVENT__HAVE_UINT8_T
 #define ev_uint8_t uint8_t
 #define ev_int8_t int8_t
-#elif defined(_EVENT_IN_DOXYGEN)
+#elif defined(EVENT_IN_DOXYGEN_)
 #define ev_uint8_t ...
 #define ev_int8_t ...
 #else
@@ -180,7 +180,7 @@ extern "C" {
 #elif EVENT__SIZEOF_VOID_P <= 8
 #define ev_uintptr_t ev_uint64_t
 #define ev_intptr_t ev_int64_t
-#elif defined(_EVENT_IN_DOXYGEN)
+#elif defined(EVENT_IN_DOXYGEN_)
 #define ev_uintptr_t ...
 #define ev_intptr_t ...
 #else
@@ -206,7 +206,7 @@ extern "C" {
 #define ev_off_t ev_int64_t
 #elif EVENT__SIZEOF_OFF_T == 4
 #define ev_off_t ev_int32_t
-#elif defined(_EVENT_IN_DOXYGEN)
+#elif defined(EVENT_IN_DOXYGEN_)
 #define ev_off_t ...
 #else
 #define ev_off_t off_t
@@ -253,7 +253,7 @@ extern "C" {
 #elif EVENT__SIZEOF_SIZE_T == 4
 #define EV_SIZE_MAX EV_UINT32_MAX
 #define EV_SSIZE_MAX EV_INT32_MAX
-#elif defined(_EVENT_IN_DOXYGEN)
+#elif defined(EVENT_IN_DOXYGEN_)
 #define EV_SIZE_MAX ...
 #define EV_SSIZE_MAX ...
 #else
@@ -359,7 +359,7 @@ int evutil_make_tcp_listen_socket_deferred(evutil_socket_t sock);
 int evutil_socket_geterror(evutil_socket_t sock);
 /** Convert a socket error to a string. */
 const char *evutil_socket_error_to_string(int errcode);
-#elif defined(_EVENT_IN_DOXYGEN)
+#elif defined(EVENT_IN_DOXYGEN_)
 /**
    @name Socket error functions
 

@@ -52,7 +52,7 @@ enum bufferevent_ssl_state {
 	BUFFEREVENT_SSL_ACCEPTING = 2
 };
 
-#if defined(EVENT__HAVE_OPENSSL) || defined(_EVENT_IN_DOXYGEN)
+#if defined(EVENT__HAVE_OPENSSL) || defined(EVENT_IN_DOXYGEN_)
 /**
    Create a new SSL bufferevent to send its data over another bufferevent.
 

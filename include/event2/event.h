@@ -211,7 +211,7 @@ extern "C" {
  *    event_base_new_with_config()
  */
 struct event_base
-#ifdef _EVENT_IN_DOXYGEN
+#ifdef EVENT_IN_DOXYGEN_
 {/*Empty body so that doxygen will generate documentation here.*/}
 #endif
 ;
@@ -270,7 +270,7 @@ struct event_base
  *    event_priority_set()
  */
 struct event
-#ifdef _EVENT_IN_DOXYGEN
+#ifdef EVENT_IN_DOXYGEN_
 {/*Empty body so that doxygen will generate documentation here.*/}
 #endif
 ;
@@ -289,7 +289,7 @@ struct event
  *   event_config_set_flag(), event_config_set_num_cpus_hint()
  */
 struct event_config
-#ifdef _EVENT_IN_DOXYGEN
+#ifdef EVENT_IN_DOXYGEN_
 {/*Empty body so that doxygen will generate documentation here.*/}
 #endif
 ;
@@ -1214,7 +1214,7 @@ int	event_priority_set(struct event *, int);
 const struct timeval *event_base_init_common_timeout(struct event_base *base,
     const struct timeval *duration);
 
-#if !defined(EVENT__DISABLE_MM_REPLACEMENT) || defined(_EVENT_IN_DOXYGEN)
+#if !defined(EVENT__DISABLE_MM_REPLACEMENT) || defined(EVENT_IN_DOXYGEN_)
 /**
  Override the functions that Libevent uses for memory management.
 

@@ -93,7 +93,7 @@ extern "C" {
    @see event2/event.h for more information
 */
 struct evbuffer
-#ifdef _EVENT_IN_DOXYGEN
+#ifdef EVENT_IN_DOXYGEN_
 {}
 #endif
 ;
