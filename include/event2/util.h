@@ -224,7 +224,7 @@ extern "C" {
    @name Limits for integer types
 
    These macros hold the largest or smallest values possible for the
-   ev_[u]int*t_ types.
+   ev_[u]int*_t types.
 
    @{
 */
