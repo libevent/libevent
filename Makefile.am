@@ -173,8 +173,8 @@ BUILT_SOURCES = ./include/event2/event-config.h
 	echo ' *' >> $@
 	echo ' * Do not rely on macros in this file existing in later versions.'>> $@
 	echo ' */' >> $@
-	echo '#ifndef _EVENT2_EVENT_CONFIG_H_' >> $@
-	echo '#define _EVENT2_EVENT_CONFIG_H_' >> $@
+	echo '#ifndef EVENT2_EVENT_CONFIG_H_INCLUDED_' >> $@
+	echo '#define EVENT2_EVENT_CONFIG_H_INCLUDED_' >> $@
 
 	sed -e 's/#define /#define EVENT__/' \
 	    -e 's/#undef /#undef EVENT__/' \
