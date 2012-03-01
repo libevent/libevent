@@ -39,6 +39,9 @@
 #ifdef EVENT__HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
 #endif
+#ifdef EVENT__HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
 
 #include "event2/event.h"
 #include "event2/bufferevent.h"
