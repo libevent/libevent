@@ -5356,7 +5356,7 @@ static void
 evdns_ttl_expired(int result, short what, void *arg)
 {
 	struct evdns_cache *cache = arg;
-	log(EVDNS_LOG_DEBUG, "Expiring cache for %s\n", cache->name);
+	log(EVDNS_LOG_DEBUG, "Expiring cache for %s", cache->name);
 	EVDNS_LOCK(cache->base);
 	evdns_cache_free(cache);
 	EVDNS_UNLOCK(cache->base);
@@ -5369,12 +5369,12 @@ evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_add
 	struct evdns_cache *cache;
 	struct evdns_cache find;
 
-	log(EVDNS_LOG_DEBUG, "Writing cache for %s\n", nodename);
+	log(EVDNS_LOG_DEBUG, "Writing cache for %s", nodename);
 	EVDNS_LOCK(dns_base);
 	find.name = (char *)nodename;
 	cache = SPLAY_FIND(evdns_tree, &dns_base->cache_root, &find);
 	if (cache) {
-		log(EVDNS_LOG_DEBUG, "Ejecting old cache for %s\n", nodename);
+		log(EVDNS_LOG_DEBUG, "Ejecting old cache for %s", nodename);
 		evdns_cache_free(cache);
 	}
 	cache = mm_malloc(sizeof(struct evdns_cache));
@@ -5396,12 +5396,12 @@ evdns_cache_lookup(struct evdns_base *dns_base, const char *nodename)
 	struct evdns_cache find;
 	struct evutil_addrinfo *ai = NULL;
 
-	log(EVDNS_LOG_DEBUG, "Reading cache for %s\n", nodename);
+	log(EVDNS_LOG_DEBUG, "Reading cache for %s", nodename);
 	EVDNS_LOCK(dns_base);
 	find.name = (char *)nodename;
 	cache = SPLAY_FIND(evdns_tree, &dns_base->cache_root, &find);
 	if (cache) {
-		log(EVDNS_LOG_DEBUG, "Cache found for %s\n", nodename);
+		log(EVDNS_LOG_DEBUG, "Cache found for %s", nodename);
 		ai = evutil_dupe_addrinfo_(cache->ai);
 	}
 	EVDNS_UNLOCK(dns_base);
