@@ -83,6 +83,7 @@
 #define _WIN32_IE 0x400
 #endif
 #include <shlobj.h>
+#define strcasecmp strcmpi
 #endif
 
 #include "event2/dns.h"
