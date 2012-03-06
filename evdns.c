@@ -5390,23 +5390,50 @@ evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_add
 	EVDNS_UNLOCK(dns_base);
 }
 
-static struct evutil_addrinfo*
-evdns_cache_lookup(struct evdns_base *dns_base, const char *nodename)
+static int
+evdns_cache_lookup(struct evdns_base *base,
+    const char *nodename, struct evutil_addrinfo *hints, ev_uint16_t port,
+    struct evutil_addrinfo **res)
 {
+	int n_found = 0;
 	struct evdns_cache *cache;
 	struct evdns_cache find;
-	struct evutil_addrinfo *ai = NULL;
+	struct evutil_addrinfo *ai=NULL;
+	int f = hints->ai_family;
 
-	log(EVDNS_LOG_DEBUG, "Reading cache for %s", nodename);
-	EVDNS_LOCK(dns_base);
+	log(EVDNS_LOG_DEBUG, "Looking in cache for %s", nodename);
+	EVDNS_LOCK(base);
 	find.name = (char *)nodename;
-	cache = SPLAY_FIND(evdns_tree, &dns_base->cache_root, &find);
+	cache = SPLAY_FIND(evdns_tree, &base->cache_root, &find);
 	if (cache) {
-		log(EVDNS_LOG_DEBUG, "Cache found for %s", nodename);
-		ai = evutil_dupe_addrinfo_(cache->ai);
+		struct evutil_addrinfo *e = cache->ai;
+		for (; e; e = e->ai_next) {
+			struct evutil_addrinfo *ai_new;
+			++n_found;
+			if ((e->ai_addr->sa_family == AF_INET && f == PF_INET6) ||
+				(e->ai_addr->sa_family == AF_INET6 && f == PF_INET))
+				continue;
+			ai_new = evutil_new_addrinfo_(e->ai_addr, e->ai_addrlen, hints);
+			if (!ai_new) {
+				n_found = 0;
+				goto out;
+			}
+			sockaddr_setport(ai_new->ai_addr, port);
+			ai = evutil_addrinfo_append_(ai, ai_new);
+		}
 	}
-	EVDNS_UNLOCK(dns_base);
-	return ai;
+	EVDNS_UNLOCK(base);
+out:
+	if (n_found) {
+		/* Note that we return an empty answer if we found entries for
+		 * this hostname but none were of the right address type. */
+		*res = ai;
+		return 0;
+	} else {
+		if (ai)
+			evutil_freeaddrinfo(ai);
+		return -1;
+	}
 }
 
 static void
@@ -5723,8 +5750,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	}
 
 	/* See if we have it in the cache */
-	res = evdns_cache_lookup(dns_base, nodename);
-	if (res) {
+	if (!evdns_cache_lookup(dns_base, nodename, &hints, port, &res)) {
 		cb(0, res, arg);
 		return NULL;
 	}
