@@ -48,7 +48,7 @@ class Struct:
         self._name = name
         self._entries = []
         self._tags = {}
-        print >>sys.stderr, '  Created struct: %s' % name
+        print '  Created struct: %s' % name
 
     def AddEntry(self, entry):
         if self._tags.has_key(entry.Tag()):
@@ -58,7 +58,7 @@ class Struct:
                                     self._tags[entry.Tag()], line_count))
         self._entries.append(entry)
         self._tags[entry.Tag()] = entry.Name()
-        print >>sys.stderr, '    Added entry: %s' % entry.Name()
+        print '    Added entry: %s' % entry.Name()
 
     def Name(self):
         return self._name
@@ -1668,13 +1668,13 @@ class CommandLine:
         impl_file = self.impl_file
         factory = self.factory
 
-        print >>sys.stderr, 'Reading \"%s\"' % filename
+        print 'Reading \"%s\"' % filename
 
         fp = open(filename, 'r')
         entities = Parse(factory, fp)
         fp.close()
 
-        print >>sys.stderr, '... creating "%s"' % header_file
+        print '... creating "%s"' % header_file
         header_fp = open(header_file, 'w')
         print >>header_fp, factory.HeaderPreamble(filename)
 
@@ -1690,7 +1690,7 @@ class CommandLine:
         print >>header_fp, factory.HeaderPostamble(filename)
         header_fp.close()
 
-        print >>sys.stderr, '... creating "%s"' % impl_file
+        print '... creating "%s"' % impl_file
         impl_fp = open(impl_file, 'w')
         print >>impl_fp, factory.BodyPreamble(filename, header_file)
         for entry in entities:
