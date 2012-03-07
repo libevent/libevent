@@ -5407,7 +5407,7 @@ evdns_cache_lookup(struct evdns_base *base,
 	cache = SPLAY_FIND(evdns_tree, &base->cache_root, &find);
 	if (cache) {
 		struct evutil_addrinfo *e = cache->ai;
-		log(EVDNS_LOG_DEBUG, "Found cache for %s", cache->nodename);
+		log(EVDNS_LOG_DEBUG, "Found cache for %s", cache->name);
 		for (; e; e = e->ai_next) {
 			struct evutil_addrinfo *ai_new;
 			++n_found;
