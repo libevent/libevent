@@ -894,7 +894,7 @@ INTERNALS AND CODE CLEANUPS
  o Enable branch-prediction hints with EVUTIL_UNLIKELY. (eaaf27f)
  o Refactor code from evdns into a new internal "read a file" function. (0f7144f)
  o Comestic changes in evconnlistener_new(), new_accepting_socket(), accepted_socket_invoke_user_cb() and iocp_listener_enable(). (510ab6b Jardel Weyrich)
- o Add unit-test for bad_request bug fixed in 1.4 recently. (6cc79c6 Pavel Plesov) o Add a comment on evthread_enable_lock_debuging. (b9f43b2)
+ o Add unit-test for bad_request bug fixed in 1.4 recently. (6cc79c6 Pavel Plesov) o Add a comment on evthread_enable_lock_debugging. (b9f43b2)
  o Fix test.sh on shells without echo -n (94131e9)
  o More unit tests for getaddrinfo_async: v4timeout and cancel. (a334b31)
  o Make http use evconnlistener. (ec34533)

@@ -387,7 +387,7 @@ main(int argc, const char **argv)
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	if (!getenv("EVENT_NO_DEBUG_LOCKS"))
-		evthread_enable_lock_debuging();
+		evthread_enable_lock_debugging();
 #endif
 
 	if (tinytest_main(argc,argv,testgroups))
