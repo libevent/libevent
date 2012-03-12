@@ -24,7 +24,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include <event.h>
+#include <event2/event.h>
 
 #ifdef EVENT____func__
 #define __func__ EVENT____func__
@@ -37,7 +37,7 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct event *signal = arg;
 
-	printf("%s: got signal %d\n", __func__, EVENT_SIGNAL(signal));
+	printf("%s: got signal %d\n", __func__, event_get_signal(signal));
 
 	if (called >= 2)
 		event_del(signal);
@@ -48,7 +48,7 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 int
 main(int argc, char **argv)
 {
-	struct event signal_int;
+	struct event *signal_int;
 	struct event_base* base;
 #ifdef _WIN32
 	WORD wVersionRequested;
@@ -64,10 +64,9 @@ main(int argc, char **argv)
 	base = event_base_new();
 
 	/* Initalize one event */
-	event_assign(&signal_int, base, SIGINT, EV_SIGNAL|EV_PERSIST, signal_cb,
-	    &signal_int);
+	signal_int = evsignal_new(base, SIGINT, signal_cb, event_self_cbarg());
 
-	event_add(&signal_int, NULL);
+	event_add(signal_int, NULL);
 
 	event_base_dispatch(base);
 	event_base_free(base);
