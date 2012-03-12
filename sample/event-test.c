@@ -1,7 +1,6 @@
 /*
  * XXX This sample code was once meant to show how to use the basic Libevent
- * interfaces, but it never worked on non-Unix platforms, and some of the
- * interfaces have changed since it was first written.  It should probably
+ * interfaces, but it never worked on non-Unix platforms.  It should probably
  * be removed or replaced with something better.
  *
  * Compile with:
@@ -26,7 +25,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include <event.h>
+#include <event2/event.h>
 
 static void
 fifo_read(int fd, short event, void *arg)
@@ -37,9 +36,6 @@ fifo_read(int fd, short event, void *arg)
 #ifdef _WIN32
 	DWORD dwBytesRead;
 #endif
-
-	/* Reschedule this event */
-	event_add(ev, NULL);
 
 	fprintf(stderr, "fifo_read called with fd: %d, event: %d, arg: %p\n",
 		fd, event, arg);
@@ -59,21 +55,27 @@ fifo_read(int fd, short event, void *arg)
 
 	if (len == -1) {
 		perror("read");
+		event_del(ev);
 		return;
 	} else if (len == 0) {
 		fprintf(stderr, "Connection closed\n");
+		event_del(ev);
 		return;
 	}
 
 	buf[len] = '\0';
 #endif
 	fprintf(stdout, "Read: %s\n", buf);
+
+	/* Reschedule this event */
+	event_add(ev, NULL);
 }
 
 int
 main(int argc, char **argv)
 {
-	struct event evfifo;
+	struct event *evfifo;
+	struct event_base* base;
 #ifdef _WIN32
 	HANDLE socket;
 	/* Open a file. */
@@ -107,12 +109,7 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	/* Linux pipes are broken, we need O_RDWR instead of O_RDONLY */
-#ifdef __linux
-	socket = open(fifo, O_RDWR | O_NONBLOCK, 0);
-#else
 	socket = open(fifo, O_RDONLY | O_NONBLOCK, 0);
-#endif
 
 	if (socket == -1) {
 		perror("open");
@@ -122,21 +119,26 @@ main(int argc, char **argv)
 	fprintf(stderr, "Write data to %s\n", fifo);
 #endif
 	/* Initalize the event library */
-	event_init();
+	base = event_base_new();
 
 	/* Initalize one event */
 #ifdef _WIN32
-	event_set(&evfifo, (int)socket, EV_READ, fifo_read, &evfifo);
+	evfifo = event_new(base, (int)socket, EV_READ, fifo_read,
+                           event_self_cbarg());
 #else
-	event_set(&evfifo, socket, EV_READ, fifo_read, &evfifo);
+	evfifo = event_new(base, socket, EV_READ, fifo_read,
+                           event_self_cbarg());
 #endif
 
 	/* Add it to the active events, without a timeout */
-	event_add(&evfifo, NULL);
+	event_add(evfifo, NULL);
 
-	event_dispatch();
+	event_base_dispatch(base);
+	event_base_free(base);
 #ifdef _WIN32
 	CloseHandle(socket);
+#else
+        close(socket);
 #endif
 	return (0);
 }
