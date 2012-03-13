@@ -1237,7 +1237,7 @@ event_selfarg_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 static void
-test_event_selfarg(void *ptr)
+test_event_new_selfarg(void *ptr)
 {
 	struct basic_test_data *data = ptr;
 	struct event_base *base = data->base;
@@ -1248,6 +1248,19 @@ test_event_selfarg(void *ptr)
 	event_base_dispatch(base);
 
 	event_free(ev);
+}
+
+static void
+test_event_assign_selfarg(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event ev;
+
+	event_assign(&ev, base, -1, EV_READ, event_selfarg_cb,
+                     event_self_cbarg());
+	event_active(&ev, EV_READ, 1);
+	event_base_dispatch(base);
 }
 
 static void
@@ -2358,7 +2371,8 @@ struct testcase_t main_testcases[] = {
 	BASIC(free_active_base, TT_FORK|TT_NEED_SOCKETPAIR),
 
 	BASIC(manipulate_active_events, TT_FORK|TT_NEED_BASE),
-	BASIC(event_selfarg, TT_FORK|TT_NEED_BASE),
+	BASIC(event_new_selfarg, TT_FORK|TT_NEED_BASE),
+	BASIC(event_assign_selfarg, TT_FORK|TT_NEED_BASE),
 
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
