@@ -846,6 +846,30 @@ int event_base_got_break(struct event_base *);
 typedef void (*event_callback_fn)(evutil_socket_t, short, void *);
 
 /**
+  Return a value used to specify that the event itself must be used as the callback argument.
+
+  The function event_new() takes a callback argument which is passed
+  to the event's callback function. To specify that the argument to be
+  passed to the callback function is the event that event_new() returns,
+  pass in the return value of event_self_cbarg() as the callback argument
+  for event_new().
+
+  For example:
+  <pre>
+      struct event *ev = event_new(base, sock, events, callback, %event_self_cbarg());
+  </pre>
+
+  For consistency with event_new(), it is possible to pass the return value
+  of this function as the callback argument for event_assign() &ndash; this
+  achieves the same result as passing the event in directly.
+
+  @return a value to be passed as the callback argument to event_new() or
+  event_assign().
+  @see event_new(), event_assign()
+ */
+void *event_self_cbarg(void);
+
+/**
   Allocate and asssign a new event structure, ready to be added.
 
   The function event_new() returns a new event that can be used in

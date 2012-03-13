@@ -125,6 +125,8 @@ struct event_base *event_global_current_base_ = NULL;
 
 static int use_monotonic;
 
+static void *event_self_cbarg_ptr_ = NULL;
+
 /* Prototypes */
 static inline int event_add_internal(struct event *ev,
     const struct timeval *tv, int tv_is_absolute);
@@ -1844,6 +1846,8 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 {
 	if (!base)
 		base = current_base;
+	if (arg == &event_self_cbarg_ptr_)
+		arg = ev;
 
 	event_debug_assert_not_added_(ev);
 
@@ -1910,6 +1914,12 @@ event_set(struct event *ev, evutil_socket_t fd, short events,
 	EVUTIL_ASSERT(r == 0);
 }
 
+void *
+event_self_cbarg(void)
+{
+	return &event_self_cbarg_ptr_;
+}
+
 struct event *
 event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(evutil_socket_t, short, void *), void *arg)
 {
@@ -1917,6 +1927,8 @@ event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(
 	ev = mm_malloc(sizeof(struct event));
 	if (ev == NULL)
 		return (NULL);
+	if (arg == &event_self_cbarg_ptr_)
+		arg = ev;
 	if (event_assign(ev, base, fd, events, cb, arg) < 0) {
 		mm_free(ev);
 		return (NULL);
