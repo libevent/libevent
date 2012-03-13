@@ -859,8 +859,13 @@ typedef void (*event_callback_fn)(evutil_socket_t, short, void *);
       struct event *ev = event_new(base, sock, events, callback, %event_self_cbarg());
   </pre>
 
-  @return a value to be passed as the callback argument to event_new().
-  @see event_new()
+  For consistency with event_new(), it is possible to pass the return value
+  of this function as the callback argument for event_assign() &ndash; this
+  achieves the same result as passing the event in directly.
+
+  @return a value to be passed as the callback argument to event_new() or
+  event_assign().
+  @see event_new(), event_assign()
  */
 void *event_self_cbarg(void);
 

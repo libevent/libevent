@@ -1846,6 +1846,8 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 {
 	if (!base)
 		base = current_base;
+	if (arg == &event_self_cbarg_ptr_)
+		arg = ev;
 
 	event_debug_assert_not_added_(ev);
 
