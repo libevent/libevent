@@ -761,11 +761,6 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
 #error
 #endif])], have_clang=yes, have_clang=no)
 
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
-#if !defined(__clang__) || (__clang_major__ > 2) || (__clang_major__ == 2 && __clang_minor__ > 9)
-#error
-#endif])], have_clang29orlower=yes, have_clang29orlower=no)
-
   CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch-enum"
   if test x$enable_gcc_warnings = xyes; then
     CFLAGS="$CFLAGS -Werror"
@@ -784,10 +779,8 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
     CFLAGS="$CFLAGS -Waddress"
   fi
 
-  if test x$have_gcc42 = xyes && test x$have_clang29orlower = xno; then
+  if test x$have_gcc42 = xyes && test x$have_clang = xno; then
     # These warnings break gcc 4.0.2 and clang, but work on gcc 4.2
-    # We only disable these for clang 2.9 and lower, in case they are
-    # supported in later versions.
     CFLAGS="$CFLAGS -Wnormalized=id -Woverride-init"
   fi
 
