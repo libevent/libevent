@@ -15,6 +15,7 @@
 #include <sys/queue.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <signal.h>
 #else
 #include <winsock2.h>
 #include <windows.h>
@@ -53,13 +54,13 @@ fifo_read(int fd, short event, void *arg)
 #else
 	len = read(fd, buf, sizeof(buf) - 1);
 
-	if (len == -1) {
-		perror("read");
+	if (len <= 0) {
+		if (len == -1)
+			perror("read");
+		else if (len == 0)
+			fprintf(stderr, "Connection closed\n");
 		event_del(ev);
-		return;
-	} else if (len == 0) {
-		fprintf(stderr, "Connection closed\n");
-		event_del(ev);
+		event_base_loopbreak(event_get_base(ev));
 		return;
 	}
 
@@ -70,6 +71,16 @@ fifo_read(int fd, short event, void *arg)
 	/* Reschedule this event */
 	event_add(ev, NULL);
 }
+
+/* On Unix, cleanup event.fifo if SIGINT is received. */
+#ifndef _WIN32
+static void
+signal_cb(evutil_socket_t fd, short event, void *arg)
+{
+	struct event_base *base = arg;
+	event_base_loopbreak(base);
+}
+#endif
 
 int
 main(int argc, char **argv)
@@ -91,6 +102,7 @@ main(int argc, char **argv)
 		return 1;
 
 #else
+	struct event *signal_int;
 	struct stat st;
 	const char *fifo = "event.fifo";
 	int socket;
@@ -126,6 +138,10 @@ main(int argc, char **argv)
 	evfifo = event_new(base, (int)socket, EV_READ, fifo_read,
                            event_self_cbarg());
 #else
+	/* catch SIGINT so that event.fifo can be cleaned up */
+	signal_int = evsignal_new(base, SIGINT, signal_cb, base);
+	event_add(signal_int, NULL);
+
 	evfifo = event_new(base, socket, EV_READ, fifo_read,
                            event_self_cbarg());
 #endif
@@ -138,7 +154,8 @@ main(int argc, char **argv)
 #ifdef _WIN32
 	CloseHandle(socket);
 #else
-        close(socket);
+	close(socket);
+	unlink(fifo);
 #endif
 	return (0);
 }
