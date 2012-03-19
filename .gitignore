@@ -73,7 +73,7 @@ libevent_openssl.pc
 /evconfig-private.h
 
 /sample/dns-example
-/sample/event-test
+/sample/event-read-fifo
 /sample/hello-world
 /sample/http-server
 /sample/le-proxy

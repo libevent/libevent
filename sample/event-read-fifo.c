@@ -1,10 +1,11 @@
 /*
- * XXX This sample code was once meant to show how to use the basic Libevent
- * interfaces, but it never worked on non-Unix platforms.  It should probably
- * be removed or replaced with something better.
+ * This sample code shows how to use Libevent to read from a named pipe.
+ * XXX This code could make better use of the Libevent interfaces.
+ * XXX This code may not work on Windows.
  *
- * Compile with:
- * cc -I/usr/local/include -o event-test event-test.c -L/usr/local/lib -levent
+ * On UNIX, compile with:
+ * cc -I/usr/local/include -o event-read-fifo event-read-fifo.c \
+ *     -L/usr/local/lib -levent
  */
 
 #include <event2/event-config.h>
