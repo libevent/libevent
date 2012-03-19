@@ -1,7 +1,8 @@
 /*
  * This sample code shows how to use Libevent to read from a named pipe.
  * XXX This code could make better use of the Libevent interfaces.
- * XXX This code may not work on Windows.
+ *
+ * XXX This does not work on Windows; ignore everything inside the _WIN32 block.
  *
  * On UNIX, compile with:
  * cc -I/usr/local/include -o event-read-fifo event-read-fifo.c \
@@ -68,9 +69,6 @@ fifo_read(int fd, short event, void *arg)
 	buf[len] = '\0';
 #endif
 	fprintf(stdout, "Read: %s\n", buf);
-
-	/* Reschedule this event */
-	event_add(ev, NULL);
 }
 
 /* On Unix, cleanup event.fifo if SIGINT is received. */
@@ -136,14 +134,14 @@ main(int argc, char **argv)
 
 	/* Initalize one event */
 #ifdef _WIN32
-	evfifo = event_new(base, (int)socket, EV_READ, fifo_read,
+	evfifo = event_new(base, (int)socket, EV_READ|EV_PERSIST, fifo_read,
                            event_self_cbarg());
 #else
 	/* catch SIGINT so that event.fifo can be cleaned up */
 	signal_int = evsignal_new(base, SIGINT, signal_cb, base);
 	event_add(signal_int, NULL);
 
-	evfifo = event_new(base, socket, EV_READ, fifo_read,
+	evfifo = event_new(base, socket, EV_READ|EV_PERSIST, fifo_read,
                            event_self_cbarg());
 #endif
 
