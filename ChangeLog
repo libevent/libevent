@@ -1,3 +1,6 @@
+Changes in version 2.0.19-stable (?? ??? 2012)
+
+
 Changes in version 2.0.18-stable (22 Mar 2012)
 BUGFIXES (core):
  o Make uses of open() close-on-exec safe by introducing an internal evutil_open_closeonexec. (d2b5f72 Ross Lagerwall, 03dce42)
