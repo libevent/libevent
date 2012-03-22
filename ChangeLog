@@ -1,4 +1,18 @@
-Changes in version 2.0.18-stable (?? ??? 2012)
+Changes in version 2.0.18-stable (22 Mar 2012)
+BUGFIXES (core):
+ o Make uses of open() close-on-exec safe by introducing an internal evutil_open_closeonexec. (d2b5f72 Ross Lagerwall, 03dce42)
+
+BUGFIXES (kqueue):
+ o Properly zero the kevent in kq_setup_kevent() (c2c7b39 Sebastian Hahn)
+
+BUILD FIXES:
+ o Added OPENSSL_LDFLAGS env variable which is appended to SSL checks. (9278196 Mark Ellzey)
+ o Changed OPENSSL_LDFLAGS to OPENSSL_LIBADD (2d67b63 Mark Ellzey)
+ o Don't do clang version detection when disabling some flags (083296b Sebastian Hahn)
+
+BUGFIXES (dns):
+ o Stop crashing in evdns when nameserver probes give a weird error (bec5068)
+
 
 Changes in version 2.0.17-stable (10 Feb 2012)
 
