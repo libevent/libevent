@@ -1310,6 +1310,22 @@ int event_base_gettimeofday_cached(struct event_base *base,
  */
 int event_base_update_cache_time(struct event_base *base);
 
+/** Release up all globally-allocated resources allocated by Libevent.
+
+    This function does not free developer-controlled resources like
+    event_bases, events, bufferevents, listeners, and so on.  It only releases
+    resources like global locks that there is no other way to free.
+
+    It is not actually necessary to call this function before exit: every
+    resource that it frees would be released anyway on exit.  It mainly exists
+    so that resource-leak debugging tools don't see Libevent as holding
+    resources at exit.
+
+    You should only call this function when no other Libevent functions will
+    be invoked -- e.g., when cleanly exiting a program.
+ */
+void libevent_global_shutdown(void);
+
 #ifdef __cplusplus
 }
 #endif
