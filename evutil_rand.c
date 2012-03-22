@@ -124,8 +124,9 @@ evutil_free_secure_rng_globals_locks(void)
 #endif
 	return;
 }
+
 void
-evutil_free_secure_rng_globals_(void) {
+evutil_free_secure_rng_globals_(void)
 {
     evutil_free_secure_rng_globals_locks();
 }
