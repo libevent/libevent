@@ -1,8 +1,7 @@
 
 Contains stuff through 3e9612cd81c8a9881ef298fa59c40af343e4f126
 
- Performance:
-
+ Performance: Core
    o Replace several TAILQ users with LIST. LIST can be a little faster than
      TAILQ for cases where we don't need queue-like behavior. (f9db33d,
      6494772, d313c29, 974d004)
@@ -12,72 +11,81 @@ Contains stuff through 3e9612cd81c8a9881ef298fa59c40af343e4f126
    o possible optimization: split event_queue_insert/remove into separate functions. needs testing (efc4dc5)
    o Make event_count maintainance branchless at the expense of an extra shift. Needs benchmarking (d1cee3b)
    o In the 2.1 branch, let's try out lazy gettimeofday/clock_gettime comparison (2a83ecc)
+   o Optimization in event_process_active(): ignore maxcb & endtime for highest priority events. (a9866aa Alexander Drozdov)
+   o Bypass event_add when using event_base_once() for a 0-sec timeout (35c5c95)
+   o Remove the eventqueue list and the ev_next pointers. (604569b 066775e)
+
+ Performance: Evbuffers
    o Roughly 20% speed increase when line-draining a buffer using EVBUFFER_EOL_CRLF (5dde0f0 Mina Naguib)
    o Try to squeeze a little more speed out of EVBUFFER_EOL_CRLF (7b9d139)
    o Fix a bug in the improved EOL_CRLF code (d927965)
    o Remove a needless branch in evbuffer_drain() (d19a326)
-   o Optimization in event_process_active(): ignore maxcb & endtime for highest priority events. (a9866aa Alexander Drozdov)
-   o Bypass event_add when using event_base_once() for a 0-sec timeout (35c5c95)
+
+ Performance: Linux
    o Infrastructure for using faster/fewer syscalls when creating sockets (a1c042b)
    o Minimize syscalls during socket creation in listener.c (7e9e289)
-   o The LEV_OPT_CLOSE_ON_EXEC flag now applies to accepted listener sockets too (4970329)
    o Use a wrapper function to create the notification pipe/socketpair/eventfd (ca76cd9)
    o Use pipes for telling signals to main thread when possible (a35f396)
    o Save syscalls when constructing listener sockets for evhttp (af6c9d8)
    o Save some syscalls when creating evdns sockets (713e570)
    o Save some syscalls when constructing a socket for a bufferevent (33fca62)
    o Prefer epoll_create1 on Linuxen that have it (bac906c)
-   o Fix compilation on osx (2b0a2c4)
-   o Infrastructure for using faster/fewer syscalls when creating sockets (a1c042b)
-   o Minimize syscalls during socket creation in listener.c (7e9e289)
-   o The LEV_OPT_CLOSE_ON_EXEC flag now applies to accepted listener sockets too (4970329)
-   o Use a wrapper function to create the notification pipe/socketpair/eventfd (ca76cd9)
-   o Use pipes for telling signals to main thread when possible (a35f396)
-   o Save syscalls when constructing listener sockets for evhttp (af6c9d8)
-   o Save some syscalls when creating evdns sockets (713e570)
-   o Save some syscalls when constructing a socket for a bufferevent (33fca62)
-   o Prefer epoll_create1 on Linuxen that have it (bac906c)
-   o Fix compilation on osx (2b0a2c4)
-   o If open(O_CLOEXEC) fails, fall back to fcntl(CLOEXEC) (2ed4430)
-   o Support TCP_DEFER_ACCEPT sockopts for listeners (5880e4a Mark Ellzey)
-   o Add another caveat to the TCP_DEFER_ACCEPT documentation (a270728)
 
-
- Epoll backend:
+ Performance: Epoll backend
    o Use current event set rather than current pending change when deciding whether to no-op a del (04ba27e Mike Smellie)
    o Replace big chain of if/thens in epoll.c with a table lookup (8c83eb6)
    o Clean up error handling in epoll_apply_one_change() a little (2d55a19)
 
- Windows:
+ Performance: Evport backend
+   o evport: use evmap_io to track fdinfo status. Should save time and RAM. (4687ce4)
+   o evport: Remove a linear search over recent events when reactivating them (0f77efe)
+   o evport: Use portev_user to remember fdinfo struct (276ec0e)
+   o evport: don't scan more events in ed_pending than needed (849a5cf)
+   o evport: Remove artificial low limit on max events per getn call (c04d927)
+   o Reenable main/many_events_slow_add for evport in 2.1 (e903db3)
+
+ Performance: Windows
    o Use GetSystemTimeAsFileTime to implement gettimeofday on win32. It's faster and more accurate than our old approach. (b8b8aa5)
 
- New functions and features:
+ New functions and features: debugging
    o Add event_enable_debug_logging() to control use of debug logs (e30a82f)
+
+ New functions and features: core
+   o Add event_config function to limit time/callbacks between calls to dispatch (fd4de1e, 9fa56bd, a37a0c0, 3c63edd)
+   o New EVLOOP_NO_EXIT_ON_EMPTY option to keep looping even when no events are pending (084e68f)
+   o Add event_base_get_npriorities() function. (ee3a4ee Alexander Drozdov)
+   o Make evbase_priority_init() and evbase_get_npriorities() threadsafe (3c55b5e)   o New event_base_update_cache_time() to set cached_tv to current time (212533e Abel Mathew)
+   o Add event_self_cbarg() to be used in conjunction with event_new(). (ed36e6a Ross Lagerwall, fa931bb, 09a1906, 1338e6c, 33e43ef)
+   o Add a new libevent_global_shutdown() to free all globals before exiting. (041ca00 Mark Ellzey)
+   o Use getifaddrs to detect our interfaces if possible (7085a45)
+   o Fix compilation of windows evutil_check_ifaddrs (40a3c52)
+
+ New functions and features: building
+   o Implement --enable-gcc-hardening configure option (7550267 Sebastian Hahn)
+
+ New functions and features: evbuffers
    o Add evbuffer_add_file_segment() so one fd can be used efficiently in more than one evbuffer_add_file at a time (e72afae, c2d9884, 3f405d2, 0aad014)
    o Fix windows file segment mappings (8254de7)
    o Allow evbuffer_ptr_set to yield a point just after the end of the buffer. (e6fe1da)
    o Allow evbuffer_ptr to point to position 0 in an empty evbuffer (7aeb2fd Nir Soffer)
    o Set the special "not found" evbuffer_ptr consistantly. (e3e97ae Nir Soffer)
    o support adding buffers to other buffers non-destructively (9d7368a Joachim Bauch)
-   o prevent nested multicast references, reworked locking (26041a8 Joachim Bauch)
-   o Add event_config function to limit time/callbacks between calls to dispatch (fd4de1e)
-   o Make sure max_dispatch_callbacks is never negative (9fa56bd)
-   o Make max_dispatch_interval able to apply only to low-priority events (a37a0c0)
-   o Make the priority inversion code use gettime(), not evutil_gettimeofday() (3c63edd)
-   o Build with large-file support on platforms where it matters (8a23104)
-   o Implement --enable-gcc-hardening configure option (7550267 Sebastian Hahn)
-   o Allow evconnlistener to be created in disabled state. (9593a33 Alexander Drozdov)
-   o New EVLOOP_NO_EXIT_ON_EMPTY option to keep looping even when no events are pending (084e68f)
+   o prevent nested multicast references, reworked locking (26041a8 Joachim Bauch)   o New EVBUFFER_EOL_NUL to read NUL-terminated strings from an evbuffer (d7a8b36 Andrea Montefusco, 54142c9)
    o Make evbuffer_file_segment_types adaptable (c6bbbf1)
-   o Add event_base_get_npriorities() function. (ee3a4ee Alexander Drozdov)
-   o Make evbase_priority_init() and evbase_get_npriorities() threadsafe (3c55b5e)
-   o bufferevent: Add functions to set/get max_single_read/write values. (998c813 Alexander Drozdov)
-   o New event_base_update_cache_time() to set cached_tv to current time (212533e Abel Mathew)
    o Added evbuffer_add_iovec and unit tests. (aaec5ac Mark Ellzey, 27b5398)
    o Add evbuffer_copyout_from to copy data from the middle of a buffer (27e2225)
-   o Use getifaddrs to detect our interfaces if possible (7085a45)
-   o Fix compilation of windows evutil_check_ifaddrs (40a3c52)
-   o Add a bufferevent_getcb() to find a bufferevent's current callbacks (a650394)
+
+ New functions and features: bufferevents
+   o Allow users to set allow_dirty_shutdown (099d27d Catalin Patulea)
+   o Tweak allow_dirty_shutdown documentation (a44cd2b)
+   o Fix two issues in the allow_dirty_shutdown code. (f3b89de)
+   o Add a bufferevent_getcb() to find a bufferevent's current callbacks (a650394)   o bufferevent: Add functions to set/get max_single_read/write values. (998c813 Alexander Drozdov)
+   o bev_ssl: Be more specific in event callbacks. evhttp in particular gets confused without at least one of BEV_EVENT_{READING|WRITING}. (f7eb69a Catalin Patulea)
+ New functions and features: evconnlisteners
+   o Support TCP_DEFER_ACCEPT sockopts for listeners (5880e4a Mark Ellzey, a270728)
+   o Add another caveat to the TCP_DEFER_ACCEPT documentation (a270728)
+   o Allow evconnlistener to be created in disabled state. (9593a33 Alexander Drozdov)
+   o The LEV_OPT_CLOSE_ON_EXEC flag now applies to accepted listener sockets too (4970329)
 
  Evhttp:
    o Add new evhttp_{connection_}set_timeout_tv() functions to set finger-grained http timeouts (6350e6c Constantine Verutin)
@@ -86,10 +94,6 @@ Contains stuff through 3e9612cd81c8a9881ef298fa59c40af343e4f126
    o Add evhttp callback for bufferevent creation; this lets evhttp support SSL. (8d3a850)
    o Remove calls to deprecated bufferevent functions from evhttp.c (4d63758)
    o evhttp: Add evhttp_foreach_bound_socket. (a2c48e3 Samy Al Bahra)
-
-
- Bufferevents:
-   o bev_ssl: Be more specific in event callbacks. evhttp in particular gets confused without at least one of BEV_EVENT_{READING|WRITING}. (f7eb69a Catalin Patulea)
 
  Build improvements
    o Add AC_USE_SYSTEM_EXTENSIONS to configure.in. Requires follow on patches for correctness and robustness. (1fa7dbe Kevin Bowling)
@@ -132,56 +136,34 @@ f)
    o Make --enable-verbose-debug option match its help text (10c3450)
    o Add argument checks to some memory functions in `event.c'. (c8953d1 Mansour Moufid)
 
-
- Evport backend:
-   o evport: use evmap_io to track fdinfo status. Should save time and RAM. (4687ce4)
-   o evport: Remove a linear search over recent events when reactivating them (0f77efe)
-   o evport: Use portev_user to remember fdinfo struct (276ec0e)
-   o evport: don't scan more events in ed_pending than needed (849a5cf)
-   o evport: Remove artificial low limit on max events per getn call (c04d927)
-   o Reenable main/many_events_slow_add for evport in 2.1 (e903db3)
-
-
- Huh what:
-   o Allow base-notification functions to exist without setting an fd (94b8e67)
-   o Use the free-trailing-chains function in evbuffer_insert_chain too (b18c04d)
-   o Allow users to set allow_dirty_shutdown (099d27d Catalin Patulea)
-   o Tweak allow_dirty_shutdown documentation (a44cd2b)
-   o Fix two issues in the allow_dirty_shutdown code. (f3b89de)
-   o Changed use of refcounts to make sure referenced chains are freed in all cases. (a8e5e2f Joachim Bauch)
-   o fix windows compilation issues with new file segment code (da45aa7)
-
  Testing:
    o More abstraction in test.sh (cd74c4e)
    o Add failing test for evbuffer_search_range. (8e26154 Nir Soffer)
    o Tweaks to return types with end-of-buf ptrs (9ab8ab8)
-   o New EVBUFFER_EOL_NUL to read NUL-terminated strings from an evbuffer (d7a8b36 Andrea Montefusco, 54142c9)
    o Add an (internal) usleep function for use by unit tests (f25d9d3)
    o Synchronize with upstream tinytest (6c81be7)
    o Make test-changelist faster (7622d26)
-
-
- Documentation:
-   o Improve evbuffer_ptr documentation (261ba63)
-   o added comments to describe refcounting of multicase chains (ba24f61 Joachim Bauch)
    o Reduce the timeout in the main/fork test. (ab14f7c)
    o New evhttp function to adjust initial retry timeout (350a3c4)
    o Make regression tests run over 3x faster. (67a1763)
    o Use test_timeval_diff_eq more consistently (b77b43f)
    o Allow more slop in deferred_cb_skew test; freebsd needs it (b9f7e5f)
    o When including an -internal.h header outside the main tree, do so early (95e2455)
+   o Add a new test: test-fdleak which tests for fd leaks by creating many sockets. (2ef9278 Ross Lagerwall, f7af194, 1c4288f 4293a80, c9ba53a 077c7e9 d9be5f4 d7d9f75)
 
+ Documentation:
+   o Improve evbuffer_ptr documentation (261ba63)
+   o added comments to describe refcounting of multicase chains (ba24f61 Joachim Bauch)
+   o Add doxygen for event_base_dump_events (cad5753)
 
- OSX:
+  OSX:
    o Use "unlimited select" on OSX so that we can have more than FD_SETSIZE fds (1fb5cc6)
-
 
  KQueue:
    o Use SIG_IGN instead of a do-nothing handler for signal events with kqueue (148458e Zack Weinberg)
 
  evprc:
-  o event_rpcgen.py now prints status information to stdout and errors to stderr. (ffb0ba0 Ross Lagerwall)
-
+   o event_rpcgen.py now prints status information to stdout and errors to stderr. (ffb0ba0 Ross Lagerwall)
 
  Code improvement and refactoring:
    o Make event_reinit() more robust and maintainable (272033e)
@@ -195,43 +177,29 @@ f)
  Build fixes:
    o Don't do clang version detection when disabling some flags (083296b Sebastian Hahn)
 
-======
-Performance:
-  o Remove the eventqueue list and the ev_next pointers. (604569b 066775e)
+ C standards conformance:
+   o Check for NULL return on win32 mm_calloc, and set ENOMEM. (af7ba69)
+   o Convert event-config.h macros to avoid reserved identifiers (68120d9)
+   o Generate event-config.h using the correct macros. (f82c57e)
+   o Convert include-guard macro convention to avoid reserved identifiers (3f8c7cd)
+   o Make event_rpcgen.py output conform to indentifier conventions (372bff1)
+   o Stop referring to an obsolete include guard in bench_http.h (5c0f7e0)
+   o Make the generated event-config.h use correct include guards (639383a)
+   o Fix all identifiers with names beginning with underscore. (cb9da0b)
+   o Make event_rpcgen.py output conform to indentifier conventions, more (bcefd24)
+   o Fix some problems introduced by automated identifier cleanup script (c963534)
+   o Have all visible internal function names end with an underscore. (8ac3c4c)
+   o Apply the naming convention to our EVUTIL_IS* functions (c7848fa)
+   o Clean up lingering _identifiers. (946b584)
+   o Fix doxygen to use new macro conventions (da455e9)
 
-Documentation:
-  o Add doxygen for event_base_dump_events (cad5753)
+ Bugfixes:
+   o Do not use system EAI/AI values if we are not using the system getaddrinfo. (7bcac07)
 
-Testing:
-  o Add a new test: test-fdleak which tests for fd leaks by creating many sockets. (2ef9278 Ross Lagerwall, f7af194, 1c4288f 4293a80, c9ba53a 077c7e9 d9be5f4 d7d9f75)
+ Sample Code:
+   o Fix up sample/event-test.c to use newer interfaces and make it actually work. (19bab4f Ross Lagerwall)
+   o On Unix, remove event.fifo left by sample/event-test.c. (c0dacd2 Ross Lagerwall)
+   o Rename event-test.c to event-read-fifo.c. (a5b370a Ross Lagerwall)
+   o event-read-fifo: Use EV_PERSIST appropriately (24dab0b)
 
-C standards conformance:
-  o Check for NULL return on win32 mm_calloc, and set ENOMEM. (af7ba69)
-  o Convert event-config.h macros to avoid reserved identifiers (68120d9)
-  o Generate event-config.h using the correct macros. (f82c57e)
-  o Convert include-guard macro convention to avoid reserved identifiers (3f8c7cd)
-  o Make event_rpcgen.py output conform to indentifier conventions (372bff1)
-  o Stop referring to an obsolete include guard in bench_http.h (5c0f7e0)
-  o Make the generated event-config.h use correct include guards (639383a)
-  o Fix all identifiers with names beginning with underscore. (cb9da0b)
-  o Make event_rpcgen.py output conform to indentifier conventions, more (bcefd24)
-  o Fix some problems introduced by automated identifier cleanup script (c963534)
-  o Have all visible internal function names end with an underscore. (8ac3c4c)
-  o Apply the naming convention to our EVUTIL_IS* functions (c7848fa)
-  o Clean up lingering _identifiers. (946b584)
-  o Fix doxygen to use new macro conventions (da455e9)
 
-Bugfixes:
-  o Do not use system EAI/AI values if we are not using the system getaddrinfo. (7bcac07)
-
-Sample Code:
-  o Fix up sample/event-test.c to use newer interfaces and make it actually work. (19bab4f Ross Lagerwall)
-  o On Unix, remove event.fifo left by sample/event-test.c. (c0dacd2 Ross Lagerwall)
-  o Rename event-test.c to event-read-fifo.c. (a5b370a Ross Lagerwall)
-  o event-read-fifo: Use EV_PERSIST appropriately (24dab0b)
-
-Features:
-  o Add event_self_cbarg() to be used in conjunction with event_new(). (ed36e6a Ross Lagerwall, fa931bb, 09a1906, 1338e6c, 33e43ef)
-  o Add a new libevent_global_shutdown() to free all globals before exiting. (041ca00 Mark Ellzey)
-
-==============================
