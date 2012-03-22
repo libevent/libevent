@@ -1,5 +1,5 @@
 
-Contains stuff through a270728e28e9b4107a9839d9dd8d30182139114c
+Contains stuff through 3e9612cd81c8a9881ef298fa59c40af343e4f126
 
  Performance:
 
@@ -179,13 +179,59 @@ f)
  KQueue:
    o Use SIG_IGN instead of a do-nothing handler for signal events with kqueue (148458e Zack Weinberg)
 
+ evprc:
+  o event_rpcgen.py now prints status information to stdout and errors to stderr. (ffb0ba0 Ross Lagerwall)
+
 
  Code improvement and refactoring:
    o Make event_reinit() more robust and maintainable (272033e)
    o Restore fast-path event_reinit() for slower backends (2c4b5de)
    o Check changelist as part of checking representational integrity (39b3f38)
    o Fix a compile warning in event_reinit (e4a56ed Sebastian Hahn)
+   o Refactor the functions that run over every event. (c89b4e6)
+   o Remove the last vestiges of _EVENT_USE_EVENTLIST (a3cec90)
+   o Make event-config.h depend on Makefile.am (2958a5c)
 
+ Build fixes:
+   o Don't do clang version detection when disabling some flags (083296b Sebastian Hahn)
 
+======
+Performance:
+  o Remove the eventqueue list and the ev_next pointers. (604569b 066775e)
 
+Documentation:
+  o Add doxygen for event_base_dump_events (cad5753)
 
+Testing:
+  o Add a new test: test-fdleak which tests for fd leaks by creating many sockets. (2ef9278 Ross Lagerwall, f7af194, 1c4288f 4293a80, c9ba53a 077c7e9 d9be5f4 d7d9f75)
+
+C standards conformance:
+  o Check for NULL return on win32 mm_calloc, and set ENOMEM. (af7ba69)
+  o Convert event-config.h macros to avoid reserved identifiers (68120d9)
+  o Generate event-config.h using the correct macros. (f82c57e)
+  o Convert include-guard macro convention to avoid reserved identifiers (3f8c7cd)
+  o Make event_rpcgen.py output conform to indentifier conventions (372bff1)
+  o Stop referring to an obsolete include guard in bench_http.h (5c0f7e0)
+  o Make the generated event-config.h use correct include guards (639383a)
+  o Fix all identifiers with names beginning with underscore. (cb9da0b)
+  o Make event_rpcgen.py output conform to indentifier conventions, more (bcefd24)
+  o Fix some problems introduced by automated identifier cleanup script (c963534)
+  o Have all visible internal function names end with an underscore. (8ac3c4c)
+  o Apply the naming convention to our EVUTIL_IS* functions (c7848fa)
+  o Clean up lingering _identifiers. (946b584)
+  o Fix doxygen to use new macro conventions (da455e9)
+
+Bugfixes:
+  o Do not use system EAI/AI values if we are not using the system getaddrinfo. (7bcac07)
+
+Sample Code:
+  o Fix up sample/event-test.c to use newer interfaces and make it actually work. (19bab4f Ross Lagerwall)
+  o On Unix, remove event.fifo left by sample/event-test.c. (c0dacd2 Ross Lagerwall)
+  o Rename event-test.c to event-read-fifo.c. (a5b370a Ross Lagerwall)
+  o event-read-fifo: Use EV_PERSIST appropriately (24dab0b)
+
+Features:
+  o Add event_self_cbarg() to be used in conjunction with event_new(). (ed36e6a Ross Lagerwall, fa931bb, 09a1906, 1338e6c, 33e43ef)
+  o Add a new libevent_global_shutdown() to free all globals before exiting. (041ca00 Mark Ellzey)
+
+==============================
