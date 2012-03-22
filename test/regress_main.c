@@ -264,6 +264,9 @@ basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
 		}
 	}
 
+	if (testcase->flags & TT_FORK)
+		libevent_global_shutdown();
+
 	free(data);
 
 	return 1;
@@ -392,6 +395,8 @@ main(int argc, const char **argv)
 
 	if (tinytest_main(argc,argv,testgroups))
 		return 1;
+
+	libevent_global_shutdown();
 
 	return 0;
 }
