@@ -101,6 +101,7 @@ EXTRA_DIST = \
 	libevent.pc.in \
 	Doxyfile \
 	whatsnew-2.0.txt \
+	whatsnew-2.1.txt \
 	Makefile.nmake test/Makefile.nmake \
 	$(PLATFORM_DEPENDENT_SRC)
 
