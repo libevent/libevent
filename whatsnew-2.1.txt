@@ -193,7 +193,7 @@
   the accepted sockets themselves.  That's almost never what you want.
   Now, it applies both to the listener and the accepted sockets.
 
-1.8. New functions and ffeatures: evhttp
+1.8. New functions and features: evhttp
 
   **********************************************************************
   NOTE: The evhttp module will eventually be deprecated in favor of Mark
