@@ -34,6 +34,7 @@
 
 #include <stdio.h>
 #include <event2/event.h>
+#include <signal.h>
 #include "util-internal.h"
 
 static void
