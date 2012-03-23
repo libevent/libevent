@@ -733,7 +733,23 @@ test_common_timeout(void *ptr)
 		event_assign(&info[i].ev, base, -1, EV_TIMEOUT|EV_PERSIST,
 		    common_timeout_cb, &info[i]);
 		if (i % 2) {
-			event_add(&info[i].ev, ms_100);
+			if ((i%20)==1) {
+				/* Glass-box test: Make sure we survive the
+				 * transition to non-common timeouts. It's
+				 * a little tricky. */
+				event_add(&info[i].ev, ms_200);
+				event_add(&info[i].ev, &tmp_100_ms);
+			} else if ((i%20)==3) {
+				/* Check heap-to-common too. */
+				event_add(&info[i].ev, &tmp_200_ms);
+				event_add(&info[i].ev, ms_100);
+			} else if ((i%20)==3) {
+				/* Also check common-to-common. */
+				event_add(&info[i].ev, ms_200);
+				event_add(&info[i].ev, ms_100);
+			} else {
+				event_add(&info[i].ev, ms_100);
+			}
 		} else {
 			event_add(&info[i].ev, ms_200);
 		}

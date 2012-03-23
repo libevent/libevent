@@ -138,7 +138,7 @@ static void	event_queue_insert_inserted(struct event_base *, struct event *);
 static void	event_queue_remove_active(struct event_base *, struct event *);
 static void	event_queue_remove_timeout(struct event_base *, struct event *);
 static void	event_queue_remove_inserted(struct event_base *, struct event *);
-static void	event_queue_reinsert_timeout(struct event_base *,struct event *);
+static void	event_queue_reinsert_timeout(struct event_base *,struct event *, int was_common, int is_common, int old_timeout_idx);
 
 static int	event_haveevents(struct event_base *);
 
@@ -2214,6 +2214,8 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	if (res != -1 && tv != NULL) {
 		struct timeval now;
 		int common_timeout;
+		int was_common;
+		int old_timeout_idx;
 
 		/*
 		 * for persistent timeout events, we remember the
@@ -2245,6 +2247,9 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		gettime(base, &now);
 
 		common_timeout = is_common_timeout(tv, base);
+		was_common = is_common_timeout(&ev->ev_timeout, base);
+		old_timeout_idx = COMMON_TIMEOUT_IDX(&ev->ev_timeout);
+
 		if (tv_is_absolute) {
 			ev->ev_timeout = *tv;
 		} else if (common_timeout) {
@@ -2261,7 +2266,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 			 "event_add: event %p, timeout in %d seconds %d useconds, call %p",
 			 ev, (int)tv->tv_sec, (int)tv->tv_usec, ev->ev_callback));
 
-		event_queue_reinsert_timeout(base, ev);
+		event_queue_reinsert_timeout(base, ev, was_common, common_timeout, old_timeout_idx);
 
 		if (common_timeout) {
 			struct common_timeout_list *ctl =
@@ -2673,21 +2678,40 @@ event_queue_remove_timeout(struct event_base *base, struct event *ev)
 
 /* Remove and reinsert 'ev' into the timeout queue. */
 static void
-event_queue_reinsert_timeout(struct event_base *base, struct event *ev)
+event_queue_reinsert_timeout(struct event_base *base, struct event *ev,
+    int was_common, int is_common, int old_timeout_idx)
 {
+	struct common_timeout_list *ctl;
 	if (!(ev->ev_flags & EVLIST_TIMEOUT)) {
 		event_queue_insert_timeout(base, ev);
 		return;
 	}
 
-	if (is_common_timeout(&ev->ev_timeout, base)) {
-		struct common_timeout_list *ctl =
-		    get_common_timeout_list(base, &ev->ev_timeout);
+	switch ((was_common<<1) | is_common) {
+	case 3: /* Changing from one common timeout to another */
+		ctl = base->common_timeout_queues[old_timeout_idx];
 		TAILQ_REMOVE(&ctl->events, ev,
 		    ev_timeout_pos.ev_next_with_common_timeout);
+		ctl = get_common_timeout_list(base, &ev->ev_timeout);
 		insert_common_timeout_inorder(ctl, ev);
-	} else {
+		break;
+	case 2: /* Was common; is no longer common */
+		ctl = base->common_timeout_queues[old_timeout_idx];
+		TAILQ_REMOVE(&ctl->events, ev,
+		    ev_timeout_pos.ev_next_with_common_timeout);
+		min_heap_push_(&base->timeheap, ev);
+		break;
+	case 1: /* Wasn't common; has become common. */
+		min_heap_erase_(&base->timeheap, ev);
+		ctl = get_common_timeout_list(base, &ev->ev_timeout);
+		insert_common_timeout_inorder(ctl, ev);
+		break;
+	case 0: /* was in heap; is still on heap. */
 		min_heap_adjust_(&base->timeheap, ev);
+		break;
+	default:
+		EVUTIL_ASSERT(0); /* unreachable */
+		break;
 	}
 }
 
