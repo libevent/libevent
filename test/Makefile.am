@@ -10,7 +10,7 @@ AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include -I.
 
 EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c rpcgen_wrapper.sh test.sh
 
-noinst_PROGRAMS = test-init test-eof test-weof test-time \
+noinst_PROGRAMS = test-init test-eof test-weof test-time test-dumpevents \
 	bench bench_cascade bench_http bench_httpclient test-ratelim \
 	test-changelist test-fdleak
 if BUILD_REGRESS
@@ -28,6 +28,8 @@ endif
 
 test_init_SOURCES = test-init.c
 test_init_LDADD = ../libevent_core.la
+test_dumpevents_SOURCES = test-dumpevents.c
+test_dumpevents_LDADD = ../libevent_core.la
 test_eof_SOURCES = test-eof.c
 test_eof_LDADD = ../libevent_core.la
 test_changelist_SOURCES = test-changelist.c

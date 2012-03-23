@@ -105,6 +105,22 @@ run_tests () {
 		announce FAILED ;
 		FAILED=yes
 	fi
+	announce_n " test-dumpevents: "
+	if test "`which python 2>/dev/null`" != ""; then
+	    if $TEST_DIR/test-dumpevents | python $TEST_DIR/check-dumpevents.py >> "$TEST_OUTPUT_FILE" ;
+	    then
+	        announce OKAY ;
+	    else
+	        announce FAILED ;
+	    fi
+	else
+	    # no python
+	    if $TEST_DIR/test-dumpevents >/dev/null; then
+	        announce "OKAY (output not checked)" ;
+	    else
+	        announce "FAILED (output not checked)" ;
+	    fi
+	fi
 	test -x $TEST_DIR/regress || return
 	announce_n " regress: "
 	if test "$TEST_OUTPUT_FILE" = "/dev/null" ;
