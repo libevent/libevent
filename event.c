@@ -3052,12 +3052,13 @@ dump_inserted_event_fn(struct event_base *base, struct event *e, void *arg)
 	if (! (e->ev_flags & (EVLIST_INSERTED|EVLIST_TIMEOUT)))
 		return 0;
 
-	fprintf(output, "  %p [%s %ld]%s%s%s%s",
+	fprintf(output, "  %p [%s %ld]%s%s%s%s%s",
 	    (void*)e, gloss, (long)e->ev_fd,
 	    (e->ev_events&EV_READ)?" Read":"",
 	    (e->ev_events&EV_WRITE)?" Write":"",
 	    (e->ev_events&EV_SIGNAL)?" Signal":"",
-	    (e->ev_events&EV_PERSIST)?" Persist":"");
+	    (e->ev_events&EV_PERSIST)?" Persist":"",
+	    (e->ev_flags&EVLIST_INTERNAL)?" Internal":"");
 	if (e->ev_flags & EVLIST_TIMEOUT) {
 		struct timeval tv;
 		tv.tv_sec = e->ev_timeout.tv_sec;
@@ -3085,12 +3086,13 @@ dump_active_event_fn(struct event_base *base, struct event *e, void *arg)
 	if (! (e->ev_flags & EVLIST_ACTIVE))
 		return 0;
 
-	fprintf(output, "  %p [%s %ld, priority=%d]%s%s%s%s\n",
+	fprintf(output, "  %p [%s %ld, priority=%d]%s%s%s%s active%s\n",
 	    (void*)e, gloss, (long)e->ev_fd, e->ev_pri,
-	    (e->ev_res&EV_READ)?" Read active":"",
-	    (e->ev_res&EV_WRITE)?" Write active":"",
-	    (e->ev_res&EV_SIGNAL)?" Signal active":"",
-	    (e->ev_res&EV_TIMEOUT)?" Timeout active":"");
+	    (e->ev_res&EV_READ)?" Read":"",
+	    (e->ev_res&EV_WRITE)?" Write":"",
+	    (e->ev_res&EV_SIGNAL)?" Signal":"",
+	    (e->ev_res&EV_TIMEOUT)?" Timeout":"",
+	    (e->ev_flags&EVLIST_INTERNAL)?" [Internal]":"");
 
 	return 0;
 }
