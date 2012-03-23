@@ -57,6 +57,10 @@ evutil_secure_rng_global_setup_locks_(const int enable_locks)
 	return 0;
 }
 #endif
+static void
+evutil_free_secure_rng_globals_locks(void)
+{
+}
 
 static void
 ev_arc4random_buf(void *buf, size_t n)
@@ -125,12 +129,6 @@ evutil_free_secure_rng_globals_locks(void)
 	return;
 }
 
-void
-evutil_free_secure_rng_globals_(void)
-{
-    evutil_free_secure_rng_globals_locks();
-}
-
 int
 evutil_secure_rng_init(void)
 {
@@ -165,3 +163,8 @@ evutil_secure_rng_add_bytes(const char *buf, size_t n)
 	    n>(size_t)INT_MAX ? INT_MAX : (int)n);
 }
 
+void
+evutil_free_secure_rng_globals_(void)
+{
+    evutil_free_secure_rng_globals_locks();
+}
