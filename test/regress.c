@@ -743,7 +743,7 @@ test_common_timeout(void *ptr)
 				/* Check heap-to-common too. */
 				event_add(&info[i].ev, &tmp_200_ms);
 				event_add(&info[i].ev, ms_100);
-			} else if ((i%20)==3) {
+			} else if ((i%20)==5) {
 				/* Also check common-to-common. */
 				event_add(&info[i].ev, ms_200);
 				event_add(&info[i].ev, ms_100);
