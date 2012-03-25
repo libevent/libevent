@@ -743,7 +743,7 @@ ev_ssize_t bufferevent_get_max_to_read(struct bufferevent *bev);
 ev_ssize_t bufferevent_get_max_to_write(struct bufferevent *bev);
 
 /**
-   @name GrouprRate limit inspection
+   @name Group Rate limit inspection
 
    Return the read or write bucket size for a bufferevent rate limit
    group.  Note that it can return a negative value if bufferevents in
