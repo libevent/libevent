@@ -60,6 +60,7 @@ static int cfg_connlimit = 0;
 static int cfg_grouplimit = 0;
 static int cfg_tick_msec = 1000;
 static int cfg_min_share = -1;
+static int cfg_group_drain = 0;
 
 static int cfg_connlimit_tolerance = -1;
 static int cfg_grouplimit_tolerance = -1;
@@ -79,9 +80,32 @@ static double seconds_per_tick = 0.0;
 struct client_state {
 	size_t queued;
 	ev_uint64_t received;
+
 };
+static const struct timeval *ms100_common=NULL;
+
+/* info from check_bucket_levels_cb */
+static int total_n_bev_checks = 0;
+static ev_int64_t total_rbucket_level=0;
+static ev_int64_t total_wbucket_level=0;
+static ev_int64_t total_max_to_read=0;
+static ev_int64_t total_max_to_write=0;
+static ev_int64_t max_bucket_level=EV_INT64_MIN;
+static ev_int64_t min_bucket_level=EV_INT64_MAX;
+
+/* from check_group_bucket_levels_cb */
+static int total_n_group_bev_checks = 0;
+static ev_int64_t total_group_rbucket_level = 0;
+static ev_int64_t total_group_wbucket_level = 0;
 
 static int n_echo_conns_open = 0;
+
+/* Info on the open connections */
+struct bufferevent **bevs;
+struct client_state *states;
+struct bufferevent_rate_limit_group *group = NULL;
+
+static void check_bucket_levels_cb(evutil_socket_t fd, short events, void *arg);
 
 static void
 loud_writecb(struct bufferevent *bev, void *ctx)
@@ -159,12 +183,66 @@ echo_listenercb(struct evconnlistener *listener, evutil_socket_t newsock,
 
 	bev = bufferevent_socket_new(base, newsock, flags);
 	bufferevent_setcb(bev, echo_readcb, echo_writecb, echo_eventcb, NULL);
-	if (conn_bucket_cfg)
+	if (conn_bucket_cfg) {
+		struct event *check_event =
+		    event_new(base, -1, EV_PERSIST, check_bucket_levels_cb, bev);
 		bufferevent_set_rate_limit(bev, conn_bucket_cfg);
+		event_add(check_event, ms100_common);
+	}
 	if (ratelim_group)
 		bufferevent_add_to_rate_limit_group(bev, ratelim_group);
 	++n_echo_conns_open;
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
+}
+
+/* Called periodically to check up on how full the buckets are */
+static void
+check_bucket_levels_cb(evutil_socket_t fd, short events, void *arg)
+{
+	struct bufferevent *bev = arg;
+
+	ev_ssize_t r = bufferevent_get_read_limit(bev);
+	ev_ssize_t w = bufferevent_get_write_limit(bev);
+	ev_ssize_t rm = bufferevent_get_max_to_read(bev);
+	ev_ssize_t wm = bufferevent_get_max_to_write(bev);
+	/* XXXX check that no value is above the cofigured burst
+	 * limit */
+	total_rbucket_level += r;
+	total_wbucket_level += w;
+	total_max_to_read += rm;
+	total_max_to_write += wm;
+#define B(x) \
+	if ((x) > max_bucket_level)		\
+		max_bucket_level = (x);		\
+	if ((x) < min_bucket_level)		\
+		min_bucket_level = (x)
+	B(r);
+	B(w);
+#undef B
+
+	total_n_bev_checks++;
+	if (total_n_bev_checks >= .8 * (cfg_duration / cfg_tick_msec) * cfg_n_connections) {
+		event_free(event_base_get_running_event(bufferevent_get_base(bev)));
+	}
+}
+
+static void
+check_group_bucket_levels_cb(evutil_socket_t fd, short events, void *arg)
+{
+	if (ratelim_group) {
+		ev_ssize_t r = bufferevent_rate_limit_group_get_read_limit(ratelim_group);
+		ev_ssize_t w = bufferevent_rate_limit_group_get_write_limit(ratelim_group);
+		total_group_rbucket_level += r;
+		total_group_wbucket_level += w;
+	}
+	++total_n_group_bev_checks;
+}
+
+static void
+group_drain_cb(evutil_socket_t fd, short events, void *arg)
+{
+	bufferevent_rate_limit_group_decrement_read(ratelim_group, cfg_group_drain);
+	bufferevent_rate_limit_group_decrement_write(ratelim_group, cfg_group_drain);
 }
 
 static int
@@ -177,10 +255,6 @@ test_ratelimiting(void)
 	struct sockaddr_storage ss;
 	ev_socklen_t slen;
 
-	struct bufferevent **bevs;
-	struct client_state *states;
-	struct bufferevent_rate_limit_group *group = NULL;
-
 	int i;
 
 	struct timeval tv;
@@ -191,6 +265,8 @@ test_ratelimiting(void)
 	double expected_total_persec = -1.0, expected_avg_persec = -1.0;
 	int ok = 1;
 	struct event_config *base_cfg;
+	struct event *periodic_level_check;
+	struct event *group_drain_event=NULL;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -237,7 +313,7 @@ test_ratelimiting(void)
 			&cfg_tick);
 		group = ratelim_group = bufferevent_rate_limit_group_new(
 			base, group_bucket_cfg);
-		expected_total_persec = cfg_grouplimit;
+		expected_total_persec = cfg_grouplimit - (cfg_group_drain / seconds_per_tick);
 		expected_avg_persec = cfg_grouplimit / cfg_n_connections;
 		if (cfg_connlimit > 0 && expected_avg_persec > cfg_connlimit)
 			expected_avg_persec = cfg_connlimit;
@@ -273,9 +349,24 @@ test_ratelimiting(void)
 
 	event_base_loopexit(base, &tv);
 
+	tv.tv_sec = 0;
+	tv.tv_usec = 100*1000;
+	ms100_common = event_base_init_common_timeout(base, &tv);
+
+	periodic_level_check = event_new(base, -1, EV_PERSIST, check_group_bucket_levels_cb, NULL);
+	event_add(periodic_level_check, ms100_common);
+
+	if (cfg_group_drain && ratelim_group) {
+		group_drain_event = event_new(base, -1, EV_PERSIST, group_drain_cb, NULL);
+		event_add(group_drain_event, &cfg_tick);
+	}
+
 	event_base_dispatch(base);
 
 	ratelim_group = NULL; /* So no more responders get added */
+	event_free(periodic_level_check);
+	if (group_drain_event)
+		event_del(group_drain_event);
 
 	for (i = 0; i < cfg_n_connections; ++i) {
 		bufferevent_free(bevs[i]);
@@ -296,6 +387,27 @@ test_ratelimiting(void)
 
 	if (group)
 		bufferevent_rate_limit_group_free(group);
+
+	if (total_n_bev_checks) {
+		printf("Average read bucket level: %f\n",
+		    (double)total_rbucket_level/total_n_bev_checks);
+		printf("Average write bucket level: %f\n",
+		    (double)total_wbucket_level/total_n_bev_checks);
+		printf("Highest read bucket level: %f\n",
+		    (double)max_bucket_level);
+		printf("Highest write bucket level: %f\n",
+		    (double)min_bucket_level);
+		printf("Average max-to-read: %f\n",
+		    ((double)total_max_to_read)/total_n_bev_checks);
+		printf("Average max-to-write: %f\n",
+		    ((double)total_max_to_write)/total_n_bev_checks);
+	}
+	if (total_n_group_bev_checks) {
+		printf("Average group read bucket level: %f\n",
+		    ((double)total_group_rbucket_level)/total_n_group_bev_checks);
+		printf("Average group write bucket level: %f\n",
+		    ((double)total_group_wbucket_level)/total_n_group_bev_checks);
+	}
 
 	total_received = 0;
 	total_persec = 0.0;
@@ -358,6 +470,7 @@ static struct option {
 	{ "-d", &cfg_duration, 1, 0 },
 	{ "-c", &cfg_connlimit, 0, 0 },
 	{ "-g", &cfg_grouplimit, 0, 0 },
+	{ "-G", &cfg_group_drain, -100000, 0 },
 	{ "-t", &cfg_tick_msec, 10, 0 },
 	{ "--min-share", &cfg_min_share, 0, 0 },
 	{ "--check-connlimit", &cfg_connlimit_tolerance, 0, 0 },
@@ -412,6 +525,7 @@ usage(void)
 "	   (default: None.)\n"
 "  -g INT: Group-rate limit applied to sum of all usage in bytes per second\n"
 "	   (default: None.)\n"
+"  -G INT: drain INT bytes from the group limit every tick. (default: 0)\n"
 "  -t INT: Granularity of timing, in milliseconds (default: 1000 msec)\n");
 }
 
