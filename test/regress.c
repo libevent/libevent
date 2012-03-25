@@ -1250,6 +1250,7 @@ event_selfarg_cb(evutil_socket_t fd, short event, void *arg)
 	struct event_base *base = event_get_base(ev);
 	event_base_assert_ok_(base);
 	event_base_loopexit(base, NULL);
+	tt_want(ev == event_base_get_running_event(base));
 }
 
 static void

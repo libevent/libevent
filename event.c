@@ -1921,6 +1921,17 @@ event_self_cbarg(void)
 }
 
 struct event *
+event_base_get_running_event(struct event_base *base)
+{
+	struct event *ev = NULL;
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	if (EVBASE_IN_THREAD(base))
+		ev = base->current_event;
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return ev;
+}
+
+struct event *
 event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(evutil_socket_t, short, void *), void *arg)
 {
 	struct event *ev;

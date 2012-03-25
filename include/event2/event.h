@@ -1061,6 +1061,13 @@ void event_active(struct event *ev, int res, short ncalls);
  */
 int event_pending(const struct event *ev, short events, struct timeval *tv);
 
+/**
+   If called from within the callback for an event, returns that event.
+
+   The behavior of this function is not defined when called from outside the
+   callback function for an event.
+ */
+struct event *event_base_get_running_event(struct event_base *base);
 
 /**
   Test if an event structure might be initialized.
