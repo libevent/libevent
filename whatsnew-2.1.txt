@@ -108,6 +108,11 @@
          evp = event_new(base, fd, EV_READ, callback,
          event_self_cbarg());
 
+  There's also a new event_base_get_running_event() function you can
+  call from within a Libevent callback to get a pointer to the current
+  event.  This should never be strictly necessary, but it's sometimes
+  convenient.
+
 1.3. New debugging features
 
   You can now turn on debug logs at runtime using a new function,
@@ -380,10 +385,6 @@
 
 5. Testing
 
-  On the bright side, there are an extra ~1000 lines of tests since
-  Libevent 2.0. Sadly, though, there are ~1850 more lines of C code in
-  Libevent itself.  This drops the line-coverage rate of our tests from
-  our previous 80.2% to a miserable 78.8%.  That's better than a lot of
-  programs, but it's still not acceptable! Let's write more unit tests.
-
-
+  Libevent's test coverage level is more or less unchanged sine before:
+  we still have over 80% line coverage in our tests on Linux and OSX.
+  There are some under-tested modules, though: we need to fix those.
