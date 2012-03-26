@@ -124,6 +124,7 @@ evutil_free_secure_rng_globals_locks(void)
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	if (arc4rand_lock != NULL) {
 		EVTHREAD_FREE_LOCK(arc4rand_lock, 0);
+		arc4rand_lock = NULL;
 	}
 #endif
 	return;
