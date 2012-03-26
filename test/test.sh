@@ -106,7 +106,7 @@ run_tests () {
 		FAILED=yes
 	fi
 	announce_n " test-dumpevents: "
-	if test "`which python 2>/dev/null`" != ""; then
+	if python -c 'import sys; assert(sys.version_info >= (2, 4))' 2>/dev/null; then
 	    if $TEST_DIR/test-dumpevents | python $TEST_DIR/check-dumpevents.py >> "$TEST_OUTPUT_FILE" ;
 	    then
 	        announce OKAY ;
