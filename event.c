@@ -138,7 +138,10 @@ static void	event_queue_insert_inserted(struct event_base *, struct event *);
 static void	event_queue_remove_active(struct event_base *, struct event *);
 static void	event_queue_remove_timeout(struct event_base *, struct event *);
 static void	event_queue_remove_inserted(struct event_base *, struct event *);
+#ifdef USE_REINSERT_TIMEOUT
+/* This code seems buggy; only turn it on if we find out what the trouble is. */
 static void	event_queue_reinsert_timeout(struct event_base *,struct event *, int was_common, int is_common, int old_timeout_idx);
+#endif
 
 static int	event_haveevents(struct event_base *);
 
@@ -2225,8 +2228,10 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	if (res != -1 && tv != NULL) {
 		struct timeval now;
 		int common_timeout;
+#ifdef USE_REINSERT_TIMEOUT
 		int was_common;
 		int old_timeout_idx;
+#endif
 
 		/*
 		 * for persistent timeout events, we remember the
@@ -2236,6 +2241,12 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		 */
 		if (ev->ev_closure == EV_CLOSURE_PERSIST && !tv_is_absolute)
 			ev->ev_io_timeout = *tv;
+
+#ifndef USE_REINSERT_TIMEOUT
+		if (ev->ev_flags & EVLIST_TIMEOUT) {
+			event_queue_remove_timeout(base, ev);
+		}
+#endif
 
 		/* Check if it is active due to a timeout.  Rescheduling
 		 * this timeout before the callback can be executed
@@ -2258,8 +2269,10 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		gettime(base, &now);
 
 		common_timeout = is_common_timeout(tv, base);
+#ifdef USE_REINSERT_TIMEOUT
 		was_common = is_common_timeout(&ev->ev_timeout, base);
 		old_timeout_idx = COMMON_TIMEOUT_IDX(&ev->ev_timeout);
+#endif
 
 		if (tv_is_absolute) {
 			ev->ev_timeout = *tv;
@@ -2277,7 +2290,11 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 			 "event_add: event %p, timeout in %d seconds %d useconds, call %p",
 			 ev, (int)tv->tv_sec, (int)tv->tv_usec, ev->ev_callback));
 
+#ifdef USE_REINSERT_TIMEOUT
 		event_queue_reinsert_timeout(base, ev, was_common, common_timeout, old_timeout_idx);
+#else
+		event_queue_insert_timeout(base, ev);
+#endif
 
 		if (common_timeout) {
 			struct common_timeout_list *ctl =
@@ -2687,6 +2704,7 @@ event_queue_remove_timeout(struct event_base *base, struct event *ev)
 	}
 }
 
+#ifdef USE_REINSERT_TIMEOUT
 /* Remove and reinsert 'ev' into the timeout queue. */
 static void
 event_queue_reinsert_timeout(struct event_base *base, struct event *ev,
@@ -2725,6 +2743,7 @@ event_queue_reinsert_timeout(struct event_base *base, struct event *ev,
 		break;
 	}
 }
+#endif
 
 /* Add 'ev' to the common timeout list in 'ev'. */
 static void
