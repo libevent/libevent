@@ -174,6 +174,8 @@ extern "C" {
 #define DNS_IPv4_A 1
 #define DNS_PTR 2
 #define DNS_IPv6_AAAA 3
+#define DNS_NS 4
+#define DNS_MX 5
 
 #define DNS_QUERY_NO_SEARCH 1
 
@@ -189,17 +191,29 @@ extern "C" {
 /**
  * The callback that contains the results from a lookup.
  * - result is one of the DNS_ERR_* values (DNS_ERR_NONE for success)
- * - type is either DNS_IPv4_A or DNS_PTR or DNS_IPv6_AAAA
+ * - type is either DNS_IPv4_A or DNS_PTR or DNS_IPv6_AAAA or DNS_MX or DNS_NS
  * - count contains the number of addresses of form type
  * - ttl is the number of seconds the resolution may be cached for.
  * - addresses needs to be cast according to type.  It will be an array of
- *   4-byte sequences for ipv4, or an array of 16-byte sequences for ipv6,
- *   or a nul-terminated string for PTR.
+ *   4-byte sequences for ipv4, an array of 16-byte sequences for ipv6,
+ *   a nul-terminated string for PTR, an array of evdns_rr_ns for NS, or
+ *   an array of evdns_rr_mx for MX.
  */
 typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, void *addresses, void *arg);
 
 struct evdns_base;
 struct event_base;
+
+/* ???? HOST_NAME_MAX set to 64 in libevent 2.1.x-alpha? */
+struct evdns_rr_mx {
+  int pref;
+  char name[255];
+};
+
+/* evdns_rr_ns here for convenience */
+struct evdns_rr_ns {
+	char name[255];
+};
 
 /**
   Initialize the asynchronous DNS library.
@@ -375,6 +389,32 @@ struct evdns_request *evdns_base_resolve_reverse(struct evdns_base *base, const 
   @see evdns_resolve_reverse_ipv6(), evdns_cancel_request()
  */
 struct evdns_request *evdns_base_resolve_reverse_ipv6(struct evdns_base *base, const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
+
+/**
+  Lookup an NS records for a given name
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_cancel_request()
+ */
+struct evdns_request *evdns_base_resolve_ns(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
+
+/**
+  Lookup an MX records for a given name
+
+  @param base the evdns_base to which to apply this operation
+  @param name a DNS hostname
+  @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
+  @param callback a callback function to invoke when the request is completed
+  @param ptr an argument to pass to the callback function
+  @return an evdns_request object if successful, or NULL if an error occurred.
+  @see evdns_cancel_request()
+ */
+struct evdns_request *evdns_base_resolve_mx(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 /**
   Cancels a pending DNS resolution request.

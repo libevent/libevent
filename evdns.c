@@ -144,12 +144,16 @@
 /* that we bother recording */
 #define MAX_V4_ADDRS 32
 #define MAX_V6_ADDRS 32
+#define MAX_NS_RRS 32
+#define MAX_MX_RRS 32
 
 
 #define TYPE_A	       EVDNS_TYPE_A
+#define TYPE_NS        EVDNS_TYPE_NS
 #define TYPE_CNAME     5
 #define TYPE_PTR       EVDNS_TYPE_PTR
 #define TYPE_SOA       EVDNS_TYPE_SOA
+#define TYPE_MX        EVDNS_TYPE_MX
 #define TYPE_AAAA      EVDNS_TYPE_AAAA
 
 #define CLASS_INET     EVDNS_CLASS_INET
@@ -215,6 +219,14 @@ struct reply {
 		struct {
 			char name[HOST_NAME_MAX];
 		} ptr;
+		struct {
+			u32 count;
+			struct evdns_rr_ns records[MAX_NS_RRS];
+		} ns;
+		struct {
+			u32 count;
+			struct evdns_rr_mx records[MAX_MX_RRS];
+		} mx;
 	} data;
 };
 
@@ -798,6 +810,22 @@ reply_run_callback(struct deferred_cb *d, void *user_pointer)
 		else
 			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
 		break;
+	case TYPE_NS:
+		if (cb->have_reply)
+			cb->user_callback(DNS_ERR_NONE, DNS_NS,
+					cb->reply.data.ns.count, cb->ttl,
+					cb->reply.data.ns.records, user_pointer);
+		else
+			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
+		break;
+	case TYPE_MX:
+		if (cb->have_reply)
+			cb->user_callback(DNS_ERR_NONE, DNS_MX,
+					cb->reply.data.mx.count, cb->ttl,
+					cb->reply.data.mx.records, user_pointer);
+		else
+			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
+		break;
 	default:
 		EVUTIL_ASSERT(0);
 	}
@@ -1142,6 +1170,31 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			j += 16*addrtocopy;
 			reply.have_answer = 1;
 			if (reply.data.aaaa.addrcount == MAX_V6_ADDRS) break;
+		} else if (type == TYPE_NS) {
+			int cnt;
+			if (req->request_type != TYPE_NS) {
+				j += datalength; continue;
+			}
+			cnt = reply.data.ns.count;
+			ttl_r = MIN(ttl_r, ttl);
+			if (name_parse(packet, length, &j, reply.data.ns.records[cnt].name,
+				sizeof(reply.data.ns.records[cnt].name))<0)
+				goto err;
+			reply.have_answer = 1;
+			if (++reply.data.ns.count == MAX_NS_RRS) break;
+		} else if (type == TYPE_MX) {
+			int cnt;
+			if (req->request_type != TYPE_MX) {
+				j += datalength; continue;
+			}
+			cnt = reply.data.mx.count;
+			ttl_r = MIN(ttl_r, ttl);
+			GET16(reply.data.mx.records[cnt].pref);
+			if (name_parse(packet, length, &j, reply.data.mx.records[cnt].name,
+				sizeof(reply.data.mx.records[cnt].name))<0)
+				goto err;
+			reply.have_answer = 1;
+			if (++reply.data.mx.count == MAX_MX_RRS) break;
 		} else {
 			/* skip over any other type of resource */
 			j += datalength;
@@ -2936,6 +2989,48 @@ evdns_base_resolve_reverse_ipv6(struct evdns_base *base, const struct in6_addr *
 int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr) {
 	return evdns_base_resolve_reverse_ipv6(current_base, in, flags, callback, ptr)
 		? 0 : -1;
+}
+
+struct evdns_request *
+evdns_base_resolve_ns(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr)
+{
+	struct evdns_request *handle;
+	struct request *req;
+	log(EVDNS_LOG_DEBUG, "Resolve requested for %s (ns)", name);
+	handle = mm_calloc(1, sizeof (*handle));
+	if (handle == NULL)
+		return NULL;
+	EVDNS_LOCK(base);
+	req = request_new(base, handle, TYPE_NS, name, flags, callback, ptr);
+	if (req)
+		request_submit(req);
+	if (handle->current_req == NULL) {
+		mm_free(handle);
+		handle = NULL;
+	}
+	EVDNS_UNLOCK(base);
+	return (handle);
+}
+
+struct evdns_request *
+evdns_base_resolve_mx(struct evdns_base *base, const char *name, int flags, evdns_callback_type callback, void *ptr)
+{
+	struct evdns_request *handle;
+	struct request *req;
+	log(EVDNS_LOG_DEBUG, "Resolve requested for %s (mx)", name);
+	handle = mm_calloc(1, sizeof (*handle));
+	if (handle == NULL)
+		return NULL;
+	EVDNS_LOCK(base);
+	req = request_new(base, handle, TYPE_MX, name, flags, callback, ptr);
+	if (req)
+		request_submit(req);
+	if (handle->current_req == NULL) {
+		mm_free(handle);
+		handle = NULL;
+	}
+	EVDNS_UNLOCK(base);
+	return (handle);
 }
 
 /* ================================================================= */
