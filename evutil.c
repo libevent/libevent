@@ -85,6 +85,7 @@
 #define close _close
 #define fstat _fstati64
 #define stat _stati64
+#define mode_t int
 #endif
 
 int
