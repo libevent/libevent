@@ -3149,8 +3149,8 @@ http_connection_retry_test(void *arg)
 	test_ok = 0;
 
 	{
-		const struct timeval tv_timeout = { 0, 300000 };
-		const struct timeval tv_retry = { 0, 200000 };
+		const struct timeval tv_timeout = { 0, 500000 };
+		const struct timeval tv_retry = { 0, 500000 };
 		evhttp_connection_set_timeout_tv(evcon, &tv_timeout);
 		evhttp_connection_set_initial_retry_tv(evcon, &tv_retry);
 	}
@@ -3171,8 +3171,8 @@ http_connection_retry_test(void *arg)
 	event_base_dispatch(data->base);
 	evutil_gettimeofday(&tv_end, NULL);
 
-	/* fails fast, .2 sec to wait to retry, fails fast again. */
-	test_timeval_diff_eq(&tv_start, &tv_end, 200);
+	/* fails fast, .5 sec to wait to retry, fails fast again. */
+	test_timeval_diff_leq(&tv_start, &tv_end, 500, 200);
 
 	tt_assert(test_ok == 1);
 
@@ -3208,7 +3208,7 @@ http_connection_retry_test(void *arg)
 	event_base_dispatch(data->base);
 	evutil_gettimeofday(&tv_end, NULL);
 	/* We'll wait twice as long as we did last time. */
-	test_timeval_diff_eq(&tv_start, &tv_end, 400);
+	test_timeval_diff_leq(&tv_start, &tv_end, 1000, 400);
 
 	tt_int_op(test_ok, ==, 1);
 
