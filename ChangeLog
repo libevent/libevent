@@ -28,7 +28,7 @@ BUGFIXES (core):
  o Fix a fd leak in event_reinit() (3f18ad1)
  o Do a memberwise comparison of threading function tables (c94a5f2 Nate R)
  o Use C-style comments in C source files (for compatibility with compilers such as xlc on AIX). (d84d917 Greg Hewgill)
- o Avoid crash when freeing event_iocp and using event_set_mem_functions (19715a6
+ o Avoid crash when freeing event_iocp and using event_set_mem_functions (19715a6)
  o In the kqueue backend, do not report EBADF as an EV_READ (5d7bfa1 Nicholas Marriott)
 
 BUGFIXES (evbuffer and bufferevents):
