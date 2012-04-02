@@ -358,7 +358,7 @@ bev_group_suspend_reading_(struct bufferevent_rate_limit_group *g)
 	   to prevent a deadlock.  (Ordinarily, the group lock nests inside
 	   the bufferevent locks.  If we are unable to lock any individual
 	   bufferevent, it will find out later when it looks at its limit
-	   and sees that its group is suspended.
+	   and sees that its group is suspended.)
 	*/
 	LIST_FOREACH(bev, &g->members, rate_limiting->next_in_group) {
 		if (EVLOCK_TRY_LOCK_(bev->lock)) {
