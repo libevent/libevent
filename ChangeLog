@@ -17,7 +17,7 @@ Changes in version 2.1.1-alpha (4 Apr 2012)
    o Save a needless comparison when removing/adjusting timeouts (dd5189b)
    o Possible optimization: split event_queue_insert/remove into
      separate functions. needs testing (efc4dc5)
-   o Make event_count maintainance branchless at the expense of an
+   o Make event_count maintenance branchless at the expense of an
      extra shift. Needs benchmarking (d1cee3b)
    o In the 2.1 branch, let's try out lazy gettimeofday/clock_gettime
      comparison (2a83ecc)
@@ -100,7 +100,7 @@ Changes in version 2.1.1-alpha (4 Apr 2012)
      buffer. (e6fe1da)
    o Allow evbuffer_ptr to point to position 0 in an empty evbuffer
      (7aeb2fd Nir Soffer)
-   o Set the special "not found" evbuffer_ptr consistantly. (e3e97ae Nir Soffer)
+   o Set the special "not found" evbuffer_ptr consistently. (e3e97ae Nir Soffer)
    o support adding buffers to other buffers non-destructively
      (9d7368a Joachim Bauch)
    o prevent nested multicast references, reworked locking (26041a8
@@ -222,7 +222,7 @@ Changes in version 2.1.1-alpha (4 Apr 2012)
 
  Documentation:
    o Improve evbuffer_ptr documentation (261ba63)
-   o added comments to describe refcounting of multicase chains (ba24f61
+   o added comments to describe refcounting of multicast chains (ba24f61
      Joachim Bauch)
    o Add doxygen for event_base_dump_events (cad5753)
 
@@ -257,11 +257,11 @@ Changes in version 2.1.1-alpha (4 Apr 2012)
    o Generate event-config.h using the correct macros. (f82c57e)
    o Convert include-guard macro convention to avoid reserved identifiers
      (3f8c7cd)
-   o Make event_rpcgen.py output conform to indentifier conventions (372bff1)
+   o Make event_rpcgen.py output conform to identifier conventions (372bff1)
    o Stop referring to an obsolete include guard in bench_http.h (5c0f7e0)
    o Make the generated event-config.h use correct include guards (639383a)
    o Fix all identifiers with names beginning with underscore. (cb9da0b)
-   o Make event_rpcgen.py output conform to indentifier conventions, more
+   o Make event_rpcgen.py output conform to identifier conventions, more
      (bcefd24)
    o Fix some problems introduced by automated identifier cleanup script
      (c963534)
