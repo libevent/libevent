@@ -1,11 +1,10 @@
 
-Contains stuff through 3e9612cd81c8a9881ef298fa59c40af343e4f126
 
  Performance: Core
    o Replace several TAILQ users with LIST. LIST can be a little faster than
      TAILQ for cases where we don't need queue-like behavior. (f9db33d,
      6494772, d313c29, 974d004)
-   o Optimize the case where we reinsert an existing timeout (e47042f)
+   o Disabled code to optimize the case where we reinsert an existing timeout (e47042f, 09cbc3d)
    o Remove a needless base-notify when rescheduling the first timeout (77a96fd)
    o Save a needless comparison when removing/adjusting timeouts (dd5189b)
    o possible optimization: split event_queue_insert/remove into separate functions. needs testing (efc4dc5)
@@ -56,9 +55,9 @@ Contains stuff through 3e9612cd81c8a9881ef298fa59c40af343e4f126
    o Add event_base_get_npriorities() function. (ee3a4ee Alexander Drozdov)
    o Make evbase_priority_init() and evbase_get_npriorities() threadsafe (3c55b5e)   o New event_base_update_cache_time() to set cached_tv to current time (212533e Abel Mathew)
    o Add event_self_cbarg() to be used in conjunction with event_new(). (ed36e6a Ross Lagerwall, fa931bb, 09a1906, 1338e6c, 33e43ef)
-   o Add a new libevent_global_shutdown() to free all globals before exiting. (041ca00 Mark Ellzey)
+   o Add a new libevent_global_shutdown() to free all globals before exiting. (041ca00 Mark Ellzey, f98c158, 15296d0, 55e991b)
    o Use getifaddrs to detect our interfaces if possible (7085a45)
-   o Fix compilation of windows evutil_check_ifaddrs (40a3c52)
+   o Add event_base_get_running_event() to get the event* whose cb we are in (c5732fd, 13dad99)
 
  New functions and features: building
    o Implement --enable-gcc-hardening configure option (7550267 Sebastian Hahn)
@@ -150,7 +149,9 @@ f)
    o Use test_timeval_diff_eq more consistently (b77b43f)
    o Allow more slop in deferred_cb_skew test; freebsd needs it (b9f7e5f)
    o When including an -internal.h header outside the main tree, do so early (95e2455)
-   o Add a new test: test-fdleak which tests for fd leaks by creating many sockets. (2ef9278 Ross Lagerwall, f7af194, 1c4288f 4293a80, c9ba53a 077c7e9 d9be5f4 d7d9f75)
+   o Add a new test: test-fdleak which tests for fd leaks by creating many sockets. (2ef9278 Ross Lagerwall, f7af194, 1c4288f, etc)
+   o Add a unit test for event_base_dump_events() (7afe48a, 8d08cce)
+   o Test more bufferevent_ratelim features (c24f91a)
 
  Documentation:
    o Improve evbuffer_ptr documentation (261ba63)
