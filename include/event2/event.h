@@ -563,11 +563,18 @@ void event_base_free(struct event_base *);
 /** @name Log severities
  */
 /**@{*/
-#define _EVENT_LOG_DEBUG 0
-#define _EVENT_LOG_MSG   1
-#define _EVENT_LOG_WARN  2
-#define _EVENT_LOG_ERR   3
+#define EVENT_LOG_DEBUG 0
+#define EVENT_LOG_MSG   1
+#define EVENT_LOG_WARN  2
+#define EVENT_LOG_ERR   3
 /**@}*/
+
+/* Obsolete names: these are deprecated, but older programs might use them.
+ * They violate the reserved-identifier namespace. */
+#define _EVENT_LOG_DEBUG EVENT_LOG_DEBUG
+#define _EVENT_LOG_MSG EVENT_LOG_MSG
+#define _EVENT_LOG_WARN EVENT_LOG_WARN
+#define _EVENT_LOG_ERR EVENT_LOG_ERR
 
 /**
   A callback function used to intercept Libevent's log messages.
