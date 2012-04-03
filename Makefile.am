@@ -103,6 +103,8 @@ EXTRA_DIST = \
 	whatsnew-2.0.txt \
 	whatsnew-2.1.txt \
 	Makefile.nmake test/Makefile.nmake \
+	ChangeLog-2.0 \
+	ChangeLog-1.4 \
 	$(PLATFORM_DEPENDENT_SRC)
 
 LIBEVENT_LIBS_LA = libevent.la libevent_core.la libevent_extra.la
