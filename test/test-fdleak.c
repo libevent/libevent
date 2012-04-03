@@ -50,7 +50,11 @@
 
 /* Number of requests to make. Setting this too high might result in the machine
    running out of ephemeral ports */
+#ifdef _WIN32
+#define MAX_REQUESTS 1000
+#else
 #define MAX_REQUESTS 4000
+#endif
 
 /* Provide storage for the address, both for the server & the clients */
 static struct sockaddr_in sin;
