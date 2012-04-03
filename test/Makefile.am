@@ -8,7 +8,8 @@ AUTOMAKE_OPTIONS = foreign
 
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include -I../include -DTINYTEST_LOCAL
 
-EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c rpcgen_wrapper.sh test.sh
+EXTRA_DIST = regress.rpc regress.gen.h regress.gen.c rpcgen_wrapper.sh \
+	test.sh check-dumpevents.py
 
 noinst_PROGRAMS = test-init test-eof test-weof test-time test-dumpevents \
 	bench bench_cascade bench_http bench_httpclient test-ratelim \
