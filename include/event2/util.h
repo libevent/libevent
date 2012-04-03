@@ -65,6 +65,10 @@ extern "C" {
 
 #ifdef _WIN32
 #include <winsock2.h>
+#ifdef EVENT__HAVE_GETADDRINFO
+/* for EAI_* definitions. */
+#include <ws2tcpip.h>
+#endif
 #else
 #include <sys/socket.h>
 #endif
