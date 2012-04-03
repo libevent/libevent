@@ -334,13 +334,7 @@
 #define EVENT__TIME_WITH_SYS_TIME 1
 
 /* Version number of package */
-<<<<<<< HEAD
 #define EVENT__VERSION "2.1.0-alpha-dev"
-||||||| merged common ancestors
-#define EVENT__VERSION "2.0.16-stable-dev"
-=======
-#define EVENT__VERSION "2.0.17-stable"
->>>>>>> origin/patches-2.0
 
 /* Define to appropriate substitue if compiler doesnt have __func__ */
 #define EVENT____func__ __FUNCTION__
