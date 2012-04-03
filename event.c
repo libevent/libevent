@@ -1428,8 +1428,8 @@ event_process_active_single_queue(struct event_base *base,
 			ev->ev_res & EV_WRITE ? "EV_WRITE " : " ",
 			ev->ev_callback));
 
-#ifndef EVENT__DISABLE_THREAD_SUPPORT
 		base->current_event = ev;
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 		base->current_event_waiters = 0;
 #endif
 
@@ -1449,8 +1449,8 @@ event_process_active_single_queue(struct event_base *base,
 		}
 
 		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-#ifndef EVENT__DISABLE_THREAD_SUPPORT
 		base->current_event = NULL;
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 		if (base->current_event_waiters) {
 			base->current_event_waiters = 0;
 			EVTHREAD_COND_BROADCAST(base->current_event_cond);
