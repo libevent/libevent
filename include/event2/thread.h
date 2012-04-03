@@ -217,7 +217,7 @@ int evthread_use_pthreads(void);
  * If you're going to call this function, you must do so before any locks are
  * allocated.
  **/
-void evthread_enable_lock_debuging(void);
+void evthread_enable_lock_debugging(void);
 
 #endif /* EVENT__DISABLE_THREAD_SUPPORT */
 
