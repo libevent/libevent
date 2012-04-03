@@ -757,7 +757,7 @@ test_evbuffer_add_file(void *ptr)
 		data = malloc(1024*512);
 		tt_assert(data);
 		for (i = 0; i < datalen; ++i)
-			data[i] = evutil_weakrand_();
+			data[i] = (char)evutil_weakrand_();
 	} else {
 		data = strdup("here is a relatively small string.");
 		tt_assert(data);
