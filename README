@@ -47,7 +47,7 @@ The configure script also supports the following flags:
 2. USEFUL LINKS:
 
 For the latest released version of Libevent, see the official website at
-http://monkey.org/~provos/libevent/ .
+http://libevent.org/ .
 
 There's a pretty good work-in-progress manual up at
    http://www.wangafu.net/~nickm/libevent-book/ .
