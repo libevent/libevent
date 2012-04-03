@@ -2244,7 +2244,7 @@ end:
 static void
 test_mm_functions(void *arg)
 {
-	_tinytest_set_test_skipped();
+	tinytest_set_test_skipped_();
 }
 #else
 static int

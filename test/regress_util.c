@@ -1081,10 +1081,12 @@ test_event_malloc(void *arg)
 	(void)arg;
 
 	/* mm_malloc(0) should simply return NULL. */
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
 	errno = 0;
 	p = mm_malloc(0);
 	tt_assert(p == NULL);
 	tt_int_op(errno, ==, 0);
+#endif
 
 	/* Trivial case. */
 	errno = 0;
@@ -1104,6 +1106,7 @@ test_event_calloc(void *arg)
 	void *p = NULL;
 	(void)arg;
 
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
 	/* mm_calloc() should simply return NULL
 	 * if either argument is zero. */
 	errno = 0;
@@ -1118,6 +1121,7 @@ test_event_calloc(void *arg)
 	p = mm_calloc(1, 0);
 	tt_assert(p == NULL);
 	tt_int_op(errno, ==, 0);
+#endif
 
 	/* Trivial case. */
 	errno = 0;
@@ -1144,11 +1148,13 @@ test_event_strdup(void *arg)
 	void *p = NULL;
 	(void)arg;
 
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
 	/* mm_strdup(NULL) should set errno = EINVAL and return NULL. */
 	errno = 0;
 	p = mm_strdup(NULL);
 	tt_assert(p == NULL);
 	tt_int_op(errno, ==, EINVAL);
+#endif
 
 	/* Trivial cases. */
 
