@@ -93,9 +93,19 @@ struct {								\
 }
 #endif /* !TAILQ_ENTRY */
 
+struct event_callback {
+	TAILQ_ENTRY(event_callback) evcb_active_next;
+	short evcb_flags;
+	ev_uint8_t evcb_pri;	/* smaller numbers are higher priority */
+	ev_uint8_t evcb_closure;
+	/* allows us to adopt for different types of events */
+	void (*evcb_callback)(evutil_socket_t, short, void *arg);
+	void *evcb_arg;
+};
+
 struct event_base;
 struct event {
-	TAILQ_ENTRY(event) ev_active_next;
+	struct event_callback ev_evcallback;
 
 	/* for managing timeouts */
 	union {
@@ -124,14 +134,7 @@ struct event {
 
 	short ev_events;
 	short ev_res;		/* result passed to event callback */
-	short ev_flags;
-	ev_uint8_t ev_pri;	/* smaller numbers are higher priority */
-	ev_uint8_t ev_closure;
 	struct timeval ev_timeout;
-
-	/* allows us to adopt for different types of events */
-	void (*ev_callback)(evutil_socket_t, short, void *arg);
-	void *ev_arg;
 };
 
 TAILQ_HEAD (event_list, event);

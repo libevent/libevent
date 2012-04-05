@@ -53,10 +53,16 @@ extern "C" {
 #define ev_ncalls	ev_.ev_signal.ev_ncalls
 #define ev_pncalls	ev_.ev_signal.ev_pncalls
 
-/* Possible values for ev_closure in struct event. */
-#define EV_CLOSURE_NONE 0
-#define EV_CLOSURE_SIGNAL 1
-#define EV_CLOSURE_PERSIST 2
+#define ev_pri ev_evcallback.evcb_pri
+#define ev_flags ev_evcallback.evcb_flags
+#define ev_closure ev_evcallback.evcb_closure
+#define ev_callback ev_evcallback.evcb_callback
+#define ev_arg ev_evcallback.evcb_arg
+
+/* Possible values for evcb_closure in struct event_callback */
+#define EV_CLOSURE_EVENT 0
+#define EV_CLOSURE_EVENT_SIGNAL 1
+#define EV_CLOSURE_EVENT_PERSIST 2
 
 /** Structure to define the backend of a given event_base. */
 struct eventop {
@@ -170,6 +176,8 @@ extern int event_debug_mode_on_;
 #define EVENT_DEBUG_MODE_IS_ON() (0)
 #endif
 
+TAILQ_HEAD(evcallback_list, event_callback);
+
 struct event_base {
 	/** Function pointers and other data to describe this event_base's
 	 * backend. */
@@ -210,11 +218,11 @@ struct event_base {
 	int running_loop;
 
 	/* Active event management. */
-	/** An array of nactivequeues queues for active events (ones that
-	 * have triggered, and whose callbacks need to be called).  Low
+	/** An array of nactivequeues queues for active event_callbacks (ones
+	 * that have triggered, and whose callbacks need to be called).  Low
 	 * priority numbers are more important, and stall higher ones.
 	 */
-	struct event_list *activequeues;
+	struct evcallback_list *activequeues;
 	/** The length of the activequeues array */
 	int nactivequeues;
 
@@ -266,7 +274,7 @@ struct event_base {
 	int current_event_waiters;
 #endif
 	/** The event whose callback is executing right now */
-	struct event *current_event;
+	struct event_callback *current_event;
 
 #ifdef _WIN32
 	/** IOCP support structure, if IOCP is enabled. */
@@ -355,6 +363,8 @@ int evsig_restore_handler_(struct event_base *base, int evsignal);
 
 
 void event_active_nolock_(struct event *ev, int res, short count);
+void event_callback_activate_nolock_(struct event_base *, struct event_callback *);
+
 
 /* FIXME document. */
 void event_base_add_virtual_(struct event_base *base);
