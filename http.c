@@ -2197,7 +2197,8 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 			bufferevent_base_set(base, evcon->bufev);
 	}
 
-	event_deferred_cb_init_(&evcon->read_more_deferred_cb,
+	event_deferred_cb_init_(evcon->base,
+	    &evcon->read_more_deferred_cb,
 	    evhttp_deferred_read_cb, evcon);
 
 	evcon->dns_base = dnsbase;

@@ -210,10 +210,10 @@ bufferevent_run_deferred_callbacks_unlocked(struct deferred_cb *cb, void *arg)
 
 #define SCHEDULE_DEFERRED(bevp)						\
 	do {								\
-		bufferevent_incref_(&(bevp)->bev);			\
-		event_deferred_cb_schedule_(				\
+		if (event_deferred_cb_schedule_(			\
 			event_base_get_deferred_cb_queue_((bevp)->bev.ev_base), \
-			&(bevp)->deferred);				\
+			&(bevp)->deferred))				\
+			bufferevent_incref_(&(bevp)->bev);		\
 	} while (0)
 
 
@@ -227,8 +227,7 @@ bufferevent_run_readcb_(struct bufferevent *bufev)
 		return;
 	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
 		p->readcb_pending = 1;
-		if (!p->deferred.queued)
-			SCHEDULE_DEFERRED(p);
+		SCHEDULE_DEFERRED(p);
 	} else {
 		bufev->readcb(bufev, bufev->cbarg);
 	}
@@ -244,8 +243,7 @@ bufferevent_run_writecb_(struct bufferevent *bufev)
 		return;
 	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
 		p->writecb_pending = 1;
-		if (!p->deferred.queued)
-			SCHEDULE_DEFERRED(p);
+		SCHEDULE_DEFERRED(p);
 	} else {
 		bufev->writecb(bufev, bufev->cbarg);
 	}
@@ -262,8 +260,7 @@ bufferevent_run_eventcb_(struct bufferevent *bufev, short what)
 	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
 		p->eventcb_pending |= what;
 		p->errno_pending = EVUTIL_SOCKET_ERROR();
-		if (!p->deferred.queued)
-			SCHEDULE_DEFERRED(p);
+		SCHEDULE_DEFERRED(p);
 	} else {
 		bufev->errorcb(bufev, what, bufev->cbarg);
 	}
@@ -326,11 +323,15 @@ bufferevent_init_common_(struct bufferevent_private *bufev_private,
 	}
 	if (options & BEV_OPT_DEFER_CALLBACKS) {
 		if (options & BEV_OPT_UNLOCK_CALLBACKS)
-			event_deferred_cb_init_(&bufev_private->deferred,
+			event_deferred_cb_init_(
+			    bufev->ev_base,
+			    &bufev_private->deferred,
 			    bufferevent_run_deferred_callbacks_unlocked,
 			    bufev_private);
 		else
-			event_deferred_cb_init_(&bufev_private->deferred,
+			event_deferred_cb_init_(
+			    bufev->ev_base,
+			    &bufev_private->deferred,
 			    bufferevent_run_deferred_callbacks_locked,
 			    bufev_private);
 	}

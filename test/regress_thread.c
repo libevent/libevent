@@ -439,7 +439,7 @@ load_deferred_queue(void *arg)
 	size_t i;
 
 	for (i = 0; i < CB_COUNT; ++i) {
-		event_deferred_cb_init_(&data->cbs[i], deferred_callback, NULL);
+		event_deferred_cb_init_(data->queue, &data->cbs[i], deferred_callback, NULL);
 		event_deferred_cb_schedule_(data->queue, &data->cbs[i]);
 		SLEEP_MS(1);
 	}

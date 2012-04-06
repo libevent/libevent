@@ -34,6 +34,7 @@ extern "C" {
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 #include "event2/util.h"
+#include "event2/event_struct.h"
 #include "util-internal.h"
 #include "defer-internal.h"
 

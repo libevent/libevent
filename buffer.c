@@ -404,7 +404,7 @@ evbuffer_defer_callbacks(struct evbuffer *buffer, struct event_base *base)
 	EVBUFFER_LOCK(buffer);
 	buffer->cb_queue = event_base_get_deferred_cb_queue_(base);
 	buffer->deferred_cbs = 1;
-	event_deferred_cb_init_(&buffer->deferred,
+	event_deferred_cb_init_(base, &buffer->deferred,
 	    evbuffer_deferred_callback, buffer);
 	EVBUFFER_UNLOCK(buffer);
 	return 0;
@@ -509,13 +509,12 @@ evbuffer_invoke_callbacks_(struct evbuffer *buffer)
 	}
 
 	if (buffer->deferred_cbs) {
-		if (buffer->deferred.queued)
-			return;
-		evbuffer_incref_and_lock_(buffer);
-		if (buffer->parent)
-			bufferevent_incref_(buffer->parent);
+		if (event_deferred_cb_schedule_(buffer->cb_queue, &buffer->deferred)) {
+			evbuffer_incref_and_lock_(buffer);
+			if (buffer->parent)
+				bufferevent_incref_(buffer->parent);
+		}
 		EVBUFFER_UNLOCK(buffer);
-		event_deferred_cb_schedule_(buffer->cb_queue, &buffer->deferred);
 	}
 
 	evbuffer_run_callbacks(buffer, 0);

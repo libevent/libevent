@@ -56,13 +56,14 @@ extern "C" {
 #define ev_pri ev_evcallback.evcb_pri
 #define ev_flags ev_evcallback.evcb_flags
 #define ev_closure ev_evcallback.evcb_closure
-#define ev_callback ev_evcallback.evcb_callback
+#define ev_callback ev_evcallback.evcb_cb_union.evcb_callback
 #define ev_arg ev_evcallback.evcb_arg
 
 /* Possible values for evcb_closure in struct event_callback */
 #define EV_CLOSURE_EVENT 0
 #define EV_CLOSURE_EVENT_SIGNAL 1
 #define EV_CLOSURE_EVENT_PERSIST 2
+#define EV_CLOSURE_CB_SELF 3
 
 /** Structure to define the backend of a given event_base. */
 struct eventop {
@@ -239,10 +240,6 @@ struct event_base {
 	/** The total size of common_timeout_queues. */
 	int n_common_timeouts_allocated;
 
-	/** List of defered_cb that are active.  We run these after the active
-	 * events. */
-	struct deferred_cb_queue defer_queue;
-
 	/** Mapping from file descriptors to enabled (added) events */
 	struct event_io_map io;
 
@@ -358,7 +355,7 @@ struct event_config {
 #endif /* TAILQ_FOREACH */
 
 #define N_ACTIVE_CALLBACKS(base)					\
-	((base)->event_count_active + (base)->defer_queue.active_count)
+	((base)->event_count_active)
 
 int evsig_set_handler_(struct event_base *base, int evsignal,
 			  void (*fn)(int));
@@ -366,7 +363,8 @@ int evsig_restore_handler_(struct event_base *base, int evsignal);
 
 
 void event_active_nolock_(struct event *ev, int res, short count);
-void event_callback_activate_nolock_(struct event_base *, struct event_callback *);
+int event_callback_activate_(struct event_base *, struct event_callback *);
+int event_callback_activate_nolock_(struct event_base *, struct event_callback *);
 int event_callback_cancel_(struct event_base *base,
     struct event_callback *evcb);
 
