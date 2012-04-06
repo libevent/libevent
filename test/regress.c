@@ -1350,6 +1350,66 @@ end:
 	;
 }
 
+static int n_write_a_byte_cb=0;
+static int n_read_and_drain_cb=0;
+static int n_activate_other_event_cb=0;
+static void
+write_a_byte_cb(evutil_socket_t fd, short what, void *arg)
+{
+	char buf[] = "x";
+	write(fd, buf, 1);
+	++n_write_a_byte_cb;
+}
+static void
+read_and_drain_cb(evutil_socket_t fd, short what, void *arg)
+{
+	char buf[128];
+	int n;
+	++n_read_and_drain_cb;
+	while ((n = read(fd, buf, sizeof(buf))) > 0)
+		;
+}
+
+static void
+activate_other_event_cb(evutil_socket_t fd, short what, void *other_)
+{
+	struct event *ev_activate = other_;
+	++n_activate_other_event_cb;
+	event_active_later_(ev_activate, EV_READ);
+}
+
+static void
+test_active_later(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event *ev1, *ev2;
+	struct event ev3, ev4;
+	struct timeval qsec = {0, 100000};
+	ev1 = event_new(data->base, data->pair[0], EV_READ|EV_PERSIST, read_and_drain_cb, NULL);
+	ev2 = event_new(data->base, data->pair[1], EV_WRITE|EV_PERSIST, write_a_byte_cb, NULL);
+	event_assign(&ev3, data->base, -1, 0, activate_other_event_cb, &ev4);
+	event_assign(&ev4, data->base, -1, 0, activate_other_event_cb, &ev3);
+	event_add(ev1, NULL);
+	event_add(ev2, NULL);
+	event_active_later_(&ev3, EV_READ);
+
+	event_base_loopexit(data->base, &qsec);
+
+	event_base_loop(data->base, 0);
+
+	TT_BLATHER(("%d write calls, %d read calls, %d activate-other calls.",
+		n_write_a_byte_cb, n_read_and_drain_cb, n_activate_other_event_cb));
+	event_del(&ev3);
+	event_del(&ev4);
+
+	tt_int_op(n_write_a_byte_cb, ==, n_activate_other_event_cb);
+	tt_int_op(n_write_a_byte_cb, >, 100);
+	tt_int_op(n_read_and_drain_cb, >, 100);
+	tt_int_op(n_activate_other_event_cb, >, 100);
+end:
+	;
+}
+
 static void
 test_event_base_new(void *ptr)
 {
@@ -2468,7 +2528,9 @@ struct testcase_t main_testcases[] = {
 
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
+	BASIC(active_later, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
 
+	/* These are still using the old API */
 	LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
 	{ "persistent_timeout_jump", test_persistent_timeout_jump, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "persistent_active_timeout", test_persistent_active_timeout,

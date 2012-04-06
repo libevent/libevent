@@ -54,14 +54,15 @@ extern "C" {
 /* For evkeyvalq */
 #include <event2/keyvalq_struct.h>
 
-#define EVLIST_TIMEOUT	0x01
-#define EVLIST_INSERTED	0x02
-#define EVLIST_SIGNAL	0x04
-#define EVLIST_ACTIVE	0x08
-#define EVLIST_INTERNAL	0x10
-#define EVLIST_INIT	0x80
+#define EVLIST_TIMEOUT	    0x01
+#define EVLIST_INSERTED	    0x02
+#define EVLIST_SIGNAL	    0x04
+#define EVLIST_ACTIVE	    0x08
+#define EVLIST_INTERNAL	    0x10
+#define EVLIST_ACTIVE_LATER 0x20
+#define EVLIST_INIT	    0x80
 
-#define EVLIST_ALL      0x9f
+#define EVLIST_ALL          0xbf
 
 /* Fix so that people don't have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY

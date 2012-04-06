@@ -225,6 +225,9 @@ struct event_base {
 	struct evcallback_list *activequeues;
 	/** The length of the activequeues array */
 	int nactivequeues;
+	/** A list of event_callbacks that should become active the next time
+	 * we process events, but not this time. */
+	struct evcallback_list active_later_queue;
 
 	/* common timeout logic */
 
@@ -364,7 +367,17 @@ int evsig_restore_handler_(struct event_base *base, int evsignal);
 
 void event_active_nolock_(struct event *ev, int res, short count);
 void event_callback_activate_nolock_(struct event_base *, struct event_callback *);
+int event_callback_cancel_(struct event_base *base,
+    struct event_callback *evcb);
 
+void event_active_later_(struct event *ev, int res);
+void event_active_later_nolock_(struct event *ev, int res);
+void event_callback_activate_later_nolock_(struct event_base *base,
+    struct event_callback *evcb);
+int event_callback_cancel_nolock_(struct event_base *base,
+    struct event_callback *evcb);
+void event_callback_init_(struct event_base *base,
+    struct event_callback *cb);
 
 /* FIXME document. */
 void event_base_add_virtual_(struct event_base *base);
