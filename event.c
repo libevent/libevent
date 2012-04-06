@@ -3405,6 +3405,7 @@ void
 event_base_assert_ok_(struct event_base *base)
 {
 	int i;
+	int count;
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	/* First do checks on the per-fd and per-signal lists */
@@ -3439,12 +3440,14 @@ event_base_assert_ok_(struct event_base *base)
 	}
 
 	/* Check the active queues. */
+	count = 0;
 	for (i = 0; i < base->nactivequeues; ++i) {
 		struct event_callback *evcb;
 		EVUTIL_ASSERT_TAILQ_OK(&base->activequeues[i], event_callback, evcb_active_next);
 		TAILQ_FOREACH(evcb, &base->activequeues[i], evcb_active_next) {
 			EVUTIL_ASSERT((evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER)) == EVLIST_ACTIVE);
 			EVUTIL_ASSERT(evcb->evcb_pri == i);
+			++count;
 		}
 	}
 
@@ -3452,8 +3455,10 @@ event_base_assert_ok_(struct event_base *base)
 		struct event_callback *evcb;
 		TAILQ_FOREACH(evcb, &base->active_later_queue, evcb_active_next) {
 			EVUTIL_ASSERT((evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER)) == EVLIST_ACTIVE_LATER);
+			++count;
 		}
 	}
+	EVUTIL_ASSERT(count == base->event_count_active);
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
