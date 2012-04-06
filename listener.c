@@ -440,7 +440,7 @@ struct accepting_socket {
 	struct event_overlapped overlapped;
 	SOCKET s;
 	int error;
-	struct deferred_cb deferred;
+	struct event_callback deferred;
 	struct evconnlistener_iocp *lev;
 	ev_uint8_t buflen;
 	ev_uint8_t family;
@@ -450,7 +450,7 @@ struct accepting_socket {
 
 static void accepted_socket_cb(struct event_overlapped *o, ev_uintptr_t key,
     ev_ssize_t n, int ok);
-static void accepted_socket_invoke_user_cb(struct deferred_cb *cb, void *arg);
+static void accepted_socket_invoke_user_cb(struct event_callback *cb, void *arg);
 
 static void
 iocp_listener_event_add(struct evconnlistener_iocp *lev)
@@ -566,7 +566,7 @@ start_accepting(struct accepting_socket *as)
 report_err:
 	as->error = error;
 	event_deferred_cb_schedule_(
-		event_base_get_deferred_cb_queue_(as->lev->event_base),
+		as->lev->event_base,
 		&as->deferred);
 	return 0;
 }
@@ -581,7 +581,7 @@ stop_accepting(struct accepting_socket *as)
 }
 
 static void
-accepted_socket_invoke_user_cb(struct deferred_cb *dcb, void *arg)
+accepted_socket_invoke_user_cb(struct event_callback *dcb, void *arg)
 {
 	struct accepting_socket *as = arg;
 
@@ -658,7 +658,7 @@ accepted_socket_cb(struct event_overlapped *o, ev_uintptr_t key, ev_ssize_t n, i
 	if (ok) {
 		/* XXXX Don't do this if some EV_MT flag is set. */
 		event_deferred_cb_schedule_(
-			event_base_get_deferred_cb_queue_(as->lev->event_base),
+			as->lev->event_base,
 			&as->deferred);
 		LeaveCriticalSection(&as->lock);
 	} else if (as->free_on_cb) {
@@ -683,7 +683,7 @@ accepted_socket_cb(struct event_overlapped *o, ev_uintptr_t key, ev_ssize_t n, i
 			as->error = WSAGetLastError();
 		}
 		event_deferred_cb_schedule_(
-			event_base_get_deferred_cb_queue_(as->lev->event_base),
+			as->lev->event_base,
 			&as->deferred);
 		LeaveCriticalSection(&as->lock);
 	}

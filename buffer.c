@@ -142,7 +142,7 @@
 static void evbuffer_chain_align(struct evbuffer_chain *chain);
 static int evbuffer_chain_should_realign(struct evbuffer_chain *chain,
     size_t datalen);
-static void evbuffer_deferred_callback(struct deferred_cb *cb, void *arg);
+static void evbuffer_deferred_callback(struct event_callback *cb, void *arg);
 static int evbuffer_ptr_memcmp(const struct evbuffer *buf,
     const struct evbuffer_ptr *pos, const char *mem, size_t len);
 static struct evbuffer_chain *evbuffer_expand_singlechain(struct evbuffer *buf,
@@ -402,7 +402,7 @@ int
 evbuffer_defer_callbacks(struct evbuffer *buffer, struct event_base *base)
 {
 	EVBUFFER_LOCK(buffer);
-	buffer->cb_queue = event_base_get_deferred_cb_queue_(base);
+	buffer->cb_queue = base;
 	buffer->deferred_cbs = 1;
 	event_deferred_cb_init_(base, &buffer->deferred,
 	    evbuffer_deferred_callback, buffer);
@@ -521,7 +521,7 @@ evbuffer_invoke_callbacks_(struct evbuffer *buffer)
 }
 
 static void
-evbuffer_deferred_callback(struct deferred_cb *cb, void *arg)
+evbuffer_deferred_callback(struct event_callback *cb, void *arg)
 {
 	struct bufferevent *parent = NULL;
 	struct evbuffer *buffer = arg;

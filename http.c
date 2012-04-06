@@ -1017,7 +1017,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 }
 
 #define get_deferred_queue(evcon)		\
-	(event_base_get_deferred_cb_queue_((evcon)->base))
+	((evcon)->base)
 
 /*
  * Gets called when more data becomes available
@@ -1079,7 +1079,7 @@ evhttp_read_cb(struct bufferevent *bufev, void *arg)
 }
 
 static void
-evhttp_deferred_read_cb(struct deferred_cb *cb, void *data)
+evhttp_deferred_read_cb(struct event_callback *cb, void *data)
 {
 	struct evhttp_connection *evcon = data;
 	evhttp_read_cb(evcon->bufev, evcon);

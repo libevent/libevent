@@ -103,7 +103,7 @@ struct evhttp_connection {
 	void (*closecb)(struct evhttp_connection *, void *);
 	void *closecb_arg;
 
-	struct deferred_cb read_more_deferred_cb;
+	struct event_callback read_more_deferred_cb;
 
 	struct event_base *base;
 	struct evdns_base *dns_base;

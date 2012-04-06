@@ -131,7 +131,7 @@ bufferevent_inbuf_wm_cb(struct evbuffer *buf,
 }
 
 static void
-bufferevent_run_deferred_callbacks_locked(struct deferred_cb *cb, void *arg)
+bufferevent_run_deferred_callbacks_locked(struct event_callback *cb, void *arg)
 {
 	struct bufferevent_private *bufev_private = arg;
 	struct bufferevent *bufev = &bufev_private->bev;
@@ -164,7 +164,7 @@ bufferevent_run_deferred_callbacks_locked(struct deferred_cb *cb, void *arg)
 }
 
 static void
-bufferevent_run_deferred_callbacks_unlocked(struct deferred_cb *cb, void *arg)
+bufferevent_run_deferred_callbacks_unlocked(struct event_callback *cb, void *arg)
 {
 	struct bufferevent_private *bufev_private = arg;
 	struct bufferevent *bufev = &bufev_private->bev;
@@ -211,7 +211,7 @@ bufferevent_run_deferred_callbacks_unlocked(struct deferred_cb *cb, void *arg)
 #define SCHEDULE_DEFERRED(bevp)						\
 	do {								\
 		if (event_deferred_cb_schedule_(			\
-			event_base_get_deferred_cb_queue_((bevp)->bev.ev_base), \
+			    (bevp)->bev.ev_base,			\
 			&(bevp)->deferred))				\
 			bufferevent_incref_(&(bevp)->bev);		\
 	} while (0)

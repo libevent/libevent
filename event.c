@@ -2128,7 +2128,7 @@ evthread_notify_base_eventfd(struct event_base *base)
 
 /** Tell the thread currently running the event_loop for base (if any) that it
  * needs to stop waiting in its dispatch function (if it is) and process all
- * active events and deferred callbacks (if there are any).  */
+ * active callbacks. */
 static int
 evthread_notify_base(struct event_base *base)
 {

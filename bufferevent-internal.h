@@ -183,7 +183,7 @@ struct bufferevent_private {
 	int dns_error;
 
 	/** Used to implement deferred callbacks */
-	struct deferred_cb deferred;
+	struct event_callback deferred;
 
 	/** The options this bufferevent was constructed with */
 	enum bufferevent_options options;

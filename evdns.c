@@ -754,7 +754,7 @@ evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 
 /* TODO(nickm) document */
 struct deferred_reply_callback {
-	struct deferred_cb deferred;
+	struct event_callback deferred;
 	struct evdns_request *handle;
 	u8 request_type;
 	u8 have_reply;
@@ -765,7 +765,7 @@ struct deferred_reply_callback {
 };
 
 static void
-reply_run_callback(struct deferred_cb *d, void *user_pointer)
+reply_run_callback(struct event_callback *d, void *user_pointer)
 {
 	struct deferred_reply_callback *cb =
 	    EVUTIL_UPCAST(d, struct deferred_reply_callback, deferred);
@@ -840,7 +840,7 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 	    &d->deferred, reply_run_callback,
 	    req->user_pointer);
 	event_deferred_cb_schedule_(
-		event_base_get_deferred_cb_queue_(req->base->event_base),
+		req->base->event_base,
 		&d->deferred);
 }
 

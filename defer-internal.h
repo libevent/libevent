@@ -35,26 +35,23 @@ extern "C" {
 
 #include <sys/queue.h>
 
-#define deferred_cb event_callback
-#define deferred_cb_queue event_base
 struct event_callback;
-
 typedef void (*deferred_cb_fn)(struct event_callback *, void *);
 
 /**
-   Initialize an empty, non-pending deferred_cb.
+   Initialize an empty, non-pending event_callback.
 
-   @param deferred The deferred_cb structure to initialize.
-   @param cb The function to run when the deferred_cb executes.
+   @param deferred The struct event_callback structure to initialize.
+   @param cb The function to run when the struct event_callback executes.
    @param arg The function's second argument.
  */
 void event_deferred_cb_init_(struct event_base *base, struct event_callback *, deferred_cb_fn, void *);
 /**
-   Cancel a deferred_cb if it is currently scheduled in an event_base.
+   Cancel a struct event_callback if it is currently scheduled in an event_base.
  */
 void event_deferred_cb_cancel_(struct event_base *, struct event_callback *);
 /**
-   Activate a deferred_cb if it is not currently scheduled in an event_base.
+   Activate a struct event_callback if it is not currently scheduled in an event_base.
 
    Return true iff it was not previously scheduled.
  */
@@ -63,8 +60,6 @@ int event_deferred_cb_schedule_(struct event_base *, struct event_callback *);
 #ifdef __cplusplus
 }
 #endif
-
-#define event_base_get_deferred_cb_queue_(x) (x)
 
 #endif /* EVENT_INTERNAL_H_INCLUDED_ */
 

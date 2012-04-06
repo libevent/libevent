@@ -135,7 +135,7 @@ struct evbuffer {
 	ev_uint32_t flags;
 
 	/** Used to implement deferred callbacks. */
-	struct deferred_cb_queue *cb_queue;
+	struct event_base *cb_queue;
 
 	/** A reference count on this evbuffer.	 When the reference count
 	 * reaches 0, the buffer is destroyed.	Manipulated with
@@ -143,9 +143,9 @@ struct evbuffer {
 	 * evbuffer_free. */
 	int refcnt;
 
-	/** A deferred_cb handle to make all of this buffer's callbacks
+	/** A struct event_callback handle to make all of this buffer's callbacks
 	 * invoked from the event loop. */
-	struct deferred_cb deferred;
+	struct event_callback deferred;
 
 	/** A doubly-linked-list of callback functions */
 	LIST_HEAD(evbuffer_cb_queue, evbuffer_cb_entry) callbacks;

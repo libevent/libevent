@@ -415,8 +415,8 @@ SLEEP_MS(int ms)
 }
 
 struct deferred_test_data {
-	struct deferred_cb cbs[CB_COUNT];
-	struct deferred_cb_queue *queue;
+	struct event_callback cbs[CB_COUNT];
+	struct event_base *queue;
 };
 
 static struct timeval timer_start = {0,0};
@@ -426,7 +426,7 @@ static THREAD_T load_threads[QUEUE_THREAD_COUNT];
 static struct deferred_test_data deferred_data[QUEUE_THREAD_COUNT];
 
 static void
-deferred_callback(struct deferred_cb *cb, void *arg)
+deferred_callback(struct event_callback *cb, void *arg)
 {
 	SLEEP_MS(1);
 	callback_count += 1;
@@ -469,13 +469,10 @@ thread_deferred_cb_skew(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct timeval tv_timer = {1, 0};
-	struct deferred_cb_queue *queue;
+	struct event_base *queue = data->base;
 	struct timeval elapsed;
 	int elapsed_usec;
 	int i;
-
-	queue = event_base_get_deferred_cb_queue_(data->base);
-	tt_assert(queue);
 
 	for (i = 0; i < QUEUE_THREAD_COUNT; ++i)
 		deferred_data[i].queue = queue;
