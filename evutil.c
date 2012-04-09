@@ -2273,14 +2273,52 @@ evutil_getenv_(const char *varname)
 	return getenv(varname);
 }
 
-long
-evutil_weakrand_(void)
+ev_uint32_t
+evutil_weakrand_seed_(struct evutil_weakrand_state *state, ev_uint32_t seed)
 {
+	if (seed == 0) {
+		struct timeval tv;
+		evutil_gettimeofday(&tv, NULL);
+		seed = (ev_uint32_t)tv.tv_sec + (ev_uint32_t)tv.tv_usec;
 #ifdef _WIN32
-	return rand();
+		seed += (ev_uint32_t) _getpid();
 #else
-	return random();
+		seed += (ev_uint32_t) getpid();
 #endif
+	}
+	state->seed = seed;
+	return seed;
+}
+
+ev_int32_t
+evutil_weakrand_(struct evutil_weakrand_state *state)
+{
+	/* This RNG implementation is a linear congruential generator, with
+	 * modulus 2^31, multiplier 1103515245, and addend 12345.  It's also
+	 * used by OpenBSD, and by Glibc's TYPE_0 RNG.
+	 *
+	 * The linear congruential generator is not an industrial-strength
+	 * RNG!  It's fast, but it can have higher-order patterns.  Notably,
+	 * the low bits tend to have periodicity.
+	 */
+	state->seed = ((state->seed) * 1103515245 + 12345) & 0x7fffffff;
+	return (ev_int32_t)(state->seed);
+}
+
+ev_int32_t
+evutil_weakrand_range_(struct evutil_weakrand_state *state, ev_int32_t top)
+{
+	ev_int32_t divisor, result;
+
+	/* We can't just do weakrand() % top, since the low bits of the LCG
+	 * are less random than the high ones.  (Specifically, since the LCG
+	 * modulus is 2^N, every 2^m for m<N will divide the modulus, and so
+	 * therefore the low m bits of the LCG will have period 2^m.) */
+	divisor = EVUTIL_WEAKRAND_MAX / top;
+	do {
+		result = evutil_weakrand_(state) / divisor;
+	} while (result >= top);
+	return result;
 }
 
 int

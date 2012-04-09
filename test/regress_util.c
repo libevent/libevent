@@ -829,6 +829,7 @@ test_evutil_rand(void *arg)
 	char buf2[32];
 	int counts[256];
 	int i, j, k, n=0;
+	struct evutil_weakrand_state seed = { 12346789U };
 
 	memset(buf2, 0, sizeof(buf2));
 	memset(counts, 0, sizeof(counts));
@@ -836,8 +837,8 @@ test_evutil_rand(void *arg)
 	for (k=0;k<32;++k) {
 		/* Try a few different start and end points; try to catch
 		 * the various misaligned cases of arc4random_buf */
-		int startpoint = evutil_weakrand_() % 4;
-		int endpoint = 32 - (evutil_weakrand_() % 4);
+		int startpoint = evutil_weakrand_(&seed) % 4;
+		int endpoint = 32 - (evutil_weakrand_(&seed) % 4);
 
 		memset(buf2, 0, sizeof(buf2));
 
@@ -866,6 +867,13 @@ test_evutil_rand(void *arg)
 		for (j=startpoint;j<endpoint;++j) {
 			tt_int_op(buf2[j], !=, 0);
 		}
+	}
+
+	evutil_weakrand_seed_(&seed, 0);
+	for (i = 0; i < 10000; ++i) {
+		ev_int32_t r = evutil_weakrand_range_(&seed, 9999);
+		tt_int_op(0, <=, r);
+		tt_int_op(r, <, 9999);
 	}
 
 	/* for (i=0;i<256;++i) { printf("%3d %2d\n", i, counts[i]); } */

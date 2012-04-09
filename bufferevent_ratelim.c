@@ -438,7 +438,10 @@ bev_refill_callback_(evutil_socket_t fd, short what, void *arg)
 	BEV_UNLOCK(&bev->bev);
 }
 
-/** Helper: grab a random element from a bufferevent group. */
+/** Helper: grab a random element from a bufferevent group.
+ *
+ * Requires that we hold the lock on the group.
+ */
 static struct bufferevent_private *
 bev_group_random_element_(struct bufferevent_rate_limit_group *group)
 {
@@ -452,7 +455,7 @@ bev_group_random_element_(struct bufferevent_rate_limit_group *group)
 
 	EVUTIL_ASSERT(! LIST_EMPTY(&group->members));
 
-	which = evutil_weakrand_() % group->n_members;
+	which = evutil_weakrand_range_(&group->weakrand_seed, group->n_members);
 
 	bev = LIST_FIRST(&group->members);
 	while (which--)
@@ -659,6 +662,9 @@ bufferevent_rate_limit_group_new(struct event_base *base,
 	EVTHREAD_ALLOC_LOCK(g->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 
 	bufferevent_rate_limit_group_set_min_share(g, 64);
+
+	evutil_weakrand_seed_(&g->weakrand_seed,
+	    (ev_uint32_t) ((now.tv_sec + now.tv_usec) + (ev_intptr_t)g));
 
 	return g;
 }

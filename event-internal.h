@@ -290,6 +290,10 @@ struct event_base {
 	struct event th_notify;
 	/** A function used to wake up the main thread from another thread. */
 	int (*th_notify_fn)(struct event_base *base);
+
+	/** Saved seed for weak random number generator. Some backends use
+	 * this to produce fairness among sockets. Protected by th_base_lock. */
+	struct evutil_weakrand_state weakrand_seed;
 };
 
 struct event_config_entry {

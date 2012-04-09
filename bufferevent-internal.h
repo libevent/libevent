@@ -104,6 +104,10 @@ struct bufferevent_rate_limit_group {
 	/** Timeout event that goes off once a tick, when the bucket is ready
 	 * to refill. */
 	struct event master_refill_event;
+
+	/** Seed for weak random number generator. Protected by 'lock' */
+	struct evutil_weakrand_state weakrand_seed;
+
 	/** Lock to protect the members of this group.  This lock should nest
 	 * within every bufferevent lock: if you are holding this lock, do
 	 * not assume you can lock another bufferevent. */

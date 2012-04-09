@@ -121,6 +121,8 @@ select_init(struct event_base *base)
 
 	evsig_init_(base);
 
+	evutil_weakrand_seed_(&base->weakrand_seed, 0);
+
 	return (sop);
 }
 
@@ -186,7 +188,7 @@ select_dispatch(struct event_base *base, struct timeval *tv)
 	event_debug(("%s: select reports %d", __func__, res));
 
 	check_selectop(sop);
-	i = random() % nfds;
+	i = evutil_weakrand_range_(&base->weakrand_seed, nfds);
 	for (j = 0; j < nfds; ++j) {
 		if (++i >= nfds)
 			i = 0;
