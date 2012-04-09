@@ -58,6 +58,14 @@ extern "C" {
 #define EV_CLOSURE_SIGNAL 1
 #define EV_CLOSURE_PERSIST 2
 
+/* Define HAVE_ANY_MONOTONIC iff we *might* have a working monotonic
+ * clock implementation */
+#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+#define HAVE_ANY_MONOTONIC 1
+#elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
+#define HAVE_ANY_MONOTONIC 1
+#endif
+
 /** Structure to define the backend of a given event_base. */
 struct eventop {
 	/** The name of this backend. */
@@ -243,7 +251,7 @@ struct event_base {
 	 * too often. */
 	struct timeval tv_cache;
 
-#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+#if defined(HAVE_ANY_MONOTONIC)
 	/** Difference between internal time (maybe from clock_gettime) and
 	 * gettimeofday. */
 	struct timeval tv_clock_diff;
