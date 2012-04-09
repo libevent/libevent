@@ -46,6 +46,9 @@
 #ifdef EVENT__HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#ifdef EVENT__HAVE_MACH_MACH_TIME_H
+#include <mach/mach_time.h>
+#endif
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
@@ -123,7 +126,9 @@ struct event_base *event_global_current_base_ = NULL;
 
 /* Global state */
 
+#ifdef HAVE_ANY_MONOTONIC
 static int use_monotonic;
+#endif
 
 static void *event_self_cbarg_ptr_ = NULL;
 
@@ -335,23 +340,45 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 #define EVENT_BASE_ASSERT_LOCKED(base)		\
 	EVLOCK_ASSERT_LOCKED((base)->th_base_lock)
 
+#if defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
+struct mach_timebase_info mach_timebase_units;
+#endif
+
 /* The first time this function is called, it sets use_monotonic to 1
  * if we have a clock function that supports monotonic time */
 static void
 detect_monotonic(void)
 {
-#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-	struct timespec	ts;
 	static int use_monotonic_initialized = 0;
-
 	if (use_monotonic_initialized)
 		return;
 
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
-		use_monotonic = 1;
+#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+	{
+		/* CLOCK_MONOTONIC exists on FreeBSD, Linux, and Solaris.
+		 * You need to check for it at runtime, because some older
+		 * versions won't have it working. */
+		struct timespec	ts;
 
-	use_monotonic_initialized = 1;
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+			use_monotonic = 1;
+	}
+#elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
+	{
+		struct mach_timebase_info mi;
+		/* OSX has mach_absolute_time() */
+		if (mach_timebase_info(&mi) == 0 && mach_absolute_time() != 0) {
+			use_monotonic = 1;
+			/* mach_timebase_info tells us how to convert
+			 * mach_absolute_time() into nanoseconds, but we
+			 * want to use microseconds instead. */
+			mi.denom *= 1000;
+			memcpy(&mach_timebase_units, &mi, sizeof(mi));
+		}
+	}
 #endif
+	use_monotonic_initialized = 1;
+
 }
 
 /* How often (in seconds) do we check for changes in wall clock time relative
@@ -373,21 +400,31 @@ gettime(struct event_base *base, struct timeval *tp)
 		return (0);
 	}
 
-#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+#ifdef HAVE_ANY_MONOTONIC
 	if (use_monotonic) {
+#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 		struct timespec	ts;
-
 		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
 			return (-1);
 
 		tp->tv_sec = ts.tv_sec;
 		tp->tv_usec = ts.tv_nsec / 1000;
+#elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
+		uint64_t abstime = mach_absolute_time();
+		uint64_t usec;
+		usec = (abstime * mach_timebase_units.numer)
+		    / (mach_timebase_units.denom);
+		tp->tv_sec = usec / 1000000;
+		tp->tv_usec = usec % 1000000;
+#else
+#error "Missing monotonic time implementation."
+#endif
 		if (base->last_updated_clock_diff + CLOCK_SYNC_INTERVAL
-		    < ts.tv_sec) {
+		    < tp->tv_sec) {
 			struct timeval tv;
 			evutil_gettimeofday(&tv,NULL);
 			evutil_timersub(&tv, tp, &base->tv_clock_diff);
-			base->last_updated_clock_diff = ts.tv_sec;
+			base->last_updated_clock_diff = tp->tv_sec;
 		}
 
 		return (0);
@@ -411,7 +448,7 @@ event_base_gettimeofday_cached(struct event_base *base, struct timeval *tv)
 	if (base->tv_cache.tv_sec == 0) {
 		r = evutil_gettimeofday(tv, NULL);
 	} else {
-#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+#ifdef HAVE_ANY_MONOTONIC
 		evutil_timeradd(&base->tv_cache, &base->tv_clock_diff, tv);
 #else
 		*tv = base->tv_cache;
@@ -2014,7 +2051,7 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 	if (tv != NULL && (flags & event & EV_TIMEOUT)) {
 		struct timeval tmp = ev->ev_timeout;
 		tmp.tv_usec &= MICROSECONDS_MASK;
-#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+#ifdef HAVE_ANY_MONOTONIC
 		/* correctly remamp to real time */
 		evutil_timeradd(&ev->ev_base->tv_clock_diff, &tmp, tv);
 #else
@@ -2576,8 +2613,10 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	struct timeval off;
 	int i;
 
+#ifdef HAVE_ANY_MONOTONIC
 	if (use_monotonic)
 		return;
+#endif
 
 	/* Check if time is running backwards */
 	gettime(base, tv);
@@ -3125,7 +3164,7 @@ dump_inserted_event_fn(struct event_base *base, struct event *e, void *arg)
 		struct timeval tv;
 		tv.tv_sec = e->ev_timeout.tv_sec;
 		tv.tv_usec = e->ev_timeout.tv_usec & MICROSECONDS_MASK;
-#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
+#if defined(HAVE_ANY_MONOTONIC)
 		evutil_timeradd(&tv, &base->tv_clock_diff, &tv);
 #endif
 		fprintf(output, " Timeout=%ld.%06d",

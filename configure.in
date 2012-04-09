@@ -198,6 +198,7 @@ AC_CHECK_HEADERS([ \
   fcntl.h \
   ifaddrs.h \
   inttypes.h \
+  mach/mach_time.h \
   netdb.h \
   netinet/in.h \
   netinet/in6.h \
@@ -339,6 +340,7 @@ AC_CHECK_FUNCS([ \
   inet_ntop \
   inet_pton \
   issetugid \
+  mach_absolute_time \
   mmap \
   nanosleep \
   pipe \
