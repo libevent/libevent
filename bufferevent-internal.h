@@ -105,8 +105,8 @@ struct bufferevent_rate_limit_group {
 	 * to refill. */
 	struct event master_refill_event;
 
-	/** Seed for weak random number generator. */
-	ev_uint32_t weakrand_seed;
+	/** Seed for weak random number generator. Protected by 'lock' */
+	struct evutil_weakrand_state weakrand_seed;
 
 	/** Lock to protect the members of this group.  This lock should nest
 	 * within every bufferevent lock: if you are holding this lock, do

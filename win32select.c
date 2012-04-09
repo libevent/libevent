@@ -202,6 +202,8 @@ win32_init(struct event_base *base)
 	if (evsig_init_(base) < 0)
 		winop->signals_are_broken = 1;
 
+	evutil_weakrand_seed_(&base->weakrand_seed, 0);
+
 	return (winop);
  err:
 	XFREE(winop->readset_in);

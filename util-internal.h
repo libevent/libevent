@@ -254,8 +254,33 @@ int evutil_resolve_(int family, const char *hostname, struct sockaddr *sa,
 
 const char *evutil_getenv_(const char *name);
 
-ev_uint32_t evutil_weakrand_(ev_uint32_t* seed);
-ev_uint32_t evutil_weakrand_range_(ev_uint32_t* seed, ev_uint32_t top);
+/* Structure to hold the state of our weak random number generator.
+ */
+struct evutil_weakrand_state {
+	ev_uint32_t seed;
+};
+
+#define EVUTIL_WEAKRAND_MAX EV_INT32_MAX
+
+/* Initialize the state of a week random number generator based on 'seed'.  If
+ * the seed is 0, construct a new seed based on not-very-strong platform
+ * entropy, like the PID and the time of day.
+ *
+ * This function, and the other evutil_weakrand* functions, are meant for
+ * speed, not security or statistical strength.  If you need a RNG which an
+ * attacker can't predict, or which passes strong statistical tests, use the
+ * evutil_secure_rng* functions instead.
+ */
+ev_uint32_t evutil_weakrand_seed_(struct evutil_weakrand_state *state, ev_uint32_t seed);
+/* Return a pseudorandom value between 0 and EVUTIL_WEAKRAND_MAX inclusive.
+ * Updates the state in 'seed' as needed -- this value must be protected by a
+ * lock.
+ */
+ev_int32_t evutil_weakrand_(struct evutil_weakrand_state *seed);
+/* Return a pseudorandom value x such that 0 <= x < top. top must be no more
+ * than EVUTIL_WEAKRAND_MAX. Updates the state in 'seed' as needed -- this
+ * value must be proteced by a lock */
+ev_int32_t evutil_weakrand_range_(struct evutil_weakrand_state *seed, ev_int32_t top);
 
 /* Evaluates to the same boolean value as 'p', and hints to the compiler that
  * we expect this value to be false. */

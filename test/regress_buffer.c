@@ -699,7 +699,7 @@ test_evbuffer_add_file(void *ptr)
 	struct event *rev=NULL, *wev=NULL;
 	struct event_base *base = testdata->base;
 	evutil_socket_t pair[2] = {-1, -1};
-	static ev_uint32_t seed = 123456789U;
+	struct evutil_weakrand_state seed = { 123456789U };
 
 	/* This test is highly parameterized based on substrings of its
 	 * argument.  The strings are: */
