@@ -452,7 +452,7 @@ bev_group_random_element_(struct bufferevent_rate_limit_group *group)
 
 	EVUTIL_ASSERT(! LIST_EMPTY(&group->members));
 
-	which = evutil_weakrand_() % group->n_members;
+	which = evutil_weakrand_range_(&group->weakrand_seed, group->n_members);
 
 	bev = LIST_FIRST(&group->members);
 	while (which--)

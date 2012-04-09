@@ -326,7 +326,8 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	}
 
 	if (win32op->readset_out->fd_count) {
-		i = rand() % win32op->readset_out->fd_count;
+		i = evutil_weakrand_range_(&base->weakrand_seed,
+		    win32op->readset_out->fd_count);
 		for (j=0; j<win32op->readset_out->fd_count; ++j) {
 			if (++i >= win32op->readset_out->fd_count)
 				i = 0;
@@ -335,7 +336,8 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 		}
 	}
 	if (win32op->exset_out->fd_count) {
-		i = rand() % win32op->exset_out->fd_count;
+		i = evutil_weakrand_range_(&base->weakrand_seed,
+		    win32op->exset_out->fd_count);
 		for (j=0; j<win32op->exset_out->fd_count; ++j) {
 			if (++i >= win32op->exset_out->fd_count)
 				i = 0;
@@ -345,7 +347,8 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	}
 	if (win32op->writeset_out->fd_count) {
 		SOCKET s;
-		i = rand() % win32op->writeset_out->fd_count;
+		i = evutil_weakrand_range_(&base->weakrand_seed,
+		    win32op->writeset_out->fd_count);
 		for (j=0; j<win32op->writeset_out->fd_count; ++j) {
 			if (++i >= win32op->writeset_out->fd_count)
 				i = 0;

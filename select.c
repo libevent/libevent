@@ -186,7 +186,7 @@ select_dispatch(struct event_base *base, struct timeval *tv)
 	event_debug(("%s: select reports %d", __func__, res));
 
 	check_selectop(sop);
-	i = random() % nfds;
+	i = evutil_weakrand_range_(&base->weakrand_seed, nfds);
 	for (j = 0; j < nfds; ++j) {
 		if (++i >= nfds)
 			i = 0;

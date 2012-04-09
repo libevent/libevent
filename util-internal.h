@@ -254,7 +254,8 @@ int evutil_resolve_(int family, const char *hostname, struct sockaddr *sa,
 
 const char *evutil_getenv_(const char *name);
 
-long evutil_weakrand_(void);
+ev_uint32_t evutil_weakrand_(ev_uint32_t* seed);
+ev_uint32_t evutil_weakrand_range_(ev_uint32_t* seed, ev_uint32_t top);
 
 /* Evaluates to the same boolean value as 'p', and hints to the compiler that
  * we expect this value to be false. */

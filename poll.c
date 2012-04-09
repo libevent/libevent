@@ -183,7 +183,7 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 	if (res == 0 || nfds == 0)
 		return (0);
 
-	i = random() % nfds;
+	i = evutil_weakrand_range_(&base->weakrand_seed, nfds);
 	for (j = 0; j < nfds; j++) {
 		int what;
 		if (++i == nfds)

@@ -699,6 +699,7 @@ test_evbuffer_add_file(void *ptr)
 	struct event *rev=NULL, *wev=NULL;
 	struct event_base *base = testdata->base;
 	evutil_socket_t pair[2] = {-1, -1};
+	static ev_uint32_t seed = 123456789U;
 
 	/* This test is highly parameterized based on substrings of its
 	 * argument.  The strings are: */
@@ -757,7 +758,7 @@ test_evbuffer_add_file(void *ptr)
 		data = malloc(1024*512);
 		tt_assert(data);
 		for (i = 0; i < datalen; ++i)
-			data[i] = (char)evutil_weakrand_();
+			data[i] = (char)evutil_weakrand_(&seed);
 	} else {
 		data = strdup("here is a relatively small string.");
 		tt_assert(data);

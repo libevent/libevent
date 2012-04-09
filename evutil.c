@@ -2273,14 +2273,23 @@ evutil_getenv_(const char *varname)
 	return getenv(varname);
 }
 
-long
-evutil_weakrand_(void)
+ev_uint32_t
+evutil_weakrand_(ev_uint32_t* seed)
 {
-#ifdef _WIN32
-	return rand();
-#else
-	return random();
-#endif
+	*seed = ((*seed) * 1103515245 + 12345) & 0x7fffffff;
+	return (*seed);
+}
+
+ev_uint32_t
+evutil_weakrand_range_(ev_uint32_t* seed, ev_uint32_t top)
+{
+	ev_uint32_t divisor, result;
+
+	divisor = EV_INT32_MAX / top;
+	do
+		result = evutil_weakrand_(seed) / divisor;
+	while (result > top);
+	return result;
 }
 
 int
