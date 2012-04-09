@@ -126,7 +126,9 @@ struct event_base *event_global_current_base_ = NULL;
 
 /* Global state */
 
+#ifdef HAVE_ANY_MONOTONIC
 static int use_monotonic;
+#endif
 
 static void *event_self_cbarg_ptr_ = NULL;
 
@@ -398,6 +400,7 @@ gettime(struct event_base *base, struct timeval *tp)
 		return (0);
 	}
 
+#ifdef HAVE_ANY_MONOTONIC
 	if (use_monotonic) {
 #if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 		struct timespec	ts;
@@ -426,6 +429,7 @@ gettime(struct event_base *base, struct timeval *tp)
 
 		return (0);
 	}
+#endif
 
 	return (evutil_gettimeofday(tp, NULL));
 }
@@ -2609,8 +2613,10 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	struct timeval off;
 	int i;
 
+#ifdef HAVE_ANY_MONOTONIC
 	if (use_monotonic)
 		return;
+#endif
 
 	/* Check if time is running backwards */
 	gettime(base, tv);
