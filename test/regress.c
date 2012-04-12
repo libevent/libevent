@@ -829,7 +829,7 @@ test_fork(void)
 
 	event_base_assert_ok_(current_base);
 	TT_BLATHER(("Before fork"));
-	if ((pid = fork()) == 0) {
+	if ((pid = regress_fork()) == 0) {
 		/* in the child */
 		TT_BLATHER(("In child, before reinit"));
 		event_base_assert_ok_(current_base);
