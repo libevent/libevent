@@ -118,6 +118,8 @@ int _test_ai_eq(const struct evutil_addrinfo *ai, const char *sockaddr_port,
 
 long timeval_msec_diff(const struct timeval *start, const struct timeval *end);
 
+pid_t regress_fork(void);
+
 #ifdef __cplusplus
 }
 #endif

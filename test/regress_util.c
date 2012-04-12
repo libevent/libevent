@@ -469,7 +469,7 @@ check_error_logging(void (*fn)(void), int wantexitcode,
 	int status = 0, exitcode;
 	fatal_want_severity = wantseverity;
 	fatal_want_message = wantmsg;
-	if ((pid = fork()) == 0) {
+	if ((pid = regress_fork()) == 0) {
 		/* child process */
 		fn();
 		exit(0); /* should be unreachable. */

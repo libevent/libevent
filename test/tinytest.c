@@ -40,6 +40,15 @@
 #include <unistd.h>
 #endif
 
+#if defined(__APPLE__) && defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__)
+#if (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060 && \
+    __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070)
+/* Workaround for a stupid bug in OSX 10.6 */
+#define FORK_BREAKS_GCOV
+#include <vproc.h>
+#endif
+#endif
+
 #ifndef __GNUC__
 #define __attribute__(x)
 #endif
@@ -161,6 +170,9 @@ _testcase_run_forked(const struct testgroup_t *group,
 	if (opt_verbosity>0)
 		printf("[forking] ");
 	pid = fork();
+#ifdef FORK_BREAKS_GCOV
+	vproc_transaction_begin(0);
+#endif
 	if (!pid) {
 		/* child. */
 		int test_r, write_r;
