@@ -46,9 +46,6 @@
 #ifdef EVENT__HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef EVENT__HAVE_MACH_MACH_TIME_H
-#include <mach/mach_time.h>
-#endif
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
@@ -130,10 +127,6 @@ struct event_base *event_global_current_base_ = NULL;
 #define current_base event_global_current_base_
 
 /* Global state */
-
-#ifdef HAVE_ANY_MONOTONIC
-static int use_monotonic;
-#endif
 
 static void *event_self_cbarg_ptr_ = NULL;
 
@@ -345,19 +338,11 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 #define EVENT_BASE_ASSERT_LOCKED(base)		\
 	EVLOCK_ASSERT_LOCKED((base)->th_base_lock)
 
-#if defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
-struct mach_timebase_info mach_timebase_units;
-#endif
-
-/* The first time this function is called, it sets use_monotonic to 1
- * if we have a clock function that supports monotonic time */
+/* Set base->use_monotonic to 1 if we have a clock function that supports
+ * monotonic time */
 static void
-detect_monotonic(void)
+detect_monotonic(struct event_base *base)
 {
-	static int use_monotonic_initialized = 0;
-	if (use_monotonic_initialized)
-		return;
-
 #if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	{
 		/* CLOCK_MONOTONIC exists on FreeBSD, Linux, and Solaris.
@@ -366,24 +351,22 @@ detect_monotonic(void)
 		struct timespec	ts;
 
 		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
-			use_monotonic = 1;
+			base->use_monotonic = 1;
 	}
 #elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
 	{
 		struct mach_timebase_info mi;
 		/* OSX has mach_absolute_time() */
 		if (mach_timebase_info(&mi) == 0 && mach_absolute_time() != 0) {
-			use_monotonic = 1;
+			base->use_monotonic = 1;
 			/* mach_timebase_info tells us how to convert
 			 * mach_absolute_time() into nanoseconds, but we
 			 * want to use microseconds instead. */
 			mi.denom *= 1000;
-			memcpy(&mach_timebase_units, &mi, sizeof(mi));
+			memcpy(&base->mach_timebase_units, &mi, sizeof(mi));
 		}
 	}
 #endif
-	use_monotonic_initialized = 1;
-
 }
 
 /* How often (in seconds) do we check for changes in wall clock time relative
@@ -406,7 +389,7 @@ gettime(struct event_base *base, struct timeval *tp)
 	}
 
 #ifdef HAVE_ANY_MONOTONIC
-	if (use_monotonic) {
+	if (base->use_monotonic) {
 #if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 		struct timespec	ts;
 		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
@@ -417,8 +400,8 @@ gettime(struct event_base *base, struct timeval *tp)
 #elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
 		uint64_t abstime = mach_absolute_time();
 		uint64_t usec;
-		usec = (abstime * mach_timebase_units.numer)
-		    / (mach_timebase_units.denom);
+		usec = (abstime * base->mach_timebase_units.numer)
+		    / (base->mach_timebase_units.denom);
 		tp->tv_sec = usec / 1000000;
 		tp->tv_usec = usec % 1000000;
 #else
@@ -631,7 +614,7 @@ event_base_new_with_config(const struct event_config *cfg)
 		event_warn("%s: calloc", __func__);
 		return NULL;
 	}
-	detect_monotonic();
+	detect_monotonic(base);
 	gettime(base, &base->event_tv);
 
 	min_heap_ctor_(&base->timeheap);
@@ -2621,7 +2604,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	int i;
 
 #ifdef HAVE_ANY_MONOTONIC
-	if (use_monotonic)
+	if (base->use_monotonic)
 		return;
 #endif
 

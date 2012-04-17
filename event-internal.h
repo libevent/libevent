@@ -36,6 +36,10 @@ extern "C" {
 
 #include <time.h>
 #include <sys/queue.h>
+#ifdef EVENT__HAVE_MACH_MACH_TIME_H
+/* For mach_timebase_info */
+#include <mach/mach_time.h>
+#endif
 #include "event2/event_struct.h"
 #include "minheap-internal.h"
 #include "evsignal-internal.h"
@@ -251,7 +255,12 @@ struct event_base {
 	 * too often. */
 	struct timeval tv_cache;
 
+#if defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
+	struct mach_timebase_info mach_timebase_units;
+#endif
 #if defined(HAVE_ANY_MONOTONIC)
+	/** True iff we should use our system's monotonic time implementation */
+	int use_monotonic;
 	/** Difference between internal time (maybe from clock_gettime) and
 	 * gettimeofday. */
 	struct timeval tv_clock_diff;
