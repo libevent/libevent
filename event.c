@@ -375,6 +375,8 @@ detect_monotonic(struct event_base *base, const struct event_config *cfg)
 			memcpy(&base->mach_timebase_units, &mi, sizeof(mi));
 		}
 	}
+#elif defined(_WIN32)
+	base->use_monotonic = 1;
 #endif
 }
 
@@ -418,6 +420,23 @@ gettime(struct event_base *base, struct timeval *tp)
 		    / (base->mach_timebase_units.denom);
 		tp->tv_sec = usec / 1000000;
 		tp->tv_usec = usec % 1000000;
+#elif defined(_WIN32)
+		/* TODO: Support GetTickCount64. */
+		/* TODO: Support alternate timer backends if the user asked
+		 * for a high-precision timer. QueryPerformanceCounter is
+		 * possibly a good idea, but it is also supposed to have
+		 * reliability issues under various circumstances. */
+		DWORD ticks = GetTickCount();
+		if (ticks < base->last_tick_count) {
+			/* The 32-bit timer rolled over. Let's assume it only
+			 * happened once.  Add 2**32 msec to adjust_tick_count. */
+			const struct timeval tv_rollover = { 4294967, 296000 };
+			evutil_timeradd(&tv_rollover, &base->adjust_tick_count, &base->adjust_tick_count);
+		}
+		base->last_tick_count = ticks;
+		tp->tv_sec = ticks / 1000;
+		tp->tv_usec = (ticks % 1000) * 1000;
+		evutil_timeradd(tp, &base->adjust_tick_count, tp);
 #else
 #error "Missing monotonic time implementation."
 #endif

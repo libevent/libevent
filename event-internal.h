@@ -68,6 +68,8 @@ extern "C" {
 #define HAVE_ANY_MONOTONIC 1
 #elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
 #define HAVE_ANY_MONOTONIC 1
+#elif defined(_WIN32)
+#define HAVE_ANY_MONOTONIC 1
 #endif
 
 /** Structure to define the backend of a given event_base. */
@@ -262,8 +264,13 @@ struct event_base {
 #define CLOCK_IS_SELECTED
 	int monotonic_clock;
 #endif
+#ifdef _WIN32
+	DWORD last_tick_count;
+	struct timeval adjust_tick_count;
+#endif
 #if defined(HAVE_ANY_MONOTONIC)
 	/** True iff we should use our system's monotonic time implementation */
+	/* TODO: Support systems where we don't need to detct monotonic time */
 	int use_monotonic;
 	/** Difference between internal time (maybe from clock_gettime) and
 	 * gettimeofday. */
