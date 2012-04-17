@@ -46,9 +46,6 @@
 #ifdef EVENT__HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef EVENT__HAVE_MACH_MACH_TIME_H
-#include <mach/mach_time.h>
-#endif
 #include <ctype.h>
 #include <errno.h>
 #include <signal.h>
@@ -130,10 +127,6 @@ struct event_base *event_global_current_base_ = NULL;
 #define current_base event_global_current_base_
 
 /* Global state */
-
-#ifdef HAVE_ANY_MONOTONIC
-static int use_monotonic;
-#endif
 
 static void *event_self_cbarg_ptr_ = NULL;
 
@@ -345,19 +338,11 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 #define EVENT_BASE_ASSERT_LOCKED(base)		\
 	EVLOCK_ASSERT_LOCKED((base)->th_base_lock)
 
-#if defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
-struct mach_timebase_info mach_timebase_units;
-#endif
-
-/* The first time this function is called, it sets use_monotonic to 1
- * if we have a clock function that supports monotonic time */
+/* Set base->use_monotonic to 1 if we have a clock function that supports
+ * monotonic time */
 static void
-detect_monotonic(void)
+detect_monotonic(struct event_base *base, const struct event_config *cfg)
 {
-	static int use_monotonic_initialized = 0;
-	if (use_monotonic_initialized)
-		return;
-
 #if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	{
 		/* CLOCK_MONOTONIC exists on FreeBSD, Linux, and Solaris.
@@ -365,25 +350,34 @@ detect_monotonic(void)
 		 * versions won't have it working. */
 		struct timespec	ts;
 
-		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
-			use_monotonic = 1;
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+			base->use_monotonic = 1;
+#ifdef CLOCK_IS_SELECTED
+			base->monotonic_clock = CLOCK_MONOTONIC;
+			if (cfg == NULL ||
+			    !(cfg->flags & EVENT_BASE_FLAG_PRECISE_TIMER)) {
+				if (clock_gettime(CLOCK_MONOTONIC_COARSE, &ts) == 0)
+					base->monotonic_clock = CLOCK_MONOTONIC_COARSE;
+			}
+#endif
+		}
 	}
 #elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
 	{
 		struct mach_timebase_info mi;
 		/* OSX has mach_absolute_time() */
 		if (mach_timebase_info(&mi) == 0 && mach_absolute_time() != 0) {
-			use_monotonic = 1;
+			base->use_monotonic = 1;
 			/* mach_timebase_info tells us how to convert
 			 * mach_absolute_time() into nanoseconds, but we
 			 * want to use microseconds instead. */
 			mi.denom *= 1000;
-			memcpy(&mach_timebase_units, &mi, sizeof(mi));
+			memcpy(&base->mach_timebase_units, &mi, sizeof(mi));
 		}
 	}
+#elif defined(_WIN32)
+	base->use_monotonic = 1;
 #endif
-	use_monotonic_initialized = 1;
-
 }
 
 /* How often (in seconds) do we check for changes in wall clock time relative
@@ -406,21 +400,43 @@ gettime(struct event_base *base, struct timeval *tp)
 	}
 
 #ifdef HAVE_ANY_MONOTONIC
-	if (use_monotonic) {
+	if (base->use_monotonic) {
 #if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 		struct timespec	ts;
+#ifdef CLOCK_IS_SELECTED
+		if (clock_gettime(base->monotonic_clock, &ts) == -1)
+			return (-1);
+#else
 		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
 			return (-1);
+#endif
 
 		tp->tv_sec = ts.tv_sec;
 		tp->tv_usec = ts.tv_nsec / 1000;
 #elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
 		uint64_t abstime = mach_absolute_time();
 		uint64_t usec;
-		usec = (abstime * mach_timebase_units.numer)
-		    / (mach_timebase_units.denom);
+		usec = (abstime * base->mach_timebase_units.numer)
+		    / (base->mach_timebase_units.denom);
 		tp->tv_sec = usec / 1000000;
 		tp->tv_usec = usec % 1000000;
+#elif defined(_WIN32)
+		/* TODO: Support GetTickCount64. */
+		/* TODO: Support alternate timer backends if the user asked
+		 * for a high-precision timer. QueryPerformanceCounter is
+		 * possibly a good idea, but it is also supposed to have
+		 * reliability issues under various circumstances. */
+		DWORD ticks = GetTickCount();
+		if (ticks < base->last_tick_count) {
+			/* The 32-bit timer rolled over. Let's assume it only
+			 * happened once.  Add 2**32 msec to adjust_tick_count. */
+			const struct timeval tv_rollover = { 4294967, 296000 };
+			evutil_timeradd(&tv_rollover, &base->adjust_tick_count, &base->adjust_tick_count);
+		}
+		base->last_tick_count = ticks;
+		tp->tv_sec = ticks / 1000;
+		tp->tv_usec = (ticks % 1000) * 1000;
+		evutil_timeradd(tp, &base->adjust_tick_count, tp);
 #else
 #error "Missing monotonic time implementation."
 #endif
@@ -631,7 +647,7 @@ event_base_new_with_config(const struct event_config *cfg)
 		event_warn("%s: calloc", __func__);
 		return NULL;
 	}
-	detect_monotonic();
+	detect_monotonic(base, cfg);
 	gettime(base, &base->event_tv);
 
 	min_heap_ctor_(&base->timeheap);
@@ -2621,7 +2637,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	int i;
 
 #ifdef HAVE_ANY_MONOTONIC
-	if (use_monotonic)
+	if (base->use_monotonic)
 		return;
 #endif
 
