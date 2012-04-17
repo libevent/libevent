@@ -341,7 +341,7 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 /* Set base->use_monotonic to 1 if we have a clock function that supports
  * monotonic time */
 static void
-detect_monotonic(struct event_base *base)
+detect_monotonic(struct event_base *base, const struct event_config *cfg)
 {
 #if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 	{
@@ -350,8 +350,17 @@ detect_monotonic(struct event_base *base)
 		 * versions won't have it working. */
 		struct timespec	ts;
 
-		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
+		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
 			base->use_monotonic = 1;
+#ifdef CLOCK_IS_SELECTED
+			base->monotonic_clock = CLOCK_MONOTONIC;
+			if (cfg == NULL ||
+			    !(cfg->flags & EVENT_BASE_FLAG_PRECISE_TIMER)) {
+				if (clock_gettime(CLOCK_MONOTONIC_COARSE, &ts) == 0)
+					base->monotonic_clock = CLOCK_MONOTONIC_COARSE;
+			}
+#endif
+		}
 	}
 #elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
 	{
@@ -392,8 +401,13 @@ gettime(struct event_base *base, struct timeval *tp)
 	if (base->use_monotonic) {
 #if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
 		struct timespec	ts;
+#ifdef CLOCK_IS_SELECTED
+		if (clock_gettime(base->monotonic_clock, &ts) == -1)
+			return (-1);
+#else
 		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
 			return (-1);
+#endif
 
 		tp->tv_sec = ts.tv_sec;
 		tp->tv_usec = ts.tv_nsec / 1000;
@@ -614,7 +628,7 @@ event_base_new_with_config(const struct event_config *cfg)
 		event_warn("%s: calloc", __func__);
 		return NULL;
 	}
-	detect_monotonic(base);
+	detect_monotonic(base, cfg);
 	gettime(base, &base->event_tv);
 
 	min_heap_ctor_(&base->timeheap);

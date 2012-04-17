@@ -258,6 +258,10 @@ struct event_base {
 #if defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
 	struct mach_timebase_info mach_timebase_units;
 #endif
+#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC) && defined(CLOCK_MONOTONIC_COARSE)
+#define CLOCK_IS_SELECTED
+	int monotonic_clock;
+#endif
 #if defined(HAVE_ANY_MONOTONIC)
 	/** True iff we should use our system's monotonic time implementation */
 	int use_monotonic;
