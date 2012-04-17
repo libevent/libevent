@@ -481,7 +481,14 @@ enum event_base_config_flag {
 	    This flag has no effect if you wind up using a backend other than
 	    epoll.
 	 */
-	EVENT_BASE_FLAG_EPOLL_USE_CHANGELIST = 0x10
+	EVENT_BASE_FLAG_EPOLL_USE_CHANGELIST = 0x10,
+
+	/** Ordinarily, Libevent implements its time and timeout code using
+	    the fastest monotonic timer that we have.  If this flag is set,
+	    however, we use less efficient more precise timer, assuming one is
+	    present.
+	 */
+	EVENT_BASE_FLAG_PRECISE_TIMER = 0x20
 };
 
 /**
