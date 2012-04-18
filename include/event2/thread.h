@@ -225,6 +225,9 @@ struct event_base;
 /** Make sure it's safe to tell an event base to wake up from another thread
     or a signal handler.
 
+    You shouldn't need to call this by hand; configuring the base with thread
+    support should be necessary and sufficient.
+
     @return 0 on success, -1 on failure.
  */
 int evthread_make_base_notifiable(struct event_base *base);
