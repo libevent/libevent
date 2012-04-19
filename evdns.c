@@ -2250,13 +2250,16 @@ nameserver_probe_callback(int result, char type, int count, int ttl, void *addre
 	(void) ttl;
 	(void) addresses;
 
-	EVDNS_LOCK(ns->base);
-	ns->probe_request = NULL;
 	if (result == DNS_ERR_CANCEL) {
 		/* We canceled this request because the nameserver came up
 		 * for some other reason.  Do not change our opinion about
 		 * the nameserver. */
-	} else if (result == DNS_ERR_NONE || result == DNS_ERR_NOTEXIST) {
+		return;
+	}
+
+	EVDNS_LOCK(ns->base);
+	ns->probe_request = NULL;
+	if (result == DNS_ERR_NONE || result == DNS_ERR_NOTEXIST) {
 		/* this is a good reply */
 		nameserver_up(ns);
 	} else {
@@ -2361,6 +2364,10 @@ evdns_base_clear_nameservers_and_suspend(struct evdns_base *base)
 		(void) event_del(&server->event);
 		if (evtimer_initialized(&server->timeout_event))
 			(void) evtimer_del(&server->timeout_event);
+		if (server->probe_request) {
+			evdns_cancel_request(server->base, server->probe_request);
+			server->probe_request = NULL;
+		}
 		if (server->socket >= 0)
 			evutil_closesocket(server->socket);
 		mm_free(server);
