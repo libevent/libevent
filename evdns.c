@@ -2251,16 +2251,15 @@ nameserver_probe_callback(int result, char type, int count, int ttl, void *addre
 	(void) addresses;
 
 	if (result == DNS_ERR_CANCEL) {
+		/* We canceled this request because the nameserver came up
+		 * for some other reason.  Do not change our opinion about
+		 * the nameserver. */
 		return;
 	}
 
 	EVDNS_LOCK(ns->base);
 	ns->probe_request = NULL;
-	if (result == DNS_ERR_CANCEL) {
-		/* We canceled this request because the nameserver came up
-		 * for some other reason.  Do not change our opinion about
-		 * the nameserver. */
-	} else if (result == DNS_ERR_NONE || result == DNS_ERR_NOTEXIST) {
+	if (result == DNS_ERR_NONE || result == DNS_ERR_NOTEXIST) {
 		/* this is a good reply */
 		nameserver_up(ns);
 	} else {
