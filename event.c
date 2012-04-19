@@ -1258,12 +1258,12 @@ event_persist_closure(struct event_base *base, struct event *ev)
 		 * ev_io_timeout after the last time it was _scheduled_ for,
 		 * not ev_io_timeout after _now_.  If it fired for another
 		 * reason, though, the timeout ought to start ticking _now_. */
-		struct timeval run_at;
+		struct timeval run_at, relative_to, delay, now;
+		ev_uint32_t usec_mask = 0;
 		EVUTIL_ASSERT(is_same_common_timeout(&ev->ev_timeout,
 			&ev->ev_io_timeout));
+		gettime(base, &now);
 		if (is_common_timeout(&ev->ev_timeout, base)) {
-			ev_uint32_t usec_mask;
-			struct timeval delay, relative_to;
 			delay = ev->ev_io_timeout;
 			usec_mask = delay.tv_usec & ~MICROSECONDS_MASK;
 			delay.tv_usec &= MICROSECONDS_MASK;
@@ -1271,20 +1271,18 @@ event_persist_closure(struct event_base *base, struct event *ev)
 				relative_to = ev->ev_timeout;
 				relative_to.tv_usec &= MICROSECONDS_MASK;
 			} else {
-				gettime(base, &relative_to);
+				relative_to = now;
 			}
-			evutil_timeradd(&relative_to, &delay, &run_at);
-			run_at.tv_usec |= usec_mask;
 		} else {
-			struct timeval relative_to;
+			delay = ev->ev_io_timeout;
 			if (ev->ev_res & EV_TIMEOUT) {
 				relative_to = ev->ev_timeout;
 			} else {
-				gettime(base, &relative_to);
+				relative_to = now;
 			}
-			evutil_timeradd(&ev->ev_io_timeout, &relative_to,
-			    &run_at);
+
 		}
+		evutil_timeradd(&relative_to, &delay, &run_at);
 		event_add_internal(ev, &run_at, 1);
 	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
