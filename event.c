@@ -1280,9 +1280,17 @@ event_persist_closure(struct event_base *base, struct event *ev)
 			} else {
 				relative_to = now;
 			}
-
 		}
 		evutil_timeradd(&relative_to, &delay, &run_at);
+		if (evutil_timercmp(&run_at, &now, <)) {
+			/* Looks like we missed at least one invocation due to
+			 * a clock jump, not running the event loop for a
+			 * while, really slow callbacks, or
+			 * something. Reschedule relative to now.
+			 */
+			evutil_timeradd(&now, &delay, &run_at);
+		}
+		run_at.tv_usec |= usec_mask;
 		event_add_internal(ev, &run_at, 1);
 	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
