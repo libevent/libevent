@@ -36,10 +36,6 @@ extern "C" {
 
 #include <time.h>
 #include <sys/queue.h>
-#ifdef EVENT__HAVE_MACH_MACH_TIME_H
-/* For mach_timebase_info */
-#include <mach/mach_time.h>
-#endif
 #include "event2/event_struct.h"
 #include "minheap-internal.h"
 #include "evsignal-internal.h"
@@ -61,16 +57,6 @@ extern "C" {
 #define EV_CLOSURE_NONE 0
 #define EV_CLOSURE_SIGNAL 1
 #define EV_CLOSURE_PERSIST 2
-
-/* Define HAVE_ANY_MONOTONIC iff we *might* have a working monotonic
- * clock implementation */
-#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-#define HAVE_ANY_MONOTONIC 1
-#elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
-#define HAVE_ANY_MONOTONIC 1
-#elif defined(_WIN32)
-#define HAVE_ANY_MONOTONIC 1
-#endif
 
 /** Structure to define the backend of a given event_base. */
 struct eventop {
@@ -247,9 +233,6 @@ struct event_base {
 	/** Mapping from signal numbers to enabled (added) events. */
 	struct event_signal_map sigmap;
 
-	/** Stored timeval; used to detect when time is running backwards. */
-	struct timeval event_tv;
-
 	/** Priority queue of events with timeouts. */
 	struct min_heap timeheap;
 
@@ -257,27 +240,13 @@ struct event_base {
 	 * too often. */
 	struct timeval tv_cache;
 
-#if defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
-	struct mach_timebase_info mach_timebase_units;
-#endif
-#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC) && defined(CLOCK_MONOTONIC_COARSE)
-#define CLOCK_IS_SELECTED
-	int monotonic_clock;
-#endif
-#ifdef _WIN32
-	DWORD last_tick_count;
-	struct timeval adjust_tick_count;
-#endif
-#if defined(HAVE_ANY_MONOTONIC)
-	/** True iff we should use our system's monotonic time implementation */
-	/* TODO: Support systems where we don't need to detct monotonic time */
-	int use_monotonic;
+	struct evutil_monotonic_timer monotonic_timer;
+
 	/** Difference between internal time (maybe from clock_gettime) and
 	 * gettimeofday. */
 	struct timeval tv_clock_diff;
 	/** Second in which we last updated tv_clock_diff, in monotonic time. */
 	time_t last_updated_clock_diff;
-#endif
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	/* threading support */
@@ -413,4 +382,3 @@ int event_base_foreach_event_(struct event_base *base,
 #endif
 
 #endif /* EVENT_INTERNAL_H_INCLUDED_ */
-

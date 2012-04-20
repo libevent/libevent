@@ -49,6 +49,7 @@
 #endif
 #include <time.h>
 #include <sys/stat.h>
+#include <string.h>
 
 #include "event2/util.h"
 #include "util-internal.h"
@@ -131,3 +132,237 @@ evutil_usleep_(const struct timeval *tv)
 	select(0, NULL, NULL, NULL, tv);
 #endif
 }
+
+
+/*
+   This function assumes it's called repeatedly with a
+   not-actually-so-monotonic time source whose outputs are in 'tv'. It
+   implements a trivial ratcheting mechanism so that the values never go
+   backwards.
+ */
+static void
+adjust_monotonic_time(struct evutil_monotonic_timer *base,
+    struct timeval *tv)
+{
+	evutil_timeradd(tv, &base->adjust_monotonic_clock, tv);
+
+	if (evutil_timercmp(tv, &base->last_time, <)) {
+		/* Guess it wasn't monotonic after all. */
+		struct timeval adjust;
+		evutil_timersub(&base->last_time, tv, &adjust);
+		evutil_timeradd(&adjust, &base->adjust_monotonic_clock,
+		    &base->adjust_monotonic_clock);
+		*tv = base->last_time;
+	}
+	base->last_time = *tv;
+}
+
+#if defined(HAVE_POSIX_MONOTONIC)
+/* =====
+   The POSIX clock_gettime() interface provides a few ways to get at a
+   monotonic clock.  CLOCK_MONOTONIC is most widely supported.  Linux also
+   provides a CLOCK_MONOTONIC_COARSE with accuracy of about 1-4 msec.
+
+   On all platforms I'm aware of, CLOCK_MONOTONIC really is monotonic.
+   Platforms don't agree about whether it should jump on a sleep/resume.
+ */
+
+int
+evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
+    int precise)
+{
+	/* CLOCK_MONOTONIC exists on FreeBSD, Linux, and Solaris.  You need to
+	 * check for it at runtime, because some older kernel versions won't
+	 * have it working. */
+	struct timespec	ts;
+#ifdef CLOCK_MONOTONIC_COARSE
+#if CLOCK_MONOTONIC_COARSE < 0
+	/* Technically speaking, nothing keeps CLOCK_* from being negative (as
+	 * far as I know). This check and the one below make sure that it's
+	 * safe for us to use -1 as an "unset" value. */
+#error "I didn't expect CLOCK_MONOTONIC_COARSE to be < 0"
+#endif
+	if (! precise) {
+		if (clock_gettime(CLOCK_MONOTONIC_COARSE, &ts) == 0) {
+			base->monotonic_clock = CLOCK_MONOTONIC_COARSE;
+			return 0;
+		}
+	}
+#endif
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+		base->monotonic_clock = CLOCK_MONOTONIC;
+		return 0;
+	}
+
+#if CLOCK_MONOTONIC < 0
+#error "I didn't expect CLOCK_MONOTONIC to be < 0"
+#endif
+
+	base->monotonic_clock = -1;
+	return 0;
+}
+
+int
+evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
+    struct timeval *tp)
+{
+	struct timespec ts;
+
+	if (base->monotonic_clock < 0) {
+		if (evutil_gettimeofday(tp, NULL) < 0)
+			return -1;
+		adjust_monotonic_time(base, tp);
+		return 0;
+	}
+
+	if (clock_gettime(base->monotonic_clock, &ts) == -1)
+		return -1;
+	tp->tv_sec = ts.tv_sec;
+	tp->tv_usec = ts.tv_nsec / 1000;
+
+	return 0;
+}
+#endif
+
+#if defined(HAVE_MACH_MONOTONIC)
+/* ======
+   Apple is a little late to the POSIX party.  And why not?  Instead of
+   clock_gettime(), they provide mach_absolute_time().  Its units are not
+   fixed; we need to use mach_timebase_info() to get the right functions to
+   convert its units into nanoseconds.
+
+   To all appearances, mach_absolute_time() seems to be honest-to-goodness
+   monotonic.  Whether it stops during sleep or not is unspecified in
+   principle, and dependent on CPU architecture in practice.
+ */
+
+int
+evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
+    int precise)
+{
+	struct mach_timebase_info mi;
+	memset(base, 0, sizeof(*base));
+	/* OSX has mach_absolute_time() */
+	if (mach_timebase_info(&mi) == 0 && mach_absolute_time() != 0) {
+		/* mach_timebase_info tells us how to convert
+		 * mach_absolute_time() into nanoseconds, but we
+		 * want to use microseconds instead. */
+		mi.denom *= 1000;
+		memcpy(&base->mach_timebase_units, &mi, sizeof(mi));
+	} else {
+		base->mach_timebase_units.numer = 0;
+	}
+	return 0;
+}
+
+int
+evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
+    struct timeval *tp)
+{
+	ev_uint64_t abstime, usec;
+	if (base->mach_timebase_units.numer == 0) {
+		if (evutil_gettimeofday(tp, NULL) < 0)
+			return -1;
+		adjust_monotonic_time(base, tp);
+		return 0;
+	}
+
+	abstime = mach_absolute_time();
+	usec = (abstime * base->mach_timebase_units.numer)
+	    / (base->mach_timebase_units.denom);
+	tp->tv_sec = usec / 1000000;
+	tp->tv_usec = usec % 1000000;
+
+	return 0;
+}
+#endif
+
+#if defined(HAVE_WIN32_MONOTONIC)
+/* =====
+   Turn we now to Windows.  Want monontonic time on Windows?
+
+   Windows has QueryPerformanceCounter(), which gives time most high-
+   resolution time.  It's a pity it's not so monotonic in practice; it's
+   also got some fun bugs, especially with older Windowses, under
+   virtualizations, with funny hardware, on multiprocessor systems, and so
+   on.  PEP418 [1] has a nice roundup here.
+
+   There's GetTickCount64(), which gives a number of 1-msec ticks since
+   startup.  The accuracy here might be as bad as 10-20 msec, I hear.
+   There's an undocumented function (NtSetTimerResolution) that allegedly
+   increases the accuracy. Good luck!
+
+   There's also GetTickCount(), which is only 32 bits, but seems to be
+   supported on pre-Vista versions of Windows.
+
+   The less said about timeGetTime() the better.
+
+   "We don't care.  We don't have to.  We're the Phone Company."
+            -- Lily Tomlin, SNL
+
+
+   [1] http://www.python.org/dev/peps/pep-0418
+ */
+int
+evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
+    int precise)
+{
+	memset(base, 0, sizeof(*base));
+	base->last_tick_count = GetTickCount();
+
+	return 0;
+}
+
+int
+evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
+    struct timeval *tp)
+{
+	/* TODO: Support GetTickCount64. */
+	/* TODO: Support alternate timer backends if the user asked
+	 * for a high-precision timer. QueryPerformanceCounter is
+	 * possibly a good idea, but it is also supposed to have
+	 * reliability issues under various circumstances. */
+	DWORD ticks = GetTickCount();
+	if (ticks < base->last_tick_count) {
+		/* The 32-bit timer rolled over. Let's assume it only
+		 * happened once.  Add 2**32 msec to adjust_tick_count. */
+		const struct timeval tv_rollover = { 4294967, 296000 };
+		evutil_timeradd(&tv_rollover, &base->adjust_tick_count, &base->adjust_tick_count);
+	}
+	base->last_tick_count = ticks;
+	tp->tv_sec = ticks / 1000;
+	tp->tv_usec = (ticks % 1000) * 1000;
+	evutil_timeradd(tp, &base->adjust_tick_count, tp);
+
+	adjust_monotonic_time(base, tp);
+
+	return 0;
+}
+#endif
+
+#if defined(HAVE_FALLBACK_MONOTONIC)
+/* =====
+   And if none of the other options work, let's just use gettimeofday(), and
+   ratchet it forward so that it acts like a monotonic timer, whether it
+   wants to or not.
+ */
+
+int
+evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
+    int precise)
+{
+	memset(base, 0, sizeof(*base));
+	return 0;
+}
+
+int
+evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
+    struct timeval *tp)
+{
+	if (evutil_gettimeofday(tp, NULL) < 0)
+		return -1;
+	adjust_monotonic_time(base, tp);
+	return 0;
+
+}
+#endif

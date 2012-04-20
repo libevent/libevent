@@ -152,7 +152,6 @@ static int	event_process_active(struct event_base *);
 
 static int	timeout_next(struct event_base *, struct timeval **);
 static void	timeout_process(struct event_base *);
-static void	timeout_correct(struct event_base *, struct timeval *);
 
 static inline void	event_signal_closure(struct event_base *, struct event *ev);
 static inline void	event_persist_closure(struct event_base *, struct event *ev);
@@ -338,48 +337,6 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 #define EVENT_BASE_ASSERT_LOCKED(base)		\
 	EVLOCK_ASSERT_LOCKED((base)->th_base_lock)
 
-/* Set base->use_monotonic to 1 if we have a clock function that supports
- * monotonic time */
-static void
-detect_monotonic(struct event_base *base, const struct event_config *cfg)
-{
-#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-	{
-		/* CLOCK_MONOTONIC exists on FreeBSD, Linux, and Solaris.
-		 * You need to check for it at runtime, because some older
-		 * versions won't have it working. */
-		struct timespec	ts;
-
-		if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
-			base->use_monotonic = 1;
-#ifdef CLOCK_IS_SELECTED
-			base->monotonic_clock = CLOCK_MONOTONIC;
-			if (cfg == NULL ||
-			    !(cfg->flags & EVENT_BASE_FLAG_PRECISE_TIMER)) {
-				if (clock_gettime(CLOCK_MONOTONIC_COARSE, &ts) == 0)
-					base->monotonic_clock = CLOCK_MONOTONIC_COARSE;
-			}
-#endif
-		}
-	}
-#elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
-	{
-		struct mach_timebase_info mi;
-		/* OSX has mach_absolute_time() */
-		if (mach_timebase_info(&mi) == 0 && mach_absolute_time() != 0) {
-			base->use_monotonic = 1;
-			/* mach_timebase_info tells us how to convert
-			 * mach_absolute_time() into nanoseconds, but we
-			 * want to use microseconds instead. */
-			mi.denom *= 1000;
-			memcpy(&base->mach_timebase_units, &mi, sizeof(mi));
-		}
-	}
-#elif defined(_WIN32)
-	base->use_monotonic = 1;
-#endif
-}
-
 /* How often (in seconds) do we check for changes in wall clock time relative
  * to monotonic time?  Set this to -1 for 'never.' */
 #define CLOCK_SYNC_INTERVAL 5
@@ -399,60 +356,19 @@ gettime(struct event_base *base, struct timeval *tp)
 		return (0);
 	}
 
-#ifdef HAVE_ANY_MONOTONIC
-	if (base->use_monotonic) {
-#if defined(EVENT__HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-		struct timespec	ts;
-#ifdef CLOCK_IS_SELECTED
-		if (clock_gettime(base->monotonic_clock, &ts) == -1)
-			return (-1);
-#else
-		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
-			return (-1);
-#endif
-
-		tp->tv_sec = ts.tv_sec;
-		tp->tv_usec = ts.tv_nsec / 1000;
-#elif defined(EVENT__HAVE_MACH_ABSOLUTE_TIME)
-		uint64_t abstime = mach_absolute_time();
-		uint64_t usec;
-		usec = (abstime * base->mach_timebase_units.numer)
-		    / (base->mach_timebase_units.denom);
-		tp->tv_sec = usec / 1000000;
-		tp->tv_usec = usec % 1000000;
-#elif defined(_WIN32)
-		/* TODO: Support GetTickCount64. */
-		/* TODO: Support alternate timer backends if the user asked
-		 * for a high-precision timer. QueryPerformanceCounter is
-		 * possibly a good idea, but it is also supposed to have
-		 * reliability issues under various circumstances. */
-		DWORD ticks = GetTickCount();
-		if (ticks < base->last_tick_count) {
-			/* The 32-bit timer rolled over. Let's assume it only
-			 * happened once.  Add 2**32 msec to adjust_tick_count. */
-			const struct timeval tv_rollover = { 4294967, 296000 };
-			evutil_timeradd(&tv_rollover, &base->adjust_tick_count, &base->adjust_tick_count);
-		}
-		base->last_tick_count = ticks;
-		tp->tv_sec = ticks / 1000;
-		tp->tv_usec = (ticks % 1000) * 1000;
-		evutil_timeradd(tp, &base->adjust_tick_count, tp);
-#else
-#error "Missing monotonic time implementation."
-#endif
-		if (base->last_updated_clock_diff + CLOCK_SYNC_INTERVAL
-		    < tp->tv_sec) {
-			struct timeval tv;
-			evutil_gettimeofday(&tv,NULL);
-			evutil_timersub(&tv, tp, &base->tv_clock_diff);
-			base->last_updated_clock_diff = tp->tv_sec;
-		}
-
-		return (0);
+	if (evutil_gettime_monotonic_(&base->monotonic_timer, tp) == -1) {
+		return -1;
 	}
-#endif
 
-	return (evutil_gettimeofday(tp, NULL));
+	if (base->last_updated_clock_diff + CLOCK_SYNC_INTERVAL
+	    < tp->tv_sec) {
+		struct timeval tv;
+		evutil_gettimeofday(&tv,NULL);
+		evutil_timersub(&tv, tp, &base->tv_clock_diff);
+		base->last_updated_clock_diff = tp->tv_sec;
+	}
+
+	return 0;
 }
 
 int
@@ -469,11 +385,7 @@ event_base_gettimeofday_cached(struct event_base *base, struct timeval *tv)
 	if (base->tv_cache.tv_sec == 0) {
 		r = evutil_gettimeofday(tv, NULL);
 	} else {
-#ifdef HAVE_ANY_MONOTONIC
 		evutil_timeradd(&base->tv_cache, &base->tv_clock_diff, tv);
-#else
-		*tv = base->tv_cache;
-#endif
 		r = 0;
 	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
@@ -647,8 +559,12 @@ event_base_new_with_config(const struct event_config *cfg)
 		event_warn("%s: calloc", __func__);
 		return NULL;
 	}
-	detect_monotonic(base, cfg);
-	gettime(base, &base->event_tv);
+	evutil_configure_monotonic_time_(&base->monotonic_timer,
+	    cfg && (cfg->flags & EVENT_BASE_FLAG_PRECISE_TIMER));
+	{
+		struct timeval tmp;
+		gettime(base, &tmp);
+	}
 
 	min_heap_ctor_(&base->timeheap);
 
@@ -1771,8 +1687,6 @@ event_base_loop(struct event_base *base, int flags)
 			break;
 		}
 
-		timeout_correct(base, &tv);
-
 		tv_p = &tv;
 		if (!N_ACTIVE_CALLBACKS(base) && !(flags & EVLOOP_NONBLOCK)) {
 			timeout_next(base, &tv_p);
@@ -1791,9 +1705,6 @@ event_base_loop(struct event_base *base, int flags)
 			retval = 1;
 			goto done;
 		}
-
-		/* update last old time */
-		gettime(base, &base->event_tv);
 
 		clear_time_cache(base);
 
@@ -2080,12 +1991,8 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 	if (tv != NULL && (flags & event & EV_TIMEOUT)) {
 		struct timeval tmp = ev->ev_timeout;
 		tmp.tv_usec &= MICROSECONDS_MASK;
-#ifdef HAVE_ANY_MONOTONIC
 		/* correctly remamp to real time */
 		evutil_timeradd(&ev->ev_base->tv_clock_diff, &tmp, tv);
-#else
-		*tv = tmp;
-#endif
 	}
 
 	return (flags & event);
@@ -2627,66 +2534,6 @@ out:
 	return (res);
 }
 
-/*
- * Determines if the time is running backwards by comparing the current time
- * against the last time we checked.  Not needed when using clock monotonic.
- * If time is running backwards, we adjust the firing time of every event by
- * the amount that time seems to have jumped.
- */
-static void
-timeout_correct(struct event_base *base, struct timeval *tv)
-{
-	/* Caller must hold th_base_lock. */
-	struct event **pev;
-	unsigned int size;
-	struct timeval off;
-	int i;
-
-#ifdef HAVE_ANY_MONOTONIC
-	if (base->use_monotonic)
-		return;
-#endif
-
-	/* Check if time is running backwards */
-	gettime(base, tv);
-
-	if (evutil_timercmp(tv, &base->event_tv, >=)) {
-		base->event_tv = *tv;
-		return;
-	}
-
-	event_debug(("%s: time is running backwards, corrected",
-		    __func__));
-	evutil_timersub(&base->event_tv, tv, &off);
-
-	/*
-	 * We can modify the key element of the node without destroying
-	 * the minheap property, because we change every element.
-	 */
-	pev = base->timeheap.p;
-	size = base->timeheap.n;
-	for (; size-- > 0; ++pev) {
-		struct timeval *ev_tv = &(**pev).ev_timeout;
-		evutil_timersub(ev_tv, &off, ev_tv);
-	}
-	for (i=0; i<base->n_common_timeouts; ++i) {
-		struct event *ev;
-		struct common_timeout_list *ctl =
-		    base->common_timeout_queues[i];
-		TAILQ_FOREACH(ev, &ctl->events,
-		    ev_timeout_pos.ev_next_with_common_timeout) {
-			struct timeval *ev_tv = &ev->ev_timeout;
-			ev_tv->tv_usec &= MICROSECONDS_MASK;
-			evutil_timersub(ev_tv, &off, ev_tv);
-			ev_tv->tv_usec |= COMMON_TIMEOUT_MAGIC |
-			    (i<<COMMON_TIMEOUT_IDX_SHIFT);
-		}
-	}
-
-	/* Now remember what the new time turned out to be. */
-	base->event_tv = *tv;
-}
-
 /* Activate every event whose timeout has elapsed. */
 static void
 timeout_process(struct event_base *base)
@@ -3203,9 +3050,7 @@ dump_inserted_event_fn(struct event_base *base, struct event *e, void *arg)
 		struct timeval tv;
 		tv.tv_sec = e->ev_timeout.tv_sec;
 		tv.tv_usec = e->ev_timeout.tv_usec & MICROSECONDS_MASK;
-#if defined(HAVE_ANY_MONOTONIC)
 		evutil_timeradd(&tv, &base->tv_clock_diff, &tv);
-#endif
 		fprintf(output, " Timeout=%ld.%06d",
 		    (long)tv.tv_sec, (int)(tv.tv_usec & MICROSECONDS_MASK));
 	}
