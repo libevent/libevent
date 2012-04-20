@@ -9,7 +9,13 @@ AUTOMAKE_OPTIONS = foreign no-dependencies
 LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la
 AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include -I../include
 
-noinst_PROGRAMS = event-read-fifo time-test signal-test dns-example hello-world http-server
+noinst_PROGRAMS =				\
+	dns-example				\
+	event-read-fifo				\
+	hello-world				\
+	http-server				\
+	signal-test				\
+	time-test
 
 event_read_fifo_SOURCES = event-read-fifo.c
 time_test_SOURCES = time-test.c

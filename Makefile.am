@@ -91,20 +91,20 @@ LIBEVENT_PKGCONFIG=libevent.pc
 # These sources are conditionally added by configure.in or conditionally
 # included from other files.
 PLATFORM_DEPENDENT_SRC = \
-	epoll_sub.c \
-	arc4random.c
+	arc4random.c \
+	epoll_sub.c
 
 EXTRA_DIST = \
+	ChangeLog-1.4 \
+	ChangeLog-2.0 \
+	Doxyfile \
 	LICENSE \
+	Makefile.nmake test/Makefile.nmake \
 	autogen.sh \
 	event_rpcgen.py \
 	libevent.pc.in \
-	Doxyfile \
 	whatsnew-2.0.txt \
 	whatsnew-2.1.txt \
-	Makefile.nmake test/Makefile.nmake \
-	ChangeLog-2.0 \
-	ChangeLog-1.4 \
 	$(PLATFORM_DEPENDENT_SRC)
 
 LIBEVENT_LIBS_LA = libevent.la libevent_core.la libevent_extra.la
@@ -185,11 +185,28 @@ BUILT_SOURCES = ./include/event2/event-config.h
 	    -e 's/#ifndef /#ifndef EVENT__/' < config.h >> $@
 	echo "#endif" >> $@
 
-CORE_SRC = event.c evthread.c buffer.c \
-	bufferevent.c bufferevent_sock.c bufferevent_filter.c \
-	bufferevent_pair.c listener.c bufferevent_ratelim.c \
-	evmap.c	log.c evutil.c evutil_rand.c strlcpy.c $(SYS_SRC)
-EXTRA_SRC = event_tagging.c http.c evdns.c evrpc.c
+CORE_SRC =					\
+	buffer.c				\
+	bufferevent.c				\
+	bufferevent_filter.c			\
+	bufferevent_pair.c			\
+	bufferevent_ratelim.c			\
+	bufferevent_sock.c			\
+	event.c					\
+	evmap.c					\
+	evthread.c				\
+	evutil.c				\
+	evutil_rand.c				\
+	listener.c				\
+	log.c					\
+	strlcpy.c				\
+	$(SYS_SRC)
+
+EXTRA_SRC =					\
+	evdns.c					\
+	event_tagging.c				\
+	evrpc.c					\
+	http.c
 
 if BUILD_WITH_NO_UNDEFINED
 NO_UNDEFINED = -no-undefined
@@ -226,25 +243,38 @@ libevent_openssl_la_LDFLAGS = $(GENERIC_LDFLAGS)
 libevent_openssl_la_CPPFLAGS = $(AM_CPPFLAGS) $(OPENSSL_INCS)
 endif
 
-noinst_HEADERS = util-internal.h mm-internal.h ipv6-internal.h \
-	evrpc-internal.h strlcpy-internal.h evbuffer-internal.h \
-	bufferevent-internal.h http-internal.h event-internal.h \
-	evthread-internal.h ht-internal.h defer-internal.h \
-	minheap-internal.h log-internal.h evsignal-internal.h evmap-internal.h \
-	changelist-internal.h iocp-internal.h \
-	ratelim-internal.h \
-	evconfig-private.h \
-	ratelim-internal.h \
-	kqueue-internal.h \
-	WIN32-Code/event2/event-config.h \
-	WIN32-Code/evconfig-private.h \
-	WIN32-Code/tree.h \
-	compat/sys/queue.h
+noinst_HEADERS =				\
+	WIN32-Code/evconfig-private.h		\
+	WIN32-Code/event2/event-config.h	\
+	WIN32-Code/tree.h			\
+	bufferevent-internal.h			\
+	changelist-internal.h			\
+	compat/sys/queue.h			\
+	defer-internal.h			\
+	evbuffer-internal.h			\
+	evconfig-private.h			\
+	event-internal.h			\
+	evmap-internal.h			\
+	evrpc-internal.h			\
+	evsignal-internal.h			\
+	evthread-internal.h			\
+	ht-internal.h				\
+	http-internal.h				\
+	iocp-internal.h				\
+	ipv6-internal.h				\
+	kqueue-internal.h			\
+	log-internal.h				\
+	minheap-internal.h			\
+	mm-internal.h				\
+	ratelim-internal.h			\
+	ratelim-internal.h			\
+	strlcpy-internal.h			\
+	util-internal.h
 
 EVENT1_HDRS = \
+	include/evdns.h \
 	include/event.h \
 	include/evhttp.h \
-	include/evdns.h \
 	include/evrpc.h \
 	include/evutil.h
 
