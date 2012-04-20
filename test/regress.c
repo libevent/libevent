@@ -627,6 +627,27 @@ test_persistent_timeout(void)
 	event_del(&ev);
 }
 
+static void
+test_persistent_timeout_jump(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event ev;
+	int count = 0;
+	struct timeval msec100 = { 0, 100 * 1000 };
+	struct timeval msec50 = { 0, 50 * 1000 };
+
+	event_assign(&ev, data->base, -1, EV_PERSIST, periodic_timeout_cb, &count);
+	event_add(&ev, &msec100);
+	/* Wait for a bit */
+	sleep(1);
+	event_base_loopexit(data->base, &msec50);
+	event_base_dispatch(data->base);
+	tt_int_op(count, ==, 1);
+
+end:
+	event_del(&ev);
+}
+
 struct persist_active_timeout_called {
 	int n;
 	short events[16];
@@ -2338,8 +2359,8 @@ struct testcase_t main_testcases[] = {
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 
-	/* These are still using the old API */
 	LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
+	{ "persistent_timeout_jump", test_persistent_timeout_jump, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "persistent_active_timeout", test_persistent_active_timeout,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	LEGACY(priorities, TT_FORK|TT_NEED_BASE),
