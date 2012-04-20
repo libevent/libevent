@@ -131,4 +131,3 @@ evutil_usleep_(const struct timeval *tv)
 	select(0, NULL, NULL, NULL, tv);
 #endif
 }
-

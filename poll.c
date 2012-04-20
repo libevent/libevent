@@ -51,6 +51,7 @@
 #include "evmap-internal.h"
 #include "event2/thread.h"
 #include "evthread-internal.h"
+#include "time-internal.h"
 
 struct pollidx {
 	int idxplus1;

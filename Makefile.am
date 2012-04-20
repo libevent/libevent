@@ -270,6 +270,7 @@ noinst_HEADERS =				\
 	ratelim-internal.h			\
 	ratelim-internal.h			\
 	strlcpy-internal.h			\
+	time-internal.h				\
 	util-internal.h
 
 EVENT1_HDRS = \

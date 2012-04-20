@@ -63,6 +63,7 @@
 #include "defer-internal.h"
 #include "regress.h"
 #include "tinytest_macros.h"
+#include "time-internal.h"
 
 #ifdef EVENT__HAVE_PTHREADS
 #define THREAD_T pthread_t

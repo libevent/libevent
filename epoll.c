@@ -55,6 +55,7 @@
 #include "log-internal.h"
 #include "evmap-internal.h"
 #include "changelist-internal.h"
+#include "time-internal.h"
 
 struct epollop {
 	struct epoll_event *events;

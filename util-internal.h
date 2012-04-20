@@ -43,6 +43,7 @@
 #endif
 #include "event2/util.h"
 
+#include "time-internal.h"
 #include "ipv6-internal.h"
 
 #ifdef __cplusplus
@@ -367,11 +368,8 @@ int evutil_sockaddr_is_loopback_(const struct sockaddr *sa);
  */
 const char *evutil_format_sockaddr_port_(const struct sockaddr *sa, char *out, size_t outlen);
 
-long evutil_tv_to_msec_(const struct timeval *tv);
-
 int evutil_hex_char_to_int_(char c);
 
-void evutil_usleep_(const struct timeval *tv);
 
 void evutil_free_secure_rng_globals_(void);
 void evutil_free_globals_(void);

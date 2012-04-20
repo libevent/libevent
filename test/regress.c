@@ -65,6 +65,7 @@
 #include "event-internal.h"
 #include "evthread-internal.h"
 #include "log-internal.h"
+#include "time-internal.h"
 
 #include "regress.h"
 
