@@ -624,11 +624,12 @@ test_persistent_timeout_jump(void *ptr)
 	int count = 0;
 	struct timeval msec100 = { 0, 100 * 1000 };
 	struct timeval msec50 = { 0, 50 * 1000 };
+	struct timeval msec300 = { 0, 300 * 1000 };
 
 	event_assign(&ev, data->base, -1, EV_PERSIST, periodic_timeout_cb, &count);
 	event_add(&ev, &msec100);
 	/* Wait for a bit */
-	sleep(1);
+	evutil_usleep_(&msec300);
 	event_base_loopexit(data->base, &msec50);
 	event_base_dispatch(data->base);
 	tt_int_op(count, ==, 1);
