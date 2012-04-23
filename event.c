@@ -559,10 +559,18 @@ event_base_new_with_config(const struct event_config *cfg)
 		event_warn("%s: calloc", __func__);
 		return NULL;
 	}
-	evutil_configure_monotonic_time_(&base->monotonic_timer,
-	    cfg && (cfg->flags & EVENT_BASE_FLAG_PRECISE_TIMER));
+
+	should_check_environment =
+	    !(cfg && (cfg->flags & EVENT_BASE_FLAG_IGNORE_ENV));
+
 	{
 		struct timeval tmp;
+		int precise_time =
+		    cfg && (cfg->flags & EVENT_BASE_FLAG_PRECISE_TIMER);
+		if (should_check_environment && !precise_time)
+			precise_time = evutil_getenv_("EVENT_PRECISE_TIMER") != NULL;
+		evutil_configure_monotonic_time_(&base->monotonic_timer, precise_time);
+
 		gettime(base, &tmp);
 	}
 
@@ -585,9 +593,6 @@ event_base_new_with_config(const struct event_config *cfg)
 	event_changelist_init_(&base->changelist);
 
 	base->evbase = NULL;
-
-	should_check_environment =
-	    !(cfg && (cfg->flags & EVENT_BASE_FLAG_IGNORE_ENV));
 
 	if (cfg) {
 		memcpy(&base->max_dispatch_time,
