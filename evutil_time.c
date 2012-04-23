@@ -133,7 +133,6 @@ evutil_usleep_(const struct timeval *tv)
 #endif
 }
 
-
 /*
    This function assumes it's called repeatedly with a
    not-actually-so-monotonic time source whose outputs are in 'tv'. It
@@ -283,57 +282,163 @@ evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
 
    Windows has QueryPerformanceCounter(), which gives time most high-
    resolution time.  It's a pity it's not so monotonic in practice; it's
-   also got some fun bugs, especially with older Windowses, under
+   also got some fun bugs, especially: with older Windowses, under
    virtualizations, with funny hardware, on multiprocessor systems, and so
-   on.  PEP418 [1] has a nice roundup here.
+   on.  PEP418 [1] has a nice roundup of the issues here.
 
-   There's GetTickCount64(), which gives a number of 1-msec ticks since
-   startup.  The accuracy here might be as bad as 10-20 msec, I hear.
-   There's an undocumented function (NtSetTimerResolution) that allegedly
-   increases the accuracy. Good luck!
+   There's GetTickCount64() on Vista and later, which gives a number of 1-msec
+   ticks since startup.  The accuracy here might be as bad as 10-20 msec, I
+   hear.  There's an undocumented function (NtSetTimerResolution) that
+   allegedly increases the accuracy. Good luck!
 
    There's also GetTickCount(), which is only 32 bits, but seems to be
-   supported on pre-Vista versions of Windows.
+   supported on pre-Vista versions of Windows.  Apparently, you can coax
+   another 14 bits out of it, giving you 2231 years before rollover.
 
    The less said about timeGetTime() the better.
 
    "We don't care.  We don't have to.  We're the Phone Company."
             -- Lily Tomlin, SNL
 
+   Our strategy, if precise timers are turned off, is to just use the best
+   GetTickCount equivalent available.  If we've been asked for precise timing,
+   then we mostly[2] assume that GetTickCount is monotonic, and correct
+   GetPerformanceCounter to approximate it.
 
    [1] http://www.python.org/dev/peps/pep-0418
+   [2] Of course, we feed the Windows stuff into adjust_monotonic_time()
+       anyway, just in case it isn't.
+
  */
+/*
+    Parts of our logic in the win32 timer code here are closely based on
+    BitTorrent's libUTP library.  That code is subject to the following
+    license:
+
+      Copyright (c) 2010 BitTorrent, Inc.
+
+      Permission is hereby granted, free of charge, to any person obtaining a
+      copy of this software and associated documentation files (the
+      "Software"), to deal in the Software without restriction, including
+      without limitation the rights to use, copy, modify, merge, publish,
+      distribute, sublicense, and/or sell copies of the Software, and to
+      permit persons to whom the Software is furnished to do so, subject to
+      the following conditions:
+
+      The above copyright notice and this permission notice shall be included
+      in all copies or substantial portions of the Software.
+
+      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+      OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+      MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+      NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+      LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+      OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+      WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+static ev_uint64_t
+evutil_GetTickCount_(struct evutil_monotonic_timer *base)
+{
+	if (base->GetTickCount64_fn) {
+		/* Let's just use GetTickCount64 if we can. */
+		return base->GetTickCount64_fn();
+	} else if (base->GetTickCount_fn) {
+		/* Greg Hazel assures me that this works, that BitTorrent has
+		 * done it for years, and this it won't turn around and
+		 * bite us.  He says they found it on some game programmers'
+		 * forum some time around 2007.
+		 */
+		ev_uint64_t v = base->GetTickCount_fn();
+		return (DWORD)v | ((v >> 18) & 0xFFFFFFFF00000000);
+	} else {
+		/* Here's the fallback implementation. We have to use
+		 * GetTickCount() with its given signature, so we only get
+		 * 32 bits worth of milliseconds, which will roll ove every
+		 * 49 days or so.  */
+		DWORD ticks = GetTickCount();
+		if (ticks < base->last_tick_count) {
+			base->adjust_tick_count += ((ev_uint64_t)1) << 32;
+		}
+		base->last_tick_count = ticks;
+		return ticks + base->adjust_tick_count;
+	}
+}
+
 int
 evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
     int precise)
 {
+	HANDLE h;
 	memset(base, 0, sizeof(*base));
-	base->last_tick_count = GetTickCount();
+
+	h = evutil_load_windows_system_library_(TEXT("kernel32.dll"));
+	if (h != NULL) {
+		base->GetTickCount64_fn = (ev_GetTickCount_func)GetProcAddress(h, "GetTickCount64");
+		base->GetTickCount_fn = (ev_GetTickCount_func)GetProcAddress(h, "GetTickCount");
+	}
+
+	base->first_tick = base->last_tick_count = evutil_GetTickCount_(base);
+	if (precise) {
+		LARGE_INTEGER freq;
+		if (QueryPerformanceFrequency(&freq)) {
+			LARGE_INTEGER counter;
+			QueryPerformanceCounter(&counter);
+			base->first_counter = counter.QuadPart;
+			base->usec_per_count = 1.0e6 / freq.QuadPart;
+			base->use_performance_counter = 1;
+		}
+	}
 
 	return 0;
 }
+
+static inline ev_int64_t
+abs64(ev_int64_t i)
+{
+	return i < 0 ? -i : i;
+}
+
 
 int
 evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
     struct timeval *tp)
 {
-	/* TODO: Support GetTickCount64. */
-	/* TODO: Support alternate timer backends if the user asked
-	 * for a high-precision timer. QueryPerformanceCounter is
-	 * possibly a good idea, but it is also supposed to have
-	 * reliability issues under various circumstances. */
-	DWORD ticks = GetTickCount();
-	if (ticks < base->last_tick_count) {
-		/* The 32-bit timer rolled over. Let's assume it only
-		 * happened once.  Add 2**32 msec to adjust_tick_count. */
-		const struct timeval tv_rollover = { 4294967, 296000 };
-		evutil_timeradd(&tv_rollover, &base->adjust_tick_count, &base->adjust_tick_count);
-	}
-	base->last_tick_count = ticks;
-	tp->tv_sec = ticks / 1000;
-	tp->tv_usec = (ticks % 1000) * 1000;
-	evutil_timeradd(tp, &base->adjust_tick_count, tp);
+	ev_uint64_t ticks = evutil_GetTickCount_(base);
+	if (base->use_performance_counter) {
+		/* Here's a trick we took from BitTorrent's libutp, at Greg
+		 * Hazel's recommendation.  We use QueryPerformanceCounter for
+		 * our high-resolution timer, but use GetTickCount*() to keep
+		 * it sane, and adjust_monotonic_time() to keep it monotonic.
+		 */
+		LARGE_INTEGER counter;
+		ev_int64_t counter_elapsed, counter_usec_elapsed, ticks_elapsed;
+		QueryPerformanceCounter(&counter);
+		counter_elapsed = (ev_int64_t)
+		    (counter.QuadPart - base->first_counter);
+		ticks_elapsed = ticks - base->first_tick;
+		/* TODO: This may upset VC6. If you need this to work with
+		 * VC6, please supply an appropriate patch. */
+		counter_usec_elapsed = (ev_int64_t)
+		    (counter_elapsed * base->usec_per_count);
 
+		if (abs64(ticks_elapsed*1000 - counter_usec_elapsed) > 1000000) {
+			/* It appears that the QueryPerformanceCounter()
+			 * result is more than 1 second away from
+			 * GetTickCount() result. Let's adjust it to be as
+			 * accurate as we can; adjust_monotnonic_time() below
+			 * will keep it monotonic. */
+			counter_usec_elapsed = ticks_elapsed * 1000;
+			base->first_counter = counter.QuadPart - counter_usec_elapsed / base->usec_per_count;
+		}
+		tp->tv_sec = counter_usec_elapsed / 1000000;
+		tp->tv_usec = counter_usec_elapsed % 1000000;
+
+	} else {
+		/* We're just using GetTickCount(). */
+		tp->tv_sec = ticks / 1000;
+		tp->tv_usec = (ticks % 1000) * 1000;
+	}
 	adjust_monotonic_time(base, tp);
 
 	return 0;
