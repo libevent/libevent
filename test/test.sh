@@ -42,6 +42,7 @@ setup () {
 		eval "EVENT_NO$i=yes; export EVENT_NO$i"
 	done
 	unset EVENT_EPOLL_USE_CHANGELIST
+	unset EVENT_PRECISE_TIMER
 }
 
 announce () {
@@ -112,16 +113,24 @@ do_test() {
 	unset EVENT_NO$1
 	if test "$2" = "(changelist)" ; then
 	    EVENT_EPOLL_USE_CHANGELIST=yes; export EVENT_EPOLL_USE_CHANGELIST
+	elif test "$2" = "(timerfd)" ; then
+	    EVENT_PRECISE_TIMER=1; export EVENT_PRECISE_TIMER
+	elif test "$2" = "(timerfd+changelist)" ; then
+	    EVENT_EPOLL_USE_CHANGELIST=yes; export EVENT_EPOLL_USE_CHANGELIST
+	    EVENT_PRECISE_TIMER=1; export EVENT_PRECISE_TIMER
         fi
+
 	run_tests
 }
 
 announce "Running tests:"
 
+do_test EPOLL "(timerfd)"
+do_test EPOLL "(changelist)"
+do_test EPOLL "(timerfd+changelist)"
 for i in $BACKENDS; do
 	do_test $i
 done
-do_test EPOLL "(changelist)"
 
 if test "$FAILED" = "yes"; then
 	exit 1
