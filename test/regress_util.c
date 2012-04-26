@@ -1233,7 +1233,7 @@ test_evutil_monotonic(void *data_)
 	struct timeval tv[10], delay;
 	int total_diff = 0;
 
-	int flags = 0, wantres, acceptdiff, i;
+	int flags = 0, wantres, acceptdiff, i, maxstep = 25*1000;
 	if (precise)
 		flags |= EV_MONOT_PRECISE;
 	if (fallback)
@@ -1250,9 +1250,13 @@ test_evutil_monotonic(void *data_)
 		wantres = 40*1000;
 		acceptdiff = 20*1000;
 	}
+	if (precise)
+		maxstep = 500;
 
 	TT_BLATHER(("Precise = %d", precise));
 	TT_BLATHER(("Fallback = %d", fallback));
+
+	/* First, make sure we match up with usleep. */
 
 	delay.tv_sec = 0;
 	delay.tv_usec = wantres;
@@ -1272,7 +1276,28 @@ test_evutil_monotonic(void *data_)
 		total_diff += diff.tv_usec;
 		TT_BLATHER(("Difference = %d", (int)diff.tv_usec));
 	}
-	tt_int_op(abs(total_diff/10 - wantres), <, acceptdiff);
+	tt_int_op(abs(total_diff/9 - wantres), <, acceptdiff);
+
+	/* Second, find out what precision we actually see. */
+
+	evutil_gettime_monotonic_(&timer, &tv[0]);
+	for (i = 1; i < 10; ++i) {
+		do {
+			evutil_gettime_monotonic_(&timer, &tv[i]);
+		} while (evutil_timercmp(&tv[i-1], &tv[i], ==));
+	}
+
+	total_diff = 0;
+	for (i = 0; i < 9; ++i) {
+		struct timeval diff;
+		tt_assert(evutil_timercmp(&tv[i], &tv[i+1], <));
+		evutil_timersub(&tv[i+1], &tv[i], &diff);
+		tt_int_op(diff.tv_sec, ==, 0);
+		total_diff += diff.tv_usec;
+		TT_BLATHER(("Step difference = %d", (int)diff.tv_usec));
+	}
+	TT_BLATHER(("Average step difference = %d", total_diff / 9));
+	tt_int_op(total_diff/9, <, maxstep);
 
 end:
 	;
