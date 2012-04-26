@@ -560,6 +560,9 @@ event_base_new_with_config(const struct event_config *cfg)
 		return NULL;
 	}
 
+	if (cfg)
+		base->flags = cfg->flags;
+
 	should_check_environment =
 	    !(cfg && (cfg->flags & EVENT_BASE_FLAG_IGNORE_ENV));
 
@@ -567,9 +570,13 @@ event_base_new_with_config(const struct event_config *cfg)
 		struct timeval tmp;
 		int precise_time =
 		    cfg && (cfg->flags & EVENT_BASE_FLAG_PRECISE_TIMER);
-		if (should_check_environment && !precise_time)
+		int flags;
+		if (should_check_environment && !precise_time) {
 			precise_time = evutil_getenv_("EVENT_PRECISE_TIMER") != NULL;
-		evutil_configure_monotonic_time_(&base->monotonic_timer, precise_time);
+			base->flags |= EVENT_BASE_FLAG_PRECISE_TIMER;
+		}
+		flags = precise_time ? EV_MONOT_PRECISE : 0;
+		evutil_configure_monotonic_time_(&base->monotonic_timer, flags);
 
 		gettime(base, &tmp);
 	}
@@ -585,8 +592,6 @@ event_base_new_with_config(const struct event_config *cfg)
 	base->defer_queue.base = base;
 	base->defer_queue.notify_fn = notify_base_cbq_callback;
 	base->defer_queue.notify_arg = base;
-	if (cfg)
-		base->flags = cfg->flags;
 
 	evmap_io_initmap_(&base->io);
 	evmap_signal_initmap_(&base->sigmap);

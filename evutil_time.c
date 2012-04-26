@@ -107,6 +107,10 @@ evutil_tv_to_msec_(const struct timeval *tv)
 	return (tv->tv_sec * 1000) + ((tv->tv_usec + 999) / 1000);
 }
 
+/*
+  Replacement for usleep on platforms that don't have one.  Not guaranteed to
+  be any more finegrained than 1 msec.
+ */
 void
 evutil_usleep_(const struct timeval *tv)
 {
@@ -168,12 +172,15 @@ adjust_monotonic_time(struct evutil_monotonic_timer *base,
 
 int
 evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
-    int precise)
+    int flags)
 {
 	/* CLOCK_MONOTONIC exists on FreeBSD, Linux, and Solaris.  You need to
 	 * check for it at runtime, because some older kernel versions won't
 	 * have it working. */
+	const int precise = flags & EV_MONOT_PRECISE;
+	const int fallback = flags & EV_MONOT_FALLBACK;
 	struct timespec	ts;
+
 #ifdef CLOCK_MONOTONIC_COARSE
 #if CLOCK_MONOTONIC_COARSE < 0
 	/* Technically speaking, nothing keeps CLOCK_* from being negative (as
@@ -181,14 +188,14 @@ evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
 	 * safe for us to use -1 as an "unset" value. */
 #error "I didn't expect CLOCK_MONOTONIC_COARSE to be < 0"
 #endif
-	if (! precise) {
+	if (! precise && ! fallback) {
 		if (clock_gettime(CLOCK_MONOTONIC_COARSE, &ts) == 0) {
 			base->monotonic_clock = CLOCK_MONOTONIC_COARSE;
 			return 0;
 		}
 	}
 #endif
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+	if (!fallback && clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
 		base->monotonic_clock = CLOCK_MONOTONIC;
 		return 0;
 	}
@@ -237,12 +244,15 @@ evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
 
 int
 evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
-    int precise)
+    int flags)
 {
+	const int fallback = flags & EV_MONOT_FALLBACK;
 	struct mach_timebase_info mi;
 	memset(base, 0, sizeof(*base));
 	/* OSX has mach_absolute_time() */
-	if (mach_timebase_info(&mi) == 0 && mach_absolute_time() != 0) {
+	if (!fallback &&
+	    mach_timebase_info(&mi) == 0 &&
+	    mach_absolute_time() != 0) {
 		/* mach_timebase_info tells us how to convert
 		 * mach_absolute_time() into nanoseconds, but we
 		 * want to use microseconds instead. */
@@ -367,19 +377,21 @@ evutil_GetTickCount_(struct evutil_monotonic_timer *base)
 
 int
 evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
-    int precise)
+    int flags)
 {
+	const int precise = flags & EV_MONOT_PRECISE;
+	const int fallback = flags & EV_MONOT_FALLBACK;
 	HANDLE h;
 	memset(base, 0, sizeof(*base));
 
 	h = evutil_load_windows_system_library_(TEXT("kernel32.dll"));
-	if (h != NULL) {
+	if (h != NULL && !fallback) {
 		base->GetTickCount64_fn = (ev_GetTickCount_func)GetProcAddress(h, "GetTickCount64");
 		base->GetTickCount_fn = (ev_GetTickCount_func)GetProcAddress(h, "GetTickCount");
 	}
 
 	base->first_tick = base->last_tick_count = evutil_GetTickCount_(base);
-	if (precise) {
+	if (precise && !fallback) {
 		LARGE_INTEGER freq;
 		if (QueryPerformanceFrequency(&freq)) {
 			LARGE_INTEGER counter;
