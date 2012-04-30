@@ -28,6 +28,7 @@
 #include "evconfig-private.h"
 
 #include <sys/types.h>
+#include <errno.h>
 
 #ifdef _WIN32
 #ifndef _WIN32_WINNT
@@ -431,6 +432,9 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 		listener_decref_and_unlock(lev);
 	} else {
 		event_sock_warn(fd, "Error from accept() call");
+		if (errno == ENOSYS) {
+			return;
+		}
 	}
 }
 
