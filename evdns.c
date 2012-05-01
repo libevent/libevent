@@ -2155,10 +2155,14 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 
 	if (req->tx_count >= req->base->global_max_retransmits) {
 		/* this request has failed */
+		log(EVDNS_LOG_DEBUG, "Giving up on request %p; tx_count==%d",
+		    arg, req->tx_count);
 		reply_schedule_callback(req, 0, DNS_ERR_TIMEOUT, NULL);
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
 	} else {
 		/* retransmit it */
+		log(EVDNS_LOG_DEBUG, "Retransmitting request %p; tx_count==%d",
+		    arg, req->tx_count);
 		(void) evtimer_del(&req->timeout_event);
 		evdns_request_transmit(req);
 	}
@@ -2229,7 +2233,7 @@ evdns_request_transmit(struct request *req) {
 	default:
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
-		    "Setting timeout for request %p", req);
+		    "Setting timeout for request %p, sent to nameserver %p", req, req->ns);
 		if (evtimer_add(&req->timeout_event, &req->base->global_timeout) < 0) {
 			log(EVDNS_LOG_WARN,
 		      "Error from libevent when adding timer for request %p",
@@ -2488,8 +2492,8 @@ _evdns_nameserver_add_impl(struct evdns_base *base, const struct sockaddr *addre
 		goto out2;
 	}
 
-	log(EVDNS_LOG_DEBUG, "Added nameserver %s",
-	    evutil_format_sockaddr_port(address, addrbuf, sizeof(addrbuf)));
+	log(EVDNS_LOG_DEBUG, "Added nameserver %s as %p",
+	    evutil_format_sockaddr_port(address, addrbuf, sizeof(addrbuf)), ns);
 
 	/* insert this nameserver into the list of them */
 	if (!base->server_head) {
