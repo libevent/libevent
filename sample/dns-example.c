@@ -145,8 +145,9 @@ main(int c, char **v) {
 	int reverse = 0, servertest = 0, use_getaddrinfo = 0;
 	struct event_base *event_base = NULL;
 	struct evdns_base *evdns_base = NULL;
+	const char *resolv_conf = NULL;
 	if (c<2) {
-		fprintf(stderr, "syntax: %s [-x] [-v] hostname\n", v[0]);
+		fprintf(stderr, "syntax: %s [-x] [-v] [-c resolv.conf] hostname\n", v[0]);
 		fprintf(stderr, "syntax: %s [-servertest]\n", v[0]);
 		return 1;
 	}
@@ -160,7 +161,12 @@ main(int c, char **v) {
 			use_getaddrinfo = 1;
 		else if (!strcmp(v[idx], "-servertest"))
 			servertest = 1;
-		else
+		else if (!strcmp(v[idx], "-c")) {
+			if (idx + 1 < c)
+				resolv_conf = v[++idx];
+			else
+				fprintf(stderr, "-c needs an argument\n");
+		} else
 			fprintf(stderr, "Unknown option %s\n", v[idx]);
 		++idx;
 	}
@@ -197,11 +203,14 @@ main(int c, char **v) {
 	if (idx < c) {
 		int res;
 #ifdef WIN32
-		res = evdns_base_config_windows_nameservers(evdns_base);
-#else
-		res = evdns_base_resolv_conf_parse(evdns_base, DNS_OPTION_NAMESERVERS,
-		    "/etc/resolv.conf");
+		if (resolv_conf == NULL)
+			res = evdns_base_config_windows_nameservers(evdns_base);
+		else
 #endif
+			res = evdns_base_resolv_conf_parse(evdns_base,
+			    DNS_OPTION_NAMESERVERS,
+			    resolv_conf ? resolv_conf : "/etc/resolv.conf");
+
 		if (res < 0) {
 			fprintf(stderr, "Couldn't configure nameservers");
 			return 1;
