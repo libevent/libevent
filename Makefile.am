@@ -183,6 +183,7 @@ CORE_SRC =					\
 	evthread.c				\
 	evutil.c				\
 	evutil_rand.c				\
+	evutil_time.c				\
 	listener.c				\
 	log.c					\
 	strlcpy.c				\
@@ -255,6 +256,7 @@ noinst_HEADERS =				\
 	ratelim-internal.h			\
 	ratelim-internal.h			\
 	strlcpy-internal.h			\
+	time-internal.h				\
 	util-internal.h
 
 EVENT1_HDRS = \

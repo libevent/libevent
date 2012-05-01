@@ -70,13 +70,6 @@
 #ifdef EVENT__HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
-#if !defined(EVENT__HAVE_NANOSLEEP) && !defined(EVENT_HAVE_USLEEP) && \
-	!defined(_WIN32)
-#include <sys/select.h>
-#endif
-#ifndef EVENT__HAVE_GETTIMEOFDAY
-#include <sys/timeb.h>
-#endif
 #include <time.h>
 #include <sys/stat.h>
 #ifdef EVENT__HAVE_IFADDRS_H
@@ -484,46 +477,6 @@ evutil_strtoll(const char *s, char **endptr, int base)
 #error "I don't know how to parse 64-bit integers."
 #endif
 }
-
-#ifndef EVENT__HAVE_GETTIMEOFDAY
-/* No gettimeofday; this must be windows. */
-int
-evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
-{
-#ifdef _MSC_VER
-#define U64_LITERAL(n) n##ui64
-#else
-#define U64_LITERAL(n) n##llu
-#endif
-
-	/* Conversion logic taken from Tor, which in turn took it
-	 * from Perl.  GetSystemTimeAsFileTime returns its value as
-	 * an unaligned (!) 64-bit value containing the number of
-	 * 100-nanosecond intervals since 1 January 1601 UTC. */
-#define EPOCH_BIAS U64_LITERAL(116444736000000000)
-#define UNITS_PER_SEC U64_LITERAL(10000000)
-#define USEC_PER_SEC U64_LITERAL(1000000)
-#define UNITS_PER_USEC U64_LITERAL(10)
-	union {
-		FILETIME ft_ft;
-		ev_uint64_t ft_64;
-	} ft;
-
-	if (tv == NULL)
-		return -1;
-
-	GetSystemTimeAsFileTime(&ft.ft_ft);
-
-	if (EVUTIL_UNLIKELY(ft.ft_64 < EPOCH_BIAS)) {
-		/* Time before the unix epoch. */
-		return -1;
-	}
-	ft.ft_64 -= EPOCH_BIAS;
-	tv->tv_sec = (long) (ft.ft_64 / UNITS_PER_SEC);
-	tv->tv_usec = (long) ((ft.ft_64 / UNITS_PER_USEC) % USEC_PER_SEC);
-	return 0;
-}
-#endif
 
 #ifdef _WIN32
 int
@@ -2336,18 +2289,6 @@ evutil_sockaddr_is_loopback_(const struct sockaddr *addr)
 	return 0;
 }
 
-#define MAX_SECONDS_IN_MSEC_LONG \
-	(((LONG_MAX) - 999) / 1000)
-
-long
-evutil_tv_to_msec_(const struct timeval *tv)
-{
-	if (tv->tv_usec > 1000000 || tv->tv_sec > MAX_SECONDS_IN_MSEC_LONG)
-		return -1;
-
-	return (tv->tv_sec * 1000) + ((tv->tv_usec + 999) / 1000);
-}
-
 int
 evutil_hex_char_to_int_(char c)
 {
@@ -2387,32 +2328,6 @@ evutil_load_windows_system_library_(const TCHAR *library_name)
   return LoadLibrary(path);
 }
 #endif
-
-void
-evutil_usleep_(const struct timeval *tv)
-{
-	if (!tv)
-		return;
-#if defined(_WIN32)
-	{
-		long msec = evutil_tv_to_msec_(tv);
-		Sleep((DWORD)msec);
-	}
-#elif defined(EVENT__HAVE_NANOSLEEP)
-	{
-		struct timespec ts;
-		ts.tv_sec = tv->tv_sec;
-		ts.tv_nsec = tv->tv_usec*1000;
-		nanosleep(&ts, NULL);
-	}
-#elif defined(EVENT__HAVE_USLEEP)
-	/* Some systems don't like to usleep more than 999999 usec */
-	sleep(tv->tv_sec);
-	usleep(tv->tv_usec);
-#else
-	select(0, NULL, NULL, NULL, tv);
-#endif
-}
 
 /* Internal wrapper around 'socket' to provide Linux-style support for
  * syscall-saving methods where available.

@@ -43,6 +43,7 @@ struct event_base;
 
 #include "mm-internal.h"
 #include "evthread-internal.h"
+#include "time-internal.h"
 
 #define SPIN_COUNT 2000
 

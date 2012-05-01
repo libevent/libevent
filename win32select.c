@@ -49,6 +49,7 @@
 #include "evmap-internal.h"
 #include "event2/thread.h"
 #include "evthread-internal.h"
+#include "time-internal.h"
 
 #define XFREE(ptr) do { if (ptr) mm_free(ptr); } while (0)
 

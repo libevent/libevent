@@ -221,6 +221,7 @@ AC_CHECK_HEADERS([ \
   sys/sendfile.h \
   sys/socket.h \
   sys/time.h \
+  sys/timerfd.h \
   sys/uio.h \
   sys/wait.h \
   unistd.h \
@@ -357,6 +358,7 @@ AC_CHECK_FUNCS([ \
   strtok_r \
   strtoll \
   sysctl \
+  timerfd_create \
   unsetenv \
   usleep \
   vasprintf \

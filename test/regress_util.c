@@ -58,6 +58,7 @@
 #include "../log-internal.h"
 #include "../strlcpy-internal.h"
 #include "../mm-internal.h"
+#include "../time-internal.h"
 
 #include "regress.h"
 
@@ -1217,6 +1218,91 @@ end:
 	;
 }
 
+static void
+test_evutil_monotonic(void *data_)
+{
+	/* Basic santity-test for monotonic timers.  What we'd really like
+	 * to do is make sure that they can't go backwards even when the
+	 * system clock goes backwards. But we haven't got a good way to
+	 * move the system clock backwards.
+	 */
+	struct basic_test_data *data = data_;
+	struct evutil_monotonic_timer timer;
+	const int precise = strstr(data->setup_data, "precise") != NULL;
+	const int fallback = strstr(data->setup_data, "fallback") != NULL;
+	struct timeval tv[10], delay;
+	int total_diff = 0;
+
+	int flags = 0, wantres, acceptdiff, i, maxstep = 25*1000;
+	if (precise)
+		flags |= EV_MONOT_PRECISE;
+	if (fallback)
+		flags |= EV_MONOT_FALLBACK;
+	if (precise || fallback) {
+#ifdef _WIN32
+		wantres = 10*1000;
+		acceptdiff = 1000;
+#else
+		wantres = 300;
+		acceptdiff = 100;
+#endif
+	} else {
+		wantres = 40*1000;
+		acceptdiff = 20*1000;
+	}
+	if (precise)
+		maxstep = 500;
+
+	TT_BLATHER(("Precise = %d", precise));
+	TT_BLATHER(("Fallback = %d", fallback));
+
+	/* First, make sure we match up with usleep. */
+
+	delay.tv_sec = 0;
+	delay.tv_usec = wantres;
+
+	tt_int_op(evutil_configure_monotonic_time_(&timer, flags), ==, 0);
+
+	for (i = 0; i < 10; ++i) {
+		evutil_gettime_monotonic_(&timer, &tv[i]);
+		evutil_usleep_(&delay);
+	}
+
+	for (i = 0; i < 9; ++i) {
+		struct timeval diff;
+		tt_assert(evutil_timercmp(&tv[i], &tv[i+1], <));
+		evutil_timersub(&tv[i+1], &tv[i], &diff);
+		tt_int_op(diff.tv_sec, ==, 0);
+		total_diff += diff.tv_usec;
+		TT_BLATHER(("Difference = %d", (int)diff.tv_usec));
+	}
+	tt_int_op(abs(total_diff/9 - wantres), <, acceptdiff);
+
+	/* Second, find out what precision we actually see. */
+
+	evutil_gettime_monotonic_(&timer, &tv[0]);
+	for (i = 1; i < 10; ++i) {
+		do {
+			evutil_gettime_monotonic_(&timer, &tv[i]);
+		} while (evutil_timercmp(&tv[i-1], &tv[i], ==));
+	}
+
+	total_diff = 0;
+	for (i = 0; i < 9; ++i) {
+		struct timeval diff;
+		tt_assert(evutil_timercmp(&tv[i], &tv[i+1], <));
+		evutil_timersub(&tv[i+1], &tv[i], &diff);
+		tt_int_op(diff.tv_sec, ==, 0);
+		total_diff += diff.tv_usec;
+		TT_BLATHER(("Step difference = %d", (int)diff.tv_usec));
+	}
+	TT_BLATHER(("Average step difference = %d", total_diff / 9));
+	tt_int_op(total_diff/9, <, maxstep);
+
+end:
+	;
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -1239,6 +1325,9 @@ struct testcase_t util_testcases[] = {
 	{ "mm_calloc", test_event_calloc, 0, NULL, NULL },
 	{ "mm_strdup", test_event_strdup, 0, NULL, NULL },
 	{ "usleep", test_evutil_usleep, 0, NULL, NULL },
+	{ "monotonic", test_evutil_monotonic, 0, &basic_setup, (void*)"" },
+	{ "monotonic_precise", test_evutil_monotonic, 0, &basic_setup, (void*)"precise" },
+	{ "monotonic_fallback", test_evutil_monotonic, 0, &basic_setup, (void*)"fallback" },
 	END_OF_TESTCASES,
 };
 

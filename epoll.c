@@ -47,6 +47,9 @@
 #ifdef EVENT__HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#ifdef EVENT__HAVE_SYS_TIMERFD_H
+#include <sys/timerfd.h>
+#endif
 
 #include "event-internal.h"
 #include "evsignal-internal.h"
@@ -55,11 +58,26 @@
 #include "log-internal.h"
 #include "evmap-internal.h"
 #include "changelist-internal.h"
+#include "time-internal.h"
+
+#if defined(EVENT__HAVE_SYS_TIMERFD_H) &&			  \
+	defined(EVENT__HAVE_TIMERFD_CREATE) &&			  \
+	defined(HAVE_POSIX_MONOTONIC) && defined(TFD_NONBLOCK) && \
+	defined(TFD_CLOEXEC)
+/* Note that we only use timerfd if TFD_NONBLOCK and TFD_CLOEXEC are available
+   and working.  This means that we can't support it on 2.6.25 (where timerfd
+   was introduced) or 2.6.26, since 2.6.27 introduced those flags.
+ */
+#define USING_TIMERFD
+#endif
 
 struct epollop {
 	struct epoll_event *events;
 	int nevents;
 	int epfd;
+#ifdef USING_TIMERFD
+	int timerfd;
+#endif
 };
 
 static void *epoll_init(struct event_base *);
@@ -146,8 +164,38 @@ epoll_init(struct event_base *base)
 
 	if ((base->flags & EVENT_BASE_FLAG_EPOLL_USE_CHANGELIST) != 0 ||
 	    ((base->flags & EVENT_BASE_FLAG_IGNORE_ENV) == 0 &&
-		evutil_getenv_("EVENT_EPOLL_USE_CHANGELIST") != NULL))
+		evutil_getenv_("EVENT_EPOLL_USE_CHANGELIST") != NULL)) {
+
 		base->evsel = &epollops_changelist;
+	}
+
+#ifdef USING_TIMERFD
+	/*
+	  The epoll interface ordinarily gives us one-millisecond precision,
+	  so on Linux it makes perfect sense to use the CLOCK_MONOTONIC_COARSE
+	  timer.  But when the user has set the new PRECISE_TIMER flag for an
+	  event_base, we can try to use timerfd to give them finer granularity.
+	*/
+	if ((base->flags & EVENT_BASE_FLAG_PRECISE_TIMER) &&
+	    base->monotonic_timer.monotonic_clock == CLOCK_MONOTONIC) {
+		int fd;
+		fd = epollop->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC);
+		if (epollop->timerfd >= 0) {
+			struct epoll_event epev;
+			epev.data.fd = epollop->timerfd;
+			epev.events = EPOLLIN;
+			if (epoll_ctl(epollop->epfd, EPOLL_CTL_ADD, fd, &epev) < 0) {
+				event_warn("epoll_ctl(timerfd)");
+				close(fd);
+				epollop->timerfd = -1;
+			}
+		} else {
+			event_warn("timerfd_create");
+		}
+	} else {
+		epollop->timerfd = -1;
+	}
+#endif
 
 	evsig_init_(base);
 
@@ -508,6 +556,33 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	int i, res;
 	long timeout = -1;
 
+#ifdef USING_TIMERFD
+	if (epollop->timerfd >= 0) {
+		struct itimerspec is;
+		is.it_interval.tv_sec = 0;
+		is.it_interval.tv_nsec = 0;
+		if (tv == NULL) {
+			/* No timeout; disarm the timer. */
+			is.it_value.tv_sec = 0;
+			is.it_value.tv_nsec = 0;
+		} else {
+			if (tv->tv_sec == 0 && tv->tv_usec == 0) {
+				/* we need to exit immediately; timerfd can't
+				 * do that. */
+				timeout = 0;
+			}
+			is.it_value.tv_sec = tv->tv_sec;
+			is.it_value.tv_nsec = tv->tv_usec * 1000;
+		}
+		/* TODO: we could avoid unnecessary syscalls here by only
+		   calling timerfd_settime when the top timeout changes, or
+		   when we're called with a different timeval.
+		*/
+		if (timerfd_settime(epollop->timerfd, 0, &is, NULL) < 0) {
+			event_warn("timerfd_settime");
+		}
+	} else
+#endif
 	if (tv != NULL) {
 		timeout = evutil_tv_to_msec_(tv);
 		if (timeout < 0 || timeout > MAX_EPOLL_TIMEOUT_MSEC) {
@@ -541,6 +616,10 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	for (i = 0; i < res; i++) {
 		int what = events[i].events;
 		short ev = 0;
+#ifdef USING_TIMERFD
+		if (events[i].data.fd == epollop->timerfd)
+			continue;
+#endif
 
 		if (what & (EPOLLHUP|EPOLLERR)) {
 			ev = EV_READ | EV_WRITE;
@@ -585,6 +664,10 @@ epoll_dealloc(struct event_base *base)
 		mm_free(epollop->events);
 	if (epollop->epfd >= 0)
 		close(epollop->epfd);
+#ifdef USING_TIMERFD
+	if (epollop->timerfd >= 0)
+		close(epollop->timerfd);
+#endif
 
 	memset(epollop, 0, sizeof(struct epollop));
 	mm_free(epollop);
