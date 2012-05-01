@@ -2161,9 +2161,13 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
 	} else {
 		/* retransmit it */
+		struct nameserver *new_ns;
 		log(EVDNS_LOG_DEBUG, "Retransmitting request %p; tx_count==%d",
 		    arg, req->tx_count);
 		(void) evtimer_del(&req->timeout_event);
+		new_ns = nameserver_pick(base);
+		if (new_ns)
+			req->ns = new_ns;
 		evdns_request_transmit(req);
 	}
 	EVDNS_UNLOCK(base);
