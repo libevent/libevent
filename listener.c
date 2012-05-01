@@ -422,6 +422,14 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 		UNLOCK(lev);
 		return;
 	}
+
+	// The accept4() system call is available starting with Linux 2.6.28; support in glibc is available starting with version 2.10.
+	if (errno == ENOSYS) {
+		listener_decref_and_unlock(lev);
+		event_sock_warn(fd, "Error accept4() not supported");
+		return;
+	}
+
 	if (lev->errorcb != NULL) {
 		++lev->refcnt;
 		errorcb = lev->errorcb;
@@ -432,11 +440,6 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 		listener_decref_and_unlock(lev);
 	} else {
 		event_sock_warn(fd, "Error from accept() call");
-
-		// The accept4() system call is available starting with Linux 2.6.28; support in glibc is available starting with version 2.10.
-		if (errno == ENOSYS) {
-			return;
-		}
 	}
 }
 
