@@ -1645,6 +1645,58 @@ test_priorities(void)
 		test_priorities_impl(3);
 }
 
+/* priority-active-inversion: activate a higher-priority event, and make sure
+ * it keeps us from running a lower-priority event first. */
+static int n_pai_calls = 0;
+static struct event pai_events[3];
+
+static void
+prio_active_inversion_cb(evutil_socket_t fd, short what, void *arg)
+{
+	int *call_order = arg;
+	*call_order = n_pai_calls++;
+	if (n_pai_calls == 1) {
+		/* This should activate later, even though it shares a
+		   priority with us. */
+		event_active(&pai_events[1], EV_READ, 1);
+		/* This should activate next, since its priority is higher,
+		   even though we activated it second. */
+		event_active(&pai_events[2], EV_TIMEOUT, 1);
+	}
+}
+
+static void
+test_priority_active_inversion(void *data_)
+{
+	struct basic_test_data *data = data_;
+	struct event_base *base = data->base;
+	int call_order[3];
+	int i;
+	tt_int_op(event_base_priority_init(base, 8), ==, 0);
+
+	n_pai_calls = 0;
+	memset(call_order, 0, sizeof(call_order));
+
+	for (i=0;i<3;++i) {
+		event_assign(&pai_events[i], data->base, -1, 0,
+		    prio_active_inversion_cb, &call_order[i]);
+	}
+
+	event_priority_set(&pai_events[0], 4);
+	event_priority_set(&pai_events[1], 4);
+	event_priority_set(&pai_events[2], 0);
+
+	event_active(&pai_events[0], EV_WRITE, 1);
+
+	event_base_dispatch(base);
+	tt_int_op(n_pai_calls, ==, 3);
+	tt_int_op(call_order[0], ==, 0);
+	tt_int_op(call_order[1], ==, 2);
+	tt_int_op(call_order[2], ==, 1);
+end:
+	;
+}
+
 
 static void
 test_multiple_cb(evutil_socket_t fd, short event, void *arg)
@@ -2421,6 +2473,7 @@ struct testcase_t main_testcases[] = {
 	{ "persistent_active_timeout", test_persistent_active_timeout,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	LEGACY(priorities, TT_FORK|TT_NEED_BASE),
+	BASIC(priority_active_inversion, TT_FORK|TT_NEED_BASE),
 	{ "common_timeout", test_common_timeout, TT_FORK|TT_NEED_BASE,
 	  &basic_setup, NULL },
 
