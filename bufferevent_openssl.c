@@ -618,9 +618,6 @@ do_read(struct bufferevent_openssl *bev_ssl, int n_to_read)
 		evbuffer_commit_space(input, space, n_used);
 		if (bev_ssl->underlying)
 			BEV_RESET_GENERIC_READ_TIMEOUT(bev);
-
-		if (evbuffer_get_length(input) >= bev->wm_read.low)
-			bufferevent_run_readcb_(bev);
 	}
 
 	return blocked ? 0 : 1;
@@ -760,6 +757,7 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 {
 	int r;
 	int n_to_read;
+	int read_data = 0;
 
 	while (bev_ssl->write_blocked_on_read) {
 		r = do_write(bev_ssl, WRITE_FRAME);
@@ -774,6 +772,8 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 	while (n_to_read) {
 		if (do_read(bev_ssl, n_to_read) <= 0)
 			break;
+
+		read_data = 1;
 
 		/* Read all pending data.  This won't hit the network
 		 * again, and will (most importantly) put us in a state
@@ -803,6 +803,15 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 			n_to_read = bytes_to_read(bev_ssl);
 	}
 
+	if (read_data == 1) {
+		struct bufferevent *bev = &bev_ssl->bev.bev;
+		struct evbuffer *input = bev->input;
+
+		if (evbuffer_get_length(input) >= bev->wm_read.low) {
+			bufferevent_run_readcb_(bev);
+		}
+	}
+
 	if (!bev_ssl->underlying) {
 		/* Should be redundant, but let's avoid busy-looping */
 		if (bev_ssl->bev.read_suspended ||
@@ -824,6 +833,14 @@ consider_writing(struct bufferevent_openssl *bev_ssl)
 		r = do_read(bev_ssl, 1024); /* XXXX 1024 is a hack */
 		if (r <= 0)
 			break;
+		else {
+			struct bufferevent *bev = &bev_ssl->bev.bev;
+			struct evbuffer *input = bev->input;
+
+			if (evbuffer_get_length(input) >= bev->wm_read.low) {
+				bufferevent_run_readcb_(bev);
+			}
+		}
 	}
 	if (bev_ssl->read_blocked_on_write)
 		return;
