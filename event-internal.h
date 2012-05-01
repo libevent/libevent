@@ -196,6 +196,11 @@ struct event_base {
 	int event_gotterm;
 	/** Set if we should terminate the loop immediately */
 	int event_break;
+	/** Set if we should start a new instance of the loop immediately. */
+	int event_continue;
+
+	/** The currently running priority of events */
+	int event_running_priority;
 
 	/** Set if we're running the event_base_loop function, to prevent
 	 * reentrant invocation. */

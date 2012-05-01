@@ -1359,6 +1359,8 @@ event_process_active_single_queue(struct event_base *base,
 
 		if (base->event_break)
 			return -1;
+		if (base->event_continue)
+			break;
 	}
 	return count;
 }
@@ -1409,11 +1411,13 @@ event_process_active(struct event_base *base)
 
 	for (i = 0; i < base->nactivequeues; ++i) {
 		if (TAILQ_FIRST(&base->activequeues[i]) != NULL) {
+			base->event_running_priority = i;
 			activeq = &base->activequeues[i];
 			c = event_process_active_single_queue(base, activeq);
-			if (c < 0)
+			if (c < 0) {
+				base->event_running_priority = -1;
 				return -1;
-			else if (c > 0)
+			} else if (c > 0)
 				break; /* Processed a real event; do not
 					* consider lower-priority events */
 			/* If we get here, all of the events we processed
@@ -1422,6 +1426,7 @@ event_process_active(struct event_base *base)
 	}
 
 	event_process_deferred_callbacks(&base->defer_queue,&base->event_break);
+	base->event_running_priority = -1;
 	return c;
 }
 
@@ -1559,6 +1564,8 @@ event_base_loop(struct event_base *base, int flags)
 	base->event_gotterm = base->event_break = 0;
 
 	while (!done) {
+		base->event_continue = 0;
+
 		/* Terminate the loop if we have been asked to */
 		if (base->event_gotterm) {
 			break;
@@ -2286,6 +2293,9 @@ event_active_nolock(struct event *ev, int res, short ncalls)
 	EVENT_BASE_ASSERT_LOCKED(base);
 
 	ev->ev_res = res;
+
+	if (ev->ev_pri < base->event_running_priority)
+		base->event_continue = 1;
 
 	if (ev->ev_events & EV_SIGNAL) {
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
