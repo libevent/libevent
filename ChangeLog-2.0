@@ -1,4 +1,34 @@
-Changes in version 2.0.19-stable (?? ??? 2012)
+Changes in version 2.0.19-stable (0? May 2012)
+BUGFIXES (CORE):
+ o Refactor event_persist_closure: raise and extract some common logic (bec22b4)
+ o If time has jumped so we'd reschedule a periodic event in the past, schedule it for the future instead (dfd808c)
+ o If a higher-priority event becomes active, don't continue running events of the current priority. (2bfda40)
+
+BUGFIXES (SSL):
+ o Fixed potential double-readcb execution with openssl bufferevents. (4e62cd1 Mark Ellzey)
+
+BUGFIXES (DNS):
+ o Cancel a probe request when the server is freed, and ignore cancelled probe callbacks (94d2336 Greg Hazel)
+ o Remove redundant DNS_ERR_CANCEL check, move comment (46b8060 Greg Hazel)
+ o When retransmitting a timed-out DNS request, pick a fresh nameserver. (3d9e52a)
+
+DOCUMENTATION FIXES:
+ o Fix a typo in the bufferevent documentation (98e9119)
+ o Add missing ) to changelog; spotted by rransom (4c7ee6b)
+ o Fix the website URL in the readme (f775521)
+
+COMPILATION FIXES:
+ o Fix a compilation error with MSVC 2005 due to use of mode_t (336dcae)
+ o Configure with gcc older than 2.95 (4a6fd43 Sebastian Hahn)
+ o Generate event-config.h with a single sed script (30b6f88 Zack Weinberg)
+
+FORWARD-COMPATIBILITY:
+ o Backport: provide EVENT_LOG_* names, and deprecate _EVENT_LOG_* (d1a03b2)
+
+TESTING/DEBUGGING SUPPORT:
+ o dns-example.c can now take a resolv.conf file on the commandline (6610fa5)
+ o Make some evdns.c debug logs more verbose (d873d67)
+ o Work-around a stupid gcov-breaking bug in OSX 10.6 (b3887cd)
 
 
 Changes in version 2.0.18-stable (22 Mar 2012)
