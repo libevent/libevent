@@ -2138,9 +2138,8 @@ evdns_server_request_get_requesting_addr(struct evdns_server_request *_req, stru
 static void
 evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 	struct request *const req = (struct request *) arg;
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
 	struct evdns_base *base = req->base;
-#endif
+
 	(void) fd;
 	(void) events;
 
