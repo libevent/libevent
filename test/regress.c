@@ -639,7 +639,11 @@ test_persistent_timeout_jump(void *ptr)
 	event_assign(&ev, data->base, -1, EV_PERSIST, periodic_timeout_cb, &count);
 	event_add(&ev, &msec100);
 	/* Wait for a bit */
+#ifdef _WIN32
+	Sleep(1000);
+#else
 	sleep(1);
+#endif
 	event_base_loopexit(data->base, &msec50);
 	event_base_dispatch(data->base);
 	tt_int_op(count, ==, 1);
@@ -878,11 +882,7 @@ test_fork(void)
 	}
 
 	/* wait for the child to read the data */
-#ifdef _WIN32
-	Sleep(1000);
-#else
 	sleep(1);
-#endif
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
 		tt_fail_perror("write");
