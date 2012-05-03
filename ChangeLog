@@ -1,3 +1,6 @@
+Changes in version 2.0.20-stable (?? ??? 2012)
+
+
 Changes in version 2.0.19-stable (3 May 2012)
 BUGFIXES (CORE):
  o Refactor event_persist_closure: raise and extract some common logic (bec22b4)
