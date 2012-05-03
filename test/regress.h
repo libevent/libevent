@@ -118,7 +118,9 @@ int test_ai_eq_(const struct evutil_addrinfo *ai, const char *sockaddr_port,
 
 long timeval_msec_diff(const struct timeval *start, const struct timeval *end);
 
+#ifndef _WIN32
 pid_t regress_fork(void);
+#endif
 
 #ifdef __cplusplus
 }
