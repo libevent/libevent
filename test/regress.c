@@ -878,7 +878,11 @@ test_fork(void)
 	}
 
 	/* wait for the child to read the data */
+#ifdef _WIN32
+	Sleep(1000);
+#else
 	sleep(1);
+#endif
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
 		tt_fail_perror("write");
