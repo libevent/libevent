@@ -398,6 +398,16 @@ bufferevent_get_base(struct bufferevent *bufev)
 }
 
 int
+bufferevent_get_priority(struct bufferevent *bufev)
+{
+	if (event_initialized(&bufev->ev_read)) {
+		return event_get_priority(&bufev->ev_read);
+	} else {
+		return event_base_get_npriorities(bufev->ev_base) / 2;
+	}
+}
+
+int
 bufferevent_write(struct bufferevent *bufev, const void *data, size_t size)
 {
 	if (evbuffer_add(bufev->output, data, size) == -1)
