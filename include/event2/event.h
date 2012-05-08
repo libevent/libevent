@@ -1125,6 +1125,12 @@ event_callback_fn event_get_callback(const struct event *ev);
 void *event_get_callback_arg(const struct event *ev);
 
 /**
+   Return the priority of an event.
+   @see event_priority_init(), event_get_priority()
+*/
+int event_get_priority(const struct event *ev);
+
+/**
    Extract _all_ of arguments given to construct a given event.  The
    event_base is copied into *base_out, the fd is copied into *fd_out, and so
    on.
@@ -1226,7 +1232,7 @@ int	event_base_get_npriorities(struct event_base *eb);
   @param ev an event struct
   @param priority the new priority to be assigned
   @return 0 if successful, or -1 if an error occurred
-  @see event_priority_init()
+  @see event_priority_init(), event_get_priority()
   */
 int	event_priority_set(struct event *, int);
 
