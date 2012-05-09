@@ -1620,6 +1620,25 @@ event_base_loopbreak(struct event_base *event_base)
 }
 
 int
+event_base_loopcontinue(struct event_base *event_base)
+{
+	int r = 0;
+	if (event_base == NULL)
+		return (-1);
+
+	EVBASE_ACQUIRE_LOCK(event_base, th_base_lock);
+	event_base->event_continue = 1;
+
+	if (EVBASE_NEED_NOTIFY(event_base)) {
+		r = evthread_notify_base(event_base);
+	} else {
+		r = (0);
+	}
+	EVBASE_RELEASE_LOCK(event_base, th_base_lock);
+	return r;
+}
+
+int
 event_base_got_break(struct event_base *event_base)
 {
 	int res;

@@ -755,6 +755,25 @@ int event_base_loopexit(struct event_base *, const struct timeval *);
 int event_base_loopbreak(struct event_base *);
 
 /**
+  Tell the active event_base_loop() to scan for new events immediately.
+
+  Calling this function makes the currently active event_base_loop()
+  start the loop over again (scanning for new events) after the current
+  event callback finishes.  If the event loop is not running, this
+  function has no effect.
+
+  event_base_loopbreak() is typically invoked from this event's callback.
+  This behavior is analogous to the "continue;" statement.
+
+  Subsequent invocations of event loop will proceed normally.
+
+  @param eb the event_base structure returned by event_init()
+  @return 0 if successful, or -1 if an error occurred
+  @see event_base_loopbreak()
+ */
+int event_base_loopcontinue(struct event_base *);
+
+/**
   Checks if the event loop was told to exit by event_loopexit().
 
   This function will return true for an event_base at every point after
