@@ -1533,8 +1533,7 @@ event_process_active(struct event_base *base)
 				c = event_process_active_single_queue(base, activeq,
 				    maxcb, endtime);
 			if (c < 0) {
-				base->event_running_priority = -1;
-				return -1;
+				goto done;
 			} else if (c > 0)
 				break; /* Processed a real event; do not
 					* consider lower-priority events */
@@ -1543,7 +1542,9 @@ event_process_active(struct event_base *base)
 		}
 	}
 
+done:
 	base->event_running_priority = -1;
+
 	return c;
 }
 
