@@ -218,6 +218,12 @@ struct event_base {
 	 * reentrant invocation. */
 	int running_loop;
 
+	/** Set to the number of deferred_cbs we've made 'active' in the
+	 * loop.  This is a hack to prevent starvation; it would be smarter
+	 * to just use event_config_set_max_dispatch_interval's max_callbacks
+	 * feature */
+	int n_deferreds_queued;
+
 	/* Active event management. */
 	/** An array of nactivequeues queues for active event_callbacks (ones
 	 * that have triggered, and whose callbacks need to be called).  Low

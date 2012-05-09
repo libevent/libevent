@@ -324,14 +324,14 @@ bufferevent_init_common_(struct bufferevent_private *bufev_private,
 	if (options & BEV_OPT_DEFER_CALLBACKS) {
 		if (options & BEV_OPT_UNLOCK_CALLBACKS)
 			event_deferred_cb_init_(
-			    bufev->ev_base,
 			    &bufev_private->deferred,
+			    event_base_get_npriorities(base) / 2,
 			    bufferevent_run_deferred_callbacks_unlocked,
 			    bufev_private);
 		else
 			event_deferred_cb_init_(
-			    bufev->ev_base,
 			    &bufev_private->deferred,
+			    event_base_get_npriorities(base) / 2,
 			    bufferevent_run_deferred_callbacks_locked,
 			    bufev_private);
 	}

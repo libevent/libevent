@@ -1072,8 +1072,8 @@ event_config_set_max_dispatch_interval(struct event_config *cfg,
 		cfg->max_dispatch_interval.tv_sec = -1;
 	cfg->max_dispatch_callbacks =
 	    max_callbacks >= 0 ? max_callbacks : INT_MAX;
-	if (min_priority <= 0)
-		min_priority = 1;
+	if (min_priority < 0)
+		min_priority = 0;
 	cfg->limit_callbacks_after_prio = min_priority;
 	return (0);
 }
@@ -1683,6 +1683,7 @@ event_base_loop(struct event_base *base, int flags)
 
 	while (!done) {
 		base->event_continue = 0;
+		base->n_deferreds_queued = 0;
 
 		/* Terminate the loop if we have been asked to */
 		if (base->event_gotterm) {
@@ -2593,19 +2594,26 @@ event_callback_cancel_nolock_(struct event_base *base,
 	case 0:
 		break;
 	}
+
+	event_base_assert_ok_(base);
+
 	return 0;
 }
 
 void
-event_deferred_cb_init_(struct event_base *base, struct event_callback *cb, deferred_cb_fn fn, void *arg)
+event_deferred_cb_init_(struct event_callback *cb, ev_uint8_t priority, deferred_cb_fn fn, void *arg)
 {
-	if (!base)
-		base = current_base;
 	memset(cb, 0, sizeof(*cb));
 	cb->evcb_cb_union.evcb_selfcb = fn;
 	cb->evcb_arg = arg;
-	cb->evcb_pri = base->nactivequeues - 1;
+	cb->evcb_pri = priority;
 	cb->evcb_closure = EV_CLOSURE_CB_SELF;
+}
+
+void
+event_deferred_cb_set_priority_(struct event_callback *cb, ev_uint8_t priority)
+{
+	cb->evcb_pri = priority;
 }
 
 void
@@ -2616,12 +2624,22 @@ event_deferred_cb_cancel_(struct event_base *base, struct event_callback *cb)
 	event_callback_cancel_(base, cb);
 }
 
+#define MAX_DEFERREDS_QUEUED 32
 int
 event_deferred_cb_schedule_(struct event_base *base, struct event_callback *cb)
 {
+	int r = 1;
 	if (!base)
 		base = current_base;
-	return event_callback_activate_(base, cb);
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	if (base->n_deferreds_queued > MAX_DEFERREDS_QUEUED) {
+		event_callback_activate_later_nolock_(base, cb);
+	} else {
+		++base->n_deferreds_queued;
+		r = event_callback_activate_nolock_(base, cb);
+	}
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return r;
 }
 
 static int
@@ -2868,6 +2886,7 @@ event_queue_insert_active(struct event_base *base, struct event_callback *evcb)
 	evcb->evcb_flags |= EVLIST_ACTIVE;
 
 	base->event_count_active++;
+	EVUTIL_ASSERT(evcb->evcb_pri < base->nactivequeues);
 	TAILQ_INSERT_TAIL(&base->activequeues[evcb->evcb_pri],
 	    evcb, evcb_active_next);
 }
@@ -2884,6 +2903,7 @@ event_queue_insert_active_later(struct event_base *base, struct event_callback *
 	INCR_EVENT_COUNT(base, evcb->evcb_flags);
 	evcb->evcb_flags |= EVLIST_ACTIVE_LATER;
 	base->event_count_active++;
+	EVUTIL_ASSERT(evcb->evcb_pri < base->nactivequeues);
 	TAILQ_INSERT_TAIL(&base->active_later_queue, evcb, evcb_active_next);
 }
 
@@ -2920,7 +2940,9 @@ event_queue_make_later_events_active(struct event_base *base)
 	while ((evcb = TAILQ_FIRST(&base->active_later_queue))) {
 		TAILQ_REMOVE(&base->active_later_queue, evcb, evcb_active_next);
 		evcb->evcb_flags = (evcb->evcb_flags & ~EVLIST_ACTIVE_LATER) | EVLIST_ACTIVE;
+		EVUTIL_ASSERT(evcb->evcb_pri < base->nactivequeues);
 		TAILQ_INSERT_TAIL(&base->activequeues[evcb->evcb_pri], evcb, evcb_active_next);
+		base->n_deferreds_queued += (evcb->evcb_closure == EV_CLOSURE_CB_SELF);
 	}
 }
 

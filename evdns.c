@@ -836,8 +836,10 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 		d->handle = req->handle;
 	}
 
-	event_deferred_cb_init_(req->base->event_base,
-	    &d->deferred, reply_run_callback,
+	event_deferred_cb_init_(
+	    &d->deferred,
+	    event_get_priority(&req->timeout_event),
+	    reply_run_callback,
 	    req->user_pointer);
 	event_deferred_cb_schedule_(
 		req->base->event_base,
