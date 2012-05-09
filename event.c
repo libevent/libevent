@@ -1129,6 +1129,9 @@ event_base_get_npriorities(struct event_base *base)
 {
 
 	int n;
+	if (base == NULL)
+		base = current_base;
+
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	n = base->nactivequeues;
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
