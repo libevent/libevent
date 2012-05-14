@@ -450,7 +450,11 @@ enum event_method_feature {
  */
 enum event_base_config_flag {
 	/** Do not allocate a lock for the event base, even if we have
-	    locking set up. */
+	    locking set up.
+
+	    Setting this option will make it unsafe and nonfunctional to call
+	    functions on the base concurrently from multiple threads.
+	*/
 	EVENT_BASE_FLAG_NOLOCK = 0x01,
 	/** Do not check the EVENT_* environment variables when configuring
 	    an event_base  */
