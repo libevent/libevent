@@ -76,7 +76,10 @@ typedef void (*evconnlistener_errorcb)(struct evconnlistener *, void *);
  * available, if possible.  Ignored on platforms that do not support this.
  *
  * This option can help performance for protocols where the client transmits
- * immediately after connecting.
+ * immediately after connecting.  Do not use this option if your protocol
+ * _doesn't_ start out with the client transmitting data, since in that case
+ * this option will sometimes cause the kernel to never tell you about the
+ * connection.
  *
  * This option is only supported by evconnlistener_new_bind(): it can't
  * work with evconnlistener_new_fd(), since the listener needs to be told
