@@ -219,6 +219,20 @@ strsep(char **s, const char *del)
 }
 #endif
 
+static void 
+rtrim(char *str)
+{
+	char *cp;
+
+	if( str == NULL )
+		return;
+
+	cp = strchr(str, '\0') - 1;
+
+	while (cp >= str && *cp == ' ')
+		*cp-- = '\0';
+}
+
 static size_t
 html_replace(const char ch, const char **escaped)
 {
@@ -1908,6 +1922,7 @@ evhttp_parse_headers_(struct evhttp_request *req, struct evbuffer* buffer)
 			goto error;
 
 		svalue += strspn(svalue, " ");
+		rtrim(svalue);
 
 		if (evhttp_add_header(headers, skey, svalue) == -1)
 			goto error;
