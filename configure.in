@@ -43,7 +43,6 @@ dnl the 'host' machine is where the resulting stuff runs.
 #esac
 
 dnl Checks for programs.
-AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AC_PROG_LN_S
@@ -192,12 +191,10 @@ AC_SYS_LARGEFILE
 LIBEVENT_OPENSSL
 
 dnl Checks for header files.
-AC_HEADER_STDC
 AC_CHECK_HEADERS([ \
   arpa/inet.h \
   fcntl.h \
   ifaddrs.h \
-  inttypes.h \
   mach/mach_time.h \
   netdb.h \
   netinet/in.h \
@@ -207,7 +204,6 @@ AC_CHECK_HEADERS([ \
   port.h \
   stdarg.h \
   stddef.h \
-  stdint.h \
   sys/devpoll.h \
   sys/epoll.h \
   sys/event.h \
@@ -224,7 +220,6 @@ AC_CHECK_HEADERS([ \
   sys/timerfd.h \
   sys/uio.h \
   sys/wait.h \
-  unistd.h \
 ])
 AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
 #ifdef HAVE_SYS_PARAM_H
@@ -444,8 +439,6 @@ AC_CHECK_FUNC(gethostbyname_r, [
 ])
 
 fi
-
-AC_CHECK_SIZEOF(long)
 
 AC_MSG_CHECKING(for F_SETFD in fcntl.h)
 AC_EGREP_CPP(yes,
