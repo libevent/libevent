@@ -2991,6 +2991,35 @@ evhttp_parse_query_str(const char *uri, struct evkeyvalq *headers)
 	return evhttp_parse_query_impl(uri, headers, 0);
 }
 
+static int
+prefix_suffix_match(const char *pattern, const char *name, int ignorecase)
+{
+	char c;
+
+	while (1) {
+		switch (c = *pattern++) {
+		case '\0':
+			return *name == '\0';
+
+		case '*':
+			while (*name != '\0') {
+				if (prefix_suffix_match(pattern, name, ignorecase))
+					return (1);
+				++name;
+			}
+			return (prefix_suffix_match(pattern, name, ignorecase));
+		default:
+			if (c != *name) {
+				if (!ignorecase ||
+				    EVUTIL_TOLOWER_(c) != EVUTIL_TOLOWER_(*name))
+					return (0);
+			}
+			++name;
+		}
+	}
+	/* NOTREACHED */
+}
+
 static struct evhttp_cb *
 evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 {
@@ -3007,46 +3036,21 @@ evhttp_dispatch_callback(struct httpcbq *callbacks, struct evhttp_request *req)
 	evhttp_decode_uri_internal(path, offset, translated,
 	    0 /* decode_plus */);
 
+  struct evhttp_cb * pattern_match = NULL;
 	TAILQ_FOREACH(cb, callbacks, next) {
 		if (!strcmp(cb->what, translated)) {
 			mm_free(translated);
 			return (cb);
 		}
+
+    /* memorize last (due to order of TAILQ_FOREACH traversal)
+       cb with pattern match as failback while looking for exact match */
+    if (!pattern_match && prefix_suffix_match(cb->what, translated, 0))
+      pattern_match = cb;
 	}
 
 	mm_free(translated);
-	return (NULL);
-}
-
-
-static int
-prefix_suffix_match(const char *pattern, const char *name, int ignorecase)
-{
-	char c;
-
-	while (1) {
-		switch (c = *pattern++) {
-		case '\0':
-			return *name == '\0';
-
-		case '*':
-			while (*name != '\0') {
-				if (prefix_suffix_match(pattern, name,
-					ignorecase))
-					return (1);
-				++name;
-			}
-			return (0);
-		default:
-			if (c != *name) {
-				if (!ignorecase ||
-				    EVUTIL_TOLOWER_(c) != EVUTIL_TOLOWER_(*name))
-					return (0);
-			}
-			++name;
-		}
-	}
-	/* NOTREACHED */
+	return (pattern_match); // return cb matched by pattern if any, or NULL
 }
 
 /*
