@@ -77,7 +77,7 @@ ev_arc4random_buf(void *buf, size_t n)
 	 * and fall back otherwise.  (OSX does this using some linker
 	 * trickery.)
 	 */
-	if (arc4random_buf) {
+	if (arc4random_buf != NULL) {
 		return arc4random_buf(buf, n);
 	}
 #endif
