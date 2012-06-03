@@ -113,7 +113,7 @@ listener_accept_cb(struct evconnlistener *listener, evutil_socket_t sock,
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 }
 
-/* Start the server listening on PORT and start the first client. */
+/* Start the server listening on a random port and start the first client. */
 static void
 start_loop(void)
 {
