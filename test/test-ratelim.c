@@ -210,6 +210,7 @@ test_ratelimiting(void)
 #endif
 
 	base = event_base_new_with_config(base_cfg);
+	event_config_free(base_cfg);
 
 	listener = evconnlistener_new_bind(base, echo_listenercb, base,
 	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE, -1,

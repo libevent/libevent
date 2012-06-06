@@ -202,6 +202,10 @@ main(int argc, char **argv)
 
 	event_base_dispatch(base);
 
+	event_free(ev);
+	event_free(timeout);
+	event_base_free(base);
+
 	get_cpu_usage(&timer, &secPassed, &secUsed, &usage);
 
 	/* attempt to calculate our cpu usage over the test should be
