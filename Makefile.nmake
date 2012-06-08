@@ -1,5 +1,7 @@
-# WATCH OUT!  This makefile is a work in progress.  It is probably missing
-# tons of important things.  DO NOT RELY ON IT TO BUILD A GOOD LIBEVENT.
+# WATCH OUT!  This makefile is a work in progress.
+#
+# I'm not very knowledgeable about MSVC and nmake beyond their most basic
+# aspects.  If anything here looks wrong to you, please let me know.
 
 # Needed for correctness
 CFLAGS=/IWIN32-Code /Iinclude /Icompat /DHAVE_CONFIG_H /I.
