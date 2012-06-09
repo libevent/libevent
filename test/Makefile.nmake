@@ -1,5 +1,16 @@
+# WATCH OUT!  This makefile is a work in progress.             -*- makefile -*-
 
-CFLAGS=/I.. /I../WIN32-Code /I../include /I../compat /DHAVE_CONFIG_H /DTINYTEST_LOCAL
+!IFDEF OPENSSL_DIR
+SSL_CFLAGS=/I$(OPENSSL_DIR)\include /DEVENT__HAVE_OPENSSL
+SSL_OBJS=regress_ssl.obj
+SSL_LIBS=..\libevent_openssl.lib $(OPENSSL_DIR)\lib\libeay32.lib $(OPENSSL_DIR)\lib\ssleay32.lib
+!ELSE
+SSL_CFLAGS=
+SSL_OBJS=
+SSL_LIBS=
+!ENDIF
+
+CFLAGS=/I.. /I../WIN32-Code /I../include /I../compat /DHAVE_CONFIG_H /DTINYTEST_LOCAL $(SSL_CFLAGS)
 
 CFLAGS=$(CFLAGS) /Ox /W3 /wd4996 /nologo
 
@@ -9,7 +20,7 @@ REGRESS_OBJS=regress.obj regress_buffer.obj regress_http.obj regress_dns.obj \
 	regress_et.obj regress_bufferevent.obj \
 	regress_listener.obj regress_util.obj tinytest.obj \
 	regress_main.obj regress_minheap.obj regress_iocp.obj \
-	regress_thread.obj
+	regress_thread.obj $(SSL_OBJS)
 
 OTHER_OBJS=test-init.obj test-eof.obj test-weof.obj test-time.obj \
 	bench.obj bench_cascade.obj bench_http.obj bench_httpclient.obj \
@@ -28,7 +39,7 @@ LIBS=..\libevent.lib ws2_32.lib shell32.lib advapi32.lib
 all: $(PROGRAMS)
 
 regress.exe: $(REGRESS_OBJS)
-	$(CC) $(CFLAGS) $(LIBS) $(REGRESS_OBJS)
+	$(CC) $(CFLAGS) $(LIBS) $(SSL_LIBS) $(REGRESS_OBJS)
 
 test-init.exe: test-init.obj
 	$(CC) $(CFLAGS) $(LIBS) test-init.obj
