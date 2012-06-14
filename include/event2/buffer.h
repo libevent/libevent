@@ -488,7 +488,11 @@ int evbuffer_add_printf(struct evbuffer *buf, const char *fmt, ...)
   @param ap a varargs va_list argument array that will be passed to vprintf(3)
   @return The number of bytes added if successful, or -1 if an error occurred.
  */
-int evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap);
+int evbuffer_add_vprintf(struct evbuffer *buf, const char *fmt, va_list ap)
+#ifdef __GNUC__
+	__attribute__((format(printf, 2, 0)))
+#endif
+;
 
 
 /**
