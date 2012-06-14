@@ -1846,6 +1846,7 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 {
 	int flags = 0;
 
+	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
 	_event_debug_assert_is_setup(ev);
 
 	if (ev->ev_flags & EVLIST_INSERTED)
@@ -1868,6 +1869,8 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 		*tv = tmp;
 #endif
 	}
+
+	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
 
 	return (flags & event);
 }
