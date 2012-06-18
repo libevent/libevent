@@ -190,7 +190,14 @@ epoll_init(struct event_base *base)
 				epollop->timerfd = -1;
 			}
 		} else {
-			event_warn("timerfd_create");
+			if (errno != EINVAL && errno != ENOSYS) {
+				/* These errors probably mean that we were
+				 * compiled with timerfd/TFD_* support, but
+				 * we're running on a kernel that lacks those.
+				 */
+				event_warn("timerfd_create");
+			}
+			epollop->timerfd = -1;
 		}
 	} else {
 		epollop->timerfd = -1;
