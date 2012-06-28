@@ -468,7 +468,6 @@ start_threads_callback(evutil_socket_t fd, short what, void *arg)
 static void
 thread_deferred_cb_skew(void *arg)
 {
-	struct basic_test_data *data = arg;
 	struct timeval tv_timer = {1, 0};
 	struct event_base *base = NULL;
 	struct event_config *cfg = NULL;
