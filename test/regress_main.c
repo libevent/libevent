@@ -386,6 +386,19 @@ struct testgroup_t testgroups[] = {
 	END_OF_GROUPS
 };
 
+const char *alltests[] = { "+..", NULL };
+const char *livenettests[] = {
+	"+util/getaddrinfo_live",
+	"+dns/gethostby..",
+	"+dns/resolve_reverse",
+	NULL
+};
+struct testlist_alias_t testaliases[] = {
+	{ "all", alltests },
+	{ "live_net", livenettests },
+	END_OF_ALIASES
+};
+
 int
 main(int argc, const char **argv)
 {
@@ -412,6 +425,8 @@ main(int argc, const char **argv)
 	if (!getenv("EVENT_NO_DEBUG_LOCKS"))
 		evthread_enable_lock_debuging();
 #endif
+
+	tinytest_set_aliases(testaliases);
 
 	if (tinytest_main(argc,argv,testgroups))
 		return 1;

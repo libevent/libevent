@@ -887,11 +887,6 @@ test_evutil_getaddrinfo(void *arg)
 {
 	struct evutil_addrinfo *ai = NULL, *a;
 	struct evutil_addrinfo hints;
-
-	struct sockaddr_in6 *sin6;
-	struct sockaddr_in *sin;
-	char buf[128];
-	const char *cp;
 	int r;
 
 	/* Try using it as a pton. */
@@ -1017,6 +1012,23 @@ test_evutil_getaddrinfo(void *arg)
 		evutil_freeaddrinfo(ai);
 		ai = NULL;
 	}
+
+end:
+	if (ai)
+		evutil_freeaddrinfo(ai);
+}
+
+static void
+test_evutil_getaddrinfo_live(void *arg)
+{
+	struct evutil_addrinfo *ai = NULL;
+	struct evutil_addrinfo hints;
+
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in *sin;
+	char buf[128];
+	const char *cp;
+	int r;
 
 	/* Now do some actual lookups. */
 	memset(&hints, 0, sizeof(hints));
@@ -1318,6 +1330,7 @@ struct testcase_t util_testcases[] = {
 	{ "integers", test_evutil_integers, 0, NULL, NULL },
 	{ "rand", test_evutil_rand, TT_FORK, NULL, NULL },
 	{ "getaddrinfo", test_evutil_getaddrinfo, TT_FORK, NULL, NULL },
+	{ "getaddrinfo_live", test_evutil_getaddrinfo_live, TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
 #ifdef _WIN32
 	{ "loadsyslib", test_evutil_loadsyslib, TT_FORK, NULL, NULL },
 #endif
