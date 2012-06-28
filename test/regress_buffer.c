@@ -57,6 +57,7 @@
 #include "event2/buffer_compat.h"
 #include "event2/util.h"
 
+#include "defer-internal.h"
 #include "evbuffer-internal.h"
 #include "log-internal.h"
 

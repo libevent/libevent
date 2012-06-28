@@ -135,12 +135,16 @@ static inline int event_add_internal(struct event *ev,
     const struct timeval *tv, int tv_is_absolute);
 static inline int event_del_internal(struct event *ev);
 
-static void	event_queue_insert_active(struct event_base *, struct event *);
+static void	event_queue_insert_active(struct event_base *, struct event_callback *);
+static void	event_queue_insert_active_later(struct event_base *, struct event_callback *);
 static void	event_queue_insert_timeout(struct event_base *, struct event *);
 static void	event_queue_insert_inserted(struct event_base *, struct event *);
-static void	event_queue_remove_active(struct event_base *, struct event *);
+static void	event_queue_remove_active(struct event_base *, struct event_callback *);
+static void	event_queue_remove_active_later(struct event_base *, struct event_callback *);
 static void	event_queue_remove_timeout(struct event_base *, struct event *);
 static void	event_queue_remove_inserted(struct event_base *, struct event *);
+static void event_queue_make_later_events_active(struct event_base *base);
+
 #ifdef USE_REINSERT_TIMEOUT
 /* This code seems buggy; only turn it on if we find out what the trouble is. */
 static void	event_queue_reinsert_timeout(struct event_base *,struct event *, int was_common, int is_common, int old_timeout_idx);
@@ -424,6 +428,19 @@ event_base_update_cache_time(struct event_base *base)
 	return 0;
 }
 
+static inline struct event *
+event_callback_to_event(struct event_callback *evcb)
+{
+	EVUTIL_ASSERT((evcb->evcb_flags & EVLIST_INIT));
+	return EVUTIL_UPCAST(evcb, struct event, ev_evcallback);
+}
+
+static inline struct event_callback *
+event_to_event_callback(struct event *ev)
+{
+	return &ev->ev_evcallback;
+}
+
 struct event_base *
 event_init(void)
 {
@@ -487,28 +504,6 @@ int
 event_base_get_features(const struct event_base *base)
 {
 	return base->evsel->features;
-}
-
-void
-event_deferred_cb_queue_init_(struct deferred_cb_queue *cb)
-{
-	memset(cb, 0, sizeof(struct deferred_cb_queue));
-	TAILQ_INIT(&cb->deferred_cb_list);
-}
-
-/** Helper for the deferred_cb queue: wake up the event base. */
-static void
-notify_base_cbq_callback(struct deferred_cb_queue *cb, void *baseptr)
-{
-	struct event_base *base = baseptr;
-	if (EVBASE_NEED_NOTIFY(base))
-		evthread_notify_base(base);
-}
-
-struct deferred_cb_queue *
-event_base_get_deferred_cb_queue_(struct event_base *base)
-{
-	return base ? &base->defer_queue : NULL;
 }
 
 void
@@ -588,10 +583,7 @@ event_base_new_with_config(const struct event_config *cfg)
 	base->th_notify_fd[0] = -1;
 	base->th_notify_fd[1] = -1;
 
-	event_deferred_cb_queue_init_(&base->defer_queue);
-	base->defer_queue.base = base;
-	base->defer_queue.notify_fn = notify_base_cbq_callback;
-	base->defer_queue.notify_arg = base;
+	TAILQ_INIT(&base->active_later_queue);
 
 	evmap_io_initmap_(&base->io);
 	evmap_signal_initmap_(&base->sigmap);
@@ -663,7 +655,6 @@ event_base_new_with_config(const struct event_config *cfg)
 		int r;
 		EVTHREAD_ALLOC_LOCK(base->th_base_lock,
 		    EVTHREAD_LOCKTYPE_RECURSIVE);
-		base->defer_queue.lock = base->th_base_lock;
 		EVTHREAD_ALLOC_COND(base->current_event_cond);
 		r = evthread_make_base_notifiable(base);
 		if (r<0) {
@@ -777,15 +768,36 @@ event_base_free(struct event_base *base)
 		mm_free(base->common_timeout_queues);
 
 	for (i = 0; i < base->nactivequeues; ++i) {
-		for (ev = TAILQ_FIRST(&base->activequeues[i]); ev; ) {
-			struct event *next = TAILQ_NEXT(ev, ev_active_next);
-			if (!(ev->ev_flags & EVLIST_INTERNAL)) {
-				event_del(ev);
+		struct event_callback *evcb, *next;
+		for (evcb = TAILQ_FIRST(&base->activequeues[i]); evcb; ) {
+			next = TAILQ_NEXT(evcb, evcb_active_next);
+			if (evcb->evcb_flags & EVLIST_INIT) {
+				ev = event_callback_to_event(evcb);
+				if (!(ev->ev_flags & EVLIST_INTERNAL)) {
+					event_del(ev);
+					++n_deleted;
+				}
+			} else {
+				event_callback_cancel_(base, evcb);
 				++n_deleted;
 			}
-			ev = next;
+			evcb = next;
 		}
 	}
+	{
+		struct event_callback *evcb;
+		while ((evcb = TAILQ_FIRST(&base->active_later_queue))) {
+			if (evcb->evcb_flags & EVLIST_INIT) {
+				ev = event_callback_to_event(evcb);
+				event_del(ev);
+				++n_deleted;
+			} else {
+				event_callback_cancel_(base, evcb);
+				++n_deleted;
+			}
+		}
+	}
+
 
 	if (n_deleted)
 		event_debug(("%s: %d events were still set in base",
@@ -1060,8 +1072,8 @@ event_config_set_max_dispatch_interval(struct event_config *cfg,
 		cfg->max_dispatch_interval.tv_sec = -1;
 	cfg->max_dispatch_callbacks =
 	    max_callbacks >= 0 ? max_callbacks : INT_MAX;
-	if (min_priority <= 0)
-		min_priority = 1;
+	if (min_priority < 0)
+		min_priority = 0;
 	cfg->limit_callbacks_after_prio = min_priority;
 	return (0);
 }
@@ -1093,8 +1105,8 @@ event_base_priority_init(struct event_base *base, int npriorities)
 	}
 
 	/* Allocate our priority queues */
-	base->activequeues = (struct event_list *)
-	  mm_calloc(npriorities, sizeof(struct event_list));
+	base->activequeues = (struct evcallback_list *)
+	  mm_calloc(npriorities, sizeof(struct evcallback_list));
 	if (base->activequeues == NULL) {
 		event_warn("%s: calloc", __func__);
 		goto err;
@@ -1117,6 +1129,9 @@ event_base_get_npriorities(struct event_base *base)
 {
 
 	int n;
+	if (base == NULL)
+		base = current_base;
+
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	n = base->nactivequeues;
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
@@ -1393,51 +1408,67 @@ event_persist_closure(struct event_base *base, struct event *ev)
   releasing the lock as we go.  This function requires that the lock be held
   when it's invoked.  Returns -1 if we get a signal or an event_break that
   means we should stop processing any active events now.  Otherwise returns
-  the number of non-internal events that we processed.
+  the number of non-internal event_callbacks that we processed.
 */
 static int
 event_process_active_single_queue(struct event_base *base,
-    struct event_list *activeq,
+    struct evcallback_list *activeq,
     int max_to_process, const struct timeval *endtime)
 {
-	struct event *ev;
+	struct event_callback *evcb;
 	int count = 0;
 
 	EVUTIL_ASSERT(activeq != NULL);
 
-	for (ev = TAILQ_FIRST(activeq); ev; ev = TAILQ_FIRST(activeq)) {
-		if (ev->ev_events & EV_PERSIST)
-			event_queue_remove_active(base, ev);
-		else
-			event_del_internal(ev);
-		if (!(ev->ev_flags & EVLIST_INTERNAL))
+	for (evcb = TAILQ_FIRST(activeq); evcb; evcb = TAILQ_FIRST(activeq)) {
+		struct event *ev=NULL;
+		if (evcb->evcb_flags & EVLIST_INIT) {
+			ev = event_callback_to_event(evcb);
+
+			if (ev->ev_events & EV_PERSIST)
+				event_queue_remove_active(base, evcb);
+			else
+				event_del_internal(ev);
+			event_debug((
+			    "event_process_active: event: %p, %s%scall %p",
+			    ev,
+			    ev->ev_res & EV_READ ? "EV_READ " : " ",
+			    ev->ev_res & EV_WRITE ? "EV_WRITE " : " ",
+			    ev->ev_callback));
+		} else {
+			event_queue_remove_active(base, evcb);
+			event_debug(("event_process_active: event_callback %p, "
+				"closure %d, call %p",
+				evcb, evcb->evcb_closure, evcb->evcb_cb_union.evcb_callback));
+		}
+
+		if (!(evcb->evcb_flags & EVLIST_INTERNAL))
 			++count;
 
-		event_debug((
-			 "event_process_active: event: %p, %s%scall %p",
-			ev,
-			ev->ev_res & EV_READ ? "EV_READ " : " ",
-			ev->ev_res & EV_WRITE ? "EV_WRITE " : " ",
-			ev->ev_callback));
 
-		base->current_event = ev;
+		base->current_event = evcb;
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 		base->current_event_waiters = 0;
 #endif
 
-		switch (ev->ev_closure) {
-		case EV_CLOSURE_SIGNAL:
+		switch (evcb->evcb_closure) {
+		case EV_CLOSURE_EVENT_SIGNAL:
 			event_signal_closure(base, ev);
 			break;
-		case EV_CLOSURE_PERSIST:
+		case EV_CLOSURE_EVENT_PERSIST:
 			event_persist_closure(base, ev);
 			break;
-		default:
-		case EV_CLOSURE_NONE:
+		case EV_CLOSURE_EVENT:
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			(*ev->ev_callback)(
 				ev->ev_fd, ev->ev_res, ev->ev_arg);
 			break;
+		case EV_CLOSURE_CB_SELF:
+			EVBASE_RELEASE_LOCK(base, th_base_lock);
+			evcb->evcb_cb_union.evcb_selfcb(evcb, evcb->evcb_arg);
+			break;
+		default:
+			EVUTIL_ASSERT(0);
 		}
 
 		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
@@ -1467,47 +1498,6 @@ event_process_active_single_queue(struct event_base *base,
 }
 
 /*
-   Process up to MAX_DEFERRED of the defered_cb entries in 'queue'.  If
-   *breakptr becomes set to 1, stop.  Requires that we start out holding
-   the lock on 'queue'; releases the lock around 'queue' for each deferred_cb
-   we process.
- */
-static int
-event_process_deferred_callbacks(struct deferred_cb_queue *queue, int *breakptr,
-    int max_to_process, const struct timeval *endtime)
-{
-	int count = 0;
-	struct deferred_cb *cb;
-#define MAX_DEFERRED 16
-	if (max_to_process > MAX_DEFERRED)
-		max_to_process = MAX_DEFERRED;
-#undef MAX_DEFERRED
-
-	while ((cb = TAILQ_FIRST(&queue->deferred_cb_list))) {
-		cb->queued = 0;
-		TAILQ_REMOVE(&queue->deferred_cb_list, cb, cb_next);
-		--queue->active_count;
-		UNLOCK_DEFERRED_QUEUE(queue);
-
-		cb->cb(cb, cb->arg);
-
-		LOCK_DEFERRED_QUEUE(queue);
-		if (*breakptr)
-			return -1;
-		if (++count >= max_to_process)
-			break;
-		if (endtime) {
-			struct timeval now;
-			update_time_cache(queue->base);
-			gettime(queue->base, &now);
-			if (evutil_timercmp(&now, endtime, >=))
-				return count;
-		}
-	}
-	return count;
-}
-
-/*
  * Active events are stored in priority queues.  Lower priorities are always
  * process before higher priorities.  Low priority events can starve high
  * priority ones.
@@ -1517,7 +1507,7 @@ static int
 event_process_active(struct event_base *base)
 {
 	/* Caller must hold th_base_lock */
-	struct event_list *activeq = NULL;
+	struct evcallback_list *activeq = NULL;
 	int i, c = 0;
 	const struct timeval *endtime;
 	struct timeval tv;
@@ -1543,8 +1533,7 @@ event_process_active(struct event_base *base)
 				c = event_process_active_single_queue(base, activeq,
 				    maxcb, endtime);
 			if (c < 0) {
-				base->event_running_priority = -1;
-				return -1;
+				goto done;
 			} else if (c > 0)
 				break; /* Processed a real event; do not
 					* consider lower-priority events */
@@ -1553,9 +1542,9 @@ event_process_active(struct event_base *base)
 		}
 	}
 
-	event_process_deferred_callbacks(&base->defer_queue,&base->event_break,
-	    maxcb-c, endtime);
+done:
 	base->event_running_priority = -1;
+
 	return c;
 }
 
@@ -1631,6 +1620,25 @@ event_base_loopbreak(struct event_base *event_base)
 }
 
 int
+event_base_loopcontinue(struct event_base *event_base)
+{
+	int r = 0;
+	if (event_base == NULL)
+		return (-1);
+
+	EVBASE_ACQUIRE_LOCK(event_base, th_base_lock);
+	event_base->event_continue = 1;
+
+	if (EVBASE_NEED_NOTIFY(event_base)) {
+		r = evthread_notify_base(event_base);
+	} else {
+		r = (0);
+	}
+	EVBASE_RELEASE_LOCK(event_base, th_base_lock);
+	return r;
+}
+
+int
 event_base_got_break(struct event_base *event_base)
 {
 	int res;
@@ -1694,6 +1702,7 @@ event_base_loop(struct event_base *base, int flags)
 
 	while (!done) {
 		base->event_continue = 0;
+		base->n_deferreds_queued = 0;
 
 		/* Terminate the loop if we have been asked to */
 		if (base->event_gotterm) {
@@ -1722,6 +1731,8 @@ event_base_loop(struct event_base *base, int flags)
 			retval = 1;
 			goto done;
 		}
+
+		event_queue_make_later_events_active(base);
 
 		clear_time_cache(base);
 
@@ -1865,13 +1876,13 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 			    "EV_READ or EV_WRITE", __func__);
 			return -1;
 		}
-		ev->ev_closure = EV_CLOSURE_SIGNAL;
+		ev->ev_closure = EV_CLOSURE_EVENT_SIGNAL;
 	} else {
 		if (events & EV_PERSIST) {
 			evutil_timerclear(&ev->ev_io_timeout);
-			ev->ev_closure = EV_CLOSURE_PERSIST;
+			ev->ev_closure = EV_CLOSURE_EVENT_PERSIST;
 		} else {
-			ev->ev_closure = EV_CLOSURE_NONE;
+			ev->ev_closure = EV_CLOSURE_EVENT;
 		}
 	}
 
@@ -1922,8 +1933,11 @@ event_base_get_running_event(struct event_base *base)
 {
 	struct event *ev = NULL;
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-	if (EVBASE_IN_THREAD(base))
-		ev = base->current_event;
+	if (EVBASE_IN_THREAD(base)) {
+		struct event_callback *evcb = base->current_event;
+		if (evcb->evcb_flags & EVLIST_INIT)
+			ev = event_callback_to_event(evcb);
+	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	return ev;
 }
@@ -1997,7 +2011,7 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 
 	if (ev->ev_flags & EVLIST_INSERTED)
 		flags |= (ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL));
-	if (ev->ev_flags & EVLIST_ACTIVE)
+	if (ev->ev_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER))
 		flags |= ev->ev_res;
 	if (ev->ev_flags & EVLIST_TIMEOUT)
 		flags |= EV_TIMEOUT;
@@ -2083,6 +2097,13 @@ event_get_callback_arg(const struct event *ev)
 }
 
 int
+event_get_priority(const struct event *ev)
+{
+	event_debug_assert_is_setup_(ev);
+	return ev->ev_pri;
+}
+
+int
 event_add(struct event *ev, const struct timeval *tv)
 {
 	int res;
@@ -2138,7 +2159,7 @@ evthread_notify_base_eventfd(struct event_base *base)
 
 /** Tell the thread currently running the event_loop for base (if any) that it
  * needs to stop waiting in its dispatch function (if it is) and process all
- * active events and deferred callbacks (if there are any).  */
+ * active callbacks. */
 static int
 evthread_notify_base(struct event_base *base)
 {
@@ -2192,7 +2213,8 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	 * until the callback is done before we mess with the event, or else
 	 * we can race on ev_ncalls and ev_pncalls below. */
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
-	if (base->current_event == ev && (ev->ev_events & EV_SIGNAL)
+	if (base->current_event == event_to_event_callback(ev) &&
+	    (ev->ev_events & EV_SIGNAL)
 	    && !EVBASE_IN_THREAD(base)) {
 		++base->current_event_waiters;
 		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
@@ -2200,7 +2222,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 #endif
 
 	if ((ev->ev_events & (EV_READ|EV_WRITE|EV_SIGNAL)) &&
-	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE))) {
+	    !(ev->ev_flags & (EVLIST_INSERTED|EVLIST_ACTIVE|EVLIST_ACTIVE_LATER))) {
 		if (ev->ev_events & (EV_READ|EV_WRITE))
 			res = evmap_io_add_(base, ev->ev_fd, ev);
 		else if (ev->ev_events & EV_SIGNAL)
@@ -2232,7 +2254,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 		 *
 		 * If tv_is_absolute, this was already set.
 		 */
-		if (ev->ev_closure == EV_CLOSURE_PERSIST && !tv_is_absolute)
+		if (ev->ev_closure == EV_CLOSURE_EVENT_PERSIST && !tv_is_absolute)
 			ev->ev_io_timeout = *tv;
 
 #ifndef USE_REINSERT_TIMEOUT
@@ -2256,7 +2278,7 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 				}
 			}
 
-			event_queue_remove_active(base, ev);
+			event_queue_remove_active(base, event_to_event_callback(ev));
 		}
 
 		gettime(base, &now);
@@ -2356,7 +2378,8 @@ event_del_internal(struct event *ev)
 	 * user-supplied argument. */
 	base = ev->ev_base;
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
-	if (base->current_event == ev && !EVBASE_IN_THREAD(base)) {
+	if (base->current_event == event_to_event_callback(ev) &&
+	    !EVBASE_IN_THREAD(base)) {
 		++base->current_event_waiters;
 		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
 	}
@@ -2384,7 +2407,9 @@ event_del_internal(struct event *ev)
 	}
 
 	if (ev->ev_flags & EVLIST_ACTIVE)
-		event_queue_remove_active(base, ev);
+		event_queue_remove_active(base, event_to_event_callback(ev));
+	else if (ev->ev_flags & EVLIST_ACTIVE_LATER)
+		event_queue_remove_active_later(base, event_to_event_callback(ev));
 
 	if (ev->ev_flags & EVLIST_INSERTED) {
 		event_queue_remove_inserted(base, ev);
@@ -2434,25 +2459,33 @@ event_active_nolock_(struct event *ev, int res, short ncalls)
 	event_debug(("event_active: %p (fd %d), res %d, callback %p",
 		ev, (int)ev->ev_fd, (int)res, ev->ev_callback));
 
-
-	/* We get different kinds of events, add them together */
-	if (ev->ev_flags & EVLIST_ACTIVE) {
-		ev->ev_res |= res;
-		return;
-	}
-
 	base = ev->ev_base;
-
 	EVENT_BASE_ASSERT_LOCKED(base);
 
-	ev->ev_res = res;
+	switch ((ev->ev_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER))) {
+	default:
+	case EVLIST_ACTIVE|EVLIST_ACTIVE_LATER:
+		EVUTIL_ASSERT(0);
+		break;
+	case EVLIST_ACTIVE:
+		/* We get different kinds of events, add them together */
+		ev->ev_res |= res;
+		return;
+	case EVLIST_ACTIVE_LATER:
+		ev->ev_res |= res;
+		break;
+	case 0:
+		ev->ev_res = res;
+		break;
+	}
 
 	if (ev->ev_pri < base->event_running_priority)
 		base->event_continue = 1;
 
 	if (ev->ev_events & EV_SIGNAL) {
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
-		if (base->current_event == ev && !EVBASE_IN_THREAD(base)) {
+		if (base->current_event == event_to_event_callback(ev) &&
+		    !EVBASE_IN_THREAD(base)) {
 			++base->current_event_waiters;
 			EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
 		}
@@ -2461,60 +2494,171 @@ event_active_nolock_(struct event *ev, int res, short ncalls)
 		ev->ev_pncalls = NULL;
 	}
 
-	event_queue_insert_active(base, ev);
+	event_callback_activate_nolock_(base, event_to_event_callback(ev));
+}
 
+void
+event_active_later_(struct event *ev, int res)
+{
+	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
+	event_active_later_nolock_(ev, res);
+	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
+}
+
+void
+event_active_later_nolock_(struct event *ev, int res)
+{
+	struct event_base *base = ev->ev_base;
+	EVENT_BASE_ASSERT_LOCKED(base);
+
+	if (ev->ev_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER)) {
+		/* We get different kinds of events, add them together */
+		ev->ev_res |= res;
+		return;
+	}
+
+	ev->ev_res = res;
+
+	event_callback_activate_later_nolock_(base, event_to_event_callback(ev));
+}
+
+int
+event_callback_activate_(struct event_base *base,
+    struct event_callback *evcb)
+{
+	int r;
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	r = event_callback_activate_nolock_(base, evcb);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return r;
+}
+
+int
+event_callback_activate_nolock_(struct event_base *base,
+    struct event_callback *evcb)
+{
+	int r = 1;
+
+	switch (evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER)) {
+	default:
+		EVUTIL_ASSERT(0);
+	case EVLIST_ACTIVE_LATER:
+		event_queue_remove_active_later(base, evcb);
+		r = 0;
+		break;
+	case EVLIST_ACTIVE:
+		return 0;
+	case 0:
+		break;
+	}
+
+	event_queue_insert_active(base, evcb);
+
+	if (EVBASE_NEED_NOTIFY(base))
+		evthread_notify_base(base);
+
+	return r;
+}
+
+void
+event_callback_activate_later_nolock_(struct event_base *base,
+    struct event_callback *evcb)
+{
+	if (evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER))
+		return;
+
+	event_queue_insert_active_later(base, evcb);
 	if (EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
 }
 
 void
-event_deferred_cb_init_(struct deferred_cb *cb, deferred_cb_fn fn, void *arg)
+event_callback_init_(struct event_base *base,
+    struct event_callback *cb)
 {
-	memset(cb, 0, sizeof(struct deferred_cb));
-	cb->cb = fn;
-	cb->arg = arg;
+	memset(cb, 0, sizeof(*cb));
+	cb->evcb_pri = base->nactivequeues - 1;
+}
+
+int
+event_callback_cancel_(struct event_base *base,
+    struct event_callback *evcb)
+{
+	int r;
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	r = event_callback_cancel_nolock_(base, evcb);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return r;
+}
+
+int
+event_callback_cancel_nolock_(struct event_base *base,
+    struct event_callback *evcb)
+{
+	if (evcb->evcb_flags & EVLIST_INIT)
+		return event_del_internal(event_callback_to_event(evcb));
+
+	switch ((evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER))) {
+	default:
+	case EVLIST_ACTIVE|EVLIST_ACTIVE_LATER:
+		EVUTIL_ASSERT(0);
+		break;
+	case EVLIST_ACTIVE:
+		/* We get different kinds of events, add them together */
+		event_queue_remove_active(base, evcb);
+		return 0;
+	case EVLIST_ACTIVE_LATER:
+		event_queue_remove_active_later(base, evcb);
+		break;
+	case 0:
+		break;
+	}
+
+	event_base_assert_ok_(base);
+
+	return 0;
 }
 
 void
-event_deferred_cb_cancel_(struct deferred_cb_queue *queue,
-    struct deferred_cb *cb)
+event_deferred_cb_init_(struct event_callback *cb, ev_uint8_t priority, deferred_cb_fn fn, void *arg)
 {
-	if (!queue) {
-		if (current_base)
-			queue = &current_base->defer_queue;
-		else
-			return;
-	}
-
-	LOCK_DEFERRED_QUEUE(queue);
-	if (cb->queued) {
-		TAILQ_REMOVE(&queue->deferred_cb_list, cb, cb_next);
-		--queue->active_count;
-		cb->queued = 0;
-	}
-	UNLOCK_DEFERRED_QUEUE(queue);
+	memset(cb, 0, sizeof(*cb));
+	cb->evcb_cb_union.evcb_selfcb = fn;
+	cb->evcb_arg = arg;
+	cb->evcb_pri = priority;
+	cb->evcb_closure = EV_CLOSURE_CB_SELF;
 }
 
 void
-event_deferred_cb_schedule_(struct deferred_cb_queue *queue,
-    struct deferred_cb *cb)
+event_deferred_cb_set_priority_(struct event_callback *cb, ev_uint8_t priority)
 {
-	if (!queue) {
-		if (current_base)
-			queue = &current_base->defer_queue;
-		else
-			return;
-	}
+	cb->evcb_pri = priority;
+}
 
-	LOCK_DEFERRED_QUEUE(queue);
-	if (!cb->queued) {
-		cb->queued = 1;
-		TAILQ_INSERT_TAIL(&queue->deferred_cb_list, cb, cb_next);
-		++queue->active_count;
-		if (queue->notify_fn)
-			queue->notify_fn(queue, queue->notify_arg);
+void
+event_deferred_cb_cancel_(struct event_base *base, struct event_callback *cb)
+{
+	if (!base)
+		base = current_base;
+	event_callback_cancel_(base, cb);
+}
+
+#define MAX_DEFERREDS_QUEUED 32
+int
+event_deferred_cb_schedule_(struct event_base *base, struct event_callback *cb)
+{
+	int r = 1;
+	if (!base)
+		base = current_base;
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	if (base->n_deferreds_queued > MAX_DEFERREDS_QUEUED) {
+		event_callback_activate_later_nolock_(base, cb);
+	} else {
+		++base->n_deferreds_queued;
+		r = event_callback_activate_nolock_(base, cb);
 	}
-	UNLOCK_DEFERRED_QUEUE(queue);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return r;
 }
 
 static int
@@ -2585,13 +2729,13 @@ timeout_process(struct event_base *base)
 #error "Mismatch for value of EVLIST_INTERNAL"
 #endif
 /* These are a fancy way to spell
-     if (~ev->ev_flags & EVLIST_INTERNAL)
+     if (flags & EVLIST_INTERNAL)
          base->event_count--/++;
 */
-#define DECR_EVENT_COUNT(base,ev) \
-	((base)->event_count -= (~((ev)->ev_flags >> 4) & 1))
-#define INCR_EVENT_COUNT(base, ev) \
-	((base)->event_count += (~((ev)->ev_flags >> 4) & 1))
+#define DECR_EVENT_COUNT(base,flags) \
+	((base)->event_count -= (~((flags) >> 4) & 1))
+#define INCR_EVENT_COUNT(base,flags) \
+	((base)->event_count += (~((flags) >> 4) & 1))
 
 static void
 event_queue_remove_inserted(struct event_base *base, struct event *ev)
@@ -2602,23 +2746,39 @@ event_queue_remove_inserted(struct event_base *base, struct event *ev)
 			   ev, ev->ev_fd, EVLIST_INSERTED);
 		return;
 	}
-	DECR_EVENT_COUNT(base, ev);
+	DECR_EVENT_COUNT(base, ev->ev_flags);
 	ev->ev_flags &= ~EVLIST_INSERTED;
 }
 static void
-event_queue_remove_active(struct event_base *base, struct event *ev)
+event_queue_remove_active(struct event_base *base, struct event_callback *evcb)
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
-	if (EVUTIL_FAILURE_CHECK(!(ev->ev_flags & EVLIST_ACTIVE))) {
-		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
-			   ev, ev->ev_fd, EVLIST_ACTIVE);
+	if (EVUTIL_FAILURE_CHECK(!(evcb->evcb_flags & EVLIST_ACTIVE))) {
+		event_errx(1, "%s: %p not on queue %x", __func__,
+			   evcb, EVLIST_ACTIVE);
 		return;
 	}
-	DECR_EVENT_COUNT(base, ev);
-	ev->ev_flags &= ~EVLIST_ACTIVE;
+	DECR_EVENT_COUNT(base, evcb->evcb_flags);
+	evcb->evcb_flags &= ~EVLIST_ACTIVE;
 	base->event_count_active--;
-	TAILQ_REMOVE(&base->activequeues[ev->ev_pri],
-	    ev, ev_active_next);
+
+	TAILQ_REMOVE(&base->activequeues[evcb->evcb_pri],
+	    evcb, evcb_active_next);
+}
+static void
+event_queue_remove_active_later(struct event_base *base, struct event_callback *evcb)
+{
+	EVENT_BASE_ASSERT_LOCKED(base);
+	if (EVUTIL_FAILURE_CHECK(!(evcb->evcb_flags & EVLIST_ACTIVE_LATER))) {
+		event_errx(1, "%s: %p not on queue %x", __func__,
+			   evcb, EVLIST_ACTIVE_LATER);
+		return;
+	}
+	DECR_EVENT_COUNT(base, evcb->evcb_flags);
+	evcb->evcb_flags &= ~EVLIST_ACTIVE_LATER;
+	base->event_count_active--;
+
+	TAILQ_REMOVE(&base->active_later_queue, evcb, evcb_active_next);
 }
 static void
 event_queue_remove_timeout(struct event_base *base, struct event *ev)
@@ -2629,7 +2789,7 @@ event_queue_remove_timeout(struct event_base *base, struct event *ev)
 			   ev, ev->ev_fd, EVLIST_TIMEOUT);
 		return;
 	}
-	DECR_EVENT_COUNT(base, ev);
+	DECR_EVENT_COUNT(base, ev->ev_flags);
 	ev->ev_flags &= ~EVLIST_TIMEOUT;
 
 	if (is_common_timeout(&ev->ev_timeout, base)) {
@@ -2725,28 +2885,45 @@ event_queue_insert_inserted(struct event_base *base, struct event *ev)
 		return;
 	}
 
-	INCR_EVENT_COUNT(base, ev);
+	INCR_EVENT_COUNT(base, ev->ev_flags);
 
 	ev->ev_flags |= EVLIST_INSERTED;
 }
 
 static void
-event_queue_insert_active(struct event_base *base, struct event *ev)
+event_queue_insert_active(struct event_base *base, struct event_callback *evcb)
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
 
-	if (ev->ev_flags & EVLIST_ACTIVE) {
+	if (evcb->evcb_flags & EVLIST_ACTIVE) {
 		/* Double insertion is possible for active events */
 		return;
 	}
 
-	INCR_EVENT_COUNT(base, ev);
+	INCR_EVENT_COUNT(base, evcb->evcb_flags);
 
-	ev->ev_flags |= EVLIST_ACTIVE;
+	evcb->evcb_flags |= EVLIST_ACTIVE;
 
 	base->event_count_active++;
-	TAILQ_INSERT_TAIL(&base->activequeues[ev->ev_pri],
-	    ev,ev_active_next);
+	EVUTIL_ASSERT(evcb->evcb_pri < base->nactivequeues);
+	TAILQ_INSERT_TAIL(&base->activequeues[evcb->evcb_pri],
+	    evcb, evcb_active_next);
+}
+
+static void
+event_queue_insert_active_later(struct event_base *base, struct event_callback *evcb)
+{
+	EVENT_BASE_ASSERT_LOCKED(base);
+	if (evcb->evcb_flags & (EVLIST_ACTIVE_LATER|EVLIST_ACTIVE)) {
+		/* Double insertion is possible */
+		return;
+	}
+
+	INCR_EVENT_COUNT(base, evcb->evcb_flags);
+	evcb->evcb_flags |= EVLIST_ACTIVE_LATER;
+	base->event_count_active++;
+	EVUTIL_ASSERT(evcb->evcb_pri < base->nactivequeues);
+	TAILQ_INSERT_TAIL(&base->active_later_queue, evcb, evcb_active_next);
 }
 
 static void
@@ -2760,7 +2937,7 @@ event_queue_insert_timeout(struct event_base *base, struct event *ev)
 		return;
 	}
 
-	INCR_EVENT_COUNT(base, ev);
+	INCR_EVENT_COUNT(base, ev->ev_flags);
 
 	ev->ev_flags |= EVLIST_TIMEOUT;
 
@@ -2770,6 +2947,21 @@ event_queue_insert_timeout(struct event_base *base, struct event *ev)
 		insert_common_timeout_inorder(ctl, ev);
 	} else {
 		min_heap_push_(&base->timeheap, ev);
+	}
+}
+
+static void
+event_queue_make_later_events_active(struct event_base *base)
+{
+	struct event_callback *evcb;
+	EVENT_BASE_ASSERT_LOCKED(base);
+
+	while ((evcb = TAILQ_FIRST(&base->active_later_queue))) {
+		TAILQ_REMOVE(&base->active_later_queue, evcb, evcb_active_next);
+		evcb->evcb_flags = (evcb->evcb_flags & ~EVLIST_ACTIVE_LATER) | EVLIST_ACTIVE;
+		EVUTIL_ASSERT(evcb->evcb_pri < base->nactivequeues);
+		TAILQ_INSERT_TAIL(&base->activequeues[evcb->evcb_pri], evcb, evcb_active_next);
+		base->n_deferreds_queued += (evcb->evcb_closure == EV_CLOSURE_CB_SELF);
 	}
 }
 
@@ -3034,11 +3226,15 @@ event_base_foreach_event_(struct event_base *base,
 	/* Finally, we deal wit all the active events that we haven't touched
 	 * yet. */
 	for (i = 0; i < base->nactivequeues; ++i) {
-		TAILQ_FOREACH(ev, &base->activequeues[i], ev_active_next) {
-			if (ev->ev_flags & (EVLIST_INSERTED|EVLIST_TIMEOUT)) {
-				/* we already processed this one */
+		struct event_callback *evcb;
+		TAILQ_FOREACH(evcb, &base->activequeues[i], evcb_active_next) {
+			if ((evcb->evcb_flags & (EVLIST_INIT|EVLIST_INSERTED|EVLIST_TIMEOUT)) != EVLIST_INIT) {
+				/* This isn't an event (evlist_init clear), or
+				 * we already processed it. (inserted or
+				 * timeout set */
 				continue;
 			}
+			ev = event_callback_to_event(evcb);
 			if ((r = fn(base, ev, arg)))
 				return r;
 		}
@@ -3088,16 +3284,17 @@ dump_active_event_fn(struct event_base *base, struct event *e, void *arg)
 	const char *gloss = (e->ev_events & EV_SIGNAL) ?
 	    "sig" : "fd ";
 
-	if (! (e->ev_flags & EVLIST_ACTIVE))
+	if (! (e->ev_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER)))
 		return 0;
 
-	fprintf(output, "  %p [%s %ld, priority=%d]%s%s%s%s active%s\n",
+	fprintf(output, "  %p [%s %ld, priority=%d]%s%s%s%s active%s%s\n",
 	    (void*)e, gloss, (long)e->ev_fd, e->ev_pri,
 	    (e->ev_res&EV_READ)?" Read":"",
 	    (e->ev_res&EV_WRITE)?" Write":"",
 	    (e->ev_res&EV_SIGNAL)?" Signal":"",
 	    (e->ev_res&EV_TIMEOUT)?" Timeout":"",
-	    (e->ev_flags&EVLIST_INTERNAL)?" [Internal]":"");
+	    (e->ev_flags&EVLIST_INTERNAL)?" [Internal]":"",
+	    (e->ev_flags&EVLIST_ACTIVE_LATER)?" [NextTime]":"");
 
 	return 0;
 }
@@ -3196,6 +3393,7 @@ void
 event_base_assert_ok_(struct event_base *base)
 {
 	int i;
+	int count;
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	/* First do checks on the per-fd and per-signal lists */
@@ -3230,14 +3428,25 @@ event_base_assert_ok_(struct event_base *base)
 	}
 
 	/* Check the active queues. */
+	count = 0;
 	for (i = 0; i < base->nactivequeues; ++i) {
-		struct event *ev;
-		EVUTIL_ASSERT_TAILQ_OK(&base->activequeues[i], event, ev_active_next);
-		TAILQ_FOREACH(ev, &base->activequeues[i], ev_active_next) {
-			EVUTIL_ASSERT(ev->ev_pri == i);
-			EVUTIL_ASSERT(ev->ev_flags & EVLIST_ACTIVE);
+		struct event_callback *evcb;
+		EVUTIL_ASSERT_TAILQ_OK(&base->activequeues[i], event_callback, evcb_active_next);
+		TAILQ_FOREACH(evcb, &base->activequeues[i], evcb_active_next) {
+			EVUTIL_ASSERT((evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER)) == EVLIST_ACTIVE);
+			EVUTIL_ASSERT(evcb->evcb_pri == i);
+			++count;
 		}
 	}
+
+	{
+		struct event_callback *evcb;
+		TAILQ_FOREACH(evcb, &base->active_later_queue, evcb_active_next) {
+			EVUTIL_ASSERT((evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER)) == EVLIST_ACTIVE_LATER);
+			++count;
+		}
+	}
+	EVUTIL_ASSERT(count == base->event_count_active);
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }

@@ -273,6 +273,12 @@ struct event_base *bufferevent_get_base(struct bufferevent *bev);
   */
 int bufferevent_priority_set(struct bufferevent *bufev, int pri);
 
+/**
+   Return the priority of a bufferevent.
+
+   Only supported for socket bufferevents
+ */
+int bufferevent_get_priority(struct bufferevent *bufev);
 
 /**
   Deallocate the storage associated with a bufferevent structure.

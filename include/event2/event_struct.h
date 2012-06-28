@@ -54,15 +54,15 @@ extern "C" {
 /* For evkeyvalq */
 #include <event2/keyvalq_struct.h>
 
-#define EVLIST_TIMEOUT	0x01
-#define EVLIST_INSERTED	0x02
-#define EVLIST_SIGNAL	0x04
-#define EVLIST_ACTIVE	0x08
-#define EVLIST_INTERNAL	0x10
-#define EVLIST_INIT	0x80
+#define EVLIST_TIMEOUT	    0x01
+#define EVLIST_INSERTED	    0x02
+#define EVLIST_SIGNAL	    0x04
+#define EVLIST_ACTIVE	    0x08
+#define EVLIST_INTERNAL	    0x10
+#define EVLIST_ACTIVE_LATER 0x20
+#define EVLIST_INIT	    0x80
 
-/* EVLIST_X_ Private space: 0x1000-0xf000 */
-#define EVLIST_ALL	(0xf000 | 0x9f)
+#define EVLIST_ALL          0xbf
 
 /* Fix so that people don't have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
@@ -93,9 +93,22 @@ struct {								\
 }
 #endif /* !TAILQ_ENTRY */
 
+struct event_callback {
+	TAILQ_ENTRY(event_callback) evcb_active_next;
+	short evcb_flags;
+	ev_uint8_t evcb_pri;	/* smaller numbers are higher priority */
+	ev_uint8_t evcb_closure;
+	/* allows us to adopt for different types of events */
+        union {
+		void (*evcb_callback)(evutil_socket_t, short, void *arg);
+		void (*evcb_selfcb)(struct event_callback *, void *arg);
+	} evcb_cb_union;
+	void *evcb_arg;
+};
+
 struct event_base;
 struct event {
-	TAILQ_ENTRY(event) ev_active_next;
+	struct event_callback ev_evcallback;
 
 	/* for managing timeouts */
 	union {
@@ -124,14 +137,7 @@ struct event {
 
 	short ev_events;
 	short ev_res;		/* result passed to event callback */
-	short ev_flags;
-	ev_uint8_t ev_pri;	/* smaller numbers are higher priority */
-	ev_uint8_t ev_closure;
 	struct timeval ev_timeout;
-
-	/* allows us to adopt for different types of events */
-	void (*ev_callback)(evutil_socket_t, short, void *arg);
-	void *ev_arg;
 };
 
 TAILQ_HEAD (event_list, event);

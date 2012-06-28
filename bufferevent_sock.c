@@ -636,6 +636,8 @@ int
 bufferevent_priority_set(struct bufferevent *bufev, int priority)
 {
 	int r = -1;
+	struct bufferevent_private *bufev_p =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 
 	BEV_LOCK(bufev);
 	if (bufev->be_ops != &bufferevent_ops_socket)
@@ -645,6 +647,8 @@ bufferevent_priority_set(struct bufferevent *bufev, int priority)
 		goto done;
 	if (event_priority_set(&bufev->ev_write, priority) == -1)
 		goto done;
+
+	event_deferred_cb_set_priority_(&bufev_p->deferred, priority);
 
 	r = 0;
 done:

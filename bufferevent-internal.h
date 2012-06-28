@@ -31,6 +31,7 @@ extern "C" {
 #endif
 
 #include "event2/event-config.h"
+#include "event2/event_struct.h"
 #include "evconfig-private.h"
 #include "event2/util.h"
 #include "defer-internal.h"
@@ -182,7 +183,7 @@ struct bufferevent_private {
 	int dns_error;
 
 	/** Used to implement deferred callbacks */
-	struct deferred_cb deferred;
+	struct event_callback deferred;
 
 	/** The options this bufferevent was constructed with */
 	enum bufferevent_options options;
