@@ -67,6 +67,8 @@ static int opt_nofork = 0; /**< Suppress calls to fork() for debugging. */
 static int opt_verbosity = 1; /**< -==quiet,0==terse,1==normal,2==verbose */
 const char *verbosity_flag = "";
 
+const struct testlist_alias_t *cfg_aliases=NULL;
+
 enum outcome { SKIP=2, OK=1, FAIL=0 };
 static enum outcome cur_test_outcome = 0;
 const char *cur_test_prefix = NULL; /**< prefix of the current test group */
@@ -80,6 +82,7 @@ static char commandname[MAX_PATH+1];
 
 static void usage(struct testgroup_t *groups, int list_groups)
   __attribute__((noreturn));
+static int process_test_option(struct testgroup_t *groups, const char *test);
 
 static enum outcome
 testcase_run_bare_(const struct testcase_t *testcase)
@@ -214,10 +217,11 @@ testcase_run_one(const struct testgroup_t *group,
 {
 	enum outcome outcome;
 
-	if (testcase->flags & TT_SKIP) {
+	if (testcase->flags & (TT_SKIP|TT_OFF_BY_DEFAULT)) {
 		if (opt_verbosity>0)
-			printf("%s%s: SKIPPED\n",
-			    group->prefix, testcase->name);
+			printf("%s%s: %s\n",
+			   group->prefix, testcase->name,
+			   (testcase->flags & TT_SKIP) ? "SKIPPED" : "DISABLED");
 		++n_skipped;
 		return SKIP;
 	}
@@ -259,7 +263,7 @@ testcase_run_one(const struct testgroup_t *group,
 }
 
 int
-tinytest_set_flag_(struct testgroup_t *groups, const char *arg, unsigned long flag)
+tinytest_set_flag_(struct testgroup_t *groups, const char *arg, int set, unsigned long flag)
 {
 	int i, j;
 	size_t length = LONGEST_TEST_NAME;
@@ -269,12 +273,23 @@ tinytest_set_flag_(struct testgroup_t *groups, const char *arg, unsigned long fl
 		length = strstr(arg,"..")-arg;
 	for (i=0; groups[i].prefix; ++i) {
 		for (j=0; groups[i].cases[j].name; ++j) {
+			struct testcase_t *testcase = &groups[i].cases[j];
 			snprintf(fullname, sizeof(fullname), "%s%s",
-				 groups[i].prefix, groups[i].cases[j].name);
-			if (!flag) /* Hack! */
-				printf("    %s\n", fullname);
+				 groups[i].prefix, testcase->name);
+			if (!flag) { /* Hack! */
+				printf("    %s", fullname);
+				if (testcase->flags & TT_OFF_BY_DEFAULT)
+					puts("   (Off by default)");
+				else if (testcase->flags & TT_SKIP)
+					puts("  (DISABLED)");
+				else
+					puts("");
+			}
 			if (!strncmp(fullname, arg, length)) {
-				groups[i].cases[j].flags |= flag;
+				if (set)
+					testcase->flags |= flag;
+				else
+					testcase->flags &= ~flag;
 				++found;
 			}
 		}
@@ -287,13 +302,67 @@ usage(struct testgroup_t *groups, int list_groups)
 {
 	puts("Options are: [--verbose|--quiet|--terse] [--no-fork]");
 	puts("  Specify tests by name, or using a prefix ending with '..'");
-	puts("  To skip a test, list give its name prefixed with a colon.");
+	puts("  To skip a test, prefix its name with a colon.");
+	puts("  To enable a disabled test, prefix its name with a plus.");
 	puts("  Use --list-tests for a list of tests.");
 	if (list_groups) {
 		puts("Known tests are:");
-		tinytest_set_flag_(groups, "..", 0);
+		tinytest_set_flag_(groups, "..", 1, 0);
 	}
 	exit(0);
+}
+
+static int
+process_test_alias(struct testgroup_t *groups, const char *test)
+{
+	int i, j, n, r;
+	for (i=0; cfg_aliases && cfg_aliases[i].name; ++i) {
+		if (!strcmp(cfg_aliases[i].name, test)) {
+			n = 0;
+			for (j = 0; cfg_aliases[i].tests[j]; ++j) {
+				r = process_test_option(groups, cfg_aliases[i].tests[j]);
+				if (r<0)
+					return -1;
+				n += r;
+			}
+			return n;
+		}
+	}
+	printf("No such test alias as @%s!",test);
+	return -1;
+}
+
+static int
+process_test_option(struct testgroup_t *groups, const char *test)
+{
+	int flag = TT_ENABLED_;
+	int n = 0;
+	if (test[0] == '@') {
+		return process_test_alias(groups, test + 1);
+	} else if (test[0] == ':') {
+		++test;
+		flag = TT_SKIP;
+	} else if (test[0] == '+') {
+		++test;
+		++n;
+		if (!tinytest_set_flag_(groups, test, 0, TT_OFF_BY_DEFAULT)) {
+			printf("No such test as %s!\n", test);
+			return -1;
+		}
+	} else {
+		++n;
+	}
+	if (!tinytest_set_flag_(groups, test, 1, flag)) {
+		printf("No such test as %s!\n", test);
+		return -1;
+	}
+	return n;
+}
+
+void
+tinytest_set_aliases(const struct testlist_alias_t *aliases)
+{
+	cfg_aliases = aliases;
 }
 
 int
@@ -333,22 +402,14 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 				return -1;
 			}
 		} else {
-			const char *test = v[i];
-			int flag = TT_ENABLED_;
-			if (test[0] == ':') {
-				++test;
-				flag = TT_SKIP;
-			} else {
-				++n;
-			}
-			if (!tinytest_set_flag_(groups, test, flag)) {
-				printf("No such test as %s!\n", v[i]);
+			int r = process_test_option(groups, v[i]);
+			if (r<0)
 				return -1;
-			}
+			n += r;
 		}
 	}
 	if (!n)
-		tinytest_set_flag_(groups, "..", TT_ENABLED_);
+		tinytest_set_flag_(groups, "..", 1, TT_ENABLED_);
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 
