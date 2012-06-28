@@ -1243,8 +1243,8 @@ test_evutil_monotonic(void *data_)
 		wantres = 10*1000;
 		acceptdiff = 1000;
 #else
-		wantres = 300;
-		acceptdiff = 100;
+		wantres = 1000;
+		acceptdiff = 300;
 #endif
 	} else {
 		wantres = 40*1000;
