@@ -140,12 +140,15 @@ launch_request(void)
 	sin.sin_port = htons(8080);
 	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 		return -1;
-	if (evutil_make_socket_nonblocking(sock) < 0)
+	if (evutil_make_socket_nonblocking(sock) < 0) {
+		evutil_closesocket(sock);
 		return -1;
+	}
 	frob_socket(sock);
 	if (connect(sock, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
 		int e = errno;
 		if (! EVUTIL_ERR_CONNECT_RETRIABLE(e)) {
+			evutil_closesocket(sock);
 			return -1;
 		}
 	}
