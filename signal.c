@@ -305,7 +305,7 @@ evsig_add(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 
 
 	if (!sig->ev_signal_added) {
-		if (event_add(&sig->ev_signal, NULL))
+		if (event_add_nolock_(&sig->ev_signal, NULL, 0))
 			goto err;
 		sig->ev_signal_added = 1;
 	}

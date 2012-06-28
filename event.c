@@ -131,10 +131,6 @@ struct event_base *event_global_current_base_ = NULL;
 static void *event_self_cbarg_ptr_ = NULL;
 
 /* Prototypes */
-static inline int event_add_internal(struct event *ev,
-    const struct timeval *tv, int tv_is_absolute);
-static inline int event_del_internal(struct event *ev);
-
 static void	event_queue_insert_active(struct event_base *, struct event_callback *);
 static void	event_queue_insert_active_later(struct event_base *, struct event_callback *);
 static void	event_queue_insert_timeout(struct event_base *, struct event *);
@@ -144,6 +140,9 @@ static void	event_queue_remove_active_later(struct event_base *, struct event_ca
 static void	event_queue_remove_timeout(struct event_base *, struct event *);
 static void	event_queue_remove_inserted(struct event_base *, struct event *);
 static void event_queue_make_later_events_active(struct event_base *base);
+
+static int evthread_make_base_notifiable_nolock_(struct event_base *base);
+
 
 #ifdef USE_REINSERT_TIMEOUT
 /* This code seems buggy; only turn it on if we find out what the trouble is. */
@@ -653,8 +652,7 @@ event_base_new_with_config(const struct event_config *cfg)
 	if (EVTHREAD_LOCKING_ENABLED() &&
 	    (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK))) {
 		int r;
-		EVTHREAD_ALLOC_LOCK(base->th_base_lock,
-		    EVTHREAD_LOCKTYPE_RECURSIVE);
+		EVTHREAD_ALLOC_LOCK(base->th_base_lock, 0);
 		EVTHREAD_ALLOC_COND(base->current_event_cond);
 		r = evthread_make_base_notifiable(base);
 		if (r<0) {
@@ -818,7 +816,7 @@ event_base_free(struct event_base *base)
 	evmap_signal_clear_(&base->sigmap);
 	event_changelist_freemem_(&base->changelist);
 
-	EVTHREAD_FREE_LOCK(base->th_base_lock, EVTHREAD_LOCKTYPE_RECURSIVE);
+	EVTHREAD_FREE_LOCK(base->th_base_lock, 0);
 	EVTHREAD_FREE_COND(base->current_event_cond);
 
 	mm_free(base);
@@ -876,7 +874,7 @@ event_reinit(struct event_base *base)
 	 * random.
 	 */
 	if (base->sig.ev_signal_added) {
-		event_del(&base->sig.ev_signal);
+		event_del_nolock_(&base->sig.ev_signal);
 		event_debug_unassign(&base->sig.ev_signal);
 		memset(&base->sig.ev_signal, 0, sizeof(base->sig.ev_signal));
 		if (base->sig.ev_signal_pair[0] != -1)
@@ -891,7 +889,7 @@ event_reinit(struct event_base *base)
 		base->th_notify_fn = NULL;
 	}
 	if (base->th_notify_fd[0] != -1) {
-		event_del(&base->th_notify);
+		event_del_nolock_(&base->th_notify);
 		EVUTIL_CLOSESOCKET(base->th_notify_fd[0]);
 		if (base->th_notify_fd[1] != -1)
 			EVUTIL_CLOSESOCKET(base->th_notify_fd[1]);
@@ -941,7 +939,7 @@ event_reinit(struct event_base *base)
 	/* If we were notifiable before, and nothing just exploded, become
 	 * notifiable again. */
 	if (was_notifiable && res == 0)
-		res = evthread_make_base_notifiable(base);
+		res = evthread_make_base_notifiable_nolock_(base);
 
 done:
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
@@ -1249,7 +1247,7 @@ common_timeout_schedule(struct common_timeout_list *ctl,
 {
 	struct timeval timeout = head->ev_timeout;
 	timeout.tv_usec &= MICROSECONDS_MASK;
-	event_add_internal(&ctl->timeout_event, &timeout, 1);
+	event_add_nolock_(&ctl->timeout_event, &timeout, 1);
 }
 
 /* Callback: invoked when the timeout for a common timeout queue triggers.
@@ -1270,7 +1268,7 @@ common_timeout_callback(evutil_socket_t fd, short what, void *arg)
 		    (ev->ev_timeout.tv_sec == now.tv_sec &&
 			(ev->ev_timeout.tv_usec&MICROSECONDS_MASK) > now.tv_usec))
 			break;
-		event_del_internal(ev);
+		event_del_nolock_(ev);
 		event_active_nolock_(ev, EV_TIMEOUT, 1);
 	}
 	if (ev)
@@ -1397,7 +1395,7 @@ event_persist_closure(struct event_base *base, struct event *ev)
 			evutil_timeradd(&now, &delay, &run_at);
 		}
 		run_at.tv_usec |= usec_mask;
-		event_add_internal(ev, &run_at, 1);
+		event_add_nolock_(ev, &run_at, 1);
 	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	(*ev->ev_callback)(ev->ev_fd, ev->ev_res, ev->ev_arg);
@@ -1428,7 +1426,7 @@ event_process_active_single_queue(struct event_base *base,
 			if (ev->ev_events & EV_PERSIST)
 				event_queue_remove_active(base, evcb);
 			else
-				event_del_internal(ev);
+				event_del_nolock_(ev);
 			event_debug((
 			    "event_process_active: event: %p, %s%scall %p",
 			    ev,
@@ -2115,7 +2113,7 @@ event_add(struct event *ev, const struct timeval *tv)
 
 	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
 
-	res = event_add_internal(ev, tv, 0);
+	res = event_add_nolock_(ev, tv, 0);
 
 	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
 
@@ -2176,8 +2174,8 @@ evthread_notify_base(struct event_base *base)
  * except: 1) it requires that we have the lock.  2) if tv_is_absolute is set,
  * we treat tv as an absolute time, not as an interval to add to the current
  * time */
-static inline int
-event_add_internal(struct event *ev, const struct timeval *tv,
+int
+event_add_nolock_(struct event *ev, const struct timeval *tv,
     int tv_is_absolute)
 {
 	struct event_base *base = ev->ev_base;
@@ -2348,7 +2346,7 @@ event_del(struct event *ev)
 
 	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
 
-	res = event_del_internal(ev);
+	res = event_del_nolock_(ev);
 
 	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
 
@@ -2356,8 +2354,8 @@ event_del(struct event *ev)
 }
 
 /* Helper for event_del: always called with th_base_lock held. */
-static inline int
-event_del_internal(struct event *ev)
+int
+event_del_nolock_(struct event *ev)
 {
 	struct event_base *base;
 	int res = 0, notify = 0;
@@ -2596,7 +2594,7 @@ event_callback_cancel_nolock_(struct event_base *base,
     struct event_callback *evcb)
 {
 	if (evcb->evcb_flags & EVLIST_INIT)
-		return event_del_internal(event_callback_to_event(evcb));
+		return event_del_nolock_(event_callback_to_event(evcb));
 
 	switch ((evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER))) {
 	default:
@@ -2614,7 +2612,7 @@ event_callback_cancel_nolock_(struct event_base *base,
 		break;
 	}
 
-	event_base_assert_ok_(base);
+	event_base_assert_ok_nolock_(base);
 
 	return 0;
 }
@@ -2717,7 +2715,7 @@ timeout_process(struct event_base *base)
 			break;
 
 		/* delete this event from the I/O queues */
-		event_del_internal(ev);
+		event_del_nolock_(ev);
 
 		event_debug(("timeout_process: event: %p, call %p",
 			 ev, ev->ev_callback));
@@ -3132,18 +3130,26 @@ evthread_notify_drain_default(evutil_socket_t fd, short what, void *arg)
 int
 evthread_make_base_notifiable(struct event_base *base)
 {
-	void (*cb)(evutil_socket_t, short, void *);
-	int (*notify)(struct event_base *);
-
-	/* XXXX grab the lock here? */
+	int r;
 	if (!base)
 		return -1;
+
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	r = evthread_make_base_notifiable_nolock_(base);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return r;
+}
+
+static int
+evthread_make_base_notifiable_nolock_(struct event_base *base)
+{
+	void (*cb)(evutil_socket_t, short, void *);
+	int (*notify)(struct event_base *);
 
 	if (base->th_notify_fn != NULL) {
 		/* The base is already notifiable: we're doing fine. */
 		return 0;
 	}
-
 
 #if defined(EVENT__HAVE_WORKING_KQUEUE)
 	if (base->evsel == &kqops && event_kq_add_notify_event_(base) == 0) {
@@ -3180,7 +3186,7 @@ evthread_make_base_notifiable(struct event_base *base)
 	base->th_notify.ev_flags |= EVLIST_INTERNAL;
 	event_priority_set(&base->th_notify, 0);
 
-	return event_add(&base->th_notify, NULL);
+	return event_add_nolock_(&base->th_notify, NULL, 0);
 }
 
 int
@@ -3392,9 +3398,16 @@ event_global_setup_locks_(const int enable_locks)
 void
 event_base_assert_ok_(struct event_base *base)
 {
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	event_base_assert_ok_nolock_(base);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+}
+
+void
+event_base_assert_ok_nolock_(struct event_base *base)
+{
 	int i;
 	int count;
-	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	/* First do checks on the per-fd and per-signal lists */
 	evmap_check_integrity_(base);
@@ -3447,6 +3460,4 @@ event_base_assert_ok_(struct event_base *base)
 		}
 	}
 	EVUTIL_ASSERT(count == base->event_count_active);
-
-	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
