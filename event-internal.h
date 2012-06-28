@@ -367,6 +367,9 @@ int evsig_set_handler_(struct event_base *base, int evsignal,
 			  void (*fn)(int));
 int evsig_restore_handler_(struct event_base *base, int evsignal);
 
+int event_add_nolock_(struct event *ev,
+    const struct timeval *tv, int tv_is_absolute);
+int event_del_nolock_(struct event *ev);
 
 void event_active_nolock_(struct event *ev, int res, short count);
 int event_callback_activate_(struct event_base *, struct event_callback *);
@@ -394,6 +397,8 @@ void event_base_del_virtual_(struct event_base *base);
     Returns on success; aborts on failure.
 */
 void event_base_assert_ok_(struct event_base *base);
+void event_base_assert_ok_nolock_(struct event_base *base);
+
 
 /* Callback type for event_base_foreach_event. */
 typedef int (*event_base_foreach_event_cb)(struct event_base *base, struct event *, void *);
