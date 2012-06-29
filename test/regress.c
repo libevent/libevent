@@ -1357,8 +1357,8 @@ static void
 write_a_byte_cb(evutil_socket_t fd, short what, void *arg)
 {
 	char buf[] = "x";
-	write(fd, buf, 1);
-	++n_write_a_byte_cb;
+	if (write(fd, buf, 1) == 1)
+		++n_write_a_byte_cb;
 }
 static void
 read_and_drain_cb(evutil_socket_t fd, short what, void *arg)
