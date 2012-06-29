@@ -193,7 +193,7 @@ main(int argc, char **argv)
 
 	evutil_gettimeofday(&end, NULL);
 	evutil_timersub(&end, &start, &total);
-	usec = total_time.tv_sec * 1000000 + total_time.tv_usec;
+	usec = total_time.tv_sec * (long long)1000000 + total_time.tv_usec;
 
 	if (!total_n_handled) {
 		puts("Nothing worked.  You probably did something dumb.");
