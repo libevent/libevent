@@ -393,9 +393,15 @@ const char *livenettests[] = {
 	"+dns/resolve_reverse",
 	NULL
 };
+const char *finetimetests[] = {
+	"+util/monotonic_res_precise",
+	"+util/monotonic_res_fallback",
+	NULL
+};
 struct testlist_alias_t testaliases[] = {
 	{ "all", alltests },
 	{ "live_net", livenettests },
+	{ "fine_timing", finetimetests },
 	END_OF_ALIASES
 };
 
