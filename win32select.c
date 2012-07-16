@@ -298,7 +298,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	    win32op->readset_out->fd_count : win32op->writeset_out->fd_count;
 
 	if (!fd_count) {
-		long msec = evutil_tv_to_msec(tv);
+		long msec = tv ? evutil_tv_to_msec(tv) : LONG_MAX;
 		/* Sleep's DWORD argument is unsigned long */
 		if (msec < 0)
 			msec = LONG_MAX;
