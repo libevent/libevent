@@ -2005,6 +2005,7 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 {
 	int flags = 0;
 
+	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
 	event_debug_assert_is_setup_(ev);
 
 	if (ev->ev_flags & EVLIST_INSERTED)
@@ -2023,6 +2024,8 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 		/* correctly remamp to real time */
 		evutil_timeradd(&ev->ev_base->tv_clock_diff, &tmp, tv);
 	}
+
+	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
 
 	return (flags & event);
 }
