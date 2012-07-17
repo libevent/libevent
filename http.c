@@ -2685,9 +2685,8 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 	}
 	evbuffer_add(buf, "", 1); /* NUL-terminator. */
 	result = mm_malloc(evbuffer_get_length(buf));
-	if (!result)
-		return NULL;
-	evbuffer_remove(buf, result, evbuffer_get_length(buf));
+	if (result)
+		evbuffer_remove(buf, result, evbuffer_get_length(buf));
 	evbuffer_free(buf);
 
 	return (result);
