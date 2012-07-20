@@ -84,7 +84,7 @@ int tinytest_set_flag_(struct testgroup_t *, const char *, int set, unsigned lon
 
 /** Set all tests in 'groups' matching the name 'named' to be skipped. */
 #define tinytest_skip(groups, named) \
-	tinytest_set_flag_(groups, named, TT_SKIP)
+	tinytest_set_flag_(groups, named, 1, TT_SKIP)
 
 /** Run a single testcase in a single group. */
 int testcase_run_one(const struct testgroup_t *,const struct testcase_t *);
