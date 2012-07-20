@@ -498,7 +498,7 @@ new_accepting_socket(struct evconnlistener_iocp *lev, int family)
 	res->family = family;
 
 	event_deferred_cb_init_(&res->deferred,
-	    event_base_get_npriorities(base) / 2,
+	    event_base_get_npriorities(lev->event_base) / 2,
 	    accepted_socket_invoke_user_cb, res);
 
 	InitializeCriticalSectionAndSpinCount(&res->lock, 1000);
