@@ -35,6 +35,7 @@
 #undef WIN32_LEAN_AND_MEAN
 #include <io.h>
 #include <tchar.h>
+#include <process.h>
 #undef _WIN32_WINNT
 /* For structs needed by GetAdaptersAddresses */
 #define _WIN32_WINNT 0x0501
