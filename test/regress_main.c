@@ -58,6 +58,9 @@
 #endif
 
 #include <sys/types.h>
+#ifdef _EVENT_HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 
 #ifndef WIN32
 #include <sys/socket.h>
@@ -123,6 +126,9 @@ regress_make_tmpfile(const void *data, size_t datalen)
 	char tmpfilename[32];
 	int fd;
 	strcpy(tmpfilename, "/tmp/eventtmp.XXXXXX");
+#ifdef _EVENT_HAVE_UMASK
+	umask(0077);
+#endif
 	fd = mkstemp(tmpfilename);
 	if (fd == -1)
 		return (-1);

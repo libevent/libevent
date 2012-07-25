@@ -185,6 +185,7 @@ fi
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([fcntl.h stdarg.h inttypes.h stdint.h stddef.h poll.h unistd.h sys/epoll.h sys/time.h sys/queue.h sys/event.h sys/param.h sys/ioctl.h sys/select.h sys/devpoll.h port.h netinet/in.h netinet/in6.h sys/socket.h sys/uio.h arpa/inet.h sys/eventfd.h sys/mman.h sys/sendfile.h sys/wait.h netdb.h])
+AC_CHECK_HEADERS([sys/stat.h])
 AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -284,6 +285,7 @@ AC_HEADER_TIME
 dnl Checks for library functions.
 AC_CHECK_FUNCS([gettimeofday vasprintf fcntl clock_gettime strtok_r strsep])
 AC_CHECK_FUNCS([getnameinfo strlcpy inet_ntop inet_pton signal sigaction strtoll inet_aton pipe eventfd sendfile mmap splice arc4random arc4random_buf issetugid geteuid getegid getprotobynumber setenv unsetenv putenv sysctl])
+AC_CHECK_FUNCS([umask])
 
 AC_CACHE_CHECK(
     [for getaddrinfo],
