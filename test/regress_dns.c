@@ -1219,11 +1219,11 @@ test_getaddrinfo_async(void *arg)
 	/* for localhost */
 	evdns_base_load_hosts(dns_base, NULL);
 
-	tt_assert(! evdns_base_set_option(dns_base, "timeout", "0.3"));
-	tt_assert(! evdns_base_set_option(dns_base, "getaddrinfo-allow-skew", "0.2"));
-
 	memset(a_out, 0, sizeof(a_out));
 	memset(&local_outcome, 0, sizeof(local_outcome));
+
+	tt_assert(! evdns_base_set_option(dns_base, "timeout", "0.3"));
+	tt_assert(! evdns_base_set_option(dns_base, "getaddrinfo-allow-skew", "0.2"));
 
 	n_gai_results_pending = 10000; /* don't think about exiting yet. */
 
