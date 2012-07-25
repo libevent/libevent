@@ -1216,6 +1216,7 @@ test_getaddrinfo_async(void *arg)
 	evdns_base_load_hosts(dns_base, NULL);
 
 	memset(a_out, 0, sizeof(a_out));
+	memset(&local_outcome, 0, sizeof(local_outcome));
 
 	n_gai_results_pending = 10000; /* don't think about exiting yet. */
 
