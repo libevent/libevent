@@ -892,7 +892,6 @@ http_connection_test_(struct basic_test_data *data, int persistent)
 	/* We give ownership of the request to the connection */
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
 		tt_abort_msg("Couldn't make request");
-		exit(1);
 	}
 
 	event_base_dispatch(data->base);
@@ -1001,7 +1000,6 @@ http_connection_async_test(void *arg)
 	/* We give ownership of the request to the connection */
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
 		tt_abort_msg("Couldn't make request");
-		exit(1);
 	}
 
 	event_base_dispatch(data->base);
@@ -1849,7 +1847,6 @@ http_close_detection_(struct basic_test_data *data, int with_delay)
 	if (evhttp_make_request(evcon,
 	    req, EVHTTP_REQ_GET, with_delay ? "/largedelay" : "/test") == -1) {
 		tt_abort_msg("couldn't make request");
-		exit(1);
 	}
 
 	event_base_dispatch(data->base);

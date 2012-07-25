@@ -1223,6 +1223,7 @@ test_getaddrinfo_async(void *arg)
 	tt_assert(! evdns_base_set_option(dns_base, "getaddrinfo-allow-skew", "0.2"));
 
 	memset(a_out, 0, sizeof(a_out));
+	memset(&local_outcome, 0, sizeof(local_outcome));
 
 	n_gai_results_pending = 10000; /* don't think about exiting yet. */
 
