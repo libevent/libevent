@@ -227,9 +227,15 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	if (fd == -1)
 		return NULL;
 
-	setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&on, sizeof(on));
+	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&on, sizeof(on))<0) {
+		evutil_closesocket(fd);
+		return NULL;
+	}
 	if (flags & LEV_OPT_REUSEABLE) {
-		evutil_make_listen_socket_reuseable(fd);
+		if (evutil_make_listen_socket_reuseable(fd) < 0) {
+			evutil_closesocket(fd);
+			return NULL;
+		}
 	}
 
 	if (flags & LEV_OPT_DEFERRED_ACCEPT) {

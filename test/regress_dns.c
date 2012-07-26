@@ -1052,7 +1052,6 @@ test_bufferevent_connect_hostname(void *arg)
 	int expect_err5;
 	struct evdns_base *dns=NULL;
 	struct evdns_server_port *port=NULL;
-	evutil_socket_t server_fd=-1;
 	struct sockaddr_in sin;
 	int listener_port=-1;
 	ev_uint16_t dns_port=0;
@@ -1154,8 +1153,6 @@ test_bufferevent_connect_hostname(void *arg)
 end:
 	if (listener)
 		evconnlistener_free(listener);
-	if (server_fd>=0)
-		evutil_closesocket(server_fd);
 	if (port)
 		evdns_close_server_port(port);
 	if (dns)
