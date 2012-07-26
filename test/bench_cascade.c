@@ -70,8 +70,10 @@ read_cb(evutil_socket_t fd, short which, void *arg)
 	long idx = (long) arg;
 
 	recv(fd, &ch, sizeof(ch), 0);
-	if (idx >= 0)
-		send(idx, "e", 1, 0);
+	if (idx >= 0) {
+		if (send(idx, "e", 1, 0) < 0)
+			perror("send");
+	}
 	fired++;
 }
 
@@ -112,7 +114,8 @@ run_once(int num_pipes)
 	fired = 0;
 
 	/* kick everything off with a single write */
-	send(pipes[1], "e", 1, 0);
+	if (send(pipes[1], "e", 1, 0) < 0)
+		perror("send");
 
 	event_dispatch();
 

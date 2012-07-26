@@ -162,7 +162,7 @@ regress_listener_error(void *arg)
 	}
 
 	/* send, so that pair[0] will look 'readable'*/
-	send(data->pair[1], "hello", 5, 0);
+	tt_int_op(send(data->pair[1], "hello", 5, 0), >, 0);
 
 	/* Start a listener with a bogus socket. */
 	listener = evconnlistener_new(base, acceptcb, &count,

@@ -106,7 +106,8 @@ main(int argc, char **argv)
 		return (1);
 
 
-	send(pair[0], test, (int)strlen(test)+1, 0);
+	if (send(pair[0], test, (int)strlen(test)+1, 0) < 0)
+		return (1);
 	shutdown(pair[0], SHUT_WR);
 
 	/* Initalize the event library */

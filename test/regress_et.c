@@ -104,7 +104,7 @@ test_edgetriggered(void *et)
 
 	called = was_et = 0;
 
-	send(pair[0], test, (int)strlen(test)+1, 0);
+	tt_int_op(send(pair[0], test, (int)strlen(test)+1, 0), >, 0);
 	shutdown(pair[0], SHUT_WR);
 
 	/* Initalize the event library */

@@ -115,11 +115,12 @@ frob_socket(evutil_socket_t sock)
 {
 	struct linger l;
 	int one = 1;
-	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void*)&one, sizeof(one));
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void*)&one, sizeof(one))<0)
+		perror("setsockopt(SO_REUSEADDR)");
 	l.l_onoff = 1;
 	l.l_linger = 0;
 	if (setsockopt(sock, SOL_SOCKET, SO_LINGER, (void*)&l, sizeof(l))<0)
-		perror("setsockopt");
+		perror("setsockopt(SO_LINGER)");
 }
 
 static int

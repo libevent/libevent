@@ -179,12 +179,16 @@ regress_dns_server_cb(struct evdns_server_request *req, void *data)
 		return;
 	} else if (!strcmp(tab->anstype, "A")) {
 		struct in_addr in;
-		evutil_inet_pton(AF_INET, tab->ans, &in);
+		if (!evutil_inet_pton(AF_INET, tab->ans, &in)) {
+			TT_DIE(("Bad A value %s in table", tab->ans));
+		}
 		evdns_server_request_add_a_reply(req, question, 1, &in.s_addr,
 		    100);
 	} else if (!strcmp(tab->anstype, "AAAA")) {
 		struct in6_addr in6;
-		evutil_inet_pton(AF_INET6, tab->ans, &in6);
+		if (!evutil_inet_pton(AF_INET6, tab->ans, &in6)) {
+			TT_DIE(("Bad AAAA value %s in table", tab->ans));
+		}
 		evdns_server_request_add_aaaa_reply(req,
 		    question, 1, &in6.s6_addr, 100);
 	} else {
