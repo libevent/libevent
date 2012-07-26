@@ -305,7 +305,7 @@ static void *
 legacy_test_setup(const struct testcase_t *testcase)
 {
 	struct basic_test_data *data = basic_test_setup(testcase);
-	if (data == (void*)TT_SKIP)
+	if (data == (void*)TT_SKIP || data == NULL)
 		return data;
 	global_base = data->base;
 	pair[0] = data->pair[0];
