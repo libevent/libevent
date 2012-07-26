@@ -227,38 +227,32 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	if (fd == -1)
 		return NULL;
 
-	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&on, sizeof(on))<0) {
-		evutil_closesocket(fd);
-		return NULL;
-	}
+	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&on, sizeof(on))<0)
+		goto err;
+
 	if (flags & LEV_OPT_REUSEABLE) {
-		if (evutil_make_listen_socket_reuseable(fd) < 0) {
-			evutil_closesocket(fd);
-			return NULL;
-		}
+		if (evutil_make_listen_socket_reuseable(fd) < 0)
+			goto err;
 	}
 
 	if (flags & LEV_OPT_DEFERRED_ACCEPT) {
-		if (evutil_make_tcp_listen_socket_deferred(fd) < 0) {
-			evutil_closesocket(fd);
-			return NULL;
-		}
+		if (evutil_make_tcp_listen_socket_deferred(fd) < 0)
+			goto err;
 	}
 
 	if (sa) {
-		if (bind(fd, sa, socklen)<0) {
-			evutil_closesocket(fd);
-			return NULL;
-		}
+		if (bind(fd, sa, socklen)<0)
+			goto err;
 	}
 
 	listener = evconnlistener_new(base, cb, ptr, flags, backlog, fd);
-	if (!listener) {
-		evutil_closesocket(fd);
-		return NULL;
-	}
+	if (!listener)
+		goto err;
 
 	return listener;
+err:
+	evutil_closesocket(fd);
+	return NULL;
 }
 
 void
