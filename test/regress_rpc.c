@@ -113,6 +113,7 @@ MessageCb(EVRPC_STRUCT(Message)* rpc, void *arg)
 		struct evhttp_request* req = EVRPC_REQUEST_HTTP(rpc);
 		const char *header = evhttp_find_header(
 			req->input_headers, "X-Hook");
+		assert(header);
 		assert(strcmp(header, "input") == 0);
 	}
 
@@ -332,6 +333,7 @@ GotKillCb(struct evrpc_status *status,
 		struct evhttp_request *req = status->http_req;
 		const char *header = evhttp_find_header(
 			req->input_headers, "X-Pool-Hook");
+		assert(header);
 		assert(strcmp(header, "ran") == 0);
 	}
 
@@ -734,6 +736,9 @@ rpc_test(void)
 	int i;
 
 	msg = msg_new();
+
+	tt_assert(msg);
+
 	EVTAG_ASSIGN(msg, from_name, "niels");
 	EVTAG_ASSIGN(msg, to_name, "phoenix");
 

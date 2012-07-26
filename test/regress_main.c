@@ -59,6 +59,9 @@
 #endif
 
 #include <sys/types.h>
+#ifdef EVENT__HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 
 #ifndef _WIN32
 #include <sys/socket.h>
@@ -125,6 +128,9 @@ regress_make_tmpfile(const void *data, size_t datalen, char **filename_out)
 	int fd;
 	*filename_out = NULL;
 	strcpy(tmpfilename, "/tmp/eventtmp.XXXXXX");
+#ifdef EVENT__HAVE_UMASK
+	umask(0077);
+#endif
 	fd = mkstemp(tmpfilename);
 	if (fd == -1)
 		return (-1);
@@ -305,7 +311,7 @@ static void *
 legacy_test_setup(const struct testcase_t *testcase)
 {
 	struct basic_test_data *data = basic_test_setup(testcase);
-	if (data == (void*)TT_SKIP)
+	if (data == (void*)TT_SKIP || data == NULL)
 		return data;
 	global_base = data->base;
 	pair[0] = data->pair[0];

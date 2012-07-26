@@ -216,11 +216,13 @@ AC_CHECK_HEADERS([ \
   sys/select.h \
   sys/sendfile.h \
   sys/socket.h \
+  sys/stat.h \
   sys/time.h \
   sys/timerfd.h \
   sys/uio.h \
   sys/wait.h \
 ])
+
 AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -354,6 +356,7 @@ AC_CHECK_FUNCS([ \
   strtoll \
   sysctl \
   timerfd_create \
+  umask \
   unsetenv \
   usleep \
   vasprintf \

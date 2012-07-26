@@ -2274,6 +2274,10 @@ test_event_pending(void *ptr)
 	    NULL);
 	t = evtimer_new(data->base, timeout_cb, NULL);
 
+	tt_assert(r);
+	tt_assert(w);
+	tt_assert(t);
+
 	evutil_gettimeofday(&now, NULL);
 	event_add(r, NULL);
 	event_add(t, &tv);
@@ -2371,7 +2375,8 @@ end:
 		event_free(ev1);
 	if (ev2)
 		event_free(ev2);
-	close(dfd);
+	if (dfd >= 0)
+		close(dfd);
 }
 #endif
 

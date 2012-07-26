@@ -101,7 +101,7 @@ regress_get_dnsserver(struct event_base *base,
 	struct sockaddr_in my_addr;
 
 	sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sock <= 0) {
+	if (sock < 0) {
 		tt_abort_perror("socket");
 	}
 
@@ -112,6 +112,7 @@ regress_get_dnsserver(struct event_base *base,
 	my_addr.sin_port = htons(*portnum);
 	my_addr.sin_addr.s_addr = htonl(0x7f000001UL);
 	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
+		evutil_closesocket(sock);
 		tt_abort_perror("bind");
 	}
 	port = evdns_add_server_port_with_base(base, sock, 0, cb, arg);
