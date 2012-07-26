@@ -108,7 +108,8 @@ getcert(void)
 
 	name = X509_NAME_new();
 	tt_assert(name);
-	tt_assert(NID_undef != (nid = OBJ_txt2nid("commonName")));
+	nid = OBJ_txt2nid("commonName");
+	tt_assert(NID_undef != nid);
 	tt_assert(0 != X509_NAME_add_entry_by_NID(
 		    name, nid, MBSTRING_ASC, (unsigned char*)"example.com",
 		    -1, -1, 0));
