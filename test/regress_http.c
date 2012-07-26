@@ -2660,9 +2660,11 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 		if (header == NULL)
 			goto out;
 		/* 13 chars */
-		if (strcmp(header, "d"))
+		if (strcmp(header, "d")) {
+			free((void*)header);
 			goto out;
-		free((char*)header);
+		}
+		free((void*)header);
 
 		if (strncmp((char *)evbuffer_pullup(bufferevent_get_input(bev), 13),
 			"This is funny", 13))
@@ -2688,8 +2690,10 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 		if (header == NULL)
 			goto out;
 		/* 8 chars */
-		if (strcmp(header, "8"))
+		if (strcmp(header, "8")) {
+			free((void*)header);
 			goto out;
+		}
 		free((char *)header);
 
 		if (strncmp((char *)evbuffer_pullup(bufferevent_get_input(bev), 8),
@@ -2702,9 +2706,11 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 		if (header == NULL)
 			goto out;
 		/* 0 chars */
-		if (strcmp(header, "0"))
+		if (strcmp(header, "0")) {
+			free((void*)header);
 			goto out;
-		free((char *)header);
+		}
+		free((void *)header);
 
 		test_ok = 2;
 
