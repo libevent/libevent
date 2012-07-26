@@ -3825,9 +3825,12 @@ bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
 	if (evutil_make_socket_closeonexec(fd) < 0)
 		goto out;
 
-	setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on));
-	if (reuse)
-		evutil_make_listen_socket_reuseable(fd);
+	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on))<0)
+		goto out;
+	if (reuse) {
+		if (evutil_make_listen_socket_reuseable(fd) < 0)
+			goto out;
+	}
 
 	if (ai != NULL) {
 		r = bind(fd, ai->ai_addr, (ev_socklen_t)ai->ai_addrlen);
