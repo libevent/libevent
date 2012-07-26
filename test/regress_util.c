@@ -1150,6 +1150,7 @@ test_event_calloc(void *arg)
 	tt_assert(p != NULL);
 	tt_int_op(errno, ==, 0);
 	mm_free(p);
+	p = NULL;
 
 	/* mm_calloc() should set errno = ENOMEM and return NULL
 	 * in case of potential overflow. */
@@ -1160,6 +1161,9 @@ test_event_calloc(void *arg)
 
  end:
 	errno = 0;
+	if (p)
+		mm_free(p);
+
 	return;
 }
 
