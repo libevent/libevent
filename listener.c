@@ -239,7 +239,10 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	}
 
 	if (flags & LEV_OPT_DEFERRED_ACCEPT) {
-		evutil_make_tcp_listen_socket_deferred(fd);
+		if (evutil_make_tcp_listen_socket_deferred(fd) < 0) {
+			evutil_closesocket(fd);
+			return NULL;
+		}
 	}
 
 	if (sa) {
