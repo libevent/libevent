@@ -659,7 +659,7 @@ addfile_test_readcb(evutil_socket_t fd, short what, void *arg)
 	struct evbuffer *b = arg;
 	int e, r = 0;
 	do {
-		int r = evbuffer_read(b, fd, 1024);
+		r = evbuffer_read(b, fd, 1024);
 		if (r > 0) {
 			addfile_test_total_read += r;
 			TT_BLATHER(("Read %d/%d bytes", r, addfile_test_total_read));
@@ -1992,6 +1992,8 @@ test_evbuffer_add_iovec(void * ptr)
 	int i;
 
 	buf = evbuffer_new();
+
+	tt_assert(buf);
 
 	for (i = 0; i < 4; i++) {
 		vec[i].iov_len  = strlen(data[i]);
