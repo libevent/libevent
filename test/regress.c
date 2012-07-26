@@ -2258,7 +2258,8 @@ end:
 		event_free(ev1);
 	if (ev2)
 		event_free(ev2);
-	close(dfd);
+	if (dfd >= 0)
+		close(dfd);
 }
 #endif
 

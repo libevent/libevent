@@ -243,6 +243,8 @@ test_bufferevent_watermarks_impl(int use_pair)
 		bev1 = bufferevent_new(pair[0], NULL, wm_writecb, wm_errorcb, NULL);
 		bev2 = bufferevent_new(pair[1], wm_readcb, NULL, wm_errorcb, NULL);
 	}
+	tt_assert(bev1);
+	tt_assert(bev2);
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
 
@@ -267,8 +269,10 @@ test_bufferevent_watermarks_impl(int use_pair)
 	tt_assert(!event_pending(&bev2->ev_write, EV_WRITE, NULL));
 
 end:
-	bufferevent_free(bev1);
-	bufferevent_free(bev2);
+	if (bev1)
+		bufferevent_free(bev1);
+	if (bev2)
+		bufferevent_free(bev2);
 }
 
 static void
@@ -377,8 +381,10 @@ test_bufferevent_filters_impl(int use_pair)
 		test_ok = 0;
 
 end:
-	bufferevent_free(bev1);
-	bufferevent_free(bev2);
+	if (bev1)
+		bufferevent_free(bev1);
+	if (bev2)
+		bufferevent_free(bev2);
 
 }
 
