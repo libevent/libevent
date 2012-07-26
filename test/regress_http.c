@@ -3213,26 +3213,30 @@ static void
 http_primitives(void *ptr)
 {
 	char *escaped = NULL;
-	struct evhttp *http;
+	struct evhttp *http = NULL;
 
 	escaped = evhttp_htmlescape("<script>");
+	tt_assert(escaped);
 	tt_str_op(escaped, ==, "&lt;script&gt;");
 	free(escaped);
 
 	escaped = evhttp_htmlescape("\"\'&");
+	tt_assert(escaped);
 	tt_str_op(escaped, ==, "&quot;&#039;&amp;");
 
 	http = evhttp_new(NULL);
+	tt_assert(http);
 	tt_int_op(evhttp_set_cb(http, "/test", http_basic_cb, NULL), ==, 0);
 	tt_int_op(evhttp_set_cb(http, "/test", http_basic_cb, NULL), ==, -1);
 	tt_int_op(evhttp_del_cb(http, "/test"), ==, 0);
 	tt_int_op(evhttp_del_cb(http, "/test"), ==, -1);
 	tt_int_op(evhttp_set_cb(http, "/test", http_basic_cb, NULL), ==, 0);
-	evhttp_free(http);
 
  end:
 	if (escaped)
 		free(escaped);
+	if (http)
+		evhttp_free(http);
 }
 
 static void

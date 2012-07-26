@@ -1066,6 +1066,7 @@ test_bufferevent_connect_hostname(void *arg)
 	    &n_accept,
 	    LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_EXEC,
 	    -1, (struct sockaddr *)&sin, sizeof(sin));
+	tt_assert(listener);
 	listener_port = regress_get_socket_port(
 		evconnlistener_get_fd(listener));
 
@@ -1211,6 +1212,7 @@ test_getaddrinfo_async(void *arg)
 	int n_dns_questions = 0;
 
 	struct evdns_base *dns_base = evdns_base_new(data->base, 0);
+	tt_assert(dns_base);
 
 	/* for localhost */
 	evdns_base_load_hosts(dns_base, NULL);
@@ -1705,6 +1707,7 @@ testleak_cleanup(const struct testcase_t *testcase, void *env_)
 {
 	int ok = 0;
 	struct testleak_env_t *env = env_;
+	tt_assert(env);
 #ifdef _EVENT_DISABLE_DEBUG_MODE
 	tt_int_op(allocated_chunks, ==, 0);
 #else
@@ -1713,12 +1716,13 @@ testleak_cleanup(const struct testcase_t *testcase, void *env_)
 #endif
 	ok = 1;
 end:
-	if (env->dns_base)
-		evdns_base_free(env->dns_base, 0);
-	if (env->base)
-		event_base_free(env->base);
-	if (env)
+	if (env) {
+		if (env->dns_base)
+			evdns_base_free(env->dns_base, 0);
+		if (env->base)
+			event_base_free(env->base);
 		free(env);
+	}
 	return ok;
 }
 

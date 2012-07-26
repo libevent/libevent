@@ -734,6 +734,9 @@ rpc_test(void)
 	int i;
 
 	msg = msg_new();
+
+	tt_assert(msg);
+
 	EVTAG_ASSIGN(msg, from_name, "niels");
 	EVTAG_ASSIGN(msg, to_name, "phoenix");
 

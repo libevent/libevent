@@ -173,7 +173,9 @@ test_edgetriggered_mix_error(void *data_)
 
 	/* try mixing edge-triggered and level-triggered to make sure it fails*/
 	ev_et = event_new(base, data->pair[0], EV_READ|EV_ET, read_cb, ev_et);
+	tt_assert(ev_et);
 	ev_lt = event_new(base, data->pair[0], EV_READ, read_cb, ev_lt);
+	tt_assert(ev_lt);
 
 	/* Add edge-triggered, then level-triggered.  Get an error. */
 	tt_int_op(0, ==, event_add(ev_et, NULL));
