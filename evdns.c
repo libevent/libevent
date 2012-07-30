@@ -4214,6 +4214,8 @@ evdns_getaddrinfo_timeout_cb(evutil_socket_t fd, short what, void *ptr)
 
 	/* Cancel any pending requests, and note which one */
 	if (data->ipv4_request.r) {
+		/* XXXX This does nothing if the request's callback is already
+		 * running (pending_cb is set). */
 		evdns_cancel_request(NULL, data->ipv4_request.r);
 		v4_timedout = 1;
 		EVDNS_LOCK(data->evdns_base);
@@ -4221,6 +4223,8 @@ evdns_getaddrinfo_timeout_cb(evutil_socket_t fd, short what, void *ptr)
 		EVDNS_UNLOCK(data->evdns_base);
 	}
 	if (data->ipv6_request.r) {
+		/* XXXX This does nothing if the request's callback is already
+		 * running (pending_cb is set). */
 		evdns_cancel_request(NULL, data->ipv6_request.r);
 		v6_timedout = 1;
 		EVDNS_LOCK(data->evdns_base);
@@ -4243,6 +4247,10 @@ evdns_getaddrinfo_timeout_cb(evutil_socket_t fd, short what, void *ptr)
 			e = EVUTIL_EAI_AGAIN;
 		data->user_cb(e, NULL, data->user_data);
 	}
+
+	data->user_cb = NULL; /* prevent double-call if evdns callbacks are
+			       * in-progress. XXXX It would be better if this
+			       * weren't necessary. */
 
 	if (!v4_timedout && !v6_timedout) {
 		/* should be impossible? XXXX */
@@ -4311,6 +4319,13 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		 * we already answered the user. */
 		if (other_req->r == NULL)
 			free_getaddrinfo_request(data);
+		return;
+	}
+
+	if (data->user_cb == NULL) {
+		/* We already answered.  XXXX This shouldn't be needed; see
+		 * comments in evdns_getaddrinfo_timeout_cb */
+		free_getaddrinfo_request(data);
 		return;
 	}
 
