@@ -2954,18 +2954,26 @@ evhttp_parse_query_impl(const char *str, struct evkeyvalq *headers,
 
 		value = argument;
 		key = strsep(&value, "=");
-		if (value == NULL || *key == '\0') {
-			goto error;
+		if (*key == '\0') {
+			continue;
+		} else if (value == NULL) {
+			value = "";
 		}
 
 		if ((decoded_value = mm_malloc(strlen(value) + 1)) == NULL) {
 			event_warn("%s: mm_malloc", __func__);
 			goto error;
 		}
+
 		evhttp_decode_uri_internal(value, strlen(value),
 		    decoded_value, 1 /*always_decode_plus*/);
+
 		event_debug(("Query Param: %s -> %s\n", key, decoded_value));
+
+		/* make sure that a latter query string parameter overwrites a former one */
+		evhttp_remove_header(headers, key);
 		evhttp_add_header_internal(headers, key, decoded_value);
+
 		mm_free(decoded_value);
 	}
 
