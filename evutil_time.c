@@ -177,7 +177,9 @@ evutil_configure_monotonic_time_(struct evutil_monotonic_timer *base,
 	/* CLOCK_MONOTONIC exists on FreeBSD, Linux, and Solaris.  You need to
 	 * check for it at runtime, because some older kernel versions won't
 	 * have it working. */
+#ifdef CLOCK_MONOTONIC_COARSE
 	const int precise = flags & EV_MONOT_PRECISE;
+#endif
 	const int fallback = flags & EV_MONOT_FALLBACK;
 	struct timespec	ts;
 
