@@ -33,7 +33,7 @@ if test -x "$T/test-init"
 then
 	TEST_DIR="$T"
 fi
-if test -e "$T/check-dumpevents.py"
+if test -f "$T/check-dumpevents.py"
 then
 	TEST_SRC_DIR="$T"
 fi
