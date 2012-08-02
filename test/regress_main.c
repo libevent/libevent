@@ -402,6 +402,7 @@ const char *livenettests[] = {
 const char *finetimetests[] = {
 	"+util/monotonic_res_precise",
 	"+util/monotonic_res_fallback",
+	"+thread/deferred_cb_skew",
 	NULL
 };
 struct testlist_alias_t testaliases[] = {
