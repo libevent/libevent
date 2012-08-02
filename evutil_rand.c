@@ -58,10 +58,10 @@ evutil_secure_rng_global_setup_locks_(const int enable_locks)
 static void
 ev_arc4random_buf(void *buf, size_t n)
 {
-	unsigned char *b = buf;
 #if defined(_EVENT_HAVE_ARC4RANDOM_BUF) && !defined(__APPLE__)
 	return arc4random_buf(buf, n);
 #else
+	unsigned char *b = buf;
 
 #if defined(_EVENT_HAVE_ARC4RANDOM_BUF)
 	/* OSX 10.7 introducd arc4random_buf, so if you build your program
