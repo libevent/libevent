@@ -84,6 +84,14 @@ event_debug_get_logging_mask_(void)
 #endif /* EVENT_DEBUG_LOGGING_ENABLED */
 
 void
+event_enable_debug_logging(ev_uint32_t which)
+{
+#ifdef EVENT_DEBUG_LOGGING_ENABLED
+	event_debug_logging_mask_ = which;
+#endif
+}
+
+void
 event_set_fatal_callback(event_fatal_cb cb)
 {
 	fatal_fn = cb;
