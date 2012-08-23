@@ -1,4 +1,4 @@
-Changes in version 2.0.20-stable (?? Aug 2012)
+Changes in version 2.0.20-stable (23 Aug 2012)
 BUGFIXES:
  o core: Make event_pending() threadsafe. (be7a95c Simon Liu)
  o win32: avoid crash when waiting forever on zero fds. (160e58b)
