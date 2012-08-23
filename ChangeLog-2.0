@@ -1,4 +1,40 @@
-Changes in version 2.0.19-stable (0? May 2012)
+Changes in version 2.0.20-stable (23 Aug 2012)
+BUGFIXES:
+ o core: Make event_pending() threadsafe. (be7a95c Simon Liu)
+ o win32: avoid crash when waiting forever on zero fds. (160e58b)
+ o evhttp: Fix a memory leak on error in evhttp_uriencode (11c8b31)
+ o evbuffer: Avoid possible needless call to writev. Found by coverity. (6a4ec5c)
+ o evdns: memset sockaddr_in before using it. Found by coverity. (a1a0e67)
+ o evhttp: Check more setsockopt return values when binding sockets. Found by coverity (a0912e3)
+ o evdns: Avoid segfault on weird timeout during name lookup. (dc32077 Greg Hazel)
+ o bufferevent_ssl: Correctly invoke callbacks when a SSL bufferevent reads some and then blocks. (606ac43)
+
+
+PORTABILITY FIXES:
+ o check for arc4random_buf at runtime, on OS X (bff5f94 Greg Hazel)
+ o Correctly check for arc4random_buf (fcec3e8 Sebastian Hahn)
+ o Add explicit AC_PROG_SED to configure.in so all autoconfs will expose $(SED) (ca80ea6)
+
+BUILD FIXES:
+ o Add GCC annotations so that the vsprintf functions get checked properly (117e327)
+ o Fix an unused variable warning on *BSD. (c0720c1)
+
+UNIT TEST FIXES:
+ o Fix a couple of memory leaks (found with Valgrind). (3b2529a Ross Lagerwall)
+ o Remove deadcode in http regression tests. Found by coverity. (5553346)
+ o Fix possible uninitialized read in dns regression tests. Found by coverity. (2259777)
+ o Set umask before calling mkstemp in unit tests. Found by coverity (f1ce15d)
+ o Fix various check-after-dereference issues in unit tests: found by coverity (4f3732d)
+ o Fix resource leaks in the unit tests; found by coverity (270f279)
+ o Add some missing null checks to unit tests; found by coverity (f021c3d)
+ o Avoid more crashes/bad calls in unit tests; found by coverity (3cde5bf)
+ o Remove unused variable; spotted by coverity (6355b2a)
+ o Add checks to various return values in unit tests. Found by coverity (b9e7329)
+ o Move assignment outside tt_assert in ssl unit tests. Appeases coverity. (a2006c0)
+
+
+
+Changes in version 2.0.19-stable (3 May 2012)
 BUGFIXES (CORE):
  o Refactor event_persist_closure: raise and extract some common logic (bec22b4)
  o If time has jumped so we'd reschedule a periodic event in the past, schedule it for the future instead (dfd808c)
@@ -29,6 +65,7 @@ TESTING/DEBUGGING SUPPORT:
  o dns-example.c can now take a resolv.conf file on the commandline (6610fa5)
  o Make some evdns.c debug logs more verbose (d873d67)
  o Work-around a stupid gcov-breaking bug in OSX 10.6 (b3887cd)
+
 
 
 Changes in version 2.0.18-stable (22 Mar 2012)
@@ -1223,3 +1260,4 @@ Changes in 2.0.1-alpha (17 Apr 2009):
  o Bufferevents now notice external attempts to add data to an inbuf or remove it from an outbuf, and stop them.
  o Fix parsing of queries where the encoded queries contained \r, \n or +
  o Do not allow internal events to starve lower-priority events.
+
