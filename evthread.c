@@ -275,8 +275,15 @@ debug_cond_wait(void *cond_, void *lock_, const struct timeval *tv)
 	return r;
 }
 
+/* misspelled version for backward compatibility */
 void
 evthread_enable_lock_debuging(void)
+{
+	evthread_enable_lock_debugging();
+}
+
+void
+evthread_enable_lock_debugging(void)
 {
 	struct evthread_lock_callbacks cbs = {
 		EVTHREAD_LOCK_API_VERSION,

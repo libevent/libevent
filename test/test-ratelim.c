@@ -594,7 +594,7 @@ main(int argc, char **argv)
 	}
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
-	evthread_enable_lock_debuging();
+	evthread_enable_lock_debugging();
 #endif
 
 	return test_ratelimiting();
