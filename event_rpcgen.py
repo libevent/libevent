@@ -32,6 +32,12 @@ structdef = re.compile(r'^struct +[a-zA-Z_][a-zA-Z0-9_]* *{$')
 headerdirect = []
 cppdirect = []
 
+QUIETLY = 0
+
+def declare(s):
+    if not QUIETLY:
+        print s
+
 def TranslateList(mylist, mydict):
     return map(lambda x: x % mydict, mylist)
 
@@ -48,7 +54,7 @@ class Struct:
         self._name = name
         self._entries = []
         self._tags = {}
-        print '  Created struct: %s' % name
+        declare('  Created struct: %s' % name)
 
     def AddEntry(self, entry):
         if self._tags.has_key(entry.Tag()):
@@ -58,7 +64,7 @@ class Struct:
                                     self._tags[entry.Tag()], line_count))
         self._entries.append(entry)
         self._tags[entry.Tag()] = entry.Name()
-        print '    Added entry: %s' % entry.Name()
+        declare('    Added entry: %s' % entry.Name())
 
     def Name(self):
         return self._name
@@ -1638,6 +1644,11 @@ class CommandLine:
         self.impl_file = None
         self.factory = CCodeGenerator()
 
+        if len(argv) >= 2 and argv[1] == '--quiet':
+            global QUIETLY
+            QUIETLY = 1
+            del argv[1]
+
         if len(argv) < 2 or len(argv) > 4:
             raise Usage(argv[0])
 
@@ -1668,13 +1679,13 @@ class CommandLine:
         impl_file = self.impl_file
         factory = self.factory
 
-        print 'Reading \"%s\"' % filename
+        declare('Reading \"%s\"' % filename)
 
         fp = open(filename, 'r')
         entities = Parse(factory, fp)
         fp.close()
 
-        print '... creating "%s"' % header_file
+        declare('... creating "%s"' % header_file)
         header_fp = open(header_file, 'w')
         print >>header_fp, factory.HeaderPreamble(filename)
 
@@ -1690,7 +1701,7 @@ class CommandLine:
         print >>header_fp, factory.HeaderPostamble(filename)
         header_fp.close()
 
-        print '... creating "%s"' % impl_file
+        declare('... creating "%s"' % impl_file)
         impl_fp = open(impl_file, 'w')
         print >>impl_fp, factory.BodyPreamble(filename, header_file)
         for entry in entities:
