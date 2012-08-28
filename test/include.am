@@ -125,8 +125,8 @@ test/rpcgen-attempted: test/regress.rpc event_rpcgen.py test/rpcgen_wrapper.sh
 	   true; \
 	else \
 	   echo "No Python installed; stubbing out RPC test." >&2; \
-	   echo " "> regress.gen.c; \
-	   echo "#define NO_PYTHON_EXISTS" > regress.gen.h; \
+	   echo " "> test/regress.gen.c; \
+	   echo "#define NO_PYTHON_EXISTS" > test/regress.gen.h; \
 	fi
 
 CLEANFILES += test/rpcgen-attempted
