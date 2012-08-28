@@ -120,8 +120,8 @@ test_bench_httpclient_LDADD = $(LIBEVENT_GC_SECTIONS) libevent_core.la
 test/regress.gen.c test/regress.gen.h: test/rpcgen-attempted
 
 test/rpcgen-attempted: test/regress.rpc event_rpcgen.py test/rpcgen_wrapper.sh
-	date -u > $@
-	if $(srcdir)/test/rpcgen_wrapper.sh $(srcdir)/test; then \
+	$(AM_V_GEN)date -u > $@
+	$(AM_V_at)if $(srcdir)/test/rpcgen_wrapper.sh $(srcdir)/test; then \
 	   echo "rpcgen okay"; \
 	else \
 	   echo "No Python installed; stubbing out RPC test." >&2; \

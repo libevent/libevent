@@ -175,9 +175,9 @@ endif
 BUILT_SOURCES += include/event2/event-config.h
 
 include/event2/event-config.h: config.h make-event-config.sed
-	test -d include/event2 || $(MKDIR_P) include/event2
-	$(SED) -f $(srcdir)/make-event-config.sed < config.h > $@T
-	mv -f $@T $@
+	$(AM_V_GEN)test -d include/event2 || $(MKDIR_P) include/event2
+	$(AM_V_at)$(SED) -f $(srcdir)/make-event-config.sed < config.h > $@T
+	$(AM_V_at)mv -f $@T $@
 
 CORE_SRC =					\
 	buffer.c				\
