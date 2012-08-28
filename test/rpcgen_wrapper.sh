@@ -12,12 +12,12 @@
 # working Python a requirement for make distcheck of a git tree.
 
 exit_updated() {
-    echo "Updated ${srcdir}\regress.gen.c and ${srcdir}\regress.gen.h"
+#    echo "Updated ${srcdir}/regress.gen.c and ${srcdir}/regress.gen.h"
     exit 0
 }
 
 exit_reuse() {
-    echo "event_rpcgen.py failed, ${srcdir}\regress.gen.\[ch\] will be reused." >&2
+    echo "event_rpcgen.py failed, ${srcdir}/regress.gen.\[ch\] will be reused." >&2
     exit 0
 }
 
@@ -28,7 +28,7 @@ exit_failed() {
 
 srcdir=$1
 srcdir=${srcdir:-.}
-${srcdir}/../event_rpcgen.py ${srcdir}/regress.rpc
+${srcdir}/../event_rpcgen.py --quiet ${srcdir}/regress.rpc
 case "$?" in
  0)
     exit_updated
