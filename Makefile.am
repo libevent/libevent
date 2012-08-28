@@ -131,9 +131,9 @@ noinst_PROGRAMS=
 EXTRA_PROGRAMS=
 CLEANFILES=
 BUILT_SOURCES =
-include include/Makefile.am
-include sample/Makefile.am
-include test/Makefile.am
+include include/include.am
+include sample/include.am
+include test/include.am
 
 if BUILD_WIN32
 
