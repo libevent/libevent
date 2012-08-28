@@ -4,33 +4,37 @@
 #
 # See LICENSE for copying information.
 
-AUTOMAKE_OPTIONS = foreign no-dependencies
-
-LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include -I../include
-
-noinst_PROGRAMS =				\
-	dns-example				\
-	event-read-fifo				\
-	hello-world				\
-	http-server				\
-	signal-test				\
-	time-test
-
-event_read_fifo_SOURCES = event-read-fifo.c
-time_test_SOURCES = time-test.c
-signal_test_SOURCES = signal-test.c
-dns_example_SOURCES = dns-example.c
-hello_world_SOURCES = hello-world.c
-http_server_SOURCES = http-server.c
+SAMPLES = \
+	sample/dns-example				\
+	sample/event-read-fifo			\
+	sample/hello-world				\
+	sample/http-server				\
+	sample/signal-test				\
+	sample/time-test
 
 if OPENSSL
-AM_CPPFLAGS += $(OPENSSL_INCS)
-noinst_PROGRAMS += le-proxy
-le_proxy_SOURCES = le-proxy.c
-le_proxy_LDADD = $(LDADD) ../libevent_openssl.la -lssl -lcrypto ${OPENSSL_LIBADD}
+SAMPLES += sample/le-proxy
+sample_le_proxy_SOURCES = sample/le-proxy.c
+sample_le_proxy_LDADD = libevent.la libevent_openssl.la -lssl -lcrypto ${OPENSSL_LIBADD}
+sample_le_proxy_INCLUDES = $(OPENSSL_INCS)
 endif
 
-verify:
+noinst_PROGRAMS += $(SAMPLES)
 
-DISTCLEANFILES = *~
+$(SAMPLES) : libevent.la
+
+sample_event_read_fifo_SOURCES = sample/event-read-fifo.c
+sample_event_read_fifo_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_time_test_SOURCES = sample/time-test.c
+sample_time_test_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_signal_test_SOURCES = sample/signal-test.c
+sample_signal_test_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_dns_example_SOURCES = sample/dns-example.c
+sample_dns_example_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_hello_world_SOURCES = sample/hello-world.c
+sample_hello_world_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_http_server_SOURCES = sample/http-server.c
+sample_http_server_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+
+
+

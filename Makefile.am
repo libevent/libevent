@@ -125,7 +125,15 @@ else
 noinst_LTLIBRARIES =  $(LIBEVENT_LIBS_LA)
 endif
 
-SUBDIRS = . include sample test
+EXTRA_SOURCE=
+noinst_HEADERS=
+noinst_PROGRAMS=
+EXTRA_PROGRAMS=
+CLEANFILES=
+BUILT_SOURCES =
+include include/Makefile.am
+include sample/Makefile.am
+include test/Makefile.am
 
 if BUILD_WIN32
 
@@ -164,7 +172,7 @@ if SIGNAL_SUPPORT
 SYS_SRC += signal.c
 endif
 
-BUILT_SOURCES = include/event2/event-config.h
+BUILT_SOURCES += include/event2/event-config.h
 
 include/event2/event-config.h: config.h make-event-config.sed
 	test -d include/event2 || $(MKDIR_P) include/event2
@@ -189,7 +197,7 @@ CORE_SRC =					\
 	strlcpy.c				\
 	$(SYS_SRC)
 
-EXTRA_SRC =					\
+EXTRAS_SRC =					\
 	evdns.c					\
 	event_tagging.c				\
 	evrpc.c					\
@@ -205,7 +213,7 @@ endif
 
 GENERIC_LDFLAGS = -version-info $(VERSION_INFO) $(RELEASE) $(NO_UNDEFINED)
 
-libevent_la_SOURCES = $(CORE_SRC) $(EXTRA_SRC)
+libevent_la_SOURCES = $(CORE_SRC) $(EXTRAS_SRC)
 libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
 libevent_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
@@ -219,7 +227,7 @@ libevent_pthreads_la_LIBADD = $(MAYBE_CORE)
 libevent_pthreads_la_LDFLAGS = $(GENERIC_LDFLAGS)
 endif
 
-libevent_extra_la_SOURCES = $(EXTRA_SRC)
+libevent_extra_la_SOURCES = $(EXTRAS_SRC)
 libevent_extra_la_LIBADD = $(MAYBE_CORE) $(SYS_LIBS)
 libevent_extra_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
@@ -230,7 +238,7 @@ libevent_openssl_la_LDFLAGS = $(GENERIC_LDFLAGS)
 libevent_openssl_la_CPPFLAGS = $(AM_CPPFLAGS) $(OPENSSL_INCS)
 endif
 
-noinst_HEADERS =				\
+noinst_HEADERS +=				\
 	WIN32-Code/evconfig-private.h		\
 	WIN32-Code/event2/event-config.h	\
 	WIN32-Code/tree.h			\

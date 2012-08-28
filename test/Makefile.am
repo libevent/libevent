@@ -4,124 +4,124 @@
 #
 # See LICENSE for copying information.
 
-AUTOMAKE_OPTIONS = foreign
+regress_CPPFLAGS = -DTINYTEST_LOCAL
 
-AM_CPPFLAGS = -I$(top_srcdir) -I$(top_srcdir)/compat -I$(top_srcdir)/include -I../include -DTINYTEST_LOCAL
+EXTRA_DIST+=					\
+	test/check-dumpevents.py		\
+	test/regress.gen.c			\
+	test/regress.gen.h				\
+	test/regress.rpc				\
+	test/rpcgen_wrapper.sh			\
+	test/test.sh
 
-EXTRA_DIST =					\
-	check-dumpevents.py			\
-	regress.gen.c				\
-	regress.gen.h				\
-	regress.rpc				\
-	rpcgen_wrapper.sh			\
-	test.sh
+TESTPROGRAMS = \
+	test/bench					\
+	test/bench_cascade				\
+	test/bench_http				\
+	test/bench_httpclient			\
+	test/test-changelist				\
+	test/test-dumpevents				\
+	test/test-eof				\
+	test/test-fdleak				\
+	test/test-init				\
+	test/test-ratelim				\
+	test/test-time				\
+	test/test-weof \
+	test/regress
 
-noinst_PROGRAMS = \
-	bench					\
-	bench_cascade				\
-	bench_http				\
-	bench_httpclient			\
-	test-changelist				\
-	test-dumpevents				\
-	test-eof				\
-	test-fdleak				\
-	test-init				\
-	test-ratelim				\
-	test-time				\
-	test-weof
+noinst_PROGRAMS += $(TESTPROGRAMS)
 
 if BUILD_REGRESS
-noinst_PROGRAMS += regress
+noinst_PROGRAMS += test/regress
 endif
-EXTRA_PROGRAMS = regress
+EXTRA_PROGRAMS+= test/regress
 
-noinst_HEADERS =				\
-	regress.h				\
-	tinytest.h				\
-	tinytest_local.h			\
-	tinytest_macros.h
+noinst_HEADERS+=				\
+	test/regress.h				\
+	test/tinytest.h				\
+	test/tinytest_local.h			\
+	test/tinytest_macros.h
 
 TESTS = $(top_srcdir)/test/test.sh
 
-BUILT_SOURCES =
 if BUILD_REGRESS
-BUILT_SOURCES += regress.gen.c regress.gen.h
+BUILT_SOURCES += test/regress.gen.c test/regress.gen.h
 endif
 
-test_init_SOURCES = test-init.c
-test_init_LDADD = ../libevent_core.la
-test_dumpevents_SOURCES = test-dumpevents.c
-test_dumpevents_LDADD = ../libevent_core.la
-test_eof_SOURCES = test-eof.c
-test_eof_LDADD = ../libevent_core.la
-test_changelist_SOURCES = test-changelist.c
-test_changelist_LDADD = ../libevent_core.la
-test_weof_SOURCES = test-weof.c
-test_weof_LDADD = ../libevent_core.la
-test_time_SOURCES = test-time.c
-test_time_LDADD = ../libevent_core.la
-test_ratelim_SOURCES = test-ratelim.c
-test_ratelim_LDADD = ../libevent_core.la -lm
-test_fdleak_SOURCES = test-fdleak.c
-test_fdleak_LDADD = ../libevent_core.la
+test_test_init_SOURCES = test/test-init.c
+test_test_init_LDADD = libevent_core.la
+test_test_dumpevents_SOURCES = test/test-dumpevents.c
+test_test_dumpevents_LDADD = libevent_core.la
+test_test_eof_SOURCES = test/test-eof.c
+test_test_eof_LDADD = libevent_core.la
+test_test_changelist_SOURCES = test/test-changelist.c
+test_test_changelist_LDADD = libevent_core.la
+test_test_weof_SOURCES = test/test-weof.c
+test_test_weof_LDADD = libevent_core.la
+test_test_time_SOURCES = test/test-time.c
+test_test_time_LDADD = libevent_core.la
+test_test_ratelim_SOURCES = test/test-ratelim.c
+test_test_ratelim_LDADD = libevent_core.la -lm
+test_test_fdleak_SOURCES = test/test-fdleak.c
+test_test_fdleak_LDADD = libevent_core.la
 
-regress_SOURCES = 				\
-	regress.c				\
-	regress.gen.c				\
-	regress.gen.h				\
-	regress_buffer.c			\
-	regress_bufferevent.c			\
-	regress_dns.c				\
-	regress_et.c				\
-	regress_http.c				\
-	regress_listener.c			\
-	regress_main.c				\
-	regress_minheap.c			\
-	regress_rpc.c				\
-	regress_testutils.c			\
-	regress_testutils.h			\
-	regress_util.c				\
-	tinytest.c				\
+test_regress_SOURCES = 				\
+	test/regress.c				\
+	test/regress.gen.c				\
+	test/regress.gen.h				\
+	test/regress_buffer.c			\
+	test/regress_bufferevent.c			\
+	test/regress_dns.c				\
+	test/regress_et.c				\
+	test/regress_http.c				\
+	test/regress_listener.c			\
+	test/regress_main.c				\
+	test/regress_minheap.c			\
+	test/regress_rpc.c				\
+	test/regress_testutils.c			\
+	test/regress_testutils.h			\
+	test/regress_util.c				\
+	test/tinytest.c				\
 	$(regress_thread_SOURCES)		\
 	$(regress_zlib_SOURCES)
 
 if PTHREADS
-regress_thread_SOURCES = regress_thread.c
-PTHREAD_LIBS += ../libevent_pthreads.la
+regress_thread_SOURCES = test/regress_thread.c
+PTHREAD_LIBS += libevent_pthreads.la
 endif
 if BUILD_WIN32
-regress_thread_SOURCES = regress_thread.c
+regress_thread_SOURCES = test/regress_thread.c
 endif
 if ZLIB_REGRESS
-regress_zlib_SOURCES = regress_zlib.c
+regress_zlib_SOURCES = test/regress_zlib.c
 endif
 if BUILD_WIN32
-regress_SOURCES += regress_iocp.c
+test_regress_SOURCES += test/regress_iocp.c
 endif
 
-regress_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
-regress_CPPFLAGS = $(AM_CPPFLAGS) $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
-regress_LDFLAGS = $(PTHREAD_CFLAGS)
+test_regress_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
+test_regress_CPPFLAGS = $(AM_CPPFLAGS) $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
+test_regress_LDFLAGS = $(PTHREAD_CFLAGS)
 
 if OPENSSL
-regress_SOURCES += regress_ssl.c
-regress_LDADD += ../libevent_openssl.la -lssl -lcrypto ${OPENSSL_LIBADD}
+test_regress_SOURCES += test/regress_ssl.c
+test_regress_LDADD += libevent_openssl.la -lssl -lcrypto ${OPENSSL_LIBADD}
 endif
 
-bench_SOURCES = bench.c
-bench_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la
-bench_cascade_SOURCES = bench_cascade.c
-bench_cascade_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la
-bench_http_SOURCES = bench_http.c
-bench_http_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent.la
-bench_httpclient_SOURCES = bench_httpclient.c
-bench_httpclient_LDADD = $(LIBEVENT_GC_SECTIONS) ../libevent_core.la
+test_bench_SOURCES = test/bench.c
+test_bench_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+test_bench_cascade_SOURCES = test/bench_cascade.c
+test_bench_cascade_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+test_bench_http_SOURCES = test/bench_http.c
+test_bench_http_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+test_bench_httpclient_SOURCES = test/bench_httpclient.c
+test_bench_httpclient_LDADD = $(LIBEVENT_GC_SECTIONS) libevent_core.la
 
-regress.gen.c regress.gen.h: rpcgen-attempted
+test/regress.gen.c test/regress.gen.h: test/rpcgen-attempted
 
-rpcgen-attempted: $(srcdir)/regress.rpc $(srcdir)/../event_rpcgen.py $(srcdir)/rpcgen_wrapper.sh
+test/rpcgen-attempted: test/regress.rpc event_rpcgen.py test/rpcgen_wrapper.sh
 	date -u > $@
-	if $(srcdir)/rpcgen_wrapper.sh $(srcdir); then \
+	if $(srcdir)/test/rpcgen_wrapper.sh $(srcdir)/test; then \
 	   echo "rpcgen okay"; \
 	else \
 	   echo "No Python installed; stubbing out RPC test." >&2; \
@@ -129,11 +129,6 @@ rpcgen-attempted: $(srcdir)/regress.rpc $(srcdir)/../event_rpcgen.py $(srcdir)/r
 	   echo "#define NO_PYTHON_EXISTS" > regress.gen.h; \
 	fi
 
-CLEANFILES = rpcgen-attempted
+CLEANFILES += test/rpcgen-attempted
 
-DISTCLEANFILES = *~
-
-verify: check
-
-bench test-init test-eof test-weof test-time test-changelist \
-	test-fdleak: ../libevent.la
+$(TESTPROGRAMS) : libevent.la
