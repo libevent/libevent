@@ -5,12 +5,12 @@ dnl See LICENSE for copying information.
 dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
+AC_INIT(libevent,2.1.1-alpha-dev)
 AC_PREREQ(2.59)
-AC_INIT(event.c)
+AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
-
-AM_INIT_AUTOMAKE(libevent,2.1.1-alpha-dev)
+AM_INIT_AUTOMAKE
 dnl AM_SILENT_RULES req. automake 1.11.  [no] defaults V=1
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 AM_CONFIG_HEADER(config.h  evconfig-private.h:evconfig-private.h.in)
