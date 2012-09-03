@@ -496,6 +496,7 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	} else {
 		bufferevent_unsuspend_write_(bev, BEV_SUSPEND_LOOKUP);
 		bufferevent_unsuspend_read_(bev, BEV_SUSPEND_LOOKUP);
+		bufferevent_decref_(bev);
 		return -1;
 	}
 }
