@@ -88,7 +88,7 @@ endif
 pkgconfigdir=$(libdir)/pkgconfig
 LIBEVENT_PKGCONFIG=libevent.pc
 
-# These sources are conditionally added by configure.in or conditionally
+# These sources are conditionally added by configure.ac or conditionally
 # included from other files.
 PLATFORM_DEPENDENT_SRC = \
 	arc4random.c \
