@@ -1325,6 +1325,27 @@ void event_set_mem_functions(
  */
 void event_base_dump_events(struct event_base *, FILE *);
 
+
+/**
+ * callback for iterating events in an event base via event_base_foreach_event
+ */
+typedef int (*event_base_foreach_event_cb)(const struct event_base *, const struct event *, void *);
+
+/**
+   Iterate all current events in a given event loop. The method is an
+   alternative to event_base_dump_events, but provides a native interface
+   towards the events. 
+
+   Modification of events during iteration is an invalid operation
+   and may lead to unexpected behaviour
+
+   @param base An event_base on which to scan the events.
+   @param fn   A callback function to receive the events.
+*/
+void event_base_foreach_event(struct event_base *base, event_base_foreach_event_cb fn, void *arg);
+
+
+
 /** Sets 'tv' to the current time (as returned by gettimeofday()),
     looking at the cached value in 'base' if possible, and calling
     gettimeofday() or clock_gettime() as appropriate if there is no

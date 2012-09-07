@@ -3194,7 +3194,7 @@ evthread_make_base_notifiable_nolock_(struct event_base *base)
 
 int
 event_base_foreach_event_(struct event_base *base,
-    int (*fn)(struct event_base *, struct event *, void *), void *arg)
+    event_base_foreach_event_cb fn, void *arg)
 {
 	int r, i;
 	unsigned u;
@@ -3255,7 +3255,7 @@ event_base_foreach_event_(struct event_base *base,
 /* Helper for event_base_dump_events: called on each event in the event base;
  * dumps only the inserted events. */
 static int
-dump_inserted_event_fn(struct event_base *base, struct event *e, void *arg)
+dump_inserted_event_fn(const struct event_base *base, const struct event *e, void *arg)
 {
 	FILE *output = arg;
 	const char *gloss = (e->ev_events & EV_SIGNAL) ?
@@ -3287,7 +3287,7 @@ dump_inserted_event_fn(struct event_base *base, struct event *e, void *arg)
 /* Helper for event_base_dump_events: called on each event in the event base;
  * dumps only the active events. */
 static int
-dump_active_event_fn(struct event_base *base, struct event *e, void *arg)
+dump_active_event_fn(const struct event_base *base, const struct event *e, void *arg)
 {
 	FILE *output = arg;
 	const char *gloss = (e->ev_events & EV_SIGNAL) ?
@@ -3308,14 +3308,29 @@ dump_active_event_fn(struct event_base *base, struct event *e, void *arg)
 	return 0;
 }
 
+void 
+event_base_foreach_event(struct event_base *base, 
+    event_base_foreach_event_cb fn, void *arg)
+{
+	if ((!fn) || (!base)) {
+		return;
+	}
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	event_base_foreach_event_(base, fn, arg);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+}
+
+
 void
 event_base_dump_events(struct event_base *base, FILE *output)
 {
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	fprintf(output, "Inserted events:\n");
 	event_base_foreach_event_(base, dump_inserted_event_fn, output);
 
 	fprintf(output, "Active events:\n");
 	event_base_foreach_event_(base, dump_active_event_fn, output);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 
 void
