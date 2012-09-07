@@ -963,7 +963,7 @@ evmap_check_integrity_(struct event_base *base)
 /* Helper type for evmap_foreach_event_: Bundles a function to call on every
  * event, and the user-provided void* to use as its third argument. */
 struct evmap_foreach_event_helper {
-	int (*fn)(const struct event_base *, const struct event *, void *);
+	event_base_foreach_event_cb fn;
 	void *arg;
 };
 
@@ -1001,7 +1001,7 @@ evmap_signal_foreach_event_fn(struct event_base *base, int signum,
 
 int
 evmap_foreach_event_(struct event_base *base,
-    int (*fn)(const struct event_base *, const struct event *, void *), void *arg)
+    event_base_foreach_event_cb fn, void *arg)
 {
 	struct evmap_foreach_event_helper h;
 	int r;

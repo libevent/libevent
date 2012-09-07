@@ -400,9 +400,6 @@ void event_base_assert_ok_(struct event_base *base);
 void event_base_assert_ok_nolock_(struct event_base *base);
 
 
-/* Callback type for event_base_foreach_event. */
-//typedef int (*event_base_foreach_event_cb)(struct event_base *base, struct event *, void *);
-
 /* Helper function: Call 'fn' exactly once every inserted or active event in
  * the event_base 'base'.
  *
@@ -411,7 +408,7 @@ void event_base_assert_ok_nolock_(struct event_base *base);
  *
  * Requires that 'base' be locked.
  */
-int event_base_foreach_event_(struct event_base *base,
+int event_base_foreach_event_nolock_(struct event_base *base,
     event_base_foreach_event_cb cb, void *arg);
 
 #ifdef __cplusplus

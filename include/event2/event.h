@@ -1327,23 +1327,28 @@ void event_base_dump_events(struct event_base *, FILE *);
 
 
 /**
- * callback for iterating events in an event base via event_base_foreach_event
+ * Callback for iterating events in an event base via event_base_foreach_event
  */
 typedef int (*event_base_foreach_event_cb)(const struct event_base *, const struct event *, void *);
 
 /**
-   Iterate all current events in a given event loop. The method is an
-   alternative to event_base_dump_events, but provides a native interface
-   towards the events. 
+   Iterate over all added or active events events in an event loop, and invoke
+   a given callback on each one.
 
-   Modification of events during iteration is an invalid operation
-   and may lead to unexpected behaviour
+   The callback must not call any function that modifies the event base, or
+   modifies any event in the event base.  Doing so is unsupported and
+   will lead to undefined behavior.
+
+   The callback function must return 0 to continue iteration, or some other
+   integer to stop iterating.
 
    @param base An event_base on which to scan the events.
    @param fn   A callback function to receive the events.
+   @param arg  An argument passed to the callback function.
+   @return 0 if we iterated over every event, or the value returned by the
+      callback function if the loop exited early.
 */
-void event_base_foreach_event(struct event_base *base, event_base_foreach_event_cb fn, void *arg);
-
+int event_base_foreach_event(struct event_base *base, event_base_foreach_event_cb fn, void *arg);
 
 
 /** Sets 'tv' to the current time (as returned by gettimeofday()),
