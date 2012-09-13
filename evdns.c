@@ -3159,6 +3159,8 @@ search_request_new(struct evdns_base *base, struct evdns_request *handle,
 		handle->search_origname = mm_strdup(name);
 		if (handle->search_origname == NULL) {
 			/* XXX Should we dealloc req? If yes, how? */
+			if (req)
+				mm_free(req);
 			return NULL;
 		}
 		handle->search_state = base->global_search_state;
