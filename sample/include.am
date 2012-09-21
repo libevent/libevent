@@ -1,4 +1,4 @@
-# sample/Makefile.am for libevent
+# sample/include.am for libevent
 # Copyright 2000-2007 Niels Provos
 # Copyright 2007-2012 Niels Provos and Nick Mathewson
 #
