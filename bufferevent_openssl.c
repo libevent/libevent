@@ -565,7 +565,7 @@ decrement_buckets(struct bufferevent_openssl *bev_ssl)
 
 /* Return a bitmask of OP_MADE_PROGRESS (if we read anything); OP_BLOCKED (if
    we're now blocked); and OP_ERR (if an error occurred). */
- static int
+static int
 do_read(struct bufferevent_openssl *bev_ssl, int n_to_read) {
 	/* Requires lock */
 	struct bufferevent *bev = &bev_ssl->bev.bev;
@@ -573,6 +573,9 @@ do_read(struct bufferevent_openssl *bev_ssl, int n_to_read) {
 	int r, n, i, n_used = 0, atmost;
 	struct evbuffer_iovec space[2];
 	int result = 0;
+
+	if (bev_ssl->bev.read_suspended)
+		return 0;
 
 	atmost = bufferevent_get_read_max_(&bev_ssl->bev);
 	if (n_to_read > atmost)
@@ -786,6 +789,9 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 		if (r & (OP_BLOCKED|OP_ERR))
 			break;
 
+		if (bev_ssl->bev.read_suspended)
+			break;
+        
 		/* Read all pending data.  This won't hit the network
 		 * again, and will (most importantly) put us in a state
 		 * where we don't need to read anything else until the
