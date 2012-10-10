@@ -3797,6 +3797,12 @@ evhttp_request_get_response_code(const struct evhttp_request *req)
 	return req->response_code;
 }
 
+char*
+evhttp_request_get_response_code_line(const struct evhttp_request *req)
+{
+	return req->response_code_line;
+}
+
 /** Returns the input headers */
 struct evkeyvalq *evhttp_request_get_input_headers(struct evhttp_request *req)
 {
