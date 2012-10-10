@@ -602,6 +602,7 @@ const struct evhttp_uri *evhttp_request_get_evhttp_uri(const struct evhttp_reque
 enum evhttp_cmd_type evhttp_request_get_command(const struct evhttp_request *req);
 
 int evhttp_request_get_response_code(const struct evhttp_request *req);
+const char * evhttp_request_get_response_code_line(const struct evhttp_request *req);
 
 /** Returns the input headers */
 struct evkeyvalq *evhttp_request_get_input_headers(struct evhttp_request *req);
