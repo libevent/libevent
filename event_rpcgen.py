@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 #
 # Copyright (c) 2005-2007 Niels Provos <provos@citi.umich.edu>
 # Copyright (c) 2007-2012 Niels Provos and Nick Mathewson
