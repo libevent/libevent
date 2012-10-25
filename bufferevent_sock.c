@@ -133,6 +133,9 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	_bufferevent_incref_and_lock(bufev);
 
 	if (event == EV_TIMEOUT) {
+		/* Note that we only check for event==EV_TIMEOUT. If
+		 * event==EV_TIMEOUT|EV_READ, we can safely ignore the
+		 * timeout, since a read has occurred */
 		what |= BEV_EVENT_TIMEOUT;
 		goto error;
 	}
@@ -209,6 +212,9 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	_bufferevent_incref_and_lock(bufev);
 
 	if (event == EV_TIMEOUT) {
+		/* Note that we only check for event==EV_TIMEOUT. If
+		 * event==EV_TIMEOUT|EV_WRITE, we can safely ignore the
+		 * timeout, since a read has occurred */
 		what |= BEV_EVENT_TIMEOUT;
 		goto error;
 	}
