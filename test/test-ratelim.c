@@ -425,9 +425,8 @@ main(int argc, char **argv)
 #ifdef WIN32
 	WORD wVersionRequested = MAKEWORD(2,2);
 	WSADATA wsaData;
-	int err;
 
-	err = WSAStartup(wVersionRequested, &wsaData);
+	(void) WSAStartup(wVersionRequested, &wsaData);
 #endif
 
 #ifndef WIN32

@@ -240,9 +240,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		} else {						\
 			event_errx(_EVENT_ERR_ABORT,			\
 			    "%s: noting an add on a non-setup event %p" \
-			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    " (events: 0x%x, fd: "EV_SOCK_FMT		\
+			    ", flags: 0x%x)",				\
 			    __func__, (ev), (ev)->ev_events,		\
-			    (ev)->ev_fd, (ev)->ev_flags);		\
+			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
@@ -260,9 +261,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		} else {						\
 			event_errx(_EVENT_ERR_ABORT,			\
 			    "%s: noting a del on a non-setup event %p"	\
-			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    " (events: 0x%x, fd: "EV_SOCK_FMT		\
+			    ", flags: 0x%x)",				\
 			    __func__, (ev), (ev)->ev_events,		\
-			    (ev)->ev_fd, (ev)->ev_flags);		\
+			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
@@ -278,9 +280,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		if (!dent) {						\
 			event_errx(_EVENT_ERR_ABORT,			\
 			    "%s called on a non-initialized event %p"	\
-			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    " (events: 0x%x, fd: "EV_SOCK_FMT\
+			    ", flags: 0x%x)",				\
 			    __func__, (ev), (ev)->ev_events,		\
-			    (ev)->ev_fd, (ev)->ev_flags);		\
+			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
@@ -296,9 +299,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		if (dent && dent->added) {				\
 			event_errx(_EVENT_ERR_ABORT,			\
 			    "%s called on an already added event %p"	\
-			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    " (events: 0x%x, fd: "EV_SOCK_FMT", "	\
+			    "flags: 0x%x)",				\
 			    __func__, (ev), (ev)->ev_events,		\
-			    (ev)->ev_fd, (ev)->ev_flags);		\
+			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
 		}							\
 		EVLOCK_UNLOCK(_event_debug_map_lock, 0);		\
 	}								\
@@ -2026,9 +2030,9 @@ event_add_internal(struct event *ev, const struct timeval *tv,
 	_event_debug_assert_is_setup(ev);
 
 	event_debug((
-		 "event_add: event: %p (fd %d), %s%s%scall %p",
+		 "event_add: event: %p (fd "EV_SOCK_FMT"), %s%s%scall %p",
 		 ev,
-		 (int)ev->ev_fd,
+		 EV_SOCK_ARG(ev->ev_fd),
 		 ev->ev_events & EV_READ ? "EV_READ " : " ",
 		 ev->ev_events & EV_WRITE ? "EV_WRITE " : " ",
 		 tv ? "EV_TIMEOUT " : " ",
@@ -2190,8 +2194,8 @@ event_del_internal(struct event *ev)
 	struct event_base *base;
 	int res = 0, notify = 0;
 
-	event_debug(("event_del: %p (fd %d), callback %p",
-		ev, (int)ev->ev_fd, ev->ev_callback));
+	event_debug(("event_del: %p (fd "EV_SOCK_FMT"), callback %p",
+		ev, EV_SOCK_ARG(ev->ev_fd), ev->ev_callback));
 
 	/* An event without a base has not been added */
 	if (ev->ev_base == NULL)
@@ -2281,8 +2285,8 @@ event_active_nolock(struct event *ev, int res, short ncalls)
 {
 	struct event_base *base;
 
-	event_debug(("event_active: %p (fd %d), res %d, callback %p",
-		ev, (int)ev->ev_fd, (int)res, ev->ev_callback));
+	event_debug(("event_active: %p (fd "EV_SOCK_FMT"), res %d, callback %p",
+		ev, EV_SOCK_ARG(ev->ev_fd), (int)res, ev->ev_callback));
 
 
 	/* We get different kinds of events, add them together */
@@ -2496,8 +2500,8 @@ event_queue_remove(struct event_base *base, struct event *ev, int queue)
 	EVENT_BASE_ASSERT_LOCKED(base);
 
 	if (!(ev->ev_flags & queue)) {
-		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
-			   ev, ev->ev_fd, queue);
+		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") not on queue %x", __func__,
+		    ev, EV_SOCK_ARG(ev->ev_fd), queue);
 		return;
 	}
 
@@ -2570,8 +2574,8 @@ event_queue_insert(struct event_base *base, struct event *ev, int queue)
 		if (queue & EVLIST_ACTIVE)
 			return;
 
-		event_errx(1, "%s: %p(fd %d) already on queue %x", __func__,
-			   ev, ev->ev_fd, queue);
+		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") already on queue %x", __func__,
+		    ev, EV_SOCK_ARG(ev->ev_fd), queue);
 		return;
 	}
 
@@ -2822,8 +2826,8 @@ event_base_dump_events(struct event_base *base, FILE *output)
 	int i;
 	fprintf(output, "Inserted events:\n");
 	TAILQ_FOREACH(e, &base->eventqueue, ev_next) {
-		fprintf(output, "  %p [fd %ld]%s%s%s%s%s\n",
-				(void*)e, (long)e->ev_fd,
+		fprintf(output, "  %p [fd "EV_SOCK_FMT"]%s%s%s%s%s\n",
+				(void*)e, EV_SOCK_ARG(e->ev_fd),
 				(e->ev_events&EV_READ)?" Read":"",
 				(e->ev_events&EV_WRITE)?" Write":"",
 				(e->ev_events&EV_SIGNAL)?" Signal":"",
@@ -2836,8 +2840,8 @@ event_base_dump_events(struct event_base *base, FILE *output)
 			continue;
 		fprintf(output, "Active events [priority %d]:\n", i);
 		TAILQ_FOREACH(e, &base->eventqueue, ev_next) {
-			fprintf(output, "  %p [fd %ld]%s%s%s%s\n",
-					(void*)e, (long)e->ev_fd,
+			fprintf(output, "  %p [fd "EV_SOCK_FMT"]%s%s%s%s\n",
+					(void*)e, EV_SOCK_ARG(e->ev_fd),
 					(e->ev_res&EV_READ)?" Read active":"",
 					(e->ev_res&EV_WRITE)?" Write active":"",
 					(e->ev_res&EV_SIGNAL)?" Signal active":"",

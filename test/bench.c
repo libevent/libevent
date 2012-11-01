@@ -61,7 +61,7 @@
 #include <evutil.h>
 
 static int count, writes, fired;
-static int *pipes;
+static evutil_socket_t *pipes;
 static int num_pipes, num_active, num_writes;
 static struct event *events;
 
@@ -69,7 +69,7 @@ static struct event *events;
 static void
 read_cb(evutil_socket_t fd, short which, void *arg)
 {
-	long idx = (long) arg, widx = idx + 1;
+	ev_intptr_t idx = (ev_intptr_t) arg, widx = idx + 1;
 	u_char ch;
 
 	count += recv(fd, (char*)&ch, sizeof(ch), 0);
@@ -85,14 +85,14 @@ read_cb(evutil_socket_t fd, short which, void *arg)
 static struct timeval *
 run_once(void)
 {
-	int *cp, space;
+	evutil_socket_t *cp, space;
 	long i;
 	static struct timeval ts, te;
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
 		if (event_initialized(&events[i]))
 			event_del(&events[i]);
-		event_set(&events[i], cp[0], EV_READ | EV_PERSIST, read_cb, (void *) i);
+		event_set(&events[i], cp[0], EV_READ | EV_PERSIST, read_cb, (void *)(ev_intptr_t) i);
 		event_add(&events[i], NULL);
 	}
 
@@ -130,7 +130,7 @@ main(int argc, char **argv)
 #endif
 	int i, c;
 	struct timeval *tv;
-	int *cp;
+	evutil_socket_t *cp;
 
 #ifdef WIN32
 	WSADATA WSAData;
@@ -165,7 +165,7 @@ main(int argc, char **argv)
 #endif
 
 	events = calloc(num_pipes, sizeof(struct event));
-	pipes = calloc(num_pipes * 2, sizeof(int));
+	pipes = calloc(num_pipes * 2, sizeof(evutil_socket_t));
 	if (events == NULL || pipes == NULL) {
 		perror("malloc");
 		exit(1);

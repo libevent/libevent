@@ -238,7 +238,7 @@ end:
 static void
 open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
     struct event_base *base, int is_open, int flags, SSL *ssl1, SSL *ssl2,
-    int *fd_pair, struct bufferevent **underlying_pair)
+    evutil_socket_t *fd_pair, struct bufferevent **underlying_pair)
 {
 	int state1 = is_open ? BUFFEREVENT_SSL_OPEN :BUFFEREVENT_SSL_CONNECTING;
 	int state2 = is_open ? BUFFEREVENT_SSL_OPEN :BUFFEREVENT_SSL_ACCEPTING;
@@ -273,7 +273,7 @@ regress_bufferevent_openssl(void *arg)
 	const int filter = strstr((char*)data->setup_data, "filter")!=NULL;
 	int flags = BEV_OPT_DEFER_CALLBACKS;
 	struct bufferevent *bev_ll[2] = { NULL, NULL };
-	int *fd_pair = NULL;
+	evutil_socket_t *fd_pair = NULL;
 
 	tt_assert(cert);
 	tt_assert(key);

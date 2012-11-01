@@ -51,11 +51,10 @@ main(int argc, char **argv)
 #ifdef WIN32
 	WORD wVersionRequested;
 	WSADATA wsaData;
-	int	err;
 
 	wVersionRequested = MAKEWORD(2, 2);
 
-	err = WSAStartup(wVersionRequested, &wsaData);
+	(void) WSAStartup(wVersionRequested, &wsaData);
 #endif
 
 	/* Initalize the event library */

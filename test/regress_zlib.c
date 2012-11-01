@@ -276,7 +276,8 @@ test_bufferevent_zlib(void *arg)
 	struct bufferevent *bev1=NULL, *bev2=NULL;
 	char buffer[8333];
 	z_stream z_input, z_output;
-	int i, pair[2]={-1,-1}, r;
+	int i, r;
+	evutil_socket_t pair[2] = {-1, -1};
 	(void)arg;
 
 	infilter_calls = outfilter_calls = readcb_finished = writecb_finished

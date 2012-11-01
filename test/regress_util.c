@@ -983,7 +983,7 @@ test_evutil_getaddrinfo(void *arg)
 	hints.ai_flags = EVUTIL_AI_NUMERICHOST;
 	r = evutil_getaddrinfo("www.google.com", "80", &hints, &ai);
 	tt_int_op(r, ==, EVUTIL_EAI_NONAME);
-	tt_int_op(ai, ==, NULL);
+	tt_ptr_op(ai, ==, NULL);
 
 	/* Try symbolic service names wit AI_NUMERICSERV */
 	memset(&hints, 0, sizeof(hints));

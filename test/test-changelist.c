@@ -174,11 +174,10 @@ main(int argc, char **argv)
 #ifdef WIN32
 	WORD wVersionRequested;
 	WSADATA wsaData;
-	int	err;
 
 	wVersionRequested = MAKEWORD(2, 2);
 
-	err = WSAStartup(wVersionRequested, &wsaData);
+	(void) WSAStartup(wVersionRequested, &wsaData);
 #endif
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
 		return (1);

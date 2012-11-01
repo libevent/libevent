@@ -107,7 +107,7 @@ dns_gethostbyname_cb(int result, char type, int count, int ttl,
 		if (ttl < 0)
 			goto out;
 		for (i = 0; i < count; ++i) {
-			const char *b = inet_ntop(AF_INET6, &in6_addrs[i], buf,sizeof(buf));
+			const char *b = evutil_inet_ntop(AF_INET6, &in6_addrs[i], buf,sizeof(buf));
 			if (b)
 				TT_BLATHER(("%s ", b));
 			else
@@ -325,7 +325,7 @@ dns_server_gethostbyname_cb(int result, char type, int count, int ttl,
 		char buf[INET6_ADDRSTRLEN+1];
 		if (memcmp(&in6_addrs[0].s6_addr, "abcdefghijklmnop", 16)
 		    || ttl != 123) {
-			const char *b = inet_ntop(AF_INET6, &in6_addrs[0],buf,sizeof(buf));
+			const char *b = evutil_inet_ntop(AF_INET6, &in6_addrs[0],buf,sizeof(buf));
 			printf("Bad IPv6 response \"%s\" %d. ", b, ttl);
 			dns_ok = 0;
 			goto out;
@@ -1244,7 +1244,7 @@ test_getaddrinfo_async(void *arg)
 	memset(&local_outcome, 0, sizeof(local_outcome));
 	r = evdns_getaddrinfo(dns_base, "www.google.com", "80",
 	    &hints, gai_cb, &local_outcome);
-	tt_int_op(r,==,0);
+	tt_ptr_op(r,==,NULL);
 	tt_int_op(local_outcome.err,==,EVUTIL_EAI_NONAME);
 	tt_ptr_op(local_outcome.ai,==,NULL);
 

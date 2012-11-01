@@ -289,6 +289,14 @@ HANDLE evutil_load_windows_system_library(const TCHAR *library_name);
 #endif
 #endif
 
+#ifdef _WIN32
+#define EV_SOCK_FMT EV_I64_FMT
+#define EV_SOCK_ARG(x) EV_I64_ARG((x))
+#else
+#define EV_SOCK_FMT "%d"
+#define EV_SOCK_ARG(x) (x)
+#endif
+
 #if defined(__STDC__) && defined(__STDC_VERSION__)
 #if (__STDC_VERSION__ >= 199901L)
 #define EV_SIZE_FMT "%zu"
