@@ -8,6 +8,15 @@
  * Do not rely on macros in this file existing in later versions.
  */
 
+/* unfortunately, Android doesn't define a TAILQ_END, so add this here.
+ * hopefully bionic is fixed or someone reads this message before 
+ * regenerating this file:
+ */ 
+#ifndef TAILQ_END
+#define TAILQ_END(head) (NULL)
+#endif
+/* end android compat */
+
 #ifndef _EVENT2_EVENT_CONFIG_H_
 #define _EVENT2_EVENT_CONFIG_H_
 
