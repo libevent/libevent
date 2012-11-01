@@ -48,11 +48,21 @@
 #endif
 
 #ifdef _WIN32
+#ifndef stat
 #define stat _stat
+#endif
+#ifndef fstat
 #define fstat _fstat
+#endif
+#ifndef open
 #define open _open
+#endif
+#ifndef close
 #define close _close
+#endif
+#ifndef O_RDONLY
 #define O_RDONLY _O_RDONLY
+#endif
 #endif
 
 char uri_root[512];

@@ -2894,9 +2894,15 @@ evbuffer_file_segment_new(
 	seg->file_offset = offset;
 
 #ifdef _WIN32
+#ifndef lseek
 #define lseek _lseeki64
+#endif
+#ifndef fstat
 #define fstat _fstat
+#endif
+#ifndef stat
 #define stat _stat
+#endif
 #endif
 	if (length == -1) {
 		struct stat st;
