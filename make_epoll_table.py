@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 
 def get(old,wc,rc):
     if ('xxx' in (rc, wc)):
