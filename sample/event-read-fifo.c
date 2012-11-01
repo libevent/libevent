@@ -31,7 +31,7 @@
 #include <event2/event.h>
 
 static void
-fifo_read(int fd, short event, void *arg)
+fifo_read(evutil_socket_t fd, short event, void *arg)
 {
 	char buf[255];
 	int len;
@@ -41,7 +41,7 @@ fifo_read(int fd, short event, void *arg)
 #endif
 
 	fprintf(stderr, "fifo_read called with fd: %d, event: %d, arg: %p\n",
-		fd, event, arg);
+	    (int)fd, event, arg);
 #ifdef _WIN32
 	len = ReadFile((HANDLE)fd, buf, sizeof(buf) - 1, &dwBytesRead, NULL);
 
@@ -134,7 +134,7 @@ main(int argc, char **argv)
 
 	/* Initalize one event */
 #ifdef _WIN32
-	evfifo = event_new(base, (int)socket, EV_READ|EV_PERSIST, fifo_read,
+	evfifo = event_new(base, (evutil_socket_t)socket, EV_READ|EV_PERSIST, fifo_read,
                            event_self_cbarg());
 #else
 	/* catch SIGINT so that event.fifo can be cleaned up */

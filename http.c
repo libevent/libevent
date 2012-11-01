@@ -2125,7 +2125,8 @@ evhttp_read_header(struct evhttp_connection *evcon,
 		break;
 
 	default:
-		event_warnx("%s: bad header on %d", __func__, fd);
+		event_warnx("%s: bad header on "EV_SOCK_FMT, __func__,
+		    EV_SOCK_ARG(fd));
 		evhttp_connection_fail_(evcon, EVCON_HTTP_INVALID_HEADER);
 		break;
 	}
@@ -3913,7 +3914,8 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 
 	evcon = evhttp_get_request_connection(http, fd, sa, salen);
 	if (evcon == NULL) {
-		event_sock_warn(fd, "%s: cannot get connection on %d", __func__, fd);
+		event_sock_warn(fd, "%s: cannot get connection on "EV_SOCK_FMT,
+		    __func__, EV_SOCK_ARG(fd));
 		evutil_closesocket(fd);
 		return;
 	}
