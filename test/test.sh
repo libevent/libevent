@@ -76,8 +76,8 @@ run_tests () {
 		fi
 	done
 	announce_n " test-dumpevents: "
-	if python -c 'import sys; assert(sys.version_info >= (2, 4))' 2>/dev/null; then
-	    if $TEST_DIR/test-dumpevents | python $TEST_SRC_DIR/check-dumpevents.py >> "$TEST_OUTPUT_FILE" ;
+	if python2 -c 'import sys; assert(sys.version_info >= (2, 4))' 2>/dev/null; then
+	    if $TEST_DIR/test-dumpevents | python2 $TEST_SRC_DIR/check-dumpevents.py >> "$TEST_OUTPUT_FILE" ;
 	    then
 	        announce OKAY ;
 	    else
