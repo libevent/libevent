@@ -81,11 +81,10 @@ main(int argc, char **argv)
 #ifdef _WIN32
 	WORD wVersionRequested;
 	WSADATA wsaData;
-	int	err;
 
 	wVersionRequested = MAKEWORD(2, 2);
 
-	err = WSAStartup(wVersionRequested, &wsaData);
+	WSAStartup(wVersionRequested, &wsaData);
 #endif
 
 #ifdef _WIN32

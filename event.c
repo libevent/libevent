@@ -2747,8 +2747,8 @@ event_queue_remove_inserted(struct event_base *base, struct event *ev)
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
 	if (EVUTIL_FAILURE_CHECK(!(ev->ev_flags & EVLIST_INSERTED))) {
-		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
-			   ev, ev->ev_fd, EVLIST_INSERTED);
+		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") not on queue %x", __func__,
+		    ev, EV_SOCK_ARG(ev->ev_fd), EVLIST_INSERTED);
 		return;
 	}
 	DECR_EVENT_COUNT(base, ev->ev_flags);
