@@ -354,7 +354,8 @@ evsig_del(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 {
 	EVUTIL_ASSERT(evsignal >= 0 && evsignal < NSIG);
 
-	event_debug(("%s: %d: restoring signal handler", __func__, evsignal));
+	event_debug(("%s: "EV_SOCK_FMT": restoring signal handler",
+		__func__, EV_SOCK_ARG(evsignal)));
 
 	EVSIGBASE_LOCK();
 	--evsig_base_n_signals_added;

@@ -242,7 +242,8 @@ win32_del(struct event_base *base, evutil_socket_t fd, short old, short events,
 	struct win32op *win32op = base->evbase;
 	struct idx_info *idx = _idx;
 
-	event_debug(("%s: Removing event for %d", __func__, fd));
+	event_debug(("%s: Removing event for "EV_SOCK_FMT,
+		__func__, EV_SOCK_ARG(fd)));
 	if (events & EV_READ)
 		do_fd_clear(base, win32op, idx, 1);
 	if (events & EV_WRITE)

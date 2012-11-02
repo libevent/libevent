@@ -1328,9 +1328,10 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	switch (evcon->state) {
 	case EVCON_CONNECTING:
 		if (what & BEV_EVENT_TIMEOUT) {
-			event_debug(("%s: connection timeout for \"%s:%d\" on %d",
+			event_debug(("%s: connection timeout for \"%s:%d\" on "
+				EV_SOCK_FMT,
 				__func__, evcon->address, evcon->port,
-				evcon->fd));
+				EV_SOCK_ARG(evcon->fd)));
 			evhttp_connection_cb_cleanup(evcon);
 			return;
 		}
@@ -1405,21 +1406,25 @@ evhttp_connection_cb(struct bufferevent *bufev, short what, void *arg)
 	/* Check if the connection completed */
 	if (getsockopt(evcon->fd, SOL_SOCKET, SO_ERROR, (void*)&error,
 		       &errsz) == -1) {
-		event_debug(("%s: getsockopt for \"%s:%d\" on %d",
-			__func__, evcon->address, evcon->port, evcon->fd));
+		event_debug(("%s: getsockopt for \"%s:%d\" on "EV_SOCK_FMT,
+			__func__, evcon->address, evcon->port,
+			EV_SOCK_ARG(evcon->fd)));
 		goto cleanup;
 	}
 
 	if (error) {
-		event_debug(("%s: connect failed for \"%s:%d\" on %d: %s",
-		    __func__, evcon->address, evcon->port, evcon->fd,
+		event_debug(("%s: connect failed for \"%s:%d\" on "
+			EV_SOCK_FMT": %s",
+			__func__, evcon->address, evcon->port,
+			EV_SOCK_ARG(evcon->fd),
 			evutil_socket_error_to_string(error)));
 		goto cleanup;
 	}
 
 	/* We are connected to the server now */
-	event_debug(("%s: connected to \"%s:%d\" on %d\n",
-			__func__, evcon->address, evcon->port, evcon->fd));
+	event_debug(("%s: connected to \"%s:%d\" on "EV_SOCK_FMT"\n",
+			__func__, evcon->address, evcon->port,
+			EV_SOCK_ARG(evcon->fd)));
 
 	/* Reset the retry count as we were successful in connecting */
 	evcon->retry_cnt = 0;
@@ -1974,8 +1979,8 @@ evhttp_read_firstline(struct evhttp_connection *evcon,
 	res = evhttp_parse_firstline(req, bufferevent_get_input(evcon->bufev));
 	if (res == DATA_CORRUPTED || res == DATA_TOO_LONG) {
 		/* Error while reading, terminate */
-		event_debug(("%s: bad header lines on %d\n",
-			__func__, evcon->fd));
+		event_debug(("%s: bad header lines on "EV_SOCK_FMT"\n",
+			__func__, EV_SOCK_ARG(evcon->fd)));
 		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 		return;
 	} else if (res == MORE_DATA_EXPECTED) {
@@ -1997,7 +2002,8 @@ evhttp_read_header(struct evhttp_connection *evcon,
 	res = evhttp_parse_headers(req, bufferevent_get_input(evcon->bufev));
 	if (res == DATA_CORRUPTED || res == DATA_TOO_LONG) {
 		/* Error while reading, terminate */
-		event_debug(("%s: bad header lines on %d\n", __func__, fd));
+		event_debug(("%s: bad header lines on "EV_SOCK_FMT"\n",
+			__func__, EV_SOCK_ARG(fd)));
 		evhttp_connection_fail(evcon, EVCON_HTTP_INVALID_HEADER);
 		return;
 	} else if (res == MORE_DATA_EXPECTED) {
@@ -2011,8 +2017,8 @@ evhttp_read_header(struct evhttp_connection *evcon,
 	/* Done reading headers, do the real work */
 	switch (req->kind) {
 	case EVHTTP_REQUEST:
-		event_debug(("%s: checking for post data on %d\n",
-				__func__, fd));
+		event_debug(("%s: checking for post data on "EV_SOCK_FMT"\n",
+			__func__, EV_SOCK_ARG(fd)));
 		evhttp_get_body(evcon, req);
 		/* note the request may have been freed in evhttp_get_body */
 		break;
@@ -2028,8 +2034,9 @@ evhttp_read_header(struct evhttp_connection *evcon,
 					__func__, req->response_code));
 			evhttp_connection_done(evcon);
 		} else {
-			event_debug(("%s: start of read body for %s on %d\n",
-				__func__, req->remote_host, fd));
+			event_debug(("%s: start of read body for %s on "
+				EV_SOCK_FMT"\n",
+				__func__, req->remote_host, EV_SOCK_ARG(fd)));
 			evhttp_get_body(evcon, req);
 			/* note the request may have been freed in
 			 * evhttp_get_body */
@@ -3676,8 +3683,8 @@ evhttp_get_request_connection(
 		return (NULL);
 	}
 
-	event_debug(("%s: new request from %s:%s on %d\n",
-			__func__, hostname, portname, fd));
+	event_debug(("%s: new request from %s:%s on "EV_SOCK_FMT"\n",
+		__func__, hostname, portname, EV_SOCK_ARG(fd)));
 
 	/* we need a connection object to put the http request on */
 	evcon = evhttp_connection_base_new(
