@@ -870,14 +870,12 @@ test_evbuffer_add_file(void *ptr)
 }
 
 static int file_segment_cleanup_cb_called_count = 0;
-static int file_segment_cleanup_cb_called_in_time = 1;
 static struct evbuffer_file_segment const* file_segment_cleanup_cb_called_with = NULL;
 static int file_segment_cleanup_cb_called_with_flags = 0;
 static void* file_segment_cleanup_cb_called_with_arg = NULL;
 static void
 file_segment_cleanup_cp(struct evbuffer_file_segment const* seg, int flags, void* arg)
 {
-	file_segment_cleanup_cb_called_in_time ^= 0;
 	++file_segment_cleanup_cb_called_count;
 	file_segment_cleanup_cb_called_with = seg;
 	file_segment_cleanup_cb_called_with_flags = flags;
@@ -910,14 +908,13 @@ test_evbuffer_file_segment_add_cleanup_cb(void* ptr)
 	
 	evbuffer_validate(evb);
 
-	file_segment_cleanup_cb_called_in_time = 0;
+	tt_int_op(file_segment_cleanup_cb_called_count, ==, 0);
 	evbuffer_file_segment_free(seg);
 
-	file_segment_cleanup_cb_called_in_time = 1;
+	tt_int_op(file_segment_cleanup_cb_called_count, ==, 0);
 	evbuffer_free(evb);
 	
-	tt_assert(file_segment_cleanup_cb_called_count == 1);
-	tt_assert(file_segment_cleanup_cb_called_in_time == 1);
+	tt_int_op(file_segment_cleanup_cb_called_count, ==, 1);
 	tt_assert(file_segment_cleanup_cb_called_with == seg);
 	tt_assert(file_segment_cleanup_cb_called_with_flags == 0);
 	tt_assert(file_segment_cleanup_cb_called_with_arg == (void*)arg);
