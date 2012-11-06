@@ -869,6 +869,74 @@ test_evbuffer_add_file(void *ptr)
 	}
 }
 
+static int file_segment_cleanup_cb_called_count = 0;
+static int file_segment_cleanup_cb_called_in_time = 1;
+static struct evbuffer_file_segment const* file_segment_cleanup_cb_called_with = NULL;
+static int file_segment_cleanup_cb_called_with_flags = 0;
+static void* file_segment_cleanup_cb_called_with_arg = NULL;
+static void
+file_segment_cleanup_cp(struct evbuffer_file_segment const* seg, int flags, void* arg)
+{
+	file_segment_cleanup_cb_called_in_time ^= 0;
+	++file_segment_cleanup_cb_called_count;
+	file_segment_cleanup_cb_called_with = seg;
+	file_segment_cleanup_cb_called_with_flags = flags;
+	file_segment_cleanup_cb_called_with_arg = arg;
+}
+
+static void
+test_evbuffer_file_segment_add_cleanup_cb(void* ptr)
+{
+	char *tmpfilename = NULL;
+	int fd = -1;
+	struct evbuffer *evb = NULL;
+	struct evbuffer_file_segment *seg = NULL;
+	char const* arg = "token";
+
+	fd = regress_make_tmpfile("file_segment_test_file", 22, &tmpfilename);
+
+	evb = evbuffer_new();
+	tt_assert(evb);
+
+	seg = evbuffer_file_segment_new(fd, 0, -1, 0);
+	tt_assert(seg);
+
+	evbuffer_file_segment_add_cleanup_cb(
+	  seg, &file_segment_cleanup_cp, (void*)arg);
+
+	tt_assert(fd != -1);
+
+	tt_assert(evbuffer_add_file_segment(evb, seg, 0, -1)!=-1);
+	
+	evbuffer_validate(evb);
+
+	file_segment_cleanup_cb_called_in_time = 0;
+	evbuffer_file_segment_free(seg);
+
+	file_segment_cleanup_cb_called_in_time = 1;
+	evbuffer_free(evb);
+	
+	tt_assert(file_segment_cleanup_cb_called_count == 1);
+	tt_assert(file_segment_cleanup_cb_called_in_time == 1);
+	tt_assert(file_segment_cleanup_cb_called_with == seg);
+	tt_assert(file_segment_cleanup_cb_called_with_flags == 0);
+	tt_assert(file_segment_cleanup_cb_called_with_arg == (void*)arg);
+	
+	seg = NULL;
+	evb = NULL;
+
+end:
+	
+	if(evb) 
+	  evbuffer_free(evb);
+	if(seg)
+	  evbuffer_file_segment_free(seg);
+	if (tmpfilename) {
+		unlink(tmpfilename);
+		free(tmpfilename);
+	}
+}
+
 #ifndef EVENT__DISABLE_MM_REPLACEMENT
 static void *
 failing_malloc(size_t how_much)
@@ -2144,6 +2212,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
 	{ "add_iovec", test_evbuffer_add_iovec, 0, NULL, NULL},
 	{ "copyout", test_evbuffer_copyout, 0, NULL, NULL},
+	{ "file_segment_add_cleanup_cb", test_evbuffer_file_segment_add_cleanup_cb, 0, NULL, NULL },
 
 #define ADDFILE_TEST(name, parameters)					\
 	{ name, test_evbuffer_add_file, TT_FORK|TT_NEED_BASE,		\

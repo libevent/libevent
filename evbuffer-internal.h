@@ -247,6 +247,10 @@ struct evbuffer_file_segment {
 	ev_off_t mmap_offset;
 	/** The length of this segment. */
 	ev_off_t length;
+	/** Cleanup callback function */
+	evbuffer_file_segment_cleanup_cb cleanup_cb;
+	/** Argument to be pass to cleanup callback function */
+	void *cleanup_cb_arg;
 };
 
 /** Information about the multicast parent of a chain.  Lives at the

@@ -2892,7 +2892,8 @@ evbuffer_file_segment_new(
 	seg->fd = fd;
 	seg->flags = flags;
 	seg->file_offset = offset;
-
+	seg->cleanup_cb = NULL;
+	seg->cleanup_cb_arg = NULL;
 #ifdef _WIN32
 #ifndef lseek
 #define lseek _lseeki64
@@ -3049,6 +3050,14 @@ err:
 	return -1;
 }
 
+void evbuffer_file_segment_add_cleanup_cb(struct evbuffer_file_segment *seg,
+	evbuffer_file_segment_cleanup_cb cb, void* arg)
+{
+	EVUTIL_ASSERT(seg->refcnt > 0);
+	seg->cleanup_cb = cb;
+	seg->cleanup_cb_arg = arg;
+}
+
 void
 evbuffer_file_segment_free(struct evbuffer_file_segment *seg)
 {
@@ -3073,6 +3082,13 @@ evbuffer_file_segment_free(struct evbuffer_file_segment *seg)
 
 	if ((seg->flags & EVBUF_FS_CLOSE_ON_FREE) && seg->fd >= 0) {
 		close(seg->fd);
+	}
+	
+	if (seg->cleanup_cb) {
+		(*seg->cleanup_cb)((struct evbuffer_file_segment const*)seg, 
+		    seg->flags, seg->cleanup_cb_arg);
+		seg->cleanup_cb = NULL;
+		seg->cleanup_cb_arg = NULL;
 	}
 
 	EVTHREAD_FREE_LOCK(seg->lock, 0);
