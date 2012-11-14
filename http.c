@@ -681,6 +681,7 @@ void
 evhttp_connection_fail_(struct evhttp_connection *evcon,
     enum evhttp_connection_error error)
 {
+	const int errsave = errno;
 	struct evhttp_request* req = TAILQ_FIRST(&evcon->requests);
 	void (*cb)(struct evhttp_request *, void *);
 	void *cb_arg;
@@ -725,6 +726,12 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 	/* We are trying the next request that was queued on us */
 	if (TAILQ_FIRST(&evcon->requests) != NULL)
 		evhttp_connection_connect_(evcon);
+
+	/* The call to evhttp_connection_reset_ overwrote errno.
+	 * Let's restore the original errno, so that the user's
+	 * callback can have a better idea of what the error was.
+	 */
+	errno = errsave;
 
 	/* inform the user */
 	if (cb != NULL)
