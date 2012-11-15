@@ -105,7 +105,8 @@ test_regress_LDFLAGS = $(PTHREAD_CFLAGS)
 
 if OPENSSL
 test_regress_SOURCES += test/regress_ssl.c
-test_regress_LDADD += libevent_openssl.la -lssl -lcrypto ${OPENSSL_LIBADD}
+test_regress_CPPFLAGS += $(OPENSSL_INCS)
+test_regress_LDADD += libevent_openssl.la $(OPENSSL_LIBS) ${OPENSSL_LIBADD}
 endif
 
 test_bench_SOURCES = test/bench.c
