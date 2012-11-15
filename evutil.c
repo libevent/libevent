@@ -89,8 +89,12 @@
 #define open _open
 #define read _read
 #define close _close
+#ifndef fstat
 #define fstat _fstati64
+#endif
+#ifndef stat
 #define stat _stati64
+#endif
 #define mode_t int
 #endif
 

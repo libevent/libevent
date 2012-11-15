@@ -259,9 +259,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		} else {						\
 			event_errx(EVENT_ERR_ABORT_,			\
 			    "%s: noting an add on a non-setup event %p" \
-			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    " (events: 0x%x, fd: "EV_SOCK_FMT		\
+			    ", flags: 0x%x)",				\
 			    __func__, (ev), (ev)->ev_events,		\
-			    (ev)->ev_fd, (ev)->ev_flags);		\
+			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
 		}							\
 		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
 	}								\
@@ -279,9 +280,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		} else {						\
 			event_errx(EVENT_ERR_ABORT_,			\
 			    "%s: noting a del on a non-setup event %p"	\
-			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    " (events: 0x%x, fd: "EV_SOCK_FMT		\
+			    ", flags: 0x%x)",				\
 			    __func__, (ev), (ev)->ev_events,		\
-			    (ev)->ev_fd, (ev)->ev_flags);		\
+			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
 		}							\
 		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
 	}								\
@@ -297,9 +299,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		if (!dent) {						\
 			event_errx(EVENT_ERR_ABORT_,			\
 			    "%s called on a non-initialized event %p"	\
-			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    " (events: 0x%x, fd: "EV_SOCK_FMT\
+			    ", flags: 0x%x)",				\
 			    __func__, (ev), (ev)->ev_events,		\
-			    (ev)->ev_fd, (ev)->ev_flags);		\
+			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
 		}							\
 		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
 	}								\
@@ -315,9 +318,10 @@ HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 		if (dent && dent->added) {				\
 			event_errx(EVENT_ERR_ABORT_,			\
 			    "%s called on an already added event %p"	\
-			    " (events: 0x%x, fd: %d, flags: 0x%x)",	\
+			    " (events: 0x%x, fd: "EV_SOCK_FMT", "	\
+			    "flags: 0x%x)",				\
 			    __func__, (ev), (ev)->ev_events,		\
-			    (ev)->ev_fd, (ev)->ev_flags);		\
+			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
 		}							\
 		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
 	}								\
@@ -2189,9 +2193,9 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 	event_debug_assert_is_setup_(ev);
 
 	event_debug((
-		 "event_add: event: %p (fd %d), %s%s%scall %p",
+		 "event_add: event: %p (fd "EV_SOCK_FMT"), %s%s%scall %p",
 		 ev,
-		 (int)ev->ev_fd,
+		 EV_SOCK_ARG(ev->ev_fd),
 		 ev->ev_events & EV_READ ? "EV_READ " : " ",
 		 ev->ev_events & EV_WRITE ? "EV_WRITE " : " ",
 		 tv ? "EV_TIMEOUT " : " ",
@@ -2363,8 +2367,8 @@ event_del_nolock_(struct event *ev)
 	struct event_base *base;
 	int res = 0, notify = 0;
 
-	event_debug(("event_del: %p (fd %d), callback %p",
-		ev, (int)ev->ev_fd, ev->ev_callback));
+	event_debug(("event_del: %p (fd "EV_SOCK_FMT"), callback %p",
+		ev, EV_SOCK_ARG(ev->ev_fd), ev->ev_callback));
 
 	/* An event without a base has not been added */
 	if (ev->ev_base == NULL)
@@ -2457,8 +2461,8 @@ event_active_nolock_(struct event *ev, int res, short ncalls)
 {
 	struct event_base *base;
 
-	event_debug(("event_active: %p (fd %d), res %d, callback %p",
-		ev, (int)ev->ev_fd, (int)res, ev->ev_callback));
+	event_debug(("event_active: %p (fd "EV_SOCK_FMT"), res %d, callback %p",
+		ev, EV_SOCK_ARG(ev->ev_fd), (int)res, ev->ev_callback));
 
 	base = ev->ev_base;
 	EVENT_BASE_ASSERT_LOCKED(base);
@@ -2743,8 +2747,8 @@ event_queue_remove_inserted(struct event_base *base, struct event *ev)
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
 	if (EVUTIL_FAILURE_CHECK(!(ev->ev_flags & EVLIST_INSERTED))) {
-		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
-			   ev, ev->ev_fd, EVLIST_INSERTED);
+		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") not on queue %x", __func__,
+		    ev, EV_SOCK_ARG(ev->ev_fd), EVLIST_INSERTED);
 		return;
 	}
 	DECR_EVENT_COUNT(base, ev->ev_flags);
@@ -2786,8 +2790,8 @@ event_queue_remove_timeout(struct event_base *base, struct event *ev)
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
 	if (EVUTIL_FAILURE_CHECK(!(ev->ev_flags & EVLIST_TIMEOUT))) {
-		event_errx(1, "%s: %p(fd %d) not on queue %x", __func__,
-			   ev, ev->ev_fd, EVLIST_TIMEOUT);
+		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") not on queue %x", __func__,
+		    ev, EV_SOCK_ARG(ev->ev_fd), EVLIST_TIMEOUT);
 		return;
 	}
 	DECR_EVENT_COUNT(base, ev->ev_flags);
@@ -2881,8 +2885,8 @@ event_queue_insert_inserted(struct event_base *base, struct event *ev)
 	EVENT_BASE_ASSERT_LOCKED(base);
 
 	if (EVUTIL_FAILURE_CHECK(ev->ev_flags & EVLIST_INSERTED)) {
-		event_errx(1, "%s: %p(fd %d) already inserted", __func__,
-			   ev, ev->ev_fd);
+		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") already inserted", __func__,
+		    ev, EV_SOCK_ARG(ev->ev_fd));
 		return;
 	}
 
@@ -2933,8 +2937,8 @@ event_queue_insert_timeout(struct event_base *base, struct event *ev)
 	EVENT_BASE_ASSERT_LOCKED(base);
 
 	if (EVUTIL_FAILURE_CHECK(ev->ev_flags & EVLIST_TIMEOUT)) {
-		event_errx(1, "%s: %p(fd %d) already on timeout", __func__,
-			   ev, ev->ev_fd);
+		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") already on timeout", __func__,
+		    ev, EV_SOCK_ARG(ev->ev_fd));
 		return;
 	}
 
@@ -3264,8 +3268,8 @@ dump_inserted_event_fn(const struct event_base *base, const struct event *e, voi
 	if (! (e->ev_flags & (EVLIST_INSERTED|EVLIST_TIMEOUT)))
 		return 0;
 
-	fprintf(output, "  %p [%s %ld]%s%s%s%s%s",
-	    (void*)e, gloss, (long)e->ev_fd,
+	fprintf(output, "  %p [%s "EV_SOCK_FMT"]%s%s%s%s%s",
+	    (void*)e, gloss, EV_SOCK_ARG(e->ev_fd),
 	    (e->ev_events&EV_READ)?" Read":"",
 	    (e->ev_events&EV_WRITE)?" Write":"",
 	    (e->ev_events&EV_SIGNAL)?" Signal":"",
@@ -3296,8 +3300,8 @@ dump_active_event_fn(const struct event_base *base, const struct event *e, void 
 	if (! (e->ev_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER)))
 		return 0;
 
-	fprintf(output, "  %p [%s %ld, priority=%d]%s%s%s%s active%s%s\n",
-	    (void*)e, gloss, (long)e->ev_fd, e->ev_pri,
+	fprintf(output, "  %p [%s "EV_SOCK_FMT", priority=%d]%s%s%s%s active%s%s\n",
+	    (void*)e, gloss, EV_SOCK_ARG(e->ev_fd), e->ev_pri,
 	    (e->ev_res&EV_READ)?" Read":"",
 	    (e->ev_res&EV_WRITE)?" Write":"",
 	    (e->ev_res&EV_SIGNAL)?" Signal":"",

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 #
 # Post-process the output of test-dumpevents and check it for correctness.
 #

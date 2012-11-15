@@ -934,11 +934,12 @@ be_openssl_readeventcb(evutil_socket_t fd, short what, void *ptr)
 {
 	struct bufferevent_openssl *bev_ssl = ptr;
 	bufferevent_incref_and_lock_(&bev_ssl->bev.bev);
-	if (what & EV_TIMEOUT) {
+	if (what == EV_TIMEOUT) {
 		bufferevent_run_eventcb_(&bev_ssl->bev.bev,
 		    BEV_EVENT_TIMEOUT|BEV_EVENT_READING);
-	} else
+	} else {
 		consider_reading(bev_ssl);
+	}
 	bufferevent_decref_and_unlock_(&bev_ssl->bev.bev);
 }
 
@@ -947,11 +948,12 @@ be_openssl_writeeventcb(evutil_socket_t fd, short what, void *ptr)
 {
 	struct bufferevent_openssl *bev_ssl = ptr;
 	bufferevent_incref_and_lock_(&bev_ssl->bev.bev);
-	if (what & EV_TIMEOUT) {
+	if (what == EV_TIMEOUT) {
 		bufferevent_run_eventcb_(&bev_ssl->bev.bev,
 		    BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING);
+	} else {
+		consider_writing(bev_ssl);
 	}
-	consider_writing(bev_ssl);
 	bufferevent_decref_and_unlock_(&bev_ssl->bev.bev);
 }
 
