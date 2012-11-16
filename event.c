@@ -2020,6 +2020,11 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 {
 	int flags = 0;
 
+	if (EVUTIL_FAILURE_CHECK(ev->ev_base == NULL)) {
+		event_warnx("%s: event has no event_base set.", __func__);
+		return 0;
+	}
+
 	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
 	event_debug_assert_is_setup_(ev);
 
