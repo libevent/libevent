@@ -218,6 +218,10 @@ int EVUTIL_ISUPPER_(char c);
 char EVUTIL_TOUPPER_(char c);
 char EVUTIL_TOLOWER_(char c);
 
+/** Remove all trailing whitespace from the end of a string */
+void evutil_rtrim_(char *);
+
+
 /** Helper macro.  If we know that a given pointer points to a field in a
     structure, return a pointer to the structure itself.  Used to implement
     our half-baked C OO.  Example:

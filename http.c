@@ -219,18 +219,25 @@ strsep(char **s, const char *del)
 }
 #endif
 
-static void 
-rtrim(char *str)
+void
+evutil_rtrim_(char *str)
 {
 	char *cp;
 
-	if( str == NULL )
+	if (str == NULL)
 		return;
 
-	cp = strchr(str, '\0') - 1;
+	if ((cp = strchr(str, '\0')) == NULL || (cp == str))
+		return;
 
-	while (cp >= str && *cp == ' ')
-		*cp-- = '\0';
+	--cp;
+
+	while (*cp == ' ') {
+		*cp = '\0';
+		if (cp == str)
+			break;
+		--cp;
+	}
 }
 
 static size_t
@@ -1927,7 +1934,7 @@ evhttp_parse_headers_(struct evhttp_request *req, struct evbuffer* buffer)
 			goto error;
 
 		svalue += strspn(svalue, " ");
-		rtrim(svalue);
+		evutil_rtrim_(svalue);
 
 		if (evhttp_add_header(headers, skey, svalue) == -1)
 			goto error;
