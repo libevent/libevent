@@ -681,7 +681,7 @@ void
 evhttp_connection_fail_(struct evhttp_connection *evcon,
     enum evhttp_connection_error error)
 {
-	const int errsave = errno;
+	const int errsave = EVUTIL_SOCKET_ERROR();
 	struct evhttp_request* req = TAILQ_FIRST(&evcon->requests);
 	void (*cb)(struct evhttp_request *, void *);
 	void *cb_arg;
@@ -731,7 +731,7 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 	 * Let's restore the original errno, so that the user's
 	 * callback can have a better idea of what the error was.
 	 */
-	errno = errsave;
+	EVUTIL_SET_SOCKET_ERROR(errsave);
 
 	/* inform the user */
 	if (cb != NULL)
