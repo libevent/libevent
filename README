@@ -23,7 +23,7 @@ Install as root via
 
 # make install
 
-Before, reporting any problems, please run the regression tests.
+Before reporting any problems, please run the regression tests.
 
 To enable the low-level tracing build the library as:
 

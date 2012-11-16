@@ -385,6 +385,6 @@
 
 5. Testing
 
-  Libevent's test coverage level is more or less unchanged sine before:
+  Libevent's test coverage level is more or less unchanged since before:
   we still have over 80% line coverage in our tests on Linux and OSX.
   There are some under-tested modules, though: we need to fix those.
