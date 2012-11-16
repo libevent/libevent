@@ -91,7 +91,15 @@ struct {								\
 	struct type *le_next;	/* next element */			\
 	struct type **le_prev;	/* address of previous next element */	\
 }
-#endif /* !TAILQ_ENTRY */
+#endif /* !LIST_ENTRY */
+
+#ifndef LIST_HEAD
+#define EVENT_DEFINED_LISTHEAD_
+#define LIST_HEAD(name, type)						\
+struct name {								\
+	struct type *lh_first;  /* first element */			\
+	}
+#endif /* !LIST_HEAD */
 
 struct event_callback {
 	TAILQ_ENTRY(event_callback) evcb_active_next;
@@ -150,13 +158,15 @@ TAILQ_HEAD (event_list, event);
 #undef TAILQ_HEAD
 #endif
 
+LIST_HEAD (event_dlist, event); 
+
 #ifdef EVENT_DEFINED_LISTENTRY_
 #undef LIST_ENTRY
-struct event_dlist;
-#undef EVENT_DEFINED_LISTENTRY_
-#else
-LIST_HEAD (event_dlist, event);
-#endif /* EVENT_DEFINED_LISTENTRY_ */
+#endif
+
+#ifdef EVENT_DEFINED_LISTHEAD_
+#undef LIST_HEAD
+#endif
 
 #ifdef __cplusplus
 }
