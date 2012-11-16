@@ -383,6 +383,7 @@ int evsig_restore_handler_(struct event_base *base, int evsignal);
 int event_add_nolock_(struct event *ev,
     const struct timeval *tv, int tv_is_absolute);
 int event_del_nolock_(struct event *ev);
+int event_remove_timer_nolock_(struct event *ev);
 
 void event_active_nolock_(struct event *ev, int res, short count);
 int event_callback_activate_(struct event_base *, struct event_callback *);

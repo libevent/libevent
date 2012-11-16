@@ -2193,6 +2193,45 @@ evthread_notify_base(struct event_base *base)
 	return base->th_notify_fn(base);
 }
 
+/* Implementation function to remove a timeout on a currently pending event.
+ */
+int
+event_remove_timer_nolock_(struct event *ev)
+{
+	struct event_base *base = ev->ev_base;
+
+	EVENT_BASE_ASSERT_LOCKED(base);
+	event_debug_assert_is_setup_(ev);
+
+	event_debug(("event_remove_timer_nolock: event: %p", ev));
+
+	/* If it's not pending on a timeout, we don't need to do anything. */
+	if (ev->ev_flags & EVLIST_TIMEOUT) {
+		event_queue_remove_timeout(base, ev);
+	}
+
+	return (0);
+}
+
+int
+event_remove_timer(struct event *ev)
+{
+	int res;
+
+	if (EVUTIL_FAILURE_CHECK(!ev->ev_base)) {
+		event_warnx("%s: event has no event_base set.", __func__);
+		return -1;
+	}
+
+	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
+
+	res = event_remove_timer_nolock_(ev);
+
+	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
+
+	return (res);
+}
+
 /* Implementation function to add an event.  Works just like event_add,
  * except: 1) it requires that we have the lock.  2) if tv_is_absolute is set,
  * we treat tv as an absolute time, not as an interval to add to the current

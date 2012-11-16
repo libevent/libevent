@@ -1037,8 +1037,7 @@ int event_base_once(struct event_base *, evutil_socket_t, short, event_callback_
   in calls to event_assign() until it is no longer pending.
 
   If the event in the ev argument already has a scheduled timeout, calling
-  event_add() replaces the old timeout with the new one, or clears the old
-  timeout if the timeout argument is NULL.
+  event_add() replaces the old timeout with the new one if tv is non-NULL.
 
   @param ev an event struct initialized via event_set()
   @param timeout the maximum amount of time to wait for the event, or NULL
@@ -1047,6 +1046,17 @@ int event_base_once(struct event_base *, evutil_socket_t, short, event_callback_
   @see event_del(), event_assign(), event_new()
   */
 int event_add(struct event *ev, const struct timeval *timeout);
+
+/**
+   Remove a timer from a pending event without removing the event itself.
+
+   If the event has a scheduled timeout, this function unschedules it but
+   leaves the event otherwise pending.
+
+   @param ev an event struct initialized via event_assign() or event_new()
+   @return 0 on success, or -1 if  an error occurrect.
+*/
+int event_remove_timer(struct event *ev);
 
 /**
   Remove an event from the set of monitored events.
