@@ -116,7 +116,7 @@ AC_ARG_ENABLE([verbose-debug],
 
 AC_PROG_LIBTOOL
 
-dnl   Uncomment "AC_DISABLE_SHARED" to make shared librraries not get
+dnl   Uncomment "AC_DISABLE_SHARED" to make shared libraries not get
 dnl   built by default.  You can also turn shared libs on and off from
 dnl   the command line with --enable-shared and --disable-shared.
 dnl AC_DISABLE_SHARED
