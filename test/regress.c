@@ -2264,13 +2264,12 @@ test_event_once_never(void *ptr)
 {
 	struct basic_test_data *data = ptr;
 	struct timeval tv;
-	int r;
 
 	/* Have one trigger in 10 seconds (don't worry, because) */
 	tv.tv_sec = 10;
 	tv.tv_usec = 0;
 	called = 0;
-	r = event_base_once(data->base, -1, EV_TIMEOUT,
+	event_base_once(data->base, -1, EV_TIMEOUT,
 	    timeout_called_once_cb, NULL, &tv);
 
 	/* But shut down the base in 75 msec. */
