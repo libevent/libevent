@@ -256,6 +256,9 @@ http_errorcb(struct bufferevent *bev, short what, void *arg)
 	event_base_loopexit(arg, NULL);
 }
 
+static int found_multi = 0;
+static int found_multi2 = 0;
+
 static void
 http_basic_cb(struct evhttp_request *req, void *arg)
 {
@@ -267,14 +270,23 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	/* For multi-line headers test */
 	{
 		const char *multi =
-		    evhttp_find_header(evhttp_request_get_input_headers(req),"X-multi");
+		    evhttp_find_header(evhttp_request_get_input_headers(req),"X-Multi");
 		if (multi) {
+			found_multi = !strcmp(multi,"aaaaaaaa a END");
 			if (strcmp("END", multi + strlen(multi) - 3) == 0)
 				test_ok++;
 			if (evhttp_find_header(evhttp_request_get_input_headers(req), "X-Last"))
 				test_ok++;
 		}
 	}
+	{
+		const char *multi2 =
+		    evhttp_find_header(evhttp_request_get_input_headers(req),"X-Multi-Extra-WS");
+		if (multi2) {
+			found_multi2 = !strcmp(multi2,"libevent 2.1");
+		}
+	}
+
 
 	/* injecting a bad content-length */
 	if (evhttp_find_header(evhttp_request_get_input_headers(req), "X-Negative"))
@@ -3276,6 +3288,8 @@ http_multi_line_header_test(void *arg)
 	    "GET /test HTTP/1.1\r\n"
 	    "Host: somehost\r\n"
 	    "Connection: close\r\n"
+	    "X-Multi-Extra-WS:  libevent  \r\n"
+	    "\t\t\t2.1 \r\n"
 	    "X-Multi:  aaaaaaaa\r\n"
 	    " a\r\n"
 	    "\tEND\r\n"
@@ -3283,9 +3297,12 @@ http_multi_line_header_test(void *arg)
 	    "\r\n";
 
 	bufferevent_write(bev, http_start_request, strlen(http_start_request));
+	found_multi = found_multi2 = 0;
 
 	event_base_dispatch(data->base);
 
+	tt_int_op(found_multi, ==, 1);
+	tt_int_op(found_multi2, ==, 1);
 	tt_int_op(test_ok, ==, 4);
  end:
 	if (bev)

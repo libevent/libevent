@@ -1870,7 +1870,7 @@ evhttp_parse_firstline_(struct evhttp_request *req, struct evbuffer *buffer)
 }
 
 static int
-evhttp_append_to_last_header(struct evkeyvalq *headers, const char *line)
+evhttp_append_to_last_header(struct evkeyvalq *headers, char *line)
 {
 	struct evkeyval *header = TAILQ_LAST(headers, evkeyvalq);
 	char *newval;
@@ -1880,13 +1880,20 @@ evhttp_append_to_last_header(struct evkeyvalq *headers, const char *line)
 		return (-1);
 
 	old_len = strlen(header->value);
+
+	/* Strip space from start and end of line. */
+	while (*line == ' ' || *line == '\t')
+		++line;
+	evutil_rtrim_lws_(line);
+
 	line_len = strlen(line);
 
-	newval = mm_realloc(header->value, old_len + line_len + 1);
+	newval = mm_realloc(header->value, old_len + line_len + 2);
 	if (newval == NULL)
 		return (-1);
 
-	memcpy(newval + old_len, line, line_len + 1);
+	newval[old_len] = ' ';
+	memcpy(newval + old_len + 1, line, line_len + 1);
 	header->value = newval;
 
 	return (0);
