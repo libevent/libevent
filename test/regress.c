@@ -2260,6 +2260,32 @@ end:
 }
 
 static void
+test_event_once_never(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct timeval tv;
+	int r;
+
+	/* Have one trigger in 10 seconds (don't worry, because) */
+	tv.tv_sec = 10;
+	tv.tv_usec = 0;
+	called = 0;
+	r = event_base_once(data->base, -1, EV_TIMEOUT,
+	    timeout_called_once_cb, NULL, &tv);
+
+	/* But shut down the base in 75 msec. */
+	tv.tv_sec = 0;
+	tv.tv_usec = 75*1000;
+	event_base_loopexit(data->base, &tv);
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(called, ==, 0);
+end:
+	;
+}
+
+static void
 test_event_pending(void *ptr)
 {
 	struct basic_test_data *data = ptr;
@@ -2562,6 +2588,7 @@ struct testcase_t main_testcases[] = {
 	LEGACY(multiple_events_for_same_fd, TT_ISOLATED),
 	LEGACY(want_only_once, TT_ISOLATED),
 	{ "event_once", test_event_once, TT_ISOLATED, &basic_setup, NULL },
+	{ "event_once_never", test_event_once_never, TT_ISOLATED, &basic_setup, NULL },
 	{ "event_pending", test_event_pending, TT_ISOLATED, &basic_setup,
 	  NULL },
 #ifndef _WIN32
