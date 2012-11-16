@@ -220,7 +220,7 @@ strsep(char **s, const char *del)
 #endif
 
 void
-evutil_rtrim_(char *str)
+evutil_rtrim_lws_(char *str)
 {
 	char *cp;
 
@@ -232,7 +232,7 @@ evutil_rtrim_(char *str)
 
 	--cp;
 
-	while (*cp == ' ') {
+	while (*cp == ' ' || *cp == '\t') {
 		*cp = '\0';
 		if (cp == str)
 			break;
@@ -1934,7 +1934,7 @@ evhttp_parse_headers_(struct evhttp_request *req, struct evbuffer* buffer)
 			goto error;
 
 		svalue += strspn(svalue, " ");
-		evutil_rtrim_(svalue);
+		evutil_rtrim_lws_(svalue);
 
 		if (evhttp_add_header(headers, skey, svalue) == -1)
 			goto error;

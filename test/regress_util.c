@@ -441,7 +441,7 @@ test_evutil_rtrim(void *ptr)
 	do {						\
 	    if (cp) mm_free(cp);			\
 	    cp = s ? mm_strdup(s) : NULL;		\
-	    evutil_rtrim_(cp);				\
+	    evutil_rtrim_lws_(cp);			\
 	    if (result == NULL)				\
 		    tt_ptr_op(cp, ==, NULL);		\
 	    else					\
@@ -460,6 +460,14 @@ test_evutil_rtrim(void *ptr)
 	TEST_TRIM("  ", "");
 	TEST_TRIM("a ", "a");
 	TEST_TRIM("abcdef  gH       ", "abcdef  gH");
+
+	TEST_TRIM("\t\t", "");
+	TEST_TRIM(" \t", "");
+	TEST_TRIM("\t", "");
+	TEST_TRIM("a \t", "a");
+	TEST_TRIM("a\t ", "a");
+	TEST_TRIM("a\t", "a");
+	TEST_TRIM("abcdef  gH    \t  ", "abcdef  gH");
 
 end:
 	if (cp)

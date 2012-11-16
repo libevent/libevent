@@ -218,8 +218,9 @@ int EVUTIL_ISUPPER_(char c);
 char EVUTIL_TOUPPER_(char c);
 char EVUTIL_TOLOWER_(char c);
 
-/** Remove all trailing whitespace from the end of a string */
-void evutil_rtrim_(char *);
+/** Remove all trailing horizontal whitespace (space or tab) from the end of a
+ * string */
+void evutil_rtrim_lws_(char *);
 
 
 /** Helper macro.  If we know that a given pointer points to a field in a
