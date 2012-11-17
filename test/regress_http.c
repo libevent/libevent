@@ -3593,6 +3593,58 @@ http_terminate_chunked_test(void *arg)
 		evhttp_free(http);
 }
 
+static void
+http_remote_addr_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	ev_uint16_t port = 0;
+
+	http = http_setup(&port, data->base);
+
+	test_ok = 0;
+
+	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	tt_assert(evcon);
+
+	tt_assert(evhttp_connection_get_base(evcon) == data->base);
+
+	exit_base = data->base;
+	/*
+	 * At this point, we want to schedule a request to the HTTP
+	 * server using our make request method.
+	 */
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
+
+	/* Add the information that we care about */
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_base_dispatch(data->base);
+
+	tt_assert(test_ok);
+
+	// Even if it was ipv4, sizeof ipv6 must be enough
+	struct in6_addr in6;
+	int len;
+	if (evhttp_get_remote_addr(evcon, &in6, &len)) {
+		test_ok = 0;
+		tt_abort_perror("getpeername");
+	}
+
+ end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+}
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
 		    http_##name##_test }
@@ -3640,6 +3692,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(connection_retry),
 	HTTP(data_length_constraints),
 
+	HTTP(remote_addr),
+
 	END_OF_TESTCASES
 };
-
