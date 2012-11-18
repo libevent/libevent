@@ -1783,12 +1783,11 @@ static void
 event_once_cb(evutil_socket_t fd, short events, void *arg)
 {
 	struct event_once *eonce = arg;
-	struct event_base *base = eonce->ev.ev_base;
 
 	(*eonce->cb)(fd, events, eonce->arg);
-	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	EVBASE_ACQUIRE_LOCK(eonce->ev.ev_base, th_base_lock);
 	LIST_REMOVE(eonce, next_once);
-	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	EVBASE_RELEASE_LOCK(eonce->ev.ev_base, th_base_lock);
 	event_debug_unassign(&eonce->ev);
 	mm_free(eonce);
 }
