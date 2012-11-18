@@ -440,18 +440,14 @@ test_evutil_rtrim(void *ptr)
 #define TEST_TRIM(s, result) \
 	do {						\
 	    if (cp) mm_free(cp);			\
-	    cp = s ? mm_strdup(s) : NULL;		\
+	    cp = mm_strdup(s);				\
 	    evutil_rtrim_lws_(cp);			\
-	    if (result == NULL)				\
-		    tt_ptr_op(cp, ==, NULL);		\
-	    else					\
-		    tt_str_op(cp, ==, result);		\
+	    tt_str_op(cp, ==, result);			\
 	} while(0)
 
 	char *cp = NULL;
 	(void) ptr;
 
-	TEST_TRIM(NULL, NULL);
 	TEST_TRIM("", "");
 	TEST_TRIM("a", "a");
 	TEST_TRIM("abcdef ghi", "abcdef ghi");
