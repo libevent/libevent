@@ -74,6 +74,13 @@
   loop checks for new events either every N microseconds, every M
   callbacks, or both.
 
+  When configuring an event base, you can now choose whether you want
+  timers to be more efficient, or more precise.  (This only has effect
+  on Linux for now.)  Timers are efficient by default: to select more
+  precise timers, use the EVENT_BASE_FLAG_PRECISE_TIMER flag when
+  constructing the event_config, or set the EVENT_PRECISE_TIMER
+  environment variable to a non-empty string.
+
   There is an EVLOOP_NO_EXIT_ON_EMPTY flag that tells event_base_loop()
   to keep looping even when there are no pending events.  (Ordinarily,
   event_base_loop() will exit as soon as no events are pending.)
@@ -113,10 +120,40 @@
   event.  This should never be strictly necessary, but it's sometimes
   convenient.
 
+  The event_base_once() function used to leak some memory if the event
+  that it added was never actually triggered.  Now, its memory is
+  tracked in the event_base and freed when the event_base is freed.
+  Note however that Libevent doesn't know how to free any information
+  passed as the callback argument to event_base_once is still something
+  you'll might need a way to de-allocate yourself.
+
+  There is an event_get_priority() function to return an event's
+  priority.
+
+  By analogy to event_base_loopbreak(), there is now an
+  event_base_loopcontinue() that tells Libevent to stop processing
+  active event callbacks, and re-scan for new events right away.
+
+  There's a function, event_base_foreach_event(), that can iterate over
+  every event currently pending or active on an event base, and invoke a
+  user-supplied callback on each. The callback must not alter the events
+  or add or remove anything to the event base.
+
+  We now have an event_remove_timer() function to remove the timeout on
+  an event while leaving its socket and/or signal triggers unchanged.
+  (If we were designing the API from scratch, this would be the behavior
+  of "event_add(ev, NULL)" on an already-added event with a timeout. But
+  that's a no-op in past versions of Libevent, and we don't want to
+  break compatibility.)
+
 1.3. New debugging features
 
   You can now turn on debug logs at runtime using a new function,
   event_enable_debug_logging().
+
+  The event_enable_lock_debugging() function is now spelled correctly.
+  You can still use the old "event_enable_lock_debuging" name, though,
+  so your old programs shouldnt' break.
 
   There's also been some work done to try to make the debugging logs
   more generally useful.
@@ -139,6 +176,9 @@
   maps or fds.  Better still, the code is smart enough (when the OS
   supports sendfile) to map the file when that's necessary, and use
   sendfile() otherwise.
+
+  File segments can receive callback functions that are invoked when the
+  file segments are freed.
 
   The evbuffer_ptr interface has been extended so that an evbuffer_ptr
   can now yield a point just after the end of the buffer.  This makes
@@ -170,7 +210,14 @@
   bufferevent_set_max_single_write().
 
   For consistency, OpenSSL bufferevents now make sure to always set one
-  of BEV_EVENT_READING or BEV_EVENT_WRITING when invoking an event callback.
+  of BEV_EVENT_READING or BEV_EVENT_WRITING when invoking an event
+  callback.
+
+  Calling bufferevent_set_timeouts(bev, NULL, NULL) now removes the
+  timeouts from socket and ssl bufferevents correctly.
+
+  You can find the priority at which a bufferevent runs with
+  bufferevent_get_priority().
 
 1.6. New functions and features: evdns
 
@@ -220,6 +267,12 @@
 
   There's a new evhttp_foreach_bound_socket() function to iterate over
   every listener on an evhttp object.
+
+  Whitespace between lines in headers is now folded into a single space;
+  whitespace at the end of a header is now removed.
+
+  The socket errno value is now preserved when invoking an http error
+  callback.
 
 2. Cross-platform performance improvements
 
@@ -291,6 +344,17 @@
    o Performance tweak to evhttp_parse_request_line. (aee1a97 Mark Ellzey)
    o Add missing break to evhttp_parse_request_line (0fcc536)
 
+2.6. Coarse timers by default on Linux
+
+  Due to limitations of the epoll interface, Libevent programs using epoll
+  have not previously been able to wait for timeouts with accuracy smaller
+  than 1 millisecond.  But Libevent had been using CLOCK_MONOTONIC for
+  timekeeping on Linux, which is needlessly expensive: CLOCK_MONOTONIC_COARSE
+  has approximately the resolution corresponding to epoll, and is much faster
+  to invoke than CLOCK_MONOTONIC_COARSE.
+
+  To disable coarse timers, and get a more plausible precision, use the
+  new EVENT_BASE_FLAG_PRECISE_TIMER flag when setting up your event base.
 
 3. Backend/OS-specific improvements
 
@@ -328,6 +392,30 @@
   of fds set unless an "unlimited select" option has been set.
   Therefore, we now set it.
 
+3.5. Monotonic clocks on even more platforms
+
+  Libevent previously used a monotonic clock for its internal timekeeping
+  only on platforms supporting the POSIX clock_gettime() interface. Now,
+  Libevent has support for monotonic clocks on OSX and Windows too, and a
+  fallback implementation for systems without monotonic clocks that will at
+  least keep time running forwards.
+
+  Using monotonic timers makes Libevent more resilient to changes in the
+  system time, as can happen in small amounts due to clock adjustments from
+  NTP, or in large amounts due to users who move their system clocks all over
+  the timeline in order to keep nagware from nagging them.
+
+3.6. Faster cross-thread notification on kqueue
+
+  When a thread other than the one in which the main event loop is
+  running needs to wake the thread running the main event loop, Libevent
+  usually writes to a socketpair in order to force the main event loop
+  to wake up.  On Linux, we've been able to use eventfd() instead.  Now
+  on BSD and OSX systems (any anywhere else that has kqueue with the
+  EVFILT_USER extension), we can use EVFILT_USER to wake up the main
+  thread from kqueue.  This should be a tiny bit faster than the
+  previous approach.
+
 4. Infrastructure improvements
 
 4.1. Faster tests
@@ -345,7 +433,31 @@
   Faster unit tests are great, since they let programmers test their
   changes without losing their train of thought.
 
-4.2. Portability
+4.2. Finicky tests are now off-by-default
+
+  The Tinytest unit testing framework now supports optional tests, and
+  Libevent uses them.  By default, Libevent's unit testing framework
+  does not run tests that require a working network, and does not run
+  tests that tend to fail on heavily loaded systems because of timing
+  issues.  To re-enable all tests, run ./test/regress using the "@all"
+  alias.
+
+4.3. Modernized use of autotools
+
+  Our autotools-based build system has been updated to build without
+  warnings on recent autoconf/automake versions.
+
+  Libevent's autotools makefiles are no longer recursive.  This allows
+  make to use the maximum possible parallelism to do the minimally
+  necessary amount of work.  See Peter Miller's "Recursive Make
+  Considered Harmful" at http://miller.emu.id.au/pmiller/books/rmch/ for
+  more information here.
+
+  We now use the "quiet build" option to suppress distracting messages
+  about which commandlines are running.  You can get them back with
+  "make V=1".
+
+4.4. Portability
 
   Libevent now uses large-file support internally on platforms where it
   matters.  You shouldn't need to set _LARGEFILE or OFFSET_BITS or
@@ -364,7 +476,7 @@
 
   Libevent now tries to detect OpenSSL via pkg-config.
 
-4.3. Standards conformance
+4.5. Standards conformance
 
   Previous Libevent versions had no consistent convention for internal
   vs external identifiers, and used identifiers starting with the "_"
@@ -382,6 +494,25 @@
   are now deprecated, but to support older code, they will need to stay
   around for a while.  New code should use EVENT_LOG_DEBUG,
   EVENT_LOG_MSG, EVENT_LOG_WARN, and EVENT_LOG_ERR instead.
+
+4.6. Event and callback refactoring
+
+  As a simplification and optimization to Libevent's "deferred callback"
+  logic (introduced in 2.0 to avoid callback recursion), Libevent now
+  treats all of its deferrable callback types using the same logic it
+  uses for active events.  Now deferred events no longer cause priority
+  inversion, no longer require special code to cancel them, and so on.
+
+  Regular events and deferred callbacks now both descend from an
+  internal light-weight event_callback supertype, and both support
+  priorities and take part in the other anti-priority-inversion
+  mechanisms in Libevent.
+
+  To avoid starvation from callback recursion (which was the reason we
+  introduced "deferred callbacks" in the first place) the implementation
+  now allows an event callback to be scheduled as "active later":
+  instead of running in the current iteration of the event loop, it runs
+  in the next one.
 
 5. Testing
 
