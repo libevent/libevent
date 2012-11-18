@@ -58,9 +58,14 @@ VERSION_INFO = 1:0:0
 #  2.0.15-stable--    2.0        6:3:1 (Forgot to update :( )
 #  2.0.16-stable--    2.0        6:4:1 (No ABI change)
 #  2.0.17-stable--    2.0        6:5:1 (No ABI change)
+#  2.0.18-stable--    2.0        6:6:1 (No ABI change)
+#  2.0.19-stable--    2.0        6:7:1 (No ABI change)
+#  2.0.20-stable--    2.0        6:8:1 (No ABI change)
+#  2.0.21-stable--    2.0        6:9:1 (No ABI change)
 #
 # For Libevent 2.1:
 #  2.1.1-alpha --     2.1        1:0:0
+#  2.1.2-alpha--      2.2        2:0:1 (Backward-compatible)
 
 
 # ABI version history for this package effectively restarts every time
