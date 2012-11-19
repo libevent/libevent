@@ -398,7 +398,7 @@ bufferevent_get_base(struct bufferevent *bufev)
 }
 
 int
-bufferevent_get_priority(struct bufferevent *bufev)
+bufferevent_get_priority(const struct bufferevent *bufev)
 {
 	if (event_initialized(&bufev->ev_read)) {
 		return event_get_priority(&bufev->ev_read);

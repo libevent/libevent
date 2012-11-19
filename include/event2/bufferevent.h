@@ -278,7 +278,7 @@ int bufferevent_priority_set(struct bufferevent *bufev, int pri);
 
    Only supported for socket bufferevents
  */
-int bufferevent_get_priority(struct bufferevent *bufev);
+int bufferevent_get_priority(const struct bufferevent *bufev);
 
 /**
   Deallocate the storage associated with a bufferevent structure.
