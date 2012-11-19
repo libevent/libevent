@@ -589,10 +589,10 @@ struct evbuffer_file_segment *evbuffer_file_segment_new(
 void evbuffer_file_segment_free(struct evbuffer_file_segment *seg);
 
 /**
-   Add cleanup callback and argument for the callback to an 
-   evbuffer_file_segment. 
+   Add cleanup callback and argument for the callback to an
+   evbuffer_file_segment.
 
-   The cleanup callback will be invoked when no more references to the 
+   The cleanup callback will be invoked when no more references to the
    evbuffer_file_segment exist.
  **/
 void evbuffer_file_segment_add_cleanup_cb(struct evbuffer_file_segment *seg,

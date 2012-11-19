@@ -1347,9 +1347,13 @@ typedef int (*event_base_foreach_event_cb)(const struct event_base *, const stru
    Iterate over all added or active events events in an event loop, and invoke
    a given callback on each one.
 
-   The callback must not call any function that modifies the event base, or
-   modifies any event in the event base.  Doing so is unsupported and
-   will lead to undefined behavior.
+   The callback must not call any function that modifies the event base, that
+   modifies any event in the event base, or that adds or removes any event to
+   the event base.  Doing so is unsupported and will lead to undefined
+   behavior -- likely, to crashes.
+
+   event_base_foreach_event() holds a lock on the event_base() for the whole
+   time it's running: slow callbacks are not advisable.
 
    The callback function must return 0 to continue iteration, or some other
    integer to stop iterating.
