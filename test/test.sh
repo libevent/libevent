@@ -32,10 +32,16 @@ T=`echo "$0" | sed -e 's/test.sh$//'`
 if test -x "$T/test-init"
 then
 	TEST_DIR="$T"
+elif test -x "./test/test-init"
+then
+        TEST_DIR="./test"
 fi
 if test -f "$T/check-dumpevents.py"
 then
 	TEST_SRC_DIR="$T"
+elif test -f "./test/check-dumpevents.py"
+then
+        TEST_SRC_DIR="./test"
 fi
 
 setup () {
