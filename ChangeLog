@@ -1,3 +1,6 @@
+Changes in version 2.0.22-stable (?? ??? 201?)
+
+
 Changes in version 2.0.21-stable (18 Nov 2012)
 BUGFIXES:
  o ssl: Don't discard SSL read event when timeout and read come close together (576b29f)
