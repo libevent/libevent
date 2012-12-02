@@ -2530,3 +2530,9 @@ evutil_free_globals_(void)
 {
 	evutil_free_secure_rng_globals_();
 }
+
+int
+evutil_getpeername(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+{
+    return getpeername(sockfd, addr, addrlen);
+}

@@ -4714,8 +4714,8 @@ evhttp_uri_set_fragment(struct evhttp_uri *uri, const char *fragment)
 }
 
 int
-evhttp_get_remote_addr(struct evhttp_connection *evcon, void *dst, int *len)
+evhttp_get_remote_addr(struct evhttp_connection *evcon, void *dst, ev_socklen_t *len)
 {
-	return getpeername(bufferevent_getfd(evhttp_connection_get_bufferevent(evcon)), dst, len);
+	return evutil_getpeername(bufferevent_getfd(evhttp_connection_get_bufferevent(evcon)), dst, len);
 }
 

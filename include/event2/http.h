@@ -935,7 +935,7 @@ char *evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit);
     @param number of bytes written to dst
     @return 0 on success, -1 on failure
 */
-int evhttp_get_remote_addr(struct evhttp_connection *evcon, void *dst, int *len);
+int evhttp_get_remote_addr(struct evhttp_connection *evcon, void *dst, ev_socklen_t *len);
 
 #ifdef __cplusplus
 }

@@ -3602,7 +3602,7 @@ http_remote_addr_test(void *arg)
 	ev_uint16_t port = 0;
 	// Even if it was ipv4, sizeof ipv6 must be enough
 	struct in6_addr in6;
-	int len;
+	ev_socklen_t len;
 
 	http = http_setup(&port, data->base);
 
