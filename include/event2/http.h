@@ -927,9 +927,6 @@ char *evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit);
 /**
     Get remote address.
 
-    TODO more verbose
-    TODO replace (int*) by something from #define because unix * win32 has different specifications - http://msdn.microsoft.com/en-us/library/aa915679.aspx
-
     @param evcon the evhttp_connection object over which to send the request
     @param pointer to address structure to store in
     @param number of bytes written to dst
