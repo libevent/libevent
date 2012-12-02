@@ -717,7 +717,7 @@ int evutil_secure_rng_init(void);
  */
 void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
 
-int evutil_getpeername(int sockfd, struct sockaddr *addr, ev_socklen_t *addrlen);
+int evutil_getpeername(evutil_socket_t sockfd, struct sockaddr *addr, ev_socklen_t *addrlen);
 
 #ifdef __cplusplus
 }

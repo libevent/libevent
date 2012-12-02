@@ -2532,7 +2532,7 @@ evutil_free_globals_(void)
 }
 
 int
-evutil_getpeername(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+evutil_getpeername(evutil_socket_t sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
     return getpeername(sockfd, addr, addrlen);
 }
