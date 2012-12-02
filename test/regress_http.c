@@ -3601,8 +3601,11 @@ http_remote_addr_test(void *arg)
 	struct evhttp_request *req = NULL;
 	ev_uint16_t port = 0;
 	// Even if it was ipv4, sizeof ipv6 must be enough
-	struct in6_addr in6;
-	ev_socklen_t len;
+	struct sockaddr_storage addr;
+	char ip_buffer[NI_MAXSERV];
+	const char *ip_buffer_ptr;
+	ev_socklen_t len = sizeof(addr);
+
 
 	http = http_setup(&port, data->base);
 
@@ -3630,14 +3633,21 @@ http_remote_addr_test(void *arg)
 	}
 
 	event_base_dispatch(data->base);
-
 	tt_assert(test_ok);
 
-	if (evhttp_get_remote_addr(evcon, &in6, &len)) {
-		test_ok = 0;
-		tt_abort_perror("getpeername");
-	}
+	tt_assert(!evhttp_get_remote_addr(evcon, &addr, &len));
 
+	// TODO : maybe compare not by string, but by "addr.sin6_addr.s6_addr" binary representation.
+	if (addr.ss_family == AF_INET) {
+		ip_buffer_ptr = evutil_inet_ntop(AF_INET, &((struct sockaddr_in *)&addr)->sin_addr, ip_buffer, NI_MAXSERV);
+		tt_assert(ip_buffer_ptr);
+		tt_assert(!strcmp(ip_buffer, "127.0.0.1"));
+	} else if (addr.ss_family == AF_INET6) {
+		ip_buffer_ptr = evutil_inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&addr)->sin6_addr, ip_buffer, NI_MAXSERV);
+		tt_assert(ip_buffer_ptr);
+		tt_assert(!strcmp(ip_buffer, "::1"));
+	}
+	
  end:
 	if (evcon)
 		evhttp_connection_free(evcon);
