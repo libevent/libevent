@@ -3600,6 +3600,9 @@ http_remote_addr_test(void *arg)
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	ev_uint16_t port = 0;
+	// Even if it was ipv4, sizeof ipv6 must be enough
+	struct in6_addr in6;
+	int len;
 
 	http = http_setup(&port, data->base);
 
@@ -3630,9 +3633,6 @@ http_remote_addr_test(void *arg)
 
 	tt_assert(test_ok);
 
-	// Even if it was ipv4, sizeof ipv6 must be enough
-	struct in6_addr in6;
-	int len;
 	if (evhttp_get_remote_addr(evcon, &in6, &len)) {
 		test_ok = 0;
 		tt_abort_perror("getpeername");
