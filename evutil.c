@@ -2534,5 +2534,17 @@ evutil_free_globals_(void)
 int
 evutil_getpeername(evutil_socket_t sockfd, struct sockaddr *addr, socklen_t *addrlen)
 {
-    return getpeername(sockfd, addr, addrlen);
+#ifdef _WIN32
+	if (getpeername(sockfd, addr, addrlen) == SOCKET_ERROR) {
+		event_sock_warn(sockfd, "getpeername(%d)", (int)sockfd);
+		return -1;
+	}
+#else
+	if (getpeername(sockfd, addr, addrlen) == -1) {
+		event_sock_warn(sockfd, "getpeername(%d)", sockfd);
+		return -1;
+	}
+#endif
+
+	 return 0;
 }
