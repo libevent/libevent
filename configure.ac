@@ -334,6 +334,7 @@ AC_CHECK_FUNCS([ \
   getifaddrs \
   getnameinfo \
   getprotobynumber \
+  getpeername \
   gettimeofday \
   inet_aton \
   inet_ntop \
