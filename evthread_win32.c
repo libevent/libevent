@@ -112,7 +112,7 @@ evthread_win32_condvar_init(void)
 #define LOAD(name)				\
 	name##_fn = GetProcAddress(lib, #name)
 	LOAD(InitializeConditionVariable);
-	LOAD(SleepConditionVariable);
+	LOAD(SleepConditionVariableCS);
 	LOAD(WakeAllConditionVariable);
 	LOAD(WakeConditionVariable);
 
