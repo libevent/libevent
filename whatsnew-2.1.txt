@@ -351,7 +351,7 @@
   than 1 millisecond.  But Libevent had been using CLOCK_MONOTONIC for
   timekeeping on Linux, which is needlessly expensive: CLOCK_MONOTONIC_COARSE
   has approximately the resolution corresponding to epoll, and is much faster
-  to invoke than CLOCK_MONOTONIC_COARSE.
+  to invoke than CLOCK_MONOTONIC.
 
   To disable coarse timers, and get a more plausible precision, use the
   new EVENT_BASE_FLAG_PRECISE_TIMER flag when setting up your event base.
