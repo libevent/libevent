@@ -259,7 +259,6 @@ evutil_ersatz_socketpair(int family, int type, int protocol,
 		goto tidy_up_and_fail;
 	if (size != sizeof(listen_addr))
 		goto abort_tidy_up_and_fail;
-	evutil_closesocket(listener);
 	/* Now check we are talking to ourself by matching port and host on the
 	   two sockets.	 */
 	if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
@@ -269,6 +268,7 @@ evutil_ersatz_socketpair(int family, int type, int protocol,
 		|| listen_addr.sin_addr.s_addr != connect_addr.sin_addr.s_addr
 		|| listen_addr.sin_port != connect_addr.sin_port)
 		goto abort_tidy_up_and_fail;
+	evutil_closesocket(listener);
 	fd[0] = connector;
 	fd[1] = acceptor;
 
