@@ -407,6 +407,7 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 			evutil_make_socket_nonblocking(new_fd);
 
 		if (lev->cb == NULL) {
+			evutil_closesocket(new_fd);
 			UNLOCK(lev);
 			return;
 		}
