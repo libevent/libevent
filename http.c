@@ -1651,7 +1651,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		break;
 	} /* switch */
 
-	if (type == EVHTTP_REQ_UNKNOWN_) {
+	if ((int)type == EVHTTP_REQ_UNKNOWN_) {
 	        event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
                 /* No error yet; we'll give a better error later when
