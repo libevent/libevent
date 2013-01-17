@@ -90,7 +90,7 @@
   remain allocated as long as it is active, so it should generally be
   allocated on the heap.
 
-  @section loop Dispaching events.
+  @section loop Dispatching events.
 
   Finally, you call event_base_dispatch() to loop and dispatch events.
   You can also use event_base_loop() for more fine-grained control.
