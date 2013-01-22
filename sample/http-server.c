@@ -132,7 +132,7 @@ dump_request_cb(struct evhttp_request *req, void *arg)
 	while (evbuffer_get_length(buf)) {
 		int n;
 		char cbuf[128];
-		n = evbuffer_remove(buf, cbuf, sizeof(buf)-1);
+		n = evbuffer_remove(buf, cbuf, sizeof(cbuf));
 		if (n > 0)
 			(void) fwrite(cbuf, 1, n, stdout);
 	}
