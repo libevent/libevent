@@ -1325,6 +1325,9 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	struct evhttp_connection *evcon = arg;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 
+	if (evcon->fd == -1)
+		evcon->fd = bufferevent_getfd(bufev);
+
 	switch (evcon->state) {
 	case EVCON_CONNECTING:
 		if (what & BEV_EVENT_TIMEOUT) {
@@ -1389,6 +1392,9 @@ evhttp_connection_cb(struct bufferevent *bufev, short what, void *arg)
 	struct evhttp_connection *evcon = arg;
 	int error;
 	ev_socklen_t errsz = sizeof(error);
+
+	if (evcon->fd == -1)
+		evcon->fd = bufferevent_getfd(bufev);
 
 	if (!(what & BEV_EVENT_CONNECTED)) {
 		/* some operating systems return ECONNREFUSED immediately
@@ -2191,16 +2197,21 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	EVUTIL_ASSERT(!(evcon->flags & EVHTTP_CON_INCOMING));
 	evcon->flags |= EVHTTP_CON_OUTGOING;
 
-	evcon->fd = bind_socket(
-		evcon->bind_address, evcon->bind_port, 0 /*reuse*/);
-	if (evcon->fd == -1) {
-		event_debug(("%s: failed to bind to \"%s\"",
-			__func__, evcon->bind_address));
-		return (-1);
+	if (evcon->bind_address || evcon->bind_port) {
+		evcon->fd = bind_socket(
+			evcon->bind_address, evcon->bind_port, 0 /*reuse*/);
+		if (evcon->fd == -1) {
+			event_debug(("%s: failed to bind to \"%s\"",
+				__func__, evcon->bind_address));
+			return (-1);
+		}
+
+		bufferevent_setfd(evcon->bufev, evcon->fd);
+	} else {
+		bufferevent_setfd(evcon->bufev, -1);
 	}
 
 	/* Set up a callback for successful connection setup */
-	bufferevent_setfd(evcon->bufev, evcon->fd);
 	bufferevent_setcb(evcon->bufev,
 	    NULL /* evhttp_read_cb */,
 	    NULL /* evhttp_write_cb */,
