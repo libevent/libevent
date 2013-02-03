@@ -679,6 +679,14 @@ AC_CHECK_MEMBERS([struct in6_addr.s6_addr32, struct in6_addr.s6_addr16, struct s
 #endif
 ])
 
+AC_CHECK_TYPES([struct so_linger],
+[#define HAVE_SO_LINGER], ,
+[
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+])
+
 AC_MSG_CHECKING([for socklen_t])
 AC_TRY_COMPILE([
  #include <sys/types.h>
