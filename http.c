@@ -2405,17 +2405,17 @@ evhttp_make_request(struct evhttp_connection *evcon,
 	req->evcon = evcon;
 	EVUTIL_ASSERT(!(req->flags & EVHTTP_REQ_OWN_CONNECTION));
 
-       TAILQ_INSERT_TAIL(&evcon->requests, req, next);
+	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
 	/* If the connection object is not connected; make it so */
 	if (!evhttp_connected(evcon)) {
 		int res = evhttp_connection_connect_(evcon);
-	       /* evhttp_connection_fail_(), which is called through
-		* evhttp_connection_connect_(), assumes that req lies in
-		* evcon->requests.  Thus, enqueue the request in advance and r
-		* it in the error case. */
-	       if (res != 0)
-		       TAILQ_REMOVE(&evcon->requests, req, next);
+		/* evhttp_connection_fail_(), which is called through
+		 * evhttp_connection_connect_(), assumes that req lies in
+		 * evcon->requests.  Thus, enqueue the request in advance and
+		 * remove it in the error case. */
+		if (res != 0)
+			TAILQ_REMOVE(&evcon->requests, req, next);
 
 		return res;
 	}
