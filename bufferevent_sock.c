@@ -515,7 +515,7 @@ bufferevent_socket_get_dns_error(struct bufferevent *bev)
 
 	BEV_LOCK(bev);
 	rv = bev_p->dns_error;
-	BEV_LOCK(bev);
+	BEV_UNLOCK(bev);
 
 	return rv;
 }
