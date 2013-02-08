@@ -81,6 +81,7 @@
 #include "util-internal.h"
 #include "log-internal.h"
 #include "mm-internal.h"
+#include "evthread-internal.h"
 
 #include "strlcpy-internal.h"
 #include "ipv6-internal.h"
@@ -1597,80 +1598,137 @@ evutil_gai_strerror(int err)
 }
 
 #ifdef _WIN32
-#define E(code, s) { code, (s " [" #code " ]") }
-static struct { int code; const char *msg; } windows_socket_errors[] = {
-  E(WSAEINTR, "Interrupted function call"),
-  E(WSAEACCES, "Permission denied"),
-  E(WSAEFAULT, "Bad address"),
-  E(WSAEINVAL, "Invalid argument"),
-  E(WSAEMFILE, "Too many open files"),
-  E(WSAEWOULDBLOCK,  "Resource temporarily unavailable"),
-  E(WSAEINPROGRESS, "Operation now in progress"),
-  E(WSAEALREADY, "Operation already in progress"),
-  E(WSAENOTSOCK, "Socket operation on nonsocket"),
-  E(WSAEDESTADDRREQ, "Destination address required"),
-  E(WSAEMSGSIZE, "Message too long"),
-  E(WSAEPROTOTYPE, "Protocol wrong for socket"),
-  E(WSAENOPROTOOPT, "Bad protocol option"),
-  E(WSAEPROTONOSUPPORT, "Protocol not supported"),
-  E(WSAESOCKTNOSUPPORT, "Socket type not supported"),
-  /* What's the difference between NOTSUPP and NOSUPPORT? :) */
-  E(WSAEOPNOTSUPP, "Operation not supported"),
-  E(WSAEPFNOSUPPORT,  "Protocol family not supported"),
-  E(WSAEAFNOSUPPORT, "Address family not supported by protocol family"),
-  E(WSAEADDRINUSE, "Address already in use"),
-  E(WSAEADDRNOTAVAIL, "Cannot assign requested address"),
-  E(WSAENETDOWN, "Network is down"),
-  E(WSAENETUNREACH, "Network is unreachable"),
-  E(WSAENETRESET, "Network dropped connection on reset"),
-  E(WSAECONNABORTED, "Software caused connection abort"),
-  E(WSAECONNRESET, "Connection reset by peer"),
-  E(WSAENOBUFS, "No buffer space available"),
-  E(WSAEISCONN, "Socket is already connected"),
-  E(WSAENOTCONN, "Socket is not connected"),
-  E(WSAESHUTDOWN, "Cannot send after socket shutdown"),
-  E(WSAETIMEDOUT, "Connection timed out"),
-  E(WSAECONNREFUSED, "Connection refused"),
-  E(WSAEHOSTDOWN, "Host is down"),
-  E(WSAEHOSTUNREACH, "No route to host"),
-  E(WSAEPROCLIM, "Too many processes"),
+/* destructively remove a trailing line terminator from s */
+static void
+chomp (char *s)
+{
+	size_t len;
+	if (s && (len = strlen (s)) > 0 && s[len - 1] == '\n') {
+		s[--len] = 0;
+		if (len > 0 && s[len - 1] == '\r')
+			s[--len] = 0;
+	}
+}
 
-  /* Yes, some of these start with WSA, not WSAE. No, I don't know why. */
-  E(WSASYSNOTREADY, "Network subsystem is unavailable"),
-  E(WSAVERNOTSUPPORTED, "Winsock.dll out of range"),
-  E(WSANOTINITIALISED, "Successful WSAStartup not yet performed"),
-  E(WSAEDISCON, "Graceful shutdown now in progress"),
-#ifdef WSATYPE_NOT_FOUND
-  E(WSATYPE_NOT_FOUND, "Class type not found"),
-#endif
-  E(WSAHOST_NOT_FOUND, "Host not found"),
-  E(WSATRY_AGAIN, "Nonauthoritative host not found"),
-  E(WSANO_RECOVERY, "This is a nonrecoverable error"),
-  E(WSANO_DATA, "Valid name, no data record of requested type)"),
+/* FormatMessage returns allocated strings, but evutil_socket_error_to_string
+ * is supposed to return a string which is good indefinitely without having
+ * to be freed.  To make this work without leaking memory, we cache the
+ * string the first time FormatMessage is called on a particular error
+ * code, and then return the cached string on subsequent calls with the
+ * same code.  The strings aren't freed until libevent_global_shutdown
+ * (or never).  We use a linked list to cache the errors, because we
+ * only expect there to be a few dozen, and that should be fast enough.
+ */
 
-  /* There are some more error codes whose numeric values are marked
-   * <b>OS dependent</b>. They start with WSA_, apparently for the same
-   * reason that practitioners of some craft traditions deliberately
-   * introduce imperfections into their baskets and rugs "to allow the
-   * evil spirits to escape."  If we catch them, then our binaries
-   * might not report consistent results across versions of Windows.
-   * Thus, I'm going to let them all fall through.
-   */
-  { -1, NULL },
+struct cached_sock_errs {
+	DWORD code;
+	char *msg; /* allocated with LocalAlloc; free with LocalFree */
+	struct cached_sock_errs *next;
 };
-#undef E
+
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+static void *windows_socket_errors_lock_ = NULL;
+#endif
+
+static struct cached_sock_errs *windows_socket_errors;
+
 /** Equivalent to strerror, but for windows socket errors. */
 const char *
 evutil_socket_error_to_string(int errcode)
 {
-  /* XXXX Is there really no built-in function to do this? */
-  int i;
-  for (i=0; windows_socket_errors[i].code >= 0; ++i) {
-    if (errcode == windows_socket_errors[i].code)
-      return windows_socket_errors[i].msg;
-  }
-  return strerror(errcode);
+	struct cached_sock_errs *errs, *newerr;
+	char *msg = NULL;
+
+	EVLOCK_LOCK(windows_socket_errors_lock_, 0);
+
+	for (errs = windows_socket_errors; errs != NULL; errs = errs->next)
+		if (errs->code == errcode) {
+			msg = errs->msg;
+			goto done;
+		}
+
+	if (0 != FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+			       FORMAT_MESSAGE_IGNORE_INSERTS |
+			       FORMAT_MESSAGE_ALLOCATE_BUFFER,
+			       NULL, errcode, 0, (LPTSTR)&msg, 0, NULL))
+		chomp (msg);	/* because message has trailing newline */
+	else {
+		size_t len = 50;
+		/* use LocalAlloc because FormatMessage does */
+		msg = LocalAlloc(LMEM_FIXED, len);
+		if (!msg) {
+			msg = "winsock error";
+			goto done;
+		}
+		evutil_snprintf(msg, len, "winsock error 0x%08x", errcode);
+	}
+
+	newerr = (struct cached_sock_errs *)
+		mm_malloc(sizeof (struct cached_sock_errs));
+
+	if (!newerr) {
+		LocalFree(msg);
+		msg = "winsock error";
+		goto done;
+	}
+
+	newerr->code = errcode;
+	newerr->msg = msg;
+	newerr->next = windows_socket_errors;
+	windows_socket_errors = newerr;
+
+ done:
+	EVLOCK_UNLOCK(windows_socket_errors_lock_, 0);
+
+	return msg;
 }
+
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+int
+evutil_global_setup_locks_(const int enable_locks)
+{
+	EVTHREAD_SETUP_GLOBAL_LOCK(windows_socket_errors_lock_, 0);
+	return 0;
+}
+#endif
+
+static void
+evutil_free_sock_err_globals(void)
+{
+	struct cached_sock_errs *errs, *tofree;
+
+	for (errs = windows_socket_errors; errs != NULL; ) {
+		LocalFree (errs->msg);
+		tofree = errs;
+		errs = errs->next;
+		mm_free (tofree);
+	}
+
+	windows_socket_errors = NULL;
+
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+	if (windows_socket_errors_lock_ != NULL) {
+		EVTHREAD_FREE_LOCK(windows_socket_errors_lock_, 0);
+		windows_socket_errors_lock_ = NULL;
+	}
+#endif
+}
+
+#else
+
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+int
+evutil_global_setup_locks_(const int enable_locks)
+{
+	return 0;
+}
+#endif
+
+static void
+evutil_free_sock_err_globals(void)
+{
+}
+
 #endif
 
 int
@@ -2529,4 +2587,5 @@ void
 evutil_free_globals_(void)
 {
 	evutil_free_secure_rng_globals_();
+	evutil_free_sock_err_globals();
 }
