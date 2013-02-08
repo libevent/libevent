@@ -69,4 +69,4 @@ regress.gen.c regress.gen.h: regress.rpc ../event_rpcgen.py
 clean:
 	-del $(REGRESS_OBJS)
 	-del $(OTHER_OBJS)
-	-del regress.exe
+	-del $(PROGRAMS)
