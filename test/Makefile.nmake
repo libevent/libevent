@@ -24,11 +24,13 @@ REGRESS_OBJS=regress.obj regress_buffer.obj regress_http.obj regress_dns.obj \
 
 OTHER_OBJS=test-init.obj test-eof.obj test-weof.obj test-time.obj \
 	bench.obj bench_cascade.obj bench_http.obj bench_httpclient.obj \
-	test-changelist.obj
+	test-changelist.obj \
+	print-winsock-errors.obj
 
 PROGRAMS=regress.exe \
 	test-init.exe test-eof.exe test-weof.exe test-time.exe \
-	test-changelist.exe
+	test-changelist.exe \
+	print-winsock-errors.exe
 
 # Disabled for now:
 #	bench.exe bench_cascade.exe bench_http.exe bench_httpclient.exe
@@ -51,6 +53,9 @@ test-weof.exe: test-weof.obj
 	$(CC) $(CFLAGS) $(LIBS) test-weof.obj
 test-time.exe: test-time.obj
 	$(CC) $(CFLAGS) $(LIBS) test-time.obj
+
+print-winsock-errors.exe: print-winsock-errors.obj
+	$(CC) $(CFLAGS) $(LIBS) print-winsock-errors.obj
 
 bench.exe: bench.obj
 	$(CC) $(CFLAGS) $(LIBS) bench.obj
