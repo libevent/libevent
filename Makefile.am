@@ -135,6 +135,7 @@ noinst_HEADERS=
 noinst_PROGRAMS=
 EXTRA_PROGRAMS=
 CLEANFILES=
+DISTCLEANFILES=
 BUILT_SOURCES =
 include include/include.am
 include sample/include.am
@@ -293,5 +294,5 @@ doxygen: FORCE
 	doxygen $(srcdir)/Doxyfile
 FORCE:
 
-DISTCLEANFILES = *~ libevent.pc ./include/event2/event-config.h
+DISTCLEANFILES += *~ libevent.pc ./include/event2/event-config.h
 

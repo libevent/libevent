@@ -42,7 +42,14 @@ noinst_HEADERS+=				\
 	test/tinytest_local.h			\
 	test/tinytest_macros.h
 
-TESTS = $(top_srcdir)/test/test.sh
+# We need to copy this file, since automake doesn't want us to use top_srcdir
+# in TESTS.
+TESTS = test/test-script.sh
+
+test/test-script.sh: test/test.sh
+	cp $< $@
+
+DISTCLEANFILES += test/test-script.sh
 
 if BUILD_REGRESS
 BUILT_SOURCES += test/regress.gen.c test/regress.gen.h
