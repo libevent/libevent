@@ -19,7 +19,14 @@ endif
 EXTRA_PROGRAMS = regress
 noinst_HEADERS = tinytest.h tinytest_macros.h regress.h tinytest_local.h
 
-TESTS = $(top_srcdir)/test/test.sh
+# We need to copy this file, since automake doesn't want us to use top_srcdir
+# in TESTS.
+TESTS = test-script.sh
+
+test-script.sh: test.sh
+	cp $< $@
+
+DISTCLEANFILES = test-script.sh
 
 BUILT_SOURCES =
 if BUILD_REGRESS
@@ -91,7 +98,7 @@ rpcgen-attempted: $(srcdir)/regress.rpc $(srcdir)/../event_rpcgen.py $(srcdir)/r
 
 CLEANFILES = rpcgen-attempted
 
-DISTCLEANFILES = *~
+DISTCLEANFILES += *~
 
 verify: check
 
