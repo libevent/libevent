@@ -78,6 +78,7 @@ libevent_openssl.pc
 /sample/hello-world
 /sample/http-server
 /sample/le-proxy
+/sample/https-client
 /sample/signal-test
 /sample/time-test
 
