@@ -12,7 +12,7 @@
 
 int main (int argc, char **argv)
 {
-  int i;
+  int i, j;
   const char *s1, *s2;
 
   evthread_use_windows_threads ();
@@ -64,6 +64,14 @@ int main (int argc, char **argv)
     E(WSATRY_AGAIN);
     E(WSANO_RECOVERY);
     E(WSANO_DATA);
+    E(0xdeadbeef); /* test the case where no message is available */
+
+    /* fill up the hash table a bit to make sure it grows properly */
+    for (j = 0; j < 50; j++) {
+      int err;
+      evutil_secure_rng_get_bytes(&err, sizeof(err));
+      evutil_socket_error_to_string(err);
+    }
   }
 
   s2 = evutil_socket_error_to_string (WSAEINTR);
