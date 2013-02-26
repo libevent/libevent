@@ -45,7 +45,27 @@ http_request_done(struct evhttp_request *req, void *ctx)
 	int nread;
 
 	if (req == NULL) {
+		/* If req is NULL, it means an error occurred, but
+		 * sadly we are mostly left guessing what the error
+		 * might have been.  We'll do our best... */
+		struct bufferevent *bev = (struct bufferevent *) ctx;
+		unsigned long oslerr;
+		int printed_err = 0;
+		int errcode = EVUTIL_SOCKET_ERROR();
 		fprintf(stderr, "some request failed - no idea which one though!\n");
+		/* Print out the OpenSSL error queue that libevent
+		 * squirreled away for us, if any. */
+		while ((oslerr = bufferevent_get_openssl_error(bev))) {
+			ERR_error_string_n(oslerr, buffer, sizeof(buffer));
+			fprintf(stderr, "%s\n", buffer);
+			printed_err = 1;
+		}
+		/* If the OpenSSL error queue was empty, maybe it was a
+		 * socket error; let's try printing that. */
+		if (! printed_err)
+			fprintf(stderr, "socket error = %s (%d)\n",
+				evutil_socket_error_to_string(errcode),
+				errcode);
 		return;
 	}
 
@@ -75,6 +95,18 @@ static void
 die(const char *msg)
 {
 	fputs(msg, stderr);
+	exit(1);
+}
+
+static void
+die_openssl(const char *func)
+{
+	fprintf (stderr, "%s failed:\n", func);
+
+	/* This is the OpenSSL function that prints the contents of the
+	 * error stack to the specified file handle. */
+	ERR_print_errors_fp (stderr);
+
 	exit(1);
 }
 
@@ -137,12 +169,18 @@ main(int argc, char **argv)
 	ERR_load_crypto_strings();
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
+
+	/* This isn't strictly necessary... OpenSSL performs RAND_poll
+	 * automatically on first use of random number generator. */
 	r = RAND_poll();
 	if (r == 0) {
-		fprintf(stderr, "RAND_poll() failed.\n");
-		return 1;
+		die_openssl("RAND_poll");
 	}
+
+	/* Create a new OpenSSL context */
 	ssl_ctx = SSL_CTX_new(SSLv23_method());
+	if (!ssl_ctx)
+		die_openssl("SSL_CTX_new");
 
 	// Create event base
 	base = event_base_new();
@@ -154,8 +192,7 @@ main(int argc, char **argv)
 	// Create OpenSSL bufferevent and stack evhttp on top of it
 	ssl = SSL_new(ssl_ctx);
 	if (ssl == NULL) {
-		fprintf(stderr, "SSL_new() failed\n");
-		return 1;
+		die_openssl("SSL_new()");
 	}
 
 	if (strcasecmp(scheme, "http") == 0) {
@@ -183,7 +220,7 @@ main(int argc, char **argv)
 	}
 
 	// Fire off the request
-	req = evhttp_request_new(http_request_done, NULL);
+	req = evhttp_request_new(http_request_done, bev);
 	if (req == NULL) {
 		fprintf(stderr, "evhttp_request_new() failed\n");
 		return 1;
