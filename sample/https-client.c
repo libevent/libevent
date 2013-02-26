@@ -182,6 +182,14 @@ main(int argc, char **argv)
 	if (!ssl_ctx)
 		die_openssl("SSL_CTX_new");
 
+	/* Attempt to use the system's trusted root certificates.
+	 * (This path is only valid for Debian-based systems.) */
+	if (1 != SSL_CTX_load_verify_locations(ssl_ctx,
+					       "/etc/ssl/certs/ca-certificates.crt",
+					       NULL))
+		die_openssl("SSL_CTX_load_verify_locations");
+	SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
+
 	// Create event base
 	base = event_base_new();
 	if (!base) {
