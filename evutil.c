@@ -87,6 +87,8 @@
 #include "ipv6-internal.h"
 
 #ifdef _WIN32
+#define HT_NO_CACHE_HASH_VALUES
+#include "ht-internal.h"
 #define open _open
 #define read _read
 #define close _close
@@ -1620,32 +1622,70 @@ chomp (char *s)
  * only expect there to be a few dozen, and that should be fast enough.
  */
 
-struct cached_sock_errs {
+struct cached_sock_errs_entry {
+	HT_ENTRY(cached_sock_errs_entry) node;
 	DWORD code;
 	char *msg; /* allocated with LocalAlloc; free with LocalFree */
-	struct cached_sock_errs *next;
 };
+
+static inline unsigned
+hash_cached_sock_errs(const struct cached_sock_errs_entry *e)
+{
+	/* Use Murmur3's 32-bit finalizer as an integer hash function */
+	DWORD h = e->code;
+	h ^= h >> 16;
+	h *= 0x85ebca6b;
+	h ^= h >> 13;
+	h *= 0xc2b2ae35;
+	h ^= h >> 16;
+	return h;
+}
+
+static inline int
+eq_cached_sock_errs(const struct cached_sock_errs_entry *a,
+		    const struct cached_sock_errs_entry *b)
+{
+	return a->code == b->code;
+}
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 static void *windows_socket_errors_lock_ = NULL;
 #endif
 
-static struct cached_sock_errs *windows_socket_errors;
+static HT_HEAD(cached_sock_errs_map, cached_sock_errs_entry)
+     windows_socket_errors = HT_INITIALIZER();
+
+HT_PROTOTYPE(cached_sock_errs_map,
+	     cached_sock_errs_entry,
+	     node,
+	     hash_cached_sock_errs,
+	     eq_cached_sock_errs);
+
+HT_GENERATE(cached_sock_errs_map,
+	    cached_sock_errs_entry,
+	    node,
+	    hash_cached_sock_errs,
+	    eq_cached_sock_errs,
+	    0.5,
+	    mm_malloc,
+	    mm_realloc,
+	    mm_free);
 
 /** Equivalent to strerror, but for windows socket errors. */
 const char *
 evutil_socket_error_to_string(int errcode)
 {
-	struct cached_sock_errs *errs, *newerr;
+	struct cached_sock_errs_entry *errs, *newerr, find;
 	char *msg = NULL;
 
 	EVLOCK_LOCK(windows_socket_errors_lock_, 0);
 
-	for (errs = windows_socket_errors; errs != NULL; errs = errs->next)
-		if (errs->code == errcode) {
-			msg = errs->msg;
-			goto done;
-		}
+	find.code = errcode;
+	errs = HT_FIND(cached_sock_errs_map, &windows_socket_errors, &find);
+	if (errs) {
+		msg = errs->msg;
+		goto done;
+	}
 
 	if (0 != FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
 			       FORMAT_MESSAGE_IGNORE_INSERTS |
@@ -1663,8 +1703,8 @@ evutil_socket_error_to_string(int errcode)
 		evutil_snprintf(msg, len, "winsock error 0x%08x", errcode);
 	}
 
-	newerr = (struct cached_sock_errs *)
-		mm_malloc(sizeof (struct cached_sock_errs));
+	newerr = (struct cached_sock_errs_entry *)
+		mm_malloc(sizeof (struct cached_sock_errs_entry));
 
 	if (!newerr) {
 		LocalFree(msg);
@@ -1674,8 +1714,7 @@ evutil_socket_error_to_string(int errcode)
 
 	newerr->code = errcode;
 	newerr->msg = msg;
-	newerr->next = windows_socket_errors;
-	windows_socket_errors = newerr;
+	HT_INSERT(cached_sock_errs_map, &windows_socket_errors, newerr);
 
  done:
 	EVLOCK_UNLOCK(windows_socket_errors_lock_, 0);
@@ -1695,16 +1734,19 @@ evutil_global_setup_locks_(const int enable_locks)
 static void
 evutil_free_sock_err_globals(void)
 {
-	struct cached_sock_errs *errs, *tofree;
+	struct cached_sock_errs_entry **errs, *tofree;
 
-	for (errs = windows_socket_errors; errs != NULL; ) {
-		LocalFree (errs->msg);
-		tofree = errs;
-		errs = errs->next;
-		mm_free (tofree);
+	for (errs = HT_START(cached_sock_errs_map, &windows_socket_errors)
+		     ; errs; ) {
+		tofree = *errs;
+		errs = HT_NEXT_RMV(cached_sock_errs_map,
+				   &windows_socket_errors,
+				   errs);
+		LocalFree(tofree->msg);
+		mm_free(tofree);
 	}
 
-	windows_socket_errors = NULL;
+	HT_CLEAR(cached_sock_errs_map, &windows_socket_errors);
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	if (windows_socket_errors_lock_ != NULL) {
