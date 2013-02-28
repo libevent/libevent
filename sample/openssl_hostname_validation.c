@@ -39,7 +39,7 @@ SOFTWARE.
 #include <openssl/ssl.h>
 
 #include "openssl_hostname_validation.h"
-
+#include "hostcheck.h"
 
 #define HOSTNAME_MAX_SIZE 255
 
@@ -82,7 +82,7 @@ static HostnameValidationResult matches_common_name(const char *hostname, const 
         }
 
         // Compare expected hostname with the CN
-        if (strcasecmp(hostname, common_name_str) == 0) {
+        if (Curl_cert_hostcheck(common_name_str, hostname) == CURL_HOST_MATCH) {
                 return MatchFound;
         }
         else {
@@ -126,7 +126,8 @@ static HostnameValidationResult matches_subject_alternative_name(const char *hos
                                 break;
                         }
                         else { // Compare expected hostname with the DNS name
-                                if (strcasecmp(hostname, dns_name) == 0) {
+                                if (Curl_cert_hostcheck(dns_name, hostname)
+                                    == CURL_HOST_MATCH) {
                                         result = MatchFound;
                                         break;
                                 }
