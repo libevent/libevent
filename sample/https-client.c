@@ -36,6 +36,8 @@
 #include <openssl/err.h>
 #include <openssl/rand.h>
 
+#include "openssl_hostname_validation.h"
+
 static struct event_base *base;
 
 static void
@@ -108,6 +110,61 @@ die_openssl(const char *func)
 	ERR_print_errors_fp (stderr);
 
 	exit(1);
+}
+
+/* See http://archives.seul.org/libevent/users/Jan-2013/msg00039.html */
+static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
+{
+	char cert_str[256];
+	const char *host = (const char *) arg;
+	const char *res_str = "X509_verify_cert failed";
+	HostnameValidationResult res = Error;
+
+	/* This is the function that OpenSSL would call if we hadn't called
+	 * SSL_CTX_set_cert_verify_callback().  Therefore, we are "wrapping"
+	 * the default functionality, rather than replacing it. */
+	int ok_so_far = X509_verify_cert(x509_ctx);
+
+	X509 *server_cert = X509_STORE_CTX_get_current_cert(x509_ctx);
+
+	if (ok_so_far) {
+		res = validate_hostname(host, server_cert);
+
+		switch (res) {
+		case MatchFound:
+			res_str = "MatchFound";
+			break;
+		case MatchNotFound:
+			res_str = "MatchNotFound";
+			break;
+		case NoSANPresent:
+			res_str = "NoSANPresent";
+			break;
+		case MalformedCertificate:
+			res_str = "MalformedCertificate";
+			break;
+		case Error:
+			res_str = "Error";
+			break;
+		default:
+			res_str = "WTF!";
+			break;
+		}
+	}
+
+	X509_NAME_oneline(X509_get_subject_name (server_cert),
+			  cert_str, sizeof (cert_str));
+
+	if (res == MatchFound) {
+		printf("https server '%s' has this certificate, "
+		       "which looks good to me:\n%s\n",
+		       host, cert_str);
+		return 1;
+	} else {
+		printf("Got '%s' for hostname '%s' and certificate:\n%s\n",
+		       res_str, host, cert_str);
+		return 0;
+	}
 }
 
 int
@@ -188,7 +245,30 @@ main(int argc, char **argv)
 					       "/etc/ssl/certs/ca-certificates.crt",
 					       NULL))
 		die_openssl("SSL_CTX_load_verify_locations");
+	/* Ask OpenSSL to verify the server certificate.  Note that this
+	 * does NOT include verifying that the hostname is correct.
+	 * So, by itself, this means anyone with any legitimate
+	 * CA-issued certificate for any website, can impersonate any
+	 * other website in the world.  This is not good.  See "The
+	 * Most Dangerous Code in the World" article at
+	 * https://crypto.stanford.edu/~dabo/pubs/abstracts/ssl-client-bugs.html
+	 */
 	SSL_CTX_set_verify(ssl_ctx, SSL_VERIFY_PEER, NULL);
+	/* This is how we solve the problem mentioned in the previous
+	 * comment.  We "wrap" OpenSSL's validation routine in our
+	 * own routine, which also validates the hostname by calling
+	 * the code provided by iSECPartners.  Note that even though
+	 * the "Everything You've Always Wanted to Know About
+	 * Certificate Validation With OpenSSL (But Were Afraid to
+	 * Ask)" paper from iSECPartners says very explicitly not to
+	 * call SSL_CTX_set_cert_verify_callback (at the bottom of
+	 * page 2), what we're doing here is safe because our
+	 * cert_verify_callback() calls X509_verify_cert(), which is
+	 * OpenSSL's built-in routine which would have been called if
+	 * we hadn't set the callback.  Therefore, we're just
+	 * "wrapping" OpenSSL's routine, not replacing it. */
+	SSL_CTX_set_cert_verify_callback (ssl_ctx, cert_verify_callback,
+					  (void *) host);
 
 	// Create event base
 	base = event_base_new();
