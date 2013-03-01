@@ -193,8 +193,6 @@ static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request
 static void evhttp_read_cb(struct bufferevent *, void *);
 static void evhttp_write_cb(struct bufferevent *, void *);
 static void evhttp_error_cb(struct bufferevent *bufev, short what, void *arg);
-static int evhttp_decode_uri_internal(const char *uri, size_t length,
-    char *ret, int decode_plus);
 static int evhttp_find_vhost(struct evhttp *http, struct evhttp **outhttp,
 		  const char *hostname);
 
@@ -2873,7 +2871,7 @@ evhttp_encode_uri(const char *str)
  *     a ?.  -1 is deprecated.
  * @return the number of bytes written to 'ret'.
  */
-static int
+int
 evhttp_decode_uri_internal(
 	const char *uri, size_t length, char *ret, int decode_plus_ctl)
 {
