@@ -2396,6 +2396,7 @@ http_uriencode_test(void *ptr)
 {
 	char *s=NULL, *s2=NULL;
 	size_t sz;
+	int bytes_decoded;
 
 #define ENC(from,want,plus) do {				\
 		s = evhttp_uriencode((from), -1, (plus));	\
@@ -2449,6 +2450,15 @@ http_uriencode_test(void *ptr)
 	s = evhttp_uriencode("hello\0world", 11, 0);
 	tt_assert(s);
 	tt_str_op(s,==,"hello%00world");
+	free(s);
+	s = NULL;
+
+	/* Now try decoding just part of string. */
+	s = malloc(6 + 1 /* NUL byte */);
+	bytes_decoded = evhttp_decode_uri_internal("hello%20%20", 6, s, 0);
+	tt_assert(s);
+	tt_int_op(bytes_decoded,==,6);
+	tt_str_op(s,==,"hello%");
 	free(s);
 	s = NULL;
 

@@ -197,4 +197,7 @@ void evhttp_start_read_(struct evhttp_connection *);
 void evhttp_response_code_(struct evhttp_request *, int, const char *);
 void evhttp_send_page_(struct evhttp_request *, struct evbuffer *);
 
+int evhttp_decode_uri_internal(const char *uri, size_t length,
+    char *ret, int decode_plus);
+
 #endif /* _HTTP_H */
