@@ -2378,11 +2378,17 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 				common_timeout_schedule(ctl, &now, ev);
 			}
 		} else {
+			struct event* top = NULL;
 			/* See if the earliest timeout is now earlier than it
 			 * was before: if so, we will need to tell the main
-			 * thread to wake up earlier than it would
-			 * otherwise. */
+			 * thread to wake up earlier than it would otherwise.
+			 * We double check the timeout of the top element to
+			 * handle time distortions due to system suspension.
+			 */
 			if (min_heap_elt_is_top_(ev))
+				notify = 1;
+			else if ((top = min_heap_top_(&base->timeheap)) != NULL &&
+					 evutil_timercmp(&top->ev_timeout, &now, <))
 				notify = 1;
 		}
 	}
