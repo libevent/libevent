@@ -39,6 +39,7 @@
 #include "openssl_hostname_validation.h"
 
 static struct event_base *base;
+static int ignore_cert = 0;
 
 static void
 http_request_done(struct evhttp_request *req, void *ctx)
@@ -86,9 +87,9 @@ static void
 syntax(void)
 {
 	fputs("Syntax:\n", stderr);
-	fputs("   https-client <https-url>\n", stderr);
+	fputs("   https-client -url <https-url> [-data data-file.bin] [-ignore-cert]\n", stderr);
 	fputs("Example:\n", stderr);
-	fputs("   https-client https://ip.appspot.com/\n", stderr);
+	fputs("   https-client -url https://ip.appspot.com/\n", stderr);
 
 	exit(1);
 }
@@ -115,6 +116,10 @@ die_openssl(const char *func)
 /* See http://archives.seul.org/libevent/users/Jan-2013/msg00039.html */
 static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
 {
+	if (ignore_cert) {
+		return 1;
+	}
+	
 	char cert_str[256];
 	const char *host = (const char *) arg;
 	const char *res_str = "X509_verify_cert failed";
@@ -173,7 +178,7 @@ main(int argc, char **argv)
 	int r;
 
 	struct evhttp_uri *http_uri;
-	const char *url, *scheme, *host, *path, *query;
+	const char *url = 0, *scheme, *host, *path, *query, *data_file = 0;
 	char uri[256];
 	int port;
 
@@ -183,10 +188,32 @@ main(int argc, char **argv)
 	struct evhttp_connection *evcon;
 	struct evhttp_request *req;
 
-	if (argc != 2)
-		syntax();
+	int i;
 
-	url = argv[1];
+	for (i = 1; i < argc; i++) {
+		if (!strcmp("-url", argv[i])) {
+			if (i < argc - 1) {
+				url = argv[i + 1];
+			} else {
+				syntax();
+			}
+		} else if (!strcmp("-ignore-cert", argv[i])) {
+			ignore_cert = 1;
+		} else if (!strcmp("-data", argv[i])) {
+			if (i < argc - 1) {
+				data_file = argv[i + 1];
+			} else {
+				syntax();
+			}
+		} else if (!strcmp("-help", argv[i])) {
+			syntax();
+		}
+	}
+
+	if (!url) {
+		syntax();
+	}
+
 	http_uri = evhttp_uri_parse(url);
 	if (http_uri == NULL) {
 		die("malformed url");
@@ -317,7 +344,26 @@ main(int argc, char **argv)
 	evhttp_add_header(req->output_headers, "Host", host);
 	evhttp_add_header(req->output_headers, "Connection", "close");
 
-	r = evhttp_make_request(evcon, req, EVHTTP_REQ_GET, uri);
+	if (data_file) {
+		FILE * f = fopen(data_file, "rb");
+		char buf[1024];
+		ssize_t s;
+		size_t bytes = 0;
+
+		if (!f) {
+			syntax();
+		}
+
+		while ((s = fread(buf, 1, sizeof(buf), f)) > 0) {
+			evbuffer_add(req->output_buffer, buf, s);
+			bytes += s;
+		}
+		snprintf(buf, sizeof(buf)-1, "%lu", bytes);
+		evhttp_add_header(req->output_headers, "Content-Length", buf);
+		fclose(f);
+	}
+
+	r = evhttp_make_request(evcon, req, data_file ? EVHTTP_REQ_POST : EVHTTP_REQ_GET, uri);
 	if (r != 0) {
 		fprintf(stderr, "evhttp_make_request() failed\n");
 		return 1;
