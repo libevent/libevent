@@ -1,5 +1,6 @@
 0. BUILDING AND INSTALLATION (Briefly)
 
+$ ./autogen
 $ ./configure
 $ make
 $ make verify   # (optional)
@@ -9,7 +10,7 @@ $ sudo make install
 
 To build libevent, type
 
-$ ./configure && make
+$ ./autogen && ./configure && make
 
      (If you got libevent from the git repository, you will
       first need to run the included "autogen.sh" script in order to
