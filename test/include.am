@@ -29,12 +29,10 @@ TESTPROGRAMS = \
 	test/test-weof \
 	test/regress
 
-noinst_PROGRAMS += $(TESTPROGRAMS)
-
 if BUILD_REGRESS
-noinst_PROGRAMS += test/regress
-endif
+noinst_PROGRAMS += $(TESTPROGRAMS)
 EXTRA_PROGRAMS+= test/regress
+endif
 
 noinst_HEADERS+=				\
 	test/regress.h				\
