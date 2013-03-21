@@ -56,6 +56,7 @@
 
 #include "event2/event.h"
 #include "event2/http.h"
+#include "event2/http_struct.h"
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
 #include "event2/util.h"
@@ -647,7 +648,7 @@ http_large_delay_cb(struct evhttp_request *req, void *arg)
 	tv.tv_usec = 500000;
 
 	event_base_once(arg, -1, EV_TIMEOUT, http_delay_reply, req, &tv);
-	evhttp_connection_fail_(delayed_client, EVCON_HTTP_EOF);
+	evhttp_connection_fail_(delayed_client, EVREQ_HTTP_EOF);
 }
 
 /*
