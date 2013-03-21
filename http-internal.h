@@ -29,14 +29,6 @@ enum message_read_status {
 	DATA_TOO_LONG = -3
 };
 
-enum evhttp_connection_error {
-	EVCON_HTTP_TIMEOUT,
-	EVCON_HTTP_EOF,
-	EVCON_HTTP_INVALID_HEADER,
-	EVCON_HTTP_BUFFER_ERROR,
-	EVCON_HTTP_REQUEST_CANCEL
-};
-
 struct evbuffer;
 struct addrinfo;
 struct evhttp_request;
@@ -182,6 +174,7 @@ void evhttp_connection_reset_(struct evhttp_connection *);
 /* connects if necessary */
 int evhttp_connection_connect_(struct evhttp_connection *);
 
+enum evhttp_connection_error;
 /* notifies the current request that it failed; resets connection */
 void evhttp_connection_fail_(struct evhttp_connection *,
     enum evhttp_connection_error error);

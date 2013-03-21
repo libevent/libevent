@@ -470,6 +470,15 @@ struct evhttp_request *evhttp_request_new(
 void evhttp_request_set_chunked_cb(struct evhttp_request *,
     void (*cb)(struct evhttp_request *, void *));
 
+enum evhttp_connection_error;
+/** Set a callback for errors
+    Separate callback because for now request callback called with
+    request=NULL, and if we want to get error from request callback,
+    we will need in request struct, which is NULL,
+    and we don't want to break backward compatibility. */
+void evhttp_request_set_error_cb(struct evhttp_request *,
+    void (*)(enum evhttp_connection_error, void *), void *);
+
 /** Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
 

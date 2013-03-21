@@ -650,6 +650,7 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 	case EVCON_HTTP_INVALID_HEADER:
 	case EVCON_HTTP_BUFFER_ERROR:
 	case EVCON_HTTP_REQUEST_CANCEL:
+	case EVCON_HTTP_DATA_TOO_LONG:
 	default:	/* xxx: probably should just error on default */
 		/* the callback looks at the uri to determine errors */
 		if (req->uri) {
@@ -683,6 +684,7 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 	struct evhttp_request* req = TAILQ_FIRST(&evcon->requests);
 	void (*cb)(struct evhttp_request *, void *);
 	void *cb_arg;
+	void (*error_cb)(enum evhttp_connection_error, void *);
 	EVUTIL_ASSERT(req != NULL);
 
 	bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
@@ -701,6 +703,7 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 		return;
 	}
 
+	error_cb = req->error_cb;
 	/* when the request was canceled, the callback is not executed */
 	if (error != EVCON_HTTP_REQUEST_CANCEL) {
 		/* save the callback for later; the cb might free our object */
@@ -732,6 +735,7 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 	EVUTIL_SET_SOCKET_ERROR(errsave);
 
 	/* inform the user */
+	error_cb(error, cb_arg);
 	if (cb != NULL)
 		(*cb)(NULL, cb_arg);
 }
@@ -925,7 +929,7 @@ evhttp_read_trailer(struct evhttp_connection *evcon, struct evhttp_request *req)
 	switch (evhttp_parse_headers_(req, buf)) {
 	case DATA_CORRUPTED:
 	case DATA_TOO_LONG:
-		evhttp_connection_fail_(evcon, EVCON_HTTP_INVALID_HEADER);
+		evhttp_connection_fail_(evcon, EVCON_HTTP_DATA_TOO_LONG);
 		break;
 	case ALL_DATA_READ:
 		bufferevent_disable(evcon->bufev, EV_READ);
@@ -952,10 +956,10 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 			evhttp_read_trailer(evcon, req);
 			return;
 		case DATA_CORRUPTED:
-		case DATA_TOO_LONG:/*separate error for this? XXX */
+		case DATA_TOO_LONG:
 			/* corrupted data */
 			evhttp_connection_fail_(evcon,
-			    EVCON_HTTP_INVALID_HEADER);
+			    EVCON_HTTP_DATA_TOO_LONG);
 			return;
 		case REQUEST_CANCELED:
 			/* request canceled */
@@ -3762,6 +3766,13 @@ evhttp_request_set_chunked_cb(struct evhttp_request *req,
     void (*cb)(struct evhttp_request *, void *))
 {
 	req->chunk_cb = cb;
+}
+
+void
+evhttp_request_set_error_cb(struct evhttp_request *req,
+    void (*cb)(enum evhttp_connection_error, void *), void *cbarg)
+{
+	req->error_cb = cb;
 }
 
 /*

@@ -38,6 +38,15 @@
 extern "C" {
 #endif
 
+enum evhttp_connection_error {
+	EVCON_HTTP_TIMEOUT,
+	EVCON_HTTP_EOF,
+	EVCON_HTTP_INVALID_HEADER,
+	EVCON_HTTP_BUFFER_ERROR,
+	EVCON_HTTP_REQUEST_CANCEL,
+	EVCON_HTTP_DATA_TOO_LONG
+};
+
 #include <event2/event-config.h>
 #ifdef EVENT__HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -120,6 +129,10 @@ struct {
 	 * the regular callback.
 	 */
 	void (*chunk_cb)(struct evhttp_request *, void *);
+	/*
+	 * Error callback - call on internal error
+	 */
+	void (*error_cb)(enum evhttp_connection_error, void *);
 };
 
 #ifdef __cplusplus
