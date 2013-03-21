@@ -470,7 +470,14 @@ struct evhttp_request *evhttp_request_new(
 void evhttp_request_set_chunked_cb(struct evhttp_request *,
     void (*cb)(struct evhttp_request *, void *));
 
-enum evhttp_connection_error;
+enum evhttp_connection_error {
+  EVCON_HTTP_TIMEOUT,
+  EVCON_HTTP_EOF,
+  EVCON_HTTP_INVALID_HEADER,
+  EVCON_HTTP_BUFFER_ERROR,
+  EVCON_HTTP_REQUEST_CANCEL,
+  EVCON_HTTP_DATA_TOO_LONG
+};
 /** Set a callback for errors
     Separate callback because for now request callback called with
     request=NULL, and if we want to get error from request callback,
