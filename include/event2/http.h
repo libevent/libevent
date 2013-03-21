@@ -477,7 +477,7 @@ enum evhttp_connection_error;
     we will need in request struct, which is NULL,
     and we don't want to break backward compatibility. */
 void evhttp_request_set_error_cb(struct evhttp_request *,
-    void (*)(enum evhttp_connection_error, void *), void *);
+    void (*)(enum evhttp_connection_error, void *));
 
 /** Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);

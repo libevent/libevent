@@ -3770,7 +3770,7 @@ evhttp_request_set_chunked_cb(struct evhttp_request *req,
 
 void
 evhttp_request_set_error_cb(struct evhttp_request *req,
-    void (*cb)(enum evhttp_connection_error, void *), void *cbarg)
+    void (*cb)(enum evhttp_connection_error, void *))
 {
 	req->error_cb = cb;
 }
