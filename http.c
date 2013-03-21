@@ -999,7 +999,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		/* failed body length test */
 		event_debug(("Request body is too long"));
 		evhttp_connection_fail_(evcon,
-				       EVCON_HTTP_INVALID_HEADER);
+				       EVCON_HTTP_DATA_TOO_LONG);
 		return;
 	}
 
