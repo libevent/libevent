@@ -470,12 +470,35 @@ struct evhttp_request *evhttp_request_new(
 void evhttp_request_set_chunked_cb(struct evhttp_request *,
     void (*cb)(struct evhttp_request *, void *));
 
+/**
+ * The different error types supported by evhttp
+ *
+ * @see evhttp_request_set_error_cb()
+ */
 enum evhttp_request_error {
+  /**
+   * Timeout reached, also @see evhttp_connection_set_timeout()
+   */
   EVREQ_HTTP_TIMEOUT,
+  /**
+   * EOF reached
+   */
   EVREQ_HTTP_EOF,
+  /**
+   * Error while reading header, or invalid header
+   */
   EVREQ_HTTP_INVALID_HEADER,
+  /**
+   * Error encountered while reading or writing
+   */
   EVREQ_HTTP_BUFFER_ERROR,
+  /**
+   * The evhttp_cancel_request() called on this request.
+   */
   EVREQ_HTTP_REQUEST_CANCEL,
+  /**
+   * Body is greater then evhttp_connection_set_max_body_size()
+   */
   EVREQ_HTTP_DATA_TOO_LONG
 };
 /** Set a callback for errors
