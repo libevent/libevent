@@ -625,11 +625,11 @@ evhttp_connection_set_max_body_size(struct evhttp_connection* evcon,
 
 static int
 evhttp_connection_incoming_fail(struct evhttp_request *req,
-    enum evhttp_connection_error error)
+    enum evhttp_request_error error)
 {
 	switch (error) {
-	case EVCON_HTTP_TIMEOUT:
-	case EVCON_HTTP_EOF:
+	case EVREQ_HTTP_TIMEOUT:
+	case EVREQ_HTTP_EOF:
 		/*
 		 * these are cases in which we probably should just
 		 * close the connection and not send a reply.  this
@@ -647,10 +647,10 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 			req->evcon = NULL;
 		}
 		return (-1);
-	case EVCON_HTTP_INVALID_HEADER:
-	case EVCON_HTTP_BUFFER_ERROR:
-	case EVCON_HTTP_REQUEST_CANCEL:
-	case EVCON_HTTP_DATA_TOO_LONG:
+	case EVREQ_HTTP_INVALID_HEADER:
+	case EVREQ_HTTP_BUFFER_ERROR:
+	case EVREQ_HTTP_REQUEST_CANCEL:
+	case EVREQ_HTTP_DATA_TOO_LONG:
 	default:	/* xxx: probably should just error on default */
 		/* the callback looks at the uri to determine errors */
 		if (req->uri) {
@@ -678,13 +678,13 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
  * delegates to evhttp_connection_incoming_fail(). */
 void
 evhttp_connection_fail_(struct evhttp_connection *evcon,
-    enum evhttp_connection_error error)
+    enum evhttp_request_error error)
 {
 	const int errsave = EVUTIL_SOCKET_ERROR();
 	struct evhttp_request* req = TAILQ_FIRST(&evcon->requests);
 	void (*cb)(struct evhttp_request *, void *);
 	void *cb_arg;
-	void (*error_cb)(enum evhttp_connection_error, void *);
+	void (*error_cb)(enum evhttp_request_error, void *);
 	EVUTIL_ASSERT(req != NULL);
 
 	bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
@@ -705,7 +705,7 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 
 	error_cb = req->error_cb;
 	/* when the request was canceled, the callback is not executed */
-	if (error != EVCON_HTTP_REQUEST_CANCEL) {
+	if (error != EVREQ_HTTP_REQUEST_CANCEL) {
 		/* save the callback for later; the cb might free our object */
 		cb = req->cb;
 		cb_arg = req->cb_arg;
@@ -930,7 +930,7 @@ evhttp_read_trailer(struct evhttp_connection *evcon, struct evhttp_request *req)
 	switch (evhttp_parse_headers_(req, buf)) {
 	case DATA_CORRUPTED:
 	case DATA_TOO_LONG:
-		evhttp_connection_fail_(evcon, EVCON_HTTP_DATA_TOO_LONG);
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_DATA_TOO_LONG);
 		break;
 	case ALL_DATA_READ:
 		bufferevent_disable(evcon->bufev, EV_READ);
@@ -960,7 +960,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		case DATA_TOO_LONG:
 			/* corrupted data */
 			evhttp_connection_fail_(evcon,
-			    EVCON_HTTP_DATA_TOO_LONG);
+			    EVREQ_HTTP_DATA_TOO_LONG);
 			return;
 		case REQUEST_CANCELED:
 			/* request canceled */
@@ -973,7 +973,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	} else if (req->ntoread < 0) {
 		/* Read until connection close. */
 		if ((size_t)(req->body_size + evbuffer_get_length(buf)) < req->body_size) {
-			evhttp_connection_fail_(evcon, EVCON_HTTP_INVALID_HEADER);
+			evhttp_connection_fail_(evcon, EVREQ_HTTP_INVALID_HEADER);
 			return;
 		}
 
@@ -999,7 +999,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		/* failed body length test */
 		event_debug(("Request body is too long"));
 		evhttp_connection_fail_(evcon,
-				       EVCON_HTTP_DATA_TOO_LONG);
+				       EVREQ_HTTP_DATA_TOO_LONG);
 		return;
 	}
 
@@ -1380,12 +1380,12 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	}
 
 	if (what & BEV_EVENT_TIMEOUT) {
-		evhttp_connection_fail_(evcon, EVCON_HTTP_TIMEOUT);
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_TIMEOUT);
 	} else if (what & (BEV_EVENT_EOF|BEV_EVENT_ERROR)) {
-		evhttp_connection_fail_(evcon, EVCON_HTTP_EOF);
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_EOF);
 	} else if (what == BEV_EVENT_CONNECTED) {
 	} else {
-		evhttp_connection_fail_(evcon, EVCON_HTTP_BUFFER_ERROR);
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_BUFFER_ERROR);
 	}
 }
 
@@ -2037,7 +2037,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	} else {
 		if (evhttp_get_body_length(req) == -1) {
 			evhttp_connection_fail_(evcon,
-			    EVCON_HTTP_INVALID_HEADER);
+			    EVREQ_HTTP_INVALID_HEADER);
 			return;
 		}
 		if (req->kind == EVHTTP_REQUEST && req->ntoread < 1) {
@@ -2093,7 +2093,7 @@ evhttp_read_firstline(struct evhttp_connection *evcon,
 		/* Error while reading, terminate */
 		event_debug(("%s: bad header lines on "EV_SOCK_FMT"\n",
 			__func__, EV_SOCK_ARG(evcon->fd)));
-		evhttp_connection_fail_(evcon, EVCON_HTTP_INVALID_HEADER);
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_INVALID_HEADER);
 		return;
 	} else if (res == MORE_DATA_EXPECTED) {
 		/* Need more header lines */
@@ -2116,7 +2116,7 @@ evhttp_read_header(struct evhttp_connection *evcon,
 		/* Error while reading, terminate */
 		event_debug(("%s: bad header lines on "EV_SOCK_FMT"\n",
 			__func__, EV_SOCK_ARG(fd)));
-		evhttp_connection_fail_(evcon, EVCON_HTTP_INVALID_HEADER);
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_INVALID_HEADER);
 		return;
 	} else if (res == MORE_DATA_EXPECTED) {
 		/* Need more header lines */
@@ -2158,7 +2158,7 @@ evhttp_read_header(struct evhttp_connection *evcon,
 	default:
 		event_warnx("%s: bad header on "EV_SOCK_FMT, __func__,
 		    EV_SOCK_ARG(fd));
-		evhttp_connection_fail_(evcon, EVCON_HTTP_INVALID_HEADER);
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_INVALID_HEADER);
 		break;
 	}
 	/* request may have been freed above */
@@ -2459,7 +2459,7 @@ evhttp_cancel_request(struct evhttp_request *req)
 			 * the connection.
 			 */
 			evhttp_connection_fail_(evcon,
-			    EVCON_HTTP_REQUEST_CANCEL);
+			    EVREQ_HTTP_REQUEST_CANCEL);
 
 			/* connection fail freed the request */
 			return;
@@ -3771,7 +3771,7 @@ evhttp_request_set_chunked_cb(struct evhttp_request *req,
 
 void
 evhttp_request_set_error_cb(struct evhttp_request *req,
-    void (*cb)(enum evhttp_connection_error, void *))
+    void (*cb)(enum evhttp_request_error, void *))
 {
 	req->error_cb = cb;
 }

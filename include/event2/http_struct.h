@@ -123,7 +123,7 @@ struct {
 	/*
 	 * Error callback - call on internal error
 	 */
-	void (*error_cb)(enum evhttp_connection_error, void *);
+	void (*error_cb)(enum evhttp_request_error, void *);
 };
 
 #ifdef __cplusplus

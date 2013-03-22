@@ -174,10 +174,10 @@ void evhttp_connection_reset_(struct evhttp_connection *);
 /* connects if necessary */
 int evhttp_connection_connect_(struct evhttp_connection *);
 
-enum evhttp_connection_error;
+enum evhttp_request_error;
 /* notifies the current request that it failed; resets connection */
 void evhttp_connection_fail_(struct evhttp_connection *,
-    enum evhttp_connection_error error);
+    enum evhttp_request_error error);
 
 enum message_read_status;
 

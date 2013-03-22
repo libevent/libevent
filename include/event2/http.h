@@ -470,13 +470,13 @@ struct evhttp_request *evhttp_request_new(
 void evhttp_request_set_chunked_cb(struct evhttp_request *,
     void (*cb)(struct evhttp_request *, void *));
 
-enum evhttp_connection_error {
-  EVCON_HTTP_TIMEOUT,
-  EVCON_HTTP_EOF,
-  EVCON_HTTP_INVALID_HEADER,
-  EVCON_HTTP_BUFFER_ERROR,
-  EVCON_HTTP_REQUEST_CANCEL,
-  EVCON_HTTP_DATA_TOO_LONG
+enum evhttp_request_error {
+  EVREQ_HTTP_TIMEOUT,
+  EVREQ_HTTP_EOF,
+  EVREQ_HTTP_INVALID_HEADER,
+  EVREQ_HTTP_BUFFER_ERROR,
+  EVREQ_HTTP_REQUEST_CANCEL,
+  EVREQ_HTTP_DATA_TOO_LONG
 };
 /** Set a callback for errors
     Separate callback because for now request callback called with
@@ -484,7 +484,7 @@ enum evhttp_connection_error {
     we will need in request struct, which is NULL,
     and we don't want to break backward compatibility. */
 void evhttp_request_set_error_cb(struct evhttp_request *,
-    void (*)(enum evhttp_connection_error, void *));
+    void (*)(enum evhttp_request_error, void *));
 
 /** Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
