@@ -704,14 +704,13 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 	}
 
 	error_cb = req->error_cb;
+	cb_arg = req->cb_arg;
 	/* when the request was canceled, the callback is not executed */
 	if (error != EVREQ_HTTP_REQUEST_CANCEL) {
 		/* save the callback for later; the cb might free our object */
 		cb = req->cb;
-		cb_arg = req->cb_arg;
 	} else {
 		cb = NULL;
-		cb_arg = NULL;
 	}
 
 	/* do not fail all requests; the next request is going to get
