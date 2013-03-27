@@ -236,6 +236,8 @@ struct nameserver {
 	char choked;  /* true if we have an EAGAIN from this server's socket */
 	char write_waiting;  /* true if we are waiting for EV_WRITE events */
 	struct evdns_base *base;
+	int active_requests; /* This is used to track event, */
+						 /* i.e. when we can delete it, or must create */
 };
 
 
@@ -858,6 +860,11 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 
 	ASSERT_LOCKED(req->base);
 	ASSERT_VALID_REQUEST(req);
+	EVUTIL_ASSERT(req->ns->active_requests > 0);
+
+	if (--req->ns->active_requests == 0) {
+		event_del(&req->ns->event);
+	}
 
 	if (flags & 0x020f || !reply || !reply->have_answer) {
 		/* there was an error */
@@ -2188,6 +2195,15 @@ evdns_request_transmit_to(struct request *req, struct nameserver *server) {
 	int r;
 	ASSERT_LOCKED(req->base);
 	ASSERT_VALID_REQUEST(req);
+
+	if (server->active_requests++ == 0) {
+		event_assign(&server->event, server->base->event_base, server->socket,
+		             EV_READ | EV_PERSIST, nameserver_ready_callback, server);
+		if (event_add(&server->event, NULL) < 0) {
+			return 1;
+		}
+	}
+
 	r = sendto(server->socket, (void*)req->request, req->request_len, 0,
 	    (struct sockaddr *)&server->address, server->addrlen);
 	if (r < 0) {
@@ -2496,11 +2512,6 @@ evdns_nameserver_add_impl_(struct evdns_base *base, const struct sockaddr *addre
 	memcpy(&ns->address, address, addrlen);
 	ns->addrlen = addrlen;
 	ns->state = 1;
-	event_assign(&ns->event, ns->base->event_base, ns->socket, EV_READ | EV_PERSIST, nameserver_ready_callback, ns);
-	if (event_add(&ns->event, NULL) < 0) {
-		err = 2;
-		goto out2;
-	}
 
 	log(EVDNS_LOG_DEBUG, "Added nameserver %s as %p",
 	    evutil_format_sockaddr_port_(address, addrbuf, sizeof(addrbuf)), ns);
