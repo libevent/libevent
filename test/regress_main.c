@@ -371,6 +371,7 @@ struct testgroup_t testgroups[] = {
 	{ "main/", main_testcases },
 	{ "heap/", minheap_testcases },
 	{ "et/", edgetriggered_testcases },
+	{ "finalize/", finalize_testcases },
 	{ "evbuffer/", evbuffer_testcases },
 	{ "signal/", signal_testcases },
 	{ "util/", util_testcases },

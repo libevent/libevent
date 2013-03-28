@@ -829,7 +829,16 @@ int event_base_got_break(struct event_base *);
  */
 #define EV_PERSIST	0x10
 /** Select edge-triggered behavior, if supported by the backend. */
-#define EV_ET       0x20
+#define EV_ET		0x20
+/**
+ * If this option is provided, then event_del() will not block in one thread
+ * while waiting for the event callback to complete in another thread.
+ *
+ * To use this option safely, you may need to use event_finalize() or
+ * event_free_finalize() in order to safely tear down an event in a
+ * multithreaded application.  See those functions for more information.
+ **/
+#define EV_FINALIZE     0x40
 /**@}*/
 
 /**
@@ -999,6 +1008,39 @@ int event_assign(struct event *, struct event_base *, evutil_socket_t, short, ev
 void event_free(struct event *);
 
 /**
+   Callback type for event_finalize and event_free_finalize().
+ **/
+typedef void (*event_finalize_callback_fn)(struct event *, void *);
+/**
+   @name Finalization functions
+
+   These functions are used to safely tear down an event in a multithreaded
+   application.  If you construct your events with EV_FINALIZE to avoid
+   deadlocks, you will need a way to remove an event in the certainty that
+   it will definitely not be running its callback when you deallocate it
+   and its callback argument.
+
+   To do this, call one of event_finalize() or event_free_finalize with
+   0 for its first argument, the event to tear down as its second argument,
+   and a callback function as its third argument.  The callback will be
+   invoked as part of the event loop, with the event's priority.
+
+   After you call a finalizer function, event_add() and event_active() will
+   no longer work on the event, and event_del() will produce a no-op. You
+   must not try to change the event's fields with event_assign() or
+   event_set() while the finalize callback is in progress.  Once the
+   callback has been invoked, you should treat the event structure as
+   containing uninitialized memory.
+
+   The event_free_finalize() function frees the event after it's finalized;
+   event_finalize() does not.
+ */
+/**@{*/
+void event_finalize(unsigned, struct event *, event_finalize_callback_fn);
+void event_free_finalize(unsigned, struct event *, event_finalize_callback_fn);
+/**@}*/
+
+/**
   Schedule a one-time event
 
   The function event_base_once() is similar to event_new().  However, it
@@ -1071,6 +1113,18 @@ int event_remove_timer(struct event *ev);
  */
 int event_del(struct event *);
 
+/**
+   As event_del(), but never blocks while the event's callback is running
+   in another thread, even if the event was constructed without the
+   EV_FINALIZE flag.
+ */
+int event_del_noblock(struct event *ev);
+/**
+   As event_del(), but always blocks while the event's callback is running
+   in another thread, even if the event was constructed with the
+   EV_FINALIZE flag.
+ */
+int event_del_block(struct event *ev);
 
 /**
   Make an event active.
