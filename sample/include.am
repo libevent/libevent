@@ -15,8 +15,19 @@ SAMPLES = \
 if OPENSSL
 SAMPLES += sample/le-proxy
 sample_le_proxy_SOURCES = sample/le-proxy.c
-sample_le_proxy_LDADD = libevent.la libevent_openssl.la -lssl -lcrypto ${OPENSSL_LIBADD}
+sample_le_proxy_LDADD = libevent.la libevent_openssl.la ${OPENSSL_LIBS} ${OPENSSL_LIBADD}
 sample_le_proxy_INCLUDES = $(OPENSSL_INCS)
+
+SAMPLES += sample/https-client
+sample_https_client_SOURCES = \
+	sample/https-client.c \
+	sample/hostcheck.c \
+	sample/openssl_hostname_validation.c
+sample_https_client_LDADD = libevent.la libevent_openssl.la ${OPENSSL_LIBS} ${OPENSSL_LIBADD}
+sample_https_client_INCLUDES = $(OPENSSL_INCS)
+noinst_HEADERS += \
+	sample/hostcheck.h \
+	sample/openssl_hostname_validation.h
 endif
 
 noinst_PROGRAMS += $(SAMPLES)
