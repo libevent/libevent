@@ -362,6 +362,7 @@ AC_CHECK_FUNCS([ \
   usleep \
   vasprintf \
 ])
+AM_CONDITIONAL(STRLCPY_IMPL, [test x"$ac_cv_func_strlcpy" = xno])
 
 AC_CACHE_CHECK(
     [for getaddrinfo],
