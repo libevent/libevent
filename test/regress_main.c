@@ -438,6 +438,9 @@ main(int argc, const char **argv)
 		evthread_enable_lock_debugging();
 #endif
 
+	if (getenv("EVENT_DEBUG_MODE"))
+		event_enable_debug_mode();
+
 	tinytest_set_aliases(testaliases);
 
 	if (tinytest_main(argc,argv,testgroups))
