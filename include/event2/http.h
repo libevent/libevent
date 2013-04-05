@@ -501,11 +501,13 @@ enum evhttp_request_error {
    */
   EVREQ_HTTP_DATA_TOO_LONG
 };
-/** Set a callback for errors
-    Separate callback because for now request callback called with
-    request=NULL, and if we want to get error from request callback,
-    we will need in request struct, which is NULL,
-    and we don't want to break backward compatibility. */
+/**
+ * Set a callback for errors
+ * @see evhttp_request_error for error types.
+ *
+ * On error, both the error callback and the regular callback will be called,
+ * error callback is called before the regular callback.
+ **/
 void evhttp_request_set_error_cb(struct evhttp_request *,
     void (*)(enum evhttp_request_error, void *));
 
