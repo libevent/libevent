@@ -3942,7 +3942,9 @@ evdns_nameserver_free(struct nameserver *server)
 {
 	if (server->socket >= 0)
 	evutil_closesocket(server->socket);
-	(void) event_del(&server->event);
+	if (server->active_requests > 0) {
+		event_del(&server->event);
+	}
 	event_debug_unassign(&server->event);
 	if (server->state == 0)
 		(void) event_del(&server->timeout_event);
