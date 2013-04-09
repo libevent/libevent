@@ -2196,12 +2196,9 @@ evdns_request_transmit_to(struct request *req, struct nameserver *server) {
 	ASSERT_LOCKED(req->base);
 	ASSERT_VALID_REQUEST(req);
 
-	if (server->active_requests++ == 0) {
-		event_assign(&server->event, server->base->event_base, server->socket,
-		             EV_READ | EV_PERSIST, nameserver_ready_callback, server);
-		if (event_add(&server->event, NULL) < 0) {
-			return 1;
-		}
+	if (server->active_requests++ == 0 &&
+		event_add(&server->event, NULL) < 0) {
+		return 1;
 	}
 
 	r = sendto(server->socket, (void*)req->request, req->request_len, 0,
@@ -2512,6 +2509,8 @@ evdns_nameserver_add_impl_(struct evdns_base *base, const struct sockaddr *addre
 	memcpy(&ns->address, address, addrlen);
 	ns->addrlen = addrlen;
 	ns->state = 1;
+	event_assign(&ns->event, ns->base->event_base, ns->socket,
+				 EV_READ | EV_PERSIST, nameserver_ready_callback, ns);
 
 	log(EVDNS_LOG_DEBUG, "Added nameserver %s as %p",
 	    evutil_format_sockaddr_port_(address, addrbuf, sizeof(addrbuf)), ns);
