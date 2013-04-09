@@ -252,8 +252,11 @@ struct bufferevent_ops {
 	 */
 	int (*disable)(struct bufferevent *, short);
 
+	/** DOCUMENT */
+	void (*unlink)(struct bufferevent *);
+
 	/** Free any storage and deallocate any extra data or structures used
-	    in this implementation.
+	    in this implementation. DOCUMENT
 	 */
 	void (*destruct)(struct bufferevent *);
 
