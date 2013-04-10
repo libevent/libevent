@@ -360,6 +360,8 @@ struct evdns_base {
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	void *lock;
 #endif
+
+	int disable_when_inactive;
 };
 
 struct hosts_entry {
@@ -862,7 +864,7 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 	ASSERT_VALID_REQUEST(req);
 	EVUTIL_ASSERT(req->ns->active_requests > 0);
 
-	if (--req->ns->active_requests == 0) {
+	if (--req->ns->active_requests == 0 && req->base->disable_when_inactive) {
 		event_del(&req->ns->event);
 	}
 
@@ -2197,6 +2199,7 @@ evdns_request_transmit_to(struct request *req, struct nameserver *server) {
 	ASSERT_VALID_REQUEST(req);
 
 	if (server->active_requests++ == 0 &&
+		req->base->disable_when_inactive &&
 		event_add(&server->event, NULL) < 0) {
 		return 1;
 	}
@@ -2511,6 +2514,10 @@ evdns_nameserver_add_impl_(struct evdns_base *base, const struct sockaddr *addre
 	ns->state = 1;
 	event_assign(&ns->event, ns->base->event_base, ns->socket,
 				 EV_READ | EV_PERSIST, nameserver_ready_callback, ns);
+	if (!base->disable_when_inactive && event_add(&ns->event, NULL) < 0) {
+		err = 2;
+		goto out2;
+	}
 
 	log(EVDNS_LOG_DEBUG, "Added nameserver %s as %p",
 	    evutil_format_sockaddr_port_(address, addrbuf, sizeof(addrbuf)), ns);
@@ -3839,7 +3846,7 @@ evdns_config_windows_nameservers(void)
 #endif
 
 struct evdns_base *
-evdns_base_new(struct event_base *event_base, int initialize_nameservers)
+evdns_base_new(struct event_base *event_base, int flags)
 {
 	struct evdns_base *base;
 
@@ -3887,7 +3894,14 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 
 	TAILQ_INIT(&base->hostsdb);
 
-	if (initialize_nameservers) {
+#define EVDNS_BASE_ALL_FLAGS (0x8001)
+	if (flags & ~EVDNS_BASE_ALL_FLAGS) {
+		flags = EVDNS_BASE_INITIALIZE_NAMESERVERS;
+		log(EVDNS_LOG_WARN, "Force flag to EVDNS_BASE_INITIALIZE_NAMESERVERS");
+	}
+#undef EVDNS_BASE_ALL_FLAGS
+
+	if (flags & EVDNS_BASE_INITIALIZE_NAMESERVERS) {
 		int r;
 #ifdef _WIN32
 		r = evdns_base_config_windows_nameservers(base);
@@ -3899,6 +3913,10 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 			return NULL;
 		}
 	}
+	if (flags & EVDNS_BASE_DISABLE_WHEN_INACTIVE) {
+		base->disable_when_inactive = 1;
+	}
+
 	EVDNS_UNLOCK(base);
 	return base;
 }
@@ -3937,11 +3955,11 @@ evdns_err_to_string(int err)
 }
 
 static void
-evdns_nameserver_free(struct nameserver *server)
+evdns_nameserver_free(struct evdns_base *base, struct nameserver *server)
 {
 	if (server->socket >= 0)
 	evutil_closesocket(server->socket);
-	if (server->active_requests > 0) {
+	if (base->disable_when_inactive && server->active_requests > 0) {
 		event_del(&server->event);
 	}
 	event_debug_unassign(&server->event);
@@ -3978,7 +3996,7 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 
 	for (server = base->server_head; server; server = server_next) {
 		server_next = server->next;
-		evdns_nameserver_free(server);
+		evdns_nameserver_free(base, server);
 		if (server_next == base->server_head)
 			break;
 	}
