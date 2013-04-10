@@ -652,6 +652,7 @@ static void
 request_finished(struct request *const req, struct request **head, int free_handle) {
 	struct evdns_base *base = req->base;
 	int was_inflight = (head != &base->req_waiting_head);
+	int requests_pending;
 	EVDNS_LOCK(base);
 	ASSERT_VALID_REQUEST(req);
 
@@ -667,6 +668,12 @@ request_finished(struct request *const req, struct request **head, int free_hand
 	}
 	/* it was initialized during request_new / evtimer_assign */
 	event_debug_unassign(&req->timeout_event);
+
+	requests_pending = req->base->global_requests_inflight +
+		req->base->global_requests_waiting;
+	if (requests_pending == 0 && req->base->disable_when_inactive) {
+		event_del(&req->ns->event);
+	}
 
 	if (!req->request_appended) {
 		/* need to free the request data on it's own */
@@ -852,7 +859,6 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 static void
 reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply) {
 	int error;
-	int requests_pending;
 	char addrbuf[128];
 	static const int error_codes[] = {
 		DNS_ERR_FORMAT, DNS_ERR_SERVERFAILED, DNS_ERR_NOTEXIST,
@@ -861,13 +867,6 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 
 	ASSERT_LOCKED(req->base);
 	ASSERT_VALID_REQUEST(req);
-
-	requests_pending = req->base->global_requests_inflight + req->base->global_requests_waiting;
-	EVUTIL_ASSERT(requests_pending > 0);
-
-	if (requests_pending == 1 && req->base->disable_when_inactive) {
-		event_del(&req->ns->event);
-	}
 
 	if (flags & 0x020f || !reply || !reply->have_answer) {
 		/* there was an error */
