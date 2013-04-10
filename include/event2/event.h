@@ -599,9 +599,13 @@ struct event_base *event_base_new_with_config(const struct event_config *);
   Note that this function will not close any fds or free any memory passed
   to event_new as the argument to callback.
 
+
   @param eb an event_base to be freed
  */
 void event_base_free(struct event_base *);
+
+/** DOCUMENT */
+void event_base_free_nofinalize(struct event_base *);
 
 /** @name Log severities
  */

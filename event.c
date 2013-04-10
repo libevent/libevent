@@ -706,8 +706,46 @@ event_base_stop_iocp_(struct event_base *base)
 #endif
 }
 
-void
-event_base_free(struct event_base *base)
+static int
+event_base_cancel_single_callback_(struct event_base *base,
+    struct event_callback *evcb,
+    int run_finalizers)
+{
+	int result = 0;
+
+	if (evcb->evcb_flags & EVLIST_INIT) {
+		struct event *ev = event_callback_to_event(evcb);
+		if (!(ev->ev_flags & EVLIST_INTERNAL)) {
+			event_del_(ev, EVENT_DEL_EVEN_IF_FINALIZING);
+			result = 1;
+		}
+	} else {
+		event_callback_cancel_nolock_(base, evcb, 1);
+		result = 1;
+	}
+
+	if (run_finalizers && (evcb->evcb_flags & EVLIST_FINALIZING)) {
+		switch (evcb->evcb_closure) {
+		case EV_CLOSURE_EVENT_FINALIZE:
+		case EV_CLOSURE_EVENT_FINALIZE_FREE: {
+			struct event *ev = event_callback_to_event(evcb);
+			ev->ev_evcallback.evcb_cb_union.evcb_evfinalize(ev, ev->ev_arg);
+			if (evcb->evcb_closure == EV_CLOSURE_EVENT_FINALIZE_FREE)
+				mm_free(ev);
+			break;
+		}
+		case EV_CLOSURE_CB_FINALIZE:
+			evcb->evcb_cb_union.evcb_cbfinalize(evcb, evcb->evcb_arg);
+			break;
+		default:
+			break;
+		}
+	}
+	return result;
+}
+
+static void
+event_base_free_(struct event_base *base, int run_finalizers)
 {
 	int i, n_deleted=0;
 	struct event *ev;
@@ -718,9 +756,6 @@ event_base_free(struct event_base *base)
 	 * made it with event_init and forgot to hold a reference to it. */
 	if (base == NULL && current_base)
 		base = current_base;
-	/* If we're freeing current_base, there won't be a current_base. */
-	if (base == current_base)
-		current_base = NULL;
 	/* Don't actually free NULL. */
 	if (base == NULL) {
 		event_warnx("%s: no base to free", __func__);
@@ -773,30 +808,14 @@ event_base_free(struct event_base *base)
 		struct event_callback *evcb, *next;
 		for (evcb = TAILQ_FIRST(&base->activequeues[i]); evcb; ) {
 			next = TAILQ_NEXT(evcb, evcb_active_next);
-			if (evcb->evcb_flags & EVLIST_INIT) {
-				ev = event_callback_to_event(evcb);
-				if (!(ev->ev_flags & EVLIST_INTERNAL)) {
-					event_del_(ev, EVENT_DEL_EVEN_IF_FINALIZING);
-					++n_deleted;
-				}
-			} else {
-				event_callback_cancel_nolock_(base, evcb, 1);
-				++n_deleted;
-			}
+			n_deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
 			evcb = next;
 		}
 	}
 	{
 		struct event_callback *evcb;
 		while ((evcb = TAILQ_FIRST(&base->active_later_queue))) {
-			if (evcb->evcb_flags & EVLIST_INIT) {
-				ev = event_callback_to_event(evcb);
-				event_del(ev);
-				++n_deleted;
-			} else {
-				event_callback_cancel_nolock_(base, evcb, 1);
-				++n_deleted;
-			}
+			n_deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
 		}
 	}
 
@@ -829,7 +848,22 @@ event_base_free(struct event_base *base)
 	EVTHREAD_FREE_LOCK(base->th_base_lock, 0);
 	EVTHREAD_FREE_COND(base->current_event_cond);
 
+	/* If we're freeing current_base, there won't be a current_base. */
+	if (base == current_base)
+		current_base = NULL;
 	mm_free(base);
+}
+
+void
+event_base_free_nofinalize(struct event_base *base)
+{
+	event_base_free_(base, 0);
+}
+
+void
+event_base_free(struct event_base *base)
+{
+	event_base_free_(base, 1);
 }
 
 /* Fake eventop; used to disable the backend temporarily inside event_reinit
