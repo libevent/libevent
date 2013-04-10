@@ -883,17 +883,6 @@ bufferevent_init_generic_timeout_cbs_(struct bufferevent *bev)
 }
 
 int
-bufferevent_del_generic_timeout_cbs_(struct bufferevent *bev)
-{
-	int r1,r2;
-	r1 = event_del(&bev->ev_read);
-	r2 = event_del(&bev->ev_write);
-	if (r1<0 || r2<0)
-		return -1;
-	return 0;
-}
-
-int
 bufferevent_generic_adj_timeouts_(struct bufferevent *bev)
 {
 	const short enabled = bev->enabled;
