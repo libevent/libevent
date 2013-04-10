@@ -179,7 +179,7 @@ main(int c, char **v) {
 #endif
 
 	event_base = event_base_new();
-	evdns_base = evdns_base_new(event_base, 0);
+	evdns_base = evdns_base_new(event_base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
 	evdns_set_log_fn(logfn);
 
 	if (servertest) {
