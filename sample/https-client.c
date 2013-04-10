@@ -74,7 +74,8 @@ http_request_done(struct evhttp_request *req, void *ctx)
 	    evhttp_request_get_response_code(req),
 	    evhttp_request_get_response_code_line(req));
 
-	while ((nread = evbuffer_remove(req->input_buffer, buffer, sizeof(buffer)))
+	while ((nread = evbuffer_remove(evhttp_request_get_input_buffer(req),
+		    buffer, sizeof(buffer)))
 	       > 0) {
 		/* These are just arbitrary chunks of 256 bytes.
 		 * They are not lines, so we can't treat them as such. */
