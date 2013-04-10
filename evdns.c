@@ -236,8 +236,8 @@ struct nameserver {
 	char choked;  /* true if we have an EAGAIN from this server's socket */
 	char write_waiting;  /* true if we are waiting for EV_WRITE events */
 	struct evdns_base *base;
-	int active_requests; /* This is used to track event, */
-						 /* i.e. when we can delete it, or must create */
+	int active_requests; /* Number of currently inflight requests: used
+			      * to track when we should add/del the event. */
 };
 
 
@@ -3897,7 +3897,9 @@ evdns_base_new(struct event_base *event_base, int flags)
 #define EVDNS_BASE_ALL_FLAGS (0x8001)
 	if (flags & ~EVDNS_BASE_ALL_FLAGS) {
 		flags = EVDNS_BASE_INITIALIZE_NAMESERVERS;
-		log(EVDNS_LOG_WARN, "Force flag to EVDNS_BASE_INITIALIZE_NAMESERVERS");
+		log(EVDNS_LOG_WARN,
+		    "Unrecognized flag passed to evdns_base_new(). Assuming "
+		    "you meant EVDNS_BASE_INITIALIZE_NAMESERVERS.");
 	}
 #undef EVDNS_BASE_ALL_FLAGS
 

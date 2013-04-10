@@ -201,9 +201,10 @@ typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, 
 struct evdns_base;
 struct event_base;
 
-/* Process resolv.conf */
+/** Flag for evdns_base_new: process resolv.conf.  */
 #define EVDNS_BASE_INITIALIZE_NAMESERVERS 1
-/* Break the dns event loop, if there is no active requests. */
+/** Flag for evdns_base_new: Do not prevent the libevent event loop from
+ * exiting when we have no active dns requests. */
 #define EVDNS_BASE_DISABLE_WHEN_INACTIVE 0x8000
 
 /**
