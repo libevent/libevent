@@ -3955,13 +3955,11 @@ evdns_err_to_string(int err)
 }
 
 static void
-evdns_nameserver_free(struct evdns_base *base, struct nameserver *server)
+evdns_nameserver_free(struct nameserver *server)
 {
 	if (server->socket >= 0)
 	evutil_closesocket(server->socket);
-	if (base->disable_when_inactive && server->active_requests > 0) {
-		event_del(&server->event);
-	}
+	(void) event_del(&server->event);
 	event_debug_unassign(&server->event);
 	if (server->state == 0)
 		(void) event_del(&server->timeout_event);
@@ -3996,7 +3994,7 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 
 	for (server = base->server_head; server; server = server_next) {
 		server_next = server->next;
-		evdns_nameserver_free(base, server);
+		evdns_nameserver_free(server);
 		if (server_next == base->server_head)
 			break;
 	}
