@@ -117,10 +117,6 @@ die_openssl(const char *func)
 /* See http://archives.seul.org/libevent/users/Jan-2013/msg00039.html */
 static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
 {
-	if (ignore_cert) {
-		return 1;
-	}
-	
 	char cert_str[256];
 	const char *host = (const char *) arg;
 	const char *res_str = "X509_verify_cert failed";
@@ -129,9 +125,17 @@ static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
 	/* This is the function that OpenSSL would call if we hadn't called
 	 * SSL_CTX_set_cert_verify_callback().  Therefore, we are "wrapping"
 	 * the default functionality, rather than replacing it. */
-	int ok_so_far = X509_verify_cert(x509_ctx);
+	int ok_so_far = 0;
 
-	X509 *server_cert = X509_STORE_CTX_get_current_cert(x509_ctx);
+	X509 *server_cert = NULL;
+
+	if (ignore_cert) {
+		return 1;
+	}
+
+	ok_so_far = X509_verify_cert(x509_ctx);
+
+	server_cert = X509_STORE_CTX_get_current_cert(x509_ctx);
 
 	if (ok_so_far) {
 		res = validate_hostname(host, server_cert);
@@ -189,6 +193,7 @@ main(int argc, char **argv)
 	struct evhttp_connection *evcon;
 	struct evhttp_request *req;
 	struct evkeyvalq *output_headers;
+	struct evbuffer * output_buffer;
 
 	int i;
 
@@ -357,12 +362,13 @@ main(int argc, char **argv)
 			syntax();
 		}
 
+		output_buffer = evhttp_request_get_output_buffer(req);
 		while ((s = fread(buf, 1, sizeof(buf), f)) > 0) {
-			evbuffer_add(req->output_buffer, buf, s);
+			evbuffer_add(output_buffer, buf, s);
 			bytes += s;
 		}
-		snprintf(buf, sizeof(buf)-1, "%lu", bytes);
-		evhttp_add_header(req->output_headers, "Content-Length", buf);
+		evutil_snprintf(buf, sizeof(buf)-1, "%lu", bytes);
+		evhttp_add_header(output_headers, "Content-Length", buf);
 		fclose(f);
 	}
 
