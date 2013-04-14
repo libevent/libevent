@@ -156,6 +156,9 @@ SYS_INCLUDES =
 
 endif
 
+if STRLCPY_IMPL
+SYS_SRC += strlcpy.c
+endif
 if SELECT_BACKEND
 SYS_SRC += select.c
 endif
@@ -200,7 +203,6 @@ CORE_SRC =					\
 	evutil_time.c				\
 	listener.c				\
 	log.c					\
-	strlcpy.c				\
 	$(SYS_SRC)
 
 EXTRAS_SRC =					\

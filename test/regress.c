@@ -1406,6 +1406,13 @@ test_active_later(void *ptr)
 	tt_int_op(n_write_a_byte_cb, >, 100);
 	tt_int_op(n_read_and_drain_cb, >, 100);
 	tt_int_op(n_activate_other_event_cb, >, 100);
+
+	/* Now leave this one around, so that event_free sees it and removes
+	 * it. */
+	event_active_later_(&ev3, EV_READ);
+	event_base_assert_ok_(data->base);
+	event_base_free(data->base);
+	data->base = NULL;
 end:
 	;
 }

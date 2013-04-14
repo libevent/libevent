@@ -30,7 +30,6 @@
 #include <event2/listener.h>
 #include <event2/util.h>
 #include <event2/http.h>
-#include <event2/http_struct.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -73,9 +72,11 @@ http_request_done(struct evhttp_request *req, void *ctx)
 	}
 
 	fprintf(stderr, "Response line: %d %s\n",
-		req->response_code, req->response_code_line);
+	    evhttp_request_get_response_code(req),
+	    evhttp_request_get_response_code_line(req));
 
-	while ((nread = evbuffer_remove(req->input_buffer, buffer, sizeof(buffer)))
+	while ((nread = evbuffer_remove(evhttp_request_get_input_buffer(req),
+		    buffer, sizeof(buffer)))
 	       > 0) {
 		/* These are just arbitrary chunks of 256 bytes.
 		 * They are not lines, so we can't treat them as such. */
@@ -187,6 +188,7 @@ main(int argc, char **argv)
 	struct bufferevent *bev;
 	struct evhttp_connection *evcon;
 	struct evhttp_request *req;
+	struct evkeyvalq *output_headers;
 
 	int i;
 
@@ -341,8 +343,9 @@ main(int argc, char **argv)
 		return 1;
 	}
 
-	evhttp_add_header(req->output_headers, "Host", host);
-	evhttp_add_header(req->output_headers, "Connection", "close");
+	output_headers = evhttp_request_get_output_headers(req);
+	evhttp_add_header(output_headers, "Host", host);
+	evhttp_add_header(output_headers, "Connection", "close");
 
 	if (data_file) {
 		FILE * f = fopen(data_file, "rb");

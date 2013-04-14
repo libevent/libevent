@@ -939,12 +939,13 @@ void evbuffer_cb_unsuspend(struct evbuffer *buffer, struct evbuffer_cb_entry *cb
 #endif
 
 /**
-  Makes the data at the begging of an evbuffer contiguous.
+  Makes the data at the beginning of an evbuffer contiguous.
 
   @param buf the evbuffer to make contiguous
   @param size the number of bytes to make contiguous, or -1 to make the
 	entire buffer contiguous.
-  @return a pointer to the contiguous memory array
+  @return a pointer to the contiguous memory array, or NULL if param size
+	requested more data than is present in the buffer.
 */
 
 unsigned char *evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size);
