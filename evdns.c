@@ -236,6 +236,10 @@ struct nameserver {
 	char choked;  /* true if we have an EAGAIN from this server's socket */
 	char write_waiting;  /* true if we are waiting for EV_WRITE events */
 	struct evdns_base *base;
+
+	/* Number of currently inflight requests: used
+	 * to track when we should add/del the event. */
+	int requests_inflight;
 };
 
 
@@ -652,7 +656,6 @@ static void
 request_finished(struct request *const req, struct request **head, int free_handle) {
 	struct evdns_base *base = req->base;
 	int was_inflight = (head != &base->req_waiting_head);
-	int requests_pending;
 	EVDNS_LOCK(base);
 	ASSERT_VALID_REQUEST(req);
 
@@ -663,15 +666,16 @@ request_finished(struct request *const req, struct request **head, int free_hand
 	if (was_inflight) {
 		evtimer_del(&req->timeout_event);
 		base->global_requests_inflight--;
+		req->ns->requests_inflight--;
 	} else {
 		base->global_requests_waiting--;
 	}
 	/* it was initialized during request_new / evtimer_assign */
 	event_debug_unassign(&req->timeout_event);
 
-	requests_pending = req->base->global_requests_inflight +
-		req->base->global_requests_waiting;
-	if (requests_pending == 0 && req->base->disable_when_inactive) {
+	if (req->ns &&
+	    req->ns->requests_inflight == 0 &&
+	    req->base->disable_when_inactive) {
 		event_del(&req->ns->event);
 	}
 
@@ -753,6 +757,8 @@ evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 		base->global_requests_inflight++;
 
 		req->ns = nameserver_pick(base);
+		req->ns->requests_inflight++;
+
 		request_trans_id_set(req, transaction_id_pick(base));
 
 		evdns_request_insert(req, &REQ_HEAD(base, req->trans_id));
@@ -2195,12 +2201,10 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 static int
 evdns_request_transmit_to(struct request *req, struct nameserver *server) {
 	int r;
-	int requests_pending;
 	ASSERT_LOCKED(req->base);
 	ASSERT_VALID_REQUEST(req);
 
-	requests_pending = req->base->global_requests_inflight + req->base->global_requests_waiting;
-	if (requests_pending == 1 &&
+	if (server->requests_inflight == 1 &&
 		req->base->disable_when_inactive &&
 		event_add(&server->event, NULL) < 0) {
 		return 1;
@@ -2787,7 +2791,10 @@ request_submit(struct request *const req) {
 		/* if it has a nameserver assigned then this is going */
 		/* straight into the inflight queue */
 		evdns_request_insert(req, &REQ_HEAD(base, req->trans_id));
+
 		base->global_requests_inflight++;
+		req->ns->requests_inflight++;
+
 		evdns_request_transmit(req);
 	} else {
 		evdns_request_insert(req, &base->req_waiting_head);
