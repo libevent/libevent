@@ -426,7 +426,8 @@ event_base_update_cache_time(struct event_base *base)
 	}
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-	update_time_cache(base);
+	if (base->running_loop)
+		update_time_cache(base);
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	return 0;
 }
