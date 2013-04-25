@@ -1697,7 +1697,7 @@ evutil_socket_error_to_string(int errcode)
 		/* use LocalAlloc because FormatMessage does */
 		msg = LocalAlloc(LMEM_FIXED, len);
 		if (!msg) {
-			msg = "winsock error";
+			msg = (char *)"LocalAlloc failed during Winsock error";
 			goto done;
 		}
 		evutil_snprintf(msg, len, "winsock error 0x%08x", errcode);
