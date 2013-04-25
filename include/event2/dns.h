@@ -201,6 +201,12 @@ typedef void (*evdns_callback_type) (int result, char type, int count, int ttl, 
 struct evdns_base;
 struct event_base;
 
+/** Flag for evdns_base_new: process resolv.conf.  */
+#define EVDNS_BASE_INITIALIZE_NAMESERVERS 1
+/** Flag for evdns_base_new: Do not prevent the libevent event loop from
+ * exiting when we have no active dns requests. */
+#define EVDNS_BASE_DISABLE_WHEN_INACTIVE 0x8000
+
 /**
   Initialize the asynchronous DNS library.
 
@@ -209,7 +215,8 @@ struct event_base;
   evdns_config_windows_nameservers() on Windows.
 
   @param event_base the event base to associate the dns client with
-  @param initialize_nameservers 1 if resolve.conf processing should occur
+  @param flags any of EVDNS_BASE_INITIALIZE_NAMESERVERS|
+    EVDNS_BASE_DISABLE_WHEN_INACTIVE
   @return evdns_base object if successful, or NULL if an error occurred.
   @see evdns_base_free()
  */
