@@ -120,6 +120,13 @@ struct {
 	 * the regular callback.
 	 */
 	void (*chunk_cb)(struct evhttp_request *, void *);
+	/*
+	 * Error callback - called when error is occured.
+	 * @see evhttp_request_error for error types.
+	 *
+	 * @see evhttp_request_set_error_cb()
+	 */
+	void (*error_cb)(enum evhttp_request_error, void *);
 };
 
 #ifdef __cplusplus

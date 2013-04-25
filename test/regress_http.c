@@ -70,6 +70,19 @@ static struct event_base *exit_base;
 
 static char const BASIC_REQUEST_BODY[] = "This is funny";
 
+#define IMPL_HTTP_REQUEST_ERROR_CB(name, expecting_error)                    \
+	static void                                                              \
+	http_request_error_cb_with_##name##_(enum evhttp_request_error error,    \
+	                                     void *arg)                          \
+	{                                                                        \
+		if (error != expecting_error) { 									 \
+			fprintf(stderr, "FAILED\n"); 									 \
+			exit(1); 														 \
+		} 																	 \
+		test_ok = 1; 														 \
+	}
+IMPL_HTTP_REQUEST_ERROR_CB(cancel, EVREQ_HTTP_REQUEST_CANCEL)
+
 static void http_basic_cb(struct evhttp_request *req, void *arg);
 static void http_chunked_cb(struct evhttp_request *req, void *arg);
 static void http_post_cb(struct evhttp_request *req, void *arg);
@@ -79,6 +92,7 @@ static void http_delay_cb(struct evhttp_request *req, void *arg);
 static void http_large_delay_cb(struct evhttp_request *req, void *arg);
 static void http_badreq_cb(struct evhttp_request *req, void *arg);
 static void http_dispatcher_cb(struct evhttp_request *req, void *arg);
+
 static int
 http_bind(struct evhttp *myhttp, ev_uint16_t *pport, int ipv6)
 {
@@ -647,7 +661,7 @@ http_large_delay_cb(struct evhttp_request *req, void *arg)
 	tv.tv_usec = 500000;
 
 	event_base_once(arg, -1, EV_TIMEOUT, http_delay_reply, req, &tv);
-	evhttp_connection_fail_(delayed_client, EVCON_HTTP_EOF);
+	evhttp_connection_fail_(delayed_client, EVREQ_HTTP_EOF);
 }
 
 /*
@@ -1079,6 +1093,7 @@ http_cancel_test(void *arg)
 	 */
 
 	req = evhttp_request_new(http_request_never_call, NULL);
+	evhttp_request_set_error_cb(req, http_request_error_cb_with_cancel_);
 
 	/* Add the information that we care about */
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
@@ -1095,7 +1110,7 @@ http_cancel_test(void *arg)
 
 	event_base_dispatch(data->base);
 
-	tt_int_op(test_ok, ==, 2);
+	tt_int_op(test_ok, ==, 3);
 
 	/* try to make another request over the same connection */
 	test_ok = 0;

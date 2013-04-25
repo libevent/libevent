@@ -977,7 +977,7 @@ evrpc_request_timeout(evutil_socket_t fd, short what, void *arg)
 	struct evhttp_connection *evcon = ctx->evcon;
 	EVUTIL_ASSERT(evcon != NULL);
 
-	evhttp_connection_fail_(evcon, EVCON_HTTP_TIMEOUT);
+	evhttp_connection_fail_(evcon, EVREQ_HTTP_TIMEOUT);
 }
 
 /*
