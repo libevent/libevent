@@ -1708,7 +1708,7 @@ evutil_socket_error_to_string(int errcode)
 
 	if (!newerr) {
 		LocalFree(msg);
-		msg = "winsock error";
+		msg = (char *)"malloc failed during Winsock error";
 		goto done;
 	}
 
