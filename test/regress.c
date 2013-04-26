@@ -1407,6 +1407,12 @@ test_active_later(void *ptr)
 	tt_int_op(n_read_and_drain_cb, >, 100);
 	tt_int_op(n_activate_other_event_cb, >, 100);
 
+	event_active_later_(&ev4, EV_READ);
+	event_active(&ev4, EV_READ, 1); /* This should make the event
+					   active immediately. */
+	tt_assert((ev4.ev_flags & EVLIST_ACTIVE) != 0);
+	tt_assert((ev4.ev_flags & EVLIST_ACTIVE_LATER) == 0);
+
 	/* Now leave this one around, so that event_free sees it and removes
 	 * it. */
 	event_active_later_(&ev3, EV_READ);
