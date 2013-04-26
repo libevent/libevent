@@ -2635,6 +2635,86 @@ end:
 	;
 }
 
+struct foreach_helper {
+	int count;
+	const struct event *ev;
+};
+
+static int
+foreach_count_cb(const struct event_base *base, const struct event *ev, void *arg)
+{
+	struct foreach_helper *h = event_get_callback_arg(ev);
+	struct timeval *tv = arg;
+	tt_ptr_op(event_get_base(ev), ==, base);
+	tt_int_op(tv->tv_sec, ==, 10);
+	h->ev = ev;
+	h->count++;
+	return 0;
+end:
+	return -1;
+}
+
+static int
+foreach_find_cb(const struct event_base *base, const struct event *ev, void *arg)
+{
+	const struct event **ev_out = arg;
+	struct foreach_helper *h = event_get_callback_arg(ev);
+	if (h->count == 99) {
+		*ev_out = ev;
+		return 101;
+	}
+	return 0;
+}
+
+static void
+test_event_foreach(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct event *ev[5];
+	struct foreach_helper visited[5];
+	int i;
+	struct timeval ten_sec = {10,0};
+	const struct event *ev_found = NULL;
+
+	tt_int_op(-1, ==, event_base_foreach_event(NULL, foreach_count_cb, NULL));
+	tt_int_op(-1, ==, event_base_foreach_event(base, NULL, NULL));
+
+	for (i = 0; i < 5; ++i) {
+		visited[i].count = 0;
+		visited[i].ev = NULL;
+		ev[i] = event_new(base, -1, 0, timeout_cb, &visited[i]);
+	}
+
+	event_add(ev[0], &ten_sec);
+	event_add(ev[1], &ten_sec);
+	event_active(ev[1], EV_TIMEOUT, 1);
+	event_active(ev[2], EV_TIMEOUT, 1);
+	event_add(ev[3], &ten_sec);
+	/* Don't touch ev[4]. */
+
+	tt_int_op(0, ==, event_base_foreach_event(base, foreach_count_cb,
+		&ten_sec));
+	tt_int_op(1, ==, visited[0].count);
+	tt_int_op(1, ==, visited[1].count);
+	tt_int_op(1, ==, visited[2].count);
+	tt_int_op(1, ==, visited[3].count);
+	tt_ptr_op(ev[0], ==, visited[0].ev);
+	tt_ptr_op(ev[1], ==, visited[1].ev);
+	tt_ptr_op(ev[2], ==, visited[2].ev);
+	tt_ptr_op(ev[3], ==, visited[3].ev);
+
+	visited[2].count = 99;
+	tt_int_op(101, ==, event_base_foreach_event(base, foreach_find_cb,
+		&ev_found));
+	tt_ptr_op(ev_found, ==, ev[2]);
+
+end:
+	for (i=0; i<5; ++i) {
+		event_free(ev[i]);
+	}
+}
+
 struct testcase_t main_testcases[] = {
 	/* Some converted-over tests */
 	{ "methods", test_methods, TT_FORK, NULL, NULL },
@@ -2692,6 +2772,8 @@ struct testcase_t main_testcases[] = {
 	{ "many_events_slow_add", test_many_events, TT_ISOLATED, &basic_setup, (void*)1 },
 
 	{ "struct_event_size", test_struct_event_size, 0, NULL, NULL },
+
+	BASIC(event_foreach, TT_FORK|TT_NEED_BASE),
 
 #ifndef _WIN32
 	LEGACY(fork, TT_ISOLATED),
