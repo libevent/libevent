@@ -1046,10 +1046,12 @@ typedef void (*event_finalize_callback_fn)(struct event *, void *);
    A finalizer callback must not make events pending or active.  It must not
    add events, activate events, or attempt to "resucitate" the event being
    finalized in any way.
+
+   @return 0 on succes, -1 on failure.
  */
 /**@{*/
-void event_finalize(unsigned, struct event *, event_finalize_callback_fn);
-void event_free_finalize(unsigned, struct event *, event_finalize_callback_fn);
+int event_finalize(unsigned, struct event *, event_finalize_callback_fn);
+int event_free_finalize(unsigned, struct event *, event_finalize_callback_fn);
 /**@}*/
 
 /**

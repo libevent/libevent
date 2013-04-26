@@ -2044,7 +2044,7 @@ event_debug_unassign(struct event *ev)
 }
 
 #define EVENT_FINALIZE_FREE_ 0x10000
-static void
+static int
 event_finalize_nolock_(struct event_base *base, unsigned flags, struct event *ev, event_finalize_callback_fn cb)
 {
 	uint8_t closure = (flags & EVENT_FINALIZE_FREE_) ?
@@ -2055,29 +2055,32 @@ event_finalize_nolock_(struct event_base *base, unsigned flags, struct event *ev
 	ev->ev_evcallback.evcb_cb_union.evcb_evfinalize = cb;
 	event_active_nolock_(ev, EV_FINALIZE, 1);
 	ev->ev_flags |= EVLIST_FINALIZING;
+	return 0;
 }
 
-static void
+static int
 event_finalize_impl_(unsigned flags, struct event *ev, event_finalize_callback_fn cb)
 {
+	int r;
 	struct event_base *base = ev->ev_base;
 	if (EVUTIL_FAILURE_CHECK(!base)) {
 		event_warnx("%s: event has no event_base set.", __func__);
-		return;
+		return -1;
 	}
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-	event_finalize_nolock_(base, flags, ev, cb);
+	r = event_finalize_nolock_(base, flags, ev, cb);
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return r;
 }
 
-void
+int
 event_finalize(unsigned flags, struct event *ev, event_finalize_callback_fn cb)
 {
 	return event_finalize_impl_(flags, ev, cb);
 }
 
-void
+int
 event_free_finalize(unsigned flags, struct event *ev, event_finalize_callback_fn cb)
 {
 	return event_finalize_impl_(flags|EVENT_FINALIZE_FREE_, ev, cb);
