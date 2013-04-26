@@ -37,6 +37,7 @@ extern "C" {
 extern struct testcase_t main_testcases[];
 extern struct testcase_t evtag_testcases[];
 extern struct testcase_t evbuffer_testcases[];
+extern struct testcase_t finalize_testcases[];
 extern struct testcase_t bufferevent_testcases[];
 extern struct testcase_t bufferevent_iocp_testcases[];
 extern struct testcase_t util_testcases[];

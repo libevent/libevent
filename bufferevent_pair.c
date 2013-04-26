@@ -267,7 +267,7 @@ be_pair_disable(struct bufferevent *bev, short events)
 }
 
 static void
-be_pair_destruct(struct bufferevent *bev)
+be_pair_unlink(struct bufferevent *bev)
 {
 	struct bufferevent_pair *bev_p = upcast(bev);
 
@@ -275,8 +275,6 @@ be_pair_destruct(struct bufferevent *bev)
 		bev_p->partner->partner = NULL;
 		bev_p->partner = NULL;
 	}
-
-	bufferevent_del_generic_timeout_cbs_(bev);
 }
 
 static int
@@ -327,7 +325,8 @@ const struct bufferevent_ops bufferevent_ops_pair = {
 	evutil_offsetof(struct bufferevent_pair, bev.bev),
 	be_pair_enable,
 	be_pair_disable,
-	be_pair_destruct,
+	be_pair_unlink,
+	NULL, /* be_pair_destruct, */
 	bufferevent_generic_adj_timeouts_,
 	be_pair_flush,
 	NULL, /* ctrl */

@@ -60,9 +60,10 @@ extern "C" {
 #define EVLIST_ACTIVE	    0x08
 #define EVLIST_INTERNAL	    0x10
 #define EVLIST_ACTIVE_LATER 0x20
+#define EVLIST_FINALIZING   0x40
 #define EVLIST_INIT	    0x80
 
-#define EVLIST_ALL          0xbf
+#define EVLIST_ALL          0xff
 
 /* Fix so that people don't have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
@@ -101,6 +102,8 @@ struct name {								\
 	}
 #endif /* !LIST_HEAD */
 
+struct event;
+
 struct event_callback {
 	TAILQ_ENTRY(event_callback) evcb_active_next;
 	short evcb_flags;
@@ -108,8 +111,10 @@ struct event_callback {
 	ev_uint8_t evcb_closure;
 	/* allows us to adopt for different types of events */
         union {
-		void (*evcb_callback)(evutil_socket_t, short, void *arg);
-		void (*evcb_selfcb)(struct event_callback *, void *arg);
+		void (*evcb_callback)(evutil_socket_t, short, void *);
+		void (*evcb_selfcb)(struct event_callback *, void *);
+		void (*evcb_evfinalize)(struct event *, void *);
+		void (*evcb_cbfinalize)(struct event_callback *, void *);
 	} evcb_cb_union;
 	void *evcb_arg;
 };

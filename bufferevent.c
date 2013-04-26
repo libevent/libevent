@@ -54,6 +54,7 @@
 #include "event2/bufferevent_struct.h"
 #include "event2/bufferevent_compat.h"
 #include "event2/event.h"
+#include "event-internal.h"
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "bufferevent-internal.h"
@@ -61,7 +62,7 @@
 #include "util-internal.h"
 
 static void bufferevent_cancel_all_(struct bufferevent *bev);
-
+static void bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_);
 
 void
 bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what)
@@ -640,7 +641,9 @@ bufferevent_decref_and_unlock_(struct bufferevent *bufev)
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
-	struct bufferevent *underlying;
+	int n_cbs = 0;
+#define MAX_CBS 16
+	struct event_callback *cbs[MAX_CBS];
 
 	EVUTIL_ASSERT(bufev_private->refcnt > 0);
 
@@ -649,6 +652,41 @@ bufferevent_decref_and_unlock_(struct bufferevent *bufev)
 		return 0;
 	}
 
+	if (bufev->be_ops->unlink)
+		bufev->be_ops->unlink(bufev);
+
+	/* Okay, we're out of references. Let's finalize this once all the
+	 * callbacks are done running. */
+	cbs[0] = &bufev->ev_read.ev_evcallback;
+	cbs[1] = &bufev->ev_write.ev_evcallback;
+	cbs[2] = &bufev_private->deferred;
+	n_cbs = 3;
+	if (bufev_private->rate_limiting) {
+		struct event *e = &bufev_private->rate_limiting->refill_bucket_event;
+		if (event_initialized(e))
+			cbs[n_cbs++] = &e->ev_evcallback;
+	}
+	n_cbs += evbuffer_get_callbacks_(bufev->input, cbs+n_cbs, MAX_CBS-n_cbs);
+	n_cbs += evbuffer_get_callbacks_(bufev->output, cbs+n_cbs, MAX_CBS-n_cbs);
+
+	event_callback_finalize_many_(bufev->ev_base, n_cbs, cbs,
+	    bufferevent_finalize_cb_);
+
+#undef MAX_CBS
+	BEV_UNLOCK(bufev);
+
+	return 1;
+}
+
+static void
+bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
+{
+	struct bufferevent *bufev = arg_;
+	struct bufferevent *underlying;
+	struct bufferevent_private *bufev_private =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+
+	BEV_LOCK(bufev);
 	underlying = bufferevent_get_underlying(bufev);
 
 	/* Clean up the shared info */
@@ -665,17 +703,13 @@ bufferevent_decref_and_unlock_(struct bufferevent *bufev)
 	if (bufev_private->rate_limiting) {
 		if (bufev_private->rate_limiting->group)
 			bufferevent_remove_from_rate_limit_group_internal_(bufev,0);
-		if (event_initialized(&bufev_private->rate_limiting->refill_bucket_event))
-			event_del(&bufev_private->rate_limiting->refill_bucket_event);
-		event_debug_unassign(&bufev_private->rate_limiting->refill_bucket_event);
 		mm_free(bufev_private->rate_limiting);
 		bufev_private->rate_limiting = NULL;
 	}
 
-	event_debug_unassign(&bufev->ev_read);
-	event_debug_unassign(&bufev->ev_write);
 
 	BEV_UNLOCK(bufev);
+
 	if (bufev_private->own_lock)
 		EVTHREAD_FREE_LOCK(bufev_private->lock,
 		    EVTHREAD_LOCKTYPE_RECURSIVE);
@@ -695,8 +729,6 @@ bufferevent_decref_and_unlock_(struct bufferevent *bufev)
 	 */
 	if (underlying)
 		bufferevent_decref_(underlying);
-
-	return 1;
 }
 
 int
@@ -844,21 +876,10 @@ bufferevent_generic_write_timeout_cb(evutil_socket_t fd, short event, void *ctx)
 void
 bufferevent_init_generic_timeout_cbs_(struct bufferevent *bev)
 {
-	evtimer_assign(&bev->ev_read, bev->ev_base,
+	event_assign(&bev->ev_read, bev->ev_base, -1, EV_FINALIZE,
 	    bufferevent_generic_read_timeout_cb, bev);
-	evtimer_assign(&bev->ev_write, bev->ev_base,
+	event_assign(&bev->ev_write, bev->ev_base, -1, EV_FINALIZE,
 	    bufferevent_generic_write_timeout_cb, bev);
-}
-
-int
-bufferevent_del_generic_timeout_cbs_(struct bufferevent *bev)
-{
-	int r1,r2;
-	r1 = event_del(&bev->ev_read);
-	r2 = event_del(&bev->ev_write);
-	if (r1<0 || r2<0)
-		return -1;
-	return 0;
 }
 
 int

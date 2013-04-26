@@ -420,6 +420,7 @@ sender_writecb(struct bufferevent *bev, void *ctx)
 {
 	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
 		bufferevent_disable(bev,EV_READ|EV_WRITE);
+		TT_BLATHER(("Flushed %d: freeing it.", (int)bufferevent_getfd(bev)));
 		bufferevent_free(bev);
 	}
 }
@@ -462,6 +463,7 @@ reader_eventcb(struct bufferevent *bev, short what, void *ctx)
 		return;
 	}
 	if (what & BEV_EVENT_CONNECTED) {
+		TT_BLATHER(("connected on %d", (int)bufferevent_getfd(bev)));
 		bufferevent_enable(bev, EV_READ);
 	}
 	if (what & BEV_EVENT_EOF) {
@@ -472,6 +474,8 @@ reader_eventcb(struct bufferevent *bev, short what, void *ctx)
 		tt_str_op(buf, ==, TEST_STR);
 		if (++n_strings_read == 2)
 			event_base_loopexit(base, NULL);
+		TT_BLATHER(("EOF on %d: %d strings read.",
+			(int)bufferevent_getfd(bev), n_strings_read));
 	}
 end:
 	;
@@ -480,6 +484,7 @@ end:
 static void
 reader_readcb(struct bufferevent *bev, void *ctx)
 {
+	TT_BLATHER(("Read invoked on %d.", (int)bufferevent_getfd(bev)));
 	n_reads_invoked++;
 }
 

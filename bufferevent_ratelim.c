@@ -609,8 +609,8 @@ bufferevent_set_rate_limit(struct bufferevent *bev,
 		EVUTIL_ASSERT(event_initialized(&rlim->refill_bucket_event));
 		event_del(&rlim->refill_bucket_event);
 	}
-	evtimer_assign(&rlim->refill_bucket_event, bev->ev_base,
-	    bev_refill_callback_, bevp);
+	event_assign(&rlim->refill_bucket_event, bev->ev_base,
+	    -1, EV_FINALIZE, bev_refill_callback_, bevp);
 
 	if (rlim->limit.read_limit > 0) {
 		bufferevent_unsuspend_read_(bev, BEV_SUSPEND_BW);
@@ -654,7 +654,7 @@ bufferevent_rate_limit_group_new(struct event_base *base,
 
 	ev_token_bucket_init_(&g->rate_limit, cfg, tick, 0);
 
-	event_assign(&g->master_refill_event, base, -1, EV_PERSIST,
+	event_assign(&g->master_refill_event, base, -1, EV_PERSIST|EV_FINALIZE,
 	    bev_group_refill_callback_, g);
 	/*XXXX handle event_add failure */
 	event_add(&g->master_refill_event, &cfg->tick_timeout);
@@ -748,8 +748,8 @@ bufferevent_add_to_rate_limit_group(struct bufferevent *bev,
 			BEV_UNLOCK(bev);
 			return -1;
 		}
-		evtimer_assign(&rlim->refill_bucket_event, bev->ev_base,
-		    bev_refill_callback_, bevp);
+		event_assign(&rlim->refill_bucket_event, bev->ev_base,
+		    -1, EV_FINALIZE, bev_refill_callback_, bevp);
 		bevp->rate_limiting = rlim;
 	}
 

@@ -327,6 +327,11 @@ void evbuffer_set_parent_(struct evbuffer *buf, struct bufferevent *bev);
 
 void evbuffer_invoke_callbacks_(struct evbuffer *buf);
 
+
+int evbuffer_get_callbacks_(struct evbuffer *buffer,
+    struct event_callback **cbs,
+    int max_cbs);
+
 #ifdef __cplusplus
 }
 #endif
