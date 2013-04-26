@@ -78,6 +78,8 @@ extern const struct testcase_setup_t basic_setup;
 extern const struct testcase_setup_t legacy_setup;
 void run_legacy_test_fn(void *ptr);
 
+extern int libevent_tests_running_in_debug_mode;
+
 /* A couple of flags that basic/legacy_setup can support. */
 #define TT_NEED_SOCKETPAIR	TT_FIRST_USER_FLAG
 #define TT_NEED_BASE		(TT_FIRST_USER_FLAG<<1)

@@ -412,6 +412,8 @@ struct testlist_alias_t testaliases[] = {
 	END_OF_ALIASES
 };
 
+int libevent_tests_running_in_debug_mode = 0;
+
 int
 main(int argc, const char **argv)
 {
@@ -438,8 +440,10 @@ main(int argc, const char **argv)
 		evthread_enable_lock_debugging();
 #endif
 
-	if (getenv("EVENT_DEBUG_MODE"))
+	if (getenv("EVENT_DEBUG_MODE")) {
 		event_enable_debug_mode();
+		libevent_tests_running_in_debug_mode = 1;
+	}
 
 	tinytest_set_aliases(testaliases);
 

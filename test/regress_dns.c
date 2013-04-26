@@ -1694,7 +1694,8 @@ testleak_setup(const struct testcase_t *testcase)
 
 	allocated_chunks = 0;
 	event_set_mem_functions(cnt_malloc, cnt_realloc, cnt_free);
-	event_enable_debug_mode();
+	if (!libevent_tests_running_in_debug_mode)
+		event_enable_debug_mode();
 
 	/* not mm_calloc: we don't want to mess with the count. */
 	env = calloc(1, sizeof(struct testleak_env_t));
