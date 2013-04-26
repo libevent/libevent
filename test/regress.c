@@ -735,19 +735,27 @@ test_common_timeout(void *ptr)
 	struct timeval start;
 	struct timeval tmp_100_ms = { 0, 100*1000 };
 	struct timeval tmp_200_ms = { 0, 200*1000 };
+	struct timeval tmp_5_sec = { 5, 0 };
+	struct timeval tmp_5M_usec = { 0, 5*1000*1000 };
 
-	const struct timeval *ms_100, *ms_200;
+	const struct timeval *ms_100, *ms_200, *sec_5;
 
 	ms_100 = event_base_init_common_timeout(base, &tmp_100_ms);
 	ms_200 = event_base_init_common_timeout(base, &tmp_200_ms);
+	sec_5 = event_base_init_common_timeout(base, &tmp_5_sec);
 	tt_assert(ms_100);
 	tt_assert(ms_200);
+	tt_assert(sec_5);
 	tt_ptr_op(event_base_init_common_timeout(base, &tmp_200_ms),
 	    ==, ms_200);
+	tt_ptr_op(event_base_init_common_timeout(base, ms_200), ==, ms_200);
+	tt_ptr_op(event_base_init_common_timeout(base, &tmp_5M_usec), ==, sec_5);
 	tt_int_op(ms_100->tv_sec, ==, 0);
 	tt_int_op(ms_200->tv_sec, ==, 0);
+	tt_int_op(sec_5->tv_sec, ==, 5);
 	tt_int_op(ms_100->tv_usec, ==, 100000|0x50000000);
 	tt_int_op(ms_200->tv_usec, ==, 200000|0x50100000);
+	tt_int_op(sec_5->tv_usec, ==, 0|0x50200000);
 
 	memset(info, 0, sizeof(info));
 
