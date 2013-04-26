@@ -2715,6 +2715,85 @@ end:
 	}
 }
 
+static struct event_base *cached_time_base = NULL;
+static int cached_time_reset = 0;
+static int cached_time_sleep = 0;
+static void
+cache_time_cb(evutil_socket_t fd, short what, void *arg)
+{
+	struct timeval *tv = arg;
+	tt_int_op(0, ==, event_base_gettimeofday_cached(cached_time_base, tv));
+	if (cached_time_sleep) {
+		struct timeval delay = { 0, 30*1000 };
+		evutil_usleep_(&delay);
+	}
+	if (cached_time_reset) {
+		event_base_update_cache_time(cached_time_base);
+	}
+end:
+	;
+}
+
+static void
+test_gettimeofday_cached(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_config *cfg = NULL;
+	struct event_base *base = NULL;
+	struct timeval tv1, tv2, tv3, now;
+	struct event *ev1=NULL, *ev2=NULL, *ev3=NULL;
+	int cached_time_disable = strstr(data->setup_data, "disable") != NULL;
+
+	cfg = event_config_new();
+	if (cached_time_disable) {
+		event_config_set_flag(cfg, EVENT_BASE_FLAG_NO_CACHE_TIME);
+	}
+	cached_time_base = base = event_base_new_with_config(cfg);
+
+	/* Try gettimeofday_cached outside of an event loop. */
+	evutil_gettimeofday(&now, NULL);
+	tt_int_op(0, ==, event_base_gettimeofday_cached(NULL, &tv1));
+	tt_int_op(0, ==, event_base_gettimeofday_cached(base, &tv2));
+	tt_int_op(timeval_msec_diff(&tv1, &tv2), <, 10);
+	tt_int_op(timeval_msec_diff(&tv1, &now), <, 10);
+
+	cached_time_reset = strstr(data->setup_data, "reset") != NULL;
+	cached_time_sleep = strstr(data->setup_data, "sleep") != NULL;
+
+	ev1 = event_new(base, -1, 0, cache_time_cb, &tv1);
+	ev2 = event_new(base, -1, 0, cache_time_cb, &tv2);
+	ev3 = event_new(base, -1, 0, cache_time_cb, &tv3);
+
+	event_active(ev1, EV_TIMEOUT, 1);
+	event_active(ev2, EV_TIMEOUT, 1);
+	event_active(ev3, EV_TIMEOUT, 1);
+
+	event_base_dispatch(base);
+
+	if (cached_time_reset && cached_time_sleep) {
+		tt_int_op(labs(timeval_msec_diff(&tv1,&tv2)), >, 10);
+		tt_int_op(labs(timeval_msec_diff(&tv2,&tv3)), >, 10);
+	} else if (cached_time_disable && cached_time_sleep) {
+		tt_int_op(labs(timeval_msec_diff(&tv1,&tv2)), >, 10);
+		tt_int_op(labs(timeval_msec_diff(&tv2,&tv3)), >, 10);
+	} else if (! cached_time_disable) {
+		tt_assert(evutil_timercmp(&tv1, &tv2, ==));
+		tt_assert(evutil_timercmp(&tv2, &tv3, ==));
+	}
+
+end:
+	if (ev1)
+		event_free(ev1);
+	if (ev2)
+		event_free(ev2);
+	if (ev3)
+		event_free(ev3);
+	if (base)
+		event_base_free(base);
+	if (cfg)
+		event_config_free(cfg);
+}
+
 struct testcase_t main_testcases[] = {
 	/* Some converted-over tests */
 	{ "methods", test_methods, TT_FORK, NULL, NULL },
@@ -2774,6 +2853,11 @@ struct testcase_t main_testcases[] = {
 	{ "struct_event_size", test_struct_event_size, 0, NULL, NULL },
 
 	BASIC(event_foreach, TT_FORK|TT_NEED_BASE),
+	{ "gettimeofday_cached", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"" },
+	{ "gettimeofday_cached_sleep", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"sleep" },
+	{ "gettimeofday_cached_reset", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"sleep reset" },
+	{ "gettimeofday_cached_disabled", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"sleep disable" },
+	{ "gettimeofday_cached_disabled_nosleep", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"disable" },
 
 #ifndef _WIN32
 	LEGACY(fork, TT_ISOLATED),
