@@ -2684,6 +2684,8 @@ foreach_count_cb(const struct event_base *base, const struct event *ev, void *ar
 {
 	struct foreach_helper *h = event_get_callback_arg(ev);
 	struct timeval *tv = arg;
+	if (event_get_callback(ev) != timeout_cb)
+		return 0;
 	tt_ptr_op(event_get_base(ev), ==, base);
 	tt_int_op(tv->tv_sec, ==, 10);
 	h->ev = ev;
@@ -2698,6 +2700,8 @@ foreach_find_cb(const struct event_base *base, const struct event *ev, void *arg
 {
 	const struct event **ev_out = arg;
 	struct foreach_helper *h = event_get_callback_arg(ev);
+	if (event_get_callback(ev) != timeout_cb)
+		return 0;
 	if (h->count == 99) {
 		*ev_out = ev;
 		return 101;
@@ -2716,14 +2720,14 @@ test_event_foreach(void *arg)
 	struct timeval ten_sec = {10,0};
 	const struct event *ev_found = NULL;
 
-	tt_int_op(-1, ==, event_base_foreach_event(NULL, foreach_count_cb, NULL));
-	tt_int_op(-1, ==, event_base_foreach_event(base, NULL, NULL));
-
 	for (i = 0; i < 5; ++i) {
 		visited[i].count = 0;
 		visited[i].ev = NULL;
 		ev[i] = event_new(base, -1, 0, timeout_cb, &visited[i]);
 	}
+
+	tt_int_op(-1, ==, event_base_foreach_event(NULL, foreach_count_cb, NULL));
+	tt_int_op(-1, ==, event_base_foreach_event(base, NULL, NULL));
 
 	event_add(ev[0], &ten_sec);
 	event_add(ev[1], &ten_sec);
