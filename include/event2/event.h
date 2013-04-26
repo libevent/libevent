@@ -1423,6 +1423,10 @@ typedef int (*event_base_foreach_event_cb)(const struct event_base *, const stru
    event_base_foreach_event() holds a lock on the event_base() for the whole
    time it's running: slow callbacks are not advisable.
 
+   Note that Libevent adds some events of its own to make pieces of its
+   functionality work.  You must not assume that the only events you'll
+   encounter will be the ones you added yourself.
+
    The callback function must return 0 to continue iteration, or some other
    integer to stop iterating.
 
