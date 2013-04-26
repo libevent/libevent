@@ -599,12 +599,16 @@ struct event_base *event_base_new_with_config(const struct event_config *);
   Note that this function will not close any fds or free any memory passed
   to event_new as the argument to callback.
 
+  If there are any pending finalizer callbacks, this function will invoke
+  them.
 
   @param eb an event_base to be freed
  */
 void event_base_free(struct event_base *);
 
-/** DOCUMENT */
+/**
+   As event_free, but do not run finalizers.
+ */
 void event_base_free_nofinalize(struct event_base *);
 
 /** @name Log severities
@@ -1038,6 +1042,10 @@ typedef void (*event_finalize_callback_fn)(struct event *, void *);
 
    The event_free_finalize() function frees the event after it's finalized;
    event_finalize() does not.
+
+   A finalizer callback must not make events pending or active.  It must not
+   add events, activate events, or attempt to "resucitate" the event being
+   finalized in any way.
  */
 /**@{*/
 void event_finalize(unsigned, struct event *, event_finalize_callback_fn);

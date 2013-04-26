@@ -1193,8 +1193,8 @@ be_openssl_unlink(struct bufferevent *bev)
 				    "bufferevent with too few references");
 			} else {
 				bufferevent_free(bev_ssl->underlying);
-				/* We still have a reference to it, since DOCUMENT. So we don't
-				 * drop this. */
+				/* We still have a reference to it, via our
+				 * BIO. So we don't drop this. */
 				// bev_ssl->underlying = NULL;
 			}
 		}

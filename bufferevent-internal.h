@@ -252,11 +252,13 @@ struct bufferevent_ops {
 	 */
 	int (*disable)(struct bufferevent *, short);
 
-	/** DOCUMENT */
+	/** Detatches the bufferevent from related data structures. Called as
+	 * soon as its reference count reaches 0. */
 	void (*unlink)(struct bufferevent *);
 
 	/** Free any storage and deallocate any extra data or structures used
-	    in this implementation. DOCUMENT
+	    in this implementation. Called when the bufferevent is
+	    finalized.
 	 */
 	void (*destruct)(struct bufferevent *);
 

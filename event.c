@@ -2599,8 +2599,11 @@ event_del_noblock(struct event *ev)
 	return event_del_(ev, EVENT_DEL_NOBLOCK);
 }
 
-/* Helper for event_del: always called with th_base_lock held.
- * DOCUMENT blocking */
+/** Helper for event_del: always called with th_base_lock held.
+ *
+ * "blocking" must be one of the EVENT_DEL_{BLOCK, NOBLOCK, AUTOBLOCK,
+ * EVEN_IF_FINALIZING} values. See those for more information.
+ */
 int
 event_del_nolock_(struct event *ev, int blocking)
 {

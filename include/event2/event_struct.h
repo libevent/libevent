@@ -105,7 +105,6 @@ struct name {								\
 struct event;
 
 struct event_callback {
-	/* DOCUMENT all these fields */
 	TAILQ_ENTRY(event_callback) evcb_active_next;
 	short evcb_flags;
 	ev_uint8_t evcb_pri;	/* smaller numbers are higher priority */
