@@ -213,9 +213,7 @@ test_fin_free_finalize(void *arg)
 	tt_int_op(tfff_p1_freed, ==, 1);
 	tt_int_op(tfff_p2_freed, ==, 0);
 
-	event_free(ev2); /* XXXX Right now, this fails under debug mode, since
-			  * the event has been torn down, and therefore can't
-			  * be a valid target for event_free. */
+	event_free(ev2);
 
 end:
 	if (base)
