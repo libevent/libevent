@@ -2635,6 +2635,37 @@ end:
 	;
 }
 
+static void
+test_get_assignment(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct event *ev1 = NULL;
+	const char *str = "foo";
+
+	struct event_base *b;
+	evutil_socket_t s;
+	short what;
+	event_callback_fn cb;
+	void *cb_arg;
+
+	ev1 = event_new(base, data->pair[1], EV_READ, dummy_read_cb, (void*)str);
+	event_get_assignment(ev1, &b, &s, &what, &cb, &cb_arg);
+
+	tt_ptr_op(b, ==, base);
+	tt_int_op(s, ==, data->pair[1]);
+	tt_int_op(what, ==, EV_READ);
+	tt_ptr_op(cb, ==, dummy_read_cb);
+	tt_ptr_op(cb_arg, ==, str);
+
+	/* Now make sure this doesn't crash. */
+	event_get_assignment(ev1, NULL, NULL, NULL, NULL, NULL);
+
+end:
+	if (ev1)
+		event_free(ev1);
+}
+
 struct foreach_helper {
 	int count;
 	const struct event *ev;
@@ -2851,6 +2882,7 @@ struct testcase_t main_testcases[] = {
 	{ "many_events_slow_add", test_many_events, TT_ISOLATED, &basic_setup, (void*)1 },
 
 	{ "struct_event_size", test_struct_event_size, 0, NULL, NULL },
+	BASIC(get_assignment, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
 
 	BASIC(event_foreach, TT_FORK|TT_NEED_BASE),
 	{ "gettimeofday_cached", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"" },
