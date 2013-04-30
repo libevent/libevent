@@ -158,6 +158,7 @@ end:
 	;
 }
 
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
 static void *
 tfff_malloc(size_t n)
 {
@@ -181,12 +182,15 @@ tfff_realloc(void *p, size_t sz)
 {
 	return realloc(p,sz);
 }
+#endif
 
 static void
 test_fin_free_finalize(void *arg)
 {
+#ifdef EVENT__DISABLE_MM_REPLACEMENT
+	tinytest_set_test_skipped_();
+#else
 	struct event_base *base = NULL;
-
 	struct event *ev, *ev2;
 	int ev_called = 0;
 	int ev2_called = 0;
@@ -218,6 +222,7 @@ test_fin_free_finalize(void *arg)
 end:
 	if (base)
 		event_base_free(base);
+#endif
 }
 
 /* For test_fin_within_cb */
