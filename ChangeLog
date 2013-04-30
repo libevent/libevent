@@ -1,4 +1,27 @@
-Changes in version 2.0.22-stable (?? ??? 201?)
+Changes in version 2.0.22-stable (?? ??? 2013)
+
+ (As of 66dacfa2a58602d82e0413c8217ec38c9871d5cf.)
+
+BUGFIXES (evhttp, crash fix)
+ o fix #73 and fix http_connection_fail_test to catch it (b618204 Greg Hazel)
+
+BUGFIXES (compilation and portability)
+ o Fix compilation with WIN32_HAVE_CONDITION_VARIABLES enabled (7e45739)
+ o Fix missing AC_PROG_SED on older Autoconfs (9ab2b3f Tay Ray Chuan)
+ o Backport libevent to vanilla Autoconf 2.59 (as used in RHEL5) (74d4c44 Kevin Bowling)
+ o Use AC_CONFIG_HEADERS in place of AM_CONFIG_HEADERS for autmake 1.13 compat (817ea36)
+ o Rename configure.in to configure.ac to appease newer autoconfs (0c79787)
+ o Avoid using top_srcdir in TESTS: new automakes do not like this (a55514e)
+
+BUGFIXES (resource leaks/lock errors on error)
+ o Avoid leaking fds on evconnlistener with no callback set (69db261)
+ o Avoid double-close on getsockname error in evutil_ersatz_socketpair (0a822a6)
+ o Fix a locking error in bufferevent_socket_get_dns_error. (0a5eb2e)
+
+DOCUMENTATION FIXES
+ o Fix a mistake in evbuffer_remove() arguments in example http server code (c322c20 Gyepi Sam)
+ o Fix a typo in a comment in buffer.h. Spotted by Alt_F4 (773b0a5)
+
 
 
 Changes in version 2.0.21-stable (18 Nov 2012)
