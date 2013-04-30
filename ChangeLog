@@ -1,4 +1,151 @@
-Changes in version 2.1.3-alpha (?? ??? 201?)
+Changes in version 2.1.3-alpha (?? ??? 2013)
+
+ Libevent 2.1.3-alpha fixes various bugs, adds new unit tests, and cleans
+ up the code in a couple of places. It has a new callback in evhttp for
+ reporting errors during a request, a new feature for allowing evdns to
+ not keep the event_base looping when there are no requests inflight, and
+ example code for writing an https client.
+
+ Libevent 2.1.3-alpha also has an important new (experimental) event
+ finalization feature to allow safe event teardown in multithreaded
+ programs. This ought to fix the longstanding bug with deadlocks in
+ multithreaded use of SSL-based bufferevents that some people have been
+ experiencing since Libevent 2.0.
+
+
+ Core (event finalization)
+   o Implement event_finalize() and related functions to avoid certain
+     deadlocks (8eedeab)
+   o Use finalization feature so bufferevents can avoid deadlocks (02fbf68)
+   o Always run pending finalizers when event_base_free() is called (e9ebef8)
+   o Remove bufferevent_del_generic_timeout_cbs as now unused (4ea4c6a)
+   o More documentation for finalization feature (a800b91)
+   o Make the event_finalize* functions return an error code (5d11f4f)
+   o Mark the finalize stuff as experiemental in case it needs to
+     change (23e2e29)
+
+ Evdns
+   o evdns: New flag to make evdns not prevent the event loop from
+     exiting (6b7fa62 Azat Khuzhin)
+
+ Bugfixes (Core)
+   o Make event_remove_timer behave correctly with persistent timers (5623e80)
+   o Unit test for event_remove_timer with EV_PERSIST. (96150dd)
+   o Double-check next timeout when adding events (9443868 Nate Rosenblum)
+   o event_base_update_cache_time should be a no-op if the loop isn't
+     running (5e6fa2a)
+
+ Bugfixes (evhttp, crash fix, from 2.0)
+   o fix #73 and fix http_connection_fail_test to catch it (b618204 Greg Hazel)
+
+ Bugfixes (compilation and portability, from 2.0)
+   o Fix compilation with WIN32_HAVE_CONDITION_VARIABLES enabled (7e45739)
+   o Fix missing AC_PROG_SED on older Autoconfs (9ab2b3f Tay Ray Chuan)
+   o Backport libevent to vanilla Autoconf 2.59 (as used in RHEL5)
+     (74d4c44 Kevin Bowling)
+   o Use AC_CONFIG_HEADERS in place of AM_CONFIG_HEADERS for autmake
+     1.13 compat (817ea36)
+   o Rename configure.in to configure.ac to appease newer autoconfs (0c79787)
+   o Avoid using top_srcdir in TESTS: new automakes do not like this (a55514e)
+
+ Bugfixes (resource leaks/lock errors on error, from 2.0)
+   o Avoid leaking fds on evconnlistener with no callback set (69db261)
+   o Avoid double-close on getsockname error in evutil_ersatz_socketpair
+     (0a822a6)
+   o Fix a locking error in bufferevent_socket_get_dns_error. (0a5eb2e)
+
+ Documentation Fixes (from 2.0)
+   o Fix a mistake in evbuffer_remove() arguments in example http server code
+     (c322c20 Gyepi Sam)
+   o Fix a typo in a comment in buffer.h. Spotted by Alt_F4 (773b0a5)
+
+ Documentation Fixes
+   o minor documentation typos (809586a Patrick Pelletier)
+   o Fix cut-and-paste err in whatsnew-2.1 (49905ac)
+   o Fix comment to refer to sample/include.am correctly (9e8cdf3 Sebastian
+     Hahn)
+   o Fix typo : Dispatching instead of Dispaching (0c2bacc Volker Lendecke)
+   o fix some hinky indentation in evhttp_make_request (80e220e Patrick
+     Pelletier)
+   o "buffer" spelling (a452811 Patrick Pelletier)
+   o Specify return behavior in header for evbuffer_pullup() in corner case
+     (cf8d1cd Dan Petro)
+   o Clarify an important point about event_base_foreach_event() (920a5e6)
+
+ Compilation Fixes/Tool Support
+   o avoid valgrind false positive by zeroing epoll_event (1258614 Patrick
+     Pelletier)
+   o Fix harmless clang enum warning (b452a43 Sebastian Hahn)
+   o remove all exes on "make clean", not just regress.exe (974bfa0 Patrick
+     Pelletier)
+   o Make --disable-libevent-regress work again (787fd74)
+   o Do not build strlcpy.c when it will have no code. (4914620)
+
+ Portability Fixes
+   o When EWOULDBLOCK is not EAGAIN, treat it as equivalent to it (bf7a0ff)
+   o Preliminary changes for Minix3. (0dda56a Nicholas Heath)
+   o Use AC_CONFIG_HEADERS in place of AM_CONFIG_HEADERS for autmake 1.13
+     compat (bf278b)
+   o Avoid using $(top_srcdir) in TESTS. (2863c83)
+   o build test/test-script.sh on systems with a less-featureful $< (f935e21)
+   o Implement EVUTIL_ERR_IS_EAGAIN on windows. (42aaf4d)
+
+ Evhttp changes:
+   o Fix ipv6 support for http. When URL contain domain, not IP
+     address. (71e709c Azat Khuzhin)
+   o uri decode: fix for warning "use of uninitialised value" (64b6ece Azat
+     Khuzhin)
+   o uri decode: changed the test for the existence of the next character
+     (e1903e3 Azat Khuzhin)
+   o Move prototype of evhttp_decode_uri_internal() to http-internal.h
+     (de8101a Azat Khuzhin)
+   o Test: decoding just part of string with evhttp_decode_uri_internal()
+     (1367653 Azat Khuzhin)
+   o Add new error_cb for actual reporting of HTTP request errors. (7b07719
+     Azat Khuzhin)
+   o Add test for EVREQ_HTTP_REQUEST_CANCEL into http_cancel_test() (862c217
+     Azat Khuzhin)
+   o Drop extra header http_struct.h from regress_http.c (54cc800 Azat Khuzhin)
+
+ Testing
+   o Add regress test ipv6_for_domain. (9ec88bd Azat Khuzhin)
+   o Add an environment variable (EVENT_DEBUG_MODE) to run unit tests in debug
+     mode (2fad0f3)
+   o Add a test with an active_later event at event_base_free time. (1c3147f)
+   o Make all tests pass under EVENT_DEBUG_MODE=1 (b1b054f)
+   o Add some verbose notes to bufferevent unit tests (9d893c9)
+   o New test for active_later->active transition on event_active (a153874)
+   o New tests for event_base_foreach_event() (0b096ef)
+   o Unit tests for event_base_gettimeofday_cached() and
+     event_base_update_cache_time() (30ea291)
+   o A test for event_get_assignment() (f09629e)
+   o More unit tests for initializing common timeouts. (d596739)
+   o Fix a bug in the new main/event_foreach test (702c9aa)
+
+ Windows:
+   o use FormatMessage for winsock errors (0c6ec5d, 2078e9b, 4ccdd53, c9ad3af
+     Patrick Pelletier)
+   o a program to print out the error strings for winsock errors (7296512
+     Patrick Pelletier)
+   o Fix a warning introduced in 0c6ec5d8 (eeb700c)
+   o Fix another warning introduced in 0c6ec5d8 (ed26561)
+
+ Examples (http)
+   o Add sample/https-client.c, an example of stacking evhttp as a client on
+     top of bufferevent_ssl. (be46c99 Catalin Patulea)
+   o use ${OPENSSL_LIBS} instead of -lssl -lcrypto (bf31fa5 Patrick Pelletier)
+   o https-client was putting newlines at 256-byte boundaries (42d7441 Patrick
+     Pelletier)
+   o better handling of OpenSSL errors (5754d96 Patrick Pelletier)
+   o use Debian's default root certificate location (aacd674 Patrick Pelletier)
+   o use iSECPartners code to validate hostname in certificate (64d9f16
+     Patrick Pelletier)
+   o avoid sign mismatch warning in openssl_hostname_validation.c (6021cb5
+     Patrick Pelletier)
+   o pull in wildcard matching code from cURL (4db9da6 Patrick Pelletier)
+   o Another tweak to https-client.c (95acdaa)
+   o Remove http_struct.h usage in sample/https-client.c (8a90a85)
+
 
 
 Changes in version 2.1.2-alpha (18 Nov 2012)

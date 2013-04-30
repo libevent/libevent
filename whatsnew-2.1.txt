@@ -41,7 +41,7 @@
 
   We don't try to do binary compatibility except within stable release
   series, so binaries linked against any version of Libevent 2.0 will
-  probably need to be recompiled against Libevent 2.1.1-alpha if you
+  probably need to be recompiled against Libevent 2.1.3-alpha if you
   want to use it.  It is probable that we'll break binary compatibility
   again before Libevent 2.1 is stable.
 
@@ -146,7 +146,113 @@
   that's a no-op in past versions of Libevent, and we don't want to
   break compatibility.)
 
-1.3. New debugging features
+1.3. Event finalization
+
+  [NOTE: This is an experimental feature in Libevent 2.1.3-alpha. Though
+  it seems solid so far, its API might change between now and the first
+  release candidate for Libevent 2.1.]
+
+1.3.1. Why event finalization?
+
+  Libevent 2.1 now supports an API for safely "finalizing" events that
+  might be running in multiple threads, and provides a way to slightly
+  change the semantics of event_del() to prevent deadlocks in
+  multithreaded programs.
+
+  To motivate this feature, consider the following code, in the context
+  of a mulithreaded Libevent application:
+
+        struct connection *conn = event_get_callback_arg(ev);
+        event_del(ev);
+        connection_free(conn);
+
+  Suppose that the event's callback might be running in another thread,
+  and using the value of "conn" concurrently.  We wouldn't want to
+  execute the connection_free() call until "conn" is no longer in use.
+  How can we make this code safe?
+
+  Libevent 2.0 answered that question by saying that the event_del()
+  call should block if the event's callback is running in another
+  thread.  That way, we can be sure that event_del() has canceled the
+  callback (if the callback hadn't started running yet), or has waited
+  for the callback to finish.
+
+  But now suppose that the data structure is protected by a lock, and we
+  have the following code:
+
+        void check_disable(struct connection *connection) {
+            lock(connection);
+            if (should_stop_reading(connection))
+                    event_del(connection->read_event);
+            unlock(connection);
+        }
+
+  What happens when we call check_disable() from a callback and from
+  another thread?  Let's say that the other thread gets the lock
+  first.  If it decides to call event_del(), it will wait for the
+  callback to finish.  But meanwhile, the callback will be waiting for
+  the lock on the connection.  Since each threads is waiting for the
+  other one to release a resource, the program will deadlock.
+
+  This bug showed up in multithreaded bufferevent programs in 2.1,
+  particularly when freeing bufferevents.  (For more information, see
+  the "Deadlock when calling bufferevent_free from an other thread"
+  thread on libevent-users starting on 6 August 2012 and running through
+  February of 2013.  You might also like to read my earlier writeup at
+  http://archives.seul.org/libevent/users/Feb-2012/msg00053.html and
+  the ensuing discussion.)
+
+1.3.2. The EV_FINALIZE flag and avoiding deadlock
+
+  To prevent the deadlock condition described above, Libevent
+  2.1.3-alpha adds a new flag, "EV_FINALIZE".  You can pass it to
+  event_new() and event_assign() along with EV_READ, EV_WRITE, and the
+  other event flags.
+
+  When an event is constructed with the EV_FINALIZE flag, event_del()
+  will not block on that event, even when the event's callback is
+  running in another thread.  By using EV_FINALIZE, you are therefore
+  promising not to use the "event_del(ev); free(event_get_callback_arg(ev));"
+  pattern, but rather to use one of the finalization functions below to
+  clean up the event.
+
+  EV_FINALIZE has no effect on a single-threaded program, or on a
+  program where events are only used from one thread.
+
+
+  There are also two new variants of event_del() that you can use for
+  more fine-grained control:
+     event_del_noblock(ev)
+     event_del_block(ev)
+  The event_del_noblock() function will never block, even if the event
+  callback is running in another thread and doesn't have the EV_FINALIZE
+  flag.  The event_del_block() function will _always_ block if the event
+  callback is running in another thread, even if the event _does_ have
+  the EV_FINALIZE flag.
+
+  [A future version of Libevent may have a way to make the EV_FINALIZE
+  flag the default.]
+
+1.3.3. Safely finalizing events
+
+  To safely tear down an event that may be running, Libevent 2.1.3-alpha
+  introduces event_finalize() and event_free_finalize(). You call them
+  on an event, and provide a finalizer callback to be run on the event
+  and its callback argument once the event is definitely no longer
+  running.
+
+  With event_free_finalize(), the event is also freed once the finalizer
+  callback has been invoked.
+
+  A finalized event cannot be re-added or activated.  The finalizer
+  callback must not add events, activate events, or attempt to
+  "resucitate" the event being finalized in any way.
+
+  If any finalizer callbacks are pending as the event_base is being
+  freed, they will be invoked.  You can override this behavior with the
+  new function event_base_free_nofinalize().
+
+1.4. New debugging features
 
   You can now turn on debug logs at runtime using a new function,
   event_enable_debug_logging().
@@ -158,7 +264,7 @@
   There's also been some work done to try to make the debugging logs
   more generally useful.
 
-1.4. New evbuffer functions
+1.5. New evbuffer functions
 
   In Libevent 2.0, we introduced evbuffer_add_file() to add an entire
   file's contents to an evbuffer, and then send them using sendfile() or
@@ -198,7 +304,7 @@
   evbuffer_readln() now supports an EVBUFFER_EOL_NUL argument to fetch
   NUL-terminated strings from buffers.
 
-1.5. New functions and features: bufferevents
+1.6. New functions and features: bufferevents
 
   You can now use the bufferevent_getcb() function to find out a
   bufferevent's callbacks.  Previously, there was no supported way to do
@@ -219,7 +325,7 @@
   You can find the priority at which a bufferevent runs with
   bufferevent_get_priority().
 
-1.6. New functions and features: evdns
+1.7. New functions and features: evdns
 
   The previous evdns interface used an "open a test UDP socket" trick in
   order to detect IPv6 support.  This was a hack, since it would
@@ -227,7 +333,14 @@
   packets were sent.  The current evdns interface-detection code uses
   the appropriate OS functions to see which interfaces are configured.
 
-1.7. New functions and features: evconnlistener
+  The evdns_base_new() function now has multiple possible values for its
+  second (flags) argument.  Using 1 and 0 have their old meanings, though the
+  1 flag now has a symbolic name of EVDNS_BASE_INITIALIZE_NAMESERVERS.
+  A second flag is now supported too: the EVDNS_BASE_DISABLE_WHEN_INACTIVE
+  flag, which tells the evdns_base that it should not prevent Libevent from
+  exiting while it has no DNS requests in progress.
+
+1.8. New functions and features: evconnlistener
 
   Libevent 2.1 adds the following evconnlistener flags:
 
@@ -245,7 +358,7 @@
   the accepted sockets themselves.  That's almost never what you want.
   Now, it applies both to the listener and the accepted sockets.
 
-1.8. New functions and features: evhttp
+1.9. New functions and features: evhttp
 
   **********************************************************************
   NOTE: The evhttp module will eventually be deprecated in favor of Mark
@@ -273,6 +386,11 @@
 
   The socket errno value is now preserved when invoking an http error
   callback.
+
+  There's a new kind of request callback for errors; you can set it with
+  evhttp_request_set_error_cb(). It gets called when there's a request error,
+  and actually reports the error code and lets you figure out which request
+  failed.
 
 2. Cross-platform performance improvements
 
