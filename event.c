@@ -2048,7 +2048,7 @@ event_debug_unassign(struct event *ev)
 static int
 event_finalize_nolock_(struct event_base *base, unsigned flags, struct event *ev, event_finalize_callback_fn cb)
 {
-	uint8_t closure = (flags & EVENT_FINALIZE_FREE_) ?
+	ev_uint8_t closure = (flags & EVENT_FINALIZE_FREE_) ?
 	    EV_CLOSURE_EVENT_FINALIZE_FREE : EV_CLOSURE_EVENT_FINALIZE;
 
 	event_del_nolock_(ev, EVENT_DEL_NOBLOCK);
