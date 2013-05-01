@@ -1,4 +1,4 @@
-Changes in version 2.1.3-alpha (?? ??? 2013)
+Changes in version 2.1.3-alpha (1 May 2013)
 
  Libevent 2.1.3-alpha fixes various bugs, adds new unit tests, and cleans
  up the code in a couple of places. It has a new callback in evhttp for
