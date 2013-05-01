@@ -20,7 +20,7 @@ REGRESS_OBJS=regress.obj regress_buffer.obj regress_http.obj regress_dns.obj \
 	regress_et.obj regress_bufferevent.obj \
 	regress_listener.obj regress_util.obj tinytest.obj \
 	regress_main.obj regress_minheap.obj regress_iocp.obj \
-	regress_thread.obj $(SSL_OBJS)
+	regress_thread.obj regress_finalize.obj $(SSL_OBJS)
 
 OTHER_OBJS=test-init.obj test-eof.obj test-weof.obj test-time.obj \
 	bench.obj bench_cascade.obj bench_http.obj bench_httpclient.obj \
