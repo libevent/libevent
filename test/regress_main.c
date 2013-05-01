@@ -404,6 +404,7 @@ const char *finetimetests[] = {
 	"+util/monotonic_res_precise",
 	"+util/monotonic_res_fallback",
 	"+thread/deferred_cb_skew",
+	"+http/connection_retry",
 	NULL
 };
 struct testlist_alias_t testaliases[] = {
