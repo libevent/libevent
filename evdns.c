@@ -2242,6 +2242,12 @@ evdns_request_transmit(struct request *req) {
 	req->transmit_me = 1;
 	EVUTIL_ASSERT(req->trans_id != 0xffff);
 
+	if (!req->ns)
+	{
+		/* unable to transmit request if no nameservers */
+		return 1;
+	}
+
 	if (req->ns->choked) {
 		/* don't bother trying to write to a socket */
 		/* which we have had EAGAIN from */
