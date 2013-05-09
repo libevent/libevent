@@ -93,6 +93,7 @@ const struct bufferevent_ops bufferevent_ops_async = {
 	evutil_offsetof(struct bufferevent_async, bev.bev),
 	be_async_enable,
 	be_async_disable,
+	NULL, /* Unlink */
 	be_async_destruct,
 	bufferevent_generic_adj_timeouts_,
 	be_async_flush,
@@ -383,11 +384,6 @@ be_async_destruct(struct bufferevent *bev)
 	if (bev_p->options & BEV_OPT_CLOSE_ON_FREE) {
 		/* XXXX possible double-close */
 		evutil_closesocket(fd);
-	}
-	/* delete this in case non-blocking connect was used */
-	if (event_initialized(&bev->ev_write)) {
-		event_del(&bev->ev_write);
-		bufferevent_del_generic_timeout_cbs_(bev);
 	}
 }
 

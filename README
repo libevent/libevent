@@ -23,7 +23,7 @@ Install as root via
 
 # make install
 
-Before, reporting any problems, please run the regression tests.
+Before reporting any problems, please run the regression tests.
 
 To enable the low-level tracing build the library as:
 
@@ -92,36 +92,48 @@ fixing bugs:
   Lawnstein Chan
   Shuo Chen
   Ka-Hing Cheung
+  Andrew Cox
+  Paul Croome
+  George Danchev
   Andrew Danforth
   Ed Day
   Christopher Davis
   Mike Davis
+  Antony Dovgal
   Mihai Draghicioiu
   Alexander Drozdov
   Mark Ellzey
   Shie Erlich
   Leonid Evdokimov
+  Juan Pablo Fernandez
   Christophe Fillot
   Mike Frysinger
   Remi Gacogne
+  Artem Germanov
   Alexander von Gernler
   Artur Grabowski
+  Diwaker Gupta
   Sebastian Hahn
   Dave Hart
   Greg Hazel
+  Nicholas Heath
   Michael Herf
   Sebastian Hahn
   Savg He
   Mark Heily
   Michael Herf
   Greg Hewgill
+  Andrew Hochhaus
   Aaron Hopkins
   Tani Hosokawa
   Jamie Iles
+  Xiuqiang Jiang
   Claudio Jeker
   Evan Jones
   George Kadianakis
   Phua Keat
+  Azat Khuzhin
+  Alexander Klauer
   Kevin Ko
   Brian Koehmstedt
   Marko Kreen
@@ -131,11 +143,13 @@ fixing bugs:
   Christopher Layne
   Adam Langley
   Graham Leggett
+  Volker Lendecke
   Philip Lewis
   Zhou Li
   David Libenzi
   Yan Lin
   Moshe Litvin
+  Simon Liu
   Mitchell Livingston
   Hagne Mahre
   Lubomir Marinov
@@ -157,22 +171,28 @@ fixing bugs:
   Jon Oberheide
   Phil Oleson
   Dave Pacheco
+  Derrick Pallas
   Tassilo von Parseval
   Catalin Patulea
+  Patrick Pelletier
   Simon Perreault
+  Dan Petro
   Pierre Phaneuf
   Amarin Phaosawasdi
   Ryan Phillips
   Dimitre Piskyulev
   Pavel Plesov
   Jon Poland
+  Roman Puls
   Nate R
   Robert Ransom
   Bert JW Regeer
+  Nate Rosenblum
   Peter Rosin
   Maseeb Abdul Qadir
   Wang Qin
   Alex S
+  Gyepi Sam
   Hanna Schroeter
   Ralf Schmitt
   Mike Smellie
@@ -192,11 +212,13 @@ fixing bugs:
   Colin Watt
   Zack Weinberg
   Jardel Weyrich
+  Jay R. Wren
+  Zack Weinberg
   Alejo
   Alex
   Taral
   propanbutan
   mmadia
-
+  yangacer
 
 If we have forgotten your name, please contact us.

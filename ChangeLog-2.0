@@ -1,3 +1,20 @@
+Changes in version 2.0.21-stable (18 Nov 2012)
+BUGFIXES:
+ o ssl: Don't discard SSL read event when timeout and read come close together (576b29f)
+ o ssl: Stop looping in "consider_reading" if reading is suspended. (f719b8a Joachim Bauch)
+ o ssl: No need to reserve space if reading is suspended. (1acf2eb Joachim Bauch)
+ o dns: Avoid a memory-leak on OOM in evdns. (73e85dd, f2bff75 George Danchev)
+ o build: Use python2 rather than python (0eb0109 Ross Lagerwall)
+ o build: Compile without warnings on mingw64 (94866c2)
+ o build: Fix compilation on mingw64 with -DUSE_DEBUG (62bd2c4)
+ o build: Make rpcgen_wrapper.sh work on systems without a "python2" binary (f3009e4)
+ o iocp: Close IOCP listener socket on free when LEV_OPT_CLOSE_ON_FREE is set (cb853ea Juan Pablo Fernandez)
+ o core: Avoid crash when event_pending() called with no event_base set on event (e3cccf3)
+ o misc: remove stray 'x' so print_err will compile when uncommented (ac35650 Patrick Pelletier)
+ o tests: Fix renegotiation test to work around openssl 1.0.1 bug (c2f3086)
+ o tests: Warn when openssl version in unit test mismatches compiled version. (ac009f9)
+
+
 Changes in version 2.0.20-stable (23 Aug 2012)
 BUGFIXES:
  o core: Make event_pending() threadsafe. (be7a95c Simon Liu)

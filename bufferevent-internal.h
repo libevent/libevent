@@ -252,8 +252,13 @@ struct bufferevent_ops {
 	 */
 	int (*disable)(struct bufferevent *, short);
 
+	/** Detatches the bufferevent from related data structures. Called as
+	 * soon as its reference count reaches 0. */
+	void (*unlink)(struct bufferevent *);
+
 	/** Free any storage and deallocate any extra data or structures used
-	    in this implementation.
+	    in this implementation. Called when the bufferevent is
+	    finalized.
 	 */
 	void (*destruct)(struct bufferevent *);
 
@@ -356,9 +361,6 @@ int bufferevent_add_event_(struct event *ev, const struct timeval *tv);
  * the other "generic_timeout" functions will work on it.  Call this from
  * the constructor function. */
 void bufferevent_init_generic_timeout_cbs_(struct bufferevent *bev);
-/** Internal use: Delete the ev_read and ev_write callbacks if they're pending.
- * Call this from the destructor function. */
-int bufferevent_del_generic_timeout_cbs_(struct bufferevent *bev);
 /** Internal use: Add or delete the generic timeout events as appropriate.
  * (If an event is enabled and a timeout is set, we add the event.  Otherwise
  * we delete it.)  Call this from anything that changes the timeout values,

@@ -38,7 +38,7 @@ RELEASE = -release 2.1
 #
 # Once an RC is out, DO NOT MAKE ANY ABI-BREAKING CHANGES IN THAT SERIES
 # UNLESS YOU REALLY REALLY HAVE TO.
-VERSION_INFO = 1:0:0
+VERSION_INFO = 3:0:0
 
 # History:          RELEASE    VERSION_INFO
 #  2.0.1-alpha --     2.0        1:0:0
@@ -58,10 +58,15 @@ VERSION_INFO = 1:0:0
 #  2.0.15-stable--    2.0        6:3:1 (Forgot to update :( )
 #  2.0.16-stable--    2.0        6:4:1 (No ABI change)
 #  2.0.17-stable--    2.0        6:5:1 (No ABI change)
+#  2.0.18-stable--    2.0        6:6:1 (No ABI change)
+#  2.0.19-stable--    2.0        6:7:1 (No ABI change)
+#  2.0.20-stable--    2.0        6:8:1 (No ABI change)
+#  2.0.21-stable--    2.0        6:9:1 (No ABI change)
 #
 # For Libevent 2.1:
 #  2.1.1-alpha --     2.1        1:0:0
-
+#  2.1.2-alpha --     2.1        1:0:0 (should have been 2:0:1)
+#  2.1.3-alpha --     2.1        3:0:0 (ABI changed slightly)
 
 # ABI version history for this package effectively restarts every time
 # we change RELEASE.  Version 1.4.x had RELEASE of 1.4.
@@ -130,6 +135,7 @@ noinst_HEADERS=
 noinst_PROGRAMS=
 EXTRA_PROGRAMS=
 CLEANFILES=
+DISTCLEANFILES=
 BUILT_SOURCES =
 include include/include.am
 include sample/include.am
@@ -150,6 +156,9 @@ SYS_INCLUDES =
 
 endif
 
+if STRLCPY_IMPL
+SYS_SRC += strlcpy.c
+endif
 if SELECT_BACKEND
 SYS_SRC += select.c
 endif
@@ -194,7 +203,6 @@ CORE_SRC =					\
 	evutil_time.c				\
 	listener.c				\
 	log.c					\
-	strlcpy.c				\
 	$(SYS_SRC)
 
 EXTRAS_SRC =					\
@@ -288,5 +296,5 @@ doxygen: FORCE
 	doxygen $(srcdir)/Doxyfile
 FORCE:
 
-DISTCLEANFILES = *~ libevent.pc ./include/event2/event-config.h
+DISTCLEANFILES += *~ libevent.pc ./include/event2/event-config.h
 

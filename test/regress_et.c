@@ -167,7 +167,8 @@ test_edgetriggered_mix_error(void *data_)
 		tt_skip();
 #endif
 
-	event_enable_debug_mode();
+	if (!libevent_tests_running_in_debug_mode)
+		event_enable_debug_mode();
 
 	base = event_base_new();
 

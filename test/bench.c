@@ -125,7 +125,7 @@ run_once(void)
 int
 main(int argc, char **argv)
 {
-#ifndef _WIN32
+#ifdef HAVE_SETRLIMIT 
 	struct rlimit rl;
 #endif
 	int i, c;
@@ -156,7 +156,7 @@ main(int argc, char **argv)
 		}
 	}
 
-#ifndef _WIN32
+#ifdef HAVE_SETRLIMIT
 	rl.rlim_cur = rl.rlim_max = num_pipes * 2 + 50;
 	if (setrlimit(RLIMIT_NOFILE, &rl) == -1) {
 		perror("setrlimit");

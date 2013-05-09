@@ -443,14 +443,14 @@ evutil_gettime_monotonic_(struct evutil_monotonic_timer *base,
 			 * accurate as we can; adjust_monotnonic_time() below
 			 * will keep it monotonic. */
 			counter_usec_elapsed = ticks_elapsed * 1000;
-			base->first_counter = counter.QuadPart - counter_usec_elapsed / base->usec_per_count;
+			base->first_counter = (ev_uint64_t) (counter.QuadPart - counter_usec_elapsed / base->usec_per_count);
 		}
-		tp->tv_sec = counter_usec_elapsed / 1000000;
+		tp->tv_sec = (time_t) (counter_usec_elapsed / 1000000);
 		tp->tv_usec = counter_usec_elapsed % 1000000;
 
 	} else {
 		/* We're just using GetTickCount(). */
-		tp->tv_sec = ticks / 1000;
+		tp->tv_sec = (time_t) (ticks / 1000);
 		tp->tv_usec = (ticks % 1000) * 1000;
 	}
 	adjust_monotonic_time(base, tp);

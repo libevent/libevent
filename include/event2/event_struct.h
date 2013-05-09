@@ -60,9 +60,10 @@ extern "C" {
 #define EVLIST_ACTIVE	    0x08
 #define EVLIST_INTERNAL	    0x10
 #define EVLIST_ACTIVE_LATER 0x20
+#define EVLIST_FINALIZING   0x40
 #define EVLIST_INIT	    0x80
 
-#define EVLIST_ALL          0xbf
+#define EVLIST_ALL          0xff
 
 /* Fix so that people don't have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
@@ -91,7 +92,17 @@ struct {								\
 	struct type *le_next;	/* next element */			\
 	struct type **le_prev;	/* address of previous next element */	\
 }
-#endif /* !TAILQ_ENTRY */
+#endif /* !LIST_ENTRY */
+
+#ifndef LIST_HEAD
+#define EVENT_DEFINED_LISTHEAD_
+#define LIST_HEAD(name, type)						\
+struct name {								\
+	struct type *lh_first;  /* first element */			\
+	}
+#endif /* !LIST_HEAD */
+
+struct event;
 
 struct event_callback {
 	TAILQ_ENTRY(event_callback) evcb_active_next;
@@ -100,8 +111,10 @@ struct event_callback {
 	ev_uint8_t evcb_closure;
 	/* allows us to adopt for different types of events */
         union {
-		void (*evcb_callback)(evutil_socket_t, short, void *arg);
-		void (*evcb_selfcb)(struct event_callback *, void *arg);
+		void (*evcb_callback)(evutil_socket_t, short, void *);
+		void (*evcb_selfcb)(struct event_callback *, void *);
+		void (*evcb_evfinalize)(struct event *, void *);
+		void (*evcb_cbfinalize)(struct event_callback *, void *);
 	} evcb_cb_union;
 	void *evcb_arg;
 };
@@ -150,13 +163,15 @@ TAILQ_HEAD (event_list, event);
 #undef TAILQ_HEAD
 #endif
 
+LIST_HEAD (event_dlist, event); 
+
 #ifdef EVENT_DEFINED_LISTENTRY_
 #undef LIST_ENTRY
-struct event_dlist;
-#undef EVENT_DEFINED_LISTENTRY_
-#else
-LIST_HEAD (event_dlist, event);
-#endif /* EVENT_DEFINED_LISTENTRY_ */
+#endif
+
+#ifdef EVENT_DEFINED_LISTHEAD_
+#undef LIST_HEAD
+#endif
 
 #ifdef __cplusplus
 }

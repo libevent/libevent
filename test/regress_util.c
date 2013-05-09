@@ -434,6 +434,42 @@ end:
 	;
 }
 
+static void
+test_evutil_rtrim(void *ptr)
+{
+#define TEST_TRIM(s, result) \
+	do {						\
+	    if (cp) mm_free(cp);			\
+	    cp = mm_strdup(s);				\
+	    evutil_rtrim_lws_(cp);			\
+	    tt_str_op(cp, ==, result);			\
+	} while(0)
+
+	char *cp = NULL;
+	(void) ptr;
+
+	TEST_TRIM("", "");
+	TEST_TRIM("a", "a");
+	TEST_TRIM("abcdef ghi", "abcdef ghi");
+
+	TEST_TRIM(" ", "");
+	TEST_TRIM("  ", "");
+	TEST_TRIM("a ", "a");
+	TEST_TRIM("abcdef  gH       ", "abcdef  gH");
+
+	TEST_TRIM("\t\t", "");
+	TEST_TRIM(" \t", "");
+	TEST_TRIM("\t", "");
+	TEST_TRIM("a \t", "a");
+	TEST_TRIM("a\t ", "a");
+	TEST_TRIM("a\t", "a");
+	TEST_TRIM("abcdef  gH    \t  ", "abcdef  gH");
+
+end:
+	if (cp)
+		mm_free(cp);
+}
+
 static int logsev = 0;
 static char *logmsg = NULL;
 
@@ -1348,6 +1384,7 @@ struct testcase_t util_testcases[] = {
 	{ "evutil_snprintf", test_evutil_snprintf, 0, NULL, NULL },
 	{ "evutil_strtoll", test_evutil_strtoll, 0, NULL, NULL },
 	{ "evutil_casecmp", test_evutil_casecmp, 0, NULL, NULL },
+	{ "evutil_rtrim", test_evutil_rtrim, 0, NULL, NULL },
 	{ "strlcpy", test_evutil_strlcpy, 0, NULL, NULL },
 	{ "log", test_evutil_log, TT_FORK, NULL, NULL },
 	{ "upcast", test_evutil_upcast, 0, NULL, NULL },

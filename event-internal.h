@@ -59,11 +59,28 @@ extern "C" {
 #define ev_callback ev_evcallback.evcb_cb_union.evcb_callback
 #define ev_arg ev_evcallback.evcb_arg
 
-/* Possible values for evcb_closure in struct event_callback */
+/** @name Event closure codes
+
+    Possible values for evcb_closure in struct event_callback
+
+    @{
+ */
+/** A regular event. Uses the evcb_callback callback */
 #define EV_CLOSURE_EVENT 0
+/** A signal event. Uses the evcb_callback callback */
 #define EV_CLOSURE_EVENT_SIGNAL 1
+/** A persistent non-signal event. Uses the evcb_callback callback */
 #define EV_CLOSURE_EVENT_PERSIST 2
+/** A simple callback. Uses the evcb_selfcb callback. */
 #define EV_CLOSURE_CB_SELF 3
+/** A finalizing callback. Uses the evcb_cbfinalize callback. */
+#define EV_CLOSURE_CB_FINALIZE 4
+/** A finalizing event. Uses the evcb_evfinalize callback. */
+#define EV_CLOSURE_EVENT_FINALIZE 5
+/** A finalizing event that should get freed after. Uses the evcb_evfinalize
+ * callback. */
+#define EV_CLOSURE_EVENT_FINALIZE_FREE 6
+/** @} */
 
 /** Structure to define the backend of a given event_base. */
 struct eventop {
@@ -178,6 +195,15 @@ extern int event_debug_mode_on_;
 #endif
 
 TAILQ_HEAD(evcallback_list, event_callback);
+
+/* Sets up an event for processing once */
+struct event_once {
+	LIST_ENTRY(event_once) next_once;
+	struct event ev;
+
+	void (*cb)(evutil_socket_t, short, void *);
+	void *arg;
+};
 
 struct event_base {
 	/** Function pointers and other data to describe this event_base's
@@ -310,6 +336,10 @@ struct event_base {
 	/** Saved seed for weak random number generator. Some backends use
 	 * this to produce fairness among sockets. Protected by th_base_lock. */
 	struct evutil_weakrand_state weakrand_seed;
+
+	/** List of event_onces that have not yet fired. */
+	LIST_HEAD(once_event_list, event_once) once_events;
+
 };
 
 struct event_config_entry {
@@ -369,7 +399,22 @@ int evsig_restore_handler_(struct event_base *base, int evsignal);
 
 int event_add_nolock_(struct event *ev,
     const struct timeval *tv, int tv_is_absolute);
-int event_del_nolock_(struct event *ev);
+/** Argument for event_del_nolock_. Tells event_del not to block on the event
+ * if it's running in another thread. */
+#define EVENT_DEL_NOBLOCK 0
+/** Argument for event_del_nolock_. Tells event_del to block on the event
+ * if it's running in another thread, regardless of its value for EV_FINALIZE
+ */
+#define EVENT_DEL_BLOCK 1
+/** Argument for event_del_nolock_. Tells event_del to block on the event
+ * if it is running in another thread and it doesn't have EV_FINALIZE set.
+ */
+#define EVENT_DEL_AUTOBLOCK 2
+/** Argument for event_del_nolock_. Tells event_del to procede even if the
+ * event is set up for finalization rather for regular use.*/
+#define EVENT_DEL_EVEN_IF_FINALIZING 3
+int event_del_nolock_(struct event *ev, int blocking);
+int event_remove_timer_nolock_(struct event *ev);
 
 void event_active_nolock_(struct event *ev, int res, short count);
 int event_callback_activate_(struct event_base *, struct event_callback *);
@@ -377,12 +422,17 @@ int event_callback_activate_nolock_(struct event_base *, struct event_callback *
 int event_callback_cancel_(struct event_base *base,
     struct event_callback *evcb);
 
+void event_callback_finalize_nolock_(struct event_base *base, unsigned flags, struct event_callback *evcb, void (*cb)(struct event_callback *, void *));
+void event_callback_finalize_(struct event_base *base, unsigned flags, struct event_callback *evcb, void (*cb)(struct event_callback *, void *));
+int event_callback_finalize_many_(struct event_base *base, int n_cbs, struct event_callback **evcb, void (*cb)(struct event_callback *, void *));
+
+
 void event_active_later_(struct event *ev, int res);
 void event_active_later_nolock_(struct event *ev, int res);
 void event_callback_activate_later_nolock_(struct event_base *base,
     struct event_callback *evcb);
 int event_callback_cancel_nolock_(struct event_base *base,
-    struct event_callback *evcb);
+    struct event_callback *evcb, int even_if_finalizing);
 void event_callback_init_(struct event_base *base,
     struct event_callback *cb);
 

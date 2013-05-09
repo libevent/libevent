@@ -90,6 +90,7 @@ const struct bufferevent_ops bufferevent_ops_socket = {
 	evutil_offsetof(struct bufferevent_private, bev),
 	be_socket_enable,
 	be_socket_disable,
+	NULL, /* unlink */
 	be_socket_destruct,
 	be_socket_adj_timeouts,
 	be_socket_flush,
@@ -338,9 +339,9 @@ bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
 	evbuffer_set_flags(bufev->output, EVBUFFER_FLAG_DRAINS_TO_FD);
 
 	event_assign(&bufev->ev_read, bufev->ev_base, fd,
-	    EV_READ|EV_PERSIST, bufferevent_readcb, bufev);
+	    EV_READ|EV_PERSIST|EV_FINALIZE, bufferevent_readcb, bufev);
 	event_assign(&bufev->ev_write, bufev->ev_base, fd,
-	    EV_WRITE|EV_PERSIST, bufferevent_writecb, bufev);
+	    EV_WRITE|EV_PERSIST|EV_FINALIZE, bufferevent_writecb, bufev);
 
 	evbuffer_add_cb(bufev->output, bufferevent_socket_outbuf_cb, bufev);
 
@@ -399,7 +400,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	 * on a non-blocking connect() when ConnectEx() is unavailable. */
 	if (BEV_IS_ASYNC(bev)) {
 		event_assign(&bev->ev_write, bev->ev_base, fd,
-		    EV_WRITE|EV_PERSIST, bufferevent_writecb, bev);
+		    EV_WRITE|EV_PERSIST|EV_FINALIZE, bufferevent_writecb, bev);
 	}
 #endif
 	bufferevent_setfd(bev, fd);
@@ -516,7 +517,7 @@ bufferevent_socket_get_dns_error(struct bufferevent *bev)
 
 	BEV_LOCK(bev);
 	rv = bev_p->dns_error;
-	BEV_LOCK(bev);
+	BEV_UNLOCK(bev);
 
 	return rv;
 }
@@ -589,9 +590,6 @@ be_socket_destruct(struct bufferevent *bufev)
 
 	fd = event_get_fd(&bufev->ev_read);
 
-	event_del(&bufev->ev_read);
-	event_del(&bufev->ev_write);
-
 	if ((bufev_p->options & BEV_OPT_CLOSE_ON_FREE) && fd >= 0)
 		EVUTIL_CLOSESOCKET(fd);
 }
@@ -600,12 +598,21 @@ static int
 be_socket_adj_timeouts(struct bufferevent *bufev)
 {
 	int r = 0;
-	if (event_pending(&bufev->ev_read, EV_READ, NULL))
-		if (be_socket_add(&bufev->ev_read, &bufev->timeout_read) < 0)
-			r = -1;
+	if (event_pending(&bufev->ev_read, EV_READ, NULL)) {
+		if (evutil_timerisset(&bufev->timeout_read)) {
+			    if (be_socket_add(&bufev->ev_read, &bufev->timeout_read) < 0)
+				    r = -1;
+		} else {
+			event_remove_timer(&bufev->ev_read);
+		}
+	}
 	if (event_pending(&bufev->ev_write, EV_WRITE, NULL)) {
-		if (be_socket_add(&bufev->ev_write, &bufev->timeout_write) < 0)
-			r = -1;
+		if (evutil_timerisset(&bufev->timeout_write)) {
+			if (be_socket_add(&bufev->ev_write, &bufev->timeout_write) < 0)
+				r = -1;
+		} else {
+			event_remove_timer(&bufev->ev_write);
+		}
 	}
 	return r;
 }
@@ -628,9 +635,9 @@ be_socket_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 	event_del(&bufev->ev_write);
 
 	event_assign(&bufev->ev_read, bufev->ev_base, fd,
-	    EV_READ|EV_PERSIST, bufferevent_readcb, bufev);
+	    EV_READ|EV_PERSIST|EV_FINALIZE, bufferevent_readcb, bufev);
 	event_assign(&bufev->ev_write, bufev->ev_base, fd,
-	    EV_WRITE|EV_PERSIST, bufferevent_writecb, bufev);
+	    EV_WRITE|EV_PERSIST|EV_FINALIZE, bufferevent_writecb, bufev);
 
 	if (fd >= 0)
 		bufferevent_enable(bufev, bufev->enabled);

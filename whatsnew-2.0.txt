@@ -358,7 +358,7 @@ What's New In Libevent 2.0 so far:
   any means provided to create an evbuffer except via evbuffer_new which
   heap-allocated the buffer.
 
-  If you need access to the whole bufer as a linear chunk of memory, the
+  If you need access to the whole buffer as a linear chunk of memory, the
   EVBUFFER_DATA() function still works.  Watch out, though: it needs to copy
   the buffer's contents in a linear chunk before you can use it.
 

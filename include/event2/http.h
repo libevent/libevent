@@ -470,6 +470,47 @@ struct evhttp_request *evhttp_request_new(
 void evhttp_request_set_chunked_cb(struct evhttp_request *,
     void (*cb)(struct evhttp_request *, void *));
 
+/**
+ * The different error types supported by evhttp
+ *
+ * @see evhttp_request_set_error_cb()
+ */
+enum evhttp_request_error {
+  /**
+   * Timeout reached, also @see evhttp_connection_set_timeout()
+   */
+  EVREQ_HTTP_TIMEOUT,
+  /**
+   * EOF reached
+   */
+  EVREQ_HTTP_EOF,
+  /**
+   * Error while reading header, or invalid header
+   */
+  EVREQ_HTTP_INVALID_HEADER,
+  /**
+   * Error encountered while reading or writing
+   */
+  EVREQ_HTTP_BUFFER_ERROR,
+  /**
+   * The evhttp_cancel_request() called on this request.
+   */
+  EVREQ_HTTP_REQUEST_CANCEL,
+  /**
+   * Body is greater then evhttp_connection_set_max_body_size()
+   */
+  EVREQ_HTTP_DATA_TOO_LONG
+};
+/**
+ * Set a callback for errors
+ * @see evhttp_request_error for error types.
+ *
+ * On error, both the error callback and the regular callback will be called,
+ * error callback is called before the regular callback.
+ **/
+void evhttp_request_set_error_cb(struct evhttp_request *,
+    void (*)(enum evhttp_request_error, void *));
+
 /** Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
 
@@ -602,6 +643,7 @@ const struct evhttp_uri *evhttp_request_get_evhttp_uri(const struct evhttp_reque
 enum evhttp_cmd_type evhttp_request_get_command(const struct evhttp_request *req);
 
 int evhttp_request_get_response_code(const struct evhttp_request *req);
+const char * evhttp_request_get_response_code_line(const struct evhttp_request *req);
 
 /** Returns the input headers */
 struct evkeyvalq *evhttp_request_get_input_headers(struct evhttp_request *req);
@@ -625,7 +667,7 @@ const char *evhttp_request_get_host(struct evhttp_request *req);
    @param headers the evkeyvalq object in which to find the header
    @param key the name of the header to find
    @returns a pointer to the value for the header or NULL if the header
-     count not be found.
+     could not be found.
    @see evhttp_add_header(), evhttp_remove_header()
 */
 const char *evhttp_find_header(const struct evkeyvalq *headers,
@@ -717,7 +759,7 @@ char *evhttp_decode_uri(const char *uri);
   The returned string must be freed by the caller.
 
   @param uri a URI-encode encoded URI
-  @param decode_plus determines whether we convert '+' to sapce.
+  @param decode_plus determines whether we convert '+' to space.
   @param size_out if size_out is not NULL, *size_out is set to the size of the
      returned string
   @return a newly allocated unencoded URI or NULL on failure

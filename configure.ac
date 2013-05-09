@@ -5,7 +5,7 @@ dnl See LICENSE for copying information.
 dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
-AC_INIT(libevent,2.1.1-alpha-dev)
+AC_INIT(libevent,2.1.3-alpha-dev)
 AC_PREREQ(2.59)
 AC_CONFIG_SRCDIR(event.c)
 
@@ -13,8 +13,8 @@ AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE
 dnl AM_SILENT_RULES req. automake 1.11.  [no] defaults V=1
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
-AM_CONFIG_HEADER(config.h  evconfig-private.h:evconfig-private.h.in)
-AC_DEFINE(NUMERIC_VERSION, 0x02010101, [Numeric representation of the version])
+AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
+AC_DEFINE(NUMERIC_VERSION, 0x02010301, [Numeric representation of the version])
 
 dnl Initialize prefix.
 if test "$prefix" = "NONE"; then
@@ -44,10 +44,15 @@ dnl the 'host' machine is where the resulting stuff runs.
 
 dnl Checks for programs.
 AM_PROG_CC_C_O
-AC_PROG_SED
 AC_PROG_INSTALL
 AC_PROG_LN_S
 # AC_PROG_MKDIR_P - $(MKDIR_P) should be defined by AM_INIT_AUTOMAKE
+
+# AC_PROG_SED is only available in Autoconf >= 2.59b; workaround for older
+# versions
+ifdef([AC_PROG_SED], [AC_PROG_SED], [
+AC_CHECK_PROGS(SED, [gsed sed])
+])
 
 AC_PROG_GCC_TRADITIONAL
 
@@ -116,7 +121,7 @@ AC_ARG_ENABLE([verbose-debug],
 
 AC_PROG_LIBTOOL
 
-dnl   Uncomment "AC_DISABLE_SHARED" to make shared librraries not get
+dnl   Uncomment "AC_DISABLE_SHARED" to make shared libraries not get
 dnl   built by default.  You can also turn shared libs on and off from
 dnl   the command line with --enable-shared and --disable-shared.
 dnl AC_DISABLE_SHARED
@@ -362,6 +367,7 @@ AC_CHECK_FUNCS([ \
   usleep \
   vasprintf \
 ])
+AM_CONDITIONAL(STRLCPY_IMPL, [test x"$ac_cv_func_strlcpy" = xno])
 
 AC_CACHE_CHECK(
     [for getaddrinfo],
@@ -676,6 +682,14 @@ AC_CHECK_MEMBERS([struct in6_addr.s6_addr32, struct in6_addr.s6_addr16, struct s
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #endif
+#endif
+])
+
+AC_CHECK_TYPES([struct so_linger],
+[#define HAVE_SO_LINGER], ,
+[
+#ifdef HAVE_SYS_SOCKET_H
+#include <sys/socket.h>
 #endif
 ])
 
