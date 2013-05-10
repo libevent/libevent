@@ -721,9 +721,7 @@ event_base_cancel_single_callback_(struct event_base *base,
 			result = 1;
 		}
 	} else {
-		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 		event_callback_cancel_nolock_(base, evcb, 1);
-		EVBASE_RELEASE_LOCK(base, th_base_lock);
 		result = 1;
 	}
 
@@ -807,6 +805,11 @@ event_base_free_(struct event_base *base, int run_finalizers)
 	if (base->common_timeout_queues)
 		mm_free(base->common_timeout_queues);
 
+	/**
+	 * This lock is need only to
+	 * keep event_queue_remove_active() from complaining
+	 */
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	for (i = 0; i < base->nactivequeues; ++i) {
 		struct event_callback *evcb, *next;
 		for (evcb = TAILQ_FIRST(&base->activequeues[i]); evcb; ) {
@@ -821,7 +824,7 @@ event_base_free_(struct event_base *base, int run_finalizers)
 			n_deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
 		}
 	}
-
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	if (n_deleted)
 		event_debug(("%s: %d events were still set in base",
