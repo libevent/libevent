@@ -721,7 +721,9 @@ event_base_cancel_single_callback_(struct event_base *base,
 			result = 1;
 		}
 	} else {
+		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 		event_callback_cancel_nolock_(base, evcb, 1);
+		EVBASE_RELEASE_LOCK(base, th_base_lock);
 		result = 1;
 	}
 
