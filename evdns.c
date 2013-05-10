@@ -742,22 +742,30 @@ request_reissue(struct request *req) {
 
 /* this function looks for space on the inflight queue and promotes */
 /* requests from the waiting queue if it can. */
+/* */
+/* TODO: */
+/* add return code, see at nameserver_pick() and other functions. */
 static void
 evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 	ASSERT_LOCKED(base);
 	while (base->global_requests_inflight < base->global_max_requests_inflight &&
 		   base->global_requests_waiting) {
 		struct request *req;
-		/* move a request from the waiting queue to the inflight queue */
+
 		EVUTIL_ASSERT(base->req_waiting_head);
 		req = base->req_waiting_head;
+
+		req->ns = nameserver_pick(base);
+		if (!req->ns)
+			return;
+
+		/* move a request from the waiting queue to the inflight queue */
+		req->ns->requests_inflight++;
+
 		evdns_request_remove(req, &base->req_waiting_head);
 
 		base->global_requests_waiting--;
 		base->global_requests_inflight++;
-
-		req->ns = nameserver_pick(base);
-		req->ns->requests_inflight++;
 
 		request_trans_id_set(req, transaction_id_pick(base));
 
@@ -2468,6 +2476,7 @@ evdns_base_resume(struct evdns_base *base)
 	EVDNS_LOCK(base);
 	evdns_requests_pump_waiting_queue(base);
 	EVDNS_UNLOCK(base);
+
 	return 0;
 }
 
