@@ -3,7 +3,7 @@
 !IFDEF OPENSSL_DIR
 SSL_CFLAGS=/I$(OPENSSL_DIR)\include /DEVENT__HAVE_OPENSSL
 SSL_OBJS=regress_ssl.obj
-SSL_LIBS=..\libevent_openssl.lib $(OPENSSL_DIR)\lib\libeay32.lib $(OPENSSL_DIR)\lib\ssleay32.lib gdi.lib User32.lib
+SSL_LIBS=..\libevent_openssl.lib $(OPENSSL_DIR)\lib\libeay32.lib $(OPENSSL_DIR)\lib\ssleay32.lib gdi32.lib User32.lib
 !ELSE
 SSL_CFLAGS=
 SSL_OBJS=
