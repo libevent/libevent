@@ -1756,6 +1756,39 @@ test_dbg_leak_cancel(void *env_)
 }
 
 static void
+dbg_leak_resume(void *env_, int cancel, int send_err_shutdown)
+{
+	/* cancel, loop, free/dns, free/base */
+	struct testleak_env_t *env = env_;
+	if (cancel) {
+		evdns_cancel_request(env->dns_base, env->req);
+		tt_assert(!evdns_base_resume(env->dns_base));
+	} else {
+		/* TODO: No nameservers, request can't be processed, must be errored */
+		tt_assert(!evdns_base_resume(env->dns_base));
+	}
+
+	event_base_loop(env->base, EVLOOP_NONBLOCK);
+
+end:
+	evdns_base_free(env->dns_base, send_err_shutdown);
+	env->dns_base = 0;
+	event_base_free(env->base);
+	env->base = 0;
+}
+
+#define IMPL_DBG_LEAK_RESUME(name, cancel, send_err_shutdown)      \
+	static void                                                    \
+	test_dbg_leak_##name##_(void *env_)                            \
+	{                                                              \
+		dbg_leak_resume(env_, cancel, send_err_shutdown);          \
+	}
+IMPL_DBG_LEAK_RESUME(resume, 0, 0)
+IMPL_DBG_LEAK_RESUME(cancel_and_resume, 1, 0)
+IMPL_DBG_LEAK_RESUME(resume_send_err, 0, 1)
+IMPL_DBG_LEAK_RESUME(cancel_and_resume_send_err, 1, 1)
+
+static void
 test_dbg_leak_shutdown(void *env_)
 {
 	/* free/dns, loop, free/base */
@@ -1856,6 +1889,14 @@ struct testcase_t dns_testcases[] = {
 #ifdef EVENT_SET_MEM_FUNCTIONS_IMPLEMENTED
 	{ "leak_shutdown", test_dbg_leak_shutdown, TT_FORK, &testleak_funcs, NULL },
 	{ "leak_cancel", test_dbg_leak_cancel, TT_FORK, &testleak_funcs, NULL },
+
+	{ "leak_resume", test_dbg_leak_resume_, TT_FORK, &testleak_funcs, NULL },
+	{ "leak_cancel_and_resume", test_dbg_leak_cancel_and_resume_,
+	  TT_FORK, &testleak_funcs, NULL },
+	{ "leak_resume_send_err", test_dbg_leak_resume_send_err_,
+	  TT_FORK, &testleak_funcs, NULL },
+	{ "leak_cancel_and_resume_send_err", test_dbg_leak_cancel_and_resume_send_err_,
+	  TT_FORK, &testleak_funcs, NULL },
 #endif
 
 	END_OF_TESTCASES
