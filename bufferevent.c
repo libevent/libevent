@@ -825,10 +825,12 @@ bufferevent_get_options_(struct bufferevent *bev)
 {
 	struct bufferevent_private *bev_p =
 	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+	enum bufferevent_options options;
 
 	BEV_LOCK(bev);
-	return bev_p->options;
+	options = bev_p->options;
 	BEV_UNLOCK(bev);
+	return options;
 }
 
 
