@@ -344,36 +344,46 @@ void timer_step(struct timer *T, uint64_t curtime) {
 	unsigned period;
 
 	CIRCLEQ_INIT(&todo);
-#if DEBUG_LEVEL
+#if defined DEBUG_LEVEL
+if (DEBUG_LEVEL > 1) {
 fputc('\n', stderr);
-SAY("-- step -----------------------------------------");
+SAY("== step =========================================");
 SAY("%llu -> %llu", T->curtime, curtime);
 SAY("%s -> %s", fmt(T->curtime), fmt(curtime));
+}
 #endif
 	for (period = 0; period < PERIOD_NUM; period++) {
 		uint64_t pending;
 
 //SAY("newtime: %llu elapsed:%llu", curtime, elapsed);
+SAY("-- period (%u) -----------------------------------", period);
 		if ((elapsed >> (period * PERIOD_BIT)) > PERIOD_MAX) {
 			pending = ~UINT64_C(0);
 		} else {
 			uint64_t _elapsed = PERIOD_MASK & (elapsed >> (period * PERIOD_BIT));
-//			SAY("period:%u _elapsed:%llu minute:%llu", period, _elapsed, TIMEOUT_MINUTE(period, T->curtime, elapsed));
-			pending = rotl(rotl(((UINT64_C(1) << (_elapsed + 1)) - 1), TIMEOUT_MINUTE(period, T->curtime)), 1);
-//			pending = rotl(((UINT64_C(1) << _elapsed) - 1), TIMEOUT_MINUTE(period, T->curtime, 0));
-SAY("rotl:%.8x%.8x pending:%.8x%.8x", (unsigned)(((UINT64_C(1) << _elapsed) - 1) >> 32), (unsigned)((UINT64_C(1) << _elapsed) - 1), (unsigned)(pending >> 32), (unsigned)pending);
+			uint64_t _minute = PERIOD_MASK & (T->curtime >> (period * PERIOD_BIT));
+			SAY("period:%u _elapsed:%llu _minute:%llu", period, _elapsed, _minute);
+//			pending = rotl(rotl(((UINT64_C(1) << (_elapsed + 1)) - 1), TIMEOUT_MINUTE(period, T->curtime)), 1);
+//			pending = rotl(((UINT64_C(1) << _elapsed) - 1)|1, TIMEOUT_MINUTE(period, curtime));
+			pending = rotl(((UINT64_C(1) << _elapsed) - 1), _minute);
+uint64_t _minute1 = PERIOD_MASK & (curtime >> (period * PERIOD_BIT));
+SAY("_minute1: %llu", _minute1);
+pending |= UINT64_C(1) << _minute1;
+pending |= rotr(rotl(((UINT64_C(1) << _elapsed) - 1), _minute1), _elapsed);
+SAYit(2, "rotl:%.8x%.8x pending:%.8x%.8x", (unsigned)(((UINT64_C(1) << _elapsed) - 1) >> 32), (unsigned)((UINT64_C(1) << _elapsed) - 1), (unsigned)(pending >> 32), (unsigned)pending);
 		}
 
-SAY("pending:%.8x%.8x & populated:%.8x%.8x", (unsigned)(pending >> 32), (unsigned)pending, (unsigned)(T->pending[period] >> 32), (unsigned)T->pending[period]);
-SAY("pending   : %s", bin64(pending));
-SAY("populated : %s", bin64(T->pending[period]));
+SAYit(2, "pending:%.8x%.8x & populated:%.8x%.8x", (unsigned)(pending >> 32), (unsigned)pending, (unsigned)(T->pending[period] >> 32), (unsigned)T->pending[period]);
+SAYit(2, "pending   : %s", bin64(pending));
+SAYit(2, "populated : %s", bin64(T->pending[period]));
 		while (pending & T->pending[period]) {
 			int minute = ffs64(pending & T->pending[period]) - 1;
 			CIRCLEQ_CONCAT(&todo, &T->wheel[period][minute], cqe);
 			T->pending[period] &= ~(UINT64_C(1) << minute);
 		}
 
-		if (!((UINT64_C(1) << 63) & pending))
+//		if (!((UINT64_C(1) << 63) & pending))
+		if (!(0x1 & pending))
 			break; /* break if we didn't reach end of period */
 
 		/* if we're continuing, the next period must tick at least once */ 
@@ -416,16 +426,22 @@ int main(int argc, char **argv) {
 	struct timer T;
 	struct timeout to[8];
 	struct timeout *expired;
-	uint64_t time = 0, step = 1;
+	uint64_t time = 0, step = 1, stop = 0;
 	unsigned count = 0;
 	int opt;
 
 	while (-1 != (opt = getopt(argc, argv, "s:t:v"))) {
 		switch (opt) {
-		case 's':
-			time = strtoul(optarg, 0, 10);
+		case 's': {
+			char *end;
+
+			time = strtoul(optarg, &end, 10);
+
+			if (*end == ':')
+				stop = strtoul(end + 1, 0, 10);
 
 			break;
+		}
 		case 't':
 			if (!(step = strtoul(optarg, 0, 10)))
 				PANIC("%llu: invalid tick count", step);
@@ -442,7 +458,7 @@ int main(int argc, char **argv) {
 	argv += optind;
 
 	timer_init(&T);
-//	timer_step(&T, time = 100);
+	timer_step(&T, time);
 	timer_add(&T, timeout_init(&to[0]), time + 62); count++;
 	timer_add(&T, timeout_init(&to[1]), time + 63); count++;
 	timer_add(&T, timeout_init(&to[2]), time + 64); count++;
@@ -452,7 +468,7 @@ int main(int argc, char **argv) {
 //	timer_add(&T, timeout_init(&to[6]), 65536); count++;
 //	timer_add(&T, timeout_init(&to[7]), 65535 + 62); count++;
 
-	while (count > 0 && time < (1<<8)) {
+	while (count > 0 && time <= stop - 1) {
 		time += step;
 //printf("step: %llu\n", time);
 		timer_step(&T, time);
