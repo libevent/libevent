@@ -2889,8 +2889,6 @@ event_callback_cancel_nolock_(struct event_base *base,
 		break;
 	}
 
-	event_base_assert_ok_nolock_(base);
-
 	return 0;
 }
 
