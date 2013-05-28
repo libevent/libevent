@@ -26,7 +26,8 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#include <stdint.h> /* uint64_t */
+#include <stdbool.h>   /* bool */
+#include <inttypes.h>  /* PRIu64 PRIx64 PRIX64 uint64_t */
 
 
 /*
@@ -34,7 +35,51 @@
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-struct timer;
+#define TIMER_mHZ TIMER_C(1000)
+#define TIMER_uHZ TIMER_C(1000000)
+#define TIMER_nHZ TIMER_C(1000000000)
 
+#define TIMER_C(n) UINT64_C(n)
+#define TIMER_PRIu PRIu64
+#define TIMER_PRIx PRIx64
+#define TIMER_PRIX PRIX64
+
+#define TIMEOUT_C(n) TIMER_C(n)
+#define TIMEOUT_PRIu TIMER_PRIu
+#define TIMEOUT_PRIx TIMER_PRIx
+#define TIMEOUT_PRIX TIMER_PRIX
+
+typedef uint64_t timer_t;  /* absolute times */
+typedef timer_t timeout_t; /* relative times */
+
+struct timer;
+struct timeout;
+
+void timer_add(struct timer *, struct timeout *, timeout_t);
+
+void timer_del(struct timer *, struct timeout *);
+
+bool timer_pending(struct timer *);
+
+timeout_t timer_timeout(struct timer *);
+
+
+
+
+
+/*
+ * T I M E O U T  C O N T E X T  I N T E R F A C E S
+ *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define TIMEOUT_PERIODIC 0x01
+
+struct timeout *timeout_init(struct timeout *, int);
+
+bool timeout_pending(struct timeout *);
+/* true if pending in a timing wheel or on expired queue, false otherwise */
+ 
+bool timeout_expired(struct timeout *);
+/* true if currently or previously on expired queue, false otherwise */
 
 #endif /* TIMER_H */

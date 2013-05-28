@@ -33,6 +33,8 @@
 #include <sys/queue.h>
 #include <sys/param.h>
 
+#include "timer.h"
+
 
 /*
  * D E B U G  R O U T I N E S
@@ -43,6 +45,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#undef TIMER_DEBUG
+#define TIMER_DEBUG 1
 #define DEBUG_LEVEL timer_debug
 
 static int timer_debug;
@@ -59,6 +63,8 @@ static int timer_debug;
 	_Exit(EXIT_FAILURE); \
 } while (0)
 #else
+#undef TIMER_DEBUG
+#define TIMER_DEBUG 0
 #define DEBUG_LEVEL 0
 
 #define SAYit(...) (void)0
@@ -115,6 +121,9 @@ static inline char *bin64_(char *buf, uint64_t n) {
 #define countof(a) (sizeof (a) / sizeof *(a))
 #define endof(a) (&(a)[countof(a)])
 
+#if !defined MIN
+#define MIN(a, b) (((a) < (b))? (a) : (b))
+#endif
 
 #define CIRCLEQ_CONCAT(head1, head2, field) do {			\
 	if (!CIRCLEQ_EMPTY(head2)) {					\
@@ -136,7 +145,78 @@ static inline char *bin64_(char *buf, uint64_t n) {
 } while (0)
 
 
-static inline uint64_t rotl(const uint64_t v, int c) {
+/*
+ * B I T  M A N I P U L A T I O N  R O U T I N E S
+ *
+ * These routines implement wheel parameterization.
+ *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define TIMER_BIT (sizeof (timer_t) * CHAR_BIT)
+
+#if !defined WHEEL_BIT
+#define WHEEL_BIT 6
+#endif
+
+#if !defined WHEEL_NUM
+#define WHEEL_NUM 4
+#endif
+
+#define WHEEL_LEN (1U << WHEEL_BIT)
+#define WHEEL_MAX (WHEEL_LEN - 1)
+#define WHEEL_MASK (WHEEL_LEN - 1)
+#define TIMEOUT_MAX ((TIMER_C(1) << (WHEEL_BIT * WHEEL_NUM)) - 1)
+
+#if WHEEL_BIT == 6
+
+#define WHEEL_C(n) UINT64_C(n)
+#define WHEEL_PRIu PRIu64
+#define WHEEL_PRIx PRIx64
+
+typedef uint64_t wheel_t;
+
+#define ctz(n) __builtin_ctzll(n)
+#define fls(n) ((1 << WHEEL_BIT) - __builtin_clzll(n))
+
+#elif WHEEL_BIT == 5
+
+#define WHEEL_C(n) UINT32_C(n)
+#define WHEEL_PRIu PRIu32
+#define WHEEL_PRIx PRIx32
+
+typedef uint32_t wheel_t;
+
+#define ctz(n) __builtin_ctzl(n)
+#define fls(n) ((1 << WHEEL_BIT) - __builtin_clzl(n))
+
+#elif WHEEL_BIT == 4
+
+#define WHEEL_C(n) UINT16_C(n)
+#define WHEEL_PRIu PRIu16
+#define WHEEL_PRIx PRIx16
+
+typedef uint16_t wheel_t;
+
+#define ctz(n) __builtin_ctz(n)
+#define fls(n) ((1 << WHEEL_BIT) - __builtin_clz(n))
+
+#elif WHEEL_BIT == 3
+
+#define WHEEL_C(n) UINT8_C(n)
+#define WHEEL_PRIu PRIu8
+#define WHEEL_PRIx PRIx8
+
+typedef uint8_t wheel_t;
+
+#define ctz(n) __builtin_ctz(n)
+#define fls(n) ((1 << WHEEL_BIT) - __builtin_clz(n))
+
+#else
+#error invalid WHEEL_BIT value
+#endif
+
+
+static inline wheel_t rotl(const wheel_t v, int c) {
 	if (!(c &= (sizeof v * CHAR_BIT - 1)))
 		return v;
 
@@ -144,7 +224,7 @@ static inline uint64_t rotl(const uint64_t v, int c) {
 } /* rotl() */
 
 
-static inline uint64_t rotr(const uint64_t v, int c) {
+static inline wheel_t rotr(const wheel_t v, int c) {
 	if (!(c &= (sizeof v * CHAR_BIT - 1)))
 		return v;
 
@@ -152,66 +232,14 @@ static inline uint64_t rotr(const uint64_t v, int c) {
 } /* rotr() */
 
 
-/*
- * From http://groups.google.com/group/comp.lang.c/msg/0cef41f343f0e875.
- *
- * The bitwise pattern 0x43147259a7abb7e can derive every permutation of 0
- * to 2^6-1, each permutation overlapping bitwise in the pattern, offset by
- * 1 bit. Multiplying by a power of 2 shifts one of the permutations into
- * the high 6 bits of the word, which is then shifted down 58 bits and
- * reduced modulo 2^6.
- *
- * The constant was found by brute force search with a sieve to quickly
- * discard invalid patterns. The following program generates constants for
- * mapping words of length 2^N (0 <= N <= 6), although it's not exhaustive.
- * Decode with `sed -e 's/^ \* //' | uudecode -p | gunzip -c`.
- *
- * begin 644 -
- * M'XL(`+J'&E$``\53VV[30!!]SG[%M%'3W=:T<5-%2$XL`4\(@9"@3S2*XAM=
- * MD:PC7Q"H[;]S=G;=NB$2[1-6K'CG<F;F[)FA-NFZS7*:U4VF37-V$]/Y"5V]
- * M__1U>KE\1RUL^&CHY%P,^[%KG=C8IT9=6IL%V%9(+.1$V40AAEE>:)/3QS=?
- * M/DB3Z*8.2"N24G:59*AH-B/G5(I>$0PCDEJI7O;G+GFS^JY3QK@6Y)\^.)`Y
- * M!/49@^(8MG"G1/>)&D+4S:K1*2W?EN6:RA^KWS(M3=T\4N!K.BN,Y++I5@P>
- * M8NH\-S2G<4`)FHR$&!1EA0X0K:T]PA]:X$9<.BRGIPPR2!"QP\??(^\$:!4A
- * M4Q<DN?2($H7SH,J;MC*HAP,[[N:4X'"/CKPOC,2]O2H>U=^3Y^!GJ3/4V[Z`
- * M`7M"QK?IY>+Y4Z,YF_.,(1>`T2\"]@H\I*,L.`RX-[U0%F+;-NG-JI+'U^98
- * M>1+LL'LX@.PRN7_\!VM1MB;[ARPV@65?\#TQ"L4TIM'(D>]Q.UW>]KH?_SHZ
- * M>\TOS6/"'-S-Y&+9J`XHILF%ZCN<\"-'[E-P:W37[[6P`8L.![NVNXQ^$+N*
- * M"-^CSDTWTX%,`,!,*$L^\^9P$18&SD5W=BNZ3E"<`Z#,,/J_K;`$.-!KP*E9
- * >&VE5P#?"7JPU?E-N_G'#O(`0[;+_`)GB4OE4!0``
- * `
- * end
- */
-#define FFS64_HASH UINT64_C(0x43147259a7abb7e)
-#define FFS64_MLEN 6
-#define FFS64_INDEX(v) (((UINT64_C(1) << FFS64_MLEN) - 1) & ((((v) & -(v)) * FFS64_HASH) >> ((UINT64_C(1) << FFS64_MLEN) - FFS64_MLEN)))
-
-static inline int ffs64(const uint64_t v) {
-	static const int map[] = {
-		63,  0,  1,  6,  2, 12,  7, 18,  3, 24, 13, 27,  8, 33, 19, 39,
-		 4, 16, 25, 37, 14, 45, 28, 47,  9, 30, 34, 53, 20, 49, 40, 56,
-		62,  5, 11, 17, 23, 26, 32, 38, 15, 36, 44, 46, 29, 52, 48, 55,
-		61, 10, 22, 31, 35, 43, 51, 54, 60, 21, 42, 50, 59, 41, 58, 57,
-	};
-
-	return (v)? map[FFS64_INDEX(v)] + 1 : 0;
-} /* ffs64() */
+static inline int timeout_wheel(timeout_t timeout) {
+	return (fls(MIN(timeout, TIMEOUT_MAX)) - 1) / WHEEL_BIT;
+} /* timeout_wheel() */
 
 
-static inline int fls64(const uint64_t v) {
-#if 0
-	v--;
-	v |= v >> 1;
-	v |= v >> 2;
-	v |= v >> 4;
-	v |= v >> 8;
-	v |= v >> 16;
-	v |= v >> 32;
-	v++;
-#endif
-
-	return (v)? ((sizeof v * CHAR_BIT) - 1) - __builtin_clzll(v) : 0;
-} /* fls64 */
+static inline int timer_slot(int wheel, timer_t expires) {
+	return WHEEL_MASK & ((expires >> (wheel * WHEEL_BIT)) - !!wheel);
+} /* timer_slot() */
 
 
 /*
@@ -224,15 +252,21 @@ CIRCLEQ_HEAD(timeouts, timeout);
 #define TIMEOUT_INITIALIZER { 0, 0, { 0, 0 } }
 
 struct timeout {
-	uint64_t expires;
+	int flags;
+
+	timer_t expires;
 
 	struct timeouts *pending;
 	CIRCLEQ_ENTRY(timeout) cqe;
 }; /* struct timeout */
 
 
-static inline struct timeout *timeout_init(struct timeout *to) {
-	return memset(to, 0, sizeof *to);
+struct timeout *timeout_init(struct timeout *to, int flags) {
+	memset(to, 0, sizeof *to);
+
+	to->flags = flags;
+
+	return to;
 } /* timeout_init() */
 
 
@@ -241,34 +275,17 @@ static inline struct timeout *timeout_init(struct timeout *to) {
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#define PERIOD_BIT 6
-#define PERIOD_LEN (1 << PERIOD_BIT)
-#define PERIOD_MAX (PERIOD_LEN - 1)
-#define PERIOD_NUM 4
-#define PERIOD_MASK (PERIOD_LEN - 1)
-#define ELAPSED_MAX ((UINT64_C(1) << (PERIOD_BIT * PERIOD_NUM)) - 1)
-#define TIMEOUT_PERIOD(elapsed) (fls64(MIN(ELAPSED_MAX, elapsed)) / PERIOD_BIT)
-#define TIMEOUT_MINUTE(period, curtime, elapsed) (PERIOD_MASK & (((curtime) >> ((period) * PERIOD_BIT)) + ((elapsed) >> ((period) * PERIOD_BIT))))
-
-static uint64_t timeout_minute(uint64_t period, uint64_t expires) {
-	return PERIOD_MASK & ((expires >> (period * PERIOD_BIT)) - !!period);
-} /* timeout_minute() */
-
-#undef TIMEOUT_MINUTE
-#define TIMEOUT_MINUTE(...) timeout_minute(__VA_ARGS__)
-
-
 struct timer {
-	struct timeouts wheel[4][64], expired;
+	struct timeouts wheel[WHEEL_NUM][WHEEL_LEN], expired;
 
-	uint64_t pending[4];
+	wheel_t pending[WHEEL_NUM];
 
-	uint64_t curtime;
-	uint64_t hertz;
+	timer_t curtime;
+	timer_t hertz;
 }; /* struct timer */
 
 
-struct timer *timer_init(struct timer *T) {
+struct timer *timer_init(struct timer *T, timer_t hz) {
 	unsigned i, j;
 
 	for (i = 0; i < countof(T->wheel); i++) {
@@ -284,6 +301,7 @@ struct timer *timer_init(struct timer *T) {
 	}
 
 	T->curtime = 0;
+	T->hertz = (hz)? hz : TIMER_mHZ;
 
 	return T;
 } /* timer_init() */
@@ -293,10 +311,10 @@ void timer_del(struct timer *T, struct timeout *to) {
 	if (to->pending) {
 		if (to->pending != &T->expired && CIRCLEQ_EMPTY(to->pending)) {
 			ptrdiff_t index = to->pending - &T->wheel[0][0];
-			int period = index / 64;
-			int minute = index % 64;
+			int wheel = index / WHEEL_LEN;
+			int slot = index % WHEEL_LEN;
 
-			T->pending[period] &= ~(UINT64_C(1) << minute);
+			T->pending[wheel] &= ~(WHEEL_C(1) << slot);
 		}
 
 		CIRCLEQ_REMOVE(to->pending, to, cqe);
@@ -305,14 +323,14 @@ void timer_del(struct timer *T, struct timeout *to) {
 } /* timer_del() */
 
 
-static inline uint64_t timer_rem(struct timer *T, struct timeout *to) {
+static inline timeout_t timer_rem(struct timer *T, struct timeout *to) {
 	return to->expires - T->curtime;
 } /* timer_rem() */
 
 
-void timer_add(struct timer *T, struct timeout *to, uint64_t expires) {
-	uint64_t rem;
-	unsigned period, minute;
+void timer_add(struct timer *T, struct timeout *to, timer_t expires) {
+	timeout_t rem;
+	int wheel, slot;
 
 	timer_del(T, to);
 
@@ -321,16 +339,16 @@ void timer_add(struct timer *T, struct timeout *to, uint64_t expires) {
 	if (expires > T->curtime) {
 		rem = timer_rem(T, to);
 
-		period = TIMEOUT_PERIOD(rem);
-		minute = TIMEOUT_MINUTE(period, to->expires);
+		wheel = timeout_wheel(rem);
+		slot = timer_slot(wheel, to->expires);
 
-		SAY("%llu rem:%llu period:%u (fls:%d) minute:%u", expires, timer_rem(T, to), period, fls64(timer_rem(T, to)), minute);
+		SAY("%llu rem:%llu wheel:%d (fls:%d) slot:%d", expires, timer_rem(T, to), wheel, fls(timer_rem(T, to)) - 1, slot);
 		SAY("clock: %s", fmt(expires));
 
-		to->pending = &T->wheel[period][minute];
+		to->pending = &T->wheel[wheel][slot];
 		CIRCLEQ_INSERT_HEAD(to->pending, to, cqe);
 
-		T->pending[period] |= UINT64_C(1) << minute;
+		T->pending[wheel] |= WHEEL_C(1) << slot;
 	} else {
 		to->pending = &T->expired;
 		CIRCLEQ_INSERT_HEAD(to->pending, to, cqe);
@@ -338,56 +356,59 @@ void timer_add(struct timer *T, struct timeout *to, uint64_t expires) {
 } /* timer_add() */
 
 
-void timer_step(struct timer *T, uint64_t curtime) {
-	uint64_t elapsed = curtime - T->curtime;
+void timeout_add(struct timer *T, struct timeout *to, timeout_t timeout) {
+	timer_add(T, to, T->curtime + timeout);
+} /* timeout_add() */
+
+
+void timer_step(struct timer *T, timer_t curtime) {
+	timeout_t elapsed = curtime - T->curtime;
 	struct timeouts todo;
-	unsigned period;
+	int wheel, slot;
+	wheel_t _elapsed;
 
 	CIRCLEQ_INIT(&todo);
-#if defined DEBUG_LEVEL
-if (DEBUG_LEVEL > 1) {
-fputc('\n', stderr);
-SAY("== step =========================================");
-SAY("%llu -> %llu", T->curtime, curtime);
-SAY("%s -> %s", fmt(T->curtime), fmt(curtime));
-}
-#endif
-	for (period = 0; period < PERIOD_NUM; period++) {
-		uint64_t pending;
 
-//SAY("newtime: %llu elapsed:%llu", curtime, elapsed);
-SAY("-- period (%u) -----------------------------------", period);
-		if ((elapsed >> (period * PERIOD_BIT)) > PERIOD_MAX) {
-			pending = ~UINT64_C(0);
+	SAY("\n");
+	SAY("== step =========================================");
+	SAY("%" TIMER_PRIu " -> %" TIMER_PRIu, T->curtime, curtime);
+	SAY("%s -> %s", fmt(T->curtime), fmt(curtime));
+
+	for (wheel = 0; wheel < WHEEL_NUM; wheel++) {
+		wheel_t pending;
+
+		SAYit(2, "-- wheel (%u) ------------------------------------", wheel);
+
+		if ((elapsed >> (wheel * WHEEL_BIT)) > WHEEL_MAX) {
+			pending = ~WHEEL_C(0);
 		} else {
-			uint64_t _elapsed = PERIOD_MASK & (elapsed >> (period * PERIOD_BIT));
-			uint64_t _minute = PERIOD_MASK & (T->curtime >> (period * PERIOD_BIT));
-			SAY("period:%u _elapsed:%llu _minute:%llu", period, _elapsed, _minute);
-//			pending = rotl(rotl(((UINT64_C(1) << (_elapsed + 1)) - 1), TIMEOUT_MINUTE(period, T->curtime)), 1);
-//			pending = rotl(((UINT64_C(1) << _elapsed) - 1)|1, TIMEOUT_MINUTE(period, curtime));
-			pending = rotl(((UINT64_C(1) << _elapsed) - 1), _minute);
-uint64_t _minute1 = PERIOD_MASK & (curtime >> (period * PERIOD_BIT));
-SAY("_minute1: %llu", _minute1);
-pending |= UINT64_C(1) << _minute1;
-pending |= rotr(rotl(((UINT64_C(1) << _elapsed) - 1), _minute1), _elapsed);
-SAYit(2, "rotl:%.8x%.8x pending:%.8x%.8x", (unsigned)(((UINT64_C(1) << _elapsed) - 1) >> 32), (unsigned)((UINT64_C(1) << _elapsed) - 1), (unsigned)(pending >> 32), (unsigned)pending);
+			_elapsed = WHEEL_MASK & (elapsed >> (wheel * WHEEL_BIT));
+
+			slot = WHEEL_MASK & (T->curtime >> (wheel * WHEEL_BIT));
+			SAYit(2, "wheel:%u _elapsed:%llu slot:%d", wheel, _elapsed, slot);
+			pending = rotl(((UINT64_C(1) << _elapsed) - 1), slot);
+
+			slot = WHEEL_MASK & (curtime >> (wheel * WHEEL_BIT));
+			SAYit(2, "slot: %d", slot);
+			pending |= WHEEL_C(1) << slot;
+			pending |= rotr(rotl(((WHEEL_C(1) << _elapsed) - 1), slot), _elapsed);
+			SAYit(2, "rotl:%.*" TIMEOUT_PRIx " pending:%.*" WHEEL_PRIx, (int)(sizeof _elapsed * CHAR_BIT / 4), ((TIMEOUT_C(1) << _elapsed) - 1), (int)(sizeof pending * CHAR_BIT / 4), pending);
 		}
 
-SAYit(2, "pending:%.8x%.8x & populated:%.8x%.8x", (unsigned)(pending >> 32), (unsigned)pending, (unsigned)(T->pending[period] >> 32), (unsigned)T->pending[period]);
-SAYit(2, "pending   : %s", bin64(pending));
-SAYit(2, "populated : %s", bin64(T->pending[period]));
-		while (pending & T->pending[period]) {
-			int minute = ffs64(pending & T->pending[period]) - 1;
-			CIRCLEQ_CONCAT(&todo, &T->wheel[period][minute], cqe);
-			T->pending[period] &= ~(UINT64_C(1) << minute);
+		SAYit(2, "pending   : %s", bin64(pending));
+		SAYit(2, "populated : %s", bin64(T->pending[wheel]));
+
+		while (pending & T->pending[wheel]) {
+			int slot = ctz(pending & T->pending[wheel]);
+			CIRCLEQ_CONCAT(&todo, &T->wheel[wheel][slot], cqe);
+			T->pending[wheel] &= ~(UINT64_C(1) << slot);
 		}
 
-//		if (!((UINT64_C(1) << 63) & pending))
 		if (!(0x1 & pending))
-			break; /* break if we didn't reach end of period */
+			break; /* break if we didn't reach end of wheel */
 
-		/* if we're continuing, the next period must tick at least once */ 
-		elapsed = MAX(elapsed, (UINT64_C(64) << (period * PERIOD_BIT)));
+		/* if we're continuing, the next wheel must tick at least once */ 
+		elapsed = MAX(elapsed, (WHEEL_LEN << (wheel * WHEEL_BIT)));
 	}
 
 	T->curtime = curtime;
@@ -405,13 +426,51 @@ SAYit(2, "populated : %s", bin64(T->pending[period]));
 } /* timer_step() */
 
 
-struct timeout *timer_expired(struct timer *T) {
+bool timer_pending(struct timer *T) {
+	wheel_t pending = 0;
+	int wheel;
+
+	for (wheel = 0; wheel < WHEEL_NUM; wheel++) {
+		pending |= T->pending[wheel];
+	}
+
+	return !!pending;
+} /* timer_pending() */
+
+
+timeout_t timer_timeout(struct timer *T) {
+	timeout_t timeout = ~TIMEOUT_C(0), _timeout;
+	timer_t relmask;
+	int wheel, slot;
+
+	if (!CIRCLEQ_EMPTY(&T->expired))
+		return 0;
+
+	relmask = 0;
+
+	for (wheel = 0; wheel < WHEEL_NUM; wheel++) {
+		if (T->pending[wheel]) {
+			slot = WHEEL_MASK & (T->curtime >> (wheel * WHEEL_BIT));
+			_timeout = (ctz(rotr(T->pending[wheel], slot)) + !!wheel) << (wheel * WHEEL_BIT);
+			_timeout -= relmask & T->curtime;
+			timeout = MIN(_timeout, timeout);
+		}
+
+		relmask <<= WHEEL_BIT; 
+		relmask |= WHEEL_MASK;
+	}
+
+	return timeout;
+} /* timer_timeout() */
+
+
+struct timeout *timer_get(struct timer *T) {
 	if (!CIRCLEQ_EMPTY(&T->expired)) {
 		return CIRCLEQ_FIRST(&T->expired);
 	} else {
 		return 0;
 	}
-} /* timer_expired() */
+} /* timer_get() */
 
 
 #if TIMER_MAIN - 0
@@ -419,6 +478,28 @@ struct timeout *timer_expired(struct timer *T) {
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+
+static timer_t timer_min(struct timer *T) {
+	struct timeout *to, *min = NULL;
+	unsigned i, j;
+
+	for (i = 0; i < countof(T->wheel); i++) {
+		for (j = 0; j < countof(T->wheel[i]); j++) {
+			CIRCLEQ_FOREACH(to, &T->wheel[i][j], cqe) {
+				if (!min || min->expires > to->expires)
+					min = to;
+			}
+		}
+	}
+
+	return (min)? min->expires : 0;
+} /* timer_min() */
+
+static inline timeout_t slow_timeout(struct timer *T) {
+	return timer_min(T) - T->curtime;
+} /* slow_timeout() */
+
 
 int main(int argc, char **argv) {
 	extern int optind;
@@ -457,23 +538,22 @@ int main(int argc, char **argv) {
 	argc -= optind;
 	argv += optind;
 
-	timer_init(&T);
+	timer_init(&T, TIMER_mHZ);
 	timer_step(&T, time);
-	timer_add(&T, timeout_init(&to[0]), time + 62); count++;
-	timer_add(&T, timeout_init(&to[1]), time + 63); count++;
-	timer_add(&T, timeout_init(&to[2]), time + 64); count++;
-	timer_add(&T, timeout_init(&to[3]), time + 65); count++;
-//	timer_add(&T, timeout_init(&to[4]), 100); count++;
-	timer_add(&T, timeout_init(&to[5]), time + 192); count++;
-//	timer_add(&T, timeout_init(&to[6]), 65536); count++;
-//	timer_add(&T, timeout_init(&to[7]), 65535 + 62); count++;
+	timer_add(&T, timeout_init(&to[0], 0), time + 62); count++;
+	timer_add(&T, timeout_init(&to[1], 0), time + 63); count++;
+	timer_add(&T, timeout_init(&to[2], 0), time + 64); count++;
+	timer_add(&T, timeout_init(&to[3], 0), time + 65); count++;
+	timer_add(&T, timeout_init(&to[5], 0), time + 192); count++;
 
 	while (count > 0 && time <= stop - 1) {
 		time += step;
 //printf("step: %llu\n", time);
+SAY("timeout -> %" TIMEOUT_PRIu " (actual:%" TIMEOUT_PRIu " curtime:%" TIMER_PRIu ")", timer_timeout(&T), slow_timeout(&T), T.curtime);
 		timer_step(&T, time);
+//SAY("timeout <- %" TIMEOUT_PRIu " (curtime:%" TIMER_PRIu ")", timer_timeout(&T), T.curtime);
 
-		while ((expired = timer_expired(&T))) {
+		while ((expired = timer_get(&T))) {
 			timer_del(&T, expired);
 			SAY("step %llu expired %llu @@@@@@@@@@@@@@@@@@@@", time, expired->expires);
 			count--;
