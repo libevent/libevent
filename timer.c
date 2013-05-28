@@ -74,18 +74,18 @@ static int timer_debug;
 #define HAI SAY("HAI")
 
 
-static inline char *fmt_(char *buf, uint64_t ts) {
+static inline char *fmt_(char *buf, uint64_t ts, int wheel_bit, int wheel_num) {
 	char *p = buf;
-	int period, n, i;
+	int wheel, n, i;
 
-	for (period = 2; period >= 0; period--) {
-		n = 63 & (ts >> (period * 6));
+	for (wheel = wheel_num - 2; wheel >= 0; wheel--) {
+		n = ((1 << wheel_bit) - 1) & (ts >> (wheel * WHEEL_BIT));
 
-		for (i = 5; i >= 0; i--) {
+		for (i = wheel_bit - 1; i >= 0; i--) {
 			*p++ = '0' + !!(n & (1 << i));
 		}
 
-		if (period != 0)
+		if (wheel != 0)
 			*p++ = ':';
 	}
 
@@ -94,15 +94,15 @@ static inline char *fmt_(char *buf, uint64_t ts) {
 	return buf;
 } /* fmt_() */
 
-#define fmt(ts) fmt_(((char[64]){ 0 }), (ts))
+#define fmt(ts) fmt_(((char[(1 << WHEEL_BIT) + WHEEL_NUM + 1]){ 0 }), (ts), WHEEL_BIT, WHEEL_NUM)
 
 
-static inline char *bin64_(char *buf, uint64_t n) {
+static inline char *bin64_(char *buf, uint64_t n, int wheel_bit) {
 	char *p = buf;
 	int i;
 
-	for (i = 0; i < 64; i++) {
-		*p++ = "01"[0x1 & (n >> (63 - i))];
+	for (i = 0; i < (1 << wheel_bit); i++) {
+		*p++ = "01"[0x1 & (n >> (((1 << wheel_bit) - 1) - i))];
 	}
 
 	*p = 0;
@@ -110,7 +110,7 @@ static inline char *bin64_(char *buf, uint64_t n) {
 	return buf;
 } /* bin64_() */
 
-#define bin64(ts) bin64_(((char[65]){ 0 }), (ts))
+#define bin64(ts) bin64_(((char[(1 << WHEEL_BIT) + 1]){ 0 }), (ts), WHEEL_BIT)
 
 
 /*
@@ -176,7 +176,7 @@ static inline char *bin64_(char *buf, uint64_t n) {
 typedef uint64_t wheel_t;
 
 #define ctz(n) __builtin_ctzll(n)
-#define fls(n) ((1 << WHEEL_BIT) - __builtin_clzll(n))
+#define fls(n) ((int)(sizeof (long long) * CHAR_BIT) - __builtin_clzll(n))
 
 #elif WHEEL_BIT == 5
 
@@ -187,7 +187,7 @@ typedef uint64_t wheel_t;
 typedef uint32_t wheel_t;
 
 #define ctz(n) __builtin_ctzl(n)
-#define fls(n) ((1 << WHEEL_BIT) - __builtin_clzl(n))
+#define fls(n) ((int)(sizeof (long) * CHAR_BIT) - __builtin_clzl(n))
 
 #elif WHEEL_BIT == 4
 
@@ -198,7 +198,7 @@ typedef uint32_t wheel_t;
 typedef uint16_t wheel_t;
 
 #define ctz(n) __builtin_ctz(n)
-#define fls(n) ((1 << WHEEL_BIT) - __builtin_clz(n))
+#define fls(n) ((int)(sizeof (int) * CHAR_BIT) - __builtin_clz(n))
 
 #elif WHEEL_BIT == 3
 
@@ -209,7 +209,7 @@ typedef uint16_t wheel_t;
 typedef uint8_t wheel_t;
 
 #define ctz(n) __builtin_ctz(n)
-#define fls(n) ((1 << WHEEL_BIT) - __builtin_clz(n))
+#define fls(n) ((int)(sizeof (int) * CHAR_BIT) - __builtin_clz(n))
 
 #else
 #error invalid WHEEL_BIT value
@@ -230,16 +230,6 @@ static inline wheel_t rotr(const wheel_t v, int c) {
 
 	return (v >> c) | (v << (sizeof v * CHAR_BIT - c));
 } /* rotr() */
-
-
-static inline int timeout_wheel(timeout_t timeout) {
-	return (fls(MIN(timeout, TIMEOUT_MAX)) - 1) / WHEEL_BIT;
-} /* timeout_wheel() */
-
-
-static inline int timer_slot(int wheel, timer_t expires) {
-	return WHEEL_MASK & ((expires >> (wheel * WHEEL_BIT)) - !!wheel);
-} /* timer_slot() */
 
 
 /*
@@ -328,6 +318,16 @@ static inline timeout_t timer_rem(struct timer *T, struct timeout *to) {
 } /* timer_rem() */
 
 
+static inline int timeout_wheel(timeout_t timeout) {
+	return (fls(MIN(timeout, TIMEOUT_MAX)) - 1) / WHEEL_BIT;
+} /* timeout_wheel() */
+
+
+static inline int timer_slot(int wheel, timer_t expires) {
+	return WHEEL_MASK & ((expires >> (wheel * WHEEL_BIT)) - !!wheel);
+} /* timer_slot() */
+
+
 void timer_add(struct timer *T, struct timeout *to, timer_t expires) {
 	timeout_t rem;
 	int wheel, slot;
@@ -380,12 +380,12 @@ void timer_step(struct timer *T, timer_t curtime) {
 		SAYit(2, "-- wheel (%u) ------------------------------------", wheel);
 
 		if ((elapsed >> (wheel * WHEEL_BIT)) > WHEEL_MAX) {
-			pending = ~WHEEL_C(0);
+			pending = (wheel_t)~WHEEL_C(0);
 		} else {
 			_elapsed = WHEEL_MASK & (elapsed >> (wheel * WHEEL_BIT));
 
 			slot = WHEEL_MASK & (T->curtime >> (wheel * WHEEL_BIT));
-			SAYit(2, "wheel:%u _elapsed:%llu slot:%d", wheel, _elapsed, slot);
+			SAYit(2, "wheel:%d _elapsed:%" WHEEL_PRIu " slot:%d", wheel, _elapsed, slot);
 			pending = rotl(((UINT64_C(1) << _elapsed) - 1), slot);
 
 			slot = WHEEL_MASK & (curtime >> (wheel * WHEEL_BIT));
