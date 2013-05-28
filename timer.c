@@ -26,12 +26,11 @@
 
 #include <limits.h>    /* CHAR_BIT */
 #include <stddef.h>    /* NULL */
-#include <stdint.h>    /* UINT64_C uint64_t */
+#include <inttypes.h>  /* UINT64_C uint64_t */
 
 #include <string.h>
 
 #include <sys/queue.h>
-#include <sys/param.h>
 
 #include "timer.h"
 
@@ -94,7 +93,7 @@ static inline char *fmt_(char *buf, uint64_t ts, int wheel_bit, int wheel_num) {
 	return buf;
 } /* fmt_() */
 
-#define fmt(ts) fmt_(((char[(1 << WHEEL_BIT) + WHEEL_NUM + 1]){ 0 }), (ts), WHEEL_BIT, WHEEL_NUM)
+#define fmt(ts) fmt_(((char[((1 << WHEEL_BIT) * WHEEL_NUM) + WHEEL_NUM + 1]){ 0 }), (ts), WHEEL_BIT, WHEEL_NUM)
 
 
 static inline char *bin64_(char *buf, uint64_t n, int wheel_bit) {
@@ -110,7 +109,7 @@ static inline char *bin64_(char *buf, uint64_t n, int wheel_bit) {
 	return buf;
 } /* bin64_() */
 
-#define bin64(ts) bin64_(((char[(1 << WHEEL_BIT) + 1]){ 0 }), (ts), WHEEL_BIT)
+#define bin64(ts) bin64_(((char[((1 << WHEEL_BIT) * WHEEL_NUM) + 1]){ 0 }), (ts), WHEEL_BIT)
 
 
 /*
@@ -123,6 +122,10 @@ static inline char *bin64_(char *buf, uint64_t n, int wheel_bit) {
 
 #if !defined MIN
 #define MIN(a, b) (((a) < (b))? (a) : (b))
+#endif
+
+#if !defined MAX
+#define MAX(a, b) (((a) > (b))? (a) : (b))
 #endif
 
 #define CIRCLEQ_CONCAT(head1, head2, field) do {			\
@@ -369,10 +372,10 @@ void timer_step(struct timer *T, timer_t curtime) {
 
 	CIRCLEQ_INIT(&todo);
 
-	SAY("\n");
-	SAY("== step =========================================");
-	SAY("%" TIMER_PRIu " -> %" TIMER_PRIu, T->curtime, curtime);
-	SAY("%s -> %s", fmt(T->curtime), fmt(curtime));
+	SAYit(2, "\n");
+	SAYit(2, "== step =========================================");
+	SAYit(2, "%" TIMER_PRIu " -> %" TIMER_PRIu, T->curtime, curtime);
+	SAYit(2, "%s -> %s", fmt(T->curtime), fmt(curtime));
 
 	for (wheel = 0; wheel < WHEEL_NUM; wheel++) {
 		wheel_t pending;
@@ -487,7 +490,7 @@ static timer_t timer_min(struct timer *T) {
 	for (i = 0; i < countof(T->wheel); i++) {
 		for (j = 0; j < countof(T->wheel[i]); j++) {
 			CIRCLEQ_FOREACH(to, &T->wheel[i][j], cqe) {
-				if (!min || min->expires > to->expires)
+				if (!min || to->expires < min->expires)
 					min = to;
 			}
 		}
@@ -548,10 +551,8 @@ int main(int argc, char **argv) {
 
 	while (count > 0 && time <= stop - 1) {
 		time += step;
-//printf("step: %llu\n", time);
 SAY("timeout -> %" TIMEOUT_PRIu " (actual:%" TIMEOUT_PRIu " curtime:%" TIMER_PRIu ")", timer_timeout(&T), slow_timeout(&T), T.curtime);
 		timer_step(&T, time);
-//SAY("timeout <- %" TIMEOUT_PRIu " (curtime:%" TIMER_PRIu ")", timer_timeout(&T), T.curtime);
 
 		while ((expired = timer_get(&T))) {
 			timer_del(&T, expired);
