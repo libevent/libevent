@@ -119,9 +119,9 @@
 #include <netinet/in6.h>
 #endif
 
-#define EVDNS_LOG_DEBUG 0
-#define EVDNS_LOG_WARN 1
-#define EVDNS_LOG_MSG 2
+#define EVDNS_LOG_DEBUG EVENT_LOG_DEBUG
+#define EVDNS_LOG_WARN EVENT_LOG_WARN
+#define EVDNS_LOG_MSG EVENT_LOG_MSG
 
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 255
@@ -432,17 +432,6 @@ static int strtoint(const char *const str);
 	EVLOCK_ASSERT_LOCKED((base)->lock)
 #endif
 
-static void
-default_evdns_log_fn(int warning, const char *buf)
-{
-	if (warning == EVDNS_LOG_WARN)
-		event_warnx("[evdns] %s", buf);
-	else if (warning == EVDNS_LOG_MSG)
-		event_msgx("[evdns] %s", buf);
-	else
-		event_debug(("[evdns] %s", buf));
-}
-
 static evdns_debug_log_fn_type evdns_log_fn = NULL;
 
 void
@@ -457,25 +446,21 @@ evdns_set_log_fn(evdns_debug_log_fn_type fn)
 #define EVDNS_LOG_CHECK
 #endif
 
-static void evdns_log_(int warn, const char *fmt, ...) EVDNS_LOG_CHECK;
+static void evdns_log_(int severity, const char *fmt, ...) EVDNS_LOG_CHECK;
 static void
-evdns_log_(int warn, const char *fmt, ...)
+evdns_log_(int severity, const char *fmt, ...)
 {
 	va_list args;
-	char buf[512];
-	if (!evdns_log_fn)
-		return;
 	va_start(args,fmt);
-	evutil_vsnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
 	if (evdns_log_fn) {
-		if (warn == EVDNS_LOG_MSG)
-			warn = EVDNS_LOG_WARN;
-		evdns_log_fn(warn, buf);
+		char buf[512];
+		int is_warn = (severity == EVDNS_LOG_WARN);
+		evutil_vsnprintf(buf, sizeof(buf), fmt, args);
+		evdns_log_fn(is_warn, buf);
 	} else {
-		default_evdns_log_fn(warn, buf);
+		event_logv_(severity, NULL, fmt, args);
 	}
-
+	va_end(args);
 }
 
 #define log evdns_log_
