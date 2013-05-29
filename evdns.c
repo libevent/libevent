@@ -744,6 +744,7 @@ evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 		if (!req->ns)
 			return;
 
+		/* move a request from the waiting queue to the inflight queue */
 		evdns_request_remove(req, &base->req_waiting_head);
 
 		base->global_requests_waiting--;
