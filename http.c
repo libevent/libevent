@@ -1155,7 +1155,9 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 
 	if (evcon->fd != -1) {
 		shutdown(evcon->fd, EVUTIL_SHUT_WR);
-		evutil_closesocket(evcon->fd);
+		if (!(bufferevent_get_options_(evcon->bufev) & BEV_OPT_CLOSE_ON_FREE)) {
+			evutil_closesocket(evcon->fd);
+		}
 	}
 
 	if (evcon->bind_address != NULL)

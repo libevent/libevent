@@ -367,6 +367,8 @@ void bufferevent_init_generic_timeout_cbs_(struct bufferevent *bev);
  * that enabled EV_READ or EV_WRITE, or that disables EV_READ or EV_WRITE. */
 int bufferevent_generic_adj_timeouts_(struct bufferevent *bev);
 
+enum bufferevent_options bufferevent_get_options_(struct bufferevent *bev);
+
 /** Internal use: We have just successfully read data into an inbuf, so
  * reset the read timeout (if any). */
 #define BEV_RESET_GENERIC_READ_TIMEOUT(bev)				\

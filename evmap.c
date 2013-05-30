@@ -375,9 +375,11 @@ evmap_io_del_(struct event_base *base, evutil_socket_t fd, struct event *ev)
 
 	if (res) {
 		void *extra = ((char*)ctx) + sizeof(struct evmap_io);
-		if (evsel->del(base, ev->ev_fd, old, res, extra) == -1)
-			return (-1);
-		retval = 1;
+		if (evsel->del(base, ev->ev_fd, old, res, extra) == -1) {
+			retval = -1;
+		} else {
+			retval = 1;
+		}
 	}
 
 	ctx->nread = nread;

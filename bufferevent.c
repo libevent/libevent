@@ -820,6 +820,20 @@ bufferevent_getfd(struct bufferevent *bev)
 	return (res<0) ? -1 : d.fd;
 }
 
+enum bufferevent_options
+bufferevent_get_options_(struct bufferevent *bev)
+{
+	struct bufferevent_private *bev_p =
+	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+	enum bufferevent_options options;
+
+	BEV_LOCK(bev);
+	options = bev_p->options;
+	BEV_UNLOCK(bev);
+	return options;
+}
+
+
 static void
 bufferevent_cancel_all_(struct bufferevent *bev)
 {
