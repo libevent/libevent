@@ -67,6 +67,7 @@ libevent_openssl.pc
 /ltmain.sh
 /missing
 /stamp-h1
+/test-driver
 
 /include/event2/event-config.h
 
