@@ -7,11 +7,12 @@ dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
 AC_PREREQ(2.59)
-AC_INIT(event.c)
+AC_INIT(libevent,2.0.21-stable-dev)
 
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_INIT_AUTOMAKE(libevent,2.0.21-stable-dev)
+AM_INIT_AUTOMAKE
+AC_CONFIG_SRCDIR(event.c)
 AC_CONFIG_HEADERS(config.h)
 AC_DEFINE(NUMERIC_VERSION, 0x02001501, [Numeric representation of the version])
 
