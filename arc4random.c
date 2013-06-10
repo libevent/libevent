@@ -286,6 +286,7 @@ arc4_seed_proc_sys_kernel_random_uuid(void)
 	}
 	memset(entropy, 0, sizeof(entropy));
 	memset(buf, 0, sizeof(buf));
+	arc4_seeded_ok = 1;
 	return 0;
 }
 #endif
@@ -387,6 +388,7 @@ arc4_stir(void)
 	 */
 	for (i = 0; i < 12*256; i++)
 		(void)arc4_getbyte();
+
 	arc4_count = BYTES_BEFORE_RESEED;
 
 	return 0;
