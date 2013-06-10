@@ -65,6 +65,9 @@ void event_warnx(const char *fmt, ...) EV_CHECK_FMT(1,2);
 void event_msgx(const char *fmt, ...) EV_CHECK_FMT(1,2);
 void event_debugx_(const char *fmt, ...) EV_CHECK_FMT(1,2);
 
+void event_logv_(int severity, const char *errstr, const char *fmt, va_list ap)
+	EV_CHECK_FMT(3,0);
+
 #ifdef EVENT_DEBUG_LOGGING_ENABLED
 #define event_debug(x) do {			\
 	if (event_debug_get_logging_mask_()) {	\
