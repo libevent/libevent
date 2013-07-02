@@ -1183,6 +1183,27 @@ event_base_get_npriorities(struct event_base *base)
 	return (n);
 }
 
+int
+event_base_get_num_events(struct event_base *base, unsigned int type)
+{
+	int r = 0;
+
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+
+	if (type & EVENT_BASE_COUNT_ACTIVE)
+		r += base->event_count_active;
+
+	if (type & EVENT_BASE_COUNT_VIRTUAL)
+		r += base->virtual_event_count;
+
+	if (type & EVENT_BASE_COUNT_ADDED)
+		r += base->event_count;
+
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+
+	return r;
+}
+
 /* Returns true iff we're currently watching any events. */
 static int
 event_haveevents(struct event_base *base)

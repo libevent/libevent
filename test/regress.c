@@ -1312,6 +1312,130 @@ test_event_assign_selfarg(void *ptr)
 }
 
 static void
+test_event_base_get_num_events(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event ev;
+	int event_count_active;
+	int event_count_virtual;
+	int event_count_added;
+	int event_count_active_virtual;
+	int event_count_active_added;
+	int event_count_virtual_added;
+	int event_count_active_added_virtual;
+
+	struct timeval qsec = {0, 100000};
+
+	event_assign(&ev, base, -1, EV_READ, event_selfarg_cb,
+	    event_self_cbarg());
+
+	event_add(&ev, &qsec);
+	event_count_active = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_ACTIVE);
+	event_count_virtual = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL);
+	event_count_added = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_ADDED);
+	event_count_active_virtual = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_ACTIVE|EVENT_BASE_COUNT_VIRTUAL);
+	event_count_active_added = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_ACTIVE|EVENT_BASE_COUNT_ADDED);
+	event_count_virtual_added = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL|EVENT_BASE_COUNT_ADDED);
+	event_count_active_added_virtual = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_ACTIVE|
+	    EVENT_BASE_COUNT_ADDED|
+	    EVENT_BASE_COUNT_VIRTUAL);
+	tt_int_op(event_count_active, ==, 0);
+	tt_int_op(event_count_virtual, ==, 0);
+	/* libevent itself adds a timeout event, so the event_count is 2 here */
+	tt_int_op(event_count_added, ==, 2);
+	tt_int_op(event_count_active_virtual, ==, 0);
+	tt_int_op(event_count_active_added, ==, 2);
+	tt_int_op(event_count_virtual_added, ==, 2);
+	tt_int_op(event_count_active_added_virtual, ==, 2);
+
+	event_active(&ev, EV_READ, 1);
+	event_count_active = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_ACTIVE);
+	event_count_virtual = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL);
+	event_count_added = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_ADDED);
+	event_count_active_virtual = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_ACTIVE|EVENT_BASE_COUNT_VIRTUAL);
+	event_count_active_added = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_ACTIVE|EVENT_BASE_COUNT_ADDED);
+	event_count_virtual_added = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL|EVENT_BASE_COUNT_ADDED);
+	event_count_active_added_virtual = event_base_get_num_events(base,
+	    EVENT_BASE_COUNT_ACTIVE|
+	    EVENT_BASE_COUNT_ADDED|
+	    EVENT_BASE_COUNT_VIRTUAL);
+	tt_int_op(event_count_active, ==, 1);
+	tt_int_op(event_count_virtual, ==, 0);
+	tt_int_op(event_count_added, ==, 3);
+	tt_int_op(event_count_active_virtual, ==, 1);
+	tt_int_op(event_count_active_added, ==, 4);
+	tt_int_op(event_count_virtual_added, ==, 3);
+	tt_int_op(event_count_active_added_virtual, ==, 4);
+
+       event_base_loop(base, 0);
+       event_count_active = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_ACTIVE);
+       event_count_virtual = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_VIRTUAL);
+       event_count_added = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_ADDED);
+       event_count_active_virtual = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_ACTIVE|EVENT_BASE_COUNT_VIRTUAL);
+       event_count_active_added = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_ACTIVE|EVENT_BASE_COUNT_ADDED);
+       event_count_virtual_added = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_VIRTUAL|EVENT_BASE_COUNT_ADDED);
+       event_count_active_added_virtual = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_ACTIVE|
+	   EVENT_BASE_COUNT_ADDED|
+	   EVENT_BASE_COUNT_VIRTUAL);
+       tt_int_op(event_count_active, ==, 0);
+       tt_int_op(event_count_virtual, ==, 0);
+       tt_int_op(event_count_added, ==, 0);
+       tt_int_op(event_count_active_virtual, ==, 0);
+       tt_int_op(event_count_active_added, ==, 0);
+       tt_int_op(event_count_virtual_added, ==, 0);
+       tt_int_op(event_count_active_added_virtual, ==, 0);
+
+       event_base_add_virtual_(base);
+       event_count_active = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_ACTIVE);
+       event_count_virtual = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_VIRTUAL);
+       event_count_added = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_ADDED);
+       event_count_active_virtual = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_ACTIVE|EVENT_BASE_COUNT_VIRTUAL);
+       event_count_active_added = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_ACTIVE|EVENT_BASE_COUNT_ADDED);
+       event_count_virtual_added = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_VIRTUAL|EVENT_BASE_COUNT_ADDED);
+       event_count_active_added_virtual = event_base_get_num_events(base,
+	   EVENT_BASE_COUNT_ACTIVE|
+	   EVENT_BASE_COUNT_ADDED|
+	   EVENT_BASE_COUNT_VIRTUAL);
+       tt_int_op(event_count_active, ==, 0);
+       tt_int_op(event_count_virtual, ==, 1);
+       tt_int_op(event_count_added, ==, 0);
+       tt_int_op(event_count_active_virtual, ==, 1);
+       tt_int_op(event_count_active_added, ==, 0);
+       tt_int_op(event_count_virtual_added, ==, 1);
+       tt_int_op(event_count_active_added_virtual, ==, 1);
+
+end:
+       ;
+}
+
+static void
 test_bad_assign(void *ptr)
 {
 	struct event ev;
@@ -2850,6 +2974,7 @@ struct testcase_t main_testcases[] = {
 	BASIC(manipulate_active_events, TT_FORK|TT_NEED_BASE),
 	BASIC(event_new_selfarg, TT_FORK|TT_NEED_BASE),
 	BASIC(event_assign_selfarg, TT_FORK|TT_NEED_BASE),
+	BASIC(event_base_get_num_events, TT_FORK|TT_NEED_BASE),
 
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),

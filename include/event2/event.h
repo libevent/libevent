@@ -386,6 +386,43 @@ const char *event_base_get_method(const struct event_base *);
 const char **event_get_supported_methods(void);
 
 /**
+   @name event type flag
+
+   Flags to pass to event_base_get_num_events() to specify the kinds of events
+   we want to aggregate counts for
+*/
+/**@{*/
+/** count the number of active events, which have been triggered.*/
+#define EVENT_BASE_COUNT_ACTIVE                1U
+/** count the number of virtual events, which is used to represent an internal
+ * condition, other than a pending event, that keeps the loop from exiting. */
+#define EVENT_BASE_COUNT_VIRTUAL       2U
+/** count the number of events which have been added to event base, including
+ * internal events. */
+#define EVENT_BASE_COUNT_ADDED         4U
+/**@}*/
+
+/**
+   Gets the number of events in event_base, as specified in the flags.
+
+   Since event base has some internal events added to make some of its
+   functionalities work, EVENT_BASE_COUNT_ADDED may return more than the
+   number of events you added using event_add().
+
+   If you pass EVENT_BASE_COUNT_ACTIVE and EVENT_BASE_COUNT_ADDED together, an
+   active event will be counted twice. However, this might not be the case in
+   future libevent versions.  The return value is an indication of the work
+   load, but the user shouldn't rely on the exact value as this may change in
+   the future.
+
+   @param eb the event_base structure returned by event_base_new()
+   @param flags a bitwise combination of the kinds of events to aggregate
+       counts for
+   @return the number of events specified in the flags
+*/
+int event_base_get_num_events(struct event_base *, unsigned int);
+
+/**
    Allocates a new event configuration object.
 
    The event configuration object can be used to change the behavior of
