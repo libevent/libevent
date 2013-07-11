@@ -924,8 +924,8 @@ bufferevent_get_max_to_write(struct bufferevent *bev)
 	return r;
 }
 
-struct ev_token_bucket_cfg *
-bufferevent_get_token_bucket_cfg(struct bufferevent *bev) {
+const struct ev_token_bucket_cfg *
+bufferevent_get_token_bucket_cfg(const struct bufferevent *bev) {
 	struct bufferevent_private *bufev_private = BEV_UPCAST(bev);
 	struct ev_token_bucket_cfg *cfg;
 
