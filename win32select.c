@@ -372,6 +372,6 @@ win32_dealloc(struct event_base *_base)
 		mm_free(win32op->exset_out);
 	/* XXXXX free the tree. */
 
-	memset(win32op, 0, sizeof(win32op));
+	memset(win32op, 0, sizeof(*win32op));
 	mm_free(win32op);
 }
