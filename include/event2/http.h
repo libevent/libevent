@@ -453,6 +453,11 @@ struct evhttp_connection *evhttp_connection_base_bufferevent_new(
 struct bufferevent* evhttp_connection_get_bufferevent(struct evhttp_connection *evcon);
 
 /**
+ * Return the HTTP server associated with this connection, or NULL.
+ */
+struct evhttp *evhttp_connection_get_server(struct evhttp_connection *evcon);
+
+/**
  * Creates a new request object that needs to be filled in with the request
  * parameters.  The callback is executed when the request completed or an
  * error occurred.
