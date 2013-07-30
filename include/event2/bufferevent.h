@@ -795,6 +795,8 @@ ev_ssize_t bufferevent_get_write_limit(struct bufferevent *bev);
 ev_ssize_t bufferevent_get_max_to_read(struct bufferevent *bev);
 ev_ssize_t bufferevent_get_max_to_write(struct bufferevent *bev);
 
+const struct ev_token_bucket_cfg *bufferevent_get_token_bucket_cfg(const struct bufferevent * bev);
+
 /**
    @name Group Rate limit inspection
 

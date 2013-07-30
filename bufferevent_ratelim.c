@@ -924,6 +924,23 @@ bufferevent_get_max_to_write(struct bufferevent *bev)
 	return r;
 }
 
+const struct ev_token_bucket_cfg *
+bufferevent_get_token_bucket_cfg(const struct bufferevent *bev) {
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bev);
+	struct ev_token_bucket_cfg *cfg;
+
+	BEV_LOCK(bev);
+
+	if (bufev_private->rate_limiting) {
+		cfg = bufev_private->rate_limiting->cfg;
+	} else {
+		cfg = NULL;
+	}
+
+	BEV_UNLOCK(bev);
+
+	return cfg;
+}
 
 /* Mostly you don't want to use this function from inside libevent;
  * bufferevent_get_read_max_() is more likely what you want*/
