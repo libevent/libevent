@@ -281,9 +281,13 @@ static void
 http_basic_cb(struct evhttp_request *req, void *arg)
 {
 	struct evbuffer *evb = evbuffer_new();
+	struct evhttp_connection *evcon;
 	int empty = evhttp_find_header(evhttp_request_get_input_headers(req), "Empty") != NULL;
 	event_debug(("%s: called\n", __func__));
 	evbuffer_add_printf(evb, BASIC_REQUEST_BODY);
+
+	evcon = evhttp_request_get_connection(req);
+	tt_assert(evhttp_connection_get_server(evcon) == http);
 
 	/* For multi-line headers test */
 	{
@@ -315,6 +319,7 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	evhttp_send_reply(req, HTTP_OK, "Everything is fine",
 	    !empty ? evb : NULL);
 
+end:
 	evbuffer_free(evb);
 }
 
@@ -869,11 +874,13 @@ http_connection_test_(struct basic_test_data *data, int persistent, const char *
 	tt_assert(evhttp_connection_get_base(evcon) == data->base);
 
 	exit_base = data->base;
+
+	tt_assert(evhttp_connection_get_server(evcon) == NULL);
+
 	/*
 	 * At this point, we want to schedule a request to the HTTP
 	 * server using our make request method.
 	 */
-
 	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 
 	/* Add the information that we care about */
