@@ -2935,6 +2935,20 @@ err:
 	return NULL;
 }
 
+#ifdef EVENT__HAVE_MMAP
+static long
+get_page_size(void)
+{
+#ifdef SC_PAGE_SIZE
+	return sysconf(SC_PAGE_SIZE);
+#elif defined(_SC_PAGE_SIZE)
+	return sysconf(_SC_PAGE_SIZE);
+#else
+	return 1;
+#endif
+}
+#endif
+
 /* DOCDOC */
 /* Requires lock */
 static int
@@ -2955,13 +2969,7 @@ evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
 		if (offset) {
 			/* mmap implementations don't generally like us
 			 * to have an offset that isn't a round  */
-#ifdef SC_PAGE_SIZE
-			long page_size = sysconf(SC_PAGE_SIZE);
-#elif defined(_SC_PAGE_SIZE)
-			long page_size = sysconf(_SC_PAGE_SIZE);
-#else
-			long page_size = 1;
-#endif
+			long page_size = get_page_size();
 			if (page_size == -1)
 				goto err;
 			offset_leftover = offset % page_size;
@@ -3073,7 +3081,9 @@ evbuffer_file_segment_free(struct evbuffer_file_segment *seg)
 #ifdef _WIN32
 		CloseHandle(seg->mapping_handle);
 #elif defined (EVENT__HAVE_MMAP)
-		if (munmap(seg->mapping, seg->length) == -1)
+		off_t offset_leftover;
+		offset_leftover = seg->file_offset % get_page_size();
+		if (munmap(seg->mapping, seg->length + offset_leftover) == -1)
 			event_warn("%s: munmap failed", __func__);
 #endif
 	} else if (seg->contents) {
