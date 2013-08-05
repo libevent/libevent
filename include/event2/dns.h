@@ -597,6 +597,10 @@ int evdns_server_request_add_ptr_reply(struct evdns_server_request *req, struct 
 int evdns_server_request_add_cname_reply(struct evdns_server_request *req, const char *name, const char *cname, int ttl);
 
 /**
+    Parse a DNS request and return the caller-visible struct
+*/
+struct evdns_server_request* evdns_request_parse(ev_uint8_t *packet, int length, struct sockaddr *addr, ev_socklen_t addrlen);
+/**
    Send back a response to a DNS request, and free the request structure.
 */
 int evdns_server_request_respond(struct evdns_server_request *req, int err);

@@ -1203,8 +1203,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 /* Parse a raw request (packet,length) sent to a nameserver port (port) from */
 /* a DNS client (addr,addrlen), and if it's well-formed, call the corresponding */
 /* callback. */
-static int
-request_parse(u8 *packet, int length, struct evdns_server_port *port, struct sockaddr *addr, ev_socklen_t addrlen)
+struct evdns_server_request* evdns_request_parse(ev_uint8_t *packet, int length, struct sockaddr *addr, ev_socklen_t addrlen)
 {
 	int j = 0;	/* index into packet */
 	u16 t_;	 /* used by the macros */
@@ -1213,8 +1212,6 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	int i;
 	u16 trans_id, flags, questions, answers, authority, additional;
 	struct server_request *server_req = NULL;
-
-	ASSERT_LOCKED(port);
 
 	/* Get the header fields */
 	GET16(trans_id);
@@ -1227,11 +1224,11 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	(void)additional;
 	(void)authority;
 
-	if (flags & 0x8000) return -1; /* Must not be an answer. */
+	if (flags & 0x8000) return NULL; /* Must not be an answer. */
 	flags &= 0x0110; /* Only RD and CD get preserved. */
 
 	server_req = mm_malloc(sizeof(struct server_request));
-	if (server_req == NULL) return -1;
+	if (server_req == NULL) return NULL;
 	memset(server_req, 0, sizeof(struct server_request));
 
 	server_req->trans_id = trans_id;
@@ -1262,20 +1259,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 		server_req->base.questions[server_req->base.nquestions++] = q;
 	}
 
-	/* Ignore answers, authority, and additional. */
-
-	server_req->port = port;
-	port->refcnt++;
-
-	/* Only standard queries are supported. */
-	if (flags & 0x7800) {
-		evdns_server_request_respond(&(server_req->base), DNS_ERR_NOTIMPL);
-		return -1;
-	}
-
-	port->user_callback(&(server_req->base), port->user_data);
-
-	return 0;
+	return &(server_req->base);
 err:
 	if (server_req) {
 		if (server_req->base.questions) {
@@ -1285,7 +1269,7 @@ err:
 		}
 		mm_free(server_req);
 	}
-	return -1;
+	return NULL;
 
 #undef SKIP_NAME
 #undef GET32
@@ -1401,6 +1385,8 @@ server_port_read(struct evdns_server_port *s) {
 	struct sockaddr_storage addr;
 	ev_socklen_t addrlen;
 	int r;
+	struct evdns_server_request* req;
+	struct server_request *server_req;
 	ASSERT_LOCKED(s);
 
 	for (;;) {
@@ -1416,7 +1402,23 @@ server_port_read(struct evdns_server_port *s) {
 			    evutil_socket_error_to_string(err), err);
 			return;
 		}
-		request_parse(packet, r, s, (struct sockaddr*) &addr, addrlen);
+		req = evdns_request_parse(packet, r, (struct sockaddr*) &addr, addrlen);
+		if (!req) {
+			continue;
+		}
+		server_req = TO_SERVER_REQUEST(req);
+
+		/* Ignore answers, authority, and additional. */
+
+		server_req->port = s;
+		s->refcnt++;
+
+		/* Only standard queries are supported. */
+		if (server_req->base.flags & 0x7800) {
+			evdns_server_request_respond(&(server_req->base), DNS_ERR_NOTIMPL);
+		} else {
+			s->user_callback(&(server_req->base), s->user_data);
+		}
 	}
 }
 
