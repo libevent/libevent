@@ -200,6 +200,7 @@ test_fin_free_finalize(void *arg)
 	event_set_mem_functions(tfff_malloc, tfff_realloc, tfff_free);
 
 	base = event_base_new();
+	tt_assert(base);
 
 	ev = evtimer_new(base, timer_callback, &ev_called);
 	ev2 = evtimer_new(base, timer_callback, &ev2_called);
