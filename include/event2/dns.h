@@ -599,7 +599,7 @@ int evdns_server_request_add_cname_reply(struct evdns_server_request *req, const
 /**
     Parse a DNS request and return the caller-visible struct
 */
-struct evdns_server_request* evdns_request_parse(ev_uint8_t *packet, int length, struct sockaddr *addr, ev_socklen_t addrlen);
+struct evdns_server_request* evdns_server_request_parse(ev_uint8_t *packet, int length, struct sockaddr *addr, ev_socklen_t addrlen);
 /**
    Send back a response to a DNS request, and free the request structure.
 */
