@@ -892,6 +892,7 @@ test_evbuffer_file_segment_add_cleanup_cb(void* ptr)
 	char const* arg = "token";
 
 	fd = regress_make_tmpfile("file_segment_test_file", 22, &tmpfilename);
+	tt_int_op(fd, >=, 0);
 
 	evb = evbuffer_new();
 	tt_assert(evb);
