@@ -441,6 +441,7 @@ test_evutil_rtrim(void *ptr)
 	do {						\
 	    if (cp) mm_free(cp);			\
 	    cp = mm_strdup(s);				\
+	    tt_assert(cp);				\
 	    evutil_rtrim_lws_(cp);			\
 	    tt_str_op(cp, ==, result);			\
 	} while(0)
