@@ -293,6 +293,27 @@ arc4_seed_proc_sys_kernel_random_uuid(void)
 
 #ifndef WIN32
 #define TRY_SEED_URANDOM
+static char *arc4random_urandom_filename = NULL;
+
+static int arc4_seed_urandom_helper_(const char *fname)
+{
+	unsigned char buf[ADD_ENTROPY];
+	int fd;
+	size_t n;
+
+	fd = evutil_open_closeonexec(fname, O_RDONLY, 0);
+	if (fd<0)
+		return -1;
+	n = read_all(fd, buf, sizeof(buf));
+	close(fd);
+	if (n != sizeof(buf))
+		return -1;
+	arc4_addrandom(buf, sizeof(buf));
+	memset(buf, 0, sizeof(buf));
+	arc4_seeded_ok = 1;
+	return 0;
+}
+
 static int
 arc4_seed_urandom(void)
 {
@@ -300,22 +321,13 @@ arc4_seed_urandom(void)
 	static const char *filenames[] = {
 		"/dev/srandom", "/dev/urandom", "/dev/random", NULL
 	};
-	unsigned char buf[ADD_ENTROPY];
-	int fd, i;
-	size_t n;
+	int i;
+	if (arc4random_urandom_filename)
+		return arc4_seed_urandom_helper_(arc4random_urandom_filename);
 
 	for (i = 0; filenames[i]; ++i) {
-		fd = evutil_open_closeonexec(filenames[i], O_RDONLY, 0);
-		if (fd<0)
-			continue;
-		n = read_all(fd, buf, sizeof(buf));
-		close(fd);
-		if (n != sizeof(buf))
-			return -1;
-		arc4_addrandom(buf, sizeof(buf));
-		memset(buf, 0, sizeof(buf));
-		arc4_seeded_ok = 1;
-		return 0;
+		if (arc4_seed_urandom_helper_(filenames[i]) == 0)
+			return 0;
 	}
 
 	return -1;

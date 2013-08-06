@@ -675,6 +675,20 @@ void evutil_secure_rng_get_bytes(void *buf, size_t n);
  */
 int evutil_secure_rng_init(void);
 
+/**
+ * Set a filename to use in place of /dev/urandom for seeding the secure
+ * PRNG. Return 0 on success, -1 on failure.
+ *
+ * Call this function BEFORE calling any other initialization or .
+ *
+ * (This string will _NOT_ be copied internally. Do not free it while any
+ * user of the secure RNG might be running. Don't pass anything other than a
+ * real /dev/...random device file here, or you might lose security.)
+ *
+ * This API is unstable, and might change in a future libevent version.
+ */
+int evutil_secure_rng_set_urandom_device_file(char *fname);
+
 /** Seed the random number generator with extra random bytes.
 
     You should almost never need to call this function; it should be
