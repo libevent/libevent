@@ -1999,7 +1999,7 @@ test_evbuffer_freeze(void *ptr)
 	FREEZE_EQ(r, 0, -1);
 	r = evbuffer_reserve_space(buf, 10, v, 1);
 	FREEZE_EQ(r, 1, -1);
-	if (r == 0) {
+	if (r == 1) {
 		memset(v[0].iov_base, 'X', 10);
 		v[0].iov_len = 10;
 	}
