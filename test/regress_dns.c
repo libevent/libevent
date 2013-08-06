@@ -1211,15 +1211,16 @@ test_getaddrinfo_async(void *arg)
 	struct evdns_server_port *port = NULL;
 	ev_uint16_t dns_port = 0;
 	int n_dns_questions = 0;
+	struct evdns_base *dns_base;
 
-	struct evdns_base *dns_base = evdns_base_new(data->base, 0);
+	memset(a_out, 0, sizeof(a_out));
+	memset(&local_outcome, 0, sizeof(local_outcome));
+
+	dns_base = evdns_base_new(data->base, 0);
 	tt_assert(dns_base);
 
 	/* for localhost */
 	evdns_base_load_hosts(dns_base, NULL);
-
-	memset(a_out, 0, sizeof(a_out));
-	memset(&local_outcome, 0, sizeof(local_outcome));
 
 	tt_assert(! evdns_base_set_option(dns_base, "timeout", "0.3"));
 	tt_assert(! evdns_base_set_option(dns_base, "getaddrinfo-allow-skew", "0.2"));
