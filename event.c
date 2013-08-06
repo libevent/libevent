@@ -1519,12 +1519,15 @@ event_process_active_single_queue(struct event_base *base,
 
 		switch (evcb->evcb_closure) {
 		case EV_CLOSURE_EVENT_SIGNAL:
+			EVUTIL_ASSERT(ev != NULL);
 			event_signal_closure(base, ev);
 			break;
 		case EV_CLOSURE_EVENT_PERSIST:
+			EVUTIL_ASSERT(ev != NULL);
 			event_persist_closure(base, ev);
 			break;
 		case EV_CLOSURE_EVENT:
+			EVUTIL_ASSERT(ev != NULL);
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			(*ev->ev_callback)(
 				ev->ev_fd, ev->ev_res, ev->ev_arg);
