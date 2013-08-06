@@ -1573,7 +1573,7 @@ static void send_a_byte_cb(evutil_socket_t fd, short what, void *arg)
 {
 	evutil_socket_t *sockp = arg;
 	(void) fd; (void) what;
-	write(*sockp, "A", 1);
+	(void) write(*sockp, "A", 1);
 }
 struct read_not_timeout_param
 {
@@ -1586,7 +1586,7 @@ static void read_not_timeout_cb(evutil_socket_t fd, short what, void *arg)
 	struct read_not_timeout_param *rntp = arg;
 	char c;
 	(void) fd; (void) what;
-	read(fd, &c, 1);
+	(void) read(fd, &c, 1);
 	rntp->events |= what;
 	++rntp->count;
 	if(2 == rntp->count) event_del(rntp->ev[0]);

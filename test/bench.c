@@ -76,7 +76,7 @@ read_cb(evutil_socket_t fd, short which, void *arg)
 	if (writes) {
 		if (widx >= num_pipes)
 			widx -= num_pipes;
-		send(pipes[2 * widx + 1], "e", 1, 0);
+		(void) send(pipes[2 * widx + 1], "e", 1, 0);
 		writes--;
 		fired++;
 	}
@@ -102,7 +102,7 @@ run_once(void)
 	space = num_pipes / num_active;
 	space = space * 2;
 	for (i = 0; i < num_active; i++, fired++)
-		send(pipes[i * space + 1], "e", 1, 0);
+		(void) send(pipes[i * space + 1], "e", 1, 0);
 
 	count = 0;
 	writes = num_writes;

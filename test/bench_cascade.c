@@ -69,7 +69,7 @@ read_cb(evutil_socket_t fd, short which, void *arg)
 	char ch;
 	evutil_socket_t sock = (evutil_socket_t)(ev_intptr_t)arg;
 
-	recv(fd, &ch, sizeof(ch), 0);
+	(void) recv(fd, &ch, sizeof(ch), 0);
 	if (sock >= 0) {
 		if (send(sock, "e", 1, 0) < 0)
 			perror("send");
