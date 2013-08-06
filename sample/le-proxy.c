@@ -269,6 +269,11 @@ main(int argc, char **argv)
 	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_CLOSE_ON_EXEC|LEV_OPT_REUSEABLE,
 	    -1, (struct sockaddr*)&listen_on_addr, socklen);
 
+	if (! listener) {
+		fprintf(stderr, "Couldn't open listener.\n");
+		event_base_free(base);
+		return 1;
+	}
 	event_base_dispatch(base);
 
 	evconnlistener_free(listener);
