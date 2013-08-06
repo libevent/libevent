@@ -154,9 +154,9 @@ int
 evutil_secure_rng_set_urandom_device_file(char *fname)
 {
 #ifdef TRY_SEED_URANDOM
-	_ARC4_LOCK();
+	ARC4_LOCK_();
 	arc4random_urandom_filename = fname;
-	_ARC4_UNLOCK();
+	ARC4_UNLOCK_();
 #endif
 	return 0;
 }
