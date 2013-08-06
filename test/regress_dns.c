@@ -654,7 +654,7 @@ fail_server_cb(struct evdns_server_request *req, void *data)
 		event_base_loopexit(exit_base, NULL);
 	}
 
-	evutil_inet_pton(AF_INET, "16.32.64.128", &in);
+	tt_assert(evutil_inet_pton(AF_INET, "16.32.64.128", &in));
 	evdns_server_request_add_a_reply(req, question, 1, &in.s_addr,
 	    100);
 	tt_assert(! evdns_server_request_respond(req, 0))
