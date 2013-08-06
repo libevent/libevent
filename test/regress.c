@@ -2916,6 +2916,7 @@ test_gettimeofday_cached(void *arg)
 		event_config_set_flag(cfg, EVENT_BASE_FLAG_NO_CACHE_TIME);
 	}
 	cached_time_base = base = event_base_new_with_config(cfg);
+	tt_assert(base);
 
 	/* Try gettimeofday_cached outside of an event loop. */
 	evutil_gettimeofday(&now, NULL);
