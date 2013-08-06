@@ -1419,6 +1419,12 @@ evhttp_connection_cb(struct bufferevent *bufev, short what, void *arg)
 		return;
 	}
 
+	if (evcon->fd == -1) {
+		event_debug(("%s: bufferevent_getfd returned -1",
+			__func__));
+		goto cleanup;
+	}
+
 	/* Check if the connection completed */
 	if (getsockopt(evcon->fd, SOL_SOCKET, SO_ERROR, (void*)&error,
 		       &errsz) == -1) {
