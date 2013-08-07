@@ -1539,6 +1539,7 @@ event_process_active_single_queue(struct event_base *base,
 		case EV_CLOSURE_EVENT_FINALIZE:
 		case EV_CLOSURE_EVENT_FINALIZE_FREE:
 			base->current_event = NULL;
+			EVUTIL_ASSERT(ev != NULL);
 			EVUTIL_ASSERT((evcb->evcb_flags & EVLIST_FINALIZING));
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			ev->ev_evcallback.evcb_cb_union.evcb_evfinalize(ev, ev->ev_arg);
