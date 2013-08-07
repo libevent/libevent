@@ -1756,7 +1756,6 @@ evdns_server_request_add_reply(struct evdns_server_request *req_, int section, c
 	int *countp;
 	int result = -1;
 
-	EVDNS_LOCK(req->port);
 	if (req->response) /* have we already answered? */
 		goto done;
 
@@ -1816,7 +1815,6 @@ evdns_server_request_add_reply(struct evdns_server_request *req_, int section, c
 	++(*countp);
 	result = 0;
 done:
-	EVDNS_UNLOCK(req->port);
 	return result;
 }
 
