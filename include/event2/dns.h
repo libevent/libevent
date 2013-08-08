@@ -601,6 +601,10 @@ int evdns_server_request_add_cname_reply(struct evdns_server_request *req, const
 */
 struct evdns_server_request* evdns_server_request_parse(ev_uint8_t *packet, int length, struct sockaddr *addr, ev_socklen_t addrlen);
 /**
+    Construct the DNS response and return it
+*/
+int evdns_server_request_get_response(struct evdns_server_request *req, int err, char **response, size_t *response_len);
+/**
    Send back a response to a DNS request, and free the request structure.
 */
 int evdns_server_request_respond(struct evdns_server_request *req, int err);

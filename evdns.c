@@ -1983,6 +1983,28 @@ overflow:
 
 /* exported function */
 int
+evdns_server_request_get_response(struct evdns_server_request *req_, int err, char **response, size_t *response_len)
+{
+	struct server_request *req = TO_SERVER_REQUEST(req_);
+	int r = 0;
+	if (req->port) {
+		EVDNS_LOCK(req->port);
+	}
+	if (!req->response) {
+		r = evdns_server_request_format_response(req, err);
+	}
+	if (r == 0) {
+		*response = req->response;
+		*response_len = req->response_len;
+	}
+	if (req->port) {
+		EVDNS_LOCK(req->port);
+	}
+	return r;
+}
+
+/* exported function */
+int
 evdns_server_request_respond(struct evdns_server_request *req_, int err)
 {
 	struct server_request *req = TO_SERVER_REQUEST(req_);
