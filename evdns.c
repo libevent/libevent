@@ -1200,9 +1200,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 	return -1;
 }
 
-/* Parse a raw request (packet,length) sent to a nameserver port (port) from */
-/* a DNS client (addr,addrlen), and if it's well-formed, call the corresponding */
-/* callback. */
+/* Parse a raw request (packet,length) */
 struct evdns_server_request* evdns_server_request_parse(ev_uint8_t *packet, int length)
 {
 	int j = 0;	/* index into packet */
