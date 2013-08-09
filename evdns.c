@@ -1203,7 +1203,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 /* Parse a raw request (packet,length) sent to a nameserver port (port) from */
 /* a DNS client (addr,addrlen), and if it's well-formed, call the corresponding */
 /* callback. */
-struct evdns_server_request* evdns_server_request_parse(ev_uint8_t *packet, int length, struct sockaddr *addr, ev_socklen_t addrlen)
+struct evdns_server_request* evdns_server_request_parse(ev_uint8_t *packet, int length)
 {
 	int j = 0;	/* index into packet */
 	u16 t_;	 /* used by the macros */
@@ -1232,8 +1232,6 @@ struct evdns_server_request* evdns_server_request_parse(ev_uint8_t *packet, int 
 	memset(server_req, 0, sizeof(struct server_request));
 
 	server_req->trans_id = trans_id;
-	memcpy(&server_req->addr, addr, addrlen);
-	server_req->addrlen = addrlen;
 
 	server_req->base.flags = flags;
 	server_req->base.nquestions = 0;
@@ -1258,6 +1256,8 @@ struct evdns_server_request* evdns_server_request_parse(ev_uint8_t *packet, int 
 		memcpy(q->name, tmp_name, namelen+1);
 		server_req->base.questions[server_req->base.nquestions++] = q;
 	}
+
+	/* Ignore answers, authority, and additional. */
 
 	return &(server_req->base);
 err:
@@ -1402,13 +1402,14 @@ server_port_read(struct evdns_server_port *s) {
 			    evutil_socket_error_to_string(err), err);
 			return;
 		}
-		req = evdns_server_request_parse(packet, r, (struct sockaddr*) &addr, addrlen);
+		req = evdns_server_request_parse(packet, r);
 		if (!req) {
 			continue;
 		}
 		server_req = TO_SERVER_REQUEST(req);
 
-		/* Ignore answers, authority, and additional. */
+		memcpy(&server_req->addr, &addr, addrlen);
+		server_req->addrlen = addrlen;
 
 		server_req->port = s;
 		s->refcnt++;
