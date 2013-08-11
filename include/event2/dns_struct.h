@@ -54,6 +54,7 @@ extern "C" {
  */
 
 struct evdns_server_request {
+	ev_uint16_t trans_id; /* Transaction id. */
 	int flags;
 	int nquestions;
 	struct evdns_server_question **questions;

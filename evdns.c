@@ -283,7 +283,6 @@ struct server_request {
 	struct server_request *next_pending;
 	struct server_request *prev_pending;
 
-	u16 trans_id; /* Transaction id. */
 	struct evdns_server_port *port; /* Which port received this request on? */
 	struct sockaddr_storage addr; /* Where to send the response */
 	ev_socklen_t addrlen; /* length of addr */
@@ -1229,7 +1228,7 @@ struct evdns_server_request* evdns_server_request_parse(ev_uint8_t *packet, int 
 	if (server_req == NULL) return NULL;
 	memset(server_req, 0, sizeof(struct server_request));
 
-	server_req->trans_id = trans_id;
+	server_req->base.trans_id = trans_id;
 
 	server_req->base.flags = flags;
 	server_req->base.nquestions = 0;
@@ -1903,7 +1902,7 @@ evdns_server_request_format_response(struct server_request *req, int err)
 	flags |= (0x8000 | err);
 
 	dnslabel_table_init(&table);
-	APPEND16(req->trans_id);
+	APPEND16(req->base.trans_id);
 	APPEND16(flags);
 	APPEND16(req->base.nquestions);
 	APPEND16(req->n_answer);
