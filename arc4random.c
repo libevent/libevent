@@ -327,12 +327,10 @@ arc4_seed_urandom(void)
 
 	for (i = 0; filenames[i]; ++i) {
 		if (arc4_seed_urandom_helper_(filenames[i]) == 0) {
-			printf("okay %s\n", filenames[i]);
 			return 0;
 		}
 	}
 
-	puts("FAIL");
 	return -1;
 }
 #endif
