@@ -679,7 +679,8 @@ int evutil_secure_rng_init(void);
  * Set a filename to use in place of /dev/urandom for seeding the secure
  * PRNG. Return 0 on success, -1 on failure.
  *
- * Call this function BEFORE calling any other initialization or .
+ * Call this function BEFORE calling any other initialization or RNG
+ * functions.
  *
  * (This string will _NOT_ be copied internally. Do not free it while any
  * user of the secure RNG might be running. Don't pass anything other than a
