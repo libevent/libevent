@@ -326,10 +326,13 @@ arc4_seed_urandom(void)
 		return arc4_seed_urandom_helper_(arc4random_urandom_filename);
 
 	for (i = 0; filenames[i]; ++i) {
-		if (arc4_seed_urandom_helper_(filenames[i]) == 0)
+		if (arc4_seed_urandom_helper_(filenames[i]) == 0) {
+			printf("okay %s\n", filenames[i]);
 			return 0;
+		}
 	}
 
+	puts("FAIL");
 	return -1;
 }
 #endif
@@ -350,7 +353,8 @@ arc4_seed(void)
 		ok = 1;
 #endif
 #ifdef TRY_SEED_PROC_SYS_KERNEL_RANDOM_UUID
-	if (0 == arc4_seed_proc_sys_kernel_random_uuid())
+	if (arc4random_urandom_filename == NULL &&
+	    0 == arc4_seed_proc_sys_kernel_random_uuid())
 		ok = 1;
 #endif
 #ifdef TRY_SEED_SYSCTL_LINUX
