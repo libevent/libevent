@@ -248,13 +248,13 @@ send_document_cb(struct evhttp_request *req, void *arg)
 
 		evbuffer_add_printf(evb, "<html>\n <head>\n"
 		    "  <title>%s</title>\n"
-		    "  <base href='%s%s%s'>\n"
+		    "  <base href='%s%s'>\n"
 		    " </head>\n"
 		    " <body>\n"
 		    "  <h1>%s</h1>\n"
 		    "  <ul>\n",
 		    decoded_path, /* XXX html-escape this. */
-		    uri_root, path, /* XXX html-escape this? */
+		    path, /* XXX html-escape this? */
 		    trailing_slash,
 		    decoded_path /* XXX html-escape this */);
 #ifdef _WIN32
