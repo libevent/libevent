@@ -467,6 +467,7 @@ evutil_socket_t evutil_eventfd_(unsigned initval, int flags);
 #define EVUTIL_EFD_CLOEXEC 0x8000
 #endif
 
+void evutil_memclear_(void *mem, size_t len);
 
 #ifdef __cplusplus
 }
