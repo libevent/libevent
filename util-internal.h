@@ -320,6 +320,8 @@ HANDLE evutil_load_windows_system_library(const TCHAR *library_name);
 #endif
 #endif
 
+void evutil_memclear_(void *mem, size_t len);
+
 #ifdef __cplusplus
 }
 #endif

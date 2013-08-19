@@ -2109,6 +2109,18 @@ _evutil_weakrand(void)
 #endif
 }
 
+/**
+ * Volatile pointer to memset: we use this to keep the compiler from
+ * eliminating our call to memset.
+ */
+void * (*volatile evutil_memset_volatile_)(void *, int, size_t) = memset;
+
+void
+evutil_memclear_(void *mem, size_t len)
+{
+	evutil_memset_volatile_(mem, 0, len);
+}
+
 int
 evutil_sockaddr_is_loopback(const struct sockaddr *addr)
 {
