@@ -161,7 +161,7 @@ arc4_seed_win32(void)
 	if (!CryptGenRandom(provider, sizeof(buf), buf))
 		return -1;
 	arc4_addrandom(buf, sizeof(buf));
-	memset(buf, 0, sizeof(buf));
+	evutil_memclear_(buf, sizeof(buf));
 	arc4_seeded_ok = 1;
 	return 0;
 }
@@ -199,7 +199,7 @@ arc4_seed_sysctl_linux(void)
 		return -1;
 
 	arc4_addrandom(buf, sizeof(buf));
-	memset(buf, 0, sizeof(buf));
+	evutil_memclear_(buf, sizeof(buf));
 	arc4_seeded_ok = 1;
 	return 0;
 }
@@ -239,7 +239,7 @@ arc4_seed_sysctl_bsd(void)
 		return -1;
 
 	arc4_addrandom(buf, sizeof(buf));
-	memset(buf, 0, sizeof(buf));
+	evutil_memclear_(buf, sizeof(buf));
 	arc4_seeded_ok = 1;
 	return 0;
 }
@@ -284,8 +284,8 @@ arc4_seed_proc_sys_kernel_random_uuid(void)
 		arc4_addrandom(entropy, nybbles/2);
 		bytes += nybbles/2;
 	}
-	memset(entropy, 0, sizeof(entropy));
-	memset(buf, 0, sizeof(buf));
+	evutil_memclear_(entropy, sizeof(entropy));
+	evutil_memclear_(buf, sizeof(buf));
 	arc4_seeded_ok = 1;
 	return 0;
 }
@@ -309,7 +309,7 @@ static int arc4_seed_urandom_helper_(const char *fname)
 	if (n != sizeof(buf))
 		return -1;
 	arc4_addrandom(buf, sizeof(buf));
-	memset(buf, 0, sizeof(buf));
+	evutil_memclear_(buf, sizeof(buf));
 	arc4_seeded_ok = 1;
 	return 0;
 }
