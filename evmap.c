@@ -582,7 +582,7 @@ evmap_io_reinit_iter_fn(struct event_base *base, evutil_socket_t fd,
 	extra = ((char*)ctx) + sizeof(struct evmap_io);
 	if (ctx->nread)
 		events |= EV_READ;
-	if (ctx->nread)
+	if (ctx->nwrite)
 		events |= EV_WRITE;
 	if (evsel->fdinfo_len)
 		memset(extra, 0, evsel->fdinfo_len);
