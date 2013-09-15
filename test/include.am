@@ -107,7 +107,7 @@ test_regress_SOURCES += test/regress_iocp.c
 endif
 
 test_regress_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la $(PTHREAD_LIBS) $(ZLIB_LIBS)
-test_regress_CPPFLAGS = $(AM_CPPFLAGS) $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS)
+test_regress_CPPFLAGS = $(AM_CPPFLAGS) $(PTHREAD_CFLAGS) $(ZLIB_CFLAGS) -Itest
 test_regress_LDFLAGS = $(PTHREAD_CFLAGS)
 
 if OPENSSL
