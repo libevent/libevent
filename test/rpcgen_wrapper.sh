@@ -37,7 +37,8 @@ fi
 srcdir=$1
 srcdir=${srcdir:-.}
 
-${PYTHON2} ${srcdir}/../event_rpcgen.py --quiet ${srcdir}/regress.rpc
+${PYTHON2} ${srcdir}/../event_rpcgen.py --quiet ${srcdir}/regress.rpc \
+               test/regress.gen.h test/regress.gen.c
 
 case "$?" in
  0)
