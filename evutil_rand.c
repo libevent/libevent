@@ -85,7 +85,8 @@ ev_arc4random_buf(void *buf, size_t n)
 	 * trickery.)
 	 */
 	{
-		void (*tptr)() = (void*)arc4random_buf;
+		void (*tptr)(void *,size_t) =
+		    (void (*)(void*,size_t))arc4random_buf;
 		if (tptr != NULL) {
 			arc4random_buf(buf, n);
 			return;
