@@ -3668,12 +3668,17 @@ static void
 http_request_get_addr_on_close(struct evhttp_connection *evcon, void *arg)
 {
 	struct sockaddr_storage *storage;
+	char addrbuf[128];
+	char local[] = "127.0.0.1:";
 
 	test_ok = 0;
 	tt_assert(evcon);
 
 	storage = evhttp_connection_get_addr(evcon);
 	tt_assert(storage);
+
+	evutil_format_sockaddr_port_((struct sockaddr *)storage, addrbuf, sizeof(addrbuf));
+	tt_assert(!strncmp(addrbuf, local, sizeof(local) - 1));
 
 	test_ok = 1;
 	return;
