@@ -3713,6 +3713,8 @@ http_get_addr_test(void *arg)
 
 	event_base_dispatch(data->base);
 
+	http_request_get_addr_on_close(evcon, NULL);
+
  end:
 	if (evcon)
 		evhttp_connection_free(evcon);
