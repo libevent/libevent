@@ -446,6 +446,9 @@ main(int argc, const char **argv)
 		event_enable_debug_mode();
 		libevent_tests_running_in_debug_mode = 1;
 	}
+	if (getenv("EVENT_DEBUG_LOGGING_ALL")) {
+		event_enable_debug_logging(EVENT_DBG_ALL);
+	}
 
 	tinytest_set_aliases(testaliases);
 
