@@ -553,10 +553,10 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	if (evhttp_response_needs_body(req)) {
 		if (evhttp_find_header(req->output_headers,
 			"Content-Type") == NULL
-		 && evcon->http_server->default_content_type) {
+		    && evcon->http_server->default_content_type) {
 			evhttp_add_header(req->output_headers,
 			    "Content-Type",
-				evcon->http_server->default_content_type);
+			    evcon->http_server->default_content_type);
 		}
 	}
 
