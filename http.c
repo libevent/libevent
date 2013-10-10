@@ -552,9 +552,11 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	/* Potentially add headers for unidentified content. */
 	if (evhttp_response_needs_body(req)) {
 		if (evhttp_find_header(req->output_headers,
-			"Content-Type") == NULL) {
+			"Content-Type") == NULL
+		 && evcon->http_server->default_content_type) {
 			evhttp_add_header(req->output_headers,
-			    "Content-Type", "text/html; charset=ISO-8859-1");
+			    "Content-Type",
+				evcon->http_server->default_content_type);
 		}
 	}
 
@@ -3389,6 +3391,7 @@ evhttp_new_object(void)
 	evutil_timerclear(&http->timeout);
 	evhttp_set_max_headers_size(http, EV_SIZE_MAX);
 	evhttp_set_max_body_size(http, EV_SIZE_MAX);
+	evhttp_set_default_content_type(http, "text/html; charset=ISO-8859-1");
 	evhttp_set_allowed_methods(http,
 	    EVHTTP_REQ_GET |
 	    EVHTTP_REQ_POST |
@@ -3593,6 +3596,12 @@ evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size)
 		http->default_max_body_size = EV_UINT64_MAX;
 	else
 		http->default_max_body_size = max_body_size;
+}
+
+void
+evhttp_set_default_content_type(struct evhttp *http,
+	const char *content_type) {
+	http->default_content_type = content_type;
 }
 
 void
