@@ -207,6 +207,17 @@ void evhttp_set_max_headers_size(struct evhttp* http, ev_ssize_t max_headers_siz
 void evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size);
 
 /**
+  Set the value to use for the Content-Type header when none was provided. If
+  the content type string is NULL, the Content-Type header will not be
+  automatically added.
+
+  @param http the http server on which to set the default content type
+  @param content_type the value for the Content-Type header
+*/
+void evhttp_set_default_content_type(struct evhttp *http,
+	const char *content_type);
+
+/**
   Sets the what HTTP methods are supported in requests accepted by this
   server, and passed to user callbacks.
 
