@@ -2358,7 +2358,8 @@ evhttp_connection_get_peer(struct evhttp_connection *evcon,
 	*port = evcon->port;
 }
 
-struct sockaddr_storage* evhttp_connection_get_addr(struct evhttp_connection *evcon)
+const struct sockaddr_storage*
+evhttp_connection_get_addr(struct evhttp_connection *evcon)
 {
 	return evcon->conn_address;
 }

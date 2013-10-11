@@ -608,7 +608,8 @@ void evhttp_connection_get_peer(struct evhttp_connection *evcon,
  *
  * @return NULL if getpeername() return non success,
  * or connection is not connected. */
-struct sockaddr_storage* evhttp_connection_get_addr(struct evhttp_connection *evcon);
+const struct sockaddr_storage*
+evhttp_connection_get_addr(struct evhttp_connection *evcon);
 
 /**
     Make an HTTP request over the specified connection.
