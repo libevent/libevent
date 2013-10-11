@@ -3667,7 +3667,7 @@ http_ipv6_for_domain_test(void *arg)
 static void
 http_request_get_addr_on_close(struct evhttp_connection *evcon, void *arg)
 {
-	const struct sockaddr_storage *storage;
+	const struct sockaddr *storage;
 	char addrbuf[128];
 	char local[] = "127.0.0.1:";
 
