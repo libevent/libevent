@@ -1167,7 +1167,6 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		mm_free(evcon->address);
 
 	mm_free(evcon->conn_address);
-	evcon->conn_address = NULL;
 
 	mm_free(evcon);
 }
