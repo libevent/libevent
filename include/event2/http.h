@@ -607,8 +607,9 @@ void evhttp_connection_get_peer(struct evhttp_connection *evcon,
  * extracted from getpeername().
  *
  * @return NULL if getpeername() return non success,
- * or connection is not connected. */
-const struct sockaddr_storage*
+ * or connection is not connected,
+ * otherwise it return pointer to struct sockaddr_storage */
+const struct sockaddr*
 evhttp_connection_get_addr(struct evhttp_connection *evcon);
 
 /**
