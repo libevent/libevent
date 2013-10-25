@@ -198,6 +198,11 @@ static int evhttp_decode_uri_internal(const char *uri, size_t length,
 static int evhttp_find_vhost(struct evhttp *http, struct evhttp **outhttp,
 		  const char *hostname);
 
+void evhttp_server_drop_connection(struct evhttp_connection *evcon);
+void evhttp_server_add_connection(struct evhttp *http, struct evhttp_connection *evcon);
+void evhttp_pause(struct evhttp *http);
+void evhttp_resume(struct evhttp *http);
+
 #ifndef _EVENT_HAVE_STRSEP
 /* strsep replacement for platforms that lack it.  Only works if
  * del is one character long. */
@@ -1143,8 +1148,7 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	}
 
 	if (evcon->http_server != NULL) {
-		struct evhttp *http = evcon->http_server;
-		TAILQ_REMOVE(&http->connections, evcon, next);
+		evhttp_server_drop_connection(evcon);
 	}
 
 	if (event_initialized(&evcon->retry_ev)) {
@@ -1534,13 +1538,17 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	if (line == NULL)
 		return (-1);
 	uri = strsep(&line, " ");
-	if (line == NULL)
-		return (-1);
-	version = strsep(&line, " ");
-	if (line != NULL)
-		return (-1);
+	if (line == NULL) {
+		version = "HTTP/1.0";
+	} else {
+		version = strsep(&line, " ");
+		if (line != NULL) {
+			return (-1);
+		}
+	}
 
 	/* First line */
+	req->ext_method = NULL;
 	if (strcmp(method, "GET") == 0) {
 		req->type = EVHTTP_REQ_GET;
 	} else if (strcmp(method, "POST") == 0) {
@@ -1549,14 +1557,43 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		req->type = EVHTTP_REQ_HEAD;
 	} else if (strcmp(method, "PUT") == 0) {
 		req->type = EVHTTP_REQ_PUT;
+		req->ext_method = "PUT";
 	} else if (strcmp(method, "DELETE") == 0) {
 		req->type = EVHTTP_REQ_DELETE;
+		req->ext_method = "DELETE";
 	} else if (strcmp(method, "OPTIONS") == 0) {
 		req->type = EVHTTP_REQ_OPTIONS;
+		req->ext_method = "OPTIONS";
 	} else if (strcmp(method, "TRACE") == 0) {
 		req->type = EVHTTP_REQ_TRACE;
+		req->ext_method = "TRACE";
 	} else if (strcmp(method, "PATCH") == 0) {
 		req->type = EVHTTP_REQ_PATCH;
+		req->ext_method = "PATCH";
+	} else if (strcmp(method, "REPORT") == 0) {
+		req->type = EVHTTP_REQ_POST;
+		req->ext_method = "REPORT";
+	} else if (strcmp(method, "PROPFIND") == 0) {
+		req->type = EVHTTP_REQ_POST;
+		req->ext_method = "PROPFIND";
+	} else if (strcmp(method, "PROPPATH") == 0) {
+		req->type = EVHTTP_REQ_POST;
+		req->ext_method = "PROPPATH";
+	} else if (strcmp(method, "MKCOL") == 0) {
+		req->type = EVHTTP_REQ_POST;
+		req->ext_method = "MKCOL";
+	} else if (strcmp(method, "MKCALENDAR") == 0) {
+		req->type = EVHTTP_REQ_POST;
+		req->ext_method = "MKCALENDAR";
+	} else if (strcmp(method, "PUT") == 0) {
+		req->type = EVHTTP_REQ_POST;
+		req->ext_method = "PUT";
+	} else if (strcmp(method, "LOCK") == 0) {
+		req->type = EVHTTP_REQ_POST;
+		req->ext_method = "LOCK";
+	} else if (strcmp(method, "UNLOCK") == 0) {
+		req->type = EVHTTP_REQ_POST;
+		req->ext_method = "UNLOCK";
 	} else {
 		req->type = _EVHTTP_REQ_UNKNOWN;
 		event_debug(("%s: bad method %s on request %p from %s",
@@ -2434,6 +2471,42 @@ evhttp_send_reply(struct evhttp_request *req, int code, const char *reason,
 	evhttp_send(req, databuf);
 }
 
+int
+evhttp_send_reply_sync_begin(struct evhttp_request *req, int code,
+                             const char *reason, struct evbuffer *databuf) {
+	evhttp_response_code(req, code, reason);
+	struct evhttp_connection *evcon = req->evcon;
+
+	EVUTIL_ASSERT(TAILQ_FIRST(&evcon->requests) == req);
+
+	/* xxx: not sure if we really should expose the data buffer this way */
+	if (databuf != NULL)
+	evbuffer_add_buffer(req->output_buffer, databuf);
+
+	/* Adds headers to the response */
+	evhttp_make_header(evcon, req);
+
+	struct evbuffer *output = bufferevent_get_output(evcon->bufev);
+	evbuffer_unfreeze(output, 1);
+	int nwriten = evbuffer_write(output, evcon->fd);
+	evbuffer_freeze(output, 1);
+	return nwriten;
+}
+
+void
+evhttp_send_reply_sync_end(int nwritten, struct evhttp_request *req) {
+	struct evhttp_connection *evcon = req->evcon;
+	struct evbuffer *output = bufferevent_get_output(evcon->bufev);
+
+	if (nwritten <= 0) {
+		evhttp_connection_fail(evcon, EVCON_HTTP_EOF);
+	} else if (evbuffer_get_length(output) == 0) {
+		evhttp_send_done(evcon, NULL);
+	} else {
+		evhttp_write_buffer(evcon, evhttp_send_done, NULL);
+	}
+}
+
 void
 evhttp_send_reply_start(struct evhttp_request *req, int code,
     const char *reason)
@@ -3080,18 +3153,8 @@ accept_socket_cb(struct evconnlistener *listener, evutil_socket_t nfd, struct so
 	evhttp_get_request(http, nfd, peer_sa, peer_socklen);
 }
 
-int
-evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
-{
-	struct evhttp_bound_socket *bound =
-		evhttp_bind_socket_with_handle(http, address, port);
-	if (bound == NULL)
-		return (-1);
-	return (0);
-}
-
 struct evhttp_bound_socket *
-evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint16_t port)
+evhttp_bind_socket_backlog_with_handle(struct evhttp *http, const char *address, ev_uint16_t port, int backlog)
 {
 	evutil_socket_t fd;
 	struct evhttp_bound_socket *bound;
@@ -3099,7 +3162,7 @@ evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint
 	if ((fd = bind_socket(address, port, 1 /*reuse*/)) == -1)
 		return (NULL);
 
-	if (listen(fd, 128) == -1) {
+	if (listen(fd, backlog) == -1) {
 		event_sock_warn(fd, "%s: listen", __func__);
 		evutil_closesocket(fd);
 		return (NULL);
@@ -3114,6 +3177,27 @@ evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint
 	}
 
 	return (NULL);
+}
+
+int
+evhttp_bind_socket_backlog(struct evhttp *http, const char *address, ev_uint16_t port, int backlog) {
+	struct evhttp_bound_socket *bound =
+		evhttp_bind_socket_backlog_with_handle(http, address, port, backlog);
+	if (bound == NULL)
+		return (-1);
+	return (0);
+}
+
+int
+evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
+{
+	return evhttp_bind_socket_backlog(http, address, port, 128);
+}
+
+struct evhttp_bound_socket *
+evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint16_t port)
+{
+	return evhttp_bind_socket_backlog_with_handle(http, address, port, 128);
 }
 
 int
@@ -3764,13 +3848,77 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 	 * if we want to accept more than one request on a connection,
 	 * we need to know which http server it belongs to.
 	 */
-	evcon->http_server = http;
-	TAILQ_INSERT_TAIL(&http->connections, evcon, next);
+	evhttp_server_add_connection(http, evcon);
 
 	if (evhttp_associate_new_request_with_connection(evcon) == -1)
 		evhttp_connection_free(evcon);
 }
 
+void
+evhttp_pause(struct evhttp *http)
+{
+	struct evhttp_bound_socket *bound;
+	TAILQ_FOREACH(bound, &http->sockets, next) {
+		evconnlistener_disable(bound->listener);
+	}
+}
+
+void
+evhttp_resume(struct evhttp *http)
+{
+	struct evhttp_bound_socket *bound;
+	TAILQ_FOREACH(bound, &http->sockets, next) {
+		evconnlistener_enable(bound->listener);
+	}
+}
+
+int
+evhttp_get_connection_limit(struct evhttp *http)
+{
+	return http->connection_limit;
+}
+
+int
+evhttp_set_connection_limit(struct evhttp *http, int nlimit)
+{
+	int olimit = http->connection_limit;
+	http->connection_limit = nlimit;
+	return olimit;
+}
+
+int
+evhttp_get_connection_count(struct evhttp *http)
+{
+	return http != NULL ? http->connection_count : 0;
+}
+
+void
+evhttp_server_add_connection(struct evhttp *http,
+                struct evhttp_connection *evcon)
+{
+	evcon->http_server = http;
+	TAILQ_INSERT_TAIL(&http->connections, evcon, next);
+
+	http->connection_count++;
+	if (http->connection_limit > 0
+	&& http->connection_count >= http->connection_limit)
+	{
+		evhttp_pause(http);
+	}
+}
+
+void
+evhttp_server_drop_connection(struct evhttp_connection *evcon)
+{
+	struct evhttp *http = evcon->http_server;
+	TAILQ_REMOVE(&http->connections, evcon, next);
+	http->connection_count--;
+	if (http->connection_limit > 0
+	&& http->connection_count < http->connection_limit)
+	{
+		evhttp_resume(http);
+	}
+}
 
 /*
  * Network helper functions that we do not want to export to the rest of

@@ -107,6 +107,34 @@ int evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t por
 struct evhttp_bound_socket *evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint16_t port);
 
 /**
+ * Like evhttp_bind_socket(), but specifing backlog
+ *
+ * @param http a pointer to an evhttp object
+ * @param address a string containing the IP address to listen(2) on
+ * @param port the port number to listen on
+ * @param backlog the backlog value for listen(2)
+ * @return 0 on success, -1 on failure.
+ * @see evhttp_accept_socket()
+ */
+int evhttp_bind_socket_backlog(struct evhttp *http, const char *address, 
+        ev_uint16_t port, int backlog);
+
+/**
+ * Like evhttp_bind_socket_backlog(), but returns a handle for referencing the socket.
+ *
+ * The returned pointer is not valid after \a http is freed.
+ *
+ * @param http a pointer to an evhttp object
+ * @param address a string containing the IP address to listen(2) on
+ * @param port the port number to listen on
+ * @param backlog the backlog value for listen(2)
+ * @return Handle for the socket on success, NULL on failure.
+ * @see evhttp_bind_socket(), evhttp_del_accept_socket()
+ */
+struct evhttp_bound_socket *evhttp_bind_socket_backlog_with_handle(struct evhttp *http, 
+        const char *address, ev_uint16_t port, int backlog);
+
+/**
  * Makes an HTTP server accept connections on the specified socket.
  *
  * This may be useful to create a socket and then fork multiple instances
@@ -295,6 +323,28 @@ int evhttp_remove_server_alias(struct evhttp *http, const char *alias);
  */
 void evhttp_set_timeout(struct evhttp *http, int timeout_in_secs);
 
+/**
+ * Limit the number of simultaneous connections via this http instance.
+ *
+ * @param http an evhttp object
+ * @param nlimit the maximum number of connections, zero is unlimited
+ */
+int evhttp_set_connection_limit(struct evhttp *http, int nlimit);
+ 
+/**
+ * Return the maximum number of connections allowed for this instance.
+ *
+ * @param http an evhttp object
+ */
+int evhttp_get_connection_limit(struct evhttp *http);
+
+/**
+ * Return the number of connections in this instance.
+ *
+ * @param http an evhttp object
+ */
+int evhttp_get_connection_count(struct evhttp *http);
+
 /* Request/Response functionality */
 
 /**
@@ -323,6 +373,19 @@ void evhttp_send_error(struct evhttp_request *req, int error,
  */
 void evhttp_send_reply(struct evhttp_request *req, int code,
     const char *reason, struct evbuffer *databuf);
+
+/**
+ * Send an HTML reply synchronously as much as possible by calling _begin().
+ * Great for a worker thread to send the reply immediately without queuing up
+ * events back to the loop. Call _end() to send the rest of the packet from
+ * event loop.
+ *
+ * When _begin() returns needs to be fed into _end() as the 1st parameter
+ * "nwritten".
+ */
+int evhttp_send_reply_sync_begin(struct evhttp_request *req, int code,
+                                 const char *reason, struct evbuffer *databuf);
+void evhttp_send_reply_sync_end(int nwritten, struct evhttp_request *req);
 
 /* Low-level response interface, for streaming/chunked replies */
 

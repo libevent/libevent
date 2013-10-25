@@ -154,6 +154,9 @@ struct evhttp {
 
 	int timeout;
 
+	int connection_count;
+	int connection_limit;
+
 	size_t default_max_headers_size;
 	ev_uint64_t default_max_body_size;
 
