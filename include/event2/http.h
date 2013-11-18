@@ -505,6 +505,15 @@ void evhttp_request_set_chunked_cb(struct evhttp_request *,
     void (*cb)(struct evhttp_request *, void *));
 
 /**
+ * Register callback for additional parsing of request headers.
+ * @param cb will be called after receiving and parsing the full header.
+ * It allows analyzing the header and possibly closing the connection
+ * by returning a value < 0.
+ */
+void evhttp_request_set_header_cb(struct evhttp_request *,
+    int (*cb)(struct evhttp_request *, void *));
+
+/**
  * The different error types supported by evhttp
  *
  * @see evhttp_request_set_error_cb()
