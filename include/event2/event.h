@@ -1135,8 +1135,8 @@ int event_base_once(struct event_base *, evutil_socket_t, short, event_callback_
 /**
   Add an event to the set of pending events.
 
-  The function event_add() schedules the execution of the ev event when the
-  event specified in event_assign()/event_new() occurs, or when the time
+  The function event_add() schedules the execution of the event 'ev' when the
+  condition specified by event_assign() or event_new() occurs, or when the time
   specified in timeout has elapesed.  If atimeout is NULL, no timeout
   occurs and the function will only be
   called if a matching event occurs.  The event in the
