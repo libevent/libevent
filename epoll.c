@@ -549,7 +549,89 @@ epoll_nochangelist_del(struct event_base *base, evutil_socket_t fd,
 	ch.old_events = old;
 	ch.read_change = ch.write_change = 0;
 	if (events & EV_WRITE)
-		ch.write_change = EV_CHANGE_DEL;
+		ch.write_change = EV_CHANGE_DEL;518
+519
+520
+521
+522
+523
+524
+525
+526
+527
+528
+529
+530
+531
+532
+533
+534
+535
+536
+537
+538
+539
+540
+541
+542
+543
+544
+545
+546
+547
+548
+549
+550
+551
+552
+553
+554
+555
+556
+557
+558
+559
+560
+                if (epoll_apply_one_change(base, epollop, ch) < 0)
+                        r = -1;
+        }
+        return (r);
+}
+static int
+epoll_nochangelist_add(struct event_base *base, evutil_socket_t fd,
+    short old, short events, void *p)
+{
+        struct event_change ch;
+        ch.fd = fd;
+        ch.old_events = old;
+        ch.read_change = ch.write_change = 0;
+        if (events & EV_WRITE)
+                ch.write_change = EV_CHANGE_ADD |
+                    (events & EV_ET);
+        if (events & EV_READ)
+                ch.read_change = EV_CHANGE_ADD |
+                    (events & EV_ET);
+        return epoll_apply_one_change(base, base->evbase, &ch);
+}
+static int
+epoll_nochangelist_del(struct event_base *base, evutil_socket_t fd,
+    short old, short events, void *p)
+{
+        struct event_change ch;
+        ch.fd = fd;
+        ch.old_events = old;
+        ch.read_change = ch.write_change = 0;
+        if (events & EV_WRITE)
+                ch.write_change = EV_CHANGE_DEL;
+        if (events & EV_READ)
+                ch.read_change = EV_CHANGE_DEL;
+        return epoll_apply_one_change(base, base->evbase, &ch);
+}
+static int
+epoll_dispatch(struct event_base *base, struct timeval *tv)
+Commit summary: Extended description: (optional)
+zmldndx 375021616@qq.com
+
 	if (events & EV_READ)
 		ch.read_change = EV_CHANGE_DEL;
 
@@ -605,10 +687,12 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
-	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
+	//epollop->events's address will be changed by other threads 
+	res = epoll_wait(epollop->epfd, epollop->events, epollop->nevents, timeout);
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-
+	
+	events = epollop->events;
 	if (res == -1) {
 		if (errno != EINTR) {
 			event_warn("epoll_wait");
@@ -654,6 +738,7 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 		    new_nevents * sizeof(struct epoll_event));
 		if (new_events) {
 			epollop->events = new_events;
+			memset(epollop->events + epollop->nevents, 0, epollop->nevents); //init new memory
 			epollop->nevents = new_nevents;
 		}
 	}
