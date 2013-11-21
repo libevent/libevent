@@ -54,7 +54,7 @@
 
   @section usage Standard usage
 
-  Every program that uses Libevent must inclurde the <event2/event.h>
+  Every program that uses Libevent must include the <event2/event.h>
   header, and pass the -levent flag to the linker.  (You can instead link
   -levent_core if you only want the main event and buffered IO-based code,
   and don't want to link any protocol code.)
@@ -124,9 +124,11 @@
   @section timers Timers
 
   Libevent can also be used to create timers that invoke a callback after a
-  certain amount of time has expired. The evtimer_new() function returns
+  certain amount of time has expired. The evtimer_new() macro returns
   an event struct to use as a timer. To activate the timer, call
   evtimer_add(). Timers can be deactivated by calling evtimer_del().
+  (These macros are thin wrappers around event_new(), event_add(),
+  and event_del(); you can also use those instead.)
 
   @section evdns Asynchronous DNS resolution
 
