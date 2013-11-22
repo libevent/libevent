@@ -738,7 +738,8 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 		    new_nevents * sizeof(struct epoll_event));
 		if (new_events) {
 			epollop->events = new_events;
-			memset(epollop->events + epollop->nevents, 0, epollop->nevents); //init new memory
+			//init new memory
+			memset(epollop->events + epollop->nevents, 0, epollop->nevents * sizeof(struct epoll_event));
 			epollop->nevents = new_nevents;
 		}
 	}
