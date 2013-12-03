@@ -596,6 +596,27 @@ bufferevent_setwatermark(struct bufferevent *bufev, short events,
 	BEV_UNLOCK(bufev);
 }
 
+void
+bufferevent_getwatermark(struct bufferevent *bufev, short events,
+    size_t *lowmark, size_t *highmark)
+{
+	BEV_LOCK(bufev);
+	if (events & EV_WRITE) {
+		if (lowmark)
+			*lowmark = bufev->wm_write.low;
+		if (highmark)
+			*highmark = bufev->wm_write.high;
+	}
+
+	if (events & EV_READ) {
+		if (lowmark)
+			*lowmark = bufev->wm_read.low;
+		if (highmark)
+			*highmark = bufev->wm_read.high;
+	}
+	BEV_UNLOCK(bufev);
+}
+
 int
 bufferevent_flush(struct bufferevent *bufev,
     short iotype,

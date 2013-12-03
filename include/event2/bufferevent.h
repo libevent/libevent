@@ -508,6 +508,18 @@ void bufferevent_setwatermark(struct bufferevent *bufev, short events,
     size_t lowmark, size_t highmark);
 
 /**
+  Retrieves the watermarks for read or write events. Result is undefined if
+  events contains both EV_READ and EV_WRITE.
+
+  @param bufev the bufferevent to be examined
+  @param events EV_READ or EV_WRITE
+  @param lowmark receives the lower watermark if not NULL
+  @param highmark receives the high watermark if not NULL
+*/
+void bufferevent_getwatermark(struct bufferevent *bufev, short events,
+    size_t *lowmark, size_t *highmark);
+
+/**
    Acquire the lock on a bufferevent.  Has no effect if locking was not
    enabled with BEV_OPT_THREADSAFE.
  */

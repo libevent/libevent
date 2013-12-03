@@ -243,6 +243,7 @@ test_bufferevent_watermarks_impl(int use_pair)
 {
 	struct bufferevent *bev1 = NULL, *bev2 = NULL;
 	char buffer[65000];
+	size_t low, high;
 	int i;
 	test_ok = 0;
 
@@ -262,15 +263,29 @@ test_bufferevent_watermarks_impl(int use_pair)
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
 
+	/* By default, low watermarks are set to 0 */
+	bufferevent_getwatermark(bev1, EV_READ, &low, NULL);
+	tt_int_op(low, ==, 0);
+	bufferevent_getwatermark(bev2, EV_WRITE, &low, NULL);
+	tt_int_op(low, ==, 0);
+
 	for (i = 0; i < (int)sizeof(buffer); i++)
 		buffer[i] = (char)i;
 
 	/* limit the reading on the receiving bufferevent */
 	bufferevent_setwatermark(bev2, EV_READ, 10, 20);
 
+	bufferevent_getwatermark(bev2, EV_READ, &low, &high);
+	tt_int_op(low, ==, 10);
+	tt_int_op(high, ==, 20);
+
 	/* Tell the sending bufferevent not to notify us till it's down to
 	   100 bytes. */
 	bufferevent_setwatermark(bev1, EV_WRITE, 100, 2000);
+
+	bufferevent_getwatermark(bev1, EV_WRITE, &low, &high);
+	tt_int_op(low, ==, 100);
+	tt_int_op(high, ==, 2000);
 
 	bufferevent_write(bev1, buffer, sizeof(buffer));
 
