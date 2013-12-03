@@ -184,8 +184,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	bufferevent_decrement_read_buckets_(bufev_p, res);
 
 	/* Invoke the user callback - must always be called last */
-	if (evbuffer_get_length(input) >= bufev->wm_read.low)
-		bufferevent_run_readcb_(bufev);
+	bufferevent_trigger_nolock_(bufev, EV_READ, 0);
 
 	goto done;
 
@@ -294,9 +293,8 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	 * Invoke the user callback if our buffer is drained or below the
 	 * low watermark.
 	 */
-	if ((res || !connected) &&
-	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
-		bufferevent_run_writecb_(bufev);
+	if (res || !connected) {
+		bufferevent_trigger_nolock_(bufev, EV_WRITE, 0);
 	}
 
 	goto done;

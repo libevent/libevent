@@ -559,6 +559,32 @@ int bufferevent_flush(struct bufferevent *bufev,
     enum bufferevent_flush_mode mode);
 
 /**
+   Flags for bufferevent_trigger(_event) that modify when and how to trigger
+   the callback.
+*/
+enum bufferevent_trigger_options {
+	/** trigger the callback regardless of the watermarks */
+	BEV_TRIG_IGNORE_WATERMARKS = (1<<0),
+
+	/** defer even if the callbacks are not */
+	BEV_TRIG_DEFER_CALLBACKS = (1<<1),
+};
+
+/**
+   Triggers bufferevent data callbacks.
+
+   The function will honor watermarks unless options contain
+   BEV_TRIG_IGNORE_WATERMARKS. If the options contain BEV_OPT_DEFER_CALLBACKS,
+   the callbacks are deferred.
+
+   @param bufev the bufferevent object
+   @param iotype either EV_READ or EV_WRITE or both.
+   @param options
+ */
+void bufferevent_trigger(struct bufferevent *bufev, short iotype,
+    int options);
+
+/**
    @name Filtering support
 
    @{

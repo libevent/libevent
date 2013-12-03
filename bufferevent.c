@@ -219,14 +219,15 @@ bufferevent_run_deferred_callbacks_unlocked(struct event_callback *cb, void *arg
 
 
 void
-bufferevent_run_readcb_(struct bufferevent *bufev)
+bufferevent_run_readcb_(struct bufferevent *bufev, int options)
 {
 	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (bufev->readcb == NULL)
 		return;
-	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
+	if ((p->options & BEV_OPT_DEFER_CALLBACKS) ||
+	    (options & BEV_TRIG_DEFER_CALLBACKS)) {
 		p->readcb_pending = 1;
 		SCHEDULE_DEFERRED(p);
 	} else {
@@ -235,19 +236,39 @@ bufferevent_run_readcb_(struct bufferevent *bufev)
 }
 
 void
-bufferevent_run_writecb_(struct bufferevent *bufev)
+bufferevent_run_writecb_(struct bufferevent *bufev, int options)
 {
 	/* Requires that we hold the lock and a reference */
 	struct bufferevent_private *p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (bufev->writecb == NULL)
 		return;
-	if (p->options & BEV_OPT_DEFER_CALLBACKS) {
+	if ((p->options & BEV_OPT_DEFER_CALLBACKS) ||
+	    (options & BEV_TRIG_DEFER_CALLBACKS)) {
 		p->writecb_pending = 1;
 		SCHEDULE_DEFERRED(p);
 	} else {
 		bufev->writecb(bufev, bufev->cbarg);
 	}
+}
+
+void
+bufferevent_trigger_nolock_(struct bufferevent *bufev, short iotype, int options)
+{
+	if ((iotype & EV_READ) && ((options & BEV_TRIG_IGNORE_WATERMARKS) ||
+	    evbuffer_get_length(bufev->input) >= bufev->wm_read.low))
+		bufferevent_run_readcb_(bufev, options);
+	if ((iotype & EV_WRITE) && ((options & BEV_TRIG_IGNORE_WATERMARKS) ||
+	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low))
+		bufferevent_run_writecb_(bufev, options);
+}
+
+void
+bufferevent_trigger(struct bufferevent *bufev, short iotype, int options)
+{
+	bufferevent_incref_and_lock_(bufev);
+	bufferevent_trigger_nolock_(bufev, iotype, options);
+	bufferevent_decref_and_unlock_(bufev);
 }
 
 void
@@ -322,20 +343,18 @@ bufferevent_init_common_(struct bufferevent_private *bufev_private,
 		event_warnx("UNLOCK_CALLBACKS requires DEFER_CALLBACKS");
 		return -1;
 	}
-	if (options & BEV_OPT_DEFER_CALLBACKS) {
-		if (options & BEV_OPT_UNLOCK_CALLBACKS)
-			event_deferred_cb_init_(
-			    &bufev_private->deferred,
-			    event_base_get_npriorities(base) / 2,
-			    bufferevent_run_deferred_callbacks_unlocked,
-			    bufev_private);
-		else
-			event_deferred_cb_init_(
-			    &bufev_private->deferred,
-			    event_base_get_npriorities(base) / 2,
-			    bufferevent_run_deferred_callbacks_locked,
-			    bufev_private);
-	}
+	if (options & BEV_OPT_UNLOCK_CALLBACKS)
+		event_deferred_cb_init_(
+		    &bufev_private->deferred,
+		    event_base_get_npriorities(base) / 2,
+		    bufferevent_run_deferred_callbacks_unlocked,
+		    bufev_private);
+	else
+		event_deferred_cb_init_(
+		    &bufev_private->deferred,
+		    event_base_get_npriorities(base) / 2,
+		    bufferevent_run_deferred_callbacks_locked,
+		    bufev_private);
 
 	bufev_private->options = options;
 

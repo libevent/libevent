@@ -709,8 +709,7 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 		if (bev_ssl->underlying)
 			BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
 
-		if (evbuffer_get_length(output) <= bev->wm_write.low)
-			bufferevent_run_writecb_(bev);
+		bufferevent_trigger_nolock_(bev, EV_WRITE, 0);
 	}
 	return result;
 }
@@ -824,11 +823,8 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 
 	if (all_result_flags & OP_MADE_PROGRESS) {
 		struct bufferevent *bev = &bev_ssl->bev.bev;
-		struct evbuffer *input = bev->input;
 
-		if (evbuffer_get_length(input) >= bev->wm_read.low) {
-			bufferevent_run_readcb_(bev);
-		}
+		bufferevent_trigger_nolock_(bev, EV_READ, 0);
 	}
 
 	if (!bev_ssl->underlying) {
@@ -852,11 +848,8 @@ consider_writing(struct bufferevent_openssl *bev_ssl)
 		r = do_read(bev_ssl, 1024); /* XXXX 1024 is a hack */
 		if (r & OP_MADE_PROGRESS) {
 			struct bufferevent *bev = &bev_ssl->bev.bev;
-			struct evbuffer *input = bev->input;
 
-			if (evbuffer_get_length(input) >= bev->wm_read.low) {
-				bufferevent_run_readcb_(bev);
-			}
+			bufferevent_trigger_nolock_(bev, EV_READ, 0);
 		}
 		if (r & (OP_ERR|OP_BLOCKED))
 			break;
