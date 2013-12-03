@@ -470,7 +470,7 @@ be_filter_eventcb(struct bufferevent *underlying, short what, void *me_)
 
 	bufferevent_incref_and_lock_(bev);
 	/* All we can really to is tell our own eventcb. */
-	bufferevent_run_eventcb_(bev, what);
+	bufferevent_run_eventcb_(bev, what, 0);
 	bufferevent_decref_and_unlock_(bev);
 }
 

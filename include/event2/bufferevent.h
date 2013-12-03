@@ -585,6 +585,18 @@ void bufferevent_trigger(struct bufferevent *bufev, short iotype,
     int options);
 
 /**
+   Triggers the bufferevent event callback.
+
+   If the options contain BEV_OPT_DEFER_CALLBACKS, the callbacks are deferred.
+
+   @param bufev the bufferevent object
+   @param what the flags to pass onto the event callback
+   @param options
+ */
+void bufferevent_trigger_event(struct bufferevent *bufev, short what,
+    int options);
+
+/**
    @name Filtering support
 
    @{

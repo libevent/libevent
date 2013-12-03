@@ -820,13 +820,23 @@ trigger_failure_cb(evutil_socket_t fd, short what, void *ctx)
 }
 
 static void
-trigger_readcb_triggered(struct bufferevent *bev, void *ctx)
+trigger_eventcb(struct bufferevent *bev, short what, void *ctx)
 {
 	struct event_base *base = ctx;
+	if (what == ~0) {
+		TT_BLATHER(("Event successfully triggered."));
+		event_base_loopexit(base, NULL);
+		return;
+	}
+	reader_eventcb(bev, what, ctx);
+}
 
+static void
+trigger_readcb_triggered(struct bufferevent *bev, void *ctx)
+{
 	TT_BLATHER(("Read successfully triggered."));
 	n_reads_invoked++;
-	event_base_loopexit(base, NULL);
+	bufferevent_trigger_event(bev, ~0, bufferevent_trigger_test_flags);
 }
 
 static void
@@ -840,7 +850,7 @@ trigger_readcb(struct bufferevent *bev, void *ctx)
 	TT_BLATHER(("Read invoked on %d.", (int)bufferevent_getfd(bev)));
 	expected_reads = ++n_reads_invoked;
 
-	bufferevent_setcb(bev, trigger_readcb_triggered, NULL, reader_eventcb, ctx);
+	bufferevent_setcb(bev, trigger_readcb_triggered, NULL, trigger_eventcb, ctx);
 
 	bufferevent_getwatermark(bev, EV_READ, &low, &high);
 	len = evbuffer_get_length(bufferevent_get_input(bev));
@@ -912,7 +922,7 @@ test_bufferevent_trigger(void *arg)
 	tt_assert(!evconnlistener_enable(lev));
 	bev = bufferevent_socket_new(data->base, -1, be_flags);
 	tt_assert(bev);
-	bufferevent_setcb(bev, trigger_readcb, NULL, reader_eventcb, data->base);
+	bufferevent_setcb(bev, trigger_readcb, NULL, trigger_eventcb, data->base);
 
 	bufferevent_enable(bev, EV_READ);
 
