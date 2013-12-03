@@ -518,7 +518,7 @@ enum event_base_config_flag {
 	    if you have any fds cloned by dup() or its variants.  Doing so
 	    will produce strange and hard-to-diagnose bugs.
 
-	    This flag can also be activated by settnig the
+	    This flag can also be activated by setting the
 	    EVENT_EPOLL_USE_CHANGELIST environment variable.
 
 	    This flag has no effect if you wind up using a backend other than
