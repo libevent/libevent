@@ -138,6 +138,9 @@ typedef void (*bufferevent_data_cb)(struct bufferevent *bev, void *ctx);
    The event callback is triggered if either an EOF condition or another
    unrecoverable error was encountered.
 
+   For bufferevents with deferred callbacks, this is a bitwise OR of all errors
+   that have happened on the bufferevent since the last callback invocation.
+
    @param bev the bufferevent for which the error condition was reached
    @param what a conjunction of flags: BEV_EVENT_READING or BEV_EVENT_WRITING
 	  to indicate if the error was encountered on the read or write path,
