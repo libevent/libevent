@@ -1,4 +1,109 @@
-Changes in version 2.1.4-{alpha,beta,rc} (?? ??? 2013)
+Changes in version 2.1.4-beta (?? Dec 2013)
+
+ (As of 735d838b0a537ae04f1e6a2e9cbc5f3f45ebb541)
+
+
+ Bugfixes (evdns)
+   o Checking request nameserver for NULL, before using it. (5c710c0
+     Belobrov Andrey)
+   o Fix SEGFAULT after evdns_base_resume if no nameservers installed. (14971a8
+     Azat Khuzhin)
+   o Actually use the log facility for reporting evdns problems. (e1766a1)
+   o Fix SEGFAULT after evdns_base_resume if no nameservers installed. (f8d7df8 Azat Khuzhin)
+
+ Bugfixes (compilatin)
+   o Fix test compilation with nmake: add the gdi.lib dependency (5ba8ab7)
+   o Whoops. It is gdi.lib, not gdi32.lib. (github issue #61) (8ab612e)
+   o Don't use return since return type is void and build error occurs using clang (838161d Makoto Kato)
+   o Use void casts to suppress some "unchecked return value" warns (7080d55)
+   o rpcgen: Generate regress.gen.[c,h] in build rather than src dir (243386c Ross Lagerwall)
+   o Fix a compiler warning when checking for arc4random_buf linker breakage. (5cb3865)
+
+ Bugfixes (locks, synchronization)
+   o Missed lock acquire/release in event_base_cancel_single_callback_()
+     (d3d999a Azat Khuzhin)
+   o Fix locking in bufferevent_get_options_(). (dbc9cd4 Maxime Henrion)
+
+ Bugfixes (leaks)
+   o Avoid leaking segment mappings when offset is not a page multiple (d409514)
+
+ Testing
+   o Add tests for evdns_base_resume(). (1cd9ff5 Azat Khuzhin)
+   o Fix dns/leak_resume_send_err test. (7e876df Azat Khuzhin)
+   o Add checks for evhttp_connection_get_server() in unit tests. (fbc323b Maxime Henrion)
+   o Fix a (failure-only) null dereference in the unit tests (1104d0b)
+   o Fix a logic error in test_evbuffer_freeze (7765884)
+   o Add missing check to test_evbuffer_file_segment_add_cleanup_cb (eba4506)
+   o Fix some crash-on-fail cases in DNS regression tests (87cd6f0)
+   o DNS tests: add a missing check (f314900)
+   o Finalize tests: add a missing check (82b6956)
+   o test_evutil_rtrim: add another missing check. (e193c95)
+   o regress_main: logging all if env EVENT_DEBUG_LOGGING_ALL isset (611e28b Azat Khuzhin)
+   o regress_http: add tests for evhttp_connection_get_addr() (4dd500c Azat Khuzhin)
+
+ Bugfixes (core)
+   o If evsel->del() fails, don't leave the evmap in an inconsistent state
+     (9b5a527 Maxime Henrion)
+   o Move event_debug_note_teardown_ before mm_free. (69b5c64)
+   o Check CLOCK_MONOTONIC_* at runtime if needed. (911abf3)
+   o Fix reinit of fds with EV_WRITE but not EV_READ. (ebfd8a8 maksqwe)
+
+ Performance tweaks (core)
+   o Avoid redundant syscall to make a nonblocking socket nonblocking
+     (42c03da Maxime Henrion)
+   o Avoid redundant syscall if making a socket cloexec twice (1f29b18)
+   o Avoid redundant invocations of init_extension_functions for IOCP (3b77d62)
+
+ Bugfixes (evhttp)
+   o Fix a double close() bug in evhttp when the underlying bufferevent uses
+     BEV_OPT_CLOSE_ON_FREE. (31db8a0 Maxime Henrion)
+   o Fix an unlikely but possible error case for http connections (f22049e)
+   o Avoid racy bufferevent activation (5eb1788 Nate Rosenblum)
+
+ Bugfixes on 2.0 (Windows)
+   o Use windows vsnprintf fixup logic on all windows environments (e826f19)
+   o libevent/win32_dealloc() : fix sizeof(pointer) vs sizeof(*pointer) (b8f5980 Frank Denis)
+
+ Bugfixes (evutil_secure_rng)
+   o When we seed from /proc/sys/kernel/random/uuid, count it as success (e35b540)
+   o We should return after arc4random_buf() (1ea1f26 Makoto Kato)
+   o Avoid other RNG initialization FS reads when urandom file is specified (9695e9c)
+   o Really remove RNG seeds from the stack (f5ced88)
+   o Fix another arc4random_buf-related warning (e64a2b0)
+
+ New APIs (core)
+   o Added event_base_get_num_events() (0fa107d Mobai Zhang)
+   o Add function to fetch underlying ratelimit cfg (4b3d5af Mark Ellzey)
+   o Pass and return const for bufferevent_get_token_bucket_cfg (1c77fbb Mark Ellzey)
+
+ New APIs (evhttp)
+   o Add evhttp_connection_get_server(). (a7f82a3 Maxime Henrion)
+   o add a http default content type option (5a5acd9 Nicolas Martyanoff)
+   o http: implement new evhttp_connection_get_addr() api. (0c7f040 Azat Khuzhin)
+
+
+ Documentation
+   o Document that arc4random is not a great cryptographic PRNG. (6e49696)
+   o Small doxygen tweaks (6e67b51)
+   o Try another doxygen tweak (ccf432b)
+
+ New APIs (evutil_secure_rng)
+   o Add evutil_secure_rng_set_urandom_device_file (2bbb5d7)
+
+ Cleanups
+   o Remove an unreachable return statement in minheap-internal.h (e639a9e)
+
+ Sample code
+   o sample/le-proxy: Fail more gracefully if opening listener fails (44b2491)
+   o sample: drop uri_root from base_url in http-server. (6171e1c Azat Khuzhin)
+
+
+
+
+
+
+
+
 
 
 
