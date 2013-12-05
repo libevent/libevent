@@ -238,6 +238,13 @@ struct evdns_base * evdns_base_new(struct event_base *event_base, int initialize
 void evdns_base_free(struct evdns_base *base, int fail_requests);
 
 /**
+  All previous requests will be silently discarded from the event base.
+
+  @param evdns_base the evdns base to discard all previous requests
+ */
+void evdns_base_discard_previous_requests(struct evdns_base *base);
+
+/**
   Convert a DNS error code to a string.
 
   @param err the DNS error code
