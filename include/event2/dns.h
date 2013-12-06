@@ -237,6 +237,12 @@ struct evdns_base * evdns_base_new(struct event_base *event_base, int initialize
  */
 void evdns_base_free(struct evdns_base *base, int fail_requests);
 
+/**  
+  All previous outdated host addresses will be removed or flushed from the event base.  
+  @param evdns_base the evdns base to flush outdated host addresses
+*/
+void evdns_base_flush_outdated_host_addresses(struct evdns_base *base);
+
 /**
   Convert a DNS error code to a string.
 
