@@ -4045,6 +4045,20 @@ evdns_base_free(struct evdns_base *base, int fail_requests)
 }
 
 void
+evdns_base_discard_previous_requests(struct evdns_base *base)
+{
+        EVDNS_LOCK(base);
+        base->global_requests_inflight = base->global_requests_waiting = 0;
+        struct hosts_entry *victim;
+        while ((victim = TAILQ_FIRST(&base->hostsdb))) {
+                TAILQ_REMOVE(&base->hostsdb, victim, next);
+                mm_free(victim);
+        }
+        EVDNS_UNLOCK(base);
+        EVTHREAD_FREE_LOCK(base->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
+}
+
+void
 evdns_shutdown(int fail_requests)
 {
 	if (current_base) {
@@ -4238,7 +4252,7 @@ free_getaddrinfo_request(struct evdns_getaddrinfo_request *data)
 	event_del(&data->timeout);
 	mm_free(data);
 	return;
-}
+2}
 
 static void
 add_cname_to_reply(struct evdns_getaddrinfo_request *data,
