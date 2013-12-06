@@ -4045,16 +4045,15 @@ evdns_base_free(struct evdns_base *base, int fail_requests)
 }
 
 void
-evdns_base_flush_outdated_host_addresses(struct evdns_base *base)
+evdns_base_clear_host_addresses(struct evdns_base *base)
 {
-   	EVDNS_LOCK(base);
-   	struct hosts_entry *victim;
-   	while ((victim = TAILQ_FIRST(&base->hostsdb))) {
-   	TAILQ_REMOVE(&base->hostsdb, victim, next);
-        mm_free(victim);
-   	}
-   	EVDNS_UNLOCK(base);
-   	EVTHREAD_FREE_LOCK(base->lock, EVTHREAD_LOCKTYPE_RECURSIVE);
+	EVDNS_LOCK(base);
+	struct hosts_entry *victim;
+	while ((victim = TAILQ_FIRST(&base->hostsdb))) {
+		TAILQ_REMOVE(&base->hostsdb, victim, next);
+		mm_free(victim);
+	}
+	EVDNS_UNLOCK(base);
 }
 
 void
