@@ -36,6 +36,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
+#define closesocket(x) close(x)
 #include <sys/socket.h>
 #include <sys/resource.h>
 #endif
@@ -48,7 +49,7 @@
 #include <unistd.h>
 #endif
 #include <errno.h>
-
+#include <getopt.h>
 #include <event.h>
 #include <evutil.h>
 
@@ -84,8 +85,8 @@ run_once(int num_pipes)
 	evutil_socket_t *cp;
 	static struct timeval ts, te, tv_timeout;
 
-	events = calloc(num_pipes, sizeof(struct event));
-	pipes = calloc(num_pipes * 2, sizeof(evutil_socket_t));
+	events = (struct event *)calloc(num_pipes, sizeof(struct event));
+	pipes = (evutil_socket_t *)calloc(num_pipes * 2, sizeof(evutil_socket_t));
 
 	if (events == NULL || pipes == NULL) {
 		perror("malloc");
@@ -126,8 +127,8 @@ run_once(int num_pipes)
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
 		event_del(&events[i]);
-		close(cp[0]);
-		close(cp[1]);
+		closesocket(cp[0]);
+		closesocket(cp[1]);
 	}
 
 	free(pipes);
