@@ -4047,8 +4047,8 @@ evdns_base_free(struct evdns_base *base, int fail_requests)
 void
 evdns_base_clear_host_addresses(struct evdns_base *base)
 {
-	EVDNS_LOCK(base);
 	struct hosts_entry *victim;
+	EVDNS_LOCK(base);
 	while ((victim = TAILQ_FIRST(&base->hostsdb))) {
 		TAILQ_REMOVE(&base->hostsdb, victim, next);
 		mm_free(victim);
