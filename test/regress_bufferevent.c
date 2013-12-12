@@ -599,7 +599,7 @@ close_socket_cb(evutil_socket_t fd, short what, void *arg)
 static void
 test_bufferevent_connect_fail(void *arg)
 {
-	struct basic_test_data *data = arg;
+	struct basic_test_data *data = (struct basic_test_data *)arg;
 	struct bufferevent *bev=NULL;
 	struct sockaddr_in localhost;
 	struct sockaddr *sa = (struct sockaddr*)&localhost;

@@ -33,6 +33,7 @@ option(EVENT__DISABLE_THREAD_SUPPORT "Define if libevent should not be compiled 
 option(EVENT__DISABLE_OPENSSL "Define if libevent should build without support for OpenSSL encrpytion" 0)
 option(EVENT__DISABLE_BENCHMARK "Defines if libevent should build without the benchmark exectuables" 0)
 option(EVENT__DISABLE_TESTS "If tests should be compiled or not" 0)
+option(EVENT__DISABLE_REGRESS "Disable the regress tests" 0)
 
 # Put the libaries and binaries that get built into directories at the
 # top of the build tree rather than in hard-to-find leaf directories. 
@@ -596,41 +597,9 @@ if (NOT EVENT__DISABLE_TESTS)
     find_package(PythonInterp 2) # TODO: Require 2.4+ here...
 
     #
-    # Test programs.
+    # Generate Regress tests.
     #
-    set(TESTPROGS   test-changelist
-                    test-eof
-                    test-fdleak
-                    test-init
-                    test-time
-                    test-weof)
-
-    # Create test program executables.
-    foreach (TESTPROG ${TESTPROGS} test-dumpevents test-ratelim)
-        add_executable(${TESTPROG} test/${TESTPROG}.c)
-        target_link_libraries(${TESTPROG} event ${LIB_PLATFORM})
-    endforeach()
-
-    foreach (TESTPROG ${TESTPROGS})
-        add_test(${TESTPROG} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
-    endforeach()
-
-    # Dump events test.
-    if (PYTHONINTERP_FOUND)
-        add_custom_command(
-            OUTPUT
-                ${CMAKE_CURRENT_BINARY_DIR}/test/eventdump
-            DEPENDS
-                test-dumpevents
-            COMMAND test-dumpevents
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test
-            )
-    endif()
-
-    #
-    # Regress tests.
-    #
-    if (PYTHONINTERP_FOUND)
+    if (NOT EVENT__DISABLE_REGRESS AND PYTHONINTERP_FOUND)
         message("Generating regress tests...")
         add_definitions(-DTINYTEST_LOCAL)
         add_custom_command(
@@ -683,11 +652,93 @@ if (NOT EVENT__DISABLE_TESTS)
 
         add_executable(regress ${SRC_REGRESS})
         target_link_libraries(regress event ${LIB_REGRESS} ${LIB_PLATFORM})
-
-        add_test(regress ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
     else()
         message(WARNING "Python not found, cannot generate regress tests!")
     endif()
+
+    #
+    # Test programs.
+    #
+    set(TESTPROGS   test-changelist
+                    test-eof
+                    test-fdleak
+                    test-init
+                    test-time
+                    test-weof)
+
+    # Create test program executables.
+    foreach (TESTPROG ${TESTPROGS} test-dumpevents test-ratelim)
+        add_executable(${TESTPROG} test/${TESTPROG}.c)
+        target_link_libraries(${TESTPROG} event ${LIB_PLATFORM})
+    endforeach()
+
+    #
+    # We run all tests with the different backends turned on one at a time.
+    #
+
+    # Default environment variables turns off all event systems,
+    # then we enable each one, one at a time when creating the tests.
+    set(BACKENDS EVPORT KQUEUE EPOLL DEVPOLL POLL SELECT WIN32)
+    set(DEFAULT_TEST_ENV_VARS "")
+    foreach(BACKEND ${BACKENDS})
+        list(APPEND DEFAULT_TEST_ENV_VARS "EVENT_NO${BACKEND}")
+    endforeach()
+
+    # Macro that creates the ctest test for a backend.
+    macro(add_backend_test BACKEND_TEST_NAME ENV_VARS)
+        foreach (TESTPROG ${TESTPROGS})
+            add_test(${TESTPROG}_${BACKEND_TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
+            set_tests_properties(${TESTPROG}_${BACKEND_TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
+        endforeach()
+
+        # Dump events test.
+        if (PYTHONINTERP_FOUND)
+            add_test(test-dumpevents_${BACKEND_TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents | ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/check-dumpevents.py)
+            set_tests_properties(test-dumpevents_${BACKEND_TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
+        else()
+            message(WARNING "test-dumpevents will be run without output check since python was not found!")
+            add_test(test-dumpevents_${BACKEND_TEST_NAME}_no_check ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents)
+            set_tests_properties(test-dumpevents_${BACKEND_TEST_NAME}_no_check PROPERTIES ENVIRONMENT "${ENV_VARS}")
+        endif()
+
+        # Regress tests.
+        if (NOT EVENT__DISABLE_REGRESS AND PYTHONINTERP_FOUND)
+            add_test(regress_${BACKEND_TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
+            set_tests_properties(regress_${BACKEND_TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
+        endif()
+    endmacro()
+
+    # Add the tests for each backend.
+    foreach(BACKEND ${BACKENDS})
+        # Enable this backend only.
+        set(BACKEND_ENV_VARS ${DEFAULT_TEST_ENV_VARS})
+        list(REMOVE_ITEM BACKEND_ENV_VARS EVENT_NO${BACKEND})
+
+        # Epoll has some extra settings.
+        if (${BACKEND} STREQUAL "EPOLL")
+            add_backend_test(timerfd_${BACKEND} "${BACKEND_ENV_VARS};EVENT_PRECISE_TIMER=1")
+            add_backend_test(changelist_${BACKEND} "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes")
+            add_backend_test(timerfd_changelist_${BACKEND} "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes;EVENT_PRECISE_TIMER=1")
+        else()
+            add_backend_test(${BACKEND} ${BACKEND_ENV_VARS})
+        endif()
+    endforeach()
+
+    #
+    # Rate limiter tests.
+    #
+
+    # Group limits, no connection limit.
+    add_test(test-ratelim_group_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -g 30000 -n 30 -t 100 --check-grouplimit 1000 --check-stddev 100)
+
+    # Connection limit, no group limit.
+    add_test(test-ratelim_con_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -n 30 -t 100 --check-connlimit 50 --check-stddev 50)
+    
+    # Connection limit and group limit.
+    add_test(test-ratelim_group_con_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -g 30000 -n 30 -t 100 --check-grouplimit 1000 --check-connlimit 50 --check-stddev 50)
+    
+    # Connection limit and group limit with independent drain.
+    add_test(test-ratelim_group_con_lim_drain ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -g 35000 -n 30 -t 100 -G 500 --check-grouplimit 1000 --check-connlimit 50 --check-stddev 50)
 
     enable_testing()
 
