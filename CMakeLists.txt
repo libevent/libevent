@@ -54,8 +54,6 @@ include(CheckCSourceCompiles)
 include(CheckPrototypeDefinition)
 
 include(FindZLIB)    # -> HAVE_LIBZ
-include(FindThreads) # -> HAVE_PTHREAD
-include(FindPythonInterp)
 
 # Winsock.
 if(WIN32)
@@ -429,7 +427,6 @@ set(HDR_PUBLIC
     include/event2/buffer.h
     include/event2/bufferevent.h
     include/event2/bufferevent_compat.h
-    include/event2/bufferevent_ssl.h
     include/event2/bufferevent_struct.h
     include/event2/buffer_compat.h
     include/event2/dns.h
@@ -496,23 +493,33 @@ endif()
 
 if (NOT EVENT__DISABLE_OPENSSL)
     find_package(OpenSSL REQUIRED)
+    set(EVENT__HAVE_OPENSSL 1)
     message("OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
     message("OpenSSL lib: ${OPENSSL_LIBRARIES}")
+    include_directories(${OPENSSL_INCLUDE_DIR})
+    list(APPEND SRC_CORE bufferevent_openssl.c)
+    list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
     list(APPEND LIB_REGRESS ${OPENSSL_LIBRARIES})
 endif()
 
-if(CMAKE_USE_PTHREADS_INIT)
-	set(EVENT__HAVE_PTHREADS 1)
-    list(APPEND SRC_CORE evthread_pthread.c)
-    list(APPEND SRC_REGRESS test/regress_thread.c)
-    list(APPEND LIB_REGRESS ${CMAKE_THREAD_LIBS_INIT})
+if (NOT EVENT__DISABLE_THREAD_SUPPORT)
+    if (WIN32)
+        list(APPEND SRC_CORE evthread_win32.c)
+    else()
+        find_package(Threads REQUIRED)
+        if (NOT CMAKE_USE_PTHREADS_INIT)
+            message(FATAL_ERROR "Failed to find Pthreads, set EVENT__DISABLE_THREAD_SUPPORT to turn off thread support")
+        endif()
+        set(EVENT__HAVE_PTHREADS 1)
+        list(APPEND SRC_CORE evthread_pthread.c)
+        list(APPEND LIB_REGRESS ${CMAKE_THREAD_LIBS_INIT})
+    endif()
 endif()
 
-if(ZLIB_LIBRARY)
+if (ZLIB_LIBRARY)
     set(EVENT__HAVE_ZLIB 1)
     set(EVENT__HAVE_ZLIB_H)
     include_directories(${ZLIB_INCLUDE_DIRS})
-    list(APPEND SRC_REGRESS test/regress_zlib.c)
     list(APPEND LIB_REGRESS ${ZLIB_LIBRARIES})
 endif()
 
@@ -533,11 +540,12 @@ if(WIN32)
         event_iocp.c 
         evthread_win32.c 
         win32select.c
-		WIN32-Code/getopt.c
-		WIN32-Code/getopt_long.c
+        WIN32-Code/getopt.c
+        WIN32-Code/getopt_long.c
         )
-    list(APPEND SRC_REGRESS test/regress_iocp.c)
-	list(APPEND SRC_REGRESS test/regress_thread.c)
+    
+    list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
+
     set(EVENT__DNS_USE_FTIME_FOR_ID 1)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE)
     set(LIB_PLATFORM ws2_32)
@@ -553,6 +561,7 @@ configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/event-config.h.cmake 
     ${CMAKE_CURRENT_SOURCE_DIR}/include/event2/event-config.h)
 
+# TODO: Add dynamic versions of the libraries as well.
 add_library(event_core STATIC
     ${HDR_PRIVATE}
     ${HDR_PUBLIC}
@@ -562,7 +571,7 @@ add_library(event_core STATIC
 add_library(event_extras STATIC
     ${SRC_EXTRA}
     )
-    
+
 add_library(event STATIC
     ${HDR_PRIVATE}
     ${HDR_PUBLIC}
@@ -570,37 +579,57 @@ add_library(event STATIC
     ${SRC_EXTRA}
     )
 
-# TODO: Make these into tests instead?
-#add_executable(event-test sample/event-test.c)
-#target_link_libraries(event-test event ${LIB_PLATFORM})
-
-add_executable(time-test sample/time-test.c)
-target_link_libraries(time-test event ${LIB_PLATFORM})
-
-add_executable(signal-test sample/signal-test.c)
-target_link_libraries(signal-test event ${LIB_PLATFORM})
-
-#add_executable(test-init test/test-init.c)
-#target_link_libraries(test-init event ${LIB_PLATFORM})
-
-#add_executable(test-eof test/test-eof.c)
-#target_link_libraries(test-eof event ${LIB_PLATFORM})
-
-#add_executable(test-weof test/test-weof.c)
-#target_link_libraries(test-weof event ${LIB_PLATFORM})
-
-#add_executable(time-test test/time-test.c)
-#target_link_libraries(time-test event ${LIB_PLATFORM})
+if (NOT EVENT__DISABLE_SAMPLES)
+    # TODO: Add samples.
+endif()
 
 if (NOT EVENT__DISABLE_BENCHMARK)
-    add_executable(bench_cascade test/bench_cascade.c)
-    target_link_libraries(bench_cascade event ${LIB_PLATFORM})
-
-    add_executable(bench_http test/bench_http.c)
-    target_link_libraries(bench_http event ${LIB_PLATFORM})
+    foreach (BENCHMARK bench bench_cascade bench_http bench_httpclient)
+        add_executable(${BENCHMARK} test/${BENCHMARK}.c)
+        target_link_libraries(${BENCHMARK} event ${LIB_PLATFORM})
+    endforeach()
 endif()
 
 if (NOT EVENT__DISABLE_TESTS)
+
+    # (We require python to generate the regress tests)
+    find_package(PythonInterp 2) # TODO: Require 2.4+ here...
+
+    #
+    # Test programs.
+    #
+    set(TESTPROGS   test-changelist
+                    test-eof
+                    test-fdleak
+                    test-init
+                    test-time
+                    test-weof)
+
+    # Create test program executables.
+    foreach (TESTPROG ${TESTPROGS} test-dumpevents test-ratelim)
+        add_executable(${TESTPROG} test/${TESTPROG}.c)
+        target_link_libraries(${TESTPROG} event ${LIB_PLATFORM})
+    endforeach()
+
+    foreach (TESTPROG ${TESTPROGS})
+        add_test(${TESTPROG} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
+    endforeach()
+
+    # Dump events test.
+    if (PYTHONINTERP_FOUND)
+        add_custom_command(
+            OUTPUT
+                ${CMAKE_CURRENT_BINARY_DIR}/test/eventdump
+            DEPENDS
+                test-dumpevents
+            COMMAND test-dumpevents
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test
+            )
+    endif()
+
+    #
+    # Regress tests.
+    #
     if (PYTHONINTERP_FOUND)
         message("Generating regress tests...")
         add_definitions(-DTINYTEST_LOCAL)
@@ -616,35 +645,51 @@ if (NOT EVENT__DISABLE_TESTS)
             )
 
         list(APPEND SRC_REGRESS 
-            test/regress.c 
-            test/regress_buffer.c 
-            test/regress_http.c 
-            test/regress_dns.c 
-            test/regress_testutils.c 
-            test/regress_testutils.h 
-            test/regress_rpc.c 
-            test/regress_et.c 
-            test/regress_bufferevent.c 
-            test/regress_listener.c 
-            test/regress_util.c 
-            test/tinytest.c 
-            test/regress_main.c 
-            test/regress_minheap.c
+            test/regress.c
             test/regress.gen.c
             test/regress.gen.h
+            test/regress_buffer.c
+            test/regress_bufferevent.c
+            test/regress_dns.c
+            test/regress_et.c
             test/regress_finalize.c
+            test/regress_http.c 
+            test/regress_listener.c 
+            test/regress_main.c
+            test/regress_minheap.c
+            test/regress_rpc.c
+            test/regress_testutils.c
+            test/regress_testutils.h
+            test/regress_util.c 
+            test/tinytest.c
             )
- 
+
+        if (WIN32)
+            list(APPEND SRC_REGRESS test/regress_iocp.c)
+            list(APPEND SRC_REGRESS test/regress_thread.c)
+        endif()
+
+        if (CMAKE_USE_PTHREADS_INIT)
+            list(APPEND SRC_REGRESS test/regress_thread.c)
+        endif()
+
+        if (ZLIB_LIBRARY)
+            list(APPEND SRC_REGRESS test/regress_zlib.c)
+        endif()
+
+        if (OPENSSL_LIBRARIES)
+            list(APPEND SRC_REGRESS test/regress_ssl.c)
+        endif()
+
         add_executable(regress ${SRC_REGRESS})
         target_link_libraries(regress event ${LIB_REGRESS} ${LIB_PLATFORM})
+
+        add_test(regress ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
     else()
         message(WARNING "Python not found, cannot generate regress tests!")
     endif()
 
-    # Tests.
     enable_testing()
-
-    add_test(regress "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${EXECUTABLE_OUTPUT_PATH}/regress")
 
     include(CTest)
 endif()
