@@ -558,9 +558,17 @@ source_group("Headers Public"   FILES ${HDR_PUBLIC})
 source_group("Source Core"      FILES ${SRC_CORE})
 source_group("Source Extra"     FILES ${SRC_EXTRA})
 
+# Generate the configure headers.
+# (Place them in the build dir so we don't polute the source tree with generated files).
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
+
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/event-config.h.cmake 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/event2/event-config.h)
+    ${CMAKE_CURRENT_BINARY_DIR}/include/event2/event-config.h)
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/evconfig-private.h.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/include/evconfig-private.h)
 
 # TODO: Add dynamic versions of the libraries as well.
 add_library(event_core STATIC
@@ -681,7 +689,7 @@ if (NOT EVENT__DISABLE_TESTS)
     set(BACKENDS EVPORT KQUEUE EPOLL DEVPOLL POLL SELECT WIN32)
     set(DEFAULT_TEST_ENV_VARS "")
     foreach(BACKEND ${BACKENDS})
-        list(APPEND DEFAULT_TEST_ENV_VARS "EVENT_NO${BACKEND}")
+        list(APPEND DEFAULT_TEST_ENV_VARS "EVENT_NO${BACKEND}=1")
     endforeach()
 
     # Macro that creates the ctest test for a backend.
