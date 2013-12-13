@@ -550,7 +550,11 @@ if(WIN32)
     set(EVENT__DNS_USE_FTIME_FOR_ID 1)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE)
     set(LIB_PLATFORM ws2_32)
-	include_directories(./WIN32-Code)
+    include_directories(./WIN32-Code)
+endif()
+
+if (UNIX)
+    list(APPEND LIB_PLATFORM m)
 endif()
 
 source_group("Headers Private"  FILES ${HDR_PRIVATE})
