@@ -27,13 +27,16 @@ set(EVENT_NUMERIC_VERSION 0x02010401)
 set(EVENT_VERSION "2.1.4-beta")
 set(EVENT_PACKAGE_VERSION "")
 
-option(EVENT__DISABLE_DEBUG_MODE "Define if libevent should build without support for a debug mode" 0)
-option(EVENT__DISABLE_MM_REPLACEMENT "Define if libevent should not allow replacing the mm functions" 0)
-option(EVENT__DISABLE_THREAD_SUPPORT "Define if libevent should not be compiled with thread support" 0)
-option(EVENT__DISABLE_OPENSSL "Define if libevent should build without support for OpenSSL encrpytion" 0)
-option(EVENT__DISABLE_BENCHMARK "Defines if libevent should build without the benchmark exectuables" 0)
-option(EVENT__DISABLE_TESTS "If tests should be compiled or not" 0)
-option(EVENT__DISABLE_REGRESS "Disable the regress tests" 0)
+option(EVENT__DISABLE_DEBUG_MODE "Define if libevent should build without support for a debug mode" OFF)
+option(EVENT__ENABLE_VERBOSE_DEBUG "Enables verbose debugging" OFF)
+option(EVENT__DISABLE_MM_REPLACEMENT "Define if libevent should not allow replacing the mm functions" OFF)
+option(EVENT__DISABLE_THREAD_SUPPORT "Define if libevent should not be compiled with thread support" OFF)
+option(EVENT__DISABLE_OPENSSL "Define if libevent should build without support for OpenSSL encrpytion" OFF)
+option(EVENT__DISABLE_BENCHMARK "Defines if libevent should build without the benchmark exectuables" OFF)
+option(EVENT__DISABLE_TESTS "If tests should be compiled or not" OFF)
+option(EVENT__DISABLE_REGRESS "Disable the regress tests" OFF)
+# TODO: Add --enable-verbose-debug, verbose debug logging
+# TODO: Add --disable-largefile     omit support for large files
 
 # Put the libaries and binaries that get built into directories at the
 # top of the build tree rather than in hard-to-find leaf directories. 
@@ -55,6 +58,35 @@ include(CheckCSourceCompiles)
 include(CheckPrototypeDefinition)
 
 include(FindZLIB)    # -> HAVE_LIBZ
+
+if (CMAKE_COMPILER_IS_GNUCC)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+
+    option(EVENT__DISABLE_GCC_WARNINGS "Disable verbose warnings with GCC" OFF)
+    if (EVENT__DISABLE_GCC_WARNINGS)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w")
+    endif()
+
+    option(EVENT__ENABLE_GCC_HARDENING "Enable compiler security checks" OFF)
+    if (EVENT__ENABLE_GCC_HARDENING)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_FORTIFY_SOURCE=2 -fstack-protector-all -fwrapv -fPIE -Wstack-protector --param ssp-buffer-size=1")
+    endif()
+
+    option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
+    if (EVENT__ENABLE_GCC_FUNCTION_SECTIONS)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections")
+        # TODO: Add --gc-sections support. We need some checks for NetBSD to ensure this works.
+    endif()
+
+    # We need to test for at least gcc 2.95 here, because older versions don't
+    # have -fno-strict-aliasing
+    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion
+                    OUTPUT_VARIABLE GCC_VERSION)
+    if (GCC_VERSION VERSION_GREATER 2.95)
+        message(STATUS "GCC Version >= 2.95 enabling no-strict-aliasing")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing")
+    endif()
+endif()
 
 # Winsock.
 if(WIN32)
@@ -500,7 +532,7 @@ if (NOT EVENT__DISABLE_OPENSSL)
     include_directories(${OPENSSL_INCLUDE_DIR})
     list(APPEND SRC_CORE bufferevent_openssl.c)
     list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
-    list(APPEND LIB_REGRESS ${OPENSSL_LIBRARIES})
+    list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
 endif()
 
 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
@@ -513,7 +545,7 @@ if (NOT EVENT__DISABLE_THREAD_SUPPORT)
         endif()
         set(EVENT__HAVE_PTHREADS 1)
         list(APPEND SRC_CORE evthread_pthread.c)
-        list(APPEND LIB_REGRESS ${CMAKE_THREAD_LIBS_INIT})
+        list(APPEND LIB_APPS ${CMAKE_THREAD_LIBS_INIT})
     endif()
 endif()
 
@@ -521,7 +553,7 @@ if (ZLIB_LIBRARY)
     set(EVENT__HAVE_ZLIB 1)
     set(EVENT__HAVE_ZLIB_H)
     include_directories(${ZLIB_INCLUDE_DIRS})
-    list(APPEND LIB_REGRESS ${ZLIB_LIBRARIES})
+    list(APPEND LIB_APPS ${ZLIB_LIBRARIES})
 endif()
 
 set(SRC_EXTRA
@@ -593,7 +625,28 @@ add_library(event STATIC
     )
 
 if (NOT EVENT__DISABLE_SAMPLES)
-    # TODO: Add samples.
+    set(SAMPLES
+        dns-example
+        event-read-fifo
+        hello-world
+        le-proxy
+        signal-test
+        http-server
+        time-test)
+
+    if (OPENSSL_LIBRARIES)
+         # Special sample with more than one file.
+        add_executable(https-client
+            sample/https-client.c
+            sample/openssl_hostname_validation.c
+            sample/hostcheck.c)
+        target_link_libraries(https-client event ${LIB_APPS} ${LIB_PLATFORM})
+    endif()
+
+    foreach(SAMPLE ${SAMPLES})
+        add_executable(${SAMPLE} sample/${SAMPLE}.c)
+        target_link_libraries(${SAMPLE} event ${LIB_APPS} ${LIB_PLATFORM})
+    endforeach()
 endif()
 
 if (NOT EVENT__DISABLE_BENCHMARK)
@@ -663,7 +716,7 @@ if (NOT EVENT__DISABLE_TESTS)
         endif()
 
         add_executable(regress ${SRC_REGRESS})
-        target_link_libraries(regress event ${LIB_REGRESS} ${LIB_PLATFORM})
+        target_link_libraries(regress event ${LIB_APPS} ${LIB_PLATFORM})
     else()
         message(WARNING "Python not found, cannot generate regress tests!")
     endif()
@@ -724,7 +777,7 @@ if (NOT EVENT__DISABLE_TESTS)
     foreach(BACKEND ${BACKENDS})
         # Enable this backend only.
         set(BACKEND_ENV_VARS ${DEFAULT_TEST_ENV_VARS})
-        list(REMOVE_ITEM BACKEND_ENV_VARS EVENT_NO${BACKEND})
+        list(REMOVE_ITEM BACKEND_ENV_VARS EVENT_NO${BACKEND}=1)
 
         # Epoll has some extra settings.
         if (${BACKEND} STREQUAL "EPOLL")
