@@ -26,7 +26,7 @@ timer64 timer32 timer16 timer8 timer: timer.c
 .PHONY: clean clean!
 
 clean:
-	$(RM) -r timer *.dSYM
+	$(RM) -r timer timer8 timer16 timer32 timer64 *.dSYM
 
 clean~: clean
 	$(RM) *~
