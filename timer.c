@@ -33,17 +33,19 @@
 #include <sys/queue.h>
 
 #include "timer.h"
+
+#if TIMER_DEBUG - 0 || TIMER_MAIN - 0
 #include "debug.h"
-
-
-#define abstime_t timeout_t /* for documentation purposes */
-#define reltime_t timeout_t /* "" */
+#endif
 
 
 /*
  * A N C I L L A R Y  R O U T I N E S
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#define abstime_t timeout_t /* for documentation purposes */
+#define reltime_t timeout_t /* "" */
 
 #if !defined countof
 #define countof(a) (sizeof (a) / sizeof *(a))
@@ -181,38 +183,11 @@ static inline wheel_t rotr(const wheel_t v, int c) {
 
 
 /*
- * T I M E O U T  R O U T I N E S
+ * T I M E R  R O U T I N E S
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 TAILQ_HEAD(timeout_list, timeout);
-
-#define TIMEOUT_INITIALIZER { 0, 0, { 0, 0 } }
-
-struct timeout {
-	int flags;
-
-	timeout_t expires;
-
-	struct timeout_list *pending;
-
-	TAILQ_ENTRY(timeout) tqe;
-}; /* struct timeout */
-
-
-struct timeout *timeout_init(struct timeout *to, int flags) {
-	memset(to, 0, sizeof *to);
-
-	to->flags = flags;
-
-	return to;
-} /* timeout_init() */
-
-
-/*
- * T I M E R  R O U T I N E S
- *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 struct timeouts {
 	struct timeout_list wheel[WHEEL_NUM][WHEEL_LEN], expired;
@@ -258,6 +233,7 @@ void timeouts_del(struct timeouts *T, struct timeout *to) {
 
 		TAILQ_REMOVE(to->pending, to, tqe);
 		to->pending = NULL;
+		to->timeouts = NULL;
 	}
 } /* timeouts_del() */
 
@@ -277,13 +253,15 @@ static inline int timeout_slot(int wheel, timeout_t expires) {
 } /* timeout_slot() */
 
 
-void timeouts_add(struct timeouts *T, struct timeout *to, timeout_t expires) {
+static void timeouts_sched(struct timeouts *T, struct timeout *to, timeout_t expires) {
 	timeout_t rem;
 	int wheel, slot;
 
 	timeouts_del(T, to);
 
 	to->expires = expires;
+
+	to->timeouts = T;
 
 	if (expires > T->curtime) {
 		rem = timeout_rem(T, to);
@@ -299,10 +277,48 @@ void timeouts_add(struct timeouts *T, struct timeout *to, timeout_t expires) {
 		to->pending = &T->expired;
 		TAILQ_INSERT_TAIL(to->pending, to, tqe);
 	}
+} /* timeouts_sched() */
+
+
+static void timeouts_readd(struct timeouts *T, struct timeout *to) {
+	to->expires += to->interval;
+
+	if (to->expires <= T->curtime) {
+		if (to->expires < T->curtime) {
+			timeout_t n = T->curtime - to->expires;
+			timeout_t q = n / to->interval;
+			timeout_t r = n % to->interval;
+
+			if (r)
+				to->expires += (to->interval * q) + (to->interval - r);
+			else
+				to->expires += (to->interval * q);
+		} else {
+			to->expires += to->interval;
+		}
+	}
+
+	timeouts_sched(T, to, to->expires);
+} /* timeouts_readd() */
+
+
+void timeouts_add(struct timeouts *T, struct timeout *to, timeout_t timeout) {
+	if (to->flags & TIMEOUT_INT)
+		to->interval = MAX(1, timeout);
+
+	if (to->flags & TIMEOUT_ABS)
+		timeouts_sched(T, to, timeout);
+	else
+		timeouts_sched(T, to, T->curtime + timeout);
 } /* timeouts_add() */
 
 
-void timeouts_step(struct timeouts *T, abstime_t curtime) {
+void timeouts_addf(struct timeouts *T, struct timeout *to, double timeout) {
+	timeouts_add(T, to, timeout * T->hertz);
+} /* timeouts_addf() */
+
+
+void timeouts_update(struct timeouts *T, abstime_t curtime) {
 	timeout_t elapsed = curtime - T->curtime;
 	struct timeout_list todo;
 	int wheel;
@@ -360,10 +376,15 @@ void timeouts_step(struct timeouts *T, abstime_t curtime) {
 		TAILQ_REMOVE(&todo, to, tqe);
 		to->pending = 0;
 
-		timeouts_add(T, to, to->expires);
+		timeouts_sched(T, to, to->expires);
 	}
 
 	return;
+} /* timeouts_update() */
+
+
+void timeouts_step(struct timeouts *T, reltime_t elapsed) {
+	timeouts_update(T, T->curtime + elapsed);
 } /* timeouts_step() */
 
 
@@ -385,7 +406,8 @@ bool timeouts_expired(struct timeouts *T) {
 
 
 /*
- * Calculate a minimum timeout value for timeouts pending on our wheels.
+ * Calculate the interval before needing to process any timeouts pending on
+ * any wheel.
  *
  * (This is separated from the public API routine so we can evaluate our
  * wheel invariant assertions irrespective of the expired queue.)
@@ -399,7 +421,7 @@ bool timeouts_expired(struct timeouts *T) {
  *
  * We should never return a timeout larger than the lowest actual timeout.
  */
-static timeout_t tms__timeout(struct timeouts *T) {
+static timeout_t timeouts_int(struct timeouts *T) {
 	timeout_t timeout = ~TIMEOUT_C(0), _timeout;
 	timeout_t relmask;
 	int wheel, slot;
@@ -424,20 +446,19 @@ static timeout_t tms__timeout(struct timeouts *T) {
 	}
 
 	return timeout;
-} /* tms__timeout() */
+} /* timeouts_int() */
 
 
 /*
- * Calculate a timeout that our caller can wait before updating and
- * processing the wheel.
+ * Calculate the interval our caller can wait before needing to process
+ * events.
  */
 timeout_t timeouts_timeout(struct timeouts *T) {
 	if (!TAILQ_EMPTY(&T->expired))
 		return 0;
 
-	return tms__timeout(T);
+	return timeouts_int(T);
 } /* timeouts_timeout() */
-
 
 
 struct timeout *timeouts_get(struct timeouts *T) {
@@ -446,6 +467,12 @@ struct timeout *timeouts_get(struct timeouts *T) {
 
 		TAILQ_REMOVE(&T->expired, to, tqe);
 		to->pending = 0;
+
+		if ((to->flags & TIMEOUT_INT) && to->interval > 0) {
+			timeouts_readd(T, to);
+		} else {
+			to->timeouts = 0;
+		}
 
 		return to;
 	} else {
@@ -458,7 +485,7 @@ struct timeout *timeouts_get(struct timeouts *T) {
  * Use dumb looping to locate the earliest timeout pending on the wheel so
  * our invariant assertions can check the result of our optimized code.
  */
-static struct timeout *tms__min(struct timeouts *T) {
+static struct timeout *timeouts_min(struct timeouts *T) {
 	struct timeout *to, *min = NULL;
 	unsigned i, j;
 
@@ -472,7 +499,7 @@ static struct timeout *tms__min(struct timeouts *T) {
 	}
 
 	return min;
-} /* tms__min() */
+} /* timeouts_min() */
 
 
 /*
@@ -495,10 +522,10 @@ bool timeouts_check(struct timeouts *T, FILE *fp) {
 	timeout_t timeout;
 	struct timeout *to;
 
-	if ((to = tms__min(T))) {
+	if ((to = timeouts_min(T))) {
 		check(to->expires > T->curtime, "missed timeout (expires:%" TIMEOUT_PRIu " <= curtime:%" TIMEOUT_PRIu ")\n", to->expires, T->curtime);
 
-		timeout = tms__timeout(T);
+		timeout = timeouts_int(T);
 		check(timeout <= to->expires - T->curtime, "wrong soft timeout (soft:%" TIMEOUT_PRIu " > hard:%" TIMEOUT_PRIu ") (expires:%" TIMEOUT_PRIu "; curtime:%" TIMEOUT_PRIu ")\n", timeout, (to->expires - T->curtime), to->expires, T->curtime);
 
 		timeout = timeouts_timeout(T);
@@ -516,6 +543,35 @@ bool timeouts_check(struct timeouts *T, FILE *fp) {
 } /* timeouts_check() */
 
 
+/*
+ * T I M E O U T  R O U T I N E S
+ *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+struct timeout *timeout_init(struct timeout *to, int flags) {
+	memset(to, 0, sizeof *to);
+
+	to->flags = flags;
+
+	return to;
+} /* timeout_init() */
+
+
+bool timeout_pending(struct timeout *to) {
+	return to->pending && to->pending != &to->timeouts->expired;
+} /* timeout_pending() */
+
+
+bool timeout_expired(struct timeout *to) {
+	return to->pending && to->pending == &to->timeouts->expired;
+} /* timeout_expired() */
+
+
+void timeout_del(struct timeout *to) {
+	timeouts_del(to->timeouts, to);
+} /* timeout_del() */
+
+
 #if TIMER_MAIN - 0
 
 #include <stdio.h>
@@ -524,7 +580,7 @@ bool timeouts_check(struct timeouts *T, FILE *fp) {
 
 
 static timeout_t slow_timeout(struct timeouts *T) {
-	struct timeout *to = tms__min(T);
+	struct timeout *to = timeouts_min(T);
 
 	return (to)? to->expires - T->curtime : 0;
 } /* slow_timeout() */
@@ -569,15 +625,15 @@ int main(int argc, char **argv) {
 	argv += optind;
 
 	timeouts_init(&T, TIMEOUT_mHZ);
-	timeouts_step(&T, time);
-	timeouts_add(&T, timeout_init(&to[0], 0), time + 62); count++;
-	timeouts_add(&T, timeout_init(&to[1], 0), time + 63); count++;
-	timeouts_add(&T, timeout_init(&to[2], 0), time + 64); count++;
-	timeouts_add(&T, timeout_init(&to[3], 0), time + 65); count++;
-	timeouts_add(&T, timeout_init(&to[5], 0), time + 192); count++;
-	timeouts_add(&T, timeout_init(&to[6], 0), time + 6); count++;
-	timeouts_add(&T, timeout_init(&to[7], 0), time + 7); count++;
-	timeouts_add(&T, timeout_init(&to[8], 0), time + 8); count++;
+	timeouts_update(&T, time);
+	timeouts_add(&T, timeout_init(&to[0], 0), 62); count++;
+	timeouts_add(&T, timeout_init(&to[1], 0), 63); count++;
+	timeouts_add(&T, timeout_init(&to[2], 0), 64); count++;
+	timeouts_add(&T, timeout_init(&to[3], 0), 65); count++;
+	timeouts_add(&T, timeout_init(&to[5], 0), 192); count++;
+	timeouts_add(&T, timeout_init(&to[6], 0), 6); count++;
+	timeouts_add(&T, timeout_init(&to[7], 0), 7); count++;
+	timeouts_add(&T, timeout_init(&to[8], 0), 8); count++;
 
 	while (count > 0 && time <= stop - 1) {
 		time += step;
@@ -585,7 +641,7 @@ int main(int argc, char **argv) {
 		SAY("timeout -> %" TIMEOUT_PRIu " (actual:%" TIMEOUT_PRIu " curtime:%" TIMEOUT_PRIu ")", timeouts_timeout(&T), slow_timeout(&T), T.curtime);
 
 		timeouts_check(&T, stderr);
-		timeouts_step(&T, time);
+		timeouts_update(&T, time);
 		timeouts_check(&T, stderr);
 
 		while ((expired = timeouts_get(&T))) {
