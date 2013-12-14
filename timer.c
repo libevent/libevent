@@ -61,24 +61,16 @@
 #define MAX(a, b) (((a) > (b))? (a) : (b))
 #endif
 
-#define CIRCLEQ_CONCAT(head1, head2, field) do {			\
-	if (!CIRCLEQ_EMPTY(head2)) {					\
-		if (!CIRCLEQ_EMPTY(head1)) {				\
-			(head1)->cqh_last->field.cqe_next =		\
-			    (head2)->cqh_first;				\
-			(head2)->cqh_first->field.cqe_prev =		\
-			    (head1)->cqh_last;				\
-		} else {						\
-			(head1)->cqh_first = (head2)->cqh_first;	\
-			(head2)->cqh_first->field.cqe_prev =		\
-			    (void *)(head1);				\
-		}							\
-		(head1)->cqh_last = (head2)->cqh_last;			\
-		(head2)->cqh_last->field.cqe_next =			\
-		    (void *)(head1);					\
-		CIRCLEQ_INIT(head2);					\
-	}								\
+#if !defined TAILQ_CONCAT
+#define	TAILQ_CONCAT(head1, head2, field) do {                          \
+	if (!TAILQ_EMPTY(head2)) {                                      \
+		*(head1)->tqh_last = (head2)->tqh_first;                \
+		(head2)->tqh_first->field.tqe_prev = (head1)->tqh_last; \
+		(head1)->tqh_last = (head2)->tqh_last;                  \
+		TAILQ_INIT((head2));                                    \
+	}                                                               \
 } while (0)
+#endif
 
 
 /*
@@ -193,7 +185,7 @@ static inline wheel_t rotr(const wheel_t v, int c) {
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-CIRCLEQ_HEAD(timeout_list, timeout);
+TAILQ_HEAD(timeout_list, timeout);
 
 #define TIMEOUT_INITIALIZER { 0, 0, { 0, 0 } }
 
@@ -203,7 +195,8 @@ struct timeout {
 	timeout_t expires;
 
 	struct timeout_list *pending;
-	CIRCLEQ_ENTRY(timeout) cqe;
+
+	TAILQ_ENTRY(timeout) tqe;
 }; /* struct timeout */
 
 
@@ -236,11 +229,11 @@ static struct timeouts *timeouts_init(struct timeouts *T, timeout_t hz) {
 
 	for (i = 0; i < countof(T->wheel); i++) {
 		for (j = 0; j < countof(T->wheel[i]); j++) {
-			CIRCLEQ_INIT(&T->wheel[i][j]);
+			TAILQ_INIT(&T->wheel[i][j]);
 		}
 	}
 
-	CIRCLEQ_INIT(&T->expired);
+	TAILQ_INIT(&T->expired);
 
 	for (i = 0; i < countof(T->pending); i++) {
 		T->pending[i] = 0;
@@ -255,7 +248,7 @@ static struct timeouts *timeouts_init(struct timeouts *T, timeout_t hz) {
 
 void timeouts_del(struct timeouts *T, struct timeout *to) {
 	if (to->pending) {
-		if (to->pending != &T->expired && CIRCLEQ_EMPTY(to->pending)) {
+		if (to->pending != &T->expired && TAILQ_EMPTY(to->pending)) {
 			ptrdiff_t index = to->pending - &T->wheel[0][0];
 			int wheel = index / WHEEL_LEN;
 			int slot = index % WHEEL_LEN;
@@ -263,7 +256,7 @@ void timeouts_del(struct timeouts *T, struct timeout *to) {
 			T->pending[wheel] &= ~(WHEEL_C(1) << slot);
 		}
 
-		CIRCLEQ_REMOVE(to->pending, to, cqe);
+		TAILQ_REMOVE(to->pending, to, tqe);
 		to->pending = NULL;
 	}
 } /* timeouts_del() */
@@ -299,12 +292,12 @@ void timeouts_add(struct timeouts *T, struct timeout *to, timeout_t expires) {
 		slot = timeout_slot(wheel, to->expires);
 
 		to->pending = &T->wheel[wheel][slot];
-		CIRCLEQ_INSERT_HEAD(to->pending, to, cqe);
+		TAILQ_INSERT_TAIL(to->pending, to, tqe);
 
 		T->pending[wheel] |= WHEEL_C(1) << slot;
 	} else {
 		to->pending = &T->expired;
-		CIRCLEQ_INSERT_HEAD(to->pending, to, cqe);
+		TAILQ_INSERT_TAIL(to->pending, to, tqe);
 	}
 } /* timeouts_add() */
 
@@ -314,7 +307,7 @@ void timeouts_step(struct timeouts *T, abstime_t curtime) {
 	struct timeout_list todo;
 	int wheel;
 
-	CIRCLEQ_INIT(&todo);
+	TAILQ_INIT(&todo);
 
 	/*
 	 * There's no avoiding looping over every wheel. It's best to keep
@@ -348,7 +341,7 @@ void timeouts_step(struct timeouts *T, abstime_t curtime) {
 
 		while (pending & T->pending[wheel]) {
 			int slot = ctz(pending & T->pending[wheel]);
-			CIRCLEQ_CONCAT(&todo, &T->wheel[wheel][slot], cqe);
+			TAILQ_CONCAT(&todo, &T->wheel[wheel][slot], tqe);
 			T->pending[wheel] &= ~(UINT64_C(1) << slot);
 		}
 
@@ -361,10 +354,10 @@ void timeouts_step(struct timeouts *T, abstime_t curtime) {
 
 	T->curtime = curtime;
 
-	while (!CIRCLEQ_EMPTY(&todo)) {
-		struct timeout *to = CIRCLEQ_FIRST(&todo);
+	while (!TAILQ_EMPTY(&todo)) {
+		struct timeout *to = TAILQ_FIRST(&todo);
 
-		CIRCLEQ_REMOVE(&todo, to, cqe);
+		TAILQ_REMOVE(&todo, to, tqe);
 		to->pending = 0;
 
 		timeouts_add(T, to, to->expires);
@@ -387,7 +380,7 @@ bool timeouts_pending(struct timeouts *T) {
 
 
 bool timeouts_expired(struct timeouts *T) {
-	return !CIRCLEQ_EMPTY(&T->expired);
+	return !TAILQ_EMPTY(&T->expired);
 } /* timeouts_expired() */
 
 
@@ -435,7 +428,7 @@ static timeout_t tms__timeout(struct timeouts *T) {
  * processing the wheel.
  */
 timeout_t timeouts_timeout(struct timeouts *T) {
-	if (!CIRCLEQ_EMPTY(&T->expired))
+	if (!TAILQ_EMPTY(&T->expired))
 		return 0;
 
 	return tms__timeout(T);
@@ -444,10 +437,10 @@ timeout_t timeouts_timeout(struct timeouts *T) {
 
 
 struct timeout *timeouts_get(struct timeouts *T) {
-	if (!CIRCLEQ_EMPTY(&T->expired)) {
-		struct timeout *to = CIRCLEQ_FIRST(&T->expired);
+	if (!TAILQ_EMPTY(&T->expired)) {
+		struct timeout *to = TAILQ_FIRST(&T->expired);
 
-		CIRCLEQ_REMOVE(&T->expired, to, cqe);
+		TAILQ_REMOVE(&T->expired, to, tqe);
 		to->pending = 0;
 
 		return to;
@@ -467,7 +460,7 @@ static struct timeout *tms__min(struct timeouts *T) {
 
 	for (i = 0; i < countof(T->wheel); i++) {
 		for (j = 0; j < countof(T->wheel[i]); j++) {
-			CIRCLEQ_FOREACH(to, &T->wheel[i][j], cqe) {
+			TAILQ_FOREACH(to, &T->wheel[i][j], tqe) {
 				if (!min || to->expires < min->expires)
 					min = to;
 			}
@@ -509,7 +502,7 @@ bool timeouts_check(struct timeouts *T, FILE *fp) {
 	} else {
 		timeout = timeouts_timeout(T);
 
-		if (!CIRCLEQ_EMPTY(&T->expired))
+		if (!TAILQ_EMPTY(&T->expired))
 			check(timeout == 0, "wrong soft timeout (soft:%" TIMEOUT_PRIu " != hard:%" TIMEOUT_PRIu ")\n", timeout, TIMEOUT_C(0));
 		else
 			check(timeout == ~TIMEOUT_C(0), "wrong soft timeout (soft:%" TIMEOUT_PRIu " != hard:%" TIMEOUT_PRIu ")\n", timeout, ~TIMEOUT_C(0));
