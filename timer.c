@@ -431,8 +431,8 @@ static timeout_t tms__timeout(struct timeouts *T) {
 
 
 /*
- * Provide a minimum timeout for our caller. If anything is pending on
- * the expiration queue return 0, beca
+ * Calculate a timeout that our caller can wait before updating and
+ * processing the wheel.
  */
 timeout_t timeouts_timeout(struct timeouts *T) {
 	if (!CIRCLEQ_EMPTY(&T->expired))
@@ -458,7 +458,8 @@ struct timeout *timeouts_get(struct timeouts *T) {
 
 
 /*
- * Use dumb looping to locate the earliest timeout pending on the wheel.
+ * Use dumb looping to locate the earliest timeout pending on the wheel so
+ * our invariant assertions can check the result of our optimized code.
  */
 static struct timeout *tms__min(struct timeouts *T) {
 	struct timeout *to, *min = NULL;
