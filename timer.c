@@ -390,10 +390,14 @@ bool timeouts_expired(struct timeouts *T) {
  * (This is separated from the public API routine so we can evaluate our
  * wheel invariant assertions irrespective of the expired queue.)
  *
- * This might return a timeout value sooner than any installed timeout
- * because of our need to handle wheel rollover, and because with each
- * higher order wheel we precision in knowing exactly when the next timeout
- * will be.
+ * This might return a timeout value sooner than any installed timeout if
+ * only higher-order wheels have timeouts pending. We can only know when to
+ * process a wheel, not precisely when a timeout is scheduled. Our timeout
+ * accuracy could be off by 2^(N*M)-1 units where N is the wheel number and
+ * M is WHEEL_BIT. Only timeouts which have fallen through to wheel 0 can be
+ * known exactly.
+ *
+ * We should never return a timeout larger than the lowest actual timeout.
  */
 static timeout_t tms__timeout(struct timeouts *T) {
 	timeout_t timeout = ~TIMEOUT_C(0), _timeout;
