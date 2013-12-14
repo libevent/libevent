@@ -22,7 +22,7 @@ timeout64 timeout32 timeout16 timeout8 timeout: timeout.c
 
 
 
-.PHONY: clean clean!
+.PHONY: clean clean~
 
 clean:
 	$(RM) -r timeout timeout8 timeout16 timeout32 timeout64 *.dSYM
