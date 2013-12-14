@@ -1,22 +1,22 @@
-all: timer timer8 timer16 timer32 timer64
+all: timeout timeout8 timeout16 timeout32 timeout64
 
 WHEEL_BIT = 6
 WHEEL_NUM = 4
 
-CPPFLAGS = -DTIMER_DEBUG -DTIMER_MAIN
+CPPFLAGS = -DTIMEOUT_DEBUG -DTIMEOUT_MAIN
 CFLAGS = -O2 -g -Wall -Wextra
 
-timer: CPPFLAGS+=-DWHEEL_BIT=$(WHEEL_BIT) -DWHEEL_NUM=$(WHEEL_NUM)
+timeout: CPPFLAGS+=-DWHEEL_BIT=$(WHEEL_BIT) -DWHEEL_NUM=$(WHEEL_NUM)
 
-timer8: CPPFLAGS+=-DWHEEL_BIT=3 -DWHEEL_NUM=$(WHEEL_NUM)
+timeout8: CPPFLAGS+=-DWHEEL_BIT=3 -DWHEEL_NUM=$(WHEEL_NUM)
 
-timer16: CPPFLAGS+=-DWHEEL_BIT=4 -DWHEEL_NUM=$(WHEEL_NUM)
+timeout16: CPPFLAGS+=-DWHEEL_BIT=4 -DWHEEL_NUM=$(WHEEL_NUM)
 
-timer32: CPPFLAGS+=-DWHEEL_BIT=5 -DWHEEL_NUM=$(WHEEL_NUM)
+timeout32: CPPFLAGS+=-DWHEEL_BIT=5 -DWHEEL_NUM=$(WHEEL_NUM)
 
-timer64: CPPFLAGS+=-DWHEEL_BIT=6 -DWHEEL_NUM=$(WHEEL_NUM)
+timeout64: CPPFLAGS+=-DWHEEL_BIT=6 -DWHEEL_NUM=$(WHEEL_NUM)
 
-timer64 timer32 timer16 timer8 timer: timer.c
+timeout64 timeout32 timeout16 timeout8 timeout: timeout.c
 	$(CC) $(CFLAGS) -o $@ $^ $(CPPFLAGS)
 
 
@@ -25,7 +25,7 @@ timer64 timer32 timer16 timer8 timer: timer.c
 .PHONY: clean clean!
 
 clean:
-	$(RM) -r timer timer8 timer16 timer32 timer64 *.dSYM
+	$(RM) -r timeout timeout8 timeout16 timeout32 timeout64 *.dSYM
 
 clean~: clean
 	$(RM) *~

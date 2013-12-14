@@ -1,5 +1,5 @@
 /* ==========================================================================
- * timer.h - Tickless hierarchical timing wheel.
+ * timeout.h - Tickless hierarchical timing wheel.
  * --------------------------------------------------------------------------
  * Copyright (c) 2013  William Ahern
  *
@@ -23,8 +23,8 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  * ==========================================================================
  */
-#ifndef TIMER_H
-#define TIMER_H
+#ifndef TIMEOUT_H
+#define TIMEOUT_H
 
 #include <stdbool.h>    /* bool */
 #include <stdio.h>      /* FILE */
@@ -153,4 +153,4 @@ bool timeouts_check(struct timeouts *, FILE *);
 /* return true if invariants hold. describes failures to optional file handle. */
 
 
-#endif /* TIMER_H */
+#endif /* TIMEOUT_H */

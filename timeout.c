@@ -1,5 +1,5 @@
 /* ==========================================================================
- * timer.c - Tickless hierarchical timing wheel.
+ * timeout.c - Tickless hierarchical timing wheel.
  * --------------------------------------------------------------------------
  * Copyright (c) 2013  William Ahern
  *
@@ -32,9 +32,9 @@
 
 #include <sys/queue.h>
 
-#include "timer.h"
+#include "timeout.h"
 
-#if TIMER_DEBUG - 0 || TIMER_MAIN - 0
+#if TIMEOUT_DEBUG - 0 || TIMEOUT_MAIN - 0
 #include "debug.h"
 #endif
 
@@ -572,7 +572,7 @@ void timeout_del(struct timeout *to) {
 } /* timeout_del() */
 
 
-#if TIMER_MAIN - 0
+#if TIMEOUT_MAIN - 0
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -615,7 +615,7 @@ int main(int argc, char **argv) {
 
 			break;
 		case 'v':
-			timer_debug++;
+			timeout_debug++;
 
 			break;
 		}
@@ -656,4 +656,4 @@ int main(int argc, char **argv) {
 	return 0;
 } /* main() */
 
-#endif /* TIMER_MAIN */
+#endif /* TIMEOUT_MAIN */

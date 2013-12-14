@@ -3,15 +3,15 @@
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#if TIMER_DEBUG - 0 || TIMER_MAIN - 0
+#if TIMEOUT_DEBUG - 0 || TIMEOUT_MAIN - 0
 #include <stdlib.h>
 #include <stdio.h>
 
-#undef TIMER_DEBUG
-#define TIMER_DEBUG 1
-#define DEBUG_LEVEL timer_debug
+#undef TIMEOUT_DEBUG
+#define TIMEOUT_DEBUG 1
+#define DEBUG_LEVEL timeout_debug
 
-static int timer_debug;
+static int timeout_debug;
 
 #define SAYit_(lvl, fmt, ...) do { \
 	if (DEBUG_LEVEL >= (lvl)) \
@@ -25,8 +25,8 @@ static int timer_debug;
 	_Exit(EXIT_FAILURE); \
 } while (0)
 #else
-#undef TIMER_DEBUG
-#define TIMER_DEBUG 0
+#undef TIMEOUT_DEBUG
+#define TIMEOUT_DEBUG 0
 #define DEBUG_LEVEL 0
 
 #define SAYit(...) (void)0
