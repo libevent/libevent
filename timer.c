@@ -108,10 +108,6 @@
  * routines, which only operate on all the value bits in an integer, and
  * there's no integer smaller than uint8_t.
  *
- * NOTE: Whether our bit-fiddling solution is quicker than looping through
- * all the slots is unproven. I hope to do this after this library
- * stabilizes.
- *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #if !defined WHEEL_BIT
@@ -335,20 +331,17 @@ void timeouts_step(struct timeouts *T, abstime_t curtime) {
 		 *
 		 * Otherwise, to determine the expired slots fill in all the
 		 * bits between the last slot processed and the current
-		 * slot, inclusive of the last slot.
+		 * slot, inclusive of the last slot. We'll bitwise-AND this
+		 * with our pending set below.
+		 *
+		 * If a wheel rolls over, force a tick of the next higher
+		 * wheel.
 		 */
 		if ((elapsed >> (wheel * WHEEL_BIT)) > WHEEL_MAX) {
 			pending = (wheel_t)~WHEEL_C(0);
 		} else {
-			wheel_t _elapsed;
-			int slot;
-
-			_elapsed = WHEEL_MASK & (elapsed >> (wheel * WHEEL_BIT));
-
-//			slot = WHEEL_MASK & (T->curtime >> (wheel * WHEEL_BIT));
-//			pending = rotl(((UINT64_C(1) << _elapsed) - 1), slot);
-
-			slot = WHEEL_MASK & (curtime >> (wheel * WHEEL_BIT));
+			wheel_t _elapsed = WHEEL_MASK & (elapsed >> (wheel * WHEEL_BIT));
+			int slot = WHEEL_MASK & (curtime >> (wheel * WHEEL_BIT));
 			pending = rotr(rotl(((WHEEL_C(1) << _elapsed) - 1), slot), _elapsed);
 			pending |= WHEEL_C(1) << slot;
 		}
@@ -360,9 +353,9 @@ void timeouts_step(struct timeouts *T, abstime_t curtime) {
 		}
 
 		if (!(0x1 & pending))
-			break; /* break if we didn't reach end of wheel */
+			break; /* break if we didn't wrap around end of wheel */
 
-		/* if we're continuing, the next wheel must tick at least once */ 
+		/* if we're continuing, the next wheel must tick at least once */
 		elapsed = MAX(elapsed, (WHEEL_LEN << (wheel * WHEEL_BIT)));
 	}
 
@@ -393,21 +386,39 @@ bool timeouts_pending(struct timeouts *T) {
 } /* timeouts_pending() */
 
 
-timeout_t timeouts_timeout(struct timeouts *T) {
+bool timeouts_expired(struct timeouts *T) {
+	return !CIRCLEQ_EMPTY(&T->expired);
+} /* timeouts_expired() */
+
+
+/*
+ * Calculate a minimum timeout value for timeouts pending on our wheels.
+ *
+ * (This is separated from the public API routine so we can evaluate our
+ * wheel invariant assertions irrespective of the expired queue.)
+ *
+ * This might return a timeout value sooner than any installed timeout
+ * because of our need to handle wheel rollover, and because with each
+ * higher order wheel we precision in knowing exactly when the next timeout
+ * will be.
+ */
+static timeout_t tms__timeout(struct timeouts *T) {
 	timeout_t timeout = ~TIMEOUT_C(0), _timeout;
 	timeout_t relmask;
 	int wheel, slot;
-
-	if (!CIRCLEQ_EMPTY(&T->expired))
-		return 0;
 
 	relmask = 0;
 
 	for (wheel = 0; wheel < WHEEL_NUM; wheel++) {
 		if (T->pending[wheel]) {
 			slot = WHEEL_MASK & (T->curtime >> (wheel * WHEEL_BIT));
+
 			_timeout = (ctz(rotr(T->pending[wheel], slot)) + !!wheel) << (wheel * WHEEL_BIT);
+			/* +1 to higher order wheels as those timeouts are one rotation in the future (otherwise they'd be on a lower wheel or expired) */
+
 			_timeout -= relmask & T->curtime;
+			/* reduce by how much lower wheels have progressed */
+
 			timeout = MIN(_timeout, timeout);
 		}
 
@@ -416,7 +427,20 @@ timeout_t timeouts_timeout(struct timeouts *T) {
 	}
 
 	return timeout;
+} /* tms__timeout() */
+
+
+/*
+ * Provide a minimum timeout for our caller. If anything is pending on
+ * the expiration queue return 0, beca
+ */
+timeout_t timeouts_timeout(struct timeouts *T) {
+	if (!CIRCLEQ_EMPTY(&T->expired))
+		return 0;
+
+	return tms__timeout(T);
 } /* timeouts_timeout() */
+
 
 
 struct timeout *timeouts_get(struct timeouts *T) {
@@ -433,14 +457,10 @@ struct timeout *timeouts_get(struct timeouts *T) {
 } /* timeouts_get() */
 
 
-#if TIMER_MAIN - 0
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-
-static timeout_t timeouts_min(struct timeouts *T) {
+/*
+ * Use dumb looping to locate the earliest timeout pending on the wheel.
+ */
+static struct timeout *tms__min(struct timeouts *T) {
 	struct timeout *to, *min = NULL;
 	unsigned i, j;
 
@@ -453,19 +473,71 @@ static timeout_t timeouts_min(struct timeouts *T) {
 		}
 	}
 
-	return (min)? min->expires : 0;
-} /* timeouts_min() */
+	return min;
+} /* tms__min() */
 
-static inline timeout_t slow_timeout(struct timeouts *T) {
-	return timeouts_min(T) - T->curtime;
+
+/*
+ * Check some basic algorithm invariants. If these invariants fail then
+ * something is definitely broken.
+ */
+#define report(...) do { \
+	if ((fp)) \
+		fprintf(fp, __VA_ARGS__); \
+} while (0)
+
+#define check(expr, ...) do { \
+	if (!(expr)) { \
+		report(__VA_ARGS__); \
+		return 0; \
+	} \
+} while (0)
+
+bool timeouts_check(struct timeouts *T, FILE *fp) {
+	timeout_t timeout;
+	struct timeout *to;
+
+	if ((to = tms__min(T))) {
+		check(to->expires > T->curtime, "missed timeout (expires:%" TIMEOUT_PRIu " <= curtime:%" TIMEOUT_PRIu ")\n", to->expires, T->curtime);
+
+		timeout = tms__timeout(T);
+		check(timeout <= to->expires - T->curtime, "wrong soft timeout (soft:%" TIMEOUT_PRIu " > hard:%" TIMEOUT_PRIu ") (expires:%" TIMEOUT_PRIu "; curtime:%" TIMEOUT_PRIu ")\n", timeout, (to->expires - T->curtime), to->expires, T->curtime);
+
+		timeout = timeouts_timeout(T);
+		check(timeout <= to->expires - T->curtime, "wrong soft timeout (soft:%" TIMEOUT_PRIu " > hard:%" TIMEOUT_PRIu ") (expires:%" TIMEOUT_PRIu "; curtime:%" TIMEOUT_PRIu ")\n", timeout, (to->expires - T->curtime), to->expires, T->curtime);
+	} else {
+		timeout = timeouts_timeout(T);
+
+		if (!CIRCLEQ_EMPTY(&T->expired))
+			check(timeout == 0, "wrong soft timeout (soft:%" TIMEOUT_PRIu " != hard:%" TIMEOUT_PRIu ")\n", timeout, TIMEOUT_C(0));
+		else
+			check(timeout == ~TIMEOUT_C(0), "wrong soft timeout (soft:%" TIMEOUT_PRIu " != hard:%" TIMEOUT_PRIu ")\n", timeout, ~TIMEOUT_C(0));
+	}
+
+	return 1;
+} /* timeouts_check() */
+
+
+#if TIMER_MAIN - 0
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+
+static timeout_t slow_timeout(struct timeouts *T) {
+	struct timeout *to = tms__min(T);
+
+	return (to)? to->expires - T->curtime : 0;
 } /* slow_timeout() */
+
 
 
 int main(int argc, char **argv) {
 	extern int optind;
 	extern char *optarg;
 	struct timeouts T;
-	struct timeout to[8];
+	struct timeout to[16];
 	struct timeout *expired;
 	uint64_t time = 0, step = 1, stop = 0;
 	unsigned count = 0;
@@ -505,13 +577,18 @@ int main(int argc, char **argv) {
 	timeouts_add(&T, timeout_init(&to[2], 0), time + 64); count++;
 	timeouts_add(&T, timeout_init(&to[3], 0), time + 65); count++;
 	timeouts_add(&T, timeout_init(&to[5], 0), time + 192); count++;
+	timeouts_add(&T, timeout_init(&to[6], 0), time + 6); count++;
+	timeouts_add(&T, timeout_init(&to[7], 0), time + 7); count++;
+	timeouts_add(&T, timeout_init(&to[8], 0), time + 8); count++;
 
 	while (count > 0 && time <= stop - 1) {
 		time += step;
 
-//		SAY("timeout -> %" TIMEOUT_PRIu " (actual:%" TIMEOUT_PRIu " curtime:%" TIMEOUT_PRIu ")", timeouts_timeout(&T), slow_timeout(&T), T.curtime);
+		SAY("timeout -> %" TIMEOUT_PRIu " (actual:%" TIMEOUT_PRIu " curtime:%" TIMEOUT_PRIu ")", timeouts_timeout(&T), slow_timeout(&T), T.curtime);
 
+		timeouts_check(&T, stderr);
 		timeouts_step(&T, time);
+		timeouts_check(&T, stderr);
 
 		while ((expired = timeouts_get(&T))) {
 			timeouts_del(&T, expired);

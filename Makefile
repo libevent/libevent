@@ -1,11 +1,10 @@
-all: timer
+all: timer timer8 timer16 timer32 timer64
 
 WHEEL_BIT = 6
 WHEEL_NUM = 4
 
 CPPFLAGS = -DTIMER_DEBUG -DTIMER_MAIN
 CFLAGS = -O2 -g -Wall -Wextra
-
 
 timer: CPPFLAGS+=-DWHEEL_BIT=$(WHEEL_BIT) -DWHEEL_NUM=$(WHEEL_NUM)
 
