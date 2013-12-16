@@ -745,35 +745,74 @@ if (NOT EVENT__DISABLE_TESTS)
     # We run all tests with the different backends turned on one at a time.
     #
 
+    # Add event backends based on system introspection result.
+    set(BACKENDS "")
+
+    if (EVENT__HAVE_EPOLL)
+        list(APPEND BACKENDS EPOLL)
+    endif()
+
+    if (EVENT__HAVE_SELECT)
+        list(APPEND BACKENDS SELECT)
+    endif()
+
+    if (EVENT__HAVE_POLL)
+        list(APPEND BACKENDS POLL)
+    endif()
+
+    if (EVENT__HAVE_KQUEUE)
+        list(APPEND BACKENDS KQUEUE)
+    endif()
+
+    if (EVENT__HAVE_EVENT_PORTS)
+        list(APPEND BACKENDS EVPORT)
+    endif()
+
+    if (EVENT__HAVE_DEVPOLL)
+        list(APPEND BACKENDS DEVPOLL)
+    endif()
+
+    if (WIN32)
+        list(APPEND BACKENDS WIN32)
+    endif()
+
+    message("Available event backends: ${BACKENDS}")
+
     # Default environment variables turns off all event systems,
     # then we enable each one, one at a time when creating the tests.
-    set(BACKENDS EVPORT KQUEUE EPOLL DEVPOLL POLL SELECT WIN32)
-    set(DEFAULT_TEST_ENV_VARS "")
+    set(DEFAULT_TEST_ENV_VARS "EVENT_SHOW_METHOD=1;")
     foreach(BACKEND ${BACKENDS})
         list(APPEND DEFAULT_TEST_ENV_VARS "EVENT_NO${BACKEND}=1")
     endforeach()
 
     # Macro that creates the ctest test for a backend.
     macro(add_backend_test BACKEND_TEST_NAME ENV_VARS)
+        set(TEST_NAMES "")
+
         foreach (TESTPROG ${TESTPROGS})
-            add_test(${TESTPROG}_${BACKEND_TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
-            set_tests_properties(${TESTPROG}_${BACKEND_TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
+            set(TEST_NAME ${TESTPROG}_${BACKEND_TEST_NAME})
+            add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
+            list(APPEND TEST_NAMES ${TEST_NAME})
+            set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
         endforeach()
 
         # Dump events test.
         if (PYTHONINTERP_FOUND)
-            add_test(test-dumpevents_${BACKEND_TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents | ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/check-dumpevents.py)
-            set_tests_properties(test-dumpevents_${BACKEND_TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
+            set(TEST_NAME test-dumpevents_${BACKEND_TEST_NAME})
+            add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents | ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/check-dumpevents.py)
+            set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
         else()
             message(WARNING "test-dumpevents will be run without output check since python was not found!")
-            add_test(test-dumpevents_${BACKEND_TEST_NAME}_no_check ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents)
-            set_tests_properties(test-dumpevents_${BACKEND_TEST_NAME}_no_check PROPERTIES ENVIRONMENT "${ENV_VARS}")
+            set(TEST_NAME test-dumpevents_${BACKEND_TEST_NAME}_no_check)
+            add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents)
+            set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
         endif()
 
         # Regress tests.
         if (NOT EVENT__DISABLE_REGRESS AND PYTHONINTERP_FOUND)
-            add_test(regress_${BACKEND_TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
-            set_tests_properties(regress_${BACKEND_TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
+            set(TEST_NAME regress_${BACKEND_TEST_NAME})
+            add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
+            set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
         endif()
     endmacro()
 
@@ -789,7 +828,7 @@ if (NOT EVENT__DISABLE_TESTS)
             add_backend_test(changelist_${BACKEND} "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes")
             add_backend_test(timerfd_changelist_${BACKEND} "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes;EVENT_PRECISE_TIMER=1")
         else()
-            add_backend_test(${BACKEND} ${BACKEND_ENV_VARS})
+            add_backend_test(${BACKEND} "${BACKEND_ENV_VARS}")
         endif()
     endforeach()
 
