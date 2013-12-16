@@ -146,6 +146,11 @@ main(int argc, char **argv)
 	struct timeval *tv;
 
 	int num_pipes = 100;
+#ifdef WIN32
+	WSADATA WSAData;
+	WSAStartup(0x101, &WSAData);
+#endif
+
 	while ((c = getopt(argc, argv, "n:")) != -1) {
 		switch (c) {
 		case 'n':
@@ -174,6 +179,10 @@ main(int argc, char **argv)
 		fprintf(stdout, "%ld\n",
 			tv->tv_sec * 1000000L + tv->tv_usec);
 	}
+
+#ifdef WIN32
+	WSACleanup();
+#endif
 
 	exit(0);
 }
