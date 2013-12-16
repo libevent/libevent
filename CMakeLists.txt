@@ -157,7 +157,7 @@ CHECK_INCLUDE_FILE(sys/sendfile.h EVENT__HAVE_SYS_SENDFILE_H)
 CHECK_INCLUDE_FILE(sys/stat.h EVENT__HAVE_SYS_STAT_H)
 CHECK_INCLUDE_FILE(sys/time.h EVENT__HAVE_SYS_TIME_H)
 if(EVENT__HAVE_SYS_TIME_H)
-	list(APPEND CMAKE_EXTRA_INCLUDE_FILES sys/time.h)
+    list(APPEND CMAKE_EXTRA_INCLUDE_FILES sys/time.h)
 endif()
 CHECK_INCLUDE_FILE(sys/uio.h EVENT__HAVE_SYS_UIO_H)
 CHECK_INCLUDE_FILES("sys/types.h;ifaddrs.h" EVENT__HAVE_IFADDRS_H)
@@ -249,7 +249,7 @@ if(HAVE_PORT_H AND HAVE_PORT_CREATE)
 endif()
 
 if(NOT WIN32)
-	CHECK_FUNCTION_EXISTS_EX(select EVENT__HAVE_SELECT)
+    CHECK_FUNCTION_EXISTS_EX(select EVENT__HAVE_SELECT)
 endif()
 
 CHECK_TYPE_SIZE("uint8_t" EVENT__HAVE_UINT8_T)
@@ -264,10 +264,10 @@ CHECK_TYPE_SIZE("long" EVENT__SIZEOF_LONG BUILTIN_TYPES_ONLY)
 CHECK_TYPE_SIZE("long long" EVENT__SIZEOF_LONG_LONG BUILTIN_TYPES_ONLY)
 
 if(WIN32)
-	# These aren't available until Windows Vista.
-	# But you can still link them. They just won't be found when running the exe.
-	set(EVENT__HAVE_INET_NTOP 0)
-	set(EVENT__HAVE_INET_PTON 0)
+    # These aren't available until Windows Vista.
+    # But you can still link them. They just won't be found when running the exe.
+    set(EVENT__HAVE_INET_NTOP 0)
+    set(EVENT__HAVE_INET_PTON 0)
 endif()
 
 # Check for different inline keyword versions.
@@ -372,11 +372,11 @@ CHECK_SYMBOL_EXISTS(_POSIX_1_SOURCE "stdio.h" EVENT___POSIX_1_SOURCE)
 CHECK_SYMBOL_EXISTS(_POSIX_SOURCE "stdio.h" EVENT___POSIX_SOURCE)
 
 if(EVENT__HAVE_NETDB_H)
-	list(APPEND CMAKE_EXTRA_INCLUDE_FILES netdb.h)
-	CHECK_TYPE_SIZE("struct addrinfo" EVENT__HAVE_STRUCT_ADDRINFO)
+    list(APPEND CMAKE_EXTRA_INCLUDE_FILES netdb.h)
+    CHECK_TYPE_SIZE("struct addrinfo" EVENT__HAVE_STRUCT_ADDRINFO)
 elseif(WIN32)
-	list(APPEND CMAKE_EXTRA_INCLUDE_FILES ws2tcpip.h)
-	CHECK_TYPE_SIZE("struct addrinfo" EVENT__HAVE_STRUCT_ADDRINFO)
+    list(APPEND CMAKE_EXTRA_INCLUDE_FILES ws2tcpip.h)
+    CHECK_TYPE_SIZE("struct addrinfo" EVENT__HAVE_STRUCT_ADDRINFO)
 endif()
 
 # Check for sockaddr structure sizes.
@@ -409,21 +409,21 @@ endif()
 
 CHECK_TYPE_SIZE("struct in6_addr" EVENT__HAVE_STRUCT_IN6_ADDR)
 if(EVENT__HAVE_STRUCT_IN6_ADDR)
-	CHECK_STRUCT_HAS_MEMBER("struct in6_addr" s6_addr16 "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR16)
-	CHECK_STRUCT_HAS_MEMBER("struct in6_addr" s6_addr32 "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR32)
+    CHECK_STRUCT_HAS_MEMBER("struct in6_addr" s6_addr16 "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR16)
+    CHECK_STRUCT_HAS_MEMBER("struct in6_addr" s6_addr32 "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR32)
 endif()
 
 CHECK_TYPE_SIZE("sa_family_t" EVENT__HAVE_SA_FAMILY_T)
 CHECK_TYPE_SIZE("struct sockaddr_in6" EVENT__HAVE_STRUCT_SOCKADDR_IN6)
 if(EVENT__HAVE_STRUCT_SOCKADDR_IN6)
-	CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN)
-	CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin_len "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_IN_SIN_LEN)
+    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN)
+    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin_len "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_IN_SIN_LEN)
 endif()
 
 CHECK_TYPE_SIZE("struct sockaddr_storage" EVENT__HAVE_STRUCT_SOCKADDR_STORAGE)
 if(EVENT__HAVE_STRUCT_SOCKADDR_STORAGE)
-	CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage" ss_family "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY)
-	CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage" __ss_family "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_STORAGE___SS_FAMILY)
+    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage" ss_family "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY)
+    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage" __ss_family "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_STORAGE___SS_FAMILY)
 endif()
 
 # Group the source files.
@@ -493,7 +493,7 @@ set(SRC_CORE
     evthread.c 
     evutil.c 
     evutil_rand.c
-	evutil_time.c
+    evutil_time.c
     listener.c 
     log.c 
     signal.c 
@@ -739,8 +739,10 @@ if (NOT EVENT__DISABLE_TESTS)
                     test-time
                     test-weof)
 
+    set(ALL_TESTPROGS ${TESTPROGS} test-dumpevents test-ratelim) 
+
     # Create test program executables.
-    foreach (TESTPROG ${TESTPROGS} test-dumpevents test-ratelim)
+    foreach (TESTPROG ${ALL_TESTPROGS})
         add_executable(${TESTPROG} test/${TESTPROG}.c)
         target_link_libraries(${TESTPROG} event ${LIB_PLATFORM})
         add_dependencies(${TESTPROG} event)
@@ -843,22 +845,28 @@ if (NOT EVENT__DISABLE_TESTS)
     #
 
     # Group limits, no connection limit.
-    add_test(test-ratelim_group_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -g 30000 -n 30 -t 100 --check-grouplimit 1000 --check-stddev 100)
+    add_test(test-ratelim__group_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -g 30000 -n 30 -t 100 --check-grouplimit 1000 --check-stddev 100)
 
     # Connection limit, no group limit.
-    add_test(test-ratelim_con_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -n 30 -t 100 --check-connlimit 50 --check-stddev 50)
+    add_test(test-ratelim__con_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -n 30 -t 100 --check-connlimit 50 --check-stddev 50)
     
     # Connection limit and group limit.
-    add_test(test-ratelim_group_con_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -g 30000 -n 30 -t 100 --check-grouplimit 1000 --check-connlimit 50 --check-stddev 50)
+    add_test(test-ratelim__group_con_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -g 30000 -n 30 -t 100 --check-grouplimit 1000 --check-connlimit 50 --check-stddev 50)
     
     # Connection limit and group limit with independent drain.
-    add_test(test-ratelim_group_con_lim_drain ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -g 35000 -n 30 -t 100 -G 500 --check-grouplimit 1000 --check-connlimit 50 --check-stddev 50)
+    add_test(test-ratelim__group_con_lim_drain ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -g 35000 -n 30 -t 100 -G 500 --check-grouplimit 1000 --check-connlimit 50 --check-stddev 50)
 
     # Add a "make verify" target, same as for autoconf.
     # (Important! This will unset all EVENT_NO* environment variables. 
     #  If they are set in the shell the tests are running using simply "ctest" or "make test" will fail)
-    add_custom_target(verify COMMAND unset EVENT_NOEPOLL && unset EVENT_NOPOLL && unset EVENT_NOSELECT && unset EVENT_NOWIN32 && unset EVENT_NOEVPORT && unset EVENT_NOKQUEUE && unset EVENT_NODEVPOLL && ${CMAKE_CTEST_COMMAND}
-                    DEPENDS event ${TESTPROGS})
+    if (WIN32)
+        # Windows doesn't have "unset", and the above does not happen anyway.
+        add_custom_target(verify COMMAND ${CMAKE_CTEST_COMMAND}
+                        DEPENDS event ${ALL_TESTPROGS})
+    else()
+        add_custom_target(verify COMMAND unset EVENT_NOEPOLL && unset EVENT_NOPOLL && unset EVENT_NOSELECT && unset EVENT_NOWIN32 && unset EVENT_NOEVPORT && unset EVENT_NOKQUEUE && unset EVENT_NODEVPOLL && ${CMAKE_CTEST_COMMAND}
+                        DEPENDS event ${ALL_TESTPROGS})
+    endif()
 
     if (NOT EVENT__DISABLE_REGRESS)
         add_dependencies(verify regress)
