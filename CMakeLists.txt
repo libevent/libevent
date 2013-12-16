@@ -16,7 +16,7 @@
 #       cmake -G "Visual Studio 10" ..
 #       start libevent.sln
 #
-cmake_minimum_required(VERSION 2.6.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.8.0 FATAL_ERROR)
 
 # get rid of the extra default configurations
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
@@ -639,11 +639,13 @@ if (NOT EVENT__DISABLE_SAMPLES)
             sample/openssl_hostname_validation.c
             sample/hostcheck.c)
         target_link_libraries(https-client event ${LIB_APPS} ${LIB_PLATFORM})
+        add_dependencies(https-client event)
     endif()
 
     foreach(SAMPLE ${SAMPLES})
         add_executable(${SAMPLE} sample/${SAMPLE}.c)
         target_link_libraries(${SAMPLE} event ${LIB_APPS} ${LIB_PLATFORM})
+        add_dependencies(${SAMPLE} event)
     endforeach()
 endif()
 
@@ -657,6 +659,7 @@ if (NOT EVENT__DISABLE_BENCHMARK)
 
         add_executable(${BENCHMARK} ${BENCH_SRC})
         target_link_libraries(${BENCHMARK} event ${LIB_PLATFORM})
+        add_dependencies(${BENCHMARK} event)
     endforeach()
 endif()
 
@@ -721,6 +724,7 @@ if (NOT EVENT__DISABLE_TESTS)
 
         add_executable(regress ${SRC_REGRESS})
         target_link_libraries(regress event ${LIB_APPS} ${LIB_PLATFORM})
+        add_dependencies(regress event)
     else()
         message(WARNING "Python not found, cannot generate regress tests!")
     endif()
@@ -739,6 +743,7 @@ if (NOT EVENT__DISABLE_TESTS)
     foreach (TESTPROG ${TESTPROGS} test-dumpevents test-ratelim)
         add_executable(${TESTPROG} test/${TESTPROG}.c)
         target_link_libraries(${TESTPROG} event ${LIB_PLATFORM})
+        add_dependencies(${TESTPROG} event)
     endforeach()
 
     #
@@ -782,7 +787,8 @@ if (NOT EVENT__DISABLE_TESTS)
     # then we enable each one, one at a time when creating the tests.
     set(DEFAULT_TEST_ENV_VARS "EVENT_SHOW_METHOD=1;")
     foreach(BACKEND ${BACKENDS})
-        list(APPEND DEFAULT_TEST_ENV_VARS "EVENT_NO${BACKEND}=1")
+        set(BACKEND_ENV_VAR "EVENT_NO${BACKEND}=1")
+        list(APPEND DEFAULT_TEST_ENV_VARS "${BACKEND_ENV_VAR}")
     endforeach()
 
     # Macro that creates the ctest test for a backend.
@@ -790,7 +796,7 @@ if (NOT EVENT__DISABLE_TESTS)
         set(TEST_NAMES "")
 
         foreach (TESTPROG ${TESTPROGS})
-            set(TEST_NAME ${TESTPROG}_${BACKEND_TEST_NAME})
+            set(TEST_NAME ${TESTPROG}__${BACKEND_TEST_NAME})
             add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
             list(APPEND TEST_NAMES ${TEST_NAME})
             set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
@@ -798,19 +804,19 @@ if (NOT EVENT__DISABLE_TESTS)
 
         # Dump events test.
         if (PYTHONINTERP_FOUND)
-            set(TEST_NAME test-dumpevents_${BACKEND_TEST_NAME})
+            set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME})
             add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents | ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/check-dumpevents.py)
             set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
         else()
             message(WARNING "test-dumpevents will be run without output check since python was not found!")
-            set(TEST_NAME test-dumpevents_${BACKEND_TEST_NAME}_no_check)
+            set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME}_no_check)
             add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents)
             set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
         endif()
 
         # Regress tests.
         if (NOT EVENT__DISABLE_REGRESS AND PYTHONINTERP_FOUND)
-            set(TEST_NAME regress_${BACKEND_TEST_NAME})
+            set(TEST_NAME regress__${BACKEND_TEST_NAME})
             add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
             set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
         endif()
@@ -847,6 +853,16 @@ if (NOT EVENT__DISABLE_TESTS)
     
     # Connection limit and group limit with independent drain.
     add_test(test-ratelim_group_con_lim_drain ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -g 35000 -n 30 -t 100 -G 500 --check-grouplimit 1000 --check-connlimit 50 --check-stddev 50)
+
+    # Add a "make verify" target, same as for autoconf.
+    # (Important! This will unset all EVENT_NO* environment variables. 
+    #  If they are set in the shell the tests are running using simply "ctest" or "make test" will fail)
+    add_custom_target(verify COMMAND unset EVENT_NOEPOLL && unset EVENT_NOPOLL && unset EVENT_NOSELECT && unset EVENT_NOWIN32 && unset EVENT_NOEVPORT && unset EVENT_NOKQUEUE && unset EVENT_NODEVPOLL && ${CMAKE_CTEST_COMMAND}
+                    DEPENDS event ${TESTPROGS})
+
+    if (NOT EVENT__DISABLE_REGRESS)
+        add_dependencies(verify regress)
+    endif()
 
     enable_testing()
 
