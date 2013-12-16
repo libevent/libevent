@@ -572,9 +572,7 @@ if(WIN32)
         bufferevent_async.c
         event_iocp.c 
         evthread_win32.c 
-        win32select.c
-        WIN32-Code/getopt.c
-        WIN32-Code/getopt_long.c
+        win32select.c        
         )
     
     list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
@@ -651,7 +649,13 @@ endif()
 
 if (NOT EVENT__DISABLE_BENCHMARK)
     foreach (BENCHMARK bench bench_cascade bench_http bench_httpclient)
-        add_executable(${BENCHMARK} test/${BENCHMARK}.c)
+        set(BENCH_SRC test/${BENCHMARK}.c)
+        
+        if (WIN32)
+            list(APPEND BENCH_SRC WIN32-Code/getopt.c WIN32-Code/getopt_long.c)
+        endif()
+
+        add_executable(${BENCHMARK} ${BENCH_SRC})
         target_link_libraries(${BENCHMARK} event ${LIB_PLATFORM})
     endforeach()
 endif()
