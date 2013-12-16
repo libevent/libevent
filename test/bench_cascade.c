@@ -36,7 +36,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
-#define closesocket(x) close(x)
 #include <sys/socket.h>
 #include <sys/resource.h>
 #endif
@@ -127,8 +126,8 @@ run_once(int num_pipes)
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
 		event_del(&events[i]);
-		closesocket(cp[0]);
-		closesocket(cp[1]);
+		evutil_closesocket(cp[0]);
+		evutil_closesocket(cp[1]);
 	}
 
 	free(pipes);
