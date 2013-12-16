@@ -183,7 +183,8 @@ main(int argc, char **argv)
 		return (1);
 
 	/* Initalize the event library */
-	base = event_base_new();
+	if (!(base = event_base_new()))
+		return (1);
 
 	/* Initalize a timeout to terminate the test */
 	timeout = evtimer_new(base,timeout_cb,&timeout);
