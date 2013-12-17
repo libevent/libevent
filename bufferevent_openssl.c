@@ -25,7 +25,9 @@
  */
 
 // Get rid of OSX 10.7 and greater deprecation warnings.
+#ifdef __clang__
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 #include "event2/event-config.h"
 #include "evconfig-private.h"
