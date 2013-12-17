@@ -681,7 +681,7 @@ endif()
 if (NOT EVENT__DISABLE_TESTS)
 
     # (We require python to generate the regress tests)
-    find_package(PythonInterp 2) # TODO: Require 2.4+ here...
+    find_package(PythonInterp 2.4)
 
     #
     # Generate Regress tests.
