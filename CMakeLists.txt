@@ -88,6 +88,11 @@ if (CMAKE_COMPILER_IS_GNUCC)
     endif()
 endif()
 
+if (APPLE)
+    # Get rid of deprecated warnings for OpenSSL on OSX 10.7 and greater.
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=deprecated-declarations")
+endif()
+
 # Winsock.
 if(WIN32)
     set(CMAKE_EXTRA_INCLUDE_FILES winsock2.h ws2tcpip.h)

@@ -10,6 +10,9 @@
   Loosely based on le-proxy.c.
  */
 
+// Get rid of OSX 10.7 and greater deprecation warnings.
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
