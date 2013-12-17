@@ -35,6 +35,7 @@ option(EVENT__DISABLE_OPENSSL "Define if libevent should build without support f
 option(EVENT__DISABLE_BENCHMARK "Defines if libevent should build without the benchmark exectuables" OFF)
 option(EVENT__DISABLE_TESTS "If tests should be compiled or not" OFF)
 option(EVENT__DISABLE_REGRESS "Disable the regress tests" OFF)
+option(EVENT__FORCE_KQUEUE_CHECK "When crosscompiling forces running a test program that verifies that Kqueue works with pipes. Note that this requires you to manually run the test program on the the cross compilation target to verify that it works. See cmake documentation for try_run for more details" OFF)
 # TODO: Add --enable-verbose-debug, verbose debug logging
 # TODO: Add --disable-largefile     omit support for large files
 
@@ -370,9 +371,15 @@ CHECK_TYPE_SIZE("void *" EVENT__SIZEOF_VOID_P)
 CHECK_FILE_OFFSET_BITS()
 set(EVENT___FILE_OFFSET_BITS _FILE_OFFSET_BITS)
 
-# TODO: Check EVENT__HAVE_WORKING_KQUEUE (Define if kqueue works correctly with pipes)
+# Verify kqueue works with pipes.
 if (EVENT__HAVE_KQUEUE)
-    set(EVENT__HAVE_WORKING_KQUEUE 1)
+    if (CMAKE_CROSSCOMPILING AND NOT EVENT__FORCE_KQUEUE_CHECK)
+        message(WARNING "Cannot check if kqueue works with pipes when crosscompiling, use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires manually running a test program on the cross compilation target)")
+        set(EVENT__HAVE_WORKING_KQUEUE 1)
+    else()
+        message("Checking if kqueue works with pipes...")
+        include(CheckWorkingKqueue)
+    endif()
 endif()
 
 CHECK_SYMBOL_EXISTS(_MINIX "stdio.h" EVENT___MINIX)
