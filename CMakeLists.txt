@@ -75,6 +75,7 @@ if (EVENT__COVERAGE)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
 endif()
 
+# GCC specific options.
 if (CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
@@ -92,6 +93,11 @@ if (CMAKE_COMPILER_IS_GNUCC)
     if (EVENT__ENABLE_GCC_FUNCTION_SECTIONS)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections")
         # TODO: Add --gc-sections support. We need some checks for NetBSD to ensure this works.
+    endif()
+
+    option(EVENT__ENABLE_GCC_WARNINGS "Make all GCC warnings into errors" OFF)
+    if (EVENT__ENABLE_GCC_WARNINGS)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
     endif()
 
     # We need to test for at least gcc 2.95 here, because older versions don't
