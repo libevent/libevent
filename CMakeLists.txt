@@ -59,13 +59,11 @@ include(CheckStructHasMember)
 include(CheckCSourceCompiles)
 include(CheckPrototypeDefinition)
 
-include(FindZLIB)    # -> HAVE_LIBZ
-
 # Setup compiler flags for coverage.
 if (EVENT__COVERAGE)
-    if(NOT CMAKE_COMPILER_IS_GNUCXX)
+    if(NOT CMAKE_COMPILER_IS_GNUCC)
         if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-            message(FATAL_ERROR "Compiler is not GNU gcc! Aborting... You can set this on the command line using CC=/usr/bin/gcc CXX=/usr/bin/g++ cmake <options> ..")
+            message(FATAL_ERROR "Trying to compile coverage support (--DEVENT__COVERAGE) but compiler is not GNU gcc! Aborting... You can set this on the command line using CC=/usr/bin/gcc CXX=/usr/bin/g++ cmake <options> ..")
         endif()
     endif()
 
@@ -581,11 +579,16 @@ if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     endif()
 endif()
 
-if (ZLIB_LIBRARY)
-    set(EVENT__HAVE_ZLIB 1)
-    set(EVENT__HAVE_ZLIB_H)
-    include_directories(${ZLIB_INCLUDE_DIRS})
-    list(APPEND LIB_APPS ${ZLIB_LIBRARIES})
+if (NOT EVENT__DISABLE_TESTS)
+    # Zlib is only used for testing.
+    find_package(ZLIB)
+
+    if (ZLIB_LIBRARY)
+        set(EVENT__HAVE_ZLIB 1)
+        set(EVENT__HAVE_ZLIB_H)
+        include_directories(${ZLIB_INCLUDE_DIRS})
+        list(APPEND LIB_APPS ${ZLIB_LIBRARIES})
+    endif()
 endif()
 
 set(SRC_EXTRA
