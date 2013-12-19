@@ -21,7 +21,7 @@ cmake_minimum_required(VERSION 2.8.0 FATAL_ERROR)
 # get rid of the extra default configurations
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
 
-project(libevent)
+project(libevent C)
 
 set(EVENT_NUMERIC_VERSION 0x02010401)
 set(EVENT_VERSION "2.1.4-beta")
@@ -896,7 +896,23 @@ if (NOT EVENT__DISABLE_TESTS)
         add_custom_target(verify COMMAND ${CMAKE_CTEST_COMMAND}
                         DEPENDS event ${ALL_TESTPROGS})
     else()
-        add_custom_target(verify COMMAND unset EVENT_NOEPOLL && unset EVENT_NOPOLL && unset EVENT_NOSELECT && unset EVENT_NOWIN32 && unset EVENT_NOEVPORT && unset EVENT_NOKQUEUE && unset EVENT_NODEVPOLL && ${CMAKE_CTEST_COMMAND}
+        # On some platforms doing exec(unset) as CMake does won't work, so make sure
+        # we run the unset command in a shell instead.
+        # First we write the script contents.
+        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.sh
+            "
+            #!/bin/bash
+            unset EVENT_NOEPOLL; unset EVENT_NOPOLL; unset EVENT_NOSELECT; unset EVENT_NOWIN32; unset EVENT_NOEVPORT; unset EVENT_NOKQUEUE; unset EVENT_NODEVPOLL
+            ${CMAKE_CTEST_COMMAND}
+            ")
+
+        # Then we copy the file (this allows us to set execute permission on it)
+        file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.sh
+            DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+            FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+        # Create the target that runs the script.
+        add_custom_target(verify COMMAND ${CMAKE_CURRENT_BINARY_DIR}/verify_tests.sh
                         DEPENDS event ${ALL_TESTPROGS})
     endif()
 
