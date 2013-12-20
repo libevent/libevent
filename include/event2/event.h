@@ -646,7 +646,7 @@ int event_base_set(struct event_base *, struct event *);
 
   By default, this loop will run the event base until either there are no more
   added events, or until something calls event_base_loopbreak() or
-  evenet_base_loopexit().  You can override this behavior with the 'flags'
+  event_base_loopexit().  You can override this behavior with the 'flags'
   argument.
 
   @param eb the event_base structure returned by event_base_new() or
