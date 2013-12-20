@@ -645,7 +645,7 @@ int event_base_set(struct event_base *, struct event *);
   This is a more flexible version of event_base_dispatch().
 
   By default, this loop will run the event base until either there are no more
-  pending or active, or until something calls event_base_loopbreak() or
+  pending or active events, or until something calls event_base_loopbreak() or
   event_base_loopexit().  You can override this behavior with the 'flags'
   argument.
 
