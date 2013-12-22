@@ -1473,6 +1473,13 @@ void event_base_dump_events(struct event_base *, FILE *);
  */
 void event_base_active_by_fd(struct event_base *base, evutil_socket_t fd, short events);
 
+/**
+   Activates all pending signals with a given signal number
+
+   @param base the event_base on which to activate the events.
+   @param fd The signal to active events on.
+ */
+void event_base_active_by_signal(struct event_base *base, int sig);
 
 /**
  * Callback for iterating events in an event base via event_base_foreach_event
