@@ -3633,6 +3633,14 @@ event_base_dump_events(struct event_base *base, FILE *output)
 }
 
 void
+event_base_active_by_fd(struct event_base *base, evutil_socket_t fd, short events)
+{
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	evmap_io_active_(base, fd, events);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+}
+
+void
 event_base_add_virtual_(struct event_base *base)
 {
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);

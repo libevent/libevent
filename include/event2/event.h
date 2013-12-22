@@ -1465,6 +1465,15 @@ void event_base_dump_events(struct event_base *, FILE *);
 
 
 /**
+   Activates all events for the given fd and event mask.
+
+   @param fd An fd or signal
+   @param events One or more EV_* flags
+ */
+void event_base_active_by_fd(struct event_base *base, evutil_socket_t fd, short events);
+
+
+/**
  * Callback for iterating events in an event base via event_base_foreach_event
  */
 typedef int (*event_base_foreach_event_cb)(const struct event_base *, const struct event *, void *);
