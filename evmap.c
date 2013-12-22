@@ -397,11 +397,13 @@ evmap_io_active_(struct event_base *base, evutil_socket_t fd, short events)
 	struct event *ev;
 
 #ifndef EVMAP_USE_HT
-	EVUTIL_ASSERT(fd < io->nentries);
+	if (fd < 0 || fd >= io->nentries)
+		return;
 #endif
 	GET_IO_SLOT(ctx, io, fd, evmap_io);
 
-	EVUTIL_ASSERT(ctx);
+	if (NULL == ctx)
+		return;
 	LIST_FOREACH(ev, &ctx->events, ev_io_next) {
 		if (ev->ev_events & events)
 			event_active_nolock_(ev, ev->ev_events & events, 1);
@@ -472,9 +474,12 @@ evmap_signal_active_(struct event_base *base, evutil_socket_t sig, int ncalls)
 	struct evmap_signal *ctx;
 	struct event *ev;
 
-	EVUTIL_ASSERT(sig < map->nentries);
+	if (sig < 0 || sig >= map->nentries)
+		return;
 	GET_SIGNAL_SLOT(ctx, map, sig, evmap_signal);
 
+	if (!ctx)
+		return;
 	LIST_FOREACH(ev, &ctx->events, ev_signal_next)
 		event_active_nolock_(ev, EV_SIGNAL, ncalls);
 }
