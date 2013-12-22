@@ -3636,7 +3636,7 @@ void
 event_base_active_by_fd(struct event_base *base, evutil_socket_t fd, short events)
 {
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-	evmap_io_active_(base, fd, events);
+	evmap_io_active_(base, fd, events & (EV_READ|EV_WRITE|EV_TIMEOUT));
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 
