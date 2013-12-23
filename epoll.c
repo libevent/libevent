@@ -71,6 +71,13 @@
 #define USING_TIMERFD
 #endif
 
+/* Since Linux 2.6.17, epoll is able to report about premature connection
+   close by clients by using a special EPOLLRDHUP flag on a read event.
+*/
+#if !defined(EPOLLRDHUP)
+#define EPOLLRDHUP 0
+#endif
+
 struct epollop {
 	struct epoll_event *events;
 	int nevents;
@@ -92,7 +99,7 @@ static const struct eventop epollops_changelist = {
 	epoll_dispatch,
 	epoll_dealloc,
 	1, /* need reinit */
-	EV_FEATURE_ET|EV_FEATURE_O1,
+	EV_FEATURE_ET|EV_FEATURE_O1|EV_FEATURE_EARLY_EOF,
 	EVENT_CHANGELIST_FDINFO_SIZE
 };
 
@@ -110,7 +117,7 @@ const struct eventop epollops = {
 	epoll_dispatch,
 	epoll_dealloc,
 	1, /* need reinit */
-	EV_FEATURE_ET|EV_FEATURE_O1,
+	EV_FEATURE_ET|EV_FEATURE_O1|EV_FEATURE_EARLY_EOF,
 	0
 };
 
@@ -420,6 +427,9 @@ epoll_apply_one_change(struct event_base *base,
 	if ((ch->read_change|ch->write_change) & EV_CHANGE_ET)
 		events |= EPOLLET;
 
+	if (events & EPOLLIN)
+		events |= EPOLLRDHUP;
+
 	memset(&epev, 0, sizeof(epev));
 	epev.data.fd = ch->fd;
 	epev.events = events;
@@ -629,8 +639,11 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 			continue;
 #endif
 
-		if (what & (EPOLLHUP|EPOLLERR)) {
+		if (what & (EPOLLHUP|EPOLLRDHUP|EPOLLERR)) {
 			ev = EV_READ | EV_WRITE;
+			if (what & EPOLLRDHUP) {
+				ev |= EV_EOF;
+			}
 		} else {
 			if (what & EPOLLIN)
 				ev |= EV_READ;
