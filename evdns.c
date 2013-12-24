@@ -416,6 +416,7 @@ static int evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags,
 static int evdns_base_set_option_impl(struct evdns_base *base,
     const char *option, const char *val, int flags);
 static void evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests);
+static void evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg);
 
 static int strtoint(const char *const str);
 
@@ -907,7 +908,9 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 			    evutil_format_sockaddr_port_(
 				    (struct sockaddr *)&req->ns->address,
 				    addrbuf, sizeof(addrbuf)));
-			break;
+			/* Call the timneout function */
+			evdns_request_timeout_callback(0, 0, req);
+			return;
 		default:
 			/* we got a good reply from the nameserver: it is up. */
 			if (req->handle == req->ns->probe_request) {
