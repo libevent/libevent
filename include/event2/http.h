@@ -38,6 +38,7 @@ extern "C" {
 struct evbuffer;
 struct event_base;
 struct bufferevent;
+struct evhttp_connection;
 
 /** @file event2/http.h
  *
@@ -407,6 +408,23 @@ void evhttp_send_reply_start(struct evhttp_request *req, int code,
 */
 void evhttp_send_reply_chunk(struct evhttp_request *req,
     struct evbuffer *databuf);
+
+/**
+   Send another data chunk as part of an ongoing chunked reply.
+
+   The reply chunk consists of the data in databuf.  After calling
+   evhttp_send_reply_chunk() databuf will be empty, but the buffer is
+   still owned by the caller and needs to be deallocated by the caller
+   if necessary.
+
+   @param req a request object
+   @param databuf the data chunk to send as part of the reply.
+   @param cb callback funcion
+   @param call back's argument.
+*/
+void evhttp_send_reply_chunk_with_cb(struct evhttp_request *, struct evbuffer *,
+    void (*cb)(struct evhttp_connection *, void *), void *arg);
+
 /**
    Complete a chunked reply, freeing the request as appropriate.
 
@@ -485,6 +503,15 @@ struct evhttp_request *evhttp_request_new(
  */
 void evhttp_request_set_chunked_cb(struct evhttp_request *,
     void (*cb)(struct evhttp_request *, void *));
+
+/**
+ * Register callback for additional parsing of request headers.
+ * @param cb will be called after receiving and parsing the full header.
+ * It allows analyzing the header and possibly closing the connection
+ * by returning a value < 0.
+ */
+void evhttp_request_set_header_cb(struct evhttp_request *,
+    int (*cb)(struct evhttp_request *, void *));
 
 /**
  * The different error types supported by evhttp
