@@ -243,6 +243,7 @@ test_bufferevent_watermarks_impl(int use_pair)
 {
 	struct bufferevent *bev1 = NULL, *bev2 = NULL;
 	char buffer[65000];
+	size_t low, high;
 	int i;
 	test_ok = 0;
 
@@ -262,15 +263,29 @@ test_bufferevent_watermarks_impl(int use_pair)
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
 
+	/* By default, low watermarks are set to 0 */
+	bufferevent_getwatermark(bev1, EV_READ, &low, NULL);
+	tt_int_op(low, ==, 0);
+	bufferevent_getwatermark(bev2, EV_WRITE, &low, NULL);
+	tt_int_op(low, ==, 0);
+
 	for (i = 0; i < (int)sizeof(buffer); i++)
 		buffer[i] = (char)i;
 
 	/* limit the reading on the receiving bufferevent */
 	bufferevent_setwatermark(bev2, EV_READ, 10, 20);
 
+	bufferevent_getwatermark(bev2, EV_READ, &low, &high);
+	tt_int_op(low, ==, 10);
+	tt_int_op(high, ==, 20);
+
 	/* Tell the sending bufferevent not to notify us till it's down to
 	   100 bytes. */
 	bufferevent_setwatermark(bev1, EV_WRITE, 100, 2000);
+
+	bufferevent_getwatermark(bev1, EV_WRITE, &low, &high);
+	tt_int_op(low, ==, 100);
+	tt_int_op(high, ==, 2000);
 
 	bufferevent_write(bev1, buffer, sizeof(buffer));
 
@@ -432,6 +447,7 @@ sender_errorcb(struct bufferevent *bev, short what, void *ctx)
 }
 
 static int bufferevent_connect_test_flags = 0;
+static int bufferevent_trigger_test_flags = 0;
 static int n_strings_read = 0;
 static int n_reads_invoked = 0;
 
@@ -797,6 +813,132 @@ end:
 		bufferevent_free(bev2);
 }
 
+static void
+trigger_failure_cb(evutil_socket_t fd, short what, void *ctx)
+{
+	TT_FAIL(("The triggered callback did not fire or the machine is really slow (try increasing timeout)."));
+}
+
+static void
+trigger_eventcb(struct bufferevent *bev, short what, void *ctx)
+{
+	struct event_base *base = ctx;
+	if (what == ~0) {
+		TT_BLATHER(("Event successfully triggered."));
+		event_base_loopexit(base, NULL);
+		return;
+	}
+	reader_eventcb(bev, what, ctx);
+}
+
+static void
+trigger_readcb_triggered(struct bufferevent *bev, void *ctx)
+{
+	TT_BLATHER(("Read successfully triggered."));
+	n_reads_invoked++;
+	bufferevent_trigger_event(bev, ~0, bufferevent_trigger_test_flags);
+}
+
+static void
+trigger_readcb(struct bufferevent *bev, void *ctx)
+{
+	struct timeval timeout = { 30, 0 };
+	struct event_base *base = ctx;
+	size_t low, high, len;
+	int expected_reads;
+
+	TT_BLATHER(("Read invoked on %d.", (int)bufferevent_getfd(bev)));
+	expected_reads = ++n_reads_invoked;
+
+	bufferevent_setcb(bev, trigger_readcb_triggered, NULL, trigger_eventcb, ctx);
+
+	bufferevent_getwatermark(bev, EV_READ, &low, &high);
+	len = evbuffer_get_length(bufferevent_get_input(bev));
+
+	bufferevent_setwatermark(bev, EV_READ, len + 1, 0);
+	bufferevent_trigger(bev, EV_READ, bufferevent_trigger_test_flags);
+	/* no callback expected */
+	tt_int_op(n_reads_invoked, ==, expected_reads);
+
+	if ((bufferevent_trigger_test_flags & BEV_TRIG_DEFER_CALLBACKS) ||
+	    (bufferevent_connect_test_flags & BEV_OPT_DEFER_CALLBACKS)) {
+		/* will be deferred */
+	} else {
+		expected_reads++;
+	}
+
+	event_base_once(base, -1, EV_TIMEOUT, trigger_failure_cb, NULL, &timeout);
+
+	bufferevent_trigger(bev, EV_READ,
+	    bufferevent_trigger_test_flags | BEV_TRIG_IGNORE_WATERMARKS);
+	tt_int_op(n_reads_invoked, ==, expected_reads);
+
+	bufferevent_setwatermark(bev, EV_READ, low, high);
+end:
+	;
+}
+
+static void
+test_bufferevent_trigger(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evconnlistener *lev=NULL;
+	struct bufferevent *bev=NULL;
+	struct sockaddr_in localhost;
+	struct sockaddr_storage ss;
+	struct sockaddr *sa;
+	ev_socklen_t slen;
+
+	int be_flags=BEV_OPT_CLOSE_ON_FREE;
+	int trig_flags=0;
+
+	if (strstr((char*)data->setup_data, "defer")) {
+		be_flags |= BEV_OPT_DEFER_CALLBACKS;
+	}
+	bufferevent_connect_test_flags = be_flags;
+
+	if (strstr((char*)data->setup_data, "postpone")) {
+		trig_flags |= BEV_TRIG_DEFER_CALLBACKS;
+	}
+	bufferevent_trigger_test_flags = trig_flags;
+
+	memset(&localhost, 0, sizeof(localhost));
+
+	localhost.sin_port = 0; /* pick-a-port */
+	localhost.sin_addr.s_addr = htonl(0x7f000001L);
+	localhost.sin_family = AF_INET;
+	sa = (struct sockaddr *)&localhost;
+	lev = evconnlistener_new_bind(data->base, listen_cb, data->base,
+	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
+	    16, sa, sizeof(localhost));
+	tt_assert(lev);
+
+	sa = (struct sockaddr *)&ss;
+	slen = sizeof(ss);
+	if (regress_get_listener_addr(lev, sa, &slen) < 0) {
+		tt_abort_perror("getsockname");
+	}
+
+	tt_assert(!evconnlistener_enable(lev));
+	bev = bufferevent_socket_new(data->base, -1, be_flags);
+	tt_assert(bev);
+	bufferevent_setcb(bev, trigger_readcb, NULL, trigger_eventcb, data->base);
+
+	bufferevent_enable(bev, EV_READ);
+
+	tt_want(!bufferevent_socket_connect(bev, sa, sizeof(localhost)));
+
+	event_base_dispatch(data->base);
+
+	tt_int_op(n_reads_invoked, ==, 2);
+end:
+	if (lev)
+		evconnlistener_free(lev);
+
+	if (bev)
+		bufferevent_free(bev);
+}
+
 struct testcase_t bufferevent_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED),
@@ -827,6 +969,16 @@ struct testcase_t bufferevent_testcases[] = {
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"filter" },
 	{ "bufferevent_timeout_filter_pair", test_bufferevent_timeouts,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"filter pair" },
+	{ "bufferevent_trigger", test_bufferevent_trigger, TT_FORK|TT_NEED_BASE,
+	  &basic_setup, (void*)"" },
+	{ "bufferevent_trigger_defer", test_bufferevent_trigger,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"defer" },
+	{ "bufferevent_trigger_postpone", test_bufferevent_trigger,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup,
+	  (void*)"postpone" },
+	{ "bufferevent_trigger_defer_postpone", test_bufferevent_trigger,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS, &basic_setup,
+	  (void*)"defer postpone" },
 #ifdef EVENT__HAVE_LIBZ
 	LEGACY(bufferevent_zlib, TT_ISOLATED),
 #else

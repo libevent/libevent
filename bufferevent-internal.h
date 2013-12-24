@@ -340,14 +340,22 @@ int bufferevent_decref_(struct bufferevent *bufev);
 int bufferevent_decref_and_unlock_(struct bufferevent *bufev);
 
 /** Internal: If callbacks are deferred and we have a read callback, schedule
- * a readcb.  Otherwise just run the readcb. */
-void bufferevent_run_readcb_(struct bufferevent *bufev);
+ * a readcb.  Otherwise just run the readcb. Ignores watermarks. */
+void bufferevent_run_readcb_(struct bufferevent *bufev, int options);
 /** Internal: If callbacks are deferred and we have a write callback, schedule
- * a writecb.  Otherwise just run the writecb. */
-void bufferevent_run_writecb_(struct bufferevent *bufev);
+ * a writecb.  Otherwise just run the writecb. Ignores watermarks. */
+void bufferevent_run_writecb_(struct bufferevent *bufev, int options);
 /** Internal: If callbacks are deferred and we have an eventcb, schedule
- * it to run with events "what".  Otherwise just run the eventcb. */
-void bufferevent_run_eventcb_(struct bufferevent *bufev, short what);
+ * it to run with events "what".  Otherwise just run the eventcb.
+ * See bufferevent_trigger_event for meaning of "options". */
+void bufferevent_run_eventcb_(struct bufferevent *bufev, short what, int options);
+
+/** Internal: Run or schedule (if deferred or options contain
+ * BEV_TRIG_DEFER_CALLBACKS) I/O callbacks specified in iotype.
+ * Must already hold the bufev lock. Honors watermarks unless
+ * BEV_TRIG_IGNORE_WATERMARKS is in options. */
+void bufferevent_trigger_nolock_(struct bufferevent *bufev, short iotype, int options);
+
 
 /** Internal: Add the event 'ev' with timeout tv, unless tv is set to 0, in
  * which case add ev with no timeout. */

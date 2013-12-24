@@ -138,6 +138,9 @@ typedef void (*bufferevent_data_cb)(struct bufferevent *bev, void *ctx);
    The event callback is triggered if either an EOF condition or another
    unrecoverable error was encountered.
 
+   For bufferevents with deferred callbacks, this is a bitwise OR of all errors
+   that have happened on the bufferevent since the last callback invocation.
+
    @param bev the bufferevent for which the error condition was reached
    @param what a conjunction of flags: BEV_EVENT_READING or BEV_EVENT_WRITING
 	  to indicate if the error was encountered on the read or write path,
@@ -505,6 +508,18 @@ void bufferevent_setwatermark(struct bufferevent *bufev, short events,
     size_t lowmark, size_t highmark);
 
 /**
+  Retrieves the watermarks for read or write events. Result is undefined if
+  events contains both EV_READ and EV_WRITE.
+
+  @param bufev the bufferevent to be examined
+  @param events EV_READ or EV_WRITE
+  @param lowmark receives the lower watermark if not NULL
+  @param highmark receives the high watermark if not NULL
+*/
+void bufferevent_getwatermark(struct bufferevent *bufev, short events,
+    size_t *lowmark, size_t *highmark);
+
+/**
    Acquire the lock on a bufferevent.  Has no effect if locking was not
    enabled with BEV_OPT_THREADSAFE.
  */
@@ -542,6 +557,44 @@ enum bufferevent_flush_mode {
 int bufferevent_flush(struct bufferevent *bufev,
     short iotype,
     enum bufferevent_flush_mode mode);
+
+/**
+   Flags for bufferevent_trigger(_event) that modify when and how to trigger
+   the callback.
+*/
+enum bufferevent_trigger_options {
+	/** trigger the callback regardless of the watermarks */
+	BEV_TRIG_IGNORE_WATERMARKS = (1<<0),
+
+	/** defer even if the callbacks are not */
+	BEV_TRIG_DEFER_CALLBACKS = (1<<1),
+};
+
+/**
+   Triggers bufferevent data callbacks.
+
+   The function will honor watermarks unless options contain
+   BEV_TRIG_IGNORE_WATERMARKS. If the options contain BEV_OPT_DEFER_CALLBACKS,
+   the callbacks are deferred.
+
+   @param bufev the bufferevent object
+   @param iotype either EV_READ or EV_WRITE or both.
+   @param options
+ */
+void bufferevent_trigger(struct bufferevent *bufev, short iotype,
+    int options);
+
+/**
+   Triggers the bufferevent event callback.
+
+   If the options contain BEV_OPT_DEFER_CALLBACKS, the callbacks are deferred.
+
+   @param bufev the bufferevent object
+   @param what the flags to pass onto the event callback
+   @param options
+ */
+void bufferevent_trigger_event(struct bufferevent *bufev, short what,
+    int options);
 
 /**
    @name Filtering support

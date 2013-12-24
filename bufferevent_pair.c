@@ -151,7 +151,7 @@ static void
 be_pair_transfer(struct bufferevent *src, struct bufferevent *dst,
     int ignore_wm)
 {
-	size_t src_size, dst_size;
+	size_t dst_size;
 	size_t n;
 
 	evbuffer_unfreeze(src->output, 1);
@@ -182,15 +182,8 @@ be_pair_transfer(struct bufferevent *src, struct bufferevent *dst,
 			BEV_DEL_GENERIC_WRITE_TIMEOUT(dst);
 	}
 
-	src_size = evbuffer_get_length(src->output);
-	dst_size = evbuffer_get_length(dst->input);
-
-	if (dst_size >= dst->wm_read.low) {
-		bufferevent_run_readcb_(dst);
-	}
-	if (src_size <= src->wm_write.low) {
-		bufferevent_run_writecb_(src);
-	}
+	bufferevent_trigger_nolock_(dst, EV_READ, 0);
+	bufferevent_trigger_nolock_(src, EV_WRITE, 0);
 done:
 	evbuffer_freeze(src->output, 1);
 	evbuffer_freeze(dst->input, 0);
@@ -299,7 +292,7 @@ be_pair_flush(struct bufferevent *bev, short iotype,
 		be_pair_transfer(bev, partner, 1);
 
 	if (mode == BEV_FINISHED) {
-		bufferevent_run_eventcb_(partner, iotype|BEV_EVENT_EOF);
+		bufferevent_run_eventcb_(partner, iotype|BEV_EVENT_EOF, 0);
 	}
 	decref_and_unlock(bev);
 	return 0;

@@ -533,7 +533,7 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int when, int errcode, int ret)
 
 	/* when is BEV_EVENT_{READING|WRITING} */
 	event = when | event;
-	bufferevent_run_eventcb_(&bev_ssl->bev.bev, event);
+	bufferevent_run_eventcb_(&bev_ssl->bev.bev, event, 0);
 }
 
 static void
@@ -709,8 +709,7 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 		if (bev_ssl->underlying)
 			BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
 
-		if (evbuffer_get_length(output) <= bev->wm_write.low)
-			bufferevent_run_writecb_(bev);
+		bufferevent_trigger_nolock_(bev, EV_WRITE, 0);
 	}
 	return result;
 }
@@ -824,11 +823,8 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 
 	if (all_result_flags & OP_MADE_PROGRESS) {
 		struct bufferevent *bev = &bev_ssl->bev.bev;
-		struct evbuffer *input = bev->input;
 
-		if (evbuffer_get_length(input) >= bev->wm_read.low) {
-			bufferevent_run_readcb_(bev);
-		}
+		bufferevent_trigger_nolock_(bev, EV_READ, 0);
 	}
 
 	if (!bev_ssl->underlying) {
@@ -852,11 +848,8 @@ consider_writing(struct bufferevent_openssl *bev_ssl)
 		r = do_read(bev_ssl, 1024); /* XXXX 1024 is a hack */
 		if (r & OP_MADE_PROGRESS) {
 			struct bufferevent *bev = &bev_ssl->bev.bev;
-			struct evbuffer *input = bev->input;
 
-			if (evbuffer_get_length(input) >= bev->wm_read.low) {
-				bufferevent_run_readcb_(bev);
-			}
+			bufferevent_trigger_nolock_(bev, EV_READ, 0);
 		}
 		if (r & (OP_ERR|OP_BLOCKED))
 			break;
@@ -928,7 +921,7 @@ be_openssl_eventcb(struct bufferevent *bev_base, short what, void *ctx)
 		   eat it. */
 	}
 	if (event)
-		bufferevent_run_eventcb_(&bev_ssl->bev.bev, event);
+		bufferevent_run_eventcb_(&bev_ssl->bev.bev, event, 0);
 }
 
 static void
@@ -938,7 +931,7 @@ be_openssl_readeventcb(evutil_socket_t fd, short what, void *ptr)
 	bufferevent_incref_and_lock_(&bev_ssl->bev.bev);
 	if (what == EV_TIMEOUT) {
 		bufferevent_run_eventcb_(&bev_ssl->bev.bev,
-		    BEV_EVENT_TIMEOUT|BEV_EVENT_READING);
+		    BEV_EVENT_TIMEOUT|BEV_EVENT_READING, 0);
 	} else {
 		consider_reading(bev_ssl);
 	}
@@ -952,7 +945,7 @@ be_openssl_writeeventcb(evutil_socket_t fd, short what, void *ptr)
 	bufferevent_incref_and_lock_(&bev_ssl->bev.bev);
 	if (what == EV_TIMEOUT) {
 		bufferevent_run_eventcb_(&bev_ssl->bev.bev,
-		    BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING);
+		    BEV_EVENT_TIMEOUT|BEV_EVENT_WRITING, 0);
 	} else {
 		consider_writing(bev_ssl);
 	}
@@ -1019,7 +1012,7 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 		/* Call do_read and do_write as needed */
 		bufferevent_enable(&bev_ssl->bev.bev, bev_ssl->bev.bev.enabled);
 		bufferevent_run_eventcb_(&bev_ssl->bev.bev,
-		    BEV_EVENT_CONNECTED);
+		    BEV_EVENT_CONNECTED, 0);
 		return 1;
 	} else {
 		int err = SSL_get_error(bev_ssl->ssl, r);
@@ -1058,7 +1051,7 @@ be_openssl_handshakeeventcb(evutil_socket_t fd, short what, void *ptr)
 
 	bufferevent_incref_and_lock_(&bev_ssl->bev.bev);
 	if (what & EV_TIMEOUT) {
-		bufferevent_run_eventcb_(&bev_ssl->bev.bev, BEV_EVENT_TIMEOUT);
+		bufferevent_run_eventcb_(&bev_ssl->bev.bev, BEV_EVENT_TIMEOUT, 0);
 	} else
 		do_handshake(bev_ssl);/* XXX handle failure */
 	bufferevent_decref_and_unlock_(&bev_ssl->bev.bev);

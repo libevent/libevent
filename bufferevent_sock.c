@@ -184,8 +184,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	bufferevent_decrement_read_buckets_(bufev_p, res);
 
 	/* Invoke the user callback - must always be called last */
-	if (evbuffer_get_length(input) >= bufev->wm_read.low)
-		bufferevent_run_readcb_(bufev);
+	bufferevent_trigger_nolock_(bufev, EV_READ, 0);
 
 	goto done;
 
@@ -194,7 +193,7 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 
  error:
 	bufferevent_disable(bufev, EV_READ);
-	bufferevent_run_eventcb_(bufev, what);
+	bufferevent_run_eventcb_(bufev, what, 0);
 
  done:
 	bufferevent_decref_and_unlock_(bufev);
@@ -236,7 +235,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		if (c < 0) {
 			event_del(&bufev->ev_write);
 			event_del(&bufev->ev_read);
-			bufferevent_run_eventcb_(bufev, BEV_EVENT_ERROR);
+			bufferevent_run_eventcb_(bufev, BEV_EVENT_ERROR, 0);
 			goto done;
 		} else {
 			connected = 1;
@@ -245,12 +244,12 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 				event_del(&bufev->ev_write);
 				bufferevent_async_set_connected_(bufev);
 				bufferevent_run_eventcb_(bufev,
-						BEV_EVENT_CONNECTED);
+						BEV_EVENT_CONNECTED, 0);
 				goto done;
 			}
 #endif
 			bufferevent_run_eventcb_(bufev,
-					BEV_EVENT_CONNECTED);
+					BEV_EVENT_CONNECTED, 0);
 			if (!(bufev->enabled & EV_WRITE) ||
 			    bufev_p->write_suspended) {
 				event_del(&bufev->ev_write);
@@ -294,9 +293,8 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 	 * Invoke the user callback if our buffer is drained or below the
 	 * low watermark.
 	 */
-	if ((res || !connected) &&
-	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low) {
-		bufferevent_run_writecb_(bufev);
+	if (res || !connected) {
+		bufferevent_trigger_nolock_(bufev, EV_WRITE, 0);
 	}
 
 	goto done;
@@ -309,7 +307,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 
  error:
 	bufferevent_disable(bufev, EV_WRITE);
-	bufferevent_run_eventcb_(bufev, what);
+	bufferevent_run_eventcb_(bufev, what, 0);
 
  done:
 	bufferevent_decref_and_unlock_(bufev);
@@ -426,7 +424,7 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	goto done;
 
 freesock:
-	bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR);
+	bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
 	if (ownfd)
 		evutil_closesocket(fd);
 	/* do something about the error? */
@@ -450,7 +448,7 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 
 	if (result != 0) {
 		bev_p->dns_error = result;
-		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR);
+		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
 		bufferevent_decref_and_unlock_(bev);
 		if (ai)
 			evutil_freeaddrinfo(ai);
