@@ -354,8 +354,21 @@ void bufferevent_run_eventcb_(struct bufferevent *bufev, short what, int options
  * BEV_TRIG_DEFER_CALLBACKS) I/O callbacks specified in iotype.
  * Must already hold the bufev lock. Honors watermarks unless
  * BEV_TRIG_IGNORE_WATERMARKS is in options. */
-void bufferevent_trigger_nolock_(struct bufferevent *bufev, short iotype, int options);
+static inline void bufferevent_trigger_nolock_(struct bufferevent *bufev, short iotype, int options);
 
+/* Making this inline since all of the common-case calls to this function in
+ * libevent use constant arguments. */
+size_t evbuffer_get_length(const struct evbuffer *buf);
+static inline void
+bufferevent_trigger_nolock_(struct bufferevent *bufev, short iotype, int options)
+{
+	if ((iotype & EV_READ) && ((options & BEV_TRIG_IGNORE_WATERMARKS) ||
+	    evbuffer_get_length(bufev->input) >= bufev->wm_read.low))
+		bufferevent_run_readcb_(bufev, options);
+	if ((iotype & EV_WRITE) && ((options & BEV_TRIG_IGNORE_WATERMARKS) ||
+	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low))
+		bufferevent_run_writecb_(bufev, options);
+}
 
 /** Internal: Add the event 'ev' with timeout tv, unless tv is set to 0, in
  * which case add ev with no timeout. */

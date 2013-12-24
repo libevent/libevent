@@ -253,17 +253,6 @@ bufferevent_run_writecb_(struct bufferevent *bufev, int options)
 }
 
 void
-bufferevent_trigger_nolock_(struct bufferevent *bufev, short iotype, int options)
-{
-	if ((iotype & EV_READ) && ((options & BEV_TRIG_IGNORE_WATERMARKS) ||
-	    evbuffer_get_length(bufev->input) >= bufev->wm_read.low))
-		bufferevent_run_readcb_(bufev, options);
-	if ((iotype & EV_WRITE) && ((options & BEV_TRIG_IGNORE_WATERMARKS) ||
-	    evbuffer_get_length(bufev->output) <= bufev->wm_write.low))
-		bufferevent_run_writecb_(bufev, options);
-}
-
-void
 bufferevent_trigger(struct bufferevent *bufev, short iotype, int options)
 {
 	bufferevent_incref_and_lock_(bufev);
