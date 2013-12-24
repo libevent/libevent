@@ -318,6 +318,9 @@ main(int argc, char **argv)
 		die_openssl("SSL_new()");
 	}
 
+	// Set hostname for SNI extension
+	SSL_set_tlsext_host_name(ssl, host);
+
 	if (strcasecmp(scheme, "http") == 0) {
 		bev = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
 	} else {
