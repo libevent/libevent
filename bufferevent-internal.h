@@ -358,7 +358,6 @@ static inline void bufferevent_trigger_nolock_(struct bufferevent *bufev, short 
 
 /* Making this inline since all of the common-case calls to this function in
  * libevent use constant arguments. */
-size_t evbuffer_get_length(const struct evbuffer *buf);
 static inline void
 bufferevent_trigger_nolock_(struct bufferevent *bufev, short iotype, int options)
 {
