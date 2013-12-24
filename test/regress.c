@@ -2962,6 +2962,92 @@ end:
 		event_config_free(cfg);
 }
 
+static void
+tabf_cb(evutil_socket_t fd, short what, void *arg)
+{
+	int *ptr = arg;
+	*ptr = what;
+	*ptr += 0x10000;
+}
+
+static void
+test_active_by_fd(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct event *ev1 = NULL, *ev2 = NULL, *ev3 = NULL, *ev4 = NULL;
+	int e1,e2,e3,e4;
+#ifndef _WIN32
+	struct event *evsig = NULL;
+	int es;
+#endif
+	struct timeval tenmin = { 600, 0 };
+
+	/* Ensure no crash on nonexistent FD. */
+	event_base_active_by_fd(base, 1000, EV_READ);
+
+	/* Ensure no crash on bogus FD. */
+	event_base_active_by_fd(base, -1, EV_READ);
+
+	/* Ensure no crash on nonexistent/bogus signal. */
+	event_base_active_by_signal(base, 1000);
+	event_base_active_by_signal(base, -1);
+
+	event_base_assert_ok_(base);
+
+	e1 = e2 = e3 = e4 = 0;
+	ev1 = event_new(base, data->pair[0], EV_READ, tabf_cb, &e1);
+	ev2 = event_new(base, data->pair[0], EV_WRITE, tabf_cb, &e2);
+	ev3 = event_new(base, data->pair[1], EV_READ, tabf_cb, &e3);
+	ev4 = event_new(base, data->pair[1], EV_READ, tabf_cb, &e4);
+#ifndef _WIN32
+	evsig = event_new(base, SIGHUP, EV_SIGNAL, tabf_cb, &es);
+	event_add(evsig, &tenmin);
+#endif
+
+	event_add(ev1, &tenmin);
+	event_add(ev2, NULL);
+	event_add(ev3, NULL);
+	event_add(ev4, &tenmin);
+
+
+	event_base_assert_ok_(base);
+
+	/* Trigger 2, 3, 4 */
+	event_base_active_by_fd(base, data->pair[0], EV_WRITE);
+	event_base_active_by_fd(base, data->pair[1], EV_READ);
+#ifndef _WIN32
+	event_base_active_by_signal(base, SIGHUP);
+#endif
+
+	event_base_assert_ok_(base);
+
+	event_base_loop(base, EVLOOP_ONCE);
+
+	tt_int_op(e1, ==, 0);
+	tt_int_op(e2, ==, EV_WRITE | 0x10000);
+	tt_int_op(e3, ==, EV_READ | 0x10000);
+	/* Mask out EV_WRITE here, since it could be genuinely writeable. */
+	tt_int_op((e4 & ~EV_WRITE), ==, EV_READ | 0x10000);
+#ifndef _WIN32
+	tt_int_op(es, ==, EV_SIGNAL | 0x10000);
+#endif
+
+end:
+	if (ev1)
+		event_free(ev1);
+	if (ev2)
+		event_free(ev2);
+	if (ev3)
+		event_free(ev3);
+	if (ev4)
+		event_free(ev4);
+#ifndef _WIN32
+	if (evsig)
+		event_free(evsig);
+#endif
+}
+
 struct testcase_t main_testcases[] = {
 	/* Some converted-over tests */
 	{ "methods", test_methods, TT_FORK, NULL, NULL },
@@ -3028,6 +3114,8 @@ struct testcase_t main_testcases[] = {
 	{ "gettimeofday_cached_reset", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"sleep reset" },
 	{ "gettimeofday_cached_disabled", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"sleep disable" },
 	{ "gettimeofday_cached_disabled_nosleep", test_gettimeofday_cached, TT_FORK, &basic_setup, (void*)"disable" },
+
+	BASIC(active_by_fd, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
 
 #ifndef _WIN32
 	LEGACY(fork, TT_ISOLATED),

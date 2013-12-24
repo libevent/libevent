@@ -1467,14 +1467,20 @@ void event_base_dump_events(struct event_base *, FILE *);
 /**
    Activates all pending events for the given fd and event mask.
 
+   This function activates pending events only.  Events which have not been
+   added will not become active.
+
    @param base the event_base on which to activate the events.
    @param fd An fd to active events on.
-   @param events One or more of EV_{READ,WRITE,TIMEOUT}.
+   @param events One or more of EV_{READ,WRITE}.
  */
 void event_base_active_by_fd(struct event_base *base, evutil_socket_t fd, short events);
 
 /**
    Activates all pending signals with a given signal number
+
+   This function activates pending events only.  Events which have not been
+   added will not become active.
 
    @param base the event_base on which to activate the events.
    @param fd The signal to active events on.
