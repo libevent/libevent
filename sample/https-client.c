@@ -183,7 +183,8 @@ main(int argc, char **argv)
 	int r;
 
 	struct evhttp_uri *http_uri;
-	const char *url = 0, *scheme, *host, *path, *query, *data_file = 0;
+	const char *url = NULL, *data_file = NULL;
+	const char *scheme, *host, *path, *query;
 	char uri[256];
 	int port;
 
@@ -353,6 +354,9 @@ main(int argc, char **argv)
 	evhttp_add_header(output_headers, "Connection", "close");
 
 	if (data_file) {
+		/* NOTE: In production code, you'd probably want to use
+		 * evbuffer_add_file() or evbuffer_add_file_segment(), to
+		 * avoid needless copying. */
 		FILE * f = fopen(data_file, "rb");
 		char buf[1024];
 		ssize_t s;
