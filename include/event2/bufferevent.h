@@ -564,10 +564,13 @@ int bufferevent_flush(struct bufferevent *bufev,
 */
 enum bufferevent_trigger_options {
 	/** trigger the callback regardless of the watermarks */
-	BEV_TRIG_IGNORE_WATERMARKS = (1<<0),
+	BEV_TRIG_IGNORE_WATERMARKS = (1<<16),
 
 	/** defer even if the callbacks are not */
-	BEV_TRIG_DEFER_CALLBACKS = (1<<1),
+	BEV_TRIG_DEFER_CALLBACKS = BEV_OPT_DEFER_CALLBACKS,
+
+	/* (Note: for internal reasons, these need to be disjoint from
+	 * bufferevent_options, except when they mean the same thing. */
 };
 
 /**

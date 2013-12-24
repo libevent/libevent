@@ -226,8 +226,7 @@ bufferevent_run_readcb_(struct bufferevent *bufev, int options)
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (bufev->readcb == NULL)
 		return;
-	if ((p->options & BEV_OPT_DEFER_CALLBACKS) ||
-	    (options & BEV_TRIG_DEFER_CALLBACKS)) {
+	if ((p->options|options) & BEV_OPT_DEFER_CALLBACKS) {
 		p->readcb_pending = 1;
 		SCHEDULE_DEFERRED(p);
 	} else {
@@ -243,8 +242,7 @@ bufferevent_run_writecb_(struct bufferevent *bufev, int options)
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (bufev->writecb == NULL)
 		return;
-	if ((p->options & BEV_OPT_DEFER_CALLBACKS) ||
-	    (options & BEV_TRIG_DEFER_CALLBACKS)) {
+	if ((p->options|options) & BEV_OPT_DEFER_CALLBACKS) {
 		p->writecb_pending = 1;
 		SCHEDULE_DEFERRED(p);
 	} else {
@@ -252,11 +250,16 @@ bufferevent_run_writecb_(struct bufferevent *bufev, int options)
 	}
 }
 
+#define BEV_TRIG_ALL_OPTS (			\
+		BEV_TRIG_IGNORE_WATERMARKS|	\
+		BEV_TRIG_DEFER_CALLBACKS	\
+	)
+
 void
 bufferevent_trigger(struct bufferevent *bufev, short iotype, int options)
 {
 	bufferevent_incref_and_lock_(bufev);
-	bufferevent_trigger_nolock_(bufev, iotype, options);
+	bufferevent_trigger_nolock_(bufev, iotype, options&BEV_TRIG_ALL_OPTS);
 	bufferevent_decref_and_unlock_(bufev);
 }
 
@@ -268,8 +271,7 @@ bufferevent_run_eventcb_(struct bufferevent *bufev, short what, int options)
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	if (bufev->errorcb == NULL)
 		return;
-	if ((p->options & BEV_OPT_DEFER_CALLBACKS) ||
-	    (options & BEV_TRIG_DEFER_CALLBACKS)) {
+	if ((p->options|options) & BEV_OPT_DEFER_CALLBACKS) {
 		p->eventcb_pending |= what;
 		p->errno_pending = EVUTIL_SOCKET_ERROR();
 		SCHEDULE_DEFERRED(p);
@@ -282,7 +284,7 @@ void
 bufferevent_trigger_event(struct bufferevent *bufev, short what, int options)
 {
 	bufferevent_incref_and_lock_(bufev);
-	bufferevent_run_eventcb_(bufev, what, options);
+	bufferevent_run_eventcb_(bufev, what, options&BEV_TRIG_ALL_OPTS);
 	bufferevent_decref_and_unlock_(bufev);
 }
 
