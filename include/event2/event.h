@@ -425,6 +425,18 @@ const char **event_get_supported_methods(void);
 int event_base_get_num_events(struct event_base *, unsigned int);
 
 /**
+  Get the maximum number of events in a given event_base as specified in the
+  flags.
+
+  @param eb the event_base structure returned by event_base_new()
+  @param flags a bitwise combination of the kinds of events to aggregate
+         counts for
+  @param clear option used to reset the maximum count.
+  @return the number of events specified in the flags
+ */
+int event_base_get_max_events(struct event_base *, unsigned int, int);
+
+/**
    Allocates a new event configuration object.
 
    The event configuration object can be used to change the behavior of

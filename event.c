@@ -1204,6 +1204,36 @@ event_base_get_num_events(struct event_base *base, unsigned int type)
 	return r;
 }
 
+int
+event_base_get_max_events(struct event_base *base, unsigned int type, int clear)
+{
+	int r = 0;
+
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+
+	if (type & EVENT_BASE_COUNT_ACTIVE) {
+		r += base->event_count_active_max;
+		if (clear)
+			base->event_count_active_max = 0;
+	}
+
+	if (type & EVENT_BASE_COUNT_VIRTUAL) {
+		r += base->virtual_event_count_max;
+		if (clear)
+			base->virtual_event_count_max = 0;
+	}
+
+	if (type & EVENT_BASE_COUNT_ADDED) {
+		r += base->event_count_max;
+		if (clear)
+			base->event_count_max = 0;
+	}
+
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+
+	return r;
+}
+
 /* Returns true iff we're currently watching any events. */
 static int
 event_haveevents(struct event_base *base)
@@ -3026,14 +3056,23 @@ timeout_process(struct event_base *base)
 #if (EVLIST_INTERNAL >> 4) != 1
 #error "Mismatch for value of EVLIST_INTERNAL"
 #endif
+
+#ifndef MAX
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#endif
+
+#define MAX_EVENT_COUNT(var, v) var = MAX(var, v)
+
 /* These are a fancy way to spell
      if (flags & EVLIST_INTERNAL)
          base->event_count--/++;
 */
 #define DECR_EVENT_COUNT(base,flags) \
 	((base)->event_count -= (~((flags) >> 4) & 1))
-#define INCR_EVENT_COUNT(base,flags) \
-	((base)->event_count += (~((flags) >> 4) & 1))
+#define INCR_EVENT_COUNT(base,flags) do {					\
+	((base)->event_count += (~((flags) >> 4) & 1));				\
+	MAX_EVENT_COUNT((base)->event_count_max, (base)->event_count_max);	\
+} while (0)
 
 static void
 event_queue_remove_inserted(struct event_base *base, struct event *ev)
@@ -3203,6 +3242,7 @@ event_queue_insert_active(struct event_base *base, struct event_callback *evcb)
 	evcb->evcb_flags |= EVLIST_ACTIVE;
 
 	base->event_count_active++;
+	MAX_EVENT_COUNT(base->event_count_active_max, base->event_count_active);
 	EVUTIL_ASSERT(evcb->evcb_pri < base->nactivequeues);
 	TAILQ_INSERT_TAIL(&base->activequeues[evcb->evcb_pri],
 	    evcb, evcb_active_next);
@@ -3220,6 +3260,7 @@ event_queue_insert_active_later(struct event_base *base, struct event_callback *
 	INCR_EVENT_COUNT(base, evcb->evcb_flags);
 	evcb->evcb_flags |= EVLIST_ACTIVE_LATER;
 	base->event_count_active++;
+	MAX_EVENT_COUNT(base->event_count_active_max, base->event_count_active);
 	EVUTIL_ASSERT(evcb->evcb_pri < base->nactivequeues);
 	TAILQ_INSERT_TAIL(&base->active_later_queue, evcb, evcb_active_next);
 }
@@ -3637,6 +3678,7 @@ event_base_add_virtual_(struct event_base *base)
 {
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	base->virtual_event_count++;
+	MAX_EVENT_COUNT(base->virtual_event_count_max, base->virtual_event_count);
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 
