@@ -221,7 +221,7 @@ static struct timeouts *timeouts_init(struct timeouts *T, timeout_t hz) {
 } /* timeouts_init() */
 
 
-void timeouts_del(struct timeouts *T, struct timeout *to) {
+TIMEOUT_PUBLIC void timeouts_del(struct timeouts *T, struct timeout *to) {
 	if (to->pending) {
 		if (to->pending != &T->expired && TAILQ_EMPTY(to->pending)) {
 			ptrdiff_t index = to->pending - &T->wheel[0][0];
@@ -302,7 +302,7 @@ static void timeouts_readd(struct timeouts *T, struct timeout *to) {
 } /* timeouts_readd() */
 
 
-void timeouts_add(struct timeouts *T, struct timeout *to, timeout_t timeout) {
+TIMEOUT_PUBLIC void timeouts_add(struct timeouts *T, struct timeout *to, timeout_t timeout) {
 	if (to->flags & TIMEOUT_INT)
 		to->interval = MAX(1, timeout);
 
@@ -313,12 +313,12 @@ void timeouts_add(struct timeouts *T, struct timeout *to, timeout_t timeout) {
 } /* timeouts_add() */
 
 
-void timeouts_addf(struct timeouts *T, struct timeout *to, double timeout) {
+TIMEOUT_PUBLIC void timeouts_addf(struct timeouts *T, struct timeout *to, double timeout) {
 	timeouts_add(T, to, timeout * T->hertz);
 } /* timeouts_addf() */
 
 
-void timeouts_update(struct timeouts *T, abstime_t curtime) {
+TIMEOUT_PUBLIC void timeouts_update(struct timeouts *T, abstime_t curtime) {
 	timeout_t elapsed = curtime - T->curtime;
 	struct timeout_list todo;
 	int wheel;
@@ -383,12 +383,12 @@ void timeouts_update(struct timeouts *T, abstime_t curtime) {
 } /* timeouts_update() */
 
 
-void timeouts_step(struct timeouts *T, reltime_t elapsed) {
+TIMEOUT_PUBLIC void timeouts_step(struct timeouts *T, reltime_t elapsed) {
 	timeouts_update(T, T->curtime + elapsed);
 } /* timeouts_step() */
 
 
-bool timeouts_pending(struct timeouts *T) {
+TIMEOUT_PUBLIC bool timeouts_pending(struct timeouts *T) {
 	wheel_t pending = 0;
 	int wheel;
 
@@ -400,7 +400,7 @@ bool timeouts_pending(struct timeouts *T) {
 } /* timeouts_pending() */
 
 
-bool timeouts_expired(struct timeouts *T) {
+TIMEOUT_PUBLIC bool timeouts_expired(struct timeouts *T) {
 	return !TAILQ_EMPTY(&T->expired);
 } /* timeouts_expired() */
 
@@ -453,7 +453,7 @@ static timeout_t timeouts_int(struct timeouts *T) {
  * Calculate the interval our caller can wait before needing to process
  * events.
  */
-timeout_t timeouts_timeout(struct timeouts *T) {
+TIMEOUT_PUBLIC timeout_t timeouts_timeout(struct timeouts *T) {
 	if (!TAILQ_EMPTY(&T->expired))
 		return 0;
 
@@ -461,7 +461,7 @@ timeout_t timeouts_timeout(struct timeouts *T) {
 } /* timeouts_timeout() */
 
 
-struct timeout *timeouts_get(struct timeouts *T) {
+TIMEOUT_PUBLIC struct timeout *timeouts_get(struct timeouts *T) {
 	if (!TAILQ_EMPTY(&T->expired)) {
 		struct timeout *to = TAILQ_FIRST(&T->expired);
 
@@ -518,7 +518,7 @@ static struct timeout *timeouts_min(struct timeouts *T) {
 	} \
 } while (0)
 
-bool timeouts_check(struct timeouts *T, FILE *fp) {
+TIMEOUT_PUBLIC bool timeouts_check(struct timeouts *T, FILE *fp) {
 	timeout_t timeout;
 	struct timeout *to;
 
@@ -548,7 +548,7 @@ bool timeouts_check(struct timeouts *T, FILE *fp) {
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-struct timeout *timeout_init(struct timeout *to, int flags) {
+TIMEOUT_PUBLIC struct timeout *timeout_init(struct timeout *to, int flags) {
 	memset(to, 0, sizeof *to);
 
 	to->flags = flags;
@@ -557,19 +557,49 @@ struct timeout *timeout_init(struct timeout *to, int flags) {
 } /* timeout_init() */
 
 
-bool timeout_pending(struct timeout *to) {
+TIMEOUT_PUBLIC bool timeout_pending(struct timeout *to) {
 	return to->pending && to->pending != &to->timeouts->expired;
 } /* timeout_pending() */
 
 
-bool timeout_expired(struct timeout *to) {
+TIMEOUT_PUBLIC bool timeout_expired(struct timeout *to) {
 	return to->pending && to->pending == &to->timeouts->expired;
 } /* timeout_expired() */
 
 
-void timeout_del(struct timeout *to) {
+TIMEOUT_PUBLIC void timeout_del(struct timeout *to) {
 	timeouts_del(to->timeouts, to);
 } /* timeout_del() */
+
+
+/*
+ * V E R S I O N  I N T E R F A C E S
+ *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+TIMEOUT_PUBLIC int timeout_version(void) {
+	return TIMEOUT_VERSION;
+} /* timeout_version() */
+
+
+TIMEOUT_PUBLIC const char *timeout_vendor(void) {
+	return TIMEOUT_VENDOR;
+} /* timeout_version() */
+
+
+TIMEOUT_PUBLIC int timeout_v_rel(void) {
+	return TIMEOUT_V_REL;
+} /* timeout_version() */
+
+
+TIMEOUT_PUBLIC int timeout_v_abi(void) {
+	return TIMEOUT_V_ABI;
+} /* timeout_version() */
+
+
+TIMEOUT_PUBLIC int timeout_v_api(void) {
+	return TIMEOUT_V_API;
+} /* timeout_version() */
 
 
 #if TIMEOUT_MAIN - 0

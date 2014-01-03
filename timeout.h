@@ -35,6 +35,33 @@
 
 
 /*
+ * V E R S I O N  I N T E R F A C E S
+ *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#if !defined TIMEOUT_PUBLIC
+#define TIMEOUT_PUBLIC
+#endif
+
+#define TIMEOUT_VERSION TIMEOUT_V_REL
+#define TIMEOUT_VENDOR  "william@25thandClement.com"
+
+#define TIMEOUT_V_REL 0x20140103
+#define TIMEOUT_V_ABI 0x20140103
+#define TIMEOUT_V_API 0x20140103
+
+TIMEOUT_PUBLIC int timeout_version(void);
+
+TIMEOUT_PUBLIC const char *timeout_vendor(void);
+
+TIMEOUT_PUBLIC int timeout_v_rel(void);
+
+TIMEOUT_PUBLIC int timeout_v_abi(void);
+
+TIMEOUT_PUBLIC int timeout_v_api(void);
+
+
+/*
  * I N T E G E R  T Y P E  I N T E R F A C E S
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
@@ -99,16 +126,16 @@ struct timeout {
 }; /* struct timeout */
 
 
-struct timeout *timeout_init(struct timeout *, int);
+TIMEOUT_PUBLIC struct timeout *timeout_init(struct timeout *, int);
 /* initialize timeout structure (same as TIMEOUT_INITIALIZER) */
 
-bool timeout_pending(struct timeout *);
+TIMEOUT_PUBLIC bool timeout_pending(struct timeout *);
 /* true if on timing wheel, false otherwise */
  
-bool timeout_expired(struct timeout *);
+TIMEOUT_PUBLIC bool timeout_expired(struct timeout *);
 /* true if on expired queue, false otherwise */
 
-void timeout_del(struct timeout *);
+TIMEOUT_PUBLIC void timeout_del(struct timeout *);
 /* remove timeout from any timing wheel (okay if not member of any) */
 
 
@@ -119,37 +146,37 @@ void timeout_del(struct timeout *);
 
 struct timeouts;
 
-struct timeouts *timeouts_open(timeout_t);
-/* open a new timing wheel, setting optional HZ */
+TIMEOUT_PUBLIC struct timeouts *timeouts_open(timeout_t);
+/* open a new timing wheel, setting optional HZ (for float conversions) */
 
-void timeouts_close(struct timeouts *);
+TIMEOUT_PUBLIC void timeouts_close(struct timeouts *);
 /* destroy timing wheel */
 
-void timeouts_update(struct timeouts *, timeout_t);
+TIMEOUT_PUBLIC void timeouts_update(struct timeouts *, timeout_t);
 /* update timing wheel with current absolute time */
 
-void timeouts_step(struct timeouts *, timeout_t);
+TIMEOUT_PUBLIC void timeouts_step(struct timeouts *, timeout_t);
 /* step timing wheel by relative time */
 
-timeout_t timeouts_timeout(struct timeouts *);
+TIMEOUT_PUBLIC timeout_t timeouts_timeout(struct timeouts *);
 /* return interval to next required update */
 
-void timeouts_add(struct timeouts *, struct timeout *, timeout_t);
+TIMEOUT_PUBLIC void timeouts_add(struct timeouts *, struct timeout *, timeout_t);
 /* add timeout to timing wheel */
 
-void timeouts_addf(struct timeouts *, struct timeout *, double);
+TIMEOUT_PUBLIC void timeouts_addf(struct timeouts *, struct timeout *, double);
 /* add timeout to timing wheel, translating floating point timeout */
 
-void timeouts_del(struct timeouts *, struct timeout *);
+TIMEOUT_PUBLIC void timeouts_del(struct timeouts *, struct timeout *);
 /* remove timeout from any timing wheel or expired queue (okay if on neither) */
 
-bool timeouts_pending(struct timeouts *);
+TIMEOUT_PUBLIC bool timeouts_pending(struct timeouts *);
 /* return true if any timeouts pending on timing wheel */
 
-bool timeouts_expired(struct timeouts *);
+TIMEOUT_PUBLIC bool timeouts_expired(struct timeouts *);
 /* return true if any timeouts on expired queue */
 
-bool timeouts_check(struct timeouts *, FILE *);
+TIMEOUT_PUBLIC bool timeouts_check(struct timeouts *, FILE *);
 /* return true if invariants hold. describes failures to optional file handle. */
 
 
