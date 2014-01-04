@@ -119,10 +119,11 @@ struct timeout {
 	struct timeout_list *pending;
 	/* timeout list if pending on wheel or expiry queue */
 
+	TAILQ_ENTRY(timeout) tqe;
+	/* entry member for struct timeout_list lists */
+
 	struct timeout_cb callback;
 	/* optional callback information */
-
-	TAILQ_ENTRY(timeout) tqe;
 }; /* struct timeout */
 
 
