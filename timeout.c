@@ -26,6 +26,7 @@
 #include <limits.h>    /* CHAR_BIT */
 
 #include <stddef.h>    /* NULL */
+#include <stdlib.h>    /* malloc(3) free(3) */
 #include <stdio.h>     /* FILE fprintf(3) */
 
 #include <inttypes.h>  /* UINT64_C uint64_t */
@@ -33,6 +34,8 @@
 #include <math.h>      /* ceil(3) */
 
 #include <string.h>    /* memset(3) */
+
+#include <errno.h>     /* errno */
 
 #include <sys/queue.h> /* TAILQ(3) */
 
@@ -223,6 +226,55 @@ static struct timeouts *timeouts_init(struct timeouts *T, timeout_t hz) {
 
 	return T;
 } /* timeouts_init() */
+
+
+TIMEOUT_PUBLIC struct timeouts *timeouts_open(timeout_t hz, int *error) {
+	struct timeouts *T;
+
+	if ((T = malloc(sizeof *T)))
+		return timeouts_init(T, hz);
+
+	*error = errno;
+
+	return NULL;
+} /* timeouts_open() */
+
+
+static void timeouts_reset(struct timeouts *T) {
+	struct timeouts_list reset;
+	struct timeout *to;
+
+	TAILQ_INIT(&reset);
+
+	for (unsigned i = 0; i < countof(T->wheel); i++) {
+		for (unsigned j = 0; j < countof(T->wheel[i]); j++) {
+			TAILQ_CONCAT(&reset, &T->wheel[i][j]);
+		}
+	}
+
+	TAILQ_CONCAT(&reset, &T->expired);
+
+	TAILQ_FOREACH(to, &reset, tqe) {
+		to->timeouts = NULL;
+		to->pending = NULL;
+	}
+} /* timeouts_reset() */
+
+
+TIMEOUT_PUBLIC void timeouts_close(struct timeouts *T) {
+	/*
+	 * NOTE: Delete installed timeouts so timeout_pending() and
+	 * timeout_expired() worked as expected.
+	 */
+	timeouts_reset(T);
+
+	free(T);
+} /* timeouts_close() */
+
+
+TIMEOUT_PUBLIC timeout_t timeouts_hz(struct timeouts *T) {
+	return T->hertz;
+} /* timeouts_hz() */
 
 
 TIMEOUT_PUBLIC void timeouts_del(struct timeouts *T, struct timeout *to) {

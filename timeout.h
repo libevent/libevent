@@ -146,11 +146,14 @@ TIMEOUT_PUBLIC void timeout_del(struct timeout *);
 
 struct timeouts;
 
-TIMEOUT_PUBLIC struct timeouts *timeouts_open(timeout_t);
+TIMEOUT_PUBLIC struct timeouts *timeouts_open(timeout_t, int *);
 /* open a new timing wheel, setting optional HZ (for float conversions) */
 
 TIMEOUT_PUBLIC void timeouts_close(struct timeouts *);
 /* destroy timing wheel */
+
+TIMEOUT_PUBLIC timeout_t timeouts_hz(struct timeouts *);
+/* return HZ setting (for float conversions) */
 
 TIMEOUT_PUBLIC void timeouts_update(struct timeouts *, timeout_t);
 /* update timing wheel with current absolute time */
