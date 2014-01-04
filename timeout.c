@@ -1,7 +1,7 @@
 /* ==========================================================================
  * timeout.c - Tickless hierarchical timing wheel.
  * --------------------------------------------------------------------------
- * Copyright (c) 2013  William Ahern
+ * Copyright (c) 2013, 2014  William Ahern
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -23,14 +23,18 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  * ==========================================================================
  */
-
 #include <limits.h>    /* CHAR_BIT */
+
 #include <stddef.h>    /* NULL */
+#include <stdio.h>     /* FILE fprintf(3) */
+
 #include <inttypes.h>  /* UINT64_C uint64_t */
 
-#include <string.h>
+#include <math.h>      /* ceil(3) */
 
-#include <sys/queue.h>
+#include <string.h>    /* memset(3) */
+
+#include <sys/queue.h> /* TAILQ(3) */
 
 #include "timeout.h"
 
@@ -314,7 +318,7 @@ TIMEOUT_PUBLIC void timeouts_add(struct timeouts *T, struct timeout *to, timeout
 
 
 TIMEOUT_PUBLIC void timeouts_addf(struct timeouts *T, struct timeout *to, double timeout) {
-	timeouts_add(T, to, timeout * T->hertz);
+	timeouts_add(T, to, ceil(timeout * T->hertz));
 } /* timeouts_addf() */
 
 
