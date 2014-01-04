@@ -203,10 +203,10 @@ TIMEOUT_PUBLIC bool timeouts_check(struct timeouts *, FILE *);
 #include <math.h> /* ceil(3) */
 
 #define timeouts_f2i(T, f) \
-	(ceil((f) * timeouts_hz((T)))) /* prefer late expiration over early */
+	((timeout_t)ceil((f) * timeouts_hz((T)))) /* prefer late expiration over early */
 
 #define timeouts_i2f(T, i) \
-	((i) / timeouts_hz((T)))
+	((double)(i) / timeouts_hz((T)))
 
 #define timeouts_addf(T, to, timeout) \
 	timeouts_add((T), (to), timeouts_f2i((T), (timeout)))
