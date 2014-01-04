@@ -31,8 +31,6 @@
 
 #include <inttypes.h>  /* UINT64_C uint64_t */
 
-#include <math.h>      /* ceil(3) */
-
 #include <string.h>    /* memset(3) */
 
 #include <errno.h>     /* errno */
@@ -368,11 +366,6 @@ TIMEOUT_PUBLIC void timeouts_add(struct timeouts *T, struct timeout *to, timeout
 	else
 		timeouts_sched(T, to, T->curtime + timeout);
 } /* timeouts_add() */
-
-
-TIMEOUT_PUBLIC void timeouts_addf(struct timeouts *T, struct timeout *to, double timeout) {
-	timeouts_add(T, to, ceil(timeout * T->hertz));
-} /* timeouts_addf() */
 
 
 TIMEOUT_PUBLIC void timeouts_update(struct timeouts *T, abstime_t curtime) {

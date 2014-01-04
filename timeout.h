@@ -77,6 +77,8 @@ TIMEOUT_PUBLIC int timeout_v_api(void);
 
 typedef uint64_t timeout_t;
 
+#define timeout_error_t int /* for documentation purposes */
+
 
 /*
  * C A L L B A C K  I N T E R F A C E
@@ -147,7 +149,7 @@ TIMEOUT_PUBLIC void timeout_del(struct timeout *);
 
 struct timeouts;
 
-TIMEOUT_PUBLIC struct timeouts *timeouts_open(timeout_t, int *);
+TIMEOUT_PUBLIC struct timeouts *timeouts_open(timeout_t, timeout_error_t *);
 /* open a new timing wheel, setting optional HZ (for float conversions) */
 
 TIMEOUT_PUBLIC void timeouts_close(struct timeouts *);
@@ -168,11 +170,11 @@ TIMEOUT_PUBLIC timeout_t timeouts_timeout(struct timeouts *);
 TIMEOUT_PUBLIC void timeouts_add(struct timeouts *, struct timeout *, timeout_t);
 /* add timeout to timing wheel */
 
-TIMEOUT_PUBLIC void timeouts_addf(struct timeouts *, struct timeout *, double);
-/* add timeout to timing wheel, translating floating point timeout */
-
 TIMEOUT_PUBLIC void timeouts_del(struct timeouts *, struct timeout *);
 /* remove timeout from any timing wheel or expired queue (okay if on neither) */
+
+TIMEOUT_PUBLIC struct timeout *timeouts_get(struct timeouts *);
+/* return any expired timeout (caller should loop until NULL-return) */
 
 TIMEOUT_PUBLIC bool timeouts_pending(struct timeouts *);
 /* return true if any timeouts pending on timing wheel */
@@ -183,5 +185,27 @@ TIMEOUT_PUBLIC bool timeouts_expired(struct timeouts *);
 TIMEOUT_PUBLIC bool timeouts_check(struct timeouts *, FILE *);
 /* return true if invariants hold. describes failures to optional file handle. */
 
+
+/*
+ * B O N U S  W H E E L  I N T E R F A C E S
+ *
+ * I usually use floating point timeouts in all my code, but it's cleaner to
+ * separate it to keep the core algorithmic code simple.
+ *
+ * Using macros instead of static inline routines where <math.h> routines
+ * might be used to keep -lm linking optional.
+ *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+#include <math.h> /* ceil(3) */
+
+#define timeouts_f2i(T, f) \
+	(ceil((f) * timeouts_hz((T)))) /* prefer late expiration over early */
+
+#define timeouts_i2f(T, i) \
+	((i) / timeouts_hz((T)))
+
+#define timeouts_addf(T, to, timeout) \
+	timeouts_add((T), (to), timeouts_f2i((T), (timeout)))
 
 #endif /* TIMEOUT_H */
