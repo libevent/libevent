@@ -241,18 +241,19 @@ TIMEOUT_PUBLIC struct timeouts *timeouts_open(timeout_t hz, int *error) {
 
 
 static void timeouts_reset(struct timeouts *T) {
-	struct timeouts_list reset;
+	struct timeout_list reset;
 	struct timeout *to;
+	unsigned i, j;
 
 	TAILQ_INIT(&reset);
 
-	for (unsigned i = 0; i < countof(T->wheel); i++) {
-		for (unsigned j = 0; j < countof(T->wheel[i]); j++) {
-			TAILQ_CONCAT(&reset, &T->wheel[i][j]);
+	for (i = 0; i < countof(T->wheel); i++) {
+		for (j = 0; j < countof(T->wheel[i]); j++) {
+			TAILQ_CONCAT(&reset, &T->wheel[i][j], tqe);
 		}
 	}
 
-	TAILQ_CONCAT(&reset, &T->expired);
+	TAILQ_CONCAT(&reset, &T->expired, tqe);
 
 	TAILQ_FOREACH(to, &reset, tqe) {
 		to->timeouts = NULL;
