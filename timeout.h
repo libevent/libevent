@@ -83,6 +83,9 @@ typedef uint64_t timeout_t;
 /*
  * C A L L B A C K  I N T E R F A C E
  *
+ * Callback function parameters unspecified to make embedding into existing
+ * applications easier.
+ *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 struct timeout_cb {
@@ -99,7 +102,7 @@ struct timeout_cb {
 #define TIMEOUT_INT 0x01 /* interval (repeating) timeout */
 #define TIMEOUT_ABS 0x02 /* treat timeout values as absolute */
 
-#define TIMEOUT_INITIALIZER(flags) { (flags), 0, 0, 0, { 0, 0 } }
+#define TIMEOUT_INITIALIZER(flags) { (flags) }
 
 #define timeout_setcb(to, fn, arg) do { \
 	(to)->callback.fn = (fn);       \
