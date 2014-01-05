@@ -224,10 +224,16 @@ struct event_base {
 
 	/** Number of virtual events */
 	int virtual_event_count;
+	/** Maximum number of virtual events active */
+	int virtual_event_count_max;
 	/** Number of total events added to this event_base */
 	int event_count;
+	/** Maximum number of total events added to this event_base */
+	int event_count_max;
 	/** Number of total events active in this event_base */
 	int event_count_active;
+	/** Maximum number of total events active in this event_base */
+	int event_count_active_max;
 
 	/** Set if we should terminate the loop once we're done processing
 	 * events. */
