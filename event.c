@@ -3071,7 +3071,7 @@ timeout_process(struct event_base *base)
 	((base)->event_count -= (~((flags) >> 4) & 1))
 #define INCR_EVENT_COUNT(base,flags) do {					\
 	((base)->event_count += (~((flags) >> 4) & 1));				\
-	MAX_EVENT_COUNT((base)->event_count_max, (base)->event_count_max);	\
+	MAX_EVENT_COUNT((base)->event_count_max, (base)->event_count);		\
 } while (0)
 
 static void
