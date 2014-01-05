@@ -1436,6 +1436,150 @@ end:
 }
 
 static void
+test_event_base_get_max_events(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base = data->base;
+	struct event ev;
+	struct event ev2;
+	int event_count_active;
+	int event_count_virtual;
+	int event_count_added;
+	int event_count_active_virtual;
+	int event_count_active_added;
+	int event_count_virtual_added;
+	int event_count_active_added_virtual;
+
+	struct timeval qsec = {0, 100000};
+
+	event_assign(&ev, base, -1, EV_READ, event_selfarg_cb,
+	    event_self_cbarg());
+	event_assign(&ev2, base, -1, EV_READ, event_selfarg_cb,
+	    event_self_cbarg());
+
+	event_add(&ev, &qsec);
+	event_add(&ev2, &qsec);
+	event_del(&ev2);
+
+	event_count_active = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE, 0);
+	event_count_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL, 0);
+	event_count_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ADDED, 0);
+	event_count_active_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE | EVENT_BASE_COUNT_VIRTUAL, 0);
+	event_count_active_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE | EVENT_BASE_COUNT_ADDED, 0);
+	event_count_virtual_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL | EVENT_BASE_COUNT_ADDED, 0);
+	event_count_active_added_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE |
+	    EVENT_BASE_COUNT_ADDED |
+	    EVENT_BASE_COUNT_VIRTUAL, 0);
+
+	tt_int_op(event_count_active, ==, 0);
+	tt_int_op(event_count_virtual, ==, 0);
+	/* libevent itself adds a timeout event, so the event_count is 4 here */
+	tt_int_op(event_count_added, ==, 4);
+	tt_int_op(event_count_active_virtual, ==, 0);
+	tt_int_op(event_count_active_added, ==, 4);
+	tt_int_op(event_count_virtual_added, ==, 4);
+	tt_int_op(event_count_active_added_virtual, ==, 4);
+
+	event_active(&ev, EV_READ, 1);
+	event_count_active = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE, 0);
+	event_count_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL, 0);
+	event_count_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ADDED, 0);
+	event_count_active_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE | EVENT_BASE_COUNT_VIRTUAL, 0);
+	event_count_active_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE | EVENT_BASE_COUNT_ADDED, 0);
+	event_count_virtual_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL | EVENT_BASE_COUNT_ADDED, 0);
+	event_count_active_added_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE |
+	    EVENT_BASE_COUNT_ADDED |
+	    EVENT_BASE_COUNT_VIRTUAL, 0);
+
+	tt_int_op(event_count_active, ==, 1);
+	tt_int_op(event_count_virtual, ==, 0);
+	tt_int_op(event_count_added, ==, 4);
+	tt_int_op(event_count_active_virtual, ==, 1);
+	tt_int_op(event_count_active_added, ==, 5);
+	tt_int_op(event_count_virtual_added, ==, 4);
+	tt_int_op(event_count_active_added_virtual, ==, 5);
+
+	event_base_loop(base, 0);
+	event_count_active = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE, 1);
+	event_count_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL, 1);
+	event_count_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ADDED, 1);
+	event_count_active_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE | EVENT_BASE_COUNT_VIRTUAL, 0);
+	event_count_active_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE | EVENT_BASE_COUNT_ADDED, 0);
+	event_count_virtual_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL | EVENT_BASE_COUNT_ADDED, 0);
+	event_count_active_added_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE |
+	    EVENT_BASE_COUNT_ADDED |
+	    EVENT_BASE_COUNT_VIRTUAL, 1);
+
+	tt_int_op(event_count_active, ==, 1);
+	tt_int_op(event_count_virtual, ==, 0);
+	tt_int_op(event_count_added, ==, 4);
+	tt_int_op(event_count_active_virtual, ==, 0);
+	tt_int_op(event_count_active_added, ==, 0);
+	tt_int_op(event_count_virtual_added, ==, 0);
+	tt_int_op(event_count_active_added_virtual, ==, 0);
+
+	event_count_active = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE, 0);
+	event_count_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL, 0);
+	event_count_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ADDED, 0);
+	tt_int_op(event_count_active, ==, 0);
+	tt_int_op(event_count_virtual, ==, 0);
+	tt_int_op(event_count_added, ==, 0);
+
+	event_base_add_virtual_(base);
+	event_count_active = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE, 0);
+	event_count_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL, 0);
+	event_count_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ADDED, 0);
+	event_count_active_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE | EVENT_BASE_COUNT_VIRTUAL, 0);
+	event_count_active_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE | EVENT_BASE_COUNT_ADDED, 0);
+	event_count_virtual_added = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_VIRTUAL | EVENT_BASE_COUNT_ADDED, 0);
+	event_count_active_added_virtual = event_base_get_max_events(base,
+	    EVENT_BASE_COUNT_ACTIVE |
+	    EVENT_BASE_COUNT_ADDED |
+	    EVENT_BASE_COUNT_VIRTUAL, 0);
+
+	tt_int_op(event_count_active, ==, 0);
+	tt_int_op(event_count_virtual, ==, 1);
+	tt_int_op(event_count_added, ==, 0);
+	tt_int_op(event_count_active_virtual, ==, 1);
+	tt_int_op(event_count_active_added, ==, 0);
+	tt_int_op(event_count_virtual_added, ==, 1);
+	tt_int_op(event_count_active_added_virtual, ==, 1);
+
+end:
+       ;
+}
+
+static void
 test_bad_assign(void *ptr)
 {
 	struct event ev;
@@ -2976,6 +3120,7 @@ struct testcase_t main_testcases[] = {
 	BASIC(event_new_selfarg, TT_FORK|TT_NEED_BASE),
 	BASIC(event_assign_selfarg, TT_FORK|TT_NEED_BASE),
 	BASIC(event_base_get_num_events, TT_FORK|TT_NEED_BASE),
+	BASIC(event_base_get_max_events, TT_FORK|TT_NEED_BASE),
 
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
