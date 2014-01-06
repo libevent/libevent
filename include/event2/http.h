@@ -554,6 +554,16 @@ enum evhttp_request_error {
 void evhttp_request_set_error_cb(struct evhttp_request *,
     void (*)(enum evhttp_request_error, void *));
 
+/**
+ * Set a on request complete callback.
+ *
+ * Receive a callback on request completion.  This callback is triggered once
+ * the request is complete and all resources associated with the request will
+ * be released.
+ */
+void evhttp_request_set_on_complete_cb(struct evhttp_request *,
+    void (*)(struct evhttp_request *, void *), void *);
+
 /** Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
 
