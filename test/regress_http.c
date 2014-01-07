@@ -742,9 +742,16 @@ static void
 http_sent_cb(struct evhttp_request *req, void *arg)
 {
 	unsigned int val = (unsigned int)arg;
+	struct evbuffer *b;
 
 	if (val != 0xDEADBEEF) {
 		fprintf(stdout, "FAILED on_complete_cb argument\n");
+		exit(1);
+	}
+
+	b = evhttp_request_get_output_buffer(req);
+	if (evbuffer_get_length(b) != 0) {
+		fprintf(stdout, "FAILED on_complete_cb output buffer not written\n");
 		exit(1);
 	}
 
@@ -792,7 +799,7 @@ http_on_complete_test(void *arg)
 	    http_errorcb, data->base);
 
 	http_request =
-	    "DELETE /oncomplete HTTP/1.1\r\n"
+	    "GET /oncomplete HTTP/1.1\r\n"
 	    "Host: somehost\r\n"
 	    "Connection: close\r\n"
 	    "\r\n";
