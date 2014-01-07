@@ -2552,6 +2552,10 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
+	if (req->on_complete_cb != NULL) {
+		req->on_complete_cb(req, req->on_complete_cb_arg);
+	}
+
 	need_close =
 	    (REQ_VERSION_BEFORE(req, 1, 1) &&
 		!evhttp_is_connection_keepalive(req->input_headers))||
@@ -3838,6 +3842,14 @@ evhttp_request_set_error_cb(struct evhttp_request *req,
     void (*cb)(enum evhttp_request_error, void *))
 {
 	req->error_cb = cb;
+}
+
+void
+evhttp_request_set_on_complete_cb(struct evhttp_request *req,
+    void (*cb)(struct evhttp_request *, void *), void *cb_arg)
+{
+	req->on_complete_cb = cb;
+	req->on_complete_cb_arg = cb_arg;
 }
 
 /*
