@@ -135,6 +135,13 @@ struct {
 	 * @see evhttp_request_set_error_cb()
 	 */
 	void (*error_cb)(enum evhttp_request_error, void *);
+
+	/*
+	 * Send complete callback - called when the request is actually
+	 * sent and completed.
+	 */
+	void (*on_complete_cb)(struct evhttp_request *, void *);
+	void *on_complete_cb_arg;
 };
 
 #ifdef __cplusplus

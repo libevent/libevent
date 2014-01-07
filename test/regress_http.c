@@ -92,6 +92,7 @@ static void http_delay_cb(struct evhttp_request *req, void *arg);
 static void http_large_delay_cb(struct evhttp_request *req, void *arg);
 static void http_badreq_cb(struct evhttp_request *req, void *arg);
 static void http_dispatcher_cb(struct evhttp_request *req, void *arg);
+static void http_on_complete_cb(struct evhttp_request *req, void *arg);
 
 static int
 http_bind(struct evhttp *myhttp, ev_uint16_t *pport, int ipv6)
@@ -136,6 +137,7 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int ipv6)
 	evhttp_set_cb(myhttp, "/delay", http_delay_cb, base);
 	evhttp_set_cb(myhttp, "/largedelay", http_large_delay_cb, base);
 	evhttp_set_cb(myhttp, "/badrequest", http_badreq_cb, base);
+	evhttp_set_cb(myhttp, "/oncomplete", http_on_complete_cb, base);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, base);
 	return (myhttp);
 }
@@ -481,6 +483,7 @@ http_basic_test(void *arg)
 	;
 }
 
+
 static void
 http_delay_reply(evutil_socket_t fd, short what, void *arg)
 {
@@ -731,6 +734,86 @@ http_delete_test(void *arg)
 	evhttp_free(http);
 
 	tt_int_op(test_ok, ==, 2);
+ end:
+	;
+}
+
+static void
+http_sent_cb(struct evhttp_request *req, void *arg)
+{
+	unsigned int val = (unsigned int)arg;
+	struct evbuffer *b;
+
+	if (val != 0xDEADBEEF) {
+		fprintf(stdout, "FAILED on_complete_cb argument\n");
+		exit(1);
+	}
+
+	b = evhttp_request_get_output_buffer(req);
+	if (evbuffer_get_length(b) != 0) {
+		fprintf(stdout, "FAILED on_complete_cb output buffer not written\n");
+		exit(1);
+	}
+
+	event_debug(("%s: called\n", __func__));
+
+	++test_ok;
+}
+
+static void
+http_on_complete_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *evb = evbuffer_new();
+
+	evhttp_request_set_on_complete_cb(req, http_sent_cb, (void *)0xDEADBEEF);
+
+	event_debug(("%s: called\n", __func__));
+	evbuffer_add_printf(evb, BASIC_REQUEST_BODY);
+
+	/* allow sending of an empty reply */
+	evhttp_send_reply(req, HTTP_OK, "Everything is fine", evb);
+
+	evbuffer_free(evb);
+
+	++test_ok;
+}
+
+static void
+http_on_complete_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev;
+	evutil_socket_t fd;
+	const char *http_request;
+	ev_uint16_t port = 0;
+
+	test_ok = 0;
+
+	http = http_setup(&port, data->base, 0);
+
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_socket_new(data->base, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
+	    http_errorcb, data->base);
+
+	http_request =
+	    "GET /oncomplete HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	event_base_dispatch(data->base);
+
+	bufferevent_free(bev);
+	evutil_closesocket(fd);
+
+	evhttp_free(http);
+
+	tt_int_op(test_ok, ==, 4);
  end:
 	;
 }
@@ -3759,6 +3842,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(incomplete),
 	HTTP(incomplete_timeout),
 	HTTP(terminate_chunked),
+	HTTP(on_complete),
 
 	HTTP(highport),
 	HTTP(dispatcher),
