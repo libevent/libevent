@@ -3846,10 +3846,10 @@ evhttp_request_set_error_cb(struct evhttp_request *req,
 
 void
 evhttp_request_set_on_complete_cb(struct evhttp_request *req,
-    void (*cb)(struct evhttp_request *, void *), void *arg)
+    void (*cb)(struct evhttp_request *, void *), void *cb_arg)
 {
 	req->on_complete_cb = cb;
-	req->on_complete_cb_arg = arg;
+	req->on_complete_cb_arg = cb_arg;
 }
 
 /*

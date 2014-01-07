@@ -555,14 +555,19 @@ void evhttp_request_set_error_cb(struct evhttp_request *,
     void (*)(enum evhttp_request_error, void *));
 
 /**
- * Set a on request complete callback.
+ * Set a callback to be called on request completion of evhttp_send_* function.
  *
- * Receive a callback on request completion.  This callback is triggered once
- * the request is complete and all resources associated with the request will
- * be released.
+ * The callback function will be called on the completion of the request after
+ * the output data has been written and before the evhttp_request object
+ * is destroyed. This can be useful for tracking resources associated with a
+ * request (ex: timing metrics).
+ *
+ * @param req a request object
+ * @param cb callback function that will be called on request completion
+ * @param cb_arg an additional context argument for the callback
  */
-void evhttp_request_set_on_complete_cb(struct evhttp_request *,
-    void (*)(struct evhttp_request *, void *), void *);
+void evhttp_request_set_on_complete_cb(struct evhttp_request *req,
+    void (*cb)(struct evhttp_request *, void *), void *cb_arg);
 
 /** Frees the request object and removes associated events. */
 void evhttp_request_free(struct evhttp_request *req);
