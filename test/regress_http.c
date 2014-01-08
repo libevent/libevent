@@ -599,6 +599,7 @@ http_bad_request_test(void *arg)
 
 	/* NULL request test */
 	fd = http_connect("127.0.0.1", port);
+	tt_int_op(fd, >=, 0);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -712,6 +713,7 @@ http_delete_test(void *arg)
 	http = http_setup(&port, data->base, 0);
 
 	fd = http_connect("127.0.0.1", port);
+	tt_int_op(fd, >=, 0);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -853,6 +855,7 @@ http_allowed_methods_test(void *arg)
 	http = http_setup(&port, data->base, 0);
 
 	fd1 = http_connect("127.0.0.1", port);
+	tt_int_op(fd1, >=, 0);
 
 	/* GET is out; PATCH is in. */
 	evhttp_set_allowed_methods(http, EVHTTP_REQ_PATCH);
@@ -874,6 +877,7 @@ http_allowed_methods_test(void *arg)
 	event_base_dispatch(data->base);
 
 	fd2 = http_connect("127.0.0.1", port);
+	tt_int_op(fd2, >=, 0);
 
 	bev2 = bufferevent_socket_new(data->base, fd2, 0);
 	bufferevent_enable(bev2, EV_READ|EV_WRITE);
@@ -891,6 +895,7 @@ http_allowed_methods_test(void *arg)
 	event_base_dispatch(data->base);
 
 	fd3 = http_connect("127.0.0.1", port);
+	tt_int_op(fd3, >=, 0);
 
 	bev3 = bufferevent_socket_new(data->base, fd3, 0);
 	bufferevent_enable(bev3, EV_READ|EV_WRITE);
@@ -1855,6 +1860,7 @@ http_failure_test(void *arg)
 	http = http_setup(&port, data->base, 0);
 
 	fd = http_connect("127.0.0.1", port);
+	tt_int_op(fd, >=, 0);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -1948,6 +1954,7 @@ http_close_detection_(struct basic_test_data *data, int with_delay)
 
 	evcon = evhttp_connection_base_new(data->base, NULL,
 	    "127.0.0.1", port);
+	tt_assert(evcon);
 	evhttp_connection_set_timeout_tv(evcon, &sec_tenth);
 
 
@@ -2617,9 +2624,11 @@ http_base_test(void *ptr)
 
 	test_ok = 0;
 	base = event_base_new();
+	tt_assert(base);
 	http = http_setup(&port, base, 0);
 
 	fd = http_connect("127.0.0.1", port);
+	tt_int_op(fd, >=, 0);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(base, fd, 0);
@@ -2703,6 +2712,7 @@ http_incomplete_test_(struct basic_test_data *data, int use_timeout)
 	evhttp_set_timeout(http, 1);
 
 	fd = http_connect("127.0.0.1", port);
+	tt_int_op(fd, >=, 0);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -2765,13 +2775,15 @@ http_chunked_readcb(struct bufferevent *bev, void *arg)
 static void
 http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 {
+	struct evhttp_request *req = NULL;
+
 	if (!test_ok)
 		goto out;
 
 	test_ok = -1;
 
 	if ((what & BEV_EVENT_EOF) != 0) {
-		struct evhttp_request *req = evhttp_request_new(NULL, NULL);
+		req = evhttp_request_new(NULL, NULL);
 		const char *header;
 		enum message_read_status done;
 
@@ -2849,11 +2861,12 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 		free((void *)header);
 
 		test_ok = 2;
-
-		evhttp_request_free(req);
 	}
 
 out:
+	if (req)
+		evhttp_request_free(req);
+
 	event_base_loopexit(arg, NULL);
 }
 
@@ -3400,10 +3413,15 @@ http_multi_line_header_test(void *arg)
 
 	http = http_setup(&port, data->base, 0);
 
+	tt_ptr_op(http, !=, NULL);
+
 	fd = http_connect("127.0.0.1", port);
+
+	tt_int_op(fd, !=, -1);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
+	tt_ptr_op(bev, !=, NULL);
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
 

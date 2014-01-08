@@ -486,6 +486,7 @@ reader_eventcb(struct bufferevent *bev, short what, void *ctx)
 		char buf[512];
 		size_t n;
 		n = bufferevent_read(bev, buf, sizeof(buf)-1);
+		tt_int_op(n, >=, 0);
 		buf[n] = '\0';
 		tt_str_op(buf, ==, TEST_STR);
 		if (++n_strings_read == 2)

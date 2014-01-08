@@ -1729,11 +1729,15 @@ static void read_not_timeout_cb(evutil_socket_t fd, short what, void *arg)
 {
 	struct read_not_timeout_param *rntp = arg;
 	char c;
+	ev_ssize_t n;
 	(void) fd; (void) what;
-	(void) read(fd, &c, 1);
+	n = read(fd, &c, 1);
+	tt_int_op(n, ==, 1);
 	rntp->events |= what;
 	++rntp->count;
 	if(2 == rntp->count) event_del(rntp->ev[0]);
+end:
+	;
 }
 
 static void
@@ -1935,13 +1939,18 @@ re_add_read_cb(evutil_socket_t fd, short event, void *arg)
 	char buf[256];
 	struct event *ev_other = arg;
 	readd_test_event_last_added = ev_other;
+	ev_ssize_t n_read;
 
-	if (read(fd, buf, sizeof(buf)) < 0) {
+	n_read = read(fd, buf, sizeof(buf));
+
+	if (n_read < 0) {
 		tt_fail_perror("read");
+		event_base_loopbreak(event_get_base(ev_other));
+		return;
+	} else {
+		event_add(ev_other, NULL);
+		++test_ok;
 	}
-
-	event_add(ev_other, NULL);
-	++test_ok;
 }
 
 static void
@@ -3144,8 +3153,13 @@ test_active_by_fd(void *arg)
 	ev2 = event_new(base, data->pair[0], EV_WRITE, tabf_cb, &e2);
 	ev3 = event_new(base, data->pair[1], EV_READ, tabf_cb, &e3);
 	ev4 = event_new(base, data->pair[1], EV_READ, tabf_cb, &e4);
+	tt_assert(ev1);
+	tt_assert(ev2);
+	tt_assert(ev3);
+	tt_assert(ev4);
 #ifndef _WIN32
 	evsig = event_new(base, SIGHUP, EV_SIGNAL, tabf_cb, &es);
+	tt_assert(evsig);
 	event_add(evsig, &tenmin);
 #endif
 
