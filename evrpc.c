@@ -492,8 +492,7 @@ evrpc_request_done_closure(void *arg, enum EVRPC_HOOK_RESULT hook_res)
 	return;
 
 error:
-	if (rpc_state != NULL)
-		evrpc_reqstate_free_(rpc_state);
+	evrpc_reqstate_free_(rpc_state);
 	evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
 	return;
 }

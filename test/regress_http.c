@@ -584,7 +584,7 @@ http_bad_request_test(void *arg)
 	struct basic_test_data *data = arg;
 	struct timeval tv;
 	struct bufferevent *bev = NULL;
-	evutil_socket_t fd;
+	evutil_socket_t fd = -1;
 	const char *http_request;
 	ev_uint16_t port=0, port2=0;
 
@@ -658,6 +658,8 @@ end:
 	evhttp_free(http);
 	if (bev)
 		bufferevent_free(bev);
+	if (fd >= 0)
+		evutil_closesocket(fd);
 }
 
 static struct evhttp_connection *delayed_client;
@@ -704,7 +706,7 @@ http_delete_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev;
-	evutil_socket_t fd;
+	evutil_socket_t fd = -1;
 	const char *http_request;
 	ev_uint16_t port = 0;
 
@@ -737,7 +739,8 @@ http_delete_test(void *arg)
 
 	tt_int_op(test_ok, ==, 2);
  end:
-	;
+	if (fd >= 0)
+		evutil_closesocket(fd);
 }
 
 static void
@@ -785,7 +788,7 @@ http_on_complete_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev;
-	evutil_socket_t fd;
+	evutil_socket_t fd = -1;
 	const char *http_request;
 	ev_uint16_t port = 0;
 
@@ -794,6 +797,7 @@ http_on_complete_test(void *arg)
 	http = http_setup(&port, data->base, 0);
 
 	fd = http_connect("127.0.0.1", port);
+	tt_int_op(fd, >=, 0);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -811,13 +815,13 @@ http_on_complete_test(void *arg)
 	event_base_dispatch(data->base);
 
 	bufferevent_free(bev);
-	evutil_closesocket(fd);
 
 	evhttp_free(http);
 
 	tt_int_op(test_ok, ==, 4);
  end:
-	;
+	if (fd >= 0)
+		evutil_closesocket(fd);
 }
 
 static void
@@ -844,7 +848,7 @@ http_allowed_methods_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev1, *bev2, *bev3;
-	evutil_socket_t fd1, fd2, fd3;
+	evutil_socket_t fd1=-1, fd2=-1, fd3=-1;
 	const char *http_request;
 	char *result1=NULL, *result2=NULL, *result3=NULL;
 	ev_uint16_t port = 0;
@@ -915,9 +919,6 @@ http_allowed_methods_test(void *arg)
 	bufferevent_free(bev1);
 	bufferevent_free(bev2);
 	bufferevent_free(bev3);
-	evutil_closesocket(fd1);
-	evutil_closesocket(fd2);
-	evutil_closesocket(fd3);
 
 	evhttp_free(http);
 
@@ -940,6 +941,12 @@ http_allowed_methods_test(void *arg)
 		free(result2);
 	if (result3)
 		free(result3);
+	if (fd1 >= 0)
+		evutil_closesocket(fd1);
+	if (fd2 >= 0)
+		evutil_closesocket(fd2);
+	if (fd3 >= 0)
+		evutil_closesocket(fd3);
 }
 
 static void http_request_done(struct evhttp_request *, void *);
@@ -1851,7 +1858,7 @@ http_failure_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev;
-	evutil_socket_t fd;
+	evutil_socket_t fd = -1;
 	const char *http_request;
 	ev_uint16_t port = 0;
 
@@ -1874,13 +1881,13 @@ http_failure_test(void *arg)
 	event_base_dispatch(data->base);
 
 	bufferevent_free(bev);
-	evutil_closesocket(fd);
 
 	evhttp_free(http);
 
 	tt_int_op(test_ok, ==, 2);
  end:
-	;
+	if (fd >= 0)
+		evutil_closesocket(fd);
 }
 
 static void
@@ -2749,7 +2756,8 @@ http_incomplete_test_(struct basic_test_data *data, int use_timeout)
 
 	tt_int_op(test_ok, ==, 2);
  end:
-	;
+	if (fd >= 0)
+		evutil_closesocket(fd);
 }
 static void
 http_incomplete_test(void *arg)

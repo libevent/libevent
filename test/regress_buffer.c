@@ -1827,6 +1827,7 @@ test_evbuffer_prepend(void *ptr)
 	evbuffer_validate(buf2);
 	evbuffer_validate(buf1);
 	n = evbuffer_remove(buf2, tmp, sizeof(tmp)-1);
+	tt_int_op(n, >=, 0);
 	tmp[n]='\0';
 	tt_str_op(tmp,==,"Here is string 1000. Here is string 999. ");
 
