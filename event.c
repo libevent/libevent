@@ -52,6 +52,9 @@
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+#ifdef EVENT__HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
 
 #include "event2/event.h"
 #include "event2/event_struct.h"
@@ -234,9 +237,8 @@ static void event_debug_note_setup_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	if (!event_debug_mode_on_) {
+	if (!event_debug_mode_on_)
 		goto out;
-	}
 
 	find.ptr = ev;
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
@@ -262,9 +264,8 @@ static void event_debug_note_teardown_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	if (!event_debug_mode_on_) {
+	if (!event_debug_mode_on_)
 		goto out;
-	}
 
 	find.ptr = ev;
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
@@ -281,9 +282,8 @@ static void event_debug_note_add_(const struct event *ev)
 {
 	struct event_debug_entry *dent,find;
 
-	if (!event_debug_mode_on_) {
+	if (!event_debug_mode_on_)
 		goto out;
-	}
 
 	find.ptr = ev;
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
@@ -308,9 +308,8 @@ static void event_debug_note_del_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	if (!event_debug_mode_on_) {
+	if (!event_debug_mode_on_)
 		goto out;
-	}
 
 	find.ptr = ev;
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
@@ -335,9 +334,8 @@ static void event_debug_assert_is_setup_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	if (!event_debug_mode_on_) {
+	if (!event_debug_mode_on_)
 		return;
-	}
 
 	find.ptr = ev;
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
@@ -357,9 +355,8 @@ static void event_debug_assert_not_added_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	if (!event_debug_mode_on_) {
+	if (!event_debug_mode_on_)
 		return;
-	}
 
 	find.ptr = ev;
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
@@ -374,6 +371,21 @@ static void event_debug_assert_not_added_(const struct event *ev)
 	}
 	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
 }
+static void event_debug_assert_socket_nonblocking_(evutil_socket_t fd)
+{
+	int flags;
+
+	if (!event_debug_mode_on_)
+		return;
+
+#ifndef _WIN32
+	if ((flags = fcntl(fd, F_GETFL, NULL)) >= 0) {
+		EVUTIL_ASSERT(flags & O_NONBLOCK);
+	}
+#else
+	(void)flags;
+#endif
+}
 #else
 static void event_debug_note_setup_(const struct event *ev) { (void)ev; }
 static void event_debug_note_teardown_(const struct event *ev) { (void)ev; }
@@ -381,6 +393,7 @@ static void event_debug_note_add_(const struct event *ev) { (void)ev; }
 static void event_debug_note_del_(const struct event *ev) { (void)ev; }
 static void event_debug_assert_is_setup_(const struct event *ev) { (void)ev; }
 static void event_debug_assert_not_added_(const struct event *ev) { (void)ev; }
+static void event_debug_assert_socket_nonblocking_(evutil_socket_t fd) { (void)fd; }
 #endif
 
 #define EVENT_BASE_ASSERT_LOCKED(base)		\
@@ -2099,6 +2112,8 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 	if (arg == &event_self_cbarg_ptr_)
 		arg = ev;
 
+	if (!(events & EV_SIGNAL))
+		event_debug_assert_socket_nonblocking_(fd);
 	event_debug_assert_not_added_(ev);
 
 	ev->ev_base = base;
