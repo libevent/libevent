@@ -178,10 +178,12 @@ main(int argc, char **argv)
 
 	evhttp_bind_socket(http, "0.0.0.0", port);
 
+#ifdef _WIN32
 	if (use_iocp) {
 		struct timeval tv={99999999,0};
 		event_base_loopexit(base, &tv);
 	}
+#endif
 	event_base_dispatch(base);
 
 	/* NOTREACHED */
