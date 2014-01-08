@@ -743,7 +743,7 @@ http_delete_test(void *arg)
 static void
 http_sent_cb(struct evhttp_request *req, void *arg)
 {
-	unsigned int val = (unsigned int)arg;
+	ev_uintptr_t val = (ev_uintptr_t)arg;
 	struct evbuffer *b;
 
 	if (val != 0xDEADBEEF) {
@@ -2783,9 +2783,9 @@ http_chunked_errorcb(struct bufferevent *bev, short what, void *arg)
 	test_ok = -1;
 
 	if ((what & BEV_EVENT_EOF) != 0) {
-		req = evhttp_request_new(NULL, NULL);
 		const char *header;
 		enum message_read_status done;
+		req = evhttp_request_new(NULL, NULL);
 
 		/* req->kind = EVHTTP_RESPONSE; */
 		done = evhttp_parse_firstline_(req, bufferevent_get_input(bev));
