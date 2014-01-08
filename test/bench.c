@@ -77,13 +77,13 @@ read_cb(evutil_socket_t fd, short which, void *arg)
 	if (n >= 0)
 		count += n;
 	else
-		failures++
+		failures++;
 	if (writes) {
 		if (widx >= num_pipes)
 			widx -= num_pipes;
 		n = send(pipes[2 * widx + 1], "e", 1, 0);
 		if (n != 1)
-			failures++
+			failures++;
 		writes--;
 		fired++;
 	}
