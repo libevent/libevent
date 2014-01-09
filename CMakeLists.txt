@@ -23,9 +23,12 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configuratio
 
 project(libevent C)
 
+set(EVENT_VERSION_MAJOR 2)
+set(EVENT_VERSION_MINOR 1)
+set(EVENT_VERSION_PATCH 4)
 set(EVENT_NUMERIC_VERSION 0x02010401)
-set(EVENT_VERSION "2.1.4-beta")
-set(EVENT_PACKAGE_VERSION "")
+set(EVENT_VERSION "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}-beta")
+set(EVENT_PACKAGE_VERSION "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}")
 
 option(EVENT__DISABLE_DEBUG_MODE "Define if libevent should build without support for a debug mode" OFF)
 option(EVENT__ENABLE_VERBOSE_DEBUG "Enables verbose debugging" OFF)
@@ -645,6 +648,10 @@ configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/evconfig-private.h.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/include/evconfig-private.h)
 
+#
+# Create the libraries.
+#
+
 # TODO: Add dynamic versions of the libraries as well.
 add_library(event_core STATIC
     ${HDR_PRIVATE}
@@ -662,6 +669,10 @@ add_library(event STATIC
     ${SRC_CORE}
     ${SRC_EXTRA}
     )
+
+#
+# Samples.
+#
 
 if (NOT EVENT__DISABLE_SAMPLES)
     set(SAMPLES
@@ -943,3 +954,86 @@ if (NOT EVENT__DISABLE_TESTS)
 
     include(CTest)
 endif()
+
+#
+# Installation preparation.
+#
+
+# Allow the user to override installation directories.
+set(EVENT_INSTALL_LIB_DIR       lib CACHE PATH "Installation directory for libraries")
+set(EVENT_INSTALL_BIN_DIR       bin CACHE PATH "Installation directory for executables")
+set(EVENT_INSTALL_INCLUDE_DIR   include CACHE PATH "Installation directory for header files")
+
+if(WIN32 AND NOT CYGWIN)
+  set(DEF_INSTALL_CMAKE_DIR cmake)
+else()
+  set(DEF_INSTALL_CMAKE_DIR lib/cmake/libevent)
+endif()
+
+set(EVENT_INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH "Installation directory for CMake files")
+
+# Make sure the paths are absolute.
+foreach(p LIB BIN INCLUDE CMAKE)
+    set(var EVENT_INSTALL_${p}_DIR)
+    if(NOT IS_ABSOLUTE "${${var}}")
+        set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
+    endif()
+endforeach()
+
+# Export targets (This is used for other CMake projects to easily find the libraries and include files).
+export(TARGETS event event_extras event_core
+        FILE "${PROJECT_BINARY_DIR}/LibeventTargets.cmake")
+export(PACKAGE libevent)
+
+# Generate the config file for the build-tree.
+set(EVENT__INCLUDE_DIRS 
+    "${PROJECT_SOURCE_DIR}/include"
+    "${PROJECT_BINARY_DIR}/include")
+configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
+                ${PROJECT_BINARY_DIR}/LibeventConfig.cmake 
+                @ONLY)
+
+# Generate the config file for the installation tree.
+file(RELATIVE_PATH 
+    REL_INCLUDE_DIR 
+    "${EVENT_INSTALL_CMAKE_DIR}"
+    "${EVENT_INSTALL_INCLUDE_DIR}") # Calculate the relative directory from the Cmake dir.
+
+# Note the EVENT_CMAKE_DIR is defined in LibeventConfig.cmake.in, 
+# we escape it here so it's evaluated when it is included instead
+# so that the include dirs are givenrelative to where the 
+# config file is located.
+set(EVENT__INCLUDE_DIRS 
+    "\${EVENT_CMAKE_DIR}/${REL_INCLUDE_DIR}") 
+configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
+                ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake 
+                @ONLY)
+
+# Generate version info for both build-tree and install-tree.
+configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
+                ${PROJECT_BINARY_DIR}/LibeventConfigVersion.cmake 
+                @ONLY)
+
+# Define the public headers.
+set_target_properties(event event_core event_extras
+    PROPERTIES PUBLIC_HEADER ${HDR_PUBLIC})
+
+#
+# Install targets.
+#
+install(TARGETS event event_core event_extras
+        EXPORT LibeventTargets
+        LIBRARY DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT lib
+        ARCHIVE DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT lib
+        PUBLIC_HEADER DESTINATION "${EVENT_INSTALL_INCLUDE_DIR}/event2" COMPONENT dev)
+
+# Install the configs.
+install(FILES
+    ${PROJECT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
+    ${PROJECT_BINARY_DIR}/Libevent
+    DESTINATION "${EVENT_INSTALL_CMAKE_DIR}" COMPONENT dev)
+
+
+# Install exports for the install-tree.
+install(EXPORT LibeventTargets 
+        DESTINATION "${EVENT_INSTALL_CMAKE_DIR}" COMPONENT dev)
