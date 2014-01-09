@@ -199,11 +199,17 @@ static void update(timeout_t ts) {
 } /* update() */
 
 
+static void check(void) {
+    return;
+} /* check() */
+
+
 const struct vops VOPS = {
     .init   = &init,
     .add    = &add,
     .del    = &del,
     .get    = &get,
     .update = &update,
+    .check  = &check,
 };
 

@@ -19,13 +19,31 @@ timeout64: CPPFLAGS+=-DWHEEL_BIT=6 -DWHEEL_NUM=$(WHEEL_NUM)
 timeout64 timeout32 timeout16 timeout8 timeout: timeout.c
 	$(CC) $(CFLAGS) -o $@ $^ $(CPPFLAGS)
 
+timeout.o: CPPFLAGS=-DWHEEL_BIT=$(WHEEL_BIT) -DWHEEL_NUM=$(WHEEL_NUM)
 
+timeout.o: timeout.c
+	$(CC) $(CFLAGS) -c -o $@ $^ $(CPPFLAGS)
+
+bench: bench.c timeout.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< -ldl
+
+
+ifeq ($(shell uname -s), Darwin)
+SOFLAGS = -bundle -undefined dynamic_lookup
+else
+SOFLAGS = -shared
+endif
+
+bench-wheel.so: CPPFLAGS+=-DWHEEL_BIT=$(WHEEL_BIT) -DWHEEL_NUM=$(WHEEL_NUM)
+
+bench-%.so: bench-%.c timeout.h
+	$(CC) -o $@ $< $(CPPFLAGS) $(CFLAGS) -Wno-unused-function $(SOFLAGS)
 
 
 .PHONY: clean clean~
 
 clean:
-	$(RM) -r timeout timeout8 timeout16 timeout32 timeout64 *.dSYM
+	$(RM) -r timeout timeout8 timeout16 timeout32 timeout64 *.dSYM bench *.so *.o
 
 clean~: clean
 	$(RM) *~

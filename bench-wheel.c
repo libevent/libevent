@@ -36,11 +36,18 @@ static void update(timeout_t ts) {
 } /* update() */
 
 
+static void (check)(void) {
+    if (!timeouts_check(&timeouts, stderr))
+        _Exit(1);
+} /* check() */
+
+
 const struct vops VOPS = {
     .init   = &init,
     .add    = &add,
     .del    = &del,
     .get    = &get,
     .update = &update,
+    .check  = &check,
 };
 
