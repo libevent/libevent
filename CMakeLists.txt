@@ -1030,7 +1030,7 @@ install(TARGETS event event_core event_extras
 # Install the configs.
 install(FILES
     ${PROJECT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
-    ${PROJECT_BINARY_DIR}/Libevent
+    ${PROJECT_BINARY_DIR}/LibeventConfigVersion.cmake
     DESTINATION "${EVENT_INSTALL_CMAKE_DIR}" COMPONENT dev)
 
 
