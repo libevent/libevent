@@ -400,9 +400,19 @@ TIMEOUT_PUBLIC void timeouts_update(struct timeouts *T, abstime_t curtime) {
 			pending = (wheel_t)~WHEEL_C(0);
 		} else {
 			wheel_t _elapsed = WHEEL_MASK & (elapsed >> (wheel * WHEEL_BIT));
-			int slot = WHEEL_MASK & (curtime >> (wheel * WHEEL_BIT));
-			pending = rotr(rotl(((WHEEL_C(1) << _elapsed) - 1), slot), _elapsed);
-			pending |= WHEEL_C(1) << slot;
+			int oslot, nslot;
+
+			/*
+			 * TODO: It's likely that at least one of the
+			 * following three bit fill operations is redundant
+			 * or can be replaced with a simpler operation.
+			 */
+			oslot = WHEEL_MASK & (T->curtime >> (wheel * WHEEL_BIT));
+			pending = rotl(((UINT64_C(1) << _elapsed) - 1), oslot);
+
+			nslot = WHEEL_MASK & (curtime >> (wheel * WHEEL_BIT));
+			pending |= rotr(rotl(((WHEEL_C(1) << _elapsed) - 1), nslot), _elapsed);
+			pending |= WHEEL_C(1) << nslot;
 		}
 
 		while (pending & T->pending[wheel]) {
