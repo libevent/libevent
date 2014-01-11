@@ -5,7 +5,7 @@
 
 static struct timeouts timeouts;
 
-static void init(struct timeout *timeout, size_t count) {
+static void init(struct timeout *timeout, size_t count, int verbose) {
 	size_t i;
 
 	timeouts_init(&timeouts, TIMEOUT_mHZ);
@@ -13,6 +13,10 @@ static void init(struct timeout *timeout, size_t count) {
 	for (i = 0; i < count; i++) {
 		timeout_init(&timeout[i], 0);
 	}
+
+#if TIMEOUT_DEBUG - 0
+	timeout_debug = verbose;
+#endif
 } /* init() */
 
 

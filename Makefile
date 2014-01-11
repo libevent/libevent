@@ -4,7 +4,7 @@ WHEEL_BIT = 6
 WHEEL_NUM = 4
 
 CPPFLAGS = -DTIMEOUT_DEBUG
-CFLAGS = -O2 -g -Wall -Wextra
+CFLAGS = -O2 -g -Wall -Wextra -Wno-unused-parameter
 
 timeout: CPPFLAGS+=-DWHEEL_BIT=$(WHEEL_BIT) -DWHEEL_NUM=$(WHEEL_NUM)
 

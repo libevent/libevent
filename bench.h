@@ -43,7 +43,7 @@ struct op *parseop(struct op *, char *ln);
 
 
 struct vops {
-	void (*init)(struct timeout *, size_t);
+	void (*init)(struct timeout *, size_t, int);
 	void (*add)(struct timeout *, timeout_t);
 	void (*del)(struct timeout *);
 	struct timeout *(*get)(void);

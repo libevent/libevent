@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
 		errx(1, "%s: %s", MAIN.path, dlerror());
 
 	MAIN.vops = *vops;
-	MAIN.vops.init(MAIN.timeout, MAIN.count);
+	MAIN.vops.init(MAIN.timeout, MAIN.count, MAIN.verbose);
 
 	while (fgets(cmd, sizeof cmd, stdin) && parseop(&op, cmd)) {
 		struct timeout *to;

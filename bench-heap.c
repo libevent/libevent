@@ -158,7 +158,7 @@ void min_heap_shift_down_(min_heap_t* s, unsigned hole_index, struct timeout* e)
 static timeout_t curtime;
 static min_heap_t timeouts;
 
-static void init(struct timeout *timeout, size_t count) {
+static void init(struct timeout *timeout, size_t count, int verbose) {
     size_t i;
 
     min_heap_ctor(&timeouts);
