@@ -1,4 +1,4 @@
-all: timeout timeout8 timeout16 timeout32 timeout64
+all: timeout timeout8 timeout16 timeout32 timeout64 bench bench-wheel.so bench-heap.so
 
 WHEEL_BIT = 6
 WHEEL_NUM = 4
