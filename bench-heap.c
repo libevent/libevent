@@ -173,7 +173,7 @@ static void init(struct timeout *timeout, size_t count) {
 
 static void add(struct timeout *to, timeout_t expires) {
     min_heap_erase(&timeouts, to);
-    to->expires = expires;
+    to->expires = curtime + expires;
     if (0 != min_heap_push(&timeouts, to))
         err(1, "realloc");
 } /* add() */
