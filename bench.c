@@ -81,6 +81,7 @@ struct op *parseop(struct op *op, char *ln) {
 		break;
 	case 'g': /* get */
 		op->type = OP_GET;
+		op->get.verbose = (argc > 1)? strtol(arg[1], NULL, 0) : 0;
 
 		break;
 	case 's': /* step */
@@ -101,6 +102,16 @@ struct op *parseop(struct op *op, char *ln) {
 		break;
 	case 'c': /* check */
 		op->type = OP_CHECK;
+
+		break;
+	case 'f': /* fill */
+		op->type = OP_FILL;
+
+		break;
+	case '#':
+		/* FALL THROUGH */
+	case 'n':
+		op->type = OP_NONE;
 
 		break;
 	default:
@@ -183,9 +194,11 @@ int main(int argc, char **argv) {
 		errx(1, "%s: %s", MAIN.path, dlerror());
 
 	MAIN.vops = *vops;
+	MAIN.vops.init(MAIN.timeout, MAIN.count);
 
 	while (fgets(cmd, sizeof cmd, stdin) && parseop(&op, cmd)) {
 		struct timeout *to;
+		unsigned n;
 
 		switch (op.type) {
 		case OP_QUIT:
@@ -205,9 +218,16 @@ int main(int argc, char **argv) {
 
 			break;
 		case OP_GET:
+			n = 0;
+
 			while ((to = MAIN.vops.get())) {
-				printf("%ld expired", to - MAIN.timeout);
+				if (op.get.verbose > 1)
+					printf("#%ld expired (%llu >= %llu)\n", to - MAIN.timeout, to->expires, MAIN.curtime);
+				n++;
 			}
+
+			if (op.get.verbose)
+				printf("expired %u\n", n);
 
 			break;
 		case OP_STEP:
@@ -221,6 +241,16 @@ int main(int argc, char **argv) {
 
 			break;
 		case OP_CHECK:
+			MAIN.vops.check();
+
+			break;
+		case OP_FILL:
+			for (to = MAIN.timeout; to < &MAIN.timeout[MAIN.count]; to++) {
+				MAIN.vops.add(to, random() % MAIN.maximum);
+			}
+
+			break;
+		case OP_NONE:
 			break;
 		case OP_OOPS:
 			errx(1, "oops: %s", op.oops.why);

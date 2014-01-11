@@ -10,6 +10,8 @@ struct op {
 		OP_STEP,
 		OP_UPDATE,
 		OP_CHECK,
+		OP_FILL,
+		OP_NONE,
 	} type;
 
 	union {
@@ -25,6 +27,10 @@ struct op {
 		struct {
 			unsigned id;
 		} del;
+
+		struct {
+			int verbose;
+		} get;
 
 		struct {
 			timeout_t time;
