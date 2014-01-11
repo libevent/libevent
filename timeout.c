@@ -39,7 +39,7 @@
 
 #include "timeout.h"
 
-#if TIMEOUT_DEBUG - 0 || TIMEOUT_MAIN - 0
+#if TIMEOUT_DEBUG - 0
 #include "debug.h"
 #endif
 
@@ -69,7 +69,7 @@
 #endif
 
 #if !defined TAILQ_CONCAT
-#define	TAILQ_CONCAT(head1, head2, field) do {                          \
+#define TAILQ_CONCAT(head1, head2, field) do {                          \
 	if (!TAILQ_EMPTY(head2)) {                                      \
 		*(head1)->tqh_last = (head2)->tqh_first;                \
 		(head2)->tqh_first->field.tqe_prev = (head1)->tqh_last; \
@@ -661,89 +661,3 @@ TIMEOUT_PUBLIC int timeout_v_api(void) {
 	return TIMEOUT_V_API;
 } /* timeout_version() */
 
-
-#if TIMEOUT_MAIN - 0
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-
-static timeout_t slow_timeout(struct timeouts *T) {
-	struct timeout *to = timeouts_min(T);
-
-	return (to)? to->expires - T->curtime : 0;
-} /* slow_timeout() */
-
-
-
-int main(int argc, char **argv) {
-	extern int optind;
-	extern char *optarg;
-	struct timeouts T;
-	struct timeout to[16];
-	struct timeout *expired;
-	uint64_t time = 0, step = 1, stop = 0;
-	unsigned count = 0;
-	int opt;
-
-	while (-1 != (opt = getopt(argc, argv, "s:t:v"))) {
-		switch (opt) {
-		case 's': {
-			char *end;
-
-			time = strtoul(optarg, &end, 10);
-
-			if (*end == ':')
-				stop = strtoul(end + 1, 0, 10);
-
-			break;
-		}
-		case 't':
-			if (!(step = strtoul(optarg, 0, 10)))
-				PANIC("%llu: invalid tick count", step);
-
-			break;
-		case 'v':
-			timeout_debug++;
-
-			break;
-		}
-	} /* while() */
-
-	argc -= optind;
-	argv += optind;
-
-	timeouts_init(&T, TIMEOUT_mHZ);
-	timeouts_update(&T, time);
-	timeouts_add(&T, timeout_init(&to[0], 0), 62); count++;
-	timeouts_add(&T, timeout_init(&to[1], 0), 63); count++;
-	timeouts_add(&T, timeout_init(&to[2], 0), 64); count++;
-	timeouts_add(&T, timeout_init(&to[3], 0), 65); count++;
-	timeouts_add(&T, timeout_init(&to[5], 0), 192); count++;
-	timeouts_add(&T, timeout_init(&to[6], 0), 6); count++;
-	timeouts_add(&T, timeout_init(&to[7], 0), 7); count++;
-	timeouts_add(&T, timeout_init(&to[8], 0), 8); count++;
-
-	while (count > 0 && time <= stop - 1) {
-		time += step;
-
-		SAY("timeout -> %" TIMEOUT_PRIu " (actual:%" TIMEOUT_PRIu " curtime:%" TIMEOUT_PRIu ")", timeouts_timeout(&T), slow_timeout(&T), T.curtime);
-
-		timeouts_check(&T, stderr);
-		timeouts_update(&T, time);
-		timeouts_check(&T, stderr);
-
-		while ((expired = timeouts_get(&T))) {
-			timeouts_del(&T, expired);
-			SAY("step %llu expired %llu @@@@@@@@@@@@@@@@@@@@", time, expired->expires);
-			count--;
-		}
-	}
-
-	SAY("%s curtime: %llu", (count == 0)? "OK" : "FAIL", T.curtime);
-
-	return 0;
-} /* main() */
-
-#endif /* TIMEOUT_MAIN */

@@ -24,6 +24,8 @@ struct {
 	void *solib;
 	size_t count;
 	timeout_t maximum;
+	int verbose;
+
 	struct timeout *timeout;
 	struct vops vops;
 	timeout_t curtime;
@@ -130,12 +132,13 @@ badargc:
 } /* parseop() */
 
 
-#define SHORT_OPTS "n:t:h"
+#define SHORT_OPTS "n:t:vh"
 static void usage(FILE *fp) {
 	fprintf(fp,
 		"bench [-%s] LIBRARY\n" \
 		"  -n MAX  maximum number of timeouts\n" \
 		"  -t MAX  maximum timeout\n" \
+		"  -v      increase log level\n" \
 		"  -h      print usage message\n" \
 		"\n" \
 		"[commands]\n" \
@@ -165,6 +168,12 @@ int main(int argc, char **argv) {
 			break;
 		case 't':
 			MAIN.maximum = (strtod(optarg, NULL) * TIMEOUT_mHZ);
+
+			break;
+		case 'v':
+			MAIN.verbose++;
+
+			break;
 		case 'h':
 			usage(stdout);
 

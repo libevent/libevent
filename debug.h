@@ -3,7 +3,7 @@
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-#if TIMEOUT_DEBUG - 0 || TIMEOUT_MAIN - 0
+#if TIMEOUT_DEBUG - 0
 #include <stdlib.h>
 #include <stdio.h>
 

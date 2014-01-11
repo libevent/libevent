@@ -1,9 +1,9 @@
-all: timeout timeout8 timeout16 timeout32 timeout64 bench bench-wheel.so bench-heap.so
+all: bench bench-wheel.so bench-heap.so
 
 WHEEL_BIT = 6
 WHEEL_NUM = 4
 
-CPPFLAGS = -DTIMEOUT_DEBUG -DTIMEOUT_MAIN
+CPPFLAGS = -DTIMEOUT_DEBUG
 CFLAGS = -O2 -g -Wall -Wextra
 
 timeout: CPPFLAGS+=-DWHEEL_BIT=$(WHEEL_BIT) -DWHEEL_NUM=$(WHEEL_NUM)
@@ -33,6 +33,26 @@ SOFLAGS = -bundle -undefined dynamic_lookup
 else
 SOFLAGS = -shared
 endif
+
+bench-wheel8.so: CPPFLAGS+=-DWHEEL_BIT=3 -DWHEEL_NUM=$(WHEEL_NUM)
+
+bench-wheel8.so: timeout.c
+
+bench-wheel16.so: CPPFLAGS+=-DWHEEL_BIT=4 -DWHEEL_NUM=$(WHEEL_NUM)
+
+bench-wheel16.so: timeout.c
+
+bench-wheel32.so: CPPFLAGS+=-DWHEEL_BIT=5 -DWHEEL_NUM=$(WHEEL_NUM)
+
+bench-wheel32.so: timeout.c
+
+bench-wheel64.so: CPPFLAGS+=-DWHEEL_BIT=6 -DWHEEL_NUM=$(WHEEL_NUM)
+
+bench-wheel64.so: timeout.c
+
+bench-wheel%.so: bench-wheel.c timeout.h
+	$(CC) -o $@ $< $(CPPFLAGS) $(CFLAGS) -Wno-unused-function $(SOFLAGS)
+
 
 bench-wheel.so: CPPFLAGS+=-DWHEEL_BIT=$(WHEEL_BIT) -DWHEEL_NUM=$(WHEEL_NUM)
 
