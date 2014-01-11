@@ -36,6 +36,8 @@ endif
 
 bench-wheel.so: CPPFLAGS+=-DWHEEL_BIT=$(WHEEL_BIT) -DWHEEL_NUM=$(WHEEL_NUM)
 
+bench-wheel.so: timeout.c
+
 bench-%.so: bench-%.c timeout.h
 	$(CC) -o $@ $< $(CPPFLAGS) $(CFLAGS) -Wno-unused-function $(SOFLAGS)
 
