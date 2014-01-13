@@ -278,6 +278,8 @@ TIMEOUT_PUBLIC timeout_t timeouts_hz(struct timeouts *T) {
 
 TIMEOUT_PUBLIC void timeouts_del(struct timeouts *T, struct timeout *to) {
 	if (to->pending) {
+		TAILQ_REMOVE(to->pending, to, tqe);
+
 		if (to->pending != &T->expired && TAILQ_EMPTY(to->pending)) {
 			ptrdiff_t index = to->pending - &T->wheel[0][0];
 			int wheel = index / WHEEL_LEN;
@@ -286,7 +288,6 @@ TIMEOUT_PUBLIC void timeouts_del(struct timeouts *T, struct timeout *to) {
 			T->pending[wheel] &= ~(WHEEL_C(1) << slot);
 		}
 
-		TAILQ_REMOVE(to->pending, to, tqe);
 		to->pending = NULL;
 		to->timeouts = NULL;
 	}
