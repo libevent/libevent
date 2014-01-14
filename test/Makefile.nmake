@@ -10,7 +10,7 @@ SSL_OBJS=
 SSL_LIBS=
 !ENDIF
 
-CFLAGS=/I.. /I../WIN32-Code /I../include /I../compat /DHAVE_CONFIG_H /DTINYTEST_LOCAL $(SSL_CFLAGS)
+CFLAGS=/I.. /I../WIN32-Code /I../WIN32-Code/nmake /I../include /I../compat /DHAVE_CONFIG_H /DTINYTEST_LOCAL $(SSL_CFLAGS)
 
 CFLAGS=$(CFLAGS) /Ox /W3 /wd4996 /nologo
 
