@@ -40,7 +40,6 @@ option(EVENT__DISABLE_TESTS "If tests should be compiled or not" OFF)
 option(EVENT__DISABLE_REGRESS "Disable the regress tests" OFF)
 option(EVENT__FORCE_KQUEUE_CHECK "When crosscompiling forces running a test program that verifies that Kqueue works with pipes. Note that this requires you to manually run the test program on the the cross compilation target to verify that it works. See cmake documentation for try_run for more details" OFF)
 option(EVENT__COVERAGE "Enable running gcov to get a test coverage report (only works with GCC/CLang). Make sure to enable -DCMAKE_BUILD_TYPE=Debug as well." OFF)
-# TODO: Add --enable-verbose-debug, verbose debug logging
 # TODO: Add --disable-largefile     omit support for large files
 
 # Put the libaries and binaries that get built into directories at the
@@ -61,6 +60,10 @@ include(CheckSymbolExists)
 include(CheckStructHasMember)
 include(CheckCSourceCompiles)
 include(CheckPrototypeDefinition)
+
+if (EVENT__ENABLE_VERBOSE_DEBUG)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_DEBUG=1")
+endif()
 
 # Setup compiler flags for coverage.
 if (EVENT__COVERAGE)
