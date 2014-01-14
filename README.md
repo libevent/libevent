@@ -1,11 +1,36 @@
-0. BUILDING AND INSTALLATION (Briefly)
+# 0. BUILDING AND INSTALLATION (Briefly)
 
+## Autoconf
+
+```
 $ ./configure
 $ make
 $ make verify   # (optional)
 $ sudo make install
+```
 
-1. BUILDING AND INSTALLATION (In Depth)
+## CMake (Windows)
+
+<http://www.cmake.org>
+
+```
+$ md build && cd build
+$ cmake -G "Visual Studio 10" ..   # Or whatever generator you want to use cmake --help for a list.
+$ start libevent.sln
+```
+
+## CMake (Unix)
+
+```
+$ mkdir build && cd build
+$ cmake ..     # Default to Unix Makefiles.
+$ make
+$ make verify  # (optional)
+```
+
+# 1. BUILDING AND INSTALLATION (In Depth)
+
+## Autoconf
 
 To build libevent, type
 
@@ -17,11 +42,15 @@ $ ./configure && make
 
 You can run the regression tests by running
 
+```
 $ make verify
+```
 
 Install as root via
 
-# make install
+```
+$ make install
+```
 
 Before reporting any problems, please run the regression tests.
 
@@ -44,20 +73,54 @@ The configure script also supports the following flags:
    --disable-openssl         Disable support for OpenSSL encryption.
    --disable-thread-support  Don't support multithreaded environments.
 
-2. USEFUL LINKS:
+## CMake (Windows)
+
+First of all install <http://www.cmake.org>.
+
+To build libevent using Microsoft Visual studio open the "Visual Studio Command prompt" and type:
+
+```
+$ cd <libevent source dir>
+$ cmake -G "Visual Studio 10" ..   # Or whatever generator you want to use cmake --help for a list.
+$ start libevent.sln
+```
+
+Then build the entire solution via the Build menu. 
+
+the "NMake Makefiles" CMake generator can be used to build entirely via the command line.
+
+To get a list of settings available for the project you can type:
+
+```
+$ cmake -LH ..
+```
+
+CMake also provides a GUI that lets you specify the source directory and output (binary) directory
+that the build should be placed in. 
+
+### OpenSSL support
+
+To build Libevent with OpenSSL support you will need to have OpenSSL binaries available when building,
+these can be found here: <http://www.openssl.org/related/binaries.html>
+
+# 2. USEFUL LINKS:
 
 For the latest released version of Libevent, see the official website at
 http://libevent.org/ .
 
 There's a pretty good work-in-progress manual up at
-   http://www.wangafu.net/~nickm/libevent-book/ .
+   <http://www.wangafu.net/~nickm/libevent-book/> .
 
 For the latest development versions of Libevent, access our Git repository
 via
-   "git clone git://levent.git.sourceforge.net/gitroot/levent/libevent"
 
-You can browse the git repository online at
-http://levent.git.sourceforge.net/git/gitweb-index.cgi .
+```
+$ git clone git://levent.git.sourceforge.net/gitroot/levent/libevent
+```
+
+You can browse the git repository online at:
+<http://levent.git.sourceforge.net/git/gitweb-index.cgi> .
+<https://github.com/libevent/Libevent>
 
 To report bugs, request features, or submit patches to Libevent,
 use the Sourceforge trackers at
@@ -66,7 +129,7 @@ https://sourceforge.net/tracker/?group_id=50884 .
 There's also a libevent-users mailing list for talking about Libevent
 use and development: http://archives.seul.org/libevent/users/
 
-3. ACKNOWLEDGMENTS
+# 3. ACKNOWLEDGMENTS
 
 The following people have helped with suggestions, ideas, code or
 fixing bugs:
