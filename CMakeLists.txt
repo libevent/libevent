@@ -989,6 +989,7 @@ export(PACKAGE libevent)
 set(EVENT__INCLUDE_DIRS 
     "${PROJECT_SOURCE_DIR}/include"
     "${PROJECT_BINARY_DIR}/include")
+set(LIBEVENT_INCLUDE_DIRS ${EVENT__INCLUDE_DIRS} CACHE PATH "Libevent include directories")
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
                 ${PROJECT_BINARY_DIR}/LibeventConfig.cmake 
                 @ONLY)
@@ -1004,7 +1005,7 @@ file(RELATIVE_PATH
 # so that the include dirs are givenrelative to where the 
 # config file is located.
 set(EVENT__INCLUDE_DIRS 
-    "\${EVENT_CMAKE_DIR}/${REL_INCLUDE_DIR}") 
+    "\${EVENT_CMAKE_DIR}/${REL_INCLUDE_DIR}")
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
                 ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake 
                 @ONLY)
@@ -1037,3 +1038,5 @@ install(FILES
 # Install exports for the install-tree.
 install(EXPORT LibeventTargets 
         DESTINATION "${EVENT_INSTALL_CMAKE_DIR}" COMPONENT dev)
+
+set(LIBEVENT_LIBRARIES event event_core event_extras CACHE STRING "Libevent libraries")
