@@ -3894,7 +3894,7 @@ evdns_base_new(struct event_base *event_base, int flags)
 	base->global_max_retransmits = 3;
 	base->global_max_nameserver_timeout = 3;
 	base->global_search_state = NULL;
-	base->global_randomize_case = 1;
+	base->global_randomize_case = 0;
 	base->global_getaddrinfo_allow_skew.tv_sec = 3;
 	base->global_getaddrinfo_allow_skew.tv_usec = 0;
 	base->global_nameserver_probe_initial_timeout.tv_sec = 10;
