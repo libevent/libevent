@@ -488,7 +488,10 @@ enum event_method_feature {
     EV_FEATURE_O1 = 0x02,
     /** Require an event method that allows file descriptors as well as
      * sockets. */
-    EV_FEATURE_FDS = 0x04
+    EV_FEATURE_FDS = 0x04,
+    /** Require an event method that detects premature connection close by
+     * clients without the necessity of reading all the pending data. */
+    EV_FEATURE_EARLY_EOF = 0x08
 };
 
 /**
@@ -904,6 +907,11 @@ int event_base_got_break(struct event_base *);
  * BECOMES STABLE.
  **/
 #define EV_FINALIZE     0x40
+/**
+ * Detects premature connection close by clients without the necessity of
+ * reading all the pending data, if supported by the backend.
+ **/
+#define EV_EOF      0x80
 /**@}*/
 
 /**
