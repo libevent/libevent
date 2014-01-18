@@ -22,13 +22,13 @@ REGRESS_OBJS=regress.obj regress_buffer.obj regress_http.obj regress_dns.obj \
 	regress_main.obj regress_minheap.obj regress_iocp.obj \
 	regress_thread.obj regress_finalize.obj $(SSL_OBJS)
 
-OTHER_OBJS=test-init.obj test-eof.obj test-weof.obj test-time.obj \
+OTHER_OBJS=test-init.obj test-eof.obj test-closed.obj test-weof.obj test-time.obj \
 	bench.obj bench_cascade.obj bench_http.obj bench_httpclient.obj \
 	test-changelist.obj \
 	print-winsock-errors.obj
 
 PROGRAMS=regress.exe \
-	test-init.exe test-eof.exe test-weof.exe test-time.exe \
+	test-init.exe test-eof.exe test-closed.exe test-weof.exe test-time.exe \
 	test-changelist.exe \
 	print-winsock-errors.exe
 
@@ -47,6 +47,8 @@ test-init.exe: test-init.obj
 	$(CC) $(CFLAGS) $(LIBS) test-init.obj
 test-eof.exe: test-eof.obj
 	$(CC) $(CFLAGS) $(LIBS) test-eof.obj
+test-closed.exe: test-closed.obj
+	$(CC) $(CFLAGS) $(LIBS) test-closed.obj
 test-changelist.exe: test-changelist.obj
 	$(CC) $(CFLAGS) $(LIBS) test-changelist.obj
 test-weof.exe: test-weof.obj
