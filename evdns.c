@@ -92,6 +92,7 @@
 #include "event2/event_struct.h"
 #include "event2/thread.h"
 
+#include "event2/buffer.h"
 #include "event2/bufferevent.h"
 #include "event2/bufferevent_struct.h"
 #include "bufferevent-internal.h"
@@ -334,7 +335,8 @@ struct evdns_base {
 	int global_max_nameserver_timeout;
 	/* true iff we will use the 0x20 hack to prevent poisoning attacks. */
 	int global_randomize_case;
-
+    /* use tcp retry when we got truncated flag set in reply */
+    int global_use_tcp_on_truncated_reply;
 	/* The first time that a nameserver fails, how long do we wait before
 	 * probing to see if it has returned?  */
 	struct timeval global_nameserver_probe_initial_timeout;
@@ -410,7 +412,7 @@ static int evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags,
 static int evdns_base_set_option_impl(struct evdns_base *base,
     const char *option, const char *val, int flags);
 static void evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests);
-
+static int evdns_request_transmit_to_tcp(struct request *req, struct nameserver *server);
 static int strtoint(const char *const str);
 
 #ifdef EVENT__DISABLE_THREAD_SUPPORT
@@ -922,8 +924,16 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 		}
 
 		/* all else failed. Pass the failure up */
-		reply_schedule_callback(req, ttl, error, NULL);
-		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
+        if( error == DNS_ERR_TRUNCATED && req->base->global_use_tcp_on_truncated_reply ){
+            log(EVDNS_LOG_DEBUG, "Request %p using tcp mode", req);
+            if( evdns_request_transmit_to_tcp(req, req->ns) ){
+    		    reply_schedule_callback(req, ttl, error, NULL);
+        		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);               
+            }
+        } else {
+		    reply_schedule_callback(req, ttl, error, NULL);
+    		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
+        }
 	} else {
 		/* all ok, tell the user */
 		reply_schedule_callback(req, ttl, 0, reply);
@@ -2173,6 +2183,84 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 	}
 	EVDNS_UNLOCK(base);
 }
+static void evdns_request_read_cb_tcp(struct bufferevent *bev, void *ctx){
+    struct request *req = (struct request *)ctx;
+    struct evbuffer *buf;
+    size_t size;
+    uint16_t in_len; // in tcp DNS packet is prefixed with 2 byte length
+    unsigned char *pp;
+
+    if( !req )
+        goto err;
+    buf = bufferevent_get_input(bev);
+    if( !buf )
+        goto err;
+
+    size = evbuffer_get_length(buf);
+    if( size < sizeof(in_len) ){ // not enough data received
+        return;
+    }
+    if( evbuffer_copyout(buf, &in_len, sizeof(in_len)) != sizeof(in_len) )
+        goto err;
+    in_len = ntohs(in_len);
+    if( size < in_len + sizeof(in_len)){ // not enough data received
+        return;
+    }
+    if( evbuffer_drain(buf, sizeof(in_len)) )
+        goto err;
+    pp = evbuffer_pullup(buf, in_len);
+    if( !pp )
+        goto err;
+    reply_parse(req->base, pp, in_len);
+err:
+    if( bev )
+        bufferevent_free(bev);
+    return;
+}
+static void evdns_request_event_cb_tcp(struct bufferevent *bev, short what, void *ctx){
+    struct request *req = (struct request *)ctx;
+    if (what & (BEV_EVENT_ERROR | BEV_EVENT_READING | BEV_EVENT_WRITING | BEV_EVENT_TIMEOUT )) {
+        bufferevent_free(bev);
+        if( req ) {
+    	    reply_schedule_callback(req, 0, DNS_ERR_TRUNCATED, NULL);
+       		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);  
+        }
+    }
+}
+
+/* try to send a request to a given server over tcp. */
+/* */
+/* return: */
+/*   0 ok */
+/*   1 temporary failure */
+/*   2 other failure */
+static int
+evdns_request_transmit_to_tcp(struct request *req, struct nameserver *server) {
+    struct bufferevent *be;
+    uint16_t len;
+    ASSERT_LOCKED(req->base);
+    ASSERT_VALID_REQUEST(req);
+    be = bufferevent_socket_new(req->base->event_base, -1,  BEV_OPT_CLOSE_ON_FREE);
+    if( !be )
+        return 1;
+    if( bufferevent_socket_connect(be, (struct sockaddr *)&server->address, server->addrlen) )
+        goto error_ret_free_be;
+    len = htons(req->request_len);
+    if( bufferevent_write(be, &len, sizeof(len)) )
+        goto error_ret_free_be;
+    if( bufferevent_write(be, (void*)req->request, req->request_len) )
+        goto error_ret_free_be;
+
+    bufferevent_setcb(be, evdns_request_read_cb_tcp, NULL, evdns_request_event_cb_tcp, req);
+    if( bufferevent_set_timeouts(be, &req->base->global_timeout, &req->base->global_timeout) )
+        goto error_ret_free_be;
+    if( bufferevent_enable(be, EV_READ|EV_WRITE) )
+        goto error_ret_free_be;
+    return 0;
+error_ret_free_be:
+    bufferevent_free(be);
+    return 1;
+}
 
 /* try to send a request to a given server. */
 /* */
@@ -3417,6 +3505,10 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		int randcase = strtoint(val);
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		base->global_randomize_case = randcase;
+    } else if (str_matches_option(option, "use-tcp-on-truncated-reply:")) {
+        int usetcp = strtoint(val);
+        if (!(flags & DNS_OPTION_MISC)) return 0;
+        base->global_use_tcp_on_truncated_reply = usetcp;
 	} else if (str_matches_option(option, "bind-to:")) {
 		/* XXX This only applies to successive nameservers, not
 		 * to already-configured ones.	We might want to fix that. */
@@ -3861,6 +3953,7 @@ evdns_base_new(struct event_base *event_base, int initialize_nameservers)
 	base->global_max_nameserver_timeout = 3;
 	base->global_search_state = NULL;
 	base->global_randomize_case = 1;
+    base->global_use_tcp_on_truncated_reply = 0;
 	base->global_getaddrinfo_allow_skew.tv_sec = 3;
 	base->global_getaddrinfo_allow_skew.tv_usec = 0;
 	base->global_nameserver_probe_initial_timeout.tv_sec = 10;
