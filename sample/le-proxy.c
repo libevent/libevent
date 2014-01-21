@@ -5,6 +5,11 @@
   XXX It's a little ugly and should probably be cleaned up.
  */
 
+// Get rid of OSX 10.7 and greater deprecation warnings.
+#if defined(__APPLE__) && defined(__clang__)
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>

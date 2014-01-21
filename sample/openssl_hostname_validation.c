@@ -34,6 +34,10 @@ SOFTWARE.
  *
  */
 
+// Get rid of OSX 10.7 and greater deprecation warnings.
+#ifdef __clang__
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>

@@ -48,7 +48,7 @@
 #include <unistd.h>
 #endif
 #include <errno.h>
-
+#include <getopt.h>
 #include <event.h>
 #include <evutil.h>
 
@@ -84,8 +84,8 @@ run_once(int num_pipes)
 	evutil_socket_t *cp;
 	static struct timeval ts, te, tv_timeout;
 
-	events = calloc(num_pipes, sizeof(struct event));
-	pipes = calloc(num_pipes * 2, sizeof(evutil_socket_t));
+	events = (struct event *)calloc(num_pipes, sizeof(struct event));
+	pipes = (evutil_socket_t *)calloc(num_pipes * 2, sizeof(evutil_socket_t));
 
 	if (events == NULL || pipes == NULL) {
 		perror("malloc");
@@ -126,8 +126,8 @@ run_once(int num_pipes)
 
 	for (cp = pipes, i = 0; i < num_pipes; i++, cp += 2) {
 		event_del(&events[i]);
-		close(cp[0]);
-		close(cp[1]);
+		evutil_closesocket(cp[0]);
+		evutil_closesocket(cp[1]);
 	}
 
 	free(pipes);
@@ -146,6 +146,11 @@ main(int argc, char **argv)
 	struct timeval *tv;
 
 	int num_pipes = 100;
+#ifdef _WIN32
+	WSADATA WSAData;
+	WSAStartup(0x101, &WSAData);
+#endif
+
 	while ((c = getopt(argc, argv, "n:")) != -1) {
 		switch (c) {
 		case 'n':
@@ -174,6 +179,10 @@ main(int argc, char **argv)
 		fprintf(stdout, "%ld\n",
 			tv->tv_sec * 1000000L + tv->tv_usec);
 	}
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
 
 	exit(0);
 }

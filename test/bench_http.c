@@ -186,6 +186,10 @@ main(int argc, char **argv)
 #endif
 	event_base_dispatch(base);
 
+#ifdef _WIN32
+	WSACleanup();
+#endif
+
 	/* NOTREACHED */
 	return (0);
 }
