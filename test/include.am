@@ -22,6 +22,7 @@ TESTPROGRAMS = \
 	test/test-changelist				\
 	test/test-dumpevents				\
 	test/test-eof				\
+	test/test-closed				\
 	test/test-fdleak				\
 	test/test-init				\
 	test/test-ratelim				\
@@ -60,6 +61,8 @@ test_test_dumpevents_SOURCES = test/test-dumpevents.c
 test_test_dumpevents_LDADD = libevent_core.la
 test_test_eof_SOURCES = test/test-eof.c
 test_test_eof_LDADD = libevent_core.la
+test_test_closed_SOURCES = test/test-closed.c
+test_test_closed_LDADD = libevent_core.la
 test_test_changelist_SOURCES = test/test-changelist.c
 test_test_changelist_LDADD = libevent_core.la
 test_test_weof_SOURCES = test/test-weof.c
