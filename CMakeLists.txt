@@ -473,6 +473,7 @@ set(HDR_PRIVATE
     bufferevent-internal.h
     changelist-internal.h
     defer-internal.h
+    epolltable-internal.h
     evbuffer-internal.h
     include/evdns.h
     event-internal.h

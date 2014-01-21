@@ -254,6 +254,7 @@ noinst_HEADERS +=				\
 	changelist-internal.h			\
 	compat/sys/queue.h			\
 	defer-internal.h			\
+	epolltable-internal.h			\
 	evbuffer-internal.h			\
 	evconfig-private.h			\
 	event-internal.h			\
