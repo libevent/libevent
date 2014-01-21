@@ -171,7 +171,7 @@ main(int c, char **v) {
 		++idx;
 	}
 
-#ifdef WIN32
+#ifdef _WIN32
 	{
 		WSADATA WSAData;
 		WSAStartup(0x101, &WSAData);

@@ -184,7 +184,7 @@ main(int argc, char **argv)
 	}
 	event_base_dispatch(base);
 
-#ifdef WIN32
+#ifdef _WIN32
 	WSACleanup();
 #endif
 

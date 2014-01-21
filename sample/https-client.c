@@ -21,7 +21,7 @@
 #include <string.h>
 #include <errno.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
@@ -196,7 +196,7 @@ main(int argc, char **argv)
 	if (argc != 2)
 		syntax();
 
-#ifdef WIN32
+#ifdef _WIN32
 	{
 		WORD wVersionRequested;
 		WSADATA wsaData;
@@ -210,7 +210,7 @@ main(int argc, char **argv)
 			return 1;
 		}
 	}
-#endif
+#endif // _WIN32
 
 	url = argv[1];
 	http_uri = evhttp_uri_parse(url);
@@ -265,7 +265,7 @@ main(int argc, char **argv)
 	if (!ssl_ctx)
 		die_openssl("SSL_CTX_new");
 
-	#ifndef WIN32
+	#ifndef _WIN32
 	/* TODO: Add certificate loading on Windows as well */
 
 	/* Attempt to use the system's trusted root certificates.
@@ -298,7 +298,7 @@ main(int argc, char **argv)
 	 * "wrapping" OpenSSL's routine, not replacing it. */
 	SSL_CTX_set_cert_verify_callback (ssl_ctx, cert_verify_callback,
 					  (void *) host);
-	#endif // not WIN32
+	#endif // not _WIN32
 
 	// Create event base
 	base = event_base_new();
@@ -359,7 +359,7 @@ main(int argc, char **argv)
 	evhttp_connection_free(evcon);
 	event_base_free(base);
 
-#ifdef WIN32
+#ifdef _WIN32
 	WSACleanup();
 #endif
 
