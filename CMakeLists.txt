@@ -611,7 +611,12 @@ set(SRC_EXTRA
     )
 
 add_definitions(-DHAVE_CONFIG_H)
-include_directories(./ ./compat ./include)
+
+# We use BEFORE here so we don't accidentally look in system directories
+# first for some previous versions of the headers that are installed.
+include_directories(BEFORE ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/compat
+    ${PROJECT_SOURCE_DIR}/include)
 
 if(WIN32)
     list(APPEND SRC_CORE 
@@ -641,7 +646,7 @@ source_group("Source Extra"     FILES ${SRC_EXTRA})
 
 # Generate the configure headers.
 # (Place them in the build dir so we don't polute the source tree with generated files).
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
+include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/event-config.h.cmake 
