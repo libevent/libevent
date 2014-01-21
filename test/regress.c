@@ -1938,8 +1938,9 @@ re_add_read_cb(evutil_socket_t fd, short event, void *arg)
 {
 	char buf[256];
 	struct event *ev_other = arg;
-	readd_test_event_last_added = ev_other;
 	ev_ssize_t n_read;
+
+	readd_test_event_last_added = ev_other;
 
 	n_read = read(fd, buf, sizeof(buf));
 
