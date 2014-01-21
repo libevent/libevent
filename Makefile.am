@@ -146,7 +146,7 @@ if BUILD_WIN32
 SYS_LIBS = -lws2_32 -lshell32 -ladvapi32
 SYS_SRC = win32select.c evthread_win32.c buffer_iocp.c event_iocp.c \
 	bufferevent_async.c
-SYS_INCLUDES = -IWIN32-Code
+SYS_INCLUDES = -IWIN32-Code -IWIN32-Code/nmake
 
 else
 
@@ -247,8 +247,8 @@ libevent_openssl_la_CPPFLAGS = $(AM_CPPFLAGS) $(OPENSSL_INCS)
 endif
 
 noinst_HEADERS +=				\
-	WIN32-Code/evconfig-private.h		\
-	WIN32-Code/event2/event-config.h	\
+	WIN32-Code/nmake/evconfig-private.h	\
+	WIN32-Code/nmake/event2/event-config.h	\
 	WIN32-Code/tree.h			\
 	bufferevent-internal.h			\
 	changelist-internal.h			\
