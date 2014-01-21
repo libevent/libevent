@@ -489,8 +489,12 @@ enum event_method_feature {
     /** Require an event method that allows file descriptors as well as
      * sockets. */
     EV_FEATURE_FDS = 0x04,
-    /** Require an event method that detects premature connection close by
-     * clients without the necessity of reading all the pending data. */
+    /** Require an event method that allows you to use EV_CLOSED to detect
+     * connection close without the necessity of reading all the pending data.
+     *
+     * Methods that do support EV_CLOSED may not be able to provide support on
+     * all kernel versions.
+     **/
     EV_FEATURE_EARLY_CLOSE = 0x08
 };
 
@@ -908,8 +912,12 @@ int event_base_got_break(struct event_base *);
  **/
 #define EV_FINALIZE     0x40
 /**
- * Detects premature connection close by clients without the necessity of
- * reading all the pending data, if supported by the backend.
+ * Detects connection close events.  You can use this to detect when a
+ * connection has been closed, without having to read all the pending data
+ * from a connection.
+ *
+ * Not all backends support EV_CLOSED.  To detect or require it, use the
+ * feature flag EV_FEATURE_EARLY_CLOSE.
  **/
 #define EV_CLOSED	0x80
 /**@}*/
