@@ -688,12 +688,11 @@ if (NOT EVENT__DISABLE_SAMPLES)
         dns-example
         event-read-fifo
         hello-world
-        le-proxy
         signal-test
         http-server
         time-test)
 
-    if (OPENSSL_LIBRARIES)
+    if (NOT EVENT__DISABLE_OPENSSL AND OPENSSL_LIBRARIES)
          # Special sample with more than one file.
         add_executable(https-client
             sample/https-client.c
@@ -701,6 +700,9 @@ if (NOT EVENT__DISABLE_SAMPLES)
             sample/hostcheck.c)
         target_link_libraries(https-client event ${LIB_APPS} ${LIB_PLATFORM})
         add_dependencies(https-client event)
+
+        # Requires OpenSSL.
+        list(APPEND SAMPLES le-proxy)
     endif()
 
     foreach(SAMPLE ${SAMPLES})
@@ -732,62 +734,64 @@ if (NOT EVENT__DISABLE_TESTS)
     #
     # Generate Regress tests.
     #
-    if (NOT EVENT__DISABLE_REGRESS AND PYTHONINTERP_FOUND)
-        message("Generating regress tests...")
-        add_definitions(-DTINYTEST_LOCAL)
-        add_custom_command(
-            OUTPUT 
-                ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.c 
-                ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.h
-            DEPENDS 
-                event_rpcgen.py
-                test/regress.rpc 
-            COMMAND ${PYTHON_EXECUTABLE} ../event_rpcgen.py regress.rpc 
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test
-            )
+    if (NOT EVENT__DISABLE_REGRESS)
+        if (PYTHONINTERP_FOUND)
+            message("Generating regress tests...")
+            add_definitions(-DTINYTEST_LOCAL)
+            add_custom_command(
+                OUTPUT 
+                    ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.c 
+                    ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.h
+                DEPENDS 
+                    event_rpcgen.py
+                    test/regress.rpc 
+                COMMAND ${PYTHON_EXECUTABLE} ../event_rpcgen.py regress.rpc 
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test
+                )
 
-        list(APPEND SRC_REGRESS 
-            test/regress.c
-            test/regress.gen.c
-            test/regress.gen.h
-            test/regress_buffer.c
-            test/regress_bufferevent.c
-            test/regress_dns.c
-            test/regress_et.c
-            test/regress_finalize.c
-            test/regress_http.c 
-            test/regress_listener.c 
-            test/regress_main.c
-            test/regress_minheap.c
-            test/regress_rpc.c
-            test/regress_testutils.c
-            test/regress_testutils.h
-            test/regress_util.c 
-            test/tinytest.c
-            )
+            list(APPEND SRC_REGRESS 
+                test/regress.c
+                test/regress.gen.c
+                test/regress.gen.h
+                test/regress_buffer.c
+                test/regress_bufferevent.c
+                test/regress_dns.c
+                test/regress_et.c
+                test/regress_finalize.c
+                test/regress_http.c 
+                test/regress_listener.c 
+                test/regress_main.c
+                test/regress_minheap.c
+                test/regress_rpc.c
+                test/regress_testutils.c
+                test/regress_testutils.h
+                test/regress_util.c 
+                test/tinytest.c
+                )
 
-        if (WIN32)
-            list(APPEND SRC_REGRESS test/regress_iocp.c)
-            list(APPEND SRC_REGRESS test/regress_thread.c)
+            if (WIN32)
+                list(APPEND SRC_REGRESS test/regress_iocp.c)
+                list(APPEND SRC_REGRESS test/regress_thread.c)
+            endif()
+
+            if (CMAKE_USE_PTHREADS_INIT)
+                list(APPEND SRC_REGRESS test/regress_thread.c)
+            endif()
+
+            if (ZLIB_LIBRARY)
+                list(APPEND SRC_REGRESS test/regress_zlib.c)
+            endif()
+
+            if (OPENSSL_LIBRARIES)
+                list(APPEND SRC_REGRESS test/regress_ssl.c)
+            endif()
+
+            add_executable(regress ${SRC_REGRESS})
+            target_link_libraries(regress event ${LIB_APPS} ${LIB_PLATFORM})
+            add_dependencies(regress event)
+        else()
+            message(WARNING "Python not found, cannot generate regress tests!")
         endif()
-
-        if (CMAKE_USE_PTHREADS_INIT)
-            list(APPEND SRC_REGRESS test/regress_thread.c)
-        endif()
-
-        if (ZLIB_LIBRARY)
-            list(APPEND SRC_REGRESS test/regress_zlib.c)
-        endif()
-
-        if (OPENSSL_LIBRARIES)
-            list(APPEND SRC_REGRESS test/regress_ssl.c)
-        endif()
-
-        add_executable(regress ${SRC_REGRESS})
-        target_link_libraries(regress event ${LIB_APPS} ${LIB_PLATFORM})
-        add_dependencies(regress event)
-    else()
-        message(WARNING "Python not found, cannot generate regress tests!")
     endif()
 
     #
@@ -1026,7 +1030,7 @@ configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
 
 # Define the public headers.
 set_target_properties(event event_core event_extras
-    PROPERTIES PUBLIC_HEADER ${HDR_PUBLIC})
+    PROPERTIES PUBLIC_HEADER "${HDR_PUBLIC}")
 
 #
 # Install targets.
