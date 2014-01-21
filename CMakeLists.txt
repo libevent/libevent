@@ -688,12 +688,11 @@ if (NOT EVENT__DISABLE_SAMPLES)
         dns-example
         event-read-fifo
         hello-world
-        le-proxy
         signal-test
         http-server
         time-test)
 
-    if (OPENSSL_LIBRARIES)
+    if (NOT EVENT__DISABLE_OPENSSL AND OPENSSL_LIBRARIES)
          # Special sample with more than one file.
         add_executable(https-client
             sample/https-client.c
@@ -701,6 +700,9 @@ if (NOT EVENT__DISABLE_SAMPLES)
             sample/hostcheck.c)
         target_link_libraries(https-client event ${LIB_APPS} ${LIB_PLATFORM})
         add_dependencies(https-client event)
+
+        # Requires OpenSSL.
+        list(APPEND SAMPLES le-proxy)
     endif()
 
     foreach(SAMPLE ${SAMPLES})
@@ -1026,7 +1028,7 @@ configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
 
 # Define the public headers.
 set_target_properties(event event_core event_extras
-    PROPERTIES PUBLIC_HEADER ${HDR_PUBLIC})
+    PROPERTIES PUBLIC_HEADER "${HDR_PUBLIC}")
 
 #
 # Install targets.
