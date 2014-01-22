@@ -11,7 +11,7 @@
  */
 
 // Get rid of OSX 10.7 and greater deprecation warnings.
-#ifdef __clang__
+#if defined(__APPLE__) && defined(__clang__)
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
@@ -390,7 +390,7 @@ main(int argc, char **argv)
 		 * avoid needless copying. */
 		FILE * f = fopen(data_file, "rb");
 		char buf[1024];
-		ssize_t s;
+		size_t s;
 		size_t bytes = 0;
 
 		if (!f) {
