@@ -925,8 +925,25 @@ if (NOT EVENT__DISABLE_TESTS)
     # (Important! This will unset all EVENT_NO* environment variables. 
     #  If they are set in the shell the tests are running using simply "ctest" or "make test" will fail)
     if (WIN32)
-        # Windows doesn't have "unset", and the above does not happen anyway.
-        add_custom_target(verify COMMAND ${CMAKE_CTEST_COMMAND}
+        # Windows doesn't have "unset". But you can use "set VAR=" instead.
+        # We need to guard against the possibility taht EVENT_NOWIN32 is set, and all test failing
+        # since no event backend being available.
+        file(TO_NATIVE_PATH ${CMAKE_CTEST_COMMAND} WINDOWS_CTEST_COMMAND)
+
+        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.bat
+            "
+            set EVENT_NOWIN32=
+            \"${WINDOWS_CTEST_COMMAND}\"
+            ")
+
+        message("${WINDOWS_CTEST_COMMAND}")
+        file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.bat
+            DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
+            FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+
+        file(TO_NATIVE_PATH "${CMAKE_CURRENT_BINARY_DIR}/verify_tests.bat" VERIFY_PATH)
+
+        add_custom_target(verify COMMAND "${VERIFY_PATH}"
                         DEPENDS event ${ALL_TESTPROGS})
     else()
         # On some platforms doing exec(unset) as CMake does won't work, so make sure
