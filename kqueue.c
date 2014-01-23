@@ -96,7 +96,7 @@ const struct eventop kqops = {
 	kq_dispatch,
 	kq_dealloc,
 	1 /* need reinit */,
-    EV_FEATURE_ET|EV_FEATURE_O1|EV_FEATURE_FDS,
+    EV_FEATURE_ET|EV_FEATURE_O1|EV_FEATURE_FDS|EV_FEATURE_EARLY_CLOSE,
 	EVENT_CHANGELIST_FDINFO_SIZE
 };
 
@@ -169,7 +169,7 @@ err:
 	return (NULL);
 }
 
-#define ADD_UDATA 0x30303
+#define MAGIC_UDATA 0x30303
 
 static void
 kq_setup_kevent(struct kevent *out, evutil_socket_t fd, int filter, short change)
@@ -182,7 +182,7 @@ kq_setup_kevent(struct kevent *out, evutil_socket_t fd, int filter, short change
 		out->flags = EV_ADD;
 		/* We set a magic number here so that we can tell 'add'
 		 * errors from 'del' errors. */
-		out->udata = INT_TO_UDATA(ADD_UDATA);
+		out->udata = INT_TO_UDATA(MAGIC_UDATA);
 		if (change & EV_ET)
 			out->flags |= EV_CLEAR;
 #ifdef NOTE_EOF
@@ -228,6 +228,12 @@ kq_build_changes_list(const struct event_changelist *changelist,
 			out_ch = &kqop->changes[n_changes++];
 			kq_setup_kevent(out_ch, in_ch->fd, EVFILT_WRITE,
 			    in_ch->write_change);
+		}
+		if (in_ch->close_change) {
+			out_ch = &kqop->changes[n_changes++];
+			kq_setup_kevent(out_ch, in_ch->fd, EVFILT_READ,
+			    in_ch->close_change);
+			out_ch->udata = INT_TO_UDATA(EV_EOF);
 		}
 	}
 	return n_changes;
@@ -380,6 +386,13 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 
 		if (!which)
 			continue;
+
+		if (events[i].flags & EV_EOF &&
+			events[i].udata != INT_TO_UDATA(MAGIC_UDATA)) {
+			if (events[i].udata == INT_TO_UDATA(EV_EOF)) {
+				which = EV_CLOSED;
+			}
+		}
 
 		if (events[i].filter == EVFILT_SIGNAL) {
 			evmap_signal_active_(base, events[i].ident, 1);
