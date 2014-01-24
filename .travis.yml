@@ -1,0 +1,16 @@
+env:
+  matrix:
+    - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS=""
+    - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
+    - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_THREAD_SUPPORT=ON"
+    - EVENT_BUILD_METHOD=autotools
+language: c
+compiler:
+  - gcc
+  - clang
+install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y -qq zlib1g-dev libssl-dev build-essential automake autoconf cmake
+script:
+  - if [ "$EVENT_BUILD_METHOD" = "autotools" ]; then ./autogen.sh && ./configure && make && make verify; fi
+  - if [ "$EVENT_BUILD_METHOD" = "cmake" ]; then mkdir build && cd build && cmake .. $EVENT_CMAKE_OPTIONS && cmake --build . && CTEST_OUTPUT_ON_FAILURE=1 cmake --build . --target verify; fi
