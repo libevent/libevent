@@ -1495,8 +1495,15 @@ event_persist_closure(struct event_base *base, struct event *ev)
 		run_at.tv_usec |= usec_mask;
 		event_add_nolock_(ev, &run_at, 1);
 	}
-	EVBASE_RELEASE_LOCK(base, th_base_lock);
-	(*ev->ev_callback)(ev->ev_fd, ev->ev_res, ev->ev_arg);
+
+	// Get our callback before we release the lock
+	void (*evcb_callback)(evutil_socket_t, short, void *) = *ev->ev_callback;
+
+	// Release the lock
+ 	EVBASE_RELEASE_LOCK(base, th_base_lock);
+
+	// Execute the callback
+	(evcb_callback)(ev->ev_fd, ev->ev_res, ev->ev_arg);
 }
 
 /*
