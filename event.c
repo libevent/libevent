@@ -1454,6 +1454,10 @@ done:
 static inline void
 event_persist_closure(struct event_base *base, struct event *ev)
 {
+
+	// Define our callback, we use this to store our callback before it's executed
+	void (*evcb_callback)(evutil_socket_t, short, void *);
+
 	/* reschedule the persistent event if we have a timeout. */
 	if (ev->ev_io_timeout.tv_sec || ev->ev_io_timeout.tv_usec) {
 		/* If there was a timeout, we want it to run at an interval of
@@ -1496,8 +1500,8 @@ event_persist_closure(struct event_base *base, struct event *ev)
 		event_add_nolock_(ev, &run_at, 1);
 	}
 
-	// Get our callback before we release the lock
-	void (*evcb_callback)(evutil_socket_t, short, void *) = *ev->ev_callback;
+	// Save our callback before we release the lock
+	evcb_callback = *ev->ev_callback;
 
 	// Release the lock
  	EVBASE_RELEASE_LOCK(base, th_base_lock);
@@ -1564,34 +1568,40 @@ event_process_active_single_queue(struct event_base *base,
 			EVUTIL_ASSERT(ev != NULL);
 			event_persist_closure(base, ev);
 			break;
-		case EV_CLOSURE_EVENT:
+		case EV_CLOSURE_EVENT: {
+			void (*evcb_callback)(evutil_socket_t, short, void *) = *ev->ev_callback;
 			EVUTIL_ASSERT(ev != NULL);
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
-			(*ev->ev_callback)(
-				ev->ev_fd, ev->ev_res, ev->ev_arg);
-			break;
-		case EV_CLOSURE_CB_SELF:
+			evcb_callback(ev->ev_fd, ev->ev_res, ev->ev_arg);
+		}
+		break;
+		case EV_CLOSURE_CB_SELF: {
+			void (*evcb_selfcb)(struct event_callback *, void *) = evcb->evcb_cb_union.evcb_selfcb;
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
-			evcb->evcb_cb_union.evcb_selfcb(evcb, evcb->evcb_arg);
-			break;
+			evcb_selfcb(evcb, evcb->evcb_arg);
+		}
+		break;
 		case EV_CLOSURE_EVENT_FINALIZE:
-		case EV_CLOSURE_EVENT_FINALIZE_FREE:
+		case EV_CLOSURE_EVENT_FINALIZE_FREE: {
+			void (*evcb_evfinalize)(struct event *, void *) = ev->ev_evcallback.evcb_cb_union.evcb_evfinalize;
 			base->current_event = NULL;
 			EVUTIL_ASSERT(ev != NULL);
 			EVUTIL_ASSERT((evcb->evcb_flags & EVLIST_FINALIZING));
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
-			ev->ev_evcallback.evcb_cb_union.evcb_evfinalize(ev, ev->ev_arg);
+			evcb_evfinalize(ev, ev->ev_arg);
 			event_debug_note_teardown_(ev);
 			if (evcb->evcb_closure == EV_CLOSURE_EVENT_FINALIZE_FREE)
 				mm_free(ev);
-			break;
-		case EV_CLOSURE_CB_FINALIZE:
+		}
+		break;
+		case EV_CLOSURE_CB_FINALIZE: {
+			void (*evcb_cbfinalize)(struct event_callback *, void *) = evcb->evcb_cb_union.evcb_cbfinalize;
 			base->current_event = NULL;
 			EVUTIL_ASSERT((evcb->evcb_flags & EVLIST_FINALIZING));
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
-			base->current_event = NULL;
-			evcb->evcb_cb_union.evcb_cbfinalize(evcb, evcb->evcb_arg);
-			break;
+			evcb_cbfinalize(evcb, evcb->evcb_arg);
+		}
+		break;
 		default:
 			EVUTIL_ASSERT(0);
 		}
