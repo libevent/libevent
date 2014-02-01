@@ -52,6 +52,7 @@ extern "C" {
 /* used only by signals */
 #define ev_ncalls	ev_.ev_signal.ev_ncalls
 #define ev_pncalls	ev_.ev_signal.ev_pncalls
+#define ev_sa_flags	ev_.ev_signal.sa_flags
 
 #define ev_pri ev_evcallback.evcb_pri
 #define ev_flags ev_evcallback.evcb_flags
@@ -400,7 +401,7 @@ struct event_config {
 	((base)->event_count_active)
 
 int evsig_set_handler_(struct event_base *base, int evsignal,
-			  void (*fn)(int));
+			  void (*fn)(int), int);
 int evsig_restore_handler_(struct event_base *base, int evsignal);
 
 int event_add_nolock_(struct event *ev,

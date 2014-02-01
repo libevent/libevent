@@ -936,6 +936,13 @@ int event_base_got_break(struct event_base *);
 #define evtimer_initialized(ev)		event_initialized(ev)
 /**@}*/
 
+
+/**
+ * Change default sa_flags for sigaction(2) from SA_RESTART
+ * to user-specific.
+ */
+int evsignal_add_with_flags(struct event *, const struct timeval *, int);
+
 /**
    @name evsignal_* macros
 

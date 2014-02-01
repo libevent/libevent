@@ -454,7 +454,7 @@ evmap_signal_add_(struct event_base *base, int sig, struct event *ev)
 	    base->evsigsel->fdinfo_len);
 
 	if (LIST_EMPTY(&ctx->events)) {
-		if (evsel->add(base, ev->ev_fd, 0, EV_SIGNAL, NULL)
+		if (evsel->add(base, ev->ev_fd, 0, EV_SIGNAL, (void *)&ev->ev_sa_flags)
 		    == -1)
 			return (-1);
 	}

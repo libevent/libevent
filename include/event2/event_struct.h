@@ -145,6 +145,8 @@ struct event {
 			short ev_ncalls;
 			/* Allows deletes in callback */
 			short *ev_pncalls;
+			/* Passed to sigaction(). */
+			int sa_flags;
 		} ev_signal;
 	} ev_;
 

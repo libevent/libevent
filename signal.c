@@ -210,7 +210,8 @@ evsig_init_(struct event_base *base)
  * we can restore the original handler when we clear the current one. */
 int
 evsig_set_handler_(struct event_base *base,
-    int evsignal, void (__cdecl *handler)(int))
+    int evsignal, void (__cdecl *handler)(int),
+    int sa_flags)
 {
 #ifdef EVENT__HAVE_SIGACTION
 	struct sigaction sa;
@@ -252,7 +253,7 @@ evsig_set_handler_(struct event_base *base,
 #ifdef EVENT__HAVE_SIGACTION
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = handler;
-	sa.sa_flags |= SA_RESTART;
+	sa.sa_flags |= sa_flags;
 	sigfillset(&sa.sa_mask);
 
 	if (sigaction(evsignal, &sa, sig->sh_old[evsignal]) == -1) {
@@ -278,7 +279,7 @@ static int
 evsig_add(struct event_base *base, evutil_socket_t evsignal, short old, short events, void *p)
 {
 	struct evsig_info *sig = &base->sig;
-	(void)p;
+	int sa_flags = *(int *)p;
 
 	EVUTIL_ASSERT(evsignal >= 0 && evsignal < NSIG);
 
@@ -299,7 +300,7 @@ evsig_add(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 	EVSIGBASE_UNLOCK();
 
 	event_debug(("%s: %d: changing signal handler", __func__, (int)evsignal));
-	if (evsig_set_handler_(base, (int)evsignal, evsig_handler) == -1) {
+	if (evsig_set_handler_(base, (int)evsignal, evsig_handler, sa_flags) == -1) {
 		goto err;
 	}
 

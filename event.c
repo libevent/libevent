@@ -2071,6 +2071,8 @@ event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(
 	ev = mm_malloc(sizeof(struct event));
 	if (ev == NULL)
 		return (NULL);
+
+	ev->ev_sa_flags = SA_RESTART;
 	if (event_assign(ev, base, fd, events, cb, arg) < 0) {
 		mm_free(ev);
 		return (NULL);
@@ -2357,6 +2359,14 @@ event_add(struct event *ev, const struct timeval *tv)
 	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
 
 	return (res);
+}
+
+int
+evsignal_add_with_flags(struct event *ev, const struct timeval *tv, int flags)
+{
+	ev->ev_sa_flags = flags;
+
+	return evsignal_add(ev, tv);
 }
 
 /* Helper callback: wake an event_base from another thread.  This version
