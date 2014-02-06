@@ -434,9 +434,9 @@ be_filter_readcb(struct bufferevent *underlying, void *me_)
 	else
 		state = BEV_NORMAL;
 
-	/* XXXX use return value */
 	res = be_filter_process_input(bevf, state, &processed_any);
-	(void)res;
+    if( res == BEV_ERROR )
+        bufferevent_run_eventcb_(bufev, BEV_EVENT_ERROR, 0);
 
 	/* XXX This should be in process_input, not here.  There are
 	 * other places that can call process-input, and they should
@@ -455,9 +455,12 @@ be_filter_writecb(struct bufferevent *underlying, void *me_)
 	struct bufferevent_filtered *bevf = me_;
 	struct bufferevent *bev = downcast(bevf);
 	int processed_any = 0;
+    enum bufferevent_filter_result res;
 
 	bufferevent_incref_and_lock_(bev);
-	be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
+	res = be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
+    if( res == BEV_ERROR )
+        bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
 	bufferevent_decref_and_unlock_(bev);
 }
 
