@@ -119,6 +119,10 @@ endif()
 if (APPLE)
     # Get rid of deprecated warnings for OpenSSL on OSX 10.7 and greater.
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=deprecated-declarations")
+    # Get rid of "clang: warning: argument unused during compilation: -I etc
+    if ("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Qunused-arguments")
+    endif()
 endif()
 
 # Winsock.
