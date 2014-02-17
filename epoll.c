@@ -59,6 +59,14 @@
 #include "evmap-internal.h"
 #include "changelist-internal.h"
 #include "time-internal.h"
+
+/* Since Linux 2.6.17, epoll is able to report about peer half-closed connection
+   using special EPOLLRDHUP flag on a read event.
+*/
+#if !defined(EPOLLRDHUP)
+#define EPOLLRDHUP 0
+#endif
+
 #include "epolltable-internal.h"
 
 #if defined(EVENT__HAVE_SYS_TIMERFD_H) &&			  \
@@ -70,13 +78,6 @@
    was introduced) or 2.6.26, since 2.6.27 introduced those flags.
  */
 #define USING_TIMERFD
-#endif
-
-/* Since Linux 2.6.17, epoll is able to report about peer half-closed connection
-   using special EPOLLRDHUP flag on a read event.
-*/
-#if !defined(EPOLLRDHUP)
-#define EPOLLRDHUP 0
 #endif
 
 struct epollop {
