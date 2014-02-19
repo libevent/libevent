@@ -30,7 +30,8 @@ EVENT2_EXPORT = \
 	include/event2/tag.h \
 	include/event2/tag_compat.h \
 	include/event2/thread.h \
-	include/event2/util.h
+	include/event2/util.h \
+	include/event2/visibility.h
 
 ## Without the nobase_ prefixing, Automake would strip "include/event2/" from
 ## the source header filename to derive the installed header filename.
