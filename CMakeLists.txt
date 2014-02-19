@@ -672,10 +672,16 @@ add_library(event_core STATIC
     ${SRC_CORE}
     )
     
-add_library(event_extras STATIC
+add_library(event_extra STATIC
+    ${HDR_PRIVATE}
+    ${HDR_PUBLIC}
+    ${SRC_CORE}
     ${SRC_EXTRA}
     )
 
+# library exists for historical reasons; it contains the contents of
+# both libevent_core and libevent_extra. You shouldn’t use it; it may
+# go away in a future version of Libevent.
 add_library(event STATIC
     ${HDR_PRIVATE}
     ${HDR_PUBLIC}
@@ -702,8 +708,8 @@ if (NOT EVENT__DISABLE_SAMPLES)
             sample/https-client.c
             sample/openssl_hostname_validation.c
             sample/hostcheck.c)
-        target_link_libraries(https-client event ${LIB_APPS} ${LIB_PLATFORM})
-        add_dependencies(https-client event)
+        target_link_libraries(https-client event_extra ${LIB_APPS} ${LIB_PLATFORM})
+        add_dependencies(https-client event_extra)
 
         # Requires OpenSSL.
         list(APPEND SAMPLES le-proxy)
@@ -711,22 +717,22 @@ if (NOT EVENT__DISABLE_SAMPLES)
 
     foreach(SAMPLE ${SAMPLES})
         add_executable(${SAMPLE} sample/${SAMPLE}.c)
-        target_link_libraries(${SAMPLE} event ${LIB_APPS} ${LIB_PLATFORM})
-        add_dependencies(${SAMPLE} event)
+        target_link_libraries(${SAMPLE} event_extra ${LIB_APPS} ${LIB_PLATFORM})
+        add_dependencies(${SAMPLE} event_extra)
     endforeach()
 endif()
 
 if (NOT EVENT__DISABLE_BENCHMARK)
     foreach (BENCHMARK bench bench_cascade bench_http bench_httpclient)
         set(BENCH_SRC test/${BENCHMARK}.c)
-        
+
         if (WIN32)
             list(APPEND BENCH_SRC WIN32-Code/getopt.c WIN32-Code/getopt_long.c)
         endif()
 
         add_executable(${BENCHMARK} ${BENCH_SRC})
-        target_link_libraries(${BENCHMARK} event ${LIB_PLATFORM})
-        add_dependencies(${BENCHMARK} event)
+        target_link_libraries(${BENCHMARK} event_extra ${LIB_PLATFORM})
+        add_dependencies(${BENCHMARK} event_extra)
     endforeach()
 endif()
 
@@ -791,8 +797,8 @@ if (NOT EVENT__DISABLE_TESTS)
             endif()
 
             add_executable(regress ${SRC_REGRESS})
-            target_link_libraries(regress event ${LIB_APPS} ${LIB_PLATFORM})
-            add_dependencies(regress event)
+            target_link_libraries(regress event_extra ${LIB_APPS} ${LIB_PLATFORM})
+            add_dependencies(regress event_extra)
         else()
             message(WARNING "Python not found, cannot generate regress tests!")
         endif()
@@ -813,8 +819,8 @@ if (NOT EVENT__DISABLE_TESTS)
     # Create test program executables.
     foreach (TESTPROG ${ALL_TESTPROGS})
         add_executable(${TESTPROG} test/${TESTPROG}.c)
-        target_link_libraries(${TESTPROG} event ${LIB_PLATFORM})
-        add_dependencies(${TESTPROG} event)
+        target_link_libraries(${TESTPROG} event_extra ${LIB_PLATFORM})
+        add_dependencies(${TESTPROG} event_extra)
     endforeach()
 
     #
@@ -1015,7 +1021,7 @@ foreach(p LIB BIN INCLUDE CMAKE)
 endforeach()
 
 # Export targets (This is used for other CMake projects to easily find the libraries and include files).
-export(TARGETS event event_extras event_core
+export(TARGETS event event_extra event_core
         FILE "${PROJECT_BINARY_DIR}/LibeventTargets.cmake")
 export(PACKAGE libevent)
 
@@ -1050,13 +1056,13 @@ configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
                 @ONLY)
 
 # Define the public headers.
-set_target_properties(event event_core event_extras
+set_target_properties(event event_core event_extra
     PROPERTIES PUBLIC_HEADER "${HDR_PUBLIC}")
 
 #
 # Install targets.
 #
-install(TARGETS event event_core event_extras
+install(TARGETS event event_core event_extra
         EXPORT LibeventTargets
         LIBRARY DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT lib
         ARCHIVE DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT lib
@@ -1070,7 +1076,7 @@ install(FILES
 
 
 # Install exports for the install-tree.
-install(EXPORT LibeventTargets 
+install(EXPORT LibeventTargets
         DESTINATION "${EVENT_INSTALL_CMAKE_DIR}" COMPONENT dev)
 
-set(LIBEVENT_LIBRARIES event event_core event_extras CACHE STRING "Libevent libraries")
+set(LIBEVENT_LIBRARIES event event_core event_extra CACHE STRING "Libevent libraries")
