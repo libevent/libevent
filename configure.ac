@@ -757,6 +757,14 @@ if test x$enable_verbose_debug = xyes; then
 	CFLAGS="$CFLAGS -DUSE_DEBUG"
 fi
 
+# check if we can compile systemd watchdog support
+AC_CHECK_HEADERS([systemd/sd-daemon.h],
+    AC_SEARCH_LIBS([sd_watchdog_enabled], [systemd-daemon],
+        [AC_DEFINE(HAVE_SYSTEMD_WATCHDOG,1,[Have systemd v209 or more])
+        SYSTEMD_LIBS="-lsystemd-daemon"]))
+
+AC_SUBST(SYSTEMD_LIBS)
+
 # check if we have and should use openssl
 AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
 

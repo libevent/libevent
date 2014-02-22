@@ -74,6 +74,10 @@
 #include "kqueue-internal.h"
 #endif
 
+#ifdef EVENT__HAVE_SYSTEMD_WATCHDOG
+#include <systemd/sd-daemon.h>
+#endif
+
 #ifdef EVENT__HAVE_EVENT_PORTS
 extern const struct eventop evportops;
 #endif
@@ -129,6 +133,7 @@ struct event_base *event_global_current_base_ = NULL;
 /* Global state */
 
 static void *event_self_cbarg_ptr_ = NULL;
+static struct event *system_watchdog_event = NULL;
 
 /* Prototypes */
 static void	event_queue_insert_active(struct event_base *, struct event_callback *);
@@ -415,6 +420,14 @@ update_time_cache(struct event_base *base)
 	    gettime(base, &base->tv_cache);
 }
 
+#ifdef EVENT__HAVE_SYSTEMD_WATCHDOG
+static void
+systemd_watchdog_callback(evutil_socket_t fd, short what, void *arg)
+{
+	sd_notify(0, "WATCHDOG=1");
+}
+#endif
+
 int
 event_base_update_cache_time(struct event_base *base)
 {
@@ -550,6 +563,10 @@ event_base_new_with_config(const struct event_config *cfg)
 	struct event_base *base;
 	int should_check_environment;
 
+#ifdef EVENT__HAVE_SYSTEMD_WATCHDOG
+	uint64_t watchdog_delay;
+#endif
+
 #ifndef EVENT__DISABLE_DEBUG_MODE
 	event_debug_mode_too_late = 1;
 #endif
@@ -662,6 +679,33 @@ event_base_new_with_config(const struct event_config *cfg)
 		r = evthread_make_base_notifiable(base);
 		if (r<0) {
 			event_warnx("%s: Unable to make base notifiable.", __func__);
+			event_base_free(base);
+			return NULL;
+		}
+	}
+#endif
+
+#ifdef EVENT__HAVE_SYSTEMD_WATCHDOG
+	if (sd_watchdog_enabled(1, &watchdog_delay)) {
+		struct timeval watchdog;
+		int r;
+
+		// recommended by upstream systemd
+		// watchdog_delay is in usec, so we need to convert it to a
+		// proper timeval
+		watchdog_delay /= 2;
+		watchdog.tv_sec = watchdog_delay / 1000000;
+		watchdog.tv_usec = watchdog_delay % 1000000;
+
+		system_watchdog_event = event_new(base, -1, EV_PERSIST, systemd_watchdog_callback, NULL);
+		if (!system_watchdog_event) {
+			event_warnx("%s: Unable to create timer for systemd watchdog.", __func__);
+			event_base_free(base);
+			return NULL;
+		}
+		r = event_add (system_watchdog_event, &watchdog);
+		if (r<0) {
+			event_warnx("%s: Unable to add systemd watchdog timer.", __func__);
 			event_base_free(base);
 			return NULL;
 		}
@@ -850,6 +894,9 @@ event_base_free_(struct event_base *base, int run_finalizers)
 
 	EVTHREAD_FREE_LOCK(base->th_base_lock, 0);
 	EVTHREAD_FREE_COND(base->current_event_cond);
+
+	if (system_watchdog_event != NULL)
+		event_free(system_watchdog_event);
 
 	/* If we're freeing current_base, there won't be a current_base. */
 	if (base == current_base)
