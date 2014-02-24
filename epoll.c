@@ -65,6 +65,9 @@
 */
 #if !defined(EPOLLRDHUP)
 #define EPOLLRDHUP 0
+#define EARLY_CLOSE_IF_HAVE_RDHUP 0
+#else
+#define EARLY_CLOSE_IF_HAVE_RDHUP EV_FEATURE_EARLY_CLOSE
 #endif
 
 #include "epolltable-internal.h"
@@ -101,7 +104,7 @@ static const struct eventop epollops_changelist = {
 	epoll_dispatch,
 	epoll_dealloc,
 	1, /* need reinit */
-	EV_FEATURE_ET|EV_FEATURE_O1|EV_FEATURE_EARLY_CLOSE,
+	EV_FEATURE_ET|EV_FEATURE_O1| EARLY_CLOSE_IF_HAVE_RDHUP,
 	EVENT_CHANGELIST_FDINFO_SIZE
 };
 
