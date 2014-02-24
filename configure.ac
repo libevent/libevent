@@ -340,7 +340,6 @@ AC_CHECK_FUNCS([ \
   getnameinfo \
   getprotobynumber \
   gettimeofday \
-  inet_aton \
   inet_ntop \
   inet_pton \
   issetugid \

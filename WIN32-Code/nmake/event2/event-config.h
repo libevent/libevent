@@ -70,9 +70,6 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 /* #define EVENT__HAVE_GETTIMEOFDAY 1 */
 
-/* Define to 1 if you have the `inet_aton' function. */
-/* #undef EVENT__HAVE_INET_ATON */
-
 /* Define to 1 if you have the `inet_ntop' function. */
 /* #undef EVENT__HAVE_INET_NTOP */
 
