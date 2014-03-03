@@ -494,4 +494,6 @@
 /* Define to `int' if <sys/types.h> does not define. */
 #cmakedefine EVENT__ssize_t ${EVENT__ssize_t}
 
+#cmakedefine EVENT__NEED_DLLIMPORT ${EVENT__NEED_DLLIMPORT}
+
 #endif

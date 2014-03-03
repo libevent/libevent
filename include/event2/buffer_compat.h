@@ -27,6 +27,8 @@
 #ifndef EVENT2_BUFFER_COMPAT_H_INCLUDED_
 #define EVENT2_BUFFER_COMPAT_H_INCLUDED_
 
+#include <event2/visibility.h>
+
 /** @file event2/buffer_compat.h
 
 	Obsolete and deprecated versions of the functions in buffer.h: provided
@@ -45,6 +47,7 @@
    @return pointer to a single line, or NULL if an error occurred
 
 */
+EVENT2_EXPORT_SYMBOL
 char *evbuffer_readline(struct evbuffer *buffer);
 
 /** Type definition for a callback that is invoked whenever data is added or
@@ -88,6 +91,7 @@ typedef void (*evbuffer_cb)(struct evbuffer *buffer, size_t old_len, size_t new_
 	 or NULL to remove all callbacks.
   @param cbarg an argument to be provided to the callback function
  */
+EVENT2_EXPORT_SYMBOL
 void evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
 
 
@@ -99,6 +103,7 @@ void evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg);
   @param len the length of the search string
   @return a pointer to the beginning of the search string, or NULL if the search failed.
  */
+EVENT2_EXPORT_SYMBOL
 unsigned char *evbuffer_find(struct evbuffer *buffer, const unsigned char *what, size_t len);
 
 /** deprecated in favor of calling the functions directly */
