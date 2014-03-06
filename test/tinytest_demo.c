@@ -152,6 +152,9 @@ test_memcpy(void *ptr)
 	memcpy(db->buffer2, db->buffer1, sizeof(db->buffer1));
 	tt_str_op(db->buffer1, ==, db->buffer2);
 
+        /* This one works if there's an internal NUL. */
+        tt_mem_op(db->buffer1, <, db->buffer2, sizeof(db->buffer1));
+
 	/* Now we've allocated memory that's referenced by a local variable.
 	   The end block of the function will clean it up. */
 	mem = strdup("Hello world.");

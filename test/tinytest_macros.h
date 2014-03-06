@@ -144,6 +144,10 @@
 	tt_assert_test_fmt_type(a,b,str_test,type,test,type,fmt,	\
 	    {print_=value_;},{},die_on_fail)
 
+#define tt_assert_test_type_opt(a,b,str_test,type,test,fmt,die_on_fail)	\
+	tt_assert_test_fmt_type(a,b,str_test,type,test,type,fmt,	\
+            {print_=value_?value_:"<NULL>";},{},die_on_fail)
+
 /* Helper: assert that a op b, when cast to type.  Format the values with
  * printf format fmt on failure. */
 #define tt_assert_op_type(a,op,b,type,fmt)				\
@@ -163,8 +167,19 @@
 	    (val1_ op val2_),"%p",TT_EXIT_TEST_FUNCTION)
 
 #define tt_str_op(a,op,b)						\
-	tt_assert_test_type(a,b,#a" "#op" "#b,const char *,		\
-	    (strcmp(val1_,val2_) op 0),"<%s>",TT_EXIT_TEST_FUNCTION)
+	tt_assert_test_type_opt(a,b,#a" "#op" "#b,const char *,		\
+	    (val1_ && val2_ && strcmp(val1_,val2_) op 0),"<%s>",	\
+	    TT_EXIT_TEST_FUNCTION)
+
+#define tt_mem_op(expr1, op, expr2, len)                                \
+  tt_assert_test_fmt_type(expr1,expr2,#expr1" "#op" "#expr2,            \
+			  const char *,                                 \
+			  (val1_ && val2_ && memcmp(val1_, val2_, len) op 0), \
+			  char *, "%s",					\
+			  { print_ = tinytest_format_hex_(value_, (len)); }, \
+			  { if (print_) free(print_); },		\
+			  TT_EXIT_TEST_FUNCTION				\
+                          );
 
 #define tt_want_int_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,long,(val1_ op val2_),"%ld",(void)0)
