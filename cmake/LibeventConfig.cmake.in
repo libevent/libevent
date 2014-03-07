@@ -13,5 +13,5 @@ set(LIBEVENT_INCLUDE_DIRS "@EVENT__INCLUDE_DIRS@")
 include(${LIBEVENT_CMAKE_DIR}/LibeventTargets.cmake)
 
 # IMPORTED targets from LibeventTargets.cmake
-set(LIBEVENT_LIBRARIES event event_core event_extras)
+set(LIBEVENT_LIBRARIES event event_core event_extra)
 
