@@ -27,6 +27,7 @@
 #ifndef EVRPC_INTERNAL_H_INCLUDED_
 #define EVRPC_INTERNAL_H_INCLUDED_
 
+#include "event2/http.h"
 #include "http-internal.h"
 
 struct evrpc;
