@@ -402,7 +402,7 @@ main(int argc, char **argv)
 			evbuffer_add(output_buffer, buf, s);
 			bytes += s;
 		}
-		evutil_snprintf(buf, sizeof(buf)-1, "%lu", bytes);
+		evutil_snprintf(buf, sizeof(buf)-1, "%lu", (unsigned long)bytes);
 		evhttp_add_header(output_headers, "Content-Length", buf);
 		fclose(f);
 	}
