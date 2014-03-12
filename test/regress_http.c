@@ -962,6 +962,10 @@ http_connection_test_(struct basic_test_data *data, int persistent, const char *
 	test_ok = 0;
 
 	http = http_setup(&port, data->base, ipv6);
+	if (!http && ipv6) {
+		tt_skip();
+	}
+	tt_assert(http);
 
 	evcon = evhttp_connection_base_new(data->base, dnsbase, address, port);
 	tt_assert(evcon);
