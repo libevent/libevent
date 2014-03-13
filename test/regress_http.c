@@ -734,6 +734,7 @@ http_delete_test(void *arg)
 
 	bufferevent_free(bev);
 	evutil_closesocket(fd);
+	fd = -1;
 
 	evhttp_free(http);
 
@@ -2747,6 +2748,7 @@ http_incomplete_test_(struct basic_test_data *data, int use_timeout)
 	bufferevent_free(bev);
 	if (use_timeout) {
 		evutil_closesocket(fd);
+		fd = -1;
 	}
 
 	evhttp_free(http);
