@@ -147,6 +147,7 @@ The following people have helped with suggestions, ideas, code or
 fixing bugs:
 
  * Samy Al Bahra
+ * Antony Antony
  * Jacob Appelbaum
  * Arno Bakker
  * Weston Andros Adamson
@@ -155,6 +156,7 @@ fixing bugs:
  * Sergey Avseyev
  * Avi Bab
  * Joachim Bauch
+ * Andrey Belobrov
  * Gilad Benjamini
  * Stas Bekman
  * Denis Bilenko
@@ -174,6 +176,7 @@ fixing bugs:
  * Ed Day
  * Christopher Davis
  * Mike Davis
+ * Frank Denis
  * Antony Dovgal
  * Mihai Draghicioiu
  * Alexander Drozdov
@@ -186,8 +189,10 @@ fixing bugs:
  * Remi Gacogne
  * Artem Germanov
  * Alexander von Gernler
+ * Diego Giagio
  * Artur Grabowski
  * Diwaker Gupta
+ * Kuldeep Gupta
  * Sebastian Hahn
  * Dave Hart
  * Greg Hazel
@@ -206,13 +211,16 @@ fixing bugs:
  * Xiuqiang Jiang
  * Claudio Jeker
  * Evan Jones
+ * Marcin Juszkiewicz
  * George Kadianakis
+ * Makoto Kato
  * Phua Keat
  * Azat Khuzhin
  * Alexander Klauer
  * Kevin Ko
  * Brian Koehmstedt
  * Marko Kreen
+ * Ondřej Kuzník
  * Valery Kyholodov
  * Ross Lagerwall
  * Scott Lamb
@@ -230,6 +238,7 @@ fixing bugs:
  * Hagne Mahre
  * Lubomir Marinov
  * Abilio Marques
+ * Nicolas Martyanoff
  * Abel Mathew
  * Nick Mathewson
  * James Mansion
@@ -245,7 +254,9 @@ fixing bugs:
  * Linus Nordberg
  * Richard Nyberg
  * Jon Oberheide
+ * John Ohl
  * Phil Oleson
+ * Alexey Ozeritsky
  * Dave Pacheco
  * Derrick Pallas
  * Tassilo von Parseval
@@ -262,6 +273,7 @@ fixing bugs:
  * Roman Puls
  * Nate R
  * Robert Ransom
+ * Balint Reczey
  * Bert JW Regeer
  * Nate Rosenblum
  * Peter Rosin
@@ -272,17 +284,20 @@ fixing bugs:
  * Hanna Schroeter
  * Ralf Schmitt
  * Mike Smellie
- * Kevin Springborn
- * Nir Soffer
- * Harlan Stenn
  * Steve Snyder
+ * Nir Soffer
  * Dug Song
  * Dongsheng Song
  * Hannes Sowa
  * Joakim Soderberg
+ * Joseph Spadavecchia
+ * Kevin Springborn
+ * Harlan Stenn
+ * Andrew Sweeney
  * Ferenc Szalai
  * Brodie Thiesfield
  * Jason Toffaletti
+ * Brian Utterback
  * Gisle Vanem
  * Bas Verhoeven
  * Constantine Verutin
@@ -291,10 +306,12 @@ fixing bugs:
  * Jardel Weyrich
  * Jay R. Wren
  * Zack Weinberg
+ * Mobai Zhang
  * Alejo
  * Alex
  * Taral
  * propanbutan
+ * masksqwe
  * mmadia
  * yangacer
 
