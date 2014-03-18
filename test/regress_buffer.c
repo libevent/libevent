@@ -1660,7 +1660,7 @@ test_evbuffer_add_reference(void *ptr)
 	evbuffer_add(buf1, "You shake and shake the ", 24);
 	evbuffer_add_reference(buf1, "ketchup bottle", 14, ref_done_cb,
 	    (void*)3333);
-	evbuffer_add(buf1, ". Nothing comes and then a lot'll.", 42);
+	evbuffer_add(buf1, ". Nothing comes and then a lot'll.", 35);
 	evbuffer_free(buf1);
 	buf1 = NULL;
 	tt_int_op(ref_done_cb_called_count, ==, 3);
