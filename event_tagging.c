@@ -210,7 +210,14 @@ decode_tag_internal(ev_uint32_t *ptag, struct evbuffer *evbuf, int dodrain)
 
 	while (count++ < len) {
 		ev_uint8_t lower = *data++;
-		number |= (lower & 0x7f) << shift;
+		if (shift >= 28) {
+			/* Make sure it fits into 32 bits */
+			if (shift > 28)
+				return (-1);
+			if ((lower & 0x7f) > 15)
+				return (-1);
+		}
+		number |= (lower & (unsigned)0x7f) << shift;
 		shift += 7;
 
 		if (!(lower & 0x80)) {
