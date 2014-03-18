@@ -179,10 +179,10 @@ regress_ipv6_parse(void *ptr)
 		for (j = 0; j < 4; ++j) {
 			/* Can't use s6_addr32 here; some don't have it. */
 			ev_uint32_t u =
-				(in6.s6_addr[j*4  ] << 24) |
-				(in6.s6_addr[j*4+1] << 16) |
-				(in6.s6_addr[j*4+2] << 8) |
-				(in6.s6_addr[j*4+3]);
+			    ((ev_uint32_t)in6.s6_addr[j*4  ] << 24) |
+			    ((ev_uint32_t)in6.s6_addr[j*4+1] << 16) |
+			    ((ev_uint32_t)in6.s6_addr[j*4+2] << 8) |
+			    ((ev_uint32_t)in6.s6_addr[j*4+3]);
 			if (u != ent->res[j]) {
 				TT_FAIL(("%s did not parse as expected.", ent->addr));
 				continue;
