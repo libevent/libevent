@@ -4289,6 +4289,8 @@ parse_port(const char *s, const char *eos)
 		portnum = (portnum * 10) + (*s - '0');
 		if (portnum < 0)
 			return -1;
+		if (portnum > 65535)
+			return -1;
 		++s;
 	}
 	return portnum;
