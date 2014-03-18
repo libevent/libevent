@@ -1584,6 +1584,7 @@ event_process_active_single_queue(struct event_base *base,
 		case EV_CLOSURE_EVENT_FINALIZE:
 		case EV_CLOSURE_EVENT_FINALIZE_FREE: {
 			void (*evcb_evfinalize)(struct event *, void *);
+			int evcb_closure = evcb->evcb_closure;
 			EVUTIL_ASSERT(ev != NULL);
 			base->current_event = NULL;
 			evcb_evfinalize = ev->ev_evcallback.evcb_cb_union.evcb_evfinalize;
@@ -1591,7 +1592,7 @@ event_process_active_single_queue(struct event_base *base,
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			evcb_evfinalize(ev, ev->ev_arg);
 			event_debug_note_teardown_(ev);
-			if (evcb->evcb_closure == EV_CLOSURE_EVENT_FINALIZE_FREE)
+			if (evcb_closure == EV_CLOSURE_EVENT_FINALIZE_FREE)
 				mm_free(ev);
 		}
 		break;
