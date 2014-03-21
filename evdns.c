@@ -3946,6 +3946,10 @@ evdns_nameserver_free(struct nameserver *server)
 	event_debug_unassign(&server->event);
 	if (server->state == 0)
 		(void) event_del(&server->timeout_event);
+	if (server->probe_request) {
+		evdns_cancel_request(server->base, server->probe_request);
+		server->probe_request = NULL;
+	}
 	event_debug_unassign(&server->timeout_event);
 	mm_free(server);
 }
@@ -3961,13 +3965,6 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 
 	/* TODO(nickm) we might need to refcount here. */
 
-	for (i = 0; i < base->n_req_heads; ++i) {
-		while (base->req_heads[i]) {
-			if (fail_requests)
-				reply_schedule_callback(base->req_heads[i], 0, DNS_ERR_SHUTDOWN, NULL);
-			request_finished(base->req_heads[i], &REQ_HEAD(base, base->req_heads[i]->trans_id), 1);
-		}
-	}
 	for (server = base->server_head; server; server = server_next) {
 		server_next = server->next;
 		evdns_nameserver_free(server);
@@ -3976,6 +3973,14 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 	}
 	base->server_head = NULL;
 	base->global_good_nameservers = 0;
+
+	for (i = 0; i < base->n_req_heads; ++i) {
+		while (base->req_heads[i]) {
+			if (fail_requests)
+				reply_schedule_callback(base->req_heads[i], 0, DNS_ERR_SHUTDOWN, NULL);
+			request_finished(base->req_heads[i], &REQ_HEAD(base, base->req_heads[i]->trans_id), 1);
+		}
+	}
 	while (base->req_waiting_head) {
 		if (fail_requests)
 			reply_schedule_callback(base->req_waiting_head, 0, DNS_ERR_SHUTDOWN, NULL);
