@@ -2259,6 +2259,7 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 	    evhttp_deferred_read_cb, evcon);
 
 	evcon->dns_base = dnsbase;
+	evcon->ai_family = AF_UNSPEC;
 
 	return (evcon);
 
@@ -2284,6 +2285,12 @@ evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
     const char *address, unsigned short port)
 {
 	return evhttp_connection_base_bufferevent_new(base, dnsbase, NULL, address, port);
+}
+
+void evhttp_connection_set_family(struct evhttp_connection *evcon,
+	int family)
+{
+	evcon->ai_family = family;
 }
 
 void
@@ -2411,7 +2418,7 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 	evcon->state = EVCON_CONNECTING;
 
 	if (bufferevent_socket_connect_hostname(evcon->bufev, evcon->dns_base,
-		AF_UNSPEC, evcon->address, evcon->port) < 0) {
+		evcon->ai_family, evcon->address, evcon->port) < 0) {
 		evcon->state = old_state;
 		event_sock_warn(evcon->fd, "%s: connection to \"%s\" failed",
 		    __func__, evcon->address);

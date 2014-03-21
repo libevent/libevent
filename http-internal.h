@@ -99,6 +99,7 @@ struct evhttp_connection {
 
 	struct event_base *base;
 	struct evdns_base *dns_base;
+	int ai_family;
 
 	/* Saved conn_addr, to extract IP address from it.
 	 *
