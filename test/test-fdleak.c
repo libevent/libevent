@@ -57,7 +57,7 @@
 #endif
 
 /* Provide storage for the address, both for the server & the clients */
-static struct sockaddr_in sin;
+static struct sockaddr_in saddr;
 
 /* Number of sucessful requests so far */
 static int num_requests;
@@ -131,7 +131,7 @@ start_loop(void)
 
 	listener = evconnlistener_new_bind(base, listener_accept_cb, NULL,
 	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
-	    -1, (struct sockaddr *)&sin, sizeof(sin));
+	    -1, (struct sockaddr *)&saddr, sizeof(saddr));
 	if (listener == NULL) {
 		my_perror("Could not create listener!");
 		exit(1);
@@ -145,8 +145,8 @@ start_loop(void)
 		my_perror("getsockname()");
 		exit(1);
 	}
-	memcpy(&sin, &ss, sizeof(sin));
-	if (sin.sin_family != AF_INET) {
+	memcpy(&saddr, &ss, sizeof(saddr));
+	if (saddr.sin_family != AF_INET) {
 		puts("AF mismatch from getsockname().");
 		exit(1);
 	}
@@ -208,8 +208,8 @@ start_client(struct event_base *base)
                                                          BEV_OPT_CLOSE_ON_FREE);
 	bufferevent_setcb(bev, client_read_cb, NULL, client_event_cb, NULL);
 
-	if (bufferevent_socket_connect(bev, (struct sockaddr *)&sin,
-                                       sizeof(sin)) < 0) {
+	if (bufferevent_socket_connect(bev, (struct sockaddr *)&saddr,
+                                       sizeof(saddr)) < 0) {
 		my_perror("Could not connect!");
 		bufferevent_free(bev);
 		exit(2);
@@ -236,10 +236,10 @@ main(int argc, char **argv)
 #endif
 
 	/* Set up an address, used by both client & server. */
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(0x7f000001);
-	sin.sin_port = 0; /* Tell the implementation to pick a port. */
+	memset(&saddr, 0, sizeof(saddr));
+	saddr.sin_family = AF_INET;
+	saddr.sin_addr.s_addr = htonl(0x7f000001);
+	saddr.sin_port = 0; /* Tell the implementation to pick a port. */
 
 	start_loop();
 
