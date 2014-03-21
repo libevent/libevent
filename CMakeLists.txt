@@ -533,6 +533,8 @@ set(HDR_PUBLIC
     include/event2/tag_compat.h
     include/event2/thread.h
     include/event2/util.h
+    include/event2/visibility.h
+    ${PROJECT_BINARY_DIR}/include/event2/event-config.h
     )
 
 set(SRC_CORE
@@ -1114,7 +1116,7 @@ set_target_properties(event event_core event_extra
 #
 install(TARGETS event event_core event_extra
         EXPORT LibeventTargets
-        RUNTIME DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT bin
+        RUNTIME DESTINATION "${EVENT_INSTALL_BIN_DIR}" COMPONENT bin
         LIBRARY DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT lib
         ARCHIVE DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT lib
         PUBLIC_HEADER DESTINATION "${EVENT_INSTALL_INCLUDE_DIR}/event2" COMPONENT dev)
