@@ -3968,13 +3968,6 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 			request_finished(base->req_heads[i], &REQ_HEAD(base, base->req_heads[i]->trans_id), 1);
 		}
 	}
-	while (base->req_waiting_head) {
-		if (fail_requests)
-			reply_schedule_callback(base->req_waiting_head, 0, DNS_ERR_SHUTDOWN, NULL);
-		request_finished(base->req_waiting_head, &base->req_waiting_head, 1);
-	}
-	base->global_requests_inflight = base->global_requests_waiting = 0;
-
 	for (server = base->server_head; server; server = server_next) {
 		server_next = server->next;
 		evdns_nameserver_free(server);
@@ -3983,6 +3976,13 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 	}
 	base->server_head = NULL;
 	base->global_good_nameservers = 0;
+	while (base->req_waiting_head) {
+		if (fail_requests)
+			reply_schedule_callback(base->req_waiting_head, 0, DNS_ERR_SHUTDOWN, NULL);
+		request_finished(base->req_waiting_head, &base->req_waiting_head, 1);
+	}
+	base->global_requests_inflight = base->global_requests_waiting = 0;
+
 
 	if (base->global_search_state) {
 		for (dom = base->global_search_state->head; dom; dom = dom_next) {
