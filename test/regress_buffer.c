@@ -244,7 +244,7 @@ test_evbuffer(void *ptr)
 	if (memcmp(evbuffer_pullup(
 			   evb, -1), buffer, sizeof(buffer) / 2) != 0 ||
 	    memcmp(evbuffer_pullup(
-			   evb_two, -1), buffer, sizeof(buffer) != 0))
+			   evb_two, -1), buffer, sizeof(buffer)) != 0)
 		tt_abort_msg("Pullup did not preserve content");
 
 	evbuffer_validate(evb);
