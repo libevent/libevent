@@ -3641,7 +3641,7 @@ static struct regress_dns_server_table ipv6_search_table[] = {
 };
 
 static void
-http_ipv6_for_domain_test(void *arg)
+http_ipv6_for_domain_test_impl(void *arg, int family)
 {
 	struct basic_test_data *data = arg;
 	struct evdns_base *dns_base = NULL;
@@ -3659,12 +3659,17 @@ http_ipv6_for_domain_test(void *arg)
 	evdns_base_nameserver_ip_add(dns_base, address);
 
 	http_connection_test_(arg, 0 /* not persistent */, "localhost", dns_base,
-		1 /* ipv6 */, AF_UNSPEC);
+		1 /* ipv6 */, family);
 
  end:
 	if (dns_base)
 		evdns_base_free(dns_base, 0);
 	regress_clean_dnsserver();
+}
+static void
+http_ipv6_for_domain_test(void *arg)
+{
+	http_ipv6_for_domain_test_impl(arg, AF_UNSPEC);
 }
 
 static void
@@ -3740,6 +3745,11 @@ http_set_family_ipv4_test(void *arg)
 {
 	http_connection_test_(arg, 0, "127.0.0.1", NULL, 0, AF_INET);
 }
+static void
+http_set_family_ipv6_test(void *arg)
+{
+	http_ipv6_for_domain_test_impl(arg, AF_INET6);
+}
 
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
@@ -3794,6 +3804,7 @@ struct testcase_t http_testcases[] = {
 
 	HTTP(set_family),
 	HTTP(set_family_ipv4),
+	HTTP(set_family_ipv6),
 
 	END_OF_TESTCASES
 };
