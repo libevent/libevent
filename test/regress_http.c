@@ -3730,6 +3730,17 @@ http_get_addr_test(void *arg)
 		evhttp_free(http);
 }
 
+static void
+http_set_family_test(void *arg)
+{
+	http_connection_test_(arg, 0, "127.0.0.1", NULL, 0, AF_UNSPEC);
+}
+static void
+http_set_family_ipv4_test(void *arg)
+{
+	http_connection_test_(arg, 0, "127.0.0.1", NULL, 0, AF_INET);
+}
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
 		    http_##name##_test }
@@ -3780,6 +3791,9 @@ struct testcase_t http_testcases[] = {
 
 	HTTP(ipv6_for_domain),
 	HTTP(get_addr),
+
+	HTTP(set_family),
+	HTTP(set_family_ipv4),
 
 	END_OF_TESTCASES
 };
