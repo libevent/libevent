@@ -858,7 +858,8 @@ static void http_request_done(struct evhttp_request *, void *);
 static void http_request_empty_done(struct evhttp_request *, void *);
 
 static void
-http_connection_test_(struct basic_test_data *data, int persistent, const char *address, struct evdns_base *dnsbase, int ipv6)
+http_connection_test_(struct basic_test_data *data, int persistent,
+	const char *address, struct evdns_base *dnsbase, int ipv6, int family)
 {
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
@@ -870,6 +871,7 @@ http_connection_test_(struct basic_test_data *data, int persistent, const char *
 
 	evcon = evhttp_connection_base_new(data->base, dnsbase, address, port);
 	tt_assert(evcon);
+	evhttp_connection_set_family(evcon, family);
 
 	tt_assert(evhttp_connection_get_base(evcon) == data->base);
 
@@ -943,12 +945,12 @@ http_connection_test_(struct basic_test_data *data, int persistent, const char *
 static void
 http_connection_test(void *arg)
 {
-	http_connection_test_(arg, 0, "127.0.0.1", NULL, 0);
+	http_connection_test_(arg, 0, "127.0.0.1", NULL, 0, AF_UNSPEC);
 }
 static void
 http_persist_connection_test(void *arg)
 {
-	http_connection_test_(arg, 1, "127.0.0.1", NULL, 0);
+	http_connection_test_(arg, 1, "127.0.0.1", NULL, 0, AF_UNSPEC);
 }
 
 static struct regress_dns_server_table search_table[] = {
@@ -3656,7 +3658,8 @@ http_ipv6_for_domain_test(void *arg)
 	evutil_snprintf(address, sizeof(address), "127.0.0.1:%d", portnum);
 	evdns_base_nameserver_ip_add(dns_base, address);
 
-	http_connection_test_(arg, 0 /* not persistent */, "localhost", dns_base, 1 /* ipv6 */);
+	http_connection_test_(arg, 0 /* not persistent */, "localhost", dns_base,
+		1 /* ipv6 */, AF_UNSPEC);
 
  end:
 	if (dns_base)
