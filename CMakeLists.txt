@@ -526,6 +526,7 @@ set(HDR_PUBLIC
     include/event2/http.h
     include/event2/http_compat.h
     include/event2/http_struct.h
+    include/event2/keyvalq_struct.h
     include/event2/listener.h
     include/event2/rpc.h
     include/event2/rpc_compat.h
