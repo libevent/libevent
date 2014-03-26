@@ -1563,7 +1563,8 @@ test_getaddrinfo_async(void *arg)
 end:
 	if (local_outcome.ai)
 		evutil_freeaddrinfo(local_outcome.ai);
-	for (i=0;i<10;++i) {
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
+	for (i=0;i<(int)ARRAY_SIZE(a_out);++i) {
 		if (a_out[i].ai)
 			evutil_freeaddrinfo(a_out[i].ai);
 	}
@@ -1875,6 +1876,8 @@ end:
 		evdns_base_free(dns_base, 1);
 	if (server)
 		evdns_close_server_port(server);
+	if (base)
+		event_base_free(base);
 	if (fd >= 0)
 		evutil_closesocket(fd);
 }
