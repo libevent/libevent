@@ -888,6 +888,48 @@ dns_disable_when_inactive_test(void *arg)
 	dns_inflight_test_impl(arg, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
 }
 
+static void
+dns_disable_when_inactive_no_ns_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base, *inactive_base;
+	struct evdns_base *dns = NULL;
+	ev_uint16_t portnum = 0;
+	char buf[64];
+	struct generic_dns_callback_result r;
+
+	inactive_base = event_base_new();
+	tt_assert(inactive_base);
+
+	/** Create dns server with inactive base, to avoid replying to clients */
+	tt_assert(regress_dnsserver(inactive_base, &portnum, search_table));
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+
+	dns = evdns_base_new(base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
+	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.1"));
+
+	evdns_base_resolve_ipv4(dns, "foof.example.com", 0, generic_dns_callback, &r);
+	n_replies_left = 1;
+	exit_base = base;
+
+	alarm(10);
+	event_base_dispatch(base);
+
+	tt_int_op(n_replies_left, ==, 0);
+
+	tt_int_op(r.result, ==, DNS_ERR_TIMEOUT);
+	tt_int_op(r.count, ==, 0);
+	tt_int_op(r.addrs, ==, NULL);
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+	regress_clean_dnsserver();
+	if (inactive_base)
+		event_base_free(inactive_base);
+}
+
 /* === Test for bufferevent_socket_connect_hostname */
 
 static int total_connected_or_failed = 0;
@@ -1929,6 +1971,8 @@ struct testcase_t dns_testcases[] = {
 	{ "bufferevent_connect_hostname", test_bufferevent_connect_hostname,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "disable_when_inactive", dns_disable_when_inactive_test,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "disable_when_inactive_no_ns", dns_disable_when_inactive_no_ns_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
 	{ "getaddrinfo_async", test_getaddrinfo_async,
