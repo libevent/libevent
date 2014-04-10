@@ -2199,10 +2199,9 @@ evdns_request_transmit_to(struct request *req, struct nameserver *server) {
 	ASSERT_VALID_REQUEST(req);
 
 	if (server->requests_inflight == 1 &&
-		req->base->disable_when_inactive) {
-		if (event_add(&server->event, NULL) < 0 ||
-			evtimer_add(&req->ns->timeout_event, &req->base->global_nameserver_probe_initial_timeout) < 0)
-			return 1;
+		req->base->disable_when_inactive &&
+		event_add(&server->event, NULL) < 0) {
+		return 1;
 	}
 
 	r = sendto(server->socket, (void*)req->request, req->request_len, 0,
