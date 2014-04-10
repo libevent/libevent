@@ -541,6 +541,17 @@ nameserver_probe_failed(struct nameserver *const ns) {
 	}
 }
 
+static void
+request_swap_ns(struct request *req, struct nameserver *ns) {
+	if (ns && req->ns != ns) {
+		EVUTIL_ASSERT(req->ns->requests_inflight > 0);
+		req->ns->requests_inflight--;
+		ns->requests_inflight++;
+
+		req->ns = ns;
+	}
+}
+
 /* called when a nameserver has been deemed to have failed. For example, too */
 /* many packets have timed out etc */
 static void
@@ -595,7 +606,7 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 				if (req->tx_count == 0 && req->ns == ns) {
 					/* still waiting to go out, can be moved */
 					/* to another server */
-					req->ns = nameserver_pick(base);
+					request_swap_ns(req, nameserver_pick(base));
 				}
 				req = req->next;
 			} while (req != started_at);
@@ -708,7 +719,7 @@ request_reissue(struct request *req) {
 	/* the last nameserver should have been marked as failing */
 	/* by the caller of this function, therefore pick will try */
 	/* not to return it */
-	req->ns = nameserver_pick(req->base);
+	request_swap_ns(req, nameserver_pick(req->base));
 	if (req->ns == last_ns) {
 		/* ... but pick did return it */
 		/* not a lot of point in trying again with the */
@@ -2173,13 +2184,10 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
 	} else {
 		/* retransmit it */
-		struct nameserver *new_ns;
 		log(EVDNS_LOG_DEBUG, "Retransmitting request %p; tx_count==%d",
 		    arg, req->tx_count);
 		(void) evtimer_del(&req->timeout_event);
-		new_ns = nameserver_pick(base);
-		if (new_ns)
-			req->ns = new_ns;
+		request_swap_ns(req, nameserver_pick(base));
 		evdns_request_transmit(req);
 	}
 	EVDNS_UNLOCK(base);
