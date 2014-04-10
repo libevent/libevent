@@ -596,6 +596,7 @@ nameserver_failed(struct nameserver *const ns, const char *msg) {
 					/* still waiting to go out, can be moved */
 					/* to another server */
 					req->ns = nameserver_pick(base);
+					req->ns->requests_inflight++;
 				}
 				req = req->next;
 			} while (req != started_at);
@@ -2177,8 +2178,10 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 		    arg, req->tx_count);
 		(void) evtimer_del(&req->timeout_event);
 		new_ns = nameserver_pick(base);
-		if (new_ns)
+		if (new_ns) {
 			req->ns = new_ns;
+			req->ns->requests_inflight++;
+		}
 		evdns_request_transmit(req);
 	}
 	EVDNS_UNLOCK(base);
