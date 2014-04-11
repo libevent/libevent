@@ -859,8 +859,6 @@ dns_inflight_test_impl(void *arg, int flags)
 	n_replies_left = 20;
 	exit_base = base;
 
-	if (disable_when_inactive)
-		alarm(10);
 	event_base_dispatch(base);
 
 	for (i=0;i<20;++i) {
@@ -913,7 +911,6 @@ dns_disable_when_inactive_no_ns_test(void *arg)
 	n_replies_left = 1;
 	exit_base = base;
 
-	alarm(10);
 	event_base_dispatch(base);
 
 	tt_int_op(n_replies_left, ==, 0);
