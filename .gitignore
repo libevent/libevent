@@ -92,6 +92,7 @@ libevent_openssl.pc
 /test/rpcgen-attempted
 /test/test-dumpevents
 /test/test-eof
+/test/test-closed
 /test/test-init
 /test/test-ratelim
 /test/test-time
