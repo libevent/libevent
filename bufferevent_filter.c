@@ -425,26 +425,34 @@ be_filter_readcb(struct bufferevent *underlying, void *me_)
 	enum bufferevent_filter_result res;
 	enum bufferevent_flush_mode state;
 	struct bufferevent *bufev = downcast(bevf);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 	int processed_any = 0;
 
-	bufferevent_incref_and_lock_(bufev);
+	BEV_LOCK(bufev);
 
-	if (bevf->got_eof)
-		state = BEV_FINISHED;
-	else
-		state = BEV_NORMAL;
+	// It's possible our refcount is 0 at this point if another thread free'd our filterevent
+	EVUTIL_ASSERT(bufev_private->refcnt >= 0);
 
-	/* XXXX use return value */
-	res = be_filter_process_input(bevf, state, &processed_any);
-	(void)res;
+	// If our refcount is > 0
+	if (bufev_private->refcnt > 0) {
 
-	/* XXX This should be in process_input, not here.  There are
-	 * other places that can call process-input, and they should
-	 * force readcb calls as needed. */
-	if (processed_any)
-		bufferevent_trigger_nolock_(bufev, EV_READ, 0);
+		if (bevf->got_eof)
+			state = BEV_FINISHED;
+		else
+			state = BEV_NORMAL;
 
-	bufferevent_decref_and_unlock_(bufev);
+		/* XXXX use return value */
+		res = be_filter_process_input(bevf, state, &processed_any);
+		(void)res;
+
+		/* XXX This should be in process_input, not here.  There are
+		 * other places that can call process-input, and they should
+		 * force readcb calls as needed. */
+		if (processed_any)
+			bufferevent_trigger_nolock_(bufev, EV_READ, 0);
+	}
+
+	BEV_UNLOCK(bufev);
 }
 
 /* Called when the underlying socket has drained enough that we can write to
@@ -454,11 +462,20 @@ be_filter_writecb(struct bufferevent *underlying, void *me_)
 {
 	struct bufferevent_filtered *bevf = me_;
 	struct bufferevent *bev = downcast(bevf);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bev);
 	int processed_any = 0;
 
-	bufferevent_incref_and_lock_(bev);
-	be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
-	bufferevent_decref_and_unlock_(bev);
+	BEV_LOCK(bev);
+
+	// It's possible our refcount is 0 at this point if another thread free'd our filterevent
+	EVUTIL_ASSERT(bufev_private->refcnt >= 0);
+
+	// If our refcount is > 0
+	if (bufev_private->refcnt > 0) {
+		be_filter_process_output(bevf, BEV_NORMAL, &processed_any);
+	}
+
+	BEV_UNLOCK(bev);
 }
 
 /* Called when the underlying socket has given us an error */
@@ -467,11 +484,21 @@ be_filter_eventcb(struct bufferevent *underlying, short what, void *me_)
 {
 	struct bufferevent_filtered *bevf = me_;
 	struct bufferevent *bev = downcast(bevf);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bev);
 
-	bufferevent_incref_and_lock_(bev);
-	/* All we can really to is tell our own eventcb. */
-	bufferevent_run_eventcb_(bev, what, 0);
-	bufferevent_decref_and_unlock_(bev);
+	BEV_LOCK(bev);
+
+	// It's possible our refcount is 0 at this point if another thread free'd our filterevent
+	EVUTIL_ASSERT(bufev_private->refcnt >= 0);
+
+	// If our refcount is > 0
+	if (bufev_private->refcnt > 0) {
+
+		/* All we can really to is tell our own eventcb. */
+		bufferevent_run_eventcb_(bev, what, 0);
+	}
+
+	BEV_UNLOCK(bev);
 }
 
 static int
