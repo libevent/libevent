@@ -1534,9 +1534,9 @@ test_evbuffer_callbacks(void *ptr)
 	tt_assert(!evbuffer_remove_cb(buf, log_change_callback, buf_out2));
 	evbuffer_validate(buf);
 
-	tt_str_op(evbuffer_pullup(buf_out1, -1), ==,
+	tt_str_op((const char *) evbuffer_pullup(buf_out1, -1), ==,
 		  "0->36; 36->26; 26->31; 31->38; ");
-	tt_str_op(evbuffer_pullup(buf_out2, -1), ==,
+	tt_str_op((const char *) evbuffer_pullup(buf_out2, -1), ==,
 		  "0->36; 31->38; 38->0; 0->1; ");
 	evbuffer_drain(buf_out1, evbuffer_get_length(buf_out1));
 	evbuffer_drain(buf_out2, evbuffer_get_length(buf_out2));
@@ -1552,7 +1552,7 @@ test_evbuffer_callbacks(void *ptr)
 	tt_uint_op(evbuffer_get_length(buf_out2), ==, 0);
 	evbuffer_setcb(buf, NULL, NULL);
 	evbuffer_add_printf(buf, "This will not.");
-	tt_str_op(evbuffer_pullup(buf, -1), ==, "This will not.");
+	tt_str_op((const char *) evbuffer_pullup(buf, -1), ==, "This will not.");
 	evbuffer_validate(buf);
 	evbuffer_drain(buf, evbuffer_get_length(buf));
 	evbuffer_validate(buf);

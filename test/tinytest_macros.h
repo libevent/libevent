@@ -113,8 +113,8 @@
 #define tt_assert_test_fmt_type(a,b,str_test,type,test,printf_type,printf_fmt, \
     setup_block,cleanup_block,die_on_fail)				\
 	TT_STMT_BEGIN							\
-	type val1_ = (type)(a);						\
-	type val2_ = (type)(b);						\
+	type val1_ = (a);						\
+	type val2_ = (b);						\
 	int tt_status_ = (test);					\
 	if (!tt_status_ || tinytest_get_verbosity_()>1)	{		\
 		printf_type print_;					\
@@ -163,7 +163,7 @@
 	    (val1_ op val2_),"%lu",TT_EXIT_TEST_FUNCTION)
 
 #define tt_ptr_op(a,op,b)						\
-	tt_assert_test_type(a,b,#a" "#op" "#b,void*,			\
+	tt_assert_test_type(a,b,#a" "#op" "#b,const void*,              \
 	    (val1_ op val2_),"%p",TT_EXIT_TEST_FUNCTION)
 
 #define tt_str_op(a,op,b)						\
@@ -173,7 +173,7 @@
 
 #define tt_mem_op(expr1, op, expr2, len)                                \
   tt_assert_test_fmt_type(expr1,expr2,#expr1" "#op" "#expr2,            \
-			  const char *,                                 \
+			  const void *,                                 \
 			  (val1_ && val2_ && memcmp(val1_, val2_, len) op 0), \
 			  char *, "%s",					\
 			  { print_ = tinytest_format_hex_(value_, (len)); }, \
@@ -189,7 +189,7 @@
 	    (val1_ op val2_),"%lu",(void)0)
 
 #define tt_want_ptr_op(a,op,b)						\
-	tt_assert_test_type(a,b,#a" "#op" "#b,void*,			\
+  tt_assert_test_type(a,b,#a" "#op" "#b,const void*,			\
 	    (val1_ op val2_),"%p",(void)0)
 
 #define tt_want_str_op(a,op,b)						\
