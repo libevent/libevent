@@ -222,66 +222,123 @@ evutil_ersatz_socketpair_(int family, int type, int protocol,
 	evutil_socket_t listener = -1;
 	evutil_socket_t connector = -1;
 	evutil_socket_t acceptor = -1;
-	struct sockaddr_in listen_addr;
-	struct sockaddr_in connect_addr;
-	ev_socklen_t size;
 	int saved_errno = -1;
-
-	if (protocol
-		|| (family != AF_INET
+	if(family == AF_INET6)
+        {
+                struct sockaddr_in6 listen_addr;
+                struct sockaddr_in6 connect_addr;
+                ev_socklen_t size;
+                if (protocol
+                                || (family != AF_INET6
 #ifdef AF_UNIX
-		    && family != AF_UNIX
+                                        && family != AF_UNIX
 #endif
-		)) {
-		EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
-		return -1;
-	}
-	if (!fd) {
-		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
-		return -1;
-	}
+                                   )) {
 
-	listener = socket(AF_INET, type, 0);
-	if (listener < 0)
-		return -1;
-	memset(&listen_addr, 0, sizeof(listen_addr));
-	listen_addr.sin_family = AF_INET;
-	listen_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	listen_addr.sin_port = 0;	/* kernel chooses port.	 */
-	if (bind(listener, (struct sockaddr *) &listen_addr, sizeof (listen_addr))
-		== -1)
-		goto tidy_up_and_fail;
-	if (listen(listener, 1) == -1)
-		goto tidy_up_and_fail;
+                        EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
+                        return -1;
+                }
+                listener = socket(AF_INET6, type, 0);
+                 if (listener < 0)
+                        return -1;
+                memset(&listen_addr, 0, sizeof(listen_addr));
+                listen_addr.sin6_family = AF_INET6;
+                listen_addr.sin6_addr = in6addr_loopback;
+                listen_addr.sin6_port = 0;      /* kernel chooses port.  */
+                if (bind(listener, (struct sockaddr *) &listen_addr, sizeof (listen_addr))
+                                == -1)
+                        goto tidy_up_and_fail;
+                if (listen(listener, 1) == -1)
+                        goto tidy_up_and_fail;
+                connector = socket(AF_INET6, type, 0);
+                if (connector < 0)
+                        goto tidy_up_and_fail;
+                /* We want to find out the port number to connect to.  */
+                size = sizeof(connect_addr);
+                if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
+                        goto tidy_up_and_fail;
+                if (size != sizeof (connect_addr))
+                        goto abort_tidy_up_and_fail;
+                if (connect(connector, (struct sockaddr *) &connect_addr,
+                                        sizeof(connect_addr)) == -1)
+                        goto tidy_up_and_fail;
 
-	connector = socket(AF_INET, type, 0);
-	if (connector < 0)
-		goto tidy_up_and_fail;
-	/* We want to find out the port number to connect to.  */
-	size = sizeof(connect_addr);
-	if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
-		goto tidy_up_and_fail;
-	if (size != sizeof (connect_addr))
-		goto abort_tidy_up_and_fail;
-	if (connect(connector, (struct sockaddr *) &connect_addr,
-				sizeof(connect_addr)) == -1)
-		goto tidy_up_and_fail;
+                size = sizeof(listen_addr);
+                acceptor = accept(listener, (struct sockaddr *) &listen_addr, &size);
+                if (acceptor < 0)
+                        goto tidy_up_and_fail;
+                if (size != sizeof(listen_addr))
+                        goto abort_tidy_up_and_fail;
+                /* Now check we are talking to ourself by matching port and host on the
+                   two sockets.  */
+                if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
+                        goto tidy_up_and_fail;
+                if (size != sizeof (connect_addr)
+                                || listen_addr.sin6_family != connect_addr.sin6_family
+                                || listen_addr.sin6_port != connect_addr.sin6_port)
+                        goto abort_tidy_up_and_fail;
+        }
+        else
+        {
+                struct sockaddr_in listen_addr;
+                struct sockaddr_in connect_addr;
+                ev_socklen_t size;
+		if (protocol
+			|| (family != AF_INET
+#ifdef AF_UNIX
+		    	&& family != AF_UNIX
+#endif
+			)) {
+			EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
+			return -1;
+		}
+		if (!fd) {
+			EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
+			return -1;
+		}
 
-	size = sizeof(listen_addr);
-	acceptor = accept(listener, (struct sockaddr *) &listen_addr, &size);
-	if (acceptor < 0)
-		goto tidy_up_and_fail;
-	if (size != sizeof(listen_addr))
-		goto abort_tidy_up_and_fail;
-	/* Now check we are talking to ourself by matching port and host on the
-	   two sockets.	 */
-	if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
-		goto tidy_up_and_fail;
-	if (size != sizeof (connect_addr)
-		|| listen_addr.sin_family != connect_addr.sin_family
-		|| listen_addr.sin_addr.s_addr != connect_addr.sin_addr.s_addr
-		|| listen_addr.sin_port != connect_addr.sin_port)
-		goto abort_tidy_up_and_fail;
+		listener = socket(AF_INET, type, 0);
+		if (listener < 0)
+			return -1;
+		memset(&listen_addr, 0, sizeof(listen_addr));
+		listen_addr.sin_family = AF_INET;
+		listen_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		listen_addr.sin_port = 0;	/* kernel chooses port.	 */
+		if (bind(listener, (struct sockaddr *) &listen_addr, sizeof (listen_addr))
+			== -1)
+			goto tidy_up_and_fail;
+		if (listen(listener, 1) == -1)
+			goto tidy_up_and_fail;
+
+		connector = socket(AF_INET, type, 0);
+		if (connector < 0)
+			goto tidy_up_and_fail;
+		/* We want to find out the port number to connect to.  */
+		size = sizeof(connect_addr);
+		if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
+			goto tidy_up_and_fail;
+		if (size != sizeof (connect_addr))
+			goto abort_tidy_up_and_fail;
+		if (connect(connector, (struct sockaddr *) &connect_addr,
+					sizeof(connect_addr)) == -1)
+			goto tidy_up_and_fail;
+
+		size = sizeof(listen_addr);
+		acceptor = accept(listener, (struct sockaddr *) &listen_addr, &size);
+		if (acceptor < 0)
+			goto tidy_up_and_fail;
+		if (size != sizeof(listen_addr))
+			goto abort_tidy_up_and_fail;
+		/* Now check we are talking to ourself by matching port and host on the
+	   	two sockets.	 */
+		if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
+			goto tidy_up_and_fail;
+		if (size != sizeof (connect_addr)
+			|| listen_addr.sin_family != connect_addr.sin_family
+			|| listen_addr.sin_addr.s_addr != connect_addr.sin_addr.s_addr
+			|| listen_addr.sin_port != connect_addr.sin_port)
+			goto abort_tidy_up_and_fail;
+        }
 	evutil_closesocket(listener);
 	fd[0] = connector;
 	fd[1] = acceptor;
