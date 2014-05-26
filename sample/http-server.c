@@ -265,7 +265,7 @@ send_document_cb(struct evhttp_request *req, void *arg)
 			const char *name = ent->d_name;
 #endif
 			evbuffer_add_printf(evb,
-			    "    <li><a href=\"%s\">%s</a>\n",
+			    "    <li><a href=\"%s\">%s</a></li>\n",
 			    name, name);/* XXX escape this */
 #ifdef _WIN32
 		} while (FindNextFileA(d, &ent));
