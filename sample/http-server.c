@@ -246,7 +246,10 @@ send_document_cb(struct evhttp_request *req, void *arg)
 			goto err;
 #endif
 
-		evbuffer_add_printf(evb, "<html>\n <head>\n"
+		evbuffer_add_printf(evb,
+                    "<!DOCTYPE html>\n"
+                    "<html>\n <head>\n"
+                    "  <meta charset='utf-8'>\n"
 		    "  <title>%s</title>\n"
 		    "  <base href='%s%s'>\n"
 		    " </head>\n"
