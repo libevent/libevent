@@ -31,7 +31,7 @@ TESTPROGRAMS = \
 	test/regress
 
 if BUILD_REGRESS
-noinst_PROGRAMS += $(TESTPROGRAMS)
+check_PROGRAMS += $(TESTPROGRAMS)
 EXTRA_PROGRAMS+= test/regress
 endif
 
