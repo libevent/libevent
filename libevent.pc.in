@@ -10,7 +10,7 @@ Description: libevent is an asynchronous notification event loop library
 Version: @VERSION@
 Requires:
 Conflicts:
-Libs: -L${libdir} -levent
+Libs: -L${libdir} -levent_core -levent_extra
 Libs.private: @LIBS@
 Cflags: -I${includedir}
 
