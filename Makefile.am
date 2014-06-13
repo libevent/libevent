@@ -222,8 +222,8 @@ endif
 
 GENERIC_LDFLAGS = -version-info $(VERSION_INFO) $(RELEASE) $(NO_UNDEFINED)
 
-libevent_la_SOURCES = $(CORE_SRC) $(EXTRAS_SRC)
-libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS)
+libevent_la_SOURCES =
+libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS) libevent_core.la libevent_extra.la
 libevent_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 libevent_core_la_SOURCES = $(CORE_SRC)
