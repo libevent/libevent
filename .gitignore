@@ -55,6 +55,7 @@ libevent_openssl.pc
 /aclocal.m4
 /compile
 /doxygen
+/config.cache
 /config.guess
 /config.log
 /config.status
@@ -82,6 +83,7 @@ libevent_openssl.pc
 /sample/signal-test
 /sample/time-test
 
+/test-driver
 /test/bench
 /test/bench_cascade
 /test/bench_http
