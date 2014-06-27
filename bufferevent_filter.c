@@ -507,7 +507,9 @@ be_filter_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 	switch (op) {
 	case BEV_CTRL_GET_UNDERLYING:
 		bevf = upcast(bev);
-		data->ptr = bevf->underlying;
+		if (bevf) {
+			data->ptr = bevf->underlying;
+		}
 		return 0;
 	case BEV_CTRL_GET_FD:
 	case BEV_CTRL_SET_FD:
