@@ -208,7 +208,7 @@ decode_tag_internal(ev_uint32_t *ptag, struct evbuffer *evbuf, int dodrain)
 	data = evbuffer_pullup(
 		evbuf, len < sizeof(number) + 1 ? len : sizeof(number) + 1);
 
-	while (count++ < len) {
+	while (count++ < len && data) {
 		ev_uint8_t lower = *data++;
 		if (shift >= 28) {
 			/* Make sure it fits into 32 bits */
