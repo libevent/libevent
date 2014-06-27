@@ -262,8 +262,9 @@ be_filter_enable(struct bufferevent *bev, short event)
 
 	if (event & EV_READ) {
 		BEV_RESET_GENERIC_READ_TIMEOUT(bev);
-		bufferevent_unsuspend_read_(bevf->underlying,
-		    BEV_SUSPEND_FILT_READ);
+		if(bevf)
+			bufferevent_unsuspend_read_(bevf->underlying,
+		    	    BEV_SUSPEND_FILT_READ);
 	}
 	return 0;
 }
@@ -276,8 +277,9 @@ be_filter_disable(struct bufferevent *bev, short event)
 		BEV_DEL_GENERIC_WRITE_TIMEOUT(bev);
 	if (event & EV_READ) {
 		BEV_DEL_GENERIC_READ_TIMEOUT(bev);
-		bufferevent_suspend_read_(bevf->underlying,
-		    BEV_SUSPEND_FILT_READ);
+		if(bevf)
+			bufferevent_suspend_read_(bevf->underlying,
+		    	    BEV_SUSPEND_FILT_READ);
 	}
 	return 0;
 }
