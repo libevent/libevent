@@ -1,0 +1,32 @@
+Android compatibility layer for libevent
+========================================
+This project builds libevent for Android as a static library. It has been tested with gingerbread and ICS (android rowboat.)
+
+Tested parts:
+ +  general event support
+ +  socket support
+ +  pthread safety (event_use_pthreads)
+
+Not tested/supported yet:
+ -  openssl
+
+It is called libevent2 as ICS's Chromium ships with an old version of libevent resulting in a namespace collision.
+
+How to use
+----------
+To use this library in a libevent-powered application, add the following to your application's Android.mk:
+
+    LOCAL_STATIC_LIBRARIES:= libevent2
+
+    LOCAL_C_INCLUDES:= external/libevent/include \
+        external/libevent/android
+
+    LOCAL_CFLAGS := $(LOCAL_C_INCLUDES:%=-I%)
+ 
+The default is to link libevent with the application as a static library. It is possible to build it as a shared library as well by changing the Android.mk to `BUILD_SHARED_LIBRARY` and setting the corresponding LDFLAGS as well.
+
+History
+-------
+This was built by using droid-gcc to do the initial build, then reusing the generated config.h and event-config.h and writing a proper Android.mk file.
+
+The code is based on the latest stable version (at the moment) 2.0.20, and is applied to the 2.0 branch. It may move to 2.1 as soon as it is stable and we use it for our application.
