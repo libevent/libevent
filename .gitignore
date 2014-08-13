@@ -40,6 +40,8 @@ TAGS
 libevent.pc
 libevent_pthreads.pc
 libevent_openssl.pc
+*.log
+*.trs
 
 ## The initial / makes these files only get ignored in particular directories.
 /autom4te.cache
@@ -89,6 +91,7 @@ libevent_openssl.pc
 /test/test-eof
 /test/test-init
 /test/test-ratelim
+/test/test-script.sh
 /test/test-time
 /test/test-weof
 /test/test-changelist
