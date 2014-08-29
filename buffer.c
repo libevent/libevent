@@ -2363,9 +2363,11 @@ evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
 		/* XXX(nickm) Don't disable this code until we know if
 		 * the WSARecv code above works. */
 		void *p = evbuffer_pullup(buffer, howmuch);
+		EVUTIL_ASSERT(p || !howmuch);
 		n = send(fd, p, howmuch, 0);
 #else
 		void *p = evbuffer_pullup(buffer, howmuch);
+		EVUTIL_ASSERT(p || !howmuch);
 		n = write(fd, p, howmuch);
 #endif
 #ifdef USE_SENDFILE
