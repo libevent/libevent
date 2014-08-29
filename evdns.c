@@ -4668,7 +4668,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 		data->ipv4_request.r = evdns_base_resolve_ipv4(dns_base,
 		    nodename, 0, evdns_getaddrinfo_gotresolve,
 		    &data->ipv4_request);
-		if (want_cname)
+		if (want_cname && data->ipv4_request.r))
 			data->ipv4_request.r->current_req->put_cname_in_ptr =
 			    &data->cname_result;
 	}
@@ -4679,7 +4679,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 		data->ipv6_request.r = evdns_base_resolve_ipv6(dns_base,
 		    nodename, 0, evdns_getaddrinfo_gotresolve,
 		    &data->ipv6_request);
-		if (want_cname)
+		if (want_cname && data->ipv6_request.r)
 			data->ipv6_request.r->current_req->put_cname_in_ptr =
 			    &data->cname_result;
 	}
