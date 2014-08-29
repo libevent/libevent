@@ -652,7 +652,7 @@ evutil_check_ifaddrs(void)
 	   "GetAdaptersInfo", but that's deprecated; let's just try
 	   GetAdaptersAddresses and fall back to connect+getsockname.
 	*/
-	HANDLE lib = evutil_load_windows_system_library_(TEXT("ihplapi.dll"));
+	HMODULE lib = evutil_load_windows_system_library_(TEXT("ihplapi.dll"));
 	GetAdaptersAddresses_fn_t fn;
 	ULONG size, res;
 	IP_ADAPTER_ADDRESSES *addresses = NULL, *address;
@@ -2453,7 +2453,7 @@ evutil_hex_char_to_int_(char c)
 }
 
 #ifdef _WIN32
-HANDLE
+HMODULE
 evutil_load_windows_system_library_(const TCHAR *library_name)
 {
   TCHAR path[MAX_PATH];

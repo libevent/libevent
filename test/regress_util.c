@@ -1121,7 +1121,7 @@ end:
 static void
 test_evutil_loadsyslib(void *arg)
 {
-	HANDLE h=NULL;
+	HMODULE h=NULL;
 
 	h = evutil_load_windows_system_library_(TEXT("kernel32.dll"));
 	tt_assert(h);

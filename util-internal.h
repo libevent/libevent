@@ -392,7 +392,7 @@ void evutil_free_secure_rng_globals_(void);
 void evutil_free_globals_(void);
 
 #ifdef _WIN32
-HANDLE evutil_load_windows_system_library_(const TCHAR *library_name);
+HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 
 #ifndef EV_SIZE_FMT
