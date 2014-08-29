@@ -264,7 +264,7 @@ send_document_cb(struct evhttp_request *req, void *arg)
 #endif
 		evbuffer_add_printf(evb, "</ul></body></html>\n");
 #ifdef WIN32
-		CloseHandle(d);
+		FindClose(d);
 #else
 		closedir(d);
 #endif
