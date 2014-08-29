@@ -69,7 +69,7 @@ incref_and_lock(struct bufferevent *b)
 	struct bufferevent_pair *bevp;
 	bufferevent_incref_and_lock_(b);
 	bevp = upcast(b);
-	if (bevp->partner)
+	if (bevp && bevp->partner)
 		bufferevent_incref_and_lock_(downcast(bevp->partner));
 }
 
@@ -77,7 +77,7 @@ static inline void
 decref_and_unlock(struct bufferevent *b)
 {
 	struct bufferevent_pair *bevp = upcast(b);
-	if (bevp->partner)
+	if (bevp && bevp->partner)
 		bufferevent_decref_and_unlock_(downcast(bevp->partner));
 	bufferevent_decref_and_unlock_(b);
 }
@@ -234,12 +234,12 @@ be_pair_enable(struct bufferevent *bufev, short events)
 		BEV_RESET_GENERIC_WRITE_TIMEOUT(bufev);
 
 	/* We're starting to read! Does the other side have anything to write?*/
-	if ((events & EV_READ) && partner &&
+	if ((events & EV_READ) && partner && bev_p &&
 	    be_pair_wants_to_talk(partner, bev_p)) {
 		be_pair_transfer(downcast(partner), bufev, 0);
 	}
 	/* We're starting to write! Does the other side want to read? */
-	if ((events & EV_WRITE) && partner &&
+	if ((events & EV_WRITE) && partner && bev_p &&
 	    be_pair_wants_to_talk(bev_p, partner)) {
 		be_pair_transfer(bufev, downcast(partner), 0);
 	}
@@ -264,7 +264,7 @@ be_pair_unlink(struct bufferevent *bev)
 {
 	struct bufferevent_pair *bev_p = upcast(bev);
 
-	if (bev_p->partner) {
+	if (bev_p && bev_p->partner) {
 		bev_p->partner->partner = NULL;
 		bev_p->partner = NULL;
 	}
