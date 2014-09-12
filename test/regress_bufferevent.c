@@ -287,6 +287,9 @@ test_bufferevent_watermarks_impl(int use_pair)
 	tt_int_op(low, ==, 100);
 	tt_int_op(high, ==, 2000);
 
+	int r = bufferevent_getwatermark(bev1, EV_WRITE | EV_READ, &low, &high);
+	tt_int_op(r, !=, 0);
+
 	bufferevent_write(bev1, buffer, sizeof(buffer));
 
 	event_dispatch();

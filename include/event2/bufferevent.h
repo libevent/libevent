@@ -535,8 +535,9 @@ void bufferevent_setwatermark(struct bufferevent *bufev, short events,
     size_t lowmark, size_t highmark);
 
 /**
-  Retrieves the watermarks for read or write events. Result is undefined if
-  events contains both EV_READ and EV_WRITE.
+  Retrieves the watermarks for read or write events.
+  Returns non-zero if events contains not only EV_READ or EV_WRITE.
+  Returns zero if events equal EV_READ or EV_WRITE
 
   @param bufev the bufferevent to be examined
   @param events EV_READ or EV_WRITE
@@ -544,7 +545,7 @@ void bufferevent_setwatermark(struct bufferevent *bufev, short events,
   @param highmark receives the high watermark if not NULL
 */
 EVENT2_EXPORT_SYMBOL
-void bufferevent_getwatermark(struct bufferevent *bufev, short events,
+int bufferevent_getwatermark(struct bufferevent *bufev, short events,
     size_t *lowmark, size_t *highmark);
 
 /**
