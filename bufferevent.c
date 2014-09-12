@@ -545,7 +545,7 @@ bufferevent_setwatermark(struct bufferevent *bufev, short events,
 				      bufev_private->read_watermarks_cb,
 				      EVBUFFER_CB_ENABLED|EVBUFFER_CB_NODEFER);
 
-			if (evbuffer_get_length(bufev->input) > highmark)
+			if (evbuffer_get_length(bufev->input) >= highmark)
 				bufferevent_wm_suspend_read(bufev);
 			else if (evbuffer_get_length(bufev->input) < highmark)
 				bufferevent_wm_unsuspend_read(bufev);
