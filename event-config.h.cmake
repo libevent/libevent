@@ -148,9 +148,6 @@
 /* Define to 1 if you have the <ifaddrs.h> header file. */
 #cmakedefine EVENT__HAVE_IFADDRS_H 1
 
-/* Define to 1 if you have the `inet_aton' function. */
-#cmakedefine EVENT__HAVE_INET_ATON 1
-
 /* Define to 1 if you have the `inet_ntop' function. */
 #cmakedefine EVENT__HAVE_INET_NTOP 1
 
@@ -496,5 +493,7 @@
 
 /* Define to `int' if <sys/types.h> does not define. */
 #cmakedefine EVENT__ssize_t ${EVENT__ssize_t}
+
+#cmakedefine EVENT__NEED_DLLIMPORT ${EVENT__NEED_DLLIMPORT}
 
 #endif

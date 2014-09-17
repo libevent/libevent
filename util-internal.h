@@ -392,7 +392,7 @@ void evutil_free_secure_rng_globals_(void);
 void evutil_free_globals_(void);
 
 #ifdef _WIN32
-HANDLE evutil_load_windows_system_library_(const TCHAR *library_name);
+HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 
 #ifndef EV_SIZE_FMT
@@ -443,6 +443,9 @@ HANDLE evutil_load_windows_system_library_(const TCHAR *library_name);
 evutil_socket_t evutil_socket_(int domain, int type, int protocol);
 evutil_socket_t evutil_accept4_(evutil_socket_t sockfd, struct sockaddr *addr,
     ev_socklen_t *addrlen, int flags);
+
+    /* used by one of the test programs.. */
+EVENT2_EXPORT_SYMBOL
 int evutil_make_internal_pipe_(evutil_socket_t fd[2]);
 evutil_socket_t evutil_eventfd_(unsigned initval, int flags);
 

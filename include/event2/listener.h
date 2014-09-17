@@ -27,6 +27,8 @@
 #ifndef EVENT2_LISTENER_H_INCLUDED_
 #define EVENT2_LISTENER_H_INCLUDED_
 
+#include <event2/visibility.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -104,6 +106,7 @@ typedef void (*evconnlistener_errorcb)(struct evconnlistener *, void *);
       file descriptor, and it should already be bound to an appropriate
       port and address.
 */
+EVENT2_EXPORT_SYMBOL
 struct evconnlistener *evconnlistener_new(struct event_base *base,
     evconnlistener_cb cb, void *ptr, unsigned flags, int backlog,
     evutil_socket_t fd);
@@ -122,34 +125,42 @@ struct evconnlistener *evconnlistener_new(struct event_base *base,
    @param addr The address to listen for connections on.
    @param socklen The length of the address.
  */
+EVENT2_EXPORT_SYMBOL
 struct evconnlistener *evconnlistener_new_bind(struct event_base *base,
     evconnlistener_cb cb, void *ptr, unsigned flags, int backlog,
     const struct sockaddr *sa, int socklen);
 /**
    Disable and deallocate an evconnlistener.
  */
+EVENT2_EXPORT_SYMBOL
 void evconnlistener_free(struct evconnlistener *lev);
 /**
    Re-enable an evconnlistener that has been disabled.
  */
+EVENT2_EXPORT_SYMBOL
 int evconnlistener_enable(struct evconnlistener *lev);
 /**
    Stop listening for connections on an evconnlistener.
  */
+EVENT2_EXPORT_SYMBOL
 int evconnlistener_disable(struct evconnlistener *lev);
 
 /** Return an evconnlistener's associated event_base. */
+EVENT2_EXPORT_SYMBOL
 struct event_base *evconnlistener_get_base(struct evconnlistener *lev);
 
 /** Return the socket that an evconnlistner is listening on. */
+EVENT2_EXPORT_SYMBOL
 evutil_socket_t evconnlistener_get_fd(struct evconnlistener *lev);
 
 /** Change the callback on the listener to cb and its user_data to arg.
  */
+EVENT2_EXPORT_SYMBOL
 void evconnlistener_set_cb(struct evconnlistener *lev,
     evconnlistener_cb cb, void *arg);
 
 /** Set an evconnlistener's error callback. */
+EVENT2_EXPORT_SYMBOL
 void evconnlistener_set_error_cb(struct evconnlistener *lev,
     evconnlistener_errorcb errorcb);
 

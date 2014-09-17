@@ -564,9 +564,9 @@ bufferevent_async_new_(struct event_base *base,
 	event_overlapped_init_(&bev_a->read_overlapped, read_complete);
 	event_overlapped_init_(&bev_a->write_overlapped, write_complete);
 
+	bufferevent_init_generic_timeout_cbs_(bev);
+
 	bev_a->ok = fd >= 0;
-	if (bev_a->ok)
-		bufferevent_init_generic_timeout_cbs_(bev);
 
 	return bev;
 err:

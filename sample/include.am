@@ -30,7 +30,9 @@ noinst_HEADERS += \
 	sample/openssl_hostname_validation.h
 endif
 
+if BUILD_SAMPLES
 noinst_PROGRAMS += $(SAMPLES)
+endif
 
 $(SAMPLES) : libevent.la
 

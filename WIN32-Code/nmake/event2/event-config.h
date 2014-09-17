@@ -70,9 +70,6 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 /* #define EVENT__HAVE_GETTIMEOFDAY 1 */
 
-/* Define to 1 if you have the `inet_aton' function. */
-/* #undef EVENT__HAVE_INET_ATON */
-
 /* Define to 1 if you have the `inet_ntop' function. */
 /* #undef EVENT__HAVE_INET_NTOP */
 
@@ -277,7 +274,7 @@
 /* #undef EVENT__HAVE_WORKING_KQUEUE */
 
 /* Numeric representation of the version */
-#define EVENT__NUMERIC_VERSION 0x02010301
+#define EVENT__NUMERIC_VERSION 0x02010401
 
 /* Name of package */
 #define EVENT__PACKAGE "libevent"
@@ -334,7 +331,7 @@
 #define EVENT__TIME_WITH_SYS_TIME 1
 
 /* Version number of package */
-#define EVENT__VERSION "2.1.3-alpha-dev"
+#define EVENT__VERSION "2.1.4-alpha-dev"
 
 /* Define to appropriate substitue if compiler doesnt have __func__ */
 #define EVENT____func__ __FUNCTION__

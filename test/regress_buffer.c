@@ -1534,9 +1534,9 @@ test_evbuffer_callbacks(void *ptr)
 	tt_assert(!evbuffer_remove_cb(buf, log_change_callback, buf_out2));
 	evbuffer_validate(buf);
 
-	tt_str_op(evbuffer_pullup(buf_out1, -1), ==,
+	tt_str_op((const char *) evbuffer_pullup(buf_out1, -1), ==,
 		  "0->36; 36->26; 26->31; 31->38; ");
-	tt_str_op(evbuffer_pullup(buf_out2, -1), ==,
+	tt_str_op((const char *) evbuffer_pullup(buf_out2, -1), ==,
 		  "0->36; 31->38; 38->0; 0->1; ");
 	evbuffer_drain(buf_out1, evbuffer_get_length(buf_out1));
 	evbuffer_drain(buf_out2, evbuffer_get_length(buf_out2));
@@ -1552,7 +1552,7 @@ test_evbuffer_callbacks(void *ptr)
 	tt_uint_op(evbuffer_get_length(buf_out2), ==, 0);
 	evbuffer_setcb(buf, NULL, NULL);
 	evbuffer_add_printf(buf, "This will not.");
-	tt_str_op(evbuffer_pullup(buf, -1), ==, "This will not.");
+	tt_str_op((const char *) evbuffer_pullup(buf, -1), ==, "This will not.");
 	evbuffer_validate(buf);
 	evbuffer_drain(buf, evbuffer_get_length(buf));
 	evbuffer_validate(buf);
@@ -1660,7 +1660,7 @@ test_evbuffer_add_reference(void *ptr)
 	evbuffer_add(buf1, "You shake and shake the ", 24);
 	evbuffer_add_reference(buf1, "ketchup bottle", 14, ref_done_cb,
 	    (void*)3333);
-	evbuffer_add(buf1, ". Nothing comes and then a lot'll.", 42);
+	evbuffer_add(buf1, ". Nothing comes and then a lot'll.", 35);
 	evbuffer_free(buf1);
 	buf1 = NULL;
 	tt_int_op(ref_done_cb_called_count, ==, 3);

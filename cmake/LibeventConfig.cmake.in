@@ -7,11 +7,11 @@
 get_filename_component(LIBEVENT_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 
 # Set the include directories.
-set(LIBEVENT_INCLUDE_DIRS "@EVENT__INCLUDE_DIRS@")
+set(LIBEVENT_INCLUDE_DIRS "@EVENT_INSTALL_INCLUDE_DIR@")
 
 # Include the project Targets file, this contains definitions for IMPORTED targets.
 include(${LIBEVENT_CMAKE_DIR}/LibeventTargets.cmake)
 
 # IMPORTED targets from LibeventTargets.cmake
-set(LIBEVENT_LIBRARIES event event_core event_extras)
+set(LIBEVENT_LIBRARIES event event_core event_extra)
 

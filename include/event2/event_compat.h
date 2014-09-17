@@ -41,6 +41,7 @@
 
   @deprecated All functions in this file are by definition deprecated.
  */
+#include <event2/visibility.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -70,6 +71,7 @@ extern "C" {
 
   @see event_base_set(), event_base_new()
  */
+EVENT2_EXPORT_SYMBOL
 struct event_base *event_init(void);
 
 /**
@@ -83,6 +85,7 @@ struct event_base *event_init(void);
 
   @see event_base_dispatch(), event_init()
  */
+EVENT2_EXPORT_SYMBOL
 int event_dispatch(void);
 
 /**
@@ -96,6 +99,7 @@ int event_dispatch(void);
 
   @see event_base_loop(), event_init()
 */
+EVENT2_EXPORT_SYMBOL
 int event_loop(int);
 
 
@@ -111,6 +115,7 @@ int event_loop(int);
 
   @see event_init, event_base_loopexit()
   */
+EVENT2_EXPORT_SYMBOL
 int event_loopexit(const struct timeval *);
 
 
@@ -126,6 +131,7 @@ int event_loopexit(const struct timeval *);
 
   @see event_base_loopbreak(), event_init()
  */
+EVENT2_EXPORT_SYMBOL
 int event_loopbreak(void);
 
 /**
@@ -137,6 +143,7 @@ int event_loopbreak(void);
 
   @see event_base_once()
  */
+EVENT2_EXPORT_SYMBOL
 int event_once(evutil_socket_t , short,
     void (*)(evutil_socket_t, short, void *), void *, const struct timeval *);
 
@@ -150,6 +157,7 @@ int event_once(evutil_socket_t , short,
 
   @see event_base_get_method()
  */
+EVENT2_EXPORT_SYMBOL
 const char *event_get_method(void);
 
 
@@ -162,6 +170,7 @@ const char *event_get_method(void);
 
   @see event_base_priority_init()
  */
+EVENT2_EXPORT_SYMBOL
 int	event_priority_init(int);
 
 /**
@@ -171,6 +180,7 @@ int	event_priority_init(int);
      a subsequent call to event_base_set() to be safe under most circumstances.
      Use event_assign() or event_new() instead.
  */
+EVENT2_EXPORT_SYMBOL
 void event_set(struct event *, evutil_socket_t, short, void (*)(evutil_socket_t, short, void *), void *);
 
 #define evtimer_set(ev, cb, arg)	event_set((ev), -1, 0, (cb), (arg))

@@ -41,7 +41,7 @@
 
   We don't try to do binary compatibility except within stable release
   series, so binaries linked against any version of Libevent 2.0 will
-  probably need to be recompiled against Libevent 2.1.3-alpha if you
+  probably need to be recompiled against Libevent 2.1.4-alpha if you
   want to use it.  It is probable that we'll break binary compatibility
   again before Libevent 2.1 is stable.
 
@@ -62,6 +62,9 @@
   For IDE users, files that are not supposed to be built are now
   surrounded with appropriate #ifdef lines to keep your IDE from getting
   upset.
+
+  There is now an alternative cmake-based build process; cmake users
+  should see the relevant sections in the README.
 
 
 1.2. New functions for events and the event loop
@@ -145,6 +148,19 @@
   of "event_add(ev, NULL)" on an already-added event with a timeout. But
   that's a no-op in past versions of Libevent, and we don't want to
   break compatibility.)
+
+  You can use the new event_base_get_num_events() function to find the
+  number of events active or pending on an event_base. To find the
+  largest number of events that there have been since the last call, use
+  event_base_get_max_events().
+
+  You can now activate all the events waiting for a given fd or signal
+  using the event_base_active_by_fd() and event_base_active_by_signal()
+  APIs.
+
+  On backends that support it (currently epoll), there is now an
+  EV_CLOSED flag that programs can use to detect when a socket has
+  closed without having to read all the bytes until receiving an EOF.
 
 1.3. Event finalization
 
@@ -325,6 +341,13 @@
   You can find the priority at which a bufferevent runs with
   bufferevent_get_priority().
 
+  The function bufferevent_get_token_bucket_cfg() can retrieve the
+  rate-limit settings for a bufferevent; bufferevent_getwatermark() can
+  return a bufferevent's current watermark settings.
+
+  You can manually trigger a bufferevent's callbacks via
+  bufferevent_trigger() and bufferevent_trigger_event().
+
 1.7. New functions and features: evdns
 
   The previous evdns interface used an "open a test UDP socket" trick in
@@ -339,6 +362,9 @@
   A second flag is now supported too: the EVDNS_BASE_DISABLE_WHEN_INACTIVE
   flag, which tells the evdns_base that it should not prevent Libevent from
   exiting while it has no DNS requests in progress.
+
+  There is a new evdns_base_clear_host_addresses() function to remove
+  all the /etc/hosts addresses registered with an evdns instance.
 
 1.8. New functions and features: evconnlistener
 
@@ -391,6 +417,31 @@
   evhttp_request_set_error_cb(). It gets called when there's a request error,
   and actually reports the error code and lets you figure out which request
   failed.
+
+  You can navigate from an evhttp_connection back to its evhttp with the
+  new evhttp_connection_get_server() function.
+
+  You can override the default HTTP Content-Type with the new
+  evhttp_set_default_content_type() function
+
+  There's a new evhttp_connection_get_addr() API to return the peer
+  address of an evhttp_connection.
+
+  The new evhttp_send_reply_chunk_with_cb() is a variant of
+  evhttp_send_reply_chunk() with a callback to be invoked when the
+  chunk is sent.
+
+  The evhttp_request_set_header_cb() facility adds a callback to be
+  invoked while parsing headers.
+
+  The evhttp_request_set_on_complete_cb() facility adds a callback to be
+  invoked on request completion.
+
+1.10. New functions and features: evutil
+
+  There's a function "evutil_secure_rng_set_urandom_device_file()" that
+  you can use to override the default file that Libevent uses to seed
+  its (sort-of) secure RNG.
 
 2. Cross-platform performance improvements
 

@@ -1,23 +1,186 @@
-Changes in version 2.1.4-beta (?? Dec 2013)
+Changes in version 2.1.5-alpha (?? ??? 2014)
 
- (As of 735d838b0a537ae04f1e6a2e9cbc5f3f45ebb541)
 
+Changes in version 2.1.4-alpha (21 Mar 2014)
+
+ Libevent 2.1.4-alpha adds a number of new miscellaneous APIs to make
+ Libevent more useful, including support for early close detection with
+ epoll via EPOLLRDHUP, triggering bufferevent callbacks, adding more
+ evhttp callbacks, and more. There are also numerous bugfixes, including
+ a number for finalize-related issues from 2.1.3-alpha; and an
+ alternative (non-primary!) cmake-based build mechanism.
+
+ New APIs (core)
+   o Added event_base_get_num_events() (0fa107d Mobai Zhang)
+   o New event_base_active_by_fd API (865a142 Greg Hazel, 5c9da9a, 87fa2b0)
+   o Add event_base_active_by_signal by analogy (4865943)
+   o Add access to max event count stats (5173bef, efbd3dc, 26230a2
+     Andrew Sweeney)
+   o Implemented EV_CLOSED event for epoll backend
+     (EPOLLRDHUP). (b1b69ac Diego Giagio, 53d2793, 43ffcf6, dfe1e52
+     Marcin Juszkiewicz, ff26633 Joakim Soderberg, 3908a5e)
+
+ New APIs (evutil_secure_rng)
+   o Add evutil_secure_rng_set_urandom_device_file (2bbb5d7)
+
+ New APIs (bufferevents)
+   o Add function to fetch underlying ratelimit cfg (4b3d5af Mark Ellzey)
+   o Pass and return const for bufferevent_get_token_bucket_cfg (1c77fbb
+     Mark Ellzey)
+   o Add watermark introspection (4ce242b Ondřej Kuzník)
+   o Add an option to trigger bufferevent I/O callbacks (61ee18b Ondřej Kuzník)
+   o Add an option to trigger bufferevent event callbacks (a7384c7
+     Ondřej Kuzník)
+   o Clarifications in response to merge req. comments (bd41947 Ondřej
+     Kuzník)
+   o Minor optimizations on bufferevent_trigger options (a3172a4)
+
+ New APIs (evhttp)
+   o Add evhttp_connection_get_server(). (a7f82a3 Maxime Henrion)
+   o add a http default content type option (5a5acd9 Nicolas Martyanoff)
+   o http: implement new evhttp_connection_get_addr() api. (0c7f040 Azat
+     Khuzhin)
+   o Add a variant of evhttp_send_reply_chunk() with a callback on
+     evhttp_write_buffer() (8d8decf Julien BLACHE)
+   o Allow registering callback for parsing HTTP headers (b0bd7fe Balint Reczey)
+   o Provide on request complete callback facility (b083ca0 Andrew Sweeney)
+   o evhttp_request_set_on_complete_cb to be more specific about what
+     the function actually does and usage (da86dda Andrew Sweeney)
+   o Update unit test to make sure that the callback happens after the
+     output data is written (b85f398 Andrew Sweeney)
+
+ Features (evdns)
+   o bug fix for issues #293 evdns_base_load_hosts doesn't remove
+     outdated addresses (954d2f9, f03d353, 45eba6f Kuldeep Gupta)
+
+ Features: (cmake build support)
+   o Initial CMake commit. (e415196 Joakim Soderberg)
+   o Add all tests and benchmarks to CMake project. (e9fc014 Joakim Soderberg)
+   o More work on adding tests to CMake project (99c1dc3 Joakim Soderberg)
+   o Generate a dummy evconfig-private.h so things build
+     properly. (ce14def Joakim Soderberg)
+   o Link libm on unix platforms. (58fcd42 Joakim Soderberg)
+   o Added some GCC specific options. (19222e5 Joakim Soderberg)
+   o Use evutil_closesocket instead. (dbf2b51 Joakim Soderberg)
+   o Add copyright and licensing files for CMake modules. (c259d53
+     Joakim Soderberg)
+   o Only include WIN32 getopt where it is used. (9bbce0b Joakim Soderberg)
+   o Fix bench_cascade program on Windows. (78da644 Joakim Soderberg)
+   o Don't segfault on no found event backend. (8f2af50 Joakim Soderberg)
+   o Only test the event backends available on the system. (7ea4159
+     Joakim Soderberg)
+   o Added a "make verify" target. (e053c4f Joakim Soderberg)
+   o Fix the make "verify" target on Windows. (67e5d74 Joakim Soderberg)
+   o Get rid of deprecation warnings for OpenSSL on OSX 10.7+ (69c3516
+     Joakim Söderberg)
+   o Fix kqueue support. (a831f2f Joakim Söderberg)
+   o Added a test for testing if kqueue works with pipes. (2799b35
+     Joakim Söderberg)
+   o Change the BSD license from 4 to 3-clause. (86df3ed Joakim Soderberg)
+   o Minimum required python version is 2.4. (968e97b Joakim Soderberg)
+   o Get rid of unknown pragma warnings. (0ef1d04 Joakim Soderberg)
+   o Add a "make verify_coverage" target generation coverage
+     info. (f2483f8 Joakim Soderberg)
+   o Fix the "make verify" target on NetBSD (4ac086a Joakim Soderberg)
+   o Only look for ZLib when it is used (if tests are
+     included). (f780593 Joakim Soderberg)
+   o Added EVENT__ENABLE_GCC_WARNINGS, turns all warnings into
+     errors. (dd413bd Joakim Soderberg)
+   o Add CMake config and install targets. (f3446ed Joakim Soderberg)
+   o Fix typo (4b754df Joakim Soderberg)
+   o Some work on making it possible to simply do add_subdirectory() on
+     the project. (49ab363 Joakim Soderberg)
+   o Set USE_DEBUG=1 on EVENT__ENABLE_VERBOSE_DEBUG (fd42e70 Joakim Soderberg)
+   o Fix so that old nmake project still builds. (24d6466 Joakim
+     Soderberg)
+   o Rename README to README.md and use markdown to format. (d2bc39a
+     Joakim Soderberg)
+   o Update README with CMake build instructions. (604b8cc Joakim Soderberg)
+   o Clean up the README some. (8d4cb35 JoakimSoderberg)
+   o Forgotten headers for old nmake project compatability. (8697b99
+     Joakim Soderberg)
+   o Change all uses of WIN32 to _WIN32 (4e14395 Joakim Söderberg)
+   o Fix include bug. (2024467 Joakim Söderberg)
+   o Check if we're on OSX before disabling deprecation in le-proxy
+     (8b40a5b Joakim Söderberg)
+   o Fix broken autotools build. (ae1bd82 Joakim Söderberg)
+   o Disclaimerize cmake a little in the README (d03b5bf)
+   o Fix CMake compile when OpenSSL is disabled. (e423d42 Joakim
+     Söderberg)
+   o CMake: Get rid of python not found warning when regress tests
+     turned off. (d38d798 Joakim Söderberg)
+   o Fix https-client compilation on Windows. (d7be788 Joakim Soderberg)
+   o Guard against EVENT_NOWIN32 being set during testing. (f1715b4
+     Joakim Soderberg)
+   o Check for OSX when checking for clang. (e212c54 Joakim Soderberg)
+   o Added a Travis-CI configuration file. (8c0f0a9 Joakim Soderberg)
+   o Added -Qunused-arguments for clang on macosx (ed99d92 Trond Norbye)
+   o Rename event_extras to event_extra (a0dd5df Trond Norbye)
+   o Add option to build shared library (4545fa9 Trond Norbye)
+   o Add -Qunused-arguments for clang on macos (b56611d Trond Norbye)
+   o Add cmake-related files to .gitignore (e061321 Trond Norbye)
+   o Export event_extra not event_extras. (2b41bcf Joakim Söderberg)
+
+ Bugfixes (core)
+   o If evsel->del() fails, don't leave the evmap in an inconsistent
+     state (9b5a527 Maxime Henrion)
+   o Move event_debug_note_teardown_ before mm_free. (69b5c64)
+   o Check CLOCK_MONOTONIC_* at runtime if needed. (911abf3)
+   o Fix reinit of fds with EV_WRITE but not EV_READ. (ebfd8a8 maksqwe)
+   o Tweaked callbacks to prevent race condition
+     (https://github.com/libevent/libevent/issues/104) (40830f1, 2ea15ed
+     John Ohl)
+   o Move assert(ev) to before we use ev in EV_CLOSURE_EVENT_FINALIZE
+     case (9805972)
+
+ Bugfixes (evhttp)
+   o Fix a double close() bug in evhttp when the underlying bufferevent uses
+     BEV_OPT_CLOSE_ON_FREE. (31db8a0 Maxime Henrion)
+   o Fix an unlikely but possible error case for http connections (f22049e)
+   o Avoid racy bufferevent activation (5eb1788 Nate Rosenblum)
+
+ Bugfixes on 2.0 (Windows)
+   o Use windows vsnprintf fixup logic on all windows environments (e826f19)
+   o libevent/win32_dealloc() : fix sizeof(pointer) vs sizeof(*pointer)
+    (b8f5980 Frank Denis)
+
+ Bugfixes (evutil_secure_rng)
+   o When we seed from /proc/sys/kernel/random/uuid, count it as success
+     (e35b540)
+   o We should return after arc4random_buf() (1ea1f26 Makoto Kato)
+   o Avoid other RNG initialization FS reads when urandom file is
+     specified (9695e9c)
+   o Really remove RNG seeds from the stack (f5ced88)
+   o Fix another arc4random_buf-related warning (e64a2b0)
+
+ Bugfixes (bufferevents)
+   o Initialize async bufferevent timeout CBs unconditionally (af9b2a7)
 
  Bugfixes (evdns)
    o Checking request nameserver for NULL, before using it. (5c710c0
      Belobrov Andrey)
-   o Fix SEGFAULT after evdns_base_resume if no nameservers installed. (14971a8
-     Azat Khuzhin)
+   o Fix SEGFAULT after evdns_base_resume if no nameservers
+     installed. (14971a8 Azat Khuzhin)
    o Actually use the log facility for reporting evdns problems. (e1766a1)
-   o Fix SEGFAULT after evdns_base_resume if no nameservers installed. (f8d7df8 Azat Khuzhin)
+   o Fix SEGFAULT after evdns_base_resume if no nameservers
+     installed. (f8d7df8 Azat Khuzhin)
+   o fix for ServFail from RIPE Atlas release (62f596b Antony Antony)
 
- Bugfixes (compilatin)
+ Bugfixes (compilation)
    o Fix test compilation with nmake: add the gdi.lib dependency (5ba8ab7)
    o Whoops. It is gdi.lib, not gdi32.lib. (github issue #61) (8ab612e)
-   o Don't use return since return type is void and build error occurs using clang (838161d Makoto Kato)
+   o Don't use return since return type is void and build error occurs
+     using clang (838161d Makoto Kato)
    o Use void casts to suppress some "unchecked return value" warns (7080d55)
-   o rpcgen: Generate regress.gen.[c,h] in build rather than src dir (243386c Ross Lagerwall)
-   o Fix a compiler warning when checking for arc4random_buf linker breakage. (5cb3865)
+   o rpcgen: Generate regress.gen.[c,h] in build rather than src dir
+     (243386c Ross Lagerwall)
+   o Fix a compiler warning when checking for arc4random_buf linker
+     breakage. (5cb3865)
+   o Fix 'make distcheck' by adding regress.gen.[ch] to DISTCLEANFILES
+    (239d834)
+
+   o Fix a c90 warning (c207682)
+   o Fix consts in WIN32-Code/getopt*.[ch] (57abb35)
 
  Bugfixes (locks, synchronization)
    o Missed lock acquire/release in event_base_cancel_single_callback_()
@@ -30,7 +193,8 @@ Changes in version 2.1.4-beta (?? Dec 2013)
  Testing
    o Add tests for evdns_base_resume(). (1cd9ff5 Azat Khuzhin)
    o Fix dns/leak_resume_send_err test. (7e876df Azat Khuzhin)
-   o Add checks for evhttp_connection_get_server() in unit tests. (fbc323b Maxime Henrion)
+   o Add checks for evhttp_connection_get_server() in unit
+     tests. (fbc323b Maxime Henrion)
    o Fix a (failure-only) null dereference in the unit tests (1104d0b)
    o Fix a logic error in test_evbuffer_freeze (7765884)
    o Add missing check to test_evbuffer_file_segment_add_cleanup_cb (eba4506)
@@ -38,15 +202,12 @@ Changes in version 2.1.4-beta (?? Dec 2013)
    o DNS tests: add a missing check (f314900)
    o Finalize tests: add a missing check (82b6956)
    o test_evutil_rtrim: add another missing check. (e193c95)
-   o regress_main: logging all if env EVENT_DEBUG_LOGGING_ALL isset (611e28b Azat Khuzhin)
-   o regress_http: add tests for evhttp_connection_get_addr() (4dd500c Azat Khuzhin)
-
- Bugfixes (core)
-   o If evsel->del() fails, don't leave the evmap in an inconsistent state
-     (9b5a527 Maxime Henrion)
-   o Move event_debug_note_teardown_ before mm_free. (69b5c64)
-   o Check CLOCK_MONOTONIC_* at runtime if needed. (911abf3)
-   o Fix reinit of fds with EV_WRITE but not EV_READ. (ebfd8a8 maksqwe)
+   o regress_main: logging all if env EVENT_DEBUG_LOGGING_ALL isset
+     (611e28b Azat Khuzhin)
+   o regress_http: add tests for evhttp_connection_get_addr() (4dd500c
+     Azat Khuzhin)
+   o Update to the latest version of tinytest (7a80476)
+   o Heap-allocate zlib data structure in regress_zlib tests (4947c18)
 
  Performance tweaks (core)
    o Avoid redundant syscall to make a nonblocking socket nonblocking
@@ -54,56 +215,42 @@ Changes in version 2.1.4-beta (?? Dec 2013)
    o Avoid redundant syscall if making a socket cloexec twice (1f29b18)
    o Avoid redundant invocations of init_extension_functions for IOCP (3b77d62)
 
- Bugfixes (evhttp)
-   o Fix a double close() bug in evhttp when the underlying bufferevent uses
-     BEV_OPT_CLOSE_ON_FREE. (31db8a0 Maxime Henrion)
-   o Fix an unlikely but possible error case for http connections (f22049e)
-   o Avoid racy bufferevent activation (5eb1788 Nate Rosenblum)
-
- Bugfixes on 2.0 (Windows)
-   o Use windows vsnprintf fixup logic on all windows environments (e826f19)
-   o libevent/win32_dealloc() : fix sizeof(pointer) vs sizeof(*pointer) (b8f5980 Frank Denis)
-
- Bugfixes (evutil_secure_rng)
-   o When we seed from /proc/sys/kernel/random/uuid, count it as success (e35b540)
-   o We should return after arc4random_buf() (1ea1f26 Makoto Kato)
-   o Avoid other RNG initialization FS reads when urandom file is specified (9695e9c)
-   o Really remove RNG seeds from the stack (f5ced88)
-   o Fix another arc4random_buf-related warning (e64a2b0)
-
- New APIs (core)
-   o Added event_base_get_num_events() (0fa107d Mobai Zhang)
-   o Add function to fetch underlying ratelimit cfg (4b3d5af Mark Ellzey)
-   o Pass and return const for bufferevent_get_token_bucket_cfg (1c77fbb Mark Ellzey)
-
- New APIs (evhttp)
-   o Add evhttp_connection_get_server(). (a7f82a3 Maxime Henrion)
-   o add a http default content type option (5a5acd9 Nicolas Martyanoff)
-   o http: implement new evhttp_connection_get_addr() api. (0c7f040 Azat Khuzhin)
-
-
  Documentation
    o Document that arc4random is not a great cryptographic PRNG. (6e49696)
    o Small doxygen tweaks (6e67b51)
    o Try another doxygen tweak (ccf432b)
+   o Clarify event_base_loop exit conditions (031a803)
+   o Fix a typo (be7bf2c Ondřej Kuzník)
+   o Document deferred eventcb behaviour (13a9a02 Ondřej Kuzník)
+   o Typo fixes from Linus Nordberg (cec62cb, 8cd695b)
+   o Fix duplicate paragraph in evbuffer_ptr documentation (58408ee)
 
- New APIs (evutil_secure_rng)
-   o Add evutil_secure_rng_set_urandom_device_file (2bbb5d7)
+ Code Improvements (coverity)
+   o Fix a pile of coverity warnings in the unit tests (867f401)
+   o Fix coverity warnings in benchmark tools. (ff7f739)
+   o Whoops; fix compilation in bench.c (544cf88)
+   o Remove spurious checks in evrpc.c error cases (coverity) (991b362)
+   o Fix a couple of compilation warnings in regress_http.c (860767e)
+   o Fix even more coverity warnings. (d240328)
+   o Stop checking for inet_aton; we don't use it. (f665d5c)
+   o Add an include to evrpc-internal to fix openbsd compilation warning
+     (5e161c6)
 
  Cleanups
    o Remove an unreachable return statement in minheap-internal.h (e639a9e)
+   o Refactor evmap_{io,signal}_active_() to tolerate bad inputs (974c60e)
+   o Fix needless bufferevent includes in evdns.c (254c04e)
+   o Fix a couple of "#ifdef WIN32" instances (88ecda3)
+   o Remove unneeded declaration in bufferevent-internal.h (4c8ebcd)
 
  Sample code
-   o sample/le-proxy: Fail more gracefully if opening listener fails (44b2491)
-   o sample: drop uri_root from base_url in http-server. (6171e1c Azat Khuzhin)
-
-
-
-
-
-
-
-
+   o le-proxy: Fail more gracefully if opening listener fails (44b2491)
+   o http-server: drop uri_root from base_url in http-server. (6171e1c Azat Khuzhin)
+   o https-client: POST supported, args supported (c5887f7 Alexey Ozeritsky)
+   o https-client: code cleanup (29af65e Alexey Ozeritsky)
+   o https-client: Small tweaks to https-client.c (90786eb)
+   o https-client: Set hostname for SNI extension (by f69m) (d1976f8)
+   o https-client: add a cast to https-client.c (462e6b6)
 
 
 

@@ -3973,6 +3973,10 @@ evdns_nameserver_free(struct nameserver *server)
 	event_debug_unassign(&server->event);
 	if (server->state == 0)
 		(void) event_del(&server->timeout_event);
+	if (server->probe_request) {
+		evdns_cancel_request(server->base, server->probe_request);
+		server->probe_request = NULL;
+	}
 	event_debug_unassign(&server->timeout_event);
 	mm_free(server);
 }
@@ -3988,6 +3992,15 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 
 	/* TODO(nickm) we might need to refcount here. */
 
+	for (server = base->server_head; server; server = server_next) {
+		server_next = server->next;
+		evdns_nameserver_free(server);
+		if (server_next == base->server_head)
+			break;
+	}
+	base->server_head = NULL;
+	base->global_good_nameservers = 0;
+
 	for (i = 0; i < base->n_req_heads; ++i) {
 		while (base->req_heads[i]) {
 			if (fail_requests)
@@ -4002,14 +4015,6 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 	}
 	base->global_requests_inflight = base->global_requests_waiting = 0;
 
-	for (server = base->server_head; server; server = server_next) {
-		server_next = server->next;
-		evdns_nameserver_free(server);
-		if (server_next == base->server_head)
-			break;
-	}
-	base->server_head = NULL;
-	base->global_good_nameservers = 0;
 
 	if (base->global_search_state) {
 		for (dom = base->global_search_state->head; dom; dom = dom_next) {
@@ -4663,7 +4668,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 		data->ipv4_request.r = evdns_base_resolve_ipv4(dns_base,
 		    nodename, 0, evdns_getaddrinfo_gotresolve,
 		    &data->ipv4_request);
-		if (want_cname)
+		if (want_cname && data->ipv4_request.r)
 			data->ipv4_request.r->current_req->put_cname_in_ptr =
 			    &data->cname_result;
 	}
@@ -4674,7 +4679,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 		data->ipv6_request.r = evdns_base_resolve_ipv6(dns_base,
 		    nodename, 0, evdns_getaddrinfo_gotresolve,
 		    &data->ipv6_request);
-		if (want_cname)
+		if (want_cname && data->ipv6_request.r)
 			data->ipv6_request.r->current_req->put_cname_in_ptr =
 			    &data->cname_result;
 	}

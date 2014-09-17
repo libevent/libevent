@@ -59,6 +59,17 @@
 #include "evmap-internal.h"
 #include "changelist-internal.h"
 #include "time-internal.h"
+
+/* Since Linux 2.6.17, epoll is able to report about peer half-closed connection
+   using special EPOLLRDHUP flag on a read event.
+*/
+#if !defined(EPOLLRDHUP)
+#define EPOLLRDHUP 0
+#define EARLY_CLOSE_IF_HAVE_RDHUP 0
+#else
+#define EARLY_CLOSE_IF_HAVE_RDHUP EV_FEATURE_EARLY_CLOSE
+#endif
+
 #include "epolltable-internal.h"
 
 #if defined(EVENT__HAVE_SYS_TIMERFD_H) &&			  \
@@ -70,13 +81,6 @@
    was introduced) or 2.6.26, since 2.6.27 introduced those flags.
  */
 #define USING_TIMERFD
-#endif
-
-/* Since Linux 2.6.17, epoll is able to report about peer half-closed connection
-   using special EPOLLRDHUP flag on a read event.
-*/
-#if !defined(EPOLLRDHUP)
-#define EPOLLRDHUP 0
 #endif
 
 struct epollop {
@@ -100,7 +104,7 @@ static const struct eventop epollops_changelist = {
 	epoll_dispatch,
 	epoll_dealloc,
 	1, /* need reinit */
-	EV_FEATURE_ET|EV_FEATURE_O1|EV_FEATURE_EARLY_CLOSE,
+	EV_FEATURE_ET|EV_FEATURE_O1| EARLY_CLOSE_IF_HAVE_RDHUP,
 	EVENT_CHANGELIST_FDINFO_SIZE
 };
 

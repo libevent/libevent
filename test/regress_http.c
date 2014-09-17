@@ -105,8 +105,12 @@ http_bind(struct evhttp *myhttp, ev_uint16_t *pport, int ipv6)
 	else
 		sock = evhttp_bind_socket_with_handle(myhttp, "127.0.0.1", *pport);
 
-	if (sock == NULL)
-		event_errx(1, "Could not start web server");
+	if (sock == NULL) {
+		if (ipv6)
+			return -1;
+		else
+			event_errx(1, "Could not start web server");
+	}
 
 	port = regress_get_socket_port(evhttp_bound_socket_get_fd(sock));
 	if (port < 0)
@@ -734,6 +738,7 @@ http_delete_test(void *arg)
 
 	bufferevent_free(bev);
 	evutil_closesocket(fd);
+	fd = -1;
 
 	evhttp_free(http);
 
@@ -962,6 +967,10 @@ http_connection_test_(struct basic_test_data *data, int persistent, const char *
 	test_ok = 0;
 
 	http = http_setup(&port, data->base, ipv6);
+	if (!http && ipv6) {
+		tt_skip();
+	}
+	tt_assert(http);
 
 	evcon = evhttp_connection_base_new(data->base, dnsbase, address, port);
 	tt_assert(evcon);
@@ -2743,6 +2752,7 @@ http_incomplete_test_(struct basic_test_data *data, int use_timeout)
 	bufferevent_free(bev);
 	if (use_timeout) {
 		evutil_closesocket(fd);
+		fd = -1;
 	}
 
 	evhttp_free(http);

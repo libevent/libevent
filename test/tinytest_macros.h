@@ -113,8 +113,8 @@
 #define tt_assert_test_fmt_type(a,b,str_test,type,test,printf_type,printf_fmt, \
     setup_block,cleanup_block,die_on_fail)				\
 	TT_STMT_BEGIN							\
-	type val1_ = (type)(a);						\
-	type val2_ = (type)(b);						\
+	type val1_ = (a);						\
+	type val2_ = (b);						\
 	int tt_status_ = (test);					\
 	if (!tt_status_ || tinytest_get_verbosity_()>1)	{		\
 		printf_type print_;					\
@@ -144,6 +144,10 @@
 	tt_assert_test_fmt_type(a,b,str_test,type,test,type,fmt,	\
 	    {print_=value_;},{},die_on_fail)
 
+#define tt_assert_test_type_opt(a,b,str_test,type,test,fmt,die_on_fail)	\
+	tt_assert_test_fmt_type(a,b,str_test,type,test,type,fmt,	\
+            {print_=value_?value_:"<NULL>";},{},die_on_fail)
+
 /* Helper: assert that a op b, when cast to type.  Format the values with
  * printf format fmt on failure. */
 #define tt_assert_op_type(a,op,b,type,fmt)				\
@@ -159,12 +163,23 @@
 	    (val1_ op val2_),"%lu",TT_EXIT_TEST_FUNCTION)
 
 #define tt_ptr_op(a,op,b)						\
-	tt_assert_test_type(a,b,#a" "#op" "#b,void*,			\
+	tt_assert_test_type(a,b,#a" "#op" "#b,const void*,              \
 	    (val1_ op val2_),"%p",TT_EXIT_TEST_FUNCTION)
 
 #define tt_str_op(a,op,b)						\
-	tt_assert_test_type(a,b,#a" "#op" "#b,const char *,		\
-	    (strcmp(val1_,val2_) op 0),"<%s>",TT_EXIT_TEST_FUNCTION)
+	tt_assert_test_type_opt(a,b,#a" "#op" "#b,const char *,		\
+	    (val1_ && val2_ && strcmp(val1_,val2_) op 0),"<%s>",	\
+	    TT_EXIT_TEST_FUNCTION)
+
+#define tt_mem_op(expr1, op, expr2, len)                                \
+  tt_assert_test_fmt_type(expr1,expr2,#expr1" "#op" "#expr2,            \
+			  const void *,                                 \
+			  (val1_ && val2_ && memcmp(val1_, val2_, len) op 0), \
+			  char *, "%s",					\
+			  { print_ = tinytest_format_hex_(value_, (len)); }, \
+			  { if (print_) free(print_); },		\
+			  TT_EXIT_TEST_FUNCTION				\
+                          );
 
 #define tt_want_int_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,long,(val1_ op val2_),"%ld",(void)0)
@@ -174,7 +189,7 @@
 	    (val1_ op val2_),"%lu",(void)0)
 
 #define tt_want_ptr_op(a,op,b)						\
-	tt_assert_test_type(a,b,#a" "#op" "#b,void*,			\
+  tt_assert_test_type(a,b,#a" "#op" "#b,const void*,			\
 	    (val1_ op val2_),"%p",(void)0)
 
 #define tt_want_str_op(a,op,b)						\

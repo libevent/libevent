@@ -332,6 +332,23 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 			 * on FreeBSD. */
 			case EINVAL:
 				continue;
+#if defined(__FreeBSD__)
+			/*
+			 * This currently occurs if an FD is closed
+			 * before the EV_DELETE makes it out via kevent().
+			 * The FreeBSD capabilities code sees the blank
+			 * capability set and rejects the request to
+			 * modify an event.
+			 *
+			 * To be strictly correct - when an FD is closed,
+			 * all the registered events are also removed.
+			 * Queuing EV_DELETE to a closed FD is wrong.
+			 * The event(s) should just be deleted from
+			 * the pending changelist.
+			 */
+			case ENOTCAPABLE:
+				continue;
+#endif
 
 			/* Can occur on a delete if the fd is closed. */
 			case EBADF:

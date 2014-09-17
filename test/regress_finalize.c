@@ -25,6 +25,7 @@
  */
 
 #include "event2/event-config.h"
+#include "evconfig-private.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"
 #include <stdlib.h>
