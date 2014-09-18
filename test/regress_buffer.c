@@ -819,6 +819,7 @@ test_evbuffer_add_file(void *ptr)
 	if (use_segment) {
 		tt_assert(evbuffer_add_file_segment(src, seg,
 			segment_offset, segment_len)!=-1);
+		seg = NULL; /* Avoid double-free */
 	} else {
 		tt_assert(evbuffer_add_file(src, fd, starting_offset,
 			mapping_len) != -1);
