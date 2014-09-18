@@ -1569,8 +1569,9 @@ event_process_active_single_queue(struct event_base *base,
 			event_persist_closure(base, ev);
 			break;
 		case EV_CLOSURE_EVENT: {
-			void (*evcb_callback)(evutil_socket_t, short, void *) = *ev->ev_callback;
+			void (*evcb_callback)(evutil_socket_t, short, void *);
 			EVUTIL_ASSERT(ev != NULL);
+			evcb_callback = *ev->ev_callback;
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			evcb_callback(ev->ev_fd, ev->ev_res, ev->ev_arg);
 		}
