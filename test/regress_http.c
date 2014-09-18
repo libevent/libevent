@@ -958,7 +958,8 @@ static void http_request_done(struct evhttp_request *, void *);
 static void http_request_empty_done(struct evhttp_request *, void *);
 
 static void
-http_connection_test_(struct basic_test_data *data, int persistent, const char *address, struct evdns_base *dnsbase, int ipv6)
+http_connection_test_(struct basic_test_data *data, int persistent,
+	const char *address, struct evdns_base *dnsbase, int ipv6, int family)
 {
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
@@ -974,6 +975,7 @@ http_connection_test_(struct basic_test_data *data, int persistent, const char *
 
 	evcon = evhttp_connection_base_new(data->base, dnsbase, address, port);
 	tt_assert(evcon);
+	evhttp_connection_set_family(evcon, family);
 
 	tt_assert(evhttp_connection_get_base(evcon) == data->base);
 
@@ -1047,12 +1049,12 @@ http_connection_test_(struct basic_test_data *data, int persistent, const char *
 static void
 http_connection_test(void *arg)
 {
-	http_connection_test_(arg, 0, "127.0.0.1", NULL, 0);
+	http_connection_test_(arg, 0, "127.0.0.1", NULL, 0, AF_UNSPEC);
 }
 static void
 http_persist_connection_test(void *arg)
 {
-	http_connection_test_(arg, 1, "127.0.0.1", NULL, 0);
+	http_connection_test_(arg, 1, "127.0.0.1", NULL, 0, AF_UNSPEC);
 }
 
 static struct regress_dns_server_table search_table[] = {
@@ -3758,7 +3760,7 @@ static struct regress_dns_server_table ipv6_search_table[] = {
 };
 
 static void
-http_ipv6_for_domain_test(void *arg)
+http_ipv6_for_domain_test_impl(void *arg, int family)
 {
 	struct basic_test_data *data = arg;
 	struct evdns_base *dns_base = NULL;
@@ -3775,12 +3777,18 @@ http_ipv6_for_domain_test(void *arg)
 	evutil_snprintf(address, sizeof(address), "127.0.0.1:%d", portnum);
 	evdns_base_nameserver_ip_add(dns_base, address);
 
-	http_connection_test_(arg, 0 /* not persistent */, "localhost", dns_base, 1 /* ipv6 */);
+	http_connection_test_(arg, 0 /* not persistent */, "localhost", dns_base,
+		1 /* ipv6 */, family);
 
  end:
 	if (dns_base)
 		evdns_base_free(dns_base, 0);
 	regress_clean_dnsserver();
+}
+static void
+http_ipv6_for_domain_test(void *arg)
+{
+	http_ipv6_for_domain_test_impl(arg, AF_UNSPEC);
 }
 
 static void
@@ -3846,6 +3854,22 @@ http_get_addr_test(void *arg)
 		evhttp_free(http);
 }
 
+static void
+http_set_family_test(void *arg)
+{
+	http_connection_test_(arg, 0, "127.0.0.1", NULL, 0, AF_UNSPEC);
+}
+static void
+http_set_family_ipv4_test(void *arg)
+{
+	http_connection_test_(arg, 0, "127.0.0.1", NULL, 0, AF_INET);
+}
+static void
+http_set_family_ipv6_test(void *arg)
+{
+	http_ipv6_for_domain_test_impl(arg, AF_INET6);
+}
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
 		    http_##name##_test }
@@ -3897,6 +3921,10 @@ struct testcase_t http_testcases[] = {
 
 	HTTP(ipv6_for_domain),
 	HTTP(get_addr),
+
+	HTTP(set_family),
+	HTTP(set_family_ipv4),
+	HTTP(set_family_ipv6),
 
 	END_OF_TESTCASES
 };

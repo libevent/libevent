@@ -630,6 +630,12 @@ struct evhttp_connection *evhttp_connection_base_new(
 	struct event_base *base, struct evdns_base *dnsbase,
 	const char *address, unsigned short port);
 
+/**
+ * Set family hint for DNS requests.
+ */
+void evhttp_connection_set_family(struct evhttp_connection *evcon,
+	int family);
+
 /** Takes ownership of the request object
  *
  * Can be used in a request callback to keep onto the request until
