@@ -2097,7 +2097,7 @@ test_evbuffer_copyout(void *dummy)
 	    "When the rich Allobrogenses never kept amanuenses, "
 	    "And our only plots were piled in lakes at Berne.";
 	/* -- Kipling, "In The Neolithic Age" */
-	char tmp[256];
+	char tmp[1024];
 	struct evbuffer_ptr ptr;
 	struct evbuffer *buf;
 
