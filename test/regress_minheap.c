@@ -30,12 +30,13 @@
 
 #include "tinytest.h"
 #include "tinytest_macros.h"
+#include "regress.h"
 
 static void
 set_random_timeout(struct event *ev)
 {
-	ev->ev_timeout.tv_sec = rand();
-	ev->ev_timeout.tv_usec = rand() & 0xfffff;
+	ev->ev_timeout.tv_sec = test_weakrand();
+	ev->ev_timeout.tv_usec = test_weakrand() & 0xfffff;
 	ev->ev_timeout_pos.min_heap_idx = -1;
 }
 

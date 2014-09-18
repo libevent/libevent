@@ -50,6 +50,7 @@
 #include "event2/listener.h"
 #include "event2/thread.h"
 
+static struct evutil_weakrand_state weakrand_state;
 
 static int cfg_verbose = 0;
 static int cfg_help = 0;
@@ -113,11 +114,7 @@ loud_writecb(struct bufferevent *bev, void *ctx)
 	struct client_state *cs = ctx;
 	struct evbuffer *output = bufferevent_get_output(bev);
 	char buf[1024];
-#ifdef _WIN32
-	int r = rand() % 256;
-#else
-	int r = random() % 256;
-#endif
+	int r = evutil_weakrand_(&weakrand_state);
 	memset(buf, r, sizeof(buf));
 	while (evbuffer_get_length(output) < 8192) {
 		evbuffer_add(output, buf, sizeof(buf));
@@ -552,6 +549,8 @@ main(int argc, char **argv)
 
 	(void) WSAStartup(wVersionRequested, &wsaData);
 #endif
+
+	evutil_weakrand_seed_(&weakrand_state, 0);
 
 #ifndef _WIN32
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)

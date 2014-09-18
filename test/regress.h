@@ -53,6 +53,10 @@ extern struct testcase_t listener_testcases[];
 extern struct testcase_t listener_iocp_testcases[];
 extern struct testcase_t thread_testcases[];
 
+extern struct evutil_weakrand_state test_weakrand_state;
+
+#define test_weakrand() (evutil_weakrand_(&test_weakrand_state))
+
 void regress_threads(void *);
 void test_bufferevent_zlib(void *);
 

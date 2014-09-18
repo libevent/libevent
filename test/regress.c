@@ -2296,7 +2296,7 @@ evtag_fuzz(void *ptr)
 
 	for (j = 0; j < 100; j++) {
 		for (i = 0; i < (int)sizeof(buffer); i++)
-			buffer[i] = rand();
+			buffer[i] = test_weakrand();
 		evbuffer_drain(tmp, -1);
 		evbuffer_add(tmp, buffer, sizeof(buffer));
 

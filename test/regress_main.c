@@ -90,6 +90,8 @@
 #include "../iocp-internal.h"
 #include "../event-internal.h"
 
+struct evutil_weakrand_state test_weakrand_state;
+
 long
 timeval_msec_diff(const struct timeval *start, const struct timeval *end)
 {
@@ -451,6 +453,8 @@ main(int argc, const char **argv)
 	}
 
 	tinytest_set_aliases(testaliases);
+
+	evutil_weakrand_seed_(&test_weakrand_state, 0);
 
 	if (tinytest_main(argc,argv,testgroups))
 		return 1;
