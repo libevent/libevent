@@ -659,6 +659,7 @@ request_finished(struct request *const req, struct request **head, int free_hand
 	    req->ns->requests_inflight == 0 &&
 	    req->base->disable_when_inactive) {
 		event_del(&req->ns->event);
+		evtimer_del(&req->ns->timeout_event);
 	}
 
 	if (!req->request_appended) {
