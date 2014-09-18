@@ -54,7 +54,7 @@ struct evutil_weakrand_state weakrand_state;
 static int
 rand_int(int n)
 {
-	return evutil_weakrand_(&weakrand_state);
+	return evutil_weakrand_(&weakrand_state) % n;
 }
 
 static void
