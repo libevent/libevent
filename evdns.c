@@ -3556,8 +3556,8 @@ evdns_get_default_hosts_filename(void)
 
 	if (! SHGetSpecialFolderPathA(NULL, path, CSIDL_SYSTEM, 0))
 		return NULL;
-	len_out = strlen(path)+strlen(hostfile);
-	path_out = mm_malloc(len_out+1);
+	len_out = strlen(path)+strlen(hostfile)+1;
+	path_out = mm_malloc(len_out);
 	evutil_snprintf(path_out, len_out, "%s%s", path, hostfile);
 	return path_out;
 #else
@@ -3827,16 +3827,17 @@ evdns_base_config_windows_nameservers(struct evdns_base *base)
 	if (base == NULL)
 		return -1;
 	EVDNS_LOCK(base);
+	fname = evdns_get_default_hosts_filename();
+	log(EVDNS_LOG_DEBUG, "Loading hosts entries from %s", fname);
+	evdns_base_load_hosts(base, fname);
+	if (fname)
+		mm_free(fname);
+
 	if (load_nameservers_with_getnetworkparams(base) == 0) {
 		EVDNS_UNLOCK(base);
 		return 0;
 	}
 	r = load_nameservers_from_registry(base);
-
-	fname = evdns_get_default_hosts_filename();
-	evdns_base_load_hosts(base, fname);
-	if (fname)
-		mm_free(fname);
 
 	EVDNS_UNLOCK(base);
 	return r;
