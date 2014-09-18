@@ -718,6 +718,7 @@ http_delete_test(void *arg)
 
 	http = http_setup(&port, data->base, 0);
 
+	tt_assert(http);
 	fd = http_connect("127.0.0.1", port);
 	tt_int_op(fd, >=, 0);
 
