@@ -917,7 +917,7 @@ dns_disable_when_inactive_no_ns_test(void *arg)
 
 	tt_int_op(r.result, ==, DNS_ERR_TIMEOUT);
 	tt_int_op(r.count, ==, 0);
-	tt_int_op(r.addrs, ==, NULL);
+	tt_ptr_op(r.addrs, ==, NULL);
 
 end:
 	if (dns)
