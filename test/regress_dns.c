@@ -870,8 +870,12 @@ dns_inflight_test_impl(void *arg, int flags)
 end:
 	if (dns)
 		evdns_base_free(dns, 0);
-	if (exit_port)
+	if (exit_port) {
 		evdns_close_server_port(exit_port);
+		exit_port = NULL;
+	} else if (! disable_when_inactive) {
+		evdns_close_server_port(dns_port);
+	}
 }
 
 static void
@@ -1861,6 +1865,7 @@ dbg_leak_resume(void *env_, int cancel, int send_err_shutdown)
 end:
 	evdns_base_free(env->dns_base, send_err_shutdown);
 	env->dns_base = 0;
+
 	event_base_free(env->base);
 	env->base = 0;
 }

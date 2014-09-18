@@ -382,7 +382,8 @@ thread_conditions_simple(void *arg)
 	tt_int_op(n_signal, ==, 1);
 
 end:
-	;
+	EVTHREAD_FREE_LOCK(cond.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
+	EVTHREAD_FREE_COND(cond.cond);
 }
 
 #define CB_COUNT 128

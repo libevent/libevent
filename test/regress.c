@@ -1673,7 +1673,7 @@ static void
 test_active_later(void *ptr)
 {
 	struct basic_test_data *data = ptr;
-	struct event *ev1, *ev2;
+	struct event *ev1 = NULL, *ev2 = NULL;
 	struct event ev3, ev4;
 	struct timeval qsec = {0, 100000};
 	ev1 = event_new(data->base, data->pair[0], EV_READ|EV_PERSIST, read_and_drain_cb, NULL);
@@ -1708,10 +1708,15 @@ test_active_later(void *ptr)
 	 * it. */
 	event_active_later_(&ev3, EV_READ);
 	event_base_assert_ok_(data->base);
+
+end:
+	if (ev1)
+		event_free(ev1);
+	if (ev2)
+		event_free(ev2);
+
 	event_base_free(data->base);
 	data->base = NULL;
-end:
-	;
 }
 
 

@@ -399,7 +399,7 @@ http_basic_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct timeval tv;
-	struct bufferevent *bev;
+	struct bufferevent *bev = NULL;
 	evutil_socket_t fd;
 	const char *http_request;
 	ev_uint16_t port = 0, port2 = 0;
@@ -484,7 +484,8 @@ http_basic_test(void *arg)
 
 	evhttp_free(http);
  end:
-	;
+	if (bev)
+		bufferevent_free(bev);
 }
 
 

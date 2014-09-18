@@ -3203,7 +3203,7 @@ evbuffer_add_file_segment(struct evbuffer *buf,
 	return 0;
 err:
 	EVBUFFER_UNLOCK(buf);
-	evbuffer_file_segment_free(seg);
+	evbuffer_file_segment_free(seg); /* Lowers the refcount */
 	return -1;
 }
 

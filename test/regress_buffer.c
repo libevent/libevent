@@ -819,7 +819,6 @@ test_evbuffer_add_file(void *ptr)
 	if (use_segment) {
 		tt_assert(evbuffer_add_file_segment(src, seg,
 			segment_offset, segment_len)!=-1);
-		seg = NULL; /* Avoid double-free */
 	} else {
 		tt_assert(evbuffer_add_file(src, fd, starting_offset,
 			mapping_len) != -1);
@@ -864,6 +863,10 @@ test_evbuffer_add_file(void *ptr)
 		evutil_closesocket(pair[0]);
 	if (pair[1] >= 0)
 		evutil_closesocket(pair[1]);
+	if (wev)
+		event_free(wev);
+	if (rev)
+		event_free(rev);
 	if (tmpfilename) {
 		unlink(tmpfilename);
 		free(tmpfilename);
