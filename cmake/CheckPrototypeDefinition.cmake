@@ -52,8 +52,7 @@ function(CHECK_PROTOTYPE_DEFINITION _FUNCTION _PROTOTYPE _RETURN _HEADER _VARIAB
         set(CHECK_PROTOTYPE_DEFINITION_PROTO ${_PROTOTYPE})
         set(CHECK_PROTOTYPE_DEFINITION_RETURN ${_RETURN})
 
-        # TODO: Fix this. If the Module path has more than one entry, the below will fail.
-        configure_file("${CMAKE_MODULE_PATH}/CheckPrototypeDefinition.c.in"
+        configure_file("${PROJECT_SOURCE_DIR}/cmake/CheckPrototypeDefinition.c.in"
             "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/CheckPrototypeDefinition.c" @ONLY)
 
         file(READ ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/CheckPrototypeDefinition.c _SOURCE)
