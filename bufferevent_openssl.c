@@ -1276,6 +1276,8 @@ be_openssl_ctrl(struct bufferevent *bev,
 			SSL_set_bio(bev_ssl->ssl, bio, bio);
 			bev_ssl->fd_is_set = 1;
 		}
+		if (data->fd == -1)
+			bev_ssl->fd_is_set = 0;
 		if (bev_ssl->state == BUFFEREVENT_SSL_OPEN)
 			return set_open_callbacks(bev_ssl, data->fd);
 		else {
