@@ -671,7 +671,7 @@ end:
 }
 
 static void
-dns_retry_test(void *arg)
+dns_retry_test_impl(void *arg, int flags)
 {
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
@@ -688,7 +688,7 @@ dns_retry_test(void *arg)
 	tt_assert(port);
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
 
-	dns = evdns_base_new(base, 0);
+	dns = evdns_base_new(base, flags);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 	tt_assert(! evdns_base_set_option(dns, "timeout", "0.2"));
 	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "10"));
@@ -743,6 +743,16 @@ end:
 	if (port)
 		evdns_close_server_port(port);
 }
+static void
+dns_retry_test(void *arg)
+{
+	dns_retry_test_impl(arg, 0);
+}
+static void
+dns_retry_disable_when_inactive_test(void *arg)
+{
+	dns_retry_test_impl(arg, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
+}
 
 static struct regress_dns_server_table internal_error_table[] = {
 	/* Error 4 (NOTIMPL) makes us reissue the request to another server
@@ -760,7 +770,7 @@ static struct regress_dns_server_table reissue_table[] = {
 };
 
 static void
-dns_reissue_test(void *arg)
+dns_reissue_test_impl(void *arg, int flags)
 {
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
@@ -779,7 +789,7 @@ dns_reissue_test(void *arg)
 	evutil_snprintf(buf1, sizeof(buf1), "127.0.0.1:%d", (int)portnum1);
 	evutil_snprintf(buf2, sizeof(buf2), "127.0.0.1:%d", (int)portnum2);
 
-	dns = evdns_base_new(base, 0);
+	dns = evdns_base_new(base, flags);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf1));
 	tt_assert(! evdns_base_set_option(dns, "timeout:", "0.3"));
 	tt_assert(! evdns_base_set_option(dns, "max-timeouts:", "2"));
@@ -811,6 +821,16 @@ end:
 		evdns_close_server_port(port1);
 	if (port2)
 		evdns_close_server_port(port2);
+}
+static void
+dns_reissue_test(void *arg)
+{
+	dns_reissue_test_impl(arg, 0);
+}
+static void
+dns_reissue_disable_when_inactive_test(void *arg)
+{
+	dns_reissue_test_impl(arg, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
 }
 
 #if 0
@@ -1971,7 +1991,11 @@ struct testcase_t dns_testcases[] = {
 	{ "search_cancel", dns_search_cancel_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
+	{ "retry_disable_when_inactive", dns_retry_disable_when_inactive_test,
+	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "reissue", dns_reissue_test, TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
+	{ "reissue_disable_when_inactive", dns_reissue_disable_when_inactive_test,
+	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "inflight", dns_inflight_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "bufferevent_connect_hostname", test_bufferevent_connect_hostname,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
