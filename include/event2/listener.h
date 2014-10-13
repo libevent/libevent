@@ -88,6 +88,15 @@ typedef void (*evconnlistener_errorcb)(struct evconnlistener *, void *);
  * to use the option before it is actually bound.
  */
 #define LEV_OPT_DEFERRED_ACCEPT		(1u<<6)
+/** Flag: Indicates that we ask to allow multiple servers (processes or
+ * threads) to bind to the same port if they each set the option. 
+ * 
+ * SO_REUSEPORT is what most people would expect SO_REUSEADDR to be, however
+ * SO_REUSEPORT does not imply SO_REUSEADDR.
+ *
+ * This is only available on Linux and kernel 3.9+
+ */
+#define LEV_OPT_REUSEABLE_PORT		(1u<<7)
 
 /**
    Allocate a new evconnlistener object to listen for incoming TCP connections
