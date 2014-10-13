@@ -327,6 +327,19 @@ int evutil_make_socket_nonblocking(evutil_socket_t sock);
 EVENT2_EXPORT_SYMBOL
 int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
 
+/** Do platform-specific operations to make a listener port reusable.
+
+    Specifically, we want to make sure that multiple programs which also
+    set the same socket option will be able to bind, listen at the same time.
+
+    This is a feature available only to Linux 3.9+
+
+    @param sock The socket to make reusable
+    @return 0 on success, -1 on failure
+ */
+EVENT2_EXPORT_SYMBOL
+int evutil_make_listen_socket_reuseable_port(evutil_socket_t sock);
+
 /** Do platform-specific operations as needed to close a socket upon a
     successful execution of one of the exec*() functions.
 
