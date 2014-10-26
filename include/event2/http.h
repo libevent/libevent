@@ -675,6 +675,14 @@ void evhttp_connection_set_max_body_size(struct evhttp_connection* evcon,
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_free(struct evhttp_connection *evcon);
 
+/** Disowns a given connection object
+ *
+ * Can be used to tell libevent to free the connection object after
+ * the last request has completed or failed.
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_connection_free_on_completion(struct evhttp_connection *evcon);
+
 /** sets the ip address from which http connections are made */
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_local_address(struct evhttp_connection *evcon,
