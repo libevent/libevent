@@ -1160,6 +1160,63 @@ http_connection_async_test(void *arg)
 }
 
 static void
+http_autofree_connection_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	ev_uint16_t port = 0;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req[2] = { NULL };
+
+	test_ok = 0;
+	http = http_setup(&port, data->base, 0);
+
+	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	tt_assert(evcon);
+
+	/*
+	 * At this point, we want to schedule two request to the HTTP
+	 * server using our make request method.
+	 */
+	req[0] = evhttp_request_new(http_request_empty_done, data->base);
+	req[1] = evhttp_request_new(http_request_empty_done, data->base);
+
+	/* Add the information that we care about */
+	evhttp_add_header(evhttp_request_get_output_headers(req[0]), "Host", "somehost");
+	evhttp_add_header(evhttp_request_get_output_headers(req[0]), "Connection", "close");
+	evhttp_add_header(evhttp_request_get_output_headers(req[0]), "Empty", "itis");
+	evhttp_add_header(evhttp_request_get_output_headers(req[1]), "Host", "somehost");
+	evhttp_add_header(evhttp_request_get_output_headers(req[1]), "Connection", "close");
+	evhttp_add_header(evhttp_request_get_output_headers(req[1]), "Empty", "itis");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req[0], EVHTTP_REQ_GET, "/test") == -1) {
+		tt_abort_msg("couldn't make request");
+	}
+	if (evhttp_make_request(evcon, req[1], EVHTTP_REQ_GET, "/test") == -1) {
+		tt_abort_msg("couldn't make request");
+	}
+
+	/*
+	 * Tell libevent to free the connection when the request completes
+	 *	We then set the evcon pointer to NULL since we don't want to free it
+	 *	when this function ends.
+	 */
+	evhttp_connection_free_on_completion(evcon);
+	evcon = NULL;
+
+	event_base_dispatch(data->base);
+
+	/* at this point, the http server should have no connection */
+	tt_assert(TAILQ_FIRST(&http->connections) == NULL);
+
+ end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+}
+
+static void
 http_request_never_call(struct evhttp_request *req, void *arg)
 {
 	fprintf(stdout, "FAILED\n");
@@ -3897,6 +3954,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(failure),
 	HTTP(connection),
 	HTTP(persist_connection),
+	HTTP(autofree_connection),
 	HTTP(connection_async),
 	HTTP(close_detection),
 	HTTP(close_detection_delay),
