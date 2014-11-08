@@ -151,24 +151,26 @@ main(int c, char **v) {
 		int use_getaddrinfo;
 		int servertest;
 		const char *resolv_conf;
+		const char *ns;
 	} o = { };
 	char opt;
 	struct event_base *event_base = NULL;
 	struct evdns_base *evdns_base = NULL;
 
 	if (c < 2) {
-		fprintf(stderr, "syntax: %s [-x] [-v] [-c resolv.conf] hostname\n", v[0]);
+		fprintf(stderr, "syntax: %s [-x] [-v] [-c resolv.conf] [-s ns] hostname\n", v[0]);
 		fprintf(stderr, "syntax: %s [-T]\n", v[0]);
 		return 1;
 	}
 
-	while ((opt = getopt(c, v, "xvc:T")) != -1) {
+	while ((opt = getopt(c, v, "xvc:Ts:")) != -1) {
 		switch (opt) {
 			case 'x': o.reverse = 1; break;
 			case 'v': ++verbose; break;
 			case 'g': o.use_getaddrinfo = 1; break;
 			case 'T': o.servertest = 1; break;
 			case 'c': o.resolv_conf = optarg; break;
+			case 's': o.ns = optarg; break;
 			default : fprintf(stderr, "Unknown option %c\n", opt); break;
 		}
 	}
@@ -205,10 +207,13 @@ main(int c, char **v) {
 	if (optind < c) {
 		int res;
 #ifdef _WIN32
-		if (o.resolv_conf == NULL)
+		if (o.resolv_conf == NULL && !o.ns)
 			res = evdns_base_config_windows_nameservers(evdns_base);
 		else
 #endif
+		if (o.ns)
+			res = evdns_base_nameserver_ip_add(evdns_base, o.ns);
+		else
 			res = evdns_base_resolv_conf_parse(evdns_base,
 			    DNS_OPTION_NAMESERVERS, o.resolv_conf);
 
