@@ -1331,7 +1331,7 @@ transaction_id_pick(struct evdns_base *base) {
 /* by updating the server_head global each time. */
 static struct nameserver *
 nameserver_pick(struct evdns_base *base) {
-	struct nameserver *started_at = base->server_head, *picked;
+	struct nameserver *started_at = base->server_head;
 	ASSERT_LOCKED(base);
 	if (!base->server_head) return NULL;
 
