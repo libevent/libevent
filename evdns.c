@@ -1343,22 +1343,23 @@ nameserver_pick(struct evdns_base *base) {
 	}
 
 	/* remember that nameservers are in a circular list */
+    struct nameserver* cur = base->server_head;
 	for (;;) {
-		if (base->server_head->state) {
+		if (cur->state) {
 			/* we think this server is currently good */
 			picked = base->server_head;
-			//base->server_head = base->server_head->next;
 			return picked;
 		}
 
-		base->server_head = base->server_head->next;
-		if (base->server_head == started_at) {
+        // cur is bad, move to next
+        cur = cur->next;
+
+		if (cur == started_at) {
 			/* all the nameservers seem to be down */
 			/* so we just return this one and hope for the */
 			/* best */
 			EVUTIL_ASSERT(base->global_good_nameservers == 0);
 			picked = base->server_head;
-			//base->server_head = base->server_head->next;
 			return picked;
 		}
 	}
