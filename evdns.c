@@ -1347,7 +1347,7 @@ nameserver_pick(struct evdns_base *base) {
 		if (base->server_head->state) {
 			/* we think this server is currently good */
 			picked = base->server_head;
-			base->server_head = base->server_head->next;
+			//base->server_head = base->server_head->next;
 			return picked;
 		}
 
@@ -1358,7 +1358,7 @@ nameserver_pick(struct evdns_base *base) {
 			/* best */
 			EVUTIL_ASSERT(base->global_good_nameservers == 0);
 			picked = base->server_head;
-			base->server_head = base->server_head->next;
+			//base->server_head = base->server_head->next;
 			return picked;
 		}
 	}
