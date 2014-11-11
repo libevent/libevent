@@ -1343,15 +1343,15 @@ nameserver_pick(struct evdns_base *base) {
 	}
 
 	/* remember that nameservers are in a circular list */
-    struct nameserver* cur = base->server_head;
+	struct nameserver* cur = base->server_head;
 	for (;;) {
 		if (cur->state) {
 			/* we think this server is currently good */
 			return cur;
 		}
 
-        // cur is bad, move to next
-        cur = cur->next;
+	// cur is bad, move to next
+	cur = cur->next;
 
 		if (cur == started_at) {
 			/* all the nameservers seem to be down */
