@@ -1350,8 +1350,8 @@ nameserver_pick(struct evdns_base *base) {
 			return cur;
 		}
 
-	// cur is bad, move to next
-	cur = cur->next;
+		// cur is bad, move to next
+		cur = cur->next;
 
 		if (cur == started_at) {
 			/* all the nameservers seem to be down */
