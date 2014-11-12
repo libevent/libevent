@@ -2141,31 +2141,46 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 }
 
 const char *
+evutil_sockaddr_port_(const struct sockaddr *sa, char *out, size_t outlen, int *port_ptr)
+{
+	int port = -1;
+	const char *res = NULL;
+
+	if (sa->sa_family == AF_INET) {
+		const struct sockaddr_in *sin = (const struct sockaddr_in *)sa;
+		port = ntohs(sin->sin_port);
+		res = evutil_inet_ntop(AF_INET, &sin->sin_addr, out, outlen);
+	} else if (sa->sa_family == AF_INET6) {
+		const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)sa;
+		port = ntohs(sin6->sin6_port);
+		res = evutil_inet_ntop(AF_INET6, &sin6->sin6_addr, out, outlen);
+	}
+
+	if (port_ptr) {
+		*port_ptr = port;
+	}
+
+	return res;
+}
+
+const char *
 evutil_format_sockaddr_port_(const struct sockaddr *sa, char *out, size_t outlen)
 {
 	char b[128];
-	const char *res=NULL;
 	int port;
-	if (sa->sa_family == AF_INET) {
-		const struct sockaddr_in *sin = (const struct sockaddr_in*)sa;
-		res = evutil_inet_ntop(AF_INET, &sin->sin_addr,b,sizeof(b));
-		port = ntohs(sin->sin_port);
-		if (res) {
-			evutil_snprintf(out, outlen, "%s:%d", b, port);
-			return out;
-		}
-	} else if (sa->sa_family == AF_INET6) {
-		const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6*)sa;
-		res = evutil_inet_ntop(AF_INET6, &sin6->sin6_addr,b,sizeof(b));
-		port = ntohs(sin6->sin6_port);
-		if (res) {
-			evutil_snprintf(out, outlen, "[%s]:%d", b, port);
-			return out;
-		}
+	const char *res = evutil_sockaddr_port_(sa, b, sizeof(b), &port);
+
+	if (!res) {
+		evutil_snprintf(out, outlen, "<addr with socktype %d>",
+		    (int)sa->sa_family);
+		return out;
 	}
 
-	evutil_snprintf(out, outlen, "<addr with socktype %d>",
-	    (int)sa->sa_family);
+	if (sa->sa_family == AF_INET) {
+		evutil_snprintf(out, outlen, "%s:%d", b, port);
+	} else if (sa->sa_family == AF_INET6) {
+		evutil_snprintf(out, outlen, "[%s]:%d", b, port);
+	}
 	return out;
 }
 

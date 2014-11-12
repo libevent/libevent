@@ -378,6 +378,7 @@ int evutil_getaddrinfo_async_(struct evdns_base *dns_base,
 int evutil_sockaddr_is_loopback_(const struct sockaddr *sa);
 
 
+const char *evutil_sockaddr_port_(const struct sockaddr *sa, char *out, size_t outlen, int *port_ptr);
 /**
     Formats a sockaddr sa into a string buffer of size outlen stored in out.
     Returns a pointer to out.  Always writes something into out, so it's safe
