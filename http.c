@@ -2373,6 +2373,9 @@ int
 evhttp_connection_connect_(struct evhttp_connection *evcon)
 {
 	int old_state = evcon->state;
+	char addrbuf[128];
+	const char *address = evcon->address;
+	const struct sockaddr *ip_address = evhttp_connection_get_addr(evcon);
 
 	if (evcon->state == EVCON_CONNECTING)
 		return (0);
@@ -2413,8 +2416,12 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 
 	evcon->state = EVCON_CONNECTING;
 
+	if (ip_address &&
+		evutil_sockaddr_port_(ip_address, addrbuf, sizeof(addrbuf), NULL))
+		address = addrbuf;
+
 	if (bufferevent_socket_connect_hostname(evcon->bufev, evcon->dns_base,
-		evcon->ai_family, evcon->address, evcon->port) < 0) {
+		evcon->ai_family, address, evcon->port) < 0) {
 		evcon->state = old_state;
 		event_sock_warn(evcon->fd, "%s: connection to \"%s\" failed",
 		    __func__, evcon->address);
