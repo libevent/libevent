@@ -2418,6 +2418,9 @@ int
 evhttp_connection_connect_(struct evhttp_connection *evcon)
 {
 	int old_state = evcon->state;
+	const char *address = evcon->address;
+	const struct sockaddr *sa = evhttp_connection_get_addr(evcon);
+	int ret;
 
 	if (evcon->state == EVCON_CONNECTING)
 		return (0);
@@ -2458,8 +2461,20 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 
 	evcon->state = EVCON_CONNECTING;
 
-	if (bufferevent_socket_connect_hostname(evcon->bufev, evcon->dns_base,
-		evcon->ai_family, evcon->address, evcon->port) < 0) {
+	if (sa && (sa->sa_family == AF_INET || sa->sa_family == AF_INET6)) {
+		int socklen;
+		if (sa->sa_family == AF_INET) {
+			socklen = sizeof(struct sockaddr_in);
+		} else if (sa->sa_family == AF_INET6) {
+			socklen = sizeof(struct sockaddr_in6);
+		}
+		ret = bufferevent_socket_connect(evcon->bufev, sa, socklen);
+	} else {
+		ret = bufferevent_socket_connect_hostname(evcon->bufev,
+				evcon->dns_base, evcon->ai_family, address, evcon->port);
+	}
+
+	if (ret < 0) {
 		evcon->state = old_state;
 		event_sock_warn(evcon->fd, "%s: connection to \"%s\" failed",
 		    __func__, evcon->address);
