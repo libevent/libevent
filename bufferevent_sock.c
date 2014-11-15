@@ -106,29 +106,21 @@ bufferevent_socket_get_conn_address_(struct bufferevent *bev)
 	struct bufferevent_private *bev_p =
 	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
 
-	return (struct sockaddr *)bev_p->conn_address;
+	return (struct sockaddr *)&bev_p->conn_address;
 }
 static void
 bufferevent_socket_set_conn_address_fd(struct bufferevent_private *bev_p, int fd)
 {
-	socklen_t len = sizeof(*bev_p->conn_address);
+	socklen_t len = sizeof(bev_p->conn_address);
 
-	if (!bev_p->conn_address) {
-		bev_p->conn_address = mm_malloc(sizeof(*bev_p->conn_address));
-	}
-	if (getpeername(fd, (struct sockaddr *)bev_p->conn_address, &len)) {
-		mm_free(bev_p->conn_address);
-		bev_p->conn_address = NULL;
-	}
+	struct sockaddr *addr = (struct sockaddr *)&bev_p->conn_address;
+	getpeername(fd, addr, &len);
 }
 static void
 bufferevent_socket_set_conn_address(struct bufferevent_private *bev_p,
 	struct sockaddr *addr, size_t addrlen)
 {
-	if (!bev_p->conn_address) {
-		bev_p->conn_address = mm_malloc(sizeof(*bev_p->conn_address));
-	}
-	memcpy(bev_p->conn_address, addr, addrlen);
+	memcpy(&bev_p->conn_address, addr, addrlen);
 }
 
 static void
@@ -623,9 +615,6 @@ be_socket_destruct(struct bufferevent *bufev)
 
 	if ((bufev_p->options & BEV_OPT_CLOSE_ON_FREE) && fd >= 0)
 		EVUTIL_CLOSESOCKET(fd);
-
-	mm_free(bufev_p->conn_address);
-	bufev_p->conn_address = NULL;
 }
 
 static int
