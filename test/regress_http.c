@@ -3269,7 +3269,7 @@ http_make_web_server(evutil_socket_t fd, short what, void *arg)
 }
 
 static void
-http_connection_retry_test(void *arg)
+http_connection_retry_test_impl(void *arg, const char *addr, struct evdns_base *dns_base)
 {
 	struct basic_test_data *data = arg;
 	ev_uint16_t port = 0;
@@ -3285,7 +3285,7 @@ http_connection_retry_test(void *arg)
 	evhttp_free(http);
 	http = NULL;
 
-	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	evcon = evhttp_connection_base_new(data->base, dns_base, addr, port);
 	tt_assert(evcon);
 
 	evhttp_connection_set_timeout(evcon, 1);
@@ -3320,6 +3320,9 @@ http_connection_retry_test(void *arg)
 	 * now test the same but with retries
 	 */
 	test_ok = 0;
+	/** Shutdown dns server, to test conn_address reusing */
+	if (dns_base)
+		regress_clean_dnsserver();
 
 	{
 		const struct timeval tv_timeout = { 0, 500000 };
@@ -3390,6 +3393,37 @@ http_connection_retry_test(void *arg)
 		evhttp_connection_free(evcon);
 	if (http)
 		evhttp_free(http);
+}
+
+static void
+http_connection_retry_conn_address_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	ev_uint16_t portnum = 0;
+	struct evdns_base *dns_base;
+	char address[64];
+
+	tt_assert(regress_dnsserver(data->base, &portnum, search_table));
+	dns_base = evdns_base_new(data->base, 0/* init name servers */);
+	tt_assert(dns_base);
+
+	/* Add ourself as the only nameserver, and make sure we really are
+	 * the only nameserver. */
+	evutil_snprintf(address, sizeof(address), "127.0.0.1:%d", portnum);
+	evdns_base_nameserver_ip_add(dns_base, address);
+
+	http_connection_retry_test_impl(arg, "localhost", dns_base);
+
+ end:
+	if (dns_base)
+		evdns_base_free(dns_base, 0);
+	/** dnsserver will be cleaned in http_connection_retry_test_impl() */
+}
+
+static void
+http_connection_retry_test(void *arg)
+{
+	return http_connection_retry_test_impl(arg, "127.0.0.1", NULL);
 }
 
 static void
@@ -3918,6 +3952,8 @@ struct testcase_t http_testcases[] = {
 
 	HTTP(connection_fail),
 	{ "connection_retry", http_connection_retry_test, TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
+	{ "connection_retry_conn_address", http_connection_retry_conn_address_test,
+	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 
 	HTTP(data_length_constraints),
 
