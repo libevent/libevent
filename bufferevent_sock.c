@@ -100,6 +100,37 @@ const struct bufferevent_ops bufferevent_ops_socket = {
 #define be_socket_add(ev, t)			\
 	bufferevent_add_event_((ev), (t))
 
+const struct sockaddr*
+bufferevent_socket_get_conn_address_(struct bufferevent *bev)
+{
+	struct bufferevent_private *bev_p =
+	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+
+	return (struct sockaddr *)bev_p->conn_address;
+}
+static void
+bufferevent_socket_set_conn_address_fd(struct bufferevent_private *bev_p, int fd)
+{
+	socklen_t len = sizeof(*bev_p->conn_address);
+
+	if (!bev_p->conn_address) {
+		bev_p->conn_address = mm_malloc(sizeof(*bev_p->conn_address));
+	}
+	if (getpeername(fd, (struct sockaddr *)bev_p->conn_address, &len)) {
+		mm_free(bev_p->conn_address);
+		bev_p->conn_address = NULL;
+	}
+}
+static void
+bufferevent_socket_set_conn_address(struct bufferevent_private *bev_p,
+	struct sockaddr *addr, size_t addrlen)
+{
+	if (!bev_p->conn_address) {
+		bev_p->conn_address = mm_malloc(sizeof(*bev_p->conn_address));
+	}
+	memcpy(bev_p->conn_address, addr, addrlen);
+}
+
 static void
 bufferevent_socket_outbuf_cb(struct evbuffer *buf,
     const struct evbuffer_cb_info *cbinfo,
@@ -239,6 +270,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 			goto done;
 		} else {
 			connected = 1;
+			bufferevent_socket_set_conn_address_fd(bufev_p, fd);
 #ifdef _WIN32
 			if (BEV_IS_ASYNC(bufev)) {
 				event_del(&bufev->ev_write);
@@ -457,6 +489,7 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 
 	/* XXX use the other addrinfos? */
 	/* XXX use this return value */
+	bufferevent_socket_set_conn_address(bev_p, ai->ai_addr, (int)ai->ai_addrlen);
 	r = bufferevent_socket_connect(bev, ai->ai_addr, (int)ai->ai_addrlen);
 	(void)r;
 	bufferevent_decref_and_unlock_(bev);
@@ -590,6 +623,9 @@ be_socket_destruct(struct bufferevent *bufev)
 
 	if ((bufev_p->options & BEV_OPT_CLOSE_ON_FREE) && fd >= 0)
 		EVUTIL_CLOSESOCKET(fd);
+
+	mm_free(bufev_p->conn_address);
+	bufev_p->conn_address = NULL;
 }
 
 static int
