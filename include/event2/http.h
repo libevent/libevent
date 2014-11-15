@@ -720,7 +720,7 @@ void evhttp_connection_get_peer(struct evhttp_connection *evcon,
     char **address, ev_uint16_t *port);
 
 /** Get the remote address associated with this connection.
- * extracted from getpeername().
+ * extracted from getpeername() OR from nameserver.
  *
  * @return NULL if getpeername() return non success,
  * or connection is not connected,

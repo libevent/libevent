@@ -1168,9 +1168,6 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	if (evcon->address != NULL)
 		mm_free(evcon->address);
 
-	if (evcon->conn_address != NULL)
-		mm_free(evcon->conn_address);
-
 	mm_free(evcon);
 }
 
@@ -1407,7 +1404,6 @@ evhttp_connection_cb(struct bufferevent *bufev, short what, void *arg)
 	struct evhttp_connection *evcon = arg;
 	int error;
 	ev_socklen_t errsz = sizeof(error);
-	socklen_t conn_address_len = sizeof(*evcon->conn_address);
 
 	if (evcon->fd == -1)
 		evcon->fd = bufferevent_getfd(bufev);
@@ -1457,14 +1453,6 @@ evhttp_connection_cb(struct bufferevent *bufev, short what, void *arg)
 	/* Reset the retry count as we were successful in connecting */
 	evcon->retry_cnt = 0;
 	evcon->state = EVCON_IDLE;
-
-	if (!evcon->conn_address) {
-		evcon->conn_address = mm_malloc(sizeof(*evcon->conn_address));
-	}
-	if (getpeername(evcon->fd, (struct sockaddr *)evcon->conn_address, &conn_address_len)) {
-		mm_free(evcon->conn_address);
-		evcon->conn_address = NULL;
-	}
 
 	/* reset the bufferevent cbs */
 	bufferevent_setcb(evcon->bufev,
@@ -2378,7 +2366,7 @@ evhttp_connection_get_peer(struct evhttp_connection *evcon,
 const struct sockaddr*
 evhttp_connection_get_addr(struct evhttp_connection *evcon)
 {
-	return (struct sockaddr *)evcon->conn_address;
+	return bufferevent_socket_get_conn_address_(evcon->bufev);
 }
 
 int

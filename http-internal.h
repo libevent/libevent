@@ -100,13 +100,6 @@ struct evhttp_connection {
 	struct event_base *base;
 	struct evdns_base *dns_base;
 	int ai_family;
-
-	/* Saved conn_addr, to extract IP address from it.
-	 *
-	 * Because some servers may reset/close connection without waiting clients,
-	 * in that case we can't extract IP address even in close_cb.
-	 * So we need to save it, just after we connected to remote server. */
-	struct sockaddr_storage *conn_address;
 };
 
 /* A callback for an http server */

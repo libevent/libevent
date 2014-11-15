@@ -205,6 +205,15 @@ struct bufferevent_private {
 
 	/** Rate-limiting information for this bufferevent */
 	struct bufferevent_rate_limit *rate_limiting;
+
+	/* Saved conn_addr, to extract IP address from it.
+	 *
+	 * Because some servers may reset/close connection without waiting clients,
+	 * in that case we can't extract IP address even in close_cb.
+	 * So we need to save it, just after we connected to remote server, or
+	 * after resolving (to avoid extra dns requests during retrying, since UDP
+	 * is slow) */
+	struct sockaddr_storage *conn_address;
 };
 
 /** Possible operations for a control callback. */
@@ -388,6 +397,9 @@ void bufferevent_init_generic_timeout_cbs_(struct bufferevent *bev);
 int bufferevent_generic_adj_timeouts_(struct bufferevent *bev);
 
 enum bufferevent_options bufferevent_get_options_(struct bufferevent *bev);
+
+const struct sockaddr*
+bufferevent_socket_get_conn_address_(struct bufferevent *bev);
 
 /** Internal use: We have just successfully read data into an inbuf, so
  * reset the read timeout (if any). */
