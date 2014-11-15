@@ -114,7 +114,8 @@ bufferevent_socket_set_conn_address_fd(struct bufferevent_private *bev_p, int fd
 	socklen_t len = sizeof(bev_p->conn_address);
 
 	struct sockaddr *addr = (struct sockaddr *)&bev_p->conn_address;
-	getpeername(fd, addr, &len);
+	if (addr->sa_family != AF_UNSPEC)
+		getpeername(fd, addr, &len);
 }
 static void
 bufferevent_socket_set_conn_address(struct bufferevent_private *bev_p,
