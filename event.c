@@ -993,6 +993,21 @@ done:
 	return (res);
 }
 
+/* Get the monotonic time for this event_base' timer */
+int
+event_gettime_monotonic(struct event_base *base, struct timeval *tv)
+{
+  int rv = -1;
+
+  if (base && tv) {
+    EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+    rv = evutil_gettime_monotonic_(&(base->monotonic_timer), tv);
+    EVBASE_RELEASE_LOCK(base, th_base_lock);
+  }
+
+  return rv;
+}
+
 const char **
 event_get_supported_methods(void)
 {

@@ -86,9 +86,6 @@ struct evutil_monotonic_timer {
 	struct timeval last_time;
 };
 
-#define EV_MONOT_PRECISE  1
-#define EV_MONOT_FALLBACK 2
-
 int evutil_configure_monotonic_time_(struct evutil_monotonic_timer *mt,
     int flags);
 int evutil_gettime_monotonic_(struct evutil_monotonic_timer *mt, struct timeval *tv);

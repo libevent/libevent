@@ -396,6 +396,12 @@ const char *event_base_get_method(const struct event_base *);
 EVENT2_EXPORT_SYMBOL
 const char **event_get_supported_methods(void);
 
+/** Query the current monotonic time from a the timer for a struct
+ * event_base.
+ */
+EVENT2_EXPORT_SYMBOL
+int event_gettime_monotonic(struct event_base *base, struct timeval *tp);
+
 /**
    @name event type flag
 

@@ -54,6 +54,7 @@
 #include "event2/util.h"
 #include "util-internal.h"
 #include "log-internal.h"
+#include "mm-internal.h"
 
 #ifndef EVENT__HAVE_GETTIMEOFDAY
 /* No gettimeofday; this must be windows. */
@@ -159,6 +160,55 @@ adjust_monotonic_time(struct evutil_monotonic_timer *base,
 	}
 	base->last_time = *tv;
 }
+
+/*
+   Allocate a new struct evutil_monotonic_timer
+ */
+struct evutil_monotonic_timer *
+evutil_monotonic_timer_new(void)
+{
+  struct evutil_monotonic_timer *p = NULL;
+
+  p = mm_malloc(sizeof(*p));
+  if (!p) goto done;
+
+  memset(p, 0, sizeof(*p));
+
+ done:
+  return p;
+}
+
+/*
+   Free a struct evutil_monotonic_timer
+ */
+void
+evutil_monotonic_timer_free(struct evutil_monotonic_timer *timer)
+{
+  if (timer) {
+    mm_free(timer);
+  }
+}
+
+/*
+   Set up a struct evutil_monotonic_timer for initial use
+ */
+int
+evutil_configure_monotonic_time(struct evutil_monotonic_timer *timer,
+                                int flags)
+{
+  return evutil_configure_monotonic_time_(timer, flags);
+}
+
+/*
+   Query the current monotonic time
+ */
+int
+evutil_gettime_monotonic(struct evutil_monotonic_timer *timer,
+                         struct timeval *tp)
+{
+  return evutil_gettime_monotonic_(timer, tp);
+}
+
 
 #if defined(HAVE_POSIX_MONOTONIC)
 /* =====
