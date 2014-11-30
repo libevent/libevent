@@ -2175,7 +2175,10 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 		log(EVDNS_LOG_DEBUG, "Giving up on request %p; tx_count==%d",
 		    arg, req->tx_count);
 		reply_schedule_callback(req, 0, DNS_ERR_TIMEOUT, NULL);
+
+		struct nameserver *ns = req->ns;
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
+		nameserver_failed(ns, "request timed out.");
 	} else {
 		/* retransmit it */
 		log(EVDNS_LOG_DEBUG, "Retransmitting request %p; tx_count==%d",
@@ -2183,12 +2186,12 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 		(void) evtimer_del(&req->timeout_event);
 		request_swap_ns(req, nameserver_pick(base));
 		evdns_request_transmit(req);
-	}
 
-	req->ns->timedout++;
-	if (req->ns->timedout > req->base->global_max_nameserver_timeout) {
-		req->ns->timedout = 0;
-		nameserver_failed(req->ns, "request timed out.");
+		req->ns->timedout++;
+		if (req->ns->timedout > req->base->global_max_nameserver_timeout) {
+			req->ns->timedout = 0;
+			nameserver_failed(req->ns, "request timed out.");
+		}
 	}
 
 	EVDNS_UNLOCK(base);
