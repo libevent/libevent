@@ -1864,6 +1864,14 @@ test_evbuffer_peek_first_gt(void *info)
 	/** Just in case */
 	tt_int_op(evbuffer_peek(buf, -1, &ptr, v, 2), ==, 2);
 
+	evbuffer_ptr_set(buf, &ptr, 20, EVBUFFER_PTR_ADD);
+	tt_int_op(evbuffer_peek(buf, -1, &ptr, NULL, 0), ==, 2);
+	tt_int_op(evbuffer_peek(buf, -1, &ptr, v, 2), ==, 2);
+	tt_int_op(evbuffer_peek(buf, 2, &ptr, NULL, 0), ==, 1);
+	tt_int_op(evbuffer_peek(buf, 2, &ptr, v, 2), ==, 1);
+	tt_int_op(evbuffer_peek(buf, 3, &ptr, NULL, 0), ==, 2);
+	tt_int_op(evbuffer_peek(buf, 3, &ptr, v, 2), ==, 2);
+
 end:
 	if (buf)
 		evbuffer_free(buf);
