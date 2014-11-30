@@ -2740,6 +2740,9 @@ evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
 	}
 
 	if (n_vec == 0 && len < 0) {
+		if (start_at) {
+			len_so_far = 0;
+		}
 		/* If no vectors are provided and they asked for "everything",
 		 * pretend they asked for the actual available amount. */
 		len = buffer->total_len - len_so_far;
