@@ -1285,6 +1285,7 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 {
 	struct evcon_requestq requests;
 
+	evhttp_connection_reset_(evcon);
 	if (evcon->retry_max < 0 || evcon->retry_cnt < evcon->retry_max) {
 		struct timeval tv_retry = evcon->initial_retry_timeout;
 		int i;
@@ -1306,7 +1307,6 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 		evcon->retry_cnt++;
 		return;
 	}
-	evhttp_connection_reset_(evcon);
 
 	/*
 	 * User callback can do evhttp_make_request() on the same
