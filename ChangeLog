@@ -1,4 +1,7 @@
 Changes in 1.4.15-stable
+
+(as of 641d0d88dc0db734be5a3f207e94c468c5730091)
+
  o Pass flags to fcntl(F_SETFL) as int, not long (b3d0382)
  o Backport and tweak the LICENSE file for 1.4 (8a5ebd3)
  o set close-on-exec bit for filedescriptors created by dns subsystem (9985231 Ralf Schmitt)
@@ -12,7 +15,7 @@ Changes in 1.4.15-stable
 
 Changes in 1.4.14b-stable
  o Set the VERSION_INFO correctly for 1.4.14
- 
+
 
 Changes in 1.4.14-stable
  o Add a .gitignore file for the 1.4 branch. (d014edb)
