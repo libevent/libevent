@@ -1,5 +1,18 @@
+Changes in 1.4.15-stable
+ o Pass flags to fcntl(F_SETFL) as int, not long (b3d0382)
+ o Backport and tweak the LICENSE file for 1.4 (8a5ebd3)
+ o set close-on-exec bit for filedescriptors created by dns subsystem (9985231 Ralf Schmitt)
+ o Replace unused case of FD_CLOSEONEXEC with a proper null statement. (44f04a2)
+ o Fix kqueue correctness test on x84_64 (1c25b07)
+ o Avoid deadlock when activating signals. (e0e6958)
+ o Backport doc fix for evhttp_bind_socket. (95b71d0 Marco)
+ o Fix an issue with forking and signal socketpairs in select/poll backends (f0ff765)
+ o Fix compilation on Visual Studio 2010 (53c47c2 VDm)
+
+
 Changes in 1.4.14b-stable
  o Set the VERSION_INFO correctly for 1.4.14
+ 
 
 Changes in 1.4.14-stable
  o Add a .gitignore file for the 1.4 branch. (d014edb)
