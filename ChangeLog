@@ -1,6 +1,6 @@
-Changes in version 2.0.22-stable (?? Dec 2013)
+Changes in version 2.0.22-stable (?? Dec 2014)
 
- (As of 3b77d62829c4393bda6f9105a5d3b73b48a64b71.)
+  (As of 3c7d6fcaff330ff0f18e776da84ed836bf580d45)
 
 BUGFIXES (evhttp)
  o fix #73 and fix http_connection_fail_test to catch it (crash fix) (b618204 Greg Hazel)
@@ -16,6 +16,7 @@ BUGFIXES (compilation and portability)
  o Use windows vsnprintf fixup logic on all windows environments (e826f19)
  o Fix a compiler warning when checking for arc4random_buf linker breakage. (5cb3865)
  o Fix another arc4random_buf-related warning (e64a2b0)
+ o Add -Qunused-arguments for clang on macos (b56611d Trond Norbye)
 
 BUGFIXES (resource leaks/lock errors on error)
  o Avoid leaking fds on evconnlistener with no callback set (69db261)
@@ -23,15 +24,28 @@ BUGFIXES (resource leaks/lock errors on error)
  o Fix a locking error in bufferevent_socket_get_dns_error. (0a5eb2e)
  o libevent/win32_dealloc() : fix sizeof(pointer) vs sizeof(*pointer) (b8f5980 Frank Denis)
 
+BUGFIXES: (other stability)
+ o bufferevent_pair: don't call downcast(NULL) (f2428a2)
+ o Consistently check for failure from evbuffer_pullup() (60f8f72)
+ o Fix race caused by event_active (3c7d6fc vjpai)
+
 BUGFIXES (miscellaneous)
- o Avoid other RNG initialization FS reads when urandom file is specified (9695e9c, bb52471)
  o Avoid redundant invocations of init_extension_functions for IOCP (3b77d62)
+ o Typo fixes from Linus Nordberg (cec62cb, 8cd695b)
+ o Add a few files created by "make verify" to .gitignore. (1a8295a Pierre Phaneuf)
+ o regress_buffer: fix 'memcmp' compare size (79800df Maks Naumov)
+ o Fix bufferevent setwatermark suspend_read (b34e4ac ufo2243)
 
 BUFGIXES (evdns)
  o Checking request nameserver for NULL, before using it. (5c710c0 Belobrov Andrey)
  o Fix SEGFAULT after evdns_base_resume if no nameservers installed. (f8d7df8 Azat Khuzhin)
+ o Fix a crash in evdns related to shutting down evdns (9f39c88,e8fe749)
+
+BUGFIXES (epoll)
+ o Check does arch have the epoll_create and __NR_epoll_wait syscalls. (dfe1e52 Marcin Juszkiewicz)
 
 BUGFIXES (evutil_secure_random)
+ o Avoid other RNG initialization FS reads when urandom file is specified (9695e9c, bb52471)
  o When we seed from /proc/sys/kernel/random/uuid, count it as success (e35b540)
  o Document that arc4random is not a great cryptographic PRNG. (6e49696)
  o Add evutil_secure_rng_set_urandom_device_file (2bbb5d7)
@@ -41,7 +55,8 @@ BUGFIXES (evutil_secure_random)
 DOCUMENTATION FIXES
  o Fix a mistake in evbuffer_remove() arguments in example http server code (c322c20 Gyepi Sam)
  o Fix a typo in a comment in buffer.h. Spotted by Alt_F4 (773b0a5)
-
+ o Clarify event_base_loop exit conditions (031a803)
+ o Use FindClose for handle from FindFirstFile in http-server.c (6466e88)
 
 
 Changes in version 2.0.21-stable (18 Nov 2012)
