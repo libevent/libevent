@@ -769,6 +769,7 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 {
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	int con_outgoing = evcon->flags & EVHTTP_CON_OUTGOING;
+	int free_evcon = 0;
 
 	if (con_outgoing) {
 		/* idle or close the connection */
@@ -801,6 +802,12 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 			 * need to detect if the other side closes it.
 			 */
 			evhttp_connection_start_detectclose(evcon);
+		} else if ((evcon->flags & EVHTTP_CON_AUTOFREE)) {
+			/*
+			 * If we have no more requests that need completion
+			 * and we're not waiting for the connection to close
+			 */
+			 free_evcon = 1;
 		}
 	} else {
 		/*
@@ -818,6 +825,16 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 	 */
 	if (con_outgoing && ((req->flags & EVHTTP_USER_OWNED) == 0)) {
 		evhttp_request_free(req);
+	}
+
+	/* If this was the last request of an outgoing connection and we're
+	 * not waiting to receive a connection close event and we want to
+	 * automatically free the connection. We check to ensure our request
+	 * list is empty one last time just in case our callback added a
+	 * new request.
+	 */
+	if (free_evcon && TAILQ_FIRST(&evcon->requests) == NULL) {
+		evhttp_connection_free(evcon);
 	}
 }
 
@@ -1175,6 +1192,11 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 }
 
 void
+evhttp_connection_free_on_completion(struct evhttp_connection *evcon) {
+	evcon->flags |= EVHTTP_CON_AUTOFREE;
+}
+
+void
 evhttp_connection_set_local_address(struct evhttp_connection *evcon,
     const char *address)
 {
@@ -1243,6 +1265,7 @@ evhttp_connection_reset_(struct evhttp_connection *evcon)
 
 		shutdown(evcon->fd, EVUTIL_SHUT_WR);
 		evutil_closesocket(evcon->fd);
+		bufferevent_setfd(evcon->bufev, -1);
 		evcon->fd = -1;
 	}
 
@@ -1385,6 +1408,17 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 		 */
 		EVUTIL_ASSERT(evcon->state == EVCON_IDLE);
 		evhttp_connection_reset_(evcon);
+
+		/*
+		 * If we have no more requests that need completion
+		 * and we want to auto-free the connection when all
+		 * requests have been completed.
+		 */
+		if (TAILQ_FIRST(&evcon->requests) == NULL
+		  && (evcon->flags & EVHTTP_CON_OUTGOING)
+		  && (evcon->flags & EVHTTP_CON_AUTOFREE)) {
+			evhttp_connection_free(evcon);
+		}
 		return;
 	}
 
