@@ -35,6 +35,13 @@ Makefile.in
 ## The initial / makes these files only get ignored in particular directories.
 /autom4te.cache
 
+# Libtool adds these, at least sometimes
+/m4/libtool.m4
+/m4/ltoptions.m4
+/m4/ltsugar.m4
+/m4/ltversion.m4
+/m4/lt~obsolete.m4
+
 /aclocal.m4
 /config.guess
 /config.log
@@ -45,11 +52,12 @@ Makefile.in
 /config.h
 /config.h.in
 /event-config.h
+/install-sh
 /libtool
 /ltmain.sh
+/mkinstalldirs
+/missing
 /stamp-h1
-
-/m4
 
 /sample/event-test
 /sample/signal-test

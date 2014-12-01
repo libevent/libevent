@@ -6,6 +6,8 @@ AM_INIT_AUTOMAKE(libevent,1.4.14b-stable)
 AM_CONFIG_HEADER(config.h)
 dnl AM_MAINTAINER_MODE
 
+AC_CONFIG_MACRO_DIR([m4])
+
 AC_CANONICAL_HOST
 
 AC_DEFINE(NUMERIC_VERSION, 0x01040e00, [Numeric representation of the version])
