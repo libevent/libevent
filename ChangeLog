@@ -1,4 +1,91 @@
-Changes in version 2.1.5-alpha (?? ??? 2014)
+Changes in version 2.1.5-alpha (?? Dec 2014)
+
+ (As of 7fd4941465e42ec46721150e7ccf1aa2d2bf670b)
+
+ New APIs (evconnlistener)
+   o Provide support for SO_REUSEPORT through LEV_OPT_REUSABLE_PORT (b625361 Maciej Soltysiak)
+
+ Bugfixes (core)
+    o Fix use-after-free error in EV_CLOSURE_EVENT callback (3cc0eac John Ohl)
+
+ Bugfixes (evbuffer)
+   o Fix evbuffer_peek() with len==-1 and start_at non-NULL. (ba59923)
+   o Consistently check for failure from evbuffer_pullup() (60f8f72)
+
+ Bugfixes (windows, IOCP)
+   o be async: avoid double close() (f133b86 Azat Khuzhin)
+
+ Bugfixes (bufferevents)
+   o Fix issue #127, double free for filterevents that use BEV_OPT_CLOSE_ON_FREE (2c82aa0 John Ohl)
+   o make bufferevent_getwatermark api more robust (a21e510 ufo2243)
+   o [Bugfix] fix bufferevent setwatermark suspend_read (b34e4ac ufo2243)
+   o bufferevent_openssl: reset fd_is_set when setfd with -1 is called (3da84c2 Azat Khuzhin)
+   o Fix compilation for older OpenSSL versions. (5c7282f Joakim Soderberg)
+
+ New APIs (evhttp)
+   o Add evhttp_connection_set_family() to set addrinfo->family for DNS requests (12c29b0 Azat Khuzhin)
+   o Implement interface that provides the ability to have an outbound evhttp_connection free itself once all requests have completed (2b9ec4c,10fe4f John Ohl)
+
+ Bugfixes (evdns)
+   o Load hosts file on Windows. (a0b247c Vilmos Nebehaj)
+   o Don't truncate hosts file path on Windows. (d0dc861 Vilmos Nebehaj)
+   o Fix a crash in evdns related to shutting down evdns (9f39c88,e8fe749)
+   o evdns: avoid read-after-free in evdns_request_timeout_callback() (61262a0 Azat Khuzhin)
+   o Correctly handle allocation failures in evdns_getaddrinfo (6a53d15)
+   o evdns: fix EVDNS_BASE_DISABLE_WHEN_INACTIVE in case retransmit/retry (74d0eee Azat Khuzhin)
+   o evdns: add retry/reissue tests for EVDNS_BASE_DISABLE_WHEN_INACTIVE (3ca9d43 Azat Khuzhin)
+   o evdns: fail ns after we are failing/retrasmitting request (97c750d Azat Khuzhin)
+
+ Bugfixes (evhttp)
+   o http: reset connection before installing retry timer (fix http retries handling) (bc79cc5 Azat Khuzhin)
+
+
+ Testing
+   o regress_dns: fix leaks in getaddrinfo_async{,_cancel_stress} tests (2fdc5f2 Azat Khuzhin)
+   o test: add family argument for http_connection_test_() (177b8a7 Azat Khuzhin)
+   o test: add regress for evhttp_connection_set_family() with AF_INET and AF_UNSPEC (42aefeb Azat Khuzhin)
+   o test/http: add regress test for set family to AF_INET6 (3fbf3cc Azat Khuzhin)
+   o Update to a more recent tinytest_macros. (8da5a18)
+   o test/regress: add simplestsignal: to track reorder bugs separately (b897bef Azat Khuzhin)
+   o test/evbuffer_peek: add regress in case we have first buffer greater (e2d139d Azat Khuzhin)
+   o More evbuffer_peek() test cases (154006a)
+   o use correct tt macro for pointer compare (08c88ea)
+   o regress_buffer: fix 'memcmp' compare size (79800df Maks Naumov)
+   o Fix a use-after-free in unit tests. CID 752027 (3739057)
+   o Fix a dead-code warning in unit tests. CID 1193548 (c119f24)
+   o Use evutil_weakrand() in unit tests. (a677b72, 364c110)
+   o Use a more precise calculation for max in time-ratelim.c (ca5b5c7)
+   o Make a buffer larger in the tests to avoid a scary evbuffer_copyout_from() (fb57b8b)
+   o Fix several memory leaks in the unit tests. (89c1a3b)
+   o Add test for evhttp_connection_free_on_completion (b0e9924 John Ohl)
+
+ Sample code
+   o Make http-server.c output into good html5 (6d72bdc)
+   o Use FindClose for handle from FindFirstFile in http-server.c (6466e88)
+   o https-client: add -retries argument, for connection retries (d9da844 Azat Khuzhin)
+
+ Bugfixes (build)
+   o Add missing headerfile for cmake (15d90cc Trond Norbye)
+   o ignore one more test binary (b6593aa Michael Richardson)
+   o ignore config.cache/test-driver files (c83f333 Mike Frysinger)
+   o add a --disable-samples configure flag (0c492b3 Mike Frysinger)
+   o Add a few files created by "make verify" to .gitignore. (1a8295a Pierre Phaneuf)
+   o updates in cmake build (27bd9fa Sergey Nikulov)
+   o Fix cmake error when the Module path has more than one entry. (befbd13 Acer Yang)
+
+Bugfixes (miscellaneous)
+   o tree.h: drop duplicated content of tree.h (6193187 Azat Khuzhin)
+   o evdns: disable probing with EVDNS_BASE_DISABLE_WHEN_INACTIVE (610410b,ad0493e,fea86a6,d83b337,5ca9e97 Azat Khuzhin)
+   o [Bugfix] fix grammer error (3a4d249 ufo2243)
+   o Change return type of evutil_load_windows_system_library_ to HMODULE (f691389)
+   o Fix a c90 warning (76643dd)
+   o Fix a typo in a doxygen comment. Reported by 亦得. (be1aeff)
+   o remove trailing comma from enum (b361b8a Jean-Philippe Ouellet)
+
+ Bugfixes (FreeBSD)
+   o Handle ENOTCAPABLE from FreeBSD - this is returned if an event in the changelist is for an FD that has been closed. (6fd7394 Adrian Chadd)
+
+
 
 
 Changes in version 2.1.4-alpha (21 Mar 2014)
