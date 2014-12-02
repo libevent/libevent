@@ -351,7 +351,7 @@ bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
 
 int
 bufferevent_socket_connect(struct bufferevent *bev,
-    struct sockaddr *sa, int socklen)
+    const struct sockaddr *sa, int socklen)
 {
 	struct bufferevent_private *bufev_p =
 	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
