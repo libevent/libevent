@@ -523,7 +523,7 @@ evutil_socket_geterror(evutil_socket_t sock)
 /* XXX we should use an enum here. */
 /* 2 for connection refused, 1 for connected, 0 for not yet, -1 for error. */
 int
-evutil_socket_connect_(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen)
+evutil_socket_connect_(evutil_socket_t *fd_ptr, const struct sockaddr *sa, int socklen)
 {
 	int made_fd = 0;
 
