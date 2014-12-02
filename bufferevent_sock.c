@@ -121,7 +121,9 @@ static void
 bufferevent_socket_set_conn_address(struct bufferevent_private *bev_p,
 	struct sockaddr *addr, size_t addrlen)
 {
-	memcpy(&bev_p->conn_address, addr, addrlen);
+	if (addrlen <= sizeof(bev_p->conn_address)) {
+		memcpy(&bev_p->conn_address, addr, addrlen);
+	}
 }
 
 static void
