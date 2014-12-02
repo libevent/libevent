@@ -213,7 +213,10 @@ struct bufferevent_private {
 	 * So we need to save it, just after we connected to remote server, or
 	 * after resolving (to avoid extra dns requests during retrying, since UDP
 	 * is slow) */
-	struct sockaddr_storage conn_address;
+	union {
+		struct sockaddr_in6 in6;
+		struct sockaddr_in in;
+	} conn_address;
 };
 
 /** Possible operations for a control callback. */
