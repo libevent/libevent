@@ -469,7 +469,8 @@ void evhttp_send_reply_end(struct evhttp_request *req);
  */
 
 /** The different request types supported by evhttp.  These are as specified
- * in RFC2616, except for PATCH which is specified by RFC5789.
+ * in RFC2616, except for PATCH which is specified by RFC5789 and
+ * SUBSCRIBE, UNSUBSCRIBE and NOTIFY which are UPnP extensions.
  *
  * By default, only some of these methods are accepted and passed to user
  * callbacks; use evhttp_set_allowed_methods() to change which methods
@@ -484,7 +485,10 @@ enum evhttp_cmd_type {
 	EVHTTP_REQ_OPTIONS = 1 << 5,
 	EVHTTP_REQ_TRACE   = 1 << 6,
 	EVHTTP_REQ_CONNECT = 1 << 7,
-	EVHTTP_REQ_PATCH   = 1 << 8
+	EVHTTP_REQ_PATCH   = 1 << 8,
+	EVHTTP_REQ_SUBSCRIBE   = 1 << 9,
+	EVHTTP_REQ_UNSUBSCRIBE = 1 << 10,
+	EVHTTP_REQ_NOTIFY  = 1 << 11
 };
 
 /** a request object can represent either a request or a reply */
