@@ -243,6 +243,36 @@ int bufferevent_socket_connect_hostname(struct bufferevent *,
     struct evdns_base *, int, const char *, int);
 
 /**
+   Resolve the hostname 'hostname' and connect to it as with
+   bufferevent_socket_connect().
+
+   @param bufev An existing bufferevent allocated with bufferevent_socket_new()
+   @param evdns_base Optionally, an evdns_base to use for resolving hostnames
+      asynchronously. May be set to NULL for a blocking resolve.
+   @param hints_in points to an addrinfo structure that specifies criteria for
+      selecting the socket address structures to be used
+   @param hostname The hostname to resolve; see below for notes on recognized
+      formats
+   @param port The port to connect to on the resolved address.
+   @return 0 if successful, -1 on failure.
+
+   Recognized hostname formats are:
+
+       www.example.com	(hostname)
+       1.2.3.4		(ipv4address)
+       ::1		(ipv6address)
+       [::1]		([ipv6address])
+
+   Performance note: If you do not provide an evdns_base, this function
+   may block while it waits for a DNS response.	 This is probably not
+   what you want.
+ */
+EVENT2_EXPORT_SYMBOL
+int bufferevent_socket_connect_hostname_hints(struct bufferevent *,
+    struct evdns_base *, const struct evutil_addrinfo *, const char *, int);
+
+
+/**
    Return the error code for the last failed DNS lookup attempt made by
    bufferevent_socket_connect_hostname().
 
