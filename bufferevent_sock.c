@@ -494,31 +494,42 @@ int
 bufferevent_socket_connect_hostname(struct bufferevent *bev,
     struct evdns_base *evdns_base, int family, const char *hostname, int port)
 {
-	char portbuf[10];
 	struct evutil_addrinfo hint;
-	struct bufferevent_private *bev_p = BEV_UPCAST(bev);
-
-	if (family != AF_INET && family != AF_INET6 && family != AF_UNSPEC)
-		return -1;
-	if (port < 1 || port > 65535)
-		return -1;
-
 	memset(&hint, 0, sizeof(hint));
 	hint.ai_family = family;
 	hint.ai_protocol = IPPROTO_TCP;
 	hint.ai_socktype = SOCK_STREAM;
 
-	evutil_snprintf(portbuf, sizeof(portbuf), "%d", port);
+	return bufferevent_socket_connect_hostname_hints(bev, evdns_base, &hint, hostname, port);
+}
+
+int
+bufferevent_socket_connect_hostname_hints(struct bufferevent *bev,
+    struct evdns_base *evdns_base, const struct evutil_addrinfo *hints_in,
+    const char *hostname, int port)
+{
+	char portbuf[10];
+	struct bufferevent_private *bev_p =
+	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+
+	if (hints_in->ai_family != AF_INET && hints_in->ai_family != AF_INET6 &&
+	    hints_in->ai_family != AF_UNSPEC)
+		return -1;
+	if (port < 1 || port > 65535)
+		return -1;
 
 	BEV_LOCK(bev);
 	bev_p->dns_error = 0;
+
+	evutil_snprintf(portbuf, sizeof(portbuf), "%d", port);
 
 	bufferevent_suspend_write_(bev, BEV_SUSPEND_LOOKUP);
 	bufferevent_suspend_read_(bev, BEV_SUSPEND_LOOKUP);
 
 	bufferevent_incref_(bev);
 	bev_p->dns_request = evutil_getaddrinfo_async_(evdns_base, hostname,
-	    portbuf, &hint, bufferevent_connect_getaddrinfo_cb, bev);
+	    portbuf, hints_in, bufferevent_connect_getaddrinfo_cb, bev);
+
 	BEV_UNLOCK(bev);
 
 	return 0;

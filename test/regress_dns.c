@@ -1249,10 +1249,20 @@ be_connect_hostname_event_cb(struct bufferevent *bev, short what, void *ctx)
 	}
 }
 
+int bev_connect_hostname(struct bufferevent *bev, struct evdns_base *dns,
+    struct evutil_addrinfo *hints, const char *host, int port)
+{
+	if (hints->ai_flags)
+		return bufferevent_socket_connect_hostname_hints(bev, dns, hints, host, port);
+	else
+		return bufferevent_socket_connect_hostname(bev, dns, AF_INET, host, port);
+}
 static void
 test_bufferevent_connect_hostname(void *arg)
 {
 	struct basic_test_data *data = arg;
+	int emfile = data->setup_data && !strcmp(data->setup_data, "emfile");
+	int hints  = data->setup_data && !strcmp(data->setup_data, "hints");
 	struct evconnlistener *listener = NULL;
 	struct bufferevent *be[5];
 	struct be_conn_hostname_result be_outcome[ARRAY_SIZE(be)];
@@ -1264,11 +1274,19 @@ test_bufferevent_connect_hostname(void *arg)
 	ev_uint16_t dns_port=0;
 	int n_accept=0, n_dns=0;
 	char buf[128];
-	int emfile = data->setup_data && !strcmp(data->setup_data, "emfile");
 	int success = BEV_EVENT_CONNECTED;
 	int default_error = 0;
 	unsigned i;
 	int ret;
+	struct evutil_addrinfo in_hints;
+
+	memset(&in_hints, 0, sizeof(in_hints));
+	if (hints) {
+		in_hints.ai_family = AF_INET;
+		in_hints.ai_protocol = IPPROTO_TCP;
+		in_hints.ai_socktype = SOCK_STREAM;
+		in_hints.ai_flags = EVUTIL_AI_ADDRCONFIG;
+	}
 
 	if (emfile) {
 		success = BEV_EVENT_ERROR;
@@ -1335,10 +1353,10 @@ test_bufferevent_connect_hostname(void *arg)
 
 	/* Use the blocking resolver.  This one will fail if your resolver
 	 * can't resolve localhost to 127.0.0.1 */
-	tt_assert(!bufferevent_socket_connect_hostname(be[3], NULL, AF_INET,
+	tt_assert(!bev_connect_hostname(be[3], NULL, &in_hints,
 		"localhost", listener_port));
 	/* Use the blocking resolver with a nonexistent hostname. */
-	tt_assert(!bufferevent_socket_connect_hostname(be[4], NULL, AF_INET,
+	tt_assert(!bev_connect_hostname(be[4], NULL, &in_hints,
 		"nonesuch.nowhere.example.com", 80));
 	{
 		/* The blocking resolver will use the system nameserver, which
@@ -1353,13 +1371,13 @@ test_bufferevent_connect_hostname(void *arg)
 			"nonesuch.nowhere.example.com", "80", &hints, &ai);
 	}
 	/* Launch an async resolve that will fail. */
-	tt_assert(!bufferevent_socket_connect_hostname(be[0], dns, AF_INET,
+	tt_assert(!bev_connect_hostname(be[0], dns, &in_hints,
 		"nosuchplace.example.com", listener_port));
 	/* Connect to the IP without resolving. */
-	tt_assert(!bufferevent_socket_connect_hostname(be[1], dns, AF_INET,
+	tt_assert(!bev_connect_hostname(be[1], dns, &in_hints,
 		"127.0.0.1", listener_port));
 	/* Launch an async resolve that will succeed. */
-	tt_assert(!bufferevent_socket_connect_hostname(be[2], dns, AF_INET,
+	tt_assert(!bev_connect_hostname(be[2], dns, &in_hints,
 		"nobodaddy.example.com", listener_port));
 
 	ret = event_base_dispatch(data->base);
@@ -1406,7 +1424,6 @@ end:
 			bufferevent_free(be[i]);
 	}
 }
-
 
 struct gai_outcome {
 	int err;
@@ -2380,6 +2397,8 @@ struct testcase_t dns_testcases[] = {
 	{ "bufferevent_connect_hostname_emfile", test_bufferevent_connect_hostname,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"emfile" },
 #endif
+	{ "bufferevent_connect_hostname_hints", test_bufferevent_connect_hostname,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"hints" },
 	{ "disable_when_inactive", dns_disable_when_inactive_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "disable_when_inactive_no_ns", dns_disable_when_inactive_no_ns_test,
