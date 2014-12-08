@@ -2171,12 +2171,12 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 	EVDNS_LOCK(base);
 
 	if (req->tx_count >= req->base->global_max_retransmits) {
+		struct nameserver *ns = req->ns;
 		/* this request has failed */
 		log(EVDNS_LOG_DEBUG, "Giving up on request %p; tx_count==%d",
 		    arg, req->tx_count);
 		reply_schedule_callback(req, 0, DNS_ERR_TIMEOUT, NULL);
 
-		struct nameserver *ns = req->ns;
 		request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
 		nameserver_failed(ns, "request timed out.");
 	} else {
