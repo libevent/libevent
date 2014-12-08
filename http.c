@@ -188,6 +188,8 @@ static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr
 static void evhttp_write_buffer(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
 static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
+static int
+evhttp_method_may_have_body(enum evhttp_cmd_type type);
 
 /* callbacks for bufferevent */
 static void evhttp_read_cb(struct bufferevent *, void *);
@@ -446,7 +448,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	    method, req->uri, req->major, req->minor);
 
 	/* Add the content length on a post or put request if missing */
-	if ((req->type == EVHTTP_REQ_POST || req->type == EVHTTP_REQ_PUT) &&
+	if (evhttp_method_may_have_body(req->type) &&
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		char size[22];
 		evutil_snprintf(size, sizeof(size), EV_SIZE_FMT,
