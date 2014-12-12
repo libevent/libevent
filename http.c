@@ -2282,7 +2282,7 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 {
 	struct evhttp_connection *evcon = NULL;
 
-	event_debug(("Attempting connection to %s:%d\n", address, port));
+	event_debug(("%s %s:%d\n", (dnsbase?"New connection from":"Attempting connection to"), address, port));
 
 	if ((evcon = mm_calloc(1, sizeof(struct evhttp_connection))) == NULL) {
 		event_warn("%s: calloc failed", __func__);
