@@ -125,6 +125,9 @@ dump_request_cb(struct evhttp_request *req, void *arg)
 	case EVHTTP_REQ_TRACE: cmdtype = "TRACE"; break;
 	case EVHTTP_REQ_CONNECT: cmdtype = "CONNECT"; break;
 	case EVHTTP_REQ_PATCH: cmdtype = "PATCH"; break;
+	case EVHTTP_REQ_NOTIFY: cmdtype = "NOTIFY"; break;
+	case EVHTTP_REQ_SUBSCRIBE: cmdtype = "SUBSCRIBE"; break;
+	case EVHTTP_REQ_UNSUBSCRIBE: cmdtype = "UNSUBSCRIBE"; break;
 	default: cmdtype = "unknown"; break;
 	}
 
