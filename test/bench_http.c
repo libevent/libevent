@@ -90,7 +90,7 @@ main(int argc, char **argv)
 	int i;
 	int c;
 	int use_iocp = 0;
-	unsigned short port = 8080;
+	ev_uint16_t port = 8080;
 	char *endptr = NULL;
 
 #ifdef _WIN32

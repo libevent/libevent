@@ -2342,14 +2342,14 @@ evhttp_read_header(struct evhttp_connection *evcon,
  */
 
 struct evhttp_connection *
-evhttp_connection_new(const char *address, unsigned short port)
+evhttp_connection_new(const char *address, ev_uint16_t port)
 {
 	return (evhttp_connection_base_new(NULL, NULL, address, port));
 }
 
 struct evhttp_connection *
 evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev,
-    const char *address, unsigned short port)
+    const char *address, ev_uint16_t port)
 {
 	struct evhttp_connection *evcon = NULL;
 
@@ -2425,7 +2425,7 @@ evhttp_connection_get_server(struct evhttp_connection *evcon)
 
 struct evhttp_connection *
 evhttp_connection_base_new(struct event_base *base, struct evdns_base *dnsbase,
-    const char *address, unsigned short port)
+    const char *address, ev_uint16_t port)
 {
 	return evhttp_connection_base_bufferevent_new(base, dnsbase, NULL, address, port);
 }
@@ -3665,7 +3665,7 @@ evhttp_new(struct event_base *base)
  */
 
 struct evhttp *
-evhttp_start(const char *address, unsigned short port)
+evhttp_start(const char *address, ev_uint16_t port)
 {
 	struct evhttp *http = NULL;
 

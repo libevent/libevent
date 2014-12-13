@@ -520,7 +520,7 @@ enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
  */
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *evhttp_connection_base_bufferevent_new(
-	struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev, const char *address, unsigned short port);
+	struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev, const char *address, ev_uint16_t port);
 
 /**
  * Return the bufferevent that an evhttp_connection is using.
@@ -641,7 +641,7 @@ void evhttp_request_free(struct evhttp_request *req);
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *evhttp_connection_base_new(
 	struct event_base *base, struct evdns_base *dnsbase,
-	const char *address, unsigned short port);
+	const char *address, ev_uint16_t port);
 
 /**
  * Set family hint for DNS requests.

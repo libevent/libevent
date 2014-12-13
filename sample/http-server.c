@@ -333,7 +333,7 @@ main(int argc, char **argv)
 	struct evhttp *http;
 	struct evhttp_bound_socket *handle;
 
-	unsigned short port = 0;
+	ev_uint16_t port = 0;
 #ifdef _WIN32
 	WSADATA WSAData;
 	WSAStartup(0x101, &WSAData);

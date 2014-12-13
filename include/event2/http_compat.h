@@ -58,7 +58,7 @@ extern "C" {
  * @param port the port number on which the HTTP server should listen
  * @return an struct evhttp object
  */
-struct evhttp *evhttp_start(const char *address, unsigned short port);
+struct evhttp *evhttp_start(const char *address, ev_uint16_t port);
 
 /**
  * A connection object that can be used to for making HTTP requests.  The
@@ -68,7 +68,7 @@ struct evhttp *evhttp_start(const char *address, unsigned short port);
  * @deprecated It does not allow an event base to be specified
  */
 struct evhttp_connection *evhttp_connection_new(
-	const char *address, unsigned short port);
+	const char *address, ev_uint16_t port);
 
 /**
  * Associates an event base with the connection - can only be called
