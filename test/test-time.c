@@ -70,7 +70,7 @@ time_cb(evutil_socket_t fd, short event, void *arg)
 			j = rand_int(NEVENT);
 			tv.tv_sec = 0;
 			tv.tv_usec = rand_int(50000);
-			if (tv.tv_usec % 2)
+			if (tv.tv_usec % 2 || called < NEVENT)
 				evtimer_add(ev[j], &tv);
 			else
 				evtimer_del(ev[j]);
@@ -109,6 +109,8 @@ main(int argc, char **argv)
 
 	event_dispatch();
 
+
+	printf("%d, %d\n", called, NEVENT);
 	return (called < NEVENT);
 }
 
