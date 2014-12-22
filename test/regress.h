@@ -118,7 +118,7 @@ int test_ai_eq_(const struct evutil_addrinfo *ai, const char *sockaddr_port,
 	} while (0)
 
 #define test_timeval_diff_leq(tv1, tv2, diff, tolerance)		\
-	tt_int_op(abs(timeval_msec_diff((tv1), (tv2)) - diff), <=, tolerance)
+	tt_int_op(labs(timeval_msec_diff((tv1), (tv2)) - diff), <=, tolerance)
 
 #define test_timeval_diff_eq(tv1, tv2, diff)				\
 	test_timeval_diff_leq((tv1), (tv2), (diff), 50)
