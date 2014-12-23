@@ -361,7 +361,7 @@ thread_conditions_simple(void *arg)
 			    &tv_signal);
 			diff2 = timeval_msec_diff(&actual_delay,
 			    &tv_broadcast);
-			if (abs(diff1) < abs(diff2)) {
+			if (labs(diff1) < labs(diff2)) {
 				TT_BLATHER(("%d looks like a signal\n", i));
 				target_delay = &tv_signal;
 				++n_signal;
