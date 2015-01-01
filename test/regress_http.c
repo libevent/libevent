@@ -3344,6 +3344,8 @@ http_connection_retry_test_impl(void *arg, const char *addr, struct evdns_base *
 
 	evcon = evhttp_connection_base_new(data->base, dns_base, addr, port);
 	tt_assert(evcon);
+	if (dns_base)
+		tt_assert(!evhttp_connection_set_flags(evcon, EVHTTP_CON_REUSE_CONNECTED_ADDR));
 
 	evhttp_connection_set_timeout(evcon, 1);
 	/* also bind to local host */

@@ -2334,6 +2334,20 @@ void evhttp_connection_set_family(struct evhttp_connection *evcon,
 	evcon->ai_family = family;
 }
 
+int evhttp_connection_set_flags(struct evhttp_connection *evcon,
+	int flags)
+{
+	if (flags & ~(EVHTTP_CON_REUSE_CONNECTED_ADDR)) {
+		return 1;
+	}
+
+	evcon->flags &= ~(EVHTTP_CON_REUSE_CONNECTED_ADDR);
+
+	evcon->flags |= EVHTTP_CON_REUSE_CONNECTED_ADDR;
+
+	return 0;
+}
+
 void
 evhttp_connection_set_base(struct evhttp_connection *evcon,
     struct event_base *base)
@@ -2461,7 +2475,9 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 
 	evcon->state = EVCON_CONNECTING;
 
-	if (sa && (sa->sa_family == AF_INET || sa->sa_family == AF_INET6)) {
+	if (evcon->flags & EVHTTP_CON_REUSE_CONNECTED_ADDR &&
+		sa &&
+		(sa->sa_family == AF_INET || sa->sa_family == AF_INET6)) {
 		int socklen;
 		if (sa->sa_family == AF_INET) {
 			socklen = sizeof(struct sockaddr_in);

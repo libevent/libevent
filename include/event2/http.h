@@ -636,6 +636,18 @@ struct evhttp_connection *evhttp_connection_base_new(
 void evhttp_connection_set_family(struct evhttp_connection *evcon,
 	int family);
 
+#define EVHTTP_CON_REUSE_CONNECTED_ADDR  0x0008  /* reuse connection address on retry */
+/**
+ * Set connection flags.
+ *
+ * @see EVHTTP_CON_*
+ * @return 0 on success, otherwise non zero (for example if flag doesn't
+ * supported).
+ */
+EVENT2_EXPORT_SYMBOL
+int evhttp_connection_set_flags(struct evhttp_connection *evcon,
+	int flags);
+
 /** Takes ownership of the request object
  *
  * Can be used in a request callback to keep onto the request until
