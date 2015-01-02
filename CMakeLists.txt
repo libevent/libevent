@@ -673,7 +673,7 @@ include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 if (EVENT__BUILD_SHARED_LIBRARIES)
   set(EVENT__LIBRARY_TYPE SHARED)
 
-  if (CMAKE_COMPILER_IS_GNUC)
+  if (CMAKE_COMPILER_IS_GNUCC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
   elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
@@ -726,6 +726,19 @@ add_library(event ${EVENT__LIBRARY_TYPE}
     )
 
 if (EVENT__BUILD_SHARED_LIBRARIES)
+endif (EVENT__BUILD_SHARED_LIBRARIES)
+
+if (EVENT__BUILD_SHARED_LIBRARIES)
+    # Prepare static library to be linked to tests that need hidden symbols
+    add_library(event_extra_static STATIC
+        ${HDR_PRIVATE}
+        ${HDR_COMPAT}
+        ${HDR_PUBLIC}
+        ${SRC_CORE}
+        ${SRC_EXTRA}
+        )
+    set(EVENT_EXTRA_FOR_TEST event_extra_static)
+
    target_link_libraries(event_core ${OPENSSL_LIBRARIES}
                                     ${CMAKE_THREAD_LIBS_INIT}
                                     ${LIB_PLATFORM})
@@ -742,6 +755,8 @@ if (EVENT__BUILD_SHARED_LIBRARIES)
   set_target_properties(event_core PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
   set_target_properties(event_extra PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
 
+else (EVENT__BUILD_SHARED_LIBRARIES)
+    set(EVENT_EXTRA_FOR_TEST event_extra)
 endif (EVENT__BUILD_SHARED_LIBRARIES)
 
 #
@@ -886,8 +901,8 @@ if (NOT EVENT__DISABLE_TESTS)
     # Create test program executables.
     foreach (TESTPROG ${ALL_TESTPROGS})
         add_executable(${TESTPROG} test/${TESTPROG}.c)
-        target_link_libraries(${TESTPROG} event_extra ${LIB_PLATFORM})
-        add_dependencies(${TESTPROG} event_extra)
+        target_link_libraries(${TESTPROG} ${EVENT_EXTRA_FOR_TEST} ${LIB_PLATFORM})
+        add_dependencies(${TESTPROG} ${EVENT_EXTRA_FOR_TEST})
     endforeach()
 
     #
