@@ -45,6 +45,8 @@
 struct bufferevent_pair {
 	struct bufferevent_private bev;
 	struct bufferevent_pair *partner;
+	/* For ->destruct() lock checking */
+	struct bufferevent_pair *unlinked_partner;
 };
 
 
@@ -265,9 +267,38 @@ be_pair_unlink(struct bufferevent *bev)
 	struct bufferevent_pair *bev_p = upcast(bev);
 
 	if (bev_p->partner) {
+		bev_p->unlinked_partner = bev_p->partner;
 		bev_p->partner->partner = NULL;
 		bev_p->partner = NULL;
 	}
+}
+
+/* Free *shared* lock in the latest be (since we share it between two of them). */
+static void
+be_pair_destruct(struct bufferevent *bev)
+{
+	struct bufferevent_pair *bev_p = upcast(bev);
+
+	/* Transfer ownership of the lock into partner, otherwise we will use
+	 * already free'd lock during freeing second bev, see next example:
+	 *
+	 * bev1->own_lock = 1
+	 * bev2->own_lock = 0
+	 * bev2->lock = bev1->lock
+	 *
+	 * bufferevent_free(bev1) # refcnt == 0 -> unlink
+	 * bufferevent_free(bev2) # refcnt == 0 -> unlink
+	 *
+	 * event_base_free() -> finilizers -> EVTHREAD_FREE_LOCK(bev1->lock)
+	 *                                 -> BEV_LOCK(bev2->lock) <-- already freed
+	 *
+	 * Where bev1 == pair[0], bev2 == pair[1].
+	 */
+	if (bev_p->unlinked_partner && bev_p->bev.own_lock) {
+		bev_p->unlinked_partner->bev.own_lock = 1;
+		bev_p->bev.own_lock = 0;
+	}
+	bev_p->unlinked_partner = NULL;
 }
 
 static int
@@ -320,7 +351,7 @@ const struct bufferevent_ops bufferevent_ops_pair = {
 	be_pair_enable,
 	be_pair_disable,
 	be_pair_unlink,
-	NULL, /* be_pair_destruct, */
+	be_pair_destruct,
 	bufferevent_generic_adj_timeouts_,
 	be_pair_flush,
 	NULL, /* ctrl */
