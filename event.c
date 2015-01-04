@@ -131,8 +131,8 @@ struct event_base *event_global_current_base_ = NULL;
 static void *event_self_cbarg_ptr_ = NULL;
 
 /* Prototypes */
-static void	event_queue_insert_active(struct event_base *, struct event_callback *);
-static void	event_queue_insert_active_later(struct event_base *, struct event_callback *);
+static int	event_queue_insert_active(struct event_base *, struct event_callback *);
+static int	event_queue_insert_active_later(struct event_base *, struct event_callback *);
 static void	event_queue_insert_timeout(struct event_base *, struct event *);
 static void	event_queue_insert_inserted(struct event_base *, struct event *);
 static void	event_queue_remove_active(struct event_base *, struct event_callback *);
@@ -2903,7 +2903,7 @@ int
 event_callback_activate_nolock_(struct event_base *base,
     struct event_callback *evcb)
 {
-	int r = 1;
+	int r = 1, r2;
 
 	if (evcb->evcb_flags & EVLIST_FINALIZING)
 		return 0;
@@ -2921,24 +2921,27 @@ event_callback_activate_nolock_(struct event_base *base,
 		break;
 	}
 
-	event_queue_insert_active(base, evcb);
+	r2 = event_queue_insert_active(base, evcb);
 
 	if (EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
 
-	return r;
+	return r ? r2 : r;
 }
 
-void
+int
 event_callback_activate_later_nolock_(struct event_base *base,
     struct event_callback *evcb)
 {
+	int ret;
 	if (evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER))
-		return;
-
-	event_queue_insert_active_later(base, evcb);
-	if (EVBASE_NEED_NOTIFY(base))
-		evthread_notify_base(base);
+		ret = 0;
+	else {
+		ret = event_queue_insert_active_later(base, evcb);
+		if (EVBASE_NEED_NOTIFY(base))
+			evthread_notify_base(base);
+	}
+	return ret;
 }
 
 void
@@ -3018,15 +3021,16 @@ event_deferred_cb_cancel_(struct event_base *base, struct event_callback *cb)
 int
 event_deferred_cb_schedule_(struct event_base *base, struct event_callback *cb)
 {
-	int r = 1;
+	int r;
 	if (!base)
 		base = current_base;
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	if (base->n_deferreds_queued > MAX_DEFERREDS_QUEUED) {
-		event_callback_activate_later_nolock_(base, cb);
+		r = event_callback_activate_later_nolock_(base, cb);
 	} else {
-		++base->n_deferreds_queued;
 		r = event_callback_activate_nolock_(base, cb);
+		if (r)
+			++base->n_deferreds_queued;
 	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	return r;
@@ -3270,14 +3274,14 @@ event_queue_insert_inserted(struct event_base *base, struct event *ev)
 	ev->ev_flags |= EVLIST_INSERTED;
 }
 
-static void
+static int
 event_queue_insert_active(struct event_base *base, struct event_callback *evcb)
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
 
 	if (evcb->evcb_flags & EVLIST_ACTIVE) {
 		/* Double insertion is possible for active events */
-		return;
+		return 0;
 	}
 
 	INCR_EVENT_COUNT(base, evcb->evcb_flags);
@@ -3289,15 +3293,17 @@ event_queue_insert_active(struct event_base *base, struct event_callback *evcb)
 	EVUTIL_ASSERT(evcb->evcb_pri < base->nactivequeues);
 	TAILQ_INSERT_TAIL(&base->activequeues[evcb->evcb_pri],
 	    evcb, evcb_active_next);
+
+	return 1;
 }
 
-static void
+static int
 event_queue_insert_active_later(struct event_base *base, struct event_callback *evcb)
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
 	if (evcb->evcb_flags & (EVLIST_ACTIVE_LATER|EVLIST_ACTIVE)) {
 		/* Double insertion is possible */
-		return;
+		return 0;
 	}
 
 	INCR_EVENT_COUNT(base, evcb->evcb_flags);
@@ -3306,6 +3312,8 @@ event_queue_insert_active_later(struct event_base *base, struct event_callback *
 	MAX_EVENT_COUNT(base->event_count_active_max, base->event_count_active);
 	EVUTIL_ASSERT(evcb->evcb_pri < base->nactivequeues);
 	TAILQ_INSERT_TAIL(&base->active_later_queue, evcb, evcb_active_next);
+
+	return 1;
 }
 
 static void
