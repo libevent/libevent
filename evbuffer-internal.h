@@ -155,6 +155,18 @@ struct evbuffer {
 	struct bufferevent *parent;
 };
 
+#if EVENT__SIZEOF_OFF_T < EVENT__SIZEOF_SIZE_T
+typedef ev_ssize_t ev_misalign_t;
+#define EVBUFFER_CHAIN_MAX ((size_t)EV_SSIZE_MAX)
+#else
+typedef ev_off_t ev_misalign_t;
+#if EVENT__SIZEOF_OFF_T > EVENT__SIZEOF_SIZE_T
+#define EVBUFFER_CHAIN_MAX EV_SIZE_MAX
+#else
+#define EVBUFFER_CHAIN_MAX ((size_t)EV_SSIZE_MAX)
+#endif
+#endif
+
 /** A single item in an evbuffer. */
 struct evbuffer_chain {
 	/** points to next buffer in the chain */
@@ -165,7 +177,7 @@ struct evbuffer_chain {
 
 	/** unused space at the beginning of buffer or an offset into a
 	 * file for sendfile buffers. */
-	ev_off_t misalign;
+	ev_misalign_t misalign;
 
 	/** Offset into buffer + misalign at which to start writing.
 	 * In other words, the total number of bytes actually stored
