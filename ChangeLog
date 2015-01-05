@@ -1,5 +1,7 @@
 Changes in version 2.1.5-beta (5 January 2015)
 
+ Security Fixes (evbuffers)
+   o Avoid integer overflow bugs in evbuffer_add() and related functions.  See CVE-2014-6272 advisory for more information. (d49bc0e88b81a5812116074dc007f1db0ca1eecd)
 
  New APIs (evconnlistener)
    o Provide support for SO_REUSEPORT through LEV_OPT_REUSABLE_PORT (b625361 Maciej Soltysiak)
