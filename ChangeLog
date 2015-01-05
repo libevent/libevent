@@ -1,16 +1,17 @@
-Changes in version 2.1.5-alpha (?? Dec 2014)
+Changes in version 2.1.5-alpha (5 January 2015)
 
- (As of 7fd4941465e42ec46721150e7ccf1aa2d2bf670b)
 
  New APIs (evconnlistener)
    o Provide support for SO_REUSEPORT through LEV_OPT_REUSABLE_PORT (b625361 Maciej Soltysiak)
 
  Bugfixes (core)
     o Fix use-after-free error in EV_CLOSURE_EVENT callback (3cc0eac John Ohl)
+    o Fix race caused by event_active (3c7d6fc vjpai)
 
  Bugfixes (evbuffer)
    o Fix evbuffer_peek() with len==-1 and start_at non-NULL. (ba59923)
    o Consistently check for failure from evbuffer_pullup() (60f8f72)
+   o Fix evbuffer_peek() with len==-1 and start_at non-NULL. (fb7e76a)
 
  Bugfixes (windows, IOCP)
    o be async: avoid double close() (f133b86 Azat Khuzhin)
@@ -25,6 +26,9 @@ Changes in version 2.1.5-alpha (?? Dec 2014)
  New APIs (evhttp)
    o Add evhttp_connection_set_family() to set addrinfo->family for DNS requests (12c29b0 Azat Khuzhin)
    o Implement interface that provides the ability to have an outbound evhttp_connection free itself once all requests have completed (2b9ec4c,10fe4f John Ohl)
+
+ New APIs (core)
+   o Implement new/free for struct evutil_monotonic_timer and export monotonic time functions (f2645f8 Andrea Shepard)
 
  Bugfixes (evdns)
    o Load hosts file on Windows. (a0b247c Vilmos Nebehaj)
@@ -58,6 +62,7 @@ Changes in version 2.1.5-alpha (?? Dec 2014)
    o Make a buffer larger in the tests to avoid a scary evbuffer_copyout_from() (fb57b8b)
    o Fix several memory leaks in the unit tests. (89c1a3b)
    o Add test for evhttp_connection_free_on_completion (b0e9924 John Ohl)
+   o Fix annoying heisenbug in test-time.c (cb73704)
 
  Sample code
    o Make http-server.c output into good html5 (6d72bdc)
@@ -72,8 +77,11 @@ Changes in version 2.1.5-alpha (?? Dec 2014)
    o Add a few files created by "make verify" to .gitignore. (1a8295a Pierre Phaneuf)
    o updates in cmake build (27bd9fa Sergey Nikulov)
    o Fix cmake error when the Module path has more than one entry. (befbd13 Acer Yang)
+   o Fix CMake shared library build (e69d910 Nobuaki Sukegawa)
+   o Fix warnings when compiling with clang 3.5 (f5b4765 John Ohl)
+   o Fix mixed declarations and code (forbidden by ISO C90) (8afbdbc Thomas Bernard)
 
-Bugfixes (miscellaneous)
+ Bugfixes (miscellaneous)
    o tree.h: drop duplicated content of tree.h (6193187 Azat Khuzhin)
    o evdns: disable probing with EVDNS_BASE_DISABLE_WHEN_INACTIVE (610410b,ad0493e,fea86a6,d83b337,5ca9e97 Azat Khuzhin)
    o [Bugfix] fix grammer error (3a4d249 ufo2243)
