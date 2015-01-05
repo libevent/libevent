@@ -1,5 +1,7 @@
 Changes in 1.4.15-stable (5 January 2015)
 
+ o Avoid integer overflow bugs in evbuffer_add() and related functions.  See CVE-2014-6272 advisory for more information. (d49bc0e88b81a5812116074dc007f1db0ca1eecd)
+
  o Pass flags to fcntl(F_SETFL) as int, not long (b3d0382)
  o Backport and tweak the LICENSE file for 1.4 (8a5ebd3)
  o set close-on-exec bit for filedescriptors created by dns subsystem (9985231 Ralf Schmitt)
