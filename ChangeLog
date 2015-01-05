@@ -1,6 +1,5 @@
-Changes in version 2.0.22-stable (?? Dec 2014)
+Changes in version 2.0.22-stable (5 Jan 2015)
 
-  (As of 3c7d6fcaff330ff0f18e776da84ed836bf580d45)
 
 BUGFIXES (evhttp)
  o fix #73 and fix http_connection_fail_test to catch it (crash fix) (b618204 Greg Hazel)
@@ -35,6 +34,7 @@ BUGFIXES (miscellaneous)
  o Add a few files created by "make verify" to .gitignore. (1a8295a Pierre Phaneuf)
  o regress_buffer: fix 'memcmp' compare size (79800df Maks Naumov)
  o Fix bufferevent setwatermark suspend_read (b34e4ac ufo2243)
+ o Fix evbuffer_peek() with len==-1 and start_at non-NULL. (fb7e76a)
 
 BUFGIXES (evdns)
  o Checking request nameserver for NULL, before using it. (5c710c0 Belobrov Andrey)
@@ -57,6 +57,7 @@ DOCUMENTATION FIXES
  o Fix a typo in a comment in buffer.h. Spotted by Alt_F4 (773b0a5)
  o Clarify event_base_loop exit conditions (031a803)
  o Use FindClose for handle from FindFirstFile in http-server.c (6466e88)
+ o Fix a typo in a doxygen comment. Reported by 亦得. (be1aeff)
 
 
 Changes in version 2.0.21-stable (18 Nov 2012)
