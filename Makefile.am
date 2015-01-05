@@ -26,7 +26,7 @@ RELEASE = 1.4
 # compatibility with old binaries.  Increment Current.  Set Age to 0,
 # since we're backward compatible with no previous APIs.  Set Revision
 # to 0 too.
-VERSION_INFO = 4:0:2
+VERSION_INFO = 4:1:2
 
 ###
 # History:
@@ -51,6 +51,7 @@ VERSION_INFO = 4:0:2
 #    1.4.11-stable .. 1.4.13-stable : 3:3:1   [see note 1]
 #    1.4.14a-stable:                : 3:3:2   [see note 2]
 #    1.4.14b-stable:                : 4:0:2   (compatible ABI change)
+#    1.4.15-stable:                 : 4:1:2   (no ABI change)
 #
 # [1]: Using the same VERSION_INFO value was wrong; we should have been
 #      updating the Revision field.

@@ -1,5 +1,4 @@
-Changes in 1.4.15-stable
-  (as of 10d228c9ef74bc13f77266d511ec93249344b069)
+Changes in 1.4.15-stable (5 January 2015)
 
  o Pass flags to fcntl(F_SETFL) as int, not long (b3d0382)
  o Backport and tweak the LICENSE file for 1.4 (8a5ebd3)
