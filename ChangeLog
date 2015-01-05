@@ -1,6 +1,5 @@
 Changes in 1.4.15-stable
-
-(as of 641d0d88dc0db734be5a3f207e94c468c5730091)
+  (as of 10d228c9ef74bc13f77266d511ec93249344b069)
 
  o Pass flags to fcntl(F_SETFL) as int, not long (b3d0382)
  o Backport and tweak the LICENSE file for 1.4 (8a5ebd3)
@@ -11,6 +10,12 @@ Changes in 1.4.15-stable
  o Backport doc fix for evhttp_bind_socket. (95b71d0 Marco)
  o Fix an issue with forking and signal socketpairs in select/poll backends (f0ff765)
  o Fix compilation on Visual Studio 2010 (53c47c2 VDm)
+ o Defensive programming to prevent (hopefully impossible) stack-stomping (2d8cf0b)
+ o Check for POLLERR, POLLHUP and POLLNVAL for Solaris event ports (353b4ac Trond Norbye)
+ o Fix a bug that could allow dns requests with duplicate tx ids (e50ba5b)
+ o Avoid truncating huge values for content-length (1d6e30e)
+ o Take generated files out of git; add correct m4 magic for libtool to auto* files (7cf794b)
+ o Prefer autoregen -ivf to manual autogen.sh (823d9be)
 
 
 Changes in 1.4.14b-stable
