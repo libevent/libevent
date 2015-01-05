@@ -1,5 +1,7 @@
 Changes in version 2.0.22-stable (5 Jan 2015)
 
+SECURITY FIXES (evbuffers)
+ o Avoid integer overflow bugs in evbuffer_add() and related functions.  See CVE-2014-6272 advisory for more information.
 
 BUGFIXES (evhttp)
  o fix #73 and fix http_connection_fail_test to catch it (crash fix) (b618204 Greg Hazel)
