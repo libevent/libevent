@@ -526,22 +526,24 @@ event_enable_debug_mode(void)
 #endif
 }
 
-#if 0
 void
 event_disable_debug_mode(void)
 {
+#ifndef EVENT__DISABLE_DEBUG_MODE
 	struct event_debug_entry **ent, *victim;
 
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
 	for (ent = HT_START(event_debug_map, &global_debug_map); ent; ) {
 		victim = *ent;
-		ent = HT_NEXT_RMV(event_debug_map,&global_debug_map, ent);
+		ent = HT_NEXT_RMV(event_debug_map, &global_debug_map, ent);
 		mm_free(victim);
 	}
 	HT_CLEAR(event_debug_map, &global_debug_map);
 	EVLOCK_UNLOCK(event_debug_map_lock_ , 0);
-}
+
+	event_debug_mode_on_  = 0;
 #endif
+}
 
 struct event_base *
 event_base_new_with_config(const struct event_config *cfg)
@@ -3798,6 +3800,7 @@ event_free_globals(void)
 void
 libevent_global_shutdown(void)
 {
+	event_disable_debug_mode();
 	event_free_globals();
 }
 
