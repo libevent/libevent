@@ -75,6 +75,7 @@
 #include "event2/util.h"
 
 #include "bufferevent-internal.h"
+#include "evthread-internal.h"
 #include "util-internal.h"
 #ifdef _WIN32
 #include "iocp-internal.h"
@@ -173,9 +174,9 @@ test_bufferevent_impl(int use_pair)
 
 	event_dispatch();
 
-	bufferevent_free(bev1);
-	tt_ptr_op(bufferevent_pair_get_partner(bev2), ==, NULL);
 	bufferevent_free(bev2);
+	tt_ptr_op(bufferevent_pair_get_partner(bev1), ==, NULL);
+	bufferevent_free(bev1);
 
 	if (test_ok != 2)
 		test_ok = 0;
@@ -194,6 +195,143 @@ test_bufferevent_pair(void)
 {
 	test_bufferevent_impl(1);
 }
+
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
+/**
+ * Trace lock/unlock/alloc/free for locks.
+ * (More heavier then evthread_debug*)
+ */
+typedef struct
+{
+	void *lock;
+	enum {
+		ALLOC, FREE,
+	} status;
+	size_t locked /** allow recursive locking */;
+} lock_wrapper;
+struct lock_unlock_base
+{
+	/* Original callbacks */
+	struct evthread_lock_callbacks cbs;
+	/* Map of locks */
+	lock_wrapper *locks;
+	size_t nr_locks;
+} lu_base = {
+	.locks = NULL,
+};
+
+static lock_wrapper *lu_find(void *lock_)
+{
+	size_t i;
+	for (i = 0; i < lu_base.nr_locks; ++i) {
+		lock_wrapper *lock = &lu_base.locks[i];
+		if (lock->lock == lock_)
+			return lock;
+	}
+	return NULL;
+}
+
+static void *trace_lock_alloc(unsigned locktype)
+{
+	++lu_base.nr_locks;
+	lu_base.locks = realloc(lu_base.locks,
+		sizeof(lock_wrapper) * lu_base.nr_locks);
+	void *lock = lu_base.cbs.alloc(locktype);
+	lu_base.locks[lu_base.nr_locks - 1] = (lock_wrapper){ lock, ALLOC, 0 };
+	return lock;
+}
+static void trace_lock_free(void *lock_, unsigned locktype)
+{
+	lock_wrapper *lock = lu_find(lock_);
+	if (!lock || lock->status == FREE || lock->locked) {
+		__asm__("int3");
+		TT_FAIL(("lock: free error"));
+	} else {
+		lock->status = FREE;
+		lu_base.cbs.free(lock_, locktype);
+	}
+}
+static int trace_lock_lock(unsigned mode, void *lock_)
+{
+	lock_wrapper *lock = lu_find(lock_);
+	if (!lock || lock->status == FREE) {
+		TT_FAIL(("lock: lock error"));
+		return -1;
+	} else {
+		++lock->locked;
+		return lu_base.cbs.lock(mode, lock_);
+	}
+}
+static int trace_lock_unlock(unsigned mode, void *lock_)
+{
+	lock_wrapper *lock = lu_find(lock_);
+	if (!lock || lock->status == FREE || !lock->locked) {
+		TT_FAIL(("lock: unlock error"));
+		return -1;
+	} else {
+		--lock->locked;
+		return lu_base.cbs.unlock(mode, lock_);
+	}
+}
+static void lock_unlock_free_thread_cbs()
+{
+	event_base_free(NULL);
+
+	/** drop immutable flag */
+	evthread_set_lock_callbacks(NULL);
+	/** avoid calling of event_global_setup_locks_() for new cbs */
+	libevent_global_shutdown();
+	/** drop immutable flag for non-debug ops (since called after shutdown) */
+	evthread_set_lock_callbacks(NULL);
+}
+
+static int use_lock_unlock_profiler(void)
+{
+	struct evthread_lock_callbacks cbs = {
+		EVTHREAD_LOCK_API_VERSION,
+		EVTHREAD_LOCKTYPE_RECURSIVE,
+		trace_lock_alloc,
+		trace_lock_free,
+		trace_lock_lock,
+		trace_lock_unlock,
+	};
+	memcpy(&lu_base.cbs, evthread_get_lock_callbacks(),
+		sizeof(lu_base.cbs));
+	{
+		lock_unlock_free_thread_cbs();
+
+		evthread_set_lock_callbacks(&cbs);
+		/** re-create debug locks correctly */
+		evthread_enable_lock_debugging();
+
+		event_init();
+	}
+	return 0;
+}
+static void free_lock_unlock_profiler(struct basic_test_data *data)
+{
+	lock_unlock_free_thread_cbs();
+	free(lu_base.locks);
+	data->base = NULL;
+}
+
+static void test_bufferevent_pair_release_lock(void *arg)
+{
+	struct basic_test_data *data = arg;
+	use_lock_unlock_profiler();
+	{
+		struct bufferevent *pair[2];
+		if (!bufferevent_pair_new(NULL, BEV_OPT_THREADSAFE, pair)) {
+			bufferevent_free(pair[0]);
+			bufferevent_free(pair[1]);
+		} else
+			tt_abort_perror("bufferevent_pair_new");
+	}
+	free_lock_unlock_profiler(data);
+end:
+	;
+}
+#endif
 
 /*
  * test watermarks and bufferevent
@@ -949,6 +1087,11 @@ struct testcase_t bufferevent_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED),
 	LEGACY(bufferevent_pair, TT_ISOLATED),
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
+	{ "bufferevent_pair_release_lock", test_bufferevent_pair_release_lock,
+	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY,
+	  &basic_setup, NULL },
+#endif
 	LEGACY(bufferevent_watermarks, TT_ISOLATED),
 	LEGACY(bufferevent_pair_watermarks, TT_ISOLATED),
 	LEGACY(bufferevent_filters, TT_ISOLATED),
