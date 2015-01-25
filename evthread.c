@@ -79,6 +79,10 @@ struct evthread_condition_callbacks *evthread_get_condition_callbacks()
 	return evthread_lock_debugging_enabled_
 	    ? &original_cond_fns_ : &evthread_cond_fns_;
 }
+void evthreadimpl_disable_lock_debugging_(void)
+{
+	evthread_lock_debugging_enabled_ = 0;
+}
 
 int
 evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)

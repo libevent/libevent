@@ -380,6 +380,8 @@ int evutil_secure_rng_global_setup_locks_(const int enable_locks);
 struct evthread_lock_callbacks *evthread_get_lock_callbacks();
 /** Return current evthread_condition_callbacks */
 struct evthread_condition_callbacks *evthread_get_condition_callbacks();
+/** Disable locking for internal usage (like global shutdown) */
+void evthreadimpl_disable_lock_debugging_(void);
 
 #endif
 
