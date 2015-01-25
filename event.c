@@ -3763,6 +3763,7 @@ event_free_debug_globals_locks(void)
 	if (event_debug_map_lock_ != NULL) {
 		EVTHREAD_FREE_LOCK(event_debug_map_lock_, 0);
 		event_debug_map_lock_ = NULL;
+		evthreadimpl_disable_lock_debugging_();
 	}
 #endif /* EVENT__DISABLE_DEBUG_MODE */
 #endif /* EVENT__DISABLE_THREAD_SUPPORT */
