@@ -376,6 +376,11 @@ int evsig_global_setup_locks_(const int enable_locks);
 int evutil_global_setup_locks_(const int enable_locks);
 int evutil_secure_rng_global_setup_locks_(const int enable_locks);
 
+/** Return current evthread_lock_callbacks */
+struct evthread_lock_callbacks *evthread_get_lock_callbacks();
+/** Return current evthread_condition_callbacks */
+struct evthread_condition_callbacks *evthread_get_condition_callbacks();
+
 #endif
 
 #ifdef __cplusplus
