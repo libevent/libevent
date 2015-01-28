@@ -695,9 +695,13 @@ void
 evhttp_write(int fd, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
+	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	int n;
 
 	if (what == EV_TIMEOUT) {
+		if (req != NULL) {
+			req->userdone = 1;
+		}
 		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
 		return;
 	}
@@ -935,6 +939,7 @@ evhttp_read(int fd, short what, void *arg)
 	int n, len;
 
 	if (what == EV_TIMEOUT) {
+		req->userdone = 1;
 		evhttp_connection_fail(evcon, EVCON_HTTP_TIMEOUT);
 		return;
 	}
@@ -2239,6 +2244,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	if (req->uri == NULL) {
 		event_debug(("%s: bad request", __func__));
 		if (req->evcon->state == EVCON_DISCONNECTED) {
+			req->userdone = 1;
 			evhttp_connection_fail(req->evcon, EVCON_HTTP_EOF);
 		} else {
 			event_debug(("%s: sending error", __func__));
