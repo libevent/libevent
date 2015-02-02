@@ -782,7 +782,7 @@ enum evbuffer_ptr_how {
    There are two ways to use this function: you can call
       evbuffer_ptr_set(buf, &pos, N, EVBUFFER_PTR_SET)
    to move 'pos' to a position 'N' bytes after the start of the buffer, or
-      evbuffer_ptr_set(buf, &pos, N, EVBUFFER_PTR_SET)
+      evbuffer_ptr_set(buf, &pos, N, EVBUFFER_PTR_ADD)
    to move 'pos' forward by 'N' bytes.
 
    If evbuffer_ptr is not initialized, this function can only be called
