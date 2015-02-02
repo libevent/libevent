@@ -694,6 +694,22 @@ struct evdns_getaddrinfo_request *evdns_getaddrinfo(
 EVENT2_EXPORT_SYMBOL
 void evdns_getaddrinfo_cancel(struct evdns_getaddrinfo_request *req);
 
+/**
+   Retrieve the address of the 'idx'th configured nameserver.
+
+   @param base The evdns_base to examine.
+   @param idx The index of the nameserver to get the address of.
+   @param sa A location to receive the server's address.
+   @param len The number of bytes available at sa.
+
+   @return the number of bytes written into sa on success.  On failure, returns
+     -1 if idx is greater than the number of configured nameservers, or a
+     value greater than 'len' if len was not high enough.
+ */
+EVENT2_EXPORT_SYMBOL
+int evdns_base_get_nameserver_addr(struct evdns_base *base, int idx,
+    struct sockaddr *sa, ev_socklen_t len);
+
 #ifdef __cplusplus
 }
 #endif

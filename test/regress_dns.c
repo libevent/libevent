@@ -406,6 +406,22 @@ dns_server(void)
 	 * the only nameserver. */
 	evdns_base_nameserver_sockaddr_add(base, (struct sockaddr*)&ss, slen, 0);
 	tt_int_op(evdns_base_count_nameservers(base), ==, 1);
+	{
+		struct sockaddr_storage ss2;
+		int slen2;
+
+		memset(&ss2, 0, sizeof(ss2));
+
+		slen2 = evdns_base_get_nameserver_addr(base, 0, (struct sockaddr *)&ss2, 3);
+		tt_int_op(slen2, ==, slen);
+		tt_int_op(ss2.ss_family, ==, 0);
+		slen2 = evdns_base_get_nameserver_addr(base, 0, (struct sockaddr *)&ss2, sizeof(ss2));
+		tt_int_op(slen2, ==, slen);
+		tt_mem_op(&ss2, ==, &ss, slen);
+
+		slen2 = evdns_base_get_nameserver_addr(base, 1, (struct sockaddr *)&ss2, sizeof(ss2));
+		tt_int_op(-1, ==, slen2);
+	}
 
 	/* Send some queries. */
 	evdns_base_resolve_ipv4(base, "zz.example.com", DNS_QUERY_NO_SEARCH,
