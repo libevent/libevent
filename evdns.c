@@ -3352,7 +3352,7 @@ strtoint(const char *const str)
 
 /* Parse a number of seconds into a timeval; return -1 on error. */
 static int
-strtotimeval(const char *const str, struct timeval *out)
+evdns_strtotimeval(const char *const str, struct timeval *out)
 {
 	double d;
 	char *endptr;
@@ -3455,13 +3455,13 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		base->global_search_state->ndots = ndots;
 	} else if (str_matches_option(option, "timeout:")) {
 		struct timeval tv;
-		if (strtotimeval(val, &tv) == -1) return -1;
+		if (evdns_strtotimeval(val, &tv) == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting timeout to %s", val);
 		memcpy(&base->global_timeout, &tv, sizeof(struct timeval));
 	} else if (str_matches_option(option, "getaddrinfo-allow-skew:")) {
 		struct timeval tv;
-		if (strtotimeval(val, &tv) == -1) return -1;
+		if (evdns_strtotimeval(val, &tv) == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting getaddrinfo-allow-skew to %s",
 		    val);
@@ -3503,7 +3503,7 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		base->global_outgoing_addrlen = len;
 	} else if (str_matches_option(option, "initial-probe-timeout:")) {
 		struct timeval tv;
-		if (strtotimeval(val, &tv) == -1) return -1;
+		if (evdns_strtotimeval(val, &tv) == -1) return -1;
 		if (tv.tv_sec > 3600)
 			tv.tv_sec = 3600;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
