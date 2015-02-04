@@ -380,7 +380,6 @@ ht_string_hash_(const char *s)
   {                                                                     \
     if (head->hth_table)                                                \
       freefn(head->hth_table);                                          \
-    head->hth_table_length = 0;                                         \
     name##_HT_INIT(head);                                               \
   }                                                                     \
   /* Debugging helper: return false iff the representation of 'head' is \

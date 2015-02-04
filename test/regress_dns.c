@@ -1804,9 +1804,15 @@ testleak_setup(const struct testcase_t *testcase)
 	struct testleak_env_t *env;
 
 	allocated_chunks = 0;
+
+	/* Reset allocation counter, to start allocations from the very beginning.
+	 * (this will avoid false-positive negative numbers for allocated_chunks)
+	 */
+	libevent_global_shutdown();
+
 	event_set_mem_functions(cnt_malloc, cnt_realloc, cnt_free);
-	if (!libevent_tests_running_in_debug_mode)
-		event_enable_debug_mode();
+
+	event_enable_debug_mode();
 
 	/* not mm_calloc: we don't want to mess with the count. */
 	env = calloc(1, sizeof(struct testleak_env_t));
@@ -1827,8 +1833,8 @@ testleak_cleanup(const struct testcase_t *testcase, void *env_)
 #ifdef EVENT__DISABLE_DEBUG_MODE
 	tt_int_op(allocated_chunks, ==, 0);
 #else
-	/* FIXME: that's `1' because of event_debug_map_HT_GROW */
-	tt_int_op(allocated_chunks, ==, 1);
+	libevent_global_shutdown();
+	tt_int_op(allocated_chunks, ==, 0);
 #endif
 	ok = 1;
 end:
