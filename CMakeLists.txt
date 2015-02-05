@@ -1112,7 +1112,7 @@ set(EVENT__INCLUDE_DIRS
     "${PROJECT_SOURCE_DIR}/include"
     "${PROJECT_BINARY_DIR}/include")
 set(LIBEVENT_INCLUDE_DIRS ${EVENT__INCLUDE_DIRS} CACHE PATH "Libevent include directories")
-configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
+configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigBuildTree.cmake.in
                 ${PROJECT_BINARY_DIR}/LibeventConfig.cmake
                 @ONLY)
 
