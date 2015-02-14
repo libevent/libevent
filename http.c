@@ -1315,7 +1315,9 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 
 		/* we might want to set an error here */
 		request->cb(request, request->cb_arg);
-		evhttp_request_free(request);
+                if ((request->flags & EVHTTP_USER_OWNED) == 0) {
+                  evhttp_request_free(request);
+                }
 	}
 }
 
