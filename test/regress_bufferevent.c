@@ -273,7 +273,7 @@ static int trace_lock_unlock(unsigned mode, void *lock_)
 		return lu_base.cbs.unlock(mode, lock_);
 	}
 }
-static void lock_unlock_free_thread_cbs()
+static void lock_unlock_free_thread_cbs(void)
 {
 	event_base_free(NULL);
 
