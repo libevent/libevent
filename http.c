@@ -2454,8 +2454,6 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 	} else {
 		bufferevent_set_timeouts(evcon->bufev, NULL, &evcon->timeout);
 	}
-	/* make sure that we get a write callback */
-	bufferevent_enable(evcon->bufev, EV_WRITE);
 
 	evcon->state = EVCON_CONNECTING;
 
