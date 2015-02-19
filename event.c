@@ -131,6 +131,7 @@ struct event_base *event_global_current_base_ = NULL;
 static void *event_self_cbarg_ptr_ = NULL;
 
 /* Prototypes */
+static void	event_disable_debug_mode(void);
 static void	event_queue_insert_active(struct event_base *, struct event_callback *);
 static void	event_queue_insert_active_later(struct event_base *, struct event_callback *);
 static void	event_queue_insert_timeout(struct event_base *, struct event *);
@@ -526,7 +527,7 @@ event_enable_debug_mode(void)
 #endif
 }
 
-void
+static void
 event_disable_debug_mode(void)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
