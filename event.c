@@ -2208,18 +2208,7 @@ event_del_internal(struct event *ev)
 
 	EVENT_BASE_ASSERT_LOCKED(ev->ev_base);
 
-	/* If the main thread is currently executing this event's callback,
-	 * and we are not the main thread, then we want to wait until the
-	 * callback is done before we start removing the event.  That way,
-	 * when this function returns, it will be safe to free the
-	 * user-supplied argument. */
 	base = ev->ev_base;
-#ifndef _EVENT_DISABLE_THREAD_SUPPORT
-	if (base->current_event == ev && !EVBASE_IN_THREAD(base)) {
-		++base->current_event_waiters;
-		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
-	}
-#endif
 
 	EVUTIL_ASSERT(!(ev->ev_flags & ~EVLIST_ALL));
 
@@ -2263,6 +2252,18 @@ event_del_internal(struct event *ev)
 		evthread_notify_base(base);
 
 	_event_debug_note_del(ev);
+
+	/* If the main thread is currently executing this event's callback,
+	 * and we are not the main thread, then we want to wait until the
+	 * callback is done before returning.  That way, when this function
+	 * returns, it will be safe to free the user-supplied argument.
+	 */
+#ifndef _EVENT_DISABLE_THREAD_SUPPORT
+	if (base->current_event == ev && !EVBASE_IN_THREAD(base)) {
+		++base->current_event_waiters;
+		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
+	}
+#endif
 
 	return (res);
 }
