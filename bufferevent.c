@@ -214,7 +214,7 @@ bufferevent_run_deferred_callbacks_unlocked(struct event_callback *cb, void *arg
 		if (event_deferred_cb_schedule_(			\
 			    (bevp)->bev.ev_base,			\
 			&(bevp)->deferred))				\
-			bufferevent_incref_(&(bevp)->bev);		\
+			bufferevent_incref(&(bevp)->bev);		\
 	} while (0)
 
 
@@ -773,11 +773,11 @@ bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
 	 * It would probably save us some headaches.
 	 */
 	if (underlying)
-		bufferevent_decref_(underlying);
+		bufferevent_decref(underlying);
 }
 
 int
-bufferevent_decref_(struct bufferevent *bufev)
+bufferevent_decref(struct bufferevent *bufev)
 {
 	BEV_LOCK(bufev);
 	return bufferevent_decref_and_unlock_(bufev);
@@ -793,7 +793,7 @@ bufferevent_free(struct bufferevent *bufev)
 }
 
 void
-bufferevent_incref_(struct bufferevent *bufev)
+bufferevent_incref(struct bufferevent *bufev)
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);

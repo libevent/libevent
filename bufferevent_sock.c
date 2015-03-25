@@ -492,7 +492,7 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	bufferevent_suspend_write_(bev, BEV_SUSPEND_LOOKUP);
 	bufferevent_suspend_read_(bev, BEV_SUSPEND_LOOKUP);
 
-	bufferevent_incref_(bev);
+	bufferevent_incref(bev);
 	err = evutil_getaddrinfo_async_(evdns_base, hostname, portbuf,
 	    &hint, bufferevent_connect_getaddrinfo_cb, bev);
 
@@ -501,7 +501,7 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	} else {
 		bufferevent_unsuspend_write_(bev, BEV_SUSPEND_LOOKUP);
 		bufferevent_unsuspend_read_(bev, BEV_SUSPEND_LOOKUP);
-		bufferevent_decref_(bev);
+		bufferevent_decref(bev);
 		return -1;
 	}
 }

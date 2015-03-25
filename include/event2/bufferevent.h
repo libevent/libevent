@@ -563,6 +563,17 @@ EVENT2_EXPORT_SYMBOL
 void bufferevent_unlock(struct bufferevent *bufev);
 
 /**
+   Increment the reference count on bufev.
+*/
+void bufferevent_incref(struct bufferevent *bufev);
+
+/**
+   Decrement the reference count on bufev.  Returns 1 if it freed
+   the bufferevent.
+*/
+int bufferevent_decref(struct bufferevent *bufev);
+
+/**
    Flags that can be passed into filters to let them know how to
    deal with the incoming data.
 */
