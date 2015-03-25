@@ -2941,7 +2941,7 @@ event_callback_activate_later_nolock_(struct event_base *base,
 	event_queue_insert_active_later(base, evcb);
 	if (EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
-    return 1;
+	return 1;
 }
 
 void
