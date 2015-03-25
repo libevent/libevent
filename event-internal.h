@@ -435,7 +435,7 @@ int event_callback_finalize_many_(struct event_base *base, int n_cbs, struct eve
 
 void event_active_later_(struct event *ev, int res);
 void event_active_later_nolock_(struct event *ev, int res);
-void event_callback_activate_later_nolock_(struct event_base *base,
+int event_callback_activate_later_nolock_(struct event_base *base,
     struct event_callback *evcb);
 int event_callback_cancel_nolock_(struct event_base *base,
     struct event_callback *evcb, int even_if_finalizing);

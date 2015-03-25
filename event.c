@@ -2931,16 +2931,17 @@ event_callback_activate_nolock_(struct event_base *base,
 	return r;
 }
 
-void
+int
 event_callback_activate_later_nolock_(struct event_base *base,
     struct event_callback *evcb)
 {
 	if (evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER))
-		return;
+		return 0;
 
 	event_queue_insert_active_later(base, evcb);
 	if (EVBASE_NEED_NOTIFY(base))
 		evthread_notify_base(base);
+    return 1;
 }
 
 void
@@ -3025,10 +3026,12 @@ event_deferred_cb_schedule_(struct event_base *base, struct event_callback *cb)
 		base = current_base;
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	if (base->n_deferreds_queued > MAX_DEFERREDS_QUEUED) {
-		event_callback_activate_later_nolock_(base, cb);
+		r = event_callback_activate_later_nolock_(base, cb);
 	} else {
-		++base->n_deferreds_queued;
 		r = event_callback_activate_nolock_(base, cb);
+		if (r) {
+			++base->n_deferreds_queued;
+		}
 	}
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	return r;

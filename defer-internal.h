@@ -58,7 +58,7 @@ void event_deferred_cb_cancel_(struct event_base *, struct event_callback *);
 /**
    Activate a struct event_callback if it is not currently scheduled in an event_base.
 
-   Return true iff it was not previously scheduled.
+   Return true if it was not previously scheduled.
  */
 int event_deferred_cb_schedule_(struct event_base *, struct event_callback *);
 
