@@ -275,7 +275,7 @@ main(int argc, char **argv)
 	}
 
 	path = evhttp_uri_get_path(http_uri);
-	if (path == NULL) {
+	if (strlen(path) == 0) {
 		path = "/";
 	}
 
