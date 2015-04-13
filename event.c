@@ -2732,21 +2732,7 @@ event_del_nolock_(struct event *ev, int blocking)
 		}
 	}
 
-	/* If the main thread is currently executing this event's callback,
-	 * and we are not the main thread, then we want to wait until the
-	 * callback is done before we start removing the event.  That way,
-	 * when this function returns, it will be safe to free the
-	 * user-supplied argument. */
 	base = ev->ev_base;
-#ifndef EVENT__DISABLE_THREAD_SUPPORT
-	if (blocking != EVENT_DEL_NOBLOCK &&
-	    base->current_event == event_to_event_callback(ev) &&
-	    !EVBASE_IN_THREAD(base) &&
-	    (blocking == EVENT_DEL_BLOCK || !(ev->ev_events & EV_FINALIZE))) {
-		++base->current_event_waiters;
-		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
-	}
-#endif
 
 	EVUTIL_ASSERT(!(ev->ev_flags & ~EVLIST_ALL));
 
@@ -2792,6 +2778,21 @@ event_del_nolock_(struct event *ev, int blocking)
 		evthread_notify_base(base);
 
 	event_debug_note_del_(ev);
+
+	/* If the main thread is currently executing this event's callback,
+	 * and we are not the main thread, then we want to wait until the
+	 * callback is done before returning. That way, when this function
+	 * returns, it will be safe to free the user-supplied argument.
+	 */
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+	if (blocking != EVENT_DEL_NOBLOCK &&
+	    base->current_event == event_to_event_callback(ev) &&
+	    !EVBASE_IN_THREAD(base) &&
+	    (blocking == EVENT_DEL_BLOCK || !(ev->ev_events & EV_FINALIZE))) {
+		++base->current_event_waiters;
+		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
+	}
+#endif
 
 	return (res);
 }
