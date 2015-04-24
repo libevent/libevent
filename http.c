@@ -461,6 +461,13 @@ evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 		return (connection != NULL && evutil_ascii_strcasecmp(connection, "close") == 0);
 	}
 }
+static int
+evhttp_is_request_connection_close(struct evhttp_request *req)
+{
+	return
+		evhttp_is_connection_close(req->flags, req->input_headers) ||
+		evhttp_is_connection_close(req->flags, req->output_headers);
+}
 
 /* Return true iff 'headers' contains 'Connection: keep-alive' */
 static int
@@ -773,15 +780,11 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 
 	if (con_outgoing) {
 		/* idle or close the connection */
-		int need_close;
+		int need_close = evhttp_is_request_connection_close(req);
 		TAILQ_REMOVE(&evcon->requests, req, next);
 		req->evcon = NULL;
 
 		evcon->state = EVCON_IDLE;
-
-		need_close =
-		    evhttp_is_connection_close(req->flags, req->input_headers)||
-		    evhttp_is_connection_close(req->flags, req->output_headers);
 
 		/* check if we got asked to close the connection */
 		if (need_close)
@@ -2602,9 +2605,8 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 
 	need_close =
 	    (REQ_VERSION_BEFORE(req, 1, 1) &&
-		!evhttp_is_connection_keepalive(req->input_headers))||
-	    evhttp_is_connection_close(req->flags, req->input_headers) ||
-	    evhttp_is_connection_close(req->flags, req->output_headers);
+	    !evhttp_is_connection_keepalive(req->input_headers)) ||
+	    evhttp_is_request_connection_close(req);
 
 	EVUTIL_ASSERT(req->flags & EVHTTP_REQ_OWN_CONNECTION);
 	evhttp_request_free(req);
