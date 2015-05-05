@@ -39,13 +39,17 @@
 
 #define EVENT_ERR_ABORT_ ((int)0xdeaddead)
 
+// Except when shared lib on MSVC, since dllexport + extern does not work
+#if !defined(EVENT__NEED_DLLIMPORT) && !defined(_MSC_VER)
 #define USE_GLOBAL_FOR_DEBUG_LOGGING
+#endif
 
 #if !defined(EVENT__DISABLE_DEBUG_MODE) || defined(USE_DEBUG)
 #define EVENT_DEBUG_LOGGING_ENABLED
 #endif
 
 #ifdef EVENT_DEBUG_LOGGING_ENABLED
+EVENT2_INTERNAL_EXPORT
 #ifdef USE_GLOBAL_FOR_DEBUG_LOGGING
 extern ev_uint32_t event_debug_logging_mask_;
 #define event_debug_get_logging_mask_() (event_debug_logging_mask_)
@@ -56,15 +60,22 @@ ev_uint32_t event_debug_get_logging_mask_(void);
 #define event_debug_get_logging_mask_() (0)
 #endif
 
+EVENT2_INTERNAL_EXPORT
 void event_err(int eval, const char *fmt, ...) EV_CHECK_FMT(2,3) EV_NORETURN;
+EVENT2_INTERNAL_EXPORT
 void event_warn(const char *fmt, ...) EV_CHECK_FMT(1,2);
 void event_sock_err(int eval, evutil_socket_t sock, const char *fmt, ...) EV_CHECK_FMT(3,4) EV_NORETURN;
+EVENT2_INTERNAL_EXPORT
 void event_sock_warn(evutil_socket_t sock, const char *fmt, ...) EV_CHECK_FMT(2,3);
+EVENT2_INTERNAL_EXPORT
 void event_errx(int eval, const char *fmt, ...) EV_CHECK_FMT(2,3) EV_NORETURN;
+EVENT2_INTERNAL_EXPORT
 void event_warnx(const char *fmt, ...) EV_CHECK_FMT(1,2);
 void event_msgx(const char *fmt, ...) EV_CHECK_FMT(1,2);
+EVENT2_INTERNAL_EXPORT
 void event_debugx_(const char *fmt, ...) EV_CHECK_FMT(1,2);
 
+EVENT2_INTERNAL_EXPORT
 void event_logv_(int severity, const char *errstr, const char *fmt, va_list ap)
 	EV_CHECK_FMT(3,0);
 

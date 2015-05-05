@@ -52,4 +52,11 @@
 
 #endif
 
+// For internal symbols referenced by event-extra
+#if defined(event_core_EXPORTS) || (defined(EVENT__NEED_DLLIMPORT) && defined(_MSC_VER) && !defined(EVENT_BUILDING_REGRESS_TEST))
+#define EVENT2_INTERNAL_EXPORT EVENT2_EXPORT_SYMBOL
+#else
+#define EVENT2_INTERNAL_EXPORT
+#endif
+
 #endif /* EVENT2_VISIBILITY_H_INCLUDED_ */
