@@ -327,14 +327,9 @@ int bufferevent_disable_hard_(struct bufferevent *bufev, short event);
 /** Internal: Set up locking on a bufferevent.  If lock is set, use it.
  * Otherwise, use a new lock. */
 int bufferevent_enable_locking_(struct bufferevent *bufev, void *lock);
-/** Internal: Increment the reference count on bufev. */
-void bufferevent_incref_(struct bufferevent *bufev);
 /** Internal: Lock bufev and increase its reference count.
  * unlocking it otherwise. */
 void bufferevent_incref_and_lock_(struct bufferevent *bufev);
-/** Internal: Decrement the reference count on bufev.  Returns 1 if it freed
- * the bufferevent.*/
-int bufferevent_decref_(struct bufferevent *bufev);
 /** Internal: Drop the reference count on bufev, freeing as necessary, and
  * unlocking it otherwise.  Returns 1 if it freed the bufferevent. */
 int bufferevent_decref_and_unlock_(struct bufferevent *bufev);

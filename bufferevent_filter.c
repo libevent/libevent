@@ -207,7 +207,7 @@ bufferevent_filter_new(struct bufferevent *underlying,
 	   bufferevent_filtered_outbuf_cb, bufev_f);
 
 	bufferevent_init_generic_timeout_cbs_(downcast(bufev_f));
-	bufferevent_incref_(underlying);
+	bufferevent_incref(underlying);
 
 	bufferevent_enable(underlying, EV_READ|EV_WRITE);
 	bufferevent_suspend_read_(underlying, BEV_SUSPEND_FILT_READ);

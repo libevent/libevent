@@ -521,7 +521,7 @@ evbuffer_invoke_callbacks_(struct evbuffer *buffer)
 		if (event_deferred_cb_schedule_(buffer->cb_queue, &buffer->deferred)) {
 			evbuffer_incref_and_lock_(buffer);
 			if (buffer->parent)
-				bufferevent_incref_(buffer->parent);
+				bufferevent_incref(buffer->parent);
 		}
 		EVBUFFER_UNLOCK(buffer);
 	}
@@ -542,7 +542,7 @@ evbuffer_deferred_callback(struct event_callback *cb, void *arg)
 	evbuffer_run_callbacks(buffer, 1);
 	evbuffer_decref_and_unlock_(buffer);
 	if (parent)
-		bufferevent_decref_(parent);
+		bufferevent_decref(parent);
 }
 
 static void

@@ -1349,7 +1349,7 @@ bufferevent_openssl_new_impl(struct event_base *base,
 
 	if (underlying) {
 		bufferevent_init_generic_timeout_cbs_(&bev_ssl->bev.bev);
-		bufferevent_incref_(underlying);
+		bufferevent_incref(underlying);
 	}
 
 	bev_ssl->state = state;

@@ -212,10 +212,10 @@ bev_async_consider_writing(struct bufferevent_async *beva)
 	}
 
 	/*  XXXX doesn't respect low-water mark very well. */
-	bufferevent_incref_(bev);
+	bufferevent_incref(bev);
 	if (evbuffer_launch_write_(bev->output, at_most,
 	    &beva->write_overlapped)) {
-		bufferevent_decref_(bev);
+		bufferevent_decref(bev);
 		beva->ok = 0;
 		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
 	} else {
@@ -267,11 +267,11 @@ bev_async_consider_reading(struct bufferevent_async *beva)
 		return;
 	}
 
-	bufferevent_incref_(bev);
+	bufferevent_incref(bev);
 	if (evbuffer_launch_read_(bev->input, at_most, &beva->read_overlapped)) {
 		beva->ok = 0;
 		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
-		bufferevent_decref_(bev);
+		bufferevent_decref(bev);
 	} else {
 		beva->read_in_progress = at_most;
 		bufferevent_decrement_read_buckets_(&beva->bev, at_most);
@@ -633,14 +633,14 @@ bufferevent_async_connect_(struct bufferevent *bev, evutil_socket_t fd,
 		return -1;
 
 	event_base_add_virtual_(bev->ev_base);
-	bufferevent_incref_(bev);
+	bufferevent_incref(bev);
 	rc = ext->ConnectEx(fd, sa, socklen, NULL, 0, NULL,
 			    &bev_async->connect_overlapped.overlapped);
 	if (rc || WSAGetLastError() == ERROR_IO_PENDING)
 		return 0;
 
 	event_base_del_virtual_(bev->ev_base);
-	bufferevent_decref_(bev);
+	bufferevent_decref(bev);
 
 	return -1;
 }
