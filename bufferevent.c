@@ -777,7 +777,7 @@ bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
 }
 
 int
-bufferevent_decref_(struct bufferevent *bufev)
+bufferevent_decref(struct bufferevent *bufev)
 {
 	BEV_LOCK(bufev);
 	return bufferevent_decref_and_unlock_(bufev);
@@ -793,11 +793,15 @@ bufferevent_free(struct bufferevent *bufev)
 }
 
 void
-bufferevent_incref_(struct bufferevent *bufev)
+bufferevent_incref(struct bufferevent *bufev)
 {
 	struct bufferevent_private *bufev_private =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 
+	/* XXX: now that this function is public, we might want to
+	 * - return the count from this function
+	 * - create a new function to atomically grab the current refcount
+	 */
 	BEV_LOCK(bufev);
 	++bufev_private->refcnt;
 	BEV_UNLOCK(bufev);
