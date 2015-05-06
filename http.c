@@ -96,6 +96,8 @@
 #include "event2/http_compat.h"
 #include "event2/util.h"
 #include "event2/listener.h"
+#include "event-internal.h"
+#include "evthread-internal.h"
 #include "log-internal.h"
 #include "util-internal.h"
 #include "http-internal.h"
@@ -2183,8 +2185,12 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 {
 	int old_state = evcon->state;
 
-	if (evcon->state == EVCON_CONNECTING)
+	EVBASE_ACQUIRE_LOCK(evcon->base, th_base_lock);
+
+	if (evcon->state == EVCON_CONNECTING) {
+                EVBASE_RELEASE_LOCK(evcon->base, th_base_lock);
 		return (0);
+        }
 
 	evhttp_connection_reset(evcon);
 
@@ -2194,6 +2200,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	evcon->fd = bind_socket(
 		evcon->bind_address, evcon->bind_port, 0 /*reuse*/);
 	if (evcon->fd == -1) {
+		EVBASE_RELEASE_LOCK(evcon->base, th_base_lock);
 		event_debug(("%s: failed to bind to \"%s\"",
 			__func__, evcon->bind_address));
 		return (-1);
@@ -2216,6 +2223,7 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 	if (bufferevent_socket_connect_hostname(evcon->bufev, evcon->dns_base,
 		AF_UNSPEC, evcon->address, evcon->port) < 0) {
 		evcon->state = old_state;
+		EVBASE_RELEASE_LOCK(evcon->base, th_base_lock);
 		event_sock_warn(evcon->fd, "%s: connection to \"%s\" failed",
 		    __func__, evcon->address);
 		/* some operating systems return ECONNREFUSED immediately
@@ -2225,6 +2233,8 @@ evhttp_connection_connect(struct evhttp_connection *evcon)
 		evhttp_connection_cb_cleanup(evcon);
 		return (0);
 	}
+
+	EVBASE_RELEASE_LOCK(evcon->base, th_base_lock);
 
 	return (0);
 }
