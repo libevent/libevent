@@ -257,6 +257,9 @@ evutil_ersatz_socketpair_(int family, int type, int protocol,
 	connector = socket(AF_INET, type, 0);
 	if (connector < 0)
 		goto tidy_up_and_fail;
+
+	memset(&connect_addr, 0, sizeof(connect_addr));
+
 	/* We want to find out the port number to connect to.  */
 	size = sizeof(connect_addr);
 	if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
