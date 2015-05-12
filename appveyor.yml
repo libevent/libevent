@@ -1,6 +1,6 @@
 install:
-  - appveyor DownloadFile http://slproweb.com/download/Win32OpenSSL-1_0_1L.exe
-  - Win32OpenSSL-1_0_1L.exe /silent /verysilent /sp- /suppressmsgboxes
+  - appveyor DownloadFile https://strcpy.net/packages/Win32OpenSSL-1_0_2a.exe 
+  - Win32OpenSSL-1_0_2a.exe /silent /verysilent /sp- /suppressmsgboxes
 build_script:
   - md build
   - cd build
