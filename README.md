@@ -3,10 +3,10 @@
 </p>
 
 
-<p align="center>
+
 [![Appveyor Win32 Build Status](https://ci.appveyor.com/api/projects/status/github/libevent/libevent?branch=master&svg=true)](https://ci.appveyor.com/project/nmathewson/libevent)
 [![Travis Build Status](https://travis-ci.org/libevent/libevent.svg?branch=master)](https://travis-ci.org/libevent/libevent)
-</p>
+
 
 
 # 0. BUILDING AND INSTALLATION (Briefly)
