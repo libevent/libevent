@@ -233,6 +233,7 @@ extern "C" {
 
    @{
 */
+#ifndef EVENT__HAVE_STDINT_H
 #define EV_UINT64_MAX ((((ev_uint64_t)0xffffffffUL) << 32) | 0xffffffffUL)
 #define EV_INT64_MAX  ((((ev_int64_t) 0x7fffffffL) << 32) | 0xffffffffL)
 #define EV_INT64_MIN  ((-EV_INT64_MAX) - 1)
@@ -245,7 +246,21 @@ extern "C" {
 #define EV_UINT8_MAX  255
 #define EV_INT8_MAX   127
 #define EV_INT8_MIN   ((-EV_INT8_MAX) - 1)
+#else
+#define EV_UINT64_MAX UINT64_MAX
+#define EV_INT64_MAX  INT64_MAX
+#define EV_INT64_MIN  INT64_MIN
+#define EV_UINT32_MAX UINT32_MAX
+#define EV_INT32_MAX  INT32_MAX
+#define EV_INT32_MIN  INT32_MIN
+#define EV_UINT16_MAX UINT16_MAX
+#define EV_INT16_MAX  INT16_MAX
+#define EV_UINT8_MAX  UINT8_MAX
+#define EV_INT8_MAX   INT8_MAX
+#define EV_INT8_MIN   INT8_MIN
 /** @} */
+#endif
+
 
 /**
    @name Limits for SIZE_T and SSIZE_T
