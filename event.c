@@ -199,6 +199,20 @@ eq_debug_entry(const struct event_debug_entry *a,
 }
 
 int event_debug_mode_on_ = 0;
+
+
+/**
+ * @brief debug mode variable which is set for any function/structure that needs
+ *        to be shared across threads (if thread support is enabled).
+ *
+ *        When and if evthreads are initialized, this variable will be evaluated,
+ *        and if set to something other than zero, this means the evthread setup 
+ *        functions were called out of order.
+ *
+ *        See: "Locks and threading" in the documentation.
+ */
+int event_debug_created_threadable_ctx_ = 0;
+
 /* Set if it's too late to enable event_debug_mode. */
 static int event_debug_mode_too_late = 0;
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
@@ -656,6 +670,8 @@ event_base_new_with_config(const struct event_config *cfg)
 	/* prepare for threading */
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
+	event_debug_created_threadable_ctx_ = 1;
+
 	if (EVTHREAD_LOCKING_ENABLED() &&
 	    (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK))) {
 		int r;
