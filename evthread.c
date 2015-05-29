@@ -45,6 +45,11 @@
 #define GLOBAL static
 #endif
 
+#ifndef EVENT__DISABLE_DEBUG_MODE
+extern int event_debug_created_threadable_ctx_;                    
+extern int event_debug_mode_on_;
+#endif
+
 /* globals */
 GLOBAL int evthread_lock_debugging_enabled_ = 0;
 GLOBAL struct evthread_lock_callbacks evthread_lock_fns_ = {
@@ -89,6 +94,14 @@ evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 {
 	struct evthread_lock_callbacks *target = evthread_get_lock_callbacks();
 
+#ifndef EVENT__DISABLE_DEBUG_MODE
+	if (event_debug_mode_on_) {
+		if (event_debug_created_threadable_ctx_) {
+		    event_errx(1, "evthread initialization must be called BEFORE anything else!");
+		}
+	}
+#endif
+
 	if (!cbs) {
 		if (target->alloc)
 			event_warnx("Trying to disable lock functions after "
@@ -123,6 +136,14 @@ int
 evthread_set_condition_callbacks(const struct evthread_condition_callbacks *cbs)
 {
 	struct evthread_condition_callbacks *target = evthread_get_condition_callbacks();
+
+#ifndef EVENT__DISABLE_DEBUG_MODE
+	if (event_debug_mode_on_) {
+		if (event_debug_created_threadable_ctx_) {
+		    event_errx(1, "evthread initialization must be called BEFORE anything else!");
+		}
+	}
+#endif
 
 	if (!cbs) {
 		if (target->alloc_condition)
@@ -406,6 +427,12 @@ evthreadimpl_get_id_()
 void *
 evthreadimpl_lock_alloc_(unsigned locktype)
 {
+#ifndef EVENT__DISABLE_DEBUG_MODE
+	if (event_debug_mode_on_) {
+		event_debug_created_threadable_ctx_ = 1;
+	}
+#endif
+
 	return evthread_lock_fns_.alloc ?
 	    evthread_lock_fns_.alloc(locktype) : NULL;
 }
@@ -434,6 +461,12 @@ evthreadimpl_lock_unlock_(unsigned mode, void *lock)
 void *
 evthreadimpl_cond_alloc_(unsigned condtype)
 {
+#ifndef EVENT__DISABLE_DEBUG_MODE
+	if (event_debug_mode_on_) {
+		event_debug_created_threadable_ctx_ = 1;
+	}
+#endif
+
 	return evthread_cond_fns_.alloc_condition ?
 	    evthread_cond_fns_.alloc_condition(condtype) : NULL;
 }
