@@ -151,7 +151,7 @@ launch_request(void)
 	}
 	frob_socket(sock);
 	if (connect(sock, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
-		int e = errno;
+		int e = evutil_socket_geterror(sock);
 		if (! EVUTIL_ERR_CONNECT_RETRIABLE(e)) {
 			evutil_closesocket(sock);
 			return -1;
@@ -182,6 +182,11 @@ main(int argc, char **argv)
 	long long usec;
 	double throughput;
 	resource = "/ref";
+
+#ifdef _WIN32
+	WSADATA WSAData;
+	WSAStartup(0x101, &WSAData);
+#endif
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -225,6 +230,10 @@ main(int argc, char **argv)
 	    throughput,
 	    (double)(usec/1000) / total_n_handled,
 	    (I64_TYP)total_n_bytes, n_errors);
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
 
 	return 0;
 }
