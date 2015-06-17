@@ -53,6 +53,28 @@ option(EVENT__FORCE_KQUEUE_CHECK "When crosscompiling forces running a test prog
 option(EVENT__COVERAGE "Enable running gcov to get a test coverage report (only works with GCC/CLang). Make sure to enable -DCMAKE_BUILD_TYPE=Debug as well." OFF)
 # TODO: Add --disable-largefile     omit support for large files
 
+# Override options for biicode
+IF(BIICODE) # Don't compile samples, regress, tests nor benchmark in biicode
+    set(EVENT__DISABLE_SAMPLES ON)
+    set(EVENT__DISABLE_REGRESS ON)
+    set(EVENT__DISABLE_TESTS ON)
+    set(EVENT__DISABLE_BENCHMARK ON)
+
+	# Initializes block variables
+    INIT_BIICODE_BLOCK()
+
+    # Tell Biicode no auto-build library, will use LIBEVENT_LIBRARIES
+    SET(BII_LIB_SRC)
+
+    # Set https client sources
+    SET(BII_sample_https-client_SRC sample/https-client.c sample/openssl_hostname_validation.c sample/hostcheck.c)
+
+    IF(BII_BLOCK_EXES AND NOT WIN32)
+      LIST(REMOVE_ITEM BII_BLOCK_EXES test_print-winsock-errors)
+    ENDIF()
+ENDIF()
+
+
 # Put the libaries and binaries that get built into directories at the
 # top of the build tree rather than in hard-to-find leaf directories.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
@@ -504,7 +526,7 @@ set(HDR_PRIVATE
     ratelim-internal.h
     strlcpy-internal.h
     util-internal.h
-    evconfig-private.h
+    ${PROJECT_BINARY_DIR}/include/evconfig-private.h
     compat/sys/queue.h
     )
 
@@ -587,16 +609,23 @@ if(EVENT__HAVE_EVENT_PORTS)
     list(APPEND SRC_CORE evport.c)
 endif()
 
-if (NOT EVENT__DISABLE_OPENSSL)
-    find_package(OpenSSL REQUIRED)
-    set(EVENT__HAVE_OPENSSL 1)
-    message("OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-    message("OpenSSL lib: ${OPENSSL_LIBRARIES}")
-    include_directories(${OPENSSL_INCLUDE_DIR})
-    list(APPEND SRC_CORE bufferevent_openssl.c)
-    list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
-    list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
+if (NOT EVENT__DISABLE_OPENSSL AND NOT BIICODE)
+   find_package(OpenSSL REQUIRED)
+   set(EVENT__HAVE_OPENSSL 1)
+   message("OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
+   message("OpenSSL lib: ${OPENSSL_LIBRARIES}")
+   include_directories(${OPENSSL_INCLUDE_DIR})
+   list(APPEND SRC_CORE bufferevent_openssl.c)
+   list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+   list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
 endif()
+
+# If detected dependency to openssl link necessary files
+IF(BIICODE)
+   set(EVENT__HAVE_OPENSSL 1)
+   list(APPEND SRC_CORE bufferevent_openssl.c)
+   list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+ENDIF()
 
 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     if (WIN32)
@@ -1103,9 +1132,11 @@ foreach(p LIB BIN INCLUDE CMAKE)
 endforeach()
 
 # Export targets (This is used for other CMake projects to easily find the libraries and include files).
+IF(NOT BIICODE)
 export(TARGETS event event_extra event_core
         FILE "${PROJECT_BINARY_DIR}/LibeventTargets.cmake")
 export(PACKAGE libevent)
+ENDIF()
 
 # Generate the config file for the build-tree.
 set(EVENT__INCLUDE_DIRS
@@ -1163,7 +1194,30 @@ install(FILES
 
 
 # Install exports for the install-tree.
+IF(NOT BIICODE)
 install(EXPORT LibeventTargets
         DESTINATION "${EVENT_INSTALL_CMAKE_DIR}" COMPONENT dev)
+ENDIF()
 
 set(LIBEVENT_LIBRARIES event event_core event_extra CACHE STRING "Libevent libraries")
+
+IF(BIICODE)
+    # Actually create targets: EXEcutables and libraries.
+    ADD_BIICODE_TARGETS()
+
+    # Public include directories. Necessary when other blocks depends on this
+    TARGET_INCLUDE_DIRECTORIES(${BII_BLOCK_TARGET} INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/include)
+
+    # Recover biicode standard output directory
+    SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_HOME_DIRECTORY}/../bin)
+    SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_HOME_DIRECTORY}/../bin)
+
+    # Properties from interfaces applied to ${LIBEVENT_LIBRARIES}
+    foreach(library ${LIBEVENT_LIBRARIES})
+        TARGET_LINK_LIBRARIES(${library} PUBLIC ${BII_LIB_DEPS})
+    endforeach()
+
+	# Link against built libraries for reuse
+    TARGET_LINK_LIBRARIES(${BII_LIB_TARGET} INTERFACE ${LIBEVENT_LIBRARIES})
+
+ENDIF()
