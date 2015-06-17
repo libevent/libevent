@@ -12,9 +12,14 @@
 
 #include <sys/types.h>
 
+#ifdef EVENT__HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <getopt.h>
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -141,34 +146,33 @@ logfn(int is_warn, const char *msg) {
 
 int
 main(int c, char **v) {
-	int idx;
-	int reverse = 0, servertest = 0, use_getaddrinfo = 0;
+	struct options {
+		int reverse;
+		int use_getaddrinfo;
+		int servertest;
+		const char *resolv_conf;
+		const char *ns;
+	} o = { };
+	char opt;
 	struct event_base *event_base = NULL;
 	struct evdns_base *evdns_base = NULL;
-	const char *resolv_conf = NULL;
-	if (c<2) {
-		fprintf(stderr, "syntax: %s [-x] [-v] [-c resolv.conf] hostname\n", v[0]);
-		fprintf(stderr, "syntax: %s [-servertest]\n", v[0]);
+
+	if (c < 2) {
+		fprintf(stderr, "syntax: %s [-x] [-v] [-c resolv.conf] [-s ns] hostname\n", v[0]);
+		fprintf(stderr, "syntax: %s [-T]\n", v[0]);
 		return 1;
 	}
-	idx = 1;
-	while (idx < c && v[idx][0] == '-') {
-		if (!strcmp(v[idx], "-x"))
-			reverse = 1;
-		else if (!strcmp(v[idx], "-v"))
-			verbose = 1;
-		else if (!strcmp(v[idx], "-g"))
-			use_getaddrinfo = 1;
-		else if (!strcmp(v[idx], "-servertest"))
-			servertest = 1;
-		else if (!strcmp(v[idx], "-c")) {
-			if (idx + 1 < c)
-				resolv_conf = v[++idx];
-			else
-				fprintf(stderr, "-c needs an argument\n");
-		} else
-			fprintf(stderr, "Unknown option %s\n", v[idx]);
-		++idx;
+
+	while ((opt = getopt(c, v, "xvc:Ts:")) != -1) {
+		switch (opt) {
+			case 'x': o.reverse = 1; break;
+			case 'v': ++verbose; break;
+			case 'g': o.use_getaddrinfo = 1; break;
+			case 'T': o.servertest = 1; break;
+			case 'c': o.resolv_conf = optarg; break;
+			case 's': o.ns = optarg; break;
+			default : fprintf(stderr, "Unknown option %c\n", opt); break;
+		}
 	}
 
 #ifdef _WIN32
@@ -182,7 +186,7 @@ main(int c, char **v) {
 	evdns_base = evdns_base_new(event_base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
 	evdns_set_log_fn(logfn);
 
-	if (servertest) {
+	if (o.servertest) {
 		evutil_socket_t sock;
 		struct sockaddr_in my_addr;
 		sock = socket(PF_INET, SOCK_DGRAM, 0);
@@ -200,16 +204,18 @@ main(int c, char **v) {
 		}
 		evdns_add_server_port_with_base(event_base, sock, 0, evdns_server_callback, NULL);
 	}
-	if (idx < c) {
+	if (optind < c) {
 		int res;
 #ifdef _WIN32
-		if (resolv_conf == NULL)
+		if (o.resolv_conf == NULL && !o.ns)
 			res = evdns_base_config_windows_nameservers(evdns_base);
 		else
 #endif
+		if (o.ns)
+			res = evdns_base_nameserver_ip_add(evdns_base, o.ns);
+		else
 			res = evdns_base_resolv_conf_parse(evdns_base,
-			    DNS_OPTION_NAMESERVERS,
-			    resolv_conf ? resolv_conf : "/etc/resolv.conf");
+			    DNS_OPTION_NAMESERVERS, o.resolv_conf);
 
 		if (res < 0) {
 			fprintf(stderr, "Couldn't configure nameservers");
@@ -218,27 +224,27 @@ main(int c, char **v) {
 	}
 
 	printf("EVUTIL_AI_CANONNAME in example = %d\n", EVUTIL_AI_CANONNAME);
-	for (; idx < c; ++idx) {
-		if (reverse) {
+	for (; optind < c; ++optind) {
+		if (o.reverse) {
 			struct in_addr addr;
-			if (evutil_inet_pton(AF_INET, v[idx], &addr)!=1) {
-				fprintf(stderr, "Skipping non-IP %s\n", v[idx]);
+			if (evutil_inet_pton(AF_INET, v[optind], &addr)!=1) {
+				fprintf(stderr, "Skipping non-IP %s\n", v[optind]);
 				continue;
 			}
-			fprintf(stderr, "resolving %s...\n",v[idx]);
-			evdns_base_resolve_reverse(evdns_base, &addr, 0, main_callback, v[idx]);
-		} else if (use_getaddrinfo) {
+			fprintf(stderr, "resolving %s...\n",v[optind]);
+			evdns_base_resolve_reverse(evdns_base, &addr, 0, main_callback, v[optind]);
+		} else if (o.use_getaddrinfo) {
 			struct evutil_addrinfo hints;
 			memset(&hints, 0, sizeof(hints));
 			hints.ai_family = PF_UNSPEC;
 			hints.ai_protocol = IPPROTO_TCP;
 			hints.ai_flags = EVUTIL_AI_CANONNAME;
-			fprintf(stderr, "resolving (fwd) %s...\n",v[idx]);
-			evdns_getaddrinfo(evdns_base, v[idx], NULL, &hints,
-			    gai_callback, v[idx]);
+			fprintf(stderr, "resolving (fwd) %s...\n",v[optind]);
+			evdns_getaddrinfo(evdns_base, v[optind], NULL, &hints,
+			    gai_callback, v[optind]);
 		} else {
-			fprintf(stderr, "resolving (fwd) %s...\n",v[idx]);
-			evdns_base_resolve_ipv4(evdns_base, v[idx], 0, main_callback, v[idx]);
+			fprintf(stderr, "resolving (fwd) %s...\n",v[optind]);
+			evdns_base_resolve_ipv4(evdns_base, v[optind], 0, main_callback, v[optind]);
 		}
 	}
 	fflush(stdout);
