@@ -152,11 +152,14 @@ main(int c, char **v) {
 		int servertest;
 		const char *resolv_conf;
 		const char *ns;
-	} o = { };
+	};
+	struct options o;
 	char opt;
 	struct event_base *event_base = NULL;
 	struct evdns_base *evdns_base = NULL;
 
+	memset(&o, 0, sizeof(o));
+	
 	if (c < 2) {
 		fprintf(stderr, "syntax: %s [-x] [-v] [-c resolv.conf] [-s ns] hostname\n", v[0]);
 		fprintf(stderr, "syntax: %s [-T]\n", v[0]);
