@@ -1125,6 +1125,9 @@ evhttp_write_connectioncb(struct evhttp_connection *evcon, void *arg)
 
 	EVUTIL_ASSERT(evcon->state == EVCON_WRITING);
 
+	/* We need to wait until we've written all of our output data before we can continue */
+	if (evbuffer_get_length(bufferevent_get_output(evcon->bufev)) > 0) { return; }
+
 	/* We are done writing our header and are now expecting the response */
 	req->kind = EVHTTP_RESPONSE;
 
