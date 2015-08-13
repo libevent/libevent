@@ -467,6 +467,13 @@ void event_base_assert_ok_nolock_(struct event_base *base);
 int event_base_foreach_event_nolock_(struct event_base *base,
     event_base_foreach_event_cb cb, void *arg);
 
+/* Cleanup function to reset debug mode during shutdown.
+ *
+ * Calling this function doesn't mean it'll be possible to re-enable
+ * debug mode if any events were added.
+ */
+void event_disable_debug_mode(void);
+
 #ifdef __cplusplus
 }
 #endif
