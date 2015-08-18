@@ -681,6 +681,13 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 	return (0);
 }
 
+static void
+evhttp_request_free_(struct evhttp_connection *evcon, struct evhttp_request *req)
+{
+	TAILQ_REMOVE(&evcon->requests, req, next);
+	evhttp_request_free(req);
+}
+
 /* Called when evcon has experienced a (non-recoverable? -NM) error, as
  * given in error. If it's an outgoing connection, reset the connection,
  * retry any pending requests, and inform the user.  If it's incoming,
@@ -729,8 +736,7 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 	 * send over a new connection.   when a user cancels a request,
 	 * all other pending requests should be processed as normal
 	 */
-	TAILQ_REMOVE(&evcon->requests, req, next);
-	evhttp_request_free(req);
+	evhttp_request_free_(evcon, req);
 
 	/* reset the connection */
 	evhttp_connection_reset_(evcon);
@@ -1158,8 +1164,7 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	 * evhttp_connection_fail_.
 	 */
 	while ((req = TAILQ_FIRST(&evcon->requests)) != NULL) {
-		TAILQ_REMOVE(&evcon->requests, req, next);
-		evhttp_request_free(req);
+		evhttp_request_free_(evcon, req);
 	}
 
 	if (evcon->http_server != NULL) {
