@@ -770,6 +770,7 @@ if (NOT EVENT__DISABLE_SAMPLES)
         hello-world
         signal-test
         http-server
+        http-connect
         time-test)
 
     if (NOT EVENT__DISABLE_OPENSSL AND OPENSSL_LIBRARIES)
