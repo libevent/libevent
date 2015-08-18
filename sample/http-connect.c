@@ -14,13 +14,13 @@ struct connect_base
 	struct evhttp_uri *location;
 };
 
-void get_cb(struct evhttp_request *req, void *arg)
+static void get_cb(struct evhttp_request *req, void *arg)
 {
 	assert(req);
 	evbuffer_write(req->input_buffer, STDOUT_FILENO);
 }
 
-void connect_cb(struct evhttp_request *proxy_req, void *arg)
+static void connect_cb(struct evhttp_request *proxy_req, void *arg)
 {
 	char buffer[PATH_MAX];
 
@@ -48,6 +48,8 @@ int main(int argc, const char **argv)
 	struct event_base *base;
 	struct evhttp_connection *evcon;
 	struct evhttp_request *req;
+
+	struct connect_base connect_base;
 
 	if (argc != 3) {
 		printf("Usage: %s proxy url\n", argv[0]);
@@ -80,7 +82,7 @@ int main(int argc, const char **argv)
 	assert(base = event_base_new());
 	assert(evcon = evhttp_connection_base_new(base, NULL,
 		evhttp_uri_get_host(proxy), evhttp_uri_get_port(proxy)));
-	struct connect_base connect_base = {
+	connect_base = (struct connect_base){
 		.evcon = evcon,
 		.location = location,
 	};
