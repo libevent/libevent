@@ -3459,7 +3459,7 @@ http_connection_retry_conn_address_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	ev_uint16_t portnum = 0;
-	struct evdns_base *dns_base;
+	struct evdns_base *dns_base = NULL;
 	char address[64];
 
 	tt_assert(regress_dnsserver(data->base, &portnum, search_table));
