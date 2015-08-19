@@ -195,7 +195,7 @@ main(int argc, char **argv)
 	int retries = 0;
 
 	SSL_CTX *ssl_ctx = NULL;
-	SSL *ssl;
+	SSL *ssl = NULL;
 	struct bufferevent *bev;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req;
@@ -455,7 +455,7 @@ cleanup:
 
 	if (ssl_ctx)
 		SSL_CTX_free(ssl_ctx);
-	if (type == HTTP)
+	if (type == HTTP && ssl)
 		SSL_free(ssl);
 	EVP_cleanup();
 	ERR_free_strings();
