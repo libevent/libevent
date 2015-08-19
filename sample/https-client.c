@@ -99,19 +99,16 @@ syntax(void)
 	fputs("   https-client -url <https-url> [-data data-file.bin] [-ignore-cert] [-retries num]\n", stderr);
 	fputs("Example:\n", stderr);
 	fputs("   https-client -url https://ip.appspot.com/\n", stderr);
-
-	exit(1);
 }
 
 static void
-die(const char *msg)
+err(const char *msg)
 {
 	fputs(msg, stderr);
-	exit(1);
 }
 
 static void
-die_openssl(const char *func)
+err_openssl(const char *func)
 {
 	fprintf (stderr, "%s failed:\n", func);
 
@@ -190,22 +187,24 @@ main(int argc, char **argv)
 {
 	int r;
 
-	struct evhttp_uri *http_uri;
+	struct evhttp_uri *http_uri = NULL;
 	const char *url = NULL, *data_file = NULL;
 	const char *scheme, *host, *path, *query;
 	char uri[256];
 	int port;
 	int retries = 0;
 
-	SSL_CTX *ssl_ctx;
+	SSL_CTX *ssl_ctx = NULL;
 	SSL *ssl;
 	struct bufferevent *bev;
-	struct evhttp_connection *evcon;
+	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req;
 	struct evkeyvalq *output_headers;
-	struct evbuffer * output_buffer;
+	struct evbuffer *output_buffer;
 
 	int i;
+	int ret = 0;
+	enum { HTTP, HTTPS } type = HTTP;
 
 	for (i = 1; i < argc; i++) {
 		if (!strcmp("-url", argv[i])) {
@@ -213,6 +212,7 @@ main(int argc, char **argv)
 				url = argv[i + 1];
 			} else {
 				syntax();
+				goto error;
 			}
 		} else if (!strcmp("-ignore-cert", argv[i])) {
 			ignore_cert = 1;
@@ -221,20 +221,24 @@ main(int argc, char **argv)
 				data_file = argv[i + 1];
 			} else {
 				syntax();
+				goto error;
 			}
 		} else if (!strcmp("-retries", argv[i])) {
 			if (i < argc - 1) {
 				retries = atoi(argv[i + 1]);
 			} else {
 				syntax();
+				goto error;
 			}
 		} else if (!strcmp("-help", argv[i])) {
 			syntax();
+			goto error;
 		}
 	}
 
 	if (!url) {
 		syntax();
+		goto error;
 	}
 
 #ifdef _WIN32
@@ -248,25 +252,28 @@ main(int argc, char **argv)
 		err = WSAStartup(wVersionRequested, &wsaData);
 		if (err != 0) {
 			printf("WSAStartup failed with error: %d\n", err);
-			return 1;
+			goto error;
 		}
 	}
 #endif // _WIN32
 
 	http_uri = evhttp_uri_parse(url);
 	if (http_uri == NULL) {
-		die("malformed url");
+		err("malformed url");
+		goto error;
 	}
 
 	scheme = evhttp_uri_get_scheme(http_uri);
 	if (scheme == NULL || (strcasecmp(scheme, "https") != 0 &&
 	                       strcasecmp(scheme, "http") != 0)) {
-		die("url must be http or https");
+		err("url must be http or https");
+		goto error;
 	}
 
 	host = evhttp_uri_get_host(http_uri);
 	if (host == NULL) {
-		die("url must have a host");
+		err("url must have a host");
+		goto error;
 	}
 
 	port = evhttp_uri_get_port(http_uri);
@@ -297,23 +304,28 @@ main(int argc, char **argv)
 	 * automatically on first use of random number generator. */
 	r = RAND_poll();
 	if (r == 0) {
-		die_openssl("RAND_poll");
+		err_openssl("RAND_poll");
+		goto error;
 	}
 
 	/* Create a new OpenSSL context */
 	ssl_ctx = SSL_CTX_new(SSLv23_method());
-	if (!ssl_ctx)
-		die_openssl("SSL_CTX_new");
+	if (!ssl_ctx) {
+		err_openssl("SSL_CTX_new");
+		goto error;
+	}
 
-	#ifndef _WIN32
+#ifndef _WIN32
 	/* TODO: Add certificate loading on Windows as well */
 
 	/* Attempt to use the system's trusted root certificates.
 	 * (This path is only valid for Debian-based systems.) */
 	if (1 != SSL_CTX_load_verify_locations(ssl_ctx,
 					       "/etc/ssl/certs/ca-certificates.crt",
-					       NULL))
-		die_openssl("SSL_CTX_load_verify_locations");
+					       NULL)) {
+		err_openssl("SSL_CTX_load_verify_locations");
+		goto error;
+	}
 	/* Ask OpenSSL to verify the server certificate.  Note that this
 	 * does NOT include verifying that the hostname is correct.
 	 * So, by itself, this means anyone with any legitimate
@@ -336,21 +348,22 @@ main(int argc, char **argv)
 	 * OpenSSL's built-in routine which would have been called if
 	 * we hadn't set the callback.  Therefore, we're just
 	 * "wrapping" OpenSSL's routine, not replacing it. */
-	SSL_CTX_set_cert_verify_callback (ssl_ctx, cert_verify_callback,
+	SSL_CTX_set_cert_verify_callback(ssl_ctx, cert_verify_callback,
 					  (void *) host);
-	#endif // not _WIN32
+#endif // not _WIN32
 
 	// Create event base
 	base = event_base_new();
 	if (!base) {
 		perror("event_base_new()");
-		return 1;
+		goto error;
 	}
 
 	// Create OpenSSL bufferevent and stack evhttp on top of it
 	ssl = SSL_new(ssl_ctx);
 	if (ssl == NULL) {
-		die_openssl("SSL_new()");
+		err_openssl("SSL_new()");
+		goto error;
 	}
 
 	#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
@@ -361,6 +374,7 @@ main(int argc, char **argv)
 	if (strcasecmp(scheme, "http") == 0) {
 		bev = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
 	} else {
+		type = HTTPS;
 		bev = bufferevent_openssl_socket_new(base, -1, ssl,
 			BUFFEREVENT_SSL_CONNECTING,
 			BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
@@ -368,7 +382,7 @@ main(int argc, char **argv)
 
 	if (bev == NULL) {
 		fprintf(stderr, "bufferevent_openssl_socket_new() failed\n");
-		return 1;
+		goto error;
 	}
 
 	bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
@@ -379,7 +393,7 @@ main(int argc, char **argv)
 		host, port);
 	if (evcon == NULL) {
 		fprintf(stderr, "evhttp_connection_base_bufferevent_new() failed\n");
-		return 1;
+		goto error;
 	}
 
 	if (retries > 0) {
@@ -390,7 +404,7 @@ main(int argc, char **argv)
 	req = evhttp_request_new(http_request_done, bev);
 	if (req == NULL) {
 		fprintf(stderr, "evhttp_request_new() failed\n");
-		return 1;
+		goto error;
 	}
 
 	output_headers = evhttp_request_get_output_headers(req);
@@ -408,6 +422,7 @@ main(int argc, char **argv)
 
 		if (!f) {
 			syntax();
+			goto error;
 		}
 
 		output_buffer = evhttp_request_get_output_buffer(req);
@@ -423,17 +438,36 @@ main(int argc, char **argv)
 	r = evhttp_make_request(evcon, req, data_file ? EVHTTP_REQ_POST : EVHTTP_REQ_GET, uri);
 	if (r != 0) {
 		fprintf(stderr, "evhttp_make_request() failed\n");
-		return 1;
+		goto error;
 	}
 
 	event_base_dispatch(base);
+	goto cleanup;
 
-	evhttp_connection_free(evcon);
+error:
+	ret = 1;
+cleanup:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http_uri)
+		evhttp_uri_free(http_uri);
 	event_base_free(base);
+
+	if (ssl_ctx)
+		SSL_CTX_free(ssl_ctx);
+	if (type == HTTP)
+		SSL_free(ssl);
+	EVP_cleanup();
+	ERR_free_strings();
+
+	ERR_remove_state(0);
+	CRYPTO_cleanup_all_ex_data();
+
+	sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
 
 #ifdef _WIN32
 	WSACleanup();
 #endif
 
-	return 0;
+	return ret;
 }
