@@ -39,6 +39,7 @@ extern "C" {
 #include "event2/thread.h"
 #include "ratelim-internal.h"
 #include "event2/bufferevent_struct.h"
+#include "ipv6-internal.h"
 
 /* These flags are reasons that we might be declining to actually enable
    reading or writing on a bufferevent.
