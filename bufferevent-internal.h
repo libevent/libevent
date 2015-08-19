@@ -39,7 +39,14 @@ extern "C" {
 #include "event2/thread.h"
 #include "ratelim-internal.h"
 #include "event2/bufferevent_struct.h"
+
 #include "ipv6-internal.h"
+#ifdef _WIN32
+#include <ws2tcpip.h>
+#endif
+#ifdef EVENT__HAVE_NETINET_IN6_H
+#include <netinet/in6.h>
+#endif
 
 /* These flags are reasons that we might be declining to actually enable
    reading or writing on a bufferevent.
