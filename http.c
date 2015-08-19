@@ -2478,10 +2478,8 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 	if (evcon->flags & EVHTTP_CON_REUSE_CONNECTED_ADDR &&
 		sa &&
 		(sa->sa_family == AF_INET || sa->sa_family == AF_INET6)) {
-		int socklen;
-		if (sa->sa_family == AF_INET) {
-			socklen = sizeof(struct sockaddr_in);
-		} else if (sa->sa_family == AF_INET6) {
+		int socklen = sizeof(struct sockaddr_in);
+		if (sa->sa_family == AF_INET6) {
 			socklen = sizeof(struct sockaddr_in6);
 		}
 		ret = bufferevent_socket_connect(evcon->bufev, sa, socklen);
