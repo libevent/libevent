@@ -313,7 +313,7 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 {
 #ifdef _WIN32
 	{
-		u_long nonblocking = 1;
+		unsigned long nonblocking = 1;
 		if (ioctlsocket(fd, FIONBIO, &nonblocking) == SOCKET_ERROR) {
 			event_sock_warn(fd, "fcntl(%d, F_GETFL)", (int)fd);
 			return -1;

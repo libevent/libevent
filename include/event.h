@@ -63,8 +63,6 @@ extern "C" {
 #include <winsock2.h>
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
-typedef unsigned char u_char;
-typedef unsigned short u_short;
 #endif
 
 #include <event2/event_struct.h>

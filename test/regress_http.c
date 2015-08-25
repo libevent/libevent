@@ -151,7 +151,7 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int ipv6)
 #endif
 
 static evutil_socket_t
-http_connect(const char *address, u_short port)
+http_connect(const char *address, unsigned short port)
 {
 	/* Stupid code for connecting */
 	struct evutil_addrinfo ai, *aitop;

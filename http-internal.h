@@ -62,10 +62,10 @@ struct evhttp_connection {
 	struct event retry_ev;		/* for retrying connects */
 
 	char *bind_address;		/* address to use for binding the src */
-	u_short bind_port;		/* local port for binding the src */
+	unsigned short bind_port;	/* local port for binding the src */
 
 	char *address;			/* address to connect to */
-	u_short port;
+	unsigned short port;
 
 	size_t max_headers_size;
 	ev_uint64_t max_body_size;
