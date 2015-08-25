@@ -441,7 +441,6 @@ regress_bufferevent_openssl_connect(void *arg)
 		(struct sockaddr*)&ss, &slen) == 0);
 	tt_assert(slen == sizeof(struct sockaddr_in));
 	tt_int_op(((struct sockaddr*)&ss)->sa_family, ==, AF_INET);
-	tt_int_op(((struct sockaddr*)&ss)->sa_family, ==, AF_INET);
 
 	tt_assert(0 ==
 	    bufferevent_socket_connect(bev, (struct sockaddr*)&ss, slen));
