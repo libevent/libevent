@@ -260,7 +260,8 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 	int i, n_changes, res;
 
 	if (tv != NULL) {
-		TIMEVAL_TO_TIMESPEC(tv, &ts);
+		ts.tv_sec = tv->tv_sec;
+		ts.tv_nsec = tv->tv_usec * 1000;
 		ts_p = &ts;
 	}
 
