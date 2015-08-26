@@ -540,7 +540,7 @@ event_enable_debug_mode(void)
 #endif
 }
 
-void
+static void
 event_disable_debug_mode(void)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
