@@ -35,18 +35,22 @@
 #include <sys/types.h>
 #endif
 
-#ifdef EVENT__HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
 #ifdef HAVE_SYS_IOCCOM_H
 #include <sys/ioccom.h>
 #endif
+#ifdef EVENT__HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>
+#endif
+#ifdef EVENT__HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+#ifdef EVENT__HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 
 #ifndef _WIN32
-#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #else
 #include <winsock2.h>
 #include <ws2tcpip.h>
