@@ -828,23 +828,6 @@ int evutil_secure_rng_init(void);
 EVENT2_EXPORT_SYMBOL
 int evutil_secure_rng_set_urandom_device_file(char *fname);
 
-/** Seed the random number generator with extra random bytes.
-
-    You should almost never need to call this function; it should be
-    sufficient to invoke evutil_secure_rng_init(), or let Libevent take
-    care of calling evutil_secure_rng_init() on its own.
-
-    If you call this function as a _replacement_ for the regular
-    entropy sources, then you need to be sure that your input
-    contains a fairly large amount of strong entropy.  Doing so is
-    notoriously hard: most people who try get it wrong.  Watch out!
-
-    @param dat a buffer full of a strong source of random numbers
-    @param datlen the number of bytes to read from datlen
- */
-EVENT2_EXPORT_SYMBOL
-void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
-
 #ifdef __cplusplus
 }
 #endif
