@@ -281,6 +281,13 @@ open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
 	    eventcb, (void*)"server");
 }
 
+enum regress_openssl_type
+{
+	REGRESS_OPENSSL_SOCKETPAIR = 1,
+	REGRESS_OPENSSL_FILTER = 2,
+	REGRESS_OPENSSL_RENEGOTIATE = 4,
+	REGRESS_OPENSSL_OPEN = 8,
+};
 static void
 regress_bufferevent_openssl(void *arg)
 {
@@ -290,18 +297,19 @@ regress_bufferevent_openssl(void *arg)
 	SSL *ssl1, *ssl2;
 	X509 *cert = getcert();
 	EVP_PKEY *key = getkey();
-	const int start_open = strstr((char*)data->setup_data, "open")!=NULL;
-	const int filter = strstr((char*)data->setup_data, "filter")!=NULL;
 	int flags = BEV_OPT_DEFER_CALLBACKS;
 	struct bufferevent *bev_ll[2] = { NULL, NULL };
 	evutil_socket_t *fd_pair = NULL;
+
+	enum regress_openssl_type type;
+	type = (enum regress_openssl_type)data->setup_data;
 
 	tt_assert(cert);
 	tt_assert(key);
 
 	init_ssl();
 
-	if (strstr((char*)data->setup_data, "renegotiate")) {
+	if (type & REGRESS_OPENSSL_RENEGOTIATE) {
 		if (SSLeay() >= 0x10001000 &&
 		    SSLeay() <  0x1000104f) {
 			/* 1.0.1 up to 1.0.1c has a bug where TLS1.1 and 1.2
@@ -317,11 +325,11 @@ regress_bufferevent_openssl(void *arg)
 	SSL_use_certificate(ssl2, cert);
 	SSL_use_PrivateKey(ssl2, key);
 
-	if (! start_open)
+	if (!(type & REGRESS_OPENSSL_OPEN))
 		flags |= BEV_OPT_CLOSE_ON_FREE;
 
-	if (!filter) {
-		tt_assert(strstr((char*)data->setup_data, "socketpair"));
+	if (!(type & REGRESS_OPENSSL_FILTER)) {
+		tt_assert(type & REGRESS_OPENSSL_SOCKETPAIR);
 		fd_pair = data->pair;
 	} else {
 		bev_ll[0] = bufferevent_socket_new(data->base, data->pair[0],
@@ -333,13 +341,13 @@ regress_bufferevent_openssl(void *arg)
 	open_ssl_bufevs(&bev1, &bev2, data->base, 0, flags, ssl1, ssl2,
 	    fd_pair, bev_ll);
 
-	if (!filter) {
+	if (!(type & REGRESS_OPENSSL_FILTER)) {
 		tt_int_op(bufferevent_getfd(bev1), ==, data->pair[0]);
 	} else {
 		tt_ptr_op(bufferevent_get_underlying(bev1), ==, bev_ll[0]);
 	}
 
-	if (start_open) {
+	if (type & REGRESS_OPENSSL_OPEN) {
 		pending_connect_events = 2;
 		stop_when_connected = 1;
 		exit_base = data->base;
@@ -453,22 +461,24 @@ end:
 }
 
 struct testcase_t ssl_testcases[] = {
-
-	{ "bufferevent_socketpair", regress_bufferevent_openssl, TT_ISOLATED,
-	  &basic_setup, (void*)"socketpair" },
+#define T(a) ((void *)(a))
+	{ "bufferevent_socketpair", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup, T(REGRESS_OPENSSL_SOCKETPAIR) },
 	{ "bufferevent_filter", regress_bufferevent_openssl,
-	  TT_ISOLATED,
-	  &basic_setup, (void*)"filter" },
+	  TT_ISOLATED, &basic_setup, T(REGRESS_OPENSSL_FILTER) },
 	{ "bufferevent_renegotiate_socketpair", regress_bufferevent_openssl,
-	  TT_ISOLATED,
-	  &basic_setup, (void*)"socketpair renegotiate" },
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_RENEGOTIATE) },
 	{ "bufferevent_renegotiate_filter", regress_bufferevent_openssl,
-	  TT_ISOLATED,
-	  &basic_setup, (void*)"filter renegotiate" },
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_RENEGOTIATE) },
 	{ "bufferevent_socketpair_startopen", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup, (void*)"socketpair open" },
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_OPEN) },
 	{ "bufferevent_filter_startopen", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup, (void*)"filter open" },
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_OPEN) },
+#undef T
 
 	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
