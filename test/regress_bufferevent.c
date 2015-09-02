@@ -278,6 +278,9 @@ static void lock_unlock_free_thread_cbs(void)
 {
 	event_base_free(NULL);
 
+	if (libevent_tests_running_in_debug_mode)
+		libevent_global_shutdown();
+
 	/** drop immutable flag */
 	evthread_set_lock_callbacks(NULL);
 	/** avoid calling of event_global_setup_locks_() for new cbs */
