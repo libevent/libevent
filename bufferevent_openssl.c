@@ -980,10 +980,9 @@ set_open_callbacks(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 		int rpending=0, wpending=0, r1=0, r2=0;
 
 		if (event_initialized(&bev->ev_read)) {
-			if (fd >= 0) {
-				rpending = event_pending(&bev->ev_read, EV_READ, NULL);
-				wpending = event_pending(&bev->ev_write, EV_WRITE, NULL);
-			}
+			rpending = event_pending(&bev->ev_read, EV_READ, NULL);
+			wpending = event_pending(&bev->ev_write, EV_WRITE, NULL);
+
 			event_del(&bev->ev_read);
 			event_del(&bev->ev_write);
 		}
@@ -1297,7 +1296,7 @@ be_openssl_ctrl(struct bufferevent *bev,
 			bio = BIO_new_socket(data->fd, 0);
 			SSL_set_bio(bev_ssl->ssl, bio, bio);
 		}
-		if (bev_ssl->state == BUFFEREVENT_SSL_OPEN)
+		if (bev_ssl->state == BUFFEREVENT_SSL_OPEN && data->fd >= 0)
 			return set_open_callbacks(bev_ssl, data->fd);
 		else {
 			return set_handshake_callbacks(bev_ssl, data->fd);
