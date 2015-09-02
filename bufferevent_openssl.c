@@ -1030,7 +1030,7 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 		int fd = event_get_fd(&bev_ssl->bev.bev.ev_read);
 		/* We're done! */
 		bev_ssl->state = BUFFEREVENT_SSL_OPEN;
-		set_open_callbacks_auto(bev_ssl, fd); /* XXXX handle failure */
+		set_open_callbacks(bev_ssl, fd); /* XXXX handle failure */
 		/* Call do_read and do_write as needed */
 		bufferevent_enable(&bev_ssl->bev.bev, bev_ssl->bev.bev.enabled);
 		bufferevent_run_eventcb_(&bev_ssl->bev.bev,
