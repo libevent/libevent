@@ -956,6 +956,18 @@ be_openssl_writeeventcb(evutil_socket_t fd, short what, void *ptr)
 }
 
 static int
+be_openssl_auto_fd(struct bufferevent_openssl *bev_ssl, int fd)
+{
+	if (!bev_ssl->underlying) {
+		struct bufferevent *bev = &bev_ssl->bev.bev;
+		if (event_initialized(&bev->ev_read) && fd < 0) {
+			fd = event_get_fd(&bev->ev_read);
+		}
+	}
+	return fd;
+}
+
+static int
 set_open_callbacks(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 {
 	if (bev_ssl->underlying) {
@@ -994,12 +1006,7 @@ set_open_callbacks(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 static int
 set_open_callbacks_auto(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 {
-	if (!bev_ssl->underlying) {
-		struct bufferevent *bev = &bev_ssl->bev.bev;
-		if (event_initialized(&bev->ev_read) && fd < 0) {
-			fd = event_get_fd(&bev->ev_read);
-		}
-	}
+	fd = be_openssl_auto_fd(bev_ssl, fd);
 	return set_open_callbacks(bev_ssl, fd);
 }
 
@@ -1108,12 +1115,7 @@ set_handshake_callbacks(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 static int
 set_handshake_callbacks_auto(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 {
-	if (!bev_ssl->underlying) {
-		struct bufferevent *bev = &bev_ssl->bev.bev;
-		if (event_initialized(&bev->ev_read) && fd < 0) {
-			fd = event_get_fd(&bev->ev_read);
-		}
-	}
+	fd = be_openssl_auto_fd(bev_ssl, fd);
 	return set_handshake_callbacks(bev_ssl, fd);
 }
 
