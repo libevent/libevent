@@ -43,6 +43,7 @@
 #include "event2/util.h"
 #include "event2/event.h"
 #include "event2/bufferevent_ssl.h"
+#include "event2/bufferevent_struct.h"
 #include "event2/buffer.h"
 #include "event2/listener.h"
 
@@ -193,6 +194,8 @@ enum regress_openssl_type
 
 	REGRESS_OPENSSL_CLIENT = 64,
 	REGRESS_OPENSSL_SERVER = 128,
+
+	REGRESS_OPENSSL_FREED = 256,
 };
 
 static void
@@ -201,6 +204,15 @@ bufferevent_openssl_check_fd(struct bufferevent *bev)
 	tt_int_op(bufferevent_getfd(bev), !=, -1);
 	tt_int_op(bufferevent_setfd(bev, -1), ==, 0);
 	tt_int_op(bufferevent_getfd(bev), ==, -1);
+
+end:
+	;
+}
+static void
+bufferevent_openssl_check_freed(struct bufferevent *bev)
+{
+	tt_int_op(event_pending(&bev->ev_read, EVLIST_ALL, NULL), ==, 0);
+	tt_int_op(event_pending(&bev->ev_write, EVLIST_ALL, NULL), ==, 0);
 
 end:
 	;
@@ -280,12 +292,18 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 		if (type & REGRESS_OPENSSL_FD) {
 			bufferevent_openssl_check_fd(bev);
 		}
+		if (type & REGRESS_OPENSSL_FREED) {
+			bufferevent_openssl_check_freed(bev);
+		}
 		bufferevent_free(bev);
 	} else if (what & BEV_EVENT_ERROR) {
 		TT_BLATHER(("Got an error."));
 		++got_error;
 		if (type & REGRESS_OPENSSL_FD) {
 			bufferevent_openssl_check_fd(bev);
+		}
+		if (type & REGRESS_OPENSSL_FREED) {
+			bufferevent_openssl_check_freed(bev);
 		}
 		bufferevent_free(bev);
 	}
@@ -545,6 +563,12 @@ struct testcase_t ssl_testcases[] = {
 	{ "bufferevent_socketpair_fd", regress_bufferevent_openssl,
 	  TT_ISOLATED, &basic_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_FD) },
+	{ "bufferevent_socketpair_freed", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_FREED) },
+	{ "bufferevent_socketpair_freed_fd", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_FREED | REGRESS_OPENSSL_FD) },
 #undef T
 
 	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
