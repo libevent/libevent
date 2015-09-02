@@ -966,19 +966,20 @@ set_open_callbacks(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 	} else {
 		struct bufferevent *bev = &bev_ssl->bev.bev;
 		int rpending=0, wpending=0, r1=0, r2=0;
-		int new_fd = fd < 0 ? event_get_fd(&bev->ev_read) : fd;
 
-		if (fd >= 0 && event_initialized(&bev->ev_read)) {
-			rpending = event_pending(&bev->ev_read, EV_READ, NULL);
-			wpending = event_pending(&bev->ev_write, EV_WRITE, NULL);
+		if (event_initialized(&bev->ev_read)) {
+			if (fd >= 0) {
+				rpending = event_pending(&bev->ev_read, EV_READ, NULL);
+				wpending = event_pending(&bev->ev_write, EV_WRITE, NULL);
+			}
 			event_del(&bev->ev_read);
 			event_del(&bev->ev_write);
 		}
 
-		event_assign(&bev->ev_read, bev->ev_base, new_fd,
+		event_assign(&bev->ev_read, bev->ev_base, fd,
 		    EV_READ|EV_PERSIST|EV_FINALIZE,
 		    be_openssl_readeventcb, bev_ssl);
-		event_assign(&bev->ev_write, bev->ev_base, new_fd,
+		event_assign(&bev->ev_write, bev->ev_base, fd,
 		    EV_WRITE|EV_PERSIST|EV_FINALIZE,
 		    be_openssl_writeeventcb, bev_ssl);
 
@@ -989,6 +990,17 @@ set_open_callbacks(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 
 		return (r1<0 || r2<0) ? -1 : 0;
 	}
+}
+static int
+set_open_callbacks_auto(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
+{
+	if (!bev_ssl->underlying) {
+		struct bufferevent *bev = &bev_ssl->bev.bev;
+		if (event_initialized(&bev->ev_read) && fd < 0) {
+			fd = event_get_fd(&bev->ev_read);
+		}
+	}
+	return set_open_callbacks(bev_ssl, fd);
 }
 
 static int
@@ -1012,7 +1024,7 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 		int fd = event_get_fd(&bev_ssl->bev.bev.ev_read);
 		/* We're done! */
 		bev_ssl->state = BUFFEREVENT_SSL_OPEN;
-		set_open_callbacks(bev_ssl, fd); /* XXXX handle failure */
+		set_open_callbacks_auto(bev_ssl, fd); /* XXXX handle failure */
 		/* Call do_read and do_write as needed */
 		bufferevent_enable(&bev_ssl->bev.bev, bev_ssl->bev.bev.enabled);
 		bufferevent_run_eventcb_(&bev_ssl->bev.bev,
@@ -1368,7 +1380,7 @@ bufferevent_openssl_new_impl(struct event_base *base,
 			goto err;
 		break;
 	case BUFFEREVENT_SSL_OPEN:
-		if (set_open_callbacks(bev_ssl, fd) < 0)
+		if (set_open_callbacks_auto(bev_ssl, fd) < 0)
 			goto err;
 		break;
 	default:
