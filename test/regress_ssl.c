@@ -279,7 +279,7 @@ static void
 open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
     struct event_base *base, int is_open, int flags, SSL *ssl1, SSL *ssl2,
     evutil_socket_t *fd_pair, struct bufferevent **underlying_pair,
-    int allow_dirty_shutdown)
+    enum regress_openssl_type type)
 {
 	int state1 = is_open ? BUFFEREVENT_SSL_OPEN :BUFFEREVENT_SSL_CONNECTING;
 	int state2 = is_open ? BUFFEREVENT_SSL_OPEN :BUFFEREVENT_SSL_ACCEPTING;
@@ -296,12 +296,13 @@ open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
 
 	}
 	bufferevent_setcb(*bev1_out, respond_to_number, done_writing_cb,
-	    eventcb, (void*)(REGRESS_OPENSSL_CLIENT));
+	    eventcb, (void*)(REGRESS_OPENSSL_CLIENT | (long)type));
 	bufferevent_setcb(*bev2_out, respond_to_number, done_writing_cb,
-	    eventcb, (void*)(REGRESS_OPENSSL_SERVER));
+	    eventcb, (void*)(REGRESS_OPENSSL_SERVER | (long)type));
 
-	bufferevent_openssl_set_allow_dirty_shutdown(*bev1_out, allow_dirty_shutdown);
-	bufferevent_openssl_set_allow_dirty_shutdown(*bev2_out, allow_dirty_shutdown);
+	int dirty_shutdown = type & REGRESS_OPENSSL_DIRTY_SHUTDOWN;
+	bufferevent_openssl_set_allow_dirty_shutdown(*bev1_out, dirty_shutdown);
+	bufferevent_openssl_set_allow_dirty_shutdown(*bev2_out, dirty_shutdown);
 }
 
 static void
@@ -355,7 +356,7 @@ regress_bufferevent_openssl(void *arg)
 	}
 
 	open_ssl_bufevs(&bev1, &bev2, data->base, 0, flags, ssl1, ssl2,
-	    fd_pair, bev_ll, type & REGRESS_OPENSSL_DIRTY_SHUTDOWN);
+	    fd_pair, bev_ll, type);
 
 	if (!(type & REGRESS_OPENSSL_FILTER)) {
 		tt_int_op(bufferevent_getfd(bev1), ==, data->pair[0]);
@@ -375,7 +376,7 @@ regress_bufferevent_openssl(void *arg)
 		bufferevent_free(bev2);
 		bev1 = bev2 = NULL;
 		open_ssl_bufevs(&bev1, &bev2, data->base, 1, flags, ssl1, ssl2,
-		    fd_pair, bev_ll, type & REGRESS_OPENSSL_DIRTY_SHUTDOWN);
+		    fd_pair, bev_ll, type);
 	}
 
 	bufferevent_enable(bev1, EV_READ|EV_WRITE);
