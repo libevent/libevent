@@ -182,12 +182,28 @@ static int stop_when_connected = 0;
 static int pending_connect_events = 0;
 static struct event_base *exit_base = NULL;
 
+enum regress_openssl_type
+{
+	REGRESS_OPENSSL_SOCKETPAIR = 1,
+	REGRESS_OPENSSL_FILTER = 2,
+	REGRESS_OPENSSL_RENEGOTIATE = 4,
+	REGRESS_OPENSSL_OPEN = 8,
+	REGRESS_OPENSSL_DIRTY_SHUTDOWN = 16,
+
+	REGRESS_OPENSSL_CLIENT = 64,
+	REGRESS_OPENSSL_SERVER = 128,
+};
+
 static void
 respond_to_number(struct bufferevent *bev, void *ctx)
 {
 	struct evbuffer *b = bufferevent_get_input(bev);
 	char *line;
 	int n;
+
+	enum regress_openssl_type type;
+	type = (enum regress_openssl_type)ctx;
+
 	line = evbuffer_readln(b, NULL, EVBUFFER_EOL_LF);
 	if (! line)
 		return;
@@ -201,7 +217,7 @@ respond_to_number(struct bufferevent *bev, void *ctx)
 		bufferevent_free(bev); /* Should trigger close on other side. */
 		return;
 	}
-	if (!strcmp(ctx, "client") && n == renegotiate_at) {
+	if ((type & REGRESS_OPENSSL_CLIENT) && n == renegotiate_at) {
 		SSL_renegotiate(bufferevent_openssl_get_ssl(bev));
 	}
 	++n;
@@ -226,6 +242,9 @@ done_writing_cb(struct bufferevent *bev, void *ctx)
 static void
 eventcb(struct bufferevent *bev, short what, void *ctx)
 {
+	enum regress_openssl_type type;
+	type = (enum regress_openssl_type)ctx;
+
 	TT_BLATHER(("Got event %d", (int)what));
 	if (what & BEV_EVENT_CONNECTED) {
 		SSL *ssl;
@@ -234,7 +253,7 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 		ssl = bufferevent_openssl_get_ssl(bev);
 		tt_assert(ssl);
 		peer_cert = SSL_get_peer_certificate(ssl);
-		if (0==strcmp(ctx, "server")) {
+		if (type & REGRESS_OPENSSL_SERVER) {
 			tt_assert(peer_cert == NULL);
 		} else {
 			tt_assert(peer_cert != NULL);
@@ -277,22 +296,14 @@ open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
 
 	}
 	bufferevent_setcb(*bev1_out, respond_to_number, done_writing_cb,
-	    eventcb, (void*)"client");
+	    eventcb, (void*)(REGRESS_OPENSSL_CLIENT));
 	bufferevent_setcb(*bev2_out, respond_to_number, done_writing_cb,
-	    eventcb, (void*)"server");
+	    eventcb, (void*)(REGRESS_OPENSSL_SERVER));
 
 	bufferevent_openssl_set_allow_dirty_shutdown(*bev1_out, allow_dirty_shutdown);
 	bufferevent_openssl_set_allow_dirty_shutdown(*bev2_out, allow_dirty_shutdown);
 }
 
-enum regress_openssl_type
-{
-	REGRESS_OPENSSL_SOCKETPAIR = 1,
-	REGRESS_OPENSSL_FILTER = 2,
-	REGRESS_OPENSSL_RENEGOTIATE = 4,
-	REGRESS_OPENSSL_OPEN = 8,
-	REGRESS_OPENSSL_DIRTY_SHUTDOWN = 16,
-};
 static void
 regress_bufferevent_openssl(void *arg)
 {
@@ -407,7 +418,7 @@ acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
 		BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
 
 	bufferevent_setcb(bev, respond_to_number, NULL, eventcb,
-	    (void*)"server");
+	    (void*)(REGRESS_OPENSSL_SERVER));
 
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 
@@ -451,7 +462,7 @@ regress_bufferevent_openssl_connect(void *arg)
 	tt_assert(bev);
 
 	bufferevent_setcb(bev, respond_to_number, NULL, eventcb,
-	    (void*)"client");
+	    (void*)(REGRESS_OPENSSL_CLIENT));
 
 	tt_assert(getsockname(evconnlistener_get_fd(listener),
 		(struct sockaddr*)&ss, &slen) == 0);
