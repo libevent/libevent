@@ -189,10 +189,22 @@ enum regress_openssl_type
 	REGRESS_OPENSSL_RENEGOTIATE = 4,
 	REGRESS_OPENSSL_OPEN = 8,
 	REGRESS_OPENSSL_DIRTY_SHUTDOWN = 16,
+	REGRESS_OPENSSL_FD = 32,
 
 	REGRESS_OPENSSL_CLIENT = 64,
 	REGRESS_OPENSSL_SERVER = 128,
 };
+
+static void
+bufferevent_openssl_check_fd(struct bufferevent *bev)
+{
+	tt_int_op(bufferevent_getfd(bev), !=, -1);
+	tt_int_op(bufferevent_setfd(bev, -1), ==, 0);
+	tt_int_op(bufferevent_getfd(bev), ==, -1);
+
+end:
+	;
+}
 
 static void
 respond_to_number(struct bufferevent *bev, void *ctx)
@@ -265,10 +277,16 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 	} else if (what & BEV_EVENT_EOF) {
 		TT_BLATHER(("Got a good EOF"));
 		++got_close;
+		if (type & REGRESS_OPENSSL_FD) {
+			bufferevent_openssl_check_fd(bev);
+		}
 		bufferevent_free(bev);
 	} else if (what & BEV_EVENT_ERROR) {
 		TT_BLATHER(("Got an error."));
 		++got_error;
+		if (type & REGRESS_OPENSSL_FD) {
+			bufferevent_openssl_check_fd(bev);
+		}
 		bufferevent_free(bev);
 	}
 end:
@@ -523,6 +541,10 @@ struct testcase_t ssl_testcases[] = {
 	  regress_bufferevent_openssl,
 	  TT_ISOLATED, &basic_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_OPEN | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
+
+	{ "bufferevent_socketpair_fd", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_FD) },
 #undef T
 
 	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
