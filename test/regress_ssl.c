@@ -259,7 +259,8 @@ end:
 static void
 open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
     struct event_base *base, int is_open, int flags, SSL *ssl1, SSL *ssl2,
-    evutil_socket_t *fd_pair, struct bufferevent **underlying_pair)
+    evutil_socket_t *fd_pair, struct bufferevent **underlying_pair,
+    int allow_dirty_shutdown)
 {
 	int state1 = is_open ? BUFFEREVENT_SSL_OPEN :BUFFEREVENT_SSL_CONNECTING;
 	int state2 = is_open ? BUFFEREVENT_SSL_OPEN :BUFFEREVENT_SSL_ACCEPTING;
@@ -279,6 +280,9 @@ open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
 	    eventcb, (void*)"client");
 	bufferevent_setcb(*bev2_out, respond_to_number, done_writing_cb,
 	    eventcb, (void*)"server");
+
+	bufferevent_openssl_set_allow_dirty_shutdown(*bev1_out, allow_dirty_shutdown);
+	bufferevent_openssl_set_allow_dirty_shutdown(*bev2_out, allow_dirty_shutdown);
 }
 
 enum regress_openssl_type
@@ -287,6 +291,7 @@ enum regress_openssl_type
 	REGRESS_OPENSSL_FILTER = 2,
 	REGRESS_OPENSSL_RENEGOTIATE = 4,
 	REGRESS_OPENSSL_OPEN = 8,
+	REGRESS_OPENSSL_DIRTY_SHUTDOWN = 16,
 };
 static void
 regress_bufferevent_openssl(void *arg)
@@ -339,7 +344,7 @@ regress_bufferevent_openssl(void *arg)
 	}
 
 	open_ssl_bufevs(&bev1, &bev2, data->base, 0, flags, ssl1, ssl2,
-	    fd_pair, bev_ll);
+	    fd_pair, bev_ll, type & REGRESS_OPENSSL_DIRTY_SHUTDOWN);
 
 	if (!(type & REGRESS_OPENSSL_FILTER)) {
 		tt_int_op(bufferevent_getfd(bev1), ==, data->pair[0]);
@@ -359,7 +364,7 @@ regress_bufferevent_openssl(void *arg)
 		bufferevent_free(bev2);
 		bev1 = bev2 = NULL;
 		open_ssl_bufevs(&bev1, &bev2, data->base, 1, flags, ssl1, ssl2,
-		    fd_pair, bev_ll);
+		    fd_pair, bev_ll, type & REGRESS_OPENSSL_DIRTY_SHUTDOWN);
 	}
 
 	bufferevent_enable(bev1, EV_READ|EV_WRITE);
@@ -372,10 +377,13 @@ regress_bufferevent_openssl(void *arg)
 	tt_assert(test_is_done == 1);
 	tt_assert(n_connected == 2);
 
-	/* We don't handle shutdown properly yet.
-	   tt_int_op(got_close, ==, 1);
-	   tt_int_op(got_error, ==, 0);
-	*/
+	/* We don't handle shutdown properly yet */
+	if (type & REGRESS_OPENSSL_DIRTY_SHUTDOWN) {
+		tt_int_op(got_close, ==, 1);
+		tt_int_op(got_error, ==, 0);
+	} else {
+		tt_int_op(got_error, ==, 1);
+	}
 end:
 	return;
 }
@@ -478,6 +486,31 @@ struct testcase_t ssl_testcases[] = {
 	{ "bufferevent_filter_startopen", regress_bufferevent_openssl,
 	  TT_ISOLATED, &basic_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_OPEN) },
+
+	{ "bufferevent_socketpair_dirty_shutdown", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
+	{ "bufferevent_filter_dirty_shutdown", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
+	{ "bufferevent_renegotiate_socketpair_dirty_shutdown",
+	  regress_bufferevent_openssl,
+	  TT_ISOLATED,
+	  &basic_setup,
+	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_RENEGOTIATE | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
+	{ "bufferevent_renegotiate_filter_dirty_shutdown",
+	  regress_bufferevent_openssl,
+	  TT_ISOLATED,
+	  &basic_setup,
+	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_RENEGOTIATE | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
+	{ "bufferevent_socketpair_startopen_dirty_shutdown",
+	  regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_OPEN | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
+	{ "bufferevent_filter_startopen_dirty_shutdown",
+	  regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_OPEN | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
 #undef T
 
 	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
