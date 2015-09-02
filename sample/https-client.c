@@ -96,7 +96,7 @@ static void
 syntax(void)
 {
 	fputs("Syntax:\n", stderr);
-	fputs("   https-client -url <https-url> [-data data-file.bin] [-ignore-cert] [-retries num]\n", stderr);
+	fputs("   https-client -url <https-url> [-data data-file.bin] [-ignore-cert] [-retries num] [-timeout sec]\n", stderr);
 	fputs("Example:\n", stderr);
 	fputs("   https-client -url https://ip.appspot.com/\n", stderr);
 }
@@ -193,6 +193,7 @@ main(int argc, char **argv)
 	char uri[256];
 	int port;
 	int retries = 0;
+	int timeout = -1;
 
 	SSL_CTX *ssl_ctx = NULL;
 	SSL *ssl = NULL;
@@ -226,6 +227,13 @@ main(int argc, char **argv)
 		} else if (!strcmp("-retries", argv[i])) {
 			if (i < argc - 1) {
 				retries = atoi(argv[i + 1]);
+			} else {
+				syntax();
+				goto error;
+			}
+		} else if (!strcmp("-timeout", argv[i])) {
+			if (i < argc - 1) {
+				timeout = atoi(argv[i + 1]);
 			} else {
 				syntax();
 				goto error;
@@ -398,6 +406,9 @@ main(int argc, char **argv)
 
 	if (retries > 0) {
 		evhttp_connection_set_retries(evcon, retries);
+	}
+	if (timeout >= 0) {
+		evhttp_connection_set_timeout(evcon, timeout);
 	}
 
 	// Fire off the request
