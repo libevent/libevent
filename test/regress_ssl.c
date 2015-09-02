@@ -614,6 +614,9 @@ struct testcase_t ssl_testcases[] = {
 	{ "bufferevent_socketpair_timeout", regress_bufferevent_openssl,
 	  TT_ISOLATED, &basic_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_TIMEOUT) },
+	{ "bufferevent_socketpair_timeout_freed_fd", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_TIMEOUT | REGRESS_OPENSSL_FREED | REGRESS_OPENSSL_FD) },
 #undef T
 
 	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
