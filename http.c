@@ -969,7 +969,6 @@ evhttp_read_trailer(struct evhttp_connection *evcon, struct evhttp_request *req)
 	case MORE_DATA_EXPECTED:
 	case REQUEST_CANCELED: /* ??? */
 	default:
-		bufferevent_enable(evcon->bufev, EV_READ);
 		break;
 	}
 }
@@ -1051,9 +1050,6 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		evhttp_connection_done(evcon);
 		return;
 	}
-
-	/* Read more! */
-	bufferevent_enable(evcon->bufev, EV_READ);
 }
 
 #define get_deferred_queue(evcon)		\
@@ -2180,9 +2176,6 @@ evhttp_read_header(struct evhttp_connection *evcon,
 		return;
 	}
 
-	/* Disable reading for now */
-	bufferevent_disable(evcon->bufev, EV_READ);
-
 	/* Callback can shut down connection with negative return value */
 	if (req->header_cb != NULL) {
 		if ((*req->header_cb)(req, req->cb_arg) < 0) {
@@ -2595,9 +2588,9 @@ evhttp_cancel_request(struct evhttp_request *req)
 void
 evhttp_start_read_(struct evhttp_connection *evcon)
 {
-	/* Set up an event to read the headers */
 	bufferevent_disable(evcon->bufev, EV_WRITE);
 	bufferevent_enable(evcon->bufev, EV_READ);
+
 	evcon->state = EVCON_READING_FIRSTLINE;
 	/* Reset the bufferevent callbacks */
 	bufferevent_setcb(evcon->bufev,
@@ -4062,6 +4055,8 @@ evhttp_get_request_connection(
 
 	evcon->fd = fd;
 
+	bufferevent_enable(evcon->bufev, EV_READ);
+	bufferevent_disable(evcon->bufev, EV_WRITE);
 	bufferevent_setfd(evcon->bufev, fd);
 
 	return (evcon);
