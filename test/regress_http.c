@@ -3724,6 +3724,7 @@ struct terminate_state {
 	struct bufferevent *bev;
 	evutil_socket_t fd;
 	int gotclosecb: 1;
+	int oneshot: 1;
 };
 
 static void
@@ -3731,7 +3732,10 @@ terminate_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 {
 	struct terminate_state *state = arg;
 	struct evbuffer *evb;
-	struct timeval tv;
+
+	if (!state->req) {
+		return;
+	}
 
 	if (evhttp_request_get_connection(state->req) == NULL) {
 		test_ok = 1;
@@ -3745,11 +3749,14 @@ terminate_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 	evhttp_send_reply_chunk(state->req, evb);
 	evbuffer_free(evb);
 
-	tv.tv_sec = 0;
-	tv.tv_usec = 3000;
-	EVUTIL_ASSERT(state);
-	EVUTIL_ASSERT(state->base);
-	event_base_once(state->base, -1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
+	if (!state->oneshot) {
+		struct timeval tv;
+		tv.tv_sec = 0;
+		tv.tv_usec = 3000;
+		EVUTIL_ASSERT(state);
+		EVUTIL_ASSERT(state->base);
+		event_base_once(state->base, -1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
+	}
 }
 
 static void
@@ -3757,6 +3764,13 @@ terminate_chunked_close_cb(struct evhttp_connection *evcon, void *arg)
 {
 	struct terminate_state *state = arg;
 	state->gotclosecb = 1;
+
+	/** TODO: though we can do this unconditionally */
+	if (state->oneshot) {
+		evhttp_request_free(state->req);
+		state->req = NULL;
+		event_base_loopexit(state->base,NULL);
+	}
 }
 
 static void
@@ -3796,7 +3810,7 @@ terminate_readcb(struct bufferevent *bev, void *arg)
 
 
 static void
-http_terminate_chunked_test(void *arg)
+http_terminate_chunked_test_impl(void *arg, int oneshot)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev = NULL;
@@ -3825,6 +3839,7 @@ http_terminate_chunked_test(void *arg)
 	terminate_state.fd = fd;
 	terminate_state.bev = bev;
 	terminate_state.gotclosecb = 0;
+	terminate_state.oneshot = oneshot;
 
 	/* first half of the http request */
 	http_request =
@@ -3847,6 +3862,16 @@ http_terminate_chunked_test(void *arg)
 		evutil_closesocket(fd);
 	if (http)
 		evhttp_free(http);
+}
+static void
+http_terminate_chunked_test(void *arg)
+{
+	http_terminate_chunked_test_impl(arg, 0);
+}
+static void
+http_terminate_chunked_oneshot_test(void *arg)
+{
+	http_terminate_chunked_test_impl(arg, 1);
 }
 
 static struct regress_dns_server_table ipv6_search_table[] = {
@@ -3998,6 +4023,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(incomplete),
 	HTTP(incomplete_timeout),
 	HTTP(terminate_chunked),
+	HTTP(terminate_chunked_oneshot),
 	HTTP(on_complete),
 
 	HTTP(highport),
