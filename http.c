@@ -681,11 +681,21 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 	return (0);
 }
 
+/* Free connection ownership of which can be acquired by user using
+ * evhttp_request_own(). */
+static inline void
+evhttp_request_free_auto(struct evhttp_request *req)
+{
+	if (!(req->flags & EVHTTP_USER_OWNED)) {
+		evhttp_request_free(req);
+	}
+}
+
 static void
 evhttp_request_free_(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
 	TAILQ_REMOVE(&evcon->requests, req, next);
-	evhttp_request_free(req);
+	evhttp_request_free_auto(req);
 }
 
 /* Called when evcon has experienced a (non-recoverable? -NM) error, as
@@ -829,11 +839,9 @@ evhttp_connection_done(struct evhttp_connection *evcon)
 	/* notify the user of the request */
 	(*req->cb)(req, req->cb_arg);
 
-	/* if this was an outgoing request, we own and it's done. so free it.
-	 * unless the callback specifically requested to own the request.
-	 */
-	if (con_outgoing && ((req->flags & EVHTTP_USER_OWNED) == 0)) {
-		evhttp_request_free(req);
+	/* if this was an outgoing request, we own and it's done. so free it. */
+	if (con_outgoing) {
+		evhttp_request_free_auto(req);
 	}
 
 	/* If this was the last request of an outgoing connection and we're
@@ -993,7 +1001,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 			return;
 		case REQUEST_CANCELED:
 			/* request canceled */
-			evhttp_request_free(req);
+			evhttp_request_free_auto(req);
 			return;
 		case MORE_DATA_EXPECTED:
 		default:
@@ -1039,7 +1047,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		evbuffer_drain(req->input_buffer,
 		    evbuffer_get_length(req->input_buffer));
 		if ((req->flags & EVHTTP_REQ_NEEDS_FREE) != 0) {
-			evhttp_request_free(req);
+			evhttp_request_free_auto(req);
 			return;
 		}
 	}
@@ -1356,7 +1364,7 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 
 		/* we might want to set an error here */
 		request->cb(request, request->cb_arg);
-		evhttp_request_free(request);
+		evhttp_request_free_auto(request);
 	}
 }
 
@@ -2514,7 +2522,7 @@ evhttp_make_request(struct evhttp_connection *evcon,
 		mm_free(req->uri);
 	if ((req->uri = mm_strdup(uri)) == NULL) {
 		event_warn("%s: strdup", __func__);
-		evhttp_request_free(req);
+		evhttp_request_free_auto(req);
 		return (-1);
 	}
 
@@ -2577,7 +2585,7 @@ evhttp_cancel_request(struct evhttp_request *req)
 		}
 	}
 
-	evhttp_request_free(req);
+	evhttp_request_free_auto(req);
 }
 
 /*

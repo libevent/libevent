@@ -971,6 +971,7 @@ http_allowed_methods_test(void *arg)
 		evutil_closesocket(fd3);
 }
 
+static void http_request_no_action_done(struct evhttp_request *, void *);
 static void http_request_done(struct evhttp_request *, void *);
 static void http_request_empty_done(struct evhttp_request *, void *);
 
@@ -1332,6 +1333,13 @@ http_cancel_test(void *arg)
 		evhttp_connection_free(evcon);
 	if (http)
 		evhttp_free(http);
+}
+
+static void
+http_request_no_action_done(struct evhttp_request *req, void *arg)
+{
+	EVUTIL_ASSERT(exit_base);
+	event_base_loopexit(exit_base, NULL);
 }
 
 static void
@@ -4055,6 +4063,41 @@ http_write_during_read_test(void *arg)
 		evhttp_free(http);
 }
 
+static void
+http_request_own_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	ev_uint16_t port = 0;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+
+	test_ok = 0;
+	exit_base = data->base;
+
+	http = http_setup(&port, data->base, 0);
+	evhttp_free(http);
+
+	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	tt_assert(evcon);
+
+	req = evhttp_request_new(http_request_no_action_done, NULL);
+
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+	evhttp_request_own(req);
+
+	event_base_dispatch(data->base);
+
+ end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (req)
+		evhttp_request_free(req);
+
+	test_ok = 1;
+}
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
 		    http_##name##_test }
@@ -4116,6 +4159,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(set_family_ipv6),
 
 	HTTP(write_during_read),
+	HTTP(request_own),
 
 	END_OF_TESTCASES
 };
