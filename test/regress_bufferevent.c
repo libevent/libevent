@@ -616,6 +616,31 @@ end:
 	;
 }
 
+static int
+fake_listener_create(struct sockaddr_in *localhost)
+{
+	struct sockaddr *sa = (struct sockaddr *)localhost;
+	evutil_socket_t fd = -1;
+	ev_socklen_t slen = sizeof(*localhost);
+
+	memset(localhost, 0, sizeof(*localhost));
+	localhost->sin_port = 0; /* have the kernel pick a port */
+	localhost->sin_addr.s_addr = htonl(0x7f000001L);
+	localhost->sin_family = AF_INET;
+
+	/* bind, but don't listen or accept. should trigger
+	   "Connection refused" reliably on most platforms. */
+	fd = socket(localhost->sin_family, SOCK_STREAM, 0);
+	tt_assert(fd >= 0);
+	tt_assert(bind(fd, sa, slen) == 0);
+	tt_assert(getsockname(fd, sa, &slen) == 0);
+
+	return fd;
+
+end:
+	return -1;
+}
+
 static void
 reader_eventcb(struct bufferevent *bev, short what, void *ctx)
 {
@@ -765,34 +790,23 @@ test_bufferevent_connect_fail(void *arg)
 {
 	struct basic_test_data *data = (struct basic_test_data *)arg;
 	struct bufferevent *bev=NULL;
-	struct sockaddr_in localhost;
-	struct sockaddr *sa = (struct sockaddr*)&localhost;
-	evutil_socket_t fake_listener = -1;
-	ev_socklen_t slen = sizeof(localhost);
 	struct event close_listener_event;
 	int close_listener_event_added = 0;
 	struct timeval one_second = { 1, 0 };
+	struct sockaddr_in localhost;
+	ev_socklen_t slen = sizeof(localhost);
+	evutil_socket_t fake_listener = -1;
 	int r;
 
 	test_ok = 0;
 
-	memset(&localhost, 0, sizeof(localhost));
-	localhost.sin_port = 0; /* have the kernel pick a port */
-	localhost.sin_addr.s_addr = htonl(0x7f000001L);
-	localhost.sin_family = AF_INET;
-
-	/* bind, but don't listen or accept. should trigger
-	   "Connection refused" reliably on most platforms. */
-	fake_listener = socket(localhost.sin_family, SOCK_STREAM, 0);
-	tt_assert(fake_listener >= 0);
-	tt_assert(bind(fake_listener, sa, slen) == 0);
-	tt_assert(getsockname(fake_listener, sa, &slen) == 0);
+	fake_listener = fake_listener_create(&localhost);
 	bev = bufferevent_socket_new(data->base, -1,
 		BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
 	tt_assert(bev);
 	bufferevent_setcb(bev, NULL, NULL, want_fail_eventcb, data->base);
 
-	r = bufferevent_socket_connect(bev, sa, slen);
+	r = bufferevent_socket_connect(bev, (struct sockaddr *)&localhost, slen);
 	/* XXXX we'd like to test the '0' case everywhere, but FreeBSD tells
 	 * detects the error immediately, which is not really wrong of it. */
 	tt_want(r == 0 || r == -1);
