@@ -84,6 +84,7 @@ static char const BASIC_REQUEST_BODY[] = "This is funny";
 IMPL_HTTP_REQUEST_ERROR_CB(cancel, EVREQ_HTTP_REQUEST_CANCEL)
 
 static void http_basic_cb(struct evhttp_request *req, void *arg);
+static void http_large_cb(struct evhttp_request *req, void *arg);
 static void http_chunked_cb(struct evhttp_request *req, void *arg);
 static void http_post_cb(struct evhttp_request *req, void *arg);
 static void http_put_cb(struct evhttp_request *req, void *arg);
@@ -133,6 +134,7 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int ipv6)
 
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, base);
+	evhttp_set_cb(myhttp, "/large", http_large_cb, base);
 	evhttp_set_cb(myhttp, "/chunked", http_chunked_cb, base);
 	evhttp_set_cb(myhttp, "/streamed", http_chunked_cb, base);
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, base);
@@ -326,6 +328,19 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	    !empty ? evb : NULL);
 
 end:
+	evbuffer_free(evb);
+}
+
+static void
+http_large_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *evb = evbuffer_new();
+	int i;
+
+	for (i = 0; i < 1<<20; ++i) {
+		evbuffer_add_printf(evb, BASIC_REQUEST_BODY);
+	}
+	evhttp_send_reply(req, HTTP_OK, "Everything is fine", evb);
 	evbuffer_free(evb);
 }
 
@@ -3724,6 +3739,7 @@ struct terminate_state {
 	struct bufferevent *bev;
 	evutil_socket_t fd;
 	int gotclosecb: 1;
+	int oneshot: 1;
 };
 
 static void
@@ -3731,7 +3747,10 @@ terminate_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 {
 	struct terminate_state *state = arg;
 	struct evbuffer *evb;
-	struct timeval tv;
+
+	if (!state->req) {
+		return;
+	}
 
 	if (evhttp_request_get_connection(state->req) == NULL) {
 		test_ok = 1;
@@ -3745,11 +3764,14 @@ terminate_chunked_trickle_cb(evutil_socket_t fd, short events, void *arg)
 	evhttp_send_reply_chunk(state->req, evb);
 	evbuffer_free(evb);
 
-	tv.tv_sec = 0;
-	tv.tv_usec = 3000;
-	EVUTIL_ASSERT(state);
-	EVUTIL_ASSERT(state->base);
-	event_base_once(state->base, -1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
+	if (!state->oneshot) {
+		struct timeval tv;
+		tv.tv_sec = 0;
+		tv.tv_usec = 3000;
+		EVUTIL_ASSERT(state);
+		EVUTIL_ASSERT(state->base);
+		event_base_once(state->base, -1, EV_TIMEOUT, terminate_chunked_trickle_cb, arg, &tv);
+	}
 }
 
 static void
@@ -3757,6 +3779,13 @@ terminate_chunked_close_cb(struct evhttp_connection *evcon, void *arg)
 {
 	struct terminate_state *state = arg;
 	state->gotclosecb = 1;
+
+	/** TODO: though we can do this unconditionally */
+	if (state->oneshot) {
+		evhttp_request_free(state->req);
+		state->req = NULL;
+		event_base_loopexit(state->base,NULL);
+	}
 }
 
 static void
@@ -3796,7 +3825,7 @@ terminate_readcb(struct bufferevent *bev, void *arg)
 
 
 static void
-http_terminate_chunked_test(void *arg)
+http_terminate_chunked_test_impl(void *arg, int oneshot)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev = NULL;
@@ -3825,6 +3854,7 @@ http_terminate_chunked_test(void *arg)
 	terminate_state.fd = fd;
 	terminate_state.bev = bev;
 	terminate_state.gotclosecb = 0;
+	terminate_state.oneshot = oneshot;
 
 	/* first half of the http request */
 	http_request =
@@ -3847,6 +3877,16 @@ http_terminate_chunked_test(void *arg)
 		evutil_closesocket(fd);
 	if (http)
 		evhttp_free(http);
+}
+static void
+http_terminate_chunked_test(void *arg)
+{
+	http_terminate_chunked_test_impl(arg, 0);
+}
+static void
+http_terminate_chunked_oneshot_test(void *arg)
+{
+	http_terminate_chunked_test_impl(arg, 1);
 }
 
 static struct regress_dns_server_table ipv6_search_table[] = {
@@ -3965,6 +4005,56 @@ http_set_family_ipv6_test(void *arg)
 	http_ipv6_for_domain_test_impl(arg, AF_INET6);
 }
 
+static void
+http_write_during_read(evutil_socket_t fd, short what, void *arg)
+{
+	struct bufferevent *bev = arg;
+	struct timeval tv;
+
+	bufferevent_write(bev, "foobar", strlen("foobar"));
+
+	evutil_timerclear(&tv);
+	tv.tv_sec = 1;
+	event_base_loopexit(exit_base, &tv);
+}
+static void
+http_write_during_read_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	ev_uint16_t port = 0;
+	struct bufferevent *bev = NULL;
+	struct timeval tv;
+	int fd;
+	const char *http_request;
+
+	test_ok = 0;
+	exit_base = data->base;
+
+	http = http_setup(&port, data->base, 0);
+
+	fd = http_connect("127.0.0.1", port);
+	bev = bufferevent_socket_new(data->base, fd, 0);
+	bufferevent_setcb(bev, NULL, NULL, NULL, data->base);
+	bufferevent_disable(bev, EV_READ);
+
+	http_request =
+	    "GET /large HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+	evutil_timerclear(&tv);
+	tv.tv_usec = 10000;
+	event_base_once(data->base, -1, EV_TIMEOUT, http_write_during_read, bev, &tv);
+
+	event_base_dispatch(data->base);
+
+	if (bev)
+		bufferevent_free(bev);
+	if (http)
+		evhttp_free(http);
+}
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
 		    http_##name##_test }
@@ -3998,6 +4088,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(incomplete),
 	HTTP(incomplete_timeout),
 	HTTP(terminate_chunked),
+	HTTP(terminate_chunked_oneshot),
 	HTTP(on_complete),
 
 	HTTP(highport),
@@ -4023,6 +4114,8 @@ struct testcase_t http_testcases[] = {
 	HTTP(set_family),
 	HTTP(set_family_ipv4),
 	HTTP(set_family_ipv6),
+
+	HTTP(write_during_read),
 
 	END_OF_TESTCASES
 };
