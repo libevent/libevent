@@ -597,6 +597,7 @@ static int bufferevent_connect_test_flags = 0;
 static int bufferevent_trigger_test_flags = 0;
 static int n_strings_read = 0;
 static int n_reads_invoked = 0;
+static int n_events_invoked = 0;
 
 #define TEST_STR "Now is the time for all good events to signal for " \
 	"the good of their protocol"
@@ -668,6 +669,14 @@ reader_eventcb(struct bufferevent *bev, short what, void *ctx)
 	}
 end:
 	;
+}
+
+static void
+reader_eventcb_simple(struct bufferevent *bev, short what, void *ctx)
+{
+	TT_BLATHER(("Read eventcb simple invoked on %d.",
+		(int)bufferevent_getfd(bev)));
+	n_events_invoked++;
 }
 
 static void
@@ -753,6 +762,45 @@ end:
 
 	if (bev2)
 		bufferevent_free(bev2);
+}
+
+static void
+test_bufferevent_connect_fail_eventcb(void *arg)
+{
+	struct basic_test_data *data = arg;
+	int flags = BEV_OPT_CLOSE_ON_FREE | (long)data->setup_data;
+	struct bufferevent *bev = NULL;
+	struct evconnlistener *lev = NULL;
+	struct sockaddr_in localhost;
+	ev_socklen_t slen = sizeof(localhost);
+	evutil_socket_t fake_listener = -1;
+
+	fake_listener = fake_listener_create(&localhost);
+
+	tt_int_op(n_events_invoked, ==, 0);
+
+	bev = bufferevent_socket_new(data->base, -1, flags);
+	tt_assert(bev);
+	bufferevent_setcb(bev, reader_readcb, reader_readcb,
+		reader_eventcb_simple, data->base);
+	bufferevent_enable(bev, EV_READ|EV_WRITE);
+	tt_int_op(n_events_invoked, ==, 0);
+	tt_int_op(n_reads_invoked, ==, 0);
+	/** @see also test_bufferevent_connect_fail() */
+	bufferevent_socket_connect(bev, (struct sockaddr *)&localhost, slen);
+	tt_int_op(n_events_invoked, ==, 0);
+	tt_int_op(n_reads_invoked, ==, 0);
+	event_base_dispatch(data->base);
+	tt_int_op(n_events_invoked, ==, 1);
+	tt_int_op(n_reads_invoked, ==, 0);
+
+end:
+	if (lev)
+		evconnlistener_free(lev);
+	if (bev)
+		bufferevent_free(bev);
+	if (fake_listener >= 0)
+		evutil_closesocket(fake_listener);
 }
 
 static void
@@ -1152,6 +1200,13 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_zlib", NULL, TT_SKIP, NULL, NULL },
 #endif
 
+	{ "bufferevent_connect_fail_eventcb_defer",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)BEV_OPT_DEFER_CALLBACKS },
+	{ "bufferevent_connect_fail_eventcb",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+
 	END_OF_TESTCASES,
 };
 
@@ -1175,6 +1230,14 @@ struct testcase_t bufferevent_iocp_testcases[] = {
 	{ "bufferevent_connect_nonblocking", test_bufferevent_connect,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
 	  (void*)"unset_connectex" },
+
+	{ "bufferevent_connect_fail_eventcb_defer",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
+	  (void*)BEV_OPT_DEFER_CALLBACKS },
+	{ "bufferevent_connect_fail",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
 
 	END_OF_TESTCASES,
 };
