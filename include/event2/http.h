@@ -633,6 +633,7 @@ struct evhttp_connection *evhttp_connection_base_new(
 /**
  * Set family hint for DNS requests.
  */
+EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_family(struct evhttp_connection *evcon,
 	int family);
 
