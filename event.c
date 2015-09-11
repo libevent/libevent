@@ -670,7 +670,9 @@ event_base_new_with_config(const struct event_config *cfg)
 	/* prepare for threading */
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
+#ifndef EVENT__DISABLE_DEBUG_MODE
 	event_debug_created_threadable_ctx_ = 1;
+#endif
 
 	if (EVTHREAD_LOCKING_ENABLED() &&
 	    (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK))) {
