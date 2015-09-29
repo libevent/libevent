@@ -201,6 +201,7 @@ eq_debug_entry(const struct event_debug_entry *a,
 int event_debug_mode_on_ = 0;
 
 
+#if !defined(EVENT__DISABLE_THREAD_SUPPORT) && !defined(EVENT__DISABLE_DEBUG_MODE)
 /**
  * @brief debug mode variable which is set for any function/structure that needs
  *        to be shared across threads (if thread support is enabled).
@@ -212,6 +213,7 @@ int event_debug_mode_on_ = 0;
  *        See: "Locks and threading" in the documentation.
  */
 int event_debug_created_threadable_ctx_ = 0;
+#endif
 
 /* Set if it's too late to enable event_debug_mode. */
 static int event_debug_mode_too_late = 0;
@@ -669,9 +671,11 @@ event_base_new_with_config(const struct event_config *cfg)
 
 	/* prepare for threading */
 
-#ifndef EVENT__DISABLE_THREAD_SUPPORT
+#if !defined(EVENT__DISABLE_THREAD_SUPPORT) && !defined(EVENT__DISABLE_DEBUG_MODE)
 	event_debug_created_threadable_ctx_ = 1;
+#endif
 
+#ifndef EVENT__DISABLE_DEBUG_MODE
 	if (EVTHREAD_LOCKING_ENABLED() &&
 	    (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK))) {
 		int r;
