@@ -401,17 +401,18 @@ evthread_setup_global_lock_(void *lock_, unsigned locktype, int enable_locks)
 		return evthread_lock_fns_.alloc(locktype);
 	} else {
 		/* Case 4: Fill in a debug lock with a real lock */
-		struct debug_lock *lock = lock_;
+		struct debug_lock *lock = lock_ ? lock_ : debug_lock_alloc(locktype);
 		EVUTIL_ASSERT(enable_locks &&
 		              evthread_lock_debugging_enabled_);
 		EVUTIL_ASSERT(lock->locktype == locktype);
-		EVUTIL_ASSERT(lock->lock == NULL);
-		lock->lock = original_lock_fns_.alloc(
-			locktype|EVTHREAD_LOCKTYPE_RECURSIVE);
 		if (!lock->lock) {
-			lock->count = -200;
-			mm_free(lock);
-			return NULL;
+			lock->lock = original_lock_fns_.alloc(
+				locktype|EVTHREAD_LOCKTYPE_RECURSIVE);
+			if (!lock->lock) {
+				lock->count = -200;
+				mm_free(lock);
+				return NULL;
+			}
 		}
 		return lock;
 	}
