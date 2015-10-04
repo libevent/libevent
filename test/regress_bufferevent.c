@@ -245,7 +245,6 @@ static void trace_lock_free(void *lock_, unsigned locktype)
 {
 	lock_wrapper *lock = lu_find(lock_);
 	if (!lock || lock->status == FREE || lock->locked) {
-		__asm__("int3");
 		TT_FAIL(("lock: free error"));
 	} else {
 		lock->status = FREE;
