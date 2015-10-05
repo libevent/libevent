@@ -73,7 +73,7 @@ struct evkeyvalq;
 struct evhttp_bound_socket;
 struct evconnlistener;
 struct evdns_base;
-struct evhttp_extended_methods;
+struct evhttp_extended_method;
 
 /**
  * Create a new HTTP server.
@@ -256,7 +256,7 @@ void evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods);
 */
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_extended_methods(struct evhttp* http,
-    const struct evhttp_extended_methods *ext_methods);
+    const struct evhttp_extended_method *ext_methods);
 
 /**
    Set a callback for a specified URI
@@ -502,10 +502,10 @@ enum evhttp_cmd_type {
 
 /** structure to allow users to define their own HTTP methods
  * @see evhttp_set_extended_methods */
-struct evhttp_extended_methods {
+struct evhttp_extended_method {
 	const char * method;
 	ev_uint16_t type;
-	ev_uint16_t flags;
+	ev_uint16_t flags;	/* Available flag : EVHTTP_METHOD_HAS_BODY */
 };
 
 #define EVHTTP_METHOD_HAS_BODY 0x0001
@@ -691,7 +691,7 @@ int evhttp_request_is_owned(struct evhttp_request *req);
  */
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_extended_methods(struct evhttp_connection *evcon,
-	const struct evhttp_extended_methods *ext_methods);
+	const struct evhttp_extended_method *ext_methods);
 
 /**
  * Returns the connection object associated with the request or NULL

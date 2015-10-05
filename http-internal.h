@@ -102,7 +102,7 @@ struct evhttp_connection {
 	struct evdns_base *dns_base;
 	int ai_family;
 
-	const struct evhttp_extended_methods *ext_methods;
+	const struct evhttp_extended_method *ext_methods;
 };
 
 /* A callback for an http server */
@@ -170,7 +170,7 @@ struct evhttp {
 
 	struct event_base *base;
 
-	const struct evhttp_extended_methods *ext_methods;
+	const struct evhttp_extended_method *ext_methods;
 };
 
 /* XXX most of these functions could be static. */

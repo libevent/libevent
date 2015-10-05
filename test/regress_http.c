@@ -72,7 +72,7 @@ static char const BASIC_REQUEST_BODY[] = "This is funny";
 
 /* extended Method */
 #define EVHTTP_REQ_CUSTOM	((EVHTTP_REQ_MAX) << 1)
-static const struct evhttp_extended_methods ext_methods[] = {
+static const struct evhttp_extended_method ext_methods[] = {
 	{"CUSTOM", EVHTTP_REQ_CUSTOM, 0/*EVHTTP_METHOD_HAS_BODY*/},
 	{NULL, 0, 0}
 };

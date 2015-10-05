@@ -305,7 +305,7 @@ evhttp_method(struct evhttp_connection *evcon,
               enum evhttp_cmd_type type)
 {
 	const char *method;
-	const struct evhttp_extended_methods * ext_methods;
+	const struct evhttp_extended_method * ext_methods;
 
 	switch (type) {
 	case EVHTTP_REQ_GET:
@@ -1743,7 +1743,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 
 	if ((int)type == EVHTTP_REQ_UNKNOWN_) {
 		/* check extended methods */
-		const struct evhttp_extended_methods * ext_methods = req->evcon->ext_methods;
+		const struct evhttp_extended_method * ext_methods = req->evcon->ext_methods;
 		if (ext_methods == NULL && req->evcon->http_server != NULL)
 			ext_methods = req->evcon->http_server->ext_methods;
 		if (ext_methods != NULL) {
@@ -2112,7 +2112,7 @@ evhttp_method_may_have_body(struct evhttp_connection *evcon, enum evhttp_cmd_typ
 		return 0;
 	default:
 		if (evcon) {
-			const struct evhttp_extended_methods * ext_methods = evcon->ext_methods;
+			const struct evhttp_extended_method * ext_methods = evcon->ext_methods;
 			if (ext_methods == NULL && evcon->http_server != NULL)
 				ext_methods = evcon->http_server->ext_methods;
 			if (ext_methods) {
@@ -2397,7 +2397,7 @@ int evhttp_connection_set_flags(struct evhttp_connection *evcon,
 }
 
 void evhttp_connection_set_extended_methods(struct evhttp_connection *evcon,
-	const struct evhttp_extended_methods *ext_methods)
+	const struct evhttp_extended_method *ext_methods)
 {
 	evcon->ext_methods = ext_methods;
 }
@@ -3770,7 +3770,7 @@ evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods)
 
 void
 evhttp_set_extended_methods(struct evhttp* http,
-    const struct evhttp_extended_methods *ext_methods)
+    const struct evhttp_extended_method *ext_methods)
 {
 	http->ext_methods = ext_methods;
 }
