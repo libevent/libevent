@@ -336,6 +336,7 @@ open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
 {
 	int state1 = is_open ? BUFFEREVENT_SSL_OPEN :BUFFEREVENT_SSL_CONNECTING;
 	int state2 = is_open ? BUFFEREVENT_SSL_OPEN :BUFFEREVENT_SSL_ACCEPTING;
+	int dirty_shutdown = type & REGRESS_OPENSSL_DIRTY_SHUTDOWN;
 	if (fd_pair) {
 		*bev1_out = bufferevent_openssl_socket_new(
 			base, fd_pair[0], ssl1, state1, flags);
@@ -353,7 +354,6 @@ open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
 	bufferevent_setcb(*bev2_out, respond_to_number, done_writing_cb,
 	    eventcb, (void*)(REGRESS_OPENSSL_SERVER | (long)type));
 
-	int dirty_shutdown = type & REGRESS_OPENSSL_DIRTY_SHUTDOWN;
 	bufferevent_openssl_set_allow_dirty_shutdown(*bev1_out, dirty_shutdown);
 	bufferevent_openssl_set_allow_dirty_shutdown(*bev2_out, dirty_shutdown);
 }
@@ -452,7 +452,7 @@ regress_bufferevent_openssl(void *arg)
 		}
 		tt_int_op(got_timeout, ==, 0);
 	} else {
-		struct timeval t = { 2 };
+		struct timeval t = { 2, 0 };
 
 		bufferevent_enable(bev1, EV_READ|EV_WRITE);
 		bufferevent_disable(bev2, EV_READ|EV_WRITE);
