@@ -1076,7 +1076,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 		if (name_parse(req->request, req->request_len, &k,
 			cmp_name, sizeof(cmp_name))<0)
 			goto err;
-		if (base->global_randomize_case) {
+		if (!base->global_randomize_case) {
 			if (strcmp(tmp_name, cmp_name) == 0)
 				name_matches = 1;
 		} else {
