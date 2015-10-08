@@ -198,7 +198,7 @@ test_evbuffer(void *ptr)
 
 	tt_assert(evbuffer_get_length(evb_two) == 0);
 	tt_assert(evbuffer_get_length(evb) == 7);
-	tt_assert(!memcmp((char*)EVBUFFER_DATA(evb), "1/hello", 7) != 0);
+	tt_assert(!memcmp((char*)EVBUFFER_DATA(evb), "1/hello", 7));
 
 	memset(buffer, 0, sizeof(buffer));
 	evbuffer_add(evb, buffer, sizeof(buffer));
