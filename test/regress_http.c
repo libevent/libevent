@@ -1076,8 +1076,8 @@ http_persist_connection_test(void *arg)
 }
 
 static struct regress_dns_server_table search_table[] = {
-	{ "localhost", "A", "127.0.0.1", 0 },
-	{ NULL, NULL, NULL, 0 }
+	{ "localhost", "A", "127.0.0.1", 0, 0 },
+	{ NULL, NULL, NULL, 0, 0 }
 };
 
 static void
@@ -3898,8 +3898,8 @@ http_terminate_chunked_oneshot_test(void *arg)
 }
 
 static struct regress_dns_server_table ipv6_search_table[] = {
-	{ "localhost", "AAAA", "::1", 0 },
-	{ NULL, NULL, NULL, 0 }
+	{ "localhost", "AAAA", "::1", 0, 0 },
+	{ NULL, NULL, NULL, 0, 0 }
 };
 
 static void
