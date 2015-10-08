@@ -135,11 +135,18 @@ regress_clean_dnsserver(void)
 		evutil_closesocket(dns_sock);
 }
 
+static void strtolower(char *s)
+{
+	while (*s) {
+		*s = EVUTIL_TOLOWER_(*s);
+		++s;
+	}
+}
 void
 regress_dns_server_cb(struct evdns_server_request *req, void *data)
 {
 	struct regress_dns_server_table *tab = data;
-	const char *question;
+	char *question;
 
 	if (req->nquestions != 1)
 		TT_DIE(("Only handling one question at a time; got %d",
@@ -154,6 +161,9 @@ regress_dns_server_cb(struct evdns_server_request *req, void *data)
 		TT_DIE(("Unexpected question: '%s'", question));
 
 	++tab->seen;
+
+	if (tab->lower)
+		strtolower(question);
 
 	if (!strcmp(tab->anstype, "err")) {
 		int err = atoi(tab->ans);
