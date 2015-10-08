@@ -1060,24 +1060,6 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			sizeof(tmp_name))<0)			\
 			goto err;				\
 	} while (0)
-#define TEST_NAME							\
-	do { tmp_name[0] = '\0';					\
-		cmp_name[0] = '\0';					\
-		k = j;							\
-		if (name_parse(packet, length, &j, tmp_name,		\
-			sizeof(tmp_name))<0)				\
-			goto err;					\
-		if (name_parse(req->request, req->request_len, &k,	\
-			cmp_name, sizeof(cmp_name))<0)			\
-			goto err;					\
-		if (base->global_randomize_case) {			\
-			if (strcmp(tmp_name, cmp_name) == 0)		\
-				name_matches = 1;			\
-		} else {						\
-			if (evutil_ascii_strcasecmp(tmp_name, cmp_name) == 0) \
-				name_matches = 1;			\
-		}							\
-	} while (0)
 
 	reply.type = req->request_type;
 
@@ -1086,9 +1068,25 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 		/* the question looks like
 		 *   <label:name><u16:type><u16:class>
 		 */
-		TEST_NAME;
+		tmp_name[0] = '\0';
+		cmp_name[0] = '\0';
+		k = j;
+		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name)) < 0)
+			goto err;
+		if (name_parse(req->request, req->request_len, &k,
+			cmp_name, sizeof(cmp_name))<0)
+			goto err;
+		if (!base->global_randomize_case) {
+			if (strcmp(tmp_name, cmp_name) == 0)
+				name_matches = 1;
+		} else {
+			if (evutil_ascii_strcasecmp(tmp_name, cmp_name) == 0)
+				name_matches = 1;
+		}
+
 		j += 4;
-		if (j > length) goto err;
+		if (j > length)
+			goto err;
 	}
 
 	if (!name_matches)
