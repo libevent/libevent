@@ -513,20 +513,20 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
 }
 
 static struct regress_dns_server_table search_table[] = {
-	{ "host.a.example.com", "err", "3", 0 },
-	{ "host.b.example.com", "err", "3", 0 },
-	{ "host.c.example.com", "A", "11.22.33.44", 0 },
-	{ "host2.a.example.com", "err", "3", 0 },
-	{ "host2.b.example.com", "A", "200.100.0.100", 0 },
-	{ "host2.c.example.com", "err", "3", 0 },
-	{ "hostn.a.example.com", "errsoa", "0", 0 },
-	{ "hostn.b.example.com", "errsoa", "3", 0 },
-	{ "hostn.c.example.com", "err", "0", 0 },
+	{ "host.a.example.com", "err", "3", 0, 0 },
+	{ "host.b.example.com", "err", "3", 0, 0 },
+	{ "host.c.example.com", "A", "11.22.33.44", 0, 0 },
+	{ "host2.a.example.com", "err", "3", 0, 0 },
+	{ "host2.b.example.com", "A", "200.100.0.100", 0, 0 },
+	{ "host2.c.example.com", "err", "3", 0, 0 },
+	{ "hostn.a.example.com", "errsoa", "0", 0, 0 },
+	{ "hostn.b.example.com", "errsoa", "3", 0, 0 },
+	{ "hostn.c.example.com", "err", "0", 0, 0 },
 
-	{ "host", "err", "3", 0 },
-	{ "host2", "err", "3", 0 },
-	{ "*", "err", "3", 0 },
-	{ NULL, NULL, NULL, 0 }
+	{ "host", "err", "3", 0, 0 },
+	{ "host2", "err", "3", 0, 0 },
+	{ "*", "err", "3", 0, 0 },
+	{ NULL, NULL, NULL, 0, 0 }
 };
 static void
 dns_search_test_impl(void *arg, int lower)
@@ -539,8 +539,9 @@ dns_search_test_impl(void *arg, int lower)
 	char buf[64];
 
 	struct generic_dns_callback_result r[8];
+	size_t i;
 
-	for (size_t i = 0; i < ARRAY_SIZE(table); ++i) {
+	for (i = 0; i < ARRAY_SIZE(table); ++i) {
 		table[i] = search_table[i];
 		table[i].lower = lower;
 	}
@@ -793,13 +794,13 @@ static struct regress_dns_server_table internal_error_table[] = {
 
 	   XXXX we should reissue under a much wider set of circumstances!
 	 */
-	{ "foof.example.com", "err", "4", 0 },
-	{ NULL, NULL, NULL, 0 }
+	{ "foof.example.com", "err", "4", 0, 0 },
+	{ NULL, NULL, NULL, 0, 0 }
 };
 
 static struct regress_dns_server_table reissue_table[] = {
-	{ "foof.example.com", "A", "240.15.240.15", 0 },
-	{ NULL, NULL, NULL, 0 }
+	{ "foof.example.com", "A", "240.15.240.15", 0, 0 },
+	{ NULL, NULL, NULL, 0, 0 }
 };
 
 static void
