@@ -2266,6 +2266,9 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 	evcon->fd = -1;
 	evcon->port = port;
 
+	evcon->switch_protocb = NULL;
+	evcon->switch_protocb_arg = NULL;
+
 	evcon->max_headers_size = EV_SIZE_MAX;
 	evcon->max_body_size = EV_SIZE_MAX;
 
@@ -2623,6 +2626,7 @@ static void
 evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 {
 	int need_close;
+	struct bufferevent *bev = evcon->bufev;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
@@ -2633,11 +2637,22 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	need_close =
 	    (REQ_VERSION_BEFORE(req, 1, 1) &&
 	    !evhttp_is_connection_keepalive(req->input_headers)) ||
-	    evhttp_is_request_connection_close(req);
+	    evhttp_is_request_connection_close(req) ||
+	    evcon->switch_protocb != NULL;
+
 
 	EVUTIL_ASSERT(req->flags & EVHTTP_REQ_OWN_CONNECTION);
 	evhttp_request_free(req);
 
+	if (evcon->switch_protocb != NULL) {
+		evcon->bufev = NULL;
+		if (!(bufferevent_get_options_(bev) & BEV_OPT_CLOSE_ON_FREE)) {
+			bufferevent_free(bev);
+			bev = bufferevent_socket_new(evcon->base, evcon->fd, BEV_OPT_CLOSE_ON_FREE);
+		}
+		evcon->fd = -1;
+		evcon->switch_protocb(bev, evcon->switch_protocb_arg);
+	}
 	if (need_close) {
 		evhttp_connection_free(evcon);
 		return;
@@ -2808,6 +2823,23 @@ static const char *informational_phrases[] = {
 	/* 100 */ "Continue",
 	/* 101 */ "Switching Protocols"
 };
+
+void
+evhttp_send_switch_protocol(struct evhttp_request *req, void (*cb)(struct bufferevent *, void *), void *arg)
+{
+	evhttp_response_code_(req, HTTP_SWITCHING_PROTOCOLS, informational_phrases[1]);
+	evhttp_make_header(req->evcon, req);
+	evhttp_write_buffer(req->evcon, NULL, NULL);
+
+	/* we expect no more calls form the user on this request */
+	req->userdone = 1;
+	req->evcon->switch_protocb = cb;
+	req->evcon->switch_protocb_arg = arg;
+
+	/* make the callback execute after all data has been written */
+	req->evcon->cb = evhttp_send_done;
+	req->evcon->cb_arg = NULL;
+}
 
 static const char *success_phrases[] = {
 	/* 200 */ "OK",

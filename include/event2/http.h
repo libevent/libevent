@@ -53,6 +53,7 @@ struct evhttp_connection;
  */
 
 /* Response codes */
+#define HTTP_SWITCHING_PROTOCOLS	101	/**< switching to another protocol */
 #define HTTP_OK			200	/**< request completed ok */
 #define HTTP_NOCONTENT		204	/**< request does not have content */
 #define HTTP_MOVEPERM		301	/**< the uri moved permanently */
@@ -463,6 +464,24 @@ void evhttp_send_reply_chunk_with_cb(struct evhttp_request *, struct evbuffer *,
 */
 EVENT2_EXPORT_SYMBOL
 void evhttp_send_reply_end(struct evhttp_request *req);
+
+/**
+   Complete a reply, by sending 101 SWITCHING PROTOCOL.
+
+   Allows one to switch protocol and continue communication with the client
+   directly through the connection esteblished by handshake request.
+
+   evhttp_request object will be freed but the connection returned by this
+   function remains alive and it's caller responsibility to free it at
+   approptiate time.
+
+   @param req a request object
+   @param cb a callback to call when connection can be use for communication by
+   new protocol
+   @param arg a pointer to callback argument
+*/
+EVENT2_EXPORT_SYMBOL
+void evhttp_send_switch_protocol(struct evhttp_request *req, void (*cb)(struct bufferevent *, void *), void *arg);
 
 /*
  * Interfaces for making requests

@@ -96,6 +96,9 @@ struct evhttp_connection {
 	void (*closecb)(struct evhttp_connection *, void *);
 	void *closecb_arg;
 
+	void (*switch_protocb)(struct bufferevent *, void *);
+	void *switch_protocb_arg;
+
 	struct event_callback read_more_deferred_cb;
 
 	struct event_base *base;
