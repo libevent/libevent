@@ -769,6 +769,29 @@ event_base_cancel_single_callback_(struct event_base *base,
 	return result;
 }
 
+static int event_base_free_queues_(struct event_base *base, int run_finalizers)
+{
+	int deleted = 0, i;
+
+	for (i = 0; i < base->nactivequeues; ++i) {
+		struct event_callback *evcb, *next;
+		for (evcb = TAILQ_FIRST(&base->activequeues[i]); evcb; ) {
+			next = TAILQ_NEXT(evcb, evcb_active_next);
+			deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
+			evcb = next;
+		}
+	}
+
+	{
+		struct event_callback *evcb;
+		while ((evcb = TAILQ_FIRST(&base->active_later_queue))) {
+			deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
+		}
+	}
+
+	return deleted;
+}
+
 static void
 event_base_free_(struct event_base *base, int run_finalizers)
 {
@@ -829,21 +852,21 @@ event_base_free_(struct event_base *base, int run_finalizers)
 	if (base->common_timeout_queues)
 		mm_free(base->common_timeout_queues);
 
-	for (i = 0; i < base->nactivequeues; ++i) {
-		struct event_callback *evcb, *next;
-		for (evcb = TAILQ_FIRST(&base->activequeues[i]); evcb; ) {
-			next = TAILQ_NEXT(evcb, evcb_active_next);
-			n_deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
-			evcb = next;
+	for (;;) {
+		/* For finalizers we can register yet another finalizer out from
+		 * finalizer, and iff finalizer will be in active_later_queue we can
+		 * add finalizer to activequeues, and we will have events in
+		 * activequeues after this function returns, which is not what we want
+		 * (we even have an assertion for this).
+		 *
+		 * A simple case is bufferevent with underlying (i.e. filters).
+		 */
+		int i = event_base_free_queues_(base, run_finalizers);
+		if (!i) {
+			break;
 		}
+		n_deleted += i;
 	}
-	{
-		struct event_callback *evcb;
-		while ((evcb = TAILQ_FIRST(&base->active_later_queue))) {
-			n_deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
-		}
-	}
-
 
 	if (n_deleted)
 		event_debug(("%s: %d events were still set in base",
