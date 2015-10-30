@@ -123,11 +123,12 @@ errorcb(struct bufferevent *bev, short what, void *arg)
 }
 
 static void
-test_bufferevent_impl(int use_pair)
+test_bufferevent_impl(int use_pair, int flush)
 {
 	struct bufferevent *bev1 = NULL, *bev2 = NULL;
 	char buffer[8333];
 	int i;
+	int expected = 2;
 
 	if (use_pair) {
 		struct bufferevent *pair[2];
@@ -171,6 +172,9 @@ test_bufferevent_impl(int use_pair)
 		buffer[i] = i;
 
 	bufferevent_write(bev1, buffer, sizeof(buffer));
+	if (flush >= 0) {
+		tt_int_op(bufferevent_flush(bev1, EV_WRITE, flush), >=, 0);
+	}
 
 	event_dispatch();
 
@@ -178,23 +182,26 @@ test_bufferevent_impl(int use_pair)
 	tt_ptr_op(bufferevent_pair_get_partner(bev1), ==, NULL);
 	bufferevent_free(bev1);
 
-	if (test_ok != 2)
+	/** Only pair call errorcb for BEV_FINISHED */
+	if (use_pair && flush == BEV_FINISHED) {
+		expected = -1;
+	}
+	if (test_ok != expected)
 		test_ok = 0;
 end:
 	;
 }
 
-static void
-test_bufferevent(void)
-{
-	test_bufferevent_impl(0);
-}
+static void test_bufferevent(void) { test_bufferevent_impl(0, -1); }
+static void test_bufferevent_pair(void) { test_bufferevent_impl(1, -1); }
 
-static void
-test_bufferevent_pair(void)
-{
-	test_bufferevent_impl(1);
-}
+static void test_bufferevent_flush_normal(void) { test_bufferevent_impl(0, BEV_NORMAL); }
+static void test_bufferevent_flush_flush(void) { test_bufferevent_impl(0, BEV_FLUSH); }
+static void test_bufferevent_flush_finished(void) { test_bufferevent_impl(0, BEV_FINISHED); }
+
+static void test_bufferevent_pair_flush_normal(void) { test_bufferevent_impl(1, BEV_NORMAL); }
+static void test_bufferevent_pair_flush_flush(void) { test_bufferevent_impl(1, BEV_FLUSH); }
+static void test_bufferevent_pair_flush_finished(void) { test_bufferevent_impl(1, BEV_FINISHED); }
 
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 /**
@@ -1174,6 +1181,12 @@ struct testcase_t bufferevent_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED),
 	LEGACY(bufferevent_pair, TT_ISOLATED),
+	LEGACY(bufferevent_flush_normal, TT_ISOLATED),
+	LEGACY(bufferevent_flush_flush, TT_ISOLATED),
+	LEGACY(bufferevent_flush_finished, TT_ISOLATED),
+	LEGACY(bufferevent_pair_flush_normal, TT_ISOLATED),
+	LEGACY(bufferevent_pair_flush_flush, TT_ISOLATED),
+	LEGACY(bufferevent_pair_flush_finished, TT_ISOLATED),
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 	{ "bufferevent_pair_release_lock", test_bufferevent_pair_release_lock,
 	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY,
@@ -1238,6 +1251,9 @@ struct testcase_t bufferevent_testcases[] = {
 struct testcase_t bufferevent_iocp_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED|TT_ENABLE_IOCP),
+	LEGACY(bufferevent_flush_normal, TT_ISOLATED),
+	LEGACY(bufferevent_flush_flush, TT_ISOLATED),
+	LEGACY(bufferevent_flush_finished, TT_ISOLATED),
 	LEGACY(bufferevent_watermarks, TT_ISOLATED|TT_ENABLE_IOCP),
 	LEGACY(bufferevent_filters, TT_ISOLATED|TT_ENABLE_IOCP),
 	{ "bufferevent_connect", test_bufferevent_connect,
