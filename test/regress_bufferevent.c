@@ -1158,7 +1158,9 @@ test_bufferevent_socket_filter_inactive(void *arg)
 	struct bufferevent *bev = NULL, *bevf = NULL;
 
 	bev = bufferevent_socket_new(data->base, -1, 0);
+	tt_assert(bev);
 	bevf = bufferevent_filter_new(bev, NULL, NULL, 0, NULL, NULL);
+	tt_assert(bevf);
 
 end:
 	if (bevf)
