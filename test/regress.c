@@ -3195,6 +3195,7 @@ test_active_by_fd(void *arg)
 	/* Trigger 2, 3, 4 */
 	event_base_active_by_fd(base, data->pair[0], EV_WRITE);
 	event_base_active_by_fd(base, data->pair[1], EV_READ);
+	event_base_active_by_fd(base, data->pair[1], EV_TIMEOUT);
 #ifndef _WIN32
 	event_base_active_by_signal(base, SIGHUP);
 #endif
@@ -3207,7 +3208,7 @@ test_active_by_fd(void *arg)
 	tt_int_op(e2, ==, EV_WRITE | 0x10000);
 	tt_int_op(e3, ==, EV_READ | 0x10000);
 	/* Mask out EV_WRITE here, since it could be genuinely writeable. */
-	tt_int_op((e4 & ~EV_WRITE), ==, EV_READ | 0x10000);
+	tt_int_op((e4 & ~EV_WRITE), ==, EV_READ | EV_TIMEOUT | 0x10000);
 #ifndef _WIN32
 	tt_int_op(es, ==, EV_SIGNAL | 0x10000);
 #endif
