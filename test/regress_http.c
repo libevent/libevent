@@ -3382,32 +3382,39 @@ http_connection_retry_done(struct evhttp_request *req, void *arg)
 	event_base_loopexit(arg,NULL);
 }
 
+struct http_server
+{
+	ev_uint16_t port;
+	int ssl;
+};
 static struct event_base *http_make_web_server_base=NULL;
 static void
 http_make_web_server(evutil_socket_t fd, short what, void *arg)
 {
-	ev_uint16_t port = *(ev_uint16_t*)arg;
-	http = http_setup(&port, http_make_web_server_base, 0);
+	struct http_server *hs = (struct http_server *)arg;
+	http = http_setup(&hs->port, http_make_web_server_base, hs->ssl ? HTTP_BIND_SSL : 0);
 }
 
 static void
-http_connection_retry_test_impl(void *arg, const char *addr, struct evdns_base *dns_base)
+http_connection_retry_test_basic(void *arg, const char *addr, struct evdns_base *dns_base, int ssl)
 {
 	struct basic_test_data *data = arg;
-	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	struct timeval tv, tv_start, tv_end;
+	struct bufferevent *bev;
+	struct http_server hs = { .port = 0, .ssl = ssl, };
 
 	exit_base = data->base;
 	test_ok = 0;
 
 	/* auto detect a port */
-	http = http_setup(&port, data->base, 0);
+	http = http_setup(&hs.port, data->base, ssl ? HTTP_BIND_SSL : 0);
 	evhttp_free(http);
 	http = NULL;
 
-	evcon = evhttp_connection_base_new(data->base, dns_base, addr, port);
+	bev = create_bev(data->base, -1, ssl);
+	evcon = evhttp_connection_base_bufferevent_new(data->base, dns_base, bev, addr, hs.port);
 	tt_assert(evcon);
 	if (dns_base)
 		tt_assert(!evhttp_connection_set_flags(evcon, EVHTTP_CON_REUSE_CONNECTED_ADDR));
@@ -3502,7 +3509,7 @@ http_connection_retry_test_impl(void *arg, const char *addr, struct evdns_base *
 	evutil_timerclear(&tv);
 	tv.tv_usec = 200000;
 	http_make_web_server_base = data->base;
-	event_base_once(data->base, -1, EV_TIMEOUT, http_make_web_server, &port, &tv);
+	event_base_once(data->base, -1, EV_TIMEOUT, http_make_web_server, &hs, &tv);
 
 	evutil_gettimeofday(&tv_start, NULL);
 	event_base_dispatch(data->base);
@@ -3520,7 +3527,7 @@ http_connection_retry_test_impl(void *arg, const char *addr, struct evdns_base *
 }
 
 static void
-http_connection_retry_conn_address_test(void *arg)
+http_connection_retry_conn_address_test_impl(void *arg, int ssl)
 {
 	struct basic_test_data *data = arg;
 	ev_uint16_t portnum = 0;
@@ -3536,19 +3543,29 @@ http_connection_retry_conn_address_test(void *arg)
 	evutil_snprintf(address, sizeof(address), "127.0.0.1:%d", portnum);
 	evdns_base_nameserver_ip_add(dns_base, address);
 
-	http_connection_retry_test_impl(arg, "localhost", dns_base);
+	http_connection_retry_test_basic(arg, "localhost", dns_base, ssl);
 
  end:
 	if (dns_base)
 		evdns_base_free(dns_base, 0);
-	/** dnsserver will be cleaned in http_connection_retry_test_impl() */
+	/** dnsserver will be cleaned in http_connection_retry_test_basic() */
 }
+static void http_connection_retry_conn_address_test(void *arg)
+{ return http_connection_retry_conn_address_test_impl(arg, 0); }
+static void https_connection_retry_conn_address_test(void *arg)
+{ return http_connection_retry_conn_address_test_impl(arg, 1); }
 
 static void
-http_connection_retry_test(void *arg)
+http_connection_retry_test_impl(void *arg, int ssl)
 {
-	return http_connection_retry_test_impl(arg, "127.0.0.1", NULL);
+	return http_connection_retry_test_basic(arg, "127.0.0.1", NULL, ssl);
 }
+static void
+http_connection_retry_test(void *arg)
+{ return http_connection_retry_test_impl(arg, 0); }
+static void
+https_connection_retry_test(void *arg)
+{ return http_connection_retry_test_impl(arg, 1); }
 
 static void
 http_primitives(void *ptr)
@@ -4206,6 +4223,9 @@ struct testcase_t http_testcases[] = {
 	HTTP(request_own),
 
 #ifdef EVENT__HAVE_OPENSSL
+	{ "https_connection_retry", https_connection_retry_test, TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
+	{ "https_connection_retry_conn_address", https_connection_retry_conn_address_test,
+	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 #endif
 
 	END_OF_TESTCASES
