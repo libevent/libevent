@@ -972,7 +972,7 @@ bufferevent_generic_adj_timeouts_(struct bufferevent *bev)
 int
 bufferevent_add_event_(struct event *ev, const struct timeval *tv)
 {
-	if (tv->tv_sec == 0 && tv->tv_usec == 0)
+	if (!evutil_timerisset(tv))
 		return event_add(ev, NULL);
 	else
 		return event_add(ev, tv);
