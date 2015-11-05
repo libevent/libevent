@@ -1606,6 +1606,11 @@ http_dispatcher_test_done(struct evhttp_request *req, void *arg)
 	struct event_base *base = arg;
 	const char *what = "DISPATCHER_TEST";
 
+	if (!req) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
 	if (evhttp_request_get_response_code(req) != HTTP_OK) {
 		fprintf(stderr, "FAILED\n");
 		exit(1);
