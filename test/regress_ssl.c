@@ -51,7 +51,6 @@
 #include "tinytest.h"
 #include "tinytest_macros.h"
 
-#include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
@@ -73,8 +72,8 @@ static const char KEY[] =
     "U6GFEQTZ3IfuiVabG5pummdC4DNbcdI+WKrSFNmQ\n"
     "-----END RSA PRIVATE KEY-----\n";
 
-static EVP_PKEY *
-getkey(void)
+EVP_PKEY *
+ssl_getkey(void)
 {
 	EVP_PKEY *key;
 	BIO *bio;
@@ -92,15 +91,15 @@ end:
 	return NULL;
 }
 
-static X509 *
-getcert(void)
+X509 *
+ssl_getcert(void)
 {
 	/* Dummy code to make a quick-and-dirty valid certificate with
 	   OpenSSL.  Don't copy this code into your own program! It does a
 	   number of things in a stupid and insecure way. */
 	X509 *x509 = NULL;
 	X509_NAME *name = NULL;
-	EVP_PKEY *key = getkey();
+	EVP_PKEY *key = ssl_getkey();
 	int nid;
 	time_t now = time(NULL);
 
@@ -138,7 +137,7 @@ end:
 static int disable_tls_11_and_12 = 0;
 static SSL_CTX *the_ssl_ctx = NULL;
 
-static SSL_CTX *
+SSL_CTX *
 get_ssl_ctx(void)
 {
 	if (the_ssl_ctx)
@@ -157,7 +156,7 @@ get_ssl_ctx(void)
 	return the_ssl_ctx;
 }
 
-static void
+void
 init_ssl(void)
 {
 	SSL_library_init();
@@ -365,8 +364,8 @@ regress_bufferevent_openssl(void *arg)
 
 	struct bufferevent *bev1, *bev2;
 	SSL *ssl1, *ssl2;
-	X509 *cert = getcert();
-	EVP_PKEY *key = getkey();
+	X509 *cert = ssl_getcert();
+	EVP_PKEY *key = ssl_getkey();
 	int flags = BEV_OPT_DEFER_CALLBACKS;
 	struct bufferevent *bev_ll[2] = { NULL, NULL };
 	evutil_socket_t *fd_pair = NULL;
@@ -482,8 +481,8 @@ acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
 	struct bufferevent *bev;
 	SSL *ssl = SSL_new(get_ssl_ctx());
 
-	SSL_use_certificate(ssl, getcert());
-	SSL_use_PrivateKey(ssl, getkey());
+	SSL_use_certificate(ssl, ssl_getcert());
+	SSL_use_PrivateKey(ssl, ssl_getkey());
 
 	bev = bufferevent_openssl_socket_new(
 		data->base,
