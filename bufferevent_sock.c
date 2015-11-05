@@ -96,9 +96,6 @@ const struct bufferevent_ops bufferevent_ops_socket = {
 	be_socket_ctrl,
 };
 
-#define be_socket_add(ev, t)			\
-	bufferevent_add_event_((ev), (t))
-
 const struct sockaddr*
 bufferevent_socket_get_conn_address_(struct bufferevent *bev)
 {
@@ -139,7 +136,7 @@ bufferevent_socket_outbuf_cb(struct evbuffer *buf,
 	    !bufev_p->write_suspended) {
 		/* Somebody added data to the buffer, and we would like to
 		 * write, and we were not writing.  So, start writing. */
-		if (be_socket_add(&bufev->ev_write, &bufev->timeout_write) == -1) {
+		if (bufferevent_add_event_(&bufev->ev_write, &bufev->timeout_write) == -1) {
 		    /* Should we log this? */
 		}
 	}
@@ -577,11 +574,11 @@ static int
 be_socket_enable(struct bufferevent *bufev, short event)
 {
 	if (event & EV_READ) {
-		if (be_socket_add(&bufev->ev_read,&bufev->timeout_read) == -1)
+		if (bufferevent_add_event_(&bufev->ev_read, &bufev->timeout_read) == -1)
 			return -1;
 	}
 	if (event & EV_WRITE) {
-		if (be_socket_add(&bufev->ev_write,&bufev->timeout_write) == -1)
+		if (bufferevent_add_event_(&bufev->ev_write, &bufev->timeout_write) == -1)
 			return -1;
 	}
 	return 0;
