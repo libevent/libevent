@@ -58,7 +58,9 @@
 #include "event2/http.h"
 #include "event2/buffer.h"
 #include "event2/bufferevent.h"
+#include "event2/bufferevent_ssl.h"
 #include "event2/util.h"
+#include "event2/listener.h"
 #include "log-internal.h"
 #include "http-internal.h"
 #include "regress.h"
@@ -95,11 +97,14 @@ static void http_badreq_cb(struct evhttp_request *req, void *arg);
 static void http_dispatcher_cb(struct evhttp_request *req, void *arg);
 static void http_on_complete_cb(struct evhttp_request *req, void *arg);
 
+#define HTTP_BIND_IPV6 1
+#define HTTP_BIND_SSL 2
 static int
-http_bind(struct evhttp *myhttp, ev_uint16_t *pport, int ipv6)
+http_bind(struct evhttp *myhttp, ev_uint16_t *pport, int mask)
 {
 	int port;
 	struct evhttp_bound_socket *sock;
+	int ipv6 = mask & HTTP_BIND_IPV6;
 
 	if (ipv6)
 		sock = evhttp_bind_socket_with_handle(myhttp, "::1", *pport);
@@ -121,16 +126,33 @@ http_bind(struct evhttp *myhttp, ev_uint16_t *pport, int ipv6)
 	return 0;
 }
 
+static struct bufferevent *
+https_bev(struct event_base *base, void *arg)
+{
+	SSL *ssl = SSL_new(get_ssl_ctx());
+
+	SSL_use_certificate(ssl, ssl_getcert());
+	SSL_use_PrivateKey(ssl, ssl_getkey());
+
+	return bufferevent_openssl_socket_new(
+		base, -1, ssl, BUFFEREVENT_SSL_ACCEPTING,
+		BEV_OPT_CLOSE_ON_FREE);
+}
 static struct evhttp *
-http_setup(ev_uint16_t *pport, struct event_base *base, int ipv6)
+http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 {
 	struct evhttp *myhttp;
+	int ssl = mask & HTTP_BIND_SSL;
 
 	/* Try a few different ports */
 	myhttp = evhttp_new(base);
 
-	if (http_bind(myhttp, pport, ipv6) < 0)
+	if (http_bind(myhttp, pport, mask) < 0)
 		return NULL;
+	if (ssl) {
+		init_ssl();
+		evhttp_set_bevcb(myhttp, https_bev, NULL);
+	}
 
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, base);
@@ -409,6 +431,20 @@ http_complete_write(evutil_socket_t fd, short what, void *arg)
 	bufferevent_write(bev, http_request, strlen(http_request));
 }
 
+static struct bufferevent *
+create_bev(struct event_base *base, int fd, int ssl)
+{
+	int flags = BEV_OPT_DEFER_CALLBACKS;
+
+	if (!ssl) {
+		return bufferevent_socket_new(base, fd, flags);
+	} else {
+		SSL *ssl = SSL_new(get_ssl_ctx());
+		return bufferevent_openssl_socket_new(
+			base, fd, ssl, BUFFEREVENT_SSL_CONNECTING, flags);
+	}
+}
+
 static void
 http_basic_test(void *arg)
 {
@@ -482,6 +518,7 @@ http_basic_test(void *arg)
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
+
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
 
@@ -4109,6 +4146,8 @@ http_request_own_test(void *arg)
 
 #define HTTP(name) \
 	{ #name, http_##name##_test, TT_ISOLATED, &basic_setup, NULL }
+#define HTTPS(name) \
+	{ "https_" #name, https_##name##_test, TT_ISOLATED, &basic_setup, NULL }
 
 struct testcase_t http_testcases[] = {
 	{ "primitives", http_primitives, 0, NULL, NULL },
@@ -4165,6 +4204,9 @@ struct testcase_t http_testcases[] = {
 
 	HTTP(write_during_read),
 	HTTP(request_own),
+
+#ifdef EVENT__HAVE_OPENSSL
+#endif
 
 	END_OF_TESTCASES
 };
