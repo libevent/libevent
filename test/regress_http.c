@@ -300,6 +300,9 @@ http_writecb(struct bufferevent *bev, void *arg)
 static void
 http_errorcb(struct bufferevent *bev, short what, void *arg)
 {
+	/** For ssl */
+	if (what & BEV_EVENT_CONNECTED)
+		return;
 	test_ok = -2;
 	event_base_loopexit(arg, NULL);
 }
@@ -446,7 +449,7 @@ create_bev(struct event_base *base, int fd, int ssl)
 }
 
 static void
-http_basic_test(void *arg)
+http_basic_test_impl(void *arg, int ssl)
 {
 	struct basic_test_data *data = arg;
 	struct timeval tv;
@@ -454,13 +457,14 @@ http_basic_test(void *arg)
 	evutil_socket_t fd;
 	const char *http_request;
 	ev_uint16_t port = 0, port2 = 0;
+	int server_flags = ssl ? HTTP_BIND_SSL : 0;
 
 	test_ok = 0;
 
-	http = http_setup(&port, data->base, 0);
+	http = http_setup(&port, data->base, server_flags);
 
 	/* bind to a second socket */
-	if (http_bind(http, &port2, 0) == -1) {
+	if (http_bind(http, &port2, server_flags) == -1) {
 		fprintf(stdout, "FAILED (bind)\n");
 		exit(1);
 	}
@@ -468,7 +472,7 @@ http_basic_test(void *arg)
 	fd = http_connect("127.0.0.1", port);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_socket_new(data->base, fd, 0);
+	bev = create_bev(data->base, fd, ssl);
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
 
@@ -494,7 +498,7 @@ http_basic_test(void *arg)
 	fd = http_connect("127.0.0.1", port2);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_socket_new(data->base, fd, 0);
+	bev = create_bev(data->base, fd, ssl);
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
 
@@ -517,8 +521,7 @@ http_basic_test(void *arg)
 	fd = http_connect("127.0.0.1", port2);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_socket_new(data->base, fd, 0);
-
+	bev = create_bev(data->base, fd, ssl);
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
 
@@ -539,6 +542,10 @@ http_basic_test(void *arg)
 	if (bev)
 		bufferevent_free(bev);
 }
+static void http_basic_test(void *arg)
+{ return http_basic_test_impl(arg, 0); }
+static void https_basic_test(void *arg)
+{ return http_basic_test_impl(arg, 1); }
 
 
 static void
@@ -4278,6 +4285,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(request_own),
 
 #ifdef EVENT__HAVE_OPENSSL
+	HTTPS(basic),
 	HTTPS(simple),
 	HTTPS(simple_dirty),
 	HTTPS(incomplete),
