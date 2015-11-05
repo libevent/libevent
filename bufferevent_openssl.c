@@ -1394,15 +1394,6 @@ bufferevent_openssl_new_impl(struct event_base *base,
 		if (state == BUFFEREVENT_SSL_OPEN)
 			bufferevent_suspend_read_(underlying,
 			    BEV_SUSPEND_FILT_READ);
-	} else {
-		struct bufferevent *bev = &bev_ssl->bev.bev;
-		bev->enabled = EV_READ|EV_WRITE;
-		if (state != BUFFEREVENT_SSL_OPEN)
-			if (event_add(&bev->ev_read, NULL) < 0)
-				goto err;
-		if (event_initialized(&bev->ev_write))
-			if (event_add(&bev->ev_write, NULL) < 0)
-				goto err;
 	}
 
 	return &bev_ssl->bev.bev;
