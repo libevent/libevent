@@ -2815,6 +2815,10 @@ http_incomplete_readcb(struct bufferevent *bev, void *arg)
 static void
 http_incomplete_errorcb(struct bufferevent *bev, short what, void *arg)
 {
+	/** For ssl */
+	if (what & BEV_EVENT_CONNECTED)
+		return;
+
 	if (what == (BEV_EVENT_READING|BEV_EVENT_EOF))
 		test_ok++;
 	else
@@ -2838,7 +2842,7 @@ http_incomplete_writecb(struct bufferevent *bev, void *arg)
 }
 
 static void
-http_incomplete_test_(struct basic_test_data *data, int use_timeout)
+http_incomplete_test_(struct basic_test_data *data, int use_timeout, int ssl)
 {
 	struct bufferevent *bev;
 	evutil_socket_t fd;
@@ -2850,14 +2854,14 @@ http_incomplete_test_(struct basic_test_data *data, int use_timeout)
 
 	test_ok = 0;
 
-	http = http_setup(&port, data->base, 0);
+	http = http_setup(&port, data->base, ssl ? HTTP_BIND_SSL : 0);
 	evhttp_set_timeout(http, 1);
 
 	fd = http_connect("127.0.0.1", port);
 	tt_int_op(fd, >=, 0);
 
 	/* Stupid thing to send a request */
-	bev = bufferevent_socket_new(data->base, fd, 0);
+	bev = create_bev(data->base, fd, ssl);
 	bufferevent_setcb(bev,
 	    http_incomplete_readcb, http_incomplete_writecb,
 	    http_incomplete_errorcb, use_timeout ? NULL : &fd);
@@ -2895,16 +2899,14 @@ http_incomplete_test_(struct basic_test_data *data, int use_timeout)
 	if (fd >= 0)
 		evutil_closesocket(fd);
 }
-static void
-http_incomplete_test(void *arg)
-{
-	http_incomplete_test_(arg, 0);
-}
-static void
-http_incomplete_timeout_test(void *arg)
-{
-	http_incomplete_test_(arg, 1);
-}
+static void http_incomplete_test(void *arg)
+{ http_incomplete_test_(arg, 0, 0); }
+static void http_incomplete_timeout_test(void *arg)
+{ http_incomplete_test_(arg, 1, 0); }
+static void https_incomplete_test(void *arg)
+{ http_incomplete_test_(arg, 0, 1); }
+static void https_incomplete_timeout_test(void *arg)
+{ http_incomplete_test_(arg, 1, 1); }
 
 /*
  * the server is going to reply with chunked data.
@@ -4278,6 +4280,8 @@ struct testcase_t http_testcases[] = {
 #ifdef EVENT__HAVE_OPENSSL
 	HTTPS(simple),
 	HTTPS(simple_dirty),
+	HTTPS(incomplete),
+	HTTPS(incomplete_timeout),
 	{ "https_connection_retry", https_connection_retry_test, TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 	{ "https_connection_retry_conn_address", https_connection_retry_conn_address_test,
 	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
