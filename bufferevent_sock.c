@@ -79,7 +79,6 @@
 static int be_socket_enable(struct bufferevent *, short);
 static int be_socket_disable(struct bufferevent *, short);
 static void be_socket_destruct(struct bufferevent *);
-static int be_socket_adj_timeouts(struct bufferevent *);
 static int be_socket_flush(struct bufferevent *, short, enum bufferevent_flush_mode);
 static int be_socket_ctrl(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
 
@@ -92,7 +91,7 @@ const struct bufferevent_ops bufferevent_ops_socket = {
 	be_socket_disable,
 	NULL, /* unlink */
 	be_socket_destruct,
-	be_socket_adj_timeouts,
+	bufferevent_generic_adj_existing_timeouts_,
 	be_socket_flush,
 	be_socket_ctrl,
 };
@@ -617,29 +616,6 @@ be_socket_destruct(struct bufferevent *bufev)
 
 	if ((bufev_p->options & BEV_OPT_CLOSE_ON_FREE) && fd >= 0)
 		EVUTIL_CLOSESOCKET(fd);
-}
-
-static int
-be_socket_adj_timeouts(struct bufferevent *bufev)
-{
-	int r = 0;
-	if (event_pending(&bufev->ev_read, EV_READ, NULL)) {
-		if (evutil_timerisset(&bufev->timeout_read)) {
-			    if (be_socket_add(&bufev->ev_read, &bufev->timeout_read) < 0)
-				    r = -1;
-		} else {
-			event_remove_timer(&bufev->ev_read);
-		}
-	}
-	if (event_pending(&bufev->ev_write, EV_WRITE, NULL)) {
-		if (evutil_timerisset(&bufev->timeout_write)) {
-			if (be_socket_add(&bufev->ev_write, &bufev->timeout_write) < 0)
-				r = -1;
-		} else {
-			event_remove_timer(&bufev->ev_write);
-		}
-	}
-	return r;
 }
 
 static int

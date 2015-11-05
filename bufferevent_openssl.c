@@ -1254,23 +1254,7 @@ be_openssl_adj_timeouts(struct bufferevent *bev)
 	if (bev_ssl->underlying) {
 		return bufferevent_generic_adj_timeouts_(bev);
 	} else {
-		int r1=0, r2=0;
-		if (event_pending(&bev->ev_read, EV_READ, NULL)) {
-			if (evutil_timerisset(&bev->timeout_read)) {
-				r1 = bufferevent_add_event_(&bev->ev_read, &bev->timeout_read);
-			} else {
-				event_remove_timer(&bev->ev_read);
-			}
-		}
-		if (event_pending(&bev->ev_write, EV_WRITE, NULL)) {
-			if (evutil_timerisset(&bev->timeout_write)) {
-				r2 = bufferevent_add_event_(&bev->ev_write, &bev->timeout_write);
-			} else {
-				event_remove_timer(&bev->ev_write);
-			}
-		}
-
-		return (r1<0 || r2<0) ? -1 : 0;
+		return bufferevent_generic_adj_existing_timeouts_(bev);
 	}
 }
 

@@ -970,6 +970,29 @@ bufferevent_generic_adj_timeouts_(struct bufferevent *bev)
 }
 
 int
+bufferevent_generic_adj_existing_timeouts_(struct bufferevent *bev)
+{
+	int r = 0;
+	if (event_pending(&bev->ev_read, EV_READ, NULL)) {
+		if (evutil_timerisset(&bev->timeout_read)) {
+			    if (bufferevent_add_event_(&bev->ev_read, &bev->timeout_read) < 0)
+				    r = -1;
+		} else {
+			event_remove_timer(&bev->ev_read);
+		}
+	}
+	if (event_pending(&bev->ev_write, EV_WRITE, NULL)) {
+		if (evutil_timerisset(&bev->timeout_write)) {
+			if (bufferevent_add_event_(&bev->ev_write, &bev->timeout_write) < 0)
+				r = -1;
+		} else {
+			event_remove_timer(&bev->ev_write);
+		}
+	}
+	return r;
+}
+
+int
 bufferevent_add_event_(struct event *ev, const struct timeval *tv)
 {
 	if (!evutil_timerisset(tv))
