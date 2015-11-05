@@ -438,14 +438,18 @@ static struct bufferevent *
 create_bev(struct event_base *base, int fd, int ssl)
 {
 	int flags = BEV_OPT_DEFER_CALLBACKS;
+	struct bufferevent *bev;
 
 	if (!ssl) {
-		return bufferevent_socket_new(base, fd, flags);
+		bev = bufferevent_socket_new(base, fd, flags);
 	} else {
 		SSL *ssl = SSL_new(get_ssl_ctx());
-		return bufferevent_openssl_socket_new(
+		bev = bufferevent_openssl_socket_new(
 			base, fd, ssl, BUFFEREVENT_SSL_CONNECTING, flags);
+		bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
 	}
+
+	return bev;
 }
 
 static void
