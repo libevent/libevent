@@ -126,6 +126,7 @@ http_bind(struct evhttp *myhttp, ev_uint16_t *pport, int mask)
 	return 0;
 }
 
+#ifdef EVENT__HAVE_OPENSSL
 static struct bufferevent *
 https_bev(struct event_base *base, void *arg)
 {
@@ -138,21 +139,23 @@ https_bev(struct event_base *base, void *arg)
 		base, -1, ssl, BUFFEREVENT_SSL_ACCEPTING,
 		BEV_OPT_CLOSE_ON_FREE);
 }
+#endif
 static struct evhttp *
 http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 {
 	struct evhttp *myhttp;
-	int ssl = mask & HTTP_BIND_SSL;
 
 	/* Try a few different ports */
 	myhttp = evhttp_new(base);
 
 	if (http_bind(myhttp, pport, mask) < 0)
 		return NULL;
-	if (ssl) {
+#ifdef EVENT__HAVE_OPENSSL
+	if (mask & HTTP_BIND_SSL) {
 		init_ssl();
 		evhttp_set_bevcb(myhttp, https_bev, NULL);
 	}
+#endif
 
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, base);
@@ -438,15 +441,17 @@ static struct bufferevent *
 create_bev(struct event_base *base, int fd, int ssl)
 {
 	int flags = BEV_OPT_DEFER_CALLBACKS;
-	struct bufferevent *bev;
+	struct bufferevent *bev = NULL;
 
 	if (!ssl) {
 		bev = bufferevent_socket_new(base, fd, flags);
 	} else {
+#ifdef EVENT__HAVE_OPENSSL
 		SSL *ssl = SSL_new(get_ssl_ctx());
 		bev = bufferevent_openssl_socket_new(
 			base, fd, ssl, BUFFEREVENT_SSL_CONNECTING, flags);
 		bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
+#endif
 	}
 
 	return bev;
@@ -548,8 +553,6 @@ http_basic_test_impl(void *arg, int ssl)
 }
 static void http_basic_test(void *arg)
 { return http_basic_test_impl(arg, 0); }
-static void https_basic_test(void *arg)
-{ return http_basic_test_impl(arg, 1); }
 
 
 static void
@@ -2914,10 +2917,7 @@ static void http_incomplete_test(void *arg)
 { http_incomplete_test_(arg, 0, 0); }
 static void http_incomplete_timeout_test(void *arg)
 { http_incomplete_test_(arg, 1, 0); }
-static void https_incomplete_test(void *arg)
-{ http_incomplete_test_(arg, 0, 1); }
-static void https_incomplete_timeout_test(void *arg)
-{ http_incomplete_test_(arg, 1, 1); }
+
 
 /*
  * the server is going to reply with chunked data.
@@ -3444,21 +3444,8 @@ http_simple_test_impl(void *arg, int ssl, int dirty)
 	if (http)
 		evhttp_free(http);
 }
-static void
-http_simple_test(void *arg)
-{
-	return http_simple_test_impl(arg, 0, 0);
-}
-static void
-https_simple_test(void *arg)
-{
-	return http_simple_test_impl(arg, 1, 0);
-}
-static void
-https_simple_dirty_test(void *arg)
-{
-	return http_simple_test_impl(arg, 1, 1);
-}
+static void http_simple_test(void *arg)
+{ return http_simple_test_impl(arg, 0, 0); }
 
 static void
 http_connection_retry_test_basic(void *arg, const char *addr, struct evdns_base *dns_base, int ssl)
@@ -3617,8 +3604,6 @@ http_connection_retry_conn_address_test_impl(void *arg, int ssl)
 }
 static void http_connection_retry_conn_address_test(void *arg)
 { return http_connection_retry_conn_address_test_impl(arg, 0); }
-static void https_connection_retry_conn_address_test(void *arg)
-{ return http_connection_retry_conn_address_test_impl(arg, 1); }
 
 static void
 http_connection_retry_test_impl(void *arg, int ssl)
@@ -3628,9 +3613,6 @@ http_connection_retry_test_impl(void *arg, int ssl)
 static void
 http_connection_retry_test(void *arg)
 { return http_connection_retry_test_impl(arg, 0); }
-static void
-https_connection_retry_test(void *arg)
-{ return http_connection_retry_test_impl(arg, 1); }
 
 static void
 http_primitives(void *ptr)
@@ -4230,6 +4212,23 @@ http_request_own_test(void *arg)
 	{ #name, http_##name##_test, TT_ISOLATED, &basic_setup, NULL }
 #define HTTPS(name) \
 	{ "https_" #name, https_##name##_test, TT_ISOLATED, &basic_setup, NULL }
+
+#ifdef EVENT__HAVE_OPENSSL
+static void https_basic_test(void *arg)
+{ return http_basic_test_impl(arg, 1); }
+static void https_incomplete_test(void *arg)
+{ http_incomplete_test_(arg, 0, 1); }
+static void https_incomplete_timeout_test(void *arg)
+{ http_incomplete_test_(arg, 1, 1); }
+static void https_simple_test(void *arg)
+{ return http_simple_test_impl(arg, 1, 0); }
+static void https_simple_dirty_test(void *arg)
+{ return http_simple_test_impl(arg, 1, 1); }
+static void https_connection_retry_conn_address_test(void *arg)
+{ return http_connection_retry_conn_address_test_impl(arg, 1); }
+static void https_connection_retry_test(void *arg)
+{ return http_connection_retry_test_impl(arg, 1); }
+#endif
 
 struct testcase_t http_testcases[] = {
 	{ "primitives", http_primitives, 0, NULL, NULL },

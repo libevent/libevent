@@ -34,8 +34,6 @@ extern "C" {
 #include "tinytest.h"
 #include "tinytest_macros.h"
 
-#include <openssl/ssl.h>
-
 extern struct testcase_t main_testcases[];
 extern struct testcase_t evtag_testcases[];
 extern struct testcase_t evbuffer_testcases[];
@@ -132,6 +130,7 @@ pid_t regress_fork(void);
 #endif
 
 #ifdef EVENT__HAVE_OPENSSL
+#include <openssl/ssl.h>
 EVP_PKEY *ssl_getkey(void);
 X509 *ssl_getcert(void);
 SSL_CTX *get_ssl_ctx(void);
