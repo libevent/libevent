@@ -1090,7 +1090,6 @@ set_handshake_callbacks(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 		return do_handshake(bev_ssl);
 	} else {
 		struct bufferevent *bev = &bev_ssl->bev.bev;
-		int r1=0, r2=0;
 
 		if (event_initialized(&bev->ev_read)) {
 			event_del(&bev->ev_read);
@@ -1103,11 +1102,9 @@ set_handshake_callbacks(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 		event_assign(&bev->ev_write, bev->ev_base, fd,
 		    EV_WRITE|EV_PERSIST|EV_FINALIZE,
 		    be_openssl_handshakeeventcb, bev_ssl);
-		if (fd >= 0) {
-			r1 = bufferevent_add_event_(&bev->ev_read, &bev->timeout_read);
-			r2 = bufferevent_add_event_(&bev->ev_write, &bev->timeout_write);
-		}
-		return (r1<0 || r2<0) ? -1 : 0;
+		if (fd >= 0)
+			bufferevent_enable(bev, bev->enabled);
+		return 0;
 	}
 }
 
@@ -1158,9 +1155,6 @@ be_openssl_enable(struct bufferevent *bev, short events)
 {
 	struct bufferevent_openssl *bev_ssl = upcast(bev);
 	int r1 = 0, r2 = 0;
-
-	if (bev_ssl->state != BUFFEREVENT_SSL_OPEN)
-		return 0;
 
 	if (events & EV_READ)
 		r1 = start_reading(bev_ssl);
@@ -1254,23 +1248,7 @@ be_openssl_adj_timeouts(struct bufferevent *bev)
 	if (bev_ssl->underlying) {
 		return bufferevent_generic_adj_timeouts_(bev);
 	} else {
-		int r1=0, r2=0;
-		if (event_pending(&bev->ev_read, EV_READ, NULL)) {
-			if (evutil_timerisset(&bev->timeout_read)) {
-				r1 = bufferevent_add_event_(&bev->ev_read, &bev->timeout_read);
-			} else {
-				event_remove_timer(&bev->ev_read);
-			}
-		}
-		if (event_pending(&bev->ev_write, EV_WRITE, NULL)) {
-			if (evutil_timerisset(&bev->timeout_write)) {
-				r2 = bufferevent_add_event_(&bev->ev_write, &bev->timeout_write);
-			} else {
-				event_remove_timer(&bev->ev_write);
-			}
-		}
-
-		return (r1<0 || r2<0) ? -1 : 0;
+		return bufferevent_generic_adj_existing_timeouts_(bev);
 	}
 }
 
@@ -1394,15 +1372,6 @@ bufferevent_openssl_new_impl(struct event_base *base,
 		if (state == BUFFEREVENT_SSL_OPEN)
 			bufferevent_suspend_read_(underlying,
 			    BEV_SUSPEND_FILT_READ);
-	} else {
-		struct bufferevent *bev = &bev_ssl->bev.bev;
-		bev->enabled = EV_READ|EV_WRITE;
-		if (state != BUFFEREVENT_SSL_OPEN)
-			if (event_add(&bev->ev_read, NULL) < 0)
-				goto err;
-		if (event_initialized(&bev->ev_write))
-			if (event_add(&bev->ev_write, NULL) < 0)
-				goto err;
 	}
 
 	return &bev_ssl->bev.bev;
