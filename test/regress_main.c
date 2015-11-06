@@ -407,6 +407,7 @@ const char *finetimetests[] = {
 	"+util/monotonic_res_fallback",
 	"+thread/deferred_cb_skew",
 	"+http/connection_retry",
+	"+http/https_connection_retry",
 	NULL
 };
 struct testlist_alias_t testaliases[] = {
@@ -437,6 +438,7 @@ main(int argc, const char **argv)
 
 #ifdef _WIN32
 	tinytest_skip(testgroups, "http/connection_retry");
+	tinytest_skip(testgroups, "http/https_connection_retry");
 #endif
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
