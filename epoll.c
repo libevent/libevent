@@ -246,6 +246,23 @@ epoll_op_to_string(int op)
 	    "???";
 }
 
+#define PRINT_CHANGES(op, events, ch, status)  \
+	"Epoll %s(%d) on fd %d " status ". "       \
+	"Old events were %d; "                     \
+	"read change was %d (%s); "                \
+	"write change was %d (%s); "               \
+	"close change was %d (%s)",                \
+	epoll_op_to_string(op),                    \
+	events,                                    \
+	ch->fd,                                    \
+	ch->old_events,                            \
+	ch->read_change,                           \
+	change_to_string(ch->read_change),         \
+	ch->write_change,                          \
+	change_to_string(ch->write_change),        \
+	ch->close_change,                          \
+	change_to_string(ch->close_change)
+
 static int
 epoll_apply_one_change(struct event_base *base,
     struct epollop *epollop,
@@ -271,14 +288,7 @@ epoll_apply_one_change(struct event_base *base,
 	epev.data.fd = ch->fd;
 	epev.events = events;
 	if (epoll_ctl(epollop->epfd, op, ch->fd, &epev) == 0) {
-		event_debug(("Epoll %s(%d) on fd %d okay. [old events were %d; read change was %d; write change was %d; close change was %d]",
-			epoll_op_to_string(op),
-			(int)epev.events,
-			(int)ch->fd,
-			ch->old_events,
-			ch->read_change,
-			ch->write_change,
-			ch->close_change));
+		event_debug((PRINT_CHANGES(op, epev.events, ch, "okay")));
 		return 0;
 	}
 
@@ -338,18 +348,7 @@ epoll_apply_one_change(struct event_base *base,
 		break;
 	}
 
-	event_warn("Epoll %s(%d) on fd %d failed.  Old events were %d; read change was %d (%s); write change was %d (%s); close change was %d (%s)",
-	    epoll_op_to_string(op),
-	    (int)epev.events,
-	    ch->fd,
-	    ch->old_events,
-	    ch->read_change,
-	    change_to_string(ch->read_change),
-	    ch->write_change,
-	    change_to_string(ch->write_change),
-	    ch->close_change,
-	    change_to_string(ch->close_change));
-
+	event_warn(PRINT_CHANGES(op, epev.events, ch, "failed"));
 	return -1;
 }
 
