@@ -471,7 +471,7 @@ cleanup:
 	EVP_cleanup();
 	ERR_free_strings();
 
-	ERR_remove_state(0);
+	ERR_remove_thread_state(NULL);
 	CRYPTO_cleanup_all_ex_data();
 
 	sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
