@@ -1139,14 +1139,13 @@ be_openssl_outbuf_cb(struct evbuffer *buf,
 	int r = 0;
 	/* XXX need to hold a reference here. */
 
-	if (cbinfo->n_added && bev_ssl->state == BUFFEREVENT_SSL_OPEN) {
-		if (cbinfo->orig_size == 0)
-			r = bufferevent_add_event_(&bev_ssl->bev.bev.ev_write,
-			    &bev_ssl->bev.bev.timeout_write);
-		consider_writing(bev_ssl);
+	if (cbinfo->n_added && bev_ssl->state == BUFFEREVENT_SSL_OPEN &&
+	    cbinfo->orig_size == 0) {
+		r = bufferevent_add_event_(&bev_ssl->bev.bev.ev_write,
+		    &bev_ssl->bev.bev.timeout_write);
 	}
 	/* XXX Handle r < 0 */
-        (void)r;
+	(void)r;
 }
 
 
