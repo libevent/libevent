@@ -3332,65 +3332,70 @@ http_stream_in_cancel_test(void *arg)
 static void
 http_connection_fail_done(struct evhttp_request *req, void *arg)
 {
-       struct evhttp_connection *evcon = arg;
-       struct event_base *base = evhttp_connection_get_base(evcon);
+	struct evhttp_connection *evcon = arg;
+	struct event_base *base = evhttp_connection_get_base(evcon);
 
-       /* An ENETUNREACH error results in an unrecoverable
-        * evhttp_connection error (see evhttp_connection_fail_()).  The
-        * connection will be reset, and the user will be notified with a NULL
-        * req parameter. */
-       tt_assert(!req);
+	/* An ENETUNREACH error results in an unrecoverable
+	 * evhttp_connection error (see evhttp_connection_fail_()).  The
+	 * connection will be reset, and the user will be notified with a NULL
+	 * req parameter. */
+	tt_assert(!req);
 
-       evhttp_connection_free(evcon);
+	evhttp_connection_free(evcon);
 
-       test_ok = 1;
+	test_ok = 1;
 
  end:
-       event_base_loopexit(base, NULL);
+	event_base_loopexit(base, NULL);
 }
 
 /* Test unrecoverable evhttp_connection errors by generating an ENETUNREACH
  * error on connection. */
 static void
-http_connection_fail_test(void *arg)
+http_connection_fail_test_impl(void *arg, int ssl)
 {
-       struct basic_test_data *data = arg;
-       ev_uint16_t port = 0;
-       struct evhttp_connection *evcon = NULL;
-       struct evhttp_request *req = NULL;
+	struct basic_test_data *data = arg;
+	ev_uint16_t port = 0;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	struct bufferevent *bev;
 
-       exit_base = data->base;
-       test_ok = 0;
+	exit_base = data->base;
+	test_ok = 0;
 
-       /* auto detect a port */
-       http = http_setup(&port, data->base, 0);
-       evhttp_free(http);
-       http = NULL;
+	/* auto detect a port */
+	http = http_setup(&port, data->base, ssl ? HTTP_BIND_SSL : 0);
+	evhttp_free(http);
+	http = NULL;
 
-       /* Pick an unroutable address.  This administratively scoped multicast
-	* address should do when working with TCP. */
-       evcon = evhttp_connection_base_new(data->base, NULL, "239.10.20.30", 80);
-       tt_assert(evcon);
+	bev = create_bev(data->base, -1, ssl);
+	/* Pick an unroutable address. This administratively scoped multicast
+	 * address should do when working with TCP. */
+	evcon = evhttp_connection_base_bufferevent_new(
+		data->base, NULL, bev, "239.10.20.30", 80);
+	tt_assert(evcon);
 
-       /*
-        * At this point, we want to schedule an HTTP GET request
-        * server using our make request method.
-        */
+	/*
+	 * At this point, we want to schedule an HTTP GET request
+	 * server using our make request method.
+	 */
 
-       req = evhttp_request_new(http_connection_fail_done, evcon);
-       tt_assert(req);
+	req = evhttp_request_new(http_connection_fail_done, evcon);
+	tt_assert(req);
 
-       if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/") == -1) {
-               tt_abort_msg("Couldn't make request");
-       }
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
 
-       event_base_dispatch(data->base);
+	event_base_dispatch(data->base);
 
-       tt_int_op(test_ok, ==, 1);
+	tt_int_op(test_ok, ==, 1);
 
  end:
-        ;
+	;
 }
+static void http_connection_fail_test(void *arg)
+{ return http_connection_fail_test_impl(arg, 0); }
 
 static void
 http_connection_retry_done(struct evhttp_request *req, void *arg)
@@ -4245,6 +4250,8 @@ static void https_chunk_out_test(void *arg)
 { return http_chunk_out_test_impl(arg, 1); }
 static void https_stream_out_test(void *arg)
 { return http_stream_out_test_impl(arg, 1); }
+static void https_connection_fail_test(void *arg)
+{ return http_connection_fail_test_impl(arg, 1); }
 #endif
 
 struct testcase_t http_testcases[] = {
@@ -4315,6 +4322,7 @@ struct testcase_t http_testcases[] = {
 	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 	HTTPS(chunk_out),
 	HTTPS(stream_out),
+	HTTPS(connection_fail),
 #endif
 
 	END_OF_TESTCASES
