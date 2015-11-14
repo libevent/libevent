@@ -3153,19 +3153,22 @@ static void http_chunk_out_test(void *arg)
 { return http_chunk_out_test_impl(arg, 0); }
 
 static void
-http_stream_out_test(void *arg)
+http_stream_out_test_impl(void *arg, int ssl)
 {
 	struct basic_test_data *data = arg;
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
+	struct bufferevent *bev;
 
 	test_ok = 0;
 	exit_base = data->base;
 
-	http = http_setup(&port, data->base, 0);
+	http = http_setup(&port, data->base, ssl ? HTTP_BIND_SSL : 0);
 
-	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	bev = create_bev(data->base, -1, ssl);
+	evcon = evhttp_connection_base_bufferevent_new(
+		data->base, NULL, bev, "127.0.0.1", port);
 	tt_assert(evcon);
 
 	/*
@@ -3193,6 +3196,8 @@ http_stream_out_test(void *arg)
 	if (http)
 		evhttp_free(http);
 }
+static void http_stream_out_test(void *arg)
+{ return http_stream_out_test_impl(arg, 0); }
 
 static void
 http_stream_in_chunk(struct evhttp_request *req, void *arg)
@@ -4238,6 +4243,8 @@ static void https_connection_retry_test(void *arg)
 { return http_connection_retry_test_impl(arg, 1); }
 static void https_chunk_out_test(void *arg)
 { return http_chunk_out_test_impl(arg, 1); }
+static void https_stream_out_test(void *arg)
+{ return http_stream_out_test_impl(arg, 1); }
 #endif
 
 struct testcase_t http_testcases[] = {
@@ -4307,6 +4314,7 @@ struct testcase_t http_testcases[] = {
 	{ "https_connection_retry_conn_address", https_connection_retry_conn_address_test,
 	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 	HTTPS(chunk_out),
+	HTTPS(stream_out),
 #endif
 
 	END_OF_TESTCASES
