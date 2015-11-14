@@ -4150,7 +4150,7 @@ http_write_during_read(evutil_socket_t fd, short what, void *arg)
 	event_base_loopexit(exit_base, &tv);
 }
 static void
-http_write_during_read_test(void *arg)
+http_write_during_read_test_impl(void *arg, int ssl)
 {
 	struct basic_test_data *data = arg;
 	ev_uint16_t port = 0;
@@ -4162,10 +4162,10 @@ http_write_during_read_test(void *arg)
 	test_ok = 0;
 	exit_base = data->base;
 
-	http = http_setup(&port, data->base, 0);
+	http = http_setup(&port, data->base, ssl ? HTTP_BIND_SSL : 0);
 
 	fd = http_connect("127.0.0.1", port);
-	bev = bufferevent_socket_new(data->base, fd, 0);
+	bev = create_bev(data->base, fd, 0);
 	bufferevent_setcb(bev, NULL, NULL, NULL, data->base);
 	bufferevent_disable(bev, EV_READ);
 
@@ -4186,6 +4186,8 @@ http_write_during_read_test(void *arg)
 	if (http)
 		evhttp_free(http);
 }
+static void http_write_during_read_test(void *arg)
+{ return http_write_during_read_test_impl(arg, 0); }
 
 static void
 http_request_own_test(void *arg)
@@ -4252,6 +4254,8 @@ static void https_stream_out_test(void *arg)
 { return http_stream_out_test_impl(arg, 1); }
 static void https_connection_fail_test(void *arg)
 { return http_connection_fail_test_impl(arg, 1); }
+static void https_write_during_read_test(void *arg)
+{ return http_write_during_read_test_impl(arg, 1); }
 #endif
 
 struct testcase_t http_testcases[] = {
@@ -4323,6 +4327,7 @@ struct testcase_t http_testcases[] = {
 	HTTPS(chunk_out),
 	HTTPS(stream_out),
 	HTTPS(connection_fail),
+	HTTPS(write_during_read),
 #endif
 
 	END_OF_TESTCASES
