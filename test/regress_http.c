@@ -96,6 +96,7 @@ static void http_large_delay_cb(struct evhttp_request *req, void *arg);
 static void http_badreq_cb(struct evhttp_request *req, void *arg);
 static void http_dispatcher_cb(struct evhttp_request *req, void *arg);
 static void http_on_complete_cb(struct evhttp_request *req, void *arg);
+static void http_switch_proto_cb(struct evhttp_request *req, void *arg);
 
 #define HTTP_BIND_IPV6 1
 #define HTTP_BIND_SSL 2
@@ -169,6 +170,7 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 	evhttp_set_cb(myhttp, "/largedelay", http_large_delay_cb, base);
 	evhttp_set_cb(myhttp, "/badrequest", http_badreq_cb, base);
 	evhttp_set_cb(myhttp, "/oncomplete", http_on_complete_cb, base);
+	evhttp_set_cb(myhttp, "/switchproto", http_switch_proto_cb, base);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, base);
 	return (myhttp);
 }
@@ -888,6 +890,191 @@ http_on_complete_test(void *arg)
 	event_base_dispatch(data->base);
 
 	bufferevent_free(bev);
+
+	evhttp_free(http);
+
+	tt_int_op(test_ok, ==, 4);
+ end:
+	if (fd >= 0)
+		evutil_closesocket(fd);
+}
+
+/* test switching protocol */
+static void
+echo_readcb(struct bufferevent *bev, void *arg)
+{
+	struct evbuffer *input = bufferevent_get_input(bev);
+	struct evbuffer *output = bufferevent_get_output(bev);
+	evbuffer_add_buffer(output, input);
+	++test_ok;
+	bufferevent_enable(bev, EV_READ | EV_WRITE);
+}
+
+static void
+echo_writecb(struct bufferevent *bev, void *arg)
+{
+	++test_ok;
+}
+
+static void
+echo_errorcb(struct bufferevent *bev, short what, void *arg)
+{
+	test_ok = -2;
+	event_base_loopexit(bufferevent_get_base(bev), NULL);
+}
+
+static void
+on_protocol_switched(struct bufferevent *bev, void *arg)
+{
+	if ((ev_uintptr_t)arg != 0xDEADBEAF) {
+		fprintf(stdout, "FAILED on_protocol_switched argument\n");
+		exit(1);
+	}
+	bufferevent_enable(bev, EV_READ);
+	bufferevent_disable(bev, EV_WRITE);
+	bufferevent_setcb(bev, echo_readcb, echo_writecb, echo_errorcb, NULL);
+	++test_ok;
+}
+
+static void
+http_switch_proto_cb(struct evhttp_request *req, void *arg)
+{
+	ev_uintptr_t testarg = 0xDEADBEAF;
+	evhttp_send_switch_protocol(req, &on_protocol_switched, (void*)testarg);
+	++test_ok;
+}
+
+#define ERROR_STATE -1
+
+struct upgrade_state
+{
+	struct event_base *base;
+	int state;
+	short err;
+};
+
+static void
+upgrade_err(struct bufferevent *bev, short what, void *arg);
+
+/* Daff device assymetric coroutine emulation */
+static void
+upgrade_conn(struct bufferevent *bev, void *arg)
+{
+	struct upgrade_state *state = arg;
+	const char *request;
+	struct evhttp_request *response = NULL;
+	struct timeval tv = {5, 0}; // 5 sec
+
+	if (!state) {
+		state = malloc(sizeof(struct upgrade_state));
+		state->base = bufferevent_get_base(bev);
+		state->state = 0;
+	}
+	switch (state->state) {
+	// Initial step send upgrade request
+	case 0:
+		bufferevent_setcb(bev, NULL, upgrade_conn, upgrade_err, state);
+		bufferevent_enable(bev, EV_WRITE);
+		bufferevent_disable(bev, EV_READ);
+
+		request =
+			"GET /switchproto HTTP/1.1\r\n"
+			"Host: somehost\r\n"
+			"Connection: upgrade\r\n"
+			"Upgrade: echo\r\n"
+			"\r\n";
+
+		bufferevent_write(bev, request, strlen(request));
+		state->state++;
+		return; // yield
+	// Waiting until request is sent;
+	case 1:
+		if (evbuffer_get_length(bufferevent_get_output(bev)) != 0)
+			return; // yield
+		bufferevent_setcb(bev, upgrade_conn, NULL, upgrade_err, state);
+		bufferevent_enable(bev, EV_READ);
+		bufferevent_disable(bev, EV_WRITE);
+
+		state->state++;
+		return; // yield
+	// Reading response
+	case 2:
+		if (!evbuffer_contains(bufferevent_get_input(bev), "\r\n\r\n"))
+			return; // yield
+
+		response = evhttp_request_new(NULL, NULL);
+		/* response->kind = EVHTTP_RESPONSE; */
+		if (evhttp_parse_firstline_(response, bufferevent_get_input(bev)) != ALL_DATA_READ) {
+			evhttp_request_free(response);
+			fprintf(stderr, "Parsing server response failed\n");
+			break;
+		}
+
+		if (evhttp_parse_headers_(response, bufferevent_get_input(bev)) != ALL_DATA_READ) {
+			evhttp_request_free(response);
+			fprintf(stderr, "Parsing server response failed\n");
+			break;
+		}
+
+		if (evhttp_request_get_response_code(response) != HTTP_SWITCHING_PROTOCOLS)  {
+			evhttp_request_free(response);
+			fprintf(stderr, "Server response is not 101 Switching protocol\n");
+			break;
+		}
+		evhttp_request_free(response);
+
+		/* send message to a server */
+		request = "a message to be echoed";
+        bufferevent_setcb(bev, upgrade_conn, NULL, upgrade_err, state);
+		bufferevent_enable(bev, EV_WRITE | EV_READ);
+		bufferevent_set_timeouts(bev, &tv, &tv);
+		bufferevent_write(bev, request, strlen(request));
+
+		state->state++;
+		return; // yield
+
+	case 3:
+		if (!evbuffer_contains(bufferevent_get_input(bev), "a message to be echoed"))
+			return; // yield
+		break; // SUCCESS
+
+	case ERROR_STATE:
+		test_ok = -2;
+		fprintf(stderr, "FAILED upgrade_conn with error code %d", state->err);
+		break;
+	}
+
+	bufferevent_free(bev);
+	event_base_loopexit(state->base, NULL);
+	free(state);
+}
+
+static void
+upgrade_err(struct bufferevent *bev, short what, void *arg)
+{
+	struct upgrade_state *state = arg;
+	state->state = ERROR_STATE;
+	state->err = what;
+	upgrade_conn(bev, arg);
+}
+
+static void
+http_switch_protocol_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	evutil_socket_t fd = -1;
+	ev_uint16_t port = 0;
+
+	test_ok = 0;
+
+	http = http_setup(&port, data->base, 0);
+
+	fd = http_connect("127.0.0.1", port);
+	tt_int_op(fd, >=, 0);
+
+	upgrade_conn(bufferevent_socket_new(data->base, fd, 0), NULL);
+
+	event_base_dispatch(data->base);
 
 	evhttp_free(http);
 
@@ -4259,6 +4446,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(terminate_chunked),
 	HTTP(terminate_chunked_oneshot),
 	HTTP(on_complete),
+	HTTP(switch_protocol),
 
 	HTTP(highport),
 	HTTP(dispatcher),
