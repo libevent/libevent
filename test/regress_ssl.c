@@ -56,6 +56,7 @@
 #include <openssl/pem.h>
 
 #include <string.h>
+#include <unistd.h>
 
 /* A short pre-generated key, to save the cost of doing an RSA key generation
  * step during the unit tests.  It's only 512 bits long, and it is published
@@ -197,6 +198,7 @@ enum regress_openssl_type
 
 	REGRESS_OPENSSL_FREED = 256,
 	REGRESS_OPENSSL_TIMEOUT = 512,
+	REGRESS_OPENSSL_SLEEP = 1024,
 };
 
 static void
@@ -474,12 +476,21 @@ end:
 }
 
 static void
+acceptcb_deferred(evutil_socket_t fd, short events, void *arg)
+{
+	struct bufferevent *bev = arg;
+	bufferevent_enable(bev, EV_READ|EV_WRITE);
+}
+static void
 acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
     struct sockaddr *addr, int socklen, void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev;
+	enum regress_openssl_type type;
 	SSL *ssl = SSL_new(get_ssl_ctx());
+
+	type = (enum regress_openssl_type)data->setup_data;
 
 	SSL_use_certificate(ssl, ssl_getcert());
 	SSL_use_PrivateKey(ssl, ssl_getkey());
@@ -494,10 +505,125 @@ acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
 	bufferevent_setcb(bev, respond_to_number, NULL, eventcb,
 	    (void*)(REGRESS_OPENSSL_SERVER));
 
-	bufferevent_enable(bev, EV_READ|EV_WRITE);
+	if (type & REGRESS_OPENSSL_SLEEP) {
+		struct timeval when = { 1, 0 };
+		event_base_once(data->base, -1, EV_TIMEOUT,
+		    acceptcb_deferred, bev, &when);
+		bufferevent_disable(bev, EV_READ|EV_WRITE);
+	} else {
+		bufferevent_enable(bev, EV_READ|EV_WRITE);
+	}
 
 	/* Only accept once, then disable ourself. */
 	evconnlistener_disable(listener);
+}
+
+struct rwcount
+{
+	int fd;
+	size_t read;
+	size_t write;
+};
+static int
+bio_rwcount_new(BIO *b)
+{
+	b->init = 0;
+	b->num = -1;
+	b->ptr = NULL;
+	b->flags = 0;
+	return 1;
+}
+static int
+bio_rwcount_free(BIO *b)
+{
+	if (!b)
+		return 0;
+	if (b->shutdown) {
+		b->init = 0;
+		b->flags = 0;
+		b->ptr = NULL;
+	}
+	return 1;
+}
+static int
+bio_rwcount_read(BIO *b, char *out, int outlen)
+{
+	struct rwcount *rw = b->ptr;
+	ssize_t ret = read(rw->fd, out, outlen);
+	++rw->read;
+	if (ret == -1 && errno == EAGAIN) {
+		BIO_set_retry_read(b);
+	}
+	return ret;
+}
+static int
+bio_rwcount_write(BIO *b, const char *in, int inlen)
+{
+
+	struct rwcount *rw = b->ptr;
+	ssize_t ret = write(rw->fd, in, inlen);
+	++rw->write;
+	if (ret == -1 && errno == EAGAIN) {
+		BIO_set_retry_write(b);
+	}
+	return ret;
+}
+static long
+bio_rwcount_ctrl(BIO *b, int cmd, long num, void *ptr)
+{
+	long ret = 0;
+	switch (cmd) {
+	case BIO_CTRL_GET_CLOSE:
+		ret = b->shutdown;
+		break;
+	case BIO_CTRL_SET_CLOSE:
+		b->shutdown = (int)num;
+		break;
+	case BIO_CTRL_PENDING:
+		ret = 0;
+		break;
+	case BIO_CTRL_WPENDING:
+		ret = 0;
+		break;
+	case BIO_CTRL_DUP:
+	case BIO_CTRL_FLUSH:
+		ret = 1;
+		break;
+	}
+	return ret;
+}
+static int
+bio_rwcount_puts(BIO *b, const char *s)
+{
+	return bio_rwcount_write(b, s, strlen(s));
+}
+#define BIO_TYPE_LIBEVENT_RWCOUNT 0xff1
+static BIO_METHOD methods_rwcount = {
+	BIO_TYPE_LIBEVENT_RWCOUNT, "rwcount",
+	bio_rwcount_write,
+	bio_rwcount_read,
+	bio_rwcount_puts,
+	NULL /* bio_rwcount_gets */,
+	bio_rwcount_ctrl,
+	bio_rwcount_new,
+	bio_rwcount_free,
+	NULL /* callback_ctrl */,
+};
+static BIO_METHOD *
+BIO_s_rwcount(void)
+{
+	return &methods_rwcount;
+}
+static BIO *
+BIO_new_rwcount(int close_flag)
+{
+	BIO *result;
+	if (!(result = BIO_new(BIO_s_rwcount())))
+		return NULL;
+	result->init = 1;
+	result->ptr = NULL;
+	result->shutdown = !!close_flag;
+	return result;
 }
 
 static void
@@ -512,6 +638,12 @@ regress_bufferevent_openssl_connect(void *arg)
 	struct sockaddr_in sin;
 	struct sockaddr_storage ss;
 	ev_socklen_t slen;
+	SSL *ssl;
+	BIO *bio;
+	struct rwcount rw = { -1, 0, 0 };
+	enum regress_openssl_type type;
+
+	type = (enum regress_openssl_type)data->setup_data;
 
 	init_ssl();
 
@@ -529,8 +661,11 @@ regress_bufferevent_openssl_connect(void *arg)
 	tt_assert(listener);
 	tt_assert(evconnlistener_get_fd(listener) >= 0);
 
+	ssl = SSL_new(get_ssl_ctx());
+	tt_assert(ssl);
+
 	bev = bufferevent_openssl_socket_new(
-		data->base, -1, SSL_new(get_ssl_ctx()),
+		data->base, -1, ssl,
 		BUFFEREVENT_SSL_CONNECTING,
 		BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
 	tt_assert(bev);
@@ -545,10 +680,22 @@ regress_bufferevent_openssl_connect(void *arg)
 
 	tt_assert(0 ==
 	    bufferevent_socket_connect(bev, (struct sockaddr*)&ss, slen));
+	/* Possible only when we have fd, since be_openssl can and will overwrite
+	 * bio otherwise before */
+	if (type & REGRESS_OPENSSL_SLEEP) {
+		rw.fd = bufferevent_getfd(bev);
+		bio = BIO_new_rwcount(0);
+		tt_assert(bio);
+		bio->ptr = &rw;
+		SSL_set_bio(ssl, bio, bio);
+	}
 	evbuffer_add_printf(bufferevent_get_output(bev), "1\n");
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 
 	event_base_dispatch(base);
+
+	tt_int_op(rw.read, <=, 100);
+	tt_int_op(rw.write, <=, 100);
 end:
 	;
 }
@@ -616,10 +763,13 @@ struct testcase_t ssl_testcases[] = {
 	{ "bufferevent_socketpair_timeout_freed_fd", regress_bufferevent_openssl,
 	  TT_ISOLATED, &basic_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_TIMEOUT | REGRESS_OPENSSL_FREED | REGRESS_OPENSSL_FD) },
-#undef T
 
 	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "bufferevent_connect_sleep", regress_bufferevent_openssl_connect,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, T(REGRESS_OPENSSL_SLEEP) },
+
+#undef T
 
 	END_OF_TESTCASES,
 };
