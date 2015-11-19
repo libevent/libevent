@@ -1192,6 +1192,7 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	    &evcon->read_more_deferred_cb);
 
 	if (evcon->fd != -1) {
+		bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
 		shutdown(evcon->fd, EVUTIL_SHUT_WR);
 		if (!(bufferevent_get_options_(evcon->bufev) & BEV_OPT_CLOSE_ON_FREE)) {
 			evutil_closesocket(evcon->fd);
