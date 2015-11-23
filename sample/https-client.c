@@ -96,7 +96,7 @@ static void
 syntax(void)
 {
 	fputs("Syntax:\n", stderr);
-	fputs("   https-client -url <https-url> [-data data-file.bin] [-ignore-cert] [-retries num] [-timeout sec]\n", stderr);
+	fputs("   https-client -url <https-url> [-data data-file.bin] [-ignore-cert] [-retries num] [-timeout sec] [-crt crt]\n", stderr);
 	fputs("Example:\n", stderr);
 	fputs("   https-client -url https://ip.appspot.com/\n", stderr);
 }
@@ -189,6 +189,7 @@ main(int argc, char **argv)
 
 	struct evhttp_uri *http_uri = NULL;
 	const char *url = NULL, *data_file = NULL;
+	const char *crt = "/etc/ssl/certs/ca-certificates.crt";
 	const char *scheme, *host, *path, *query;
 	char uri[256];
 	int port;
@@ -211,6 +212,13 @@ main(int argc, char **argv)
 		if (!strcmp("-url", argv[i])) {
 			if (i < argc - 1) {
 				url = argv[i + 1];
+			} else {
+				syntax();
+				goto error;
+			}
+		} else if (!strcmp("-crt", argv[i])) {
+			if (i < argc - 1) {
+				crt = argv[i + 1];
 			} else {
 				syntax();
 				goto error;
@@ -328,9 +336,7 @@ main(int argc, char **argv)
 
 	/* Attempt to use the system's trusted root certificates.
 	 * (This path is only valid for Debian-based systems.) */
-	if (1 != SSL_CTX_load_verify_locations(ssl_ctx,
-					       "/etc/ssl/certs/ca-certificates.crt",
-					       NULL)) {
+	if (1 != SSL_CTX_load_verify_locations(ssl_ctx, crt, NULL)) {
 		err_openssl("SSL_CTX_load_verify_locations");
 		goto error;
 	}
