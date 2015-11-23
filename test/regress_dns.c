@@ -2008,6 +2008,46 @@ end:
 		evutil_closesocket(fd);
 }
 
+static void
+dns_client_fail_requests_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+	struct evdns_server_port *dns_port = NULL;
+	ev_uint16_t portnum = 0;
+	char buf[64];
+
+	struct generic_dns_callback_result r[20];
+	int i;
+
+	dns_port = regress_get_dnsserver(base, &portnum, NULL,
+		regress_dns_server_cb, reissue_table);
+	tt_assert(dns_port);
+
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+
+	dns = evdns_base_new(base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
+
+	for (i = 0; i < 20; ++i)
+		evdns_base_resolve_ipv4(dns, "foof.example.com", 0, generic_dns_callback, &r[i]);
+
+	n_replies_left = 20;
+	exit_base = base;
+
+	evdns_base_free(dns, 1 /** fail requests */);
+	/** run defered callbacks, to trigger UAF */
+	event_base_dispatch(base);
+
+	tt_int_op(n_replies_left, ==, 0);
+	for (i = 0; i < 20; ++i)
+		tt_int_op(r[i].result, ==, DNS_ERR_SHUTDOWN);
+
+end:
+	evdns_close_server_port(dns_port);
+}
+
 
 #define DNS_LEGACY(name, flags)					       \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
@@ -2054,6 +2094,9 @@ struct testcase_t dns_testcases[] = {
 	{ "leak_cancel_and_resume_send_err", test_dbg_leak_cancel_and_resume_send_err_,
 	  TT_FORK, &testleak_funcs, NULL },
 #endif
+
+	{ "client_fail_requests", dns_client_fail_requests_test,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
 	END_OF_TESTCASES
 };
