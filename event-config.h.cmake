@@ -496,4 +496,7 @@
 
 #cmakedefine EVENT__NEED_DLLIMPORT ${EVENT__NEED_DLLIMPORT}
 
+/* Define to 1 if you have ERR_remove_thread_stat(). */
+#cmakedefine EVENT__HAVE_ERR_REMOVE_THREAD_STATE 1
+
 #endif

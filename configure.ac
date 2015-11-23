@@ -763,6 +763,10 @@ fi
 
 # check if we have and should use openssl
 AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
+if test "x$enable_openssl" = "xyes"; then
+	AC_SEARCH_LIBS([ERR_remove_thread_state], [crypto],
+		[AC_DEFINE(HAVE_ERR_REMOVE_THREAD_STATE, 1, [Define to 1 if you have ERR_remove_thread_stat().])])
+fi
 
 # Add some more warnings which we use in development but not in the
 # released versions.  (Some relevant gcc versions can't handle these.)
