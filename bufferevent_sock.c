@@ -501,16 +501,15 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	if (port < 1 || port > 65535)
 		return -1;
 
-	BEV_LOCK(bev);
-	bev_p->dns_error = 0;
-	BEV_UNLOCK(bev);
-
-	evutil_snprintf(portbuf, sizeof(portbuf), "%d", port);
-
 	memset(&hint, 0, sizeof(hint));
 	hint.ai_family = family;
 	hint.ai_protocol = IPPROTO_TCP;
 	hint.ai_socktype = SOCK_STREAM;
+
+	evutil_snprintf(portbuf, sizeof(portbuf), "%d", port);
+
+	BEV_LOCK(bev);
+	bev_p->dns_error = 0;
 
 	bufferevent_suspend_write_(bev, BEV_SUSPEND_LOOKUP);
 	bufferevent_suspend_read_(bev, BEV_SUSPEND_LOOKUP);
@@ -518,6 +517,7 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	bufferevent_incref_(bev);
 	err = evutil_getaddrinfo_async_(evdns_base, hostname, portbuf,
 	    &hint, bufferevent_connect_getaddrinfo_cb, bev);
+	BEV_UNLOCK(bev);
 
 	if (err == 0) {
 		return 0;
