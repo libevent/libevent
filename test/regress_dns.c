@@ -1902,29 +1902,22 @@ dbg_leak_resume(void *env_, int cancel, int send_err_shutdown)
 		tt_assert(!evdns_base_resume(env->dns_base));
 	}
 
+	event_base_loop(env->base, EVLOOP_NONBLOCK);
 	/**
-	 * Because we don't cancel request,
-	 * and want our callback to recieve DNS_ERR_SHUTDOWN,
-	 * we use deferred callback, and there was
+	 * Because we don't cancel request, and want our callback to recieve
+	 * DNS_ERR_SHUTDOWN, we use deferred callback, and there was:
 	 * - one extra malloc(),
 	 *   @see reply_schedule_callback()
 	 * - and one missing free
 	 *   @see request_finished() (req->handle->pending_cb = 1)
-	 * than we don't need to count in testleak_cleanup()
-	 *
-	 * So just decrement allocated_chunks to 2,
-	 * like we already take care about it.
+	 * than we don't need to count in testleak_cleanup(), but we can clean them
+	 * if we will run loop once again, but *after* evdns base freed.
 	 */
-	if (!cancel && send_err_shutdown) {
-		allocated_chunks -= 2;
-	}
-
+	evdns_base_free(env->dns_base, send_err_shutdown);
+	env->dns_base = 0;
 	event_base_loop(env->base, EVLOOP_NONBLOCK);
 
 end:
-	evdns_base_free(env->dns_base, send_err_shutdown);
-	env->dns_base = 0;
-
 	event_base_free(env->base);
 	env->base = 0;
 }
