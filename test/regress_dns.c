@@ -2076,7 +2076,7 @@ dns_client_fail_requests_getaddrinfo_test(void *arg)
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
 	for (i = 0; i < 20; ++i)
-		evdns_getaddrinfo(dns, "foof.example.com", "http", NULL, getaddrinfo_cb, &r[i]);
+		tt_assert(evdns_getaddrinfo(dns, "foof.example.com", "http", NULL, getaddrinfo_cb, &r[i]));
 
 	n_replies_left = 20;
 	exit_base = base;
