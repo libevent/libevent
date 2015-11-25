@@ -4032,15 +4032,6 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 
 	/* TODO(nickm) we might need to refcount here. */
 
-	for (server = base->server_head; server; server = server_next) {
-		server_next = server->next;
-		evdns_nameserver_free(server);
-		if (server_next == base->server_head)
-			break;
-	}
-	base->server_head = NULL;
-	base->global_good_nameservers = 0;
-
 	for (i = 0; i < base->n_req_heads; ++i) {
 		while (base->req_heads[i]) {
 			if (fail_requests)
@@ -4055,6 +4046,14 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 	}
 	base->global_requests_inflight = base->global_requests_waiting = 0;
 
+	for (server = base->server_head; server; server = server_next) {
+		server_next = server->next;
+		evdns_nameserver_free(server);
+		if (server_next == base->server_head)
+			break;
+	}
+	base->server_head = NULL;
+	base->global_good_nameservers = 0;
 
 	if (base->global_search_state) {
 		for (dom = base->global_search_state->head; dom; dom = dom_next) {
@@ -4404,17 +4403,23 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		other_req = &data->ipv4_request;
 	}
 
-	EVDNS_LOCK(data->evdns_base);
-	if (evdns_result_is_answer(result)) {
-		if (req->type == DNS_IPv4_A)
-			++data->evdns_base->getaddrinfo_ipv4_answered;
-		else
-			++data->evdns_base->getaddrinfo_ipv6_answered;
+	/** Called from evdns_base_free() with @fail_requests == 1 */
+	if (result != DNS_ERR_SHUTDOWN) {
+		EVDNS_LOCK(data->evdns_base);
+		if (evdns_result_is_answer(result)) {
+			if (req->type == DNS_IPv4_A)
+				++data->evdns_base->getaddrinfo_ipv4_answered;
+			else
+				++data->evdns_base->getaddrinfo_ipv6_answered;
+		}
+		user_canceled = data->user_canceled;
+		if (other_req->r == NULL)
+			data->request_done = 1;
+		EVDNS_UNLOCK(data->evdns_base);
+	} else {
+		data->evdns_base = NULL;
+		user_canceled = data->user_canceled;
 	}
-	user_canceled = data->user_canceled;
-	if (other_req->r == NULL)
-		data->request_done = 1;
-	EVDNS_UNLOCK(data->evdns_base);
 
 	req->r = NULL;
 
@@ -4448,7 +4453,9 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			/* The other request is still working; maybe it will
 			 * succeed. */
 			/* XXXX handle failure from set_timeout */
-			evdns_getaddrinfo_set_timeout(data->evdns_base, data);
+			if (result != DNS_ERR_SHUTDOWN) {
+				evdns_getaddrinfo_set_timeout(data->evdns_base, data);
+			}
 			data->pending_error = err;
 			return;
 		}

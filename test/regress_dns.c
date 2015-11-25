@@ -1902,29 +1902,22 @@ dbg_leak_resume(void *env_, int cancel, int send_err_shutdown)
 		tt_assert(!evdns_base_resume(env->dns_base));
 	}
 
+	event_base_loop(env->base, EVLOOP_NONBLOCK);
 	/**
-	 * Because we don't cancel request,
-	 * and want our callback to recieve DNS_ERR_SHUTDOWN,
-	 * we use deferred callback, and there was
+	 * Because we don't cancel request, and want our callback to recieve
+	 * DNS_ERR_SHUTDOWN, we use deferred callback, and there was:
 	 * - one extra malloc(),
 	 *   @see reply_schedule_callback()
 	 * - and one missing free
 	 *   @see request_finished() (req->handle->pending_cb = 1)
-	 * than we don't need to count in testleak_cleanup()
-	 *
-	 * So just decrement allocated_chunks to 2,
-	 * like we already take care about it.
+	 * than we don't need to count in testleak_cleanup(), but we can clean them
+	 * if we will run loop once again, but *after* evdns base freed.
 	 */
-	if (!cancel && send_err_shutdown) {
-		allocated_chunks -= 2;
-	}
-
+	evdns_base_free(env->dns_base, send_err_shutdown);
+	env->dns_base = 0;
 	event_base_loop(env->base, EVLOOP_NONBLOCK);
 
 end:
-	evdns_base_free(env->dns_base, send_err_shutdown);
-	env->dns_base = 0;
-
 	event_base_free(env->base);
 	env->base = 0;
 }
@@ -2015,6 +2008,91 @@ end:
 		evutil_closesocket(fd);
 }
 
+static void
+dns_client_fail_requests_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+	struct evdns_server_port *dns_port = NULL;
+	ev_uint16_t portnum = 0;
+	char buf[64];
+
+	struct generic_dns_callback_result r[20];
+	int i;
+
+	dns_port = regress_get_dnsserver(base, &portnum, NULL,
+		regress_dns_server_cb, reissue_table);
+	tt_assert(dns_port);
+
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+
+	dns = evdns_base_new(base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
+
+	for (i = 0; i < 20; ++i)
+		evdns_base_resolve_ipv4(dns, "foof.example.com", 0, generic_dns_callback, &r[i]);
+
+	n_replies_left = 20;
+	exit_base = base;
+
+	evdns_base_free(dns, 1 /** fail requests */);
+	/** run defered callbacks, to trigger UAF */
+	event_base_dispatch(base);
+
+	tt_int_op(n_replies_left, ==, 0);
+	for (i = 0; i < 20; ++i)
+		tt_int_op(r[i].result, ==, DNS_ERR_SHUTDOWN);
+
+end:
+	evdns_close_server_port(dns_port);
+}
+
+static void
+getaddrinfo_cb(int err, struct evutil_addrinfo *res, void *ptr)
+{
+	generic_dns_callback(err, 0, 0, 0, NULL, ptr);
+}
+static void
+dns_client_fail_requests_getaddrinfo_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+	struct evdns_server_port *dns_port = NULL;
+	ev_uint16_t portnum = 0;
+	char buf[64];
+
+	struct generic_dns_callback_result r[20];
+	int i;
+
+	dns_port = regress_get_dnsserver(base, &portnum, NULL,
+		regress_dns_server_cb, reissue_table);
+	tt_assert(dns_port);
+
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+
+	dns = evdns_base_new(base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
+
+	for (i = 0; i < 20; ++i)
+		evdns_getaddrinfo(dns, "foof.example.com", "http", NULL, getaddrinfo_cb, &r[i]);
+
+	n_replies_left = 20;
+	exit_base = base;
+
+	evdns_base_free(dns, 1 /** fail requests */);
+	/** run defered callbacks, to trigger UAF */
+	event_base_dispatch(base);
+
+	tt_int_op(n_replies_left, ==, 0);
+	for (i = 0; i < 20; ++i)
+		tt_int_op(r[i].result, ==, EVUTIL_EAI_FAIL);
+
+end:
+	evdns_close_server_port(dns_port);
+}
+
 
 #define DNS_LEGACY(name, flags)					       \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
@@ -2061,6 +2139,12 @@ struct testcase_t dns_testcases[] = {
 	{ "leak_cancel_and_resume_send_err", test_dbg_leak_cancel_and_resume_send_err_,
 	  TT_FORK, &testleak_funcs, NULL },
 #endif
+
+	{ "client_fail_requests", dns_client_fail_requests_test,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "client_fail_requests_getaddrinfo",
+	  dns_client_fail_requests_getaddrinfo_test,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
 	END_OF_TESTCASES
 };
