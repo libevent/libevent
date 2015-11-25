@@ -369,6 +369,7 @@ AC_CHECK_FUNCS([ \
   unsetenv \
   usleep \
   vasprintf \
+  getservbyname \
 ])
 AM_CONDITIONAL(STRLCPY_IMPL, [test x"$ac_cv_func_strlcpy" = xno])
 
@@ -394,7 +395,6 @@ if test "$libevent_cv_getaddrinfo" = "yes" ; then
     AC_DEFINE([HAVE_GETADDRINFO], [1], [Do we have getaddrinfo()?])
 else
 
-AC_CHECK_FUNCS([getservbyname])
 # Check for gethostbyname_r in all its glorious incompatible versions.
 #   (This is cut-and-pasted from Tor, which based its logic on
 #   Python's configure.in.)
