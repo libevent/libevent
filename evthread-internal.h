@@ -49,9 +49,11 @@ struct event_base;
 #if ! defined(EVENT__DISABLE_THREAD_SUPPORT) && defined(EVTHREAD_EXPOSE_STRUCTS)
 /* Global function pointers to lock-related functions. NULL if locking isn't
    enabled. */
+EVENT2_INTERNAL_EXPORT
 extern struct evthread_lock_callbacks evthread_lock_fns_;
 extern struct evthread_condition_callbacks evthread_cond_fns_;
 extern unsigned long (*evthread_id_fn_)(void);
+EVENT2_INTERNAL_EXPORT
 extern int evthread_lock_debugging_enabled_;
 
 /** Return the ID of the current thread, or 1 if threading isn't enabled. */
@@ -182,10 +184,15 @@ EVLOCK_TRY_LOCK_(void *lock)
 #elif ! defined(EVENT__DISABLE_THREAD_SUPPORT)
 
 unsigned long evthreadimpl_get_id_(void);
+EVENT2_INTERNAL_EXPORT
 int evthreadimpl_is_lock_debugging_enabled_(void);
+EVENT2_INTERNAL_EXPORT
 void *evthreadimpl_lock_alloc_(unsigned locktype);
+EVENT2_INTERNAL_EXPORT
 void evthreadimpl_lock_free_(void *lock, unsigned locktype);
+EVENT2_INTERNAL_EXPORT
 int evthreadimpl_lock_lock_(unsigned mode, void *lock);
+EVENT2_INTERNAL_EXPORT
 int evthreadimpl_lock_unlock_(unsigned mode, void *lock);
 void *evthreadimpl_cond_alloc_(unsigned condtype);
 void evthreadimpl_cond_free_(void *cond);
@@ -355,6 +362,7 @@ EVLOCK_TRY_LOCK_(void *lock)
 		EVLOCK_UNLOCK(lock1_tmplock_,mode1);			\
 	} while (0)
 
+EVENT2_INTERNAL_EXPORT
 int evthread_is_debug_lock_held_(void *lock);
 void *evthread_debug_get_real_lock_(void *lock);
 

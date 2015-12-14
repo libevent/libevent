@@ -698,7 +698,6 @@ configure_file(
 # Create the libraries.
 #
 
-# TODO: Add dynamic versions of the libraries as well.
 add_library(event_core ${EVENT__LIBRARY_TYPE}
     ${HDR_PRIVATE}
     ${HDR_COMPAT}
@@ -707,10 +706,6 @@ add_library(event_core ${EVENT__LIBRARY_TYPE}
     )
 
 add_library(event_extra ${EVENT__LIBRARY_TYPE}
-    ${HDR_PRIVATE}
-    ${HDR_COMPAT}
-    ${HDR_PUBLIC}
-    ${SRC_CORE}
     ${SRC_EXTRA}
     )
 
@@ -726,37 +721,25 @@ add_library(event ${EVENT__LIBRARY_TYPE}
     )
 
 if (EVENT__BUILD_SHARED_LIBRARIES)
-endif (EVENT__BUILD_SHARED_LIBRARIES)
+    target_link_libraries(event_core ${OPENSSL_LIBRARIES}
+                                     ${CMAKE_THREAD_LIBS_INIT}
+                                     ${LIB_PLATFORM})
+    set_target_properties(event_core PROPERTIES DEFINE_SYMBOL event_core_EXPORTS)
 
-if (EVENT__BUILD_SHARED_LIBRARIES)
-    # Prepare static library to be linked to tests that need hidden symbols
-    add_library(event_extra_static STATIC
-        ${HDR_PRIVATE}
-        ${HDR_COMPAT}
-        ${HDR_PUBLIC}
-        ${SRC_CORE}
-        ${SRC_EXTRA}
-        )
-    set(EVENT_EXTRA_FOR_TEST event_extra_static)
+    target_link_libraries(event ${OPENSSL_LIBRARIES}
+                                ${CMAKE_THREAD_LIBS_INIT}
+                                ${LIB_PLATFORM})
+    set_target_properties(event PROPERTIES DEFINE_SYMBOL event_EXPORTS)
 
-   target_link_libraries(event_core ${OPENSSL_LIBRARIES}
-                                    ${CMAKE_THREAD_LIBS_INIT}
-                                    ${LIB_PLATFORM})
-
-   target_link_libraries(event ${OPENSSL_LIBRARIES}
-                               ${CMAKE_THREAD_LIBS_INIT}
-                               ${LIB_PLATFORM})
-
-   target_link_libraries(event_extra ${OPENSSL_LIBRARIES}
+    target_link_libraries(event_extra event_core
+                                      ${OPENSSL_LIBRARIES}
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${LIB_PLATFORM})
+    set_target_properties(event_extra PROPERTIES DEFINE_SYMBOL event_extra_EXPORTS)
 
-  set_target_properties(event PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
-  set_target_properties(event_core PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
-  set_target_properties(event_extra PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
-
-else (EVENT__BUILD_SHARED_LIBRARIES)
-    set(EVENT_EXTRA_FOR_TEST event_extra)
+    set_target_properties(event PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
+    set_target_properties(event_core PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
+    set_target_properties(event_extra PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
 endif (EVENT__BUILD_SHARED_LIBRARIES)
 
 #
@@ -783,8 +766,8 @@ if (NOT EVENT__DISABLE_SAMPLES)
             sample/https-client.c
             sample/openssl_hostname_validation.c
             sample/hostcheck.c)
-        target_link_libraries(https-client event_extra ${LIB_APPS} ${LIB_PLATFORM})
-        add_dependencies(https-client event_extra)
+        target_link_libraries(https-client event_extra event_core ${LIB_APPS} ${LIB_PLATFORM})
+        add_dependencies(https-client event_extra event_core)
 
         # Requires OpenSSL.
         list(APPEND SAMPLES le-proxy)
@@ -792,10 +775,31 @@ if (NOT EVENT__DISABLE_SAMPLES)
 
     foreach(SAMPLE ${SAMPLES})
         add_executable(${SAMPLE} sample/${SAMPLE}.c)
-        target_link_libraries(${SAMPLE} event_extra ${LIB_APPS} ${LIB_PLATFORM})
-        add_dependencies(${SAMPLE} event_extra)
+        target_link_libraries(${SAMPLE} event_extra event_core ${LIB_APPS} ${LIB_PLATFORM})
+        add_dependencies(${SAMPLE} event_extra event_core)
     endforeach()
 endif()
+
+
+# When building shared lib, we still need to link tests to static lib because
+# some tests need hidden symbols.
+if (EVENT__BUILD_SHARED_LIBRARIES)
+    # Define "EXPORTS" to avoid dllimport on Windows.
+    # We need to do this here (after libs and samples, before benchmarks and
+    # tests) not to pollute compiler definitions with this hack.
+    # With cmake 2.8.12 or later, we can use target_compile_definitions instead.
+    add_definitions(-Devent_EXPORTS)
+    add_library(event_all_static STATIC
+        ${HDR_PRIVATE}
+        ${HDR_COMPAT}
+        ${HDR_PUBLIC}
+        ${SRC_CORE}
+        ${SRC_EXTRA}
+        )
+    set(LIBEVENT_FOR_TEST event_all_static)
+else (EVENT__BUILD_SHARED_LIBRARIES)
+    set(LIBEVENT_FOR_TEST event_extra event_core)
+endif (EVENT__BUILD_SHARED_LIBRARIES)
 
 if (NOT EVENT__DISABLE_BENCHMARK)
     foreach (BENCHMARK bench bench_cascade bench_http bench_httpclient)
@@ -806,8 +810,8 @@ if (NOT EVENT__DISABLE_BENCHMARK)
         endif()
 
         add_executable(${BENCHMARK} ${BENCH_SRC})
-        target_link_libraries(${BENCHMARK} event_extra ${LIB_PLATFORM})
-        add_dependencies(${BENCHMARK} event_extra)
+        target_link_libraries(${BENCHMARK} ${LIBEVENT_FOR_TEST} ${LIB_PLATFORM})
+        add_dependencies(${BENCHMARK} ${LIBEVENT_FOR_TEST})
     endforeach()
 endif()
 
@@ -906,8 +910,8 @@ if (NOT EVENT__DISABLE_TESTS)
     # Create test program executables.
     foreach (TESTPROG ${ALL_TESTPROGS})
         add_executable(${TESTPROG} test/${TESTPROG}.c)
-        target_link_libraries(${TESTPROG} ${EVENT_EXTRA_FOR_TEST} ${LIB_PLATFORM})
-        add_dependencies(${TESTPROG} ${EVENT_EXTRA_FOR_TEST})
+        target_link_libraries(${TESTPROG} ${LIBEVENT_FOR_TEST} ${LIB_PLATFORM})
+        add_dependencies(${TESTPROG} ${LIBEVENT_FOR_TEST})
     endforeach()
 
     #

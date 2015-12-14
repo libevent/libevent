@@ -9,7 +9,9 @@ extern "C" {
 #include "evconfig-private.h"
 
 #ifndef EVENT__HAVE_STRLCPY
+#include "event2/visibility.h"
 #include <string.h>
+EVENT2_INTERNAL_EXPORT
 size_t event_strlcpy_(char *dst, const char *src, size_t siz);
 #define strlcpy event_strlcpy_
 #endif

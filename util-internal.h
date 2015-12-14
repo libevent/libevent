@@ -219,19 +219,25 @@ extern "C" {
  * when you care about ASCII's notion of character types, because you are about
  * to send those types onto the wire.
  */
+EVENT2_INTERNAL_EXPORT
 int EVUTIL_ISALPHA_(char c);
+EVENT2_INTERNAL_EXPORT
 int EVUTIL_ISALNUM_(char c);
 int EVUTIL_ISSPACE_(char c);
+EVENT2_INTERNAL_EXPORT
 int EVUTIL_ISDIGIT_(char c);
+EVENT2_INTERNAL_EXPORT
 int EVUTIL_ISXDIGIT_(char c);
 int EVUTIL_ISPRINT_(char c);
 int EVUTIL_ISLOWER_(char c);
 int EVUTIL_ISUPPER_(char c);
 char EVUTIL_TOUPPER_(char c);
+EVENT2_INTERNAL_EXPORT
 char EVUTIL_TOLOWER_(char c);
 
 /** Remove all trailing horizontal whitespace (space or tab) from the end of a
  * string */
+EVENT2_INTERNAL_EXPORT
 void evutil_rtrim_lws_(char *);
 
 
@@ -258,6 +264,7 @@ void evutil_rtrim_lws_(char *);
  */
 int evutil_open_closeonexec_(const char *pathname, int flags, unsigned mode);
 
+EVENT2_INTERNAL_EXPORT
 int evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
     int is_binary);
 
@@ -358,13 +365,18 @@ typedef struct evdns_getaddrinfo_request* (*evdns_getaddrinfo_fn)(
     const struct evutil_addrinfo *hints_in,
     void (*cb)(int, struct evutil_addrinfo *, void *), void *arg);
 
+EVENT2_INTERNAL_EXPORT
 void evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo_fn fn);
 
+EVENT2_INTERNAL_EXPORT
 struct evutil_addrinfo *evutil_new_addrinfo_(struct sockaddr *sa,
     ev_socklen_t socklen, const struct evutil_addrinfo *hints);
+EVENT2_INTERNAL_EXPORT
 struct evutil_addrinfo *evutil_addrinfo_append_(struct evutil_addrinfo *first,
     struct evutil_addrinfo *append);
+EVENT2_INTERNAL_EXPORT
 void evutil_adjust_hints_for_addrconfig_(struct evutil_addrinfo *hints);
+EVENT2_INTERNAL_EXPORT
 int evutil_getaddrinfo_common_(const char *nodename, const char *servname,
     struct evutil_addrinfo *hints, struct evutil_addrinfo **res, int *portnum);
 
@@ -375,6 +387,7 @@ int evutil_getaddrinfo_async_(struct evdns_base *dns_base,
 
 /** Return true iff sa is a looback address. (That is, it is 127.0.0.1/8, or
  * ::1). */
+EVENT2_INTERNAL_EXPORT
 int evutil_sockaddr_is_loopback_(const struct sockaddr *sa);
 
 
@@ -383,6 +396,7 @@ int evutil_sockaddr_is_loopback_(const struct sockaddr *sa);
     Returns a pointer to out.  Always writes something into out, so it's safe
     to use the output of this function without checking it for NULL.
  */
+EVENT2_INTERNAL_EXPORT
 const char *evutil_format_sockaddr_port_(const struct sockaddr *sa, char *out, size_t outlen);
 
 int evutil_hex_char_to_int_(char c);
@@ -392,6 +406,7 @@ void evutil_free_secure_rng_globals_(void);
 void evutil_free_globals_(void);
 
 #ifdef _WIN32
+EVENT2_INTERNAL_EXPORT
 HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 
@@ -440,12 +455,12 @@ HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 #endif
 
+EVENT2_INTERNAL_EXPORT
 evutil_socket_t evutil_socket_(int domain, int type, int protocol);
 evutil_socket_t evutil_accept4_(evutil_socket_t sockfd, struct sockaddr *addr,
     ev_socklen_t *addrlen, int flags);
 
-    /* used by one of the test programs.. */
-EVENT2_EXPORT_SYMBOL
+EVENT2_INTERNAL_EXPORT
 int evutil_make_internal_pipe_(evutil_socket_t fd[2]);
 evutil_socket_t evutil_eventfd_(unsigned initval, int flags);
 

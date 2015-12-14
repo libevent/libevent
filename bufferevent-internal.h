@@ -345,6 +345,7 @@ void bufferevent_unsuspend_write_(struct bufferevent *bufev, bufferevent_suspend
   @return 0 if successful, or -1 if an error occurred
   @see bufferevent_disable()
  */
+EVENT2_INTERNAL_EXPORT
 int bufferevent_disable_hard_(struct bufferevent *bufev, short event);
 
 /** Internal: Set up locking on a bufferevent.  If lock is set, use it.
@@ -414,6 +415,7 @@ void bufferevent_init_generic_timeout_cbs_(struct bufferevent *bev);
 int bufferevent_generic_adj_timeouts_(struct bufferevent *bev);
 int bufferevent_generic_adj_existing_timeouts_(struct bufferevent *bev);
 
+EVENT2_INTERNAL_EXPORT
 enum bufferevent_options bufferevent_get_options_(struct bufferevent *bev);
 
 const struct sockaddr*
