@@ -1708,10 +1708,10 @@ evutil_socket_error_to_string(int errcode)
 		goto done;
 	}
 
-	if (0 != FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+	if (0 != FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM |
 			       FORMAT_MESSAGE_IGNORE_INSERTS |
 			       FORMAT_MESSAGE_ALLOCATE_BUFFER,
-			       NULL, errcode, 0, (LPTSTR)&msg, 0, NULL))
+			       NULL, errcode, 0, (char *)&msg, 0, NULL))
 		chomp (msg);	/* because message has trailing newline */
 	else {
 		size_t len = 50;
