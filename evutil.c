@@ -226,16 +226,17 @@ evutil_ersatz_socketpair_(int family, int type, int protocol,
 	struct sockaddr_in connect_addr;
 	ev_socklen_t size;
 	int saved_errno = -1;
-
-	if (protocol
-		|| (family != AF_INET
+	int family_test;
+	
+	family_test = family != AF_INET;
 #ifdef AF_UNIX
-		    && family != AF_UNIX
+	family_test = family_test && (family != AF_UNIX);
 #endif
-		)) {
+	if (protocol || family_test) {
 		EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
 		return -1;
 	}
+	
 	if (!fd) {
 		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
 		return -1;
