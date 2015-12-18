@@ -14,6 +14,9 @@ CFLAGS=/I.. /I../WIN32-Code /I../WIN32-Code/nmake /I../include /I../compat /DHAV
 
 CFLAGS=$(CFLAGS) /Ox /W3 /wd4996 /nologo
 
+# Add BUILD_CFLAGS from the environment
+CFLAGS=$(CFLAGS) $(BUILD_CFLAGS)
+
 REGRESS_OBJS=regress.obj regress_buffer.obj regress_http.obj regress_dns.obj \
 	regress_testutils.obj \
         regress_rpc.obj regress.gen.obj \
