@@ -20,7 +20,13 @@
 #
 cmake_minimum_required(VERSION 2.8.0 FATAL_ERROR)
 
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Release
+		CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)
+endif()
+
 # get rid of the extra default configurations
+# what? why would you get id of other useful build types? - Ellzey
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
 
 project(libevent C)
@@ -29,15 +35,52 @@ set(EVENT_VERSION_MAJOR 2)
 set(EVENT_VERSION_MINOR 1)
 set(EVENT_VERSION_PATCH 5)
 set(EVENT_NUMERIC_VERSION 0x02010500)
-set(EVENT_VERSION_DEVTAG "-beta")
 
+set(EVENT_PACKAGE_VERSION "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}")
+
+# what is the point of  MAJOR/MINOR/PATCH if they are just going
+# to be the same as the above, am I missing something? - ellzey?
 set(EVENT_ABI_MAJOR 2)
 set(EVENT_ABI_MINOR 1)
 set(EVENT_ABI_PATCH 5)
+
 set(EVENT_ABI_LIBVERSION "${EVENT_ABI_MAJOR}.${EVENT_ABI_MINOR}.${EVENT_ABI_PATCH}")
 
-set(EVENT_VERSION "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}-alpha${EVENT_VERSION_DEVTAG}")
-set(EVENT_PACKAGE_VERSION "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}")
+
+######## the following section sets the development stage name. Defaults
+######## to beta, but with the option of alpha, rc, and release.
+
+
+# only a subset of names can be used, defaults to "beta"
+set(EVENT__STAGE_VERSION "beta"
+	CACHE STRING "set EVENT_STAGE_VERSION")
+
+# a list that defines what can set for EVENT_STAGE_VERSION
+set(EVENT__ALLOWED_STAGE_NAMES
+	beta
+	alpha
+	rc
+	release)
+
+# attempt to find the EVENT__STAGE_VERSION in the allowed list
+# of accepted stage names, the return value is stord in
+# EVENT__STAGE_RET
+list(FIND
+	EVENT__ALLOWED_STAGE_NAMES
+	${EVENT__STAGE_VERSION}
+	EVENT__STAGE_RET)
+
+# if EVENT__STAGE_RET is -1, the name was not
+# found, so we fall back to "beta".
+set(EVENT_STAGE_VERSION "beta")
+
+if (EVENT__STAGE_RET EQUAL "-1")
+	message(WARNING "${EVENT__STAGE_VERSION} invalid, defaulting to ${EVENT_STAGE_VERSION}")
+else()
+	set(EVENT_STAGE_VERSION ${EVENT__STAGE_VERSION})
+endif()
+
+set(EVENT_VERSION "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}-${EVENT_STAGE_VERSION}")
 
 option(EVENT__BUILD_SHARED_LIBRARIES "Define if libevent should be built with shared libraries instead of archives" OFF)
 option(EVENT__DISABLE_DEBUG_MODE "Define if libevent should build without support for a debug mode" OFF)
@@ -71,9 +114,23 @@ include(CheckSymbolExists)
 include(CheckStructHasMember)
 include(CheckCSourceCompiles)
 include(CheckPrototypeDefinition)
+include(CheckFunctionKeywords)
+include(CheckCCompilerFlag)
+
+macro(add_compiler_flags _flags)
+	foreach(flag ${_flags})
+		string(REGEX REPLACE "[-.+/:= ]" "_" _flag_esc "${flag}")
+
+		check_c_compiler_flag("${flag}" check_c_compiler_flag_${_flag_esc})
+
+		if (check_c_compiler_flag_${_flag_esc})
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
+		endif()
+	endforeach()
+endmacro()
 
 if (EVENT__ENABLE_VERBOSE_DEBUG)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_DEBUG=1")
+    add_definitions(-DUSE_DBUG=1)
 endif()
 
 # Setup compiler flags for coverage.
@@ -88,52 +145,63 @@ if (EVENT__COVERAGE)
         message(FATAL_ERROR "Code coverage results with an optimised (non-Debug) build may be misleading! Add -DCMAKE_BUILD_TYPE=Debug")
     endif()
 
-    message("Setting coverage compiler flags")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+    message(STATUS "Setting coverage compiler flags")
+		add_compiler_flags(-g -O0 -fprofile-arcs -ftest-coverage)
 endif()
 
 # GCC specific options.
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 
     option(EVENT__DISABLE_GCC_WARNINGS "Disable verbose warnings with GCC" OFF)
-    if (EVENT__DISABLE_GCC_WARNINGS)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w")
-    endif()
-
     option(EVENT__ENABLE_GCC_HARDENING "Enable compiler security checks" OFF)
-    if (EVENT__ENABLE_GCC_HARDENING)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_FORTIFY_SOURCE=2 -fstack-protector-all -fwrapv -fPIE -Wstack-protector --param ssp-buffer-size=1")
+    option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
+    option(EVENT__ENABLE_GCC_WARNINGS "Make all GCC warnings into errors" OFF)
+
+		list(APPEND __FLAGS -Wall)
+
+    if (EVENT__DISABLE_GCC_WARNINGS)
+			list(APPEND __FLAGS -w)
     endif()
 
-    option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
+    if (EVENT__ENABLE_GCC_HARDENING)
+			list(APPEND __FLAGS
+				-fstack-protector-all
+				-fwrapv
+				-fPIE
+				-Wstack-protector
+				"--param ssp-buffer-size=1")
+
+				add_definitions(-D_FORTIFY_SOURCE=2)
+    endif()
+
     if (EVENT__ENABLE_GCC_FUNCTION_SECTIONS)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections")
+			list(APPEND __FLAGS -ffunction-sections)
         # TODO: Add --gc-sections support. We need some checks for NetBSD to ensure this works.
     endif()
 
-    option(EVENT__ENABLE_GCC_WARNINGS "Make all GCC warnings into errors" OFF)
     if (EVENT__ENABLE_GCC_WARNINGS)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+			list(APPEND __FLAGS -Werror)
     endif()
 
     # We need to test for at least gcc 2.95 here, because older versions don't
     # have -fno-strict-aliasing
-    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion
-                    OUTPUT_VARIABLE GCC_VERSION)
-    if (GCC_VERSION VERSION_GREATER 2.95)
-        message(STATUS "GCC Version >= 2.95 enabling no-strict-aliasing")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing")
-    endif()
+		list(APPEND __FLAGS -fno-strict-aliasing)
+
+		#execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion
+		#                OUTPUT_VARIABLE GCC_VERSION)
+		#if (GCC_VERSION VERSION_GREATER 2.95)
+		#    message(STATUS "GCC Version >= 2.95 enabling no-strict-aliasing")
+		#    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing")
+		#endif()
+
+		add_compiler_flags(__FLAGS)
 endif()
 
 if (APPLE)
     # Get rid of deprecated warnings for OpenSSL on OSX 10.7 and greater.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=deprecated-declarations")
-    # Get rid of "clang: warning: argument unused during compilation: -I etc
-    if ("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Qunused-arguments")
-    endif()
+		add_compiler_flags(
+			-Wno-error=deprecated-declarations
+			-Qunused-arguments)
 endif()
 
 # Winsock.
@@ -318,43 +386,16 @@ if(WIN32)
 endif()
 
 # Check for different inline keyword versions.
-foreach(KEYWORD "inline" "__inline__" "__inline")
-    set(CMAKE_REQUIRED_DEFINITIONS "-DKEYWORD=${KEYWORD}")
-    CHECK_C_SOURCE_COMPILES(
-        "
-        #include <stdio.h>
-        KEYWORD void a() {}
-        int main(int argc, char **argv) { a(); return 0; }
-        " HAVE_${KEYWORD})
-endforeach()
+check_function_keywords("inline" "__inline" "__inline__")
 
-if (NOT HAVE_inline)
-    if (HAVE___inline__)
-        set(EVENT__inline __inline__)
-    elseif(HAVE___inline)
-        set(EVENT__inline __inline)
-    endif()
-endif()
-set(CMAKE_REQUIRED_DEFINITIONS "")
-
-# Check for different function name macros.
-foreach(KEYWORD "__func__" "__FUNCTION__")
-    set(CMAKE_REQUIRED_DEFINITIONS "-DKEYWORD=${KEYWORD}")
-    CHECK_C_SOURCE_COMPILES(
-        "
-        #include <stdio.h>
-        int main(int argc, char **argv) { const char *cp = KEYWORD; return 0; }
-        " HAVE_${KEYWORD})
-endforeach()
-set(CMAKE_REQUIRED_DEFINITIONS "")
-
-if (NOT HAVE___func__)
-    if (HAVE___FUNCTION__)
-        set(EVENT____func__ __FUNCTION__)
-    else()
-        # Substitute for __func__
-        set(EVENT____func__ __FILE__)
-    endif()
+if (HAVE_INLINE)
+	set (EVENT__inline inline)
+elseif (HAVE___INLINE)
+	set(EVENT__inline __inline)
+elseif(HAVE___INLINE__)
+	set(EVENT__inline __inline__)
+else()
+	set(EVENT__inline)
 endif()
 
 CHECK_SYMBOL_EXISTS(TAILQ_FOREACH sys/queue.h EVENT__HAVE_TAILQFOREACH)
@@ -365,11 +406,14 @@ CHECK_SYMBOL_EXISTS(RANDOM_UUID sys/sysctl.h EVENT__HAVE_DECL_RANDOM_UUID)
 CHECK_SYMBOL_EXISTS(F_SETFD fcntl.h EVENT__HAVE_SETFD)
 
 CHECK_TYPE_SIZE(fd_mask EVENT__HAVE_FD_MASK)
-
 CHECK_TYPE_SIZE(size_t EVENT__SIZEOF_SIZE_T)
+
 if(NOT EVENT__SIZEOF_SIZE_T)
   set(EVENT__size_t unsigned)
+	# and the point is???
   set(EVENT__SIZEOF_SIZE_T ${EVENT__SIZEOF_UNSIGNED})
+else()
+	set(EVENT__size_t "size_t")
 endif()
 
 CHECK_TYPE_SIZE("off_t" EVENT__SIZEOF_OFF_T)
@@ -389,7 +433,10 @@ endif()
 CHECK_TYPE_SIZE(socklen_t EVENT__SIZEOF_SOCKLEN_T)
 if(NOT EVENT__SIZEOF_SOCKLEN_T)
   set(EVENT__socklen_t "unsigned int")
+	# what is the poitn of this if EVENT__SIZEOF_UNSIGNED_INT is 0?
   set(EVENT__SIZEOF_SOCKLEN_T ${EVENT__SIZEOF_UNSIGNED_INT})
+else()
+	set(EVENT__socklen_t "socklen_t")
 endif()
 
 CHECK_TYPE_SIZE(pid_t EVENT__SIZEOF_PID_T)
@@ -398,7 +445,9 @@ if(NOT EVENT__SIZEOF_PID_T)
   set(EVENT__SIZEOF_PID_T ${EVENT__SIZEOF_INT})
 endif()
 
-CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
+if (NOT EVENT__DISABLE_THREAD_SUPPORT)
+	CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
+endif()
 
 if(EVENT__HAVE_CLOCK_GETTIME)
   set(EVENT__DNS_USE_CPU_CLOCK_FOR_ID 1)
@@ -409,8 +458,14 @@ CHECK_TYPE_SIZE("void *" EVENT__SIZEOF_VOID_P)
 
 # Tests file offset bits.
 # TODO: Add AIX test for if -D_LARGE_FILES is needed.
-CHECK_FILE_OFFSET_BITS()
-set(EVENT___FILE_OFFSET_BITS _FILE_OFFSET_BITS)
+
+# XXX: Why is this here? we don't even use it. Well, we don't even use it
+#      on top of that, why is it set in the config.h?! IT_MAKES_NO_SENSE
+#      I'm commenting it out for now.
+#      - ellzey
+
+#CHECK_FILE_OFFSET_BITS()
+#set(EVENT___FILE_OFFSET_BITS _FILE_OFFSET_BITS)
 
 # Verify kqueue works with pipes.
 if (EVENT__HAVE_KQUEUE)
@@ -418,7 +473,7 @@ if (EVENT__HAVE_KQUEUE)
         message(WARNING "Cannot check if kqueue works with pipes when crosscompiling, use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires manually running a test program on the cross compilation target)")
         set(EVENT__HAVE_WORKING_KQUEUE 1)
     else()
-        message("Checking if kqueue works with pipes...")
+        message(STATUS "Checking if kqueue works with pipes...")
         include(CheckWorkingKqueue)
     endif()
 endif()
@@ -590,8 +645,8 @@ endif()
 if (NOT EVENT__DISABLE_OPENSSL)
     find_package(OpenSSL REQUIRED)
     set(EVENT__HAVE_OPENSSL 1)
-    message("OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-    message("OpenSSL lib: ${OPENSSL_LIBRARIES}")
+    message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
+    message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
     include_directories(${OPENSSL_INCLUDE_DIR})
     list(APPEND SRC_CORE bufferevent_openssl.c)
     list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
@@ -688,7 +743,8 @@ endif (EVENT__BUILD_SHARED_LIBRARIES)
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/event-config.h.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/include/event2/event-config.h)
+    ${CMAKE_CURRENT_BINARY_DIR}/include/event2/event-config.h
+		NEWLINE_STYLE UNIX)
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/evconfig-private.h.cmake
@@ -724,9 +780,6 @@ add_library(event ${EVENT__LIBRARY_TYPE}
     ${SRC_CORE}
     ${SRC_EXTRA}
     )
-
-if (EVENT__BUILD_SHARED_LIBRARIES)
-endif (EVENT__BUILD_SHARED_LIBRARIES)
 
 if (EVENT__BUILD_SHARED_LIBRARIES)
     # Prepare static library to be linked to tests that need hidden symbols
@@ -812,7 +865,6 @@ if (NOT EVENT__DISABLE_BENCHMARK)
 endif()
 
 if (NOT EVENT__DISABLE_TESTS)
-
     #
     # Generate Regress tests.
     #
@@ -825,7 +877,7 @@ if (NOT EVENT__DISABLE_TESTS)
         endif()
 
         if (__FOUND_USABLE_PYTHON)
-            message("Generating regress tests...")
+            message(STATUS "Generating regress tests...")
             add_definitions(-DTINYTEST_LOCAL)
             add_custom_command(
                 OUTPUT
@@ -894,6 +946,20 @@ if (NOT EVENT__DISABLE_TESTS)
     #
     # Test programs.
     #
+		# all of these, including the cmakelists.txt should be moved
+		# into the dirctory 'tests' first.
+		#
+		# doing this, we can remove all the DISABLE_TESTS stuff, and simply
+		# do something like:
+		#
+		# add_custom_targets(tests)
+		# add_executable(... EXCLUDE_FROM_ALL ...c)
+		# add_dependencis(tests testa testb testc)
+		# add_test(....)
+		#
+		# then you can just run 'make tests' instead of them all
+		# auto-compile|running
+		# - ellzey
     set(TESTPROGS   test-changelist
                     test-eof
                     test-fdleak
@@ -945,7 +1011,6 @@ if (NOT EVENT__DISABLE_TESTS)
         list(APPEND BACKENDS WIN32)
     endif()
 
-    message("Available event backends: ${BACKENDS}")
 
     # Default environment variables turns off all event systems,
     # then we enable each one, one at a time when creating the tests.
@@ -1036,7 +1101,7 @@ if (NOT EVENT__DISABLE_TESTS)
             \"${WINDOWS_CTEST_COMMAND}\"
             ")
 
-        message("${WINDOWS_CTEST_COMMAND}")
+        message(STATUS "${WINDOWS_CTEST_COMMAND}")
         file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.bat
             DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
             FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
@@ -1175,3 +1240,29 @@ install(EXPORT LibeventTargets
         DESTINATION "${EVENT_INSTALL_CMAKE_DIR}" COMPONENT dev)
 
 set(LIBEVENT_LIBRARIES event event_core event_extra CACHE STRING "Libevent libraries")
+
+message("")
+message("        ---( Libevent " ${EVENT_VERSION} " )---")
+message("")
+message(STATUS "Available event backends: ${BACKENDS}")
+message(STATUS "CMAKE_BINARY_DIR:         " ${CMAKE_BINARY_DIR})
+message(STATUS "CMAKE_CURRENT_BINARY_DIR: " ${CMAKE_CURRENT_BINARY_DIR})
+message(STATUS "CMAKE_SOURCE_DIR:         " ${CMAKE_SOURCE_DIR})
+message(STATUS "CMAKE_CURRENT_SOURCE_DIR: " ${CMAKE_CURRENT_SOURCE_DIR})
+message(STATUS "PROJECT_BINARY_DIR:       " ${PROJECT_BINARY_DIR})
+message(STATUS "PROJECT_SOURCE_DIR:       " ${PROJECT_SOURCE_DIR})
+message(STATUS "CMAKE_MODULE_PATH:        " ${CMAKE_MODULE_PATH})
+message(STATUS "CMAKE_COMMAND:            " ${CMAKE_COMMAND})
+message(STATUS "CMAKE_ROOT:               " ${CMAKE_ROOT} )
+message(STATUS "CMAKE_SYSTEM:             " ${CMAKE_SYSTEM} )
+message(STATUS "CMAKE_SYSTEM_NAME:        " ${CMAKE_SYSTEM_NAME} )
+message(STATUS "CMAKE_SYSTEM_VERSION:     " ${CMAKE_SYSTEM_VERSION} )
+message(STATUS "CMAKE_SYSTEM_PROCESSOR:   " ${CMAKE_SYSTEM_PROCESSOR} )
+message(STATUS "CMAKE_SKIP_RPATH:         " ${CMAKE_SKIP_RPATH} )
+message(STATUS "CMAKE_VERBOSE_MAKEFILE:   " ${CMAKE_VERBOSE_MAKEFILE} )
+message(STATUS "CMAKE_C_FLAGS:            " ${CMAKE_C_FLAGS} )
+message(STATUS "CMAKE_BUILD_TYPE:         " ${CMAKE_BUILD_TYPE} )
+message(STATUS "CMAKE_C_COMPILER:         " ${CMAKE_C_COMPILER} )
+message(STATUS "CMAKE_AR:                 " ${CMAKE_AR} )
+message(STATUS "CMAKE_RANLIB:             " ${CMAKE_RANLIB} )
+message("")
