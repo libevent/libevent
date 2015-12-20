@@ -300,9 +300,9 @@ extern "C" {
 
 /**
  * A type wide enough to hold the output of "socket()" or "accept()".  On
- * Windows, this is an SOCKET; elsewhere, it is an int. */
+ * Windows, this is an intptr_t; elsewhere, it is an int. */
 #ifdef _WIN32
-#define evutil_socket_t SOCKET
+#define evutil_socket_t intptr_t
 #else
 #define evutil_socket_t int
 #endif
