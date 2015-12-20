@@ -25,9 +25,6 @@ CFLAGS=/IWIN32-Code /IWIN32-Code/nmake /Iinclude /Icompat /DHAVE_CONFIG_H /I. $(
 # For optimization and warnings
 CFLAGS=$(CFLAGS) /Ox /W3 /wd4996 /nologo
 
-# Add BUILD_CFLAGS from the environment
-CFLAGS=$(CFLAGS) $(BUILD_CFLAGS)
-
 # XXXX have a debug mode
 
 LIBFLAGS=/nologo
@@ -50,6 +47,7 @@ SSL_LIBS=
 
 ALL_OBJS=$(CORE_OBJS) $(WIN_OBJS) $(EXTRA_OBJS) $(SSL_OBJS)
 STATIC_LIBS=libevent_core.lib libevent_extras.lib libevent.lib $(SSL_LIBS)
+
 
 all: static_libs tests
 
