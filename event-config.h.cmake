@@ -428,9 +428,9 @@
 
 #ifdef __USE_UNUSED_DEFINITIONS__
 /* Define to necessary symbol if this constant uses a non-standard name on your system. */
-/* XXX: Hello, this isn't even used, nor is it defined anywhere... - Ellzey
+/* XXX: Hello, this isn't even used, nor is it defined anywhere... - Ellzey */
 #define EVENT__PTHREAD_CREATE_JOINABLE ${EVENT__PTHREAD_CREATE_JOINABLE}
-#endif /* __USE_UNUSED_DEFINITIONS__ */
+#endif
 
 /* The size of `pthread_t', as computed by sizeof. */
 #define EVENT__SIZEOF_PTHREAD_T @EVENT__SIZEOF_PTHREAD_T@
@@ -481,8 +481,8 @@
 #define EVENT___FILE_OFFSET_BITS @EVENT___FILE_OFFSET_BITS@
 
 /* Define for large files, on AIX-style hosts. */
-#define @_LARGE_FILES@ /* THIS ISN'T EVEN SET IN CMAKELISTS */
-#endif /* __THESE_ARE_NOT_CONFIG_H_THINGS_THEY_ARE_DASH_D_THINGS__ */ 
+#define @_LARGE_FILES@
+#endif
 
 #ifdef _WhAT_DOES_THIS_EVEN_DO_
 /* Define to empty if `const' does not conform to ANSI C. */
@@ -504,7 +504,7 @@
  * - Ellzey
  */
 
-#define EVENT__inline @EVENT__inline@ 
+#define EVENT__inline @EVENT__inline@
 #endif
 
 /* Define to `int' if <sys/tyes.h> does not define. */
