@@ -13,6 +13,10 @@
 #define EVENT__NUMERIC_VERSION @EVENT_NUMERIC_VERSION@
 #define EVENT__PACKAGE_VERSION "@EVENT_PACKAGE_VERSION@"
 
+#define EVENT__VERSION_MAJOR @EVENT_VERSION_MAJOR@
+#define EVENT__VERSION_MINOR @EVENT_VERSION_MINOR@
+#define EVENT__VERSION_PATCH @EVENT_VERSION_PATCH@
+
 /* Version number of package */
 #define EVENT__VERSION "@EVENT_VERSION@"
 
@@ -436,22 +440,25 @@
 #define EVENT__SIZEOF_PTHREAD_T @EVENT__SIZEOF_PTHREAD_T@
 
 /* The size of a `int', as computed by sizeof. */
-#cmakedefine EVENT__SIZEOF_INT @EVENT__SIZEOF_INT@
+#define EVENT__SIZEOF_INT @EVENT__SIZEOF_INT@
 
 /* The size of a `long', as computed by sizeof. */
-#cmakedefine EVENT__SIZEOF_LONG @EVENT__SIZEOF_LONG@
+#define EVENT__SIZEOF_LONG @EVENT__SIZEOF_LONG@
 
 /* The size of a `long long', as computed by sizeof. */
-#cmakedefine EVENT__SIZEOF_LONG_LONG @EVENT__SIZEOF_LONG_LONG@
+#define EVENT__SIZEOF_LONG_LONG @EVENT__SIZEOF_LONG_LONG@
 
 /* The size of `off_t', as computed by sizeof. */
-#cmakedefine EVENT__SIZEOF_OFF_T ${EVENT__SIZEOF_OFF_T}
+#define EVENT__SIZEOF_OFF_T @EVENT__SIZEOF_OFF_T@
+
+#define EVENT__SIZEOF_SSIZE_T @EVENT__SIZEOF_SSIZE_T@
+
 
 /* The size of a `short', as computed by sizeof. */
-#cmakedefine EVENT__SIZEOF_SHORT @EVENT__SIZEOF_SHORT@
+#define EVENT__SIZEOF_SHORT @EVENT__SIZEOF_SHORT@
 
 /* The size of `size_t', as computed by sizeof. */
-#cmakedefine EVENT__SIZEOF_SIZE_T @EVENT__SIZEOF_SIZE_T@
+#define EVENT__SIZEOF_SIZE_T @EVENT__SIZEOF_SIZE_T@
 
 /* Define to 1 if you have the ANSI C header files. */
 #cmakedefine EVENT__STDC_HEADERS
@@ -460,10 +467,10 @@
 #cmakedefine EVENT__TIME_WITH_SYS_TIME
 
 /* The size of `socklen_t', as computed by sizeof. */
-#cmakedefine EVENT__SIZEOF_SOCKLEN_T @EVENT__SIZEOF_SOCKLEN_T@
+#define EVENT__SIZEOF_SOCKLEN_T @EVENT__SIZEOF_SOCKLEN_T@
 
 /* The size of 'void *', as computer by sizeof */
-#cmakedefine EVENT__SIZEOF_VOID_P @EVENT__SIZEOF_VOID_P@
+#define EVENT__SIZEOF_VOID_P @EVENT__SIZEOF_VOID_P@
 
 /* set an alias for whatever __func__ __FUNCTION__ is, what sillyness */
 #if defined (__func__)
@@ -508,18 +515,18 @@
 #endif
 
 /* Define to `int' if <sys/tyes.h> does not define. */
-#cmakedefine EVENT__pid_t @EVENT__pid_t@
+#define EVENT__pid_t @EVENT__pid_t@
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
-#cmakedefine EVENT__size_t @EVENT__size_t@
+#define EVENT__size_t @EVENT__size_t@
 
 /* Define to unsigned int if you dont have it */
-#cmakedefine EVENT__socklen_t @EVENT__socklen_t@
+#define EVENT__socklen_t @EVENT__socklen_t@
 
 /* Define to `int' if <sys/types.h> does not define. */
-#cmakedefine EVENT__ssize_t @EVENT__ssize_t@
+#define EVENT__ssize_t @EVENT__ssize_t@
 
-#cmakedefine EVENT__NEED_DLLIMPORT @EVENT__NEED_DLLIMPORT@
+#define EVENT__NEED_DLLIMPORT @EVENT__NEED_DLLIMPORT@
 
 /* Define to 1 if you have ERR_remove_thread_stat(). */
 #cmakedefine EVENT__HAVE_ERR_REMOVE_THREAD_STATE
