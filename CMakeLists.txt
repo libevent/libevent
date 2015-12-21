@@ -20,38 +20,117 @@
 #
 cmake_minimum_required(VERSION 2.8.0 FATAL_ERROR)
 
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release
+        CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)
+endif()
+
 # get rid of the extra default configurations
+# what? why would you get id of other useful build types? - Ellzey
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
 
 project(libevent C)
 
-set(EVENT_VERSION_MAJOR 2)
-set(EVENT_VERSION_MINOR 1)
-set(EVENT_VERSION_PATCH 5)
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
+
+
+include(CheckTypeSize)
+include(CheckFunctionExistsEx)
+include(CheckFileOffsetBits)
+include(CheckFunctionExists)
+include(CheckIncludeFile)
+include(CheckIncludeFiles)
+include(CheckVariableExists)
+include(CheckSymbolExists)
+include(CheckStructHasMember)
+include(CheckCSourceCompiles)
+include(CheckPrototypeDefinition)
+include(CheckFunctionKeywords)
+include(AddCompilerFlags)
+include(VersionViaGit)
+
+event_fuzzy_version_from_git()
+
+set(EVENT_VERSION_MAJOR ${EVENT_GIT___VERSION_MAJOR})
+set(EVENT_VERSION_MINOR ${EVENT_GIT___VERSION_MINOR})
+set(EVENT_VERSION_PATCH ${EVENT_GIT___VERSION_PATCH})
+set(EVENT_VERSION_STAGE ${EVENT_GIT___VERSION_STAGE})
+
+
+set(EVENT_ABI_MAJOR ${EVENT_VERSION_MAJOR})
+set(EVENT_ABI_MINOR ${EVENT_VERSION_MINOR})
+set(EVENT_ABI_PATCH ${EVENT_VERSION_PATCH})
+
+set(EVENT_ABI_LIBVERSION
+    "${EVENT_ABI_MAJOR}.${EVENT_ABI_MINOR}.${EVENT_ABI_PATCH}")
+
+set(EVENT_PACKAGE_VERSION
+    "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}")
+
 set(EVENT_NUMERIC_VERSION 0x02010500)
-set(EVENT_VERSION_DEVTAG "-beta")
 
-set(EVENT_ABI_MAJOR 2)
-set(EVENT_ABI_MINOR 1)
-set(EVENT_ABI_PATCH 5)
-set(EVENT_ABI_LIBVERSION "${EVENT_ABI_MAJOR}.${EVENT_ABI_MINOR}.${EVENT_ABI_PATCH}")
+# only a subset of names can be used, defaults to "beta"
+set(EVENT_STAGE_NAME ${EVENT_VERSION_STAGE}
+	CACHE STRING "set EVENT_STAGE_NAME")
 
-set(EVENT_VERSION "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}-alpha${EVENT_VERSION_DEVTAG}")
-set(EVENT_PACKAGE_VERSION "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}")
+# a list that defines what can set for EVENT_STAGE_VERSION
+set(EVENT__ALLOWED_STAGE_NAMES
+    rc
+    beta
+    alpha
+    release)
 
-option(EVENT__BUILD_SHARED_LIBRARIES "Define if libevent should be built with shared libraries instead of archives" OFF)
-option(EVENT__DISABLE_DEBUG_MODE "Define if libevent should build without support for a debug mode" OFF)
-option(EVENT__ENABLE_VERBOSE_DEBUG "Enables verbose debugging" OFF)
-option(EVENT__DISABLE_MM_REPLACEMENT "Define if libevent should not allow replacing the mm functions" OFF)
-option(EVENT__DISABLE_THREAD_SUPPORT "Define if libevent should not be compiled with thread support" OFF)
-option(EVENT__DISABLE_OPENSSL "Define if libevent should build without support for OpenSSL encrpytion" OFF)
-option(EVENT__DISABLE_BENCHMARK "Defines if libevent should build without the benchmark exectuables" OFF)
-option(EVENT__DISABLE_TESTS "If tests should be compiled or not" OFF)
-option(EVENT__DISABLE_REGRESS "Disable the regress tests" OFF)
-option(EVENT__DISABLE_SAMPLES "Disable sample files" OFF)
-option(EVENT__FORCE_KQUEUE_CHECK "When crosscompiling forces running a test program that verifies that Kqueue works with pipes. Note that this requires you to manually run the test program on the the cross compilation target to verify that it works. See cmake documentation for try_run for more details" OFF)
-option(EVENT__COVERAGE "Enable running gcov to get a test coverage report (only works with GCC/CLang). Make sure to enable -DCMAKE_BUILD_TYPE=Debug as well." OFF)
+# attempt to find the EVENT__STAGE_VERSION in the allowed list
+# of accepted stage names, the return value is stord in
+# EVENT__STAGE_RET
+
+list(FIND EVENT__ALLOWED_STAGE_NAMES
+	${EVENT_STAGE_NAME}
+    EVENT__STAGE_RET)
+
+if (EVENT_STAGE_RET EQUAL "-1")
+	set(EVENT_STAGE_NAME "beta")
+endif()
+
+set(EVENT_VERSION
+	"${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}-${EVENT_STAGE_NAME}")
+
+option(EVENT__BUILD_SHARED_LIBRARIES
+    "Define if libevent should be built with shared libraries instead of archives" OFF)
+
+option(EVENT__DISABLE_DEBUG_MODE
+    "Define if libevent should build without support for a debug mode" OFF)
+
+option(EVENT__ENABLE_VERBOSE_DEBUG
+    "Enables verbose debugging" OFF)
+
+option(EVENT__DISABLE_MM_REPLACEMENT
+    "Define if libevent should not allow replacing the mm functions" OFF)
+
+option(EVENT__DISABLE_THREAD_SUPPORT
+    "Define if libevent should not be compiled with thread support" OFF)
+
+option(EVENT__DISABLE_OPENSSL
+    "Define if libevent should build without support for OpenSSL encrpytion" OFF)
+
+option(EVENT__DISABLE_BENCHMARK
+    "Defines if libevent should build without the benchmark exectuables" OFF)
+
+option(EVENT__DISABLE_TESTS
+    "If tests should be compiled or not" OFF)
+
+option(EVENT__DISABLE_REGRESS
+    "Disable the regress tests" OFF)
+
+option(EVENT__DISABLE_SAMPLES
+    "Disable sample files" OFF)
+
+option(EVENT__FORCE_KQUEUE_CHECK
+    "When crosscompiling forces running a test program that verifies that Kqueue works with pipes. Note that this requires you to manually run the test program on the the cross compilation target to verify that it works. See cmake documentation for try_run for more details" OFF)
+
 # TODO: Add --disable-largefile     omit support for large files
+option(EVENT__COVERAGE
+"Enable running gcov to get a test coverage report (only works with GCC/CLang). Make sure to enable -DCMAKE_BUILD_TYPE=Debug as well." OFF)
 
 # Put the libaries and binaries that get built into directories at the
 # top of the build tree rather than in hard-to-find leaf directories.
@@ -59,81 +138,69 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
-include(CheckFunctionExistsEx)
-include(CheckFileOffsetBits)
-include(CheckFunctionExists)
-include(CheckIncludeFile)
-include(CheckIncludeFiles)
-include(CheckTypeSize)
-include(CheckVariableExists)
-include(CheckSymbolExists)
-include(CheckStructHasMember)
-include(CheckCSourceCompiles)
-include(CheckPrototypeDefinition)
-
 if (EVENT__ENABLE_VERBOSE_DEBUG)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_DEBUG=1")
+    add_definitions(-DUSE_DBUG=1)
 endif()
 
 # Setup compiler flags for coverage.
 if (EVENT__COVERAGE)
-    if(NOT CMAKE_COMPILER_IS_GNUCC)
-        if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-            message(FATAL_ERROR "Trying to compile coverage support (--DEVENT__COVERAGE) but compiler is not GNU gcc! Aborting... You can set this on the command line using CC=/usr/bin/gcc CXX=/usr/bin/g++ cmake <options> ..")
-        endif()
+    if ((NOT CMAKE_COMPILER_IS_GNUCC) AND (NOT ${CMAKE_CXX_COMPILER_ID} STREQAL "Clang"))
+            message(FATAL_ERROR"Trying to compile coverage support,  but compiler is not GNU gcc! Try CC=/usr/bin/gcc CXX=/usr/bin/g++ cmake <options> ..")
     endif()
 
     if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-        message(FATAL_ERROR "Code coverage results with an optimised (non-Debug) build may be misleading! Add -DCMAKE_BUILD_TYPE=Debug")
+        message(FATAL_ERROR "Coverage requires -DCMAKE_BUILD_TYPE=Debug")
     endif()
 
-    message("Setting coverage compiler flags")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -fprofile-arcs -ftest-coverage")
+    message(STATUS "Setting coverage compiler flags")
+        add_compiler_flags(-g -O0 -fprofile-arcs -ftest-coverage)
 endif()
 
 # GCC specific options.
 if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-
     option(EVENT__DISABLE_GCC_WARNINGS "Disable verbose warnings with GCC" OFF)
-    if (EVENT__DISABLE_GCC_WARNINGS)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -w")
-    endif()
-
     option(EVENT__ENABLE_GCC_HARDENING "Enable compiler security checks" OFF)
-    if (EVENT__ENABLE_GCC_HARDENING)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_FORTIFY_SOURCE=2 -fstack-protector-all -fwrapv -fPIE -Wstack-protector --param ssp-buffer-size=1")
+    option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
+    option(EVENT__ENABLE_GCC_WARNINGS "Make all GCC warnings into errors" OFF)
+
+        list(APPEND __FLAGS -Wall)
+
+    if (EVENT__DISABLE_GCC_WARNINGS)
+            list(APPEND __FLAGS -w)
     endif()
 
-    option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
+    if (EVENT__ENABLE_GCC_HARDENING)
+            list(APPEND __FLAGS
+                -fstack-protector-all
+                -fwrapv
+                -fPIE
+                -Wstack-protector
+                "--param ssp-buffer-size=1")
+
+                add_definitions(-D_FORTIFY_SOURCE=2)
+    endif()
+
     if (EVENT__ENABLE_GCC_FUNCTION_SECTIONS)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -ffunction-sections")
+            list(APPEND __FLAGS -ffunction-sections)
         # TODO: Add --gc-sections support. We need some checks for NetBSD to ensure this works.
     endif()
 
-    option(EVENT__ENABLE_GCC_WARNINGS "Make all GCC warnings into errors" OFF)
     if (EVENT__ENABLE_GCC_WARNINGS)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+            list(APPEND __FLAGS -Werror)
     endif()
 
     # We need to test for at least gcc 2.95 here, because older versions don't
     # have -fno-strict-aliasing
-    execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion
-                    OUTPUT_VARIABLE GCC_VERSION)
-    if (GCC_VERSION VERSION_GREATER 2.95)
-        message(STATUS "GCC Version >= 2.95 enabling no-strict-aliasing")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-strict-aliasing")
-    endif()
+        list(APPEND __FLAGS -fno-strict-aliasing)
+
+        add_compiler_flags(__FLAGS)
 endif()
 
 if (APPLE)
     # Get rid of deprecated warnings for OpenSSL on OSX 10.7 and greater.
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error=deprecated-declarations")
-    # Get rid of "clang: warning: argument unused during compilation: -I etc
-    if ("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Qunused-arguments")
-    endif()
+        add_compiler_flags(
+            -Wno-error=deprecated-declarations
+            -Qunused-arguments)
 endif()
 
 # Winsock.
@@ -318,43 +385,16 @@ if(WIN32)
 endif()
 
 # Check for different inline keyword versions.
-foreach(KEYWORD "inline" "__inline__" "__inline")
-    set(CMAKE_REQUIRED_DEFINITIONS "-DKEYWORD=${KEYWORD}")
-    CHECK_C_SOURCE_COMPILES(
-        "
-        #include <stdio.h>
-        KEYWORD void a() {}
-        int main(int argc, char **argv) { a(); return 0; }
-        " HAVE_${KEYWORD})
-endforeach()
+check_function_keywords("inline" "__inline" "__inline__")
 
-if (NOT HAVE_inline)
-    if (HAVE___inline__)
-        set(EVENT__inline __inline__)
-    elseif(HAVE___inline)
-        set(EVENT__inline __inline)
-    endif()
-endif()
-set(CMAKE_REQUIRED_DEFINITIONS "")
-
-# Check for different function name macros.
-foreach(KEYWORD "__func__" "__FUNCTION__")
-    set(CMAKE_REQUIRED_DEFINITIONS "-DKEYWORD=${KEYWORD}")
-    CHECK_C_SOURCE_COMPILES(
-        "
-        #include <stdio.h>
-        int main(int argc, char **argv) { const char *cp = KEYWORD; return 0; }
-        " HAVE_${KEYWORD})
-endforeach()
-set(CMAKE_REQUIRED_DEFINITIONS "")
-
-if (NOT HAVE___func__)
-    if (HAVE___FUNCTION__)
-        set(EVENT____func__ __FUNCTION__)
-    else()
-        # Substitute for __func__
-        set(EVENT____func__ __FILE__)
-    endif()
+if (HAVE_INLINE)
+    set (EVENT__inline inline)
+elseif (HAVE___INLINE)
+    set(EVENT__inline __inline)
+elseif(HAVE___INLINE__)
+    set(EVENT__inline __inline__)
+else()
+    set(EVENT__inline)
 endif()
 
 CHECK_SYMBOL_EXISTS(TAILQ_FOREACH sys/queue.h EVENT__HAVE_TAILQFOREACH)
@@ -366,51 +406,77 @@ CHECK_SYMBOL_EXISTS(F_SETFD fcntl.h EVENT__HAVE_SETFD)
 
 CHECK_TYPE_SIZE(fd_mask EVENT__HAVE_FD_MASK)
 
-CHECK_TYPE_SIZE(size_t EVENT__SIZEOF_SIZE_T)
+CHECK_TYPE_SIZE(size_t EVENT__SIZEOF_SIZEE_T)
 if(NOT EVENT__SIZEOF_SIZE_T)
-  set(EVENT__size_t unsigned)
+  set(EVENT__size_t "unsigned")
   set(EVENT__SIZEOF_SIZE_T ${EVENT__SIZEOF_UNSIGNED})
+else()
+    set(EVENT__size_t size_t)
 endif()
 
-CHECK_TYPE_SIZE("off_t" EVENT__SIZEOF_OFF_T)
+CHECK_TYPE_SIZE("off_t" EVENT__SIZEOF_OFF_T LANGUAGE C)
 
-CHECK_TYPE_SIZE(ssize_t EVENT__SIZEOF_SSIZE_T)
-CHECK_TYPE_SIZE(SSIZE_T EVENT__SIZEOF_UPPERCASE_SSIZE_T)
-if(NOT EVENT__SIZEOF_SSIZE_T)
-    if(EVENT__SIZEOF_UPPERCASE_SSIZE_T)
-        set(EVENT__ssize_t SSIZE_T)
-        set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_UPPERCASE_SSIZE_T})
-    else()
-        set(EVENT__ssize_t int)
-        set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
-    endif()
+
+# XXX we should functionalize these size and type sets. --elley
+
+# Winssck.
+set(SSIZE_TMAP_ssize_t "ssize_t")
+set(SSIZE_TMAP_SSIZE_T "SSIZE_T")
+
+CHECK_TYPE_SIZE("ssize_t" EVENT__SIZEOF_SSIZE_T LANGUAGE C)
+CHECK_TYPE_SIZE("SSIZE_T" EVENT__SIZEOF_SSIZE_T LANGUAGE C)
+
+if (DEFINED EVENT__SIZEOF_SSIZE_T)
+	if (DEFINED SSIZE_TMAP_ssize_t)
+		set(EVENT__ssize_t "ssize_t")
+	elseif (DEFINED SSIZE_TMAP_SSIZE_T)
+		set(EVENT__ssize_t "SSIZE_T")
+	else()
+		set(EVENT__ssize_t "int")
+		set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
+	endif()
 endif()
+
 
 CHECK_TYPE_SIZE(socklen_t EVENT__SIZEOF_SOCKLEN_T)
 if(NOT EVENT__SIZEOF_SOCKLEN_T)
   set(EVENT__socklen_t "unsigned int")
   set(EVENT__SIZEOF_SOCKLEN_T ${EVENT__SIZEOF_UNSIGNED_INT})
+else()
+    set(EVENT__socklen_t "socklen_t")
 endif()
 
 CHECK_TYPE_SIZE(pid_t EVENT__SIZEOF_PID_T)
 if(NOT EVENT__SIZEOF_PID_T)
-  set(EVENT__pid_t int)
+  set(EVENT__pid_t "int")
   set(EVENT__SIZEOF_PID_T ${EVENT__SIZEOF_INT})
+else()
+	set(EVENT__pid_t "pid_t")
+	set(EVENT__SIZEOF_PID_T EVENT__SIZEOF_PID_T)
 endif()
 
-CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
+if (NOT EVENT__DISABLE_THREAD_SUPPORT)
+    CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
+endif()
 
 if(EVENT__HAVE_CLOCK_GETTIME)
   set(EVENT__DNS_USE_CPU_CLOCK_FOR_ID 1)
 endif()
 
+# we're just getting lazy now.
 CHECK_TYPE_SIZE("uintptr_t" EVENT__HAVE_UINTPTR_T)
 CHECK_TYPE_SIZE("void *" EVENT__SIZEOF_VOID_P)
 
 # Tests file offset bits.
 # TODO: Add AIX test for if -D_LARGE_FILES is needed.
-CHECK_FILE_OFFSET_BITS()
-set(EVENT___FILE_OFFSET_BITS _FILE_OFFSET_BITS)
+
+# XXX: Why is this here? we don't even use it. Well, we don't even use it
+#      on top of that, why is it set in the config.h?! IT_MAKES_NO_SENSE
+#      I'm commenting it out for now.
+#      - ellzey
+
+#CHECK_FILE_OFFSET_BITS()
+#set(EVENT___FILE_OFFSET_BITS _FILE_OFFSET_BITS)
 
 # Verify kqueue works with pipes.
 if (EVENT__HAVE_KQUEUE)
@@ -418,7 +484,7 @@ if (EVENT__HAVE_KQUEUE)
         message(WARNING "Cannot check if kqueue works with pipes when crosscompiling, use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires manually running a test program on the cross compilation target)")
         set(EVENT__HAVE_WORKING_KQUEUE 1)
     else()
-        message("Checking if kqueue works with pipes...")
+        message(STATUS "Checking if kqueue works with pipes...")
         include(CheckWorkingKqueue)
     endif()
 endif()
@@ -437,7 +503,6 @@ endif()
 
 # Check for sockaddr structure sizes.
 set(SOCKADDR_HEADERS)
-
 if (WIN32)
     set(CMAKE_REQUIRED_DEFINITIONS "-DWIN32_LEAN_AND_MEAN")
     if (_MSC_VER LESS 1300)
@@ -465,21 +530,36 @@ endif()
 
 CHECK_TYPE_SIZE("struct in6_addr" EVENT__HAVE_STRUCT_IN6_ADDR)
 if(EVENT__HAVE_STRUCT_IN6_ADDR)
-    CHECK_STRUCT_HAS_MEMBER("struct in6_addr" s6_addr16 "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR16)
-    CHECK_STRUCT_HAS_MEMBER("struct in6_addr" s6_addr32 "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR32)
+    CHECK_STRUCT_HAS_MEMBER("struct in6_addr"
+            s6_addr16 "${SOCKADDR_HEADERS}"
+            EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR16)
+
+    CHECK_STRUCT_HAS_MEMBER("struct in6_addr"
+            s6_addr32 "${SOCKADDR_HEADERS}"
+            EVENT__HAVE_STRUCT_IN6_ADDR_S6_ADDR32)
 endif()
 
 CHECK_TYPE_SIZE("sa_family_t" EVENT__HAVE_SA_FAMILY_T)
 CHECK_TYPE_SIZE("struct sockaddr_in6" EVENT__HAVE_STRUCT_SOCKADDR_IN6)
+
 if(EVENT__HAVE_STRUCT_SOCKADDR_IN6)
-    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN)
-    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin_len "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_IN_SIN_LEN)
+    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6"
+            sin6_len "${SOCKADDR_HEADERS}"
+            EVENT__HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN)
+
+    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6"
+            sin_len "${SOCKADDR_HEADERS}"
+            EVENT__HAVE_STRUCT_SOCKADDR_IN_SIN_LEN)
 endif()
 
 CHECK_TYPE_SIZE("struct sockaddr_storage" EVENT__HAVE_STRUCT_SOCKADDR_STORAGE)
 if(EVENT__HAVE_STRUCT_SOCKADDR_STORAGE)
-    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage" ss_family "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY)
-    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage" __ss_family "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_STORAGE___SS_FAMILY)
+    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage"
+            ss_family "${SOCKADDR_HEADERS}"
+            EVENT__HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY)
+
+    CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage"
+            __ss_family "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_STORAGE___SS_FAMILY)
 endif()
 
 # Group the source files.
@@ -505,16 +585,14 @@ set(HDR_PRIVATE
     strlcpy-internal.h
     util-internal.h
     evconfig-private.h
-    compat/sys/queue.h
-    )
+    compat/sys/queue.h)
 
 set(HDR_COMPAT
     include/evdns.h
     include/evrpc.h
     include/event.h
     include/evhttp.h
-    include/evutil.h
-    )
+    include/evutil.h)
 
 set(HDR_PUBLIC
     include/event2/buffer.h
@@ -541,8 +619,7 @@ set(HDR_PUBLIC
     include/event2/thread.h
     include/event2/util.h
     include/event2/visibility.h
-    ${PROJECT_BINARY_DIR}/include/event2/event-config.h
-    )
+    ${PROJECT_BINARY_DIR}/include/event2/event-config.h)
 
 set(SRC_CORE
     buffer.c
@@ -560,8 +637,7 @@ set(SRC_CORE
     listener.c
     log.c
     signal.c
-    strlcpy.c
-    )
+    strlcpy.c)
 
 if(EVENT__HAVE_SELECT)
     list(APPEND SRC_CORE select.c)
@@ -589,10 +665,14 @@ endif()
 
 if (NOT EVENT__DISABLE_OPENSSL)
     find_package(OpenSSL REQUIRED)
+
     set(EVENT__HAVE_OPENSSL 1)
-    message("OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-    message("OpenSSL lib: ${OPENSSL_LIBRARIES}")
+
+    message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
+    message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
+
     include_directories(${OPENSSL_INCLUDE_DIR})
+
     list(APPEND SRC_CORE bufferevent_openssl.c)
     list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
     list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
@@ -604,8 +684,10 @@ if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     else()
         find_package(Threads REQUIRED)
         if (NOT CMAKE_USE_PTHREADS_INIT)
-            message(FATAL_ERROR "Failed to find Pthreads, set EVENT__DISABLE_THREAD_SUPPORT to turn off thread support")
+            message(FATAL_ERROR
+                            "Failed to find Pthreads, set EVENT__DISABLE_THREAD_SUPPORT to disable")
         endif()
+
         set(EVENT__HAVE_PTHREADS 1)
         list(APPEND SRC_CORE evthread_pthread.c)
         list(APPEND LIB_APPS ${CMAKE_THREAD_LIBS_INIT})
@@ -617,9 +699,10 @@ if (NOT EVENT__DISABLE_TESTS)
     find_package(ZLIB)
 
     if (ZLIB_LIBRARY)
+        include_directories(${ZLIB_INCLUDE_DIRS})
+
         set(EVENT__HAVE_ZLIB 1)
         set(EVENT__HAVE_ZLIB_H)
-        include_directories(${ZLIB_INCLUDE_DIRS})
         list(APPEND LIB_APPS ${ZLIB_LIBRARIES})
     endif()
 endif()
@@ -628,8 +711,7 @@ set(SRC_EXTRA
     event_tagging.c
     http.c
     evdns.c
-    evrpc.c
-    )
+    evrpc.c)
 
 add_definitions(-DHAVE_CONFIG_H)
 
@@ -645,14 +727,16 @@ if(WIN32)
         bufferevent_async.c
         event_iocp.c
         evthread_win32.c
-        win32select.c
-        )
+        win32select.c)
 
     list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
 
     set(EVENT__DNS_USE_FTIME_FOR_ID 1)
-    add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE)
     set(LIB_PLATFORM ws2_32)
+    add_definitions(
+            -D_CRT_SECURE_NO_WARNINGS
+            -D_CRT_NONSTDC_NO_DEPRECATE)
+
     include_directories(./WIN32-Code)
 endif()
 
@@ -673,22 +757,21 @@ include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 if (EVENT__BUILD_SHARED_LIBRARIES)
   set(EVENT__LIBRARY_TYPE SHARED)
 
-  if (CMAKE_COMPILER_IS_GNUCC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
-  elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
+  if ((CMAKE_COMPILER_IS_GNUCC) OR (${CMAKE_C_COMPILER_ID} STREQUAL "Clang"))
+        add_compiler_flags(-fvisibility=hidden)
   elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -xldscope=hidden")
-  endif ()
-  set(EVENT__NEED_DLLIMPORT 1)
+    add_compiler_flags(-xldscope=hidden)
+  endif()
 
+  set(EVENT__NEED_DLLIMPORT 1)
 else (EVENT__BUILD_SHARED_LIBRARIES)
   set(EVENT__LIBRARY_TYPE STATIC)
 endif (EVENT__BUILD_SHARED_LIBRARIES)
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/event-config.h.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/include/event2/event-config.h)
+    ${CMAKE_CURRENT_BINARY_DIR}/include/event2/event-config.h
+        NEWLINE_STYLE UNIX)
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/evconfig-private.h.cmake
@@ -703,16 +786,14 @@ add_library(event_core ${EVENT__LIBRARY_TYPE}
     ${HDR_PRIVATE}
     ${HDR_COMPAT}
     ${HDR_PUBLIC}
-    ${SRC_CORE}
-    )
+    ${SRC_CORE})
 
 add_library(event_extra ${EVENT__LIBRARY_TYPE}
     ${HDR_PRIVATE}
     ${HDR_COMPAT}
     ${HDR_PUBLIC}
     ${SRC_CORE}
-    ${SRC_EXTRA}
-    )
+    ${SRC_EXTRA})
 
 # library exists for historical reasons; it contains the contents of
 # both libevent_core and libevent_extra. You shouldn’t use it; it may
@@ -722,11 +803,7 @@ add_library(event ${EVENT__LIBRARY_TYPE}
     ${HDR_COMPAT}
     ${HDR_PUBLIC}
     ${SRC_CORE}
-    ${SRC_EXTRA}
-    )
-
-if (EVENT__BUILD_SHARED_LIBRARIES)
-endif (EVENT__BUILD_SHARED_LIBRARIES)
+    ${SRC_EXTRA})
 
 if (EVENT__BUILD_SHARED_LIBRARIES)
     # Prepare static library to be linked to tests that need hidden symbols
@@ -735,8 +812,8 @@ if (EVENT__BUILD_SHARED_LIBRARIES)
         ${HDR_COMPAT}
         ${HDR_PUBLIC}
         ${SRC_CORE}
-        ${SRC_EXTRA}
-        )
+        ${SRC_EXTRA})
+
     set(EVENT_EXTRA_FOR_TEST event_extra_static)
 
    target_link_libraries(event_core ${OPENSSL_LIBRARIES}
@@ -751,9 +828,17 @@ if (EVENT__BUILD_SHARED_LIBRARIES)
                                       ${CMAKE_THREAD_LIBS_INIT}
                                       ${LIB_PLATFORM})
 
-  set_target_properties(event PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
-  set_target_properties(event_core PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
-  set_target_properties(event_extra PROPERTIES SOVERSION ${EVENT_ABI_LIBVERSION})
+  set_target_properties(event
+        PROPERTIES SOVERSION
+            ${EVENT_ABI_LIBVERSION})
+
+  set_target_properties(event_core
+        PROPERTIES SOVERSION
+            ${EVENT_ABI_LIBVERSION})
+
+  set_target_properties(event_extra
+        PROPERTIES SOVERSION
+            ${EVENT_ABI_LIBVERSION})
 
 else (EVENT__BUILD_SHARED_LIBRARIES)
     set(EVENT_EXTRA_FOR_TEST event_extra)
@@ -770,15 +855,25 @@ if (NOT EVENT__DISABLE_SAMPLES)
         hello-world
         signal-test
         http-server
+        http-connect
         time-test)
 
     if (NOT EVENT__DISABLE_OPENSSL AND OPENSSL_LIBRARIES)
-         # Special sample with more than one file.
+        set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES})
+        CHECK_FUNCTION_EXISTS_EX(ERR_remove_thread_state EVENT__HAVE_ERR_REMOVE_THREAD_STATE)
+        set(CMAKE_REQUIRED_LIBRARIES "")
+
+        # Special sample with more than one file.
         add_executable(https-client
             sample/https-client.c
             sample/openssl_hostname_validation.c
             sample/hostcheck.c)
-        target_link_libraries(https-client event_extra ${LIB_APPS} ${LIB_PLATFORM})
+
+        target_link_libraries(https-client
+                    event_extra
+                    ${LIB_APPS}
+                    ${LIB_PLATFORM})
+
         add_dependencies(https-client event_extra)
 
         # Requires OpenSSL.
@@ -786,8 +881,14 @@ if (NOT EVENT__DISABLE_SAMPLES)
     endif()
 
     foreach(SAMPLE ${SAMPLES})
-        add_executable(${SAMPLE} sample/${SAMPLE}.c)
-        target_link_libraries(${SAMPLE} event_extra ${LIB_APPS} ${LIB_PLATFORM})
+        add_executable(${SAMPLE}
+                    sample/${SAMPLE}.c)
+
+        target_link_libraries(${SAMPLE}
+                    event_extra
+                    ${LIB_APPS}
+                    ${LIB_PLATFORM})
+
         add_dependencies(${SAMPLE} event_extra)
     endforeach()
 endif()
@@ -797,17 +898,22 @@ if (NOT EVENT__DISABLE_BENCHMARK)
         set(BENCH_SRC test/${BENCHMARK}.c)
 
         if (WIN32)
-            list(APPEND BENCH_SRC WIN32-Code/getopt.c WIN32-Code/getopt_long.c)
+            list(APPEND BENCH_SRC
+                            WIN32-Code/getopt.c
+                            WIN32-Code/getopt_long.c)
         endif()
 
         add_executable(${BENCHMARK} ${BENCH_SRC})
-        target_link_libraries(${BENCHMARK} event_extra ${LIB_PLATFORM})
+
+        target_link_libraries(${BENCHMARK}
+                    event_extra
+                    ${LIB_PLATFORM})
+
         add_dependencies(${BENCHMARK} event_extra)
     endforeach()
 endif()
 
 if (NOT EVENT__DISABLE_TESTS)
-
     #
     # Generate Regress tests.
     #
@@ -815,13 +921,16 @@ if (NOT EVENT__DISABLE_TESTS)
 
         # (We require python to generate the regress tests)
         find_package(PythonInterp)
+
         if (PYTHONINTERP_FOUND AND PYTHON_VERSION_STRING VERSION_LESS "3.0.0")
             set(__FOUND_USABLE_PYTHON 1)
         endif()
 
         if (__FOUND_USABLE_PYTHON)
-            message("Generating regress tests...")
+            message(STATUS "Generating regress tests...")
+
             add_definitions(-DTINYTEST_LOCAL)
+
             add_custom_command(
                 OUTPUT
                     ${CMAKE_CURRENT_SOURCE_DIR}/test/regress.gen.c
@@ -830,8 +939,7 @@ if (NOT EVENT__DISABLE_TESTS)
                     event_rpcgen.py
                     test/regress.rpc
                 COMMAND ${PYTHON_EXECUTABLE} ../event_rpcgen.py regress.rpc
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test
-                )
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test)
 
             list(APPEND SRC_REGRESS
                 test/regress.c
@@ -852,8 +960,7 @@ if (NOT EVENT__DISABLE_TESTS)
                 test/regress_util.c
                 test/tinytest.c
                 ${SRC_CORE}
-                ${SRC_EXTRA}
-                )
+                ${SRC_EXTRA})
 
             if (WIN32)
                 list(APPEND SRC_REGRESS test/regress_iocp.c)
@@ -873,14 +980,18 @@ if (NOT EVENT__DISABLE_TESTS)
             endif()
 
             add_executable(regress ${SRC_REGRESS})
+
             # While building the test suite we don't want the visibility
             # header trying to "dllimport" the symbols on windows (it
             # generates a ton of warnings due to different link
             # attributes for all of the symbols)
-            SET_TARGET_PROPERTIES(regress PROPERTIES COMPILE_DEFINITIONS
-                                  "EVENT_BUILDING_REGRESS_TEST=1")
+            SET_TARGET_PROPERTIES(regress
+                            PROPERTIES COMPILE_DEFINITIONS
+              "EVENT_BUILDING_REGRESS_TEST=1")
 
-            target_link_libraries(regress ${LIB_APPS} ${LIB_PLATFORM})
+            target_link_libraries(regress
+                            ${LIB_APPS}
+                            ${LIB_PLATFORM})
         else()
             message(WARNING "No suitable Python interpreter found, cannot generate regress tests!")
         endif()
@@ -889,6 +1000,20 @@ if (NOT EVENT__DISABLE_TESTS)
     #
     # Test programs.
     #
+        # all of these, including the cmakelists.txt should be moved
+        # into the dirctory 'tests' first.
+        #
+        # doing this, we can remove all the DISABLE_TESTS stuff, and simply
+        # do something like:
+        #
+        # add_custom_targets(tests)
+        # add_executable(... EXCLUDE_FROM_ALL ...c)
+        # add_dependencis(tests testa testb testc)
+        # add_test(....)
+        #
+        # then you can just run 'make tests' instead of them all
+        # auto-compile|running
+        # - ellzey
     set(TESTPROGS   test-changelist
                     test-eof
                     test-fdleak
@@ -896,13 +1021,22 @@ if (NOT EVENT__DISABLE_TESTS)
                     test-time
                     test-weof)
 
-    set(ALL_TESTPROGS ${TESTPROGS} test-dumpevents test-ratelim)
+    set(ALL_TESTPROGS
+            ${TESTPROGS}
+            test-dumpevents
+            test-ratelim)
 
     # Create test program executables.
     foreach (TESTPROG ${ALL_TESTPROGS})
-        add_executable(${TESTPROG} test/${TESTPROG}.c)
-        target_link_libraries(${TESTPROG} ${EVENT_EXTRA_FOR_TEST} ${LIB_PLATFORM})
-        add_dependencies(${TESTPROG} ${EVENT_EXTRA_FOR_TEST})
+        add_executable(${TESTPROG}
+                    test/${TESTPROG}.c)
+
+        target_link_libraries(${TESTPROG}
+                    ${EVENT_EXTRA_FOR_TEST}
+                    ${LIB_PLATFORM})
+
+        add_dependencies(${TESTPROG}
+                    ${EVENT_EXTRA_FOR_TEST})
     endforeach()
 
     #
@@ -940,7 +1074,6 @@ if (NOT EVENT__DISABLE_TESTS)
         list(APPEND BACKENDS WIN32)
     endif()
 
-    message("Available event backends: ${BACKENDS}")
 
     # Default environment variables turns off all event systems,
     # then we enable each one, one at a time when creating the tests.
@@ -956,28 +1089,53 @@ if (NOT EVENT__DISABLE_TESTS)
 
         foreach (TESTPROG ${TESTPROGS})
             set(TEST_NAME ${TESTPROG}__${BACKEND_TEST_NAME})
-            add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
+
+            add_test(${TEST_NAME}
+                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TESTPROG})
+
             list(APPEND TEST_NAMES ${TEST_NAME})
-            set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
+
+            set_tests_properties(${TEST_NAME}
+                            PROPERTIES ENVIRONMENT "${ENV_VARS}")
         endforeach()
 
         # Dump events test.
         if (__FOUND_USABLE_PYTHON)
             set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME})
-            add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents | ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/check-dumpevents.py)
-            set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
+
+            add_test(${TEST_NAME}
+                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents |
+                            ${PYTHON_EXECUTABLE}
+                            ${CMAKE_CURRENT_SOURCE_DIR}/test/check-dumpevents.py)
+
+            set_tests_properties(${TEST_NAME}
+                            PROPERTIES ENVIRONMENT "${ENV_VARS}")
         else()
             message(WARNING "test-dumpevents will be run without output check since python was not found!")
             set(TEST_NAME test-dumpevents__${BACKEND_TEST_NAME}_no_check)
-            add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents)
-            set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
+
+            add_test(${TEST_NAME}
+                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-dumpevents)
+
+            set_tests_properties(${TEST_NAME}
+                            PROPERTIES ENVIRONMENT "${ENV_VARS}")
         endif()
 
         # Regress tests.
         if (NOT EVENT__DISABLE_REGRESS AND __FOUND_USABLE_PYTHON)
             set(TEST_NAME regress__${BACKEND_TEST_NAME})
-            add_test(${TEST_NAME} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
-            set_tests_properties(${TEST_NAME} PROPERTIES ENVIRONMENT "${ENV_VARS}")
+
+            add_test(${TEST_NAME}
+                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
+
+            set_tests_properties(${TEST_NAME}
+                            PROPERTIES ENVIRONMENT "${ENV_VARS}")
+
+            add_test(${TEST_NAME}_debug
+                            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
+
+            set_tests_properties(${TEST_NAME}_debug
+                            PROPERTIES ENVIRONMENT "${ENV_VARS};EVENT_DEBUG_MODE=1")
         endif()
     endmacro()
 
@@ -989,9 +1147,14 @@ if (NOT EVENT__DISABLE_TESTS)
 
         # Epoll has some extra settings.
         if (${BACKEND} STREQUAL "EPOLL")
-            add_backend_test(timerfd_${BACKEND} "${BACKEND_ENV_VARS};EVENT_PRECISE_TIMER=1")
-            add_backend_test(changelist_${BACKEND} "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes")
-            add_backend_test(timerfd_changelist_${BACKEND} "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes;EVENT_PRECISE_TIMER=1")
+            add_backend_test(timerfd_${BACKEND}
+                            "${BACKEND_ENV_VARS};EVENT_PRECISE_TIMER=1")
+
+            add_backend_test(changelist_${BACKEND}
+                            "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes")
+
+            add_backend_test(timerfd_changelist_${BACKEND}
+                            "${BACKEND_ENV_VARS};EVENT_EPOLL_USE_CHANGELIST=yes;EVENT_PRECISE_TIMER=1")
         else()
             add_backend_test(${BACKEND} "${BACKEND_ENV_VARS}")
         endif()
@@ -1002,16 +1165,47 @@ if (NOT EVENT__DISABLE_TESTS)
     #
 
     # Group limits, no connection limit.
-    add_test(test-ratelim__group_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -g 30000 -n 30 -t 100 --check-grouplimit 1000 --check-stddev 100)
+        set(RL_BIN  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim)
+
+    add_test(test-ratelim__group_lim
+                ${RL_BIN}
+                -g 30000
+                -n 30
+                -t 100
+                --check-grouplimit 1000
+                --check-stddev 100)
 
     # Connection limit, no group limit.
-    add_test(test-ratelim__con_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -n 30 -t 100 --check-connlimit 50 --check-stddev 50)
+    add_test(test-ratelim__con_lim
+                ${RL_BIN}
+                -c 1000
+                -n 30
+                -t 100
+                --check-connlimit 50
+                --check-stddev 50)
 
     # Connection limit and group limit.
-    add_test(test-ratelim__group_con_lim ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -g 30000 -n 30 -t 100 --check-grouplimit 1000 --check-connlimit 50 --check-stddev 50)
+    add_test(test-ratelim__group_con_lim
+                ${RL_BIN}
+                -c 1000
+                -g 30000
+                -n 30
+                -t 100
+                --check-grouplimit 1000
+                --check-connlimit 50
+                --check-stddev 50)
 
     # Connection limit and group limit with independent drain.
-    add_test(test-ratelim__group_con_lim_drain ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ratelim -c 1000 -g 35000 -n 30 -t 100 -G 500 --check-grouplimit 1000 --check-connlimit 50 --check-stddev 50)
+    add_test(test-ratelim__group_con_lim_drain
+                ${RL_BIN}
+                -c 1000
+                -g 35000
+                -n 30
+                -t 100
+                -G 500
+                --check-grouplimit 1000
+                --check-connlimit 50
+                --check-stddev 50)
 
     # Add a "make verify" target, same as for autoconf.
     # (Important! This will unset all EVENT_NO* environment variables.
@@ -1028,12 +1222,21 @@ if (NOT EVENT__DISABLE_TESTS)
             \"${WINDOWS_CTEST_COMMAND}\"
             ")
 
-        message("${WINDOWS_CTEST_COMMAND}")
-        file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.bat
-            DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-            FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+        message(STATUS "${WINDOWS_CTEST_COMMAND}")
 
-        file(TO_NATIVE_PATH "${CMAKE_CURRENT_BINARY_DIR}/verify_tests.bat" VERIFY_PATH)
+        file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.bat
+            DESTINATION
+                            ${CMAKE_CURRENT_BINARY_DIR}
+            FILE_PERMISSIONS
+                            OWNER_READ
+                            OWNER_WRITE
+                            OWNER_EXECUTE
+                            GROUP_READ
+                            GROUP_EXECUTE
+                            WORLD_READ WORLD_EXECUTE)
+
+        file(TO_NATIVE_PATH
+                    "${CMAKE_CURRENT_BINARY_DIR}/verify_tests.bat" VERIFY_PATH)
 
         add_custom_target(verify COMMAND "${VERIFY_PATH}"
                         DEPENDS event ${ALL_TESTPROGS})
@@ -1051,11 +1254,22 @@ if (NOT EVENT__DISABLE_TESTS)
         # Then we copy the file (this allows us to set execute permission on it)
         file(COPY ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.sh
             DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-            FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+            FILE_PERMISSIONS
+                            OWNER_READ
+                            OWNER_WRITE
+                            OWNER_EXECUTE
+                            GROUP_READ
+                            GROUP_EXECUTE
+                            WORLD_READ
+                            WORLD_EXECUTE)
 
         # Create the target that runs the script.
-        add_custom_target(verify COMMAND ${CMAKE_CURRENT_BINARY_DIR}/verify_tests.sh
-                        DEPENDS event ${ALL_TESTPROGS})
+        add_custom_target(verify
+                    COMMAND
+                        ${CMAKE_CURRENT_BINARY_DIR}/verify_tests.sh
+          DEPENDS
+                        event
+                        ${ALL_TESTPROGS})
     endif()
 
     if (NOT EVENT__DISABLE_REGRESS AND __FOUND_USABLE_PYTHON)
@@ -1111,7 +1325,11 @@ export(PACKAGE libevent)
 set(EVENT__INCLUDE_DIRS
     "${PROJECT_SOURCE_DIR}/include"
     "${PROJECT_BINARY_DIR}/include")
-set(LIBEVENT_INCLUDE_DIRS ${EVENT__INCLUDE_DIRS} CACHE PATH "Libevent include directories")
+
+set(LIBEVENT_INCLUDE_DIRS
+    ${EVENT__INCLUDE_DIRS}
+    CACHE PATH "Libevent include directories")
+
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigBuildTree.cmake.in
                 ${PROJECT_BINARY_DIR}/LibeventConfig.cmake
                 @ONLY)
@@ -1128,6 +1346,7 @@ file(RELATIVE_PATH
 # config file is located.
 set(EVENT__INCLUDE_DIRS
     "\${EVENT_CMAKE_DIR}/${REL_INCLUDE_DIR}")
+
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
                 ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
                 @ONLY)
@@ -1150,20 +1369,56 @@ install(TARGETS event event_core event_extra
         LIBRARY DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT lib
         ARCHIVE DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT lib
         PUBLIC_HEADER DESTINATION "${EVENT_INSTALL_INCLUDE_DIR}/event2" COMPONENT dev)
+
 # Install compat headers
 install(FILES ${HDR_COMPAT}
-    DESTINATION "${EVENT_INSTALL_INCLUDE_DIR}"
+    DESTINATION
+            "${EVENT_INSTALL_INCLUDE_DIR}"
     COMPONENT dev)
 
 # Install the configs.
 install(FILES
     ${PROJECT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
     ${PROJECT_BINARY_DIR}/LibeventConfigVersion.cmake
-    DESTINATION "${EVENT_INSTALL_CMAKE_DIR}" COMPONENT dev)
-
+    DESTINATION
+            "${EVENT_INSTALL_CMAKE_DIR}"
+        COMPONENT dev)
 
 # Install exports for the install-tree.
 install(EXPORT LibeventTargets
-        DESTINATION "${EVENT_INSTALL_CMAKE_DIR}" COMPONENT dev)
+        DESTINATION
+                    "${EVENT_INSTALL_CMAKE_DIR}"
+                COMPONENT dev)
 
-set(LIBEVENT_LIBRARIES event event_core event_extra CACHE STRING "Libevent libraries")
+set(LIBEVENT_LIBRARIES
+        event
+        event_core
+        event_extra
+        CACHE STRING "Libevent libraries")
+
+message("")
+message("        ---( Libevent " ${EVENT_VERSION} " )---")
+message("")
+message(STATUS "Available event backends: ${BACKENDS}")
+message(STATUS "CMAKE_BINARY_DIR:         " ${CMAKE_BINARY_DIR})
+message(STATUS "CMAKE_CURRENT_BINARY_DIR: " ${CMAKE_CURRENT_BINARY_DIR})
+message(STATUS "CMAKE_SOURCE_DIR:         " ${CMAKE_SOURCE_DIR})
+message(STATUS "CMAKE_CURRENT_SOURCE_DIR: " ${CMAKE_CURRENT_SOURCE_DIR})
+message(STATUS "PROJECT_BINARY_DIR:       " ${PROJECT_BINARY_DIR})
+message(STATUS "PROJECT_SOURCE_DIR:       " ${PROJECT_SOURCE_DIR})
+message(STATUS "CMAKE_MODULE_PATH:        " ${CMAKE_MODULE_PATH})
+message(STATUS "CMAKE_COMMAND:            " ${CMAKE_COMMAND})
+message(STATUS "CMAKE_ROOT:               " ${CMAKE_ROOT} )
+message(STATUS "CMAKE_SYSTEM:             " ${CMAKE_SYSTEM} )
+message(STATUS "CMAKE_SYSTEM_NAME:        " ${CMAKE_SYSTEM_NAME} )
+message(STATUS "CMAKE_SYSTEM_VERSION:     " ${CMAKE_SYSTEM_VERSION} )
+message(STATUS "CMAKE_SYSTEM_PROCESSOR:   " ${CMAKE_SYSTEM_PROCESSOR} )
+message(STATUS "CMAKE_SKIP_RPATH:         " ${CMAKE_SKIP_RPATH} )
+message(STATUS "CMAKE_VERBOSE_MAKEFILE:   " ${CMAKE_VERBOSE_MAKEFILE} )
+message(STATUS "CMAKE_C_FLAGS:            " ${CMAKE_C_FLAGS} )
+message(STATUS "CMAKE_BUILD_TYPE:         " ${CMAKE_BUILD_TYPE} )
+message(STATUS "CMAKE_C_COMPILER:         " ${CMAKE_C_COMPILER} )
+message(STATUS "CMAKE_AR:                 " ${CMAKE_AR} )
+message(STATUS "CMAKE_RANLIB:             " ${CMAKE_RANLIB} )
+message("")
+

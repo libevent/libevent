@@ -1,11 +1,45 @@
+version: 2.1.5.{build}
+shallow_clone: true
+
+os: Visual Studio 2015 RC
+
+build:
+          verbosity: detailed
+
+environment:
+    global:
+        CYG_ROOT: C:/MinGW/msys/1.0
+
+init:
+    - 'echo Building libevent %version% for Windows'
+    - 'echo System architecture: %PLATFORM%'
+    - 'echo Repo build branch is: %APPVEYOR_REPO_BRANCH%'
+    - 'echo Build folder is: %APPVEYOR_BUILD_FOLDER%'
+
 install:
-  - appveyor DownloadFile http://slproweb.com/download/Win32OpenSSL-1_0_1L.exe
-  - Win32OpenSSL-1_0_1L.exe /silent /verysilent /sp- /suppressmsgboxes
+    - set PATH=%PATH%;C:\MinGW\msys\1.0\bin;C:\MinGW\bin
+    - appveyor DownloadFile https://strcpy.net/packages/Win32OpenSSL-1_0_2a.exe
+    - Win32OpenSSL-1_0_2a.exe /silent /verysilent /sp- /suppressmsgboxes
+
 build_script:
-  - md build
-  - cd build
-  - cmake ..
-  - cmake --build .
-  - ctest --output-on-failure
+    - cmd: 'echo Cygwin root is: %CYG_ROOT%'
+    - cmd: 'echo Build folder is: %APPVEYOR_BUILD_FOLDER%'
+    - cmd: 'echo Repo build branch is: %APPVEYOR_REPO_BRANCH%'
+    - cmd: 'echo Repo build commit is: %APPVEYOR_REPO_COMMIT%'
+    - cmd: "echo installing stuff"
+    - cmd: 'echo "C:\MinGW   /mingw" >%CYG_ROOT%/etc/fstab'
+    - cmd: 'C:\MinGW\bin\mingw-get install autotools autoconf automake python'
+    - cmd: 'echo Autogen running...'
+    - cmd: '%CYG_ROOT%/bin/bash -lc "cd $APPVEYOR_BUILD_FOLDER; exec 0</dev/null;mount C:/MinGW /mingw; bash -x ./autogen.sh; ./configure; make; make verify"'
+
+#install:
+#  - appveyor DownloadFile https://strcpy.net/packages/Win32OpenSSL-1_0_2a.exe 
+#  - Win32OpenSSL-1_0_2a.exe /silent /verysilent /sp- /suppressmsgboxes
+#build_script:
+#  - md build
+#  - cd build
+#  - cmake ..
+#  - cmake --build .
+#  - ctest --output-on-failure
 cache:
   - C:\OpenSSL-Win32

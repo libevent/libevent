@@ -41,6 +41,7 @@ SOFTWARE.
 
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>
+#include <string.h>
 
 #include "openssl_hostname_validation.h"
 #include "hostcheck.h"

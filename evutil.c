@@ -226,16 +226,17 @@ evutil_ersatz_socketpair_(int family, int type, int protocol,
 	struct sockaddr_in connect_addr;
 	ev_socklen_t size;
 	int saved_errno = -1;
-
-	if (protocol
-		|| (family != AF_INET
+	int family_test;
+	
+	family_test = family != AF_INET;
 #ifdef AF_UNIX
-		    && family != AF_UNIX
+	family_test = family_test && (family != AF_UNIX);
 #endif
-		)) {
+	if (protocol || family_test) {
 		EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
 		return -1;
 	}
+	
 	if (!fd) {
 		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
 		return -1;
@@ -257,6 +258,9 @@ evutil_ersatz_socketpair_(int family, int type, int protocol,
 	connector = socket(AF_INET, type, 0);
 	if (connector < 0)
 		goto tidy_up_and_fail;
+
+	memset(&connect_addr, 0, sizeof(connect_addr));
+
 	/* We want to find out the port number to connect to.  */
 	size = sizeof(connect_addr);
 	if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
@@ -310,7 +314,7 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 {
 #ifdef _WIN32
 	{
-		u_long nonblocking = 1;
+		unsigned long nonblocking = 1;
 		if (ioctlsocket(fd, FIONBIO, &nonblocking) == SOCKET_ERROR) {
 			event_sock_warn(fd, "fcntl(%d, F_GETFL)", (int)fd);
 			return -1;
@@ -355,7 +359,7 @@ evutil_fast_socket_nonblocking(evutil_socket_t fd)
 int
 evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 {
-#ifndef _WIN32
+#if defined(SO_REUSEADDR) && !defined(_WIN32)
 	int one = 1;
 	/* REUSEADDR on Unix means, "don't hang on to this address after the
 	 * listener is closed."  On Windows, though, it means "don't keep other
@@ -520,7 +524,7 @@ evutil_socket_geterror(evutil_socket_t sock)
 /* XXX we should use an enum here. */
 /* 2 for connection refused, 1 for connected, 0 for not yet, -1 for error. */
 int
-evutil_socket_connect_(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen)
+evutil_socket_connect_(evutil_socket_t *fd_ptr, const struct sockaddr *sa, int socklen)
 {
 	int made_fd = 0;
 
@@ -1159,7 +1163,7 @@ addrinfo_from_hostent(const struct hostent *ent,
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_port = htons(port);
 		sa = (struct sockaddr *)&sin6;
-		socklen = sizeof(struct sockaddr_in);
+		socklen = sizeof(struct sockaddr_in6);
 		addrp = &sin6.sin6_addr;
 		if (ent->h_length != sizeof(sin6.sin6_addr)) {
 			event_warnx("Weird h_length from gethostbyname");
@@ -1705,10 +1709,10 @@ evutil_socket_error_to_string(int errcode)
 		goto done;
 	}
 
-	if (0 != FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+	if (0 != FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM |
 			       FORMAT_MESSAGE_IGNORE_INSERTS |
 			       FORMAT_MESSAGE_ALLOCATE_BUFFER,
-			       NULL, errcode, 0, (LPTSTR)&msg, 0, NULL))
+			       NULL, errcode, 0, (char *)&msg, 0, NULL))
 		chomp (msg);	/* because message has trailing newline */
 	else {
 		size_t len = 50;

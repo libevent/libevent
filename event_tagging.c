@@ -40,10 +40,11 @@
 #include <winsock2.h>
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
-#else
-#include <sys/ioctl.h>
 #endif
 
+#ifdef EVENT__HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
 #include <sys/queue.h>
 #ifdef EVENT__HAVE_SYS_TIME_H
 #include <sys/time.h>

@@ -209,7 +209,7 @@ struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socke
    @return 0 on success, -1 on failure.
  */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_socket_connect(struct bufferevent *, struct sockaddr *, int);
+int bufferevent_socket_connect(struct bufferevent *, const struct sockaddr *, int);
 
 struct evdns_base;
 /**
@@ -561,6 +561,32 @@ void bufferevent_lock(struct bufferevent *bufev);
  */
 EVENT2_EXPORT_SYMBOL
 void bufferevent_unlock(struct bufferevent *bufev);
+
+
+/**
+ * Public interface to manually increase the reference count of a bufferevent
+ * this is useful in situations where a user may reference the bufferevent
+ * somewhere eles (unknown to libevent)
+ *
+ * @param bufev the bufferevent to increase the refcount on
+ *
+ */
+EVENT2_EXPORT_SYMBOL
+void bufferevent_incref(struct bufferevent *bufev);
+
+/**
+ * Public interface to manually decrement the reference count of a bufferevent
+ *
+ * Warning: make sure you know what you're doing. This is mainly used in
+ * conjunction with bufferevent_incref(). This will free up all data associated
+ * with a bufferevent if the reference count hits 0.
+ *
+ * @param bufev the bufferevent to decrement the refcount on
+ *
+ * @return 1 if the bufferevent was freed, otherwise 0 (still referenced)
+ */
+EVENT2_EXPORT_SYMBOL
+int bufferevent_decref(struct bufferevent *bufev);
 
 /**
    Flags that can be passed into filters to let them know how to

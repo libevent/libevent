@@ -199,6 +199,22 @@ eq_debug_entry(const struct event_debug_entry *a,
 }
 
 int event_debug_mode_on_ = 0;
+
+
+#if !defined(EVENT__DISABLE_THREAD_SUPPORT) && !defined(EVENT__DISABLE_DEBUG_MODE)
+/**
+ * @brief debug mode variable which is set for any function/structure that needs
+ *        to be shared across threads (if thread support is enabled).
+ *
+ *        When and if evthreads are initialized, this variable will be evaluated,
+ *        and if set to something other than zero, this means the evthread setup 
+ *        functions were called out of order.
+ *
+ *        See: "Locks and threading" in the documentation.
+ */
+int event_debug_created_threadable_ctx_ = 0;
+#endif
+
 /* Set if it's too late to enable event_debug_mode. */
 static int event_debug_mode_too_late = 0;
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
@@ -655,6 +671,10 @@ event_base_new_with_config(const struct event_config *cfg)
 
 	/* prepare for threading */
 
+#if !defined(EVENT__DISABLE_THREAD_SUPPORT) && !defined(EVENT__DISABLE_DEBUG_MODE)
+	event_debug_created_threadable_ctx_ = 1;
+#endif
+
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	if (EVTHREAD_LOCKING_ENABLED() &&
 	    (!cfg || !(cfg->flags & EVENT_BASE_FLAG_NOLOCK))) {
@@ -749,6 +769,29 @@ event_base_cancel_single_callback_(struct event_base *base,
 	return result;
 }
 
+static int event_base_free_queues_(struct event_base *base, int run_finalizers)
+{
+	int deleted = 0, i;
+
+	for (i = 0; i < base->nactivequeues; ++i) {
+		struct event_callback *evcb, *next;
+		for (evcb = TAILQ_FIRST(&base->activequeues[i]); evcb; ) {
+			next = TAILQ_NEXT(evcb, evcb_active_next);
+			deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
+			evcb = next;
+		}
+	}
+
+	{
+		struct event_callback *evcb;
+		while ((evcb = TAILQ_FIRST(&base->active_later_queue))) {
+			deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
+		}
+	}
+
+	return deleted;
+}
+
 static void
 event_base_free_(struct event_base *base, int run_finalizers)
 {
@@ -809,21 +852,21 @@ event_base_free_(struct event_base *base, int run_finalizers)
 	if (base->common_timeout_queues)
 		mm_free(base->common_timeout_queues);
 
-	for (i = 0; i < base->nactivequeues; ++i) {
-		struct event_callback *evcb, *next;
-		for (evcb = TAILQ_FIRST(&base->activequeues[i]); evcb; ) {
-			next = TAILQ_NEXT(evcb, evcb_active_next);
-			n_deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
-			evcb = next;
+	for (;;) {
+		/* For finalizers we can register yet another finalizer out from
+		 * finalizer, and iff finalizer will be in active_later_queue we can
+		 * add finalizer to activequeues, and we will have events in
+		 * activequeues after this function returns, which is not what we want
+		 * (we even have an assertion for this).
+		 *
+		 * A simple case is bufferevent with underlying (i.e. filters).
+		 */
+		int i = event_base_free_queues_(base, run_finalizers);
+		if (!i) {
+			break;
 		}
+		n_deleted += i;
 	}
-	{
-		struct event_callback *evcb;
-		while ((evcb = TAILQ_FIRST(&base->active_later_queue))) {
-			n_deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
-		}
-	}
-
 
 	if (n_deleted)
 		event_debug(("%s: %d events were still set in base",

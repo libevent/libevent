@@ -184,7 +184,7 @@ evbuffer_chain_new(size_t size)
 	/* this way we can manipulate the buffer to different addresses,
 	 * which is required for mmap for example.
 	 */
-	chain->buffer = EVBUFFER_CHAIN_EXTRA(u_char, chain);
+	chain->buffer = EVBUFFER_CHAIN_EXTRA(unsigned char, chain);
 
 	chain->refcnt = 1;
 
@@ -2909,7 +2909,7 @@ evbuffer_add_reference(struct evbuffer *outbuf,
 	if (!chain)
 		return (-1);
 	chain->flags |= EVBUFFER_REFERENCE | EVBUFFER_IMMUTABLE;
-	chain->buffer = (u_char *)data;
+	chain->buffer = (unsigned char *)data;
 	chain->buffer_len = datlen;
 	chain->off = datlen;
 

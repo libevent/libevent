@@ -123,11 +123,12 @@ errorcb(struct bufferevent *bev, short what, void *arg)
 }
 
 static void
-test_bufferevent_impl(int use_pair)
+test_bufferevent_impl(int use_pair, int flush)
 {
 	struct bufferevent *bev1 = NULL, *bev2 = NULL;
 	char buffer[8333];
 	int i;
+	int expected = 2;
 
 	if (use_pair) {
 		struct bufferevent *pair[2];
@@ -171,6 +172,9 @@ test_bufferevent_impl(int use_pair)
 		buffer[i] = i;
 
 	bufferevent_write(bev1, buffer, sizeof(buffer));
+	if (flush >= 0) {
+		tt_int_op(bufferevent_flush(bev1, EV_WRITE, flush), >=, 0);
+	}
 
 	event_dispatch();
 
@@ -178,23 +182,26 @@ test_bufferevent_impl(int use_pair)
 	tt_ptr_op(bufferevent_pair_get_partner(bev1), ==, NULL);
 	bufferevent_free(bev1);
 
-	if (test_ok != 2)
+	/** Only pair call errorcb for BEV_FINISHED */
+	if (use_pair && flush == BEV_FINISHED) {
+		expected = -1;
+	}
+	if (test_ok != expected)
 		test_ok = 0;
 end:
 	;
 }
 
-static void
-test_bufferevent(void)
-{
-	test_bufferevent_impl(0);
-}
+static void test_bufferevent(void) { test_bufferevent_impl(0, -1); }
+static void test_bufferevent_pair(void) { test_bufferevent_impl(1, -1); }
 
-static void
-test_bufferevent_pair(void)
-{
-	test_bufferevent_impl(1);
-}
+static void test_bufferevent_flush_normal(void) { test_bufferevent_impl(0, BEV_NORMAL); }
+static void test_bufferevent_flush_flush(void) { test_bufferevent_impl(0, BEV_FLUSH); }
+static void test_bufferevent_flush_finished(void) { test_bufferevent_impl(0, BEV_FINISHED); }
+
+static void test_bufferevent_pair_flush_normal(void) { test_bufferevent_impl(1, BEV_NORMAL); }
+static void test_bufferevent_pair_flush_flush(void) { test_bufferevent_impl(1, BEV_FLUSH); }
+static void test_bufferevent_pair_flush_finished(void) { test_bufferevent_impl(1, BEV_FINISHED); }
 
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 /**
@@ -245,7 +252,6 @@ static void trace_lock_free(void *lock_, unsigned locktype)
 {
 	lock_wrapper *lock = lu_find(lock_);
 	if (!lock || lock->status == FREE || lock->locked) {
-		__asm__("int3");
 		TT_FAIL(("lock: free error"));
 	} else {
 		lock->status = FREE;
@@ -277,6 +283,9 @@ static int trace_lock_unlock(unsigned mode, void *lock_)
 static void lock_unlock_free_thread_cbs(void)
 {
 	event_base_free(NULL);
+
+	if (libevent_tests_running_in_debug_mode)
+		libevent_global_shutdown();
 
 	/** drop immutable flag */
 	evthread_set_lock_callbacks(NULL);
@@ -311,6 +320,9 @@ static int use_lock_unlock_profiler(void)
 }
 static void free_lock_unlock_profiler(struct basic_test_data *data)
 {
+	/** fix "held_by" for kqueue */
+	evthread_set_lock_callbacks(NULL);
+
 	lock_unlock_free_thread_cbs();
 	free(lu_base.locks);
 	data->base = NULL;
@@ -594,6 +606,7 @@ static int bufferevent_connect_test_flags = 0;
 static int bufferevent_trigger_test_flags = 0;
 static int n_strings_read = 0;
 static int n_reads_invoked = 0;
+static int n_events_invoked = 0;
 
 #define TEST_STR "Now is the time for all good events to signal for " \
 	"the good of their protocol"
@@ -611,6 +624,31 @@ listen_cb(struct evconnlistener *listener, evutil_socket_t fd,
 	bufferevent_write(bev, s, sizeof(s));
 end:
 	;
+}
+
+static int
+fake_listener_create(struct sockaddr_in *localhost)
+{
+	struct sockaddr *sa = (struct sockaddr *)localhost;
+	evutil_socket_t fd = -1;
+	ev_socklen_t slen = sizeof(*localhost);
+
+	memset(localhost, 0, sizeof(*localhost));
+	localhost->sin_port = 0; /* have the kernel pick a port */
+	localhost->sin_addr.s_addr = htonl(0x7f000001L);
+	localhost->sin_family = AF_INET;
+
+	/* bind, but don't listen or accept. should trigger
+	   "Connection refused" reliably on most platforms. */
+	fd = socket(localhost->sin_family, SOCK_STREAM, 0);
+	tt_assert(fd >= 0);
+	tt_assert(bind(fd, sa, slen) == 0);
+	tt_assert(getsockname(fd, sa, &slen) == 0);
+
+	return fd;
+
+end:
+	return -1;
 }
 
 static void
@@ -640,6 +678,14 @@ reader_eventcb(struct bufferevent *bev, short what, void *ctx)
 	}
 end:
 	;
+}
+
+static void
+reader_eventcb_simple(struct bufferevent *bev, short what, void *ctx)
+{
+	TT_BLATHER(("Read eventcb simple invoked on %d.",
+		(int)bufferevent_getfd(bev)));
+	n_events_invoked++;
 }
 
 static void
@@ -728,6 +774,45 @@ end:
 }
 
 static void
+test_bufferevent_connect_fail_eventcb(void *arg)
+{
+	struct basic_test_data *data = arg;
+	int flags = BEV_OPT_CLOSE_ON_FREE | (long)data->setup_data;
+	struct bufferevent *bev = NULL;
+	struct evconnlistener *lev = NULL;
+	struct sockaddr_in localhost;
+	ev_socklen_t slen = sizeof(localhost);
+	evutil_socket_t fake_listener = -1;
+
+	fake_listener = fake_listener_create(&localhost);
+
+	tt_int_op(n_events_invoked, ==, 0);
+
+	bev = bufferevent_socket_new(data->base, -1, flags);
+	tt_assert(bev);
+	bufferevent_setcb(bev, reader_readcb, reader_readcb,
+		reader_eventcb_simple, data->base);
+	bufferevent_enable(bev, EV_READ|EV_WRITE);
+	tt_int_op(n_events_invoked, ==, 0);
+	tt_int_op(n_reads_invoked, ==, 0);
+	/** @see also test_bufferevent_connect_fail() */
+	bufferevent_socket_connect(bev, (struct sockaddr *)&localhost, slen);
+	tt_int_op(n_events_invoked, ==, 0);
+	tt_int_op(n_reads_invoked, ==, 0);
+	event_base_dispatch(data->base);
+	tt_int_op(n_events_invoked, ==, 1);
+	tt_int_op(n_reads_invoked, ==, 0);
+
+end:
+	if (lev)
+		evconnlistener_free(lev);
+	if (bev)
+		bufferevent_free(bev);
+	if (fake_listener >= 0)
+		evutil_closesocket(fake_listener);
+}
+
+static void
 want_fail_eventcb(struct bufferevent *bev, short what, void *ctx)
 {
 	struct event_base *base = ctx;
@@ -762,34 +847,23 @@ test_bufferevent_connect_fail(void *arg)
 {
 	struct basic_test_data *data = (struct basic_test_data *)arg;
 	struct bufferevent *bev=NULL;
-	struct sockaddr_in localhost;
-	struct sockaddr *sa = (struct sockaddr*)&localhost;
-	evutil_socket_t fake_listener = -1;
-	ev_socklen_t slen = sizeof(localhost);
 	struct event close_listener_event;
 	int close_listener_event_added = 0;
 	struct timeval one_second = { 1, 0 };
+	struct sockaddr_in localhost;
+	ev_socklen_t slen = sizeof(localhost);
+	evutil_socket_t fake_listener = -1;
 	int r;
 
 	test_ok = 0;
 
-	memset(&localhost, 0, sizeof(localhost));
-	localhost.sin_port = 0; /* have the kernel pick a port */
-	localhost.sin_addr.s_addr = htonl(0x7f000001L);
-	localhost.sin_family = AF_INET;
-
-	/* bind, but don't listen or accept. should trigger
-	   "Connection refused" reliably on most platforms. */
-	fake_listener = socket(localhost.sin_family, SOCK_STREAM, 0);
-	tt_assert(fake_listener >= 0);
-	tt_assert(bind(fake_listener, sa, slen) == 0);
-	tt_assert(getsockname(fake_listener, sa, &slen) == 0);
+	fake_listener = fake_listener_create(&localhost);
 	bev = bufferevent_socket_new(data->base, -1,
 		BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
 	tt_assert(bev);
 	bufferevent_setcb(bev, NULL, NULL, want_fail_eventcb, data->base);
 
-	r = bufferevent_socket_connect(bev, sa, slen);
+	r = bufferevent_socket_connect(bev, (struct sockaddr *)&localhost, slen);
 	/* XXXX we'd like to test the '0' case everywhere, but FreeBSD tells
 	 * detects the error immediately, which is not really wrong of it. */
 	tt_want(r == 0 || r == -1);
@@ -1084,10 +1158,35 @@ end:
 		bufferevent_free(bev);
 }
 
+static void
+test_bufferevent_socket_filter_inactive(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL, *bevf = NULL;
+
+	bev = bufferevent_socket_new(data->base, -1, 0);
+	tt_assert(bev);
+	bevf = bufferevent_filter_new(bev, NULL, NULL, 0, NULL, NULL);
+	tt_assert(bevf);
+
+end:
+	if (bevf)
+		bufferevent_free(bevf);
+	if (bev)
+		bufferevent_free(bev);
+}
+
+
 struct testcase_t bufferevent_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED),
 	LEGACY(bufferevent_pair, TT_ISOLATED),
+	LEGACY(bufferevent_flush_normal, TT_ISOLATED),
+	LEGACY(bufferevent_flush_flush, TT_ISOLATED),
+	LEGACY(bufferevent_flush_finished, TT_ISOLATED),
+	LEGACY(bufferevent_pair_flush_normal, TT_ISOLATED),
+	LEGACY(bufferevent_pair_flush_flush, TT_ISOLATED),
+	LEGACY(bufferevent_pair_flush_finished, TT_ISOLATED),
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 	{ "bufferevent_pair_release_lock", test_bufferevent_pair_release_lock,
 	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY,
@@ -1135,12 +1234,26 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_zlib", NULL, TT_SKIP, NULL, NULL },
 #endif
 
+	{ "bufferevent_connect_fail_eventcb_defer",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)BEV_OPT_DEFER_CALLBACKS },
+	{ "bufferevent_connect_fail_eventcb",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+
+	{ "bufferevent_socket_filter_inactive",
+	  test_bufferevent_socket_filter_inactive,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+
 	END_OF_TESTCASES,
 };
 
 struct testcase_t bufferevent_iocp_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED|TT_ENABLE_IOCP),
+	LEGACY(bufferevent_flush_normal, TT_ISOLATED),
+	LEGACY(bufferevent_flush_flush, TT_ISOLATED),
+	LEGACY(bufferevent_flush_finished, TT_ISOLATED),
 	LEGACY(bufferevent_watermarks, TT_ISOLATED|TT_ENABLE_IOCP),
 	LEGACY(bufferevent_filters, TT_ISOLATED|TT_ENABLE_IOCP),
 	{ "bufferevent_connect", test_bufferevent_connect,
@@ -1158,6 +1271,14 @@ struct testcase_t bufferevent_iocp_testcases[] = {
 	{ "bufferevent_connect_nonblocking", test_bufferevent_connect,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
 	  (void*)"unset_connectex" },
+
+	{ "bufferevent_connect_fail_eventcb_defer",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
+	  (void*)BEV_OPT_DEFER_CALLBACKS },
+	{ "bufferevent_connect_fail",
+	  test_bufferevent_connect_fail_eventcb,
+	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
 
 	END_OF_TESTCASES,
 };

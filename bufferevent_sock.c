@@ -79,7 +79,6 @@
 static int be_socket_enable(struct bufferevent *, short);
 static int be_socket_disable(struct bufferevent *, short);
 static void be_socket_destruct(struct bufferevent *);
-static int be_socket_adj_timeouts(struct bufferevent *);
 static int be_socket_flush(struct bufferevent *, short, enum bufferevent_flush_mode);
 static int be_socket_ctrl(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
 
@@ -92,13 +91,35 @@ const struct bufferevent_ops bufferevent_ops_socket = {
 	be_socket_disable,
 	NULL, /* unlink */
 	be_socket_destruct,
-	be_socket_adj_timeouts,
+	bufferevent_generic_adj_existing_timeouts_,
 	be_socket_flush,
 	be_socket_ctrl,
 };
 
-#define be_socket_add(ev, t)			\
-	bufferevent_add_event_((ev), (t))
+const struct sockaddr*
+bufferevent_socket_get_conn_address_(struct bufferevent *bev)
+{
+	struct bufferevent_private *bev_p =
+	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+
+	return (struct sockaddr *)&bev_p->conn_address;
+}
+static void
+bufferevent_socket_set_conn_address_fd(struct bufferevent_private *bev_p, int fd)
+{
+	socklen_t len = sizeof(bev_p->conn_address);
+
+	struct sockaddr *addr = (struct sockaddr *)&bev_p->conn_address;
+	if (addr->sa_family != AF_UNSPEC)
+		getpeername(fd, addr, &len);
+}
+static void
+bufferevent_socket_set_conn_address(struct bufferevent_private *bev_p,
+	struct sockaddr *addr, size_t addrlen)
+{
+	EVUTIL_ASSERT(addrlen <= sizeof(bev_p->conn_address));
+	memcpy(&bev_p->conn_address, addr, addrlen);
+}
 
 static void
 bufferevent_socket_outbuf_cb(struct evbuffer *buf,
@@ -115,7 +136,7 @@ bufferevent_socket_outbuf_cb(struct evbuffer *buf,
 	    !bufev_p->write_suspended) {
 		/* Somebody added data to the buffer, and we would like to
 		 * write, and we were not writing.  So, start writing. */
-		if (be_socket_add(&bufev->ev_write, &bufev->timeout_write) == -1) {
+		if (bufferevent_add_event_(&bufev->ev_write, &bufev->timeout_write) == -1) {
 		    /* Should we log this? */
 		}
 	}
@@ -239,6 +260,7 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 			goto done;
 		} else {
 			connected = 1;
+			bufferevent_socket_set_conn_address_fd(bufev_p, fd);
 #ifdef _WIN32
 			if (BEV_IS_ASYNC(bufev)) {
 				event_del(&bufev->ev_write);
@@ -351,7 +373,7 @@ bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
 
 int
 bufferevent_socket_connect(struct bufferevent *bev,
-    struct sockaddr *sa, int socklen)
+    const struct sockaddr *sa, int socklen)
 {
 	struct bufferevent_private *bufev_p =
 	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
@@ -457,6 +479,7 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 
 	/* XXX use the other addrinfos? */
 	/* XXX use this return value */
+	bufferevent_socket_set_conn_address(bev_p, ai->ai_addr, (int)ai->ai_addrlen);
 	r = bufferevent_socket_connect(bev, ai->ai_addr, (int)ai->ai_addrlen);
 	(void)r;
 	bufferevent_decref_and_unlock_(bev);
@@ -478,16 +501,15 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	if (port < 1 || port > 65535)
 		return -1;
 
-	BEV_LOCK(bev);
-	bev_p->dns_error = 0;
-	BEV_UNLOCK(bev);
-
-	evutil_snprintf(portbuf, sizeof(portbuf), "%d", port);
-
 	memset(&hint, 0, sizeof(hint));
 	hint.ai_family = family;
 	hint.ai_protocol = IPPROTO_TCP;
 	hint.ai_socktype = SOCK_STREAM;
+
+	evutil_snprintf(portbuf, sizeof(portbuf), "%d", port);
+
+	BEV_LOCK(bev);
+	bev_p->dns_error = 0;
 
 	bufferevent_suspend_write_(bev, BEV_SUSPEND_LOOKUP);
 	bufferevent_suspend_read_(bev, BEV_SUSPEND_LOOKUP);
@@ -495,6 +517,7 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	bufferevent_incref_(bev);
 	err = evutil_getaddrinfo_async_(evdns_base, hostname, portbuf,
 	    &hint, bufferevent_connect_getaddrinfo_cb, bev);
+	BEV_UNLOCK(bev);
 
 	if (err == 0) {
 		return 0;
@@ -550,14 +573,12 @@ bufferevent_new(evutil_socket_t fd,
 static int
 be_socket_enable(struct bufferevent *bufev, short event)
 {
-	if (event & EV_READ) {
-		if (be_socket_add(&bufev->ev_read,&bufev->timeout_read) == -1)
+	if (event & EV_READ &&
+	    bufferevent_add_event_(&bufev->ev_read, &bufev->timeout_read) == -1)
 			return -1;
-	}
-	if (event & EV_WRITE) {
-		if (be_socket_add(&bufev->ev_write,&bufev->timeout_write) == -1)
+	if (event & EV_WRITE &&
+	    bufferevent_add_event_(&bufev->ev_write, &bufev->timeout_write) == -1)
 			return -1;
-	}
 	return 0;
 }
 
@@ -590,29 +611,6 @@ be_socket_destruct(struct bufferevent *bufev)
 
 	if ((bufev_p->options & BEV_OPT_CLOSE_ON_FREE) && fd >= 0)
 		EVUTIL_CLOSESOCKET(fd);
-}
-
-static int
-be_socket_adj_timeouts(struct bufferevent *bufev)
-{
-	int r = 0;
-	if (event_pending(&bufev->ev_read, EV_READ, NULL)) {
-		if (evutil_timerisset(&bufev->timeout_read)) {
-			    if (be_socket_add(&bufev->ev_read, &bufev->timeout_read) < 0)
-				    r = -1;
-		} else {
-			event_remove_timer(&bufev->ev_read);
-		}
-	}
-	if (event_pending(&bufev->ev_write, EV_WRITE, NULL)) {
-		if (evutil_timerisset(&bufev->timeout_write)) {
-			if (be_socket_add(&bufev->ev_write, &bufev->timeout_write) < 0)
-				r = -1;
-		} else {
-			event_remove_timer(&bufev->ev_write);
-		}
-	}
-	return r;
 }
 
 static int

@@ -1,3 +1,14 @@
+<p align="center">
+  <img src="https://strcpy.net/libevent3.png" alt="libevent logo"/>
+</p>
+
+
+
+[![Appveyor Win32 Build Status](https://ci.appveyor.com/api/projects/status/github/libevent/libevent?branch=master&svg=true)](https://ci.appveyor.com/project/nmathewson/libevent)
+[![Travis Build Status](https://travis-ci.org/libevent/libevent.svg?branch=master)](https://travis-ci.org/libevent/libevent)
+
+
+
 # 0. BUILDING AND INSTALLATION (Briefly)
 
 ## Autoconf
@@ -6,6 +17,72 @@
      $ make
      $ make verify   # (optional)
      $ sudo make install
+
+## Cmake (General)
+
+
+The following Libevent specific Cmake variables ar as follows (the values being
+the default).
+
+```
+# Installation directory for executables
+EVENT_INSTALL_BIN_DIR:PATH=bin
+
+# Installation directory for CMake files
+EVENT_INSTALL_CMAKE_DIR:PATH=lib/cmake/libevent
+
+## Installation directory for header files
+EVENT_INSTALL_INCLUDE_DIR:PATH=include
+
+## Installation directory for libraries
+EVENT_INSTALL_LIB_DIR:PATH=lib
+
+## Define if libevent should be built with shared libraries instead of archives
+EVENT__BUILD_SHARED_LIBRARIES:BOOL=OFF
+
+# Enable running gcov to get a test coverage report (only works with
+# GCC/CLang). Make sure to enable -DCMAKE_BUILD_TYPE=Debug as well.
+EVENT__COVERAGE:BOOL=OFF
+
+# Defines if libevent should build without the benchmark exectuables
+EVENT__DISABLE_BENCHMARK:BOOL=OFF
+
+# Define if libevent should build without support for a debug mode
+EVENT__DISABLE_DEBUG_MODE:BOOL=OFF
+
+# Define if libevent should not allow replacing the mm functions
+EVENT__DISABLE_MM_REPLACEMENT:BOOL=OFF
+
+# Define if libevent should build without support for OpenSSL encrpytion
+EVENT__DISABLE_OPENSSL:BOOL=ON
+
+# Disable the regress tests
+EVENT__DISABLE_REGRESS:BOOL=OFF
+
+# Disable sample files
+EVENT__DISABLE_SAMPLES:BOOL=OFF
+
+# If tests should be compiled or not
+EVENT__DISABLE_TESTS:BOOL=OFF
+
+# Define if libevent should not be compiled with thread support
+EVENT__DISABLE_THREAD_SUPPORT:BOOL=OFF
+
+# Enables verbose debugging
+EVENT__ENABLE_VERBOSE_DEBUG:BOOL=OFF
+
+# When crosscompiling forces running a test program that verifies that Kqueue
+# works with pipes. Note that this requires you to manually run the test program
+# on the the cross compilation target to verify that it works. See cmake
+# documentation for try_run for more details
+EVENT__FORCE_KQUEUE_CHECK:BOOL=OFF
+
+# set EVENT_STAGE_VERSION
+EVENT__STAGE_VERSION:STRING=beta
+```
+
+__More variables can be found by running `cmake -LAH <sourcedir_path>`__
+
 
 ## CMake (Windows)
 

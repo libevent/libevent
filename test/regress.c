@@ -2290,7 +2290,7 @@ end:
 static void
 evtag_fuzz(void *ptr)
 {
-	u_char buffer[4096];
+	unsigned char buffer[4096];
 	struct evbuffer *tmp = evbuffer_new();
 	struct timeval tv;
 	int i, j;

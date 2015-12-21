@@ -37,7 +37,7 @@
 
 
 /**
-   Obsolete alias for evbuffer_readln(buffer, NULL, EOL_STYLE_ANY).
+   Obsolete alias for evbuffer_readln(buffer, NULL, EVBUFFER_EOL_ANY).
 
    @deprecated This function is deprecated because its behavior is not correct
       for almost any protocol, and also because it's wholly subsumed by

@@ -97,6 +97,7 @@ run_tests () {
 	        announce "FAILED (output not checked)" ;
 	    fi
 	fi
+
 	test -x $TEST_DIR/regress || return
 	announce_n " regress: "
 	if test "$TEST_OUTPUT_FILE" = "/dev/null" ;
@@ -104,6 +105,21 @@ run_tests () {
 		$TEST_DIR/regress --quiet $REGRESS_ARGS
 	else
 		$TEST_DIR/regress $REGRESS_ARGS >>"$TEST_OUTPUT_FILE"
+	fi
+	if test "$?" = "0" ;
+	then
+		announce OKAY ;
+	else
+		announce FAILED ;
+		FAILED=yes
+	fi
+
+	announce_n " regress_debug: "
+	if test "$TEST_OUTPUT_FILE" = "/dev/null" ;
+	then
+		EVENT_DEBUG_MODE=1 $TEST_DIR/regress --quiet $REGRESS_ARGS
+	else
+		EVENT_DEBUG_MODE=1 $TEST_DIR/regress $REGRESS_ARGS >>"$TEST_OUTPUT_FILE"
 	fi
 	if test "$?" = "0" ;
 	then

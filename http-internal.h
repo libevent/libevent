@@ -62,10 +62,10 @@ struct evhttp_connection {
 	struct event retry_ev;		/* for retrying connects */
 
 	char *bind_address;		/* address to use for binding the src */
-	u_short bind_port;		/* local port for binding the src */
+	unsigned short bind_port;	/* local port for binding the src */
 
 	char *address;			/* address to connect to */
-	u_short port;
+	unsigned short port;
 
 	size_t max_headers_size;
 	ev_uint64_t max_body_size;
@@ -101,13 +101,6 @@ struct evhttp_connection {
 	struct event_base *base;
 	struct evdns_base *dns_base;
 	int ai_family;
-
-	/* Saved conn_addr, to extract IP address from it.
-	 *
-	 * Because some servers may reset/close connection without waiting clients,
-	 * in that case we can't extract IP address even in close_cb.
-	 * So we need to save it, just after we connected to remote server. */
-	struct sockaddr_storage *conn_address;
 };
 
 /* A callback for an http server */
