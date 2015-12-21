@@ -34,12 +34,12 @@ project(libevent C)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
 
 
+include(CheckTypeSize)
 include(CheckFunctionExistsEx)
 include(CheckFileOffsetBits)
 include(CheckFunctionExists)
 include(CheckIncludeFile)
 include(CheckIncludeFiles)
-include(CheckTypeSize)
 include(CheckVariableExists)
 include(CheckSymbolExists)
 include(CheckStructHasMember)
@@ -405,8 +405,8 @@ CHECK_SYMBOL_EXISTS(RANDOM_UUID sys/sysctl.h EVENT__HAVE_DECL_RANDOM_UUID)
 CHECK_SYMBOL_EXISTS(F_SETFD fcntl.h EVENT__HAVE_SETFD)
 
 CHECK_TYPE_SIZE(fd_mask EVENT__HAVE_FD_MASK)
-CHECK_TYPE_SIZE(size_t EVENT__SIZEOF_SIZEE_T)
 
+CHECK_TYPE_SIZE(size_t EVENT__SIZEOF_SIZEE_T)
 if(NOT EVENT__SIZEOF_SIZE_T)
   set(EVENT__size_t "unsigned")
   set(EVENT__SIZEOF_SIZE_T ${EVENT__SIZEOF_UNSIGNED})
@@ -414,29 +414,33 @@ else()
     set(EVENT__size_t size_t)
 endif()
 
-CHE_TYPE_SIZE("off_t" EVENT__SIZEOF_OFF_T)
+CHECK_TYPE_SIZE("off_t" EVENT__SIZEOF_OFF_T LANGUAGE C)
 
-CHECK_TYPE_SIZE(ssize_t EVENT__SIZEOF_SSIZE_T)
-CHECK_TYPE_SIZE(SSIZE_T EVENT__SIZEOF_UPPERCASE_SSIZE_T)
-# Winsock.
-if(NOT EVENT__SIZEOF_SSIZE_T)
-    if(EVENT__SIZEOF_UPPERCASE_SSIZE_T)
-			set(EVENT__ssize_t SSIZE_T)
-        set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_UPPERCASE_SSIZE_T})
-    else()
-        set(EVENT__ssize_t "int")
-        set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
-    enxxdif()
+
+# XXX we should functionalize these size and type sets. --elley
+
+# Winssck.
+set(SSIZE_TMAP_ssize_t "ssize_t")
+set(SSIZE_TMAP_SSIZE_T "SSIZE_T")
+
+CHECK_TYPE_SIZE("ssize_t" EVENT__SIZEOF_SSIZE_T LANGUAGE C)
+CHECK_TYPE_SIZE("SSIZE_T" EVENT__SIZEOF_SSIZE_T LANGUAGE C)
+
+if (DEFINED EVENT__SIZEOF_SSIZE_T)
+	if (DEFINED SSIZE_TMAP_ssize_t)
+		set(EVENT__ssize_t "ssize_t")
+	elseif (DEFINED SSIZE_TMAP_SSIZE_T)
+		set(EVENT__ssize_t "SSIZE_T")
 	else()
 		set(EVENT__ssize_t "int")
 		set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
 	endif()
 endif()
 
+
 CHECK_TYPE_SIZE(socklen_t EVENT__SIZEOF_SOCKLEN_T)
 if(NOT EVENT__SIZEOF_SOCKLEN_T)
   set(EVENT__socklen_t "unsigned int")
-    # what is the poitn of this if EVENT__SIZEOF_UNSIGNED_INT is 0?
   set(EVENT__SIZEOF_SOCKLEN_T ${EVENT__SIZEOF_UNSIGNED_INT})
 else()
     set(EVENT__socklen_t "socklen_t")
@@ -459,6 +463,7 @@ if(EVENT__HAVE_CLOCK_GETTIME)
   set(EVENT__DNS_USE_CPU_CLOCK_FOR_ID 1)
 endif()
 
+# we're just getting lazy now.
 CHECK_TYPE_SIZE("uintptr_t" EVENT__HAVE_UINTPTR_T)
 CHECK_TYPE_SIZE("void *" EVENT__SIZEOF_VOID_P)
 
@@ -498,7 +503,6 @@ endif()
 
 # Check for sockaddr structure sizes.
 set(SOCKADDR_HEADERS)
-
 if (WIN32)
     set(CMAKE_REQUIRED_DEFINITIONS "-DWIN32_LEAN_AND_MEAN")
     if (_MSC_VER LESS 1300)
