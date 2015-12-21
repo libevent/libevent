@@ -192,6 +192,8 @@ static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr
 static void evhttp_write_buffer(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
 static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
+static int
+evhttp_method_may_have_body(struct evhttp_connection *evcon, enum evhttp_cmd_type type);
 
 /* callbacks for bufferevent */
 static void evhttp_read_cb(struct bufferevent *, void *);
@@ -299,9 +301,12 @@ evhttp_htmlescape(const char *html)
  * equivalent HTTP command, or NULL if the evhttp_command_type is
  * unrecognized. */
 static const char *
-evhttp_method(enum evhttp_cmd_type type)
+evhttp_method(struct evhttp_connection *evcon,
+              enum evhttp_cmd_type type, ev_uint16_t *flags)
 {
 	const char *method;
+	const struct evhttp_extended_method * ext_methods;
+	ev_uint16_t tmp_flags = 0;
 
 	switch (type) {
 	case EVHTTP_REQ_GET:
@@ -309,12 +314,14 @@ evhttp_method(enum evhttp_cmd_type type)
 		break;
 	case EVHTTP_REQ_POST:
 		method = "POST";
+		tmp_flags = EVHTTP_METHOD_HAS_BODY;
 		break;
 	case EVHTTP_REQ_HEAD:
 		method = "HEAD";
 		break;
 	case EVHTTP_REQ_PUT:
 		method = "PUT";
+		tmp_flags = EVHTTP_METHOD_HAS_BODY;
 		break;
 	case EVHTTP_REQ_DELETE:
 		method = "DELETE";
@@ -330,12 +337,29 @@ evhttp_method(enum evhttp_cmd_type type)
 		break;
 	case EVHTTP_REQ_PATCH:
 		method = "PATCH";
+		tmp_flags = EVHTTP_METHOD_HAS_BODY;
 		break;
 	default:
 		method = NULL;
+		ext_methods = evcon->ext_methods;
+		if (ext_methods == NULL && evcon->http_server != NULL)
+			ext_methods = evcon->http_server->ext_methods;
+		if (ext_methods != NULL) {
+			for (; ext_methods->method != NULL; ext_methods++) {
+				if (type == ext_methods->type) {
+					method = ext_methods->method;
+					tmp_flags = ext_methods->flags;
+					break;
+				}
+			}
+		}
 		break;
 	}
+	event_debug(("%s: type=%04x => '%s' flags=%04x",
+	             __func__, (int)type, method, tmp_flags));
 
+	if (flags != NULL)
+		*flags = tmp_flags;
 	return (method);
 }
 
@@ -431,18 +455,19 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
     struct evhttp_request *req)
 {
 	const char *method;
+	ev_uint16_t flags;
 
 	evhttp_remove_header(req->output_headers, "Proxy-Connection");
 
 	/* Generate request line */
-	method = evhttp_method(req->type);
+	method = evhttp_method(evcon, req->type, &flags);
 	evbuffer_add_printf(bufferevent_get_output(evcon->bufev),
 	    "%s %s HTTP/%d.%d\r\n",
 	    method, req->uri, req->major, req->minor);
 
 	/* Add the content length on a post or put request if missing */
-	if ((req->type == EVHTTP_REQ_POST || req->type == EVHTTP_REQ_PUT) &&
-	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
+	if ((flags & EVHTTP_METHOD_HAS_BODY) &&
+	    evhttp_find_header(req->output_headers, "Content-Length") == NULL) {
 		char size[22];
 		evutil_snprintf(size, sizeof(size), EV_SIZE_FMT,
 		    EV_SIZE_ARG(evbuffer_get_length(req->output_buffer)));
@@ -1727,6 +1752,22 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	} /* switch */
 
 	if ((int)type == EVHTTP_REQ_UNKNOWN_) {
+		/* check extended methods */
+		const struct evhttp_extended_method * ext_methods = req->evcon->ext_methods;
+		if (ext_methods == NULL && req->evcon->http_server != NULL)
+			ext_methods = req->evcon->http_server->ext_methods;
+		if (ext_methods != NULL) {
+			for (; ext_methods->method != NULL; ext_methods++) {
+				if (method_len == strlen(ext_methods->method) &&
+				    0 == memcmp(method, ext_methods->method, method_len)) {
+					type = ext_methods->type;
+					break;
+				}
+			}
+		}
+	}
+
+	if ((int)type == EVHTTP_REQ_UNKNOWN_) {
 	        event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
                 /* No error yet; we'll give a better error later when
@@ -2063,25 +2104,12 @@ evhttp_get_body_length(struct evhttp_request *req)
 }
 
 static int
-evhttp_method_may_have_body(enum evhttp_cmd_type type)
+evhttp_method_may_have_body(struct evhttp_connection *evcon, enum evhttp_cmd_type type)
 {
-	switch (type) {
-	case EVHTTP_REQ_POST:
-	case EVHTTP_REQ_PUT:
-	case EVHTTP_REQ_PATCH:
-		return 1;
-	case EVHTTP_REQ_TRACE:
-		return 0;
-	/* XXX May any of the below methods have a body? */
-	case EVHTTP_REQ_GET:
-	case EVHTTP_REQ_HEAD:
-	case EVHTTP_REQ_DELETE:
-	case EVHTTP_REQ_OPTIONS:
-	case EVHTTP_REQ_CONNECT:
-		return 0;
-	default:
-		return 0;
-	}
+	ev_uint16_t flags;
+
+	evhttp_method(evcon, type, &flags);
+	return (flags & EVHTTP_METHOD_HAS_BODY) ? 1 : 0;
 }
 
 static void
@@ -2091,7 +2119,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 
 	/* If this is a request without a body, then we are done */
 	if (req->kind == EVHTTP_REQUEST &&
-	    !evhttp_method_may_have_body(req->type)) {
+	    !evhttp_method_may_have_body(evcon, req->type)) {
 		evhttp_connection_done(evcon);
 		return;
 	}
@@ -2257,7 +2285,9 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 {
 	struct evhttp_connection *evcon = NULL;
 
-	event_debug(("Attempting connection to %s:%d\n", address, port));
+	event_debug(("%s %s:%d\n",
+	             (dnsbase?"New connection from":"Attempting connection to"),
+	             address, port));
 
 	if ((evcon = mm_calloc(1, sizeof(struct evhttp_connection))) == NULL) {
 		event_warn("%s: calloc failed", __func__);
@@ -2352,6 +2382,12 @@ int evhttp_connection_set_flags(struct evhttp_connection *evcon,
 	evcon->flags |= EVHTTP_CON_REUSE_CONNECTED_ADDR;
 
 	return 0;
+}
+
+void evhttp_connection_set_extended_methods(struct evhttp_connection *evcon,
+	const struct evhttp_extended_method *ext_methods)
+{
+	evcon->ext_methods = ext_methods;
 }
 
 void
@@ -3718,6 +3754,13 @@ void
 evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods)
 {
 	http->allowed_methods = methods;
+}
+
+void
+evhttp_set_extended_methods(struct evhttp* http,
+    const struct evhttp_extended_method *ext_methods)
+{
+	http->ext_methods = ext_methods;
 }
 
 int

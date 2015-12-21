@@ -72,6 +72,13 @@ static struct event_base *exit_base;
 
 static char const BASIC_REQUEST_BODY[] = "This is funny";
 
+/* extended Method */
+#define EVHTTP_REQ_CUSTOM	((EVHTTP_REQ_MAX) << 1)
+static const struct evhttp_extended_method ext_methods[] = {
+	{"CUSTOM", EVHTTP_REQ_CUSTOM, 0/*EVHTTP_METHOD_HAS_BODY*/},
+	{NULL, 0, 0}
+};
+
 #define IMPL_HTTP_REQUEST_ERROR_CB(name, expecting_error)                    \
 	static void                                                              \
 	http_request_error_cb_with_##name##_(enum evhttp_request_error error,    \
@@ -91,6 +98,7 @@ static void http_chunked_cb(struct evhttp_request *req, void *arg);
 static void http_post_cb(struct evhttp_request *req, void *arg);
 static void http_put_cb(struct evhttp_request *req, void *arg);
 static void http_delete_cb(struct evhttp_request *req, void *arg);
+static void http_custom_cb(struct evhttp_request *req, void *arg);
 static void http_delay_cb(struct evhttp_request *req, void *arg);
 static void http_large_delay_cb(struct evhttp_request *req, void *arg);
 static void http_badreq_cb(struct evhttp_request *req, void *arg);
@@ -157,6 +165,9 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 	}
 #endif
 
+	/* add support for extended HTTP methods */
+	evhttp_set_extended_methods(myhttp, ext_methods);
+
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, base);
 	evhttp_set_cb(myhttp, "/large", http_large_cb, base);
@@ -165,6 +176,7 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, base);
 	evhttp_set_cb(myhttp, "/putit", http_put_cb, base);
 	evhttp_set_cb(myhttp, "/deleteit", http_delete_cb, base);
+	evhttp_set_cb(myhttp, "/custom", http_custom_cb, base);
 	evhttp_set_cb(myhttp, "/delay", http_delay_cb, base);
 	evhttp_set_cb(myhttp, "/largedelay", http_large_delay_cb, base);
 	evhttp_set_cb(myhttp, "/badrequest", http_badreq_cb, base);
@@ -816,6 +828,78 @@ http_delete_test(void *arg)
 		evutil_closesocket(fd);
 }
 
+/*
+ * HTTP CUSTOM test,  just piggyback on the basic test
+ */
+
+static void
+http_custom_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *evb = evbuffer_new();
+	int empty = evhttp_find_header(evhttp_request_get_input_headers(req), "Empty") != NULL;
+
+	/* Expecting a CUSTOM request */
+	if (evhttp_request_get_command(req) != EVHTTP_REQ_CUSTOM) {
+		fprintf(stdout, "FAILED (custom type)\n");
+		exit(1);
+	}
+
+	event_debug(("%s: called\n", __func__));
+	evbuffer_add_printf(evb, BASIC_REQUEST_BODY);
+
+	/* allow sending of an empty reply */
+	evhttp_send_reply(req, HTTP_OK, "Everything is fine",
+	    !empty ? evb : NULL);
+
+	evbuffer_free(evb);
+}
+
+static void
+http_custom_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev;
+	evutil_socket_t fd = -1;
+	const char *http_request;
+	ev_uint16_t port = 0;
+
+	test_ok = 0;
+
+	http = http_setup(&port, data->base, 0);
+	/* Allow custom */
+	evhttp_set_allowed_methods(http, EVHTTP_REQ_CUSTOM);
+
+	tt_assert(http);
+	fd = http_connect("127.0.0.1", port);
+	tt_int_op(fd, >=, 0);
+
+	/* Stupid thing to send a request */
+	bev = bufferevent_socket_new(data->base, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
+	    http_errorcb, data->base);
+
+	http_request =
+	    "CUSTOM /custom HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	event_base_dispatch(data->base);
+
+	bufferevent_free(bev);
+	evutil_closesocket(fd);
+	fd = -1;
+
+	evhttp_free(http);
+
+	tt_int_op(test_ok, ==, 2);
+ end:
+	if (fd >= 0)
+		evutil_closesocket(fd);
+}
+
 static void
 http_sent_cb(struct evhttp_request *req, void *arg)
 {
@@ -920,10 +1004,10 @@ static void
 http_allowed_methods_test(void *arg)
 {
 	struct basic_test_data *data = arg;
-	struct bufferevent *bev1, *bev2, *bev3;
-	evutil_socket_t fd1=-1, fd2=-1, fd3=-1;
+	struct bufferevent *bev1, *bev2, *bev3, *bev4;
+	evutil_socket_t fd1=-1, fd2=-1, fd3=-1, fd4=-1;
 	const char *http_request;
-	char *result1=NULL, *result2=NULL, *result3=NULL;
+	char *result1=NULL, *result2=NULL, *result3=NULL, *result4=NULL;
 	ev_uint16_t port = 0;
 
 	exit_base = data->base;
@@ -934,8 +1018,8 @@ http_allowed_methods_test(void *arg)
 	fd1 = http_connect("127.0.0.1", port);
 	tt_int_op(fd1, >=, 0);
 
-	/* GET is out; PATCH is in. */
-	evhttp_set_allowed_methods(http, EVHTTP_REQ_PATCH);
+	/* GET is out; PATCH & CUSTOM are in. */
+	evhttp_set_allowed_methods(http, EVHTTP_REQ_PATCH | EVHTTP_REQ_CUSTOM);
 
 	/* Stupid thing to send a request */
 	bev1 = bufferevent_socket_new(data->base, fd1, 0);
@@ -989,9 +1073,28 @@ http_allowed_methods_test(void *arg)
 
 	event_base_dispatch(data->base);
 
+	fd4 = http_connect("127.0.0.1", port);
+	tt_int_op(fd4, >=, 0);
+
+	bev4 = bufferevent_socket_new(data->base, fd4, 0);
+	bufferevent_enable(bev4, EV_READ|EV_WRITE);
+	bufferevent_setcb(bev4, NULL, NULL,
+	    http_allowed_methods_eventcb, &result4);
+
+	http_request =
+	    "CUSTOM /test HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev4, http_request, strlen(http_request));
+
+	event_base_dispatch(data->base);
+
 	bufferevent_free(bev1);
 	bufferevent_free(bev2);
 	bufferevent_free(bev3);
+	bufferevent_free(bev4);
 
 	evhttp_free(http);
 
@@ -1007,6 +1110,10 @@ http_allowed_methods_test(void *arg)
 	tt_assert(result3);
 	tt_assert(!strncmp(result3, "HTTP/1.1 501 ", strlen("HTTP/1.1 501 ")));
 
+	/* Custom method (and allowed) */
+	tt_assert(result4);
+	tt_assert(!strncmp(result4, "HTTP/1.1 200 ", strlen("HTTP/1.1 200 ")));
+
  end:
 	if (result1)
 		free(result1);
@@ -1014,12 +1121,16 @@ http_allowed_methods_test(void *arg)
 		free(result2);
 	if (result3)
 		free(result3);
+	if (result4)
+		free(result4);
 	if (fd1 >= 0)
 		evutil_closesocket(fd1);
 	if (fd2 >= 0)
 		evutil_closesocket(fd2);
 	if (fd3 >= 0)
 		evutil_closesocket(fd3);
+	if (fd4 >= 0)
+		evutil_closesocket(fd4);
 }
 
 static void http_request_no_action_done(struct evhttp_request *, void *);
@@ -1042,6 +1153,8 @@ http_connection_test_(struct basic_test_data *data, int persistent,
 	}
 	tt_assert(http);
 
+	evhttp_set_allowed_methods(http, EVHTTP_REQ_GET | EVHTTP_REQ_CUSTOM);
+
 	evcon = evhttp_connection_base_new(data->base, dnsbase, address, port);
 	tt_assert(evcon);
 	evhttp_connection_set_family(evcon, family);
@@ -1051,6 +1164,9 @@ http_connection_test_(struct basic_test_data *data, int persistent,
 	exit_base = data->base;
 
 	tt_assert(evhttp_connection_get_server(evcon) == NULL);
+
+	/* add support for CUSTOM method */
+	evhttp_connection_set_extended_methods(evcon, ext_methods);
 
 	/*
 	 * At this point, we want to schedule a request to the HTTP
@@ -1103,6 +1219,21 @@ http_connection_test_(struct basic_test_data *data, int persistent,
 
 	/* We give ownership of the request to the connection */
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+
+	event_base_dispatch(data->base);
+
+	/* make a CUSTOM request */
+	test_ok = 0;
+
+	req = evhttp_request_new(http_request_empty_done, data->base);
+
+	/* our CUSTOM method doesn't have Body */
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Empty", "itis");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_CUSTOM, "/test") == -1) {
 		tt_abort_msg("Couldn't make request");
 	}
 
@@ -4273,6 +4404,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(post),
 	HTTP(put),
 	HTTP(delete),
+	HTTP(custom),
 	HTTP(allowed_methods),
 	HTTP(failure),
 	HTTP(connection),

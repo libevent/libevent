@@ -73,6 +73,7 @@ struct evkeyvalq;
 struct evhttp_bound_socket;
 struct evconnlistener;
 struct evdns_base;
+struct evhttp_extended_method;
 
 /**
  * Create a new HTTP server.
@@ -246,6 +247,16 @@ void evhttp_set_default_content_type(struct evhttp *http,
 */
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods);
+
+/**
+  Sets the HTTP extended methods supported by this server
+
+  @param http the http server on which to add support to the methods
+  @param ext_methods method list
+*/
+EVENT2_EXPORT_SYMBOL
+void evhttp_set_extended_methods(struct evhttp* http,
+    const struct evhttp_extended_method *ext_methods);
 
 /**
    Set a callback for a specified URI
@@ -487,6 +498,18 @@ enum evhttp_cmd_type {
 	EVHTTP_REQ_PATCH   = 1 << 8
 };
 
+#define EVHTTP_REQ_MAX EVHTTP_REQ_PATCH
+
+/** structure to allow users to define their own HTTP methods
+ * @see evhttp_set_extended_methods */
+struct evhttp_extended_method {
+	const char * method;
+	ev_uint16_t type;
+	ev_uint16_t flags;	/* Available flag : EVHTTP_METHOD_HAS_BODY */
+};
+
+#define EVHTTP_METHOD_HAS_BODY 0x0001
+
 /** a request object can represent either a request or a reply */
 enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
 
@@ -660,6 +683,15 @@ void evhttp_request_own(struct evhttp_request *req);
 /** Returns 1 if the request is owned by the user */
 EVENT2_EXPORT_SYMBOL
 int evhttp_request_is_owned(struct evhttp_request *req);
+
+/**
+ * Sets extended method list
+ *
+ * @see evhttp_set_extended_methods
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_connection_set_extended_methods(struct evhttp_connection *evcon,
+	const struct evhttp_extended_method *ext_methods);
 
 /**
  * Returns the connection object associated with the request or NULL
