@@ -54,6 +54,7 @@ event_fuzzy_version_from_git()
 set(EVENT_VERSION_MAJOR ${EVENT_GIT___VERSION_MAJOR})
 set(EVENT_VERSION_MINOR ${EVENT_GIT___VERSION_MINOR})
 set(EVENT_VERSION_PATCH ${EVENT_GIT___VERSION_PATCH})
+set(EVENT_VERSION_STAGE ${EVENT_GIT___VERSION_STAGE})
 
 
 set(EVENT_ABI_MAJOR ${EVENT_VERSION_MAJOR})
@@ -69,8 +70,8 @@ set(EVENT_PACKAGE_VERSION
 set(EVENT_NUMERIC_VERSION 0x02010500)
 
 # only a subset of names can be used, defaults to "beta"
-set(EVENT__STAGE_NAME "${EVENT_GIT___VERSION_STAGE}"
-    CACHE STRING "set EVENT_STAGE_NAM")
+set(EVENT_STAGE_NAME ${EVENT_VERSION_STAGE}
+	CACHE STRING "set EVENT_STAGE_NAME")
 
 # a list that defines what can set for EVENT_STAGE_VERSION
 set(EVENT__ALLOWED_STAGE_NAMES
@@ -84,15 +85,15 @@ set(EVENT__ALLOWED_STAGE_NAMES
 # EVENT__STAGE_RET
 
 list(FIND EVENT__ALLOWED_STAGE_NAMES
-    ${EVENT__STAGE_NAME}
+	${EVENT_STAGE_NAME}
     EVENT__STAGE_RET)
 
-if (EVENT__STAGE_RET EQUAL "-1")
-    set(EVENT__STAGE_NAM "beta")
+if (EVENT_STAGE_RET EQUAL "-1")
+	set(EVENT_STAGE_NAME "beta")
 endif()
 
 set(EVENT_VERSION
-    "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}-${EVENT_STAGE_NAM}")
+	"${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}-${EVENT_STAGE_NAME}")
 
 option(EVENT__BUILD_SHARED_LIBRARIES
     "Define if libevent should be built with shared libraries instead of archives" OFF)
@@ -404,29 +405,32 @@ CHECK_SYMBOL_EXISTS(RANDOM_UUID sys/sysctl.h EVENT__HAVE_DECL_RANDOM_UUID)
 CHECK_SYMBOL_EXISTS(F_SETFD fcntl.h EVENT__HAVE_SETFD)
 
 CHECK_TYPE_SIZE(fd_mask EVENT__HAVE_FD_MASK)
-CHECK_TYPE_SIZE(size_t EVENT__SIZEOF_SIZE_T)
+CHECK_TYPE_SIZE(size_t EVENT__SIZEOF_SIZEE_T)
 
 if(NOT EVENT__SIZEOF_SIZE_T)
-  set(EVENT__size_t unsigned)
-    # and the point is???
+  set(EVENT__size_t "unsigned")
   set(EVENT__SIZEOF_SIZE_T ${EVENT__SIZEOF_UNSIGNED})
 else()
-    set(EVENT__size_t "size_t")
+    set(EVENT__size_t size_t)
 endif()
 
-CHECK_TYPE_SIZE("off_t" EVENT__SIZEOF_OFF_T)
+CHE_TYPE_SIZE("off_t" EVENT__SIZEOF_OFF_T)
 
 CHECK_TYPE_SIZE(ssize_t EVENT__SIZEOF_SSIZE_T)
 CHECK_TYPE_SIZE(SSIZE_T EVENT__SIZEOF_UPPERCASE_SSIZE_T)
 # Winsock.
 if(NOT EVENT__SIZEOF_SSIZE_T)
     if(EVENT__SIZEOF_UPPERCASE_SSIZE_T)
-        set(EVENT__ssize_t SSIZE_T)
+			set(EVENT__ssize_t SSIZE_T)
         set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_UPPERCASE_SSIZE_T})
     else()
-        set(EVENT__ssize_t int)
+        set(EVENT__ssize_t "int")
         set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
-    endif()
+    enxxdif()
+	else()
+		set(EVENT__ssize_t "int")
+		set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
+	endif()
 endif()
 
 CHECK_TYPE_SIZE(socklen_t EVENT__SIZEOF_SOCKLEN_T)
@@ -440,8 +444,11 @@ endif()
 
 CHECK_TYPE_SIZE(pid_t EVENT__SIZEOF_PID_T)
 if(NOT EVENT__SIZEOF_PID_T)
-  set(EVENT__pid_t int)
+  set(EVENT__pid_t "int")
   set(EVENT__SIZEOF_PID_T ${EVENT__SIZEOF_INT})
+else()
+	set(EVENT__pid_t "pid_t")
+	set(EVENT__SIZEOF_PID_T EVENT__SIZEOF_PID_T)
 endif()
 
 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
