@@ -71,7 +71,7 @@ set(EVENT_NUMERIC_VERSION 0x02010500)
 
 # only a subset of names can be used, defaults to "beta"
 set(EVENT_STAGE_NAME ${EVENT_VERSION_STAGE}
-	CACHE STRING "set EVENT_STAGE_NAME")
+	CACHE STRING "set the stage name (beta|alpha|release)")
 
 # a list that defines what can set for EVENT_STAGE_VERSION
 set(EVENT__ALLOWED_STAGE_NAMES
@@ -86,10 +86,10 @@ set(EVENT__ALLOWED_STAGE_NAMES
 
 list(FIND EVENT__ALLOWED_STAGE_NAMES
 	${EVENT_STAGE_NAME}
-    EVENT__STAGE_RET)
+	EVENT__STAGE_RET)
 
-if (EVENT_STAGE_RET EQUAL "-1")
-	set(EVENT_STAGE_NAME "beta")
+if (EVENT__STAGE_RET EQUAL "-1")
+	set(EVENT_STAGE_NAME beta)
 endif()
 
 set(EVENT_VERSION
