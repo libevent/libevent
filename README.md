@@ -199,19 +199,21 @@ For the latest development versions of Libevent, access our Git repository
 via
 
 ```
-$ git clone git://levent.git.sourceforge.net/gitroot/levent/libevent
+$ git clone https://github.com/libevent/libevent.git
 ```
 
 You can browse the git repository online at:
 
-<http://levent.git.sourceforge.net/git/gitweb-index.cgi> 
-
 <https://github.com/libevent/Libevent>
 
-To report bugs, request features, or submit patches to Libevent,
-use the Sourceforge trackers at
+To report bugs, issues, or ask for new features:
 
-<https://sourceforge.net/tracker/?group_id=50884> 
+__Patches__: https://github.com/libevent/libevent/pulls
+> OK, those are not really _patches_ You fork, modify, and hit the "Create Pull Request" button.
+> You can still submit normal git patchs via the mailing list.
+
+__Bugs, Features [RFC], and Issus__: https://github.com/libevent/libevent/issues
+> Or you can do it via the mailing list.
 
 There's also a libevent-users mailing list for talking about Libevent
 use and development: 
