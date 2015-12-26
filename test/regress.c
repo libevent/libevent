@@ -817,28 +817,21 @@ end:
 }
 
 #ifndef _WIN32
-static void signal_cb(evutil_socket_t fd, short event, void *arg);
 
 #define current_base event_global_current_base_
 extern struct event_base *current_base;
 
 static void
-child_signal_cb(evutil_socket_t fd, short event, void *arg)
+fork_signal_cb(evutil_socket_t fd, short events, void *arg)
 {
-	struct timeval tv;
-	int *pint = arg;
-
-	*pint = 1;
-
-	tv.tv_usec = 500000;
-	tv.tv_sec = 0;
-	event_loopexit(&tv);
+	event_del(arg);
 }
+
 
 static void
 test_fork(void)
 {
-	int status, got_sigchld = 0;
+	int status;
 	struct event ev, sig_ev;
 	pid_t pid;
 
@@ -855,7 +848,7 @@ test_fork(void)
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
 
-	evsignal_set(&sig_ev, SIGCHLD, child_signal_cb, &got_sigchld);
+	evsignal_set(&sig_ev, SIGCHLD, fork_signal_cb, &sig_ev);
 	evsignal_add(&sig_ev, NULL);
 
 	event_base_assert_ok_(current_base);
@@ -916,11 +909,6 @@ test_fork(void)
 	shutdown(pair[0], SHUT_WR);
 
 	event_dispatch();
-
-	if (!got_sigchld) {
-		fprintf(stdout, "FAILED (sigchld)\n");
-		exit(1);
-	}
 
 	evsignal_del(&sig_ev);
 
