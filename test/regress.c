@@ -832,7 +832,7 @@ static void
 test_fork(void)
 {
 	int status;
-	struct event ev, sig_ev, usr_ev;
+	struct event ev, sig_ev, usr_ev, existing_ev;
 	pid_t pid;
 
 	setup_test("After fork: ");
@@ -850,6 +850,9 @@ test_fork(void)
 
 	evsignal_set(&sig_ev, SIGCHLD, fork_signal_cb, &sig_ev);
 	evsignal_add(&sig_ev, NULL);
+
+	evsignal_set(&existing_ev, SIGUSR2, fork_signal_cb, &existing_ev);
+	evsignal_add(&existing_ev, NULL);
 
 	event_base_assert_ok_(current_base);
 	TT_BLATHER(("Before fork"));
@@ -870,6 +873,7 @@ test_fork(void)
 		evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
 		evsignal_add(&usr_ev, NULL);
 		raise(SIGUSR1);
+		raise(SIGUSR2);
 
 		called = 0;
 
@@ -915,6 +919,7 @@ test_fork(void)
 	evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
 	evsignal_add(&usr_ev, NULL);
 	raise(SIGUSR1);
+	raise(SIGUSR2);
 
 	event_dispatch();
 
