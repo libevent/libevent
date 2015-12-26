@@ -1025,6 +1025,11 @@ event_reinit(struct event_base *base)
 			res = -1;
 	} else {
 		res = evsig_init_(base);
+		if (res == 0 && had_signal_added) {
+			res = event_add_nolock_(&base->sig.ev_signal, NULL, 0);
+			if (res == 0)
+				base->sig.ev_signal_added = 1;
+		}
 	}
 
 	/* If we were notifiable before, and nothing just exploded, become
