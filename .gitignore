@@ -67,6 +67,7 @@ libevent_openssl.pc
 /config.status
 /config.sub
 /configure
+/configure.lineno
 /depcomp
 /config.h
 /config.h.in
