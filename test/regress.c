@@ -817,29 +817,22 @@ end:
 }
 
 #ifndef _WIN32
-static void signal_cb(evutil_socket_t fd, short event, void *arg);
 
 #define current_base event_global_current_base_
 extern struct event_base *current_base;
 
 static void
-child_signal_cb(evutil_socket_t fd, short event, void *arg)
+fork_signal_cb(evutil_socket_t fd, short events, void *arg)
 {
-	struct timeval tv;
-	int *pint = arg;
-
-	*pint = 1;
-
-	tv.tv_usec = 500000;
-	tv.tv_sec = 0;
-	event_loopexit(&tv);
+	event_del(arg);
 }
+
 
 static void
 test_fork(void)
 {
-	int status, got_sigchld = 0;
-	struct event ev, sig_ev;
+	int status;
+	struct event ev, sig_ev, usr_ev, existing_ev;
 	pid_t pid;
 
 	setup_test("After fork: ");
@@ -855,8 +848,11 @@ test_fork(void)
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
 
-	evsignal_set(&sig_ev, SIGCHLD, child_signal_cb, &got_sigchld);
+	evsignal_set(&sig_ev, SIGCHLD, fork_signal_cb, &sig_ev);
 	evsignal_add(&sig_ev, NULL);
+
+	evsignal_set(&existing_ev, SIGUSR2, fork_signal_cb, &existing_ev);
+	evsignal_add(&existing_ev, NULL);
 
 	event_base_assert_ok_(current_base);
 	TT_BLATHER(("Before fork"));
@@ -873,6 +869,11 @@ test_fork(void)
 		TT_BLATHER(("After assert-ok"));
 
 		evsignal_del(&sig_ev);
+
+		evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
+		evsignal_add(&usr_ev, NULL);
+		raise(SIGUSR1);
+		raise(SIGUSR2);
 
 		called = 0;
 
@@ -915,12 +916,12 @@ test_fork(void)
 
 	shutdown(pair[0], SHUT_WR);
 
-	event_dispatch();
+	evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
+	evsignal_add(&usr_ev, NULL);
+	raise(SIGUSR1);
+	raise(SIGUSR2);
 
-	if (!got_sigchld) {
-		fprintf(stdout, "FAILED (sigchld)\n");
-		exit(1);
-	}
+	event_dispatch();
 
 	evsignal_del(&sig_ev);
 

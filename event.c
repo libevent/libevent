@@ -969,13 +969,13 @@ event_reinit(struct event_base *base)
 		event_del_nolock_(&base->sig.ev_signal, EVENT_DEL_AUTOBLOCK);
 		event_debug_unassign(&base->sig.ev_signal);
 		memset(&base->sig.ev_signal, 0, sizeof(base->sig.ev_signal));
-		if (base->sig.ev_signal_pair[0] != -1)
-			EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);
-		if (base->sig.ev_signal_pair[1] != -1)
-			EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[1]);
 		had_signal_added = 1;
 		base->sig.ev_signal_added = 0;
 	}
+	if (base->sig.ev_signal_pair[0] != -1)
+		EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[0]);
+	if (base->sig.ev_signal_pair[1] != -1)
+		EVUTIL_CLOSESOCKET(base->sig.ev_signal_pair[1]);
 	if (base->th_notify_fn != NULL) {
 		was_notifiable = 1;
 		base->th_notify_fn = NULL;
@@ -1024,8 +1024,12 @@ event_reinit(struct event_base *base)
 		if (evmap_reinit_(base) < 0)
 			res = -1;
 	} else {
-		if (had_signal_added)
-			res = evsig_init_(base);
+		res = evsig_init_(base);
+		if (res == 0 && had_signal_added) {
+			res = event_add_nolock_(&base->sig.ev_signal, NULL, 0);
+			if (res == 0)
+				base->sig.ev_signal_added = 1;
+		}
 	}
 
 	/* If we were notifiable before, and nothing just exploded, become
