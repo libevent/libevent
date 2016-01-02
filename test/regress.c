@@ -31,6 +31,10 @@
 #include <windows.h>
 #endif
 
+#ifdef EVENT__HAVE_PTHREADS
+#include <pthread.h>
+#endif
+
 #include "event2/event-config.h"
 
 #include <sys/types.h>
@@ -928,6 +932,67 @@ test_fork(void)
 	end:
 	cleanup_test();
 }
+
+#ifdef EVENT__HAVE_PTHREADS
+static void* del_wait_thread(void *arg)
+{
+	struct timeval tv_start, tv_end;
+
+	evutil_gettimeofday(&tv_start, NULL);
+	event_dispatch();
+	evutil_gettimeofday(&tv_end, NULL);
+
+	test_timeval_diff_eq(&tv_start, &tv_end, 300);
+
+	end:
+	;
+}
+
+static void
+del_wait_cb(evutil_socket_t fd, short event, void *arg)
+{
+	struct timeval delay = { 0, 300*1000 };
+	TT_BLATHER(("Sleeping"));
+	evutil_usleep_(&delay);
+	test_ok = 1;
+}
+
+static void
+test_del_wait(void)
+{
+	struct event ev;
+	pthread_t thread;
+
+	setup_test("event_del will wait: ");
+
+	event_set(&ev, pair[1], EV_READ, del_wait_cb, &ev);
+	event_add(&ev, NULL);
+
+	pthread_create(&thread, NULL, del_wait_thread, NULL);
+
+	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
+		tt_fail_perror("write");
+	}
+
+	{
+		struct timeval delay = { 0, 30*1000 };
+		evutil_usleep_(&delay);
+	}
+
+	{
+		struct timeval tv_start, tv_end;
+		evutil_gettimeofday(&tv_start, NULL);
+		event_del(&ev);
+		evutil_gettimeofday(&tv_end, NULL);
+		test_timeval_diff_eq(&tv_start, &tv_end, 270);
+	}
+
+	pthread_join(thread, NULL);
+
+	end:
+	;
+}
+#endif
 
 static void
 signal_cb_sa(int sig)
@@ -3301,6 +3366,11 @@ struct testcase_t main_testcases[] = {
 #ifndef _WIN32
 	LEGACY(fork, TT_ISOLATED),
 #endif
+#ifdef EVENT__HAVE_PTHREADS
+	/** TODO: support win32 */
+	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS),
+#endif
+
 	END_OF_TESTCASES
 };
 
