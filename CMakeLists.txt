@@ -420,21 +420,19 @@ CHECK_TYPE_SIZE("off_t" EVENT__SIZEOF_OFF_T LANGUAGE C)
 # XXX we should functionalize these size and type sets. --elley
 
 # Winssck.
-set(SSIZE_TMAP_ssize_t "ssize_t")
-set(SSIZE_TMAP_SSIZE_T "SSIZE_T")
+if (_MSC_VER)
+    list(APPEND CMAKE_EXTRA_INCLUDE_FILES BaseTsd.h)
+endif()
+CHECK_TYPE_SIZE("ssize_t" EVENT__SIZEOF_SSIZE_T_LOWER LANGUAGE C)
+CHECK_TYPE_SIZE("SSIZE_T" EVENT__SIZEOF_SSIZE_T_UPPER LANGUAGE C)
 
-CHECK_TYPE_SIZE("ssize_t" EVENT__SIZEOF_SSIZE_T LANGUAGE C)
-CHECK_TYPE_SIZE("SSIZE_T" EVENT__SIZEOF_SSIZE_T LANGUAGE C)
-
-if (DEFINED EVENT__SIZEOF_SSIZE_T)
-	if (DEFINED SSIZE_TMAP_ssize_t)
-		set(EVENT__ssize_t "ssize_t")
-	elseif (DEFINED SSIZE_TMAP_SSIZE_T)
-		set(EVENT__ssize_t "SSIZE_T")
-	else()
-		set(EVENT__ssize_t "int")
-		set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
-	endif()
+if (EVENT__SIZEOF_SSIZE_T_LOWER)
+    set(EVENT__ssize_t "ssize_t")
+elseif (EVENT__SIZEOF_SSIZE_T_UPPER)
+    set(EVENT__ssize_t "SSIZE_T")
+else()
+    set(EVENT__ssize_t "int")
+    set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
 endif()
 
 
