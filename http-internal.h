@@ -108,6 +108,8 @@ struct evhttp_connection {
 	struct event_base *base;
 	struct evdns_base *dns_base;
 	int ai_family;
+
+	evhttp_ext_method_cb *ext_method_cmp;
 };
 
 /* A callback for an http server */
@@ -178,6 +180,8 @@ struct evhttp {
 	void *newreqcbarg;
 
 	struct event_base *base;
+
+	evhttp_ext_method_cb *ext_method_cmp;
 };
 
 /* XXX most of these functions could be static. */
