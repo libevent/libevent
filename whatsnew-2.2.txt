@@ -68,3 +68,33 @@ heavy computation.
 The watcher API is defined in <event2/watch.h>. A concrete example of how
 watchers can help monitor server performance is available in
 "sample/watch-timing.c".
+
+* Support for custom HTTP methods
+
+Libevent HTTP code now supports defining custom HTTP methods. It is done
+through a callback:
+
+  #define EVHTTP_REQ_CUSTOM      ((EVHTTP_REQ_MAX) << 1)
+  static int ext_method_cb(struct evhttp_ext_method *p)
+  {
+    if (p == NULL)
+      return -1;
+    if (p->method) {
+      if (strcmp(p->method, "CUSTOM") == 0) {
+        p->type = EVHTTP_REQ_CUSTOM;
+        p->flags = 0;   /*EVHTTP_METHOD_HAS_BODY*/
+        return 0;
+      }
+    } else {
+      if (p->type == EVHTTP_REQ_CUSTOM) {
+        p->method = "CUSTOM";
+        return 0;
+      }
+    }
+  }
+
+And to register this callback with http server you can use:
+  evhttp_set_ext_method_cmp(http, ext_method_cb);
+
+Or registering callback with one client only:
+  evhttp_connection_set_ext_method_cmp(evcon, ext_method_cb);

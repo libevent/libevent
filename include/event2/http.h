@@ -73,6 +73,7 @@ struct evkeyvalq;
 struct evhttp_bound_socket;
 struct evconnlistener;
 struct evdns_base;
+struct evhttp_ext_method;
 
 /**
  * Create a new HTTP server.
@@ -247,6 +248,26 @@ void evhttp_set_default_content_type(struct evhttp *http,
 */
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_allowed_methods(struct evhttp* http, ev_uint32_t methods);
+
+typedef int (*evhttp_ext_method_cb)(struct evhttp_ext_method *);
+/**
+  Sets the callback function which allows HTTP extended methods
+  to be supported by this server.
+
+  The callback should :
+   - if method field is NULL : set method field according to type field
+   - else : set type and flags fields according to method string
+   - return 0 for success (known method / type)
+   - return -1 for error (unknown method / type)
+
+  evhttp_set_allowed_methods still needs to be called.
+
+  @param http the http server on which to add support to the methods
+  @param cmp the extended method callback
+  @see evhttp_ext_method
+*/
+EVENT2_EXPORT_SYMBOL
+void evhttp_set_ext_method_cmp(struct evhttp *http, evhttp_ext_method_cb cmp);
 
 /**
    Set a callback for a specified URI
@@ -552,6 +573,23 @@ enum evhttp_cmd_type {
 	EVHTTP_REQ_MOVE    = 1 << 15,
 };
 
+#define EVHTTP_REQ_MAX EVHTTP_REQ_MOVE
+
+/**
+ * @brief stucture that is passed to (and modified by) the
+ * extended method callback function
+ *
+ * @see evhttp_set_ext_method_cmp
+ * @see evhttp_connection_set_ext_method_cmp
+ */
+struct evhttp_ext_method {
+	const char *method;
+	ev_uint32_t type;	/* @see enum evhttp_cmd_type */
+	ev_uint16_t flags;	/* Available flag : EVHTTP_METHOD_HAS_BODY */
+};
+
+#define EVHTTP_METHOD_HAS_BODY 0x0001
+
 /** a request object can represent either a request or a reply */
 enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
 
@@ -741,6 +779,15 @@ void evhttp_request_own(struct evhttp_request *req);
 /** Returns 1 if the request is owned by the user */
 EVENT2_EXPORT_SYMBOL
 int evhttp_request_is_owned(struct evhttp_request *req);
+
+/**
+ * Sets extended method cmp callback for this http connection.
+ *
+ * @see evhttp_set_ext_method_cmp
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_connection_set_ext_method_cmp(struct evhttp_connection *evcon,
+	evhttp_ext_method_cb cmp);
 
 /**
  * Returns the connection object associated with the request or NULL
