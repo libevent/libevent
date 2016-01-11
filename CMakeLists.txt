@@ -889,6 +889,12 @@ if (NOT EVENT__DISABLE_SAMPLES)
 
         add_dependencies(${SAMPLE} event_extra)
     endforeach()
+
+    if (WIN32)
+        target_sources(dns-example PUBLIC
+                       WIN32-Code/getopt.c
+                       WIN32-Code/getopt_long.c)
+    endif()
 endif()
 
 if (NOT EVENT__DISABLE_BENCHMARK)
