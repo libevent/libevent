@@ -1,10 +1,11 @@
+#include "event2/event-config.h"
+
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/http_struct.h>
 #include <event2/buffer.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <limits.h>
 
 #define VERIFY(cond) do {                       \
@@ -12,6 +13,8 @@
 		fprintf(stderr, "[error] %s\n", #cond); \
 	}                                           \
 } while (0);                                    \
+
+#define URL_MAX 4096
 
 struct connect_base
 {
@@ -21,13 +24,20 @@ struct connect_base
 
 static void get_cb(struct evhttp_request *req, void *arg)
 {
+	ev_ssize_t len;
+	struct evbuffer *evbuf;
+
 	VERIFY(req);
-	evbuffer_write(req->input_buffer, STDOUT_FILENO);
+
+	evbuf = evhttp_request_get_input_buffer(req);
+	len = evbuffer_get_length(evbuf);
+	fwrite(evbuffer_pullup(evbuf, len), len, 1, stdout);
+	evbuffer_drain(evbuf, len);
 }
 
 static void connect_cb(struct evhttp_request *proxy_req, void *arg)
 {
-	char buffer[PATH_MAX];
+	char buffer[URL_MAX];
 
 	struct connect_base *base = arg;
 	struct evhttp_connection *evcon = base->evcon;
@@ -38,13 +48,13 @@ static void connect_cb(struct evhttp_request *proxy_req, void *arg)
 		struct evhttp_request *req = evhttp_request_new(get_cb, NULL);
 		evhttp_add_header(req->output_headers, "Connection", "close");
 		VERIFY(!evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
-			evhttp_uri_join(location, buffer, PATH_MAX)));
+			evhttp_uri_join(location, buffer, URL_MAX)));
 	}
 }
 
 int main(int argc, const char **argv)
 {
-	char buffer[PATH_MAX];
+	char buffer[URL_MAX];
 
 	struct evhttp_uri *host_port;
 	struct evhttp_uri *location;
@@ -95,7 +105,7 @@ int main(int argc, const char **argv)
 
 	evhttp_add_header(req->output_headers, "Connection", "keep-alive");
 	evhttp_add_header(req->output_headers, "Proxy-Connection", "keep-alive");
-	evutil_snprintf(buffer, PATH_MAX, "%s:%d",
+	evutil_snprintf(buffer, URL_MAX, "%s:%d",
 		evhttp_uri_get_host(host_port), evhttp_uri_get_port(host_port));
 	evhttp_make_request(evcon, req, EVHTTP_REQ_CONNECT, buffer);
 
