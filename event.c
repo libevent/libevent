@@ -84,6 +84,7 @@
 #define TIMEOUT_PUBLIC static __attribute__((unused))
 #define TIMEOUT_DEBUG 0
 #define TIMEOUT_CB_OVERRIDE
+#define TIMEOUT_DISABLE_INTERVALS
 struct timeout_cb {
 	struct event *arg;
 };

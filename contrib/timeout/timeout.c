@@ -44,6 +44,15 @@
 #endif
 
 
+#ifndef TIMEOUT_INT
+#define TIMEOUT_INT 0
+#define INTERVAL_GET(to) (abort(), 1)
+#define INTERVAL_SET(to, val) abort()
+#else
+#define INTERVAL_GET(to) ((to)->interval)
+#define INTERVAL_SET(to, val) ((to)->interval = (val))
+#endif
+
 /*
  * A N C I L L A R Y  R O U T I N E S
  *
@@ -337,20 +346,21 @@ static void timeouts_sched(struct timeouts *T, struct timeout *to, timeout_t exp
 
 
 static void timeouts_readd(struct timeouts *T, struct timeout *to) {
-	to->expires += to->interval;
+	const timeout_t interval = INTERVAL_GET(to);
+	to->expires += interval;
 
 	if (to->expires <= T->curtime) {
 		if (to->expires < T->curtime) {
 			timeout_t n = T->curtime - to->expires;
-			timeout_t q = n / to->interval;
-			timeout_t r = n % to->interval;
+			timeout_t q = n / interval;
+			timeout_t r = n % interval;
 
 			if (r)
-				to->expires += (to->interval * q) + (to->interval - r);
+				to->expires += (interval * q) + (interval - r);
 			else
-				to->expires += (to->interval * q);
+				to->expires += (interval * q);
 		} else {
-			to->expires += to->interval;
+			to->expires += interval;
 		}
 	}
 
@@ -360,7 +370,7 @@ static void timeouts_readd(struct timeouts *T, struct timeout *to) {
 
 TIMEOUT_PUBLIC void timeouts_add(struct timeouts *T, struct timeout *to, timeout_t timeout) {
 	if (to->flags & TIMEOUT_INT)
-		to->interval = MAX(1, timeout);
+		INTERVAL_SET(to, MAX(1, timeout));
 
 	if (to->flags & TIMEOUT_ABS)
 		timeouts_sched(T, to, timeout);
@@ -529,7 +539,7 @@ TIMEOUT_PUBLIC struct timeout *timeouts_get(struct timeouts *T) {
 		TAILQ_REMOVE(&T->expired, to, tqe);
 		to->pending = 0;
 
-		if ((to->flags & TIMEOUT_INT) && to->interval > 0) {
+		if ((to->flags & TIMEOUT_INT) && INTERVAL_GET(to) > 0) {
 			timeouts_readd(T, to);
 		} else {
 			to->timeouts = 0;
