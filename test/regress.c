@@ -945,7 +945,7 @@ static void* del_wait_thread(void *arg)
 	test_timeval_diff_eq(&tv_start, &tv_end, 300);
 
 	end:
-	;
+	return NULL;
 }
 
 static void
