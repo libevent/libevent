@@ -3613,17 +3613,7 @@ event_base_assert_ok_nolock_(struct event_base *base)
 	/* First do checks on the per-fd and per-signal lists */
 	evmap_check_integrity_(base);
 
-#ifdef XXXX
-	/* Check the heap property */
-	for (i = 1; i < (int)base->timeheap.n; ++i) {
-		int parent = (i - 1) / 2;
-		struct event *ev, *p_ev;
-		ev = base->timeheap.p[i];
-		p_ev = base->timeheap.p[parent];
-		EVUTIL_ASSERT(ev->ev_flags & EVLIST_TIMEOUT);
-		EVUTIL_ASSERT(evutil_timercmp(&p_ev->ev_timeout, &ev->ev_timeout, <=));
-	}
-#endif
+	EVUTIL_ASSERT(timeouts_check(base->timeout_queue, NULL));
 
 	/* Check the active queues. */
 	count = 0;
