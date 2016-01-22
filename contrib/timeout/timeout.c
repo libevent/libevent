@@ -579,6 +579,24 @@ static struct timeout *timeouts_min(struct timeouts *T) {
 	} \
 } while (0)
 
+TIMEOUT_PUBLIC int timeouts_foreach(struct timeouts *T, int (*fp)(struct timeout *, void *), void *cb_arg)
+{
+	struct timeout *to = NULL;
+	int rv;
+	unsigned i, j;
+
+	for (i = 0; i < countof(T->wheel); i++) {
+		for (j = 0; j < countof(T->wheel[i]); j++) {
+			TAILQ_FOREACH(to, &T->wheel[i][j], tqe) {
+				rv = fp(to,cb_arg);
+				if (rv)
+					return rv;
+			}
+		}
+	}
+	return 0;
+} /* timeouts_foreach */
+
 TIMEOUT_PUBLIC bool timeouts_check(struct timeouts *T, FILE *fp) {
 	timeout_t timeout;
 	struct timeout *to;

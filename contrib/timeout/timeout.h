@@ -189,6 +189,10 @@ TIMEOUT_PUBLIC bool timeouts_expired(struct timeouts *);
 TIMEOUT_PUBLIC bool timeouts_check(struct timeouts *, FILE *);
 /* return true if invariants hold. describes failures to optional file handle. */
 
+TIMEOUT_PUBLIC int timeouts_foreach(struct timeouts *, int (*fn)(struct timeout *, void *), void *);
+/* Run fn(timeout,arg) on every pending or expired timeout in the wheel. If
+ * any iteration returns nonzero, return the nonzero value immediately and
+ * stop looping. */
 
 /*
  * B O N U S  W H E E L  I N T E R F A C E S

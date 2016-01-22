@@ -3364,30 +3364,40 @@ evthread_make_base_notifiable_nolock_(struct event_base *base)
 	return event_add_nolock_(&base->th_notify, NULL, 0);
 }
 
+struct timeouts_foreach_cb_arg {
+	struct event_base *base;
+	event_base_foreach_event_cb cb;
+	void *arg;
+};
+
+static int
+event_base_foreach_event_timeout_cb(struct event_timeout *timeout, void *arg)
+{
+	struct timeouts_foreach_cb_arg *cb_arg = arg;
+	struct event *ev = timeout->callback.arg;
+	
+	if (ev->ev_flags & EVLIST_INSERTED) {
+		/* we already processed this one */
+		return 0;
+	}
+
+	return cb_arg->cb(cb_arg->base, timeout->callback.arg, cb_arg->arg);
+}
+
 int
 event_base_foreach_event_nolock_(struct event_base *base,
     event_base_foreach_event_cb fn, void *arg)
 {
 	int r, i;
 	struct event *ev;
+	struct timeouts_foreach_cb_arg timeouts_arg = { base, fn, arg };
 
 	/* Start out with all the EVLIST_INSERTED events. */
 	if ((r = evmap_foreach_event_(base, fn, arg)))
 		return r;
 
-#ifdef XXXX
-	/* Okay, now we deal with those events that have timeouts and are in
-	 * the min-heap. */
-	for (u = 0; u < base->timeheap.n; ++u) {
-		ev = base->timeheap.p[u];
-		if (ev->ev_flags & EVLIST_INSERTED) {
-			/* we already processed this one */
-			continue;
-		}
-		if ((r = fn(base, ev, arg)))
-			return r;
-	}
-#endif
+	if ((r = timeouts_foreach(base->timeout_queue, event_base_foreach_event_timeout_cb, &timeouts_arg)))
+		return r;
 
 	/* Finally, we deal wit all the active events that we haven't touched
 	 * yet. */
