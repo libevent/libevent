@@ -69,10 +69,38 @@
 #include "ht-internal.h"
 #include "util-internal.h"
 
-
 #ifdef EVENT__HAVE_WORKING_KQUEUE
 #include "kqueue-internal.h"
 #endif
+
+#undef timeout_add
+#undef timeout_del
+#undef timeout_pending
+
+#define timeout event_timeout
+#define timeouts event_timeouts
+#define malloc mm_malloc
+#define free mm_free
+#define TIMEOUT_PUBLIC static __attribute__((unused))
+#define TIMEOUT_DEBUG 0
+#define TIMEOUT_CB_OVERRIDE
+struct timeout_cb {
+	struct event *arg;
+};
+#include "contrib/timeout/timeout.h"
+#include "contrib/timeout/timeout.c"
+#undef timeout
+#undef timeouts
+#undef malloc
+#undef free
+
+#define TV_TO_TIMEOUT(tv) (((ev_uint64_t)(tv)->tv_sec)*1000000 + (tv)->tv_usec)
+#define TIMEOUT_TO_TV(tv,when)				\
+	do {						\
+		ev_uint64_t u64 = (when);		\
+		(tv)->tv_usec = (long)(u64 % 1000000);	\
+		(tv)->tv_sec = (time_t)(u64 / 1000000); \
+	} while (0)
 
 #ifdef EVENT__HAVE_EVENT_PORTS
 extern const struct eventop evportops;
@@ -133,21 +161,17 @@ static void *event_self_cbarg_ptr_ = NULL;
 /* Prototypes */
 static void	event_queue_insert_active(struct event_base *, struct event_callback *);
 static void	event_queue_insert_active_later(struct event_base *, struct event_callback *);
+static int	event_queue_alloc_timeout(struct event *);
 static void	event_queue_insert_timeout(struct event_base *, struct event *);
 static void	event_queue_insert_inserted(struct event_base *, struct event *);
 static void	event_queue_remove_active(struct event_base *, struct event_callback *);
 static void	event_queue_remove_active_later(struct event_base *, struct event_callback *);
-static void	event_queue_remove_timeout(struct event_base *, struct event *);
+static void	event_queue_remove_timeout(struct event_base *, struct event *, int);
 static void	event_queue_remove_inserted(struct event_base *, struct event *);
 static void event_queue_make_later_events_active(struct event_base *base);
 
 static int evthread_make_base_notifiable_nolock_(struct event_base *base);
 static int event_del_(struct event *ev, int blocking);
-
-#ifdef USE_REINSERT_TIMEOUT
-/* This code seems buggy; only turn it on if we find out what the trouble is. */
-static void	event_queue_reinsert_timeout(struct event_base *,struct event *, int was_common, int is_common, int old_timeout_idx);
-#endif
 
 static int	event_haveevents(struct event_base *);
 
@@ -160,9 +184,6 @@ static inline void	event_signal_closure(struct event_base *, struct event *ev);
 static inline void	event_persist_closure(struct event_base *, struct event *ev);
 
 static int	evthread_notify_base(struct event_base *base);
-
-static void insert_common_timeout_inorder(struct common_timeout_list *ctl,
-    struct event *ev);
 
 #ifndef EVENT__DISABLE_DEBUG_MODE
 /* These functions implement a hashtable of which 'struct event *' structures
@@ -598,7 +619,14 @@ event_base_new_with_config(const struct event_config *cfg)
 		gettime(base, &tmp);
 	}
 
-	min_heap_ctor_(&base->timeheap);
+	{
+		int err;
+		base->timeout_queue = timeouts_open(0, &err);
+		if (!base->timeout_queue) {
+			event_base_free(base);
+			return NULL;
+		}
+	}
 
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
@@ -829,28 +857,16 @@ event_base_free_(struct event_base *base, int run_finalizers)
 	/* Delete all non-internal events. */
 	evmap_delete_all_(base);
 
-	while ((ev = min_heap_top_(&base->timeheap)) != NULL) {
-		event_del(ev);
-		++n_deleted;
-	}
-	for (i = 0; i < base->n_common_timeouts; ++i) {
-		struct common_timeout_list *ctl =
-		    base->common_timeout_queues[i];
-		event_del(&ctl->timeout_event); /* Internal; doesn't count */
-		event_debug_unassign(&ctl->timeout_event);
-		for (ev = TAILQ_FIRST(&ctl->events); ev; ) {
-			struct event *next = TAILQ_NEXT(ev,
-			    ev_timeout_pos.ev_next_with_common_timeout);
-			if (!(ev->ev_flags & EVLIST_INTERNAL)) {
-				event_del(ev);
-				++n_deleted;
-			}
-			ev = next;
+	if (base->timeout_queue) {
+		struct event_timeout *timeout;
+		/* Expire all timeouts so we can pull them off the pqueue */
+		timeouts_update(base->timeout_queue, EV_UINT64_MAX);
+		while ((timeout = timeouts_get(base->timeout_queue))) {
+			ev = timeout->callback.arg;
+			event_del(ev);
+			++n_deleted;
 		}
-		mm_free(ctl);
 	}
-	if (base->common_timeout_queues)
-		mm_free(base->common_timeout_queues);
 
 	for (;;) {
 		/* For finalizers we can register yet another finalizer out from
@@ -884,8 +900,12 @@ event_base_free_(struct event_base *base, int run_finalizers)
 	for (i = 0; i < base->nactivequeues; ++i)
 		EVUTIL_ASSERT(TAILQ_EMPTY(&base->activequeues[i]));
 
-	EVUTIL_ASSERT(min_heap_empty_(&base->timeheap));
-	min_heap_dtor_(&base->timeheap);
+	if (base->timeout_queue) {
+		EVUTIL_ASSERT(! timeouts_pending(base->timeout_queue));
+		EVUTIL_ASSERT(! timeouts_expired(base->timeout_queue));
+		timeouts_close(base->timeout_queue);
+		base->timeout_queue = NULL;
+	}
 
 	mm_free(base->activequeues);
 
@@ -1337,181 +1357,11 @@ event_signal_closure(struct event_base *base, struct event *ev)
 	}
 }
 
-/* Common timeouts are special timeouts that are handled as queues rather than
- * in the minheap.  This is more efficient than the minheap if we happen to
- * know that we're going to get several thousands of timeout events all with
- * the same timeout value.
- *
- * Since all our timeout handling code assumes timevals can be copied,
- * assigned, etc, we can't use "magic pointer" to encode these common
- * timeouts.  Searching through a list to see if every timeout is common could
- * also get inefficient.  Instead, we take advantage of the fact that tv_usec
- * is 32 bits long, but only uses 20 of those bits (since it can never be over
- * 999999.)  We use the top bits to encode 4 bites of magic number, and 8 bits
- * of index into the event_base's aray of common timeouts.
- */
-
-#define MICROSECONDS_MASK       COMMON_TIMEOUT_MICROSECONDS_MASK
-#define COMMON_TIMEOUT_IDX_MASK 0x0ff00000
-#define COMMON_TIMEOUT_IDX_SHIFT 20
-#define COMMON_TIMEOUT_MASK     0xf0000000
-#define COMMON_TIMEOUT_MAGIC    0x50000000
-
-#define COMMON_TIMEOUT_IDX(tv) \
-	(((tv)->tv_usec & COMMON_TIMEOUT_IDX_MASK)>>COMMON_TIMEOUT_IDX_SHIFT)
-
-/** Return true iff if 'tv' is a common timeout in 'base' */
-static inline int
-is_common_timeout(const struct timeval *tv,
-    const struct event_base *base)
-{
-	int idx;
-	if ((tv->tv_usec & COMMON_TIMEOUT_MASK) != COMMON_TIMEOUT_MAGIC)
-		return 0;
-	idx = COMMON_TIMEOUT_IDX(tv);
-	return idx < base->n_common_timeouts;
-}
-
-/* True iff tv1 and tv2 have the same common-timeout index, or if neither
- * one is a common timeout. */
-static inline int
-is_same_common_timeout(const struct timeval *tv1, const struct timeval *tv2)
-{
-	return (tv1->tv_usec & ~MICROSECONDS_MASK) ==
-	    (tv2->tv_usec & ~MICROSECONDS_MASK);
-}
-
-/** Requires that 'tv' is a common timeout.  Return the corresponding
- * common_timeout_list. */
-static inline struct common_timeout_list *
-get_common_timeout_list(struct event_base *base, const struct timeval *tv)
-{
-	return base->common_timeout_queues[COMMON_TIMEOUT_IDX(tv)];
-}
-
-#if 0
-static inline int
-common_timeout_ok(const struct timeval *tv,
-    struct event_base *base)
-{
-	const struct timeval *expect =
-	    &get_common_timeout_list(base, tv)->duration;
-	return tv->tv_sec == expect->tv_sec &&
-	    tv->tv_usec == expect->tv_usec;
-}
-#endif
-
-/* Add the timeout for the first event in given common timeout list to the
- * event_base's minheap. */
-static void
-common_timeout_schedule(struct common_timeout_list *ctl,
-    const struct timeval *now, struct event *head)
-{
-	struct timeval timeout = head->ev_timeout;
-	timeout.tv_usec &= MICROSECONDS_MASK;
-	event_add_nolock_(&ctl->timeout_event, &timeout, 1);
-}
-
-/* Callback: invoked when the timeout for a common timeout queue triggers.
- * This means that (at least) the first event in that queue should be run,
- * and the timeout should be rescheduled if there are more events. */
-static void
-common_timeout_callback(evutil_socket_t fd, short what, void *arg)
-{
-	struct timeval now;
-	struct common_timeout_list *ctl = arg;
-	struct event_base *base = ctl->base;
-	struct event *ev = NULL;
-	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-	gettime(base, &now);
-	while (1) {
-		ev = TAILQ_FIRST(&ctl->events);
-		if (!ev || ev->ev_timeout.tv_sec > now.tv_sec ||
-		    (ev->ev_timeout.tv_sec == now.tv_sec &&
-			(ev->ev_timeout.tv_usec&MICROSECONDS_MASK) > now.tv_usec))
-			break;
-		event_del_nolock_(ev, EVENT_DEL_NOBLOCK);
-		event_active_nolock_(ev, EV_TIMEOUT, 1);
-	}
-	if (ev)
-		common_timeout_schedule(ctl, &now, ev);
-	EVBASE_RELEASE_LOCK(base, th_base_lock);
-}
-
-#define MAX_COMMON_TIMEOUTS 256
-
 const struct timeval *
 event_base_init_common_timeout(struct event_base *base,
     const struct timeval *duration)
 {
-	int i;
-	struct timeval tv;
-	const struct timeval *result=NULL;
-	struct common_timeout_list *new_ctl;
-
-	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-	if (duration->tv_usec > 1000000) {
-		memcpy(&tv, duration, sizeof(struct timeval));
-		if (is_common_timeout(duration, base))
-			tv.tv_usec &= MICROSECONDS_MASK;
-		tv.tv_sec += tv.tv_usec / 1000000;
-		tv.tv_usec %= 1000000;
-		duration = &tv;
-	}
-	for (i = 0; i < base->n_common_timeouts; ++i) {
-		const struct common_timeout_list *ctl =
-		    base->common_timeout_queues[i];
-		if (duration->tv_sec == ctl->duration.tv_sec &&
-		    duration->tv_usec ==
-		    (ctl->duration.tv_usec & MICROSECONDS_MASK)) {
-			EVUTIL_ASSERT(is_common_timeout(&ctl->duration, base));
-			result = &ctl->duration;
-			goto done;
-		}
-	}
-	if (base->n_common_timeouts == MAX_COMMON_TIMEOUTS) {
-		event_warnx("%s: Too many common timeouts already in use; "
-		    "we only support %d per event_base", __func__,
-		    MAX_COMMON_TIMEOUTS);
-		goto done;
-	}
-	if (base->n_common_timeouts_allocated == base->n_common_timeouts) {
-		int n = base->n_common_timeouts < 16 ? 16 :
-		    base->n_common_timeouts*2;
-		struct common_timeout_list **newqueues =
-		    mm_realloc(base->common_timeout_queues,
-			n*sizeof(struct common_timeout_queue *));
-		if (!newqueues) {
-			event_warn("%s: realloc",__func__);
-			goto done;
-		}
-		base->n_common_timeouts_allocated = n;
-		base->common_timeout_queues = newqueues;
-	}
-	new_ctl = mm_calloc(1, sizeof(struct common_timeout_list));
-	if (!new_ctl) {
-		event_warn("%s: calloc",__func__);
-		goto done;
-	}
-	TAILQ_INIT(&new_ctl->events);
-	new_ctl->duration.tv_sec = duration->tv_sec;
-	new_ctl->duration.tv_usec =
-	    duration->tv_usec | COMMON_TIMEOUT_MAGIC |
-	    (base->n_common_timeouts << COMMON_TIMEOUT_IDX_SHIFT);
-	evtimer_assign(&new_ctl->timeout_event, base,
-	    common_timeout_callback, new_ctl);
-	new_ctl->timeout_event.ev_flags |= EVLIST_INTERNAL;
-	event_priority_set(&new_ctl->timeout_event, 0);
-	new_ctl->base = base;
-	base->common_timeout_queues[base->n_common_timeouts++] = new_ctl;
-	result = &new_ctl->duration;
-
-done:
-	if (result)
-		EVUTIL_ASSERT(is_common_timeout(result, base));
-
-	EVBASE_RELEASE_LOCK(base, th_base_lock);
-	return result;
+	return duration;
 }
 
 /* Closure function invoked when we're activating a persistent event. */
@@ -1533,20 +1383,8 @@ event_persist_closure(struct event_base *base, struct event *ev)
 		 * reason, though, the timeout ought to start ticking _now_. */
 		struct timeval run_at, relative_to, delay, now;
 		ev_uint32_t usec_mask = 0;
-		EVUTIL_ASSERT(is_same_common_timeout(&ev->ev_timeout,
-			&ev->ev_io_timeout));
 		gettime(base, &now);
-		if (is_common_timeout(&ev->ev_timeout, base)) {
-			delay = ev->ev_io_timeout;
-			usec_mask = delay.tv_usec & ~MICROSECONDS_MASK;
-			delay.tv_usec &= MICROSECONDS_MASK;
-			if (ev->ev_res & EV_TIMEOUT) {
-				relative_to = ev->ev_timeout;
-				relative_to.tv_usec &= MICROSECONDS_MASK;
-			} else {
-				relative_to = now;
-			}
-		} else {
+		if (1) {
 			delay = ev->ev_io_timeout;
 			if (ev->ev_res & EV_TIMEOUT) {
 				relative_to = ev->ev_timeout;
@@ -2098,7 +1936,7 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 		}
 	}
 
-	min_heap_elem_init_(ev);
+	ev->ev_timeout_obj = NULL;
 
 	if (base != NULL) {
 		/* by default, we put new events into the middle priority */
@@ -2346,7 +2184,6 @@ event_pending(const struct event *ev, short event, struct timeval *tv)
 	/* See if there is a timeout that we should report */
 	if (tv != NULL && (flags & event & EV_TIMEOUT)) {
 		struct timeval tmp = ev->ev_timeout;
-		tmp.tv_usec &= MICROSECONDS_MASK;
 		/* correctly remamp to real time */
 		evutil_timeradd(&ev->ev_base->tv_clock_diff, &tmp, tv);
 	}
@@ -2513,7 +2350,7 @@ event_remove_timer_nolock_(struct event *ev)
 
 	/* If it's not pending on a timeout, we don't need to do anything. */
 	if (ev->ev_flags & EVLIST_TIMEOUT) {
-		event_queue_remove_timeout(base, ev);
+		event_queue_remove_timeout(base, ev, 1);
 		evutil_timerclear(&ev->ev_.ev_io.ev_timeout);
 	}
 
@@ -2575,10 +2412,10 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 	 * prepare for timeout insertion further below, if we get a
 	 * failure on any step, we should not change any state.
 	 */
-	if (tv != NULL && !(ev->ev_flags & EVLIST_TIMEOUT)) {
-		if (min_heap_reserve_(&base->timeheap,
-			1 + min_heap_size_(&base->timeheap)) == -1)
-			return (-1);  /* ENOMEM == errno */
+	if (tv != NULL && !ev->ev_timeout_obj) {
+		if (event_queue_alloc_timeout(ev) < 0) {
+			return (-1); /* ENOMEM */
+		}
 	}
 
 	/* If the main thread is currently executing a signal event's
@@ -2615,11 +2452,7 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 	 */
 	if (res != -1 && tv != NULL) {
 		struct timeval now;
-		int common_timeout;
-#ifdef USE_REINSERT_TIMEOUT
-		int was_common;
-		int old_timeout_idx;
-#endif
+		timeout_t timeout_pre, timeout_post;
 
 		/*
 		 * for persistent timeout events, we remember the
@@ -2630,11 +2463,9 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 		if (ev->ev_closure == EV_CLOSURE_EVENT_PERSIST && !tv_is_absolute)
 			ev->ev_io_timeout = *tv;
 
-#ifndef USE_REINSERT_TIMEOUT
 		if (ev->ev_flags & EVLIST_TIMEOUT) {
-			event_queue_remove_timeout(base, ev);
+			event_queue_remove_timeout(base, ev, 0);
 		}
-#endif
 
 		/* Check if it is active due to a timeout.  Rescheduling
 		 * this timeout before the callback can be executed
@@ -2656,20 +2487,8 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 
 		gettime(base, &now);
 
-		common_timeout = is_common_timeout(tv, base);
-#ifdef USE_REINSERT_TIMEOUT
-		was_common = is_common_timeout(&ev->ev_timeout, base);
-		old_timeout_idx = COMMON_TIMEOUT_IDX(&ev->ev_timeout);
-#endif
-
 		if (tv_is_absolute) {
 			ev->ev_timeout = *tv;
-		} else if (common_timeout) {
-			struct timeval tmp = *tv;
-			tmp.tv_usec &= MICROSECONDS_MASK;
-			evutil_timeradd(&now, &tmp, &ev->ev_timeout);
-			ev->ev_timeout.tv_usec |=
-			    (tv->tv_usec & ~MICROSECONDS_MASK);
 		} else {
 			evutil_timeradd(&now, tv, &ev->ev_timeout);
 		}
@@ -2678,31 +2497,14 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 			 "event_add: event %p, timeout in %d seconds %d useconds, call %p",
 			 ev, (int)tv->tv_sec, (int)tv->tv_usec, ev->ev_callback));
 
-#ifdef USE_REINSERT_TIMEOUT
-		event_queue_reinsert_timeout(base, ev, was_common, common_timeout, old_timeout_idx);
-#else
+		timeout_pre = timeouts_timeout(base->timeout_queue);
 		event_queue_insert_timeout(base, ev);
-#endif
+		timeout_post = timeouts_timeout(base->timeout_queue);
 
-		if (common_timeout) {
-			struct common_timeout_list *ctl =
-			    get_common_timeout_list(base, &ev->ev_timeout);
-			if (ev == TAILQ_FIRST(&ctl->events)) {
-				common_timeout_schedule(ctl, &now, ev);
-			}
-		} else {
-			struct event* top = NULL;
-			/* See if the earliest timeout is now earlier than it
-			 * was before: if so, we will need to tell the main
-			 * thread to wake up earlier than it would otherwise.
-			 * We double check the timeout of the top element to
-			 * handle time distortions due to system suspension.
-			 */
-			if (min_heap_elt_is_top_(ev))
-				notify = 1;
-			else if ((top = min_heap_top_(&base->timeheap)) != NULL &&
-					 evutil_timercmp(&top->ev_timeout, &now, <))
-				notify = 1;
+		if (timeout_post < timeout_pre) {
+			/* This event is scheduled earlier than the previous
+			 * event. */
+			notify = 1;
 		}
 	}
 
@@ -2813,7 +2615,7 @@ event_del_nolock_(struct event *ev, int blocking)
 		 * dispatch loop early anyway, so we wouldn't gain anything by
 		 * doing it.
 		 */
-		event_queue_remove_timeout(base, ev);
+		event_queue_remove_timeout(base, ev, 1);
 	}
 
 	if (ev->ev_flags & EVLIST_ACTIVE)
@@ -3089,14 +2891,13 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 {
 	/* Caller must hold th_base_lock */
 	struct timeval now;
-	struct event *ev;
 	struct timeval *tv = *tv_p;
 	int res = 0;
+	timeout_t how_long_to_wait, now64;
+	struct event_timeouts *timeouts = base->timeout_queue;
 
-	ev = min_heap_top_(&base->timeheap);
-
-	if (ev == NULL) {
-		/* if no time-based events are active wait for I/O */
+	if (!timeouts_pending(timeouts) && !timeouts_expired(timeouts)) {
+		/* We have no timeouts */
 		*tv_p = NULL;
 		goto out;
 	}
@@ -3105,17 +2906,11 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 		res = -1;
 		goto out;
 	}
+	now64 = TV_TO_TIMEOUT(&now);
+	timeouts_update(timeouts, now64);
+	how_long_to_wait = timeouts_timeout(base->timeout_queue);
 
-	if (evutil_timercmp(&ev->ev_timeout, &now, <=)) {
-		evutil_timerclear(tv);
-		goto out;
-	}
-
-	evutil_timersub(&ev->ev_timeout, &now, tv);
-
-	EVUTIL_ASSERT(tv->tv_sec >= 0);
-	EVUTIL_ASSERT(tv->tv_usec >= 0);
-	event_debug(("timeout_next: event: %p, in %d seconds, %d useconds", ev, (int)tv->tv_sec, (int)tv->tv_usec));
+	TIMEOUT_TO_TV(tv, how_long_to_wait);
 
 out:
 	return (res);
@@ -3127,17 +2922,22 @@ timeout_process(struct event_base *base)
 {
 	/* Caller must hold lock. */
 	struct timeval now;
-	struct event *ev;
+	struct event_timeout *timeout;
+	struct event_timeouts *timeouts = base->timeout_queue;
+	timeout_t now64;
 
-	if (min_heap_empty_(&base->timeheap)) {
+	if (!timeouts_pending(timeouts) && !timeouts_expired(timeouts)) {
 		return;
 	}
 
 	gettime(base, &now);
+	now64 = TV_TO_TIMEOUT(&now);
+	timeouts_update(timeouts, now64);
 
-	while ((ev = min_heap_top_(&base->timeheap))) {
-		if (evutil_timercmp(&ev->ev_timeout, &now, >))
-			break;
+	while ((timeout = timeouts_get(timeouts))) {
+		/* Find the associated event */
+		struct event *ev = timeout->callback.arg;
+		EVUTIL_ASSERT(ev);
 
 		/* delete this event from the I/O queues */
 		event_del_nolock_(ev, EVENT_DEL_NOBLOCK);
@@ -3212,8 +3012,20 @@ event_queue_remove_active_later(struct event_base *base, struct event_callback *
 
 	TAILQ_REMOVE(&base->active_later_queue, evcb, evcb_active_next);
 }
+static int
+event_queue_alloc_timeout(struct event *ev)
+{
+	ev->ev_timeout_obj = mm_malloc(sizeof(struct event_timeout));
+	if (! ev->ev_timeout_obj)
+		return -1;
+	timeout_init(ev->ev_timeout_obj, TIMEOUT_ABS);
+	ev->ev_timeout_obj->callback.arg = ev;
+	return 0;
+}
+
 static void
-event_queue_remove_timeout(struct event_base *base, struct event *ev)
+event_queue_remove_timeout(struct event_base *base, struct event *ev,
+    int should_free)
 {
 	EVENT_BASE_ASSERT_LOCKED(base);
 	if (EVUTIL_FAILURE_CHECK(!(ev->ev_flags & EVLIST_TIMEOUT))) {
@@ -3224,86 +3036,13 @@ event_queue_remove_timeout(struct event_base *base, struct event *ev)
 	DECR_EVENT_COUNT(base, ev->ev_flags);
 	ev->ev_flags &= ~EVLIST_TIMEOUT;
 
-	if (is_common_timeout(&ev->ev_timeout, base)) {
-		struct common_timeout_list *ctl =
-		    get_common_timeout_list(base, &ev->ev_timeout);
-		TAILQ_REMOVE(&ctl->events, ev,
-		    ev_timeout_pos.ev_next_with_common_timeout);
-	} else {
-		min_heap_erase_(&base->timeheap, ev);
+	EVUTIL_ASSERT(ev->ev_timeout_obj);
+	EVUTIL_ASSERT(ev->ev_timeout_obj->callback.arg == ev);
+	timeout_del(ev->ev_timeout_obj);
+	if (should_free) {
+		mm_free(ev->ev_timeout_obj);
+		ev->ev_timeout_obj = NULL;
 	}
-}
-
-#ifdef USE_REINSERT_TIMEOUT
-/* Remove and reinsert 'ev' into the timeout queue. */
-static void
-event_queue_reinsert_timeout(struct event_base *base, struct event *ev,
-    int was_common, int is_common, int old_timeout_idx)
-{
-	struct common_timeout_list *ctl;
-	if (!(ev->ev_flags & EVLIST_TIMEOUT)) {
-		event_queue_insert_timeout(base, ev);
-		return;
-	}
-
-	switch ((was_common<<1) | is_common) {
-	case 3: /* Changing from one common timeout to another */
-		ctl = base->common_timeout_queues[old_timeout_idx];
-		TAILQ_REMOVE(&ctl->events, ev,
-		    ev_timeout_pos.ev_next_with_common_timeout);
-		ctl = get_common_timeout_list(base, &ev->ev_timeout);
-		insert_common_timeout_inorder(ctl, ev);
-		break;
-	case 2: /* Was common; is no longer common */
-		ctl = base->common_timeout_queues[old_timeout_idx];
-		TAILQ_REMOVE(&ctl->events, ev,
-		    ev_timeout_pos.ev_next_with_common_timeout);
-		min_heap_push_(&base->timeheap, ev);
-		break;
-	case 1: /* Wasn't common; has become common. */
-		min_heap_erase_(&base->timeheap, ev);
-		ctl = get_common_timeout_list(base, &ev->ev_timeout);
-		insert_common_timeout_inorder(ctl, ev);
-		break;
-	case 0: /* was in heap; is still on heap. */
-		min_heap_adjust_(&base->timeheap, ev);
-		break;
-	default:
-		EVUTIL_ASSERT(0); /* unreachable */
-		break;
-	}
-}
-#endif
-
-/* Add 'ev' to the common timeout list in 'ev'. */
-static void
-insert_common_timeout_inorder(struct common_timeout_list *ctl,
-    struct event *ev)
-{
-	struct event *e;
-	/* By all logic, we should just be able to append 'ev' to the end of
-	 * ctl->events, since the timeout on each 'ev' is set to {the common
-	 * timeout} + {the time when we add the event}, and so the events
-	 * should arrive in order of their timeeouts.  But just in case
-	 * there's some wacky threading issue going on, we do a search from
-	 * the end of 'ev' to find the right insertion point.
-	 */
-	TAILQ_FOREACH_REVERSE(e, &ctl->events,
-	    event_list, ev_timeout_pos.ev_next_with_common_timeout) {
-		/* This timercmp is a little sneaky, since both ev and e have
-		 * magic values in tv_usec.  Fortunately, they ought to have
-		 * the _same_ magic values in tv_usec.  Let's assert for that.
-		 */
-		EVUTIL_ASSERT(
-			is_same_common_timeout(&e->ev_timeout, &ev->ev_timeout));
-		if (evutil_timercmp(&ev->ev_timeout, &e->ev_timeout, >=)) {
-			TAILQ_INSERT_AFTER(&ctl->events, e, ev,
-			    ev_timeout_pos.ev_next_with_common_timeout);
-			return;
-		}
-	}
-	TAILQ_INSERT_HEAD(&ctl->events, ev,
-	    ev_timeout_pos.ev_next_with_common_timeout);
 }
 
 static void
@@ -3363,6 +3102,9 @@ event_queue_insert_active_later(struct event_base *base, struct event_callback *
 static void
 event_queue_insert_timeout(struct event_base *base, struct event *ev)
 {
+	struct event_timeout *timeout;
+	timeout_t expiry;
+
 	EVENT_BASE_ASSERT_LOCKED(base);
 
 	if (EVUTIL_FAILURE_CHECK(ev->ev_flags & EVLIST_TIMEOUT)) {
@@ -3375,13 +3117,10 @@ event_queue_insert_timeout(struct event_base *base, struct event *ev)
 
 	ev->ev_flags |= EVLIST_TIMEOUT;
 
-	if (is_common_timeout(&ev->ev_timeout, base)) {
-		struct common_timeout_list *ctl =
-		    get_common_timeout_list(base, &ev->ev_timeout);
-		insert_common_timeout_inorder(ctl, ev);
-	} else {
-		min_heap_push_(&base->timeheap, ev);
-	}
+	timeout = ev->ev_timeout_obj;
+	EVUTIL_ASSERT(timeout);
+	expiry = TV_TO_TIMEOUT(&ev->ev_timeout);
+	timeouts_add(ev->ev_base->timeout_queue, timeout, expiry);
 }
 
 static void
@@ -3630,13 +3369,13 @@ event_base_foreach_event_nolock_(struct event_base *base,
     event_base_foreach_event_cb fn, void *arg)
 {
 	int r, i;
-	unsigned u;
 	struct event *ev;
 
 	/* Start out with all the EVLIST_INSERTED events. */
 	if ((r = evmap_foreach_event_(base, fn, arg)))
 		return r;
 
+#ifdef XXXX
 	/* Okay, now we deal with those events that have timeouts and are in
 	 * the min-heap. */
 	for (u = 0; u < base->timeheap.n; ++u) {
@@ -3648,22 +3387,7 @@ event_base_foreach_event_nolock_(struct event_base *base,
 		if ((r = fn(base, ev, arg)))
 			return r;
 	}
-
-	/* Now for the events in one of the timeout queues.
-	 * the min-heap. */
-	for (i = 0; i < base->n_common_timeouts; ++i) {
-		struct common_timeout_list *ctl =
-		    base->common_timeout_queues[i];
-		TAILQ_FOREACH(ev, &ctl->events,
-		    ev_timeout_pos.ev_next_with_common_timeout) {
-			if (ev->ev_flags & EVLIST_INSERTED) {
-				/* we already processed this one */
-				continue;
-			}
-			if ((r = fn(base, ev, arg)))
-				return r;
-		}
-	}
+#endif
 
 	/* Finally, we deal wit all the active events that we haven't touched
 	 * yet. */
@@ -3708,10 +3432,10 @@ dump_inserted_event_fn(const struct event_base *base, const struct event *e, voi
 	if (e->ev_flags & EVLIST_TIMEOUT) {
 		struct timeval tv;
 		tv.tv_sec = e->ev_timeout.tv_sec;
-		tv.tv_usec = e->ev_timeout.tv_usec & MICROSECONDS_MASK;
+		tv.tv_usec = e->ev_timeout.tv_usec;
 		evutil_timeradd(&tv, &base->tv_clock_diff, &tv);
 		fprintf(output, " Timeout=%ld.%06d",
-		    (long)tv.tv_sec, (int)(tv.tv_usec & MICROSECONDS_MASK));
+		    (long)tv.tv_sec, (int)(tv.tv_usec));
 	}
 	fputc('\n', output);
 
@@ -3889,6 +3613,7 @@ event_base_assert_ok_nolock_(struct event_base *base)
 	/* First do checks on the per-fd and per-signal lists */
 	evmap_check_integrity_(base);
 
+#ifdef XXXX
 	/* Check the heap property */
 	for (i = 1; i < (int)base->timeheap.n; ++i) {
 		int parent = (i - 1) / 2;
@@ -3897,25 +3622,8 @@ event_base_assert_ok_nolock_(struct event_base *base)
 		p_ev = base->timeheap.p[parent];
 		EVUTIL_ASSERT(ev->ev_flags & EVLIST_TIMEOUT);
 		EVUTIL_ASSERT(evutil_timercmp(&p_ev->ev_timeout, &ev->ev_timeout, <=));
-		EVUTIL_ASSERT(ev->ev_timeout_pos.min_heap_idx == i);
 	}
-
-	/* Check that the common timeouts are fine */
-	for (i = 0; i < base->n_common_timeouts; ++i) {
-		struct common_timeout_list *ctl = base->common_timeout_queues[i];
-		struct event *last=NULL, *ev;
-
-		EVUTIL_ASSERT_TAILQ_OK(&ctl->events, event, ev_timeout_pos.ev_next_with_common_timeout);
-
-		TAILQ_FOREACH(ev, &ctl->events, ev_timeout_pos.ev_next_with_common_timeout) {
-			if (last)
-				EVUTIL_ASSERT(evutil_timercmp(&last->ev_timeout, &ev->ev_timeout, <=));
-			EVUTIL_ASSERT(ev->ev_flags & EVLIST_TIMEOUT);
-			EVUTIL_ASSERT(is_common_timeout(&ev->ev_timeout,base));
-			EVUTIL_ASSERT(COMMON_TIMEOUT_IDX(&ev->ev_timeout) == i);
-			last = ev;
-		}
-	}
+#endif
 
 	/* Check the active queues. */
 	count = 0;

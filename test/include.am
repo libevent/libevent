@@ -87,7 +87,6 @@ test_regress_SOURCES = 				\
 	test/regress_http.c				\
 	test/regress_listener.c			\
 	test/regress_main.c				\
-	test/regress_minheap.c			\
 	test/regress_rpc.c				\
 	test/regress_testutils.c			\
 	test/regress_testutils.h			\

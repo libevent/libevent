@@ -36,11 +36,13 @@ extern "C" {
 
 #include <time.h>
 #include <sys/queue.h>
+#include "event2/event.h"
 #include "event2/event_struct.h"
-#include "minheap-internal.h"
 #include "evsignal-internal.h"
 #include "mm-internal.h"
 #include "defer-internal.h"
+#include "time-internal.h"
+#include "util-internal.h"
 
 /* map union members back */
 
@@ -205,6 +207,8 @@ struct event_once {
 	void *arg;
 };
 
+struct event_timeouts;
+
 struct event_base {
 	/** Function pointers and other data to describe this event_base's
 	 * backend. */
@@ -285,7 +289,7 @@ struct event_base {
 	struct event_signal_map sigmap;
 
 	/** Priority queue of events with timeouts. */
-	struct min_heap timeheap;
+	struct event_timeouts *timeout_queue;
 
 	/** Stored timeval: used to avoid calling gettimeofday/clock_gettime
 	 * too often. */

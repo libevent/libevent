@@ -821,10 +821,6 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
   fi
 
   if test x$have_clang = xyes; then
-    # Disable the unused-function warnings, because these trigger
-    # for minheap-internal.h related code.
-    CFLAGS="$CFLAGS -Wno-unused-function"
-
     # clang on macosx emits warnigns for each directory specified which
     # isn't "used" generating a lot of build noise (typically 3 warnings
     # per file
