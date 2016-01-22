@@ -85,6 +85,7 @@
 #define TIMEOUT_DEBUG 0
 #define TIMEOUT_CB_OVERRIDE
 #define TIMEOUT_DISABLE_INTERVALS
+#define TIMEOUT_DISABLE_RELATIVE_ACCESS
 struct timeout_cb {
 	struct event *arg;
 };
@@ -3039,7 +3040,7 @@ event_queue_remove_timeout(struct event_base *base, struct event *ev,
 
 	EVUTIL_ASSERT(ev->ev_timeout_obj);
 	EVUTIL_ASSERT(ev->ev_timeout_obj->callback.arg == ev);
-	timeout_del(ev->ev_timeout_obj);
+	timeouts_del(base->timeout_queue, ev->ev_timeout_obj);
 	if (should_free) {
 		mm_free(ev->ev_timeout_obj);
 		ev->ev_timeout_obj = NULL;

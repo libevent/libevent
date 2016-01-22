@@ -123,8 +123,10 @@ struct timeout {
 	timeout_t expires;
 	/* absolute expiration time */
 
+#ifndef TIMEOUT_DISABLE_RELATIVE_ACCESS
 	struct timeouts *timeouts;
 	/* timeouts collection if member of */
+#endif
 
 	struct timeout_list *pending;
 	/* timeout list if pending on wheel or expiry queue */
@@ -140,6 +142,7 @@ struct timeout {
 TIMEOUT_PUBLIC struct timeout *timeout_init(struct timeout *, int);
 /* initialize timeout structure (same as TIMEOUT_INITIALIZER) */
 
+#ifndef TIMEOUT_DISABLE_RELATIVE_ACCESS
 TIMEOUT_PUBLIC bool timeout_pending(struct timeout *);
 /* true if on timing wheel, false otherwise */
  
@@ -148,7 +151,7 @@ TIMEOUT_PUBLIC bool timeout_expired(struct timeout *);
 
 TIMEOUT_PUBLIC void timeout_del(struct timeout *);
 /* remove timeout from any timing wheel (okay if not member of any) */
-
+#endif
 
 /*
  * T I M I N G  W H E E L  I N T E R F A C E S
