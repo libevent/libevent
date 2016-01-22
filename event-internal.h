@@ -158,26 +158,6 @@ struct event_signal_map {
 	int nentries;
 };
 
-/* A list of events waiting on a given 'common' timeout value.  Ordinarily,
- * events waiting for a timeout wait on a minheap.  Sometimes, however, a
- * queue can be faster.
- **/
-struct common_timeout_list {
-	/* List of events currently waiting in the queue. */
-	struct event_list events;
-	/* 'magic' timeval used to indicate the duration of events in this
-	 * queue. */
-	struct timeval duration;
-	/* Event that triggers whenever one of the events in the queue is
-	 * ready to activate */
-	struct event timeout_event;
-	/* The event_base that this timeout list is part of */
-	struct event_base *base;
-};
-
-/** Mask used to get the real tv_usec value from a common timeout. */
-#define COMMON_TIMEOUT_MICROSECONDS_MASK       0x000fffff
-
 struct event_change;
 
 /* List of 'changes' since the last call to eventop.dispatch.  Only maintained

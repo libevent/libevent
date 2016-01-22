@@ -168,7 +168,7 @@ ev_token_bucket_cfg_new(size_t read_rate, size_t read_burst,
 	r->write_maximum = write_burst;
 	memcpy(&r->tick_timeout, tick_len, sizeof(struct timeval));
 	r->msec_per_tick = (tick_len->tv_sec * 1000) +
-	    (tick_len->tv_usec & COMMON_TIMEOUT_MICROSECONDS_MASK)/1000;
+	    (tick_len->tv_usec)/1000;
 	return r;
 }
 
