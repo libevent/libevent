@@ -306,6 +306,8 @@ struct event_base {
 	/** Flags that this base was configured with */
 	enum event_base_config_flag flags;
 
+	unsigned timeout_divisor;
+
 	struct timeval max_dispatch_time;
 	int max_dispatch_callbacks;
 	int limit_callbacks_after_prio;

@@ -96,10 +96,10 @@ struct timeout_cb {
 #undef malloc
 #undef free
 
-#define TV_TO_TIMEOUT(tv) (((ev_uint64_t)(tv)->tv_sec)*1000000 + (tv)->tv_usec)
-#define TIMEOUT_TO_TV(tv,when)				\
-	do {						\
-		ev_uint64_t u64 = (when);		\
+#define TV_TO_TIMEOUT(base,tv) ( (((ev_uint64_t)(tv)->tv_sec)*1000000 + (tv)->tv_usec) / (base)->timeout_divisor )
+#define TIMEOUT_TO_TV(base,tv,when)				\
+	do {							\
+		ev_uint64_t u64 = (when)*(base)->timeout_divisor;\
 		(tv)->tv_usec = (long)(u64 % 1000000);	\
 		(tv)->tv_sec = (time_t)(u64 / 1000000); \
 	} while (0)
@@ -628,6 +628,11 @@ event_base_new_with_config(const struct event_config *cfg)
 			event_base_free(base);
 			return NULL;
 		}
+	}
+	if (base->flags & EVENT_BASE_FLAG_PRECISE_TIMER) {
+		base->timeout_divisor = 1;
+	} else {
+		base->timeout_divisor = 100;	
 	}
 
 	base->sig.ev_signal_pair[0] = -1;
@@ -2908,11 +2913,11 @@ timeout_next(struct event_base *base, struct timeval **tv_p)
 		res = -1;
 		goto out;
 	}
-	now64 = TV_TO_TIMEOUT(&now);
+	now64 = TV_TO_TIMEOUT(base, &now);
 	timeouts_update(timeouts, now64);
 	how_long_to_wait = timeouts_timeout(base->timeout_queue);
 
-	TIMEOUT_TO_TV(tv, how_long_to_wait);
+	TIMEOUT_TO_TV(base, tv, how_long_to_wait);
 
 out:
 	return (res);
@@ -2933,7 +2938,7 @@ timeout_process(struct event_base *base)
 	}
 
 	gettime(base, &now);
-	now64 = TV_TO_TIMEOUT(&now);
+	now64 = TV_TO_TIMEOUT(base, &now);
 	timeouts_update(timeouts, now64);
 
 	while ((timeout = timeouts_get(timeouts))) {
@@ -3121,7 +3126,7 @@ event_queue_insert_timeout(struct event_base *base, struct event *ev)
 
 	timeout = ev->ev_timeout_obj;
 	EVUTIL_ASSERT(timeout);
-	expiry = TV_TO_TIMEOUT(&ev->ev_timeout);
+	expiry = TV_TO_TIMEOUT(base, &ev->ev_timeout);
 	timeouts_add(ev->ev_base->timeout_queue, timeout, expiry);
 }
 
