@@ -757,9 +757,12 @@ test_common_timeout(void *ptr)
 	tt_int_op(ms_100->tv_sec, ==, 0);
 	tt_int_op(ms_200->tv_sec, ==, 0);
 	tt_int_op(sec_5->tv_sec, ==, 5);
-	tt_int_op(ms_100->tv_usec, ==, 100000|0x50000000);
-	tt_int_op(ms_200->tv_usec, ==, 200000|0x50100000);
-	tt_int_op(sec_5->tv_usec, ==, 0|0x50200000);
+	/* We no longer stick extra junk in the usec field, since the
+	 * addition of timing wheels means we don't need to special-case
+	 * common timeouts. */
+	tt_int_op(ms_100->tv_usec, ==, 100000 /* |0x50000000 */);
+	tt_int_op(ms_200->tv_usec, ==, 200000 /* |0x50100000 */);
+	tt_int_op(sec_5->tv_usec, ==, 0 /* |0x50200000 */);
 
 	memset(info, 0, sizeof(info));
 

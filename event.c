@@ -901,6 +901,13 @@ event_base_free_(struct event_base *base, int run_finalizers)
 		mm_free(eonce);
 	}
 
+	while (LIST_FIRST(&base->common_timeouts)) {
+		struct event_common_timeout *ct =
+		    LIST_FIRST(&base->common_timeouts);
+		LIST_REMOVE(ct, next_timeout);
+		mm_free(ct);
+	}
+
 	if (base->evsel != NULL && base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base);
 
@@ -1368,7 +1375,23 @@ const struct timeval *
 event_base_init_common_timeout(struct event_base *base,
     const struct timeval *duration)
 {
-	return duration;
+	struct event_common_timeout *ct;
+	struct timeval t = *duration;
+	if (t.tv_usec >= 1000000) {
+		t.tv_sec += duration->tv_usec / 1000000;
+		t.tv_usec %= 1000000;
+	}
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+	LIST_FOREACH(ct, &base->common_timeouts, next_timeout) {
+		if (ct->tv.tv_sec == t.tv_sec && ct->tv.tv_usec == t.tv_usec)
+			goto done;
+	}
+	ct = mm_calloc(1, sizeof(*ct));
+	ct->tv = t;
+	LIST_INSERT_HEAD(&base->common_timeouts, ct, next_timeout);
+done:
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
+	return &ct->tv;
 }
 
 /* Closure function invoked when we're activating a persistent event. */

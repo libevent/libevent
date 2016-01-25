@@ -189,6 +189,11 @@ struct event_once {
 
 struct event_timeouts;
 
+struct event_common_timeout {
+	LIST_ENTRY(event_common_timeout) next_timeout;
+	struct timeval tv;
+};
+
 struct event_base {
 	/** Function pointers and other data to describe this event_base's
 	 * backend. */
@@ -254,13 +259,12 @@ struct event_base {
 
 	/* common timeout logic */
 
-	/** An array of common_timeout_list* for all of the common timeout
-	 * values we know. */
-	struct common_timeout_list **common_timeout_queues;
-	/** The number of entries used in common_timeout_queues */
-	int n_common_timeouts;
-	/** The total size of common_timeout_queues. */
-	int n_common_timeouts_allocated;
+	/** A list of event_common_timeout all of the common timeout
+	 * values we have configured.  Common timeouts are no longer
+	 * special or necessary, but we need them to be implemented
+	 * as singletons for safe backward compatibility. */
+	LIST_HEAD(event_common_timeout_list,
+	    event_common_timeout) common_timeouts;
 
 	/** Mapping from file descriptors to enabled (added) events */
 	struct event_io_map io;
