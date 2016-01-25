@@ -37,6 +37,10 @@
 
 #include <sys/queue.h> /* TAILQ(3) */
 
+#ifdef _MSC_VER
+#include <intrin.h>     /* _BitScanForward, _BitScanReverse */
+#endif
+
 #include "timeout.h"
 
 #if TIMEOUT_DEBUG - 0
@@ -136,6 +140,111 @@
 #define WHEEL_MASK (WHEEL_LEN - 1)
 #define TIMEOUT_MAX ((TIMEOUT_C(1) << (WHEEL_BIT * WHEEL_NUM)) - 1)
 
+/* First define ctz and clz functions; these are compiler-dependent if
+ * you want them to be fast. */
+#ifdef __GNUC__
+
+#if WHEEL_BIT == 6
+#define ctz(n) __builtin_ctzll(n)
+#define clz(n) __builtin_clzll(n)
+#elif WHEEL_BIT == 5
+#define ctz(n) __builtin_ctzl(n)
+#define clz(n) __builtin_clzl(n)
+#else /* 4 or 3 */
+#define ctz(n) __builtin_ctz(n)
+#define clz(n) __builtin_clz(n)
+#endif
+
+#elif defined(_MSC_VER)
+
+#if WHEEL_BIT == 6
+static inline ctz(uint64_t val)
+{
+	DWORD zeros = 0;
+	return _BitScanForward64(&zeros, val) ? zeros : 64;
+}
+static inline clz(uint64_t val)
+{
+	DWORD zeros = 0;
+	return _BitScanReverse64(&zeros, val) ? zeros : 64;
+}
+#else
+static __inline ctz(unsigned long val)
+{
+	DWORD zeros = 0;
+	return _BitScanForward(&zeros, val) ? zeros : 32;
+}
+static __inline clz(unsigned long val)
+{
+	DWORD zeros = 0;
+	return _BitScanReverse(&zeros, val) ? zeros : 32;
+}
+#endif /* wheel bit */
+
+/* End of MSVC case. */
+
+#else
+
+/* TODO: There are more clever ways to do this in the generic case. */
+#if WHEEL_BIT == 6
+#define cz_c(x) UINT64_C(x)
+#define cz_t uint64_t
+#define cz_bits 64
+#else
+#define cz_c(x) UINT32_C(x)
+#define cz_t uint32_t
+#define cz_bits 32
+#endif
+
+static inline int clz(cz_t x)
+{
+	int rv = 0;
+	if (!x)
+		return cz_bits;
+#define process(bits)				\
+	if (x < ( cz_c(1) << (cz_bits - bits))) { rv += bits; x <<= bits; }
+
+#if WHEEL_BIT == 6
+	process(32);
+#endif
+	process(16);
+	process(8);
+	process(4);
+	process(2);
+	process(1);
+	return rv;
+
+#undef process
+}
+
+static inline int ctz(cz_t x)
+{
+	int rv = 0;
+	if (!x)
+		return cz_bits;
+#define process(bits)				\
+	if ((x & ((cz_c(1) << (bits))-1)) == 0) { rv += bits; x >>= bits; }
+
+#if WHEEL_BIT == 6
+	process(32);
+#endif
+	process(16);
+	process(8);
+	process(4);
+	process(2);
+	return rv & (int)(x - 1);
+
+#undef process
+}
+
+#undef cz_bits
+#undef cz_c
+#undef cz_t
+
+/* End of generic case */
+
+#endif /* End of defining ctz */
+
 #if WHEEL_BIT == 6
 
 #define WHEEL_C(n) UINT64_C(n)
@@ -144,8 +253,9 @@
 
 typedef uint64_t wheel_t;
 
-#define ctz(n) __builtin_ctzll(n)
-#define fls(n) ((int)(sizeof (long long) * CHAR_BIT) - __builtin_clzll(n))
+#ifdef __GNUC__
+#endif
+#define fls(n) ((int)(sizeof (long long) * CHAR_BIT) - clz(n))
 
 #elif WHEEL_BIT == 5
 
@@ -155,8 +265,7 @@ typedef uint64_t wheel_t;
 
 typedef uint32_t wheel_t;
 
-#define ctz(n) __builtin_ctzl(n)
-#define fls(n) ((int)(sizeof (long) * CHAR_BIT) - __builtin_clzl(n))
+#define fls(n) ((int)(sizeof (long) * CHAR_BIT) - clz(n))
 
 #elif WHEEL_BIT == 4
 
@@ -166,8 +275,8 @@ typedef uint32_t wheel_t;
 
 typedef uint16_t wheel_t;
 
-#define ctz(n) __builtin_ctz(n)
-#define fls(n) ((int)(sizeof (int) * CHAR_BIT) - __builtin_clz(n))
+#define ctz(n) __builtin_clz(n)
+#define fls(n) ((int)(sizeof (int) * CHAR_BIT) - clz(n))
 
 #elif WHEEL_BIT == 3
 
@@ -177,8 +286,7 @@ typedef uint16_t wheel_t;
 
 typedef uint8_t wheel_t;
 
-#define ctz(n) __builtin_ctz(n)
-#define fls(n) ((int)(sizeof (int) * CHAR_BIT) - __builtin_clz(n))
+#define fls(n) ((int)(sizeof (int) * CHAR_BIT) - clz(n))
 
 #else
 #error invalid WHEEL_BIT value

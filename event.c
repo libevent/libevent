@@ -81,7 +81,12 @@
 #define timeouts event_timeouts
 #define malloc mm_malloc
 #define free mm_free
-#define TIMEOUT_PUBLIC static __attribute__((unused))
+#ifdef __GNUC__
+#define EV_UNUSED_OKAY __attribute__((unused))
+#else
+#define EV_UNUSED_OKAY
+#endif
+#define TIMEOUT_PUBLIC EV_UNUSED_OKAY static
 #define TIMEOUT_DEBUG 0
 #define TIMEOUT_CB_OVERRIDE
 #define TIMEOUT_DISABLE_INTERVALS
