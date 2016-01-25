@@ -577,13 +577,14 @@ set(HDR_PRIVATE
     iocp-internal.h
     ipv6-internal.h
     log-internal.h
-    minheap-internal.h
     mm-internal.h
     ratelim-internal.h
     strlcpy-internal.h
     util-internal.h
     evconfig-private.h
-    compat/sys/queue.h)
+    compat/sys/queue.h
+    contrib/timeout/timeout.c
+    contrib/timeout/timeout.h)
 
 set(HDR_COMPAT
     include/evdns.h
@@ -957,7 +958,6 @@ if (NOT EVENT__DISABLE_TESTS)
                 test/regress_http.c
                 test/regress_listener.c
                 test/regress_main.c
-                test/regress_minheap.c
                 test/regress_rpc.c
                 test/regress_testutils.c
                 test/regress_testutils.h
