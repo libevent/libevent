@@ -64,6 +64,9 @@ struct evhttp_connection {
 	char *bind_address;		/* address to use for binding the src */
 	unsigned short bind_port;	/* local port for binding the src */
 
+#ifndef _WIN32
+	char *unixdomain;
+#endif
 	char *address;			/* address to connect to */
 	unsigned short port;
 

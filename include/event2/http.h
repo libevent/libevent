@@ -75,6 +75,11 @@ struct evconnlistener;
 struct evdns_base;
 
 /**
+ * A structure to hold a parsed URI or Relative-Ref conforming to RFC3986.
+ */
+struct evhttp_uri;
+
+/**
  * Create a new HTTP server.
  *
  * @param base (optional) the event base to receive the HTTP events
@@ -510,6 +515,25 @@ struct evhttp_connection *evhttp_connection_base_bufferevent_new(
 	struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev, const char *address, unsigned short port);
 
 /**
+ * Create and return a connection object that can be used to for making HTTP
+ * requests.  The connection object tries to resolve address and establish the
+ * connection when it is given an http request object.
+ *
+ * @param base the event_base to use for handling the connection
+ * @param dnsbase the dns_base to use for resolving host names; if not
+ *     specified host name resolution will block.
+ * @param bev a bufferevent to use for connecting to the server; if NULL, a
+ *     socket-based bufferevent will be created.  This buffrevent will be freed
+ *     when the connection closes.  It must have no fd set on it.
+ * @param uri the uri to which to connect
+ * @return an evhttp_connection object that can be used for making requests
+ */
+EVENT2_EXPORT_SYMBOL
+struct evhttp_connection *evhttp_connection_base_uri_bufferevent_new(
+	struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev, const struct evhttp_uri *uri);
+
+
+/**
  * Return the bufferevent that an evhttp_connection is using.
  */
 EVENT2_EXPORT_SYMBOL
@@ -629,6 +653,22 @@ EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *evhttp_connection_base_new(
 	struct event_base *base, struct evdns_base *dnsbase,
 	const char *address, unsigned short port);
+
+/**
+ * Create and return a connection object that can be used to for making HTTP
+ * requests.  The connection object tries to resolve address and establish the
+ * connection when it is given an http request object.
+ *
+ * @param base the event_base to use for handling the connection
+ * @param dnsbase the dns_base to use for resolving host names; if not
+ *     specified host name resolution will block.
+ * @param uri the uri to connect to
+ * @return an evhttp_connection object that can be used for making requests
+ */
+EVENT2_EXPORT_SYMBOL
+struct evhttp_connection *evhttp_connection_base_uri_new(
+	struct event_base *base, struct evdns_base *dnsbase,
+	const struct evhttp_uri *uri);
 
 /**
  * Set family hint for DNS requests.
@@ -783,11 +823,6 @@ int evhttp_make_request(struct evhttp_connection *evcon,
 */
 EVENT2_EXPORT_SYMBOL
 void evhttp_cancel_request(struct evhttp_request *req);
-
-/**
- * A structure to hold a parsed URI or Relative-Ref conforming to RFC3986.
- */
-struct evhttp_uri;
 
 /** Returns the request URI */
 EVENT2_EXPORT_SYMBOL
@@ -1032,6 +1067,10 @@ const char *evhttp_uri_get_userinfo(const struct evhttp_uri *uri);
  */
 EVENT2_EXPORT_SYMBOL
 const char *evhttp_uri_get_host(const struct evhttp_uri *uri);
+/** Return the unix domain part of an evhttp_uri, or NULL if there is no unix
+ * domain set */
+EVENT2_EXPORT_SYMBOL
+const char *evhttp_uri_get_unixdomain(const struct evhttp_uri *uri);
 /** Return the port part of an evhttp_uri, or -1 if there is no port set. */
 EVENT2_EXPORT_SYMBOL
 int evhttp_uri_get_port(const struct evhttp_uri *uri);
@@ -1059,6 +1098,11 @@ int evhttp_uri_set_userinfo(struct evhttp_uri *uri, const char *userinfo);
  * Returns 0 on success, -1 if host is not well-formed. */
 EVENT2_EXPORT_SYMBOL
 int evhttp_uri_set_host(struct evhttp_uri *uri, const char *host);
+/** Set the unix domain of an evhttp_uri, or clear the unix domain if unixdomain==NULL.
+ * Returns 0 on success, -1 if unix domains are not supported */
+EVENT2_EXPORT_SYMBOL
+int evhttp_uri_set_unixdomain(struct evhttp_uri *uri, const char *unixdomain);
+
 /** Set the port of an evhttp_uri, or clear the port if port==-1.
  * Returns 0 on success, -1 if port is not well-formed. */
 EVENT2_EXPORT_SYMBOL
@@ -1126,9 +1170,11 @@ struct evhttp_uri *evhttp_uri_parse_with_flags(const char *source_uri,
  * <ul>
  *   <li> Nonconformant URIs are allowed to contain otherwise unreasonable
  *        characters in their path, query, and fragment components.
+ *   <li> Parse URLs like http://unix:/run/control.sock:/controller
  * </ul>
  */
 #define EVHTTP_URI_NONCONFORMANT 0x01
+#define EVHTTP_URI_UNIX_DOMAIN   0x02
 
 /** Alias for evhttp_uri_parse_with_flags(source_uri, 0) */
 EVENT2_EXPORT_SYMBOL
