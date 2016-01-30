@@ -2058,12 +2058,12 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 
 	cp = strchr(ip_as_string, ':');
 	if (*ip_as_string == '[') {
-		int len;
+		size_t len;
 		if (!(cp = strchr(ip_as_string, ']'))) {
 			return -1;
 		}
-		len = (int) ( cp-(ip_as_string + 1) );
-		if (len > (int)sizeof(buf)-1) {
+		len = ( cp-(ip_as_string + 1) );
+		if (len > sizeof(buf)-1) {
 			return -1;
 		}
 		memcpy(buf, ip_as_string+1, len);
