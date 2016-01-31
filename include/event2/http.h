@@ -652,7 +652,7 @@ enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
  * @param dnsbase the dns_base to use for resolving host names; if not
  *     specified host name resolution will block.
  * @param bev a bufferevent to use for connecting to the server; if NULL, a
- *     socket-based bufferevent will be created.  This buffrevent will be freed
+ *     socket-based bufferevent will be created.  This bufferevent will be freed
  *     when the connection closes.  It must have no fd set on it.
  * @param address the address to which to connect
  * @param port the port to connect to
@@ -662,6 +662,21 @@ enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *evhttp_connection_base_bufferevent_new(
 	struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev, const char *address, ev_uint16_t port);
+
+/**
+ * Create and return a connection object that can be used to for making HTTP
+ * requests over an unix domain socket.
+ *
+ * @param base the event_base to use for handling the connection
+ * @param bev a bufferevent to use for connecting to the server; if NULL, a
+ *     socket-based bufferevent will be created.  This bufferevent will be freed
+ *     when the connection closes.  It must have no fd set on it.
+ * @param path path of unix domain socket
+ * @return an evhttp_connection object that can be used for making requests
+ */
+EVENT2_EXPORT_SYMBOL
+struct evhttp_connection *evhttp_connection_base_bufferevent_unix_new(
+	struct event_base *base, struct bufferevent* bev, const char *path);
 
 /**
  * Return the bufferevent that an evhttp_connection is using.
@@ -1285,6 +1300,10 @@ const char *evhttp_uri_get_userinfo(const struct evhttp_uri *uri);
  */
 EVENT2_EXPORT_SYMBOL
 const char *evhttp_uri_get_host(const struct evhttp_uri *uri);
+/** Return the unix socket part of an evhttp_uri, or NULL if there is no unix
+ * socket set */
+EVENT2_EXPORT_SYMBOL
+const char *evhttp_uri_get_unixsocket(const struct evhttp_uri *uri);
 /** Return the port part of an evhttp_uri, or -1 if there is no port set. */
 EVENT2_EXPORT_SYMBOL
 int evhttp_uri_get_port(const struct evhttp_uri *uri);
@@ -1312,6 +1331,11 @@ int evhttp_uri_set_userinfo(struct evhttp_uri *uri, const char *userinfo);
  * Returns 0 on success, -1 if host is not well-formed. */
 EVENT2_EXPORT_SYMBOL
 int evhttp_uri_set_host(struct evhttp_uri *uri, const char *host);
+/** Set the unix socket of an evhttp_uri, or clear the unix socket if unixsocket==NULL.
+ * Returns 0 on success, -1 if unixsocket is not well-formed */
+EVENT2_EXPORT_SYMBOL
+int evhttp_uri_set_unixsocket(struct evhttp_uri *uri, const char *unixsocket);
+
 /** Set the port of an evhttp_uri, or clear the port if port==-1.
  * Returns 0 on success, -1 if port is not well-formed. */
 EVENT2_EXPORT_SYMBOL
@@ -1382,6 +1406,7 @@ struct evhttp_uri *evhttp_uri_parse_with_flags(const char *source_uri,
  * </ul>
  */
 #define EVHTTP_URI_NONCONFORMANT 0x01
+
 /**
  * Strip brackets from the IPv6 address and only for evhttp_uri_get_host(),
  * evhttp_uri_join() returns the host with brackets.
@@ -1391,6 +1416,13 @@ struct evhttp_uri *evhttp_uri_parse_with_flags(const char *source_uri,
  * @see also _EVHTTP_URI_HOST_HAS_BRACKETS
  */
 #define EVHTTP_URI_HOST_STRIP_BRACKETS 0x04
+
+/**
+ * Parse unix domain socket URIs, for example:
+ *
+ * http://unix:/run/control.sock:/controller
+ */
+#define EVHTTP_URI_UNIX_SOCKET 0x08
 
 /** Alias for evhttp_uri_parse_with_flags(source_uri, 0) */
 EVENT2_EXPORT_SYMBOL

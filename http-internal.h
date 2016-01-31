@@ -61,6 +61,9 @@ struct evhttp_connection {
 	char *address;			/* address to connect to */
 	ev_uint16_t port;
 
+#ifndef _WIN32
+	char *unixsocket;
+#endif
 	size_t max_headers_size;
 	ev_uint64_t max_body_size;
 
