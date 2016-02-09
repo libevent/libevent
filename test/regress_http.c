@@ -5088,6 +5088,188 @@ http_timeout_read_client_test(void *arg)
 		evhttp_free(http);
 }
 
+/*
+ * Error callback tests
+ */
+
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
+
+#define ERRCBFLAG_GENCB  (0x01)
+#define ERRCBFLAG_ERRCB  (0x02)
+#define ERRCBFLAG_BOTHCB (ERRCBFLAG_GENCB | ERRCBFLAG_ERRCB)
+
+struct error_callback_test {
+	unsigned char flags;
+	enum evhttp_cmd_type type;
+	int response_code;
+	int length;
+} error_callback_tests[] = {
+	{0                , EVHTTP_REQ_GET  , HTTP_NOTFOUND       , 152} , /* 0 */
+	{0                , EVHTTP_REQ_POST , HTTP_NOTIMPLEMENTED , 101} , /* 1 */
+	{ERRCBFLAG_GENCB  , EVHTTP_REQ_GET  , HTTP_NOTFOUND       , 89}  , /* 2 */
+	{ERRCBFLAG_GENCB  , EVHTTP_REQ_POST , HTTP_NOTIMPLEMENTED , 101} , /* 3 */
+	{ERRCBFLAG_ERRCB  , EVHTTP_REQ_GET  , HTTP_NOTFOUND       , 3}   , /* 4 */
+	{ERRCBFLAG_ERRCB  , EVHTTP_REQ_POST , HTTP_NOTIMPLEMENTED , 101} , /* 5 */
+	{ERRCBFLAG_BOTHCB , EVHTTP_REQ_GET  , HTTP_NOTFOUND       , 3}   , /* 6 */
+	{ERRCBFLAG_BOTHCB , EVHTTP_REQ_POST , HTTP_NOTIMPLEMENTED , 3}   , /* 7 */
+	{ERRCBFLAG_ERRCB  , EVHTTP_REQ_GET  , HTTP_NOTFOUND       , 0}   , /* 8 */
+	{ERRCBFLAG_ERRCB  , EVHTTP_REQ_GET  , HTTP_NOTFOUND       , 152} , /* 9 */
+};
+
+struct error_callback_state
+{
+	struct basic_test_data *data;
+	unsigned test_index;
+	struct error_callback_test *test;
+	int test_failed;
+};
+
+static void
+http_error_callback_gencb(struct evhttp_request *req, void *arg)
+{
+	struct error_callback_state *state_info = arg;
+
+	switch (state_info->test_index) {
+	case 2:
+	case 6:
+		evhttp_send_error(req, HTTP_NOTFOUND, NULL);
+		break;
+	default:
+		evhttp_send_error(req, HTTP_INTERNAL, NULL);
+		break;
+	}
+}
+
+static int
+http_error_callback_errorcb(struct evhttp_request *req, struct evbuffer *buf,
+    int error, const char *reason, void *arg)
+{
+	struct error_callback_state *state_info = arg;
+	int return_code = -1;
+
+	switch (state_info->test_index) {
+	case 4:
+	case 6:
+	case 7:
+		evbuffer_add_printf(buf, "%d", error);
+		return_code = 0;
+		break;
+	case 8: /* Add nothing to buffer and then return 0 to trigger default */
+		return_code = 0;
+		break;
+	case 9: /* Add text to buffer but then return -1 to trigger default */
+		evbuffer_add_printf(buf, "%d", error);
+		break;
+	default:
+		/* Do nothing */
+		break;
+	}
+
+	return return_code;
+}
+
+static void
+http_error_callback_test_done(struct evhttp_request *req, void *arg)
+{
+	struct evkeyvalq *headers;
+	const char *header_text;
+	struct error_callback_state *state_info = arg;
+	struct error_callback_test *test_info;
+
+	test_info = state_info->test;
+
+	tt_assert(req);
+	tt_int_op(evhttp_request_get_command(req), ==,
+	    test_info->type);
+	tt_int_op(evhttp_request_get_response_code(req), ==,
+	    test_info->response_code);
+
+	headers = evhttp_request_get_input_headers(req);
+	tt_assert(headers);
+	header_text  = evhttp_find_header(headers, "Content-Type");
+	tt_assert_msg(header_text, "Missing Content-Type");
+	tt_str_op(header_text, ==, "text/html");
+	tt_int_op(evbuffer_get_length(evhttp_request_get_input_buffer(req)),
+	    ==, test_info->length);
+
+	event_base_loopexit(state_info->data->base, NULL);
+	return;
+
+end:
+	state_info->test_failed = 1;
+	event_base_loopexit(state_info->data->base, NULL);
+}
+
+static void
+http_error_callback_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evhttp *http = NULL;
+	ev_uint16_t port = 0;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	struct error_callback_state state_info;
+
+	test_ok = 0;
+
+	http = http_setup(&port, data->base, 0);
+	evhttp_set_allowed_methods(http,
+	    EVHTTP_REQ_GET |
+	    EVHTTP_REQ_HEAD |
+	    EVHTTP_REQ_PUT |
+	    EVHTTP_REQ_DELETE);
+
+	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	tt_assert(evcon);
+
+	/* also bind to local host */
+	evhttp_connection_set_local_address(evcon, "127.0.0.1");
+
+	/* Initialise the state info */
+	state_info.data 	= data;
+	state_info.test		= error_callback_tests;
+	state_info.test_failed	= 0;
+
+	/* Perform all the tests */
+	for (state_info.test_index = 0;
+	     (state_info.test_index < ARRAY_SIZE(error_callback_tests)) &&
+	     (!state_info.test_failed);
+	     state_info.test_index++)
+	{
+		evhttp_set_gencb(http,
+		    ((state_info.test->flags & ERRCBFLAG_GENCB) != 0 ?
+		    http_error_callback_gencb : NULL),
+		    &state_info);
+		evhttp_set_errorcb(http,
+		    ((state_info.test->flags & ERRCBFLAG_ERRCB) != 0 ?
+		    http_error_callback_errorcb : NULL),
+		    &state_info);
+
+		req = evhttp_request_new(http_error_callback_test_done,
+		    &state_info);
+		tt_assert(req);
+		if (evhttp_make_request(evcon, req, state_info.test->type,
+			"/missing") == -1) {
+			tt_abort_msg("Couldn't make request");
+			exit(1);
+		}
+		event_base_dispatch(data->base);
+
+		if (!state_info.test_failed)
+			test_ok++;
+		else
+			tt_abort_printf(("Sub-test %d failed",
+			    state_info.test_index));
+		state_info.test++;
+	}
+
+end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+}
+
 static void http_add_output_buffer(int fd, short events, void *arg)
 {
 	evbuffer_add(arg, POST_DATA, strlen(POST_DATA));
@@ -5272,6 +5454,7 @@ struct testcase_t http_testcases[] = {
 
 	HTTP(write_during_read),
 	HTTP(request_own),
+	HTTP(error_callback),
 
 	HTTP(request_extra_body),
 

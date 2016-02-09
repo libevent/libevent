@@ -338,6 +338,33 @@ void evhttp_set_newreqcb(struct evhttp *http,
     int (*cb)(struct evhttp_request*, void *), void *arg);
 
 /**
+   Set a callback to output for any error pages sent for requests of a given
+   evhttp object.
+
+   You can use this to override the default error pages sent, allowing such
+   things as multi-lingual support or customization to match other pages.
+
+   The callback should use the supplied buffer to output the text for an
+   error page. If the callback returns a negative value or doesn't output
+   anything to the buffer, the default error page will be sent instead. The
+   buffer will be automatically be sent when the callback returns, so the
+   callback shouldn't do so itself.
+
+   Microsoft Internet Explorer may display its own error pages if ones sent by
+   an HTTP server are smaller than certain sizes, depending on the status code.
+   To reliably suppress this feature an error page should be at least 512
+   bytes in size.
+
+   @param http the evhttp server object for which to set the callback
+   @param cb the callback to invoke to format error pages
+   @param arg an context argument for the callback
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_set_errorcb(struct evhttp *http,
+    int (*cb)(struct evhttp_request *req, struct evbuffer *buffer, int error, const char *reason, void *cbarg),
+    void *cbarg);
+
+/**
    Adds a virtual host to the http server.
 
    A virtual host is a newly initialized evhttp object that has request

@@ -171,10 +171,14 @@ struct evhttp {
 	   don't match. */
 	void (*gencb)(struct evhttp_request *req, void *);
 	void *gencbarg;
+
 	struct bufferevent* (*bevcb)(struct event_base *, void *);
 	void *bevcbarg;
 	int (*newreqcb)(struct evhttp_request *req, void *);
 	void *newreqcbarg;
+
+	int (*errorcb)(struct evhttp_request *, struct evbuffer *, int, const char *, void *);
+	void *errorcbarg;
 
 	struct event_base *base;
 
