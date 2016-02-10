@@ -1373,6 +1373,28 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 }
 
 static void
+evhttp_connection_read_on_write_error(struct evhttp_connection *evcon,
+    struct evhttp_request *req)
+{
+	struct evbuffer *buf;
+
+	evcon->state = EVCON_READING_FIRSTLINE;
+	req->kind = EVHTTP_RESPONSE;
+
+	buf = bufferevent_get_output(evcon->bufev);
+	evbuffer_unfreeze(buf, 1);
+	evbuffer_drain(buf, evbuffer_get_length(buf));
+	evbuffer_freeze(buf, 1);
+
+	bufferevent_setcb(evcon->bufev,
+		evhttp_read_cb,
+		NULL, /* evhttp_write_cb */
+		evhttp_error_cb,
+		evcon);
+	evhttp_connection_start_detectclose(evcon);
+}
+
+static void
 evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
@@ -1441,6 +1463,12 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	if (what & BEV_EVENT_TIMEOUT) {
 		evhttp_connection_fail_(evcon, EVREQ_HTTP_TIMEOUT);
 	} else if (what & (BEV_EVENT_EOF|BEV_EVENT_ERROR)) {
+		if (what & BEV_EVENT_WRITING &&
+			evcon->flags & EVHTTP_CON_READ_ON_WRITE_ERROR) {
+			evhttp_connection_read_on_write_error(evcon, req);
+			return;
+		}
+
 		evhttp_connection_fail_(evcon, EVREQ_HTTP_EOF);
 	} else if (what == BEV_EVENT_CONNECTED) {
 	} else {
@@ -2344,6 +2372,7 @@ int evhttp_connection_set_flags(struct evhttp_connection *evcon,
 {
 	int avail_flags = 0;
 	avail_flags |= EVHTTP_CON_REUSE_CONNECTED_ADDR;
+	avail_flags |= EVHTTP_CON_READ_ON_WRITE_ERROR;
 
 	if (flags & ~avail_flags || flags > EVHTTP_CON_PUBLIC_FLAGS_END)
 		return 1;

@@ -639,6 +639,10 @@ void evhttp_connection_set_family(struct evhttp_connection *evcon,
 
 /* reuse connection address on retry */
 #define EVHTTP_CON_REUSE_CONNECTED_ADDR	0x0008
+/* Try to read error, since server may already send and close
+ * connection, but if at that time we have some data to send then we
+ * can send get EPIPE and fail, while we can read that HTTP error. */
+#define EVHTTP_CON_READ_ON_WRITE_ERROR	0x0010
 /* Padding for public flags, @see EVHTTP_CON_* in http-internal.h */
 #define EVHTTP_CON_PUBLIC_FLAGS_END	0x100000
 /**
