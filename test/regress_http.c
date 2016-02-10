@@ -3793,7 +3793,7 @@ http_data_length_constraints_test(void *arg)
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
-	char long_str[8192];
+	char long_str[(1<<20) * 3];
 
 	test_ok = 0;
 
@@ -3813,10 +3813,10 @@ http_data_length_constraints_test(void *arg)
 	req = evhttp_request_new(http_data_length_constraints_test_done, data->base);
 	tt_assert(req);
 
-	memset(long_str, 'a', 8192);
-	long_str[8191] = '\0';
+	memset(long_str, 'a', sizeof(long_str));
+	long_str[sizeof(long_str)-1] = '\0';
 	/* Add the information that we care about */
-	evhttp_set_max_headers_size(http, 8191);
+	evhttp_set_max_headers_size(http, sizeof(long_str)-1);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Longheader", long_str);
 
@@ -3835,7 +3835,7 @@ http_data_length_constraints_test(void *arg)
 	}
 	event_base_dispatch(data->base);
 
-	evhttp_set_max_body_size(http, 8190);
+	evhttp_set_max_body_size(http, sizeof(long_str)-2);
 	req = evhttp_request_new(http_data_length_constraints_test_done, data->base);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
