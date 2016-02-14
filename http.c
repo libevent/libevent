@@ -2342,13 +2342,14 @@ void evhttp_connection_set_family(struct evhttp_connection *evcon,
 int evhttp_connection_set_flags(struct evhttp_connection *evcon,
 	int flags)
 {
-	if (flags & ~(EVHTTP_CON_REUSE_CONNECTED_ADDR)) {
+	int avail_flags = 0;
+	avail_flags |= EVHTTP_CON_REUSE_CONNECTED_ADDR;
+
+	if (flags & ~avail_flags || flags > EVHTTP_CON_PUBLIC_FLAGS_END)
 		return 1;
-	}
+	evcon->flags &= ~avail_flags;
 
-	evcon->flags &= ~(EVHTTP_CON_REUSE_CONNECTED_ADDR);
-
-	evcon->flags |= EVHTTP_CON_REUSE_CONNECTED_ADDR;
+	evcon->flags |= flags;
 
 	return 0;
 }

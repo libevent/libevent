@@ -637,7 +637,10 @@ EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_family(struct evhttp_connection *evcon,
 	int family);
 
-#define EVHTTP_CON_REUSE_CONNECTED_ADDR  0x0008  /* reuse connection address on retry */
+/* reuse connection address on retry */
+#define EVHTTP_CON_REUSE_CONNECTED_ADDR	0x0008
+/* Padding for public flags, @see EVHTTP_CON_* in http-internal.h */
+#define EVHTTP_CON_PUBLIC_FLAGS_END	0x100000
 /**
  * Set connection flags.
  *
