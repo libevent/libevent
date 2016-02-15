@@ -3870,17 +3870,20 @@ end:
 	event_base_loopexit(arg, NULL);
 }
 static void
-http_non_lingering_close_test(void *arg)
+http_lingering_close_test_impl(void *arg, int lingering)
 {
 	struct basic_test_data *data = arg;
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	char long_str[(1<<20) * 3];
+	void (*cb)(struct evhttp_request *, void *);
 
 	test_ok = 0;
 
 	http = http_setup(&port, data->base, 0);
+	if (lingering)
+		tt_assert(!evhttp_set_flags(http, EVHTTP_SERVER_LINGERING_CLOSE));
 	evhttp_set_max_body_size(http, sizeof(long_str)/2);
 
 	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
@@ -3895,7 +3898,11 @@ http_non_lingering_close_test(void *arg)
 	memset(long_str, 'a', sizeof(long_str));
 	long_str[sizeof(long_str)-1] = '\0';
 
-	req = evhttp_request_new(http_large_entity_non_lingering_test_done, data->base);
+	if (lingering)
+		cb = http_large_entity_test_done;
+	else
+		cb = http_large_entity_non_lingering_test_done;
+	req = evhttp_request_new(cb, data->base);
 	tt_assert(req);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "100-continue");
@@ -3912,6 +3919,10 @@ http_non_lingering_close_test(void *arg)
 	if (http)
 		evhttp_free(http);
 }
+static void http_non_lingering_close_test(void *arg)
+{ http_lingering_close_test_impl(arg, 0); }
+static void http_lingering_close_test(void *arg)
+{ http_lingering_close_test_impl(arg, 1); }
 
 /*
  * Testing client reset of server chunked connections
@@ -4357,6 +4368,7 @@ struct testcase_t http_testcases[] = {
 
 	HTTP(data_length_constraints),
 	HTTP(non_lingering_close),
+	HTTP(lingering_close),
 
 	HTTP(ipv6_for_domain),
 	HTTP(get_addr),
