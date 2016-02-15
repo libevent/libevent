@@ -641,6 +641,14 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
     enum evhttp_request_error error)
 {
 	switch (error) {
+		case EVREQ_HTTP_DATA_TOO_LONG:
+			req->response_code = HTTP_ENTITYTOOLARGE;
+			break;
+		default:
+			req->response_code = HTTP_BADREQUEST;
+	}
+
+	switch (error) {
 	case EVREQ_HTTP_TIMEOUT:
 	case EVREQ_HTTP_EOF:
 		/*
@@ -985,7 +993,8 @@ evhttp_read_trailer(struct evhttp_connection *evcon, struct evhttp_request *req)
 }
 
 static void
-evhttp_lingering_close(struct evhttp_connection *evcon, struct evhttp_request *req)
+evhttp_lingering_close(struct evhttp_connection *evcon,
+	struct evhttp_request *req)
 {
 	struct evbuffer *buf = bufferevent_get_input(evcon->bufev);
 
@@ -1000,6 +1009,15 @@ evhttp_lingering_close(struct evhttp_connection *evcon, struct evhttp_request *r
 
 	evbuffer_drain(buf, n);
 	if (!req->ntoread)
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_DATA_TOO_LONG);
+}
+static void
+evhttp_lingering_fail(struct evhttp_connection *evcon,
+	struct evhttp_request *req)
+{
+	if (evcon->flags & EVHTTP_CON_LINGERING_CLOSE)
+		evhttp_lingering_close(evcon, req);
+	else
 		evhttp_connection_fail_(evcon, EVREQ_HTTP_DATA_TOO_LONG);
 }
 
@@ -1057,11 +1075,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		/* XXX: The above casted comparison must checked for overflow */
 		/* failed body length test */
 
-		if (evcon->flags & EVHTTP_CON_LINGERING_CLOSE)
-			evhttp_lingering_close(evcon, req);
-		else
-			evhttp_connection_fail_(evcon, EVREQ_HTTP_DATA_TOO_LONG);
-
+		evhttp_lingering_fail(evcon, req);
 		return;
 	}
 
@@ -2179,7 +2193,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 				if (req->ntoread > 0) {
 					/* ntoread is ev_int64_t, max_body_size is ev_uint64_t */ 
 					if ((req->evcon->max_body_size <= EV_INT64_MAX) && (ev_uint64_t)req->ntoread > req->evcon->max_body_size) {
-						evhttp_send_error(req, HTTP_ENTITYTOOLARGE, NULL);
+						evhttp_lingering_fail(evcon, req);
 						return;
 					}
 				}
@@ -3352,7 +3366,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	req->userdone = 0;
 
 	if (req->type == 0 || req->uri == NULL) {
-		evhttp_send_error(req, HTTP_BADREQUEST, NULL);
+		evhttp_send_error(req, req->response_code, NULL);
 		return;
 	}
 
