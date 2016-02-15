@@ -3837,7 +3837,7 @@ http_data_length_constraints_test(void *arg)
 	event_base_dispatch(data->base);
 
 	evhttp_set_max_body_size(http, sizeof(long_str)-2);
-	req = evhttp_request_new(http_data_length_constraints_test_done, data->base);
+	req = evhttp_request_new(http_large_entity_test_done, data->base);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
