@@ -690,9 +690,8 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 static inline void
 evhttp_request_free_auto(struct evhttp_request *req)
 {
-	if (!(req->flags & EVHTTP_USER_OWNED)) {
+	if (!(req->flags & EVHTTP_USER_OWNED))
 		evhttp_request_free(req);
-	}
 }
 
 static void
