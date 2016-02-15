@@ -306,7 +306,7 @@ send_document_cb(struct evhttp_request *req, void *arg)
 	evhttp_send_reply(req, 200, "OK", evb);
 	goto done;
 err:
-	evhttp_send_notfound(req, NULL);
+	evhttp_send_error(req, HTTP_NOTFOUND, NULL);
 	if (fd>=0)
 		close(fd);
 done:

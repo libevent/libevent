@@ -2687,50 +2687,12 @@ evhttp_send_error(struct evhttp_request *req, int error, const char *reason)
 		evbuffer_add_printf(buf, ERR_FORMAT,
 		   error, heading, error, heading,
 		   (reason != NULL ? reason : ""));
-        }
+	}
 
 	evhttp_send_page_(req, buf);
 
 	evbuffer_free(buf);
 #undef ERR_FORMAT
-}
-
-/*
- * Returns an error page.
- */
-
-void
-evhttp_send_notfound(struct evhttp_request *req, const char *url)
-{
-#define REASON_FORMAT "<p>The requested URL %s was not found on this server.</p>"
-	char   *escaped_url = NULL;
-	char   *reason = NULL;
-	size_t  reason_len;
-
-	url = (url != NULL ? url : req->uri);
-	if (url != NULL) {
-		escaped_url = evhttp_htmlescape(url);
-	}
-
-	if (escaped_url != NULL) {
-		reason_len = strlen(REASON_FORMAT)+strlen(escaped_url)+1;
-		reason = mm_malloc(reason_len);
-	}
-
-	if ((escaped_url != NULL) && (reason != NULL)) {
-		evutil_snprintf(reason, reason_len,
-		    REASON_FORMAT, escaped_url);
-	}
-
-	evhttp_send_error(req, HTTP_NOTFOUND, reason);
-
-	if (reason != NULL) {
-		mm_free(reason);
-	}
-	if (escaped_url != NULL) {
-		mm_free(escaped_url);
-	}
-#undef REASON_FORMAT
 }
 
 /* Requires that headers and response code are already set up */
@@ -3376,9 +3338,8 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	if (http->gencb) {
 		(*http->gencb)(req, http->gencbarg);
 		return;
-	} else {
-		evhttp_send_notfound(req, NULL);
-	}
+	} else
+		evhttp_send_error(req, HTTP_NOTFOUND, NULL);
 }
 
 /* Listener callback when a connection arrives at a server. */

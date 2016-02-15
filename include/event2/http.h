@@ -298,7 +298,7 @@ void evhttp_set_bevcb(struct evhttp *http,
     struct bufferevent *(*cb)(struct event_base *, void *), void *arg);
 
 /**
-   Set a callback to output the text for any error pages sent for requests of
+   Set a callback to output the HTML for any error pages sent for requests of
    a given evhttp object.
 
    You can use this to override the default error pages sent, allowing such
@@ -413,16 +413,6 @@ void evhttp_set_timeout_tv(struct evhttp *http, const struct timeval* tv);
 EVENT2_EXPORT_SYMBOL
 void evhttp_send_error(struct evhttp_request *req, int error,
     const char *reason);
-
-/**
- * Send an HTTP_NOTFOUND error message to the client.
- *
- * @param req a request object
- * @param url the url to display in the error message. If this is NULL, the 
- *    request's URL will be used.
- */
-EVENT2_EXPORT_SYMBOL
-void evhttp_send_notfound(struct evhttp_request *req, const char *url);
 
 /**
  * Send an HTML reply to the client.
