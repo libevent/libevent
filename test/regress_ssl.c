@@ -56,7 +56,14 @@
 #include <openssl/pem.h>
 
 #include <string.h>
+#ifdef _WIN32
+#include <io.h>
+#define read _read
+#define write _write
+#define ssize_t long
+#else
 #include <unistd.h>
+#endif
 
 /* A short pre-generated key, to save the cost of doing an RSA key generation
  * step during the unit tests.  It's only 512 bits long, and it is published
