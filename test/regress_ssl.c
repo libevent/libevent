@@ -56,7 +56,13 @@
 #include <openssl/pem.h>
 
 #include <string.h>
+#ifdef _WIN32
+#include <io.h>
+#define read _read
+#define write _write
+#else
 #include <unistd.h>
+#endif
 
 /* A short pre-generated key, to save the cost of doing an RSA key generation
  * step during the unit tests.  It's only 512 bits long, and it is published
@@ -549,7 +555,7 @@ static int
 bio_rwcount_read(BIO *b, char *out, int outlen)
 {
 	struct rwcount *rw = b->ptr;
-	ssize_t ret = read(rw->fd, out, outlen);
+	ev_ssize_t ret = read(rw->fd, out, outlen);
 	++rw->read;
 	if (ret == -1 && errno == EAGAIN) {
 		BIO_set_retry_read(b);
@@ -561,7 +567,7 @@ bio_rwcount_write(BIO *b, const char *in, int inlen)
 {
 
 	struct rwcount *rw = b->ptr;
-	ssize_t ret = write(rw->fd, in, inlen);
+	ev_ssize_t ret = write(rw->fd, in, inlen);
 	++rw->write;
 	if (ret == -1 && errno == EAGAIN) {
 		BIO_set_retry_write(b);
