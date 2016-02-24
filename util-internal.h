@@ -417,7 +417,7 @@ HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #define EV_SOCK_ARG(x) (x)
 #endif
 
-#if defined(__STDC__) && defined(__STDC_VERSION__)
+#if defined(__STDC__) && defined(__STDC_VERSION__) && !defined(__MINGW64_VERSION_MAJOR)
 #if (__STDC_VERSION__ >= 199901L)
 #define EV_SIZE_FMT "%zu"
 #define EV_SSIZE_FMT "%zd"
