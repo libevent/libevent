@@ -345,7 +345,8 @@ be_filter_process_output(struct bufferevent_filtered *bevf,
 
 	/* disable the callback that calls this function
 	   when the user adds to the output buffer. */
-	evbuffer_cb_set_flags(bufev->output, bevf->outbuf_cb, 0);
+	evbuffer_cb_clear_flags(bufev->output, bevf->outbuf_cb,
+	    EVBUFFER_CB_ENABLED);
 
 	do {
 		int processed = 0;
