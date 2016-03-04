@@ -1,5 +1,5 @@
 /*
-  This exmple program provides a trivial server program that listens for TCP
+  This example program provides a trivial server program that listens for TCP
   connections on port 9995.  When they arrive, it writes a short message to
   each client connection, and closes each connection once it is flushed.
 
