@@ -3793,7 +3793,7 @@ http_data_length_constraints_test(void *arg)
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
-	char long_str[8192];
+	char long_str[(1<<20) * 3];
 
 	test_ok = 0;
 
@@ -3801,6 +3801,7 @@ http_data_length_constraints_test(void *arg)
 
 	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
 	tt_assert(evcon);
+	tt_assert(!evhttp_connection_set_flags(evcon, EVHTTP_CON_READ_ON_WRITE_ERROR));
 
 	/* also bind to local host */
 	evhttp_connection_set_local_address(evcon, "127.0.0.1");
@@ -3813,10 +3814,10 @@ http_data_length_constraints_test(void *arg)
 	req = evhttp_request_new(http_data_length_constraints_test_done, data->base);
 	tt_assert(req);
 
-	memset(long_str, 'a', 8192);
-	long_str[8191] = '\0';
+	memset(long_str, 'a', sizeof(long_str));
+	long_str[sizeof(long_str)-1] = '\0';
 	/* Add the information that we care about */
-	evhttp_set_max_headers_size(http, 8191);
+	evhttp_set_max_headers_size(http, sizeof(long_str)-1);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Longheader", long_str);
 
@@ -3835,8 +3836,8 @@ http_data_length_constraints_test(void *arg)
 	}
 	event_base_dispatch(data->base);
 
-	evhttp_set_max_body_size(http, 8190);
-	req = evhttp_request_new(http_data_length_constraints_test_done, data->base);
+	evhttp_set_max_body_size(http, sizeof(long_str)-2);
+	req = evhttp_request_new(http_large_entity_test_done, data->base);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
@@ -3860,6 +3861,68 @@ http_data_length_constraints_test(void *arg)
 	if (http)
 		evhttp_free(http);
 }
+
+static void
+http_large_entity_non_lingering_test_done(struct evhttp_request *req, void *arg)
+{
+	tt_assert(!req);
+end:
+	event_base_loopexit(arg, NULL);
+}
+static void
+http_lingering_close_test_impl(void *arg, int lingering)
+{
+	struct basic_test_data *data = arg;
+	ev_uint16_t port = 0;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	char long_str[(1<<20) * 3];
+	void (*cb)(struct evhttp_request *, void *);
+
+	test_ok = 0;
+
+	http = http_setup(&port, data->base, 0);
+	if (lingering)
+		tt_assert(!evhttp_set_flags(http, EVHTTP_SERVER_LINGERING_CLOSE));
+	evhttp_set_max_body_size(http, sizeof(long_str)/2);
+
+	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	tt_assert(evcon);
+	evhttp_connection_set_local_address(evcon, "127.0.0.1");
+
+	/*
+	 * At this point, we want to schedule an HTTP GET request
+	 * server using our make request method.
+	 */
+
+	memset(long_str, 'a', sizeof(long_str));
+	long_str[sizeof(long_str)-1] = '\0';
+
+	if (lingering)
+		cb = http_large_entity_test_done;
+	else
+		cb = http_large_entity_non_lingering_test_done;
+	req = evhttp_request_new(cb, data->base);
+	tt_assert(req);
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "100-continue");
+	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+	event_base_dispatch(data->base);
+
+	test_ok = 1;
+ end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+}
+static void http_non_lingering_close_test(void *arg)
+{ http_lingering_close_test_impl(arg, 0); }
+static void http_lingering_close_test(void *arg)
+{ http_lingering_close_test_impl(arg, 1); }
 
 /*
  * Testing client reset of server chunked connections
@@ -4304,6 +4367,8 @@ struct testcase_t http_testcases[] = {
 	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 
 	HTTP(data_length_constraints),
+	HTTP(non_lingering_close),
+	HTTP(lingering_close),
 
 	HTTP(ipv6_for_domain),
 	HTTP(get_addr),

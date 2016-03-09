@@ -373,6 +373,19 @@ void evhttp_set_timeout(struct evhttp *http, int timeout_in_secs);
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_timeout_tv(struct evhttp *http, const struct timeval* tv);
 
+/* Read all the clients body, and only after this respond with an error if the
+ * clients body exceed max_body_size */
+#define EVHTTP_SERVER_LINGERING_CLOSE	0x0001
+/**
+ * Set connection flags for HTTP server.
+ *
+ * @see EVHTTP_SERVER_*
+ * @return 0 on success, otherwise non zero (for example if flag doesn't
+ * supported).
+ */
+EVENT2_EXPORT_SYMBOL
+int evhttp_set_flags(struct evhttp *http, int flags);
+
 /* Request/Response functionality */
 
 /**
@@ -639,6 +652,12 @@ void evhttp_connection_set_family(struct evhttp_connection *evcon,
 
 /* reuse connection address on retry */
 #define EVHTTP_CON_REUSE_CONNECTED_ADDR	0x0008
+/* Try to read error, since server may already send and close
+ * connection, but if at that time we have some data to send then we
+ * can send get EPIPE and fail, while we can read that HTTP error. */
+#define EVHTTP_CON_READ_ON_WRITE_ERROR	0x0010
+/* @see EVHTTP_SERVER_LINGERING_CLOSE */
+#define EVHTTP_CON_LINGERING_CLOSE	0x0020
 /* Padding for public flags, @see EVHTTP_CON_* in http-internal.h */
 #define EVHTTP_CON_PUBLIC_FLAGS_END	0x100000
 /**

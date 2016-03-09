@@ -641,6 +641,14 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
     enum evhttp_request_error error)
 {
 	switch (error) {
+		case EVREQ_HTTP_DATA_TOO_LONG:
+			req->response_code = HTTP_ENTITYTOOLARGE;
+			break;
+		default:
+			req->response_code = HTTP_BADREQUEST;
+	}
+
+	switch (error) {
 	case EVREQ_HTTP_TIMEOUT:
 	case EVREQ_HTTP_EOF:
 		/*
@@ -985,6 +993,35 @@ evhttp_read_trailer(struct evhttp_connection *evcon, struct evhttp_request *req)
 }
 
 static void
+evhttp_lingering_close(struct evhttp_connection *evcon,
+	struct evhttp_request *req)
+{
+	struct evbuffer *buf = bufferevent_get_input(evcon->bufev);
+
+	size_t n = evbuffer_get_length(buf);
+	if (n > (size_t) req->ntoread)
+		n = (size_t) req->ntoread;
+	req->ntoread -= n;
+	req->body_size += n;
+
+	event_debug(("Request body is too long, left " EV_SIZE_FMT,
+		EV_SIZE_ARG(req->ntoread)));
+
+	evbuffer_drain(buf, n);
+	if (!req->ntoread)
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_DATA_TOO_LONG);
+}
+static void
+evhttp_lingering_fail(struct evhttp_connection *evcon,
+	struct evhttp_request *req)
+{
+	if (evcon->flags & EVHTTP_CON_LINGERING_CLOSE)
+		evhttp_lingering_close(evcon, req);
+	else
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_DATA_TOO_LONG);
+}
+
+static void
 evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 {
 	struct evbuffer *buf = bufferevent_get_input(evcon->bufev);
@@ -1037,9 +1074,8 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		(size_t)req->ntoread > req->evcon->max_body_size)) {
 		/* XXX: The above casted comparison must checked for overflow */
 		/* failed body length test */
-		event_debug(("Request body is too long"));
-		evhttp_connection_fail_(evcon,
-				       EVREQ_HTTP_DATA_TOO_LONG);
+
+		evhttp_lingering_fail(evcon, req);
 		return;
 	}
 
@@ -1055,7 +1091,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		}
 	}
 
-	if (req->ntoread == 0) {
+	if (!req->ntoread) {
 		bufferevent_disable(evcon->bufev, EV_READ);
 		/* Completed content length */
 		evhttp_connection_done(evcon);
@@ -1373,6 +1409,28 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 }
 
 static void
+evhttp_connection_read_on_write_error(struct evhttp_connection *evcon,
+    struct evhttp_request *req)
+{
+	struct evbuffer *buf;
+
+	evcon->state = EVCON_READING_FIRSTLINE;
+	req->kind = EVHTTP_RESPONSE;
+
+	buf = bufferevent_get_output(evcon->bufev);
+	evbuffer_unfreeze(buf, 1);
+	evbuffer_drain(buf, evbuffer_get_length(buf));
+	evbuffer_freeze(buf, 1);
+
+	bufferevent_setcb(evcon->bufev,
+		evhttp_read_cb,
+		NULL, /* evhttp_write_cb */
+		evhttp_error_cb,
+		evcon);
+	evhttp_connection_start_detectclose(evcon);
+}
+
+static void
 evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 {
 	struct evhttp_connection *evcon = arg;
@@ -1441,6 +1499,12 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	if (what & BEV_EVENT_TIMEOUT) {
 		evhttp_connection_fail_(evcon, EVREQ_HTTP_TIMEOUT);
 	} else if (what & (BEV_EVENT_EOF|BEV_EVENT_ERROR)) {
+		if (what & BEV_EVENT_WRITING &&
+			evcon->flags & EVHTTP_CON_READ_ON_WRITE_ERROR) {
+			evhttp_connection_read_on_write_error(evcon, req);
+			return;
+		}
+
 		evhttp_connection_fail_(evcon, EVREQ_HTTP_EOF);
 	} else if (what == BEV_EVENT_CONNECTED) {
 	} else {
@@ -2129,7 +2193,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 				if (req->ntoread > 0) {
 					/* ntoread is ev_int64_t, max_body_size is ev_uint64_t */ 
 					if ((req->evcon->max_body_size <= EV_INT64_MAX) && (ev_uint64_t)req->ntoread > req->evcon->max_body_size) {
-						evhttp_send_error(req, HTTP_ENTITYTOOLARGE, NULL);
+						evhttp_lingering_fail(evcon, req);
 						return;
 					}
 				}
@@ -2344,6 +2408,7 @@ int evhttp_connection_set_flags(struct evhttp_connection *evcon,
 {
 	int avail_flags = 0;
 	avail_flags |= EVHTTP_CON_REUSE_CONNECTED_ADDR;
+	avail_flags |= EVHTTP_CON_READ_ON_WRITE_ERROR;
 
 	if (flags & ~avail_flags || flags > EVHTTP_CON_PUBLIC_FLAGS_END)
 		return 1;
@@ -3301,7 +3366,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	req->userdone = 0;
 
 	if (req->type == 0 || req->uri == NULL) {
-		evhttp_send_error(req, HTTP_BADREQUEST, NULL);
+		evhttp_send_error(req, req->response_code, NULL);
 		return;
 	}
 
@@ -3690,6 +3755,20 @@ evhttp_set_timeout_tv(struct evhttp* http, const struct timeval* tv)
 	}
 }
 
+int evhttp_set_flags(struct evhttp *http, int flags)
+{
+	int avail_flags = 0;
+	avail_flags |= EVHTTP_SERVER_LINGERING_CLOSE;
+
+	if (flags & ~avail_flags)
+		return 1;
+	http->flags &= ~avail_flags;
+
+	http->flags |= flags;
+
+	return 0;
+}
+
 void
 evhttp_set_max_headers_size(struct evhttp* http, ev_ssize_t max_headers_size)
 {
@@ -4062,6 +4141,8 @@ evhttp_get_request_connection(
 
 	evcon->max_headers_size = http->default_max_headers_size;
 	evcon->max_body_size = http->default_max_body_size;
+	if (http->flags & EVHTTP_SERVER_LINGERING_CLOSE)
+		evcon->flags |= EVHTTP_CON_LINGERING_CLOSE;
 
 	evcon->flags |= EVHTTP_CON_INCOMING;
 	evcon->state = EVCON_READING_FIRSTLINE;

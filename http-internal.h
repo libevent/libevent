@@ -154,6 +154,7 @@ struct evhttp {
 
 	size_t default_max_headers_size;
 	ev_uint64_t default_max_body_size;
+	int flags;
 	const char *default_content_type;
 
 	/* Bitmask of all HTTP methods that we accept and pass to user
