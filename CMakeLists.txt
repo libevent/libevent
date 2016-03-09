@@ -18,7 +18,7 @@
 #       cmake -G "Visual Studio 10" ..
 #       start libevent.sln
 #
-cmake_minimum_required(VERSION 2.8.0 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release
