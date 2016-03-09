@@ -163,7 +163,7 @@ if (CMAKE_COMPILER_IS_GNUCC)
     option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
     option(EVENT__ENABLE_GCC_WARNINGS "Make all GCC warnings into errors" OFF)
 
-        list(APPEND __FLAGS -Wall)
+        list(APPEND __FLAGS -Wall -Wswitch)
 
     if (EVENT__DISABLE_GCC_WARNINGS)
             list(APPEND __FLAGS -w)
