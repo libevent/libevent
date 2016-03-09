@@ -1,7 +1,7 @@
 include(CheckCCompilerFlag)
 
-macro(add_compiler_flags _flags)
-	foreach(flag ${_flags})
+macro(add_compiler_flags)
+	foreach(flag ${ARGN})
 		string(REGEX REPLACE "[-.+/:= ]" "_" _flag_esc "${flag}")
 
 		check_c_compiler_flag("${flag}" check_c_compiler_flag_${_flag_esc})
@@ -11,5 +11,3 @@ macro(add_compiler_flags _flags)
 		endif()
 	endforeach()
 endmacro()
-
-
