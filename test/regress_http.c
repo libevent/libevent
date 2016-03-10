@@ -3793,7 +3793,8 @@ http_data_length_constraints_test(void *arg)
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
-	char long_str[(1<<20) * 3];
+	char *long_str = NULL;
+	size_t size = (1<<20) * 3;
 
 	test_ok = 0;
 
@@ -3814,10 +3815,11 @@ http_data_length_constraints_test(void *arg)
 	req = evhttp_request_new(http_data_length_constraints_test_done, data->base);
 	tt_assert(req);
 
-	memset(long_str, 'a', sizeof(long_str));
-	long_str[sizeof(long_str)-1] = '\0';
+	long_str = malloc(size);
+	memset(long_str, 'a', size);
+	long_str[size - 1] = '\0';
 	/* Add the information that we care about */
-	evhttp_set_max_headers_size(http, sizeof(long_str)-1);
+	evhttp_set_max_headers_size(http, size - 1);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Longheader", long_str);
 
@@ -3836,7 +3838,7 @@ http_data_length_constraints_test(void *arg)
 	}
 	event_base_dispatch(data->base);
 
-	evhttp_set_max_body_size(http, sizeof(long_str)-2);
+	evhttp_set_max_body_size(http, size - 2);
 	req = evhttp_request_new(http_large_entity_test_done, data->base);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
@@ -3860,6 +3862,8 @@ http_data_length_constraints_test(void *arg)
 		evhttp_connection_free(evcon);
 	if (http)
 		evhttp_free(http);
+	if (long_str)
+		free(long_str);
 }
 
 static void
@@ -3876,7 +3880,8 @@ http_lingering_close_test_impl(void *arg, int lingering)
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
-	char long_str[(1<<20) * 3];
+	char *long_str = NULL;
+	size_t size = (1<<20) * 3;
 	void (*cb)(struct evhttp_request *, void *);
 
 	test_ok = 0;
@@ -3884,7 +3889,7 @@ http_lingering_close_test_impl(void *arg, int lingering)
 	http = http_setup(&port, data->base, 0);
 	if (lingering)
 		tt_assert(!evhttp_set_flags(http, EVHTTP_SERVER_LINGERING_CLOSE));
-	evhttp_set_max_body_size(http, sizeof(long_str)/2);
+	evhttp_set_max_body_size(http, size / 2);
 
 	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
 	tt_assert(evcon);
@@ -3895,8 +3900,9 @@ http_lingering_close_test_impl(void *arg, int lingering)
 	 * server using our make request method.
 	 */
 
-	memset(long_str, 'a', sizeof(long_str));
-	long_str[sizeof(long_str)-1] = '\0';
+	long_str = malloc(size);
+	memset(long_str, 'a', size);
+	long_str[size - 1] = '\0';
 
 	if (lingering)
 		cb = http_large_entity_test_done;
@@ -3918,6 +3924,8 @@ http_lingering_close_test_impl(void *arg, int lingering)
 		evhttp_connection_free(evcon);
 	if (http)
 		evhttp_free(http);
+	if (long_str)
+		free(long_str);
 }
 static void http_non_lingering_close_test(void *arg)
 { http_lingering_close_test_impl(arg, 0); }
