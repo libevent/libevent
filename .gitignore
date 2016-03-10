@@ -127,6 +127,7 @@ libevent_openssl.pc
 /lib/
 /tmp/
 /verify_tests.sh
+/verify_tests.bat
 /event.dir
 /event_core.dir
 /event_extra.dir
