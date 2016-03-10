@@ -93,10 +93,6 @@ static struct timeval tcalled;
 
 #define TEST1	"this is a test"
 
-#ifndef SHUT_WR
-#define SHUT_WR 1
-#endif
-
 #ifdef _WIN32
 #define write(fd,buf,len) send((fd),(buf),(int)(len),0)
 #define read(fd,buf,len) recv((fd),(buf),(int)(len),0)
@@ -200,7 +196,7 @@ multiple_write_cb(evutil_socket_t fd, short event, void *arg)
 	woff += len;
 
 	if (woff >= (int)sizeof(wbuf)) {
-		shutdown(fd, SHUT_WR);
+		shutdown(fd, EVUTIL_SHUT_WR);
 		if (usepersist)
 			event_del(ev);
 		return;
@@ -280,7 +276,7 @@ combined_write_cb(evutil_socket_t fd, short event, void *arg)
 	if (len == -1)
 		fprintf(stderr, "%s: write\n", __func__);
 	if (len <= 0) {
-		shutdown(fd, SHUT_WR);
+		shutdown(fd, EVUTIL_SHUT_WR);
 		return;
 	}
 
@@ -310,7 +306,7 @@ test_simpleread(void)
 		tt_fail_perror("write");
 	}
 
-	shutdown(pair[0], SHUT_WR);
+	shutdown(pair[0], EVUTIL_SHUT_WR);
 
 	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
 	if (event_add(&ev, NULL) == -1)
@@ -355,7 +351,7 @@ test_simpleread_multiple(void)
 		tt_fail_perror("write");
 	}
 
-	shutdown(pair[0], SHUT_WR);
+	shutdown(pair[0], EVUTIL_SHUT_WR);
 
 	event_set(&one, pair[1], EV_READ, simpleread_multiple_cb, NULL);
 	if (event_add(&one, NULL) == -1)
@@ -918,7 +914,7 @@ test_fork(void)
 		fprintf(stderr, "%s: write\n", __func__);
 	}
 
-	shutdown(pair[0], SHUT_WR);
+	shutdown(pair[0], EVUTIL_SHUT_WR);
 
 	evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
 	evsignal_add(&usr_ev, NULL);
@@ -1886,7 +1882,7 @@ test_event_base_new(void *ptr)
 		tt_abort_printf(("initial write fell short (%d of %d bytes)",
 				 len, towrite));
 
-	if (shutdown(data->pair[0], SHUT_WR))
+	if (shutdown(data->pair[0], EVUTIL_SHUT_WR))
 		tt_abort_perror("initial write shutdown");
 
 	base = event_base_new();
@@ -2715,7 +2711,7 @@ test_event_once(void *ptr)
 		tt_fail_perror("write");
 	}
 
-	shutdown(data->pair[1], SHUT_WR);
+	shutdown(data->pair[1], EVUTIL_SHUT_WR);
 
 	event_base_dispatch(data->base);
 

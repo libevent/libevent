@@ -134,7 +134,7 @@ extern "C" {
 #ifdef SHUT_WR
 #define EVUTIL_SHUT_WR SHUT_WR
 #else
-#define EVUTIL_SHUT_WR 1
+#define EVUTIL_SHUT_WR 1 /* SD_SEND */
 #endif
 #ifdef SHUT_BOTH
 #define EVUTIL_SHUT_BOTH SHUT_BOTH

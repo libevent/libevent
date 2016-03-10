@@ -595,14 +595,6 @@ http_badreq_errorcb(struct bufferevent *bev, short what, void *arg)
 	/* ignore */
 }
 
-#ifndef SHUT_WR
-#ifdef _WIN32
-#define SHUT_WR SD_SEND
-#else
-#define SHUT_WR 1
-#endif
-#endif
-
 static void
 http_badreq_readcb(struct bufferevent *bev, void *arg)
 {
@@ -639,7 +631,7 @@ http_badreq_readcb(struct bufferevent *bev, void *arg)
 		evbuffer_drain(bufferevent_get_input(bev), evbuffer_get_length(bufferevent_get_input(bev)));
 	}
 
-	shutdown(bufferevent_getfd(bev), SHUT_WR);
+	shutdown(bufferevent_getfd(bev), EVUTIL_SHUT_WR);
 }
 
 static void
@@ -683,7 +675,7 @@ http_bad_request_test(void *arg)
 
 	bufferevent_write(bev, http_request, strlen(http_request));
 
-	shutdown(fd, SHUT_WR);
+	shutdown(fd, EVUTIL_SHUT_WR);
 	timerclear(&tv);
 	tv.tv_usec = 10000;
 	event_base_once(data->base, -1, EV_TIMEOUT, http_badreq_successcb, bev, &tv);
@@ -2846,7 +2838,7 @@ http_incomplete_writecb(struct bufferevent *bev, void *arg)
 	if (arg != NULL) {
 		evutil_socket_t fd = *(evutil_socket_t *)arg;
 		/* terminate the write side to simulate EOF */
-		shutdown(fd, SHUT_WR);
+		shutdown(fd, EVUTIL_SHUT_WR);
 	}
 	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
 		/* enable reading of the reply */
