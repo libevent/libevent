@@ -1314,6 +1314,7 @@ void
 evhttp_connection_reset_(struct evhttp_connection *evcon)
 {
 	struct evbuffer *tmp;
+	int err;
 
 	/* XXXX This is not actually an optimal fix.  Instead we ought to have
 	   an API for "stop connecting", or use bufferevent_setfd to turn off
@@ -1341,9 +1342,11 @@ evhttp_connection_reset_(struct evhttp_connection *evcon)
 
 	/* we need to clean up any buffered data */
 	tmp = bufferevent_get_output(evcon->bufev);
-	EVUTIL_ASSERT(!evbuffer_drain(tmp, -1));
+	err = evbuffer_drain(tmp, -1);
+	EVUTIL_ASSERT(!err && "drain output");
 	tmp = bufferevent_get_input(evcon->bufev);
-	EVUTIL_ASSERT(!evbuffer_drain(tmp, -1));
+	err = evbuffer_drain(tmp, -1);
+	EVUTIL_ASSERT(!err && "drain input");
 
 	evcon->state = EVCON_DISCONNECTED;
 }
