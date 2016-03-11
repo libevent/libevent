@@ -1667,6 +1667,8 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
+	if (req->response_code_line != NULL)
+		mm_free(req->response_code_line);
 	if ((req->response_code_line = mm_strdup(readable)) == NULL) {
 		event_warn("%s: strdup", __func__);
 		return (-1);
