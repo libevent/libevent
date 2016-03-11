@@ -1348,6 +1348,8 @@ evhttp_connection_reset_(struct evhttp_connection *evcon)
 	err = evbuffer_drain(tmp, -1);
 	EVUTIL_ASSERT(!err && "drain input");
 
+	evcon->flags &= ~EVHTTP_CON_READING_ERROR;
+
 	evcon->state = EVCON_DISCONNECTED;
 }
 
@@ -1435,7 +1437,13 @@ evhttp_connection_read_on_write_error(struct evhttp_connection *evcon,
 {
 	struct evbuffer *buf;
 
-	evcon->state = EVCON_READING_FIRSTLINE;
+	/** Second time, we can't read anything */
+	if (evcon->flags & EVHTTP_CON_READING_ERROR) {
+		evcon->flags &= ~EVHTTP_CON_READING_ERROR;
+		evhttp_connection_fail_(evcon, EVREQ_HTTP_EOF);
+		return;
+	}
+
 	req->kind = EVHTTP_RESPONSE;
 
 	buf = bufferevent_get_output(evcon->bufev);
@@ -1443,12 +1451,7 @@ evhttp_connection_read_on_write_error(struct evhttp_connection *evcon,
 	evbuffer_drain(buf, evbuffer_get_length(buf));
 	evbuffer_freeze(buf, 1);
 
-	bufferevent_setcb(evcon->bufev,
-		evhttp_read_cb,
-		NULL, /* evhttp_write_cb */
-		evhttp_error_cb,
-		evcon);
-	evhttp_connection_start_detectclose(evcon);
+	evhttp_start_read_(evcon);
 	evcon->flags |= EVHTTP_CON_READING_ERROR;
 }
 
@@ -1497,12 +1500,6 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	 */
 	if (evcon->flags & EVHTTP_CON_CLOSEDETECT) {
 		evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
-		if (evcon->flags & EVHTTP_CON_READING_ERROR) {
-			evcon->flags &= ~EVHTTP_CON_READING_ERROR;
-			evhttp_connection_fail_(evcon, EVREQ_HTTP_EOF);
-			return;
-		}
-
 		EVUTIL_ASSERT(evcon->http_server == NULL);
 		/* For connections from the client, we just
 		 * reset the connection so that it becomes
