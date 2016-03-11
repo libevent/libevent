@@ -3768,7 +3768,6 @@ http_data_length_constraints_test_done(struct evhttp_request *req, void *arg)
 end:
 	event_base_loopexit(arg, NULL);
 }
-
 static void
 http_large_entity_test_done(struct evhttp_request *req, void *arg)
 {
@@ -3777,9 +3776,24 @@ http_large_entity_test_done(struct evhttp_request *req, void *arg)
 end:
 	event_base_loopexit(arg, NULL);
 }
+static void
+http_failed_request_done(struct evhttp_request *req, void *arg)
+{
+	tt_assert(!req);
+end:
+	event_base_loopexit(arg, NULL);
+}
+static void
+http_expectation_failed_done(struct evhttp_request *req, void *arg)
+{
+	tt_assert(req);
+	tt_int_op(evhttp_request_get_response_code(req), ==, HTTP_EXPECTATIONFAILED);
+end:
+	event_base_loopexit(arg, NULL);
+}
 
 static void
-http_data_length_constraints_test(void *arg)
+http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 {
 	struct basic_test_data *data = arg;
 	ev_uint16_t port = 0;
@@ -3788,8 +3802,12 @@ http_data_length_constraints_test(void *arg)
 	char *long_str = NULL;
 	const size_t continue_size = 1<<20;
 	const size_t size = (1<<20) * 3;
+	void (*cb)(struct evhttp_request *, void *);
 
 	test_ok = 0;
+	cb = http_failed_request_done;
+	if (read_on_write_error)
+		cb = http_data_length_constraints_test_done;
 
 	http = http_setup(&port, data->base, 0);
 
@@ -3797,7 +3815,9 @@ http_data_length_constraints_test(void *arg)
 
 	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
 	tt_assert(evcon);
-	tt_assert(!evhttp_connection_set_flags(evcon, EVHTTP_CON_READ_ON_WRITE_ERROR));
+
+	if (read_on_write_error)
+		tt_assert(!evhttp_connection_set_flags(evcon, EVHTTP_CON_READ_ON_WRITE_ERROR));
 
 	/* also bind to local host */
 	evhttp_connection_set_local_address(evcon, "127.0.0.1");
@@ -3833,8 +3853,10 @@ http_data_length_constraints_test(void *arg)
 	}
 	event_base_dispatch(data->base);
 
+	if (read_on_write_error)
+		cb = http_large_entity_test_done;
 	evhttp_set_max_body_size(http, size - 2);
-	req = evhttp_request_new(http_large_entity_test_done, data->base);
+	req = evhttp_request_new(cb, data->base);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
@@ -3861,6 +3883,17 @@ http_data_length_constraints_test(void *arg)
 	}
 	event_base_dispatch(data->base);
 
+	if (read_on_write_error)
+		cb = http_expectation_failed_done;
+	req = evhttp_request_new(cb, data->base);
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "101-continue");
+	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+	event_base_dispatch(data->base);
+
 	test_ok = 1;
  end:
 	if (evcon)
@@ -3870,6 +3903,10 @@ http_data_length_constraints_test(void *arg)
 	if (long_str)
 		free(long_str);
 }
+static void http_data_length_constraints_test(void *arg)
+{ http_data_length_constraints_test_impl(arg, 0); }
+static void http_read_on_write_error_test(void *arg)
+{ http_data_length_constraints_test_impl(arg, 1); }
 
 static void
 http_large_entity_non_lingering_test_done(struct evhttp_request *req, void *arg)
@@ -4379,6 +4416,7 @@ struct testcase_t http_testcases[] = {
 	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 
 	HTTP(data_length_constraints),
+	HTTP(read_on_write_error),
 	HTTP(non_lingering_close),
 	HTTP(lingering_close),
 
