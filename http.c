@@ -1323,9 +1323,9 @@ evhttp_connection_reset_(struct evhttp_connection *evcon)
 
 	/* we need to clean up any buffered data */
 	tmp = bufferevent_get_output(evcon->bufev);
-	evbuffer_drain(tmp, evbuffer_get_length(tmp));
+	EVUTIL_ASSERT(!evbuffer_drain(tmp, -1));
 	tmp = bufferevent_get_input(evcon->bufev);
-	evbuffer_drain(tmp, evbuffer_get_length(tmp));
+	EVUTIL_ASSERT(!evbuffer_drain(tmp, -1));
 
 	evcon->state = EVCON_DISCONNECTED;
 }
