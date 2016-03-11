@@ -630,6 +630,9 @@ be_socket_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 	event_del(&bufev->ev_read);
 	event_del(&bufev->ev_write);
 
+	evbuffer_unfreeze(bufev->input, 0);
+	evbuffer_unfreeze(bufev->output, 1);
+
 	event_assign(&bufev->ev_read, bufev->ev_base, fd,
 	    EV_READ|EV_PERSIST|EV_FINALIZE, bufferevent_readcb, bufev);
 	event_assign(&bufev->ev_write, bufev->ev_base, fd,
