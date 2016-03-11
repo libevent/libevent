@@ -3903,7 +3903,6 @@ http_lingering_close_test_impl(void *arg, int lingering)
 	req = evhttp_request_new(cb, data->base);
 	tt_assert(req);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
-	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "100-continue");
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
 		tt_abort_msg("Couldn't make request");
