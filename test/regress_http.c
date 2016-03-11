@@ -3783,6 +3783,7 @@ http_failed_request_done(struct evhttp_request *req, void *arg)
 end:
 	event_base_loopexit(arg, NULL);
 }
+#ifndef WIN32
 static void
 http_expectation_failed_done(struct evhttp_request *req, void *arg)
 {
@@ -3791,6 +3792,7 @@ http_expectation_failed_done(struct evhttp_request *req, void *arg)
 end:
 	event_base_loopexit(arg, NULL);
 }
+#endif
 
 static void
 http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
@@ -3806,8 +3808,10 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 
 	test_ok = 0;
 	cb = http_failed_request_done;
+#ifndef WIN32
 	if (read_on_write_error)
 		cb = http_data_length_constraints_test_done;
+#endif
 
 	http = http_setup(&port, data->base, 0);
 
@@ -3853,8 +3857,10 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 	}
 	event_base_dispatch(data->base);
 
+#ifndef WIN32
 	if (read_on_write_error)
 		cb = http_large_entity_test_done;
+#endif
 	evhttp_set_max_body_size(http, size - 2);
 	req = evhttp_request_new(cb, data->base);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
@@ -3883,8 +3889,10 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 	}
 	event_base_dispatch(data->base);
 
+#ifndef WIN32
 	if (read_on_write_error)
 		cb = http_expectation_failed_done;
+#endif
 	req = evhttp_request_new(cb, data->base);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "101-continue");
