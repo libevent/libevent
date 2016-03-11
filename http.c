@@ -580,6 +580,23 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	}
 }
 
+enum expect { NO, CONTINUE, OTHER };
+static enum expect evhttp_have_expect(struct evhttp_request *req, int input)
+{
+	const char *expect;
+	struct evkeyvalq *h = input ? req->input_headers : req->output_headers;
+
+	if (!req->kind == EVHTTP_REQUEST || !REQ_VERSION_ATLEAST(req, 1, 1))
+		return NO;
+
+	expect = evhttp_find_header(h, "Expect");
+	if (!expect)
+		return NO;
+
+	return !evutil_ascii_strcasecmp(expect, "100-continue") ? CONTINUE : OTHER;
+}
+
+
 /** Generate all headers appropriate for sending the http request in req (or
  * the response, if we're sending a response), and write them to evcon's
  * bufferevent. Also writes all data from req->output_buffer */
@@ -605,14 +622,12 @@ evhttp_make_header(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 	evbuffer_add(output, "\r\n", 2);
 
-	if (evbuffer_get_length(req->output_buffer) > 0) {
+	if (evhttp_have_expect(req, 0) != CONTINUE &&
+		evbuffer_get_length(req->output_buffer)) {
 		/*
 		 * For a request, we add the POST data, for a reply, this
 		 * is the regular data.
 		 */
-		/* XXX We might want to support waiting (a limited amount of
-		   time) for a continue status line from the server before
-		   sending POST/PUT message bodies. */
 		evbuffer_add_buffer(output, req->output_buffer);
 	}
 }
@@ -1173,12 +1188,15 @@ evhttp_write_connectioncb(struct evhttp_connection *evcon, void *arg)
 {
 	/* This is after writing the request to the server */
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
+	struct evbuffer *output = bufferevent_get_output(evcon->bufev);
 	EVUTIL_ASSERT(req != NULL);
 
 	EVUTIL_ASSERT(evcon->state == EVCON_WRITING);
 
-	/* We need to wait until we've written all of our output data before we can continue */
-	if (evbuffer_get_length(bufferevent_get_output(evcon->bufev)) > 0) { return; }
+	/* We need to wait until we've written all of our output data before we can
+	 * continue */
+	if (evbuffer_get_length(output) > 0)
+		return;
 
 	/* We are done writing our header and are now expecting the response */
 	req->kind = EVHTTP_RESPONSE;
@@ -1649,6 +1667,8 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
+	if (req->response_code_line != NULL)
+		mm_free(req->response_code_line);
 	if ((req->response_code_line = mm_strdup(readable)) == NULL) {
 		event_warn("%s: strdup", __func__);
 		return (-1);
@@ -2165,8 +2185,7 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 		req->ntoread = -1;
 	} else {
 		if (evhttp_get_body_length(req) == -1) {
-			evhttp_connection_fail_(evcon,
-			    EVREQ_HTTP_INVALID_HEADER);
+			evhttp_connection_fail_(evcon, EVREQ_HTTP_INVALID_HEADER);
 			return;
 		}
 		if (req->kind == EVHTTP_REQUEST && req->ntoread < 1) {
@@ -2178,12 +2197,8 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 	}
 
 	/* Should we send a 100 Continue status line? */
-	if (req->kind == EVHTTP_REQUEST && REQ_VERSION_ATLEAST(req, 1, 1)) {
-		const char *expect;
-
-		expect = evhttp_find_header(req->input_headers, "Expect");
-		if (expect) {
-			if (!evutil_ascii_strcasecmp(expect, "100-continue")) {
+	switch (evhttp_have_expect(req, 1)) {
+		case CONTINUE:
 				/* XXX It would be nice to do some sanity
 				   checking here. Does the resource exist?
 				   Should the resource accept post requests? If
@@ -2192,19 +2207,19 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 				   send their message body. */
 				if (req->ntoread > 0) {
 					/* ntoread is ev_int64_t, max_body_size is ev_uint64_t */ 
-					if ((req->evcon->max_body_size <= EV_INT64_MAX) && (ev_uint64_t)req->ntoread > req->evcon->max_body_size) {
+					if ((req->evcon->max_body_size <= EV_INT64_MAX) &&
+						(ev_uint64_t)req->ntoread > req->evcon->max_body_size) {
 						evhttp_lingering_fail(evcon, req);
 						return;
 					}
 				}
 				if (!evbuffer_get_length(bufferevent_get_input(evcon->bufev)))
 					evhttp_send_continue(evcon, req);
-			} else {
-				evhttp_send_error(req, HTTP_EXPECTATIONFAILED,
-					NULL);
-				return;
-			}
-		}
+			break;
+		case OTHER:
+			evhttp_send_error(req, HTTP_EXPECTATIONFAILED, NULL);
+			return;
+		case NO: break;
 	}
 
 	evhttp_read_body(evcon, req);
@@ -2272,7 +2287,9 @@ evhttp_read_header(struct evhttp_connection *evcon,
 	case EVHTTP_RESPONSE:
 		/* Start over if we got a 100 Continue response. */
 		if (req->response_code == 100) {
-			evhttp_start_read_(evcon);
+			struct evbuffer *output = bufferevent_get_output(evcon->bufev);
+			evbuffer_add_buffer(output, req->output_buffer);
+			evhttp_start_write_(evcon);
 			return;
 		}
 		if (!evhttp_response_needs_body(req)) {
@@ -2683,6 +2700,16 @@ evhttp_start_read_(struct evhttp_connection *evcon)
 		event_deferred_cb_schedule_(get_deferred_queue(evcon),
 		    &evcon->read_more_deferred_cb);
 	}
+}
+
+void
+evhttp_start_write_(struct evhttp_connection *evcon)
+{
+	bufferevent_disable(evcon->bufev, EV_WRITE);
+	bufferevent_enable(evcon->bufev, EV_READ);
+
+	evcon->state = EVCON_WRITING;
+	evhttp_write_buffer(evcon, evhttp_write_connectioncb, NULL);
 }
 
 static void

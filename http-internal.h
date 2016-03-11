@@ -190,6 +190,7 @@ enum message_read_status evhttp_parse_firstline_(struct evhttp_request *, struct
 enum message_read_status evhttp_parse_headers_(struct evhttp_request *, struct evbuffer*);
 
 void evhttp_start_read_(struct evhttp_connection *);
+void evhttp_start_write_(struct evhttp_connection *);
 
 /* response sending HTML the data in the buffer */
 void evhttp_response_code_(struct evhttp_request *, int, const char *);
