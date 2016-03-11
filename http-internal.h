@@ -76,6 +76,9 @@ struct evhttp_connection {
 #define EVHTTP_CON_CLOSEDETECT	0x0004   /* detecting if persistent close */
 /* set when we want to auto free the connection */
 #define EVHTTP_CON_AUTOFREE	EVHTTP_CON_PUBLIC_FLAGS_END
+/* Installed when attempt to read HTTP error after write failed, see
+ * EVHTTP_CON_READ_ON_WRITE_ERROR */
+#define EVHTTP_CON_READING_ERROR	(EVHTTP_CON_AUTOFREE << 1)
 
 	struct timeval timeout;		/* timeout for events */
 	int retry_cnt;			/* retry count */

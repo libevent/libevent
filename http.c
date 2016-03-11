@@ -1449,6 +1449,7 @@ evhttp_connection_read_on_write_error(struct evhttp_connection *evcon,
 		evhttp_error_cb,
 		evcon);
 	evhttp_connection_start_detectclose(evcon);
+	evcon->flags |= EVHTTP_CON_READING_ERROR;
 }
 
 static void
@@ -1496,6 +1497,12 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 	 */
 	if (evcon->flags & EVHTTP_CON_CLOSEDETECT) {
 		evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
+		if (evcon->flags & EVHTTP_CON_READING_ERROR) {
+			evcon->flags &= ~EVHTTP_CON_READING_ERROR;
+			evhttp_connection_fail_(evcon, EVREQ_HTTP_EOF);
+			return;
+		}
+
 		EVUTIL_ASSERT(evcon->http_server == NULL);
 		/* For connections from the client, we just
 		 * reset the connection so that it becomes
