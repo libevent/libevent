@@ -3786,11 +3786,14 @@ http_data_length_constraints_test(void *arg)
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	char *long_str = NULL;
-	size_t size = (1<<20) * 3;
+	const size_t continue_size = 1<<20;
+	const size_t size = (1<<20) * 3;
 
 	test_ok = 0;
 
 	http = http_setup(&port, data->base, 0);
+
+	tt_assert(continue_size < size);
 
 	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
 	tt_assert(evcon);
@@ -3842,6 +3845,16 @@ http_data_length_constraints_test(void *arg)
 	req = evhttp_request_new(http_large_entity_test_done, data->base);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "100-continue");
+	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+	event_base_dispatch(data->base);
+
+	req = evhttp_request_new(http_dispatcher_test_done, data->base);
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "100-continue");
+	long_str[continue_size] = '\0';
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
 		tt_abort_msg("Couldn't make request");
