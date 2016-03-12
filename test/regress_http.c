@@ -1268,6 +1268,21 @@ http_request_never_call(struct evhttp_request *req, void *arg)
 	fprintf(stdout, "FAILED\n");
 	exit(1);
 }
+static void
+http_failed_request_done(struct evhttp_request *req, void *arg)
+{
+	tt_assert(!req);
+end:
+	event_base_loopexit(arg, NULL);
+}
+static void
+http_timed_out_request_done(struct evhttp_request *req, void *arg)
+{
+	tt_assert(req);
+	tt_int_op(evhttp_request_get_response_code(req), !=, HTTP_OK);
+end:
+	event_base_loopexit(arg, NULL);
+}
 
 static void
 http_request_error_cb_with_cancel(enum evhttp_request_error error, void *arg)
@@ -1293,7 +1308,58 @@ http_do_cancel(evutil_socket_t fd, short what, void *arg)
 	evhttp_cancel_request(req);
 	++test_ok;
 }
+static void
+http_no_write(struct evbuffer *buffer, const struct evbuffer_cb_info *info, void *arg)
+{
+	fprintf(stdout, "FAILED\n");
+	exit(1);
+}
+static void
+http_free_evcons(struct evhttp_connection **evcons)
+{
+	if (!evcons)
+		return;
 
+	struct evhttp_connection *evcon, **orig = evcons;
+	while ((evcon = *evcons++)) {
+		evhttp_connection_free(evcon);
+	}
+	free(orig);
+}
+/** fill the backlog to force server drop packages for timeouts */
+static struct evhttp_connection **
+http_fill_backlog(struct event_base *base, int port)
+{
+#define BACKLOG_SIZE 256
+		struct evhttp_connection **evcon = malloc(sizeof(*evcon) * (BACKLOG_SIZE + 1));
+		int i;
+
+		for (i = 0; i < BACKLOG_SIZE; ++i) {
+			struct evhttp_request *req;
+
+			evcon[i] = evhttp_connection_base_new(base, NULL, "127.0.0.1", port);
+			tt_assert(evcon[i]);
+			evhttp_connection_set_timeout(evcon[i], 5);
+
+			req = evhttp_request_new(http_request_never_call, NULL);
+			tt_assert(req);
+			tt_int_op(evhttp_make_request(evcon[i], req, EVHTTP_REQ_GET, "/delay"), !=, -1);
+		}
+		evcon[i] = NULL;
+
+		return evcon;
+ end:
+		fprintf(stderr, "Couldn't fill the backlog");
+		return NULL;
+}
+
+enum http_cancel_test_type {
+	BASIC = 1,
+	BY_HOST = 2,
+	NO_NS = 4,
+	INACTIVE_SERVER = 8,
+	SERVER_TIMEOUT = 16,
+};
 static void
 http_cancel_test(void *arg)
 {
@@ -1301,7 +1367,33 @@ http_cancel_test(void *arg)
 	ev_uint16_t port = 0;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
+	struct bufferevent *bufev = NULL;
 	struct timeval tv;
+	struct evdns_base *dns_base = NULL;
+	ev_uint16_t portnum = 0;
+	char address[64];
+	struct evhttp *inactive_http = NULL;
+	struct event_base *inactive_base = NULL;
+	struct evhttp_connection **evcons = NULL;
+
+	enum http_cancel_test_type type;
+	type = (enum http_cancel_test_type)data->setup_data;
+
+	if (type & BY_HOST) {
+		tt_assert(regress_dnsserver(data->base, &portnum, search_table));
+
+		dns_base = evdns_base_new(data->base, 0/* init name servers */);
+		tt_assert(dns_base);
+
+		/** XXX: Hack the port to make timeout after resolving */
+		if (type & NO_NS)
+			++portnum;
+
+		evutil_snprintf(address, sizeof(address), "127.0.0.1:%d", portnum);
+		evdns_base_nameserver_ip_add(dns_base, address);
+		evdns_base_set_option(dns_base, "timeout:", "3");
+		evdns_base_set_option(dns_base, "attempts:", "1");
+	}
 
 	exit_base = data->base;
 
@@ -1309,8 +1401,28 @@ http_cancel_test(void *arg)
 
 	http = http_setup(&port, data->base, 0);
 
-	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	if (type & INACTIVE_SERVER) {
+		port = 0;
+		inactive_base = event_base_new();
+		inactive_http = http_setup(&port, inactive_base, 0);
+	}
+
+	if (type & SERVER_TIMEOUT)
+		evcons = http_fill_backlog(inactive_base ?: data->base, port);
+
+	evcon = evhttp_connection_base_new(
+		data->base, dns_base,
+		type & BY_HOST ? "localhost" : "127.0.0.1",
+		port);
+	if (type & INACTIVE_SERVER)
+		evhttp_connection_set_timeout(evcon, 5);
 	tt_assert(evcon);
+
+	bufev = evhttp_connection_get_bufferevent(evcon);
+	/* Guarantee that we stack in connect() not after waiting EV_READ after
+	 * write() */
+	if (type & SERVER_TIMEOUT)
+		evbuffer_add_cb(bufferevent_get_output(bufev), http_no_write, NULL);
 
 	/*
 	 * At this point, we want to schedule a request to the HTTP
@@ -1335,12 +1447,24 @@ http_cancel_test(void *arg)
 
 	event_base_dispatch(data->base);
 
-	tt_int_op(test_ok, ==, 3);
+	if (type & NO_NS || type & INACTIVE_SERVER)
+		tt_int_op(test_ok, ==, 2); /** no servers responses */
+	else
+		tt_int_op(test_ok, ==, 3);
 
 	/* try to make another request over the same connection */
 	test_ok = 0;
 
-	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
+	http_free_evcons(evcons);
+	if (type & SERVER_TIMEOUT)
+		evcons = http_fill_backlog(inactive_base ?: data->base, port);
+
+	if (!(type & NO_NS) && (type & SERVER_TIMEOUT))
+		req = evhttp_request_new(http_timed_out_request_done, data->base);
+	else if ((type & INACTIVE_SERVER) || (type & NO_NS))
+		req = evhttp_request_new(http_failed_request_done, data->base);
+	else
+		req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 
 	/* Add the information that we care about */
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
@@ -1354,7 +1478,16 @@ http_cancel_test(void *arg)
 	/* make another request: request empty reply */
 	test_ok = 0;
 
-	req = evhttp_request_new(http_request_empty_done, data->base);
+	http_free_evcons(evcons);
+	if (type & SERVER_TIMEOUT)
+		evcons = http_fill_backlog(inactive_base ?: data->base, port);
+
+	if (!(type & NO_NS) && (type & SERVER_TIMEOUT))
+		req = evhttp_request_new(http_timed_out_request_done, data->base);
+	else if ((type & INACTIVE_SERVER) || (type & NO_NS))
+		req = evhttp_request_new(http_failed_request_done, data->base);
+	else
+		req = evhttp_request_new(http_request_empty_done, data->base);
 
 	/* Add the information that we care about */
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Empty", "itis");
@@ -1366,10 +1499,20 @@ http_cancel_test(void *arg)
 	event_base_dispatch(data->base);
 
  end:
+	http_free_evcons(evcons);
+	if (bufev)
+		evbuffer_remove_cb(bufferevent_get_output(bufev), http_no_write, NULL);
 	if (evcon)
 		evhttp_connection_free(evcon);
 	if (http)
 		evhttp_free(http);
+	if (dns_base)
+		evdns_base_free(dns_base, 0);
+	regress_clean_dnsserver();
+	if (inactive_http)
+		evhttp_free(inactive_http);
+	if (inactive_base)
+		event_base_free(inactive_base);
 }
 
 static void
@@ -3770,13 +3913,6 @@ http_large_entity_test_done(struct evhttp_request *req, void *arg)
 end:
 	event_base_loopexit(arg, NULL);
 }
-static void
-http_failed_request_done(struct evhttp_request *req, void *arg)
-{
-	tt_assert(!req);
-end:
-	event_base_loopexit(arg, NULL);
-}
 #ifndef WIN32
 static void
 http_expectation_failed_done(struct evhttp_request *req, void *arg)
@@ -3911,13 +4047,6 @@ static void http_read_on_write_error_test(void *arg)
 { http_data_length_constraints_test_impl(arg, 1); }
 
 static void
-http_large_entity_non_lingering_test_done(struct evhttp_request *req, void *arg)
-{
-	tt_assert(!req);
-end:
-	event_base_loopexit(arg, NULL);
-}
-static void
 http_lingering_close_test_impl(void *arg, int lingering)
 {
 	struct basic_test_data *data = arg;
@@ -3951,7 +4080,7 @@ http_lingering_close_test_impl(void *arg, int lingering)
 	if (lingering)
 		cb = http_large_entity_test_done;
 	else
-		cb = http_large_entity_non_lingering_test_done;
+		cb = http_failed_request_done;
 	req = evhttp_request_new(cb, data->base);
 	tt_assert(req);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
@@ -4342,8 +4471,10 @@ http_request_own_test(void *arg)
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
 		    http_##name##_test }
 
-#define HTTP(name) \
-	{ #name, http_##name##_test, TT_ISOLATED, &basic_setup, NULL }
+#define HTTP_CAST_ARG(a) ((void *)(a))
+#define HTTP_N(title, name, arg) \
+	{ #title, http_##name##_test, TT_ISOLATED, &basic_setup, HTTP_CAST_ARG(arg) }
+#define HTTP(name) HTTP_N(name, name, NULL)
 #define HTTPS(name) \
 	{ "https_" #name, https_##name##_test, TT_ISOLATED, &basic_setup, NULL }
 
@@ -4382,7 +4513,17 @@ struct testcase_t http_testcases[] = {
 	{ "uriencode", http_uriencode_test, 0, NULL, NULL },
 	HTTP(basic),
 	HTTP(simple),
-	HTTP(cancel),
+
+	HTTP_N(cancel, cancel, BASIC),
+	HTTP_N(cancel_by_host, cancel, BY_HOST),
+	HTTP_N(cancel_by_host_no_ns, cancel, BY_HOST | NO_NS),
+	HTTP_N(cancel_by_host_inactive_server, cancel, BY_HOST | INACTIVE_SERVER),
+	HTTP_N(cancel_inactive_server, cancel, INACTIVE_SERVER),
+	HTTP_N(cancel_by_host_no_ns_inactive_server, cancel, BY_HOST | NO_NS | INACTIVE_SERVER),
+	HTTP_N(cancel_by_host_server_timeout, cancel, BY_HOST | INACTIVE_SERVER | SERVER_TIMEOUT),
+	HTTP_N(cancel_server_timeout, cancel, INACTIVE_SERVER | SERVER_TIMEOUT),
+	HTTP_N(cancel_by_host_no_ns_server_timeout, cancel, BY_HOST | NO_NS | INACTIVE_SERVER | SERVER_TIMEOUT),
+
 	HTTP(virtual_host),
 	HTTP(post),
 	HTTP(put),
