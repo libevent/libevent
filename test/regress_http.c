@@ -72,19 +72,6 @@ static struct event_base *exit_base;
 
 static char const BASIC_REQUEST_BODY[] = "This is funny";
 
-#define IMPL_HTTP_REQUEST_ERROR_CB(name, expecting_error)                    \
-	static void                                                              \
-	http_request_error_cb_with_##name##_(enum evhttp_request_error error,    \
-	                                     void *arg)                          \
-	{                                                                        \
-		if (error != expecting_error) { 									 \
-			fprintf(stderr, "FAILED\n"); 									 \
-			exit(1); 														 \
-		} 																	 \
-		test_ok = 1; 														 \
-	}
-IMPL_HTTP_REQUEST_ERROR_CB(cancel, EVREQ_HTTP_REQUEST_CANCEL)
-
 static void http_basic_cb(struct evhttp_request *req, void *arg);
 static void http_large_cb(struct evhttp_request *req, void *arg);
 static void http_chunked_cb(struct evhttp_request *req, void *arg);
@@ -1283,20 +1270,27 @@ http_request_never_call(struct evhttp_request *req, void *arg)
 }
 
 static void
+http_request_error_cb_with_cancel(enum evhttp_request_error error, void *arg)
+{
+	if (error != EVREQ_HTTP_REQUEST_CANCEL) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+	test_ok = 1;
+
+	{
+		struct timeval tv;
+		evutil_timerclear(&tv);
+		tv.tv_sec = 0;
+		tv.tv_usec = 500 * 1000;
+		event_base_loopexit(exit_base, &tv);
+	}
+}
+static void
 http_do_cancel(evutil_socket_t fd, short what, void *arg)
 {
 	struct evhttp_request *req = arg;
-	struct timeval tv;
-	struct event_base *base;
-	evutil_timerclear(&tv);
-	tv.tv_sec = 0;
-	tv.tv_usec = 500 * 1000;
-
-	base = evhttp_connection_get_base(evhttp_request_get_connection(req));
 	evhttp_cancel_request(req);
-
-	event_base_loopexit(base, &tv);
-
 	++test_ok;
 }
 
@@ -1324,7 +1318,7 @@ http_cancel_test(void *arg)
 	 */
 
 	req = evhttp_request_new(http_request_never_call, NULL);
-	evhttp_request_set_error_cb(req, http_request_error_cb_with_cancel_);
+	evhttp_request_set_error_cb(req, http_request_error_cb_with_cancel);
 
 	/* Add the information that we care about */
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
