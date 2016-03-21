@@ -492,7 +492,6 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 {
 	char portbuf[10];
 	struct evutil_addrinfo hint;
-	int err;
 	struct bufferevent_private *bev_p =
 	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
 
@@ -515,18 +514,11 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	bufferevent_suspend_read_(bev, BEV_SUSPEND_LOOKUP);
 
 	bufferevent_incref_(bev);
-	err = evutil_getaddrinfo_async_(evdns_base, hostname, portbuf,
+	evutil_getaddrinfo_async_(evdns_base, hostname, portbuf,
 	    &hint, bufferevent_connect_getaddrinfo_cb, bev);
 	BEV_UNLOCK(bev);
 
-	if (err == 0) {
-		return 0;
-	} else {
-		bufferevent_unsuspend_write_(bev, BEV_SUSPEND_LOOKUP);
-		bufferevent_unsuspend_read_(bev, BEV_SUSPEND_LOOKUP);
-		bufferevent_decref_(bev);
-		return -1;
-	}
+	return 0;
 }
 
 int
