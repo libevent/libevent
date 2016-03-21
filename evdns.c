@@ -3908,6 +3908,7 @@ evdns_base_new(struct event_base *event_base, int flags)
 	 * functionality.  We can't just call evdns_getaddrinfo directly or
 	 * else libevent-core will depend on libevent-extras. */
 	evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo);
+	evutil_set_evdns_getaddrinfo_cancel_fn_(evdns_getaddrinfo_cancel);
 
 	base = mm_malloc(sizeof(struct evdns_base));
 	if (base == NULL)
