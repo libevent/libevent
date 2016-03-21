@@ -228,6 +228,8 @@ struct bufferevent_private {
 		struct sockaddr_in6 in6;
 		struct sockaddr_in in;
 	} conn_address;
+
+	struct evdns_getaddrinfo_request *dns_request;
 };
 
 /** Possible operations for a control callback. */

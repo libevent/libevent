@@ -468,6 +468,13 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	bufferevent_unsuspend_write_(bev, BEV_SUSPEND_LOOKUP);
 	bufferevent_unsuspend_read_(bev, BEV_SUSPEND_LOOKUP);
 
+	bev_p->dns_request = NULL;
+
+	if (result == EVUTIL_EAI_CANCEL) {
+		bev_p->dns_error = result;
+		bufferevent_decref_and_unlock_(bev);
+		return;
+	}
 	if (result != 0) {
 		bev_p->dns_error = result;
 		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
@@ -514,8 +521,8 @@ bufferevent_socket_connect_hostname(struct bufferevent *bev,
 	bufferevent_suspend_read_(bev, BEV_SUSPEND_LOOKUP);
 
 	bufferevent_incref_(bev);
-	evutil_getaddrinfo_async_(evdns_base, hostname, portbuf,
-	    &hint, bufferevent_connect_getaddrinfo_cb, bev);
+	bev_p->dns_request = evutil_getaddrinfo_async_(evdns_base, hostname,
+	    portbuf, &hint, bufferevent_connect_getaddrinfo_cb, bev);
 	BEV_UNLOCK(bev);
 
 	return 0;
@@ -603,6 +610,8 @@ be_socket_destruct(struct bufferevent *bufev)
 
 	if ((bufev_p->options & BEV_OPT_CLOSE_ON_FREE) && fd >= 0)
 		EVUTIL_CLOSESOCKET(fd);
+
+	evutil_getaddrinfo_cancel_async_(bufev_p->dns_request);
 }
 
 static int
@@ -616,6 +625,9 @@ be_socket_flush(struct bufferevent *bev, short iotype,
 static void
 be_socket_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 {
+	struct bufferevent_private *bufev_p =
+	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+
 	BEV_LOCK(bufev);
 	EVUTIL_ASSERT(bufev->be_ops == &bufferevent_ops_socket);
 
@@ -632,6 +644,8 @@ be_socket_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 
 	if (fd >= 0)
 		bufferevent_enable(bufev, bufev->enabled);
+
+	evutil_getaddrinfo_cancel_async_(bufev_p->dns_request);
 
 	BEV_UNLOCK(bufev);
 }
