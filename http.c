@@ -1244,6 +1244,9 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	event_deferred_cb_cancel_(get_deferred_queue(evcon),
 	    &evcon->read_more_deferred_cb);
 
+	if (evcon->fd == -1)
+		evcon->fd = bufferevent_getfd(evcon->bufev);
+
 	if (evcon->fd != -1) {
 		bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
 		shutdown(evcon->fd, EVUTIL_SHUT_WR);
