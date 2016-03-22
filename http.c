@@ -1329,6 +1329,9 @@ evhttp_connection_reset_(struct evhttp_connection *evcon)
 	*/
 	bufferevent_disable_hard_(evcon->bufev, EV_READ|EV_WRITE);
 
+	if (evcon->fd == -1)
+		evcon->fd = bufferevent_getfd(evcon->bufev);
+
 	if (evcon->fd != -1) {
 		/* inform interested parties about connection close */
 		if (evhttp_connected(evcon) && evcon->closecb != NULL)
