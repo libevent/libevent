@@ -129,10 +129,14 @@ end:
 void
 regress_clean_dnsserver(void)
 {
-	if (dns_port)
+	if (dns_port) {
 		evdns_close_server_port(dns_port);
-	if (dns_sock >= 0)
+		dns_port = NULL;
+	}
+	if (dns_sock >= 0) {
 		evutil_closesocket(dns_sock);
+		dns_sock = -1;
+	}
 }
 
 static void strtolower(char *s)
