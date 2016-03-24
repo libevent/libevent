@@ -1362,6 +1362,17 @@ enum http_cancel_test_type {
 	SERVER_TIMEOUT = 16,
 	NS_TIMEOUT = 32,
 };
+static struct evhttp_request *
+http_cancel_test_bad_request_new(enum http_cancel_test_type type,
+	struct event_base *base)
+{
+	if (!(type & NO_NS) && (type & SERVER_TIMEOUT))
+		return evhttp_request_new(http_timed_out_request_done, base);
+	else if ((type & INACTIVE_SERVER) || (type & NO_NS))
+		return evhttp_request_new(http_failed_request_done, base);
+	else
+		return NULL;
+}
 static void
 http_cancel_test(void *arg)
 {
@@ -1465,11 +1476,8 @@ http_cancel_test(void *arg)
 	if (type & SERVER_TIMEOUT)
 		evcons = http_fill_backlog(inactive_base ?: data->base, port);
 
-	if (!(type & NO_NS) && (type & SERVER_TIMEOUT))
-		req = evhttp_request_new(http_timed_out_request_done, data->base);
-	else if ((type & INACTIVE_SERVER) || (type & NO_NS))
-		req = evhttp_request_new(http_failed_request_done, data->base);
-	else
+	req = http_cancel_test_bad_request_new(type, data->base);
+	if (!req)
 		req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
 
 	/* Add the information that we care about */
@@ -1488,11 +1496,8 @@ http_cancel_test(void *arg)
 	if (type & SERVER_TIMEOUT)
 		evcons = http_fill_backlog(inactive_base ?: data->base, port);
 
-	if (!(type & NO_NS) && (type & SERVER_TIMEOUT))
-		req = evhttp_request_new(http_timed_out_request_done, data->base);
-	else if ((type & INACTIVE_SERVER) || (type & NO_NS))
-		req = evhttp_request_new(http_failed_request_done, data->base);
-	else
+	req = http_cancel_test_bad_request_new(type, data->base);
+	if (!req)
 		req = evhttp_request_new(http_request_empty_done, data->base);
 
 	/* Add the information that we care about */
