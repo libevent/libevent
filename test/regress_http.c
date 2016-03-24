@@ -1317,10 +1317,11 @@ http_no_write(struct evbuffer *buffer, const struct evbuffer_cb_info *info, void
 static void
 http_free_evcons(struct evhttp_connection **evcons)
 {
+	struct evhttp_connection *evcon, **orig = evcons;
+
 	if (!evcons)
 		return;
 
-	struct evhttp_connection *evcon, **orig = evcons;
 	while ((evcon = *evcons++)) {
 		evhttp_connection_free(evcon);
 	}
@@ -1381,6 +1382,8 @@ http_cancel_test(void *arg)
 	type = (enum http_cancel_test_type)data->setup_data;
 
 	if (type & BY_HOST) {
+		const char *timeout = (type & NS_TIMEOUT) ? "6" : "3";
+
 		tt_assert(regress_dnsserver(data->base, &portnum, search_table));
 
 		dns_base = evdns_base_new(data->base, 0/* init name servers */);
@@ -1393,7 +1396,6 @@ http_cancel_test(void *arg)
 		evutil_snprintf(address, sizeof(address), "127.0.0.1:%d", portnum);
 		evdns_base_nameserver_ip_add(dns_base, address);
 
-		char *timeout = (type & NS_TIMEOUT) ? "6" : "3";
 		evdns_base_set_option(dns_base, "timeout:", timeout);
 		evdns_base_set_option(dns_base, "initial-probe-timeout:", timeout);
 		evdns_base_set_option(dns_base, "attempts:", "1");
