@@ -1275,6 +1275,7 @@ http_failed_request_done(struct evhttp_request *req, void *arg)
 end:
 	event_base_loopexit(arg, NULL);
 }
+#ifndef _WIN32
 static void
 http_timed_out_request_done(struct evhttp_request *req, void *arg)
 {
@@ -1283,6 +1284,7 @@ http_timed_out_request_done(struct evhttp_request *req, void *arg)
 end:
 	event_base_loopexit(arg, NULL);
 }
+#endif
 
 static void
 http_request_error_cb_with_cancel(enum evhttp_request_error error, void *arg)
@@ -1366,9 +1368,12 @@ static struct evhttp_request *
 http_cancel_test_bad_request_new(enum http_cancel_test_type type,
 	struct event_base *base)
 {
+#ifndef _WIN32
 	if (!(type & NO_NS) && (type & SERVER_TIMEOUT))
 		return evhttp_request_new(http_timed_out_request_done, base);
-	else if ((type & INACTIVE_SERVER) || (type & NO_NS))
+	else
+#endif
+	if ((type & INACTIVE_SERVER) || (type & NO_NS))
 		return evhttp_request_new(http_failed_request_done, base);
 	else
 		return NULL;
