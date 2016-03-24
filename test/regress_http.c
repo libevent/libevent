@@ -1359,6 +1359,7 @@ enum http_cancel_test_type {
 	NO_NS = 4,
 	INACTIVE_SERVER = 8,
 	SERVER_TIMEOUT = 16,
+	NS_TIMEOUT = 32,
 };
 static void
 http_cancel_test(void *arg)
@@ -1391,7 +1392,10 @@ http_cancel_test(void *arg)
 
 		evutil_snprintf(address, sizeof(address), "127.0.0.1:%d", portnum);
 		evdns_base_nameserver_ip_add(dns_base, address);
-		evdns_base_set_option(dns_base, "timeout:", "3");
+
+		char *timeout = (type & NS_TIMEOUT) ? "6" : "3";
+		evdns_base_set_option(dns_base, "timeout:", timeout);
+		evdns_base_set_option(dns_base, "initial-probe-timeout:", timeout);
 		evdns_base_set_option(dns_base, "attempts:", "1");
 	}
 
@@ -4523,6 +4527,9 @@ struct testcase_t http_testcases[] = {
 	HTTP_N(cancel_by_host_server_timeout, cancel, BY_HOST | INACTIVE_SERVER | SERVER_TIMEOUT),
 	HTTP_N(cancel_server_timeout, cancel, INACTIVE_SERVER | SERVER_TIMEOUT),
 	HTTP_N(cancel_by_host_no_ns_server_timeout, cancel, BY_HOST | NO_NS | INACTIVE_SERVER | SERVER_TIMEOUT),
+	HTTP_N(cancel_by_host_ns_timeout, cancel, BY_HOST | NO_NS | NS_TIMEOUT),
+	HTTP_N(cancel_by_host_ns_timeout_inactive_server, cancel, BY_HOST | NO_NS | NS_TIMEOUT | INACTIVE_SERVER),
+	HTTP_N(cancel_by_host_ns_timeout_server_timeout, cancel, BY_HOST | NO_NS | NS_TIMEOUT | INACTIVE_SERVER | SERVER_TIMEOUT),
 
 	HTTP(virtual_host),
 	HTTP(post),
