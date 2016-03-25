@@ -455,6 +455,7 @@ http_basic_test_impl(void *arg, int ssl)
 	int server_flags = ssl ? HTTP_BIND_SSL : 0;
 	struct evhttp *http = http_setup(&port, data->base, server_flags);
 
+	exit_base = data->base;
 	test_ok = 0;
 
 	/* bind to a second socket */
@@ -758,7 +759,9 @@ http_delete_test(void *arg)
 	ev_uint16_t port = 0;
 	struct evhttp *http = http_setup(&port, data->base, 0);
 
+	exit_base = data->base;
 	test_ok = 0;
+
 	tt_assert(http);
 	fd = http_connect("127.0.0.1", port);
 	tt_int_op(fd, >=, 0);
@@ -840,6 +843,7 @@ http_on_complete_test(void *arg)
 	ev_uint16_t port = 0;
 	struct evhttp *http = http_setup(&port, data->base, 0);
 
+	exit_base = data->base;
 	test_ok = 0;
 
 	fd = http_connect("127.0.0.1", port);
@@ -3798,6 +3802,7 @@ http_multi_line_header_test(void *arg)
 	ev_uint16_t port = 0;
 	struct evhttp *http = http_setup(&port, data->base, 0);
 
+	exit_base = data->base;
 	test_ok = 0;
 
 	tt_ptr_op(http, !=, NULL);
