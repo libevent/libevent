@@ -586,7 +586,7 @@ static enum expect evhttp_have_expect(struct evhttp_request *req, int input)
 	const char *expect;
 	struct evkeyvalq *h = input ? req->input_headers : req->output_headers;
 
-	if (!req->kind == EVHTTP_REQUEST || !REQ_VERSION_ATLEAST(req, 1, 1))
+	if (!(req->kind == EVHTTP_REQUEST) || !REQ_VERSION_ATLEAST(req, 1, 1))
 		return NO;
 
 	expect = evhttp_find_header(h, "Expect");
