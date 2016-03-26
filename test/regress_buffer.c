@@ -566,6 +566,60 @@ end:
 	evbuffer_free(buf);
 }
 
+static void
+test_evbuffer_add1(void *ptr)
+{
+	struct evbuffer *buf;
+	char *str;
+
+	buf = evbuffer_new();
+	evbuffer_add(buf, "1", 1);
+	evbuffer_validate(buf);
+	evbuffer_expand(buf, 2048);
+	evbuffer_validate(buf);
+	evbuffer_add(buf, "2", 1);
+	evbuffer_validate(buf);
+	evbuffer_add_printf(buf, "3");
+	evbuffer_validate(buf);
+
+	tt_assert(evbuffer_get_length(buf) == 3);
+	str = (char *)evbuffer_pullup(buf, -1);
+	tt_assert(str[0] == '1');
+	tt_assert(str[1] == '2');
+	tt_assert(str[2] == '3');
+end:
+	evbuffer_free(buf);
+}
+
+static void
+test_evbuffer_add2(void *ptr)
+{
+	struct evbuffer *buf;
+	static char data[4096];
+	int data_len = MIN_BUFFER_SIZE-EVBUFFER_CHAIN_SIZE-10;
+	char *str;
+	int len;
+
+	memset(data, 'P', sizeof(data));
+	buf = evbuffer_new();
+	evbuffer_add(buf, data, data_len);
+	evbuffer_validate(buf);
+	evbuffer_expand(buf, 100);
+	evbuffer_validate(buf);
+	evbuffer_add(buf, "2", 1);
+	evbuffer_validate(buf);
+	evbuffer_add_printf(buf, "3");
+	evbuffer_validate(buf);
+
+	len = evbuffer_get_length(buf);
+	tt_assert(len == data_len+2);
+	str = (char *)evbuffer_pullup(buf, -1);
+	tt_assert(str[len-3] == 'P');
+	tt_assert(str[len-2] == '2');
+	tt_assert(str[len-1] == '3');
+end:
+	evbuffer_free(buf);
+}
 
 static int reference_cb_called;
 static void
@@ -620,6 +674,36 @@ test_evbuffer_reference(void *ptr)
  end:
 	evbuffer_free(dst);
 	evbuffer_free(src);
+}
+
+static void
+test_evbuffer_reference2(void *ptr)
+{
+	struct evbuffer *buf;
+	static char data[4096];
+	int data_len = MIN_BUFFER_SIZE-EVBUFFER_CHAIN_SIZE-10;
+	char *str;
+	int len;
+
+	memset(data, 'P', sizeof(data));
+	buf = evbuffer_new();
+	evbuffer_add(buf, data, data_len);
+	evbuffer_validate(buf);
+	evbuffer_expand(buf, 100);
+	evbuffer_validate(buf);
+	evbuffer_add_reference(buf, "2", 1, no_cleanup, NULL);
+	evbuffer_validate(buf);
+	evbuffer_add_printf(buf, "3");
+	evbuffer_validate(buf);
+
+	len = evbuffer_get_length(buf);
+	tt_assert(len == data_len+2);
+	str = (char *)evbuffer_pullup(buf, -1);
+	tt_assert(str[len-3] == 'P');
+	tt_assert(str[len-2] == '2');
+	tt_assert(str[len-1] == '3');
+end:
+	evbuffer_free(buf);
 }
 
 static struct event_base *addfile_test_event_base = NULL;
@@ -2233,7 +2317,10 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "reserve_many2", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"add" },
 	{ "reserve_many3", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"fill" },
 	{ "expand", test_evbuffer_expand, 0, NULL, NULL },
+	{ "add1", test_evbuffer_add1, 0, NULL, NULL },
+	{ "add2", test_evbuffer_add2, 0, NULL, NULL },
 	{ "reference", test_evbuffer_reference, 0, NULL, NULL },
+	{ "reference2", test_evbuffer_reference2, 0, NULL, NULL },
 	{ "iterative", test_evbuffer_iterative, 0, NULL, NULL },
 	{ "readln", test_evbuffer_readln, TT_NO_LOGS, &basic_setup, NULL },
 	{ "search_eol", test_evbuffer_search_eol, 0, NULL, NULL },
