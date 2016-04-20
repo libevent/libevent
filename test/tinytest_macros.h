@@ -166,6 +166,12 @@
 	tt_assert_test_type(a,b,#a" "#op" "#b,const void*,              \
 	    (val1_ op val2_),"%p",TT_EXIT_TEST_FUNCTION)
 
+/** XXX: have some issues with printing this non-NUL terminated strings */
+#define tt_nstr_op(n,a,op,b)						\
+	tt_assert_test_type_opt(a,b,#a" "#op" "#b,const char *,		\
+	    (val1_ && val2_ && strncmp(val1_,val2_,(n)) op 0),"<%s>",	\
+	    TT_EXIT_TEST_FUNCTION)
+
 #define tt_str_op(a,op,b)						\
 	tt_assert_test_type_opt(a,b,#a" "#op" "#b,const char *,		\
 	    (val1_ && val2_ && strcmp(val1_,val2_) op 0),"<%s>",	\
