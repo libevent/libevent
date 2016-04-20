@@ -93,7 +93,7 @@ dist_bin_SCRIPTS = event_rpcgen.py
 endif
 
 pkgconfigdir=$(libdir)/pkgconfig
-LIBEVENT_PKGCONFIG=libevent.pc
+LIBEVENT_PKGCONFIG=libevent.pc libevent_core.pc libevent_extra.pc
 
 # These sources are conditionally added by configure.ac or conditionally
 # included from other files.
@@ -299,5 +299,5 @@ doxygen: FORCE
 	doxygen $(srcdir)/Doxyfile
 FORCE:
 
-DISTCLEANFILES += *~ libevent.pc ./include/event2/event-config.h
+DISTCLEANFILES += *~ libevent.pc libevent_core.pc libevent_extra.pc ./include/event2/event-config.h
 
