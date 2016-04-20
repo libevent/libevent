@@ -1866,12 +1866,23 @@ end:
 		evbuffer_free(buf2);
 }
 
+static void
+check_prepend(struct evbuffer *buffer,
+    const struct evbuffer_cb_info *cbinfo,
+    void *arg)
+{
+	tt_int_op(cbinfo->orig_size, ==, 3);
+	tt_int_op(cbinfo->n_added, ==, 8096);
+	tt_int_op(cbinfo->n_deleted, ==, 0);
+end:
+	;
+}
 /* Some cases that we didn't get in test_evbuffer() above, for more coverage. */
 static void
 test_evbuffer_prepend(void *ptr)
 {
 	struct evbuffer *buf1 = NULL, *buf2 = NULL;
-	char tmp[128];
+	char tmp[128], *buffer = malloc(8096);
 	int n;
 
 	buf1 = evbuffer_new();
@@ -1918,6 +1929,21 @@ test_evbuffer_prepend(void *ptr)
 	tt_int_op(n, >=, 0);
 	tmp[n]='\0';
 	tt_str_op(tmp,==,"Here is string 1000. Here is string 999. ");
+
+	/* Case 5: evbuffer_prepend() will need a new buffer, with callbacks */
+	memset(buffer, 'A', 8096);
+	evbuffer_free(buf2);
+	buf2 = evbuffer_new();
+	tt_assert(buf2);
+	evbuffer_prepend(buf2, "foo", 3);
+	evbuffer_add_cb(buf2, check_prepend, NULL);
+	evbuffer_prepend(buf2, buffer, 8096);
+	evbuffer_remove_cb(buf2, check_prepend, NULL);
+	evbuffer_validate(buf2);
+	tt_nstr_op(8096,(char *)evbuffer_pullup(buf2, 8096),==,buffer);
+	evbuffer_drain(buf2, 8096);
+	tt_nstr_op(3,(char *)evbuffer_pullup(buf2, 3),==,"foo");
+	evbuffer_drain(buf2, 3);
 
 end:
 	if (buf1)
