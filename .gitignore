@@ -37,9 +37,7 @@ Makefile.in
 TAGS
 
 # Stuff made by our makefiles
-libevent.pc
-libevent_pthreads.pc
-libevent_openssl.pc
+*.pc
 *.log
 *.trs
 
