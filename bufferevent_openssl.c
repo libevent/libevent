@@ -593,6 +593,7 @@ do_read(struct bufferevent_openssl *bev_ssl, int n_to_read) {
 	for (i=0; i<n; ++i) {
 		if (bev_ssl->bev.read_suspended)
 			break;
+		ERR_clear_error();
 		r = SSL_read(bev_ssl->ssl, space[i].iov_base, space[i].iov_len);
 		if (r>0) {
 			result |= OP_MADE_PROGRESS;
@@ -669,6 +670,7 @@ do_write(struct bufferevent_openssl *bev_ssl, int atmost)
 		if (space[i].iov_len == 0)
 			continue;
 
+		ERR_clear_error();
 		r = SSL_write(bev_ssl->ssl, space[i].iov_base,
 		    space[i].iov_len);
 		if (r > 0) {
@@ -1021,6 +1023,7 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 		return -1;
 	case BUFFEREVENT_SSL_CONNECTING:
 	case BUFFEREVENT_SSL_ACCEPTING:
+		ERR_clear_error();
 		r = SSL_do_handshake(bev_ssl->ssl);
 		break;
 	}
