@@ -1238,11 +1238,20 @@ static int tested_for_getaddrinfo_hacks=0;
      field set to 0.  We test for this so we can apply an appropriate
      workaround.
 */
+struct evutil_addrinfo *ai_find_protocol(struct evutil_addrinfo *ai)
+{
+	while (ai) {
+		if (ai->ai_protocol)
+			return ai;
+		ai = ai->ai_next;
+	}
+	return NULL;
+}
 static void
 test_for_getaddrinfo_hacks(void)
 {
 	int r, r2;
-	struct evutil_addrinfo *ai=NULL, *ai2=NULL;
+	struct evutil_addrinfo *ai=NULL, *ai2=NULL, *ai3=NULL;
 	struct evutil_addrinfo hints;
 
 	memset(&hints,0,sizeof(hints));
@@ -1256,12 +1265,13 @@ test_for_getaddrinfo_hacks(void)
 #endif
 	    0;
 	r = getaddrinfo("1.2.3.4", "80", &hints, &ai);
+	getaddrinfo("1.2.3.4", NULL, &hints, &ai3);
 	hints.ai_socktype = SOCK_STREAM;
 	r2 = getaddrinfo("1.2.3.4", "80", &hints, &ai2);
 	if (r2 == 0 && r != 0) {
 		need_numeric_port_hack_=1;
 	}
-	if (ai2 && ai2->ai_protocol == 0) {
+	if (!ai_find_protocol(ai2) || !ai_find_protocol(ai3)) {
 		need_socktype_protocol_hack_=1;
 	}
 
@@ -1269,6 +1279,8 @@ test_for_getaddrinfo_hacks(void)
 		freeaddrinfo(ai);
 	if (ai2)
 		freeaddrinfo(ai2);
+	if (ai3)
+		freeaddrinfo(ai3);
 	tested_for_getaddrinfo_hacks=1;
 }
 
