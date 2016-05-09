@@ -18,4 +18,4 @@ script:
   - if [ "$EVENT_BUILD_METHOD" = "cmake" ]; then mkdir build && cd build && cmake .. $EVENT_CMAKE_OPTIONS && cmake --build . && CTEST_OUTPUT_ON_FAILURE=1 cmake --build . --target verify; fi
 
 notifications:
-          irc: "irc.oftc.net#libevent"
+  irc: "irc.oftc.net#libevent"
