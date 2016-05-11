@@ -10,7 +10,18 @@ AC_PREREQ(2.59)
 AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
-AM_INIT_AUTOMAKE
+
+# 'foreign' means that we're not enforcing GNU package rules strictly.
+# '1.9' means that we need automake 1.9 or later (and we do).
+# serial-tests means that we don't need parallel test harness
+AM_INIT_AUTOMAKE(m4_esyscmd([echo foreign 1.9 subdir-objects
+    case `automake --version | head -n 1` in
+    *1.9*);;
+    *1.10*);;
+    *1.11*);;
+    *) echo serial-tests;;
+    esac]))
+
 dnl AM_SILENT_RULES req. automake 1.11.  [no] defaults V=1
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
