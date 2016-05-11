@@ -6,7 +6,7 @@
 
 # 'foreign' means that we're not enforcing GNU package rules strictly.
 # '1.9' means that we need automake 1.9 or later (and we do).
-AUTOMAKE_OPTIONS = foreign 1.9 subdir-objects
+AUTOMAKE_OPTIONS = foreign 1.9 subdir-objects serial-tests
 
 ACLOCAL_AMFLAGS = -I m4
 
