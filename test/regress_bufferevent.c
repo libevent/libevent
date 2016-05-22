@@ -1190,6 +1190,42 @@ end:
 		bufferevent_free(bev);
 }
 
+static void
+pair_flush_eventcb(struct bufferevent *bev, short what, void *ctx)
+{
+	int *callback_what = ctx;
+	*callback_what = what;
+}
+
+static void
+test_bufferevent_pair_flush(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *pair[2];
+	struct bufferevent *bev1 = NULL;
+	struct bufferevent *bev2 = NULL;
+	int callback_what = 0;
+
+	tt_assert(0 == bufferevent_pair_new(data->base, 0, pair));
+	bev1 = pair[0];
+	bev2 = pair[1];
+	tt_assert(0 == bufferevent_enable(bev1, EV_WRITE));
+	tt_assert(0 == bufferevent_enable(bev2, EV_READ));
+
+	bufferevent_setcb(bev2, NULL, NULL, pair_flush_eventcb, &callback_what);
+
+	bufferevent_flush(bev1, EV_WRITE, BEV_FINISHED);
+
+	event_base_loop(data->base, EVLOOP_ONCE);
+
+	tt_assert(callback_what == (BEV_EVENT_READING | BEV_EVENT_EOF));
+
+end:
+	if (bev1)
+		bufferevent_free(bev1);
+	if (bev2)
+		bufferevent_free(bev2);
+}
 
 struct testcase_t bufferevent_testcases[] = {
 
@@ -1260,6 +1296,9 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_socket_filter_inactive",
 	  test_bufferevent_socket_filter_inactive,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "bufferevent_pair_flush",
+	  test_bufferevent_pair_flush,
+	  TT_NEED_BASE, &basic_setup, NULL },
 
 	END_OF_TESTCASES,
 };
