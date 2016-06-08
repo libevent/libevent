@@ -365,6 +365,47 @@ test_evbuffer_remove_buffer_with_empty2(void *ptr)
 }
 
 static void
+test_evbuffer_remove_buffer_with_empty3(void *ptr)
+{
+	struct evbuffer *src = evbuffer_new();
+	struct evbuffer *dst = evbuffer_new();
+	struct evbuffer *buf = evbuffer_new();
+
+	evbuffer_add(buf, "foo", 3);
+	evbuffer_add_reference(buf, NULL, 0, NULL, NULL);
+
+	evbuffer_add_reference(src, "foo", 3, NULL, NULL);
+	evbuffer_add_reference(src, NULL, 0, NULL, NULL);
+	evbuffer_prepend_buffer(src, buf);
+
+	evbuffer_add(buf, "foo", 3);
+	evbuffer_add_reference(buf, NULL, 0, NULL, NULL);
+
+	evbuffer_add_reference(dst, "foo", 3, NULL, NULL);
+	evbuffer_add_reference(dst, NULL, 0, NULL, NULL);
+	evbuffer_prepend_buffer(dst, buf);
+
+	tt_int_op(evbuffer_get_length(src), ==, 6);
+	tt_int_op(evbuffer_get_length(dst), ==, 6);
+
+	evbuffer_validate(src);
+	evbuffer_validate(dst);
+
+	evbuffer_remove_buffer(src, dst, 5);
+
+	evbuffer_validate(src);
+	evbuffer_validate(dst);
+
+	tt_int_op(evbuffer_get_length(src), ==, 1);
+	tt_int_op(evbuffer_get_length(dst), ==, 11);
+
+ end:
+	evbuffer_free(src);
+	evbuffer_free(dst);
+	evbuffer_free(buf);
+}
+
+static void
 test_evbuffer_reserve2(void *ptr)
 {
 	/* Test the two-vector cases of reserve/commit. */
@@ -2385,6 +2426,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "evbuffer", test_evbuffer, 0, NULL, NULL },
 	{ "remove_buffer_with_empty", test_evbuffer_remove_buffer_with_empty, 0, NULL, NULL },
 	{ "remove_buffer_with_empty2", test_evbuffer_remove_buffer_with_empty2, 0, NULL, NULL },
+	{ "remove_buffer_with_empty3", test_evbuffer_remove_buffer_with_empty3, 0, NULL, NULL },
 	{ "reserve2", test_evbuffer_reserve2, 0, NULL, NULL },
 	{ "reserve_many", test_evbuffer_reserve_many, 0, NULL, NULL },
 	{ "reserve_many2", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"add" },
