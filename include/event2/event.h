@@ -829,6 +829,24 @@ EVENT2_EXPORT_SYMBOL
 int event_base_loop(struct event_base *, int);
 
 /**
+  Check for events active, and run their callbacks for a running eventloop.
+
+  This is the reentrant version of event_base_loop, which can only be called
+  when event_base_loop is already running. Useful for secondary waitpoint
+  issues in e.g. synchronous callbacks where events need to be handled.
+  It will run the eventloop only once, and it can be asked to do this in a
+  non blocking manner via the flags.
+
+  @param eb the event_base structure returned by event_base_new() or
+     event_base_new_with_config()
+  @param flags EVLOOP_NONBLOCK, EVLOOP_NO_EXIT_ON_EMPTY
+  @return number of events handled if successful, -1 if an error occurred
+  @see EVLOOP_NONBLOCK, EVLOOP_NO_EXIT_ON_EMPTY
+  */
+EVENT2_EXPORT_SYMBOL
+int event_base_loop_r(struct event_base *, int);
+
+/**
   Exit the event loop after the specified time
 
   The next event_base_loop() iteration after the given timer expires will

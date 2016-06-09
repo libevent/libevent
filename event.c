@@ -1874,13 +1874,66 @@ event_loop(int flags)
 	return event_base_loop(current_base, flags);
 }
 
+
 int
-event_base_loop(struct event_base *base, int flags)
+event_base_loop_r(struct event_base *base, int flags)
 {
 	const struct eventop *evsel = base->evsel;
 	struct timeval tv;
 	struct timeval *tv_p;
-	int res, done, retval = 0;
+	int res;
+
+	//check if we are actually running the loop, otherwise you cannot use this call
+	if(!base->running_loop)
+		return -1;
+
+	tv_p = &tv;
+	if (!N_ACTIVE_CALLBACKS(base) && !(flags & EVLOOP_NONBLOCK)) {
+		timeout_next(base, &tv_p);
+	} else {
+		/*
+		 * if we have active events, we just poll new events
+		 * without waiting.
+		 */
+		evutil_timerclear(&tv);
+	}
+
+	/* you shouldn't call this function direclty If you have no events
+	 * unless EVLOOP_NO_EXIT_ON_EMPTY is set
+	 */
+	if (0==(flags&EVLOOP_NO_EXIT_ON_EMPTY) &&
+			!event_haveevents(base) && !N_ACTIVE_CALLBACKS(base)) {
+		event_debug(("%s: no events registered.", __func__));
+		return -1;
+	}
+
+	event_queue_make_later_events_active(base);
+
+	clear_time_cache(base);
+
+	res = evsel->dispatch(base, tv_p);
+
+	if (res == -1) {
+		event_debug(("%s: dispatch returned unsuccessfully.",
+					__func__));
+		return -1;
+	}
+
+	update_time_cache(base);
+
+	timeout_process(base);
+
+	if (N_ACTIVE_CALLBACKS(base)) {
+		return event_process_active(base);
+	}
+
+	return 0;
+}
+
+int
+event_base_loop(struct event_base *base, int flags)
+{
+	int n, retval = 0;
 
 	/* Grab the lock.  We will release it inside evsel.dispatch, and again
 	 * as we invoke user callbacks. */
@@ -1900,75 +1953,45 @@ event_base_loop(struct event_base *base, int flags)
 	if (base->sig.ev_signal_added && base->sig.ev_n_signals_added)
 		evsig_set_base_(base);
 
-	done = 0;
-
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	base->th_owner_id = EVTHREAD_GET_ID();
 #endif
 
 	base->event_gotterm = base->event_break = 0;
 
-	while (!done) {
+	while (1) {
 		base->event_continue = 0;
 		base->n_deferreds_queued = 0;
 
 		/* Terminate the loop if we have been asked to */
-		if (base->event_gotterm) {
+		if (base->event_gotterm || base->event_break) {
+			event_debug(("%s: asked to terminate loop.", __func__));
 			break;
-		}
-
-		if (base->event_break) {
-			break;
-		}
-
-		tv_p = &tv;
-		if (!N_ACTIVE_CALLBACKS(base) && !(flags & EVLOOP_NONBLOCK)) {
-			timeout_next(base, &tv_p);
-		} else {
-			/*
-			 * if we have active events, we just poll new events
-			 * without waiting.
-			 */
-			evutil_timerclear(&tv);
 		}
 
 		/* If we have no events, we just exit */
 		if (0==(flags&EVLOOP_NO_EXIT_ON_EMPTY) &&
-		    !event_haveevents(base) && !N_ACTIVE_CALLBACKS(base)) {
+				!event_haveevents(base) && !N_ACTIVE_CALLBACKS(base)) {
 			event_debug(("%s: no events registered.", __func__));
 			retval = 1;
-			goto done;
+			break;
 		}
 
-		event_queue_make_later_events_active(base);
+		n = event_base_loop_r(base, flags);
 
-		clear_time_cache(base);
-
-		res = evsel->dispatch(base, tv_p);
-
-		if (res == -1) {
-			event_debug(("%s: dispatch returned unsuccessfully.",
-				__func__));
-			retval = -1;
-			goto done;
+		if (n < 0) {
+			retval = n;
+			break;
 		}
-
-		update_time_cache(base);
-
-		timeout_process(base);
-
-		if (N_ACTIVE_CALLBACKS(base)) {
-			int n = event_process_active(base);
+		if (n > 0) {
 			if ((flags & EVLOOP_ONCE)
 			    && N_ACTIVE_CALLBACKS(base) == 0
 			    && n != 0)
-				done = 1;
+				break;
 		} else if (flags & EVLOOP_NONBLOCK)
-			done = 1;
+			break;
 	}
-	event_debug(("%s: asked to terminate loop.", __func__));
 
-done:
 	clear_time_cache(base);
 	base->running_loop = 0;
 
