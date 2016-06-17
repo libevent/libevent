@@ -1950,6 +1950,7 @@ test_evbuffer_prepend(void *ptr)
 	evbuffer_drain(buf2, 3);
 
 end:
+	free(buffer);
 	if (buf1)
 		evbuffer_free(buf1);
 	if (buf2)
