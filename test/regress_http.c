@@ -1388,6 +1388,7 @@ http_cancel_test(void *arg)
 	struct evhttp *inactive_http = NULL;
 	struct event_base *inactive_base = NULL;
 	struct evhttp_connection **evcons = NULL;
+	struct event_base *base_to_fill = data->base;
 
 	enum http_cancel_test_type type =
 		(enum http_cancel_test_type)data->setup_data;
@@ -1421,10 +1422,12 @@ http_cancel_test(void *arg)
 		port = 0;
 		inactive_base = event_base_new();
 		inactive_http = http_setup(&port, inactive_base, 0);
+
+		base_to_fill = inactive_base;
 	}
 
 	if (type & SERVER_TIMEOUT)
-		evcons = http_fill_backlog(inactive_base ?: data->base, port);
+		evcons = http_fill_backlog(base_to_fill, port);
 
 	evcon = evhttp_connection_base_new(
 		data->base, dns_base,
@@ -1473,7 +1476,7 @@ http_cancel_test(void *arg)
 
 	http_free_evcons(evcons);
 	if (type & SERVER_TIMEOUT)
-		evcons = http_fill_backlog(inactive_base ?: data->base, port);
+		evcons = http_fill_backlog(base_to_fill, port);
 
 	req = http_cancel_test_bad_request_new(type, data->base);
 	if (!req)
@@ -1493,7 +1496,7 @@ http_cancel_test(void *arg)
 
 	http_free_evcons(evcons);
 	if (type & SERVER_TIMEOUT)
-		evcons = http_fill_backlog(inactive_base ?: data->base, port);
+		evcons = http_fill_backlog(base_to_fill, port);
 
 	req = http_cancel_test_bad_request_new(type, data->base);
 	if (!req)
