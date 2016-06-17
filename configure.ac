@@ -243,6 +243,7 @@ AC_CHECK_HEADERS([ \
   sys/timerfd.h \
   sys/uio.h \
   sys/wait.h \
+	errno.h \
 ])
 
 AC_CHECK_HEADERS(sys/sysctl.h, [], [], [

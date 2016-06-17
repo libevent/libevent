@@ -382,6 +382,9 @@
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_WAIT_H
 
+/* Define to 1 if you have the <errno.h> header file. */
+#cmakedefine EVENT__HAVE_ERRNO_H
+
 /* Define if TAILQ_FOREACH is defined in <sys/queue.h> */
 #cmakedefine EVENT__HAVE_TAILQFOREACH
 
@@ -393,6 +396,7 @@
 
 /* Define if timercmp is defined in <sys/time.h> */
 #cmakedefine EVENT__HAVE_TIMERCMP
+
 
 /* Define to 1 if you have the `timerfd_create' function. */
 #cmakedefine EVENT__HAVE_TIMERFD_CREATE
