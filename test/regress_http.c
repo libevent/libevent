@@ -1389,9 +1389,8 @@ http_cancel_test(void *arg)
 	struct event_base *inactive_base = NULL;
 	struct evhttp_connection **evcons = NULL;
 
-	enum http_cancel_test_type type;
-	type = (enum http_cancel_test_type)data->setup_data;
-
+	enum http_cancel_test_type type =
+		(enum http_cancel_test_type)data->setup_data;
 	struct evhttp *http = http_setup(&port, data->base, 0);
 
 	if (type & BY_HOST) {
