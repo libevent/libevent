@@ -706,10 +706,10 @@ end:
 	evbuffer_free(buf);
 }
 
-static struct event_base *addfile_test_event_base = NULL;
-static int addfile_test_done_writing = 0;
-static int addfile_test_total_written = 0;
-static int addfile_test_total_read = 0;
+static struct event_base *addfile_test_event_base;
+static int addfile_test_done_writing;
+static int addfile_test_total_written;
+static int addfile_test_total_read;
 
 static void
 addfile_test_writecb(evutil_socket_t fd, short what, void *arg)
@@ -911,6 +911,10 @@ test_evbuffer_add_file(void *ptr)
 	evbuffer_validate(src);
 
 	addfile_test_event_base = base;
+	addfile_test_done_writing = 0;
+	addfile_test_total_written = 0;
+	addfile_test_total_read = 0;
+
 	wev = event_new(base, pair[0], EV_WRITE|EV_PERSIST,
 	    addfile_test_writecb, src);
 	rev = event_new(base, pair[1], EV_READ|EV_PERSIST,
