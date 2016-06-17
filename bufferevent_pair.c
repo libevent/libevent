@@ -325,7 +325,12 @@ be_pair_flush(struct bufferevent *bev, short iotype,
 		be_pair_transfer(bev, partner, 1);
 
 	if (mode == BEV_FINISHED) {
-		bufferevent_run_eventcb_(partner, iotype|BEV_EVENT_EOF, 0);
+		short what = BEV_EVENT_EOF;
+		if (iotype & EV_READ)
+			what |= BEV_EVENT_WRITING;
+		if (iotype & EV_WRITE)
+			what |= BEV_EVENT_READING;
+		bufferevent_run_eventcb_(partner, what, 0);
 	}
 	decref_and_unlock(bev);
 	return 0;
