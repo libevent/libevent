@@ -71,6 +71,7 @@ extern "C" {
 #include <ws2tcpip.h>
 #endif
 #else
+#include <errno.h>
 #include <sys/socket.h>
 #endif
 
