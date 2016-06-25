@@ -435,7 +435,10 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	evhttp_remove_header(req->output_headers, "Proxy-Connection");
 
 	/* Generate request line */
-	method = evhttp_method(req->type);
+	if (!(method = evhttp_method(req->type))) {
+		method = "NULL";
+	}
+
 	evbuffer_add_printf(bufferevent_get_output(evcon->bufev),
 	    "%s %s HTTP/%d.%d\r\n",
 	    method, req->uri, req->major, req->minor);
