@@ -709,6 +709,23 @@ end:
 }
 
 static void
+test_evbuffer_expand_overflow(void *ptr)
+{
+	struct evbuffer *buf;
+
+	buf = evbuffer_new();
+	evbuffer_add(buf, "1", 1);
+	evbuffer_expand(buf, EVBUFFER_CHAIN_MAX);
+	evbuffer_validate(buf);
+
+	evbuffer_expand(buf, EV_SIZE_MAX);
+	evbuffer_validate(buf);
+
+end:
+	evbuffer_free(buf);
+}
+
+static void
 test_evbuffer_add1(void *ptr)
 {
 	struct evbuffer *buf;
@@ -2494,6 +2511,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "reserve_many2", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"add" },
 	{ "reserve_many3", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"fill" },
 	{ "expand", test_evbuffer_expand, 0, NULL, NULL },
+	{ "expand_overflow", test_evbuffer_expand_overflow, 0, NULL, NULL },
 	{ "add1", test_evbuffer_add1, 0, NULL, NULL },
 	{ "add2", test_evbuffer_add2, 0, NULL, NULL },
 	{ "reference", test_evbuffer_reference, 0, NULL, NULL },
