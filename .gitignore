@@ -41,6 +41,9 @@ Makefile.in
 TAGS
 tags
 
+# cscope stuff
+cscope*
+
 # Stuff made by our makefiles
 *.pc
 *.log
