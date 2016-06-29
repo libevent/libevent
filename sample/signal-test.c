@@ -68,6 +68,7 @@ main(int argc, char **argv)
 	event_add(signal_int, NULL);
 
 	event_base_dispatch(base);
+	event_free(signal_int);
 	event_base_free(base);
 
 	return (0);
