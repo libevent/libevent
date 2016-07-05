@@ -1,5 +1,10 @@
 Changes in version 2.1.6-beta (4 July 2016)
 
+ Libevent 2.1.6-beta contains mostly bug fixes (evbuffers, evthread, evdns,
+ bufferevents, core, http, samples), improvements but mostly to fix some
+ possible issues (EVHTTP_CON_LINGERING_CLOSE), a lot of new unit tests and new
+ appveyor integration.
+
  Security Fixes (utils)
    o evutil_parse_sockaddr_port(): fix buffer overflow (329acc1 Azat Khuzhin)
 
