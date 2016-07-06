@@ -725,6 +725,7 @@ test_evutil_integers(void *arg)
 	tt_assert(ssize > 0);
 	ssize++;
 	tt_assert(ssize < 0);
+	tt_assert(ssize == (ev_ssize_t)(EV_SSIZE_MAX + 1));
 	tt_assert(ssize == EV_SSIZE_MIN);
 
 	ptr = &ssize;

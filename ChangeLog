@@ -1,3 +1,22 @@
+Changes in version 2.0.23-stable (28 June 2016)
+
+BUGFIXES
+ o Fix potential fd leak in listener_read_cb() (571dbac Mark Ellzey)
+ o Backport for #340 (fix overflow check in expand_singlechain() (7dedc07 Mark Ellzey)
+ o Fix ipv6 support for http. When URL contain domain, not IP address. (502c043 Azat Khuzhin)
+ o Use the free-trailing-chains function in evbuffer_insert_chain too (0e894fb Nick Mathewson)
+ o evbuffer_add: Use last_with_datap if set, not last. (b00db82 Marcus Sundberg)
+
+UNIT TESTS
+ o Add regress test ipv6_for_domain. (066a4f6 Azat Khuzhin)
+ o test/regress: add tests for evbuffer_add() breakage on empty last chain (0091da3 Marcus Sundberg)
+
+BUILD AND DISTRIBUTION
+ o libevent_core and libevent_extra also deserve a pkgconfig file (a5b4b7a Jan Heylen)
+
+MISC
+ o Ignore all pkgconfig generated stuff (9b2a670 Azat Khuzhin)
+
 Changes in version 2.0.22-stable (5 Jan 2015)
 
 SECURITY FIXES (evbuffers)
