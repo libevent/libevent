@@ -883,10 +883,11 @@ COPY_CHAIN(struct evbuffer *dst, struct evbuffer *src)
 static void
 APPEND_CHAIN(struct evbuffer *dst, struct evbuffer *src)
 {
+	struct evbuffer_chain **chp;
+
 	ASSERT_EVBUFFER_LOCKED(dst);
 	ASSERT_EVBUFFER_LOCKED(src);
 
-	struct evbuffer_chain **chp;
 	chp = evbuffer_free_trailing_empty_chains(dst);
 	*chp = src->first;
 
