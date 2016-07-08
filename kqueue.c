@@ -47,6 +47,10 @@
 #include <inttypes.h>
 #endif
 
+#if defined(__APPLE__)
+#include <AvailabilityMacros.h>
+#endif
+
 /* Some platforms apparently define the udata field of struct kevent as
  * intptr_t, whereas others define it as void*.  There doesn't seem to be an
  * easy way to tell them apart via autoconf, so we need to use OS macros. */
@@ -141,6 +145,7 @@ kq_init(struct event_base *base)
 		goto err;
 	kqueueop->events_size = kqueueop->changes_size = NEVENT;
 
+#if defined(__APPLE__) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 	/* Check for Mac OS X kqueue bug. */
 	memset(&kqueueop->changes[0], 0, sizeof kqueueop->changes[0]);
 	kqueueop->changes[0].ident = -1;
@@ -158,6 +163,7 @@ kq_init(struct event_base *base)
 		event_warn("%s: detected broken kqueue; not using.", __func__);
 		goto err;
 	}
+#endif
 
 	base->evsigsel = &kqsigops;
 
