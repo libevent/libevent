@@ -34,7 +34,7 @@ RELEASE = -release 2.1
 #
 # Once an RC is out, DO NOT MAKE ANY ABI-BREAKING CHANGES IN THAT SERIES
 # UNLESS YOU REALLY REALLY HAVE TO.
-VERSION_INFO = 5:0:0
+VERSION_INFO = 6:0:0
 
 # History:          RELEASE    VERSION_INFO
 #  2.0.1-alpha --     2.0        1:0:0
@@ -65,6 +65,7 @@ VERSION_INFO = 5:0:0
 #  2.1.3-alpha --     2.1        3:0:0 (ABI changed slightly)
 #  2.1.4-alpha --     2.1        4:0:0 (ABI changed slightly)
 #  2.1.5-beta  --     2.1        5:0:0 (ABI changed slightly)
+#  2.1.6-beta  --     2.1        6:0:0 (ABI changed slightly)
 
 # ABI version history for this package effectively restarts every time
 # we change RELEASE.  Version 1.4.x had RELEASE of 1.4.
