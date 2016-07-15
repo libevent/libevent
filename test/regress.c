@@ -2795,14 +2795,40 @@ end:
 	}
 }
 
-#ifndef _WIN32
-/* You can't do this test on windows, since dup2 doesn't work on sockets */
-
 static void
 dfd_cb(evutil_socket_t fd, short e, void *data)
 {
 	*(int*)data = (int)e;
 }
+
+static void
+test_event_closed_fd(void *arg)
+{
+	struct timeval tv;
+	struct event *e;
+	struct basic_test_data *data = (struct basic_test_data *)arg;
+	int i = 0;
+
+	e = event_new(data->base, data->pair[0], EV_READ, dfd_cb, &i);
+	tt_assert(e);
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 500 * 1000;
+	event_add(e, &tv);
+	tt_assert(event_pending(e, EV_READ, NULL));
+	close(data->pair[0]);
+	event_base_loop(data->base, EVLOOP_ONCE);
+	tt_int_op(i, ==, EV_READ);
+
+end:
+	if (e) {
+		event_del(e);
+		event_free(e);
+	}
+}
+
+#ifndef _WIN32
+/* You can't do this test on windows, since dup2 doesn't work on sockets */
 
 /* Regression test for our workaround for a fun epoll/linux related bug
  * where fd2 = dup(fd1); add(fd2); close(fd2); dup2(fd1,fd2); add(fd2)
@@ -3340,6 +3366,9 @@ struct testcase_t main_testcases[] = {
 	{ "event_once_never", test_event_once_never, TT_ISOLATED, &basic_setup, NULL },
 	{ "event_pending", test_event_pending, TT_ISOLATED, &basic_setup,
 	  NULL },
+	{ "event_closed_fd", test_event_closed_fd, TT_ISOLATED, &basic_setup,
+	  NULL },
+
 #ifndef _WIN32
 	{ "dup_fd", test_dup_fd, TT_ISOLATED, &basic_setup, NULL },
 #endif
