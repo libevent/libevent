@@ -2453,6 +2453,8 @@ static void
 test_methods(void *ptr)
 {
 	const char **methods = event_get_supported_methods();
+	const char **methods_ref;
+	methods_ref = methods;
 	struct event_config *cfg = NULL;
 	struct event_base *base = NULL;
 	const char *backend;
@@ -2486,6 +2488,8 @@ end:
 		event_base_free(base);
 	if (cfg)
 		event_config_free(cfg);
+	if (methods_ref)
+		mm_free((char **)methods_ref);
 }
 
 static void
@@ -2651,6 +2655,8 @@ end:
 		event_base_free(base);
 	if (cfg)
 		event_config_free(cfg);
+	if (basenames)
+		mm_free((char **)basenames);
 }
 
 static void
