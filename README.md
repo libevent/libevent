@@ -277,7 +277,6 @@ fixing bugs:
  * Greg Hazel
  * Nicholas Heath
  * Michael Herf
- * Sebastian Hahn
  * Savg He
  * Mark Heily
  * Maxime Henrion
@@ -393,5 +392,30 @@ fixing bugs:
  * masksqwe
  * mmadia
  * yangacer
+ * Andrey Skriabin
+ * basavesh.as
+ * billsegall
+ * Bill Vaughan
+ * Christopher Wiley
+ * David Paschich
+ * Ed Schouten
+ * Eduardo Panisset
+ * Jan Heylen
+ * jer-gentoo
+ * Joakim Söderberg
+ * kirillDanshin
+ * lzmths
+ * Marcus Sundberg
+ * Mark Mentovai
+ * Mattes D
+ * Matyas Dolak
+ * Neeraj Badlani
+ * Nick Mathewson
+ * Rainer Keller
+ * Seungmo Koo
+ * Thomas Bernard
+ * Xiao Bao Clark
+ * zeliard
+ * Zonr Chang
 
 If we have forgotten your name, please contact us.
