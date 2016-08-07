@@ -138,7 +138,9 @@ main(int argc, char **argv)
 #ifdef _WIN32
 		case 'i':
 			use_iocp = 1;
+#ifdef EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED
 			evthread_use_windows_threads();
+#endif
 			event_config_set_flag(cfg,EVENT_BASE_FLAG_STARTUP_IOCP);
 			break;
 #endif
