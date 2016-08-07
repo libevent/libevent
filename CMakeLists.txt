@@ -143,7 +143,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
 if (EVENT__ENABLE_VERBOSE_DEBUG)
-    add_definitions(-DUSE_DBUG=1)
+    add_definitions(-DUSE_DEBUG=1)
 endif()
 
 # Setup compiler flags for coverage.
