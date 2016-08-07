@@ -749,6 +749,7 @@ if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
       #include <pthread.h> ]
   )
 fi
+AM_CONDITIONAL(THREADS, [test "$enable_thread_support" != "no"])
 AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
 
 # check if we should compile locking into the library
