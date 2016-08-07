@@ -1406,9 +1406,9 @@ set(LIBEVENT_LIBRARIES
         event_extra
         CACHE STRING "Libevent libraries")
 
-message("")
-message("        ---( Libevent " ${EVENT_VERSION} " )---")
-message("")
+message(STATUS "")
+message(STATUS "        ---( Libevent " ${EVENT_VERSION} " )---")
+message(STATUS "")
 message(STATUS "Available event backends: ${BACKENDS}")
 message(STATUS "CMAKE_BINARY_DIR:         " ${CMAKE_BINARY_DIR})
 message(STATUS "CMAKE_CURRENT_BINARY_DIR: " ${CMAKE_CURRENT_BINARY_DIR})
@@ -1430,5 +1430,5 @@ message(STATUS "CMAKE_BUILD_TYPE:         " ${CMAKE_BUILD_TYPE} )
 message(STATUS "CMAKE_C_COMPILER:         " ${CMAKE_C_COMPILER} )
 message(STATUS "CMAKE_AR:                 " ${CMAKE_AR} )
 message(STATUS "CMAKE_RANLIB:             " ${CMAKE_RANLIB} )
-message("")
+message(STATUS "")
 
