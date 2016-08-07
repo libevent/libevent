@@ -41,14 +41,14 @@ init:
 install:
   - appveyor DownloadFile https://strcpy.net/packages/Win32OpenSSL-1_0_2a.exe
   - Win32OpenSSL-1_0_2a.exe /silent /verysilent /sp- /suppressmsgboxes
+  - C:\MinGW\bin\mingw-get install autotools autoconf automake
 build_script:
   - ps: |
       if ($env:EVENT_BUILD_METHOD -eq 'autotools') {
         $env:PATH="$env:CYG_ROOT\bin;C:\MinGW\bin;$($env:PATH)"
-        mingw-get install autotools autoconf automake
         bash -lc "echo 'C:\MinGW   /mingw' > /etc/fstab"
         $env:APPVEYOR_BUILD_FOLDER = $env:APPVEYOR_BUILD_FOLDER -replace "\\", "/"
-        bash -lc "exec 0</dev/null; cd $env:APPVEYOR_BUILD_FOLDER; bash -x ./autogen.sh && ./configure $env:EVENT_CONFIGURE_OPTIONS && make && make verify"
+        bash -lc "exec 0</dev/null; exec 2>&1; cd $env:APPVEYOR_BUILD_FOLDER; bash -x ./autogen.sh && ./configure $env:EVENT_CONFIGURE_OPTIONS && make && make verify"
       } else {
         md build
         cd build
