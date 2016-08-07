@@ -1,5 +1,4 @@
 version: 2.1.5.{build}
-shallow_clone: true
 
 os: Visual Studio 2015
 
