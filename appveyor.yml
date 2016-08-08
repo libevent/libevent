@@ -41,8 +41,6 @@ init:
   - 'echo Repo build commit is: %APPVEYOR_REPO_COMMIT%'
   - 'echo Cygwin root is: %CYG_ROOT%'
 install:
-  - appveyor DownloadFile https://strcpy.net/packages/Win32OpenSSL-1_0_2a.exe
-  - Win32OpenSSL-1_0_2a.exe /silent /verysilent /sp- /suppressmsgboxes
   - C:\MinGW\bin\mingw-get install autotools autoconf automake
 build_script:
   - ps: |
@@ -58,5 +56,3 @@ build_script:
         cmake --build .
         ctest --output-on-failure
       }
-cache:
-  - C:\OpenSSL-Win32
