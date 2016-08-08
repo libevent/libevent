@@ -973,7 +973,9 @@ if (NOT EVENT__DISABLE_TESTS)
 
             if (WIN32)
                 list(APPEND SRC_REGRESS test/regress_iocp.c)
-                list(APPEND SRC_REGRESS test/regress_thread.c)
+                if (NOT EVENT__DISABLE_THREAD_SUPPORT)
+                    list(APPEND SRC_REGRESS test/regress_thread.c)
+                endif()
             endif()
 
             if (CMAKE_USE_PTHREADS_INIT)
