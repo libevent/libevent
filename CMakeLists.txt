@@ -730,7 +730,6 @@ if(WIN32)
         buffer_iocp.c
         bufferevent_async.c
         event_iocp.c
-        evthread_win32.c
         win32select.c)
 
     list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
