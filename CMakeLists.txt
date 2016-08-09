@@ -215,6 +215,9 @@ if(WIN32)
     set(CMAKE_REQUIRED_LIBRARIES  ws2_32.lib)
     set(CMAKE_REQUIRED_DEFINITIONS -FIwinsock2.h -FIws2tcpip.h)
 endif()
+if (SOLARIS)
+    set(CMAKE_REQUIRED_LIBRARIES socket nsl)
+endif()
 
 # Check if _GNU_SOURCE is available.
 CHECK_SYMBOL_EXISTS(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
