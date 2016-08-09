@@ -478,7 +478,7 @@ http_basic_test_impl(void *arg, int ssl)
 
 	bufferevent_write(bev, http_request, strlen(http_request));
 	evutil_timerclear(&tv);
-	tv.tv_usec = 10000;
+	tv.tv_usec = 100000;
 	event_base_once(data->base,
 	    -1, EV_TIMEOUT, http_complete_write, bev, &tv);
 

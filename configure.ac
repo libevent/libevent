@@ -749,6 +749,7 @@ if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
       #include <pthread.h> ]
   )
 fi
+AM_CONDITIONAL(THREADS, [test "$enable_thread_support" != "no"])
 AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
 
 # check if we should compile locking into the library
@@ -777,7 +778,7 @@ fi
 # check if we have and should use openssl
 AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
 if test "x$enable_openssl" = "xyes"; then
-	AC_SEARCH_LIBS([ERR_remove_thread_state], [crypto],
+	AC_SEARCH_LIBS([ERR_remove_thread_state], [crypto eay32],
 		[AC_DEFINE(HAVE_ERR_REMOVE_THREAD_STATE, 1, [Define to 1 if you have ERR_remove_thread_stat().])])
 fi
 

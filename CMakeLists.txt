@@ -143,7 +143,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
 if (EVENT__ENABLE_VERBOSE_DEBUG)
-    add_definitions(-DUSE_DBUG=1)
+    add_definitions(-DUSE_DEBUG=1)
 endif()
 
 # Setup compiler flags for coverage.
@@ -702,7 +702,7 @@ if (NOT EVENT__DISABLE_TESTS)
     # Zlib is only used for testing.
     find_package(ZLIB)
 
-    if (ZLIB_LIBRARY)
+    if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
         include_directories(${ZLIB_INCLUDE_DIRS})
 
         set(EVENT__HAVE_ZLIB 1)
@@ -730,7 +730,6 @@ if(WIN32)
         buffer_iocp.c
         bufferevent_async.c
         event_iocp.c
-        evthread_win32.c
         win32select.c)
 
     list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
@@ -974,14 +973,16 @@ if (NOT EVENT__DISABLE_TESTS)
 
             if (WIN32)
                 list(APPEND SRC_REGRESS test/regress_iocp.c)
-                list(APPEND SRC_REGRESS test/regress_thread.c)
+                if (NOT EVENT__DISABLE_THREAD_SUPPORT)
+                    list(APPEND SRC_REGRESS test/regress_thread.c)
+                endif()
             endif()
 
             if (CMAKE_USE_PTHREADS_INIT)
                 list(APPEND SRC_REGRESS test/regress_thread.c)
             endif()
 
-            if (ZLIB_LIBRARY)
+            if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
                 list(APPEND SRC_REGRESS test/regress_zlib.c)
             endif()
 
@@ -1406,9 +1407,9 @@ set(LIBEVENT_LIBRARIES
         event_extra
         CACHE STRING "Libevent libraries")
 
-message("")
-message("        ---( Libevent " ${EVENT_VERSION} " )---")
-message("")
+message(STATUS "")
+message(STATUS "        ---( Libevent " ${EVENT_VERSION} " )---")
+message(STATUS "")
 message(STATUS "Available event backends: ${BACKENDS}")
 message(STATUS "CMAKE_BINARY_DIR:         " ${CMAKE_BINARY_DIR})
 message(STATUS "CMAKE_CURRENT_BINARY_DIR: " ${CMAKE_CURRENT_BINARY_DIR})
@@ -1430,5 +1431,5 @@ message(STATUS "CMAKE_BUILD_TYPE:         " ${CMAKE_BUILD_TYPE} )
 message(STATUS "CMAKE_C_COMPILER:         " ${CMAKE_C_COMPILER} )
 message(STATUS "CMAKE_AR:                 " ${CMAKE_AR} )
 message(STATUS "CMAKE_RANLIB:             " ${CMAKE_RANLIB} )
-message("")
+message(STATUS "")
 

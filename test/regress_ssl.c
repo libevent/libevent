@@ -46,6 +46,7 @@
 #include "event2/bufferevent_struct.h"
 #include "event2/buffer.h"
 #include "event2/listener.h"
+#include "util-internal.h"
 
 #include "regress.h"
 #include "tinytest.h"
@@ -555,9 +556,9 @@ static int
 bio_rwcount_read(BIO *b, char *out, int outlen)
 {
 	struct rwcount *rw = b->ptr;
-	ev_ssize_t ret = read(rw->fd, out, outlen);
+	ev_ssize_t ret = recv(rw->fd, out, outlen, 0);
 	++rw->read;
-	if (ret == -1 && errno == EAGAIN) {
+	if (ret == -1 && EVUTIL_ERR_RW_RETRIABLE(EVUTIL_SOCKET_ERROR())) {
 		BIO_set_retry_read(b);
 	}
 	return ret;
@@ -567,9 +568,9 @@ bio_rwcount_write(BIO *b, const char *in, int inlen)
 {
 
 	struct rwcount *rw = b->ptr;
-	ev_ssize_t ret = write(rw->fd, in, inlen);
+	ev_ssize_t ret = send(rw->fd, in, inlen, 0);
 	++rw->write;
-	if (ret == -1 && errno == EAGAIN) {
+	if (ret == -1 && EVUTIL_ERR_RW_RETRIABLE(EVUTIL_SOCKET_ERROR())) {
 		BIO_set_retry_write(b);
 	}
 	return ret;

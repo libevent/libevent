@@ -15,7 +15,9 @@ int main (int argc, char **argv)
   int i, j;
   const char *s1, *s2;
 
+#ifdef EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED
   evthread_use_windows_threads ();
+#endif
 
   s1 = evutil_socket_error_to_string (WSAEINTR);
 

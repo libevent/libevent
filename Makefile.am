@@ -142,9 +142,13 @@ include test/include.am
 if BUILD_WIN32
 
 SYS_LIBS = -lws2_32 -lshell32 -ladvapi32
-SYS_SRC = win32select.c evthread_win32.c buffer_iocp.c event_iocp.c \
+SYS_SRC = win32select.c buffer_iocp.c event_iocp.c \
 	bufferevent_async.c
 SYS_INCLUDES = -IWIN32-Code -IWIN32-Code/nmake
+
+if THREADS
+SYS_SRC += evthread_win32.c
+endif
 
 else
 
