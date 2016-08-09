@@ -36,6 +36,7 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configuratio
 project(libevent C)
 
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
+string(REGEX MATCH "SunOS" SOLARIS "${CMAKE_SYSTEM_NAME}")
 
 
 include(CheckTypeSize)
@@ -745,6 +746,10 @@ endif()
 
 if (UNIX)
     list(APPEND LIB_PLATFORM m)
+endif()
+
+if (SOLARIS)
+    list(APPEND LIB_PLATFORM socket nsl)
 endif()
 
 source_group("Headers Private"  FILES ${HDR_PRIVATE})
