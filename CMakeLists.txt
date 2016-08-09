@@ -702,7 +702,7 @@ if (NOT EVENT__DISABLE_TESTS)
     # Zlib is only used for testing.
     find_package(ZLIB)
 
-    if (ZLIB_LIBRARY)
+    if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
         include_directories(${ZLIB_INCLUDE_DIRS})
 
         set(EVENT__HAVE_ZLIB 1)
@@ -982,7 +982,7 @@ if (NOT EVENT__DISABLE_TESTS)
                 list(APPEND SRC_REGRESS test/regress_thread.c)
             endif()
 
-            if (ZLIB_LIBRARY)
+            if (ZLIB_LIBRARY AND ZLIB_INCLUDE_DIR)
                 list(APPEND SRC_REGRESS test/regress_zlib.c)
             endif()
 
