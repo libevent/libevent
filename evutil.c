@@ -1238,7 +1238,7 @@ static int tested_for_getaddrinfo_hacks=0;
      field set to 0.  We test for this so we can apply an appropriate
      workaround.
 */
-struct evutil_addrinfo *ai_find_protocol(struct evutil_addrinfo *ai)
+static struct evutil_addrinfo *ai_find_protocol(struct evutil_addrinfo *ai)
 {
 	while (ai) {
 		if (ai->ai_protocol)
