@@ -1435,7 +1435,7 @@ struct testcase_t bufferevent_iocp_testcases[] = {
 	  test_bufferevent_connect_fail_eventcb,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
 	  (void*)BEV_OPT_DEFER_CALLBACKS },
-	{ "bufferevent_connect_fail",
+	{ "bufferevent_connect_fail_eventcb",
 	  test_bufferevent_connect_fail_eventcb,
 	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
 
