@@ -535,4 +535,7 @@
 /* Define to 1 if you have ERR_remove_thread_stat(). */
 #cmakedefine EVENT__HAVE_ERR_REMOVE_THREAD_STATE
 
+/* Define if waitpid() supports WNOWAIT */
+#cmakedefine EVENT__HAVE_WAITPID_WITH_WNOWAIT
+
 #endif

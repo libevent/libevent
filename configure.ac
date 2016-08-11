@@ -605,6 +605,26 @@ main(int argc, char **argv)
 fi
 AM_CONDITIONAL(EPOLL_BACKEND, [test "x$haveepoll" = "xyes"])
 
+AC_MSG_CHECKING(waitpid support WNOWAIT)
+AC_TRY_RUN(
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <stdlib.h>
+
+int
+main(int argc, char** argv)
+{
+    pid_t pid;
+    int status;
+    if ((pid = fork()) == 0) _exit(0);
+    _exit(waitpid(pid, &status, WNOWAIT) == -1);
+}, [AC_MSG_RESULT(yes)
+AC_DEFINE(HAVE_WAITPID_WITH_WNOWAIT, 1,
+[Define if waitpid() supports WNOWAIT])
+], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+
+
 haveeventports=no
 AC_CHECK_FUNCS(port_create, [haveeventports=yes], )
 if test "x$haveeventports" = "xyes" ; then
