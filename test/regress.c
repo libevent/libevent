@@ -827,15 +827,48 @@ fork_signal_cb(evutil_socket_t fd, short events, void *arg)
 	event_del(arg);
 }
 
+int child_pair[2] = { -1, -1 };
+static void
+simple_child_read_cb(evutil_socket_t fd, short event, void *arg)
+{
+	char buf[256];
+	int len;
 
+	len = read(fd, buf, sizeof(buf));
+	if (write(child_pair[0], "", 1) < 0)
+		tt_fail_perror("write");
+
+	if (len) {
+		if (!called) {
+			if (event_add(arg, NULL) == -1)
+				exit(1);
+		}
+	} else if (called == 1)
+		test_ok = 1;
+
+	called++;
+}
 static void
 test_fork(void)
 {
+	char c;
 	int status;
 	struct event ev, sig_ev, usr_ev, existing_ev;
 	pid_t pid;
 
 	setup_test("After fork: ");
+
+	{
+		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, child_pair) == -1) {
+			fprintf(stderr, "%s: socketpair\n", __func__);
+			exit(1);
+		}
+
+		if (evutil_make_socket_nonblocking(child_pair[0]) == -1) {
+			fprintf(stderr, "fcntl(O_NONBLOCK)");
+			exit(1);
+		}
+	}
 
 	tt_assert(current_base);
 	evthread_make_base_notifiable(current_base);
@@ -844,7 +877,7 @@ test_fork(void)
 		tt_fail_perror("write");
 	}
 
-	event_set(&ev, pair[1], EV_READ, simple_read_cb, &ev);
+	event_set(&ev, pair[1], EV_READ, simple_child_read_cb, &ev);
 	if (event_add(&ev, NULL) == -1)
 		exit(1);
 
@@ -887,12 +920,10 @@ test_fork(void)
 		exit(test_ok != 0 || called != 2 ? -2 : 76);
 	}
 
-	/* wait for the child to read the data */
-	{
-		const struct timeval tv = { 0, 100000 };
-		evutil_usleep_(&tv);
+	/** wait until client read first message */
+	if (read(child_pair[1], &c, 1) < 0) {
+		tt_fail_perror("read");
 	}
-
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
 		tt_fail_perror("write");
 	}
@@ -924,9 +955,14 @@ test_fork(void)
 	event_dispatch();
 
 	evsignal_del(&sig_ev);
+	tt_int_op(test_ok, ==, 1);
 
 	end:
 	cleanup_test();
+	if (child_pair[0] != -1)
+		evutil_closesocket(child_pair[0]);
+	if (child_pair[1] != -1)
+		evutil_closesocket(child_pair[1]);
 }
 
 #ifdef EVENT__HAVE_PTHREADS
