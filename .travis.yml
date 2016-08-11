@@ -19,12 +19,16 @@ compiler:
   - gcc
   - clang
 before_install:
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get update -qq; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew uninstall libtool && brew install libtool; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install openssl; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo ln -sf $(ls -t /usr/local/bin/gcc-* | head -1) /usr/bin/gcc; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then sudo ln -sf $(ls -t /usr/local/bin/g++-* | head -1) /usr/bin/g++; fi
+  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+      sudo apt-get update -qq;
+    fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+      brew update;
+      brew uninstall libtool && brew install libtool;
+      brew install openssl;
+      sudo ln -sf $(ls -t /usr/local/bin/gcc-* | head -1) /usr/bin/gcc;
+      sudo ln -sf $(ls -t /usr/local/bin/g++-* | head -1) /usr/bin/g++;
+    fi
 addons:
   apt:
     packages:
@@ -35,7 +39,18 @@ addons:
       - autoconf
       - cmake
 script:
-  - if [ "$EVENT_BUILD_METHOD" = "autotools" ]; then ./autogen.sh && ./configure $EVENT_CONFIGURE_OPTIONS && make && make verify; fi
-  - if [ "$EVENT_BUILD_METHOD" = "cmake" ]; then mkdir build && cd build && cmake .. $EVENT_CMAKE_OPTIONS && cmake --build . && CTEST_OUTPUT_ON_FAILURE=1 cmake --build . --target verify; fi
+  - if [ "$EVENT_BUILD_METHOD" = "autotools" ]; then
+      ./autogen.sh &&
+      ./configure $EVENT_CONFIGURE_OPTIONS &&
+      make &&
+      make verify;
+    fi
+  - if [ "$EVENT_BUILD_METHOD" = "cmake" ]; then
+      mkdir build &&
+      cd build &&
+      cmake .. $EVENT_CMAKE_OPTIONS &&
+      cmake --build . &&
+      CTEST_OUTPUT_ON_FAILURE=1 cmake --build . --target verify;
+    fi
 notifications:
   irc: "irc.oftc.net#libevent"
