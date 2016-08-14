@@ -3073,14 +3073,33 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 	struct evbuffer *buf = evbuffer_new();
 	const char *p, *end;
 	char *result;
+	ev_ssize_t c_len = len;
 
-	if (buf == NULL)
+	if (buf == NULL) {
 		return (NULL);
+	}
 
-	if (len >= 0)
-		end = uri+len;
-	else
-		end = uri+strlen(uri);
+
+	if (len >= 0 && uri + len < uri) {
+		if (uri + len < uri) {
+			return (NULL);
+		}
+
+		end = uri + len;
+	} else {
+		size_t slen = strlen(uri);
+
+		if (slen >= EV_SSIZE_MAX) {
+			/* we don't want to mix signed and unsigned */
+			return (NULL);
+		}
+
+		if (uri + slen < uri) {
+			return (NULL);
+		}
+
+		end = uri + slen;
+	}
 
 	for (p = uri; p < end; p++) {
 		if (CHAR_IS_UNRESERVED(*p)) {
@@ -3091,10 +3110,13 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 			evbuffer_add_printf(buf, "%%%02X", (unsigned char)(*p));
 		}
 	}
+
 	evbuffer_add(buf, "", 1); /* NUL-terminator. */
 	result = mm_malloc(evbuffer_get_length(buf));
+
 	if (result)
 		evbuffer_remove(buf, result, evbuffer_get_length(buf));
+
 	evbuffer_free(buf);
 
 	return (result);
