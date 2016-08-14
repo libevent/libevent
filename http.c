@@ -3073,7 +3073,6 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 	struct evbuffer *buf = evbuffer_new();
 	const char *p, *end;
 	char *result;
-	ev_ssize_t c_len = len;
 
 	if (buf == NULL) {
 		return (NULL);
