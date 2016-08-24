@@ -3079,7 +3079,7 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 	}
 
 
-	if (len >= 0 && uri + len < uri) {
+	if (len >= 0) {
 		if (uri + len < uri) {
 			return (NULL);
 		}
