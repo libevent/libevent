@@ -187,9 +187,6 @@
 /* Define to 1 if you have the `usleep' function. */
 #cmakedefine EVENT__HAVE_USLEEP
 
-/* Define to 1 if you have the <netdb.h> header file. */
-#cmakedefine EVENT__HAVE_NETDB_H
-
 /* Define to 1 if you have the <netinet/in6.h> header file. */
 #cmakedefine EVENT__HAVE_NETINET_IN6_H
 
@@ -201,9 +198,6 @@
 
 /* Define if the system has openssl */
 #cmakedefine EVENT__HAVE_OPENSSL
-
-/* Defines if the system has zlib */
-#cmakedefine EVENT__HAVE_ZLIB
 
 /* Define to 1 if you have the `pipe' function. */
 #cmakedefine EVENT__HAVE_PIPE
@@ -222,9 +216,6 @@
 
 /* Define to 1 if you have the <port.h> header file. */
 #cmakedefine EVENT__HAVE_PORT_H
-
-/* Define if you have POSIX threads libraries and header files. */
-#cmakedefine EVENT__HAVE_PTHREAD
 
 /* Define if we have pthreads on this system */
 #cmakedefine EVENT__HAVE_PTHREADS
@@ -486,9 +477,9 @@
 #endif
 
 
-#ifdef __THESE_ARE_NOT_CONFIG_H_THINGS_THEY_ARE_DASH_D_THINGS__ 
+#ifdef __THESE_ARE_NOT_CONFIG_H_THINGS_THEY_ARE_DASH_D_THINGS__
 /* Number of bits in a file offset, on hosts where this is settable. */
-/* Ellzey is not satisfied */ 
+/* Ellzey is not satisfied */
 #define EVENT___FILE_OFFSET_BITS @EVENT___FILE_OFFSET_BITS@
 
 /* Define for large files, on AIX-style hosts. */
