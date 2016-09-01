@@ -811,6 +811,14 @@ void evhttp_cancel_request(struct evhttp_request *req);
  */
 struct evhttp_uri;
 
+/** 
+   When happening connect refuse,call this to see the request was failure or not in request callback.
+   Return -1,the request can retry(for example:push it back to queue) later on; 
+   Return 0,the request was sent and receive response,so we can do subsequent things.
+*/
+EVENT2_EXPORT_SYMBOL
+int evhttp_request_get_response(const struct evhttp_request *req);
+
 /** Returns the request URI */
 EVENT2_EXPORT_SYMBOL
 const char *evhttp_request_get_uri(const struct evhttp_request *req);

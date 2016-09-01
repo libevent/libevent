@@ -4069,6 +4069,11 @@ evhttp_request_set_on_complete_cb(struct evhttp_request *req,
 	req->on_complete_cb_arg = cb_arg;
 }
 
+int
+evhttp_request_get_response(const struct evhttp_request *req) {
+	return (req->response_code==0?-1:0);
+}
+
 /*
  * Allows for inspection of the request URI
  */
