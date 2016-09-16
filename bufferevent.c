@@ -45,7 +45,6 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #endif
-#include <errno.h>
 
 #include "event2/util.h"
 #include "event2/buffer.h"
