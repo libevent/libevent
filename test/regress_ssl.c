@@ -55,6 +55,7 @@
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
+#include "openssl-compat.h"
 
 #include <string.h>
 #ifdef _WIN32
@@ -551,10 +552,8 @@ struct rwcount
 static int
 bio_rwcount_new(BIO *b)
 {
-	b->init = 0;
-	b->num = -1;
-	b->ptr = NULL;
-	b->flags = 0;
+	BIO_set_init(b, 0);
+	BIO_set_data(b, NULL);
 	return 1;
 }
 static int
@@ -562,17 +561,16 @@ bio_rwcount_free(BIO *b)
 {
 	if (!b)
 		return 0;
-	if (b->shutdown) {
-		b->init = 0;
-		b->flags = 0;
-		b->ptr = NULL;
+	if (BIO_get_shutdown(b)) {
+		BIO_set_init(b, 0);
+		BIO_set_data(b, NULL);
 	}
 	return 1;
 }
 static int
 bio_rwcount_read(BIO *b, char *out, int outlen)
 {
-	struct rwcount *rw = b->ptr;
+	struct rwcount *rw = BIO_get_data(b);
 	ev_ssize_t ret = recv(rw->fd, out, outlen, 0);
 	++rw->read;
 	if (ret == -1 && EVUTIL_ERR_RW_RETRIABLE(EVUTIL_SOCKET_ERROR())) {
@@ -584,7 +582,7 @@ static int
 bio_rwcount_write(BIO *b, const char *in, int inlen)
 {
 
-	struct rwcount *rw = b->ptr;
+	struct rwcount *rw = BIO_get_data(b);
 	ev_ssize_t ret = send(rw->fd, in, inlen, 0);
 	++rw->write;
 	if (ret == -1 && EVUTIL_ERR_RW_RETRIABLE(EVUTIL_SOCKET_ERROR())) {
@@ -598,10 +596,10 @@ bio_rwcount_ctrl(BIO *b, int cmd, long num, void *ptr)
 	long ret = 0;
 	switch (cmd) {
 	case BIO_CTRL_GET_CLOSE:
-		ret = b->shutdown;
+		ret = BIO_get_shutdown(b);
 		break;
 	case BIO_CTRL_SET_CLOSE:
-		b->shutdown = (int)num;
+		BIO_set_shutdown(b, (int)num);
 		break;
 	case BIO_CTRL_PENDING:
 		ret = 0;
@@ -622,21 +620,23 @@ bio_rwcount_puts(BIO *b, const char *s)
 	return bio_rwcount_write(b, s, strlen(s));
 }
 #define BIO_TYPE_LIBEVENT_RWCOUNT 0xff1
-static BIO_METHOD methods_rwcount = {
-	BIO_TYPE_LIBEVENT_RWCOUNT, "rwcount",
-	bio_rwcount_write,
-	bio_rwcount_read,
-	bio_rwcount_puts,
-	NULL /* bio_rwcount_gets */,
-	bio_rwcount_ctrl,
-	bio_rwcount_new,
-	bio_rwcount_free,
-	NULL /* callback_ctrl */,
-};
+static BIO_METHOD *methods_rwcount;
+
 static BIO_METHOD *
 BIO_s_rwcount(void)
 {
-	return &methods_rwcount;
+	if (methods_rwcount == NULL) {
+		methods_rwcount = BIO_meth_new(BIO_TYPE_LIBEVENT_RWCOUNT, "rwcount");
+		if (methods_rwcount == NULL)
+			return NULL;
+		BIO_meth_set_write(methods_rwcount, bio_rwcount_write);
+		BIO_meth_set_read(methods_rwcount, bio_rwcount_read);
+		BIO_meth_set_puts(methods_rwcount, bio_rwcount_puts);
+		BIO_meth_set_ctrl(methods_rwcount, bio_rwcount_ctrl);
+		BIO_meth_set_create(methods_rwcount, bio_rwcount_new);
+		BIO_meth_set_destroy(methods_rwcount, bio_rwcount_free);
+	}
+	return methods_rwcount;
 }
 static BIO *
 BIO_new_rwcount(int close_flag)
@@ -644,9 +644,9 @@ BIO_new_rwcount(int close_flag)
 	BIO *result;
 	if (!(result = BIO_new(BIO_s_rwcount())))
 		return NULL;
-	result->init = 1;
-	result->ptr = NULL;
-	result->shutdown = !!close_flag;
+	BIO_set_init(result, 1);
+	BIO_set_data(result,  NULL);
+	BIO_set_shutdown(result, !!close_flag);
 	return result;
 }
 
@@ -710,7 +710,7 @@ regress_bufferevent_openssl_connect(void *arg)
 		rw.fd = bufferevent_getfd(bev);
 		bio = BIO_new_rwcount(0);
 		tt_assert(bio);
-		bio->ptr = &rw;
+		BIO_set_data(bio, &rw);
 		SSL_set_bio(ssl, bio, bio);
 	}
 	evbuffer_add_printf(bufferevent_get_output(bev), "1\n");

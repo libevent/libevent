@@ -310,11 +310,13 @@ main(int argc, char **argv)
 	}
 	uri[sizeof(uri) - 1] = '\0';
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	// Initialize OpenSSL
 	SSL_library_init();
 	ERR_load_crypto_strings();
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
+#endif
 
 	/* This isn't strictly necessary... OpenSSL performs RAND_poll
 	 * automatically on first use of random number generator. */
@@ -474,6 +476,7 @@ cleanup:
 		SSL_CTX_free(ssl_ctx);
 	if (type == HTTP && ssl)
 		SSL_free(ssl);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	EVP_cleanup();
 	ERR_free_strings();
 
@@ -485,6 +488,7 @@ cleanup:
 	CRYPTO_cleanup_all_ex_data();
 
 	sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
+#endif /*OPENSSL_VERSION_NUMBER < 0x10100000L */
 
 #ifdef _WIN32
 	WSACleanup();
