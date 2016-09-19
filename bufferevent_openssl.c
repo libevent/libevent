@@ -60,6 +60,7 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include "openssl-compat.h"
 
 /*
  * Define an OpenSSL bio that targets a bufferevent.
@@ -103,10 +104,8 @@ print_err(int val)
 static int
 bio_bufferevent_new(BIO *b)
 {
-	b->init = 0;
-	b->num = -1;
-	b->ptr = NULL; /* We'll be putting the bufferevent in this field.*/
-	b->flags = 0;
+	BIO_set_init(b, 0);
+	BIO_set_data(b, NULL); /* We'll be putting the bufferevent in this field.*/
 	return 1;
 }
 
@@ -116,12 +115,10 @@ bio_bufferevent_free(BIO *b)
 {
 	if (!b)
 		return 0;
-	if (b->shutdown) {
-		if (b->init && b->ptr)
-			bufferevent_free(b->ptr);
-		b->init = 0;
-		b->flags = 0;
-		b->ptr = NULL;
+	if (BIO_get_shutdown(b)) {
+		if (BIO_get_init(b) && BIO_get_data(b))
+			bufferevent_free(BIO_get_data(b));
+		BIO_free(b);
 	}
 	return 1;
 }
@@ -137,10 +134,10 @@ bio_bufferevent_read(BIO *b, char *out, int outlen)
 
 	if (!out)
 		return 0;
-	if (!b->ptr)
+	if (!BIO_get_data(b))
 		return -1;
 
-	input = bufferevent_get_input(b->ptr);
+	input = bufferevent_get_input(BIO_get_data(b));
 	if (evbuffer_get_length(input) == 0) {
 		/* If there's no data to read, say so. */
 		BIO_set_retry_read(b);
@@ -156,13 +153,13 @@ bio_bufferevent_read(BIO *b, char *out, int outlen)
 static int
 bio_bufferevent_write(BIO *b, const char *in, int inlen)
 {
-	struct bufferevent *bufev = b->ptr;
+	struct bufferevent *bufev = BIO_get_data(b);
 	struct evbuffer *output;
 	size_t outlen;
 
 	BIO_clear_retry_flags(b);
 
-	if (!b->ptr)
+	if (!BIO_get_data(b))
 		return -1;
 
 	output = bufferevent_get_output(bufev);
@@ -188,15 +185,15 @@ bio_bufferevent_write(BIO *b, const char *in, int inlen)
 static long
 bio_bufferevent_ctrl(BIO *b, int cmd, long num, void *ptr)
 {
-	struct bufferevent *bufev = b->ptr;
+	struct bufferevent *bufev = BIO_get_data(b);
 	long ret = 1;
 
 	switch (cmd) {
 	case BIO_CTRL_GET_CLOSE:
-		ret = b->shutdown;
+		ret = BIO_get_shutdown(b);
 		break;
 	case BIO_CTRL_SET_CLOSE:
-		b->shutdown = (int)num;
+		BIO_set_shutdown(b, (int)num);
 		break;
 	case BIO_CTRL_PENDING:
 		ret = evbuffer_get_length(bufferevent_get_input(bufev)) != 0;
@@ -225,23 +222,24 @@ bio_bufferevent_puts(BIO *b, const char *s)
 }
 
 /* Method table for the bufferevent BIO */
-static BIO_METHOD methods_bufferevent = {
-	BIO_TYPE_LIBEVENT, "bufferevent",
-	bio_bufferevent_write,
-	bio_bufferevent_read,
-	bio_bufferevent_puts,
-	NULL /* bio_bufferevent_gets */,
-	bio_bufferevent_ctrl,
-	bio_bufferevent_new,
-	bio_bufferevent_free,
-	NULL /* callback_ctrl */,
-};
+static BIO_METHOD *methods_bufferevent;
 
 /* Return the method table for the bufferevents BIO */
 static BIO_METHOD *
 BIO_s_bufferevent(void)
 {
-	return &methods_bufferevent;
+	if (methods_bufferevent == NULL) {
+		methods_bufferevent = BIO_meth_new(BIO_TYPE_LIBEVENT, "bufferevent");
+		if (methods_bufferevent == NULL)
+			return NULL;
+		BIO_meth_set_write(methods_bufferevent, bio_bufferevent_write);
+		BIO_meth_set_read(methods_bufferevent, bio_bufferevent_read);
+		BIO_meth_set_puts(methods_bufferevent, bio_bufferevent_puts);
+		BIO_meth_set_ctrl(methods_bufferevent, bio_bufferevent_ctrl);
+		BIO_meth_set_create(methods_bufferevent, bio_bufferevent_new);
+		BIO_meth_set_destroy(methods_bufferevent, bio_bufferevent_free);
+	}
+	return methods_bufferevent;
 }
 
 /* Create a new BIO to wrap communication around a bufferevent.  If close_flag
@@ -254,9 +252,9 @@ BIO_new_bufferevent(struct bufferevent *bufferevent, int close_flag)
 		return NULL;
 	if (!(result = BIO_new(BIO_s_bufferevent())))
 		return NULL;
-	result->init = 1;
-	result->ptr = bufferevent;
-	result->shutdown = close_flag ? 1 : 0;
+	BIO_set_init(result, 1);
+	BIO_set_data(result, bufferevent);
+	BIO_set_shutdown(result, close_flag ? 1 : 0);
 	return result;
 }
 
