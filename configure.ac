@@ -132,6 +132,9 @@ AC_ARG_ENABLE([function-sections],
 AC_ARG_ENABLE([verbose-debug],
 		AS_HELP_STRING([--enable-verbose-debug, verbose debug logging]),
 	[], [enable_verbose_debug=no])
+AC_ARG_ENABLE(clock-gettime,
+     AS_HELP_STRING(--disable-clock-gettime, don't use clock_gettime even if it is available),
+  [], [enable_clock_gettime=yes])
 
 
 AC_PROG_LIBTOOL
@@ -149,7 +152,10 @@ dnl Checks for libraries.
 AC_SEARCH_LIBS([inet_ntoa], [nsl])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([inet_aton], [resolv])
-AC_SEARCH_LIBS([clock_gettime], [rt])
+if test "x$enable_clock_gettime" = "xyes"; then
+  AC_SEARCH_LIBS([clock_gettime], [rt])
+  AC_CHECK_FUNCS([clock_gettime])
+fi
 AC_SEARCH_LIBS([sendfile], [sendfile])
 
 dnl - check if the macro _WIN32 is defined on this compiler.
@@ -347,7 +353,6 @@ AC_CHECK_FUNCS([ \
   accept4 \
   arc4random \
   arc4random_buf \
-  clock_gettime \
   eventfd \
   epoll_create1 \
   fcntl \
