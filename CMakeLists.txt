@@ -130,6 +130,9 @@ option(EVENT__DISABLE_REGRESS
 option(EVENT__DISABLE_SAMPLES
     "Disable sample files" OFF)
 
+option(EVENT__DISABLE_CLOCK_GETTIME
+    "Do not use clock_gettime even if it is available" OFF)
+
 option(EVENT__FORCE_KQUEUE_CHECK
     "When crosscompiling forces running a test program that verifies that Kqueue works with pipes. Note that this requires you to manually run the test program on the the cross compilation target to verify that it works. See cmake documentation for try_run for more details" OFF)
 
@@ -298,7 +301,9 @@ CHECK_INCLUDE_FILE(errno.h EVENT__HAVE_ERRNO_H)
 CHECK_FUNCTION_EXISTS_EX(epoll_create EVENT__HAVE_EPOLL)
 CHECK_FUNCTION_EXISTS_EX(epoll_ctl EVENT__HAVE_EPOLL_CTL)
 CHECK_FUNCTION_EXISTS_EX(eventfd EVENT__HAVE_EVENTFD)
-CHECK_FUNCTION_EXISTS_EX(clock_gettime EVENT__HAVE_CLOCK_GETTIME)
+if(NOT EVENT__DISABLE_CLOCK_GETTIME)
+    CHECK_FUNCTION_EXISTS_EX(clock_gettime EVENT__HAVE_CLOCK_GETTIME)
+endif()
 CHECK_FUNCTION_EXISTS_EX(fcntl EVENT__HAVE_FCNTL)
 CHECK_FUNCTION_EXISTS_EX(getaddrinfo EVENT__HAVE_GETADDRINFO)
 CHECK_FUNCTION_EXISTS_EX(getnameinfo EVENT__HAVE_GETNAMEINFO)
