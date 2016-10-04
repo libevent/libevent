@@ -944,9 +944,10 @@ if (NOT EVENT__DISABLE_TESTS)
     if (NOT EVENT__DISABLE_REGRESS)
 
         # (We require python to generate the regress tests)
+        set(PYTHON_EXECUTABLE "python2")
         find_package(PythonInterp)
 
-        if (PYTHONINTERP_FOUND AND PYTHON_VERSION_STRING VERSION_LESS "3.0.0")
+        if (PYTHONINTERP_FOUND)
             set(__FOUND_USABLE_PYTHON 1)
         endif()
 
