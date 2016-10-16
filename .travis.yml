@@ -29,6 +29,14 @@ before_install:
       if [ "$CC" == "gcc" ]; then
         export CC=$(ls -t /usr/local/bin/gcc-?.?);
       fi
+
+      export OPENSSL_ROOT=$(echo /usr/local/Cellar/openssl/*);
+      export
+        CMAKE_INCLUDE_PATH=$OPENSSL_ROOT/include
+        CMAKE_LIBRARY_PATH=$OPENSSL_ROOT/lib;
+      export
+        CFLAGS=-I$CMAKE_INCLUDE_PATH
+        LDFLAGS=-L$CMAKE_LIBRARY_PATH;
     fi
 addons:
   apt:
