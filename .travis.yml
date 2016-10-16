@@ -1,6 +1,7 @@
 os:
   - linux
   - osx
+sudo: false
 env:
   matrix:
     - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS=""
@@ -19,9 +20,6 @@ compiler:
   - gcc
   - clang
 before_install:
-  - if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-      sudo apt-get update -qq;
-    fi
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
       brew update;
       brew uninstall libtool && brew install libtool;
