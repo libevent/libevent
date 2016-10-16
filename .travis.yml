@@ -26,8 +26,9 @@ before_install:
       brew update;
       brew uninstall libtool && brew install libtool;
       brew install openssl;
-      sudo ln -sf $(ls -t /usr/local/bin/gcc-* | head -1) /usr/bin/gcc;
-      sudo ln -sf $(ls -t /usr/local/bin/g++-* | head -1) /usr/bin/g++;
+      if [ "$CC" == "gcc" ]; then
+        export CC=$(ls -t /usr/local/bin/gcc-?.?);
+      fi
     fi
 addons:
   apt:
