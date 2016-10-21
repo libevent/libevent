@@ -21,7 +21,7 @@
 ## Cmake (General)
 
 
-The following Libevent specific Cmake variables ar as follows (the values being
+The following Libevent specific Cmake variables are as follows (the values being
 the default).
 
 ```
