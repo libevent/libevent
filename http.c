@@ -51,6 +51,7 @@
 #ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/un.h>
 #else
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -2347,13 +2348,10 @@ evhttp_connection_new(const char *address, unsigned short port)
 	return (evhttp_connection_base_new(NULL, NULL, address, port));
 }
 
-struct evhttp_connection *
-evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev,
-    const char *address, unsigned short port)
+static struct evhttp_connection *
+evhttp_connection_new_(struct event_base *base, struct bufferevent* bev)
 {
-	struct evhttp_connection *evcon = NULL;
-
-	event_debug(("Attempting connection to %s:%d\n", address, port));
+	struct evhttp_connection *evcon;
 
 	if ((evcon = mm_calloc(1, sizeof(struct evhttp_connection))) == NULL) {
 		event_warn("%s: calloc failed", __func__);
@@ -2361,18 +2359,12 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 	}
 
 	evcon->fd = -1;
-	evcon->port = port;
 
 	evcon->max_headers_size = EV_SIZE_MAX;
 	evcon->max_body_size = EV_SIZE_MAX;
 
 	evutil_timerclear(&evcon->timeout);
 	evcon->retry_cnt = evcon->retry_max = 0;
-
-	if ((evcon->address = mm_strdup(address)) == NULL) {
-		event_warn("%s: strdup failed", __func__);
-		goto error;
-	}
 
 	if (bev == NULL) {
 		if (!(bev = bufferevent_socket_new(base, -1, 0))) {
@@ -2401,7 +2393,6 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 	    bufferevent_get_priority(bev),
 	    evhttp_deferred_read_cb, evcon);
 
-	evcon->dns_base = dnsbase;
 	evcon->ai_family = AF_UNSPEC;
 
 	return (evcon);
@@ -2411,6 +2402,59 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 		evhttp_connection_free(evcon);
 	return (NULL);
 }
+
+struct evhttp_connection *
+evhttp_connection_unixsocket_new(struct event_base *base, struct bufferevent* bev, const char *unixsocket)
+{
+#ifndef _WIN32
+	struct evhttp_connection *evcon;
+
+	evcon = evhttp_connection_new_(base, bev);
+	if (evcon == NULL)
+		goto error;
+
+	if ((evcon->unixsocket = mm_strdup(unixsocket)) == NULL) {
+		event_warn("%s: strdup failed", __func__);
+		goto error;
+	}
+
+	evcon->ai_family = AF_UNIX;
+
+	return (evcon);
+ error:
+	if (evcon != NULL)
+		evhttp_connection_free(evcon);
+#endif
+	return (NULL);
+
+}
+
+struct evhttp_connection *
+evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev,
+    const char *address, unsigned short port)
+{
+	struct evhttp_connection *evcon;
+
+	event_debug(("Attempting connection to %s:%d\n", address, port));
+
+	evcon = evhttp_connection_new_(base, bev);
+	if (evcon == NULL)
+		goto error;
+
+	if ((evcon->address = mm_strdup(address)) == NULL) {
+		event_warn("%s: strdup failed", __func__);
+		goto error;
+	}
+	evcon->port = port;
+	evcon->dns_base = dnsbase;
+
+	return (evcon);
+error:
+	if (evcon != NULL)
+		evhttp_connection_free(evcon);
+	return (NULL);
+}
+
 
 struct bufferevent* evhttp_connection_get_bufferevent(struct evhttp_connection *evcon)
 {
@@ -2587,7 +2631,20 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 			socklen = sizeof(struct sockaddr_in6);
 		}
 		ret = bufferevent_socket_connect(evcon->bufev, sa, socklen);
-	} else {
+	}
+#ifndef _WIN32
+	else if (evcon->unixsocket) {
+		struct sockaddr_un sockaddr;
+		sockaddr.sun_family = AF_UNIX;
+		if (strlen(evcon->unixsocket) >= sizeof(sockaddr.sun_path)) {
+			event_warn("%s: unix socket too long", __func__);
+			return -1;
+		}
+		strcpy(sockaddr.sun_path, evcon->unixsocket);
+		ret = bufferevent_socket_connect(evcon->bufev, (const struct sockaddr*)&sockaddr, sizeof(sockaddr));
+	}
+#endif
+	else {
 		ret = bufferevent_socket_connect_hostname(evcon->bufev,
 				evcon->dns_base, evcon->ai_family, address, evcon->port);
 	}
@@ -4179,27 +4236,48 @@ evhttp_get_request_connection(
 	evutil_socket_t fd, struct sockaddr *sa, ev_socklen_t salen)
 {
 	struct evhttp_connection *evcon;
-	char *hostname = NULL, *portname = NULL;
 	struct bufferevent* bev = NULL;
 
-	name_from_addr(sa, salen, &hostname, &portname);
-	if (hostname == NULL || portname == NULL) {
-		if (hostname) mm_free(hostname);
-		if (portname) mm_free(portname);
-		return (NULL);
-	}
+#ifndef _WIN32
+	if (sa->sa_family == AF_UNIX) {
+		struct sockaddr_un *sockaddr = (struct sockaddr_un *)sa;
 
-	event_debug(("%s: new request from %s:%s on "EV_SOCK_FMT"\n",
-		__func__, hostname, portname, EV_SOCK_ARG(fd)));
+		event_debug(("%s: new request from unix socket %s on "
+			EV_SOCK_FMT"\n", __func__, sockaddr->sun_path,
+			EV_SOCK_ARG(fd)));
 
-	/* we need a connection object to put the http request on */
-	if (http->bevcb != NULL) {
-		bev = (*http->bevcb)(http->base, http->bevcbarg);
+		/* we need a connection object to put the http request on */
+		if (http->bevcb != NULL) {
+			bev = (*http->bevcb)(http->base, http->bevcbarg);
+		}
+
+		evcon = evhttp_connection_unixsocket_new(http->base, bev,
+							sockaddr->sun_path);
 	}
-	evcon = evhttp_connection_base_bufferevent_new(
-		http->base, NULL, bev, hostname, atoi(portname));
-	mm_free(hostname);
-	mm_free(portname);
+	else
+#endif
+	{
+		char *hostname = NULL, *portname = NULL;
+
+		name_from_addr(sa, salen, &hostname, &portname);
+		if (hostname == NULL || portname == NULL) {
+			if (hostname) mm_free(hostname);
+			if (portname) mm_free(portname);
+			return (NULL);
+		}
+
+		event_debug(("%s: new request from %s:%s on "EV_SOCK_FMT"\n",
+			__func__, hostname, portname, EV_SOCK_ARG(fd)));
+
+		/* we need a connection object to put the http request on */
+		if (http->bevcb != NULL) {
+			bev = (*http->bevcb)(http->base, http->bevcbarg);
+		}
+		evcon = evhttp_connection_base_bufferevent_new(
+			http->base, NULL, bev, hostname, atoi(portname));
+		mm_free(hostname);
+		mm_free(portname);
+	}
 	if (evcon == NULL)
 		return (NULL);
 
@@ -4228,7 +4306,7 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 	if ((req = evhttp_request_new(evhttp_handle_request, http)) == NULL)
 		return (-1);
 
-	if ((req->remote_host = mm_strdup(evcon->address)) == NULL) {
+	if ((req->remote_host = mm_strdup(evcon->address ?: "localhost")) == NULL) {
 		event_warn("%s: strdup", __func__);
 		evhttp_request_free(req);
 		return (-1);
@@ -4422,6 +4500,9 @@ struct evhttp_uri {
 	char *userinfo; /* userinfo (typically username:pass), or NULL */
 	char *host; /* hostname, IP address, or NULL */
 	int port; /* port, or zero */
+#ifndef _WIN32
+	char *unixsocket; /* unix domain socket or NULL */
+#endif
 	char *path; /* path, or "". */
 	char *query; /* query, or NULL */
 	char *fragment; /* fragment or NULL */
@@ -4562,69 +4643,6 @@ bracket_addr_ok(const char *s, const char *eos)
 	}
 }
 
-static int
-parse_authority(struct evhttp_uri *uri, char *s, char *eos)
-{
-	char *cp, *port;
-	EVUTIL_ASSERT(eos);
-	if (eos == s) {
-		uri->host = mm_strdup("");
-		if (uri->host == NULL) {
-			event_warn("%s: strdup", __func__);
-			return -1;
-		}
-		return 0;
-	}
-
-	/* Optionally, we start with "userinfo@" */
-
-	cp = strchr(s, '@');
-	if (cp && cp < eos) {
-		if (! userinfo_ok(s,cp))
-			return -1;
-		*cp++ = '\0';
-		uri->userinfo = mm_strdup(s);
-		if (uri->userinfo == NULL) {
-			event_warn("%s: strdup", __func__);
-			return -1;
-		}
-	} else {
-		cp = s;
-	}
-	/* Optionally, we end with ":port" */
-	for (port=eos-1; port >= cp && EVUTIL_ISDIGIT_(*port); --port)
-		;
-	if (port >= cp && *port == ':') {
-		if (port+1 == eos) /* Leave port unspecified; the RFC allows a
-				    * nil port */
-			uri->port = -1;
-		else if ((uri->port = parse_port(port+1, eos))<0)
-			return -1;
-		eos = port;
-	}
-	/* Now, cp..eos holds the "host" port, which can be an IPv4Address,
-	 * an IP-Literal, or a reg-name */
-	EVUTIL_ASSERT(eos >= cp);
-	if (*cp == '[' && eos >= cp+2 && *(eos-1) == ']') {
-		/* IPv6address, IP-Literal, or junk. */
-		if (! bracket_addr_ok(cp, eos))
-			return -1;
-	} else {
-		/* Make sure the host part is ok. */
-		if (! regname_ok(cp,eos)) /* Match IPv4Address or reg-name */
-			return -1;
-	}
-	uri->host = mm_malloc(eos-cp+1);
-	if (uri->host == NULL) {
-		event_warn("%s: malloc", __func__);
-		return -1;
-	}
-	memcpy(uri->host, cp, eos-cp);
-	uri->host[eos-cp] = '\0';
-	return 0;
-
-}
-
 static char *
 end_of_authority(char *cp)
 {
@@ -4634,6 +4652,81 @@ end_of_authority(char *cp)
 		++cp;
 	}
 	return cp;
+}
+
+static char *
+parse_authority(struct evhttp_uri *uri, char *s, unsigned flags)
+{
+	char *end, *eos, *cp, *port;
+	end = end_of_authority(s);
+	EVUTIL_ASSERT(end);
+	if (end == s) {
+		uri->host = mm_strdup("");
+		if (uri->host == NULL) {
+			event_warn("%s: strdup", __func__);
+			return NULL;
+		}
+		return end;
+	}
+
+	/* Optionally, we start with "userinfo@" */
+
+	cp = strchr(s, '@');
+	if (cp && cp < end) {
+		if (! userinfo_ok(s,cp))
+			return NULL;
+		*cp++ = '\0';
+		uri->userinfo = mm_strdup(s);
+		if (uri->userinfo == NULL) {
+			event_warn("%s: strdup", __func__);
+			return NULL;
+		}
+	} else {
+		cp = s;
+	}
+
+#ifndef _WIN32
+	if (flags & EVHTTP_URI_UNIX_SOCKET && !strncmp(cp, "unix:", 5)) {
+		char *e = strchr(cp + 5, ':');
+		if (e) {
+			*e = 0;
+			uri->unixsocket = mm_strdup(cp + 5);
+			return e+1;
+		}
+	}
+#endif
+	/* Optionally, we end with ":port" */
+	for (port=end-1; port >= cp && EVUTIL_ISDIGIT_(*port); --port)
+		;
+	eos = end;
+	if (port >= cp && *port == ':') {
+		if (port+1 == end) /* Leave port unspecified; the RFC allows a
+				    * nil port */
+			uri->port = -1;
+		else if ((uri->port = parse_port(port+1, end))<0)
+			return NULL;
+		eos = port;
+	}
+	/* Now, cp..eos holds the "host" port, which can be an IPv4Address,
+	 * an IP-Literal, or a reg-name */
+	EVUTIL_ASSERT(eos >= cp);
+	if (*cp == '[' && eos >= cp+2 && *(eos-1) == ']') {
+		/* IPv6address, IP-Literal, or junk. */
+		if (! bracket_addr_ok(cp, eos))
+			return NULL;
+	} else {
+		/* Make sure the host part is ok. */
+		if (! regname_ok(cp,eos)) /* Match IPv4Address or reg-name */
+			return NULL;
+	}
+	uri->host = mm_malloc(eos-cp+1);
+	if (uri->host == NULL) {
+		event_warn("%s: malloc", __func__);
+		return NULL;
+	}
+	memcpy(uri->host, cp, eos-cp);
+	uri->host[eos-cp] = '\0';
+	return end;
 }
 
 enum uri_part {
@@ -4755,10 +4848,9 @@ evhttp_uri_parse_with_flags(const char *source_uri, unsigned flags)
 		char *authority;
 		readp += 2;
 		authority = readp;
-		path = end_of_authority(readp);
-		if (parse_authority(uri, authority, path) < 0)
+		readp = parse_authority(uri, authority, flags);
+		if (!readp)
 			goto err;
-		readp = path;
 		got_authority = 1;
 	}
 
@@ -4845,6 +4937,9 @@ evhttp_uri_free(struct evhttp_uri *uri)
 	URI_FREE_STR_(scheme);
 	URI_FREE_STR_(userinfo);
 	URI_FREE_STR_(host);
+#ifndef _WIN32
+	URI_FREE_STR_(unixsocket);
+#endif
 	URI_FREE_STR_(path);
 	URI_FREE_STR_(query);
 	URI_FREE_STR_(fragment);
@@ -4873,6 +4968,15 @@ evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit)
 		URI_ADD_(scheme);
 		evbuffer_add(tmp, ":", 1);
 	}
+#ifndef _WIN32
+	if (uri->unixsocket) {
+		evbuffer_add(tmp, "//", 2);
+		if (uri->userinfo)
+			evbuffer_add_printf(tmp,"%s@", uri->userinfo);
+		evbuffer_add_printf(tmp, "unix:%s:", uri->unixsocket);
+	}
+	else
+#endif
 	if (uri->host) {
 		evbuffer_add(tmp, "//", 2);
 		if (uri->userinfo)
@@ -4931,6 +5035,15 @@ const char *
 evhttp_uri_get_host(const struct evhttp_uri *uri)
 {
 	return uri->host;
+}
+const char *
+evhttp_uri_get_unixsocket(const struct evhttp_uri *uri)
+{
+#ifdef _WIN32
+	return NULL;
+#else
+	return uri->unixsocket;
+#endif
 }
 int
 evhttp_uri_get_port(const struct evhttp_uri *uri)
@@ -4998,6 +5111,16 @@ evhttp_uri_set_host(struct evhttp_uri *uri, const char *host)
 
 	URI_SET_STR_(host);
 	return 0;
+}
+int
+evhttp_uri_set_unixsocket(struct evhttp_uri *uri, const char *unixsocket)
+{
+#ifdef _WIN32
+	return -1;
+#else
+	URI_SET_STR_(unixsocket);
+	return 0;
+#endif
 }
 int
 evhttp_uri_set_port(struct evhttp_uri *uri, int port)

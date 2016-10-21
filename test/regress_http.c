@@ -1737,7 +1737,6 @@ http_virtual_host_test(void *arg)
 		evhttp_free(http);
 }
 
-
 /* test date header and content length */
 
 static void
@@ -1868,6 +1867,97 @@ http_dispatcher_test(void *arg)
 	if (http)
 		evhttp_free(http);
 }
+
+#ifndef _WIN32
+/* test unix socket */
+#include <sys/un.h>
+
+/* Should this be part of the libevent library itself? */
+int evhttp_bind_unixsocket(struct evhttp *httpd, const char *path)
+{
+	struct sockaddr_un local;
+	struct stat st;
+	int fd;
+
+	local.sun_family = AF_UNIX;
+	strcpy(local.sun_path, path);
+
+	/* if the file exists and it is a socket, remove it. Someone
+	   could create a symlink and get us to remove random files */
+	if (stat(path, &st) == 0 && S_ISSOCK(st.st_mode))
+		unlink(path);
+
+	fd = socket(AF_UNIX, SOCK_CLOEXEC | SOCK_NONBLOCK | SOCK_STREAM, 0);
+	if (fd == -1)
+		return -1;
+
+	if (bind(fd, (struct sockaddr*)&local, sizeof(local))) {
+		close(fd);
+		return -1;
+	}
+
+	/* fchmod(fd, 0777) does nothing */
+	if (chmod(path, 0777)) {
+		close(fd);
+		return -1;
+	}
+
+	if (listen(fd, 128)) {
+		close(fd);
+		return -1;
+	}
+
+	if (evhttp_accept_socket(httpd, fd)) {
+		close(fd);
+		return -1;
+	}
+
+	return 0;
+}
+
+static void http_unix_socket_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evhttp_uri *uri;
+	struct evhttp_connection *evcon;
+	struct evhttp_request *req;
+
+	struct evhttp *myhttp = evhttp_new(data->base);
+
+	if (evhttp_bind_unixsocket(myhttp, "foo")) {
+		fprintf(stderr, "FAILED failed to bind to unix socket\n");
+		exit(1);
+	}
+
+	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, data->base);
+
+	uri = evhttp_uri_parse_with_flags("http://unix:./foo:/?arg=val", EVHTTP_URI_UNIX_SOCKET);
+
+	evcon = evhttp_connection_unixsocket_new(data->base, NULL, evhttp_uri_get_unixsocket(uri));
+
+	/*
+	 * At this point, we want to schedule an HTTP GET request
+	 * server using our make request method.
+	 */
+	req = evhttp_request_new(http_dispatcher_test_done, data->base);
+	tt_assert(req);
+
+	/* Add the information that we care about */
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
+
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/?arg=val") == -1) {
+		tt_abort_msg("Couldn't make request");
+	}
+
+	event_base_dispatch(data->base);
+
+ end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+}
+#endif
 
 /*
  * HTTP POST test.
@@ -2416,9 +2506,17 @@ end:
 static void
 http_parse_uri_test(void *ptr)
 {
-	const int nonconform = (ptr != NULL);
-	const unsigned parse_flags =
+	int nonconform = 0, unixsock = 0;
+	if (ptr) {
+		if (strstr(ptr, "nc") != NULL)
+			nonconform = 1;
+		if (strstr(ptr, "un") != NULL)
+			unixsock = 1;
+	}
+	unsigned parse_flags =
 	    nonconform ? EVHTTP_URI_NONCONFORMANT : 0;
+	if (unixsock)
+		parse_flags |= EVHTTP_URI_UNIX_SOCKET;
 	struct evhttp_uri *uri = NULL;
 	char url_tmp[4096];
 #define URI_PARSE(uri) \
@@ -2448,6 +2546,18 @@ http_parse_uri_test(void *ptr)
 			TT_FAIL(("Expected error parsing \"%s\"",s));	\
 		} else if (uri == NULL && nonconform) {			\
 			TT_FAIL(("Couldn't parse nonconformant URI \"%s\"", \
+				s));					\
+		}							\
+		if (uri) {						\
+			tt_want(evhttp_uri_join(uri, url_tmp,		\
+				sizeof(url_tmp)));			\
+			evhttp_uri_free(uri);				\
+		}							\
+	} while(0)
+#define UNI(s) do {							\
+		uri = URI_PARSE(s);					\
+		if (uri == NULL && unixsock) {			\
+			TT_FAIL(("Couldn't parse unix socket URI \"%s\"", \
 				s));					\
 		}							\
 		if (uri) {						\
@@ -2491,6 +2601,10 @@ http_parse_uri_test(void *ptr)
 	BAD("http://www.example.com:9999999999999999999999999999999999999/");
 	BAD("http://www.example.com:hihi/");
 	BAD("://www.example.com/");
+
+	UNI("http://unix:/tmp/foobar/:/foo");
+	UNI("http://user:pass@unix:/tmp/foobar/:/foo");
+	UNI("http://unix:a:");
 
 	/* bad URIs: joining */
 	uri = evhttp_uri_new();
@@ -4509,6 +4623,8 @@ struct testcase_t http_testcases[] = {
 	{ "parse_query", http_parse_query_test, 0, NULL, NULL },
 	{ "parse_uri", http_parse_uri_test, 0, NULL, NULL },
 	{ "parse_uri_nc", http_parse_uri_test, 0, &basic_setup, (void*)"nc" },
+	{ "parse_uri_un", http_parse_uri_test, 0, &basic_setup, (void*)"un" },
+	{ "parse_uri_un_nc", http_parse_uri_test, 0, &basic_setup, (void*)"un_nc" },
 	{ "uriencode", http_uriencode_test, 0, NULL, NULL },
 	HTTP(basic),
 	HTTP(simple),
@@ -4529,6 +4645,9 @@ struct testcase_t http_testcases[] = {
 	HTTP_N(cancel_by_host_ns_timeout_inactive_server, cancel, BY_HOST | NO_NS | NS_TIMEOUT | INACTIVE_SERVER),
 
 	HTTP(virtual_host),
+#ifndef _WIN32
+	HTTP(unix_socket),
+#endif
 	HTTP(post),
 	HTTP(put),
 	HTTP(delete),
