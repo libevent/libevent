@@ -52,6 +52,11 @@ cscope*
 ## The initial / makes these files only get ignored in particular directories.
 /autom4te.cache
 
+# configure in progress
+/.cyg*
+/confdefs.*
+/conftest.*
+
 # Libtool adds these, at least sometimes
 /m4/libtool.m4
 /m4/ltoptions.m4
