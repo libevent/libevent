@@ -145,3 +145,5 @@ cscope*
 /COPYING
 /INSTALL
 /*.tar.gz
+
+/.vagrant
