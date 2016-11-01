@@ -2,8 +2,10 @@ os:
   - linux
   - osx
 sudo: false
+
 env:
   matrix:
+    - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=debug" COVERALLS=yes
     - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS=""
     - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
     - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_THREAD_SUPPORT=ON"
@@ -15,11 +17,16 @@ env:
     - EVENT_BUILD_METHOD=autotools EVENT_CONFIGURE_OPTIONS="--disable-thread-support"
     - EVENT_BUILD_METHOD=autotools EVENT_CONFIGURE_OPTIONS="--disable-debug-mode"
     - EVENT_BUILD_METHOD=autotools EVENT_CONFIGURE_OPTIONS="--disable-malloc-replacement"
+
 language: c
 compiler:
   - gcc
   - clang
+
 before_install:
+  - if [ -n "$COVERALLS" ]; then
+      pip install --user cpp-coveralls;
+    fi
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
       brew update;
       brew uninstall libtool && brew install libtool;
@@ -36,6 +43,7 @@ before_install:
         CFLAGS=-I$CMAKE_INCLUDE_PATH
         LDFLAGS=-L$CMAKE_LIBRARY_PATH;
     fi
+
 addons:
   apt:
     packages:
@@ -45,6 +53,8 @@ addons:
       - automake
       - autoconf
       - cmake
+      - lcov
+
 script:
   - if [ "$EVENT_BUILD_METHOD" = "autotools" ]; then
       ./autogen.sh &&
@@ -59,5 +69,19 @@ script:
       cmake --build . &&
       CTEST_OUTPUT_ON_FAILURE=1 cmake --build . --target verify;
     fi
+
+after_script:
+  - if [ -n "$COVERALLS" ]; then
+      coveralls
+        --build-root .
+        --root ..
+        --exclude test
+        --exclude sample
+        --exclude cmake
+        --exclude build/CMakeFiles/CheckTypeSize
+        --exclude build/CMakeFiles/CompilerIdC
+        --gcov-options '\-lp';
+    fi
+
 notifications:
   irc: "irc.oftc.net#libevent"
