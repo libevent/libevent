@@ -28,6 +28,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release
         CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)
 endif()
+string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
 # get rid of the extra default configurations
 # what? why would you get id of other useful build types? - Ellzey
@@ -152,16 +153,15 @@ endif()
 
 # Setup compiler flags for coverage.
 if (EVENT__COVERAGE)
-    if ((NOT CMAKE_COMPILER_IS_GNUCC) AND (NOT ${CMAKE_CXX_COMPILER_ID} STREQAL "Clang"))
-        message(FATAL_ERROR "Trying to compile coverage support, but compiler is not GNU gcc! Try CC=/usr/bin/gcc CXX=/usr/bin/g++ cmake <options> ..")
-    endif()
-
-    if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if (NOT "${CMAKE_BUILD_TYPE_LOWER}" STREQUAL "debug")
         message(FATAL_ERROR "Coverage requires -DCMAKE_BUILD_TYPE=Debug")
     endif()
 
     message(STATUS "Setting coverage compiler flags")
-    add_compiler_flags(-g -O0 -fprofile-arcs -ftest-coverage)
+
+    set(CMAKE_REQUIRED_LIBRARIES "--coverage")
+    add_compiler_flags(-g -O0 --coverage)
+    set(CMAKE_REQUIRED_LIBRARIES "")
 endif()
 
 # GCC specific options.

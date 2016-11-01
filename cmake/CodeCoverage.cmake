@@ -30,6 +30,9 @@
 # - Added support for Clang.
 # - Some additional usage instructions.
 #
+# 2016-11-02, Azat Khuzhin
+# - Adopt for C compiler only (libevent)
+#
 # USAGE:
 # 1. Copy this file into your cmake modules path.
 #
@@ -68,11 +71,11 @@ IF(NOT GCOV_PATH)
 	MESSAGE(FATAL_ERROR "gcov not found! Aborting...")
 ENDIF() # NOT GCOV_PATH
 
-IF(NOT CMAKE_COMPILER_IS_GNUCC AND NOT CMAKE_COMPILER_IS_GNUCXX)
+IF(NOT CMAKE_COMPILER_IS_GNUCC)
 	# Clang version 3.0.0 and greater now supports gcov as well.
 	MESSAGE(WARNING "Compiler is not GNU gcc! Clang Version 3.0.0 and greater supports gcov as well, but older versions don't.")
 	
-	IF(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+	IF(NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
 		MESSAGE(FATAL_ERROR "Compiler is not GNU gcc! Aborting...")
 	ENDIF()
 ENDIF() # NOT CMAKE_COMPILER_IS_GNUCC
