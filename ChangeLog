@@ -1,3 +1,46 @@
+Changes in version 2.1.7-rc (2 Novemer 2016)
+
+ Libevent 2.1.7-rc contains openssl 1.1 support, build fixes, CI improvements
+ and plus Vagrantfile for testing under multiple OS'es.
+
+
+ Continious Integration:
+  o Use coveralls.io via travis (9ac000c Azat Khuzhin)
+  o travis-ci: use container-based infrastructure (7e12e96 Azat Khuzhin)
+  o travis-ci/osx: fix compiling/linking openssl libraries (9d2f8d4 Azat Khuzhin)
+  o travis-ci: use gcc-5 (fixes osx|gcc failures) (d7ceae5 Azat Khuzhin)
+  o Testing with vagrant for 6 OS and cmake+autoconf (9585338 Azat Khuzhin)
+  o travis-ci/osx: install lcov (e4e099b Azat Khuzhin)
+
+ Build Improvements/Fixes:
+  o Fix cmake -DEVENT__COVERAGE=ON (40fbffc Azat Khuzhin)
+  o autogen.sh: learn about gmake (9376ac4 Azat Khuzhin)
+  o autogen.sh: remove all autoconf/automake caches, if any (69cce25 Azat Khuzhin)
+  o cmake: fix finding python2, and check that it is really 2 (3453c08 Azat Khuzhin)
+  o cmake: fix CheckFunctionExistsEx/CheckPrototypeDefinition (CMP0054) (43b69b2 Azat Khuzhin)
+  o cmake: cleanup (dc624ad Zonr Chang)
+  o cmake/win32: fix running regress, but fixing finding python2 interpreter (bcb990a Azat Khuzhin)
+  o cmake: use PYTHON_EXECUTABLE to find python2 (a4d044c Azat Khuzhin)
+  o Merge branch 'force-disable-clockgettime' (83c7cdf Azat Khuzhin)
+
+ Code Improvements (core)
+  o use ev_uint16_t instead of unsigned short for port (e983712 Thomas Bernard)
+  o Merge branch 'contrib-guide-v2' (b9c5077 Azat Khuzhin)
+  o poll: Prevent libevent from spinning if POLLNVAL occurs (675974c Tim Hentenaar)
+
+ Testing:
+  o test/regress: cover a polling of invalid fd (cb0df5c Tim Hentenaar)
+
+ Code Improvements (bufferevent_openssl)
+  o Make it build using OpenSSL 1.1.0 (3e9e0a0 Kurt Roeckx)
+  o Don't call BIO_number_{read|written} on NULL BIOs. (6702da1 Adam Langley)
+  o Switch from a 512 to 2048-bit RSA key. (f9803a6 Adam Langley)
+
+ Trivial fixes:
+  o Ignore temporary configure files (8fb08ae Azat Khuzhin)
+  o README.md: fix typo: ar -> are (2361616 Simone Basso)
+  o be: just a simple mistake, reinclude the <errno.h> (7521664 Seven)
+
 Changes in version 2.1.6-beta (4 July 2016)
 
  Libevent 2.1.6-beta contains mostly bug fixes (evbuffers, evthread, evdns,
