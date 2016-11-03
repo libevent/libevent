@@ -31,6 +31,7 @@ before_install:
       brew update;
       brew uninstall libtool && brew install libtool;
       brew install openssl;
+      brew install lcov;
       if [ "$CC" == "gcc" ]; then
         export CC=$(ls -t /usr/local/bin/gcc-?.?);
       fi
