@@ -418,5 +418,10 @@ fixing bugs:
  * Xiao Bao Clark
  * zeliard
  * Zonr Chang
+ * Kurt Roeckx
+ * Seven
+ * Simone Basso
+ * Vlad Shcherban
+ * Tim Hentenaar
 
 If we have forgotten your name, please contact us.
