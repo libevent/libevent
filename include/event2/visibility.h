@@ -29,7 +29,11 @@
 
 #include <event2/event-config.h>
 
-#if defined(event_EXPORTS) || defined(event_extra_EXPORTS) || defined(event_core_EXPORTS)
+#if defined(event_EXPORTS) || \
+    defined(event_extra_EXPORTS) || \
+    defined(event_core_EXPORTS) || \
+    defined(event_pthreads_EXPORTS) || \
+    defined(event_openssl_EXPORTS)
 # if defined (__SUNPRO_C) && (__SUNPRO_C >= 0x550)
 #  define EVENT2_EXPORT_SYMBOL __global
 # elif defined __GNUC__
