@@ -87,6 +87,7 @@
 #ifdef EVENT__HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#include <locale.h>
 
 #undef timeout_pending
 #undef timeout_initialized
@@ -496,16 +497,19 @@ evhttp_maybe_add_date_header(struct evkeyvalq *headers)
 #endif
 		struct tm *cur_p;
 		time_t t = time(NULL);
+		char *locale = setlocale(LC_TIME, NULL);
 #ifdef _WIN32
 		cur_p = gmtime(&t);
 #else
 		gmtime_r(&t, &cur);
 		cur_p = &cur;
 #endif
+		setlocale(LC_TIME, "C");
 		if (strftime(date, sizeof(date),
 			"%a, %d %b %Y %H:%M:%S GMT", cur_p) != 0) {
 			evhttp_add_header(headers, "Date", date);
 		}
+		setlocale(LC_TIME, locale);
 	}
 }
 
