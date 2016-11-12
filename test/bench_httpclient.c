@@ -181,12 +181,13 @@ main(int argc, char **argv)
 	struct timeval start, end, total;
 	long long usec;
 	double throughput;
-	resource = "/ref";
 
 #ifdef _WIN32
 	WSADATA WSAData;
 	WSAStartup(0x101, &WSAData);
 #endif
+
+	resource = "/ref";
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 
