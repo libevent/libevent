@@ -249,7 +249,7 @@ evutil_ersatz_socketpair_(int family, int type, int protocol,
 	listen_addr.sin_family = AF_INET;
 	listen_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	listen_addr.sin_port = 0;	/* kernel chooses port.	 */
-	if (bind(listener, (struct sockaddr *) &listen_addr, sizeof (listen_addr))
+	if (evutil_socket_bind(listener, (const struct sockaddr *) &listen_addr, sizeof(listen_addr))
 		== -1)
 		goto tidy_up_and_fail;
 	if (listen(listener, 1) == -1)
@@ -369,6 +369,13 @@ evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 #else
 	return 0;
 #endif
+}
+
+int
+evutil_socket_bind(evutil_socket_t sock, const struct sockaddr *sa,
+    int socklen)
+{
+	return bind(sock, sa, socklen);
 }
 
 int

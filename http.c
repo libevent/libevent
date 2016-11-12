@@ -4351,7 +4351,7 @@ bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
 	}
 
 	if (ai != NULL) {
-		r = bind(fd, ai->ai_addr, (ev_socklen_t)ai->ai_addrlen);
+		r = evutil_socket_bind(fd, ai->ai_addr, (ev_socklen_t)ai->ai_addrlen);
 		if (r == -1)
 			goto out;
 	}

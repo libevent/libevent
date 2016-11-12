@@ -628,7 +628,7 @@ bufferevent_async_connect_(struct bufferevent *bev, evutil_socket_t fd,
 		/* Well, the user will have to bind() */
 		return -1;
 	}
-	if (bind(fd, (struct sockaddr *)&ss, sizeof(ss)) < 0 &&
+	if (evutil_socket_bind(fd, (const struct sockaddr *)&ss, sizeof(ss)) &&
 	    WSAGetLastError() != WSAEINVAL)
 		return -1;
 

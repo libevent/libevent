@@ -246,7 +246,7 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	}
 
 	if (sa) {
-		if (bind(fd, sa, socklen)<0)
+		if (evutil_socket_bind(fd, sa, socklen) < 0)
 			goto err;
 	}
 

@@ -2516,7 +2516,7 @@ evdns_nameserver_add_impl_(struct evdns_base *base, const struct sockaddr *addre
 
 	if (base->global_outgoing_addrlen &&
 	    !evutil_sockaddr_is_loopback_(address)) {
-		if (bind(ns->socket,
+		if (evutil_socket_bind(ns->socket,
 			(struct sockaddr*)&base->global_outgoing_address,
 			base->global_outgoing_addrlen) < 0) {
 			log(EVDNS_LOG_WARN,"Couldn't bind to outgoing address");

@@ -394,7 +394,7 @@ dns_server(void)
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_port = 0; /* kernel picks */
 	my_addr.sin_addr.s_addr = htonl(0x7f000001UL);
-	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
+	if (evutil_socket_bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
 		tt_abort_perror("bind");
 	}
 	slen = sizeof(ss);
@@ -1997,7 +1997,7 @@ test_getaddrinfo_async_cancel_stress(void *ptr)
 		tt_abort_perror("socket");
 	}
 	evutil_make_socket_nonblocking(fd);
-	if (bind(fd, (struct sockaddr*)&sin, sizeof(sin))<0) {
+	if (evutil_socket_bind(fd, (struct sockaddr*)&sin, sizeof(sin)) < 0) {
 		tt_abort_perror("bind");
 	}
 	server = evdns_add_server_port_with_base(base, fd, 0, gaic_server_cb,

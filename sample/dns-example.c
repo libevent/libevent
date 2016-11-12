@@ -201,7 +201,7 @@ main(int c, char **v) {
 		my_addr.sin_family = AF_INET;
 		my_addr.sin_port = htons(10053);
 		my_addr.sin_addr.s_addr = INADDR_ANY;
-		if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr))<0) {
+		if (evutil_socket_bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) <0 ) {
 			perror("bind");
 			exit(1);
 		}

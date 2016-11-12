@@ -498,6 +498,37 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 }
 
 int
+bufferevent_socket_bind(struct bufferevent *bev,
+    const struct sockaddr *addr, int socklen)
+{
+	struct bufferevent_private *bufev_p =
+	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+
+	evutil_socket_t fd;
+	int r = 0;
+	int result = -1;
+
+	bufferevent_incref_and_lock_(bev);
+
+	if (!bufev_p || !addr)
+		goto done;
+
+	fd = bufferevent_getfd(bev);
+	if (fd < 0)
+		goto done;
+
+	r = evutil_socket_bind(fd, addr, socklen);
+	if (r < 0)
+		goto done;
+
+	result = 0;
+
+done:
+	bufferevent_decref_and_unlock_(bev);
+	return result;
+}
+
+int
 bufferevent_socket_connect_hostname(struct bufferevent *bev,
     struct evdns_base *evdns_base, int family, const char *hostname, int port)
 {

@@ -211,6 +211,18 @@ struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socke
 EVENT2_EXPORT_SYMBOL
 int bufferevent_socket_connect(struct bufferevent *, const struct sockaddr *, int);
 
+/**
+   Bind a local address to a socket-based bufferevent.
+
+   @param bufev an existing bufferevent allocated with
+       bufferevent_socket_new().
+   @param addr the address we should connect to
+   @param socklen the length of the address
+   @return 0 on success, -1 on failure.
+ */
+EVENT2_EXPORT_SYMBOL
+int bufferevent_socket_bind(struct bufferevent *, const struct sockaddr *, int);
+
 struct evdns_base;
 /**
    Resolve the hostname 'hostname' and connect to it as with

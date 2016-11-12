@@ -401,6 +401,17 @@ int evutil_make_socket_nonblocking(evutil_socket_t sock);
 EVENT2_EXPORT_SYMBOL
 int evutil_make_listen_socket_reuseable(evutil_socket_t sock);
 
+/** Do platform-specific operations to bind a socket to a local address.
+
+    @param sock The socket to make reusable
+    @param sa The sockaddr_in or sockaddr_in6 to bind to
+    @param socklen The length of the address sa points to
+    @return 0 on success, -1 on failure
+ */
+EVENT2_EXPORT_SYMBOL
+int evutil_socket_bind(evutil_socket_t sock, const struct sockaddr *sa,
+    int socklen);
+
 /** Do platform-specific operations to make a listener port reusable.
 
     Specifically, we want to make sure that multiple programs which also
