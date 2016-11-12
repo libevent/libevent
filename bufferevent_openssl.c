@@ -540,9 +540,11 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int when, int errcode, int ret)
 static void
 init_bio_counts(struct bufferevent_openssl *bev_ssl)
 {
-	BIO *wbio = SSL_get_wbio(bev_ssl->ssl);
+	BIO *rbio, *wbio;
+
+	wbio = SSL_get_wbio(bev_ssl->ssl);
 	bev_ssl->counts.n_written = wbio ? BIO_number_written(wbio) : 0;
-	BIO *rbio = SSL_get_rbio(bev_ssl->ssl);
+	rbio = SSL_get_rbio(bev_ssl->ssl);
 	bev_ssl->counts.n_read = rbio ? BIO_number_read(rbio) : 0;
 }
 
