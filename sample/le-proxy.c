@@ -258,10 +258,12 @@ main(int argc, char **argv)
 
 	if (use_ssl) {
 		int r;
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		SSL_library_init();
 		ERR_load_crypto_strings();
 		SSL_load_error_strings();
 		OpenSSL_add_all_algorithms();
+#endif
 		r = RAND_poll();
 		if (r == 0) {
 			fprintf(stderr, "RAND_poll() failed.\n");
