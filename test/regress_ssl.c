@@ -186,6 +186,7 @@ get_ssl_ctx(void)
 void
 init_ssl(void)
 {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	SSL_library_init();
 	ERR_load_crypto_strings();
 	SSL_load_error_strings();
@@ -193,6 +194,7 @@ init_ssl(void)
 	if (SSLeay() != OPENSSL_VERSION_NUMBER) {
 		TT_DECLARE("WARN", ("Version mismatch for openssl: compiled with %lx but running with %lx", (unsigned long)OPENSSL_VERSION_NUMBER, (unsigned long) SSLeay()));
 	}
+#endif
 }
 
 /* ====================
