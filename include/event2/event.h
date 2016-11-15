@@ -958,6 +958,10 @@ int event_base_got_break(struct event_base *);
  * feature flag EV_FEATURE_EARLY_CLOSE.
  **/
 #define EV_CLOSED	0x0080
+/**
+ * User-defined event. No built-in semantics.
+ **/
+#define EV_USER		0x0100
 /**@}*/
 
 /**
@@ -988,6 +992,19 @@ int event_base_got_break(struct event_base *);
 #define evsignal_del(ev)		event_del(ev)
 #define evsignal_pending(ev, tv)	event_pending((ev), EV_SIGNAL, (tv))
 #define evsignal_initialized(ev)	event_initialized(ev)
+
+/**
+   @name evuser_* macros
+
+   Aliases for working with user-triggered events
+ */
+/**@{*/
+extern const struct timeval __ev_tv0;
+
+#define evuser_new(b, cb, arg)		event_new((b), -1, EV_USER, cb, (arg))
+#define evuser_add(ev) 			event_add((ev), &__ev_tv0)
+#define evuser_del(ev)			event_del(ev)
+#define evuser_trigger(ev, flags)	event_active((ev), (flags), 0)
 /**@}*/
 
 /**
