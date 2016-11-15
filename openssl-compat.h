@@ -3,7 +3,7 @@
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
-static BIO_METHOD *BIO_meth_new(int type, const char *name)
+static inline BIO_METHOD *BIO_meth_new(int type, const char *name)
 {
 	BIO_METHOD *biom = calloc(1, sizeof(BIO_METHOD));
 
@@ -27,6 +27,8 @@ static BIO_METHOD *BIO_meth_new(int type, const char *name)
 #define BIO_get_init(b) (b)->init
 #define BIO_get_data(b) (b)->ptr
 #define BIO_get_shutdown(b) (b)->shutdown
+
+#define TLS_method SSLv23_method
 
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 

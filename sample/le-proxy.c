@@ -33,6 +33,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#include "openssl-compat.h"
 
 static struct event_base *base;
 static struct sockaddr_storage listen_on_addr;
@@ -269,7 +270,7 @@ main(int argc, char **argv)
 			fprintf(stderr, "RAND_poll() failed.\n");
 			return 1;
 		}
-		ssl_ctx = SSL_CTX_new(SSLv23_method());
+		ssl_ctx = SSL_CTX_new(TLS_method());
 	}
 
 	listener = evconnlistener_new_bind(base, accept_cb, NULL,
