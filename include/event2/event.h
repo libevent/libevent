@@ -921,22 +921,22 @@ int event_base_got_break(struct event_base *);
 /**@{*/
 /** Indicates that a timeout has occurred.  It's not necessary to pass
  * this flag to event_for new()/event_assign() to get a timeout. */
-#define EV_TIMEOUT	0x01
+#define EV_TIMEOUT	0x0001
 /** Wait for a socket or FD to become readable */
-#define EV_READ		0x02
+#define EV_READ		0x0002
 /** Wait for a socket or FD to become writeable */
-#define EV_WRITE	0x04
+#define EV_WRITE	0x0004
 /** Wait for a POSIX signal to be raised*/
-#define EV_SIGNAL	0x08
+#define EV_SIGNAL	0x0008
 /**
  * Persistent event: won't get removed automatically when activated.
  *
  * When a persistent event with a timeout becomes activated, its timeout
  * is reset to 0.
  */
-#define EV_PERSIST	0x10
+#define EV_PERSIST	0x0010
 /** Select edge-triggered behavior, if supported by the backend. */
-#define EV_ET		0x20
+#define EV_ET		0x0020
 /**
  * If this option is provided, then event_del() will not block in one thread
  * while waiting for the event callback to complete in another thread.
@@ -948,7 +948,7 @@ int event_base_got_break(struct event_base *);
  * THIS IS AN EXPERIMENTAL API. IT MIGHT CHANGE BEFORE THE LIBEVENT 2.1 SERIES
  * BECOMES STABLE.
  **/
-#define EV_FINALIZE     0x40
+#define EV_FINALIZE     0x0040
 /**
  * Detects connection close events.  You can use this to detect when a
  * connection has been closed, without having to read all the pending data
@@ -957,7 +957,7 @@ int event_base_got_break(struct event_base *);
  * Not all backends support EV_CLOSED.  To detect or require it, use the
  * feature flag EV_FEATURE_EARLY_CLOSE.
  **/
-#define EV_CLOSED	0x80
+#define EV_CLOSED	0x0080
 /**@}*/
 
 /**
