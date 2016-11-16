@@ -87,7 +87,6 @@
 #ifdef EVENT__HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#include <locale.h>
 
 #undef timeout_pending
 #undef timeout_initialized
@@ -491,25 +490,25 @@ static void
 evhttp_maybe_add_date_header(struct evkeyvalq *headers)
 {
 	if (evhttp_find_header(headers, "Date") == NULL) {
+		static const char *DAYS[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+		static const char *MONS[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 		char date[50];
 #ifndef _WIN32
 		struct tm cur;
 #endif
 		struct tm *cur_p;
 		time_t t = time(NULL);
-		char *locale = setlocale(LC_TIME, NULL);
 #ifdef _WIN32
 		cur_p = gmtime(&t);
 #else
 		gmtime_r(&t, &cur);
 		cur_p = &cur;
 #endif
-		setlocale(LC_TIME, "C");
-		if (strftime(date, sizeof(date),
-			"%a, %d %b %Y %H:%M:%S GMT", cur_p) != 0) {
+		if (sizeof(date) - evutil_snprintf(date, sizeof(date), "%s, %d %s %d %d:%d:%d GMT",
+			DAYS[cur_p->tm_wday], cur_p->tm_mday, MONS[cur_p->tm_mon],
+			1900+cur_p->tm_year, cur_p->tm_hour, cur_p->tm_min, cur_p->tm_sec) > 0) {
 			evhttp_add_header(headers, "Date", date);
 		}
-		setlocale(LC_TIME, locale);
 	}
 }
 
