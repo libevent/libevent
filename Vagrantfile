@@ -271,6 +271,53 @@ Vagrant.configure("2") do |config|
     end
   end
 
+  config.vm.define "centos" do |centos|
+    system('tar --overwrite --transform=s/libevent/libevent-centos/ -xf .vagrant/libevent.tar -C .vagrant/')
+
+    centos.vm.synced_folder ".vagrant/libevent-centos", "/vagrant",
+      type: "rsync", group: "wheel"
+
+    centos.vm.box = "centos/7"
+    if ENV['NO_PKG'] != "true"
+      centos.vm.provision "shell", inline: <<-SHELL
+        echo "[russianfedora]" > /etc/yum.repos.d/russianfedora.repo
+        echo name=russianfedora >> /etc/yum.repos.d/russianfedora.repo
+        echo baseurl=http://mirror.yandex.ru/fedora/russianfedora/russianfedora/free/el/releases/7/Everything/x86_64/os/ >> /etc/yum.repos.d/russianfedora.repo
+        echo enabled=1 >> /etc/yum.repos.d/russianfedora.repo
+        echo gpgcheck=0 >> /etc/yum.repos.d/russianfedora.repo
+      SHELL
+      centos.vm.provision "shell", inline: <<-SHELL
+        yum -y install zlib-devel openssl-devel python
+        yum -y install gcc cmake ninja-build
+        yum -y install autoconf automake libtool
+      SHELL
+    end
+
+    if ENV['NO_CMAKE'] != "true"
+      centos.vm.provision "shell", privileged: false, inline: <<-SHELL
+        cd /vagrant
+        rm -fr .cmake-vagrant
+        mkdir -p .cmake-vagrant
+        cd .cmake-vagrant
+        cmake -G Ninja ..
+
+        export CTEST_TEST_TIMEOUT=1800
+        export CTEST_OUTPUT_ON_FAILURE=1
+        export CTEST_PARALLEL_LEVEL=10
+        cmake --build . --target verify
+      SHELL
+    end
+
+    if ENV['NO_AUTOTOOLS'] != "true"
+      centos.vm.provision "shell", privileged: false, inline: <<-SHELL
+        cd /vagrant
+        ./autogen.sh
+        ./configure
+        make -j4 verify
+      SHELL
+    end
+  end
+
   # known failures:
   # - issues with timers (not enough allowed error)
   config.vm.define "win" do |win|
