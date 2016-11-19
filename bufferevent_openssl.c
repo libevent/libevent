@@ -504,7 +504,7 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int when, int errcode, int ret)
 		break;
 	case SSL_ERROR_SYSCALL:
 		/* IO error; possibly a dirty shutdown. */
-		if (ret == 0 && ERR_peek_error() == 0)
+		if ((ret == 0 || ret == -1) && ERR_peek_error() == 0)
 			dirty_shutdown = 1;
 		break;
 	case SSL_ERROR_SSL:
