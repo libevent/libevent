@@ -3607,6 +3607,10 @@ http_simple_test_impl(void *arg, int ssl, int dirty)
 	test_ok = 0;
 
 	bev = create_bev(data->base, -1, ssl);
+#ifdef EVENT__HAVE_OPENSSL
+	bufferevent_openssl_set_allow_dirty_shutdown(bev, dirty);
+#endif
+
 	evcon = evhttp_connection_base_bufferevent_new(
 		data->base, NULL, bev, "127.0.0.1", hs.port);
 	tt_assert(evcon);
