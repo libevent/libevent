@@ -1743,6 +1743,11 @@ http_virtual_host_test(void *arg)
 static void
 http_request_empty_done(struct evhttp_request *req, void *arg)
 {
+	if (!req) {
+		fprintf(stderr, "FAILED\n");
+		exit(1);
+	}
+
 	if (evhttp_request_get_response_code(req) != HTTP_OK) {
 		fprintf(stderr, "FAILED\n");
 		exit(1);
