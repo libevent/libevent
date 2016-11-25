@@ -192,6 +192,8 @@ static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr
 static void evhttp_write_buffer(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
 static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
+static int
+evhttp_method_may_have_body(enum evhttp_cmd_type type);
 
 /* callbacks for bufferevent */
 static void evhttp_read_cb(struct bufferevent *, void *);
@@ -331,6 +333,15 @@ evhttp_method(enum evhttp_cmd_type type)
 	case EVHTTP_REQ_PATCH:
 		method = "PATCH";
 		break;
+	case EVHTTP_REQ_SUBSCRIBE:
+		method = "SUBSCRIBE";
+		break;
+	case EVHTTP_REQ_UNSUBSCRIBE:
+		method = "UNSUBSCRIBE";
+		break;
+	case EVHTTP_REQ_NOTIFY:
+		method = "NOTIFY";
+		break;
 	default:
 		method = NULL;
 		break;
@@ -444,7 +455,7 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	    method, req->uri, req->major, req->minor);
 
 	/* Add the content length on a post or put request if missing */
-	if ((req->type == EVHTTP_REQ_POST || req->type == EVHTTP_REQ_PUT) &&
+	if (evhttp_method_may_have_body(req->type) &&
 	    evhttp_find_header(req->output_headers, "Content-Length") == NULL){
 		char size[22];
 		evutil_snprintf(size, sizeof(size), EV_SIZE_FMT,
@@ -1783,24 +1794,28 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 			if (method[4] == 'E' && method[3] == 'C' && method[2] == 'A' && method[1] == 'R') {
 			    type = EVHTTP_REQ_TRACE;
 			}
-                    
+
 			break;
 		    default:
 			break;
 		}
 		break;
 	    case 6:
-		/* Method length is 6, only valid method 6 bytes in length is DELEte */
-            
-		/* If the first byte isn't 'D' then it's invalid */
-		if (*method != 'D') {
+		/* Method length is 6 bytes : DELETE or NOTIFY */
+        switch (*method) {
+			case 'D':
+			if (method[5] == 'E' && method[4] == 'T' && method[3] == 'E' && method[2] == 'L' && method[1] == 'E') {
+			    type = EVHTTP_REQ_DELETE;
+			}
 		    break;
+			case 'N':
+			if (method[5] == 'Y' && method[4] == 'F' && method[3] == 'I' && method[2] == 'T' && method[1] == 'O') {
+			    type = EVHTTP_REQ_NOTIFY;
+			}
+			break;
+		    default:
+			break;
 		}
-
-		if (method[5] == 'E' && method[4] == 'T' && method[3] == 'E' && method[2] == 'L' && method[1] == 'E') {
-		    type = EVHTTP_REQ_DELETE;
-		}
-
 		break;
 	    case 7:
 		/* Method length is 7, only valid methods are "OPTIONS" and "CONNECT" */
@@ -1821,6 +1836,18 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 			break;
 		    default:
 			break;
+		}
+		break;
+		case 9:
+		/* length 9 bytes : SUBSCRIBE */
+		if(memcmp(method, "SUBSCRIBE", 9) == 0) {
+		    type = EVHTTP_REQ_SUBSCRIBE;
+		}
+		break;
+		case 11:
+		/* length 11 bytes : UNSUBSCRIBE */
+		if(memcmp(method, "UNSUBSCRIBE", 11) == 0) {
+		    type = EVHTTP_REQ_UNSUBSCRIBE;
 		}
 		break;
 	} /* switch */
@@ -2168,8 +2195,11 @@ evhttp_method_may_have_body(enum evhttp_cmd_type type)
 	case EVHTTP_REQ_POST:
 	case EVHTTP_REQ_PUT:
 	case EVHTTP_REQ_PATCH:
+	case EVHTTP_REQ_NOTIFY:
 		return 1;
 	case EVHTTP_REQ_TRACE:
+	case EVHTTP_REQ_SUBSCRIBE:
+	case EVHTTP_REQ_UNSUBSCRIBE:
 		return 0;
 	/* XXX May any of the below methods have a body? */
 	case EVHTTP_REQ_GET:
@@ -2353,7 +2383,7 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 {
 	struct evhttp_connection *evcon = NULL;
 
-	event_debug(("Attempting connection to %s:%d\n", address, port));
+	event_debug(("%s %s:%d\n", (dnsbase?"New connection from":"Attempting connection to"), address, port));
 
 	if ((evcon = mm_calloc(1, sizeof(struct evhttp_connection))) == NULL) {
 		event_warn("%s: calloc failed", __func__);
