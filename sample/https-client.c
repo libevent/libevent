@@ -119,6 +119,7 @@ err_openssl(const char *func)
 	exit(1);
 }
 
+#ifndef _WIN32
 /* See http://archives.seul.org/libevent/users/Jan-2013/msg00039.html */
 static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
 {
@@ -181,6 +182,7 @@ static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
 		return 0;
 	}
 }
+#endif
 
 int
 main(int argc, char **argv)
@@ -366,7 +368,9 @@ main(int argc, char **argv)
 	 * "wrapping" OpenSSL's routine, not replacing it. */
 	SSL_CTX_set_cert_verify_callback(ssl_ctx, cert_verify_callback,
 					  (void *) host);
-#endif // not _WIN32
+#else // _WIN32
+	(void)crt;
+#endif // _WIN32
 
 	// Create event base
 	base = event_base_new();
