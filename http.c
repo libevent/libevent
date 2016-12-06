@@ -1022,8 +1022,8 @@ evhttp_lingering_close(struct evhttp_connection *evcon,
 	req->ntoread -= n;
 	req->body_size += n;
 
-	event_debug(("Request body is too long, left " EV_SIZE_FMT,
-		EV_SIZE_ARG(req->ntoread)));
+	event_debug(("Request body is too long, left " EV_I64_FMT,
+		EV_I64_ARG(req->ntoread)));
 
 	evbuffer_drain(buf, n);
 	if (!req->ntoread)
