@@ -54,7 +54,7 @@ extern "C" {
 #ifdef EVENT__inline
 #define inline EVENT__inline
 #endif
-#ifdef EVENT____func__
+#if defined(EVENT____func__) && !defined(__func__)
 #define __func__ EVENT____func__
 #endif
 

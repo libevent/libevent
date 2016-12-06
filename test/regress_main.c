@@ -43,10 +43,6 @@
 
 #include "event2/event-config.h"
 
-#ifdef EVENT____func__
-#define __func__ EVENT____func__
-#endif
-
 #if 0
 #include <sys/types.h>
 #include <sys/stat.h>

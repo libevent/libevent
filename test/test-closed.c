@@ -49,10 +49,6 @@
 #include <event.h>
 #include <evutil.h>
 
-#ifdef EVENT____func__
-#define __func__ EVENT____func__
-#endif
-
 struct timeval timeout = {3, 0};
 
 static void

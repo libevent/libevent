@@ -49,10 +49,6 @@
 #include <event.h>
 #include <evutil.h>
 
-#ifdef EVENT____func__
-#define __func__ EVENT____func__
-#endif
-
 int test_okay = 1;
 int called = 0;
 struct timeval timeout = {60, 0};
