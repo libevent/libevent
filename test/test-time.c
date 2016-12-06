@@ -25,6 +25,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "event2/event-config.h"
+#include "util-internal.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -41,7 +42,6 @@
 #include "event2/event.h"
 #include "event2/event_compat.h"
 #include "event2/event_struct.h"
-#include "util-internal.h"
 
 int called = 0;
 

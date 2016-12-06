@@ -34,6 +34,8 @@
 #include <windows.h>
 #endif
 
+#include "util-internal.h"
+
 #ifndef _WIN32
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -46,7 +48,6 @@
 #include "event2/bufferevent_struct.h"
 #include "event2/buffer.h"
 #include "event2/listener.h"
-#include "util-internal.h"
 
 #include "regress.h"
 #include "tinytest.h"
