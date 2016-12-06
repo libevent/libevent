@@ -97,10 +97,8 @@ int main(int argc, const char **argv)
 	VERIFY(base = event_base_new());
 	VERIFY(evcon = evhttp_connection_base_new(base, NULL,
 		evhttp_uri_get_host(proxy), evhttp_uri_get_port(proxy)));
-	connect_base = (struct connect_base){
-		.evcon = evcon,
-		.location = location,
-	};
+	connect_base.evcon = evcon;
+	connect_base.location = location;
 	VERIFY(req = evhttp_request_new(connect_cb, &connect_base));
 
 	evhttp_add_header(req->output_headers, "Connection", "keep-alive");
