@@ -323,6 +323,8 @@ struct bufferevent_openssl {
 
 	/* Are we currently connecting, accepting, or doing IO? */
 	unsigned state : 2;
+	/* If we reset fd, we sould reset state too */
+	unsigned old_state : 2;
 };
 
 static int be_openssl_enable(struct bufferevent *, short);
@@ -502,7 +504,7 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int when, int errcode, int ret)
 		break;
 	case SSL_ERROR_SYSCALL:
 		/* IO error; possibly a dirty shutdown. */
-		if (ret == 0 && ERR_peek_error() == 0)
+		if ((ret == 0 || ret == -1) && ERR_peek_error() == 0)
 			dirty_shutdown = 1;
 		break;
 	case SSL_ERROR_SSL:
@@ -1004,12 +1006,6 @@ set_open_callbacks(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 		return (r1<0 || r2<0) ? -1 : 0;
 	}
 }
-static int
-set_open_callbacks_auto(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
-{
-	fd = be_openssl_auto_fd(bev_ssl, fd);
-	return set_open_callbacks(bev_ssl, fd);
-}
 
 static int
 do_handshake(struct bufferevent_openssl *bev_ssl)
@@ -1111,13 +1107,6 @@ set_handshake_callbacks(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 	}
 }
 
-static int
-set_handshake_callbacks_auto(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
-{
-	fd = be_openssl_auto_fd(bev_ssl, fd);
-	return set_handshake_callbacks(bev_ssl, fd);
-}
-
 int
 bufferevent_ssl_renegotiate(struct bufferevent *bev)
 {
@@ -1127,7 +1116,7 @@ bufferevent_ssl_renegotiate(struct bufferevent *bev)
 	if (SSL_renegotiate(bev_ssl->ssl) < 0)
 		return -1;
 	bev_ssl->state = BUFFEREVENT_SSL_CONNECTING;
-	if (set_handshake_callbacks_auto(bev_ssl, -1) < 0)
+	if (set_handshake_callbacks(bev_ssl, be_openssl_auto_fd(bev_ssl, -1)) < 0)
 		return -1;
 	if (!bev_ssl->underlying)
 		return do_handshake(bev_ssl);
@@ -1262,6 +1251,34 @@ be_openssl_flush(struct bufferevent *bufev,
 	return 0;
 }
 
+int
+be_openssl_set_fd(struct bufferevent_openssl *bev_ssl,
+    enum bufferevent_ssl_state state, int fd)
+{
+	bev_ssl->state = state;
+
+	switch (state) {
+	case BUFFEREVENT_SSL_ACCEPTING:
+		SSL_set_accept_state(bev_ssl->ssl);
+		if (set_handshake_callbacks(bev_ssl, fd) < 0)
+			return -1;
+		break;
+	case BUFFEREVENT_SSL_CONNECTING:
+		SSL_set_connect_state(bev_ssl->ssl);
+		if (set_handshake_callbacks(bev_ssl, fd) < 0)
+			return -1;
+		break;
+	case BUFFEREVENT_SSL_OPEN:
+		if (set_open_callbacks(bev_ssl, fd) < 0)
+			return -1;
+		break;
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
 static int
 be_openssl_ctrl(struct bufferevent *bev,
     enum bufferevent_ctrl_op op, union bufferevent_ctrl_data *data)
@@ -1276,11 +1293,8 @@ be_openssl_ctrl(struct bufferevent *bev,
 			bio = BIO_new_socket(data->fd, 0);
 			SSL_set_bio(bev_ssl->ssl, bio, bio);
 		}
-		if (bev_ssl->state == BUFFEREVENT_SSL_OPEN && data->fd >= 0)
-			return set_open_callbacks(bev_ssl, data->fd);
-		else {
-			return set_handshake_callbacks(bev_ssl, data->fd);
-		}
+
+		return be_openssl_set_fd(bev_ssl, bev_ssl->old_state, data->fd);
 	case BEV_CTRL_GET_FD:
 		data->fd = event_get_fd(&bev->ev_read);
 		return 0;
@@ -1344,29 +1358,14 @@ bufferevent_openssl_new_impl(struct event_base *base,
 		bufferevent_incref_(underlying);
 	}
 
-	bev_ssl->state = state;
+	bev_ssl->old_state = state;
 	bev_ssl->last_write = -1;
 
 	init_bio_counts(bev_ssl);
 
-	switch (state) {
-	case BUFFEREVENT_SSL_ACCEPTING:
-		SSL_set_accept_state(bev_ssl->ssl);
-		if (set_handshake_callbacks_auto(bev_ssl, fd) < 0)
-			goto err;
-		break;
-	case BUFFEREVENT_SSL_CONNECTING:
-		SSL_set_connect_state(bev_ssl->ssl);
-		if (set_handshake_callbacks_auto(bev_ssl, fd) < 0)
-			goto err;
-		break;
-	case BUFFEREVENT_SSL_OPEN:
-		if (set_open_callbacks_auto(bev_ssl, fd) < 0)
-			goto err;
-		break;
-	default:
+	fd = be_openssl_auto_fd(bev_ssl, fd);
+	if (be_openssl_set_fd(bev_ssl, state, fd))
 		goto err;
-	}
 
 	if (underlying) {
 		bufferevent_setwatermark(underlying, EV_READ, 0, 0);
