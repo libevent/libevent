@@ -51,6 +51,13 @@
 #include <sys/stat.h>
 #include <string.h>
 
+/** evutil_usleep_() */
+#if defined(_WIN32)
+#elif defined(EVENT__HAVE_NANOSLEEP)
+#elif defined(EVENT__HAVE_USLEEP)
+#include <unistd.h>
+#endif
+
 #include "event2/util.h"
 #include "util-internal.h"
 #include "log-internal.h"
