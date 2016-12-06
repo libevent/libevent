@@ -1251,7 +1251,7 @@ be_openssl_flush(struct bufferevent *bufev,
 	return 0;
 }
 
-int
+static int
 be_openssl_set_fd(struct bufferevent_openssl *bev_ssl,
     enum bufferevent_ssl_state state, int fd)
 {
