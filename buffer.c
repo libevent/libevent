@@ -682,8 +682,8 @@ evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
 		if ((chain = evbuffer_expand_singlechain(buf, size)) == NULL)
 			goto done;
 
-		vec[0].iov_base = CHAIN_SPACE_PTR(chain);
-		vec[0].iov_len = (size_t) CHAIN_SPACE_LEN(chain);
+		vec[0].iov_base = (void *)CHAIN_SPACE_PTR(chain);
+		vec[0].iov_len = (size_t)CHAIN_SPACE_LEN(chain);
 		EVUTIL_ASSERT(size<0 || (size_t)vec[0].iov_len >= (size_t)size);
 		n = 1;
 	} else {
@@ -732,7 +732,7 @@ evbuffer_commit_space(struct evbuffer *buf,
 		result = 0;
 		goto done;
 	} else if (n_vecs == 1 &&
-	    (buf->last && vec[0].iov_base == (void*)CHAIN_SPACE_PTR(buf->last))) {
+	    (buf->last && vec[0].iov_base == (void *)CHAIN_SPACE_PTR(buf->last))) {
 		/* The user only got or used one chain; it might not
 		 * be the first one with space in it. */
 		if ((size_t)vec[0].iov_len > (size_t)CHAIN_SPACE_LEN(buf->last))
@@ -758,7 +758,7 @@ evbuffer_commit_space(struct evbuffer *buf,
 	for (i=0; i<n_vecs; ++i) {
 		if (!chain)
 			goto done;
-		if (vec[i].iov_base != (void*)CHAIN_SPACE_PTR(chain) ||
+		if (vec[i].iov_base != (void *)CHAIN_SPACE_PTR(chain) ||
 		    (size_t)vec[i].iov_len > CHAIN_SPACE_LEN(chain))
 			goto done;
 		chain = chain->next;
@@ -2236,7 +2236,7 @@ evbuffer_read_setup_vecs_(struct evbuffer *buf, ev_ssize_t howmuch,
 		size_t avail = (size_t) CHAIN_SPACE_LEN(chain);
 		if (avail > (howmuch - so_far) && exact)
 			avail = howmuch - so_far;
-		vecs[i].iov_base = CHAIN_SPACE_PTR(chain);
+		vecs[i].iov_base = (void *)CHAIN_SPACE_PTR(chain);
 		vecs[i].iov_len = avail;
 		so_far += avail;
 		chain = chain->next;
@@ -2789,8 +2789,8 @@ evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
 		    - start_at->internal_.pos_in_chain;
 		idx = 1;
 		if (n_vec > 0) {
-			vec[0].iov_base = chain->buffer + chain->misalign
-			    + start_at->internal_.pos_in_chain;
+			vec[0].iov_base = (void *)(chain->buffer + chain->misalign
+			    + start_at->internal_.pos_in_chain);
 			vec[0].iov_len = len_so_far;
 		}
 		chain = chain->next;
@@ -2811,7 +2811,7 @@ evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
 		if (len >= 0 && len_so_far >= len)
 			break;
 		if (idx<n_vec) {
-			vec[idx].iov_base = chain->buffer + chain->misalign;
+			vec[idx].iov_base = (void *)(chain->buffer + chain->misalign);
 			vec[idx].iov_len = chain->off;
 		} else if (len<0) {
 			break;
