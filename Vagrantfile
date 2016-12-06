@@ -266,7 +266,7 @@ Vagrant.configure("2") do |config|
         cd /vagrant
         ./autogen.sh
         ./configure
-        gmake -j4 verify
+        make -j4 verify
       SHELL
     end
   end
