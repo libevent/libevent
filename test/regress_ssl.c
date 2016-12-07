@@ -234,14 +234,13 @@ enum regress_openssl_type
 static void
 bufferevent_openssl_check_fd(struct bufferevent *bev, int filter)
 {
+	tt_int_op(bufferevent_getfd(bev), !=, -1);
+	tt_int_op(bufferevent_setfd(bev, -1), ==, 0);
 	if (filter) {
-		tt_int_op(bufferevent_getfd(bev), ==, -1);
-		tt_int_op(bufferevent_setfd(bev, -1), ==, -1);
-	} else {
 		tt_int_op(bufferevent_getfd(bev), !=, -1);
-		tt_int_op(bufferevent_setfd(bev, -1), ==, 0);
+	} else {
+		tt_int_op(bufferevent_getfd(bev), ==, -1);
 	}
-	tt_int_op(bufferevent_getfd(bev), ==, -1);
 
 end:
 	;
