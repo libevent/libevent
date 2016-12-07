@@ -85,6 +85,7 @@ static void http_on_complete_cb(struct evhttp_request *req, void *arg);
 
 #define HTTP_BIND_IPV6 1
 #define HTTP_BIND_SSL 2
+#define HTTP_SSL_FILTER 4
 static int
 http_bind(struct evhttp *myhttp, ev_uint16_t *pport, int mask)
 {
@@ -424,18 +425,25 @@ http_complete_write(evutil_socket_t fd, short what, void *arg)
 }
 
 static struct bufferevent *
-create_bev(struct event_base *base, int fd, int ssl)
+create_bev(struct event_base *base, int fd, int ssl_mask)
 {
 	int flags = BEV_OPT_DEFER_CALLBACKS;
 	struct bufferevent *bev = NULL;
 
-	if (!ssl) {
+	if (!ssl_mask) {
 		bev = bufferevent_socket_new(base, fd, flags);
 	} else {
 #ifdef EVENT__HAVE_OPENSSL
 		SSL *ssl = SSL_new(get_ssl_ctx());
-		bev = bufferevent_openssl_socket_new(
-			base, fd, ssl, BUFFEREVENT_SSL_CONNECTING, flags);
+		if (ssl_mask & HTTP_SSL_FILTER) {
+			struct bufferevent *underlying =
+				bufferevent_socket_new(base, fd, flags);
+			bev = bufferevent_openssl_filter_new(
+				base, underlying, ssl, BUFFEREVENT_SSL_CONNECTING, flags);
+		} else {
+			bev = bufferevent_openssl_socket_new(
+				base, fd, ssl, BUFFEREVENT_SSL_CONNECTING, flags);
+		}
 		bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
 #endif
 	}
@@ -4519,6 +4527,8 @@ http_request_own_test(void *arg)
 #ifdef EVENT__HAVE_OPENSSL
 static void https_basic_test(void *arg)
 { return http_basic_test_impl(arg, 1); }
+static void https_filter_basic_test(void *arg)
+{ return http_basic_test_impl(arg, 1 | HTTP_SSL_FILTER); }
 static void https_incomplete_test(void *arg)
 { http_incomplete_test_(arg, 0, 1); }
 static void https_incomplete_timeout_test(void *arg)
@@ -4533,6 +4543,8 @@ static void https_connection_retry_test(void *arg)
 { return http_connection_retry_test_impl(arg, 1); }
 static void https_chunk_out_test(void *arg)
 { return http_chunk_out_test_impl(arg, 1); }
+static void https_filter_chunk_out_test(void *arg)
+{ return http_chunk_out_test_impl(arg, 1 | HTTP_SSL_FILTER); }
 static void https_stream_out_test(void *arg)
 { return http_stream_out_test_impl(arg, 1); }
 static void https_connection_fail_test(void *arg)
@@ -4620,6 +4632,7 @@ struct testcase_t http_testcases[] = {
 
 #ifdef EVENT__HAVE_OPENSSL
 	HTTPS(basic),
+	HTTPS(filter_basic),
 	HTTPS(simple),
 	HTTPS(simple_dirty),
 	HTTPS(incomplete),
@@ -4628,6 +4641,7 @@ struct testcase_t http_testcases[] = {
 	{ "https_connection_retry_conn_address", https_connection_retry_conn_address_test,
 	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 	HTTPS(chunk_out),
+	HTTPS(filter_chunk_out),
 	HTTPS(stream_out),
 	HTTPS(connection_fail),
 	HTTPS(write_during_read),
