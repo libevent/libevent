@@ -138,6 +138,28 @@ evutil_usleep_(const struct timeval *tv)
 #endif
 }
 
+int
+evutil_date_rfc1123(char *date, const size_t datelen, struct tm *cur_p) {
+	static const char *DAYS[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+	static const char *MONTHS[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+#ifndef _WIN32
+	struct tm cur;
+#endif
+	time_t t = time(NULL);
+	// If `cur_p` is null, set system's current time.
+	if(cur_p == NULL) {
+#ifdef _WIN32
+		cur_p = gmtime(&t);
+#else
+		gmtime_r(&t, &cur);
+		cur_p = &cur;
+#endif
+	}
+	return evutil_snprintf(date, datelen, "%s, %02d %s %4d %02d:%02d:%02d GMT",
+		DAYS[cur_p->tm_wday], cur_p->tm_mday, MONTHS[cur_p->tm_mon],
+		1900+cur_p->tm_year, cur_p->tm_hour, cur_p->tm_min, cur_p->tm_sec);
+}
+
 /*
    This function assumes it's called repeatedly with a
    not-actually-so-monotonic time source whose outputs are in 'tv'. It

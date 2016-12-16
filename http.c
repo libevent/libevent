@@ -80,7 +80,6 @@
 #include <syslog.h>
 #endif
 #include <signal.h>
-#include <time.h>
 #ifdef EVENT__HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -490,23 +489,8 @@ static void
 evhttp_maybe_add_date_header(struct evkeyvalq *headers)
 {
 	if (evhttp_find_header(headers, "Date") == NULL) {
-		static const char *WEEKS[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-		static const char *MONTHS[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 		char date[50];
-#ifndef _WIN32
-		struct tm cur;
-#endif
-		struct tm *cur_p;
-		time_t t = time(NULL);
-#ifdef _WIN32
-		cur_p = gmtime(&t);
-#else
-		gmtime_r(&t, &cur);
-		cur_p = &cur;
-#endif
-		if (sizeof(date) - evutil_snprintf(date, sizeof(date), "%s, %02d %s %4d %02d:%02d:%02d GMT",
-			WEEKS[cur_p->tm_wday], cur_p->tm_mday, MONTHS[cur_p->tm_mon],
-			1900+cur_p->tm_year, cur_p->tm_hour, cur_p->tm_min, cur_p->tm_sec) > 0) {
+		if (sizeof(date) - evutil_date_rfc1123(date, sizeof(date), NULL) > 0) {
 			evhttp_add_header(headers, "Date", date);
 		}
 	}
