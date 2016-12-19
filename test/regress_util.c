@@ -1418,6 +1418,7 @@ test_evutil_date_rfc1123(void *arg)
 {
 	struct tm query;
 	char result[30];
+	size_t i = 0;
 
 	/* Checks if too small buffers are safely accepted. */
 	{
@@ -1427,7 +1428,7 @@ test_evutil_date_rfc1123(void *arg)
 	}
 
 	/* Checks for testcases. */
-	for (size_t i=0; ; i++) {
+	for (i = 0; ; i++) {
 		struct date_rfc1123_case c = date_rfc1123_cases[i];
 
 		if (strlen(c.date) == 0)
