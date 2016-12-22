@@ -162,6 +162,7 @@ evutil_date_rfc1123(char *date, const size_t datelen, const struct tm *tm)
 	/* If `tm` is null, set system's current time. */
 	if (tm == NULL) {
 #ifdef _WIN32
+		/** TODO: detect _gmtime64()/_gmtime64_s() */
 		tm = gmtime(&t);
 #else
 		gmtime_r(&t, &sys);

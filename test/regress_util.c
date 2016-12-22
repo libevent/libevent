@@ -1379,9 +1379,15 @@ end:
 }
 
 static void
-create_tm_from_unix_epoch(struct tm *cur_p, const time_t t) {
+create_tm_from_unix_epoch(struct tm *cur_p, const time_t t)
+{
 #ifdef _WIN32
-	cur_p = gmtime(&t);
+	struct tm *tmp = gmtime(&t);
+	if (!tmp) {
+		fprintf(stderr, "gmtime: %s (%i)", strerror(errno), (int)t);
+		exit(1);
+	}
+	*cur_p = *tmp;
 #else
 	gmtime_r(&t, cur_p);
 #endif
@@ -1405,9 +1411,13 @@ static struct date_rfc1123_case {
 	{  1255132800, "Sat, 10 Oct 2009 00:00:00 GMT"},
 	{  1289433600, "Thu, 11 Nov 2010 00:00:00 GMT"},
 	{  1323648000, "Mon, 12 Dec 2011 00:00:00 GMT"},
+#ifndef _WIN32
+	/** In win32 case we have max   "23:59:59 January 18, 2038, UTC" for time32 */
 	{  4294967296, "Sun, 07 Feb 2106 06:28:16 GMT"} /* 2^32 */,
+	/** In win32 case we have max "23:59:59, December 31, 3000, UTC" for time64 */
 	{253402300799, "Fri, 31 Dec 9999 23:59:59 GMT"} /* long long future no one can imagine */,
 	{  1456704000, "Mon, 29 Feb 2016 00:00:00 GMT"} /* leap year */,
+#endif
 	{  1435708800, "Wed, 01 Jul 2015 00:00:00 GMT"} /* leap second */,
 	{  1481866376, "Fri, 16 Dec 2016 05:32:56 GMT"} /* the time this test case is generated */,
 	{0, ""} /* end of test cases. */
