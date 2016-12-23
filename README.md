@@ -55,7 +55,7 @@ EVENT__DISABLE_DEBUG_MODE:BOOL=OFF
 EVENT__DISABLE_MM_REPLACEMENT:BOOL=OFF
 
 # Define if libevent should build without support for OpenSSL encrpytion
-EVENT__DISABLE_OPENSSL:BOOL=ON
+EVENT__DISABLE_OPENSSL:BOOL=OFF
 
 # Disable the regress tests
 EVENT__DISABLE_REGRESS:BOOL=OFF
