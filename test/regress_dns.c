@@ -1250,15 +1250,6 @@ test_bufferevent_connect_hostname(void *arg)
 	bufferevent_setcb(be5, NULL, NULL, be_connect_hostname_event_cb,
 	    &be5_outcome);
 
-	/* Launch an async resolve that will fail. */
-	tt_assert(!bufferevent_socket_connect_hostname(be1, dns, AF_INET,
-		"nosuchplace.example.com", listener_port));
-	/* Connect to the IP without resolving. */
-	tt_assert(!bufferevent_socket_connect_hostname(be2, dns, AF_INET,
-		"127.0.0.1", listener_port));
-	/* Launch an async resolve that will succeed. */
-	tt_assert(!bufferevent_socket_connect_hostname(be3, dns, AF_INET,
-		"nobodaddy.example.com", listener_port));
 	/* Use the blocking resolver.  This one will fail if your resolver
 	 * can't resolve localhost to 127.0.0.1 */
 	tt_assert(!bufferevent_socket_connect_hostname(be4, NULL, AF_INET,
@@ -1278,6 +1269,15 @@ test_bufferevent_connect_hostname(void *arg)
 		expect_err5 = evutil_getaddrinfo(
 			"nonesuch.nowhere.example.com", "80", &hints, &ai);
 	}
+	/* Launch an async resolve that will fail. */
+	tt_assert(!bufferevent_socket_connect_hostname(be1, dns, AF_INET,
+		"nosuchplace.example.com", listener_port));
+	/* Connect to the IP without resolving. */
+	tt_assert(!bufferevent_socket_connect_hostname(be2, dns, AF_INET,
+		"127.0.0.1", listener_port));
+	/* Launch an async resolve that will succeed. */
+	tt_assert(!bufferevent_socket_connect_hostname(be3, dns, AF_INET,
+		"nobodaddy.example.com", listener_port));
 
 	event_base_dispatch(data->base);
 
