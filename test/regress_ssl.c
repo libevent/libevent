@@ -227,19 +227,20 @@ enum regress_openssl_type
 	REGRESS_OPENSSL_FREED = 256,
 	REGRESS_OPENSSL_TIMEOUT = 512,
 	REGRESS_OPENSSL_SLEEP = 1024,
+
+	REGRESS_OPENSSL_CLIENT_WRITE = 2048,
 };
 
 static void
 bufferevent_openssl_check_fd(struct bufferevent *bev, int filter)
 {
+	tt_int_op(bufferevent_getfd(bev), !=, -1);
+	tt_int_op(bufferevent_setfd(bev, -1), ==, 0);
 	if (filter) {
-		tt_int_op(bufferevent_getfd(bev), ==, -1);
-		tt_int_op(bufferevent_setfd(bev, -1), ==, -1);
-	} else {
 		tt_int_op(bufferevent_getfd(bev), !=, -1);
-		tt_int_op(bufferevent_setfd(bev, -1), ==, 0);
+	} else {
+		tt_int_op(bufferevent_getfd(bev), ==, -1);
 	}
-	tt_int_op(bufferevent_getfd(bev), ==, -1);
 
 end:
 	;
@@ -322,6 +323,9 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 			if (--pending_connect_events == 0)
 				event_base_loopexit(exit_base, NULL);
 		}
+
+		if ((type & REGRESS_OPENSSL_CLIENT_WRITE) && (type & REGRESS_OPENSSL_CLIENT))
+			evbuffer_add_printf(bufferevent_get_output(bev), "1\n");
 	} else if (what & BEV_EVENT_EOF) {
 		TT_BLATHER(("Got a good EOF"));
 		++got_close;
@@ -465,7 +469,8 @@ regress_bufferevent_openssl(void *arg)
 		bufferevent_enable(bev1, EV_READ|EV_WRITE);
 		bufferevent_enable(bev2, EV_READ|EV_WRITE);
 
-		evbuffer_add_printf(bufferevent_get_output(bev1), "1\n");
+		if (!(type & REGRESS_OPENSSL_CLIENT_WRITE))
+			evbuffer_add_printf(bufferevent_get_output(bev1), "1\n");
 
 		event_base_dispatch(data->base);
 
@@ -488,7 +493,8 @@ regress_bufferevent_openssl(void *arg)
 
 		bufferevent_set_timeouts(bev1, &t, &t);
 
-		evbuffer_add_printf(bufferevent_get_output(bev1), "1\n");
+		if (!(type & REGRESS_OPENSSL_CLIENT_WRITE))
+			evbuffer_add_printf(bufferevent_get_output(bev1), "1\n");
 
 		event_base_dispatch(data->base);
 
@@ -731,8 +737,14 @@ struct testcase_t ssl_testcases[] = {
 #define T(a) ((void *)(a))
 	{ "bufferevent_socketpair", regress_bufferevent_openssl,
 	  TT_ISOLATED, &basic_setup, T(REGRESS_OPENSSL_SOCKETPAIR) },
+	{ "bufferevent_socketpair_write_after_connect", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_SOCKETPAIR|REGRESS_OPENSSL_CLIENT_WRITE) },
 	{ "bufferevent_filter", regress_bufferevent_openssl,
 	  TT_ISOLATED, &basic_setup, T(REGRESS_OPENSSL_FILTER) },
+	{ "bufferevent_filter_write_after_connect", regress_bufferevent_openssl,
+	  TT_ISOLATED, &basic_setup,
+	  T(REGRESS_OPENSSL_FILTER|REGRESS_OPENSSL_CLIENT_WRITE) },
 	{ "bufferevent_renegotiate_socketpair", regress_bufferevent_openssl,
 	  TT_ISOLATED, &basic_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_RENEGOTIATE) },
