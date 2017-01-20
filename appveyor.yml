@@ -49,11 +49,12 @@ build_script:
         bash -lc "echo 'C:\MinGW /mingw' > /etc/fstab"
         bash -lc "echo 'C:\OpenSSL-Win32 /ssl' >> /etc/fstab"
         $env:APPVEYOR_BUILD_FOLDER = $env:APPVEYOR_BUILD_FOLDER -replace "\\", "/"
-        bash -lc "exec 0</dev/null; exec 2>&1; cd $env:APPVEYOR_BUILD_FOLDER; bash -x ./autogen.sh && ./configure LDFLAGS='-L/ssl -L/ssl/lib -L/ssl/lib/MinGW' CFLAGS=-I/ssl/include $env:EVENT_CONFIGURE_OPTIONS && make && make verify"
+        bash -lc "exec 0</dev/null; exec 2>&1; cd $env:APPVEYOR_BUILD_FOLDER; bash -x ./autogen.sh && ./configure LDFLAGS='-L/ssl -L/ssl/lib -L/ssl/lib/MinGW' CFLAGS=-I/ssl/include $env:EVENT_CONFIGURE_OPTIONS && make && make verify -j20"
       } else {
         md build
         cd build
         cmake .. $env:EVENT_CMAKE_OPTIONS
         cmake --build .
+        $env:CTEST_PARALLEL_LEVEL="20"
         ctest --output-on-failure
       }
