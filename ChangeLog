@@ -1,3 +1,41 @@
+Changes in version 2.1.8-stable (22 January 2017)
+
+ Libevent 2.1.8-stable, it contains openssl fixes for resetting fd and using
+ bufferevent_openssl_filter_new(). vagrant fixes, some build fixes, increased
+ timeout for some tests (to reduce number of failures due to timing issues),
+ date in RFC1123 format and running tests in parallel.
+
+ There are highlighted changes above.
+
+ Build fixes:
+  o Fix _FILE_OFFSET_BITS redinition (solaris/autotools) (336f3b11 Azat Khuzhin)
+  o util-internal: fix __func__ redefinition (netbsd) (253e7fa9 Azat Khuzhin)
+  o Fix signedness differ for iov_base (solaris) (2c62062e Azat Khuzhin)
+  o evutil_time: include <unistd.h> when there is only sleep()/usleep() (3e75194c Azat Khuzhin)
+  o http: fix formatter for pritnf for req->ntoread (osx) (1cbf26f6 Azat Khuzhin)
+ Testing environment:
+  o Merge branch 'automake-tests-parallel-v4' (*includes ci bits also*) (59e217df Azat Khuzhin)
+ Vagrant env fixes:
+  o vagrant/netbsd: missing libtool (9c9be399 Azat Khuzhin)
+  o vagrant/netbsd: more reliable way of installing packages (36da6877 Azat Khuzhin)
+  o vagrant/osx: use make instead of gmake (there is no gmake) (f7c70aef Azat Khuzhin)
+  o vagrant: add centos box (ca591c5b Azat Khuzhin)
+ Tests:
+  o test/dns: replace servname since solaris does not have "http" (d6bafbbe Azat Khuzhin)
+  o test/thread: netbsd is too slow, increase timeout for conditions_simple (3c7422fc Azat Khuzhin)
+  o test/dns: run async resolving after sync one (to avoid timeouts) (07862531 Azat Khuzhin)
+  o test/http: turn off some tests that based on backlog filling (falky) (26f416c1 Azat Khuzhin)
+ Bugfixes:
+  o Merge branch 'openssl-filter-fixes-v4' (83e0f43b Azat Khuzhin)
+  o Merge branch 'date-rfc1123' (68def435,4798de6c,4545807d Azat Khuzhin)
+  o Merge branch 'be-openssl-fd-reset-fix-v2' (86fa0070,32adf434 Azat Khuzhin)
+  o Merge branch 'openssl-1.1-init-fixes-v2' (18a161f0 Azat Khuzhin)
+  o Fix incorrect MIME type (23f9a20e johnsonlee)
+ Trivial fixes:
+ Documentation updates:
+  o Update README.md (3821cca1 Breaker)
+
+
 Changes in version 2.1.7-rc (2 Novemer 2016)
 
  Libevent 2.1.7-rc contains openssl 1.1 support, build fixes, CI improvements
