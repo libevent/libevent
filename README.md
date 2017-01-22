@@ -423,5 +423,9 @@ fixing bugs:
  * Simone Basso
  * Vlad Shcherban
  * Tim Hentenaar
+ * Breaker
+ * johnsonlee
+ * Philip Prindeville
+ * Vis Virial
 
 If we have forgotten your name, please contact us.
