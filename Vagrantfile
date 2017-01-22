@@ -127,7 +127,7 @@ Vagrant.configure("2") do |config|
     if ENV['NO_PKG'] != "true"
       netbsd.vm.provision "shell", inline: <<-SHELL
         export PKG_PATH="ftp://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/x86_64/7.0_2016Q2/All/"
-        pkg_add ncurses ninja-build automake cmake
+        pkg_add ncurses ninja-build automake cmake libtool
       SHELL
     end
 
