@@ -1,7 +1,7 @@
 #ifndef OPENSSL_COMPAT_H
 #define OPENSSL_COMPAT_H
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
 
 static inline BIO_METHOD *BIO_meth_new(int type, const char *name)
 {
@@ -30,6 +30,6 @@ static inline BIO_METHOD *BIO_meth_new(int type, const char *name)
 
 #define TLS_method SSLv23_method
 
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+#endif /* (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER) */
 
 #endif /* OPENSSL_COMPAT_H */
