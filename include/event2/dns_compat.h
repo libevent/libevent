@@ -66,6 +66,7 @@ extern "C" {
   @return 0 if successful, or -1 if an error occurred
   @see evdns_shutdown()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_init(void);
 
 struct evdns_base;
@@ -76,6 +77,7 @@ struct evdns_base;
    @deprecated This function is deprecated because use of the global
      evdns_base is error-prone.
  */
+EVENT2_EXPORT_SYMBOL
 struct evdns_base *evdns_get_global_base(void);
 
 /**
@@ -93,6 +95,7 @@ struct evdns_base *evdns_get_global_base(void);
 		active requests will return DNS_ERR_SHUTDOWN.
   @see evdns_init()
  */
+EVENT2_EXPORT_SYMBOL
 void evdns_shutdown(int fail_requests);
 
 /**
@@ -109,6 +112,7 @@ void evdns_shutdown(int fail_requests);
   @return 0 if successful, or -1 if an error occurred
   @see evdns_nameserver_ip_add()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_nameserver_add(unsigned long int address);
 
 /**
@@ -126,6 +130,7 @@ int evdns_nameserver_add(unsigned long int address);
   @return the number of configured nameservers
   @see evdns_nameserver_add()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_count_nameservers(void);
 
 /**
@@ -140,6 +145,7 @@ int evdns_count_nameservers(void);
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resume()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_clear_nameservers_and_suspend(void);
 
 /**
@@ -155,6 +161,7 @@ int evdns_clear_nameservers_and_suspend(void);
   @return 0 if successful, or -1 if an error occurred
   @see evdns_clear_nameservers_and_suspend()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_resume(void);
 
 /**
@@ -170,6 +177,7 @@ int evdns_resume(void);
   @return 0 if successful, or -1 if an error occurred
   @see evdns_nameserver_add()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_nameserver_ip_add(const char *ip_as_string);
 
 /**
@@ -186,6 +194,7 @@ int evdns_nameserver_ip_add(const char *ip_as_string);
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_ipv6(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 /**
@@ -198,6 +207,7 @@ int evdns_resolve_ipv4(const char *name, int flags, evdns_callback_type callback
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_ipv4(), evdns_resolve_reverse(), evdns_resolve_reverse_ipv6()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_resolve_ipv6(const char *name, int flags, evdns_callback_type callback, void *ptr);
 
 struct in_addr;
@@ -217,6 +227,7 @@ struct in6_addr;
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_reverse_ipv6()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_resolve_reverse(const struct in_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 /**
@@ -233,6 +244,7 @@ int evdns_resolve_reverse(const struct in_addr *in, int flags, evdns_callback_ty
   @return 0 if successful, or -1 if an error occurred
   @see evdns_resolve_reverse_ipv6()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callback_type callback, void *ptr);
 
 /**
@@ -251,6 +263,7 @@ int evdns_resolve_reverse_ipv6(const struct in6_addr *in, int flags, evdns_callb
   @param flags Ignored.
   @return 0 if successful, or -1 if an error occurred
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_set_option(const char *option, const char *val, int flags);
 
 /**
@@ -278,6 +291,7 @@ int evdns_set_option(const char *option, const char *val, int flags);
     occurred (see above)
   @see resolv.conf(3), evdns_config_windows_nameservers()
  */
+EVENT2_EXPORT_SYMBOL
 int evdns_resolv_conf_parse(int flags, const char *const filename);
 
 /**
@@ -287,6 +301,7 @@ int evdns_resolv_conf_parse(int flags, const char *const filename);
     caller to specify which evdns_base it applies to.  The recommended
     function is evdns_base_search_clear().
  */
+EVENT2_EXPORT_SYMBOL
 void evdns_search_clear(void);
 
 /**
@@ -298,6 +313,7 @@ void evdns_search_clear(void);
 
   @param domain the domain to be added to the search list
  */
+EVENT2_EXPORT_SYMBOL
 void evdns_search_add(const char *domain);
 
 /**
@@ -312,6 +328,7 @@ void evdns_search_add(const char *domain);
 
   @param ndots the new ndots parameter
  */
+EVENT2_EXPORT_SYMBOL
 void evdns_search_ndots_set(const int ndots);
 
 /**
@@ -322,9 +339,11 @@ void evdns_search_ndots_set(const int ndots);
     function is evdns_add_server_port_with_base().
 
 */
+EVENT2_EXPORT_SYMBOL
 struct evdns_server_port *evdns_add_server_port(evutil_socket_t socket, int flags, evdns_request_callback_fn_type callback, void *user_data);
 
 #ifdef _WIN32
+EVENT2_EXPORT_SYMBOL
 int evdns_config_windows_nameservers(void);
 #define EVDNS_CONFIG_WINDOWS_NAMESERVERS_IMPLEMENTED
 #endif
