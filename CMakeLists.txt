@@ -76,25 +76,25 @@ set(EVENT_PACKAGE_VERSION
 set(EVENT_NUMERIC_VERSION 0x02010800)
 
 # only a subset of names can be used, defaults to "beta"
-set(EVENT_STAGE_NAME ${EVENT_VERSION_STAGE}
-	CACHE STRING "set the stage name (beta|alpha|release)")
+set(EVENT_STAGE_NAME ${EVENT_VERSION_STAGE})
 
 # a list that defines what can set for EVENT_STAGE_VERSION
 set(EVENT__ALLOWED_STAGE_NAMES
-    rc
-    beta
-    alpha
-    release)
-
-# attempt to find the EVENT__STAGE_VERSION in the allowed list
-# of accepted stage names, the return value is stord in
-# EVENT__STAGE_RET
-
-list(FIND EVENT__ALLOWED_STAGE_NAMES
-	${EVENT_STAGE_NAME}
-	EVENT__STAGE_RET)
-
-if (EVENT__STAGE_RET EQUAL "-1")
+	rc
+	beta
+	alpha
+	alpha-dev
+	release
+	stable
+)
+list(
+	FIND EVENT__ALLOWED_STAGE_NAMES
+	"${EVENT_STAGE_NAME}"
+	EVENT__STAGE_RET
+)
+if (EVENT__STAGE_RET EQUAL -1)
+	message(WARNING
+		"stage ${EVENT_STAGE_NAME} is not allowed, reset to beta")
 	set(EVENT_STAGE_NAME beta)
 endif()
 

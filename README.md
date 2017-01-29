@@ -77,9 +77,6 @@ EVENT__ENABLE_VERBOSE_DEBUG:BOOL=OFF
 # on the the cross compilation target to verify that it works. See cmake
 # documentation for try_run for more details
 EVENT__FORCE_KQUEUE_CHECK:BOOL=OFF
-
-# set EVENT_STAGE_VERSION
-EVENT__STAGE_VERSION:STRING=beta
 ```
 
 __More variables can be found by running `cmake -LAH <sourcedir_path>`__
