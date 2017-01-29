@@ -578,6 +578,8 @@ if(EVENT__HAVE_STRUCT_SOCKADDR_STORAGE)
             __ss_family "${SOCKADDR_HEADERS}" EVENT__HAVE_STRUCT_SOCKADDR_STORAGE___SS_FAMILY)
 endif()
 
+CHECK_TYPE_SIZE("struct linger" EVENT__HAVE_STRUCT_LINGER)
+
 # Group the source files.
 set(HDR_PRIVATE
     bufferevent-internal.h
