@@ -286,7 +286,8 @@ noinst_HEADERS +=				\
 	ratelim-internal.h			\
 	strlcpy-internal.h			\
 	time-internal.h				\
-	util-internal.h
+	util-internal.h				\
+	openssl-compat.h
 
 EVENT1_HDRS = \
 	include/evdns.h \
