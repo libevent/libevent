@@ -50,8 +50,18 @@
 extern "C" {
 #endif
 
-#if !defined(__has_attribute)
-#define __has_attribute(x) 0
+/* __has_attribute() wrapper */
+#ifdef __has_attribute
+#define EVUTIL_HAS_ATTRIBUTE __has_attribute
+#endif
+/** clang 3 __has_attribute misbehaves in some versions */
+#if defined(__clang__) && \
+	__clang__ == 1 && __clang_major__ == 3 && \
+	(__clang_minor__ >= 2 && __clang_minor__ <= 5)
+#undef EVUTIL_HAS_ATTRIBUTE
+#endif
+#ifndef EVUTIL_HAS_ATTRIBUTE
+#define EVUTIL_HAS_ATTRIBUTE(x) 0
 #endif
 
 /* If we need magic to say "inline", get it for free internally. */
@@ -312,7 +322,7 @@ ev_int32_t evutil_weakrand_range_(struct evutil_weakrand_state *seed, ev_int32_t
 #define EVUTIL_UNLIKELY(p) (p)
 #endif
 
-#if __has_attribute(fallthrough)
+#if EVUTIL_HAS_ATTRIBUTE(fallthrough)
 #define EVUTIL_FALLTHROUGH __attribute__((fallthrough))
 #else
 #define EVUTIL_FALLTHROUGH /* fallthrough */
