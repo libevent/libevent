@@ -50,6 +50,10 @@
 extern "C" {
 #endif
 
+#if !defined(__has_attribute)
+#define __has_attribute(x) 0
+#endif
+
 /* If we need magic to say "inline", get it for free internally. */
 #ifdef EVENT__inline
 #define inline EVENT__inline
@@ -306,6 +310,12 @@ ev_int32_t evutil_weakrand_range_(struct evutil_weakrand_state *seed, ev_int32_t
 #define EVUTIL_UNLIKELY(p) __builtin_expect(!!(p),0)
 #else
 #define EVUTIL_UNLIKELY(p) (p)
+#endif
+
+#if __has_attribute(fallthrough)
+#define EVUTIL_FALLTHROUGH __attribute__((fallthrough))
+#else
+#define EVUTIL_FALLTHROUGH /* fallthrough */
 #endif
 
 /* Replacement for assert() that calls event_errx on failure. */

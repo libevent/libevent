@@ -612,9 +612,12 @@ be_filter_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 			bevf->underlying->be_ops->ctrl) {
 		    return (bevf->underlying->be_ops->ctrl)(bevf->underlying, op, data);
 		}
+		EVUTIL_FALLTHROUGH;
 
 	case BEV_CTRL_GET_FD:
+		EVUTIL_FALLTHROUGH;
 	case BEV_CTRL_CANCEL_ALL:
+		EVUTIL_FALLTHROUGH;
 	default:
 		return -1;
 	}

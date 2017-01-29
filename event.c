@@ -2960,6 +2960,7 @@ event_callback_activate_nolock_(struct event_base *base,
 	switch (evcb->evcb_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER)) {
 	default:
 		EVUTIL_ASSERT(0);
+		EVUTIL_FALLTHROUGH;
 	case EVLIST_ACTIVE_LATER:
 		event_queue_remove_active_later(base, evcb);
 		r = 0;
