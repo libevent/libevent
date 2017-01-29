@@ -73,7 +73,7 @@ set(EVENT_ABI_LIBVERSION
 set(EVENT_PACKAGE_VERSION
     "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}")
 
-set(EVENT_NUMERIC_VERSION 0x02010800)
+set(EVENT_NUMERIC_VERSION 0x02020001)
 
 # only a subset of names can be used, defaults to "beta"
 set(EVENT_STAGE_NAME ${EVENT_VERSION_STAGE}
@@ -84,6 +84,7 @@ set(EVENT__ALLOWED_STAGE_NAMES
     rc
     beta
     alpha
+    alpha-dev
     release)
 
 # attempt to find the EVENT__STAGE_VERSION in the allowed list
