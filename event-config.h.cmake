@@ -313,6 +313,9 @@
 /* Define to 1 if `__ss_family' is a member of `struct sockaddr_storage'. */
 #cmakedefine EVENT__HAVE_STRUCT_SOCKADDR_STORAGE___SS_FAMILY
 
+/* Define to 1 if the system has the type `struct linger'. */
+#cmakedefine EVENT__HAVE_STRUCT_LINGER
+
 /* Define to 1 if you have the `sysctl' function. */
 #cmakedefine EVENT__HAVE_SYSCTL
 
