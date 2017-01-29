@@ -2265,10 +2265,11 @@ evdns_request_transmit(struct request *req) {
 		nameserver_write_waiting(req->ns, 1);
 		return 1;
 	case 2:
-		/* failed to transmit the request entirely. */
+		/* failed to transmit the request entirely. we can fallthrough since
+		 * we'll set a timeout, which will time out, and make us retransmit the
+		 * request anyway. */
 		retcode = 1;
-		/* fall through: we'll set a timeout, which will time out,
-		 * and make us retransmit the request anyway. */
+		EVUTIL_FALLTHROUGH;
 	default:
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
