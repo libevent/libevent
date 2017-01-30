@@ -67,13 +67,16 @@
 #cmakedefine EVENT__HAVE_CLOCK_GETTIME
 
 /* Define to 1 if you have the declaration of `CTL_KERN'. */
-#cmakedefine EVENT__HAVE_DECL_CTL_KERN
+#define EVENT__HAVE_DECL_CTL_KERN @EVENT__HAVE_DECL_CTL_KERN@
 
 /* Define to 1 if you have the declaration of `KERN_ARND'. */
-#cmakedefine EVENT__HAVE_DECL_KERN_ARND
+#define EVENT__HAVE_DECL_KERN_ARND @EVENT__HAVE_DECL_KERN_ARND@
 
 /* Define to 1 if you have the declaration of `KERN_RANDOM'. */
-#cmakedefine EVENT__HAVE_DECL_KERN_RANDOM
+#define EVENT__HAVE_DECL_KERN_RANDOM @EVENT__HAVE_DECL_KERN_RANDOM@
+
+/* Define to 1 if you have the declaration of `RANDOM_UUID'. */
+#define EVENT__HAVE_DECL_RANDOM_UUID @EVENT__HAVE_DECL_RANDOM_UUID@
 
 /* Define if /dev/poll is available */
 #cmakedefine EVENT__HAVE_DEVPOLL
