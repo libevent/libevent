@@ -83,8 +83,10 @@ struct kqop {
 static void kqop_free(struct kqop *kqop);
 
 static void *kq_init(struct event_base *);
+#ifdef EVFILT_SIGNAL
 static int kq_sig_add(struct event_base *, int, short, short, void *);
 static int kq_sig_del(struct event_base *, int, short, short, void *);
+#endif
 static int kq_dispatch(struct event_base *, struct timeval *);
 static void kq_dealloc(struct event_base *);
 
@@ -100,6 +102,7 @@ const struct eventop kqops = {
 	EVENT_CHANGELIST_FDINFO_SIZE
 };
 
+#ifdef EVFILT_SIGNAL
 static const struct eventop kqsigops = {
 	"kqueue_signal",
 	NULL,
@@ -111,6 +114,7 @@ static const struct eventop kqsigops = {
 	0,
 	0
 };
+#endif
 
 static void *
 kq_init(struct event_base *base)
@@ -159,7 +163,11 @@ kq_init(struct event_base *base)
 		goto err;
 	}
 
+#ifdef EVFILT_SIGNAL
 	base->evsigsel = &kqsigops;
+#else
+	evsig_init_(base);
+#endif
 
 	return (kqueueop);
 err:
@@ -388,8 +396,10 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 			which |= EV_READ;
 		} else if (events[i].filter == EVFILT_WRITE) {
 			which |= EV_WRITE;
+#ifdef EVFILT_SIGNAL
 		} else if (events[i].filter == EVFILT_SIGNAL) {
 			which |= EV_SIGNAL;
+#endif
 #ifdef EVFILT_USER
 		} else if (events[i].filter == EVFILT_USER) {
 			base->is_notify_pending = 0;
@@ -399,9 +409,12 @@ kq_dispatch(struct event_base *base, struct timeval *tv)
 		if (!which)
 			continue;
 
+#ifdef EVFILT_SIGNAL
 		if (events[i].filter == EVFILT_SIGNAL) {
 			evmap_signal_active_(base, events[i].ident, 1);
-		} else {
+		} else
+#endif
+		{
 			evmap_io_active_(base, events[i].ident, which | EV_ET);
 		}
 	}
@@ -436,6 +449,7 @@ kq_dealloc(struct event_base *base)
 	kqop_free(kqop);
 }
 
+#ifdef EVFILT_SIGNAL
 /* signal handling */
 static int
 kq_sig_add(struct event_base *base, int nsignal, short old, short events, void *p)
@@ -497,6 +511,7 @@ kq_sig_del(struct event_base *base, int nsignal, short old, short events, void *
 
 	return (0);
 }
+#endif
 
 
 /* OSX 10.6 and FreeBSD 8.1 add support for EVFILT_USER, which we can use
