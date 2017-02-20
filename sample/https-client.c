@@ -191,7 +191,7 @@ main(int argc, char **argv)
 
 	struct evhttp_uri *http_uri = NULL;
 	const char *url = NULL, *data_file = NULL;
-	const char *crt = "/etc/ssl/certs/ca-certificates.crt";
+	const char *crt = NULL;
 	const char *scheme, *host, *path, *query;
 	char uri[256];
 	int port;
@@ -338,11 +338,19 @@ main(int argc, char **argv)
 #ifndef _WIN32
 	/* TODO: Add certificate loading on Windows as well */
 
-	/* Attempt to use the system's trusted root certificates.
-	 * (This path is only valid for Debian-based systems.) */
-	if (1 != SSL_CTX_load_verify_locations(ssl_ctx, crt, NULL)) {
-		err_openssl("SSL_CTX_load_verify_locations");
-		goto error;
+	if (crt == NULL) {
+		X509_STORE *store;
+		/* Attempt to use the system's trusted root certificates. */
+		store = SSL_CTX_get_cert_store(ssl_ctx);
+		if (1 != X509_STORE_set_default_paths(store)) {
+			err_openssl("X509_STORE_set_default_paths");
+			goto error;
+		}
+	} else {
+		if (1 != SSL_CTX_load_verify_locations(ssl_ctx, crt, NULL)) {
+			err_openssl("SSL_CTX_load_verify_locations");
+			goto error;
+		}
 	}
 	/* Ask OpenSSL to verify the server certificate.  Note that this
 	 * does NOT include verifying that the hostname is correct.
