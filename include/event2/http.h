@@ -652,8 +652,10 @@ enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
  * @param dnsbase the dns_base to use for resolving host names; if not
  *     specified host name resolution will block.
  * @param bev a bufferevent to use for connecting to the server; if NULL, a
- *     socket-based bufferevent will be created.  This buffrevent will be freed
- *     when the connection closes.  It must have no fd set on it.
+ *     socket-based bufferevent will be created.  This bufferevent will be freed
+ *     when the connection closes.  If a fd is already set on the bufferevent,
+ *     it will be assumed that this connection is already open and ready to
+ *     send requests.
  * @param address the address to which to connect
  * @param port the port to connect to
  * @return an evhttp_connection object that can be used for making requests or

@@ -2570,6 +2570,14 @@ evhttp_connection_base_bufferevent_new(struct event_base *base, struct evdns_bas
 	evcon->dns_base = dnsbase;
 	evcon->ai_family = AF_UNSPEC;
 
+	if (bev != NULL && bufferevent_getfd(bev) != -1) {
+		/* We were passed a bev with file descriptor set.
+		 * Assume that this is an already-open connection that we
+		 * can start sending requests on.
+		 */
+		evcon->state = EVCON_IDLE;
+	}
+
 	return (evcon);
 
  error:
