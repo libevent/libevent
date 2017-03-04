@@ -2577,6 +2577,14 @@ evhttp_connection_new_(struct event_base *base, struct bufferevent* bev)
 
 	evcon->ai_family = AF_UNSPEC;
 
+	if (bev != NULL && bufferevent_getfd(bev) != -1) {
+		/* We were passed a bev with file descriptor set.
+		 * Assume that this is an already-open connection that we
+		 * can start sending requests on.
+		 */
+		evcon->state = EVCON_IDLE;
+	}
+
 	return (evcon);
 
  error:
