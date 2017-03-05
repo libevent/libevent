@@ -362,7 +362,7 @@
 #cmakedefine EVENT__HAVE_SYS_SYSCTL_H 1
 
 /* Define to 1 if you have the <sys/timerfd.h> header file. */
-#cmakedefine EVENT__HAVE_SYS_TIMERFD_H */
+#cmakedefine EVENT__HAVE_SYS_TIMERFD_H 1
 
 /* Define to 1 if you have the <sys/time.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_TIME_H 1
