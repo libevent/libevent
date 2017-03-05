@@ -34,6 +34,7 @@ struct regress_dns_server_table {
 	const char *anstype;
 	const char *ans;
 	int seen;
+	int lower;
 };
 
 struct evdns_server_port *

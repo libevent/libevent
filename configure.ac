@@ -5,7 +5,7 @@ dnl See LICENSE for copying information.
 dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
-AC_INIT(libevent,2.1.5-beta)
+AC_INIT(libevent,2.2.0-alpha-dev)
 AC_PREREQ(2.59)
 AC_CONFIG_SRCDIR(event.c)
 
@@ -14,7 +14,7 @@ AM_INIT_AUTOMAKE
 dnl AM_SILENT_RULES req. automake 1.11.  [no] defaults V=1
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
-AC_DEFINE(NUMERIC_VERSION, 0x02010500, [Numeric representation of the version])
+AC_DEFINE(NUMERIC_VERSION, 0x02020001, [Numeric representation of the version])
 
 dnl Initialize prefix.
 if test "$prefix" = "NONE"; then
@@ -74,13 +74,14 @@ if test "$GCC" = "yes" ; then
 fi
 
 # OS X Lion started deprecating the system openssl. Let's just disable
-# all deprecation warnings on OS X.
-case "$host_os" in
-
- darwin*)
-    CFLAGS="$CFLAGS -Wno-deprecated-declarations"
-    ;;
-esac
+# all deprecation warnings on OS X; but do so only for gcc...
+if test "$GCC" = "yes" ; then
+	case "$host_os" in
+	 darwin*)
+	    CFLAGS="$CFLAGS -Wno-deprecated-declarations"
+	    ;;
+	esac
+fi
 
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--disable-gcc-warnings, disable verbose warnings with GCC))
@@ -120,6 +121,9 @@ AC_ARG_ENABLE([function-sections],
 AC_ARG_ENABLE([verbose-debug],
 		AS_HELP_STRING([--enable-verbose-debug, verbose debug logging]),
 	[], [enable_verbose_debug=no])
+AC_ARG_ENABLE([clock-gettime],
+     AS_HELP_STRING(--disable-clock-gettime, do not use clock_gettime even if it is available),
+  [], [enable_clock_gettime=yes])
 
 
 AC_PROG_LIBTOOL
@@ -137,7 +141,10 @@ dnl Checks for libraries.
 AC_SEARCH_LIBS([inet_ntoa], [nsl])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([inet_aton], [resolv])
-AC_SEARCH_LIBS([clock_gettime], [rt])
+if test "x$enable_clock_gettime" = "xyes"; then
+  AC_SEARCH_LIBS([clock_gettime], [rt])
+  AC_CHECK_FUNCS([clock_gettime])
+fi
 AC_SEARCH_LIBS([sendfile], [sendfile])
 
 dnl - check if the macro _WIN32 is defined on this compiler.
@@ -231,6 +238,7 @@ AC_CHECK_HEADERS([ \
   sys/timerfd.h \
   sys/uio.h \
   sys/wait.h \
+  errno.h \
 ])
 
 AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
@@ -334,7 +342,6 @@ AC_CHECK_FUNCS([ \
   accept4 \
   arc4random \
   arc4random_buf \
-  clock_gettime \
   eventfd \
   epoll_create1 \
   fcntl \
@@ -369,6 +376,7 @@ AC_CHECK_FUNCS([ \
   unsetenv \
   usleep \
   vasprintf \
+  getservbyname \
 ])
 AM_CONDITIONAL(STRLCPY_IMPL, [test x"$ac_cv_func_strlcpy" = xno])
 
@@ -394,7 +402,6 @@ if test "$libevent_cv_getaddrinfo" = "yes" ; then
     AC_DEFINE([HAVE_GETADDRINFO], [1], [Do we have getaddrinfo()?])
 else
 
-AC_CHECK_FUNCS([getservbyname])
 # Check for gethostbyname_r in all its glorious incompatible versions.
 #   (This is cut-and-pasted from Tor, which based its logic on
 #   Python's configure.in.)
@@ -592,6 +599,26 @@ main(int argc, char **argv)
 fi
 AM_CONDITIONAL(EPOLL_BACKEND, [test "x$haveepoll" = "xyes"])
 
+AC_MSG_CHECKING(waitpid support WNOWAIT)
+AC_TRY_RUN(
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <stdlib.h>
+
+int
+main(int argc, char** argv)
+{
+    pid_t pid;
+    int status;
+    if ((pid = fork()) == 0) _exit(0);
+    _exit(waitpid(pid, &status, WNOWAIT) == -1);
+}, [AC_MSG_RESULT(yes)
+AC_DEFINE(HAVE_WAITPID_WITH_WNOWAIT, 1,
+[Define if waitpid() supports WNOWAIT])
+], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
+
+
 haveeventports=no
 AC_CHECK_FUNCS(port_create, [haveeventports=yes], )
 if test "x$haveeventports" = "xyes" ; then
@@ -688,8 +715,7 @@ AC_CHECK_MEMBERS([struct in6_addr.s6_addr32, struct in6_addr.s6_addr16, struct s
 #endif
 ])
 
-AC_CHECK_TYPES([struct so_linger],
-[#define HAVE_SO_LINGER], ,
+AC_CHECK_TYPES([struct linger],,,
 [
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -736,6 +762,7 @@ if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
       #include <pthread.h> ]
   )
 fi
+AM_CONDITIONAL(THREADS, [test "$enable_thread_support" != "no"])
 AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
 
 # check if we should compile locking into the library
@@ -763,6 +790,10 @@ fi
 
 # check if we have and should use openssl
 AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
+if test "x$enable_openssl" = "xyes"; then
+	AC_SEARCH_LIBS([ERR_remove_thread_state], [crypto eay32],
+		[AC_DEFINE(HAVE_ERR_REMOVE_THREAD_STATE, 1, [Define to 1 if you have ERR_remove_thread_stat().])])
+fi
 
 # Add some more warnings which we use in development but not in the
 # released versions.  (Some relevant gcc versions can't handle these.)
@@ -788,7 +819,7 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
 #error
 #endif])], have_clang=yes, have_clang=no)
 
-  CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch-enum"
+  CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch"
   if test x$enable_gcc_warnings = xyes; then
     CFLAGS="$CFLAGS -Werror"
   fi
@@ -911,5 +942,5 @@ AC_SUBST([LIBEVENT_GC_SECTIONS])
 
 AM_CONDITIONAL([INSTALL_LIBEVENT], [test "$enable_libevent_install" = "yes"])
 
-AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc] )
+AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc libevent_core.pc libevent_extra.pc] )
 AC_OUTPUT(Makefile)

@@ -67,10 +67,6 @@ read_cb(evutil_socket_t fd, short event, void *arg)
 		event_del(arg);
 }
 
-#ifndef SHUT_WR
-#define SHUT_WR 1
-#endif
-
 #ifdef _WIN32
 #define LOCAL_SOCKETPAIR_AF AF_INET
 #else
@@ -105,7 +101,7 @@ test_edgetriggered(void *et)
 	called = was_et = 0;
 
 	tt_int_op(send(pair[0], test, (int)strlen(test)+1, 0), >, 0);
-	shutdown(pair[0], SHUT_WR);
+	shutdown(pair[0], EVUTIL_SHUT_WR);
 
 	/* Initalize the event library */
 	base = event_base_new();

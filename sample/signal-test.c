@@ -26,10 +26,6 @@
 
 #include <event2/event.h>
 
-#ifdef EVENT____func__
-#define __func__ EVENT____func__
-#endif
-
 int called = 0;
 
 static void
@@ -37,7 +33,7 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct event *signal = arg;
 
-	printf("%s: got signal %d\n", __func__, event_get_signal(signal));
+	printf("signal_cb: got signal %d\n", event_get_signal(signal));
 
 	if (called >= 2)
 		event_del(signal);
@@ -68,6 +64,7 @@ main(int argc, char **argv)
 	event_add(signal_int, NULL);
 
 	event_base_dispatch(base);
+	event_free(signal_int);
 	event_base_free(base);
 
 	return (0);

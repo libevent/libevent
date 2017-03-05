@@ -113,13 +113,13 @@ errorcb(struct bufferevent *b, short what, void *arg)
 static void
 frob_socket(evutil_socket_t sock)
 {
-#ifdef HAVE_SO_LINGER
+#ifdef EVENT__HAVE_STRUCT_LINGER
 	struct linger l;
 #endif
 	int one = 1;
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void*)&one, sizeof(one))<0)
 		perror("setsockopt(SO_REUSEADDR)");
-#ifdef HAVE_SO_LINGER
+#ifdef EVENT__HAVE_STRUCT_LINGER
 	l.l_onoff = 1;
 	l.l_linger = 0;
 	if (setsockopt(sock, SOL_SOCKET, SO_LINGER, (void*)&l, sizeof(l))<0)
@@ -181,12 +181,13 @@ main(int argc, char **argv)
 	struct timeval start, end, total;
 	long long usec;
 	double throughput;
-	resource = "/ref";
 
 #ifdef _WIN32
 	WSADATA WSAData;
 	WSAStartup(0x101, &WSAData);
 #endif
+
+	resource = "/ref";
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 

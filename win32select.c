@@ -57,7 +57,7 @@ extern struct event_list timequeue;
 extern struct event_list addqueue;
 
 struct win_fd_set {
-	u_int fd_count;
+	unsigned int fd_count;
 	SOCKET fd_array[1];
 };
 

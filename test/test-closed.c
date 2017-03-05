@@ -24,6 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "../util-internal.h"
 #include "event2/event-config.h"
 
 #ifdef _WIN32
@@ -48,10 +49,6 @@
 #include <event.h>
 #include <evutil.h>
 
-#ifdef EVENT____func__
-#define __func__ EVENT____func__
-#endif
-
 struct timeval timeout = {3, 0};
 
 static void
@@ -70,10 +67,6 @@ closed_cb(evutil_socket_t fd, short event, void *arg)
 	printf("%s: unable to detect socket close\n", __func__);
 	exit(1);
 }
-
-#ifndef SHUT_WR
-#define SHUT_WR 1
-#endif
 
 int
 main(int argc, char **argv)
@@ -103,7 +96,7 @@ main(int argc, char **argv)
 	/* Send some data on socket 0 and immediately close it */
 	if (send(pair[0], test, (int)strlen(test)+1, 0) < 0)
 		return (1);
-	shutdown(pair[0], SHUT_WR);
+	shutdown(pair[0], EVUTIL_SHUT_WR);
 
 	/* Dispatch */
 	ev = event_new(base, pair[1], EV_CLOSED | EV_TIMEOUT, closed_cb, event_self_cbarg());

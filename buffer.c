@@ -184,7 +184,7 @@ evbuffer_chain_new(size_t size)
 	/* this way we can manipulate the buffer to different addresses,
 	 * which is required for mmap for example.
 	 */
-	chain->buffer = EVBUFFER_CHAIN_EXTRA(u_char, chain);
+	chain->buffer = EVBUFFER_CHAIN_EXTRA(unsigned char, chain);
 
 	chain->refcnt = 1;
 
@@ -682,8 +682,8 @@ evbuffer_reserve_space(struct evbuffer *buf, ev_ssize_t size,
 		if ((chain = evbuffer_expand_singlechain(buf, size)) == NULL)
 			goto done;
 
-		vec[0].iov_base = CHAIN_SPACE_PTR(chain);
-		vec[0].iov_len = (size_t) CHAIN_SPACE_LEN(chain);
+		vec[0].iov_base = (void *)CHAIN_SPACE_PTR(chain);
+		vec[0].iov_len = (size_t)CHAIN_SPACE_LEN(chain);
 		EVUTIL_ASSERT(size<0 || (size_t)vec[0].iov_len >= (size_t)size);
 		n = 1;
 	} else {
@@ -732,7 +732,7 @@ evbuffer_commit_space(struct evbuffer *buf,
 		result = 0;
 		goto done;
 	} else if (n_vecs == 1 &&
-	    (buf->last && vec[0].iov_base == (void*)CHAIN_SPACE_PTR(buf->last))) {
+	    (buf->last && vec[0].iov_base == (void *)CHAIN_SPACE_PTR(buf->last))) {
 		/* The user only got or used one chain; it might not
 		 * be the first one with space in it. */
 		if ((size_t)vec[0].iov_len > (size_t)CHAIN_SPACE_LEN(buf->last))
@@ -758,7 +758,7 @@ evbuffer_commit_space(struct evbuffer *buf,
 	for (i=0; i<n_vecs; ++i) {
 		if (!chain)
 			goto done;
-		if (vec[i].iov_base != (void*)CHAIN_SPACE_PTR(chain) ||
+		if (vec[i].iov_base != (void *)CHAIN_SPACE_PTR(chain) ||
 		    (size_t)vec[i].iov_len > CHAIN_SPACE_LEN(chain))
 			goto done;
 		chain = chain->next;
@@ -883,11 +883,16 @@ COPY_CHAIN(struct evbuffer *dst, struct evbuffer *src)
 static void
 APPEND_CHAIN(struct evbuffer *dst, struct evbuffer *src)
 {
+	struct evbuffer_chain **chp;
+
 	ASSERT_EVBUFFER_LOCKED(dst);
 	ASSERT_EVBUFFER_LOCKED(src);
-	dst->last->next = src->first;
+
+	chp = evbuffer_free_trailing_empty_chains(dst);
+	*chp = src->first;
+
 	if (src->last_with_datap == &src->first)
-		dst->last_with_datap = &dst->last->next;
+		dst->last_with_datap = chp;
 	else
 		dst->last_with_datap = src->last_with_datap;
 	dst->last = src->last;
@@ -1732,7 +1737,11 @@ evbuffer_add(struct evbuffer *buf, const void *data_in, size_t datlen)
 		goto done;
 	}
 
-	chain = buf->last;
+	if (*buf->last_with_datap == NULL) {
+		chain = buf->last;
+	} else {
+		chain = *buf->last_with_datap;
+	}
 
 	/* If there are no chains allocated for this buffer, allocate one
 	 * big enough to hold all the data. */
@@ -1879,7 +1888,7 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 
 	memcpy(tmp->buffer + tmp->misalign, data, datlen);
 	buf->total_len += datlen;
-	buf->n_add_for_cb += (size_t)chain->misalign;
+	buf->n_add_for_cb += datlen;
 
 out:
 	evbuffer_invoke_callbacks_(buf);
@@ -1974,8 +1983,7 @@ evbuffer_expand_singlechain(struct evbuffer *buf, size_t datlen)
 	/* Would expanding this chunk be affordable and worthwhile? */
 	if (CHAIN_SPACE_LEN(chain) < chain->buffer_len / 8 ||
 	    chain->off > MAX_TO_COPY_IN_EXPAND ||
-	    (datlen < EVBUFFER_CHAIN_MAX &&
-		EVBUFFER_CHAIN_MAX - datlen >= chain->off)) {
+		datlen >= (EVBUFFER_CHAIN_MAX - chain->off)) {
 		/* It's not worth resizing this chain. Can the next one be
 		 * used? */
 		if (chain->next && CHAIN_SPACE_LEN(chain->next) >= datlen) {
@@ -2228,7 +2236,7 @@ evbuffer_read_setup_vecs_(struct evbuffer *buf, ev_ssize_t howmuch,
 		size_t avail = (size_t) CHAIN_SPACE_LEN(chain);
 		if (avail > (howmuch - so_far) && exact)
 			avail = howmuch - so_far;
-		vecs[i].iov_base = CHAIN_SPACE_PTR(chain);
+		vecs[i].iov_base = (void *)CHAIN_SPACE_PTR(chain);
 		vecs[i].iov_len = avail;
 		so_far += avail;
 		chain = chain->next;
@@ -2781,8 +2789,8 @@ evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
 		    - start_at->internal_.pos_in_chain;
 		idx = 1;
 		if (n_vec > 0) {
-			vec[0].iov_base = chain->buffer + chain->misalign
-			    + start_at->internal_.pos_in_chain;
+			vec[0].iov_base = (void *)(chain->buffer + chain->misalign
+			    + start_at->internal_.pos_in_chain);
 			vec[0].iov_len = len_so_far;
 		}
 		chain = chain->next;
@@ -2803,7 +2811,7 @@ evbuffer_peek(struct evbuffer *buffer, ev_ssize_t len,
 		if (len >= 0 && len_so_far >= len)
 			break;
 		if (idx<n_vec) {
-			vec[idx].iov_base = chain->buffer + chain->misalign;
+			vec[idx].iov_base = (void *)(chain->buffer + chain->misalign);
 			vec[idx].iov_len = chain->off;
 		} else if (len<0) {
 			break;
@@ -2909,7 +2917,7 @@ evbuffer_add_reference(struct evbuffer *outbuf,
 	if (!chain)
 		return (-1);
 	chain->flags |= EVBUFFER_REFERENCE | EVBUFFER_IMMUTABLE;
-	chain->buffer = (u_char *)data;
+	chain->buffer = (unsigned char *)data;
 	chain->buffer_len = datlen;
 	chain->off = datlen;
 

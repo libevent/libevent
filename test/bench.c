@@ -74,7 +74,7 @@ static void
 read_cb(evutil_socket_t fd, short which, void *arg)
 {
 	ev_intptr_t idx = (ev_intptr_t) arg, widx = idx + 1;
-	u_char ch;
+	unsigned char ch;
 	ev_ssize_t n;
 
 	n = recv(fd, (char*)&ch, sizeof(ch), 0);
@@ -136,7 +136,7 @@ run_once(void)
 int
 main(int argc, char **argv)
 {
-#ifdef HAVE_SETRLIMIT 
+#ifdef EVENT__HAVE_SETRLIMIT
 	struct rlimit rl;
 #endif
 	int i, c;
@@ -167,7 +167,7 @@ main(int argc, char **argv)
 		}
 	}
 
-#ifdef HAVE_SETRLIMIT
+#ifdef EVENT__HAVE_SETRLIMIT
 	rl.rlim_cur = rl.rlim_max = num_pipes * 2 + 50;
 	if (setrlimit(RLIMIT_NOFILE, &rl) == -1) {
 		perror("setrlimit");

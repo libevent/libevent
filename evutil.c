@@ -226,16 +226,17 @@ evutil_ersatz_socketpair_(int family, int type, int protocol,
 	struct sockaddr_in connect_addr;
 	ev_socklen_t size;
 	int saved_errno = -1;
-
-	if (protocol
-		|| (family != AF_INET
+	int family_test;
+	
+	family_test = family != AF_INET;
 #ifdef AF_UNIX
-		    && family != AF_UNIX
+	family_test = family_test && (family != AF_UNIX);
 #endif
-		)) {
+	if (protocol || family_test) {
 		EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
 		return -1;
 	}
+	
 	if (!fd) {
 		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
 		return -1;
@@ -313,7 +314,7 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 {
 #ifdef _WIN32
 	{
-		u_long nonblocking = 1;
+		unsigned long nonblocking = 1;
 		if (ioctlsocket(fd, FIONBIO, &nonblocking) == SOCKET_ERROR) {
 			event_sock_warn(fd, "fcntl(%d, F_GETFL)", (int)fd);
 			return -1;
@@ -358,7 +359,7 @@ evutil_fast_socket_nonblocking(evutil_socket_t fd)
 int
 evutil_make_listen_socket_reuseable(evutil_socket_t sock)
 {
-#ifndef _WIN32
+#if defined(SO_REUSEADDR) && !defined(_WIN32)
 	int one = 1;
 	/* REUSEADDR on Unix means, "don't hang on to this address after the
 	 * listener is closed."  On Windows, though, it means "don't keep other
@@ -523,7 +524,7 @@ evutil_socket_geterror(evutil_socket_t sock)
 /* XXX we should use an enum here. */
 /* 2 for connection refused, 1 for connected, 0 for not yet, -1 for error. */
 int
-evutil_socket_connect_(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen)
+evutil_socket_connect_(evutil_socket_t *fd_ptr, const struct sockaddr *sa, int socklen)
 {
 	int made_fd = 0;
 
@@ -1237,11 +1238,20 @@ static int tested_for_getaddrinfo_hacks=0;
      field set to 0.  We test for this so we can apply an appropriate
      workaround.
 */
+static struct evutil_addrinfo *ai_find_protocol(struct evutil_addrinfo *ai)
+{
+	while (ai) {
+		if (ai->ai_protocol)
+			return ai;
+		ai = ai->ai_next;
+	}
+	return NULL;
+}
 static void
 test_for_getaddrinfo_hacks(void)
 {
 	int r, r2;
-	struct evutil_addrinfo *ai=NULL, *ai2=NULL;
+	struct evutil_addrinfo *ai=NULL, *ai2=NULL, *ai3=NULL;
 	struct evutil_addrinfo hints;
 
 	memset(&hints,0,sizeof(hints));
@@ -1255,12 +1265,13 @@ test_for_getaddrinfo_hacks(void)
 #endif
 	    0;
 	r = getaddrinfo("1.2.3.4", "80", &hints, &ai);
+	getaddrinfo("1.2.3.4", NULL, &hints, &ai3);
 	hints.ai_socktype = SOCK_STREAM;
 	r2 = getaddrinfo("1.2.3.4", "80", &hints, &ai2);
 	if (r2 == 0 && r != 0) {
 		need_numeric_port_hack_=1;
 	}
-	if (ai2 && ai2->ai_protocol == 0) {
+	if (!ai_find_protocol(ai2) || !ai_find_protocol(ai3)) {
 		need_socktype_protocol_hack_=1;
 	}
 
@@ -1268,6 +1279,8 @@ test_for_getaddrinfo_hacks(void)
 		freeaddrinfo(ai);
 	if (ai2)
 		freeaddrinfo(ai2);
+	if (ai3)
+		freeaddrinfo(ai3);
 	tested_for_getaddrinfo_hacks=1;
 }
 
@@ -1545,6 +1558,7 @@ evutil_freeaddrinfo(struct evutil_addrinfo *ai)
 }
 
 static evdns_getaddrinfo_fn evdns_getaddrinfo_impl = NULL;
+static evdns_getaddrinfo_cancel_fn evdns_getaddrinfo_cancel_impl = NULL;
 
 void
 evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo_fn fn)
@@ -1552,27 +1566,40 @@ evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo_fn fn)
 	if (!evdns_getaddrinfo_impl)
 		evdns_getaddrinfo_impl = fn;
 }
+void
+evutil_set_evdns_getaddrinfo_cancel_fn_(evdns_getaddrinfo_cancel_fn fn)
+{
+	if (!evdns_getaddrinfo_cancel_impl)
+		evdns_getaddrinfo_cancel_impl = fn;
+}
 
 /* Internal helper function: act like evdns_getaddrinfo if dns_base is set;
  * otherwise do a blocking resolve and pass the result to the callback in the
  * way that evdns_getaddrinfo would.
  */
-int
-evutil_getaddrinfo_async_(struct evdns_base *dns_base,
+struct evdns_getaddrinfo_request *evutil_getaddrinfo_async_(
+    struct evdns_base *dns_base,
     const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in,
     void (*cb)(int, struct evutil_addrinfo *, void *), void *arg)
 {
 	if (dns_base && evdns_getaddrinfo_impl) {
-		evdns_getaddrinfo_impl(
+		return evdns_getaddrinfo_impl(
 			dns_base, nodename, servname, hints_in, cb, arg);
 	} else {
 		struct evutil_addrinfo *ai=NULL;
 		int err;
 		err = evutil_getaddrinfo(nodename, servname, hints_in, &ai);
 		cb(err, ai, arg);
+		return NULL;
 	}
-	return 0;
+}
+
+void evutil_getaddrinfo_cancel_async_(struct evdns_getaddrinfo_request *data)
+{
+	if (evdns_getaddrinfo_cancel_impl && data) {
+		evdns_getaddrinfo_cancel_impl(data);
+	}
 }
 
 const char *
@@ -1708,10 +1735,10 @@ evutil_socket_error_to_string(int errcode)
 		goto done;
 	}
 
-	if (0 != FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM |
+	if (0 != FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM |
 			       FORMAT_MESSAGE_IGNORE_INSERTS |
 			       FORMAT_MESSAGE_ALLOCATE_BUFFER,
-			       NULL, errcode, 0, (LPTSTR)&msg, 0, NULL))
+			       NULL, errcode, 0, (char *)&msg, 0, NULL))
 		chomp (msg);	/* because message has trailing newline */
 	else {
 		size_t len = 50;
@@ -2057,12 +2084,12 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 
 	cp = strchr(ip_as_string, ':');
 	if (*ip_as_string == '[') {
-		int len;
+		size_t len;
 		if (!(cp = strchr(ip_as_string, ']'))) {
 			return -1;
 		}
-		len = (int) ( cp-(ip_as_string + 1) );
-		if (len > (int)sizeof(buf)-1) {
+		len = ( cp-(ip_as_string + 1) );
+		if (len > sizeof(buf)-1) {
 			return -1;
 		}
 		memcpy(buf, ip_as_string+1, len);

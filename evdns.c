@@ -976,7 +976,6 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 
 	for (;;) {
 		u8 label_len;
-		if (j >= length) return -1;
 		GET8(label_len);
 		if (!label_len) break;
 		if (label_len & 0xc0) {
@@ -997,6 +996,7 @@ name_parse(u8 *packet, int length, int *idx, char *name_out, int name_out_len) {
 			*cp++ = '.';
 		}
 		if (cp + label_len >= end) return -1;
+		if (j + label_len > length) return -1;
 		memcpy(cp, packet + j, label_len);
 		cp += label_len;
 		j += label_len;
@@ -1060,24 +1060,6 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 			sizeof(tmp_name))<0)			\
 			goto err;				\
 	} while (0)
-#define TEST_NAME							\
-	do { tmp_name[0] = '\0';					\
-		cmp_name[0] = '\0';					\
-		k = j;							\
-		if (name_parse(packet, length, &j, tmp_name,		\
-			sizeof(tmp_name))<0)				\
-			goto err;					\
-		if (name_parse(req->request, req->request_len, &k,	\
-			cmp_name, sizeof(cmp_name))<0)			\
-			goto err;					\
-		if (base->global_randomize_case) {			\
-			if (strcmp(tmp_name, cmp_name) == 0)		\
-				name_matches = 1;			\
-		} else {						\
-			if (evutil_ascii_strcasecmp(tmp_name, cmp_name) == 0) \
-				name_matches = 1;			\
-		}							\
-	} while (0)
 
 	reply.type = req->request_type;
 
@@ -1086,9 +1068,25 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 		/* the question looks like
 		 *   <label:name><u16:type><u16:class>
 		 */
-		TEST_NAME;
+		tmp_name[0] = '\0';
+		cmp_name[0] = '\0';
+		k = j;
+		if (name_parse(packet, length, &j, tmp_name, sizeof(tmp_name)) < 0)
+			goto err;
+		if (name_parse(req->request, req->request_len, &k,
+			cmp_name, sizeof(cmp_name))<0)
+			goto err;
+		if (!base->global_randomize_case) {
+			if (strcmp(tmp_name, cmp_name) == 0)
+				name_matches = 1;
+		} else {
+			if (evutil_ascii_strcasecmp(tmp_name, cmp_name) == 0)
+				name_matches = 1;
+		}
+
 		j += 4;
-		if (j > length) goto err;
+		if (j > length)
+			goto err;
 	}
 
 	if (!name_matches)
@@ -2267,10 +2265,11 @@ evdns_request_transmit(struct request *req) {
 		nameserver_write_waiting(req->ns, 1);
 		return 1;
 	case 2:
-		/* failed to transmit the request entirely. */
+		/* failed to transmit the request entirely. we can fallthrough since
+		 * we'll set a timeout, which will time out, and make us retransmit the
+		 * request anyway. */
 		retcode = 1;
-		/* fall through: we'll set a timeout, which will time out,
-		 * and make us retransmit the request anyway. */
+		EVUTIL_FALLTHROUGH;
 	default:
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
@@ -3177,8 +3176,11 @@ search_set_from_hostname(struct evdns_base *base) {
 static char *
 search_make_new(const struct search_state *const state, int n, const char *const base_name) {
 	const size_t base_len = strlen(base_name);
-	const char need_to_append_dot = base_name[base_len - 1] == '.' ? 0 : 1;
+	char need_to_append_dot;
 	struct search_domain *dom;
+
+	if (!base_len) return NULL;
+	need_to_append_dot = base_name[base_len - 1] == '.' ? 0 : 1;
 
 	for (dom = state->head; dom; dom = dom->next) {
 		if (!n--) {
@@ -3910,6 +3912,7 @@ evdns_base_new(struct event_base *event_base, int flags)
 	 * functionality.  We can't just call evdns_getaddrinfo directly or
 	 * else libevent-core will depend on libevent-extras. */
 	evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo);
+	evutil_set_evdns_getaddrinfo_cancel_fn_(evdns_getaddrinfo_cancel);
 
 	base = mm_malloc(sizeof(struct evdns_base));
 	if (base == NULL)
@@ -4010,7 +4013,7 @@ static void
 evdns_nameserver_free(struct nameserver *server)
 {
 	if (server->socket >= 0)
-	evutil_closesocket(server->socket);
+		evutil_closesocket(server->socket);
 	(void) event_del(&server->event);
 	event_debug_unassign(&server->event);
 	if (server->state == 0)
@@ -4034,15 +4037,6 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 
 	/* TODO(nickm) we might need to refcount here. */
 
-	for (server = base->server_head; server; server = server_next) {
-		server_next = server->next;
-		evdns_nameserver_free(server);
-		if (server_next == base->server_head)
-			break;
-	}
-	base->server_head = NULL;
-	base->global_good_nameservers = 0;
-
 	for (i = 0; i < base->n_req_heads; ++i) {
 		while (base->req_heads[i]) {
 			if (fail_requests)
@@ -4057,6 +4051,16 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 	}
 	base->global_requests_inflight = base->global_requests_waiting = 0;
 
+	for (server = base->server_head; server; server = server_next) {
+		server_next = server->next;
+		/** already done something before */
+		server->probe_request = NULL;
+		evdns_nameserver_free(server);
+		if (server_next == base->server_head)
+			break;
+	}
+	base->server_head = NULL;
+	base->global_good_nameservers = 0;
 
 	if (base->global_search_state) {
 		for (dom = base->global_search_state->head; dom; dom = dom_next) {
@@ -4406,17 +4410,23 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		other_req = &data->ipv4_request;
 	}
 
-	EVDNS_LOCK(data->evdns_base);
-	if (evdns_result_is_answer(result)) {
-		if (req->type == DNS_IPv4_A)
-			++data->evdns_base->getaddrinfo_ipv4_answered;
-		else
-			++data->evdns_base->getaddrinfo_ipv6_answered;
+	/** Called from evdns_base_free() with @fail_requests == 1 */
+	if (result != DNS_ERR_SHUTDOWN) {
+		EVDNS_LOCK(data->evdns_base);
+		if (evdns_result_is_answer(result)) {
+			if (req->type == DNS_IPv4_A)
+				++data->evdns_base->getaddrinfo_ipv4_answered;
+			else
+				++data->evdns_base->getaddrinfo_ipv6_answered;
+		}
+		user_canceled = data->user_canceled;
+		if (other_req->r == NULL)
+			data->request_done = 1;
+		EVDNS_UNLOCK(data->evdns_base);
+	} else {
+		data->evdns_base = NULL;
+		user_canceled = data->user_canceled;
 	}
-	user_canceled = data->user_canceled;
-	if (other_req->r == NULL)
-		data->request_done = 1;
-	EVDNS_UNLOCK(data->evdns_base);
 
 	req->r = NULL;
 
@@ -4450,7 +4460,9 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			/* The other request is still working; maybe it will
 			 * succeed. */
 			/* XXXX handle failure from set_timeout */
-			evdns_getaddrinfo_set_timeout(data->evdns_base, data);
+			if (result != DNS_ERR_SHUTDOWN) {
+				evdns_getaddrinfo_set_timeout(data->evdns_base, data);
+			}
 			data->pending_error = err;
 			return;
 		}

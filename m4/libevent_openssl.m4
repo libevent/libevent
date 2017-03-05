@@ -26,12 +26,17 @@ case "$enable_openssl" in
 	save_LIBS="$LIBS"
 	LIBS=""
 	OPENSSL_LIBS=""
-	AC_SEARCH_LIBS([SSL_new], [ssl],
-	    [have_openssl=yes
-	    OPENSSL_LIBS="$LIBS -lcrypto $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LIBADD"],
-	    [have_openssl=no],
-	    [-lcrypto $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LIBADD])
-	LIBS="$save_LIBS"
+	for lib in crypto eay32; do
+		# clear cache
+		unset ac_cv_search_SSL_new
+		AC_SEARCH_LIBS([SSL_new], [ssl ssl32],
+		    [have_openssl=yes
+		    OPENSSL_LIBS="$LIBS -l$lib $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LIBADD"],
+		    [have_openssl=no],
+		    [-l$lib $EV_LIB_GDI $EV_LIB_WS32 $OPENSSL_LIBADD])
+		LIBS="$save_LIBS"
+		test "$have_openssl" = "yes" && break
+	done
 	;;
     esac
     AC_SUBST(OPENSSL_INCS)

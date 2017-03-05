@@ -71,8 +71,13 @@ extern "C" {
 #include <ws2tcpip.h>
 #endif
 #else
+#ifdef EVENT__HAVE_ERRNO_H
+#include <errno.h>
+#endif
 #include <sys/socket.h>
 #endif
+
+#include <time.h>
 
 /* Some openbsd autoconf versions get the name of this macro wrong. */
 #if defined(EVENT__SIZEOF_VOID__) && !defined(EVENT__SIZEOF_VOID_P)
@@ -327,6 +332,15 @@ struct evutil_monotonic_timer
 
 #define EV_MONOT_PRECISE  1
 #define EV_MONOT_FALLBACK 2
+
+/** Format a date string using RFC 1123 format (used in HTTP).
+ * If `tm` is NULL, current system's time will be used.
+ * The number of characters written will be returned.
+ * One should check if the return value is smaller than `datelen` to check if
+ * the result is truncated or not.
+ */
+EVENT2_EXPORT_SYMBOL int
+evutil_date_rfc1123(char *date, const size_t datelen, const struct tm *tm);
 
 /** Allocate a new struct evutil_monotonic_timer for use with the
  * evutil_configure_monotonic_time() and evutil_gettime_monotonic()

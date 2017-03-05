@@ -1378,6 +1378,81 @@ end:
 	;
 }
 
+static void
+create_tm_from_unix_epoch(struct tm *cur_p, const time_t t)
+{
+#ifdef _WIN32
+	struct tm *tmp = gmtime(&t);
+	if (!tmp) {
+		fprintf(stderr, "gmtime: %s (%i)", strerror(errno), (int)t);
+		exit(1);
+	}
+	*cur_p = *tmp;
+#else
+	gmtime_r(&t, cur_p);
+#endif
+}
+
+static struct date_rfc1123_case {
+	time_t t;
+	char date[30];
+} date_rfc1123_cases[] = {
+	{           0, "Thu, 01 Jan 1970 00:00:00 GMT"} /* UNIX time of zero */,
+	{   946684799, "Fri, 31 Dec 1999 23:59:59 GMT"} /* the last moment of the 20th century */,
+	{   946684800, "Sat, 01 Jan 2000 00:00:00 GMT"} /* the first moment of the 21st century */,
+	{   981072000, "Fri, 02 Feb 2001 00:00:00 GMT"},
+	{  1015113600, "Sun, 03 Mar 2002 00:00:00 GMT"},
+	{  1049414400, "Fri, 04 Apr 2003 00:00:00 GMT"},
+	{  1083715200, "Wed, 05 May 2004 00:00:00 GMT"},
+	{  1118016000, "Mon, 06 Jun 2005 00:00:00 GMT"},
+	{  1152230400, "Fri, 07 Jul 2006 00:00:00 GMT"},
+	{  1186531200, "Wed, 08 Aug 2007 00:00:00 GMT"},
+	{  1220918400, "Tue, 09 Sep 2008 00:00:00 GMT"},
+	{  1255132800, "Sat, 10 Oct 2009 00:00:00 GMT"},
+	{  1289433600, "Thu, 11 Nov 2010 00:00:00 GMT"},
+	{  1323648000, "Mon, 12 Dec 2011 00:00:00 GMT"},
+#ifndef _WIN32
+	/** In win32 case we have max   "23:59:59 January 18, 2038, UTC" for time32 */
+	{  4294967296, "Sun, 07 Feb 2106 06:28:16 GMT"} /* 2^32 */,
+	/** In win32 case we have max "23:59:59, December 31, 3000, UTC" for time64 */
+	{253402300799, "Fri, 31 Dec 9999 23:59:59 GMT"} /* long long future no one can imagine */,
+	{  1456704000, "Mon, 29 Feb 2016 00:00:00 GMT"} /* leap year */,
+#endif
+	{  1435708800, "Wed, 01 Jul 2015 00:00:00 GMT"} /* leap second */,
+	{  1481866376, "Fri, 16 Dec 2016 05:32:56 GMT"} /* the time this test case is generated */,
+	{0, ""} /* end of test cases. */
+};
+
+static void
+test_evutil_date_rfc1123(void *arg)
+{
+	struct tm query;
+	char result[30];
+	size_t i = 0;
+
+	/* Checks if too small buffers are safely accepted. */
+	{
+		create_tm_from_unix_epoch(&query, 0);
+		evutil_date_rfc1123(result, 8, &query);
+		tt_str_op(result, ==, "Thu, 01");
+	}
+
+	/* Checks for testcases. */
+	for (i = 0; ; i++) {
+		struct date_rfc1123_case c = date_rfc1123_cases[i];
+
+		if (strlen(c.date) == 0)
+			break;
+
+		create_tm_from_unix_epoch(&query, c.t);
+		evutil_date_rfc1123(result, sizeof(result), &query);
+		tt_str_op(result, ==, c.date);
+	}
+
+end:
+	;
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -1408,6 +1483,7 @@ struct testcase_t util_testcases[] = {
 	{ "monotonic_prc", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"" },
 	{ "monotonic_prc_precise", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"precise" },
 	{ "monotonic_prc_fallback", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"fallback" },
+	{ "date_rfc1123", test_evutil_date_rfc1123, 0, NULL, NULL },
 	END_OF_TESTCASES,
 };
 

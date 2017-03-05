@@ -373,6 +373,19 @@ void evhttp_set_timeout(struct evhttp *http, int timeout_in_secs);
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_timeout_tv(struct evhttp *http, const struct timeval* tv);
 
+/* Read all the clients body, and only after this respond with an error if the
+ * clients body exceed max_body_size */
+#define EVHTTP_SERVER_LINGERING_CLOSE	0x0001
+/**
+ * Set connection flags for HTTP server.
+ *
+ * @see EVHTTP_SERVER_*
+ * @return 0 on success, otherwise non zero (for example if flag doesn't
+ * supported).
+ */
+EVENT2_EXPORT_SYMBOL
+int evhttp_set_flags(struct evhttp *http, int flags);
+
 /* Request/Response functionality */
 
 /**
@@ -507,7 +520,7 @@ enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
  */
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *evhttp_connection_base_bufferevent_new(
-	struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev, const char *address, unsigned short port);
+	struct event_base *base, struct evdns_base *dnsbase, struct bufferevent* bev, const char *address, ev_uint16_t port);
 
 /**
  * Return the bufferevent that an evhttp_connection is using.
@@ -628,13 +641,35 @@ void evhttp_request_free(struct evhttp_request *req);
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *evhttp_connection_base_new(
 	struct event_base *base, struct evdns_base *dnsbase,
-	const char *address, unsigned short port);
+	const char *address, ev_uint16_t port);
 
 /**
  * Set family hint for DNS requests.
  */
+EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_family(struct evhttp_connection *evcon,
 	int family);
+
+/* reuse connection address on retry */
+#define EVHTTP_CON_REUSE_CONNECTED_ADDR	0x0008
+/* Try to read error, since server may already send and close
+ * connection, but if at that time we have some data to send then we
+ * can send get EPIPE and fail, while we can read that HTTP error. */
+#define EVHTTP_CON_READ_ON_WRITE_ERROR	0x0010
+/* @see EVHTTP_SERVER_LINGERING_CLOSE */
+#define EVHTTP_CON_LINGERING_CLOSE	0x0020
+/* Padding for public flags, @see EVHTTP_CON_* in http-internal.h */
+#define EVHTTP_CON_PUBLIC_FLAGS_END	0x100000
+/**
+ * Set connection flags.
+ *
+ * @see EVHTTP_CON_*
+ * @return 0 on success, otherwise non zero (for example if flag doesn't
+ * supported).
+ */
+EVENT2_EXPORT_SYMBOL
+int evhttp_connection_set_flags(struct evhttp_connection *evcon,
+	int flags);
 
 /** Takes ownership of the request object
  *
@@ -728,7 +763,7 @@ void evhttp_connection_get_peer(struct evhttp_connection *evcon,
     char **address, ev_uint16_t *port);
 
 /** Get the remote address associated with this connection.
- * extracted from getpeername().
+ * extracted from getpeername() OR from nameserver.
  *
  * @return NULL if getpeername() return non success,
  * or connection is not connected,

@@ -28,7 +28,7 @@ fi
 TEST_DIR=.
 TEST_SRC_DIR=.
 
-T=`echo "$0" | sed -e 's/test.sh$//' | sed -e 's/test-script.sh//' `
+T=`echo "$0" | sed -e 's/test.sh$//'`
 if test -x "$T/test-init"
 then
 	TEST_DIR="$T"
@@ -97,6 +97,7 @@ run_tests () {
 	        announce "FAILED (output not checked)" ;
 	    fi
 	fi
+
 	test -x $TEST_DIR/regress || return
 	announce_n " regress: "
 	if test "$TEST_OUTPUT_FILE" = "/dev/null" ;
@@ -104,6 +105,21 @@ run_tests () {
 		$TEST_DIR/regress --quiet $REGRESS_ARGS
 	else
 		$TEST_DIR/regress $REGRESS_ARGS >>"$TEST_OUTPUT_FILE"
+	fi
+	if test "$?" = "0" ;
+	then
+		announce OKAY ;
+	else
+		announce FAILED ;
+		FAILED=yes
+	fi
+
+	announce_n " regress_debug: "
+	if test "$TEST_OUTPUT_FILE" = "/dev/null" ;
+	then
+		EVENT_DEBUG_MODE=1 $TEST_DIR/regress --quiet $REGRESS_ARGS
+	else
+		EVENT_DEBUG_MODE=1 $TEST_DIR/regress $REGRESS_ARGS >>"$TEST_OUTPUT_FILE"
 	fi
 	if test "$?" = "0" ;
 	then
@@ -130,15 +146,43 @@ do_test() {
 	run_tests
 }
 
-announce "Running tests:"
+usage()
+{
+	cat <<EOL
+  -b   - specify backends
+  -t   - run timerfd test
+  -c   - run changelist test
+  -T   - run timerfd+changelist test
+EOL
+}
+main()
+{
+	backends=$BACKENDS
+	timerfd=0
+	changelist=0
+	timerfd_changelist=0
 
-do_test EPOLL "(timerfd)"
-do_test EPOLL "(changelist)"
-do_test EPOLL "(timerfd+changelist)"
-for i in $BACKENDS; do
-	do_test $i
-done
+	while getopts "b:tcT" c; do
+		case "$c" in
+			b) backends="$OPTARG";;
+			t) timerfd=1;;
+			c) changelist=1;;
+			T) timerfd_changelist=1;;
+			?*) usage && exit 1;;
+		esac
+	done
 
-if test "$FAILED" = "yes"; then
-	exit 1
-fi
+	announce "Running tests:"
+
+	[ $timerfd -eq 0 ] || do_test EPOLL "(timerfd)"
+	[ $changelist -eq 0 ] || do_test EPOLL "(changelist)"
+	[ $timerfd_changelist -eq 0 ] || do_test EPOLL "(timerfd+changelist)"
+	for i in $backends; do
+		do_test $i
+	done
+
+	if test "$FAILED" = "yes"; then
+		exit 1
+	fi
+}
+main "$@"

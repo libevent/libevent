@@ -50,11 +50,25 @@
 extern "C" {
 #endif
 
+/* __has_attribute() wrapper */
+#ifdef __has_attribute
+#define EVUTIL_HAS_ATTRIBUTE __has_attribute
+#endif
+/** clang 3 __has_attribute misbehaves in some versions */
+#if defined(__clang__) && \
+	__clang__ == 1 && __clang_major__ == 3 && \
+	(__clang_minor__ >= 2 && __clang_minor__ <= 5)
+#undef EVUTIL_HAS_ATTRIBUTE
+#endif
+#ifndef EVUTIL_HAS_ATTRIBUTE
+#define EVUTIL_HAS_ATTRIBUTE(x) 0
+#endif
+
 /* If we need magic to say "inline", get it for free internally. */
 #ifdef EVENT__inline
 #define inline EVENT__inline
 #endif
-#ifdef EVENT____func__
+#if defined(EVENT____func__) && !defined(__func__)
 #define __func__ EVENT____func__
 #endif
 
@@ -134,7 +148,7 @@ extern "C" {
 #ifdef SHUT_WR
 #define EVUTIL_SHUT_WR SHUT_WR
 #else
-#define EVUTIL_SHUT_WR 1
+#define EVUTIL_SHUT_WR 1 /* SD_SEND */
 #endif
 #ifdef SHUT_BOTH
 #define EVUTIL_SHUT_BOTH SHUT_BOTH
@@ -261,7 +275,7 @@ int evutil_open_closeonexec_(const char *pathname, int flags, unsigned mode);
 int evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
     int is_binary);
 
-int evutil_socket_connect_(evutil_socket_t *fd_ptr, struct sockaddr *sa, int socklen);
+int evutil_socket_connect_(evutil_socket_t *fd_ptr, const struct sockaddr *sa, int socklen);
 
 int evutil_socket_finished_connecting_(evutil_socket_t fd);
 
@@ -306,6 +320,12 @@ ev_int32_t evutil_weakrand_range_(struct evutil_weakrand_state *seed, ev_int32_t
 #define EVUTIL_UNLIKELY(p) __builtin_expect(!!(p),0)
 #else
 #define EVUTIL_UNLIKELY(p) (p)
+#endif
+
+#if EVUTIL_HAS_ATTRIBUTE(fallthrough)
+#define EVUTIL_FALLTHROUGH __attribute__((fallthrough))
+#else
+#define EVUTIL_FALLTHROUGH /* fallthrough */
 #endif
 
 /* Replacement for assert() that calls event_errx on failure. */
@@ -357,8 +377,10 @@ typedef struct evdns_getaddrinfo_request* (*evdns_getaddrinfo_fn)(
     const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in,
     void (*cb)(int, struct evutil_addrinfo *, void *), void *arg);
-
 void evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo_fn fn);
+typedef void (*evdns_getaddrinfo_cancel_fn)(
+    struct evdns_getaddrinfo_request *req);
+void evutil_set_evdns_getaddrinfo_cancel_fn_(evdns_getaddrinfo_cancel_fn fn);
 
 struct evutil_addrinfo *evutil_new_addrinfo_(struct sockaddr *sa,
     ev_socklen_t socklen, const struct evutil_addrinfo *hints);
@@ -368,10 +390,12 @@ void evutil_adjust_hints_for_addrconfig_(struct evutil_addrinfo *hints);
 int evutil_getaddrinfo_common_(const char *nodename, const char *servname,
     struct evutil_addrinfo *hints, struct evutil_addrinfo **res, int *portnum);
 
-int evutil_getaddrinfo_async_(struct evdns_base *dns_base,
+struct evdns_getaddrinfo_request *evutil_getaddrinfo_async_(
+    struct evdns_base *dns_base,
     const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in,
     void (*cb)(int, struct evutil_addrinfo *, void *), void *arg);
+void evutil_getaddrinfo_cancel_async_(struct evdns_getaddrinfo_request *data);
 
 /** Return true iff sa is a looback address. (That is, it is 127.0.0.1/8, or
  * ::1). */
@@ -417,7 +441,7 @@ HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #define EV_SOCK_ARG(x) (x)
 #endif
 
-#if defined(__STDC__) && defined(__STDC_VERSION__)
+#if defined(__STDC__) && defined(__STDC_VERSION__) && !defined(__MINGW64_VERSION_MAJOR)
 #if (__STDC_VERSION__ >= 199901L)
 #define EV_SIZE_FMT "%zu"
 #define EV_SSIZE_FMT "%zd"

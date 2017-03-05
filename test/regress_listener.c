@@ -40,6 +40,9 @@
 # endif
 #include <unistd.h>
 #endif
+#ifdef EVENT__HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>
+#endif
 
 #include <string.h>
 
@@ -182,6 +185,41 @@ end:
 		evconnlistener_free(listener);
 }
 
+#ifdef EVENT__HAVE_SETRLIMIT
+static void
+regress_listener_error_unlock(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evconnlistener *listener = NULL;
+	unsigned int flags =
+		LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE|LEV_OPT_THREADSAFE;
+
+	tt_int_op(send(data->pair[1], "hello", 5, 0), >, 0);
+
+	/* Start a listener with a bogus socket. */
+	listener = evconnlistener_new(base, acceptcb, NULL, flags, 0, data->pair[0]);
+	tt_assert(listener);
+
+	/** accept() must errored out with EMFILE */
+	{
+		struct rlimit rl;
+		rl.rlim_cur = rl.rlim_max = data->pair[1];
+		if (setrlimit(RLIMIT_NOFILE, &rl) == -1) {
+			TT_DIE(("Can't change RLIMIT_NOFILE"));
+		}
+	}
+
+	event_base_loop(base, EVLOOP_ONCE);
+
+	/** with lock debugging, can fail on lock->count assertion */
+
+end:
+	if (listener)
+		evconnlistener_free(listener);
+}
+#endif
+
 struct testcase_t listener_testcases[] = {
 
 	{ "randport", regress_pick_a_port, TT_FORK|TT_NEED_BASE,
@@ -189,6 +227,12 @@ struct testcase_t listener_testcases[] = {
 
 	{ "randport_ts", regress_pick_a_port, TT_FORK|TT_NEED_BASE,
 	  &basic_setup, (char*)"ts"},
+
+#ifdef EVENT__HAVE_SETRLIMIT
+	{ "error_unlock", regress_listener_error_unlock,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR,
+	  &basic_setup, NULL},
+#endif
 
 	{ "error", regress_listener_error,
 	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR,

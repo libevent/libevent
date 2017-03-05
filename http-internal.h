@@ -62,19 +62,23 @@ struct evhttp_connection {
 	struct event retry_ev;		/* for retrying connects */
 
 	char *bind_address;		/* address to use for binding the src */
-	u_short bind_port;		/* local port for binding the src */
+	ev_uint16_t bind_port;		/* local port for binding the src */
 
 	char *address;			/* address to connect to */
-	u_short port;
+	ev_uint16_t port;
 
 	size_t max_headers_size;
 	ev_uint64_t max_body_size;
 
 	int flags;
-#define EVHTTP_CON_INCOMING	0x0001	/* only one request on it ever */
-#define EVHTTP_CON_OUTGOING	0x0002  /* multiple requests possible */
-#define EVHTTP_CON_CLOSEDETECT  0x0004  /* detecting if persistent close */
-#define EVHTTP_CON_AUTOFREE 0x0008  /* set when we want to auto free the connection */
+#define EVHTTP_CON_INCOMING	0x0001       /* only one request on it ever */
+#define EVHTTP_CON_OUTGOING	0x0002       /* multiple requests possible */
+#define EVHTTP_CON_CLOSEDETECT	0x0004   /* detecting if persistent close */
+/* set when we want to auto free the connection */
+#define EVHTTP_CON_AUTOFREE	EVHTTP_CON_PUBLIC_FLAGS_END
+/* Installed when attempt to read HTTP error after write failed, see
+ * EVHTTP_CON_READ_ON_WRITE_ERROR */
+#define EVHTTP_CON_READING_ERROR	(EVHTTP_CON_AUTOFREE << 1)
 
 	struct timeval timeout;		/* timeout for events */
 	int retry_cnt;			/* retry count */
@@ -101,13 +105,6 @@ struct evhttp_connection {
 	struct event_base *base;
 	struct evdns_base *dns_base;
 	int ai_family;
-
-	/* Saved conn_addr, to extract IP address from it.
-	 *
-	 * Because some servers may reset/close connection without waiting clients,
-	 * in that case we can't extract IP address even in close_cb.
-	 * So we need to save it, just after we connected to remote server. */
-	struct sockaddr_storage *conn_address;
 };
 
 /* A callback for an http server */
@@ -160,6 +157,7 @@ struct evhttp {
 
 	size_t default_max_headers_size;
 	ev_uint64_t default_max_body_size;
+	int flags;
 	const char *default_content_type;
 
 	/* Bitmask of all HTTP methods that we accept and pass to user
@@ -195,6 +193,7 @@ enum message_read_status evhttp_parse_firstline_(struct evhttp_request *, struct
 enum message_read_status evhttp_parse_headers_(struct evhttp_request *, struct evbuffer*);
 
 void evhttp_start_read_(struct evhttp_connection *);
+void evhttp_start_write_(struct evhttp_connection *);
 
 /* response sending HTML the data in the buffer */
 void evhttp_response_code_(struct evhttp_request *, int, const char *);

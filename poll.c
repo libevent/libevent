@@ -198,7 +198,7 @@ poll_dispatch(struct event_base *base, struct timeval *tv)
 		res = 0;
 
 		/* If the file gets closed notify */
-		if (what & (POLLHUP|POLLERR))
+		if (what & (POLLHUP|POLLERR|POLLNVAL))
 			what |= POLLIN|POLLOUT;
 		if (what & POLLIN)
 			res |= EV_READ;

@@ -24,6 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "../util-internal.h"
 #include "event2/event-config.h"
 
 #ifdef _WIN32
@@ -47,10 +48,6 @@
 
 #include <event.h>
 #include <evutil.h>
-
-#ifdef EVENT____func__
-#define __func__ EVENT____func__
-#endif
 
 int test_okay = 1;
 int called = 0;
@@ -81,10 +78,6 @@ read_cb(evutil_socket_t fd, short event, void *arg)
 	called++;
 }
 
-#ifndef SHUT_WR
-#define SHUT_WR 1
-#endif
-
 int
 main(int argc, char **argv)
 {
@@ -107,7 +100,7 @@ main(int argc, char **argv)
 
 	if (send(pair[0], test, (int)strlen(test)+1, 0) < 0)
 		return (1);
-	shutdown(pair[0], SHUT_WR);
+	shutdown(pair[0], EVUTIL_SHUT_WR);
 
 	/* Initalize the event library */
 	event_init();

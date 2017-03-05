@@ -1,45 +1,60 @@
-version: 2.1.5.{build}
-shallow_clone: true
+version: 2.2.0.{build}
 
-os: Visual Studio 2015 RC
+os: Visual Studio 2015
 
 build:
-          verbosity: detailed
+  verbosity: detailed
 
 environment:
-    global:
-        CYG_ROOT: C:/MinGW/msys/1.0
-
+  global:
+    CYG_ROOT: C:/MinGW/msys/1.0
+  matrix:
+    - EVENT_BUILD_METHOD: "autotools"
+      EVENT_CONFIGURE_OPTIONS: ""
+    - EVENT_BUILD_METHOD: "autotools"
+      EVENT_CONFIGURE_OPTIONS: "--disable-openssl"
+    - EVENT_BUILD_METHOD: "autotools"
+      EVENT_CONFIGURE_OPTIONS: "--disable-thread-support"
+    - EVENT_BUILD_METHOD: "autotools"
+      EVENT_CONFIGURE_OPTIONS: "--disable-debug-mode"
+    - EVENT_BUILD_METHOD: "autotools"
+      EVENT_CONFIGURE_OPTIONS: "--disable-malloc-replacement"
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: ""
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_OPENSSL=ON"
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_THREAD_SUPPORT=ON"
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_DEBUG_MODE=ON"
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_MM_REPLACEMENT=ON"
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__ENABLE_VERBOSE_DEBUG=ON"
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DCMAKE_C_FLAGS='-DUNICODE -D_UNICODE'"
 init:
-    - 'echo Building libevent %version% for Windows'
-    - 'echo System architecture: %PLATFORM%'
-    - 'echo Repo build branch is: %APPVEYOR_REPO_BRANCH%'
-    - 'echo Build folder is: %APPVEYOR_BUILD_FOLDER%'
-
+  - 'echo Building libevent %version% for Windows'
+  - 'echo System architecture: %PLATFORM%'
+  - 'echo Repo build branch is: %APPVEYOR_REPO_BRANCH%'
+  - 'echo Build folder is: %APPVEYOR_BUILD_FOLDER%'
+  - 'echo Repo build commit is: %APPVEYOR_REPO_COMMIT%'
+  - 'echo Cygwin root is: %CYG_ROOT%'
 install:
-    - set PATH=%PATH%;C:\MinGW\msys\1.0\bin;C:\MinGW\bin
-    - appveyor DownloadFile https://strcpy.net/packages/Win32OpenSSL-1_0_2a.exe
-    - Win32OpenSSL-1_0_2a.exe /silent /verysilent /sp- /suppressmsgboxes
-
+  - C:\MinGW\bin\mingw-get install autotools autoconf automake
 build_script:
-    - cmd: 'echo Cygwin root is: %CYG_ROOT%'
-    - cmd: 'echo Build folder is: %APPVEYOR_BUILD_FOLDER%'
-    - cmd: 'echo Repo build branch is: %APPVEYOR_REPO_BRANCH%'
-    - cmd: 'echo Repo build commit is: %APPVEYOR_REPO_COMMIT%'
-    - cmd: "echo installing stuff"
-    - cmd: 'echo "C:\MinGW   /mingw" >%CYG_ROOT%/etc/fstab'
-    - cmd: 'C:\MinGW\bin\mingw-get install autotools autoconf automake python'
-    - cmd: 'echo Autogen running...'
-    - cmd: '%CYG_ROOT%/bin/bash -lc "cd $APPVEYOR_BUILD_FOLDER; exec 0</dev/null;mount C:/MinGW /mingw; bash -x ./autogen.sh; ./configure; make; make verify"'
-
-#install:
-#  - appveyor DownloadFile https://strcpy.net/packages/Win32OpenSSL-1_0_2a.exe 
-#  - Win32OpenSSL-1_0_2a.exe /silent /verysilent /sp- /suppressmsgboxes
-#build_script:
-#  - md build
-#  - cd build
-#  - cmake ..
-#  - cmake --build .
-#  - ctest --output-on-failure
-cache:
-  - C:\OpenSSL-Win32
+  - ps: |
+      if ($env:EVENT_BUILD_METHOD -eq 'autotools') {
+        $env:PATH="$env:CYG_ROOT\bin;C:\MinGW\bin;$($env:PATH)"
+        bash -lc "echo 'C:\MinGW /mingw' > /etc/fstab"
+        bash -lc "echo 'C:\OpenSSL-Win32 /ssl' >> /etc/fstab"
+        $env:APPVEYOR_BUILD_FOLDER = $env:APPVEYOR_BUILD_FOLDER -replace "\\", "/"
+        bash -lc "exec 0</dev/null; exec 2>&1; cd $env:APPVEYOR_BUILD_FOLDER; bash -x ./autogen.sh && ./configure LDFLAGS='-L/ssl -L/ssl/lib -L/ssl/lib/MinGW' CFLAGS=-I/ssl/include $env:EVENT_CONFIGURE_OPTIONS && make && make verify -j20"
+      } else {
+        md build
+        cd build
+        cmake .. $env:EVENT_CMAKE_OPTIONS
+        cmake --build .
+        $env:CTEST_PARALLEL_LEVEL="20"
+        ctest --output-on-failure
+      }

@@ -376,7 +376,7 @@ thread_conditions_simple(void *arg)
 		}
 		evutil_timeradd(target_delay, &launched_at, &target_time);
 		test_timeval_diff_leq(&target_time, &alerted[i].alerted_at,
-		    0, 50);
+		    0, 200);
 	}
 	tt_int_op(n_broadcast + n_signal + n_timed_out, ==, NUM_THREADS);
 	tt_int_op(n_signal, ==, 1);
