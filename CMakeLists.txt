@@ -471,6 +471,7 @@ else()
 endif()
 
 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
+    list(APPEND CMAKE_EXTRA_INCLUDE_FILES pthread.h)
     CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
 endif()
 
