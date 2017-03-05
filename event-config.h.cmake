@@ -244,9 +244,6 @@
 /* Define to 1 if you have the `sendfile' function. */
 #cmakedefine EVENT__HAVE_SENDFILE 1
 
-/* Define if F_SETFD is defined in <fcntl.h> */
-#cmakedefine EVENT__HAVE_SETFD 1
-
 /* Define to 1 if you have the `sigaction' function. */
 #cmakedefine EVENT__HAVE_SIGACTION 1
 
