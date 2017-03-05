@@ -224,7 +224,14 @@ if (SOLARIS)
 endif()
 
 # Check if _GNU_SOURCE is available.
-CHECK_SYMBOL_EXISTS(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
+if (NOT _GNU_SOURCE)
+  CHECK_SYMBOL_EXISTS(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
+
+  if (NOT _GNU_SOURCE)
+    unset(_GNU_SOURCE CACHE)
+    CHECK_SYMBOL_EXISTS(_GNU_SOURCE "features.h" _GNU_SOURCE)
+  endif()
+endif()
 
 if (_GNU_SOURCE)
     add_definitions(-D_GNU_SOURCE)
