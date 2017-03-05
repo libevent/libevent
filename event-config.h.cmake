@@ -526,7 +526,4 @@
 
 #cmakedefine EVENT__NEED_DLLIMPORT 1
 
-/* Define if waitpid() supports WNOWAIT */
-#cmakedefine EVENT__HAVE_WAITPID_WITH_WNOWAIT 1
-
-#endif
+#endif /* \EVENT2_EVENT_CONFIG_H_INCLUDED_ */
