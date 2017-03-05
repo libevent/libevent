@@ -879,10 +879,6 @@ if (NOT EVENT__DISABLE_SAMPLES)
         time-test)
 
     if (NOT EVENT__DISABLE_OPENSSL AND OPENSSL_LIBRARIES)
-        set(CMAKE_REQUIRED_LIBRARIES ${OPENSSL_LIBRARIES})
-        CHECK_FUNCTION_EXISTS_EX(ERR_remove_thread_state EVENT__HAVE_ERR_REMOVE_THREAD_STATE)
-        set(CMAKE_REQUIRED_LIBRARIES "")
-
         # Special sample with more than one file.
         add_executable(https-client
             sample/https-client.c
