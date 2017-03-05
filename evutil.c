@@ -1053,7 +1053,7 @@ evutil_getaddrinfo_common_(const char *nodename, const char *servname,
 		struct sockaddr_in sin;
 		memset(&sin, 0, sizeof(sin));
 		if (1==evutil_inet_pton(AF_INET, nodename, &sin.sin_addr)) {
-			/* Got an ipv6 address. */
+			/* Got an ipv4 address. */
 			sin.sin_family = AF_INET;
 			sin.sin_port = htons(port);
 			*res = evutil_new_addrinfo_((struct sockaddr*)&sin,
