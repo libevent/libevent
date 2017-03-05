@@ -342,6 +342,7 @@ AC_CHECK_FUNCS([ \
   accept4 \
   arc4random \
   arc4random_buf \
+  arc4random_addrandom \
   eventfd \
   epoll_create1 \
   fcntl \
