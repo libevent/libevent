@@ -2691,3 +2691,25 @@ evutil_free_globals_(void)
 	evutil_free_secure_rng_globals_();
 	evutil_free_sock_err_globals();
 }
+
+int
+evutil_getpeername(evutil_socket_t sockfd, struct sockaddr *addr, socklen_t *addrlen)
+{
+#if !defined(EVENT__HAVE_GETPEERNAME)
+	return -1;
+#endif
+
+#ifdef _WIN32
+	if (getpeername(sockfd, addr, addrlen) == SOCKET_ERROR) {
+		event_sock_warn(sockfd, "getpeername(%d)", (int)sockfd);
+		return -1;
+	}
+#else
+	if (getpeername(sockfd, addr, addrlen) == -1) {
+		event_sock_warn(sockfd, "getpeername(%d)", sockfd);
+		return -1;
+	}
+#endif
+
+	 return 0;
+}

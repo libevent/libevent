@@ -4511,6 +4511,68 @@ http_request_own_test(void *arg)
 	test_ok = 1;
 }
 
+static void
+http_remote_addr_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	ev_uint16_t port = 0;
+	// Even if it was ipv4, sizeof ipv6 must be enough
+	struct sockaddr_storage addr;
+	char ip_buffer[NI_MAXSERV];
+	const char *ip_buffer_ptr;
+	ev_socklen_t len = sizeof(addr);
+
+
+	http = http_setup(&port, data->base);
+
+	test_ok = 0;
+
+	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	tt_assert(evcon);
+
+	tt_assert(evhttp_connection_get_base(evcon) == data->base);
+
+	exit_base = data->base;
+	/*
+	 * At this point, we want to schedule a request to the HTTP
+	 * server using our make request method.
+	 */
+	req = evhttp_request_new(http_request_done, (void*) BASIC_REQUEST_BODY);
+
+	/* Add the information that we care about */
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
+
+	/* We give ownership of the request to the connection */
+	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+		fprintf(stdout, "FAILED\n");
+		exit(1);
+	}
+
+	event_base_dispatch(data->base);
+	tt_assert(test_ok);
+
+	tt_assert(!evhttp_get_remote_addr(evcon, &addr, &len));
+
+	// TODO : maybe compare not by string, but by "addr.sin6_addr.s6_addr" binary representation.
+	if (addr.ss_family == AF_INET) {
+		ip_buffer_ptr = evutil_inet_ntop(AF_INET, &((struct sockaddr_in *)&addr)->sin_addr, ip_buffer, NI_MAXSERV);
+		tt_assert(ip_buffer_ptr);
+		tt_assert(!strcmp(ip_buffer, "127.0.0.1"));
+	} else if (addr.ss_family == AF_INET6) {
+		ip_buffer_ptr = evutil_inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&addr)->sin6_addr, ip_buffer, NI_MAXSERV);
+		tt_assert(ip_buffer_ptr);
+		tt_assert(!strcmp(ip_buffer, "::1"));
+	}
+	
+ end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+}
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
 		    http_##name##_test }
@@ -4648,6 +4710,8 @@ struct testcase_t http_testcases[] = {
 	HTTPS(connection),
 	HTTPS(persist_connection),
 #endif
+
+	HTTP(remote_addr),
 
 	END_OF_TESTCASES
 };

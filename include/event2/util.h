@@ -859,6 +859,8 @@ int evutil_secure_rng_set_urandom_device_file(char *fname);
 EVENT2_EXPORT_SYMBOL
 void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
 
+int evutil_getpeername(evutil_socket_t sockfd, struct sockaddr *addr, ev_socklen_t *addrlen);
+
 #ifdef __cplusplus
 }
 #endif

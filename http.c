@@ -5022,3 +5022,10 @@ evhttp_uri_set_fragment(struct evhttp_uri *uri, const char *fragment)
 	URI_SET_STR_(fragment);
 	return 0;
 }
+
+int
+evhttp_get_remote_addr(struct evhttp_connection *evcon, void *dst, ev_socklen_t *len)
+{
+	return evutil_getpeername(bufferevent_getfd(evhttp_connection_get_bufferevent(evcon)), dst, len);
+}
+
