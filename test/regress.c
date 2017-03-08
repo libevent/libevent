@@ -855,11 +855,6 @@ test_fork(void)
 	int status;
 	struct event ev, sig_ev, usr_ev, existing_ev;
 	pid_t pid;
-	int wait_flags = 0;
-
-#ifdef EVENT__HAVE_WAITPID_WITH_WNOWAIT
-	wait_flags |= WNOWAIT;
-#endif
 
 	setup_test("After fork: ");
 
@@ -934,7 +929,8 @@ test_fork(void)
 	}
 
 	TT_BLATHER(("Before waitpid"));
-	if (waitpid(pid, &status, wait_flags) == -1) {
+	if ((waitpid(pid, &status, WNOWAIT) == -1 && errno == EINVAL) &&
+	    waitpid(pid, &status, 0) == -1) {
 		perror("waitpid");
 		exit(1);
 	}
