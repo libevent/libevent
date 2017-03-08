@@ -30,8 +30,6 @@ environment:
     - EVENT_BUILD_METHOD: "cmake"
       EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_MM_REPLACEMENT=ON"
     - EVENT_BUILD_METHOD: "cmake"
-      EVENT_CMAKE_OPTIONS: "-DEVENT__ENABLE_VERBOSE_DEBUG=ON"
-    - EVENT_BUILD_METHOD: "cmake"
       EVENT_CMAKE_OPTIONS: "-DCMAKE_C_FLAGS='-DUNICODE -D_UNICODE'"
 init:
   - 'echo Building libevent %version% for Windows'
