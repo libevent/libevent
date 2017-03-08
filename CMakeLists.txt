@@ -682,7 +682,7 @@ if(EVENT__HAVE_DEVPOLL)
 endif()
 
 if(EVENT__HAVE_EPOLL)
-    list(APPEND SRC_CORE epoll_sub.c epoll.c)
+    list(APPEND SRC_CORE epoll.c)
 endif()
 
 if(EVENT__HAVE_EVENT_PORTS)
