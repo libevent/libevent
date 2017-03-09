@@ -68,7 +68,7 @@ script:
       ./autogen.sh &&
       ./configure $EVENT_CONFIGURE_OPTIONS &&
       make &&
-      travis_wait $TIMEOUT make -j $JOBS verify;
+      travis_retry travis_wait $TIMEOUT make -j $JOBS verify;
     fi
   - if [ "$EVENT_BUILD_METHOD" = "cmake" ]; then
       export
@@ -78,7 +78,7 @@ script:
       mkdir build &&
       cd build &&
       cmake .. $EVENT_CMAKE_OPTIONS &&
-      travis_wait $TIMEOUT
+      travis_retry travis_wait $TIMEOUT
       cmake --build . --target verify;
     fi
 
