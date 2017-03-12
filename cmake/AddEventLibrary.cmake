@@ -15,9 +15,36 @@ macro(set_event_shared_lib_flags LIB_NAME)
         LINK_FLAGS ${ARGN})
 endmacro()
 
+macro(generate_pkgconfig LIB_NAME)
+    set(prefix      ${CMAKE_INSTALL_PREFIX})
+    set(exec_prefix ${CMAKE_INSTALL_PREFIX})
+    set(libdir      ${CMAKE_INSTALL_PREFIX}/lib)
+    set(includedir  ${CMAKE_INSTALL_PREFIX}/include)
+
+    set(VERSION ${EVENT_ABI_LIBVERSION})
+
+    set(LIBS         "")
+    foreach (LIB ${LIB_PLATFORM})
+        set(OPENSSL_LIBS "${LIBS} -L${LIB}")
+    endforeach()
+
+    set(OPENSSL_LIBS "")
+    foreach(LIB ${OPENSSL_LIBRARIES})
+        set(OPENSSL_LIBS "${LIBS} -L${LIB}")
+    endforeach()
+
+    configure_file("lib${LIB_NAME}.pc.in" "lib${LIB_NAME}.pc" @ONLY)
+    install(
+        FILES "${CMAKE_CURRENT_BINARY_DIR}/lib${LIB_NAME}.pc"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig"
+    )
+endmacro()
+
+
 # Global variables that it uses:
 # - EVENT_ABI_LIBVERSION
 # - CMAKE_THREAD_LIBS_INIT LIB_PLATFORM
+# - OPENSSL_LIBRARIES
 # - HDR_PUBLIC
 # - EVENT_INSTALL_BIN_DIR
 # - EVENT_INSTALL_LIB_DIR
@@ -79,4 +106,6 @@ macro(add_event_library LIB_NAME)
 
     list(APPEND LIBEVENT_SHARED_LIBRARIES "${LIB_NAME}_shared")
     list(APPEND LIBEVENT_STATIC_LIBRARIES "${LIB_NAME}_static")
+
+    generate_pkgconfig("${LIB_NAME}")
 endmacro()
