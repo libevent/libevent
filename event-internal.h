@@ -36,11 +36,13 @@ extern "C" {
 
 #include <time.h>
 #include <sys/queue.h>
+#include "event2/event.h"
 #include "event2/event_struct.h"
-#include "minheap-internal.h"
 #include "evsignal-internal.h"
 #include "mm-internal.h"
 #include "defer-internal.h"
+#include "time-internal.h"
+#include "util-internal.h"
 
 /* map union members back */
 
@@ -156,26 +158,6 @@ struct event_signal_map {
 	int nentries;
 };
 
-/* A list of events waiting on a given 'common' timeout value.  Ordinarily,
- * events waiting for a timeout wait on a minheap.  Sometimes, however, a
- * queue can be faster.
- **/
-struct common_timeout_list {
-	/* List of events currently waiting in the queue. */
-	struct event_list events;
-	/* 'magic' timeval used to indicate the duration of events in this
-	 * queue. */
-	struct timeval duration;
-	/* Event that triggers whenever one of the events in the queue is
-	 * ready to activate */
-	struct event timeout_event;
-	/* The event_base that this timeout list is part of */
-	struct event_base *base;
-};
-
-/** Mask used to get the real tv_usec value from a common timeout. */
-#define COMMON_TIMEOUT_MICROSECONDS_MASK       0x000fffff
-
 struct event_change;
 
 /* List of 'changes' since the last call to eventop.dispatch.  Only maintained
@@ -203,6 +185,13 @@ struct event_once {
 
 	void (*cb)(evutil_socket_t, short, void *);
 	void *arg;
+};
+
+struct event_timeouts;
+
+struct event_common_timeout {
+	LIST_ENTRY(event_common_timeout) next_timeout;
+	struct timeval tv;
 };
 
 struct event_base {
@@ -270,13 +259,12 @@ struct event_base {
 
 	/* common timeout logic */
 
-	/** An array of common_timeout_list* for all of the common timeout
-	 * values we know. */
-	struct common_timeout_list **common_timeout_queues;
-	/** The number of entries used in common_timeout_queues */
-	int n_common_timeouts;
-	/** The total size of common_timeout_queues. */
-	int n_common_timeouts_allocated;
+	/** A list of event_common_timeout all of the common timeout
+	 * values we have configured.  Common timeouts are no longer
+	 * special or necessary, but we need them to be implemented
+	 * as singletons for safe backward compatibility. */
+	LIST_HEAD(event_common_timeout_list,
+	    event_common_timeout) common_timeouts;
 
 	/** Mapping from file descriptors to enabled (added) events */
 	struct event_io_map io;
@@ -285,7 +273,7 @@ struct event_base {
 	struct event_signal_map sigmap;
 
 	/** Priority queue of events with timeouts. */
-	struct min_heap timeheap;
+	struct event_timeouts *timeout_queue;
 
 	/** Stored timeval: used to avoid calling gettimeofday/clock_gettime
 	 * too often. */
@@ -321,6 +309,8 @@ struct event_base {
 
 	/** Flags that this base was configured with */
 	enum event_base_config_flag flags;
+
+	unsigned timeout_divisor;
 
 	struct timeval max_dispatch_time;
 	int max_dispatch_callbacks;

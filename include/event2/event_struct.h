@@ -120,14 +120,14 @@ struct event_callback {
 };
 
 struct event_base;
+struct event_timeout;
+
 struct event {
 	struct event_callback ev_evcallback;
 
 	/* for managing timeouts */
-	union {
-		TAILQ_ENTRY(event) ev_next_with_common_timeout;
-		int min_heap_idx;
-	} ev_timeout_pos;
+	struct event_timeout *ev_timeout_obj;
+
 	evutil_socket_t ev_fd;
 
 	struct event_base *ev_base;

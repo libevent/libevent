@@ -1496,20 +1496,24 @@ int	event_priority_set(struct event *, int);
    Prepare an event_base to use a large number of timeouts with the same
    duration.
 
-   Libevent's default scheduling algorithm is optimized for having a large
-   number of timeouts with their durations more or less randomly
-   distributed.  But if you have a large number of timeouts that all have
+   This function is now deprecated; you don't need to use it any more with
+   Libevent's new wheel-based scheduler.
+
+   Libevent's old scheduling algorithm (before 2.2) was optimized for
+   a large number of timeouts with their durations more or less randomly
+   distributed.  But if you had a large number of timeouts that all had
    the same duration (for example, if you have a large number of
-   connections that all have a 10-second timeout), then you can improve
+   connections that all have a 10-second timeout), then you could improve
    Libevent's performance by telling Libevent about it.
 
-   To do this, call this function with the common duration.  It will return a
-   pointer to a different, opaque timeout value.  (Don't depend on its actual
-   contents!)  When you use this timeout value in event_add(), Libevent will
-   schedule the event more efficiently.
+   To do this, you would call this function with the common duration. It
+   returns a pointer to a different, opaque timeout value.  (Don't depend on
+   its actual contents!)  When you used this timeout value in event_add(),
+   Libevent would schedule the event more efficiently.
 
-   (This optimization probably will not be worthwhile until you have thousands
-   or tens of thousands of events with the same timeout.)
+   (This optimization was probably not worthwhile until you had thousands
+   or tens of thousands of events with the same timeout.  In any case, this
+   function is now deprecated.)
  */
 EVENT2_EXPORT_SYMBOL
 const struct timeval *event_base_init_common_timeout(struct event_base *base,

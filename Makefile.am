@@ -114,6 +114,10 @@ EXTRA_DIST = \
 	LICENSE \
 	Makefile.nmake test/Makefile.nmake \
 	autogen.sh \
+	contrib/timeout/bench.c \
+	contrib/timeout/bench-heap.c \
+	contrib/timeout/bench-wheel.c \
+	contrib/timeout/Makefile \
 	event_rpcgen.py \
 	libevent.pc.in \
 	make-event-config.sed \
@@ -265,6 +269,10 @@ noinst_HEADERS +=				\
 	bufferevent-internal.h			\
 	changelist-internal.h			\
 	compat/sys/queue.h			\
+	contrib/timeout/timeout.h		\
+	contrib/timeout/timeout.c		\
+	contrib/timeout/debug.h			\
+	contrib/timeout/bench.h			\
 	defer-internal.h			\
 	epolltable-internal.h			\
 	evbuffer-internal.h			\
@@ -280,7 +288,6 @@ noinst_HEADERS +=				\
 	ipv6-internal.h				\
 	kqueue-internal.h			\
 	log-internal.h				\
-	minheap-internal.h			\
 	mm-internal.h				\
 	ratelim-internal.h			\
 	ratelim-internal.h			\
