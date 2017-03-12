@@ -18,6 +18,11 @@ env:
     - EVENT_BUILD_METHOD=autotools EVENT_CONFIGURE_OPTIONS="--disable-debug-mode"
     - EVENT_BUILD_METHOD=autotools EVENT_CONFIGURE_OPTIONS="--disable-malloc-replacement"
 
+matrix:
+  exclude:
+    - os: osx
+      env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=debug" COVERALLS=yes
+
 language: c
 compiler:
   - gcc
