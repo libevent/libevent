@@ -184,12 +184,15 @@ int evhttp_connection_connect_(struct evhttp_connection *);
 
 enum evhttp_request_error;
 /* notifies the current request that it failed; resets connection */
+EVENT2_EXPORT_SYMBOL
 void evhttp_connection_fail_(struct evhttp_connection *,
     enum evhttp_request_error error);
 
 enum message_read_status;
 
+EVENT2_EXPORT_SYMBOL
 enum message_read_status evhttp_parse_firstline_(struct evhttp_request *, struct evbuffer*);
+EVENT2_EXPORT_SYMBOL
 enum message_read_status evhttp_parse_headers_(struct evhttp_request *, struct evbuffer*);
 
 void evhttp_start_read_(struct evhttp_connection *);
@@ -199,6 +202,7 @@ void evhttp_start_write_(struct evhttp_connection *);
 void evhttp_response_code_(struct evhttp_request *, int, const char *);
 void evhttp_send_page_(struct evhttp_request *, struct evbuffer *);
 
+EVENT2_EXPORT_SYMBOL
 int evhttp_decode_uri_internal(const char *uri, size_t length,
     char *ret, int decode_plus);
 

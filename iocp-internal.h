@@ -181,6 +181,7 @@ struct event_base;
 struct event_iocp_port *event_base_get_iocp_(struct event_base *base);
 
 /* FIXME document. */
+EVENT2_EXPORT_SYMBOL
 int event_base_start_iocp_(struct event_base *base, int n_cpus);
 void event_base_stop_iocp_(struct event_base *base);
 
