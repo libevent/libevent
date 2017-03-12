@@ -21,7 +21,7 @@
 if (WIN32 OR APPLE)
     cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 else()
-    cmake_minimum_required(VERSION 2.8.0 FATAL_ERROR)
+    cmake_minimum_required(VERSION 2.8.3 FATAL_ERROR)
 endif()
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -101,9 +101,6 @@ endif()
 
 set(EVENT_VERSION
 	"${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}-${EVENT_STAGE_NAME}")
-
-option(EVENT__BUILD_SHARED_LIBRARIES
-    "Define if libevent should be built with shared libraries instead of archives" OFF)
 
 option(EVENT__DISABLE_DEBUG_MODE
     "Define if libevent should build without support for a debug mode" OFF)
@@ -731,11 +728,6 @@ if (NOT EVENT__DISABLE_TESTS)
     endif()
 endif()
 
-set(LIBEVENT_LIBRARIES
-    event
-    event_core
-    event_extra)
-
 set(SRC_EXTRA
     event_tagging.c
     http.c
@@ -782,19 +774,11 @@ source_group("Source Extra"     FILES ${SRC_EXTRA})
 # (Place them in the build dir so we don't polute the source tree with generated files).
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 
-if (EVENT__BUILD_SHARED_LIBRARIES)
-  set(EVENT__LIBRARY_TYPE SHARED)
-
-  if ((CMAKE_COMPILER_IS_GNUCC) OR (${CMAKE_C_COMPILER_ID} STREQUAL "Clang"))
-        add_compiler_flags(-fvisibility=hidden)
-  elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
-    add_compiler_flags(-xldscope=hidden)
-  endif()
-
-  set(EVENT__NEED_DLLIMPORT 1)
-else (EVENT__BUILD_SHARED_LIBRARIES)
-  set(EVENT__LIBRARY_TYPE STATIC)
-endif (EVENT__BUILD_SHARED_LIBRARIES)
+if ((CMAKE_COMPILER_IS_GNUCC) OR (${CMAKE_C_COMPILER_ID} STREQUAL "Clang"))
+    set(EVENT_SHARED_FLAGS -fvisibility=hidden)
+elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
+    set(EVENT_SHARED_FLAGS -xldscope=hidden)
+endif()
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/event-config.h.cmake
@@ -809,72 +793,50 @@ configure_file(
 # Create the libraries.
 #
 
-add_library(event_core ${EVENT__LIBRARY_TYPE} ${SRC_CORE})
+# Allow the user to override installation directories.
+set(EVENT_INSTALL_LIB_DIR       lib CACHE PATH "Installation directory for libraries")
+set(EVENT_INSTALL_BIN_DIR       bin CACHE PATH "Installation directory for executables")
+set(EVENT_INSTALL_INCLUDE_DIR   include CACHE PATH "Installation directory for header files")
 
-add_library(event_extra ${EVENT__LIBRARY_TYPE} ${SRC_EXTRA})
+include(AddEventLibrary)
+add_event_library(event_core SOURCES ${SRC_CORE})
+add_event_library(event_extra SOURCES ${SRC_EXTRA})
 
 if (NOT EVENT__DISABLE_OPENSSL)
-    add_library(event_openssl ${EVENT__LIBRARY_TYPE} ${SRC_OPENSSL})
-    list(APPEND LIBEVENT_LIBRARIES event_openssl)
+    add_event_library(event_openssl
+        LIBRARIES ${OPENSSL_LIBRARIES}
+        SOURCES ${SRC_OPENSSL})
 endif()
 
 if (CMAKE_USE_PTHREADS_INIT)
     set(SRC_PTHREADS evthread_pthread.c)
-    add_library(event_pthreads ${EVENT__LIBRARY_TYPE} ${SRC_PTHREADS})
-    list(APPEND LIBEVENT_LIBRARIES event_pthreads)
+    add_event_library(event_pthreads SOURCES ${SRC_PTHREADS})
 endif()
 
 # library exists for historical reasons; it contains the contents of
 # both libevent_core and libevent_extra. You shouldn’t use it; it may
 # go away in a future version of Libevent.
-add_library(event ${EVENT__LIBRARY_TYPE}
-            ${SRC_CORE}
-            ${SRC_EXTRA})
-
-if (EVENT__BUILD_SHARED_LIBRARIES)
-    target_link_libraries(event_core ${CMAKE_THREAD_LIBS_INIT}
-                                     ${LIB_PLATFORM})
-
-    target_link_libraries(event ${CMAKE_THREAD_LIBS_INIT}
-                                ${LIB_PLATFORM})
-
-    target_link_libraries(event_extra ${CMAKE_THREAD_LIBS_INIT}
-                                      ${LIB_PLATFORM})
-
-    if (NOT EVENT__DISABLE_OPENSSL)
-        target_link_libraries(event_openssl ${OPENSSL_LIBRARIES}
-                                            ${CMAKE_THREAD_LIBS_INIT}
-                                            ${LIB_PLATFORM})
-    endif()
-
-    if (CMAKE_USE_PTHREADS_INIT)
-        target_link_libraries(event_pthreads ${CMAKE_THREAD_LIBS_INIT}
-                                             ${LIB_PLATFORM})
-    endif()
-
-    foreach (LIB ${LIBEVENT_LIBRARIES})
-        set_target_properties(${LIB} PROPERTIES
-                              SOVERSION ${EVENT_ABI_LIBVERSION})
-    endforeach()
-endif()
+add_event_library(event SOURCES ${SRC_CORE} ${SRC_EXTRA})
 
 #
 # Samples.
 #
 macro(add_sample_prog ssl name)
-        add_executable(${name} ${ARGN})
+    add_executable(${name} ${ARGN})
 
-        target_link_libraries(${name}
-                              event_extra
-                              event_core
-                              ${LIB_APPS}
-                              ${LIB_PLATFORM})
-        add_dependencies(${name} event_core event_extra)
+    target_link_libraries(${name}
+                          event_extra_static
+                          event_core_static
+                          ${LIB_APPS}
+                          ${LIB_PLATFORM})
+    add_dependencies(${name}
+                     event_core_static
+                     event_extra_static)
 
-        if (${ssl})
-            target_link_libraries(${name} event_openssl)
-            add_dependencies(${name} event_openssl)
-        endif()
+    if (${ssl})
+        target_link_libraries(${name} event_openssl_static)
+        add_dependencies(${name} event_openssl_static)
+    endif()
 endmacro()
 if (NOT EVENT__DISABLE_SAMPLES)
     set(SAMPLES
@@ -918,11 +880,13 @@ macro(add_bench_prog prog)
              WIN32-Code/getopt_long.c)
     endif()
     target_link_libraries(${BENCHMARK}
-                          event_extra
-                          event_core
+                          event_extra_static
+                          event_core_static
                           ${LIB_APPS}
                           ${LIB_PLATFORM})
-    add_dependencies(${BENCHMARK} event_extra)
+    add_dependencies(${BENCHMARK}
+                     event_extra_static
+                     event_core_static)
 endmacro()
 if (NOT EVENT__DISABLE_BENCHMARK)
     foreach (BENCHMARK bench bench_cascade bench_http bench_httpclient)
@@ -938,9 +902,12 @@ macro(add_test_prog prog)
     target_link_libraries(${prog}
                           ${LIB_APPS}
                           ${LIB_PLATFORM}
-                          ${LIBEVENT_LIBRARIES}
+                          event_core_shared
+                          event_extra_shared
                           ${ARGN})
-    add_dependencies(${prog} ${LIBEVENT_LIBRARIES})
+    add_dependencies(${prog}
+                     event_core_shared
+                     event_extra_shared)
 endmacro()
 if (NOT EVENT__DISABLE_TESTS)
     #
@@ -1026,7 +993,14 @@ if (NOT EVENT__DISABLE_TESTS)
             target_link_libraries(regress
                                   ${LIB_APPS}
                                   ${LIB_PLATFORM}
-                                  ${LIBEVENT_LIBRARIES})
+                                  event_core_shared
+                                  event_extra_static)
+            if (NOT EVENT__DISABLE_OPENSSL)
+                target_link_libraries(regress event_openssl_shared)
+            endif()
+            if (CMAKE_USE_PTHREADS_INIT)
+                target_link_libraries(regress event_pthreads_shared)
+            endif()
         else()
             message(WARNING "No suitable Python interpreter found, cannot generate regress tests!")
         endif()
@@ -1323,11 +1297,6 @@ endif()
 # Installation preparation.
 #
 
-# Allow the user to override installation directories.
-set(EVENT_INSTALL_LIB_DIR       lib CACHE PATH "Installation directory for libraries")
-set(EVENT_INSTALL_BIN_DIR       bin CACHE PATH "Installation directory for executables")
-set(EVENT_INSTALL_INCLUDE_DIR   include CACHE PATH "Installation directory for header files")
-
 if(WIN32 AND NOT CYGWIN)
   set(DEF_INSTALL_CMAKE_DIR cmake)
 else()
@@ -1344,9 +1313,6 @@ foreach(p LIB BIN INCLUDE CMAKE)
     endif()
 endforeach()
 
-# Export targets (This is used for other CMake projects to easily find the libraries and include files).
-export(TARGETS ${LIBEVENT_LIBRARIES}
-       FILE "${PROJECT_BINARY_DIR}/LibeventTargets.cmake")
 export(PACKAGE libevent)
 
 # Generate the config file for the build-tree.
@@ -1383,20 +1349,6 @@ configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
                 ${PROJECT_BINARY_DIR}/LibeventConfigVersion.cmake
                 @ONLY)
-
-# Define the public headers.
-set_target_properties(${LIBEVENT_LIBRARIES} PROPERTIES
-                      PUBLIC_HEADER "${HDR_PUBLIC}")
-
-#
-# Install targets.
-#
-install(TARGETS ${LIBEVENT_LIBRARIES}
-        EXPORT LibeventTargets
-        RUNTIME DESTINATION "${EVENT_INSTALL_BIN_DIR}" COMPONENT bin
-        LIBRARY DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT lib
-        ARCHIVE DESTINATION "${EVENT_INSTALL_LIB_DIR}" COMPONENT lib
-        PUBLIC_HEADER DESTINATION "${EVENT_INSTALL_INCLUDE_DIR}/event2" COMPONENT dev)
 
 # Install compat headers
 install(FILES ${HDR_COMPAT}
