@@ -39,20 +39,14 @@
 
 #define EVENT_ERR_ABORT_ ((int)0xdeaddead)
 
-#define USE_GLOBAL_FOR_DEBUG_LOGGING
-
 #if !defined(EVENT__DISABLE_DEBUG_MODE) || defined(USE_DEBUG)
 #define EVENT_DEBUG_LOGGING_ENABLED
 #endif
 
 #ifdef EVENT_DEBUG_LOGGING_ENABLED
-#ifdef USE_GLOBAL_FOR_DEBUG_LOGGING
 EVENT2_EXPORT_SYMBOL
 extern ev_uint32_t event_debug_logging_mask_;
 #define event_debug_get_logging_mask_() (event_debug_logging_mask_)
-#else
-ev_uint32_t event_debug_get_logging_mask_(void);
-#endif
 #else
 #define event_debug_get_logging_mask_() (0)
 #endif
