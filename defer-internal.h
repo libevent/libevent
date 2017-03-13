@@ -46,6 +46,7 @@ typedef void (*deferred_cb_fn)(struct event_callback *, void *);
    @param cb The function to run when the struct event_callback executes.
    @param arg The function's second argument.
  */
+EVENT2_EXPORT_SYMBOL
 void event_deferred_cb_init_(struct event_callback *, ev_uint8_t, deferred_cb_fn, void *);
 /**
    Change the priority of a non-pending event_callback.
@@ -54,12 +55,14 @@ void event_deferred_cb_set_priority_(struct event_callback *, ev_uint8_t);
 /**
    Cancel a struct event_callback if it is currently scheduled in an event_base.
  */
+EVENT2_EXPORT_SYMBOL
 void event_deferred_cb_cancel_(struct event_base *, struct event_callback *);
 /**
    Activate a struct event_callback if it is not currently scheduled in an event_base.
 
    Return true if it was not previously scheduled.
  */
+EVENT2_EXPORT_SYMBOL
 int event_deferred_cb_schedule_(struct event_base *, struct event_callback *);
 
 #ifdef __cplusplus

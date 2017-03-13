@@ -123,6 +123,7 @@ static const struct eventop *eventops[] = {
 };
 
 /* Global state; deprecated */
+EVENT2_EXPORT_SYMBOL
 struct event_base *event_global_current_base_ = NULL;
 #define current_base event_global_current_base_
 
