@@ -44,7 +44,7 @@
 #  define EVENT2_EXPORT_SYMBOL /* unknown compiler */
 # endif
 #else
-# if defined(_MSC_VER) && !defined(EVENT_BUILDING_REGRESS_TEST)
+# if defined(_MSC_VER)
 #  define EVENT2_EXPORT_SYMBOL extern __declspec(dllimport)
 # else
 #  define EVENT2_EXPORT_SYMBOL

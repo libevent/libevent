@@ -983,19 +983,11 @@ if (NOT EVENT__DISABLE_TESTS)
 
             add_executable(regress ${SRC_REGRESS})
 
-            # While building the test suite we don't want the visibility
-            # header trying to "dllimport" the symbols on windows (it
-            # generates a ton of warnings due to different link
-            # attributes for all of the symbols)
-            set_target_properties(regress
-                                  PROPERTIES COMPILE_DEFINITIONS
-                                  "EVENT_BUILDING_REGRESS_TEST=1")
-
             target_link_libraries(regress
                                   ${LIB_APPS}
                                   ${LIB_PLATFORM}
                                   event_core_shared
-                                  event_extra_static)
+                                  event_extra_shared)
             if (NOT EVENT__DISABLE_OPENSSL)
                 target_link_libraries(regress event_openssl_shared)
             endif()
