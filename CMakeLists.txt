@@ -499,7 +499,6 @@ CHECK_TYPE_SIZE("void *" EVENT__SIZEOF_VOID_P)
 #      - ellzey
 
 #CHECK_FILE_OFFSET_BITS()
-#set(EVENT___FILE_OFFSET_BITS _FILE_OFFSET_BITS)
 
 # Verify kqueue works with pipes.
 if (EVENT__HAVE_KQUEUE)
