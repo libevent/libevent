@@ -792,12 +792,6 @@ configure_file(
 #
 # Create the libraries.
 #
-
-# Allow the user to override installation directories.
-set(EVENT_INSTALL_LIB_DIR       lib CACHE PATH "Installation directory for libraries")
-set(EVENT_INSTALL_BIN_DIR       bin CACHE PATH "Installation directory for executables")
-set(EVENT_INSTALL_INCLUDE_DIR   include CACHE PATH "Installation directory for header files")
-
 include(AddEventLibrary)
 add_event_library(event_core SOURCES ${SRC_CORE})
 add_event_library(event_extra SOURCES ${SRC_EXTRA})
@@ -1303,15 +1297,9 @@ else()
   set(DEF_INSTALL_CMAKE_DIR lib/cmake/libevent)
 endif()
 
-set(EVENT_INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH "Installation directory for CMake files")
-
-# Make sure the paths are absolute.
-foreach(p LIB BIN INCLUDE CMAKE)
-    set(var EVENT_INSTALL_${p}_DIR)
-    if(NOT IS_ABSOLUTE "${${var}}")
-        set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
-    endif()
-endforeach()
+set(EVENT_INSTALL_CMAKE_DIR
+    "${CMAKE_INSTALL_PREFIX}/${DEF_INSTALL_CMAKE_DIR}"
+    CACHE PATH "Installation directory for CMake files")
 
 export(PACKAGE libevent)
 
@@ -1325,34 +1313,34 @@ set(LIBEVENT_INCLUDE_DIRS
     CACHE PATH "Libevent include directories")
 
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigBuildTree.cmake.in
-                ${PROJECT_BINARY_DIR}/LibeventConfig.cmake
-                @ONLY)
+               ${PROJECT_BINARY_DIR}/LibeventConfig.cmake
+               @ONLY)
 
 # Generate the config file for the installation tree.
+# Calculate the relative directory from the Cmake dir.
 file(RELATIVE_PATH
-    REL_INCLUDE_DIR
-    "${EVENT_INSTALL_CMAKE_DIR}"
-    "${EVENT_INSTALL_INCLUDE_DIR}") # Calculate the relative directory from the Cmake dir.
+     REL_INCLUDE_DIR
+     "${EVENT_INSTALL_CMAKE_DIR}"
+     "${CMAKE_INSTALL_PREFIX}/include")
 
 # Note the EVENT_CMAKE_DIR is defined in LibeventConfig.cmake.in,
 # we escape it here so it's evaluated when it is included instead
 # so that the include dirs are givenrelative to where the
 # config file is located.
-set(EVENT__INCLUDE_DIRS
-    "\${EVENT_CMAKE_DIR}/${REL_INCLUDE_DIR}")
+set(EVENT__INCLUDE_DIRS "\${EVENT_CMAKE_DIR}/${REL_INCLUDE_DIR}")
 
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
-                ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
-                @ONLY)
+               ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
+               @ONLY)
 
 # Generate version info for both build-tree and install-tree.
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
-                ${PROJECT_BINARY_DIR}/LibeventConfigVersion.cmake
-                @ONLY)
+               ${PROJECT_BINARY_DIR}/LibeventConfigVersion.cmake
+               @ONLY)
 
 # Install compat headers
 install(FILES ${HDR_COMPAT}
-        DESTINATION "${EVENT_INSTALL_INCLUDE_DIR}"
+        DESTINATION "include"
         COMPONENT dev)
 
 # Install the configs.
@@ -1364,7 +1352,7 @@ install(FILES
 
 # Install exports for the install-tree.
 install(EXPORT LibeventTargets
-        DESTINATION "${EVENT_INSTALL_CMAKE_DIR}"
+        DESTINATION "${DEF_INSTALL_CMAKE_DIR}"
         COMPONENT dev)
 
 message(STATUS "")

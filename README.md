@@ -26,17 +26,8 @@ The following Libevent specific Cmake variables are as follows (the values being
 the default).
 
 ```
-# Installation directory for executables
-EVENT_INSTALL_BIN_DIR:PATH=bin
-
 # Installation directory for CMake files
 EVENT_INSTALL_CMAKE_DIR:PATH=lib/cmake/libevent
-
-## Installation directory for header files
-EVENT_INSTALL_INCLUDE_DIR:PATH=include
-
-## Installation directory for libraries
-EVENT_INSTALL_LIB_DIR:PATH=lib
 
 # Enable running gcov to get a test coverage report (only works with
 # GCC/CLang). Make sure to enable -DCMAKE_BUILD_TYPE=Debug as well.
