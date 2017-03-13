@@ -774,7 +774,9 @@ source_group("Source Extra"     FILES ${SRC_EXTRA})
 # (Place them in the build dir so we don't polute the source tree with generated files).
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 
-if ((CMAKE_COMPILER_IS_GNUCC) OR (${CMAKE_C_COMPILER_ID} STREQUAL "Clang"))
+if ((CMAKE_COMPILER_IS_GNUCC) OR
+    (${CMAKE_C_COMPILER_ID} STREQUAL "Clang") OR
+    (${CMAKE_C_COMPILER_ID} STREQUAL "AppleClang"))
     set(EVENT_SHARED_FLAGS -fvisibility=hidden)
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
     set(EVENT_SHARED_FLAGS -xldscope=hidden)
@@ -794,17 +796,21 @@ configure_file(
 #
 include(AddEventLibrary)
 add_event_library(event_core SOURCES ${SRC_CORE})
-add_event_library(event_extra SOURCES ${SRC_EXTRA})
+add_event_library(event_extra
+    LIBRARIES event_core_shared
+    SOURCES ${SRC_EXTRA})
 
 if (NOT EVENT__DISABLE_OPENSSL)
     add_event_library(event_openssl
-        LIBRARIES ${OPENSSL_LIBRARIES}
+        LIBRARIES event_core_shared ${OPENSSL_LIBRARIES}
         SOURCES ${SRC_OPENSSL})
 endif()
 
 if (CMAKE_USE_PTHREADS_INIT)
     set(SRC_PTHREADS evthread_pthread.c)
-    add_event_library(event_pthreads SOURCES ${SRC_PTHREADS})
+    add_event_library(event_pthreads
+        LIBRARIES event_core_shared
+        SOURCES ${SRC_PTHREADS})
 endif()
 
 # library exists for historical reasons; it contains the contents of
