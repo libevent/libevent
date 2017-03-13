@@ -34,6 +34,7 @@
     defined(event_core_shared_EXPORTS) || \
     defined(event_pthreads_shared_EXPORTS) || \
     defined(event_openssl_shared_EXPORTS)
+
 # if defined (__SUNPRO_C) && (__SUNPRO_C >= 0x550)
 #  define EVENT2_EXPORT_SYMBOL __global
 # elif defined __GNUC__
@@ -43,12 +44,21 @@
 # else
 #  define EVENT2_EXPORT_SYMBOL /* unknown compiler */
 # endif
-#else
+
+#else /* event_*_EXPORTS */
+
 # if defined(_MSC_VER)
 #  define EVENT2_EXPORT_SYMBOL extern __declspec(dllimport)
 # else
 #  define EVENT2_EXPORT_SYMBOL
 # endif
+
+#endif /* event_*_EXPORTS */
+
+#if defined(_MSC_VER)
+# define EVENT2_EXPORT_SYMBOL_DECL __declspec(dllimport)
+#else
+# define EVENT2_EXPORT_SYMBOL_DECL extern
 #endif
 
 #endif /* EVENT2_VISIBILITY_H_INCLUDED_ */
