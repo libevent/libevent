@@ -46,7 +46,7 @@
 #endif
 
 #ifndef EVENT__DISABLE_DEBUG_MODE
-extern int event_debug_created_threadable_ctx_;                    
+extern int event_debug_created_threadable_ctx_;
 extern int event_debug_mode_on_;
 #endif
 

@@ -93,9 +93,13 @@
        a final padding nibble with value 0 is appended.
 */
 
+EVENT2_EXPORT_SYMBOL
 int evtag_decode_int(ev_uint32_t *pnumber, struct evbuffer *evbuf);
+EVENT2_EXPORT_SYMBOL
 int evtag_decode_int64(ev_uint64_t *pnumber, struct evbuffer *evbuf);
+EVENT2_EXPORT_SYMBOL
 int evtag_encode_tag(struct evbuffer *evbuf, ev_uint32_t tag);
+EVENT2_EXPORT_SYMBOL
 int evtag_decode_tag(ev_uint32_t *ptag, struct evbuffer *evbuf);
 
 void
