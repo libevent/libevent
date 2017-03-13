@@ -29,6 +29,10 @@
 
 #include "event2/util.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef __GNUC__
 #define EV_CHECK_FMT(a,b) __attribute__((format(printf, a, b)))
 #define EV_NORETURN __attribute__((noreturn))
@@ -84,4 +88,8 @@ void event_logv_(int severity, const char *errstr, const char *fmt, va_list ap)
 
 #undef EV_CHECK_FMT
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* LOG_INTERNAL_H_INCLUDED_ */
