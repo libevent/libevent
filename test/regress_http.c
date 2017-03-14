@@ -545,8 +545,7 @@ http_basic_test_impl(void *arg, int ssl)
 	if (bev)
 		bufferevent_free(bev);
 }
-static void http_basic_test(void *arg)
-{ return http_basic_test_impl(arg, 0); }
+static void http_basic_test(void *arg) { http_basic_test_impl(arg, 0); }
 
 
 static void
@@ -3327,7 +3326,7 @@ http_chunk_out_test_impl(void *arg, int ssl)
 		evhttp_free(http);
 }
 static void http_chunk_out_test(void *arg)
-{ return http_chunk_out_test_impl(arg, 0); }
+{ http_chunk_out_test_impl(arg, 0); }
 
 static void
 http_stream_out_test_impl(void *arg, int ssl)
@@ -3373,7 +3372,7 @@ http_stream_out_test_impl(void *arg, int ssl)
 		evhttp_free(http);
 }
 static void http_stream_out_test(void *arg)
-{ return http_stream_out_test_impl(arg, 0); }
+{ http_stream_out_test_impl(arg, 0); }
 
 static void
 http_stream_in_chunk(struct evhttp_request *req, void *arg)
@@ -3569,7 +3568,7 @@ http_connection_fail_test_impl(void *arg, int ssl)
 	;
 }
 static void http_connection_fail_test(void *arg)
-{ return http_connection_fail_test_impl(arg, 0); }
+{ http_connection_fail_test_impl(arg, 0); }
 
 static void
 http_connection_retry_done(struct evhttp_request *req, void *arg)
@@ -3641,7 +3640,7 @@ http_simple_test_impl(void *arg, int ssl, int dirty)
 		evhttp_free(http);
 }
 static void http_simple_test(void *arg)
-{ return http_simple_test_impl(arg, 0, 0); }
+{ http_simple_test_impl(arg, 0, 0); }
 
 static void
 http_connection_retry_test_basic(void *arg, const char *addr, struct evdns_base *dns_base, int ssl)
@@ -3798,16 +3797,16 @@ http_connection_retry_conn_address_test_impl(void *arg, int ssl)
 	/** dnsserver will be cleaned in http_connection_retry_test_basic() */
 }
 static void http_connection_retry_conn_address_test(void *arg)
-{ return http_connection_retry_conn_address_test_impl(arg, 0); }
+{ http_connection_retry_conn_address_test_impl(arg, 0); }
 
 static void
 http_connection_retry_test_impl(void *arg, int ssl)
 {
-	return http_connection_retry_test_basic(arg, "127.0.0.1", NULL, ssl);
+	http_connection_retry_test_basic(arg, "127.0.0.1", NULL, ssl);
 }
 static void
 http_connection_retry_test(void *arg)
-{ return http_connection_retry_test_impl(arg, 0); }
+{ http_connection_retry_test_impl(arg, 0); }
 
 static void
 http_primitives(void *ptr)
@@ -4474,7 +4473,7 @@ http_write_during_read_test_impl(void *arg, int ssl)
 		evhttp_free(http);
 }
 static void http_write_during_read_test(void *arg)
-{ return http_write_during_read_test_impl(arg, 0); }
+{ http_write_during_read_test_impl(arg, 0); }
 
 static void
 http_request_own_test(void *arg)
@@ -4526,35 +4525,35 @@ http_request_own_test(void *arg)
 
 #ifdef EVENT__HAVE_OPENSSL
 static void https_basic_test(void *arg)
-{ return http_basic_test_impl(arg, 1); }
+{ http_basic_test_impl(arg, 1); }
 static void https_filter_basic_test(void *arg)
-{ return http_basic_test_impl(arg, 1 | HTTP_SSL_FILTER); }
+{ http_basic_test_impl(arg, 1 | HTTP_SSL_FILTER); }
 static void https_incomplete_test(void *arg)
 { http_incomplete_test_(arg, 0, 1); }
 static void https_incomplete_timeout_test(void *arg)
 { http_incomplete_test_(arg, 1, 1); }
 static void https_simple_test(void *arg)
-{ return http_simple_test_impl(arg, 1, 0); }
+{ http_simple_test_impl(arg, 1, 0); }
 static void https_simple_dirty_test(void *arg)
-{ return http_simple_test_impl(arg, 1, 1); }
+{ http_simple_test_impl(arg, 1, 1); }
 static void https_connection_retry_conn_address_test(void *arg)
-{ return http_connection_retry_conn_address_test_impl(arg, 1); }
+{ http_connection_retry_conn_address_test_impl(arg, 1); }
 static void https_connection_retry_test(void *arg)
-{ return http_connection_retry_test_impl(arg, 1); }
+{ http_connection_retry_test_impl(arg, 1); }
 static void https_chunk_out_test(void *arg)
-{ return http_chunk_out_test_impl(arg, 1); }
+{ http_chunk_out_test_impl(arg, 1); }
 static void https_filter_chunk_out_test(void *arg)
-{ return http_chunk_out_test_impl(arg, 1 | HTTP_SSL_FILTER); }
+{ http_chunk_out_test_impl(arg, 1 | HTTP_SSL_FILTER); }
 static void https_stream_out_test(void *arg)
-{ return http_stream_out_test_impl(arg, 1); }
+{ http_stream_out_test_impl(arg, 1); }
 static void https_connection_fail_test(void *arg)
-{ return http_connection_fail_test_impl(arg, 1); }
+{ http_connection_fail_test_impl(arg, 1); }
 static void https_write_during_read_test(void *arg)
-{ return http_write_during_read_test_impl(arg, 1); }
+{ http_write_during_read_test_impl(arg, 1); }
 static void https_connection_test(void *arg)
-{ return http_connection_test_(arg, 0, "127.0.0.1", NULL, 0, AF_UNSPEC, 1); }
+{ http_connection_test_(arg, 0, "127.0.0.1", NULL, 0, AF_UNSPEC, 1); }
 static void https_persist_connection_test(void *arg)
-{ return http_connection_test_(arg, 1, "127.0.0.1", NULL, 0, AF_UNSPEC, 1); }
+{ http_connection_test_(arg, 1, "127.0.0.1", NULL, 0, AF_UNSPEC, 1); }
 #endif
 
 struct testcase_t http_testcases[] = {
