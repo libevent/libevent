@@ -476,7 +476,9 @@ else()
 endif()
 
 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
-    list(APPEND CMAKE_EXTRA_INCLUDE_FILES pthread.h)
+    if (NOT WIN32)
+        list(APPEND CMAKE_EXTRA_INCLUDE_FILES pthread.h)
+    endif()
     CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
 endif()
 
@@ -497,7 +499,6 @@ CHECK_TYPE_SIZE("void *" EVENT__SIZEOF_VOID_P)
 #      - ellzey
 
 #CHECK_FILE_OFFSET_BITS()
-#set(EVENT___FILE_OFFSET_BITS _FILE_OFFSET_BITS)
 
 # Verify kqueue works with pipes.
 if (EVENT__HAVE_KQUEUE)
@@ -982,19 +983,11 @@ if (NOT EVENT__DISABLE_TESTS)
 
             add_executable(regress ${SRC_REGRESS})
 
-            # While building the test suite we don't want the visibility
-            # header trying to "dllimport" the symbols on windows (it
-            # generates a ton of warnings due to different link
-            # attributes for all of the symbols)
-            set_target_properties(regress
-                                  PROPERTIES COMPILE_DEFINITIONS
-                                  "EVENT_BUILDING_REGRESS_TEST=1")
-
             target_link_libraries(regress
                                   ${LIB_APPS}
                                   ${LIB_PLATFORM}
                                   event_core_shared
-                                  event_extra_static)
+                                  event_extra_shared)
             if (NOT EVENT__DISABLE_OPENSSL)
                 target_link_libraries(regress event_openssl_shared)
             endif()

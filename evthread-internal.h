@@ -185,14 +185,23 @@ EVLOCK_TRY_LOCK_(void *lock)
 #elif ! defined(EVENT__DISABLE_THREAD_SUPPORT)
 
 unsigned long evthreadimpl_get_id_(void);
+EVENT2_EXPORT_SYMBOL
 int evthreadimpl_is_lock_debugging_enabled_(void);
+EVENT2_EXPORT_SYMBOL
 void *evthreadimpl_lock_alloc_(unsigned locktype);
+EVENT2_EXPORT_SYMBOL
 void evthreadimpl_lock_free_(void *lock, unsigned locktype);
+EVENT2_EXPORT_SYMBOL
 int evthreadimpl_lock_lock_(unsigned mode, void *lock);
+EVENT2_EXPORT_SYMBOL
 int evthreadimpl_lock_unlock_(unsigned mode, void *lock);
+EVENT2_EXPORT_SYMBOL
 void *evthreadimpl_cond_alloc_(unsigned condtype);
+EVENT2_EXPORT_SYMBOL
 void evthreadimpl_cond_free_(void *cond);
+EVENT2_EXPORT_SYMBOL
 int evthreadimpl_cond_signal_(void *cond, int broadcast);
+EVENT2_EXPORT_SYMBOL
 int evthreadimpl_cond_wait_(void *cond, void *lock, const struct timeval *tv);
 int evthreadimpl_locking_enabled_(void);
 

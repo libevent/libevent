@@ -480,22 +480,6 @@
 #endif
 
 
-#ifdef __THESE_ARE_NOT_CONFIG_H_THINGS_THEY_ARE_DASH_D_THINGS__
-/* Number of bits in a file offset, on hosts where this is settable. */
-/* Ellzey is not satisfied */
-#define EVENT___FILE_OFFSET_BITS @EVENT___FILE_OFFSET_BITS@
-
-/* Define for large files, on AIX-style hosts. */
-#define @_LARGE_FILES@
-#endif
-
-#ifdef _WhAT_DOES_THIS_EVEN_DO_
-/* Define to empty if `const' does not conform to ANSI C. */
-/* lolwut? - ellzey */
-#undef EVENT__const
-#endif
-
-
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus

@@ -848,11 +848,34 @@ simple_child_read_cb(evutil_socket_t fd, short event, void *arg)
 
 	called++;
 }
+
+#define TEST_FORK_EXIT_SUCCESS 76
+static void fork_wait_check(int pid)
+{
+	int status;
+
+	TT_BLATHER(("Before waitpid"));
+
+#ifdef WNOWAIT
+	if ((waitpid(pid, &status, WNOWAIT) == -1 && errno == EINVAL) &&
+#else
+	if (
+#endif
+	    waitpid(pid, &status, 0) == -1) {
+		perror("waitpid");
+		exit(1);
+	}
+	TT_BLATHER(("After waitpid"));
+
+	if (WEXITSTATUS(status) != TEST_FORK_EXIT_SUCCESS) {
+		fprintf(stdout, "FAILED (exit): %d\n", WEXITSTATUS(status));
+		exit(1);
+	}
+}
 static void
 test_fork(void)
 {
 	char c;
-	int status;
 	struct event ev, sig_ev, usr_ev, existing_ev;
 	pid_t pid;
 
@@ -917,7 +940,7 @@ test_fork(void)
 		/* we do not send an EOF; simple_read_cb requires an EOF
 		 * to set test_ok.  we just verify that the callback was
 		 * called. */
-		exit(test_ok != 0 || called != 2 ? -2 : 76);
+		exit(test_ok != 0 || called != 2 ? -2 : TEST_FORK_EXIT_SUCCESS);
 	}
 
 	/** wait until client read first message */
@@ -928,18 +951,7 @@ test_fork(void)
 		tt_fail_perror("write");
 	}
 
-	TT_BLATHER(("Before waitpid"));
-	if ((waitpid(pid, &status, WNOWAIT) == -1 && errno == EINVAL) &&
-	    waitpid(pid, &status, 0) == -1) {
-		perror("waitpid");
-		exit(1);
-	}
-	TT_BLATHER(("After waitpid"));
-
-	if (WEXITSTATUS(status) != 76) {
-		fprintf(stdout, "FAILED (exit): %d\n", WEXITSTATUS(status));
-		exit(1);
-	}
+	fork_wait_check(pid);
 
 	/* test that the current event loop still works */
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
