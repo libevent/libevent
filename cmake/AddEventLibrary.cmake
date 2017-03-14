@@ -91,6 +91,7 @@ macro(add_event_library LIB_NAME)
 
     export(TARGETS "${LIB_NAME}_static" "${LIB_NAME}_shared"
        FILE "${PROJECT_BINARY_DIR}/LibeventTargets.cmake"
+       APPEND
     )
 
     install(TARGETS "${LIB_NAME}_static" "${LIB_NAME}_shared"
