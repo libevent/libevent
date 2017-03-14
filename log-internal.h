@@ -29,6 +29,10 @@
 
 #include "event2/util.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef __GNUC__
 #define EV_CHECK_FMT(a,b) __attribute__((format(printf, a, b)))
 #define EV_NORETURN __attribute__((noreturn))
@@ -39,20 +43,14 @@
 
 #define EVENT_ERR_ABORT_ ((int)0xdeaddead)
 
-#define USE_GLOBAL_FOR_DEBUG_LOGGING
-
 #if !defined(EVENT__DISABLE_DEBUG_MODE) || defined(USE_DEBUG)
 #define EVENT_DEBUG_LOGGING_ENABLED
 #endif
 
 #ifdef EVENT_DEBUG_LOGGING_ENABLED
-#ifdef USE_GLOBAL_FOR_DEBUG_LOGGING
-EVENT2_EXPORT_SYMBOL
-extern ev_uint32_t event_debug_logging_mask_;
+EVENT2_EXPORT_SYMBOL_DECL
+ev_uint32_t event_debug_logging_mask_;
 #define event_debug_get_logging_mask_() (event_debug_logging_mask_)
-#else
-ev_uint32_t event_debug_get_logging_mask_(void);
-#endif
 #else
 #define event_debug_get_logging_mask_() (0)
 #endif
@@ -90,4 +88,8 @@ void event_logv_(int severity, const char *errstr, const char *fmt, va_list ap)
 
 #undef EV_CHECK_FMT
 
+#ifdef __cplusplus
+}
 #endif
+
+#endif /* LOG_INTERNAL_H_INCLUDED_ */

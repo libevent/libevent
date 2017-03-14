@@ -612,16 +612,8 @@ end:
 	if (dns)
 		evdns_base_free(dns, 0);
 }
-static void
-dns_search_test(void *arg)
-{
-	return dns_search_test_impl(arg, 0);
-}
-static void
-dns_search_lower_test(void *arg)
-{
-	return dns_search_test_impl(arg, 1);
-}
+static void dns_search_test(void *arg) { dns_search_test_impl(arg, 0); }
+static void dns_search_lower_test(void *arg) { dns_search_test_impl(arg, 1); }
 
 static int request_count = 0;
 static struct evdns_request *current_req = NULL;
