@@ -2593,7 +2593,7 @@ evutil_accept4_(evutil_socket_t sockfd, struct sockaddr *addr,
 }
 
 /* Internal function: Set fd[0] and fd[1] to a pair of fds such that writes on
- * fd[0] get read from fd[1].  Make both fds nonblocking and close-on-exec.
+ * fd[1] get read from fd[0].  Make both fds nonblocking and close-on-exec.
  * Return 0 on success, -1 on failure.
  */
 int

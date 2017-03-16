@@ -219,7 +219,7 @@ struct event_base {
 	/** Function pointers used to describe the backend that this event_base
 	 * uses for signals */
 	const struct eventop *evsigsel;
-	/** Data to implement the common signal handelr code. */
+	/** Data to implement the common signal handler code. */
 	struct evsig_info sig;
 
 	/** Number of virtual events */
