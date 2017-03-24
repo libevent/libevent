@@ -3161,7 +3161,7 @@ timeout_process(struct event_base *base)
 #define MAX_EVENT_COUNT(var, v) var = MAX(var, v)
 
 /* These are a fancy way to spell
-     if (flags & EVLIST_INTERNAL)
+     if (~flags & EVLIST_INTERNAL)
          base->event_count--/++;
 */
 #define DECR_EVENT_COUNT(base,flags) \
