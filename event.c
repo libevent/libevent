@@ -3150,10 +3150,6 @@ timeout_process(struct event_base *base)
 	}
 }
 
-#if (EVLIST_INTERNAL >> 4) != 1
-#error "Mismatch for value of EVLIST_INTERNAL"
-#endif
-
 #ifndef MAX
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
@@ -3161,13 +3157,13 @@ timeout_process(struct event_base *base)
 #define MAX_EVENT_COUNT(var, v) var = MAX(var, v)
 
 /* These are a fancy way to spell
-     if (flags & EVLIST_INTERNAL)
+     if (~flags & EVLIST_INTERNAL)
          base->event_count--/++;
 */
 #define DECR_EVENT_COUNT(base,flags) \
-	((base)->event_count -= (~((flags) >> 4) & 1))
+	((base)->event_count -= !((flags) & EVLIST_INTERNAL))
 #define INCR_EVENT_COUNT(base,flags) do {					\
-	((base)->event_count += (~((flags) >> 4) & 1));				\
+	((base)->event_count += !((flags) & EVLIST_INTERNAL));			\
 	MAX_EVENT_COUNT((base)->event_count_max, (base)->event_count);		\
 } while (0)
 
