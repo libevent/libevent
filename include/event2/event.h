@@ -299,6 +299,17 @@ struct event_config
 ;
 
 /**
+ * Disable debugging checks in Libevent after having previously enabled them.
+ *
+ * Note that if any events or event bases have been created, re-enabling
+ * debug mode after calling this method will fail.
+ *
+ * @see event_enable_debug_mode()
+ */
+EVENT2_EXPORT_SYMBOL
+void event_disable_debug_mode(void);
+
+/**
  * Enable some relatively expensive debugging checks in Libevent that
  * would normally be turned off.  Generally, these checks cause code that
  * would otherwise crash mysteriously to fail earlier with an assertion
