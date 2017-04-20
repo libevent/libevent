@@ -1267,11 +1267,15 @@ be_openssl_set_fd(struct bufferevent_openssl *bev_ssl,
 
 	switch (state) {
 	case BUFFEREVENT_SSL_ACCEPTING:
+		if (!SSL_clear(bev_ssl->ssl))
+			return -1;
 		SSL_set_accept_state(bev_ssl->ssl);
 		if (set_handshake_callbacks(bev_ssl, fd) < 0)
 			return -1;
 		break;
 	case BUFFEREVENT_SSL_CONNECTING:
+		if (!SSL_clear(bev_ssl->ssl))
+			return -1;
 		SSL_set_connect_state(bev_ssl->ssl);
 		if (set_handshake_callbacks(bev_ssl, fd) < 0)
 			return -1;
