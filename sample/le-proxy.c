@@ -194,6 +194,7 @@ accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
 			perror("Bufferevent_openssl_new");
 			bufferevent_free(b_out);
 			bufferevent_free(b_in);
+			return;
 		}
 		b_out = b_ssl;
 	}
