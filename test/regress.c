@@ -997,9 +997,9 @@ static void
 del_wait_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct timeval delay = { 0, 300*1000 };
-	TT_BLATHER(("Sleeping"));
+	TT_BLATHER(("Sleeping: %i", test_ok));
 	evutil_usleep_(&delay);
-	test_ok = 1;
+	++test_ok;
 }
 
 static void
@@ -1010,7 +1010,7 @@ test_del_wait(void)
 
 	setup_test("event_del will wait: ");
 
-	event_set(&ev, pair[1], EV_READ, del_wait_cb, &ev);
+	event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, &ev);
 	event_add(&ev, NULL);
 
 	pthread_create(&thread, NULL, del_wait_thread, NULL);
@@ -1033,6 +1033,8 @@ test_del_wait(void)
 	}
 
 	pthread_join(thread, NULL);
+
+	tt_int_op(test_ok, ==, 1);
 
 	end:
 	;
