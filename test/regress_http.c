@@ -3607,7 +3607,7 @@ http_simple_test_impl(void *arg, int ssl, int dirty)
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req = NULL;
 	struct bufferevent *bev;
-	struct http_server hs = { .port = 0, .ssl = ssl, };
+	struct http_server hs = { 0, ssl, NULL, };
 	struct evhttp *http = http_setup(&hs.port, data->base, ssl ? HTTP_BIND_SSL : 0);
 
 	exit_base = data->base;
@@ -3650,7 +3650,7 @@ http_connection_retry_test_basic(void *arg, const char *addr, struct evdns_base 
 	struct evhttp_request *req = NULL;
 	struct timeval tv, tv_start, tv_end;
 	struct bufferevent *bev;
-	struct http_server hs = { .port = 0, .ssl = ssl, };
+	struct http_server hs = { 0, ssl, NULL, };
 	struct evhttp *http = http_setup(&hs.port, data->base, ssl ? HTTP_BIND_SSL : 0);
 
 	exit_base = data->base;
