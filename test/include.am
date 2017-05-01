@@ -12,6 +12,7 @@ EXTRA_DIST+=					\
 	test/regress.gen.h				\
 	test/regress.rpc				\
 	test/rpcgen_wrapper.sh			\
+	test/print-winsock-errors.c			\
 	test/test.sh
 
 TESTPROGRAMS = \
