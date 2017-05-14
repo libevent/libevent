@@ -58,25 +58,25 @@ LOG_COMPILER = true
 TESTS_COMPILER = true
 
 test_runner_epoll: test/test.sh
-	test/test.sh -b EPOLL
+	$(srcdir)/test/test.sh -b EPOLL
 test_runner_select: test/test.sh
-	test/test.sh -b SELECT
+	$(srcdir)/test/test.sh -b SELECT
 test_runner_kqueue: test/test.sh
-	test/test.sh -b KQUEUE
+	$(srcdir)/test/test.sh -b KQUEUE
 test_runner_evport: test/test.sh
-	test/test.sh -b EVPORT
+	$(srcdir)/test/test.sh -b EVPORT
 test_runner_devpoll: test/test.sh
-	test/test.sh -b DEVPOLL
+	$(srcdir)/test/test.sh -b DEVPOLL
 test_runner_poll: test/test.sh
-	test/test.sh -b POLL
+	$(srcdir)/test/test.sh -b POLL
 test_runner_win32: test/test.sh
-	test/test.sh -b WIN32
+	$(srcdir)/test/test.sh -b WIN32
 test_runner_timerfd: test/test.sh
-	test/test.sh -b "" -t
+	$(srcdir)/test/test.sh -b "" -t
 test_runner_changelist: test/test.sh
-	test/test.sh -b "" -c
+	$(srcdir)/test/test.sh -b "" -c
 test_runner_timerfd_changelist: test/test.sh
-	test/test.sh -b "" -T
+	$(srcdir)/test/test.sh -b "" -T
 
 DISTCLEANFILES += test/regress.gen.c test/regress.gen.h
 
