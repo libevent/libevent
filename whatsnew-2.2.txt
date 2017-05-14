@@ -1,0 +1,50 @@
+...
+
+* Building libevent as a sub-project using GNU Auto* tools
+
+Some projects will choose to include libevent in their source distribution,
+and build libevent as a sub-project.  This may be effected by putting the
+line:
+
+ AC_CONFIG_SUBDIRS([path/to/libevent])
+
+in the master configure.ac file for the master project.
+
+There are cases where the master project will want to pass in additional
+flags for CFLAGS, CPPFLAGS, or LDFLAGS.  Since these variables are reserved
+for the user, and AM_CFLAGS, AM_CPPFLAGS, and AM_LDFLAGS are reserved for
+each package, libevent offers the following variables for a master package
+to tell libevent that there are additional compile/link values:
+
+ LIBEVENT_CFLAGS
+ LIBEVENT_CPPFLAGS
+ LIBEVENT_LDFLAGS
+
+A master package can set these variables in its configure.ac file.
+
+Here's an example:
+
+configure.ac:
+...
+EXTRA_CFLAGS=...
+EXTRA_CPPFLAGS=...
+EXTRA_LDFLAGS=...
+...
+dnl ac_configure_args is undocumented but widely abused, as here,
+dnl to modify the defaults of the libevent subpackage, by prefixing
+dnl our changes to the child configure arguments already assembled.
+dnl User-supplied contradictory choices should prevail thanks to
+dnl "last wins".
+ac_configure_args=" --disable-openssl${ac_configure_args}"
+ac_configure_args=" --disable-shared${ac_configure_args}"
+ac_configure_args=" --disable-libevent-regress${ac_configure_args}"
+ac_configure_args=" --disable-libevent-install${ac_configure_args}"
+ac_configure_args=" --enable-silent-rules${ac_configure_args}"
+ac_configure_args=" --enable-function-sections${ac_configure_args}"
+ac_configure_args=" LIBEVENT_CFLAGS='${EXTRA_CFLAGS}'${ac_configure_args}"
+ac_configure_args=" LIBEVENT_CPPFLAGS='${EXTRA_CPPFLAGS}'${ac_configure_args}"
+ac_configure_args=" LIBEVENT_LDFLAGS='${EXTRA_LDFLAGS}'${ac_configure_args}"
+AC_CONFIG_SUBDIRS([libevent])
+...
+
+The space after the initial '"' is significant.
