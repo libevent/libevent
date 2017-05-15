@@ -5374,7 +5374,7 @@ evhttp_uri_free(struct evhttp_uri *uri)
 }
 
 char *
-evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit)
+evhttp_uri_join(const struct evhttp_uri *uri, char *buf, size_t limit)
 {
 	struct evbuffer *tmp = 0;
 	size_t joined_size = 0;
