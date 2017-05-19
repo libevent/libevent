@@ -505,7 +505,8 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	/* NOTE: some version of GCC reports a warning that flags may be uninitialized, hence assignment */
 	ev_uint16_t flags = 0;
 
-	evhttp_remove_header(req->output_headers, "Proxy-Connection");
+	// https://github.com/libevent/libevent/issues/507
+	//evhttp_remove_header(req->output_headers, "Proxy-Connection");
 
 	/* Generate request line */
 	if (!(method = evhttp_method_(evcon, req->type, &flags))) {
