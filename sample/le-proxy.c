@@ -30,6 +30,8 @@
 #include <event2/listener.h>
 #include <event2/util.h>
 
+#include "util-internal.h"
+#include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
