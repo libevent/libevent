@@ -51,4 +51,16 @@
 
 #endif /* event_*_EXPORTS */
 
+/** We need to dllimport event_debug_logging_mask_ into event_extra */
+#if defined(_MSC_VER)
+# if defined(event_core_shared_EXPORTS) /** from core export */
+#  define EVENT2_CORE_EXPORT_SYMBOL __declspec(dllexport)
+# elif defined(event_extra_shared_EXPORTS) /** from extra import */
+#  define EVENT2_CORE_EXPORT_SYMBOL __declspec(dllimport)
+# endif
+#endif /* _MSC_VER */
+#if !defined(EVENT2_CORE_EXPORT_SYMBOL)
+# define EVENT2_CORE_EXPORT_SYMBOL EVENT2_EXPORT_SYMBOL
+#endif
+
 #endif /* EVENT2_VISIBILITY_H_INCLUDED_ */
