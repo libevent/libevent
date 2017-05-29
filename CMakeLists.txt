@@ -875,25 +875,23 @@ endif()
 # Benchmarks
 #
 macro(add_bench_prog prog)
-    add_executable(${prog} test/${prog}.c)
-    if (WIN32)
-        list(APPEND BENCH_SRC
-             WIN32-Code/getopt.c
-             WIN32-Code/getopt_long.c)
-    endif()
-    target_link_libraries(${BENCHMARK}
+    add_executable(${prog} ${ARGN})
+    target_link_libraries(${prog}
                           event_extra_static
                           event_core_static
                           ${LIB_APPS}
                           ${LIB_PLATFORM})
-    add_dependencies(${BENCHMARK}
+    add_dependencies(${prog}
                      event_extra_static
                      event_core_static)
 endmacro()
 if (NOT EVENT__DISABLE_BENCHMARK)
-    foreach (BENCHMARK bench bench_cascade bench_http bench_httpclient)
-        add_bench_prog(${BENCHMARK})
+    foreach (BENCHMARK bench_http bench_httpclient)
+        add_bench_prog(${BENCHMARK} test/${BENCHMARK}.c)
     endforeach()
+
+    add_bench_prog(bench test/bench.c ${WIN32_GETOPT})
+    add_bench_prog(bench_cascade test/bench_cascade.c ${WIN32_GETOPT})
 endif()
 
 #
