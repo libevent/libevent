@@ -23,6 +23,7 @@ if (APPLE)
 else()
     cmake_minimum_required(VERSION 2.8.3 FATAL_ERROR)
 endif()
+cmake_policy(SET CMP0054 NEW)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release
@@ -776,8 +777,8 @@ source_group("Source Extra"     FILES ${SRC_EXTRA})
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 if ((CMAKE_COMPILER_IS_GNUCC) OR
-    (${CMAKE_C_COMPILER_ID} STREQUAL "Clang") OR
-    (${CMAKE_C_COMPILER_ID} STREQUAL "AppleClang"))
+    ("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang") OR
+    ("${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang"))
     set(EVENT_SHARED_FLAGS -fvisibility=hidden)
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
     set(EVENT_SHARED_FLAGS -xldscope=hidden)
