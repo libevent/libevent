@@ -18,7 +18,7 @@
 #       cmake -G "Visual Studio 10" ..
 #       start libevent.sln
 #
-if (WIN32 OR APPLE)
+if (APPLE)
     cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 else()
     cmake_minimum_required(VERSION 2.8.3 FATAL_ERROR)
@@ -819,6 +819,13 @@ endif()
 # go away in a future version of Libevent.
 add_event_library(event SOURCES ${SRC_CORE} ${SRC_EXTRA})
 
+set(WIN32_GETOPT)
+if (WIN32)
+    list(APPEND WIN32_GETOPT
+         WIN32-Code/getopt.c
+         WIN32-Code/getopt_long.c)
+endif()
+
 #
 # Samples.
 #
@@ -841,7 +848,6 @@ macro(add_sample_prog ssl name)
 endmacro()
 if (NOT EVENT__DISABLE_SAMPLES)
     set(SAMPLES
-        dns-example
         event-read-fifo
         hello-world
         signal-test
@@ -862,12 +868,7 @@ if (NOT EVENT__DISABLE_SAMPLES)
                         sample/le-proxy.c)
     endif()
 
-    if (WIN32)
-        # requires cmake 3.1
-        target_sources(dns-example PUBLIC
-                       WIN32-Code/getopt.c
-                       WIN32-Code/getopt_long.c)
-    endif()
+    add_sample_prog(OFF dns-example sample/dns-example.c ${WIN32_GETOPT})
 endif()
 
 #
