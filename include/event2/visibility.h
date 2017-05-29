@@ -40,25 +40,15 @@
 # elif defined __GNUC__
 #  define EVENT2_EXPORT_SYMBOL __attribute__ ((visibility("default")))
 # elif defined(_MSC_VER)
-#  define EVENT2_EXPORT_SYMBOL extern __declspec(dllexport)
+#  define EVENT2_EXPORT_SYMBOL __declspec(dllexport)
 # else
 #  define EVENT2_EXPORT_SYMBOL /* unknown compiler */
 # endif
 
 #else /* event_*_EXPORTS */
 
-# if defined(_MSC_VER)
-#  define EVENT2_EXPORT_SYMBOL extern __declspec(dllimport)
-# else
-#  define EVENT2_EXPORT_SYMBOL
-# endif
+# define EVENT2_EXPORT_SYMBOL
 
 #endif /* event_*_EXPORTS */
-
-#if defined(_MSC_VER)
-# define EVENT2_EXPORT_SYMBOL_DECL __declspec(dllimport)
-#else
-# define EVENT2_EXPORT_SYMBOL_DECL extern
-#endif
 
 #endif /* EVENT2_VISIBILITY_H_INCLUDED_ */
