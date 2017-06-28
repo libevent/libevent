@@ -57,26 +57,26 @@ TESTS = \
 LOG_COMPILER = true
 TESTS_COMPILER = true
 
-test_runner_epoll: test/test.sh
-	test/test.sh -b EPOLL
-test_runner_select: test/test.sh
-	test/test.sh -b SELECT
-test_runner_kqueue: test/test.sh
-	test/test.sh -b KQUEUE
-test_runner_evport: test/test.sh
-	test/test.sh -b EVPORT
-test_runner_devpoll: test/test.sh
-	test/test.sh -b DEVPOLL
-test_runner_poll: test/test.sh
-	test/test.sh -b POLL
-test_runner_win32: test/test.sh
-	test/test.sh -b WIN32
-test_runner_timerfd: test/test.sh
-	test/test.sh -b "" -t
-test_runner_changelist: test/test.sh
-	test/test.sh -b "" -c
-test_runner_timerfd_changelist: test/test.sh
-	test/test.sh -b "" -T
+test_runner_epoll: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b EPOLL
+test_runner_select: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b SELECT
+test_runner_kqueue: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b KQUEUE
+test_runner_evport: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b EVPORT
+test_runner_devpoll: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b DEVPOLL
+test_runner_poll: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b POLL
+test_runner_win32: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b WIN32
+test_runner_timerfd: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b "" -t
+test_runner_changelist: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b "" -c
+test_runner_timerfd_changelist: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b "" -T
 
 DISTCLEANFILES += test/regress.gen.c test/regress.gen.h
 
