@@ -292,7 +292,7 @@ struct evhttp;
 /** Creates a new rpc base from which RPC requests can be received
  *
  * @param server a pointer to an existing HTTP server
- * @return a newly allocated evrpc_base struct
+ * @return a newly allocated evrpc_base struct or NULL if an error occurred
  * @see evrpc_free()
  */
 EVENT2_EXPORT_SYMBOL
@@ -406,7 +406,8 @@ int evrpc_make_request(struct evrpc_request_wrapper *ctx);
  *
  * @param base a pointer to an struct event_based object; can be left NULL
  *   in singled-threaded applications
- * @return a newly allocated struct evrpc_pool object
+ * @return a newly allocated struct evrpc_pool object or NULL if an error
+ *   occurred
  * @see evrpc_pool_free()
  */
 EVENT2_EXPORT_SYMBOL
@@ -566,7 +567,8 @@ int evrpc_hook_find_meta(void *ctx, const char *key,
  * returns the connection object associated with the request
  *
  * @param ctx the context provided to the hook call
- * @return a pointer to the evhttp_connection object
+ * @return a pointer to the evhttp_connection object or NULL if an error
+ *   occurred
  */
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *evrpc_hook_get_connection(void *ctx);
