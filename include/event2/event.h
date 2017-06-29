@@ -1073,7 +1073,7 @@ void *event_self_cbarg(void);
   @param callback_arg an argument to be passed to the callback function
 
   @return a newly allocated struct event that must later be freed with
-    event_free().
+    event_free() or NULL if an error occurred.
   @see event_free(), event_add(), event_del(), event_assign()
  */
 EVENT2_EXPORT_SYMBOL

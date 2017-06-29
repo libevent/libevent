@@ -78,7 +78,8 @@ struct evdns_base;
  * Create a new HTTP server.
  *
  * @param base (optional) the event base to receive the HTTP events
- * @return a pointer to a newly initialized evhttp server structure
+ * @return a pointer to a newly initialized evhttp server structure or NULL
+ *   on error
  * @see evhttp_free()
  */
 EVENT2_EXPORT_SYMBOL
@@ -516,7 +517,8 @@ enum evhttp_request_kind { EVHTTP_REQUEST, EVHTTP_RESPONSE };
  *     when the connection closes.  It must have no fd set on it.
  * @param address the address to which to connect
  * @param port the port to connect to
- * @return an evhttp_connection object that can be used for making requests
+ * @return an evhttp_connection object that can be used for making requests or
+ *   NULL on error
  */
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *evhttp_connection_base_bufferevent_new(
@@ -636,7 +638,8 @@ void evhttp_request_free(struct evhttp_request *req);
  *     specified host name resolution will block.
  * @param address the address to which to connect
  * @param port the port to connect to
- * @return an evhttp_connection object that can be used for making requests
+ * @return an evhttp_connection object that can be used for making requests or
+ *   NULL on error
  */
 EVENT2_EXPORT_SYMBOL
 struct evhttp_connection *evhttp_connection_base_new(
