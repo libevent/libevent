@@ -615,7 +615,8 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
     @param callback A function to invoke whenever we get a DNS request
       on the socket.
     @param user_data Data to pass to the callback.
-    @return an evdns_server_port structure for this server port.
+    @return an evdns_server_port structure for this server port or NULL if
+      an error occurred.
  */
 EVENT2_EXPORT_SYMBOL
 struct evdns_server_port *evdns_add_server_port_with_base(struct event_base *base, evutil_socket_t socket, int flags, evdns_request_callback_fn_type callback, void *user_data);
