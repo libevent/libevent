@@ -1124,8 +1124,8 @@ int event_assign(struct event *, struct event_base *, evutil_socket_t, short, ev
 /**
    Deallocate a struct event * returned by event_new().
 
-   If the event is pending or active, first make it non-pending and
-   non-active.
+   If the event is pending or active, this function makes it non-pending
+   and non-active first.
  */
 EVENT2_EXPORT_SYMBOL
 void event_free(struct event *);
