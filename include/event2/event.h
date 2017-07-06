@@ -232,7 +232,7 @@ struct event_base
  *
  * Generally, you can create events with event_new(), then make them
  * pending with event_add().  As your event_base runs, it will run the
- * callbacks of an events whose conditions are triggered.  When you
+ * callbacks of an events whose conditions are triggered.  When you no
  * longer want the event, free it with event_free().
  *
  * In more depth:
@@ -692,7 +692,7 @@ EVENT2_EXPORT_SYMBOL
 void event_base_free(struct event_base *);
 
 /**
-   As event_free, but do not run finalizers.
+   As event_base_free, but do not run finalizers.
 
    THIS IS AN EXPERIMENTAL API. IT MIGHT CHANGE BEFORE THE LIBEVENT 2.1 SERIES
    BECOMES STABLE.
