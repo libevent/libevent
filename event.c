@@ -2233,7 +2233,7 @@ event_del_internal(struct event *ev)
 	 * user-supplied argument. */
 	base = ev->ev_base;
 #ifndef _EVENT_DISABLE_THREAD_SUPPORT
-	if (base->current_event == ev && !EVBASE_IN_THREAD(base)) {
+	while (base->current_event == ev && !EVBASE_IN_THREAD(base)) {
 		++base->current_event_waiters;
 		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
 	}
