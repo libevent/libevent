@@ -1228,9 +1228,6 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		event_debug_unassign(&evcon->retry_ev);
 	}
 
-	if (evcon->bufev != NULL)
-		bufferevent_free(evcon->bufev);
-
 	event_deferred_cb_cancel_(get_deferred_queue(evcon),
 	    &evcon->read_more_deferred_cb);
 
@@ -1240,10 +1237,14 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	if (evcon->fd != -1) {
 		bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
 		shutdown(evcon->fd, EVUTIL_SHUT_WR);
-		if (!(bufferevent_get_options_(evcon->bufev) & BEV_OPT_CLOSE_ON_FREE)) {
+		if (evcon->bufev == NULL ||
+			!(bufferevent_get_options_(evcon->bufev) & BEV_OPT_CLOSE_ON_FREE)) {
 			evutil_closesocket(evcon->fd);
 		}
 	}
+
+	if (evcon->bufev != NULL)
+		bufferevent_free(evcon->bufev);
 
 	if (evcon->bind_address != NULL)
 		mm_free(evcon->bind_address);
