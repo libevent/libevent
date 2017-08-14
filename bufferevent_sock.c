@@ -389,9 +389,6 @@ bufferevent_socket_connect(struct bufferevent *bev,
 
 	bufferevent_incref_and_lock_(bev);
 
-	if (!bufev_p)
-		goto done;
-
 	fd = bufferevent_getfd(bev);
 	if (fd < 0) {
 		if (!sa)
