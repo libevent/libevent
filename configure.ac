@@ -160,6 +160,19 @@ die horribly
 	bwin32=false; AC_MSG_RESULT(no),
 )
 
+dnl - check if the macro __midipix__ is defined on this compiler.
+dnl - (this is how we check for a midipix version of GCC)
+AC_MSG_CHECKING(for MIDIPIX)
+AC_TRY_COMPILE(,
+	[
+#ifndef __midipix__
+die horribly
+#endif
+	],
+	midipix=true; AC_MSG_RESULT(yes),
+	midipix=false; AC_MSG_RESULT(no),
+)
+
 dnl - check if the macro __CYGWIN__ is defined on this compiler.
 dnl - (this is how we check for a cygwin version of GCC)
 AC_MSG_CHECKING(for CYGWIN)
@@ -326,7 +339,8 @@ fi
 
 AM_CONDITIONAL(BUILD_WIN32, test x$bwin32 = xtrue)
 AM_CONDITIONAL(BUILD_CYGWIN, test x$cygwin = xtrue)
-AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin = xtrue)
+AM_CONDITIONAL(BUILD_MIDIPIX, test x$midipix = xtrue)
+AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin = xtrue || test x$midipix = xtrue)
 
 if test x$bwin32 = xtrue; then
    AC_SEARCH_LIBS([getservbyname],[ws2_32])
