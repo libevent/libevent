@@ -517,6 +517,12 @@ if test "x$ac_cv_header_sys_event_h" = "xyes"; then
 	if test "x$havekqueue" = "xyes" ; then
 		AC_MSG_CHECKING(for working kqueue)
 		AC_TRY_RUN(
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/event.h>
@@ -532,7 +538,7 @@ main(int argc, char **argv)
 	int fd[[2]];
 	struct kevent ev;
 	struct timespec ts;
-	char buf[[8000]];
+	char buf[[80000]];
 
 	if (pipe(fd) == -1)
 		exit(1);
