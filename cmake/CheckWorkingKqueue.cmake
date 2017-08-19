@@ -17,7 +17,7 @@ main(int argc, char **argv)
     int fd[2];
     struct kevent ev;
     struct timespec ts;
-    char buf[8000];
+    char buf[80000];
 
     if (pipe(fd) == -1)
         exit(1);
@@ -27,7 +27,7 @@ main(int argc, char **argv)
     while ((n = write(fd[1], buf, sizeof(buf))) == sizeof(buf))
         ;
 
-        if ((kq = kqueue()) == -1)
+    if ((kq = kqueue()) == -1)
         exit(1);
 
     memset(&ev, 0, sizeof(ev));
