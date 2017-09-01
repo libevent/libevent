@@ -324,6 +324,13 @@
 #define EVENT__SIZEOF_VOID_P 4
 #endif
 
+/* The size of `time_t`, as computed by sizeof. */
+#ifdef _WIN64
+#define EVENT__SIZEOF_TIME_T 8
+#else
+#define EVENT__SIZEOF_TIME_T 4
+#endif
+
 /* Define to 1 if you have the ANSI C header files. */
 #define EVENT__STDC_HEADERS 1
 

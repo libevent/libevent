@@ -458,7 +458,6 @@ else()
     set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
 endif()
 
-
 CHECK_TYPE_SIZE(socklen_t EVENT__SIZEOF_SOCKLEN_T)
 if(NOT EVENT__SIZEOF_SOCKLEN_T)
   set(EVENT__socklen_t "unsigned int")
@@ -490,6 +489,7 @@ endif()
 # we're just getting lazy now.
 CHECK_TYPE_SIZE("uintptr_t" EVENT__HAVE_UINTPTR_T)
 CHECK_TYPE_SIZE("void *" EVENT__SIZEOF_VOID_P)
+CHECK_TYPE_SIZE("time_t" EVENT__SIZEOF_TIME_T)
 
 # Tests file offset bits.
 # TODO: Add AIX test for if -D_LARGE_FILES is needed.
