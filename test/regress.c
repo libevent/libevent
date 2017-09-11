@@ -1850,7 +1850,8 @@ static void send_a_byte_cb(evutil_socket_t fd, short what, void *arg)
 {
 	evutil_socket_t *sockp = arg;
 	(void) fd; (void) what;
-	(void) write(*sockp, "A", 1);
+	if (write(*sockp, "A", 1) < 0)
+		tt_fail_perror("write");
 }
 struct read_not_timeout_param
 {
