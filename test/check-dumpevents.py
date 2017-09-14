@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 #
 # Post-process the output of test-dumpevents and check it for correctness.
 #
@@ -15,12 +15,12 @@ try:
     got_inserted_pos = text.index("Inserted events:\n")
     got_active_pos = text.index("Active events:\n")
 except ValueError:
-    print >>sys.stderr, "Missing expected dividing line in dumpevents output"
+    sys.stderr.write("Missing expected dividing line in dumpevents output")
     sys.exit(1)
 
 if not (expect_inserted_pos < expect_active_pos <
         got_inserted_pos < got_active_pos):
-    print >>sys.stderr, "Sections out of order in dumpevents output"
+    sys.stderr.write("Sections out of order in dumpevents output")
     sys.exit(1)
 
 now,T= text[1].split()
@@ -45,10 +45,10 @@ cleaned_inserted = set( pat.sub(replace_time, s) for s in got_inserted
                         if "Internal" not in s)
 
 if cleaned_inserted != want_inserted:
-    print >>sys.stderr, "Inserted event lists were not as expected!"
+    sys.stderr.write("Inserted event lists were not as expected!")
     sys.exit(1)
 
 if set(got_active) != set(want_active):
-    print >>sys.stderr, "Active event lists were not as expected!"
+    sys.stderr.write("Active event lists were not as expected!")
     sys.exit(1)
 
