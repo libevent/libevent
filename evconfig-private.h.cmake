@@ -32,4 +32,9 @@
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 #cmakedefine _POSIX_SOURCE 1
 
+/* Enable POSIX.2 extensions on QNX for getopt */
+#ifdef __QNX__
+#cmakedefine __EXT_POSIX2 1
+#endif
+
 #endif
