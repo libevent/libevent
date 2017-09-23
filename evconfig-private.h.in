@@ -45,4 +45,11 @@
 #undef _POSIX_SOURCE
 #endif
 
+/* Enable POSIX.2 extensions on QNX for getopt */
+#ifdef __QNX__
+# ifndef __EXT_POSIX2
+#  define __EXT_POSIX2
+# endif
+#endif
+
 #endif
