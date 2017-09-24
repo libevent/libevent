@@ -48,7 +48,6 @@
 #include <unistd.h>
 #endif
 #include <errno.h>
-#include <getopt.h>
 #include <event.h>
 #include <evutil.h>
 
