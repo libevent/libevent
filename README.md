@@ -168,11 +168,6 @@ $ cmake -LH ..
 CMake also provides a GUI that lets you specify the source directory and output (binary) directory
 that the build should be placed in.
 
-### OpenSSL support
-
-To build Libevent with OpenSSL support you will need to have OpenSSL binaries available when building,
-these can be found here: <http://www.openssl.org/related/binaries.html>
-
 # 2. USEFUL LINKS:
 
 For the latest released version of Libevent, see the official website at
