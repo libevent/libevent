@@ -1,5 +1,5 @@
-#ifndef __GETOPT_H__
-#define __GETOPT_H__
+#ifndef __UNISTD_H__
+#define __UNISTD_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,22 +11,10 @@ extern int optopt;		/* character checked for validity */
 extern int optreset;		/* reset getopt */
 extern char *optarg;		/* argument associated with option */
 
-struct option
-{
-  const char *name;
-  int has_arg;
-  int *flag;
-  int val;
-};
-
-#define no_argument       0
-#define required_argument 1
-#define optional_argument 2
-
-int getopt_long(int, char**, const char*, const struct option*, int*);
+int getopt(int, char**, const char*);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __GETOPT_H__ */
+#endif /* __UNISTD_H__ */
