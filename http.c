@@ -2820,6 +2820,10 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
     const char *reason)
 {
 	evhttp_response_code_(req, code, reason);
+
+	if (req->evcon == NULL)
+		return;
+
 	if (evhttp_find_header(req->output_headers, "Content-Length") == NULL &&
 	    REQ_VERSION_ATLEAST(req, 1, 1) &&
 	    evhttp_response_needs_body(req)) {
