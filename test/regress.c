@@ -997,9 +997,9 @@ static void
 del_wait_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct timeval delay = { 0, 300*1000 };
-	TT_BLATHER(("Sleeping"));
+	TT_BLATHER(("Sleeping: %i", test_ok));
 	evutil_usleep_(&delay);
-	test_ok = 1;
+	++test_ok;
 }
 
 static void
@@ -1010,7 +1010,7 @@ test_del_wait(void)
 
 	setup_test("event_del will wait: ");
 
-	event_set(&ev, pair[1], EV_READ, del_wait_cb, &ev);
+	event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, &ev);
 	event_add(&ev, NULL);
 
 	pthread_create(&thread, NULL, del_wait_thread, NULL);
@@ -1033,6 +1033,8 @@ test_del_wait(void)
 	}
 
 	pthread_join(thread, NULL);
+
+	tt_int_op(test_ok, ==, 1);
 
 	end:
 	;
@@ -1848,7 +1850,8 @@ static void send_a_byte_cb(evutil_socket_t fd, short what, void *arg)
 {
 	evutil_socket_t *sockp = arg;
 	(void) fd; (void) what;
-	(void) write(*sockp, "A", 1);
+	if (write(*sockp, "A", 1) < 0)
+		tt_fail_perror("write");
 }
 struct read_not_timeout_param
 {
@@ -3443,7 +3446,7 @@ struct testcase_t main_testcases[] = {
 
 	BASIC(active_by_fd, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__APPLE__)
 	LEGACY(fork, TT_ISOLATED),
 #endif
 #ifdef EVENT__HAVE_PTHREADS

@@ -389,9 +389,6 @@ bufferevent_socket_connect(struct bufferevent *bev,
 
 	bufferevent_incref_and_lock_(bev);
 
-	if (!bufev_p)
-		goto done;
-
 	fd = bufferevent_getfd(bev);
 	if (fd < 0) {
 		if (!sa)
@@ -607,7 +604,7 @@ be_socket_destruct(struct bufferevent *bufev)
 	struct bufferevent_private *bufev_p =
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 	evutil_socket_t fd;
-	EVUTIL_ASSERT(bufev->be_ops == &bufferevent_ops_socket);
+	EVUTIL_ASSERT(BEV_IS_SOCKET(bufev));
 
 	fd = event_get_fd(&bufev->ev_read);
 
@@ -632,7 +629,7 @@ be_socket_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 
 	BEV_LOCK(bufev);
-	EVUTIL_ASSERT(bufev->be_ops == &bufferevent_ops_socket);
+	EVUTIL_ASSERT(BEV_IS_SOCKET(bufev));
 
 	event_del(&bufev->ev_read);
 	event_del(&bufev->ev_write);
@@ -662,7 +659,7 @@ bufferevent_priority_set(struct bufferevent *bufev, int priority)
 	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
 
 	BEV_LOCK(bufev);
-	if (bufev->be_ops != &bufferevent_ops_socket)
+	if (!BEV_IS_SOCKET(bufev))
 		goto done;
 
 	if (event_priority_set(&bufev->ev_read, priority) == -1)
@@ -685,7 +682,7 @@ bufferevent_base_set(struct event_base *base, struct bufferevent *bufev)
 	int res = -1;
 
 	BEV_LOCK(bufev);
-	if (bufev->be_ops != &bufferevent_ops_socket)
+	if (!BEV_IS_SOCKET(bufev))
 		goto done;
 
 	bufev->ev_base = base;

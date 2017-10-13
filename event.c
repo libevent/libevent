@@ -1641,10 +1641,12 @@ event_process_active_single_queue(struct event_base *base,
 			break;
 		case EV_CLOSURE_EVENT: {
 			void (*evcb_callback)(evutil_socket_t, short, void *);
+			short res;
 			EVUTIL_ASSERT(ev != NULL);
 			evcb_callback = *ev->ev_callback;
+			res = ev->ev_res;
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
-			evcb_callback(ev->ev_fd, ev->ev_res, ev->ev_arg);
+			evcb_callback(ev->ev_fd, res, ev->ev_arg);
 		}
 		break;
 		case EV_CLOSURE_CB_SELF: {
@@ -2780,21 +2782,7 @@ event_del_nolock_(struct event *ev, int blocking)
 		}
 	}
 
-	/* If the main thread is currently executing this event's callback,
-	 * and we are not the main thread, then we want to wait until the
-	 * callback is done before we start removing the event.  That way,
-	 * when this function returns, it will be safe to free the
-	 * user-supplied argument. */
 	base = ev->ev_base;
-#ifndef EVENT__DISABLE_THREAD_SUPPORT
-	if (blocking != EVENT_DEL_NOBLOCK &&
-	    base->current_event == event_to_event_callback(ev) &&
-	    !EVBASE_IN_THREAD(base) &&
-	    (blocking == EVENT_DEL_BLOCK || !(ev->ev_events & EV_FINALIZE))) {
-		++base->current_event_waiters;
-		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
-	}
-#endif
 
 	EVUTIL_ASSERT(!(ev->ev_flags & ~EVLIST_ALL));
 
@@ -2840,6 +2828,21 @@ event_del_nolock_(struct event *ev, int blocking)
 		evthread_notify_base(base);
 
 	event_debug_note_del_(ev);
+
+	/* If the main thread is currently executing this event's callback,
+	 * and we are not the main thread, then we want to wait until the
+	 * callback is done before returning. That way, when this function
+	 * returns, it will be safe to free the user-supplied argument.
+	 */
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+	if (blocking != EVENT_DEL_NOBLOCK &&
+	    base->current_event == event_to_event_callback(ev) &&
+	    !EVBASE_IN_THREAD(base) &&
+	    (blocking == EVENT_DEL_BLOCK || !(ev->ev_events & EV_FINALIZE))) {
+		++base->current_event_waiters;
+		EVTHREAD_COND_WAIT(base->current_event_cond, base->th_base_lock);
+	}
+#endif
 
 	return (res);
 }
@@ -3150,10 +3153,6 @@ timeout_process(struct event_base *base)
 	}
 }
 
-#if (EVLIST_INTERNAL >> 4) != 1
-#error "Mismatch for value of EVLIST_INTERNAL"
-#endif
-
 #ifndef MAX
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #endif
@@ -3161,13 +3160,13 @@ timeout_process(struct event_base *base)
 #define MAX_EVENT_COUNT(var, v) var = MAX(var, v)
 
 /* These are a fancy way to spell
-     if (flags & EVLIST_INTERNAL)
+     if (~flags & EVLIST_INTERNAL)
          base->event_count--/++;
 */
 #define DECR_EVENT_COUNT(base,flags) \
-	((base)->event_count -= (~((flags) >> 4) & 1))
+	((base)->event_count -= !((flags) & EVLIST_INTERNAL))
 #define INCR_EVENT_COUNT(base,flags) do {					\
-	((base)->event_count += (~((flags) >> 4) & 1));				\
+	((base)->event_count += !((flags) & EVLIST_INTERNAL));			\
 	MAX_EVENT_COUNT((base)->event_count_max, (base)->event_count);		\
 } while (0)
 

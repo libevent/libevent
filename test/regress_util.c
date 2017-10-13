@@ -1412,10 +1412,12 @@ static struct date_rfc1123_case {
 	{  1289433600, "Thu, 11 Nov 2010 00:00:00 GMT"},
 	{  1323648000, "Mon, 12 Dec 2011 00:00:00 GMT"},
 #ifndef _WIN32
+#if EVENT__SIZEOF_TIME_T > 4
 	/** In win32 case we have max   "23:59:59 January 18, 2038, UTC" for time32 */
 	{  4294967296, "Sun, 07 Feb 2106 06:28:16 GMT"} /* 2^32 */,
 	/** In win32 case we have max "23:59:59, December 31, 3000, UTC" for time64 */
 	{253402300799, "Fri, 31 Dec 9999 23:59:59 GMT"} /* long long future no one can imagine */,
+#endif /* time_t != 32bit */
 	{  1456704000, "Mon, 29 Feb 2016 00:00:00 GMT"} /* leap year */,
 #endif
 	{  1435708800, "Wed, 01 Jul 2015 00:00:00 GMT"} /* leap second */,

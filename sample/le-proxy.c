@@ -30,6 +30,8 @@
 #include <event2/listener.h>
 #include <event2/util.h>
 
+#include "util-internal.h"
+#include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
@@ -194,6 +196,7 @@ accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
 			perror("Bufferevent_openssl_new");
 			bufferevent_free(b_out);
 			bufferevent_free(b_in);
+			return;
 		}
 		b_out = b_ssl;
 	}

@@ -56,10 +56,10 @@ static inline struct bufferevent_pair *
 upcast(struct bufferevent *bev)
 {
 	struct bufferevent_pair *bev_p;
-	if (bev->be_ops != &bufferevent_ops_pair)
+	if (!BEV_IS_PAIR(bev))
 		return NULL;
 	bev_p = EVUTIL_UPCAST(bev, struct bufferevent_pair, bev.bev);
-	EVUTIL_ASSERT(bev_p->bev.bev.be_ops == &bufferevent_ops_pair);
+	EVUTIL_ASSERT(BEV_IS_PAIR(&bev_p->bev.bev));
 	return bev_p;
 }
 

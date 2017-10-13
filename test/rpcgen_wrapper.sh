@@ -25,19 +25,10 @@ exit_failed() {
     echo "Could not generate regress.gen.\[ch\] using event_rpcgen.sh" >&2
     exit 1
 }
-
-if [ -x /usr/bin/python2 ] ; then
-  PYTHON2=/usr/bin/python2
-elif [ "x`which python2`" != x ] ; then
-  PYTHON2=python2
-else
-  PYTHON2=python
-fi
-
 srcdir=$1
 srcdir=${srcdir:-.}
 
-${PYTHON2} ${srcdir}/../event_rpcgen.py --quiet ${srcdir}/regress.rpc \
+${srcdir}/../event_rpcgen.py --quiet ${srcdir}/regress.rpc \
                test/regress.gen.h test/regress.gen.c
 
 case "$?" in

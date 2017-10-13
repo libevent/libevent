@@ -56,7 +56,8 @@ extern "C" {
  *
  * @param address the address to which the HTTP server should be bound
  * @param port the port number on which the HTTP server should listen
- * @return an struct evhttp object
+ * @return a pointer to a newly initialized evhttp server structure
+ *   or NULL on error
  */
 EVENT2_EXPORT_SYMBOL
 struct evhttp *evhttp_start(const char *address, ev_uint16_t port);

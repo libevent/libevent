@@ -232,7 +232,7 @@ struct event_base
  *
  * Generally, you can create events with event_new(), then make them
  * pending with event_add().  As your event_base runs, it will run the
- * callbacks of an events whose conditions are triggered.  When you
+ * callbacks of an events whose conditions are triggered.  When you no
  * longer want the event, free it with event_free().
  *
  * In more depth:
@@ -692,7 +692,7 @@ EVENT2_EXPORT_SYMBOL
 void event_base_free(struct event_base *);
 
 /**
-   As event_free, but do not run finalizers.
+   As event_base_free, but do not run finalizers.
 
    THIS IS AN EXPERIMENTAL API. IT MIGHT CHANGE BEFORE THE LIBEVENT 2.1 SERIES
    BECOMES STABLE.
@@ -1073,7 +1073,7 @@ void *event_self_cbarg(void);
   @param callback_arg an argument to be passed to the callback function
 
   @return a newly allocated struct event that must later be freed with
-    event_free().
+    event_free() or NULL if an error occurred.
   @see event_free(), event_add(), event_del(), event_assign()
  */
 EVENT2_EXPORT_SYMBOL
@@ -1124,8 +1124,8 @@ int event_assign(struct event *, struct event_base *, evutil_socket_t, short, ev
 /**
    Deallocate a struct event * returned by event_new().
 
-   If the event is pending or active, first make it non-pending and
-   non-active.
+   If the event is pending or active, this function makes it non-pending
+   and non-active first.
  */
 EVENT2_EXPORT_SYMBOL
 void event_free(struct event *);

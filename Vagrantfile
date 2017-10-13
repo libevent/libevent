@@ -375,6 +375,9 @@ Vagrant.configure("2") do |config|
         cd .cmake-vagrant
         cmake -G "Visual Studio 12" ..
 
+        cmake --build . --target clean
+        cmake --build .
+
         $env:CTEST_TEST_TIMEOUT = "1800"
         $env:CTEST_OUTPUT_ON_FAILURE = "1"
         $env:CTEST_PARALLEL_LEVEL = "10"

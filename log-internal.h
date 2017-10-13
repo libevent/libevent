@@ -48,8 +48,7 @@ extern "C" {
 #endif
 
 #ifdef EVENT_DEBUG_LOGGING_ENABLED
-EVENT2_EXPORT_SYMBOL_DECL
-ev_uint32_t event_debug_logging_mask_;
+EVENT2_CORE_EXPORT_SYMBOL extern ev_uint32_t event_debug_logging_mask_;
 #define event_debug_get_logging_mask_() (event_debug_logging_mask_)
 #else
 #define event_debug_get_logging_mask_() (0)

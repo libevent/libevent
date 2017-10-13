@@ -18,11 +18,12 @@
 #       cmake -G "Visual Studio 10" ..
 #       start libevent.sln
 #
-if (WIN32 OR APPLE)
+if (APPLE)
     cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 else()
     cmake_minimum_required(VERSION 2.8.3 FATAL_ERROR)
 endif()
+cmake_policy(SET CMP0054 NEW)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release
@@ -457,7 +458,6 @@ else()
     set(EVENT__SIZEOF_SSIZE_T ${EVENT__SIZEOF_INT})
 endif()
 
-
 CHECK_TYPE_SIZE(socklen_t EVENT__SIZEOF_SOCKLEN_T)
 if(NOT EVENT__SIZEOF_SOCKLEN_T)
   set(EVENT__socklen_t "unsigned int")
@@ -489,6 +489,7 @@ endif()
 # we're just getting lazy now.
 CHECK_TYPE_SIZE("uintptr_t" EVENT__HAVE_UINTPTR_T)
 CHECK_TYPE_SIZE("void *" EVENT__SIZEOF_VOID_P)
+CHECK_TYPE_SIZE("time_t" EVENT__SIZEOF_TIME_T)
 
 # Tests file offset bits.
 # TODO: Add AIX test for if -D_LARGE_FILES is needed.
@@ -776,8 +777,8 @@ source_group("Source Extra"     FILES ${SRC_EXTRA})
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 if ((CMAKE_COMPILER_IS_GNUCC) OR
-    (${CMAKE_C_COMPILER_ID} STREQUAL "Clang") OR
-    (${CMAKE_C_COMPILER_ID} STREQUAL "AppleClang"))
+    ("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang") OR
+    ("${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang"))
     set(EVENT_SHARED_FLAGS -fvisibility=hidden)
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
     set(EVENT_SHARED_FLAGS -xldscope=hidden)
@@ -819,6 +820,13 @@ endif()
 # go away in a future version of Libevent.
 add_event_library(event SOURCES ${SRC_CORE} ${SRC_EXTRA})
 
+set(WIN32_GETOPT)
+if (WIN32)
+    list(APPEND WIN32_GETOPT
+         WIN32-Code/getopt.c
+         WIN32-Code/getopt_long.c)
+endif()
+
 #
 # Samples.
 #
@@ -841,7 +849,6 @@ macro(add_sample_prog ssl name)
 endmacro()
 if (NOT EVENT__DISABLE_SAMPLES)
     set(SAMPLES
-        dns-example
         event-read-fifo
         hello-world
         signal-test
@@ -862,37 +869,30 @@ if (NOT EVENT__DISABLE_SAMPLES)
                         sample/le-proxy.c)
     endif()
 
-    if (WIN32)
-        # requires cmake 3.1
-        target_sources(dns-example PUBLIC
-                       WIN32-Code/getopt.c
-                       WIN32-Code/getopt_long.c)
-    endif()
+    add_sample_prog(OFF dns-example sample/dns-example.c ${WIN32_GETOPT})
 endif()
 
 #
 # Benchmarks
 #
 macro(add_bench_prog prog)
-    add_executable(${prog} test/${prog}.c)
-    if (WIN32)
-        list(APPEND BENCH_SRC
-             WIN32-Code/getopt.c
-             WIN32-Code/getopt_long.c)
-    endif()
-    target_link_libraries(${BENCHMARK}
+    add_executable(${prog} ${ARGN})
+    target_link_libraries(${prog}
                           event_extra_static
                           event_core_static
                           ${LIB_APPS}
                           ${LIB_PLATFORM})
-    add_dependencies(${BENCHMARK}
+    add_dependencies(${prog}
                      event_extra_static
                      event_core_static)
 endmacro()
 if (NOT EVENT__DISABLE_BENCHMARK)
-    foreach (BENCHMARK bench bench_cascade bench_http bench_httpclient)
-        add_bench_prog(${BENCHMARK})
+    foreach (BENCHMARK bench_http bench_httpclient)
+        add_bench_prog(${BENCHMARK} test/${BENCHMARK}.c)
     endforeach()
+
+    add_bench_prog(bench test/bench.c ${WIN32_GETOPT})
+    add_bench_prog(bench_cascade test/bench_cascade.c ${WIN32_GETOPT})
 endif()
 
 #
@@ -915,19 +915,18 @@ if (NOT EVENT__DISABLE_TESTS)
     # Generate Regress tests.
     #
     if (NOT EVENT__DISABLE_REGRESS)
-        # (We require python2 to generate the regress tests)
-        foreach (PY python2.6 python2.7 python2)
-            unset(FIND_PYTHON2 CACHE)
-            find_program(FIND_PYTHON2 ${PY})
-            if (FIND_PYTHON2)
-                set(PYTHON_EXECUTABLE "${PY}")
-                break()
-            endif()
-        endforeach()
-        find_package(PythonInterp)
+        # (We require python to generate the regress tests)
+        find_package(PythonInterp 3)
 
-        if (PYTHONINTERP_FOUND AND PYTHON_VERSION_STRING VERSION_LESS "3.0.0")
+        if (PYTHONINTERP_FOUND)
             set(__FOUND_USABLE_PYTHON 1)
+        else()
+            find_package(PythonInterp 2)
+            if (PYTHONINTERP_FOUND)
+                set(__FOUND_USABLE_PYTHON 1)
+            else()
+                message(ERROR "No suitable Python version found, bailing...")
+            endif()
         endif()
 
         if (__FOUND_USABLE_PYTHON)
