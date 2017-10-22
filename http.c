@@ -368,15 +368,15 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	evcon->cb_arg = arg;
 
 	/* Disable the read callback: we don't actually care about data;
-	 * we only care about close detection.  (We don't disable reading,
-	 * since we *do* want to learn about any close events.) */
+	 * we only care about close detection. (We don't disable reading --
+	 * EV_READ, since we *do* want to learn about any close events.) */
 	bufferevent_setcb(evcon->bufev,
 	    NULL, /*read*/
 	    evhttp_write_cb,
 	    evhttp_error_cb,
 	    evcon);
 
-	bufferevent_enable(evcon->bufev, EV_WRITE);
+	bufferevent_enable(evcon->bufev, EV_READ|EV_WRITE);
 }
 
 static void
@@ -3437,6 +3437,8 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	}
 
 	if ((cb = evhttp_dispatch_callback(&http->callbacks, req)) != NULL) {
+		bufferevent_disable(req->evcon->bufev, EV_READ);
+
 		(*cb->cb)(req, cb->cbarg);
 		return;
 	}
