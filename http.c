@@ -2129,7 +2129,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 		event_warnx("%s: we got no content length, but the "
 		    "server wants to keep the connection open: %s.",
 		    __func__, connection);
-		return (-1);
+		req->ntoread = 0;
 	} else if (content_length == NULL) {
 		req->ntoread = -1;
 	} else {
@@ -2157,16 +2157,15 @@ evhttp_method_may_have_body(enum evhttp_cmd_type type)
 	case EVHTTP_REQ_POST:
 	case EVHTTP_REQ_PUT:
 	case EVHTTP_REQ_PATCH:
-		return 1;
-	case EVHTTP_REQ_TRACE:
-		return 0;
-	/* XXX May any of the below methods have a body? */
+
 	case EVHTTP_REQ_GET:
-	case EVHTTP_REQ_HEAD:
 	case EVHTTP_REQ_DELETE:
 	case EVHTTP_REQ_OPTIONS:
 	case EVHTTP_REQ_CONNECT:
-		return 0;
+		return 1;
+
+	case EVHTTP_REQ_TRACE:
+	case EVHTTP_REQ_HEAD:
 	default:
 		return 0;
 	}
