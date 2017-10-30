@@ -143,7 +143,6 @@ AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([inet_aton], [resolv])
 if test "x$enable_clock_gettime" = "xyes"; then
   AC_SEARCH_LIBS([clock_gettime], [rt])
-  AC_CHECK_FUNCS([clock_gettime])
 fi
 AC_SEARCH_LIBS([sendfile], [sendfile])
 
@@ -350,6 +349,10 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
 AC_HEADER_TIME
+
+if test "x$enable_clock_gettime" = "xyes"; then
+  AC_CHECK_FUNC(clock_gettime)
+fi
 
 dnl Checks for library functions.
 AC_CHECK_FUNCS([ \
