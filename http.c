@@ -3448,6 +3448,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 
 	/* Generic call back */
 	if (http->gencb) {
+		bufferevent_disable(req->evcon->bufev, EV_READ);
 		(*http->gencb)(req, http->gencbarg);
 		return;
 	} else {
