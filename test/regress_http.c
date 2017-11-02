@@ -72,6 +72,7 @@ static struct event_base *exit_base;
 static char const BASIC_REQUEST_BODY[] = "This is funny";
 
 static void http_basic_cb(struct evhttp_request *req, void *arg);
+static void http_timeout_cb(struct evhttp_request *req, void *arg);
 static void http_large_cb(struct evhttp_request *req, void *arg);
 static void http_chunked_cb(struct evhttp_request *req, void *arg);
 static void http_post_cb(struct evhttp_request *req, void *arg);
@@ -146,6 +147,7 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, myhttp);
+	evhttp_set_cb(myhttp, "/timeout", http_timeout_cb, myhttp);
 	evhttp_set_cb(myhttp, "/large", http_large_cb, base);
 	evhttp_set_cb(myhttp, "/chunked", http_chunked_cb, base);
 	evhttp_set_cb(myhttp, "/streamed", http_chunked_cb, base);
@@ -344,6 +346,20 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 
 end:
 	evbuffer_free(evb);
+}
+
+static void http_timeout_reply_cb(int fd, short events, void *arg)
+{
+	struct evhttp_request *req = arg;
+	evhttp_send_reply(req, HTTP_OK, "Everything is fine", NULL);
+	test_ok++;
+}
+static void
+http_timeout_cb(struct evhttp_request *req, void *arg)
+{
+	struct timeval when = { 0, 100 };
+	event_base_once(exit_base, -1, EV_TIMEOUT,
+	    http_timeout_reply_cb, req, &when);
 }
 
 static void
@@ -4510,6 +4526,54 @@ http_request_own_test(void *arg)
 	test_ok = 1;
 }
 
+static void
+http_request_extra_body_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+	evutil_socket_t fd;
+	ev_uint16_t port = 0;
+	int i;
+	struct evhttp *http = http_setup(&port, data->base, 0);
+	struct evbuffer *out, *body = NULL;
+
+	exit_base = data->base;
+	test_ok = 0;
+
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = create_bev(data->base, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
+	    http_errorcb, data->base);
+	out = bufferevent_get_output(bev);
+	body = evbuffer_new();
+
+	for (i = 0; i < 10000; ++i)
+		evbuffer_add_printf(body, "this is the body that HEAD should not have");
+
+	evbuffer_add_printf(out,
+		"HEAD /timeout HTTP/1.1\r\n"
+		"Host: somehost\r\n"
+		"Connection: close\r\n"
+		"Content-Length: %i\r\n"
+		"\r\n",
+		(int)evbuffer_get_length(body)
+	);
+	evbuffer_add_buffer(out, body);
+
+	event_base_dispatch(data->base);
+
+	tt_assert(test_ok == -2);
+
+ end:
+	evhttp_free(http);
+	if (bev)
+		bufferevent_free(bev);
+	if (body)
+		evbuffer_free(body);
+}
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
 		    http_##name##_test }
@@ -4628,6 +4692,8 @@ struct testcase_t http_testcases[] = {
 
 	HTTP(write_during_read),
 	HTTP(request_own),
+
+	HTTP(request_extra_body),
 
 #ifdef EVENT__HAVE_OPENSSL
 	HTTPS(basic),

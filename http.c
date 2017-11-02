@@ -368,15 +368,15 @@ evhttp_write_buffer(struct evhttp_connection *evcon,
 	evcon->cb_arg = arg;
 
 	/* Disable the read callback: we don't actually care about data;
-	 * we only care about close detection.  (We don't disable reading,
-	 * since we *do* want to learn about any close events.) */
+	 * we only care about close detection. (We don't disable reading --
+	 * EV_READ, since we *do* want to learn about any close events.) */
 	bufferevent_setcb(evcon->bufev,
 	    NULL, /*read*/
 	    evhttp_write_cb,
 	    evhttp_error_cb,
 	    evcon);
 
-	bufferevent_enable(evcon->bufev, EV_WRITE);
+	bufferevent_enable(evcon->bufev, EV_READ|EV_WRITE);
 }
 
 static void
@@ -1309,6 +1309,8 @@ evhttp_connection_reset_(struct evhttp_connection *evcon)
 	struct evbuffer *tmp;
 	int err;
 
+	bufferevent_setcb(evcon->bufev, NULL, NULL, NULL, NULL);
+
 	/* XXXX This is not actually an optimal fix.  Instead we ought to have
 	   an API for "stop connecting", or use bufferevent_setfd to turn off
 	   connecting.  But for Libevent 2.0, this seems like a minimal change
@@ -2127,7 +2129,7 @@ evhttp_get_body_length(struct evhttp_request *req)
 		event_warnx("%s: we got no content length, but the "
 		    "server wants to keep the connection open: %s.",
 		    __func__, connection);
-		return (-1);
+		req->ntoread = 0;
 	} else if (content_length == NULL) {
 		req->ntoread = -1;
 	} else {
@@ -2155,16 +2157,15 @@ evhttp_method_may_have_body(enum evhttp_cmd_type type)
 	case EVHTTP_REQ_POST:
 	case EVHTTP_REQ_PUT:
 	case EVHTTP_REQ_PATCH:
-		return 1;
-	case EVHTTP_REQ_TRACE:
-		return 0;
-	/* XXX May any of the below methods have a body? */
+
 	case EVHTTP_REQ_GET:
-	case EVHTTP_REQ_HEAD:
 	case EVHTTP_REQ_DELETE:
 	case EVHTTP_REQ_OPTIONS:
 	case EVHTTP_REQ_CONNECT:
-		return 0;
+		return 1;
+
+	case EVHTTP_REQ_TRACE:
+	case EVHTTP_REQ_HEAD:
 	default:
 		return 0;
 	}
@@ -2820,6 +2821,10 @@ evhttp_send_reply_start(struct evhttp_request *req, int code,
     const char *reason)
 {
 	evhttp_response_code_(req, code, reason);
+
+	if (req->evcon == NULL)
+		return;
+
 	if (evhttp_find_header(req->output_headers, "Content-Length") == NULL &&
 	    REQ_VERSION_ATLEAST(req, 1, 1) &&
 	    evhttp_response_needs_body(req)) {
@@ -3435,6 +3440,8 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 	}
 
 	if ((cb = evhttp_dispatch_callback(&http->callbacks, req)) != NULL) {
+		bufferevent_disable(req->evcon->bufev, EV_READ);
+
 		(*cb->cb)(req, cb->cbarg);
 		return;
 	}
