@@ -129,7 +129,8 @@ https_bev(struct event_base *base, void *arg)
 }
 #endif
 static struct evhttp *
-http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
+http_setup_gencb(ev_uint16_t *pport, struct event_base *base, int mask,
+	void (*cb)(struct evhttp_request *, void *), void *cbarg)
 {
 	struct evhttp *myhttp;
 
@@ -144,6 +145,8 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 		evhttp_set_bevcb(myhttp, https_bev, NULL);
 	}
 #endif
+
+	evhttp_set_gencb(myhttp, cb, cbarg);
 
 	/* Register a callback for certain types of requests */
 	evhttp_set_cb(myhttp, "/test", http_basic_cb, myhttp);
@@ -161,6 +164,9 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, base);
 	return (myhttp);
 }
+static struct evhttp *
+http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
+{ return http_setup_gencb(pport, base, mask, NULL, NULL); }
 
 #ifndef NI_MAXSERV
 #define NI_MAXSERV 1024
@@ -4526,44 +4532,68 @@ http_request_own_test(void *arg)
 	test_ok = 1;
 }
 
+static void http_run_bev_request(struct event_base *base, int port,
+	const char *fmt, ...)
+{
+	struct bufferevent *bev = NULL;
+	va_list ap;
+	evutil_socket_t fd;
+	struct evbuffer *out;
+
+	fd = http_connect("127.0.0.1", port);
+
+	/* Stupid thing to send a request */
+	bev = create_bev(base, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb,
+	    http_errorcb, base);
+	out = bufferevent_get_output(bev);
+
+	va_start(ap, fmt);
+	evbuffer_add_vprintf(out, fmt, ap);
+	va_end(ap);
+
+	event_base_dispatch(base);
+
+	bufferevent_free(bev);
+}
 static void
 http_request_extra_body_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev = NULL;
-	evutil_socket_t fd;
 	ev_uint16_t port = 0;
 	int i;
-	struct evhttp *http = http_setup(&port, data->base, 0);
-	struct evbuffer *out, *body = NULL;
+	struct evhttp *http =
+		http_setup_gencb(&port, data->base, 0, http_timeout_cb, NULL);
+	struct evbuffer *body = NULL;
 
 	exit_base = data->base;
 	test_ok = 0;
 
-	fd = http_connect("127.0.0.1", port);
-
-	/* Stupid thing to send a request */
-	bev = create_bev(data->base, fd, 0);
-	bufferevent_setcb(bev, http_readcb, http_writecb,
-	    http_errorcb, data->base);
-	out = bufferevent_get_output(bev);
 	body = evbuffer_new();
-
 	for (i = 0; i < 10000; ++i)
 		evbuffer_add_printf(body, "this is the body that HEAD should not have");
 
-	evbuffer_add_printf(out,
+	http_run_bev_request(data->base, port,
 		"HEAD /timeout HTTP/1.1\r\n"
 		"Host: somehost\r\n"
 		"Connection: close\r\n"
 		"Content-Length: %i\r\n"
-		"\r\n",
-		(int)evbuffer_get_length(body)
+		"\r\n%s",
+		(int)evbuffer_get_length(body),
+		evbuffer_pullup(body, -1)
 	);
-	evbuffer_add_buffer(out, body);
+	tt_assert(test_ok == -2);
 
-	event_base_dispatch(data->base);
-
+	http_run_bev_request(data->base, port,
+		"HEAD /__gencb__ HTTP/1.1\r\n"
+		"Host: somehost\r\n"
+		"Connection: close\r\n"
+		"Content-Length: %i\r\n"
+		"\r\n%s",
+		(int)evbuffer_get_length(body),
+		evbuffer_pullup(body, -1)
+	);
 	tt_assert(test_ok == -2);
 
  end:
