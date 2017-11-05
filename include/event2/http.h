@@ -930,14 +930,14 @@ char *evhttp_uriencode(const char *str, ev_ssize_t size, int space_to_plus);
 
 /**
   Helper function to sort of decode a URI-encoded string.  Unlike
-  evhttp_get_decoded_uri, it decodes all plus characters that appear
+  evhttp_uridecode, it decodes all plus characters that appear
   _after_ the first question mark character, but no plusses that occur
   before.  This is not a good way to decode URIs in whole or in part.
 
   The returned string must be freed by the caller
 
   @deprecated  This function is deprecated; you probably want to use
-     evhttp_get_decoded_uri instead.
+     evhttp_uridecode instead.
 
   @param uri an encoded URI
   @return a newly allocated unencoded URI or NULL on failure
