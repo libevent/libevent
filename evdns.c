@@ -364,6 +364,7 @@ struct evdns_base {
 #endif
 
 	int disable_when_inactive;
+	int disable_cache;
 };
 
 struct hosts_entry {
@@ -3958,10 +3959,9 @@ evdns_base_new(struct event_base *event_base, int flags)
 	base->global_nameserver_probe_initial_timeout.tv_usec = 0;
 
 	TAILQ_INIT(&base->hostsdb);
-
 	SPLAY_INIT(&base->cache_root);
 
-#define EVDNS_BASE_ALL_FLAGS (0x8001)
+#define EVDNS_BASE_ALL_FLAGS (0x8011)
 	if (flags & ~EVDNS_BASE_ALL_FLAGS) {
 		flags = EVDNS_BASE_INITIALIZE_NAMESERVERS;
 		log(EVDNS_LOG_WARN,
@@ -3985,6 +3985,8 @@ evdns_base_new(struct event_base *event_base, int flags)
 	if (flags & EVDNS_BASE_DISABLE_WHEN_INACTIVE) {
 		base->disable_when_inactive = 1;
 	}
+
+	base->disable_cache = flags & EVDNS_BASE_NO_CACHE;
 
 	EVDNS_UNLOCK(base);
 	return base;
@@ -4598,7 +4600,9 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 			/* If we have an answer waiting, and we weren't
 			 * canceled, ignore this error. */
 			add_cname_to_reply(data, data->pending_result);
-			evdns_cache_write(data->evdns_base, data->nodename, data->pending_result, data->pending_result_ttl);
+			if (!data->evdns_base->disable_cache) {
+				evdns_cache_write(data->evdns_base, data->nodename, data->pending_result, data->pending_result_ttl);
+			}
 			data->user_cb(0, data->pending_result, data->user_data);
 			data->pending_result = NULL;
 		} else {
@@ -4689,7 +4693,9 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 
 		/* Call the user callback. */
 		add_cname_to_reply(data, res);
-		evdns_cache_write(data->evdns_base, data->nodename, res, res_ttl);
+		if (!data->evdns_base->disable_cache) {
+			evdns_cache_write(data->evdns_base, data->nodename, res, res_ttl);
+		}
 		data->user_cb(0, res, data->user_data);
 
 		/* Free data. */
@@ -4814,7 +4820,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	}
 
 	/* See if we have it in the cache */
-	if (!evdns_cache_lookup(dns_base, nodename, &hints, port, &res)) {
+	if (!dns_base->disable_cache && !evdns_cache_lookup(dns_base, nodename, &hints, port, &res)) {
 		cb(0, res, arg);
 		return NULL;
 	}
