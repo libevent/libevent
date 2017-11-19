@@ -252,6 +252,8 @@ main(int c, char **v) {
 	}
 	fflush(stdout);
 	event_base_dispatch(event_base);
+	evdns_base_free(evdns_base, 1);
+	event_base_free(event_base);
 	return 0;
 }
 
