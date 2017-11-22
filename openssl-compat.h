@@ -1,6 +1,9 @@
 #ifndef OPENSSL_COMPAT_H
 #define OPENSSL_COMPAT_H
 
+#include <openssl/bio.h>
+#include "util-internal.h"
+
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
 
 static inline BIO_METHOD *BIO_meth_new(int type, const char *name)

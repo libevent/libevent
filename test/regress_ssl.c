@@ -53,7 +53,6 @@
 #include "tinytest.h"
 #include "tinytest_macros.h"
 
-#include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include "openssl-compat.h"
