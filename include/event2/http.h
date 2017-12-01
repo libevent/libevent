@@ -298,6 +298,24 @@ EVENT2_EXPORT_SYMBOL
 void evhttp_set_bevcb(struct evhttp *http,
     struct bufferevent *(*cb)(struct event_base *, void *), void *arg);
 
+
+/**
+   Set a callback which allows the user to note or throttle incoming requests.
+
+   The requests are not populated with HTTP level information. They
+   are just associated to a connection.
+
+   If the callback returns -1, the associated connection is terminated
+   and the request is closed.
+
+   @param http the evhttp server object for which to set the callback
+   @param cb the callback to invoke for incoming connections
+   @param arg an context argument for the callback
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_set_newreqcb(struct evhttp *http,
+    int (*cb)(struct evhttp_request*, void *), void *arg);
+
 /**
    Adds a virtual host to the http server.
 
