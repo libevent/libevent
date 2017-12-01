@@ -170,6 +170,8 @@ struct evhttp {
 	void *gencbarg;
 	struct bufferevent* (*bevcb)(struct event_base *, void *);
 	void *bevcbarg;
+	int (*newreqcb)(struct evhttp_request *req, void *);
+	void *newreqcbarg;
 
 	struct event_base *base;
 };
