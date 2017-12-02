@@ -173,6 +173,7 @@ extern int debug;
 static evutil_socket_t bind_socket_ai(struct evutil_addrinfo *, int reuse);
 static evutil_socket_t bind_socket(const char *, ev_uint16_t, int reuse);
 static void name_from_addr(struct sockaddr *, ev_socklen_t, char **, char **);
+static struct evhttp_uri *evhttp_uri_parse_authority(char *source_uri);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
 static void evhttp_connection_start_detectclose(
@@ -1831,9 +1832,15 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 		return (-1);
 	}
 
-	if ((req->uri_elems = evhttp_uri_parse_with_flags(req->uri,
-		    EVHTTP_URI_NONCONFORMANT)) == NULL) {
-		return -1;
+	if (type == EVHTTP_REQ_CONNECT) {
+		if ((req->uri_elems = evhttp_uri_parse_authority(req->uri)) == NULL) {
+			return -1;
+		}
+	} else {
+		if ((req->uri_elems = evhttp_uri_parse_with_flags(req->uri,
+			    EVHTTP_URI_NONCONFORMANT)) == NULL) {
+			return -1;
+		}
 	}
 
 	/* If we have an absolute-URI, check to see if it is an http request
@@ -4825,6 +4832,34 @@ err:
 		evhttp_uri_free(uri);
 	if (readbuf)
 		mm_free(readbuf);
+	return NULL;
+}
+
+static struct evhttp_uri *
+evhttp_uri_parse_authority(char *source_uri)
+{
+	struct evhttp_uri *uri = mm_calloc(1, sizeof(struct evhttp_uri));
+	if (uri == NULL) {
+		event_warn("%s: calloc", __func__);
+		goto err;
+	}
+	uri->port = -1;
+	uri->flags = 0;
+
+	char *end = end_of_authority(source_uri);
+	if (parse_authority(uri, source_uri, end) < 0)
+		goto err;
+
+	uri->path = mm_strdup("");
+	if (uri->path == NULL) {
+		event_warn("%s: strdup", __func__);
+		goto err;
+	}
+
+	return uri;
+err:
+	if (uri)
+		evhttp_uri_free(uri);
 	return NULL;
 }
 
