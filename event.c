@@ -591,7 +591,9 @@ event_base_new_with_config(const struct event_config *cfg)
 		int flags;
 		if (should_check_environment && !precise_time) {
 			precise_time = evutil_getenv_("EVENT_PRECISE_TIMER") != NULL;
-			base->flags |= EVENT_BASE_FLAG_PRECISE_TIMER;
+			if (precise_time) {
+				base->flags |= EVENT_BASE_FLAG_PRECISE_TIMER;
+			}
 		}
 		flags = precise_time ? EV_MONOT_PRECISE : 0;
 		evutil_configure_monotonic_time_(&base->monotonic_timer, flags);
