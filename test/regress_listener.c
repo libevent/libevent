@@ -185,6 +185,51 @@ end:
 		evconnlistener_free(listener);
 }
 
+static void
+acceptcb_free(struct evconnlistener *listener, evutil_socket_t fd,
+    struct sockaddr *addr, int socklen, void *arg)
+{
+	int *ptr = arg;
+	--*ptr;
+	TT_BLATHER(("Got one for %p", ptr));
+	evutil_closesocket(fd);
+
+	if (! *ptr)
+		evconnlistener_free(listener);
+}
+static void
+regress_listener_close_accepted_fd(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evconnlistener *listener = NULL;
+	struct sockaddr_in sin;
+	struct sockaddr_storage ss;
+	ev_socklen_t slen = sizeof(ss);
+	int count = 1;
+	unsigned int flags = LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE;
+	int fd = -1;
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
+	sin.sin_port = 0; /* "You pick!" */
+
+	/* Start a listener with a bogus socket. */
+	listener = evconnlistener_new_bind(base, acceptcb_free, &count,
+	    flags, -1, (struct sockaddr *)&sin, sizeof(sin));
+	tt_assert(listener);
+
+	tt_assert(getsockname(evconnlistener_get_fd(listener),
+		(struct sockaddr*)&ss, &slen) == 0);
+	evutil_socket_connect_(&fd, (struct sockaddr*)&ss, slen);
+
+	event_base_dispatch(base);
+
+end:
+	;
+}
+
 #ifdef EVENT__HAVE_SETRLIMIT
 static void
 regress_listener_error_unlock(void *arg)
@@ -241,6 +286,9 @@ struct testcase_t listener_testcases[] = {
 	{ "error_ts", regress_listener_error,
 	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR,
 	  &basic_setup, (char*)"ts"},
+
+	{ "close_accepted_fd", regress_listener_close_accepted_fd,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL, },
 
 	END_OF_TESTCASES,
 };
