@@ -421,8 +421,6 @@ listener_read_cb(evutil_socket_t fd, short what, void *p)
 		if (lev->refcnt == 1) {
 			int freed = listener_decref_and_unlock(lev);
 			EVUTIL_ASSERT(freed);
-
-			evutil_closesocket(new_fd);
 			return;
 		}
 		--lev->refcnt;
