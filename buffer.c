@@ -2846,13 +2846,13 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		 */
 		if (mapped == MAP_FAILED) {
 			event_warn("%s: mmap(%d, %d, %zu) failed",
-			    __func__, fd, 0, (size_t)(offset + length));
+			    __func__, fd, 0, (size_t)(length + offset));
 			return (-1);
 		}
 		chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_fd));
 		if (chain == NULL) {
 			event_warn("%s: out of memory", __func__);
-			munmap(mapped, length);
+			munmap(mapped, length + offset);
 			return (-1);
 		}
 
