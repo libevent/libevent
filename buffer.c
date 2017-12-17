@@ -2901,12 +2901,13 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		while (length) {
 			ev_ssize_t to_read = length > EV_SSIZE_MAX ? EV_SSIZE_MAX : (ev_ssize_t)length;
 			read = evbuffer_readfile(tmp, fd, to_read);
-			if (read == -1) {
-				evbuffer_free(tmp);
-				return (-1);
-			}
-
+			if (read <= 0)
+				break;
 			length -= read;
+		}
+		if (length) {
+			evbuffer_free(tmp);
+			return (-1);
 		}
 
 		EVBUFFER_LOCK(outbuf);
