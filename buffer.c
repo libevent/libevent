@@ -2769,6 +2769,20 @@ done:
 	return result;
 }
 
+#ifdef _EVENT_HAVE_MMAP
+static long
+get_page_size(void)
+{
+#ifdef SC_PAGE_SIZE
+	return sysconf(SC_PAGE_SIZE);
+#elif defined(_SC_PAGE_SIZE)
+	return sysconf(_SC_PAGE_SIZE);
+#else
+	return 1;
+#endif
+}
+#endif
+
 /* TODO(niels): maybe we don't want to own the fd, however, in that
  * case, we should dup it - dup is cheap.  Perhaps, we should use a
  * callback instead?
@@ -2829,7 +2843,20 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 #endif
 #if defined(_EVENT_HAVE_MMAP)
 	if (use_mmap) {
-		void *mapped = mmap(NULL, length + offset, PROT_READ,
+		off_t offset_rounded = 0, offset_leftover = 0;
+		void *mapped;
+		if (offset) {
+			/* mmap implementations don't generally like us
+			 * to have an offset that isn't a round  */
+			long page_size = get_page_size();
+			if (page_size == -1) {
+				event_warn("%s: cannot detect PAGE_SIZE", __func__);
+				return (-1);
+			}
+			offset_leftover = offset % page_size;
+			offset_rounded = offset - offset_leftover;
+		}
+		mapped = mmap(NULL, length + offset_leftover, PROT_READ,
 #ifdef MAP_NOCACHE
 		    MAP_NOCACHE |
 #endif
@@ -2837,29 +2864,24 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		    MAP_FILE |
 #endif
 		    MAP_PRIVATE,
-		    fd, 0);
-		/* some mmap implementations require offset to be a multiple of
-		 * the page size.  most users of this api, are likely to use 0
-		 * so mapping everything is not likely to be a problem.
-		 * TODO(niels): determine page size and round offset to that
-		 * page size to avoid mapping too much memory.
-		 */
+		    fd, offset_rounded);
 		if (mapped == MAP_FAILED) {
 			event_warn("%s: mmap(%d, %d, %zu) failed",
-			    __func__, fd, 0, (size_t)(offset + length));
+			    __func__, fd, 0, (size_t)(length + offset));
 			return (-1);
 		}
 		chain = evbuffer_chain_new(sizeof(struct evbuffer_chain_fd));
 		if (chain == NULL) {
 			event_warn("%s: out of memory", __func__);
-			munmap(mapped, length);
+			munmap(mapped, length + offset_leftover);
 			return (-1);
 		}
 
 		chain->flags |= EVBUFFER_MMAP | EVBUFFER_IMMUTABLE;
 		chain->buffer = mapped;
-		chain->buffer_len = length + offset;
-		chain->off = length + offset;
+		chain->buffer_len = length + offset_leftover;
+		chain->off = length;
+		chain->misalign = offset_leftover;
 
 		info = EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_fd, chain);
 		info->fd = fd;
@@ -2871,11 +2893,7 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 			ok = 0;
 		} else {
 			outbuf->n_add_for_cb += length;
-
 			evbuffer_chain_insert(outbuf, chain);
-
-			/* we need to subtract whatever we don't need */
-			evbuffer_drain(outbuf, offset);
 		}
 	} else
 #endif
@@ -2901,12 +2919,13 @@ evbuffer_add_file(struct evbuffer *outbuf, int fd,
 		while (length) {
 			ev_ssize_t to_read = length > EV_SSIZE_MAX ? EV_SSIZE_MAX : (ev_ssize_t)length;
 			read = evbuffer_readfile(tmp, fd, to_read);
-			if (read == -1) {
-				evbuffer_free(tmp);
-				return (-1);
-			}
-
+			if (read <= 0)
+				break;
 			length -= read;
+		}
+		if (length) {
+			evbuffer_free(tmp);
+			return (-1);
 		}
 
 		EVBUFFER_LOCK(outbuf);

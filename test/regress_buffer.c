@@ -713,30 +713,46 @@ test_evbuffer_add_file(void *ptr)
 {
 	const char *impl = ptr;
 	struct evbuffer *src = evbuffer_new();
-	const char *data = "this is what we add as file system data.";
-	size_t datalen;
+	char *data = strdup("this is what we add as file system data.");
+	size_t datalen = strlen(data), toread = datalen, bufread = 0;
 	const char *compare;
 	int fd = -1;
 	evutil_socket_t pair[2] = {-1, -1};
 	int r=0, n_written=0;
-
-	/* Add a test for a big file. XXXX */
+	ev_off_t offset = 0;
 
 	tt_assert(impl);
-	if (!strcmp(impl, "sendfile")) {
+	if (strstr(impl, "_sendfile")) {
 		if (!_evbuffer_testing_use_sendfile())
 			tt_skip();
 		TT_BLATHER(("Using sendfile-based implementaion"));
-	} else if (!strcmp(impl, "mmap")) {
+	} else if (strstr(impl, "_mmap")) {
 		if (!_evbuffer_testing_use_mmap())
 			tt_skip();
 		TT_BLATHER(("Using mmap-based implementaion"));
-	} else if (!strcmp(impl, "linear")) {
+	} else if (strstr(impl, "_linear")) {
 		if (!_evbuffer_testing_use_linear_file_access())
 			tt_skip();
 		TT_BLATHER(("Using read-based implementaion"));
-	} else {
-		TT_DIE(("Didn't recognize the implementation"));
+	}
+
+	if (strstr(impl, "_big")) {
+		toread = datalen = 1 << 16;
+		data = realloc(data, datalen);
+		for (int i = 0; i < 1 << 16; ++i) {
+			data[i] = (char)_evutil_weakrand() % sizeof(char);
+		}
+		TT_BLATHER(("Big file"));
+	}
+	if (strstr(impl, "_offset")) {
+		offset = datalen / 4;
+		toread = datalen - offset;
+		TT_BLATHER(("Read from offset"));
+	}
+	if (strstr(impl, "_noalign")) {
+		++offset;
+		--toread;
+		TT_BLATHER(("Read from non aligned offset"));
 	}
 
 	/* Say that it drains to a fd so that we can use sendfile. */
@@ -752,13 +768,10 @@ test_evbuffer_add_file(void *ptr)
 		tt_abort_msg("socketpair failed");
 #endif
 
-	datalen = strlen(data);
 	fd = regress_make_tmpfile(data, datalen);
-
 	tt_assert(fd != -1);
 
-	tt_assert(evbuffer_add_file(src, fd, 0, datalen) != -1);
-
+	tt_assert(evbuffer_add_file(src, fd, offset, toread) != -1);
 	evbuffer_validate(src);
 
 	while (evbuffer_get_length(src) &&
@@ -767,14 +780,20 @@ test_evbuffer_add_file(void *ptr)
 		n_written += r;
 	}
 	tt_int_op(r, !=, -1);
-	tt_int_op(n_written, ==, datalen);
+	tt_int_op(n_written, ==, toread);
 
 	evbuffer_validate(src);
-	tt_int_op(evbuffer_read(src, pair[1], (int)strlen(data)), ==, datalen);
+
+	for (int n = toread, bufread = toread;
+		 n > 0;
+		 n = evbuffer_read(src, pair[1], (int)bufread), bufread -= n) {
+	}
+	tt_int_op(bufread, ==, 0);
+
 	evbuffer_validate(src);
-	compare = (char *)evbuffer_pullup(src, datalen);
+	compare = (char *)evbuffer_pullup(src, toread);
 	tt_assert(compare != NULL);
-	if (memcmp(compare, data, datalen))
+	if (memcmp(compare, data + offset, toread))
 		tt_abort_msg("Data from add_file differs.");
 
 	evbuffer_validate(src);
@@ -784,6 +803,7 @@ test_evbuffer_add_file(void *ptr)
 	if (pair[1] >= 0)
 		evutil_closesocket(pair[1]);
 	evbuffer_free(src);
+	free(data);
 }
 
 #ifndef _EVENT_DISABLE_MM_REPLACEMENT
@@ -1753,12 +1773,19 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },
 	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
 	/* TODO: need a temp file implementation for Windows */
-	{ "add_file_sendfile", test_evbuffer_add_file, TT_FORK, &nil_setup,
-	  (void*)"sendfile" },
-	{ "add_file_mmap", test_evbuffer_add_file, TT_FORK, &nil_setup,
-	  (void*)"mmap" },
-	{ "add_file_linear", test_evbuffer_add_file, TT_FORK, &nil_setup,
-	  (void*)"linear" },
+
+#define ADD_FILE_TEST(name) \
+	{ name, test_evbuffer_add_file, TT_FORK, &nil_setup, (void*)name },
+#define ADD_FILE_TEST_GROUP(name) \
+	ADD_FILE_TEST(name) \
+	ADD_FILE_TEST(name "_offset") \
+	ADD_FILE_TEST(name "_big") \
+	ADD_FILE_TEST(name "_big_offset") \
+	ADD_FILE_TEST(name "_big_offset_noalign") \
+
+	ADD_FILE_TEST_GROUP("add_file_sendfile")
+	ADD_FILE_TEST_GROUP("add_file_mmap")
+	ADD_FILE_TEST_GROUP("add_file_linear")
 
 	END_OF_TESTCASES
 };
