@@ -3929,6 +3929,14 @@ evhttp_set_bevcb(struct evhttp *http,
 	http->bevcbarg = cbarg;
 }
 
+void
+evhttp_set_newreqcb(struct evhttp *http,
+    int (*cb)(struct evhttp_request *, void *), void *cbarg)
+{
+	http->newreqcb = cb;
+	http->newreqcbarg = cbarg;
+}
+
 /*
  * Request related functions
  */
@@ -4239,17 +4247,20 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 	req->evcon = evcon;	/* the request ends up owning the connection */
 	req->flags |= EVHTTP_REQ_OWN_CONNECTION;
 
-	/* We did not present the request to the user user yet, so treat it as
-	 * if the user was done with the request.  This allows us to free the
-	 * request on a persistent connection if the client drops it without
-	 * sending a request.
+	/* We did not present the request to the user yet, so treat it
+	 * as if the user was done with the request.  This allows us
+	 * to free the request on a persistent connection if the
+	 * client drops it without sending a request.
 	 */
 	req->userdone = 1;
-
-	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
-
 	req->kind = EVHTTP_REQUEST;
 
+	if (http->newreqcb && http->newreqcb(req, http->newreqcbarg) == -1) {
+		evhttp_request_free(req);
+		return (-1);
+	}
+
+	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
 	evhttp_start_read_(evcon);
 
