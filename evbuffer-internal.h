@@ -92,7 +92,7 @@ struct evbuffer {
 	 * If the buffer has no chains, it is NULL.
 	 *
 	 * The last_with_datap pointer points at _whatever 'next' pointer_
-	 * points at the last_with_datap chain.  If the last_with_data chain
+	 * pointing at the last_with_data chain. If the last_with_data chain
 	 * is the first chain, or it is NULL, then the last_with_datap pointer
 	 * is &buf->first.
 	 */
