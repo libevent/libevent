@@ -3071,16 +3071,15 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 {
 	struct evbuffer *buf = evbuffer_new();
 	const char *p, *end;
-	char *result;
+	char *result = NULL;
 
-	if (buf == NULL) {
-		return (NULL);
+	if (!buf) {
+		goto out;
 	}
-
 
 	if (len >= 0) {
 		if (uri + len < uri) {
-			return (NULL);
+			goto out;
 		}
 
 		end = uri + len;
@@ -3089,11 +3088,11 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 
 		if (slen >= EV_SSIZE_MAX) {
 			/* we don't want to mix signed and unsigned */
-			return (NULL);
+			goto out;
 		}
 
 		if (uri + slen < uri) {
-			return (NULL);
+			goto out;
 		}
 
 		end = uri + slen;
@@ -3115,9 +3114,10 @@ evhttp_uriencode(const char *uri, ev_ssize_t len, int space_as_plus)
 	if (result)
 		evbuffer_remove(buf, result, evbuffer_get_length(buf));
 
-	evbuffer_free(buf);
-
-	return (result);
+out:
+	if (buf)
+		evbuffer_free(buf);
+	return result;
 }
 
 char *
