@@ -3516,6 +3516,7 @@ evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint
 {
 	return evhttp_bind_socket_with_handle_and_backlog(http, address, port, 128);
 }
+
 struct evhttp_bound_socket *
 evhttp_bind_socket_with_handle_and_backlog(struct evhttp *http, const char *address, ev_uint16_t port, int backlog)
 {
