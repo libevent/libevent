@@ -113,8 +113,8 @@ int evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t por
  * @return 0 on success, -1 on failure.
  * @see evhttp_accept_socket()
  */
-EVENT2_EXPORT_SYMBOL
-int evhttp_bind_socket_with_backlog(struct evhttp *http, const char *address, ev_uint16_t port, int backlog);
+int evhttp_bind_socket_with_backlog(
+	struct evhttp *http, const char *address, ev_uint16_t port, int backlog);
 
 /**
  * Like evhttp_bind_socket(), but returns a handle for referencing the socket.
@@ -128,8 +128,8 @@ int evhttp_bind_socket_with_backlog(struct evhttp *http, const char *address, ev
  * @return Handle for the socket on success, NULL on failure.
  * @see evhttp_bind_socket(), evhttp_del_accept_socket()
  */
-EVENT2_EXPORT_SYMBOL
-struct evhttp_bound_socket *evhttp_bind_socket_with_handle_and_backlog(struct evhttp *http, const char *address, ev_uint16_t port, int backlog);
+struct evhttp_bound_socket *evhttp_bind_socket_with_handle_and_backlog(
+	struct evhttp *http, const char *address, ev_uint16_t port, int backlog);
 
 /**
  * Like evhttp_bind_socket(), but returns a handle for referencing the socket.
