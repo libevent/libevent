@@ -101,6 +101,37 @@ EVENT2_EXPORT_SYMBOL
 int evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port);
 
 /**
+ * Binds an HTTP server on the specified address and port.
+ *
+ * Can be called multiple times to bind the same http server
+ * to multiple different ports.
+ *
+ * @param http a pointer to an evhttp object
+ * @param address a string containing the IP address to listen(2) on
+ * @param port the port number to listen on
+ * @param backlog specifies max tcp backlog for the connection
+ * @return 0 on success, -1 on failure.
+ * @see evhttp_accept_socket()
+ */
+int evhttp_bind_socket_with_backlog(
+	struct evhttp *http, const char *address, ev_uint16_t port, int backlog);
+
+/**
+ * Like evhttp_bind_socket(), but returns a handle for referencing the socket.
+ *
+ * The returned pointer is not valid after \a http is freed.
+ *
+ * @param http a pointer to an evhttp object
+ * @param address a string containing the IP address to listen(2) on
+ * @param port the port number to listen on
+ * @param backlog specifies max tcp backlog for the connection
+ * @return Handle for the socket on success, NULL on failure.
+ * @see evhttp_bind_socket(), evhttp_del_accept_socket()
+ */
+struct evhttp_bound_socket *evhttp_bind_socket_with_handle_and_backlog(
+	struct evhttp *http, const char *address, ev_uint16_t port, int backlog);
+
+/**
  * Like evhttp_bind_socket(), but returns a handle for referencing the socket.
  *
  * The returned pointer is not valid after \a http is freed.
