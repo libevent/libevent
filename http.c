@@ -3498,8 +3498,14 @@ accept_socket_cb(struct evconnlistener *listener, evutil_socket_t nfd, struct so
 int
 evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
 {
+	return evhttp_bind_socket_with_backlog(http, address, port, 128);
+}
+
+int
+evhttp_bind_socket_with_backlog(struct evhttp *http, const char *address, ev_uint16_t port, int backlog)
+{
 	struct evhttp_bound_socket *bound =
-		evhttp_bind_socket_with_handle(http, address, port);
+		evhttp_bind_socket_with_handle_and_backlog(http, address, port, backlog);
 	if (bound == NULL)
 		return (-1);
 	return (0);
@@ -3508,13 +3514,18 @@ evhttp_bind_socket(struct evhttp *http, const char *address, ev_uint16_t port)
 struct evhttp_bound_socket *
 evhttp_bind_socket_with_handle(struct evhttp *http, const char *address, ev_uint16_t port)
 {
+	return evhttp_bind_socket_with_handle_and_backlog(http, address, port, 128);
+}
+struct evhttp_bound_socket *
+evhttp_bind_socket_with_handle_and_backlog(struct evhttp *http, const char *address, ev_uint16_t port, int backlog)
+{
 	evutil_socket_t fd;
 	struct evhttp_bound_socket *bound;
 
 	if ((fd = bind_socket(address, port, 1 /*reuse*/)) == -1)
 		return (NULL);
 
-	if (listen(fd, 128) == -1) {
+	if (listen(fd, backlog) == -1) {
 		event_sock_warn(fd, "%s: listen", __func__);
 		evutil_closesocket(fd);
 		return (NULL);
