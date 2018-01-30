@@ -3999,6 +3999,9 @@ evhttp_request_free(struct evhttp_request *req)
 		return;
 	}
 
+	if (req->on_free_cb)
+		(*req->on_free_cb)(req, req->on_free_cb_arg);
+
 	if (req->remote_host != NULL)
 		mm_free(req->remote_host);
 	if (req->uri != NULL)
@@ -4076,6 +4079,14 @@ evhttp_request_set_on_complete_cb(struct evhttp_request *req,
 {
 	req->on_complete_cb = cb;
 	req->on_complete_cb_arg = cb_arg;
+}
+
+void
+evhttp_request_set_on_free_cb(struct evhttp_request *req,
+    void (*cb)(struct evhttp_request *, void *), void *cb_arg)
+{
+	req->on_free_cb = cb;
+	req->on_free_cb_arg = cb_arg;
 }
 
 /*

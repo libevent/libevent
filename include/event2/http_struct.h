@@ -142,6 +142,12 @@ struct {
 	 */
 	void (*on_complete_cb)(struct evhttp_request *, void *);
 	void *on_complete_cb_arg;
+
+	/*
+	 * Free callback - called just before the request is freed.
+	 */
+	void (*on_free_cb)(struct evhttp_request *, void *);
+	void *on_free_cb_arg;
 };
 
 #ifdef __cplusplus

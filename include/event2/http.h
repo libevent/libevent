@@ -642,6 +642,20 @@ EVENT2_EXPORT_SYMBOL
 void evhttp_request_set_on_complete_cb(struct evhttp_request *req,
     void (*cb)(struct evhttp_request *, void *), void *cb_arg);
 
+/**
+ * Set a callback to be called on request free.
+ *
+ * The callback function will be called just before the evhttp_request object
+ * is destroyed.
+ *
+ * @param req a request object
+ * @param cb callback function that will be called before request free
+ * @param cb_arg an additional context argument for the callback
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_request_set_on_free_cb(struct evhttp_request *req,
+    void (*cb)(struct evhttp_request *, void *), void *cb_arg);
+
 /** Frees the request object and removes associated events. */
 EVENT2_EXPORT_SYMBOL
 void evhttp_request_free(struct evhttp_request *req);
