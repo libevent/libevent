@@ -145,6 +145,8 @@ struct evhttp {
 
 	/* All live connections on this host. */
 	struct evconq connections;
+	int connection_max;
+	int connection_cnt;
 
 	TAILQ_HEAD(vhostsq, evhttp) virtualhosts;
 
