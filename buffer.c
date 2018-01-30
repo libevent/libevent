@@ -1534,7 +1534,7 @@ evbuffer_find_eol_char(struct evbuffer_ptr *it)
 	return (-1);
 }
 
-static inline int
+static inline size_t
 evbuffer_strspn(
 	struct evbuffer_ptr *ptr, const char *chrset)
 {

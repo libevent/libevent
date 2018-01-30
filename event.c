@@ -2314,7 +2314,7 @@ event_priority_set(struct event *ev, int pri)
 
 	if (ev->ev_flags & EVLIST_ACTIVE)
 		return (-1);
-	if (pri < 0 || pri >= ev->ev_base->nactivequeues)
+	if (pri < 0 || pri >= ev->ev_base->nactivequeues || (pri >> (sizeof(ev_uint8_t)*8-1)) != 0)
 		return (-1);
 
 	ev->ev_pri = pri;
