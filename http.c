@@ -1229,6 +1229,9 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		event_debug_unassign(&evcon->retry_ev);
 	}
 
+	if (event_initialized(&evcon->expire_ev))
+		event_del(&evcon->expire_ev);
+
 	if (evcon->bufev != NULL)
 		bufferevent_free(evcon->bufev);
 
@@ -1375,6 +1378,12 @@ evhttp_connection_retry(evutil_socket_t fd, short what, void *arg)
 
 	evcon->state = EVCON_DISCONNECTED;
 	evhttp_connection_connect_(evcon);
+}
+
+static void
+evhttp_connection_expired_cb(evutil_socket_t fd, short events, void *arg)
+{
+    evhttp_connection_free(arg);
 }
 
 static void
@@ -2511,6 +2520,24 @@ evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 {
 	evcon->closecb = cb;
 	evcon->closecb_arg = cbarg;
+}
+
+int
+evhttp_connection_set_ttl(struct evhttp_connection *evcon,
+	struct event_base *base, int ttl)
+{
+	struct timeval timeout = {ttl, 0};
+
+	if (event_initialized(&evcon->expire_ev))
+		event_del(&evcon->expire_ev);
+
+	if (ttl <= 0) return 0;
+
+	if (evtimer_assign(&evcon->expire_ev, base,
+					   evhttp_connection_expired_cb, evcon) == -1)
+		return -1;
+
+	return evtimer_add(&evcon->expire_ev, &timeout);
 }
 
 void
@@ -3864,6 +3891,12 @@ evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods)
 	http->allowed_methods = methods;
 }
 
+void
+evhttp_set_connection_ttl(struct evhttp* http, int ttl)
+{
+    http->connection_ttl = ttl;
+}
+
 int
 evhttp_set_cb(struct evhttp *http, const char *uri,
     void (*cb)(struct evhttp_request *, void *), void *cbarg)
@@ -4225,6 +4258,9 @@ evhttp_get_request_connection(
 	bufferevent_enable(evcon->bufev, EV_READ);
 	bufferevent_disable(evcon->bufev, EV_WRITE);
 	bufferevent_setfd(evcon->bufev, fd);
+
+	if (http->connection_ttl > 0)
+		evhttp_connection_set_ttl(evcon, http->base, http->connection_ttl);
 
 	return (evcon);
 }

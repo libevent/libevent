@@ -235,6 +235,25 @@ void evhttp_set_default_content_type(struct evhttp *http,
 	const char *content_type);
 
 /**
+ * Set the maximum time in seconds for a connection to live on this server.
+ * A value of zero or less disables the limit.
+ *
+ * An event will fire on any connection that has lived too long that will
+ * close and remove the connection from the server.  This can be used to
+ * mitigate Slowloris DOS attacks which attempt to keep server connections open
+ * by slowly reading or writing data, avoiding connection read/write timeouts,
+ * keeping the connection open for as long as possible.  During a Slowloris
+ * attack, the server will slowly run out of file descriptors or hit it's max
+ * connection limit.  The TTL (Time to Live) limit drops any connections that
+ * have been open for too long.
+ *
+ * @param http the http server on which to set the max connection limit
+ * @param ttl the maximum time to live or 0 for no limit.
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_set_connection_ttl(struct evhttp* http, int ttl);
+
+/**
   Sets the what HTTP methods are supported in requests accepted by this
   server, and passed to user callbacks.
 
@@ -777,6 +796,19 @@ void evhttp_connection_set_retries(struct evhttp_connection *evcon,
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
     void (*)(struct evhttp_connection *, void *), void *);
+
+/**
+ * Set or reset the maximum time, from now, in seconds for the connection to
+ * live. A value of zero or less disables the limit.
+ *
+ * @param evcon the connection on which to set the limit.
+ * @param base the event base for the ttl event.
+ * @param ttl the maximum time to live or 0 for no limit.
+ * @return 0 on success, -1 on failure.
+ */
+EVENT2_EXPORT_SYMBOL
+int evhttp_connection_set_ttl(struct evhttp_connection *evcon,
+    struct event_base *base, int ttl);
 
 /** Get the remote address and port associated with this connection. */
 EVENT2_EXPORT_SYMBOL
