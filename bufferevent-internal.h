@@ -444,6 +444,15 @@ EVENT2_EXPORT_SYMBOL
 const struct sockaddr*
 bufferevent_socket_get_conn_address_(struct bufferevent *bev);
 
+EVENT2_EXPORT_SYMBOL
+void
+bufferevent_socket_set_conn_address_fd_(struct bufferevent *bev, int fd);
+
+EVENT2_EXPORT_SYMBOL
+void
+bufferevent_socket_set_conn_address_(struct bufferevent *bev, struct sockaddr *addr, size_t addrlen);
+
+
 /** Internal use: We have just successfully read data into an inbuf, so
  * reset the read timeout (if any). */
 #define BEV_RESET_GENERIC_READ_TIMEOUT(bev)				\
