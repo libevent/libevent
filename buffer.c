@@ -522,8 +522,8 @@ evbuffer_invoke_callbacks_(struct evbuffer *buffer)
 			evbuffer_incref_and_lock_(buffer);
 			if (buffer->parent)
 				bufferevent_incref_(buffer->parent);
+			EVBUFFER_UNLOCK(buffer);
 		}
-		EVBUFFER_UNLOCK(buffer);
 	}
 
 	evbuffer_run_callbacks(buffer, 0);
