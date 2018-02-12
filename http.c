@@ -4213,6 +4213,7 @@ evhttp_get_request_connection(
 	bufferevent_enable(evcon->bufev, EV_READ);
 	bufferevent_disable(evcon->bufev, EV_WRITE);
 	bufferevent_setfd(evcon->bufev, fd);
+	bufferevent_socket_set_conn_address_(evcon->bufev, sa, salen);
 
 	return (evcon);
 }
