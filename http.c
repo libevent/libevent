@@ -2132,10 +2132,6 @@ evhttp_get_body_length(struct evhttp_request *req)
 		req->ntoread = -1;
 	else if (content_length == NULL &&
 	    evutil_ascii_strcasecmp(connection, "Close") != 0) {
-		/* Bad combination, we don't know when it will end */
-		event_warnx("%s: we got no content length, but the "
-		    "server wants to keep the connection open: %s.",
-		    __func__, connection);
 		req->ntoread = 0;
 	} else if (content_length == NULL) {
 		req->ntoread = -1;
