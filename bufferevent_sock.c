@@ -373,9 +373,9 @@ bufferevent_socket_connect(struct bufferevent *bev,
 		fd = socket(sa->sa_family, SOCK_STREAM, 0);
 		if (fd < 0)
 			goto done;
-		if (evutil_make_socket_nonblocking(fd)<0)
-			goto done;
 		ownfd = 1;
+		if (evutil_make_socket_nonblocking(fd)<0)
+			goto freesock;
 	}
 	if (sa) {
 #ifdef WIN32
@@ -425,7 +425,6 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	goto done;
 
 freesock:
-	_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
 	if (ownfd)
 		evutil_closesocket(fd);
 	/* do something about the error? */
@@ -457,9 +456,9 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	}
 
 	/* XXX use the other addrinfos? */
-	/* XXX use this return value */
 	r = bufferevent_socket_connect(bev, ai->ai_addr, (int)ai->ai_addrlen);
-	(void)r;
+	if (r < 0)
+		_bufferevent_run_eventcb(bev, BEV_EVENT_ERROR);
 	_bufferevent_decref_and_unlock(bev);
 	evutil_freeaddrinfo(ai);
 }
