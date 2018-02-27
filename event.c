@@ -2749,17 +2749,16 @@ static int
 event_del_(struct event *ev, int blocking)
 {
 	int res;
+	struct event_base *base = ev->ev_base;
 
-	if (EVUTIL_FAILURE_CHECK(!ev->ev_base)) {
+	if (EVUTIL_FAILURE_CHECK(!base)) {
 		event_warnx("%s: event has no event_base set.", __func__);
 		return -1;
 	}
 
-	EVBASE_ACQUIRE_LOCK(ev->ev_base, th_base_lock);
-
+	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 	res = event_del_nolock_(ev, blocking);
-
-	EVBASE_RELEASE_LOCK(ev->ev_base, th_base_lock);
+	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	return (res);
 }
