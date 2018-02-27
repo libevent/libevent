@@ -229,133 +229,158 @@ HT_PROTOTYPE(event_debug_map, event_debug_entry, node, hash_debug_entry,
 HT_GENERATE(event_debug_map, event_debug_entry, node, hash_debug_entry,
     eq_debug_entry, 0.5, mm_malloc, mm_realloc, mm_free)
 
-/* Macro: record that ev is now setup (that is, ready for an add) */
-#define event_debug_note_setup_(ev) do {				\
-	if (event_debug_mode_on_) {					\
-		struct event_debug_entry *dent,find;			\
-		find.ptr = (ev);					\
-		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
-		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
-		if (dent) {						\
-			dent->added = 0;				\
-		} else {						\
-			dent = mm_malloc(sizeof(*dent));		\
-			if (!dent)					\
-				event_err(1,				\
-				    "Out of memory in debugging code");	\
-			dent->ptr = (ev);				\
-			dent->added = 0;				\
-			HT_INSERT(event_debug_map, &global_debug_map, dent); \
-		}							\
-		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
-	}								\
-	event_debug_mode_too_late = 1;					\
-	} while (0)
-/* Macro: record that ev is no longer setup */
-#define event_debug_note_teardown_(ev) do {				\
-	if (event_debug_mode_on_) {					\
-		struct event_debug_entry *dent,find;			\
-		find.ptr = (ev);					\
-		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
-		dent = HT_REMOVE(event_debug_map, &global_debug_map, &find); \
-		if (dent)						\
-			mm_free(dent);					\
-		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
-	}								\
-	event_debug_mode_too_late = 1;					\
-	} while (0)
+/* record that ev is now setup (that is, ready for an add) */
+static void event_debug_note_setup_(const struct event *ev)
+{
+	struct event_debug_entry *dent, find;
+
+	if (!event_debug_mode_on_) {
+		goto out;
+	}
+
+	find.ptr = ev;
+	EVLOCK_LOCK(event_debug_map_lock_, 0);
+	dent = HT_FIND(event_debug_map, &global_debug_map, &find);
+	if (dent) {
+		dent->added = 0;
+	} else {
+		dent = mm_malloc(sizeof(*dent));
+		if (!dent)
+			event_err(1,
+			    "Out of memory in debugging code");
+		dent->ptr = ev;
+		dent->added = 0;
+		HT_INSERT(event_debug_map, &global_debug_map, dent);
+	}
+	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
+
+out:
+	event_debug_mode_too_late = 1;
+}
+/* record that ev is no longer setup */
+static void event_debug_note_teardown_(const struct event *ev)
+{
+	struct event_debug_entry *dent, find;
+
+	if (!event_debug_mode_on_) {
+		goto out;
+	}
+
+	find.ptr = ev;
+	EVLOCK_LOCK(event_debug_map_lock_, 0);
+	dent = HT_REMOVE(event_debug_map, &global_debug_map, &find);
+	if (dent)
+		mm_free(dent);
+	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
+
+out:
+	event_debug_mode_too_late = 1;
+}
 /* Macro: record that ev is now added */
-#define event_debug_note_add_(ev)	do {				\
-	if (event_debug_mode_on_) {					\
-		struct event_debug_entry *dent,find;			\
-		find.ptr = (ev);					\
-		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
-		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
-		if (dent) {						\
-			dent->added = 1;				\
-		} else {						\
-			event_errx(EVENT_ERR_ABORT_,			\
-			    "%s: noting an add on a non-setup event %p" \
-			    " (events: 0x%x, fd: "EV_SOCK_FMT		\
-			    ", flags: 0x%x)",				\
-			    __func__, (ev), (ev)->ev_events,		\
-			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
-		}							\
-		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
-	}								\
-	event_debug_mode_too_late = 1;					\
-	} while (0)
-/* Macro: record that ev is no longer added */
-#define event_debug_note_del_(ev) do {					\
-	if (event_debug_mode_on_) {					\
-		struct event_debug_entry *dent,find;			\
-		find.ptr = (ev);					\
-		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
-		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
-		if (dent) {						\
-			dent->added = 0;				\
-		} else {						\
-			event_errx(EVENT_ERR_ABORT_,			\
-			    "%s: noting a del on a non-setup event %p"	\
-			    " (events: 0x%x, fd: "EV_SOCK_FMT		\
-			    ", flags: 0x%x)",				\
-			    __func__, (ev), (ev)->ev_events,		\
-			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
-		}							\
-		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
-	}								\
-	event_debug_mode_too_late = 1;					\
-	} while (0)
-/* Macro: assert that ev is setup (i.e., okay to add or inspect) */
-#define event_debug_assert_is_setup_(ev) do {				\
-	if (event_debug_mode_on_) {					\
-		struct event_debug_entry *dent,find;			\
-		find.ptr = (ev);					\
-		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
-		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
-		if (!dent) {						\
-			event_errx(EVENT_ERR_ABORT_,			\
-			    "%s called on a non-initialized event %p"	\
-			    " (events: 0x%x, fd: "EV_SOCK_FMT\
-			    ", flags: 0x%x)",				\
-			    __func__, (ev), (ev)->ev_events,		\
-			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
-		}							\
-		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
-	}								\
-	} while (0)
-/* Macro: assert that ev is not added (i.e., okay to tear down or set
- * up again) */
-#define event_debug_assert_not_added_(ev) do {				\
-	if (event_debug_mode_on_) {					\
-		struct event_debug_entry *dent,find;			\
-		find.ptr = (ev);					\
-		EVLOCK_LOCK(event_debug_map_lock_, 0);			\
-		dent = HT_FIND(event_debug_map, &global_debug_map, &find); \
-		if (dent && dent->added) {				\
-			event_errx(EVENT_ERR_ABORT_,			\
-			    "%s called on an already added event %p"	\
-			    " (events: 0x%x, fd: "EV_SOCK_FMT", "	\
-			    "flags: 0x%x)",				\
-			    __func__, (ev), (ev)->ev_events,		\
-			    EV_SOCK_ARG((ev)->ev_fd), (ev)->ev_flags);	\
-		}							\
-		EVLOCK_UNLOCK(event_debug_map_lock_, 0);		\
-	}								\
-	} while (0)
+static void event_debug_note_add_(const struct event *ev)
+{
+	struct event_debug_entry *dent,find;
+
+	if (!event_debug_mode_on_) {
+		goto out;
+	}
+
+	find.ptr = ev;
+	EVLOCK_LOCK(event_debug_map_lock_, 0);
+	dent = HT_FIND(event_debug_map, &global_debug_map, &find);
+	if (dent) {
+		dent->added = 1;
+	} else {
+		event_errx(EVENT_ERR_ABORT_,
+		    "%s: noting an add on a non-setup event %p"
+		    " (events: 0x%x, fd: "EV_SOCK_FMT
+		    ", flags: 0x%x)",
+		    __func__, ev, ev->ev_events,
+		    EV_SOCK_ARG(ev->ev_fd), ev->ev_flags);
+	}
+	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
+
+out:
+	event_debug_mode_too_late = 1;
+}
+/* record that ev is no longer added */
+static void event_debug_note_del_(const struct event *ev)
+{
+	struct event_debug_entry *dent, find;
+
+	if (!event_debug_mode_on_) {
+		goto out;
+	}
+
+	find.ptr = ev;
+	EVLOCK_LOCK(event_debug_map_lock_, 0);
+	dent = HT_FIND(event_debug_map, &global_debug_map, &find);
+	if (dent) {
+		dent->added = 0;
+	} else {
+		event_errx(EVENT_ERR_ABORT_,
+		    "%s: noting a del on a non-setup event %p"
+		    " (events: 0x%x, fd: "EV_SOCK_FMT
+		    ", flags: 0x%x)",
+		    __func__, ev, ev->ev_events,
+		    EV_SOCK_ARG(ev->ev_fd), ev->ev_flags);
+	}
+	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
+
+out:
+	event_debug_mode_too_late = 1;
+}
+/* assert that ev is setup (i.e., okay to add or inspect) */
+static void event_debug_assert_is_setup_(const struct event *ev)
+{
+	struct event_debug_entry *dent, find;
+
+	if (!event_debug_mode_on_) {
+		return;
+	}
+
+	find.ptr = ev;
+	EVLOCK_LOCK(event_debug_map_lock_, 0);
+	dent = HT_FIND(event_debug_map, &global_debug_map, &find);
+	if (!dent) {
+		event_errx(EVENT_ERR_ABORT_,
+		    "%s called on a non-initialized event %p"
+		    " (events: 0x%x, fd: "EV_SOCK_FMT
+		    ", flags: 0x%x)",
+		    __func__, ev, ev->ev_events,
+		    EV_SOCK_ARG(ev->ev_fd), ev->ev_flags);
+	}
+	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
+}
+/* assert that ev is not added (i.e., okay to tear down or set up again) */
+static void event_debug_assert_not_added_(const struct event *ev)
+{
+	struct event_debug_entry *dent, find;
+
+	if (!event_debug_mode_on_) {
+		return;
+	}
+
+	find.ptr = ev;
+	EVLOCK_LOCK(event_debug_map_lock_, 0);
+	dent = HT_FIND(event_debug_map, &global_debug_map, &find);
+	if (dent && dent->added) {
+		event_errx(EVENT_ERR_ABORT_,
+		    "%s called on an already added event %p"
+		    " (events: 0x%x, fd: "EV_SOCK_FMT", "
+		    "flags: 0x%x)",
+		    __func__, ev, ev->ev_events,
+		    EV_SOCK_ARG(ev->ev_fd), ev->ev_flags);
+	}
+	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
+}
 #else
-#define event_debug_note_setup_(ev) \
-	((void)0)
-#define event_debug_note_teardown_(ev) \
-	((void)0)
-#define event_debug_note_add_(ev) \
-	((void)0)
-#define event_debug_note_del_(ev) \
-	((void)0)
-#define event_debug_assert_is_setup_(ev) \
-	((void)0)
-#define event_debug_assert_not_added_(ev) \
-	((void)0)
+static void event_debug_note_setup_(const struct event *ev) { (void)ev; }
+static void event_debug_note_teardown_(const struct event *ev) { (void)ev; }
+static void event_debug_note_add_(const struct event *ev) { (void)ev; }
+static void event_debug_note_del_(const struct event *ev) { (void)ev; }
+static void event_debug_assert_is_setup_(const struct event *ev) { (void)ev; }
+static void event_debug_assert_not_added_(const struct event *ev) { (void)ev; }
 #endif
 
 #define EVENT_BASE_ASSERT_LOCKED(base)		\
