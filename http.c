@@ -964,7 +964,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 		req->ntoread = -1;
 		if (req->chunk_cb != NULL) {
 			req->flags |= EVHTTP_REQ_DEFER_FREE;
-			(*req->chunk_cb)(req, req->cb_arg);
+			(*req->chunk_cb)(req, req->chunk_cb_arg);
 			evbuffer_drain(req->input_buffer,
 			    evbuffer_get_length(req->input_buffer));
 			req->flags &= ~EVHTTP_REQ_DEFER_FREE;
@@ -1087,7 +1087,7 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 
 	if (evbuffer_get_length(req->input_buffer) > 0 && req->chunk_cb != NULL) {
 		req->flags |= EVHTTP_REQ_DEFER_FREE;
-		(*req->chunk_cb)(req, req->cb_arg);
+		(*req->chunk_cb)(req, req->chunk_cb_arg);
 		req->flags &= ~EVHTTP_REQ_DEFER_FREE;
 		evbuffer_drain(req->input_buffer,
 		    evbuffer_get_length(req->input_buffer));
@@ -2227,6 +2227,10 @@ evhttp_get_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 			evhttp_send_error(req, HTTP_EXPECTATIONFAILED, NULL);
 			return;
 		case NO: break;
+	}
+
+	if (req->body_start_cb) {
+		(*req->body_start_cb)(req,req->body_start_cb_arg);
 	}
 
 	evhttp_read_body(evcon, req);
@@ -4050,6 +4054,8 @@ evhttp_request_set_chunked_cb(struct evhttp_request *req,
     void (*cb)(struct evhttp_request *, void *))
 {
 	req->chunk_cb = cb;
+	// compatibility
+	req->chunk_cb_arg = req->cb_arg;
 }
 
 void
@@ -4072,6 +4078,21 @@ evhttp_request_set_on_complete_cb(struct evhttp_request *req,
 {
 	req->on_complete_cb = cb;
 	req->on_complete_cb_arg = cb_arg;
+}
+void
+evhttp_request_set_body_read_cb(struct evhttp_request *req,
+    void (*cb)(struct evhttp_request *, void *), void* arg)
+{
+	req->chunk_cb = cb;
+	req->chunk_cb_arg = arg;
+}
+
+void
+evhttp_request_set_body_start_cb(struct evhttp_request *req,
+    void (*cb)(struct evhttp_request *, void *), void* arg)
+{
+	req->body_start_cb = cb;
+	req->body_start_cb_arg = arg;
 }
 
 /*
