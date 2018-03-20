@@ -605,6 +605,7 @@ be_filter_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 		data->ptr = bevf->underlying;
 		return 0;
 	case BEV_CTRL_SET_FD:
+	case BEV_CTRL_GET_FD:
 		bevf = upcast(bev);
 
 		if (bevf->underlying &&
@@ -614,8 +615,6 @@ be_filter_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 		}
 		EVUTIL_FALLTHROUGH;
 
-	case BEV_CTRL_GET_FD:
-		EVUTIL_FALLTHROUGH;
 	case BEV_CTRL_CANCEL_ALL:
 		EVUTIL_FALLTHROUGH;
 	default:
