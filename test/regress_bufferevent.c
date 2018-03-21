@@ -1327,6 +1327,49 @@ end:
 		bufferevent_free(filter);
 }
 
+static enum bufferevent_filter_result
+bufferevent_filter_write_data_stuck_outputcb(
+    struct evbuffer *src, struct evbuffer *dst, ev_ssize_t dst_limit,
+    enum bufferevent_flush_mode mode, void *ctx)
+{
+	evbuffer_remove_buffer(src, dst, dst_limit);
+	event_base_loopexit(ctx, NULL);
+	return BEV_OK;
+}
+
+static void
+test_bufferevent_filter_write_data_stuck(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *filter = NULL;
+	struct bufferevent *bev = NULL;
+
+	char payload[4096];
+
+	bev = bufferevent_socket_new(data->base, -1, 0);
+
+	tt_assert(
+		filter =
+		 bufferevent_filter_new(bev,
+		 NULL,
+		 NULL,
+		 0,
+		 NULL,
+		 data->base));
+
+	tt_assert(bufferevent_disable(filter, EV_WRITE) == 0);
+	tt_assert(bufferevent_write(filter, payload, sizeof(payload)) == 0);
+	tt_assert(bufferevent_enable(filter, EV_WRITE) == 0);
+
+	tt_int_op(evbuffer_get_length(bufferevent_get_output(filter)), ==, 0);
+
+end:
+	if (bev)
+		bufferevent_free(bev);
+	if (filter)
+		bufferevent_free(filter);
+}
+
 struct testcase_t bufferevent_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED),
@@ -1401,6 +1444,9 @@ struct testcase_t bufferevent_testcases[] = {
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "bufferevent_filter_data_stuck",
 	  test_bufferevent_filter_data_stuck,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "bufferevent_filter_write_data_stuck",
+	  test_bufferevent_filter_write_data_stuck,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
 	END_OF_TESTCASES,

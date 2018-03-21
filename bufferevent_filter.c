@@ -281,6 +281,7 @@ be_filter_enable(struct bufferevent *bev, short event)
 		bufferevent_unsuspend_read_(bevf->underlying,
 		    BEV_SUSPEND_FILT_READ);
 	}
+	be_filter_flush(bev, event, BEV_NORMAL);
 	return 0;
 }
 
