@@ -505,9 +505,6 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 	/* NOTE: some version of GCC reports a warning that flags may be uninitialized, hence assignment */
 	ev_uint16_t flags = 0;
 
-	// https://github.com/libevent/libevent/issues/507
-	//evhttp_remove_header(req->output_headers, "Proxy-Connection");
-
 	/* Generate request line */
 	if (!(method = evhttp_method_(evcon, req->type, &flags))) {
 		method = "NULL";
@@ -536,15 +533,10 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
 static int
 evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 {
-	if (flags & EVHTTP_PROXY_REQUEST) {
-		/* proxy connection */
-		const char *connection = evhttp_find_header(headers, "Proxy-Connection");
-		return (connection == NULL || evutil_ascii_strcasecmp(connection, "keep-alive") != 0);
-	} else {
-		const char *connection = evhttp_find_header(headers, "Connection");
-		return (connection != NULL && evutil_ascii_strcasecmp(connection, "close") == 0);
-	}
+	const char *connection = evhttp_find_header(headers, "Connection");
+	return (connection != NULL && evutil_ascii_strcasecmp(connection, "close") == 0);
 }
+
 static int
 evhttp_is_request_connection_close(struct evhttp_request *req)
 {
@@ -646,9 +638,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	/* if the request asked for a close, we send a close, too */
 	if (evhttp_is_connection_close(req->flags, req->input_headers)) {
 		evhttp_remove_header(req->output_headers, "Connection");
-		if (!(req->flags & EVHTTP_PROXY_REQUEST))
-		    evhttp_add_header(req->output_headers, "Connection", "close");
-		evhttp_remove_header(req->output_headers, "Proxy-Connection");
+		evhttp_add_header(req->output_headers, "Connection", "close");
 	}
 }
 
