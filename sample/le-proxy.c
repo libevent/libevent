@@ -261,7 +261,8 @@ main(int argc, char **argv)
 
 	if (use_ssl) {
 		int r;
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
+	(defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
 		SSL_library_init();
 		ERR_load_crypto_strings();
 		SSL_load_error_strings();

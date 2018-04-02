@@ -4,7 +4,8 @@
 #include <openssl/bio.h>
 #include "util-internal.h"
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
+	(defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
 
 static inline BIO_METHOD *BIO_meth_new(int type, const char *name)
 {
@@ -33,6 +34,11 @@ static inline BIO_METHOD *BIO_meth_new(int type, const char *name)
 
 #define TLS_method SSLv23_method
 
-#endif /* (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER) */
+#endif /* (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
+	(defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L) */
+
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER >= 0x20700000L
+#define BIO_get_init(b) (b)->init
+#endif
 
 #endif /* OPENSSL_COMPAT_H */
