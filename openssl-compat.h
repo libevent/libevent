@@ -37,4 +37,8 @@ static inline BIO_METHOD *BIO_meth_new(int type, const char *name)
 #endif /* (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
 	(defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L) */
 
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER >= 0x20700000L
+#define BIO_get_init(b) (b)->init
+#endif
+
 #endif /* OPENSSL_COMPAT_H */
