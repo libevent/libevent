@@ -478,7 +478,7 @@ int evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char 
 EVENT2_EXPORT_SYMBOL
 int evdns_base_load_hosts(struct evdns_base *base, const char *hosts_fname);
 
-#ifdef _WIN32
+#if defined(EVENT_IN_DOXYGEN_) || defined(_WIN32)
 /**
   Obtain nameserver information using the Windows API.
 
