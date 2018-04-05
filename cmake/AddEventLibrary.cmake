@@ -98,6 +98,7 @@ macro(add_event_library LIB_NAME)
         EXPORT LibeventTargets
         LIBRARY DESTINATION "lib" COMPONENT lib
         ARCHIVE DESTINATION "lib" COMPONENT lib
+        RUNTIME DESTINATION "lib" COMPONENT lib
         PUBLIC_HEADER DESTINATION "include/event2"
         COMPONENT dev
     )
