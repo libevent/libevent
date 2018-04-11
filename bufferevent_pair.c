@@ -316,7 +316,8 @@ be_pair_flush(struct bufferevent *bev, short iotype,
 
 	incref_and_lock(bev);
 
-	partner = downcast(bev_p->partner);
+	if (!(partner = downcast(bev_p->partner)))
+		return -1;
 
 	if ((iotype & EV_READ) != 0)
 		be_pair_transfer(partner, bev, 1);

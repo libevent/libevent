@@ -208,7 +208,7 @@ int event_debug_mode_on_ = 0;
  *        to be shared across threads (if thread support is enabled).
  *
  *        When and if evthreads are initialized, this variable will be evaluated,
- *        and if set to something other than zero, this means the evthread setup 
+ *        and if set to something other than zero, this means the evthread setup
  *        functions were called out of order.
  *
  *        See: "Locks and threading" in the documentation.
@@ -799,22 +799,19 @@ event_base_cancel_single_callback_(struct event_base *base,
 
 static int event_base_free_queues_(struct event_base *base, int run_finalizers)
 {
+	struct event_callback *evcb;
+	struct event_callback *tmp;
 	int deleted = 0, i;
 
 	for (i = 0; i < base->nactivequeues; ++i) {
-		struct event_callback *evcb, *next;
-		for (evcb = TAILQ_FIRST(&base->activequeues[i]); evcb; ) {
-			next = TAILQ_NEXT(evcb, evcb_active_next);
+		TAILQ_FOREACH_SAFE(evcb, &base->activequeues[i], evcb_active_next, tmp) {
 			deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
-			evcb = next;
 		}
 	}
 
-	{
-		struct event_callback *evcb;
-		while ((evcb = TAILQ_FIRST(&base->active_later_queue))) {
-			deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
-		}
+
+	TAILQ_FOREACH_SAFE(evcb, &base->active_later_queue, evcb_active_next, tmp) {
+		deleted += event_base_cancel_single_callback_(base, evcb, run_finalizers);
 	}
 
 	return deleted;
@@ -825,6 +822,8 @@ event_base_free_(struct event_base *base, int run_finalizers)
 {
 	int i, n_deleted=0;
 	struct event *ev;
+	struct event *tmp;
+
 	/* XXXX grab the lock? If there is contention when one thread frees
 	 * the base, then the contending thread will be very sad soon. */
 
@@ -866,15 +865,15 @@ event_base_free_(struct event_base *base, int run_finalizers)
 		    base->common_timeout_queues[i];
 		event_del(&ctl->timeout_event); /* Internal; doesn't count */
 		event_debug_unassign(&ctl->timeout_event);
-		for (ev = TAILQ_FIRST(&ctl->events); ev; ) {
-			struct event *next = TAILQ_NEXT(ev,
-			    ev_timeout_pos.ev_next_with_common_timeout);
+
+		TAILQ_FOREACH_SAFE(ev, &ctl->events,
+			ev_timeout_pos.ev_next_with_common_timeout, tmp) {
 			if (!(ev->ev_flags & EVLIST_INTERNAL)) {
 				event_del(ev);
 				++n_deleted;
 			}
-			ev = next;
 		}
+
 		mm_free(ctl);
 	}
 	if (base->common_timeout_queues)
@@ -1145,8 +1144,10 @@ void
 event_config_free(struct event_config *cfg)
 {
 	struct event_config_entry *entry;
+    struct event_config_entry *tmp;
 
-	while ((entry = TAILQ_FIRST(&cfg->entries)) != NULL) {
+
+	TAILQ_FOREACH_SAFE(entry, &cfg->entries, next, tmp) {
 		TAILQ_REMOVE(&cfg->entries, entry, next);
 		event_config_entry_free(entry);
 	}
