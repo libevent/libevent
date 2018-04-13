@@ -2484,7 +2484,11 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t dest_fd,
 	return (len);
 #elif defined(SENDFILE_IS_LINUX)
 	/* TODO(niels): implement splice */
+#if defined(EVENT__HAVE_SENDFILE64) && EVENT__SIZEOF_OFF_T == 8
+	res = sendfile64(dest_fd, source_fd, &offset, chain->off);
+#else
 	res = sendfile(dest_fd, source_fd, &offset, chain->off);
+#endif
 	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
 		/* if this is EAGAIN or EINTR return 0; otherwise, -1 */
 		return (0);

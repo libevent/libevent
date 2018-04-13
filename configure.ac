@@ -376,6 +376,7 @@ AC_CHECK_FUNCS([ \
   pipe2 \
   putenv \
   sendfile \
+  sendfile64 \
   setenv \
   setrlimit \
   sigaction \
