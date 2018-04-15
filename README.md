@@ -13,6 +13,8 @@
 
 # 0. BUILDING AND INSTALLATION (Briefly)
 
+[![Join the chat at https://gitter.im/libevent/libevent](https://badges.gitter.im/libevent/libevent.svg)](https://gitter.im/libevent/libevent?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ## Autoconf
 
      $ ./configure
