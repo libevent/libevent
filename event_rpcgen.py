@@ -1582,9 +1582,6 @@ class CCodeGenerator:
                  '#include <event2/event.h>\n'
                  '#include <event2/buffer.h>\n'
                  '#include <event2/tag.h>\n\n'
-                 '#if defined(EVENT____func__) && !defined(__func__)\n'
-                 '#define __func__ EVENT____func__\n'
-                 '#endif\n\n'
                  )
 
         for statement in cppdirect:

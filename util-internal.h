@@ -68,9 +68,6 @@ extern "C" {
 #ifdef EVENT__inline
 #define inline EVENT__inline
 #endif
-#if defined(EVENT____func__) && !defined(__func__)
-#define __func__ EVENT____func__
-#endif
 
 /* A good no-op to use in macro definitions. */
 #define EVUTIL_NIL_STMT_ ((void)0)
