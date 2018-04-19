@@ -272,7 +272,6 @@ noinst_HEADERS +=				\
 	defer-internal.h			\
 	epolltable-internal.h			\
 	evbuffer-internal.h			\
-	evconfig-private.h			\
 	event-internal.h			\
 	evmap-internal.h			\
 	evrpc-internal.h			\
