@@ -1146,7 +1146,7 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 		}
 
 		buf->first = chain;
-		EVUTIL_ASSERT(remaining < chain->off);
+		EVUTIL_ASSERT(remaining <= chain->off);
 		chain->misalign += remaining;
 		chain->off -= remaining;
 	}
