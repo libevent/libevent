@@ -232,7 +232,7 @@ MAYBE_CORE =
 endif
 
 AM_CFLAGS = $(LIBEVENT_CFLAGS)
-AM_CPPFLAGS = -I$(srcdir)/compat -I$(srcdir)/include -I./include $(SYS_INCLUDES) $(LIBEVENT_CPPFLAGS)
+AM_CPPFLAGS = -I$(srcdir)/compat -I./include -I$(srcdir)/include $(SYS_INCLUDES) $(LIBEVENT_CPPFLAGS)
 AM_LDFLAGS = $(LIBEVENT_LDFLAGS)
 
 GENERIC_LDFLAGS = -version-info $(VERSION_INFO) $(RELEASE) $(NO_UNDEFINED) $(AM_LDFLAGS)
@@ -272,7 +272,6 @@ noinst_HEADERS +=				\
 	defer-internal.h			\
 	epolltable-internal.h			\
 	evbuffer-internal.h			\
-	evconfig-private.h			\
 	event-internal.h			\
 	evmap-internal.h			\
 	evrpc-internal.h			\
