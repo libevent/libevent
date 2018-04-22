@@ -446,7 +446,6 @@ bufferevent_socket_connect(struct bufferevent *bev,
 	goto done;
 
 freesock:
-	bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
 	if (ownfd)
 		evutil_closesocket(fd);
 	/* do something about the error? */
@@ -485,10 +484,10 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	}
 
 	/* XXX use the other addrinfos? */
-	/* XXX use this return value */
 	bufferevent_socket_set_conn_address(bev_p, ai->ai_addr, (int)ai->ai_addrlen);
 	r = bufferevent_socket_connect(bev, ai->ai_addr, (int)ai->ai_addrlen);
-	(void)r;
+	if (r < 0)
+		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
 	bufferevent_decref_and_unlock_(bev);
 	evutil_freeaddrinfo(ai);
 }
