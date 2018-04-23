@@ -2847,6 +2847,10 @@ event_del_nolock_(struct event *ev, int blocking)
 			notify = 1;
 			res = 0;
 		}
+		/* If we do not have events, let's notify event base so it can
+		 * exit without waiting */
+		if (!event_haveevents(base) && !N_ACTIVE_CALLBACKS(base))
+			notify = 1;
 	}
 
 	/* if we are not in the right thread, we need to wake up the loop */
