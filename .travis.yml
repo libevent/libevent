@@ -22,6 +22,8 @@ matrix:
   exclude:
     - os: osx
       env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=debug" COVERALLS=yes
+  allow_failures:
+    - os: osx
 
 language: c
 compiler:
