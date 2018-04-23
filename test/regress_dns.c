@@ -59,6 +59,10 @@
 #include <string.h>
 #include <errno.h>
 
+#ifdef EVENT__HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>
+#endif
+
 #include "event2/dns.h"
 #include "event2/dns_compat.h"
 #include "event2/dns_struct.h"
@@ -1162,15 +1166,22 @@ be_connect_hostname_event_cb(struct bufferevent *bev, short what, void *ctx)
 		got->what = what;
 
 		if ((what & BEV_EVENT_CONNECTED) || (what & BEV_EVENT_ERROR)) {
-			int r;
-			if ((r = bufferevent_socket_get_dns_error(bev))) {
+			int expected = 3;
+			int r = bufferevent_socket_get_dns_error(bev);
+
+			if (r) {
 				got->dnserr = r;
 				TT_BLATHER(("DNS error %d: %s", r,
 					   evutil_gai_strerror(r)));
 			}			++total_connected_or_failed;
 			TT_BLATHER(("Got %d connections or errors.", total_connected_or_failed));
 
-			if (total_n_accepted >= 3 && total_connected_or_failed >= 5)
+			/** emfile test */
+			if (errno == EMFILE) {
+				expected = 0;
+			}
+
+			if (total_n_accepted >= expected && total_connected_or_failed >= 5)
 				event_base_loopexit(be_connect_hostname_base,
 				    NULL);
 		}
@@ -1195,7 +1206,15 @@ test_bufferevent_connect_hostname(void *arg)
 	ev_uint16_t dns_port=0;
 	int n_accept=0, n_dns=0;
 	char buf[128];
-	
+	int emfile = data->setup_data && !strcmp(data->setup_data, "emfile");
+	int success = BEV_EVENT_CONNECTED;
+	int default_error = 0;
+
+	if (emfile) {
+		success = BEV_EVENT_ERROR;
+		default_error = EVUTIL_EAI_SYSTEM;
+	}
+
 	be_connect_hostname_base = data->base;
 
 	/* Bind an address and figure out what port it's on. */
@@ -1220,6 +1239,13 @@ test_bufferevent_connect_hostname(void *arg)
 	dns = evdns_base_new(data->base, 0);
 	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)dns_port);
 	evdns_base_nameserver_ip_add(dns, buf);
+
+#ifdef EVENT__HAVE_SETRLIMIT
+	if (emfile) {
+		struct rlimit file = { 1, 1 };
+		setrlimit(RLIMIT_NOFILE, &file);
+	}
+#endif
 
 	/* Now, finally, at long last, launch the bufferevents.	 One should do
 	 * a failing lookup IP, one should do a successful lookup by IP,
@@ -1264,18 +1290,22 @@ test_bufferevent_connect_hostname(void *arg)
 
 	tt_int_op(be_outcome[0].what, ==, BEV_EVENT_ERROR);
 	tt_int_op(be_outcome[0].dnserr, ==, EVUTIL_EAI_NONAME);
-	tt_int_op(be_outcome[1].what, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be_outcome[1].what, ==, success);
 	tt_int_op(be_outcome[1].dnserr, ==, 0);
-	tt_int_op(be_outcome[2].what, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be_outcome[2].what, ==, success);
 	tt_int_op(be_outcome[2].dnserr, ==, 0);
-	tt_int_op(be_outcome[3].what, ==, BEV_EVENT_CONNECTED);
-	tt_int_op(be_outcome[3].dnserr, ==, 0);
+	tt_int_op(be_outcome[3].what, ==, success);
+	tt_int_op(be_outcome[3].dnserr, ==, default_error);
 	if (expect_err) {
 		tt_int_op(be_outcome[4].what, ==, BEV_EVENT_ERROR);
 		tt_int_op(be_outcome[4].dnserr, ==, expect_err);
 	}
 
-	tt_int_op(n_accept, ==, 3);
+	if (emfile) {
+		tt_int_op(n_accept, ==, 0);
+	} else {
+		tt_int_op(n_accept, ==, 3);
+	}
 	tt_int_op(n_dns, ==, 2);
 
 end:
@@ -2113,6 +2143,10 @@ struct testcase_t dns_testcases[] = {
 	{ "inflight", dns_inflight_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "bufferevent_connect_hostname", test_bufferevent_connect_hostname,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+#ifdef EVENT__HAVE_SETRLIMIT
+	{ "bufferevent_connect_hostname_emfile", test_bufferevent_connect_hostname,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"emfile" },
+#endif
 	{ "disable_when_inactive", dns_disable_when_inactive_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "disable_when_inactive_no_ns", dns_disable_when_inactive_no_ns_test,
