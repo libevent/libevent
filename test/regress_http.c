@@ -314,11 +314,30 @@ http_basic_cb(struct evhttp_request *req, void *arg)
 	struct evbuffer *evb = evbuffer_new();
 	struct evhttp_connection *evcon;
 	int empty = evhttp_find_header(evhttp_request_get_input_headers(req), "Empty") != NULL;
+
 	event_debug(("%s: called\n", __func__));
 	evbuffer_add_printf(evb, BASIC_REQUEST_BODY);
 
 	evcon = evhttp_request_get_connection(req);
 	tt_assert(evhttp_connection_get_server(evcon) == arg);
+
+	{
+		const struct sockaddr *sa;
+		char addrbuf[128];
+
+		sa = evhttp_connection_get_addr(evcon);
+		tt_assert(sa);
+
+		if (sa->sa_family == AF_INET) {
+			evutil_format_sockaddr_port_((struct sockaddr *)sa, addrbuf, sizeof(addrbuf));
+			tt_assert(!strncmp(addrbuf, "127.0.0.1:", strlen("127.0.0.1:")));
+		} else if (sa->sa_family == AF_INET6) {
+			evutil_format_sockaddr_port_((struct sockaddr *)sa, addrbuf, sizeof(addrbuf));
+			tt_assert(!strncmp(addrbuf, "[::1]:", strlen("[::1]:")));
+		} else {
+			tt_fail_msg("Unsupported family");
+		}
+	}
 
 	/* For multi-line headers test */
 	{
