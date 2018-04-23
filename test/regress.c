@@ -1039,6 +1039,34 @@ test_del_wait(void)
 	end:
 	;
 }
+
+static void null_cb(evutil_socket_t fd, short what, void *arg) {}
+static void* test_del_notify_thread(void *arg)
+{
+	event_dispatch();
+	return NULL;
+}
+static void
+test_del_notify(void)
+{
+	struct event ev;
+	pthread_t thread;
+
+	test_ok = 1;
+
+	event_set(&ev, -1, EV_READ, null_cb, &ev);
+	event_add(&ev, NULL);
+
+	pthread_create(&thread, NULL, test_del_notify_thread, NULL);
+
+	{
+		struct timeval delay = { 0, 1000 };
+		evutil_usleep_(&delay);
+	}
+
+	event_del(&ev);
+	pthread_join(thread, NULL);
+}
 #endif
 
 static void
@@ -3452,6 +3480,7 @@ struct testcase_t main_testcases[] = {
 #ifdef EVENT__HAVE_PTHREADS
 	/** TODO: support win32 */
 	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS),
+	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
 #endif
 
 	END_OF_TESTCASES
