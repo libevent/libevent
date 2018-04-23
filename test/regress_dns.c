@@ -1185,10 +1185,9 @@ test_bufferevent_connect_hostname(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct evconnlistener *listener = NULL;
-	struct bufferevent *be1=NULL, *be2=NULL, *be3=NULL, *be4=NULL, *be5=NULL;
-	struct be_conn_hostname_result be1_outcome={0,0}, be2_outcome={0,0},
-	       be3_outcome={0,0}, be4_outcome={0,0}, be5_outcome={0,0};
-	int expect_err5;
+	struct bufferevent *be[5];
+	struct be_conn_hostname_result be_outcome[ARRAY_SIZE(be)];
+	int expect_err;
 	struct evdns_base *dns=NULL;
 	struct evdns_server_port *port=NULL;
 	struct sockaddr_in sin;
@@ -1196,7 +1195,7 @@ test_bufferevent_connect_hostname(void *arg)
 	ev_uint16_t dns_port=0;
 	int n_accept=0, n_dns=0;
 	char buf[128];
-
+	
 	be_connect_hostname_base = data->base;
 
 	/* Bind an address and figure out what port it's on. */
@@ -1225,29 +1224,19 @@ test_bufferevent_connect_hostname(void *arg)
 	/* Now, finally, at long last, launch the bufferevents.	 One should do
 	 * a failing lookup IP, one should do a successful lookup by IP,
 	 * and one should do a successful lookup by hostname. */
-	be1 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
-	be2 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
-	be3 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
-	be4 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
-	be5 = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
-
-	bufferevent_setcb(be1, NULL, NULL, be_connect_hostname_event_cb,
-	    &be1_outcome);
-	bufferevent_setcb(be2, NULL, NULL, be_connect_hostname_event_cb,
-	    &be2_outcome);
-	bufferevent_setcb(be3, NULL, NULL, be_connect_hostname_event_cb,
-	    &be3_outcome);
-	bufferevent_setcb(be4, NULL, NULL, be_connect_hostname_event_cb,
-	    &be4_outcome);
-	bufferevent_setcb(be5, NULL, NULL, be_connect_hostname_event_cb,
-	    &be5_outcome);
+	for (int i = 0; i < ARRAY_SIZE(be); ++i) {
+		memset(&be_outcome[i], 0, sizeof(be_outcome[i]));
+		be[i] = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
+		bufferevent_setcb(be[i], NULL, NULL, be_connect_hostname_event_cb,
+			&be_outcome[i]);
+	}
 
 	/* Use the blocking resolver.  This one will fail if your resolver
 	 * can't resolve localhost to 127.0.0.1 */
-	tt_assert(!bufferevent_socket_connect_hostname(be4, NULL, AF_INET,
+	tt_assert(!bufferevent_socket_connect_hostname(be[3], NULL, AF_INET,
 		"localhost", listener_port));
 	/* Use the blocking resolver with a nonexistent hostname. */
-	tt_assert(!bufferevent_socket_connect_hostname(be5, NULL, AF_INET,
+	tt_assert(!bufferevent_socket_connect_hostname(be[4], NULL, AF_INET,
 		"nonesuch.nowhere.example.com", 80));
 	{
 		/* The blocking resolver will use the system nameserver, which
@@ -1258,32 +1247,32 @@ test_bufferevent_connect_hostname(void *arg)
 		hints.ai_family = AF_INET;
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_protocol = IPPROTO_TCP;
-		expect_err5 = evutil_getaddrinfo(
+		expect_err = evutil_getaddrinfo(
 			"nonesuch.nowhere.example.com", "80", &hints, &ai);
 	}
 	/* Launch an async resolve that will fail. */
-	tt_assert(!bufferevent_socket_connect_hostname(be1, dns, AF_INET,
+	tt_assert(!bufferevent_socket_connect_hostname(be[0], dns, AF_INET,
 		"nosuchplace.example.com", listener_port));
 	/* Connect to the IP without resolving. */
-	tt_assert(!bufferevent_socket_connect_hostname(be2, dns, AF_INET,
+	tt_assert(!bufferevent_socket_connect_hostname(be[1], dns, AF_INET,
 		"127.0.0.1", listener_port));
 	/* Launch an async resolve that will succeed. */
-	tt_assert(!bufferevent_socket_connect_hostname(be3, dns, AF_INET,
+	tt_assert(!bufferevent_socket_connect_hostname(be[2], dns, AF_INET,
 		"nobodaddy.example.com", listener_port));
 
 	event_base_dispatch(data->base);
 
-	tt_int_op(be1_outcome.what, ==, BEV_EVENT_ERROR);
-	tt_int_op(be1_outcome.dnserr, ==, EVUTIL_EAI_NONAME);
-	tt_int_op(be2_outcome.what, ==, BEV_EVENT_CONNECTED);
-	tt_int_op(be2_outcome.dnserr, ==, 0);
-	tt_int_op(be3_outcome.what, ==, BEV_EVENT_CONNECTED);
-	tt_int_op(be3_outcome.dnserr, ==, 0);
-	tt_int_op(be4_outcome.what, ==, BEV_EVENT_CONNECTED);
-	tt_int_op(be4_outcome.dnserr, ==, 0);
-	if (expect_err5) {
-		tt_int_op(be5_outcome.what, ==, BEV_EVENT_ERROR);
-		tt_int_op(be5_outcome.dnserr, ==, expect_err5);
+	tt_int_op(be_outcome[0].what, ==, BEV_EVENT_ERROR);
+	tt_int_op(be_outcome[0].dnserr, ==, EVUTIL_EAI_NONAME);
+	tt_int_op(be_outcome[1].what, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be_outcome[1].dnserr, ==, 0);
+	tt_int_op(be_outcome[2].what, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be_outcome[2].dnserr, ==, 0);
+	tt_int_op(be_outcome[3].what, ==, BEV_EVENT_CONNECTED);
+	tt_int_op(be_outcome[3].dnserr, ==, 0);
+	if (expect_err) {
+		tt_int_op(be_outcome[4].what, ==, BEV_EVENT_ERROR);
+		tt_int_op(be_outcome[4].dnserr, ==, expect_err);
 	}
 
 	tt_int_op(n_accept, ==, 3);
@@ -1296,16 +1285,10 @@ end:
 		evdns_close_server_port(port);
 	if (dns)
 		evdns_base_free(dns, 0);
-	if (be1)
-		bufferevent_free(be1);
-	if (be2)
-		bufferevent_free(be2);
-	if (be3)
-		bufferevent_free(be3);
-	if (be4)
-		bufferevent_free(be4);
-	if (be5)
-		bufferevent_free(be5);
+	for (int i = 0; i < ARRAY_SIZE(be); ++i) {
+		if (be[i])
+			bufferevent_free(be[i]);
+	}
 }
 
 
