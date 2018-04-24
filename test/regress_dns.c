@@ -1161,33 +1161,35 @@ static void
 be_connect_hostname_event_cb(struct bufferevent *bev, short what, void *ctx)
 {
 	struct be_conn_hostname_result *got = ctx;
-	if (!got->what) {
-		TT_BLATHER(("Got a bufferevent event %d", what));
-		got->what = what;
 
-		if ((what & BEV_EVENT_CONNECTED) || (what & BEV_EVENT_ERROR)) {
-			int expected = 3;
-			int r = bufferevent_socket_get_dns_error(bev);
-
-			if (r) {
-				got->dnserr = r;
-				TT_BLATHER(("DNS error %d: %s", r,
-					   evutil_gai_strerror(r)));
-			}			++total_connected_or_failed;
-			TT_BLATHER(("Got %d connections or errors.", total_connected_or_failed));
-
-			/** emfile test */
-			if (errno == EMFILE) {
-				expected = 0;
-			}
-
-			if (total_n_accepted >= expected && total_connected_or_failed >= 5)
-				event_base_loopexit(be_connect_hostname_base,
-				    NULL);
-		}
-	} else {
+	if (got->what) {
 		TT_FAIL(("Two events on one bufferevent. %d,%d",
 			got->what, (int)what));
+	}
+
+	TT_BLATHER(("Got a bufferevent event %d", what));
+	got->what = what;
+
+	if ((what & BEV_EVENT_CONNECTED) || (what & BEV_EVENT_ERROR)) {
+		int expected = 3;
+		int r = bufferevent_socket_get_dns_error(bev);
+
+		if (r) {
+			got->dnserr = r;
+			TT_BLATHER(("DNS error %d: %s", r,
+				   evutil_gai_strerror(r)));
+		}
+		++total_connected_or_failed;
+		TT_BLATHER(("Got %d connections or errors.", total_connected_or_failed));
+
+		/** emfile test */
+		if (errno == EMFILE) {
+			expected = 0;
+		}
+
+		if (total_n_accepted >= expected && total_connected_or_failed >= 5)
+			event_base_loopexit(be_connect_hostname_base,
+			    NULL);
 	}
 }
 
@@ -1242,8 +1244,13 @@ test_bufferevent_connect_hostname(void *arg)
 
 #ifdef EVENT__HAVE_SETRLIMIT
 	if (emfile) {
-		struct rlimit file = { 1, 1 };
-		setrlimit(RLIMIT_NOFILE, &file);
+		int fd = socket(AF_INET, SOCK_STREAM, 0);
+		struct rlimit file = { fd, fd };
+
+		tt_int_op(fd, >=, 0);
+		tt_assert(!close(fd));
+
+		tt_assert(!setrlimit(RLIMIT_NOFILE, &file));
 	}
 #endif
 
