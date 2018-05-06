@@ -61,7 +61,6 @@
 #include "event2/http_compat.h"
 #include "event2/http_struct.h"
 #include "event2/rpc.h"
-#include "event2/rpc.h"
 #include "event2/rpc_struct.h"
 #include "event2/tag.h"
 #include "log-internal.h"
