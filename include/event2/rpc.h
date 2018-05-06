@@ -27,6 +27,8 @@
 #ifndef EVENT2_RPC_H_INCLUDED_
 #define EVENT2_RPC_H_INCLUDED_
 
+/* For int types. */
+#include <event2/util.h>
 #include <event2/visibility.h>
 
 #ifdef __cplusplus
