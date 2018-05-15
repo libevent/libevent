@@ -1211,6 +1211,7 @@ test_bufferevent_connect_hostname(void *arg)
 	int emfile = data->setup_data && !strcmp(data->setup_data, "emfile");
 	int success = BEV_EVENT_CONNECTED;
 	int default_error = 0;
+	unsigned i;
 
 	if (emfile) {
 		success = BEV_EVENT_ERROR;
@@ -1257,7 +1258,7 @@ test_bufferevent_connect_hostname(void *arg)
 	/* Now, finally, at long last, launch the bufferevents.	 One should do
 	 * a failing lookup IP, one should do a successful lookup by IP,
 	 * and one should do a successful lookup by hostname. */
-	for (int i = 0; i < ARRAY_SIZE(be); ++i) {
+	for (i = 0; i < ARRAY_SIZE(be); ++i) {
 		memset(&be_outcome[i], 0, sizeof(be_outcome[i]));
 		be[i] = bufferevent_socket_new(data->base, -1, BEV_OPT_CLOSE_ON_FREE);
 		bufferevent_setcb(be[i], NULL, NULL, be_connect_hostname_event_cb,
@@ -1322,7 +1323,7 @@ end:
 		evdns_close_server_port(port);
 	if (dns)
 		evdns_base_free(dns, 0);
-	for (int i = 0; i < ARRAY_SIZE(be); ++i) {
+	for (i = 0; i < ARRAY_SIZE(be); ++i) {
 		if (be[i])
 			bufferevent_free(be[i]);
 	}
