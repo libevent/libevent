@@ -368,6 +368,10 @@ struct event_config {
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
+#ifndef LIST_END
+#define LIST_END(head)			NULL
+#endif
+
 #ifndef TAILQ_FIRST
 #define	TAILQ_FIRST(head)		((head)->tqh_first)
 #endif
