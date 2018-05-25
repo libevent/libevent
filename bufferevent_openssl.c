@@ -154,7 +154,7 @@ bio_bufferevent_read(BIO *b, char *out, int outlen)
 	return r;
 }
 
-/* Called to write data info the BIO */
+/* Called to write data into the BIO */
 static int
 bio_bufferevent_write(BIO *b, const char *in, int inlen)
 {
