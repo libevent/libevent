@@ -245,6 +245,11 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 			goto err;
 	}
 
+	if (flags & LEV_OPT_BIND_IPV6ONLY) {
+		if (evutil_make_listen_socket_ipv6only(fd) < 0)
+			goto err;
+	}
+
 	if (sa) {
 		if (bind(fd, sa, socklen)<0)
 			goto err;
