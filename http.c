@@ -5072,3 +5072,10 @@ evhttp_uri_set_fragment(struct evhttp_uri *uri, const char *fragment)
 	URI_SET_STR_(fragment);
 	return 0;
 }
+
+evutil_socket_t
+evhttp_connection_get_fd(struct evhttp_connection *evcon)
+{
+
+	return evcon->fd;
+}

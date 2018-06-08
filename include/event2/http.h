@@ -1203,6 +1203,14 @@ void evhttp_uri_free(struct evhttp_uri *uri);
 EVENT2_EXPORT_SYMBOL
 char *evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit);
 
+/**
+ * Get the underlying fd associated with the connection
+ *
+ * @param evcon the evhttp_connection object
+ * @return the underlying fd associated with the connection
+ */
+evutil_socket_t evhttp_connection_get_fd(struct evhttp_connection *evcon);
+
 #ifdef __cplusplus
 }
 #endif
