@@ -332,7 +332,7 @@
 #endif
 
 /* Define to 1 if you have the ANSI C header files. */
-#define EVENT__STDC_HEADERS 1
+#define STDC_HEADERS 1
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #define EVENT__TIME_WITH_SYS_TIME 1
@@ -341,24 +341,24 @@
 #define EVENT__VERSION "2.2.0-alpha-dev"
 
 /* Define to appropriate substitue if compiler doesnt have __func__ */
-#define EVENT____func__ __FUNCTION__
+#define __func__ __FUNCTION__
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
-#ifndef _EVENT___cplusplus
-#define EVENT__inline __inline
+#ifndef __cplusplus
+#define inline __inline
 #endif
 
 /* Define to `int' if <sys/types.h> does not define. */
-/* #undef EVENT__pid_t */
+/* #undef pid_t */
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
-/* #undef EVENT__size_t */
+/* #undef size_t */
 
 /* Define to unsigned int if you dont have it */
-#define EVENT__socklen_t unsigned int
+#define socklen_t unsigned int
 
 /* Define to `int' if <sys/types.h> does not define. */
-#define EVENT__ssize_t SSIZE_T
+#define ssize_t SSIZE_T
 
 #endif
