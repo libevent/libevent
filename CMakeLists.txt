@@ -471,10 +471,8 @@ endif()
 
 CHECK_TYPE_SIZE(pid_t EVENT__SIZEOF_PID_T)
 if(NOT EVENT__SIZEOF_PID_T)
-  set(EVENT__pid_t "int")
   set(EVENT__SIZEOF_PID_T ${EVENT__SIZEOF_INT})
 else()
-	set(EVENT__pid_t "pid_t")
 	set(EVENT__SIZEOF_PID_T EVENT__SIZEOF_PID_T)
 endif()
 
@@ -514,10 +512,6 @@ if (EVENT__HAVE_KQUEUE)
         include(CheckWorkingKqueue)
     endif()
 endif()
-
-CHECK_SYMBOL_EXISTS(_MINIX "stdio.h" EVENT___MINIX)
-CHECK_SYMBOL_EXISTS(_POSIX_1_SOURCE "stdio.h" EVENT___POSIX_1_SOURCE)
-CHECK_SYMBOL_EXISTS(_POSIX_SOURCE "stdio.h" EVENT___POSIX_SOURCE)
 
 if(EVENT__HAVE_NETDB_H)
     list(APPEND CMAKE_EXTRA_INCLUDE_FILES netdb.h)

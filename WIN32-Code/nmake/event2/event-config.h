@@ -331,9 +331,6 @@
 #define EVENT__SIZEOF_TIME_T 4
 #endif
 
-/* Define to 1 if you have the ANSI C header files. */
-#define EVENT__STDC_HEADERS 1
-
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #define EVENT__TIME_WITH_SYS_TIME 1
 
@@ -345,12 +342,7 @@
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
-#ifndef _EVENT___cplusplus
 #define EVENT__inline __inline
-#endif
-
-/* Define to `int' if <sys/types.h> does not define. */
-/* #undef EVENT__pid_t */
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 /* #undef EVENT__size_t */
