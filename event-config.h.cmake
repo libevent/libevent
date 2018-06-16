@@ -461,9 +461,6 @@
 /* The size of `size_t', as computed by sizeof. */
 #define EVENT__SIZEOF_SIZE_T @EVENT__SIZEOF_SIZE_T@
 
-/* Define to 1 if you have the ANSI C header files. */
-#cmakedefine EVENT__STDC_HEADERS 1
-
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #cmakedefine EVENT__TIME_WITH_SYS_TIME 1
 
@@ -498,9 +495,6 @@
 
 #define EVENT__inline @EVENT__inline@
 #endif
-
-/* Define to `int' if <sys/tyes.h> does not define. */
-#define EVENT__pid_t @EVENT__pid_t@
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 #define EVENT__size_t @EVENT__size_t@
