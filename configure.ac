@@ -745,10 +745,10 @@ AC_TRY_COMPILE([],
    [ const char *cp = __FUNCTION__; ],
    AC_MSG_RESULT([yes])
    AC_DEFINE(__func__, __FUNCTION__,
-         [Define to appropriate substitue if compiler doesnt have __func__]),
+         [Define to appropriate substitute if compiler doesn't have __func__]),
    AC_MSG_RESULT([no])
    AC_DEFINE(__func__, __FILE__,
-         [Define to appropriate substitue if compiler doesnt have __func__])))
+         [Define to appropriate substitute if compiler doesn't have __func__])))
 
 
 # check if we can compile with pthreads
