@@ -1020,7 +1020,7 @@ be_getaddrinfo_server_cb(struct evdns_server_request *req, void *data)
 	int added_any=0;
 	++*n_got_p;
 
-	for (i=0;i<req->nquestions;++i) {
+	for (i = 0; i < req->nquestions; ++i) {
 		const int qtype = req->questions[i]->type;
 		const int qclass = req->questions[i]->dns_question_class;
 		const char *qname = req->questions[i]->name;
@@ -1368,7 +1368,7 @@ test_getaddrinfo_async(void *arg)
 	struct evutil_addrinfo hints, *a;
 	struct gai_outcome local_outcome;
 	struct gai_outcome a_out[12];
-	int i;
+	unsigned i;
 	struct evdns_getaddrinfo_request *r;
 	char buf[128];
 	struct evdns_server_port *port = NULL;
@@ -1726,7 +1726,7 @@ test_getaddrinfo_async(void *arg)
 end:
 	if (local_outcome.ai)
 		evutil_freeaddrinfo(local_outcome.ai);
-	for (i=0;i<(int)ARRAY_SIZE(a_out);++i) {
+	for (i = 0; i < ARRAY_SIZE(a_out); ++i) {
 		if (a_out[i].ai)
 			evutil_freeaddrinfo(a_out[i].ai);
 	}
@@ -2000,7 +2000,7 @@ test_getaddrinfo_async_cancel_stress(void *ptr)
 	struct sockaddr_in sin;
 	struct sockaddr_storage ss;
 	ev_socklen_t slen;
-	int i;
+	unsigned i;
 
 	base = event_base_new();
 	dns_base = evdns_base_new(base, 0);
@@ -2055,7 +2055,7 @@ dns_client_fail_requests_test(void *arg)
 	char buf[64];
 
 	struct generic_dns_callback_result r[20];
-	int i;
+	unsigned i;
 
 	dns_port = regress_get_dnsserver(base, &portnum, NULL,
 		regress_dns_server_cb, reissue_table);
@@ -2163,9 +2163,9 @@ race_busywait_run(void *arg)
 static void
 race_gai_cb(int result, struct evutil_addrinfo *res, void *arg)
 {
+	struct race_param *rp = arg;
 	(void)result;
 	(void)res;
-	struct race_param *rp = arg;
 
 	--n_replies_left;
 	if (n_replies_left == 0) {
@@ -2177,7 +2177,6 @@ race_gai_cb(int result, struct evutil_addrinfo *res, void *arg)
 static void
 getaddrinfo_race_gotresolve_test(void *arg)
 {
-	(void)arg;
 	struct race_param rp;
 	struct evdns_server_port *dns_port = NULL;
 	ev_uint16_t portnum = 0;
@@ -2193,6 +2192,8 @@ getaddrinfo_race_gotresolve_test(void *arg)
 #endif
 	THREAD_T thread[n_threads];
 	struct timeval tv;
+
+	(void)arg;
 
 	evthread_use_pthreads();
 
