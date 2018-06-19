@@ -470,16 +470,6 @@
 /* The size of 'void *', as computer by sizeof */
 #define EVENT__SIZEOF_VOID_P @EVENT__SIZEOF_VOID_P@
 
-/* set an alias for whatever __func__ __FUNCTION__ is, what sillyness */
-#if defined (__func__)
-#define EVENT____func__ __func__
-#elif defined(__FUNCTION__)
-#define EVENT____func__  __FUNCTION__
-#else
-#define EVENT____func__ __FILE__
-#endif
-
-
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
@@ -495,6 +485,9 @@
 
 #define EVENT__inline @EVENT__inline@
 #endif
+
+#cmakedefine EVENT__HAVE___func__ 1
+#cmakedefine EVENT__HAVE___FUNCTION__ 1
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 #define EVENT__size_t @EVENT__size_t@

@@ -412,7 +412,7 @@ endif()
 check_function_keywords("inline" "__inline" "__inline__")
 
 if (HAVE_INLINE)
-    set (EVENT__inline inline)
+    set(EVENT__inline inline)
 elseif (HAVE___INLINE)
     set(EVENT__inline __inline)
 elseif(HAVE___INLINE__)
@@ -420,6 +420,10 @@ elseif(HAVE___INLINE__)
 else()
     set(EVENT__inline)
 endif()
+
+# __func__/__FUNCTION__ is not a macros in general
+CHECK_SYMBOL_EXISTS("__func__"     "" EVENT__HAVE___func__)
+CHECK_SYMBOL_EXISTS("__FUNCTION__" "" EVENT__HAVE___FUNCTION__)
 
 CHECK_SYMBOL_EXISTS(TAILQ_FOREACH sys/queue.h EVENT__HAVE_TAILQFOREACH)
 CHECK_CONST_EXISTS(CTL_KERN sys/sysctl.h EVENT__HAVE_DECL_CTL_KERN)

@@ -68,8 +68,16 @@ extern "C" {
 #ifdef EVENT__inline
 #define inline EVENT__inline
 #endif
-#if defined(EVENT____func__) && !defined(__func__)
-#define __func__ EVENT____func__
+
+/* Define to appropriate substitute if compiler doesnt have __func__ */
+#if defined(EVENT__HAVE___func__)
+# ifndef __func__
+#  define __func__ __func__
+# endif
+#elif defined(EVENT__HAVE___FUNCTION__)
+# define __func__ __FUNCTION__
+#else
+# define __func__ __FILE__
 #endif
 
 /* A good no-op to use in macro definitions. */

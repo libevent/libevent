@@ -739,21 +739,23 @@ AC_TRY_COMPILE([
 	[Define to unsigned int if you dont have it])]
 )
 
+# __func__/__FUNCTION__ is not a macros in general
 AC_MSG_CHECKING([whether our compiler supports __func__])
 AC_TRY_COMPILE([],
- [ const char *cp = __func__; ],
- AC_MSG_RESULT([yes]),
- AC_MSG_RESULT([no])
- AC_MSG_CHECKING([whether our compiler supports __FUNCTION__])
- AC_TRY_COMPILE([],
-   [ const char *cp = __FUNCTION__; ],
-   AC_MSG_RESULT([yes])
-   AC_DEFINE(__func__, __FUNCTION__,
-         [Define to appropriate substitue if compiler doesnt have __func__]),
-   AC_MSG_RESULT([no])
-   AC_DEFINE(__func__, __FILE__,
-         [Define to appropriate substitue if compiler doesnt have __func__])))
-
+  [ const char *cp = __func__; ],
+  [ AC_DEFINE(HAVE___func__, 1, [Define to 1 if compiler have __func__])
+    AC_MSG_RESULT([yes])
+  ],
+  AC_MSG_RESULT([no])
+)
+AC_MSG_CHECKING([whether our compiler supports __FUNCTION__])
+AC_TRY_COMPILE([],
+  [ const char *cp = __FUNCTION__; ],
+  [ AC_DEFINE(HAVE___FUNCTION__, 1, [Define to 1 if compiler have __FUNCTION__])
+    AC_MSG_RESULT([yes])
+  ],
+  AC_MSG_RESULT([no])
+)
 
 # check if we can compile with pthreads
 have_pthreads=no

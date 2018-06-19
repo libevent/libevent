@@ -1582,8 +1582,14 @@ class CCodeGenerator:
                  '#include <event2/event.h>\n'
                  '#include <event2/buffer.h>\n'
                  '#include <event2/tag.h>\n\n'
-                 '#if defined(EVENT____func__) && !defined(__func__)\n'
-                 '#define __func__ EVENT____func__\n'
+                 '#if defined(EVENT__HAVE___func__)\n'
+                 '# ifndef __func__\n'
+                 '#  define __func__ __func__\n'
+                 '# endif\n'
+                 '#elif defined(EVENT__HAVE___FUNCTION__)\n'
+                 '# define __func__ __FUNCTION__\n'
+                 '#else\n'
+                 '# define __func__ __FILE__\n'
                  '#endif\n\n'
                  )
 
