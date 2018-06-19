@@ -43,7 +43,7 @@
 #ifndef EVENT__HAVE_GETTIMEOFDAY
 #include <sys/timeb.h>
 #endif
-#if !defined(EVENT__HAVE_NANOSLEEP) && !defined(EVENT_HAVE_USLEEP) && \
+#if !defined(EVENT__HAVE_NANOSLEEP) && !defined(EVENT__HAVE_USLEEP) && \
 	!defined(_WIN32)
 #include <sys/select.h>
 #endif
