@@ -337,9 +337,6 @@
 /* Version number of package */
 #define EVENT__VERSION "2.2.0-alpha-dev"
 
-/* Define to appropriate substitue if compiler doesnt have __func__ */
-#define EVENT____func__ __FUNCTION__
-
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #define EVENT__inline __inline
