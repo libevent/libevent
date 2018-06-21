@@ -4,6 +4,9 @@ os:
 sudo: false
 dist: trusty
 
+git:
+  quiet: true
+
 env:
   matrix:
     - EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=debug" COVERALLS=yes
