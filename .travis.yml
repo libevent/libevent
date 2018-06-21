@@ -2,7 +2,7 @@ os:
   - linux
   - osx
 sudo: false
-dist: trusty
+dist: xenial
 
 git:
   quiet: true
