@@ -5383,9 +5383,9 @@ evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_add
 		log(EVDNS_LOG_DEBUG, "Ejecting old cache for %s", nodename);
 		evdns_cache_free(cache);
 	}
-	cache = mm_malloc(sizeof(struct evdns_cache));
+	cache = mm_calloc(1, sizeof(struct evdns_cache));
 	cache->base = dns_base;
-	cache->name = strdup(nodename);
+	cache->name = mm_strdup(nodename);
 	cache->ai = evutil_dup_addrinfo_(res);
 	SPLAY_INSERT(evdns_tree, &cache->base->cache_root, cache);
 	evtimer_assign(&cache->ev_timeout, dns_base->event_base, evdns_ttl_expired, cache);
@@ -5788,7 +5788,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	data->user_cb = cb;
 	data->user_data = arg;
 	data->evdns_base = dns_base;
-	data->nodename = strdup(nodename);
+	data->nodename = mm_strdup(nodename);
 
 	want_cname = (hints.ai_flags & EVUTIL_AI_CANONNAME);
 
