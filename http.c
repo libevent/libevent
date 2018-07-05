@@ -4836,6 +4836,8 @@ static struct evhttp_uri *
 evhttp_uri_parse_authority(char *source_uri)
 {
 	struct evhttp_uri *uri = mm_calloc(1, sizeof(struct evhttp_uri));
+	char *end;
+
 	if (uri == NULL) {
 		event_warn("%s: calloc", __func__);
 		goto err;
@@ -4843,7 +4845,7 @@ evhttp_uri_parse_authority(char *source_uri)
 	uri->port = -1;
 	uri->flags = 0;
 
-	char *end = end_of_authority(source_uri);
+	end = end_of_authority(source_uri);
 	if (parse_authority(uri, source_uri, end) < 0)
 		goto err;
 
