@@ -165,6 +165,8 @@ static int	evthread_notify_base(struct event_base *base);
 static void insert_common_timeout_inorder(struct common_timeout_list *ctl,
     struct event *ev);
 
+const struct timeval __ev_tv0 = { 0, 0 };
+
 #ifndef EVENT__DISABLE_DEBUG_MODE
 /* These functions implement a hashtable of which 'struct event *' structures
  * have been setup or added.  We don't want to trust the content of the struct
@@ -2119,6 +2121,11 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 			return -1;
 		}
 		ev->ev_closure = EV_CLOSURE_EVENT_SIGNAL;
+#if 0
+	} else if (events & EV_USER) {
+		event_warnx("%s: EV_USER is not compatible", __func__);
+		return -1;
+#endif
 	} else {
 		if (events & EV_PERSIST) {
 			evutil_timerclear(&ev->ev_io_timeout);
@@ -2637,6 +2644,10 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 			notify = 1;
 			res = 0;
 		}
+#if 0
+	} else if (ev->ev_events & EV_USER) {
+		res = -1;
+#endif
 	}
 
 	/*
@@ -3728,13 +3739,14 @@ dump_inserted_event_fn(const struct event_base *base, const struct event *e, voi
 	if (! (e->ev_flags & (EVLIST_INSERTED|EVLIST_TIMEOUT)))
 		return 0;
 
-	fprintf(output, "  %p [%s "EV_SOCK_FMT"]%s%s%s%s%s%s",
+	fprintf(output, "  %p [%s "EV_SOCK_FMT"]%s%s%s%s%s%s%s",
 	    (void*)e, gloss, EV_SOCK_ARG(e->ev_fd),
 	    (e->ev_events&EV_READ)?" Read":"",
 	    (e->ev_events&EV_WRITE)?" Write":"",
 	    (e->ev_events&EV_CLOSED)?" EOF":"",
 	    (e->ev_events&EV_SIGNAL)?" Signal":"",
 	    (e->ev_events&EV_PERSIST)?" Persist":"",
+	    (e->ev_events&EV_USER)?" User":"",
 	    (e->ev_flags&EVLIST_INTERNAL)?" Internal":"");
 	if (e->ev_flags & EVLIST_TIMEOUT) {
 		struct timeval tv;
@@ -3761,13 +3773,14 @@ dump_active_event_fn(const struct event_base *base, const struct event *e, void 
 	if (! (e->ev_flags & (EVLIST_ACTIVE|EVLIST_ACTIVE_LATER)))
 		return 0;
 
-	fprintf(output, "  %p [%s "EV_SOCK_FMT", priority=%d]%s%s%s%s%s active%s%s\n",
+	fprintf(output, "  %p [%s "EV_SOCK_FMT", priority=%d]%s%s%s%s%s%s active%s%s\n",
 	    (void*)e, gloss, EV_SOCK_ARG(e->ev_fd), e->ev_pri,
 	    (e->ev_res&EV_READ)?" Read":"",
 	    (e->ev_res&EV_WRITE)?" Write":"",
 	    (e->ev_res&EV_CLOSED)?" EOF":"",
 	    (e->ev_res&EV_SIGNAL)?" Signal":"",
 	    (e->ev_res&EV_TIMEOUT)?" Timeout":"",
+	    (e->ev_res&EV_USER)?" User":"",
 	    (e->ev_flags&EVLIST_INTERNAL)?" [Internal]":"",
 	    (e->ev_flags&EVLIST_ACTIVE_LATER)?" [NextTime]":"");
 
