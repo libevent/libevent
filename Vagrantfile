@@ -360,8 +360,8 @@ Vagrant.configure("2") do |config|
 
         $env:PATH="/tools/cygwin/bin;$($env:PATH);/tools/cygwin"
 
-        cygwinsetup --root c:/tools/cygwin/ --local-package-dir c:/tools/cygwin/packages/ --no-desktop --no-startmenu --verbose --quiet-mode --download --packages automake,autoconf,gcc-core,libtool,make,python,openssl-devel
-        cygwinsetup --root c:/tools/cygwin/ --local-package-dir c:/tools/cygwin/packages/ --no-desktop --no-startmenu --verbose --quiet-mode --local-install --packages automake,autoconf,gcc-core,libtool,make,python,openssl-devel
+        cygwinsetup --root c:/tools/cygwin/ --local-package-dir c:/tools/cygwin/packages/ --no-desktop --no-startmenu --verbose --quiet-mode --download --packages aclocal,automake,autoconf,gcc-core,libtool,make,python,openssl-devel
+        cygwinsetup --root c:/tools/cygwin/ --local-package-dir c:/tools/cygwin/packages/ --no-desktop --no-startmenu --verbose --quiet-mode --local-install --packages aclocal,automake,autoconf,gcc-core,libtool,make,python,openssl-devel
       SHELL
     end
 
