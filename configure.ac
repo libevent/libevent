@@ -727,7 +727,11 @@ AC_CHECK_TYPES([struct linger],,,
 AC_MSG_CHECKING([for socklen_t])
 AC_TRY_COMPILE([
  #include <sys/types.h>
- #include <sys/socket.h>],
+ #ifdef _WIN32
+ #include <ws2tcpip.h>
+ #else
+ #include <sys/socket.h>
+ #endif],
   [socklen_t x;],
   AC_MSG_RESULT([yes]),
   [AC_MSG_RESULT([no])
