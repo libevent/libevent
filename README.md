@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="http://strcpy.net/libevent3.png" alt="libevent logo"/>
+  <img src="https://strcpy.net/libevent3.png" alt="libevent logo"/>
 </p>
 
 
@@ -73,7 +73,7 @@ __More variables can be found by running `cmake -LAH <sourcedir_path>`__
 
 ## CMake (Windows)
 
-Install CMake: <http://www.cmake.org>
+Install CMake: <https://www.cmake.org>
 
 
      $ md build && cd build
@@ -138,7 +138,7 @@ experimental, though they _should_ be solid.  We hope that cmake will
 still be supported in future versions of Libevent, and will try to
 make sure that happens.)
 
-First of all install <http://www.cmake.org>.
+First of all install <https://www.cmake.org>.
 
 To build libevent using Microsoft Visual studio open the "Visual Studio Command prompt" and type:
 
