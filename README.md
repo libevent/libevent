@@ -34,7 +34,7 @@ EVENT_INSTALL_CMAKE_DIR:PATH=lib/cmake/libevent
 # GCC/CLang). Make sure to enable -DCMAKE_BUILD_TYPE=Debug as well.
 EVENT__COVERAGE:BOOL=OFF
 
-# Defines if libevent should build without the benchmark exectuables
+# Defines if libevent should build without the benchmark executables
 EVENT__DISABLE_BENCHMARK:BOOL=OFF
 
 # Define if libevent should build without support for a debug mode
@@ -43,7 +43,7 @@ EVENT__DISABLE_DEBUG_MODE:BOOL=OFF
 # Define if libevent should not allow replacing the mm functions
 EVENT__DISABLE_MM_REPLACEMENT:BOOL=OFF
 
-# Define if libevent should build without support for OpenSSL encrpytion
+# Define if libevent should build without support for OpenSSL encryption
 EVENT__DISABLE_OPENSSL:BOOL=OFF
 
 # Disable the regress tests
@@ -133,7 +133,7 @@ The configure script also supports the following flags:
 ## CMake (Windows)
 
 (Note that autoconf is currently the most mature and supported build
-enviroment for libevent; the cmake instructions here are new and
+environment for libevent; the cmake instructions here are new and
 experimental, though they _should_ be solid.  We hope that cmake will
 still be supported in future versions of Libevent, and will try to
 make sure that happens.)
@@ -191,10 +191,10 @@ You can browse the git repository online at:
 To report bugs, issues, or ask for new features:
 
 __Patches__: https://github.com/libevent/libevent/pulls
-> OK, those are not really _patches_ You fork, modify, and hit the "Create Pull Request" button.
-> You can still submit normal git patchs via the mailing list.
+> OK, those are not really _patches_. You fork, modify, and hit the "Create Pull Request" button.
+> You can still submit normal git patches via the mailing list.
 
-__Bugs, Features [RFC], and Issus__: https://github.com/libevent/libevent/issues
+__Bugs, Features [RFC], and Issues__: https://github.com/libevent/libevent/issues
 > Or you can do it via the mailing list.
 
 There's also a libevent-users mailing list for talking about Libevent
