@@ -20,10 +20,10 @@
      $ make verify   # (optional)
      $ sudo make install
 
-## Cmake (General)
+## CMake (General)
 
 
-The following Libevent specific Cmake variables are as follows (the values being
+The following Libevent specific CMake variables are as follows (the values being
 the default).
 
 ```
@@ -34,16 +34,16 @@ EVENT_INSTALL_CMAKE_DIR:PATH=lib/cmake/libevent
 # GCC/CLang). Make sure to enable -DCMAKE_BUILD_TYPE=Debug as well.
 EVENT__COVERAGE:BOOL=OFF
 
-# Defines if libevent should build without the benchmark executables
+# Defines if Libevent should build without the benchmark executables
 EVENT__DISABLE_BENCHMARK:BOOL=OFF
 
-# Define if libevent should build without support for a debug mode
+# Define if Libevent should build without support for a debug mode
 EVENT__DISABLE_DEBUG_MODE:BOOL=OFF
 
-# Define if libevent should not allow replacing the mm functions
+# Define if Libevent should not allow replacing the mm functions
 EVENT__DISABLE_MM_REPLACEMENT:BOOL=OFF
 
-# Define if libevent should build without support for OpenSSL encryption
+# Define if Libevent should build without support for OpenSSL encryption
 EVENT__DISABLE_OPENSSL:BOOL=OFF
 
 # Disable the regress tests
@@ -55,7 +55,7 @@ EVENT__DISABLE_SAMPLES:BOOL=OFF
 # If tests should be compiled or not
 EVENT__DISABLE_TESTS:BOOL=OFF
 
-# Define if libevent should not be compiled with thread support
+# Define if Libevent should not be compiled with thread support
 EVENT__DISABLE_THREAD_SUPPORT:BOOL=OFF
 
 # Enables verbose debugging
@@ -63,7 +63,7 @@ EVENT__ENABLE_VERBOSE_DEBUG:BOOL=OFF
 
 # When cross compiling, forces running a test program that verifies that Kqueue
 # works with pipes. Note that this requires you to manually run the test program
-# on the the cross compilation target to verify that it works. See cmake
+# on the the cross compilation target to verify that it works. See CMake
 # documentation for try_run for more details
 EVENT__FORCE_KQUEUE_CHECK:BOOL=OFF
 ```
@@ -92,12 +92,12 @@ Install CMake: <https://www.cmake.org>
 
 ## Autoconf
 
-To build libevent, type
+To build Libevent, type
 
      $ ./configure && make
 
 
- (If you got libevent from the git repository, you will
+ (If you got Libevent from the git repository, you will
   first need to run the included "autogen.sh" script in order to
   generate the configure script.)
 
@@ -133,14 +133,14 @@ The configure script also supports the following flags:
 ## CMake (Windows)
 
 (Note that autoconf is currently the most mature and supported build
-environment for libevent; the cmake instructions here are new and
-experimental, though they _should_ be solid.  We hope that cmake will
+environment for Libevent; the CMake instructions here are new and
+experimental, though they _should_ be solid.  We hope that CMake will
 still be supported in future versions of Libevent, and will try to
 make sure that happens.)
 
 First of all install <https://www.cmake.org>.
 
-To build libevent using Microsoft Visual studio open the "Visual Studio Command prompt" and type:
+To build Libevent using Microsoft Visual studio open the "Visual Studio Command prompt" and type:
 
 ```
 $ cd <libevent source dir>
@@ -186,7 +186,7 @@ $ git clone https://github.com/libevent/libevent.git
 
 You can browse the git repository online at:
 
-<https://github.com/libevent/Libevent>
+<https://github.com/libevent/libevent>
 
 To report bugs, issues, or ask for new features:
 
