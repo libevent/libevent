@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="http://strcpy.net/libevent3.png" alt="libevent logo"/>
+  <img src="https://strcpy.net/libevent3.png" alt="libevent logo"/>
 </p>
 
 
@@ -20,10 +20,10 @@
      $ make verify   # (optional)
      $ sudo make install
 
-## Cmake (General)
+## CMake (General)
 
 
-The following Libevent specific Cmake variables are as follows (the values being
+The following Libevent specific CMake variables are as follows (the values being
 the default).
 
 ```
@@ -34,16 +34,16 @@ EVENT_INSTALL_CMAKE_DIR:PATH=lib/cmake/libevent
 # GCC/CLang). Make sure to enable -DCMAKE_BUILD_TYPE=Debug as well.
 EVENT__COVERAGE:BOOL=OFF
 
-# Defines if libevent should build without the benchmark exectuables
+# Defines if Libevent should build without the benchmark executables
 EVENT__DISABLE_BENCHMARK:BOOL=OFF
 
-# Define if libevent should build without support for a debug mode
+# Define if Libevent should build without support for a debug mode
 EVENT__DISABLE_DEBUG_MODE:BOOL=OFF
 
-# Define if libevent should not allow replacing the mm functions
+# Define if Libevent should not allow replacing the mm functions
 EVENT__DISABLE_MM_REPLACEMENT:BOOL=OFF
 
-# Define if libevent should build without support for OpenSSL encrpytion
+# Define if Libevent should build without support for OpenSSL encryption
 EVENT__DISABLE_OPENSSL:BOOL=OFF
 
 # Disable the regress tests
@@ -55,15 +55,15 @@ EVENT__DISABLE_SAMPLES:BOOL=OFF
 # If tests should be compiled or not
 EVENT__DISABLE_TESTS:BOOL=OFF
 
-# Define if libevent should not be compiled with thread support
+# Define if Libevent should not be compiled with thread support
 EVENT__DISABLE_THREAD_SUPPORT:BOOL=OFF
 
 # Enables verbose debugging
 EVENT__ENABLE_VERBOSE_DEBUG:BOOL=OFF
 
-# When crosscompiling forces running a test program that verifies that Kqueue
+# When cross compiling, forces running a test program that verifies that Kqueue
 # works with pipes. Note that this requires you to manually run the test program
-# on the the cross compilation target to verify that it works. See cmake
+# on the the cross compilation target to verify that it works. See CMake
 # documentation for try_run for more details
 EVENT__FORCE_KQUEUE_CHECK:BOOL=OFF
 ```
@@ -73,7 +73,7 @@ __More variables can be found by running `cmake -LAH <sourcedir_path>`__
 
 ## CMake (Windows)
 
-Install CMake: <http://www.cmake.org>
+Install CMake: <https://www.cmake.org>
 
 
      $ md build && cd build
@@ -92,12 +92,12 @@ Install CMake: <http://www.cmake.org>
 
 ## Autoconf
 
-To build libevent, type
+To build Libevent, type
 
      $ ./configure && make
 
 
- (If you got libevent from the git repository, you will
+ (If you got Libevent from the git repository, you will
   first need to run the included "autogen.sh" script in order to
   generate the configure script.)
 
@@ -111,36 +111,36 @@ Install as root via
 
 Before reporting any problems, please run the regression tests.
 
-To enable the low-level tracing build the library as:
+To enable low-level tracing, build the library as:
 
      $ CFLAGS=-DUSE_DEBUG ./configure [...]
 
 Standard configure flags should work.  In particular, see:
 
-   --disable-shared          Only build static libraries
-   --prefix                  Install all files relative to this directory.
+     --disable-shared          Only build static libraries.
+     --prefix                  Install all files relative to this directory.
 
 
 The configure script also supports the following flags:
 
-   --enable-gcc-warnings     Enable extra compiler checking with GCC.
-   --disable-malloc-replacement
-                             Don't let applications replace our memory
-                             management functions
-   --disable-openssl         Disable support for OpenSSL encryption.
-   --disable-thread-support  Don't support multithreaded environments.
+     --enable-gcc-warnings     Enable extra compiler checking with GCC.
+     --disable-malloc-replacement
+                               Don't let applications replace our memory
+                               management functions.
+     --disable-openssl         Disable support for OpenSSL encryption.
+     --disable-thread-support  Don't support multithreaded environments.
 
 ## CMake (Windows)
 
 (Note that autoconf is currently the most mature and supported build
-enviroment for libevent; the cmake instructions here are new and
-experimental, though they _should_ be solid.  We hope that cmake will
+environment for Libevent; the CMake instructions here are new and
+experimental, though they _should_ be solid.  We hope that CMake will
 still be supported in future versions of Libevent, and will try to
 make sure that happens.)
 
-First of all install <http://www.cmake.org>.
+First of all install <https://www.cmake.org>.
 
-To build libevent using Microsoft Visual studio open the "Visual Studio Command prompt" and type:
+To build Libevent using Microsoft Visual studio open the "Visual Studio Command prompt" and type:
 
 ```
 $ cd <libevent source dir>
@@ -186,15 +186,15 @@ $ git clone https://github.com/libevent/libevent.git
 
 You can browse the git repository online at:
 
-<https://github.com/libevent/Libevent>
+<https://github.com/libevent/libevent>
 
 To report bugs, issues, or ask for new features:
 
 __Patches__: https://github.com/libevent/libevent/pulls
-> OK, those are not really _patches_ You fork, modify, and hit the "Create Pull Request" button.
-> You can still submit normal git patchs via the mailing list.
+> OK, those are not really _patches_. You fork, modify, and hit the "Create Pull Request" button.
+> You can still submit normal git patches via the mailing list.
 
-__Bugs, Features [RFC], and Issus__: https://github.com/libevent/libevent/issues
+__Bugs, Features [RFC], and Issues__: https://github.com/libevent/libevent/issues
 > Or you can do it via the mailing list.
 
 There's also a libevent-users mailing list for talking about Libevent
