@@ -117,18 +117,18 @@ To enable low-level tracing, build the library as:
 
 Standard configure flags should work.  In particular, see:
 
-   --disable-shared          Only build static libraries
-   --prefix                  Install all files relative to this directory.
+     --disable-shared          Only build static libraries.
+     --prefix                  Install all files relative to this directory.
 
 
 The configure script also supports the following flags:
 
-   --enable-gcc-warnings     Enable extra compiler checking with GCC.
-   --disable-malloc-replacement
-                             Don't let applications replace our memory
-                             management functions
-   --disable-openssl         Disable support for OpenSSL encryption.
-   --disable-thread-support  Don't support multithreaded environments.
+     --enable-gcc-warnings     Enable extra compiler checking with GCC.
+     --disable-malloc-replacement
+                               Don't let applications replace our memory
+                               management functions.
+     --disable-openssl         Disable support for OpenSSL encryption.
+     --disable-thread-support  Don't support multithreaded environments.
 
 ## CMake (Windows)
 
