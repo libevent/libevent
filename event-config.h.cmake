@@ -471,12 +471,12 @@
 #define EVENT__SIZEOF_VOID_P @EVENT__SIZEOF_VOID_P@
 
 /* set an alias for whatever __func__ __FUNCTION__ is, what sillyness */
-#if defined (__func__)
-#define EVENT____func__ __func__
-#elif defined(__FUNCTION__)
-#define EVENT____func__  __FUNCTION__
-#else
-#define EVENT____func__ __FILE__
+#ifndef __func__
+# if defined(__FUNCTION__)
+# define __func__  __FUNCTION__
+# else
+# define __func__ __FILE__
+# endif
 #endif
 
 
