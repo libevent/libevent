@@ -61,7 +61,7 @@ EVENT__DISABLE_THREAD_SUPPORT:BOOL=OFF
 # Enables verbose debugging
 EVENT__ENABLE_VERBOSE_DEBUG:BOOL=OFF
 
-# When crosscompiling forces running a test program that verifies that Kqueue
+# When cross compiling, forces running a test program that verifies that Kqueue
 # works with pipes. Note that this requires you to manually run the test program
 # on the the cross compilation target to verify that it works. See cmake
 # documentation for try_run for more details
@@ -111,7 +111,7 @@ Install as root via
 
 Before reporting any problems, please run the regression tests.
 
-To enable the low-level tracing build the library as:
+To enable low-level tracing, build the library as:
 
      $ CFLAGS=-DUSE_DEBUG ./configure [...]
 
