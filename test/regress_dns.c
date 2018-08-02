@@ -72,9 +72,12 @@
 #include "event2/util.h"
 #include "event2/listener.h"
 #include "event2/bufferevent.h"
+#include <event2/thread.h>
 #include "log-internal.h"
+#include "evthread-internal.h"
 #include "regress.h"
 #include "regress_testutils.h"
+#include "regress_thread.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
@@ -2126,6 +2129,146 @@ end:
 	evdns_close_server_port(dns_port);
 }
 
+#ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
+struct race_param
+{
+	void *lock;
+	void *reqs_cmpl_cond;
+	int bw_threads;
+	void *bw_threads_exited_cond;
+	volatile int stopping;
+	void *base;
+	void *dns;
+};
+static void *
+race_base_run(void *arg)
+{
+	struct race_param *rp = (struct race_param *)arg;
+	event_base_loop(rp->base, EVLOOP_NO_EXIT_ON_EMPTY);
+	THREAD_RETURN();
+}
+static void *
+race_busywait_run(void *arg)
+{
+	struct race_param *rp = (struct race_param *)arg;
+	struct sockaddr_storage ss;
+	while (!rp->stopping)
+		evdns_base_get_nameserver_addr(rp->dns, 0, (struct sockaddr *)&ss, sizeof(ss));
+	EVLOCK_LOCK(rp->lock, 0);
+	if (--rp->bw_threads == 0)
+		EVTHREAD_COND_SIGNAL(rp->bw_threads_exited_cond);
+	EVLOCK_UNLOCK(rp->lock, 0);
+	THREAD_RETURN();
+}
+static void
+race_gai_cb(int result, struct evutil_addrinfo *res, void *arg)
+{
+	(void)result;
+	(void)res;
+	struct race_param *rp = arg;
+
+	--n_replies_left;
+	if (n_replies_left == 0) {
+		EVLOCK_LOCK(rp->lock, 0);
+		EVTHREAD_COND_SIGNAL(rp->reqs_cmpl_cond);
+		EVLOCK_UNLOCK(rp->lock, 0);
+	}
+}
+static void
+getaddrinfo_race_gotresolve_test(void *arg)
+{
+	(void)arg;
+	struct race_param rp;
+	struct evdns_server_port *dns_port = NULL;
+	ev_uint16_t portnum = 0;
+	char buf[64];
+	int i;
+
+	// Some stress is needed to yield inside getaddrinfo between resolve_ipv4 and resolve_ipv6
+	int n_reqs = 16384;
+#ifdef _SC_NPROCESSORS_ONLN
+	int n_threads = sysconf(_SC_NPROCESSORS_ONLN) + 1;
+#else
+	int n_threads = 17;
+#endif
+	THREAD_T thread[n_threads];
+	struct timeval tv;
+
+	evthread_use_pthreads();
+
+	rp.base = event_base_new();
+	tt_assert(rp.base);
+	if (evthread_make_base_notifiable(rp.base) < 0)
+		tt_abort_msg("Couldn't make base notifiable!");
+
+	dns_port = regress_get_dnsserver(rp.base, &portnum, NULL,
+									 regress_dns_server_cb, reissue_table);
+	tt_assert(dns_port);
+
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+
+	rp.dns = evdns_base_new(rp.base, 0);
+	tt_assert(!evdns_base_nameserver_ip_add(rp.dns, buf));
+
+	n_replies_left = n_reqs;
+
+	EVTHREAD_ALLOC_LOCK(rp.lock, 0);
+	EVTHREAD_ALLOC_COND(rp.reqs_cmpl_cond);
+	EVTHREAD_ALLOC_COND(rp.bw_threads_exited_cond);
+	tt_assert(rp.lock);
+	tt_assert(rp.reqs_cmpl_cond);
+	tt_assert(rp.bw_threads_exited_cond);
+	rp.bw_threads = 0;
+	rp.stopping = 0;
+
+	// Run resolver thread
+	THREAD_START(thread[0], race_base_run, &rp);
+	// Run busy-wait threads used to force yield this thread
+	for (i = 1; i < n_threads; i++) {
+		rp.bw_threads++;
+		THREAD_START(thread[i], race_busywait_run, &rp);
+	}
+
+	EVLOCK_LOCK(rp.lock, 0);
+
+	for (i = 0; i < n_reqs; ++i) {
+		tt_assert(evdns_getaddrinfo(rp.dns, "foof.example.com", "ssh", NULL, race_gai_cb, &rp));
+		// This magic along with busy-wait threads make this thread yield frequently
+		if (i % 100 == 0) {
+			tv.tv_sec = 0;
+			tv.tv_usec = 10000;
+			evutil_usleep_(&tv);
+		}
+	}
+
+	exit_base = rp.base;
+
+	// Wait for some time
+	tv.tv_sec = 5;
+	tv.tv_usec = 0;
+	EVTHREAD_COND_WAIT_TIMED(rp.reqs_cmpl_cond, rp.lock, &tv);
+
+	// Stop busy-wait threads
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	rp.stopping = 1;
+	tt_assert(EVTHREAD_COND_WAIT_TIMED(rp.bw_threads_exited_cond, rp.lock, &tv) == 0);
+
+	EVLOCK_UNLOCK(rp.lock, 0);
+
+	evdns_base_free(rp.dns, 1 /** fail requests */);
+
+	tt_int_op(n_replies_left, ==, 0);
+
+end:
+	EVTHREAD_FREE_LOCK(rp.lock, 0);
+	EVTHREAD_FREE_COND(rp.reqs_cmpl_cond);
+	EVTHREAD_FREE_COND(rp.bw_threads_exited_cond);
+	evdns_close_server_port(dns_port);
+	event_base_loopbreak(rp.base);
+	event_base_free(rp.base);
+}
+#endif
 
 #define DNS_LEGACY(name, flags)					       \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
@@ -2183,6 +2326,11 @@ struct testcase_t dns_testcases[] = {
 	{ "client_fail_requests_getaddrinfo",
 	  dns_client_fail_requests_getaddrinfo_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+#ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
+	{ "getaddrinfo_race_gotresolve",
+	  getaddrinfo_race_gotresolve_test,
+	  TT_FORK, NULL, NULL },
+#endif
 
 	END_OF_TESTCASES
 };
