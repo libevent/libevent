@@ -91,11 +91,11 @@ event_exit(int errcode)
 {
 	if (fatal_fn) {
 		fatal_fn(errcode);
-		exit(errcode); /* should never be reached */
+		_exit(errcode); /* should never be reached */
 	} else if (errcode == EVENT_ERR_ABORT_)
 		abort();
 	else
-		exit(errcode);
+		_exit(errcode);
 }
 
 void

@@ -494,9 +494,9 @@ fatalfn(int exitcode)
 	if (logsev != fatal_want_severity ||
 	    !logmsg ||
 	    strcmp(logmsg, fatal_want_message))
-		exit(0);
+		_exit(0);
 	else
-		exit(exitcode);
+		_exit(exitcode);
 }
 
 #ifndef _WIN32
