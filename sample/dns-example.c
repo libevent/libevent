@@ -78,6 +78,8 @@ gai_callback(int err, struct evutil_addrinfo *ai, void *arg)
 {
 	const char *name = arg;
 	int i;
+	struct evutil_addrinfo *first_ai = ai;
+
 	if (err) {
 		printf("%s: %s\n", name, evutil_gai_strerror(err));
 	}
@@ -99,6 +101,9 @@ gai_callback(int err, struct evutil_addrinfo *ai, void *arg)
 			printf("[%d] %s: %s\n",i,name,buf);
 		}
 	}
+
+	if (first_ai)
+		evutil_freeaddrinfo(first_ai);
 }
 
 static void
@@ -166,7 +171,7 @@ main(int c, char **v) {
 		return 1;
 	}
 
-	while ((opt = getopt(c, v, "xvc:Ts:")) != -1) {
+	while ((opt = getopt(c, v, "xvc:Ts:g")) != -1) {
 		switch (opt) {
 			case 'x': o.reverse = 1; break;
 			case 'v': ++verbose; break;
