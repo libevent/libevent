@@ -3623,6 +3623,11 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 			mm_free(fname);
 	}
 
+	if (filename == NULL) {
+		evdns_resolv_set_defaults(base, flags);
+		return 1;
+	}
+
 	if ((err = evutil_read_file_(filename, &resolv, &n, 0)) < 0) {
 		if (err == -1) {
 			/* No file. */
