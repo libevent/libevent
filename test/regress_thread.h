@@ -28,6 +28,7 @@
 #define REGRESS_THREAD_H_INCLUDED_
 
 #ifdef EVENT__HAVE_PTHREADS
+#include <pthread.h>
 #define THREAD_T pthread_t
 #define THREAD_FN void *
 #define THREAD_RETURN() return (NULL)
