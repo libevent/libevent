@@ -59,3 +59,7 @@ build_script:
         $env:CTEST_PARALLEL_LEVEL="20"
         ctest --output-on-failure
       }
+
+on_failure:
+  - 7z a libevent.zip .
+  - appveyor PushArtifact libevent.zip
