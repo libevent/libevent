@@ -422,8 +422,21 @@ void evdns_cancel_request(struct evdns_base *base, struct evdns_request *req);
 
   The currently available configuration options are:
 
-    ndots, timeout, max-timeouts, max-inflight, attempts, randomize-case,
-    bind-to, initial-probe-timeout, getaddrinfo-allow-skew.
+    ndots - Used to configure searching. Defaults to 1.
+    timeout - Timeout for DNS queries, defaults to 5.
+    max-timeouts - Maximum allowed timeouts for a namesever. Defaults to 3.
+    max-inflight - Max allowed pending DNS request at a time. Defaults to 64.
+    attempts - How many times to retry a DNS request before failure. Defaults to 3.
+    randomize-case - If nonzero, we randomize the case on outgoing DNS requests
+        and verify replies have the same case as the requests. Defaults to 1.
+    bind-to - If provided, we bind to the given address whenever we send
+        packets to a nameserver. Default disabled.
+    initial-probe-timeout - Sets timeout of first probe to check if a
+        nameserver has come back up. Default 10
+    getaddrinfo-allow-skew - How many seconds to wait for both IPv4 and IPv6
+        responses once one of them has been received. Defaults to 3 seconds.
+    max-record-len - Maximum size allowed for a UDP response. Uses DNS
+        extension to increased the allowed size past 512 bytes. Default is 512.
 
   In versions before Libevent 2.0.3-alpha, the option name needed to end with
   a colon.
@@ -602,6 +615,7 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
 #define EVDNS_QTYPE_ALL	 255
 
 #define EVDNS_CLASS_INET   1
+#define EVDNS_CLASS_OPT    41
 
 /* flags that can be set in answers; as part of the err parameter */
 #define EVDNS_FLAGS_AA	0x400

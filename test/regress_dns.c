@@ -599,6 +599,72 @@ end:
 
 	regress_clean_dnsserver();
 }
+
+static void
+dns_large_udp_test(void *arg)
+{
+	struct regress_dns_server_table table[ARRAY_SIZE(search_table)];
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+	ev_uint16_t portnum = 0;
+	char buf[64];
+
+	struct generic_dns_callback_result r[8];
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(table); ++i) {
+		table[i] = search_table[i];
+		table[i].lower = 0;
+	}
+
+	tt_assert(regress_dnsserver(base, &portnum, table));
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(!evdns_base_set_option(dns, "max-record-len", "4096"));
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
+
+	evdns_base_search_add(dns, "a.example.com");
+	evdns_base_search_add(dns, "b.example.com");
+	evdns_base_search_add(dns, "c.example.com");
+
+	n_replies_left = ARRAY_SIZE(r);
+	exit_base = base;
+
+	evdns_base_resolve_ipv4(dns, "host", 0, generic_dns_callback, &r[0]);
+	evdns_base_resolve_ipv4(dns, "host2", 0, generic_dns_callback, &r[1]);
+	evdns_base_resolve_ipv4(dns, "host", DNS_NO_SEARCH, generic_dns_callback, &r[2]);
+	evdns_base_resolve_ipv4(dns, "host2", DNS_NO_SEARCH, generic_dns_callback, &r[3]);
+	evdns_base_resolve_ipv4(dns, "host3", 0, generic_dns_callback, &r[4]);
+	evdns_base_resolve_ipv4(dns, "hostn.a.example.com", DNS_NO_SEARCH, generic_dns_callback, &r[5]);
+	evdns_base_resolve_ipv4(dns, "hostn.b.example.com", DNS_NO_SEARCH, generic_dns_callback, &r[6]);
+	evdns_base_resolve_ipv4(dns, "hostn.c.example.com", DNS_NO_SEARCH, generic_dns_callback, &r[7]);
+
+	event_base_dispatch(base);
+
+	tt_int_op(r[0].type, ==, DNS_IPv4_A);
+	tt_int_op(r[0].count, ==, 1);
+	tt_int_op(((ev_uint32_t*)r[0].addrs)[0], ==, htonl(0x0b16212c));
+	tt_int_op(r[1].type, ==, DNS_IPv4_A);
+	tt_int_op(r[1].count, ==, 1);
+	tt_int_op(((ev_uint32_t*)r[1].addrs)[0], ==, htonl(0xc8640064));
+	tt_int_op(r[2].result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r[3].result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r[4].result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r[5].result, ==, DNS_ERR_NODATA);
+	tt_int_op(r[5].ttl, ==, 42);
+	tt_int_op(r[6].result, ==, DNS_ERR_NOTEXIST);
+	tt_int_op(r[6].ttl, ==, 42);
+	tt_int_op(r[7].result, ==, DNS_ERR_NODATA);
+	tt_int_op(r[7].ttl, ==, 0);
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+
+	regress_clean_dnsserver();
+}
 static void
 dns_search_empty_test(void *arg)
 {
@@ -2286,6 +2352,7 @@ struct testcase_t dns_testcases[] = {
 	{ "search_lower", dns_search_lower_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "search_cancel", dns_search_cancel_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "dns_large_udp", dns_large_udp_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "retry_disable_when_inactive", dns_retry_disable_when_inactive_test,
 	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
