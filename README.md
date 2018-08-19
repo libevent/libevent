@@ -408,5 +408,6 @@ fixing bugs:
  * johnsonlee
  * Philip Prindeville
  * Vis Virial
+ * Mike Bourgeous
 
 If we have forgotten your name, please contact us.
