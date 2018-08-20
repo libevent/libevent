@@ -43,7 +43,7 @@ static void
 timeout_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct timeval newtime, difference;
-	struct event *timeout = arg;
+	struct event *timeout = (struct event*) arg;
 	double elapsed;
 
 	evutil_gettimeofday(&newtime, NULL);
