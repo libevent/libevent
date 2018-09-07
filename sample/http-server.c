@@ -63,6 +63,12 @@
 #ifndef O_RDONLY
 #define O_RDONLY _O_RDONLY
 #endif
+#ifndef O_WRONLY
+#define O_WRONLY _O_WRONLY
+#endif
+#ifndef O_CREAT
+#define O_CREAT _O_CREAT
+#endif
 #endif
 
 char uri_root[512];
@@ -320,6 +326,58 @@ done:
 		evbuffer_free(evb);
 }
 
+static void upload_file_cb(struct evhttp_request *req, void *arg) {
+
+	if (evhttp_request_get_command(req) == EVHTTP_REQ_GET) {
+		printf("Got a GET request for /upload\n");
+	} else {
+		printf("Got a POST request for /upload\n");
+	}
+	evbuffer_add_printf(evhttp_request_get_output_buffer(req),
+		 "<html><body><form enctype=\"multipart/form-data\" action=\"/upload\" method=\"POST\">"
+		 	"<input type=\"file\" name=\"file\">"
+		 	"<p><input type=\"submit\"></p>"
+		 "</form></body></html>\n");
+	evhttp_send_reply(req,200,"OK",NULL);
+}
+
+static void receive_file_read_cb(struct evhttp_request *req, void *arg) {
+	int fd = (int)arg;
+	evbuffer_write(evhttp_request_get_input_buffer(req),fd);
+}
+
+static void receive_file_complete_cb(struct evhttp_request *req, void *arg) {
+	int fd = (int)arg;
+	close(fd);
+	printf("Complete file receive\n");
+}
+
+static void body_start_cb(struct evhttp_request *req, void *arg) {
+	int fd = 0;
+	if (evhttp_request_get_command(req) == EVHTTP_REQ_POST &&
+		strcmp(evhttp_request_get_uri(req),"/upload")==0) {
+		if ((fd = open("upload.txt", O_WRONLY|O_CREAT, 0666)) < 0) {
+			perror("open");
+			goto err;
+		}
+		printf("Start file receive\n");
+		evhttp_request_set_body_read_cb(req,receive_file_read_cb,(void*)fd);
+		evhttp_request_set_on_complete_cb(req,receive_file_complete_cb,(void*)fd);
+		goto done;
+	}
+err:
+	evhttp_send_error(req, 500, NULL);
+	if (fd>=0)
+		close(fd);
+done:
+	return;
+}
+
+static int new_request_cb(struct evhttp_request *req, void *arg) {
+	evhttp_request_set_body_start_cb(req,body_start_cb,0);
+	return 0;
+}
+
 static void
 syntax(void)
 {
@@ -359,8 +417,14 @@ main(int argc, char **argv)
 		return 1;
 	}
 
+	
+	evhttp_set_newreqcb(http, new_request_cb, NULL);
+
 	/* The /dump URI will dump all requests to stdout and say 200 ok. */
 	evhttp_set_cb(http, "/dump", dump_request_cb, NULL);
+
+	/* The /upload URI will upload file (not parsed mutltipart) */
+	evhttp_set_cb(http, "/upload", upload_file_cb, NULL);
 
 	/* We want to accept arbitrary requests, so we need to set a "generic"
 	 * cb.  We can also add callbacks for specific paths. */

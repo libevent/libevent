@@ -120,7 +120,7 @@ struct {
 	 * the regular callback.
 	 */
 	void (*chunk_cb)(struct evhttp_request *, void *);
-
+	void* chunk_cb_arg;
 	/*
 	 * Callback added for forked-daapd so they can collect ICY
 	 * (shoutcast) metadata from the http header. If return
@@ -142,6 +142,13 @@ struct {
 	 */
 	void (*on_complete_cb)(struct evhttp_request *, void *);
 	void *on_complete_cb_arg;
+	/*
+	 * Start body read callback - called after all headers parsed.
+	 * 
+	 * @see evhttp_request_set_body_start_cb()
+	 */
+	void (*body_start_cb)(struct evhttp_request *, void *);
+	void *body_start_cb_arg;
 };
 
 #ifdef __cplusplus

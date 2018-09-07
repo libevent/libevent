@@ -585,6 +585,26 @@ void evhttp_request_set_header_cb(struct evhttp_request *,
     int (*cb)(struct evhttp_request *, void *));
 
 /**
+ * Enable delivery of request body to requestor.
+ * @param cb will be called after every read of body data. Will never be called on an empty
+ *           response. May drain the input buffer; it will be drained
+ *           automatically on return.
+ * @param arg call back's argument.
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_request_set_body_read_cb(struct evhttp_request *,
+    void (*cb)(struct evhttp_request *, void *),void* arg);
+
+/**
+ * Register callback for additional process request after receive headers.
+ * @param cb will be called after all headers received, before body read.
+ * @param arg call back's argument.
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_request_set_body_start_cb(struct evhttp_request *,
+    void (*cb)(struct evhttp_request *, void *),void* arg);
+
+/**
  * The different error types supported by evhttp
  *
  * @see evhttp_request_set_error_cb()
