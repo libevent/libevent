@@ -329,7 +329,8 @@ evrpc_request_cb(struct evhttp_request *req, void *arg)
 	return;
 
 error:
-	evrpc_reqstate_free_(rpc_state);
+	if (rpc_state)
+		evrpc_reqstate_free_(rpc_state);
 	evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
 	return;
 }
