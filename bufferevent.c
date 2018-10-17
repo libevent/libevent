@@ -111,6 +111,28 @@ bufferevent_unsuspend_write_(struct bufferevent *bufev, bufferevent_suspend_flag
 	BEV_UNLOCK(bufev);
 }
 
+/**
+ * Sometimes bufferevent's implementation can overrun high watermarks
+ * (one of examples is openssl) and in this case if the read callback
+ * will not handle enough data do over condition above the read
+ * callback will never be called again (due to suspend above).
+ *
+ * To avoid this we are scheduling read callback again here, but only
+ * from the user callback to avoid multiple scheduling:
+ * - when the data had been added to it
+ * - when the data had been drained from it (user specified read callback)
+ */
+static void bufferevent_inbuf_wm_check(struct bufferevent *bev)
+{
+	if (!bev->wm_read.high)
+		return;
+	if (!(bev->enabled & EV_READ))
+		return;
+	if (evbuffer_get_length(bev->input) < bev->wm_read.high)
+		return;
+
+	bufferevent_trigger(bev, EV_READ, BEV_OPT_DEFER_CALLBACKS);
+}
 
 /* Callback to implement watermarks on the input buffer.  Only enabled
  * if the watermark is set. */
@@ -147,6 +169,7 @@ bufferevent_run_deferred_callbacks_locked(struct event_callback *cb, void *arg)
 	if (bufev_private->readcb_pending && bufev->readcb) {
 		bufev_private->readcb_pending = 0;
 		bufev->readcb(bufev, bufev->cbarg);
+		bufferevent_inbuf_wm_check(bufev);
 	}
 	if (bufev_private->writecb_pending && bufev->writecb) {
 		bufev_private->writecb_pending = 0;
@@ -187,6 +210,7 @@ bufferevent_run_deferred_callbacks_unlocked(struct event_callback *cb, void *arg
 		void *cbarg = bufev->cbarg;
 		bufev_private->readcb_pending = 0;
 		UNLOCKED(readcb(bufev, cbarg));
+		bufferevent_inbuf_wm_check(bufev);
 	}
 	if (bufev_private->writecb_pending && bufev->writecb) {
 		bufferevent_data_cb writecb = bufev->writecb;
@@ -230,6 +254,7 @@ bufferevent_run_readcb_(struct bufferevent *bufev, int options)
 		SCHEDULE_DEFERRED(p);
 	} else {
 		bufev->readcb(bufev, bufev->cbarg);
+		bufferevent_inbuf_wm_check(bufev);
 	}
 }
 
