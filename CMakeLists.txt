@@ -153,6 +153,11 @@ if (EVENT__ENABLE_VERBOSE_DEBUG)
     add_definitions(-DUSE_DEBUG=1)
 endif()
 
+# make it colorful under ninja-build
+if ("${CMAKE_GENERATOR}" STREQUAL "Ninja")
+    add_compiler_flags(-fdiagnostics-color=always)
+endif()
+
 # Setup compiler flags for coverage.
 if (EVENT__COVERAGE)
     if (NOT "${CMAKE_BUILD_TYPE_LOWER}" STREQUAL "debug")
