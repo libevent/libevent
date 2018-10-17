@@ -518,6 +518,9 @@ int bufferevent_set_timeouts(struct bufferevent *bufev,
   On input, a bufferevent does not invoke the user read callback unless
   there is at least low watermark data in the buffer.	If the read buffer
   is beyond the high watermark, the bufferevent stops reading from the network.
+  But be aware that bufferevent input/read buffer can overrun high watermark
+  limit (typical example is openssl bufferevent), so you should not relay in
+  this.
 
   On output, the user write callback is invoked whenever the buffered data
   falls below the low watermark.  Filters that write to this bufev will try
