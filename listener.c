@@ -172,7 +172,7 @@ evconnlistener_new(struct event_base *base,
 	if (backlog > 0) {
 		if (listen(fd, backlog) < 0)
 			return NULL;
-	} else if (backlog < 0) {
+	} else if (backlog <= 0) {
 		if (listen(fd, 128) < 0)
 			return NULL;
 	}
