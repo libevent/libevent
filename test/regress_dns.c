@@ -2139,6 +2139,8 @@ struct race_param
 	volatile int stopping;
 	void *base;
 	void *dns;
+
+	int locked;
 };
 static void *
 race_base_run(void *arg)
@@ -2231,6 +2233,7 @@ getaddrinfo_race_gotresolve_test(void *arg)
 	}
 
 	EVLOCK_LOCK(rp.lock, 0);
+	rp.locked = 1;
 
 	for (i = 0; i < n_reqs; ++i) {
 		tt_assert(evdns_getaddrinfo(rp.dns, "foof.example.com", "ssh", NULL, race_gai_cb, &rp));
@@ -2256,12 +2259,15 @@ getaddrinfo_race_gotresolve_test(void *arg)
 	tt_assert(EVTHREAD_COND_WAIT_TIMED(rp.bw_threads_exited_cond, rp.lock, &tv) == 0);
 
 	EVLOCK_UNLOCK(rp.lock, 0);
+	rp.locked = 0;
 
 	evdns_base_free(rp.dns, 1 /** fail requests */);
 
 	tt_int_op(n_replies_left, ==, 0);
 
 end:
+	if (rp.locked)
+		EVLOCK_UNLOCK(rp.lock, 0);
 	EVTHREAD_FREE_LOCK(rp.lock, 0);
 	EVTHREAD_FREE_COND(rp.reqs_cmpl_cond);
 	EVTHREAD_FREE_COND(rp.bw_threads_exited_cond);
