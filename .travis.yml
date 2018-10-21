@@ -57,7 +57,7 @@ before_install:
         CFLAGS=-I$CMAKE_INCLUDE_PATH
         LDFLAGS=-L$CMAKE_LIBRARY_PATH;
 
-      export JOBS=4;
+      export JOBS=1;
     fi
 
 addons:
