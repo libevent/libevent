@@ -641,18 +641,24 @@ struct timeout_cb_result {
 	struct timeval read_timeout_at;
 	struct timeval write_timeout_at;
 	struct timeval last_wrote_at;
+	struct timeval last_read_at;
 	int n_read_timeouts;
 	int n_write_timeouts;
 	int total_calls;
 };
 
 static void
+bev_timeout_read_cb(struct bufferevent *bev, void *arg)
+{
+	struct timeout_cb_result *res = arg;
+	evutil_gettimeofday(&res->last_read_at, NULL);
+}
+static void
 bev_timeout_write_cb(struct bufferevent *bev, void *arg)
 {
 	struct timeout_cb_result *res = arg;
 	evutil_gettimeofday(&res->last_wrote_at, NULL);
 }
-
 static void
 bev_timeout_event_cb(struct bufferevent *bev, short what, void *arg)
 {
@@ -680,7 +686,6 @@ test_bufferevent_timeouts(void *arg)
 	int use_pair = 0, use_filter = 0;
 	struct timeval tv_w, tv_r, started_at;
 	struct timeout_cb_result res1, res2;
-	char buf[1024];
 
 	memset(&res1, 0, sizeof(res1));
 	memset(&res2, 0, sizeof(res2));
@@ -699,7 +704,6 @@ test_bufferevent_timeouts(void *arg)
 		bev1 = bufferevent_socket_new(data->base, data->pair[0], 0);
 		bev2 = bufferevent_socket_new(data->base, data->pair[1], 0);
 	}
-
 	tt_assert(bev1);
 	tt_assert(bev2);
 
@@ -723,30 +727,14 @@ test_bufferevent_timeouts(void *arg)
 	tv_w.tv_sec = tv_r.tv_sec = 0;
 	tv_w.tv_usec = 100*1000;
 	tv_r.tv_usec = 150*1000;
-	bufferevent_setcb(bev1, NULL, bev_timeout_write_cb,
+	bufferevent_setcb(bev1, bev_timeout_read_cb, bev_timeout_write_cb,
 	    bev_timeout_event_cb, &res1);
-	bufferevent_setwatermark(bev1, EV_WRITE, 1024*1024+10, 0);
 	bufferevent_set_timeouts(bev1, &tv_r, &tv_w);
-	if (use_pair) {
-		/* For a pair, the fact that the other side isn't reading
-		 * makes the writer stall */
-		bufferevent_write(bev1, "ABCDEFG", 7);
-	} else {
-		/* For a real socket, the kernel's TCP buffers can eat a
-		 * fair number of bytes; make sure that at some point we
-		 * have some bytes that will stall. */
-		struct evbuffer *output = bufferevent_get_output(bev1);
-		int i;
-		memset(buf, 0xbb, sizeof(buf));
-		for (i=0;i<1024;++i) {
-			evbuffer_add_reference(output, buf, sizeof(buf),
-			    NULL, NULL);
-		}
-	}
+	bufferevent_write(bev1, "ABCDEFG", 7);
 	bufferevent_enable(bev1, EV_READ|EV_WRITE);
 
 	/* bev2 has nothing to say, and isn't listening. */
-	bufferevent_setcb(bev2, NULL,  bev_timeout_write_cb,
+	bufferevent_setcb(bev2, bev_timeout_read_cb, bev_timeout_write_cb,
 	    bev_timeout_event_cb, &res2);
 	tv_w.tv_sec = tv_r.tv_sec = 0;
 	tv_w.tv_usec = 200*1000;
@@ -763,14 +751,25 @@ test_bufferevent_timeouts(void *arg)
 	/* XXXX Test that actually reading or writing a little resets the
 	 * timeouts. */
 
-	/* Each buf1 timeout happens, and happens only once. */
-	tt_want(res1.n_read_timeouts);
-	tt_want(res1.n_write_timeouts);
+	tt_want(res1.total_calls == 2);
 	tt_want(res1.n_read_timeouts == 1);
 	tt_want(res1.n_write_timeouts == 1);
+	tt_want(res2.total_calls == !(use_pair && !use_filter));
+	tt_want(res2.n_write_timeouts == !(use_pair && !use_filter));
+	tt_want(!res2.n_read_timeouts);
 
 	test_timeval_diff_eq(&started_at, &res1.read_timeout_at, 150);
 	test_timeval_diff_eq(&started_at, &res1.write_timeout_at, 100);
+
+#define tt_assert_timeval_empty(tv) do {  \
+	tt_int_op((tv).tv_sec, ==, 0);   \
+	tt_int_op((tv).tv_usec, ==, 0);  \
+} while(0)
+	tt_assert_timeval_empty(res1.last_read_at);
+	tt_assert_timeval_empty(res2.last_read_at);
+	tt_assert_timeval_empty(res2.last_wrote_at);
+	tt_assert_timeval_empty(res2.last_wrote_at);
+#undef tt_assert_timeval_empty
 
 end:
 	if (bev1)
@@ -802,7 +801,7 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "bufferevent_timeout", test_bufferevent_timeouts,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR, &basic_setup, (void*)"" },
+	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"" },
 	{ "bufferevent_timeout_pair", test_bufferevent_timeouts,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (void*)"pair" },
 	{ "bufferevent_timeout_filter", test_bufferevent_timeouts,
