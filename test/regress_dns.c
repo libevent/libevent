@@ -2336,7 +2336,7 @@ struct testcase_t dns_testcases[] = {
 #ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
 	{ "getaddrinfo_race_gotresolve",
 	  getaddrinfo_race_gotresolve_test,
-	  TT_FORK, NULL, NULL },
+	  TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
 #endif
 
 	END_OF_TESTCASES
