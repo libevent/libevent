@@ -2112,7 +2112,7 @@ dns_client_fail_requests_getaddrinfo_test(void *arg)
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
 	for (i = 0; i < 20; ++i)
-		tt_assert(evdns_getaddrinfo(dns, "foof.example.com", "ssh", NULL, getaddrinfo_cb, &r[i]));
+		tt_assert(evdns_getaddrinfo(dns, "foof.example.com", "80", NULL, getaddrinfo_cb, &r[i]));
 
 	n_replies_left = 20;
 	exit_base = base;
@@ -2139,6 +2139,8 @@ struct race_param
 	volatile int stopping;
 	void *base;
 	void *dns;
+
+	int locked;
 };
 static void *
 race_base_run(void *arg)
@@ -2231,9 +2233,10 @@ getaddrinfo_race_gotresolve_test(void *arg)
 	}
 
 	EVLOCK_LOCK(rp.lock, 0);
+	rp.locked = 1;
 
 	for (i = 0; i < n_reqs; ++i) {
-		tt_assert(evdns_getaddrinfo(rp.dns, "foof.example.com", "ssh", NULL, race_gai_cb, &rp));
+		tt_assert(evdns_getaddrinfo(rp.dns, "foof.example.com", "80", NULL, race_gai_cb, &rp));
 		// This magic along with busy-wait threads make this thread yield frequently
 		if (i % 100 == 0) {
 			tv.tv_sec = 0;
@@ -2256,12 +2259,15 @@ getaddrinfo_race_gotresolve_test(void *arg)
 	tt_assert(EVTHREAD_COND_WAIT_TIMED(rp.bw_threads_exited_cond, rp.lock, &tv) == 0);
 
 	EVLOCK_UNLOCK(rp.lock, 0);
+	rp.locked = 0;
 
 	evdns_base_free(rp.dns, 1 /** fail requests */);
 
 	tt_int_op(n_replies_left, ==, 0);
 
 end:
+	if (rp.locked)
+		EVLOCK_UNLOCK(rp.lock, 0);
 	EVTHREAD_FREE_LOCK(rp.lock, 0);
 	EVTHREAD_FREE_COND(rp.reqs_cmpl_cond);
 	EVTHREAD_FREE_COND(rp.bw_threads_exited_cond);
@@ -2330,7 +2336,7 @@ struct testcase_t dns_testcases[] = {
 #ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
 	{ "getaddrinfo_race_gotresolve",
 	  getaddrinfo_race_gotresolve_test,
-	  TT_FORK, NULL, NULL },
+	  TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
 #endif
 
 	END_OF_TESTCASES
