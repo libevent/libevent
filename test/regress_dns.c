@@ -2112,7 +2112,7 @@ dns_client_fail_requests_getaddrinfo_test(void *arg)
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
 
 	for (i = 0; i < 20; ++i)
-		tt_assert(evdns_getaddrinfo(dns, "foof.example.com", "ssh", NULL, getaddrinfo_cb, &r[i]));
+		tt_assert(evdns_getaddrinfo(dns, "foof.example.com", "80", NULL, getaddrinfo_cb, &r[i]));
 
 	n_replies_left = 20;
 	exit_base = base;
@@ -2236,7 +2236,7 @@ getaddrinfo_race_gotresolve_test(void *arg)
 	rp.locked = 1;
 
 	for (i = 0; i < n_reqs; ++i) {
-		tt_assert(evdns_getaddrinfo(rp.dns, "foof.example.com", "ssh", NULL, race_gai_cb, &rp));
+		tt_assert(evdns_getaddrinfo(rp.dns, "foof.example.com", "80", NULL, race_gai_cb, &rp));
 		// This magic along with busy-wait threads make this thread yield frequently
 		if (i % 100 == 0) {
 			tv.tv_sec = 0;
