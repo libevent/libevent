@@ -1686,8 +1686,9 @@ evhttp_parse_response_line(struct evhttp_request *req, char *line)
 /* Parse the first line of a HTTP request */
 
 static int
-evhttp_parse_request_line(struct evhttp_request *req, char *line)
+evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 {
+	char *eos = line + len;
 	char *method;
 	char *uri;
 	char *version;
@@ -1695,6 +1696,12 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line)
 	const char *scheme;
 	size_t method_len;
 	enum evhttp_cmd_type type;
+
+	while (eos > line && *(eos-1) == ' ') {
+		*(eos-1) = '\0';
+		--eos;
+		--len;
+	}
 
 	/* Parse the request line */
 	method = strsep(&line, " ");
@@ -2009,7 +2016,7 @@ evhttp_parse_firstline_(struct evhttp_request *req, struct evbuffer *buffer)
 
 	switch (req->kind) {
 	case EVHTTP_REQUEST:
-		if (evhttp_parse_request_line(req, line) == -1)
+		if (evhttp_parse_request_line(req, line, len) == -1)
 			status = DATA_CORRUPTED;
 		break;
 	case EVHTTP_RESPONSE:
