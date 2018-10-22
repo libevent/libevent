@@ -1707,14 +1707,14 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 
 	/* Parse the request line */
 	method = strsep(&line, " ");
-	if (line == NULL)
-		return (-1);
-	uri = strsep(&line, " ");
-	if (line == NULL)
-		return (-1);
-	version = strsep(&line, " ");
-	if (line != NULL)
-		return (-1);
+	if (!line)
+		return -1;
+	uri = line;
+	version = strrchr(uri, ' ');
+	if (!version || uri == version)
+		return -1;
+	*version = '\0';
+	version++;
 
 	method_len = (uri - method) - 1;
 	type       = EVHTTP_REQ_UNKNOWN_;
