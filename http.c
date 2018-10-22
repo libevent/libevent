@@ -1702,6 +1702,8 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 		--eos;
 		--len;
 	}
+	if (len < strlen("GET / HTTP/1.0"))
+		return -1;
 
 	/* Parse the request line */
 	method = strsep(&line, " ");
