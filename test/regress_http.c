@@ -530,6 +530,8 @@ http_basic_test_impl(void *arg, int ssl, const char *request_line)
 
 	evutil_timerclear(&tv);
 	tv.tv_usec = 100000;
+	if (ssl)
+		tv.tv_usec *= 10;
 	event_base_once(data->base,
 	    -1, EV_TIMEOUT, http_complete_write, bev, &tv);
 
