@@ -1,0 +1,68 @@
+os:
+  - linux
+  - osx
+sudo: false
+dist: trusty
+
+git:
+  quiet: true
+
+env:
+  matrix:
+    - EVENT_CONFIGURE_OPTIONS=""
+    - EVENT_CONFIGURE_OPTIONS="--disable-openssl"
+    - EVENT_CONFIGURE_OPTIONS="--disable-thread-support"
+    - EVENT_CONFIGURE_OPTIONS="--disable-debug-mode"
+    - EVENT_CONFIGURE_OPTIONS="--disable-malloc-replacement"
+
+matrix:
+  allow_failures:
+    - os: osx
+  fast_finish: true
+
+language: c
+compiler:
+  - gcc
+  - clang
+
+before_install:
+  - export TIMEOUT=50
+  - export JOBS=20
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+      brew update;
+      brew uninstall libtool && brew install libtool;
+      brew install openssl;
+      brew install lcov;
+      if [ "$CC" == "gcc" ]; then
+        export CC=$(ls -t /usr/local/bin/gcc-?.?);
+      fi
+
+      export OPENSSL_ROOT=$(echo /usr/local/Cellar/openssl/*);
+      export
+        CMAKE_INCLUDE_PATH=$OPENSSL_ROOT/include
+        CMAKE_LIBRARY_PATH=$OPENSSL_ROOT/lib;
+      export
+        CFLAGS=-I$CMAKE_INCLUDE_PATH
+        LDFLAGS=-L$CMAKE_LIBRARY_PATH;
+
+      export TIMEOUT=120;
+      export JOBS=1;
+    fi
+
+addons:
+  apt:
+    packages:
+    - zlib1g-dev
+    - libssl-dev
+    - build-essential
+    - automake
+    - autoconf
+
+script:
+    ./autogen.sh &&
+    ./configure $EVENT_CONFIGURE_OPTIONS &&
+    make &&
+    travis_wait $TIMEOUT make -j $JOBS verify && exit 0 || {
+      cat test/test-suite.log;
+      exit 1;
+    }
