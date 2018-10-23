@@ -1827,10 +1827,10 @@ end:
 
 struct testcase_t dns_testcases[] = {
 	DNS_LEGACY(server, TT_FORK|TT_NEED_BASE),
-	DNS_LEGACY(gethostbyname, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
-	DNS_LEGACY(gethostbyname6, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
-	DNS_LEGACY(gethostbyaddr, TT_FORK|TT_NEED_BASE|TT_NEED_DNS),
-	{ "resolve_reverse", dns_resolve_reverse, TT_FORK, NULL, NULL },
+	DNS_LEGACY(gethostbyname, TT_FORK|TT_NEED_BASE|TT_NEED_DNS|TT_SKIP),
+	DNS_LEGACY(gethostbyname6, TT_FORK|TT_NEED_BASE|TT_NEED_DNS|TT_SKIP),
+	DNS_LEGACY(gethostbyaddr, TT_FORK|TT_NEED_BASE|TT_NEED_DNS|TT_SKIP),
+	{ "resolve_reverse", dns_resolve_reverse, TT_FORK|TT_SKIP, NULL, NULL },
 	{ "search", dns_search_test, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "search_cancel", dns_search_cancel_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
