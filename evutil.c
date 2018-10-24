@@ -599,6 +599,11 @@ static int have_checked_interfaces, had_ipv4_address, had_ipv6_address;
  */
 #define EVUTIL_V4ADDR_IS_LOCALHOST(addr) (((addr)>>24) == 127)
 
+/* Macro: True iff the IPv4 address 'addr', in host order, is link-local
+ * 169.254.0.0/16 (RFC3927)
+ */
+#define EVUTIL_V4ADDR_IS_LINKLOCAL(addr) (((addr) & 0xffff0000U) == 0xa9fe0000U)
+
 /* Macro: True iff the IPv4 address 'addr', in host order, is a class D
  * (multiclass) address.
  */
@@ -615,6 +620,7 @@ evutil_found_ifaddr(const struct sockaddr *sa)
 		ev_uint32_t addr = ntohl(sin->sin_addr.s_addr);
 		if (addr == 0 ||
 		    EVUTIL_V4ADDR_IS_LOCALHOST(addr) ||
+		    EVUTIL_V4ADDR_IS_LINKLOCAL(addr) ||
 		    EVUTIL_V4ADDR_IS_CLASSD(addr)) {
 			/* Not actually a usable external address. */
 		} else {
