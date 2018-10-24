@@ -1455,6 +1455,83 @@ end:
 	;
 }
 
+static void
+test_evutil_v4addr_is_local(void *arg)
+{
+	struct sockaddr_in sin;
+	sin.sin_family = AF_INET;
+
+	/* we use evutil_inet_pton() here to fill in network-byte order */
+#define LOCAL(str, yes) do {                                              \
+	tt_int_op(evutil_inet_pton(AF_INET, str, &sin.sin_addr), ==, 1);  \
+	tt_int_op(evutil_v4addr_is_local_(&sin.sin_addr), ==, yes);       \
+} while (0)
+
+	/** any */
+	sin.sin_addr.s_addr = INADDR_ANY;
+	tt_int_op(evutil_v4addr_is_local_(&sin.sin_addr), ==, 1);
+
+	/** loopback */
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	tt_int_op(evutil_v4addr_is_local_(&sin.sin_addr), ==, 1);
+	LOCAL("127.0.0.1", 1);
+	LOCAL("127.255.255.255", 1);
+	LOCAL("121.0.0.1", 0);
+
+	/** link-local */
+	LOCAL("169.254.0.1", 1);
+	LOCAL("169.254.255.255", 1);
+	LOCAL("170.0.0.0", 0);
+
+	/** Multicast */
+	LOCAL("224.0.0.0", 1);
+	LOCAL("239.255.255.255", 1);
+	LOCAL("240.0.0.0", 0);
+end:
+	;
+}
+
+static void
+test_evutil_v6addr_is_local(void *arg)
+{
+	struct sockaddr_in6 sin6;
+	struct in6_addr anyaddr = IN6ADDR_ANY_INIT;
+	struct in6_addr loopback = IN6ADDR_LOOPBACK_INIT;
+
+	sin6.sin6_family = AF_INET6;
+#define LOCAL6(str, yes) do {                                              \
+	tt_int_op(evutil_inet_pton(AF_INET6, str, &sin6.sin6_addr), ==, 1);\
+	tt_int_op(evutil_v6addr_is_local_(&sin6.sin6_addr), ==, yes);      \
+} while (0)
+
+	/** any */
+	tt_int_op(evutil_v6addr_is_local_(&anyaddr), ==, 1);
+	LOCAL6("::0", 1);
+
+	/** loopback */
+	tt_int_op(evutil_v6addr_is_local_(&loopback), ==, 1);
+	LOCAL6("::1", 1);
+
+	/** IPV4 mapped */
+	LOCAL6("::ffff:0:0", 1);
+	/** IPv4 translated */
+	LOCAL6("::ffff:0:0:0", 1);
+	/** IPv4/IPv6 translation */
+	LOCAL6("64:ff9b::", 0);
+	/** Link-local */
+	LOCAL6("fe80::", 1);
+	/** Multicast */
+	LOCAL6("ff00::", 1);
+	/** Unspecified */
+	LOCAL6("::", 1);
+
+	/** Global Internet */
+	LOCAL6("2001::", 0);
+	LOCAL6("2001:4860:4802:32::1b", 0);
+end:
+	;
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -1486,6 +1563,8 @@ struct testcase_t util_testcases[] = {
 	{ "monotonic_prc_precise", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"precise" },
 	{ "monotonic_prc_fallback", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"fallback" },
 	{ "date_rfc1123", test_evutil_date_rfc1123, 0, NULL, NULL },
+	{ "evutil_v4addr_is_local", test_evutil_v4addr_is_local, 0, NULL, NULL },
+	{ "evutil_v6addr_is_local", test_evutil_v6addr_is_local, 0, NULL, NULL },
 	END_OF_TESTCASES,
 };
 
