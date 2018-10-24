@@ -609,36 +609,42 @@ static inline int evutil_v4addr_is_linklocal(ev_uint32_t addr)
 static inline int evutil_v4addr_is_classd(ev_uint32_t addr)
 { return ((addr>>24) & 0xf0) == 0xe0; }
 
+int
+evutil_v4addr_is_local_(const struct in_addr *in)
+{
+	const ev_uint32_t addr = ntohl(in->s_addr);
+	return addr == INADDR_ANY ||
+		evutil_v4addr_is_localhost(addr) ||
+		evutil_v4addr_is_linklocal(addr) ||
+		evutil_v4addr_is_classd(addr);
+}
+int
+evutil_v6addr_is_local_(const struct in6_addr *in)
+{
+	static const char ZEROES[] =
+		"\x00\x00\x00\x00\x00\x00\x00\x00"
+		"\x00\x00\x00\x00\x00\x00\x00\x00";
+
+	const unsigned char *addr = (const unsigned char *)in->s6_addr;
+	return !memcmp(addr, ZEROES, 8) ||
+		((addr[0] & 0xfe) == 0xfc) ||
+		(addr[0] == 0xfe && (addr[1] & 0xc0) == 0x80) ||
+		(addr[0] == 0xfe && (addr[1] & 0xc0) == 0xc0) ||
+		(addr[0] == 0xff);
+}
+
 static void
 evutil_found_ifaddr(const struct sockaddr *sa)
 {
-	const char ZEROES[] = "\x00\x00\x00\x00\x00\x00\x00\x00"
-	    "\x00\x00\x00\x00\x00\x00\x00\x00";
-
 	if (sa->sa_family == AF_INET) {
 		const struct sockaddr_in *sin = (struct sockaddr_in *)sa;
-		ev_uint32_t addr = ntohl(sin->sin_addr.s_addr);
-		if (addr == INADDR_ANY ||
-		    evutil_v4addr_is_localhost(addr) ||
-		    evutil_v4addr_is_linklocal(addr) ||
-		    evutil_v4addr_is_classd(addr)) {
-			/* Not actually a usable external address. */
-		} else {
+		if (!evutil_v4addr_is_local_(&sin->sin_addr)) {
 			event_debug(("Detected an IPv4 interface"));
 			had_ipv4_address = 1;
 		}
 	} else if (sa->sa_family == AF_INET6) {
 		const struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sa;
-		const unsigned char *addr =
-		    (unsigned char*)sin6->sin6_addr.s6_addr;
-		if (!memcmp(addr, ZEROES, 8) ||
-		    ((addr[0] & 0xfe) == 0xfc) ||
-		    (addr[0] == 0xfe && (addr[1] & 0xc0) == 0x80) ||
-		    (addr[0] == 0xfe && (addr[1] & 0xc0) == 0xc0) ||
-		    (addr[0] == 0xff)) {
-			/* This is a reserved, ipv4compat, ipv4map, loopback,
-			 * link-local, multicast, or unspecified address. */
-		} else {
+		if (!evutil_v6addr_is_local_(&sin6->sin6_addr)) {
 			event_debug(("Detected an IPv6 interface"));
 			had_ipv6_address = 1;
 		}
