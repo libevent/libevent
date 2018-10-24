@@ -595,19 +595,19 @@ evutil_socket_finished_connecting_(evutil_socket_t fd)
    set by evutil_check_interfaces. */
 static int have_checked_interfaces, had_ipv4_address, had_ipv6_address;
 
-/* Macro: True iff the IPv4 address 'addr', in host order, is in 127.0.0.0/8
- */
-#define EVUTIL_V4ADDR_IS_LOCALHOST(addr) (((addr)>>24) == 127)
+/* True iff the IPv4 address 'addr', in host order, is in 127.0.0.0/8 */
+static inline int evutil_v4addr_is_localhost(ev_uint32_t addr)
+{ return addr>>24 == 127; }
 
-/* Macro: True iff the IPv4 address 'addr', in host order, is link-local
- * 169.254.0.0/16 (RFC3927)
- */
-#define EVUTIL_V4ADDR_IS_LINKLOCAL(addr) (((addr) & 0xffff0000U) == 0xa9fe0000U)
+/* True iff the IPv4 address 'addr', in host order, is link-local
+ * 169.254.0.0/16 (RFC3927) */
+static inline int evutil_v4addr_is_linklocal(ev_uint32_t addr)
+{ return ((addr & 0xffff0000U) == 0xa9fe0000U); }
 
-/* Macro: True iff the IPv4 address 'addr', in host order, is a class D
- * (multiclass) address.
- */
-#define EVUTIL_V4ADDR_IS_CLASSD(addr) ((((addr)>>24) & 0xf0) == 0xe0)
+/* True iff the IPv4 address 'addr', in host order, is a class D
+ * (multiclass) address.  */
+static inline int evutil_v4addr_is_classd(ev_uint32_t addr)
+{ return ((addr>>24) & 0xf0) == 0xe0; }
 
 static void
 evutil_found_ifaddr(const struct sockaddr *sa)
@@ -619,9 +619,9 @@ evutil_found_ifaddr(const struct sockaddr *sa)
 		const struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 		ev_uint32_t addr = ntohl(sin->sin_addr.s_addr);
 		if (addr == 0 ||
-		    EVUTIL_V4ADDR_IS_LOCALHOST(addr) ||
-		    EVUTIL_V4ADDR_IS_LINKLOCAL(addr) ||
-		    EVUTIL_V4ADDR_IS_CLASSD(addr)) {
+		    evutil_v4addr_is_localhost(addr) ||
+		    evutil_v4addr_is_linklocal(addr) ||
+		    evutil_v4addr_is_classd(addr)) {
 			/* Not actually a usable external address. */
 		} else {
 			event_debug(("Detected an IPv4 interface"));
