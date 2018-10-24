@@ -618,7 +618,7 @@ evutil_found_ifaddr(const struct sockaddr *sa)
 	if (sa->sa_family == AF_INET) {
 		const struct sockaddr_in *sin = (struct sockaddr_in *)sa;
 		ev_uint32_t addr = ntohl(sin->sin_addr.s_addr);
-		if (addr == 0 ||
+		if (addr == INADDR_ANY ||
 		    evutil_v4addr_is_localhost(addr) ||
 		    evutil_v4addr_is_linklocal(addr) ||
 		    evutil_v4addr_is_classd(addr)) {
