@@ -527,6 +527,17 @@ evutil_socket_t evutil_eventfd_(unsigned initval, int flags);
 
 void evutil_memclear_(void *mem, size_t len);
 
+struct in_addr;
+struct in6_addr;
+
+/* This is a any, loopback, link-local, multicast */
+EVENT2_EXPORT_SYMBOL
+int evutil_v4addr_is_local_(const struct in_addr *in);
+/* This is a reserved, ipv4compat, ipv4map, loopback,
+ * link-local, multicast, or unspecified address. */
+EVENT2_EXPORT_SYMBOL
+int evutil_v6addr_is_local_(const struct in6_addr *in);
+
 #ifdef __cplusplus
 }
 #endif
