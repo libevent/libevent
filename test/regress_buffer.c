@@ -718,7 +718,7 @@ test_evbuffer_add_file(void *ptr)
 	const char *compare;
 	int fd = -1;
 	evutil_socket_t pair[2] = {-1, -1};
-	int r=0, n_written=0;
+	int r = 0, n_written = 0, n;
 	ev_off_t offset = 0;
 
 	tt_assert(impl);
@@ -737,9 +737,10 @@ test_evbuffer_add_file(void *ptr)
 	}
 
 	if (strstr(impl, "_big")) {
+		int i;
 		toread = datalen = 1 << 16;
 		data = realloc(data, datalen);
-		for (int i = 0; i < 1 << 16; ++i) {
+		for (i = 0; i < 1 << 16; ++i) {
 			data[i] = (char)_evutil_weakrand() % sizeof(char);
 		}
 		TT_BLATHER(("Big file"));
@@ -784,7 +785,7 @@ test_evbuffer_add_file(void *ptr)
 
 	evbuffer_validate(src);
 
-	for (int n = toread, bufread = toread;
+	for (n = toread, bufread = toread;
 		 n > 0;
 		 n = evbuffer_read(src, pair[1], (int)bufread), bufread -= n) {
 	}
