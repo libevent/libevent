@@ -118,14 +118,13 @@ end:
 }
 
 X509 *
-ssl_getcert(void)
+ssl_getcert(EVP_PKEY *key)
 {
 	/* Dummy code to make a quick-and-dirty valid certificate with
 	   OpenSSL.  Don't copy this code into your own program! It does a
 	   number of things in a stupid and insecure way. */
 	X509 *x509 = NULL;
 	X509_NAME *name = NULL;
-	EVP_PKEY *key = ssl_getkey();
 	int nid;
 	time_t now = time(NULL);
 
@@ -147,6 +146,7 @@ ssl_getcert(void)
 
 	X509_set_subject_name(x509, name);
 	X509_set_issuer_name(x509, name);
+	X509_NAME_free(name);
 
 	X509_time_adj(X509_get_notBefore(x509), 0, &now);
 	now += 3600;
@@ -157,6 +157,7 @@ ssl_getcert(void)
 	return x509;
 end:
 	X509_free(x509);
+	X509_NAME_free(name);
 	return NULL;
 }
 
@@ -182,6 +183,18 @@ get_ssl_ctx(void)
 	return the_ssl_ctx;
 }
 
+static int test_is_done;
+static int n_connected;
+static int got_close;
+static int got_error;
+static int got_timeout;
+static int renegotiate_at = -1;
+static int stop_when_connected;
+static int pending_connect_events;
+static struct event_base *exit_base;
+static X509 *the_cert;
+EVP_PKEY *the_key;
+
 void
 init_ssl(void)
 {
@@ -192,25 +205,63 @@ init_ssl(void)
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
 	if (SSLeay() != OPENSSL_VERSION_NUMBER) {
-		TT_DECLARE("WARN", ("Version mismatch for openssl: compiled with %lx but running with %lx", (unsigned long)OPENSSL_VERSION_NUMBER, (unsigned long) SSLeay()));
+		TT_DECLARE("WARN",
+			("Version mismatch for openssl: compiled with %lx but running with %lx",
+			(unsigned long)OPENSSL_VERSION_NUMBER, (unsigned long)SSLeay()));
 	}
 #endif
 }
+
+static void *
+ssl_test_setup(const struct testcase_t *testcase)
+{
+	init_ssl();
+
+	the_key = ssl_getkey();
+	EVUTIL_ASSERT(the_key);
+
+	the_cert = ssl_getcert(the_key);
+	EVUTIL_ASSERT(the_cert);
+
+	disable_tls_11_and_12 = 0;
+
+	return basic_test_setup(testcase);
+}
+static int
+ssl_test_cleanup(const struct testcase_t *testcase, void *ptr)
+{
+	int ret = basic_test_cleanup(testcase, ptr);
+	if (!ret) {
+		return ret;
+	}
+
+	test_is_done = 0;
+	n_connected = 0;
+	got_close = 0;
+	got_error = 0;
+	got_timeout = 0;
+	renegotiate_at = -1;
+	stop_when_connected = 0;
+	pending_connect_events = 0;
+	exit_base = NULL;
+
+	X509_free(the_cert);
+	EVP_PKEY_free(the_key);
+
+	SSL_CTX_free(the_ssl_ctx);
+	the_ssl_ctx = NULL;
+
+	return 1;
+}
+const struct testcase_setup_t ssl_setup = {
+	ssl_test_setup, ssl_test_cleanup
+};
+
 
 /* ====================
    Here's a simple test: we read a number from the input, increment it, and
    reply, until we get to 1001.
 */
-
-static int test_is_done = 0;
-static int n_connected = 0;
-static int got_close = 0;
-static int got_error = 0;
-static int got_timeout = 0;
-static int renegotiate_at = -1;
-static int stop_when_connected = 0;
-static int pending_connect_events = 0;
-static struct event_base *exit_base = NULL;
 
 enum regress_openssl_type
 {
@@ -253,6 +304,13 @@ bufferevent_openssl_check_freed(struct bufferevent *bev)
 
 end:
 	;
+}
+
+static void
+free_on_cb(struct bufferevent *bev, void *ctx)
+{
+	TT_BLATHER(("free_on_cb: %p", bev));
+	bufferevent_free(bev);
 }
 
 static void
@@ -303,13 +361,14 @@ done_writing_cb(struct bufferevent *bev, void *ctx)
 static void
 eventcb(struct bufferevent *bev, short what, void *ctx)
 {
+	X509 *peer_cert = NULL;
 	enum regress_openssl_type type;
+
 	type = (enum regress_openssl_type)ctx;
 
 	TT_BLATHER(("Got event %d", (int)what));
 	if (what & BEV_EVENT_CONNECTED) {
 		SSL *ssl;
-		X509 *peer_cert;
 		++n_connected;
 		ssl = bufferevent_openssl_get_ssl(bev);
 		tt_assert(ssl);
@@ -357,8 +416,10 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 		}
 		bufferevent_free(bev);
 	}
+
 end:
-	;
+	if (peer_cert)
+		X509_free(peer_cert);
 }
 
 static void
@@ -398,19 +459,12 @@ regress_bufferevent_openssl(void *arg)
 
 	struct bufferevent *bev1, *bev2;
 	SSL *ssl1, *ssl2;
-	X509 *cert = ssl_getcert();
-	EVP_PKEY *key = ssl_getkey();
 	int flags = BEV_OPT_DEFER_CALLBACKS;
 	struct bufferevent *bev_ll[2] = { NULL, NULL };
 	evutil_socket_t *fd_pair = NULL;
 
 	enum regress_openssl_type type;
 	type = (enum regress_openssl_type)data->setup_data;
-
-	tt_assert(cert);
-	tt_assert(key);
-
-	init_ssl();
 
 	if (type & REGRESS_OPENSSL_RENEGOTIATE) {
 		if (SSLeay() >= 0x10001000 &&
@@ -425,8 +479,8 @@ regress_bufferevent_openssl(void *arg)
 	ssl1 = SSL_new(get_ssl_ctx());
 	ssl2 = SSL_new(get_ssl_ctx());
 
-	SSL_use_certificate(ssl2, cert);
-	SSL_use_PrivateKey(ssl2, key);
+	SSL_use_certificate(ssl2, the_cert);
+	SSL_use_PrivateKey(ssl2, the_key);
 
 	if (!(type & REGRESS_OPENSSL_OPEN))
 		flags |= BEV_OPT_CLOSE_ON_FREE;
@@ -504,7 +558,10 @@ regress_bufferevent_openssl(void *arg)
 		tt_int_op(got_close, ==, 0);
 		tt_int_op(got_error, ==, 0);
 		tt_int_op(got_timeout, ==, 1);
+
+		bufferevent_free(bev2);
 	}
+
 end:
 	return;
 }
@@ -526,15 +583,13 @@ acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
 
 	type = (enum regress_openssl_type)data->setup_data;
 
-	SSL_use_certificate(ssl, ssl_getcert());
-	SSL_use_PrivateKey(ssl, ssl_getkey());
+	SSL_use_certificate(ssl, the_cert);
+	SSL_use_PrivateKey(ssl, the_key);
 
 	bev = bufferevent_openssl_socket_new(
-		data->base,
-		fd,
-		ssl,
-		BUFFEREVENT_SSL_ACCEPTING,
+		data->base, fd, ssl, BUFFEREVENT_SSL_ACCEPTING,
 		BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
+	tt_assert(bev);
 
 	bufferevent_setcb(bev, respond_to_number, NULL, eventcb,
 	    (void*)(REGRESS_OPENSSL_SERVER));
@@ -550,6 +605,9 @@ acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
 
 	/* Only accept once, then disable ourself. */
 	evconnlistener_disable(listener);
+
+end:
+	;
 }
 
 struct rwcount
@@ -568,6 +626,7 @@ bio_rwcount_new(BIO *b)
 static int
 bio_rwcount_free(BIO *b)
 {
+	TT_BLATHER(("bio_rwcount_free: %p", b));
 	if (!b)
 		return 0;
 	if (BIO_get_shutdown(b)) {
@@ -590,7 +649,6 @@ bio_rwcount_read(BIO *b, char *out, int outlen)
 static int
 bio_rwcount_write(BIO *b, const char *in, int inlen)
 {
-
 	struct rwcount *rw = BIO_get_data(b);
 	ev_ssize_t ret = send(rw->fd, in, inlen, 0);
 	++rw->write;
@@ -602,8 +660,12 @@ bio_rwcount_write(BIO *b, const char *in, int inlen)
 static long
 bio_rwcount_ctrl(BIO *b, int cmd, long num, void *ptr)
 {
+	struct rwcount *rw = BIO_get_data(b);
 	long ret = 0;
 	switch (cmd) {
+	case BIO_C_GET_FD:
+		ret = rw->fd;
+		break;
 	case BIO_CTRL_GET_CLOSE:
 		ret = BIO_get_shutdown(b);
 		break;
@@ -672,13 +734,10 @@ regress_bufferevent_openssl_connect(void *arg)
 	struct sockaddr_storage ss;
 	ev_socklen_t slen;
 	SSL *ssl;
-	BIO *bio;
 	struct rwcount rw = { -1, 0, 0 };
 	enum regress_openssl_type type;
 
 	type = (enum regress_openssl_type)data->setup_data;
-
-	init_ssl();
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -703,7 +762,7 @@ regress_bufferevent_openssl_connect(void *arg)
 		BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
 	tt_assert(bev);
 
-	bufferevent_setcb(bev, respond_to_number, NULL, eventcb,
+	bufferevent_setcb(bev, respond_to_number, free_on_cb, eventcb,
 	    (void*)(REGRESS_OPENSSL_CLIENT));
 
 	tt_assert(getsockname(evconnlistener_get_fd(listener),
@@ -716,6 +775,8 @@ regress_bufferevent_openssl_connect(void *arg)
 	/* Possible only when we have fd, since be_openssl can and will overwrite
 	 * bio otherwise before */
 	if (type & REGRESS_OPENSSL_SLEEP) {
+		BIO *bio;
+
 		rw.fd = bufferevent_getfd(bev);
 		bio = BIO_new_rwcount(0);
 		tt_assert(bio);
@@ -730,7 +791,7 @@ regress_bufferevent_openssl_connect(void *arg)
 	tt_int_op(rw.read, <=, 100);
 	tt_int_op(rw.write, <=, 100);
 end:
-	;
+	evconnlistener_free(listener);
 }
 
 struct wm_context
@@ -789,8 +850,8 @@ wm_acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
 	struct event_base *base = evconnlistener_get_base(listener);
 	SSL *ssl = SSL_new(get_ssl_ctx());
 
-	SSL_use_certificate(ssl, ssl_getcert());
-	SSL_use_PrivateKey(ssl, ssl_getkey());
+	SSL_use_certificate(ssl, the_cert);
+	SSL_use_PrivateKey(ssl, the_key);
 
 	bev = bufferevent_openssl_socket_new(
 		base, fd, ssl, BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
@@ -822,8 +883,6 @@ regress_bufferevent_openssl_wm(void *arg)
 	char *payload;
 	size_t payload_len = 1<<10;
 	size_t wm_high = 5<<10;
-
-	init_ssl();
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -899,82 +958,82 @@ end:
 struct testcase_t ssl_testcases[] = {
 #define T(a) ((void *)(a))
 	{ "bufferevent_socketpair", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup, T(REGRESS_OPENSSL_SOCKETPAIR) },
+	  TT_ISOLATED, &ssl_setup, T(REGRESS_OPENSSL_SOCKETPAIR) },
 	{ "bufferevent_socketpair_write_after_connect", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR|REGRESS_OPENSSL_CLIENT_WRITE) },
 	{ "bufferevent_filter", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup, T(REGRESS_OPENSSL_FILTER) },
+	  TT_ISOLATED, &ssl_setup, T(REGRESS_OPENSSL_FILTER) },
 	{ "bufferevent_filter_write_after_connect", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER|REGRESS_OPENSSL_CLIENT_WRITE) },
 	{ "bufferevent_renegotiate_socketpair", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_RENEGOTIATE) },
 	{ "bufferevent_renegotiate_filter", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_RENEGOTIATE) },
 	{ "bufferevent_socketpair_startopen", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_OPEN) },
 	{ "bufferevent_filter_startopen", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_OPEN) },
 
 	{ "bufferevent_socketpair_dirty_shutdown", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
 	{ "bufferevent_filter_dirty_shutdown", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
 	{ "bufferevent_renegotiate_socketpair_dirty_shutdown",
 	  regress_bufferevent_openssl,
 	  TT_ISOLATED,
-	  &basic_setup,
+	  &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_RENEGOTIATE | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
 	{ "bufferevent_renegotiate_filter_dirty_shutdown",
 	  regress_bufferevent_openssl,
 	  TT_ISOLATED,
-	  &basic_setup,
+	  &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_RENEGOTIATE | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
 	{ "bufferevent_socketpair_startopen_dirty_shutdown",
 	  regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_OPEN | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
 	{ "bufferevent_filter_startopen_dirty_shutdown",
 	  regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_OPEN | REGRESS_OPENSSL_DIRTY_SHUTDOWN) },
 
 	{ "bufferevent_socketpair_fd", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_FD) },
 	{ "bufferevent_socketpair_freed", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_FREED) },
 	{ "bufferevent_socketpair_freed_fd", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_FREED | REGRESS_OPENSSL_FD) },
 	{ "bufferevent_filter_freed_fd", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_FILTER | REGRESS_OPENSSL_FREED | REGRESS_OPENSSL_FD) },
 
 	{ "bufferevent_socketpair_timeout", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_TIMEOUT) },
 	{ "bufferevent_socketpair_timeout_freed_fd", regress_bufferevent_openssl,
-	  TT_ISOLATED, &basic_setup,
+	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_TIMEOUT | REGRESS_OPENSSL_FREED | REGRESS_OPENSSL_FD) },
 
 	{ "bufferevent_connect", regress_bufferevent_openssl_connect,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_BASE, &ssl_setup, NULL },
 	{ "bufferevent_connect_sleep", regress_bufferevent_openssl_connect,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, T(REGRESS_OPENSSL_SLEEP) },
+	  TT_FORK|TT_NEED_BASE, &ssl_setup, T(REGRESS_OPENSSL_SLEEP) },
 
 	{ "bufferevent_wm", regress_bufferevent_openssl_wm,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_BASE, &ssl_setup, NULL },
 	{ "bufferevent_wm_filter", regress_bufferevent_openssl_wm,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, T(REGRESS_OPENSSL_FILTER) },
+	  TT_FORK|TT_NEED_BASE, &ssl_setup, T(REGRESS_OPENSSL_FILTER) },
 
 #undef T
 
