@@ -105,6 +105,3 @@ after_script:
         --exclude build/CMakeFiles/CompilerIdC
         --gcov-options '\-lp';
     fi
-
-notifications:
-  irc: "irc.oftc.net#libevent"
