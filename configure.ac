@@ -823,7 +823,8 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
 #error
 #endif])], have_clang=yes, have_clang=no)
 
-  CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch"
+  # -W is the same as -Wextra
+  CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast"
   if test x$enable_gcc_warnings = xyes; then
     CFLAGS="$CFLAGS -Werror"
   fi
