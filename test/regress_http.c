@@ -2499,6 +2499,27 @@ http_parse_query_test(void *ptr)
 end:
 	evhttp_clear_headers(&headers);
 }
+static void
+http_parse_query_str_test(void *ptr)
+{
+	struct evkeyvalq headers;
+	int r;
+
+	TAILQ_INIT(&headers);
+
+	r = evhttp_parse_query_str("http://www.test.com/?q=test", &headers);
+	tt_assert(evhttp_find_header(&headers, "q") == NULL);
+	tt_int_op(r, ==, 0);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query_str("q=test", &headers);
+	tt_want(validate_header(&headers, "q", "test") == 0);
+	tt_int_op(r, ==, 0);
+	evhttp_clear_headers(&headers);
+
+end:
+	evhttp_clear_headers(&headers);
+}
 
 static void
 http_parse_uri_test(void *ptr)
@@ -4804,6 +4825,7 @@ struct testcase_t http_testcases[] = {
 	{ "base", http_base_test, TT_FORK, NULL, NULL },
 	{ "bad_headers", http_bad_header_test, 0, NULL, NULL },
 	{ "parse_query", http_parse_query_test, 0, NULL, NULL },
+	{ "parse_query_str", http_parse_query_str_test, 0, NULL, NULL },
 	{ "parse_uri", http_parse_uri_test, 0, NULL, NULL },
 	{ "parse_uri_nc", http_parse_uri_test, 0, &basic_setup, (void*)"nc" },
 	{ "uriencode", http_uriencode_test, 0, NULL, NULL },
