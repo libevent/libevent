@@ -137,6 +137,9 @@ SSL_CTX *get_ssl_ctx(void);
 void init_ssl(void);
 #endif
 
+void * basic_test_setup(const struct testcase_t *testcase);
+int    basic_test_cleanup(const struct testcase_t *testcase, void *ptr);
+
 #ifdef __cplusplus
 }
 #endif

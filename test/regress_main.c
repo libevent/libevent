@@ -186,7 +186,7 @@ ignore_log_cb(int s, const char *msg)
 {
 }
 
-static void *
+void *
 basic_test_setup(const struct testcase_t *testcase)
 {
 	struct event_base *base = NULL;
@@ -262,7 +262,7 @@ basic_test_setup(const struct testcase_t *testcase)
 	return data;
 }
 
-static int
+int
 basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
 {
 	struct basic_test_data *data = ptr;
