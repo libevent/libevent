@@ -132,7 +132,7 @@ pid_t regress_fork(void);
 #ifdef EVENT__HAVE_OPENSSL
 #include <openssl/ssl.h>
 EVP_PKEY *ssl_getkey(void);
-X509 *ssl_getcert(void);
+X509 *ssl_getcert(EVP_PKEY *key);
 SSL_CTX *get_ssl_ctx(void);
 void init_ssl(void);
 #endif

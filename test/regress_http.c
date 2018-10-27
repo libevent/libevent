@@ -120,7 +120,7 @@ https_bev(struct event_base *base, void *arg)
 {
 	SSL *ssl = SSL_new(get_ssl_ctx());
 
-	SSL_use_certificate(ssl, ssl_getcert());
+	SSL_use_certificate(ssl, ssl_getcert(ssl_getkey()));
 	SSL_use_PrivateKey(ssl, ssl_getkey());
 
 	return bufferevent_openssl_socket_new(
