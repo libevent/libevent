@@ -35,7 +35,8 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#else
+#include <getopt.h>
+#else /* _WIN32 */
 #include <sys/socket.h>
 #include <sys/resource.h>
 #endif
@@ -48,7 +49,6 @@
 #include <unistd.h>
 #endif
 #include <errno.h>
-#include <getopt.h>
 #include <event.h>
 #include <evutil.h>
 
