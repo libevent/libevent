@@ -3216,7 +3216,7 @@ evhttp_uridecode(const char *uri, int decode_plus, size_t *size_out)
 
 static int
 evhttp_parse_query_impl(const char *str, struct evkeyvalq *headers,
-    int is_whole_uri)
+    int is_whole_uri, unsigned flags)
 {
 	char *line=NULL;
 	char *argument;
@@ -3254,8 +3254,14 @@ evhttp_parse_query_impl(const char *str, struct evkeyvalq *headers,
 
 		value = argument;
 		key = strsep(&value, "=");
-		if (value == NULL || *key == '\0') {
-			goto error;
+		if (flags & EVHTTP_URI_QUERY_NONCONFORMANT) {
+			if (value == NULL)
+				value = "";
+			if (*key == '\0')
+				continue;
+		} else {
+			if (value == NULL || *key == '\0')
+				goto error;
 		}
 
 		if ((decoded_value = mm_malloc(strlen(value) + 1)) == NULL) {
@@ -3265,6 +3271,8 @@ evhttp_parse_query_impl(const char *str, struct evkeyvalq *headers,
 		evhttp_decode_uri_internal(value, strlen(value),
 		    decoded_value, 1 /*always_decode_plus*/);
 		event_debug(("Query Param: %s -> %s\n", key, decoded_value));
+		if (flags & EVHTTP_URI_QUERY_LAST_VAL)
+			evhttp_remove_header(headers, key);
 		evhttp_add_header_internal(headers, key, decoded_value);
 		mm_free(decoded_value);
 	}
@@ -3284,12 +3292,17 @@ done:
 int
 evhttp_parse_query(const char *uri, struct evkeyvalq *headers)
 {
-	return evhttp_parse_query_impl(uri, headers, 1);
+	return evhttp_parse_query_impl(uri, headers, 1, 0);
 }
 int
 evhttp_parse_query_str(const char *uri, struct evkeyvalq *headers)
 {
-	return evhttp_parse_query_impl(uri, headers, 0);
+	return evhttp_parse_query_impl(uri, headers, 0, 0);
+}
+int
+evhttp_parse_query_str_flags(const char *uri, struct evkeyvalq *headers, unsigned flags)
+{
+	return evhttp_parse_query_impl(uri, headers, 0, flags);
 }
 
 static struct evhttp_cb *

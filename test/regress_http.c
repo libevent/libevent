@@ -2520,6 +2520,62 @@ http_parse_query_str_test(void *ptr)
 end:
 	evhttp_clear_headers(&headers);
 }
+static void
+http_parse_query_str_flags_test(void *ptr)
+{
+	struct evkeyvalq headers;
+	int r;
+
+	TAILQ_INIT(&headers);
+
+	/** ~EVHTTP_URI_QUERY_LAST_VAL */
+	r = evhttp_parse_query_str_flags("q=test&q=test2", &headers, 0);
+	tt_want(validate_header(&headers, "q", "test") == 0);
+	tt_int_op(r, ==, 0);
+	evhttp_clear_headers(&headers);
+
+	/** EVHTTP_URI_QUERY_LAST_VAL */
+	r = evhttp_parse_query_str_flags("q=test&q=test2", &headers, EVHTTP_URI_QUERY_LAST_VAL);
+	tt_want(validate_header(&headers, "q", "test2") == 0);
+	tt_int_op(r, ==, 0);
+	evhttp_clear_headers(&headers);
+
+	/** ~EVHTTP_URI_QUERY_NONCONFORMANT */
+	r = evhttp_parse_query_str_flags("q=test&q2", &headers, 0);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query_str_flags("q=test&&q2=test2", &headers, 0);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query_str_flags("q=test&=1&q2=test2", &headers, 0);
+	tt_int_op(r, ==, -1);
+	evhttp_clear_headers(&headers);
+
+	/** EVHTTP_URI_QUERY_NONCONFORMANT */
+	r = evhttp_parse_query_str_flags("q=test&q2", &headers, EVHTTP_URI_QUERY_NONCONFORMANT);
+	tt_want(validate_header(&headers, "q", "test") == 0);
+	tt_want(validate_header(&headers, "q2", "") == 0);
+	tt_int_op(r, ==, 0);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query_str_flags("q=test&&q2=test2", &headers, EVHTTP_URI_QUERY_NONCONFORMANT);
+	tt_want(validate_header(&headers, "q", "test") == 0);
+	tt_want(validate_header(&headers, "q2", "test2") == 0);
+	tt_int_op(r, ==, 0);
+	evhttp_clear_headers(&headers);
+
+	r = evhttp_parse_query_str_flags("q=test&=1&q2=test2", &headers, EVHTTP_URI_QUERY_NONCONFORMANT);
+	tt_want(validate_header(&headers, "q", "test") == 0);
+	tt_want(validate_header(&headers, "q2", "test2") == 0);
+	tt_int_op(r, ==, 0);
+	evhttp_clear_headers(&headers);
+
+
+end:
+	evhttp_clear_headers(&headers);
+}
 
 static void
 http_parse_uri_test(void *ptr)
@@ -4826,6 +4882,7 @@ struct testcase_t http_testcases[] = {
 	{ "bad_headers", http_bad_header_test, 0, NULL, NULL },
 	{ "parse_query", http_parse_query_test, 0, NULL, NULL },
 	{ "parse_query_str", http_parse_query_str_test, 0, NULL, NULL },
+	{ "parse_query_str_flags", http_parse_query_str_flags_test, 0, NULL, NULL },
 	{ "parse_uri", http_parse_uri_test, 0, NULL, NULL },
 	{ "parse_uri_nc", http_parse_uri_test, 0, &basic_setup, (void*)"nc" },
 	{ "uriencode", http_uriencode_test, 0, NULL, NULL },
