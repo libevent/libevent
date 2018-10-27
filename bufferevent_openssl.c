@@ -250,7 +250,7 @@ BIO_s_bufferevent(void)
 /* Create a new BIO to wrap communication around a bufferevent.  If close_flag
  * is true, the bufferevent will be freed when the BIO is closed. */
 static BIO *
-BIO_new_bufferevent(struct bufferevent *bufferevent, int close_flag)
+BIO_new_bufferevent(struct bufferevent *bufferevent)
 {
 	BIO *result;
 	if (!bufferevent)
@@ -259,7 +259,9 @@ BIO_new_bufferevent(struct bufferevent *bufferevent, int close_flag)
 		return NULL;
 	BIO_set_init(result, 1);
 	BIO_set_data(result, bufferevent);
-	BIO_set_shutdown(result, close_flag ? 1 : 0);
+	/* We don't tell the BIO to close the bufferevent; we do it ourselves on
+	 * be_openssl_destruct() */
+	BIO_set_shutdown(result, 0);
 	return result;
 }
 
@@ -1303,7 +1305,7 @@ be_openssl_ctrl(struct bufferevent *bev,
 			SSL_set_bio(bev_ssl->ssl, bio, bio);
 		} else {
 			BIO *bio;
-			if (!(bio = BIO_new_bufferevent(bev_ssl->underlying, 0)))
+			if (!(bio = BIO_new_bufferevent(bev_ssl->underlying)))
 				return -1;
 			SSL_set_bio(bev_ssl->ssl, bio, bio);
 		}
@@ -1407,13 +1409,10 @@ bufferevent_openssl_filter_new(struct event_base *base,
     enum bufferevent_ssl_state state,
     int options)
 {
-	/* We don't tell the BIO to close the bufferevent; we do it ourselves
-	 * on be_openssl_destruct */
-	int close_flag = 0; /* options & BEV_OPT_CLOSE_ON_FREE; */
 	BIO *bio;
 	if (!underlying)
 		return NULL;
-	if (!(bio = BIO_new_bufferevent(underlying, close_flag)))
+	if (!(bio = BIO_new_bufferevent(underlying)))
 		return NULL;
 
 	SSL_set_bio(ssl, bio, bio);
