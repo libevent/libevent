@@ -388,9 +388,12 @@ evutil_make_listen_socket_reuseable_port(evutil_socket_t sock)
 int
 evutil_make_listen_socket_ipv6only(evutil_socket_t sock)
 {
+#if defined(IPV6_V6ONLY)
 	int one = 1;
 	return setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (void*) &one,
 	    (ev_socklen_t)sizeof(one));
+#endif
+	return 0;
 }
 
 int

@@ -451,7 +451,8 @@ int evutil_make_socket_closeonexec(evutil_socket_t sock);
     socket() or accept().
 
     @param sock The socket to be closed
-    @return 0 on success, -1 on failure
+    @return 0 on success (whether the operation is supported or not),
+            -1 on failure
  */
 EVENT2_EXPORT_SYMBOL
 int evutil_closesocket(evutil_socket_t sock);
