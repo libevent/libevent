@@ -55,7 +55,8 @@
 #if defined(_MSC_VER)
 # if defined(event_core_shared_EXPORTS) /** from core export */
 #  define EVENT2_CORE_EXPORT_SYMBOL __declspec(dllexport)
-# elif defined(event_extra_shared_EXPORTS) /** from extra import */
+# elif defined(event_extra_shared_EXPORTS) || /** from extra import */ \
+       defined(EVENT_VISIBILITY_WANT_DLLIMPORT)
 #  define EVENT2_CORE_EXPORT_SYMBOL __declspec(dllimport)
 # endif
 #endif /* _MSC_VER */
