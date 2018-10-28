@@ -1535,11 +1535,11 @@ evbuffer_find_eol_char(struct evbuffer_ptr *it)
 	return (-1);
 }
 
-static inline int
+static inline size_t
 evbuffer_strspn(
 	struct evbuffer_ptr *ptr, const char *chrset)
 {
-	int count = 0;
+	size_t count = 0;
 	struct evbuffer_chain *chain = ptr->internal_.chain;
 	size_t i = ptr->internal_.pos_in_chain;
 
