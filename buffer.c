@@ -2228,11 +2228,13 @@ evbuffer_read_setup_vecs_(struct evbuffer *buf, ev_ssize_t howmuch,
 	so_far = 0;
 	/* Let firstchain be the first chain with any space on it */
 	firstchainp = buf->last_with_datap;
+	EVUTIL_ASSERT(*firstchainp);
 	if (CHAIN_SPACE_LEN(*firstchainp) == 0) {
 		firstchainp = &(*firstchainp)->next;
 	}
 
 	chain = *firstchainp;
+	EVUTIL_ASSERT(chain);
 	for (i = 0; i < n_vecs_avail && so_far < (size_t)howmuch; ++i) {
 		size_t avail = (size_t) CHAIN_SPACE_LEN(chain);
 		if (avail > (howmuch - so_far) && exact)
