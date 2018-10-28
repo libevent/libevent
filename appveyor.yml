@@ -8,32 +8,48 @@ build:
 environment:
   global:
     CYG_ROOT: C:/MinGW/msys/1.0
+    EVENT_TESTS_PARALLEL: 20
   matrix:
-    - EVENT_BUILD_METHOD: "autotools"
-      EVENT_CONFIGURE_OPTIONS: ""
+    # !EVENT_ALLOW_FAILURE
     - EVENT_BUILD_METHOD: "cmake"
       EVENT_CMAKE_OPTIONS: ""
-    # Since we have FREE billing plan, let's reduce amount of builds to make
-    # primary two runs/starts faster.
-    #
-    # - EVENT_BUILD_METHOD: "autotools"
-    #   EVENT_CONFIGURE_OPTIONS: "--disable-openssl"
-    # - EVENT_BUILD_METHOD: "autotools"
-    #   EVENT_CONFIGURE_OPTIONS: "--disable-thread-support"
-    # - EVENT_BUILD_METHOD: "autotools"
-    #   EVENT_CONFIGURE_OPTIONS: "--disable-debug-mode"
-    # - EVENT_BUILD_METHOD: "autotools"
-    #   EVENT_CONFIGURE_OPTIONS: "--disable-malloc-replacement"
-    # - EVENT_BUILD_METHOD: "cmake"
-    #   EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_OPENSSL=ON"
-    # - EVENT_BUILD_METHOD: "cmake"
-    #   EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_THREAD_SUPPORT=ON"
-    # - EVENT_BUILD_METHOD: "cmake"
-    #   EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_DEBUG_MODE=ON"
-    # - EVENT_BUILD_METHOD: "cmake"
-    #   EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_MM_REPLACEMENT=ON"
-    # - EVENT_BUILD_METHOD: "cmake"
-    #   EVENT_CMAKE_OPTIONS: "-DCMAKE_C_FLAGS='-DUNICODE -D_UNICODE'"
+    # EVENT_ALLOW_FAILURE
+    - EVENT_BUILD_METHOD: "autotools"
+      EVENT_CONFIGURE_OPTIONS: ""
+      EVENT_ALLOW_FAILURE: 1
+    - EVENT_BUILD_METHOD: "autotools"
+      EVENT_CONFIGURE_OPTIONS: "--disable-openssl"
+      EVENT_ALLOW_FAILURE: 1
+    - EVENT_BUILD_METHOD: "autotools"
+      EVENT_CONFIGURE_OPTIONS: "--disable-thread-support"
+      EVENT_ALLOW_FAILURE: 1
+    - EVENT_BUILD_METHOD: "autotools"
+      EVENT_CONFIGURE_OPTIONS: "--disable-debug-mode"
+      EVENT_ALLOW_FAILURE: 1
+    - EVENT_BUILD_METHOD: "autotools"
+      EVENT_CONFIGURE_OPTIONS: "--disable-malloc-replacement"
+      EVENT_ALLOW_FAILURE: 1
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_OPENSSL=ON"
+      EVENT_ALLOW_FAILURE: 1
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_THREAD_SUPPORT=ON"
+      EVENT_ALLOW_FAILURE: 1
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_DEBUG_MODE=ON"
+      EVENT_ALLOW_FAILURE: 1
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_MM_REPLACEMENT=ON"
+      EVENT_ALLOW_FAILURE: 1
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DCMAKE_C_FLAGS='-DUNICODE -D_UNICODE'"
+      EVENT_ALLOW_FAILURE: 1
+
+matrix:
+  allow_failures:
+    - EVENT_ALLOW_FAILURE: 1
+  fast_finish: true
+
 init:
   - 'echo Building libevent %version% for Windows'
   - 'echo System architecture: %PLATFORM%'
@@ -50,13 +66,13 @@ build_script:
         bash -lc "echo 'C:\MinGW /mingw' > /etc/fstab"
         bash -lc "echo 'C:\OpenSSL-Win32 /ssl' >> /etc/fstab"
         $env:APPVEYOR_BUILD_FOLDER = $env:APPVEYOR_BUILD_FOLDER -replace "\\", "/"
-        bash -lc "exec 0</dev/null; exec 2>&1; cd $env:APPVEYOR_BUILD_FOLDER; bash -x ./autogen.sh && ./configure LDFLAGS='-L/ssl -L/ssl/lib -L/ssl/lib/MinGW' CFLAGS=-I/ssl/include $env:EVENT_CONFIGURE_OPTIONS && make && make verify -j20"
+        bash -lc "exec 0</dev/null; exec 2>&1; cd $env:APPVEYOR_BUILD_FOLDER; bash -x ./autogen.sh && ./configure LDFLAGS='-L/ssl -L/ssl/lib -L/ssl/lib/MinGW' CFLAGS=-I/ssl/include $env:EVENT_CONFIGURE_OPTIONS && make && make verify -j$env:EVENT_TESTS_PARALLEL"
       } else {
         md build
         cd build
         cmake .. $env:EVENT_CMAKE_OPTIONS
         cmake --build .
-        $env:CTEST_PARALLEL_LEVEL="20"
+        $env:CTEST_PARALLEL_LEVEL=$env:EVENT_TESTS_PARALLEL
         ctest --output-on-failure
       }
 
