@@ -51,6 +51,14 @@
 
 static int was_et = 0;
 
+static int base_supports_et(struct event_base *base)
+{
+	return
+		(!strcmp(event_base_get_method(base), "epoll") ||
+		!strcmp(event_base_get_method(base), "epoll (with changelist)") ||
+		!strcmp(event_base_get_method(base), "kqueue"));
+}
+
 static void
 read_cb(evutil_socket_t fd, short event, void *arg)
 {
@@ -110,13 +118,7 @@ test_edgetriggered(void *et)
 	/* Initalize the event library */
 	base = event_base_new();
 
-	if (!strcmp(event_base_get_method(base), "epoll") ||
-	    !strcmp(event_base_get_method(base), "epoll (with changelist)") ||
-	    !strcmp(event_base_get_method(base), "kqueue"))
-		supports_et = 1;
-	else
-		supports_et = 0;
-
+	supports_et = base_supports_et(base);
 	TT_BLATHER(("Checking for edge-triggered events with %s, which should %s"
 				"support edge-triggering", event_base_get_method(base),
 				supports_et?"":"not "));
@@ -199,9 +201,93 @@ end:
 		event_base_free(base);
 }
 
+static int read_notification_count;
+static int last_read_notification_was_et;
+static void
+read_notification_cb(evutil_socket_t fd, short event, void *arg)
+{
+	read_notification_count++;
+	last_read_notification_was_et = (event & EV_ET);
+}
+
+static int write_notification_count;
+static int last_write_notification_was_et;
+static void
+write_notification_cb(evutil_socket_t fd, short event, void *arg)
+{
+	write_notification_count++;
+	last_write_notification_was_et = (event & EV_ET);
+}
+
+/* After two or more events have been registered for the same
+ * file descriptor using EV_ET, if one of the events is
+ * deleted, then the epoll_ctl() call issued by libevent drops
+ * the EPOLLET flag resulting in level triggered
+ * notifications.
+ */
+static void
+test_edge_triggered_multiple_events(void *data_)
+{
+	struct basic_test_data *data = data_;
+	struct event *read_ev = NULL;
+	struct event *write_ev = NULL;
+	const char c = 'A';
+	struct event_base *base = data->base;
+	int *pair = data->pair;
+
+	if (!base_supports_et(base)) {
+		tt_skip();
+		return;
+	}
+
+	read_notification_count = 0;
+	last_read_notification_was_et = 0;
+	write_notification_count = 0;
+	last_write_notification_was_et = 0;
+
+	/* Make pair[1] readable */
+	tt_int_op(send(pair[0], &c, 1, 0), >, 0);
+
+	read_ev = event_new(base, pair[1], EV_READ|EV_ET|EV_PERSIST,
+		read_notification_cb, NULL);
+	write_ev = event_new(base, pair[1], EV_WRITE|EV_ET|EV_PERSIST,
+		write_notification_cb, NULL);
+
+	event_add(read_ev, NULL);
+	event_add(write_ev, NULL);
+	event_base_loop(base, EVLOOP_NONBLOCK|EVLOOP_ONCE);
+	event_base_loop(base, EVLOOP_NONBLOCK|EVLOOP_ONCE);
+
+	tt_assert(last_read_notification_was_et);
+	tt_int_op(read_notification_count, ==, 1);
+	tt_assert(last_write_notification_was_et);
+	tt_int_op(write_notification_count, ==, 1);
+
+	event_del(read_ev);
+
+	/* trigger acitivity second time for the backend that can have multiple
+	 * events for one fd (like kqueue) */
+	close(pair[0]);
+	pair[0] = -1;
+
+	/* Verify that we are still edge-triggered for write notifications */
+	event_base_loop(base, EVLOOP_NONBLOCK|EVLOOP_ONCE);
+	event_base_loop(base, EVLOOP_NONBLOCK|EVLOOP_ONCE);
+	tt_assert(last_write_notification_was_et);
+	tt_int_op(write_notification_count, ==, 2);
+
+end:
+	if (read_ev)
+		event_free(read_ev);
+	if (write_ev)
+		event_free(write_ev);
+}
+
 struct testcase_t edgetriggered_testcases[] = {
 	{ "et", test_edgetriggered, TT_FORK, NULL, NULL },
 	{ "et_mix_error", test_edgetriggered_mix_error,
 	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NO_LOGS, &basic_setup, NULL },
+	{ "et_multiple_events", test_edge_triggered_multiple_events,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR, &basic_setup, NULL },
 	END_OF_TESTCASES
 };
