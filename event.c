@@ -3728,13 +3728,14 @@ dump_inserted_event_fn(const struct event_base *base, const struct event *e, voi
 	if (! (e->ev_flags & (EVLIST_INSERTED|EVLIST_TIMEOUT)))
 		return 0;
 
-	fprintf(output, "  %p [%s "EV_SOCK_FMT"]%s%s%s%s%s%s",
+	fprintf(output, "  %p [%s "EV_SOCK_FMT"]%s%s%s%s%s%s%s",
 	    (void*)e, gloss, EV_SOCK_ARG(e->ev_fd),
 	    (e->ev_events&EV_READ)?" Read":"",
 	    (e->ev_events&EV_WRITE)?" Write":"",
 	    (e->ev_events&EV_CLOSED)?" EOF":"",
 	    (e->ev_events&EV_SIGNAL)?" Signal":"",
 	    (e->ev_events&EV_PERSIST)?" Persist":"",
+	    (e->ev_events&EV_ET)?" ET":"",
 	    (e->ev_flags&EVLIST_INTERNAL)?" Internal":"");
 	if (e->ev_flags & EVLIST_TIMEOUT) {
 		struct timeval tv;
