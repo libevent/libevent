@@ -211,8 +211,6 @@ epoll_apply_one_change(struct event_base *base,
 			} else if (ch->old_events & EV_WRITE) {
 				events |= EPOLLOUT;
 			}
-			if ((ch->read_change|ch->write_change) & EV_ET)
-				events |= EPOLLET;
 
 			if (ch->old_events) {
 				/* If MOD fails, we retry as an ADD, and if
@@ -258,6 +256,9 @@ epoll_apply_one_change(struct event_base *base,
 
 		if (!events)
 			return 0;
+
+		if ((ch->read_change|ch->write_change) & EV_ET)
+			events |= EPOLLET;
 
 		memset(&epev, 0, sizeof(epev));
 		epev.data.fd = ch->fd;
@@ -375,10 +376,11 @@ epoll_nochangelist_del(struct event_base *base, evutil_socket_t fd,
 	ch.old_events = old;
 	ch.read_change = ch.write_change = 0;
 	if (events & EV_WRITE)
-		ch.write_change = EV_CHANGE_DEL;
+		ch.write_change = EV_CHANGE_DEL |
+		    (events & EV_ET);
 	if (events & EV_READ)
-		ch.read_change = EV_CHANGE_DEL;
-
+		ch.read_change = EV_CHANGE_DEL |
+		    (events & EV_ET);
 	return epoll_apply_one_change(base, base->evbase, &ch);
 }
 

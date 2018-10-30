@@ -374,7 +374,8 @@ evmap_io_del(struct event_base *base, evutil_socket_t fd, struct event *ev)
 
 	if (res) {
 		void *extra = ((char*)ctx) + sizeof(struct evmap_io);
-		if (evsel->del(base, ev->ev_fd, old, res, extra) == -1) {
+		if (evsel->del(base, ev->ev_fd,
+			old, (ev->ev_events & EV_ET) | res, extra) == -1) {
 			retval = -1;
 		} else {
 			retval = 1;
