@@ -653,6 +653,7 @@ event_changelist_add(struct event_base *base, evutil_socket_t fd, short old, sho
 	struct event_changelist *changelist = &base->changelist;
 	struct event_changelist_fdinfo *fdinfo = p;
 	struct event_change *change;
+	short evchange = EV_CHANGE_ADD | (events & (EV_ET|EV_PERSIST|EV_SIGNAL));
 
 	event_changelist_check(base);
 
@@ -664,14 +665,10 @@ event_changelist_add(struct event_base *base, evutil_socket_t fd, short old, sho
 	 * since the delete might fail (because the fd had been closed since
 	 * the last add, for instance. */
 
-	if (events & (EV_READ|EV_SIGNAL)) {
-		change->read_change = EV_CHANGE_ADD |
-		    (events & (EV_ET|EV_PERSIST|EV_SIGNAL));
-	}
-	if (events & EV_WRITE) {
-		change->write_change = EV_CHANGE_ADD |
-		    (events & (EV_ET|EV_PERSIST|EV_SIGNAL));
-	}
+	if (events & (EV_READ|EV_SIGNAL))
+		change->read_change = evchange;
+	if (events & EV_WRITE)
+		change->write_change = evchange;
 
 	event_changelist_check(base);
 	return (0);
@@ -684,6 +681,7 @@ event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, sho
 	struct event_changelist *changelist = &base->changelist;
 	struct event_changelist_fdinfo *fdinfo = p;
 	struct event_change *change;
+	short del = EV_CHANGE_DEL | (events & EV_ET);
 
 	event_changelist_check(base);
 	change = event_changelist_get_or_construct(changelist, fd, old, fdinfo);
@@ -714,14 +712,14 @@ event_changelist_del(struct event_base *base, evutil_socket_t fd, short old, sho
 		    (change->read_change & EV_CHANGE_ADD))
 			change->read_change = 0;
 		else
-			change->read_change = EV_CHANGE_DEL;
+			change->read_change = del;
 	}
 	if (events & EV_WRITE) {
 		if (!(change->old_events & EV_WRITE) &&
 		    (change->write_change & EV_CHANGE_ADD))
 			change->write_change = 0;
 		else
-			change->write_change = EV_CHANGE_DEL;
+			change->write_change = del;
 	}
 
 	event_changelist_check(base);
