@@ -60,6 +60,7 @@ struct evhttp_connection {
 	struct bufferevent *bufev;
 
 	struct event retry_ev;		/* for retrying connects */
+	struct event expire_ev;		/* expire connections based on ttl */
 
 	char *bind_address;		/* address to use for binding the src */
 	ev_uint16_t bind_port;		/* local port for binding the src */
@@ -145,6 +146,9 @@ struct evhttp {
 
 	/* All live connections on this host. */
 	struct evconq connections;
+
+	/* Maximum connection time in seconds */
+	int connection_ttl;
 
 	TAILQ_HEAD(vhostsq, evhttp) virtualhosts;
 
