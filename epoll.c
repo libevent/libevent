@@ -401,11 +401,14 @@ epoll_nochangelist_del(struct event_base *base, evutil_socket_t fd,
 	ch.old_events = old;
 	ch.read_change = ch.write_change = ch.close_change = 0;
 	if (events & EV_WRITE)
-		ch.write_change = EV_CHANGE_DEL;
+		ch.write_change = EV_CHANGE_DEL |
+		    (events & EV_ET);
 	if (events & EV_READ)
-		ch.read_change = EV_CHANGE_DEL;
+		ch.read_change = EV_CHANGE_DEL |
+		    (events & EV_ET);
 	if (events & EV_CLOSED)
-		ch.close_change = EV_CHANGE_DEL;
+		ch.close_change = EV_CHANGE_DEL |
+		    (events & EV_ET);
 
 	return epoll_apply_one_change(base, base->evbase, &ch);
 }
