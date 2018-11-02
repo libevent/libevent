@@ -456,16 +456,6 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 	event_base_once(arg, -1, EV_TIMEOUT, http_chunked_trickle_cb, state, &when);
 }
 
-static void
-http_complete_write(evutil_socket_t fd, short what, void *arg)
-{
-	struct bufferevent *bev = arg;
-	const char *http_request = "host\r\n"
-	    "Connection: close\r\n"
-	    "\r\n";
-	bufferevent_write(bev, http_request, strlen(http_request));
-}
-
 static struct bufferevent *
 create_bev(struct event_base *base, int fd, int ssl_mask)
 {
@@ -494,10 +484,25 @@ create_bev(struct event_base *base, int fd, int ssl_mask)
 }
 
 static void
+http_half_writecb(struct bufferevent *bev, void *arg)
+{
+	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
+		if (!test_ok) {
+			const char http_request[] = "host\r\n"
+				"Connection: close\r\n"
+				"\r\n";
+			bufferevent_write(bev, http_request, strlen(http_request));
+		}
+		/* enable reading of the reply */
+		bufferevent_enable(bev, EV_READ);
+		test_ok++;
+	}
+}
+
+static void
 http_basic_test_impl(void *arg, int ssl, const char *request_line)
 {
 	struct basic_test_data *data = arg;
-	struct timeval tv;
 	struct bufferevent *bev = NULL;
 	evutil_socket_t fd;
 	const char *http_request;
@@ -507,7 +512,6 @@ http_basic_test_impl(void *arg, int ssl, const char *request_line)
 	struct evbuffer *out;
 
 	exit_base = data->base;
-	test_ok = 0;
 
 	/* bind to a second socket */
 	if (http_bind(http, &port2, server_flags) == -1) {
@@ -519,7 +523,7 @@ http_basic_test_impl(void *arg, int ssl, const char *request_line)
 
 	/* Stupid thing to send a request */
 	bev = create_bev(data->base, fd, ssl);
-	bufferevent_setcb(bev, http_readcb, http_writecb,
+	bufferevent_setcb(bev, http_readcb, http_half_writecb,
 	    http_errorcb, data->base);
 	out = bufferevent_get_output(bev);
 
@@ -528,15 +532,8 @@ http_basic_test_impl(void *arg, int ssl, const char *request_line)
 	    "%s\r\n"
 	    "Host: some", request_line);
 
-	evutil_timerclear(&tv);
-	tv.tv_usec = 100000;
-	if (ssl)
-		tv.tv_usec *= 10;
-	event_base_once(data->base,
-	    -1, EV_TIMEOUT, http_complete_write, bev, &tv);
-
+	test_ok = 0;
 	event_base_dispatch(data->base);
-
 	tt_int_op(test_ok, ==, 3);
 
 	/* connect to the second port */
@@ -557,9 +554,9 @@ http_basic_test_impl(void *arg, int ssl, const char *request_line)
 	    "Connection: close\r\n"
 	    "\r\n", request_line);
 
+	test_ok = 0;
 	event_base_dispatch(data->base);
-
-	tt_int_op(test_ok, ==, 5);
+	tt_int_op(test_ok, ==, 2);
 
 	/* Connect to the second port again. This time, send an absolute uri. */
 	bufferevent_free(bev);
@@ -580,12 +577,12 @@ http_basic_test_impl(void *arg, int ssl, const char *request_line)
 
 	bufferevent_write(bev, http_request, strlen(http_request));
 
+	test_ok = 0;
 	event_base_dispatch(data->base);
-
-	tt_int_op(test_ok, ==, 7);
+	tt_int_op(test_ok, ==, 2);
 
 	evhttp_free(http);
- end:
+end:
 	if (bev)
 		bufferevent_free(bev);
 }
