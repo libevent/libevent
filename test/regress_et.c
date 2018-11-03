@@ -75,19 +75,14 @@ read_cb(evutil_socket_t fd, short event, void *arg)
 		event_del(arg);
 }
 
-#ifdef _WIN32
-#define LOCAL_SOCKETPAIR_AF AF_INET
-#else
-#define LOCAL_SOCKETPAIR_AF AF_UNIX
-#endif
-
 static void
-test_edgetriggered(void *et)
+test_edgetriggered(void *data_)
 {
+	struct basic_test_data *data = data_;
+	struct event_base *base = data->base;
+	int *pair = data->pair;
 	struct event *ev = NULL;
-	struct event_base *base = NULL;
 	const char *test = "test string";
-	evutil_socket_t pair[2] = {-1,-1};
 	int supports_et;
 
 	/* On Linux 3.2.1 (at least, as patched by Fedora and tested by Nick),
@@ -96,23 +91,11 @@ test_edgetriggered(void *et)
 	 * get edge-triggered behavior.  Yuck!  Linux 3.1.9 didn't have this
 	 * problem.
 	 */
-#ifdef __linux__
-	if (evutil_ersatz_socketpair_(AF_INET, SOCK_STREAM, 0, pair) == -1) {
-		tt_abort_perror("socketpair");
-	}
-#else
-	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0, pair) == -1) {
-		tt_abort_perror("socketpair");
-	}
-#endif
 
 	called = was_et = 0;
 
 	tt_int_op(send(pair[0], test, (int)strlen(test)+1, 0), >, 0);
 	shutdown(pair[0], EVUTIL_SHUT_WR);
-
-	/* Initalize the event library */
-	base = event_base_new();
 
 	supports_et = base_supports_et(base);
 	TT_BLATHER(("Checking for edge-triggered events with %s, which should %s"
@@ -142,15 +125,11 @@ test_edgetriggered(void *et)
 		tt_assert(!was_et);
 	}
 
- end:
+end:
 	if (ev) {
 		event_del(ev);
 		event_free(ev);
 	}
-	if (base)
-		event_base_free(base);
-	evutil_closesocket(pair[0]);
-	evutil_closesocket(pair[1]);
 }
 
 static void
@@ -281,7 +260,8 @@ end:
 }
 
 struct testcase_t edgetriggered_testcases[] = {
-	{ "et", test_edgetriggered, TT_FORK, NULL, NULL },
+	{ "et", test_edgetriggered,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR, &basic_setup, NULL },
 	{ "et_mix_error", test_edgetriggered_mix_error,
 	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NO_LOGS, &basic_setup, NULL },
 	{ "et_multiple_events", test_edge_triggered_multiple_events,
