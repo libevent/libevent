@@ -1389,18 +1389,14 @@ test_free_active_base(void *ptr)
 	struct event ev1;
 
 	base1 = event_init();
-	if (base1) {
-		event_assign(&ev1, base1, data->pair[1], EV_READ,
-			     dummy_read_cb, NULL);
-		event_add(&ev1, NULL);
-		event_base_free(base1);	 /* should not crash */
-	} else {
-		tt_fail_msg("failed to create event_base for test");
-	}
+	tt_assert(base1);
+	event_assign(&ev1, base1, data->pair[1], EV_READ, dummy_read_cb, NULL);
+	event_add(&ev1, NULL);
+	event_base_free(base1);	 /* should not crash */
 
 	base1 = event_init();
 	tt_assert(base1);
-	event_assign(&ev1, base1, 0, 0, dummy_read_cb, NULL);
+	event_assign(&ev1, base1, data->pair[0], 0, dummy_read_cb, NULL);
 	event_active(&ev1, EV_READ, 1);
 	event_base_free(base1);
 end:
@@ -3080,6 +3076,7 @@ test_many_events(void *arg)
 		 * instance of that. */
 		sock[i] = socket(AF_INET, SOCK_DGRAM, 0);
 		tt_assert(sock[i] >= 0);
+		tt_assert(!evutil_make_socket_nonblocking(sock[i]));
 		called[i] = 0;
 		ev[i] = event_new(base, sock[i], EV_WRITE|evflags,
 		    many_event_cb, &called[i]);
