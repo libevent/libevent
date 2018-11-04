@@ -816,16 +816,19 @@ wm_transfer(struct bufferevent *bev, void *arg)
 	evbuffer_drain(in, drain);
 	ctx->get += drain;
 
-	TT_BLATHER(("wm_transfer-%s: in: %zu, out: %zu, got: %zu",
-		ctx->server ? "server" : "client",
+	TT_BLATHER(("wm_transfer-%s(%p): "
+		"in: " EV_SIZE_FMT ", "
+		"out: " EV_SIZE_FMT ", "
+		"got: " EV_SIZE_FMT "",
+		ctx->server ? "server" : "client", bev,
 		evbuffer_get_length(in),
 		evbuffer_get_length(out),
 		ctx->get));
 
 	evbuffer_add_buffer_reference(out, ctx->data);
 	if (ctx->get >= ctx->limit) {
-		TT_BLATHER(("wm_transfer-%s: break",
-			ctx->server ? "server" : "client"));
+		TT_BLATHER(("wm_transfer-%s(%p): break",
+			ctx->server ? "server" : "client", bev));
 		bufferevent_setcb(bev, NULL, NULL, NULL, NULL);
 		bufferevent_disable(bev, EV_READ);
 	}
@@ -834,8 +837,8 @@ static void
 wm_eventcb(struct bufferevent *bev, short what, void *arg)
 {
 	struct wm_context *ctx = arg;
-	TT_BLATHER(("wm_eventcb-%s: %i",
-		ctx->server ? "server" : "client", what));
+	TT_BLATHER(("wm_eventcb-%s(%p): %i",
+		ctx->server ? "server" : "client", bev, what));
 	if (what & BEV_EVENT_CONNECTED) {
 	} else {
 		ctx->get = 0;
@@ -855,6 +858,9 @@ wm_acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
 
 	bev = bufferevent_openssl_socket_new(
 		base, fd, ssl, BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+
+	TT_BLATHER(("wm_transfer-%s(%p): accept",
+		ctx->server ? "server" : "client", bev));
 
 	bufferevent_setwatermark(bev, EV_READ, 0, ctx->wm_high);
 	bufferevent_setcb(bev, wm_transfer, NULL, wm_eventcb, ctx);
@@ -905,8 +911,15 @@ regress_bufferevent_openssl_wm(void *arg)
 	client.limit = server.limit = wm_high<<3;
 	client.to_read = server.to_read = payload_len>>1;
 
-	TT_BLATHER(("openssl_wm: payload_len = %zu, wm_high = %zu, limit = %zu, to_read: %zu",
-		payload_len, wm_high, server.limit, server.to_read));
+	TT_BLATHER(("openssl_wm: "
+		"payload_len = " EV_SIZE_FMT ", "
+		"wm_high = " EV_SIZE_FMT ", "
+		"limit = " EV_SIZE_FMT ", "
+		"to_read: " EV_SIZE_FMT "",
+		payload_len,
+		wm_high,
+		server.limit,
+		server.to_read));
 
 	listener = evconnlistener_new_bind(base, wm_acceptcb, &server,
 	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE,
