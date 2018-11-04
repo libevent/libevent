@@ -816,6 +816,13 @@ wm_transfer(struct bufferevent *bev, void *arg)
 	size_t len = evbuffer_get_length(in);
 	size_t drain = len < ctx->to_read ? len : ctx->to_read;
 
+	if (ctx->get+drain >= ctx->limit) {
+		TT_BLATHER(("wm_transfer-%s(%p): break",
+			ctx->server ? "server" : "client", bev));
+		bufferevent_setcb(bev, NULL, NULL, NULL, NULL);
+		bufferevent_disable(bev, EV_READ);
+	}
+
 	evbuffer_drain(in, drain);
 	ctx->get += drain;
 
@@ -829,12 +836,6 @@ wm_transfer(struct bufferevent *bev, void *arg)
 		ctx->get));
 
 	evbuffer_add_buffer_reference(out, ctx->data);
-	if (ctx->get >= ctx->limit) {
-		TT_BLATHER(("wm_transfer-%s(%p): break",
-			ctx->server ? "server" : "client", bev));
-		bufferevent_setcb(bev, NULL, NULL, NULL, NULL);
-		bufferevent_disable(bev, EV_READ);
-	}
 }
 static void
 wm_eventcb(struct bufferevent *bev, short what, void *arg)
