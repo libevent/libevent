@@ -280,6 +280,8 @@ enum regress_openssl_type
 	REGRESS_OPENSSL_SLEEP = 1024,
 
 	REGRESS_OPENSSL_CLIENT_WRITE = 2048,
+
+	REGRESS_DEFERRED_CALLBACKS = 4096,
 };
 
 static void
@@ -797,6 +799,7 @@ end:
 struct wm_context
 {
 	int server;
+	int flags;
 	struct evbuffer *data;
 	size_t to_read;
 	size_t wm_high;
@@ -857,7 +860,7 @@ wm_acceptcb(struct evconnlistener *listener, evutil_socket_t fd,
 	SSL_use_PrivateKey(ssl, the_key);
 
 	bev = bufferevent_openssl_socket_new(
-		base, fd, ssl, BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+		base, fd, ssl, BUFFEREVENT_SSL_ACCEPTING, ctx->flags);
 
 	TT_BLATHER(("wm_transfer-%s(%p): accept",
 		ctx->server ? "server" : "client", bev));
@@ -897,10 +900,14 @@ regress_bufferevent_openssl_wm(void *arg)
 	memset(&ss, 0, sizeof(ss));
 	slen = sizeof(ss);
 
+	if (type & REGRESS_DEFERRED_CALLBACKS)
+		bev_flags |= BEV_OPT_DEFER_CALLBACKS;
+
 	memset(&client, 0, sizeof(client));
 	memset(&server, 0, sizeof(server));
 	client.server = 0;
 	server.server = 1;
+	client.flags = server.flags = bev_flags;
 	client.data = evbuffer_new();
 	server.data = evbuffer_new();
 	payload = calloc(1, payload_len);
@@ -932,15 +939,15 @@ regress_bufferevent_openssl_wm(void *arg)
 	tt_assert(ssl);
 
 	if (type & REGRESS_OPENSSL_FILTER) {
-		bev = bufferevent_socket_new(data->base, -1, bev_flags);
+		bev = bufferevent_socket_new(data->base, -1, client.flags);
 		tt_assert(bev);
 		bev = bufferevent_openssl_filter_new(
-			base, bev, ssl, BUFFEREVENT_SSL_CONNECTING, bev_flags);
+			base, bev, ssl, BUFFEREVENT_SSL_CONNECTING, client.flags);
 	} else {
 		bev = bufferevent_openssl_socket_new(
 			data->base, -1, ssl,
 			BUFFEREVENT_SSL_CONNECTING,
-			bev_flags);
+			client.flags);
 	}
 	tt_assert(bev);
 	client.bev = bev;
@@ -1047,6 +1054,10 @@ struct testcase_t ssl_testcases[] = {
 	  TT_FORK|TT_NEED_BASE, &ssl_setup, NULL },
 	{ "bufferevent_wm_filter", regress_bufferevent_openssl_wm,
 	  TT_FORK|TT_NEED_BASE, &ssl_setup, T(REGRESS_OPENSSL_FILTER) },
+	{ "bufferevent_wm_defer", regress_bufferevent_openssl_wm,
+	  TT_FORK|TT_NEED_BASE, &ssl_setup, T(REGRESS_DEFERRED_CALLBACKS) },
+	{ "bufferevent_wm_filter_defer", regress_bufferevent_openssl_wm,
+	  TT_FORK|TT_NEED_BASE, &ssl_setup, T(REGRESS_OPENSSL_FILTER|REGRESS_DEFERRED_CALLBACKS) },
 
 #undef T
 
