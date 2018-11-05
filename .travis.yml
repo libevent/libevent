@@ -4,6 +4,10 @@ os:
 sudo: false
 dist: trusty
 
+branches:
+  except:
+  - /.*appveyor.*/
+
 git:
   quiet: true
 
