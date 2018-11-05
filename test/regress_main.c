@@ -435,6 +435,7 @@ main(int argc, const char **argv)
 #ifdef _WIN32
 	tinytest_skip(testgroups, "http/connection_retry");
 	tinytest_skip(testgroups, "http/https_connection_retry");
+	tinytest_skip(testgroups, "http/read_on_write_error");
 #endif
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
