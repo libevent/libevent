@@ -2,9 +2,6 @@ version: 2.1.8.{build}
 
 os: Visual Studio 2015
 
-build:
-  verbosity: detailed
-
 branches:
   except:
     - /.*travis.*/
