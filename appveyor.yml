@@ -8,6 +8,7 @@ branches:
 
 environment:
   global:
+    APPVEYOR_SAVE_CACHE_ON_ERROR: true
     CYG_ROOT: C:/MinGW/msys/1.0
     EVENT_TESTS_PARALLEL: 20
   matrix:
@@ -67,15 +68,19 @@ build_script:
         bash -lc "echo 'C:\MinGW /mingw' > /etc/fstab"
         bash -lc "echo 'C:\OpenSSL-Win32 /ssl' >> /etc/fstab"
         $env:APPVEYOR_BUILD_FOLDER = $env:APPVEYOR_BUILD_FOLDER -replace "\\", "/"
-        bash -lc "exec 0</dev/null; exec 2>&1; cd $env:APPVEYOR_BUILD_FOLDER; bash -x ./autogen.sh && ./configure LDFLAGS='-L/ssl -L/ssl/lib -L/ssl/lib/MinGW' CFLAGS=-I/ssl/include $env:EVENT_CONFIGURE_OPTIONS && make && make verify -j$env:EVENT_TESTS_PARALLEL"
+        bash -lc "exec 0</dev/null; exec 2>&1; cd $env:APPVEYOR_BUILD_FOLDER; bash -x ./autogen.sh && mkdir -p build-autotools && cd build-autotools && ../configure LDFLAGS='-L/ssl -L/ssl/lib -L/ssl/lib/MinGW' CFLAGS=-I/ssl/include $env:EVENT_CONFIGURE_OPTIONS && make && make verify -j$env:EVENT_TESTS_PARALLEL"
       } else {
-        md build
-        cd build
+        md build-cmake 2> $null
+        cd build-cmake
         cmake .. $env:EVENT_CMAKE_OPTIONS
         cmake --build .
         $env:CTEST_PARALLEL_LEVEL=$env:EVENT_TESTS_PARALLEL
         ctest --output-on-failure
       }
+
+cache:
+  - build-cmake
+  - build-autotools
 
 on_failure:
   - 7z a libevent.zip .
