@@ -45,10 +45,6 @@ before_install:
   - export JOBS=20
   - export TIMEOUT=50
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-      brew update;
-      brew uninstall libtool && brew install libtool;
-      brew install openssl;
-      brew install lcov;
       if [ "$CC" == "gcc" ]; then
         export CC=$(ls -t /usr/local/bin/gcc-?.?);
       fi
@@ -77,6 +73,12 @@ addons:
     - autoconf
     - cmake
     - lcov
+  homebrew:
+    packages:
+    - openssl
+    - lcov
+    - libtool
+
 
 script:
   - if [ "$EVENT_BUILD_METHOD" = "autotools" ]; then
