@@ -816,15 +816,15 @@ wm_transfer(struct bufferevent *bev, void *arg)
 	size_t len = evbuffer_get_length(in);
 	size_t drain = len < ctx->to_read ? len : ctx->to_read;
 
-	if (ctx->get+drain >= ctx->limit) {
+	if (ctx->get >= ctx->limit) {
 		TT_BLATHER(("wm_transfer-%s(%p): break",
 			ctx->server ? "server" : "client", bev));
 		bufferevent_setcb(bev, NULL, NULL, NULL, NULL);
 		bufferevent_disable(bev, EV_READ);
+	} else {
+		evbuffer_drain(in, drain);
+		ctx->get += drain;
 	}
-
-	evbuffer_drain(in, drain);
-	ctx->get += drain;
 
 	TT_BLATHER(("wm_transfer-%s(%p): "
 		"in: " EV_SIZE_FMT ", "
