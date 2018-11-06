@@ -5,6 +5,10 @@ os: Visual Studio 2015
 branches:
   except:
     - /.*travis.*/
+skip_commits:
+  message: /travis/
+  files:
+    - .travis.yml
 
 environment:
   global:
