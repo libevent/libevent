@@ -822,8 +822,8 @@ wm_transfer(struct bufferevent *bev, void *arg)
 		bufferevent_setcb(bev, NULL, NULL, NULL, NULL);
 		bufferevent_disable(bev, EV_READ);
 	} else {
-		evbuffer_drain(in, drain);
 		ctx->get += drain;
+		evbuffer_drain(in, drain);
 	}
 
 	TT_BLATHER(("wm_transfer-%s(%p): "
