@@ -41,6 +41,10 @@
 #include <event2/util.h>
 #include <event2/keyvalq_struct.h>
 
+#ifdef _WIN32
+#include <event2/thread.h>
+#endif
+
 #ifdef EVENT__HAVE_NETINET_IN_H
 #include <netinet/in.h>
 # ifdef _XOPEN_SOURCE_EXTENDED
@@ -90,6 +94,7 @@ static const struct table_entry {
 struct options
 {
 	int port;
+	int iocp;
 };
 
 /* Try to guess a good content-type for 'path' */
@@ -334,9 +339,10 @@ parse_opts(int argc, char **argv)
 
 	memset(&o, 0, sizeof(o));
 
-	while ((opt = getopt(argc, argv, "p:")) != -1) {
+	while ((opt = getopt(argc, argv, "p:I")) != -1) {
 		switch (opt) {
 			case 'p': o.port = atoi(optarg); break;
+			case 'I': o.iocp = 1; break;
 			default : fprintf(stderr, "Unknown option %c\n", opt); break;
 		}
 	}
@@ -352,24 +358,38 @@ parse_opts(int argc, char **argv)
 int
 main(int argc, char **argv)
 {
+	struct event_config *cfg;
 	struct event_base *base;
 	struct evhttp *http;
 	struct evhttp_bound_socket *handle;
 	struct options o = parse_opts(argc, argv);
 
 #ifdef _WIN32
-	WSADATA WSAData;
-	WSAStartup(0x101, &WSAData);
+	{
+		WORD wVersionRequested;
+		WSADATA wsaData;
+		wVersionRequested = MAKEWORD(2, 2);
+		WSAStartup(wVersionRequested, &wsaData);
+	}
 #else
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 		return (1);
 #endif
 
-	base = event_base_new();
+	cfg = event_config_new();
+#ifdef _WIN32
+	if (o.iocp) {
+		evthread_use_windows_threads();
+		event_config_set_flag(cfg, EVENT_BASE_FLAG_STARTUP_IOCP);
+		event_config_set_num_cpus_hint(cfg, 8);
+	}
+#endif
+	base = event_base_new_with_config(cfg);
 	if (!base) {
 		fprintf(stderr, "Couldn't create an event_base: exiting\n");
 		return 1;
 	}
+	event_config_free(cfg);
 
 	/* Create a new evhttp object to handle requests. */
 	http = evhttp_new(base);
@@ -432,5 +452,8 @@ main(int argc, char **argv)
 
 	event_base_dispatch(base);
 
+#ifdef _WIN32
+	WSACleanup();
+#endif
 	return 0;
 }
