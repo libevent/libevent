@@ -376,6 +376,9 @@ main(int argc, char **argv)
 		return (1);
 #endif
 
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
+
 	cfg = event_config_new();
 #ifdef _WIN32
 	if (o.iocp) {
