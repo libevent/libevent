@@ -100,6 +100,19 @@ const struct bufferevent_ops bufferevent_ops_async = {
 	be_async_ctrl,
 };
 
+static inline int
+fatal_error(int err)
+{
+	switch (err) {
+		/* We may have already associated this fd with a port.
+		 * Let's hope it's this port, and that the error code
+		 * for doing this neer changes. */
+		case ERROR_INVALID_PARAMETER:
+			return 0;
+	}
+	return 1;
+}
+
 static inline struct bufferevent_async *
 upcast(struct bufferevent *bev)
 {
@@ -532,11 +545,7 @@ bufferevent_async_new_(struct event_base *base,
 		return NULL;
 
 	if (fd >= 0 && event_iocp_port_associate_(iocp, fd, 1)<0) {
-		int err = GetLastError();
-		/* We may have alrady associated this fd with a port.
-		 * Let's hope it's this port, and that the error code
-		 * for doing this neer changes. */
-		if (err != ERROR_INVALID_PARAMETER)
+		if (fatal_error(GetLastError()))
 			return NULL;
 	}
 
@@ -660,8 +669,10 @@ be_async_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 			return 0;
 		if (!(iocp = event_base_get_iocp_(bev->ev_base)))
 			return -1;
-		if (event_iocp_port_associate_(iocp, data->fd, 1) < 0)
-			return -1;
+		if (event_iocp_port_associate_(iocp, data->fd, 1) < 0) {
+			if (fatal_error(GetLastError()))
+				return -1;
+		}
 		evbuffer_overlapped_set_fd_(bev->input, data->fd);
 		evbuffer_overlapped_set_fd_(bev->output, data->fd);
 		return 0;
