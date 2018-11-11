@@ -663,6 +663,7 @@ be_async_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 		data->fd = evbuffer_overlapped_get_fd_(bev->input);
 		return 0;
 	case BEV_CTRL_SET_FD: {
+		struct bufferevent_async *bev_a = upcast(bev);
 		struct event_iocp_port *iocp;
 
 		if (data->fd == evbuffer_overlapped_get_fd_(bev->input))
@@ -675,6 +676,7 @@ be_async_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 		}
 		evbuffer_overlapped_set_fd_(bev->input, data->fd);
 		evbuffer_overlapped_set_fd_(bev->output, data->fd);
+		bev_a->ok = data->fd >= 0;
 		return 0;
 	}
 	case BEV_CTRL_CANCEL_ALL: {
