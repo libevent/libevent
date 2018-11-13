@@ -95,6 +95,7 @@ struct options
 {
 	int port;
 	int iocp;
+	int verbose;
 };
 
 /* Try to guess a good content-type for 'path' */
@@ -339,10 +340,11 @@ parse_opts(int argc, char **argv)
 
 	memset(&o, 0, sizeof(o));
 
-	while ((opt = getopt(argc, argv, "p:I")) != -1) {
+	while ((opt = getopt(argc, argv, "p:Iv")) != -1) {
 		switch (opt) {
 			case 'p': o.port = atoi(optarg); break;
 			case 'I': o.iocp = 1; break;
+			case 'v': ++o.verbose; break;
 			default : fprintf(stderr, "Unknown option %c\n", opt); break;
 		}
 	}
@@ -379,6 +381,10 @@ main(int argc, char **argv)
 	setbuf(stdout, NULL);
 	setbuf(stderr, NULL);
 
+	/** Read env like in regress" */
+	if (o.verbose || getenv("EVENT_DEBUG_LOGGING_ALL"))
+		event_enable_debug_logging(EVENT_DBG_ALL);
+
 	cfg = event_config_new();
 #ifdef _WIN32
 	if (o.iocp) {
@@ -387,6 +393,7 @@ main(int argc, char **argv)
 		event_config_set_num_cpus_hint(cfg, 8);
 	}
 #endif
+
 	base = event_base_new_with_config(cfg);
 	if (!base) {
 		fprintf(stderr, "Couldn't create an event_base: exiting\n");
