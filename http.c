@@ -1203,6 +1203,7 @@ void
 evhttp_connection_free(struct evhttp_connection *evcon)
 {
 	struct evhttp_request *req;
+	int need_close = 0;
 
 	/* notify interested parties that this connection is going down */
 	if (evcon->fd != -1) {
@@ -1229,21 +1230,22 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 		event_debug_unassign(&evcon->retry_ev);
 	}
 
-	if (evcon->bufev != NULL)
-		bufferevent_free(evcon->bufev);
-
 	event_deferred_cb_cancel_(get_deferred_queue(evcon),
 	    &evcon->read_more_deferred_cb);
 
-	if (evcon->fd == -1)
-		evcon->fd = bufferevent_getfd(evcon->bufev);
+	if (evcon->bufev != NULL) {
+		need_close =
+			!(bufferevent_get_options_(evcon->bufev) & BEV_OPT_CLOSE_ON_FREE);
+		if (evcon->fd == -1)
+			evcon->fd = bufferevent_getfd(evcon->bufev);
+
+		bufferevent_free(evcon->bufev);
+	}
 
 	if (evcon->fd != -1) {
-		bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
 		shutdown(evcon->fd, EVUTIL_SHUT_WR);
-		if (!(bufferevent_get_options_(evcon->bufev) & BEV_OPT_CLOSE_ON_FREE)) {
+		if (need_close)
 			evutil_closesocket(evcon->fd);
-		}
 	}
 
 	if (evcon->bind_address != NULL)
