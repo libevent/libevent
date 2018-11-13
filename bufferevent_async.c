@@ -589,7 +589,6 @@ bufferevent_async_set_connected_(struct bufferevent *bev)
 {
 	struct bufferevent_async *bev_async = upcast(bev);
 	bev_async->ok = 1;
-	bufferevent_init_generic_timeout_cbs_(bev);
 	/* Now's a good time to consider reading/writing */
 	be_async_enable(bev, bev->enabled);
 }
