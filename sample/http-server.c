@@ -20,6 +20,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include <getopt.h>
 #include <io.h>
 #include <fcntl.h>
 #ifndef S_ISDIR
@@ -84,6 +85,11 @@ static const struct table_entry {
 	{ "pdf", "application/pdf" },
 	{ "ps", "application/postscript" },
 	{ NULL, NULL },
+};
+
+struct options
+{
+	int port;
 };
 
 /* Try to guess a good content-type for 'path' */
@@ -320,10 +326,27 @@ done:
 		evbuffer_free(evb);
 }
 
-static void
-syntax(void)
+static struct options
+parse_opts(int argc, char **argv)
 {
-	fprintf(stdout, "Syntax: http-server <docroot>\n");
+	struct options o;
+	int opt;
+
+	memset(&o, 0, sizeof(o));
+
+	while ((opt = getopt(argc, argv, "p:")) != -1) {
+		switch (opt) {
+			case 'p': o.port = atoi(optarg); break;
+			default : fprintf(stderr, "Unknown option %c\n", opt); break;
+		}
+	}
+
+	if (optind >= argc || (argc-optind) > 1) {
+		fprintf(stdout, "Syntax: %s <docroot>\n", argv[0]);
+		exit(1);
+	}
+
+	return o;
 }
 
 int
@@ -332,8 +355,8 @@ main(int argc, char **argv)
 	struct event_base *base;
 	struct evhttp *http;
 	struct evhttp_bound_socket *handle;
+	struct options o = parse_opts(argc, argv);
 
-	ev_uint16_t port = 0;
 #ifdef _WIN32
 	WSADATA WSAData;
 	WSAStartup(0x101, &WSAData);
@@ -341,10 +364,6 @@ main(int argc, char **argv)
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
 		return (1);
 #endif
-	if (argc < 2) {
-		syntax();
-		return 1;
-	}
 
 	base = event_base_new();
 	if (!base) {
@@ -367,10 +386,9 @@ main(int argc, char **argv)
 	evhttp_set_gencb(http, send_document_cb, argv[1]);
 
 	/* Now we tell the evhttp what port to listen on */
-	handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", port);
+	handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", o.port);
 	if (!handle) {
-		fprintf(stderr, "couldn't bind to port %d. Exiting.\n",
-		    (int)port);
+		fprintf(stderr, "couldn't bind to port %d. Exiting.\n", o.port);
 		return 1;
 	}
 
