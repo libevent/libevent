@@ -384,6 +384,7 @@ struct testgroup_t testgroups[] = {
 	{ "iocp/", iocp_testcases },
 	{ "iocp/bufferevent/", bufferevent_iocp_testcases },
 	{ "iocp/listener/", listener_iocp_testcases },
+	{ "iocp/http/", http_iocp_testcases },
 #endif
 #ifdef EVENT__HAVE_OPENSSL
 	{ "ssl/", ssl_testcases },

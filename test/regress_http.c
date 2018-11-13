@@ -4968,3 +4968,8 @@ struct testcase_t http_testcases[] = {
 	END_OF_TESTCASES
 };
 
+struct testcase_t http_iocp_testcases[] = {
+	{ "simple", http_simple_test, TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
+	{ "https_simple", https_simple_test, TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
+	END_OF_TESTCASES
+};
