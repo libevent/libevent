@@ -888,7 +888,6 @@ if (NOT EVENT__DISABLE_SAMPLES)
         event-read-fifo
         hello-world
         signal-test
-        http-server
         http-connect
         time-test)
 
@@ -905,7 +904,13 @@ if (NOT EVENT__DISABLE_SAMPLES)
                         sample/le-proxy.c)
     endif()
 
-    add_sample_prog(OFF dns-example sample/dns-example.c ${WIN32_GETOPT})
+    set(SAMPLES_WOPT
+        dns-example
+        http-server
+    )
+    foreach (SAMPLE ${SAMPLES_WOPT})
+        add_sample_prog(OFF ${SAMPLE} sample/${SAMPLE}.c ${WIN32_GETOPT})
+    endforeach()
 endif()
 
 #
