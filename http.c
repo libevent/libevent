@@ -1339,7 +1339,8 @@ evhttp_connection_reset_(struct evhttp_connection *evcon)
 		evutil_closesocket(evcon->fd);
 		evcon->fd = -1;
 	}
-	bufferevent_setfd(evcon->bufev, -1);
+	err = bufferevent_setfd(evcon->bufev, -1);
+	EVUTIL_ASSERT(!err && "setfd");
 
 	/* we need to clean up any buffered data */
 	tmp = bufferevent_get_output(evcon->bufev);
@@ -1358,7 +1359,6 @@ static void
 evhttp_connection_start_detectclose(struct evhttp_connection *evcon)
 {
 	evcon->flags |= EVHTTP_CON_CLOSEDETECT;
-
 	bufferevent_enable(evcon->bufev, EV_READ);
 }
 
@@ -1366,7 +1366,6 @@ static void
 evhttp_connection_stop_detectclose(struct evhttp_connection *evcon)
 {
 	evcon->flags &= ~EVHTTP_CON_CLOSEDETECT;
-
 	bufferevent_disable(evcon->bufev, EV_READ);
 }
 
@@ -2558,9 +2557,11 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 			return (-1);
 		}
 
-		bufferevent_setfd(evcon->bufev, evcon->fd);
+		if (bufferevent_setfd(evcon->bufev, evcon->fd))
+			return (-1);
 	} else {
-		bufferevent_setfd(evcon->bufev, -1);
+		if (bufferevent_setfd(evcon->bufev, -1))
+			return (-1);
 	}
 
 	/* Set up a callback for successful connection setup */
@@ -2576,7 +2577,8 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 		bufferevent_set_timeouts(evcon->bufev, &evcon->timeout, &evcon->timeout);
 	}
 	/* make sure that we get a write callback */
-	bufferevent_enable(evcon->bufev, EV_WRITE);
+	if (bufferevent_enable(evcon->bufev, EV_WRITE))
+		return (-1);
 
 	evcon->state = EVCON_CONNECTING;
 
@@ -4241,12 +4243,19 @@ evhttp_get_request_connection(
 
 	evcon->fd = fd;
 
-	bufferevent_enable(evcon->bufev, EV_READ);
-	bufferevent_disable(evcon->bufev, EV_WRITE);
-	bufferevent_setfd(evcon->bufev, fd);
+	if (bufferevent_setfd(evcon->bufev, fd))
+		goto err;
+	if (bufferevent_enable(evcon->bufev, EV_READ))
+		goto err;
+	if (bufferevent_disable(evcon->bufev, EV_WRITE))
+		goto err;
 	bufferevent_socket_set_conn_address_(evcon->bufev, sa, salen);
 
 	return (evcon);
+
+err:
+	evhttp_connection_free(evcon);
+	return (NULL);
 }
 
 static int
