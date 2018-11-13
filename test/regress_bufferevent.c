@@ -1405,38 +1405,35 @@ struct testcase_t bufferevent_testcases[] = {
 	END_OF_TESTCASES,
 };
 
+#define TT_IOCP (TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP)
+#define TT_IOCP_LEGACY (TT_ISOLATED|TT_ENABLE_IOCP)
 struct testcase_t bufferevent_iocp_testcases[] = {
-
-	LEGACY(bufferevent, TT_ISOLATED|TT_ENABLE_IOCP),
+	LEGACY(bufferevent, TT_IOCP_LEGACY),
 	LEGACY(bufferevent_flush_normal, TT_ISOLATED),
 	LEGACY(bufferevent_flush_flush, TT_ISOLATED),
 	LEGACY(bufferevent_flush_finished, TT_ISOLATED),
-	LEGACY(bufferevent_watermarks, TT_ISOLATED|TT_ENABLE_IOCP),
-	LEGACY(bufferevent_filters, TT_ISOLATED|TT_ENABLE_IOCP),
-	LEGACY(bufferevent_filters_disable, TT_ISOLATED|TT_ENABLE_IOCP),
+	LEGACY(bufferevent_watermarks, TT_IOCP_LEGACY),
+	LEGACY(bufferevent_filters, TT_IOCP_LEGACY),
+	LEGACY(bufferevent_filters_disable, TT_IOCP_LEGACY),
+
 	{ "bufferevent_connect", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, (void*)"" },
+	  TT_IOCP, &basic_setup, (void*)"" },
 	{ "bufferevent_connect_defer", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, (void*)"defer" },
+	  TT_IOCP, &basic_setup, (void*)"defer" },
 	{ "bufferevent_connect_lock", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS|TT_ENABLE_IOCP, &basic_setup,
-	  (void*)"lock" },
+	  TT_IOCP, &basic_setup, (void*)"lock" },
 	{ "bufferevent_connect_lock_defer", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_THREADS|TT_ENABLE_IOCP, &basic_setup,
-	  (void*)"defer lock" },
+	  TT_IOCP, &basic_setup, (void*)"defer lock" },
 	{ "bufferevent_connect_fail", test_bufferevent_connect_fail,
-	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
+	  TT_IOCP, &basic_setup, NULL },
 	{ "bufferevent_connect_nonblocking", test_bufferevent_connect,
-	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
-	  (void*)"unset_connectex" },
+	  TT_IOCP, &basic_setup, (void*)"unset_connectex" },
 
 	{ "bufferevent_connect_fail_eventcb_defer",
 	  test_bufferevent_connect_fail_eventcb,
-	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup,
-	  (void*)BEV_OPT_DEFER_CALLBACKS },
+	  TT_IOCP, &basic_setup, (void*)BEV_OPT_DEFER_CALLBACKS },
 	{ "bufferevent_connect_fail_eventcb",
-	  test_bufferevent_connect_fail_eventcb,
-	  TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
+	  test_bufferevent_connect_fail_eventcb, TT_IOCP, &basic_setup, NULL },
 
 	END_OF_TESTCASES,
 };
