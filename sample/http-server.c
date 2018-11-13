@@ -400,9 +400,11 @@ main(int argc, char **argv)
 	cfg = event_config_new();
 #ifdef _WIN32
 	if (o.iocp) {
+#ifdef EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED
 		evthread_use_windows_threads();
-		event_config_set_flag(cfg, EVENT_BASE_FLAG_STARTUP_IOCP);
 		event_config_set_num_cpus_hint(cfg, 8);
+#endif
+		event_config_set_flag(cfg, EVENT_BASE_FLAG_STARTUP_IOCP);
 	}
 #endif
 
