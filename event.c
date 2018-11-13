@@ -903,6 +903,7 @@ event_base_free_(struct event_base *base, int run_finalizers)
 		 * A simple case is bufferevent with underlying (i.e. filters).
 		 */
 		int i = event_base_free_queues_(base, run_finalizers);
+		event_debug(("%s: %d events freed", __func__, i));
 		if (!i) {
 			break;
 		}
