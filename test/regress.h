@@ -43,6 +43,7 @@ extern struct testcase_t bufferevent_iocp_testcases[];
 extern struct testcase_t util_testcases[];
 extern struct testcase_t signal_testcases[];
 extern struct testcase_t http_testcases[];
+extern struct testcase_t http_iocp_testcases[];
 extern struct testcase_t dns_testcases[];
 extern struct testcase_t rpc_testcases[];
 extern struct testcase_t edgetriggered_testcases[];
