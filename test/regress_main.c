@@ -455,6 +455,11 @@ main(int argc, const char **argv)
 
 	evutil_weakrand_seed_(&test_weakrand_state, 0);
 
+	if (getenv("EVENT_NO_FILE_BUFFERING")) {
+		setbuf(stdout, NULL);
+		setbuf(stderr, NULL);
+	}
+
 	if (tinytest_main(argc,argv,testgroups))
 		return 1;
 
