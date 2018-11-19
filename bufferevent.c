@@ -491,6 +491,8 @@ bufferevent_enable(struct bufferevent *bufev, short event)
 
 	if (impl_events && bufev->be_ops->enable(bufev, impl_events) < 0)
 		r = -1;
+	if (r)
+		event_debug(("%s: cannot enable 0x%hx on %p", __func__, event, bufev));
 
 	bufferevent_decref_and_unlock_(bufev);
 	return r;
@@ -573,6 +575,8 @@ bufferevent_disable(struct bufferevent *bufev, short event)
 
 	if (bufev->be_ops->disable(bufev, event) < 0)
 		r = -1;
+	if (r)
+		event_debug(("%s: cannot disable 0x%hx on %p", __func__, event, bufev));
 
 	BEV_UNLOCK(bufev);
 	return r;
@@ -862,6 +866,8 @@ bufferevent_setfd(struct bufferevent *bev, evutil_socket_t fd)
 	BEV_LOCK(bev);
 	if (bev->be_ops->ctrl)
 		res = bev->be_ops->ctrl(bev, BEV_CTRL_SET_FD, &d);
+	if (res)
+		event_debug(("%s: cannot set fd for %p to "EV_SOCK_FMT, __func__, bev, fd));
 	BEV_UNLOCK(bev);
 	return res;
 }
@@ -875,6 +881,8 @@ bufferevent_getfd(struct bufferevent *bev)
 	BEV_LOCK(bev);
 	if (bev->be_ops->ctrl)
 		res = bev->be_ops->ctrl(bev, BEV_CTRL_GET_FD, &d);
+	if (res)
+		event_debug(("%s: cannot get fd for %p", __func__, bev));
 	BEV_UNLOCK(bev);
 	return (res<0) ? -1 : d.fd;
 }
