@@ -4788,6 +4788,8 @@ struct testcase_t http_testcases[] = {
 
 struct testcase_t http_iocp_testcases[] = {
 	{ "simple", http_simple_test, TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
+#ifdef EVENT__HAVE_OPENSSL
 	{ "https_simple", https_simple_test, TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
+#endif
 	END_OF_TESTCASES
 };
