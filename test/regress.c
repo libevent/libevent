@@ -3416,14 +3416,14 @@ struct testcase_t main_testcases[] = {
 
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
-	BASIC(active_later, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
+	BASIC(active_later, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_RETRIABLE),
 	BASIC(event_remove_timeout, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
 
 	/* These are still using the old API */
 	LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
 	{ "persistent_timeout_jump", test_persistent_timeout_jump, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "persistent_active_timeout", test_persistent_active_timeout,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_BASE|TT_RETRIABLE, &basic_setup, NULL },
 	LEGACY(priorities, TT_FORK|TT_NEED_BASE),
 	BASIC(priority_active_inversion, TT_FORK|TT_NEED_BASE),
 	{ "common_timeout", test_common_timeout, TT_FORK|TT_NEED_BASE,
@@ -3476,7 +3476,7 @@ struct testcase_t main_testcases[] = {
 #endif
 #ifdef EVENT__HAVE_PTHREADS
 	/** TODO: support win32 */
-	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS),
+	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
 	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
 #endif
 
