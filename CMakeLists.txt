@@ -874,13 +874,9 @@ macro(add_sample_prog ssl name)
                           event_core_static
                           ${LIB_APPS}
                           ${LIB_PLATFORM})
-    add_dependencies(${name}
-                     event_core_static
-                     event_extra_static)
 
     if (${ssl})
         target_link_libraries(${name} event_openssl_static)
-        add_dependencies(${name} event_openssl_static)
     endif()
 endmacro()
 if (NOT EVENT__DISABLE_SAMPLES)
@@ -923,9 +919,6 @@ macro(add_bench_prog prog)
                           event_core_static
                           ${LIB_APPS}
                           ${LIB_PLATFORM})
-    add_dependencies(${prog}
-                     event_extra_static
-                     event_core_static)
 endmacro()
 if (NOT EVENT__DISABLE_BENCHMARK)
     foreach (BENCHMARK bench_http bench_httpclient)
@@ -947,9 +940,6 @@ macro(add_test_prog prog)
                           event_core_shared
                           event_extra_shared
                           ${ARGN})
-    add_dependencies(${prog}
-                     event_core_shared
-                     event_extra_shared)
 endmacro()
 if (NOT EVENT__DISABLE_TESTS)
     #
