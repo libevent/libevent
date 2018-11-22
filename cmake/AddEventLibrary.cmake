@@ -3,11 +3,6 @@ include(CMakeParseArguments)
 set(LIBEVENT_SHARED_LIBRARIES "")
 set(LIBEVENT_STATIC_LIBRARIES "")
 
-macro(set_event_lib_properties LIB_NAME)
-    set_target_properties("${LIB_NAME}_static" PROPERTIES ${ARGN})
-    set_target_properties("${LIB_NAME}_shared" PROPERTIES ${ARGN})
-endmacro()
-
 macro(set_event_shared_lib_flags LIB_NAME)
     set_target_properties("${LIB_NAME}_shared" PROPERTIES
         COMPILE_FLAGS ${ARGN})
@@ -48,6 +43,8 @@ endmacro()
 # - HDR_PUBLIC
 # - EVENT_INSTALL_INCLUDE_DIR
 # - EVENT_SHARED_FLAGS
+# - EVENT_LIBRARY_STATIC
+# - EVENT_LIBRARY_SHARED
 #
 # Exported variables:
 # - LIBEVENT_SHARED_LIBRARIES
@@ -60,41 +57,59 @@ macro(add_event_library LIB_NAME)
         ${ARGN}
     )
 
-    add_library("${LIB_NAME}_static" STATIC ${LIB_SOURCES})
-    add_library("${LIB_NAME}_shared" SHARED ${LIB_SOURCES})
+    set(ADD_EVENT_LIBRARY_TARGETS)
+    set(ADD_EVENT_LIBRARY_INTERFACE)
 
-    target_link_libraries("${LIB_NAME}_shared"
-        ${CMAKE_THREAD_LIBS_INIT}
-        ${LIB_PLATFORM}
-        ${LIB_LIBRARIES})
+    if (${EVENT_LIBRARY_STATIC})
+        add_library("${LIB_NAME}_static" STATIC ${LIB_SOURCES})
+        set_target_properties("${LIB_NAME}_static" PROPERTIES
+            OUTPUT_NAME "${LIB_NAME}"
+            CLEAN_DIRECT_OUTPUT 1)
+        set_target_properties(
+            "${LIB_NAME}_static" PROPERTIES
+            PUBLIC_HEADER "${HDR_PUBLIC}")
 
-    if (EVENT_SHARED_FLAGS)
-        set_event_shared_lib_flags("${LIB_NAME}" "${EVENT_SHARED_FLAGS}")
+        list(APPEND LIBEVENT_STATIC_LIBRARIES "${LIB_NAME}_static")
+        list(APPEND ADD_EVENT_LIBRARY_TARGETS "${LIB_NAME}_static")
+
+        set(ADD_EVENT_LIBRARY_INTERFACE "${LIB_NAME}_static")
     endif()
 
-    set_event_lib_properties("${LIB_NAME}"
-        OUTPUT_NAME "${LIB_NAME}"
-        CLEAN_DIRECT_OUTPUT 1
-    )
+    if (${EVENT_LIBRARY_SHARED})
+        add_library("${LIB_NAME}_shared" SHARED ${LIB_SOURCES})
 
-    set_target_properties(
-        "${LIB_NAME}_shared" PROPERTIES
-        PUBLIC_HEADER "${HDR_PUBLIC}")
-    set_target_properties(
-        "${LIB_NAME}_static" PROPERTIES
-        PUBLIC_HEADER "${HDR_PUBLIC}")
+        target_link_libraries("${LIB_NAME}_shared"
+            ${CMAKE_THREAD_LIBS_INIT}
+            ${LIB_PLATFORM}
+            ${LIB_LIBRARIES})
 
-    set_target_properties(
-        "${LIB_NAME}_shared" PROPERTIES
-        SOVERSION ${EVENT_ABI_LIBVERSION}
-    )
+        if (EVENT_SHARED_FLAGS)
+            set_event_shared_lib_flags("${LIB_NAME}" "${EVENT_SHARED_FLAGS}")
+        endif()
 
-    export(TARGETS "${LIB_NAME}_static" "${LIB_NAME}_shared"
+        set_target_properties("${LIB_NAME}_shared" PROPERTIES
+            OUTPUT_NAME "${LIB_NAME}"
+            CLEAN_DIRECT_OUTPUT 1)
+        set_target_properties(
+            "${LIB_NAME}_shared" PROPERTIES
+            PUBLIC_HEADER "${HDR_PUBLIC}")
+        set_target_properties(
+            "${LIB_NAME}_shared" PROPERTIES
+            SOVERSION ${EVENT_ABI_LIBVERSION}
+        )
+
+        list(APPEND LIBEVENT_SHARED_LIBRARIES "${LIB_NAME}_shared")
+        list(APPEND ADD_EVENT_LIBRARY_TARGETS "${LIB_NAME}_shared")
+
+        set(ADD_EVENT_LIBRARY_INTERFACE "${LIB_NAME}_shared")
+    endif()
+
+    export(TARGETS ${ADD_EVENT_LIBRARY_TARGETS}
        FILE "${PROJECT_BINARY_DIR}/LibeventTargets.cmake"
        APPEND
     )
 
-    install(TARGETS "${LIB_NAME}_static" "${LIB_NAME}_shared"
+    install(TARGETS ${ADD_EVENT_LIBRARY_TARGETS}
         EXPORT LibeventTargets
         LIBRARY DESTINATION "lib" COMPONENT lib
         ARCHIVE DESTINATION "lib" COMPONENT lib
@@ -103,8 +118,8 @@ macro(add_event_library LIB_NAME)
         COMPONENT dev
     )
 
-    list(APPEND LIBEVENT_SHARED_LIBRARIES "${LIB_NAME}_shared")
-    list(APPEND LIBEVENT_STATIC_LIBRARIES "${LIB_NAME}_static")
+    add_library(${LIB_NAME} INTERFACE)
+    target_link_libraries(${LIB_NAME} INTERFACE ${ADD_EVENT_LIBRARY_INTERFACE})
 
     generate_pkgconfig("${LIB_NAME}")
 endmacro()

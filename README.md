@@ -27,6 +27,10 @@ The following Libevent specific CMake variables are as follows (the values being
 the default).
 
 ```
+# Type of the library to build (SHARED or STATIC)
+# Default is to build BOTH
+EVENT__LIBRARY_TYPE:STRING=DEFAULT
+
 # Installation directory for CMake files
 EVENT_INSTALL_CMAKE_DIR:PATH=lib/cmake/libevent
 
