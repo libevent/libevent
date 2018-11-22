@@ -28,7 +28,7 @@ the default).
 
 ```
 # Type of the library to build (SHARED or STATIC)
-# Default is to build BOTH
+# Default is: SHARED for MSVC, otherwise BOTH
 EVENT__LIBRARY_TYPE:STRING=DEFAULT
 
 # Installation directory for CMake files
