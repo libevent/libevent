@@ -18,11 +18,8 @@
 #       cmake -G "Visual Studio 10" ..
 #       start libevent.sln
 #
-if (APPLE)
-    cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
-else()
-    cmake_minimum_required(VERSION 2.8.3 FATAL_ERROR)
-endif()
+
+cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 
 if (POLICY CMP0054)
     cmake_policy(SET CMP0054 NEW)
@@ -43,6 +40,9 @@ string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 # get rid of the extra default configurations
 # what? why would you get id of other useful build types? - Ellzey
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
+
+set(EVENT__LIBRARY_TYPE DEFAULT CACHE STRING
+    "Set library type to SHARED/STATIC/BOTH (default BOTH)")
 
 project(libevent C)
 
@@ -185,6 +185,26 @@ if (("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang") OR
 endif()
 if ((${CMAKE_C_COMPILER_ID} STREQUAL GNU) OR (${CLANG}))
     set(GNUC 1)
+endif()
+
+# Detect library type
+set(EVENT_LIBRARY_TYPE)
+if ("${EVENT__LIBRARY_TYPE}" STREQUAL "DEFAULT")
+    set(EVENT_LIBRARY_TYPE BOTH)
+else()
+    string(TOUPPER "${EVENT__LIBRARY_TYPE}" EVENT_LIBRARY_TYPE)
+endif()
+set(EVENT_LIBRARY_STATIC OFF)
+set(EVENT_LIBRARY_SHARED OFF)
+if ("${EVENT_LIBRARY_TYPE}" STREQUAL "BOTH")
+    set(EVENT_LIBRARY_STATIC ON)
+    set(EVENT_LIBRARY_SHARED ON)
+elseif ("${EVENT_LIBRARY_TYPE}" STREQUAL "STATIC")
+    set(EVENT_LIBRARY_STATIC ON)
+elseif ("${EVENT_LIBRARY_TYPE}" STREQUAL "SHARED")
+    set(EVENT_LIBRARY_SHARED ON)
+else()
+    message(FATAL_ERROR "${EVENT_LIBRARY_TYPE} is not supported")
 endif()
 
 # GNUC specific options.
@@ -870,13 +890,13 @@ macro(add_sample_prog ssl name)
     add_executable(${name} ${ARGN})
 
     target_link_libraries(${name}
-                          event_extra_static
-                          event_core_static
+                          event_extra
+                          event_core
                           ${LIB_APPS}
                           ${LIB_PLATFORM})
 
     if (${ssl})
-        target_link_libraries(${name} event_openssl_static)
+        target_link_libraries(${name} event_openssl)
     endif()
 endmacro()
 if (NOT EVENT__DISABLE_SAMPLES)
@@ -915,8 +935,8 @@ endif()
 macro(add_bench_prog prog)
     add_executable(${prog} ${ARGN})
     target_link_libraries(${prog}
-                          event_extra_static
-                          event_core_static
+                          event_extra
+                          event_core
                           ${LIB_APPS}
                           ${LIB_PLATFORM})
 endmacro()
@@ -937,8 +957,8 @@ macro(add_test_prog prog)
     target_link_libraries(${prog}
                           ${LIB_APPS}
                           ${LIB_PLATFORM}
-                          event_core_shared
-                          event_extra_shared
+                          event_core
+                          event_extra
                           ${ARGN})
 endmacro()
 if (NOT EVENT__DISABLE_TESTS)
@@ -1016,13 +1036,13 @@ if (NOT EVENT__DISABLE_TESTS)
             target_link_libraries(regress
                                   ${LIB_APPS}
                                   ${LIB_PLATFORM}
-                                  event_core_shared
-                                  event_extra_shared)
+                                  event_core
+                                  event_extra)
             if (NOT EVENT__DISABLE_OPENSSL)
-                target_link_libraries(regress event_openssl_shared)
+                target_link_libraries(regress event_openssl)
             endif()
             if (CMAKE_USE_PTHREADS_INIT)
-                target_link_libraries(regress event_pthreads_shared)
+                target_link_libraries(regress event_pthreads)
             endif()
         else()
             message(WARNING "No suitable Python interpreter found, cannot generate regress tests!")
