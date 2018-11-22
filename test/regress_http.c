@@ -4705,7 +4705,7 @@ struct testcase_t http_testcases[] = {
 	HTTP_N(cancel, cancel, BASIC),
 	HTTP_RET_N(cancel_by_host, cancel, BY_HOST),
 	HTTP_RET_N(cancel_by_host_inactive_server, cancel, BY_HOST | INACTIVE_SERVER),
-	HTTP_N(cancel_by_host_no_ns, cancel, BY_HOST | NO_NS),
+	HTTP_RET_N(cancel_by_host_no_ns, cancel, BY_HOST | NO_NS),
 	HTTP_N(cancel_inactive_server, cancel, INACTIVE_SERVER),
 	HTTP_N(cancel_by_host_no_ns_inactive_server, cancel, BY_HOST | NO_NS | INACTIVE_SERVER),
 	HTTP_OFF_N(cancel_by_host_server_timeout, cancel, BY_HOST | INACTIVE_SERVER | SERVER_TIMEOUT),
