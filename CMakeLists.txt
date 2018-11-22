@@ -42,7 +42,7 @@ string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configurations" FORCE)
 
 set(EVENT__LIBRARY_TYPE DEFAULT CACHE STRING
-    "Set library type to SHARED/STATIC/BOTH (default BOTH)")
+    "Set library type to SHARED/STATIC/BOTH (default SHARED for MSVC, otherwise BOTH)")
 
 project(libevent C)
 
@@ -179,20 +179,34 @@ endif()
 
 set(GNUC 0)
 set(CLANG 0)
+set(MSVC 0)
 if (("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang") OR
     ("${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang"))
     set(CLANG 1)
 endif()
-if ((${CMAKE_C_COMPILER_ID} STREQUAL GNU) OR (${CLANG}))
+if (("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU") OR (${CLANG}))
     set(GNUC 1)
+endif()
+if (("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC") OR (${CLANG}))
+    set(MSVC 1)
 endif()
 
 # Detect library type
 set(EVENT_LIBRARY_TYPE)
 if ("${EVENT__LIBRARY_TYPE}" STREQUAL "DEFAULT")
-    set(EVENT_LIBRARY_TYPE BOTH)
+    if (${MSVC})
+        set(EVENT_LIBRARY_TYPE SHARED)
+    else()
+        set(EVENT_LIBRARY_TYPE BOTH)
+    endif()
 else()
     string(TOUPPER "${EVENT__LIBRARY_TYPE}" EVENT_LIBRARY_TYPE)
+endif()
+if ((${MSVC}) AND ("${EVENT_LIBRARY_TYPE}" STREQUAL "BOTH"))
+    message(WARNING
+      "Building SHARED and STATIC is not supported for MSVC "
+      "(due to conflicts in library name"
+      " between STATIC library and IMPORTED library for SHARED libraries)")
 endif()
 set(EVENT_LIBRARY_STATIC OFF)
 set(EVENT_LIBRARY_SHARED OFF)
