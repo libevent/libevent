@@ -4421,6 +4421,17 @@ make_addrinfo(const char *address, ev_uint16_t port)
 	/* turn NULL hostname into INADDR_ANY, and skip looking up any address
 	 * types we don't have an interface to connect to. */
 	hints.ai_flags = EVUTIL_AI_PASSIVE|EVUTIL_AI_ADDRCONFIG;
+
+	/* Work around a strange getaddrinfo(..) oddity. If the only
+	   interface that supports IPv6 is the loopback one, getaddrinfo(..) will
+	   fail with the AI_ADDRCONFIG flag set, even when requesting info for
+	   ::1. See also this bug report in RedHat:
+	   https://bugzilla.redhat.com/show_bug.cgi?id=808147
+	   */
+	if (strcmp(address, "::1") == 0)
+		hints.ai_flags &= ~EVUTIL_AI_ADDRCONFIG;
+
+
 	evutil_snprintf(strport, sizeof(strport), "%d", port);
 	if ((ai_result = evutil_getaddrinfo(address, strport, &hints, &ai))
 	    != 0) {
