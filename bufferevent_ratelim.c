@@ -560,8 +560,7 @@ int
 bufferevent_set_rate_limit(struct bufferevent *bev,
     struct ev_token_bucket_cfg *cfg)
 {
-	struct bufferevent_private *bevp =
-	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+	struct bufferevent_private *bevp = BEV_UPCAST(bev);
 	int r = -1;
 	struct bufferevent_rate_limit *rlim;
 	struct timeval now;
@@ -737,8 +736,7 @@ bufferevent_add_to_rate_limit_group(struct bufferevent *bev,
     struct bufferevent_rate_limit_group *g)
 {
 	int wsuspend, rsuspend;
-	struct bufferevent_private *bevp =
-	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+	struct bufferevent_private *bevp = BEV_UPCAST(bev);
 	BEV_LOCK(bev);
 
 	if (!bevp->rate_limiting) {
@@ -789,8 +787,7 @@ int
 bufferevent_remove_from_rate_limit_group_internal_(struct bufferevent *bev,
     int unsuspend)
 {
-	struct bufferevent_private *bevp =
-	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+	struct bufferevent_private *bevp = BEV_UPCAST(bev);
 	BEV_LOCK(bev);
 	if (bevp->rate_limiting && bevp->rate_limiting->group) {
 		struct bufferevent_rate_limit_group *g =

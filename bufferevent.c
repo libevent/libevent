@@ -66,8 +66,7 @@ static void bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_);
 void
 bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what)
 {
-	struct bufferevent_private *bufev_private =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 	BEV_LOCK(bufev);
 	if (!bufev_private->read_suspended)
 		bufev->be_ops->disable(bufev, EV_READ);
@@ -78,8 +77,7 @@ bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags w
 void
 bufferevent_unsuspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what)
 {
-	struct bufferevent_private *bufev_private =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 	BEV_LOCK(bufev);
 	bufev_private->read_suspended &= ~what;
 	if (!bufev_private->read_suspended && (bufev->enabled & EV_READ))
@@ -90,8 +88,7 @@ bufferevent_unsuspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags
 void
 bufferevent_suspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags what)
 {
-	struct bufferevent_private *bufev_private =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 	BEV_LOCK(bufev);
 	if (!bufev_private->write_suspended)
 		bufev->be_ops->disable(bufev, EV_WRITE);
@@ -102,8 +99,7 @@ bufferevent_suspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags 
 void
 bufferevent_unsuspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags what)
 {
-	struct bufferevent_private *bufev_private =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 	BEV_LOCK(bufev);
 	bufev_private->write_suspended &= ~what;
 	if (!bufev_private->write_suspended && (bufev->enabled & EV_WRITE))
@@ -245,8 +241,7 @@ void
 bufferevent_run_readcb_(struct bufferevent *bufev, int options)
 {
 	/* Requires that we hold the lock and a reference */
-	struct bufferevent_private *p =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *p = BEV_UPCAST(bufev);
 	if (bufev->readcb == NULL)
 		return;
 	if ((p->options|options) & BEV_OPT_DEFER_CALLBACKS) {
@@ -262,8 +257,7 @@ void
 bufferevent_run_writecb_(struct bufferevent *bufev, int options)
 {
 	/* Requires that we hold the lock and a reference */
-	struct bufferevent_private *p =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *p = BEV_UPCAST(bufev);
 	if (bufev->writecb == NULL)
 		return;
 	if ((p->options|options) & BEV_OPT_DEFER_CALLBACKS) {
@@ -291,8 +285,7 @@ void
 bufferevent_run_eventcb_(struct bufferevent *bufev, short what, int options)
 {
 	/* Requires that we hold the lock and a reference */
-	struct bufferevent_private *p =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *p = BEV_UPCAST(bufev);
 	if (bufev->errorcb == NULL)
 		return;
 	if ((p->options|options) & BEV_OPT_DEFER_CALLBACKS) {
@@ -484,8 +477,7 @@ bufferevent_read_buffer(struct bufferevent *bufev, struct evbuffer *buf)
 int
 bufferevent_enable(struct bufferevent *bufev, short event)
 {
-	struct bufferevent_private *bufev_private =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 	short impl_events = event;
 	int r = 0;
 
@@ -558,8 +550,7 @@ int
 bufferevent_disable_hard_(struct bufferevent *bufev, short event)
 {
 	int r = 0;
-	struct bufferevent_private *bufev_private =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 
 	BEV_LOCK(bufev);
 	bufev->enabled &= ~event;
@@ -595,8 +586,7 @@ void
 bufferevent_setwatermark(struct bufferevent *bufev, short events,
     size_t lowmark, size_t highmark)
 {
-	struct bufferevent_private *bufev_private =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 
 	BEV_LOCK(bufev);
 	if (events & EV_WRITE) {
@@ -681,8 +671,7 @@ bufferevent_flush(struct bufferevent *bufev,
 void
 bufferevent_incref_and_lock_(struct bufferevent *bufev)
 {
-	struct bufferevent_private *bufev_private =
-	    BEV_UPCAST(bufev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 	BEV_LOCK(bufev);
 	++bufev_private->refcnt;
 }
@@ -708,8 +697,7 @@ bufferevent_transfer_lock_ownership_(struct bufferevent *donor,
 int
 bufferevent_decref_and_unlock_(struct bufferevent *bufev)
 {
-	struct bufferevent_private *bufev_private =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 	int n_cbs = 0;
 #define MAX_CBS 16
 	struct event_callback *cbs[MAX_CBS];
@@ -752,8 +740,7 @@ bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
 {
 	struct bufferevent *bufev = arg_;
 	struct bufferevent *underlying;
-	struct bufferevent_private *bufev_private =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 
 	BEV_LOCK(bufev);
 	underlying = bufferevent_get_underlying(bufev);
@@ -819,8 +806,7 @@ bufferevent_free(struct bufferevent *bufev)
 void
 bufferevent_incref(struct bufferevent *bufev)
 {
-	struct bufferevent_private *bufev_private =
-	    EVUTIL_UPCAST(bufev, struct bufferevent_private, bev);
+	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 
 	/* XXX: now that this function is public, we might want to
 	 * - return the count from this function
@@ -896,8 +882,7 @@ bufferevent_getfd(struct bufferevent *bev)
 enum bufferevent_options
 bufferevent_get_options_(struct bufferevent *bev)
 {
-	struct bufferevent_private *bev_p =
-	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+	struct bufferevent_private *bev_p = BEV_UPCAST(bev);
 	enum bufferevent_options options;
 
 	BEV_LOCK(bev);
@@ -973,8 +958,7 @@ int
 bufferevent_generic_adj_timeouts_(struct bufferevent *bev)
 {
 	const short enabled = bev->enabled;
-	struct bufferevent_private *bev_p =
-	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
+	struct bufferevent_private *bev_p = BEV_UPCAST(bev);
 	int r1=0, r2=0;
 	if ((enabled & EV_READ) && !bev_p->read_suspended &&
 	    evutil_timerisset(&bev->timeout_read))
