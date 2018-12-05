@@ -39,6 +39,10 @@ compiler:
   - clang
 
 before_install:
+  # do not run with clang, since it fails (SIGSEGV)
+  - if [ "$CC" = "clang" ]; then
+      unset COVERALLS;
+    fi
   - if [ -n "$COVERALLS" ]; then
       pip install --user cpp-coveralls;
     fi
