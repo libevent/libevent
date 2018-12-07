@@ -1290,6 +1290,8 @@ evhttp_request_dispatch(struct evhttp_connection* evcon)
 	if (req == NULL)
 		return;
 
+	EVUTIL_ASSERT(req->kind == EVHTTP_REQUEST);
+
 	/* delete possible close detection events */
 	evhttp_connection_stop_detectclose(evcon);
 
@@ -2644,6 +2646,10 @@ evhttp_make_request(struct evhttp_connection *evcon,
 
 	TAILQ_INSERT_TAIL(&evcon->requests, req, next);
 
+	/* We do not want to conflict with retry_ev */
+	if (evcon->retry_cnt)
+		return (0);
+
 	/* If the connection object is not connected; make it so */
 	if (!evhttp_connected(evcon)) {
 		int res = evhttp_connection_connect_(evcon);
@@ -2654,7 +2660,7 @@ evhttp_make_request(struct evhttp_connection *evcon,
 		if (res != 0)
 			TAILQ_REMOVE(&evcon->requests, req, next);
 
-		return res;
+		return (res);
 	}
 
 	/*
