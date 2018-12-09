@@ -989,6 +989,18 @@ if (NOT EVENT__DISABLE_SAMPLES)
         add_sample_prog(ON becat sample/becat.c ${WIN32_GETOPT})
     endif()
 
+    if (EVENT__HAVE_PTHREADS)
+	    add_executable(pthread-echo-server
+			   sample/pthread-echo-server.c)
+
+	    target_link_libraries(pthread-echo-server
+				  event_extra
+				  event_core
+				  event_pthreads
+				  ${LIB_APPS}
+				  ${LIB_PLATFORM})
+    endif()
+
     set(SAMPLES_WOPT
         dns-example
         http-server

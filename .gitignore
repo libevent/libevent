@@ -96,6 +96,7 @@ signal-test
 time-test
 event-test
 watch-timing
+pthread-echo-server
 
 # test binaries
 test-driver

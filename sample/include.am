@@ -37,6 +37,13 @@ noinst_HEADERS += \
 	sample/openssl_hostname_validation.h
 endif
 
+if PTHREADS
+SAMPLES += sample/pthread-echo-server
+sample_pthread_echo_server_SOURCES = sample/pthread-echo-server.c
+sample_pthread_echo_server_LDADD = libevent.la $(PTHREAD_LIBS)
+sample_pthread_echo_server_CPPFLAGS = $(AM_CPPFLAGS) $(PTHREAD_CFLAGS)
+endif
+
 if BUILD_SAMPLES
 noinst_PROGRAMS += $(SAMPLES)
 endif
