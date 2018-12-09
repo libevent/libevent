@@ -373,17 +373,18 @@ static void event_debug_assert_not_added_(const struct event *ev)
 }
 static void event_debug_assert_socket_nonblocking_(evutil_socket_t fd)
 {
-	int flags;
-
 	if (!event_debug_mode_on_)
+		return;
+	if (fd < 0)
 		return;
 
 #ifndef _WIN32
-	if ((flags = fcntl(fd, F_GETFL, NULL)) >= 0) {
-		EVUTIL_ASSERT(flags & O_NONBLOCK);
+	{
+		int flags;
+		if ((flags = fcntl(fd, F_GETFL, NULL)) >= 0) {
+			EVUTIL_ASSERT(flags & O_NONBLOCK);
+		}
 	}
-#else
-	(void)flags;
 #endif
 }
 #else
