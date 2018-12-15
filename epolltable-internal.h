@@ -34,7 +34,7 @@
   Note also that this table is a little sparse, since ADD+DEL is
   nonsensical ("xxx" in the list below.)
 
-  Note also also that we are shifting old_events by only 5 bits, since
+  Note also that we are shifting old_events by only 5 bits, since
   EV_READ is 2 and EV_WRITE is 4.
 
   The table was auto-generated with a python script, according to this
