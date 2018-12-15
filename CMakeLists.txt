@@ -125,10 +125,10 @@ option(EVENT__DISABLE_THREAD_SUPPORT
     "Define if libevent should not be compiled with thread support" OFF)
 
 option(EVENT__DISABLE_OPENSSL
-    "Define if libevent should build without support for OpenSSL encrpytion" OFF)
+    "Define if libevent should build without support for OpenSSL encryption" OFF)
 
 option(EVENT__DISABLE_BENCHMARK
-    "Defines if libevent should build without the benchmark exectuables" OFF)
+    "Defines if libevent should build without the benchmark executables" OFF)
 
 option(EVENT__DISABLE_TESTS
     "If tests should be compiled or not" OFF)
@@ -143,7 +143,7 @@ option(EVENT__DISABLE_CLOCK_GETTIME
     "Do not use clock_gettime even if it is available" OFF)
 
 option(EVENT__FORCE_KQUEUE_CHECK
-    "When crosscompiling forces running a test program that verifies that Kqueue works with pipes. Note that this requires you to manually run the test program on the the cross compilation target to verify that it works. See cmake documentation for try_run for more details" OFF)
+    "When crosscompiling forces running a test program that verifies that Kqueue works with pipes. Note that this requires you to manually run the test program on the cross compilation target to verify that it works. See cmake documentation for try_run for more details" OFF)
 
 # TODO: Add --disable-largefile     omit support for large files
 option(EVENT__COVERAGE
