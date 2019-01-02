@@ -109,7 +109,6 @@ static void *evsig_base_lock = NULL;
 static struct event_base *evsig_base = NULL;
 /* A copy of evsig_base->sigev_n_signals_added. */
 static int evsig_base_n_signals_added = 0;
-static evutil_socket_t evsig_base_fd = -1;
 
 static void __cdecl evsig_handler(int sig);
 
@@ -122,7 +121,6 @@ evsig_set_base_(struct event_base *base)
 	EVSIGBASE_LOCK();
 	evsig_base = base;
 	evsig_base_n_signals_added = base->sig.ev_n_signals_added;
-	evsig_base_fd = base->sig.ev_signal_pair[1];
 	EVSIGBASE_UNLOCK();
 }
 
@@ -295,7 +293,6 @@ evsig_add(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 	}
 	evsig_base = base;
 	evsig_base_n_signals_added = ++sig->ev_n_signals_added;
-	evsig_base_fd = base->sig.ev_signal_pair[1];
 	EVSIGBASE_UNLOCK();
 
 	event_debug(("%s: %d: changing signal handler", __func__, (int)evsignal));
@@ -381,8 +378,11 @@ evsig_handler(int sig)
 	int socket_errno = EVUTIL_SOCKET_ERROR();
 #endif
 	ev_uint8_t msg;
+	evutil_socket_t base_fd;
+	struct event_base* base;
 
-	if (evsig_base == NULL) {
+	base = evsig_base;
+	if (base == NULL) {
 		event_warnx(
 			"%s: received signal %d, but have no base configured",
 			__func__, sig);
@@ -395,11 +395,12 @@ evsig_handler(int sig)
 
 	/* Wake up our notification mechanism */
 	msg = sig;
+	base_fd = base->sig.ev_signal_pair[1];
 #ifdef _WIN32
-	send(evsig_base_fd, (char*)&msg, 1, 0);
+	send(base_fd, (char*)&msg, 1, 0);
 #else
 	{
-		int r = write(evsig_base_fd, (char*)&msg, 1);
+		int r = write(base_fd, (char*)&msg, 1);
 		(void)r; /* Suppress 'unused return value' and 'unused var' */
 	}
 #endif
@@ -429,7 +430,6 @@ evsig_dealloc_(struct event_base *base)
 	if (base == evsig_base) {
 		evsig_base = NULL;
 		evsig_base_n_signals_added = 0;
-		evsig_base_fd = -1;
 	}
 	EVSIGBASE_UNLOCK();
 
