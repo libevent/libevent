@@ -2105,60 +2105,48 @@ re_add_read_cb(evutil_socket_t fd, short event, void *arg)
 	if (n_read < 0) {
 		tt_fail_perror("read");
 		event_base_loopbreak(event_get_base(ev_other));
-		return;
 	} else {
 		event_add(ev_other, NULL);
 		++test_ok;
 	}
 }
-
 static void
-test_nonpersist_readd(void)
+test_nonpersist_readd(void *_data)
 {
 	struct event ev1, ev2;
+	struct basic_test_data *data = _data;
 
-	setup_test("Re-add nonpersistent events: ");
-	event_set(&ev1, pair[0], EV_READ, re_add_read_cb, &ev2);
-	event_set(&ev2, pair[1], EV_READ, re_add_read_cb, &ev1);
+	memset(&ev1, 0, sizeof(ev1));
+	memset(&ev2, 0, sizeof(ev2));
 
-	if (write(pair[0], "Hello", 5) < 0) {
-		tt_fail_perror("write(pair[0])");
-	}
+	tt_assert(!event_assign(&ev1, data->base, data->pair[0], EV_READ, re_add_read_cb, &ev2));
+	tt_assert(!event_assign(&ev2, data->base, data->pair[1], EV_READ, re_add_read_cb, &ev1));
 
-	if (write(pair[1], "Hello", 5) < 0) {
-		tt_fail_perror("write(pair[1])\n");
-	}
+	tt_int_op(write(data->pair[0], "Hello", 5), ==, 5);
+	tt_int_op(write(data->pair[1], "Hello", 5), ==, 5);
 
-	if (event_add(&ev1, NULL) == -1 ||
-	    event_add(&ev2, NULL) == -1) {
-		test_ok = 0;
-	}
-	if (test_ok != 0)
-		exit(1);
-	event_loop(EVLOOP_ONCE);
-	if (test_ok != 2)
-		exit(1);
+	tt_int_op(event_add(&ev1, NULL), ==, 0);
+	tt_int_op(event_add(&ev2, NULL), ==, 0);
+	tt_int_op(event_base_loop(data->base, EVLOOP_ONCE), ==, 0);
+	tt_int_op(test_ok, ==, 2);
+
 	/* At this point, we executed both callbacks.  Whichever one got
 	 * called first added the second, but the second then immediately got
 	 * deleted before its callback was called.  At this point, though, it
 	 * re-added the first.
 	 */
-	if (!readd_test_event_last_added) {
-		test_ok = 0;
-	} else if (readd_test_event_last_added == &ev1) {
-		if (!event_pending(&ev1, EV_READ, NULL) ||
-		    event_pending(&ev2, EV_READ, NULL))
-			test_ok = 0;
+	tt_assert(readd_test_event_last_added);
+	if (readd_test_event_last_added == &ev1) {
+		tt_assert(event_pending(&ev1, EV_READ, NULL) && !event_pending(&ev2, EV_READ, NULL));
 	} else {
-		if (event_pending(&ev1, EV_READ, NULL) ||
-		    !event_pending(&ev2, EV_READ, NULL))
-			test_ok = 0;
+		tt_assert(event_pending(&ev2, EV_READ, NULL) && !event_pending(&ev1, EV_READ, NULL));
 	}
 
-	event_del(&ev1);
-	event_del(&ev2);
-
-	cleanup_test();
+end:
+	if (event_initialized(&ev1))
+		event_del(&ev1);
+	if (event_initialized(&ev2))
+		event_del(&ev2);
 }
 
 struct test_pri_event {
@@ -3442,7 +3430,7 @@ struct testcase_t main_testcases[] = {
 	LEGACY(loopbreak, TT_ISOLATED),
 	LEGACY(loopexit, TT_ISOLATED),
 	LEGACY(loopexit_multiple, TT_ISOLATED),
-	LEGACY(nonpersist_readd, TT_ISOLATED),
+	{ "nonpersist_readd", test_nonpersist_readd, TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE, &basic_setup, NULL },
 	LEGACY(multiple_events_for_same_fd, TT_ISOLATED),
 	LEGACY(want_only_once, TT_ISOLATED),
 	{ "event_once", test_event_once, TT_ISOLATED, &basic_setup, NULL },
