@@ -708,18 +708,76 @@ int _evbuffer_testing_use_sendfile(void);
 int _evbuffer_testing_use_mmap(void);
 int _evbuffer_testing_use_linear_file_access(void);
 
+static struct event_base *addfile_test_event_base;
+static int addfile_test_done_writing;
+static int addfile_test_total_written;
+static int addfile_test_total_read;
+
 static void
-test_evbuffer_add_file(void *ptr)
+addfile_test_writecb(evutil_socket_t fd, short what, void *arg)
 {
-	const char *impl = ptr;
-	struct evbuffer *src = evbuffer_new();
+	struct evbuffer *b = arg;
+	int r;
+	evbuffer_validate(b);
+	while (evbuffer_get_length(b)) {
+		r = evbuffer_write(b, fd);
+		if (r > 0) {
+			addfile_test_total_written += r;
+			TT_BLATHER(("Wrote %d/%d bytes", r, addfile_test_total_written));
+		} else {
+			int e = evutil_socket_geterror(fd);
+			if (EVUTIL_ERR_RW_RETRIABLE(e))
+				return;
+			tt_fail_perror("write");
+			event_base_loopexit(addfile_test_event_base,NULL);
+		}
+		evbuffer_validate(b);
+	}
+	addfile_test_done_writing = 1;
+	return;
+end:
+	event_base_loopexit(addfile_test_event_base,NULL);
+}
+
+static void
+addfile_test_readcb(evutil_socket_t fd, short what, void *arg)
+{
+	struct evbuffer *b = arg;
+	int e, r = 0;
+	do {
+		r = evbuffer_read(b, fd, 1024);
+		if (r > 0) {
+			addfile_test_total_read += r;
+			TT_BLATHER(("Read %d/%d bytes", r, addfile_test_total_read));
+		}
+	} while (r > 0);
+	if (r < 0) {
+		e = evutil_socket_geterror(fd);
+		if (! EVUTIL_ERR_RW_RETRIABLE(e)) {
+			tt_fail_perror("read");
+			event_base_loopexit(addfile_test_event_base,NULL);
+		}
+	}
+	if (addfile_test_done_writing &&
+	    addfile_test_total_read >= addfile_test_total_written) {
+		event_base_loopexit(addfile_test_event_base,NULL);
+	}
+}
+
+static void
+test_evbuffer_add_file(void *_testdata)
+{
+	struct basic_test_data *testdata = _testdata;
+	const char *impl = testdata->setup_data;
+	struct evbuffer *src = evbuffer_new(), *dest = evbuffer_new();
 	char *data = strdup("this is what we add as file system data.");
-	size_t datalen = strlen(data), toread = datalen, bufread = 0;
+	size_t datalen = strlen(data), toread = datalen;
 	const char *compare;
 	int fd = -1;
-	evutil_socket_t pair[2] = {-1, -1};
-	int r = 0, n_written = 0, n;
 	ev_off_t offset = 0;
+	struct event *rev=NULL, *wev=NULL;
+	struct event_base *base = testdata->base;
+	int *pair = testdata->pair;
 
 	tt_assert(impl);
 	if (strstr(impl, "_sendfile")) {
@@ -759,51 +817,48 @@ test_evbuffer_add_file(void *ptr)
 	/* Say that it drains to a fd so that we can use sendfile. */
 	evbuffer_set_flags(src, EVBUFFER_FLAG_DRAINS_TO_FD);
 
-#if defined(_EVENT_HAVE_SENDFILE) && defined(__sun__) && defined(__svr4__)
-	/* We need to use a pair of AF_INET sockets, since Solaris
-	   doesn't support sendfile() over AF_UNIX. */
-	if (evutil_ersatz_socketpair(AF_INET, SOCK_STREAM, 0, pair) == -1)
-		tt_abort_msg("ersatz_socketpair failed");
-#else
-	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
-		tt_abort_msg("socketpair failed");
-#endif
-
 	fd = regress_make_tmpfile(data, datalen);
 	tt_assert(fd != -1);
 
 	tt_assert(evbuffer_add_file(src, fd, offset, toread) != -1);
 	evbuffer_validate(src);
 
-	while (evbuffer_get_length(src) &&
-	    (r = evbuffer_write(src, pair[0])) > 0) {
-		evbuffer_validate(src);
-		n_written += r;
-	}
-	tt_int_op(r, !=, -1);
-	tt_int_op(n_written, ==, toread);
+	addfile_test_event_base = base;
+	addfile_test_done_writing = 0;
+	addfile_test_total_written = 0;
+	addfile_test_total_read = 0;
+
+	wev = event_new(base, pair[0], EV_WRITE|EV_PERSIST,
+	    addfile_test_writecb, src);
+	rev = event_new(base, pair[1], EV_READ|EV_PERSIST,
+	    addfile_test_readcb, dest);
+
+	event_add(wev, NULL);
+	event_add(rev, NULL);
+	event_base_dispatch(base);
 
 	evbuffer_validate(src);
+	evbuffer_validate(dest);
 
-	for (n = toread, bufread = toread;
-		 n > 0;
-		 n = evbuffer_read(src, pair[1], (int)bufread), bufread -= n) {
-	}
-	tt_int_op(bufread, ==, 0);
+	tt_assert(addfile_test_done_writing);
+	tt_int_op(addfile_test_total_written, ==, toread);
+	tt_int_op(addfile_test_total_read, ==, toread);
 
-	evbuffer_validate(src);
-	compare = (char *)evbuffer_pullup(src, toread);
+	compare = (char *)evbuffer_pullup(dest, toread);
 	tt_assert(compare != NULL);
 	if (memcmp(compare, data + offset, toread))
 		tt_abort_msg("Data from add_file differs.");
 
-	evbuffer_validate(src);
+	evbuffer_validate(dest);
  end:
-	if (pair[0] >= 0)
-		evutil_closesocket(pair[0]);
-	if (pair[1] >= 0)
-		evutil_closesocket(pair[1]);
-	evbuffer_free(src);
+	if (src)
+		evbuffer_free(src);
+	if (dest)
+		evbuffer_free(dest);
+	if (rev)
+		event_free(rev);
+	if (wev)
+		event_free(wev);
 	free(data);
 }
 
@@ -1776,7 +1831,8 @@ struct testcase_t evbuffer_testcases[] = {
 	/* TODO: need a temp file implementation for Windows */
 
 #define ADD_FILE_TEST(name) \
-	{ name, test_evbuffer_add_file, TT_FORK, &nil_setup, (void*)name },
+	{ name, test_evbuffer_add_file, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR, \
+	  &basic_setup, (void*)name },
 #define ADD_FILE_TEST_GROUP(name) \
 	ADD_FILE_TEST(name) \
 	ADD_FILE_TEST(name "_offset") \
