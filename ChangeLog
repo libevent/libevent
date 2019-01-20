@@ -1,3 +1,45 @@
+Changes in version 2.0.23-beta (20 Jan 2019)
+
+This changelog contains only first parent commit for merges.
+
+BUGFIXES
+ o Fix potential fd leak in listener_read_cb() (571dbac Mark Ellzey)
+ o Backport for #340 (fix overflow check in expand_singlechain() (7dedc07 Mark Ellzey)
+ o Fix ipv6 support for http. When URL contain domain, not IP address. (502c043 Azat Khuzhin)
+ o Use the free-trailing-chains function in evbuffer_insert_chain too (0e894fb Nick Mathewson)
+ o evbuffer_add: Use last_with_datap if set, not last. (b00db82 Marcus Sundberg)
+ o Merge branch 'evbuffer_add_file-2.0-fixes' into patches-2.0 (90ae4c50 Azat Khuzhin)
+ o Check for Mac OS X 10.4 kqueue bug properly (6762a4d6 Mark Mentovai)
+ o bufferevent_socket_connect{,_hostname}() missing event callback and use ret code (ebcf2fed Jesse Fang)
+ o Preserve ET bit for backends with changelist (e12762a5 Azat Khuzhin)
+ o Epoll ET setting lost with multiple events for same fd (11732245 Isidor Kouvelas)
+ o If evsel->del() fails, don't leave the evmap in an inconsistent state. (cb81be2b Maxime Henrion)
+ o Backport for #340 (fix overflow check in expand_singlechain() (7dedc077 Mark Ellzey)
+ o evbuffer_add: Use last_with_datap if set, not last. (b00db82a Marcus Sundberg)
+ o Use the free-trailing-chains function in evbuffer_insert_chain too (0e894fb7 Nick Mathewson)
+
+UNIT TESTS
+ o Add regress test ipv6_for_domain. (066a4f6 Azat Khuzhin)
+ o test/regress: add tests for evbuffer_add() breakage on empty last chain (0091da3 Marcus Sundberg)
+ o Add travis-ci configuration (c52cdc28 Azat Khuzhin)
+ o Remove integer-overflow unit tests (4d73149f Nick Mathewson)
+ o Correctly skip ipv6 http test on systems without ipv6 (33845824 Nick Mathewson)
+ o Skip http/ipv6_for_domain test when we have no ipv6 support (b52e95f5 Nick Mathewson)
+ o Remove for loop initial declaration and fix conflicting type in it (gcc 4.8) (6f18f88e Azat Khuzhin)
+ o Skip all dns tests that hit the network (b2beaad6 Azat Khuzhin)
+ o Simplify bufferevent timeout tests to reduce CPU usage in between start/compare (9e6f6503 Azat Khuzhin)
+ o Cover ET with multiple events for same fd (baf1a310 Isidor Kouvelas)
+ o test/regress: add tests for evbuffer_add() breakage on empty last chain (0091da36 Marcus Sundberg)
+ o test/buffer: write >GETPIPE_SZ via events over pair to avoid stall (a09cc8a3 Azat Khuzhin)
+
+BUILD AND DISTRIBUTION
+ o libevent_core and libevent_extra also deserve a pkgconfig file (a5b4b7a Jan Heylen)
+
+MISC
+ o Ignore all pkgconfig generated stuff (9b2a670 Azat Khuzhin)
+ o ignore config.cache/test-driver files (6db4399e Mike Frysinger)
+ o libevent_core and libevent_extra also deserve a pkgconfig file (a5b4b7a1 Jan Heylen)
+
 Changes in version 2.0.22-stable (5 Jan 2015)
 
 SECURITY FIXES (evbuffers)
