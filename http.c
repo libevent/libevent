@@ -1171,7 +1171,9 @@ static void
 evhttp_deferred_read_cb(struct event_callback *cb, void *data)
 {
 	struct evhttp_connection *evcon = data;
-	evhttp_read_cb(evcon->bufev, evcon);
+	struct bufferevent *bev = evcon->bufev;
+	if (bev->readcb)
+		(bev->readcb)(evcon->bufev, evcon);
 }
 
 static void
