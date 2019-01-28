@@ -213,6 +213,11 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	/* Invoke the user callback - must always be called last */
 	bufferevent_trigger_nolock_(bufev, EV_READ, 0);
 
+	if (event & EV_CLOSED) {
+		what |= BEV_EVENT_EOF;
+		goto error;
+	}
+
 	goto done;
 
  reschedule:
@@ -364,7 +369,7 @@ bufferevent_socket_new(struct event_base *base, evutil_socket_t fd,
 	evbuffer_set_flags(bufev->output, EVBUFFER_FLAG_DRAINS_TO_FD);
 
 	event_assign(&bufev->ev_read, bufev->ev_base, fd,
-	    EV_READ|EV_PERSIST|EV_FINALIZE, bufferevent_readcb, bufev);
+	    EV_READ|EV_PERSIST|EV_FINALIZE|EV_CLOSED, bufferevent_readcb, bufev);
 	event_assign(&bufev->ev_write, bufev->ev_base, fd,
 	    EV_WRITE|EV_PERSIST|EV_FINALIZE, bufferevent_writecb, bufev);
 

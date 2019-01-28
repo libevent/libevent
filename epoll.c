@@ -37,6 +37,7 @@
 #endif
 #include <sys/queue.h>
 #include <sys/epoll.h>
+#include <sys/mman.h>
 #include <signal.h>
 #include <limits.h>
 #include <stdio.h>
@@ -44,6 +45,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <assert.h>
 #ifdef EVENT__HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -83,6 +85,57 @@
 #define USING_TIMERFD
 #endif
 
+typedef _Bool bool;
+enum {
+	false = 0,
+	true  = 1,
+};
+
+#define BUILD_BUG_ON(condition) ((void )sizeof(char [1 - 2*!!(condition)]))
+#define READ_ONCE(v) (*(volatile typeof(v)*)&(v))
+
+#define USE_USERPOLL
+
+
+#ifdef USE_USERPOLL
+#define __EPOLLET (EPOLLET | EPOLLRDHUP)
+#else
+#define __EPOLLET EPOLLRDHUP
+#endif
+
+#define EPOLL_USERPOLL_HEADER_MAGIC 0xeb01eb01
+#define EPOLL_USERPOLL_HEADER_SIZE  128
+#define EPOLL_USERPOLL 1
+
+/* User item marked as removed for EPOLL_USERPOLL */
+#define EPOLLREMOVED	(1U << 27)
+
+/*
+ * Item, shared with userspace.  Unfortunately we can't embed epoll_event
+ * structure, because it is badly aligned on all 64-bit archs, except
+ * x86-64 (see EPOLL_PACKED).  sizeof(epoll_uitem) == 16
+ */
+struct epoll_uitem {
+	uint32_t ready_events;
+	uint32_t events;
+	uint64_t data;
+};
+
+/*
+ * Header, shared with userspace. sizeof(epoll_uheader) == 128
+ */
+struct epoll_uheader {
+	uint32_t magic;          /* epoll user header magic */
+	uint32_t header_length;  /* length of the header + items */
+	uint32_t index_length;   /* length of the index ring, always pow2 */
+	uint32_t max_items_nr;   /* max number of items */
+	uint32_t head;           /* updated by userland */
+	uint32_t tail;           /* updated by kernel */
+
+	struct epoll_uitem items[]
+		__attribute__((aligned(EPOLL_USERPOLL_HEADER_SIZE)));
+};
+
 struct epollop {
 	struct epoll_event *events;
 	int nevents;
@@ -90,7 +143,157 @@ struct epollop {
 #ifdef USING_TIMERFD
 	int timerfd;
 #endif
+	struct epoll_uheader *header;
+	unsigned int *index;
 };
+
+static inline unsigned int max_index_nr(struct epoll_uheader *header)
+{
+	return header->index_length >> 2;
+}
+
+static inline bool read_event(struct epoll_uheader *header, unsigned int *index,
+			      unsigned int idx, struct epoll_event *event)
+{
+	struct epoll_uitem *item;
+	unsigned int *item_idx_ptr;
+	unsigned int indeces_mask;
+
+	indeces_mask = max_index_nr(header) - 1;
+	if (indeces_mask & max_index_nr(header)) {
+		assert(0);
+		/* Should be pow2, corrupted header? */
+		return false;
+	}
+
+	item_idx_ptr = &index[idx & indeces_mask];
+
+	/*
+	 * Spin here till we see valid index
+	 */
+	while (!(idx = __atomic_load_n(item_idx_ptr, __ATOMIC_ACQUIRE)))
+		;
+
+	if (idx > header->max_items_nr) {
+		assert(0);
+		/* Corrupted index? */
+		return false;
+	}
+
+	item = &header->items[idx - 1];
+
+	/*
+	 * Mark index as invalid, that is for userspace only, kernel does not care
+	 * and will refill this pointer only when observes that event is cleared,
+	 * which happens below.
+	 */
+	*item_idx_ptr = 0;
+
+	/*
+	 * Fetch data first, if event is cleared by the kernel we drop the data
+	 * returning false.
+	 */
+	event->data.u64 = item->data;
+	event->events = __atomic_exchange_n(&item->ready_events, 0,
+					    __ATOMIC_RELEASE);
+
+	return (event->events & ~EPOLLREMOVED);
+}
+
+static int uepoll_wait(struct epollop *epollop, struct epoll_event *events,
+					   int maxevents, int timeout)
+
+{
+	struct epoll_uheader *header = epollop->header;
+	unsigned int *index = epollop->index;
+
+	unsigned int spins = 100;
+	unsigned int tail;
+	int i;
+
+	BUILD_BUG_ON(sizeof(*header) != EPOLL_USERPOLL_HEADER_SIZE);
+	BUILD_BUG_ON(sizeof(header->items[0]) != 16);
+	assert(maxevents > 0);
+
+again:
+	/*
+	 * Cache the tail because we don't want refetch it on each iteration
+	 * and then catch live events updates, i.e. we don't want user @events
+	 * array consist of events from the same fds.
+	 */
+	tail = READ_ONCE(header->tail);
+
+	if (header->head == tail && timeout != 0) {
+		if (spins--)
+			/* Busy loop a bit */
+			goto again;
+
+		i = epoll_wait(epollop->epfd, NULL, 0, timeout);
+		assert(i <= 0);
+		if (i == 0 || (i < 0 && errno != ESTALE))
+			return i;
+
+		tail = READ_ONCE(header->tail);
+		assert(header->head != tail);
+	}
+
+	for (i = 0; header->head != tail && i < maxevents; header->head++) {
+		if (read_event(header, index, header->head, &events[i]))
+			i++;
+		else {
+			/*
+			 * Event cleared by kernel because EPOLL_CTL_DEL was called,
+			 * nothing interesting, continue.
+			 */
+		}
+	}
+
+	return i;
+}
+
+static void uepoll_mmap(int epfd, struct epoll_uheader **_header,
+		       unsigned int **_index)
+{
+	struct epoll_uheader *header;
+	unsigned int *index, len;
+
+	len = sysconf(_SC_PAGESIZE);
+again:
+	header = mmap(NULL, len, PROT_WRITE|PROT_READ, MAP_SHARED, epfd, 0);
+	if (header == MAP_FAILED) {
+		event_warn("timerfd_create");
+		assert(0);
+	}
+
+	if (header->header_length != len) {
+		unsigned int tmp_len = len;
+
+		len = header->header_length;
+		munmap(header, tmp_len);
+		goto again;
+	}
+
+	assert(header->magic == EPOLL_USERPOLL_HEADER_MAGIC);
+
+	index = mmap(NULL, header->index_length, PROT_WRITE|PROT_READ, MAP_SHARED,
+		     epfd, header->header_length);
+	if (index == MAP_FAILED) {
+		event_warn("mmap(index)");
+		assert(0);
+	}
+
+	*_header = header;
+	*_index = index;
+}
+
+#ifndef __NR_sys_epoll_create2
+#define __NR_sys_epoll_create2  428
+#endif
+
+static inline long epoll_create2(int flags, size_t size)
+{
+	return syscall(__NR_sys_epoll_create2, flags, size);
+}
 
 static void *epoll_init(struct event_base *);
 static int epoll_dispatch(struct event_base *, struct timeval *);
@@ -145,7 +348,11 @@ epoll_init(struct event_base *base)
 
 #ifdef EVENT__HAVE_EPOLL_CREATE1
 	/* First, try the shiny new epoll_create1 interface, if we have it. */
+#ifdef USE_USERPOLL
+	epfd = epoll_create2(EPOLL_CLOEXEC | EPOLL_USERPOLL, 1024);
+#else
 	epfd = epoll_create1(EPOLL_CLOEXEC);
+#endif
 #endif
 	if (epfd == -1) {
 		/* Initialize the kernel queue using the old interface.  (The
@@ -164,6 +371,11 @@ epoll_init(struct event_base *base)
 	}
 
 	epollop->epfd = epfd;
+
+#ifdef USE_USERPOLL
+	/* Mmap all pointers */
+	uepoll_mmap(epfd, &epollop->header, &epollop->index);
+#endif
 
 	/* Initialize fields */
 	epollop->events = mm_calloc(INITIAL_NEVENT, sizeof(struct epoll_event));
@@ -196,7 +408,7 @@ epoll_init(struct event_base *base)
 			struct epoll_event epev;
 			memset(&epev, 0, sizeof(epev));
 			epev.data.fd = epollop->timerfd;
-			epev.events = EPOLLIN;
+			epev.events = EPOLLIN | __EPOLLET;
 			if (epoll_ctl(epollop->epfd, EPOLL_CTL_ADD, fd, &epev) < 0) {
 				event_warn("epoll_ctl(timerfd)");
 				close(fd);
@@ -286,7 +498,7 @@ epoll_apply_one_change(struct event_base *base,
 
 	memset(&epev, 0, sizeof(epev));
 	epev.data.fd = ch->fd;
-	epev.events = events;
+	epev.events = events | __EPOLLET;
 	if (epoll_ctl(epollop->epfd, op, ch->fd, &epev) == 0) {
 		event_debug((PRINT_CHANGES(op, epev.events, ch, "okay")));
 		return 0;
@@ -462,7 +674,11 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
+#ifdef USE_USERPOLL
+	res = uepoll_wait(epollop, events, epollop->nevents, timeout);
+#else
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
+#endif
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
