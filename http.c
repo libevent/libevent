@@ -1534,6 +1534,14 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 			return;
 		}
 
+		if (what & BEV_EVENT_READING &&
+			evcon->flags & EVHTTP_CON_READ_ON_WRITE_ERROR &&
+			evbuffer_get_length(bufferevent_get_input(bufev))) {
+			event_deferred_cb_schedule_(get_deferred_queue(evcon),
+			    &evcon->read_more_deferred_cb);
+			return;
+		}
+
 		evhttp_connection_fail_(evcon, EVREQ_HTTP_EOF);
 	} else if (what == BEV_EVENT_CONNECTED) {
 	} else {
