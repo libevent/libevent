@@ -4110,31 +4110,27 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 
 	tt_assert(continue_size < size);
 
+	long_str = malloc(size);
+	memset(long_str, 'a', size);
+	long_str[size - 1] = '\0';
+
+	TT_BLATHER(("Creating connection to :%i", port));
 	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
 	tt_assert(evcon);
 
 	if (read_on_write_error)
 		tt_assert(!evhttp_connection_set_flags(evcon, EVHTTP_CON_READ_ON_WRITE_ERROR));
 
-	/* also bind to local host */
 	evhttp_connection_set_local_address(evcon, "127.0.0.1");
 
-	/*
-	 * At this point, we want to schedule an HTTP GET request
-	 * server using our make request method.
-	 */
+	evhttp_set_max_headers_size(http, size - 1);
+	TT_BLATHER(("Set max header size %zu", size - 1));
 
 	req = evhttp_request_new(http_data_length_constraints_test_done, data->base);
 	tt_assert(req);
-
-	long_str = malloc(size);
-	memset(long_str, 'a', size);
-	long_str[size - 1] = '\0';
-	/* Add the information that we care about */
-	evhttp_set_max_headers_size(http, size - 1);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Longheader", long_str);
-
+	TT_BLATHER(("GET /?arg=val"));
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/?arg=val") == -1) {
 		tt_abort_msg("Couldn't make request");
 	}
@@ -4143,19 +4139,22 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 	req = evhttp_request_new(http_data_length_constraints_test_done, data->base);
 	tt_assert(req);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
-
 	/* GET /?arg=verylongvalue HTTP/1.1 */
+	TT_BLATHER(("GET %s", long_str));
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, long_str) == -1) {
 		tt_abort_msg("Couldn't make request");
 	}
 	event_base_dispatch(data->base);
 
+	evhttp_set_max_body_size(http, size - 2);
+	TT_BLATHER(("Set body header size %zu", size - 2));
+
 	if (read_on_write_error)
 		cb = http_large_entity_test_done;
-	evhttp_set_max_body_size(http, size - 2);
 	req = evhttp_request_new(cb, data->base);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
+	TT_BLATHER(("POST /"));
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
 		tt_abort_msg("Couldn't make request");
 	}
@@ -4165,16 +4164,19 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "100-continue");
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
+	TT_BLATHER(("POST / (Expect: 100-continue, http_large_entity_test_done)"));
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
 		tt_abort_msg("Couldn't make request");
 	}
 	event_base_dispatch(data->base);
 
+	long_str[continue_size] = '\0';
+
 	req = evhttp_request_new(http_dispatcher_test_done, data->base);
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "100-continue");
-	long_str[continue_size] = '\0';
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
+	TT_BLATHER(("POST / (Expect: 100-continue, http_dispatcher_test_done)"));
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
 		tt_abort_msg("Couldn't make request");
 	}
@@ -4186,6 +4188,7 @@ http_data_length_constraints_test_impl(void *arg, int read_on_write_error)
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
 	evhttp_add_header(evhttp_request_get_output_headers(req), "Expect", "101-continue");
 	evbuffer_add_printf(evhttp_request_get_output_buffer(req), "%s", long_str);
+	TT_BLATHER(("POST / (Expect: 101-continue)"));
 	if (evhttp_make_request(evcon, req, EVHTTP_REQ_POST, "/") == -1) {
 		tt_abort_msg("Couldn't make request");
 	}
