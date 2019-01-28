@@ -1171,7 +1171,9 @@ static void
 evhttp_deferred_read_cb(struct event_callback *cb, void *data)
 {
 	struct evhttp_connection *evcon = data;
-	evhttp_read_cb(evcon->bufev, evcon);
+	struct bufferevent *bev = evcon->bufev;
+	if (bev->readcb)
+		(bev->readcb)(evcon->bufev, evcon);
 }
 
 static void
@@ -1529,6 +1531,14 @@ evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 		if (what & BEV_EVENT_WRITING &&
 			evcon->flags & EVHTTP_CON_READ_ON_WRITE_ERROR) {
 			evhttp_connection_read_on_write_error(evcon, req);
+			return;
+		}
+
+		if (what & BEV_EVENT_READING &&
+			evcon->flags & EVHTTP_CON_READ_ON_WRITE_ERROR &&
+			evbuffer_get_length(bufferevent_get_input(bufev))) {
+			event_deferred_cb_schedule_(get_deferred_queue(evcon),
+			    &evcon->read_more_deferred_cb);
 			return;
 		}
 
