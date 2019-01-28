@@ -435,6 +435,7 @@ main(int argc, char **argv)
 	if (!handle) {
 		fprintf(stderr, "couldn't bind to port %d. Exiting.\n", o.port);
 		ret = 1;
+		goto err;
 	}
 
 	{
@@ -462,6 +463,7 @@ main(int argc, char **argv)
 			fprintf(stderr, "Weird address family %d\n",
 			    ss.ss_family);
 			ret = 1;
+			goto err;
 		}
 		addr = evutil_inet_ntop(ss.ss_family, inaddr, addrbuf,
 		    sizeof(addrbuf));
@@ -472,6 +474,7 @@ main(int argc, char **argv)
 		} else {
 			fprintf(stderr, "evutil_inet_ntop failed\n");
 			ret = 1;
+			goto err;
 		}
 	}
 
