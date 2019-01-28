@@ -3,6 +3,7 @@ os:
   - osx
 sudo: false
 dist: trusty
+osx_image: xcode10.1
 
 branches:
   except:
