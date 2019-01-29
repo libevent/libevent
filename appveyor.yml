@@ -1,6 +1,8 @@
 version: 2.1.8.{build}
 
-os: Visual Studio 2015
+os: Visual Studio 2017
+platform:
+  - x64
 
 branches:
   except:
@@ -16,7 +18,9 @@ skip_commits:
 environment:
   global:
     APPVEYOR_SAVE_CACHE_ON_ERROR: true
-    CYG_ROOT: C:/MinGW/msys/1.0
+    MINGW_ROOT: C:/mingw-w64/x86_64-7.2.0-posix-seh-rt_v5-rev1
+    OPENSSL_ROOT: C:/OpenSSL-Win64
+    MPATH: C:/mingw-w64/x86_64-7.2.0-posix-seh-rt_v5-rev1/bin;C:/msys64/bin;C:/cygwin64/bin
     EVENT_TESTS_PARALLEL: 20
     EVENT_BUILD_PARALLEL: 10
   matrix:
@@ -63,29 +67,32 @@ matrix:
   fast_finish: true
 
 init:
-  - 'echo Building libevent %version% for Windows'
-  - 'echo System architecture: %PLATFORM%'
   - 'echo Repo build branch is: %APPVEYOR_REPO_BRANCH%'
   - 'echo Build folder is: %APPVEYOR_BUILD_FOLDER%'
   - 'echo Repo build commit is: %APPVEYOR_REPO_COMMIT%'
-  - 'echo Cygwin root is: %CYG_ROOT%'
-install:
-  - C:\MinGW\bin\mingw-get install autotools autoconf automake
+  - 'echo PATH is: %PATH%'
+
 build_script:
   - ps: |
       if ($env:EVENT_BUILD_METHOD -eq 'autotools') {
-        $env:PATH="$env:CYG_ROOT\bin;C:\MinGW\bin;$($env:PATH)"
-        bash -lc "echo 'C:\MinGW /mingw' > /etc/fstab"
-        bash -lc "echo 'C:\OpenSSL-Win32 /ssl' >> /etc/fstab"
-        $env:APPVEYOR_BUILD_FOLDER = $env:APPVEYOR_BUILD_FOLDER -replace "\\", "/"
-        bash -lc "exec 0</dev/null; exec 2>&1; cd $env:APPVEYOR_BUILD_FOLDER; bash -x ./autogen.sh && mkdir -p build-autotools && cd build-autotools && ../configure LDFLAGS='-L/ssl -L/ssl/lib -L/ssl/lib/MinGW' CFLAGS=-I/ssl/include $env:EVENT_CONFIGURE_OPTIONS && make -j $env:EVENT_BUILD_PARALLEL && make verify -j$env:EVENT_TESTS_PARALLEL"
+        $env:PATH="$env:MPATH;$env:OPENSSL_ROOT/bin;$env:PATH"
+        $env:LDFLAGS="-L$($env:OPENSSL_ROOT)/lib -L$($env:OPENSSL_ROOT)"
+        $env:CFLAGS="-I$($env:OPENSSL_ROOT)/include"
+
+        bash ./autogen.sh 2>&1 3>&1
+
+        md build-autotools 2> $null
+        cd build-autotools
+
+        bash ../configure $env:EVENT_CONFIGURE_OPTIONS 2>&1
+        make -j $env:EVENT_BUILD_PARALLEL 2>&1
+        make verify -j $env:EVENT_TESTS_PARALLEL 2>&1
       } else {
         md build-cmake 2> $null
         cd build-cmake
-        cmake .. $env:EVENT_CMAKE_OPTIONS
+        cmake -G "Visual Studio 15 2017 Win64" .. $env:EVENT_CMAKE_OPTIONS
         cmake --build . -j $env:EVENT_BUILD_PARALLEL
-        $env:CTEST_PARALLEL_LEVEL=$env:EVENT_TESTS_PARALLEL
-        ctest --output-on-failure
+        ctest --output-on-failure -j $env:EVENT_TESTS_PARALLEL
       }
 
 cache:
