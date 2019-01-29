@@ -80,7 +80,7 @@ test_edgetriggered(void *data_)
 {
 	struct basic_test_data *data = data_;
 	struct event_base *base = data->base;
-	int *pair = data->pair;
+	evutil_socket_t *pair = data->pair;
 	struct event *ev = NULL;
 	const char *test = "test string";
 	int supports_et;
