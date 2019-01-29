@@ -151,7 +151,7 @@ init_extension_functions(struct win32_extension_fns *ext)
 	const GUID connectex = WSAID_CONNECTEX;
 	const GUID getacceptexsockaddrs = WSAID_GETACCEPTEXSOCKADDRS;
 	SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
-	if (s == INVALID_SOCKET)
+	if (s == EVUTIL_INVALID_SOCKET)
 		return;
 	ext->AcceptEx = get_extension_function(s, &acceptex);
 	ext->ConnectEx = get_extension_function(s, &connectex);

@@ -484,6 +484,7 @@ int evutil_socket_geterror(evutil_socket_t sock);
 /** Convert a socket error to a string. */
 EVENT2_EXPORT_SYMBOL
 const char *evutil_socket_error_to_string(int errcode);
+#define EVUTIL_INVALID_SOCKET INVALID_SOCKET
 #elif defined(EVENT_IN_DOXYGEN_)
 /**
    @name Socket error functions
@@ -507,14 +508,16 @@ const char *evutil_socket_error_to_string(int errcode);
 #define evutil_socket_geterror(sock) ...
 /** Convert a socket error to a string. */
 #define evutil_socket_error_to_string(errcode) ...
+#define EVUTIL_INVALID_SOCKET -1
 /**@}*/
-#else
+#else /** !EVENT_IN_DOXYGEN_ && !_WIN32 */
 #define EVUTIL_SOCKET_ERROR() (errno)
 #define EVUTIL_SET_SOCKET_ERROR(errcode)		\
 		do { errno = (errcode); } while (0)
 #define evutil_socket_geterror(sock) (errno)
 #define evutil_socket_error_to_string(errcode) (strerror(errcode))
-#endif
+#define EVUTIL_INVALID_SOCKET -1
+#endif /** !_WIN32 */
 
 
 /**

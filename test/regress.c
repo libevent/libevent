@@ -3118,7 +3118,7 @@ test_get_assignment(void *arg)
 	event_get_assignment(ev1, &b, &s, &what, &cb, &cb_arg);
 
 	tt_ptr_op(b, ==, base);
-	tt_int_op(s, ==, data->pair[1]);
+	tt_fd_op(s, ==, data->pair[1]);
 	tt_int_op(what, ==, EV_READ);
 	tt_ptr_op(cb, ==, dummy_read_cb);
 	tt_ptr_op(cb_arg, ==, str);

@@ -137,14 +137,14 @@ test_bufferevent_impl(int use_pair, int flush)
 		bev2 = pair[1];
 		bufferevent_setcb(bev1, readcb, writecb, errorcb, bev1);
 		bufferevent_setcb(bev2, readcb, writecb, errorcb, NULL);
-		tt_int_op(bufferevent_getfd(bev1), ==, -1);
+		tt_fd_op(bufferevent_getfd(bev1), ==, EVUTIL_INVALID_SOCKET);
 		tt_ptr_op(bufferevent_get_underlying(bev1), ==, NULL);
 		tt_ptr_op(bufferevent_pair_get_partner(bev1), ==, bev2);
 		tt_ptr_op(bufferevent_pair_get_partner(bev2), ==, bev1);
 	} else {
 		bev1 = bufferevent_new(pair[0], readcb, writecb, errorcb, NULL);
 		bev2 = bufferevent_new(pair[1], readcb, writecb, errorcb, NULL);
-		tt_int_op(bufferevent_getfd(bev1), ==, pair[0]);
+		tt_fd_op(bufferevent_getfd(bev1), ==, pair[0]);
 		tt_ptr_op(bufferevent_get_underlying(bev1), ==, NULL);
 		tt_ptr_op(bufferevent_pair_get_partner(bev1), ==, NULL);
 		tt_ptr_op(bufferevent_pair_get_partner(bev2), ==, NULL);
@@ -569,8 +569,8 @@ test_bufferevent_filters_impl(int use_pair, int disable)
 
 	tt_ptr_op(bufferevent_get_underlying(bev1), ==, bev1_base);
 	tt_ptr_op(bufferevent_get_underlying(bev2), ==, bev2_base);
-	tt_int_op(bufferevent_getfd(bev1), ==, bufferevent_getfd(bev1_base));
-	tt_int_op(bufferevent_getfd(bev2), ==, bufferevent_getfd(bev2_base));
+	tt_fd_op(bufferevent_getfd(bev1), ==, bufferevent_getfd(bev1_base));
+	tt_fd_op(bufferevent_getfd(bev2), ==, bufferevent_getfd(bev2_base));
 
 	bufferevent_disable(bev1, EV_READ);
 	bufferevent_enable(bev2, EV_READ);
@@ -640,7 +640,7 @@ end:
 	;
 }
 
-static int
+static evutil_socket_t
 fake_listener_create(struct sockaddr_in *localhost)
 {
 	struct sockaddr *sa = (struct sockaddr *)localhost;
