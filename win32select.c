@@ -326,6 +326,8 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	event_debug(("%s: select returned %d", __func__, res));
 
 	if (res <= 0) {
+		event_debug(("%s: %s", __func__,
+		    evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR())));
 		return res;
 	}
 
