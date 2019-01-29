@@ -8,6 +8,9 @@ osx_image: xcode10.1
 branches:
   except:
   - /.*appveyor.*/
+  - /.*win.*/
+  - /.*mingw.*/
+  - /.*freebsd.*/
 
 git:
   quiet: true
