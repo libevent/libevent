@@ -287,12 +287,12 @@ enum regress_openssl_type
 static void
 bufferevent_openssl_check_fd(struct bufferevent *bev, int filter)
 {
-	tt_int_op(bufferevent_getfd(bev), !=, -1);
-	tt_int_op(bufferevent_setfd(bev, -1), ==, 0);
+	tt_fd_op(bufferevent_getfd(bev), !=, EVUTIL_INVALID_SOCKET);
+	tt_fd_op(bufferevent_setfd(bev, EVUTIL_INVALID_SOCKET), ==, 0);
 	if (filter) {
-		tt_int_op(bufferevent_getfd(bev), !=, -1);
+		tt_fd_op(bufferevent_getfd(bev), !=, EVUTIL_INVALID_SOCKET);
 	} else {
-		tt_int_op(bufferevent_getfd(bev), ==, -1);
+		tt_fd_op(bufferevent_getfd(bev), ==, EVUTIL_INVALID_SOCKET);
 	}
 
 end:
@@ -501,7 +501,7 @@ regress_bufferevent_openssl(void *arg)
 	    fd_pair, bev_ll, type);
 
 	if (!(type & REGRESS_OPENSSL_FILTER)) {
-		tt_int_op(bufferevent_getfd(bev1), ==, data->pair[0]);
+		tt_fd_op(bufferevent_getfd(bev1), ==, data->pair[0]);
 	} else {
 		tt_ptr_op(bufferevent_get_underlying(bev1), ==, bev_ll[0]);
 	}
@@ -614,7 +614,7 @@ end:
 
 struct rwcount
 {
-	int fd;
+	evutil_socket_t fd;
 	size_t read;
 	size_t write;
 };

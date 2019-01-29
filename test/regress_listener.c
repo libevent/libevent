@@ -80,8 +80,9 @@ regress_pick_a_port(void *arg)
 	ev_socklen_t slen1 = sizeof(ss1), slen2 = sizeof(ss2);
 	unsigned int flags =
 	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_EXEC;
+	evutil_socket_t fd1, fd2, fd3;
 
-	evutil_socket_t fd1 = -1, fd2 = -1, fd3 = -1;
+	fd1 = fd2 = fd3 = EVUTIL_INVALID_SOCKET;
 
 	if (data->setup_data && strstr((char*)data->setup_data, "ts")) {
 		flags |= LEV_OPT_THREADSAFE;
@@ -99,8 +100,8 @@ regress_pick_a_port(void *arg)
 	    flags, -1, (struct sockaddr *)&sin, sizeof(sin));
 	tt_assert(listener2);
 
-	tt_int_op(evconnlistener_get_fd(listener1), >=, 0);
-	tt_int_op(evconnlistener_get_fd(listener2), >=, 0);
+	tt_assert(evconnlistener_get_fd(listener1) != EVUTIL_INVALID_SOCKET);
+	tt_assert(evconnlistener_get_fd(listener2) != EVUTIL_INVALID_SOCKET);
 	tt_assert(getsockname(evconnlistener_get_fd(listener1),
 		(struct sockaddr*)&ss1, &slen1) == 0);
 	tt_assert(getsockname(evconnlistener_get_fd(listener2),
@@ -117,7 +118,7 @@ regress_pick_a_port(void *arg)
 	tt_ptr_op(evconnlistener_get_base(listener1), ==, base);
 	tt_ptr_op(evconnlistener_get_base(listener2), ==, base);
 
-	fd1 = fd2 = fd3 = -1;
+	fd1 = fd2 = fd3 = EVUTIL_INVALID_SOCKET;
 	evutil_socket_connect_(&fd1, (struct sockaddr*)&ss1, slen1);
 	evutil_socket_connect_(&fd2, (struct sockaddr*)&ss1, slen1);
 	evutil_socket_connect_(&fd3, (struct sockaddr*)&ss2, slen2);
@@ -208,7 +209,7 @@ regress_listener_close_accepted_fd(void *arg)
 	ev_socklen_t slen = sizeof(ss);
 	int count = 1;
 	unsigned int flags = LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE;
-	int fd = -1;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -241,7 +242,7 @@ regress_listener_immediate_close(void *arg)
 	ev_socklen_t slen = sizeof(ss);
 	int count = 1;
 	unsigned int flags = LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE;
-	int fd1 = -1, fd2 = -1;
+	evutil_socket_t fd1 = EVUTIL_INVALID_SOCKET, fd2 = EVUTIL_INVALID_SOCKET;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;

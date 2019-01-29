@@ -181,7 +181,7 @@ http_connect(const char *address, ev_uint16_t port)
 	char strport[NI_MAXSERV];
 
 	struct sockaddr *sa;
-	int slen;
+	size_t slen;
 	evutil_socket_t fd;
 
 	memset(&ai, 0, sizeof(ai));
@@ -374,7 +374,7 @@ end:
 	evbuffer_free(evb);
 }
 
-static void http_timeout_reply_cb(int fd, short events, void *arg)
+static void http_timeout_reply_cb(evutil_socket_t fd, short events, void *arg)
 {
 	struct evhttp_request *req = arg;
 	evhttp_send_reply(req, HTTP_OK, "Everything is fine", NULL);
@@ -457,7 +457,7 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 }
 
 static struct bufferevent *
-create_bev(struct event_base *base, int fd, int ssl_mask)
+create_bev(struct event_base *base, evutil_socket_t fd, int ssl_mask)
 {
 	int flags = BEV_OPT_DEFER_CALLBACKS;
 	struct bufferevent *bev = NULL;
@@ -684,7 +684,7 @@ http_bad_request_test(void *arg)
 	struct basic_test_data *data = arg;
 	struct timeval tv;
 	struct bufferevent *bev = NULL;
-	evutil_socket_t fd = -1;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
 	const char *http_request;
 	ev_uint16_t port=0, port2=0;
 	struct evhttp *http = http_setup(&port, data->base, 0);
@@ -698,7 +698,7 @@ http_bad_request_test(void *arg)
 
 	/* NULL request test */
 	fd = http_connect("127.0.0.1", port);
-	tt_int_op(fd, >=, 0);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -730,6 +730,7 @@ http_bad_request_test(void *arg)
 
 	/* connect to the second port */
 	fd = http_connect("127.0.0.1", port2);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -805,7 +806,7 @@ http_delete_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev;
-	evutil_socket_t fd = -1;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
 	const char *http_request;
 	ev_uint16_t port = 0;
 	struct evhttp *http = http_setup(&port, data->base, 0);
@@ -815,7 +816,7 @@ http_delete_test(void *arg)
 
 	tt_assert(http);
 	fd = http_connect("127.0.0.1", port);
-	tt_int_op(fd, >=, 0);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -834,7 +835,7 @@ http_delete_test(void *arg)
 
 	bufferevent_free(bev);
 	evutil_closesocket(fd);
-	fd = -1;
+	fd = EVUTIL_INVALID_SOCKET;
 
 	evhttp_free(http);
 
@@ -889,7 +890,7 @@ http_on_complete_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev;
-	evutil_socket_t fd = -1;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
 	const char *http_request;
 	ev_uint16_t port = 0;
 	struct evhttp *http = http_setup(&port, data->base, 0);
@@ -898,7 +899,7 @@ http_on_complete_test(void *arg)
 	test_ok = 0;
 
 	fd = http_connect("127.0.0.1", port);
-	tt_int_op(fd, >=, 0);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -959,7 +960,7 @@ http_allowed_methods_test(void *arg)
 	test_ok = 0;
 
 	fd1 = http_connect("127.0.0.1", port);
-	tt_int_op(fd1, >=, 0);
+	tt_assert(fd1 != EVUTIL_INVALID_SOCKET);
 
 	/* GET is out; PATCH is in. */
 	evhttp_set_allowed_methods(http, EVHTTP_REQ_PATCH);
@@ -981,7 +982,7 @@ http_allowed_methods_test(void *arg)
 	event_base_dispatch(data->base);
 
 	fd2 = http_connect("127.0.0.1", port);
-	tt_int_op(fd2, >=, 0);
+	tt_assert(fd2 != EVUTIL_INVALID_SOCKET);
 
 	bev2 = bufferevent_socket_new(data->base, fd2, 0);
 	bufferevent_enable(bev2, EV_READ|EV_WRITE);
@@ -999,7 +1000,7 @@ http_allowed_methods_test(void *arg)
 	event_base_dispatch(data->base);
 
 	fd3 = http_connect("127.0.0.1", port);
-	tt_int_op(fd3, >=, 0);
+	tt_assert(fd3 != EVUTIL_INVALID_SOCKET);
 
 	bev3 = bufferevent_socket_new(data->base, fd3, 0);
 	bufferevent_enable(bev3, EV_READ|EV_WRITE);
@@ -1787,6 +1788,7 @@ http_virtual_host_test(void *arg)
 
 	/* Now make a raw request with an absolute URI. */
 	fd = http_connect("127.0.0.1", port);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -2229,7 +2231,7 @@ http_failure_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev;
-	evutil_socket_t fd = -1;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
 	const char *http_request;
 	ev_uint16_t port = 0;
 	struct evhttp *http = http_setup(&port, data->base, 0);
@@ -2237,7 +2239,7 @@ http_failure_test(void *arg)
 	test_ok = 0;
 
 	fd = http_connect("127.0.0.1", port);
-	tt_int_op(fd, >=, 0);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -3027,7 +3029,7 @@ http_base_test(void *ptr)
 	http = http_setup(&port, base, 0);
 
 	fd = http_connect("127.0.0.1", port);
-	tt_int_op(fd, >=, 0);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(base, fd, 0);
@@ -3114,7 +3116,7 @@ http_incomplete_test_(struct basic_test_data *data, int use_timeout, int ssl)
 	evhttp_set_timeout(http, 1);
 
 	fd = http_connect("127.0.0.1", port);
-	tt_int_op(fd, >=, 0);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = create_bev(data->base, fd, ssl);
@@ -3138,7 +3140,7 @@ http_incomplete_test_(struct basic_test_data *data, int use_timeout, int ssl)
 	bufferevent_free(bev);
 	if (use_timeout) {
 		evutil_closesocket(fd);
-		fd = -1;
+		fd = EVUTIL_INVALID_SOCKET;
 	}
 
 	evhttp_free(http);
@@ -3331,6 +3333,7 @@ http_chunk_out_test_impl(void *arg, int ssl)
 	test_ok = 0;
 
 	fd = http_connect("127.0.0.1", port);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = create_bev(data->base, fd, ssl);
@@ -3909,7 +3912,7 @@ http_multi_line_header_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev= NULL;
-	evutil_socket_t fd = -1;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
 	const char *http_start_request;
 	ev_uint16_t port = 0;
 	struct evhttp *http = http_setup(&port, data->base, 0);
@@ -3920,8 +3923,7 @@ http_multi_line_header_test(void *arg)
 	tt_ptr_op(http, !=, NULL);
 
 	fd = http_connect("127.0.0.1", port);
-
-	tt_int_op(fd, !=, -1);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -4313,7 +4315,7 @@ http_terminate_chunked_test_impl(void *arg, int oneshot)
 	struct timeval tv;
 	const char *http_request;
 	ev_uint16_t port = 0;
-	evutil_socket_t fd = -1;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
 	struct terminate_state terminate_state;
 	struct evhttp *http = http_setup(&port, data->base, 0);
 
@@ -4324,6 +4326,7 @@ http_terminate_chunked_test_impl(void *arg, int oneshot)
 		terminate_chunked_cb, &terminate_state) == 0);
 
 	fd = http_connect("127.0.0.1", port);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
@@ -4504,7 +4507,7 @@ http_write_during_read_test_impl(void *arg, int ssl)
 	ev_uint16_t port = 0;
 	struct bufferevent *bev = NULL;
 	struct timeval tv;
-	int fd;
+	evutil_socket_t fd;
 	const char *http_request;
 	struct evhttp *http = http_setup(&port, data->base, ssl ? HTTP_BIND_SSL : 0);
 
@@ -4512,6 +4515,7 @@ http_write_during_read_test_impl(void *arg, int ssl)
 	exit_base = data->base;
 
 	fd = http_connect("127.0.0.1", port);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 	bev = create_bev(data->base, fd, 0);
 	bufferevent_setcb(bev, NULL, NULL, NULL, data->base);
 	bufferevent_disable(bev, EV_READ);
@@ -4528,6 +4532,7 @@ http_write_during_read_test_impl(void *arg, int ssl)
 
 	event_base_dispatch(data->base);
 
+end:
 	if (bev)
 		bufferevent_free(bev);
 	if (http)
@@ -4580,6 +4585,7 @@ static void http_run_bev_request(struct event_base *base, int port,
 	struct evbuffer *out;
 
 	fd = http_connect("127.0.0.1", port);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
 	bev = create_bev(base, fd, 0);
@@ -4593,7 +4599,9 @@ static void http_run_bev_request(struct event_base *base, int port,
 
 	event_base_dispatch(base);
 
-	bufferevent_free(bev);
+end:
+	if (bev)
+		bufferevent_free(bev);
 }
 static void
 http_request_extra_body_test(void *arg)
