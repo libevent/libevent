@@ -95,7 +95,7 @@ test_edgetriggered(void *data_)
 	called = was_et = 0;
 
 	tt_int_op(send(pair[0], test, (int)strlen(test)+1, 0), >, 0);
-	shutdown(pair[0], EVUTIL_SHUT_WR);
+	tt_int_op(shutdown(pair[0], EVUTIL_SHUT_WR), ==, 0);
 
 	supports_et = base_supports_et(base);
 	TT_BLATHER(("Checking for edge-triggered events with %s, which should %s"
@@ -104,8 +104,8 @@ test_edgetriggered(void *data_)
 
 	/* Initalize one event */
 	ev = event_new(base, pair[1], EV_READ|EV_ET|EV_PERSIST, read_cb, &ev);
-
-	event_add(ev, NULL);
+	tt_assert(ev != NULL);
+	tt_int_op(event_add(ev, NULL), ==, 0);
 
 	/* We're going to call the dispatch function twice.  The first invocation
 	 * will read a single byte from pair[1] in either case.  If we're edge
@@ -114,8 +114,8 @@ test_edgetriggered(void *data_)
 	 * do nothing.  If we're level triggered, the second invocation of
 	 * event_base_loop will also activate the event (because there's still
 	 * data to read). */
-	event_base_loop(base,EVLOOP_NONBLOCK|EVLOOP_ONCE);
-	event_base_loop(base,EVLOOP_NONBLOCK|EVLOOP_ONCE);
+	tt_int_op(event_base_loop(base,EVLOOP_NONBLOCK|EVLOOP_ONCE), ==, 0);
+	tt_int_op(event_base_loop(base,EVLOOP_NONBLOCK|EVLOOP_ONCE), ==, 0);
 
 	if (supports_et) {
 		tt_int_op(called, ==, 1);
@@ -209,7 +209,7 @@ test_edge_triggered_multiple_events(void *data_)
 	struct event *write_ev = NULL;
 	const char c = 'A';
 	struct event_base *base = data->base;
-	int *pair = data->pair;
+	evutil_socket_t *pair = data->pair;
 
 	if (!base_supports_et(base)) {
 		tt_skip();
