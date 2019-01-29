@@ -5,6 +5,9 @@ os: Visual Studio 2015
 branches:
   except:
     - /.*travis.*/
+    - /.*linux.*/
+    - /.*freebsd.*/
+    - /.*osx.*/
 skip_commits:
   message: /travis/
   files:
