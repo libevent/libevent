@@ -209,7 +209,7 @@ test_edge_triggered_multiple_events(void *data_)
 	struct event *write_ev = NULL;
 	const char c = 'A';
 	struct event_base *base = data->base;
-	int *pair = data->pair;
+	evutil_socket_t *pair = data->pair;
 
 	if (!base_supports_et(base)) {
 		tt_skip();
