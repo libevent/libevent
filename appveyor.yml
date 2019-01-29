@@ -91,7 +91,7 @@ build_script:
         md build-cmake 2> $null
         cd build-cmake
         cmake -G "Visual Studio 15 2017 Win64" .. $env:EVENT_CMAKE_OPTIONS
-        cmake --build . -j $env:EVENT_BUILD_PARALLEL
+        cmake --build . -j $env:EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
         ctest --output-on-failure -j $env:EVENT_TESTS_PARALLEL
       }
 
