@@ -859,7 +859,7 @@ event_changelist_add_(struct event_base *base, evutil_socket_t fd, short old, sh
 	struct event_changelist *changelist = &base->changelist;
 	struct event_changelist_fdinfo *fdinfo = p;
 	struct event_change *change;
-	short evchange = EV_CHANGE_ADD | (events & (EV_ET|EV_PERSIST|EV_SIGNAL));
+	ev_uint8_t evchange = EV_CHANGE_ADD | (events & (EV_ET|EV_PERSIST|EV_SIGNAL));
 
 	event_changelist_check(base);
 
@@ -889,7 +889,7 @@ event_changelist_del_(struct event_base *base, evutil_socket_t fd, short old, sh
 	struct event_changelist *changelist = &base->changelist;
 	struct event_changelist_fdinfo *fdinfo = p;
 	struct event_change *change;
-	short del = EV_CHANGE_DEL | (events & EV_ET);
+	ev_uint8_t del = EV_CHANGE_DEL | (events & EV_ET);
 
 	event_changelist_check(base);
 	change = event_changelist_get_or_construct(changelist, fd, old, fdinfo);
