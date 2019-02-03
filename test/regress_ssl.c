@@ -806,6 +806,7 @@ struct wm_context
 	size_t limit;
 	size_t get;
 	struct bufferevent *bev;
+	struct wm_context *neighbour;
 };
 static void
 wm_transfer(struct bufferevent *bev, void *arg)
@@ -821,6 +822,9 @@ wm_transfer(struct bufferevent *bev, void *arg)
 			ctx->server ? "server" : "client", bev));
 		bufferevent_setcb(bev, NULL, NULL, NULL, NULL);
 		bufferevent_disable(bev, EV_READ);
+		if (ctx->neighbour->get >= ctx->neighbour->limit) {
+			event_base_loopbreak(bufferevent_get_base(bev));
+		}
 	} else {
 		ctx->get += drain;
 		evbuffer_drain(in, drain);
@@ -952,6 +956,9 @@ regress_bufferevent_openssl_wm(void *arg)
 	}
 	tt_assert(bev);
 	client.bev = bev;
+
+	server.neighbour = &client;
+	client.neighbour = &server;
 
 	bufferevent_setwatermark(bev, EV_READ, 0, client.wm_high);
 	bufferevent_setcb(bev, wm_transfer, NULL, wm_eventcb, &client);
