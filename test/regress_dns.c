@@ -1218,10 +1218,13 @@ test_bufferevent_connect_hostname(void *arg)
 
 	if (emfile) {
 		success = BEV_EVENT_ERROR;
-#ifdef __linux__
+#if defined(__linux__)
 		/* on linux glibc/musl reports EAI_SYSTEM, when getaddrinfo() cannot
 		 * open file for resolving service. */
 		default_error = EVUTIL_EAI_SYSTEM;
+#elif defined(__sun__)
+		/* on solaris it returns EAI_FAIL */
+		default_error = EVUTIL_EAI_FAIL;
 #else
 		/* on osx/freebsd it returns EAI_NONAME */
 		default_error = EVUTIL_EAI_NONAME;
