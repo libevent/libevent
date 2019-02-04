@@ -192,9 +192,6 @@
 /* Define to 1 if the system has the type `struct sockaddr_storage'. */
 #define EVENT__HAVE_STRUCT_SOCKADDR_STORAGE 1
 
-/* Define to 1 if you have the <sys/devpoll.h> header file. */
-/* #undef EVENT__HAVE_SYS_DEVPOLL_H */
-
 /* Define to 1 if you have the <sys/epoll.h> header file. */
 /* #undef EVENT__HAVE_SYS_EPOLL_H */
 

@@ -322,9 +322,6 @@
 /* Define to 1 if you have the `sysctl' function. */
 #cmakedefine EVENT__HAVE_SYSCTL 1
 
-/* Define to 1 if you have the <sys/devpoll.h> header file. */
-#cmakedefine EVENT__HAVE_SYS_DEVPOLL_H 1
-
 /* Define to 1 if you have the <sys/epoll.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_EPOLL_H 1
 
