@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://strcpy.net/libevent3.png" alt="libevent logo"/>
+  <img src="https://libevent.org/libevent3.png" alt="libevent logo"/>
 </p>
 
 
