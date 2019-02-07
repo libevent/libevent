@@ -863,6 +863,19 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 		&d->deferred);
 }
 
+
+#define _QR_MASK    0x8000
+#define _OP_MASK    0x7800
+#define _AA_MASK    0x0400
+#define _TC_MASK    0x0200
+#define _RD_MASK    0x0100
+#define _RA_MASK    0x0080
+#define _Z_MASK     0x0040
+#define _AD_MASK    0x0020
+#define _CD_MASK    0x0010
+#define _RCODE_MASK 0x000f
+#define _Z_MASK_DEPRECATED 0x0070
+
 /* this processes a parsed reply packet */
 static void
 reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply) {
@@ -876,12 +889,12 @@ reply_handle(struct request *const req, u16 flags, u32 ttl, struct reply *reply)
 	ASSERT_LOCKED(req->base);
 	ASSERT_VALID_REQUEST(req);
 
-	if (flags & 0x020f || !reply || !reply->have_answer) {
+	if (flags & (_RCODE_MASK | _TC_MASK) || !reply || !reply->have_answer) {
 		/* there was an error */
-		if (flags & 0x0200) {
+		if (flags & _TC_MASK) {
 			error = DNS_ERR_TRUNCATED;
-		} else if (flags & 0x000f) {
-			u16 error_code = (flags & 0x000f) - 1;
+		} else if (flags & _RCODE_MASK) {
+			u16 error_code = (flags & _RCODE_MASK) - 1;
 			if (error_code > 4) {
 				error = DNS_ERR_UNKNOWN;
 			} else {
@@ -1046,8 +1059,8 @@ reply_parse(struct evdns_base *base, u8 *packet, int length) {
 	memset(&reply, 0, sizeof(reply));
 
 	/* If it's not an answer, it doesn't correspond to any request. */
-	if (!(flags & 0x8000)) return -1;  /* must be an answer */
-	if ((flags & 0x020f) && (flags & 0x020f) != DNS_ERR_NOTEXIST) {
+	if (!(flags & _QR_MASK)) return -1;  /* must be an answer */
+	if ((flags & (_RCODE_MASK|_TC_MASK)) && (flags & (_RCODE_MASK|_TC_MASK)) != DNS_ERR_NOTEXIST) {
 		/* there was an error and it's not NXDOMAIN */
 		goto err;
 	}
@@ -1236,8 +1249,8 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	(void)additional;
 	(void)authority;
 
-	if (flags & 0x8000) return -1; /* Must not be an answer. */
-	flags &= 0x0110; /* Only RD and CD get preserved. */
+	if (flags & _QR_MASK) return -1; /* Must not be an answer. */
+	flags &= (_RD_MASK|_CD_MASK); /* Only RD and CD get preserved. */
 
 	server_req = mm_malloc(sizeof(struct server_request));
 	if (server_req == NULL) return -1;
@@ -1277,7 +1290,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 	port->refcnt++;
 
 	/* Only standard queries are supported. */
-	if (flags & 0x7800) {
+	if (flags & _OP_MASK) {
 		evdns_server_request_respond(&(server_req->base), DNS_ERR_NOTIMPL);
 		return -1;
 	}
@@ -1904,7 +1917,7 @@ evdns_server_request_format_response(struct server_request *req, int err)
 	/* Set response bit and error code; copy OPCODE and RD fields from
 	 * question; copy RA and AA if set by caller. */
 	flags = req->base.flags;
-	flags |= (0x8000 | err);
+	flags |= (_QR_MASK | err);
 
 	dnslabel_table_init(&table);
 	APPEND16(req->trans_id);
