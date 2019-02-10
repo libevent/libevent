@@ -412,5 +412,45 @@ fixing bugs:
  * johnsonlee
  * Philip Prindeville
  * Vis Virial
+ * Andreas Gustafsson
+ * Andrey Okoshkin
+ * an-tao
+ * baixiangcpp
+ * Bernard Spil
+ * Bogdan Harjoc
+ * Carlo Marcelo Arenas Belón
+ * David Benjamin
+ * David Disseldorp
+ * Dmitry Alimov
+ * Dominic Chen
+ * dpayne
+ * ejurgensen
+ * Fredrik Strupe
+ * Gonçalo Ribeiro
+ * James Synge
+ * Jan Beich
+ * Jesse Fang
+ * Jiri Luznicky
+ * José Luis Millán
+ * Kiyoshi Aman
+ * Leo Zhang
+ * lightningkay
+ * Luke Dashjr
+ * Marcin Szewczyk
+ * Maximilian Brunner
+ * Maya Rashish
+ * Murat Demirten
+ * Nathan French
+ * Nikolay Edigaryev
+ * Philip Herron
+ * Redfoxmoon
+ * stenn
+ * SuckShit
+ * The Gitter Badger
+ * tim-le
+ * Vincent JARDIN
+ * Xiang Zhang
+ * Xiaozhou Liu
+ * yongqing.jiao
 
 If we have forgotten your name, please contact us.
