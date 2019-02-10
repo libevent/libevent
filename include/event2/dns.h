@@ -205,6 +205,7 @@ struct event_base;
 
 /** Flag for evdns_base_new: process resolv.conf.  */
 #define EVDNS_BASE_INITIALIZE_NAMESERVERS 1
+#define EVDNS_BASE_NO_CACHE 0x10
 /** Flag for evdns_base_new: Do not prevent the libevent event loop from
  * exiting when we have no active dns requests. */
 #define EVDNS_BASE_DISABLE_WHEN_INACTIVE 0x8000
