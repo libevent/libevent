@@ -95,6 +95,7 @@
 #include "evthread-internal.h"
 #include "evbuffer-internal.h"
 #include "bufferevent-internal.h"
+#include "event-internal.h"
 
 /* some systems do not have MAP_FAILED */
 #ifndef MAP_FAILED
@@ -522,8 +523,8 @@ evbuffer_invoke_callbacks_(struct evbuffer *buffer)
 			evbuffer_incref_and_lock_(buffer);
 			if (buffer->parent)
 				bufferevent_incref_(buffer->parent);
+			EVBUFFER_UNLOCK(buffer);
 		}
-		EVBUFFER_UNLOCK(buffer);
 	}
 
 	evbuffer_run_callbacks(buffer, 0);
@@ -1146,7 +1147,7 @@ evbuffer_drain(struct evbuffer *buf, size_t len)
 		}
 
 		buf->first = chain;
-		EVUTIL_ASSERT(chain && remaining <= chain->off);
+		EVUTIL_ASSERT(remaining <= chain->off);
 		chain->misalign += remaining;
 		chain->off -= remaining;
 	}
@@ -1534,11 +1535,11 @@ evbuffer_find_eol_char(struct evbuffer_ptr *it)
 	return (-1);
 }
 
-static inline int
+static inline size_t
 evbuffer_strspn(
 	struct evbuffer_ptr *ptr, const char *chrset)
 {
-	int count = 0;
+	size_t count = 0;
 	struct evbuffer_chain *chain = ptr->internal_.chain;
 	size_t i = ptr->internal_.pos_in_chain;
 
@@ -2227,11 +2228,13 @@ evbuffer_read_setup_vecs_(struct evbuffer *buf, ev_ssize_t howmuch,
 	so_far = 0;
 	/* Let firstchain be the first chain with any space on it */
 	firstchainp = buf->last_with_datap;
+	EVUTIL_ASSERT(*firstchainp);
 	if (CHAIN_SPACE_LEN(*firstchainp) == 0) {
 		firstchainp = &(*firstchainp)->next;
 	}
 
 	chain = *firstchainp;
+	EVUTIL_ASSERT(chain);
 	for (i = 0; i < n_vecs_avail && so_far < (size_t)howmuch; ++i) {
 		size_t avail = (size_t) CHAIN_SPACE_LEN(chain);
 		if (avail > (howmuch - so_far) && exact)
@@ -2465,7 +2468,7 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t dest_fd,
 	ev_off_t len = chain->off;
 #elif defined(SENDFILE_IS_LINUX) || defined(SENDFILE_IS_SOLARIS)
 	ev_ssize_t res;
-	ev_off_t offset = chain->misalign;
+	off_t offset = chain->misalign;
 #endif
 
 	ASSERT_EVBUFFER_LOCKED(buffer);

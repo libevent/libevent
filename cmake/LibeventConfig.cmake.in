@@ -1,7 +1,8 @@
 # - Config file for the Libevent package
 # It defines the following variables
-#  LIBEVENT_INCLUDE_DIRS - include directories for FooBar
-#  LIBEVENT_LIBRARIES    - libraries to link against
+#  LIBEVENT_INCLUDE_DIRS     - include directories
+#  LIBEVENT_STATIC_LIBRARIES - libraries to link against (archive/static)
+#  LIBEVENT_SHARED_LIBRARIES - libraries to link against (shared)
 
 # Get the path of the current file.
 get_filename_component(LIBEVENT_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
@@ -13,5 +14,5 @@ set(LIBEVENT_INCLUDE_DIRS "@EVENT_INSTALL_INCLUDE_DIR@")
 include(${LIBEVENT_CMAKE_DIR}/LibeventTargets.cmake)
 
 # IMPORTED targets from LibeventTargets.cmake
-set(LIBEVENT_LIBRARIES event event_core event_extra)
-
+set(LIBEVENT_STATIC_LIBRARIES "@LIBEVENT_STATIC_LIBRARIES@")
+set(LIBEVENT_SHARED_LIBRARIES "@LIBEVENT_SHARED_LIBRARIES@")

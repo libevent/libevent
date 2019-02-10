@@ -118,11 +118,11 @@ static inline struct bufferevent_filtered *
 upcast(struct bufferevent *bev)
 {
 	struct bufferevent_filtered *bev_f;
-	if (bev->be_ops != &bufferevent_ops_filter)
+	if (!BEV_IS_FILTER(bev))
 		return NULL;
 	bev_f = (void*)( ((char*)bev) -
 			 evutil_offsetof(struct bufferevent_filtered, bev.bev));
-	EVUTIL_ASSERT(bev_f->bev.bev.be_ops == &bufferevent_ops_filter);
+	EVUTIL_ASSERT(BEV_IS_FILTER(&bev_f->bev.bev));
 	return bev_f;
 }
 
@@ -160,7 +160,7 @@ be_null_filter(struct evbuffer *src, struct evbuffer *dst, ev_ssize_t lim,
 	       enum bufferevent_flush_mode state, void *ctx)
 {
 	(void)state;
-	if (evbuffer_remove_buffer(src, dst, lim) == 0)
+	if (evbuffer_remove_buffer(src, dst, lim) >= 0)
 		return BEV_OK;
 	else
 		return BEV_ERROR;
@@ -605,6 +605,7 @@ be_filter_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 		data->ptr = bevf->underlying;
 		return 0;
 	case BEV_CTRL_SET_FD:
+	case BEV_CTRL_GET_FD:
 		bevf = upcast(bev);
 
 		if (bevf->underlying &&
@@ -612,9 +613,10 @@ be_filter_ctrl(struct bufferevent *bev, enum bufferevent_ctrl_op op,
 			bevf->underlying->be_ops->ctrl) {
 		    return (bevf->underlying->be_ops->ctrl)(bevf->underlying, op, data);
 		}
+		EVUTIL_FALLTHROUGH;
 
-	case BEV_CTRL_GET_FD:
 	case BEV_CTRL_CANCEL_ALL:
+		EVUTIL_FALLTHROUGH;
 	default:
 		return -1;
 	}

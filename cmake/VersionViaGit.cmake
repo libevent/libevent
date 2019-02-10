@@ -4,7 +4,6 @@
 #
 # Usful for auto-versionin in ou CMakeLists
 #
-#  EVENT_GIT___VERSION_FOUND - Version variables foud
 #  EVENT_GIT___VERSION_MAJOR - Major version.
 #  EVENT_GIT___VERSION_MINOR - Minor version
 #  EVENT_GIT___VERSION_STAGE - Stage version
@@ -12,7 +11,6 @@
 # Example usage:
 #
 # event_fuzzy_version_from_git()
-# if (EVENT_GIT___VERSION_FOUND)
 #    message("Libvent major=${EVENT_GIT___VERSION_MAJOR}")
 #    message("        minor=${EVENT_GIT___VERSION_MINOR}")
 #    message("        patch=${EVENT_GIT___VERSION_PATCH}")
@@ -22,12 +20,10 @@
 include(FindGit)
 
 macro(event_fuzzy_version_from_git)
-	set(EVENT_GIT___VERSION_FOUND FALSE)
-
 	# set our defaults.
 	set(EVENT_GIT___VERSION_MAJOR 2)
 	set(EVENT_GIT___VERSION_MINOR 1)
-	set(EVENT_GIT___VERSION_PATCH 8)
+	set(EVENT_GIT___VERSION_PATCH 9)
 	set(EVENT_GIT___VERSION_STAGE "beta")
 
 	find_package(Git)
@@ -41,13 +37,28 @@ macro(event_fuzzy_version_from_git)
 			RESULT_VARIABLE
 				GITRET
 			OUTPUT_VARIABLE
-				GITVERSION)
+				GITVERSION
+			OUTPUT_STRIP_TRAILING_WHITESPACE
+		)
 
-			if (GITRET EQUAL 0)
-				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-(.*)"       "\\1" EVENT_GIT___VERSION_MAJOR ${GITVERSION})
-				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-(.*)"       "\\2" EVENT_GIT___VERSION_MINOR ${GITVERSION})
-				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-(.*)"       "\\3" EVENT_GIT___VERSION_PATCH ${GITVERSION})
-				string(REGEX REPLACE "^release-([0-9]+)\\.([0-9]+)\\.([0-9]+)-([aA-zZ]+)" "\\4" EVENT_GIT___VERSION_STAGE ${GITVERSION})
+		string(REGEX REPLACE "[\\._-]" ";" VERSION_LIST "${GITVERSION}")
+		list(LENGTH VERSION_LIST VERSION_LIST_LENGTH)
+
+		if ((GITRET EQUAL 0) AND (VERSION_LIST_LENGTH EQUAL 5))
+			list(GET VERSION_LIST 1 _MAJOR)
+			list(GET VERSION_LIST 2 _MINOR)
+			list(GET VERSION_LIST 3 _PATCH)
+			list(GET VERSION_LIST 4 _STAGE)
+
+			set(_DEFAULT_VERSION "${EVENT_GIT___VERSION_MAJOR}.${EVENT_GIT___VERSION_MINOR}.${EVENT_GIT___VERSION_PATCH}-${EVENT_GIT___VERSION_STAGE}")
+			set(_GIT_VERSION     "${_MAJOR}.${_MINOR}.${_PATCH}-${_STAGE}")
+
+			if (${_DEFAULT_VERSION} VERSION_LESS ${_GIT_VERSION})
+				set(EVENT_GIT___VERSION_MAJOR ${_MAJOR})
+				set(EVENT_GIT___VERSION_MINOR ${_MINOR})
+				set(EVENT_GIT___VERSION_PATCH ${_PATCH})
+				set(EVENT_GIT___VERSION_STAGE ${_STAGE})
 			endif()
 		endif()
+	endif()
 endmacro()

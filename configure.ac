@@ -5,7 +5,7 @@ dnl See LICENSE for copying information.
 dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
-AC_INIT(libevent,2.1.8-stable)
+AC_INIT(libevent,2.1.9-beta)
 AC_PREREQ(2.59)
 AC_CONFIG_SRCDIR(event.c)
 
@@ -14,7 +14,7 @@ AM_INIT_AUTOMAKE
 dnl AM_SILENT_RULES req. automake 1.11.  [no] defaults V=1
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
-AC_DEFINE(NUMERIC_VERSION, 0x02010800, [Numeric representation of the version])
+AC_DEFINE(NUMERIC_VERSION, 0x02010900, [Numeric representation of the version])
 
 dnl Initialize prefix.
 if test "$prefix" = "NONE"; then
@@ -158,6 +158,19 @@ die horribly
 	],
 	bwin32=true; AC_MSG_RESULT(yes),
 	bwin32=false; AC_MSG_RESULT(no),
+)
+
+dnl - check if the macro __midipix__ is defined on this compiler.
+dnl - (this is how we check for a midipix version of GCC)
+AC_MSG_CHECKING(for MIDIPIX)
+AC_TRY_COMPILE(,
+	[
+#ifndef __midipix__
+die horribly
+#endif
+	],
+	midipix=true; AC_MSG_RESULT(yes),
+	midipix=false; AC_MSG_RESULT(no),
 )
 
 dnl - check if the macro __CYGWIN__ is defined on this compiler.
@@ -326,7 +339,8 @@ fi
 
 AM_CONDITIONAL(BUILD_WIN32, test x$bwin32 = xtrue)
 AM_CONDITIONAL(BUILD_CYGWIN, test x$cygwin = xtrue)
-AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin = xtrue)
+AM_CONDITIONAL(BUILD_MIDIPIX, test x$midipix = xtrue)
+AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin = xtrue || test x$midipix = xtrue)
 
 if test x$bwin32 = xtrue; then
    AC_SEARCH_LIBS([getservbyname],[ws2_32])
@@ -342,6 +356,7 @@ AC_CHECK_FUNCS([ \
   accept4 \
   arc4random \
   arc4random_buf \
+  arc4random_addrandom \
   eventfd \
   epoll_create1 \
   fcntl \
@@ -502,6 +517,12 @@ if test "x$ac_cv_header_sys_event_h" = "xyes"; then
 	if test "x$havekqueue" = "xyes" ; then
 		AC_MSG_CHECKING(for working kqueue)
 		AC_TRY_RUN(
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/event.h>
@@ -517,7 +538,7 @@ main(int argc, char **argv)
 	int fd[[2]];
 	struct kevent ev;
 	struct timespec ts;
-	char buf[[8000]];
+	char buf[[80000]];
 
 	if (pipe(fd) == -1)
 		exit(1);
@@ -599,26 +620,6 @@ main(int argc, char **argv)
 fi
 AM_CONDITIONAL(EPOLL_BACKEND, [test "x$haveepoll" = "xyes"])
 
-AC_MSG_CHECKING(waitpid support WNOWAIT)
-AC_TRY_RUN(
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <stdlib.h>
-
-int
-main(int argc, char** argv)
-{
-    pid_t pid;
-    int status;
-    if ((pid = fork()) == 0) _exit(0);
-    _exit(waitpid(pid, &status, WNOWAIT) == -1);
-}, [AC_MSG_RESULT(yes)
-AC_DEFINE(HAVE_WAITPID_WITH_WNOWAIT, 1,
-[Define if waitpid() supports WNOWAIT])
-], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
-
-
 haveeventports=no
 AC_CHECK_FUNCS(port_create, [haveeventports=yes], )
 if test "x$haveeventports" = "xyes" ; then
@@ -663,6 +664,7 @@ AC_CHECK_SIZEOF(short)
 AC_CHECK_SIZEOF(size_t)
 AC_CHECK_SIZEOF(void *)
 AC_CHECK_SIZEOF(off_t)
+AC_CHECK_SIZEOF(time_t)
 
 AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, sa_family_t, struct addrinfo, struct sockaddr_storage], , ,
 [#define _GNU_SOURCE
@@ -715,8 +717,7 @@ AC_CHECK_MEMBERS([struct in6_addr.s6_addr32, struct in6_addr.s6_addr16, struct s
 #endif
 ])
 
-AC_CHECK_TYPES([struct so_linger],
-[#define HAVE_SO_LINGER], ,
+AC_CHECK_TYPES([struct linger],,,
 [
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -726,7 +727,11 @@ AC_CHECK_TYPES([struct so_linger],
 AC_MSG_CHECKING([for socklen_t])
 AC_TRY_COMPILE([
  #include <sys/types.h>
- #include <sys/socket.h>],
+ #ifdef _WIN32
+ #include <ws2tcpip.h>
+ #else
+ #include <sys/socket.h>
+ #endif],
   [socklen_t x;],
   AC_MSG_RESULT([yes]),
   [AC_MSG_RESULT([no])
@@ -734,21 +739,23 @@ AC_TRY_COMPILE([
 	[Define to unsigned int if you dont have it])]
 )
 
+# __func__/__FUNCTION__ is not a macros in general
 AC_MSG_CHECKING([whether our compiler supports __func__])
 AC_TRY_COMPILE([],
- [ const char *cp = __func__; ],
- AC_MSG_RESULT([yes]),
- AC_MSG_RESULT([no])
- AC_MSG_CHECKING([whether our compiler supports __FUNCTION__])
- AC_TRY_COMPILE([],
-   [ const char *cp = __FUNCTION__; ],
-   AC_MSG_RESULT([yes])
-   AC_DEFINE(__func__, __FUNCTION__,
-         [Define to appropriate substitue if compiler doesnt have __func__]),
-   AC_MSG_RESULT([no])
-   AC_DEFINE(__func__, __FILE__,
-         [Define to appropriate substitue if compiler doesnt have __func__])))
-
+  [ const char *cp = __func__; ],
+  [ AC_DEFINE(HAVE___func__, 1, [Define to 1 if compiler have __func__])
+    AC_MSG_RESULT([yes])
+  ],
+  AC_MSG_RESULT([no])
+)
+AC_MSG_CHECKING([whether our compiler supports __FUNCTION__])
+AC_TRY_COMPILE([],
+  [ const char *cp = __FUNCTION__; ],
+  [ AC_DEFINE(HAVE___FUNCTION__, 1, [Define to 1 if compiler have __FUNCTION__])
+    AC_MSG_RESULT([yes])
+  ],
+  AC_MSG_RESULT([no])
+)
 
 # check if we can compile with pthreads
 have_pthreads=no
@@ -791,10 +798,6 @@ fi
 
 # check if we have and should use openssl
 AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
-if test "x$enable_openssl" = "xyes"; then
-	AC_SEARCH_LIBS([ERR_remove_thread_state], [crypto eay32],
-		[AC_DEFINE(HAVE_ERR_REMOVE_THREAD_STATE, 1, [Define to 1 if you have ERR_remove_thread_stat().])])
-fi
 
 # Add some more warnings which we use in development but not in the
 # released versions.  (Some relevant gcc versions can't handle these.)
@@ -820,7 +823,8 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
 #error
 #endif])], have_clang=yes, have_clang=no)
 
-  CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wchar-subscripts -Wcomment -Wformat -Wwrite-strings -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast -Wswitch"
+  # -W is the same as -Wextra
+  CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wmissing-declarations -Wredundant-decls -Wnested-externs -Wbad-function-cast"
   if test x$enable_gcc_warnings = xyes; then
     CFLAGS="$CFLAGS -Werror"
   fi

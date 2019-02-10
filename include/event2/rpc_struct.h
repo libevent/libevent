@@ -38,6 +38,16 @@ extern "C" {
 
  */
 
+/* Fix so that people don't have to run with <sys/queue.h> */
+#ifndef TAILQ_ENTRY
+#define EVENT_DEFINED_TQENTRY_
+#define TAILQ_ENTRY(type)						\
+struct {								\
+	struct type *tqe_next;	/* next element */			\
+	struct type **tqe_prev;	/* address of previous next element */	\
+}
+#endif /* !TAILQ_ENTRY */
+
 /**
  * provides information about the completed RPC request.
  */
@@ -92,6 +102,10 @@ struct evrpc {
 	/* reference for further configuration */
 	struct evrpc_base *base;
 };
+
+#ifdef EVENT_DEFINED_TQENTRY_
+#undef TAILQ_ENTRY
+#endif
 
 #ifdef __cplusplus
 }

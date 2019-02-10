@@ -18,6 +18,10 @@ $a\
 \
 #endif /* event2/event-config.h */
 
-s/#\( *\)define /#\1define EVENT__/
-s/#\( *\)undef /#\1undef EVENT__/
-s/#\( *\)if\(n*\)def /#\1if\2def EVENT__/
+/#\( *\)undef STDC_HEADERS\>/b
+/#\( *\)define STDC_HEADERS\>/b
+
+# Only rewrite symbols starting with capitals
+s/#\( *\)define \([A-Z]\)/#\1define EVENT__\2/
+s/#\( *\)undef \([A-Z]\)/#\1undef EVENT__\2/
+s/#\( *\)if\(n*\)def \([A-Z]\)/#\1if\2def EVENT__\2/

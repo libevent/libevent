@@ -219,7 +219,7 @@ struct event_base {
 	/** Function pointers used to describe the backend that this event_base
 	 * uses for signals */
 	const struct eventop *evsigsel;
-	/** Data to implement the common signal handelr code. */
+	/** Data to implement the common signal handler code. */
 	struct evsig_info sig;
 
 	/** Number of virtual events */
@@ -368,6 +368,10 @@ struct event_config {
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
+#ifndef LIST_END
+#define LIST_END(head)			NULL
+#endif
+
 #ifndef TAILQ_FIRST
 #define	TAILQ_FIRST(head)		((head)->tqh_first)
 #endif
@@ -421,16 +425,19 @@ int event_del_nolock_(struct event *ev, int blocking);
 int event_remove_timer_nolock_(struct event *ev);
 
 void event_active_nolock_(struct event *ev, int res, short count);
+EVENT2_EXPORT_SYMBOL
 int event_callback_activate_(struct event_base *, struct event_callback *);
 int event_callback_activate_nolock_(struct event_base *, struct event_callback *);
 int event_callback_cancel_(struct event_base *base,
     struct event_callback *evcb);
 
 void event_callback_finalize_nolock_(struct event_base *base, unsigned flags, struct event_callback *evcb, void (*cb)(struct event_callback *, void *));
+EVENT2_EXPORT_SYMBOL
 void event_callback_finalize_(struct event_base *base, unsigned flags, struct event_callback *evcb, void (*cb)(struct event_callback *, void *));
 int event_callback_finalize_many_(struct event_base *base, int n_cbs, struct event_callback **evcb, void (*cb)(struct event_callback *, void *));
 
 
+EVENT2_EXPORT_SYMBOL
 void event_active_later_(struct event *ev, int res);
 void event_active_later_nolock_(struct event *ev, int res);
 int event_callback_activate_later_nolock_(struct event_base *base,
@@ -441,6 +448,7 @@ void event_callback_init_(struct event_base *base,
     struct event_callback *cb);
 
 /* FIXME document. */
+EVENT2_EXPORT_SYMBOL
 void event_base_add_virtual_(struct event_base *base);
 void event_base_del_virtual_(struct event_base *base);
 
@@ -450,6 +458,7 @@ void event_base_del_virtual_(struct event_base *base);
 
     Returns on success; aborts on failure.
 */
+EVENT2_EXPORT_SYMBOL
 void event_base_assert_ok_(struct event_base *base);
 void event_base_assert_ok_nolock_(struct event_base *base);
 

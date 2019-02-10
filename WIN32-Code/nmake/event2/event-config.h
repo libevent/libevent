@@ -192,9 +192,6 @@
 /* Define to 1 if the system has the type `struct sockaddr_storage'. */
 #define EVENT__HAVE_STRUCT_SOCKADDR_STORAGE 1
 
-/* Define to 1 if you have the <sys/devpoll.h> header file. */
-/* #undef EVENT__HAVE_SYS_DEVPOLL_H */
-
 /* Define to 1 if you have the <sys/epoll.h> header file. */
 /* #undef EVENT__HAVE_SYS_EPOLL_H */
 
@@ -274,7 +271,7 @@
 /* #undef EVENT__HAVE_WORKING_KQUEUE */
 
 /* Numeric representation of the version */
-#define EVENT__NUMERIC_VERSION 0x02010800
+#define EVENT__NUMERIC_VERSION 0x02010900
 
 /* Name of package */
 #define EVENT__PACKAGE "libevent"
@@ -324,29 +321,22 @@
 #define EVENT__SIZEOF_VOID_P 4
 #endif
 
-/* Define to 1 if you have the ANSI C header files. */
-#define EVENT__STDC_HEADERS 1
+/* The size of `time_t`, as computed by sizeof. */
+#ifdef _WIN64
+#define EVENT__SIZEOF_TIME_T 8
+#else
+#define EVENT__SIZEOF_TIME_T 4
+#endif
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #define EVENT__TIME_WITH_SYS_TIME 1
 
 /* Version number of package */
-#define EVENT__VERSION "2.1.8-stable"
-
-/* Define to appropriate substitue if compiler doesnt have __func__ */
-#define EVENT____func__ __FUNCTION__
-
-/* Define to empty if `const' does not conform to ANSI C. */
-/* #undef EVENT__const */
+#define EVENT__VERSION "2.1.9-beta"
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
-#ifndef _EVENT___cplusplus
 #define EVENT__inline __inline
-#endif
-
-/* Define to `int' if <sys/types.h> does not define. */
-/* #undef EVENT__pid_t */
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 /* #undef EVENT__size_t */

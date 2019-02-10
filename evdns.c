@@ -2265,10 +2265,11 @@ evdns_request_transmit(struct request *req) {
 		nameserver_write_waiting(req->ns, 1);
 		return 1;
 	case 2:
-		/* failed to transmit the request entirely. */
+		/* failed to transmit the request entirely. we can fallthrough since
+		 * we'll set a timeout, which will time out, and make us retransmit the
+		 * request anyway. */
 		retcode = 1;
-		/* fall through: we'll set a timeout, which will time out,
-		 * and make us retransmit the request anyway. */
+		EVUTIL_FALLTHROUGH;
 	default:
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
@@ -3622,6 +3623,11 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 			mm_free(fname);
 	}
 
+	if (!filename) {
+		evdns_resolv_set_defaults(base, flags);
+		return 1;
+	}
+
 	if ((err = evutil_read_file_(filename, &resolv, &n, 0)) < 0) {
 		if (err == -1) {
 			/* No file. */
@@ -4636,6 +4642,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	int err;
 	int port = 0;
 	int want_cname = 0;
+	int started = 0;
 
 	if (!dns_base) {
 		dns_base = current_base;
@@ -4714,6 +4721,8 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	 * launching those requests. (XXX we don't do that yet.)
 	 */
 
+	EVDNS_LOCK(dns_base);
+
 	if (hints.ai_family != PF_INET6) {
 		log(EVDNS_LOG_DEBUG, "Sending request for %s on ipv4 as %p",
 		    nodename, &data->ipv4_request);
@@ -4740,7 +4749,11 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	evtimer_assign(&data->timeout, dns_base->event_base,
 	    evdns_getaddrinfo_timeout_cb, data);
 
-	if (data->ipv4_request.r || data->ipv6_request.r) {
+	started = (data->ipv4_request.r || data->ipv6_request.r);
+
+	EVDNS_UNLOCK(dns_base);
+
+	if (started) {
 		return data;
 	} else {
 		mm_free(data);

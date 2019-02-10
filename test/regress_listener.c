@@ -80,8 +80,9 @@ regress_pick_a_port(void *arg)
 	ev_socklen_t slen1 = sizeof(ss1), slen2 = sizeof(ss2);
 	unsigned int flags =
 	    LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_EXEC;
+	evutil_socket_t fd1, fd2, fd3;
 
-	evutil_socket_t fd1 = -1, fd2 = -1, fd3 = -1;
+	fd1 = fd2 = fd3 = EVUTIL_INVALID_SOCKET;
 
 	if (data->setup_data && strstr((char*)data->setup_data, "ts")) {
 		flags |= LEV_OPT_THREADSAFE;
@@ -99,8 +100,8 @@ regress_pick_a_port(void *arg)
 	    flags, -1, (struct sockaddr *)&sin, sizeof(sin));
 	tt_assert(listener2);
 
-	tt_int_op(evconnlistener_get_fd(listener1), >=, 0);
-	tt_int_op(evconnlistener_get_fd(listener2), >=, 0);
+	tt_assert(evconnlistener_get_fd(listener1) != EVUTIL_INVALID_SOCKET);
+	tt_assert(evconnlistener_get_fd(listener2) != EVUTIL_INVALID_SOCKET);
 	tt_assert(getsockname(evconnlistener_get_fd(listener1),
 		(struct sockaddr*)&ss1, &slen1) == 0);
 	tt_assert(getsockname(evconnlistener_get_fd(listener2),
@@ -117,7 +118,7 @@ regress_pick_a_port(void *arg)
 	tt_ptr_op(evconnlistener_get_base(listener1), ==, base);
 	tt_ptr_op(evconnlistener_get_base(listener2), ==, base);
 
-	fd1 = fd2 = fd3 = -1;
+	fd1 = fd2 = fd3 = EVUTIL_INVALID_SOCKET;
 	evutil_socket_connect_(&fd1, (struct sockaddr*)&ss1, slen1);
 	evutil_socket_connect_(&fd2, (struct sockaddr*)&ss1, slen1);
 	evutil_socket_connect_(&fd3, (struct sockaddr*)&ss2, slen2);
@@ -185,6 +186,89 @@ end:
 		evconnlistener_free(listener);
 }
 
+static void
+acceptcb_free(struct evconnlistener *listener, evutil_socket_t fd,
+    struct sockaddr *addr, int socklen, void *arg)
+{
+	int *ptr = arg;
+	--*ptr;
+	TT_BLATHER(("Got one for %p", ptr));
+	evutil_closesocket(fd);
+
+	if (! *ptr)
+		evconnlistener_free(listener);
+}
+static void
+regress_listener_close_accepted_fd(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evconnlistener *listener = NULL;
+	struct sockaddr_in sin;
+	struct sockaddr_storage ss;
+	ev_socklen_t slen = sizeof(ss);
+	int count = 1;
+	unsigned int flags = LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE;
+	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
+	sin.sin_port = 0; /* "You pick!" */
+
+	/* Start a listener with a bogus socket. */
+	listener = evconnlistener_new_bind(base, acceptcb_free, &count,
+	    flags, -1, (struct sockaddr *)&sin, sizeof(sin));
+	tt_assert(listener);
+
+	tt_assert(getsockname(evconnlistener_get_fd(listener),
+		(struct sockaddr*)&ss, &slen) == 0);
+	evutil_socket_connect_(&fd, (struct sockaddr*)&ss, slen);
+
+	event_base_dispatch(base);
+
+end:
+	;
+}
+
+static void
+regress_listener_immediate_close(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evconnlistener *listener = NULL;
+	struct sockaddr_in sin;
+	struct sockaddr_storage ss;
+	ev_socklen_t slen = sizeof(ss);
+	int count = 1;
+	unsigned int flags = LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE;
+	evutil_socket_t fd1 = EVUTIL_INVALID_SOCKET, fd2 = EVUTIL_INVALID_SOCKET;
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(0x7f000001); /* 127.0.0.1 */
+	sin.sin_port = 0; /* "You pick!" */
+
+	/* Start a listener with a bogus socket. */
+	listener = evconnlistener_new_bind(base, acceptcb, &count,
+	    flags, -1, (struct sockaddr *)&sin, sizeof(sin));
+	tt_assert(listener);
+
+	tt_assert(getsockname(evconnlistener_get_fd(listener),
+		(struct sockaddr*)&ss, &slen) == 0);
+
+	evutil_socket_connect_(&fd1, (struct sockaddr*)&ss, slen);
+	evutil_socket_connect_(&fd2, (struct sockaddr*)&ss, slen);
+
+	event_base_dispatch(base);
+
+	tt_int_op(count, ==, 0);
+
+end:
+	if (listener)
+		evconnlistener_free(listener);
+}
+
 #ifdef EVENT__HAVE_SETRLIMIT
 static void
 regress_listener_error_unlock(void *arg)
@@ -241,6 +325,12 @@ struct testcase_t listener_testcases[] = {
 	{ "error_ts", regress_listener_error,
 	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR,
 	  &basic_setup, (char*)"ts"},
+
+	{ "close_accepted_fd", regress_listener_close_accepted_fd,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL, },
+
+	{ "immediate_close", regress_listener_immediate_close,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL, },
 
 	END_OF_TESTCASES,
 };

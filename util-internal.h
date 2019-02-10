@@ -50,12 +50,34 @@
 extern "C" {
 #endif
 
+/* __has_attribute() wrapper */
+#ifdef __has_attribute
+#define EVUTIL_HAS_ATTRIBUTE __has_attribute
+#endif
+/** clang 3 __has_attribute misbehaves in some versions */
+#if defined(__clang__) && \
+	__clang__ == 1 && __clang_major__ == 3 && \
+	(__clang_minor__ >= 2 && __clang_minor__ <= 5)
+#undef EVUTIL_HAS_ATTRIBUTE
+#endif
+#ifndef EVUTIL_HAS_ATTRIBUTE
+#define EVUTIL_HAS_ATTRIBUTE(x) 0
+#endif
+
 /* If we need magic to say "inline", get it for free internally. */
 #ifdef EVENT__inline
 #define inline EVENT__inline
 #endif
-#if defined(EVENT____func__) && !defined(__func__)
-#define __func__ EVENT____func__
+
+/* Define to appropriate substitute if compiler doesnt have __func__ */
+#if defined(EVENT__HAVE___func__)
+# ifndef __func__
+#  define __func__ __func__
+# endif
+#elif defined(EVENT__HAVE___FUNCTION__)
+# define __func__ __FUNCTION__
+#else
+# define __func__ __FILE__
 #endif
 
 /* A good no-op to use in macro definitions. */
@@ -219,19 +241,26 @@ extern "C" {
  * when you care about ASCII's notion of character types, because you are about
  * to send those types onto the wire.
  */
+EVENT2_EXPORT_SYMBOL
 int EVUTIL_ISALPHA_(char c);
+EVENT2_EXPORT_SYMBOL
 int EVUTIL_ISALNUM_(char c);
 int EVUTIL_ISSPACE_(char c);
+EVENT2_EXPORT_SYMBOL
 int EVUTIL_ISDIGIT_(char c);
+EVENT2_EXPORT_SYMBOL
 int EVUTIL_ISXDIGIT_(char c);
 int EVUTIL_ISPRINT_(char c);
 int EVUTIL_ISLOWER_(char c);
 int EVUTIL_ISUPPER_(char c);
+EVENT2_EXPORT_SYMBOL
 char EVUTIL_TOUPPER_(char c);
+EVENT2_EXPORT_SYMBOL
 char EVUTIL_TOLOWER_(char c);
 
 /** Remove all trailing horizontal whitespace (space or tab) from the end of a
  * string */
+EVENT2_EXPORT_SYMBOL
 void evutil_rtrim_lws_(char *);
 
 
@@ -258,13 +287,16 @@ void evutil_rtrim_lws_(char *);
  */
 int evutil_open_closeonexec_(const char *pathname, int flags, unsigned mode);
 
+EVENT2_EXPORT_SYMBOL
 int evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
     int is_binary);
 
+EVENT2_EXPORT_SYMBOL
 int evutil_socket_connect_(evutil_socket_t *fd_ptr, const struct sockaddr *sa, int socklen);
 
 int evutil_socket_finished_connecting_(evutil_socket_t fd);
 
+EVENT2_EXPORT_SYMBOL
 int evutil_ersatz_socketpair_(int, int , int, evutil_socket_t[]);
 
 int evutil_resolve_(int family, const char *hostname, struct sockaddr *sa,
@@ -289,15 +321,18 @@ struct evutil_weakrand_state {
  * attacker can't predict, or which passes strong statistical tests, use the
  * evutil_secure_rng* functions instead.
  */
+EVENT2_EXPORT_SYMBOL
 ev_uint32_t evutil_weakrand_seed_(struct evutil_weakrand_state *state, ev_uint32_t seed);
 /* Return a pseudorandom value between 0 and EVUTIL_WEAKRAND_MAX inclusive.
  * Updates the state in 'seed' as needed -- this value must be protected by a
  * lock.
  */
+EVENT2_EXPORT_SYMBOL
 ev_int32_t evutil_weakrand_(struct evutil_weakrand_state *seed);
 /* Return a pseudorandom value x such that 0 <= x < top. top must be no more
  * than EVUTIL_WEAKRAND_MAX. Updates the state in 'seed' as needed -- this
  * value must be proteced by a lock */
+EVENT2_EXPORT_SYMBOL
 ev_int32_t evutil_weakrand_range_(struct evutil_weakrand_state *seed, ev_int32_t top);
 
 /* Evaluates to the same boolean value as 'p', and hints to the compiler that
@@ -306,6 +341,12 @@ ev_int32_t evutil_weakrand_range_(struct evutil_weakrand_state *seed, ev_int32_t
 #define EVUTIL_UNLIKELY(p) __builtin_expect(!!(p),0)
 #else
 #define EVUTIL_UNLIKELY(p) (p)
+#endif
+
+#if EVUTIL_HAS_ATTRIBUTE(fallthrough)
+#define EVUTIL_FALLTHROUGH __attribute__((fallthrough))
+#else
+#define EVUTIL_FALLTHROUGH /* fallthrough */
 #endif
 
 /* Replacement for assert() that calls event_errx on failure. */
@@ -357,16 +398,22 @@ typedef struct evdns_getaddrinfo_request* (*evdns_getaddrinfo_fn)(
     const char *nodename, const char *servname,
     const struct evutil_addrinfo *hints_in,
     void (*cb)(int, struct evutil_addrinfo *, void *), void *arg);
+EVENT2_EXPORT_SYMBOL
 void evutil_set_evdns_getaddrinfo_fn_(evdns_getaddrinfo_fn fn);
 typedef void (*evdns_getaddrinfo_cancel_fn)(
     struct evdns_getaddrinfo_request *req);
+EVENT2_EXPORT_SYMBOL
 void evutil_set_evdns_getaddrinfo_cancel_fn_(evdns_getaddrinfo_cancel_fn fn);
 
+EVENT2_EXPORT_SYMBOL
 struct evutil_addrinfo *evutil_new_addrinfo_(struct sockaddr *sa,
     ev_socklen_t socklen, const struct evutil_addrinfo *hints);
+EVENT2_EXPORT_SYMBOL
 struct evutil_addrinfo *evutil_addrinfo_append_(struct evutil_addrinfo *first,
     struct evutil_addrinfo *append);
+EVENT2_EXPORT_SYMBOL
 void evutil_adjust_hints_for_addrconfig_(struct evutil_addrinfo *hints);
+EVENT2_EXPORT_SYMBOL
 int evutil_getaddrinfo_common_(const char *nodename, const char *servname,
     struct evutil_addrinfo *hints, struct evutil_addrinfo **res, int *portnum);
 
@@ -379,6 +426,7 @@ void evutil_getaddrinfo_cancel_async_(struct evdns_getaddrinfo_request *data);
 
 /** Return true iff sa is a looback address. (That is, it is 127.0.0.1/8, or
  * ::1). */
+EVENT2_EXPORT_SYMBOL
 int evutil_sockaddr_is_loopback_(const struct sockaddr *sa);
 
 
@@ -387,6 +435,7 @@ int evutil_sockaddr_is_loopback_(const struct sockaddr *sa);
     Returns a pointer to out.  Always writes something into out, so it's safe
     to use the output of this function without checking it for NULL.
  */
+EVENT2_EXPORT_SYMBOL
 const char *evutil_format_sockaddr_port_(const struct sockaddr *sa, char *out, size_t outlen);
 
 int evutil_hex_char_to_int_(char c);
@@ -396,6 +445,7 @@ void evutil_free_secure_rng_globals_(void);
 void evutil_free_globals_(void);
 
 #ifdef _WIN32
+EVENT2_EXPORT_SYMBOL
 HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 
@@ -444,6 +494,7 @@ HMODULE evutil_load_windows_system_library_(const TCHAR *library_name);
 #endif
 #endif
 
+EVENT2_EXPORT_SYMBOL
 evutil_socket_t evutil_socket_(int domain, int type, int protocol);
 evutil_socket_t evutil_accept4_(evutil_socket_t sockfd, struct sockaddr *addr,
     ev_socklen_t *addrlen, int flags);
@@ -475,6 +526,17 @@ evutil_socket_t evutil_eventfd_(unsigned initval, int flags);
 #endif
 
 void evutil_memclear_(void *mem, size_t len);
+
+struct in_addr;
+struct in6_addr;
+
+/* This is a any, loopback, link-local, multicast */
+EVENT2_EXPORT_SYMBOL
+int evutil_v4addr_is_local_(const struct in_addr *in);
+/* This is a reserved, ipv4compat, ipv4map, loopback,
+ * link-local, multicast, or unspecified address. */
+EVENT2_EXPORT_SYMBOL
+int evutil_v6addr_is_local_(const struct in6_addr *in);
 
 #ifdef __cplusplus
 }

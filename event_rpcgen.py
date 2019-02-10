@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 #
 # Copyright (c) 2005-2007 Niels Provos <provos@citi.umich.edu>
 # Copyright (c) 2007-2012 Niels Provos and Nick Mathewson
@@ -36,10 +36,10 @@ QUIETLY = 0
 
 def declare(s):
     if not QUIETLY:
-        print s
+        print(s)
 
 def TranslateList(mylist, mydict):
-    return map(lambda x: x % mydict, mylist)
+    return [x % mydict for x in mylist]
 
 # Exception class for parse errors
 class RpcGenError(Exception):
@@ -57,7 +57,7 @@ class Struct:
         declare('  Created struct: %s' % name)
 
     def AddEntry(self, entry):
-        if self._tags.has_key(entry.Tag()):
+        if entry.Tag() in self._tags:
             raise RpcGenError(
                 'Entry "%s" duplicates tag number %d from "%s" '
                 'around line %d' % (entry.Name(), entry.Tag(),
@@ -78,7 +78,7 @@ class Struct:
     def PrintIndented(self, file, ident, code):
         """Takes an array, add indentation to each entry and prints it."""
         for entry in code:
-            print >>file, '%s%s' % (ident, entry)
+            file.write('%s%s\n' % (ident, entry))
 
 class StructCCode(Struct):
     """ Knows how to generate C code for a struct """
@@ -88,20 +88,19 @@ class StructCCode(Struct):
 
     def PrintTags(self, file):
         """Prints the tag definitions for a structure."""
-        print >>file, '/* Tag definition for %s */' % self._name
-        print >>file, 'enum %s_ {' % self._name.lower()
+        file.write('/* Tag definition for %s */\n' % self._name)
+        file.write('enum %s_ {\n' % self._name.lower())
         for entry in self._entries:
-            print >>file, '  %s=%d,' % (self.EntryTagName(entry),
-                                        entry.Tag())
-        print >>file, '  %s_MAX_TAGS' % (self._name.upper())
-        print >>file, '};\n'
+            file.write('  %s=%d,\n' % (self.EntryTagName(entry), entry.Tag()))
+        file.write('  %s_MAX_TAGS\n' % (self._name.upper()))
+        file.write('};\n\n')
 
     def PrintForwardDeclaration(self, file):
-        print >>file, 'struct %s;' % self._name
+        file.write('struct %s;\n' % self._name)
 
     def PrintDeclaration(self, file):
-        print >>file, '/* Structure declaration for %s */' % self._name
-        print >>file, 'struct %s_access_ {' % self._name
+        file.write('/* Structure declaration for %s */\n' % self._name)
+        file.write('struct %s_access_ {\n' % self._name)
         for entry in self._entries:
             dcl = entry.AssignDeclaration('(*%s_assign)' % entry.Name())
             dcl.extend(
@@ -110,20 +109,19 @@ class StructCCode(Struct):
                 dcl.extend(
                     entry.AddDeclaration('(*%s_add)' % entry.Name()))
             self.PrintIndented(file, '  ', dcl)
-        print >>file, '};\n'
+        file.write('};\n\n')
 
-        print >>file, 'struct %s {' % self._name
-        print >>file, '  struct %s_access_ *base;\n' % self._name
+        file.write('struct %s {\n' % self._name)
+        file.write('  struct %s_access_ *base;\n\n' % self._name)
         for entry in self._entries:
             dcl = entry.Declaration()
             self.PrintIndented(file, '  ', dcl)
-        print >>file, ''
+        file.write('\n')
         for entry in self._entries:
-            print >>file, '  ev_uint8_t %s_set;' % entry.Name()
-        print >>file, '};\n'
+            file.write('  ev_uint8_t %s_set;\n' % entry.Name())
+        file.write('};\n\n')
 
-        print >>file, \
-"""struct %(name)s *%(name)s_new(void);
+        file.write("""struct %(name)s *%(name)s_new(void);
 struct %(name)s *%(name)s_new_with_arg(void *);
 void %(name)s_free(struct %(name)s *);
 void %(name)s_clear(struct %(name)s *);
@@ -133,7 +131,7 @@ int %(name)s_complete(struct %(name)s *);
 void evtag_marshal_%(name)s(struct evbuffer *, ev_uint32_t,
     const struct %(name)s *);
 int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
-    struct %(name)s *);""" % { 'name' : self._name }
+    struct %(name)s *);\n""" % { 'name' : self._name })
 
 
         # Write a setting function of every variable
@@ -146,22 +144,21 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
                 self.PrintIndented(file, '', entry.AddDeclaration(
                     entry.AddFuncName()))
 
-        print >>file, '/* --- %s done --- */\n' % self._name
+        file.write('/* --- %s done --- */\n\n' % self._name)
 
     def PrintCode(self, file):
-        print >>file, ('/*\n'
+        file.write(('/*\n'
                        ' * Implementation of %s\n'
-                       ' */\n') % self._name
+                       ' */\n\n') % self._name)
 
-        print >>file, \
-              'static struct %(name)s_access_ %(name)s_base__ = {' % \
-              { 'name' : self._name }
+        file.write('static struct %(name)s_access_ %(name)s_base__ = {\n' % \
+              { 'name' : self._name })
         for entry in self._entries:
             self.PrintIndented(file, '  ', entry.CodeBase())
-        print >>file, '};\n'
+        file.write('};\n\n')
 
         # Creation
-        print >>file, (
+        file.write((
             'struct %(name)s *\n'
             '%(name)s_new(void)\n'
             '{\n'
@@ -176,77 +173,77 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             '    event_warn("%%s: malloc", __func__);\n'
             '    return (NULL);\n'
             '  }\n'
-            '  tmp->base = &%(name)s_base__;\n') % { 'name' : self._name }
+            '  tmp->base = &%(name)s_base__;\n\n') % { 'name' : self._name })
 
         for entry in self._entries:
             self.PrintIndented(file, '  ', entry.CodeInitialize('tmp'))
-            print >>file, '  tmp->%s_set = 0;\n' % entry.Name()
+            file.write('  tmp->%s_set = 0;\n\n' % entry.Name())
 
-        print >>file, (
+        file.write((
             '  return (tmp);\n'
-            '}\n')
+            '}\n\n'))
 
         # Adding
         for entry in self._entries:
             if entry.Array():
                 self.PrintIndented(file, '', entry.CodeAdd())
-            print >>file, ''
+            file.write('\n')
 
         # Assigning
         for entry in self._entries:
             self.PrintIndented(file, '', entry.CodeAssign())
-            print >>file, ''
+            file.write('\n')
 
         # Getting
         for entry in self._entries:
             self.PrintIndented(file, '', entry.CodeGet())
-            print >>file, ''
+            file.write('\n')
 
         # Clearing
-        print >>file, ( 'void\n'
+        file.write(( 'void\n'
                         '%(name)s_clear(struct %(name)s *tmp)\n'
                         '{'
-                        ) % { 'name' : self._name }
+                        '\n') % { 'name' : self._name })
         for entry in self._entries:
             self.PrintIndented(file, '  ', entry.CodeClear('tmp'))
 
-        print >>file, '}\n'
+        file.write('}\n\n')
 
         # Freeing
-        print >>file, ( 'void\n'
+        file.write(( 'void\n'
                         '%(name)s_free(struct %(name)s *tmp)\n'
                         '{'
-                        ) % { 'name' : self._name }
+                        '\n') % { 'name' : self._name })
 
         for entry in self._entries:
             self.PrintIndented(file, '  ', entry.CodeFree('tmp'))
 
-        print >>file, ('  free(tmp);\n'
-                       '}\n')
+        file.write(('  free(tmp);\n'
+                       '}\n\n'))
 
         # Marshaling
-        print >>file, ('void\n'
+        file.write(('void\n'
                        '%(name)s_marshal(struct evbuffer *evbuf, '
                        'const struct %(name)s *tmp)'
-                       '{') % { 'name' : self._name }
+                       '{\n') % { 'name' : self._name })
         for entry in self._entries:
             indent = '  '
             # Optional entries do not have to be set
             if entry.Optional():
                 indent += '  '
-                print >>file, '  if (tmp->%s_set) {' % entry.Name()
+                file.write('  if (tmp->%s_set) {\n' % entry.Name())
             self.PrintIndented(
                 file, indent,
                 entry.CodeMarshal('evbuf', self.EntryTagName(entry),
                                   entry.GetVarName('tmp'),
                                   entry.GetVarLen('tmp')))
             if entry.Optional():
-                print >>file, '  }'
+                file.write('  }\n')
 
-        print >>file, '}\n'
+        file.write('}\n\n')
 
         # Unmarshaling
-        print >>file, ('int\n'
+        file.write(('int\n'
                        '%(name)s_unmarshal(struct %(name)s *tmp, '
                        ' struct evbuffer *evbuf)\n'
                        '{\n'
@@ -255,14 +252,14 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
                        '    if (evtag_peek(evbuf, &tag) == -1)\n'
                        '      return (-1);\n'
                        '    switch (tag) {\n'
-                       ) % { 'name' : self._name }
+                       '\n') % { 'name' : self._name })
         for entry in self._entries:
-            print >>file, '      case %s:\n' % self.EntryTagName(entry)
+            file.write('      case %s:\n' % self.EntryTagName(entry))
             if not entry.Array():
-                print >>file, (
+                file.write((
                     '        if (tmp->%s_set)\n'
                     '          return (-1);'
-                    ) % (entry.Name())
+                    '\n') % (entry.Name()))
 
             self.PrintIndented(
                 file, '        ',
@@ -271,26 +268,26 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
                                     entry.GetVarName('tmp'),
                                     entry.GetVarLen('tmp')))
 
-            print >>file, ( '        tmp->%s_set = 1;\n' % entry.Name() +
-                            '        break;\n' )
-        print >>file, ( '      default:\n'
+            file.write(( '        tmp->%s_set = 1;\n' % entry.Name() +
+                            '        break;\n' ))
+        file.write(( '      default:\n'
                         '        return -1;\n'
                         '    }\n'
-                        '  }\n' )
+                        '  }\n\n' ))
         # Check if it was decoded completely
-        print >>file, ( '  if (%(name)s_complete(tmp) == -1)\n'
+        file.write(( '  if (%(name)s_complete(tmp) == -1)\n'
                         '    return (-1);'
-                        ) % { 'name' : self._name }
+                        '\n') % { 'name' : self._name })
 
         # Successfully decoded
-        print >>file, ( '  return (0);\n'
-                        '}\n')
+        file.write(( '  return (0);\n'
+                        '}\n\n'))
 
         # Checking if a structure has all the required data
-        print >>file, (
+        file.write((
             'int\n'
             '%(name)s_complete(struct %(name)s *msg)\n'
-            '{' ) % { 'name' : self._name }
+            '{\n' ) % { 'name' : self._name })
         for entry in self._entries:
             if not entry.Optional():
                 code = [
@@ -303,12 +300,12 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             self.PrintIndented(
                 file, '  ',
                 entry.CodeComplete('msg', entry.GetVarName('msg')))
-        print >>file, (
+        file.write((
             '  return (0);\n'
-            '}\n' )
+            '}\n\n' ))
 
         # Complete message unmarshaling
-        print >>file, (
+        file.write((
             'int\n'
             'evtag_unmarshal_%(name)s(struct evbuffer *evbuf, '
             'ev_uint32_t need_tag, struct %(name)s *msg)\n'
@@ -330,10 +327,10 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             ' error:\n'
             '  evbuffer_free(tmp);\n'
             '  return (res);\n'
-            '}\n' ) % { 'name' : self._name }
+            '}\n\n' ) % { 'name' : self._name })
 
         # Complete message marshaling
-        print >>file, (
+        file.write((
             'void\n'
             'evtag_marshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t tag, '
             'const struct %(name)s *msg)\n'
@@ -343,7 +340,7 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             '  %(name)s_marshal(buf_, msg);\n'
             '  evtag_marshal_buffer(evbuf, tag, buf_);\n '
             '  evbuffer_free(buf_);\n'
-            '}\n' ) % { 'name' : self._name }
+            '}\n\n' ) % { 'name' : self._name })
 
 class Entry:
     def __init__(self, type, name, tag):
@@ -420,7 +417,7 @@ class Entry:
             "optaddarg" :
             self._optaddarg and ", const %s value" % self._ctype or ""
             }
-        for (k, v) in extradict.items():
+        for (k, v) in list(extradict.items()):
             mapping[k] = v
 
         return mapping
@@ -1127,7 +1124,7 @@ class EntryArray(Entry):
 
         codearrayassign = self._entry.CodeArrayAssign(
             'msg->%(name)s_data[off]' % self.GetTranslation(), 'value')
-        code += map(lambda x: '    ' + x, codearrayassign)
+        code += ['    ' + x for x in codearrayassign]
 
         code += TranslateList([
             '  }',
@@ -1168,7 +1165,7 @@ class EntryArray(Entry):
 
         code = TranslateList(code, self.GetTranslation())
 
-        code += map(lambda x: '  ' + x, codearrayadd)
+        code += ['  ' + x for x in codearrayadd]
 
         code += TranslateList([
             '  msg->%(name)s_set = 1;',
@@ -1196,7 +1193,7 @@ class EntryArray(Entry):
 
         code = TranslateList(code, translate)
 
-        code += map(lambda x: '    ' + x, tmp)
+        code += ['    ' + x for x in tmp]
 
         code += [
             '  }',
@@ -1261,7 +1258,7 @@ class EntryArray(Entry):
         code = TranslateList(code, translate)
 
         if codearrayfree:
-            code += map(lambda x: '    ' + x, codearrayfree)
+            code += ['    ' + x for x in codearrayfree]
             code += [
                 '  }' ]
 
@@ -1585,8 +1582,14 @@ class CCodeGenerator:
                  '#include <event2/event.h>\n'
                  '#include <event2/buffer.h>\n'
                  '#include <event2/tag.h>\n\n'
-                 '#if defined(EVENT____func__) && !defined(__func__)\n'
-                 '#define __func__ EVENT____func__\n'
+                 '#if defined(EVENT__HAVE___func__)\n'
+                 '# ifndef __func__\n'
+                 '#  define __func__ __func__\n'
+                 '# endif\n'
+                 '#elif defined(EVENT__HAVE___FUNCTION__)\n'
+                 '# define __func__ __FUNCTION__\n'
+                 '#else\n'
+                 '# define __func__ __FILE__\n'
                  '#endif\n\n'
                  )
 
@@ -1687,23 +1690,23 @@ class CommandLine:
 
         declare('... creating "%s"' % header_file)
         header_fp = open(header_file, 'w')
-        print >>header_fp, factory.HeaderPreamble(filename)
+        header_fp.write(factory.HeaderPreamble(filename))
 
         # Create forward declarations: allows other structs to reference
         # each other
         for entry in entities:
             entry.PrintForwardDeclaration(header_fp)
-        print >>header_fp, ''
+        header_fp.write('\n')
 
         for entry in entities:
             entry.PrintTags(header_fp)
             entry.PrintDeclaration(header_fp)
-        print >>header_fp, factory.HeaderPostamble(filename)
+        header_fp.write(factory.HeaderPostamble(filename))
         header_fp.close()
 
         declare('... creating "%s"' % impl_file)
         impl_fp = open(impl_file, 'w')
-        print >>impl_fp, factory.BodyPreamble(filename, header_file)
+        impl_fp.write(factory.BodyPreamble(filename, header_file))
         for entry in entities:
             entry.PrintCode(impl_fp)
         impl_fp.close()
@@ -1713,16 +1716,16 @@ if __name__ == '__main__':
         CommandLine(sys.argv).run()
         sys.exit(0)
 
-    except RpcGenError, e:
-        print >>sys.stderr, e
+    except RpcGenError as e:
+        sys.stderr.write(e)
         sys.exit(1)
 
-    except EnvironmentError, e:
+    except EnvironmentError as e:
         if e.filename and e.strerror:
-            print >>sys.stderr, "%s: %s" % (e.filename, e.strerror)
+            sys.stderr.write("%s: %s" % (e.filename, e.strerror))
             sys.exit(1)
         elif e.strerror:
-            print >> sys.stderr, e.strerror
+            sys.stderr.write(e.strerror)
             sys.exit(1)
         else:
             raise

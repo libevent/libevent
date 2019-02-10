@@ -30,6 +30,7 @@
 #include <event2/listener.h>
 #include <event2/util.h>
 
+#include "util-internal.h"
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
@@ -194,6 +195,7 @@ accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
 			perror("Bufferevent_openssl_new");
 			bufferevent_free(b_out);
 			bufferevent_free(b_in);
+			return;
 		}
 		b_out = b_ssl;
 	}
@@ -259,7 +261,8 @@ main(int argc, char **argv)
 
 	if (use_ssl) {
 		int r;
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
+	(defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
 		SSL_library_init();
 		ERR_load_crypto_strings();
 		SSL_load_error_strings();

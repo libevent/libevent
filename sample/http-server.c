@@ -20,6 +20,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include <getopt.h>
 #include <io.h>
 #include <fcntl.h>
 #ifndef S_ISDIR
@@ -28,17 +29,21 @@
 #else
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <dirent.h>
 #endif
+#include <signal.h>
 
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/buffer.h>
 #include <event2/util.h>
 #include <event2/keyvalq_struct.h>
+
+#ifdef _WIN32
+#include <event2/thread.h>
+#endif
 
 #ifdef EVENT__HAVE_NETINET_IN_H
 #include <netinet/in.h>
@@ -84,6 +89,13 @@ static const struct table_entry {
 	{ "pdf", "application/pdf" },
 	{ "ps", "application/postscript" },
 	{ NULL, NULL },
+};
+
+struct options
+{
+	int port;
+	int iocp;
+	int verbose;
 };
 
 /* Try to guess a good content-type for 'path' */
@@ -320,43 +332,95 @@ done:
 		evbuffer_free(evb);
 }
 
-static void
-syntax(void)
+static struct options
+parse_opts(int argc, char **argv)
 {
-	fprintf(stdout, "Syntax: http-server <docroot>\n");
+	struct options o;
+	int opt;
+
+	memset(&o, 0, sizeof(o));
+
+	while ((opt = getopt(argc, argv, "p:Iv")) != -1) {
+		switch (opt) {
+			case 'p': o.port = atoi(optarg); break;
+			case 'I': o.iocp = 1; break;
+			case 'v': ++o.verbose; break;
+			default : fprintf(stderr, "Unknown option %c\n", opt); break;
+		}
+	}
+
+	if (optind >= argc || (argc-optind) > 1) {
+		fprintf(stdout, "Syntax: %s <docroot>\n", argv[0]);
+		exit(1);
+	}
+
+	return o;
+}
+
+static void
+do_term(int sig, short events, void *arg)
+{
+	struct event_base *base = arg;
+	event_base_loopbreak(base);
+	fprintf(stderr, "Got %i, Terminating\n", sig);
 }
 
 int
 main(int argc, char **argv)
 {
-	struct event_base *base;
-	struct evhttp *http;
-	struct evhttp_bound_socket *handle;
+	struct event_config *cfg = NULL;
+	struct event_base *base = NULL;
+	struct evhttp *http = NULL;
+	struct evhttp_bound_socket *handle = NULL;
+	struct event *term = NULL;
+	struct options o = parse_opts(argc, argv);
+	int ret = 0;
 
-	ev_uint16_t port = 0;
 #ifdef _WIN32
-	WSADATA WSAData;
-	WSAStartup(0x101, &WSAData);
-#else
-	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
-		return (1);
-#endif
-	if (argc < 2) {
-		syntax();
-		return 1;
+	{
+		WORD wVersionRequested;
+		WSADATA wsaData;
+		wVersionRequested = MAKEWORD(2, 2);
+		WSAStartup(wVersionRequested, &wsaData);
 	}
+#else
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+		ret = 1;
+		goto err;
+	}
+#endif
 
-	base = event_base_new();
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
+
+	/** Read env like in regress" */
+	if (o.verbose || getenv("EVENT_DEBUG_LOGGING_ALL"))
+		event_enable_debug_logging(EVENT_DBG_ALL);
+
+	cfg = event_config_new();
+#ifdef _WIN32
+	if (o.iocp) {
+#ifdef EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED
+		evthread_use_windows_threads();
+		event_config_set_num_cpus_hint(cfg, 8);
+#endif
+		event_config_set_flag(cfg, EVENT_BASE_FLAG_STARTUP_IOCP);
+	}
+#endif
+
+	base = event_base_new_with_config(cfg);
 	if (!base) {
 		fprintf(stderr, "Couldn't create an event_base: exiting\n");
-		return 1;
+		ret = 1;
 	}
+	event_config_free(cfg);
+	cfg = NULL;
 
 	/* Create a new evhttp object to handle requests. */
 	http = evhttp_new(base);
 	if (!http) {
 		fprintf(stderr, "couldn't create evhttp. Exiting.\n");
-		return 1;
+		ret = 1;
 	}
 
 	/* The /dump URI will dump all requests to stdout and say 200 ok. */
@@ -367,11 +431,11 @@ main(int argc, char **argv)
 	evhttp_set_gencb(http, send_document_cb, argv[1]);
 
 	/* Now we tell the evhttp what port to listen on */
-	handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", port);
+	handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", o.port);
 	if (!handle) {
-		fprintf(stderr, "couldn't bind to port %d. Exiting.\n",
-		    (int)port);
-		return 1;
+		fprintf(stderr, "couldn't bind to port %d. Exiting.\n", o.port);
+		ret = 1;
+		goto err;
 	}
 
 	{
@@ -387,7 +451,7 @@ main(int argc, char **argv)
 		memset(&ss, 0, sizeof(ss));
 		if (getsockname(fd, (struct sockaddr *)&ss, &socklen)) {
 			perror("getsockname() failed");
-			return 1;
+			ret = 1;
 		}
 		if (ss.ss_family == AF_INET) {
 			got_port = ntohs(((struct sockaddr_in*)&ss)->sin_port);
@@ -398,7 +462,8 @@ main(int argc, char **argv)
 		} else {
 			fprintf(stderr, "Weird address family %d\n",
 			    ss.ss_family);
-			return 1;
+			ret = 1;
+			goto err;
 		}
 		addr = evutil_inet_ntop(ss.ss_family, inaddr, addrbuf,
 		    sizeof(addrbuf));
@@ -408,11 +473,32 @@ main(int argc, char **argv)
 			    "http://%s:%d",addr,got_port);
 		} else {
 			fprintf(stderr, "evutil_inet_ntop failed\n");
-			return 1;
+			ret = 1;
+			goto err;
 		}
 	}
 
+	term = evsignal_new(base, SIGINT, do_term, base);
+	if (!term)
+		goto err;
+	if (event_add(term, NULL))
+		goto err;
+
 	event_base_dispatch(base);
 
-	return 0;
+#ifdef _WIN32
+	WSACleanup();
+#endif
+
+err:
+	if (cfg)
+		event_config_free(cfg);
+	if (http)
+		evhttp_free(http);
+	if (term)
+		event_free(term);
+	if (base)
+		event_base_free(base);
+
+	return ret;
 }

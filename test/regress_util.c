@@ -23,6 +23,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/** For event_debug() usage/coverage */
+#define EVENT_VISIBILITY_WANT_DLLIMPORT
+
 #include "../util-internal.h"
 
 #ifdef _WIN32
@@ -1412,10 +1416,12 @@ static struct date_rfc1123_case {
 	{  1289433600, "Thu, 11 Nov 2010 00:00:00 GMT"},
 	{  1323648000, "Mon, 12 Dec 2011 00:00:00 GMT"},
 #ifndef _WIN32
+#if EVENT__SIZEOF_TIME_T > 4
 	/** In win32 case we have max   "23:59:59 January 18, 2038, UTC" for time32 */
 	{  4294967296, "Sun, 07 Feb 2106 06:28:16 GMT"} /* 2^32 */,
 	/** In win32 case we have max "23:59:59, December 31, 3000, UTC" for time64 */
 	{253402300799, "Fri, 31 Dec 9999 23:59:59 GMT"} /* long long future no one can imagine */,
+#endif /* time_t != 32bit */
 	{  1456704000, "Mon, 29 Feb 2016 00:00:00 GMT"} /* leap year */,
 #endif
 	{  1435708800, "Wed, 01 Jul 2015 00:00:00 GMT"} /* leap second */,
@@ -1453,6 +1459,83 @@ end:
 	;
 }
 
+static void
+test_evutil_v4addr_is_local(void *arg)
+{
+	struct sockaddr_in sin;
+	sin.sin_family = AF_INET;
+
+	/* we use evutil_inet_pton() here to fill in network-byte order */
+#define LOCAL(str, yes) do {                                              \
+	tt_int_op(evutil_inet_pton(AF_INET, str, &sin.sin_addr), ==, 1);  \
+	tt_int_op(evutil_v4addr_is_local_(&sin.sin_addr), ==, yes);       \
+} while (0)
+
+	/** any */
+	sin.sin_addr.s_addr = INADDR_ANY;
+	tt_int_op(evutil_v4addr_is_local_(&sin.sin_addr), ==, 1);
+
+	/** loopback */
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	tt_int_op(evutil_v4addr_is_local_(&sin.sin_addr), ==, 1);
+	LOCAL("127.0.0.1", 1);
+	LOCAL("127.255.255.255", 1);
+	LOCAL("121.0.0.1", 0);
+
+	/** link-local */
+	LOCAL("169.254.0.1", 1);
+	LOCAL("169.254.255.255", 1);
+	LOCAL("170.0.0.0", 0);
+
+	/** Multicast */
+	LOCAL("224.0.0.0", 1);
+	LOCAL("239.255.255.255", 1);
+	LOCAL("240.0.0.0", 0);
+end:
+	;
+}
+
+static void
+test_evutil_v6addr_is_local(void *arg)
+{
+	struct sockaddr_in6 sin6;
+	struct in6_addr anyaddr = IN6ADDR_ANY_INIT;
+	struct in6_addr loopback = IN6ADDR_LOOPBACK_INIT;
+
+	sin6.sin6_family = AF_INET6;
+#define LOCAL6(str, yes) do {                                              \
+	tt_int_op(evutil_inet_pton(AF_INET6, str, &sin6.sin6_addr), ==, 1);\
+	tt_int_op(evutil_v6addr_is_local_(&sin6.sin6_addr), ==, yes);      \
+} while (0)
+
+	/** any */
+	tt_int_op(evutil_v6addr_is_local_(&anyaddr), ==, 1);
+	LOCAL6("::0", 1);
+
+	/** loopback */
+	tt_int_op(evutil_v6addr_is_local_(&loopback), ==, 1);
+	LOCAL6("::1", 1);
+
+	/** IPV4 mapped */
+	LOCAL6("::ffff:0:0", 1);
+	/** IPv4 translated */
+	LOCAL6("::ffff:0:0:0", 1);
+	/** IPv4/IPv6 translation */
+	LOCAL6("64:ff9b::", 0);
+	/** Link-local */
+	LOCAL6("fe80::", 1);
+	/** Multicast */
+	LOCAL6("ff00::", 1);
+	/** Unspecified */
+	LOCAL6("::", 1);
+
+	/** Global Internet */
+	LOCAL6("2001::", 0);
+	LOCAL6("2001:4860:4802:32::1b", 0);
+end:
+	;
+}
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -1476,14 +1559,16 @@ struct testcase_t util_testcases[] = {
 	{ "mm_malloc", test_event_malloc, 0, NULL, NULL },
 	{ "mm_calloc", test_event_calloc, 0, NULL, NULL },
 	{ "mm_strdup", test_event_strdup, 0, NULL, NULL },
-	{ "usleep", test_evutil_usleep, 0, NULL, NULL },
+	{ "usleep", test_evutil_usleep, TT_RETRIABLE, NULL, NULL },
 	{ "monotonic_res", test_evutil_monotonic_res, 0, &basic_setup, (void*)"" },
 	{ "monotonic_res_precise", test_evutil_monotonic_res, TT_OFF_BY_DEFAULT, &basic_setup, (void*)"precise" },
 	{ "monotonic_res_fallback", test_evutil_monotonic_res, TT_OFF_BY_DEFAULT, &basic_setup, (void*)"fallback" },
 	{ "monotonic_prc", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"" },
-	{ "monotonic_prc_precise", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"precise" },
+	{ "monotonic_prc_precise", test_evutil_monotonic_prc, TT_RETRIABLE, &basic_setup, (void*)"precise" },
 	{ "monotonic_prc_fallback", test_evutil_monotonic_prc, 0, &basic_setup, (void*)"fallback" },
 	{ "date_rfc1123", test_evutil_date_rfc1123, 0, NULL, NULL },
+	{ "evutil_v4addr_is_local", test_evutil_v4addr_is_local, 0, NULL, NULL },
+	{ "evutil_v6addr_is_local", test_evutil_v6addr_is_local, 0, NULL, NULL },
 	END_OF_TESTCASES,
 };
 

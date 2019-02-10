@@ -158,6 +158,14 @@
 	tt_assert_test_type(a,b,#a" "#op" "#b,long,(val1_ op val2_), \
 	    "%ld",TT_EXIT_TEST_FUNCTION)
 
+/** To compare SOCKET(windows)/fd */
+#define tt_fd_op(a,op,b) do {                                          \
+	int _a = (int)(a);                                             \
+	int _b = (int)(b);                                             \
+	tt_assert_test_type(_a,_b,#a" "#op" "#b,long,(val1_ op val2_), \
+	    "%ld",TT_EXIT_TEST_FUNCTION);                              \
+} while (0)
+
 #define tt_uint_op(a,op,b)						\
 	tt_assert_test_type(a,b,#a" "#op" "#b,unsigned long,		\
 	    (val1_ op val2_),"%lu",TT_EXIT_TEST_FUNCTION)

@@ -253,15 +253,12 @@ testcase_run_one(const struct testgroup_t *group,
 	}
 
 	if (outcome == OK) {
-		++n_ok;
 		if (opt_verbosity>0 && !opt_forked)
 			puts(opt_verbosity==1?"OK":"");
 	} else if (outcome == SKIP) {
-		++n_skipped;
 		if (opt_verbosity>0 && !opt_forked)
 			puts("SKIPPED");
 	} else {
-		++n_bad;
 		if (!opt_forked)
 			printf("\n  [%s FAILED]\n", testcase->name);
 	}
@@ -428,11 +425,35 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 #endif
 
 	++in_tinytest_main;
-	for (i=0; groups[i].prefix; ++i)
-		for (j=0; groups[i].cases[j].name; ++j)
-			if (groups[i].cases[j].flags & TT_ENABLED_)
-				testcase_run_one(&groups[i],
-						 &groups[i].cases[j]);
+	for (i = 0; groups[i].prefix; ++i) {
+		struct testgroup_t *group = &groups[i];
+		for (j = 0; group->cases[j].name; ++j) {
+			struct testcase_t *testcase = &group->cases[j];
+			int test_attempts = 3;
+			int test_ret_err;
+
+			if (!(testcase->flags & TT_ENABLED_))
+				continue;
+
+			for (;;) {
+				test_ret_err = testcase_run_one(group, testcase);
+
+				if (test_ret_err == OK)
+					break;
+				if (!(testcase->flags & TT_RETRIABLE))
+					break;
+				printf("\n  [RETRYING %s (%i)]\n", testcase->name, test_attempts);
+				if (!test_attempts--)
+					break;
+			}
+
+			switch (test_ret_err) {
+				case OK:   ++n_ok;      break;
+				case SKIP: ++n_skipped; break;
+				default:   ++n_bad;     break;
+			}
+		}
+	}
 
 	--in_tinytest_main;
 

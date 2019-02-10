@@ -69,16 +69,7 @@ static event_fatal_cb fatal_fn = NULL;
 #define DEFAULT_MASK 0
 #endif
 
-#ifdef USE_GLOBAL_FOR_DEBUG_LOGGING
-ev_uint32_t event_debug_logging_mask_ = DEFAULT_MASK;
-#else
-static ev_uint32_t event_debug_logging_mask_ = DEFAULT_MASK;
-ev_uint32_t
-event_debug_get_logging_mask_(void)
-{
-	return event_debug_logging_mask_;
-}
-#endif
+EVENT2_EXPORT_SYMBOL ev_uint32_t event_debug_logging_mask_ = DEFAULT_MASK;
 #endif /* EVENT_DEBUG_LOGGING_ENABLED */
 
 void

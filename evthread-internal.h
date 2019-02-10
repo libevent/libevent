@@ -49,9 +49,12 @@ struct event_base;
 #if ! defined(EVENT__DISABLE_THREAD_SUPPORT) && defined(EVTHREAD_EXPOSE_STRUCTS)
 /* Global function pointers to lock-related functions. NULL if locking isn't
    enabled. */
+EVENT2_EXPORT_SYMBOL
 extern struct evthread_lock_callbacks evthread_lock_fns_;
+EVENT2_EXPORT_SYMBOL
 extern struct evthread_condition_callbacks evthread_cond_fns_;
 extern unsigned long (*evthread_id_fn_)(void);
+EVENT2_EXPORT_SYMBOL
 extern int evthread_lock_debugging_enabled_;
 
 /** Return the ID of the current thread, or 1 if threading isn't enabled. */
@@ -182,14 +185,23 @@ EVLOCK_TRY_LOCK_(void *lock)
 #elif ! defined(EVENT__DISABLE_THREAD_SUPPORT)
 
 unsigned long evthreadimpl_get_id_(void);
+EVENT2_EXPORT_SYMBOL
 int evthreadimpl_is_lock_debugging_enabled_(void);
+EVENT2_EXPORT_SYMBOL
 void *evthreadimpl_lock_alloc_(unsigned locktype);
+EVENT2_EXPORT_SYMBOL
 void evthreadimpl_lock_free_(void *lock, unsigned locktype);
+EVENT2_EXPORT_SYMBOL
 int evthreadimpl_lock_lock_(unsigned mode, void *lock);
+EVENT2_EXPORT_SYMBOL
 int evthreadimpl_lock_unlock_(unsigned mode, void *lock);
+EVENT2_EXPORT_SYMBOL
 void *evthreadimpl_cond_alloc_(unsigned condtype);
+EVENT2_EXPORT_SYMBOL
 void evthreadimpl_cond_free_(void *cond);
+EVENT2_EXPORT_SYMBOL
 int evthreadimpl_cond_signal_(void *cond, int broadcast);
+EVENT2_EXPORT_SYMBOL
 int evthreadimpl_cond_wait_(void *cond, void *lock, const struct timeval *tv);
 int evthreadimpl_locking_enabled_(void);
 
@@ -355,6 +367,7 @@ EVLOCK_TRY_LOCK_(void *lock)
 		EVLOCK_UNLOCK(lock1_tmplock_,mode1);			\
 	} while (0)
 
+EVENT2_EXPORT_SYMBOL
 int evthread_is_debug_lock_held_(void *lock);
 void *evthread_debug_get_real_lock_(void *lock);
 
@@ -377,6 +390,7 @@ int evutil_global_setup_locks_(const int enable_locks);
 int evutil_secure_rng_global_setup_locks_(const int enable_locks);
 
 /** Return current evthread_lock_callbacks */
+EVENT2_EXPORT_SYMBOL
 struct evthread_lock_callbacks *evthread_get_lock_callbacks(void);
 /** Return current evthread_condition_callbacks */
 struct evthread_condition_callbacks *evthread_get_condition_callbacks(void);

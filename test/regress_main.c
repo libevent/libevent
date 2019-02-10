@@ -186,7 +186,7 @@ ignore_log_cb(int s, const char *msg)
 {
 }
 
-static void *
+void *
 basic_test_setup(const struct testcase_t *testcase)
 {
 	struct event_base *base = NULL;
@@ -262,7 +262,7 @@ basic_test_setup(const struct testcase_t *testcase)
 	return data;
 }
 
-static int
+int
 basic_test_cleanup(const struct testcase_t *testcase, void *ptr)
 {
 	struct basic_test_data *data = ptr;
@@ -384,6 +384,7 @@ struct testgroup_t testgroups[] = {
 	{ "iocp/", iocp_testcases },
 	{ "iocp/bufferevent/", bufferevent_iocp_testcases },
 	{ "iocp/listener/", listener_iocp_testcases },
+	{ "iocp/http/", http_iocp_testcases },
 #endif
 #ifdef EVENT__HAVE_OPENSSL
 	{ "ssl/", ssl_testcases },
@@ -435,6 +436,7 @@ main(int argc, const char **argv)
 #ifdef _WIN32
 	tinytest_skip(testgroups, "http/connection_retry");
 	tinytest_skip(testgroups, "http/https_connection_retry");
+	tinytest_skip(testgroups, "http/read_on_write_error");
 #endif
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
@@ -453,6 +455,11 @@ main(int argc, const char **argv)
 	tinytest_set_aliases(testaliases);
 
 	evutil_weakrand_seed_(&test_weakrand_state, 0);
+
+	if (getenv("EVENT_NO_FILE_BUFFERING")) {
+		setbuf(stdout, NULL);
+		setbuf(stderr, NULL);
+	}
 
 	if (tinytest_main(argc,argv,testgroups))
 		return 1;

@@ -192,6 +192,32 @@ test_timeout(void *ptr)
 	;
 }
 
+void
+test_timeout_retry(void *ptr)
+{
+	static int i = 0;
+
+	++i;
+	tt_int_op(i, !=, 1);
+
+	time_t t1, t2;
+	(void)ptr;
+	t1 = time(NULL);
+#ifdef _WIN32
+	Sleep(5000);
+#else
+	sleep(5);
+#endif
+	t2 = time(NULL);
+
+	tt_int_op(t2-t1, >=, 4);
+
+	tt_int_op(t2-t1, <=, 6);
+
+ end:
+	;
+}
+
 /* ============================================================ */
 
 /* Now we need to make sure that our tests get invoked.	  First, you take
@@ -211,6 +237,10 @@ struct testcase_t demo_tests[] = {
 	/* This flag is off-by-default, since it takes a while to run.	You
 	 * can enable it manually by passing +demo/timeout at the command line.*/
 	{ "timeout", test_timeout, TT_OFF_BY_DEFAULT },
+
+	/* This test will be retried. (and it will not pass from the first
+	 * time) */
+	{ "timeout_retry", test_timeout_retry, TT_RETRIABLE },
 
 	/* The array has to end with END_OF_TESTCASES. */
 	END_OF_TESTCASES

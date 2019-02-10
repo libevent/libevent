@@ -63,7 +63,6 @@
 #include "bufferevent-internal.h"
 #include "log-internal.h"
 
-#include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include "openssl-compat.h"
@@ -155,7 +154,7 @@ bio_bufferevent_read(BIO *b, char *out, int outlen)
 	return r;
 }
 
-/* Called to write data info the BIO */
+/* Called to write data into the BIO */
 static int
 bio_bufferevent_write(BIO *b, const char *in, int inlen)
 {
@@ -251,7 +250,7 @@ BIO_s_bufferevent(void)
 /* Create a new BIO to wrap communication around a bufferevent.  If close_flag
  * is true, the bufferevent will be freed when the BIO is closed. */
 static BIO *
-BIO_new_bufferevent(struct bufferevent *bufferevent, int close_flag)
+BIO_new_bufferevent(struct bufferevent *bufferevent)
 {
 	BIO *result;
 	if (!bufferevent)
@@ -260,7 +259,9 @@ BIO_new_bufferevent(struct bufferevent *bufferevent, int close_flag)
 		return NULL;
 	BIO_set_init(result, 1);
 	BIO_set_data(result, bufferevent);
-	BIO_set_shutdown(result, close_flag ? 1 : 0);
+	/* We don't tell the BIO to close the bufferevent; we do it ourselves on
+	 * be_openssl_destruct() */
+	BIO_set_shutdown(result, 0);
 	return result;
 }
 
@@ -354,11 +355,11 @@ static inline struct bufferevent_openssl *
 upcast(struct bufferevent *bev)
 {
 	struct bufferevent_openssl *bev_o;
-	if (bev->be_ops != &bufferevent_ops_openssl)
+	if (!BEV_IS_OPENSSL(bev))
 		return NULL;
 	bev_o = (void*)( ((char*)bev) -
 			 evutil_offsetof(struct bufferevent_openssl, bev.bev));
-	EVUTIL_ASSERT(bev_o->bev.bev.be_ops == &bufferevent_ops_openssl);
+	EVUTIL_ASSERT(BEV_IS_OPENSSL(&bev_o->bev.bev));
 	return bev_o;
 }
 
@@ -803,7 +804,7 @@ consider_reading(struct bufferevent_openssl *bev_ssl)
 
 		if (bev_ssl->bev.read_suspended)
 			break;
-        
+
 		/* Read all pending data.  This won't hit the network
 		 * again, and will (most importantly) put us in a state
 		 * where we don't need to read anything else until the
@@ -963,8 +964,8 @@ be_openssl_writeeventcb(evutil_socket_t fd, short what, void *ptr)
 	bufferevent_decref_and_unlock_(&bev_ssl->bev.bev);
 }
 
-static int
-be_openssl_auto_fd(struct bufferevent_openssl *bev_ssl, int fd)
+static evutil_socket_t
+be_openssl_auto_fd(struct bufferevent_openssl *bev_ssl, evutil_socket_t fd)
 {
 	if (!bev_ssl->underlying) {
 		struct bufferevent *bev = &bev_ssl->bev.bev;
@@ -1030,7 +1031,7 @@ do_handshake(struct bufferevent_openssl *bev_ssl)
 	decrement_buckets(bev_ssl);
 
 	if (r==1) {
-		int fd = event_get_fd(&bev_ssl->bev.bev.ev_read);
+		evutil_socket_t fd = event_get_fd(&bev_ssl->bev.bev.ev_read);
 		/* We're done! */
 		bev_ssl->state = BUFFEREVENT_SSL_OPEN;
 		set_open_callbacks(bev_ssl, fd); /* XXXX handle failure */
@@ -1228,7 +1229,7 @@ be_openssl_destruct(struct bufferevent *bev)
 
 	if (bev_ssl->bev.options & BEV_OPT_CLOSE_ON_FREE) {
 		if (! bev_ssl->underlying) {
-			evutil_socket_t fd = -1;
+			evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
 			BIO *bio = SSL_get_wbio(bev_ssl->ssl);
 			if (bio)
 				fd = BIO_get_fd(bio, NULL);
@@ -1261,17 +1262,21 @@ be_openssl_flush(struct bufferevent *bufev,
 
 static int
 be_openssl_set_fd(struct bufferevent_openssl *bev_ssl,
-    enum bufferevent_ssl_state state, int fd)
+    enum bufferevent_ssl_state state, evutil_socket_t fd)
 {
 	bev_ssl->state = state;
 
 	switch (state) {
 	case BUFFEREVENT_SSL_ACCEPTING:
+		if (!SSL_clear(bev_ssl->ssl))
+			return -1;
 		SSL_set_accept_state(bev_ssl->ssl);
 		if (set_handshake_callbacks(bev_ssl, fd) < 0)
 			return -1;
 		break;
 	case BUFFEREVENT_SSL_CONNECTING:
+		if (!SSL_clear(bev_ssl->ssl))
+			return -1;
 		SSL_set_connect_state(bev_ssl->ssl);
 		if (set_handshake_callbacks(bev_ssl, fd) < 0)
 			return -1;
@@ -1296,11 +1301,11 @@ be_openssl_ctrl(struct bufferevent *bev,
 	case BEV_CTRL_SET_FD:
 		if (!bev_ssl->underlying) {
 			BIO *bio;
-			bio = BIO_new_socket(data->fd, 0);
+			bio = BIO_new_socket((int)data->fd, 0);
 			SSL_set_bio(bev_ssl->ssl, bio, bio);
 		} else {
 			BIO *bio;
-			if (!(bio = BIO_new_bufferevent(bev_ssl->underlying, 0)))
+			if (!(bio = BIO_new_bufferevent(bev_ssl->underlying)))
 				return -1;
 			SSL_set_bio(bev_ssl->ssl, bio, bio);
 		}
@@ -1343,8 +1348,9 @@ bufferevent_openssl_new_impl(struct event_base *base,
 	struct bufferevent_private *bev_p = NULL;
 	int tmp_options = options & ~BEV_OPT_THREADSAFE;
 
+	/* Only one can be set. */
 	if (underlying != NULL && fd >= 0)
-		return NULL; /* Only one can be set. */
+		goto err;
 
 	if (!(bev_ssl = mm_calloc(1, sizeof(struct bufferevent_openssl))))
 		goto err;
@@ -1392,8 +1398,12 @@ bufferevent_openssl_new_impl(struct event_base *base,
 
 	return &bev_ssl->bev.bev;
 err:
-	if (bev_ssl)
+	if (options & BEV_OPT_CLOSE_ON_FREE)
+		SSL_free(ssl);
+	if (bev_ssl) {
+		bev_ssl->ssl = NULL;
 		bufferevent_free(&bev_ssl->bev.bev);
+	}
 	return NULL;
 }
 
@@ -1404,19 +1414,24 @@ bufferevent_openssl_filter_new(struct event_base *base,
     enum bufferevent_ssl_state state,
     int options)
 {
-	/* We don't tell the BIO to close the bufferevent; we do it ourselves
-	 * on be_openssl_destruct */
-	int close_flag = 0; /* options & BEV_OPT_CLOSE_ON_FREE; */
 	BIO *bio;
+	struct bufferevent *bev;
+
 	if (!underlying)
-		return NULL;
-	if (!(bio = BIO_new_bufferevent(underlying, close_flag)))
-		return NULL;
+		goto err;
+	if (!(bio = BIO_new_bufferevent(underlying)))
+		goto err;
 
 	SSL_set_bio(ssl, bio, bio);
 
-	return bufferevent_openssl_new_impl(
+	bev = bufferevent_openssl_new_impl(
 		base, underlying, -1, ssl, state, options);
+	return bev;
+
+err:
+	if (options & BEV_OPT_CLOSE_ON_FREE)
+		SSL_free(ssl);
+	return NULL;
 }
 
 struct bufferevent *
@@ -1443,14 +1458,14 @@ bufferevent_openssl_socket_new(struct event_base *base,
 		} else {
 			/* We specified an fd different from that of the SSL.
 			   This is probably an error on our part.  Fail. */
-			return NULL;
+			goto err;
 		}
-		(void) BIO_set_close(bio, 0);
+		BIO_set_close(bio, 0);
 	} else {
 		/* The SSL isn't configured with a BIO with an fd. */
 		if (fd >= 0) {
 			/* ... and we have an fd we want to use. */
-			bio = BIO_new_socket(fd, 0);
+			bio = BIO_new_socket((int)fd, 0);
 			SSL_set_bio(ssl, bio, bio);
 		} else {
 			/* Leave the fd unset. */
@@ -1459,6 +1474,11 @@ bufferevent_openssl_socket_new(struct event_base *base,
 
 	return bufferevent_openssl_new_impl(
 		base, NULL, fd, ssl, state, options);
+
+err:
+	if (options & BEV_OPT_CLOSE_ON_FREE)
+		SSL_free(ssl);
+	return NULL;
 }
 
 int

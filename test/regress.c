@@ -848,18 +848,36 @@ simple_child_read_cb(evutil_socket_t fd, short event, void *arg)
 
 	called++;
 }
+
+#define TEST_FORK_EXIT_SUCCESS 76
+static void fork_wait_check(int pid)
+{
+	int status;
+
+	TT_BLATHER(("Before waitpid"));
+
+#ifdef WNOWAIT
+	if ((waitpid(pid, &status, WNOWAIT) == -1 && errno == EINVAL) &&
+#else
+	if (
+#endif
+	    waitpid(pid, &status, 0) == -1) {
+		perror("waitpid");
+		exit(1);
+	}
+	TT_BLATHER(("After waitpid"));
+
+	if (WEXITSTATUS(status) != TEST_FORK_EXIT_SUCCESS) {
+		fprintf(stdout, "FAILED (exit): %d\n", WEXITSTATUS(status));
+		exit(1);
+	}
+}
 static void
 test_fork(void)
 {
 	char c;
-	int status;
 	struct event ev, sig_ev, usr_ev, existing_ev;
 	pid_t pid;
-	int wait_flags = 0;
-
-#ifdef EVENT__HAVE_WAITPID_WITH_WNOWAIT
-	wait_flags |= WNOWAIT;
-#endif
 
 	setup_test("After fork: ");
 
@@ -922,7 +940,7 @@ test_fork(void)
 		/* we do not send an EOF; simple_read_cb requires an EOF
 		 * to set test_ok.  we just verify that the callback was
 		 * called. */
-		exit(test_ok != 0 || called != 2 ? -2 : 76);
+		exit(test_ok != 0 || called != 2 ? -2 : TEST_FORK_EXIT_SUCCESS);
 	}
 
 	/** wait until client read first message */
@@ -933,17 +951,7 @@ test_fork(void)
 		tt_fail_perror("write");
 	}
 
-	TT_BLATHER(("Before waitpid"));
-	if (waitpid(pid, &status, wait_flags) == -1) {
-		perror("waitpid");
-		exit(1);
-	}
-	TT_BLATHER(("After waitpid"));
-
-	if (WEXITSTATUS(status) != 76) {
-		fprintf(stdout, "FAILED (exit): %d\n", WEXITSTATUS(status));
-		exit(1);
-	}
+	fork_wait_check(pid);
 
 	/* test that the current event loop still works */
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
@@ -989,9 +997,9 @@ static void
 del_wait_cb(evutil_socket_t fd, short event, void *arg)
 {
 	struct timeval delay = { 0, 300*1000 };
-	TT_BLATHER(("Sleeping"));
+	TT_BLATHER(("Sleeping: %i", test_ok));
 	evutil_usleep_(&delay);
-	test_ok = 1;
+	++test_ok;
 }
 
 static void
@@ -1002,7 +1010,7 @@ test_del_wait(void)
 
 	setup_test("event_del will wait: ");
 
-	event_set(&ev, pair[1], EV_READ, del_wait_cb, &ev);
+	event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, &ev);
 	event_add(&ev, NULL);
 
 	pthread_create(&thread, NULL, del_wait_thread, NULL);
@@ -1026,8 +1034,38 @@ test_del_wait(void)
 
 	pthread_join(thread, NULL);
 
+	tt_int_op(test_ok, ==, 1);
+
 	end:
 	;
+}
+
+static void null_cb(evutil_socket_t fd, short what, void *arg) {}
+static void* test_del_notify_thread(void *arg)
+{
+	event_dispatch();
+	return NULL;
+}
+static void
+test_del_notify(void)
+{
+	struct event ev;
+	pthread_t thread;
+
+	test_ok = 1;
+
+	event_set(&ev, -1, EV_READ, null_cb, &ev);
+	event_add(&ev, NULL);
+
+	pthread_create(&thread, NULL, test_del_notify_thread, NULL);
+
+	{
+		struct timeval delay = { 0, 1000 };
+		evutil_usleep_(&delay);
+	}
+
+	event_del(&ev);
+	pthread_join(thread, NULL);
 }
 #endif
 
@@ -1351,18 +1389,14 @@ test_free_active_base(void *ptr)
 	struct event ev1;
 
 	base1 = event_init();
-	if (base1) {
-		event_assign(&ev1, base1, data->pair[1], EV_READ,
-			     dummy_read_cb, NULL);
-		event_add(&ev1, NULL);
-		event_base_free(base1);	 /* should not crash */
-	} else {
-		tt_fail_msg("failed to create event_base for test");
-	}
+	tt_assert(base1);
+	event_assign(&ev1, base1, data->pair[1], EV_READ, dummy_read_cb, NULL);
+	event_add(&ev1, NULL);
+	event_base_free(base1);	 /* should not crash */
 
 	base1 = event_init();
 	tt_assert(base1);
-	event_assign(&ev1, base1, 0, 0, dummy_read_cb, NULL);
+	event_assign(&ev1, base1, data->pair[0], 0, dummy_read_cb, NULL);
 	event_active(&ev1, EV_READ, 1);
 	event_base_free(base1);
 end:
@@ -1840,7 +1874,8 @@ static void send_a_byte_cb(evutil_socket_t fd, short what, void *arg)
 {
 	evutil_socket_t *sockp = arg;
 	(void) fd; (void) what;
-	(void) write(*sockp, "A", 1);
+	if (write(*sockp, "A", 1) < 0)
+		tt_fail_perror("write");
 }
 struct read_not_timeout_param
 {
@@ -2070,60 +2105,48 @@ re_add_read_cb(evutil_socket_t fd, short event, void *arg)
 	if (n_read < 0) {
 		tt_fail_perror("read");
 		event_base_loopbreak(event_get_base(ev_other));
-		return;
 	} else {
 		event_add(ev_other, NULL);
 		++test_ok;
 	}
 }
-
 static void
-test_nonpersist_readd(void)
+test_nonpersist_readd(void *_data)
 {
 	struct event ev1, ev2;
+	struct basic_test_data *data = _data;
 
-	setup_test("Re-add nonpersistent events: ");
-	event_set(&ev1, pair[0], EV_READ, re_add_read_cb, &ev2);
-	event_set(&ev2, pair[1], EV_READ, re_add_read_cb, &ev1);
+	memset(&ev1, 0, sizeof(ev1));
+	memset(&ev2, 0, sizeof(ev2));
 
-	if (write(pair[0], "Hello", 5) < 0) {
-		tt_fail_perror("write(pair[0])");
-	}
+	tt_assert(!event_assign(&ev1, data->base, data->pair[0], EV_READ, re_add_read_cb, &ev2));
+	tt_assert(!event_assign(&ev2, data->base, data->pair[1], EV_READ, re_add_read_cb, &ev1));
 
-	if (write(pair[1], "Hello", 5) < 0) {
-		tt_fail_perror("write(pair[1])\n");
-	}
+	tt_int_op(write(data->pair[0], "Hello", 5), ==, 5);
+	tt_int_op(write(data->pair[1], "Hello", 5), ==, 5);
 
-	if (event_add(&ev1, NULL) == -1 ||
-	    event_add(&ev2, NULL) == -1) {
-		test_ok = 0;
-	}
-	if (test_ok != 0)
-		exit(1);
-	event_loop(EVLOOP_ONCE);
-	if (test_ok != 2)
-		exit(1);
+	tt_int_op(event_add(&ev1, NULL), ==, 0);
+	tt_int_op(event_add(&ev2, NULL), ==, 0);
+	tt_int_op(event_base_loop(data->base, EVLOOP_ONCE), ==, 0);
+	tt_int_op(test_ok, ==, 2);
+
 	/* At this point, we executed both callbacks.  Whichever one got
 	 * called first added the second, but the second then immediately got
 	 * deleted before its callback was called.  At this point, though, it
 	 * re-added the first.
 	 */
-	if (!readd_test_event_last_added) {
-		test_ok = 0;
-	} else if (readd_test_event_last_added == &ev1) {
-		if (!event_pending(&ev1, EV_READ, NULL) ||
-		    event_pending(&ev2, EV_READ, NULL))
-			test_ok = 0;
+	tt_assert(readd_test_event_last_added);
+	if (readd_test_event_last_added == &ev1) {
+		tt_assert(event_pending(&ev1, EV_READ, NULL) && !event_pending(&ev2, EV_READ, NULL));
 	} else {
-		if (event_pending(&ev1, EV_READ, NULL) ||
-		    !event_pending(&ev2, EV_READ, NULL))
-			test_ok = 0;
+		tt_assert(event_pending(&ev2, EV_READ, NULL) && !event_pending(&ev1, EV_READ, NULL));
 	}
 
-	event_del(&ev1);
-	event_del(&ev2);
-
-	cleanup_test();
+end:
+	if (event_initialized(&ev1))
+		event_del(&ev1);
+	if (event_initialized(&ev2))
+		event_del(&ev2);
 }
 
 struct test_pri_event {
@@ -3041,6 +3064,7 @@ test_many_events(void *arg)
 		 * instance of that. */
 		sock[i] = socket(AF_INET, SOCK_DGRAM, 0);
 		tt_assert(sock[i] >= 0);
+		tt_assert(!evutil_make_socket_nonblocking(sock[i]));
 		called[i] = 0;
 		ev[i] = event_new(base, sock[i], EV_WRITE|evflags,
 		    many_event_cb, &called[i]);
@@ -3094,7 +3118,7 @@ test_get_assignment(void *arg)
 	event_get_assignment(ev1, &b, &s, &what, &cb, &cb_arg);
 
 	tt_ptr_op(b, ==, base);
-	tt_int_op(s, ==, data->pair[1]);
+	tt_fd_op(s, ==, data->pair[1]);
 	tt_int_op(what, ==, EV_READ);
 	tt_ptr_op(cb, ==, dummy_read_cb);
 	tt_ptr_op(cb_arg, ==, str);
@@ -3380,14 +3404,14 @@ struct testcase_t main_testcases[] = {
 
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
-	BASIC(active_later, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
+	BASIC(active_later, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_RETRIABLE),
 	BASIC(event_remove_timeout, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
 
 	/* These are still using the old API */
 	LEGACY(persistent_timeout, TT_FORK|TT_NEED_BASE),
 	{ "persistent_timeout_jump", test_persistent_timeout_jump, TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "persistent_active_timeout", test_persistent_active_timeout,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_BASE|TT_RETRIABLE, &basic_setup, NULL },
 	LEGACY(priorities, TT_FORK|TT_NEED_BASE),
 	BASIC(priority_active_inversion, TT_FORK|TT_NEED_BASE),
 	{ "common_timeout", test_common_timeout, TT_FORK|TT_NEED_BASE,
@@ -3406,7 +3430,7 @@ struct testcase_t main_testcases[] = {
 	LEGACY(loopbreak, TT_ISOLATED),
 	LEGACY(loopexit, TT_ISOLATED),
 	LEGACY(loopexit_multiple, TT_ISOLATED),
-	LEGACY(nonpersist_readd, TT_ISOLATED),
+	{ "nonpersist_readd", test_nonpersist_readd, TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE, &basic_setup, NULL },
 	LEGACY(multiple_events_for_same_fd, TT_ISOLATED),
 	LEGACY(want_only_once, TT_ISOLATED),
 	{ "event_once", test_event_once, TT_ISOLATED, &basic_setup, NULL },
@@ -3435,12 +3459,13 @@ struct testcase_t main_testcases[] = {
 
 	BASIC(active_by_fd, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__APPLE__)
 	LEGACY(fork, TT_ISOLATED),
 #endif
 #ifdef EVENT__HAVE_PTHREADS
 	/** TODO: support win32 */
-	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS),
+	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
+	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
 #endif
 
 	END_OF_TESTCASES
