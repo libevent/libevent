@@ -50,7 +50,7 @@ Changes in version 2.1.9-beta (10 February 2019)
   o Fix crashing http server when callback do not reply in place (5b40744dg, b2581380g)
   o fix handling of close_notify (ssl) in http with openssl bufferevents (7e91622bg)
 
- evprc:
+ evrpc:
   o use *_new_with_arg() to match function prototype (a95cc9e3g)
   o avoid NULL dereference on request is not EVHTTP_REQ_POST (e05136c7g)
 
