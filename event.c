@@ -27,6 +27,10 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
+#ifndef EVENT__DISABLE_DTRACE 
+#include <sys/sdt.h>
+#endif
+
 #ifdef _WIN32
 #include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
@@ -1766,6 +1770,9 @@ event_process_active(struct event_base *base)
 	struct timeval tv;
 	const int maxcb = base->max_dispatch_callbacks;
 	const int limit_after_prio = base->limit_callbacks_after_prio;
+
+    DTRACE_PROBE1(libevent, process_active_enter, base);
+
 	if (base->max_dispatch_time.tv_sec >= 0) {
 		update_time_cache(base);
 		gettime(base, &tv);
@@ -1798,6 +1805,7 @@ event_process_active(struct event_base *base)
 done:
 	base->event_running_priority = -1;
 
+    DTRACE_PROBE2(libevent, process_active_exit, c, base);
 	return c;
 }
 
@@ -1967,6 +1975,9 @@ event_base_loop(struct event_base *base, int flags)
 		}
 
 		tv_p = &tv;
+
+        DTRACE_PROBE2(libevent, loop_start, N_ACTIVE_CALLBACKS(base), base);
+
 		if (!N_ACTIVE_CALLBACKS(base) && !(flags & EVLOOP_NONBLOCK)) {
 			timeout_next(base, &tv_p);
 		} else {
@@ -1989,7 +2000,11 @@ event_base_loop(struct event_base *base, int flags)
 
 		clear_time_cache(base);
 
+        DTRACE_PROBE2(libevent, dispatch_start, evsel->name, base);
+
 		res = evsel->dispatch(base, tv_p);
+
+        DTRACE_PROBE2(libevent, dispatch_end, evsel->name, base);
 
 		if (res == -1) {
 			event_debug(("%s: dispatch returned unsuccessfully.",
@@ -2003,13 +2018,17 @@ event_base_loop(struct event_base *base, int flags)
 		timeout_process(base);
 
 		if (N_ACTIVE_CALLBACKS(base)) {
+            DTRACE_PROBE1(libevent, process_active_start, base);
 			int n = event_process_active(base);
 			if ((flags & EVLOOP_ONCE)
 			    && N_ACTIVE_CALLBACKS(base) == 0
 			    && n != 0)
 				done = 1;
+            DTRACE_PROBE1(libevent, process_active_end, base);
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
+
+        DTRACE_PROBE2(libevent, loop_end, N_ACTIVE_CALLBACKS(base), base);
 	}
 	event_debug(("%s: asked to terminate loop.", __func__));
 
