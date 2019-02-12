@@ -495,4 +495,6 @@
 /* Define to `int' if <sys/types.h> does not define. */
 #define EVENT__ssize_t @EVENT__ssize_t@
 
+#cmakedefine EVENT__DISABLE_DTRACE
+
 #endif /* \EVENT2_EVENT_CONFIG_H_INCLUDED_ */
