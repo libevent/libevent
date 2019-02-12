@@ -1772,7 +1772,7 @@ event_process_active(struct event_base *base)
 	const int limit_after_prio = base->limit_callbacks_after_prio;
 
 #ifndef EVENT__DISABLE_DTRACE
-	DTRACE_PROBE1(libevent, process_active::enter, base);
+	DTRACE_PROBE1(libevent, process_active___enter, base);
 #endif
 
 	if (base->max_dispatch_time.tv_sec >= 0) {
@@ -1808,7 +1808,7 @@ done:
 	base->event_running_priority = -1;
 
 #ifndef EVENT__DISABLE_DTRACE
-	DTRACE_PROBE2(libevent, process_active::return, base, c);
+	DTRACE_PROBE2(libevent, process_active___return, base, c);
 #endif
 	return c;
 }
@@ -1981,7 +1981,7 @@ event_base_loop(struct event_base *base, int flags)
 		tv_p = &tv;
 
 #ifndef EVENT__DISABLE_DTRACE
-		DTRACE_PROBE1(libevent, base_loop::start, base);
+		DTRACE_PROBE1(libevent, base_loop___start, base);
 #endif
 
 		if (!N_ACTIVE_CALLBACKS(base) && !(flags & EVLOOP_NONBLOCK)) {
@@ -2007,13 +2007,13 @@ event_base_loop(struct event_base *base, int flags)
 		clear_time_cache(base);
 
 #ifndef EVENT__DISABLE_DTRACE
-		DTRACE_PROBE2(libevent, base_loop::dispatch::start, base, evsel->name);
+		DTRACE_PROBE2(libevent, base_loop___dispatch___start, base, evsel->name);
 #endif
 
 		res = evsel->dispatch(base, tv_p);
 
 #ifndef EVENT__DISABLE_DTRACE
-		DTRACE_PROBE2(libevent, base_loop::dispatch::end, base, res);
+		DTRACE_PROBE2(libevent, base_loop___dispatch___end, base, res);
 #endif
 
 		if (res == -1) {
@@ -2029,13 +2029,13 @@ event_base_loop(struct event_base *base, int flags)
 
 		if (N_ACTIVE_CALLBACKS(base)) {
 #ifndef EVENT__DISABLE_DTRACE
-			DTRACE_PROBE1(libevent, base_loop::process_active::start, base);
+			DTRACE_PROBE1(libevent, base_loop___process_active___start, base);
 #endif
 
 			int n = event_process_active(base);
 
 #ifndef EVENT__DISABLE_DTRACE
-			DTRACE_PROBE2(libevent, base_loop::process_active::end, base, n);
+			DTRACE_PROBE2(libevent, base_loop___process_active___end, base, n);
 #endif
 
 			if ((flags & EVLOOP_ONCE)
@@ -2046,7 +2046,7 @@ event_base_loop(struct event_base *base, int flags)
 			done = 1;
 
 #ifndef EVENT__DISABLE_DTRACE
-		DTRACE_PROBE1(libevent, base_loop::end, base);
+		DTRACE_PROBE1(libevent, base_loop___end, base);
 #endif
 	}
 	event_debug(("%s: asked to terminate loop.", __func__));
