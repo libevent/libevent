@@ -1942,6 +1942,10 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval *tv_p;
 	int res, done, retval = 0;
 
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, base_loop___enter, base, flags);
+#endif
+
 	/* Grab the lock.  We will release it inside evsel.dispatch, and again
 	 * as we invoke user callbacks. */
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
@@ -2058,6 +2062,10 @@ event_base_loop(struct event_base *base, int flags)
 done:
 	clear_time_cache(base);
 	base->running_loop = 0;
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, base_loop___return, base, retval);
+#endif
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 

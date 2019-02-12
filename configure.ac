@@ -125,6 +125,9 @@ AC_ARG_ENABLE([clock-gettime],
      AS_HELP_STRING(--disable-clock-gettime, do not use clock_gettime even if it is available),
   [], [enable_clock_gettime=yes])
 
+AC_ARG_ENABLE([dtrace],
+              AS_HELP_STRING(--enable-dtrace, enable dtrace support),
+              [], [enable_dtrace=no])
 
 AC_PROG_LIBTOOL
 
@@ -772,6 +775,12 @@ if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
 fi
 AM_CONDITIONAL(THREADS, [test "$enable_thread_support" != "no"])
 AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
+
+# check if we should enable dtrace support in the library
+if test x$enable_dtrace = xyes; then
+    AC_DEFINE(ENABLE_DTRACE, 1,
+     [Define if libevent should be compiled with dtrace support])
+fi
 
 # check if we should compile locking into the library
 if test x$enable_thread_support = xno; then
