@@ -2033,7 +2033,7 @@ event_base_loop(struct event_base *base, int flags)
 			DTRACE_PROBE1(libevent, base_loop___process_active___start, base);
 #endif
 
-			event_process_active(base);
+			n = event_process_active(base);
 
 #ifdef EVENT__ENABLE_DTRACE
 			DTRACE_PROBE2(libevent, base_loop___process_active___end, base, n);
