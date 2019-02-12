@@ -29,6 +29,9 @@
 
 #ifdef EVENT__ENABLE_DTRACE
 #include <sys/sdt.h>
+#ifndef EVENT__DTRACE_PVDR_NAME 
+#define EVENT__DTRACE_PVDR_NAME libevent.so
+#endif
 #endif
 
 #ifdef _WIN32
@@ -1772,7 +1775,7 @@ event_process_active(struct event_base *base)
 	const int limit_after_prio = base->limit_callbacks_after_prio;
 
 #ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE1(libevent, process_active___enter, base);
+	DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, process_active___enter, base);
 #endif
 
 	if (base->max_dispatch_time.tv_sec >= 0) {
@@ -1808,7 +1811,7 @@ done:
 	base->event_running_priority = -1;
 
 #ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE2(libevent, process_active___return, base, c);
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, process_active___return, base, c);
 #endif
 	return c;
 }
@@ -1981,7 +1984,7 @@ event_base_loop(struct event_base *base, int flags)
 		tv_p = &tv;
 
 #ifdef EVENT__ENABLE_DTRACE
-		DTRACE_PROBE1(libevent, base_loop___start, base);
+		DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, base_loop___start, base);
 #endif
 
 		if (!N_ACTIVE_CALLBACKS(base) && !(flags & EVLOOP_NONBLOCK)) {
@@ -2007,13 +2010,13 @@ event_base_loop(struct event_base *base, int flags)
 		clear_time_cache(base);
 
 #ifdef EVENT__ENABLE_DTRACE
-		DTRACE_PROBE2(libevent, base_loop___dispatch___start, base, evsel->name);
+		DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, base_loop___dispatch___start, base, evsel->name);
 #endif
 
 		res = evsel->dispatch(base, tv_p);
 
 #ifdef EVENT__ENABLE_DTRACE
-		DTRACE_PROBE2(libevent, base_loop___dispatch___end, base, res);
+		DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, base_loop___dispatch___end, base, res);
 #endif
 
 		if (res == -1) {
@@ -2030,13 +2033,13 @@ event_base_loop(struct event_base *base, int flags)
 		if (N_ACTIVE_CALLBACKS(base)) {
 			int n;
 #ifdef EVENT__ENABLE_DTRACE
-			DTRACE_PROBE1(libevent, base_loop___process_active___start, base);
+			DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, base_loop___process_active___start, base);
 #endif
 
 			n = event_process_active(base);
 
 #ifdef EVENT__ENABLE_DTRACE
-			DTRACE_PROBE2(libevent, base_loop___process_active___end, base, n);
+			DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, base_loop___process_active___end, base, n);
 #endif
 
 			if ((flags & EVLOOP_ONCE)
@@ -2047,7 +2050,7 @@ event_base_loop(struct event_base *base, int flags)
 			done = 1;
 
 #ifdef EVENT__ENABLE_DTRACE
-		DTRACE_PROBE1(libevent, base_loop___end, base);
+		DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, base_loop___end, base);
 #endif
 	}
 	event_debug(("%s: asked to terminate loop.", __func__));
