@@ -2018,13 +2018,13 @@ event_base_loop(struct event_base *base, int flags)
 		timeout_process(base);
 
 		if (N_ACTIVE_CALLBACKS(base)) {
-            DTRACE_PROBE1(libevent, process_active_start, base);
+            DTRACE_PROBE2(libevent, process_active_start, N_ACTIVE_CALLBACKS(base), base);
 			int n = event_process_active(base);
 			if ((flags & EVLOOP_ONCE)
 			    && N_ACTIVE_CALLBACKS(base) == 0
 			    && n != 0)
 				done = 1;
-            DTRACE_PROBE1(libevent, process_active_end, base);
+            DTRACE_PROBE2(libevent, process_active_end, N_ACTIVE_CALLBACKS(base), base);
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
 
