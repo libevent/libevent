@@ -145,7 +145,7 @@ option(EVENT__DISABLE_CLOCK_GETTIME
 option(EVENT__FORCE_KQUEUE_CHECK
     "When crosscompiling forces running a test program that verifies that Kqueue works with pipes. Note that this requires you to manually run the test program on the cross compilation target to verify that it works. See cmake documentation for try_run for more details" OFF)
 
-option(EVENT__DISABLE_DTRACE
+option(EVENT__ENABLE_DTRACE
     "Disable DTRACE hooks" OFF)
 
 # TODO: Add --disable-largefile     omit support for large files
@@ -928,11 +928,12 @@ if (WIN32)
          WIN32-Code/getopt_long.c)
 endif()
 
-if (NOT EVENT__DISABLE_DTRACE)
+if (EVENT__ENABLE_DTRACE)
     CHECK_INCLUDE_FILE(sys/sdt.h EVENT__HAVE_DTRACE)
 
     if (NOT EVENT__HAVE_DTRACE)
-        set (EVENT__DISABLE_DTRACE ON)
+        set (EVENT__ENABLE_DTRACE OFF)
+        message(WARNING "DTRACE is disabled")
     endif()
 endif()
 

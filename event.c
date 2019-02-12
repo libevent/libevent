@@ -27,7 +27,7 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifndef EVENT__DISABLE_DTRACE 
+#ifdef EVENT__ENABLE_DTRACE
 #include <sys/sdt.h>
 #endif
 
@@ -1771,7 +1771,7 @@ event_process_active(struct event_base *base)
 	const int maxcb = base->max_dispatch_callbacks;
 	const int limit_after_prio = base->limit_callbacks_after_prio;
 
-#ifndef EVENT__DISABLE_DTRACE
+#ifdef EVENT__ENABLE_DTRACE
 	DTRACE_PROBE1(libevent, process_active___enter, base);
 #endif
 
@@ -1807,7 +1807,7 @@ event_process_active(struct event_base *base)
 done:
 	base->event_running_priority = -1;
 
-#ifndef EVENT__DISABLE_DTRACE
+#ifdef EVENT__ENABLE_DTRACE
 	DTRACE_PROBE2(libevent, process_active___return, base, c);
 #endif
 	return c;
@@ -1980,7 +1980,7 @@ event_base_loop(struct event_base *base, int flags)
 
 		tv_p = &tv;
 
-#ifndef EVENT__DISABLE_DTRACE
+#ifdef EVENT__ENABLE_DTRACE
 		DTRACE_PROBE1(libevent, base_loop___start, base);
 #endif
 
@@ -2006,13 +2006,13 @@ event_base_loop(struct event_base *base, int flags)
 
 		clear_time_cache(base);
 
-#ifndef EVENT__DISABLE_DTRACE
+#ifdef EVENT__ENABLE_DTRACE
 		DTRACE_PROBE2(libevent, base_loop___dispatch___start, base, evsel->name);
 #endif
 
 		res = evsel->dispatch(base, tv_p);
 
-#ifndef EVENT__DISABLE_DTRACE
+#ifdef EVENT__ENABLE_DTRACE
 		DTRACE_PROBE2(libevent, base_loop___dispatch___end, base, res);
 #endif
 
@@ -2028,13 +2028,14 @@ event_base_loop(struct event_base *base, int flags)
 		timeout_process(base);
 
 		if (N_ACTIVE_CALLBACKS(base)) {
-#ifndef EVENT__DISABLE_DTRACE
+			int n;
+#ifdef EVENT__ENABLE_DTRACE
 			DTRACE_PROBE1(libevent, base_loop___process_active___start, base);
 #endif
 
-			int n = event_process_active(base);
+			event_process_active(base);
 
-#ifndef EVENT__DISABLE_DTRACE
+#ifdef EVENT__ENABLE_DTRACE
 			DTRACE_PROBE2(libevent, base_loop___process_active___end, base, n);
 #endif
 
@@ -2045,7 +2046,7 @@ event_base_loop(struct event_base *base, int flags)
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
 
-#ifndef EVENT__DISABLE_DTRACE
+#ifdef EVENT__ENABLE_DTRACE
 		DTRACE_PROBE1(libevent, base_loop___end, base);
 #endif
 	}
