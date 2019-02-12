@@ -2281,13 +2281,25 @@ struct event *
 event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(evutil_socket_t, short, void *), void *arg)
 {
 	struct event *ev;
-	ev = mm_malloc(sizeof(struct event));
-	if (ev == NULL)
-		return (NULL);
-	if (event_assign(ev, base, fd, events, cb, arg) < 0) {
-		mm_free(ev);
-		return (NULL);
-	}
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE5(EVENT__DTRACE_PVDR_NAME, new__enter, base, fd, events, cb, arg);
+#endif
+
+	do {
+		if (!(ev = mm_malloc(sizeof(struct event))))
+			break;
+
+		if (event_assign(ev, base, fd, events, cb, arg) < 0) {
+			mm_free(ev);
+			ev = NULL;
+			break;
+		}
+	} while (0);
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE6(EVENT__DTRACE_PVDR_NAME, new__return, base, fd, events, cb, arg, ev);
+#endif
 
 	return (ev);
 }
