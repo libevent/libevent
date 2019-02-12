@@ -1647,6 +1647,12 @@ event_process_active_single_queue(struct event_base *base,
 
 	EVUTIL_ASSERT(activeq != NULL);
 
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE4(EVENT__DTRACE_PVDR_NAME,
+		process_active_single_queue__enter,
+		base, activeq, max_to_process, endtime);
+#endif
+
 	for (evcb = TAILQ_FIRST(activeq); evcb; evcb = TAILQ_FIRST(activeq)) {
 		struct event *ev=NULL;
 		if (evcb->evcb_flags & EVLIST_INIT) {
@@ -1754,6 +1760,12 @@ event_process_active_single_queue(struct event_base *base,
 		if (base->event_continue)
 			break;
 	}
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, 
+			process_active_single_queue__return, base, count); 
+#endif
+
 	return count;
 }
 
