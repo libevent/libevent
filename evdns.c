@@ -864,17 +864,17 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 }
 
 
-#define _QR_MASK    0x8U
-#define _OP_MASK    0x78U
-#define _AA_MASK    0x04U
-#define _TC_MASK    0x02U
-#define _RD_MASK    0x01U
-#define _RA_MASK    0x008U
-#define _Z_MASK     0x004U
-#define _AD_MASK    0x002U
-#define _CD_MASK    0x001U
+#define _QR_MASK    0x8000U
+#define _OP_MASK    0x7800U
+#define _AA_MASK    0x0400U
+#define _TC_MASK    0x0200U
+#define _RD_MASK    0x0100U
+#define _RA_MASK    0x0080U
+#define _Z_MASK     0x0040U
+#define _AD_MASK    0x0020U
+#define _CD_MASK    0x0010U
 #define _RCODE_MASK 0x000fU
-#define _Z_MASK_DEPRECATED 0x007U
+#define _Z_MASK_DEPRECATED 0x0070U
 
 /* this processes a parsed reply packet */
 static void
