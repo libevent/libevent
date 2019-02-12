@@ -1771,7 +1771,9 @@ event_process_active(struct event_base *base)
 	const int maxcb = base->max_dispatch_callbacks;
 	const int limit_after_prio = base->limit_callbacks_after_prio;
 
-    DTRACE_PROBE1(libevent, process_active_enter, base);
+#ifndef EVENT__DISABLE_DTRACE
+	DTRACE_PROBE1(libevent, process_active::enter, base);
+#endif
 
 	if (base->max_dispatch_time.tv_sec >= 0) {
 		update_time_cache(base);
@@ -1805,7 +1807,9 @@ event_process_active(struct event_base *base)
 done:
 	base->event_running_priority = -1;
 
-    DTRACE_PROBE2(libevent, process_active_exit, c, base);
+#ifndef EVENT__DISABLE_DTRACE
+	DTRACE_PROBE2(libevent, process_active::return, base, c);
+#endif
 	return c;
 }
 
@@ -1976,7 +1980,9 @@ event_base_loop(struct event_base *base, int flags)
 
 		tv_p = &tv;
 
-        DTRACE_PROBE2(libevent, loop_start, N_ACTIVE_CALLBACKS(base), base);
+#ifndef EVENT__DISABLE_DTRACE
+		DTRACE_PROBE1(libevent, base_loop::start, base);
+#endif
 
 		if (!N_ACTIVE_CALLBACKS(base) && !(flags & EVLOOP_NONBLOCK)) {
 			timeout_next(base, &tv_p);
@@ -2000,11 +2006,15 @@ event_base_loop(struct event_base *base, int flags)
 
 		clear_time_cache(base);
 
-        DTRACE_PROBE2(libevent, dispatch_start, evsel->name, base);
+#ifndef EVENT__DISABLE_DTRACE
+		DTRACE_PROBE2(libevent, base_loop::dispatch::start, base, evsel->name);
+#endif
 
 		res = evsel->dispatch(base, tv_p);
 
-        DTRACE_PROBE2(libevent, dispatch_end, evsel->name, base);
+#ifndef EVENT__DISABLE_DTRACE
+		DTRACE_PROBE2(libevent, base_loop::dispatch::end, base, res);
+#endif
 
 		if (res == -1) {
 			event_debug(("%s: dispatch returned unsuccessfully.",
@@ -2018,17 +2028,26 @@ event_base_loop(struct event_base *base, int flags)
 		timeout_process(base);
 
 		if (N_ACTIVE_CALLBACKS(base)) {
-            DTRACE_PROBE2(libevent, process_active_start, N_ACTIVE_CALLBACKS(base), base);
+#ifndef EVENT__DISABLE_DTRACE
+			DTRACE_PROBE1(libevent, base_loop::process_active::start, base);
+#endif
+
 			int n = event_process_active(base);
+
+#ifndef EVENT__DISABLE_DTRACE
+			DTRACE_PROBE2(libevent, base_loop::process_active::end, base, n);
+#endif
+
 			if ((flags & EVLOOP_ONCE)
 			    && N_ACTIVE_CALLBACKS(base) == 0
 			    && n != 0)
 				done = 1;
-            DTRACE_PROBE2(libevent, process_active_end, N_ACTIVE_CALLBACKS(base), base);
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
 
-        DTRACE_PROBE2(libevent, loop_end, N_ACTIVE_CALLBACKS(base), base);
+#ifndef EVENT__DISABLE_DTRACE
+		DTRACE_PROBE1(libevent, base_loop::end, base);
+#endif
 	}
 	event_debug(("%s: asked to terminate loop.", __func__));
 
