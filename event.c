@@ -2311,11 +2311,18 @@ event_free(struct event *ev)
 	 * valid target for event_free(). That's */
 	// event_debug_assert_is_setup_(ev);
 
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, free__enter, ev);
+#endif
+
 	/* make sure that this event won't be coming back to haunt us. */
 	event_del(ev);
 	event_debug_note_teardown_(ev);
 	mm_free(ev);
 
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE(EVENT__DTRACE_PVDR_NAME, free__return);
+#endif
 }
 
 void
@@ -3273,6 +3280,10 @@ timeout_process(struct event_base *base)
 		return;
 	}
 
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, timeout_process__enter, base);
+#endif
+
 	gettime(base, &now);
 
 	while ((ev = min_heap_top_(&base->timeheap))) {
@@ -3286,6 +3297,10 @@ timeout_process(struct event_base *base)
 			 ev, ev->ev_callback));
 		event_active_nolock_(ev, EV_TIMEOUT, 1);
 	}
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, timeout_process__return, base);
+#endif
 }
 
 #ifndef MAX
