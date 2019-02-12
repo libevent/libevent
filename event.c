@@ -2191,10 +2191,19 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 	ev->ev_ncalls = 0;
 	ev->ev_pncalls = NULL;
 
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE6(EVENT__DTRACE_PVDR_NAME, assign__enter,
+			ev, base, fd, events, callback, arg);
+#endif
+
 	if (events & EV_SIGNAL) {
 		if ((events & (EV_READ|EV_WRITE|EV_CLOSED)) != 0) {
 			event_warnx("%s: EV_SIGNAL is not compatible with "
 			    "EV_READ, EV_WRITE or EV_CLOSED", __func__);
+#ifdef EVENT__ENABLE_DTRACE
+			DTRACE_PROBE7(EVENT__DTRACE_PVDR_NAME, assign__return,
+				ev, base, fd, events, callback, arg, -1); 
+#endif
 			return -1;
 		}
 		ev->ev_closure = EV_CLOSURE_EVENT_SIGNAL;
@@ -2215,6 +2224,11 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 	}
 
 	event_debug_note_setup_(ev);
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE7(EVENT__DTRACE_PVDR_NAME, assign__return,
+		ev, base, fd, events, callback, arg, 0); 
+#endif
 
 	return 0;
 }

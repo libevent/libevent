@@ -1,5 +1,12 @@
-# dtrace/bpftrace script for monitoring loop_dispatch / process_active latencies
-# run: sudo bpftrace ./libevent.bt
+// dtrace/bpftrace script for monitoring loop_dispatch / process_active latencies
+// run: sudo bpftrace ./libevent.bt
+
+struct event_base {
+    void * evsel;
+    void * base;
+};
+    
+
 BEGIN
 {
     printf("Tracing libevent loop/dispatch latencies\n");
