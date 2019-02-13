@@ -1,11 +1,6 @@
 // dtrace/bpftrace script for monitoring loop_dispatch / process_active latencies
 // run: sudo bpftrace ./libevent.bt
 
-struct event_base {
-    void * evsel;
-    void * base;
-};
-    
 
 BEGIN
 {
@@ -48,4 +43,45 @@ interval:s:5
     print(@loop_process_active_lat);
     clear(@loop_process_active_lat);
 }
+
+// delta timing totals
+
+usdt:/usr/local/lib/libevent.so:base_loop___dispatch___start
+{
+    @dispatches[arg0] = nsecs;
+}
+
+usdt:/usr/local/lib/libevent.so:base_loop___dispatch___end
+/ @dispatches[arg0] /
+{
+    $elapsed = (nsecs - @dispatches[arg0]);
+
+    @dispatch_total_time[arg0] = sum($elapsed);
+}
+    
+usdt:/usr/local/lib/libevent.so:base_loop___process_active___start
+{
+    @pactives[arg0] = nsecs;
+}
+
+usdt:/usr/local/lib/libevent.so:base_loop___process_active___end
+/ @pactives[arg0] /
+{
+    $delta = (nsecs - @pactives[arg0]);
+
+    @activation_total_time[arg0] = sum($delta);
+}
+
+usdt:/usr/local/lib/libevent.so:process_active_single_queue__enter
+{
+    @single_queues[arg0] = nsecs;
+}
+
+usdt:/usr/local/lib/libevent.so:process_active_single_queue__return
+{
+    $sdelta = (nsecs - @single_queues[arg0]);
+
+    @single_queues_total_time[arg0] = sum($sdelta);
+}
+    
 
