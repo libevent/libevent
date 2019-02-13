@@ -1701,7 +1701,19 @@ event_process_active_single_queue(struct event_base *base,
 			evcb_callback = *ev->ev_callback;
 			res = ev->ev_res;
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
+#ifdef EVENT__ENABLE_DTRACE
+			DTRACE_PROBE5(EVENT__DTRACE_PVDR_NAME, 
+					process_active_single_queue___usercb_start, 
+					base, ev, ev->ev_fd, res, ev->ev_arg);
+#endif
+
 			evcb_callback(ev->ev_fd, res, ev->ev_arg);
+
+#ifdef EVENT__ENABLE_DTRACE
+			DTRACE_PROBE5(EVENT__DTRACE_PVDR_NAME,
+					process_active_single_queue___usercb_end,
+					base, ev, ev->ev_fd, res, ev->ev_arg);
+#endif
 		}
 		break;
 		case EV_CLOSURE_CB_SELF: {

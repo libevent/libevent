@@ -10,6 +10,7 @@ BEGIN
 usdt:/usr/local/lib/libevent.so:base_loop___dispatch___start
 {
     @loop_dispatch_start[tid] = nsecs;
+    @dispatches[arg0] = nsecs;
 }
 
 usdt:/usr/local/lib/libevent.so:base_loop___dispatch___end
@@ -42,13 +43,6 @@ interval:s:5
     printf("event loop process_active latencies\n");
     print(@loop_process_active_lat);
     clear(@loop_process_active_lat);
-}
-
-// delta timing totals
-
-usdt:/usr/local/lib/libevent.so:base_loop___dispatch___start
-{
-    @dispatches[arg0] = nsecs;
 }
 
 usdt:/usr/local/lib/libevent.so:base_loop___dispatch___end

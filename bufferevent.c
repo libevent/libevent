@@ -46,6 +46,14 @@
 #include <winsock2.h>
 #endif
 
+
+#ifdef EVENT__ENABLE_DTRACE
+#include <sys/sdt.h>
+#ifndef EVENT__DTRACE_PVDR_NAME
+#define EVENT__DTRACE_PVDR_NAME libevent.so
+#endif
+#endif
+
 #include "event2/util.h"
 #include "event2/buffer.h"
 #include "event2/buffer_compat.h"
@@ -67,44 +75,80 @@ void
 bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what)
 {
 	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, bev_suspend_read___enter, bufev, what);
+#endif
+
 	BEV_LOCK(bufev);
 	if (!bufev_private->read_suspended)
 		bufev->be_ops->disable(bufev, EV_READ);
 	bufev_private->read_suspended |= what;
 	BEV_UNLOCK(bufev);
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, bev_suspend_read___return, bufev, what);
+#endif
 }
 
 void
 bufferevent_unsuspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags what)
 {
 	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, bev_unsuspend_read___enter, bufev, what);
+#endif
+
 	BEV_LOCK(bufev);
 	bufev_private->read_suspended &= ~what;
 	if (!bufev_private->read_suspended && (bufev->enabled & EV_READ))
 		bufev->be_ops->enable(bufev, EV_READ);
 	BEV_UNLOCK(bufev);
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, bev_unsuspend_read___return, bufev, what);
+#endif
 }
 
 void
 bufferevent_suspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags what)
 {
 	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, bev_suspend_write___enter, bufev, what);
+#endif
+
 	BEV_LOCK(bufev);
 	if (!bufev_private->write_suspended)
 		bufev->be_ops->disable(bufev, EV_WRITE);
 	bufev_private->write_suspended |= what;
 	BEV_UNLOCK(bufev);
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, bev_suspend_write___return, bufev, what);
+#endif
 }
 
 void
 bufferevent_unsuspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags what)
 {
 	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, bev_unsuspend_write___enter, bufev, what);
+#endif
+
 	BEV_LOCK(bufev);
 	bufev_private->write_suspended &= ~what;
 	if (!bufev_private->write_suspended && (bufev->enabled & EV_WRITE))
 		bufev->be_ops->enable(bufev, EV_WRITE);
 	BEV_UNLOCK(bufev);
+
+#ifdef  EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, bev_unsuspend_write___return, bufev, what);
+#endif
 }
 
 /**
@@ -153,6 +197,11 @@ bufferevent_run_deferred_callbacks_locked(struct event_callback *cb, void *arg)
 {
 	struct bufferevent_private *bufev_private = arg;
 	struct bufferevent *bufev = &bufev_private->bev;
+
+#ifdef EVENT__ENABLE_DTRACE
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME,
+			bev_run_deferred_callbacks___enter, cb, bufev);
+#endif
 
 	BEV_LOCK(bufev);
 	if ((bufev_private->eventcb_pending & BEV_EVENT_CONNECTED) &&
