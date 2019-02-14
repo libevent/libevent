@@ -27,13 +27,6 @@
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
-#ifdef EVENT__ENABLE_DTRACE
-#include <sys/sdt.h>
-#ifndef EVENT__DTRACE_PVDR_NAME 
-#define EVENT__DTRACE_PVDR_NAME libevent.so
-#endif
-#endif
-
 #ifdef _WIN32
 #include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN

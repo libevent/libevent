@@ -497,4 +497,12 @@
 
 #cmakedefine EVENT__ENABLE_DTRACE
 
+#ifdef EVENT__ENABLE_DTRACE
+#include <sys/sdt.h>
+#ifndef EVENT__DTRACE_PVDR_NAME
+#define EVENT__DTRACE_PVDR_NAME libevent.so
+#endif
+#endif
+
+
 #endif /* \EVENT2_EVENT_CONFIG_H_INCLUDED_ */

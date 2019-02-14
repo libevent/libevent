@@ -46,14 +46,6 @@
 #include <winsock2.h>
 #endif
 
-
-#ifdef EVENT__ENABLE_DTRACE
-#include <sys/sdt.h>
-#ifndef EVENT__DTRACE_PVDR_NAME
-#define EVENT__DTRACE_PVDR_NAME libevent.so
-#endif
-#endif
-
 #include "event2/util.h"
 #include "event2/buffer.h"
 #include "event2/buffer_compat.h"

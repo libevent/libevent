@@ -19,25 +19,78 @@ You should see output histograms like:
 
 ```
 sudo bpftrace ./libevent.bt 
-Attaching 6 probes...
-Tracing libevent loop/dispatch latencies
-@loop_dispatch_lat[15208]: 
-[1]                    8 |                                                    |
-[2, 4)               323 |@@@@@@@@@@@@@@@@                                    |
-[4, 8)                19 |                                                    |
-[8, 16)               31 |@                                                   |
-[16, 32)            1009 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
-[32, 64)              10 |                                                    |
+event_base_loop inner-dispatch latency
+@dispatch_latency[94474611720864]:
+[1]                  157 |@@@@@                                               |
+[2, 4)               259 |@@@@@@@@@                                           |
+[4, 8)                16 |                                                    |
+[8, 16)               37 |@                                                   |
+[16, 32)            1382 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
+[32, 64)              28 |@                                                   |
+[64, 128)              3 |                                                    |
 
-event loop process_active latencies
-@loop_process_active_lat[15208]: 
-[8, 16)                9 |                                                    |
-[16, 32)             153 |@@@@@@@                                             |
-[32, 64)             174 |@@@@@@@@@                                           |
+event_base_loop inner-process_active latency
+@proc_active_latency[94474611720864]:
+[4, 8)                92 |@@@                                                 |
+[8, 16)              197 |@@@@@@@                                             |
+[16, 32)             160 |@@@@@                                               |
+[32, 64)              11 |                                                    |
 [64, 128)              8 |                                                    |
-[128, 256)            25 |@                                                   |
-[256, 512)            21 |@                                                   |
-[512, 1K)           1004 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
-[1K, 2K)               6 |                                                    |
-[2K, 4K)               1 |                                                    |
+[128, 256)             8 |                                                    |
+[256, 512)             7 |                                                    |
+[512, 1K)           1398 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@|
+[1K, 2K)               2 |                                                    |
 ```
+
+This displays a histogram of latencies of the event-dispatch call (e.g.,
+epoll()), and the process_active dispatch (user callbacks).
+
+Here we can see that 1382 epoll calls averaged aroudn 16ns latency to execute,
+while process_active had 1398 calls between 512-1000ns.
+
+
+Other Noteworthy Probes
+================================
+/usr/local/lib/libevent.so libevent.so:bev_suspend_read___enter
+/usr/local/lib/libevent.so libevent.so:bev_suspend_read___return
+/usr/local/lib/libevent.so libevent.so:bev_unsuspend_read___enter
+/usr/local/lib/libevent.so libevent.so:bev_unsuspend_read___return
+/usr/local/lib/libevent.so libevent.so:bev_suspend_write___enter
+/usr/local/lib/libevent.so libevent.so:bev_suspend_write___return
+/usr/local/lib/libevent.so libevent.so:bev_unsuspend_write___enter
+/usr/local/lib/libevent.so libevent.so:bev_unsuspend_write___return
+/usr/local/lib/libevent.so libevent.so:bev_run_deferred_callbacks___enter
+/usr/local/lib/libevent.so libevent.so:assign__enter
+/usr/local/lib/libevent.so libevent.so:assign__return
+/usr/local/lib/libevent.so libevent.so:process_active_single_queue__enter
+/usr/local/lib/libevent.so libevent.so:process_active_single_queue__return
+/usr/local/lib/libevent.so libevent.so:process_active_single_queue___usercb_start
+/usr/local/lib/libevent.so libevent.so:process_active_single_queue___usercb_end
+/usr/local/lib/libevent.so libevent.so:base_loop___enter
+/usr/local/lib/libevent.so libevent.so:base_loop___start
+/usr/local/lib/libevent.so libevent.so:base_loop___dispatch___start
+/usr/local/lib/libevent.so libevent.so:base_loop___dispatch___end
+/usr/local/lib/libevent.so libevent.so:base_loop___timeout_proc_start
+/usr/local/lib/libevent.so libevent.so:base_loop___timeout_proc_end
+/usr/local/lib/libevent.so libevent.so:base_loop___end
+/usr/local/lib/libevent.so libevent.so:timeout_process__enter
+/usr/local/lib/libevent.so libevent.so:base_loop___process_active___start
+/usr/local/lib/libevent.so libevent.so:process_active___enter
+/usr/local/lib/libevent.so libevent.so:process_active___return
+/usr/local/lib/libevent.so libevent.so:base_loop___process_active___end
+/usr/local/lib/libevent.so libevent.so:timeout_process__return
+/usr/local/lib/libevent.so libevent.so:base_loop___return
+/usr/local/lib/libevent.so libevent.so:new__enter
+/usr/local/lib/libevent.so libevent.so:new__return
+/usr/local/lib/libevent.so libevent.so:free__enter
+/usr/local/lib/libevent.so libevent.so:free__return
+
+
+NOTES
+==================================
+
+`___` == space
+`___enter` == function entry
+`___return` == function return
+`___start` == start of operation/call
+`___end` == end of operation/call
