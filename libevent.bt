@@ -13,6 +13,7 @@ usdt:/usr/local/lib/libevent.so:base_loop___dispatch___end
     $delta = (nsecs - @dispatch_start[arg0]) / 1000;
     
     @dispatch_latency[arg0] = hist($delta);
+    @dispatches[arg0] = count();
 
     delete(@dispatch_start[arg0]);
 }
@@ -29,13 +30,14 @@ usdt:/usr/local/lib/libevent.so:base_loop___process_active___end
     $delta2 = (nsecs - @proc_active_start[arg0]) / 1000;
 
     @proc_active_latency[arg0] = hist($delta2);
+    @proc_actives[arg0] = count();
 
     delete(@proc_active_start[arg0]);
 }
 
 interval:s:1
 {
-    printf("event_base_loop inner-dispatch latency\n");
+    printf("\n\nevent_base_loop inner-dispatch latency\n");
 
     print(@dispatch_latency);
     clear(@dispatch_latency);
@@ -43,4 +45,11 @@ interval:s:1
     printf("event_base_loop inner-process_active latency\n");
     print(@proc_active_latency);
     clear(@proc_active_latency);
+
+    print(@proc_actives);
+    print(@dispatches);
+
+    clear(@proc_actives);
+    clear(@dispatches);
+
 }
