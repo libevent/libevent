@@ -27,7 +27,6 @@
 
 #include "event2/event-config.h"
 #include "evconfig-private.h"
-#include "dtrace-internal.h"
 
 #include <sys/types.h>
 
@@ -60,6 +59,7 @@
 #include "bufferevent-internal.h"
 #include "evbuffer-internal.h"
 #include "util-internal.h"
+#include "dtrace-internal.h"
 
 static void bufferevent_cancel_all_(struct bufferevent *bev);
 static void bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_);
@@ -70,17 +70,15 @@ bufferevent_suspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags w
 	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 
 	BEV_LOCK(bufev);
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE3(EVENT__DTRACE_PVDR_NAME, bev_suspend_read___enter, bufev->ev_base, bufev, what);
-#endif
+
+	EVENT__PROBE(bev_suspend_read___enter, 3, bufev->ev_base, bufev, what);
 
 	if (!bufev_private->read_suspended)
 		bufev->be_ops->disable(bufev, EV_READ);
 	bufev_private->read_suspended |= what;
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE3(EVENT__DTRACE_PVDR_NAME, bev_suspend_read___return, bufev->ev_base, bufev, what);
-#endif
+	EVENT__PROBE(bev_suspend_read___return, 3, bufev->ev_base, bufev, what);
+
 	BEV_UNLOCK(bufev);
 }
 
@@ -90,17 +88,15 @@ bufferevent_unsuspend_read_(struct bufferevent *bufev, bufferevent_suspend_flags
 	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 
 	BEV_LOCK(bufev);
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE3(EVENT__DTRACE_PVDR_NAME, bev_unsuspend_read___enter, bufev->ev_base, bufev, what);
-#endif
+
+	EVENT__PROBE(bev_unsuspend_read___enter, 3, bufev->ev_base, bufev, what);
 
 	bufev_private->read_suspended &= ~what;
 	if (!bufev_private->read_suspended && (bufev->enabled & EV_READ))
 		bufev->be_ops->enable(bufev, EV_READ);
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE3(EVENT__DTRACE_PVDR_NAME, bev_unsuspend_read___return, bufev->ev_base, bufev, what);
-#endif
+	EVENT__PROBE(bev_unsuspend_read___return, 3, bufev->ev_base, bufev, what);
+
 	BEV_UNLOCK(bufev);
 }
 
@@ -110,17 +106,15 @@ bufferevent_suspend_write_(struct bufferevent *bufev, bufferevent_suspend_flags 
 	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 
 	BEV_LOCK(bufev);
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE3(EVENT__DTRACE_PVDR_NAME, bev_suspend_write___enter, bufev->ev_base, bufev, what);
-#endif
+
+	EVENT__PROBE(bev_suspend_write___enter, 3, bufev->ev_base, bufev, what);
 
 	if (!bufev_private->write_suspended)
 		bufev->be_ops->disable(bufev, EV_WRITE);
 	bufev_private->write_suspended |= what;
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE3(EVENT__DTRACE_PVDR_NAME, bev_suspend_write___return, bufev->ev_base, bufev, what);
-#endif
+	EVENT__PROBE(bev_suspend_write___return, 3, bufev->ev_base, bufev, what);
+
 	BEV_UNLOCK(bufev);
 }
 
@@ -130,17 +124,15 @@ bufferevent_unsuspend_write_(struct bufferevent *bufev, bufferevent_suspend_flag
 	struct bufferevent_private *bufev_private = BEV_UPCAST(bufev);
 
 	BEV_LOCK(bufev);
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE3(EVENT__DTRACE_PVDR_NAME, bev_unsuspend_write___enter, bufev->ev_base, bufev, what);
-#endif
+
+	EVENT__PROBE(bev_unsuspend_write___enter, 3, bufev->ev_base, bufev, what);
 
 	bufev_private->write_suspended &= ~what;
 	if (!bufev_private->write_suspended && (bufev->enabled & EV_WRITE))
 		bufev->be_ops->enable(bufev, EV_WRITE);
 
-#ifdef  EVENT__ENABLE_DTRACE
-	DTRACE_PROBE3(EVENT__DTRACE_PVDR_NAME, bev_unsuspend_write___return, bufev->ev_base, bufev, what);
-#endif
+	EVENT__PROBE(bev_unsuspend_write___return, 3, bufev->ev_base, bufev, what);
+
 	BEV_UNLOCK(bufev);
 }
 
@@ -192,10 +184,8 @@ bufferevent_run_deferred_callbacks_locked(struct event_callback *cb, void *arg)
 	struct bufferevent *bufev = &bufev_private->bev;
 
 	BEV_LOCK(bufev);
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE3(EVENT__DTRACE_PVDR_NAME,
-			bev_run_deferred_callbacks___enter, bufev->ev_base, cb, bufev);
-#endif
+
+	EVENT__PROBE(bev_run_deferred_callbacks___enter, 3, bufev->ev_base, cb, bufev);
 
 	if ((bufev_private->eventcb_pending & BEV_EVENT_CONNECTED) &&
 	    bufev->errorcb) {
@@ -221,7 +211,11 @@ bufferevent_run_deferred_callbacks_locked(struct event_callback *cb, void *arg)
 		EVUTIL_SET_SOCKET_ERROR(err);
 		bufev->errorcb(bufev, what, bufev->cbarg);
 	}
+
+	EVENT__PROBE(bev_run_deferred_callbacks___return, 3, bufev->ev_base, cb, bufev);
+
 	bufferevent_decref_and_unlock_(bufev);
+	
 }
 
 static void

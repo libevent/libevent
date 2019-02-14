@@ -1758,9 +1758,7 @@ event_process_active_single_queue(struct event_base *base,
 			break;
 	}
 
-#ifdef EVENT__ENABLE_DTRACE
 	EVENT__PROBE(process_active_single_queue__return, 2, base, count); 
-#endif
 
 	return count;
 }
