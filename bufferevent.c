@@ -27,6 +27,7 @@
 
 #include "event2/event-config.h"
 #include "evconfig-private.h"
+#include "dtrace-internal.h"
 
 #include <sys/types.h>
 

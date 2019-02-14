@@ -72,6 +72,7 @@
 #include "ht-internal.h"
 #include "util-internal.h"
 
+#include "dtrace-internal.h"
 
 #ifdef EVENT__HAVE_WORKING_KQUEUE
 #include "kqueue-internal.h"
@@ -1640,11 +1641,7 @@ event_process_active_single_queue(struct event_base *base,
 
 	EVUTIL_ASSERT(activeq != NULL);
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE4(EVENT__DTRACE_PVDR_NAME,
-		process_active_single_queue__enter,
-		base, activeq, max_to_process, endtime);
-#endif
+    EVENT__PROBE(process_active_single_queue__enter, 4, base, activeq, max_to_process, endtime);
 
 	for (evcb = TAILQ_FIRST(activeq); evcb; evcb = TAILQ_FIRST(activeq)) {
 		struct event *ev=NULL;
@@ -1694,19 +1691,14 @@ event_process_active_single_queue(struct event_base *base,
 			evcb_callback = *ev->ev_callback;
 			res = ev->ev_res;
 			EVBASE_RELEASE_LOCK(base, th_base_lock);
-#ifdef EVENT__ENABLE_DTRACE
-			DTRACE_PROBE6(EVENT__DTRACE_PVDR_NAME, 
-					process_active_single_queue___usercb_start, 
+
+			EVENT__PROBE(process_active_single_queue___usercb_start, 6,
 					base, ev, evcb_callback, ev->ev_fd, res, ev->ev_arg);
-#endif
 
 			evcb_callback(ev->ev_fd, res, ev->ev_arg);
 
-#ifdef EVENT__ENABLE_DTRACE
-			DTRACE_PROBE6(EVENT__DTRACE_PVDR_NAME,
-					process_active_single_queue___usercb_end,
+			EVENT__PROBE(process_active_single_queue___usercb_end, 6,
 					base, ev, evcb_callback, ev->ev_fd, res, ev->ev_arg);
-#endif
 		}
 		break;
 		case EV_CLOSURE_CB_SELF: {
@@ -1767,8 +1759,7 @@ event_process_active_single_queue(struct event_base *base,
 	}
 
 #ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, 
-			process_active_single_queue__return, base, count); 
+	EVENT__PROBE(process_active_single_queue__return, 2, base, count); 
 #endif
 
 	return count;
@@ -1791,9 +1782,7 @@ event_process_active(struct event_base *base)
 	const int maxcb = base->max_dispatch_callbacks;
 	const int limit_after_prio = base->limit_callbacks_after_prio;
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, process_active___enter, base);
-#endif
+	EVENT__PROBE(process_active___enter, 1, base);
 
 	if (base->max_dispatch_time.tv_sec >= 0) {
 		update_time_cache(base);
@@ -1827,9 +1816,8 @@ event_process_active(struct event_base *base)
 done:
 	base->event_running_priority = -1;
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, process_active___return, base, c);
-#endif
+	EVENT__PROBE(process_active___return, 2, base, c);
+
 	return c;
 }
 
@@ -1959,9 +1947,7 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval *tv_p;
 	int res, done, retval = 0;
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, base_loop___enter, base, flags);
-#endif
+	EVENT__PROBE(base_loop___enter, 2, base, flags);
 
 	/* Grab the lock.  We will release it inside evsel.dispatch, and again
 	 * as we invoke user callbacks. */
@@ -2004,9 +1990,7 @@ event_base_loop(struct event_base *base, int flags)
 
 		tv_p = &tv;
 
-#ifdef EVENT__ENABLE_DTRACE
-		DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, base_loop___start, base);
-#endif
+		EVENT__PROBE(base_loop___start, 1, base);
 
 		if (!N_ACTIVE_CALLBACKS(base) && !(flags & EVLOOP_NONBLOCK)) {
 			timeout_next(base, &tv_p);
@@ -2030,15 +2014,11 @@ event_base_loop(struct event_base *base, int flags)
 
 		clear_time_cache(base);
 
-#ifdef EVENT__ENABLE_DTRACE
-		DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, base_loop___dispatch___start, base, evsel->name);
-#endif
+		EVENT__PROBE(base_loop___dispatch___start, 2, base, evsel->name);
 
 		res = evsel->dispatch(base, tv_p);
 
-#ifdef EVENT__ENABLE_DTRACE
-		DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, base_loop___dispatch___end, base, res);
-#endif
+		EVENT__PROBE(base_loop___dispatch___end, 2, base, res);
 
 		if (res == -1) {
 			event_debug(("%s: dispatch returned unsuccessfully.",
@@ -2047,27 +2027,21 @@ event_base_loop(struct event_base *base, int flags)
 			goto done;
 		}
 
-#ifdef EVENT__ENABLE_DTRACE
-		DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, base_loop___timeout_proc_start, base);
-#endif
+		EVENT__PROBE(base_loop___timeout_proc_start, 1, base);
+
 		update_time_cache(base);
 		timeout_process(base);
 
-#ifdef EVENT__ENABLE_DTRACE
-		DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, base_loop___timeout_proc_end, base);
-#endif
+		EVENT__PROBE(base_loop___timeout_proc_end, 1, base);
 
 		if (N_ACTIVE_CALLBACKS(base)) {
 			int n;
-#ifdef EVENT__ENABLE_DTRACE
-			DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, base_loop___process_active___start, base);
-#endif
+
+			EVENT__PROBE(base_loop___process_active___start, 1, base);
 
 			n = event_process_active(base);
 
-#ifdef EVENT__ENABLE_DTRACE
-			DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, base_loop___process_active___end, base, n);
-#endif
+			EVENT__PROBE(base_loop___process_active___end, 2, base, n);
 
 			if ((flags & EVLOOP_ONCE)
 			    && N_ACTIVE_CALLBACKS(base) == 0
@@ -2076,9 +2050,7 @@ event_base_loop(struct event_base *base, int flags)
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
 
-#ifdef EVENT__ENABLE_DTRACE
-		DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, base_loop___end, base);
-#endif
+		EVENT__PROBE(base_loop___end, 1, base);
 	}
 	event_debug(("%s: asked to terminate loop.", __func__));
 
@@ -2086,9 +2058,7 @@ done:
 	clear_time_cache(base);
 	base->running_loop = 0;
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, base_loop___return, base, retval);
-#endif
+	EVENT__PROBE(base_loop___return, 2, base, retval);
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
@@ -2202,19 +2172,15 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 	ev->ev_ncalls = 0;
 	ev->ev_pncalls = NULL;
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE6(EVENT__DTRACE_PVDR_NAME, assign__enter,
-			base, ev, fd, events, callback, arg);
-#endif
+	EVENT__PROBE(assign__enter, 6, base, ev, fd, events, callback, arg);
 
 	if (events & EV_SIGNAL) {
 		if ((events & (EV_READ|EV_WRITE|EV_CLOSED)) != 0) {
 			event_warnx("%s: EV_SIGNAL is not compatible with "
 			    "EV_READ, EV_WRITE or EV_CLOSED", __func__);
-#ifdef EVENT__ENABLE_DTRACE
-			DTRACE_PROBE7(EVENT__DTRACE_PVDR_NAME, assign__return,
-				base, ev, fd, events, callback, arg, -1); 
-#endif
+
+			EVENT__PROBE(assign__return, 7, base, ev, fd, events, callback, arg, -1); 
+
 			return -1;
 		}
 		ev->ev_closure = EV_CLOSURE_EVENT_SIGNAL;
@@ -2236,10 +2202,7 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 
 	event_debug_note_setup_(ev);
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE7(EVENT__DTRACE_PVDR_NAME, assign__return,
-		base, ev, fd, events, callback, arg, 0); 
-#endif
+	EVENT__PROBE(assign__return, 7, base, ev, fd, events, callback, arg, 0); 
 
 	return 0;
 }
@@ -2293,9 +2256,7 @@ event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(
 {
 	struct event *ev;
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE5(EVENT__DTRACE_PVDR_NAME, new__enter, base, fd, events, cb, arg);
-#endif
+	EVENT__PROBE(new__enter, 5, base, fd, events, cb, arg);
 
 	do {
 		if (!(ev = mm_malloc(sizeof(struct event))))
@@ -2308,9 +2269,7 @@ event_new(struct event_base *base, evutil_socket_t fd, short events, void (*cb)(
 		}
 	} while (0);
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE6(EVENT__DTRACE_PVDR_NAME, new__return, base, fd, events, cb, arg, ev);
-#endif
+	EVENT__PROBE(new__return, 6, base, fd, events, cb, arg, ev);
 
 	return (ev);
 }
@@ -2321,20 +2280,18 @@ event_free(struct event *ev)
 	/* This is disabled, so that events which have been finalized be a
 	 * valid target for event_free(). That's */
 	// event_debug_assert_is_setup_(ev);
-
 #ifdef EVENT__ENABLE_DTRACE
 	struct event_base *base = ev->ev_base;
-	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, free__enter, base, ev);
 #endif
+
+	EVENT__PROBE(free__enter, 2, base, ev);
 
 	/* make sure that this event won't be coming back to haunt us. */
 	event_del(ev);
 	event_debug_note_teardown_(ev);
 	mm_free(ev);
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, free__return, base);
-#endif
+	EVENT__PROBE(free__return, 1, base);
 }
 
 void
@@ -3292,9 +3249,7 @@ timeout_process(struct event_base *base)
 		return;
 	}
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, timeout_process__enter, base);
-#endif
+	EVENT__PROBE(timeout_process__enter, 1, base);
 
 	gettime(base, &now);
 
@@ -3310,9 +3265,7 @@ timeout_process(struct event_base *base)
 		event_active_nolock_(ev, EV_TIMEOUT, 1);
 	}
 
-#ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, timeout_process__return, base);
-#endif
+	EVENT__PROBE(timeout_process__return, 1, base);
 }
 
 #ifndef MAX
