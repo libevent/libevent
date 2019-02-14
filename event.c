@@ -2204,7 +2204,7 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 
 #ifdef EVENT__ENABLE_DTRACE
 	DTRACE_PROBE6(EVENT__DTRACE_PVDR_NAME, assign__enter,
-			ev, base, fd, events, callback, arg);
+			base, ev, fd, events, callback, arg);
 #endif
 
 	if (events & EV_SIGNAL) {
@@ -2213,7 +2213,7 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 			    "EV_READ, EV_WRITE or EV_CLOSED", __func__);
 #ifdef EVENT__ENABLE_DTRACE
 			DTRACE_PROBE7(EVENT__DTRACE_PVDR_NAME, assign__return,
-				ev, base, fd, events, callback, arg, -1); 
+				base, ev, fd, events, callback, arg, -1); 
 #endif
 			return -1;
 		}
@@ -2238,7 +2238,7 @@ event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, shor
 
 #ifdef EVENT__ENABLE_DTRACE
 	DTRACE_PROBE7(EVENT__DTRACE_PVDR_NAME, assign__return,
-		ev, base, fd, events, callback, arg, 0); 
+		base, ev, fd, events, callback, arg, 0); 
 #endif
 
 	return 0;
@@ -2323,7 +2323,8 @@ event_free(struct event *ev)
 	// event_debug_assert_is_setup_(ev);
 
 #ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, free__enter, ev);
+	struct event_base *base = ev->ev_base;
+	DTRACE_PROBE2(EVENT__DTRACE_PVDR_NAME, free__enter, base, ev);
 #endif
 
 	/* make sure that this event won't be coming back to haunt us. */
@@ -2332,7 +2333,7 @@ event_free(struct event *ev)
 	mm_free(ev);
 
 #ifdef EVENT__ENABLE_DTRACE
-	DTRACE_PROBE(EVENT__DTRACE_PVDR_NAME, free__return);
+	DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, free__return, base);
 #endif
 }
 
