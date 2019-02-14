@@ -1,81 +1,46 @@
-// dtrace/bpftrace script for monitoring loop_dispatch / process_active latencies
-// run: sudo bpftrace ./libevent.bt
-
-
-BEGIN
-{
-    printf("Tracing libevent loop/dispatch latencies\n");
-}
+#!/usr/bin/env bpftrace
 
 usdt:/usr/local/lib/libevent.so:base_loop___dispatch___start
 {
-    @loop_dispatch_start[tid] = nsecs;
-    @dispatches[arg0] = nsecs;
+    // arg0 == struct event_base;
+
+    @dispatch_start[arg0] = nsecs;
 }
 
 usdt:/usr/local/lib/libevent.so:base_loop___dispatch___end
-/ @loop_dispatch_start[tid] /
+/ @dispatch_start[arg0] /
 {
-    @loop_dispatch_lat[tid] = hist((nsecs - @loop_dispatch_start[tid]) / 1000);
-
-    delete(@loop_dispatch_start[tid]);
-}
-
-usdt:/usr/local/lib/libevent.so:base_loop___process_active___start
-{
-    @loop_process_active_start[tid] = nsecs;
-}
-
-usdt:/usr/local/lib/libevent.so:base_loop___process_active___end 
-/ @loop_process_active_start[tid] /
-{
-    @loop_process_active_lat[tid] = hist((nsecs - @loop_process_active_start[tid]) / 1000);
-
-    delete(@loop_process_active_start[tid]);
-}
-
-interval:s:5
-{
-    printf("event loop dispatch latencies\n");
-    print(@loop_dispatch_lat);
-    clear(@loop_dispatch_lat);
-
-    printf("event loop process_active latencies\n");
-    print(@loop_process_active_lat);
-    clear(@loop_process_active_lat);
-}
-
-usdt:/usr/local/lib/libevent.so:base_loop___dispatch___end
-/ @dispatches[arg0] /
-{
-    $elapsed = (nsecs - @dispatches[arg0]);
-
-    @dispatch_total_time[arg0] = sum($elapsed);
-}
+    $delta = (nsecs - @dispatch_start[arg0]) / 1000;
     
+    @dispatch_latency[arg0] = hist($delta);
+
+    delete(@dispatch_start[arg0]);
+}
+
 usdt:/usr/local/lib/libevent.so:base_loop___process_active___start
 {
-    @pactives[arg0] = nsecs;
+    // arg0 == event_base
+    @proc_active_start[arg0] = nsecs;
 }
 
 usdt:/usr/local/lib/libevent.so:base_loop___process_active___end
-/ @pactives[arg0] /
+/ @proc_active_start[arg0] /
 {
-    $delta = (nsecs - @pactives[arg0]);
+    $delta2 = (nsecs - @proc_active_start[arg0]) / 1000;
 
-    @activation_total_time[arg0] = sum($delta);
+    @proc_active_latency[arg0] = hist($delta2);
+
+    delete(@proc_active_start[arg0]);
 }
 
-usdt:/usr/local/lib/libevent.so:process_active_single_queue__enter
+interval:s:1
 {
-    @single_queues[arg0] = nsecs;
+    printf("event_base_loop inner-dispatch latency\n");
+
+    print(@dispatch_latency);
+    clear(@dispatch_latency);
+
+    printf("event_base_loop inner-process_active latency\n");
+    print(@proc_active_latency);
+    clear(@proc_active_latency);
 }
-
-usdt:/usr/local/lib/libevent.so:process_active_single_queue__return
-{
-    $sdelta = (nsecs - @single_queues[arg0]);
-
-    @single_queues_total_time[arg0] = sum($sdelta);
-}
-    
-

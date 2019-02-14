@@ -2054,9 +2054,15 @@ event_base_loop(struct event_base *base, int flags)
 			goto done;
 		}
 
+#ifdef EVENT__ENABLE_DTRACE
+		DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, base_loop___timeout_proc_start, base);
+#endif
 		update_time_cache(base);
-
 		timeout_process(base);
+
+#ifdef EVENT__ENABLE_DTRACE
+		DTRACE_PROBE1(EVENT__DTRACE_PVDR_NAME, base_loop___timeout_proc_end, base);
+#endif
 
 		if (N_ACTIVE_CALLBACKS(base)) {
 			int n;
