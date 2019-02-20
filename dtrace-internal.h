@@ -17,7 +17,7 @@
 
 #define EVENT__PROBE0 DTRACE_PROBE
 #else
-#define EVENT_PROBE(name, n, ...)
+#define EVENT__PROBE(name, n, ...)
 #endif
 
 #endif
