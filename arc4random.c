@@ -379,7 +379,9 @@ arc4_stir(void)
 		rs_initialized = 1;
 	}
 
-	arc4_seed();
+	if (0 != arc4_seed())
+		return -1;
+
 	if (!arc4_seeded_ok)
 		return -1;
 
