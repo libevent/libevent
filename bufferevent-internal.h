@@ -446,7 +446,7 @@ bufferevent_socket_get_conn_address_(struct bufferevent *bev);
 
 EVENT2_EXPORT_SYMBOL
 void
-bufferevent_socket_set_conn_address_fd_(struct bufferevent *bev, int fd);
+bufferevent_socket_set_conn_address_fd_(struct bufferevent *bev, evutil_socket_t fd);
 
 EVENT2_EXPORT_SYMBOL
 void
