@@ -928,8 +928,8 @@ test_fork(void)
 
 		evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
 		evsignal_add(&usr_ev, NULL);
-		raise(SIGUSR1);
-		raise(SIGUSR2);
+		kill(getpid(), SIGUSR1);
+		kill(getpid(), SIGUSR2);
 
 		called = 0;
 
@@ -962,8 +962,8 @@ test_fork(void)
 
 	evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
 	evsignal_add(&usr_ev, NULL);
-	raise(SIGUSR1);
-	raise(SIGUSR2);
+	kill(getpid(), SIGUSR1);
+	kill(getpid(), SIGUSR2);
 
 	event_dispatch();
 
@@ -1165,7 +1165,7 @@ test_immediatesignal(void)
 	test_ok = 0;
 	evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
 	evsignal_add(&ev, NULL);
-	raise(SIGUSR1);
+	kill(getpid(), SIGUSR1);
 	event_loop(EVLOOP_NONBLOCK);
 	evsignal_del(&ev);
 	cleanup_test();
@@ -1238,7 +1238,7 @@ test_signal_switchbase(void)
 
 	test_ok = 0;
 	/* can handle signal before loop is called */
-	raise(SIGUSR1);
+	kill(getpid(), SIGUSR1);
 	event_base_loop(base2, EVLOOP_NONBLOCK);
 	if (is_kqueue) {
 		if (!test_ok)
@@ -1251,7 +1251,7 @@ test_signal_switchbase(void)
 
 		/* set base1 to handle signals */
 		event_base_loop(base1, EVLOOP_NONBLOCK);
-		raise(SIGUSR1);
+		kill(getpid(), SIGUSR1);
 		event_base_loop(base1, EVLOOP_NONBLOCK);
 		event_base_loop(base2, EVLOOP_NONBLOCK);
 	}
@@ -1280,7 +1280,7 @@ test_signal_assert(void)
 	 */
 	evsignal_del(&ev);
 
-	raise(SIGCONT);
+	kill(getpid(), SIGCONT);
 #if 0
 	/* only way to verify we were in evsig_handler() */
 	/* XXXX Now there's no longer a good way. */
@@ -1324,7 +1324,7 @@ test_signal_restore(void)
 	evsignal_add(&ev, NULL);
 	evsignal_del(&ev);
 
-	raise(SIGUSR1);
+	kill(getpid(), SIGUSR1);
 	/* 1 == signal_cb, 2 == signal_cb_sa, we want our previous handler */
 	if (test_ok != 2)
 		test_ok = 0;
@@ -1339,7 +1339,7 @@ signal_cb_swp(int sig, short event, void *arg)
 {
 	called++;
 	if (called < 5)
-		raise(sig);
+		kill(getpid(), sig);
 	else
 		event_loopexit(NULL);
 }
@@ -1351,7 +1351,7 @@ timeout_cb_swp(evutil_socket_t fd, short event, void *arg)
 
 		called = 0;
 		evtimer_add((struct event *)arg, &tv);
-		raise(SIGUSR1);
+		kill(getpid(), SIGUSR1);
 		return;
 	}
 	test_ok = 0;
