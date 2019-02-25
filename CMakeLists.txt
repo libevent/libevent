@@ -334,7 +334,7 @@ if (NOT DEFINED _GNU_SOURCE)
 endif()
 
 if (_GNU_SOURCE)
-    add_definitions(-D_GNU_SOURCE)
+    add_definitions(-D_GNU_SOURCE=1)
 endif()
 
 CHECK_INCLUDE_FILE(sys/types.h EVENT__HAVE_SYS_TYPES_H)
