@@ -511,12 +511,15 @@ conn_closed(struct bufferevent_openssl *bev_ssl, int when, int errcode, int ret)
 		/* IO error; possibly a dirty shutdown. */
 		if ((ret == 0 || ret == -1) && ERR_peek_error() == 0)
 			dirty_shutdown = 1;
+		put_error(bev_ssl, errcode);
 		break;
 	case SSL_ERROR_SSL:
 		/* Protocol error. */
+		put_error(bev_ssl, errcode);
 		break;
 	case SSL_ERROR_WANT_X509_LOOKUP:
 		/* XXXX handle this. */
+		put_error(bev_ssl, errcode);
 		break;
 	case SSL_ERROR_NONE:
 	case SSL_ERROR_WANT_READ:
