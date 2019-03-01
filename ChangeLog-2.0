@@ -1143,7 +1143,7 @@ Changes in 2.0.1-alpha (17 Apr 2009):
  o Check return value of event_add in signal.c
  o Add a more powerful evbuffer_readln as a replacement for evbuffer_readline.  The new function handles more newline styles, and is more useful with buffers that may contain a nul characters.
  o Do not mangle socket handles on 64-bit windows.
- o The configure script now takes an --enable-gcc-warnigns option that turns on many optional gcc warnings.  (Nick has been building with these for a while, but they might be useful to other developers.)
+ o The configure script now takes an --enable-gcc-warnings option that turns on many optional gcc warnings.  (Nick has been building with these for a while, but they might be useful to other developers.)
  o move EV_PERSIST handling out of the event backends
  o small improvements to evhttp documentation
  o always generate Date and Content-Length headers for HTTP/1.1 replies
