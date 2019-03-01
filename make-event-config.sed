@@ -16,7 +16,7 @@
 
 $a\
 \
-#endif /* event2/event-config.h */
+#endif /* \EVENT2_EVENT_CONFIG_H_INCLUDED_ */
 
 /#\( *\)undef STDC_HEADERS\>/b
 /#\( *\)define STDC_HEADERS\>/b
