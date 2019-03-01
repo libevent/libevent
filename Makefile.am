@@ -139,6 +139,7 @@ EXTRA_DIST = \
 	Makefile.nmake test/Makefile.nmake \
 	autogen.sh \
 	event_rpcgen.py \
+	generate-event-config.sh \
 	libevent.pc.in \
 	make-event-config.sed \
 	whatsnew-2.0.txt \
@@ -220,10 +221,10 @@ endif
 
 BUILT_SOURCES += include/event2/event-config.h
 
-include/event2/event-config.h: config.h make-event-config.sed
+include/event2/event-config.h: \
+    config.h $(srcdir)/generate-event-config.sh $(srcdir)/make-event-config.sed
 	$(AM_V_GEN)test -d include/event2 || $(MKDIR_P) include/event2
-	$(AM_V_at)$(SED) -f $(srcdir)/make-event-config.sed < config.h > $@T
-	$(AM_V_at)mv -f $@T $@
+	$(AM_V_at)$(SHELL) "$(srcdir)/generate-event-config.sh" "$@"
 
 CORE_SRC =					\
 	buffer.c				\
