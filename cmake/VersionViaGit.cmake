@@ -2,7 +2,7 @@
 # git to determine the parent tag. And if found the macro
 # will attempt to parse them in the github tag fomat
 #
-# Usful for auto-versionin in ou CMakeLists
+# Useful for auto-versioning in our CMakeLists
 #
 #  EVENT_GIT___VERSION_MAJOR - Major version.
 #  EVENT_GIT___VERSION_MINOR - Minor version
