@@ -1299,7 +1299,7 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 		chain = chain->next;
 	}
 
-	if (nread) {
+	if (chain != src->first) {
 		/* we can remove the chain */
 		struct evbuffer_chain **chp;
 		chp = evbuffer_free_trailing_empty_chains(dst);

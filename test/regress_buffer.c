@@ -424,6 +424,33 @@ test_evbuffer_remove_buffer_with_empty3(void *ptr)
 }
 
 static void
+test_evbuffer_remove_buffer_with_empty_front(void *ptr)
+{
+	struct evbuffer *buf1 = NULL, *buf2 = NULL;
+
+	buf1 = evbuffer_new();
+	tt_assert(buf1);
+
+	buf2 = evbuffer_new();
+	tt_assert(buf2);
+
+	tt_int_op(evbuffer_add_reference(buf1, "foo", 3, NULL, NULL), ==, 0);
+	tt_int_op(evbuffer_prepend(buf1, "", 0), ==, 0);
+	tt_int_op(evbuffer_remove_buffer(buf1, buf2, 1), ==, 1);
+	tt_int_op(evbuffer_add(buf1, "bar", 3), ==, 0);
+	tt_mem_op(evbuffer_pullup(buf1, -1), ==, "oobar", 5);
+
+	evbuffer_validate(buf1);
+	evbuffer_validate(buf2);
+
+ end:
+	if (buf1)
+		evbuffer_free(buf1);
+	if (buf2)
+		evbuffer_free(buf2);
+}
+
+static void
 test_evbuffer_add_buffer_with_empty(void *ptr)
 {
 	struct evbuffer *src = evbuffer_new();
@@ -2522,6 +2549,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "remove_buffer_with_empty", test_evbuffer_remove_buffer_with_empty, 0, NULL, NULL },
 	{ "remove_buffer_with_empty2", test_evbuffer_remove_buffer_with_empty2, 0, NULL, NULL },
 	{ "remove_buffer_with_empty3", test_evbuffer_remove_buffer_with_empty3, 0, NULL, NULL },
+	{ "remove_buffer_with_empty_front", test_evbuffer_remove_buffer_with_empty_front, 0, NULL, NULL },
 	{ "add_buffer_with_empty", test_evbuffer_add_buffer_with_empty, 0, NULL, NULL },
 	{ "add_buffer_with_empty2", test_evbuffer_add_buffer_with_empty2, 0, NULL, NULL },
 	{ "reserve2", test_evbuffer_reserve2, 0, NULL, NULL },
