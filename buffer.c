@@ -704,13 +704,17 @@ static int
 advance_last_with_data(struct evbuffer *buf)
 {
 	int n = 0;
+	struct evbuffer_chain **chainp = buf->last_with_datap;
+
 	ASSERT_EVBUFFER_LOCKED(buf);
 
-	if (!*buf->last_with_datap)
+	if (!*chainp)
 		return 0;
 
-	while ((*buf->last_with_datap)->next && (*buf->last_with_datap)->next->off) {
-		buf->last_with_datap = &(*buf->last_with_datap)->next;
+	while ((*chainp)->next) {
+		chainp = &(*chainp)->next;
+		if ((*chainp)->off)
+			buf->last_with_datap = chainp;
 		++n;
 	}
 	return n;

@@ -451,6 +451,62 @@ test_evbuffer_remove_buffer_with_empty_front(void *ptr)
 }
 
 static void
+test_evbuffer_remove_buffer_adjust_last_with_datap_with_empty(void *ptr)
+{
+	struct evbuffer *buf1 = NULL, *buf2 = NULL;
+
+	buf1 = evbuffer_new();
+	tt_assert(buf1);
+
+	buf2 = evbuffer_new();
+	tt_assert(buf2);
+
+	tt_int_op(evbuffer_add(buf1, "aaaaaa", 6), ==, 0);
+
+	// buf1: aaaaaab
+	// buf2:
+	{
+		struct evbuffer_iovec iovecs[2];
+		/** we want two chains, to leave one chain empty */
+		tt_int_op(evbuffer_reserve_space(buf1, 971, iovecs, 2), ==, 2);
+		tt_int_op(iovecs[0].iov_len, >=, 1);
+		tt_int_op(iovecs[1].iov_len, >=, 1);
+		tt_assert(*(char *)(iovecs[0].iov_base) = 'b');
+		tt_assert(iovecs[0].iov_len = 1);
+		tt_int_op(evbuffer_commit_space(buf1, iovecs, 1), ==, 0);
+	}
+
+	// buf1: aaaaaab
+	// buf2: dddcc
+	tt_int_op(evbuffer_add(buf2, "cc", 2), ==, 0);
+	tt_int_op(evbuffer_prepend(buf2, "ddd", 3), ==, 0);
+
+	// buf1:
+	// buf2: aaaaaabdddcc
+	tt_int_op(evbuffer_prepend_buffer(buf2, buf1), ==, 0);
+
+	// buf1: aaaaaabdddcc
+	// buf2:
+	tt_int_op(evbuffer_add_buffer(buf1, buf2), ==, 0);
+
+	// buf1: c
+	// buf2: aaaaaabdddc
+	tt_int_op(evbuffer_remove_buffer(buf1, buf2, 11), ==, 11);
+
+	// This fails today, we observe "aaaaaabcddd" instead!
+	tt_mem_op(evbuffer_pullup(buf2, -1), ==, "aaaaaabdddc", 11);
+
+	evbuffer_validate(buf1);
+	evbuffer_validate(buf2);
+
+ end:
+	if (buf1)
+		evbuffer_free(buf1);
+	if (buf2)
+		evbuffer_free(buf2);
+}
+
+static void
 test_evbuffer_add_buffer_with_empty(void *ptr)
 {
 	struct evbuffer *src = evbuffer_new();
@@ -677,6 +733,28 @@ test_evbuffer_reserve_many(void *ptr)
 
 end:
 	evbuffer_free(buf);
+}
+
+static void
+test_evbuffer_reserve_with_empty(void *ptr)
+{
+	struct evbuffer *buf;
+	struct evbuffer_iovec v[2];
+
+	tt_assert(buf = evbuffer_new());
+	evbuffer_add(buf, "a", 1);
+	tt_int_op(evbuffer_reserve_space(buf, 1<<12, v, 2), ==, 2);
+	v[0].iov_len = 1;
+	*(char *)v[0].iov_base = 'b';
+	tt_int_op(evbuffer_commit_space(buf, v, 1), ==, 0);
+	evbuffer_add(buf, "c", 1);
+	tt_mem_op(evbuffer_pullup(buf, -1), ==, "abc", 2);
+
+	evbuffer_validate(buf);
+
+ end:
+	if (buf)
+		evbuffer_free(buf);
 }
 
 static void
@@ -2550,12 +2628,15 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "remove_buffer_with_empty2", test_evbuffer_remove_buffer_with_empty2, 0, NULL, NULL },
 	{ "remove_buffer_with_empty3", test_evbuffer_remove_buffer_with_empty3, 0, NULL, NULL },
 	{ "remove_buffer_with_empty_front", test_evbuffer_remove_buffer_with_empty_front, 0, NULL, NULL },
+	{ "remove_buffer_adjust_last_with_datap_with_empty",
+	  test_evbuffer_remove_buffer_adjust_last_with_datap_with_empty, 0, NULL, NULL },
 	{ "add_buffer_with_empty", test_evbuffer_add_buffer_with_empty, 0, NULL, NULL },
 	{ "add_buffer_with_empty2", test_evbuffer_add_buffer_with_empty2, 0, NULL, NULL },
 	{ "reserve2", test_evbuffer_reserve2, 0, NULL, NULL },
 	{ "reserve_many", test_evbuffer_reserve_many, 0, NULL, NULL },
 	{ "reserve_many2", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"add" },
 	{ "reserve_many3", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"fill" },
+	{ "reserve_with_empty", test_evbuffer_reserve_with_empty, 0, NULL, NULL },
 	{ "expand", test_evbuffer_expand, 0, NULL, NULL },
 	{ "expand_overflow", test_evbuffer_expand_overflow, 0, NULL, NULL },
 	{ "add1", test_evbuffer_add1, 0, NULL, NULL },
