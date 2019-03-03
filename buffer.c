@@ -1829,6 +1829,10 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 
 	EVBUFFER_LOCK(buf);
 
+	if (datlen == 0) {
+		result = 0;
+		goto done;
+	}
 	if (buf->freeze_start) {
 		goto done;
 	}
