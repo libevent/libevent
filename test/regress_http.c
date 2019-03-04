@@ -4829,6 +4829,94 @@ http_newreqcb_test(void *arg)
 
 }
 
+static void
+http_timeout_read_client_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	ev_uint16_t port = 0;
+	struct evhttp_connection *evcon = NULL;
+	struct evhttp_request *req = NULL;
+	struct timeval tv;
+	struct evhttp *http = http_setup(&port, data->base, 0);
+
+	test_ok = 0;
+	exit_base = data->base;
+
+	evcon = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+	tt_assert(evcon);
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 100000;
+	evhttp_connection_set_connect_timeout_tv(evcon, &tv);
+	evhttp_connection_set_write_timeout_tv(evcon, &tv);
+	tv.tv_usec = 500000;
+	evhttp_connection_set_read_timeout_tv(evcon, &tv);
+
+	req = evhttp_request_new(http_request_done, (void*)"");
+	tt_assert(req);
+	evhttp_add_header(evhttp_request_get_output_headers(req), "Host", "somehost");
+	tt_int_op(evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/delay"), ==, 0);
+	event_base_dispatch(data->base);
+	tt_int_op(test_ok, ==, 1);
+
+ end:
+	if (evcon)
+		evhttp_connection_free(evcon);
+	if (http)
+		evhttp_free(http);
+}
+
+static void http_add_output_buffer(int fd, short events, void *arg)
+{
+	evbuffer_add(arg, POST_DATA, strlen(POST_DATA));
+}
+static void
+http_timeout_read_server_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct timeval tv;
+	struct bufferevent *bev;
+	struct evbuffer *out;
+	int fd = -1;
+	ev_uint16_t port = 0;
+	struct evhttp *http = http_setup(&port, data->base, 0);
+
+	test_ok = 0;
+
+	tv.tv_sec = 0;
+	tv.tv_usec = 100000;
+	evhttp_set_write_timeout_tv(http, &tv);
+	tv.tv_usec = 500000;
+	evhttp_set_read_timeout_tv(http, &tv);
+
+	fd = http_connect("127.0.0.1", port);
+	bev = create_bev(data->base, fd, 0);
+	bufferevent_setcb(bev, http_readcb, http_writecb, http_errorcb, data->base);
+	out = bufferevent_get_output(bev);
+
+	evbuffer_add_printf(out,
+	    "POST /postit HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Content-Length: " EV_SIZE_FMT "\r\n"
+	    "\r\n", strlen(POST_DATA));
+
+	tv.tv_usec = 200000;
+	event_base_once(data->base, -1, EV_TIMEOUT, http_add_output_buffer, out, &tv);
+
+	event_base_dispatch(data->base);
+	tt_int_op(test_ok, ==, 3);
+
+ end:
+	if (bev)
+		bufferevent_free(bev);
+	if (fd != -1)
+		evutil_closesocket(fd);
+	if (http)
+		evhttp_free(http);
+}
+
+
+
 
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
@@ -4958,6 +5046,9 @@ struct testcase_t http_testcases[] = {
 	HTTP(request_extra_body),
 
 	HTTP(newreqcb),
+
+	HTTP(timeout_read_client),
+	HTTP(timeout_read_server),
 
 #ifdef EVENT__HAVE_OPENSSL
 	HTTPS(basic),

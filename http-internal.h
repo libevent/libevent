@@ -17,6 +17,7 @@
 #define HTTP_CONNECT_TIMEOUT	45
 #define HTTP_WRITE_TIMEOUT	50
 #define HTTP_READ_TIMEOUT	50
+#define HTTP_INITIAL_RETRY_TIMEOUT	2
 
 #define HTTP_PREFIX		"http://"
 #define HTTP_DEFAULTPORT	80
@@ -79,8 +80,13 @@ struct evhttp_connection {
 /* Installed when attempt to read HTTP error after write failed, see
  * EVHTTP_CON_READ_ON_WRITE_ERROR */
 #define EVHTTP_CON_READING_ERROR	(EVHTTP_CON_AUTOFREE << 1)
+/* Timeout is not default */
+#define EVHTTP_CON_TIMEOUT_ADJUSTED	(EVHTTP_CON_READING_ERROR << 1)
 
-	struct timeval timeout;		/* timeout for events */
+	struct timeval timeout_connect;		/* timeout for connect phase */
+	struct timeval timeout_read;		/* timeout for read */
+	struct timeval timeout_write;		/* timeout for write */
+
 	int retry_cnt;			/* retry count */
 	int retry_max;			/* maximum number of retries */
 	struct timeval initial_retry_timeout; /* Timeout for low long to wait
@@ -153,7 +159,8 @@ struct evhttp {
 	/* NULL if this server is not a vhost */
 	char *vhost_pattern;
 
-	struct timeval timeout;
+	struct timeval timeout_read;		/* timeout for read */
+	struct timeval timeout_write;		/* timeout for write */
 
 	size_t default_max_headers_size;
 	ev_uint64_t default_max_body_size;
