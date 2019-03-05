@@ -433,6 +433,7 @@ CHECK_FUNCTION_EXISTS_EX(port_create EVENT__HAVE_PORT_CREATE)
 CHECK_FUNCTION_EXISTS_EX(sendfile EVENT__HAVE_SENDFILE)
 CHECK_FUNCTION_EXISTS_EX(sigaction EVENT__HAVE_SIGACTION)
 CHECK_FUNCTION_EXISTS_EX(signal EVENT__HAVE_SIGNAL)
+CHECK_FUNCTION_EXISTS_EX(strsignal EVENT__HAVE_STRSIGNAL)
 CHECK_FUNCTION_EXISTS_EX(splice EVENT__HAVE_SPLICE)
 CHECK_FUNCTION_EXISTS_EX(strlcpy EVENT__HAVE_STRLCPY)
 CHECK_FUNCTION_EXISTS_EX(strsep EVENT__HAVE_STRSEP)
@@ -965,6 +966,7 @@ if (NOT EVENT__DISABLE_SAMPLES)
                         sample/hostcheck.c)
         add_sample_prog(ON le-proxy
                         sample/le-proxy.c)
+        add_sample_prog(ON becat sample/becat.c ${WIN32_GETOPT})
     endif()
 
     set(SAMPLES_WOPT
