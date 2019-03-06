@@ -201,6 +201,8 @@ __Patches__: https://github.com/libevent/libevent/pulls
 __Bugs, Features [RFC], and Issues__: https://github.com/libevent/libevent/issues
 > Or you can do it via the mailing list.
 
+__To ask general questions and doubts__ don't create issues here, but post a message in the [Gitter Room](https://gitter.im/libevent/libevent)
+
 There's also a libevent-users mailing list for talking about Libevent
 use and development: 
 
