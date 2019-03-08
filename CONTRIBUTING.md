@@ -33,3 +33,6 @@ git format-patch --stdout -2
 ## Testing
 - Write new unit test in `test/regress_{MORE_SUITABLE_FOR_YOU}.c`
 - `make verify`
+
+## Aksing Questions
+It's all right to have questions! Instead of filing a separate issue on GitHub, go ahead and leave a message in our [Gitter Room](https://gitter.im/libevent/libevent)
