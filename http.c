@@ -3327,7 +3327,7 @@ evhttp_parse_query_impl(const char *str, struct evkeyvalq *headers,
 		key = strsep(&value, "=");
 		if (flags & EVHTTP_URI_QUERY_NONCONFORMANT) {
 			if (value == NULL)
-				value = "";
+				value = (char *)"";
 			if (*key == '\0')
 				continue;
 		} else {
