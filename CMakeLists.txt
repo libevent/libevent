@@ -259,7 +259,7 @@ if (${GNUC})
     set(GCC_V ${CMAKE_C_COMPILER_VERSION})
 
     list(APPEND __FLAGS
-         -Wall -Wextra -Wno-unused-parameter -Wstrict-aliasing
+         -Wall -Wextra -Wno-unused-parameter -Wstrict-aliasing -Wstrict-prototypes
 
          -fno-strict-aliasing # gcc 2.9.5+
 
@@ -270,13 +270,18 @@ if (${GNUC})
 
          # gcc 4.2
          -Waddress
-         -Wno-unused-function
          -Wnormalized=id
          -Woverride-init
 
          # gcc 4.5
          -Wlogical-op
+
+	 -Wwrite-strings
     )
+
+    if (${CLANG})
+        list(APPEND __FLAGS -Wno-unused-function)
+    endif()
 
     if (EVENT__DISABLE_GCC_WARNINGS)
         list(APPEND __FLAGS -w)
