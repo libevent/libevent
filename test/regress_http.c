@@ -77,7 +77,7 @@ static void http_large_cb(struct evhttp_request *req, void *arg);
 static void http_chunked_cb(struct evhttp_request *req, void *arg);
 static void http_post_cb(struct evhttp_request *req, void *arg);
 static void http_put_cb(struct evhttp_request *req, void *arg);
-static void http_delete_cb(struct evhttp_request *req, void *arg);
+static void http_genmethod_cb(struct evhttp_request *req, void *arg);
 static void http_delay_cb(struct evhttp_request *req, void *arg);
 static void http_large_delay_cb(struct evhttp_request *req, void *arg);
 static void http_badreq_cb(struct evhttp_request *req, void *arg);
@@ -157,7 +157,14 @@ http_setup_gencb(ev_uint16_t *pport, struct event_base *base, int mask,
 	evhttp_set_cb(myhttp, "/streamed", http_chunked_cb, base);
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, base);
 	evhttp_set_cb(myhttp, "/putit", http_put_cb, base);
-	evhttp_set_cb(myhttp, "/deleteit", http_delete_cb, base);
+	evhttp_set_cb(myhttp, "/deleteit", http_genmethod_cb, base);
+	evhttp_set_cb(myhttp, "/propfind", http_genmethod_cb, base);
+	evhttp_set_cb(myhttp, "/proppatch", http_genmethod_cb, base);
+	evhttp_set_cb(myhttp, "/mkcol", http_genmethod_cb, base);
+	evhttp_set_cb(myhttp, "/lockit", http_genmethod_cb, base);
+	evhttp_set_cb(myhttp, "/unlockit", http_genmethod_cb, base);
+	evhttp_set_cb(myhttp, "/copyit", http_genmethod_cb, base);
+	evhttp_set_cb(myhttp, "/moveit", http_genmethod_cb, base);
 	evhttp_set_cb(myhttp, "/delay", http_delay_cb, base);
 	evhttp_set_cb(myhttp, "/largedelay", http_large_delay_cb, base);
 	evhttp_set_cb(myhttp, "/badrequest", http_badreq_cb, base);
@@ -775,18 +782,36 @@ http_large_delay_cb(struct evhttp_request *req, void *arg)
 	evhttp_connection_fail_(delayed_client, EVREQ_HTTP_EOF);
 }
 
-/*
- * HTTP DELETE test,  just piggyback on the basic test
- */
-
 static void
-http_delete_cb(struct evhttp_request *req, void *arg)
+http_genmethod_cb(struct evhttp_request *req, void *arg)
 {
+	const char *uri = evhttp_request_get_uri(req);
 	struct evbuffer *evb = evbuffer_new();
 	int empty = evhttp_find_header(evhttp_request_get_input_headers(req), "Empty") != NULL;
+	enum evhttp_cmd_type method;
 
-	/* Expecting a DELETE request */
-	if (evhttp_request_get_command(req) != EVHTTP_REQ_DELETE) {
+	if (!strcmp(uri, "/deleteit"))
+	    method = EVHTTP_REQ_DELETE;
+	else if (!strcmp(uri, "/propfind"))
+	    method = EVHTTP_REQ_PROPFIND;
+	else if (!strcmp(uri, "/proppatch"))
+	    method = EVHTTP_REQ_PROPPATCH;
+	else if (!strcmp(uri, "/mkcol"))
+	    method = EVHTTP_REQ_MKCOL;
+	else if (!strcmp(uri, "/lockit"))
+	    method = EVHTTP_REQ_LOCK;
+	else if (!strcmp(uri, "/unlockit"))
+	    method = EVHTTP_REQ_UNLOCK;
+	else if (!strcmp(uri, "/copyit"))
+	    method = EVHTTP_REQ_COPY;
+	else if (!strcmp(uri, "/moveit"))
+	    method = EVHTTP_REQ_MOVE;
+	else {
+		fprintf(stdout, "FAILED (unexpected path)\n");
+		exit(1);
+	}
+	/* Expecting correct request method */
+	if (evhttp_request_get_command(req) != method) {
 		fprintf(stdout, "FAILED (delete type)\n");
 		exit(1);
 	}
@@ -802,12 +827,12 @@ http_delete_cb(struct evhttp_request *req, void *arg)
 }
 
 static void
-http_delete_test(void *arg)
+http_genmethod_test(void *arg, enum evhttp_cmd_type method, const char *name, const char *path)
 {
 	struct basic_test_data *data = arg;
 	struct bufferevent *bev;
+	struct evbuffer *evb;
 	evutil_socket_t fd = EVUTIL_INVALID_SOCKET;
-	const char *http_request;
 	ev_uint16_t port = 0;
 	struct evhttp *http = http_setup(&port, data->base, 0);
 
@@ -818,18 +843,20 @@ http_delete_test(void *arg)
 	fd = http_connect("127.0.0.1", port);
 	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
+	evhttp_set_allowed_methods(http, method);
+
 	/* Stupid thing to send a request */
 	bev = bufferevent_socket_new(data->base, fd, 0);
 	bufferevent_setcb(bev, http_readcb, http_writecb,
 	    http_errorcb, data->base);
-
-	http_request =
-	    "DELETE /deleteit HTTP/1.1\r\n"
+	evb = bufferevent_get_output(bev);
+	evbuffer_add_printf(
+	    evb,
+	    "%s %s HTTP/1.1\r\n"
 	    "Host: somehost\r\n"
 	    "Connection: close\r\n"
-	    "\r\n";
-
-	bufferevent_write(bev, http_request, strlen(http_request));
+	    "\r\n"
+	    "body", name, path);
 
 	event_base_dispatch(data->base);
 
@@ -843,6 +870,54 @@ http_delete_test(void *arg)
  end:
 	if (fd >= 0)
 		evutil_closesocket(fd);
+}
+
+static void
+http_delete_test(void *arg)
+{
+	http_genmethod_test(arg, EVHTTP_REQ_DELETE, "DELETE", "/deleteit");
+}
+
+static void
+http_propfind_test(void *arg)
+{
+	http_genmethod_test(arg, EVHTTP_REQ_PROPFIND, "PROPFIND", "/propfind");
+}
+
+static void
+http_proppatch_test(void *arg)
+{
+	http_genmethod_test(arg, EVHTTP_REQ_PROPPATCH, "PROPPATCH", "/proppatch");
+}
+
+static void
+http_mkcol_test(void *arg)
+{
+	http_genmethod_test(arg, EVHTTP_REQ_MKCOL, "MKCOL", "/mkcol");
+}
+
+static void
+http_lock_test(void *arg)
+{
+	http_genmethod_test(arg, EVHTTP_REQ_LOCK, "LOCK", "/lockit");
+}
+
+static void
+http_unlock_test(void *arg)
+{
+	http_genmethod_test(arg, EVHTTP_REQ_UNLOCK, "UNLOCK", "/unlockit");
+}
+
+static void
+http_copy_test(void *arg)
+{
+	http_genmethod_test(arg, EVHTTP_REQ_COPY, "COPY", "/copyit");
+}
+
+static void
+http_move_test(void *arg)
+{
+	http_genmethod_test(arg, EVHTTP_REQ_MOVE, "MOVE", "/moveit");
 }
 
 static void
@@ -4998,6 +5073,13 @@ struct testcase_t http_testcases[] = {
 	HTTP(post),
 	HTTP(put),
 	HTTP(delete),
+	HTTP(propfind),
+	HTTP(proppatch),
+	HTTP(mkcol),
+	HTTP(lock),
+	HTTP(unlock),
+	HTTP(copy),
+	HTTP(move),
 	HTTP(allowed_methods),
 	HTTP(failure),
 	HTTP(connection),

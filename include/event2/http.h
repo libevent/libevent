@@ -524,7 +524,10 @@ void evhttp_send_reply_end(struct evhttp_request *req);
  */
 
 /** The different request types supported by evhttp.  These are as specified
- * in RFC2616, except for PATCH which is specified by RFC5789.
+ * in RFC2616, except for:
+ * - PATCH which is specified by RFC5789
+ * - PROPFIND, PROPPATCH, MKCOL, LOCK, UNLOCK, COPY, MOVE
+ *   which are specified by RFC4918
  *
  * By default, only some of these methods are accepted and passed to user
  * callbacks; use evhttp_set_allowed_methods() to change which methods
@@ -539,7 +542,14 @@ enum evhttp_cmd_type {
 	EVHTTP_REQ_OPTIONS = 1 << 5,
 	EVHTTP_REQ_TRACE   = 1 << 6,
 	EVHTTP_REQ_CONNECT = 1 << 7,
-	EVHTTP_REQ_PATCH   = 1 << 8
+	EVHTTP_REQ_PATCH   = 1 << 8,
+	EVHTTP_REQ_PROPFIND= 1 << 9,
+	EVHTTP_REQ_PROPPATCH=1 << 10,
+	EVHTTP_REQ_MKCOL   = 1 << 11,
+	EVHTTP_REQ_LOCK    = 1 << 12,
+	EVHTTP_REQ_UNLOCK  = 1 << 13,
+	EVHTTP_REQ_COPY    = 1 << 14,
+	EVHTTP_REQ_MOVE    = 1 << 15,
 };
 
 /** a request object can represent either a request or a reply */

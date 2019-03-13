@@ -331,6 +331,27 @@ evhttp_method(enum evhttp_cmd_type type)
 	case EVHTTP_REQ_PATCH:
 		method = "PATCH";
 		break;
+	case EVHTTP_REQ_PROPFIND:
+		method = "PROPFIND";
+		break;
+	case EVHTTP_REQ_PROPPATCH:
+		method = "PROPPATCH";
+		break;
+	case EVHTTP_REQ_MKCOL:
+		method = "MKCOL";
+		break;
+	case EVHTTP_REQ_LOCK:
+		method = "LOCK";
+		break;
+	case EVHTTP_REQ_UNLOCK:
+		method = "UNLOCK";
+		break;
+	case EVHTTP_REQ_COPY:
+		method = "COPY";
+		break;
+	case EVHTTP_REQ_MOVE:
+		method = "MOVE";
+		break;
 	default:
 		method = NULL;
 		break;
@@ -1794,7 +1815,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 		}
 		break;
 	    case 4:
-		/* The method length is 4 bytes, leaving only the methods "POST" and "HEAD" */
+		/* The method length is 4 bytes, leaving only the methods POST, HEAD, LOCK, COPY and MOVE */
 		switch (*method) {
 		    case 'P':
 			if (method[3] == 'T' && method[2] == 'S' && method[1] == 'O') {
@@ -1806,12 +1827,27 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 			    type = EVHTTP_REQ_HEAD;
 			}
 			break;
+		    case 'L':
+			if (method[3] == 'K' && method[2] == 'C' && method[1] == 'O') {
+			    type = EVHTTP_REQ_LOCK;
+			}
+			break;
+		    case 'C':
+			if (method[3] == 'Y' && method[2] == 'P' && method[1] == 'O') {
+			    type = EVHTTP_REQ_COPY;
+			}
+			break;
+		    case 'M':
+			if (method[3] == 'E' && method[2] == 'V' && method[1] == 'O') {
+			    type = EVHTTP_REQ_MOVE;
+			}
+			break;
 		    default:
 			break;
 		}
 		break;
 	    case 5:
-		/* Method length is 5 bytes, which can only encompass PATCH and TRACE */
+		/* Method length is 5 bytes, which can only encompass PATCH, TRACE and MKCOL */
 		switch (*method) {
 		    case 'P':
 			if (method[4] == 'H' && method[3] == 'C' && method[2] == 'T' && method[1] == 'A') {
@@ -1824,22 +1860,33 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 			}
                     
 			break;
+		    case 'M':
+			if (method[4] == 'L' && method[3] == 'O' && method[2] == 'C' && method[1] == 'K') {
+			    type = EVHTTP_REQ_MKCOL;
+			}
+			break;
 		    default:
 			break;
 		}
 		break;
 	    case 6:
-		/* Method length is 6, only valid method 6 bytes in length is DELEte */
-            
-		/* If the first byte isn't 'D' then it's invalid */
-		if (*method != 'D') {
-		    break;
+		/* Method length is 6, only valid methods 6 bytes in length is DELETE and UNLOCK */
+		switch (*method) {
+		    case 'D':
+			if (method[5] == 'E' && method[4] == 'T' && method[3] == 'E' &&
+				method[2] == 'L' && method[1] == 'E') {
+			    type = EVHTTP_REQ_DELETE;
+			}
+			break;
+		    case 'U':
+			if (method[5] == 'K' && method[4] == 'C' && method[3] == 'O' &&
+				method[2] == 'L' && method[1] == 'N') {
+			    type = EVHTTP_REQ_UNLOCK;
+			}
+			break;
+		    default:
+			break;
 		}
-
-		if (method[5] == 'E' && method[4] == 'T' && method[3] == 'E' && method[2] == 'L' && method[1] == 'E') {
-		    type = EVHTTP_REQ_DELETE;
-		}
-
 		break;
 	    case 7:
 		/* Method length is 7, only valid methods are "OPTIONS" and "CONNECT" */
@@ -1861,6 +1908,36 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 		    default:
 			break;
 		}
+		break;
+	    case 8:
+		/* Method length is 8, only valid method 8 bytes in length is PROPFIND */
+
+		/* If the first byte isn't 'P' then it's invalid */
+		if (*method != 'P') {
+		    break;
+		}
+
+		if (method[7] == 'D' && method[6] == 'N' && method[5] == 'I' &&
+			method[4] == 'F' && method[3] == 'P' && method[2] == 'O' &&
+			method[1] == 'R') {
+		    type = EVHTTP_REQ_PROPFIND;
+		}
+
+		break;
+	    case 9:
+		/* Method length is 9, only valid method 9 bytes in length is PROPPATCH */
+
+		/* If the first byte isn't 'P' then it's invalid */
+		if (*method != 'P') {
+		    break;
+		}
+
+		if (method[8] == 'H' && method[7] == 'C' && method[6] == 'T' &&
+			method[5] == 'A' && method[4] == 'P' && method[3] == 'P' &&
+			method[2] == 'O' && method[1] == 'R') {
+		    type = EVHTTP_REQ_PROPPATCH;
+		}
+
 		break;
 	} /* switch */
 
@@ -2208,6 +2285,13 @@ evhttp_method_may_have_body(enum evhttp_cmd_type type)
 	case EVHTTP_REQ_POST:
 	case EVHTTP_REQ_PUT:
 	case EVHTTP_REQ_PATCH:
+	case EVHTTP_REQ_PROPFIND:
+	case EVHTTP_REQ_PROPPATCH:
+	case EVHTTP_REQ_MKCOL:
+	case EVHTTP_REQ_LOCK:
+	case EVHTTP_REQ_UNLOCK:
+	case EVHTTP_REQ_COPY:
+	case EVHTTP_REQ_MOVE:
 
 	case EVHTTP_REQ_GET:
 	case EVHTTP_REQ_DELETE:
