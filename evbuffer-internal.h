@@ -100,6 +100,8 @@ struct evbuffer {
 
 	/** Total amount of bytes stored in all chains.*/
 	size_t total_len;
+	/** Maximum bytes per one read */
+	size_t max_read;
 
 	/** Number of bytes we have added to the buffer since we last tried to
 	 * invoke callbacks. */

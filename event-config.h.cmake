@@ -253,6 +253,9 @@
 /* Define to 1 if you have the `signal' function. */
 #cmakedefine EVENT__HAVE_SIGNAL 1
 
+/* Define to 1 if you have the `strsignal' function. */
+#cmakedefine EVENT__HAVE_STRSIGNAL 1
+
 /* Define to 1 if you have the `splice' function. */
 #cmakedefine EVENT__HAVE_SPLICE 1
 

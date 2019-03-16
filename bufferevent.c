@@ -315,14 +315,12 @@ bufferevent_init_common_(struct bufferevent_private *bufev_private,
 
 	if (!bufev->input) {
 		if ((bufev->input = evbuffer_new()) == NULL)
-			return -1;
+			goto err;
 	}
 
 	if (!bufev->output) {
-		if ((bufev->output = evbuffer_new()) == NULL) {
-			evbuffer_free(bufev->input);
-			return -1;
-		}
+		if ((bufev->output = evbuffer_new()) == NULL)
+			goto err;
 	}
 
 	bufev_private->refcnt = 1;
@@ -334,7 +332,8 @@ bufferevent_init_common_(struct bufferevent_private *bufev_private,
 
 	bufev->be_ops = ops;
 
-	bufferevent_ratelim_init_(bufev_private);
+	if (bufferevent_ratelim_init_(bufev_private))
+		goto err;
 
 	/*
 	 * Set to EV_WRITE so that using bufferevent_write is going to
@@ -345,20 +344,14 @@ bufferevent_init_common_(struct bufferevent_private *bufev_private,
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 	if (options & BEV_OPT_THREADSAFE) {
-		if (bufferevent_enable_locking_(bufev, NULL) < 0) {
-			/* cleanup */
-			evbuffer_free(bufev->input);
-			evbuffer_free(bufev->output);
-			bufev->input = NULL;
-			bufev->output = NULL;
-			return -1;
-		}
+		if (bufferevent_enable_locking_(bufev, NULL) < 0)
+			goto err;
 	}
 #endif
 	if ((options & (BEV_OPT_DEFER_CALLBACKS|BEV_OPT_UNLOCK_CALLBACKS))
 	    == BEV_OPT_UNLOCK_CALLBACKS) {
 		event_warnx("UNLOCK_CALLBACKS requires DEFER_CALLBACKS");
-		return -1;
+		goto err;
 	}
 	if (options & BEV_OPT_UNLOCK_CALLBACKS)
 		event_deferred_cb_init_(
@@ -379,6 +372,17 @@ bufferevent_init_common_(struct bufferevent_private *bufev_private,
 	evbuffer_set_parent_(bufev->output, bufev);
 
 	return 0;
+
+err:
+	if (bufev->input) {
+		evbuffer_free(bufev->input);
+		bufev->input = NULL;
+	}
+	if (bufev->output) {
+		evbuffer_free(bufev->output);
+		bufev->output = NULL;
+	}
+	return -1;
 }
 
 void

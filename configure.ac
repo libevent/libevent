@@ -380,6 +380,7 @@ AC_CHECK_FUNCS([ \
   setrlimit \
   sigaction \
   signal \
+  strsignal \
   splice \
   strlcpy \
   strsep \

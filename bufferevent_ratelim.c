@@ -855,14 +855,16 @@ int
 bufferevent_set_max_single_read(struct bufferevent *bev, size_t size)
 {
 	struct bufferevent_private *bevp;
+	int ret = 0;
 	BEV_LOCK(bev);
 	bevp = BEV_UPCAST(bev);
 	if (size == 0 || size > EV_SSIZE_MAX)
 		bevp->max_single_read = MAX_SINGLE_READ_DEFAULT;
 	else
 		bevp->max_single_read = size;
+	ret = evbuffer_set_max_read(bev->input, bevp->max_single_read);
 	BEV_UNLOCK(bev);
-	return 0;
+	return ret;
 }
 
 int
@@ -1084,6 +1086,9 @@ bufferevent_ratelim_init_(struct bufferevent_private *bev)
 	bev->rate_limiting = NULL;
 	bev->max_single_read = MAX_SINGLE_READ_DEFAULT;
 	bev->max_single_write = MAX_SINGLE_WRITE_DEFAULT;
+
+	if (evbuffer_set_max_read(bev->bev.input, bev->max_single_read))
+		return -1;
 
 	return 0;
 }
