@@ -140,6 +140,8 @@
 	(ptr)->internal_.pos_in_chain = 0;	\
 } while (0)
 
+#define EVBUFFER_MAX_READ_DEFAULT	4096
+
 static void evbuffer_chain_align(struct evbuffer_chain *chain);
 static int evbuffer_chain_should_realign(struct evbuffer_chain *chain,
     size_t datalen);
@@ -370,6 +372,7 @@ evbuffer_new(void)
 	LIST_INIT(&buffer->callbacks);
 	buffer->refcnt = 1;
 	buffer->last_with_datap = &buffer->first;
+	buffer->max_read = EVBUFFER_MAX_READ_DEFAULT;
 
 	return (buffer);
 }
@@ -591,6 +594,26 @@ evbuffer_free(struct evbuffer *buffer)
 	evbuffer_decref_and_unlock_(buffer);
 }
 
+int evbuffer_set_max_read(struct evbuffer *buf, size_t max)
+{
+	if (max > INT_MAX) {
+		return -1;
+	}
+
+	EVBUFFER_LOCK(buf);
+	buf->max_read = max;
+	EVBUFFER_UNLOCK(buf);
+	return 0;
+}
+size_t evbuffer_get_max_read(struct evbuffer *buf)
+{
+	size_t result;
+	EVBUFFER_LOCK(buf);
+	result = buf->max_read;
+	EVBUFFER_UNLOCK(buf);
+	return result;
+}
+
 void
 evbuffer_lock(struct evbuffer *buf)
 {
@@ -607,13 +630,9 @@ size_t
 evbuffer_get_length(const struct evbuffer *buffer)
 {
 	size_t result;
-
 	EVBUFFER_LOCK(buffer);
-
-	result = (buffer->total_len);
-
+	result = buffer->total_len;
 	EVBUFFER_UNLOCK(buffer);
-
 	return result;
 }
 
@@ -2204,8 +2223,6 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
 #endif
 #define NUM_READ_IOVEC 4
 
-#define EVBUFFER_MAX_READ	4096
-
 /** Helper function to figure out which space to use for reading data into
     an evbuffer.  Internal use only.
 
@@ -2261,18 +2278,18 @@ static int
 get_n_bytes_readable_on_socket(evutil_socket_t fd)
 {
 #if defined(FIONREAD) && defined(_WIN32)
-	unsigned long lng = EVBUFFER_MAX_READ;
+	unsigned long lng = EVBUFFER_MAX_READ_DEFAULT;
 	if (ioctlsocket(fd, FIONREAD, &lng) < 0)
 		return -1;
 	/* Can overflow, but mostly harmlessly. XXXX */
 	return (int)lng;
 #elif defined(FIONREAD)
-	int n = EVBUFFER_MAX_READ;
+	int n = EVBUFFER_MAX_READ_DEFAULT;
 	if (ioctl(fd, FIONREAD, &n) < 0)
 		return -1;
 	return n;
 #else
-	return EVBUFFER_MAX_READ;
+	return EVBUFFER_MAX_READ_DEFAULT;
 #endif
 }
 
@@ -2300,8 +2317,8 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 	}
 
 	n = get_n_bytes_readable_on_socket(fd);
-	if (n <= 0 || n > EVBUFFER_MAX_READ)
-		n = EVBUFFER_MAX_READ;
+	if (n <= 0 || n > (int)buf->max_read)
+		n = (int)buf->max_read;
 	if (howmuch < 0 || howmuch > n)
 		howmuch = n;
 
