@@ -85,7 +85,9 @@
 #ifndef _WIN32
 /* Windows wants us to call our signal handlers as __cdecl.  Nobody else
  * expects you to do anything crazy like this. */
+#ifndef __cdecl
 #define __cdecl
+#endif
 #endif
 
 static int evsig_add(struct event_base *, evutil_socket_t, short, short, void *);
