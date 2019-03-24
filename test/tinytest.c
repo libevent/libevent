@@ -339,7 +339,7 @@ tinytest_set_flag_(struct testgroup_t *groups, const char *arg, int set, unsigne
 static void
 usage(struct testgroup_t *groups, int list_groups)
 {
-	puts("Options are: [--verbose|--quiet|--terse] [--no-fork]");
+	puts("Options are: [--verbose|--quiet|--terse] [--no-fork] [--timeout <sec>]");
 	puts("  Specify tests by name, or using a prefix ending with '..'");
 	puts("  To skip a test, prefix its name with a colon.");
 	puts("  To enable a disabled test, prefix its name with a plus.");
@@ -437,7 +437,8 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 			} else if (!strcmp(v[i], "--list-tests")) {
 				usage(groups, 1);
 			} else if (!strcmp(v[i], "--timeout")) {
-				if (i < c) {
+				++i;
+				if (i >= c) {
 					fprintf(stderr, "--timeout requires argument\n");
 					return -1;
 				}
