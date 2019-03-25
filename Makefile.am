@@ -136,7 +136,6 @@ EXTRA_DIST = \
 	ChangeLog-2.0 \
 	Doxyfile \
 	LICENSE \
-	Makefile.nmake test/Makefile.nmake \
 	autogen.sh \
 	event_rpcgen.py \
 	libevent.pc.in \
@@ -179,7 +178,7 @@ if BUILD_WIN32
 SYS_LIBS = -lws2_32 -lshell32 -ladvapi32
 SYS_SRC = win32select.c buffer_iocp.c event_iocp.c \
 	bufferevent_async.c
-SYS_INCLUDES = -IWIN32-Code -IWIN32-Code/nmake
+SYS_INCLUDES = -IWIN32-Code
 
 if THREADS
 SYS_SRC += evthread_win32.c
@@ -288,8 +287,6 @@ libevent_openssl_la_CPPFLAGS = $(AM_CPPFLAGS) $(OPENSSL_INCS)
 endif
 
 noinst_HEADERS +=				\
-	WIN32-Code/nmake/evconfig-private.h	\
-	WIN32-Code/nmake/event2/event-config.h	\
 	WIN32-Code/tree.h			\
 	bufferevent-internal.h			\
 	changelist-internal.h			\
