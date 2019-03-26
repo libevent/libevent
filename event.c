@@ -59,6 +59,7 @@
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/event_compat.h"
+#include "event2/watch.h"
 #include "event-internal.h"
 #include "defer-internal.h"
 #include "evthread-internal.h"
@@ -737,6 +738,10 @@ event_base_new_with_config(const struct event_config *cfg)
 		event_base_start_iocp_(base, cfg->n_cpus_hint);
 #endif
 
+	/* initialize watcher lists */
+	for (i = 0; i < EVWATCH_MAX; ++i)
+		TAILQ_INIT(&base->watchers[i]);
+
 	return (base);
 }
 
@@ -839,6 +844,7 @@ event_base_free_(struct event_base *base, int run_finalizers)
 {
 	int i, n_deleted=0;
 	struct event *ev;
+	struct evwatch *watcher;
 	/* XXXX grab the lock? If there is contention when one thread frees
 	 * the base, then the contending thread will be very sad soon. */
 
@@ -938,6 +944,15 @@ event_base_free_(struct event_base *base, int run_finalizers)
 
 	EVTHREAD_FREE_LOCK(base->th_base_lock, 0);
 	EVTHREAD_FREE_COND(base->current_event_cond);
+
+	/* Free all event watchers */
+	for (i = 0; i < EVWATCH_MAX; ++i) {
+		while (!TAILQ_EMPTY(&base->watchers[i])) {
+			watcher = TAILQ_FIRST(&base->watchers[i]);
+			TAILQ_REMOVE(&base->watchers[i], watcher, next);
+			mm_free(watcher);
+		}
+	}
 
 	/* If we're freeing current_base, there won't be a current_base. */
 	if (base == current_base)
@@ -1926,9 +1941,12 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval tv;
 	struct timeval *tv_p;
 	int res, done, retval = 0;
+	struct evwatch_prepare_cb_info prepare_info;
+	struct evwatch_check_cb_info check_info;
+	struct evwatch *watcher;
 
 	/* Grab the lock.  We will release it inside evsel.dispatch, and again
-	 * as we invoke user callbacks. */
+	 * as we invoke watchers and user callbacks. */
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 	if (base->running_loop) {
@@ -1987,6 +2005,13 @@ event_base_loop(struct event_base *base, int flags)
 
 		event_queue_make_later_events_active(base);
 
+		/* Invoke prepare watchers before polling for events */
+		EVBASE_RELEASE_LOCK(base, th_base_lock);
+		prepare_info.timeout = tv_p;
+		TAILQ_FOREACH(watcher, &base->watchers[EVWATCH_PREPARE], next)
+			(*watcher->callback.prepare)(watcher, &prepare_info, watcher->arg);
+		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+
 		clear_time_cache(base);
 
 		res = evsel->dispatch(base, tv_p);
@@ -1999,6 +2024,13 @@ event_base_loop(struct event_base *base, int flags)
 		}
 
 		update_time_cache(base);
+
+		/* Invoke check watchers after polling for events, and before
+		 * processing them */
+		EVBASE_RELEASE_LOCK(base, th_base_lock);
+		TAILQ_FOREACH(watcher, &base->watchers[EVWATCH_CHECK], next)
+			(*watcher->callback.check)(watcher, &check_info, watcher->arg);
+		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
 		timeout_process(base);
 

@@ -737,6 +737,7 @@ set(HDR_PUBLIC
     include/event2/event.h
     include/event2/event_compat.h
     include/event2/event_struct.h
+    include/event2/watch.h
     include/event2/http.h
     include/event2/http_compat.h
     include/event2/http_struct.h
@@ -765,6 +766,7 @@ set(SRC_CORE
     evutil.c
     evutil_rand.c
     evutil_time.c
+    watch.c
     listener.c
     log.c
     signal.c
@@ -953,11 +955,15 @@ if (NOT EVENT__DISABLE_SAMPLES)
         hello-world
         signal-test
         http-connect
-        time-test)
+        time-test
+        watch-timing)
 
     foreach(SAMPLE ${SAMPLES})
         add_sample_prog(OFF ${SAMPLE} sample/${SAMPLE}.c)
     endforeach()
+    if (NOT WIN32)
+        target_link_libraries(watch-timing m)
+    endif()
 
     if (NOT EVENT__DISABLE_OPENSSL)
         add_sample_prog(ON https-client
@@ -1061,6 +1067,7 @@ if (NOT EVENT__DISABLE_TESTS)
                  test/regress_testutils.c
                  test/regress_testutils.h
                  test/regress_util.c
+                 test/regress_watch.c
                  test/tinytest.c)
 
             if (WIN32)

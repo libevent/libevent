@@ -237,6 +237,7 @@ CORE_SRC =					\
 	evutil.c				\
 	evutil_rand.c				\
 	evutil_time.c				\
+	watch.c					\
 	listener.c				\
 	log.c					\
 	$(SYS_SRC)

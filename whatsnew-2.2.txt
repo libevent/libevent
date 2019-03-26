@@ -48,3 +48,23 @@ AC_CONFIG_SUBDIRS([libevent])
 ...
 
 The space after the initial '"' is significant.
+
+* "Prepare" and "check" watchers
+
+Libevent now has a new mechanism for hooking into the event loop: "prepare" and
+"check" watchers.  A "prepare" watcher is a callback that fires immediately
+before polling for I/O. A "check" watcher is a callback that fires immediately
+after polling and before processing any active events. This may be useful for
+embedding other libraries' event loops (e.g. UI toolkits) into libevent's. It's
+also useful for monitoring server performance. For example, if you measure the
+time between "prepare" and "check," that is the polling duration; the difference
+between the expected and actual polling duration provides an indication of
+kernel scheduling delay. And if you measure the time between "check" and the
+next "prepare" (in the next iteration of the event loop), that is a good
+approximation of the amount of time handling events; this provides a convenient
+way to monitor whether any event handlers are blocking or otherwise performing
+heavy computation.
+
+The watcher API is defined in <event2/watch.h>. A concrete example of how
+watchers can help monitor server performance is available in
+"sample/watch-timing.c".

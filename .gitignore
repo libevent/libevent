@@ -94,6 +94,7 @@ cscope*
 /sample/signal-test
 /sample/time-test
 /sample/event-test
+/sample/watch-timing
 
 /test-driver
 /test/bench

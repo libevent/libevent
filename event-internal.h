@@ -32,6 +32,7 @@ extern "C" {
 #endif
 
 #include "event2/event-config.h"
+#include "event2/watch.h"
 #include "evconfig-private.h"
 
 #include <time.h>
@@ -205,6 +206,52 @@ struct event_once {
 	void *arg;
 };
 
+/** Contextual information passed from event_base_loop to the "prepare" watcher
+ * callbacks. We define this as a struct rather than individual parameters to
+ * the callback function for the sake of future extensibility. */
+struct evwatch_prepare_cb_info {
+	/** The timeout duration passed to the underlying implementation's `dispatch`.
+	 * See evwatch_prepare_get_timeout. */
+	const struct timeval *timeout;
+};
+
+/** Contextual information passed from event_base_loop to the "check" watcher
+ * callbacks. We define this as a struct rather than individual parameters to
+ * the callback function for the sake of future extensibility. */
+struct evwatch_check_cb_info {
+	/** Placeholder, since empty struct is not allowed by some compilers. */
+	void *unused;
+};
+
+/** Watcher types (prepare and check, perhaps others in the future). */
+#define EVWATCH_PREPARE 0
+#define EVWATCH_CHECK   1
+#define EVWATCH_MAX     2
+
+/** Handle to a "prepare" or "check" callback, registered in event_base. */
+union evwatch_cb {
+	evwatch_prepare_cb prepare;
+	evwatch_check_cb check;
+};
+struct evwatch {
+	/** Tail queue pointers, called "next" by convention in libevent.
+	 * See <sys/queue.h> */
+	TAILQ_ENTRY(evwatch) next;
+
+	/** Pointer to owning event loop */
+	struct event_base *base;
+
+	/** Watcher type (see above) */
+	unsigned type;
+
+	/** Callback function */
+	union evwatch_cb callback;
+
+	/** User-defined argument for callback function */
+	void *arg;
+};
+TAILQ_HEAD(evwatch_list, evwatch);
+
 struct event_base {
 	/** Function pointers and other data to describe this event_base's
 	 * backend. */
@@ -346,6 +393,8 @@ struct event_base {
 	/** List of event_onces that have not yet fired. */
 	LIST_HEAD(once_event_list, event_once) once_events;
 
+	/** "Prepare" and "check" watchers. */
+	struct evwatch_list watchers[EVWATCH_MAX];
 };
 
 struct event_config_entry {

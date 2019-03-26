@@ -120,6 +120,7 @@ test_regress_SOURCES = 				\
 	test/regress_testutils.c			\
 	test/regress_testutils.h			\
 	test/regress_util.c				\
+	test/regress_watch.c				\
 	test/tinytest.c				\
 	$(regress_thread_SOURCES)		\
 	$(regress_zlib_SOURCES)

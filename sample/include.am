@@ -11,7 +11,8 @@ SAMPLES = \
 	sample/http-server				\
 	sample/http-connect				\
 	sample/signal-test				\
-	sample/time-test
+	sample/time-test				\
+	sample/watch-timing
 
 if OPENSSL
 SAMPLES += sample/le-proxy
@@ -56,3 +57,5 @@ sample_http_server_SOURCES = sample/http-server.c
 sample_http_server_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
 sample_http_connect_SOURCES = sample/http-connect.c
 sample_http_connect_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
+sample_watch_timing_SOURCES = sample/watch-timing.c
+sample_watch_timing_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la -lm
