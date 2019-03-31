@@ -209,6 +209,9 @@ extern "C" {
     DNS_OPTION_HOSTSFILE   | \
     0                        \
 )
+/* Do not "default" nameserver (i.e. "127.0.0.1:53") if there is no nameservers
+ * in resolv.conf, (iff DNS_OPTION_NAMESERVERS is set) */
+#define DNS_OPTION_NAMESERVERS_NO_DEFAULT 16
 
 /* Obsolete name for DNS_QUERY_NO_SEARCH */
 #define DNS_NO_SEARCH DNS_QUERY_NO_SEARCH
@@ -233,6 +236,10 @@ struct event_base;
 /** Flag for evdns_base_new: Do not prevent the libevent event loop from
  * exiting when we have no active dns requests. */
 #define EVDNS_BASE_DISABLE_WHEN_INACTIVE 0x8000
+/** Flag for evdns_base_new: If EVDNS_BASE_INITIALIZE_NAMESERVERS isset, do not
+ * add default nameserver if there are no nameservers in resolv.conf
+ * @see DNS_OPTION_NAMESERVERS_NO_DEFAULT */
+#define EVDNS_BASE_NAMESERVERS_NO_DEFAULT 0x10000
 
 /**
   Initialize the asynchronous DNS library.
@@ -243,7 +250,7 @@ struct event_base;
 
   @param event_base the event base to associate the dns client with
   @param flags any of EVDNS_BASE_INITIALIZE_NAMESERVERS|
-    EVDNS_BASE_DISABLE_WHEN_INACTIVE
+    EVDNS_BASE_DISABLE_WHEN_INACTIVE|EVDNS_BASE_NAMESERVERS_NO_DEFAULT
   @return evdns_base object if successful, or NULL if an error occurred.
   @see evdns_base_free()
  */
@@ -478,7 +485,7 @@ int evdns_base_set_option(struct evdns_base *base, const char *option, const cha
 
   @param base the evdns_base to which to apply this operation
   @param flags any of DNS_OPTION_NAMESERVERS|DNS_OPTION_SEARCH|DNS_OPTION_MISC|
-    DNS_OPTION_HOSTSFILE|DNS_OPTIONS_ALL
+    DNS_OPTION_HOSTSFILE|DNS_OPTIONS_ALL|DNS_OPTION_NAMESERVERS_NO_DEFAULT
   @param filename the path to the resolv.conf file
   @return 0 if successful, or various positive error codes if an error
     occurred (see above)

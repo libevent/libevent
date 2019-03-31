@@ -3327,10 +3327,16 @@ search_request_finished(struct evdns_request *const handle) {
 
 static void
 evdns_resolv_set_defaults(struct evdns_base *base, int flags) {
+	int add_default = flags & DNS_OPTION_NAMESERVERS;
+	if (flags & DNS_OPTION_NAMESERVERS_NO_DEFAULT)
+		add_default = 0;
+
 	/* if the file isn't found then we assume a local resolver */
 	ASSERT_LOCKED(base);
-	if (flags & DNS_OPTION_SEARCH) search_set_from_hostname(base);
-	if (flags & DNS_OPTION_NAMESERVERS) evdns_base_nameserver_ip_add(base,"127.0.0.1");
+	if (flags & DNS_OPTION_SEARCH)
+		search_set_from_hostname(base);
+	if (add_default)
+		evdns_base_nameserver_ip_add(base, "127.0.0.1");
 }
 
 #ifndef EVENT__HAVE_STRTOK_R
@@ -3626,8 +3632,13 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 	char *resolv;
 	char *start;
 	int err = 0;
+	int add_default;
 
 	log(EVDNS_LOG_DEBUG, "Parsing resolv.conf file %s", filename);
+
+	add_default = flags & DNS_OPTION_NAMESERVERS;
+	if (flags & DNS_OPTION_NAMESERVERS_NO_DEFAULT)
+		add_default = 0;
 
 	if (flags & DNS_OPTION_HOSTSFILE) {
 		char *fname = evdns_get_default_hosts_filename();
@@ -3664,7 +3675,7 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 		}
 	}
 
-	if (!base->server_head && (flags & DNS_OPTION_NAMESERVERS)) {
+	if (!base->server_head && add_default) {
 		/* no nameservers were configured. */
 		evdns_base_nameserver_ip_add(base, "127.0.0.1");
 		err = 6;
@@ -3965,7 +3976,12 @@ evdns_base_new(struct event_base *event_base, int flags)
 
 	TAILQ_INIT(&base->hostsdb);
 
-#define EVDNS_BASE_ALL_FLAGS (0x8001)
+#define EVDNS_BASE_ALL_FLAGS ( \
+	EVDNS_BASE_INITIALIZE_NAMESERVERS | \
+	EVDNS_BASE_DISABLE_WHEN_INACTIVE  | \
+	EVDNS_BASE_NAMESERVERS_NO_DEFAULT | \
+	0)
+
 	if (flags & ~EVDNS_BASE_ALL_FLAGS) {
 		flags = EVDNS_BASE_INITIALIZE_NAMESERVERS;
 		log(EVDNS_LOG_WARN,
@@ -3976,10 +3992,15 @@ evdns_base_new(struct event_base *event_base, int flags)
 
 	if (flags & EVDNS_BASE_INITIALIZE_NAMESERVERS) {
 		int r;
+		int opts = DNS_OPTIONS_ALL;
+		if (flags & EVDNS_BASE_NAMESERVERS_NO_DEFAULT) {
+			opts |= DNS_OPTION_NAMESERVERS_NO_DEFAULT;
+		}
+
 #ifdef _WIN32
 		r = evdns_base_config_windows_nameservers(base);
 #else
-		r = evdns_base_resolv_conf_parse(base, DNS_OPTIONS_ALL, "/etc/resolv.conf");
+		r = evdns_base_resolv_conf_parse(base, opts, "/etc/resolv.conf");
 #endif
 		if (r == -1) {
 			evdns_base_free_and_unlock(base, 0);
