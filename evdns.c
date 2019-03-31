@@ -1299,14 +1299,12 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port, struct soc
 
 	return 0;
 err:
-	if (server_req) {
-		if (server_req->base.questions) {
-			for (i = 0; i < server_req->base.nquestions; ++i)
-				mm_free(server_req->base.questions[i]);
-			mm_free(server_req->base.questions);
-		}
-		mm_free(server_req);
+	if (server_req->base.questions) {
+		for (i = 0; i < server_req->base.nquestions; ++i)
+			mm_free(server_req->base.questions[i]);
+		mm_free(server_req->base.questions);
 	}
+	mm_free(server_req);
 	return -1;
 
 #undef SKIP_NAME
