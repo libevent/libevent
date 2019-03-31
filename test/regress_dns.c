@@ -204,7 +204,7 @@ dns_resolve_reverse(void *ptr)
 {
 	struct in_addr in;
 	struct event_base *base = event_base_new();
-	struct evdns_base *dns = evdns_base_new(base, 1/* init name servers */);
+	struct evdns_base *dns = evdns_base_new(base, EVDNS_BASE_INITIALIZE_NAMESERVERS);
 	struct evdns_request *req = NULL;
 
 	tt_assert(base);
@@ -1003,6 +1003,59 @@ end:
 	if (inactive_base)
 		event_base_free(inactive_base);
 }
+
+static void
+dns_initialize_nameservers_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
+	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, -1);
+	evdns_base_free(dns, 0);
+
+	dns = evdns_base_new(base, EVDNS_BASE_INITIALIZE_NAMESERVERS);
+	tt_assert(dns);
+	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, sizeof(struct sockaddr));
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+}
+#ifndef _WIN32
+#define RESOLV_FILE "empty-resolv.conf"
+static void
+dns_nameservers_no_default_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+	int ok = access(RESOLV_FILE, R_OK);
+
+	tt_assert(ok);
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
+	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, -1);
+
+	/* We cannot test
+	 * EVDNS_BASE_INITIALIZE_NAMESERVERS|EVDNS_BASE_NAMESERVERS_NO_DEFAULT
+	 * because we cannot mock "/etc/resolv.conf" (yet). */
+
+	evdns_base_resolv_conf_parse(dns,
+		DNS_OPTIONS_ALL|DNS_OPTION_NAMESERVERS_NO_DEFAULT, RESOLV_FILE);
+	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, -1);
+
+	evdns_base_resolv_conf_parse(dns, DNS_OPTIONS_ALL, RESOLV_FILE);
+	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, sizeof(struct sockaddr));
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+}
+#endif
 
 /* === Test for bufferevent_socket_connect_hostname */
 
@@ -2331,6 +2384,13 @@ struct testcase_t dns_testcases[] = {
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "disable_when_inactive_no_ns", dns_disable_when_inactive_no_ns_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+
+	{ "initialize_nameservers", dns_initialize_nameservers_test,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+#ifndef _WIN32
+	{ "nameservers_no_default", dns_nameservers_no_default_test,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+#endif
 
 	{ "getaddrinfo_async", test_getaddrinfo_async,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, (char*)"" },
