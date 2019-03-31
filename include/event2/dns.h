@@ -179,11 +179,36 @@ extern "C" {
 
 #define DNS_QUERY_NO_SEARCH 1
 
+/* Allow searching */
 #define DNS_OPTION_SEARCH 1
+/* Parse "nameserver" and add default if no such section */
 #define DNS_OPTION_NAMESERVERS 2
+/* Parse additional options like:
+ * - timeout:
+ * - getaddrinfo-allow-skew:
+ * - max-timeouts:
+ * - max-inflight:
+ * - attempts:
+ * - randomize-case:
+ * - initial-probe-timeout:
+ */
 #define DNS_OPTION_MISC 4
+/* Load hosts file (i.e. "/etc/hosts") */
 #define DNS_OPTION_HOSTSFILE 8
-#define DNS_OPTIONS_ALL 15
+/**
+ * All above:
+ * - DNS_OPTION_SEARCH
+ * - DNS_OPTION_NAMESERVERS
+ * - DNS_OPTION_MISC
+ * - DNS_OPTION_HOSTSFILE
+ */
+#define DNS_OPTIONS_ALL (    \
+    DNS_OPTION_SEARCH      | \
+    DNS_OPTION_NAMESERVERS | \
+    DNS_OPTION_MISC        | \
+    DNS_OPTION_HOSTSFILE   | \
+    0                        \
+)
 
 /* Obsolete name for DNS_QUERY_NO_SEARCH */
 #define DNS_NO_SEARCH DNS_QUERY_NO_SEARCH
