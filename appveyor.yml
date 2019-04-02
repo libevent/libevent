@@ -81,18 +81,25 @@ build_script:
         $env:CFLAGS="-I$($env:OPENSSL_ROOT)/include"
 
         bash ./autogen.sh 2>&1 3>&1
+        if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
 
         md build-autotools 2> $null
         cd build-autotools
+        if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
 
         bash ../configure $env:EVENT_CONFIGURE_OPTIONS 2>&1
+        if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
         make -j $env:EVENT_BUILD_PARALLEL 2>&1
+        if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
         make verify -j $env:EVENT_TESTS_PARALLEL 2>&1
       } else {
         md build-cmake 2> $null
         cd build-cmake
+        if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
         cmake -G "Visual Studio 15 2017 Win64" .. $env:EVENT_CMAKE_OPTIONS
+        if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
         cmake --build . -j $env:EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
+        if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
         ctest --output-on-failure -j $env:EVENT_TESTS_PARALLEL
       }
 
