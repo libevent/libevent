@@ -163,7 +163,7 @@ struct evhttp {
 
 	/* Bitmask of all HTTP methods that we accept and pass to user
 	 * callbacks. */
-	ev_uint16_t allowed_methods;
+	ev_uint32_t allowed_methods;
 
 	/* Fallback callback if all the other callbacks for this connection
 	   don't match. */

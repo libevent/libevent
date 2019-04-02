@@ -246,7 +246,7 @@ void evhttp_set_default_content_type(struct evhttp *http,
   @param methods bit mask constructed from evhttp_cmd_type values
 */
 EVENT2_EXPORT_SYMBOL
-void evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods);
+void evhttp_set_allowed_methods(struct evhttp* http, ev_uint32_t methods);
 
 /**
    Set a callback for a specified URI
