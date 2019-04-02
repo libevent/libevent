@@ -4036,7 +4036,7 @@ evhttp_set_default_content_type(struct evhttp *http,
 }
 
 void
-evhttp_set_allowed_methods(struct evhttp* http, ev_uint16_t methods)
+evhttp_set_allowed_methods(struct evhttp* http, ev_uint32_t methods)
 {
 	http->allowed_methods = methods;
 }

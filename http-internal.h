@@ -32,7 +32,7 @@ struct addrinfo;
 struct evhttp_request;
 
 /* Indicates an unknown request method. */
-#define EVHTTP_REQ_UNKNOWN_ (1<<15)
+#define EVHTTP_REQ_UNKNOWN_ (1<<31)
 
 enum evhttp_connection_state {
 	EVCON_DISCONNECTED,	/**< not currently connected not trying either*/
@@ -166,7 +166,7 @@ struct evhttp {
 
 	/* Bitmask of all HTTP methods that we accept and pass to user
 	 * callbacks. */
-	ev_uint16_t allowed_methods;
+	ev_uint32_t allowed_methods;
 
 	/* Fallback callback if all the other callbacks for this connection
 	   don't match. */
