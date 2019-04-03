@@ -1338,7 +1338,7 @@ struct testcase_t bufferevent_testcases[] = {
 	LEGACY(bufferevent_pair_flush_finished, TT_ISOLATED),
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 	{ "bufferevent_pair_release_lock", test_bufferevent_pair_release_lock,
-	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY,
+	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY|TT_NO_LOGS,
 	  &basic_setup, NULL },
 #endif
 	LEGACY(bufferevent_watermarks, TT_ISOLATED),
