@@ -19,9 +19,6 @@
 #define HTTP_READ_TIMEOUT	50
 #define HTTP_INITIAL_RETRY_TIMEOUT	2
 
-#define HTTP_PREFIX		"http://"
-#define HTTP_DEFAULTPORT	80
-
 enum message_read_status {
 	ALL_DATA_READ = 1,
 	MORE_DATA_EXPECTED = 0,
@@ -215,4 +212,4 @@ EVENT2_EXPORT_SYMBOL
 int evhttp_decode_uri_internal(const char *uri, size_t length,
     char *ret, int decode_plus);
 
-#endif /* _HTTP_H */
+#endif /* HTTP_INTERNAL_H_INCLUDED_ */
