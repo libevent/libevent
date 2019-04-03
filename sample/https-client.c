@@ -45,7 +45,6 @@
 
 #include "openssl_hostname_validation.h"
 
-static struct event_base *base;
 static int ignore_cert = 0;
 
 static void
@@ -188,7 +187,7 @@ int
 main(int argc, char **argv)
 {
 	int r;
-
+	struct event_base *base = NULL;
 	struct evhttp_uri *http_uri = NULL;
 	const char *url = NULL, *data_file = NULL;
 	const char *crt = NULL;
@@ -483,7 +482,8 @@ cleanup:
 		evhttp_connection_free(evcon);
 	if (http_uri)
 		evhttp_uri_free(http_uri);
-	event_base_free(base);
+	if (base)
+		event_base_free(base);
 
 	if (ssl_ctx)
 		SSL_CTX_free(ssl_ctx);
