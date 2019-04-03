@@ -314,7 +314,7 @@ struct testcase_t listener_testcases[] = {
 
 #ifdef EVENT__HAVE_SETRLIMIT
 	{ "error_unlock", regress_listener_error_unlock,
-	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR,
+	  TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR|TT_NO_LOGS,
 	  &basic_setup, NULL},
 #endif
 
