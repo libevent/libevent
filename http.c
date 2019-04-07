@@ -4101,7 +4101,7 @@ evhttp_set_ext_method_cmp(struct evhttp *http,
 
 int
 evhttp_set_cb(struct evhttp *http, const char *uri,
-    void (*cb)(struct evhttp_request *, void *), void *cbarg)
+    evhttp_cb *cb, void *cbarg)
 {
 	struct evhttp_cb *http_cb;
 

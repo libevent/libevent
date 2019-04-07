@@ -270,6 +270,7 @@ EVENT2_EXPORT_SYMBOL
 void evhttp_set_ext_method_cmp(struct evhttp *http,
 	evhttp_ext_method_cb *cmp);
 
+typedef void evhttp_cb(struct evhttp_request *, void *);
 /**
    Set a callback for a specified URI
 
@@ -281,7 +282,7 @@ void evhttp_set_ext_method_cmp(struct evhttp *http,
 */
 EVENT2_EXPORT_SYMBOL
 int evhttp_set_cb(struct evhttp *http, const char *path,
-    void (*cb)(struct evhttp_request *, void *), void *cb_arg);
+    evhttp_cb *cb, void *cb_arg);
 
 /** Removes the callback for a specified URI */
 EVENT2_EXPORT_SYMBOL

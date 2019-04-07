@@ -118,7 +118,7 @@ struct evhttp_cb {
 
 	char *what;
 
-	void (*cb)(struct evhttp_request *req, void *);
+	evhttp_cb *cb;
 	void *cbarg;
 };
 
