@@ -1756,7 +1756,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 	const char *hostname;
 	const char *scheme;
 	size_t method_len;
-	enum evhttp_cmd_type type;
+	enum evhttp_cmd_type type = 0;
 
 	while (eos > line && *(eos-1) == ' ') {
 		*(eos-1) = '\0';
@@ -1778,7 +1778,6 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 	version++;
 
 	method_len = (uri - method) - 1;
-	type       = EVHTTP_REQ_UNKNOWN_;
 
 	/* First line */
 	switch (method_len) {
@@ -1941,13 +1940,13 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 		break;
 	} /* switch */
 
-	if ((int)type == EVHTTP_REQ_UNKNOWN_) {
-	        event_debug(("%s: bad method %s on request %p from %s",
+	if (!type) {
+		event_debug(("%s: bad method %s on request %p from %s",
 			__func__, method, req, req->remote_host));
-                /* No error yet; we'll give a better error later when
-                 * we see that req->type is unsupported. */
+		/* No error yet; we'll give a better error later when we see that
+		 * req->type is unsupported in evhttp_handle_request(). */
 	}
-	    
+
 	req->type = type;
 
 	if (evhttp_parse_http_version(version, req) < 0)
@@ -3602,7 +3601,7 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 
 	bufferevent_disable(req->evcon->bufev, EV_READ);
 
-	if (req->type == 0 || req->uri == NULL) {
+	if (req->uri == NULL) {
 		evhttp_send_error(req, req->response_code, NULL);
 		return;
 	}
