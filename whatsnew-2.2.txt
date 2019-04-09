@@ -1,5 +1,37 @@
 ...
 
+* Support for custom HTTP methods
+
+The Libevent HTTP code now supports defining custom HTTP methods.
+It is done through a callback :
+/* defines an extended HTTP method "CUSTOM"
+ * without body */
+#define EVHTTP_REQ_CUSTOM      ((EVHTTP_REQ_MAX) << 1)
+
+static int ext_method_cb(struct evhttp_ext_method *p)
+{
+       if (p == NULL)
+               return -1;
+       if (p->method) {
+               if(strcmp(p->method, "CUSTOM") == 0) {
+                       p->type = EVHTTP_REQ_CUSTOM;
+                       p->flags = 0;   /*EVHTTP_METHOD_HAS_BODY*/
+                       return 0;
+               }
+       } else {
+               if(p->type == EVHTTP_REQ_CUSTOM) {
+                       p->method = "CUSTOM";
+                       return 0;
+               }
+       }
+       return -1;
+}
+
+evhttp_set_ext_method_cmp(myhttp, ext_method_cb);
+and / or
+evhttp_connection_set_ext_method_cmp(evcon, ext_method_cb);
+
+
 * Building libevent as a sub-project using GNU Auto* tools
 
 Some projects will choose to include libevent in their source distribution,
