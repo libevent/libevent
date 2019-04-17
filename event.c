@@ -2006,11 +2006,12 @@ event_base_loop(struct event_base *base, int flags)
 		event_queue_make_later_events_active(base);
 
 		/* Invoke prepare watchers before polling for events */
-		EVBASE_RELEASE_LOCK(base, th_base_lock);
 		prepare_info.timeout = tv_p;
-		TAILQ_FOREACH(watcher, &base->watchers[EVWATCH_PREPARE], next)
+		TAILQ_FOREACH(watcher, &base->watchers[EVWATCH_PREPARE], next) {
+			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			(*watcher->callback.prepare)(watcher, &prepare_info, watcher->arg);
-		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+			EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+		}
 
 		clear_time_cache(base);
 
@@ -2027,10 +2028,11 @@ event_base_loop(struct event_base *base, int flags)
 
 		/* Invoke check watchers after polling for events, and before
 		 * processing them */
-		EVBASE_RELEASE_LOCK(base, th_base_lock);
-		TAILQ_FOREACH(watcher, &base->watchers[EVWATCH_CHECK], next)
+		TAILQ_FOREACH(watcher, &base->watchers[EVWATCH_CHECK], next) {
+			EVBASE_RELEASE_LOCK(base, th_base_lock);
 			(*watcher->callback.check)(watcher, &check_info, watcher->arg);
-		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+			EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+		}
 
 		timeout_process(base);
 
