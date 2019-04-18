@@ -216,6 +216,13 @@ main(int argc, char **argv)
 	int use_ssl = 0;
 	struct evconnlistener *listener;
 
+#ifdef _WIN32
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	wVersionRequested = MAKEWORD(2, 2);
+	(void) WSAStartup(wVersionRequested, &wsaData);
+#endif
+
 	if (argc < 3)
 		syntax();
 
@@ -289,6 +296,10 @@ main(int argc, char **argv)
 
 	evconnlistener_free(listener);
 	event_base_free(base);
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
 
 	return 0;
 }
