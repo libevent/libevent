@@ -210,6 +210,18 @@ accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
 int
 main(int argc, char **argv)
 {
+
+#ifdef _WIN32
+	WORD wVersionRequested;
+	WSADATA wsaData;
+	int err;
+	wVersionRequested = MAKEWORD( 2, 2 );
+	err = WSAStartup( wVersionRequested, &wsaData );
+	if ( err != 0 ) {
+		fputs("WSAStartup failed! ",stderr);
+		return err;
+    }
+#endif
 	int i;
 	int socklen;
 
@@ -290,5 +302,8 @@ main(int argc, char **argv)
 	evconnlistener_free(listener);
 	event_base_free(base);
 
+#ifdef _WIN32
+	WSACleanup();
+#endif
 	return 0;
 }
