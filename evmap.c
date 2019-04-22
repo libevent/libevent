@@ -43,6 +43,7 @@
 #include <unistd.h>
 #endif
 #include <errno.h>
+#include <limits.h>
 #include <signal.h>
 #include <string.h>
 #include <time.h>
@@ -446,6 +447,9 @@ evmap_signal_add_(struct event_base *base, int sig, struct event *ev)
 	struct event_signal_map *map = &base->sigmap;
 	struct evmap_signal *ctx = NULL;
 
+	if (sig < 0 || sig >= NSIG)
+		return (-1);
+
 	if (sig >= map->nentries) {
 		if (evmap_make_space(
 			map, sig, sizeof(struct evmap_signal *)) == -1)
@@ -472,7 +476,7 @@ evmap_signal_del_(struct event_base *base, int sig, struct event *ev)
 	struct event_signal_map *map = &base->sigmap;
 	struct evmap_signal *ctx;
 
-	if (sig >= map->nentries)
+	if (sig < 0 || sig >= map->nentries)
 		return (-1);
 
 	GET_SIGNAL_SLOT(ctx, map, sig, evmap_signal);
