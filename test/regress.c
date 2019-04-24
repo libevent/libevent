@@ -46,6 +46,7 @@
 #ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <limits.h>
 #include <signal.h>
 #include <unistd.h>
 #include <netdb.h>
@@ -3304,6 +3305,46 @@ tabf_cb(evutil_socket_t fd, short what, void *arg)
 }
 
 static void
+test_evmap_invalid_slots(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct event *ev1 = NULL, *ev2 = NULL;
+	int e1, e2;
+#ifndef _WIN32
+	struct event *ev3 = NULL, *ev4 = NULL;
+	int e3, e4;
+#endif
+
+	ev1 = evsignal_new(base, -1, dummy_read_cb, (void *)base);
+	ev2 = evsignal_new(base, NSIG, dummy_read_cb, (void *)base);
+	tt_assert(ev1);
+	tt_assert(ev2);
+	e1 = event_add(ev1, NULL);
+	e2 = event_add(ev2, NULL);
+	tt_int_op(e1, !=, 0);
+	tt_int_op(e2, !=, 0);
+#ifndef _WIN32
+	ev3 = event_new(base, INT_MAX, EV_READ, dummy_read_cb, (void *)base);
+	ev4 = event_new(base, INT_MAX / 2, EV_READ, dummy_read_cb, (void *)base);
+	tt_assert(ev3);
+	tt_assert(ev4);
+	e3 = event_add(ev3, NULL);
+	e4 = event_add(ev4, NULL);
+	tt_int_op(e3, !=, 0);
+	tt_int_op(e4, !=, 0);
+#endif
+
+end:
+	event_free(ev1);
+	event_free(ev2);
+#ifndef _WIN32
+	event_free(ev3);
+	event_free(ev4);
+#endif
+}
+
+static void
 test_active_by_fd(void *arg)
 {
 	struct basic_test_data *data = arg;
@@ -3402,6 +3443,7 @@ struct testcase_t main_testcases[] = {
 	BASIC(event_assign_selfarg, TT_FORK|TT_NEED_BASE),
 	BASIC(event_base_get_num_events, TT_FORK|TT_NEED_BASE),
 	BASIC(event_base_get_max_events, TT_FORK|TT_NEED_BASE),
+	BASIC(evmap_invalid_slots, TT_FORK|TT_NEED_BASE),
 
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
