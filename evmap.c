@@ -208,8 +208,14 @@ evmap_make_space(struct event_signal_map *map, int slot, int msize)
 		int nentries = map->nentries ? map->nentries : 32;
 		void **tmp;
 
+		if (slot > INT_MAX / 2)
+			return (-1);
+
 		while (nentries <= slot)
 			nentries <<= 1;
+
+		if (nentries > INT_MAX / msize)
+			return (-1);
 
 		tmp = (void **)mm_realloc(map->entries, nentries * msize);
 		if (tmp == NULL)
