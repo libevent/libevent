@@ -343,6 +343,17 @@ done:
 		evbuffer_free(evb);
 }
 
+static void
+print_usage(FILE *out, const char *prog, int exit_code)
+{
+	fprintf(out, "Syntax: [ OPTS ] %s <docroot>\n", prog);
+	fprintf(out, " -p      - port\n");
+	fprintf(out, " -U      - bind to unix socket\n");
+	fprintf(out, " -u      - unlink unix socket before bind\n");
+	fprintf(out, " -I      - IOCP\n");
+	fprintf(out, " -v      - verbosity, enables libevent debug logging too\n");
+	exit(exit_code);
+}
 static struct options
 parse_opts(int argc, char **argv)
 {
@@ -351,20 +362,20 @@ parse_opts(int argc, char **argv)
 
 	memset(&o, 0, sizeof(o));
 
-	while ((opt = getopt(argc, argv, "p:U:uIv")) != -1) {
+	while ((opt = getopt(argc, argv, "hp:U:uIv")) != -1) {
 		switch (opt) {
 			case 'p': o.port = atoi(optarg); break;
 			case 'U': o.unixsock = optarg; break;
 			case 'u': o.unlink = 1; break;
 			case 'I': o.iocp = 1; break;
 			case 'v': ++o.verbose; break;
+			case 'h': print_usage(stdout, argv[0], 0); break;
 			default : fprintf(stderr, "Unknown option %c\n", opt); break;
 		}
 	}
 
 	if (optind >= argc || (argc-optind) > 1) {
-		fprintf(stdout, "Syntax: %s <docroot>\n", argv[0]);
-		exit(1);
+		print_usage(stdout, argv[0], 1);
 	}
 
 	return o;
