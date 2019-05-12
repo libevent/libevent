@@ -230,6 +230,7 @@ AC_CHECK_HEADERS([ \
   netinet/in.h \
   netinet/in6.h \
   netinet/tcp.h \
+  sys/un.h \
   poll.h \
   port.h \
   stdarg.h \
@@ -666,7 +667,7 @@ AC_CHECK_SIZEOF(void *)
 AC_CHECK_SIZEOF(off_t)
 AC_CHECK_SIZEOF(time_t)
 
-AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, sa_family_t, struct addrinfo, struct sockaddr_storage], , ,
+AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, struct sockaddr_un, sa_family_t, struct addrinfo, struct sockaddr_storage], , ,
 [#define _GNU_SOURCE 1
 #include <sys/types.h>
 #ifdef HAVE_NETINET_IN_H
@@ -674,6 +675,9 @@ AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, sa_family_t, struct addrin
 #endif
 #ifdef HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
+#endif
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
 #endif
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
