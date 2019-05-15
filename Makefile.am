@@ -288,12 +288,15 @@ libevent_openssl_la_CPPFLAGS = $(AM_CPPFLAGS) $(OPENSSL_INCS)
 endif
 
 noinst_HEADERS +=				\
+	WIN32-Code/getopt.h			\
+	WIN32-Code/getopt.c			\
+	WIN32-Code/getopt_long.c	\
 	WIN32-Code/tree.h			\
-	bufferevent-internal.h			\
-	changelist-internal.h			\
+	bufferevent-internal.h		\
+	changelist-internal.h		\
 	compat/sys/queue.h			\
 	defer-internal.h			\
-	epolltable-internal.h			\
+	epolltable-internal.h		\
 	evbuffer-internal.h			\
 	event-internal.h			\
 	evmap-internal.h			\
