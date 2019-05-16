@@ -63,6 +63,8 @@
 
 #include "regress.h"
 
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
+
 /* Validates that an evbuffer is good. Returns false if it isn't, true if it
  * is*/
 static int
@@ -753,6 +755,41 @@ test_evbuffer_reserve_with_empty(void *ptr)
 	evbuffer_validate(buf);
 
  end:
+	if (buf)
+		evbuffer_free(buf);
+}
+
+/* regression for evbuffer_expand_fast_() with invalid last_with_datap that has
+ * been left after evbuffer_prepend() with empty chain in it */
+static void
+test_evbuffer_reserve_invalid_last_with_datap(void *ptr)
+{
+	struct evbuffer *buf = NULL;
+	struct evbuffer_iovec vec[2];
+	const int nvec = ARRAY_SIZE(vec);
+	int i, avec;
+
+	buf = evbuffer_new();
+	tt_assert(buf);
+
+	/* prepend with an empty chain */
+	evbuffer_add_reference(buf, "", 0, NULL, NULL);
+	evbuffer_prepend(buf, "foo", 3);
+	/* after invalid last_with_datap will create new chain */
+	evbuffer_add(buf, "", 0);
+	/* we need to create at least 2 "used" (in evbuffer_expand_fast_()) chains */
+	tt_int_op(avec = evbuffer_reserve_space(buf, 1<<12, vec, nvec), >=, 1);
+	for (i = 0; i < avec; ++i)
+		vec[i].iov_len = 0;
+	tt_int_op(evbuffer_commit_space(buf, vec, avec), ==, 0);
+
+	/* and an actual problem, that triggers an assert(chain == buf->first) in
+	 * evbuffer_expand_fast_() */
+	tt_int_op(evbuffer_reserve_space(buf, 1<<13, vec, nvec), >=, 1);
+
+	evbuffer_validate(buf);
+
+end:
 	if (buf)
 		evbuffer_free(buf);
 }
@@ -2241,6 +2278,58 @@ end:
 }
 
 static void
+test_evbuffer_empty_reference_prepend(void *ptr)
+{
+	struct evbuffer *buf = NULL;
+
+	buf = evbuffer_new();
+	tt_assert(buf);
+
+	/** empty chain could leave invalid last_with_datap */
+	evbuffer_add_reference(buf, "", 0, NULL, NULL);
+	evbuffer_validate(buf);
+	evbuffer_prepend(buf, "foo", 3);
+
+	evbuffer_validate(buf);
+	tt_assert(!strncmp((char *)evbuffer_pullup(buf, -1), "foo", 3));
+	evbuffer_validate(buf);
+
+end:
+	if (buf)
+		evbuffer_free(buf);
+}
+static void
+test_evbuffer_empty_reference_prepend_buffer(void *ptr)
+{
+	struct evbuffer *buf1 = NULL, *buf2 = NULL;
+
+	buf1 = evbuffer_new();
+	tt_assert(buf1);
+	buf2 = evbuffer_new();
+	tt_assert(buf2);
+
+	/** empty chain could leave invalid last_with_datap */
+	evbuffer_add_reference(buf1, "", 0, NULL, NULL);
+	evbuffer_validate(buf1);
+	evbuffer_add(buf2, "foo", 3);
+	evbuffer_validate(buf2);
+	evbuffer_prepend_buffer(buf2, buf1);
+	evbuffer_validate(buf2);
+
+	tt_assert(!strncmp((char *)evbuffer_pullup(buf2, -1), "foo", 3));
+	evbuffer_validate(buf2);
+
+	tt_assert(!strncmp((char *)evbuffer_pullup(buf1, -1), "", 0));
+	evbuffer_validate(buf2);
+
+end:
+	if (buf1)
+		evbuffer_free(buf1);
+	if (buf2)
+		evbuffer_free(buf2);
+}
+
+static void
 test_evbuffer_peek_first_gt(void *info)
 {
 	struct evbuffer *buf = NULL, *tmp_buf = NULL;
@@ -2637,6 +2726,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "reserve_many2", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"add" },
 	{ "reserve_many3", test_evbuffer_reserve_many, 0, &nil_setup, (void*)"fill" },
 	{ "reserve_with_empty", test_evbuffer_reserve_with_empty, 0, NULL, NULL },
+	{ "reserve_invalid_last_with_datap", test_evbuffer_reserve_invalid_last_with_datap, TT_FORK, NULL, NULL },
 	{ "expand", test_evbuffer_expand, 0, NULL, NULL },
 	{ "expand_overflow", test_evbuffer_expand_overflow, 0, NULL, NULL },
 	{ "add1", test_evbuffer_add1, 0, NULL, NULL },
@@ -2654,6 +2744,8 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "multicast", test_evbuffer_multicast, 0, NULL, NULL },
 	{ "multicast_drain", test_evbuffer_multicast_drain, 0, NULL, NULL },
 	{ "prepend", test_evbuffer_prepend, TT_FORK, NULL, NULL },
+	{ "empty_reference_prepend", test_evbuffer_empty_reference_prepend, TT_FORK, NULL, NULL },
+	{ "empty_reference_prepend_buffer", test_evbuffer_empty_reference_prepend_buffer, TT_FORK, NULL, NULL },
 	{ "peek", test_evbuffer_peek, 0, NULL, NULL },
 	{ "peek_first_gt", test_evbuffer_peek_first_gt, 0, NULL, NULL },
 	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },
