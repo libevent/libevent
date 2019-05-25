@@ -4430,8 +4430,8 @@ evhttp_get_request_connection(
 
 #ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
 	if (sa->sa_family == AF_UNIX) {
-		struct sockaddr_un *sun = (struct sockaddr_un *)sa;
-		sun->sun_path[0] = '\0';
+		struct sockaddr_un *sa_un = (struct sockaddr_un *)sa;
+		sa_un->sun_path[0] = '\0';
 	}
 #endif
 
