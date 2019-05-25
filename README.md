@@ -452,5 +452,12 @@ fixing bugs:
  * Xiang Zhang
  * Xiaozhou Liu
  * yongqing.jiao
+ * Enji Cooper
+ * linxiaohui
+ * Seong-Joong Kim
+ * Tobias Stoeckmann
+ * Yury Korzhetsky
+ * zhuizhuhaomeng
+ * Pierce Lopez
 
 If we have forgotten your name, please contact us.
