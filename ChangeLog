@@ -9,7 +9,7 @@ Changes in version 2.1.10-stable (26 May 2019)
  trivial fixes pruned out from it - to make it a little bit more informative).
 
  To view full changelog please use git:
-   git log --format='  o %s (%h %aN)' release-2.1.8-stable...release-2.1.9-beta
+   git log --format='  o %s (%h %aN)' release-2.1.9-beta...release-2.1.10-stable
 
  dist:
   o Add getopt into dist archive (7042ff24 Azat Khuzhin)
