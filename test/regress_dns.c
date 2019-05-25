@@ -1249,7 +1249,7 @@ be_connect_hostname_event_cb(struct bufferevent *bev, short what, void *ctx)
 	}
 }
 
-int bev_connect_hostname(struct bufferevent *bev, struct evdns_base *dns,
+static int bev_connect_hostname(struct bufferevent *bev, struct evdns_base *dns,
     struct evutil_addrinfo *hints, const char *host, int port)
 {
 	if (hints->ai_flags)
