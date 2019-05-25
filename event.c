@@ -837,7 +837,8 @@ static int event_base_free_queues_(struct event_base *base, int run_finalizers)
 static void
 event_base_free_(struct event_base *base, int run_finalizers)
 {
-	int i, n_deleted=0;
+	int i;
+	size_t n_deleted=0;
 	struct event *ev;
 	/* XXXX grab the lock? If there is contention when one thread frees
 	 * the base, then the contending thread will be very sad soon. */
@@ -912,7 +913,7 @@ event_base_free_(struct event_base *base, int run_finalizers)
 	}
 
 	if (n_deleted)
-		event_debug(("%s: %d events were still set in base",
+		event_debug(("%s: "EV_SIZE_FMT" events were still set in base",
 			__func__, n_deleted));
 
 	while (LIST_FIRST(&base->once_events)) {
@@ -3678,7 +3679,7 @@ event_base_foreach_event_nolock_(struct event_base *base,
     event_base_foreach_event_cb fn, void *arg)
 {
 	int r, i;
-	unsigned u;
+	size_t u;
 	struct event *ev;
 
 	/* Start out with all the EVLIST_INSERTED events. */
@@ -3823,7 +3824,35 @@ void
 event_base_active_by_fd(struct event_base *base, evutil_socket_t fd, short events)
 {
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-	evmap_io_active_(base, fd, events & (EV_READ|EV_WRITE|EV_CLOSED));
+
+	/* Activate any non timer events */
+	if (!(events & EV_TIMEOUT)) {
+		evmap_io_active_(base, fd, events & (EV_READ|EV_WRITE|EV_CLOSED));
+	} else {
+		/* If we want to activate timer events, loop and activate each event with
+		 * the same fd in both the timeheap and common timeouts list */
+		int i;
+		size_t u;
+		struct event *ev;
+
+		for (u = 0; u < base->timeheap.n; ++u) {
+			ev = base->timeheap.p[u];
+			if (ev->ev_fd == fd) {
+				event_active_nolock_(ev, EV_TIMEOUT, 1);
+			}
+		}
+
+		for (i = 0; i < base->n_common_timeouts; ++i) {
+			struct common_timeout_list *ctl = base->common_timeout_queues[i];
+			TAILQ_FOREACH(ev, &ctl->events,
+				ev_timeout_pos.ev_next_with_common_timeout) {
+				if (ev->ev_fd == fd) {
+					event_active_nolock_(ev, EV_TIMEOUT, 1);
+				}
+			}
+		}
+	}
+
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 }
 
@@ -3933,20 +3962,21 @@ void
 event_base_assert_ok_nolock_(struct event_base *base)
 {
 	int i;
+	size_t u;
 	int count;
 
 	/* First do checks on the per-fd and per-signal lists */
 	evmap_check_integrity_(base);
 
 	/* Check the heap property */
-	for (i = 1; i < (int)base->timeheap.n; ++i) {
-		int parent = (i - 1) / 2;
+	for (u = 1; u < base->timeheap.n; ++u) {
+		size_t parent = (u - 1) / 2;
 		struct event *ev, *p_ev;
-		ev = base->timeheap.p[i];
+		ev = base->timeheap.p[u];
 		p_ev = base->timeheap.p[parent];
 		EVUTIL_ASSERT(ev->ev_flags & EVLIST_TIMEOUT);
 		EVUTIL_ASSERT(evutil_timercmp(&p_ev->ev_timeout, &ev->ev_timeout, <=));
-		EVUTIL_ASSERT(ev->ev_timeout_pos.min_heap_idx == i);
+		EVUTIL_ASSERT(ev->ev_timeout_pos.min_heap_idx == u);
 	}
 
 	/* Check that the common timeouts are fine */

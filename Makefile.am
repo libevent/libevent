@@ -38,7 +38,7 @@ RELEASE = -release 2.1
 #
 # Once an RC is out, DO NOT MAKE ANY ABI-BREAKING CHANGES IN THAT SERIES
 # UNLESS YOU REALLY REALLY HAVE TO.
-VERSION_INFO = 6:3:0
+VERSION_INFO = 6:4:0
 
 # History:          RELEASE    VERSION_INFO
 #  2.0.1-alpha --     2.0        1:0:0
@@ -73,6 +73,7 @@ VERSION_INFO = 6:3:0
 #  2.1.7-beta  --     2.1        6:1:0 (ABI changed slightly)
 #  2.1.8-stable--     2.1        6:2:0 (No ABI change)
 #  2.1.9-beta--       2.1        6:3:0 (No ABI change)
+#  2.1.10-stable--    2.1        6:4:0 (No ABI change)
 
 # ABI version history for this package effectively restarts every time
 # we change RELEASE.  Version 1.4.x had RELEASE of 1.4.
@@ -288,12 +289,15 @@ endif
 noinst_HEADERS +=				\
 	WIN32-Code/nmake/evconfig-private.h	\
 	WIN32-Code/nmake/event2/event-config.h	\
+	WIN32-Code/getopt.h			\
+	WIN32-Code/getopt.c			\
+	WIN32-Code/getopt_long.c	\
 	WIN32-Code/tree.h			\
-	bufferevent-internal.h			\
-	changelist-internal.h			\
+	bufferevent-internal.h		\
+	changelist-internal.h		\
 	compat/sys/queue.h			\
 	defer-internal.h			\
-	epolltable-internal.h			\
+	epolltable-internal.h		\
 	evbuffer-internal.h			\
 	event-internal.h			\
 	evmap-internal.h			\

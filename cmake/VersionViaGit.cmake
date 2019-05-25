@@ -2,7 +2,7 @@
 # git to determine the parent tag. And if found the macro
 # will attempt to parse them in the github tag fomat
 #
-# Usful for auto-versionin in ou CMakeLists
+# Useful for auto-versioning in our CMakeLists
 #
 #  EVENT_GIT___VERSION_MAJOR - Major version.
 #  EVENT_GIT___VERSION_MINOR - Minor version
@@ -23,7 +23,7 @@ macro(event_fuzzy_version_from_git)
 	# set our defaults.
 	set(EVENT_GIT___VERSION_MAJOR 2)
 	set(EVENT_GIT___VERSION_MINOR 1)
-	set(EVENT_GIT___VERSION_PATCH 9)
+	set(EVENT_GIT___VERSION_PATCH 10)
 	set(EVENT_GIT___VERSION_STAGE "beta")
 
 	find_package(Git)

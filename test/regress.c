@@ -46,6 +46,7 @@
 #ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <limits.h>
 #include <signal.h>
 #include <unistd.h>
 #include <netdb.h>
@@ -928,8 +929,8 @@ test_fork(void)
 
 		evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
 		evsignal_add(&usr_ev, NULL);
-		raise(SIGUSR1);
-		raise(SIGUSR2);
+		kill(getpid(), SIGUSR1);
+		kill(getpid(), SIGUSR2);
 
 		called = 0;
 
@@ -962,8 +963,8 @@ test_fork(void)
 
 	evsignal_set(&usr_ev, SIGUSR1, fork_signal_cb, &usr_ev);
 	evsignal_add(&usr_ev, NULL);
-	raise(SIGUSR1);
-	raise(SIGUSR2);
+	kill(getpid(), SIGUSR1);
+	kill(getpid(), SIGUSR2);
 
 	event_dispatch();
 
@@ -1165,7 +1166,7 @@ test_immediatesignal(void)
 	test_ok = 0;
 	evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
 	evsignal_add(&ev, NULL);
-	raise(SIGUSR1);
+	kill(getpid(), SIGUSR1);
 	event_loop(EVLOOP_NONBLOCK);
 	evsignal_del(&ev);
 	cleanup_test();
@@ -1238,7 +1239,7 @@ test_signal_switchbase(void)
 
 	test_ok = 0;
 	/* can handle signal before loop is called */
-	raise(SIGUSR1);
+	kill(getpid(), SIGUSR1);
 	event_base_loop(base2, EVLOOP_NONBLOCK);
 	if (is_kqueue) {
 		if (!test_ok)
@@ -1251,7 +1252,7 @@ test_signal_switchbase(void)
 
 		/* set base1 to handle signals */
 		event_base_loop(base1, EVLOOP_NONBLOCK);
-		raise(SIGUSR1);
+		kill(getpid(), SIGUSR1);
 		event_base_loop(base1, EVLOOP_NONBLOCK);
 		event_base_loop(base2, EVLOOP_NONBLOCK);
 	}
@@ -1280,7 +1281,7 @@ test_signal_assert(void)
 	 */
 	evsignal_del(&ev);
 
-	raise(SIGCONT);
+	kill(getpid(), SIGCONT);
 #if 0
 	/* only way to verify we were in evsig_handler() */
 	/* XXXX Now there's no longer a good way. */
@@ -1324,7 +1325,7 @@ test_signal_restore(void)
 	evsignal_add(&ev, NULL);
 	evsignal_del(&ev);
 
-	raise(SIGUSR1);
+	kill(getpid(), SIGUSR1);
 	/* 1 == signal_cb, 2 == signal_cb_sa, we want our previous handler */
 	if (test_ok != 2)
 		test_ok = 0;
@@ -1339,7 +1340,7 @@ signal_cb_swp(int sig, short event, void *arg)
 {
 	called++;
 	if (called < 5)
-		raise(sig);
+		kill(getpid(), sig);
 	else
 		event_loopexit(NULL);
 }
@@ -1351,7 +1352,7 @@ timeout_cb_swp(evutil_socket_t fd, short event, void *arg)
 
 		called = 0;
 		evtimer_add((struct event *)arg, &tv);
-		raise(SIGUSR1);
+		kill(getpid(), SIGUSR1);
 		return;
 	}
 	test_ok = 0;
@@ -3304,6 +3305,46 @@ tabf_cb(evutil_socket_t fd, short what, void *arg)
 }
 
 static void
+test_evmap_invalid_slots(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct event *ev1 = NULL, *ev2 = NULL;
+	int e1, e2;
+#ifndef _WIN32
+	struct event *ev3 = NULL, *ev4 = NULL;
+	int e3, e4;
+#endif
+
+	ev1 = evsignal_new(base, -1, dummy_read_cb, (void *)base);
+	ev2 = evsignal_new(base, NSIG, dummy_read_cb, (void *)base);
+	tt_assert(ev1);
+	tt_assert(ev2);
+	e1 = event_add(ev1, NULL);
+	e2 = event_add(ev2, NULL);
+	tt_int_op(e1, !=, 0);
+	tt_int_op(e2, !=, 0);
+#ifndef _WIN32
+	ev3 = event_new(base, INT_MAX, EV_READ, dummy_read_cb, (void *)base);
+	ev4 = event_new(base, INT_MAX / 2, EV_READ, dummy_read_cb, (void *)base);
+	tt_assert(ev3);
+	tt_assert(ev4);
+	e3 = event_add(ev3, NULL);
+	e4 = event_add(ev4, NULL);
+	tt_int_op(e3, !=, 0);
+	tt_int_op(e4, !=, 0);
+#endif
+
+end:
+	event_free(ev1);
+	event_free(ev2);
+#ifndef _WIN32
+	event_free(ev3);
+	event_free(ev4);
+#endif
+}
+
+static void
 test_active_by_fd(void *arg)
 {
 	struct basic_test_data *data = arg;
@@ -3354,6 +3395,7 @@ test_active_by_fd(void *arg)
 	/* Trigger 2, 3, 4 */
 	event_base_active_by_fd(base, data->pair[0], EV_WRITE);
 	event_base_active_by_fd(base, data->pair[1], EV_READ);
+	event_base_active_by_fd(base, data->pair[1], EV_TIMEOUT);
 #ifndef _WIN32
 	event_base_active_by_signal(base, SIGHUP);
 #endif
@@ -3366,7 +3408,7 @@ test_active_by_fd(void *arg)
 	tt_int_op(e2, ==, EV_WRITE | 0x10000);
 	tt_int_op(e3, ==, EV_READ | 0x10000);
 	/* Mask out EV_WRITE here, since it could be genuinely writeable. */
-	tt_int_op((e4 & ~EV_WRITE), ==, EV_READ | 0x10000);
+	tt_int_op((e4 & ~EV_WRITE), ==, EV_READ | EV_TIMEOUT | 0x10000);
 #ifndef _WIN32
 	tt_int_op(es, ==, EV_SIGNAL | 0x10000);
 #endif
@@ -3401,6 +3443,7 @@ struct testcase_t main_testcases[] = {
 	BASIC(event_assign_selfarg, TT_FORK|TT_NEED_BASE),
 	BASIC(event_base_get_num_events, TT_FORK|TT_NEED_BASE),
 	BASIC(event_base_get_max_events, TT_FORK|TT_NEED_BASE),
+	BASIC(evmap_invalid_slots, TT_FORK|TT_NEED_BASE),
 
 	BASIC(bad_assign, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
 	BASIC(bad_reentrant, TT_FORK|TT_NEED_BASE|TT_NO_LOGS),
@@ -3459,7 +3502,7 @@ struct testcase_t main_testcases[] = {
 
 	BASIC(active_by_fd, TT_FORK|TT_NEED_BASE|TT_NEED_SOCKETPAIR),
 
-#if !defined(_WIN32) && !defined(__APPLE__)
+#ifndef _WIN32
 	LEGACY(fork, TT_ISOLATED),
 #endif
 #ifdef EVENT__HAVE_PTHREADS

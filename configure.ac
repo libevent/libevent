@@ -5,7 +5,7 @@ dnl See LICENSE for copying information.
 dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
-AC_INIT(libevent,2.1.9-beta)
+AC_INIT(libevent,2.1.10-stable)
 AC_PREREQ(2.59)
 AC_CONFIG_SRCDIR(event.c)
 
@@ -14,7 +14,7 @@ AM_INIT_AUTOMAKE
 dnl AM_SILENT_RULES req. automake 1.11.  [no] defaults V=1
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
-AC_DEFINE(NUMERIC_VERSION, 0x02010900, [Numeric representation of the version])
+AC_DEFINE(NUMERIC_VERSION, 0x02010a00, [Numeric representation of the version])
 
 dnl Initialize prefix.
 if test "$prefix" = "NONE"; then
@@ -230,6 +230,7 @@ AC_CHECK_HEADERS([ \
   netinet/in.h \
   netinet/in6.h \
   netinet/tcp.h \
+  sys/un.h \
   poll.h \
   port.h \
   stdarg.h \
@@ -478,7 +479,7 @@ fi
 AC_MSG_CHECKING(for F_SETFD in fcntl.h)
 AC_EGREP_CPP(yes,
 [
-#define _GNU_SOURCE
+#define _GNU_SOURCE 1
 #include <fcntl.h>
 #ifdef F_SETFD
 yes
@@ -666,14 +667,17 @@ AC_CHECK_SIZEOF(void *)
 AC_CHECK_SIZEOF(off_t)
 AC_CHECK_SIZEOF(time_t)
 
-AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, sa_family_t, struct addrinfo, struct sockaddr_storage], , ,
-[#define _GNU_SOURCE
+AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, struct sockaddr_un, sa_family_t, struct addrinfo, struct sockaddr_storage], , ,
+[#define _GNU_SOURCE 1
 #include <sys/types.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 #ifdef HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
+#endif
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
 #endif
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -857,7 +861,7 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
     # for minheap-internal.h related code.
     CFLAGS="$CFLAGS -Wno-unused-function"
 
-    # clang on macosx emits warnigns for each directory specified which
+    # clang on macosx emits warnings for each directory specified which
     # isn't "used" generating a lot of build noise (typically 3 warnings
     # per file
     case "$host_os" in

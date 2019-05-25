@@ -704,13 +704,17 @@ static int
 advance_last_with_data(struct evbuffer *buf)
 {
 	int n = 0;
+	struct evbuffer_chain **chainp = buf->last_with_datap;
+
 	ASSERT_EVBUFFER_LOCKED(buf);
 
-	if (!*buf->last_with_datap)
+	if (!*chainp)
 		return 0;
 
-	while ((*buf->last_with_datap)->next && (*buf->last_with_datap)->next->off) {
-		buf->last_with_datap = &(*buf->last_with_datap)->next;
+	while ((*chainp)->next) {
+		chainp = &(*chainp)->next;
+		if ((*chainp)->off)
+			buf->last_with_datap = chainp;
 		++n;
 	}
 	return n;
@@ -1299,7 +1303,7 @@ evbuffer_remove_buffer(struct evbuffer *src, struct evbuffer *dst,
 		chain = chain->next;
 	}
 
-	if (nread) {
+	if (chain != src->first) {
 		/* we can remove the chain */
 		struct evbuffer_chain **chp;
 		chp = evbuffer_free_trailing_empty_chains(dst);
@@ -1825,6 +1829,10 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 
 	EVBUFFER_LOCK(buf);
 
+	if (datlen == 0) {
+		result = 0;
+		goto done;
+	}
 	if (buf->freeze_start) {
 		goto done;
 	}
@@ -1878,7 +1886,7 @@ evbuffer_prepend(struct evbuffer *buf, const void *data, size_t datlen)
 	if ((tmp = evbuffer_chain_new(datlen)) == NULL)
 		goto done;
 	buf->first = tmp;
-	if (buf->last_with_datap == &buf->first)
+	if (buf->last_with_datap == &buf->first && chain->off)
 		buf->last_with_datap = &tmp->next;
 
 	tmp->next = chain;

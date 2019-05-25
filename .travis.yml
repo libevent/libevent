@@ -11,6 +11,7 @@ branches:
   - /.*win.*/
   - /.*mingw.*/
   - /.*freebsd.*/
+  - /.*bitrise.*/
 
 git:
   quiet: true

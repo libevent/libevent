@@ -84,7 +84,7 @@ set(EVENT_ABI_LIBVERSION
 set(EVENT_PACKAGE_VERSION
     "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}")
 
-set(EVENT_NUMERIC_VERSION 0x02010900)
+set(EVENT_NUMERIC_VERSION 0x02010a00)
 
 # only a subset of names can be used, defaults to "beta"
 set(EVENT_STAGE_NAME ${EVENT_VERSION_STAGE})
@@ -259,9 +259,10 @@ if (${GNUC})
     set(GCC_V ${CMAKE_C_COMPILER_VERSION})
 
     list(APPEND __FLAGS
-         -Wall -Wextra -Wno-unused-parameter -Wstrict-aliasing
+         -Wall -Wextra -Wno-unused-parameter -Wstrict-aliasing -Wstrict-prototypes
 
          -fno-strict-aliasing # gcc 2.9.5+
+         -Wmissing-prototypes
 
          # gcc 4
          -Winit-self
@@ -270,13 +271,18 @@ if (${GNUC})
 
          # gcc 4.2
          -Waddress
-         -Wno-unused-function
          -Wnormalized=id
          -Woverride-init
 
          # gcc 4.5
          -Wlogical-op
+
+         -Wwrite-strings
     )
+
+    if (${CLANG})
+        list(APPEND __FLAGS -Wno-unused-function)
+    endif()
 
     if (EVENT__DISABLE_GCC_WARNINGS)
         list(APPEND __FLAGS -w)
@@ -334,7 +340,7 @@ if (NOT DEFINED _GNU_SOURCE)
 endif()
 
 if (_GNU_SOURCE)
-    add_definitions(-D_GNU_SOURCE)
+    add_definitions(-D_GNU_SOURCE=1)
 endif()
 
 CHECK_INCLUDE_FILE(sys/types.h EVENT__HAVE_SYS_TYPES_H)
@@ -351,6 +357,19 @@ CHECK_INCLUDE_FILE(netinet/in.h EVENT__HAVE_NETINET_IN_H)
 if(EVENT__HAVE_NETINET_IN_H)
     list(APPEND CMAKE_EXTRA_INCLUDE_FILES netinet/in.h)
 endif()
+
+CHECK_INCLUDE_FILE(sys/un.h EVENT__HAVE_SYS_UN_H)
+if(EVENT__HAVE_SYS_UN_H)
+    list(APPEND CMAKE_EXTRA_INCLUDE_FILES sys/un.h)
+endif()
+
+if(WIN32)
+    CHECK_INCLUDE_FILE(afunix.h EVENT__HAVE_AFUNIX_H)
+    if(EVENT__HAVE_AFUNIX_H)
+        list(APPEND CMAKE_EXTRA_INCLUDE_FILES afunix.h)
+    endif()
+endif()
+CHECK_TYPE_SIZE("struct sockaddr_un" EVENT__HAVE_STRUCT_SOCKADDR_UN)
 
 CHECK_INCLUDE_FILE(netinet/in6.h EVENT__HAVE_NETINET_IN6_H)
 if(EVENT__HAVE_NETINET_IN6_H)

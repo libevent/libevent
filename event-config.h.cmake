@@ -202,6 +202,12 @@
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #cmakedefine EVENT__HAVE_NETINET_TCP_H 1
 
+/* Define to 1 if you have the <sys/un.h> header file. */
+#cmakedefine EVENT__HAVE_SYS_UN_H 1
+
+/* Define to 1 if you have the <afunix.h> header file. */
+#cmakedefine EVENT__HAVE_AFUNIX_H 1
+
 /* Define if the system has openssl */
 #cmakedefine EVENT__HAVE_OPENSSL 1
 
@@ -306,6 +312,9 @@
 
 /* Define to 1 if `sin_len' is member of `struct sockaddr_in'. */
 #cmakedefine EVENT__HAVE_STRUCT_SOCKADDR_IN_SIN_LEN 1
+
+/* Define to 1 if the system has the type `struct sockaddr_un'. */
+#cmakedefine EVENT__HAVE_STRUCT_SOCKADDR_UN 1
 
 /* Define to 1 if the system has the type `struct sockaddr_storage'. */
 #cmakedefine EVENT__HAVE_STRUCT_SOCKADDR_STORAGE 1

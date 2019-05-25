@@ -693,9 +693,6 @@ void event_base_free(struct event_base *);
 
 /**
    As event_base_free, but do not run finalizers.
-
-   THIS IS AN EXPERIMENTAL API. IT MIGHT CHANGE BEFORE THE LIBEVENT 2.1 SERIES
-   BECOMES STABLE.
  */
 EVENT2_EXPORT_SYMBOL
 void event_base_free_nofinalize(struct event_base *);
@@ -944,9 +941,6 @@ int event_base_got_break(struct event_base *);
  * To use this option safely, you may need to use event_finalize() or
  * event_free_finalize() in order to safely tear down an event in a
  * multithreaded application.  See those functions for more information.
- *
- * THIS IS AN EXPERIMENTAL API. IT MIGHT CHANGE BEFORE THE LIBEVENT 2.1 SERIES
- * BECOMES STABLE.
  **/
 #define EV_FINALIZE     0x40
 /**
@@ -1148,10 +1142,6 @@ void event_free(struct event *);
 
 /**
  * Callback type for event_finalize and event_free_finalize().
- *
- * THIS IS AN EXPERIMENTAL API. IT MIGHT CHANGE BEFORE THE LIBEVENT 2.1 SERIES
- * BECOMES STABLE.
- *
  **/
 typedef void (*event_finalize_callback_fn)(struct event *, void *);
 /**
@@ -1181,9 +1171,6 @@ typedef void (*event_finalize_callback_fn)(struct event *, void *);
    A finalizer callback must not make events pending or active.  It must not
    add events, activate events, or attempt to "resuscitate" the event being
    finalized in any way.
-
-   THIS IS AN EXPERIMENTAL API. IT MIGHT CHANGE BEFORE THE LIBEVENT 2.1 SERIES
-   BECOMES STABLE.
 
    @return 0 on success, -1 on failure.
  */
@@ -1275,9 +1262,6 @@ int event_del(struct event *);
    As event_del(), but never blocks while the event's callback is running
    in another thread, even if the event was constructed without the
    EV_FINALIZE flag.
-
-   THIS IS AN EXPERIMENTAL API. IT MIGHT CHANGE BEFORE THE LIBEVENT 2.1 SERIES
-   BECOMES STABLE.
  */
 EVENT2_EXPORT_SYMBOL
 int event_del_noblock(struct event *ev);
@@ -1285,9 +1269,6 @@ int event_del_noblock(struct event *ev);
    As event_del(), but always blocks while the event's callback is running
    in another thread, even if the event was constructed with the
    EV_FINALIZE flag.
-
-   THIS IS AN EXPERIMENTAL API. IT MIGHT CHANGE BEFORE THE LIBEVENT 2.1 SERIES
-   BECOMES STABLE.
  */
 EVENT2_EXPORT_SYMBOL
 int event_del_block(struct event *ev);
@@ -1586,7 +1567,7 @@ void event_base_dump_events(struct event_base *, FILE *);
 
    @param base the event_base on which to activate the events.
    @param fd An fd to active events on.
-   @param events One or more of EV_{READ,WRITE}.
+   @param events One or more of EV_{READ,WRITE,TIMEOUT}.
  */
 EVENT2_EXPORT_SYMBOL
 void event_base_active_by_fd(struct event_base *base, evutil_socket_t fd, short events);

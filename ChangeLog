@@ -1,3 +1,53 @@
+Changes in version 2.1.10-stable (26 May 2019)
+
+ This release contains mostly fixes (some evbuffer oddity, AF_UNIX handling in
+ http server, some UB fixes and others) but also some new functionality
+ (without ABI breakage as usual) and now dist archive can be used for building
+ on windows (getopt had been added into it).
+
+ Above you will find changelog for this particular release (but with some
+ trivial fixes pruned out from it - to make it a little bit more informative).
+
+ To view full changelog please use git:
+   git log --format='  o %s (%h %aN)' release-2.1.8-stable...release-2.1.9-beta
+
+ dist:
+  o Add getopt into dist archive (7042ff24 Azat Khuzhin)
+
+ functionality:
+  o evdns: add DNS_OPTION_NAMESERVERS_NO_DEFAULT/EVDNS_BASE_NAMESERVERS_NO_DEFAULT
+  (58e81106 Azat Khuzhin)
+  o Add support for EV_TIMEOUT to event_base_active_by_fd (3f893f0a John Ohl)
+
+ fixes:
+  o Merge branch 'evbuffer-fixes-806-v2' (2fea04b3 Azat Khuzhin)
+  o Merge branch 'issue-807-accept4-getnameinfo-AF_UNIX' (7c4da937, e2790a7f
+    Azat Khuzhin)
+  o kqueue: Avoid undefined behaviour. (e70e18e9 Tobias Stoeckmann)
+  o Prevent integer overflow in kq_build_changes_list. (43a55a23 Tobias Stoeckmann)
+  o evdns: fix lock/unlock mismatch in evdns_close_server_port() (54103883 zhuizhuhaomeng)
+  o Merge remote-tracking branch 'official/pr/804' -- Enforce limit of NSIG
+    signals (87fa93a8 Tobias Stoeckmann)
+  o Protect min_heap_push_ against integer overflow. (0b46bb8c Tobias Stoeckmann)
+  o le-proxy: initiate use of the Winsock DLL (2a1e1530 linxiaohui)
+  o Fix leaks in error path of the bufferevent_init_common_() (bb0f8fe7 Azat Khuzhin)
+  o buffer: make evbuffer_prepend() of zero-length array no-op (61fa7b7d Azat Khuzhin)
+  o Merge branch 'evbuffer-empty-chain-handling' (6a3dd717 Azat Khuzhin)
+  o Don't loose top error in SSL (3d1a7a1d Yury Korzhetsky)
+  o Remove needless check for arc4_seeded_ok (6602a97d Seong-Joong Kim)
+  o Merge pull request #769 from sungjungk/fix-return-handling (91084140 Nathan French)
+
+ build:
+  o Define `_GNU_SOURCE` properly/consistently per autoconf (00ba9fa2 Enji Cooper)
+  o signal: guard __cdecl definition with #ifdef (d89045a6 Azat Khuzhin)
+  o Link test/regress with event_core/event_extra over event (22380996 Azat Khuzhin)
+
+ tests:
+  o Use kill() over raise() for raising the signal (fixes osx 10.14 with
+    kqueue) (3db5296b, a45f6733 Azat Khuzhin)
+  o tinytest: implement per-test timeout (via alarm() under !win32 only)
+    (b64dbfb6, 75d7e1ff Azat Khuzhin)
+
 Changes in version 2.1.9-beta (10 February 2019)
 
  This changelog will differs from other releases in the next few clauses:

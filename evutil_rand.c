@@ -171,9 +171,7 @@ evutil_secure_rng_init(void)
 	int val;
 
 	ARC4_LOCK_();
-	if (!arc4_seeded_ok)
-		arc4_stir();
-	val = arc4_seeded_ok ? 0 : -1;
+	val = (!arc4_stir()) ? 0 : -1;
 	ARC4_UNLOCK_();
 	return val;
 }

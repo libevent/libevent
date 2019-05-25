@@ -51,9 +51,16 @@
 #ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/stat.h>
-#else
+#else /* _WIN32 */
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#endif /* _WIN32 */
+
+#ifdef EVENT__HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
+#ifdef EVENT__HAVE_AFUNIX_H
+#include <afunix.h>
 #endif
 
 #include <sys/queue.h>
@@ -78,7 +85,7 @@
 #include <string.h>
 #ifndef _WIN32
 #include <syslog.h>
-#endif
+#endif /* !_WIN32 */
 #include <signal.h>
 #ifdef EVENT__HAVE_UNISTD_H
 #include <unistd.h>
@@ -4209,6 +4216,13 @@ evhttp_get_request_connection(
 	struct evhttp_connection *evcon;
 	char *hostname = NULL, *portname = NULL;
 	struct bufferevent* bev = NULL;
+
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
+	if (sa->sa_family == AF_UNIX) {
+		struct sockaddr_un *sa_un = (struct sockaddr_un *)sa;
+		sa_un->sun_path[0] = '\0';
+	}
+#endif
 
 	name_from_addr(sa, salen, &hostname, &portname);
 	if (hostname == NULL || portname == NULL) {
