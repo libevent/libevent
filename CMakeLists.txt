@@ -262,6 +262,7 @@ if (${GNUC})
          -Wall -Wextra -Wno-unused-parameter -Wstrict-aliasing -Wstrict-prototypes
 
          -fno-strict-aliasing # gcc 2.9.5+
+         -Wmissing-prototypes
 
          # gcc 4
          -Winit-self
@@ -276,7 +277,7 @@ if (${GNUC})
          # gcc 4.5
          -Wlogical-op
 
-	 -Wwrite-strings
+         -Wwrite-strings
     )
 
     if (${CLANG})
