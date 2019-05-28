@@ -187,7 +187,7 @@ endif()
 if (("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU") OR (${CLANG}))
     set(GNUC 1)
 endif()
-if (("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC") OR (${CLANG}))
+if (("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC") OR ("${CMAKE_C_SIMULATE_ID}" STREQUAL "MSVC"))
     set(MSVC 1)
 endif()
 
