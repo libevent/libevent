@@ -491,7 +491,7 @@ short bufferevent_get_enabled(struct bufferevent *bufev);
 
   (In other words, if reading or writing is disabled, or if the
   bufferevent's read or write operation has been suspended because
-  there's no data to write, or not enough banwidth, or so on, the
+  there's no data to write, or not enough bandwidth, or so on, the
   timeout isn't active.  The timeout only becomes active when we we're
   willing to actually read or write.)
 
@@ -569,7 +569,7 @@ void bufferevent_unlock(struct bufferevent *bufev);
 /**
  * Public interface to manually increase the reference count of a bufferevent
  * this is useful in situations where a user may reference the bufferevent
- * somewhere eles (unknown to libevent)
+ * somewhere else (unknown to libevent)
  *
  * @param bufev the bufferevent to increase the refcount on
  *
@@ -802,7 +802,7 @@ void ev_token_bucket_cfg_free(struct ev_token_bucket_cfg *cfg);
    They are: socket-based bufferevents (normal and IOCP-based), and SSL-based
    bufferevents.
 
-   Return 0 on sucess, -1 on failure.
+   Return 0 on success, -1 on failure.
  */
 EVENT2_EXPORT_SYMBOL
 int bufferevent_set_rate_limit(struct bufferevent *bev,
@@ -853,7 +853,7 @@ int bufferevent_rate_limit_group_set_cfg(
 
    The default min-share is currently 64 bytes.
 
-   Returns 0 on success, -1 on faulre.
+   Returns 0 on success, -1 on failure.
  */
 EVENT2_EXPORT_SYMBOL
 int bufferevent_rate_limit_group_set_min_share(
