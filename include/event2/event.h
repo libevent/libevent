@@ -285,7 +285,7 @@ struct event
  * There are many options that can be used to alter the behavior and
  * implementation of an event_base.  To avoid having to pass them all in a
  * complex many-argument constructor, we provide an abstract data type
- * where you set up configation information before passing it to
+ * where you set up configuration information before passing it to
  * event_base_new_with_config().
  *
  * @see event_config_new(), event_config_free(), event_base_new_with_config(),
@@ -632,7 +632,7 @@ int event_config_set_num_cpus_hint(struct event_config *cfg, int cpus);
 /**
  * Record an interval and/or a number of callbacks after which the event base
  * should check for new events.  By default, the event base will run as many
- * events are as activated at the higest activated priority before checking
+ * events are as activated at the highest activated priority before checking
  * for new events.  If you configure it by setting max_interval, it will check
  * the time after each callback, and not allow more than max_interval to
  * elapse before checking for new events.  If you configure it by setting
@@ -1321,7 +1321,7 @@ struct event *event_base_get_running_event(struct event_base *base);
   The event_initialized() function can be used to check if an event has been
   initialized.
 
-  Warning: This function is only useful for distinguishing a a zeroed-out
+  Warning: This function is only useful for distinguishing a zeroed-out
     piece of memory from an initialized event, it can easily be confused by
     uninitialized memory.  Thus, it should ONLY be used to distinguish an
     initialized event from zero.
