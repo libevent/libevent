@@ -77,7 +77,14 @@ http_request_done(struct evhttp_request *req, void *ctx)
 				errcode);
 		return;
 	}
-
+	
+	if (evhttp_request_get_response_code(req) == 0) {
+		fprintf(stderr, "socket error = %s (%d)\n",
+				evutil_socket_error_to_string(errcode),
+				errcode);
+		return;
+	}
+	
 	fprintf(stderr, "Response line: %d %s\n",
 	    evhttp_request_get_response_code(req),
 	    evhttp_request_get_response_code_line(req));
