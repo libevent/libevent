@@ -232,13 +232,6 @@ static int ssl_ctx_init(struct ssl_context *ssl)
 		goto err;
 	ssl->ctx = SSL_CTX_new(method);
 
-	SSL_CTX_set_mode(ssl->ctx, SSL_MODE_RELEASE_BUFFERS);
-	SSL_CTX_set_session_cache_mode(ssl->ctx, SSL_SESS_CACHE_OFF);
-	SSL_CTX_set_cipher_list(ssl->ctx,
-		"RC4:AES128-SHA:AES:CAMELLIA128-SHA:!ADH:!aNULL:!DH:!EDH:!eNULL:!LOW:!SSLv2:!EXP:!NULL");
-	SSL_CTX_set_options(ssl->ctx,
-		SSL_OP_CIPHER_SERVER_PREFERENCE | SSL_OP_NO_COMPRESSION);
-
 	if (ssl_load_key(ssl))
 		goto err;
 	if (ssl_load_cert(ssl))
