@@ -53,8 +53,8 @@ The configure script also supports the following flags:
 __Download CMake for Windows [here](https://cmake.org/download/)__
 ```
 > md build && cd build
-> cmake -G "Visual Studio 10" .. # Or use any generator you want to use. Run cmake --help for a list
-> start libevent.sln
+> cmake -G "Visual Studio 10" ..   # Or use any generator you want to use. Run cmake --help for a list
+> cmake --build . --config Release # Or "start libevent.sln" and build with menu in Visual Studio.
 ```
 In the above, the ".." refers to the dir containing the Libevent source code. You can build multiple versions (with different compile time settings) from the same source tree by creating other build directories.
 

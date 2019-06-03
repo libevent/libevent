@@ -30,8 +30,8 @@ Install CMake: <https://www.cmake.org>
 
 ```
 $ md build && cd build
-$ cmake -G "Visual Studio 10" ..   # Or whatever generator you want to use cmake --help for a list.
-$ start libevent.sln
+$ cmake -G "Visual Studio 10" ..   # Or use any generator you want to use. Run cmake --help for a list
+$ cmake --build . --config Release # Or "start libevent.sln" and build with menu in Visual Studio.
 ```
 
 See [Documentation/Building#Building on Windows](/Documentation/Building.md#building-on-windows) for more information
