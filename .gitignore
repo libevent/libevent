@@ -131,6 +131,7 @@ LibeventConfigVersion.cmake
 LibeventTargets.cmake
 bin/
 cmake_install.cmake
+Uninstall.cmake
 lib/
 tmp/
 verify_tests.sh
@@ -141,6 +142,7 @@ event_extra.dir
 *.vcxproj
 *.sln
 *.filters
+install_manifest.txt
 
 # ninja
 build.ninja
