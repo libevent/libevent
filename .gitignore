@@ -64,7 +64,7 @@ cscope*
 /m4/ltversion.m4
 /m4/lt~obsolete.m4
 
-/doxygen
+doxygen
 /aclocal.m4
 compile
 config.cache
@@ -131,6 +131,7 @@ LibeventConfigVersion.cmake
 LibeventTargets.cmake
 bin/
 cmake_install.cmake
+Uninstall.cmake
 lib/
 tmp/
 verify_tests.sh
@@ -141,6 +142,7 @@ event_extra.dir
 *.vcxproj
 *.sln
 *.filters
+install_manifest.txt
 
 # ninja
 build.ninja

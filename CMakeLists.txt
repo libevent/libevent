@@ -1474,6 +1474,26 @@ install(EXPORT LibeventTargets
         DESTINATION "${DEF_INSTALL_CMAKE_DIR}"
         COMPONENT dev)
 
+# Install the scripts.
+install(PROGRAMS
+       ${CMAKE_CURRENT_SOURCE_DIR}/event_rpcgen.py
+       DESTINATION "bin"
+       COMPONENT runtime)
+
+# Create documents with doxygen.
+add_custom_target(doxygen
+                  COMMAND doxygen ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile)
+
+# Create the uninstall target.
+# https://gitlab.kitware.com/cmake/community/wikis/FAQ#can-i-do-make-uninstall-with-cmake
+configure_file(${PROJECT_SOURCE_DIR}/cmake/Uninstall.cmake.in
+               ${PROJECT_BINARY_DIR}/Uninstall.cmake
+               @ONLY)
+
+add_custom_target(uninstall
+                  COMMAND ${CMAKE_COMMAND} -P ${PROJECT_BINARY_DIR}/Uninstall.cmake)
+
+
 message(STATUS "")
 message(STATUS "        ---( Libevent " ${EVENT_VERSION} " )---")
 message(STATUS "")
