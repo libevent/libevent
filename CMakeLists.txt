@@ -1482,7 +1482,8 @@ install(PROGRAMS
 
 # Create documents with doxygen.
 add_custom_target(doxygen
-                  COMMAND doxygen ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile)
+                  COMMAND doxygen Doxyfile
+                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Create the uninstall target.
 # https://gitlab.kitware.com/cmake/community/wikis/FAQ#can-i-do-make-uninstall-with-cmake
