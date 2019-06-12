@@ -1081,6 +1081,10 @@ event_reinit(struct event_base *base)
 	if (was_notifiable && res == 0)
 		res = evthread_make_base_notifiable_nolock_(base);
 
+    /* Reset running_loop if event base is running loop */
+    if (base->running_loop && res == 0)
+        base->running_loop = 0;
+
 done:
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 	return (res);
