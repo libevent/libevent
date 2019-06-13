@@ -1481,9 +1481,15 @@ install(PROGRAMS
        COMPONENT runtime)
 
 # Create documents with doxygen.
-add_custom_target(doxygen
-                  COMMAND doxygen Doxyfile
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+find_program(DOXYGEN doxygen)
+if (DOXYGEN)
+    add_custom_target(doxygen
+                      COMMAND ${DOXYGEN} Doxyfile
+                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+else()
+    message(WARNING "The doxygen target will not support since doxygen command was not found!")
+endif()
+
 
 # Create the uninstall target.
 # https://gitlab.kitware.com/cmake/community/wikis/FAQ#can-i-do-make-uninstall-with-cmake
