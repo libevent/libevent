@@ -750,7 +750,7 @@ done:
 /* Test whether we have an ipv4 interface and an ipv6 interface.  Return 0 if
  * the test seemed successful. */
 static int
-evutil_check_interfaces(int force_recheck)
+evutil_check_interfaces(void)
 {
 	evutil_socket_t fd = -1;
 	struct sockaddr_in sin, sin_out;
@@ -758,7 +758,7 @@ evutil_check_interfaces(int force_recheck)
 	ev_socklen_t sin_out_len = sizeof(sin_out);
 	ev_socklen_t sin6_out_len = sizeof(sin6_out);
 	int r;
-	if (have_checked_interfaces && !force_recheck)
+	if (have_checked_interfaces)
 		return 0;
 
 	/* From this point on we have done the ipv4/ipv6 interface check */
@@ -1231,7 +1231,7 @@ evutil_adjust_hints_for_addrconfig_(struct evutil_addrinfo *hints)
 		return;
 	if (hints->ai_family != PF_UNSPEC)
 		return;
-	evutil_check_interfaces(0);
+	evutil_check_interfaces();
 	if (had_ipv4_address && !had_ipv6_address) {
 		hints->ai_family = PF_INET;
 	} else if (!had_ipv4_address && had_ipv6_address) {
