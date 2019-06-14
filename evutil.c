@@ -761,6 +761,9 @@ evutil_check_interfaces(int force_recheck)
 	if (have_checked_interfaces && !force_recheck)
 		return 0;
 
+	/* From this point on we have done the ipv4/ipv6 interface check */
+	have_checked_interfaces = 1;
+
 	if (evutil_check_ifaddrs() == 0) {
 		/* Use a nice sane interface, if this system has one. */
 		return 0;
@@ -1228,8 +1231,7 @@ evutil_adjust_hints_for_addrconfig_(struct evutil_addrinfo *hints)
 		return;
 	if (hints->ai_family != PF_UNSPEC)
 		return;
-	if (!have_checked_interfaces)
-		evutil_check_interfaces(0);
+	evutil_check_interfaces(0);
 	if (had_ipv4_address && !had_ipv6_address) {
 		hints->ai_family = PF_INET;
 	} else if (!had_ipv4_address && had_ipv6_address) {
