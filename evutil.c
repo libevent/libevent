@@ -761,6 +761,9 @@ evutil_check_interfaces(int force_recheck)
 	if (have_checked_interfaces && !force_recheck)
 		return 0;
 
+	/* From this point on we have done the ipv4/ipv6 interface check */
+	have_checked_interfaces=1;
+	
 	if (evutil_check_ifaddrs() == 0) {
 		/* Use a nice sane interface, if this system has one. */
 		return 0;
