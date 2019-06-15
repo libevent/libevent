@@ -989,6 +989,17 @@ if (NOT EVENT__DISABLE_SAMPLES)
         add_sample_prog(ON becat sample/becat.c ${WIN32_GETOPT})
     endif()
 
+    if (EVENT__HAVE_PTHREADS)
+	    add_executable(pthread-pool
+			   sample/pthread-pool.c)
+	    target_link_libraries(pthread-pool
+				  event_extra
+				  event_core
+				  event_pthreads
+				  ${LIB_APPS}
+				  ${LIB_PLATFORM})
+    endif()
+
     set(SAMPLES_WOPT
         dns-example
         http-server
