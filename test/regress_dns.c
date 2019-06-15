@@ -2352,6 +2352,26 @@ end:
 }
 #endif
 
+static void
+test_set_so_rcvbuf_so_sndbuf(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct evdns_base *dns_base;
+
+	dns_base = evdns_base_new(data->base, 0);
+	tt_assert(dns_base);
+
+	tt_assert(!evdns_base_set_option(dns_base, "so-rcvbuf", "10240"));
+	tt_assert(!evdns_base_set_option(dns_base, "so-sndbuf", "10240"));
+
+	/* actually check SO_RCVBUF/SO_SNDBUF not fails */
+	tt_assert(!evdns_base_nameserver_ip_add(dns_base, "127.0.0.1"));
+
+end:
+	if (dns_base)
+		evdns_base_free(dns_base, 0);
+}
+
 #define DNS_LEGACY(name, flags)					       \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
 		    dns_##name }
@@ -2420,6 +2440,9 @@ struct testcase_t dns_testcases[] = {
 	  getaddrinfo_race_gotresolve_test,
 	  TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
 #endif
+
+	{ "set_SO_RCVBUF_SO_SNDBUF", test_set_so_rcvbuf_so_sndbuf,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
 	END_OF_TESTCASES
 };

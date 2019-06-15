@@ -455,7 +455,8 @@ void evdns_cancel_request(struct evdns_base *base, struct evdns_request *req);
   The currently available configuration options are:
 
     ndots, timeout, max-timeouts, max-inflight, attempts, randomize-case,
-    bind-to, initial-probe-timeout, getaddrinfo-allow-skew.
+    bind-to, initial-probe-timeout, getaddrinfo-allow-skew,
+    so-rcvbuf, so-sndbuf.
 
   In versions before Libevent 2.0.3-alpha, the option name needed to end with
   a colon.
