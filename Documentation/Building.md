@@ -75,6 +75,7 @@ $ make verify # Optional
 ```
 
 ## CMake Variables
+General options:
 ```
 # Type of the library to build (SHARED or STATIC)
 # Default is: SHARED for MSVC, otherwise BOTH
@@ -119,6 +120,26 @@ EVENT__ENABLE_VERBOSE_DEBUG:BOOL=OFF
 # on the the cross compilation target to verify that it works. See CMake
 # documentation for try_run for more details
 EVENT__FORCE_KQUEUE_CHECK:BOOL=OFF
+```
+MSVC specific options:
+```
+# Link static runtime libraries.
+# Defaults to ON if EVENT_LIBRARY_TYPE is equal to "STATIC", otherwise OFF
+EVENT__MSVC_STATIC_RUNTIME:BOOL
+```
+GNUC specific options:
+```
+# Disable verbose warnings with GCC
+EVENT__DISABLE_GCC_WARNINGS:BOOL=OFF
+
+# Enable compiler security checks
+EVENT__ENABLE_GCC_HARDENING:BOOL=OFF
+
+# Enable gcc function sections
+EVENT__ENABLE_GCC_FUNCTION_SECTIONS:BOOL=OFF
+
+# Make all GCC warnings into errors
+EVENT__ENABLE_GCC_WARNINGS:BOOL=OFF
 ```
 __More variables can be found by running `cmake -LAH <sourcedir_path>`__
 
