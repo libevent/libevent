@@ -1,10 +1,58 @@
 # Building and installing Libevent
 ### Jump to:
+- [Prerequisites](#Prerequisites)
 - [Autoconf](#autoconf)
   - [Flags](#autoconf-flags)
 - [Building on Windows](#building-on-windows)
 - [Building on Unix (With CMake)](#building-on-unix-cmake)
 - [CMake Variables](#cmake-variables)
+
+## Prerequisites
+
+### Linux
+Just install tools using your preferred package manager if you build using autotools:
+```sh
+sudo apt-get install automake autoconf libtool pkg-config
+```
+or build using cmake:
+```sh
+sudo apt-get install cmake
+```
+Doxygen is a tool for generating documentation. Git is used to fetch the package version.  
+Install them if needed:
+```
+sudo apt-get install doxygen git
+```
+If you plan to support for OpenSSL encryption:
+```sh
+sudo apt-get install libssl-dev
+```
+To support multithreaded environments, libpthread is a must, and it already exists in the system. 
+
+To run the tests, you should install zlib:
+```sh
+sudo apt-get install zlib1g-dev
+```
+Finaly, python interpreter should be installed if you want to run regress tests.
+
+### MacOS
+It is recommended to use brew to install software on MacOS.
+The installation process on MacOS is roughly the same as on Linux,  
+the difference is installation of openssl and zlib: 
+```sh
+brew install openssl zlib
+```
+
+### Windows
+You can only buid using cmake on Windows. To install it, there are two choices: installer and zip file.
+If using zip file, you should set the PATH variable in the Environment Variables for your User to include the installation path of cmake.
+
+Install Visual Studio which is the true compiler will be used.
+
+Install OpenSSL to support for encryption, then add the installation path into the PATH variable in the Environment Variables, or set OPENSSL_ROOT_DIR in command prompt:
+```sh
+set "OPENSSL_ROOT_DIR=C:\path\to\OpenSSL"
+```
 
 ## Autoconf
 
