@@ -131,6 +131,9 @@ CMAKE_FILES = \
 	evconfig-private.h.cmake \
 	CMakeLists.txt
 
+DOCUMENTATION_FILES = \
+	Documentation/Building.md
+
 EXTRA_DIST = \
 	ChangeLog-1.4 \
 	ChangeLog-2.0 \
@@ -142,7 +145,9 @@ EXTRA_DIST = \
 	make-event-config.sed \
 	whatsnew-2.0.txt \
 	whatsnew-2.1.txt \
+	README.md \
 	$(CMAKE_FILES) \
+	$(DOCUMENTATION_FILES) \
 	$(PLATFORM_DEPENDENT_SRC)
 
 LIBEVENT_LIBS_LA = libevent.la libevent_core.la libevent_extra.la
