@@ -142,6 +142,7 @@ EXTRA_DIST = \
 	make-event-config.sed \
 	whatsnew-2.0.txt \
 	whatsnew-2.1.txt \
+	README.md \
 	$(CMAKE_FILES) \
 	$(PLATFORM_DEPENDENT_SRC)
 
