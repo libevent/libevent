@@ -1003,6 +1003,12 @@ event_reinit(struct event_base *base)
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
+	if (base->running_loop) {
+		event_warnx("%s: forked from the event_loop.", __func__);
+		res = -1;
+		goto done;
+	}
+
 	evsel = base->evsel;
 
 	/* check if this event mechanism requires reinit on the backend */
