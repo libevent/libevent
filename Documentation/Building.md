@@ -9,7 +9,7 @@
 
 ## Prerequisites
 
-### Linux
+### Linux deb-like (ubuntu/debian/...)
 Just install tools using your preferred package manager if you build using autotools:
 ```sh
 sudo apt-get install automake autoconf libtool pkg-config
@@ -23,7 +23,7 @@ Install them if needed:
 ```
 sudo apt-get install doxygen git
 ```
-If you plan to support for OpenSSL encryption:
+It is highly recommended to support OpenSSL encryption:
 ```sh
 sudo apt-get install libssl-dev
 ```
@@ -44,14 +44,19 @@ brew install openssl zlib
 ```
 
 ### Windows
-You can only buid using cmake on Windows. To install it, there are two choices: installer and zip file.
+You can preferred build using cmake on Windows. To install it, there are two choices: installer and zip file.
 If using zip file, you should set the PATH variable in the Environment Variables for your User to include the installation path of cmake.
 
 Install Visual Studio which is the true compiler will be used.
 
-Install OpenSSL to support for encryption, then add the installation path into the PATH variable in the Environment Variables, or set OPENSSL_ROOT_DIR in command prompt:
+Install OpenSSL to support for encryption, then add the installation path into the PATH variable in the Environment Variables, 
+or set OPENSSL_ROOT_DIR in command prompt:
 ```sh
 set "OPENSSL_ROOT_DIR=C:\path\to\OpenSSL"
+```
+or add `OPENSSL_ROOT_DIR` definition to the cmake command:
+```sh
+cmake -DOPENSSL_ROOT_DIR=C:/path/to/OpenSSL ...
 ```
 
 ## Autoconf
