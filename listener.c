@@ -35,6 +35,7 @@
 #define _WIN32_WINNT 0x0403
 #endif
 #include <winsock2.h>
+#include <winerror.h>
 #include <ws2tcpip.h>
 #include <mswsock.h>
 #endif
