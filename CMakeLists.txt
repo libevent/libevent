@@ -337,6 +337,10 @@ if (NOT DEFINED _GNU_SOURCE)
     unset(_GNU_SOURCE CACHE)
     CHECK_SYMBOL_EXISTS(_GNU_SOURCE "features.h" _GNU_SOURCE)
   endif()
+
+  if (ANDROID)
+    set(_GNU_SOURCE TRUE)
+  endif()
 endif()
 
 if (_GNU_SOURCE)
