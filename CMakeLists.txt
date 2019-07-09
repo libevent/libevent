@@ -84,6 +84,14 @@ set(EVENT_ABI_LIBVERSION
 set(EVENT_PACKAGE_VERSION
     "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}")
 
+# equals to VERSION_INFO in Makefile.am
+set(EVENT_ABI_LIBVERSION_CURRENT   1)
+set(EVENT_ABI_LIBVERSION_REVISION  0)
+set(EVENT_ABI_LIBVERSION_AGE       0)
+
+# equals to RELEASE in Makefile.am
+set(EVENT_PACKAGE_RELEASE 2.2)
+
 set(EVENT_NUMERIC_VERSION 0x02020001)
 
 # only a subset of names can be used, defaults to "beta"
