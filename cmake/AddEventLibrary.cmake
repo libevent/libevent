@@ -149,7 +149,7 @@ macro(add_event_library LIB_NAME)
         PUBLIC_HEADER DESTINATION "include/event2"
         COMPONENT dev
     )
-    if (NOT WIN32)
+    if (NOT WIN32 AND ${EVENT_LIBRARY_SHARED})
         install(FILES
             "$<TARGET_FILE_DIR:${LIB_NAME}_shared>/${LIB_LINK_NAME}"
             DESTINATION "lib"
