@@ -1158,7 +1158,7 @@ be_openssl_enable(struct bufferevent *bev, short events)
 {
 	struct bufferevent_openssl *bev_ssl = upcast(bev);
 	int r1 = 0, r2 = 0;
-
+	if (!bev_ssl) return -1;
 	if (events & EV_READ)
 		r1 = start_reading(bev_ssl);
 	if (events & EV_WRITE)
@@ -1182,7 +1182,7 @@ static int
 be_openssl_disable(struct bufferevent *bev, short events)
 {
 	struct bufferevent_openssl *bev_ssl = upcast(bev);
-
+	if (!bev_ssl) return -1; 
 	if (events & EV_READ)
 		stop_reading(bev_ssl);
 	if (events & EV_WRITE)
@@ -1247,7 +1247,7 @@ static int
 be_openssl_adj_timeouts(struct bufferevent *bev)
 {
 	struct bufferevent_openssl *bev_ssl = upcast(bev);
-
+	if (!bev_ssl) return -1;
 	if (bev_ssl->underlying) {
 		return bufferevent_generic_adj_timeouts_(bev);
 	} else {
@@ -1300,6 +1300,7 @@ be_openssl_ctrl(struct bufferevent *bev,
     enum bufferevent_ctrl_op op, union bufferevent_ctrl_data *data)
 {
 	struct bufferevent_openssl *bev_ssl = upcast(bev);
+	if (!bev_ssl) return -1;
 	switch (op) {
 	case BEV_CTRL_SET_FD:
 		if (!bev_ssl->underlying) {
