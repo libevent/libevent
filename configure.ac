@@ -6,7 +6,7 @@ dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
 AC_INIT(libevent,2.1.10-stable)
-AC_PREREQ(2.59)
+AC_PREREQ(2.62)
 AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
