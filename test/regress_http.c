@@ -1643,9 +1643,6 @@ http_fill_backlog(struct event_base *base, int port)
 		evcon[i] = NULL;
 
 		return evcon;
- end:
-		fprintf(stderr, "Couldn't fill the backlog");
-		return NULL;
 }
 
 enum http_cancel_test_type {
