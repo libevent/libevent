@@ -3304,7 +3304,7 @@ evbuffer_add_file(struct evbuffer *buf, int fd, ev_off_t offset, ev_off_t length
 	return r;
 }
 
-void
+int
 evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
 {
 	EVBUFFER_LOCK(buffer);
@@ -3315,10 +3315,15 @@ evbuffer_setcb(struct evbuffer *buffer, evbuffer_cb cb, void *cbarg)
 	if (cb) {
 		struct evbuffer_cb_entry *ent =
 		    evbuffer_add_cb(buffer, NULL, cbarg);
+		if (!ent) {
+			EVBUFFER_UNLOCK(buffer);
+			return -1;
+		}
 		ent->cb.cb_obsolete = cb;
 		ent->flags |= EVBUFFER_CB_OBSOLETE;
 	}
 	EVBUFFER_UNLOCK(buffer);
+	return 0;
 }
 
 struct evbuffer_cb_entry *
