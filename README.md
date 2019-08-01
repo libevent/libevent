@@ -459,5 +459,11 @@ fixing bugs:
  * Yury Korzhetsky
  * zhuizhuhaomeng
  * Pierce Lopez
+ * yuangongji
+ * Keith Smiley
+ * jeremyerb
+ * Fabrice Fontaine
+ * wenyg
+
 
 If we have forgotten your name, please contact us.
