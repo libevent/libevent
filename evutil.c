@@ -29,6 +29,7 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
+#include <winerror.h>
 #include <ws2tcpip.h>
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -750,7 +751,7 @@ done:
 /* Test whether we have an ipv4 interface and an ipv6 interface.  Return 0 if
  * the test seemed successful. */
 static int
-evutil_check_interfaces(int force_recheck)
+evutil_check_interfaces(void)
 {
 	evutil_socket_t fd = -1;
 	struct sockaddr_in sin, sin_out;
@@ -758,8 +759,11 @@ evutil_check_interfaces(int force_recheck)
 	ev_socklen_t sin_out_len = sizeof(sin_out);
 	ev_socklen_t sin6_out_len = sizeof(sin6_out);
 	int r;
-	if (have_checked_interfaces && !force_recheck)
+	if (have_checked_interfaces)
 		return 0;
+
+	/* From this point on we have done the ipv4/ipv6 interface check */
+	have_checked_interfaces = 1;
 
 	if (evutil_check_ifaddrs() == 0) {
 		/* Use a nice sane interface, if this system has one. */
@@ -1228,8 +1232,7 @@ evutil_adjust_hints_for_addrconfig_(struct evutil_addrinfo *hints)
 		return;
 	if (hints->ai_family != PF_UNSPEC)
 		return;
-	if (!have_checked_interfaces)
-		evutil_check_interfaces(0);
+	evutil_check_interfaces();
 	if (had_ipv4_address && !had_ipv6_address) {
 		hints->ai_family = PF_INET;
 	} else if (!had_ipv4_address && had_ipv6_address) {

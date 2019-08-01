@@ -40,7 +40,7 @@ case "$enable_openssl" in
 	;;
     esac
     CPPFLAGS_SAVE=$CPPFLAGS
-    CPPFLAGS+=$OPENSSL_INCS
+    CPPFLAGS="$CPPFLAGS $OPENSSL_INCS"
     AC_CHECK_HEADERS([openssl/ssl.h], [], [have_openssl=no])
     CPPFLAGS=$CPPFLAGS_SAVE
     AC_SUBST(OPENSSL_INCS)

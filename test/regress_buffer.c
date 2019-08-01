@@ -1956,12 +1956,12 @@ test_evbuffer_callbacks(void *ptr)
 	tt_assert(cb1 != NULL);
 	cb2 = evbuffer_add_cb(buf, log_change_callback, buf_out2);
 	tt_assert(cb2 != NULL);
-	evbuffer_setcb(buf, self_draining_callback, NULL);
+	tt_int_op(evbuffer_setcb(buf, self_draining_callback, NULL), ==, 0);
 	evbuffer_add_printf(buf, "This should get drained right away.");
 	tt_uint_op(evbuffer_get_length(buf), ==, 0);
 	tt_uint_op(evbuffer_get_length(buf_out1), ==, 0);
 	tt_uint_op(evbuffer_get_length(buf_out2), ==, 0);
-	evbuffer_setcb(buf, NULL, NULL);
+	tt_int_op(evbuffer_setcb(buf, NULL, NULL), ==, 0);
 	evbuffer_add_printf(buf, "This will not.");
 	tt_str_op((const char *) evbuffer_pullup(buf, -1), ==, "This will not.");
 	evbuffer_validate(buf);
@@ -1985,6 +1985,14 @@ test_evbuffer_callbacks(void *ptr)
 		  "0->11; 11->11; 11->0; ");
 	tt_str_op(evbuffer_pullup(buf_out2, -1), ==,
 		  "0->15; 15->11; 11->0; ");
+#endif
+
+	/* the next call to readline should fail */
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
+	event_set_mem_functions(failing_malloc, realloc, free);
+	tt_int_op(evbuffer_setcb(buf, self_draining_callback, NULL), ==, -1);
+	evbuffer_validate(buf);
+	event_set_mem_functions(malloc, realloc, free);
 #endif
 
  end:

@@ -84,7 +84,14 @@ set(EVENT_ABI_LIBVERSION
 set(EVENT_PACKAGE_VERSION
     "${EVENT_VERSION_MAJOR}.${EVENT_VERSION_MINOR}.${EVENT_VERSION_PATCH}")
 
-set(EVENT_NUMERIC_VERSION 0x02010a00)
+set(EVENT_NUMERIC_VERSION 0x02010b00)
+# equals to VERSION_INFO in Makefile.am
+set(EVENT_ABI_LIBVERSION_CURRENT   7)
+set(EVENT_ABI_LIBVERSION_REVISION  0)
+set(EVENT_ABI_LIBVERSION_AGE       0)
+
+# equals to RELEASE in Makefile.am
+set(EVENT_PACKAGE_RELEASE 2.1)
 
 # only a subset of names can be used, defaults to "beta"
 set(EVENT_STAGE_NAME ${EVENT_VERSION_STAGE})
@@ -322,7 +329,7 @@ endif()
 # Winsock.
 if(WIN32)
     set(CMAKE_EXTRA_INCLUDE_FILES winsock2.h ws2tcpip.h)
-    set(CMAKE_REQUIRED_LIBRARIES  ws2_32.lib)
+    set(CMAKE_REQUIRED_LIBRARIES  ws2_32.lib shell32.lib advapi32.lib)
     set(CMAKE_REQUIRED_DEFINITIONS -FIwinsock2.h -FIws2tcpip.h)
 endif()
 if (SOLARIS)
@@ -336,6 +343,10 @@ if (NOT DEFINED _GNU_SOURCE)
   if (NOT _GNU_SOURCE)
     unset(_GNU_SOURCE CACHE)
     CHECK_SYMBOL_EXISTS(_GNU_SOURCE "features.h" _GNU_SOURCE)
+  endif()
+
+  if (ANDROID)
+    set(_GNU_SOURCE TRUE)
   endif()
 endif()
 
@@ -626,7 +637,7 @@ CHECK_TYPE_SIZE("time_t" EVENT__SIZEOF_TIME_T)
 
 # Verify kqueue works with pipes.
 if (EVENT__HAVE_KQUEUE)
-    if (CMAKE_CROSSCOMPILING AND NOT EVENT__FORCE_KQUEUE_CHECK)
+    if ((CMAKE_CROSSCOMPILING OR APPLE) AND NOT EVENT__FORCE_KQUEUE_CHECK)
         message(WARNING "Cannot check if kqueue works with pipes when crosscompiling, use EVENT__FORCE_KQUEUE_CHECK to be sure (this requires manually running a test program on the cross compilation target)")
         set(EVENT__HAVE_WORKING_KQUEUE 1)
     else()
@@ -873,7 +884,7 @@ if(WIN32)
     list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
 
     set(EVENT__DNS_USE_FTIME_FOR_ID 1)
-    set(LIB_PLATFORM ws2_32)
+    set(LIB_PLATFORM ws2_32 shell32 advapi32)
     add_definitions(
             -D_CRT_SECURE_NO_WARNINGS
             -D_CRT_NONSTDC_NO_DEPRECATE)
@@ -1464,6 +1475,33 @@ install(FILES
 install(EXPORT LibeventTargets
         DESTINATION "${DEF_INSTALL_CMAKE_DIR}"
         COMPONENT dev)
+
+# Install the scripts.
+install(PROGRAMS
+       ${CMAKE_CURRENT_SOURCE_DIR}/event_rpcgen.py
+       DESTINATION "bin"
+       COMPONENT runtime)
+
+# Create documents with doxygen.
+find_program(DOXYGEN doxygen)
+if (DOXYGEN)
+    add_custom_target(doxygen
+                      COMMAND ${DOXYGEN} Doxyfile
+                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+else()
+    message(WARNING "The doxygen target will not support since doxygen command was not found!")
+endif()
+
+
+# Create the uninstall target.
+# https://gitlab.kitware.com/cmake/community/wikis/FAQ#can-i-do-make-uninstall-with-cmake
+configure_file(${PROJECT_SOURCE_DIR}/cmake/Uninstall.cmake.in
+               ${PROJECT_BINARY_DIR}/Uninstall.cmake
+               @ONLY)
+
+add_custom_target(uninstall
+                  COMMAND ${CMAKE_COMMAND} -P ${PROJECT_BINARY_DIR}/Uninstall.cmake)
+
 
 message(STATUS "")
 message(STATUS "        ---( Libevent " ${EVENT_VERSION} " )---")

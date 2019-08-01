@@ -1,4 +1,4 @@
-# include/Makefile.am for libevent
+# include/include.am for libevent
 # Copyright 2000-2007 Niels Provos
 # Copyright 2007-2012 Niels Provos and Nick Mathewson
 #
@@ -11,7 +11,6 @@ EVENT2_EXPORT = \
 	include/event2/buffer_compat.h \
 	include/event2/bufferevent.h \
 	include/event2/bufferevent_compat.h \
-	include/event2/bufferevent_ssl.h \
 	include/event2/bufferevent_struct.h \
 	include/event2/dns.h \
 	include/event2/dns_compat.h \
@@ -32,6 +31,10 @@ EVENT2_EXPORT = \
 	include/event2/thread.h \
 	include/event2/util.h \
 	include/event2/visibility.h
+
+if OPENSSL
+EVENT2_EXPORT += include/event2/bufferevent_ssl.h
+endif
 
 ## Without the nobase_ prefixing, Automake would strip "include/event2/" from
 ## the source header filename to derive the installed header filename.

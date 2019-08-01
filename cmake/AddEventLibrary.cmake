@@ -38,6 +38,10 @@ endmacro()
 
 # Global variables that it uses:
 # - EVENT_ABI_LIBVERSION
+# - EVENT_ABI_LIBVERSION_CURRENT
+# - EVENT_ABI_LIBVERSION_REVISION
+# - EVENT_ABI_LIBVERSION_AGE
+# - EVENT_PACKAGE_RELEASE
 # - CMAKE_THREAD_LIBS_INIT LIB_PLATFORM
 # - OPENSSL_LIBRARIES
 # - HDR_PUBLIC
@@ -87,16 +91,44 @@ macro(add_event_library LIB_NAME)
             set_event_shared_lib_flags("${LIB_NAME}" "${EVENT_SHARED_FLAGS}")
         endif()
 
-        set_target_properties("${LIB_NAME}_shared" PROPERTIES
-            OUTPUT_NAME "${LIB_NAME}"
+        if (WIN32)
+            set_target_properties(
+                "${LIB_NAME}_shared" PROPERTIES
+                OUTPUT_NAME "${LIB_NAME}"
+                SOVERSION ${EVENT_ABI_LIBVERSION})
+        elseif (APPLE)
+            math(EXPR COMPATIBILITY_VERSION "${EVENT_ABI_LIBVERSION_CURRENT}+1")
+            math(EXPR CURRENT_MINUS_AGE "${EVENT_ABI_LIBVERSION_CURRENT}-${EVENT_ABI_LIBVERSION_AGE}")
+            set_target_properties(
+                "${LIB_NAME}_shared" PROPERTIES
+                OUTPUT_NAME "${LIB_NAME}-${EVENT_PACKAGE_RELEASE}.${CURRENT_MINUS_AGE}"
+                INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib"
+                LINK_FLAGS "-compatibility_version ${COMPATIBILITY_VERSION} -current_version ${COMPATIBILITY_VERSION}.${EVENT_ABI_LIBVERSION_REVISION}")
+        else()
+            math(EXPR CURRENT_MINUS_AGE "${EVENT_ABI_LIBVERSION_CURRENT}-${EVENT_ABI_LIBVERSION_AGE}")
+            set_target_properties(
+                "${LIB_NAME}_shared" PROPERTIES
+                OUTPUT_NAME "${LIB_NAME}-${EVENT_PACKAGE_RELEASE}"
+                VERSION "${CURRENT_MINUS_AGE}.${EVENT_ABI_LIBVERSION_AGE}.${EVENT_ABI_LIBVERSION_REVISION}"
+                SOVERSION "${CURRENT_MINUS_AGE}")
+        endif()
+
+        set_target_properties(
+            "${LIB_NAME}_shared" PROPERTIES
+            PUBLIC_HEADER "${HDR_PUBLIC}"
             CLEAN_DIRECT_OUTPUT 1)
-        set_target_properties(
-            "${LIB_NAME}_shared" PROPERTIES
-            PUBLIC_HEADER "${HDR_PUBLIC}")
-        set_target_properties(
-            "${LIB_NAME}_shared" PROPERTIES
-            SOVERSION ${EVENT_ABI_LIBVERSION}
-        )
+
+        if (NOT WIN32)
+            set(LIB_LINK_NAME
+                "${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+
+            add_custom_command(TARGET ${LIB_NAME}_shared
+                POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E create_symlink
+                    "$<TARGET_FILE_NAME:${LIB_NAME}_shared>"
+                    "${LIB_LINK_NAME}"
+                WORKING_DIRECTORY "lib")
+        endif()
 
         list(APPEND LIBEVENT_SHARED_LIBRARIES "${LIB_NAME}_shared")
         list(APPEND ADD_EVENT_LIBRARY_TARGETS "${LIB_NAME}_shared")
@@ -117,6 +149,12 @@ macro(add_event_library LIB_NAME)
         PUBLIC_HEADER DESTINATION "include/event2"
         COMPONENT dev
     )
+    if (NOT WIN32 AND ${EVENT_LIBRARY_SHARED})
+        install(FILES
+            "$<TARGET_FILE_DIR:${LIB_NAME}_shared>/${LIB_LINK_NAME}"
+            DESTINATION "lib"
+            COMPONENT lib)
+    endif()
 
     add_library(${LIB_NAME} INTERFACE)
     target_link_libraries(${LIB_NAME} INTERFACE ${ADD_EVENT_LIBRARY_INTERFACE})

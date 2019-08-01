@@ -52,16 +52,22 @@ extern "C" {
 
 /* __has_attribute() wrapper */
 #ifdef __has_attribute
-#define EVUTIL_HAS_ATTRIBUTE __has_attribute
+# define EVUTIL_HAS_ATTRIBUTE __has_attribute
 #endif
 /** clang 3 __has_attribute misbehaves in some versions */
-#if defined(__clang__) && \
-	__clang__ == 1 && __clang_major__ == 3 && \
-	(__clang_minor__ >= 2 && __clang_minor__ <= 5)
-#undef EVUTIL_HAS_ATTRIBUTE
-#endif
+#if defined(__clang__) && __clang__ == 1
+# if defined(__apple_build_version__)
+#  if __clang_major__ <= 6
+#   undef EVUTIL_HAS_ATTRIBUTE
+#  endif
+# else /* !__apple_build_version__ */
+#  if __clang_major__ == 3 && __clang_minor__ >= 2 && __clang_minor__ <= 5
+#   undef EVUTIL_HAS_ATTRIBUTE
+#  endif
+# endif /* __apple_build_version__ */
+#endif /*\ defined(__clang__) && __clang__ == 1 */
 #ifndef EVUTIL_HAS_ATTRIBUTE
-#define EVUTIL_HAS_ATTRIBUTE(x) 0
+# define EVUTIL_HAS_ATTRIBUTE(x) 0
 #endif
 
 /* If we need magic to say "inline", get it for free internally. */

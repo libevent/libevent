@@ -54,6 +54,7 @@
 #ifdef _WIN32
 #include <wincrypt.h>
 #include <process.h>
+#include <winerror.h>
 #else
 #include <fcntl.h>
 #include <unistd.h>

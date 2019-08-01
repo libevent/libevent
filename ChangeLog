@@ -1,3 +1,49 @@
+Changes in version 2.1.11-stable (01 Aug 2019)
+
+ This release contains one ABI breakage fix (that had been introduced in
+ 2.1.10, and strictly speaking this release breaks ABI again to make it
+ compatible with 2.1.9 and less, please take a look at 18104973 for more
+ details). Apart from that it contains some bug fixes, that grouped below.
+
+ And even though the return value for evbuffer_setcb() had been changed it
+ should ABI compatible (anyway that function is in -compat.h header).
+
+ There is also one patch that introduce new functionality, this is 546a366c,
+ to tune SO_RCVBUF/SO_SNDBUF in evdns, but one can count it as a bug-fix on
+ the application level, since before you cannot tune this settings and hence
+ you could stumble on problems.
+
+ ABI breakage:
+  o Protect min_heap_push_ against integer overflow. (8c899768 Tobias Stoeckmann)
+  o Revert "Protect min_heap_push_ against integer overflow." (18104973 Azat Khuzhin)
+
+ functionality:
+  o evdns: add new options -- so-rcvbuf/so-sndbuf (546a366c Azat Khuzhin)
+
+ build:
+  o Change autoconf version to 2.62 and automake version to 1.11.2 (2a333008 yuangongji)
+  o cmake: install shared library only if it was requested (596855f7 Azat Khuzhin)
+  o Missing <winerror.h> on win7/MinGW(MINGW32_NT-6.1)/MSYS (9559349c yuangongji)
+  o cmake: set library names to be the same as with autotools (305251b9 yuangongji)
+  o Enable _GNU_SOURCE for Android (f013fc7d Keith Smiley)
+  o Enable kqueue for APPLE targets (3aa68a82 Keith Smiley)
+  o autotools: do not install bufferevent_ssl.h under --disable-openssl (5349a07e Azat Khuzhin)
+  o cmake: link against shell32.lib/advapi32.lib (c9ce638c Azat Khuzhin)
+  o Add README.md into dist archive (3660a4cc Azat Khuzhin)
+  o cmake: add missing autotools targets (doxygen, uninstall, event_rpcgen.py) (2d65071c yuangongji)
+  o m4/libevent_openssl.m4: fix detection of openssl (d4056e59 Fabrice Fontaine)
+  o Fix detection of the __has_attribute() for apple clang [ci skip] (7fd7c5ef Azat Khuzhin)
+
+ lib:
+  o buffer: fix possible NULL dereference in evbuffer_setcb() on ENOMEM (598f247d Azat Khuzhin)
+  o Warn if forked from the event loop during event_reinit() (b75922ae Azat Khuzhin)
+  o evutil: set the have_checked_interfaces in evutil_check_interfaces()
+    (ef498aa2, a09265ac jeremyerb)
+
+ samples:
+  o https-client: correction error checking (a8a04565 wenyg)
+
+
 Changes in version 2.1.10-stable (26 May 2019)
 
  This release contains mostly fixes (some evbuffer oddity, AF_UNIX handling in

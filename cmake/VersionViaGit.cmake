@@ -23,8 +23,8 @@ macro(event_fuzzy_version_from_git)
 	# set our defaults.
 	set(EVENT_GIT___VERSION_MAJOR 2)
 	set(EVENT_GIT___VERSION_MINOR 1)
-	set(EVENT_GIT___VERSION_PATCH 10)
-	set(EVENT_GIT___VERSION_STAGE "beta")
+	set(EVENT_GIT___VERSION_PATCH 11)
+	set(EVENT_GIT___VERSION_STAGE "stable")
 
 	find_package(Git)
 

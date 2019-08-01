@@ -53,7 +53,7 @@ http_request_done(struct evhttp_request *req, void *ctx)
 	char buffer[256];
 	int nread;
 
-	if (req == NULL) {
+	if (!req || !evhttp_request_get_response_code(req)) {
 		/* If req is NULL, it means an error occurred, but
 		 * sadly we are mostly left guessing what the error
 		 * might have been.  We'll do our best... */
