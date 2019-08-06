@@ -99,10 +99,10 @@ main(int argc, char **argv)
 	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
 		return (1);
 
-	/* Initalize the event library */
+	/* Initialize the event library */
 	event_init();
 
-	/* Initalize one event */
+	/* Initialize one event */
 	event_set(&ev, pair[1], EV_WRITE, write_cb, &ev);
 
 	event_add(&ev, NULL);

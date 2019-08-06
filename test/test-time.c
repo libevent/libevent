@@ -94,13 +94,13 @@ main(int argc, char **argv)
 
 	evutil_weakrand_seed_(&weakrand_state, 0);
 
-	/* Initalize the event library */
+	/* Initialize the event library */
 	event_init();
 
 	for (i = 0; i < NEVENT; i++) {
 		ev[i] = malloc(sizeof(struct event));
 
-		/* Initalize one event */
+		/* Initialize one event */
 		evtimer_set(ev[i], time_cb, ev[i]);
 		tv.tv_sec = 0;
 		tv.tv_usec = rand_int(50000);
