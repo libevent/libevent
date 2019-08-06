@@ -56,14 +56,14 @@ main(int argc, char **argv)
 	(void) WSAStartup(wVersionRequested, &wsaData);
 #endif
 
-	/* Initalize the event library */
+	/* Initialize the event library */
 	base = event_base_new();
 	if (!base) {
 		ret = 1;
 		goto out;
 	}
 
-	/* Initalize one event */
+	/* Initialize one event */
 	signal_int = evsignal_new(base, SIGINT, signal_cb, event_self_cbarg());
 	if (!signal_int) {
 		ret = 2;

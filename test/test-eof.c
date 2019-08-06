@@ -102,10 +102,10 @@ main(int argc, char **argv)
 		return (1);
 	shutdown(pair[0], EVUTIL_SHUT_WR);
 
-	/* Initalize the event library */
+	/* Initialize the event library */
 	event_init();
 
-	/* Initalize one event */
+	/* Initialize one event */
 	event_set(&ev, pair[1], EV_READ | EV_TIMEOUT, read_cb, &ev);
 
 	event_add(&ev, &timeout);
