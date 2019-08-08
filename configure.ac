@@ -6,7 +6,7 @@ dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
 AC_INIT(libevent,2.1.11-stable)
-AC_PREREQ(2.62)
+AC_PREREQ(2.67)
 AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -126,7 +126,8 @@ AC_ARG_ENABLE([clock-gettime],
   [], [enable_clock_gettime=yes])
 
 
-AC_PROG_LIBTOOL
+LT_PREREQ([2.4.2])
+LT_INIT
 
 dnl   Uncomment "AC_DISABLE_SHARED" to make shared libraries not get
 dnl   built by default.  You can also turn shared libs on and off from

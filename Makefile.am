@@ -5,8 +5,8 @@
 # See LICENSE for copying information.
 
 # 'foreign' means that we're not enforcing GNU package rules strictly.
-# '1.11.2' means that we need automake 1.11.2 or later (and we do).
-AUTOMAKE_OPTIONS = foreign 1.11.2 subdir-objects
+# '1.13' means that we need automake 1.13 or later (and we do).
+AUTOMAKE_OPTIONS = foreign 1.13 subdir-objects
 
 ACLOCAL_AMFLAGS = -I m4
 
