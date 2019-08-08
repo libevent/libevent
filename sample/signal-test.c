@@ -46,6 +46,7 @@ main(int argc, char **argv)
 {
 	struct event *signal_int;
 	struct event_base* base;
+	int ret = 0;
 #ifdef _WIN32
 	WORD wVersionRequested;
 	WSADATA wsaData;
@@ -57,16 +58,26 @@ main(int argc, char **argv)
 
 	/* Initalize the event library */
 	base = event_base_new();
+	if (!base) {
+		ret = 1;
+		goto out;
+	}
 
 	/* Initalize one event */
 	signal_int = evsignal_new(base, SIGINT, signal_cb, event_self_cbarg());
-
+	if (!signal_int) {
+		ret = 2;
+		goto out;
+	}
 	event_add(signal_int, NULL);
 
 	event_base_dispatch(base);
-	event_free(signal_int);
-	event_base_free(base);
 
-	return (0);
+out:
+	if (signal_int)
+		event_free(signal_int);
+	if (base)
+		event_base_free(base);
+	return ret;
 }
 
