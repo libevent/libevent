@@ -96,6 +96,7 @@ signal-test
 time-test
 event-test
 watch-timing
+becat
 
 # test binaries
 test-driver
