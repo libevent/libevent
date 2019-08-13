@@ -65,7 +65,7 @@ struct options
 		int listen:1;
 		int keep:1;
 		int ssl:1;
-	};
+	} extra;
 };
 struct ssl_context
 {
@@ -129,7 +129,7 @@ be_new(struct context *ctx, struct event_base *base, evutil_socket_t fd)
 	if (fd != -1)
 		state = BUFFEREVENT_SSL_ACCEPTING;
 
-	if (ctx->opts->ssl) {
+	if (ctx->opts->extra.ssl) {
 		ssl = SSL_new(ctx->ssl.ctx);
 		if (!ssl)
 			goto err;
@@ -276,9 +276,9 @@ static struct options parse_opts(int argc, char **argv)
 			case 's': o.src.address = strdup("127.1"); break;
 			case 'R': o.max_read    = atoi(optarg); break;
 
-			case 'l': o.listen = 1; break;
-			case 'k': o.keep   = 1; break;
-			case 'S': o.ssl    = 1; break;
+			case 'l': o.extra.listen = 1; break;
+			case 'k': o.extra.keep   = 1; break;
+			case 'S': o.extra.ssl    = 1; break;
 
 			/**
 			 * TODO: implement other bits:
@@ -407,7 +407,7 @@ static void server_event_cb(struct bufferevent *bev, short what, void *arg)
 {
 	struct context *ctx = arg;
 	EVUTIL_ASSERT(bev == ctx->out);
-	if (!event_cb_(bev, what, ctx->opts->ssl, !ctx->opts->keep))
+	if (!event_cb_(bev, what, ctx->opts->extra.ssl, !ctx->opts->extra.keep))
 		return;
 	ctx->out = NULL;
 }
@@ -421,7 +421,7 @@ accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
 	struct bufferevent *bev = NULL;
 	struct event_base *base = evconnlistener_get_base(listener);
 
-	if (!ctx->opts->keep)
+	if (!ctx->opts->extra.keep)
 		evconnlistener_disable(listener);
 
 	info("Accepting %s (fd=%d)\n",
@@ -454,7 +454,7 @@ err:
 static void client_event_cb(struct bufferevent *bev, short what, void *arg)
 {
 	struct context *ctx = arg;
-	if (!event_cb_(bev, what, ctx->opts->ssl, 1))
+	if (!event_cb_(bev, what, ctx->opts->extra.ssl, 1))
 		return;
 	ctx->out = NULL;
 }
@@ -462,7 +462,7 @@ static void client_event_cb(struct bufferevent *bev, short what, void *arg)
 static void in_event_cb(struct bufferevent *bev, short what, void *arg)
 {
 	struct context *ctx = arg;
-	if (!event_cb_(bev, what, ctx->opts->ssl, 1))
+	if (!event_cb_(bev, what, ctx->opts->extra.ssl, 1))
 		return;
 
 	ctx->in = NULL;
@@ -517,10 +517,10 @@ int main(int argc, char **argv)
 		goto err;
 #endif
 
-	if (o.ssl && ssl_ctx_init(&ctx.ssl))
+	if (o.extra.ssl && ssl_ctx_init(&ctx.ssl))
 		goto err;
 
-	if (o.listen) {
+	if (o.extra.listen) {
 		int flags = 0;
 		flags |= LEV_OPT_CLOSE_ON_FREE;
 		flags |= LEV_OPT_CLOSE_ON_EXEC;
