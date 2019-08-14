@@ -11,6 +11,10 @@
 #include <event2/util.h>
 #include <event2/watch.h>
 
+#if !defined(INFINITY)
+#define INFINITY (1.0/0.0)
+#endif
+
 /**
   An approximate histogram in constant space, based on Ben-Haim & Yom-Tov, "A
   Streaming Parallel Decision Tree Algorithm" [1] and a previous implementation
