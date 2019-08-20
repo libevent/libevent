@@ -44,7 +44,7 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 int
 main(int argc, char **argv)
 {
-	struct event *signal_int;
+	struct event *signal_int = NULL;
 	struct event_base* base;
 	int ret = 0;
 #ifdef _WIN32
