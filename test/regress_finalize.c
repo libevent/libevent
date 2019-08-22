@@ -290,6 +290,53 @@ end:
 	;
 }
 
+static void
+event_finalize_callback_free(struct event *ev, void *arg)
+{
+	struct event_base *base = arg;
+	int err;
+	if (base) {
+		err = event_assign(ev, base, -1, EV_TIMEOUT, NULL, NULL);
+		tt_int_op(err, ==, 0);
+		test_ok += 1;
+	} else {
+		free(ev);
+		test_ok += 1;
+	}
+
+end:
+	;
+}
+static void
+test_fin_debug_use_after_free(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct event *ev;
+
+	tt_ptr_op(ev = event_new(base, -1, EV_TIMEOUT, NULL, base), !=, NULL);
+	tt_int_op(event_add(ev, NULL), ==, 0);
+	tt_int_op(event_finalize(0, ev, event_finalize_callback_free), ==, 0);
+
+	// Dispatch base to trigger callbacks
+	event_base_dispatch(base);
+	event_base_assert_ok_(base);
+	tt_int_op(test_ok, ==, 1);
+
+	// Now add again, since we did event_assign in event_finalize_callback_free
+	// This used to fail in event_debug_assert_is_setup_
+	tt_int_op(event_add(ev, NULL), ==, 0);
+
+	// Finalize and dispatch again
+	tt_int_op(event_finalize(0, ev, event_finalize_callback_free), ==, 0);
+	event_base_dispatch(base);
+	event_base_assert_ok_(base);
+	tt_int_op(test_ok, ==, 2);
+
+end:
+	;
+}
+
 #if 0
 static void
 timer_callback_3(evutil_socket_t *fd, short what, void *arg)
@@ -339,6 +386,7 @@ struct testcase_t finalize_testcases[] = {
 	TEST(cb_invoked, TT_FORK|TT_NEED_BASE),
 	TEST(free_finalize, TT_FORK),
 	TEST(within_cb, TT_FORK|TT_NEED_BASE),
+	TEST(debug_use_after_free, TT_FORK|TT_NEED_BASE|TT_ENABLE_DEBUG_MODE),
 //	TEST(many, TT_FORK|TT_NEED_BASE),
 
 
