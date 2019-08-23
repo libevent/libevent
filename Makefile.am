@@ -128,6 +128,7 @@ CMAKE_FILES = \
 	cmake/LibeventConfigVersion.cmake.in \
 	cmake/VersionViaGit.cmake \
 	cmake/Uninstall.cmake.in \
+	cmake/UseDoxygen.cmake \
 	event-config.h.cmake \
 	evconfig-private.h.cmake \
 	CMakeLists.txt

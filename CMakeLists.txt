@@ -1483,13 +1483,11 @@ install(PROGRAMS
        COMPONENT runtime)
 
 # Create documents with doxygen.
-find_program(DOXYGEN doxygen)
-if (DOXYGEN)
-    add_custom_target(doxygen
-                      COMMAND ${DOXYGEN} Doxyfile
-                      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-else()
-    message(WARNING "The doxygen target will not support since doxygen command was not found!")
+option(EVENT__DOXYGEN
+    "Enables doxygen documentation" OFF)
+if (EVENT__DOXYGEN)
+    include(UseDoxygen)
+    UseDoxygen()
 endif()
 
 
