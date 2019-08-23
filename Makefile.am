@@ -338,9 +338,7 @@ endif
 
 verify: check
 
-doxygen: FORCE
-	doxygen $(srcdir)/Doxyfile
-FORCE:
+include doxygen.am
 
 DISTCLEANFILES += *~ libevent.pc libevent_core.pc libevent_extra.pc ./include/event2/event-config.h
 
