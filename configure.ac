@@ -796,7 +796,6 @@ if test x$enable_debug_mode = xno; then
   AC_DEFINE(DISABLE_DEBUG_MODE, 1,
         [Define if libevent should build without support for a debug mode])
 fi
-
 # check if we should enable verbose debugging 
 if test x$enable_verbose_debug = xyes; then
 	CFLAGS="$CFLAGS -DUSE_DEBUG"
@@ -952,6 +951,20 @@ fi
 AC_SUBST([LIBEVENT_GC_SECTIONS])
 
 AM_CONDITIONAL([INSTALL_LIBEVENT], [test "$enable_libevent_install" = "yes"])
+
+# Doxygen support
+DX_HTML_FEATURE(ON)
+DX_MAN_FEATURE(OFF)
+DX_RTF_FEATURE(OFF)
+DX_XML_FEATURE(OFF)
+DX_PDF_FEATURE(OFF)
+DX_PS_FEATURE(OFF)
+DX_CHM_FEATURE(OFF)
+DX_CHI_FEATURE(OFF)
+DX_INIT_DOXYGEN([libevent], [${top_srcdir}/Doxyfile], [doxygen])
+
+AM_CONDITIONAL([ENABLE_DOXYGEN], [test "$DX_FLAG_doc" = "1"])
+AM_CONDITIONAL([ENABLE_DOXYGEN_MAN], [test "$DX_FLAG_man" = "1"])
 
 AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc libevent_core.pc libevent_extra.pc] )
 AC_OUTPUT(Makefile)

@@ -47,6 +47,7 @@ The configure script also supports the following flags:
                            management functions.
  --disable-openssl         Disable support for OpenSSL encryption.
  --disable-thread-support  Don't support multithreaded environments.
+ --enable-doxygen-doc      Build doxygen documentation
 ```
 
 ## Building on Windows
