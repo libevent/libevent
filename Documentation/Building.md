@@ -119,6 +119,9 @@ EVENT__ENABLE_VERBOSE_DEBUG:BOOL=OFF
 # on the the cross compilation target to verify that it works. See CMake
 # documentation for try_run for more details
 EVENT__FORCE_KQUEUE_CHECK:BOOL=OFF
+
+# Build documentation with doxygen
+EVENT__DOXYGEN:BOOL=OFF
 ```
 __More variables can be found by running `cmake -LAH <sourcedir_path>`__
 
