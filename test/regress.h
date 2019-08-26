@@ -95,6 +95,7 @@ extern int libevent_tests_running_in_debug_mode;
 #define TT_NO_LOGS		(TT_FIRST_USER_FLAG<<5)
 #define TT_ENABLE_IOCP_FLAG	(TT_FIRST_USER_FLAG<<6)
 #define TT_ENABLE_IOCP		(TT_ENABLE_IOCP_FLAG|TT_NEED_THREADS)
+#define TT_ENABLE_DEBUG_MODE	(TT_ENABLE_IOCP_FLAG<<7)
 
 /* All the flags that a legacy test needs. */
 #define TT_ISOLATED TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE
