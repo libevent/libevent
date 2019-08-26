@@ -1,5 +1,10 @@
 # Use FindDoxygen.cmake to generate documentation.
 
+option(DOXYGEN_GENERATE_HTML  "Generate HTML"      YES)
+option(DOXYGEN_GENERATE_MAN   "Generate man pages" NO)
+option(DOXYGEN_MAN_LINKS      "Generate man links" YES)
+option(DOXYGEN_GENERATE_LATEX "Generate LaTeX"     NO)
+
 macro(UseDoxygen)
   if (${CMAKE_VERSION} VERSION_LESS "3.9")
     # Old versions of cmake have poor support for Doxygen generation.
@@ -17,11 +22,6 @@ macro(UseDoxygen)
       set(DOXYGEN_SORT_BRIEF_DOCS YES)
       set(DOXYGEN_RECURSIVE NO)
 
-      set(DOXYGEN_GENERATE_HTML YES)
-      set(DOXYGEN_GENERATE_MAN YES)
-      set(DOXYGEN_MAN_LINKS YES)
-
-      set(DOXYGEN_GENERATE_LATEX YES)
       set(DOXYGEN_LATEX_CMD_NAME latex)
       set(DOXYGEN_PAPER_TYPE a4wide)
       set(DOXYGEN_PDF_HYPERLINKS NO)
