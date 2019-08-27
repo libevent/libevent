@@ -197,8 +197,9 @@ basic_test_setup(const struct testcase_t *testcase)
 	if (testcase->flags & TT_ENABLE_IOCP_FLAG)
 		return (void*)TT_SKIP;
 #endif
-	
-	if (testcase->flags & TT_ENABLE_DEBUG_MODE) {
+
+	if (testcase->flags & TT_ENABLE_DEBUG_MODE &&
+		!libevent_tests_running_in_debug_mode) {
 		event_enable_debug_mode();
 		libevent_tests_running_in_debug_mode = 1;
 	}
