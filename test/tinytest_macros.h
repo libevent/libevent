@@ -113,8 +113,8 @@
 #define tt_assert_test_fmt_type(a,b,str_test,type,test,printf_type,printf_fmt, \
     setup_block,cleanup_block,die_on_fail)				\
 	TT_STMT_BEGIN							\
-	type val1_ = (a);						\
-	type val2_ = (b);						\
+	type val1_ = (type)(a);						\
+	type val2_ = (type)(b);						\
 	int tt_status_ = (test);					\
 	if (!tt_status_ || tinytest_get_verbosity_()>1)	{		\
 		printf_type print_;					\
