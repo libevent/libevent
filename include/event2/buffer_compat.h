@@ -31,7 +31,7 @@
 
 /** @file event2/buffer_compat.h
 
-	Obsolete and deprecated versions of the functions in buffer.h: provided
+	@brief Obsolete and deprecated versions of the functions in buffer.h: provided
 	only for backward compatibility.
  */
 

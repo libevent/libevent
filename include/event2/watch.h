@@ -26,6 +26,8 @@
 
 /** @file event2/watch.h
 
+  @brief "Prepare" and "check" watchers.
+
   "Prepare" and "check" watchers. A "prepare" watcher is a callback that fires
   immediately before polling for I/O. A "check" watcher is a callback that
   fires immediately after polling and before processing any active events. This

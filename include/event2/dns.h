@@ -49,6 +49,9 @@
 
 /** @file event2/dns.h
  *
+ * @brief Provides a few APIs to use for resolving DNS names, and a facility
+ * for implementing simple DNS servers.
+ *
  * Welcome, gentle reader
  *
  * Async DNS lookups are really a whole lot harder than they should be,
@@ -62,12 +65,13 @@
  * them when they go down. Otherwise it will round robin between them.
  *
  * Quick start guide:
+ * @code
  *   #include "evdns.h"
  *   void callback(int result, char type, int count, int ttl,
  *		 void *addresses, void *arg);
  *   evdns_resolv_conf_parse(DNS_OPTIONS_ALL, "/etc/resolv.conf");
  *   evdns_resolve("www.hostname.com", 0, callback, NULL);
- *
+ *@endcode
  * When the lookup is complete the callback function is called. The
  * first argument will be one of the DNS_ERR_* defines in evdns.h.
  * Hopefully it will be DNS_ERR_NONE, in which case type will be
@@ -106,12 +110,14 @@
  *
  * For example, with ndots set to 1 (the default) and a search domain list of
  * ["myhome.net"]:
+ *
+ * <pre>
  *  Query: www
  *  Order: www.myhome.net, www.
  *
  *  Query: www.abc
  *  Order: www.abc., www.abc.myhome.net
- *
+ * </pre>
  * Internals:
  *
  * Requests are kept in two queues. The first is the inflight queue. In
@@ -249,7 +255,7 @@ struct event_base;
   evdns_config_windows_nameservers() on Windows.
 
   @param event_base the event base to associate the dns client with
-  @param flags any of EVDNS_BASE_INITIALIZE_NAMESERVERS|
+  @param initialize_nameservers any of EVDNS_BASE_INITIALIZE_NAMESERVERS|
     EVDNS_BASE_DISABLE_WHEN_INACTIVE|EVDNS_BASE_NAMESERVERS_NO_DEFAULT
   @return evdns_base object if successful, or NULL if an error occurred.
   @see evdns_base_free()
@@ -265,7 +271,7 @@ struct evdns_base * evdns_base_new(struct event_base *event_base, int initialize
   an empty result with the error flag set to DNS_ERR_SHUTDOWN. Otherwise,
   the requests will be silently discarded.
 
-  @param evdns_base the evdns base to free
+  @param base the evdns base to free
   @param fail_requests if zero, active requests will be aborted; if non-zero,
 		active requests will return DNS_ERR_SHUTDOWN.
   @see evdns_base_new()
@@ -277,7 +283,7 @@ void evdns_base_free(struct evdns_base *base, int fail_requests);
    Remove all hosts entries that have been loaded into the event_base via
    evdns_base_load_hosts or via event_base_resolv_conf_parse.
 
-   @param evdns_base the evdns base to remove outdated host addresses from
+   @param base the evdns base to remove outdated host addresses from
  */
 EVENT2_EXPORT_SYMBOL
 void evdns_base_clear_host_addresses(struct evdns_base *base);

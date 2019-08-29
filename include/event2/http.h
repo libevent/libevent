@@ -43,7 +43,7 @@ struct evhttp_connection;
 
 /** @file event2/http.h
  *
- * Basic support for HTTP serving.
+ * @brief Basic support for HTTP serving.
  *
  * As Libevent is a library for dealing with event notification and most
  * interesting applications are networked today, I have often found the
@@ -526,10 +526,10 @@ void evhttp_send_reply_chunk(struct evhttp_request *req,
    @param req a request object
    @param databuf the data chunk to send as part of the reply.
    @param cb callback funcion
-   @param call back's argument.
+   @param arg call back's argument.
 */
 EVENT2_EXPORT_SYMBOL
-void evhttp_send_reply_chunk_with_cb(struct evhttp_request *, struct evbuffer *,
+void evhttp_send_reply_chunk_with_cb(struct evhttp_request *req, struct evbuffer *databuf,
     void (*cb)(struct evhttp_connection *, void *), void *arg);
 
 /**
@@ -1177,7 +1177,7 @@ int evhttp_parse_query_str(const char *uri, struct evkeyvalq *headers);
    The first entry is: key="q", value="test"
    The second entry is: key="s", value="some thing"
 
-   @param query_parse the query portion of the URI
+   @param uri the query portion of the URI
    @param headers the head of the evkeyval queue
    @param flags one or more of EVHTTP_URI_QUERY_*
    @return 0 on success, -1 on failure

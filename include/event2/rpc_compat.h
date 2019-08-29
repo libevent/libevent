@@ -29,7 +29,7 @@
 
 /** @file event2/rpc_compat.h
 
-  Deprecated versions of the functions in rpc.h: provided only for
+  @brief Deprecated versions of the functions in rpc.h: provided only for
   backwards compatibility.
 
  */

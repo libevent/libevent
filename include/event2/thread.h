@@ -28,7 +28,7 @@
 
 /** @file event2/thread.h
 
-  Functions for multi-threaded applications using Libevent.
+  @brief Functions for multi-threaded applications using Libevent.
 
   When using a multi-threaded application in which multiple threads
   add and delete events from a single event base, Libevent needs to
@@ -184,7 +184,6 @@ int evthread_set_condition_callbacks(
 /**
    Sets the function for determining the thread id.
 
-   @param base the event base for which to set the id function
    @param id_fn the identify function Libevent should invoke to
      determine the identity of a thread.
 */

@@ -28,7 +28,7 @@
 
 /** @file event2/buffer.h
 
-  Functions for buffering data for network sending or receiving.
+  @brief Functions for buffering data for network sending or receiving.
 
   An evbuffer can be used for preparing data before sending it to
   the network or conversely for reading data from the network.
@@ -169,7 +169,7 @@ void evbuffer_free(struct evbuffer *buf);
 
   @param buf pointer to the evbuffer
   @param max buffer size
-  @return 0 on success, -1 on failure (if @max > INT_MAX).
+  @return 0 on success, -1 on failure (if max > INT_MAX).
  */
 EVENT2_EXPORT_SYMBOL
 int evbuffer_set_max_read(struct evbuffer *buf, size_t max);
@@ -231,8 +231,7 @@ void evbuffer_unlock(struct evbuffer *buf);
 
 /** Change the flags that are set for an evbuffer by adding more.
  *
- * @param buffer the evbuffer that the callback is watching.
- * @param cb the callback whose status we want to change.
+ * @param buf the evbuffer that the callback is watching.
  * @param flags One or more EVBUFFER_FLAG_* options
  * @return 0 on success, -1 on failure.
  */
@@ -240,8 +239,7 @@ EVENT2_EXPORT_SYMBOL
 int evbuffer_set_flags(struct evbuffer *buf, ev_uint64_t flags);
 /** Change the flags that are set for an evbuffer by removing some.
  *
- * @param buffer the evbuffer that the callback is watching.
- * @param cb the callback whose status we want to change.
+ * @param buf the evbuffer that the callback is watching.
  * @param flags One or more EVBUFFER_FLAG_* options
  * @return 0 on success, -1 on failure.
  */

@@ -52,7 +52,7 @@ SORT_BRIEF_DOCS        = YES
 # If left blank the directory from which doxygen is run is used as the 
 # path to strip.
 
-STRIP_FROM_PATH        = include/
+STRIP_FROM_PATH        = $(SRCDIR)/include/
 
 #---------------------------------------------------------------------------
 # configuration options related to the input files
@@ -81,7 +81,8 @@ INPUT                  = \
         $(SRCDIR)/include/event2/tag.h \
         $(SRCDIR)/include/event2/tag_compat.h \
         $(SRCDIR)/include/event2/thread.h \
-        $(SRCDIR)/include/event2/util.h
+        $(SRCDIR)/include/event2/util.h  \
+        $(SRCDIR)/include/event2/watch.h
 
 #---------------------------------------------------------------------------
 # configuration options related to the HTML output

@@ -28,7 +28,7 @@
 
 /** @file event2/bufferevent_ssl.h
 
-    OpenSSL support for bufferevents.
+    @brief OpenSSL support for bufferevents.
  */
 #include <event2/visibility.h>
 #include <event2/event-config.h>

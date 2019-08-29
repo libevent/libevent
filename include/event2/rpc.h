@@ -35,9 +35,9 @@
 extern "C" {
 #endif
 
-/** @file rpc.h
+/** @file event2/rpc.h
  *
- * This header files provides basic support for an RPC server and client.
+ * @brief This header files provides basic support for an RPC server and client.
  *
  * To support RPCs in a server, every supported RPC command needs to be
  * defined and registered.
@@ -170,7 +170,7 @@ struct evrpc_hook_meta;
  *
  * @param rpcname the name of the RPC
  * @param reqstruct the name of the RPC request structure
- * @param replystruct the name of the RPC reply structure
+ * @param rplystruct the name of the RPC reply structure
  * @see EVRPC_GENERATE()
  */
 #define EVRPC_HEADER(rpcname, reqstruct, rplystruct) \
@@ -209,7 +209,7 @@ struct evrpc_request_wrapper *evrpc_make_request_ctx(
  *
  * @param rpcname the name of the RPC
  * @param reqstruct the name of the RPC request structure
- * @param replystruct the name of the RPC reply structure
+ * @param rplystruct the name of the RPC reply structure
  * @param pool the evrpc_pool over which to make the request
  * @param request a pointer to the RPC request structure object
  * @param reply a pointer to the RPC reply structure object
@@ -233,7 +233,7 @@ struct evrpc_request_wrapper *evrpc_make_request_ctx(
  *
  * @param rpcname the name of the RPC
  * @param reqstruct the name of the RPC request structure
- * @param replystruct the name of the RPC reply structure
+ * @param rplystruct the name of the RPC reply structure
  * @see EVRPC_HEADER()
  */
 #define EVRPC_GENERATE(rpcname, reqstruct, rplystruct)			\

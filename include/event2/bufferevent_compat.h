@@ -28,6 +28,12 @@
 #ifndef EVENT2_BUFFEREVENT_COMPAT_H_INCLUDED_
 #define EVENT2_BUFFEREVENT_COMPAT_H_INCLUDED_
 
+/** @file event2/bufferevent_compat.h
+ *
+ * @brief Deprecated versions of the functions in bufferevent.h: provided
+ * only for backwards compatibility.
+ */
+
 #include <event2/visibility.h>
 
 #define evbuffercb bufferevent_data_cb
@@ -81,6 +87,8 @@ struct bufferevent *bufferevent_new(evutil_socket_t fd,
 
 /**
   Set the read and write timeout for a buffered event.
+
+  @deprecated Use bufferevent_set_timeouts instead.
 
   @param bufev the bufferevent to be modified
   @param timeout_read the read timeout

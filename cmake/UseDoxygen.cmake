@@ -71,6 +71,7 @@ macro(UseDoxygen)
         include/event2/tag_compat.h
         include/event2/thread.h
         include/event2/util.h
+        include/event2/watch.h
       )
       # Add 'doxygen' target
       doxygen_add_docs(doxygen

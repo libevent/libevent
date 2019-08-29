@@ -38,8 +38,9 @@ extern "C" {
 struct sockaddr;
 struct evconnlistener;
 
-/**
-   A callback that we invoke when a listener has a new connection.
+/**@file event2/listener.h
+
+   @brief A callback that we invoke when a listener has a new connection.
 
    @param listener The evconnlistener
    @param fd The new file descriptor
@@ -143,7 +144,7 @@ struct evconnlistener *evconnlistener_new(struct event_base *base,
    @param flags Any number of LEV_OPT_* flags
    @param backlog Passed to the listen() call to determine the length of the
       acceptable connection backlog.  Set to -1 for a reasonable default.
-   @param addr The address to listen for connections on.
+   @param sa The address to listen for connections on.
    @param socklen The length of the address.
  */
 EVENT2_EXPORT_SYMBOL

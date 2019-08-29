@@ -29,7 +29,7 @@
 
 /** @file event2/tag_compat.h
 
-    Obsolete/deprecated functions from tag.h; provided only for backwards
+    @brief Obsolete/deprecated functions from tag.h; provided only for backwards
     compatibility.
  */
 

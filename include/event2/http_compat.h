@@ -29,7 +29,7 @@
 
 /** @file event2/http_compat.h
 
-  Potentially non-threadsafe versions of the functions in http.h: provided
+  @brief Potentially non-threadsafe versions of the functions in http.h: provided
   only for backwards compatibility.
 
  */

@@ -30,8 +30,9 @@
 /**
    @file event2/bufferevent.h
 
-  Functions for buffering data for network sending or receiving.  Bufferevents
-  are higher level than evbuffers: each has an underlying evbuffer for reading
+  @brief Functions for buffering data for network sending or receiving.
+
+  Bufferevents are higher level than evbuffers: each has an underlying evbuffer for reading
   and one for writing, and callbacks that are invoked under certain
   circumstances.
 
@@ -209,7 +210,7 @@ struct bufferevent *bufferevent_socket_new(struct event_base *base, evutil_socke
    @return 0 on success, -1 on failure.
  */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_socket_connect(struct bufferevent *, const struct sockaddr *, int);
+int bufferevent_socket_connect(struct bufferevent *bufev, const struct sockaddr *addr, int socklen);
 
 struct evdns_base;
 /**
@@ -230,8 +231,8 @@ struct evdns_base;
    @see bufferevent_socket_connect_hostname_hints()
  */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_socket_connect_hostname(struct bufferevent *,
-    struct evdns_base *, int, const char *, int);
+int bufferevent_socket_connect_hostname(struct bufferevent *bufev,
+    struct evdns_base *evdns_base, int family, const char *hostname, int port);
 
 /**
    Resolve the hostname 'hostname' and connect to it as with
@@ -259,8 +260,8 @@ int bufferevent_socket_connect_hostname(struct bufferevent *,
    what you want.
  */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_socket_connect_hostname_hints(struct bufferevent *,
-    struct evdns_base *, const struct evutil_addrinfo *, const char *, int);
+int bufferevent_socket_connect_hostname_hints(struct bufferevent *bufev,
+    struct evdns_base *evdns_base, const struct evutil_addrinfo *hints_in, const char *hostname, int port);
 
 
 /**
