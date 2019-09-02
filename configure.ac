@@ -248,6 +248,7 @@ AC_CHECK_HEADERS([ \
   sys/timerfd.h \
   sys/uio.h \
   sys/wait.h \
+  sys/random.h \
   errno.h \
 ])
 
@@ -256,6 +257,7 @@ AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
 #include <sys/param.h>
 #endif
 ])
+
 if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
 	AC_EGREP_CPP(yes,
@@ -328,7 +330,7 @@ if test "x$ac_cv_header_sys_time_h" = "xyes"; then
 fi
 
 if test "x$ac_cv_header_sys_sysctl_h" = "xyes"; then
-	AC_CHECK_DECLS([CTL_KERN, KERN_RANDOM, RANDOM_UUID, KERN_ARND], [], [],
+	AC_CHECK_DECLS([CTL_KERN, KERN_ARND], [], [],
 	   [[#include <sys/types.h>
 	     #include <sys/sysctl.h>]]
 	)
@@ -390,6 +392,7 @@ AC_CHECK_FUNCS([ \
   usleep \
   vasprintf \
   getservbyname \
+  getrandom \
 ])
 AM_CONDITIONAL(STRLCPY_IMPL, [test x"$ac_cv_func_strlcpy" = xno])
 

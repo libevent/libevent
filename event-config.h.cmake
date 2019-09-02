@@ -75,11 +75,8 @@
 /* Define to 1 if you have the declaration of `KERN_ARND'. */
 #define EVENT__HAVE_DECL_KERN_ARND @EVENT__HAVE_DECL_KERN_ARND@
 
-/* Define to 1 if you have the declaration of `KERN_RANDOM'. */
-#define EVENT__HAVE_DECL_KERN_RANDOM @EVENT__HAVE_DECL_KERN_RANDOM@
-
-/* Define to 1 if you have the declaration of `RANDOM_UUID'. */
-#define EVENT__HAVE_DECL_RANDOM_UUID @EVENT__HAVE_DECL_RANDOM_UUID@
+/* Define to 1 if you have `getrandom' function. */
+#define EVENT__HAVE_GETRANDOM @EVENT__HAVE_GETRANDOM@
 
 /* Define if /dev/poll is available */
 #cmakedefine EVENT__HAVE_DEVPOLL 1
@@ -369,6 +366,9 @@
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_STAT_H 1
+
+/* Define to 1 if you have the <sys/random.h> header file. */
+#cmakedefine EVENT__HAVE_SYS_RANDOM_H 1
 
 /* Define to 1 if you have the <sys/sysctl.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_SYSCTL_H 1
