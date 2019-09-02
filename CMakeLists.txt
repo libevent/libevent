@@ -33,7 +33,7 @@ endif()
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release
-        CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)
+        CACHE STRING "Set build type to Debug or Release (default Release)" FORCE)
 endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
