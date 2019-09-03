@@ -76,7 +76,7 @@
 #define EVENT__HAVE_DECL_KERN_ARND @EVENT__HAVE_DECL_KERN_ARND@
 
 /* Define to 1 if you have `getrandom' function. */
-#define EVENT__HAVE_GETRANDOM @EVENT__HAVE_GETRANDOM@
+#cmakedefine EVENT__HAVE_GETRANDOM 1
 
 /* Define if /dev/poll is available */
 #cmakedefine EVENT__HAVE_DEVPOLL 1
