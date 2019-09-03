@@ -869,7 +869,11 @@ void evhttp_connection_free(struct evhttp_connection *evcon);
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_free_on_completion(struct evhttp_connection *evcon);
 
-/** sets the ip address from which http connections are made */
+/** Sets the IP address from which http connections are made
+ *
+ * Note this resets internal bufferevent fd, so any options that had been
+ * installed will be flushed.
+ */
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_local_address(struct evhttp_connection *evcon,
     const char *address);
