@@ -4032,7 +4032,7 @@ evdns_base_new(struct event_base *event_base, int flags)
 #else
 		r = evdns_base_resolv_conf_parse(base, opts, "/etc/resolv.conf");
 #endif
-		if (r == -1) {
+		if (r) {
 			evdns_base_free_and_unlock(base, 0);
 			return NULL;
 		}
