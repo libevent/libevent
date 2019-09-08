@@ -41,6 +41,21 @@ matrix:
       dist: bionic
       env: EVENT_BUILD_METHOD=autotools EVENT_CONFIGURE_OPTIONS=""
       compiler: clang
+    # deploy documentation to github pages
+    - os: linux
+      env: TOOL=doxygen
+      addons:
+        apt:
+          packages:
+            - doxygen
+            - doxygen-doc
+            - doxygen-latex
+            - doxygen-gui
+            - graphviz
+            - cmake
+      branches:
+        only:
+          - master
   exclude:
     - os: osx
       env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=debug" COVERALLS=yes
@@ -117,6 +132,25 @@ script:
       cmake .. $EVENT_CMAKE_OPTIONS &&
       travis_wait $TIMEOUT
       cmake --build . --target verify;
+    fi
+  - if [ "$TOOL" == "doxygen" ] && [ "$TRAVIS_REPO_SLUG" == "libevent/libevent" ]; then
+      SRCDIR=$PWD GENERATE_LATEX=no GENERATE_HTML=yes doxygen;
+
+      eval "$(ssh-agent -s)";
+      openssl aes-256-cbc
+        -K $encrypted_82aa789583ed_key
+        -iv $encrypted_82aa789583ed_iv
+        -in .github/travis-ci-key.enc
+        -out .github/travis-ci-key -d;
+      chmod 600 .github/travis-ci-key;
+      ssh-add .github/travis-ci-key;
+
+      cp -r html doc;
+      cd doc;
+      git init;
+      git add -f .;
+      git commit -am "Update documentation ($TRAVIS_REPO_SLUG@$TRAVIS_COMMIT)";
+      git push -f git@github.com:libevent/doc.git master;
     fi
 
 after_script:

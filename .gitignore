@@ -162,3 +162,7 @@ rules.ninja
 /*.tar.gz
 
 /.vagrant
+
+# encrypted files for travis-ci
+/.github/*
+!/.github/*.enc
