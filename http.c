@@ -1998,12 +1998,23 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 
 		ext_method.method = method;
 		ext_method.type = 0;
+		ext_method.flags = 0;
 
 		if (req->evcon->ext_method_cmp &&
 		    req->evcon->ext_method_cmp(&ext_method) == 0) {
-			/* TODO: make sure the other fields in ext_method are
+			/* make sure the other fields in ext_method are
 			 * not changed by the callback.
 			 */
+			if (strcmp(ext_method.method, method) != 0) {
+				event_warn("%s: modifying the 'method' field of ext_method_cmp's "
+					"parameter is not allowed", __func__);
+				return -1;
+			}
+			if (ext_method.flags != 0) {
+				event_warn("%s: modifying the 'flags' field of ext_method_cmp's "
+					"parameter is not allowed", __func__);
+				return -1;
+			}
 			type = ext_method.type;
 		}
 	}
