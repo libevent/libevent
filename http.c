@@ -177,7 +177,7 @@ fake_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 
 extern int debug;
 
-static evutil_socket_t bind_socket_ai(struct evutil_addrinfo *, int reuse);
+static evutil_socket_t create_bind_socket_nonblock(struct evutil_addrinfo *, int reuse);
 static evutil_socket_t bind_socket(const char *, ev_uint16_t, int reuse);
 static void name_from_addr(struct sockaddr *, ev_socklen_t, char **, char **);
 static struct evhttp_uri *evhttp_uri_parse_authority(char *source_uri);
@@ -4376,9 +4376,8 @@ name_from_addr(struct sockaddr *sa, ev_socklen_t salen,
 }
 
 /* Create a non-blocking socket and bind it */
-/* todo: rename this function */
 static evutil_socket_t
-bind_socket_ai(struct evutil_addrinfo *ai, int reuse)
+create_bind_socket_nonblock(struct evutil_addrinfo *ai, int reuse)
 {
 	evutil_socket_t fd;
 
@@ -4452,14 +4451,14 @@ bind_socket(const char *address, ev_uint16_t port, int reuse)
 
 	/* just create an unbound socket */
 	if (address == NULL && port == 0)
-		return bind_socket_ai(NULL, 0);
+		return create_bind_socket_nonblock(NULL, 0);
 
 	aitop = make_addrinfo(address, port);
 
 	if (aitop == NULL)
 		return (-1);
 
-	fd = bind_socket_ai(aitop, reuse);
+	fd = create_bind_socket_nonblock(aitop, reuse);
 
 	evutil_freeaddrinfo(aitop);
 
