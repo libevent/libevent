@@ -394,6 +394,12 @@ AC_CHECK_FUNCS([ \
   getservbyname \
   getrandom \
 ])
+
+AC_CHECK_FUNCS(_gmtime64_s, [have__gmtime64_s=yes], )
+if test "x$have__gmtime64_s" != "xyes"; then
+  AC_CHECK_FUNCS(_gmtime64)
+fi
+
 AM_CONDITIONAL(STRLCPY_IMPL, [test x"$ac_cv_func_strlcpy" = xno])
 
 AC_CACHE_CHECK(
