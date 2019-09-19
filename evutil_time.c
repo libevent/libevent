@@ -158,18 +158,28 @@ evutil_date_rfc1123(char *date, const size_t datelen, const struct tm *tm)
 
 	time_t t = time(NULL);
 
-#ifndef _WIN32
+#if defined(EVENT__HAVE__GMTIME64_S) || !defined(_WIN32)
 	struct tm sys;
 #endif
 
 	/* If `tm` is null, set system's current time. */
 	if (tm == NULL) {
-#ifdef _WIN32
-		/** TODO: detect _gmtime64()/_gmtime64_s() */
-		tm = gmtime(&t);
-#else
+#if !defined(_WIN32)
 		gmtime_r(&t, &sys);
 		tm = &sys;
+		/** detect _gmtime64()/_gmtime64_s() */
+#elif defined(EVENT__HAVE__GMTIME64_S)
+		errno_t err;
+		err = _gmtime64_s(&sys, &t);
+		if (err) {
+			event_errx(1, "Invalid argument to _gmtime64_s");
+		} else {
+			tm = &sys;
+		}
+#elif defined(EVENT__HAVE__GMTIME64)
+		tm = _gmtime64(&t);
+#else
+		tm = gmtime(&t);
 #endif
 	}
 
