@@ -3299,7 +3299,7 @@ evbuffer_add_file(struct evbuffer *buf, int fd, ev_off_t offset, ev_off_t length
 	if (!seg)
 		return -1;
 	r = evbuffer_add_file_segment(buf, seg, 0, length);
-	if (r == 0)
+	if (r == -1)
 		evbuffer_file_segment_free(seg);
 	return r;
 }
