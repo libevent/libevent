@@ -2494,28 +2494,37 @@ end:
 static void
 test_evbuffer_freeze(void *ptr)
 {
-	struct evbuffer *buf = NULL, *tmp_buf=NULL;
+	struct basic_test_data *testdata = ptr;
+	evutil_socket_t *pair = testdata->pair;
+	struct evbuffer *buf = NULL, *buf_two = NULL, *tmp_buf = NULL;
 	const char string[] = /* Year's End, Richard Wilbur */
 	    "I've known the wind by water banks to shake\n"
 	    "The late leaves down, which frozen where they fell\n"
 	    "And held in ice as dancers in a spell\n"
 	    "Fluttered all winter long into a lake...";
-	const int start = !strcmp(ptr, "start");
+	const int start = !strcmp(testdata->setup_data, "start");
+	const char tmpfilecontent[] = "file_freeze_test_file";
 	char *cp;
 	char charbuf[128];
+	char *tmpfilename = NULL;
+	int fd = -1;
 	int r;
-	size_t orig_length;
+	size_t orig_length, len;
 	struct evbuffer_iovec v[1];
 
 	if (!start)
-		tt_str_op(ptr, ==, "end");
+		tt_str_op(testdata->setup_data, ==, "end");
 
 	buf = evbuffer_new();
+	buf_two = evbuffer_new();
 	tmp_buf = evbuffer_new();
 	tt_assert(tmp_buf);
 
 	evbuffer_add(buf, string, strlen(string));
+	evbuffer_add(buf_two, "abc", 3);
+	evbuffer_add(tmp_buf, "xyz", 3);
 	evbuffer_freeze(buf, start); /* Freeze the start or the end.*/
+	evbuffer_freeze(buf_two, start);
 
 #define FREEZE_EQ(a, startcase, endcase)		\
 	do {						\
@@ -2544,7 +2553,22 @@ test_evbuffer_freeze(void *ptr)
 	FREEZE_EQ(r, 0, -1);
 	r = evbuffer_add_printf(buf, "Hello %s", "world");
 	FREEZE_EQ(r, 11, -1);
-	/* TODO: test add_buffer, add_file, read */
+
+	r = evbuffer_add_buffer(buf, tmp_buf);
+	FREEZE_EQ(r, 0, -1);
+	len = strlen(tmpfilecontent);
+	fd = regress_make_tmpfile(tmpfilecontent, len, &tmpfilename);
+	r = evbuffer_add_file(buf, fd, 0, len);
+	FREEZE_EQ(r, 0, -1);
+
+	if (start)
+		evbuffer_add(tmp_buf, "xyz", 3);
+
+	tt_assert(evbuffer_get_length(tmp_buf));
+	len = evbuffer_get_length(tmp_buf);
+	evbuffer_write(tmp_buf, pair[0]);
+	r = evbuffer_read(buf, pair[1], -1);
+	FREEZE_EQ(r, len, -1);
 
 	if (!start)
 		tt_int_op(orig_length, ==, evbuffer_get_length(buf));
@@ -2562,7 +2586,24 @@ test_evbuffer_freeze(void *ptr)
 	FREEZE_EQ(cp==NULL, 1, 0);
 	if (cp)
 		free(cp);
-	/* TODO: Test remove_buffer, add_buffer, write, prepend_buffer */
+
+	evbuffer_add(tmp_buf, "xyz", 3);
+	tt_assert(evbuffer_get_length(tmp_buf));
+	r = evbuffer_remove_buffer(buf, tmp_buf, 3);
+	FREEZE_EQ(r, -1, 3);
+	r = evbuffer_drain(buf, 3);
+	FREEZE_EQ(r, -1, 0);
+	r = evbuffer_prepend_buffer(buf, tmp_buf);
+	FREEZE_EQ(r, -1, 0);
+
+	len = evbuffer_get_length(buf);
+	r = evbuffer_write(buf, pair[0]);
+	evbuffer_read(tmp_buf, pair[1], -1);
+	FREEZE_EQ(r, -1, len);
+	len = evbuffer_get_length(buf_two);
+	r = evbuffer_write_atmost(buf_two, pair[0], -1);
+	evbuffer_read(tmp_buf, pair[1], -1);
+	FREEZE_EQ(r, -1, len);
 
 	if (start)
 		tt_int_op(orig_length, ==, evbuffer_get_length(buf));
@@ -2571,8 +2612,16 @@ end:
 	if (buf)
 		evbuffer_free(buf);
 
+	if (buf_two)
+		evbuffer_free(buf_two);
+
 	if (tmp_buf)
 		evbuffer_free(tmp_buf);
+
+	if (tmpfilename) {
+		unlink(tmpfilename);
+		free(tmpfilename);
+	}
 }
 
 static void
@@ -2756,8 +2805,8 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "empty_reference_prepend_buffer", test_evbuffer_empty_reference_prepend_buffer, TT_FORK, NULL, NULL },
 	{ "peek", test_evbuffer_peek, 0, NULL, NULL },
 	{ "peek_first_gt", test_evbuffer_peek_first_gt, 0, NULL, NULL },
-	{ "freeze_start", test_evbuffer_freeze, 0, &nil_setup, (void*)"start" },
-	{ "freeze_end", test_evbuffer_freeze, 0, &nil_setup, (void*)"end" },
+	{ "freeze_start", test_evbuffer_freeze, TT_NEED_SOCKETPAIR, &basic_setup, (void*)"start" },
+	{ "freeze_end", test_evbuffer_freeze, TT_NEED_SOCKETPAIR, &basic_setup, (void*)"end" },
 	{ "add_iovec", test_evbuffer_add_iovec, 0, NULL, NULL},
 	{ "copyout", test_evbuffer_copyout, 0, NULL, NULL},
 	{ "file_segment_add_cleanup_cb", test_evbuffer_file_segment_add_cleanup_cb, 0, NULL, NULL },
