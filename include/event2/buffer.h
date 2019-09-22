@@ -726,7 +726,8 @@ int evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
 
   @param buffer the evbuffer to store the result
   @param fd the file descriptor to read from
-  @param howmuch the number of bytes to be read
+  @param howmuch the number of bytes to be read. If the given number is negative
+  or out of maximum bytes per one read, as many bytes as we can will be read.
   @return the number of bytes read, or -1 if an error occurred
   @see evbuffer_write()
  */
