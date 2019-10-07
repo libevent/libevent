@@ -244,7 +244,6 @@ if (${MSVC})
 
     if (EVENT__MSVC_STATIC_RUNTIME)
         foreach (flag_var
-                 CMAKE_C_FLAGS
                  CMAKE_C_FLAGS_DEBUG
                  CMAKE_C_FLAGS_RELEASE
                  CMAKE_C_FLAGS_MINSIZEREL
