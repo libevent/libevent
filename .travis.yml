@@ -1,3 +1,4 @@
+---
 os:
   - linux
   - osx
@@ -7,11 +8,11 @@ osx_image: xcode10.1
 
 branches:
   except:
-  - /.*appveyor.*/
-  - /.*win.*/
-  - /.*mingw.*/
-  - /.*freebsd.*/
-  - /.*bitrise.*/
+    - /.*appveyor.*/
+    - /.*win.*/
+    - /.*mingw.*/
+    - /.*freebsd.*/
+    - /.*bitrise.*/
 
 git:
   quiet: true
@@ -97,22 +98,22 @@ before_install:
 addons:
   apt:
     sources:
-    - xenial
-    - sourceline: 'deb http://archive.ubuntu.com/ubuntu xenial main'
+      - xenial
+      - sourceline: 'deb http://archive.ubuntu.com/ubuntu xenial main'
     packages:
-    - zlib1g-dev
-    - libssl-dev
-    - build-essential
-    - automake
-    - autoconf
-    - cmake
-    - lcov
+      - zlib1g-dev
+      - libssl-dev
+      - build-essential
+      - automake
+      - autoconf
+      - cmake
+      - lcov
   homebrew:
     packages:
-    - openssl
-    - lcov
-    - libtool
-    - gcc
+      - openssl
+      - lcov
+      - libtool
+      - gcc
 
 
 script:
