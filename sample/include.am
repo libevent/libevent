@@ -25,6 +25,9 @@ sample_https_client_SOURCES = \
 	sample/hostcheck.c \
 	sample/openssl_hostname_validation.c
 sample_https_client_LDADD = libevent.la libevent_openssl.la $(OPENSSL_LIBS) $(OPENSSL_LIBADD)
+if BUILD_WIN32
+sample_https_client_LDADD += -lcrypt32
+endif
 sample_https_client_CPPFLAGS = $(AM_CPPFLAGS) $(OPENSSL_INCS)
 noinst_HEADERS += \
 	sample/hostcheck.h \
