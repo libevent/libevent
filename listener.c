@@ -39,6 +39,9 @@
 #include <ws2tcpip.h>
 #include <mswsock.h>
 #endif
+#ifdef EVENT__HAVE_AFUNIX_H
+#include <afunix.h>
+#endif
 #include <errno.h>
 #ifdef EVENT__HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
@@ -217,6 +220,7 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	int on = 1;
 	int family = sa ? sa->sa_family : AF_UNSPEC;
 	int socktype = SOCK_STREAM | EVUTIL_SOCK_NONBLOCK;
+	int support_keepalive = 1;
 
 	if (backlog == 0)
 		return NULL;
@@ -228,8 +232,17 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	if (fd == -1)
 		return NULL;
 
-	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&on, sizeof(on))<0)
-		goto err;
+#if defined(_WIN32) && defined(EVENT__HAVE_AFUNIX_H)
+	if (family == AF_UNIX && evutil_check_working_afunix_()) {
+		/* AF_UNIX socket can't set SO_KEEPALIVE option on Win10.
+		 * Avoid 10042 error.  */
+		support_keepalive = 0;
+	}
+#endif
+	if (support_keepalive) {
+		if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&on, sizeof(on))<0)
+			goto err;
+	}
 
 	if (flags & LEV_OPT_REUSEABLE) {
 		if (evutil_make_listen_socket_reuseable(fd) < 0)
@@ -504,6 +517,10 @@ new_accepting_socket(struct evconnlistener_iocp *lev, int family)
 		addrlen = sizeof(struct sockaddr_in);
 	else if (family == AF_INET6)
 		addrlen = sizeof(struct sockaddr_in6);
+#ifdef EVENT__HAVE_AFUNIX_H
+	else if (family == AF_UNIX && evutil_check_working_afunix_())
+		addrlen = sizeof(struct sockaddr_un);
+#endif
 	else
 		return NULL;
 	buflen = (addrlen+16)*2;

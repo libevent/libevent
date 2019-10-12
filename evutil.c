@@ -31,6 +31,9 @@
 #include <winsock2.h>
 #include <winerror.h>
 #include <ws2tcpip.h>
+#ifdef EVENT__HAVE_AFUNIX_H
+#include <afunix.h>
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
@@ -100,6 +103,10 @@
 #define stat _stati64
 #endif
 #define mode_t int
+#endif
+
+#ifdef EVENT__HAVE_AFUNIX_H
+int have_working_afunix_ = -1;
 #endif
 
 int
@@ -194,13 +201,181 @@ evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
 	return 0;
 }
 
+#ifdef _WIN32
+
+static int
+create_tmpfile(char tmpfile[MAX_PATH])
+{
+	char short_path[MAX_PATH] = {0};
+	char long_path[MAX_PATH] = {0};
+	char *tmp_file = tmpfile;
+
+	GetTempPathA(MAX_PATH, short_path);
+	GetLongPathNameA(short_path, long_path, MAX_PATH);
+	if (!GetTempFileNameA(long_path, NULL, 0, tmp_file)) {
+		event_warnx("GetTempFileName failed: %d", EVUTIL_SOCKET_ERROR());
+		return -1;
+	}
+	return 0;
+}
+
+#ifdef EVENT__HAVE_AFUNIX_H
+/* Test whether Unix domain socket works.
+ * Return 1 if it works, otherwise 0 		*/
+int
+evutil_check_working_afunix_()
+{
+	/* Windows 10 began to support Unix domain socket. Let's just try
+	 * socket(AF_UNIX, , ) and fall back to socket(AF_INET, , ).
+	 * https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
+	 */
+	int sd = -1;
+	if (have_working_afunix_ < 0) {
+		if ((sd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+			have_working_afunix_ = 0;
+		} else {
+			have_working_afunix_ = 1;
+			evutil_closesocket(sd);
+		}
+	}
+	return have_working_afunix_;
+}
+
+/* XXX Copy from evutil_ersatz_socketpair_() */
+static int
+evutil_win_socketpair_afunix(int family, int type, int protocol,
+    evutil_socket_t fd[2])
+{
+#define ERR(e) WSA##e
+	evutil_socket_t listener = -1;
+	evutil_socket_t connector = -1;
+	evutil_socket_t acceptor = -1;
+
+	struct sockaddr_un listen_addr;
+	struct sockaddr_un connect_addr;
+	char tmp_file[MAX_PATH] = {0};
+
+	ev_socklen_t size;
+	int saved_errno = -1;
+
+	if (!fd) {
+		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
+		return -1;
+	}
+
+	listener = socket(family, type, 0);
+	if (listener < 0)
+		return -1;
+	memset(&listen_addr, 0, sizeof(listen_addr));
+
+	if (create_tmpfile(tmp_file)) {
+		goto tidy_up_and_fail;
+	}
+	DeleteFileA(tmp_file);
+	listen_addr.sun_family = AF_UNIX;
+	if (strlcpy(listen_addr.sun_path, tmp_file, UNIX_PATH_MAX) >=
+		UNIX_PATH_MAX) {
+		event_warnx("Temp file name is too long");
+		goto tidy_up_and_fail;
+	}
+
+	if (bind(listener, (struct sockaddr *) &listen_addr, sizeof (listen_addr))
+		== -1)
+		goto tidy_up_and_fail;
+	if (listen(listener, 1) == -1)
+		goto tidy_up_and_fail;
+
+	connector = socket(family, type, 0);
+	if (connector < 0)
+		goto tidy_up_and_fail;
+
+	memset(&connect_addr, 0, sizeof(connect_addr));
+
+	/* We want to find out the port number to connect to.  */
+	size = sizeof(connect_addr);
+	if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
+		goto tidy_up_and_fail;
+
+	if (connect(connector, (struct sockaddr *) &connect_addr,
+				sizeof(connect_addr)) == -1)
+		goto tidy_up_and_fail;
+
+	size = sizeof(listen_addr);
+	acceptor = accept(listener, (struct sockaddr *) &listen_addr, &size);
+	if (acceptor < 0)
+		goto tidy_up_and_fail;
+	if (size != sizeof(listen_addr))
+		goto abort_tidy_up_and_fail;
+	/* Now check we are talking to ourself by matching port and host on the
+	   two sockets.	 */
+	if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
+		goto tidy_up_and_fail;
+
+	if (size != sizeof(connect_addr) ||
+	    listen_addr.sun_family != connect_addr.sun_family ||
+	    evutil_ascii_strcasecmp(listen_addr.sun_path, connect_addr.sun_path))
+		goto abort_tidy_up_and_fail;
+
+	evutil_closesocket(listener);
+	fd[0] = connector;
+	fd[1] = acceptor;
+
+	return 0;
+
+ abort_tidy_up_and_fail:
+	saved_errno = ERR(ECONNABORTED);
+ tidy_up_and_fail:
+	if (saved_errno < 0)
+		saved_errno = EVUTIL_SOCKET_ERROR();
+	if (listener != -1)
+		evutil_closesocket(listener);
+	if (connector != -1)
+		evutil_closesocket(connector);
+	if (acceptor != -1)
+		evutil_closesocket(acceptor);
+	if (tmp_file[0])
+		DeleteFileA(tmp_file);
+
+	EVUTIL_SET_SOCKET_ERROR(saved_errno);
+	return -1;
+#undef ERR
+}
+#endif
+
+static int
+evutil_win_socketpair(int family, int type, int protocol,
+    evutil_socket_t fd[2])
+{
+#ifdef EVENT__HAVE_AFUNIX_H
+	/* The family only support AF_UNIX and AF_INET */
+	if (protocol || (family != AF_UNIX && family != AF_INET)) {
+		EVUTIL_SET_SOCKET_ERROR(WSAEAFNOSUPPORT);
+		return -1;
+	}
+	if (family == AF_UNIX && evutil_check_working_afunix_()) {
+		/* Win10 does not support AF_UNIX socket of a type other
+		 * than SOCK_STREAM still now. */
+		type = SOCK_STREAM;
+	} else {
+		/* If the family is set to AF_UNIX and it does not work,
+		 * we will change it to AF_UNIX forcely. */
+		family = AF_INET;
+	}
+	if (family == AF_UNIX)
+		return evutil_win_socketpair_afunix(family, type, protocol, fd);
+
+#endif
+	return evutil_ersatz_socketpair_(family, type, protocol, fd);
+}
+#endif
+
 int
 evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 {
 #ifndef _WIN32
 	return socketpair(family, type, protocol, fd);
 #else
-	return evutil_ersatz_socketpair_(family, type, protocol, fd);
+	return evutil_win_socketpair(family, type, protocol, fd);
 #endif
 }
 
@@ -2655,7 +2830,7 @@ evutil_make_internal_pipe_(evutil_socket_t fd[2])
 	}
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(EVENT__HAVE_AFUNIX_H)
 #define LOCAL_SOCKETPAIR_AF AF_INET
 #else
 #define LOCAL_SOCKETPAIR_AF AF_UNIX
