@@ -60,6 +60,9 @@ matrix:
   exclude:
     - os: osx
       env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=debug" COVERALLS=yes
+    - os: linux
+      env: TOOL=doxygen
+      if: type = pull_request OR slug != libevent/libevent OR branch != master
   allow_failures:
     - os: osx
   fast_finish: true
@@ -134,7 +137,7 @@ script:
       travis_wait $TIMEOUT
       cmake --build . --target verify;
     fi
-  - if [ "$TOOL" == "doxygen" ] && [ "$TRAVIS_REPO_SLUG" == "libevent/libevent" ]; then
+  - if [ "$TOOL" == "doxygen" ]; then
       eval "$(ssh-agent -s)";
       openssl aes-256-cbc
         -K $encrypted_82aa789583ed_key
