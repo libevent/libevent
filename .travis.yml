@@ -45,7 +45,7 @@ matrix:
     # for openssl1.1
     - os: linux
       dist: bionic
-      env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS=""
+      env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="" OPENSSL_1_1=yes
     # deploy documentation to github pages
     - os: linux
       env: TOOL=doxygen
