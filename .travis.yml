@@ -33,15 +33,17 @@ env:
 
 matrix:
   include:
+    # clang
+    - os: linux
+      env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS=""
+      compiler: clang
+    - os: linux
+      env: EVENT_BUILD_METHOD=autotools EVENT_CONFIGURE_OPTIONS=""
+      compiler: clang
     # for openssl1.1
     - os: linux
       dist: bionic
       env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS=""
-      compiler: gcc
-    - os: linux
-      dist: bionic
-      env: EVENT_BUILD_METHOD=autotools EVENT_CONFIGURE_OPTIONS=""
-      compiler: clang
     # deploy documentation to github pages
     - os: linux
       env: TOOL=doxygen
@@ -66,25 +68,17 @@ matrix:
   fast_finish: true
 
 language: c
-compiler:
-  - gcc
-  - clang
+# osx will use Apple LLVM clang, but we are fine with this,
+# since we just use default compiler.
+compiler: gcc
 
 before_install:
-  # do not run with clang, since it fails (SIGSEGV)
-  - if [ "$CC" = "clang" ]; then
-      unset COVERALLS;
-    fi
   - if [ -n "$COVERALLS" ]; then
       pip install --user cpp-coveralls;
     fi
   - export JOBS=20
   - export TIMEOUT=50
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-      if [ "$CC" == "gcc" ]; then
-        export CC=$(ls /usr/local/Cellar/gcc/*/bin/gcc-?);
-      fi
-
       export OPENSSL_ROOT=$(echo /usr/local/Cellar/openssl/*);
       export
         CMAKE_INCLUDE_PATH=$OPENSSL_ROOT/include
