@@ -252,11 +252,15 @@ AC_CHECK_HEADERS([ \
   errno.h \
 ])
 
-AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-])
+case "${host_os}" in
+    linux*) ;;
+    *)
+        AC_CHECK_HEADERS(sys/sysctl.h, [], [], [
+        #ifdef HAVE_SYS_PARAM_H
+        #include <sys/param.h>
+        #endif
+        ])
+esac
 
 if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	AC_MSG_CHECKING(for TAILQ_FOREACH in sys/queue.h)
