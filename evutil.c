@@ -229,7 +229,7 @@ evutil_check_working_afunix_()
 	 * socket(AF_UNIX, , ) and fall back to socket(AF_INET, , ).
 	 * https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/
 	 */
-	int sd = -1;
+	evutil_socket_t sd = -1;
 	if (have_working_afunix_ < 0) {
 		if ((sd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
 			have_working_afunix_ = 0;
@@ -352,13 +352,19 @@ evutil_win_socketpair(int family, int type, int protocol,
 		EVUTIL_SET_SOCKET_ERROR(WSAEAFNOSUPPORT);
 		return -1;
 	}
-	if (family == AF_UNIX && evutil_check_working_afunix_()) {
-		/* Win10 does not support AF_UNIX socket of a type other
-		 * than SOCK_STREAM still now. */
-		type = SOCK_STREAM;
+	if (evutil_check_working_afunix_()) {
+		/* If the AF_UNIX socket works, we will change the family to
+		 * AF_UNIX forcely. */
+		family = AF_UNIX;
+		if (type != SOCK_STREAM) {
+			/* Win10 does not support AF_UNIX socket of a type other
+			 * than SOCK_STREAM still now. */
+			EVUTIL_SET_SOCKET_ERROR(WSAEAFNOSUPPORT);
+			return -1;
+		}
 	} else {
-		/* If the family is set to AF_UNIX and it does not work,
-		 * we will change it to AF_UNIX forcely. */
+		/* If the AF_UNIX socket does not work, we will change the
+		 * family to AF_INET forcely. */
 		family = AF_INET;
 	}
 	if (family == AF_UNIX)

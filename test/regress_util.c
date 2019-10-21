@@ -44,12 +44,16 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <sys/un.h>
 #endif
 #ifdef EVENT__HAVE_NETINET_IN6_H
 #include <netinet/in6.h>
 #endif
 #ifdef EVENT__HAVE_SYS_WAIT_H
 #include <sys/wait.h>
+#endif
+#ifdef EVENT__HAVE_AFUNIX_H
+#include <afunix.h>
 #endif
 #include <signal.h>
 #include <stdio.h>
@@ -1536,6 +1540,178 @@ end:
 	;
 }
 
+static void
+socketpair_init(evutil_socket_t fd[2])
+{
+	fd[0] = -1;
+	fd[1] = -1;
+}
+
+static void
+socketpair_close(evutil_socket_t fd[2])
+{
+	if (fd[0] != -1)
+		evutil_closesocket(fd[0]);
+	if (fd[1] != -1)
+		evutil_closesocket(fd[1]);
+}
+
+static void
+test_evutil_socketpair_create(void *arg)
+{
+	evutil_socket_t fd[2];
+
+#define SOCKETPAIR_CHECK_CLOSE(fd)	do {\
+	tt_int_op(fd[0], > , 0);			\
+	tt_int_op(fd[1], > , 0);			\
+	socketpair_close(fd);				\
+} while(0)
+
+	socketpair_init(fd);
+	tt_int_op(evutil_socketpair(AF_UNSPEC, SOCK_STREAM, 0, fd), == , -1);
+	tt_int_op(evutil_socketpair(AF_INET6, SOCK_STREAM, 0, fd), == , -1);
+	tt_int_op(evutil_socketpair(AF_INET, SOCK_RAW, 0, fd), == , -1);
+	tt_int_op(evutil_socketpair(AF_INET, SOCK_STREAM, 1, fd), == , -1);
+
+#ifndef _WIN32
+	tt_int_op(evutil_socketpair(AF_INET, SOCK_STREAM, 0, fd), == , -1);
+	tt_int_op(evutil_socketpair(AF_INET, SOCK_DGRAM, 0, fd), == , -1);
+	socketpair_init(fd);
+	tt_int_op(evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, fd), == , 0);
+	SOCKETPAIR_CHECK_CLOSE(fd);
+	socketpair_init(fd);
+	tt_int_op(evutil_socketpair(AF_UNIX, SOCK_DGRAM, 0, fd), == , 0);
+	SOCKETPAIR_CHECK_CLOSE(fd);
+#else
+	tt_int_op(evutil_socketpair(AF_INET, SOCK_DGRAM, 0, fd), == , -1);
+	tt_int_op(evutil_socketpair(AF_UNIX, SOCK_DGRAM, 0, fd), == , -1);
+	socketpair_init(fd);
+	tt_int_op(evutil_socketpair(AF_INET, SOCK_STREAM, 0, fd), == , 0);
+	SOCKETPAIR_CHECK_CLOSE(fd);
+	socketpair_init(fd);
+	tt_int_op(evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, fd), == , 0);
+	SOCKETPAIR_CHECK_CLOSE(fd);
+#endif
+end:
+	socketpair_close(fd);
+}
+
+#ifdef _WIN32
+static void
+test_evutil_win_socketpair(void *arg)
+{
+	struct basic_test_data *data = arg;
+	const int inet = strstr(data->setup_data, "inet") != NULL;
+	int family = inet ? AF_INET : AF_UNIX;
+	evutil_socket_t fd[2] = { -1, -1 };
+	int r;
+	int type;
+	ev_socklen_t typelen;
+	int unix_sock_works = 0;
+	const char *msg = "test string";
+	char buf[64] = { 0 };
+
+	if (!inet)
+		tt_str_op(data->setup_data, ==, "unix");
+
+#ifdef EVENT__HAVE_AFUNIX_H
+	if (evutil_check_working_afunix_())
+		unix_sock_works = 1;
+#endif
+
+	tt_int_op(evutil_socketpair(family, SOCK_STREAM, 0, fd), == , 0);
+	tt_int_op(fd[0], > , 0);
+	tt_int_op(fd[1], > , 0);
+
+	typelen = sizeof(type);
+	r = getsockopt(fd[0], SOL_SOCKET, SO_TYPE, (void *)&type, &typelen);
+	tt_assert(r == 0);
+	tt_int_op(type, == , SOCK_STREAM);
+
+#define CHK_LOCALADDR(a, s, f) 	do {			\
+	ev_socklen_t socklen = sizeof(a);			\
+	memset(&a, 0, socklen);						\
+	tt_assert(getsockname(s, (struct sockaddr *)&a, &socklen) == 0); \
+	tt_int_op(((struct sockaddr *)&a)->sa_family, == , f); \
+} while (0)
+
+	if (!unix_sock_works) {
+		struct sockaddr_in c, a;
+		CHK_LOCALADDR(c, fd[0], AF_INET);
+		CHK_LOCALADDR(a, fd[1], AF_INET);
+		tt_int_op(c.sin_addr.s_addr, == , htonl(INADDR_LOOPBACK));
+		tt_int_op(a.sin_addr.s_addr, == , htonl(INADDR_LOOPBACK));
+	}
+#if defined(EVENT__HAVE_AFUNIX_H)
+	else {
+		struct sockaddr_un c, a;
+		CHK_LOCALADDR(c, fd[0], AF_UNIX);
+		CHK_LOCALADDR(a, fd[1], AF_UNIX);
+		tt_assert(strlen(a.sun_path) > 0);
+	}
+#endif
+
+	r = send(fd[0], msg, (int)strlen(msg), 0);
+	tt_int_op(r, > , 0);
+	tt_int_op(recv(fd[1], buf, sizeof(buf), 0), >= , 0);
+	tt_str_op(buf, == , msg);
+	memset(buf, 0, sizeof(buf));
+	tt_int_op(send(fd[1], msg, (int)strlen(msg), 0), > , 0);
+	tt_int_op(recv(fd[0], buf, sizeof(buf), 0), >= , 0);
+	tt_str_op(buf, == , msg);
+
+	shutdown(fd[0], EVUTIL_SHUT_WR);
+	tt_int_op(send(fd[0], msg, (int)strlen(msg) + 1, 0), == , -1);
+	shutdown(fd[0], EVUTIL_SHUT_RD);
+	tt_int_op(recv(fd[0], buf, sizeof(buf), 0), == , -1);
+	shutdown(fd[1], EVUTIL_SHUT_BOTH);
+	tt_int_op(send(fd[1], msg, (int)strlen(msg) + 1, 0), == , -1);
+
+end:
+	socketpair_close(fd);
+}
+
+#ifdef EVENT__HAVE_AFUNIX_H
+static int
+get_windows_build()
+{
+	HKEY temp;
+	unsigned char value[8] = { 0 };
+	long long long_temp = 8;
+	int r = -1;
+	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+			"Software\\Microsoft\\Windows NT\\CurrentVersion",
+			0, KEY_READ, &temp) == ERROR_SUCCESS) {
+		if (RegQueryValueExA(temp, "CurrentBuildNumber", 0, NULL,
+			value, (LPDWORD)&long_temp) == ERROR_SUCCESS)
+			r = atoi((char*)value);
+
+		RegCloseKey(temp);
+	}
+	return r;
+}
+
+static void
+test_evutil_check_working_afunix(void *arg)
+{
+/* Minimum build number that supports Unix domain sockets on Windows */
+#define MIN_BUILD_NUM 17063
+	int build;
+	int r;
+
+	build = get_windows_build();
+	tt_assert(build > 0);
+	r = evutil_check_working_afunix_();
+	if (build >= MIN_BUILD_NUM)
+		tt_int_op(r, == , 1);
+	else
+		tt_int_op(r, == , 0);
+end:
+	;
+}
+#endif // EVENT__HAVE_AFUNIX_H
+#endif // _WIN32
+
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
@@ -1569,6 +1745,14 @@ struct testcase_t util_testcases[] = {
 	{ "date_rfc1123", test_evutil_date_rfc1123, 0, NULL, NULL },
 	{ "evutil_v4addr_is_local", test_evutil_v4addr_is_local, 0, NULL, NULL },
 	{ "evutil_v6addr_is_local", test_evutil_v6addr_is_local, 0, NULL, NULL },
+	{ "socketpair_create", test_evutil_socketpair_create, 0, NULL, NULL },
+#ifdef _WIN32
+	{ "socketpair_inet", test_evutil_win_socketpair, 0, &basic_setup, (void*)"inet" },
+	{ "socketpair_unix", test_evutil_win_socketpair, 0, &basic_setup, (void*)"unix" },
+#ifdef EVENT__HAVE_AFUNIX_H
+	{ "check_working_afunix", test_evutil_check_working_afunix, 0, NULL, NULL },
+#endif
+#endif
 	END_OF_TESTCASES,
 };
 
