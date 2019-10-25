@@ -44,8 +44,6 @@ endmacro()
 # - EVENT_PACKAGE_RELEASE
 # - CMAKE_THREAD_LIBS_INIT LIB_PLATFORM
 # - OPENSSL_LIBRARIES
-# - HDR_PUBLIC
-# - EVENT_INSTALL_INCLUDE_DIR
 # - EVENT_SHARED_FLAGS
 # - EVENT_LIBRARY_STATIC
 # - EVENT_LIBRARY_SHARED
@@ -69,9 +67,6 @@ macro(add_event_library LIB_NAME)
         set_target_properties("${LIB_NAME}_static" PROPERTIES
             OUTPUT_NAME "${LIB_NAME}"
             CLEAN_DIRECT_OUTPUT 1)
-        set_target_properties(
-            "${LIB_NAME}_static" PROPERTIES
-            PUBLIC_HEADER "${HDR_PUBLIC}")
 
         list(APPEND LIBEVENT_STATIC_LIBRARIES "${LIB_NAME}_static")
         list(APPEND ADD_EVENT_LIBRARY_TARGETS "${LIB_NAME}_static")
@@ -113,11 +108,6 @@ macro(add_event_library LIB_NAME)
                 SOVERSION "${CURRENT_MINUS_AGE}")
         endif()
 
-        set_target_properties(
-            "${LIB_NAME}_shared" PROPERTIES
-            PUBLIC_HEADER "${HDR_PUBLIC}"
-            CLEAN_DIRECT_OUTPUT 1)
-
         if (NOT WIN32)
             set(LIB_LINK_NAME
                 "${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX}")
@@ -146,7 +136,6 @@ macro(add_event_library LIB_NAME)
         LIBRARY DESTINATION "lib" COMPONENT lib
         ARCHIVE DESTINATION "lib" COMPONENT lib
         RUNTIME DESTINATION "lib" COMPONENT lib
-        PUBLIC_HEADER DESTINATION "include/event2"
         COMPONENT dev
     )
     if (NOT WIN32 AND ${EVENT_LIBRARY_SHARED})
