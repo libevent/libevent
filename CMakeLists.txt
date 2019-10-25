@@ -1479,6 +1479,11 @@ install(FILES ${HDR_COMPAT}
         DESTINATION "include"
         COMPONENT dev)
 
+# Install public headers
+install(FILES ${HDR_PUBLIC}
+        DESTINATION "include/event2"
+        COMPONENT dev)
+
 # Install the configs.
 install(FILES
         ${PROJECT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
