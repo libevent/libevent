@@ -612,6 +612,12 @@ int evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
 /** Replacement for inet_ntop for platforms which lack it. */
 EVENT2_EXPORT_SYMBOL
 const char *evutil_inet_ntop(int af, const void *src, char *dst, size_t len);
+/** Variation of inet_pton that also parses IPv6 scopes. Public for
+    unit tests. No reason to call this directly.
+ */
+EVENT2_EXPORT_SYMBOL
+int evutil_inet_pton_scope(int af, const char *src, void *dst,
+	unsigned *indexp);
 /** Replacement for inet_pton for platforms which lack it. */
 EVENT2_EXPORT_SYMBOL
 int evutil_inet_pton(int af, const char *src, void *dst);
