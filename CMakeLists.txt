@@ -962,6 +962,18 @@ add_event_library(event SOURCES ${SRC_CORE} ${SRC_EXTRA})
 
 set(WIN32_GETOPT)
 if (WIN32)
+    set(_TMPLIBS)
+    if (${EVENT_LIBRARY_STATIC})
+        list(APPEND _TMPLIBS event_core_static event_static)
+    endif()
+    if (${EVENT_LIBRARY_SHARED})
+        list(APPEND _TMPLIBS event_core_shared event_shared)
+    endif()
+    foreach(lib ${_TMPLIBS})
+        target_link_libraries(${lib} iphlpapi)
+    endforeach()
+    unset(_TMPLIBS)
+
     list(APPEND WIN32_GETOPT
          WIN32-Code/getopt.c
          WIN32-Code/getopt_long.c)
