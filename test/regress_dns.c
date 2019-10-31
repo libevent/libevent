@@ -1265,26 +1265,8 @@ test_bufferevent_connect_hostname(void *arg)
 	int n_accept=0, n_dns=0;
 	char buf[128];
 	int emfile = data->setup_data && !strcmp(data->setup_data, "emfile");
-	int success = BEV_EVENT_CONNECTED;
-	int default_error = 0;
 	unsigned i;
 	int ret;
-
-	if (emfile) {
-		success = BEV_EVENT_ERROR;
-#if defined(__linux__)
-		/* on linux glibc/musl reports EAI_SYSTEM, when getaddrinfo() cannot
-		 * open file for resolving service. */
-		default_error = EVUTIL_EAI_SYSTEM;
-#elif defined(__sun__)
-		/* on solaris it returns EAI_FAIL */
-		default_error = EVUTIL_EAI_FAIL;
-		/** the DP_POLL can also fail with EINVAL under EMFILE */
-#else
-		/* on osx/freebsd it returns EAI_NONAME */
-		default_error = EVUTIL_EAI_NONAME;
-#endif
-	}
 
 	be_connect_hostname_base = data->base;
 
@@ -1376,12 +1358,16 @@ test_bufferevent_connect_hostname(void *arg)
 
 	tt_int_op(be_outcome[0].what, ==, BEV_EVENT_ERROR);
 	tt_int_op(be_outcome[0].dnserr, ==, EVUTIL_EAI_NONAME);
-	tt_int_op(be_outcome[1].what, ==, success);
+	tt_int_op(be_outcome[1].what, ==, !emfile ? BEV_EVENT_CONNECTED : BEV_EVENT_ERROR);
 	tt_int_op(be_outcome[1].dnserr, ==, 0);
-	tt_int_op(be_outcome[2].what, ==, success);
+	tt_int_op(be_outcome[2].what, ==, !emfile ? BEV_EVENT_CONNECTED : BEV_EVENT_ERROR);
 	tt_int_op(be_outcome[2].dnserr, ==, 0);
-	tt_int_op(be_outcome[3].what, ==, success);
-	tt_int_op(be_outcome[3].dnserr, ==, default_error);
+	tt_int_op(be_outcome[3].what, ==, !emfile ? BEV_EVENT_CONNECTED : BEV_EVENT_ERROR);
+	if (!emfile) {
+		tt_int_op(be_outcome[3].dnserr, ==, 0);
+	} else {
+		tt_int_op(be_outcome[3].dnserr, !=, 0);
+	}
 	if (expect_err) {
 		tt_int_op(be_outcome[4].what, ==, BEV_EVENT_ERROR);
 		tt_int_op(be_outcome[4].dnserr, ==, expect_err);
