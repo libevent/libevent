@@ -150,3 +150,38 @@ macro(add_event_library LIB_NAME)
 
     generate_pkgconfig("${LIB_NAME}")
 endmacro()
+
+## Register installed package with CMake
+#
+# This function adds an entry to the CMake registry for packages with the
+# path of the directory where the package configuration file of the installed
+# package is located in order to help CMake find the package in a custom
+# installation prefix. This differs from CMake's export(PACKAGE) command
+# which registers the build directory instead.
+function(register_package CONFIG_DIR)
+    if (NOT IS_ABSOLUTE "${CONFIG_DIR}")
+        set (CONFIG_DIR "${CMAKE_INSTALL_PREFIX}/${CONFIG_DIR}")
+    endif()
+    string (MD5 REGISTRY_ENTRY "${CONFIG_DIR}")
+    if (WIN32)
+        install(CODE
+            "execute_process(
+                COMMAND reg add \"HKCU\\\\Software\\\\Kitware\\\\CMake\\\\Packages\\\\${PROJECT_NAME}\" /v \"${REGISTRY_ENTRY}\" /d \"${CONFIG_DIR}\" /t REG_SZ /f
+                RESULT_VARIABLE RT
+                ERROR_VARIABLE  ERR
+                OUTPUT_QUIET
+            )
+            if (NOT RT EQUAL 0)
+                string (STRIP \"\${ERR}\" ERR)
+                message (STATUS \"Register:   Failed to add registry entry: \${ERR}\")
+            endif ()"
+        )
+    elseif (IS_DIRECTORY "$ENV{HOME}")
+        file(WRITE "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-registry-entry" "${CONFIG_DIR}")
+        install(
+            FILES       "${PROJECT_BINARY_DIR}/${PROJECT_NAME}-registry-entry"
+            DESTINATION "$ENV{HOME}/.cmake/packages/${PROJECT_NAME}"
+            RENAME      "${REGISTRY_ENTRY}"
+        )
+    endif()
+endfunction()

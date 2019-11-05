@@ -1447,8 +1447,6 @@ set(EVENT_INSTALL_CMAKE_DIR
     "${CMAKE_INSTALL_PREFIX}/${DEF_INSTALL_CMAKE_DIR}"
     CACHE PATH "Installation directory for CMake files")
 
-export(PACKAGE libevent)
-
 # Generate the config file for the build-tree.
 set(EVENT__INCLUDE_DIRS
     "${PROJECT_SOURCE_DIR}/include"
@@ -1505,6 +1503,9 @@ install(FILES
 install(EXPORT LibeventTargets
         DESTINATION "${DEF_INSTALL_CMAKE_DIR}"
         COMPONENT dev)
+
+# Register package for the install-tree.
+register_package("${EVENT_INSTALL_CMAKE_DIR}")
 
 # Install the scripts.
 install(PROGRAMS
