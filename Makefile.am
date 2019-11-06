@@ -179,6 +179,7 @@ include test/include.am
 
 if BUILD_WIN32
 
+SYS_CORE_LIBS = -liphlpapi
 SYS_LIBS = -lws2_32 -lshell32 -ladvapi32
 SYS_SRC = win32select.c buffer_iocp.c event_iocp.c \
 	bufferevent_async.c
@@ -190,6 +191,7 @@ endif
 
 else
 
+SYS_CORE_LIBS =
 SYS_LIBS =
 SYS_SRC =
 SYS_INCLUDES =
@@ -266,11 +268,11 @@ AM_LDFLAGS = $(LIBEVENT_LDFLAGS)
 GENERIC_LDFLAGS = -version-info $(VERSION_INFO) $(RELEASE) $(NO_UNDEFINED) $(AM_LDFLAGS)
 
 libevent_la_SOURCES = $(CORE_SRC) $(EXTRAS_SRC)
-libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS) -liphlpapi
+libevent_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS) $(SYS_CORE_LIBS)
 libevent_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 libevent_core_la_SOURCES = $(CORE_SRC)
-libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS) -liphlpapi
+libevent_core_la_LIBADD = @LTLIBOBJS@ $(SYS_LIBS) $(SYS_CORE_LIBS)
 libevent_core_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 if PTHREADS
