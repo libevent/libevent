@@ -131,7 +131,7 @@ CTestTestfile.cmake
 DartConfiguration.tcl
 LibeventConfig.cmake
 LibeventConfigVersion.cmake
-LibeventTargets.cmake
+LibeventTargets*.cmake
 bin/
 cmake_install.cmake
 Uninstall.cmake
