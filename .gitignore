@@ -146,6 +146,7 @@ event_extra.dir
 *.sln
 *.filters
 install_manifest.txt
+test-export/build
 
 # ninja
 build.ninja
