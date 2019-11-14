@@ -42,6 +42,11 @@ matrix:
     # coveralls
     - os: linux
       env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=debug" COVERALLS=yes
+    # test-export
+    - os: linux
+      env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON" TEST_EXPORT=STATIC
+    - os: linux
+      env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=SHARED -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON" TEST_EXPORT=SHARED
     # for openssl1.1
     - os: linux
       dist: bionic
@@ -124,9 +129,16 @@ script:
 
       mkdir build &&
       cd build &&
-      cmake .. $EVENT_CMAKE_OPTIONS &&
-      travis_wait $TIMEOUT
-      cmake --build . --target verify;
+      cmake .. $EVENT_CMAKE_OPTIONS;
+      if [ "$TEST_EXPORT" == "STATIC" ]; then
+        cmake --build .;
+        sudo python3 ../test-export/test-export.py static;
+      elif [ "$TEST_EXPORT" == "SHARED" ]; then
+        cmake --build .;
+        sudo python3 ../test-export/test-export.py shared;
+      else
+        travis_wait $TIMEOUT cmake --build . --target verify;
+      fi
     fi
   - if [ "$TOOL" == "doxygen" ]; then
       eval "$(ssh-agent -s)";
