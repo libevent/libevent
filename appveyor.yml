@@ -24,7 +24,8 @@ environment:
     APPVEYOR_SAVE_CACHE_ON_ERROR: true
     OPENSSL_ROOT: C:/OpenSSL-Win64
     MPATH: C:/mingw-w64/x86_64-7.2.0-posix-seh-rt_v5-rev1/mingw64/bin;C:/msys64/usr/bin
-    EVENT_TESTS_PARALLEL: 20
+    # Do not run tests in parallel to reduce false-positive
+    EVENT_TESTS_PARALLEL: 1
     EVENT_BUILD_PARALLEL: 10
   matrix:
     - EVENT_BUILD_METHOD: "cmake"
