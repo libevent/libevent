@@ -23,6 +23,7 @@ environment:
   global:
     APPVEYOR_SAVE_CACHE_ON_ERROR: true
     OPENSSL_ROOT: C:/OpenSSL-Win64
+    PYTHON3: C:/Python37-x64/python.exe
     MPATH: C:/mingw-w64/x86_64-7.2.0-posix-seh-rt_v5-rev1/mingw64/bin;C:/msys64/usr/bin
     # Do not run tests in parallel to reduce false-positive
     EVENT_TESTS_PARALLEL: 1
@@ -67,6 +68,14 @@ environment:
     - EVENT_BUILD_METHOD: "cmake"
       EVENT_CMAKE_OPTIONS: ""
       APPVEYOR_BUILD_WORKER_IMAGE: "Visual Studio 2019"
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
+      APPVEYOR_BUILD_WORKER_IMAGE: "Visual Studio 2017"
+      TEST_EXPORT: "SHARED"
+    - EVENT_BUILD_METHOD: "cmake"
+      EVENT_CMAKE_OPTIONS: "-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
+      APPVEYOR_BUILD_WORKER_IMAGE: "Visual Studio 2017"
+      TEST_EXPORT: "STATIC"
 
 matrix:
   exclude:
@@ -125,7 +134,13 @@ build_script:
         if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
         cmake --build . -j $env:EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
         if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
-        ctest --output-on-failure -j $env:EVENT_TESTS_PARALLEL
+        if ($env:TEST_EXPORT -eq 'STATIC') {
+          &$env:PYTHON3 ../test-export/test-export.py static
+        } elseif ($env:TEST_EXPORT -eq 'SHARED') {
+          &$env:PYTHON3 ../test-export/test-export.py shared
+        } else {
+          ctest --output-on-failure -j $env:EVENT_TESTS_PARALLEL
+        }
       }
 
 cache:

@@ -134,7 +134,7 @@ CTestTestfile.cmake
 DartConfiguration.tcl
 LibeventConfig.cmake
 LibeventConfigVersion.cmake
-LibeventTargets.cmake
+LibeventTargets*.cmake
 bin/
 cmake_install.cmake
 Uninstall.cmake
@@ -149,6 +149,7 @@ event_extra.dir
 *.sln
 *.filters
 install_manifest.txt
+test-export/build
 
 # ninja
 build.ninja

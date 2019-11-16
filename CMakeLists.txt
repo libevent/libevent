@@ -943,19 +943,21 @@ configure_file(
 include(AddEventLibrary)
 add_event_library(event_core SOURCES ${SRC_CORE})
 add_event_library(event_extra
-    LIBRARIES event_core_shared
+    INNER_LIBRARIES event_core
     SOURCES ${SRC_EXTRA})
 
 if (NOT EVENT__DISABLE_OPENSSL)
     add_event_library(event_openssl
-        LIBRARIES event_core_shared ${OPENSSL_LIBRARIES}
+        INNER_LIBRARIES event_core
+        OUTER_INCLUDES ${OPENSSL_INCLUDE_DIR}
+        LIBRARIES ${OPENSSL_LIBRARIES}
         SOURCES ${SRC_OPENSSL})
 endif()
 
 if (CMAKE_USE_PTHREADS_INIT)
     set(SRC_PTHREADS evthread_pthread.c)
     add_event_library(event_pthreads
-        LIBRARIES event_core_shared
+        INNER_LIBRARIES event_core
         SOURCES ${SRC_PTHREADS})
 endif()
 
@@ -1449,17 +1451,23 @@ endif()
 # Installation preparation.
 #
 
-if(WIN32 AND NOT CYGWIN)
-  set(DEF_INSTALL_CMAKE_DIR cmake)
-else()
-  set(DEF_INSTALL_CMAKE_DIR lib/cmake/libevent)
-endif()
-
 set(EVENT_INSTALL_CMAKE_DIR
-    "${CMAKE_INSTALL_PREFIX}/${DEF_INSTALL_CMAKE_DIR}"
-    CACHE PATH "Installation directory for CMake files")
+    "${CMAKE_INSTALL_PREFIX}/lib/cmake/libevent")
 
 export(PACKAGE libevent)
+
+function(gen_package_config forinstall)
+    if(${forinstall})
+        set(CONFIG_FOR_INSTALL_TREE 1)
+        set(dir "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}")
+    else()
+        set(CONFIG_FOR_INSTALL_TREE 0)
+        set(dir "${PROJECT_BINARY_DIR}")
+    endif()
+    configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
+                "${dir}/LibeventConfig.cmake"
+                @ONLY)
+endfunction()
 
 # Generate the config file for the build-tree.
 set(EVENT__INCLUDE_DIRS
@@ -1470,26 +1478,10 @@ set(LIBEVENT_INCLUDE_DIRS
     ${EVENT__INCLUDE_DIRS}
     CACHE PATH "Libevent include directories")
 
-configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigBuildTree.cmake.in
-               ${PROJECT_BINARY_DIR}/LibeventConfig.cmake
-               @ONLY)
+gen_package_config(0)
 
 # Generate the config file for the installation tree.
-# Calculate the relative directory from the Cmake dir.
-file(RELATIVE_PATH
-     REL_INCLUDE_DIR
-     "${EVENT_INSTALL_CMAKE_DIR}"
-     "${CMAKE_INSTALL_PREFIX}/include")
-
-# Note the LIBEVENT_CMAKE_DIR is defined in LibeventConfig.cmake.in,
-# we escape it here so it's evaluated when it is included instead
-# so that the include dirs are given relative to where the
-# config file is located.
-set(EVENT_INSTALL_INCLUDE_DIR "\${LIBEVENT_CMAKE_DIR}/${REL_INCLUDE_DIR}")
-
-configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
-               ${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
-               @ONLY)
+gen_package_config(1)
 
 # Generate version info for both build-tree and install-tree.
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
@@ -1514,9 +1506,19 @@ install(FILES
         COMPONENT dev)
 
 # Install exports for the install-tree.
-install(EXPORT LibeventTargets
-        DESTINATION "${DEF_INSTALL_CMAKE_DIR}"
+macro(install_export type)
+    install(EXPORT LibeventTargets-${type}
+        NAMESPACE ${PROJECT_NAME}::
+        DESTINATION "${EVENT_INSTALL_CMAKE_DIR}"
         COMPONENT dev)
+endmacro()
+
+if (${EVENT_LIBRARY_STATIC})
+    install_export(static)
+endif()
+if (${EVENT_LIBRARY_SHARED})
+    install_export(shared)
+endif()
 
 # Install the scripts.
 install(PROGRAMS
