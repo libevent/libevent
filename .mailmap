@@ -1,5 +1,7 @@
 # name -> email
 Azat Khuzhin           <azat@libevent.org>
+yuangongji             <yuangongji@foxmail.com>
 
-# email -> email
-<azat@libevent.org>    <a3at.mail@gmail.com>
+# primary email -> alias
+<azat@libevent.org>                   <a3at.mail@gmail.com>
+yuangongji <yuangongji@foxmail.com>   <82787816@qq.com>
