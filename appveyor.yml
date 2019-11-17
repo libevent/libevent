@@ -126,11 +126,12 @@ build_script:
         cd $env:BUILD_DIR
         if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
         if ($env:APPVEYOR_BUILD_WORKER_IMAGE -eq 'Visual Studio 2017') {
-          cmake -G "Visual Studio 15 2017 Win64" .. $env:EVENT_CMAKE_OPTIONS
+          $env:cmake_cmd="cmake -G 'Visual Studio 15 2017 Win64' .. $env:EVENT_CMAKE_OPTIONS"
         }
         if ($env:APPVEYOR_BUILD_WORKER_IMAGE -eq 'Visual Studio 2019') {
-          cmake -G "Visual Studio 16 2019" -A x64 .. $env:EVENT_CMAKE_OPTIONS
+          $env:cmake_cmd="cmake -G 'Visual Studio 16 2019' -A x64 .. $env:EVENT_CMAKE_OPTIONS"
         }
+        Invoke-Expression $env:cmake_cmd
         if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
         cmake --build . -j $env:EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
         if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode)  }
