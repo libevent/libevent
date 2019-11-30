@@ -119,7 +119,7 @@ macro(add_event_library LIB_NAME)
             ${LIB_LIBRARIES})
 
         export_install_target(static "${LIB_NAME}" "${LIB_OUTER_INCLUDES}")
-        
+
         set(ADD_EVENT_LIBRARY_INTERFACE "${LIB_NAME}_static")
     endif()
 
@@ -170,7 +170,7 @@ macro(add_event_library LIB_NAME)
                 COMMAND ${CMAKE_COMMAND} -E create_symlink
                     "$<TARGET_FILE_NAME:${LIB_NAME}_shared>"
                     "${LIB_LINK_NAME}"
-                WORKING_DIRECTORY "lib")
+                WORKING_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
         endif()
 
         export_install_target(shared "${LIB_NAME}" "${LIB_OUTER_INCLUDES}")
