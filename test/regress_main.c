@@ -193,6 +193,12 @@ basic_test_setup(const struct testcase_t *testcase)
 	evutil_socket_t spair[2] = { -1, -1 };
 	struct basic_test_data *data = NULL;
 
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
+	int evthread_flags = 0;
+	if (testcase->flags & TT_ENABLE_PRIORITY_INHERITANCE)
+		evthread_flags |= EVTHREAD_PTHREAD_PRIO_INHERIT;
+#endif
+
 #ifndef _WIN32
 	if (testcase->flags & TT_ENABLE_IOCP_FLAG)
 		return (void*)TT_SKIP;
@@ -208,7 +214,7 @@ basic_test_setup(const struct testcase_t *testcase)
 		if (!(testcase->flags & TT_FORK))
 			return NULL;
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
-		if (evthread_use_pthreads())
+		if (evthread_use_pthreads_with_flags(evthread_flags))
 			exit(1);
 #elif defined(EVTHREAD_USE_WINDOWS_THREADS_IMPLEMENTED)
 		if (evthread_use_windows_threads())

@@ -39,12 +39,13 @@ struct event_base;
 #include "mm-internal.h"
 #include "evthread-internal.h"
 
+static pthread_mutexattr_t attr_default;
 static pthread_mutexattr_t attr_recursive;
 
 static void *
 evthread_posix_lock_alloc(unsigned locktype)
 {
-	pthread_mutexattr_t *attr = NULL;
+	pthread_mutexattr_t *attr = &attr_default;
 	pthread_mutex_t *lock = mm_malloc(sizeof(pthread_mutex_t));
 	if (!lock)
 		return NULL;
@@ -161,7 +162,7 @@ evthread_posix_cond_wait(void *cond_, void *lock_, const struct timeval *tv)
 }
 
 int
-evthread_use_pthreads(void)
+evthread_use_pthreads_with_flags(int flags)
 {
 	struct evthread_lock_callbacks cbs = {
 		EVTHREAD_LOCK_API_VERSION,
@@ -178,14 +179,32 @@ evthread_use_pthreads(void)
 		evthread_posix_cond_signal,
 		evthread_posix_cond_wait
 	};
+
+	if (pthread_mutexattr_init(&attr_default))
+		return -1;
+
 	/* Set ourselves up to get recursive locks. */
 	if (pthread_mutexattr_init(&attr_recursive))
 		return -1;
 	if (pthread_mutexattr_settype(&attr_recursive, PTHREAD_MUTEX_RECURSIVE))
 		return -1;
 
+	if (flags & EVTHREAD_PTHREAD_PRIO_INHERIT) {
+		/* Set up priority inheritance */
+		if (pthread_mutexattr_setprotocol(&attr_default, PTHREAD_PRIO_INHERIT))
+			return -1;
+		if (pthread_mutexattr_setprotocol(&attr_recursive, PTHREAD_PRIO_INHERIT))
+			return -1;
+	}
+
 	evthread_set_lock_callbacks(&cbs);
 	evthread_set_condition_callbacks(&cond_cbs);
 	evthread_set_id_callback(evthread_posix_get_id);
 	return 0;
+}
+
+int
+evthread_use_pthreads(void)
+{
+	return evthread_use_pthreads_with_flags(0);
 }

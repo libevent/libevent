@@ -574,6 +574,9 @@ struct testcase_t thread_testcases[] = {
 #ifndef _WIN32
 	{ "forking", thread_basic, TT_FORK|TT_NEED_THREADS|TT_NEED_BASE,
 	  &basic_setup, (char*)"forking" },
+	{ "priority_inheritance", thread_basic,
+	  TT_FORK|TT_NEED_THREADS|TT_NEED_BASE|TT_ENABLE_PRIORITY_INHERITANCE,
+	  &basic_setup, (char*)"priority_inheritance" },
 #endif
 	TEST(conditions_simple, TT_RETRIABLE),
 	{ "deferred_cb_skew", thread_deferred_cb_skew,
