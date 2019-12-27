@@ -126,8 +126,22 @@ evutil_usleep_(const struct timeval *tv)
 		return;
 #if defined(_WIN32)
 	{
-		long msec = evutil_tv_to_msec_(tv);
-		Sleep((DWORD)msec);
+		__int64 usec;
+		LARGE_INTEGER li;
+		HANDLE timer;
+
+		usec = tv->tv_sec * 1000000LL + tv->tv_usec;
+		if (!usec)
+			return;
+
+		li.QuadPart = -10LL * usec;
+		timer = CreateWaitableTimer(NULL, TRUE, NULL);
+		if (!timer)
+			return;
+
+		SetWaitableTimer(timer, &li, 0, NULL, NULL, 0);
+		WaitForSingleObject(timer, INFINITE);
+		CloseHandle(timer);
 	}
 #elif defined(EVENT__HAVE_NANOSLEEP)
 	{
