@@ -42,7 +42,7 @@ main(int argc, char **argv)
 	struct evconnlistener *listener;
 	struct event *signal_event;
 
-	struct sockaddr_in sin;
+	struct sockaddr_in sin = {0};
 #ifdef _WIN32
 	WSADATA wsa_data;
 	WSAStartup(0x0201, &wsa_data);
@@ -54,7 +54,6 @@ main(int argc, char **argv)
 		return 1;
 	}
 
-	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(PORT);
 
