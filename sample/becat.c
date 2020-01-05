@@ -14,6 +14,9 @@
 
 #include <event2/bufferevent_ssl.h>
 #include <openssl/ssl.h>
+#include <openssl/rsa.h>
+#include <openssl/bn.h>
+#include <openssl/x509.h>
 #include <openssl/err.h>
 #include "openssl-compat.h"
 
@@ -201,9 +204,9 @@ static int ssl_load_cert(struct ssl_context *ssl)
 
 	ASN1_INTEGER_set(X509_get_serialNumber(ssl->cert), 1);
 
-	X509_gmtime_adj(X509_get_notBefore(ssl->cert), 0);
+	X509_gmtime_adj(X509_getm_notBefore(ssl->cert), 0);
 	/** 1 year lifetime */
-	X509_gmtime_adj(X509_get_notAfter(ssl->cert),
+	X509_gmtime_adj(X509_getm_notAfter(ssl->cert),
 		(long)time(NULL) + 365 * 86400);
 
 	X509_set_pubkey(ssl->cert, ssl->pkey);
