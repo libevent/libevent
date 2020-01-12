@@ -178,6 +178,9 @@
 /* Define to 1 if you have the <mach/mach_time.h> header file. */
 #cmakedefine EVENT__HAVE_MACH_MACH_TIME_H 1
 
+/* Define to 1 if you have the <mach/mach.h> header file. */
+#cmakedefine EVENT__HAVE_MACH_MACH_H 1
+
 /* Define to 1 if you have the <memory.h> header file. */
 #cmakedefine EVENT__HAVE_MEMORY_H 1
 

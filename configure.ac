@@ -222,6 +222,7 @@ AC_CHECK_HEADERS([ \
   fcntl.h \
   ifaddrs.h \
   mach/mach_time.h \
+  mach/mach.h \
   netdb.h \
   netinet/in.h \
   netinet/in6.h \
