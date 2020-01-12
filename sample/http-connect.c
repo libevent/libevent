@@ -84,13 +84,14 @@ static void connect_cb(struct evhttp_request *proxy_req, void *arg)
 
 	req = evhttp_request_new(get_cb, NULL);
 	evhttp_add_header(req->output_headers, "Connection", "close");
+	evhttp_add_header(req->output_headers, "Host", evhttp_uri_get_host(location));
 	VERIFY(!evhttp_make_request(evcon, req, EVHTTP_REQ_GET,
 		uri_path(location, buffer)));
 }
 
 int main(int argc, const char **argv)
 {
-	char buffer[URL_MAX];
+	char hostport[URL_MAX];
 
 	struct evhttp_uri *location;
 	struct evhttp_uri *proxy;
@@ -116,10 +117,11 @@ int main(int argc, const char **argv)
 	connect_base.location = location;
 	VERIFY(req = evhttp_request_new(connect_cb, &connect_base));
 
+	uri_hostport(location, hostport);
 	evhttp_add_header(req->output_headers, "Connection", "keep-alive");
 	evhttp_add_header(req->output_headers, "Proxy-Connection", "keep-alive");
-	evhttp_make_request(evcon, req, EVHTTP_REQ_CONNECT,
-		uri_hostport(location, buffer));
+	evhttp_add_header(req->output_headers, "Host", hostport);
+	evhttp_make_request(evcon, req, EVHTTP_REQ_CONNECT, hostport);
 
 	event_base_dispatch(base);
 
