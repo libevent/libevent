@@ -417,6 +417,7 @@ evhttp_response_needs_body(struct evhttp_request *req)
 	return (req->response_code != HTTP_NOCONTENT &&
 		req->response_code != HTTP_NOTMODIFIED &&
 		(req->response_code < 100 || req->response_code >= 200) &&
+		req->type != EVHTTP_REQ_CONNECT &&
 		req->type != EVHTTP_REQ_HEAD);
 }
 
