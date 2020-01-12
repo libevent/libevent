@@ -542,6 +542,9 @@ evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 static int
 evhttp_is_request_connection_close(struct evhttp_request *req)
 {
+	if (req->type == EVHTTP_REQ_CONNECT)
+		return 0;
+
 	return
 		evhttp_is_connection_close(req->flags, req->input_headers) ||
 		evhttp_is_connection_close(req->flags, req->output_headers);
