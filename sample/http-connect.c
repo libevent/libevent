@@ -59,11 +59,8 @@ static void get_cb(struct evhttp_request *req, void *arg)
 {
 	ev_ssize_t len;
 	struct evbuffer *evbuf;
-	struct evhttp_connection *evcon;
 
 	VERIFY(req);
-	evcon = evhttp_request_get_connection(req);
-	VERIFY(evcon);
 
 	evbuf = evhttp_request_get_input_buffer(req);
 	len = evbuffer_get_length(evbuf);
