@@ -117,10 +117,10 @@ addons:
 
 script:
   - if [ "$EVENT_BUILD_METHOD" = "autotools" ]; then
-      ./autogen.sh &&
-      ./configure $EVENT_CONFIGURE_OPTIONS &&
-      make &&
-      make -j $JOBS verify;
+      ./autogen.sh;
+      ./configure $EVENT_CONFIGURE_OPTIONS;
+      time make -j $JOBS;
+      time make -j $JOBS verify;
     fi
   - if [ "$EVENT_BUILD_METHOD" = "cmake" ]; then
       export
@@ -137,7 +137,8 @@ script:
         cmake --build .;
         sudo python3 ../test-export/test-export.py shared;
       else
-        cmake --build . --target verify;
+        time cmake --build .;
+        time cmake --build . --target verify;
       fi
     fi
   - if [ "$TOOL" == "doxygen" ]; then
