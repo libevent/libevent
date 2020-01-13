@@ -66,6 +66,51 @@
 #include "time-internal.h"
 #include "regress_thread.h"
 
+/**
+ * Put into the real time scheduling class for better timers latency.
+ * https://developer.apple.com/library/archive/technotes/tn2169/_index.html#//apple_ref/doc/uid/DTS40013172-CH1-TNTAG6000
+ */
+#if defined(__APPLE__)
+#ifdef EVENT__HAVE_MACH_MACH_H
+#include <mach/mach.h>
+#endif
+#ifdef EVENT__HAVE_MACH_MACH_TIME_H
+#include <mach/mach_time.h>
+#endif
+static void move_pthread_to_realtime_scheduling_class(pthread_t pthread)
+{
+	mach_timebase_info_data_t info;
+	mach_timebase_info(&info);
+
+	const uint64_t NANOS_PER_MSEC = 1000000ULL;
+	double clock2abs =
+		((double)info.denom / (double)info.numer) * NANOS_PER_MSEC;
+
+	thread_time_constraint_policy_data_t policy;
+	policy.period      = 0;
+	policy.computation = (uint32_t)(5 * clock2abs); // 5 ms of work
+	policy.constraint  = (uint32_t)(10 * clock2abs);
+	policy.preemptible = FALSE;
+
+	int kr = thread_policy_set(pthread_mach_thread_np(pthread_self()),
+		THREAD_TIME_CONSTRAINT_POLICY,
+		(thread_policy_t)&policy,
+		THREAD_TIME_CONSTRAINT_POLICY_COUNT);
+	if (kr != KERN_SUCCESS) {
+		mach_error("thread_policy_set:", kr);
+		exit(1);
+	}
+}
+
+void thread_setup(THREAD_T pthread)
+{
+	move_pthread_to_realtime_scheduling_class(pthread);
+}
+#else /** \__APPLE__ */
+void thread_setup(THREAD_T pthread) {}
+#endif /** \!__APPLE__ */
+
+
 struct cond_wait {
 	void *lock;
 	void *cond;
