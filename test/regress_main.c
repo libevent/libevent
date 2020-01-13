@@ -81,10 +81,12 @@
 
 #include "event2/event-config.h"
 #include "regress.h"
+#include "regress_thread.h"
 #include "tinytest.h"
 #include "tinytest_macros.h"
 #include "../iocp-internal.h"
 #include "../event-internal.h"
+#include "../evthread-internal.h"
 
 struct evutil_weakrand_state test_weakrand_state;
 
@@ -186,52 +188,6 @@ ignore_log_cb(int s, const char *msg)
 {
 }
 
-#if defined(__APPLE__)
-
-#ifdef EVENT__HAVE_MACH_MACH_H
-#include <mach/mach.h>
-#endif
-#ifdef EVENT__HAVE_MACH_MACH_TIME_H
-#include <mach/mach_time.h>
-#endif
-#include <pthread.h>
-
-/**
- * Put into the real time scheduling class for better timers latency.
- * https://developer.apple.com/library/archive/technotes/tn2169/_index.html#//apple_ref/doc/uid/DTS40013172-CH1-TNTAG6000
- */
-void move_pthread_to_realtime_scheduling_class(pthread_t pthread)
-{
-	mach_timebase_info_data_t timebase_info;
-	mach_timebase_info(&timebase_info);
-
-	const uint64_t NANOS_PER_MSEC = 1000000ULL;
-	double clock2abs = ((double)timebase_info.denom / (double)timebase_info.numer) * NANOS_PER_MSEC;
-
-	thread_time_constraint_policy_data_t policy;
-	policy.period      = 0;
-	policy.computation = (uint32_t)(5 * clock2abs); // 5 ms of work
-	policy.constraint  = (uint32_t)(10 * clock2abs);
-	policy.preemptible = FALSE;
-
-	int kr = thread_policy_set(pthread_mach_thread_np(pthread_self()),
-		THREAD_TIME_CONSTRAINT_POLICY,
-		(thread_policy_t)&policy,
-		THREAD_TIME_CONSTRAINT_POLICY_COUNT);
-	if (kr != KERN_SUCCESS) {
-		mach_error("thread_policy_set:", kr);
-		exit(1);
-	}
-}
-
-void thread_setup(pthread_t pthread)
-{
-	move_pthread_to_realtime_scheduling_class(pthread);
-}
-#else
-void thread_setup(pthread_t pthread) {}
-#endif
-
 void *
 basic_test_setup(const struct testcase_t *testcase)
 {
@@ -239,7 +195,9 @@ basic_test_setup(const struct testcase_t *testcase)
 	evutil_socket_t spair[2] = { -1, -1 };
 	struct basic_test_data *data = NULL;
 
-	thread_setup(pthread_self());
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+	thread_setup(THREAD_SELF());
+#endif
 
 #ifndef _WIN32
 	if (testcase->flags & TT_ENABLE_IOCP_FLAG)

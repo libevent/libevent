@@ -34,6 +34,7 @@
 #define THREAD_T pthread_t
 #define THREAD_FN void *
 #define THREAD_RETURN() return (NULL)
+#define THREAD_SELF() pthread_self()
 #define THREAD_START(threadvar, fn, arg) do {          \
 	if (!pthread_create(&(threadvar), NULL, fn, arg))  \
 		thread_setup(threadvar);                       \
@@ -43,11 +44,15 @@
 #define THREAD_T HANDLE
 #define THREAD_FN unsigned __stdcall
 #define THREAD_RETURN() return (0)
-#define THREAD_START(threadvar, fn, arg) do {		\
+#define THREAD_SELF() GetCurrentThreadId()
+#define THREAD_START(threadvar, fn, arg) do {                         \
 	uintptr_t threadhandle = _beginthreadex(NULL,0,fn,(arg),0,NULL);  \
 	(threadvar) = (HANDLE) threadhandle;                              \
+	thread_setup(threadvar);                                          \
 } while (0)
 #define THREAD_JOIN(th) WaitForSingleObject(th, INFINITE)
 #endif
+
+void thread_setup(THREAD_T pthread);
 
 #endif
