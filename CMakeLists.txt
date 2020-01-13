@@ -1246,7 +1246,7 @@ if (NOT EVENT__DISABLE_TESTS)
 
     # Default environment variables turns off all event systems,
     # then we enable each one, one at a time when creating the tests.
-    set(DEFAULT_TEST_ENV_VARS "EVENT_SHOW_METHOD=1;")
+    set(DEFAULT_TEST_ENV_VARS)
     foreach(BACKEND ${BACKENDS})
         set(BACKEND_ENV_VAR "EVENT_NO${BACKEND}=1")
         list(APPEND DEFAULT_TEST_ENV_VARS "${BACKEND_ENV_VAR}")
@@ -1295,13 +1295,13 @@ if (NOT EVENT__DISABLE_TESTS)
             set(TEST_NAME regress__${BACKEND_TEST_NAME})
 
             add_test(${TEST_NAME}
-                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
+                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress --quiet)
 
             set_tests_properties(${TEST_NAME}
                                  PROPERTIES ENVIRONMENT "${ENV_VARS}")
 
             add_test(${TEST_NAME}_debug
-                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress)
+                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/regress --quiet)
 
             set_tests_properties(${TEST_NAME}_debug
                                  PROPERTIES ENVIRONMENT "${ENV_VARS};EVENT_DEBUG_MODE=1")
