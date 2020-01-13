@@ -223,6 +223,13 @@ void move_pthread_to_realtime_scheduling_class(pthread_t pthread)
 		exit(1);
 	}
 }
+
+void thread_setup(pthread_t pthread)
+{
+	move_pthread_to_realtime_scheduling_class(pthread);
+}
+#else
+void thread_setup(pthread_t pthread) {}
 #endif
 
 void *
@@ -238,9 +245,7 @@ basic_test_setup(const struct testcase_t *testcase)
 		evthread_flags |= EVTHREAD_PTHREAD_PRIO_INHERIT;
 #endif
 
-#if defined(__APPLE__)
-	move_pthread_to_realtime_scheduling_class(pthread_self());
-#endif
+	thread_setup(pthread_self());
 
 #ifndef _WIN32
 	if (testcase->flags & TT_ENABLE_IOCP_FLAG)
