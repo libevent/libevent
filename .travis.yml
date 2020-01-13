@@ -120,7 +120,7 @@ script:
       ./autogen.sh &&
       ./configure $EVENT_CONFIGURE_OPTIONS &&
       make &&
-      travis_wait $TIMEOUT make -j $JOBS verify;
+      make -j $JOBS verify;
     fi
   - if [ "$EVENT_BUILD_METHOD" = "cmake" ]; then
       export
@@ -137,7 +137,7 @@ script:
         cmake --build .;
         sudo python3 ../test-export/test-export.py shared;
       else
-        travis_wait $TIMEOUT cmake --build . --target verify;
+        cmake --build . --target verify;
       fi
     fi
   - if [ "$TOOL" == "doxygen" ]; then
