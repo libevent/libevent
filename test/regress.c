@@ -31,10 +31,6 @@
 #include <windows.h>
 #endif
 
-#ifdef EVENT__HAVE_PTHREADS
-#include <pthread.h>
-#endif
-
 #include "event2/event-config.h"
 
 #include <sys/types.h>
@@ -73,6 +69,7 @@
 #include "time-internal.h"
 
 #include "regress.h"
+#include "regress_thread.h"
 
 #ifndef _WIN32
 #include "regress.gen.h"
@@ -979,7 +976,7 @@ test_fork(void)
 		evutil_closesocket(child_pair[1]);
 }
 
-#ifdef EVENT__HAVE_PTHREADS
+#ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
 static void* del_wait_thread(void *arg)
 {
 	struct timeval tv_start, tv_end;
@@ -1007,14 +1004,14 @@ static void
 test_del_wait(void)
 {
 	struct event ev;
-	pthread_t thread;
+	THREAD_T thread;
 
 	setup_test("event_del will wait: ");
 
 	event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, &ev);
 	event_add(&ev, NULL);
 
-	pthread_create(&thread, NULL, del_wait_thread, NULL);
+	THREAD_START(thread, del_wait_thread, NULL);
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
 		tt_fail_perror("write");
@@ -1033,7 +1030,7 @@ test_del_wait(void)
 		test_timeval_diff_eq(&tv_start, &tv_end, 270);
 	}
 
-	pthread_join(thread, NULL);
+	THREAD_JOIN(thread);
 
 	tt_int_op(test_ok, ==, 1);
 
@@ -3505,8 +3502,8 @@ struct testcase_t main_testcases[] = {
 #ifndef _WIN32
 	LEGACY(fork, TT_ISOLATED),
 #endif
-#ifdef EVENT__HAVE_PTHREADS
-	/** TODO: support win32 */
+
+#ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
 	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
 	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
 #endif
