@@ -1246,7 +1246,7 @@ if (NOT EVENT__DISABLE_TESTS)
 
     # Default environment variables turns off all event systems,
     # then we enable each one, one at a time when creating the tests.
-    set(DEFAULT_TEST_ENV_VARS "EVENT_SHOW_METHOD=1;")
+    set(DEFAULT_TEST_ENV_VARS)
     foreach(BACKEND ${BACKENDS})
         set(BACKEND_ENV_VAR "EVENT_NO${BACKEND}=1")
         list(APPEND DEFAULT_TEST_ENV_VARS "${BACKEND_ENV_VAR}")
