@@ -92,7 +92,7 @@ static void move_pthread_to_realtime_scheduling_class(pthread_t pthread)
 	policy.constraint  = (uint32_t)(10 * clock2abs);
 	policy.preemptible = FALSE;
 
-	int kr = thread_policy_set(pthread_mach_thread_np(pthread_self()),
+	int kr = thread_policy_set(pthread_mach_thread_np(pthread),
 		THREAD_TIME_CONSTRAINT_POLICY,
 		(thread_policy_t)&policy,
 		THREAD_TIME_CONSTRAINT_POLICY_COUNT);
