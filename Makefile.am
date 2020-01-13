@@ -154,6 +154,10 @@ if OPENSSL
 LIBEVENT_LIBS_LA += libevent_openssl.la
 LIBEVENT_PKGCONFIG += libevent_openssl.pc
 endif
+if MBEDTLS
+LIBEVENT_LIBS_LA += libevent_mbedtls.la
+LIBEVENT_PKGCONFIG += libevent_mbedtls.pc
+endif
 
 if INSTALL_LIBEVENT
 lib_LTLIBRARIES = $(LIBEVENT_LIBS_LA)
@@ -291,6 +295,13 @@ libevent_openssl_la_SOURCES = bufferevent_openssl.c
 libevent_openssl_la_LIBADD = $(MAYBE_CORE) $(OPENSSL_LIBS)
 libevent_openssl_la_LDFLAGS = $(GENERIC_LDFLAGS)
 libevent_openssl_la_CPPFLAGS = $(AM_CPPFLAGS) $(OPENSSL_INCS)
+endif
+
+if MBEDTLS
+libevent_mbedtls_la_SOURCES = bufferevent_mbedtls.c
+libevent_mbedtls_la_LIBADD = $(MAYBE_CORE) $(MBEDTLS_LIBS)
+libevent_mbedtls_la_LDFLAGS = $(GENERIC_LDFLAGS)
+libevent_mbedtls_la_CPPFLAGS = $(AM_CPPFLAGS) $(MBEDTLS_INCS)
 endif
 
 noinst_HEADERS +=				\

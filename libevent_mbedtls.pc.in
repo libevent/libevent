@@ -1,0 +1,16 @@
+#libevent pkg-config source file
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libevent_mbedtls
+Description: libevent_mbedtls adds mbedtls-based TLS support to libevent
+Version: @VERSION@
+Requires: libevent
+Conflicts:
+Libs: -L${libdir} -levent_mbedtls
+Libs.private: @LIBS@ @MBEDTLS_LIBS@
+Cflags: -I${includedir} @MBEDTLS_INCS@
+
