@@ -67,8 +67,6 @@ matrix:
         only:
           - master
       if: repo = libevent/libevent AND branch = master AND type != pull_request
-  allow_failures:
-    - os: osx
   fast_finish: true
 
 language: c
