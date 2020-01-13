@@ -1048,14 +1048,14 @@ static void
 test_del_notify(void)
 {
 	struct event ev;
-	pthread_t thread;
+	THREAD_T thread;
 
 	test_ok = 1;
 
 	event_set(&ev, -1, EV_READ, null_cb, &ev);
 	event_add(&ev, NULL);
 
-	pthread_create(&thread, NULL, test_del_notify_thread, NULL);
+	THREAD_START(thread, test_del_notify_thread, NULL);
 
 	{
 		struct timeval delay = { 0, 1000 };
@@ -1063,7 +1063,7 @@ test_del_notify(void)
 	}
 
 	event_del(&ev);
-	pthread_join(thread, NULL);
+	THREAD_JOIN(thread);
 }
 #endif
 
