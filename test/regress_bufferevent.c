@@ -788,15 +788,28 @@ end:
 }
 
 static void
+close_socket_cb(evutil_socket_t fd, short what, void *arg)
+{
+	evutil_socket_t *fdp = arg;
+	if (*fdp >= 0) {
+		evutil_closesocket(*fdp);
+		*fdp = -1;
+	}
+}
+
+static void
 test_bufferevent_connect_fail_eventcb(void *arg)
 {
 	struct basic_test_data *data = arg;
 	int flags = BEV_OPT_CLOSE_ON_FREE | (long)data->setup_data;
+	struct event close_listener_event;
 	struct bufferevent *bev = NULL;
 	struct evconnlistener *lev = NULL;
 	struct sockaddr_in localhost;
+	struct timeval close_timeout = { 0, 300000 };
 	ev_socklen_t slen = sizeof(localhost);
 	evutil_socket_t fake_listener = -1;
+	int r;
 
 	fake_listener = fake_listener_create(&localhost);
 
@@ -809,10 +822,22 @@ test_bufferevent_connect_fail_eventcb(void *arg)
 	bufferevent_enable(bev, EV_READ|EV_WRITE);
 	tt_int_op(n_events_invoked, ==, 0);
 	tt_int_op(n_reads_invoked, ==, 0);
+
 	/** @see also test_bufferevent_connect_fail() */
-	bufferevent_socket_connect(bev, (struct sockaddr *)&localhost, slen);
+	r = bufferevent_socket_connect(bev, (struct sockaddr *)&localhost, slen);
+	/* XXXX we'd like to test the '0' case everywhere, but FreeBSD tells
+	 * detects the error immediately, which is not really wrong of it. */
+	tt_want(r == 0 || r == -1);
+
 	tt_int_op(n_events_invoked, ==, 0);
 	tt_int_op(n_reads_invoked, ==, 0);
+
+	/* Close the listener socket after a delay. This should trigger
+	   "connection refused" on some other platforms, including OSX. */
+	evtimer_assign(&close_listener_event, data->base, close_socket_cb,
+	    &fake_listener);
+	event_add(&close_listener_event, &close_timeout);
+
 	event_base_dispatch(data->base);
 	tt_int_op(n_events_invoked, ==, 1);
 	tt_int_op(n_reads_invoked, ==, 0);
@@ -847,23 +872,13 @@ want_fail_eventcb(struct bufferevent *bev, short what, void *ctx)
 }
 
 static void
-close_socket_cb(evutil_socket_t fd, short what, void *arg)
-{
-	evutil_socket_t *fdp = arg;
-	if (*fdp >= 0) {
-		evutil_closesocket(*fdp);
-		*fdp = -1;
-	}
-}
-
-static void
 test_bufferevent_connect_fail(void *arg)
 {
 	struct basic_test_data *data = (struct basic_test_data *)arg;
 	struct bufferevent *bev=NULL;
 	struct event close_listener_event;
 	int close_listener_event_added = 0;
-	struct timeval one_second = { 1, 0 };
+	struct timeval close_timeout = { 0, 300000 };
 	struct sockaddr_in localhost;
 	ev_socklen_t slen = sizeof(localhost);
 	evutil_socket_t fake_listener = -1;
@@ -882,11 +897,11 @@ test_bufferevent_connect_fail(void *arg)
 	 * detects the error immediately, which is not really wrong of it. */
 	tt_want(r == 0 || r == -1);
 
-	/* Close the listener socket after a second. This should trigger
+	/* Close the listener socket after a delay. This should trigger
 	   "connection refused" on some other platforms, including OSX. */
 	evtimer_assign(&close_listener_event, data->base, close_socket_cb,
 	    &fake_listener);
-	event_add(&close_listener_event, &one_second);
+	event_add(&close_listener_event, &close_timeout);
 	close_listener_event_added = 1;
 
 	event_base_dispatch(data->base);
