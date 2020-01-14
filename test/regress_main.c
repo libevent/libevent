@@ -33,6 +33,14 @@
 #include <fcntl.h>
 #endif
 
+/* move_pthread_to_realtime_scheduling_class() */
+#ifdef EVENT__HAVE_MACH_MACH_H
+#include <mach/mach.h>
+#endif
+#ifdef EVENT__HAVE_MACH_MACH_TIME_H
+#include <mach/mach_time.h>
+#endif
+
 #if defined(__APPLE__) && defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__)
 #if (__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060 && \
     __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070)
@@ -188,6 +196,45 @@ ignore_log_cb(int s, const char *msg)
 {
 }
 
+/**
+ * Put into the real time scheduling class for better timers latency.
+ * https://developer.apple.com/library/archive/technotes/tn2169/_index.html#//apple_ref/doc/uid/DTS40013172-CH1-TNTAG6000
+ */
+#if defined(__APPLE__)
+static void move_pthread_to_realtime_scheduling_class(pthread_t pthread)
+{
+	mach_timebase_info_data_t info;
+	mach_timebase_info(&info);
+
+	const uint64_t NANOS_PER_MSEC = 1000000ULL;
+	double clock2abs =
+		((double)info.denom / (double)info.numer) * NANOS_PER_MSEC;
+
+	thread_time_constraint_policy_data_t policy;
+	policy.period      = 0;
+	policy.computation = (uint32_t)(5 * clock2abs); // 5 ms of work
+	policy.constraint  = (uint32_t)(10 * clock2abs);
+	policy.preemptible = FALSE;
+
+	int kr = thread_policy_set(pthread_mach_thread_np(pthread),
+		THREAD_TIME_CONSTRAINT_POLICY,
+		(thread_policy_t)&policy,
+		THREAD_TIME_CONSTRAINT_POLICY_COUNT);
+	if (kr != KERN_SUCCESS) {
+		mach_error("thread_policy_set:", kr);
+		exit(1);
+	}
+}
+
+void thread_setup(THREAD_T pthread)
+{
+	move_pthread_to_realtime_scheduling_class(pthread);
+}
+#else /** \__APPLE__ */
+void thread_setup(THREAD_T pthread) {}
+#endif /** \!__APPLE__ */
+
+
 void *
 basic_test_setup(const struct testcase_t *testcase)
 {
@@ -201,9 +248,7 @@ basic_test_setup(const struct testcase_t *testcase)
 		evthread_flags |= EVTHREAD_PTHREAD_PRIO_INHERIT;
 #endif
 
-#ifndef EVENT__DISABLE_THREAD_SUPPORT
 	thread_setup(THREAD_SELF());
-#endif
 
 #ifndef _WIN32
 	if (testcase->flags & TT_ENABLE_IOCP_FLAG)

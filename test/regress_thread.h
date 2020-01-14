@@ -27,9 +27,18 @@
 #ifndef REGRESS_THREAD_H_INCLUDED_
 #define REGRESS_THREAD_H_INCLUDED_
 
-#include "regress.h"
-
-#ifdef EVENT__HAVE_PTHREADS /** PTHREADS */
+#if defined(_WIN32) /** _WIN32 */
+#define THREAD_T void * /* HANDLE */
+#define THREAD_FN unsigned __stdcall
+#define THREAD_RETURN() return (0)
+#define THREAD_SELF() GetCurrentThreadId()
+#define THREAD_START(threadvar, fn, arg) do {                         \
+	uintptr_t threadhandle = _beginthreadex(NULL,0,fn,(arg),0,NULL);  \
+	(threadvar) = (THREAD_T)threadhandle;                             \
+	thread_setup(threadvar);                                          \
+} while (0)
+#define THREAD_JOIN(th) WaitForSingleObject(th, INFINITE)
+#else /* !_WIN32 */
 #include <pthread.h>
 #define THREAD_T pthread_t
 #define THREAD_FN void *
@@ -40,21 +49,8 @@
 		thread_setup(threadvar);                       \
 } while (0)
 #define THREAD_JOIN(th) pthread_join(th, NULL)
-#elif defined(_WIN32) /** _WIN32 */
-#define THREAD_T HANDLE
-#define THREAD_FN unsigned __stdcall
-#define THREAD_RETURN() return (0)
-#define THREAD_SELF() GetCurrentThreadId()
-#define THREAD_START(threadvar, fn, arg) do {                         \
-	uintptr_t threadhandle = _beginthreadex(NULL,0,fn,(arg),0,NULL);  \
-	(threadvar) = (HANDLE) threadhandle;                              \
-	thread_setup(threadvar);                                          \
-} while (0)
-#define THREAD_JOIN(th) WaitForSingleObject(th, INFINITE)
 #endif /* \!_WIN32 */
 
-#ifndef EVENT__DISABLE_THREAD_SUPPORT
 void thread_setup(THREAD_T pthread);
-#endif
 
 #endif
