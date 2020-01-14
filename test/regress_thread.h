@@ -29,7 +29,7 @@
 
 #include "regress.h"
 
-#ifdef EVENT__HAVE_PTHREADS
+#ifdef EVENT__HAVE_PTHREADS /** PTHREADS */
 #include <pthread.h>
 #define THREAD_T pthread_t
 #define THREAD_FN void *
@@ -40,7 +40,7 @@
 		thread_setup(threadvar);                       \
 } while (0)
 #define THREAD_JOIN(th) pthread_join(th, NULL)
-#else
+#elif defined(_WIN32) /** _WIN32 */
 #define THREAD_T HANDLE
 #define THREAD_FN unsigned __stdcall
 #define THREAD_RETURN() return (0)
@@ -51,8 +51,10 @@
 	thread_setup(threadvar);                                          \
 } while (0)
 #define THREAD_JOIN(th) WaitForSingleObject(th, INFINITE)
-#endif
+#endif /* \!_WIN32 */
 
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
 void thread_setup(THREAD_T pthread);
+#endif
 
 #endif
