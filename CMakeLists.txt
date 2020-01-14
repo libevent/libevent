@@ -132,6 +132,9 @@ option(EVENT__DISABLE_THREAD_SUPPORT
 option(EVENT__DISABLE_OPENSSL
     "Define if libevent should build without support for OpenSSL encryption" OFF)
 
+option(EVENT__DISABLE_MBEDTLS
+    "Define if libevent should build without support for mbed TLS encryption" OFF)
+
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark executables" OFF)
 
@@ -866,6 +869,21 @@ if (NOT EVENT__DISABLE_OPENSSL)
     list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
 endif()
 
+if (NOT EVENT__DISABLE_MBEDTLS)
+    find_package(MbedTLS REQUIRED)
+
+    set(EVENT__HAVE_MBEDTLS 1)
+
+    message(STATUS "mbed TLS include: ${MBEDTLS_INCLUDE_DIR}")
+    message(STATUS "mbed TLS lib: ${MBEDTLS_LIBRARIES}")
+
+    include_directories(${MBEDTLS_INCLUDE_DIR})
+
+    list(APPEND SRC_MBEDTLS bufferevent_mbedtls.c)
+    list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+    list(APPEND LIB_APPS ${MBEDTLS_LIBRARIES})
+endif()
+
 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     if (WIN32)
         list(APPEND SRC_CORE evthread_win32.c)
@@ -969,6 +987,12 @@ if (NOT EVENT__DISABLE_OPENSSL)
         OUTER_INCLUDES ${OPENSSL_INCLUDE_DIR}
         LIBRARIES ${OPENSSL_LIBRARIES}
         SOURCES ${SRC_OPENSSL})
+endif()
+
+if (NOT EVENT__DISABLE_MBEDTLS)
+    add_event_library(event_mbedtls
+        LIBRARIES event_core_shared ${MBEDTLS_LIBRARIES}
+        SOURCES ${SRC_MBEDTLS})
 endif()
 
 if (EVENT__HAVE_PTHREADS)
