@@ -158,7 +158,8 @@ macro(add_event_library LIB_NAME)
                 "${LIB_NAME}_shared" PROPERTIES
                 OUTPUT_NAME "${LIB_NAME}-${EVENT_PACKAGE_RELEASE}"
                 VERSION "${CURRENT_MINUS_AGE}.${EVENT_ABI_LIBVERSION_AGE}.${EVENT_ABI_LIBVERSION_REVISION}"
-                SOVERSION "${CURRENT_MINUS_AGE}")
+                SOVERSION "${CURRENT_MINUS_AGE}"
+                INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
         endif()
 
         if (NOT WIN32)
