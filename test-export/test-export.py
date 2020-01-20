@@ -48,11 +48,11 @@ def link_and_run(link, code):
         Returns 0 if links and runs successfully, otherwise 1.
     """
     exec_cmd("cmake --build . --target clean", True)
-    generator = ''
+    arch = ''
     if platform.system() == "Windows":
-        generator = '-G "Visual Studio 15 2017 Win64"'
+        arch = '-A x64'
     cmd = 'cmake .. %s -DEVENT__LINK_COMPONENT=%s -DEVENT__CODE_COMPONENT=%s' % (
-        generator, link, code)
+        arch, link, code)
     if link_type == "static":
         cmd = "".join([cmd, " -DLIBEVENT_STATIC_LINK=1"])
     r = exec_cmd(cmd, True)
