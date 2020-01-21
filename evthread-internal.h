@@ -38,7 +38,7 @@ extern "C" {
 
 struct event_base;
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__CYGWIN__)
 /* On Windows, the way we currently make DLLs, it's not allowed for us to
  * have shared global structures.  Thus, we only do the direct-call-to-function
  * code path if we know that the local shared library system supports it.
