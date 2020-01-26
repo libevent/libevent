@@ -7,3 +7,5 @@ rules:
         level: warning
         indent-sequences: consistent
     line-length: disable
+    # github-actions "on:"
+    truthy: disable
