@@ -3454,7 +3454,7 @@ struct testcase_t main_testcases[] = {
 	  TT_FORK|TT_NEED_BASE|TT_RETRIABLE, &basic_setup, NULL },
 	LEGACY(priorities, TT_FORK|TT_NEED_BASE),
 	BASIC(priority_active_inversion, TT_FORK|TT_NEED_BASE),
-	{ "common_timeout", test_common_timeout, TT_FORK|TT_NEED_BASE,
+	{ "common_timeout", test_common_timeout, TT_FORK|TT_NEED_BASE|TT_RETRIABLE,
 	  &basic_setup, NULL },
 
 	/* These legacy tests may not all need all of these flags. */

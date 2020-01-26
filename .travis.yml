@@ -39,9 +39,9 @@ matrix:
     - os: linux
       env: EVENT_BUILD_METHOD=autotools EVENT_CONFIGURE_OPTIONS=""
       compiler: clang
-    # coveralls
-    - os: linux
-      env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=debug" COVERALLS=yes
+    ## coveralls
+    #- os: linux
+    #  env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=debug" COVERALLS=yes
     # test-export
     - os: linux
       env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON" TEST_EXPORT=STATIC
@@ -51,22 +51,22 @@ matrix:
     - os: linux
       dist: bionic
       env: EVENT_BUILD_METHOD=cmake EVENT_CMAKE_OPTIONS="" OPENSSL_1_1=yes
-    # deploy documentation to github pages
-    - os: linux
-      env: TOOL=doxygen
-      addons:
-        apt:
-          packages:
-            - doxygen
-            - doxygen-doc
-            - doxygen-latex
-            - doxygen-gui
-            - graphviz
-            - cmake
-      branches:
-        only:
-          - master
-      if: repo = libevent/libevent AND branch = master AND type != pull_request
+    ## deploy documentation to github pages
+    #- os: linux
+    #  env: TOOL=doxygen
+    #  addons:
+    #    apt:
+    #      packages:
+    #        - doxygen
+    #        - doxygen-doc
+    #        - doxygen-latex
+    #        - doxygen-gui
+    #        - graphviz
+    #        - cmake
+    #  branches:
+    #    only:
+    #      - master
+    #  if: repo = libevent/libevent AND branch = master AND type != pull_request
   fast_finish: true
 
 language: c

@@ -74,15 +74,10 @@ ENDIF() # NOT GCOV_PATH
 IF(NOT CMAKE_COMPILER_IS_GNUCC)
 	# Clang version 3.0.0 and greater now supports gcov as well.
 	MESSAGE(WARNING "Compiler is not GNU gcc! Clang Version 3.0.0 and greater supports gcov as well, but older versions don't.")
-	
-	IF(NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+	IF(NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" AND NOT "${CMAKE_C_COMPILER_ID}" STREQUAL "AppleClang")
 		MESSAGE(FATAL_ERROR "Compiler is not GNU gcc! Aborting...")
 	ENDIF()
 ENDIF() # NOT CMAKE_COMPILER_IS_GNUCC
-
-IF ( NOT CMAKE_BUILD_TYPE STREQUAL "Debug" )
-  MESSAGE( WARNING "Code coverage results with an optimized (non-Debug) build may be misleading" )
-ENDIF() # NOT CMAKE_BUILD_TYPE STREQUAL "Debug"
 
 
 # Param _targetname     The name of new the custom make target
@@ -108,15 +103,15 @@ FUNCTION(SETUP_TARGET_FOR_COVERAGE _targetname _testrunner _outputname)
 		
 		# Cleanup lcov
 		${LCOV_PATH} --directory . --zerocounters
-		
+		COMMAND ${CMAKE_COMMAND} -E remove ${_outputname}.info ${_outputname}.info.cleaned
+
 		# Run tests
 		COMMAND ${_testrunner} ${ARGV3}
 		
 		# Capturing lcov counters and generating report
 		COMMAND ${LCOV_PATH} --directory . --capture --output-file ${_outputname}.info
-		COMMAND ${LCOV_PATH} --remove ${_outputname}.info 'tests/*' '/usr/*' --output-file ${_outputname}.info.cleaned
+		COMMAND ${LCOV_PATH} --remove ${_outputname}.info '*/test/*' '/usr/*' --output-file ${CMAKE_BINARY_DIR}/${_outputname}.info.cleaned
 		COMMAND ${GENHTML_PATH} -o ${_outputname} ${_outputname}.info.cleaned
-		COMMAND ${CMAKE_COMMAND} -E remove ${_outputname}.info ${_outputname}.info.cleaned
 		
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 		COMMENT "Resetting code coverage counters to zero.\nProcessing code coverage counters and generating report."
