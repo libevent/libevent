@@ -87,7 +87,7 @@ struct bufferevent {
 	    this buffer, though the user is allowed to drain it. */
 	struct evbuffer *input;
 
-	/** An input buffer. Only the bufferevent is allowed to drain data
+	/** An output buffer. Only the bufferevent is allowed to drain data
 	    from this buffer, though the user is allowed to add it. */
 	struct evbuffer *output;
 
