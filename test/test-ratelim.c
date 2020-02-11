@@ -283,6 +283,7 @@ timer_bias_calculate(void)
 	struct event_base *base = NULL;
 	struct event *timer = NULL;
 	struct timeval tv = { 0, 1 };
+	int done = 0;
 
 	cfg = event_config_new();
 	if (!cfg)
@@ -300,9 +301,7 @@ timer_bias_calculate(void)
 
 	evutil_gettimeofday(&timer_bias_start, NULL);
 	event_base_dispatch(base);
-	event_free(timer);
-
-	return MIN(timer_bias_spend / 1e6 / timer_bias_events / TIMER_MAX_COST_USEC, 5);
+	done = 1;
 
 err:
 	if (cfg)
@@ -311,6 +310,9 @@ err:
 		event_free(timer);
 	if (base)
 		event_base_free(base);
+
+	if (done)
+		return MIN(timer_bias_spend / 1e6 / timer_bias_events / TIMER_MAX_COST_USEC, 5);
 
 	fprintf(stderr, "Couldn't create event for CPU cycle counter bias\n");
 	return -1;
@@ -459,7 +461,7 @@ test_ratelimiting(void)
 	ratelim_group = NULL; /* So no more responders get added */
 	event_free(periodic_level_check);
 	if (group_drain_event)
-		event_del(group_drain_event);
+		event_free(group_drain_event);
 
 	for (i = 0; i < cfg_n_connections; ++i) {
 		bufferevent_free(bevs[i]);
