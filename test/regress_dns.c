@@ -2127,6 +2127,7 @@ dns_client_fail_requests_test(void *arg)
 {
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
+	int limit_inflight = data->setup_data && !strcmp(data->setup_data, "limit-inflight");
 	struct evdns_base *dns = NULL;
 	struct evdns_server_port *dns_port = NULL;
 	ev_uint16_t portnum = 0;
@@ -2143,6 +2144,9 @@ dns_client_fail_requests_test(void *arg)
 
 	dns = evdns_base_new(base, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
 	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
+
+	if (limit_inflight)
+		tt_assert(!evdns_base_set_option(dns, "max-inflight:", "11"));
 
 	for (i = 0; i < 20; ++i)
 		evdns_base_resolve_ipv4(dns, "foof.example.com", 0, generic_dns_callback, &r[i]);
@@ -2437,6 +2441,8 @@ struct testcase_t dns_testcases[] = {
 
 	{ "client_fail_requests", dns_client_fail_requests_test,
 	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
+	{ "client_fail_waiting_requests", dns_client_fail_requests_test,
+	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, (char*)"limit-inflight" },
 	{ "client_fail_requests_getaddrinfo",
 	  dns_client_fail_requests_getaddrinfo_test,
 	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
