@@ -189,6 +189,7 @@ epoll_init(struct event_base *base)
 	  event_base, we can try to use timerfd to give them finer granularity.
 	*/
 	if ((base->flags & EVENT_BASE_FLAG_PRECISE_TIMER) &&
+	    !(base->flags & EVENT_BASE_FLAG_EPOLL_DISALLOW_TIMERFD) &&
 	    base->monotonic_timer.monotonic_clock == CLOCK_MONOTONIC) {
 		int fd;
 		fd = epollop->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC);

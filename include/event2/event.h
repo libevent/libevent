@@ -570,7 +570,20 @@ enum event_base_config_flag {
 	    however, we use less efficient more precise timer, assuming one is
 	    present.
 	 */
-	EVENT_BASE_FLAG_PRECISE_TIMER = 0x20
+	EVENT_BASE_FLAG_PRECISE_TIMER = 0x20,
+
+	/** With EVENT_BASE_FLAG_PRECISE_TIMER,
+	    epoll backend will use timerfd for more accurate timers, this will
+	    allows to disable this.
+
+	    That said that this is something in between lack of
+	    (CLOCK_MONOTONIC_COARSE) and enabled EVENT_BASE_FLAG_PRECISE_TIMER
+	    (CLOCK_MONOTONIC + timerfd).
+
+	    This flag has no effect if you wind up using a backend other than
+	    epoll and if you do not have EVENT_BASE_FLAG_PRECISE_TIMER enabled.
+	 */
+	EVENT_BASE_FLAG_EPOLL_DISALLOW_TIMERFD = 0x40,
 };
 
 /**
