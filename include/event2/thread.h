@@ -39,8 +39,8 @@
   use them.
 
   Most programs will either be using Windows threads or Posix threads.  You
-  can configure Libevent to use one of these event_use_windows_threads() or
-  event_use_pthreads() respectively.  If you're using another threading
+  can configure Libevent to use one of these evthread_use_windows_threads() or
+  evthread_use_pthreads() respectively.  If you're using another threading
   library, you'll need to configure threading functions manually using
   evthread_set_lock_callbacks() and evthread_set_condition_callbacks().
 
