@@ -94,6 +94,10 @@ main(int argc, char **argv)
 
 	evutil_weakrand_seed_(&weakrand_state, 0);
 
+	if (getenv("EVENT_DEBUG_LOGGING_ALL")) {
+		event_enable_debug_logging(EVENT_DBG_ALL);
+	}
+
 	/* Initialize the event library */
 	event_init();
 
