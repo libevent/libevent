@@ -40,14 +40,20 @@ set(LIBEVENT_VERSION @EVENT_PACKAGE_VERSION@)
 set(LIBEVENT_STATIC_LIBRARIES "@LIBEVENT_STATIC_LIBRARIES@")
 set(LIBEVENT_SHARED_LIBRARIES "@LIBEVENT_SHARED_LIBRARIES@")
 
+# Default to the same type as libevent was built:
+if(NOT DEFINED LIBEVENT_STATIC_LINK)
+    set(LIBEVENT_STATIC_LINK NOT @BUILD_SHARED_LIBS@)
+endif()
+
+set(CMAKE_FIND_LIBRARY_SUFFIXES_SAVE "${CMAKE_FIND_LIBRARY_SUFFIXES}")
 if(LIBEVENT_STATIC_LINK)
     set(_LIB_TYPE static)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_STATIC_LIBRARY_SUFFIX})
-    set(_AVAILABLE_LIBS ${LIBEVENT_STATIC_LIBRARIES})
+    set(_AVAILABLE_LIBS "${LIBEVENT_STATIC_LIBRARIES}")
 else()
     set(_LIB_TYPE shared)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_SHARED_LIBRARY_SUFFIX})
-    set(_AVAILABLE_LIBS ${LIBEVENT_SHARED_LIBRARIES})
+    set(_AVAILABLE_LIBS "${LIBEVENT_SHARED_LIBRARIES}")
 endif()
 
 # Get the path of the current file.
@@ -105,47 +111,46 @@ macro(set_case_insensitive_found _comp)
 endmacro()
 
 if(CONFIG_FOR_INSTALL_TREE)
-## Config for install tree ----------------------------------------
-# Find includes
-unset(_event_h CACHE)
-find_path(_event_h
-          NAMES event2/event.h
-          PATHS "${_INSTALL_PREFIX}/include"
-          NO_DEFAULT_PATH)
-if(_event_h)
-    set(LIBEVENT_INCLUDE_DIRS "${_event_h}")
-    message_if_needed(STATUS "Found libevent include directory: ${_event_h}")
-else()
-    message_if_needed(WARNING "Your libevent library does not contain header files!")
-endif()
+    ## Config for install tree ----------------------------------------
+    # Find includes
+    unset(_event_h CACHE)
+    find_path(_event_h
+              NAMES event2/event.h
+              PATHS "${_INSTALL_PREFIX}/include"
+              NO_DEFAULT_PATH)
+    if(_event_h)
+        set(LIBEVENT_INCLUDE_DIRS "${_event_h}")
+        message_if_needed(STATUS "Found libevent include directory: ${_event_h}")
+    else()
+        message_if_needed(WARNING "Your libevent library does not contain header files!")
+    endif()
 
-# Find libraries
-macro(find_event_lib _comp)
-    unset(_event_lib CACHE)
-    find_library(_event_lib
-                NAMES "event_${_comp}"
-                PATHS "${_INSTALL_PREFIX}/lib"
-                NO_DEFAULT_PATH)
-    if(_event_lib)
+    # Find libraries
+    macro(find_event_lib _comp)
+        unset(_event_lib CACHE)
+        find_library(_event_lib
+                    NAMES "event_${_comp}"
+                    PATHS "${_INSTALL_PREFIX}/lib"
+                    NO_DEFAULT_PATH)
+        if(_event_lib)
+            list(APPEND LIBEVENT_LIBRARIES "libevent::${_comp}")
+            set_case_insensitive_found(${_comp})
+            message_if_needed(STATUS "Found libevent component: ${_event_lib}")
+        else()
+            no_component_msg(${_comp})
+        endif()
+    endmacro()
+
+    foreach(comp ${_EVENT_COMPONENTS})
+        find_event_lib(${comp})
+    endforeach()
+else()
+    ## Config for build tree ----------------------------------------
+    set(LIBEVENT_INCLUDE_DIRS "@EVENT__INCLUDE_DIRS@")
+    foreach(_comp ${_EVENT_COMPONENTS})
         list(APPEND LIBEVENT_LIBRARIES "libevent::${_comp}")
         set_case_insensitive_found(${_comp})
-        message_if_needed(STATUS "Found libevent component: ${_event_lib}")
-    else()
-        no_component_msg(${_comp})
-    endif()
-endmacro()
-
-foreach(comp ${_EVENT_COMPONENTS})
-    find_event_lib(${comp})
-endforeach()
-else()
-## Config for build tree ----------------------------------------
-set(LIBEVENT_INCLUDE_DIRS "@EVENT__INCLUDE_DIRS@")
-foreach(_comp ${_EVENT_COMPONENTS})
-    list(APPEND LIBEVENT_LIBRARIES "libevent::${_comp}")
-    set_case_insensitive_found(${_comp})
-endforeach()
-
+    endforeach()
 endif()
 
 set(LIBEVENT_INCLUDE_DIR ${LIBEVENT_INCLUDE_DIRS})
@@ -170,6 +175,7 @@ else()
     endif()
 endif()
 
+set(CMAKE_FIND_LIBRARY_SUFFIXES "${CMAKE_FIND_LIBRARY_SUFFIXES_SAVE}")
 unset(_LIB_TYPE)
 unset(_AVAILABLE_LIBS)
 unset(_EVENT_COMPONENTS)
