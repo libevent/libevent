@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2.0.0
 
-      - name: Cache MingW
+      - name: Cache MinGW
         id: cache-mingw
         uses: actions/cache@v1.0.3
         with:
@@ -55,7 +55,7 @@ jobs:
       - name: Install Dependes
         if: steps.cache-mingw.outputs.cache-hit != 'true'
         run: |
-          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc make autoconf automake libtool openssl-devel
+          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc make autoconf automake libtool mingw-w64-x86_64-openssl
 
       - name: Build And Test
         shell: powershell
@@ -74,7 +74,7 @@ jobs:
           mkdir -p build
           cd build
           [[ $? -ne 0 ]] && exit 1
-          LDFLAGS="-L/usr/lib" CFLAGS="-I/usr/include" ../configure $EVENT_CONFIGURE_OPTIONS 2>&1
+          LDFLAGS="-L/mingw64/lib" CFLAGS="-I/mingw64/include" ../configure $EVENT_CONFIGURE_OPTIONS 2>&1
           [[ $? -ne 0 ]] && exit 1
           make -j $EVENT_BUILD_PARALLEL 2>&1
           [[ $? -ne 0 ]] && exit 1
