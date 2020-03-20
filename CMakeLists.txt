@@ -52,12 +52,9 @@ string(REGEX MATCH "SunOS" SOLARIS "${CMAKE_SYSTEM_NAME}")
 
 include(CheckTypeSize)
 include(CheckFileOffsetBits)
-include(CheckFunctionExists)
-include(CheckIncludeFile)
-include(CheckIncludeFiles)
+include(Macros)
 include(CheckVariableExists)
 include(CheckSymbolExists)
-include(CheckSymbolsExist)
 include(CheckStructHasMember)
 include(CheckCSourceCompiles)
 include(CheckPrototypeDefinition)
@@ -334,10 +331,13 @@ if (APPLE)
     )
 endif()
 
+if (MINGW OR CYGWIN)
+    set(WIN32 TRUE)
+endif()
+
 # Winsock.
 if(WIN32)
-    set(CMAKE_EXTRA_INCLUDE_FILES winsock2.h ws2tcpip.h)
-    set(CMAKE_REQUIRED_LIBRARIES  ws2_32.lib shell32.lib advapi32.lib)
+    set(CMAKE_REQUIRED_LIBRARIES  ws2_32 shell32 advapi32)
     set(CMAKE_REQUIRED_DEFINITIONS -FIwinsock2.h -FIws2tcpip.h -D_WIN32_WINNT=0x0600)
 endif()
 if (SOLARIS)
@@ -360,161 +360,161 @@ endif()
 
 if (_GNU_SOURCE)
     add_definitions(-D_GNU_SOURCE=1)
+    set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
 endif()
 
-CHECK_INCLUDE_FILE(sys/types.h EVENT__HAVE_SYS_TYPES_H)
-if(EVENT__HAVE_SYS_TYPES_H)
-    list(APPEND CMAKE_EXTRA_INCLUDE_FILES sys/types.h)
-endif()
-
-CHECK_INCLUDE_FILE(sys/socket.h EVENT__HAVE_SYS_SOCKET_H)
-if(EVENT__HAVE_SYS_SOCKET_H)
-    list(APPEND CMAKE_EXTRA_INCLUDE_FILES sys/socket.h)
-endif()
-
-CHECK_INCLUDE_FILE(sys/random.h EVENT__HAVE_SYS_RANDOM_H)
-if(EVENT__HAVE_SYS_RANDOM_H)
-    list(APPEND CMAKE_EXTRA_INCLUDE_FILES sys/random.h)
-endif()
-
-CHECK_INCLUDE_FILE(netinet/in.h EVENT__HAVE_NETINET_IN_H)
-if(EVENT__HAVE_NETINET_IN_H)
-    list(APPEND CMAKE_EXTRA_INCLUDE_FILES netinet/in.h)
-endif()
-
-CHECK_INCLUDE_FILE(sys/un.h EVENT__HAVE_SYS_UN_H)
-if(EVENT__HAVE_SYS_UN_H)
-    list(APPEND CMAKE_EXTRA_INCLUDE_FILES sys/un.h)
-endif()
-
-if(WIN32)
-    CHECK_INCLUDE_FILE(afunix.h EVENT__HAVE_AFUNIX_H)
-    if(EVENT__HAVE_AFUNIX_H)
-        list(APPEND CMAKE_EXTRA_INCLUDE_FILES afunix.h)
-    endif()
-endif()
-CHECK_TYPE_SIZE("struct sockaddr_un" EVENT__HAVE_STRUCT_SOCKADDR_UN)
-
-CHECK_INCLUDE_FILE(netinet/in6.h EVENT__HAVE_NETINET_IN6_H)
-if(EVENT__HAVE_NETINET_IN6_H)
-    list(APPEND CMAKE_EXTRA_INCLUDE_FILES netinet/in6.h)
-endif()
-
-CHECK_INCLUDE_FILE(unistd.h EVENT__HAVE_UNISTD_H)
-CHECK_INCLUDE_FILE(netdb.h EVENT__HAVE_NETDB_H)
-CHECK_INCLUDE_FILE(dlfcn.h EVENT__HAVE_DLFCN_H)
-CHECK_INCLUDE_FILE(arpa/inet.h EVENT__HAVE_ARPA_INET_H)
-CHECK_INCLUDE_FILE(fcntl.h EVENT__HAVE_FCNTL_H)
-if(EVENT__HAVE_FCNTL_H)
-    list(APPEND CMAKE_EXTRA_INCLUDE_FILES fcntl.h)
-endif()
-CHECK_INCLUDE_FILE(inttypes.h EVENT__HAVE_INTTYPES_H)
-CHECK_INCLUDE_FILE(memory.h EVENT__HAVE_MEMORY_H)
-CHECK_INCLUDE_FILE(poll.h EVENT__HAVE_POLL_H)
-CHECK_INCLUDE_FILE(port.h EVENT__HAVE_PORT_H)
-if(EVENT__HAVE_PORT_H)
-    list(APPEND CMAKE_EXTRA_INCLUDE_FILES port.h)
-endif()
-CHECK_INCLUDE_FILE(signal.h EVENT__HAVE_SIGNAL_H)
-CHECK_INCLUDE_FILE(stdarg.h EVENT__HAVE_STDARG_H)
-CHECK_INCLUDE_FILE(stddef.h EVENT__HAVE_STDDEF_H)
-CHECK_INCLUDE_FILE(stdint.h EVENT__HAVE_STDINT_H)
-CHECK_INCLUDE_FILE(stdlib.h EVENT__HAVE_STDLIB_H)
-CHECK_INCLUDE_FILE(strings.h EVENT__HAVE_STRINGS_H)
-CHECK_INCLUDE_FILE(string.h EVENT__HAVE_STRING_H)
-CHECK_INCLUDE_FILE(sys/devpoll.h EVENT__HAVE_DEVPOLL)
-CHECK_INCLUDE_FILE(sys/epoll.h EVENT__HAVE_SYS_EPOLL_H)
-CHECK_INCLUDE_FILE(sys/eventfd.h EVENT__HAVE_SYS_EVENTFD_H)
-CHECK_INCLUDE_FILE(sys/event.h EVENT__HAVE_SYS_EVENT_H)
-CHECK_INCLUDE_FILE(sys/ioctl.h EVENT__HAVE_SYS_IOCTL_H)
-CHECK_INCLUDE_FILE(sys/mman.h EVENT__HAVE_SYS_MMAN_H)
-CHECK_INCLUDE_FILE(sys/param.h EVENT__HAVE_SYS_PARAM_H)
-CHECK_INCLUDE_FILE(sys/queue.h EVENT__HAVE_SYS_QUEUE_H)
-CHECK_INCLUDE_FILE(sys/select.h EVENT__HAVE_SYS_SELECT_H)
-CHECK_INCLUDE_FILE(sys/sendfile.h EVENT__HAVE_SYS_SENDFILE_H)
-CHECK_INCLUDE_FILE(sys/stat.h EVENT__HAVE_SYS_STAT_H)
-CHECK_INCLUDE_FILE(sys/time.h EVENT__HAVE_SYS_TIME_H)
-if(EVENT__HAVE_SYS_TIME_H)
-    list(APPEND CMAKE_EXTRA_INCLUDE_FILES sys/time.h)
-endif()
-CHECK_INCLUDE_FILE(sys/uio.h EVENT__HAVE_SYS_UIO_H)
-CHECK_INCLUDE_FILES("sys/types.h;ifaddrs.h" EVENT__HAVE_IFADDRS_H)
-CHECK_INCLUDE_FILE(mach/mach_time.h EVENT__HAVE_MACH_MACH_TIME_H)
-CHECK_INCLUDE_FILE(mach/mach.h EVENT__HAVE_MACH_MACH_H)
-CHECK_INCLUDE_FILE(netinet/tcp.h EVENT__HAVE_NETINET_TCP_H)
-CHECK_INCLUDE_FILE(sys/wait.h EVENT__HAVE_SYS_WAIT_H)
-CHECK_INCLUDE_FILE(sys/resource.h EVENT__HAVE_SYS_RESOURCE_H)
-if (NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
-    CHECK_INCLUDE_FILE(sys/sysctl.h EVENT__HAVE_SYS_SYSCTL_H)
-endif()
-CHECK_INCLUDE_FILE(sys/timerfd.h EVENT__HAVE_SYS_TIMERFD_H)
-CHECK_INCLUDE_FILE(errno.h EVENT__HAVE_ERRNO_H)
-
+# Check if header files exist
+list(APPEND FILES_TO_CHECK
+    fcntl.h
+    inttypes.h
+    memory.h
+    signal.h
+    stdarg.h
+    stddef.h
+    stdint.h
+    stdlib.h
+    string.h
+    errno.h
+    unistd.h
+    time.h
+    sys/types.h
+    sys/stat.h
+    sys/time.h
+    sys/param.h
+)
 if (WIN32)
-    list(APPEND CHECK_SYMBOL_HEADERS winsock2.h ws2tcpip.h)
+    list(APPEND FILES_TO_CHECK
+        io.h
+        winsock2.h
+        ws2tcpip.h
+        afunix.h
+    )
+else()
+    list(APPEND FILES_TO_CHECK
+        netdb.h
+        dlfcn.h
+        arpa/inet.h
+        poll.h
+        port.h
+        sys/socket.h
+        sys/random.h
+        sys/un.h
+        sys/devpoll.h
+        sys/epoll.h
+        sys/eventfd.h
+        sys/event.h
+        sys/ioctl.h
+        sys/mman.h
+        sys/queue.h
+        sys/select.h
+        sys/sendfile.h
+        sys/uio.h
+        sys/wait.h
+        sys/resource.h
+        sys/timerfd.h
+        netinet/in.h
+        netinet/in6.h
+        netinet/tcp.h
+        ifaddrs.h
+    )
 endif()
+
+if (NOT "${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Linux")
+    list(APPEND FILES_TO_CHECK sys/sysctl.h)
+endif()
+
+if (APPLE)
+    list(APPEND FILES_TO_CHECK
+        mach/mach_time.h
+        mach/mach.h
+    )
+endif()
+
+foreach(FILE ${FILES_TO_CHECK})
+    CHECK_INCLUDE_FILE_CONCAT(${FILE} "EVENT")
+endforeach()
+unset(FILES_TO_CHECK)
+
+# Check if functions exist
 list(APPEND SYMBOLS_TO_CHECK
     getaddrinfo
     getnameinfo
     getprotobynumber
+    getservbyname
+    gethostbyname
     inet_ntop
     inet_pton
+    gettimeofday
+    signal
     strtoll
+    splice
+    strlcpy
+    strsep
+    strtok_r
+    vasprintf
     timerclear
     timercmp
     timerisset
+    timeradd
+    nanosleep
     putenv
+    umask
 )
-CHECK_SYMBOLS_EXIST("${SYMBOLS_TO_CHECK}" "${CHECK_SYMBOL_HEADERS}" "EVENT")
-unset(CHECK_SYMBOL_HEADERS)
-unset(SYMBOLS_TO_CHECK)
-
-CHECK_FUNCTION_EXISTS(epoll_create EVENT__HAVE_EPOLL)
-CHECK_FUNCTION_EXISTS(epoll_ctl EVENT__HAVE_EPOLL_CTL)
-CHECK_FUNCTION_EXISTS(eventfd EVENT__HAVE_EVENTFD)
-if(NOT EVENT__DISABLE_CLOCK_GETTIME)
-    CHECK_FUNCTION_EXISTS(clock_gettime EVENT__HAVE_CLOCK_GETTIME)
+if (NOT EVENT__DISABLE_CLOCK_GETTIME)
+    list(APPEND SYMBOLS_TO_CHECK clock_gettime)
 endif()
-CHECK_FUNCTION_EXISTS(fcntl EVENT__HAVE_FCNTL)
-CHECK_FUNCTION_EXISTS(gettimeofday EVENT__HAVE_GETTIMEOFDAY)
-CHECK_FUNCTION_EXISTS(kqueue EVENT__HAVE_KQUEUE)
-CHECK_FUNCTION_EXISTS(mmap EVENT__HAVE_MMAP)
-CHECK_FUNCTION_EXISTS(pipe EVENT__HAVE_PIPE)
-CHECK_FUNCTION_EXISTS(pipe2 EVENT__HAVE_PIPE2)
-CHECK_FUNCTION_EXISTS(poll EVENT__HAVE_POLL)
-CHECK_FUNCTION_EXISTS(port_create EVENT__HAVE_PORT_CREATE)
-CHECK_FUNCTION_EXISTS(sendfile EVENT__HAVE_SENDFILE)
-CHECK_FUNCTION_EXISTS(sigaction EVENT__HAVE_SIGACTION)
-CHECK_FUNCTION_EXISTS(signal EVENT__HAVE_SIGNAL)
-CHECK_FUNCTION_EXISTS(strsignal EVENT__HAVE_STRSIGNAL)
-CHECK_FUNCTION_EXISTS(splice EVENT__HAVE_SPLICE)
-CHECK_FUNCTION_EXISTS(strlcpy EVENT__HAVE_STRLCPY)
-CHECK_FUNCTION_EXISTS(strsep EVENT__HAVE_STRSEP)
-CHECK_FUNCTION_EXISTS(strtok_r EVENT__HAVE_STRTOK_R)
-CHECK_FUNCTION_EXISTS(vasprintf EVENT__HAVE_VASPRINTF)
-CHECK_FUNCTION_EXISTS(sysctl EVENT__HAVE_SYSCTL)
-CHECK_FUNCTION_EXISTS(accept4 EVENT__HAVE_ACCEPT4)
-CHECK_FUNCTION_EXISTS(arc4random EVENT__HAVE_ARC4RANDOM)
-CHECK_FUNCTION_EXISTS(arc4random_buf EVENT__HAVE_ARC4RANDOM_BUF)
-CHECK_FUNCTION_EXISTS(arc4random_addrandom EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
-CHECK_FUNCTION_EXISTS(epoll_create1 EVENT__HAVE_EPOLL_CREATE1)
-CHECK_FUNCTION_EXISTS(getegid EVENT__HAVE_GETEGID)
-CHECK_FUNCTION_EXISTS(geteuid EVENT__HAVE_GETEUID)
-CHECK_FUNCTION_EXISTS(getifaddrs EVENT__HAVE_GETIFADDRS)
-CHECK_FUNCTION_EXISTS(issetugid EVENT__HAVE_ISSETUGID)
-CHECK_FUNCTION_EXISTS(mach_absolute_time EVENT__HAVE_MACH_ABSOLUTE_TIME)
-CHECK_FUNCTION_EXISTS(nanosleep EVENT__HAVE_NANOSLEEP)
-CHECK_FUNCTION_EXISTS(usleep EVENT__HAVE_USLEEP)
-CHECK_FUNCTION_EXISTS(timeradd EVENT__HAVE_TIMERADD)
-CHECK_FUNCTION_EXISTS(timerfd_create EVENT__HAVE_TIMERFD_CREATE)
-CHECK_FUNCTION_EXISTS(setenv EVENT__HAVE_SETENV)
-CHECK_FUNCTION_EXISTS(setrlimit EVENT__HAVE_SETRLIMIT)
-CHECK_FUNCTION_EXISTS(umask EVENT__HAVE_UMASK)
-CHECK_FUNCTION_EXISTS(unsetenv EVENT__HAVE_UNSETENV)
+
+if (WIN32)
+    list(APPEND SYMBOLS_TO_CHECK
+        _gmtime64_s
+        _gmtime64
+    )
+else()
+    list(APPEND SYMBOLS_TO_CHECK
+        getifaddrs
+        select
+        epoll_create
+        epoll_create1
+        epoll_ctl
+        eventfd
+        poll
+        port_create
+        kqueue
+        fcntl
+        mmap
+        pipe
+        pipe2
+        sendfile
+        sigaction
+        strsignal
+        sysctl
+        accept4
+        arc4random
+        arc4random_buf
+        arc4random_addrandom
+        getrandom
+        getegid
+        geteuid
+        issetugid
+        usleep
+        timerfd_create
+        setenv
+        unsetenv
+        setrlimit
+        gethostbyname_r
+    )
+    if (APPLE)
+        list(APPEND SYMBOLS_TO_CHECK mach_absolute_time)
+    endif()
+endif()
+
+# Add stdio.h for vasprintf
+set(EVENT_INCLUDES ${EVENT_INCLUDES} stdio.h)
+CHECK_SYMBOLS_EXIST("${SYMBOLS_TO_CHECK}" "${EVENT_INCLUDES}" "EVENT")
+unset(SYMBOLS_TO_CHECK)
+set(EVENT__HAVE_EPOLL ${EVENT__HAVE_EPOLL_CREATE})
 
 # Get the gethostbyname_r prototype.
-CHECK_FUNCTION_EXISTS(gethostbyname_r EVENT__HAVE_GETHOSTBYNAME_R)
-
 if(EVENT__HAVE_GETHOSTBYNAME_R)
     CHECK_PROTOTYPE_DEFINITION(gethostbyname_r
         "int gethostbyname_r(const char *name, struct hostent *hp, struct hostent_data *hdata)"
@@ -539,17 +539,10 @@ if(HAVE_PORT_H AND HAVE_PORT_CREATE)
     set(EVENT__HAVE_EVENT_PORTS 1)
 endif()
 
-if(NOT WIN32)
-    CHECK_FUNCTION_EXISTS(select EVENT__HAVE_SELECT)
-endif()
+# Only `CHECK_TYPE_SIZE()' will use `CMAKE_EXTRA_INCLUDE_FILES'
+set(CMAKE_EXTRA_INCLUDE_FILES ${EVENT_INCLUDES})
 
-if(WIN32)
-    CHECK_FUNCTION_EXISTS(_gmtime64_s EVENT__HAVE__GMTIME64_S)
-    if (NOT EVENT__HAVE__GMTIME64_S)
-        CHECK_FUNCTION_EXISTS(_gmtime64 EVENT__HAVE__GMTIME64)
-    endif()
-endif()
-
+CHECK_TYPE_SIZE("struct sockaddr_un" EVENT__HAVE_STRUCT_SOCKADDR_UN)
 CHECK_TYPE_SIZE("uint8_t" EVENT__HAVE_UINT8_T)
 CHECK_TYPE_SIZE("uint16_t" EVENT__HAVE_UINT16_T)
 CHECK_TYPE_SIZE("uint32_t" EVENT__HAVE_UINT32_T)
@@ -589,7 +582,6 @@ CHECK_SYMBOL_EXISTS(TAILQ_FOREACH sys/queue.h EVENT__HAVE_TAILQFOREACH)
 CHECK_CONST_EXISTS(CTL_KERN sys/sysctl.h EVENT__HAVE_DECL_CTL_KERN)
 CHECK_CONST_EXISTS(KERN_ARND sys/sysctl.h EVENT__HAVE_DECL_KERN_ARND)
 CHECK_SYMBOL_EXISTS(F_SETFD fcntl.h EVENT__HAVE_SETFD)
-CHECK_FUNCTION_EXISTS(getrandom EVENT__HAVE_GETRANDOM)
 
 CHECK_TYPE_SIZE(fd_mask EVENT__HAVE_FD_MASK)
 
