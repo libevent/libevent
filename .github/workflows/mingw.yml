@@ -19,8 +19,8 @@ on:
       - 'LICENSE'
 
 jobs:
-  windows:
-    runs-on: windows-2016
+  autotools:
+    runs-on: windows-2019
     strategy:
       fail-fast: false
       matrix:
@@ -36,13 +36,13 @@ jobs:
 
       - name: Cache MinGW
         id: cache-mingw
-        uses: actions/cache@v1.0.3
+        uses: actions/cache@v1.1.2
         with:
           path: D:\a\_temp\msys
           key: windows-mingw
 
       - name: Cache Build
-        uses: actions/cache@v1.0.3
+        uses: actions/cache@v1.1.2
         with:
           path: build
           key: mingw-${{ matrix.EVENT_MATRIX }}
@@ -55,7 +55,7 @@ jobs:
       - name: Install Dependes
         if: steps.cache-mingw.outputs.cache-hit != 'true'
         run: |
-          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc make autoconf automake libtool mingw-w64-x86_64-openssl
+          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc autoconf automake libtool mingw-w64-x86_64-openssl
 
       - name: Build And Test
         shell: powershell
@@ -80,6 +80,64 @@ jobs:
           [[ $? -ne 0 ]] && exit 1
           make verify -j $EVENT_TESTS_PARALLEL 2>&1 '
           D:\a\_temp\msys\msys64\usr\bin\bash.exe -c $script
+
+      - uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: mingw-${{ matrix.EVENT_MATRIX }}-build
+          path: build
+
+  cmake:
+    runs-on: windows-2019
+    strategy:
+      fail-fast: false
+      matrix:
+        EVENT_MATRIX:
+          - NONE
+          - DISABLE_OPENSSL
+          - DISABLE_THREAD_SUPPORT
+          - DISABLE_DEBUG_MODE
+          - DISABLE_MM_REPLACEMENT
+
+    steps:
+      - uses: actions/checkout@v2.0.0
+
+      - name: Cache MinGW
+        id: cache-mingw-cmake
+        uses: actions/cache@v1.1.2
+        with:
+          path: D:\a\_temp\msys
+          key: windows-mingw-cmake
+
+      - name: Cache Build
+        uses: actions/cache@v1.1.2
+        with:
+          path: build
+          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}
+
+      - uses: numworks/setup-msys2@v1
+        if: steps.cache-mingw-cmake.outputs.cache-hit != 'true'
+        with:
+          msystem: MINGW64
+
+      - name: Install Dependes
+        if: steps.cache-mingw-cmake.outputs.cache-hit != 'true'
+        run: |
+          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-openssl
+
+      - name: Build And Test
+        shell: powershell
+        run: |
+          $EVENT_CONFIGURE_OPTIONS=""
+          if ( "${{ matrix.EVENT_MATRIX }}" -ne "NONE" ) {
+            $EVENT_CONFIGURE_OPTIONS="-DEVENT__${{ matrix.EVENT_MATRIX }}=ON"
+          }
+          $env:PATH="D:\a\_temp\msys\msys64\mingw64\bin;D:\a\_temp\msys\msys64\usr\bin;$env:PATH"
+          mkdir build -ea 0
+          cd build
+          cmake .. -G "MSYS Makefiles" $EVENT_CONFIGURE_OPTIONS -DCMAKE_C_FLAGS=-w
+          cmake --build .
+          ctest -V
 
       - uses: actions/upload-artifact@v1
         if: failure()
