@@ -41,7 +41,7 @@ jobs:
         uses: actions/cache@v1.0.3
         with:
           path: build
-          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}
+          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v2
 
       - name: Install Depends
         if: steps.cache-depends.outputs.cache-hit != 'true'
@@ -152,7 +152,7 @@ jobs:
         uses: actions/cache@v1.1.0
         with:
           path: build
-          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-build
+          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-build-v2
 
       - name: Install Depends
         if: steps.cache-depends.outputs.cache-hit != 'true'

@@ -45,7 +45,7 @@ jobs:
         uses: actions/cache@v1.1.2
         with:
           path: build
-          key: mingw-${{ matrix.EVENT_MATRIX }}
+          key: mingw-autotools-${{ matrix.EVENT_MATRIX }}
 
       - uses: numworks/setup-msys2@v1
         if: steps.cache-mingw.outputs.cache-hit != 'true'

@@ -21,7 +21,7 @@ jobs:
         uses: actions/cache@v1.0.3
         with:
           path: build
-          key: ${{ matrix.os }}-coverage
+          key: ${{ matrix.os }}-coverage-v2
 
       - name: Install Depends
         run: sudo apt install zlib1g-dev libssl-dev build-essential lcov
