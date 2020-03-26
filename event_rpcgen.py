@@ -14,8 +14,8 @@
 #    progress outputs that space stderr at the moment)
 # 3) emit other languages
 
-import sys
 import re
+import sys
 
 _NAME = "event_rpcgen.py"
 _VERSION = "0.1"
