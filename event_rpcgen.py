@@ -1309,6 +1309,11 @@ def NormalizeLine(line):
 
     return line
 
+
+NAME_RE = re.compile(r"(?P<name>[^\[\]]+)(\[(?P<fixed_length>.*)\])?")
+TAG_NUMBER_RE = re.compile(r"(0x)?\d+", re.I)
+
+
 def ProcessOneEntry(factory, newstruct, entry):
     optional = 0
     array = 0
@@ -1319,11 +1324,7 @@ def ProcessOneEntry(factory, newstruct, entry):
     separator = ''
     fixed_length = ''
 
-    tokens = entry.split(' ')
-    while tokens:
-        token = tokens[0]
-        tokens = tokens[1:]
-
+    for token in entry.split(" "):
         if not entry_type:
             if not optional and token == 'optional':
                 optional = 1
