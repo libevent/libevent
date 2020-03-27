@@ -25,6 +25,7 @@ LINE_COUNT = 0
 
 CPPCOMMENT_RE = re.compile(r"\/\/.*$")
 NONIDENT_RE = re.compile(r"\W")
+PREPROCESSOR_DEF_RE = re.compile(r"^#define")
 STRUCT_REF_RE = re.compile(r"^struct\[(?P<name>[a-zA-Z_][a-zA-Z0-9_]*)\]$")
 STRUCT_DEF_RE = re.compile(r"^struct +[a-zA-Z_][a-zA-Z0-9_]* *{$")
 WHITESPACE_RE = re.compile(r"\s+")
@@ -1309,8 +1310,8 @@ def NormalizeLine(line):
     return line
 
 
-NAME_RE = re.compile(r"(?P<name>[^\[\]]+)(\[(?P<fixed_length>.*)\])?")
-TAG_NUMBER_RE = re.compile(r"(0x)?\d+", re.I)
+ENTRY_NAME_RE = re.compile(r"(?P<name>[^\[\]]+)(\[(?P<fixed_length>.*)\])?")
+ENTRY_TAG_NUMBER_RE = re.compile(r"(0x)?\d+", re.I)
 
 
 def ProcessOneEntry(factory, newstruct, entry):
@@ -1338,15 +1339,13 @@ def ProcessOneEntry(factory, newstruct, entry):
             continue
 
         if not name:
-            res = re.match(r'^([^\[\]]+)(\[.*\])?$', token)
+            res = ENTRY_NAME_RE.match(token)
             if not res:
                  raise RpcGenError(
                      'Cannot parse name: \"%s\" '
                      'around line %d' % (entry, LINE_COUNT))
-            name = res.group(1)
-            fixed_length = res.group(2)
-            if fixed_length:
-                fixed_length = fixed_length[1:-1]
+            name = res.group("name")
+            fixed_length = res.group("fixed_length")
             continue
 
         if not separator:
@@ -1358,7 +1357,7 @@ def ProcessOneEntry(factory, newstruct, entry):
 
         if not tag_set:
             tag_set = 1
-            if not re.match(r'^(0x)?[0-9]+$', token):
+            if not ENTRY_TAG_NUMBER_RE.match(token):
                 raise RpcGenError('Expected tag number: \"%s\"' % entry)
             tag = int(token, 0)
             continue
@@ -1438,6 +1437,23 @@ def ProcessStruct(factory, data):
     structs.append(newstruct)
     return structs
 
+
+C_COMMENT_START = "/*"
+C_COMMENT_END = "*/"
+
+C_COMMENT_START_RE = re.compile(re.escape(C_COMMENT_START))
+C_COMMENT_END_RE = re.compile(re.escape(C_COMMENT_END))
+
+C_COMMENT_START_SUB_RE = re.compile(r"%s.*$" % (re.escape(C_COMMENT_START)))
+C_COMMENT_END_SUB_RE = re.compile(r"%s.*$" % (re.escape(C_COMMENT_END)))
+
+C_MULTILINE_COMMENT_SUB_RE = re.compile(
+    r"%s.*?%s" % (re.escape(C_COMMENT_START), re.escape(C_COMMENT_END))
+)
+CPP_CONDITIONAL_BLOCK_RE = re.compile(r"#(if( |def)|endif)")
+INCLUDE_RE = re.compile(r'#include (".+"|<.+>)')
+
+
 def GetNextStruct(filep):
     global CPP_DIRECT
     global LINE_COUNT
@@ -1455,18 +1471,18 @@ def GetNextStruct(filep):
         LINE_COUNT += 1
         line = line[:-1]
 
-        if not have_c_comment and re.search(r'/\*', line):
-            if re.search(r'/\*.*?\*/', line):
-                line = re.sub(r'/\*.*?\*/', '', line)
+        if not have_c_comment and C_COMMENT_START_RE.search(line):
+            if C_MULTILINE_COMMENT_SUB_RE.search(line):
+                line = C_MULTILINE_COMMENT_SUB_RE.sub("", line)
             else:
-                line = re.sub(r'/\*.*$', '', line)
+                line = C_COMMENT_START_SUB_RE.sub("", line)
                 have_c_comment = True
 
         if have_c_comment:
-            if not re.search(r'\*/', line):
+            if not C_COMMENT_END_RE.search(line):
                 continue
             have_c_comment = False
-            line = re.sub(r'^.*\*/', '', line)
+            line = C_COMMENT_END_SUB_RE.sub("", line)
 
         line = NormalizeLine(line)
 
@@ -1474,19 +1490,13 @@ def GetNextStruct(filep):
             continue
 
         if not got_struct:
-            if re.match(r'#include ["<].*[>"]', line):
+            if INCLUDE_RE.match(line):
                 CPP_DIRECT.append(line)
-                continue
-
-            if re.match(r'^#(if( |def)|endif)', line):
+            elif CPP_CONDITIONAL_BLOCK_RE.match(line):
                 CPP_DIRECT.append(line)
-                continue
-
-            if re.match(r'^#define', line):
+            elif PREPROCESSOR_DEF_RE.match(line):
                 HEADER_DIRECT.append(line)
-                continue
-
-            if not STRUCT_DEF_RE.match(line):
+            elif not STRUCT_DEF_RE.match(line):
                 raise RpcGenError('Missing struct on line %d: %s'
                                   % (LINE_COUNT, line))
             else:
