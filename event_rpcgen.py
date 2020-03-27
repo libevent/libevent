@@ -1689,32 +1689,29 @@ class CommandLine:
 
         declare('Reading \"%s\"' % filename)
 
-        fp = open(filename, 'r')
-        entities = Parse(factory, fp)
-        fp.close()
+        with open(filename, "r") as fp:
+            entities = Parse(factory, fp)
 
         declare('... creating "%s"' % header_file)
-        header_fp = open(header_file, 'w')
-        header_fp.write(factory.HeaderPreamble(filename))
+        with open(header_file, "w") as header_fp:
+            header_fp.write(factory.HeaderPreamble(filename))
 
-        # Create forward declarations: allows other structs to reference
-        # each other
-        for entry in entities:
-            entry.PrintForwardDeclaration(header_fp)
-        header_fp.write('\n')
+            # Create forward declarations: allows other structs to reference
+            # each other
+            for entry in entities:
+                entry.PrintForwardDeclaration(header_fp)
+            header_fp.write('\n')
 
-        for entry in entities:
-            entry.PrintTags(header_fp)
-            entry.PrintDeclaration(header_fp)
-        header_fp.write(factory.HeaderPostamble(filename))
-        header_fp.close()
+            for entry in entities:
+                entry.PrintTags(header_fp)
+                entry.PrintDeclaration(header_fp)
+            header_fp.write(factory.HeaderPostamble(filename))
 
         declare('... creating "%s"' % impl_file)
-        impl_fp = open(impl_file, 'w')
-        impl_fp.write(factory.BodyPreamble(filename, header_file))
-        for entry in entities:
-            entry.PrintCode(impl_fp)
-        impl_fp.close()
+        with open(impl_file, "w") as impl_fp:
+            impl_fp.write(factory.BodyPreamble(filename, header_file))
+            for entry in entities:
+                entry.PrintCode(impl_fp)
 
 
 def main(argv=None):
