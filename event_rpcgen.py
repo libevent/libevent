@@ -137,7 +137,7 @@ int %(name)s_complete(struct %(name)s *);
 void evtag_marshal_%(name)s(struct evbuffer *, ev_uint32_t,
     const struct %(name)s *);
 int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
-    struct %(name)s *);\n""" % { 'name' : self._name })
+    struct %(name)s *);\n""" % {"name" : self._name})
 
 
         # Write a setting function of every variable
@@ -153,41 +153,45 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
         filep.write('/* --- %s done --- */\n\n' % self._name)
 
     def PrintCode(self, filep):
-        filep.write(('/*\n'
-                       ' * Implementation of %s\n'
-                       ' */\n\n') % self._name)
+        filep.write("""/*
+ * Implementation of %s
+ */
+""" % (self._name))
 
-        filep.write('static struct %(name)s_access_ %(name)s_base__ = {\n' % \
-              { 'name' : self._name })
+        filep.write("""
+static struct %(name)s_access_ %(name)s_base__ = {
+""" % {"name": self._name})
         for entry in self._entries:
             self.PrintIndented(filep, '  ', entry.CodeBase())
         filep.write('};\n\n')
 
         # Creation
-        filep.write((
-            'struct %(name)s *\n'
-            '%(name)s_new(void)\n'
-            '{\n'
-            '  return %(name)s_new_with_arg(NULL);\n'
-            '}\n'
-            '\n'
-            'struct %(name)s *\n'
-            '%(name)s_new_with_arg(void *unused)\n'
-            '{\n'
-            '  struct %(name)s *tmp;\n'
-            '  if ((tmp = malloc(sizeof(struct %(name)s))) == NULL) {\n'
-            '    event_warn("%%s: malloc", __func__);\n'
-            '    return (NULL);\n'
-            '  }\n'
-            '  tmp->base = &%(name)s_base__;\n\n') % { 'name' : self._name })
+        filep.write("""struct %(name)s *
+%(name)s_new(void)
+{
+  return %(name)s_new_with_arg(NULL);
+}
+
+struct %(name)s *
+%(name)s_new_with_arg(void *unused)
+{
+  struct %(name)s *tmp;
+  if ((tmp = malloc(sizeof(struct %(name)s))) == NULL) {
+    event_warn("%%s: malloc", __func__);
+    return (NULL);
+  }
+  tmp->base = &%(name)s_base__;
+
+""" % {"name": self._name})
 
         for entry in self._entries:
             self.PrintIndented(filep, '  ', entry.CodeInitialize('tmp'))
             filep.write('  tmp->%s_set = 0;\n\n' % entry.Name())
 
-        filep.write((
-            '  return (tmp);\n'
-            '}\n\n'))
+        filep.write("""  return (tmp);
+}
+
+""")
 
         # Adding
         for entry in self._entries:
@@ -206,32 +210,33 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             filep.write('\n')
 
         # Clearing
-        filep.write(( 'void\n'
-                        '%(name)s_clear(struct %(name)s *tmp)\n'
-                        '{'
-                        '\n') % { 'name' : self._name })
+        filep.write("""void
+%(name)s_clear(struct %(name)s *tmp)
+{
+""" % {"name" : self._name})
         for entry in self._entries:
             self.PrintIndented(filep, '  ', entry.CodeClear('tmp'))
 
-        filep.write('}\n\n')
+        filep.write("}\n\n")
 
         # Freeing
-        filep.write(( 'void\n'
-                        '%(name)s_free(struct %(name)s *tmp)\n'
-                        '{'
-                        '\n') % { 'name' : self._name })
+        filep.write("""void
+%(name)s_free(struct %(name)s *tmp)
+{
+""" % {"name" : self._name})
 
         for entry in self._entries:
             self.PrintIndented(filep, '  ', entry.CodeFree('tmp'))
 
-        filep.write(('  free(tmp);\n'
-                       '}\n\n'))
+        filep.write("""  free(tmp);
+}
+
+""")
 
         # Marshaling
-        filep.write(('void\n'
-                       '%(name)s_marshal(struct evbuffer *evbuf, '
-                       'const struct %(name)s *tmp)'
-                       '{\n') % { 'name' : self._name })
+        filep.write("""void
+%(name)s_marshal(struct evbuffer *evbuf, const struct %(name)s *tmp) {
+""" % {"name" : self._name})
         for entry in self._entries:
             indent = '  '
             # Optional entries do not have to be set
@@ -249,23 +254,22 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
         filep.write('}\n\n')
 
         # Unmarshaling
-        filep.write(('int\n'
-                       '%(name)s_unmarshal(struct %(name)s *tmp, '
-                       ' struct evbuffer *evbuf)\n'
-                       '{\n'
-                       '  ev_uint32_t tag;\n'
-                       '  while (evbuffer_get_length(evbuf) > 0) {\n'
-                       '    if (evtag_peek(evbuf, &tag) == -1)\n'
-                       '      return (-1);\n'
-                       '    switch (tag) {\n'
-                       '\n') % { 'name' : self._name })
+        filep.write("""int
+%(name)s_unmarshal(struct %(name)s *tmp, struct evbuffer *evbuf)
+{
+  ev_uint32_t tag;
+  while (evbuffer_get_length(evbuf) > 0) {
+    if (evtag_peek(evbuf, &tag) == -1)
+      return (-1);
+    switch (tag) {
+
+""" % {"name" : self._name})
         for entry in self._entries:
-            filep.write('      case %s:\n' % self.EntryTagName(entry))
+            filep.write("      case %s:\n" % (self.EntryTagName(entry)))
             if not entry.Array():
-                filep.write((
-                    '        if (tmp->%s_set)\n'
-                    '          return (-1);'
-                    '\n') % (entry.Name()))
+                filep.write("""        if (tmp->%s_set)
+          return (-1);
+""" % (entry.Name()))
 
             self.PrintIndented(
                 filep, '        ',
@@ -274,31 +278,34 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
                                     entry.GetVarName('tmp'),
                                     entry.GetVarLen('tmp')))
 
-            filep.write(( '        tmp->%s_set = 1;\n' % entry.Name() +
-                            '        break;\n' ))
-        filep.write(( '      default:\n'
-                        '        return -1;\n'
-                        '    }\n'
-                        '  }\n\n' ))
-        # Check if it was decoded completely
-        filep.write(( '  if (%(name)s_complete(tmp) == -1)\n'
-                        '    return (-1);'
-                        '\n') % { 'name' : self._name })
+            filep.write("""        tmp->%s_set = 1;
+        break;
+""" % (entry.Name()))
+        filep.write("""      default:
+        return -1;
+    }
+  }
 
-        # Successfully decoded
-        filep.write(( '  return (0);\n'
-                        '}\n\n'))
+""")
+        # Check if it was decoded completely
+        filep.write("""  if (%(name)s_complete(tmp) == -1)
+    return (-1);
+  return (0);
+}
+""" % {"name" : self._name})
 
         # Checking if a structure has all the required data
-        filep.write((
-            'int\n'
-            '%(name)s_complete(struct %(name)s *msg)\n'
-            '{\n' ) % { 'name' : self._name })
+        filep.write("""
+int
+%(name)s_complete(struct %(name)s *msg)
+{
+""" % {"name" : self._name})
         for entry in self._entries:
             if not entry.Optional():
                 code = [
-                    'if (!msg->%(name)s_set)',
-                    '  return (-1);' ]
+                    """if (!msg->%(name)s_set)
+    return (-1);"""
+                ]
                 code = TranslateList(code, entry.GetTranslation())
                 self.PrintIndented(
                     filep, '  ', code)
@@ -306,47 +313,49 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             self.PrintIndented(
                 filep, '  ',
                 entry.CodeComplete('msg', entry.GetVarName('msg')))
-        filep.write((
-            '  return (0);\n'
-            '}\n\n' ))
+        filep.write("""  return (0);
+}
+""")
 
         # Complete message unmarshaling
-        filep.write((
-            'int\n'
-            'evtag_unmarshal_%(name)s(struct evbuffer *evbuf, '
-            'ev_uint32_t need_tag, struct %(name)s *msg)\n'
-            '{\n'
-            '  ev_uint32_t tag;\n'
-            '  int res = -1;\n'
-            '\n'
-            '  struct evbuffer *tmp = evbuffer_new();\n'
-            '\n'
-            '  if (evtag_unmarshal(evbuf, &tag, tmp) == -1'
-            ' || tag != need_tag)\n'
-            '    goto error;\n'
-            '\n'
-            '  if (%(name)s_unmarshal(msg, tmp) == -1)\n'
-            '    goto error;\n'
-            '\n'
-            '  res = 0;\n'
-            '\n'
-            ' error:\n'
-            '  evbuffer_free(tmp);\n'
-            '  return (res);\n'
-            '}\n\n' ) % { 'name' : self._name })
+        filep.write("""
+int
+evtag_unmarshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t need_tag,
+  struct %(name)s *msg)
+{
+  ev_uint32_t tag;
+  int res = -1;
+
+  struct evbuffer *tmp = evbuffer_new();
+
+  if (evtag_unmarshal(evbuf, &tag, tmp) == -1 || tag != need_tag)
+    goto error;
+
+  if (%(name)s_unmarshal(msg, tmp) == -1)
+    goto error;
+
+  res = 0;
+
+ error:
+  evbuffer_free(tmp);
+  return (res);
+}
+""" % {"name" : self._name})
 
         # Complete message marshaling
-        filep.write((
-            'void\n'
-            'evtag_marshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t tag, '
-            'const struct %(name)s *msg)\n'
-            '{\n'
-            '  struct evbuffer *buf_ = evbuffer_new();\n'
-            '  assert(buf_ != NULL);\n'
-            '  %(name)s_marshal(buf_, msg);\n'
-            '  evtag_marshal_buffer(evbuf, tag, buf_);\n '
-            '  evbuffer_free(buf_);\n'
-            '}\n\n' ) % { 'name' : self._name })
+        filep.write("""
+void
+evtag_marshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t tag,
+    const struct %(name)s *msg)
+{
+  struct evbuffer *buf_ = evbuffer_new();
+  assert(buf_ != NULL);
+  %(name)s_marshal(buf_, msg);
+  evtag_marshal_buffer(evbuf, tag, buf_);
+  evbuffer_free(buf_);
+}
+
+""" % {"name" : self._name})
 
 class Entry:
     def __init__(self, type, name, tag):
@@ -443,17 +452,14 @@ class Entry:
         return code
 
     def CodeGet(self):
-        code = (
-            'int',
-            '%(parent_name)s_%(name)s_get(struct %(parent_name)s *msg, '
-            '%(ctype)s *value)',
-            '{',
-            '  if (msg->%(name)s_set != 1)',
-            '    return (-1);',
-            '  *value = msg->%(name)s_data;',
-            '  return (0);',
-            '}' )
-        code = '\n'.join(code)
+        code = """int
+%(parent_name)s_%(name)s_get(struct %(parent_name)s *msg, %(ctype)s *value)
+{
+  if (msg->%(name)s_set != 1)
+    return (-1);
+  *value = msg->%(name)s_data;
+  return (0);
+}"""
         code = code % self.GetTranslation()
         return code.split('\n')
 
@@ -722,7 +728,7 @@ class EntryString(Entry):
     return (-1);
   msg->%(name)s_set = 1;
   return (0);
-}""" % self.GetTranslation()
+}""" % (self.GetTranslation())
 
         return code.split('\n')
 
@@ -1113,19 +1119,22 @@ class EntryArray(Entry):
     return (-1);
   *value = msg->%(name)s_data[offset];
   return (0);
-}""" % self.GetTranslation()
+}
+""" % (self.GetTranslation())
 
-        return code.split('\n')
+        return code.splitlines()
 
     def CodeAssign(self):
         code = [
-            'int',
-            '%(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg, int off,',
-            '    const %(ctype)s value)',
-            '{',
-            '  if (!msg->%(name)s_set || off < 0 || off >= msg->%(name)s_length)',
-            '    return (-1);\n',
-            '  {' ]
+"int",
+"%(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg, int off,",
+"  const %(ctype)s value)",
+"{",
+"  if (!msg->%(name)s_set || off < 0 || off >= msg->%(name)s_length)",
+"    return (-1);",
+"",
+"  {"
+        ]
         code = TranslateList(code, self.GetTranslation())
 
         codearrayassign = self._entry.CodeArrayAssign(
@@ -1341,9 +1350,10 @@ def ProcessOneEntry(factory, newstruct, entry):
         if not name:
             res = ENTRY_NAME_RE.match(token)
             if not res:
-                 raise RpcGenError(
-                     'Cannot parse name: \"%s\" '
-                     'around line %d' % (entry, LINE_COUNT))
+                raise RpcGenError(
+                    r"""Cannot parse name: "%s" around line %d"""
+                    % (entry, LINE_COUNT)
+                )
             name = res.group("name")
             fixed_length = res.group("fixed_length")
             continue
@@ -1351,21 +1361,23 @@ def ProcessOneEntry(factory, newstruct, entry):
         if not separator:
             separator = token
             if separator != '=':
-                 raise RpcGenError('Expected "=" after name \"%s\" got %s'
-                                   % (name, token))
+                raise RpcGenError(
+                    r'''Expected "=" after name "%s" got "%s"'''
+                    % (name, token)
+                )
             continue
 
         if not tag_set:
             tag_set = 1
             if not ENTRY_TAG_NUMBER_RE.match(token):
-                raise RpcGenError('Expected tag number: \"%s\"' % entry)
+                raise RpcGenError(r'''Expected tag number: "%s"''' % (entry))
             tag = int(token, 0)
             continue
 
-        raise RpcGenError('Cannot parse \"%s\"' % entry)
+        raise RpcGenError(r'''Cannot parse "%s"''' % (entry))
 
     if not tag_set:
-        raise RpcGenError('Need tag number: \"%s\"' % entry)
+        raise RpcGenError(r'''Need tag number: "%s"''' % (entry))
 
     # Create the right entry
     if entry_type == 'bytes':
@@ -1497,8 +1509,9 @@ def GetNextStruct(filep):
             elif PREPROCESSOR_DEF_RE.match(line):
                 HEADER_DIRECT.append(line)
             elif not STRUCT_DEF_RE.match(line):
-                raise RpcGenError('Missing struct on line %d: %s'
-                                  % (LINE_COUNT, line))
+                raise RpcGenError(
+                    "Missing struct on line %d: %s" % (LINE_COUNT, line)
+                )
             else:
                 got_struct = True
                 data += line
@@ -1550,33 +1563,35 @@ class CCodeGenerator:
         # Use the complete provided path to the input file, with all
         # non-identifier characters replaced with underscores, to
         # reduce the chance of a collision between guard macros.
-        return 'EVENT_RPCOUT_' + NONIDENT_RE.sub('_', name).upper() + '_'
+        return "EVENT_RPCOUT_%s_" % (NONIDENT_RE.sub('_', name).upper())
 
     def HeaderPreamble(self, name):
         guard = self.GuardName(name)
-        pre = (
-            '/*\n'
-            ' * Automatically generated from %s\n'
-            ' */\n\n'
-            '#ifndef %s\n'
-            '#define %s\n\n' ) % (
-            name, guard, guard)
+        pre = """
+/*
+ * Automatically generated from %s
+ */
 
-        for statement in HEADER_DIRECT:
-            pre += '%s\n' % statement
+#ifndef %s
+#define %s
+
+""" % (name, guard, guard)
+
         if HEADER_DIRECT:
-            pre += '\n'
+            for statement in HEADER_DIRECT:
+                pre += "%s\n" % statement
+            pre += "\n"
 
-        pre += (
-            '#include <event2/util.h> /* for ev_uint*_t */\n'
-            '#include <event2/rpc.h>\n'
-        )
+        pre += """
+#include <event2/util.h> /* for ev_uint*_t */
+#include <event2/rpc.h>
+"""
 
         return pre
 
     def HeaderPostamble(self, name):
         guard = self.GuardName(name)
-        return '#endif  /* %s */' % guard
+        return "#endif  /* %s */" % (guard)
 
     def BodyPreamble(self, name, header_file):
         global _NAME
@@ -1586,27 +1601,31 @@ class CCodeGenerator:
         if slash != -1:
             header_file = header_file[slash+1:]
 
-        pre = ( '/*\n'
-                ' * Automatically generated from %s\n'
-                ' * by %s/%s.  DO NOT EDIT THIS FILE.\n'
-                ' */\n\n' ) % (name, _NAME, _VERSION)
-        pre += ( '#include <stdlib.h>\n'
-                 '#include <string.h>\n'
-                 '#include <assert.h>\n'
-                 '#include <event2/event-config.h>\n'
-                 '#include <event2/event.h>\n'
-                 '#include <event2/buffer.h>\n'
-                 '#include <event2/tag.h>\n\n'
-                 '#if defined(EVENT__HAVE___func__)\n'
-                 '# ifndef __func__\n'
-                 '#  define __func__ __func__\n'
-                 '# endif\n'
-                 '#elif defined(EVENT__HAVE___FUNCTION__)\n'
-                 '# define __func__ __FUNCTION__\n'
-                 '#else\n'
-                 '# define __func__ __FILE__\n'
-                 '#endif\n\n'
-                 )
+        pre = """
+/*
+ * Automatically generated from %(name)s
+ * by %(script_name)s/%(script_version)s.  DO NOT EDIT THIS FILE.
+ */
+
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <event2/event-config.h>
+#include <event2/event.h>
+#include <event2/buffer.h>
+#include <event2/tag.h>
+
+#if defined(EVENT__HAVE___func__)
+# ifndef __func__
+#  define __func__ __func__
+# endif
+#elif defined(EVENT__HAVE___FUNCTION__)
+# define __func__ __FUNCTION__
+#else
+# define __func__ __FILE__
+#endif
+
+""" % {"name": name, "script_name": _NAME, "script_version": _VERSION}
 
         for statement in CPP_DIRECT:
             pre += '%s\n' % statement
