@@ -32,7 +32,8 @@ WHITESPACE_RE = re.compile(r"\s+")
 HEADER_DIRECT = []
 CPP_DIRECT = []
 
-QUIETLY = 0
+QUIETLY = False
+
 
 def declare(s):
     if not QUIETLY:
@@ -352,9 +353,9 @@ class Entry:
         self._name = name
         self._tag = int(tag)
         self._ctype = type
-        self._optional = 0
-        self._can_be_array = 0
-        self._array = 0
+        self._optional = False
+        self._can_be_array = False
+        self._array = False
         self._line_count = -1
         self._struct = None
         self._refname = None
@@ -390,11 +391,11 @@ class Entry:
     def Type(self):
         return self._type
 
-    def MakeArray(self, yes=1):
-        self._array = yes
+    def MakeArray(self):
+        self._array = True
 
     def MakeOptional(self):
-        self._optional = 1
+        self._optional = True
 
     def Verify(self):
         if self.Array() and not self._can_be_array:
@@ -607,7 +608,7 @@ class EntryInt(Entry):
         # Init base class
         Entry.__init__(self, type, name, tag)
 
-        self._can_be_array = 1
+        self._can_be_array = True
         if bits == 32:
             self._ctype = 'ev_uint32_t'
             self._marshal_type = 'int'
@@ -663,7 +664,7 @@ class EntryString(Entry):
         # Init base class
         Entry.__init__(self, type, name, tag)
 
-        self._can_be_array = 1
+        self._can_be_array = True
         self._ctype = 'char *'
 
     def GetInitializer(self):
@@ -772,7 +773,7 @@ class EntryStruct(Entry):
         Entry.__init__(self, type, name, tag)
 
         self._optpointer = False
-        self._can_be_array = 1
+        self._can_be_array = True
         self._refname = refname
         self._ctype = 'struct %s*' % refname
         self._optaddarg = False
@@ -1313,8 +1314,8 @@ TAG_NUMBER_RE = re.compile(r"(0x)?\d+", re.I)
 
 
 def ProcessOneEntry(factory, newstruct, entry):
-    optional = 0
-    array = 0
+    optional = False
+    array = False
     entry_type = ''
     name = ''
     tag = ''
@@ -1325,11 +1326,11 @@ def ProcessOneEntry(factory, newstruct, entry):
     for token in entry.split(" "):
         if not entry_type:
             if not optional and token == 'optional':
-                optional = 1
+                optional = True
                 continue
 
             if not array and token == 'array':
-                array = 1
+                array = True
                 continue
 
         if not entry_type:
@@ -1441,13 +1442,12 @@ def GetNextStruct(filep):
     global CPP_DIRECT
     global LINE_COUNT
 
-    got_struct = 0
+    got_struct = False
+    have_c_comment = False
 
-    processed_lines = []
-
-    have_c_comment = 0
     data = ''
-    while 1:
+
+    while True:
         line = filep.readline()
         if not line:
             break
@@ -1460,12 +1460,12 @@ def GetNextStruct(filep):
                 line = re.sub(r'/\*.*?\*/', '', line)
             else:
                 line = re.sub(r'/\*.*$', '', line)
-                have_c_comment = 1
+                have_c_comment = True
 
         if have_c_comment:
             if not re.search(r'\*/', line):
                 continue
-            have_c_comment = 0
+            have_c_comment = False
             line = re.sub(r'^.*\*/', '', line)
 
         line = NormalizeLine(line)
@@ -1490,7 +1490,7 @@ def GetNextStruct(filep):
                 raise RpcGenError('Missing struct on line %d: %s'
                                   % (LINE_COUNT, line))
             else:
-                got_struct = 1
+                got_struct = True
                 data += line
             continue
 
@@ -1654,7 +1654,7 @@ class CommandLine:
 
         if len(argv) >= 2 and argv[1] == '--quiet':
             global QUIETLY
-            QUIETLY = 1
+            QUIETLY = True
             del argv[1]
 
         if len(argv) < 2 or len(argv) > 4:
