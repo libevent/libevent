@@ -7,13 +7,13 @@
 # Generates marshaling code based on libevent.
 
 # TODO:
-# 1) use optparse to allow the strategy shell to parse options, and
-#    to allow the instantiated factory (for the specific output language)
-#    to parse remaining options
-# 2) move the globals into a class that manages execution (including the
-#    progress outputs that space stderr at the moment)
-# 3) emit other languages
+# 1) propagate the arguments/options parsed by argparse down to the
+#    instantiated factory objects.
+# 2) move the globals into a class that manages execution, including the
+#    progress outputs that go to stderr at the moment.
+# 3) emit other languages.
 
+import argparse
 import re
 import sys
 
@@ -1645,62 +1645,63 @@ class CCodeGenerator:
     def EntryArray(self, entry):
         return EntryArray(entry)
 
-class Usage(RpcGenError):
-    def __init__(self, argv0):
-        RpcGenError.__init__("usage: %s input.rpc [[output.h] output.c]"
-                             % argv0)
 
 class CommandLine:
-    def __init__(self, argv):
+    def __init__(self, argv=None):
         """Initialize a command-line to launch event_rpcgen, as if
            from a command-line with CommandLine(sys.argv).  If you're
            calling this directly, remember to provide a dummy value
            for sys.argv[0]
         """
+        global QUIETLY
+
         self.filename = None
         self.header_file = None
         self.impl_file = None
         self.factory = CCodeGenerator()
 
-        if len(argv) >= 2 and argv[1] == '--quiet':
-            global QUIETLY
-            QUIETLY = True
-            del argv[1]
+        parser = argparse.ArgumentParser(
+            usage="%(prog)s [options] rpc-file [[h-file] c-file]"
+        )
+        parser.add_argument("--quiet", action="store_true", default=False)
+        parser.add_argument("rpc_file", type=argparse.FileType("r"))
 
-        if len(argv) < 2 or len(argv) > 4:
-            raise Usage(argv[0])
+        args, extra_args = parser.parse_known_args(args=argv)
 
-        self.filename = argv[1].replace('\\', '/')
-        if len(argv) == 3:
-            self.impl_file = argv[2].replace('\\', '/')
-        if len(argv) == 4:
-            self.header_file = argv[2].replace('\\', '/')
-            self.impl_file = argv[3].replace('\\', '/')
+        QUIETLY = args.quiet
 
-        if not self.filename:
-            raise Usage(argv[0])
+        if extra_args:
+            if len(extra_args) == 1:
+                self.impl_file = extra_args[0].replace('\\', '/')
+            elif len(extra_args) == 2:
+                self.header_file = extra_args[0].replace('\\', '/')
+                self.impl_file = extra_args[1].replace('\\', '/')
+            else:
+                parser.error("Spurious arguments provided")
+
+        self.rpc_file = args.rpc_file
 
         if not self.impl_file:
-            self.impl_file = self.factory.CodeFilename(self.filename)
+            self.impl_file = self.factory.CodeFilename(self.rpc_file.name)
 
         if not self.header_file:
             self.header_file = self.factory.HeaderFilename(self.impl_file)
 
         if not self.impl_file.endswith('.c'):
-            raise RpcGenError("can only generate C implementation files")
+            parser.error("can only generate C implementation files")
         if not self.header_file.endswith('.h'):
-            raise RpcGenError("can only generate C header files")
+            parser.error("can only generate C header files")
 
     def run(self):
-        filename = self.filename
+        filename = self.rpc_file.name
         header_file = self.header_file
         impl_file = self.impl_file
         factory = self.factory
 
         declare('Reading \"%s\"' % filename)
 
-        with open(filename, "r") as fp:
-            entities = Parse(factory, fp)
+        with self.rpc_file:
+            entities = Parse(factory, self.rpc_file)
 
         declare('... creating "%s"' % header_file)
         with open(header_file, "w") as header_fp:
@@ -1726,7 +1727,7 @@ class CommandLine:
 
 def main(argv=None):
     try:
-        CommandLine(argv).run()
+        CommandLine(argv=argv).run()
         return 0
     except RpcGenError as e:
         sys.stderr.write(e)
@@ -1741,4 +1742,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main(argv=sys.argv))
+    sys.exit(main(argv=sys.argv[1:]))
