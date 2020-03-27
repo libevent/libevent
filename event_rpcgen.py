@@ -40,6 +40,7 @@ def declare(s):
     if not QUIETLY:
         print(s)
 
+
 def TranslateList(mylist, mydict):
     return [x % mydict for x in mylist]
 
@@ -60,17 +61,18 @@ class Struct:
         self._name = name
         self._entries = []
         self._tags = {}
-        declare('  Created struct: %s' % name)
+        declare("  Created struct: %s" % name)
 
     def AddEntry(self, entry):
         if entry.Tag() in self._tags:
             raise RpcGenError(
                 'Entry "%s" duplicates tag number %d from "%s" '
-                'around line %d' % (entry.Name(), entry.Tag(),
-                                    self._tags[entry.Tag()], LINE_COUNT))
+                "around line %d"
+                % (entry.Name(), entry.Tag(), self._tags[entry.Tag()], LINE_COUNT)
+            )
         self._entries.append(entry)
         self._tags[entry.Tag()] = entry.Name()
-        declare('    Added entry: %s' % entry.Name())
+        declare("    Added entry: %s" % entry.Name())
 
     def Name(self):
         return self._name
@@ -84,7 +86,8 @@ class Struct:
     def PrintIndented(self, filep, ident, code):
         """Takes an array, add indentation to each entry and prints it."""
         for entry in code:
-            filep.write('%s%s\n' % (ident, entry))
+            filep.write("%s%s\n" % (ident, entry))
+
 
 class StructCCode(Struct):
     """ Knows how to generate C code for a struct """
@@ -94,40 +97,39 @@ class StructCCode(Struct):
 
     def PrintTags(self, filep):
         """Prints the tag definitions for a structure."""
-        filep.write('/* Tag definition for %s */\n' % self._name)
-        filep.write('enum %s_ {\n' % self._name.lower())
+        filep.write("/* Tag definition for %s */\n" % self._name)
+        filep.write("enum %s_ {\n" % self._name.lower())
         for entry in self._entries:
-            filep.write('  %s=%d,\n' % (self.EntryTagName(entry), entry.Tag()))
-        filep.write('  %s_MAX_TAGS\n' % (self._name.upper()))
-        filep.write('};\n\n')
+            filep.write("  %s=%d,\n" % (self.EntryTagName(entry), entry.Tag()))
+        filep.write("  %s_MAX_TAGS\n" % (self._name.upper()))
+        filep.write("};\n\n")
 
     def PrintForwardDeclaration(self, filep):
-        filep.write('struct %s;\n' % self._name)
+        filep.write("struct %s;\n" % self._name)
 
     def PrintDeclaration(self, filep):
-        filep.write('/* Structure declaration for %s */\n' % self._name)
-        filep.write('struct %s_access_ {\n' % self._name)
+        filep.write("/* Structure declaration for %s */\n" % self._name)
+        filep.write("struct %s_access_ {\n" % self._name)
         for entry in self._entries:
-            dcl = entry.AssignDeclaration('(*%s_assign)' % entry.Name())
-            dcl.extend(
-                entry.GetDeclaration('(*%s_get)' % entry.Name()))
+            dcl = entry.AssignDeclaration("(*%s_assign)" % entry.Name())
+            dcl.extend(entry.GetDeclaration("(*%s_get)" % entry.Name()))
             if entry.Array():
-                dcl.extend(
-                    entry.AddDeclaration('(*%s_add)' % entry.Name()))
-            self.PrintIndented(filep, '  ', dcl)
-        filep.write('};\n\n')
+                dcl.extend(entry.AddDeclaration("(*%s_add)" % entry.Name()))
+            self.PrintIndented(filep, "  ", dcl)
+        filep.write("};\n\n")
 
-        filep.write('struct %s {\n' % self._name)
-        filep.write('  struct %s_access_ *base;\n\n' % self._name)
+        filep.write("struct %s {\n" % self._name)
+        filep.write("  struct %s_access_ *base;\n\n" % self._name)
         for entry in self._entries:
             dcl = entry.Declaration()
-            self.PrintIndented(filep, '  ', dcl)
-        filep.write('\n')
+            self.PrintIndented(filep, "  ", dcl)
+        filep.write("\n")
         for entry in self._entries:
-            filep.write('  ev_uint8_t %s_set;\n' % entry.Name())
-        filep.write('};\n\n')
+            filep.write("  ev_uint8_t %s_set;\n" % entry.Name())
+        filep.write("};\n\n")
 
-        filep.write("""struct %(name)s *%(name)s_new(void);
+        filep.write(
+            """struct %(name)s *%(name)s_new(void);
 struct %(name)s *%(name)s_new_with_arg(void *);
 void %(name)s_free(struct %(name)s *);
 void %(name)s_clear(struct %(name)s *);
@@ -137,36 +139,43 @@ int %(name)s_complete(struct %(name)s *);
 void evtag_marshal_%(name)s(struct evbuffer *, ev_uint32_t,
     const struct %(name)s *);
 int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
-    struct %(name)s *);\n""" % {"name" : self._name})
-
+    struct %(name)s *);\n"""
+            % {"name": self._name}
+        )
 
         # Write a setting function of every variable
         for entry in self._entries:
-            self.PrintIndented(filep, '', entry.AssignDeclaration(
-                entry.AssignFuncName()))
-            self.PrintIndented(filep, '', entry.GetDeclaration(
-                entry.GetFuncName()))
+            self.PrintIndented(
+                filep, "", entry.AssignDeclaration(entry.AssignFuncName())
+            )
+            self.PrintIndented(filep, "", entry.GetDeclaration(entry.GetFuncName()))
             if entry.Array():
-                self.PrintIndented(filep, '', entry.AddDeclaration(
-                    entry.AddFuncName()))
+                self.PrintIndented(filep, "", entry.AddDeclaration(entry.AddFuncName()))
 
-        filep.write('/* --- %s done --- */\n\n' % self._name)
+        filep.write("/* --- %s done --- */\n\n" % self._name)
 
     def PrintCode(self, filep):
-        filep.write("""/*
+        filep.write(
+            """/*
  * Implementation of %s
  */
-""" % (self._name))
+"""
+            % (self._name)
+        )
 
-        filep.write("""
+        filep.write(
+            """
 static struct %(name)s_access_ %(name)s_base__ = {
-""" % {"name": self._name})
+"""
+            % {"name": self._name}
+        )
         for entry in self._entries:
-            self.PrintIndented(filep, '  ', entry.CodeBase())
-        filep.write('};\n\n')
+            self.PrintIndented(filep, "  ", entry.CodeBase())
+        filep.write("};\n\n")
 
         # Creation
-        filep.write("""struct %(name)s *
+        filep.write(
+            """struct %(name)s *
 %(name)s_new(void)
 {
   return %(name)s_new_with_arg(NULL);
@@ -182,79 +191,100 @@ struct %(name)s *
   }
   tmp->base = &%(name)s_base__;
 
-""" % {"name": self._name})
+"""
+            % {"name": self._name}
+        )
 
         for entry in self._entries:
-            self.PrintIndented(filep, '  ', entry.CodeInitialize('tmp'))
-            filep.write('  tmp->%s_set = 0;\n\n' % entry.Name())
+            self.PrintIndented(filep, "  ", entry.CodeInitialize("tmp"))
+            filep.write("  tmp->%s_set = 0;\n\n" % entry.Name())
 
-        filep.write("""  return (tmp);
+        filep.write(
+            """  return (tmp);
 }
 
-""")
+"""
+        )
 
         # Adding
         for entry in self._entries:
             if entry.Array():
-                self.PrintIndented(filep, '', entry.CodeAdd())
-            filep.write('\n')
+                self.PrintIndented(filep, "", entry.CodeAdd())
+            filep.write("\n")
 
         # Assigning
         for entry in self._entries:
-            self.PrintIndented(filep, '', entry.CodeAssign())
-            filep.write('\n')
+            self.PrintIndented(filep, "", entry.CodeAssign())
+            filep.write("\n")
 
         # Getting
         for entry in self._entries:
-            self.PrintIndented(filep, '', entry.CodeGet())
-            filep.write('\n')
+            self.PrintIndented(filep, "", entry.CodeGet())
+            filep.write("\n")
 
         # Clearing
-        filep.write("""void
+        filep.write(
+            """void
 %(name)s_clear(struct %(name)s *tmp)
 {
-""" % {"name" : self._name})
+"""
+            % {"name": self._name}
+        )
         for entry in self._entries:
-            self.PrintIndented(filep, '  ', entry.CodeClear('tmp'))
+            self.PrintIndented(filep, "  ", entry.CodeClear("tmp"))
 
         filep.write("}\n\n")
 
         # Freeing
-        filep.write("""void
+        filep.write(
+            """void
 %(name)s_free(struct %(name)s *tmp)
 {
-""" % {"name" : self._name})
+"""
+            % {"name": self._name}
+        )
 
         for entry in self._entries:
-            self.PrintIndented(filep, '  ', entry.CodeFree('tmp'))
+            self.PrintIndented(filep, "  ", entry.CodeFree("tmp"))
 
-        filep.write("""  free(tmp);
+        filep.write(
+            """  free(tmp);
 }
 
-""")
+"""
+        )
 
         # Marshaling
-        filep.write("""void
+        filep.write(
+            """void
 %(name)s_marshal(struct evbuffer *evbuf, const struct %(name)s *tmp) {
-""" % {"name" : self._name})
+"""
+            % {"name": self._name}
+        )
         for entry in self._entries:
-            indent = '  '
+            indent = "  "
             # Optional entries do not have to be set
             if entry.Optional():
-                indent += '  '
-                filep.write('  if (tmp->%s_set) {\n' % entry.Name())
+                indent += "  "
+                filep.write("  if (tmp->%s_set) {\n" % entry.Name())
             self.PrintIndented(
-                filep, indent,
-                entry.CodeMarshal('evbuf', self.EntryTagName(entry),
-                                  entry.GetVarName('tmp'),
-                                  entry.GetVarLen('tmp')))
+                filep,
+                indent,
+                entry.CodeMarshal(
+                    "evbuf",
+                    self.EntryTagName(entry),
+                    entry.GetVarName("tmp"),
+                    entry.GetVarLen("tmp"),
+                ),
+            )
             if entry.Optional():
-                filep.write('  }\n')
+                filep.write("  }\n")
 
-        filep.write('}\n\n')
+        filep.write("}\n\n")
 
         # Unmarshaling
-        filep.write("""int
+        filep.write(
+            """int
 %(name)s_unmarshal(struct %(name)s *tmp, struct evbuffer *evbuf)
 {
   ev_uint32_t tag;
@@ -263,43 +293,63 @@ struct %(name)s *
       return (-1);
     switch (tag) {
 
-""" % {"name" : self._name})
+"""
+            % {"name": self._name}
+        )
         for entry in self._entries:
             filep.write("      case %s:\n" % (self.EntryTagName(entry)))
             if not entry.Array():
-                filep.write("""        if (tmp->%s_set)
+                filep.write(
+                    """        if (tmp->%s_set)
           return (-1);
-""" % (entry.Name()))
+"""
+                    % (entry.Name())
+                )
 
             self.PrintIndented(
-                filep, '        ',
-                entry.CodeUnmarshal('evbuf',
-                                    self.EntryTagName(entry),
-                                    entry.GetVarName('tmp'),
-                                    entry.GetVarLen('tmp')))
+                filep,
+                "        ",
+                entry.CodeUnmarshal(
+                    "evbuf",
+                    self.EntryTagName(entry),
+                    entry.GetVarName("tmp"),
+                    entry.GetVarLen("tmp"),
+                ),
+            )
 
-            filep.write("""        tmp->%s_set = 1;
+            filep.write(
+                """        tmp->%s_set = 1;
         break;
-""" % (entry.Name()))
-        filep.write("""      default:
+"""
+                % (entry.Name())
+            )
+        filep.write(
+            """      default:
         return -1;
     }
   }
 
-""")
+"""
+        )
         # Check if it was decoded completely
-        filep.write("""  if (%(name)s_complete(tmp) == -1)
+        filep.write(
+            """  if (%(name)s_complete(tmp) == -1)
     return (-1);
   return (0);
 }
-""" % {"name" : self._name})
+"""
+            % {"name": self._name}
+        )
 
         # Checking if a structure has all the required data
-        filep.write("""
+        filep.write(
+            """
 int
 %(name)s_complete(struct %(name)s *msg)
 {
-""" % {"name" : self._name})
+"""
+            % {"name": self._name}
+        )
         for entry in self._entries:
             if not entry.Optional():
                 code = [
@@ -307,18 +357,20 @@ int
     return (-1);"""
                 ]
                 code = TranslateList(code, entry.GetTranslation())
-                self.PrintIndented(
-                    filep, '  ', code)
+                self.PrintIndented(filep, "  ", code)
 
             self.PrintIndented(
-                filep, '  ',
-                entry.CodeComplete('msg', entry.GetVarName('msg')))
-        filep.write("""  return (0);
+                filep, "  ", entry.CodeComplete("msg", entry.GetVarName("msg"))
+            )
+        filep.write(
+            """  return (0);
 }
-""")
+"""
+        )
 
         # Complete message unmarshaling
-        filep.write("""
+        filep.write(
+            """
 int
 evtag_unmarshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t need_tag,
   struct %(name)s *msg)
@@ -340,10 +392,13 @@ evtag_unmarshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t need_tag,
   evbuffer_free(tmp);
   return (res);
 }
-""" % {"name" : self._name})
+"""
+            % {"name": self._name}
+        )
 
         # Complete message marshaling
-        filep.write("""
+        filep.write(
+            """
 void
 evtag_marshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t tag,
     const struct %(name)s *msg)
@@ -355,7 +410,10 @@ evtag_marshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t tag,
   evbuffer_free(buf_);
 }
 
-""" % {"name" : self._name})
+"""
+            % {"name": self._name}
+        )
+
 
 class Entry:
     def __init__(self, type, name, tag):
@@ -411,44 +469,47 @@ class Entry:
         if self.Array() and not self._can_be_array:
             raise RpcGenError(
                 'Entry "%s" cannot be created as an array '
-                'around line %d' % (self._name, self.LineCount()))
+                "around line %d" % (self._name, self.LineCount())
+            )
         if not self._struct:
             raise RpcGenError(
                 'Entry "%s" does not know which struct it belongs to '
-                'around line %d' % (self._name, self.LineCount()))
+                "around line %d" % (self._name, self.LineCount())
+            )
         if self._optional and self._array:
             raise RpcGenError(
                 'Entry "%s" has illegal combination of optional and array '
-                'around line %d' % (self._name, self.LineCount()))
+                "around line %d" % (self._name, self.LineCount())
+            )
 
-    def GetTranslation(self, extradict = {}):
+    def GetTranslation(self, extradict={}):
         mapping = {
-            "parent_name" : self._struct.Name(),
-            "name" : self._name,
-            "ctype" : self._ctype,
-            "refname" : self._refname,
-            "optpointer" : self._optpointer and "*" or "",
-            "optreference" : self._optpointer and "&" or "",
-            "optaddarg" :
-            self._optaddarg and ", const %s value" % self._ctype or ""
-            }
+            "parent_name": self._struct.Name(),
+            "name": self._name,
+            "ctype": self._ctype,
+            "refname": self._refname,
+            "optpointer": self._optpointer and "*" or "",
+            "optreference": self._optpointer and "&" or "",
+            "optaddarg": self._optaddarg and ", const %s value" % self._ctype or "",
+        }
         for (k, v) in list(extradict.items()):
             mapping[k] = v
 
         return mapping
 
     def GetVarName(self, var):
-        return '%(var)s->%(name)s_data' % self.GetTranslation({ 'var' : var })
+        return "%(var)s->%(name)s_data" % self.GetTranslation({"var": var})
 
     def GetVarLen(self, var):
-        return 'sizeof(%s)' % self._ctype
+        return "sizeof(%s)" % self._ctype
 
     def GetFuncName(self):
-        return '%s_%s_get' % (self._struct.Name(), self._name)
+        return "%s_%s_get" % (self._struct.Name(), self._name)
 
     def GetDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, %s *);' % (
-            funcname, self._struct.Name(), self._ctype ) ]
+        code = [
+            "int %s(struct %s *, %s *);" % (funcname, self._struct.Name(), self._ctype)
+        ]
         return code
 
     def CodeGet(self):
@@ -461,34 +522,38 @@ class Entry:
   return (0);
 }"""
         code = code % self.GetTranslation()
-        return code.split('\n')
+        return code.split("\n")
 
     def AssignFuncName(self):
-        return '%s_%s_assign' % (self._struct.Name(), self._name)
+        return "%s_%s_assign" % (self._struct.Name(), self._name)
 
     def AddFuncName(self):
-        return '%s_%s_add' % (self._struct.Name(), self._name)
+        return "%s_%s_add" % (self._struct.Name(), self._name)
 
     def AssignDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, const %s);' % (
-            funcname, self._struct.Name(), self._ctype ) ]
+        code = [
+            "int %s(struct %s *, const %s);"
+            % (funcname, self._struct.Name(), self._ctype)
+        ]
         return code
 
     def CodeAssign(self):
-        code = [ 'int',
-                 '%(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg,'
-                 ' const %(ctype)s value)',
-                 '{',
-                 '  msg->%(name)s_set = 1;',
-                 '  msg->%(name)s_data = value;',
-                 '  return (0);',
-                 '}' ]
-        code = '\n'.join(code)
+        code = [
+            "int",
+            "%(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg,"
+            " const %(ctype)s value)",
+            "{",
+            "  msg->%(name)s_set = 1;",
+            "  msg->%(name)s_data = value;",
+            "  return (0);",
+            "}",
+        ]
+        code = "\n".join(code)
         code = code % self.GetTranslation()
-        return code.split('\n')
+        return code.split("\n")
 
     def CodeClear(self, structname):
-        code = [ '%s->%s_set = 0;' % (structname, self.Name()) ]
+        code = ["%s->%s_set = 0;" % (structname, self.Name())]
 
         return code
 
@@ -499,16 +564,14 @@ class Entry:
         return []
 
     def CodeBase(self):
-        code = [
-            '%(parent_name)s_%(name)s_assign,',
-            '%(parent_name)s_%(name)s_get,'
-            ]
+        code = ["%(parent_name)s_%(name)s_assign,", "%(parent_name)s_%(name)s_get,"]
         if self.Array():
-            code.append('%(parent_name)s_%(name)s_add,')
+            code.append("%(parent_name)s_%(name)s_add,")
 
-        code = '\n'.join(code)
+        code = "\n".join(code)
         code = code % self.GetTranslation()
-        return code.split('\n')
+        return code.split("\n")
+
 
 class EntryBytes(Entry):
     def __init__(self, type, name, tag, length):
@@ -516,99 +579,109 @@ class EntryBytes(Entry):
         Entry.__init__(self, type, name, tag)
 
         self._length = length
-        self._ctype = 'ev_uint8_t'
+        self._ctype = "ev_uint8_t"
 
     def GetInitializer(self):
         return "NULL"
 
     def GetVarLen(self, var):
-        return '(%s)' % self._length
+        return "(%s)" % self._length
 
     def CodeArrayAdd(self, varname, value):
         # XXX: copy here
-        return [ '%(varname)s = NULL;' % { 'varname' : varname } ]
+        return ["%(varname)s = NULL;" % {"varname": varname}]
 
     def GetDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, %s **);' % (
-            funcname, self._struct.Name(), self._ctype ) ]
+        code = [
+            "int %s(struct %s *, %s **);" % (funcname, self._struct.Name(), self._ctype)
+        ]
         return code
 
     def AssignDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, const %s *);' % (
-            funcname, self._struct.Name(), self._ctype ) ]
+        code = [
+            "int %s(struct %s *, const %s *);"
+            % (funcname, self._struct.Name(), self._ctype)
+        ]
         return code
 
     def Declaration(self):
-        dcl  = ['ev_uint8_t %s_data[%s];' % (self._name, self._length)]
+        dcl = ["ev_uint8_t %s_data[%s];" % (self._name, self._length)]
 
         return dcl
 
     def CodeGet(self):
         name = self._name
-        code = [ 'int',
-                 '%s_%s_get(struct %s *msg, %s **value)' % (
-            self._struct.Name(), name,
-            self._struct.Name(), self._ctype),
-                 '{',
-                 '  if (msg->%s_set != 1)' % name,
-                 '    return (-1);',
-                 '  *value = msg->%s_data;' % name,
-                 '  return (0);',
-                 '}' ]
+        code = [
+            "int",
+            "%s_%s_get(struct %s *msg, %s **value)"
+            % (self._struct.Name(), name, self._struct.Name(), self._ctype),
+            "{",
+            "  if (msg->%s_set != 1)" % name,
+            "    return (-1);",
+            "  *value = msg->%s_data;" % name,
+            "  return (0);",
+            "}",
+        ]
         return code
 
     def CodeAssign(self):
         name = self._name
-        code = [ 'int',
-                 '%s_%s_assign(struct %s *msg, const %s *value)' % (
-            self._struct.Name(), name,
-            self._struct.Name(), self._ctype),
-                 '{',
-                 '  msg->%s_set = 1;' % name,
-                 '  memcpy(msg->%s_data, value, %s);' % (
-            name, self._length),
-                 '  return (0);',
-                 '}' ]
+        code = [
+            "int",
+            "%s_%s_assign(struct %s *msg, const %s *value)"
+            % (self._struct.Name(), name, self._struct.Name(), self._ctype),
+            "{",
+            "  msg->%s_set = 1;" % name,
+            "  memcpy(msg->%s_data, value, %s);" % (name, self._length),
+            "  return (0);",
+            "}",
+        ]
         return code
 
     def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
-        code = [  'if (evtag_unmarshal_fixed(%(buf)s, %(tag)s, '
-                  '%(var)s, %(varlen)s) == -1) {',
-                  '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
-                  '  return (-1);',
-                  '}'
-                  ]
-        return TranslateList(code,
-                             self.GetTranslation({
-            'var' : var_name,
-            'varlen' : var_len,
-            'buf' : buf,
-            'tag' : tag_name }))
+        code = [
+            "if (evtag_unmarshal_fixed(%(buf)s, %(tag)s, "
+            "%(var)s, %(varlen)s) == -1) {",
+            '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
+            "  return (-1);",
+            "}",
+        ]
+        return TranslateList(
+            code,
+            self.GetTranslation(
+                {"var": var_name, "varlen": var_len, "buf": buf, "tag": tag_name}
+            ),
+        )
 
     def CodeMarshal(self, buf, tag_name, var_name, var_len):
-        code = ['evtag_marshal(%s, %s, %s, %s);' % (
-            buf, tag_name, var_name, var_len)]
+        code = ["evtag_marshal(%s, %s, %s, %s);" % (buf, tag_name, var_name, var_len)]
         return code
 
     def CodeClear(self, structname):
-        code = [ '%s->%s_set = 0;' % (structname, self.Name()),
-                 'memset(%s->%s_data, 0, sizeof(%s->%s_data));' % (
-            structname, self._name, structname, self._name)]
+        code = [
+            "%s->%s_set = 0;" % (structname, self.Name()),
+            "memset(%s->%s_data, 0, sizeof(%s->%s_data));"
+            % (structname, self._name, structname, self._name),
+        ]
 
         return code
 
     def CodeInitialize(self, name):
-        code  = ['memset(%s->%s_data, 0, sizeof(%s->%s_data));' % (
-            name, self._name, name, self._name)]
+        code = [
+            "memset(%s->%s_data, 0, sizeof(%s->%s_data));"
+            % (name, self._name, name, self._name)
+        ]
         return code
 
     def Verify(self):
         if not self._length:
             raise RpcGenError(
                 'Entry "%s" needs a length '
-                'around line %d' % (self._name, self.LineCount()))
+                "around line %d" % (self._name, self.LineCount())
+            )
 
         Entry.Verify(self)
+
 
 class EntryInt(Entry):
     def __init__(self, type, name, tag, bits=32):
@@ -617,11 +690,11 @@ class EntryInt(Entry):
 
         self._can_be_array = True
         if bits == 32:
-            self._ctype = 'ev_uint32_t'
-            self._marshal_type = 'int'
+            self._ctype = "ev_uint32_t"
+            self._marshal_type = "int"
         if bits == 64:
-            self._ctype = 'ev_uint64_t'
-            self._marshal_type = 'int64'
+            self._ctype = "ev_uint64_t"
+            self._marshal_type = "int64"
 
     def GetInitializer(self):
         return "0"
@@ -630,41 +703,40 @@ class EntryInt(Entry):
         return []
 
     def CodeArrayAssign(self, varname, srcvar):
-        return [ '%(varname)s = %(srcvar)s;' % { 'varname' : varname,
-                                                'srcvar' : srcvar } ]
+        return ["%(varname)s = %(srcvar)s;" % {"varname": varname, "srcvar": srcvar}]
 
     def CodeArrayAdd(self, varname, value):
         """Returns a new entry of this type."""
-        return [ '%(varname)s = %(value)s;' % { 'varname' : varname,
-                                              'value' : value } ]
+        return ["%(varname)s = %(value)s;" % {"varname": varname, "value": value}]
 
     def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
         code = [
-            'if (evtag_unmarshal_%(ma)s(%(buf)s, %(tag)s, &%(var)s) == -1) {',
+            "if (evtag_unmarshal_%(ma)s(%(buf)s, %(tag)s, &%(var)s) == -1) {",
             '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
-            '  return (-1);',
-            '}' ]
-        code = '\n'.join(code) % self.GetTranslation({
-            'ma'  : self._marshal_type,
-            'buf' : buf,
-            'tag' : tag_name,
-            'var' : var_name })
-        return code.split('\n')
+            "  return (-1);",
+            "}",
+        ]
+        code = "\n".join(code) % self.GetTranslation(
+            {"ma": self._marshal_type, "buf": buf, "tag": tag_name, "var": var_name}
+        )
+        return code.split("\n")
 
     def CodeMarshal(self, buf, tag_name, var_name, var_len):
         code = [
-            'evtag_marshal_%s(%s, %s, %s);' % (
-            self._marshal_type, buf, tag_name, var_name)]
+            "evtag_marshal_%s(%s, %s, %s);"
+            % (self._marshal_type, buf, tag_name, var_name)
+        ]
         return code
 
     def Declaration(self):
-        dcl  = ['%s %s_data;' % (self._ctype, self._name)]
+        dcl = ["%s %s_data;" % (self._ctype, self._name)]
 
         return dcl
 
     def CodeInitialize(self, name):
-        code = ['%s->%s_data = 0;' % (name, self._name)]
+        code = ["%s->%s_data = 0;" % (name, self._name)]
         return code
+
 
 class EntryString(Entry):
     def __init__(self, type, name, tag):
@@ -672,49 +744,48 @@ class EntryString(Entry):
         Entry.__init__(self, type, name, tag)
 
         self._can_be_array = True
-        self._ctype = 'char *'
+        self._ctype = "char *"
 
     def GetInitializer(self):
         return "NULL"
 
     def CodeArrayFree(self, varname):
-        code = [
-            'if (%(var)s != NULL) free(%(var)s);' ]
+        code = ["if (%(var)s != NULL) free(%(var)s);"]
 
-        return TranslateList(code, { 'var' : varname })
+        return TranslateList(code, {"var": varname})
 
     def CodeArrayAssign(self, varname, srcvar):
         code = [
-            'if (%(var)s != NULL)',
-            '  free(%(var)s);',
-            '%(var)s = strdup(%(srcvar)s);',
-            'if (%(var)s == NULL) {',
+            "if (%(var)s != NULL)",
+            "  free(%(var)s);",
+            "%(var)s = strdup(%(srcvar)s);",
+            "if (%(var)s == NULL) {",
             '  event_warnx("%%s: strdup", __func__);',
-            '  return (-1);',
-            '}' ]
+            "  return (-1);",
+            "}",
+        ]
 
-        return TranslateList(code, { 'var' : varname,
-                                     'srcvar' : srcvar })
+        return TranslateList(code, {"var": varname, "srcvar": srcvar})
 
     def CodeArrayAdd(self, varname, value):
         code = [
-            'if (%(value)s != NULL) {',
-            '  %(var)s = strdup(%(value)s);',
-            '  if (%(var)s == NULL) {',
-            '    goto error;',
-            '  }',
-            '} else {',
-            '  %(var)s = NULL;',
-            '}' ]
+            "if (%(value)s != NULL) {",
+            "  %(var)s = strdup(%(value)s);",
+            "  if (%(var)s == NULL) {",
+            "    goto error;",
+            "  }",
+            "} else {",
+            "  %(var)s = NULL;",
+            "}",
+        ]
 
-        return TranslateList(code, { 'var' : varname,
-                                     'value' : value })
+        return TranslateList(code, {"var": varname, "value": value})
 
     def GetVarLen(self, var):
-        return 'strlen(%s)' % self.GetVarName(var)
+        return "strlen(%s)" % self.GetVarName(var)
 
     def CodeMakeInitalize(self, varname):
-        return '%(varname)s = NULL;' % { 'varname' : varname }
+        return "%(varname)s = NULL;" % {"varname": varname}
 
     def CodeAssign(self):
         name = self._name
@@ -728,51 +799,56 @@ class EntryString(Entry):
     return (-1);
   msg->%(name)s_set = 1;
   return (0);
-}""" % (self.GetTranslation())
+}""" % (
+            self.GetTranslation()
+        )
 
-        return code.split('\n')
+        return code.split("\n")
 
     def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
-        code = ['if (evtag_unmarshal_string(%(buf)s, %(tag)s, &%(var)s) == -1) {',
-                '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
-                '  return (-1);',
-                '}'
-                ]
-        code = '\n'.join(code) % self.GetTranslation({
-            'buf' : buf,
-            'tag' : tag_name,
-            'var' : var_name })
-        return code.split('\n')
+        code = [
+            "if (evtag_unmarshal_string(%(buf)s, %(tag)s, &%(var)s) == -1) {",
+            '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
+            "  return (-1);",
+            "}",
+        ]
+        code = "\n".join(code) % self.GetTranslation(
+            {"buf": buf, "tag": tag_name, "var": var_name}
+        )
+        return code.split("\n")
 
     def CodeMarshal(self, buf, tag_name, var_name, var_len):
-        code = ['evtag_marshal_string(%s, %s, %s);' % (
-            buf, tag_name, var_name)]
+        code = ["evtag_marshal_string(%s, %s, %s);" % (buf, tag_name, var_name)]
         return code
 
     def CodeClear(self, structname):
-        code = [ 'if (%s->%s_set == 1) {' % (structname, self.Name()),
-                 '  free(%s->%s_data);' % (structname, self.Name()),
-                 '  %s->%s_data = NULL;' % (structname, self.Name()),
-                 '  %s->%s_set = 0;' % (structname, self.Name()),
-                 '}'
-                 ]
+        code = [
+            "if (%s->%s_set == 1) {" % (structname, self.Name()),
+            "  free(%s->%s_data);" % (structname, self.Name()),
+            "  %s->%s_data = NULL;" % (structname, self.Name()),
+            "  %s->%s_set = 0;" % (structname, self.Name()),
+            "}",
+        ]
 
         return code
 
     def CodeInitialize(self, name):
-        code  = ['%s->%s_data = NULL;' % (name, self._name)]
+        code = ["%s->%s_data = NULL;" % (name, self._name)]
         return code
 
     def CodeFree(self, name):
-        code  = ['if (%s->%s_data != NULL)' % (name, self._name),
-                 '    free (%s->%s_data);' % (name, self._name)]
+        code = [
+            "if (%s->%s_data != NULL)" % (name, self._name),
+            "    free (%s->%s_data);" % (name, self._name),
+        ]
 
         return code
 
     def Declaration(self):
-        dcl  = ['char *%s_data;' % self._name]
+        dcl = ["char *%s_data;" % self._name]
 
         return dcl
+
 
 class EntryStruct(Entry):
     def __init__(self, type, name, tag, refname):
@@ -782,77 +858,77 @@ class EntryStruct(Entry):
         self._optpointer = False
         self._can_be_array = True
         self._refname = refname
-        self._ctype = 'struct %s*' % refname
+        self._ctype = "struct %s*" % refname
         self._optaddarg = False
 
     def GetInitializer(self):
         return "NULL"
 
     def GetVarLen(self, var):
-        return '-1'
+        return "-1"
 
     def CodeArrayAdd(self, varname, value):
         code = [
-            '%(varname)s = %(refname)s_new();',
-            'if (%(varname)s == NULL)',
-            '  goto error;' ]
+            "%(varname)s = %(refname)s_new();",
+            "if (%(varname)s == NULL)",
+            "  goto error;",
+        ]
 
-        return TranslateList(code, self.GetTranslation({ 'varname' : varname }))
+        return TranslateList(code, self.GetTranslation({"varname": varname}))
 
     def CodeArrayFree(self, var):
-        code = [ '%(refname)s_free(%(var)s);' % self.GetTranslation(
-            { 'var' : var }) ]
+        code = ["%(refname)s_free(%(var)s);" % self.GetTranslation({"var": var})]
         return code
 
     def CodeArrayAssign(self, var, srcvar):
         code = [
-            'int had_error = 0;',
-            'struct evbuffer *tmp = NULL;',
-            '%(refname)s_clear(%(var)s);',
-            'if ((tmp = evbuffer_new()) == NULL) {',
+            "int had_error = 0;",
+            "struct evbuffer *tmp = NULL;",
+            "%(refname)s_clear(%(var)s);",
+            "if ((tmp = evbuffer_new()) == NULL) {",
             '  event_warn("%%s: evbuffer_new()", __func__);',
-            '  had_error = 1;',
-            '  goto done;',
-            '}',
-            '%(refname)s_marshal(tmp, %(srcvar)s);',
-            'if (%(refname)s_unmarshal(%(var)s, tmp) == -1) {',
+            "  had_error = 1;",
+            "  goto done;",
+            "}",
+            "%(refname)s_marshal(tmp, %(srcvar)s);",
+            "if (%(refname)s_unmarshal(%(var)s, tmp) == -1) {",
             '  event_warnx("%%s: %(refname)s_unmarshal", __func__);',
-            '  had_error = 1;',
-            '  goto done;',
-            '}',
-            'done:'
-            'if (tmp != NULL)',
-            '  evbuffer_free(tmp);',
-            'if (had_error) {',
-            '  %(refname)s_clear(%(var)s);',
-            '  return (-1);',
-            '}' ]
+            "  had_error = 1;",
+            "  goto done;",
+            "}",
+            "done:" "if (tmp != NULL)",
+            "  evbuffer_free(tmp);",
+            "if (had_error) {",
+            "  %(refname)s_clear(%(var)s);",
+            "  return (-1);",
+            "}",
+        ]
 
-        return TranslateList(code, self.GetTranslation({
-            'var' : var,
-            'srcvar' : srcvar}))
+        return TranslateList(code, self.GetTranslation({"var": var, "srcvar": srcvar}))
 
     def CodeGet(self):
         name = self._name
-        code = [ 'int',
-                 '%s_%s_get(struct %s *msg, %s *value)' % (
-            self._struct.Name(), name,
-            self._struct.Name(), self._ctype),
-                 '{',
-                 '  if (msg->%s_set != 1) {' % name,
-                 '    msg->%s_data = %s_new();' % (name, self._refname),
-                 '    if (msg->%s_data == NULL)' % name,
-                 '      return (-1);',
-                 '    msg->%s_set = 1;' % name,
-                 '  }',
-                 '  *value = msg->%s_data;' % name,
-                 '  return (0);',
-                 '}' ]
+        code = [
+            "int",
+            "%s_%s_get(struct %s *msg, %s *value)"
+            % (self._struct.Name(), name, self._struct.Name(), self._ctype),
+            "{",
+            "  if (msg->%s_set != 1) {" % name,
+            "    msg->%s_data = %s_new();" % (name, self._refname),
+            "    if (msg->%s_data == NULL)" % name,
+            "      return (-1);",
+            "    msg->%s_set = 1;" % name,
+            "  }",
+            "  *value = msg->%s_data;" % name,
+            "  return (0);",
+            "}",
+        ]
         return code
 
     def CodeAssign(self):
         name = self._name
-        code = """int
+        code = (
+            """int
 %(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg,
     const %(ctype)s value)
 {
@@ -887,181 +963,199 @@ class EntryStruct(Entry):
      msg->%(name)s_data = NULL;
    }
    return (-1);
-}""" % self.GetTranslation()
-        return code.split('\n')
+}"""
+            % self.GetTranslation()
+        )
+        return code.split("\n")
 
     def CodeComplete(self, structname, var_name):
-        code = [ 'if (%(structname)s->%(name)s_set && '
-                 '%(refname)s_complete(%(var)s) == -1)',
-                 '  return (-1);' ]
+        code = [
+            "if (%(structname)s->%(name)s_set && "
+            "%(refname)s_complete(%(var)s) == -1)",
+            "  return (-1);",
+        ]
 
-        return TranslateList(code, self.GetTranslation({
-            'structname' : structname,
-            'var' : var_name }))
+        return TranslateList(
+            code, self.GetTranslation({"structname": structname, "var": var_name})
+        )
 
     def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
-        code = ['%(var)s = %(refname)s_new();',
-                'if (%(var)s == NULL)',
-                '  return (-1);',
-                'if (evtag_unmarshal_%(refname)s(%(buf)s, %(tag)s, '
-                '%(var)s) == -1) {',
-                  '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
-                '  return (-1);',
-                '}'
-                ]
-        code = '\n'.join(code) % self.GetTranslation({
-            'buf' : buf,
-            'tag' : tag_name,
-            'var' : var_name })
-        return code.split('\n')
+        code = [
+            "%(var)s = %(refname)s_new();",
+            "if (%(var)s == NULL)",
+            "  return (-1);",
+            "if (evtag_unmarshal_%(refname)s(%(buf)s, %(tag)s, " "%(var)s) == -1) {",
+            '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
+            "  return (-1);",
+            "}",
+        ]
+        code = "\n".join(code) % self.GetTranslation(
+            {"buf": buf, "tag": tag_name, "var": var_name}
+        )
+        return code.split("\n")
 
     def CodeMarshal(self, buf, tag_name, var_name, var_len):
-        code = ['evtag_marshal_%s(%s, %s, %s);' % (
-            self._refname, buf, tag_name, var_name)]
+        code = [
+            "evtag_marshal_%s(%s, %s, %s);" % (self._refname, buf, tag_name, var_name)
+        ]
         return code
 
     def CodeClear(self, structname):
-        code = [ 'if (%s->%s_set == 1) {' % (structname, self.Name()),
-                 '  %s_free(%s->%s_data);' % (
-            self._refname, structname, self.Name()),
-                 '  %s->%s_data = NULL;' % (structname, self.Name()),
-                 '  %s->%s_set = 0;' % (structname, self.Name()),
-                 '}'
-                 ]
+        code = [
+            "if (%s->%s_set == 1) {" % (structname, self.Name()),
+            "  %s_free(%s->%s_data);" % (self._refname, structname, self.Name()),
+            "  %s->%s_data = NULL;" % (structname, self.Name()),
+            "  %s->%s_set = 0;" % (structname, self.Name()),
+            "}",
+        ]
 
         return code
 
     def CodeInitialize(self, name):
-        code  = ['%s->%s_data = NULL;' % (name, self._name)]
+        code = ["%s->%s_data = NULL;" % (name, self._name)]
         return code
 
     def CodeFree(self, name):
-        code  = ['if (%s->%s_data != NULL)' % (name, self._name),
-                 '    %s_free(%s->%s_data);' % (
-            self._refname, name, self._name)]
+        code = [
+            "if (%s->%s_data != NULL)" % (name, self._name),
+            "    %s_free(%s->%s_data);" % (self._refname, name, self._name),
+        ]
 
         return code
 
     def Declaration(self):
-        dcl  = ['%s %s_data;' % (self._ctype, self._name)]
+        dcl = ["%s %s_data;" % (self._ctype, self._name)]
 
         return dcl
+
 
 class EntryVarBytes(Entry):
     def __init__(self, type, name, tag):
         # Init base class
         Entry.__init__(self, type, name, tag)
 
-        self._ctype = 'ev_uint8_t *'
+        self._ctype = "ev_uint8_t *"
 
     def GetInitializer(self):
         return "NULL"
 
     def GetVarLen(self, var):
-        return '%(var)s->%(name)s_length' % self.GetTranslation({ 'var' : var })
+        return "%(var)s->%(name)s_length" % self.GetTranslation({"var": var})
 
     def CodeArrayAdd(self, varname, value):
         # xxx: copy
-        return [ '%(varname)s = NULL;' % { 'varname' : varname } ]
+        return ["%(varname)s = NULL;" % {"varname": varname}]
 
     def GetDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, %s *, ev_uint32_t *);' % (
-            funcname, self._struct.Name(), self._ctype ) ]
+        code = [
+            "int %s(struct %s *, %s *, ev_uint32_t *);"
+            % (funcname, self._struct.Name(), self._ctype)
+        ]
         return code
 
     def AssignDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, const %s, ev_uint32_t);' % (
-            funcname, self._struct.Name(), self._ctype ) ]
+        code = [
+            "int %s(struct %s *, const %s, ev_uint32_t);"
+            % (funcname, self._struct.Name(), self._ctype)
+        ]
         return code
 
     def CodeAssign(self):
         name = self._name
-        code = [ 'int',
-                 '%s_%s_assign(struct %s *msg, '
-                 'const %s value, ev_uint32_t len)' % (
-            self._struct.Name(), name,
-            self._struct.Name(), self._ctype),
-                 '{',
-                 '  if (msg->%s_data != NULL)' % name,
-                 '    free (msg->%s_data);' % name,
-                 '  msg->%s_data = malloc(len);' % name,
-                 '  if (msg->%s_data == NULL)' % name,
-                 '    return (-1);',
-                 '  msg->%s_set = 1;' % name,
-                 '  msg->%s_length = len;' % name,
-                 '  memcpy(msg->%s_data, value, len);' % name,
-                 '  return (0);',
-                 '}' ]
+        code = [
+            "int",
+            "%s_%s_assign(struct %s *msg, "
+            "const %s value, ev_uint32_t len)"
+            % (self._struct.Name(), name, self._struct.Name(), self._ctype),
+            "{",
+            "  if (msg->%s_data != NULL)" % name,
+            "    free (msg->%s_data);" % name,
+            "  msg->%s_data = malloc(len);" % name,
+            "  if (msg->%s_data == NULL)" % name,
+            "    return (-1);",
+            "  msg->%s_set = 1;" % name,
+            "  msg->%s_length = len;" % name,
+            "  memcpy(msg->%s_data, value, len);" % name,
+            "  return (0);",
+            "}",
+        ]
         return code
 
     def CodeGet(self):
         name = self._name
-        code = [ 'int',
-                 '%s_%s_get(struct %s *msg, %s *value, ev_uint32_t *plen)' % (
-            self._struct.Name(), name,
-            self._struct.Name(), self._ctype),
-                 '{',
-                 '  if (msg->%s_set != 1)' % name,
-                 '    return (-1);',
-                 '  *value = msg->%s_data;' % name,
-                 '  *plen = msg->%s_length;' % name,
-                 '  return (0);',
-                 '}' ]
+        code = [
+            "int",
+            "%s_%s_get(struct %s *msg, %s *value, ev_uint32_t *plen)"
+            % (self._struct.Name(), name, self._struct.Name(), self._ctype),
+            "{",
+            "  if (msg->%s_set != 1)" % name,
+            "    return (-1);",
+            "  *value = msg->%s_data;" % name,
+            "  *plen = msg->%s_length;" % name,
+            "  return (0);",
+            "}",
+        ]
         return code
 
     def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
-        code = ['if (evtag_payload_length(%(buf)s, &%(varlen)s) == -1)',
-                '  return (-1);',
-                # We do not want DoS opportunities
-                'if (%(varlen)s > evbuffer_get_length(%(buf)s))',
-                '  return (-1);',
-                'if ((%(var)s = malloc(%(varlen)s)) == NULL)',
-                '  return (-1);',
-                'if (evtag_unmarshal_fixed(%(buf)s, %(tag)s, %(var)s, '
-                '%(varlen)s) == -1) {',
-                '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
-                '  return (-1);',
-                '}'
-                ]
-        code = '\n'.join(code) % self.GetTranslation({
-            'buf' : buf,
-            'tag' : tag_name,
-            'var' : var_name,
-            'varlen' : var_len })
-        return code.split('\n')
+        code = [
+            "if (evtag_payload_length(%(buf)s, &%(varlen)s) == -1)",
+            "  return (-1);",
+            # We do not want DoS opportunities
+            "if (%(varlen)s > evbuffer_get_length(%(buf)s))",
+            "  return (-1);",
+            "if ((%(var)s = malloc(%(varlen)s)) == NULL)",
+            "  return (-1);",
+            "if (evtag_unmarshal_fixed(%(buf)s, %(tag)s, %(var)s, "
+            "%(varlen)s) == -1) {",
+            '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
+            "  return (-1);",
+            "}",
+        ]
+        code = "\n".join(code) % self.GetTranslation(
+            {"buf": buf, "tag": tag_name, "var": var_name, "varlen": var_len}
+        )
+        return code.split("\n")
 
     def CodeMarshal(self, buf, tag_name, var_name, var_len):
-        code = ['evtag_marshal(%s, %s, %s, %s);' % (
-            buf, tag_name, var_name, var_len)]
+        code = ["evtag_marshal(%s, %s, %s, %s);" % (buf, tag_name, var_name, var_len)]
         return code
 
     def CodeClear(self, structname):
-        code = [ 'if (%s->%s_set == 1) {' % (structname, self.Name()),
-                 '  free (%s->%s_data);' % (structname, self.Name()),
-                 '  %s->%s_data = NULL;' % (structname, self.Name()),
-                 '  %s->%s_length = 0;' % (structname, self.Name()),
-                 '  %s->%s_set = 0;' % (structname, self.Name()),
-                 '}'
-                 ]
+        code = [
+            "if (%s->%s_set == 1) {" % (structname, self.Name()),
+            "  free (%s->%s_data);" % (structname, self.Name()),
+            "  %s->%s_data = NULL;" % (structname, self.Name()),
+            "  %s->%s_length = 0;" % (structname, self.Name()),
+            "  %s->%s_set = 0;" % (structname, self.Name()),
+            "}",
+        ]
 
         return code
 
     def CodeInitialize(self, name):
-        code  = ['%s->%s_data = NULL;' % (name, self._name),
-                 '%s->%s_length = 0;' % (name, self._name) ]
+        code = [
+            "%s->%s_data = NULL;" % (name, self._name),
+            "%s->%s_length = 0;" % (name, self._name),
+        ]
         return code
 
     def CodeFree(self, name):
-        code  = ['if (%s->%s_data != NULL)' % (name, self._name),
-                 '    free(%s->%s_data);' % (name, self._name)]
+        code = [
+            "if (%s->%s_data != NULL)" % (name, self._name),
+            "    free(%s->%s_data);" % (name, self._name),
+        ]
 
         return code
 
     def Declaration(self):
-        dcl  = ['ev_uint8_t *%s_data;' % self._name,
-                'ev_uint32_t %s_length;' % self._name]
+        dcl = [
+            "ev_uint8_t *%s_data;" % self._name,
+            "ev_uint32_t %s_length;" % self._name,
+        ]
 
         return dcl
+
 
 class EntryArray(Entry):
     def __init__(self, entry):
@@ -1077,9 +1171,10 @@ class EntryArray(Entry):
 
         # provide a new function for accessing the variable name
         def GetVarName(var_name):
-            return '%(var)s->%(name)s_data[%(index)s]' % \
-                   self._entry.GetTranslation({'var' : var_name,
-                                               'index' : self._index})
+            return "%(var)s->%(name)s_data[%(index)s]" % self._entry.GetTranslation(
+                {"var": var_name, "index": self._index}
+            )
+
         self._entry.GetVarName = GetVarName
 
     def GetInitializer(self):
@@ -1089,25 +1184,29 @@ class EntryArray(Entry):
         return var_name
 
     def GetVarLen(self, var_name):
-        return '-1'
+        return "-1"
 
     def GetDeclaration(self, funcname):
         """Allows direct access to elements of the array."""
         code = [
-            'int %(funcname)s(struct %(parent_name)s *, int, %(ctype)s *);' %
-            self.GetTranslation({ 'funcname' : funcname }) ]
+            "int %(funcname)s(struct %(parent_name)s *, int, %(ctype)s *);"
+            % self.GetTranslation({"funcname": funcname})
+        ]
         return code
 
     def AssignDeclaration(self, funcname):
-        code = [ 'int %s(struct %s *, int, const %s);' % (
-            funcname, self._struct.Name(), self._ctype ) ]
+        code = [
+            "int %s(struct %s *, int, const %s);"
+            % (funcname, self._struct.Name(), self._ctype)
+        ]
         return code
 
     def AddDeclaration(self, funcname):
         code = [
-            '%(ctype)s %(optpointer)s '
-            '%(funcname)s(struct %(parent_name)s *msg%(optaddarg)s);' % \
-            self.GetTranslation({ 'funcname' : funcname }) ]
+            "%(ctype)s %(optpointer)s "
+            "%(funcname)s(struct %(parent_name)s *msg%(optaddarg)s);"
+            % self.GetTranslation({"funcname": funcname})
+        ]
         return code
 
     def CodeGet(self):
@@ -1120,201 +1219,221 @@ class EntryArray(Entry):
   *value = msg->%(name)s_data[offset];
   return (0);
 }
-""" % (self.GetTranslation())
+""" % (
+            self.GetTranslation()
+        )
 
         return code.splitlines()
 
     def CodeAssign(self):
         code = [
-"int",
-"%(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg, int off,",
-"  const %(ctype)s value)",
-"{",
-"  if (!msg->%(name)s_set || off < 0 || off >= msg->%(name)s_length)",
-"    return (-1);",
-"",
-"  {"
+            "int",
+            "%(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg, int off,",
+            "  const %(ctype)s value)",
+            "{",
+            "  if (!msg->%(name)s_set || off < 0 || off >= msg->%(name)s_length)",
+            "    return (-1);",
+            "",
+            "  {",
         ]
         code = TranslateList(code, self.GetTranslation())
 
         codearrayassign = self._entry.CodeArrayAssign(
-            'msg->%(name)s_data[off]' % self.GetTranslation(), 'value')
-        code += ['    ' + x for x in codearrayassign]
+            "msg->%(name)s_data[off]" % self.GetTranslation(), "value"
+        )
+        code += ["    " + x for x in codearrayassign]
 
-        code += TranslateList([
-            '  }',
-            '  return (0);',
-            '}' ], self.GetTranslation())
+        code += TranslateList(["  }", "  return (0);", "}"], self.GetTranslation())
 
         return code
 
     def CodeAdd(self):
         codearrayadd = self._entry.CodeArrayAdd(
-            'msg->%(name)s_data[msg->%(name)s_length - 1]' % self.GetTranslation(),
-            'value')
+            "msg->%(name)s_data[msg->%(name)s_length - 1]" % self.GetTranslation(),
+            "value",
+        )
         code = [
-            'static int',
-            '%(parent_name)s_%(name)s_expand_to_hold_more('
-            'struct %(parent_name)s *msg)',
-            '{',
-            '  int tobe_allocated = msg->%(name)s_num_allocated;',
-            '  %(ctype)s* new_data = NULL;',
-            '  tobe_allocated = !tobe_allocated ? 1 : tobe_allocated << 1;',
-            '  new_data = (%(ctype)s*) realloc(msg->%(name)s_data,',
-            '      tobe_allocated * sizeof(%(ctype)s));',
-            '  if (new_data == NULL)',
-            '    return -1;',
-            '  msg->%(name)s_data = new_data;',
-            '  msg->%(name)s_num_allocated = tobe_allocated;',
-            '  return 0;'
-            '}',
-            '',
-            '%(ctype)s %(optpointer)s',
-            '%(parent_name)s_%(name)s_add('
-            'struct %(parent_name)s *msg%(optaddarg)s)',
-            '{',
-            '  if (++msg->%(name)s_length >= msg->%(name)s_num_allocated) {',
-            '    if (%(parent_name)s_%(name)s_expand_to_hold_more(msg)<0)',
-            '      goto error;',
-            '  }' ]
+            "static int",
+            "%(parent_name)s_%(name)s_expand_to_hold_more("
+            "struct %(parent_name)s *msg)",
+            "{",
+            "  int tobe_allocated = msg->%(name)s_num_allocated;",
+            "  %(ctype)s* new_data = NULL;",
+            "  tobe_allocated = !tobe_allocated ? 1 : tobe_allocated << 1;",
+            "  new_data = (%(ctype)s*) realloc(msg->%(name)s_data,",
+            "      tobe_allocated * sizeof(%(ctype)s));",
+            "  if (new_data == NULL)",
+            "    return -1;",
+            "  msg->%(name)s_data = new_data;",
+            "  msg->%(name)s_num_allocated = tobe_allocated;",
+            "  return 0;" "}",
+            "",
+            "%(ctype)s %(optpointer)s",
+            "%(parent_name)s_%(name)s_add(" "struct %(parent_name)s *msg%(optaddarg)s)",
+            "{",
+            "  if (++msg->%(name)s_length >= msg->%(name)s_num_allocated) {",
+            "    if (%(parent_name)s_%(name)s_expand_to_hold_more(msg)<0)",
+            "      goto error;",
+            "  }",
+        ]
 
         code = TranslateList(code, self.GetTranslation())
 
-        code += ['  ' + x for x in codearrayadd]
+        code += ["  " + x for x in codearrayadd]
 
-        code += TranslateList([
-            '  msg->%(name)s_set = 1;',
-            '  return %(optreference)s(msg->%(name)s_data['
-            'msg->%(name)s_length - 1]);',
-            'error:',
-            '  --msg->%(name)s_length;',
-            '  return (NULL);',
-            '}' ], self.GetTranslation())
+        code += TranslateList(
+            [
+                "  msg->%(name)s_set = 1;",
+                "  return %(optreference)s(msg->%(name)s_data["
+                "msg->%(name)s_length - 1]);",
+                "error:",
+                "  --msg->%(name)s_length;",
+                "  return (NULL);",
+                "}",
+            ],
+            self.GetTranslation(),
+        )
 
         return code
 
     def CodeComplete(self, structname, var_name):
-        self._index = 'i'
+        self._index = "i"
         tmp = self._entry.CodeComplete(structname, self._entry.GetVarName(var_name))
         # skip the whole loop if there is nothing to check
         if not tmp:
             return []
 
-        translate = self.GetTranslation({ 'structname' : structname })
+        translate = self.GetTranslation({"structname": structname})
         code = [
-            '{',
-            '  int i;',
-            '  for (i = 0; i < %(structname)s->%(name)s_length; ++i) {' ]
+            "{",
+            "  int i;",
+            "  for (i = 0; i < %(structname)s->%(name)s_length; ++i) {",
+        ]
 
         code = TranslateList(code, translate)
 
-        code += ['    ' + x for x in tmp]
+        code += ["    " + x for x in tmp]
 
-        code += [
-            '  }',
-            '}' ]
+        code += ["  }", "}"]
 
         return code
 
     def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
-        translate = self.GetTranslation({ 'var' : var_name,
-                                          'buf' : buf,
-                                          'tag' : tag_name,
-                                          'init' : self._entry.GetInitializer()})
+        translate = self.GetTranslation(
+            {
+                "var": var_name,
+                "buf": buf,
+                "tag": tag_name,
+                "init": self._entry.GetInitializer(),
+            }
+        )
         code = [
-            'if (%(var)s->%(name)s_length >= %(var)s->%(name)s_num_allocated &&',
-            '    %(parent_name)s_%(name)s_expand_to_hold_more(%(var)s) < 0) {',
+            "if (%(var)s->%(name)s_length >= %(var)s->%(name)s_num_allocated &&",
+            "    %(parent_name)s_%(name)s_expand_to_hold_more(%(var)s) < 0) {",
             '  puts("HEY NOW");',
-            '  return (-1);',
-            '}']
+            "  return (-1);",
+            "}",
+        ]
 
         # the unmarshal code directly returns
         code = TranslateList(code, translate)
 
-        self._index = '%(var)s->%(name)s_length' % translate
-        code += self._entry.CodeUnmarshal(buf, tag_name,
-                                        self._entry.GetVarName(var_name),
-                                        self._entry.GetVarLen(var_name))
+        self._index = "%(var)s->%(name)s_length" % translate
+        code += self._entry.CodeUnmarshal(
+            buf,
+            tag_name,
+            self._entry.GetVarName(var_name),
+            self._entry.GetVarLen(var_name),
+        )
 
-        code += [ '++%(var)s->%(name)s_length;' % translate ]
+        code += ["++%(var)s->%(name)s_length;" % translate]
 
         return code
 
     def CodeMarshal(self, buf, tag_name, var_name, var_len):
-        code = ['{',
-                '  int i;',
-                '  for (i = 0; i < %(var)s->%(name)s_length; ++i) {' ]
+        code = ["{", "  int i;", "  for (i = 0; i < %(var)s->%(name)s_length; ++i) {"]
 
-        self._index = 'i'
-        code += self._entry.CodeMarshal(buf, tag_name,
-                                        self._entry.GetVarName(var_name),
-                                        self._entry.GetVarLen(var_name))
-        code += ['  }',
-                 '}'
-                 ]
+        self._index = "i"
+        code += self._entry.CodeMarshal(
+            buf,
+            tag_name,
+            self._entry.GetVarName(var_name),
+            self._entry.GetVarLen(var_name),
+        )
+        code += ["  }", "}"]
 
-        code = "\n".join(code) % self.GetTranslation({ 'var' : var_name })
+        code = "\n".join(code) % self.GetTranslation({"var": var_name})
 
-        return code.split('\n')
+        return code.split("\n")
 
     def CodeClear(self, structname):
-        translate = self.GetTranslation({ 'structname' : structname })
+        translate = self.GetTranslation({"structname": structname})
         codearrayfree = self._entry.CodeArrayFree(
-            '%(structname)s->%(name)s_data[i]' % self.GetTranslation(
-            { 'structname' : structname } ))
+            "%(structname)s->%(name)s_data[i]"
+            % self.GetTranslation({"structname": structname})
+        )
 
-        code = [ 'if (%(structname)s->%(name)s_set == 1) {' ]
+        code = ["if (%(structname)s->%(name)s_set == 1) {"]
 
         if codearrayfree:
             code += [
-                '  int i;',
-                '  for (i = 0; i < %(structname)s->%(name)s_length; ++i) {' ]
+                "  int i;",
+                "  for (i = 0; i < %(structname)s->%(name)s_length; ++i) {",
+            ]
 
         code = TranslateList(code, translate)
 
         if codearrayfree:
-            code += ['    ' + x for x in codearrayfree]
-            code += [
-                '  }' ]
+            code += ["    " + x for x in codearrayfree]
+            code += ["  }"]
 
-        code += TranslateList([
-                 '  free(%(structname)s->%(name)s_data);',
-                 '  %(structname)s->%(name)s_data = NULL;',
-                 '  %(structname)s->%(name)s_set = 0;',
-                 '  %(structname)s->%(name)s_length = 0;',
-                 '  %(structname)s->%(name)s_num_allocated = 0;',
-                 '}'
-                 ], translate)
+        code += TranslateList(
+            [
+                "  free(%(structname)s->%(name)s_data);",
+                "  %(structname)s->%(name)s_data = NULL;",
+                "  %(structname)s->%(name)s_set = 0;",
+                "  %(structname)s->%(name)s_length = 0;",
+                "  %(structname)s->%(name)s_num_allocated = 0;",
+                "}",
+            ],
+            translate,
+        )
 
         return code
 
     def CodeInitialize(self, name):
-        code  = ['%s->%s_data = NULL;' % (name, self._name),
-                 '%s->%s_length = 0;' % (name, self._name),
-                 '%s->%s_num_allocated = 0;' % (name, self._name)]
+        code = [
+            "%s->%s_data = NULL;" % (name, self._name),
+            "%s->%s_length = 0;" % (name, self._name),
+            "%s->%s_num_allocated = 0;" % (name, self._name),
+        ]
         return code
 
     def CodeFree(self, structname):
-        code = self.CodeClear(structname);
+        code = self.CodeClear(structname)
 
-        code += TranslateList([
-            'free(%(structname)s->%(name)s_data);' ],
-                              self.GetTranslation({'structname' : structname }))
+        code += TranslateList(
+            ["free(%(structname)s->%(name)s_data);"],
+            self.GetTranslation({"structname": structname}),
+        )
 
         return code
 
     def Declaration(self):
-        dcl  = ['%s *%s_data;' % (self._ctype, self._name),
-                'int %s_length;' % self._name,
-                'int %s_num_allocated;' % self._name ]
+        dcl = [
+            "%s *%s_data;" % (self._ctype, self._name),
+            "int %s_length;" % self._name,
+            "int %s_num_allocated;" % self._name,
+        ]
 
         return dcl
 
+
 def NormalizeLine(line):
 
-    line = CPPCOMMENT_RE.sub('', line)
+    line = CPPCOMMENT_RE.sub("", line)
     line = line.strip()
-    line = WHITESPACE_RE.sub(' ', line)
+    line = WHITESPACE_RE.sub(" ", line)
 
     return line
 
@@ -1326,20 +1445,20 @@ ENTRY_TAG_NUMBER_RE = re.compile(r"(0x)?\d+", re.I)
 def ProcessOneEntry(factory, newstruct, entry):
     optional = False
     array = False
-    entry_type = ''
-    name = ''
-    tag = ''
+    entry_type = ""
+    name = ""
+    tag = ""
     tag_set = None
-    separator = ''
-    fixed_length = ''
+    separator = ""
+    fixed_length = ""
 
     for token in entry.split(" "):
         if not entry_type:
-            if not optional and token == 'optional':
+            if not optional and token == "optional":
                 optional = True
                 continue
 
-            if not array and token == 'array':
+            if not array and token == "array":
                 array = True
                 continue
 
@@ -1351,8 +1470,7 @@ def ProcessOneEntry(factory, newstruct, entry):
             res = ENTRY_NAME_RE.match(token)
             if not res:
                 raise RpcGenError(
-                    r"""Cannot parse name: "%s" around line %d"""
-                    % (entry, LINE_COUNT)
+                    r"""Cannot parse name: "%s" around line %d""" % (entry, LINE_COUNT)
                 )
             name = res.group("name")
             fixed_length = res.group("fixed_length")
@@ -1360,10 +1478,9 @@ def ProcessOneEntry(factory, newstruct, entry):
 
         if not separator:
             separator = token
-            if separator != '=':
+            if separator != "=":
                 raise RpcGenError(
-                    r'''Expected "=" after name "%s" got "%s"'''
-                    % (name, token)
+                    r'''Expected "=" after name "%s" got "%s"''' % (name, token)
                 )
             continue
 
@@ -1380,24 +1497,22 @@ def ProcessOneEntry(factory, newstruct, entry):
         raise RpcGenError(r'''Need tag number: "%s"''' % (entry))
 
     # Create the right entry
-    if entry_type == 'bytes':
+    if entry_type == "bytes":
         if fixed_length:
             newentry = factory.EntryBytes(entry_type, name, tag, fixed_length)
         else:
             newentry = factory.EntryVarBytes(entry_type, name, tag)
-    elif entry_type == 'int' and not fixed_length:
+    elif entry_type == "int" and not fixed_length:
         newentry = factory.EntryInt(entry_type, name, tag)
-    elif entry_type == 'int64' and not fixed_length:
+    elif entry_type == "int64" and not fixed_length:
         newentry = factory.EntryInt(entry_type, name, tag, bits=64)
-    elif entry_type == 'string' and not fixed_length:
+    elif entry_type == "string" and not fixed_length:
         newentry = factory.EntryString(entry_type, name, tag)
     else:
         res = STRUCT_REF_RE.match(entry_type)
         if res:
             # References another struct defined in our file
-            newentry = factory.EntryStruct(
-                entry_type, name, tag, res.group("name")
-            )
+            newentry = factory.EntryStruct(entry_type, name, tag, res.group("name"))
         else:
             raise RpcGenError('Bad type: "%s" in "%s"' % (entry_type, entry))
 
@@ -1414,7 +1529,7 @@ def ProcessOneEntry(factory, newstruct, entry):
 
     if array:
         # We need to encapsulate this entry into a struct
-        newname = newentry.Name()+ '_array'
+        newname = newentry.Name() + "_array"
 
         # Now borgify the new entry.
         newentry = factory.EntryArray(newentry)
@@ -1426,15 +1541,16 @@ def ProcessOneEntry(factory, newstruct, entry):
 
     return structs
 
+
 def ProcessStruct(factory, data):
-    tokens = data.split(' ')
+    tokens = data.split(" ")
 
     # First three tokens are: 'struct' 'name' '{'
     newstruct = factory.Struct(tokens[1])
 
-    inside = ' '.join(tokens[3:-1])
+    inside = " ".join(tokens[3:-1])
 
-    tokens = inside.split(';')
+    tokens = inside.split(";")
 
     structs = []
 
@@ -1473,7 +1589,7 @@ def GetNextStruct(filep):
     got_struct = False
     have_c_comment = False
 
-    data = ''
+    data = ""
 
     while True:
         line = filep.readline()
@@ -1509,30 +1625,27 @@ def GetNextStruct(filep):
             elif PREPROCESSOR_DEF_RE.match(line):
                 HEADER_DIRECT.append(line)
             elif not STRUCT_DEF_RE.match(line):
-                raise RpcGenError(
-                    "Missing struct on line %d: %s" % (LINE_COUNT, line)
-                )
+                raise RpcGenError("Missing struct on line %d: %s" % (LINE_COUNT, line))
             else:
                 got_struct = True
                 data += line
             continue
 
         # We are inside the struct
-        tokens = line.split('}')
+        tokens = line.split("}")
         if len(tokens) == 1:
-            data += ' ' + line
+            data += " " + line
             continue
 
         if len(tokens[1]):
-            raise RpcGenError('Trailing garbage after struct on line %d'
-                              % LINE_COUNT)
+            raise RpcGenError("Trailing garbage after struct on line %d" % LINE_COUNT)
 
         # We found the end of the struct
-        data += ' %s}' % tokens[0]
+        data += " %s}" % tokens[0]
         break
 
     # Remove any comments, that might be in there
-    data = re.sub(r'/\*.*\*/', '', data)
+    data = re.sub(r"/\*.*\*/", "", data)
 
     return data
 
@@ -1555,6 +1668,7 @@ def Parse(factory, filep):
 
     return entities
 
+
 class CCodeGenerator:
     def __init__(self):
         pass
@@ -1563,7 +1677,7 @@ class CCodeGenerator:
         # Use the complete provided path to the input file, with all
         # non-identifier characters replaced with underscores, to
         # reduce the chance of a collision between guard macros.
-        return "EVENT_RPCOUT_%s_" % (NONIDENT_RE.sub('_', name).upper())
+        return "EVENT_RPCOUT_%s_" % (NONIDENT_RE.sub("_", name).upper())
 
     def HeaderPreamble(self, name):
         guard = self.GuardName(name)
@@ -1575,7 +1689,11 @@ class CCodeGenerator:
 #ifndef %s
 #define %s
 
-""" % (name, guard, guard)
+""" % (
+            name,
+            guard,
+            guard,
+        )
 
         if HEADER_DIRECT:
             for statement in HEADER_DIRECT:
@@ -1597,9 +1715,9 @@ class CCodeGenerator:
         global _NAME
         global _VERSION
 
-        slash = header_file.rfind('/')
+        slash = header_file.rfind("/")
         if slash != -1:
-            header_file = header_file[slash+1:]
+            header_file = header_file[slash + 1 :]
 
         pre = """
 /*
@@ -1625,23 +1743,27 @@ class CCodeGenerator:
 # define __func__ __FILE__
 #endif
 
-""" % {"name": name, "script_name": _NAME, "script_version": _VERSION}
+""" % {
+            "name": name,
+            "script_name": _NAME,
+            "script_version": _VERSION,
+        }
 
         for statement in CPP_DIRECT:
-            pre += '%s\n' % statement
+            pre += "%s\n" % statement
 
         pre += '\n#include "%s"\n\n' % header_file
 
-        pre += 'void event_warn(const char *fmt, ...);\n'
-        pre += 'void event_warnx(const char *fmt, ...);\n\n'
+        pre += "void event_warn(const char *fmt, ...);\n"
+        pre += "void event_warnx(const char *fmt, ...);\n\n"
 
         return pre
 
     def HeaderFilename(self, filename):
-        return '.'.join(filename.split('.')[:-1]) + '.h'
+        return ".".join(filename.split(".")[:-1]) + ".h"
 
     def CodeFilename(self, filename):
-        return '.'.join(filename.split('.')[:-1]) + '.gen.c'
+        return ".".join(filename.split(".")[:-1]) + ".gen.c"
 
     def Struct(self, name):
         return StructCCode(name)
@@ -1691,10 +1813,10 @@ class CommandLine:
 
         if extra_args:
             if len(extra_args) == 1:
-                self.impl_file = extra_args[0].replace('\\', '/')
+                self.impl_file = extra_args[0].replace("\\", "/")
             elif len(extra_args) == 2:
-                self.header_file = extra_args[0].replace('\\', '/')
-                self.impl_file = extra_args[1].replace('\\', '/')
+                self.header_file = extra_args[0].replace("\\", "/")
+                self.impl_file = extra_args[1].replace("\\", "/")
             else:
                 parser.error("Spurious arguments provided")
 
@@ -1706,9 +1828,9 @@ class CommandLine:
         if not self.header_file:
             self.header_file = self.factory.HeaderFilename(self.impl_file)
 
-        if not self.impl_file.endswith('.c'):
+        if not self.impl_file.endswith(".c"):
             parser.error("can only generate C implementation files")
-        if not self.header_file.endswith('.h'):
+        if not self.header_file.endswith(".h"):
             parser.error("can only generate C header files")
 
     def run(self):
@@ -1717,7 +1839,7 @@ class CommandLine:
         impl_file = self.impl_file
         factory = self.factory
 
-        declare('Reading \"%s\"' % filename)
+        declare('Reading "%s"' % filename)
 
         with self.rpc_file:
             entities = Parse(factory, self.rpc_file)
@@ -1730,7 +1852,7 @@ class CommandLine:
             # each other
             for entry in entities:
                 entry.PrintForwardDeclaration(header_fp)
-            header_fp.write('\n')
+            header_fp.write("\n")
 
             for entry in entities:
                 entry.PrintTags(header_fp)
