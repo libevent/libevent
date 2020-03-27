@@ -580,7 +580,7 @@ class Entry:
 class EntryBytes(Entry):
     def __init__(self, type, name, tag, length):
         # Init base class
-        Entry.__init__(self, type, name, tag)
+        super(EntryBytes, self).__init__(type, name, tag)
 
         self._length = length
         self._ctype = "ev_uint8_t"
@@ -687,13 +687,13 @@ class EntryBytes(Entry):
                 "around line %d" % (self._name, self.LineCount())
             )
 
-        Entry.Verify(self)
+        super(EntryBytes, self).Verify()
 
 
 class EntryInt(Entry):
     def __init__(self, type, name, tag, bits=32):
         # Init base class
-        Entry.__init__(self, type, name, tag)
+        super(EntryInt, self).__init__(type, name, tag)
 
         self._can_be_array = True
         if bits == 32:
@@ -752,7 +752,7 @@ class EntryInt(Entry):
 class EntryString(Entry):
     def __init__(self, type, name, tag):
         # Init base class
-        Entry.__init__(self, type, name, tag)
+        super(EntryString, self).__init__(type, name, tag)
 
         self._can_be_array = True
         self._ctype = "char *"
@@ -870,7 +870,7 @@ class EntryString(Entry):
 class EntryStruct(Entry):
     def __init__(self, type, name, tag, refname):
         # Init base class
-        Entry.__init__(self, type, name, tag)
+        super(EntryStruct, self).__init__(type, name, tag)
 
         self._optpointer = False
         self._can_be_array = True
@@ -1049,7 +1049,7 @@ class EntryStruct(Entry):
 class EntryVarBytes(Entry):
     def __init__(self, type, name, tag):
         # Init base class
-        Entry.__init__(self, type, name, tag)
+        super(EntryVarBytes, self).__init__(type, name, tag)
 
         self._ctype = "ev_uint8_t *"
 
@@ -1180,7 +1180,7 @@ class EntryVarBytes(Entry):
 class EntryArray(Entry):
     def __init__(self, entry):
         # Init base class
-        Entry.__init__(self, entry._type, entry._name, entry._tag)
+        super(EntryArray, self).__init__(entry._type, entry._name, entry._tag)
 
         self._entry = entry
         self._refname = entry._refname
