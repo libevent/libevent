@@ -417,11 +417,11 @@ evtag_marshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t tag,
 
 
 class Entry:
-    def __init__(self, type, name, tag):
-        self._type = type
+    def __init__(self, ent_type, name, tag):
+        self._type = ent_type
         self._name = name
         self._tag = int(tag)
-        self._ctype = type
+        self._ctype = ent_type
         self._optional = False
         self._can_be_array = False
         self._array = False
@@ -578,9 +578,9 @@ class Entry:
 
 
 class EntryBytes(Entry):
-    def __init__(self, type, name, tag, length):
+    def __init__(self, ent_type, name, tag, length):
         # Init base class
-        super(EntryBytes, self).__init__(type, name, tag)
+        super(EntryBytes, self).__init__(ent_type, name, tag)
 
         self._length = length
         self._ctype = "ev_uint8_t"
@@ -691,9 +691,9 @@ class EntryBytes(Entry):
 
 
 class EntryInt(Entry):
-    def __init__(self, type, name, tag, bits=32):
+    def __init__(self, ent_type, name, tag, bits=32):
         # Init base class
-        super(EntryInt, self).__init__(type, name, tag)
+        super(EntryInt, self).__init__(ent_type, name, tag)
 
         self._can_be_array = True
         if bits == 32:
@@ -750,9 +750,9 @@ class EntryInt(Entry):
 
 
 class EntryString(Entry):
-    def __init__(self, type, name, tag):
+    def __init__(self, ent_type, name, tag):
         # Init base class
-        super(EntryString, self).__init__(type, name, tag)
+        super(EntryString, self).__init__(ent_type, name, tag)
 
         self._can_be_array = True
         self._ctype = "char *"
@@ -868,9 +868,9 @@ class EntryString(Entry):
 
 
 class EntryStruct(Entry):
-    def __init__(self, type, name, tag, refname):
+    def __init__(self, ent_type, name, tag, refname):
         # Init base class
-        super(EntryStruct, self).__init__(type, name, tag)
+        super(EntryStruct, self).__init__(ent_type, name, tag)
 
         self._optpointer = False
         self._can_be_array = True
@@ -1047,9 +1047,9 @@ class EntryStruct(Entry):
 
 
 class EntryVarBytes(Entry):
-    def __init__(self, type, name, tag):
+    def __init__(self, ent_type, name, tag):
         # Init base class
-        super(EntryVarBytes, self).__init__(type, name, tag)
+        super(EntryVarBytes, self).__init__(ent_type, name, tag)
 
         self._ctype = "ev_uint8_t *"
 
