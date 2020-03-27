@@ -502,7 +502,7 @@ class Entry:
     def GetVarName(self, var):
         return "%(var)s->%(name)s_data" % self.GetTranslation({"var": var})
 
-    def GetVarLen(self, var):
+    def GetVarLen(self, _var):
         return "sizeof(%s)" % self._ctype
 
     def GetFuncName(self):
@@ -560,11 +560,11 @@ class Entry:
         return code
 
     @staticmethod
-    def CodeComplete(structname, var_name):
+    def CodeComplete(_structname, _var_name):
         return []
 
     @staticmethod
-    def CodeFree(name):
+    def CodeFree(_name):
         return []
 
     def CodeBase(self):
@@ -589,11 +589,11 @@ class EntryBytes(Entry):
     def GetInitializer():
         return "NULL"
 
-    def GetVarLen(self, var):
+    def GetVarLen(self, _var):
         return "(%s)" % self._length
 
     @staticmethod
-    def CodeArrayAdd(varname, value):
+    def CodeArrayAdd(varname, _value):
         # XXX: copy here
         return ["%(varname)s = NULL;" % {"varname": varname}]
 
@@ -708,7 +708,7 @@ class EntryInt(Entry):
         return "0"
 
     @staticmethod
-    def CodeArrayFree(var):
+    def CodeArrayFree(_var):
         return []
 
     @staticmethod
@@ -720,7 +720,7 @@ class EntryInt(Entry):
         """Returns a new entry of this type."""
         return ["%(varname)s = %(value)s;" % {"varname": varname, "value": value}]
 
-    def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
+    def CodeUnmarshal(self, buf, tag_name, var_name, _var_len):
         code = [
             "if (evtag_unmarshal_%(ma)s(%(buf)s, %(tag)s, &%(var)s) == -1) {",
             '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
@@ -732,7 +732,7 @@ class EntryInt(Entry):
         )
         return code.split("\n")
 
-    def CodeMarshal(self, buf, tag_name, var_name, var_len):
+    def CodeMarshal(self, buf, tag_name, var_name, _var_len):
         code = [
             "evtag_marshal_%s(%s, %s, %s);"
             % (self._marshal_type, buf, tag_name, var_name)
@@ -804,7 +804,6 @@ class EntryString(Entry):
         return "%(varname)s = NULL;" % {"varname": varname}
 
     def CodeAssign(self):
-        name = self._name
         code = """int
 %(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg,
     const %(ctype)s value)
@@ -821,7 +820,7 @@ class EntryString(Entry):
 
         return code.split("\n")
 
-    def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
+    def CodeUnmarshal(self, buf, tag_name, var_name, _var_len):
         code = [
             "if (evtag_unmarshal_string(%(buf)s, %(tag)s, &%(var)s) == -1) {",
             '  event_warnx("%%s: failed to unmarshal %(name)s", __func__);',
@@ -834,7 +833,7 @@ class EntryString(Entry):
         return code.split("\n")
 
     @staticmethod
-    def CodeMarshal(buf, tag_name, var_name, var_len):
+    def CodeMarshal(buf, tag_name, var_name, _var_len):
         code = ["evtag_marshal_string(%s, %s, %s);" % (buf, tag_name, var_name)]
         return code
 
@@ -881,10 +880,10 @@ class EntryStruct(Entry):
     def GetInitializer(self):
         return "NULL"
 
-    def GetVarLen(self, var):
+    def GetVarLen(self, _var):
         return "-1"
 
-    def CodeArrayAdd(self, varname, value):
+    def CodeArrayAdd(self, varname, _value):
         code = [
             "%(varname)s = %(refname)s_new();",
             "if (%(varname)s == NULL)",
@@ -943,7 +942,6 @@ class EntryStruct(Entry):
         return code
 
     def CodeAssign(self):
-        name = self._name
         code = (
             """int
 %(parent_name)s_%(name)s_assign(struct %(parent_name)s *msg,
@@ -996,7 +994,7 @@ class EntryStruct(Entry):
             code, self.GetTranslation({"structname": structname, "var": var_name})
         )
 
-    def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
+    def CodeUnmarshal(self, buf, tag_name, var_name, _var_len):
         code = [
             "%(var)s = %(refname)s_new();",
             "if (%(var)s == NULL)",
@@ -1011,7 +1009,7 @@ class EntryStruct(Entry):
         )
         return code.split("\n")
 
-    def CodeMarshal(self, buf, tag_name, var_name, var_len):
+    def CodeMarshal(self, buf, tag_name, var_name, _var_len):
         code = [
             "evtag_marshal_%s(%s, %s, %s);" % (self._refname, buf, tag_name, var_name)
         ]
@@ -1061,7 +1059,7 @@ class EntryVarBytes(Entry):
         return "%(var)s->%(name)s_length" % self.GetTranslation({"var": var})
 
     @staticmethod
-    def CodeArrayAdd(varname, value):
+    def CodeArrayAdd(varname, _value):
         # xxx: copy
         return ["%(varname)s = NULL;" % {"varname": varname}]
 
@@ -1203,7 +1201,7 @@ class EntryArray(Entry):
     def GetVarName(self, var_name):
         return var_name
 
-    def GetVarLen(self, var_name):
+    def GetVarLen(self, _var_name):
         return "-1"
 
     def GetDeclaration(self, funcname):
@@ -1338,7 +1336,7 @@ class EntryArray(Entry):
 
         return code
 
-    def CodeUnmarshal(self, buf, tag_name, var_name, var_len):
+    def CodeUnmarshal(self, buf, tag_name, var_name, _var_len):
         translate = self.GetTranslation(
             {
                 "var": var_name,
@@ -1370,7 +1368,7 @@ class EntryArray(Entry):
 
         return code
 
-    def CodeMarshal(self, buf, tag_name, var_name, var_len):
+    def CodeMarshal(self, buf, tag_name, var_name, _var_len):
         code = ["{", "  int i;", "  for (i = 0; i < %(var)s->%(name)s_length; ++i) {"]
 
         self._index = "i"
@@ -1549,9 +1547,6 @@ def ProcessOneEntry(factory, newstruct, entry):
 
     if array:
         # We need to encapsulate this entry into a struct
-        newname = newentry.Name() + "_array"
-
-        # Now borgify the new entry.
         newentry = factory.EntryArray(newentry)
         newentry.SetStruct(newstruct)
         newentry.SetLineCount(LINE_COUNT)
