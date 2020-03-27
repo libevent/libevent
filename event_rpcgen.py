@@ -1711,21 +1711,22 @@ class CommandLine:
             entry.PrintCode(impl_fp)
         impl_fp.close()
 
-if __name__ == '__main__':
-    try:
-        CommandLine(sys.argv).run()
-        sys.exit(0)
 
+def main(argv=None):
+    try:
+        CommandLine(argv).run()
+        return 0
     except RpcGenError as e:
         sys.stderr.write(e)
-        sys.exit(1)
-
     except EnvironmentError as e:
         if e.filename and e.strerror:
             sys.stderr.write("%s: %s" % (e.filename, e.strerror))
-            sys.exit(1)
         elif e.strerror:
             sys.stderr.write(e.strerror)
-            sys.exit(1)
         else:
             raise
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(argv=sys.argv))
