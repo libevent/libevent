@@ -83,7 +83,8 @@ class Struct:
         name = "%s_%s" % (self._name, entry.Name())
         return name.upper()
 
-    def PrintIndented(self, filep, ident, code):
+    @staticmethod
+    def PrintIndented(filep, ident, code):
         """Takes an array, add indentation to each entry and prints it."""
         for entry in code:
             filep.write("%s%s\n" % (ident, entry))
@@ -431,8 +432,9 @@ class Entry:
         self._optpointer = True
         self._optaddarg = True
 
-    def GetInitializer(self):
-        assert 0, "Entry does not provide initializer"
+    @staticmethod
+    def GetInitializer():
+        raise NotImplementedError("Entry does not provide an initializer")
 
     def SetStruct(self, struct):
         self._struct = struct
@@ -557,10 +559,12 @@ class Entry:
 
         return code
 
-    def CodeComplete(self, structname, var_name):
+    @staticmethod
+    def CodeComplete(structname, var_name):
         return []
 
-    def CodeFree(self, name):
+    @staticmethod
+    def CodeFree(name):
         return []
 
     def CodeBase(self):
@@ -581,13 +585,15 @@ class EntryBytes(Entry):
         self._length = length
         self._ctype = "ev_uint8_t"
 
-    def GetInitializer(self):
+    @staticmethod
+    def GetInitializer():
         return "NULL"
 
     def GetVarLen(self, var):
         return "(%s)" % self._length
 
-    def CodeArrayAdd(self, varname, value):
+    @staticmethod
+    def CodeArrayAdd(varname, value):
         # XXX: copy here
         return ["%(varname)s = NULL;" % {"varname": varname}]
 
@@ -653,7 +659,8 @@ class EntryBytes(Entry):
             ),
         )
 
-    def CodeMarshal(self, buf, tag_name, var_name, var_len):
+    @staticmethod
+    def CodeMarshal(buf, tag_name, var_name, var_len):
         code = ["evtag_marshal(%s, %s, %s, %s);" % (buf, tag_name, var_name, var_len)]
         return code
 
@@ -696,16 +703,20 @@ class EntryInt(Entry):
             self._ctype = "ev_uint64_t"
             self._marshal_type = "int64"
 
-    def GetInitializer(self):
+    @staticmethod
+    def GetInitializer():
         return "0"
 
-    def CodeArrayFree(self, var):
+    @staticmethod
+    def CodeArrayFree(var):
         return []
 
-    def CodeArrayAssign(self, varname, srcvar):
+    @staticmethod
+    def CodeArrayAssign(varname, srcvar):
         return ["%(varname)s = %(srcvar)s;" % {"varname": varname, "srcvar": srcvar}]
 
-    def CodeArrayAdd(self, varname, value):
+    @staticmethod
+    def CodeArrayAdd(varname, value):
         """Returns a new entry of this type."""
         return ["%(varname)s = %(value)s;" % {"varname": varname, "value": value}]
 
@@ -746,15 +757,18 @@ class EntryString(Entry):
         self._can_be_array = True
         self._ctype = "char *"
 
-    def GetInitializer(self):
+    @staticmethod
+    def GetInitializer():
         return "NULL"
 
-    def CodeArrayFree(self, varname):
+    @staticmethod
+    def CodeArrayFree(varname):
         code = ["if (%(var)s != NULL) free(%(var)s);"]
 
         return TranslateList(code, {"var": varname})
 
-    def CodeArrayAssign(self, varname, srcvar):
+    @staticmethod
+    def CodeArrayAssign(varname, srcvar):
         code = [
             "if (%(var)s != NULL)",
             "  free(%(var)s);",
@@ -767,7 +781,8 @@ class EntryString(Entry):
 
         return TranslateList(code, {"var": varname, "srcvar": srcvar})
 
-    def CodeArrayAdd(self, varname, value):
+    @staticmethod
+    def CodeArrayAdd(varname, value):
         code = [
             "if (%(value)s != NULL) {",
             "  %(var)s = strdup(%(value)s);",
@@ -784,7 +799,8 @@ class EntryString(Entry):
     def GetVarLen(self, var):
         return "strlen(%s)" % self.GetVarName(var)
 
-    def CodeMakeInitalize(self, varname):
+    @staticmethod
+    def CodeMakeInitalize(varname):
         return "%(varname)s = NULL;" % {"varname": varname}
 
     def CodeAssign(self):
@@ -817,7 +833,8 @@ class EntryString(Entry):
         )
         return code.split("\n")
 
-    def CodeMarshal(self, buf, tag_name, var_name, var_len):
+    @staticmethod
+    def CodeMarshal(buf, tag_name, var_name, var_len):
         code = ["evtag_marshal_string(%s, %s, %s);" % (buf, tag_name, var_name)]
         return code
 
@@ -1036,13 +1053,15 @@ class EntryVarBytes(Entry):
 
         self._ctype = "ev_uint8_t *"
 
-    def GetInitializer(self):
+    @staticmethod
+    def GetInitializer():
         return "NULL"
 
     def GetVarLen(self, var):
         return "%(var)s->%(name)s_length" % self.GetTranslation({"var": var})
 
-    def CodeArrayAdd(self, varname, value):
+    @staticmethod
+    def CodeArrayAdd(varname, value):
         # xxx: copy
         return ["%(varname)s = NULL;" % {"varname": varname}]
 
@@ -1117,7 +1136,8 @@ class EntryVarBytes(Entry):
         )
         return code.split("\n")
 
-    def CodeMarshal(self, buf, tag_name, var_name, var_len):
+    @staticmethod
+    def CodeMarshal(buf, tag_name, var_name, var_len):
         code = ["evtag_marshal(%s, %s, %s, %s);" % (buf, tag_name, var_name, var_len)]
         return code
 
@@ -1637,7 +1657,7 @@ def GetNextStruct(filep):
             data += " " + line
             continue
 
-        if len(tokens[1]):
+        if tokens[1]:
             raise RpcGenError("Trailing garbage after struct on line %d" % LINE_COUNT)
 
         # We found the end of the struct
@@ -1673,7 +1693,8 @@ class CCodeGenerator:
     def __init__(self):
         pass
 
-    def GuardName(self, name):
+    @staticmethod
+    def GuardName(name):
         # Use the complete provided path to the input file, with all
         # non-identifier characters replaced with underscores, to
         # reduce the chance of a collision between guard macros.
@@ -1711,7 +1732,8 @@ class CCodeGenerator:
         guard = self.GuardName(name)
         return "#endif  /* %s */" % (guard)
 
-    def BodyPreamble(self, name, header_file):
+    @staticmethod
+    def BodyPreamble(name, header_file):
         global _NAME
         global _VERSION
 
@@ -1759,31 +1781,40 @@ class CCodeGenerator:
 
         return pre
 
-    def HeaderFilename(self, filename):
+    @staticmethod
+    def HeaderFilename(filename):
         return ".".join(filename.split(".")[:-1]) + ".h"
 
-    def CodeFilename(self, filename):
+    @staticmethod
+    def CodeFilename(filename):
         return ".".join(filename.split(".")[:-1]) + ".gen.c"
 
-    def Struct(self, name):
+    @staticmethod
+    def Struct(name):
         return StructCCode(name)
 
-    def EntryBytes(self, entry_type, name, tag, fixed_length):
+    @staticmethod
+    def EntryBytes(entry_type, name, tag, fixed_length):
         return EntryBytes(entry_type, name, tag, fixed_length)
 
-    def EntryVarBytes(self, entry_type, name, tag):
+    @staticmethod
+    def EntryVarBytes(entry_type, name, tag):
         return EntryVarBytes(entry_type, name, tag)
 
-    def EntryInt(self, entry_type, name, tag, bits=32):
+    @staticmethod
+    def EntryInt(entry_type, name, tag, bits=32):
         return EntryInt(entry_type, name, tag, bits)
 
-    def EntryString(self, entry_type, name, tag):
+    @staticmethod
+    def EntryString(entry_type, name, tag):
         return EntryString(entry_type, name, tag)
 
-    def EntryStruct(self, entry_type, name, tag, struct_name):
+    @staticmethod
+    def EntryStruct(entry_type, name, tag, struct_name):
         return EntryStruct(entry_type, name, tag, struct_name)
 
-    def EntryArray(self, entry):
+    @staticmethod
+    def EntryArray(entry):
         return EntryArray(entry)
 
 
