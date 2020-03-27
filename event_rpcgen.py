@@ -21,16 +21,16 @@ _NAME = "event_rpcgen.py"
 _VERSION = "0.1"
 
 # Globals
-line_count = 0
+LINE_COUNT = 0
 
-white = re.compile(r'\s+')
-cppcomment = re.compile(r'\/\/.*$')
-nonident = re.compile(r'[^a-zA-Z0-9_]')
-structref = re.compile(r'^struct\[([a-zA-Z_][a-zA-Z0-9_]*)\]$')
-structdef = re.compile(r'^struct +[a-zA-Z_][a-zA-Z0-9_]* *{$')
+CPPCOMMENT_RE = re.compile(r"\/\/.*$")
+NONIDENT_RE = re.compile(r"\W")
+STRUCT_REF_RE = re.compile(r"^struct\[(?P<name>[a-zA-Z_][a-zA-Z0-9_]*)\]$")
+STRUCT_DEF_RE = re.compile(r"^struct +[a-zA-Z_][a-zA-Z0-9_]* *{$")
+WHITESPACE_RE = re.compile(r"\s+")
 
-headerdirect = []
-cppdirect = []
+HEADER_DIRECT = []
+CPP_DIRECT = []
 
 QUIETLY = 0
 
@@ -65,7 +65,7 @@ class Struct:
             raise RpcGenError(
                 'Entry "%s" duplicates tag number %d from "%s" '
                 'around line %d' % (entry.Name(), entry.Tag(),
-                                    self._tags[entry.Tag()], line_count))
+                                    self._tags[entry.Tag()], LINE_COUNT))
         self._entries.append(entry)
         self._tags[entry.Tag()] = entry.Name()
         declare('    Added entry: %s' % entry.Name())
@@ -1300,12 +1300,10 @@ class EntryArray(Entry):
         return dcl
 
 def NormalizeLine(line):
-    global white
-    global cppcomment
 
-    line = cppcomment.sub('', line)
+    line = CPPCOMMENT_RE.sub('', line)
     line = line.strip()
-    line = white.sub(' ', line)
+    line = WHITESPACE_RE.sub(' ', line)
 
     return line
 
@@ -1343,7 +1341,7 @@ def ProcessOneEntry(factory, newstruct, entry):
             if not res:
                  raise RpcGenError(
                      'Cannot parse name: \"%s\" '
-                     'around line %d' % (entry, line_count))
+                     'around line %d' % (entry, LINE_COUNT))
             name = res.group(1)
             fixed_length = res.group(2)
             if fixed_length:
@@ -1382,10 +1380,12 @@ def ProcessOneEntry(factory, newstruct, entry):
     elif entry_type == 'string' and not fixed_length:
         newentry = factory.EntryString(entry_type, name, tag)
     else:
-        res = structref.match(entry_type)
+        res = STRUCT_REF_RE.match(entry_type)
         if res:
             # References another struct defined in our file
-            newentry = factory.EntryStruct(entry_type, name, tag, res.group(1))
+            newentry = factory.EntryStruct(
+                entry_type, name, tag, res.group("name")
+            )
         else:
             raise RpcGenError('Bad type: "%s" in "%s"' % (entry_type, entry))
 
@@ -1397,7 +1397,7 @@ def ProcessOneEntry(factory, newstruct, entry):
         newentry.MakeArray()
 
     newentry.SetStruct(newstruct)
-    newentry.SetLineCount(line_count)
+    newentry.SetLineCount(LINE_COUNT)
     newentry.Verify()
 
     if array:
@@ -1407,7 +1407,7 @@ def ProcessOneEntry(factory, newstruct, entry):
         # Now borgify the new entry.
         newentry = factory.EntryArray(newentry)
         newentry.SetStruct(newstruct)
-        newentry.SetLineCount(line_count)
+        newentry.SetLineCount(LINE_COUNT)
         newentry.MakeArray()
 
     newstruct.AddEntry(newentry)
@@ -1438,8 +1438,8 @@ def ProcessStruct(factory, data):
     return structs
 
 def GetNextStruct(filep):
-    global line_count
-    global cppdirect
+    global CPP_DIRECT
+    global LINE_COUNT
 
     got_struct = 0
 
@@ -1452,7 +1452,7 @@ def GetNextStruct(filep):
         if not line:
             break
 
-        line_count += 1
+        LINE_COUNT += 1
         line = line[:-1]
 
         if not have_c_comment and re.search(r'/\*', line):
@@ -1475,20 +1475,20 @@ def GetNextStruct(filep):
 
         if not got_struct:
             if re.match(r'#include ["<].*[>"]', line):
-                cppdirect.append(line)
+                CPP_DIRECT.append(line)
                 continue
 
             if re.match(r'^#(if( |def)|endif)', line):
-                cppdirect.append(line)
+                CPP_DIRECT.append(line)
                 continue
 
             if re.match(r'^#define', line):
-                headerdirect.append(line)
+                HEADER_DIRECT.append(line)
                 continue
 
-            if not structdef.match(line):
+            if not STRUCT_DEF_RE.match(line):
                 raise RpcGenError('Missing struct on line %d: %s'
-                                  % (line_count, line))
+                                  % (LINE_COUNT, line))
             else:
                 got_struct = 1
                 data += line
@@ -1502,7 +1502,7 @@ def GetNextStruct(filep):
 
         if len(tokens[1]):
             raise RpcGenError('Trailing garbage after struct on line %d'
-                              % line_count)
+                              % LINE_COUNT)
 
         # We found the end of the struct
         data += ' %s}' % tokens[0]
@@ -1540,7 +1540,7 @@ class CCodeGenerator:
         # Use the complete provided path to the input file, with all
         # non-identifier characters replaced with underscores, to
         # reduce the chance of a collision between guard macros.
-        return 'EVENT_RPCOUT_' + nonident.sub('_', name).upper() + '_'
+        return 'EVENT_RPCOUT_' + NONIDENT_RE.sub('_', name).upper() + '_'
 
     def HeaderPreamble(self, name):
         guard = self.GuardName(name)
@@ -1552,9 +1552,9 @@ class CCodeGenerator:
             '#define %s\n\n' ) % (
             name, guard, guard)
 
-        for statement in headerdirect:
+        for statement in HEADER_DIRECT:
             pre += '%s\n' % statement
-        if headerdirect:
+        if HEADER_DIRECT:
             pre += '\n'
 
         pre += (
@@ -1598,7 +1598,7 @@ class CCodeGenerator:
                  '#endif\n\n'
                  )
 
-        for statement in cppdirect:
+        for statement in CPP_DIRECT:
             pre += '%s\n' % statement
 
         pre += '\n#include "%s"\n\n' % header_file
