@@ -41,12 +41,16 @@ def declare(s):
 def TranslateList(mylist, mydict):
     return [x % mydict for x in mylist]
 
-# Exception class for parse errors
+
 class RpcGenError(Exception):
-        def __init__(self, why):
-                self.why = why
-        def __str__(self):
-                return str(self.why)
+    """An Exception class for parse errors."""
+
+    def __init__(self, why):
+        self.why = why
+
+    def __str__(self):
+        return str(self.why)
+
 
 # Holds everything that makes a struct
 class Struct:
