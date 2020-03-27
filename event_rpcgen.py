@@ -75,10 +75,10 @@ class Struct:
         name = "%s_%s" % (self._name, entry.Name())
         return name.upper()
 
-    def PrintIndented(self, file, ident, code):
+    def PrintIndented(self, filep, ident, code):
         """Takes an array, add indentation to each entry and prints it."""
         for entry in code:
-            file.write('%s%s\n' % (ident, entry))
+            filep.write('%s%s\n' % (ident, entry))
 
 class StructCCode(Struct):
     """ Knows how to generate C code for a struct """
@@ -86,21 +86,21 @@ class StructCCode(Struct):
     def __init__(self, name):
         Struct.__init__(self, name)
 
-    def PrintTags(self, file):
+    def PrintTags(self, filep):
         """Prints the tag definitions for a structure."""
-        file.write('/* Tag definition for %s */\n' % self._name)
-        file.write('enum %s_ {\n' % self._name.lower())
+        filep.write('/* Tag definition for %s */\n' % self._name)
+        filep.write('enum %s_ {\n' % self._name.lower())
         for entry in self._entries:
-            file.write('  %s=%d,\n' % (self.EntryTagName(entry), entry.Tag()))
-        file.write('  %s_MAX_TAGS\n' % (self._name.upper()))
-        file.write('};\n\n')
+            filep.write('  %s=%d,\n' % (self.EntryTagName(entry), entry.Tag()))
+        filep.write('  %s_MAX_TAGS\n' % (self._name.upper()))
+        filep.write('};\n\n')
 
-    def PrintForwardDeclaration(self, file):
-        file.write('struct %s;\n' % self._name)
+    def PrintForwardDeclaration(self, filep):
+        filep.write('struct %s;\n' % self._name)
 
-    def PrintDeclaration(self, file):
-        file.write('/* Structure declaration for %s */\n' % self._name)
-        file.write('struct %s_access_ {\n' % self._name)
+    def PrintDeclaration(self, filep):
+        filep.write('/* Structure declaration for %s */\n' % self._name)
+        filep.write('struct %s_access_ {\n' % self._name)
         for entry in self._entries:
             dcl = entry.AssignDeclaration('(*%s_assign)' % entry.Name())
             dcl.extend(
@@ -108,20 +108,20 @@ class StructCCode(Struct):
             if entry.Array():
                 dcl.extend(
                     entry.AddDeclaration('(*%s_add)' % entry.Name()))
-            self.PrintIndented(file, '  ', dcl)
-        file.write('};\n\n')
+            self.PrintIndented(filep, '  ', dcl)
+        filep.write('};\n\n')
 
-        file.write('struct %s {\n' % self._name)
-        file.write('  struct %s_access_ *base;\n\n' % self._name)
+        filep.write('struct %s {\n' % self._name)
+        filep.write('  struct %s_access_ *base;\n\n' % self._name)
         for entry in self._entries:
             dcl = entry.Declaration()
-            self.PrintIndented(file, '  ', dcl)
-        file.write('\n')
+            self.PrintIndented(filep, '  ', dcl)
+        filep.write('\n')
         for entry in self._entries:
-            file.write('  ev_uint8_t %s_set;\n' % entry.Name())
-        file.write('};\n\n')
+            filep.write('  ev_uint8_t %s_set;\n' % entry.Name())
+        filep.write('};\n\n')
 
-        file.write("""struct %(name)s *%(name)s_new(void);
+        filep.write("""struct %(name)s *%(name)s_new(void);
 struct %(name)s *%(name)s_new_with_arg(void *);
 void %(name)s_free(struct %(name)s *);
 void %(name)s_clear(struct %(name)s *);
@@ -136,29 +136,29 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
 
         # Write a setting function of every variable
         for entry in self._entries:
-            self.PrintIndented(file, '', entry.AssignDeclaration(
+            self.PrintIndented(filep, '', entry.AssignDeclaration(
                 entry.AssignFuncName()))
-            self.PrintIndented(file, '', entry.GetDeclaration(
+            self.PrintIndented(filep, '', entry.GetDeclaration(
                 entry.GetFuncName()))
             if entry.Array():
-                self.PrintIndented(file, '', entry.AddDeclaration(
+                self.PrintIndented(filep, '', entry.AddDeclaration(
                     entry.AddFuncName()))
 
-        file.write('/* --- %s done --- */\n\n' % self._name)
+        filep.write('/* --- %s done --- */\n\n' % self._name)
 
-    def PrintCode(self, file):
-        file.write(('/*\n'
+    def PrintCode(self, filep):
+        filep.write(('/*\n'
                        ' * Implementation of %s\n'
                        ' */\n\n') % self._name)
 
-        file.write('static struct %(name)s_access_ %(name)s_base__ = {\n' % \
+        filep.write('static struct %(name)s_access_ %(name)s_base__ = {\n' % \
               { 'name' : self._name })
         for entry in self._entries:
-            self.PrintIndented(file, '  ', entry.CodeBase())
-        file.write('};\n\n')
+            self.PrintIndented(filep, '  ', entry.CodeBase())
+        filep.write('};\n\n')
 
         # Creation
-        file.write((
+        filep.write((
             'struct %(name)s *\n'
             '%(name)s_new(void)\n'
             '{\n'
@@ -176,53 +176,53 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             '  tmp->base = &%(name)s_base__;\n\n') % { 'name' : self._name })
 
         for entry in self._entries:
-            self.PrintIndented(file, '  ', entry.CodeInitialize('tmp'))
-            file.write('  tmp->%s_set = 0;\n\n' % entry.Name())
+            self.PrintIndented(filep, '  ', entry.CodeInitialize('tmp'))
+            filep.write('  tmp->%s_set = 0;\n\n' % entry.Name())
 
-        file.write((
+        filep.write((
             '  return (tmp);\n'
             '}\n\n'))
 
         # Adding
         for entry in self._entries:
             if entry.Array():
-                self.PrintIndented(file, '', entry.CodeAdd())
-            file.write('\n')
+                self.PrintIndented(filep, '', entry.CodeAdd())
+            filep.write('\n')
 
         # Assigning
         for entry in self._entries:
-            self.PrintIndented(file, '', entry.CodeAssign())
-            file.write('\n')
+            self.PrintIndented(filep, '', entry.CodeAssign())
+            filep.write('\n')
 
         # Getting
         for entry in self._entries:
-            self.PrintIndented(file, '', entry.CodeGet())
-            file.write('\n')
+            self.PrintIndented(filep, '', entry.CodeGet())
+            filep.write('\n')
 
         # Clearing
-        file.write(( 'void\n'
+        filep.write(( 'void\n'
                         '%(name)s_clear(struct %(name)s *tmp)\n'
                         '{'
                         '\n') % { 'name' : self._name })
         for entry in self._entries:
-            self.PrintIndented(file, '  ', entry.CodeClear('tmp'))
+            self.PrintIndented(filep, '  ', entry.CodeClear('tmp'))
 
-        file.write('}\n\n')
+        filep.write('}\n\n')
 
         # Freeing
-        file.write(( 'void\n'
+        filep.write(( 'void\n'
                         '%(name)s_free(struct %(name)s *tmp)\n'
                         '{'
                         '\n') % { 'name' : self._name })
 
         for entry in self._entries:
-            self.PrintIndented(file, '  ', entry.CodeFree('tmp'))
+            self.PrintIndented(filep, '  ', entry.CodeFree('tmp'))
 
-        file.write(('  free(tmp);\n'
+        filep.write(('  free(tmp);\n'
                        '}\n\n'))
 
         # Marshaling
-        file.write(('void\n'
+        filep.write(('void\n'
                        '%(name)s_marshal(struct evbuffer *evbuf, '
                        'const struct %(name)s *tmp)'
                        '{\n') % { 'name' : self._name })
@@ -231,19 +231,19 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             # Optional entries do not have to be set
             if entry.Optional():
                 indent += '  '
-                file.write('  if (tmp->%s_set) {\n' % entry.Name())
+                filep.write('  if (tmp->%s_set) {\n' % entry.Name())
             self.PrintIndented(
-                file, indent,
+                filep, indent,
                 entry.CodeMarshal('evbuf', self.EntryTagName(entry),
                                   entry.GetVarName('tmp'),
                                   entry.GetVarLen('tmp')))
             if entry.Optional():
-                file.write('  }\n')
+                filep.write('  }\n')
 
-        file.write('}\n\n')
+        filep.write('}\n\n')
 
         # Unmarshaling
-        file.write(('int\n'
+        filep.write(('int\n'
                        '%(name)s_unmarshal(struct %(name)s *tmp, '
                        ' struct evbuffer *evbuf)\n'
                        '{\n'
@@ -254,37 +254,37 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
                        '    switch (tag) {\n'
                        '\n') % { 'name' : self._name })
         for entry in self._entries:
-            file.write('      case %s:\n' % self.EntryTagName(entry))
+            filep.write('      case %s:\n' % self.EntryTagName(entry))
             if not entry.Array():
-                file.write((
+                filep.write((
                     '        if (tmp->%s_set)\n'
                     '          return (-1);'
                     '\n') % (entry.Name()))
 
             self.PrintIndented(
-                file, '        ',
+                filep, '        ',
                 entry.CodeUnmarshal('evbuf',
                                     self.EntryTagName(entry),
                                     entry.GetVarName('tmp'),
                                     entry.GetVarLen('tmp')))
 
-            file.write(( '        tmp->%s_set = 1;\n' % entry.Name() +
+            filep.write(( '        tmp->%s_set = 1;\n' % entry.Name() +
                             '        break;\n' ))
-        file.write(( '      default:\n'
+        filep.write(( '      default:\n'
                         '        return -1;\n'
                         '    }\n'
                         '  }\n\n' ))
         # Check if it was decoded completely
-        file.write(( '  if (%(name)s_complete(tmp) == -1)\n'
+        filep.write(( '  if (%(name)s_complete(tmp) == -1)\n'
                         '    return (-1);'
                         '\n') % { 'name' : self._name })
 
         # Successfully decoded
-        file.write(( '  return (0);\n'
+        filep.write(( '  return (0);\n'
                         '}\n\n'))
 
         # Checking if a structure has all the required data
-        file.write((
+        filep.write((
             'int\n'
             '%(name)s_complete(struct %(name)s *msg)\n'
             '{\n' ) % { 'name' : self._name })
@@ -295,17 +295,17 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
                     '  return (-1);' ]
                 code = TranslateList(code, entry.GetTranslation())
                 self.PrintIndented(
-                    file, '  ', code)
+                    filep, '  ', code)
 
             self.PrintIndented(
-                file, '  ',
+                filep, '  ',
                 entry.CodeComplete('msg', entry.GetVarName('msg')))
-        file.write((
+        filep.write((
             '  return (0);\n'
             '}\n\n' ))
 
         # Complete message unmarshaling
-        file.write((
+        filep.write((
             'int\n'
             'evtag_unmarshal_%(name)s(struct evbuffer *evbuf, '
             'ev_uint32_t need_tag, struct %(name)s *msg)\n'
@@ -330,7 +330,7 @@ int evtag_unmarshal_%(name)s(struct evbuffer *, ev_uint32_t,
             '}\n\n' ) % { 'name' : self._name })
 
         # Complete message marshaling
-        file.write((
+        filep.write((
             'void\n'
             'evtag_marshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t tag, '
             'const struct %(name)s *msg)\n'
@@ -1432,7 +1432,7 @@ def ProcessStruct(factory, data):
     structs.append(newstruct)
     return structs
 
-def GetNextStruct(file):
+def GetNextStruct(filep):
     global line_count
     global cppdirect
 
@@ -1443,7 +1443,7 @@ def GetNextStruct(file):
     have_c_comment = 0
     data = ''
     while 1:
-        line = file.readline()
+        line = filep.readline()
         if not line:
             break
 
@@ -1509,7 +1509,7 @@ def GetNextStruct(file):
     return data
 
 
-def Parse(factory, file):
+def Parse(factory, filep):
     """
     Parses the input file and returns C code and corresponding header file.
     """
@@ -1518,7 +1518,7 @@ def Parse(factory, file):
 
     while 1:
         # Just gets the whole struct nicely formatted
-        data = GetNextStruct(file)
+        data = GetNextStruct(filep)
 
         if not data:
             break
