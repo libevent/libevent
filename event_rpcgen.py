@@ -484,7 +484,9 @@ class Entry:
                 "around line %d" % (self._name, self.LineCount())
             )
 
-    def GetTranslation(self, extradict={}):
+    def GetTranslation(self, extradict=None):
+        if extradict is None:
+            extradict = {}
         mapping = {
             "parent_name": self._struct.Name(),
             "name": self._name,
