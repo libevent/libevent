@@ -1186,6 +1186,8 @@ class EntryVarBytes(Entry):
 
 
 class EntryArray(Entry):
+    _index = None
+
     def __init__(self, entry):
         # Init base class
         super(EntryArray, self).__init__(entry._type, entry._name, entry._tag)
