@@ -6,6 +6,12 @@
 #
 # Generates marshaling code based on libevent.
 
+# pylint: disable=too-many-lines
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-statements
+# pylint: disable=global-statement
+
 # TODO:
 # 1) propagate the arguments/options parsed by argparse down to the
 #    instantiated factory objects.
@@ -48,7 +54,7 @@ def TranslateList(mylist, mydict):
 class RpcGenError(Exception):
     """An Exception class for parse errors."""
 
-    def __init__(self, why):
+    def __init__(self, why): # pylint: disable=super-init-not-called
         self.why = why
 
     def __str__(self):
