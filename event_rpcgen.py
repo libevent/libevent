@@ -1210,8 +1210,8 @@ class EntryArray(Entry):
     def GetInitializer(self):
         return "NULL"
 
-    def GetVarName(self, var_name):
-        return var_name
+    def GetVarName(self, var):
+        return var
 
     def GetVarLen(self, _var_name):
         return "-1"
