@@ -79,10 +79,12 @@
 #include <winsock2.h>
 #include <winerror.h>
 #include <ws2tcpip.h>
+#if !UWP
 #ifndef _WIN32_IE
 #define _WIN32_IE 0x400
 #endif
 #include <shlobj.h>
+#endif
 #endif
 
 #include "event2/dns.h"
@@ -3643,6 +3645,13 @@ evdns_get_default_hosts_filename(void)
 	char path[MAX_PATH+1];
 	static const char hostfile[] = "\\drivers\\etc\\hosts";
 	char *path_out;
+#if UWP
+	/* Or GetWindowsDirectoryA + system32? */
+	size_t len_out = GetSystemDirectoryA(path, MAX_PATH);
+	if (len_out == 0 || len_out >= MAX_PATH)
+		return NULL;
+	len_out += sizeof(hostfile);
+#else
 	size_t len_out;
 
 	if (! SHGetSpecialFolderPathA(NULL, path, CSIDL_SYSTEM, 0))
@@ -3651,6 +3660,7 @@ evdns_get_default_hosts_filename(void)
 	path_out = mm_malloc(len_out);
 	evutil_snprintf(path_out, len_out, "%s%s", path, hostfile);
 	return path_out;
+#endif
 #else
 	return mm_strdup("/etc/hosts");
 #endif
