@@ -1188,6 +1188,7 @@ if (NOT EVENT__DISABLE_TESTS)
     # - ellzey
     set(TESTPROGS test-changelist
                   test-eof
+                  test-closed
                   test-fdleak
                   test-init
                   test-time
