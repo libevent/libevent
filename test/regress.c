@@ -387,7 +387,7 @@ record_event_cb(evutil_socket_t s, short what, void *ptr)
 }
 
 static void
-test_simpleclose(void *ptr)
+test_simpleclose_rw(void *ptr)
 {
 	/* Test that a close of FD is detected as a read and as a write. */
 	struct event_base *base = event_base_new();
@@ -3461,8 +3461,7 @@ struct testcase_t main_testcases[] = {
 	LEGACY(simpleread, TT_ISOLATED),
 	LEGACY(simpleread_multiple, TT_ISOLATED),
 	LEGACY(simplewrite, TT_ISOLATED),
-	{ "simpleclose", test_simpleclose, TT_FORK, &basic_setup,
-	  NULL },
+	{ "simpleclose_rw", test_simpleclose_rw, TT_FORK, &basic_setup, NULL },
 	LEGACY(multiple, TT_ISOLATED),
 	LEGACY(persistent, TT_ISOLATED),
 	LEGACY(combined, TT_ISOLATED),
