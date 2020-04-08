@@ -469,6 +469,61 @@ end:
 		event_base_free(base);
 }
 
+static void
+test_simpleclose(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base      = data->base;
+	evutil_socket_t *pair        = data->pair;
+	const char *flags            = (const char *)data->setup_data;
+	int et                       = !!strstr(flags, "ET");
+	int persist                  = !!strstr(flags, "persist");
+	short events                 = EV_CLOSED | (et ? EV_ET : 0) | (persist ? EV_PERSIST : 0);
+	struct event *ev = NULL;
+	short got_event;
+
+	if (!(event_base_get_features(data->base) & EV_FEATURE_EARLY_CLOSE))
+		tt_skip();
+
+	/* XXX: should this code moved to regress_et.c ? */
+	if (et && !(event_base_get_features(data->base) & EV_FEATURE_ET))
+		tt_skip();
+
+	ev = event_new(base, pair[0], events, record_event_cb, &got_event);
+	tt_assert(ev);
+	tt_assert(!event_add(ev, NULL));
+
+	got_event = 0;
+	if (strstr(flags, "close")) {
+		tt_assert(!close(pair[1]));
+		/* avoid closing in setup routines */
+		pair[1] = -1;
+	} else if (strstr(flags, "shutdown")) {
+		tt_assert(!shutdown(pair[1], EVUTIL_SHUT_WR));
+	} else {
+		tt_abort_msg("unknown flags");
+	}
+
+	/* w/o edge-triggerd but w/ persist it will not stop */
+	if (!et && persist) {
+		struct timeval tv;
+		tv.tv_sec = 0;
+		tv.tv_usec = 10000;
+		tt_assert(!event_base_loopexit(base, &tv));
+	}
+
+	/* via close() */
+	if (pair[1] == -1) {
+		tt_int_op(event_base_loop(base, EVLOOP_NONBLOCK), ==, 0);
+	} else {
+		tt_int_op(event_base_loop(base, EVLOOP_NONBLOCK), ==, !persist);
+		tt_int_op(got_event, ==, (events & ~EV_PERSIST));
+	}
+
+end:
+	if (ev)
+		event_free(ev);
+}
 
 static void
 test_multiple(void)
@@ -3462,6 +3517,34 @@ struct testcase_t main_testcases[] = {
 	LEGACY(simpleread_multiple, TT_ISOLATED),
 	LEGACY(simplewrite, TT_ISOLATED),
 	{ "simpleclose_rw", test_simpleclose_rw, TT_FORK, &basic_setup, NULL },
+	/* simpleclose */
+	{ "simpleclose_close", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close" },
+	{ "simpleclose_shutdown", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown" },
+	/* simpleclose_*_persist */
+	{ "simpleclose_close_persist", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close_persist" },
+	{ "simpleclose_shutdown_persist", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown_persist" },
+	/* simpleclose_*_et */
+	{ "simpleclose_close_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close_ET" },
+	{ "simpleclose_shutdown_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown_ET" },
+	/* simpleclose_*_persist_et */
+	{ "simpleclose_close_persist_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close_persist_ET" },
+	{ "simpleclose_shutdown_persist_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown_persist_ET" },
 	LEGACY(multiple, TT_ISOLATED),
 	LEGACY(persistent, TT_ISOLATED),
 	LEGACY(combined, TT_ISOLATED),
