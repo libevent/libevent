@@ -220,6 +220,10 @@ endif
 if EVPORT_BACKEND
 SYS_SRC += evport.c
 endif
+if WEPOLL_BACKEND
+SYS_SRC += epoll.c
+SYS_SRC += wepoll.c
+endif
 if SIGNAL_SUPPORT
 SYS_SRC += signal.c
 endif
@@ -323,7 +327,8 @@ noinst_HEADERS +=				\
 	strlcpy-internal.h			\
 	time-internal.h				\
 	util-internal.h				\
-	openssl-compat.h
+	openssl-compat.h			\
+	wepoll.h
 
 EVENT1_HDRS = \
 	include/evdns.h \

@@ -660,10 +660,16 @@ if test "x$haveeventports" = "xyes" ; then
 fi
 AM_CONDITIONAL(EVPORT_BACKEND, [test "x$haveeventports" = "xyes"])
 
+havewepoll=no
 if test "x$bwin32" = "xtrue"; then
 	needsignal=yes
+  if test "x$cygwin" = "xfalse"; then
+    havewepoll=yes
+    AC_DEFINE(HAVE_WEPOLL, 1,
+      [Define if your system supports the wepoll module])
+  fi
 fi
-
+AM_CONDITIONAL(WEPOLL_BACKEND, [test "x$havewepoll" = "xyes"])
 AM_CONDITIONAL(SIGNAL_SUPPORT, [test "x$needsignal" = "xyes"])
 
 AC_TYPE_PID_T

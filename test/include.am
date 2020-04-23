@@ -51,6 +51,7 @@ TESTS = \
 	test_runner_devpoll \
 	test_runner_poll \
 	test_runner_win32 \
+	test_runner_wepoll \
 	test_runner_timerfd \
 	test_runner_changelist \
 	test_runner_timerfd_changelist
@@ -71,6 +72,8 @@ test_runner_poll: $(top_srcdir)/test/test.sh
 	$(top_srcdir)/test/test.sh -b POLL
 test_runner_win32: $(top_srcdir)/test/test.sh
 	$(top_srcdir)/test/test.sh -b WIN32
+test_runner_wepoll: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b WEPOLL
 test_runner_timerfd: $(top_srcdir)/test/test.sh
 	$(top_srcdir)/test/test.sh -b "" -t
 test_runner_changelist: $(top_srcdir)/test/test.sh

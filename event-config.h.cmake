@@ -102,6 +102,9 @@
 /* Define to 1 if you have the `epoll_ctl' function. */
 #cmakedefine EVENT__HAVE_EPOLL_CTL 1
 
+/* Define if your system supports the wepoll module */
+#cmakedefine EVENT__HAVE_WEPOLL 1
+
 /* Define to 1 if you have the `eventfd' function. */
 #cmakedefine EVENT__HAVE_EVENTFD 1
 

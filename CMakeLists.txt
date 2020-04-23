@@ -514,6 +514,9 @@ set(EVENT_INCLUDES ${EVENT_INCLUDES} stdio.h)
 CHECK_SYMBOLS_EXIST("${SYMBOLS_TO_CHECK}" "${EVENT_INCLUDES}" "EVENT")
 unset(SYMBOLS_TO_CHECK)
 set(EVENT__HAVE_EPOLL ${EVENT__HAVE_EPOLL_CREATE})
+if(WIN32 AND NOT CYGWIN)
+    set(EVENT__HAVE_WEPOLL 1)
+endif()
 
 # Get the gethostbyname_r prototype.
 if(EVENT__HAVE_GETHOSTBYNAME_R)
@@ -837,6 +840,12 @@ endif()
 
 if(EVENT__HAVE_EPOLL)
     list(APPEND SRC_CORE epoll.c)
+endif()
+
+if(EVENT__HAVE_WEPOLL)
+    list(APPEND SRC_CORE
+        epoll.c
+        wepoll.c)
 endif()
 
 if(EVENT__HAVE_EVENT_PORTS)
@@ -1240,6 +1249,10 @@ if (NOT EVENT__DISABLE_TESTS)
         list(APPEND BACKENDS DEVPOLL)
     endif()
 
+    if (EVENT__HAVE_WEPOLL)
+        list(APPEND BACKENDS WEPOLL)
+    endif()
+
     if (WIN32)
         list(APPEND BACKENDS WIN32)
     endif()
@@ -1382,13 +1395,12 @@ if (NOT EVENT__DISABLE_TESTS)
     #  If they are set in the shell the tests are running using simply "ctest" or "make test" will fail)
     if (WIN32)
         # Windows doesn't have "unset". But you can use "set VAR=" instead.
-        # We need to guard against the possibility taht EVENT_NOWIN32 is set, and all test failing
-        # since no event backend being available.
         file(TO_NATIVE_PATH ${CMAKE_CTEST_COMMAND} WINDOWS_CTEST_COMMAND)
 
         file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.bat
             "
             set EVENT_NOWIN32=
+            set EVENT_NOWEPOLL=
             \"${WINDOWS_CTEST_COMMAND}\"
             ")
 
@@ -1410,7 +1422,7 @@ if (NOT EVENT__DISABLE_TESTS)
         add_custom_target(verify COMMAND "${VERIFY_PATH}"
                           DEPENDS event ${ALL_TESTPROGS})
     else()
-        # On some platforms doing exec(unset) as CMake does won't work, so make sure
+        # On some platforms doing exec(unset) as CMake doesn't work, so make sure
         # we run the unset command in a shell instead.
         # First we write the script contents.
         file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/tmp/verify_tests.sh
