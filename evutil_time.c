@@ -65,6 +65,9 @@
 
 #ifndef EVENT__HAVE_GETTIMEOFDAY
 /* No gettimeofday; this must be windows. */
+
+typedef void (WINAPI *GetSystemTimePreciseAsFileTime_fn_t) (LPFILETIME);
+
 int
 evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
@@ -90,7 +93,22 @@ evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
 	if (tv == NULL)
 		return -1;
 
-	GetSystemTimeAsFileTime(&ft.ft_ft);
+	static GetSystemTimePreciseAsFileTime_fn_t GetSystemTimePreciseAsFileTime_fn = NULL;
+	static int check_precise = 1;
+
+	if (EVUTIL_UNLIKELY(check_precise)) {
+		HMODULE h = evutil_load_windows_system_library_(TEXT("kernel32.dll"));
+		if (h != NULL)
+			GetSystemTimePreciseAsFileTime_fn =
+				(GetSystemTimePreciseAsFileTime_fn_t)
+					GetProcAddress(h, "GetSystemTimePreciseAsFileTime");
+		check_precise = 0;
+	}
+
+	if (GetSystemTimePreciseAsFileTime_fn != NULL)
+		GetSystemTimePreciseAsFileTime_fn(&ft.ft_ft);
+	else
+		GetSystemTimeAsFileTime(&ft.ft_ft);
 
 	if (EVUTIL_UNLIKELY(ft.ft_64 < EPOCH_BIAS)) {
 		/* Time before the unix epoch. */
