@@ -642,7 +642,6 @@ be_socket_setfd(struct bufferevent *bufev, evutil_socket_t fd)
 	BEV_UNLOCK(bufev);
 }
 
-/* XXXX Should non-socket bufferevents support this? */
 int
 bufferevent_priority_set(struct bufferevent *bufev, int priority)
 {
@@ -650,8 +649,6 @@ bufferevent_priority_set(struct bufferevent *bufev, int priority)
 	struct bufferevent_private *bufev_p = BEV_UPCAST(bufev);
 
 	BEV_LOCK(bufev);
-	if (!BEV_IS_SOCKET(bufev))
-		goto done;
 
 	if (event_priority_set(&bufev->ev_read, priority) == -1)
 		goto done;
