@@ -487,7 +487,9 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 			continue;
 #endif
 
-		if (what & (EPOLLHUP|EPOLLERR)) {
+		if (what & EPOLLERR) {
+			ev = EV_READ | EV_WRITE;
+		} else if ((what & EPOLLHUP) && !(what & EPOLLRDHUP)) {
 			ev = EV_READ | EV_WRITE;
 		} else {
 			if (what & EPOLLIN)
