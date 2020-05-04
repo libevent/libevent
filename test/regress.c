@@ -512,13 +512,8 @@ test_simpleclose(void *ptr)
 		tt_assert(!event_base_loopexit(base, &tv));
 	}
 
-	/* via close() */
-	if (pair[1] == -1) {
-		tt_int_op(event_base_loop(base, EVLOOP_NONBLOCK), ==, 0);
-	} else {
-		tt_int_op(event_base_loop(base, EVLOOP_NONBLOCK), ==, !persist);
-		tt_int_op(got_event, ==, (events & ~EV_PERSIST));
-	}
+	tt_int_op(event_base_loop(base, EVLOOP_NONBLOCK), ==, !persist);
+	tt_int_op(got_event, ==, (events & ~EV_PERSIST));
 
 end:
 	if (ev)
