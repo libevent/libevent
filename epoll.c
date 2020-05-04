@@ -281,7 +281,7 @@ epoll_apply_one_change(struct event_base *base,
 		return 0;
 	}
 
-	if ((ch->read_change|ch->write_change) & EV_CHANGE_ET)
+	if ((ch->read_change|ch->write_change|ch->close_change) & EV_CHANGE_ET)
 		events |= EPOLLET;
 
 	memset(&epev, 0, sizeof(epev));
