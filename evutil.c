@@ -698,7 +698,7 @@ evutil_check_ifaddrs(void)
 	   "GetAdaptersInfo", but that's deprecated; let's just try
 	   GetAdaptersAddresses and fall back to connect+getsockname.
 	*/
-	HMODULE lib = evutil_load_windows_system_library_(TEXT("ihplapi.dll"));
+	HMODULE lib = evutil_load_windows_system_library_(TEXT("iphlpapi.dll"));
 	GetAdaptersAddresses_fn_t fn;
 	ULONG size, res;
 	IP_ADAPTER_ADDRESSES *addresses = NULL, *address;
