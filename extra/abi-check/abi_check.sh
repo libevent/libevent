@@ -43,8 +43,10 @@ mkdir -p installed/libevent/current
 
 # run LVC tools
 abi-monitor -get -limit "$LIMIT" libevent.json
-abi-monitor -make -j8 -v current -build libevent.json
-abi-monitor -make -j8 -build libevent.json
+# XXX: abi-monitor 1.12 supports "-make -j8", but 1.10 does not
+# (we can detect which version we have, and add this options)
+abi-monitor -v current -build libevent.json
+abi-monitor -build libevent.json
 abi-tracker -build libevent.json
 
 # remove useless files
