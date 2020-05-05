@@ -21,6 +21,7 @@ on:
 jobs:
   cmake:
     runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'ci skip')"
     strategy:
       fail-fast: false
       matrix:
@@ -97,6 +98,7 @@ jobs:
 
   autotools:
     runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'ci skip')"
     strategy:
       fail-fast: false
       matrix:
