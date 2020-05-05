@@ -27,6 +27,7 @@ jobs:
       matrix:
         os: [ubuntu-18.04]
         EVENT_MATRIX:
+          - DIST
           - NONE
           - DISABLE_OPENSSL
           - DISABLE_THREAD_SUPPORT
@@ -43,10 +44,27 @@ jobs:
         with:
           path: build
           key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v2
+      - name: Cache Dist Build
+        uses: actions/cache@v1.1.0
+        with:
+          path: dist
+          key: ${{ matrix.os }}-cmake-dist-${{ matrix.EVENT_MATRIX }}-v2
 
       - name: Build And Test
         shell: bash
         run: |
+          if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
+            ./autogen.sh
+            mkdir -p dist
+            cd dist
+            ../configure
+            rm -fr *.tar.gz
+            make dist
+            archive=$(echo *.tar.gz)
+            tar -vxf $archive
+            cd $(basename $archive .tar.gz)
+          fi
+
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
 
@@ -95,6 +113,11 @@ jobs:
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
           path: build
+      - uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-dist
+          path: dist
 
   autotools:
     runs-on: ${{ matrix.os }}
@@ -104,6 +127,7 @@ jobs:
       matrix:
         os: [ubuntu-18.04]
         EVENT_MATRIX:
+          - DIST
           - NONE
           - DISABLE_OPENSSL
           - DISABLE_THREAD_SUPPORT
@@ -118,6 +142,11 @@ jobs:
         with:
           path: build
           key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v2
+      - name: Cache Dist Build
+        uses: actions/cache@v1.1.0
+        with:
+          path: dist
+          key: ${{ matrix.os }}-autotools-dist-${{ matrix.EVENT_MATRIX }}-v2
 
       - name: Build And Test
         shell: bash
@@ -145,6 +174,18 @@ jobs:
           #run build and test
           JOBS=20
           ./autogen.sh
+
+          if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
+            mkdir -p dist
+            cd dist
+            rm -fr *.tar.gz
+            ../configure $EVENT_CONFIGURE_OPTIONS
+            make dist
+            archive=$(echo *.tar.gz)
+            tar -vxf $archive
+            cd $(basename $archive .tar.gz)
+          fi
+
           mkdir -p build
           cd build
           echo [configure]: ../configure $EVENT_CONFIGURE_OPTIONS
@@ -157,3 +198,8 @@ jobs:
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-build
           path: build
+      - uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-dist
+          path: dist
