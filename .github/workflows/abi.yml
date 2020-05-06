@@ -57,7 +57,7 @@ jobs:
           short_commit_id="${COMMIT_ID:0:7}"
           owner_name="${{ github.event.repository.owner.name }}"
 
-          cd /tmp/le-abi-root/work/abi-check/timeline/libevent/
+          cd /tmp/le-abi-root/work/abi-check
           git init
           git config --local user.name $user_name
           git config --local user.email $user_email
