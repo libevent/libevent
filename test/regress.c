@@ -495,7 +495,7 @@ test_simpleclose(void *ptr)
 
 	got_event = 0;
 	if (strstr(flags, "close")) {
-		tt_assert(!close(pair[1]));
+		tt_assert(!evutil_closesocket(pair[1]));
 		/* avoid closing in setup routines */
 		pair[1] = -1;
 	} else if (strstr(flags, "shutdown")) {
