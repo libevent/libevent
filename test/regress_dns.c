@@ -2379,6 +2379,71 @@ end:
 		evdns_base_free(dns_base, 0);
 }
 
+static void
+test_set_option(void *arg)
+{
+#define SUCCESS 0
+#define FAIL -1
+	struct basic_test_data *data = arg;
+	struct evdns_base *dns_base;
+	size_t i;
+	/* Option names are allowed to have ':' at the end.
+	 * So all test option names come in pairs.
+	 */
+	const char *int_options[] = {
+		"ndots", "ndots:",
+		"max-timeouts", "max-timeouts:",
+		"max-inflight", "max-inflight:",
+		"attempts", "attempts:",
+		"randomize-case", "randomize-case:",
+		"so-rcvbuf", "so-rcvbuf:",
+		"so-sndbuf", "so-sndbuf:",
+	};
+	const char *timeval_options[] = {
+		"timeout", "timeout:",
+		"getaddrinfo-allow-skew", "getaddrinfo-allow-skew:",
+		"initial-probe-timeout", "initial-probe-timeout:",
+	};
+	const char *addr_port_options[] = {
+		"bind-to", "bind-to:",
+	};
+
+	dns_base = evdns_base_new(data->base, 0);
+	tt_assert(dns_base);
+
+	for (i = 0; i < ARRAY_SIZE(int_options); ++i) {
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, int_options[i], "0"));
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, int_options[i], "1"));
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, int_options[i], "10000"));
+		tt_assert(FAIL == evdns_base_set_option(dns_base, int_options[i], "foo"));
+		tt_assert(FAIL == evdns_base_set_option(dns_base, int_options[i], "3.14"));
+	}
+
+	for (i = 0; i < ARRAY_SIZE(timeval_options); ++i) {
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, timeval_options[i], "1"));
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, timeval_options[i], "0.001"));
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, timeval_options[i], "3.14"));
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, timeval_options[i], "10000"));
+		tt_assert(FAIL == evdns_base_set_option(dns_base, timeval_options[i], "0"));
+		tt_assert(FAIL == evdns_base_set_option(dns_base, timeval_options[i], "foo"));
+	}
+
+	for (i = 0; i < ARRAY_SIZE(addr_port_options); ++i) {
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, addr_port_options[i], "8.8.8.8:80"));
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, addr_port_options[i], "1.2.3.4"));
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, addr_port_options[i], "::1:82"));
+		tt_assert(SUCCESS == evdns_base_set_option(dns_base, addr_port_options[i], "3::4"));
+		tt_assert(FAIL == evdns_base_set_option(dns_base, addr_port_options[i], "3.14"));
+		tt_assert(FAIL == evdns_base_set_option(dns_base, addr_port_options[i], "foo"));
+	}
+
+#undef SUCCESS
+#undef FAIL
+end:
+	if (dns_base)
+		evdns_base_free(dns_base, 0);
+}
+
 #define DNS_LEGACY(name, flags)					       \
 	{ #name, run_legacy_test_fn, flags|TT_LEGACY, &legacy_setup,   \
 		    dns_##name }
@@ -2453,6 +2518,8 @@ struct testcase_t dns_testcases[] = {
 #endif
 
 	{ "set_SO_RCVBUF_SO_SNDBUF", test_set_so_rcvbuf_so_sndbuf,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "set_options", test_set_option,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
 	END_OF_TESTCASES
