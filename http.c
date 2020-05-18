@@ -1492,8 +1492,10 @@ static void
 evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 {
 	struct evcon_requestq requests;
+	EVUTIL_ASSERT(evcon->flags & EVHTTP_CON_OUTGOING);
 
 	evhttp_connection_reset_(evcon);
+
 	if (evcon->retry_max < 0 || evcon->retry_cnt < evcon->retry_max) {
 		struct timeval tv_retry = evcon->initial_retry_timeout;
 		int i;
@@ -1539,6 +1541,12 @@ evhttp_connection_cb_cleanup(struct evhttp_connection *evcon)
 		request->cb(request, request->cb_arg);
 		evhttp_request_free_auto(request);
 	}
+
+	if (TAILQ_FIRST(&evcon->requests) == NULL
+	  && (evcon->flags & EVHTTP_CON_AUTOFREE)) {
+		evhttp_connection_free(evcon);
+	}
+
 }
 
 static void
