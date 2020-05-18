@@ -1320,6 +1320,9 @@ http_autofree_connection_test(void *arg)
 	evhttp_connection_free_on_completion(evcon);
 	evcon = NULL;
 
+	// req0
+	event_base_dispatch(data->base);
+	// req1
 	event_base_dispatch(data->base);
 
 	/* at this point, the http server should have no connection */
