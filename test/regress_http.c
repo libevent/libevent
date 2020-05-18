@@ -66,6 +66,8 @@
 #include "regress.h"
 #include "regress_testutils.h"
 
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
+
 /* set if a test needs to call loopexit on a base */
 static struct event_base *exit_base;
 
@@ -1283,6 +1285,7 @@ http_autofree_connection_test(void *arg)
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req[2] = { NULL };
 	struct evhttp *http = http_setup(&port, data->base, 0);
+	size_t i;
 
 	test_ok = 0;
 
@@ -1297,12 +1300,11 @@ http_autofree_connection_test(void *arg)
 	req[1] = evhttp_request_new(http_request_empty_done, data->base);
 
 	/* Add the information that we care about */
-	evhttp_add_header(evhttp_request_get_output_headers(req[0]), "Host", "somehost");
-	evhttp_add_header(evhttp_request_get_output_headers(req[0]), "Connection", "close");
-	evhttp_add_header(evhttp_request_get_output_headers(req[0]), "Empty", "itis");
-	evhttp_add_header(evhttp_request_get_output_headers(req[1]), "Host", "somehost");
-	evhttp_add_header(evhttp_request_get_output_headers(req[1]), "Connection", "close");
-	evhttp_add_header(evhttp_request_get_output_headers(req[1]), "Empty", "itis");
+	for (i = 0; i < ARRAY_SIZE(req); ++i) {
+		evhttp_add_header(evhttp_request_get_output_headers(req[i]), "Host", "somehost");
+		evhttp_add_header(evhttp_request_get_output_headers(req[i]), "Connection", "close");
+		evhttp_add_header(evhttp_request_get_output_headers(req[i]), "Empty", "itis");
+	}
 
 	/* We give ownership of the request to the connection */
 	if (evhttp_make_request(evcon, req[0], EVHTTP_REQ_GET, "/test") == -1) {
