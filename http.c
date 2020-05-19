@@ -877,6 +877,11 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 	/* We are trying the next request that was queued on us */
 	if (TAILQ_FIRST(&evcon->requests) != NULL)
 		evhttp_connection_connect_(evcon);
+	else
+		if ((evcon->flags & EVHTTP_CON_OUTGOING) &&
+		    (evcon->flags & EVHTTP_CON_AUTOFREE)) {
+			evhttp_connection_free(evcon);
+		}
 
 	/* The call to evhttp_connection_reset_ overwrote errno.
 	 * Let's restore the original errno, so that the user's
