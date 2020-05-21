@@ -1418,7 +1418,7 @@ http_connection_async_test(void *arg)
 	struct evhttp *http = http_setup(&port, data->base, 0);
 
 	exit_base = data->base;
-	tt_assert(regress_dnsserver(data->base, &portnum, search_table));
+	tt_assert(regress_dnsserver(data->base, &portnum, search_table, NULL));
 
 	dns_base = evdns_base_new(data->base, 0/* init name servers */);
 	tt_assert(dns_base);
@@ -1699,7 +1699,7 @@ http_cancel_test(void *arg)
 	if (type & BY_HOST) {
 		const char *timeout = (type & NS_TIMEOUT) ? "6" : "3";
 
-		tt_assert(regress_dnsserver(data->base, &portnum, search_table));
+		tt_assert(regress_dnsserver(data->base, &portnum, search_table, NULL));
 
 		dns_base = evdns_base_new(data->base, 0/* init name servers */);
 		tt_assert(dns_base);
@@ -4132,7 +4132,7 @@ http_connection_retry_conn_address_test_impl(void *arg, int ssl)
 	struct evdns_base *dns_base = NULL;
 	char address[64];
 
-	tt_assert(regress_dnsserver(data->base, &portnum, search_table));
+	tt_assert(regress_dnsserver(data->base, &portnum, search_table, NULL));
 	dns_base = evdns_base_new(data->base, 0/* init name servers */);
 	tt_assert(dns_base);
 
@@ -4669,7 +4669,7 @@ http_ipv6_for_domain_test_impl(void *arg, int family)
 	ev_uint16_t portnum = 0;
 	char address[64];
 
-	tt_assert(regress_dnsserver(data->base, &portnum, ipv6_search_table));
+	tt_assert(regress_dnsserver(data->base, &portnum, ipv6_search_table, NULL));
 
 	dns_base = evdns_base_new(data->base, 0/* init name servers */);
 	tt_assert(dns_base);

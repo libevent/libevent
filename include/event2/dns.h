@@ -183,7 +183,12 @@ extern "C" {
 #define DNS_PTR 2
 #define DNS_IPv6_AAAA 3
 
-#define DNS_QUERY_NO_SEARCH 1
+/** Disable searching for the query. */
+#define DNS_QUERY_NO_SEARCH 0x01
+/** Use TCP connections ("virtual circuits") for queries rather than UDP datagrams. */
+#define DNS_QUERY_USEVC 0x02
+/** Ignore trancation flag in responses (don't fallback to TCP connections). */
+#define DNS_QUERY_IGNTC 0x04
 
 /* Allow searching */
 #define DNS_OPTION_SEARCH 1
@@ -197,6 +202,9 @@ extern "C" {
  * - attempts:
  * - randomize-case:
  * - initial-probe-timeout:
+ * - tcp-idle-timeout:
+ * - use-vc
+ * - ignore-tc
  */
 #define DNS_OPTION_MISC 4
 /* Load hosts file (i.e. "/etc/hosts") */
@@ -390,7 +398,7 @@ struct evdns_request;
 
   @param base the evdns_base to which to apply this operation
   @param name a DNS hostname
-  @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
+  @param flags either 0, or combination of DNS_QUERY_* flags.
   @param callback a callback function to invoke when the request is completed
   @param ptr an argument to pass to the callback function
   @return an evdns_request object if successful, or NULL if an error occurred.
@@ -404,7 +412,7 @@ struct evdns_request *evdns_base_resolve_ipv4(struct evdns_base *base, const cha
 
   @param base the evdns_base to which to apply this operation
   @param name a DNS hostname
-  @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
+  @param flags either 0, or combination of DNS_QUERY_* flags.
   @param callback a callback function to invoke when the request is completed
   @param ptr an argument to pass to the callback function
   @return an evdns_request object if successful, or NULL if an error occurred.
@@ -421,7 +429,7 @@ struct in6_addr;
 
   @param base the evdns_base to which to apply this operation
   @param in an IPv4 address
-  @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
+  @param flags either 0, or combination of DNS_QUERY_* flags.
   @param callback a callback function to invoke when the request is completed
   @param ptr an argument to pass to the callback function
   @return an evdns_request object if successful, or NULL if an error occurred.
@@ -436,7 +444,7 @@ struct evdns_request *evdns_base_resolve_reverse(struct evdns_base *base, const 
 
   @param base the evdns_base to which to apply this operation
   @param in an IPv6 address
-  @param flags either 0, or DNS_QUERY_NO_SEARCH to disable searching for this query.
+  @param flags either 0, or combination of DNS_QUERY_* flags.
   @param callback a callback function to invoke when the request is completed
   @param ptr an argument to pass to the callback function
   @return an evdns_request object if successful, or NULL if an error occurred.
@@ -462,10 +470,13 @@ void evdns_cancel_request(struct evdns_base *base, struct evdns_request *req);
 
     ndots, timeout, max-timeouts, max-inflight, attempts, randomize-case,
     bind-to, initial-probe-timeout, getaddrinfo-allow-skew,
-    so-rcvbuf, so-sndbuf.
+    so-rcvbuf, so-sndbuf, tcp-idle-timeout, use-vc, ignore-tc.
 
   In versions before Libevent 2.0.3-alpha, the option name needed to end with
   a colon.
+
+  In case of options without values (use-vc, ingore-tc) val should be an empty
+  string or NULL.
 
   @param base the evdns_base to which to apply this operation
   @param option the name of the configuration option to be modified
@@ -646,7 +657,7 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
 #define EVDNS_FLAGS_AA	0x400
 #define EVDNS_FLAGS_RD	0x080
 
-/** Create a new DNS server port.
+/** Create a new UDP DNS server port.
 
     @param base The event base to handle events for the server port.
     @param socket A UDP socket to accept DNS requests.
@@ -659,9 +670,59 @@ typedef void (*evdns_request_callback_fn_type)(struct evdns_server_request *, vo
  */
 EVENT2_EXPORT_SYMBOL
 struct evdns_server_port *evdns_add_server_port_with_base(struct event_base *base, evutil_socket_t socket, int flags, evdns_request_callback_fn_type callback, void *user_data);
+
+struct evconnlistener;
+
+/** Create a new TCP DNS server port.
+
+    @param base The event base to handle events for the server port.
+    @param listener A TCP listener to accept DNS requests.
+    @param flags Always 0 for now.
+    @param callback A function to invoke whenever we get a DNS request
+      on the socket.
+    @param user_data Data to pass to the callback.
+    @return an evdns_server_port structure for this server port or NULL if
+      an error occurred.
+ */
+EVENT2_EXPORT_SYMBOL
+struct evdns_server_port *evdns_add_server_port_with_listener(
+    struct event_base *base, struct evconnlistener *listener, int flags,
+    evdns_request_callback_fn_type callback, void *user_data);
+
 /** Close down a DNS server port, and free associated structures. */
 EVENT2_EXPORT_SYMBOL
 void evdns_close_server_port(struct evdns_server_port *port);
+
+/**
+ * List of configurable evdns_server_port options.
+ *
+ * @see evdns_server_port_set_option()
+ */
+enum evdns_server_option {
+	/**
+	 * Maximum number of simultaneous tcp connections (clients)
+	 * that server can hold. Can be set only for TCP DNS servers.
+	 */
+	EVDNS_SOPT_TCP_MAX_CLIENTS,
+	/**
+	 * Idle timeout (in seconds) of incoming TCP connections.
+	 * If client doesn't send any requests via the connection
+	 * during this period connection is closed by the server.
+	 * Can be set only for TCP DNS servers.
+	 */
+	EVDNS_SOPT_TCP_IDLE_TIMEOUT,
+};
+
+/**
+   Configure DNS server.
+
+   @param port the evdns_server_port to which to apply this operation
+   @param option @see evdns_server_option for the list of possible options
+   @param val value of the option
+   @return 0 if successful, or -1 if an error occurred
+ */
+EVENT2_EXPORT_SYMBOL
+int evdns_server_port_set_option(struct evdns_server_port *port, enum evdns_server_option option, size_t value);
 
 /** Sets some flags in a reply we're building.
     Allows setting of the AA or RD flags
