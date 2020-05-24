@@ -1304,14 +1304,10 @@ http_autofree_connection_test(void *arg)
 		evhttp_add_header(evhttp_request_get_output_headers(req[i]), "Host", "somehost");
 		evhttp_add_header(evhttp_request_get_output_headers(req[i]), "Connection", "close");
 		evhttp_add_header(evhttp_request_get_output_headers(req[i]), "Empty", "itis");
-	}
 
-	/* We give ownership of the request to the connection */
-	if (evhttp_make_request(evcon, req[0], EVHTTP_REQ_GET, "/test") == -1) {
-		tt_abort_msg("couldn't make request");
-	}
-	if (evhttp_make_request(evcon, req[1], EVHTTP_REQ_GET, "/test") == -1) {
-		tt_abort_msg("couldn't make request");
+		if (evhttp_make_request(evcon, req[i], EVHTTP_REQ_GET, "/test") == -1) {
+			tt_abort_msg("couldn't make request");
+		}
 	}
 
 	/*
@@ -1322,10 +1318,8 @@ http_autofree_connection_test(void *arg)
 	evhttp_connection_free_on_completion(evcon);
 	evcon = NULL;
 
-	// req0
-	event_base_dispatch(data->base);
-	// req1
-	event_base_dispatch(data->base);
+	for (i = 0; i < ARRAY_SIZE(req); ++i)
+		event_base_dispatch(data->base);
 
 	/* at this point, the http server should have no connection */
 	tt_assert(TAILQ_FIRST(&http->connections) == NULL);
