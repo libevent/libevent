@@ -531,7 +531,6 @@ evdns_tcp_disconnect(struct tcp_connection *conn)
 	conn->state = TS_DISCONNECTED;
 	conn->awaiting_packet_size = 0;
 	if (conn->bev) {
-		bufferevent_setcb(conn->bev, NULL, NULL, NULL, NULL);
 		bufferevent_free(conn->bev);
 		conn->bev = NULL;
 	}
@@ -2137,10 +2136,8 @@ incoming_conn_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
 	return;
 error:
-	if (bev) {
-		bufferevent_setcb(bev, NULL, NULL, NULL, NULL);
+	if (bev)
 		bufferevent_free(bev);
-	}
 	return;
 }
 
