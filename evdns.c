@@ -1029,7 +1029,7 @@ client_retransmit_through_tcp(struct evdns_request *handle)
 	struct evdns_base *base = req->base;
 	struct request *newreq = request_clone(base, req);
 	ASSERT_LOCKED(base);
-	if (!newreq) 
+	if (!newreq)
 		return 1;
 	request_finished(req, &REQ_HEAD(req->base, req->trans_id), 0);
 	handle->current_req = newreq;
