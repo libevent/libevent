@@ -2039,7 +2039,7 @@ tcp_read_message(struct tcp_connection *conn, u8 **msg, int *msg_len)
 
 	r = (int)bufferevent_read(bev, (void*)packet, conn->awaiting_packet_size);
 	if (r != conn->awaiting_packet_size) {
-		mm_free (packet);
+		mm_free(packet);
 		packet = NULL;
 		goto fail;
 	}
@@ -2629,7 +2629,7 @@ evdns_request_timeout_callback(evutil_socket_t fd, short events, void *arg) {
 			req->ns->connection = NULL;
 
 			/* client can have the only connection to DNS server */
-			retransmit_all_tcp_requests_for (req->ns);
+			retransmit_all_tcp_requests_for(req->ns);
 		} else {
 			/* retransmit it */
 			log(EVDNS_LOG_DEBUG, "Retransmitting request %p; tx_count==%d by udp", arg, req->tx_count);
@@ -2770,9 +2770,9 @@ client_tcp_event_cb(struct bufferevent *bev, short events, void *ctx) {
 	} else if (events & BEV_EVENT_CONNECTED) {
 		EVUTIL_ASSERT (conn->state == TS_CONNECTING);
 		conn->state = TS_CONNECTED;
-		evutil_make_socket_nonblocking (bufferevent_getfd (bev));
-		bufferevent_setcb (bev, client_tcp_read_packet_cb, NULL, client_tcp_event_cb, server);
-		bufferevent_setwatermark (bev, EV_READ, sizeof(ev_uint16_t), 0);
+		evutil_make_socket_nonblocking(bufferevent_getfd(bev));
+		bufferevent_setcb(bev, client_tcp_read_packet_cb, NULL, client_tcp_event_cb, server);
+		bufferevent_setwatermark(bev, EV_READ, sizeof(ev_uint16_t), 0);
 	}
 	EVDNS_UNLOCK(server->base);
 }
@@ -2846,7 +2846,7 @@ evdns_request_transmit(struct request *req) {
 	}
 
 	if (req->handle->tcp_flags & DNS_QUERY_USEVC) {
-		r = evdns_request_transmit_through_tcp (req, req->ns);
+		r = evdns_request_transmit_through_tcp(req, req->ns);
 		/*
 		If connection didn't initiated now, so report about temporary problems.
 		We don't mark name server as chocked so udp packets possibly have no
