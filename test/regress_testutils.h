@@ -32,13 +32,20 @@
 struct regress_dns_server_table {
 	const char *q;
 	const char *anstype;
-	const char *ans;
+	const char *ans; /* Comma-separated list of IP numbers (e.g. "1.2.3.4", "1.2.3.4,5.6.7.8") */
 	int seen;
 	int lower;
 };
 
 struct evdns_server_port *
-regress_get_dnsserver(struct event_base *base,
+regress_get_udp_dnsserver(struct event_base *base,
+    ev_uint16_t *portnum,
+    evutil_socket_t *psock,
+    evdns_request_callback_fn_type cb,
+    void *arg);
+
+struct evdns_server_port *
+regress_get_tcp_dnsserver(struct event_base *base,
     ev_uint16_t *portnum,
     evutil_socket_t *psock,
     evdns_request_callback_fn_type cb,
@@ -51,9 +58,12 @@ int regress_get_socket_port(evutil_socket_t fd);
 void regress_dns_server_cb(
 	struct evdns_server_request *req, void *data);
 
-/* globally allocates a dns server that serves from a search table */
+/* Globally allocates a dns server that serves from a search table.
+   TCP and UDP listeners are created on the same port number. If one of the
+   input search tables is NULL appropriate listener is not created. */
 int regress_dnsserver(struct event_base *base, ev_uint16_t *port,
-    struct regress_dns_server_table *seach_table);
+    struct regress_dns_server_table *udp_seach_table,
+    struct regress_dns_server_table *tcp_seach_table);
 
 /* clean up the global dns server resources */
 void regress_clean_dnsserver(void);
@@ -62,6 +72,10 @@ struct evconnlistener;
 struct sockaddr;
 int regress_get_listener_addr(struct evconnlistener *lev,
     struct sockaddr *sa, ev_socklen_t *socklen);
+
+/* Parse comma-separated list of IP addresses. */
+int parse_csv_address_list(const char *s, int family,
+    void *addrs, size_t addrs_size);
 
 #endif /* REGRESS_TESTUTILS_H_INCLUDED_ */
 
