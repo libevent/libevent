@@ -4727,6 +4727,76 @@ http_newreqcb_test(void *arg)
 }
 
 
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
+static void
+http_max_connections_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	ev_uint16_t port = 0;
+	struct evhttp *http = http_setup(&port, data->base, 0);
+	struct evhttp_connection *evcons[2];
+	struct http_newreqcb_test_state newreqcb_test_state;
+	unsigned n;
+
+	exit_base = data->base;
+	test_ok = 0;
+
+	memset(&newreqcb_test_state, 0, sizeof(newreqcb_test_state));
+	memset(evcons, 0, sizeof(evcons));
+
+	evhttp_set_max_connections(http, ARRAY_SIZE(evcons)-1);
+
+	for (n = 0; n < sizeof(evcons)/sizeof(evcons[0]); ++n) {
+		struct evhttp_connection* evcon = NULL;
+		struct evhttp_request *req = NULL;
+		evcons[n] = evhttp_connection_base_new(data->base, NULL, "127.0.0.1", port);
+		evcon = evcons[n];
+		evhttp_connection_set_retries(evcon, 0);
+
+		tt_assert(evcon);
+
+		req = evhttp_request_new(http_request_done_newreqcb, &newreqcb_test_state);
+		evhttp_add_header(evhttp_request_get_output_headers(req), "Connection", "close");
+		evhttp_request_set_error_cb(req, http_request_error_newreqcb);
+
+		/* We give ownership of the request to the connection */
+		if (evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/test") == -1) {
+			tt_abort_msg("Couldn't make request");
+		}
+
+		++newreqcb_test_state.connections_started;
+		http_newreqcb_test_state_check(&newreqcb_test_state);
+	}
+
+	/* XXX: http_newreqcb_test_state_check will not stop the base, since:
+	 * - connections_done == 2
+	 * - connections_good == 1
+	 *
+	 * hence timeout
+	 */
+	{
+		struct timeval tv = { 0, 300e3 };
+		event_base_loopexit(data->base, &tv);
+	}
+
+	event_base_dispatch(data->base);
+
+	http_newreqcb_test_state_check(&newreqcb_test_state);
+	tt_int_op(newreqcb_test_state.connections_error, ==, 0);
+	tt_int_op(newreqcb_test_state.connections_done, ==, 2);
+	tt_int_op(newreqcb_test_state.connections_good, ==, 1);
+
+end:
+	evhttp_free(http);
+
+	for (n = 0; n < ARRAY_SIZE(evcons); ++n) {
+		if (evcons[n]) {
+			evhttp_connection_free(evcons[n]);
+		}
+	}
+}
+
+
 #define HTTP_LEGACY(name)						\
 	{ #name, run_legacy_test_fn, TT_ISOLATED|TT_LEGACY, &legacy_setup, \
 		    http_##name##_test }
@@ -4849,6 +4919,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(request_extra_body),
 
 	HTTP(newreqcb),
+	HTTP(max_connections),
 
 #ifdef EVENT__HAVE_OPENSSL
 	HTTPS(basic),
