@@ -1336,6 +1336,7 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	if (evcon->http_server != NULL) {
 		struct evhttp *http = evcon->http_server;
 		TAILQ_REMOVE(&http->connections, evcon, next);
+		http->connection_cnt--;
 	}
 
 	if (event_initialized(&evcon->retry_ev)) {
@@ -4116,6 +4117,21 @@ evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size)
 }
 
 void
+evhttp_set_max_connections(struct evhttp* http, int max_connections)
+{
+	if (max_connections < 0)
+		http->connection_max = 0;
+	else
+		http->connection_max = max_connections;
+}
+
+int
+evhttp_get_connection_count(struct evhttp* http)
+{
+	return http->connection_cnt;
+}
+
+void
 evhttp_set_default_content_type(struct evhttp *http,
 	const char *content_type) {
 	http->default_content_type = content_type;
@@ -4586,8 +4602,30 @@ evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
 	evcon->http_server = http;
 	evcon->ext_method_cmp = http->ext_method_cmp;
 	TAILQ_INSERT_TAIL(&http->connections, evcon, next);
+	http->connection_cnt++;
 
-	if (evhttp_associate_new_request_with_connection(evcon) == -1)
+	/* send "service unavailable" if we've reached the connection limit */
+	if (http->connection_max && http->connection_max < http->connection_cnt) {
+		struct evhttp_request *req;
+
+		if ((req = evhttp_request_new(evhttp_handle_request, http)) == NULL) {
+			evhttp_connection_free(evcon);
+			return;
+		}
+
+		req->evcon = evcon;	/* the request owns the connection */
+		req->flags |= EVHTTP_REQ_OWN_CONNECTION;
+		req->kind = EVHTTP_REQUEST;
+		/* note, req->remote_host not needed since we don't read */
+
+		TAILQ_INSERT_TAIL(&evcon->requests, req, next);
+
+		/* send error to client */
+		evcon->state = EVCON_WRITING;
+		bufferevent_enable(evcon->bufev, EV_READ); /* enable close events */
+		evhttp_send_error(req, HTTP_SERVUNAVAIL, NULL);
+
+	} else if (evhttp_associate_new_request_with_connection(evcon) == -1)
 		evhttp_connection_free(evcon);
 }
 

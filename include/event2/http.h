@@ -224,6 +224,24 @@ EVENT2_EXPORT_SYMBOL
 void evhttp_set_max_body_size(struct evhttp* http, ev_ssize_t max_body_size);
 
 /**
+ * Set the maximum number of simultaneous connections for this server.
+ * A value of zero or less disables the limit.
+ *
+ * @param http the http server on which to set the max connection limit
+ * @param max_connections the maximum number of simultaneous connections or 0
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_set_max_connections(struct evhttp* http, int max_connections);
+
+/**
+ * Get the current number of connections.
+ *
+ * @return The current number of connections for this server.
+ */
+EVENT2_EXPORT_SYMBOL
+int evhttp_get_connection_count(struct evhttp* http);
+
+/**
   Set the value to use for the Content-Type header when none was provided. If
   the content type string is NULL, the Content-Type header will not be
   automatically added.
