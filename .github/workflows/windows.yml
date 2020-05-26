@@ -225,7 +225,12 @@ jobs:
             python ../test-export/test-export.py shared
           }
           else {
-            ctest --output-on-failure -j $EVENT_TESTS_PARALLEL
+            try {
+              ctest --output-on-failure -j $EVENT_TESTS_PARALLEL
+            } catch {
+              echo LastExitCode=$LastExitCode
+              $host.SetShouldExit(1)
+            }
           }
 
       - uses: actions/upload-artifact@v1

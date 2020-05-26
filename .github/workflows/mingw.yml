@@ -140,6 +140,7 @@ jobs:
           cmake .. -G "MSYS Makefiles" $EVENT_CONFIGURE_OPTIONS -DCMAKE_C_FLAGS=-w
           cmake --build .
           ctest -V
+          echo LastExitCode=$LastExitCode
 
       - uses: actions/upload-artifact@v1
         if: failure()

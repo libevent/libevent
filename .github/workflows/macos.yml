@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
+        os: [macos-10.15]
         EVENT_MATRIX:
           - NONE
           - DISABLE_OPENSSL
@@ -43,7 +43,7 @@ jobs:
         uses: actions/cache@v1.1.0
         with:
           path: build
-          key: macos-10.15-cmake-${{ matrix.EVENT_MATRIX }}-v2
+          key: macos-10.15-cmake-${{ matrix.EVENT_MATRIX }}-v3
 
       - name: Build And Test
         shell: bash
@@ -105,7 +105,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
+        os: [macos-10.15]
         EVENT_MATRIX:
           - NONE
           - DISABLE_OPENSSL
