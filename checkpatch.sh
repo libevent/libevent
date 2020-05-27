@@ -164,8 +164,8 @@ function clang_style()
     local c="${options[cfg]}"
     echo "{ $(sed -e 's/#.*//' -e '/---/d' -e '/\.\.\./d' "$c" | tr $'\n' ,) }"
 }
-function clang_format() { clang-format --style="$(clang_style)" "$@"; }
-function clang_format_diff() { clang-format-diff --style="$(clang_style)" "$@"; }
+function clang_format() { clang-format -style="$(clang_style)" "$@"; }
+function clang_format_diff() { clang-format-diff -style="$(clang_style)" "$@"; }
 # for non-bare repo will work
 function clang_format_git()
 { git format-patch --stdout "$@" -1 | clang_format_diff; }
