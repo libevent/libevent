@@ -35,7 +35,7 @@ Example:
 OPTS:
   -p   - treat as patch
   -f   - treat as regular file
-  -f   - treat as regular file and print diff
+  -d   - treat as regular file and print diff
   -r   - treat as git revision (default)
   -C   - check using clang-format (default)
   -U   - check with uncrustify
