@@ -31,7 +31,7 @@ macro(event_fuzzy_version_from_git)
 	if (GIT_FOUND)
 		execute_process(
 			COMMAND
-				${GIT_EXECUTABLE} describe --abbrev=0
+				${GIT_EXECUTABLE} describe --abbrev=0 --always
 			WORKING_DIRECTORY
 				${PROJECT_SOURCE_DIR}
 			RESULT_VARIABLE
@@ -42,7 +42,9 @@ macro(event_fuzzy_version_from_git)
 		)
 
 		string(REGEX REPLACE "[\\._-]" ";" VERSION_LIST "${GITVERSION}")
-		list(LENGTH VERSION_LIST VERSION_LIST_LENGTH)
+		if(VERSION_LIST)
+			list(LENGTH VERSION_LIST VERSION_LIST_LENGTH)
+		endif()
 
 		if ((GITRET EQUAL 0) AND (VERSION_LIST_LENGTH EQUAL 5))
 			list(GET VERSION_LIST 1 _MAJOR)
