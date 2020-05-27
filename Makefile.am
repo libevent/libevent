@@ -120,7 +120,6 @@ CMAKE_FILES = \
 	cmake/CodeCoverage.cmake \
 	cmake/COPYING-CMAKE-SCRIPTS \
 	cmake/Copyright.txt \
-	cmake/FindGit.cmake \
 	cmake/LibeventConfig.cmake.in \
 	cmake/LibeventConfigVersion.cmake.in \
 	cmake/Macros.cmake \
