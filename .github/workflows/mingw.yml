@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache@v1.1.2
         with:
           path: build
-          key: mingw-autotools-${{ matrix.EVENT_MATRIX }}-v2
+          key: mingw-autotools-${{ matrix.EVENT_MATRIX }}-v3
 
       - uses: numworks/setup-msys2@v1
         if: steps.cache-mingw.outputs.cache-hit != 'true'
@@ -56,7 +56,7 @@ jobs:
       - name: Install Dependes
         if: steps.cache-mingw.outputs.cache-hit != 'true'
         run: |
-          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc autoconf automake libtool mingw-w64-x86_64-openssl
+          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc autoconf automake libtool mingw-w64-x86_64-openssl mingw-w64-x86_64-mbedtls
 
       - name: Build And Test
         shell: powershell
@@ -115,7 +115,7 @@ jobs:
         uses: actions/cache@v1.1.2
         with:
           path: build
-          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-v2
+          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-v3
 
       - uses: numworks/setup-msys2@v1
         if: steps.cache-mingw-cmake.outputs.cache-hit != 'true'
@@ -125,7 +125,7 @@ jobs:
       - name: Install Dependes
         if: steps.cache-mingw-cmake.outputs.cache-hit != 'true'
         run: |
-          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-openssl
+          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-openssl mingw-w64-x86_64-mbedtls
 
       - name: Build And Test
         shell: powershell
