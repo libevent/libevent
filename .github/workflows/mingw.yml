@@ -137,7 +137,29 @@ jobs:
           $env:PATH="D:\a\_temp\msys\msys64\mingw64\bin;D:\a\_temp\msys\msys64\usr\bin;$env:PATH"
           mkdir build -ea 0
           cd build
-          cmake .. -G "MSYS Makefiles" $EVENT_CONFIGURE_OPTIONS -DCMAKE_C_FLAGS=-w
+          function cmake_configure($retry)
+          {
+            $errcode=0
+            try {
+              cmake .. -G "MSYS Makefiles" $EVENT_CONFIGURE_OPTIONS -DCMAKE_C_FLAGS=-w
+              $errcode=$LastExitCode
+            }
+            catch {
+              $errcode=1
+            }
+            finally {
+              if ($errcode -ne 0) {
+                if ($retry -eq 0) {
+                  $host.SetShouldExit($LastExitCode)
+                } else {
+                  echo "Remove all entries in build directory"
+                  rm -r -fo *
+                  cmake_configure 0
+                }
+              }
+            }
+          }
+          cmake_configure 1
           cmake --build .
           ctest -V
 
