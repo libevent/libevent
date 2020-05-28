@@ -453,6 +453,9 @@ struct testgroup_t testgroups[] = {
 #ifdef EVENT__HAVE_OPENSSL
 	{ "ssl/", ssl_testcases },
 #endif
+#ifdef EVENT__HAVE_MBEDTLS
+	{ "mbedtls/", mbedtls_testcases },
+#endif
 	END_OF_GROUPS
 };
 

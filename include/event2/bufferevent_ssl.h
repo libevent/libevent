@@ -194,7 +194,7 @@ bufferevent_mbedtls_get_ssl(struct bufferevent *bufev);
 
 /** Tells a bufferevent to begin SSL renegotiation. */
 EVENT2_EXPORT_SYMBOL
-int bufferevent_ssl_renegotiate(struct bufferevent *bev);
+int bufferevent_mbedtls_renegotiate(struct bufferevent *bev);
 
 /** Return the most recent OpenSSL error reported on an SSL bufferevent. */
 EVENT2_EXPORT_SYMBOL

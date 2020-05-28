@@ -9,6 +9,9 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <event2/bufferevent_ssl.h>
+#elif defined(EVENT_EXPORT_TEST_COMPONENT_MBEDTLS)
+#include <mbedtls/ssl.h>
+#include <event2/bufferevent_ssl.h>
 #endif
 
 #if defined(EVENT_EXPORT_TEST_COMPONENT_EXTRA)
@@ -88,6 +91,54 @@ error:
 		SSL_CTX_free(ssl_ctx);
 	if (ssl)
 		SSL_free(ssl);
+	return r;
+}
+#elif defined(EVENT_EXPORT_TEST_COMPONENT_MBEDTLS)
+static int
+test()
+{
+	struct event_base *base = NULL;
+	mbedtls_ssl_config *conf = NULL;
+	mbedtls_ssl_context *ssl = NULL;
+	struct bufferevent *bev;
+	int r = 1;
+
+	base = event_base_new();
+	if (!base) {
+		goto error;
+	}
+
+	conf = malloc(sizeof(*conf));
+	if (!conf) {
+		goto error;
+	}
+	mbedtls_ssl_config_init(conf);
+
+	ssl = malloc(sizeof(*ssl));
+	if (!ssl) {
+		goto error;
+	}
+	mbedtls_ssl_init(ssl);
+	mbedtls_ssl_setup(ssl, conf);
+
+	bev = bufferevent_mbedtls_socket_new(base, -1, ssl,
+		BUFFEREVENT_SSL_CONNECTING,
+		BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+	if (bev == NULL) {
+		goto error;
+	}
+	r = 0;
+error:
+	if (base)
+		event_base_free(base);
+	if (ssl) {
+		mbedtls_ssl_free(ssl);
+		free(ssl);
+	}
+	if (conf) {
+		mbedtls_ssl_config_free(conf);
+		free(conf);
+	}
 	return r;
 }
 #else

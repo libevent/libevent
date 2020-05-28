@@ -70,39 +70,13 @@
 #define SSL_ERROR_WANT_WRITE MBEDTLS_ERR_SSL_WANT_WRITE
 #define SSL mbedtls_ssl_context
 
-/*
- * Define an OpenSSL bio that targets a bufferevent.
- */
-
-/* --------------------
-   A BIO is an OpenSSL abstraction that handles reading and writing data.  The
-   library will happily speak SSL over anything that implements a BIO
-   interface.
-
-   Here we define a BIO implementation that directs its output to a
-   bufferevent.  We'll want to use this only when none of OpenSSL's built-in
-   IO mechanisms work for us.
-   -------------------- */
-
-/* every BIO type needs its own integer type value. */
-#define BIO_TYPE_LIBEVENT 57
-/* ???? Arguably, we should set BIO_TYPE_FILTER or BIO_TYPE_SOURCE_SINK on
- * this. */
-
 #if 0
 static void
 print_err(int val)
 {
-	int err;
-	printf("Error was %d\n", val);
-
-	while ((err = ERR_get_error())) {
-		const char *msg = (const char*)ERR_reason_error_string(err);
-		const char *lib = (const char*)ERR_lib_error_string(err);
-		const char *func = (const char*)ERR_func_error_string(err);
-
-		printf("%s in %s %s\n", msg, lib, func);
-	}
+	char buf[1024];
+	mbedtls_strerror(val, buf, sizeof(buf));
+	printf("Error was %d:%s\n", val, buf);
 }
 #else
 #define print_err(v) ((void)0)
@@ -117,10 +91,6 @@ bio_bufferevent_read(void *ctx, unsigned char *out, size_t outlen)
 	int r = 0;
 	struct evbuffer *input;
 
-	//BIO_clear_retry_flags(b);
-	fprintf(stdout, "bio prepare write:\n");
-	fwrite(out, 1, outlen, stdout);
-
 	if (!out)
 		return 0;
 	if (!bufev)
@@ -129,25 +99,21 @@ bio_bufferevent_read(void *ctx, unsigned char *out, size_t outlen)
 	input = bufferevent_get_input(bufev);
 	if (evbuffer_get_length(input) == 0) {
 		/* If there's no data to read, say so. */
-		//BIO_set_retry_read(b);
 		return MBEDTLS_ERR_SSL_WANT_READ;
 	} else {
 		r = evbuffer_remove(input, out, outlen);
 	}
-	fprintf(stderr, "bio read %d bytes\n", r);
 
 	return r;
 }
 
-/* Called to write data info the BIO */
+/* Called to write data into the BIO */
 static int
 bio_bufferevent_write(void *ctx, const unsigned char *in, size_t inlen)
 {
 	struct bufferevent *bufev = (struct bufferevent*)ctx;
 	struct evbuffer *output;
 	size_t outlen;
-
-	//BIO_clear_retry_flags(b);
 
 	if (!bufev)
 		return MBEDTLS_ERR_NET_INVALID_CONTEXT;
@@ -160,7 +126,6 @@ bio_bufferevent_write(void *ctx, const unsigned char *in, size_t inlen)
 	if (bufev->wm_write.high && bufev->wm_write.high <= (outlen+inlen)) {
 		if (bufev->wm_write.high <= outlen) {
 			/* If no data can fit, we'll need to retry later. */
-			//BIO_set_retry_write(b);
 			return MBEDTLS_ERR_SSL_WANT_WRITE;
 		}
 		inlen = bufev->wm_write.high - outlen;
@@ -168,22 +133,15 @@ bio_bufferevent_write(void *ctx, const unsigned char *in, size_t inlen)
 
 	EVUTIL_ASSERT(inlen > 0);
 	evbuffer_add(output, in, inlen);
-	fprintf(stderr, "bio write %d bytes\n", inlen);
 	return inlen;
 }
 
 
 /* --------------------
-   Now, here's the OpenSSL-based implementation of bufferevent.
+   Now, here's the mbedTLS-based implementation of bufferevent.
 
-   The implementation comes in two flavors: one that connects its SSL object
-   to an underlying bufferevent using a BIO_bufferevent, and one that has the
-   SSL object connect to a socket directly.  The latter should generally be
-   faster, except on Windows, where your best bet is using a
-   bufferevent_async.
-
-   (OpenSSL supports many other BIO types, too.  But we can't use any unless
-   we have a good way to get notified when they become readable/writable.)
+   The implementation comes in only one flavors, that has the
+   SSL object connect to a socket directly.
    -------------------- */
 
 struct bio_data_counts {
@@ -201,8 +159,8 @@ struct bufferevent_mbedtls {
 	/* An underlying bufferevent that we're directing our output to.
 	   If it's NULL, then we're connected to an fd, not an evbuffer. */
 	struct bufferevent *underlying;
-    /* net fd */
-    mbedtls_net_context net_ctx;
+	/* net fd */
+	mbedtls_net_context net_ctx;
 	/* The SSL object doing our encryption. */
 	SSL *ssl;
 
@@ -248,7 +206,7 @@ static int be_mbedtls_flush(struct bufferevent *bufev,
 static int be_mbedtls_ctrl(struct bufferevent *, enum bufferevent_ctrl_op, union bufferevent_ctrl_data *);
 
 const struct bufferevent_ops bufferevent_ops_mbedtls = {
-	"ssl",
+	"mbedtls",
 	evutil_offsetof(struct bufferevent_mbedtls, bev.bev),
 	be_mbedtls_enable,
 	be_mbedtls_disable,
@@ -407,10 +365,7 @@ conn_closed(struct bufferevent_mbedtls *bev_ssl, int when, int errcode, int ret)
 {
 	int event = BEV_EVENT_ERROR;
 	//int dirty_shutdown = 0;
-	unsigned long err;
-	char buf[100] = {};
-
-	fprintf(stderr, "when %d error code %d", when, errcode);
+	char buf[100];
 
 	if (when & BEV_EVENT_READING && ret == 0)
 	{ 
@@ -442,33 +397,6 @@ conn_closed(struct bufferevent_mbedtls *bev_ssl, int when, int errcode, int ret)
 
 	bufferevent_run_eventcb_(&bev_ssl->bev.bev, when | event, 0);
 }
-
-/*static void
-init_bio_counts(struct bufferevent_mbedtls *bev_ssl)
-{
-	BIO *rbio, *wbio;
-
-	wbio = SSL_get_wbio(bev_ssl->ssl);
-	bev_ssl->counts.n_written = wbio ? BIO_number_written(wbio) : 0;
-	rbio = SSL_get_rbio(bev_ssl->ssl);
-	bev_ssl->counts.n_read = rbio ? BIO_number_read(rbio) : 0;
-}
-
-static inline void
-decrement_buckets(struct bufferevent_mbedtls *bev_ssl)
-{
-	unsigned long num_w = BIO_number_written(SSL_get_wbio(bev_ssl->ssl));
-	unsigned long num_r = BIO_number_read(SSL_get_rbio(bev_ssl->ssl));
-	/* These next two subtractions can wrap around. That's okay. * /
-	unsigned long w = num_w - bev_ssl->counts.n_written;
-	unsigned long r = num_r - bev_ssl->counts.n_read;
-	if (w)
-		bufferevent_decrement_write_buckets_(&bev_ssl->bev, w);
-	if (r)
-		bufferevent_decrement_read_buckets_(&bev_ssl->bev, r);
-	bev_ssl->counts.n_written = num_w;
-	bev_ssl->counts.n_read = num_r;
-}*/
 
 #define OP_MADE_PROGRESS 1
 #define OP_BLOCKED 2
@@ -507,7 +435,6 @@ do_read(struct bufferevent_mbedtls *bev_ssl, int n_to_read) {
 					return OP_ERR | result;
 			++n_used;
 			space[i].iov_len = r;
-			//decrement_buckets(bev_ssl);
 		} else {
 			int err = r;
 			print_err(err);
@@ -584,7 +511,6 @@ do_write(struct bufferevent_mbedtls *bev_ssl, int atmost)
 					return OP_ERR | result;
 			n_written += r;
 			bev_ssl->last_write = -1;
-			//decrement_buckets(bev_ssl);
 		} else {
 			int err = r;
 			print_err(err);
@@ -924,7 +850,6 @@ do_handshake(struct bufferevent_mbedtls *bev_ssl)
 		r = mbedtls_ssl_handshake(bev_ssl->ssl);
 		break;
 	}
-	//decrement_buckets(bev_ssl);
 
 	if (r==0) {
 		evutil_socket_t fd = event_get_fd(&bev_ssl->bev.bev.ev_read);
@@ -1010,7 +935,7 @@ set_handshake_callbacks(struct bufferevent_mbedtls *bev_ssl, evutil_socket_t fd)
 }
 
 int
-bufferevent_ssl_renegotiate(struct bufferevent *bev)
+bufferevent_mbedtls_renegotiate(struct bufferevent *bev)
 {
 	struct bufferevent_mbedtls *bev_ssl = upcast(bev);
 	if (!bev_ssl)
@@ -1103,7 +1028,9 @@ be_mbedtls_unlink(struct bufferevent *bev)
 			} else {
                 mbedtls_ssl_set_bio(bev_ssl->ssl, NULL, NULL, NULL, NULL);
 				bufferevent_free(bev_ssl->underlying);
-				bev_ssl->underlying = NULL;
+				/* We still have a reference to it, via our
+				 * BIO. So we don't drop this. */
+				// bev_ssl->underlying = NULL;
 			}
 		}
 	} else {
@@ -1169,14 +1096,12 @@ be_mbedtls_set_fd(struct bufferevent_mbedtls *bev_ssl,
 	case BUFFEREVENT_SSL_ACCEPTING:
         if (bev_ssl->ssl->conf->endpoint != MBEDTLS_SSL_IS_SERVER)
 			return -1;
-		//SSL_set_accept_state(bev_ssl->ssl);
 		if (set_handshake_callbacks(bev_ssl, fd) < 0)
 			return -1;
 		break;
 	case BUFFEREVENT_SSL_CONNECTING:
         if (bev_ssl->ssl->conf->endpoint != MBEDTLS_SSL_IS_CLIENT)
 			return -1;
-		//SSL_set_connect_state(bev_ssl->ssl);
 		if (set_handshake_callbacks(bev_ssl, fd) < 0)
 			return -1;
 		break;
@@ -1256,10 +1181,6 @@ bufferevent_mbedtls_new_impl(struct event_base *base,
 		&bufferevent_ops_mbedtls, tmp_options) < 0)
 		goto err;
 
-	/* Don't explode if we decide to realloc a chunk we're writing from in
-	 * the output buffer. */
-	//SSL_set_mode(ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
-
 	bev_ssl->underlying = underlying;
 	bev_ssl->ssl = ssl;
 
@@ -1276,8 +1197,6 @@ bufferevent_mbedtls_new_impl(struct event_base *base,
 
 	bev_ssl->old_state = state;
 	bev_ssl->last_write = -1;
-
-	//init_bio_counts(bev_ssl);
 
 	fd = be_mbedtls_auto_fd(bev_ssl, fd);
 	if (be_mbedtls_set_fd(bev_ssl, state, fd))
@@ -1340,10 +1259,6 @@ bufferevent_mbedtls_socket_new(struct event_base *base,
 	return bufferevent_mbedtls_new_impl(
 		base, NULL, fd, ssl, state, options);
 
-err:
-	if (options & BEV_OPT_CLOSE_ON_FREE)
-		mbedtls_ssl_free(ssl);
-	return NULL;
 }
 
 int

@@ -11,18 +11,15 @@ case "$enable_mbedtls" in
 	save_LIBS="$LIBS"
 	LIBS=""
 	MBEDTLS_LIBS=""
-	for lib in mbedtls ; do
-		# clear cache
-		unset ac_cv_search_mbedtls_ssl_init
-		AC_SEARCH_LIBS([mbedtls_ssl_init], [mbedtls ],
-		    [have_mbedtls=yes
-		    MBEDTLS_LIBS="$LIBS -l$lib -lmbedcrypto -lmbedx509 $EV_LIB_GDI $EV_LIB_WS32 $MBEDTLS_LIBADD"],
-		    [have_mbedtls=no],
-		    [-l$lib $EV_LIB_GDI $EV_LIB_WS32 $MBEDTLS_LIBADD])
-		LIBS="$save_LIBS"
-		test "$have_mbedtls" = "yes" && break
-	done
-	;;
+    # clear cache
+    unset ac_cv_search_mbedtls_ssl_init
+    AC_SEARCH_LIBS([mbedtls_ssl_init], [mbedtls],
+                   [have_mbedtls=yes
+                   MBEDTLS_LIBS="$LIBS -lmbedtls -lmbedcrypto -lmbedx509 $EV_LIB_GDI $EV_LIB_WS32"],
+                   [have_mbedtls=no],
+                   [-lmbedtls -lmbedcrypto -lmbedx509 $EV_LIB_GDI $EV_LIB_WS32])
+    LIBS="$save_LIBS"
+    test "$have_mbedtls" = "yes" && break
     esac
     CPPFLAGS_SAVE=$CPPFLAGS
     CPPFLAGS="$CPPFLAGS $MBEDTLS_INCS"

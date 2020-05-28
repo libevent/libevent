@@ -33,7 +33,8 @@
     defined(event_extra_shared_EXPORTS) || \
     defined(event_core_shared_EXPORTS) || \
     defined(event_pthreads_shared_EXPORTS) || \
-    defined(event_openssl_shared_EXPORTS)
+    defined(event_openssl_shared_EXPORTS) || \
+    defined(event_mbedtls_shared_EXPORTS)
 
 # if defined (__SUNPRO_C) && (__SUNPRO_C >= 0x550)
 #  define EVENT2_EXPORT_SYMBOL __global

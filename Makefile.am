@@ -101,7 +101,8 @@ LIBEVENT_PKGCONFIG=libevent.pc libevent_core.pc libevent_extra.pc
 # included from other files.
 PLATFORM_DEPENDENT_SRC = \
 	arc4random.c \
-	epoll_sub.c
+	epoll_sub.c \
+	test/regress_ssl.c
 
 CMAKE_FILES = \
 	cmake/AddCompilerFlags.cmake \
@@ -116,6 +117,7 @@ CMAKE_FILES = \
 	cmake/CodeCoverage.cmake \
 	cmake/COPYING-CMAKE-SCRIPTS \
 	cmake/Copyright.txt \
+	cmake/FindMbedTLS.cmake \
 	cmake/LibeventConfig.cmake.in \
 	cmake/LibeventConfigVersion.cmake.in \
 	cmake/Macros.cmake \

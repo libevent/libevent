@@ -124,7 +124,7 @@ endif()
 
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(mbedTLS
+find_package_handle_standard_args(MbedTLS
                                   FOUND_VAR MBEDTLS_FOUND
                                   REQUIRED_VARS
                                       MBEDTLS_INCLUDE_DIR
