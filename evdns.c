@@ -147,12 +147,20 @@
 #define MAX_V4_ADDRS 32
 #define MAX_V6_ADDRS 32
 
+/* Maximum allowable size of a DNS message over UDP without EDNS.*/
+#define DNS_MAX_UDP_SIZE 512
+/* Maximum allowable size of a DNS message over UDP with EDNS.*/
+#define EDNS_MAX_UDP_SIZE 65535
+
+#define EDNS_ENABLED(base) \
+	(((base)->global_max_udp_size) > DNS_MAX_UDP_SIZE)
 
 #define TYPE_A	       EVDNS_TYPE_A
 #define TYPE_CNAME     5
 #define TYPE_PTR       EVDNS_TYPE_PTR
 #define TYPE_SOA       EVDNS_TYPE_SOA
 #define TYPE_AAAA      EVDNS_TYPE_AAAA
+#define TYPE_OPT       41
 
 #define CLASS_INET     EVDNS_CLASS_INET
 
@@ -320,6 +328,7 @@ struct server_request {
 	struct client_tcp_connection *client; /* Equal to NULL in case of UDP connection. */
 	struct sockaddr_storage addr; /* Where to send the response in case of UDP. Equal to NULL in case of TCP connection.*/
 	ev_socklen_t addrlen; /* length of addr */
+	u16 max_udp_reply_size; /* Maximum size of udp reply that client can handle. */
 
 	int n_answer; /* how many answer RRs have been set? */
 	int n_authority; /* how many authority RRs have been set? */
@@ -371,6 +380,8 @@ struct evdns_base {
 	int global_max_nameserver_timeout;
 	/* true iff we will use the 0x20 hack to prevent poisoning attacks. */
 	int global_randomize_case;
+	/* Maximum size of a UDP DNS packet. */
+	u16 global_max_udp_size;
 
 	/* The first time that a nameserver fails, how long do we wait before
 	 * probing to see if it has returned?  */
@@ -1423,11 +1434,14 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port,
 {
 	int j = 0;	/* index into packet */
 	u16 t_;	 /* used by the macros */
+	u32 t32_;  /* used by the macros */
 	char tmp_name[256]; /* used by the macros */
 
 	int i;
 	u16 trans_id, flags, questions, answers, authority, additional;
 	struct server_request *server_req = NULL;
+	u32 ttl;
+	u16 type, class, rdlen;
 
 	ASSERT_LOCKED(port);
 
@@ -1438,9 +1452,6 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port,
 	GET16(answers);
 	GET16(authority);
 	GET16(additional);
-	(void)answers;
-	(void)additional;
-	(void)authority;
 
 	if (flags & _QR_MASK) return -1; /* Must not be an answer. */
 	flags &= (_RD_MASK|_CD_MASK); /* Only RD and CD get preserved. */
@@ -1455,6 +1466,7 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port,
 		server_req->addrlen = addrlen;
 	}
 
+	server_req->port = port;
 	server_req->client = client;
 	server_req->base.flags = flags;
 	server_req->base.nquestions = 0;
@@ -1480,9 +1492,49 @@ request_parse(u8 *packet, int length, struct evdns_server_port *port,
 		server_req->base.questions[server_req->base.nquestions++] = q;
 	}
 
-	/* Ignore answers, authority, and additional. */
+#define SKIP_RR \
+	do { \
+		SKIP_NAME; \
+		j += 2 /* type */ + 2 /* class */ + 4 /* ttl */; \
+		GET16(rdlen); \
+		j += rdlen; \
+	} while (0)
 
-	server_req->port = port;
+	for (i = 0; i < answers; ++i) {
+		SKIP_RR;
+	}
+
+	for (i = 0; i < authority; ++i) {
+		SKIP_RR;
+	}
+
+	server_req->max_udp_reply_size = DNS_MAX_UDP_SIZE;
+	for (i = 0; i < additional; ++i) {
+		SKIP_NAME;
+		GET16(type);
+		GET16(class);
+		GET32(ttl);
+		GET16(rdlen);
+		(void)ttl;
+		j += rdlen;
+		if (type == TYPE_OPT) {
+			/* In case of OPT pseudo-RR `class` field is treated
+			 * as a requestor's UDP payload size. */
+			server_req->max_udp_reply_size = MAX(class, DNS_MAX_UDP_SIZE);
+			evdns_server_request_add_reply(&(server_req->base),
+				EVDNS_ADDITIONAL_SECTION,
+				"", /* name */
+				TYPE_OPT, /* type */
+				DNS_MAX_UDP_SIZE, /* class */
+				0, /* ttl */
+				0, /* datalen */
+				0, /* is_name */
+				NULL /* data */
+			);
+			break;
+		}
+	}
+
 	port->refcnt++;
 
 	/* Only standard queries are supported. */
@@ -1503,6 +1555,7 @@ err:
 	mm_free(server_req);
 	return -1;
 
+#undef SKIP_RR
 #undef SKIP_NAME
 #undef GET32
 #undef GET16
@@ -1578,21 +1631,27 @@ static void
 nameserver_read(struct nameserver *ns) {
 	struct sockaddr_storage ss;
 	ev_socklen_t addrlen = sizeof(ss);
-	u8 packet[1500];
 	char addrbuf[128];
+	const size_t max_packet_size = ns->base->global_max_udp_size;
+	u8 *packet = mm_malloc(max_packet_size);
 	ASSERT_LOCKED(ns->base);
+
+	if (!packet) {
+		nameserver_failed(ns, "not enough memory");
+		return;
+	}
 
 	for (;;) {
 		const int r = recvfrom(ns->socket, (void*)packet,
-		    sizeof(packet), 0,
+		    max_packet_size, 0,
 		    (struct sockaddr*)&ss, &addrlen);
 		if (r < 0) {
 			int err = evutil_socket_geterror(ns->socket);
 			if (EVUTIL_ERR_RW_RETRIABLE(err))
-				return;
+				goto done;
 			nameserver_failed(ns,
 			    evutil_socket_error_to_string(err));
-			return;
+			goto done;
 		}
 		if (evutil_sockaddr_cmp((struct sockaddr*)&ss,
 			(struct sockaddr*)&ns->address, 0)) {
@@ -1601,12 +1660,14 @@ nameserver_read(struct nameserver *ns) {
 			    evutil_format_sockaddr_port_(
 				    (struct sockaddr *)&ss,
 				    addrbuf, sizeof(addrbuf)));
-			return;
+			goto done;
 		}
 
 		ns->timedout = 0;
 		reply_parse(ns->base, packet, r);
 	}
+done:
+	mm_free(packet);
 }
 
 /* Read a packet from a DNS client on a server port s, parse it, and */
@@ -1900,10 +1961,20 @@ dnsname_to_labels(u8 *const buf, size_t buf_len, off_t j,
 /* length. The actual request may be smaller than the value returned */
 /* here */
 static size_t
-evdns_request_len(const size_t name_len) {
+evdns_request_len(const struct evdns_base *base, const size_t name_len)
+{
+	int addional_section_len = 0;
+	if (EDNS_ENABLED(base)) {
+		addional_section_len = 1 + /* length of domain name string, always 0 */
+			2 + /* space for resource type */
+			2 + /* space for UDP payload size */
+			4 + /* space for extended RCODE flags */
+			2;  /* space for length of RDATA, always 0 */
+	}
 	return 96 + /* length of the DNS standard header */
 		name_len + 2 +
-		4;  /* space for the resource type */
+		4 /* space for the resource type */ +
+		addional_section_len;
 }
 
 /* build a dns request packet into buf. buf should be at least as long */
@@ -1911,18 +1982,21 @@ evdns_request_len(const size_t name_len) {
 /* */
 /* Returns the amount of space used. Negative on error. */
 static int
-evdns_request_data_build(const char *const name, const size_t name_len,
-    const u16 trans_id, const u16 type, const u16 class,
-    u8 *const buf, size_t buf_len) {
+evdns_request_data_build(const struct evdns_base *base,
+	const char *const name, const size_t name_len,
+	const u16 trans_id, const u16 type, const u16 class, u8 *const buf,
+	size_t buf_len)
+{
 	off_t j = 0;  /* current offset into buf */
 	u16 t_;	 /* used by the macros */
+	u32 t32_;  /* used by the macros */
 
 	APPEND16(trans_id);
 	APPEND16(0x0100);  /* standard query, recusion needed */
 	APPEND16(1);  /* one question */
 	APPEND16(0);  /* no answers */
 	APPEND16(0);  /* no authority */
-	APPEND16(0);  /* no additional */
+	APPEND16(EDNS_ENABLED(base) ? 1 : 0); /* additional */
 
 	j = dnsname_to_labels(buf, buf_len, j, name, name_len, NULL);
 	if (j < 0) {
@@ -1931,6 +2005,26 @@ evdns_request_data_build(const char *const name, const size_t name_len,
 
 	APPEND16(type);
 	APPEND16(class);
+
+	if (EDNS_ENABLED(base)) {
+		/* The OPT pseudo-RR format 
+		 * (https://tools.ietf.org/html/rfc6891#section-6.1.2)
+		 * +------------+--------------+------------------------------+
+		 * | Field Name | Field Type   | Description                  |
+		 * +------------+--------------+------------------------------+
+		 * | NAME       | domain name  | MUST be 0 (root domain)      |
+		 * | TYPE       | u_int16_t    | OPT (41)                     |
+		 * | CLASS      | u_int16_t    | requestor's UDP payload size |
+		 * | TTL        | u_int32_t    | extended RCODE and flags     |
+		 * | RDLEN      | u_int16_t    | length of all RDATA          |
+		 * | RDATA      | octet stream | {attribute,value} pairs      |
+		 * +------------+--------------+------------------------------+ */
+		buf[j++] = 0;  /* NAME, always 0 */
+		APPEND16(TYPE_OPT);  /* OPT type */
+		APPEND16(base->global_max_udp_size);  /* max UDP payload size */
+		APPEND32(0);  /* No extended RCODE flags set */
+		APPEND16(0);  /* length of RDATA is 0 */
+	}
 
 	return (int)j;
  overflow:
@@ -2373,9 +2467,9 @@ evdns_server_request_format_response(struct server_request *req, int err)
 		}
 	}
 
-	if (j > 512 && !req->client) {
+	if (j > req->max_udp_reply_size && !req->client) {
 overflow:
-		j = 512;
+		j = req->max_udp_reply_size;
 		buf[2] |= 0x02; /* set the truncated bit. */
 	}
 
@@ -3372,7 +3466,7 @@ request_new(struct evdns_base *base, struct evdns_request *handle, int type,
 	    (base->global_requests_inflight < base->global_max_requests_inflight) ? 1 : 0;
 
 	const size_t name_len = strlen(name);
-	const size_t request_max_len = evdns_request_len(name_len);
+	const size_t request_max_len = evdns_request_len(base, name_len);
 	const u16 trans_id = issuing_now ? transaction_id_pick(base) : 0xffff;
 	/* the request data is alloced in a single block with the header */
 	struct request *const req =
@@ -3416,7 +3510,7 @@ request_new(struct evdns_base *base, struct evdns_request *handle, int type,
 	req->request = ((u8 *) req) + sizeof(struct request);
 	/* denotes that the request data shouldn't be free()ed */
 	req->request_appended = 1;
-	rlen = evdns_request_data_build(name, name_len, trans_id,
+	rlen = evdns_request_data_build(base, name, name_len, trans_id,
 	    type, CLASS_INET, req->request, request_max_len);
 	if (rlen < 0)
 		goto err1;
@@ -4245,6 +4339,12 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		if (val && strlen(val)) return -1;
 		log(EVDNS_LOG_DEBUG, "Setting ignore-tc option");
 		base->global_tcp_flags |= DNS_QUERY_IGNTC;
+	} else if (str_matches_option(option, "edns-udp-size:")) {
+		const int sz = strtoint_clipped(val, DNS_MAX_UDP_SIZE, EDNS_MAX_UDP_SIZE);
+		if (sz == -1) return -1;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting edns-udp-size to %d", sz);
+		base->global_max_udp_size = sz;
 	}
 	return 0;
 }
@@ -4682,6 +4782,7 @@ evdns_base_new(struct event_base *event_base, int flags)
 	base->global_max_nameserver_timeout = 3;
 	base->global_search_state = NULL;
 	base->global_randomize_case = 1;
+	base->global_max_udp_size = DNS_MAX_UDP_SIZE;
 	base->global_getaddrinfo_allow_skew.tv_sec = 3;
 	base->global_getaddrinfo_allow_skew.tv_usec = 0;
 	base->global_nameserver_probe_initial_timeout.tv_sec = 10;

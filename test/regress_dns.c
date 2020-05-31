@@ -2608,6 +2608,60 @@ end:
 }
 
 static void
+test_edns(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+	ev_uint16_t portnum = 0;
+	char buf[64];
+	struct generic_dns_callback_result r;
+	struct in_addr addrs[2048]; /* used by macros `assert_request_results` */
+	int k_; /* used by macros `assert_request_results` */
+
+	exit_base = base;
+	tt_assert(regress_dnsserver(base, &portnum, search_table, NULL));
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+	dns = evdns_base_new(base, 0);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
+
+	n_replies_left = 1;
+	evdns_base_resolve_ipv4(dns, "medium.b.example.com",
+		DNS_QUERY_IGNTC, generic_dns_callback, &r);
+	event_base_dispatch(base);
+	tt_int_op(r.result, ==, DNS_ERR_TRUNCATED);
+	tt_int_op(r.count, ==, 0);
+
+	tt_assert(!evdns_base_set_option(dns, "edns-udp-size", "4096"));
+	n_replies_left = 1;
+	evdns_base_resolve_ipv4(dns, "medium.b.example.com",
+		DNS_QUERY_IGNTC, generic_dns_callback, &r);
+	event_base_dispatch(base);
+	assert_request_results(r, DNS_ERR_NONE, REPEAT_64("11.22.33.45") "," REPEAT_64("12.22.33.45"));
+
+	n_replies_left = 1;
+	evdns_base_resolve_ipv4(dns, "large.c.example.com",
+		DNS_QUERY_IGNTC, generic_dns_callback, &r);
+	event_base_dispatch(base);
+	tt_int_op(r.result, ==, DNS_ERR_TRUNCATED);
+	tt_int_op(r.count, ==, 0);
+
+	tt_assert(!evdns_base_set_option(dns, "edns-udp-size", "65535"));
+	n_replies_left = 1;
+	evdns_base_resolve_ipv4(dns, "large.c.example.com",
+		DNS_QUERY_IGNTC, generic_dns_callback, &r);
+	event_base_dispatch(base);
+	assert_request_results(r, DNS_ERR_NONE,
+		REPEAT_256("11.22.33.45") "," REPEAT_256("12.22.33.45") "," REPEAT_256("13.22.33.45") "," REPEAT_256("14.22.33.45"));
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+
+	regress_clean_dnsserver();
+}
+
+static void
 test_set_so_rcvbuf_so_sndbuf(void *arg)
 {
 	struct basic_test_data *data = arg;
@@ -2831,6 +2885,8 @@ struct testcase_t dns_testcases[] = {
 	{ "set_options", test_set_option,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "set_server_options", test_set_server_option,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "edns", test_edns,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
 	END_OF_TESTCASES
