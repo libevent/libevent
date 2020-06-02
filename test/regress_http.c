@@ -5319,7 +5319,6 @@ http_timeout_read_server_test(void *arg)
 
 
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 static void
 http_max_connections_test(void *arg)
 {
