@@ -569,9 +569,9 @@ static struct regress_dns_server_table tcp_search_table[] = {
 #define assert_request_results(r, exp_result, exp_addresses) \
 	do { \
 		k_ = parse_csv_address_list(exp_addresses, AF_INET, addrs, ARRAY_SIZE(addrs)); \
-		tt_assert(r.result == exp_result); \
-		tt_assert(r.type == DNS_IPv4_A); \
-		tt_assert(r.count == k_); \
+		tt_int_op(r.result, ==, exp_result); \
+		tt_int_op(r.type, ==, DNS_IPv4_A); \
+		tt_int_op(r.count, ==, k_); \
 		for (k_ = 0; k_ < r.count; ++k_) \
 			tt_int_op(((ev_uint32_t *)r.addrs)[k_], ==, addrs[k_].s_addr); \
 	} while (0)
