@@ -110,7 +110,7 @@ regress_get_dnsserver(struct event_base *base,
 	memset(&my_addr, 0, sizeof(my_addr));
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_port = htons(*portnum);
-	my_addr.sin_addr.s_addr = htonl(0x7f000001UL);
+	my_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	if (bind(sock, (struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
 		evutil_closesocket(sock);
 		tt_abort_perror("bind");
