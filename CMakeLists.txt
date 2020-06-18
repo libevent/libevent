@@ -960,7 +960,7 @@ if (NOT EVENT__DISABLE_OPENSSL)
         SOURCES ${SRC_OPENSSL})
 endif()
 
-if (CMAKE_USE_PTHREADS_INIT)
+if (EVENT__HAVE_PTHREADS)
     set(SRC_PTHREADS evthread_pthread.c)
     add_event_library(event_pthreads
         INNER_LIBRARIES event_core
@@ -1130,7 +1130,7 @@ if (NOT EVENT__DISABLE_TESTS)
                 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
                     list(APPEND SRC_REGRESS test/regress_thread.c)
                 endif()
-            elseif (CMAKE_USE_PTHREADS_INIT)
+            elseif (EVENT__HAVE_PTHREADS)
                 list(APPEND SRC_REGRESS test/regress_thread.c)
             endif()
 
