@@ -62,7 +62,7 @@ class RpcGenError(Exception):
 
 
 # Holds everything that makes a struct
-class Struct:
+class Struct(object):
     def __init__(self, name):
         self._name = name
         self._entries = []
@@ -422,7 +422,7 @@ evtag_marshal_%(name)s(struct evbuffer *evbuf, ev_uint32_t tag,
         )
 
 
-class Entry:
+class Entry(object):
     def __init__(self, ent_type, name, tag):
         self._type = ent_type
         self._name = name
@@ -1697,7 +1697,7 @@ def Parse(factory, filep):
     return entities
 
 
-class CCodeGenerator:
+class CCodeGenerator(object):
     def __init__(self):
         pass
 
@@ -1826,7 +1826,7 @@ class CCodeGenerator:
         return EntryArray(entry)
 
 
-class CommandLine:
+class CommandLine(object):
     def __init__(self, argv=None):
         """Initialize a command-line to launch event_rpcgen, as if
            from a command-line with CommandLine(sys.argv).  If you're
