@@ -29,6 +29,10 @@
 /* The old tests here need assertions to work. */
 #undef NDEBUG
 
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+
 #ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -203,7 +207,7 @@ static void test_bufferevent_pair_flush_normal(void) { test_bufferevent_impl(1, 
 static void test_bufferevent_pair_flush_flush(void) { test_bufferevent_impl(1, BEV_FLUSH); }
 static void test_bufferevent_pair_flush_finished(void) { test_bufferevent_impl(1, BEV_FINISHED); }
 
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && __has_feature(address_sanitizer)
 /**
  * Trace lock/unlock/alloc/free for locks.
  * (More heavier then evthread_debug*)
@@ -1351,7 +1355,7 @@ struct testcase_t bufferevent_testcases[] = {
 	LEGACY(bufferevent_pair_flush_normal, TT_ISOLATED),
 	LEGACY(bufferevent_pair_flush_flush, TT_ISOLATED),
 	LEGACY(bufferevent_pair_flush_finished, TT_ISOLATED),
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && __has_feature(address_sanitizer)
 	{ "bufferevent_pair_release_lock", test_bufferevent_pair_release_lock,
 	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY|TT_NO_LOGS,
 	  &basic_setup, NULL },
