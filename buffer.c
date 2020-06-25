@@ -1440,9 +1440,11 @@ evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size)
 	for (; chain != NULL && (size_t)size >= chain->off; chain = next) {
 		next = chain->next;
 
-		memcpy(buffer, chain->buffer + chain->misalign, chain->off);
-		size -= chain->off;
-		buffer += chain->off;
+		if (chain->buffer) {
+			memcpy(buffer, chain->buffer + chain->misalign, chain->off);
+			size -= chain->off;
+			buffer += chain->off;
+		}
 		if (chain == last_with_data)
 			removed_last_with_data = 1;
 		if (&chain->next == buf->last_with_datap)
