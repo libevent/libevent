@@ -36,6 +36,9 @@ jobs:
           - COMPILER_CLANG
           - TEST_EXPORT_STATIC
           - TEST_EXPORT_SHARED
+          - ASAN
+          - TSAN
+          - UBSAN
 
     steps:
       - uses: actions/checkout@v2.0.0
@@ -67,26 +70,25 @@ jobs:
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
-
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_THREAD_SUPPORT=ON"
-
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_DEBUG_MODE" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_DEBUG_MODE=ON"
-
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_MM_REPLACEMENT" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_MM_REPLACEMENT=ON"
-
           elif [ "${{ matrix.EVENT_MATRIX }}" == "COMPILER_CLANG" ]; then
             EVENT_CMAKE_OPTIONS=""
             export CC=clang
-
           elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
-
           elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=SHARED -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
-
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "ASAN" ]; then
+            EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS=-fsanitize=address -DCMAKE_C_COMPILER=clang"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "TSAN" ]; then
+            EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS=-fsanitize=thread -DCMAKE_C_COMPILER=clang"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "UBSAN" ]; then
+            EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS=-fsanitize=undefined -DCMAKE_C_COMPILER=clang"
           else
             EVENT_CMAKE_OPTIONS=""
           fi
