@@ -69,6 +69,7 @@ jobs:
           fi
 
           export TSAN_OPTIONS=suppressions=$PWD/extra/tsan.supp
+          export LSAN_OPTIONS=suppressions=$PWD/extra/lsan.supp
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
