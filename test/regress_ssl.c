@@ -974,6 +974,7 @@ regress_bufferevent_openssl_wm(void *arg)
 
 	tt_int_op(client.get, ==, client.limit);
 	tt_int_op(server.get, ==, server.limit);
+
 end:
 	free(payload);
 	evbuffer_free(client.data);
@@ -981,6 +982,10 @@ end:
 	evconnlistener_free(listener);
 	bufferevent_free(client.bev);
 	bufferevent_free(server.bev);
+
+	/* XXX: by some reason otherise there is a leak */
+	if (!(type & REGRESS_OPENSSL_FILTER))
+		event_base_loop(base, EVLOOP_ONCE);
 }
 
 struct testcase_t ssl_testcases[] = {
