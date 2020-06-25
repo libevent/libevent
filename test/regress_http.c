@@ -267,6 +267,8 @@ evbuffer_datacmp(struct evbuffer *buf, const char *s)
 		return -1;
 
 	d = evbuffer_pullup(buf, s_sz);
+	if (!d)
+		d = (unsigned char *)"";
 	if ((r = memcmp(d, s, s_sz)))
 		return r;
 
