@@ -426,6 +426,36 @@ test_evbuffer_remove_buffer_with_empty3(void *ptr)
 }
 
 static void
+test_evbuffer_pullup_with_empty(void *ptr)
+{
+	struct evbuffer *buf = NULL;
+
+	buf = evbuffer_new();
+	evbuffer_add(buf, "foo", 3);
+	evbuffer_add_reference(buf, NULL, 0, NULL, NULL);
+	evbuffer_validate(buf);
+	tt_int_op(evbuffer_get_length(buf), ==, 3);
+	tt_mem_op(evbuffer_pullup(buf, -1), ==, "foo", 3);
+
+	evbuffer_free(buf);
+	buf = evbuffer_new();
+	evbuffer_validate(buf);
+	tt_int_op(evbuffer_get_length(buf), ==, 0);
+	tt_int_op(evbuffer_pullup(buf, -1), ==, NULL);
+
+	evbuffer_free(buf);
+	buf = evbuffer_new();
+	evbuffer_add(buf, "foo", 3);
+	evbuffer_add_reference(buf, NULL, 0, NULL, NULL);
+	evbuffer_validate(buf);
+	tt_mem_op(evbuffer_pullup(buf, 3), ==, "foo", 3);
+
+ end:
+	if (buf)
+		evbuffer_free(buf);
+}
+
+static void
 test_evbuffer_remove_buffer_with_empty_front(void *ptr)
 {
 	struct evbuffer *buf1 = NULL, *buf2 = NULL;
@@ -2810,6 +2840,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "add_iovec", test_evbuffer_add_iovec, 0, NULL, NULL},
 	{ "copyout", test_evbuffer_copyout, 0, NULL, NULL},
 	{ "file_segment_add_cleanup_cb", test_evbuffer_file_segment_add_cleanup_cb, 0, NULL, NULL },
+	{ "pullup_with_empty", test_evbuffer_pullup_with_empty, 0, NULL, NULL },
 
 #define ADDFILE_TEST(name, parameters)					\
 	{ name, test_evbuffer_add_file, TT_FORK|TT_NEED_BASE,		\
