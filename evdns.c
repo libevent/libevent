@@ -2490,8 +2490,12 @@ evdns_server_request_format_response(struct server_request *req, int err)
 				APPEND16(item->datalen);
 				if (j+item->datalen > (off_t)buf_len)
 					goto overflow;
-				memcpy(buf+j, item->data, item->datalen);
-				j += item->datalen;
+				if (item->data) {
+					memcpy(buf+j, item->data, item->datalen);
+					j += item->datalen;
+				} else {
+					EVUTIL_ASSERT(item->datalen == 0);
+				}
 			}
 			item = item->next;
 		}
