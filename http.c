@@ -3286,6 +3286,7 @@ evhttp_parse_query_impl(const char *str, struct evkeyvalq *headers,
 	p = argument = line;
 	while (p != NULL && *p != '\0') {
 		char *key, *value, *decoded_value;
+		int err;
 		argument = strsep(&p, "&");
 
 		value = argument;
@@ -3301,8 +3302,10 @@ evhttp_parse_query_impl(const char *str, struct evkeyvalq *headers,
 		evhttp_decode_uri_internal(value, strlen(value),
 		    decoded_value, 1 /*always_decode_plus*/);
 		event_debug(("Query Param: %s -> %s\n", key, decoded_value));
-		evhttp_add_header_internal(headers, key, decoded_value);
+		err = evhttp_add_header_internal(headers, key, decoded_value);
 		mm_free(decoded_value);
+		if (err)
+			goto error;
 	}
 
 	result = 0;
