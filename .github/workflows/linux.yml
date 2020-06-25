@@ -68,6 +68,8 @@ jobs:
             cd $(basename $archive .tar.gz)
           fi
 
+          export TSAN_OPTIONS=suppressions=$PWD/extra/tsan.supp
+
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
