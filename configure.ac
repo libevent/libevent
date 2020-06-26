@@ -45,23 +45,6 @@ AC_PROG_SED
 
 AC_PROG_GCC_TRADITIONAL
 
-dnl We need to test for at least gcc 2.95 here, because older versions don't
-dnl have -fno-strict-aliasing
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
-#if !defined(__GNUC__) || (__GNUC__ < 2) || (__GNUC__ == 2 && __GNUC_MINOR__ < 95)
-#error
-#endif])], have_gcc295=yes, have_gcc295=no)
-
-if test "$GCC" = "yes" ; then
-        dnl Enable many gcc warnings by default...
-        CFLAGS="$CFLAGS -Wall"
-	dnl And disable the strict-aliasing optimization, since it breaks
-	dnl our sockaddr-handling code in strange ways.
-	if test x$have_gcc295 = xyes; then
-		CFLAGS="$CFLAGS -fno-strict-aliasing"
-	fi
-fi
-
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--disable-gcc-warnings, disable verbose warnings with GCC))
 
@@ -835,72 +818,66 @@ if test x$enable_verbose_debug = xyes; then
 	CFLAGS="$CFLAGS -DUSE_DEBUG"
 fi
 
-dnl check if we have and should use openssl
+dnl check if we have and should use OpenSSL
 AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
 
-dnl Add some more warnings which we use in development but not in the
-dnl released versions.  (Some relevant gcc versions can't handle these.)
+dnl enable some warnings by default
+AX_CHECK_COMPILE_FLAG([-Wall], [CFLAGS="$CFLAGS -Wall"],[],[-Werror])
+
+dnl Disable the strict-aliasing optimization, since it breaks
+dnl our sockaddr-handling code in strange ways.
+dnl See 52eb4951302554dd696d6a0120ad5d3f6cffb7bb.
+AX_CHECK_COMPILE_FLAG([-fno-strict-aliasing], [CFLAGS="$CFLAGS -fno-strict-aliasing"],[],[-Werror])
+
+dnl Add warnings which we use in development but not for releases.
 if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
 
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
-#if !defined(__GNUC__) || (__GNUC__ < 4)
-#error
-#endif])], have_gcc4=yes, have_gcc4=no)
-
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
-#if !defined(__GNUC__) || (__GNUC__ < 4) || (__GNUC__ == 4 && __GNUC_MINOR__ < 2)
-#error
-#endif])], have_gcc42=yes, have_gcc42=no)
-
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
-#if !defined(__GNUC__) || (__GNUC__ < 4) || (__GNUC__ == 4 && __GNUC_MINOR__ < 5)
-#error
-#endif])], have_gcc45=yes, have_gcc45=no)
-
-  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
-#if !defined(__clang__)
-#error
-#endif])], have_clang=yes, have_clang=no)
-
   dnl -W is the same as -Wextra
-  CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wmissing-declarations -Wnested-externs -Wbad-function-cast"
+  AX_CHECK_COMPILE_FLAG([-W], [CFLAGS="$CFLAGS -W"],[],[-Werror])
+
+  dnl The AX_CHECK_COMPILE_FLAG macro ignores warnings, so -Werror is used
+  dnl to convert warnings into errors and prevent the addition of unknown flags.
+  AX_CHECK_COMPILE_FLAG([-Waddress],[CFLAGS="$CFLAGS -Waddress"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wbad-function-cast],[CFLAGS="$CFLAGS -Wbad-function-cast"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wdeclaration-after-statement],[CFLAGS="$CFLAGS -Wdeclaration-after-statement"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wfloat-equal],[CFLAGS="$CFLAGS -Wfloat-equal"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Winit-self],[CFLAGS="$CFLAGS -Winit-self"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wlogical-op],[CFLAGS="$CFLAGS -Wlogical-op"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wmissing-declarations],[CFLAGS="$CFLAGS -Wmissing-declarations"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wmissing-field-initializers],[CFLAGS="$CFLAGS -Wmissing-field-initializers"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wmissing-prototypes],[CFLAGS="$CFLAGS -Wmissing-prototypes"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wnested-externs],[CFLAGS="$CFLAGS -Wnested-externs"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wnormalized=id],[CFLAGS="$CFLAGS -Wnormalized=id"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Woverride-init],[CFLAGS="$CFLAGS -Woverride-init"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wpointer-arith],[CFLAGS="$CFLAGS -Wpointer-arith"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wredundant-decls],[CFLAGS="$CFLAGS -Wredundant-decls"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wstrict-aliasing],[CFLAGS="$CFLAGS -Wstrict-aliasing"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wstrict-prototypes],[CFLAGS="$CFLAGS -Wstrict-prototypes"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wundef],[CFLAGS="$CFLAGS -Wundef"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wwrite-strings],[CFLAGS="$CFLAGS -Wwrite-strings"],[],[-Werror])
+
+  dnl Convert warnings into errors
   if test x$enable_gcc_warnings = xyes; then
-    CFLAGS="$CFLAGS -Werror"
+    AX_CHECK_COMPILE_FLAG([-Werror], [CFLAGS="$CFLAGS -Werror"])
   fi
 
-  CFLAGS="$CFLAGS -Wno-unused-parameter -Wstrict-aliasing"
+  dnl Disable warnings for unused paramaters
+  AX_CHECK_COMPILE_FLAG([-Wno-unused-parameter], [CFLAGS="$CFLAGS -Wno-unused-parameter"],[],[-Werror])
 
-  if test x$have_gcc4 = xyes ; then
-    dnl These warnings break gcc 3.3.5 and work on gcc 4.0.2
-    CFLAGS="$CFLAGS -Winit-self -Wmissing-field-initializers -Wdeclaration-after-statement"
-    dnl CFLAGS="$CFLAGS -Wold-style-definition"
-  fi
-
-  if test x$have_gcc42 = xyes ; then
-    dnl These warnings break gcc 4.0.2 and work on gcc 4.2
-    CFLAGS="$CFLAGS -Waddress"
-  fi
-
-  if test x$have_gcc42 = xyes && test x$have_clang = xno; then
-    dnl These warnings break gcc 4.0.2 and clang, but work on gcc 4.2
-    CFLAGS="$CFLAGS -Wnormalized=id -Woverride-init"
-  fi
-
-  if test x$have_gcc45 = xyes ; then
-    dnl These warnings work on gcc 4.5
-    CFLAGS="$CFLAGS -Wlogical-op"
-  fi
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
+  #if !defined(__clang__)
+  #error
+  #endif])], have_clang=yes, have_clang=no)
 
   if test x$have_clang = xyes; then
     dnl Disable unused-function warnings. These trigger for minheap-internal.h.
-    CFLAGS="$CFLAGS -Wno-unused-function"
+    AX_CHECK_COMPILE_FLAG([-Wno-unused-function], [CFLAGS="$CFLAGS -Wno-unused-function"],[],[-Werror])
 
     case "$host_os" in
-        darwin*)
-            dnl Clang on macOS emits warnings for each directory specified which
-            dnl isn't "used", generating a lot of build noise.
-            CFLAGS="$CFLAGS -Qunused-arguments"
-        ;;
+      darwin*)
+        dnl Clang on macOS emits warnings for each directory specified which
+        dnl isn't "used", generating a lot of build noise.
+        AX_CHECK_COMPILE_FLAG([-Qunused-arguments], [CFLAGS="$CFLAGS -Qunused-arguments"],[],[-Werror])
     esac
   fi
 
