@@ -28,42 +28,42 @@ AC_CANONICAL_HOST
 dnl the 'build' machine is where we run configure and compile
 dnl the 'host' machine is where the resulting stuff runs.
 
-#case "$host_os" in
-#
-# osf5*)
-#    CFLAGS="$CFLAGS -D_OSF_SOURCE"
-#    ;;
-#esac
+dnlcase "$host_os" in
+dnl
+dnl osf5*)
+dnl    CFLAGS="$CFLAGS -D_OSF_SOURCE"
+dnl    ;;
+dnlesac
 
 dnl Checks for programs.
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AC_PROG_LN_S
-# AC_PROG_MKDIR_P - $(MKDIR_P) should be defined by AM_INIT_AUTOMAKE
+dnl AC_PROG_MKDIR_P - $(MKDIR_P) should be defined by AM_INIT_AUTOMAKE
 
 AC_PROG_SED
 
 AC_PROG_GCC_TRADITIONAL
 
-# We need to test for at least gcc 2.95 here, because older versions don't
-# have -fno-strict-aliasing
+dnl We need to test for at least gcc 2.95 here, because older versions don't
+dnl have -fno-strict-aliasing
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
 #if !defined(__GNUC__) || (__GNUC__ < 2) || (__GNUC__ == 2 && __GNUC_MINOR__ < 95)
 #error
 #endif])], have_gcc295=yes, have_gcc295=no)
 
 if test "$GCC" = "yes" ; then
-        # Enable many gcc warnings by default...
+        dnl Enable many gcc warnings by default...
         CFLAGS="$CFLAGS -Wall"
-	# And disable the strict-aliasing optimization, since it breaks
-	# our sockaddr-handling code in strange ways.
+	dnl And disable the strict-aliasing optimization, since it breaks
+	dnl our sockaddr-handling code in strange ways.
 	if test x$have_gcc295 = xyes; then
 		CFLAGS="$CFLAGS -fno-strict-aliasing"
 	fi
 fi
 
-# OS X Lion started deprecating the system openssl. Let's just disable
-# all deprecation warnings on OS X; but do so only for gcc...
+dnl OS X Lion started deprecating the system openssl. Let's just disable
+dnl all deprecation warnings on OS X; but do so only for gcc...
 if test "$GCC" = "yes" ; then
 	case "$host_os" in
 	 darwin*)
@@ -445,9 +445,9 @@ if test "$libevent_cv_getaddrinfo" = "yes" ; then
     AC_DEFINE([HAVE_GETADDRINFO], [1], [Do we have getaddrinfo()?])
 else
 
-# Check for gethostbyname_r in all its glorious incompatible versions.
-#   (This is cut-and-pasted from Tor, which based its logic on
-#   Python's configure.in.)
+dnl Check for gethostbyname_r in all its glorious incompatible versions.
+dnl   (This is cut-and-pasted from Tor, which based its logic on
+dnl   Python's configure.in.)
 AH_TEMPLATE(HAVE_GETHOSTBYNAME_R,
   [Define this if you have any gethostbyname_r()])
 
@@ -784,7 +784,7 @@ AC_COMPILE_IFELSE(
 	  [Define to unsigned int if you dont have it])]
 )
 
-# __func__/__FUNCTION__ is not a macros in general
+dnl __func__/__FUNCTION__ is not a macros in general
 AC_MSG_CHECKING([whether our compiler supports __func__])
 AC_COMPILE_IFELSE(
   [AC_LANG_PROGRAM([],
@@ -806,7 +806,7 @@ AC_COMPILE_IFELSE(
   [AC_MSG_RESULT([no])]
 )
 
-# check if we can compile with pthreads
+dnl check if we can compile with pthreads
 have_pthreads=no
 if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
   ACX_PTHREAD([
@@ -822,34 +822,34 @@ fi
 AM_CONDITIONAL(THREADS, [test "$enable_thread_support" != "no"])
 AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])
 
-# check if we should compile locking into the library
+dnl check if we should compile locking into the library
 if test x$enable_thread_support = xno; then
    AC_DEFINE(DISABLE_THREAD_SUPPORT, 1,
 	[Define if libevent should not be compiled with thread support])
 fi
 
-# check if we should hard-code the mm functions.
+dnl check if we should hard-code the mm functions.
 if test x$enable_malloc_replacement = xno; then
   AC_DEFINE(DISABLE_MM_REPLACEMENT, 1,
         [Define if libevent should not allow replacing the mm functions])
 fi
 
-# check if we should hard-code debugging out
+dnl check if we should hard-code debugging out
 if test x$enable_debug_mode = xno; then
   AC_DEFINE(DISABLE_DEBUG_MODE, 1,
         [Define if libevent should build without support for a debug mode])
 fi
 
-# check if we should enable verbose debugging 
+dnl check if we should enable verbose debugging 
 if test x$enable_verbose_debug = xyes; then
 	CFLAGS="$CFLAGS -DUSE_DEBUG"
 fi
 
-# check if we have and should use openssl
+dnl check if we have and should use openssl
 AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
 
-# Add some more warnings which we use in development but not in the
-# released versions.  (Some relevant gcc versions can't handle these.)
+dnl Add some more warnings which we use in development but not in the
+dnl released versions.  (Some relevant gcc versions can't handle these.)
 if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
 
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
@@ -872,7 +872,7 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
 #error
 #endif])], have_clang=yes, have_clang=no)
 
-  # -W is the same as -Wextra
+  dnl -W is the same as -Wextra
   CFLAGS="$CFLAGS -W -Wfloat-equal -Wundef -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wwrite-strings -Wredundant-decls -Wmissing-declarations -Wnested-externs -Wbad-function-cast"
   if test x$enable_gcc_warnings = xyes; then
     CFLAGS="$CFLAGS -Werror"
@@ -881,34 +881,34 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
   CFLAGS="$CFLAGS -Wno-unused-parameter -Wstrict-aliasing"
 
   if test x$have_gcc4 = xyes ; then
-    # These warnings break gcc 3.3.5 and work on gcc 4.0.2
+    dnl These warnings break gcc 3.3.5 and work on gcc 4.0.2
     CFLAGS="$CFLAGS -Winit-self -Wmissing-field-initializers -Wdeclaration-after-statement"
-    #CFLAGS="$CFLAGS -Wold-style-definition"
+    dnl CFLAGS="$CFLAGS -Wold-style-definition"
   fi
 
   if test x$have_gcc42 = xyes ; then
-    # These warnings break gcc 4.0.2 and work on gcc 4.2
+    dnl These warnings break gcc 4.0.2 and work on gcc 4.2
     CFLAGS="$CFLAGS -Waddress"
   fi
 
   if test x$have_gcc42 = xyes && test x$have_clang = xno; then
-    # These warnings break gcc 4.0.2 and clang, but work on gcc 4.2
+    dnl These warnings break gcc 4.0.2 and clang, but work on gcc 4.2
     CFLAGS="$CFLAGS -Wnormalized=id -Woverride-init"
   fi
 
   if test x$have_gcc45 = xyes ; then
-    # These warnings work on gcc 4.5
+    dnl These warnings work on gcc 4.5
     CFLAGS="$CFLAGS -Wlogical-op"
   fi
 
   if test x$have_clang = xyes; then
-    # Disable the unused-function warnings, because these trigger
-    # for minheap-internal.h related code.
+    dnl Disable the unused-function warnings, because these trigger
+    dnl for minheap-internal.h related code.
     CFLAGS="$CFLAGS -Wno-unused-function"
 
-    # clang on macosx emits warnings for each directory specified which
-    # isn't "used" generating a lot of build noise (typically 3 warnings
-    # per file
+    dnl Clang on macosx emits warnings for each directory specified which
+    dnl isn't "used" generating a lot of build noise (typically 3 warnings
+    dnl per file
     case "$host_os" in
         darwin*)
             CFLAGS="$CFLAGS -Qunused-arguments"
@@ -916,8 +916,8 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
     esac
   fi
 
-##This will break the world on some 64-bit architectures
-# CFLAGS="$CFLAGS -Winline"
+dnl This will break the world on some 64-bit architectures
+dnl CFLAGS="$CFLAGS -Winline"
 
 fi
 
@@ -996,7 +996,7 @@ AC_SUBST([LIBEVENT_GC_SECTIONS])
 
 AM_CONDITIONAL([INSTALL_LIBEVENT], [test "$enable_libevent_install" = "yes"])
 
-# Doxygen support
+dnl Doxygen support
 DX_HTML_FEATURE(ON)
 DX_MAN_FEATURE(OFF)
 DX_RTF_FEATURE(OFF)
