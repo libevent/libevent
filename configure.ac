@@ -5,7 +5,7 @@ dnl See LICENSE for copying information.
 dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
-AC_INIT(libevent,2.1.11-stable)
+AC_INIT(libevent,2.1.12-stable)
 AC_PREREQ(2.67)
 AC_CONFIG_SRCDIR(event.c)
 
@@ -15,7 +15,7 @@ AM_INIT_AUTOMAKE
 dnl AM_SILENT_RULES req. automake 1.11.  [no] defaults V=1
 AM_SILENT_RULES([yes])
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
-AC_DEFINE(NUMERIC_VERSION, 0x02010b00, [Numeric representation of the version])
+AC_DEFINE(NUMERIC_VERSION, 0x02010c00, [Numeric representation of the version])
 
 dnl Initialize prefix.
 AC_PREFIX_DEFAULT([/usr/local])
