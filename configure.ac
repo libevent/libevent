@@ -62,16 +62,6 @@ if test "$GCC" = "yes" ; then
 	fi
 fi
 
-dnl OS X Lion started deprecating the system openssl. Let's just disable
-dnl all deprecation warnings on OS X; but do so only for gcc...
-if test "$GCC" = "yes" ; then
-	case "$host_os" in
-	 darwin*)
-	    CFLAGS="$CFLAGS -Wno-deprecated-declarations"
-	    ;;
-	esac
-fi
-
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--disable-gcc-warnings, disable verbose warnings with GCC))
 
@@ -902,16 +892,17 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
   fi
 
   if test x$have_clang = xyes; then
-    dnl Disable the unused-function warnings, because these trigger
-    dnl for minheap-internal.h related code.
+    dnl Disable unused-function warnings. These trigger for minheap-internal.h.
     CFLAGS="$CFLAGS -Wno-unused-function"
 
-    dnl Clang on macosx emits warnings for each directory specified which
-    dnl isn't "used" generating a lot of build noise (typically 3 warnings
-    dnl per file
     case "$host_os" in
         darwin*)
+            dnl Clang on macOS emits warnings for each directory specified which
+            dnl isn't "used", generating a lot of build noise.
             CFLAGS="$CFLAGS -Qunused-arguments"
+            dnl macOS Lion started deprecating the system OpenSSL. Let's just
+            dnl disable all deprecation warnings on macOS; but do so only for GCC.
+            CFLAGS="$CFLAGS -Wno-deprecated-declarations"
         ;;
     esac
   fi
