@@ -71,3 +71,7 @@ jobs:
         with:
           name: build
           path: /tmp/le-abi-root
+      - uses: actions/upload-artifact@v1
+        with:
+          name: build
+          path: /tmp/le-abi-root/work/abi-check
