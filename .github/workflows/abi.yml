@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - patches-2.1
+      - release-*-pull
     tags:
       - release-*
 
