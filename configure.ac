@@ -11,9 +11,14 @@ AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
-AM_INIT_AUTOMAKE
-dnl AM_SILENT_RULES req. automake 1.11.  [no] defaults V=1
+
+dnl Automake setup
+dnl 'foreign' means that GNU package rules are not strictly enforced.
+AM_INIT_AUTOMAKE([1.13 foreign subdir-objects])
+
+dnl make compilation quiet unless V=1 is used
 AM_SILENT_RULES([yes])
+
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
 AC_DEFINE(NUMERIC_VERSION, 0x02020001, [Numeric representation of the version])
 
