@@ -23,26 +23,16 @@ AC_PREFIX_DEFAULT([/usr/local])
 dnl Try and get a full POSIX environment on obscure systems
 AC_USE_SYSTEM_EXTENSIONS
 
-AC_CANONICAL_BUILD
-AC_CANONICAL_HOST
 dnl the 'build' machine is where we run configure and compile
 dnl the 'host' machine is where the resulting stuff runs.
-
-dnlcase "$host_os" in
-dnl
-dnl osf5*)
-dnl    CFLAGS="$CFLAGS -D_OSF_SOURCE"
-dnl    ;;
-dnlesac
+AC_CANONICAL_BUILD
+AC_CANONICAL_HOST
 
 dnl Checks for programs.
 AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AC_PROG_LN_S
-dnl AC_PROG_MKDIR_P - $(MKDIR_P) should be defined by AM_INIT_AUTOMAKE
-
 AC_PROG_SED
-
 AC_PROG_GCC_TRADITIONAL
 
 AC_ARG_ENABLE(gcc-warnings,
@@ -91,10 +81,6 @@ AC_ARG_ENABLE([clock-gettime],
 LT_PREREQ([2.4.2])
 LT_INIT
 
-dnl   Uncomment "AC_DISABLE_SHARED" to make shared libraries not get
-dnl   built by default.  You can also turn shared libs on and off from
-dnl   the command line with --enable-shared and --disable-shared.
-dnl AC_DISABLE_SHARED
 AC_SUBST(LIBTOOL_DEPS)
 
 AM_CONDITIONAL([BUILD_SAMPLES], [test "$enable_samples" = "yes"])
@@ -880,10 +866,6 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
         AX_CHECK_COMPILE_FLAG([-Qunused-arguments], [CFLAGS="$CFLAGS -Qunused-arguments"],[],[-Werror])
     esac
   fi
-
-dnl This will break the world on some 64-bit architectures
-dnl CFLAGS="$CFLAGS -Winline"
-
 fi
 
 LIBEVENT_GC_SECTIONS=
