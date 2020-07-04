@@ -325,9 +325,8 @@ if (${GNUC})
 endif()
 
 if (APPLE)
-    # Get rid of deprecated warnings for OpenSSL on OSX 10.7 and greater.
+    # Clang on macOS emits warnings for each directory specified which isn't used
     add_compiler_flags(
-        -Wno-error=deprecated-declarations
         -Qunused-arguments
     )
 endif()

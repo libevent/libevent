@@ -900,9 +900,6 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
             dnl Clang on macOS emits warnings for each directory specified which
             dnl isn't "used", generating a lot of build noise.
             CFLAGS="$CFLAGS -Qunused-arguments"
-            dnl macOS Lion started deprecating the system OpenSSL. Let's just
-            dnl disable all deprecation warnings on macOS; but do so only for GCC.
-            CFLAGS="$CFLAGS -Wno-deprecated-declarations"
         ;;
     esac
   fi
