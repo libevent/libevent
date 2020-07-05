@@ -29,8 +29,17 @@
 /* The old tests here need assertions to work. */
 #undef NDEBUG
 
+/**
+ * - clang supports __has_feature
+ * - gcc supports __SANITIZE_ADDRESS__
+ *
+ * Let's set __SANITIZE_ADDRESS__ if __has_feature(address_sanitizer)
+ */
 #ifndef __has_feature
 #define __has_feature(x) 0
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && __has_feature(address_sanitizer)
+#define __SANITIZE_ADDRESS__
 #endif
 
 #ifdef _WIN32
@@ -207,7 +216,7 @@ static void test_bufferevent_pair_flush_normal(void) { test_bufferevent_impl(1, 
 static void test_bufferevent_pair_flush_flush(void) { test_bufferevent_impl(1, BEV_FLUSH); }
 static void test_bufferevent_pair_flush_finished(void) { test_bufferevent_impl(1, BEV_FINISHED); }
 
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && __has_feature(address_sanitizer)
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && !defined(__SANITIZE_ADDRESS__)
 /**
  * Trace lock/unlock/alloc/free for locks.
  * (More heavier then evthread_debug*)
@@ -1355,7 +1364,7 @@ struct testcase_t bufferevent_testcases[] = {
 	LEGACY(bufferevent_pair_flush_normal, TT_ISOLATED),
 	LEGACY(bufferevent_pair_flush_flush, TT_ISOLATED),
 	LEGACY(bufferevent_pair_flush_finished, TT_ISOLATED),
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && __has_feature(address_sanitizer)
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && !defined(__SANITIZE_ADDRESS__)
 	{ "bufferevent_pair_release_lock", test_bufferevent_pair_release_lock,
 	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY|TT_NO_LOGS,
 	  &basic_setup, NULL },
