@@ -1,4 +1,4 @@
-Changes in version 2.1.12-stable (28 Jun 2020)
+Changes in version 2.1.12-stable (05 Jul 2020)
 
  This release contains mostly bug fixes (I decided not to port some features
  that can be ported even without ABI breakage, if you cannot find feature that
@@ -38,6 +38,7 @@ Changes in version 2.1.12-stable (28 Jun 2020)
   o http: do not assume body for CONNECT (1b42270b Azat Khuzhin)
   o evbuffer_add_file: fix freeing of segment in the error path (5f017bde Azat Khuzhin)
   o Fix checking return value of the evdns_base_resolv_conf_parse() (fc51bf2c Azat Khuzhin)
+  o Merge branch 'fix-signal-leak' (poll/select now needs reinit) (1c9cc07b Azat Khuzhin)
 
  improvements:
   o evutil_time: improve evutil_gettimeofday on Windows (a8219143 Nick Grifka)
