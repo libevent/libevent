@@ -2357,7 +2357,7 @@ test_evbuffer_empty_reference_prepend_buffer(void *ptr)
 	tt_assert(!strncmp((char *)evbuffer_pullup(buf2, -1), "foo", 3));
 	evbuffer_validate(buf2);
 
-	tt_assert(!strncmp((char *)evbuffer_pullup(buf1, -1), "", 0));
+	tt_assert(evbuffer_pullup(buf1, -1) == NULL);
 	evbuffer_validate(buf2);
 
 end:
