@@ -87,11 +87,11 @@ jobs:
           elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=SHARED -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "ASAN" ]; then
-            EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS=-fsanitize=address -DCMAKE_C_COMPILER=clang"
+            EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS=-fsanitize=address -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=debug"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "TSAN" ]; then
-            EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS=-fsanitize=thread -DCMAKE_C_COMPILER=clang"
+            EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS=-fsanitize=thread -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=debug"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "UBSAN" ]; then
-            EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS=-fsanitize=undefined -DCMAKE_C_COMPILER=clang"
+            EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS=-fsanitize=undefined -DCMAKE_C_COMPILER=clang -DCMAKE_BUILD_TYPE=debug"
           else
             EVENT_CMAKE_OPTIONS=""
           fi
