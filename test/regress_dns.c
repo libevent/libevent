@@ -1808,7 +1808,8 @@ struct gaic_request_status {
 
 #define GAIC_MAGIC 0x1234abcd
 
-static int pending = 0;
+static int gaic_pending = 0;
+static int gaic_freed = 0;
 
 static void
 gaic_cancel_request_cb(evutil_socket_t fd, short what, void *arg)
@@ -1853,7 +1854,13 @@ gaic_getaddrinfo_cb(int result, struct evutil_addrinfo *res, void *arg)
 	free(status);
 
 end:
-	if (--pending <= 0)
+	if (res)
+	{
+		TT_BLATHER(("evutil_freeaddrinfo(%p)", res));
+		evutil_freeaddrinfo(res);
+		++gaic_freed;
+	}
+	if (--gaic_pending <= 0)
 		event_base_loopexit(base, NULL);
 }
 
@@ -1871,7 +1878,7 @@ gaic_launch(struct event_base *base, struct evdns_base *dns_base)
 	    "foobar.bazquux.example.com", "80", NULL, gaic_getaddrinfo_cb,
 	    status);
 	event_add(&status->cancel_event, &tv);
-	++pending;
+	++gaic_pending;
 }
 
 #ifdef EVENT_SET_MEM_FUNCTIONS_IMPLEMENTED
@@ -2093,6 +2100,9 @@ test_getaddrinfo_async_cancel_stress(void *ptr)
 	}
 
 	event_base_dispatch(base);
+
+	// at least some was canceled via external event
+	tt_int_op(gaic_freed, !=, 1000);
 
 end:
 	if (dns_base)
