@@ -99,14 +99,14 @@ static const struct table_entry {
 	{ NULL, NULL },
 };
 
-struct options
-{
+struct options {
 	int port;
 	int iocp;
 	int verbose;
 
 	int unlink;
 	const char *unixsock;
+	const char *docroot;
 };
 
 /* Try to guess a good content-type for 'path' */
@@ -182,7 +182,7 @@ static void
 send_document_cb(struct evhttp_request *req, void *arg)
 {
 	struct evbuffer *evb = NULL;
-	const char *docroot = arg;
+	struct options *o = arg;
 	const char *uri = evhttp_request_get_uri(req);
 	struct evhttp_uri *decoded = NULL;
 	const char *path;
@@ -222,12 +222,12 @@ send_document_cb(struct evhttp_request *req, void *arg)
 	if (strstr(decoded_path, ".."))
 		goto err;
 
-	len = strlen(decoded_path)+strlen(docroot)+2;
+	len = strlen(decoded_path)+strlen(o->docroot)+2;
 	if (!(whole_path = malloc(len))) {
 		perror("malloc");
 		goto err;
 	}
-	evutil_snprintf(whole_path, len, "%s/%s", docroot, decoded_path);
+	evutil_snprintf(whole_path, len, "%s/%s", o->docroot, decoded_path);
 
 	if (stat(whole_path, &st)<0) {
 		goto err;
@@ -346,12 +346,13 @@ done:
 static void
 print_usage(FILE *out, const char *prog, int exit_code)
 {
-	fprintf(out, "Syntax: [ OPTS ] %s <docroot>\n", prog);
-	fprintf(out, " -p      - port\n");
-	fprintf(out, " -U      - bind to unix socket\n");
-	fprintf(out, " -u      - unlink unix socket before bind\n");
-	fprintf(out, " -I      - IOCP\n");
-	fprintf(out, " -v      - verbosity, enables libevent debug logging too\n");
+	fprintf(out,
+		"Syntax: %s [ OPTS ] <docroot>\n"
+		" -p      - port\n"
+		" -U      - bind to unix socket\n"
+		" -u      - unlink unix socket before bind\n"
+		" -I      - IOCP\n"
+		" -v      - verbosity, enables libevent debug logging too\n", prog);
 	exit(exit_code);
 }
 static struct options
@@ -374,9 +375,10 @@ parse_opts(int argc, char **argv)
 		}
 	}
 
-	if (optind >= argc || (argc-optind) > 1) {
+	if (optind >= argc || (argc - optind) > 1) {
 		print_usage(stdout, argv[0], 1);
 	}
+	o.docroot = argv[optind];
 
 	return o;
 }
@@ -504,7 +506,7 @@ main(int argc, char **argv)
 
 	/* We want to accept arbitrary requests, so we need to set a "generic"
 	 * cb.  We can also add callbacks for specific paths. */
-	evhttp_set_gencb(http, send_document_cb, argv[1]);
+	evhttp_set_gencb(http, send_document_cb, &o);
 
 	if (o.unixsock) {
 #ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN

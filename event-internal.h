@@ -418,7 +418,7 @@ int event_add_nolock_(struct event *ev,
  * if it is running in another thread and it doesn't have EV_FINALIZE set.
  */
 #define EVENT_DEL_AUTOBLOCK 2
-/** Argument for event_del_nolock_. Tells event_del to procede even if the
+/** Argument for event_del_nolock_. Tells event_del to proceed even if the
  * event is set up for finalization rather for regular use.*/
 #define EVENT_DEL_EVEN_IF_FINALIZING 3
 int event_del_nolock_(struct event *ev, int blocking);

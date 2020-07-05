@@ -102,7 +102,7 @@ test_edgetriggered(void *data_)
 				"support edge-triggering", event_base_get_method(base),
 				supports_et?"":"not "));
 
-	/* Initalize one event */
+	/* Initialize one event */
 	ev = event_new(base, pair[1], EV_READ|EV_ET|EV_PERSIST, read_cb, &ev);
 	tt_assert(ev != NULL);
 	tt_int_op(event_add(ev, NULL), ==, 0);

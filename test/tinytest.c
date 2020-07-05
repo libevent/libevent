@@ -60,12 +60,8 @@
 #include "tinytest_macros.h"
 
 #define LONGEST_TEST_NAME 16384
-
-#ifndef _WIN32
 #define DEFAULT_TESTCASE_TIMEOUT 30U
-#else
-#define DEFAULT_TESTCASE_TIMEOUT 0U
-#endif
+#define MAGIC_EXITCODE 42
 
 static int in_tinytest_main = 0; /**< true if we're in tinytest_main().*/
 static int n_ok = 0; /**< Number of tests that have passed */
@@ -86,33 +82,73 @@ const char *cur_test_prefix = NULL; /**< prefix of the current test group */
 /** Name of the current test, if we haven't logged is yet. Used for --quiet */
 const char *cur_test_name = NULL;
 
+static void usage(struct testgroup_t *groups, int list_groups)
+	__attribute__((noreturn));
+static int process_test_option(struct testgroup_t *groups, const char *test);
+
 #ifdef _WIN32
 /* Copy of argv[0] for win32. */
 static char commandname[MAX_PATH+1];
-#endif
 
-static void usage(struct testgroup_t *groups, int list_groups)
-  __attribute__((noreturn));
-static int process_test_option(struct testgroup_t *groups, const char *test);
+struct timeout_thread_args {
+	const testcase_fn *fn;
+	void *env;
+};
 
+static DWORD WINAPI
+timeout_thread_proc_(LPVOID arg)
+{
+	struct timeout_thread_args *args = arg;
+	(*(args->fn))(args->env);
+	ExitThread(cur_test_outcome == FAIL ? 1 : 0);
+}
+
+static enum outcome
+testcase_run_in_thread_(const struct testcase_t *testcase, void *env)
+{
+	/* We will never run testcase in a new thread when the
+	timeout is set to zero */
+	assert(opt_timeout);
+	DWORD ret, tid;
+	HANDLE handle;
+	struct timeout_thread_args args = {
+		&(testcase->fn),
+		env
+	};
+
+	handle =CreateThread(NULL, 0, timeout_thread_proc_,
+		(LPVOID)&args, 0, &tid);
+	ret = WaitForSingleObject(handle, opt_timeout * 1000U);
+	if (ret == WAIT_OBJECT_0) {
+		ret = 0;
+		if (!GetExitCodeThread(handle, &ret)) {
+			printf("GetExitCodeThread failed\n");
+			ret = 1;
+		}
+	} else if (ret == WAIT_TIMEOUT)	{
+		printf("timeout\n");
+	} else {
+		printf("Wait failed\n");
+	}
+	CloseHandle(handle);
+	if (ret == 0)
+		return OK;
+	else if (ret == MAGIC_EXITCODE)
+		return SKIP;
+	else
+		return FAIL;
+}
+#else
 static unsigned int testcase_set_timeout_(void)
 {
-	if (!opt_timeout)
-		return 0;
-#ifndef _WIN32
 	return alarm(opt_timeout);
-#else
-	/** TODO: win32 support */
-	fprintf(stderr, "You cannot set alarm on windows\n");
-	exit(1);
-#endif
 }
+
 static unsigned int testcase_reset_timeout_(void)
 {
-#ifndef _WIN32
 	return alarm(0);
-#endif
 }
+#endif
 
 static enum outcome
 testcase_run_bare_(const struct testcase_t *testcase)
@@ -129,9 +165,17 @@ testcase_run_bare_(const struct testcase_t *testcase)
 
 	cur_test_outcome = OK;
 	{
-		testcase_set_timeout_();
-		testcase->fn(env);
-		testcase_reset_timeout_();
+		if (opt_timeout) {
+#ifdef _WIN32
+			cur_test_outcome = testcase_run_in_thread_(testcase, env);
+#else
+			testcase_set_timeout_();
+			testcase->fn(env);
+			testcase_reset_timeout_();
+#endif
+		} else {
+			testcase->fn(env);
+		}
 	}
 	outcome = cur_test_outcome;
 
@@ -143,7 +187,6 @@ testcase_run_bare_(const struct testcase_t *testcase)
 	return outcome;
 }
 
-#define MAGIC_EXITCODE 42
 
 #ifndef NO_FORKING
 
@@ -164,7 +207,7 @@ testcase_run_forked_(const struct testgroup_t *group,
 	char buffer[LONGEST_TEST_NAME+256];
 	STARTUPINFOA si;
 	PROCESS_INFORMATION info;
-	DWORD exitcode;
+	DWORD ret;
 
 	if (!in_tinytest_main) {
 		printf("\nERROR.  On Windows, testcase_run_forked_ must be"
@@ -174,7 +217,7 @@ testcase_run_forked_(const struct testgroup_t *group,
 	if (opt_verbosity>0)
 		printf("[forking] ");
 
-	snprintf(buffer, sizeof(buffer), "%s --RUNNING-FORKED %s %s%s",
+	snprintf(buffer, sizeof(buffer), "%s --RUNNING-FORKED %s --timeout 0 %s%s",
 		 commandname, verbosity_flag, group->prefix, testcase->name);
 
 	memset(&si, 0, sizeof(si));
@@ -185,15 +228,23 @@ testcase_run_forked_(const struct testgroup_t *group,
 			   0, NULL, NULL, &si, &info);
 	if (!ok) {
 		printf("CreateProcess failed!\n");
-		return 0;
+		return FAIL;
 	}
-	WaitForSingleObject(info.hProcess, INFINITE);
-	GetExitCodeProcess(info.hProcess, &exitcode);
+	ret = WaitForSingleObject(info.hProcess,
+		(opt_timeout ? opt_timeout * 1000U : INFINITE));
+
+	if (ret == WAIT_OBJECT_0) {
+		GetExitCodeProcess(info.hProcess, &ret);
+	} else if (ret == WAIT_TIMEOUT) {
+		printf("timeout\n");
+	} else {
+		printf("Wait failed\n");
+	}
 	CloseHandle(info.hProcess);
 	CloseHandle(info.hThread);
-	if (exitcode == 0)
+	if (ret == 0)
 		return OK;
-	else if (exitcode == MAGIC_EXITCODE)
+	else if (ret == MAGIC_EXITCODE)
 		return SKIP;
 	else
 		return FAIL;
@@ -228,7 +279,7 @@ testcase_run_forked_(const struct testgroup_t *group,
 		return FAIL; /* unreachable */
 	} else {
 		/* parent */
-		int status, r;
+		int status, r, exitcode;
 		char b[1];
 		/* Close this now, so that if the other side closes it,
 		 * our read fails. */
@@ -236,12 +287,20 @@ testcase_run_forked_(const struct testgroup_t *group,
 		r = (int)read(outcome_pipe[0], b, 1);
 		if (r == 0) {
 			printf("[Lost connection!] ");
-			return 0;
+			return FAIL;
 		} else if (r != 1) {
 			perror("read outcome from pipe");
 		}
 		waitpid(pid, &status, 0);
+		exitcode = WEXITSTATUS(status);
 		close(outcome_pipe[0]);
+		if (opt_verbosity>1)
+			printf("%s%s: exited with %i (%i)\n", group->prefix, testcase->name, exitcode, status);
+		if (exitcode != 0)
+		{
+			printf("[atexit failure!] ");
+			return FAIL;
+		}
 		return b[0]=='Y' ? OK : (b[0]=='S' ? SKIP : FAIL);
 	}
 #endif
@@ -520,7 +579,7 @@ tinytest_set_test_failed_(void)
 		printf("%s%s: ", cur_test_prefix, cur_test_name);
 		cur_test_name = NULL;
 	}
-	cur_test_outcome = 0;
+	cur_test_outcome = FAIL;
 }
 
 void

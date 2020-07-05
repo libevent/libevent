@@ -225,8 +225,8 @@ main(int c, char **v) {
 			res = evdns_base_resolv_conf_parse(evdns_base,
 			    DNS_OPTION_NAMESERVERS, o.resolv_conf);
 
-		if (res < 0) {
-			fprintf(stderr, "Couldn't configure nameservers");
+		if (res) {
+			fprintf(stderr, "Couldn't configure nameservers\n");
 			return 1;
 		}
 	}

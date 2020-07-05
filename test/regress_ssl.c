@@ -148,9 +148,9 @@ ssl_getcert(EVP_PKEY *key)
 	X509_set_issuer_name(x509, name);
 	X509_NAME_free(name);
 
-	X509_time_adj(X509_get_notBefore(x509), 0, &now);
+	X509_time_adj(X509_getm_notBefore(x509), 0, &now);
 	now += 3600;
-	X509_time_adj(X509_get_notAfter(x509), 0, &now);
+	X509_time_adj(X509_getm_notAfter(x509), 0, &now);
 	X509_set_pubkey(x509, key);
 	tt_assert(0 != X509_sign(x509, key, EVP_sha1()));
 
@@ -469,8 +469,8 @@ regress_bufferevent_openssl(void *arg)
 	type = (enum regress_openssl_type)data->setup_data;
 
 	if (type & REGRESS_OPENSSL_RENEGOTIATE) {
-		if (SSLeay() >= 0x10001000 &&
-		    SSLeay() <  0x1000104f) {
+		if (OPENSSL_VERSION_NUMBER >= 0x10001000 &&
+		    OPENSSL_VERSION_NUMBER <  0x1000104f) {
 			/* 1.0.1 up to 1.0.1c has a bug where TLS1.1 and 1.2
 			 * can't renegotiate with themselves. Disable. */
 			disable_tls_11_and_12 = 1;
@@ -974,6 +974,7 @@ regress_bufferevent_openssl_wm(void *arg)
 
 	tt_int_op(client.get, ==, client.limit);
 	tt_int_op(server.get, ==, server.limit);
+
 end:
 	free(payload);
 	evbuffer_free(client.data);
@@ -981,6 +982,10 @@ end:
 	evconnlistener_free(listener);
 	bufferevent_free(client.bev);
 	bufferevent_free(server.bev);
+
+	/* XXX: by some reason otherise there is a leak */
+	if (!(type & REGRESS_OPENSSL_FILTER))
+		event_base_loop(base, EVLOOP_ONCE);
 }
 
 struct testcase_t ssl_testcases[] = {

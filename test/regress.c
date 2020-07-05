@@ -31,10 +31,6 @@
 #include <windows.h>
 #endif
 
-#ifdef EVENT__HAVE_PTHREADS
-#include <pthread.h>
-#endif
-
 #include "event2/event-config.h"
 
 #include <sys/types.h>
@@ -73,6 +69,7 @@
 #include "time-internal.h"
 
 #include "regress.h"
+#include "regress_thread.h"
 
 #ifndef _WIN32
 #include "regress.gen.h"
@@ -390,7 +387,7 @@ record_event_cb(evutil_socket_t s, short what, void *ptr)
 }
 
 static void
-test_simpleclose(void *ptr)
+test_simpleclose_rw(void *ptr)
 {
 	/* Test that a close of FD is detected as a read and as a write. */
 	struct event_base *base = event_base_new();
@@ -472,6 +469,56 @@ end:
 		event_base_free(base);
 }
 
+static void
+test_simpleclose(void *ptr)
+{
+	struct basic_test_data *data = ptr;
+	struct event_base *base      = data->base;
+	evutil_socket_t *pair        = data->pair;
+	const char *flags            = (const char *)data->setup_data;
+	int et                       = !!strstr(flags, "ET");
+	int persist                  = !!strstr(flags, "persist");
+	short events                 = EV_CLOSED | (et ? EV_ET : 0) | (persist ? EV_PERSIST : 0);
+	struct event *ev = NULL;
+	short got_event;
+
+	if (!(event_base_get_features(data->base) & EV_FEATURE_EARLY_CLOSE))
+		tt_skip();
+
+	/* XXX: should this code moved to regress_et.c ? */
+	if (et && !(event_base_get_features(data->base) & EV_FEATURE_ET))
+		tt_skip();
+
+	ev = event_new(base, pair[0], events, record_event_cb, &got_event);
+	tt_assert(ev);
+	tt_assert(!event_add(ev, NULL));
+
+	got_event = 0;
+	if (strstr(flags, "close")) {
+		tt_assert(!evutil_closesocket(pair[1]));
+		/* avoid closing in setup routines */
+		pair[1] = -1;
+	} else if (strstr(flags, "shutdown")) {
+		tt_assert(!shutdown(pair[1], EVUTIL_SHUT_WR));
+	} else {
+		tt_abort_msg("unknown flags");
+	}
+
+	/* w/o edge-triggerd but w/ persist it will not stop */
+	if (!et && persist) {
+		struct timeval tv;
+		tv.tv_sec = 0;
+		tv.tv_usec = 10000;
+		tt_assert(!event_base_loopexit(base, &tv));
+	}
+
+	tt_int_op(event_base_loop(base, EVLOOP_NONBLOCK), ==, !persist);
+	tt_int_op(got_event, ==, (events & ~EV_PERSIST));
+
+end:
+	if (ev)
+		event_free(ev);
+}
 
 static void
 test_multiple(void)
@@ -979,7 +1026,7 @@ test_fork(void)
 		evutil_closesocket(child_pair[1]);
 }
 
-#ifdef EVENT__HAVE_PTHREADS
+#ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
 static void* del_wait_thread(void *arg)
 {
 	struct timeval tv_start, tv_end;
@@ -1007,14 +1054,14 @@ static void
 test_del_wait(void)
 {
 	struct event ev;
-	pthread_t thread;
+	THREAD_T thread;
 
 	setup_test("event_del will wait: ");
 
 	event_set(&ev, pair[1], EV_READ|EV_PERSIST, del_wait_cb, &ev);
 	event_add(&ev, NULL);
 
-	pthread_create(&thread, NULL, del_wait_thread, NULL);
+	THREAD_START(thread, del_wait_thread, NULL);
 
 	if (write(pair[0], TEST1, strlen(TEST1)+1) < 0) {
 		tt_fail_perror("write");
@@ -1033,7 +1080,7 @@ test_del_wait(void)
 		test_timeval_diff_eq(&tv_start, &tv_end, 270);
 	}
 
-	pthread_join(thread, NULL);
+	THREAD_JOIN(thread);
 
 	tt_int_op(test_ok, ==, 1);
 
@@ -1051,14 +1098,14 @@ static void
 test_del_notify(void)
 {
 	struct event ev;
-	pthread_t thread;
+	THREAD_T thread;
 
 	test_ok = 1;
 
 	event_set(&ev, -1, EV_READ, null_cb, &ev);
 	event_add(&ev, NULL);
 
-	pthread_create(&thread, NULL, test_del_notify_thread, NULL);
+	THREAD_START(thread, test_del_notify_thread, NULL);
 
 	{
 		struct timeval delay = { 0, 1000 };
@@ -1066,7 +1113,7 @@ test_del_notify(void)
 	}
 
 	event_del(&ev);
-	pthread_join(thread, NULL);
+	THREAD_JOIN(thread);
 }
 #endif
 
@@ -3464,8 +3511,35 @@ struct testcase_t main_testcases[] = {
 	LEGACY(simpleread, TT_ISOLATED),
 	LEGACY(simpleread_multiple, TT_ISOLATED),
 	LEGACY(simplewrite, TT_ISOLATED),
-	{ "simpleclose", test_simpleclose, TT_FORK, &basic_setup,
-	  NULL },
+	{ "simpleclose_rw", test_simpleclose_rw, TT_FORK, &basic_setup, NULL },
+	/* simpleclose */
+	{ "simpleclose_close", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close" },
+	{ "simpleclose_shutdown", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown" },
+	/* simpleclose_*_persist */
+	{ "simpleclose_close_persist", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close_persist" },
+	{ "simpleclose_shutdown_persist", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown_persist" },
+	/* simpleclose_*_et */
+	{ "simpleclose_close_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close_ET" },
+	{ "simpleclose_shutdown_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown_ET" },
+	/* simpleclose_*_persist_et */
+	{ "simpleclose_close_persist_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"close_persist_ET" },
+	{ "simpleclose_shutdown_persist_et", test_simpleclose,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE,
+	  &basic_setup, (void *)"shutdown_persist_ET" },
 	LEGACY(multiple, TT_ISOLATED),
 	LEGACY(persistent, TT_ISOLATED),
 	LEGACY(combined, TT_ISOLATED),
@@ -3505,8 +3579,8 @@ struct testcase_t main_testcases[] = {
 #ifndef _WIN32
 	LEGACY(fork, TT_ISOLATED),
 #endif
-#ifdef EVENT__HAVE_PTHREADS
-	/** TODO: support win32 */
+
+#ifdef EVTHREAD_USE_PTHREADS_IMPLEMENTED
 	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
 	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
 #endif

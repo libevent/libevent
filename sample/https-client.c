@@ -118,7 +118,6 @@ err_openssl(const char *func)
 	exit(1);
 }
 
-#ifndef _WIN32
 /* See http://archives.seul.org/libevent/users/Jan-2013/msg00039.html */
 static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
 {
@@ -180,6 +179,35 @@ static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
 		       res_str, host, cert_str);
 		return 0;
 	}
+}
+
+#ifdef _WIN32
+static int
+add_cert_for_store(X509_STORE *store, const char *name)
+{
+	HCERTSTORE sys_store = NULL;
+	PCCERT_CONTEXT ctx = NULL;
+	int r = 0;
+
+	sys_store = CertOpenSystemStore(0, name);
+	if (!sys_store) {
+		err("failed to open system certificate store");
+		return -1;
+	}
+	while ((ctx = CertEnumCertificatesInStore(sys_store, ctx))) {
+		X509 *x509 = d2i_X509(NULL, (unsigned char const **)&ctx->pbCertEncoded,
+			ctx->cbCertEncoded);
+		if (x509) {
+			X509_STORE_add_cert(store, x509);
+			X509_free(x509);
+		} else {
+			r = -1;
+			err_openssl("d2i_X509");
+			break;
+		}
+	}
+	CertCloseStore(sys_store, 0);
+	return r;
 }
 #endif
 
@@ -335,17 +363,22 @@ main(int argc, char **argv)
 		goto error;
 	}
 
-#ifndef _WIN32
-	/* TODO: Add certificate loading on Windows as well */
-
 	if (crt == NULL) {
 		X509_STORE *store;
 		/* Attempt to use the system's trusted root certificates. */
 		store = SSL_CTX_get_cert_store(ssl_ctx);
+#ifdef _WIN32
+		if (add_cert_for_store(store, "CA") < 0 ||
+		    add_cert_for_store(store, "AuthRoot") < 0 ||
+		    add_cert_for_store(store, "ROOT") < 0) {
+			goto error;
+		}
+#else // _WIN32
 		if (X509_STORE_set_default_paths(store) != 1) {
 			err_openssl("X509_STORE_set_default_paths");
 			goto error;
 		}
+#endif // _WIN32
 	} else {
 		if (SSL_CTX_load_verify_locations(ssl_ctx, crt, NULL) != 1) {
 			err_openssl("SSL_CTX_load_verify_locations");
@@ -376,9 +409,6 @@ main(int argc, char **argv)
 	 * "wrapping" OpenSSL's routine, not replacing it. */
 	SSL_CTX_set_cert_verify_callback(ssl_ctx, cert_verify_callback,
 					  (void *) host);
-#else // _WIN32
-	(void)crt;
-#endif // _WIN32
 
 	// Create event base
 	base = event_base_new();

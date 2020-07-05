@@ -281,7 +281,7 @@ epoll_apply_one_change(struct event_base *base,
 		return 0;
 	}
 
-	if ((ch->read_change|ch->write_change) & EV_CHANGE_ET)
+	if ((ch->read_change|ch->write_change|ch->close_change) & EV_CHANGE_ET)
 		events |= EPOLLET;
 
 	memset(&epev, 0, sizeof(epev));
@@ -486,7 +486,9 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 			continue;
 #endif
 
-		if (what & (EPOLLHUP|EPOLLERR)) {
+		if (what & EPOLLERR) {
+			ev = EV_READ | EV_WRITE;
+		} else if ((what & EPOLLHUP) && !(what & EPOLLRDHUP)) {
 			ev = EV_READ | EV_WRITE;
 		} else {
 			if (what & EPOLLIN)

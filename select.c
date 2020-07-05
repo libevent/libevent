@@ -98,7 +98,7 @@ const struct eventop selectops = {
 	select_del,
 	select_dispatch,
 	select_dealloc,
-	0, /* doesn't need reinit. */
+	1, /* need_reinit. */
 	EV_FEATURE_FDS,
 	0,
 };

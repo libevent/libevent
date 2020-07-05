@@ -75,11 +75,8 @@
 /* Define to 1 if you have the declaration of `KERN_ARND'. */
 #define EVENT__HAVE_DECL_KERN_ARND @EVENT__HAVE_DECL_KERN_ARND@
 
-/* Define to 1 if you have the declaration of `KERN_RANDOM'. */
-#define EVENT__HAVE_DECL_KERN_RANDOM @EVENT__HAVE_DECL_KERN_RANDOM@
-
-/* Define to 1 if you have the declaration of `RANDOM_UUID'. */
-#define EVENT__HAVE_DECL_RANDOM_UUID @EVENT__HAVE_DECL_RANDOM_UUID@
+/* Define to 1 if you have `getrandom' function. */
+#cmakedefine EVENT__HAVE_GETRANDOM 1
 
 /* Define if /dev/poll is available */
 #cmakedefine EVENT__HAVE_DEVPOLL 1
@@ -181,6 +178,9 @@
 /* Define to 1 if you have the <mach/mach_time.h> header file. */
 #cmakedefine EVENT__HAVE_MACH_MACH_TIME_H 1
 
+/* Define to 1 if you have the <mach/mach.h> header file. */
+#cmakedefine EVENT__HAVE_MACH_MACH_H 1
+
 /* Define to 1 if you have the <memory.h> header file. */
 #cmakedefine EVENT__HAVE_MEMORY_H 1
 
@@ -274,9 +274,6 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #cmakedefine EVENT__HAVE_STDLIB_H 1
 
-/* Define to 1 if you have the <strings.h> header file. */
-#cmakedefine EVENT__HAVE_STRINGS_H 1
-
 /* Define to 1 if you have the <string.h> header file. */
 #cmakedefine EVENT__HAVE_STRING_H 1
 
@@ -291,6 +288,12 @@
 
 /* Define to 1 if you have the `strtoll' function. */
 #cmakedefine EVENT__HAVE_STRTOLL 1
+
+/* Define to 1 if you have the `_gmtime64_s' function. */
+#cmakedefine EVENT__HAVE__GMTIME64_S 1
+
+/* Define to 1 if you have the `_gmtime64' function. */
+#cmakedefine EVENT__HAVE__GMTIME64 1
 
 /* Define to 1 if the system has the type `struct addrinfo'. */
 #cmakedefine EVENT__HAVE_STRUCT_ADDRINFO 1
@@ -366,6 +369,9 @@
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_STAT_H 1
+
+/* Define to 1 if you have the <sys/random.h> header file. */
+#cmakedefine EVENT__HAVE_SYS_RANDOM_H 1
 
 /* Define to 1 if you have the <sys/sysctl.h> header file. */
 #cmakedefine EVENT__HAVE_SYS_SYSCTL_H 1

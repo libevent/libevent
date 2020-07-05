@@ -650,7 +650,7 @@ bufferevent_priority_set(struct bufferevent *bufev, int priority)
 	struct bufferevent_private *bufev_p = BEV_UPCAST(bufev);
 
 	BEV_LOCK(bufev);
-	if (!BEV_IS_SOCKET(bufev))
+	if (BEV_IS_ASYNC(bufev) || BEV_IS_FILTER(bufev) || BEV_IS_PAIR(bufev))
 		goto done;
 
 	if (event_priority_set(&bufev->ev_read, priority) == -1)

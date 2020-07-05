@@ -3531,6 +3531,7 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		base->global_max_retransmits = retries;
 	} else if (str_matches_option(option, "randomize-case:")) {
 		int randcase = strtoint(val);
+		if (randcase == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		base->global_randomize_case = randcase;
 	} else if (str_matches_option(option, "bind-to:")) {
@@ -3554,11 +3555,13 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		    sizeof(tv));
 	} else if (str_matches_option(option, "so-rcvbuf:")) {
 		int buf = strtoint(val);
+		if (buf == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting SO_RCVBUF to %s", val);
 		base->so_rcvbuf = buf;
 	} else if (str_matches_option(option, "so-sndbuf:")) {
 		int buf = strtoint(val);
+		if (buf == -1) return -1;
 		if (!(flags & DNS_OPTION_MISC)) return 0;
 		log(EVDNS_LOG_DEBUG, "Setting SO_SNDBUF to %s", val);
 		base->so_sndbuf = buf;
@@ -4032,7 +4035,7 @@ evdns_base_new(struct event_base *event_base, int flags)
 #else
 		r = evdns_base_resolv_conf_parse(base, opts, "/etc/resolv.conf");
 #endif
-		if (r == -1) {
+		if (r) {
 			evdns_base_free_and_unlock(base, 0);
 			return NULL;
 		}
@@ -4106,17 +4109,17 @@ evdns_base_free_and_unlock(struct evdns_base *base, int fail_requests)
 
 	/* TODO(nickm) we might need to refcount here. */
 
+	while (base->req_waiting_head) {
+		if (fail_requests)
+			reply_schedule_callback(base->req_waiting_head, 0, DNS_ERR_SHUTDOWN, NULL);
+		request_finished(base->req_waiting_head, &base->req_waiting_head, 1);
+	}
 	for (i = 0; i < base->n_req_heads; ++i) {
 		while (base->req_heads[i]) {
 			if (fail_requests)
 				reply_schedule_callback(base->req_heads[i], 0, DNS_ERR_SHUTDOWN, NULL);
 			request_finished(base->req_heads[i], &REQ_HEAD(base, base->req_heads[i]->trans_id), 1);
 		}
-	}
-	while (base->req_waiting_head) {
-		if (fail_requests)
-			reply_schedule_callback(base->req_waiting_head, 0, DNS_ERR_SHUTDOWN, NULL);
-		request_finished(base->req_waiting_head, &base->req_waiting_head, 1);
 	}
 	base->global_requests_inflight = base->global_requests_waiting = 0;
 

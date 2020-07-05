@@ -1,0 +1,12 @@
+{
+  "Name":           "libevent",
+  "Title":          "Libevent",
+  "SourceUrl":      "https://github.com/libevent/libevent/tags",
+  "Git":            "https://github.com/libevent/libevent.git",
+  "Maintainer":     "Nick Mathewson, Azat Khuzhin and Niels Provos",
+  "MaintainerUrl":  "https://libevent.org",
+  "BuildSystem":    "Autotools",
+  "HeadersDiff":    "On",
+  "Package":        "release-",
+  "ReleasePattern": "\A([\d\-\.\_]+)(|\-beta|\-rc|\-stable)\Z",
+}

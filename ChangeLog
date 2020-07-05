@@ -1,3 +1,84 @@
+Changes in version 2.1.12-stable (05 Jul 2020)
+
+ This release contains mostly bug fixes (I decided not to port some features
+ that can be ported even without ABI breakage, if you cannot find feature that
+ you are interested in, please give us a note!)
+
+ Since 2.1.12 libevent will use github actions as main CI, since
+ it recommends itself better then travis/appveyor (and had been removed from
+ upstream).
+
+ Look carefully at "slightly touches the behaviour" section.
+
+ Below you will find some of changes (this list has been cleaned up from the
+ patches that touches only tests and similar):
+
+ CI:
+  o Backport github actions to 2.1 (be3acd7c Azat Khuzhin)
+  o Merge branch 'event_rpcgen.py-cleanup' (f0ded5f3, 48e04887 Enji Cooper)
+  o Add API/ABI checker (using LVC) (709210d4, 2af1f6cc yuangongji)
+
+ test:
+  o tinytest: support timeout on Windows (794e8f75 yuangongji)
+  o Merge branch 'osx-clock' (e85afbe3 Azat Khuzhin)
+  o test-ratelim: calculate timers bias (for slow CPUs) to avoid false-positive (8ad26d0b Azat Khuzhin)
+
+ fixes:
+  o buffer: do not pass NULL to memcpy() from evbuffer_pullup() (5b063049 Azat Khuzhin)
+  o http: fix undefined-shift in EVUTIL_IS*_ helpers (6b8d02a7 Azat Khuzhin)
+  o Check error code of evhttp_add_header_internal() in evhttp_parse_query_impl() (97e28f09 Azat Khuzhin)
+  o http: fix EVHTTP_CON_AUTOFREE in case of timeout (and some else) (1be25938 Azat Khuzhin)
+  o evdns: Add additional validation for values of dns options (c2972453 ayuseleznev)
+  o There is typo in GetAdaptersAddresses windows library. It should be iphlpapi.dll (891adda9 Aleksandr-Melnikov)
+  o Merge branch 'EV_CLOSED-and-EV_ET-fixes' (db2efdf5 Azat Khuzhin)
+  o Fix memory corruption in EV_CLOSURE_EVENT_FINALIZE with debug enabled (8ccd8f56 Jan Kasiak)
+  o increase segment refcnt only if evbuffer_add_file_segment() succeeds (30662a3c yuangongji)
+  o evdns: fix a crash when evdns_base with waiting requests is freed (6f8e0e97 ayuseleznev)
+  o event_base_once: fix potential null pointer threat (2e9ceb16 chenguolong)
+  o http: do not assume body for CONNECT (1b42270b Azat Khuzhin)
+  o evbuffer_add_file: fix freeing of segment in the error path (5f017bde Azat Khuzhin)
+  o Fix checking return value of the evdns_base_resolv_conf_parse() (fc51bf2c Azat Khuzhin)
+  o Merge branch 'fix-signal-leak' (poll/select now needs reinit) (1c9cc07b Azat Khuzhin)
+
+ improvements:
+  o evutil_time: improve evutil_gettimeofday on Windows (a8219143 Nick Grifka)
+  o Support EV_CLOSED on linux for poll(2) (2530e7c6 Azat Khuzhin)
+  o Parse IPv6 scope IDs. (f602211f Philip Homburg)
+  o evutil_time: Implements usleep() using wait funtion on Windows (d42240d1 yuangongji)
+  o evutil_time: detect and use _gmtime64_s()/_gmtime64() (f4a6152c yuangongji)
+
+ slightly touches the behaviour:
+  o bufferevent: allow setting priority on socket and openssl type (4dd3acdd Nicolas J. Bouliane)
+  o Fix EV_CLOSED detection/reporting (epoll only) (1df324d4 Azat Khuzhin) (XXX)
+  o Revert "Warn if forked from the event loop during event_reinit()" (71f5c0d3 Azat Khuzhin)
+
+ samples:
+  o https-client: load certificates from the system cert store on Windows (e9478640 yuangongji)
+
+ build fixes:
+  o Do not use sysctl.h on linux (it had been deprecated) (d2871a37 Azat Khuzhin)
+  o cmake: avoid problems from use of CMAKE_USE_PTHREADS_INIT (a62ec765 Paul Osborne)
+  o Update list of cmake files for autotools dist archive (2016f017 Azat Khuzhin)
+  o LibeventConfig.cmake: restore CMAKE_FIND_LIBRARY_SUFFIXES and LIBEVENT_STATIC_LINK default (640f9cf6 Mario Emmenlauer)
+  o cmake: fix getaddrinfo checking error (dea51c2e yuangongji)
+  o autoconf: fix getaddrinfo checking errors on mingw (b9bf7fa7 yuangongji)
+  o Do not use shared global structures on CYGWIN (8a9b5655 Azat Khuzhin)
+  o Added uninstall target check to cmakelists (3f1fb1f9 Dimo Markov)
+  o Fix compilation without OPENSSL_API_COMPAT (921bdcdd Azat Khuzhin)
+  o cmake: improve package config file (1c047618, baec84f2 yuangongji)
+  o Link with iphlpapi only on windows (976f7d34 Azat Khuzhin)
+  o autotools: fails build when need but can not find openssl (93174bb5 yuangongji)
+  o Merge branch 'http-connect' (e2424229 Azat Khuzhin)
+  o Fix compat with NetBSD >= 10 (5febb4e1 Kamil Rytarowski)
+  o cmake: fix getrandom() detection (e0e5f3bd Azat Khuzhin)
+  o arc4random: replace sysctl() with getrandom (on linux) (66ec78fd Azat Khuzhin)
+  o Upgrade autoconf (after upgrading minimum required to 2.67) (45da7d9d yuangongji)
+  o eliminate some C4267 warnings in Windows (9e468c77 yuangongji)
+  o autotools: attach doxygen target into all target (5d1e8570 yuangongji)
+  o cmake: attach doxygen target into all target (7a85300a yuangongji)
+  o Change the minimum version of automake to 1.13 and autoconf to 2.67 (fdb8fb66 ygj6)
+  o Add Uninstall.cmake.in into dist archive (877f2355 Azat Khuzhin)
+
 Changes in version 2.1.11-stable (01 Aug 2019)
 
  This release contains one ABI breakage fix (that had been introduced in

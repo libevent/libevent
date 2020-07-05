@@ -464,6 +464,24 @@ fixing bugs:
  * jeremyerb
  * Fabrice Fontaine
  * wenyg
+ * Aleksandr-Melnikov
+ * ayuseleznev
+ * chenguolong
+ * Dimo Markov
+ * dota17
+ * fanquake
+ * Jan Kasiak
+ * Kamil Rytarowski
+ * Mario Emmenlauer
+ * Michael Davidsaver
+ * mohuang
+ * Nick Grifka
+ * Nicolas J. Bouliane
+ * Paul Osborne
+ * Philip Homburg
+ * Wataru Ashihara
+ * William A Rowe Jr
+ * yangyongsheng
 
 
 If we have forgotten your name, please contact us.

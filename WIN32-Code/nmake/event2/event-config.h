@@ -271,7 +271,7 @@
 /* #undef EVENT__HAVE_WORKING_KQUEUE */
 
 /* Numeric representation of the version */
-#define EVENT__NUMERIC_VERSION 0x02010b00
+#define EVENT__NUMERIC_VERSION 0x02010c00
 
 /* Name of package */
 #define EVENT__PACKAGE "libevent"
@@ -332,7 +332,7 @@
 #define EVENT__TIME_WITH_SYS_TIME 1
 
 /* Version number of package */
-#define EVENT__VERSION "2.1.11-stable"
+#define EVENT__VERSION "2.1.12-stable"
 
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */

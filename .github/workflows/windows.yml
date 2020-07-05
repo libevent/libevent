@@ -1,0 +1,256 @@
+---
+name: windows
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths-ignore:
+      - '**.md'
+      - '.mailmap'
+      - 'ChangeLog*'
+      - 'whatsnew*'
+      - 'LICENSE'
+  push:
+    paths-ignore:
+      - '**.md'
+      - '.mailmap'
+      - 'ChangeLog*'
+      - 'whatsnew*'
+      - 'LICENSE'
+
+jobs:
+  vs2017:
+    runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'ci skip')"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2016]
+        EVENT_MATRIX: [NONE]
+
+    steps:
+      - uses: actions/checkout@v2.0.0
+
+      - name: Cache Depends
+        id: cache-depends
+        uses: actions/cache@v1.0.3
+        with:
+          path: C:\vcpkg\installed
+          key: ${{ matrix.os }}-vcpkg
+
+      - name: Cache Build
+        uses: actions/cache@v1.0.3
+        with:
+          path: build
+          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v3
+
+      - name: Install Depends
+        if: steps.cache-depends.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          vcpkg install openssl:x64-windows
+          vcpkg install zlib:x64-windows
+
+      - name: Build And Test
+        shell: powershell
+        run: |
+          $OPENSSL_ROOT_DIR="C:\vcpkg\installed\x64-windows"
+          $EVENT_BUILD_PARALLEL=10
+          $EVENT_TESTS_PARALLEL=1
+          $env:PATH="$OPENSSL_ROOT_DIR/bin;$env:PATH"
+
+          mkdir build -ea 0
+          cd build
+
+          $CMAKE_CMD="cmake -G 'Visual Studio 15 2017 Win64' .."
+          function cmake_configure($retry)
+          {
+            $errcode=0
+            try {
+              if ($retry -eq 0) {
+                echo "[cmake configure retry] $CMAKE_CMD"
+              } else {
+                echo "[cmake configure] $CMAKE_CMD"
+              }
+              Invoke-Expression $CMAKE_CMD
+              $errcode=$LastExitCode
+            }
+            catch {
+              $errcode=1
+            }
+            finally {
+              if ($errcode -ne 0) {
+                if ($retry -eq 0) {
+                  $host.SetShouldExit($LastExitCode)
+                } else {
+                  echo "Remove all entries in build directory"
+                  rm -r -fo *
+                  cmake_configure 0
+                }
+              }
+            }
+          }
+          cmake_configure 1
+
+          try {
+            cmake --build . -j $EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
+            if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode) }
+
+            if ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_STATIC") {
+              python ../test-export/test-export.py static
+            }
+            elseif ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_SHARED") {
+              python ../test-export/test-export.py shared
+            }
+            else {
+              ctest --output-on-failure -j $EVENT_TESTS_PARALLEL
+              if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode) }
+            }
+          } catch {
+            $host.SetShouldExit($LastExitCode)
+          }
+
+      - uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-build
+          path: build
+
+  vs2019:
+    runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'ci skip')"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2019]
+        EVENT_MATRIX:
+          - NONE
+          - LIBRARY_TYPE_STATIC
+          - DISABLE_OPENSSL
+          - DISABLE_THREAD_SUPPORT
+          - DISABLE_DEBUG_MODE
+          - DISABLE_MM_REPLACEMENT
+          - DUNICODE
+          - TEST_EXPORT_SHARED
+          - TEST_EXPORT_STATIC
+
+    steps:
+      - uses: actions/checkout@v2.0.0
+
+      - name: Cache Depends
+        id: cache-depends
+        uses: actions/cache@v1.1.0
+        with:
+          path: C:\vcpkg\installed
+          key: ${{ matrix.os }}-vcpkg
+
+      - name: Cache Build
+        uses: actions/cache@v1.1.0
+        with:
+          path: build
+          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v3
+
+      - name: Install Depends
+        if: steps.cache-depends.outputs.cache-hit != 'true'
+        shell: powershell
+        run: |
+          vcpkg install openssl:x64-windows
+          vcpkg install zlib:x64-windows
+
+      - name: Build And Test
+        shell: powershell
+        run: |
+          $OPENSSL_ROOT_DIR="C:\vcpkg\installed\x64-windows"
+          $EVENT_BUILD_PARALLEL=10
+          $EVENT_TESTS_PARALLEL=1
+          $env:PATH="$OPENSSL_ROOT_DIR/bin;$env:PATH"
+
+          if ( "${{ matrix.EVENT_MATRIX }}" -eq "LIBRARY_TYPE_STATIC" ) {
+            $EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "DISABLE_OPENSSL" ) {
+            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "DISABLE_THREAD_SUPPORT" ) {
+            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_THREAD_SUPPORT=ON"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "DISABLE_DEBUG_MODE" ) {
+            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_DEBUG_MODE=ON"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "DISABLE_MM_REPLACEMENT" ) {
+            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_MM_REPLACEMENT=ON"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "UNICODE" ) {
+            $EVENT_CMAKE_OPTIONS="-DCMAKE_C_FLAGS='-DUNICODE -D_UNICODE'"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_SHARED" ) {
+            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_STATIC" ) {
+            $EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
+          }
+          else {
+            $EVENT_CMAKE_OPTIONS=""
+          }
+
+          mkdir build -ea 0
+          cd build
+
+          if ("${{ matrix.os }}" -eq "windows-2016") {
+            $CMAKE_CMD="cmake -G 'Visual Studio 15 2017 Win64' .."
+          }
+          else { # windows-2019
+            $CMAKE_CMD="cmake -G 'Visual Studio 16 2019' -A x64 .. $EVENT_CMAKE_OPTIONS"
+          }
+          function cmake_configure($retry)
+          {
+            $errcode=0
+            try {
+              if ($retry -eq 0) {
+                echo "[cmake configure retry] $CMAKE_CMD"
+              } else {
+                echo "[cmake configure] $CMAKE_CMD"
+              }
+              Invoke-Expression $CMAKE_CMD
+              $errcode=$LastExitCode
+            }
+            catch {
+              $errcode=1
+            }
+            finally {
+              if ($errcode -ne 0) {
+                if ($retry -eq 0) {
+                  $host.SetShouldExit($LastExitCode)
+                } else {
+                  echo "Remove all entries in build directory"
+                  rm -r -fo *
+                  cmake_configure 0
+                }
+              }
+            }
+          }
+          cmake_configure 1
+
+          try {
+            cmake --build . -j $EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
+            if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode) }
+
+            if ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_STATIC") {
+              python ../test-export/test-export.py static
+            }
+            elseif ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_SHARED") {
+              python ../test-export/test-export.py shared
+            }
+            else {
+              ctest --output-on-failure -j $EVENT_TESTS_PARALLEL
+              if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode) }
+            }
+          } catch {
+            $host.SetShouldExit($LastExitCode)
+          }
+
+      - uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-build
+          path: build

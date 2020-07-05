@@ -50,6 +50,10 @@
 #include "event2/listener.h"
 #include "event2/thread.h"
 
+#ifndef MIN
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#endif
+
 static struct evutil_weakrand_state weakrand_state;
 
 static int cfg_verbose = 0;
@@ -84,6 +88,18 @@ struct client_state {
 
 };
 static const struct timeval *ms100_common=NULL;
+
+/* Timers bias for slow CPUs, affects:
+ * - cfg_connlimit_tolerance  (--check-connlimit)
+ * - cfg_grouplimit_tolerance (--check-grouplimit)
+ * - cfg_stddev_tolerance     (--check-stddev)
+ */
+static int timer_bias_events;
+static struct timeval timer_bias_start;
+double timer_bias_spend;
+/* Real cost is less (approximately ~5 usec),
+ * this macros adjusted to make the bias less */
+#define TIMER_MAX_COST_USEC 10
 
 /* info from check_bucket_levels_cb */
 static int total_n_bev_checks = 0;
@@ -244,6 +260,64 @@ group_drain_cb(evutil_socket_t fd, short events, void *arg)
 	bufferevent_rate_limit_group_decrement_write(ratelim_group, cfg_group_drain);
 }
 
+static void
+timer_bias_cb(evutil_socket_t fd, short events, void *arg)
+{
+	struct event *event = arg;
+	struct timeval end;
+	struct timeval diff;
+
+	/** XXX: use rdtsc? (portability issues?) */
+	evutil_gettimeofday(&end, NULL);
+	evutil_timersub(&end, &timer_bias_start, &diff);
+	timer_bias_spend += diff.tv_sec + diff.tv_usec * 1e6;
+	timer_bias_start = end;
+
+	if (++timer_bias_events == 100)
+		event_del(event);
+}
+static double
+timer_bias_calculate(void)
+{
+	struct event_config *cfg = NULL;
+	struct event_base *base = NULL;
+	struct event *timer = NULL;
+	struct timeval tv = { 0, 1 };
+	int done = 0;
+
+	cfg = event_config_new();
+	if (!cfg)
+		goto err;
+	if (event_config_set_flag(cfg, EVENT_BASE_FLAG_PRECISE_TIMER))
+		goto err;
+	base = event_base_new_with_config(cfg);
+	if (!base)
+		goto err;
+
+	timer = event_new(base, -1, EV_PERSIST, timer_bias_cb, event_self_cbarg());
+	if (!timer || event_add(timer, &tv)) {
+		goto err;
+	}
+
+	evutil_gettimeofday(&timer_bias_start, NULL);
+	event_base_dispatch(base);
+	done = 1;
+
+err:
+	if (cfg)
+		event_config_free(cfg);
+	if (timer)
+		event_free(timer);
+	if (base)
+		event_base_free(base);
+
+	if (done)
+		return MIN(timer_bias_spend / 1e6 / timer_bias_events / TIMER_MAX_COST_USEC, 5);
+
+	fprintf(stderr, "Couldn't create event for CPU cycle counter bias\n");
+	return -1;
+}
+
 static int
 test_ratelimiting(void)
 {
@@ -266,6 +340,7 @@ test_ratelimiting(void)
 	struct event_config *base_cfg;
 	struct event *periodic_level_check;
 	struct event *group_drain_event=NULL;
+	double timer_bias;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -274,6 +349,16 @@ test_ratelimiting(void)
 
 	if (0)
 		event_enable_debug_mode();
+
+	timer_bias = timer_bias_calculate();
+	if (timer_bias > 1) {
+		fprintf(stderr, "CPU is slow, timers bias is %f\n", timer_bias);
+		cfg_connlimit_tolerance  *= timer_bias;
+		cfg_grouplimit_tolerance *= timer_bias;
+		cfg_stddev_tolerance     *= timer_bias;
+	} else {
+		printf("CPU is fast enough, timers bias is %f\n", timer_bias);
+	}
 
 	base_cfg = event_config_new();
 
@@ -376,7 +461,7 @@ test_ratelimiting(void)
 	ratelim_group = NULL; /* So no more responders get added */
 	event_free(periodic_level_check);
 	if (group_drain_event)
-		event_del(group_drain_event);
+		event_free(group_drain_event);
 
 	for (i = 0; i < cfg_n_connections; ++i) {
 		bufferevent_free(bevs[i]);

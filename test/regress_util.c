@@ -211,6 +211,65 @@ regress_ipv6_parse(void *ptr)
 #endif
 }
 
+static struct ipv6_entry_scope {
+	const char *addr;
+	ev_uint32_t res[4];
+	unsigned scope;
+	enum entry_status status;
+} ipv6_entries_scope[] = {
+	{ "2001:DB8::", { 0x20010db8, 0, 0 }, 0, NORMAL },
+	{ "2001:DB8::%0", { 0x20010db8, 0, 0, 0 }, 0, NORMAL },
+	{ "2001:DB8::%1", { 0x20010db8, 0, 0, 0 }, 1, NORMAL },
+	{ "foobar.", { 0, 0, 0, 0 }, 0, BAD },
+	{ "2001:DB8::%does-not-exist", { 0, 0, 0, 0 }, 0, BAD },
+	{ NULL, { 0, 0, 0, 0,  }, 0, BAD },
+};
+static void
+regress_ipv6_parse_scope(void *ptr)
+{
+#ifdef AF_INET6
+	int i, j;
+	unsigned if_scope;
+
+	for (i = 0; ipv6_entries_scope[i].addr; ++i) {
+		struct ipv6_entry_scope *ent = &ipv6_entries_scope[i];
+		struct in6_addr in6;
+		int r;
+		r = evutil_inet_pton_scope(AF_INET6, ent->addr, &in6,
+			&if_scope);
+		if (r == 0) {
+			if (ent->status != BAD)
+				TT_FAIL(("%s did not parse, but it's a good address!",
+					ent->addr));
+			continue;
+		}
+		if (ent->status == BAD) {
+			TT_FAIL(("%s parsed, but we expected an error", ent->addr));
+			continue;
+		}
+		for (j = 0; j < 4; ++j) {
+			/* Can't use s6_addr32 here; some don't have it. */
+			ev_uint32_t u =
+			    ((ev_uint32_t)in6.s6_addr[j*4  ] << 24) |
+			    ((ev_uint32_t)in6.s6_addr[j*4+1] << 16) |
+			    ((ev_uint32_t)in6.s6_addr[j*4+2] << 8) |
+			    ((ev_uint32_t)in6.s6_addr[j*4+3]);
+			if (u != ent->res[j]) {
+				TT_FAIL(("%s did not parse as expected.", ent->addr));
+				continue;
+			}
+		}
+		if (if_scope != ent->scope) {
+			TT_FAIL(("%s did not parse as expected.", ent->addr));
+			continue;
+		}
+	}
+#else
+	TT_BLATHER(("Skipping IPv6 address parsing."));
+#endif
+}
+
+
 static struct sa_port_ent {
 	const char *parse;
 	int safamily;
@@ -926,6 +985,16 @@ end:
 }
 
 static void
+test_EVUTIL_IS_(void *arg)
+{
+	tt_int_op(EVUTIL_ISDIGIT_('0'), ==, 1);
+	tt_int_op(EVUTIL_ISDIGIT_('a'), ==, 0);
+	tt_int_op(EVUTIL_ISDIGIT_('\xff'), ==, 0);
+end:
+	;
+}
+
+static void
 test_evutil_getaddrinfo(void *arg)
 {
 	struct evutil_addrinfo *ai = NULL, *a;
@@ -1115,6 +1184,41 @@ test_evutil_getaddrinfo_live(void *arg)
 		TT_BLATHER(("ipv6.google.com resolved to %s",
 			cp?cp:"<unwriteable>"));
 	}
+
+end:
+	if (ai)
+		evutil_freeaddrinfo(ai);
+}
+
+static void
+test_evutil_getaddrinfo_AI_ADDRCONFIG(void *arg)
+{
+	struct evutil_addrinfo *ai = NULL;
+	struct evutil_addrinfo hints;
+	int r;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = EVUTIL_AI_PASSIVE|EVUTIL_AI_ADDRCONFIG;
+
+	/* IPv4 */
+	r = evutil_getaddrinfo("127.0.0.1", "80", &hints, &ai);
+	tt_int_op(r, ==, 0);
+	tt_assert(ai);
+	tt_ptr_op(ai->ai_next, ==, NULL);
+	test_ai_eq(ai, "127.0.0.1:80", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+
+	/* IPv6 */
+	r = evutil_getaddrinfo("::1", "80", &hints, &ai);
+	tt_int_op(r, ==, 0);
+	tt_assert(ai);
+	tt_ptr_op(ai->ai_next, ==, NULL);
+	test_ai_eq(ai, "[::1]:80", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
 
 end:
 	if (ai)
@@ -1539,6 +1643,7 @@ end:
 struct testcase_t util_testcases[] = {
 	{ "ipv4_parse", regress_ipv4_parse, 0, NULL, NULL },
 	{ "ipv6_parse", regress_ipv6_parse, 0, NULL, NULL },
+	{ "ipv6_parse_scope", regress_ipv6_parse_scope, 0, NULL, NULL },
 	{ "sockaddr_port_parse", regress_sockaddr_port_parse, 0, NULL, NULL },
 	{ "sockaddr_port_format", regress_sockaddr_port_format, 0, NULL, NULL },
 	{ "sockaddr_predicates", test_evutil_sockaddr_predicates, 0,NULL,NULL },
@@ -1551,8 +1656,10 @@ struct testcase_t util_testcases[] = {
 	{ "upcast", test_evutil_upcast, 0, NULL, NULL },
 	{ "integers", test_evutil_integers, 0, NULL, NULL },
 	{ "rand", test_evutil_rand, TT_FORK, NULL, NULL },
+	{ "EVUTIL_IS_", test_EVUTIL_IS_, 0, NULL, NULL },
 	{ "getaddrinfo", test_evutil_getaddrinfo, TT_FORK, NULL, NULL },
 	{ "getaddrinfo_live", test_evutil_getaddrinfo_live, TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
+	{ "getaddrinfo_AI_ADDRCONFIG", test_evutil_getaddrinfo_AI_ADDRCONFIG, TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
 #ifdef _WIN32
 	{ "loadsyslib", test_evutil_loadsyslib, TT_FORK, NULL, NULL },
 #endif
