@@ -104,6 +104,7 @@ main(int argc, char **argv)
 	event_base_dispatch(base);
 
 	/* Finalize library */
+	event_free(ev);
 	event_base_free(base);
 	return 0;
 }
