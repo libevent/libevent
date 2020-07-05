@@ -119,7 +119,7 @@ jobs:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
           path: build
       - uses: actions/upload-artifact@v1
-        if: failure()
+        if: failure() && matrix.EVENT_MATRIX == 'DIST'
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-dist
           path: dist
@@ -204,7 +204,7 @@ jobs:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-build
           path: build
       - uses: actions/upload-artifact@v1
-        if: failure()
+        if: failure() && matrix.EVENT_MATRIX == 'DIST'
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-dist
           path: dist
