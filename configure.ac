@@ -842,7 +842,6 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
   AX_CHECK_COMPILE_FLAG([-Woverride-init],[CFLAGS="$CFLAGS -Woverride-init"],[],[-Werror])
   AX_CHECK_COMPILE_FLAG([-Wpointer-arith],[CFLAGS="$CFLAGS -Wpointer-arith"],[],[-Werror])
   AX_CHECK_COMPILE_FLAG([-Wredundant-decls],[CFLAGS="$CFLAGS -Wredundant-decls"],[],[-Werror])
-  AX_CHECK_COMPILE_FLAG([-Wstrict-aliasing],[CFLAGS="$CFLAGS -Wstrict-aliasing"],[],[-Werror])
   AX_CHECK_COMPILE_FLAG([-Wstrict-prototypes],[CFLAGS="$CFLAGS -Wstrict-prototypes"],[],[-Werror])
   AX_CHECK_COMPILE_FLAG([-Wundef],[CFLAGS="$CFLAGS -Wundef"],[],[-Werror])
   AX_CHECK_COMPILE_FLAG([-Wwrite-strings],[CFLAGS="$CFLAGS -Wwrite-strings"],[],[-Werror])
