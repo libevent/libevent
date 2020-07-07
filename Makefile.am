@@ -102,6 +102,7 @@ LIBEVENT_PKGCONFIG=libevent.pc libevent_core.pc libevent_extra.pc
 PLATFORM_DEPENDENT_SRC = \
 	arc4random.c \
 	epoll_sub.c \
+	bufferevent_ssl.c \
 	test/regress_ssl.c
 
 CMAKE_FILES = \
@@ -293,14 +294,14 @@ libevent_extra_la_LIBADD = $(MAYBE_CORE) $(SYS_LIBS)
 libevent_extra_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 if OPENSSL
-libevent_openssl_la_SOURCES = bufferevent_openssl.c
+libevent_openssl_la_SOURCES = bufferevent_openssl.c bufferevent_ssl.c
 libevent_openssl_la_LIBADD = $(MAYBE_CORE) $(OPENSSL_LIBS)
 libevent_openssl_la_LDFLAGS = $(GENERIC_LDFLAGS)
 libevent_openssl_la_CPPFLAGS = $(AM_CPPFLAGS) $(OPENSSL_INCS)
 endif
 
 if MBEDTLS
-libevent_mbedtls_la_SOURCES = bufferevent_mbedtls.c
+libevent_mbedtls_la_SOURCES = bufferevent_mbedtls.c bufferevent_ssl.c
 libevent_mbedtls_la_LIBADD = $(MAYBE_CORE) $(MBEDTLS_LIBS)
 libevent_mbedtls_la_LDFLAGS = $(GENERIC_LDFLAGS)
 libevent_mbedtls_la_CPPFLAGS = $(AM_CPPFLAGS) $(MBEDTLS_INCS)
@@ -336,6 +337,7 @@ noinst_HEADERS +=				\
 	time-internal.h				\
 	util-internal.h				\
 	openssl-compat.h			\
+	ssl-compat.h			    \
 	wepoll.h
 
 EVENT1_HDRS = \

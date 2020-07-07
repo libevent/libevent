@@ -864,7 +864,7 @@ if (NOT EVENT__DISABLE_OPENSSL)
 
     include_directories(${OPENSSL_INCLUDE_DIR})
 
-    list(APPEND SRC_OPENSSL bufferevent_openssl.c)
+    list(APPEND SRC_OPENSSL bufferevent_openssl.c bufferevent_ssl.c)
     list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
     list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
 endif()
@@ -879,7 +879,7 @@ if (NOT EVENT__DISABLE_MBEDTLS)
 
     include_directories(${MBEDTLS_INCLUDE_DIR})
 
-    list(APPEND SRC_MBEDTLS bufferevent_mbedtls.c)
+    list(APPEND SRC_MBEDTLS bufferevent_mbedtls.c bufferevent_ssl.c)
     list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
     list(APPEND LIB_APPS ${MBEDTLS_LIBRARIES})
 endif()
