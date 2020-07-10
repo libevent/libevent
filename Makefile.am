@@ -4,10 +4,6 @@
 #
 # See LICENSE for copying information.
 
-# 'foreign' means that we're not enforcing GNU package rules strictly.
-# '1.13' means that we need automake 1.13 or later (and we do).
-AUTOMAKE_OPTIONS = foreign 1.13 subdir-objects
-
 ACLOCAL_AMFLAGS = -I m4
 
 # This is the "Release" of the Libevent ABI.  It takes precedence over
