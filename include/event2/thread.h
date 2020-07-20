@@ -218,7 +218,7 @@ int evthread_use_pthreads(void);
 
 /**
  * Sets up Libevent for use with Pthreads locking and thread ID functions.
- * Use evthred_use_pthreads_with_flags() to use Pthreads locking, taking the
+ * Use evthread_use_pthreads_with_flags() to use Pthreads locking, taking the
  * specified flags under consideration.
  *
  * @param flags the flags to apply when setting up Pthreads locking. @see EVTHREAD_PTHREAD_*
