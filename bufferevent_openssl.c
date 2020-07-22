@@ -322,6 +322,10 @@ decrement_buckets(struct bufferevent_ssl *bev_ssl)
 static void *
 SSL_init(void *ssl)
 {
+	/* Don't explode if we decide to realloc a chunk we're writing from in
+	 * the output buffer. */
+	SSL_set_mode(ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+
 	return ssl;
 }
 
@@ -348,14 +352,6 @@ static int
 SSL_is_want_write(int err)
 {
 	return err == SSL_ERROR_WANT_WRITE;
-}
-
-static void
-be_openssl_post_init(void *ssl)
-{
-	/* Don't explode if we decide to realloc a chunk we're writing from in
-	 * the output buffer. */
-	SSL_set_mode(ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 }
 
 static int
@@ -415,7 +411,6 @@ static struct le_ssl_ops le_openssl_ops = {
 	SSL_is_want_write,
 	(int (*)(void *))be_openssl_get_fd,
 	be_openssl_bio_set_fd,
-	be_openssl_post_init,
 	init_bio_counts,
 	decrement_buckets,
 	conn_closed,

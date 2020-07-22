@@ -1007,7 +1007,6 @@ bufferevent_ssl_new_impl(struct event_base *base,
 	bev_ssl->ssl_ops = ssl_ops;
 
 	bev_ssl->ssl = bev_ssl->ssl_ops->init(ssl);
-	bev_ssl->ssl_ops->post_init(ssl);
 
 	bev_ssl->underlying = underlying;
 

@@ -313,7 +313,6 @@ static struct le_ssl_ops le_mbedtls_ops = {
 	mbedtls_is_want_write,
 	be_mbedtls_get_fd,
 	be_mbedtls_bio_set_fd,
-	mbedtls_set_ssl_noops,
 	(void (*)(struct bufferevent_ssl *))mbedtls_set_ssl_noops,
 	(void (*)(struct bufferevent_ssl *))mbedtls_set_ssl_noops,
 	conn_closed,
