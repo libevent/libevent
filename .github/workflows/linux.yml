@@ -53,6 +53,11 @@ jobs:
           path: dist
           key: ${{ matrix.os }}-cmake-dist-${{ matrix.EVENT_MATRIX }}-v2
 
+      - name: Install Depends
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmbedtls-dev
+
       - name: Build And Test
         shell: bash
         run: |
@@ -152,6 +157,11 @@ jobs:
         with:
           path: dist
           key: ${{ matrix.os }}-autotools-dist-${{ matrix.EVENT_MATRIX }}-v2
+
+      - name: Install Depends
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmbedtls-dev
 
       - name: Build And Test
         shell: bash

@@ -132,6 +132,9 @@ option(EVENT__DISABLE_THREAD_SUPPORT
 option(EVENT__DISABLE_OPENSSL
     "Define if libevent should build without support for OpenSSL encryption" OFF)
 
+option(EVENT__DISABLE_MBEDTLS
+    "Define if libevent should build without support for mbed TLS encryption" OFF)
+
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark executables" OFF)
 
@@ -861,9 +864,24 @@ if (NOT EVENT__DISABLE_OPENSSL)
 
     include_directories(${OPENSSL_INCLUDE_DIR})
 
-    list(APPEND SRC_OPENSSL bufferevent_openssl.c)
+    list(APPEND SRC_OPENSSL bufferevent_openssl.c bufferevent_ssl.c)
     list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
     list(APPEND LIB_APPS ${OPENSSL_LIBRARIES})
+endif()
+
+if (NOT EVENT__DISABLE_MBEDTLS)
+    find_package(MbedTLS REQUIRED)
+
+    set(EVENT__HAVE_MBEDTLS 1)
+
+    message(STATUS "mbed TLS include: ${MBEDTLS_INCLUDE_DIR}")
+    message(STATUS "mbed TLS lib: ${MBEDTLS_LIBRARIES}")
+
+    include_directories(${MBEDTLS_INCLUDE_DIR})
+
+    list(APPEND SRC_MBEDTLS bufferevent_mbedtls.c bufferevent_ssl.c)
+    list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+    list(APPEND LIB_APPS ${MBEDTLS_LIBRARIES})
 endif()
 
 if (NOT EVENT__DISABLE_THREAD_SUPPORT)
@@ -971,6 +989,14 @@ if (NOT EVENT__DISABLE_OPENSSL)
         SOURCES ${SRC_OPENSSL})
 endif()
 
+if (NOT EVENT__DISABLE_MBEDTLS)
+    add_event_library(event_mbedtls
+        INNER_LIBRARIES event_core
+        OUTER_INCLUDES ${MBEDTLS_INCLUDE_DIR}
+        LIBRARIES ${MBEDTLS_LIBRARIES}
+        SOURCES ${SRC_MBEDTLS})
+endif()
+
 if (EVENT__HAVE_PTHREADS)
     set(SRC_PTHREADS evthread_pthread.c)
     add_event_library(event_pthreads
@@ -1014,8 +1040,8 @@ macro(add_sample_prog ssl name)
                           ${LIB_APPS}
                           ${LIB_PLATFORM})
 
-    if (${ssl})
-        target_link_libraries(${name} event_openssl)
+    if (TARGET ${ssl})
+        target_link_libraries(${name} ${ssl})
         if(WIN32)
             target_link_libraries(${name} crypt32)
         endif()
@@ -1038,13 +1064,18 @@ if (NOT EVENT__DISABLE_SAMPLES)
     endif()
 
     if (NOT EVENT__DISABLE_OPENSSL)
-        add_sample_prog(ON https-client
+        add_sample_prog(event_openssl https-client
                         sample/https-client.c
                         sample/openssl_hostname_validation.c
                         sample/hostcheck.c)
-        add_sample_prog(ON le-proxy
+        add_sample_prog(event_openssl le-proxy
                         sample/le-proxy.c)
-        add_sample_prog(ON becat sample/becat.c ${WIN32_GETOPT})
+        add_sample_prog(event_openssl becat sample/becat.c ${WIN32_GETOPT})
+    endif()
+
+    if (NOT EVENT__DISABLE_MBEDTLS)
+        add_sample_prog(event_mbedtls ssl-client-mbedtls
+                sample/ssl-client-mbedtls.c)
     endif()
 
     set(SAMPLES_WOPT
@@ -1156,7 +1187,11 @@ if (NOT EVENT__DISABLE_TESTS)
             endif()
 
             if (NOT EVENT__DISABLE_OPENSSL)
-                list(APPEND SRC_REGRESS test/regress_ssl.c)
+                list(APPEND SRC_REGRESS test/regress_openssl.c)
+            endif()
+
+            if (NOT EVENT__DISABLE_MBEDTLS)
+                list(APPEND SRC_REGRESS test/regress_mbedtls.c)
             endif()
 
             add_executable(regress ${SRC_REGRESS})
@@ -1168,6 +1203,9 @@ if (NOT EVENT__DISABLE_TESTS)
                                   event_extra)
             if (NOT EVENT__DISABLE_OPENSSL)
                 target_link_libraries(regress event_openssl)
+            endif()
+            if (NOT EVENT__DISABLE_MBEDTLS)
+                target_link_libraries(regress event_mbedtls)
             endif()
             if (CMAKE_USE_PTHREADS_INIT)
                 target_link_libraries(regress event_pthreads)

@@ -60,6 +60,9 @@ AC_ARG_ENABLE(malloc-replacement,
 AC_ARG_ENABLE(openssl,
      AS_HELP_STRING(--disable-openssl, disable support for openssl encryption),
         [], [enable_openssl=yes])
+AC_ARG_ENABLE(mbedtls,
+     AS_HELP_STRING(--disable-mbedtls, disable support for mbedtls encryption),
+        [], [enable_mbedtls=yes])
 AC_ARG_ENABLE(debug-mode,
      AS_HELP_STRING(--disable-debug-mode, disable support for running in debug mode),
         [], [enable_debug_mode=yes])
@@ -179,6 +182,7 @@ AC_SUBST(OPENSSL_LIBADD)
 AC_SYS_LARGEFILE
 
 LIBEVENT_OPENSSL
+LIBEVENT_MBEDTLS
 
 dnl Checks for header files.
 AC_CHECK_HEADERS([ \
@@ -804,13 +808,16 @@ if test x$enable_debug_mode = xno; then
         [Define if libevent should build without support for a debug mode])
 fi
 
-dnl check if we should enable verbose debugging 
+dnl check if we should enable verbose debugging
 if test x$enable_verbose_debug = xyes; then
 	CFLAGS="$CFLAGS -DUSE_DEBUG"
 fi
 
 dnl check if we have and should use OpenSSL
 AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
+
+# check if we have and should use mbedtls
+AM_CONDITIONAL(MBEDTLS, [test "$enable_mbedtls" != "no" && test "$have_mbedtls" = "yes"])
 
 dnl enable some warnings by default
 AX_CHECK_COMPILE_FLAG([-Wall], [CFLAGS="$CFLAGS -Wall"],[],[-Werror])
@@ -961,5 +968,5 @@ DX_INIT_DOXYGEN([libevent], [${top_srcdir}/Doxyfile], [doxygen])
 AM_CONDITIONAL([ENABLE_DOXYGEN], [test "$DX_FLAG_doc" = "1"])
 AM_CONDITIONAL([ENABLE_DOXYGEN_MAN], [test "$DX_FLAG_man" = "1"])
 
-AC_CONFIG_FILES( [libevent.pc libevent_openssl.pc libevent_pthreads.pc libevent_core.pc libevent_extra.pc] )
+AC_CONFIG_FILES( [libevent.pc libevent_mbedtls.pc libevent_openssl.pc libevent_pthreads.pc libevent_core.pc libevent_extra.pc] )
 AC_OUTPUT(Makefile)

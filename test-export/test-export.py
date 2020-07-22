@@ -88,13 +88,18 @@ def test_group():
     testcase("core", "core", 0)
     testcase("extra", "extra", 0)
     testcase("openssl", "openssl", 0)
+    testcase("mbedtls", "mbedtls", 0)
     testcase("", "", 0)
     testcase("extra", "core", 0)
     testcase("openssl", "core", 0)
+    testcase("mbedtls", "core", 0)
     testcase("core", "extra", 1)
     testcase("core", "openssl", 1)
     testcase("extra", "openssl", 1)
     testcase("openssl", "extra", 1)
+    testcase("core", "mbedtls", 1)
+    testcase("extra", "mbedtls", 1)
+    testcase("mbedtls", "extra", 1)
     if platform.system() != "Windows":
         testcase("pthreads", "pthreads", 0)
         testcase("pthreads", "core", 0)
@@ -103,6 +108,8 @@ def test_group():
         testcase("pthreads", "extra", 1)
         testcase("pthreads", "openssl", 1)
         testcase("openssl", "pthreads", 1)
+        testcase("pthreads", "mbedtls", 1)
+        testcase("mbedtls", "pthreads", 1)
 
 
 def config_restore():

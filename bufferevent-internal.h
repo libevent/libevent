@@ -306,11 +306,18 @@ extern const struct bufferevent_ops bufferevent_ops_pair;
 #define BEV_IS_FILTER(bevp) ((bevp)->be_ops == &bufferevent_ops_filter)
 #define BEV_IS_PAIR(bevp) ((bevp)->be_ops == &bufferevent_ops_pair)
 
-#if defined(EVENT__HAVE_OPENSSL)
-extern const struct bufferevent_ops bufferevent_ops_openssl;
-#define BEV_IS_OPENSSL(bevp) ((bevp)->be_ops == &bufferevent_ops_openssl)
+#if defined(EVENT__HAVE_OPENSSL) | defined(EVENT__HAVE_MBEDTLS)
+extern const struct bufferevent_ops bufferevent_ops_ssl;
+#define BEV_IS_SSL(bevp) ((bevp)->be_ops == &bufferevent_ops_ssl)
 #else
-#define BEV_IS_OPENSSL(bevp) 0
+#define BEV_IS_SSL(bevp) 0
+#endif
+
+#if defined(EVENT__HAVE_MBEDTLS)
+extern const struct bufferevent_ops bufferevent_ops_mbedtls;
+#define BEV_IS_MBEDTLS(bevp) ((bevp)->be_ops == &bufferevent_ops_mbedtls)
+#else
+#define BEV_IS_MBEDTLS(bevp) 0
 #endif
 
 #ifdef _WIN32

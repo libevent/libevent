@@ -451,7 +451,10 @@ struct testgroup_t testgroups[] = {
 	{ "iocp/http/", http_iocp_testcases },
 #endif
 #ifdef EVENT__HAVE_OPENSSL
-	{ "ssl/", ssl_testcases },
+	{ "openssl/", openssl_testcases },
+#endif
+#ifdef EVENT__HAVE_MBEDTLS
+	{ "mbedtls/", mbedtls_testcases },
 #endif
 	END_OF_GROUPS
 };
