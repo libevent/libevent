@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v2.0.0
       - name: Install Depends
         run: |
-          sudo apt install doxygen
+          sudo apt install doxygen libmbedtls-dev
 
       - name: Generate Doxygen
         shell: bash
