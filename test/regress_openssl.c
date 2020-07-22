@@ -29,7 +29,7 @@
 #include "openssl-compat.h"
 #include "regress.h"
 #include "tinytest.h"
-#define TESTCASES_NAME ssl_testcases
+#define TESTCASES_NAME openssl_testcases
 static void *ssl_test_setup(const struct testcase_t *testcase);
 static int ssl_test_cleanup(const struct testcase_t *testcase, void *ptr);
 static const struct testcase_setup_t ssl_setup = {
