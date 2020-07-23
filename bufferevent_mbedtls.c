@@ -290,7 +290,7 @@ bufferevent_get_mbedtls_error(struct bufferevent *bufev)
 {
 	struct bufferevent_ssl *bev_ssl = bufferevent_ssl_upcast(bufev);
 	if (!bev_ssl)
-		return -1;
+		return 0;
 	return bufferevent_get_ssl_error(bufev);
 }
 
