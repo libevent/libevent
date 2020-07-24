@@ -337,6 +337,7 @@ noinst_HEADERS +=				\
 	time-internal.h				\
 	util-internal.h				\
 	openssl-compat.h			\
+	mbedtls-compat.h			\
 	ssl-compat.h			    \
 	wepoll.h
 

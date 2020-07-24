@@ -24,8 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "mbedtls-compat.h"
 #include <mbedtls/ssl.h>
-#include <mbedtls/net_sockets.h>
 #include <mbedtls/error.h>
 
 #include "event2/util.h"
