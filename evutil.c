@@ -212,11 +212,21 @@ create_tmpfile(char tmpfile[MAX_PATH])
 {
 	char short_path[MAX_PATH] = {0};
 	char long_path[MAX_PATH] = {0};
-	char *tmp_file = tmpfile;
+	char prefix[4] = {0};
+	// GetTempFileNameA() uses up to the first three characters of the prefix
+	// and windows filesystems are case-insensitive
+	const char *base32set = "abcdefghijklmnopqrstuvwxyz012345";
+	ev_uint16_t rnd;
+
+	evutil_secure_rng_get_bytes(&rnd, sizeof(rnd));
+	prefix[0] = base32set[(rnd      ) & 31];
+	prefix[1] = base32set[(rnd >>  5) & 31];
+	prefix[2] = base32set[(rnd >> 10) & 31];
+	prefix[3] = '\0';
 
 	GetTempPathA(MAX_PATH, short_path);
 	GetLongPathNameA(short_path, long_path, MAX_PATH);
-	if (!GetTempFileNameA(long_path, NULL, 0, tmp_file)) {
+	if (!GetTempFileNameA(long_path, prefix, 0, tmpfile)) {
 		event_warnx("GetTempFileName failed: %d", EVUTIL_SOCKET_ERROR());
 		return -1;
 	}
