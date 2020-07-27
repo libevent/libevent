@@ -1051,6 +1051,8 @@ dns_initialize_nameservers_test(void *arg)
 	struct basic_test_data *data = arg;
 	struct event_base *base = data->base;
 	struct evdns_base *dns = NULL;
+	struct sockaddr_storage ss;
+	int size;
 
 	dns = evdns_base_new(base, 0);
 	tt_assert(dns);
@@ -1059,7 +1061,14 @@ dns_initialize_nameservers_test(void *arg)
 
 	dns = evdns_base_new(base, EVDNS_BASE_INITIALIZE_NAMESERVERS);
 	tt_assert(dns);
-	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, sizeof(struct sockaddr));
+
+	size = evdns_base_get_nameserver_addr(dns, 0, (struct sockaddr *)&ss, sizeof(ss));
+	tt_int_op(size, >, 0);
+	if (ss.ss_family == AF_INET)
+		tt_int_op(size, ==, sizeof(struct sockaddr_in));
+	else
+		tt_int_op(size, ==, sizeof(struct sockaddr_in6));
+
 
 end:
 	if (dns)
