@@ -52,8 +52,6 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-          user_name="${{ github.event.head_commit.author.name }}"
-          user_email="${{ github.event.head_commit.author.email }}"
           short_commit_id="${COMMIT_ID:0:7}"
           owner_name="${{ github.event.repository.owner.name }}"
 
