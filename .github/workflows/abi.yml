@@ -59,8 +59,8 @@ jobs:
 
           cd /tmp/le-abi-root/work/abi-check
           git init
-          git config --local user.name $user_name
-          git config --local user.email $user_email
+          git config --local user.name "Libevent Github Robot"
+          git config --local user.email "robot@libevent.org"
           git add -f .
           git commit -m "Update ABI/API backward compatibility report (libevent/libevent@$short_commit_id)"
           git push -f git@github.com:$owner_name/abi master
