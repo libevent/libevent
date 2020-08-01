@@ -340,7 +340,7 @@ endif()
 
 # Winsock.
 if(WIN32)
-    set(CMAKE_REQUIRED_LIBRARIES  ws2_32 shell32 advapi32)
+    set(CMAKE_REQUIRED_LIBRARIES  ws2_32 shell32 advapi32 bcrypt)
     set(CMAKE_REQUIRED_DEFINITIONS -FIwinsock2.h -FIws2tcpip.h -D_WIN32_WINNT=0x0600)
 endif()
 if (SOLARIS)
@@ -935,7 +935,7 @@ if(WIN32)
     list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
 
     set(EVENT__DNS_USE_FTIME_FOR_ID 1)
-    set(LIB_PLATFORM ws2_32 shell32 advapi32)
+    set(LIB_PLATFORM ws2_32 shell32 advapi32 bcrypt)
     add_definitions(
             -D_CRT_SECURE_NO_WARNINGS
             -D_CRT_NONSTDC_NO_DEPRECATE)
