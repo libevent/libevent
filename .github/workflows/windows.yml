@@ -31,26 +31,20 @@ jobs:
     steps:
       - uses: actions/checkout@v2.0.0
 
-      - name: Cache Depends
-        id: cache-depends
-        uses: actions/cache@v1.0.3
-        with:
-          path: C:\vcpkg\installed
-          key: ${{ matrix.os }}-vcpkg-v2
-
       - name: Cache Build
-        uses: actions/cache@v1.0.3
+        uses: actions/cache@v2
         with:
           path: build
-          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
 
-      - name: Install Depends
-        if: steps.cache-depends.outputs.cache-hit != 'true'
-        shell: powershell
-        run: |
-          vcpkg install openssl:x64-windows
-          vcpkg install zlib:x64-windows
-          vcpkg install mbedtls:x64-windows
+      - name: Prepare vcpkg
+        uses: lukka/run-vcpkg@v2
+        id: runvcpkg
+        with:
+          vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
+          vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
+          vcpkgGitCommitId: 8e76503a769e153dad8f4e7b2c95a152bb35edaa
+          vcpkgTriplet: x64-windows
 
       - name: Build And Test
         shell: powershell
@@ -61,7 +55,7 @@ jobs:
           mkdir build -ea 0
           cd build
 
-          $CMAKE_CMD="cmake -G 'Visual Studio 15 2017 Win64' -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake .."
+          $CMAKE_CMD="cmake -G 'Visual Studio 15 2017 Win64' -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake .."
           function cmake_configure($retry)
           {
             $errcode=0
@@ -136,26 +130,20 @@ jobs:
     steps:
       - uses: actions/checkout@v2.0.0
 
-      - name: Cache Depends
-        id: cache-depends
-        uses: actions/cache@v1.1.0
-        with:
-          path: C:\vcpkg\installed
-          key: ${{ matrix.os }}-vcpkg-v2
-
       - name: Cache Build
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v2
         with:
           path: build
-          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
 
-      - name: Install Depends
-        if: steps.cache-depends.outputs.cache-hit != 'true'
-        shell: powershell
-        run: |
-          vcpkg install openssl:x64-windows
-          vcpkg install zlib:x64-windows
-          vcpkg install mbedtls:x64-windows
+      - name: Prepare vcpkg
+        uses: lukka/run-vcpkg@v2
+        id: runvcpkg
+        with:
+          vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
+          vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
+          vcpkgGitCommitId: 8e76503a769e153dad8f4e7b2c95a152bb35edaa
+          vcpkgTriplet: x64-windows
 
       - name: Build And Test
         shell: powershell
@@ -195,10 +183,10 @@ jobs:
           cd build
 
           if ("${{ matrix.os }}" -eq "windows-2016") {
-            $CMAKE_CMD="cmake -G 'Visual Studio 15 2017 Win64' -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake .."
+            $CMAKE_CMD="cmake -G 'Visual Studio 15 2017 Win64' -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake .."
           }
           else { # windows-2019
-            $CMAKE_CMD="cmake -G 'Visual Studio 16 2019' -A x64 -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake .. $EVENT_CMAKE_OPTIONS"
+            $CMAKE_CMD="cmake -G 'Visual Studio 16 2019' -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake .. $EVENT_CMAKE_OPTIONS"
           }
           function cmake_configure($retry)
           {
