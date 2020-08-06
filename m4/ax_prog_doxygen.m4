@@ -574,6 +574,7 @@ DX_INSTALL_DOCS = \\
 	\$(DX_CLEAN_HTML) \\
 	\$(DX_CLEAN_CHM) \\
 	\$(DX_CLEAN_CHI) \\
+	\$(DX_CLEAN_MAN) \\
 	\$(DX_CLEAN_RTF) \\
 	\$(DX_CLEAN_XML) \\
 	\$(DX_CLEAN_PS) \\

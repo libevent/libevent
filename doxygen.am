@@ -17,9 +17,11 @@ if ENABLE_DOXYGEN
 clean-local:
 	-rm -rf $(DX_CLEANFILES)
 
+if ENABLE_DOXYGEN_MAN
 # integrate doxygen with automake targets
 man3_MANS = @DX_DOCDIR@/man/man3/*
 $(man3_MANS): doxygen-doc
+endif ENABLE_DOXYGEN_MAN
 
 # Docs will be installed. It may be one or more docs supported
 # by doxygen, but does not include 'man'.
