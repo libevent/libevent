@@ -53,5 +53,6 @@ uninstall-local:
 	rmdir "$(DESTDIR)$(htmldir)/" || true
 
 doxygen: doxygen-doc
+all: doxygen
 
 endif ENABLE_DOXYGEN
