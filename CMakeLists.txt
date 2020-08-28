@@ -189,9 +189,9 @@ if (EVENT__COVERAGE)
 
     message(STATUS "Setting coverage compiler flags")
 
-    set(CMAKE_REQUIRED_LIBRARIES "--coverage")
+    list(APPEND CMAKE_REQUIRED_LIBRARIES "--coverage")
     add_compiler_flags(-g -O0 --coverage)
-    set(CMAKE_REQUIRED_LIBRARIES "")
+    list(REMOVE_ITEM CMAKE_REQUIRED_LIBRARIES "--coverage")
 endif()
 
 set(GNUC 0)
@@ -340,11 +340,19 @@ endif()
 
 # Winsock.
 if(WIN32)
-    set(CMAKE_REQUIRED_LIBRARIES  ws2_32 shell32 advapi32 bcrypt)
+    list(APPEND CMAKE_REQUIRED_LIBRARIES
+        ws2_32
+        shell32
+        advapi32
+        bcrypt
+    )
     set(CMAKE_REQUIRED_DEFINITIONS -FIwinsock2.h -FIws2tcpip.h -D_WIN32_WINNT=0x0600)
 endif()
 if (SOLARIS)
-    set(CMAKE_REQUIRED_LIBRARIES socket nsl)
+    list(APPEND CMAKE_REQUIRED_LIBRARIES
+        socket
+        nsl
+    )
 endif()
 
 # Check if _GNU_SOURCE is available.
@@ -433,6 +441,13 @@ if (APPLE)
     )
 endif()
 
+if (NOT EVENT__DISABLE_THREAD_SUPPORT AND NOT WIN32)
+    list(APPEND FILES_TO_CHECK pthread.h)
+    # (Only `CHECK_TYPE_SIZE()' will use `CMAKE_EXTRA_INCLUDE_FILES')
+    list(APPEND CMAKE_EXTRA_INCLUDE_FILES pthread.h)
+endif()
+
+# Fills EVENT_INCLUDES
 foreach(FILE ${FILES_TO_CHECK})
     CHECK_INCLUDE_FILE_CONCAT(${FILE} "EVENT")
 endforeach()
@@ -511,9 +526,30 @@ else()
     endif()
 endif()
 
+if (NOT EVENT__DISABLE_THREAD_SUPPORT)
+    if (WIN32)
+        list(APPEND SRC_CORE evthread_win32.c)
+    else()
+        find_package(Threads REQUIRED)
+        if (NOT CMAKE_USE_PTHREADS_INIT)
+            message(FATAL_ERROR
+                    "Failed to find Pthreads, set EVENT__DISABLE_THREAD_SUPPORT to disable")
+        endif()
+
+        set(EVENT__HAVE_PTHREADS 1)
+        list(APPEND LIB_APPS ${CMAKE_THREAD_LIBS_INIT})
+
+        # for CHECK_SYMBOLS_EXIST()
+        list(APPEND CMAKE_REQUIRED_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
+
+        CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
+        list(APPEND SYMBOLS_TO_CHECK pthread_mutexattr_setprotocol)
+    endif()
+endif()
+
 # Add stdio.h for vasprintf
-set(EVENT_INCLUDES ${EVENT_INCLUDES} stdio.h)
-CHECK_SYMBOLS_EXIST("${SYMBOLS_TO_CHECK}" "${EVENT_INCLUDES}" "EVENT")
+list(APPEND CMAKE_EXTRA_INCLUDE_FILES ${EVENT_INCLUDES} stdio.h)
+CHECK_SYMBOLS_EXIST("${SYMBOLS_TO_CHECK}" "${CMAKE_EXTRA_INCLUDE_FILES}" "EVENT")
 unset(SYMBOLS_TO_CHECK)
 set(EVENT__HAVE_EPOLL ${EVENT__HAVE_EPOLL_CREATE})
 if(WIN32 AND NOT CYGWIN)
@@ -544,9 +580,6 @@ endif()
 if(HAVE_PORT_H AND HAVE_PORT_CREATE)
     set(EVENT__HAVE_EVENT_PORTS 1)
 endif()
-
-# Only `CHECK_TYPE_SIZE()' will use `CMAKE_EXTRA_INCLUDE_FILES'
-set(CMAKE_EXTRA_INCLUDE_FILES ${EVENT_INCLUDES})
 
 CHECK_TYPE_SIZE("struct sockaddr_un" EVENT__HAVE_STRUCT_SOCKADDR_UN)
 CHECK_TYPE_SIZE("uint8_t" EVENT__HAVE_UINT8_T)
@@ -635,13 +668,6 @@ if(NOT EVENT__SIZEOF_PID_T)
   set(EVENT__SIZEOF_PID_T ${EVENT__SIZEOF_INT})
 else()
 	set(EVENT__SIZEOF_PID_T EVENT__SIZEOF_PID_T)
-endif()
-
-if (NOT EVENT__DISABLE_THREAD_SUPPORT)
-    if (NOT WIN32)
-        list(APPEND CMAKE_EXTRA_INCLUDE_FILES pthread.h)
-    endif()
-    CHECK_TYPE_SIZE(pthread_t EVENT__SIZEOF_PTHREAD_T)
 endif()
 
 if(EVENT__HAVE_CLOCK_GETTIME)
@@ -882,21 +908,6 @@ if (NOT EVENT__DISABLE_MBEDTLS)
     list(APPEND SRC_MBEDTLS bufferevent_mbedtls.c bufferevent_ssl.c)
     list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
     list(APPEND LIB_APPS ${MBEDTLS_LIBRARIES})
-endif()
-
-if (NOT EVENT__DISABLE_THREAD_SUPPORT)
-    if (WIN32)
-        list(APPEND SRC_CORE evthread_win32.c)
-    else()
-        find_package(Threads REQUIRED)
-        if (NOT CMAKE_USE_PTHREADS_INIT)
-            message(FATAL_ERROR
-                    "Failed to find Pthreads, set EVENT__DISABLE_THREAD_SUPPORT to disable")
-        endif()
-
-        set(EVENT__HAVE_PTHREADS 1)
-        list(APPEND LIB_APPS ${CMAKE_THREAD_LIBS_INIT})
-    endif()
 endif()
 
 if (NOT EVENT__DISABLE_TESTS)

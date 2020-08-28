@@ -213,7 +213,8 @@ int evthread_use_windows_threads(void);
 EVENT2_EXPORT_SYMBOL
 int evthread_use_pthreads(void);
 
-/* Enables posix mutex priority inheritance. */
+/* Enables posix mutex priority inheritance
+ * (if pthread_mutexattr_setprotocol() is supported). */
 #define EVTHREAD_PTHREAD_PRIO_INHERIT 0x01
 
 /**

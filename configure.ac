@@ -786,6 +786,8 @@ if test x$bwin32 != xtrue && test "$enable_thread_support" != "no"; then
      [AC_INCLUDES_DEFAULT()
       #include <pthread.h> ]
   )
+
+  AC_CHECK_FUNCS([pthread_mutexattr_setprotocol])
 fi
 AM_CONDITIONAL(THREADS, [test "$enable_thread_support" != "no"])
 AM_CONDITIONAL(PTHREADS, [test "$have_pthreads" != "no" && test "$enable_thread_support" != "no"])

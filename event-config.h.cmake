@@ -238,6 +238,9 @@
 /* Define if we have pthreads on this system */
 #cmakedefine EVENT__HAVE_PTHREADS 1
 
+/* Define to 1 if you have the `pthread_mutexattr_setprotocol' function. */
+#cmakedefine EVENT__HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL 1
+
 /* Define to 1 if you have the `putenv' function. */
 #cmakedefine EVENT__HAVE_PUTENV 1
 
