@@ -1314,7 +1314,7 @@ test_bufferevent_connect_hostname(void *arg)
 	int emfile = data->setup_data && !strcmp(data->setup_data, "emfile");
 	int hints  = data->setup_data && !strcmp(data->setup_data, "hints");
 	struct evconnlistener *listener = NULL;
-	struct bufferevent *be[5];
+	struct bufferevent *be[5] = { NULL, NULL, NULL, NULL, NULL };
 	struct be_conn_hostname_result be_outcome[ARRAY_SIZE(be)];
 	int expect_err;
 	struct evdns_base *dns=NULL;
