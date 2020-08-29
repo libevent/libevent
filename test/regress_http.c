@@ -5176,8 +5176,8 @@ http_error_callback_test_done(struct evhttp_request *req, void *arg)
 	test_info = state_info->test;
 
 	tt_assert(req);
-	tt_int_op(evhttp_request_get_command(req), ==,
-	    test_info->type);
+	tt_assert_op_type(evhttp_request_get_command(req), ==,
+	    test_info->type, enum evhttp_cmd_type, "%d");
 	tt_int_op(evhttp_request_get_response_code(req), ==,
 	    test_info->response_code);
 
