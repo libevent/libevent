@@ -831,7 +831,7 @@ set(HDR_PUBLIC
     include/event2/visibility.h
     ${PROJECT_BINARY_DIR}/include/event2/event-config.h)
 
-set(SRC_CORE
+list(APPEND SRC_CORE
     buffer.c
     bufferevent.c
     bufferevent_filter.c
