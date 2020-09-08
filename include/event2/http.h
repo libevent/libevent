@@ -959,7 +959,7 @@ void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 /** Get the remote address and port associated with this connection. */
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_get_peer(struct evhttp_connection *evcon,
-    char **address, ev_uint16_t *port);
+    const char **address, ev_uint16_t *port);
 
 /** Get the remote address associated with this connection.
  * extracted from getpeername() OR from nameserver.

@@ -2754,7 +2754,7 @@ evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 
 void
 evhttp_connection_get_peer(struct evhttp_connection *evcon,
-    char **address, ev_uint16_t *port)
+    const char **address, ev_uint16_t *port)
 {
 	*address = evcon->address;
 	*port = evcon->port;
