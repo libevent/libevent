@@ -118,6 +118,7 @@ jobs:
         os: [windows-2019]
         EVENT_MATRIX:
           - NONE
+          - NO_SSL
           - LIBRARY_TYPE_STATIC
           - DISABLE_OPENSSL
           - DISABLE_THREAD_SUPPORT
@@ -174,6 +175,9 @@ jobs:
           }
           elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_STATIC" ) {
             $EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__MSVC_STATIC_RUNTIME=OFF -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "NO_SSL" ) {
+            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
           }
           else {
             $EVENT_CMAKE_OPTIONS=""

@@ -29,6 +29,7 @@ jobs:
         EVENT_MATRIX:
           - DIST
           - NONE
+          - NO_SSL
           - DISABLE_OPENSSL
           - DISABLE_THREAD_SUPPORT
           - DISABLE_DEBUG_MODE
@@ -78,6 +79,8 @@ jobs:
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
+            EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_THREAD_SUPPORT=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_DEBUG_MODE" ]; then
@@ -139,6 +142,7 @@ jobs:
         EVENT_MATRIX:
           - DIST
           - NONE
+          - NO_SSL
           - DISABLE_OPENSSL
           - DISABLE_THREAD_SUPPORT
           - DISABLE_DEBUG_MODE
@@ -168,6 +172,9 @@ jobs:
         run: |
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CONFIGURE_OPTIONS="--disable-openssl"
+
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
+            EVENT_CONFIGURE_OPTIONS="--disable-openssl --disable-mbedtls"
 
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
             EVENT_CONFIGURE_OPTIONS="--disable-thread-support"
