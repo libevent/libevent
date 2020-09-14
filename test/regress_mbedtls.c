@@ -69,12 +69,11 @@
 
 struct rwcount;
 static void BIO_setup(SSL *ssl, struct rwcount *rw);
-static mbedtls_ssl_config *get_mbedtls_config(int endpoint);
-static mbedtls_ssl_context *mbedtls_ssl_new(mbedtls_ssl_config *config);
 static void *mbedtls_test_setup(const struct testcase_t *testcase);
 static int mbedtls_test_cleanup(const struct testcase_t *testcase, void *ptr);
-static const struct testcase_setup_t ssl_setup = {
+const struct testcase_setup_t mbedtls_setup = {
 	mbedtls_test_setup, mbedtls_test_cleanup};
+#define ssl_setup mbedtls_setup
 #include "regress_ssl.c"
 static mbedtls_ssl_config *the_mbedtls_conf[2] = {NULL, NULL};
 static mbedtls_ssl_context *the_mbedtls_ctx[1024] = {NULL};
@@ -198,7 +197,7 @@ end:
 	return NULL;
 }
 
-static mbedtls_ssl_config *
+mbedtls_ssl_config *
 get_mbedtls_config(int endpoint)
 {
 	if (the_mbedtls_conf[endpoint])
@@ -295,7 +294,7 @@ mbedtls_test_cleanup(const struct testcase_t *testcase, void *ptr)
 	return 1;
 }
 
-static mbedtls_ssl_context *
+mbedtls_ssl_context *
 mbedtls_ssl_new(mbedtls_ssl_config *config)
 {
 	mbedtls_ssl_context *ssl = malloc(sizeof(*ssl));

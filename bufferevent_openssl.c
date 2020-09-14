@@ -392,6 +392,11 @@ be_openssl_bio_set_fd(struct bufferevent_ssl *bev_ssl, evutil_socket_t fd)
 	return 0;
 }
 
+static size_t SSL_pending_wrap(void *ssl)
+{
+	return SSL_pending(ssl);
+}
+
 static struct le_ssl_ops le_openssl_ops = {
 	SSL_init,
 	SSL_context_free,
@@ -399,7 +404,7 @@ static struct le_ssl_ops le_openssl_ops = {
 	(int (*)(void *))SSL_renegotiate,
 	openssl_write,
 	openssl_read,
-	(size_t(*)(void *))SSL_pending,
+	SSL_pending_wrap,
 	(int (*)(void *))SSL_do_handshake,
 	(int (*)(void *, int))SSL_get_error,
 	ERR_clear_error,

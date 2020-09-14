@@ -81,6 +81,7 @@ struct basic_test_data {
 	void *setup_data;
 };
 extern const struct testcase_setup_t basic_setup;
+extern const struct testcase_setup_t mbedtls_setup;
 
 
 extern const struct testcase_setup_t legacy_setup;
@@ -140,6 +141,12 @@ EVP_PKEY *ssl_getkey(void);
 X509 *ssl_getcert(EVP_PKEY *key);
 SSL_CTX *get_ssl_ctx(void);
 void init_ssl(void);
+#endif
+
+#ifdef EVENT__HAVE_MBEDTLS
+#include <mbedtls/ssl.h>
+mbedtls_ssl_config *get_mbedtls_config(int endpoint);
+mbedtls_ssl_context *mbedtls_ssl_new(mbedtls_ssl_config *config);
 #endif
 
 void * basic_test_setup(const struct testcase_t *testcase);
