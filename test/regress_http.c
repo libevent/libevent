@@ -3992,6 +3992,9 @@ http_simple_test_impl(void *arg, int ssl, int dirty, const char *uri)
 #ifdef EVENT__HAVE_OPENSSL
 	bufferevent_openssl_set_allow_dirty_shutdown(bev, dirty);
 #endif
+#ifdef EVENT__HAVE_MBEDTLS
+	bufferevent_mbedtls_set_allow_dirty_shutdown(bev, dirty);
+#endif
 
 	evcon = evhttp_connection_base_bufferevent_new(
 		data->base, NULL, bev, "127.0.0.1", hs.port);
@@ -5639,10 +5642,10 @@ struct testcase_t http_testcases[] = {
 struct testcase_t http_iocp_testcases[] = {
 	{ "simple", http_simple_test, TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
 #ifdef EVENT__HAVE_OPENSSL
-	{ "https_simple", https_simple_test, TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
+	{ "https_openssl_simple", https_simple_test, TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
 #endif
 #ifdef EVENT__HAVE_MBEDTLS
-    { "https_simple", https_mbedtls_simple_test, TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &basic_setup, NULL },
+	{ "https_mbedtls_simple", https_mbedtls_simple_test, TT_FORK|TT_NEED_BASE|TT_ENABLE_IOCP, &mbedtls_setup, NULL },
 #endif
 	END_OF_TESTCASES
 };
