@@ -39,11 +39,21 @@
 #include <event2/util.h>
 #include <event2/http.h>
 
+#ifdef USE_MBEDTLS
+#include <mbedtls/error.h>
+#include <mbedtls/ssl.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/entropy.h>
+#else
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#endif
 
+#ifdef USE_MBEDTLS
+#else
 #include "openssl_hostname_validation.h"
+#endif
 
 static int ignore_cert = 0;
 
@@ -64,8 +74,13 @@ http_request_done(struct evhttp_request *req, void *ctx)
 		fprintf(stderr, "some request failed - no idea which one though!\n");
 		/* Print out the OpenSSL error queue that libevent
 		 * squirreled away for us, if any. */
+#ifdef USE_MBEDTLS
+		while ((oslerr = bufferevent_get_mbedtls_error(bev))) {
+			mbedtls_strerror(oslerr, buffer, sizeof(buffer));
+#else
 		while ((oslerr = bufferevent_get_openssl_error(bev))) {
 			ERR_error_string_n(oslerr, buffer, sizeof(buffer));
+#endif
 			fprintf(stderr, "%s\n", buffer);
 			printed_err = 1;
 		}
@@ -106,6 +121,24 @@ err(const char *msg)
 	fputs(msg, stderr);
 }
 
+#ifdef USE_MBEDTLS
+static void
+err_mbedtls(const char* func, int err)
+{
+	char buf[1024];
+	mbedtls_strerror(err, buf, sizeof(buf));
+	fprintf (stderr, "%s failed:%d, %s\n", func, err, buf);
+
+	exit(1);
+}
+
+static int cert_verify_callback(void *userdata, mbedtls_x509_crt *crt,
+								int depth, uint32_t *flags)
+{
+	*flags = 0;
+	return 0;
+}
+#else
 static void
 err_openssl(const char *func)
 {
@@ -180,8 +213,9 @@ static int cert_verify_callback(X509_STORE_CTX *x509_ctx, void *arg)
 		return 0;
 	}
 }
+#endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(USE_MBEDTLS)
 static int
 add_cert_for_store(X509_STORE *store, const char *name)
 {
@@ -225,8 +259,16 @@ main(int argc, char **argv)
 	int retries = 0;
 	int timeout = -1;
 
+#ifdef USE_MBEDTLS
+	mbedtls_ssl_context ssl;
+	mbedtls_ssl_config config;
+	mbedtls_ctr_drbg_context ctr_drbg;
+	mbedtls_entropy_context entropy;
+	mbedtls_x509_crt cacert;
+#else
 	SSL_CTX *ssl_ctx = NULL;
 	SSL *ssl = NULL;
+#endif
 	struct bufferevent *bev;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req;
@@ -235,7 +277,16 @@ main(int argc, char **argv)
 
 	int i;
 	int ret = 0;
+
+#ifdef USE_MBEDTLS
+	mbedtls_x509_crt_init(&cacert);
+	mbedtls_ctr_drbg_init(&ctr_drbg);
+	mbedtls_entropy_init(&entropy);
+	mbedtls_ssl_config_init(&config);
+	mbedtls_ssl_init(&ssl);
+#else
 	enum { HTTP, HTTPS } type = HTTP;
+#endif
 
 	for (i = 1; i < argc; i++) {
 		if (!strcmp("-url", argv[i])) {
@@ -339,6 +390,28 @@ main(int argc, char **argv)
 	}
 	uri[sizeof(uri) - 1] = '\0';
 
+#ifdef USE_MBEDTLS
+	mbedtls_ctr_drbg_seed(&ctr_drbg, mbedtls_entropy_func, &entropy, (const unsigned char*)"libevent", sizeof("libevent"));
+	mbedtls_ssl_config_defaults(&config, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
+	mbedtls_ssl_conf_rng(&config, mbedtls_ctr_drbg_random, &ctr_drbg);
+
+	if (crt == NULL) {
+		/* mbedtls has no function to read system CA certificates.
+		 * so if there is no crt, we skip cert verify
+		 */
+		mbedtls_ssl_conf_verify(&config, cert_verify_callback, NULL);
+		mbedtls_ssl_conf_ca_chain(&config, &cacert, NULL);
+	} else {
+		r = mbedtls_x509_crt_parse_file(&cacert, crt);
+		if (r != 0) {
+			err_mbedtls("mbedtls_x509_crt_parse_file", r);
+			goto error;
+		}
+		mbedtls_ssl_conf_ca_chain(&config, &cacert, NULL);
+	}
+
+	mbedtls_ssl_setup(&ssl, &config);
+#else
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
 	(defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
 	// Initialize OpenSSL
@@ -409,6 +482,7 @@ main(int argc, char **argv)
 	 * "wrapping" OpenSSL's routine, not replacing it. */
 	SSL_CTX_set_cert_verify_callback(ssl_ctx, cert_verify_callback,
 					  (void *) host);
+#endif
 
 	// Create event base
 	base = event_base_new();
@@ -417,6 +491,9 @@ main(int argc, char **argv)
 		goto error;
 	}
 
+#ifdef USE_MBEDTLS
+	mbedtls_ssl_set_hostname(&ssl, host);
+#else
 	// Create OpenSSL bufferevent and stack evhttp on top of it
 	ssl = SSL_new(ssl_ctx);
 	if (ssl == NULL) {
@@ -428,14 +505,21 @@ main(int argc, char **argv)
 	// Set hostname for SNI extension
 	SSL_set_tlsext_host_name(ssl, host);
 	#endif
+#endif
 
 	if (strcasecmp(scheme, "http") == 0) {
 		bev = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
 	} else {
+#ifdef USE_MBEDTLS
+		bev = bufferevent_mbedtls_socket_new(base, -1, &ssl,
+											 BUFFEREVENT_SSL_CONNECTING,
+											 BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
+#else
 		type = HTTPS;
 		bev = bufferevent_openssl_socket_new(base, -1, ssl,
 			BUFFEREVENT_SSL_CONNECTING,
 			BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
+#endif
 	}
 
 	if (bev == NULL) {
@@ -443,7 +527,11 @@ main(int argc, char **argv)
 		goto error;
 	}
 
+#ifdef USE_MBEDTLS
+	bufferevent_mbedtls_set_allow_dirty_shutdown(bev, 1);
+#else
 	bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
+#endif
 
 	// For simplicity, we let DNS resolution block. Everything else should be
 	// asynchronous though.
@@ -515,6 +603,12 @@ cleanup:
 	if (base)
 		event_base_free(base);
 
+#ifdef USE_MBEDTLS
+	mbedtls_ssl_free(&ssl);
+	mbedtls_ssl_config_free(&config);
+	mbedtls_ctr_drbg_free(&ctr_drbg);
+	mbedtls_x509_crt_free(&cacert);
+#else
 	if (ssl_ctx)
 		SSL_CTX_free(ssl_ctx);
 	if (type == HTTP && ssl)
@@ -535,6 +629,7 @@ cleanup:
 	sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
 #endif /* (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
 	(defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L) */
+#endif
 
 #ifdef _WIN32
 	WSACleanup();

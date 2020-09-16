@@ -1085,6 +1085,9 @@ if (NOT EVENT__DISABLE_SAMPLES)
     endif()
 
     if (NOT EVENT__DISABLE_MBEDTLS)
+        add_sample_prog(event_mbedtls https-client-mbedtls
+                sample/https-client.c)
+        target_compile_definitions(https-client-mbedtls PRIVATE USE_MBEDTLS)
         add_sample_prog(event_mbedtls ssl-client-mbedtls
                 sample/ssl-client-mbedtls.c)
     endif()
