@@ -536,7 +536,7 @@ evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 		return (connection == NULL || evutil_ascii_strcasecmp(connection, "keep-alive") != 0);
 	} else {
 		const char *connection = evhttp_find_header(headers, "Connection");
-		return (connection != NULL && evutil_ascii_strcasecmp(connection, "close") == 0);
+		return (connection == NULL || evutil_ascii_strcasecmp(connection, "keep-alive") != 0);
 	}
 }
 static int
@@ -2070,10 +2070,11 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 	   host, we consider it a proxy request. */
 	scheme = evhttp_uri_get_scheme(req->uri_elems);
 	hostname = evhttp_uri_get_host(req->uri_elems);
-	if (scheme && (!evutil_ascii_strcasecmp(scheme, "http") ||
+	if ((scheme && (!evutil_ascii_strcasecmp(scheme, "http") ||
 		       !evutil_ascii_strcasecmp(scheme, "https")) &&
 	    hostname &&
-	    !evhttp_find_vhost(req->evcon->http_server, NULL, hostname))
+	    !evhttp_find_vhost(req->evcon->http_server, NULL, hostname)) ||
+	    type == EVHTTP_REQ_CONNECT)
 		req->flags |= EVHTTP_PROXY_REQUEST;
 
 	return 0;
@@ -2969,6 +2970,7 @@ static void
 evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 {
 	int need_close;
+	enum evhttp_cmd_type type;
 	struct evhttp_request *req = TAILQ_FIRST(&evcon->requests);
 	TAILQ_REMOVE(&evcon->requests, req, next);
 
@@ -2976,10 +2978,8 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 		req->on_complete_cb(req, req->on_complete_cb_arg);
 	}
 
-	need_close =
-	    (REQ_VERSION_BEFORE(req, 1, 1) &&
-	    !evhttp_is_connection_keepalive(req->input_headers)) ||
-	    evhttp_is_request_connection_close(req);
+	type = req->type;
+	need_close = evhttp_is_request_connection_close(req);
 
 	EVUTIL_ASSERT(req->flags & EVHTTP_REQ_OWN_CONNECTION);
 	evhttp_request_free(req);
@@ -2990,7 +2990,8 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	}
 
 	/* we have a persistent connection; try to accept another request. */
-	if (evhttp_associate_new_request_with_connection(evcon) == -1) {
+	if (type != EVHTTP_REQ_CONNECT &&
+	    evhttp_associate_new_request_with_connection(evcon) == -1) {
 		evhttp_connection_free(evcon);
 	}
 }
