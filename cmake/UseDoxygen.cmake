@@ -97,7 +97,7 @@ macro(UseDoxygen)
 
       if ("${DOXYGEN_GENERATE_MAN}" STREQUAL "YES")
         set(MAN_PAGES_DIR ${PROJECT_BINARY_DIR}/${DOXYGEN_OUTPUT_DIRECTORY}/man/man3)
-        # Add prefix "le_" for manual pages
+        # Add prefix "libevent_" for manual pages
         add_custom_target(doxygen-rename-man-pages ALL
           COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RenameDoxygen.cmake
           DEPENDS doxygen
