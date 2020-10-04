@@ -2,7 +2,6 @@
 
 option(DOXYGEN_GENERATE_HTML  "Generate HTML"      ON)
 option(DOXYGEN_GENERATE_MAN   "Generate man pages" OFF)
-option(DOXYGEN_MAN_LINKS      "Generate man links" ON)
 option(DOXYGEN_GENERATE_LATEX "Generate LaTeX"     OFF)
 
 # If the case-insensitive value of the cmake option is one of
