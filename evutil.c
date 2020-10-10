@@ -512,7 +512,7 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 	{
 		unsigned long nonblocking = 1;
 		if (ioctlsocket(fd, FIONBIO, &nonblocking) == SOCKET_ERROR) {
-			event_sock_warn(fd, "fcntl(%d, F_GETFL)", (int)fd);
+			event_sock_warn(fd, "ioctlsocket(%d, FIONBIO, &%lu)", (int)fd, (unsigned long)nonblocking);
 			return -1;
 		}
 	}
