@@ -536,7 +536,7 @@ evhttp_is_connection_close(int flags, struct evkeyvalq* headers)
 		return (connection == NULL || evutil_ascii_strcasecmp(connection, "keep-alive") != 0);
 	} else {
 		const char *connection = evhttp_find_header(headers, "Connection");
-		return (connection == NULL || evutil_ascii_strcasecmp(connection, "keep-alive") != 0);
+		return (connection != NULL && evutil_ascii_strcasecmp(connection, "close") == 0);
 	}
 }
 static int
@@ -835,11 +835,14 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 	void *cb_arg;
 	void (*error_cb)(enum evhttp_request_error, void *);
 	void *error_cb_arg;
-	EVUTIL_ASSERT(req != NULL);
+
+	if (evcon->state != EVCON_READING_PROXY_DATA) {
+		EVUTIL_ASSERT(req != NULL);
+	}
 
 	bufferevent_disable(evcon->bufev, EV_READ|EV_WRITE);
 
-	if (evcon->flags & EVHTTP_CON_INCOMING) {
+	if (evcon->flags & EVHTTP_CON_INCOMING && evcon->state != EVCON_READING_PROXY_DATA) {
 		/*
 		 * for incoming requests, there are two different
 		 * failure cases.  it's either a network level error
@@ -853,23 +856,30 @@ evhttp_connection_fail_(struct evhttp_connection *evcon,
 		return;
 	}
 
-	error_cb = req->error_cb;
-	error_cb_arg = req->cb_arg;
-	/* when the request was canceled, the callback is not executed */
-	if (error != EVREQ_HTTP_REQUEST_CANCEL) {
-		/* save the callback for later; the cb might free our object */
-		cb = req->cb;
-		cb_arg = req->cb_arg;
+	if (evcon->state != EVCON_READING_PROXY_DATA) {
+		error_cb = req->error_cb;
+		error_cb_arg = req->cb_arg;
+		/* when the request was canceled, the callback is not executed */
+		if (error != EVREQ_HTTP_REQUEST_CANCEL) {
+			/* save the callback for later; the cb might free our object */
+			cb = req->cb;
+			cb_arg = req->cb_arg;
+		} else {
+			cb = NULL;
+			cb_arg = NULL;
+		}
+
+		/* do not fail all requests; the next request is going to get
+	 	* send over a new connection.   when a user cancels a request,
+	 	* all other pending requests should be processed as normal
+	 	*/
+		evhttp_request_free_(evcon, req);
 	} else {
 		cb = NULL;
 		cb_arg = NULL;
+		error_cb = NULL;
+		error_cb_arg = NULL;
 	}
-
-	/* do not fail all requests; the next request is going to get
-	 * send over a new connection.   when a user cancels a request,
-	 * all other pending requests should be processed as normal
-	 */
-	evhttp_request_free_(evcon, req);
 
 	/* reset the connection */
 	evhttp_connection_reset_(evcon);
@@ -2979,7 +2989,10 @@ evhttp_send_done(struct evhttp_connection *evcon, void *arg)
 	}
 
 	type = req->type;
-	need_close = evhttp_is_request_connection_close(req);
+	need_close =
+	    (REQ_VERSION_BEFORE(req, 1, 1) &&
+	    !evhttp_is_connection_keepalive(req->input_headers)) ||
+	    evhttp_is_request_connection_close(req);
 
 	EVUTIL_ASSERT(req->flags & EVHTTP_REQ_OWN_CONNECTION);
 	evhttp_request_free(req);
