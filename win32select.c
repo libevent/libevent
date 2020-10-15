@@ -328,7 +328,7 @@ win32_dispatch(struct event_base *base, struct timeval *tv)
 	if (res <= 0) {
 		event_debug(("%s: %s", __func__,
 		    evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR())));
-		return res;
+		return (-1);
 	}
 
 	if (win32op->readset_out->fd_count) {
