@@ -2199,7 +2199,7 @@ if_nametoindex_fn(const char *ifname)
 		goto done;
 	result = fn(ifname);
 done:
-	if(lib)
+	if (lib)
 		FreeLibrary(lib);
 	return result;
 }
