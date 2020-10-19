@@ -44,7 +44,6 @@
 /* For structs needed by GetAdaptersAddresses */
 #define _WIN32_WINNT 0x0501
 #include <iphlpapi.h>
-#include <netioapi.h>
 #endif
 
 #include <sys/types.h>
@@ -2179,6 +2178,35 @@ evutil_inet_ntop(int af, const void *src, char *dst, size_t len)
 #endif
 }
 
+#ifdef _WIN32
+typedef ULONG(WINAPI *if_nametoindex_fn_t)(PCSTR);
+
+unsigned
+if_nametoindex_fn(const char *ifname)
+{
+	/* The function if_nametoindex is only available starting from
+	   Windows Vista. Checking for its existence at runtime and if
+	   it's not found, return 0.
+	*/
+	HMODULE lib = evutil_load_windows_system_library_(TEXT("iphlpapi.dll"));
+	if_nametoindex_fn_t fn;
+	unsigned result = 0;
+
+	if (!lib)
+		goto done;
+
+	if (!(fn = (if_nametoindex_fn_t)GetProcAddress(lib, "if_nametoindex")))
+		goto done;
+	result = fn(ifname);
+done:
+	if(lib)
+		FreeLibrary(lib);
+	return result;
+}
+#else
+#define if_nametoindex_fn if_nametoindex
+#endif
+
 int
 evutil_inet_pton_scope(int af, const char *src, void *dst, unsigned *indexp)
 {
@@ -2198,7 +2226,7 @@ evutil_inet_pton_scope(int af, const char *src, void *dst, unsigned *indexp)
 	if (cp == NULL)
 		return evutil_inet_pton(af, src, dst);
 
-	if_index = if_nametoindex(cp + 1);
+	if_index = if_nametoindex_fn(cp + 1);
 	if (if_index == 0) {
 		/* Could be numeric */
 		if_index = strtoul(cp + 1, &check, 10);
