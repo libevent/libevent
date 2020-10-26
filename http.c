@@ -180,7 +180,7 @@ extern int debug;
 static evutil_socket_t create_bind_socket_nonblock(struct evutil_addrinfo *, int reuse);
 static evutil_socket_t bind_socket(const char *, ev_uint16_t, int reuse);
 static void name_from_addr(struct sockaddr *, ev_socklen_t, char **, char **);
-static struct evhttp_uri *evhttp_uri_parse_authority(char *source_uri);
+static struct evhttp_uri *evhttp_uri_parse_authority(char *source_uri, unsigned flags);
 static int evhttp_associate_new_request_with_connection(
 	struct evhttp_connection *evcon);
 static void evhttp_connection_start_detectclose(
@@ -2055,7 +2055,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 	}
 
 	if (type == EVHTTP_REQ_CONNECT) {
-		if ((req->uri_elems = evhttp_uri_parse_authority(req->uri)) == NULL) {
+		if ((req->uri_elems = evhttp_uri_parse_authority(req->uri, 0)) == NULL) {
 			return -1;
 		}
 	} else {
@@ -4910,9 +4910,11 @@ bracket_addr_ok(const char *s, const char *eos)
 }
 
 static int
-parse_authority(struct evhttp_uri *uri, char *s, char *eos)
+parse_authority(struct evhttp_uri *uri, char *s, char *eos, unsigned *flags)
 {
+	size_t len;
 	char *cp, *port;
+
 	EVUTIL_ASSERT(eos);
 	if (eos == s) {
 		uri->host = mm_strdup("");
@@ -4952,22 +4954,31 @@ parse_authority(struct evhttp_uri *uri, char *s, char *eos)
 	/* Now, cp..eos holds the "host" port, which can be an IPv4Address,
 	 * an IP-Literal, or a reg-name */
 	EVUTIL_ASSERT(eos >= cp);
+	len = eos-cp;
 	if (*cp == '[' && eos >= cp+2 && *(eos-1) == ']') {
 		/* IPv6address, IP-Literal, or junk. */
 		if (! bracket_addr_ok(cp, eos))
 			return -1;
+		if (*flags & EVHTTP_URI_HOST_STRIP_BRACKETS)
+			len = eos-cp-2;
 	} else {
 		/* Make sure the host part is ok. */
 		if (! regname_ok(cp,eos)) /* Match IPv4Address or reg-name */
 			return -1;
 	}
-	uri->host = mm_malloc(eos-cp+1);
+
+	uri->host = mm_malloc(len+1);
 	if (uri->host == NULL) {
 		event_warn("%s: malloc", __func__);
 		return -1;
 	}
-	memcpy(uri->host, cp, eos-cp);
-	uri->host[eos-cp] = '\0';
+	if (*cp == '[' && *flags & EVHTTP_URI_HOST_STRIP_BRACKETS) {
+		memcpy(uri->host, cp+1, len);
+		*flags |= _EVHTTP_URI_HOST_HAS_BRACKETS;
+	} else {
+		memcpy(uri->host, cp, len);
+	}
+	uri->host[len] = '\0';
 	return 0;
 
 }
@@ -5103,7 +5114,7 @@ evhttp_uri_parse_with_flags(const char *source_uri, unsigned flags)
 		readp += 2;
 		authority = readp;
 		path = end_of_authority(readp);
-		if (parse_authority(uri, authority, path) < 0)
+		if (parse_authority(uri, authority, path, &uri->flags) < 0)
 			goto err;
 		readp = path;
 		got_authority = 1;
@@ -5182,7 +5193,7 @@ err:
 }
 
 static struct evhttp_uri *
-evhttp_uri_parse_authority(char *source_uri)
+evhttp_uri_parse_authority(char *source_uri, unsigned flags)
 {
 	struct evhttp_uri *uri = mm_calloc(1, sizeof(struct evhttp_uri));
 	char *end;
@@ -5192,10 +5203,10 @@ evhttp_uri_parse_authority(char *source_uri)
 		goto err;
 	}
 	uri->port = -1;
-	uri->flags = 0;
+	uri->flags = flags;
 
 	end = end_of_authority(source_uri);
-	if (parse_authority(uri, source_uri, end) < 0)
+	if (parse_authority(uri, source_uri, end, &uri->flags) < 0)
 		goto err;
 
 	uri->path = mm_strdup("");
@@ -5254,7 +5265,13 @@ evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit)
 		evbuffer_add(tmp, "//", 2);
 		if (uri->userinfo)
 			evbuffer_add_printf(tmp,"%s@", uri->userinfo);
-		URI_ADD_(host);
+		if (uri->flags & _EVHTTP_URI_HOST_HAS_BRACKETS) {
+			evbuffer_add(tmp, "[", 1);
+			URI_ADD_(host);
+			evbuffer_add(tmp, "]", 1);
+		} else {
+			URI_ADD_(host);
+		}
 		if (uri->port >= 0)
 			evbuffer_add_printf(tmp,":%d", uri->port);
 
@@ -5284,7 +5301,7 @@ evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit)
 		evbuffer_free(tmp);
 		return NULL;
 	}
-       	evbuffer_remove(tmp, buf, joined_size);
+	evbuffer_remove(tmp, buf, joined_size);
 
 	output = buf;
 err:
@@ -5363,17 +5380,39 @@ evhttp_uri_set_userinfo(struct evhttp_uri *uri, const char *userinfo)
 int
 evhttp_uri_set_host(struct evhttp_uri *uri, const char *host)
 {
+	size_t len = 0;
+
 	if (host) {
+		len = strlen(host);
+
 		if (host[0] == '[') {
-			if (! bracket_addr_ok(host, host+strlen(host)))
+			if (! bracket_addr_ok(host, host+len))
 				return -1;
 		} else {
-			if (! regname_ok(host, host+strlen(host)))
+			if (! regname_ok(host, host+len))
 				return -1;
 		}
 	}
 
-	URI_SET_STR_(host);
+	if (host && host[0] == '[' && uri->flags & EVHTTP_URI_HOST_STRIP_BRACKETS) {
+		char *new_host;
+
+		len -= 2;
+		new_host = mm_realloc(uri->host, len+1);
+		if (!new_host) {
+			free(uri->host);
+			uri->host = NULL;
+		} else {
+			memcpy(new_host, host+1, len);
+			new_host[len] = '\0';
+			uri->host = new_host;
+		}
+		uri->flags |= _EVHTTP_URI_HOST_HAS_BRACKETS;
+	} else {
+		URI_SET_STR_(host);
+		uri->flags &= ~_EVHTTP_URI_HOST_HAS_BRACKETS;
+	}
+
 	return 0;
 }
 int

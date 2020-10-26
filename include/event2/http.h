@@ -1378,6 +1378,15 @@ struct evhttp_uri *evhttp_uri_parse_with_flags(const char *source_uri,
  * </ul>
  */
 #define EVHTTP_URI_NONCONFORMANT 0x01
+/**
+ * Strip brackets from the IPv6 address and only for evhttp_uri_get_host(),
+ * evhttp_uri_join() returns the host with brackets.
+ *
+ * Thus you can use host part of the evhttp_uri for getaddrinfo().
+ *
+ * @see also _EVHTTP_URI_HOST_HAS_BRACKETS
+ */
+#define EVHTTP_URI_HOST_STRIP_BRACKETS 0x04
 
 /** Alias for evhttp_uri_parse_with_flags(source_uri, 0) */
 EVENT2_EXPORT_SYMBOL
