@@ -56,6 +56,8 @@
 #endif
 
 static int ignore_cert = 0;
+static int ipv6 = 0;
+static int ipv4 = 0;
 
 static void
 http_request_done(struct evhttp_request *req, void *ctx)
@@ -110,7 +112,7 @@ static void
 syntax(void)
 {
 	fputs("Syntax:\n", stderr);
-	fputs("   https-client -url <https-url> [-data data-file.bin] [-ignore-cert] [-retries num] [-timeout sec] [-crt crt]\n", stderr);
+	fputs("   https-client -url <https-url> [-data data-file.bin] [-ignore-cert] [-4] [-6] [-retries num] [-timeout sec] [-crt crt]\n", stderr);
 	fputs("Example:\n", stderr);
 	fputs("   https-client -url https://ip.appspot.com/\n", stderr);
 }
@@ -305,6 +307,10 @@ main(int argc, char **argv)
 			}
 		} else if (!strcmp("-ignore-cert", argv[i])) {
 			ignore_cert = 1;
+		} else if (!strcmp("-4", argv[i])) {
+			ipv4 = 1;
+		} else if (!strcmp("-6", argv[i])) {
+			ipv6 = 1;
 		} else if (!strcmp("-data", argv[i])) {
 			if (i < argc - 1) {
 				data_file = argv[i + 1];
@@ -540,6 +546,13 @@ main(int argc, char **argv)
 	if (evcon == NULL) {
 		fprintf(stderr, "evhttp_connection_base_bufferevent_new() failed\n");
 		goto error;
+	}
+
+	if (ipv4) {
+		evhttp_connection_set_family(evcon, AF_INET);
+	}
+	if (ipv6) {
+		evhttp_connection_set_family(evcon, AF_INET6);
 	}
 
 	if (retries > 0) {
