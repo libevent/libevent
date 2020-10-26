@@ -227,7 +227,7 @@ add_cert_for_store(X509_STORE *store, const char *name)
 
 	sys_store = CertOpenSystemStore(0, name);
 	if (!sys_store) {
-		err("failed to open system certificate store");
+		err("failed to open system certificate store\n");
 		return -1;
 	}
 	while ((ctx = CertEnumCertificatesInStore(sys_store, ctx))) {
@@ -361,20 +361,20 @@ main(int argc, char **argv)
 
 	http_uri = evhttp_uri_parse(url);
 	if (http_uri == NULL) {
-		err("malformed url");
+		err("malformed url\n");
 		goto error;
 	}
 
 	scheme = evhttp_uri_get_scheme(http_uri);
 	if (scheme == NULL || (strcasecmp(scheme, "https") != 0 &&
 	                       strcasecmp(scheme, "http") != 0)) {
-		err("url must be http or https");
+		err("url must be http or https\n");
 		goto error;
 	}
 
 	host = evhttp_uri_get_host(http_uri);
 	if (host == NULL) {
-		err("url must have a host");
+		err("url must have a host\n");
 		goto error;
 	}
 
