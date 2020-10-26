@@ -2835,6 +2835,8 @@ http_parse_uri_test(void *ptr)
 	    nonconform ? EVHTTP_URI_NONCONFORMANT : 0;
 	struct evhttp_uri *uri = NULL;
 	char url_tmp[4096];
+#define URI_PARSE_FLAGS(uri, flags) \
+	evhttp_uri_parse_with_flags((uri), flags)
 #define URI_PARSE(uri) \
 	evhttp_uri_parse_with_flags((uri), parse_flags)
 
@@ -3205,6 +3207,29 @@ http_parse_uri_test(void *ptr)
 	tt_want(strcmp(evhttp_uri_get_fragment(uri), "fr?ed") == 0);
 	TT_URI("#fr?ed");
 	evhttp_uri_free(uri);
+
+	// EVHTTP_URI_HOST_STRIP_BRACKETS
+	uri = URI_PARSE_FLAGS("ftp://[ff00::127.0.0.1]/?q=test", EVHTTP_URI_HOST_STRIP_BRACKETS);
+	tt_want(strcmp(evhttp_uri_get_scheme(uri), "ftp") == 0);
+	tt_want(strcmp(evhttp_uri_get_host(uri), "ff00::127.0.0.1") == 0);
+	tt_want(strcmp(evhttp_uri_get_path(uri), "/") == 0);
+	tt_want(strcmp(evhttp_uri_get_query(uri), "q=test") == 0);
+	tt_want(evhttp_uri_get_userinfo(uri) == NULL);
+	tt_want(evhttp_uri_get_port(uri) == -1);
+	tt_want(evhttp_uri_get_fragment(uri) == NULL);
+	TT_URI("ftp://[ff00::127.0.0.1]/?q=test");
+
+	tt_want(0 == evhttp_uri_set_host(uri, "foo"));
+	tt_want(strcmp(evhttp_uri_get_host(uri), "foo") == 0);
+	TT_URI("ftp://foo/?q=test");
+
+	tt_want(0 == evhttp_uri_set_host(uri, "[ff00::127.0.0.1]"));
+	tt_want(strcmp(evhttp_uri_get_host(uri), "ff00::127.0.0.1") == 0);
+	TT_URI("ftp://[ff00::127.0.0.1]/?q=test");
+
+	evhttp_uri_free(uri);
+
+#undef URI_PARSE_FLAGS
 #undef URI_PARSE
 #undef TT_URI
 #undef BAD

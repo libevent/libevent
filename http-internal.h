@@ -215,6 +215,9 @@ void evhttp_start_write_(struct evhttp_connection *);
 void evhttp_response_code_(struct evhttp_request *, int, const char *);
 void evhttp_send_page_(struct evhttp_request *, struct evbuffer *);
 
+/* [] has been stripped */
+#define _EVHTTP_URI_HOST_HAS_BRACKETS 0x02
+
 EVENT2_EXPORT_SYMBOL
 int evhttp_decode_uri_internal(const char *uri, size_t length,
     char *ret, int decode_plus);
