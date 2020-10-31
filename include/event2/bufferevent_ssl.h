@@ -78,6 +78,34 @@ enum bufferevent_ssl_state {
 */
 #define BUFFEREVENT_SSL_BATCH_WRITE 2
 
+#if defined(EVENT__HAVE_OPENSSL) || defined(EVENT__HAVE_MBEDTLS)
+/**
+ * Get flags of the SSL bufferevent.
+ *
+ * @see BUFFEREVENT_SSL_*
+ * @return flags or SIZE_MAX in case of error (if bufferevent is not SSL).
+ */
+EVENT2_EXPORT_SYMBOL
+ev_uint64_t bufferevent_ssl_get_flags(struct bufferevent *bev);
+/** Change the flags that are set for an ssl bufferevent by adding more.
+ *
+ * @param bev the ssl bufferevent.
+ * @param flags One or more BUFFEREVENT_SSL_* options
+ * @return old flags success, EV_UINT64_MAX on failure.
+ */
+EVENT2_EXPORT_SYMBOL
+ev_uint64_t bufferevent_ssl_set_flags(struct bufferevent *bev, ev_uint64_t flags);
+/** Change the flags that are set for an ssl bufferevent by removing some.
+ *
+ * @param bev the bufferevent.
+ * @param flags One or more BUFFEREVENT_SSL_* options
+ * @return old flags success, EV_UINT64_MAX on failure.
+ */
+EVENT2_EXPORT_SYMBOL
+ev_uint64_t bufferevent_ssl_clear_flags(struct bufferevent *bev, ev_uint64_t flags);
+
+#endif /* defined(EVENT__HAVE_OPENSSL) || defined(EVENT__HAVE_MBEDTLS) */
+
 #if defined(EVENT__HAVE_OPENSSL) || defined(EVENT_IN_DOXYGEN_)
 /* This is what openssl's SSL objects are underneath. */
 struct ssl_st;
@@ -138,31 +166,6 @@ int bufferevent_openssl_get_allow_dirty_shutdown(struct bufferevent *bev);
 EVENT2_EXPORT_SYMBOL
 void bufferevent_openssl_set_allow_dirty_shutdown(struct bufferevent *bev,
     int allow_dirty_shutdown);
-
-/**
- * Get flags of the SSL bufferevent.
- *
- * @see BUFFEREVENT_SSL_*
- * @return flags or SIZE_MAX in case of error (if bufferevent is not SSL).
- */
-EVENT2_EXPORT_SYMBOL
-ev_uint64_t bufferevent_ssl_get_flags(struct bufferevent *bev);
-/** Change the flags that are set for an ssl bufferevent by adding more.
- *
- * @param bev the ssl bufferevent.
- * @param flags One or more BUFFEREVENT_SSL_* options
- * @return old flags success, EV_UINT64_MAX on failure.
- */
-EVENT2_EXPORT_SYMBOL
-ev_uint64_t bufferevent_ssl_set_flags(struct bufferevent *bev, ev_uint64_t flags);
-/** Change the flags that are set for an ssl bufferevent by removing some.
- *
- * @param bev the bufferevent.
- * @param flags One or more BUFFEREVENT_SSL_* options
- * @return old flags success, EV_UINT64_MAX on failure.
- */
-EVENT2_EXPORT_SYMBOL
-ev_uint64_t bufferevent_ssl_clear_flags(struct bufferevent *bev, ev_uint64_t flags);
 
 /** Return the underlying openssl SSL * object for an SSL bufferevent. */
 EVENT2_EXPORT_SYMBOL
