@@ -210,7 +210,7 @@ conn_closed(struct bufferevent_ssl *bev_ssl, int when, int errcode, int ret)
 	char buf[100];
 
 	if (when & BEV_EVENT_READING && ret == 0) {
-		if (bev_ssl->allow_dirty_shutdown)
+		if (bev_ssl->flags & BUFFEREVENT_SSL_DIRTY_SHUTDOWN)
 			event = BEV_EVENT_EOF;
 	} else {
 		mbedtls_strerror(errcode, buf, sizeof(buf));

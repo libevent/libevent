@@ -581,7 +581,7 @@ be_ssl_eventcb(struct bufferevent *bev_base, short what, void *ctx)
 	int event = 0;
 
 	if (what & BEV_EVENT_EOF) {
-		if (bev_ssl->allow_dirty_shutdown)
+		if (bev_ssl->flags & BUFFEREVENT_SSL_DIRTY_SHUTDOWN)
 			event = BEV_EVENT_EOF;
 		else
 			event = BEV_EVENT_ERROR;
@@ -1052,31 +1052,6 @@ err:
 	return NULL;
 }
 
-int
-bufferevent_ssl_get_allow_dirty_shutdown(struct bufferevent *bev)
-{
-	int allow_dirty_shutdown = -1;
-	struct bufferevent_ssl *bev_ssl;
-	BEV_LOCK(bev);
-	bev_ssl = bufferevent_ssl_upcast(bev);
-	if (bev_ssl)
-		allow_dirty_shutdown = bev_ssl->allow_dirty_shutdown;
-	BEV_UNLOCK(bev);
-	return allow_dirty_shutdown;
-}
-
-void
-bufferevent_ssl_set_allow_dirty_shutdown(struct bufferevent *bev,
-    int allow_dirty_shutdown)
-{
-	struct bufferevent_ssl *bev_ssl;
-	BEV_LOCK(bev);
-	bev_ssl = bufferevent_ssl_upcast(bev);
-	if (bev_ssl)
-		bev_ssl->allow_dirty_shutdown = !!allow_dirty_shutdown;
-	BEV_UNLOCK(bev);
-}
-
 unsigned long
 bufferevent_get_ssl_error(struct bufferevent *bev)
 {
@@ -1089,4 +1064,79 @@ bufferevent_get_ssl_error(struct bufferevent *bev)
 	}
 	BEV_UNLOCK(bev);
 	return err;
+}
+
+ev_uint64_t bufferevent_ssl_get_flags(struct bufferevent *bev)
+{
+	ev_uint64_t flags = EV_UINT64_MAX;
+	struct bufferevent_ssl *bev_ssl;
+
+	BEV_LOCK(bev);
+	bev_ssl = bufferevent_ssl_upcast(bev);
+	if (bev_ssl)
+		flags = bev_ssl->flags;
+	BEV_UNLOCK(bev);
+
+	return flags;
+}
+ev_uint64_t bufferevent_ssl_set_flags(struct bufferevent *bev, ev_uint64_t flags)
+{
+	ev_uint64_t old_flags = EV_UINT64_MAX;
+	struct bufferevent_ssl *bev_ssl;
+
+	flags &= (BUFFEREVENT_SSL_DIRTY_SHUTDOWN);
+	if (!flags)
+		return old_flags;
+
+	BEV_LOCK(bev);
+	bev_ssl = bufferevent_ssl_upcast(bev);
+	if (bev_ssl) {
+		old_flags = bev_ssl->flags;
+		bev_ssl->flags |= flags;
+	}
+	BEV_UNLOCK(bev);
+
+	return old_flags;
+}
+ev_uint64_t bufferevent_ssl_clear_flags(struct bufferevent *bev, ev_uint64_t flags)
+{
+	ev_uint64_t old_flags = EV_UINT64_MAX;
+	struct bufferevent_ssl *bev_ssl;
+
+	flags &= (BUFFEREVENT_SSL_DIRTY_SHUTDOWN);
+	if (!flags)
+		return old_flags;
+
+	BEV_LOCK(bev);
+	bev_ssl = bufferevent_ssl_upcast(bev);
+	if (bev_ssl) {
+		old_flags = bev_ssl->flags;
+		bev_ssl->flags &= ~flags;
+	}
+	BEV_UNLOCK(bev);
+
+	return old_flags;
+}
+
+int
+bufferevent_ssl_get_allow_dirty_shutdown(struct bufferevent *bev)
+{
+	ev_uint64_t flags = bufferevent_ssl_get_flags(bev);
+	if (flags == EV_UINT64_MAX)
+		return flags;
+	return !!(flags & BUFFEREVENT_SSL_DIRTY_SHUTDOWN);
+}
+
+void
+bufferevent_ssl_set_allow_dirty_shutdown(
+	struct bufferevent *bev, int allow_dirty_shutdown)
+{
+	BEV_LOCK(bev);
+
+	if (allow_dirty_shutdown)
+		bufferevent_ssl_set_flags(bev, BUFFEREVENT_SSL_DIRTY_SHUTDOWN);
+	else
+		bufferevent_ssl_clear_flags(bev, BUFFEREVENT_SSL_DIRTY_SHUTDOWN);
+
+	BEV_UNLOCK(bev);
 }

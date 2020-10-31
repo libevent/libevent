@@ -281,7 +281,7 @@ conn_closed(struct bufferevent_ssl *bev_ssl, int when, int errcode, int ret)
 		bufferevent_ssl_put_error(bev_ssl, err);
 	}
 
-	if (dirty_shutdown && bev_ssl->allow_dirty_shutdown)
+	if (dirty_shutdown && bev_ssl->flags & BUFFEREVENT_SSL_DIRTY_SHUTDOWN)
 		event = BEV_EVENT_EOF;
 
 	bufferevent_ssl_stop_reading(bev_ssl);
