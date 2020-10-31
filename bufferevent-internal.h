@@ -313,13 +313,6 @@ extern const struct bufferevent_ops bufferevent_ops_ssl;
 #define BEV_IS_SSL(bevp) 0
 #endif
 
-#if defined(EVENT__HAVE_MBEDTLS)
-extern const struct bufferevent_ops bufferevent_ops_mbedtls;
-#define BEV_IS_MBEDTLS(bevp) ((bevp)->be_ops == &bufferevent_ops_mbedtls)
-#else
-#define BEV_IS_MBEDTLS(bevp) 0
-#endif
-
 #ifdef _WIN32
 extern const struct bufferevent_ops bufferevent_ops_async;
 #define BEV_IS_ASYNC(bevp) ((bevp)->be_ops == &bufferevent_ops_async)
