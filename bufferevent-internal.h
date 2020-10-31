@@ -306,7 +306,7 @@ extern const struct bufferevent_ops bufferevent_ops_pair;
 #define BEV_IS_FILTER(bevp) ((bevp)->be_ops == &bufferevent_ops_filter)
 #define BEV_IS_PAIR(bevp) ((bevp)->be_ops == &bufferevent_ops_pair)
 
-#if defined(EVENT__HAVE_OPENSSL) | defined(EVENT__HAVE_MBEDTLS)
+#if defined(EVENT__HAVE_OPENSSL) || defined(EVENT__HAVE_MBEDTLS)
 extern const struct bufferevent_ops bufferevent_ops_ssl;
 #define BEV_IS_SSL(bevp) ((bevp)->be_ops == &bufferevent_ops_ssl)
 #else
