@@ -65,6 +65,18 @@ enum bufferevent_ssl_state {
     not to use SSL 2.)
 */
 #define BUFFEREVENT_SSL_DIRTY_SHUTDOWN 1
+/** Control writes in the SSL bufferevents.
+
+    By default SSL bufferevent will peek bytes from the buffer as the arrived.
+    with respect to the segment boundaries in the buffer.
+    However, by ignoring these segment boundaries number of packets to send
+    can be decreased.
+
+    This flags will ignore the segment boundaries.
+
+    Useful in conjunction with http layer.
+*/
+#define BUFFEREVENT_SSL_BATCH_WRITE 2
 
 #if defined(EVENT__HAVE_OPENSSL) || defined(EVENT_IN_DOXYGEN_)
 /* This is what openssl's SSL objects are underneath. */

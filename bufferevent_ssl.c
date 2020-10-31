@@ -328,6 +328,11 @@ do_write(struct bufferevent_ssl *bev_ssl, int atmost)
 	else
 		atmost = bufferevent_get_write_max_(&bev_ssl->bev);
 
+	if (bev_ssl->flags & BUFFEREVENT_SSL_BATCH_WRITE) {
+		/* Try to send as many as we can to avoid Nagle effect */
+		evbuffer_pullup(output, -1);
+	}
+
 	n = evbuffer_peek(output, atmost, NULL, space, 8);
 	if (n < 0)
 		return OP_ERR | result;
@@ -1084,7 +1089,7 @@ ev_uint64_t bufferevent_ssl_set_flags(struct bufferevent *bev, ev_uint64_t flags
 	ev_uint64_t old_flags = EV_UINT64_MAX;
 	struct bufferevent_ssl *bev_ssl;
 
-	flags &= (BUFFEREVENT_SSL_DIRTY_SHUTDOWN);
+	flags &= (BUFFEREVENT_SSL_DIRTY_SHUTDOWN|BUFFEREVENT_SSL_BATCH_WRITE);
 	if (!flags)
 		return old_flags;
 
@@ -1103,7 +1108,7 @@ ev_uint64_t bufferevent_ssl_clear_flags(struct bufferevent *bev, ev_uint64_t fla
 	ev_uint64_t old_flags = EV_UINT64_MAX;
 	struct bufferevent_ssl *bev_ssl;
 
-	flags &= (BUFFEREVENT_SSL_DIRTY_SHUTDOWN);
+	flags &= (BUFFEREVENT_SSL_DIRTY_SHUTDOWN|BUFFEREVENT_SSL_BATCH_WRITE);
 	if (!flags)
 		return old_flags;
 
