@@ -49,6 +49,35 @@ enum bufferevent_ssl_state {
 	BUFFEREVENT_SSL_ACCEPTING = 2
 };
 
+/** Control how to report dirty SSL shutdowns.
+
+    If the peer (or the network, or an attacker) closes the TCP
+    connection before closing the SSL channel, and the protocol is SSL >= v3,
+    this is a "dirty" shutdown.  If BUFFEREVENT_SSL_DIRTY_SHUTDOWN is not set
+    (default), this is reported as BEV_EVENT_ERROR.
+
+    If instead BUFFEREVENT_SSL_DIRTY_SHUTDOWN is set, a dirty shutdown is
+    reported as BEV_EVENT_EOF.
+
+    (Note that if the protocol is < SSLv3, you will always receive
+    BEV_EVENT_EOF, since SSL 2 and earlier cannot distinguish a secure
+    connection close from a dirty one.  This is one reason (among many)
+    not to use SSL 2.)
+*/
+#define BUFFEREVENT_SSL_DIRTY_SHUTDOWN 1
+/** Control writes in the SSL bufferevents.
+
+    By default SSL bufferevent will peek bytes from the buffer as the arrived.
+    with respect to the segment boundaries in the buffer.
+    However, by ignoring these segment boundaries number of packets to send
+    can be decreased.
+
+    This flags will ignore the segment boundaries.
+
+    Useful in conjunction with http layer.
+*/
+#define BUFFEREVENT_SSL_BATCH_WRITE 2
+
 #if defined(EVENT__HAVE_OPENSSL) || defined(EVENT_IN_DOXYGEN_)
 /* This is what openssl's SSL objects are underneath. */
 struct ssl_st;
@@ -90,27 +119,50 @@ bufferevent_openssl_socket_new(struct event_base *base,
     enum bufferevent_ssl_state state,
     int options);
 
-/** Control how to report dirty SSL shutdowns.
-
-    If the peer (or the network, or an attacker) closes the TCP
-    connection before closing the SSL channel, and the protocol is SSL >= v3,
-    this is a "dirty" shutdown.  If allow_dirty_shutdown is 0 (default),
-    this is reported as BEV_EVENT_ERROR.
-
-    If instead allow_dirty_shutdown=1, a dirty shutdown is reported as
-    BEV_EVENT_EOF.
-
-    (Note that if the protocol is < SSLv3, you will always receive
-    BEV_EVENT_EOF, since SSL 2 and earlier cannot distinguish a secure
-    connection close from a dirty one.  This is one reason (among many)
-    not to use SSL 2.)
-*/
-
+/**
+ * Get value of the BUFFEREVENT_SSL_DIRTY_SHUTDOWN flag.
+ *
+ * @see BUFFEREVENT_SSL_DIRTY_SHUTDOWN
+ * @deprecated This function is deprecated, use bufferevent_ssl_get_flags() instead.
+ * @see bufferevent_ssl_get_flags()
+ */
 EVENT2_EXPORT_SYMBOL
 int bufferevent_openssl_get_allow_dirty_shutdown(struct bufferevent *bev);
+/**
+ * Set value of the BUFFEREVENT_SSL_DIRTY_SHUTDOWN flag.
+ *
+ * @see BUFFEREVENT_SSL_DIRTY_SHUTDOWN
+ * @deprecated This function is deprecated, use bufferevent_ssl_set_flags() instead.
+ * @see bufferevent_ssl_set_flags()
+ */
 EVENT2_EXPORT_SYMBOL
 void bufferevent_openssl_set_allow_dirty_shutdown(struct bufferevent *bev,
     int allow_dirty_shutdown);
+
+/**
+ * Get flags of the SSL bufferevent.
+ *
+ * @see BUFFEREVENT_SSL_*
+ * @return flags or SIZE_MAX in case of error (if bufferevent is not SSL).
+ */
+EVENT2_EXPORT_SYMBOL
+ev_uint64_t bufferevent_ssl_get_flags(struct bufferevent *bev);
+/** Change the flags that are set for an ssl bufferevent by adding more.
+ *
+ * @param bev the ssl bufferevent.
+ * @param flags One or more BUFFEREVENT_SSL_* options
+ * @return old flags success, EV_UINT64_MAX on failure.
+ */
+EVENT2_EXPORT_SYMBOL
+ev_uint64_t bufferevent_ssl_set_flags(struct bufferevent *bev, ev_uint64_t flags);
+/** Change the flags that are set for an ssl bufferevent by removing some.
+ *
+ * @param bev the bufferevent.
+ * @param flags One or more BUFFEREVENT_SSL_* options
+ * @return old flags success, EV_UINT64_MAX on failure.
+ */
+EVENT2_EXPORT_SYMBOL
+ev_uint64_t bufferevent_ssl_clear_flags(struct bufferevent *bev, ev_uint64_t flags);
 
 /** Return the underlying openssl SSL * object for an SSL bufferevent. */
 EVENT2_EXPORT_SYMBOL
@@ -165,24 +217,22 @@ bufferevent_mbedtls_socket_new(struct event_base *base,
     enum bufferevent_ssl_state state,
     int options);
 
-/** Control how to report dirty SSL shutdowns.
-
-    If the peer (or the network, or an attacker) closes the TCP
-    connection before closing the SSL channel, and the protocol is SSL >= v3,
-    this is a "dirty" shutdown.  If allow_dirty_shutdown is 0 (default),
-    this is reported as BEV_EVENT_ERROR.
-
-    If instead allow_dirty_shutdown=1, a dirty shutdown is reported as
-    BEV_EVENT_EOF.
-
-    (Note that if the protocol is < SSLv3, you will always receive
-    BEV_EVENT_EOF, since SSL 2 and earlier cannot distinguish a secure
-    connection close from a dirty one.  This is one reason (among many)
-    not to use SSL 2.)
-*/
-
+/**
+ * Get value of the BUFFEREVENT_SSL_DIRTY_SHUTDOWN flag.
+ *
+ * @see BUFFEREVENT_SSL_DIRTY_SHUTDOWN
+ * @deprecated This function is deprecated, use bufferevent_ssl_get_flags() instead.
+ * @see bufferevent_ssl_get_flags()
+ */
 EVENT2_EXPORT_SYMBOL
 int bufferevent_mbedtls_get_allow_dirty_shutdown(struct bufferevent *bev);
+/**
+ * Set value of the BUFFEREVENT_SSL_DIRTY_SHUTDOWN flag.
+ *
+ * @see BUFFEREVENT_SSL_DIRTY_SHUTDOWN
+ * @deprecated This function is deprecated, use bufferevent_ssl_set_flags() instead.
+ * @see bufferevent_ssl_set_flags()
+ */
 EVENT2_EXPORT_SYMBOL
 void bufferevent_mbedtls_set_allow_dirty_shutdown(struct bufferevent *bev,
     int allow_dirty_shutdown);

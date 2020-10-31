@@ -128,6 +128,8 @@ enum regress_openssl_type
 	REGRESS_OPENSSL_CLIENT_WRITE = 2048,
 
 	REGRESS_DEFERRED_CALLBACKS = 4096,
+
+	REGRESS_OPENSSL_BATCH_WRITE = 8192,
 };
 
 static void
@@ -299,6 +301,11 @@ open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
 
 	bufferevent_ssl_set_allow_dirty_shutdown(*bev1_out, dirty_shutdown);
 	bufferevent_ssl_set_allow_dirty_shutdown(*bev2_out, dirty_shutdown);
+
+	if (REGRESS_OPENSSL_BATCH_WRITE) {
+		bufferevent_ssl_set_flags(*bev1_out, BUFFEREVENT_SSL_BATCH_WRITE);
+		bufferevent_ssl_set_flags(*bev2_out, BUFFEREVENT_SSL_BATCH_WRITE);
+	}
 }
 
 static void
@@ -730,6 +737,8 @@ struct testcase_t TESTCASES_NAME[] = {
 #define T(a) ((void *)(a))
 	{ "bufferevent_socketpair", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup, T(REGRESS_OPENSSL_SOCKETPAIR) },
+	{ "bufferevent_socketpair_batch_write", regress_bufferevent_openssl,
+	  TT_ISOLATED, &ssl_setup, T(REGRESS_OPENSSL_SOCKETPAIR | REGRESS_OPENSSL_BATCH_WRITE) },
 	{ "bufferevent_socketpair_write_after_connect", regress_bufferevent_openssl,
 	  TT_ISOLATED, &ssl_setup,
 	  T(REGRESS_OPENSSL_SOCKETPAIR|REGRESS_OPENSSL_CLIENT_WRITE) },

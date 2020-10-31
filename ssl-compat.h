@@ -73,8 +73,6 @@ struct bufferevent_ssl {
 	unsigned read_blocked_on_write : 1;
 	/* When we next get data, we should say "write" instead of "read". */
 	unsigned write_blocked_on_read : 1;
-	/* Treat TCP close before SSL close on SSL >= v3 as clean EOF. */
-	unsigned allow_dirty_shutdown : 1;
 	/* XXX */
 	unsigned n_errors : 2;
 
@@ -82,6 +80,8 @@ struct bufferevent_ssl {
 	unsigned state : 2;
 	/* If we reset fd, we sould reset state too */
 	unsigned old_state : 2;
+
+	ev_uint64_t flags;
 };
 
 struct bufferevent *bufferevent_ssl_new_impl(struct event_base *base,
