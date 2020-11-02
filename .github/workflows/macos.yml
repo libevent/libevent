@@ -36,6 +36,7 @@ jobs:
           - TEST_EXPORT_STATIC
           - TEST_EXPORT_SHARED
           - OPENSSL_1_1
+          - BREW_AUTODETECT_OPENSSL
 
     steps:
       - uses: actions/checkout@v2.0.0
@@ -52,7 +53,10 @@ jobs:
       - name: Build And Test
         shell: bash
         run: |
-          if [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_1_1" ]; then
+          if [ "${{ matrix.EVENT_MATRIX }}" == "BREW_AUTODETECT_OPENSSL" ]; then
+            # use autodetection via brew
+            :
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_1_1" ]; then
             export OPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1
           else
             export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
@@ -121,6 +125,7 @@ jobs:
           - DISABLE_DEBUG_MODE
           - DISABLE_MM_REPLACEMENT
           - OPENSSL_1_1
+          - BREW_AUTODETECT_OPENSSL
 
     steps:
       - uses: actions/checkout@v2.0.0
@@ -137,7 +142,10 @@ jobs:
       - name: Build And Test
         shell: bash
         run: |
-          if [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_1_1" ]; then
+          if [ "${{ matrix.EVENT_MATRIX }}" == "BREW_AUTODETECT_OPENSSL" ]; then
+            # use autodetection via brew
+            :
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_1_1" ]; then
             export PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig:$PKG_CONFIG_PATH"
           else
             export PKG_CONFIG_PATH="/usr/local/opt/openssl/lib/pkgconfig:$PKG_CONFIG_PATH"

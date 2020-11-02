@@ -238,6 +238,11 @@ else()
     message(FATAL_ERROR "${EVENT_LIBRARY_TYPE} is not supported")
 endif()
 
+# brew support
+if (APPLE)
+    find_program(BREW brew)
+endif()
+
 if (${MSVC})
     set(msvc_static_runtime OFF)
     if ("${EVENT_LIBRARY_TYPE}" STREQUAL "STATIC")
@@ -881,6 +886,20 @@ if(EVENT__HAVE_EVENT_PORTS)
 endif()
 
 if (NOT EVENT__DISABLE_OPENSSL)
+    # only if OPENSSL_ROOT_DIR is not set yet
+    if (BREW AND NOT OPENSSL_ROOT_DIR AND NOT "$ENV{OPENSSL_ROOT_DIR}")
+        execute_process(COMMAND ${BREW} --prefix openssl
+            OUTPUT_VARIABLE BREW_OPENSSL_PREFIX
+            RESULT_VARIABLE BREW_OPENSSL_RESULT
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        if (BREW_OPENSSL_RESULT EQUAL 0)
+            message(STATUS "Set OPENSSL_ROOT_DIR=${BREW_OPENSSL_PREFIX} (from brew)")
+            set(OPENSSL_ROOT_DIR "${BREW_OPENSSL_PREFIX}" CACHE PATH "")
+        endif()
+    endif()
+
     find_package(OpenSSL REQUIRED)
 
     set(EVENT__HAVE_OPENSSL 1)
