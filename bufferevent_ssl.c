@@ -739,8 +739,13 @@ be_ssl_handshakeeventcb(evutil_socket_t fd, short what, void *ptr)
 	bufferevent_incref_and_lock_(&bev_ssl->bev.bev);
 	if (what & EV_TIMEOUT) {
 		bufferevent_run_eventcb_(&bev_ssl->bev.bev, BEV_EVENT_TIMEOUT, 0);
-	} else
-		do_handshake(bev_ssl);/* XXX handle failure */
+	} else {
+		int c = evutil_socket_finished_connecting_(fd);
+		if (c < 0)
+			bufferevent_run_eventcb_(&bev_ssl->bev.bev, BEV_EVENT_ERROR, 0);
+		else
+			do_handshake(bev_ssl);/* XXX handle failure */
+	}
 	bufferevent_decref_and_unlock_(&bev_ssl->bev.bev);
 }
 

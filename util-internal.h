@@ -300,6 +300,7 @@ int evutil_read_file_(const char *filename, char **content_out, size_t *len_out,
 EVENT2_EXPORT_SYMBOL
 int evutil_socket_connect_(evutil_socket_t *fd_ptr, const struct sockaddr *sa, int socklen);
 
+EVENT2_EXPORT_SYMBOL
 int evutil_socket_finished_connecting_(evutil_socket_t fd);
 
 #ifdef EVENT__HAVE_AFUNIX_H
