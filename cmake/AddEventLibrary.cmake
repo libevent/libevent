@@ -102,6 +102,7 @@ macro(add_event_library LIB_NAME)
         set(LIB_OUTER_INCLUDES NONE)
     endif()
     set(ADD_EVENT_LIBRARY_INTERFACE)
+    set(INNER_LIBRARIES)
 
     if (${EVENT_LIBRARY_STATIC})
         add_library("${LIB_NAME}_static" STATIC ${LIB_SOURCES})
