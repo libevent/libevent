@@ -416,6 +416,13 @@ struct evdns_base {
 #endif
 
 	int disable_when_inactive;
+
+	/* Maximum timeout between two probe packets
+	 * will change `global_nameserver_probe_initial_timeout`
+	 * when this value is smaller */
+	int ns_max_probe_timeout;
+	/* Backoff factor of probe timeout */
+	int ns_timeout_backoff_factor;
 };
 
 struct hosts_entry {
@@ -671,21 +678,18 @@ nameserver_probe_failed(struct nameserver *const ns) {
 		return;
 	}
 
-#define MAX_PROBE_TIMEOUT 3600
-#define TIMEOUT_BACKOFF_FACTOR 3
-
 	memcpy(&timeout, &ns->base->global_nameserver_probe_initial_timeout,
 	    sizeof(struct timeval));
-	for (i=ns->failed_times; i > 0 && timeout.tv_sec < MAX_PROBE_TIMEOUT; --i) {
-		timeout.tv_sec *= TIMEOUT_BACKOFF_FACTOR;
-		timeout.tv_usec *= TIMEOUT_BACKOFF_FACTOR;
+	for (i = ns->failed_times; i > 0 && timeout.tv_sec < ns->base->ns_max_probe_timeout; --i) {
+		timeout.tv_sec *= ns->base->ns_timeout_backoff_factor;
+		timeout.tv_usec *= ns->base->ns_timeout_backoff_factor;
 		if (timeout.tv_usec > 1000000) {
 			timeout.tv_sec += timeout.tv_usec / 1000000;
 			timeout.tv_usec %= 1000000;
 		}
 	}
-	if (timeout.tv_sec > MAX_PROBE_TIMEOUT) {
-		timeout.tv_sec = MAX_PROBE_TIMEOUT;
+	if (timeout.tv_sec > ns->base->ns_max_probe_timeout) {
+		timeout.tv_sec = ns->base->ns_max_probe_timeout;
 		timeout.tv_usec = 0;
 	}
 
@@ -4344,6 +4348,26 @@ evdns_base_set_option_impl(struct evdns_base *base,
 		    val);
 		memcpy(&base->global_nameserver_probe_initial_timeout, &tv,
 		    sizeof(tv));
+	} else if (str_matches_option(option, "max-probe-timeout:")) {
+		const int max_probe_timeout = strtoint_clipped(val, 1, 3600);
+		if (max_probe_timeout == -1) return -1;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting maximum probe timeout to %d",
+			max_probe_timeout);
+		base->ns_max_probe_timeout = max_probe_timeout;
+		if (base->global_nameserver_probe_initial_timeout.tv_sec > max_probe_timeout) {
+			base->global_nameserver_probe_initial_timeout.tv_sec = max_probe_timeout;
+			base->global_nameserver_probe_initial_timeout.tv_usec = 0;
+			log(EVDNS_LOG_DEBUG, "Setting initial probe timeout to %s",
+				val);
+		}
+	} else if (str_matches_option(option, "probe-backoff-factor:")) {
+		const int backoff_backtor = strtoint_clipped(val, 1, 10);
+		if (backoff_backtor == -1) return -1;
+		if (!(flags & DNS_OPTION_MISC)) return 0;
+		log(EVDNS_LOG_DEBUG, "Setting probe timeout backoff factor to %d",
+			backoff_backtor);
+		base->ns_timeout_backoff_factor = backoff_backtor;
 	} else if (str_matches_option(option, "so-rcvbuf:")) {
 		int buf = strtoint(val);
 		if (buf == -1) return -1;
@@ -4820,6 +4844,8 @@ evdns_base_new(struct event_base *event_base, int flags)
 	base->global_getaddrinfo_allow_skew.tv_usec = 0;
 	base->global_nameserver_probe_initial_timeout.tv_sec = 10;
 	base->global_nameserver_probe_initial_timeout.tv_usec = 0;
+	base->ns_max_probe_timeout = 3600;
+	base->ns_timeout_backoff_factor = 3;
 	base->global_tcp_idle_timeout.tv_sec = CLIENT_IDLE_CONN_TIMEOUT;
 
 	TAILQ_INIT(&base->hostsdb);

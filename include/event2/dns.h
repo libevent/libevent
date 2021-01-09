@@ -202,6 +202,8 @@ extern "C" {
  * - attempts:
  * - randomize-case:
  * - initial-probe-timeout:
+ * - max-probe-timeout:
+ * - probe-backoff-factor:
  * - tcp-idle-timeout:
  * - edns-udp-size:
  * - use-vc
@@ -470,9 +472,16 @@ void evdns_cancel_request(struct evdns_base *base, struct evdns_request *req);
   The currently available configuration options are:
 
     ndots, timeout, max-timeouts, max-inflight, attempts, randomize-case,
-    bind-to, initial-probe-timeout, getaddrinfo-allow-skew,
-    so-rcvbuf, so-sndbuf, tcp-idle-timeout, use-vc, ignore-tc,
-    edns-udp-size.
+    bind-to, initial-probe-timeout, max-probe-timeout, probe-backoff-factor,
+    getaddrinfo-allow-skew, so-rcvbuf, so-sndbuf, tcp-idle-timeout, use-vc,
+    ignore-tc, edns-udp-size.
+
+  - probe-backoff-factor
+    Backoff factor of probe timeout
+
+  - max-probe-timeout
+    Maximum timeout between two probe packets will change initial-probe-timeout
+    when this value is smaller
 
   In versions before Libevent 2.0.3-alpha, the option name needed to end with
   a colon.

@@ -848,6 +848,92 @@ dns_retry_disable_when_inactive_test(void *arg)
 	dns_retry_test_impl(arg, EVDNS_BASE_DISABLE_WHEN_INACTIVE);
 }
 
+static void
+dns_probe_settings_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_server_port *port = NULL;
+	struct evdns_base *dns = NULL;
+	int drop_count = 1;
+	ev_uint16_t portnum = 0;
+	char buf[64];
+
+	struct generic_dns_callback_result r1, r2;
+	struct timeval tval_before, tval_after;
+
+	port = regress_get_udp_dnsserver(base, &portnum, NULL,
+	    fail_server_cb, &drop_count);
+	tt_assert(port);
+	evutil_snprintf(buf, sizeof(buf), "127.0.0.1:%d", (int)portnum);
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(!evdns_base_nameserver_ip_add(dns, buf));
+	tt_assert(!evdns_base_set_option(dns, "timeout", "0.2"));
+	tt_assert(!evdns_base_set_option(dns, "max-timeouts", "1"));
+	tt_assert(!evdns_base_set_option(dns, "attempts", "1"));
+	tt_assert(!evdns_base_set_option(dns, "initial-probe-timeout", "10"));
+	// it will also set initial-probe-timeout to 1s (10s > 1s)
+	tt_assert(!evdns_base_set_option(dns, "max-probe-timeout", "1"));
+
+	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
+	    generic_dns_callback, &r1);
+	n_replies_left = 2;
+	exit_base = base;
+	gettimeofday(&tval_before, NULL);
+	// this will wait until the probe request done
+	// should be around 1s instead of 10s
+	event_base_dispatch(base);
+	gettimeofday(&tval_after, NULL);
+	tt_int_op(r1.result, ==, DNS_ERR_TIMEOUT);
+	test_timeval_diff_leq(&tval_before, &tval_after, 1000, 500);
+
+	// should be ok now
+	evdns_base_resolve_ipv4(dns, "host.example.com", 0,
+	    generic_dns_callback, &r1);
+	n_replies_left = 1;
+	event_base_dispatch(base);
+
+	tt_int_op(r1.result, ==, DNS_ERR_NONE);
+	tt_int_op(r1.type, ==, DNS_IPv4_A);
+	tt_int_op(r1.count, ==, 1);
+	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0x10204080));
+
+	// dns server down again
+	drop_count = 3;
+	tt_assert(!evdns_base_set_option(dns, "max-probe-timeout", "3600"));
+	tt_assert(!evdns_base_set_option(dns, "initial-probe-timeout", "0.2"));
+	tt_assert(!evdns_base_set_option(dns, "probe-backoff-factor", "10"));
+	evdns_base_resolve_ipv4(dns, "host.example.com", 0, generic_dns_callback, &r1);
+	evdns_base_resolve_ipv4(dns, "host.example.com", 0, generic_dns_callback, &r2);
+	// probe timeout should be around 2s now
+	n_replies_left = 3;
+
+	gettimeofday(&tval_before, NULL);
+	// wait dns server up
+	event_base_dispatch(base);
+	tt_int_op(r1.result, ==, DNS_ERR_TIMEOUT);
+	tt_int_op(r2.result, ==, DNS_ERR_TIMEOUT);
+	gettimeofday(&tval_after, NULL);
+	test_timeval_diff_leq(&tval_before, &tval_after, 2000, 1000);
+
+	// should be ok now
+	evdns_base_resolve_ipv4(dns, "host.example.com", 0, generic_dns_callback, &r1);
+	n_replies_left = 1;
+	event_base_dispatch(base);
+
+	tt_int_op(r1.result, ==, DNS_ERR_NONE);
+	tt_int_op(r1.type, ==, DNS_IPv4_A);
+	tt_int_op(r1.count, ==, 1);
+	tt_int_op(((ev_uint32_t*)r1.addrs)[0], ==, htonl(0x10204080));
+
+	end:
+	if (dns)
+		evdns_base_free(dns, 0);
+	if (port)
+		evdns_close_server_port(port);
+}
+
 static struct regress_dns_server_table internal_error_table[] = {
 	/* Error 4 (NOTIMPL) makes us reissue the request to another server
 	   if we can.
@@ -2836,6 +2922,7 @@ struct testcase_t dns_testcases[] = {
 	{ "retry", dns_retry_test, TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "retry_disable_when_inactive", dns_retry_disable_when_inactive_test,
 	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
+	{ "probe_settings", dns_probe_settings_test, TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "reissue", dns_reissue_test, TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "reissue_disable_when_inactive", dns_reissue_disable_when_inactive_test,
 	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
