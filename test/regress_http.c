@@ -100,6 +100,7 @@ static void http_basic_cb(struct evhttp_request *req, void *arg);
 static void http_timeout_cb(struct evhttp_request *req, void *arg);
 static void http_large_cb(struct evhttp_request *req, void *arg);
 static void http_chunked_cb(struct evhttp_request *req, void *arg);
+static void http_chunked_input_cb(struct evhttp_request *req, void *arg);
 static void http_post_cb(struct evhttp_request *req, void *arg);
 static void http_put_cb(struct evhttp_request *req, void *arg);
 static void http_genmethod_cb(struct evhttp_request *req, void *arg);
@@ -199,6 +200,7 @@ http_setup_gencb(ev_uint16_t *pport, struct event_base *base, int mask,
 	evhttp_set_cb(myhttp, "/timeout", http_timeout_cb, myhttp);
 	evhttp_set_cb(myhttp, "/large", http_large_cb, base);
 	evhttp_set_cb(myhttp, "/chunked", http_chunked_cb, base);
+	evhttp_set_cb(myhttp, "/chunked_input", http_chunked_input_cb, base);
 	evhttp_set_cb(myhttp, "/streamed", http_chunked_cb, base);
 	evhttp_set_cb(myhttp, "/postit", http_post_cb, base);
 	evhttp_set_cb(myhttp, "/putit", http_put_cb, base);
@@ -509,6 +511,18 @@ http_chunked_cb(struct evhttp_request *req, void *arg)
 	/* but trickle it across several iterations to ensure we're not
 	 * assuming it comes all at once */
 	event_base_once(arg, -1, EV_TIMEOUT, http_chunked_trickle_cb, state, &when);
+}
+
+static void
+http_chunked_input_cb(struct evhttp_request *req, void *arg)
+{
+	struct evbuffer *buf = evbuffer_new();
+	TT_BLATHER(("%s: called\n", __func__));
+
+	evbuffer_add_buffer(buf, evhttp_request_get_input_buffer(req));
+	evhttp_send_reply(req, HTTP_OK, "OK", buf);
+
+	evbuffer_free(buf);
 }
 
 static struct bufferevent *
@@ -3648,6 +3662,108 @@ http_chunked_request_done(struct evhttp_request *req, void *arg)
 }
 
 static void
+http_send_chunk_test_read_cb(struct bufferevent *bev, void *arg)
+{
+	TT_BLATHER(("%s: called\n", __func__));
+}
+/* sends 3 chunks */
+static void
+http_send_chunk_test_write_cb(struct bufferevent *bev, void *arg)
+{
+	struct evbuffer *output = bufferevent_get_output(bev);
+
+	TT_BLATHER(("%s: called, test_ok=%i\n", __func__, test_ok));
+
+	if (test_ok < 3) {
+		size_t len = strlen(BASIC_REQUEST_BODY) + 1;
+		evbuffer_add_printf(output, "%x\r\n", (unsigned)len);
+		evbuffer_add(output, BASIC_REQUEST_BODY, strlen(BASIC_REQUEST_BODY));
+		/* to allow using evbuffer_readln() for simplicity */
+		evbuffer_add(output, "\n", 1);
+		evbuffer_add(output, "\r\n", 2);
+	} else if (test_ok == 3) {
+		/* last chunk */
+		evbuffer_add(output, "0\r\n\r\n", 5);
+	} else {
+		/* stop */
+		bufferevent_disable(bev, EV_WRITE);
+		bufferevent_enable(bev, EV_READ);
+	}
+
+	test_ok++;
+}
+static void
+http_send_chunk_test_error_cb(struct bufferevent *bev, short what, void *arg)
+{
+	struct evbuffer *input = bufferevent_get_input(bev);
+	char *line;
+
+	TT_BLATHER(("%s: called\n", __func__));
+
+	test_ok = 0;
+
+	/* suboptimal */
+	while (evbuffer_get_length(input)) {
+		size_t n_read_out = 0;
+		line = evbuffer_readln(input, &n_read_out, EVBUFFER_EOL_LF);
+		if (!line)
+			break;
+		/* don't bother about parsing http request,
+		 * just count number of BASIC_REQUEST_BODY */
+		if (strcmp(line, BASIC_REQUEST_BODY) == 0) {
+			++test_ok;
+		}
+		free(line);
+	}
+
+	event_base_loopexit(exit_base, NULL);
+}
+static void
+http_send_chunk_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+	evutil_socket_t fd;
+	const char *http_request;
+	ev_uint16_t port = 0;
+	struct evhttp *http = http_setup(&port, data->base, 0 /* ssl */);
+
+	exit_base = data->base;
+	test_ok = 0;
+
+	fd = http_connect("127.0.0.1", port);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
+
+	bev = create_bev(data->base, fd, 0 /* ssl */, BEV_OPT_CLOSE_ON_FREE);
+	bufferevent_setcb(bev,
+	    http_send_chunk_test_read_cb,
+	    http_send_chunk_test_write_cb,
+	    http_send_chunk_test_error_cb,
+	    data->base);
+
+	http_request =
+	    "POST /chunked_input HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Transfer-Encoding: chunked\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+
+	event_base_dispatch(data->base);
+
+	/**
+	 * http_send_chunk_test_error_cb() find BASIC_REQUEST_BODY 3 times
+	 */
+	tt_int_op(test_ok, ==, 3);
+
+ end:
+	if (bev)
+		bufferevent_free(bev);
+	if (http)
+		evhttp_free(http);
+}
+static void
 http_chunk_out_test_impl(void *arg, int ssl)
 {
 	struct basic_test_data *data = arg;
@@ -5588,6 +5704,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(dispatcher),
 	HTTP(multi_line_header),
 	HTTP(negative_content_length),
+	HTTP(send_chunk),
 	HTTP(chunk_out),
 	HTTP(stream_out),
 
