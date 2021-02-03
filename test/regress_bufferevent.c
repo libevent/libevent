@@ -1354,6 +1354,52 @@ end:
 		bufferevent_free(filter);
 }
 
+static void
+read_failed_readcb(struct bufferevent *bev, void *arg)
+{
+	int r;
+	struct evbuffer *in_buf = NULL;
+	char buf[] = "test data\0";
+	struct event_base *base = arg;
+
+	in_buf = bufferevent_get_input(bev);
+	tt_int_op(evbuffer_get_length(in_buf), ==, strlen(buf));
+
+	r = bufferevent_read(bev, buf, strlen(buf) - 1);
+	tt_int_op(r, ==, strlen(buf) - 1);
+	tt_int_op(evbuffer_get_length(in_buf), ==, 1);
+
+	evbuffer_freeze(in_buf, 1);
+	r = bufferevent_read(bev, buf, 1);
+	tt_int_op(r, ==, 0);
+end:;
+	event_base_loopexit(base, NULL);
+}
+
+static void
+test_bufferevent_read_failed(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+	char buf[] = "test data\0";
+
+	bev = bufferevent_socket_new(
+		data->base, data->pair[1], BEV_OPT_CLOSE_ON_FREE);
+	bufferevent_setcb(bev, read_failed_readcb, NULL, NULL, data->base);
+	bufferevent_enable(bev, EV_READ);
+	tt_assert(bev != NULL);
+
+#ifdef _WIN32
+	send(data->pair[0], buf, strlen(buf), 0);
+#else
+	write(data->pair[0], buf, strlen(buf));
+#endif
+	event_base_dispatch(data->base);
+
+end:;
+	bufferevent_free(bev);
+}
+
 struct testcase_t bufferevent_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED),
@@ -1429,6 +1475,9 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_filter_data_stuck",
 	  test_bufferevent_filter_data_stuck,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "bufferevent_read_failed",
+	  test_bufferevent_read_failed,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE, &basic_setup, NULL },
 
 	END_OF_TESTCASES,
 };

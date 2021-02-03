@@ -430,7 +430,8 @@ int bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf);
   @param bufev the bufferevent to be read from
   @param data pointer to a buffer that will store the data
   @param size the size of the data buffer, in bytes
-  @return the amount of data read, in bytes.
+  @return the amount of data read, in bytes. If 0 is returned, it is possible
+  that there is no data in the buffer or that the read failed.
  */
 EVENT2_EXPORT_SYMBOL
 size_t bufferevent_read(struct bufferevent *bufev, void *data, size_t size);

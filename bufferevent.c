@@ -469,7 +469,12 @@ bufferevent_write_buffer(struct bufferevent *bufev, struct evbuffer *buf)
 size_t
 bufferevent_read(struct bufferevent *bufev, void *data, size_t size)
 {
-	return (evbuffer_remove(bufev->input, data, size));
+	int r = evbuffer_remove(bufev->input, data, size);
+
+	if (r == -1)
+		return 0;
+
+	return r;
 }
 
 int
