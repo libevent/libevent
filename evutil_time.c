@@ -71,6 +71,9 @@ typedef void (WINAPI *GetSystemTimePreciseAsFileTime_fn_t) (LPFILETIME);
 int
 evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
 {
+	static GetSystemTimePreciseAsFileTime_fn_t GetSystemTimePreciseAsFileTime_fn = NULL;
+	static int check_precise = 1;
+
 #ifdef _MSC_VER
 #define U64_LITERAL(n) n##ui64
 #else
@@ -92,9 +95,6 @@ evutil_gettimeofday(struct timeval *tv, struct timezone *tz)
 
 	if (tv == NULL)
 		return -1;
-
-	static GetSystemTimePreciseAsFileTime_fn_t GetSystemTimePreciseAsFileTime_fn = NULL;
-	static int check_precise = 1;
 
 	if (EVUTIL_UNLIKELY(check_precise)) {
 		HMODULE h = evutil_load_windows_system_library_(TEXT("kernel32.dll"));
