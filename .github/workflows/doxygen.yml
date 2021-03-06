@@ -50,7 +50,7 @@ jobs:
           git commit -m "Update documentation (libevent/libevent@$short_commit_id)"
           git push -f git@github.com:$owner_name/doc master
 
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v2
         if: failure()
         with:
           name: doxygen-build
