@@ -378,6 +378,18 @@ EVENT2_EXPORT_SYMBOL
 int bufferevent_setfd(struct bufferevent *bufev, evutil_socket_t fd);
 
 /**
+  Replaces the file descriptor on which the bufferevent operates.
+  Not supported for all bufferevent types.
+
+  Unlike bufferevent_setfd() it will close previous file descriptor (if any).
+
+  @param bufev the bufferevent object for which to change the file descriptor
+  @param fd the file descriptor to operate on
+*/
+EVENT2_EXPORT_SYMBOL
+int bufferevent_replacefd(struct bufferevent *bufev, evutil_socket_t fd);
+
+/**
    Returns the file descriptor associated with a bufferevent, or -1 if
    no file descriptor is associated with the bufferevent.
  */
