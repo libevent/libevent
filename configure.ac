@@ -316,7 +316,7 @@ AM_CONDITIONAL(BUILD_MIDIPIX, test x$midipix = xtrue)
 AM_CONDITIONAL(BUILD_WITH_NO_UNDEFINED, test x$bwin32 = xtrue || test x$cygwin = xtrue || test x$midipix = xtrue)
 
 if test x$bwin32 = xtrue; then
-  AC_HAVE_LIBRARY([ws2_32])
+  AC_CHECK_LIB([ws2_32], [main])
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.
