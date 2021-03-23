@@ -122,7 +122,7 @@ jobs:
           fi
 
       - uses: actions/upload-artifact@v1
-        if: failure()
+        if: failure() && matrix.EVENT_MATRIX != 'DIST'
         with:
           name: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-build
           path: build
@@ -155,7 +155,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: build
-          key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v2
+          key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v3
       - name: Cache Dist Build
         uses: actions/cache@v2
         with:
@@ -216,7 +216,7 @@ jobs:
           make -j $JOBS verify
 
       - uses: actions/upload-artifact@v1
-        if: failure()
+        if: failure() && matrix.EVENT_MATRIX != 'DIST'
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-build
           path: build
