@@ -1420,7 +1420,7 @@ evhttp_connection_reset_hard_(struct evhttp_connection *evcon)
 	int err;
 
 	/* XXXX This is not actually an optimal fix.  Instead we ought to have
-	   an API for "stop connecting", or use bufferevent_setfd to turn off
+	   an API for "stop connecting", or use bufferevent_replacefd to turn off
 	   connecting.  But for Libevent 2.0, this seems like a minimal change
 	   least likely to disrupt the rest of the bufferevent and http code.
 
@@ -1437,7 +1437,7 @@ evhttp_connection_reset_hard_(struct evhttp_connection *evcon)
 		(*evcon->closecb)(evcon, evcon->closecb_arg);
 
 	/** FIXME: manipulating with fd is unwanted */
-	err = bufferevent_setfd(evcon->bufev, -1);
+	err = bufferevent_replacefd(evcon->bufev, -1);
 	EVUTIL_ASSERT(!err && "setfd");
 
 	/* we need to clean up any buffered data */
@@ -2766,7 +2766,7 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 			return (-1);
 		}
 
-		if (bufferevent_setfd(evcon->bufev, fd))
+		if (bufferevent_replacefd(evcon->bufev, fd))
 			return (-1);
 	}
 
@@ -4495,7 +4495,7 @@ evhttp_get_request_connection(
 	evcon->flags |= EVHTTP_CON_INCOMING;
 	evcon->state = EVCON_READING_FIRSTLINE;
 
-	if (bufferevent_setfd(evcon->bufev, fd))
+	if (bufferevent_replacefd(evcon->bufev, fd))
 		goto err;
 	if (bufferevent_enable(evcon->bufev, EV_READ))
 		goto err;
