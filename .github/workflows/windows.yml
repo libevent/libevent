@@ -38,13 +38,13 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
 
       - name: Prepare vcpkg
-        uses: lukka/run-vcpkg@v2
+        uses: lukka/run-vcpkg@v7
         id: runvcpkg
         with:
           vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
           vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
-          vcpkgGitCommitId: 8e76503a769e153dad8f4e7b2c95a152bb35edaa
           vcpkgTriplet: x64-windows
+          vcpkgGitCommitId: 7bc5b8cdfaf35329c1520b2af8d368e2b1cb78e6
 
       - name: Build And Test
         shell: powershell
@@ -138,13 +138,13 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
 
       - name: Prepare vcpkg
-        uses: lukka/run-vcpkg@v2
+        uses: lukka/run-vcpkg@v7
         id: runvcpkg
         with:
           vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
           vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
-          vcpkgGitCommitId: 8e76503a769e153dad8f4e7b2c95a152bb35edaa
           vcpkgTriplet: x64-windows
+          vcpkgGitCommitId: 7bc5b8cdfaf35329c1520b2af8d368e2b1cb78e6
 
       - name: Build And Test
         shell: powershell
