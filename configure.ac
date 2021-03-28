@@ -219,7 +219,7 @@ AC_CHECK_HEADERS([ \
   sys/wait.h \
   sys/random.h \
   errno.h \
-  afunix.h \
+  afunix.h
 ])
 
 case "${host_os}" in
@@ -359,7 +359,7 @@ AC_CHECK_FUNCS([ \
   umask \
   unsetenv \
   usleep \
-  getrandom \
+  getrandom
 ])
 
 AS_IF([test x$bwin32 = xtrue],
