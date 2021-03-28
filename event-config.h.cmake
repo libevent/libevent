@@ -446,9 +446,6 @@
 /* Define to 1 if you have the `unsetenv' function. */
 #cmakedefine EVENT__HAVE_UNSETENV 1
 
-/* Define to 1 if you have the `vasprintf' function. */
-#cmakedefine EVENT__HAVE_VASPRINTF 1
-
 /* Define if kqueue works correctly with pipes */
 #cmakedefine EVENT__HAVE_WORKING_KQUEUE 1
 

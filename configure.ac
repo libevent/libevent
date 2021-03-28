@@ -359,7 +359,6 @@ AC_CHECK_FUNCS([ \
   umask \
   unsetenv \
   usleep \
-  vasprintf \
   getrandom \
 ])
 

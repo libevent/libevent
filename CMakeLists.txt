@@ -473,7 +473,6 @@ list(APPEND SYMBOLS_TO_CHECK
     strlcpy
     strsep
     strtok_r
-    vasprintf
     timerclear
     timercmp
     timerisset
@@ -551,7 +550,6 @@ if (NOT EVENT__DISABLE_THREAD_SUPPORT)
     endif()
 endif()
 
-# Add stdio.h for vasprintf
 list(APPEND CMAKE_EXTRA_INCLUDE_FILES ${EVENT_INCLUDES} stdio.h)
 CHECK_SYMBOLS_EXIST("${SYMBOLS_TO_CHECK}" "${CMAKE_EXTRA_INCLUDE_FILES}" "EVENT")
 unset(SYMBOLS_TO_CHECK)
