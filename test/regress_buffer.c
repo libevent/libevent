@@ -1161,8 +1161,7 @@ test_evbuffer_add_file(void *ptr)
 		view_from_offset = 1;
 	}
 	if (strstr(impl, "sendfile")) {
-		/* If sendfile is set, we try to use a sendfile/splice style
-		 * backend. */
+		/* If sendfile is set, we try to use a sendfile style backend. */
 		flags = EVBUF_FS_DISABLE_MMAP;
 		want_cansendfile = 1;
 		want_ismapping = 0;

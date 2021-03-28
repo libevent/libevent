@@ -470,7 +470,6 @@ list(APPEND SYMBOLS_TO_CHECK
     gettimeofday
     signal
     strtoll
-    splice
     strlcpy
     strsep
     strtok_r

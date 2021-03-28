@@ -350,7 +350,6 @@ AC_CHECK_FUNCS([ \
   sigaction \
   signal \
   strsignal \
-  splice \
   strlcpy \
   strsep \
   strtok_r \
