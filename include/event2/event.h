@@ -1078,7 +1078,7 @@ void *event_self_cbarg(void);
   The EV_TIMEOUT flag has no effect here.
 
   It is okay to have multiple events all listening on the same fds; but
-  they must either all be edge-triggered, or all not be edge triggered.
+  they must either all be edge-triggered, or not be edge-triggered at all.
 
   When the event becomes active, the event loop will run the provided
   callback function, with three arguments.  The first will be the provided
