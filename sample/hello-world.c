@@ -27,7 +27,7 @@
 
 static const char MESSAGE[] = "Hello, World!\n";
 
-static const int PORT = 9995;
+static const unsigned short PORT = 9995;
 
 static void listener_cb(struct evconnlistener *, evutil_socket_t,
     struct sockaddr *, int socklen, void *);
