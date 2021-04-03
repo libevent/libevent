@@ -1595,17 +1595,6 @@ err:
 #undef GET8
 }
 
-
-void
-evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void))
-{
-}
-
-void
-evdns_set_random_bytes_fn(void (*fn)(char *, size_t))
-{
-}
-
 /* Try to choose a strong transaction id which isn't already in flight */
 static u16
 transaction_id_pick(struct evdns_base *base) {
