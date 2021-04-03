@@ -602,19 +602,6 @@ typedef void (*evdns_debug_log_fn_type)(int is_warning, const char *msg);
 EVENT2_EXPORT_SYMBOL
 void evdns_set_log_fn(evdns_debug_log_fn_type fn);
 
-/**
-   Set a callback that will be invoked to generate transaction IDs.  By
-   default, we pick transaction IDs based on the current clock time, which
-   is bad for security.
-
-   @param fn the new callback, or NULL to use the default.
-
-   NOTE: This function has no effect in Libevent 2.0.4-alpha and later,
-   since Libevent now provides its own secure RNG.
- */
-EVENT2_EXPORT_SYMBOL
-void evdns_set_transaction_id_fn(ev_uint16_t (*fn)(void));
-
 /*
  * Functions used to implement a DNS server.
  */
