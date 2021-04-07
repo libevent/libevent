@@ -257,6 +257,11 @@ regress_dns_server_cb(struct evdns_server_request *req, void *data)
 		}
 		evdns_server_request_add_aaaa_reply(req,
 		    question, 1, &in6.s6_addr, 100);
+	} else if (!strcmp(tab->anstype, "CNAME")) {
+		struct in_addr in;
+		evutil_inet_pton(AF_INET, "11.22.33.44", &in);
+		evdns_server_request_add_a_reply(req, question, 1, &in, 100);
+		evdns_server_request_add_cname_reply(req, question, tab->ans, 100);
 	} else {
 		TT_DIE(("Weird table entry with type '%s'", tab->anstype));
 	}

@@ -182,6 +182,7 @@ extern "C" {
 #define DNS_IPv4_A 1
 #define DNS_PTR 2
 #define DNS_IPv6_AAAA 3
+#define DNS_CNAME 4
 
 /** Disable searching for the query. */
 #define DNS_QUERY_NO_SEARCH 0x01
@@ -189,6 +190,8 @@ extern "C" {
 #define DNS_QUERY_USEVC 0x02
 /** Ignore trancation flag in responses (don't fallback to TCP connections). */
 #define DNS_QUERY_IGNTC 0x04
+/** Make a separate callback for CNAME in answer */
+#define DNS_CNAME_CALLBACK 0x80
 
 /* Allow searching */
 #define DNS_OPTION_SEARCH 1

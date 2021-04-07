@@ -512,7 +512,7 @@ generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
 		len = count * 4;
 	else if (type == DNS_IPv6_AAAA)
 		len = count * 16;
-	else if (type == DNS_PTR)
+	else if (type == DNS_PTR || type == DNS_CNAME)
 		len = strlen(addresses)+1;
 	else {
 		res->addrs_len = len = 0;
@@ -551,6 +551,7 @@ static struct regress_dns_server_table search_table[] = {
 	{ "hostn.a.example.com", "errsoa", "0", 0, 0 },
 	{ "hostn.b.example.com", "errsoa", "3", 0, 0 },
 	{ "hostn.c.example.com", "err", "0", 0, 0 },
+	{ "hostc.c.example.com", "CNAME", "cname.c.example.com", 0, 0 },
 	{ "host", "err", "3", 0, 0 },
 	{ "host2", "err", "3", 0, 0 },
 	{ "*", "err", "3", 0, 0 },
@@ -586,7 +587,7 @@ dns_search_test_impl(void *arg, int lower)
 	ev_uint16_t portnum = 0;
 	char buf[64];
 
-	struct generic_dns_callback_result r[8];
+	struct generic_dns_callback_result r[9];
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(table); ++i) {
@@ -604,7 +605,7 @@ dns_search_test_impl(void *arg, int lower)
 	evdns_base_search_add(dns, "b.example.com");
 	evdns_base_search_add(dns, "c.example.com");
 
-	n_replies_left = ARRAY_SIZE(r);
+	n_replies_left = ARRAY_SIZE(r)+1;	/* CNAME gives us 2 callbacks for 1 request */
 	exit_base = base;
 
 	evdns_base_resolve_ipv4(dns, "host", 0, generic_dns_callback, &r[0]);
@@ -615,6 +616,8 @@ dns_search_test_impl(void *arg, int lower)
 	evdns_base_resolve_ipv4(dns, "hostn.a.example.com", DNS_NO_SEARCH, generic_dns_callback, &r[5]);
 	evdns_base_resolve_ipv4(dns, "hostn.b.example.com", DNS_NO_SEARCH, generic_dns_callback, &r[6]);
 	evdns_base_resolve_ipv4(dns, "hostn.c.example.com", DNS_NO_SEARCH, generic_dns_callback, &r[7]);
+	evdns_base_resolve_ipv4(dns, "hostc.c.example.com", DNS_NO_SEARCH | DNS_CNAME_CALLBACK,
+				generic_dns_callback, &r[8]);
 
 	event_base_dispatch(base);
 
@@ -633,6 +636,9 @@ dns_search_test_impl(void *arg, int lower)
 	tt_int_op(r[6].ttl, ==, 42);
 	tt_int_op(r[7].result, ==, DNS_ERR_NODATA);
 	tt_int_op(r[7].ttl, ==, 0);
+	tt_int_op(r[8].type, ==, DNS_CNAME);
+	tt_int_op(r[8].count, ==, 1);
+	tt_str_op(r[8].addrs, ==, "cname.c.example.com");
 
 end:
 	if (dns)
