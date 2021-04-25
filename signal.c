@@ -400,9 +400,25 @@ evsig_handler(int sig)
 #ifdef _WIN32
 	send(evsig_base_fd, (char*)&msg, 1, 0);
 #else
-	{
-		int r = write(evsig_base_fd, (char*)&msg, 1);
-		(void)r; /* Suppress 'unused return value' and 'unused var' */
+	for (;;) {
+		/*
+		 * errno is only set to provide a descriptive message for event_warnx
+		 * if write returns 0. Not setting it will result in "No error" message
+		 * because write does not set errno when returning 0.
+		 *
+		 * EAGAIN will print "Try again" message. Another idea is to use
+		 * ENOSPC, but since we use non blocking sockets EAGAIN is preferable.
+		 *
+		 * Other than setting this text of the logged warning, the value in
+		 * errno has no further effect.
+		 */
+		errno = EAGAIN;
+		if (0 >= write(evsig_base_fd, &msg, 1)) {
+			if (errno == EINTR)
+				continue;
+			event_warnx("%s: write: %s", __func__, strerror(errno));
+		}
+		break;
 	}
 #endif
 	errno = save_errno;
