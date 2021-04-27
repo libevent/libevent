@@ -109,6 +109,10 @@
 #define mode_t int
 #endif
 
+#ifndef O_RDONLY
+#define O_RDONLY _O_RDONLY
+#endif
+
 #ifdef EVENT__HAVE_AFUNIX_H
 int have_working_afunix_ = -1;
 #endif
