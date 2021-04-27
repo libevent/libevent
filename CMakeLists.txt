@@ -44,6 +44,11 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "Limited configuratio
 set(EVENT__LIBRARY_TYPE DEFAULT CACHE STRING
     "Set library type to SHARED/STATIC/BOTH (default SHARED for MSVC, otherwise BOTH)")
 
+if(DARWIN)
+    set(CMAKE_SYSTEM_NAME Darwin)
+    set(CMAKE_C_COMPILER clang)
+endif()
+
 project(libevent C)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
