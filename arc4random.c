@@ -89,6 +89,10 @@ struct arc4_stream {
 #define pid_t int
 #endif
 
+#ifndef O_RDONLY
+#define O_RDONLY _O_RDONLY
+#endif
+
 static int rs_initialized;
 static struct arc4_stream rs;
 static pid_t arc4_stir_pid;
