@@ -213,12 +213,13 @@ int evthread_use_windows_threads(void);
 EVENT2_EXPORT_SYMBOL
 int evthread_use_pthreads(void);
 
-/* Enables posix mutex priority inheritance. */
+/* Enables posix mutex priority inheritance
+ * (if pthread_mutexattr_setprotocol() is supported). */
 #define EVTHREAD_PTHREAD_PRIO_INHERIT 0x01
 
 /**
  * Sets up Libevent for use with Pthreads locking and thread ID functions.
- * Use evthred_use_pthreads_with_flags() to use Pthreads locking, taking the
+ * Use evthread_use_pthreads_with_flags() to use Pthreads locking, taking the
  * specified flags under consideration.
  *
  * @param flags the flags to apply when setting up Pthreads locking. @see EVTHREAD_PTHREAD_*

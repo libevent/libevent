@@ -989,6 +989,16 @@ end:
 }
 
 static void
+test_EVUTIL_IS_(void *arg)
+{
+	tt_int_op(EVUTIL_ISDIGIT_('0'), ==, 1);
+	tt_int_op(EVUTIL_ISDIGIT_('a'), ==, 0);
+	tt_int_op(EVUTIL_ISDIGIT_('\xff'), ==, 0);
+end:
+	;
+}
+
+static void
 test_evutil_getaddrinfo(void *arg)
 {
 	struct evutil_addrinfo *ai = NULL, *a;
@@ -1178,6 +1188,41 @@ test_evutil_getaddrinfo_live(void *arg)
 		TT_BLATHER(("ipv6.google.com resolved to %s",
 			cp?cp:"<unwriteable>"));
 	}
+
+end:
+	if (ai)
+		evutil_freeaddrinfo(ai);
+}
+
+static void
+test_evutil_getaddrinfo_AI_ADDRCONFIG(void *arg)
+{
+	struct evutil_addrinfo *ai = NULL;
+	struct evutil_addrinfo hints;
+	int r;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = EVUTIL_AI_PASSIVE|EVUTIL_AI_ADDRCONFIG;
+
+	/* IPv4 */
+	r = evutil_getaddrinfo("127.0.0.1", "80", &hints, &ai);
+	tt_int_op(r, ==, 0);
+	tt_assert(ai);
+	tt_ptr_op(ai->ai_next, ==, NULL);
+	test_ai_eq(ai, "127.0.0.1:80", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
+
+	/* IPv6 */
+	r = evutil_getaddrinfo("::1", "80", &hints, &ai);
+	tt_int_op(r, ==, 0);
+	tt_assert(ai);
+	tt_ptr_op(ai->ai_next, ==, NULL);
+	test_ai_eq(ai, "[::1]:80", SOCK_STREAM, IPPROTO_TCP);
+	evutil_freeaddrinfo(ai);
+	ai = NULL;
 
 end:
 	if (ai)
@@ -1787,8 +1832,10 @@ struct testcase_t util_testcases[] = {
 	{ "upcast", test_evutil_upcast, 0, NULL, NULL },
 	{ "integers", test_evutil_integers, 0, NULL, NULL },
 	{ "rand", test_evutil_rand, TT_FORK, NULL, NULL },
+	{ "EVUTIL_IS_", test_EVUTIL_IS_, 0, NULL, NULL },
 	{ "getaddrinfo", test_evutil_getaddrinfo, TT_FORK, NULL, NULL },
 	{ "getaddrinfo_live", test_evutil_getaddrinfo_live, TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
+	{ "getaddrinfo_AI_ADDRCONFIG", test_evutil_getaddrinfo_AI_ADDRCONFIG, TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
 #ifdef _WIN32
 	{ "loadsyslib", test_evutil_loadsyslib, TT_FORK, NULL, NULL },
 #endif

@@ -869,7 +869,11 @@ void evhttp_connection_free(struct evhttp_connection *evcon);
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_free_on_completion(struct evhttp_connection *evcon);
 
-/** sets the ip address from which http connections are made */
+/** Sets the IP address from which http connections are made
+ *
+ * Note this resets internal bufferevent fd, so any options that had been
+ * installed will be flushed.
+ */
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_local_address(struct evhttp_connection *evcon,
     const char *address);
@@ -959,7 +963,7 @@ void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 /** Get the remote address and port associated with this connection. */
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_get_peer(struct evhttp_connection *evcon,
-    char **address, ev_uint16_t *port);
+    const char **address, ev_uint16_t *port);
 
 /** Get the remote address associated with this connection.
  * extracted from getpeername() OR from nameserver.
@@ -1378,6 +1382,15 @@ struct evhttp_uri *evhttp_uri_parse_with_flags(const char *source_uri,
  * </ul>
  */
 #define EVHTTP_URI_NONCONFORMANT 0x01
+/**
+ * Strip brackets from the IPv6 address and only for evhttp_uri_get_host(),
+ * evhttp_uri_join() returns the host with brackets.
+ *
+ * Thus you can use host part of the evhttp_uri for getaddrinfo().
+ *
+ * @see also _EVHTTP_URI_HOST_HAS_BRACKETS
+ */
+#define EVHTTP_URI_HOST_STRIP_BRACKETS 0x04
 
 /** Alias for evhttp_uri_parse_with_flags(source_uri, 0) */
 EVENT2_EXPORT_SYMBOL

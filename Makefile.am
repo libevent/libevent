@@ -4,10 +4,6 @@
 #
 # See LICENSE for copying information.
 
-# 'foreign' means that we're not enforcing GNU package rules strictly.
-# '1.13' means that we need automake 1.13 or later (and we do).
-AUTOMAKE_OPTIONS = foreign 1.13 subdir-objects
-
 ACLOCAL_AMFLAGS = -I m4
 
 # This is the "Release" of the Libevent ABI.  It takes precedence over
@@ -105,7 +101,9 @@ LIBEVENT_PKGCONFIG=libevent.pc libevent_core.pc libevent_extra.pc
 # included from other files.
 PLATFORM_DEPENDENT_SRC = \
 	arc4random.c \
-	epoll_sub.c
+	epoll_sub.c \
+	bufferevent_ssl.c \
+	test/regress_ssl.c
 
 CMAKE_FILES = \
 	cmake/AddCompilerFlags.cmake \
@@ -120,6 +118,7 @@ CMAKE_FILES = \
 	cmake/CodeCoverage.cmake \
 	cmake/COPYING-CMAKE-SCRIPTS \
 	cmake/Copyright.txt \
+	cmake/FindMbedTLS.cmake \
 	cmake/LibeventConfig.cmake.in \
 	cmake/LibeventConfigVersion.cmake.in \
 	cmake/Macros.cmake \
@@ -158,6 +157,10 @@ if OPENSSL
 LIBEVENT_LIBS_LA += libevent_openssl.la
 LIBEVENT_PKGCONFIG += libevent_openssl.pc
 endif
+if MBEDTLS
+LIBEVENT_LIBS_LA += libevent_mbedtls.la
+LIBEVENT_PKGCONFIG += libevent_mbedtls.pc
+endif
 
 if INSTALL_LIBEVENT
 lib_LTLIBRARIES = $(LIBEVENT_LIBS_LA)
@@ -180,7 +183,7 @@ include test/include.am
 if BUILD_WIN32
 
 SYS_CORE_LIBS = -liphlpapi
-SYS_LIBS = -lws2_32 -lshell32 -ladvapi32
+SYS_LIBS = -lws2_32 -lshell32 -ladvapi32 -lbcrypt
 SYS_SRC = win32select.c buffer_iocp.c event_iocp.c \
 	bufferevent_async.c
 SYS_INCLUDES = -IWIN32-Code
@@ -291,10 +294,17 @@ libevent_extra_la_LIBADD = $(MAYBE_CORE) $(SYS_LIBS)
 libevent_extra_la_LDFLAGS = $(GENERIC_LDFLAGS)
 
 if OPENSSL
-libevent_openssl_la_SOURCES = bufferevent_openssl.c
+libevent_openssl_la_SOURCES = bufferevent_openssl.c bufferevent_ssl.c
 libevent_openssl_la_LIBADD = $(MAYBE_CORE) $(OPENSSL_LIBS)
 libevent_openssl_la_LDFLAGS = $(GENERIC_LDFLAGS)
 libevent_openssl_la_CPPFLAGS = $(AM_CPPFLAGS) $(OPENSSL_INCS)
+endif
+
+if MBEDTLS
+libevent_mbedtls_la_SOURCES = bufferevent_mbedtls.c bufferevent_ssl.c
+libevent_mbedtls_la_LIBADD = $(MAYBE_CORE) $(MBEDTLS_LIBS)
+libevent_mbedtls_la_LDFLAGS = $(GENERIC_LDFLAGS)
+libevent_mbedtls_la_CPPFLAGS = $(AM_CPPFLAGS) $(MBEDTLS_INCS)
 endif
 
 noinst_HEADERS +=				\
@@ -327,6 +337,8 @@ noinst_HEADERS +=				\
 	time-internal.h				\
 	util-internal.h				\
 	openssl-compat.h			\
+	mbedtls-compat.h			\
+	ssl-compat.h			    \
 	wepoll.h
 
 EVENT1_HDRS = \

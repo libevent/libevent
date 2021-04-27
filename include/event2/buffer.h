@@ -552,10 +552,9 @@ int evbuffer_add_file(struct evbuffer *outbuf, int fd, ev_off_t offset,
 /**
   An evbuffer_file_segment holds a reference to a range of a file --
   possibly the whole file! -- for use in writing from an evbuffer to a
-  socket.  It could be implemented with mmap, sendfile, splice, or (if all
-  else fails) by just pulling all the data into RAM.  A single
-  evbuffer_file_segment can be added more than once, and to more than one
-  evbuffer.
+  socket.  It could be implemented with mmap or sendfile, or (if all else
+  fails) by just pulling all the data into RAM. A single evbuffer_file_segment
+  can be added more than once, and to more than one evbuffer.
  */
 struct evbuffer_file_segment;
 
@@ -572,7 +571,7 @@ struct evbuffer_file_segment;
 #define EVBUF_FS_DISABLE_MMAP     0x02
 /**
    Flag for creating evbuffer_file_segment: Disable direct fd-to-fd
-   implementations (including sendfile and splice).
+   implementations (sendfile).
 
    You might want to use this option if data needs to be taken from the
    evbuffer by any means other than writing it to the network: the sendfile
@@ -600,7 +599,7 @@ typedef void (*evbuffer_file_segment_cleanup_cb)(
    file and sending it out via an evbuffer.
 
    This function avoids unnecessary data copies between userland and
-   kernel.  Where available, it uses sendfile or splice.
+   kernel.  Where available, it uses sendfile.
 
    The file descriptor must not be closed so long as any evbuffer is using
    this segment.

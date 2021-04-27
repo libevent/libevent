@@ -103,9 +103,11 @@ struct options {
 	int port;
 	int iocp;
 	int verbose;
+	int max_body_size;
 
 	int unlink;
 	const char *unixsock;
+	const char *bind;
 	const char *docroot;
 };
 
@@ -350,8 +352,10 @@ print_usage(FILE *out, const char *prog, int exit_code)
 		"Syntax: %s [ OPTS ] <docroot>\n"
 		" -p      - port\n"
 		" -U      - bind to unix socket\n"
+		" -H      - address to bind (default: 0.0.0.0)\n"
 		" -u      - unlink unix socket before bind\n"
 		" -I      - IOCP\n"
+		" -m      - max body size\n"
 		" -v      - verbosity, enables libevent debug logging too\n", prog);
 	exit(exit_code);
 }
@@ -363,13 +367,15 @@ parse_opts(int argc, char **argv)
 
 	memset(&o, 0, sizeof(o));
 
-	while ((opt = getopt(argc, argv, "hp:U:uIv")) != -1) {
+	while ((opt = getopt(argc, argv, "hp:U:m:uIvH:")) != -1) {
 		switch (opt) {
 			case 'p': o.port = atoi(optarg); break;
 			case 'U': o.unixsock = optarg; break;
 			case 'u': o.unlink = 1; break;
 			case 'I': o.iocp = 1; break;
+			case 'm': o.max_body_size = atoi(optarg); break;
 			case 'v': ++o.verbose; break;
+			case 'H': o.bind = optarg; break;
 			case 'h': print_usage(stdout, argv[0], 0); break;
 			default : fprintf(stderr, "Unknown option %c\n", opt); break;
 		}
@@ -507,6 +513,8 @@ main(int argc, char **argv)
 	/* We want to accept arbitrary requests, so we need to set a "generic"
 	 * cb.  We can also add callbacks for specific paths. */
 	evhttp_set_gencb(http, send_document_cb, &o);
+	if (o.max_body_size)
+		evhttp_set_max_body_size(http, o.max_body_size);
 
 	if (o.unixsock) {
 #ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
@@ -543,9 +551,9 @@ main(int argc, char **argv)
 #endif /* EVENT__HAVE_STRUCT_SOCKADDR_UN */
 	}
 	else {
-		handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", o.port);
+		handle = evhttp_bind_socket_with_handle(http, o.bind, o.port);
 		if (!handle) {
-			fprintf(stderr, "couldn't bind to port %d. Exiting.\n", o.port);
+			fprintf(stderr, "couldn't bind to %s:%d. Exiting.\n", o.bind, o.port);
 			ret = 1;
 			goto err;
 		}

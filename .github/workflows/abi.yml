@@ -52,15 +52,13 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-          user_name="${{ github.event.head_commit.author.name }}"
-          user_email="${{ github.event.head_commit.author.email }}"
           short_commit_id="${COMMIT_ID:0:7}"
           owner_name="${{ github.event.repository.owner.name }}"
 
           cd /tmp/le-abi-root/work/abi-check
           git init
-          git config --local user.name $user_name
-          git config --local user.email $user_email
+          git config --local user.name "Libevent Github Robot"
+          git config --local user.email "robot@libevent.org"
           git add -f .
           git commit -m "Update ABI/API backward compatibility report (libevent/libevent@$short_commit_id)"
           git push -f git@github.com:$owner_name/abi master
@@ -71,3 +69,7 @@ jobs:
         with:
           name: build
           path: /tmp/le-abi-root
+      - uses: actions/upload-artifact@v1
+        with:
+          name: build
+          path: /tmp/le-abi-root/work/abi-check

@@ -306,11 +306,18 @@ extern const struct bufferevent_ops bufferevent_ops_pair;
 #define BEV_IS_FILTER(bevp) ((bevp)->be_ops == &bufferevent_ops_filter)
 #define BEV_IS_PAIR(bevp) ((bevp)->be_ops == &bufferevent_ops_pair)
 
-#if defined(EVENT__HAVE_OPENSSL)
-extern const struct bufferevent_ops bufferevent_ops_openssl;
-#define BEV_IS_OPENSSL(bevp) ((bevp)->be_ops == &bufferevent_ops_openssl)
+#if defined(EVENT__HAVE_OPENSSL) || defined(EVENT__HAVE_MBEDTLS)
+/* We cannot use the same trick with external declaration,
+ * since there are copy of bufferevent_ops_ssl in each library:
+ * - openssl
+ * - mbedlts
+ *
+ * However we can just compare the name of the bufferevent type for now.
+ * (It is totally fine to use memcmp() here since it will be optimized by the compiler).
+ */
+#define BEV_IS_SSL(bevp) (!memcmp((bevp)->be_ops->type, "ssl", 3))
 #else
-#define BEV_IS_OPENSSL(bevp) 0
+#define BEV_IS_SSL(bevp) 0
 #endif
 
 #ifdef _WIN32

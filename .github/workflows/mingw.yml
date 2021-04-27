@@ -27,6 +27,7 @@ jobs:
       matrix:
         EVENT_MATRIX:
           - none
+          - no-ssl
           - disable-openssl
           - disable-thread-support
           - disable-debug-mode
@@ -34,35 +35,26 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2.0.0
-
-      - name: Cache MinGW
-        id: cache-mingw
-        uses: actions/cache@v1.1.2
-        with:
-          path: D:\a\_temp\msys
-          key: windows-mingw
-
       - name: Cache Build
-        uses: actions/cache@v1.1.2
+        uses: actions/cache@v2
         with:
           path: build
-          key: mingw-autotools-${{ matrix.EVENT_MATRIX }}-v2
-
-      - uses: numworks/setup-msys2@v1
-        if: steps.cache-mingw.outputs.cache-hit != 'true'
+          key: mingw-autotools-${{ matrix.EVENT_MATRIX }}-v4
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-
-      - name: Install Dependes
-        if: steps.cache-mingw.outputs.cache-hit != 'true'
-        run: |
-          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc autoconf automake libtool mingw-w64-x86_64-openssl
+          update: true
+          install: mingw-w64-x86_64-gcc autoconf automake libtool mingw-w64-x86_64-openssl mingw-w64-x86_64-mbedtls
 
       - name: Build And Test
         shell: powershell
         run: |
           $env:EVENT_CONFIGURE_OPTIONS=""
-          if ( "${{ matrix.EVENT_MATRIX }}" -ne "none" ) {
+          if ( "${{ matrix.EVENT_MATRIX }}" -eq "no-ssl" ) {
+            $env:EVENT_CONFIGURE_OPTIONS="--disable-openssl --disable-mbedtls"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "none" ) {
             $env:EVENT_CONFIGURE_OPTIONS="--${{ matrix.EVENT_MATRIX }}"
           }
           $env:EVENT_TESTS_PARALLEL=1
@@ -96,6 +88,7 @@ jobs:
       matrix:
         EVENT_MATRIX:
           - NONE
+          - NO_SSL
           - DISABLE_OPENSSL
           - DISABLE_THREAD_SUPPORT
           - DISABLE_DEBUG_MODE
@@ -103,35 +96,27 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2.0.0
-
-      - name: Cache MinGW
-        id: cache-mingw-cmake
-        uses: actions/cache@v1.1.2
-        with:
-          path: D:\a\_temp\msys
-          key: windows-mingw-cmake
-
       - name: Cache Build
-        uses: actions/cache@v1.1.2
+        uses: actions/cache@v2
         with:
           path: build
-          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-v2
+          key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-v4
 
-      - uses: numworks/setup-msys2@v1
-        if: steps.cache-mingw-cmake.outputs.cache-hit != 'true'
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-
-      - name: Install Dependes
-        if: steps.cache-mingw-cmake.outputs.cache-hit != 'true'
-        run: |
-          msys2do pacman -S --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-openssl
+          update: true
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-openssl mingw-w64-x86_64-mbedtls  
 
       - name: Build And Test
         shell: powershell
         run: |
           $EVENT_CONFIGURE_OPTIONS=""
-          if ( "${{ matrix.EVENT_MATRIX }}" -ne "NONE" ) {
+          if ( "${{ matrix.EVENT_MATRIX }}" -ne "NO_SSL" ) {
+            $EVENT_CONFIGURE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "NONE" ) {
             $EVENT_CONFIGURE_OPTIONS="-DEVENT__${{ matrix.EVENT_MATRIX }}=ON"
           }
           $env:PATH="D:\a\_temp\msys\msys64\mingw64\bin;D:\a\_temp\msys\msys64\usr\bin;$env:PATH"

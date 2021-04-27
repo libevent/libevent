@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v2.0.0
       - name: Install Depends
         run: |
-          sudo apt install doxygen
+          sudo apt install doxygen libmbedtls-dev
 
       - name: Generate Doxygen
         shell: bash
@@ -39,15 +39,13 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
-          user_name="${{ github.event.head_commit.author.name }}"
-          user_email="${{ github.event.head_commit.author.email }}"
           short_commit_id="${COMMIT_ID:0:7}"
           owner_name="${{ github.event.repository.owner.name }}"
 
           cd ./build/doxygen/html
           git init
-          git config --local user.name $user_name
-          git config --local user.email $user_email
+          git config --local user.name "Libevent Github Robot"
+          git config --local user.email "robot@libevent.org"
           git add -f .
           git commit -m "Update documentation (libevent/libevent@$short_commit_id)"
           git push -f git@github.com:$owner_name/doc master

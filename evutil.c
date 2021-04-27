@@ -212,11 +212,21 @@ create_tmpfile(char tmpfile[MAX_PATH])
 {
 	char short_path[MAX_PATH] = {0};
 	char long_path[MAX_PATH] = {0};
-	char *tmp_file = tmpfile;
+	char prefix[4] = {0};
+	// GetTempFileNameA() uses up to the first three characters of the prefix
+	// and windows filesystems are case-insensitive
+	const char *base32set = "abcdefghijklmnopqrstuvwxyz012345";
+	ev_uint16_t rnd;
+
+	evutil_secure_rng_get_bytes(&rnd, sizeof(rnd));
+	prefix[0] = base32set[(rnd      ) & 31];
+	prefix[1] = base32set[(rnd >>  5) & 31];
+	prefix[2] = base32set[(rnd >> 10) & 31];
+	prefix[3] = '\0';
 
 	GetTempPathA(MAX_PATH, short_path);
 	GetLongPathNameA(short_path, long_path, MAX_PATH);
-	if (!GetTempFileNameA(long_path, NULL, 0, tmp_file)) {
+	if (!GetTempFileNameA(long_path, prefix, 0, tmpfile)) {
 		event_warnx("GetTempFileName failed: %d", EVUTIL_SOCKET_ERROR());
 		return -1;
 	}
@@ -502,7 +512,7 @@ evutil_make_socket_nonblocking(evutil_socket_t fd)
 	{
 		unsigned long nonblocking = 1;
 		if (ioctlsocket(fd, FIONBIO, &nonblocking) == SOCKET_ERROR) {
-			event_sock_warn(fd, "fcntl(%d, F_GETFL)", (int)fd);
+			event_sock_warn(fd, "ioctlsocket(%d, FIONBIO, &%lu)", (int)fd, (unsigned long)nonblocking);
 			return -1;
 		}
 	}
@@ -2550,7 +2560,7 @@ static const unsigned char EVUTIL_TOLOWER_TABLE[256] = {
 #define IMPL_CTYPE_FN(name)						\
 	int EVUTIL_##name##_(char c) {					\
 		ev_uint8_t u = c;					\
-		return !!(EVUTIL_##name##_TABLE[(u >> 5) & 7] & (1 << (u & 31))); \
+		return !!(EVUTIL_##name##_TABLE[(u >> 5) & 7] & (1U << (u & 31))); \
 	}
 IMPL_CTYPE_FN(ISALPHA)
 IMPL_CTYPE_FN(ISALNUM)

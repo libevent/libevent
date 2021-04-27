@@ -49,7 +49,8 @@ extern struct testcase_t rpc_testcases[];
 extern struct testcase_t edgetriggered_testcases[];
 extern struct testcase_t minheap_testcases[];
 extern struct testcase_t iocp_testcases[];
-extern struct testcase_t ssl_testcases[];
+extern struct testcase_t openssl_testcases[];
+extern struct testcase_t mbedtls_testcases[];
 extern struct testcase_t listener_testcases[];
 extern struct testcase_t listener_iocp_testcases[];
 extern struct testcase_t thread_testcases[];
@@ -80,6 +81,7 @@ struct basic_test_data {
 	void *setup_data;
 };
 extern const struct testcase_setup_t basic_setup;
+extern const struct testcase_setup_t mbedtls_setup;
 
 
 extern const struct testcase_setup_t legacy_setup;
@@ -125,7 +127,7 @@ int test_ai_eq_(const struct evutil_addrinfo *ai, const char *sockaddr_port,
 	tt_int_op(labs(timeval_msec_diff((tv1), (tv2)) - diff), <=, tolerance)
 
 #define test_timeval_diff_eq(tv1, tv2, diff)				\
-	test_timeval_diff_leq((tv1), (tv2), (diff), 50)
+	test_timeval_diff_leq((tv1), (tv2), (diff), 100)
 
 long timeval_msec_diff(const struct timeval *start, const struct timeval *end);
 
@@ -139,6 +141,12 @@ EVP_PKEY *ssl_getkey(void);
 X509 *ssl_getcert(EVP_PKEY *key);
 SSL_CTX *get_ssl_ctx(void);
 void init_ssl(void);
+#endif
+
+#ifdef EVENT__HAVE_MBEDTLS
+#include <mbedtls/ssl.h>
+mbedtls_ssl_config *get_mbedtls_config(int endpoint);
+mbedtls_ssl_context *mbedtls_ssl_new(mbedtls_ssl_config *config);
 #endif
 
 void * basic_test_setup(const struct testcase_t *testcase);

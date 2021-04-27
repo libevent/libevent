@@ -51,7 +51,6 @@ struct evhttp_connection {
 	 * server */
 	TAILQ_ENTRY(evhttp_connection) next;
 
-	evutil_socket_t fd;
 	struct bufferevent *bufev;
 
 	struct event retry_ev;		/* for retrying connects */
@@ -190,7 +189,7 @@ struct evhttp {
 /* XXX most of these functions could be static. */
 
 /* resets the connection; can be reused for more requests */
-void evhttp_connection_reset_(struct evhttp_connection *);
+void evhttp_connection_reset_(struct evhttp_connection *, int);
 
 /* connects if necessary */
 int evhttp_connection_connect_(struct evhttp_connection *);
@@ -214,6 +213,9 @@ void evhttp_start_write_(struct evhttp_connection *);
 /* response sending HTML the data in the buffer */
 void evhttp_response_code_(struct evhttp_request *, int, const char *);
 void evhttp_send_page_(struct evhttp_request *, struct evbuffer *);
+
+/* [] has been stripped */
+#define _EVHTTP_URI_HOST_HAS_BRACKETS 0x02
 
 EVENT2_EXPORT_SYMBOL
 int evhttp_decode_uri_internal(const char *uri, size_t length,

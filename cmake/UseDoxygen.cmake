@@ -2,7 +2,6 @@
 
 option(DOXYGEN_GENERATE_HTML  "Generate HTML"      ON)
 option(DOXYGEN_GENERATE_MAN   "Generate man pages" OFF)
-option(DOXYGEN_MAN_LINKS      "Generate man links" ON)
 option(DOXYGEN_GENERATE_LATEX "Generate LaTeX"     OFF)
 
 # If the case-insensitive value of the cmake option is one of
@@ -96,10 +95,17 @@ macro(UseDoxygen)
         )
       endif()
 
-      # Install manual into <prefix>/share/man/man3
       if ("${DOXYGEN_GENERATE_MAN}" STREQUAL "YES")
+        set(MAN_PAGES_DIR ${PROJECT_BINARY_DIR}/${DOXYGEN_OUTPUT_DIRECTORY}/man/man3)
+        # Add prefix "libevent_" for manual pages
+        add_custom_target(doxygen-rename-man-pages ALL
+          COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/RenameDoxygen.cmake
+          DEPENDS doxygen
+          WORKING_DIRECTORY ${MAN_PAGES_DIR})
+
+        # Install manual into <prefix>/share/man/man3
         install(DIRECTORY
-          ${PROJECT_BINARY_DIR}/${DOXYGEN_OUTPUT_DIRECTORY}/man/man3
+          ${MAN_PAGES_DIR}
           DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man
           COMPONENT doc
         )

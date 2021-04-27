@@ -29,6 +29,19 @@
 /* The old tests here need assertions to work. */
 #undef NDEBUG
 
+/**
+ * - clang supports __has_feature
+ * - gcc supports __SANITIZE_ADDRESS__
+ *
+ * Let's set __SANITIZE_ADDRESS__ if __has_feature(address_sanitizer)
+ */
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+#if !defined(__SANITIZE_ADDRESS__) && __has_feature(address_sanitizer)
+#define __SANITIZE_ADDRESS__
+#endif
+
 #ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -203,7 +216,7 @@ static void test_bufferevent_pair_flush_normal(void) { test_bufferevent_impl(1, 
 static void test_bufferevent_pair_flush_flush(void) { test_bufferevent_impl(1, BEV_FLUSH); }
 static void test_bufferevent_pair_flush_finished(void) { test_bufferevent_impl(1, BEV_FINISHED); }
 
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && !defined(__SANITIZE_ADDRESS__)
 /**
  * Trace lock/unlock/alloc/free for locks.
  * (More heavier then evthread_debug*)
@@ -1341,6 +1354,52 @@ end:
 		bufferevent_free(filter);
 }
 
+static void
+read_failed_readcb(struct bufferevent *bev, void *arg)
+{
+	int r;
+	struct evbuffer *in_buf = NULL;
+	char buf[] = "test data\0";
+	struct event_base *base = arg;
+
+	in_buf = bufferevent_get_input(bev);
+	tt_int_op(evbuffer_get_length(in_buf), ==, strlen(buf));
+
+	r = bufferevent_read(bev, buf, strlen(buf) - 1);
+	tt_int_op(r, ==, strlen(buf) - 1);
+	tt_int_op(evbuffer_get_length(in_buf), ==, 1);
+
+	evbuffer_freeze(in_buf, 1);
+	r = bufferevent_read(bev, buf, 1);
+	tt_int_op(r, ==, 0);
+end:;
+	event_base_loopexit(base, NULL);
+}
+
+static void
+test_bufferevent_read_failed(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+	char buf[] = "test data\0";
+
+	bev = bufferevent_socket_new(
+		data->base, data->pair[1], BEV_OPT_CLOSE_ON_FREE);
+	bufferevent_setcb(bev, read_failed_readcb, NULL, NULL, data->base);
+	bufferevent_enable(bev, EV_READ);
+	tt_assert(bev != NULL);
+
+#ifdef _WIN32
+	send(data->pair[0], buf, strlen(buf), 0);
+#else
+	write(data->pair[0], buf, strlen(buf));
+#endif
+	event_base_dispatch(data->base);
+
+end:;
+	bufferevent_free(bev);
+}
+
 struct testcase_t bufferevent_testcases[] = {
 
 	LEGACY(bufferevent, TT_ISOLATED),
@@ -1351,7 +1410,7 @@ struct testcase_t bufferevent_testcases[] = {
 	LEGACY(bufferevent_pair_flush_normal, TT_ISOLATED),
 	LEGACY(bufferevent_pair_flush_flush, TT_ISOLATED),
 	LEGACY(bufferevent_pair_flush_finished, TT_ISOLATED),
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && !defined(__SANITIZE_ADDRESS__)
 	{ "bufferevent_pair_release_lock", test_bufferevent_pair_release_lock,
 	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY|TT_NO_LOGS,
 	  &basic_setup, NULL },
@@ -1416,6 +1475,9 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_filter_data_stuck",
 	  test_bufferevent_filter_data_stuck,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "bufferevent_read_failed",
+	  test_bufferevent_read_failed,
+	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE, &basic_setup, NULL },
 
 	END_OF_TESTCASES,
 };

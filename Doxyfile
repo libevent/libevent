@@ -189,7 +189,7 @@ MAN_EXTENSION          = .3
 # only source the real man page, but without them the man command 
 # would be unable to find the correct page. The default is NO.
 
-MAN_LINKS              = YES
+MAN_LINKS              = NO
 
 #---------------------------------------------------------------------------
 # Configuration options related to the preprocessor   

@@ -17,9 +17,33 @@ if ENABLE_DOXYGEN
 clean-local:
 	-rm -rf $(DX_CLEANFILES)
 
+if ENABLE_DOXYGEN_MAN
+man3_MAN_DIR = @DX_DOCDIR@/man/man3
+
+# add "libevent_" prefix for man pages
+#
+# XXX: we cannot clean old man pages here since
+# doxygen-rename-man-pages will be called twice:
+# - for make
+# - for make install
+# (cmake works differently)
+#
+# Once this will be solved add the following to the target:
+#
+#     -rm -fr $(man3_MAN_DIR)/libevent_*
+doxygen-rename-man-pages: doxygen-doc
+	echo "Rename man pages in $(man3_MAN_DIR)"
+	@for p in $(man3_MAN_DIR)/*; do \
+	  p=`basename $$p`; \
+	  p_strip=$${p/libevent_/}; \
+	  if [ ! "$$p_strip" = "$$p" ]; then continue; fi; \
+	  mv '$(man3_MAN_DIR)/'$$p '$(man3_MAN_DIR)/'libevent_$$p; \
+	done
+
 # integrate doxygen with automake targets
-man3_MANS = @DX_DOCDIR@/man/man3/*
-$(man3_MANS): doxygen-doc
+man3_MANS = $(man3_MAN_DIR)/*
+$(man3_MANS): doxygen-doc doxygen-rename-man-pages
+endif ENABLE_DOXYGEN_MAN
 
 # Docs will be installed. It may be one or more docs supported
 # by doxygen, but does not include 'man'.
@@ -51,5 +75,6 @@ uninstall-local:
 	rmdir "$(DESTDIR)$(htmldir)/" || true
 
 doxygen: doxygen-doc
+all: doxygen
 
 endif ENABLE_DOXYGEN

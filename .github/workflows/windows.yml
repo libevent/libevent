@@ -31,38 +31,31 @@ jobs:
     steps:
       - uses: actions/checkout@v2.0.0
 
-      - name: Cache Depends
-        id: cache-depends
-        uses: actions/cache@v1.0.3
-        with:
-          path: C:\vcpkg\installed
-          key: ${{ matrix.os }}-vcpkg
-
       - name: Cache Build
-        uses: actions/cache@v1.0.3
+        uses: actions/cache@v2
         with:
           path: build
-          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
 
-      - name: Install Depends
-        if: steps.cache-depends.outputs.cache-hit != 'true'
-        shell: powershell
-        run: |
-          vcpkg install openssl:x64-windows
-          vcpkg install zlib:x64-windows
+      - name: Prepare vcpkg
+        uses: lukka/run-vcpkg@v2
+        id: runvcpkg
+        with:
+          vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
+          vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
+          vcpkgGitCommitId: 8e76503a769e153dad8f4e7b2c95a152bb35edaa
+          vcpkgTriplet: x64-windows
 
       - name: Build And Test
         shell: powershell
         run: |
-          $OPENSSL_ROOT_DIR="C:\vcpkg\installed\x64-windows"
           $EVENT_BUILD_PARALLEL=10
           $EVENT_TESTS_PARALLEL=1
-          $env:PATH="$OPENSSL_ROOT_DIR/bin;$env:PATH"
 
           mkdir build -ea 0
           cd build
 
-          $CMAKE_CMD="cmake -G 'Visual Studio 15 2017 Win64' .."
+          $CMAKE_CMD="cmake -G 'Visual Studio 15 2017 Win64' -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake .."
           function cmake_configure($retry)
           {
             $errcode=0
@@ -125,6 +118,7 @@ jobs:
         os: [windows-2019]
         EVENT_MATRIX:
           - NONE
+          - NO_SSL
           - LIBRARY_TYPE_STATIC
           - DISABLE_OPENSSL
           - DISABLE_THREAD_SUPPORT
@@ -137,36 +131,29 @@ jobs:
     steps:
       - uses: actions/checkout@v2.0.0
 
-      - name: Cache Depends
-        id: cache-depends
-        uses: actions/cache@v1.1.0
-        with:
-          path: C:\vcpkg\installed
-          key: ${{ matrix.os }}-vcpkg
-
       - name: Cache Build
-        uses: actions/cache@v1.1.0
+        uses: actions/cache@v2
         with:
           path: build
-          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
 
-      - name: Install Depends
-        if: steps.cache-depends.outputs.cache-hit != 'true'
-        shell: powershell
-        run: |
-          vcpkg install openssl:x64-windows
-          vcpkg install zlib:x64-windows
+      - name: Prepare vcpkg
+        uses: lukka/run-vcpkg@v2
+        id: runvcpkg
+        with:
+          vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
+          vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
+          vcpkgGitCommitId: 8e76503a769e153dad8f4e7b2c95a152bb35edaa
+          vcpkgTriplet: x64-windows
 
       - name: Build And Test
         shell: powershell
         run: |
-          $OPENSSL_ROOT_DIR="C:\vcpkg\installed\x64-windows"
           $EVENT_BUILD_PARALLEL=10
           $EVENT_TESTS_PARALLEL=1
-          $env:PATH="$OPENSSL_ROOT_DIR/bin;$env:PATH"
 
           if ( "${{ matrix.EVENT_MATRIX }}" -eq "LIBRARY_TYPE_STATIC" ) {
-            $EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC"
+            $EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__MSVC_STATIC_RUNTIME=OFF"
           }
           elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "DISABLE_OPENSSL" ) {
             $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
@@ -187,7 +174,10 @@ jobs:
             $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
           }
           elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_STATIC" ) {
-            $EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
+            $EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__MSVC_STATIC_RUNTIME=OFF -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
+          }
+          elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "NO_SSL" ) {
+            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
           }
           else {
             $EVENT_CMAKE_OPTIONS=""
@@ -197,10 +187,10 @@ jobs:
           cd build
 
           if ("${{ matrix.os }}" -eq "windows-2016") {
-            $CMAKE_CMD="cmake -G 'Visual Studio 15 2017 Win64' .."
+            $CMAKE_CMD="cmake -G 'Visual Studio 15 2017 Win64' -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake .."
           }
           else { # windows-2019
-            $CMAKE_CMD="cmake -G 'Visual Studio 16 2019' -A x64 .. $EVENT_CMAKE_OPTIONS"
+            $CMAKE_CMD="cmake -G 'Visual Studio 16 2019' -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake .. $EVENT_CMAKE_OPTIONS"
           }
           function cmake_configure($retry)
           {

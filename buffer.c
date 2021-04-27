@@ -34,12 +34,6 @@
 #include <io.h>
 #endif
 
-#ifdef EVENT__HAVE_VASPRINTF
-/* If we have vasprintf, we need to define _GNU_SOURCE before we include
- * stdio.h.  This comes from evconfig-private.h.
- */
-#endif
-
 #include <sys/types.h>
 
 #ifdef EVENT__HAVE_SYS_TIME_H
@@ -1440,9 +1434,11 @@ evbuffer_pullup(struct evbuffer *buf, ev_ssize_t size)
 	for (; chain != NULL && (size_t)size >= chain->off; chain = next) {
 		next = chain->next;
 
-		memcpy(buffer, chain->buffer + chain->misalign, chain->off);
-		size -= chain->off;
-		buffer += chain->off;
+		if (chain->buffer) {
+			memcpy(buffer, chain->buffer + chain->misalign, chain->off);
+			size -= chain->off;
+			buffer += chain->off;
+		}
 		if (chain == last_with_data)
 			removed_last_with_data = 1;
 		if (&chain->next == buf->last_with_datap)
@@ -2511,7 +2507,6 @@ evbuffer_write_sendfile(struct evbuffer *buffer, evutil_socket_t dest_fd,
 
 	return (len);
 #elif defined(SENDFILE_IS_LINUX)
-	/* TODO(niels): implement splice */
 	res = sendfile(dest_fd, source_fd, &offset, chain->off);
 	if (res == -1 && EVUTIL_ERR_RW_RETRIABLE(errno)) {
 		/* if this is EAGAIN or EINTR return 0; otherwise, -1 */

@@ -279,7 +279,7 @@ testcase_run_forked_(const struct testgroup_t *group,
 		return FAIL; /* unreachable */
 	} else {
 		/* parent */
-		int status, r;
+		int status, r, exitcode;
 		char b[1];
 		/* Close this now, so that if the other side closes it,
 		 * our read fails. */
@@ -287,12 +287,20 @@ testcase_run_forked_(const struct testgroup_t *group,
 		r = (int)read(outcome_pipe[0], b, 1);
 		if (r == 0) {
 			printf("[Lost connection!] ");
-			return 0;
+			return FAIL;
 		} else if (r != 1) {
 			perror("read outcome from pipe");
 		}
 		waitpid(pid, &status, 0);
+		exitcode = WEXITSTATUS(status);
 		close(outcome_pipe[0]);
+		if (opt_verbosity>1)
+			printf("%s%s: exited with %i (%i)\n", group->prefix, testcase->name, exitcode, status);
+		if (exitcode != 0)
+		{
+			printf("[atexit failure!] ");
+			return FAIL;
+		}
 		return b[0]=='Y' ? OK : (b[0]=='S' ? SKIP : FAIL);
 	}
 #endif

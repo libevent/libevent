@@ -25,7 +25,7 @@ jobs:
           key: ${{ matrix.os }}-coverage-v2
 
       - name: Install Depends
-        run: sudo apt install zlib1g-dev libssl-dev build-essential lcov
+        run: sudo apt install zlib1g-dev libssl-dev build-essential lcov libmbedtls-dev
 
       - name: Build And Test
         shell: bash
