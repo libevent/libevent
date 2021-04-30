@@ -25,6 +25,7 @@
  */
 
 #include "mbedtls-compat.h"
+#include <mbedtls/config.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/error.h>
 
@@ -63,8 +64,12 @@ mbedtls_context_free(void *ssl, int flags)
 static int
 mbedtls_context_renegotiate(void *ssl)
 {
+#ifdef MBEDTLS_SSL_RENEGOTIATION
 	struct mbedtls_context *ctx = ssl;
 	return mbedtls_ssl_renegotiate(ctx->ssl);
+#else
+	return MBEDTLS_ERR_SSL_UNEXPECTED_MESSAGE;
+#endif
 }
 static int
 mbedtls_context_write(void *ssl, const unsigned char *buf, size_t len)
