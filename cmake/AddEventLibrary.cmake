@@ -20,12 +20,12 @@ macro(generate_pkgconfig LIB_NAME)
 
     set(LIBS         "")
     foreach (LIB ${LIB_PLATFORM})
-        set(LIBS "${LIBS} -L${LIB}")
+        set(LIBS "${LIBS} -l${LIB}")
     endforeach()
 
     set(OPENSSL_LIBS "")
     foreach(LIB ${OPENSSL_LIBRARIES})
-        set(OPENSSL_LIBS "${OPENSSL_LIBS} -L${LIB}")
+        set(OPENSSL_LIBS "${OPENSSL_LIBS} -l${LIB}")
     endforeach()
 
     configure_file("lib${LIB_NAME}.pc.in" "lib${LIB_NAME}.pc" @ONLY)
