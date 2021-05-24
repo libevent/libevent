@@ -309,7 +309,7 @@ int evutil_check_working_afunix_();
 #endif
 
 EVENT2_EXPORT_SYMBOL
-int evutil_ersatz_socketpair_(int, int , int, evutil_socket_t[]);
+int evutil_ersatz_socketpair_(int, int , int, evutil_socket_t[2]);
 
 int evutil_resolve_(int family, const char *hostname, struct sockaddr *sa,
     ev_socklen_t *socklen, int port);
