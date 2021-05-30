@@ -886,11 +886,11 @@ dns_probe_settings_test(void *arg)
 	    generic_dns_callback, &r1);
 	n_replies_left = 2;
 	exit_base = base;
-	gettimeofday(&tval_before, NULL);
+	evutil_gettimeofday(&tval_before, NULL);
 	// this will wait until the probe request done
 	// should be around 1s instead of 10s
 	event_base_dispatch(base);
-	gettimeofday(&tval_after, NULL);
+	evutil_gettimeofday(&tval_after, NULL);
 	tt_int_op(r1.result, ==, DNS_ERR_TIMEOUT);
 	test_timeval_diff_leq(&tval_before, &tval_after, 1000, 500);
 
@@ -915,12 +915,12 @@ dns_probe_settings_test(void *arg)
 	// probe timeout should be around 2s now
 	n_replies_left = 3;
 
-	gettimeofday(&tval_before, NULL);
+	evutil_gettimeofday(&tval_before, NULL);
 	// wait dns server up
 	event_base_dispatch(base);
 	tt_int_op(r1.result, ==, DNS_ERR_TIMEOUT);
 	tt_int_op(r2.result, ==, DNS_ERR_TIMEOUT);
-	gettimeofday(&tval_after, NULL);
+	evutil_gettimeofday(&tval_after, NULL);
 	test_timeval_diff_leq(&tval_before, &tval_after, 2000, 1000);
 
 	// should be ok now
