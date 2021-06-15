@@ -281,7 +281,6 @@ if test x$bwin32 = xtrue; then
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
 AC_C_INLINE
 
 dnl Checks for library functions.
