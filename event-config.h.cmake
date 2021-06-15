@@ -479,9 +479,6 @@
 /* The size of `size_t', as computed by sizeof. */
 #define EVENT__SIZEOF_SIZE_T @EVENT__SIZEOF_SIZE_T@
 
-/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
-#cmakedefine EVENT__TIME_WITH_SYS_TIME 1
-
 /* The size of `socklen_t', as computed by sizeof. */
 #define EVENT__SIZEOF_SOCKLEN_T @EVENT__SIZEOF_SOCKLEN_T@
 
