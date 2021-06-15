@@ -38,7 +38,6 @@ AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_SED
-AC_PROG_GCC_TRADITIONAL
 
 AC_ARG_ENABLE(gcc-warnings,
      AS_HELP_STRING(--disable-gcc-warnings, disable verbose warnings with GCC))
