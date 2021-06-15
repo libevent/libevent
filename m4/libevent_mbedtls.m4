@@ -1,7 +1,6 @@
 dnl ######################################################################
 dnl mbedtls support
 AC_DEFUN([LIBEVENT_MBEDTLS], [
-AC_REQUIRE([NTP_PKG_CONFIG])dnl
 
 case "$enable_mbedtls" in
  yes)
