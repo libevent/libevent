@@ -36,32 +36,32 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_SED
 
-AC_ARG_ENABLE(gcc-warnings,
-     AS_HELP_STRING(--disable-gcc-warnings, disable verbose warnings with GCC))
+AC_ARG_ENABLE([gcc-warnings],
+     AS_HELP_STRING([--disable-gcc-warnings, disable verbose warnings with GCC]))
 
-AC_ARG_ENABLE(gcc-hardening,
-     AS_HELP_STRING(--enable-gcc-hardening, enable compiler security checks),
+AC_ARG_ENABLE([gcc-hardening],
+     AS_HELP_STRING([--enable-gcc-hardening, enable compiler security checks]),
 [if test x$enableval = xyes; then
     CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
     CFLAGS="$CFLAGS -fwrapv -fPIE -Wstack-protector"
     CFLAGS="$CFLAGS --param ssp-buffer-size=1"
 fi])
 
-AC_ARG_ENABLE(thread-support,
-     AS_HELP_STRING(--disable-thread-support, disable support for threading),
+AC_ARG_ENABLE([thread-support],
+    AS_HELP_STRING([--disable-thread-support, disable support for threading]),
 	[], [enable_thread_support=yes])
-AC_ARG_ENABLE(malloc-replacement,
-     AS_HELP_STRING(--disable-malloc-replacement, disable support for replacing the memory mgt functions),
-        [], [enable_malloc_replacement=yes])
-AC_ARG_ENABLE(openssl,
-     AS_HELP_STRING(--disable-openssl, disable support for openssl encryption),
-        [], [enable_openssl=yes])
-AC_ARG_ENABLE(mbedtls,
-     AS_HELP_STRING(--disable-mbedtls, disable support for mbedtls encryption),
-        [], [enable_mbedtls=yes])
-AC_ARG_ENABLE(debug-mode,
-     AS_HELP_STRING(--disable-debug-mode, disable support for running in debug mode),
-        [], [enable_debug_mode=yes])
+AC_ARG_ENABLE([malloc-replacement],
+    AS_HELP_STRING([--disable-malloc-replacement, disable support for replacing the memory mgt functions]),
+    [], [enable_malloc_replacement=yes])
+AC_ARG_ENABLE([openssl],
+     AS_HELP_STRING([--disable-openssl, disable support for openssl encryption]),
+    [], [enable_openssl=yes])
+AC_ARG_ENABLE([mbedtls],
+     AS_HELP_STRING([--disable-mbedtls, disable support for mbedtls encryption]),
+    [], [enable_mbedtls=yes])
+AC_ARG_ENABLE([debug-mode],
+     AS_HELP_STRING([--disable-debug-mode, disable support for running in debug mode]),
+    [], [enable_debug_mode=yes])
 AC_ARG_ENABLE([libevent-install],
      AS_HELP_STRING([--disable-libevent-install, disable installation of libevent]),
 	[], [enable_libevent_install=yes])
@@ -78,7 +78,7 @@ AC_ARG_ENABLE([verbose-debug],
 		AS_HELP_STRING([--enable-verbose-debug, verbose debug logging]),
 	[], [enable_verbose_debug=no])
 AC_ARG_ENABLE([clock-gettime],
-     AS_HELP_STRING(--disable-clock-gettime, do not use clock_gettime even if it is available),
+     AS_HELP_STRING([--disable-clock-gettime, do not use clock_gettime even if it is available]),
   [], [enable_clock_gettime=yes])
 
 
