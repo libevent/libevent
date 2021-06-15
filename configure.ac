@@ -893,5 +893,5 @@ DX_INIT_DOXYGEN([libevent], [${top_srcdir}/Doxyfile], [doxygen])
 AM_CONDITIONAL([ENABLE_DOXYGEN], [test "$DX_FLAG_doc" = "1"])
 AM_CONDITIONAL([ENABLE_DOXYGEN_MAN], [test "$DX_FLAG_man" = "1"])
 
-AC_CONFIG_FILES( [libevent.pc libevent_mbedtls.pc libevent_openssl.pc libevent_pthreads.pc libevent_core.pc libevent_extra.pc] )
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile libevent.pc libevent_mbedtls.pc libevent_openssl.pc libevent_pthreads.pc libevent_core.pc libevent_extra.pc] )
+AC_OUTPUT
