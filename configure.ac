@@ -22,9 +22,6 @@ AM_SILENT_RULES([yes])
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
 AC_DEFINE(NUMERIC_VERSION, 0x02020001, [Numeric representation of the version])
 
-dnl Initialize prefix.
-AC_PREFIX_DEFAULT([/usr/local])
-
 dnl Try and get a full POSIX environment on obscure systems
 AC_USE_SYSTEM_EXTENSIONS
 
