@@ -208,59 +208,47 @@ if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	)
 fi
 
+dnl if we have sys/time.h, check for timer* macros
 if test "x$ac_cv_header_sys_time_h" = "xyes"; then
-	AC_MSG_CHECKING(for timeradd in sys/time.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/time.h>
-#ifdef timeradd
- yes
-#endif
-],	[ AC_DEFINE(HAVE_TIMERADD, 1,
-		[Define if timeradd is defined in <sys/time.h>])
-	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
-)
-fi
 
-if test "x$ac_cv_header_sys_time_h" = "xyes"; then
-	AC_MSG_CHECKING(for timercmp in sys/time.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/time.h>
-#ifdef timercmp
- yes
-#endif
-],	[ AC_DEFINE(HAVE_TIMERCMP, 1,
-		[Define if timercmp is defined in <sys/time.h>])
-	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
+AC_MSG_CHECKING(for timeradd in sys/time.h)
+AC_EGREP_CPP(yes, [
+    #include <sys/time.h>
+    #ifdef timeradd
+     yes
+    #endif],
+    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERADD, 1, [Define if timeradd is defined in <sys/time.h>])],
+    [AC_MSG_RESULT(no)]
 )
-fi
 
-if test "x$ac_cv_header_sys_time_h" = "xyes"; then
-	AC_MSG_CHECKING(for timerclear in sys/time.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/time.h>
-#ifdef timerclear
- yes
-#endif
-],	[ AC_DEFINE(HAVE_TIMERCLEAR, 1,
-		[Define if timerclear is defined in <sys/time.h>])
-	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
+AC_MSG_CHECKING(for timercmp in sys/time.h)
+AC_EGREP_CPP(yes, [
+    #include <sys/time.h>
+    #ifdef timercmp
+     yes
+    #endif],
+    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERCMP, 1,[Define if timercmp is defined in <sys/time.h>])],
+    [AC_MSG_RESULT(no)]
 )
-fi
 
-if test "x$ac_cv_header_sys_time_h" = "xyes"; then
-	AC_MSG_CHECKING(for timerisset in sys/time.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/time.h>
-#ifdef timerisset
- yes
-#endif
-],	[ AC_DEFINE(HAVE_TIMERISSET, 1,
-		[Define if timerisset is defined in <sys/time.h>])
-	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
+AC_MSG_CHECKING(for timerclear in sys/time.h)
+AC_EGREP_CPP(yes, [
+    #include <sys/time.h>
+    #ifdef timerclear
+     yes
+    #endif],
+    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERCLEAR, 1, [Define if timerclear is defined in <sys/time.h>])],
+    [AC_MSG_RESULT(no)]
+)
+
+AC_MSG_CHECKING(for timerisset in sys/time.h)
+AC_EGREP_CPP(yes, [
+    #include <sys/time.h>
+    #ifdef timerisset
+     yes
+    #endif],
+    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERISSET, 1, [Define if timerisset is defined in <sys/time.h>])],
+    [AC_MSG_RESULT(no)]
 )
 fi
 
