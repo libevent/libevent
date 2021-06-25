@@ -42,6 +42,9 @@ struct event_base;
 static pthread_mutexattr_t attr_default;
 static pthread_mutexattr_t attr_recursive;
 
+static pthread_mutex_t once_init_lock = PTHREAD_MUTEX_INITIALIZER;
+static int once_init = 0;
+
 static void *
 evthread_posix_lock_alloc(unsigned locktype)
 {
@@ -180,31 +183,42 @@ evthread_use_pthreads_with_flags(int flags)
 		evthread_posix_cond_wait
 	};
 
-	if (pthread_mutexattr_init(&attr_default))
-		return -1;
+	pthread_mutex_lock(&once_init_lock);
+	if (once_init == 1) {
+		pthread_mutex_unlock(&once_init_lock);
+		return 0;
+	}
+
+	if (pthread_mutexattr_init(&attr_default)) 
+		goto error;
 
 	/* Set ourselves up to get recursive locks. */
 	if (pthread_mutexattr_init(&attr_recursive))
-		return -1;
+		goto error;
 	if (pthread_mutexattr_settype(&attr_recursive, PTHREAD_MUTEX_RECURSIVE))
-		return -1;
+		goto error;
 
 	if (flags & EVTHREAD_PTHREAD_PRIO_INHERIT) {
 #ifdef EVENT__HAVE_PTHREAD_MUTEXATTR_SETPROTOCOL
 		/* Set up priority inheritance */
 		if (pthread_mutexattr_setprotocol(&attr_default, PTHREAD_PRIO_INHERIT))
-			return -1;
+			goto error;
 		if (pthread_mutexattr_setprotocol(&attr_recursive, PTHREAD_PRIO_INHERIT))
-			return -1;
+			goto error;
 #else
-		return -1;
+		goto error;
 #endif
 	}
 
 	evthread_set_lock_callbacks(&cbs);
 	evthread_set_condition_callbacks(&cond_cbs);
 	evthread_set_id_callback(evthread_posix_get_id);
+	once_init = 1;
+	
 	return 0;
+error:
+	pthread_mutex_unlock(&once_init_lock);
+	return -1;
 }
 
 int
