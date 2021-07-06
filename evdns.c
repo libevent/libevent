@@ -3325,6 +3325,9 @@ evdns_base_nameserver_add(struct evdns_base *base, unsigned long int address)
 	sin.sin_addr.s_addr = address;
 	sin.sin_port = htons(53);
 	sin.sin_family = AF_INET;
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
+	sin.sin_len = sizeof(sin);
+#endif
 	EVDNS_LOCK(base);
 	res = evdns_nameserver_add_impl_(base, (struct sockaddr*)&sin, sizeof(sin));
 	EVDNS_UNLOCK(base);
@@ -5421,6 +5424,9 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_family = AF_INET;
 		sin.sin_port = htons(data->port);
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_IN_SIN_LEN
+		sin.sin_len = sizeof(sin);
+#endif
 
 		sa = (struct sockaddr *)&sin;
 		socklen = sizeof(sin);
@@ -5430,6 +5436,9 @@ evdns_getaddrinfo_gotresolve(int result, char type, int count,
 		memset(&sin6, 0, sizeof(sin6));
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_port = htons(data->port);
+#ifdef EVENT__HAVE_STRUCT_SOCKADDR_IN6_SIN6_LEN
+		sin6.sin6_len = sizeof(sin6);
+#endif
 
 		sa = (struct sockaddr *)&sin6;
 		socklen = sizeof(sin6);
