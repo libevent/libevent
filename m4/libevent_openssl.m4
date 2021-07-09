@@ -1,7 +1,7 @@
 dnl ######################################################################
 dnl OpenSSL support
 AC_DEFUN([LIBEVENT_OPENSSL], [
-AC_REQUIRE([NTP_PKG_CONFIG])dnl
+PKG_PROG_PKG_CONFIG([0.15.0])
 
 case "$host_os" in
     darwin*)

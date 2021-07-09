@@ -39,13 +39,13 @@ jobs:
         uses: actions/cache@v2
         with:
           path: build
-          key: mingw-autotools-${{ matrix.EVENT_MATRIX }}-v4
+          key: mingw-autotools-${{ matrix.EVENT_MATRIX }}-v5
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: true
-          install: mingw-w64-x86_64-gcc autoconf automake libtool mingw-w64-x86_64-openssl mingw-w64-x86_64-mbedtls
+          install: mingw-w64-x86_64-gcc autoconf automake libtool mingw-w64-x86_64-openssl mingw-w64-x86_64-mbedtls pkg-config
 
       - name: Build And Test
         shell: powershell

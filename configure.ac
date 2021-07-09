@@ -5,8 +5,8 @@ dnl See LICENSE for copying information.
 dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
+AC_PREREQ([2.67])
 AC_INIT(libevent,2.2.0-alpha-dev)
-AC_PREREQ(2.67)
 AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -22,9 +22,6 @@ AM_SILENT_RULES([yes])
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
 AC_DEFINE(NUMERIC_VERSION, 0x02020001, [Numeric representation of the version])
 
-dnl Initialize prefix.
-AC_PREFIX_DEFAULT([/usr/local])
-
 dnl Try and get a full POSIX environment on obscure systems
 AC_USE_SYSTEM_EXTENSIONS
 
@@ -38,34 +35,33 @@ AM_PROG_CC_C_O
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_SED
-AC_PROG_GCC_TRADITIONAL
 
-AC_ARG_ENABLE(gcc-warnings,
-     AS_HELP_STRING(--disable-gcc-warnings, disable verbose warnings with GCC))
+AC_ARG_ENABLE([gcc-warnings],
+     AS_HELP_STRING([--disable-gcc-warnings, disable verbose warnings with GCC]))
 
-AC_ARG_ENABLE(gcc-hardening,
-     AS_HELP_STRING(--enable-gcc-hardening, enable compiler security checks),
+AC_ARG_ENABLE([gcc-hardening],
+     AS_HELP_STRING([--enable-gcc-hardening, enable compiler security checks]),
 [if test x$enableval = xyes; then
     CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
     CFLAGS="$CFLAGS -fwrapv -fPIE -Wstack-protector"
     CFLAGS="$CFLAGS --param ssp-buffer-size=1"
 fi])
 
-AC_ARG_ENABLE(thread-support,
-     AS_HELP_STRING(--disable-thread-support, disable support for threading),
+AC_ARG_ENABLE([thread-support],
+    AS_HELP_STRING([--disable-thread-support, disable support for threading]),
 	[], [enable_thread_support=yes])
-AC_ARG_ENABLE(malloc-replacement,
-     AS_HELP_STRING(--disable-malloc-replacement, disable support for replacing the memory mgt functions),
-        [], [enable_malloc_replacement=yes])
-AC_ARG_ENABLE(openssl,
-     AS_HELP_STRING(--disable-openssl, disable support for openssl encryption),
-        [], [enable_openssl=yes])
-AC_ARG_ENABLE(mbedtls,
-     AS_HELP_STRING(--disable-mbedtls, disable support for mbedtls encryption),
-        [], [enable_mbedtls=yes])
-AC_ARG_ENABLE(debug-mode,
-     AS_HELP_STRING(--disable-debug-mode, disable support for running in debug mode),
-        [], [enable_debug_mode=yes])
+AC_ARG_ENABLE([malloc-replacement],
+    AS_HELP_STRING([--disable-malloc-replacement, disable support for replacing the memory mgt functions]),
+    [], [enable_malloc_replacement=yes])
+AC_ARG_ENABLE([openssl],
+     AS_HELP_STRING([--disable-openssl, disable support for openssl encryption]),
+    [], [enable_openssl=yes])
+AC_ARG_ENABLE([mbedtls],
+     AS_HELP_STRING([--disable-mbedtls, disable support for mbedtls encryption]),
+    [], [enable_mbedtls=yes])
+AC_ARG_ENABLE([debug-mode],
+     AS_HELP_STRING([--disable-debug-mode, disable support for running in debug mode]),
+    [], [enable_debug_mode=yes])
 AC_ARG_ENABLE([libevent-install],
      AS_HELP_STRING([--disable-libevent-install, disable installation of libevent]),
 	[], [enable_libevent_install=yes])
@@ -82,7 +78,7 @@ AC_ARG_ENABLE([verbose-debug],
 		AS_HELP_STRING([--enable-verbose-debug, verbose debug logging]),
 	[], [enable_verbose_debug=no])
 AC_ARG_ENABLE([clock-gettime],
-     AS_HELP_STRING(--disable-clock-gettime, do not use clock_gettime even if it is available),
+     AS_HELP_STRING([--disable-clock-gettime, do not use clock_gettime even if it is available]),
   [], [enable_clock_gettime=yes])
 
 
@@ -212,59 +208,47 @@ if test "x$ac_cv_header_sys_queue_h" = "xyes"; then
 	)
 fi
 
+dnl if we have sys/time.h, check for timer* macros
 if test "x$ac_cv_header_sys_time_h" = "xyes"; then
-	AC_MSG_CHECKING(for timeradd in sys/time.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/time.h>
-#ifdef timeradd
- yes
-#endif
-],	[ AC_DEFINE(HAVE_TIMERADD, 1,
-		[Define if timeradd is defined in <sys/time.h>])
-	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
-)
-fi
 
-if test "x$ac_cv_header_sys_time_h" = "xyes"; then
-	AC_MSG_CHECKING(for timercmp in sys/time.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/time.h>
-#ifdef timercmp
- yes
-#endif
-],	[ AC_DEFINE(HAVE_TIMERCMP, 1,
-		[Define if timercmp is defined in <sys/time.h>])
-	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
+AC_MSG_CHECKING(for timeradd in sys/time.h)
+AC_EGREP_CPP(yes, [
+    #include <sys/time.h>
+    #ifdef timeradd
+     yes
+    #endif],
+    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERADD, 1, [Define if timeradd is defined in <sys/time.h>])],
+    [AC_MSG_RESULT(no)]
 )
-fi
 
-if test "x$ac_cv_header_sys_time_h" = "xyes"; then
-	AC_MSG_CHECKING(for timerclear in sys/time.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/time.h>
-#ifdef timerclear
- yes
-#endif
-],	[ AC_DEFINE(HAVE_TIMERCLEAR, 1,
-		[Define if timerclear is defined in <sys/time.h>])
-	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
+AC_MSG_CHECKING(for timercmp in sys/time.h)
+AC_EGREP_CPP(yes, [
+    #include <sys/time.h>
+    #ifdef timercmp
+     yes
+    #endif],
+    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERCMP, 1,[Define if timercmp is defined in <sys/time.h>])],
+    [AC_MSG_RESULT(no)]
 )
-fi
 
-if test "x$ac_cv_header_sys_time_h" = "xyes"; then
-	AC_MSG_CHECKING(for timerisset in sys/time.h)
-	AC_EGREP_CPP(yes,
-[
-#include <sys/time.h>
-#ifdef timerisset
- yes
-#endif
-],	[ AC_DEFINE(HAVE_TIMERISSET, 1,
-		[Define if timerisset is defined in <sys/time.h>])
-	  AC_MSG_RESULT(yes)] ,AC_MSG_RESULT(no)
+AC_MSG_CHECKING(for timerclear in sys/time.h)
+AC_EGREP_CPP(yes, [
+    #include <sys/time.h>
+    #ifdef timerclear
+     yes
+    #endif],
+    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERCLEAR, 1, [Define if timerclear is defined in <sys/time.h>])],
+    [AC_MSG_RESULT(no)]
+)
+
+AC_MSG_CHECKING(for timerisset in sys/time.h)
+AC_EGREP_CPP(yes, [
+    #include <sys/time.h>
+    #ifdef timerisset
+     yes
+    #endif],
+    [AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TIMERISSET, 1, [Define if timerisset is defined in <sys/time.h>])],
+    [AC_MSG_RESULT(no)]
 )
 fi
 
@@ -285,9 +269,7 @@ if test x$bwin32 = xtrue; then
 fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
 AC_C_INLINE
-AC_HEADER_TIME
 
 dnl Checks for library functions.
 AC_CHECK_FUNCS([accept4 arc4random arc4random_buf arc4random_addrandom eventfd epoll_create1 fcntl getegid geteuid getifaddrs gettimeofday issetugid mach_absolute_time mmap nanosleep pipe pipe2 putenv sendfile setenv setrlimit sigaction signal strsignal strlcpy strsep strtok_r strtoll sysctl timerfd_create umask unsetenv usleep getrandom ])
@@ -898,5 +880,5 @@ DX_INIT_DOXYGEN([libevent], [${top_srcdir}/Doxyfile], [doxygen])
 AM_CONDITIONAL([ENABLE_DOXYGEN], [test "$DX_FLAG_doc" = "1"])
 AM_CONDITIONAL([ENABLE_DOXYGEN_MAN], [test "$DX_FLAG_man" = "1"])
 
-AC_CONFIG_FILES( [libevent.pc libevent_mbedtls.pc libevent_openssl.pc libevent_pthreads.pc libevent_core.pc libevent_extra.pc] )
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile libevent.pc libevent_mbedtls.pc libevent_openssl.pc libevent_pthreads.pc libevent_core.pc libevent_extra.pc] )
+AC_OUTPUT
