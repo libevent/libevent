@@ -215,6 +215,7 @@ evthread_use_pthreads_with_flags(int flags)
 	evthread_set_id_callback(evthread_posix_get_id);
 	once_init = 1;
 
+	pthread_mutex_unlock(&once_init_lock);
 	return 0;
 error:
 	pthread_mutex_unlock(&once_init_lock);
