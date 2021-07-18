@@ -51,6 +51,13 @@ $ make verify  # (optional)
 
 See [Documentation/Building#Building on Unix (With CMake)](/Documentation/Building.md#building-on-unix-cmake) for more information
 
+## CMake (Mac)
+
+```
+$ mkdir build && cd build
+$ cmake -D DARWIN:BOOL=ON .. -G "Xcode"    # Generate Xcode project.
+```
+
 ## Package Managers
 
 You can download and install libevent using the [vcpkg](https://github.com/Microsoft/vcpkg) dependency manager:

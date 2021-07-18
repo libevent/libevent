@@ -40,6 +40,11 @@ string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 set(EVENT__LIBRARY_TYPE DEFAULT CACHE STRING
     "Set library type to SHARED/STATIC/BOTH (default SHARED for MSVC, otherwise BOTH)")
 
+if(DARWIN)
+    set(CMAKE_SYSTEM_NAME Darwin)
+    set(CMAKE_C_COMPILER clang)
+endif()
+
 project(libevent C)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
