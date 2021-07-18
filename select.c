@@ -51,6 +51,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include "event-internal.h"
 #include "evsignal-internal.h"
@@ -177,12 +178,30 @@ select_dispatch(struct event_base *base, struct timeval *tv)
 	check_selectop(sop);
 
 	if (res == -1) {
-		if (errno != EINTR) {
-			event_warn("select");
-			return (-1);
+		if (errno == EINTR) {
+		        return (0);
 		}
-
-		return (0);
+                /* There seems to be a very subtle race condition between the
+                 * event_del and the select, where the fd is still active on the
+                 * event_readset_in but no libevent structure make reference
+                 * to it so it. Thus, any call to progress will no nothing more
+                 * than print a warning and do nothing, leading to deadlocks.
+                 * If we force remove the problematic fd, we get the warning only
+                 * once, and things work as expected.
+                 */
+		event_warn("select");
+	        for (j = 0; j < nfds; ++j) {
+		    if (FD_ISSET(j, sop->event_readset_in) ||
+		        FD_ISSET(j, sop->event_writeset_in)) {
+                        res = fcntl(j, F_GETFL);
+                        if( res == -1 ) {
+                            event_warn("bad file descriptor %d/%d\n", j, nfds);
+                            FD_CLR(j, sop->event_readset_in);
+                            FD_CLR(j, sop->event_writeset_in);
+                        }
+                    }
+                }
+		return (-1);
 	}
 
 	event_debug(("%s: select reports %d", __func__, res));
