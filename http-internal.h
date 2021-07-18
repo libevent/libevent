@@ -32,15 +32,16 @@ struct addrinfo;
 struct evhttp_request;
 
 enum evhttp_connection_state {
-	EVCON_DISCONNECTED,	/**< not currently connected not trying either*/
-	EVCON_CONNECTING,	/**< tries to currently connect */
-	EVCON_IDLE,		/**< connection is established */
-	EVCON_READING_FIRSTLINE,/**< reading Request-Line (incoming conn) or
-				 **< Status-Line (outgoing conn) */
-	EVCON_READING_HEADERS,	/**< reading request/response headers */
-	EVCON_READING_BODY,	/**< reading request/response body */
-	EVCON_READING_TRAILER,	/**< reading request/response chunked trailer */
-	EVCON_WRITING		/**< writing request/response headers/body */
+	EVCON_DISCONNECTED,	 /**< not currently connected not trying either*/
+	EVCON_CONNECTING,	 /**< tries to currently connect */
+	EVCON_IDLE,		 /**< connection is established */
+	EVCON_READING_FIRSTLINE, /**< reading Request-Line (incoming conn) or
+				  **< Status-Line (outgoing conn) */
+	EVCON_READING_HEADERS,	 /**< reading request/response headers */
+	EVCON_READING_BODY,	 /**< reading request/response body */
+	EVCON_READING_TRAILER,	 /**< reading request/response chunked trailer */
+	EVCON_READING_PROXY_DATA,/**< reading http connect data */
+	EVCON_WRITING		 /**< writing request/response headers/body */
 };
 
 struct event_base;
