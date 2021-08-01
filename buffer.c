@@ -3054,7 +3054,7 @@ evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
 	const ev_off_t length = seg->length;
 	const ev_off_t offset = seg->file_offset;
 
-	if (seg->contents)
+	if (seg->contents || seg->is_mapping)
 		return 0; /* already materialized */
 
 #if defined(EVENT__HAVE_MMAP)
@@ -3213,12 +3213,10 @@ evbuffer_add_file_segment(struct evbuffer *buf,
 	if (buf->flags & EVBUFFER_FLAG_DRAINS_TO_FD) {
 		can_use_sendfile = 1;
 	} else {
-		if (!seg->contents) {
-			if (evbuffer_file_segment_materialize(seg)<0) {
-				EVLOCK_UNLOCK(seg->lock, 0);
-				EVBUFFER_UNLOCK(buf);
-				return -1;
-			}
+		if (evbuffer_file_segment_materialize(seg)<0) {
+			EVLOCK_UNLOCK(seg->lock, 0);
+			EVBUFFER_UNLOCK(buf);
+			return -1;
 		}
 	}
 	EVLOCK_UNLOCK(seg->lock, 0);
