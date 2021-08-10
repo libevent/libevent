@@ -2932,12 +2932,14 @@ end:
 }
 
 static void
-http_parse_uri_test(void *ptr)
+http_parse_uri_test(void *arg)
 {
 	int nonconform = 0, unixsock = 0;
 	int parse_flags = 0;
 	struct evhttp_uri *uri = NULL;
 	char url_tmp[4096];
+	struct basic_test_data *data = arg;
+	const char *setup_data = data ? data->setup_data : NULL;
 #define URI_PARSE_FLAGS(uri, flags) \
 	evhttp_uri_parse_with_flags((uri), flags)
 #define URI_PARSE(uri) \
@@ -2951,12 +2953,12 @@ http_parse_uri_test(void *ptr)
 		TT_FAIL(("\"%s\" != \"%s\"",ret,want));			\
 	} while(0)
 
-	if (ptr) {
-		if (strstr(ptr, "nc") != NULL) {
+	if (setup_data) {
+		if (strstr(setup_data, "nc") != NULL) {
 			nonconform = 1;
 			parse_flags |= EVHTTP_URI_NONCONFORMANT;
 		}
-		if (strstr(ptr, "un") != NULL) {
+		if (strstr(setup_data, "un") != NULL) {
 			unixsock = 1;
 			parse_flags |= EVHTTP_URI_UNIX_SOCKET;
 		}
