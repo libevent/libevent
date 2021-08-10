@@ -47,7 +47,7 @@ jobs:
           update: true
           install: mingw-w64-x86_64-gcc autoconf automake libtool mingw-w64-x86_64-openssl mingw-w64-x86_64-mbedtls pkg-config
 
-      - name: Build And Test
+      - name: Build
         shell: powershell
         run: |
           $env:EVENT_CONFIGURE_OPTIONS=""
@@ -57,7 +57,6 @@ jobs:
           elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "none" ) {
             $env:EVENT_CONFIGURE_OPTIONS="--${{ matrix.EVENT_MATRIX }}"
           }
-          $env:EVENT_TESTS_PARALLEL=1
           $env:EVENT_BUILD_PARALLEL=10
 
           $script='
@@ -71,6 +70,18 @@ jobs:
           [[ $? -ne 0 ]] && exit 1
           make -j $EVENT_BUILD_PARALLEL 2>&1
           [[ $? -ne 0 ]] && exit 1
+          exit 0
+          '
+          D:\a\_temp\msys\msys64\usr\bin\bash.exe -c $script
+
+      - name: Test
+        shell: powershell
+        run: |
+          $env:EVENT_TESTS_PARALLEL=1
+
+          $script='
+          export PATH="/mingw64/bin:/usr/bin:/bin:/usr/local/bin:/opt/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:$PATH"
+          cd build
           make verify -j $EVENT_TESTS_PARALLEL 2>&1 '
           D:\a\_temp\msys\msys64\usr\bin\bash.exe -c $script
 
@@ -109,7 +120,7 @@ jobs:
           update: true
           install: mingw-w64-x86_64-gcc mingw-w64-x86_64-openssl mingw-w64-x86_64-mbedtls  
 
-      - name: Build And Test
+      - name: Build
         shell: powershell
         run: |
           $EVENT_CONFIGURE_OPTIONS=""
@@ -146,6 +157,11 @@ jobs:
           }
           cmake_configure 1
           cmake --build .
+
+      - name: Test
+        shell: powershell
+        run: |
+          cd build
           ctest -V
 
       - uses: actions/upload-artifact@v1

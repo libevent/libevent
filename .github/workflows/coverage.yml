@@ -27,16 +27,21 @@ jobs:
       - name: Install Depends
         run: sudo apt install zlib1g-dev libssl-dev build-essential lcov libmbedtls-dev
 
-      - name: Build And Test
+      - name: Build
         shell: bash
         run: |
             export JOBS=20
-            export CTEST_PARALLEL_LEVEL=$JOBS
-            export CTEST_OUTPUT_ON_FAILURE=1
             mkdir -p build
             cd build
             cmake .. -DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
             make -j $JOBS
+
+      - name: Test
+        shell: bash
+        run: |
+            export CTEST_PARALLEL_LEVEL=$JOBS
+            export CTEST_OUTPUT_ON_FAILURE=1
+            cd build
             make verify_coverage
 
       - name: Coveralls GitHub Action

@@ -46,11 +46,10 @@ jobs:
           vcpkgTriplet: x64-windows
           vcpkgGitCommitId: 7bc5b8cdfaf35329c1520b2af8d368e2b1cb78e6
 
-      - name: Build And Test
+      - name: Build
         shell: powershell
         run: |
           $EVENT_BUILD_PARALLEL=10
-          $EVENT_TESTS_PARALLEL=1
 
           mkdir build -ea 0
           cd build
@@ -84,18 +83,21 @@ jobs:
             }
           }
           cmake_configure 1
+          cmake --build . -j $EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
+
+      - name: Test
+        shell: powershell
+        run: |
+          $EVENT_TESTS_PARALLEL=1
+
+          cd build
 
           try {
-            cmake --build . -j $EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
-            if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode) }
-
             if ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_STATIC") {
               python ../test-export/test-export.py static
-            }
-            elseif ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_SHARED") {
+            } elseif ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_SHARED") {
               python ../test-export/test-export.py shared
-            }
-            else {
+            } else {
               ctest --output-on-failure -j $EVENT_TESTS_PARALLEL
               if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode) }
             }
@@ -146,11 +148,10 @@ jobs:
           vcpkgTriplet: x64-windows
           vcpkgGitCommitId: 7bc5b8cdfaf35329c1520b2af8d368e2b1cb78e6
 
-      - name: Build And Test
+      - name: Build
         shell: powershell
         run: |
           $EVENT_BUILD_PARALLEL=10
-          $EVENT_TESTS_PARALLEL=1
 
           if ( "${{ matrix.EVENT_MATRIX }}" -eq "LIBRARY_TYPE_STATIC" ) {
             $EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__MSVC_STATIC_RUNTIME=OFF"
@@ -220,18 +221,21 @@ jobs:
             }
           }
           cmake_configure 1
+          cmake --build . -j $EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
+
+      - name: Test
+        shell: powershell
+        run: |
+          $EVENT_TESTS_PARALLEL=1
+
+          cd build
 
           try {
-            cmake --build . -j $EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
-            if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode) }
-
             if ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_STATIC") {
               python ../test-export/test-export.py static
-            }
-            elseif ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_SHARED") {
+            } elseif ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_SHARED") {
               python ../test-export/test-export.py shared
-            }
-            else {
+            } else {
               ctest --output-on-failure -j $EVENT_TESTS_PARALLEL
               if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode) }
             }

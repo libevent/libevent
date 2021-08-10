@@ -59,7 +59,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libmbedtls-dev
 
-      - name: Build And Test
+      - name: Build
         shell: bash
         run: |
           if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
@@ -73,9 +73,6 @@ jobs:
             tar -vxf $archive
             cd $(basename $archive .tar.gz)
           fi
-
-          export TSAN_OPTIONS=suppressions=$PWD/extra/tsan.supp
-          export LSAN_OPTIONS=suppressions=$PWD/extra/lsan.supp
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
@@ -104,15 +101,29 @@ jobs:
             EVENT_CMAKE_OPTIONS=""
           fi
 
-          #run build and test
-          JOBS=20
-          export CTEST_PARALLEL_LEVEL=$JOBS
-          export CTEST_OUTPUT_ON_FAILURE=1
           mkdir -p build
           cd build
           echo [cmake]: cmake .. $EVENT_CMAKE_OPTIONS
           cmake .. $EVENT_CMAKE_OPTIONS || (rm -rf * && cmake .. $EVENT_CMAKE_OPTIONS)
           cmake --build .
+
+      - name: Test
+        shell: bash
+        run: |
+          JOBS=20
+          export CTEST_PARALLEL_LEVEL=$JOBS
+          export CTEST_OUTPUT_ON_FAILURE=1
+
+          export TSAN_OPTIONS=suppressions=$PWD/extra/tsan.supp
+          export LSAN_OPTIONS=suppressions=$PWD/extra/lsan.supp
+
+          if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
+            cd dist
+            archive=$(echo *.tar.gz)
+            cd $(basename $archive .tar.gz)
+          fi
+          cd build
+
           if [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
             sudo python3 ../test-export/test-export.py static
           elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
@@ -167,7 +178,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libmbedtls-dev
 
-      - name: Build And Test
+      - name: Build
         shell: bash
         run: |
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
@@ -193,8 +204,6 @@ jobs:
             EVENT_CONFIGURE_OPTIONS=""
           fi
 
-          #run build and test
-          JOBS=20
           ./autogen.sh
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
@@ -213,6 +222,16 @@ jobs:
           echo [configure]: ../configure $EVENT_CONFIGURE_OPTIONS
           ../configure $EVENT_CONFIGURE_OPTIONS
           make
+      - name: Test
+        shell: bash
+        run: |
+          JOBS=20
+          if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
+            cd dist
+            archive=$(echo *.tar.gz)
+            cd $(basename $archive .tar.gz)
+          fi
+          cd build
           make -j $JOBS verify
 
       - uses: actions/upload-artifact@v1
