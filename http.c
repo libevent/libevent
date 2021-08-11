@@ -1356,8 +1356,10 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	if (evcon->address != NULL)
 		mm_free(evcon->address);
 
+#ifndef _WIN32
 	if (evcon->unixsocket != NULL)
 		mm_free(evcon->unixsocket);
+#endif
 
 	mm_free(evcon);
 }
