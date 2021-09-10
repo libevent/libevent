@@ -1674,7 +1674,7 @@ nameserver_read(struct nameserver *ns) {
 		nameserver_failed(ns, "not enough memory", 0);
 		return;
 	}
-
+    int recv_zero = 0;
 	for (;;) {
 		const int r = recvfrom(ns->socket, (void*)packet,
 		    max_packet_size, 0,
@@ -1687,6 +1687,13 @@ nameserver_read(struct nameserver *ns) {
 			    evutil_socket_error_to_string(err), err);
 			goto done;
 		}
+        if(r == 0 && recv_zero++ > 10) {
+            evutil_closesocket(ns->socket);
+            goto done;
+        }
+        if(r > 0) {
+            recv_zero = 0;
+        }
 		if (evutil_sockaddr_cmp((struct sockaddr*)&ss,
 			(struct sockaddr*)&ns->address, 0)) {
 			log(EVDNS_LOG_WARN, "Address mismatch on received "
