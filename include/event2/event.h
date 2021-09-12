@@ -829,7 +829,8 @@ int event_base_set(struct event_base *eb, struct event *ev);
 
   @param eb the event_base structure returned by event_base_new() or
      event_base_new_with_config()
-  @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK
+  @param flags any combination of EVLOOP_ONCE | EVLOOP_NONBLOCK |
+     EVLOOP_NO_EXIT_ON_EMPTY
   @return 0 if successful, -1 if an error occurred, or 1 if we exited because
      no events were pending or active.
   @see event_base_loopexit(), event_base_dispatch(), EVLOOP_ONCE,
