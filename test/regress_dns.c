@@ -1146,6 +1146,15 @@ dns_initialize_nameservers_test(void *arg)
 	struct sockaddr_storage ss;
 	int size;
 
+#ifndef _WIN32
+	/* /etc/resolv.conf does not exist in some test container
+	 * setups but EVDNS_BASE_INITIALIZE_NAMESERVERS requires it */
+	struct stat st;
+	if (stat("/etc/resolv.conf", &st) < 0 || st.st_size == 0) {
+		tt_skip();
+	}
+#endif
+
 	dns = evdns_base_new(base, 0);
 	tt_assert(dns);
 	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, -1);
