@@ -2238,7 +2238,8 @@ static int evhttp_bind_unixsocket(struct evhttp *httpd, const char *path)
 	if (stat(path, &st) == 0 && S_ISSOCK(st.st_mode))
 		unlink(path);
 
-	fd = socket(AF_UNIX, SOCK_CLOEXEC | SOCK_NONBLOCK | SOCK_STREAM, 0);
+	fd = evutil_socket_(AF_UNIX,
+	    EVUTIL_SOCK_CLOEXEC | EVUTIL_SOCK_NONBLOCK | SOCK_STREAM, 0);
 	if (fd == -1)
 		return -1;
 
