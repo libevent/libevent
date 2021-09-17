@@ -2270,7 +2270,7 @@ static int evhttp_bind_unixsocket(struct evhttp *httpd, const char *path)
 static void http_unix_socket_test(void *arg)
 {
 	struct basic_test_data *data = arg;
-	struct evhttp_uri *uri;
+	struct evhttp_uri *uri = NULL;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req;
 
