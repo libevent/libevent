@@ -3037,9 +3037,11 @@ http_parse_uri_test(void *arg)
 	BAD("http://www.example.com:hihi/");
 	BAD("://www.example.com/");
 
+#ifndef _WIN32
 	UNI("http://unix:/tmp/foobar/:/foo");
 	UNI("http://user:pass@unix:/tmp/foobar/:/foo");
 	UNI("http://unix:a:");
+#endif
 
 	/* bad URIs: joining */
 	uri = evhttp_uri_new();
