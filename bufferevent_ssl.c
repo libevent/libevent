@@ -385,7 +385,9 @@ do_write(struct bufferevent_ssl *bev_ssl, int atmost)
 		}
 	}
 	if (n_written) {
-		evbuffer_drain(output, n_written);
+		if (evbuffer_drain(output, n_written))
+			return OP_ERR | result;
+
 		if (bev_ssl->underlying)
 			BEV_RESET_GENERIC_WRITE_TIMEOUT(bev);
 
