@@ -2308,6 +2308,7 @@ static void http_unix_socket_test(void *arg)
 		evhttp_free(myhttp);
 	if (uri)
 		evhttp_uri_free(uri);
+	unlink("foo");
 }
 #endif
 
