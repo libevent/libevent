@@ -1390,9 +1390,9 @@ test_bufferevent_read_failed(void *arg)
 	tt_assert(bev != NULL);
 
 #ifdef _WIN32
-	send(data->pair[0], buf, strlen(buf), 0);
+	tt_int_op(send(data->pair[0], buf, strlen(buf), 0), ==, strlen(buf));
 #else
-	write(data->pair[0], buf, strlen(buf));
+	tt_int_op(write(data->pair[0], buf, strlen(buf)), ==, strlen(buf));
 #endif
 	event_base_dispatch(data->base);
 
