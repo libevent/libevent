@@ -97,6 +97,8 @@ http-server
 http-connect
 le-proxy
 https-client
+https-client-mbedtls
+ssl-client-mbedtls
 signal-test
 time-test
 event-test

@@ -2238,7 +2238,8 @@ static int evhttp_bind_unixsocket(struct evhttp *httpd, const char *path)
 	if (stat(path, &st) == 0 && S_ISSOCK(st.st_mode))
 		unlink(path);
 
-	fd = socket(AF_UNIX, SOCK_CLOEXEC | SOCK_NONBLOCK | SOCK_STREAM, 0);
+	fd = evutil_socket_(AF_UNIX,
+	    EVUTIL_SOCK_CLOEXEC | EVUTIL_SOCK_NONBLOCK | SOCK_STREAM, 0);
 	if (fd == -1)
 		return -1;
 
@@ -2269,7 +2270,7 @@ static int evhttp_bind_unixsocket(struct evhttp *httpd, const char *path)
 static void http_unix_socket_test(void *arg)
 {
 	struct basic_test_data *data = arg;
-	struct evhttp_uri *uri;
+	struct evhttp_uri *uri = NULL;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req;
 
@@ -3036,9 +3037,11 @@ http_parse_uri_test(void *arg)
 	BAD("http://www.example.com:hihi/");
 	BAD("://www.example.com/");
 
+#ifndef _WIN32
 	UNI("http://unix:/tmp/foobar/:/foo");
 	UNI("http://user:pass@unix:/tmp/foobar/:/foo");
 	UNI("http://unix:a:");
+#endif
 
 	/* bad URIs: joining */
 	uri = evhttp_uri_new();
