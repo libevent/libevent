@@ -295,6 +295,9 @@ if (${GNUC})
          -Wlogical-op
 
          -Wwrite-strings
+
+         # we use this hack in tests
+         -Wno-void-pointer-to-enum-cast
     )
 
     if (${CLANG})
