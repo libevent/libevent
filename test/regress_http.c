@@ -5859,7 +5859,7 @@ struct testcase_t http_testcases[] = {
 	{ "connection_retry_conn_address", http_connection_retry_conn_address_test,
 	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 
-	HTTP_OPT(data_length_constraints, SKIP_UNDER_WINDOWS),
+	HTTP_OPT(data_length_constraints, SKIP_UNDER_WINDOWS|TT_RETRIABLE),
 	HTTP(read_on_write_error),
 	HTTP(non_lingering_close),
 	HTTP(lingering_close),
