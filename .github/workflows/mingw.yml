@@ -162,7 +162,7 @@ jobs:
         shell: powershell
         run: |
           cd build
-          ctest -V
+          ctest --output-on-failure
 
       - uses: actions/upload-artifact@v1
         if: failure()
