@@ -68,6 +68,12 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
 
+#ifdef _WIN32
+#define SKIP_UNDER_WINDOWS TT_SKIP
+#else
+#define SKIP_UNDER_WINDOWS 0
+#endif
+
 /* set if a test needs to call loopexit on a base */
 static struct event_base *exit_base;
 
@@ -4699,6 +4705,7 @@ http_request_extra_body_test(void *arg)
 #define HTTP_N(title, name, test_opts, arg) \
 	{ #title, http_##name##_test, TT_ISOLATED|test_opts, &basic_setup, HTTP_CAST_ARG(arg) }
 #define HTTP(name) HTTP_N(name, name, 0, NULL)
+#define HTTP_OPT(name, opt) HTTP_N(name, name, opt, NULL)
 #define HTTPS(name) \
 	{ "https_" #name, https_##name##_test, TT_ISOLATED, &basic_setup, NULL }
 
@@ -4798,7 +4805,7 @@ struct testcase_t http_testcases[] = {
 	{ "connection_retry_conn_address", http_connection_retry_conn_address_test,
 	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 
-	HTTP(data_length_constraints),
+	HTTP_OPT(data_length_constraints, SKIP_UNDER_WINDOWS),
 	HTTP(read_on_write_error),
 	HTTP(non_lingering_close),
 	HTTP(lingering_close),
