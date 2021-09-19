@@ -3597,11 +3597,17 @@ struct testcase_t evtag_testcases[] = {
 	END_OF_TESTCASES
 };
 
+#if defined(__darwin__)
+#define RETRY_ON_DARWIN TT_RETRIABLE
+#else
+#define RETRY_ON_DARWIN 0
+#endif
+
 struct testcase_t signal_testcases[] = {
 #ifndef _WIN32
-	LEGACY(simplestsignal, TT_ISOLATED),
-	LEGACY(simplesignal, TT_ISOLATED),
-	LEGACY(multiplesignal, TT_ISOLATED),
+	LEGACY(simplestsignal, TT_ISOLATED|RETRY_ON_DARWIN),
+	LEGACY(simplesignal, TT_ISOLATED|RETRY_ON_DARWIN),
+	LEGACY(multiplesignal, TT_ISOLATED|RETRY_ON_DARWIN),
 	LEGACY(immediatesignal, TT_ISOLATED),
 	LEGACY(signal_dealloc, TT_ISOLATED),
 	LEGACY(signal_pipeloss, TT_ISOLATED),
