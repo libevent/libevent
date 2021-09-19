@@ -68,6 +68,12 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
 
+#if EV_WINDOWS
+#define SKIP_UNDER_WINDOWS TT_SKIP
+#else
+#define SKIP_UNDER_WINDOWS 0
+#endif
+
 /* set if a test needs to call loopexit on a base */
 static struct event_base *exit_base;
 
@@ -2273,14 +2279,20 @@ static void http_unix_socket_test(void *arg)
 	struct evhttp_uri *uri = NULL;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req;
+	struct evhttp *myhttp;
+	char tmp_sock_path[512];
+	char uri_loc[1024];
 
-	struct evhttp *myhttp = evhttp_new(data->base);
+	// Avoid overlap with parallel runs
+	evutil_snprintf(tmp_sock_path, sizeof(tmp_sock_path), "/tmp/eventtmp.%i.sock", getpid());
+	evutil_snprintf(uri_loc, sizeof(uri_loc), "http://unix:%s:/?arg=val", tmp_sock_path);
 
-	tt_assert(!evhttp_bind_unixsocket(myhttp, "foo"));
+	myhttp = evhttp_new(data->base);
+	tt_assert(!evhttp_bind_unixsocket(myhttp, tmp_sock_path));
 
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, data->base);
 
-	uri = evhttp_uri_parse_with_flags("http://unix:./foo:/?arg=val", EVHTTP_URI_UNIX_SOCKET);
+	uri = evhttp_uri_parse_with_flags(uri_loc, EVHTTP_URI_UNIX_SOCKET);
 	tt_assert(uri);
 
 	evcon = evhttp_connection_base_bufferevent_unix_new(data->base, NULL, evhttp_uri_get_unixsocket(uri));
@@ -2308,7 +2320,10 @@ static void http_unix_socket_test(void *arg)
 		evhttp_free(myhttp);
 	if (uri)
 		evhttp_uri_free(uri);
-	unlink("foo");
+
+	/* Does mkstemp() succeed? */
+	if (!strstr(tmp_sock_path, "XXXXXX"))
+		unlink(tmp_sock_path);
 }
 #endif
 
@@ -5696,6 +5711,7 @@ end:
 #define HTTP_N(title, name, test_opts, arg) \
 	{ #title, http_##name##_test, TT_ISOLATED|test_opts, &basic_setup, HTTP_CAST_ARG(arg) }
 #define HTTP(name) HTTP_N(name, name, 0, NULL)
+#define HTTP_OPT(name, opt) HTTP_N(name, name, opt, NULL)
 #define HTTPS(name) \
 	{ "https_openssl_" #name, https_##name##_test, TT_ISOLATED, &basic_setup, NULL }
 #define HTTPS_MBEDTLS(name) \
@@ -5843,7 +5859,7 @@ struct testcase_t http_testcases[] = {
 	{ "connection_retry_conn_address", http_connection_retry_conn_address_test,
 	  TT_ISOLATED|TT_OFF_BY_DEFAULT, &basic_setup, NULL },
 
-	HTTP(data_length_constraints),
+	HTTP_OPT(data_length_constraints, SKIP_UNDER_WINDOWS|TT_RETRIABLE),
 	HTTP(read_on_write_error),
 	HTTP(non_lingering_close),
 	HTTP(lingering_close),
@@ -5862,7 +5878,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(request_extra_body),
 
 	HTTP(newreqcb),
-	HTTP(max_connections),
+	HTTP_OPT(max_connections, SKIP_UNDER_WINDOWS),
 
 	HTTP(timeout_read_client),
 	HTTP(timeout_read_server),

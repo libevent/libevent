@@ -772,6 +772,7 @@ if test x$enable_gcc_warnings != xno && test "$GCC" = "yes"; then
 
   dnl Disable warnings for unused paramaters
   AX_CHECK_COMPILE_FLAG([-Wno-unused-parameter], [CFLAGS="$CFLAGS -Wno-unused-parameter"],[],[-Werror])
+  AX_CHECK_COMPILE_FLAG([-Wno-void-pointer-to-enum-cast], [CFLAGS="$CFLAGS -Wno-void-pointer-to-enum-cast"],[],[-Werror])
 
   AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [
   #if !defined(__clang__)
