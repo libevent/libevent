@@ -2993,13 +2993,13 @@ struct testcase_t dns_testcases[] = {
 	  TT_FORK|TT_OFF_BY_DEFAULT, NULL, NULL },
 #endif
 	{ "tcp_resolve", test_tcp_resolve,
-	  TT_FORK | TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK | TT_NEED_BASE | TT_RETRIABLE, &basic_setup, NULL },
 	{ "tcp_resolve_pipeline", test_tcp_resolve_pipeline,
-	  TT_FORK | TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK | TT_NEED_BASE | TT_RETRIABLE, &basic_setup, NULL },
 	{ "tcp_resolve_many_clients", test_tcp_resolve_many_clients,
-	  TT_FORK | TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK | TT_NEED_BASE | TT_RETRIABLE, &basic_setup, NULL },
 	{ "tcp_timeout", test_tcp_timeout,
-	  TT_FORK | TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK | TT_NEED_BASE | TT_RETRIABLE, &basic_setup, NULL },
 
 	{ "set_SO_RCVBUF_SO_SNDBUF", test_set_so_rcvbuf_so_sndbuf,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
