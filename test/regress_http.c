@@ -2279,14 +2279,20 @@ static void http_unix_socket_test(void *arg)
 	struct evhttp_uri *uri = NULL;
 	struct evhttp_connection *evcon = NULL;
 	struct evhttp_request *req;
+	struct evhttp *myhttp;
+	char tmp_sock_path[512];
+	char uri_loc[1024];
 
-	struct evhttp *myhttp = evhttp_new(data->base);
+	// Avoid overlap with parallel runs
+	evutil_snprintf(tmp_sock_path, sizeof(tmp_sock_path), "/tmp/eventtmp.%i.sock", getpid());
+	evutil_snprintf(uri_loc, sizeof(uri_loc), "http://unix:%s:/?arg=val", tmp_sock_path);
 
-	tt_assert(!evhttp_bind_unixsocket(myhttp, "foo"));
+	myhttp = evhttp_new(data->base);
+	tt_assert(!evhttp_bind_unixsocket(myhttp, tmp_sock_path));
 
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, data->base);
 
-	uri = evhttp_uri_parse_with_flags("http://unix:./foo:/?arg=val", EVHTTP_URI_UNIX_SOCKET);
+	uri = evhttp_uri_parse_with_flags(uri_loc, EVHTTP_URI_UNIX_SOCKET);
 	tt_assert(uri);
 
 	evcon = evhttp_connection_base_bufferevent_unix_new(data->base, NULL, evhttp_uri_get_unixsocket(uri));
@@ -2314,7 +2320,10 @@ static void http_unix_socket_test(void *arg)
 		evhttp_free(myhttp);
 	if (uri)
 		evhttp_uri_free(uri);
-	unlink("foo");
+
+	/* Does mkstemp() succeed? */
+	if (!strstr(tmp_sock_path, "XXXXXX"))
+		unlink(tmp_sock_path);
 }
 #endif
 
