@@ -72,6 +72,7 @@ static int opt_forked = 0; /**< True iff we're called from inside a win32 fork*/
 static int opt_nofork = 0; /**< Suppress calls to fork() for debugging. */
 static int opt_verbosity = 1; /**< -==quiet,0==terse,1==normal,2==verbose */
 static unsigned int opt_timeout = DEFAULT_TESTCASE_TIMEOUT; /**< Timeout for every test (using alarm()) */
+static unsigned int opt_retries = 3; /**< How much test with TT_RETRIABLE should be retried */
 const char *verbosity_flag = "";
 
 const struct testlist_alias_t *cfg_aliases=NULL;
@@ -398,7 +399,7 @@ tinytest_set_flag_(struct testgroup_t *groups, const char *arg, int set, unsigne
 static void
 usage(struct testgroup_t *groups, int list_groups)
 {
-	puts("Options are: [--verbose|--quiet|--terse] [--no-fork] [--timeout <sec>]");
+	puts("Options are: [--verbose|--quiet|--terse] [--no-fork] [--timeout <sec>] [--retries <n>]");
 	puts("  Specify tests by name, or using a prefix ending with '..'");
 	puts("  To skip a test, prefix its name with a colon.");
 	puts("  To enable a disabled test, prefix its name with a plus.");
@@ -502,6 +503,13 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 					return -1;
 				}
 				opt_timeout = (unsigned)atoi(v[i]);
+			} else if (!strcmp(v[i], "--retries")) {
+				++i;
+				if (i >= c) {
+					fprintf(stderr, "--retries requires argument\n");
+					return -1;
+				}
+				opt_retries = (unsigned)atoi(v[i]);
 			} else {
 				fprintf(stderr, "Unknown option %s. Try --help\n", v[i]);
 				return -1;
@@ -525,7 +533,7 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 		struct testgroup_t *group = &groups[i];
 		for (j = 0; group->cases[j].name; ++j) {
 			struct testcase_t *testcase = &group->cases[j];
-			int test_attempts = 3;
+			int attempts = opt_retries;
 			int test_ret_err;
 
 			if (!(testcase->flags & TT_ENABLED_))
@@ -538,8 +546,8 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 					break;
 				if (!(testcase->flags & TT_RETRIABLE))
 					break;
-				printf("\n  [RETRYING %s (%i)]\n", testcase->name, test_attempts);
-				if (!test_attempts--)
+				printf("\n  [RETRYING %s (%i)]\n", testcase->name, attempts);
+				if (!attempts--)
 					break;
 			}
 
