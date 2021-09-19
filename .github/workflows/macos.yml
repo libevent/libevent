@@ -186,7 +186,7 @@ jobs:
           ../configure $EVENT_CONFIGURE_OPTIONS
           make
 
-      - name: test
+      - name: Test
         shell: bash
         run: |
           JOBS=1
