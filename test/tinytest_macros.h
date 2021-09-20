@@ -69,13 +69,13 @@
 
 /* Fail and abort the current test for the reason in msg */
 #define tt_abort_printf(msg) TT_DIE(msg)
-#define tt_abort_perror(op) TT_DIE(("%s: %s [%d]",(op),strerror(errno), errno))
+#define tt_abort_perror(op) TT_DIE(("%s: %s [%d]",(op), evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()), EVUTIL_SOCKET_ERROR()))
 #define tt_abort_msg(msg) TT_DIE(("%s", msg))
 #define tt_abort() TT_DIE(("%s", "(Failed.)"))
 
 /* Fail but do not abort the current test for the reason in msg. */
 #define tt_failprint_f(msg) TT_FAIL(msg)
-#define tt_fail_perror(op) TT_FAIL(("%s: %s [%d]",(op),strerror(errno), errno))
+#define tt_fail_perror(op) TT_FAIL(("%s: %s [%d]",(op), evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()), EVUTIL_SOCKET_ERROR()))
 #define tt_fail_msg(msg) TT_FAIL(("%s", msg))
 #define tt_fail() TT_FAIL(("%s", "(Failed.)"))
 
