@@ -137,7 +137,7 @@ jobs:
           {
             $errcode=0
             try {
-              cmake .. -G "MSYS Makefiles" $EVENT_CONFIGURE_OPTIONS -DCMAKE_C_FLAGS=-w
+              cmake .. -G "MSYS Makefiles" -A "x86" $EVENT_CONFIGURE_OPTIONS -DCMAKE_C_FLAGS=-w
               $errcode=$LastExitCode
             }
             catch {
