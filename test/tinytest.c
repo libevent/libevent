@@ -312,7 +312,8 @@ testcase_run_forked_(const struct testgroup_t *group,
 
 int
 testcase_run_one(const struct testgroup_t *group,
-		 const struct testcase_t *testcase)
+		 const struct testcase_t *testcase,
+		 const int test_attempts)
 {
 	enum outcome outcome;
 
@@ -350,7 +351,7 @@ testcase_run_one(const struct testgroup_t *group,
 		if (opt_verbosity>0 && !opt_forked)
 			puts("SKIPPED");
 	} else {
-		if (!opt_forked)
+		if (!opt_forked && (testcase->flags & TT_RETRIABLE) && !test_attempts)
 			printf("\n  [%s FAILED]\n", testcase->name);
 	}
 
@@ -549,18 +550,18 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 		struct testgroup_t *group = &groups[i];
 		for (j = 0; group->cases[j].name; ++j) {
 			struct testcase_t *testcase = &group->cases[j];
-			int attempts = opt_retries;
+			int attempts = (testcase->flags & TT_RETRIABLE) ? opt_retries: 1;
 			int test_ret_err;
 
 			if (!(testcase->flags & TT_ENABLED_))
 				continue;
 
 			for (;;) {
-				test_ret_err = testcase_run_one(group, testcase);
+				test_ret_err = testcase_run_one(group, testcase, attempts);
 
 				if (test_ret_err == OK)
 					break;
-				if (!(testcase->flags & TT_RETRIABLE))
+				if (!--attempts)
 					break;
 				printf("\n  [RETRYING %s (attempts left %i, delay %i sec)]\n", testcase->name, attempts, opt_retries_delay);
 #ifdef _WIN32
@@ -568,8 +569,6 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 #else
 				sleep(opt_retries_delay);
 #endif
-				if (!attempts--)
-					break;
 			}
 
 			switch (test_ret_err) {
