@@ -92,7 +92,7 @@ char *tinytest_format_hex_(const void *, unsigned long);
 	tinytest_set_flag_(groups, named, 1, TT_SKIP)
 
 /** Run a single testcase in a single group. */
-int testcase_run_one(const struct testgroup_t *,const struct testcase_t *);
+int testcase_run_one(const struct testgroup_t *,const struct testcase_t *, const int test_attempts);
 
 void tinytest_set_aliases(const struct testlist_alias_t *aliases);
 
