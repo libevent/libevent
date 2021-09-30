@@ -550,7 +550,7 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 		struct testgroup_t *group = &groups[i];
 		for (j = 0; group->cases[j].name; ++j) {
 			struct testcase_t *testcase = &group->cases[j];
-			int attempts = (testcase->flags & TT_RETRIABLE) ? opt_retries: 1;
+			int attempts = (testcase->flags & TT_RETRIABLE) ? opt_retries : 1;
 			int test_ret_err;
 
 			if (!(testcase->flags & TT_ENABLED_))
