@@ -997,7 +997,7 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 				cb->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
 				    cb->ttl, cb->reply.cname, user_pointer);
 		} else
-			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
+			cb->user_callback(cb->err, DNS_IPv4_A, 0, cb->ttl, NULL, user_pointer);
 		break;
 	case TYPE_PTR:
 		if (cb->have_reply) {
@@ -1005,7 +1005,7 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 			cb->user_callback(DNS_ERR_NONE, DNS_PTR, 1, cb->ttl,
 			    &name, user_pointer);
 		} else {
-			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
+			cb->user_callback(cb->err, DNS_PTR, 0, cb->ttl, NULL, user_pointer);
 		}
 		break;
 	case TYPE_AAAA:
@@ -1018,7 +1018,7 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 				cb->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
 				    cb->ttl, cb->reply.cname, user_pointer);
 		} else
-			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
+			cb->user_callback(cb->err, DNS_IPv6_AAAA, 0, cb->ttl, NULL, user_pointer);
 		break;
 	default:
 		EVUTIL_ASSERT(0);
