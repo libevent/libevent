@@ -90,7 +90,7 @@ macro(UseDoxygen)
       if ("${DOXYGEN_GENERATE_HTML}" STREQUAL "YES")
         install(DIRECTORY
           ${PROJECT_BINARY_DIR}/${DOXYGEN_OUTPUT_DIRECTORY}/html
-          DESTINATION ${CMAKE_INSTALL_PREFIX}/share/doc/${PROJECT_NAME}
+          DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/doc/${PROJECT_NAME}
           COMPONENT doc
         )
       endif()
@@ -106,7 +106,7 @@ macro(UseDoxygen)
         # Install manual into <prefix>/share/man/man3
         install(DIRECTORY
           ${MAN_PAGES_DIR}
-          DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man
+          DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/man
           COMPONENT doc
         )
       endif()
