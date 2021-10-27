@@ -58,7 +58,6 @@ endif()
 
 # Get the path of the current file.
 get_filename_component(LIBEVENT_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-get_filename_component(_INSTALL_PREFIX "${LIBEVENT_CMAKE_DIR}/../../.." ABSOLUTE)
 
 macro(message_if_needed _flag _msg)
     if (NOT ${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
@@ -116,7 +115,7 @@ if(CONFIG_FOR_INSTALL_TREE)
     unset(_event_h CACHE)
     find_path(_event_h
               NAMES event2/event.h
-              PATHS "${_INSTALL_PREFIX}/include"
+              PATHS "@CMAKE_INSTALL_INCLUDEDIR@"
               NO_DEFAULT_PATH)
     if(_event_h)
         set(LIBEVENT_INCLUDE_DIRS "${_event_h}")
@@ -135,7 +134,7 @@ if(CONFIG_FOR_INSTALL_TREE)
                     NO_DEFAULT_PATH)
         find_library(_event_lib_rel
                     NAMES "event_${_comp}"
-                    PATHS "${_INSTALL_PREFIX}/lib"
+                    PATHS "@CMAKE_INSTALL_LIBDIR@"
                     NO_DEFAULT_PATH)
         if(_event_lib_rel OR _event_lib_dbg)
             list(APPEND LIBEVENT_LIBRARIES "libevent::${_comp}")
@@ -167,7 +166,7 @@ set(LIBEVENT_INCLUDE_DIR ${LIBEVENT_INCLUDE_DIRS})
 if(LIBEVENT_LIBRARIES)
     set(LIBEVENT_LIBRARY ${LIBEVENT_LIBRARIES})
     if(CONFIG_FOR_INSTALL_TREE)
-        message_if_needed(STATUS "Found libevent ${LIBEVENT_VERSION} in ${_INSTALL_PREFIX}")
+        message_if_needed(STATUS "Found libevent ${LIBEVENT_VERSION} in @CMAKE_INSTALL_LIBDIR@")
     else()
         message_if_needed(STATUS "Found libevent ${LIBEVENT_VERSION} in ${LIBEVENT_CMAKE_DIR}")
     endif()
@@ -190,4 +189,3 @@ unset(_LIB_TYPE)
 unset(_AVAILABLE_LIBS)
 unset(_EVENT_COMPONENTS)
 unset(_POSSIBLE_PKG_NAMES)
-unset(_INSTALL_PREFIX)

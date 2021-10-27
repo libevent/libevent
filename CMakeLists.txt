@@ -1621,8 +1621,10 @@ endif()
 # Installation preparation.
 #
 
+include(GNUInstallDirs)
+
 set(EVENT_INSTALL_CMAKE_DIR
-    "${CMAKE_INSTALL_PREFIX}/lib/cmake/libevent")
+    "${CMAKE_INSTALL_LIBDIR}/cmake/libevent")
 
 export(PACKAGE libevent)
 
