@@ -501,20 +501,21 @@ static void
 generic_dns_callback(int result, char type, int count, int ttl, void *addresses,
     void *arg)
 {
-	size_t len;
+	size_t len = 0;
 	struct generic_dns_callback_result *res = arg;
 	res->result = result;
 	res->type = type;
 	res->count = count;
 	res->ttl = ttl;
 
-	if (type == DNS_IPv4_A)
-		len = count * 4;
-	else if (type == DNS_IPv6_AAAA)
-		len = count * 16;
-	else if (type == DNS_PTR || type == DNS_CNAME)
-		len = strlen(addresses)+1;
-	else {
+	if (result == DNS_ERR_NONE) {
+		if (type == DNS_IPv4_A)
+			len = count * 4;
+		else if (type == DNS_IPv6_AAAA)
+			len = count * 16;
+		else if (type == DNS_PTR || type == DNS_CNAME)
+			len = strlen(addresses)+1;
+	} else {
 		res->addrs_len = len = 0;
 		res->addrs = NULL;
 	}
@@ -1126,6 +1127,7 @@ dns_disable_when_inactive_no_ns_test(void *arg)
 	tt_int_op(n_replies_left, ==, 0);
 
 	tt_int_op(r.result, ==, DNS_ERR_TIMEOUT);
+	tt_int_op(r.type, ==, DNS_IPv4_A);
 	tt_int_op(r.count, ==, 0);
 	tt_ptr_op(r.addrs, ==, NULL);
 
@@ -2557,7 +2559,7 @@ test_tcp_resolve(void *arg)
 	tt_assert(req);
 	n_replies_left = 1;
 	event_base_dispatch(base);
-	tt_assert(r.type != DNS_IPv4_A);
+	tt_assert(r.type == DNS_IPv4_A);
 	tt_assert(r.result == DNS_ERR_TRUNCATED);
 	tt_assert(search_table[1].seen == 1);
 	tt_assert(tcp_search_table[1].seen == 0);
@@ -2577,7 +2579,7 @@ test_tcp_resolve(void *arg)
 	tt_assert(req);
 	n_replies_left = 1;
 	event_base_dispatch(base);
-	tt_assert(r.type != DNS_IPv4_A);
+	tt_assert(r.type == DNS_IPv4_A);
 	tt_assert(r.result == DNS_ERR_TRUNCATED);
 	tt_assert(search_table[2].seen == 1);
 	tt_assert(tcp_search_table[2].seen == 0);
