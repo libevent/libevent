@@ -1568,6 +1568,14 @@ apply_socktype_protocol_hack(struct evutil_addrinfo *ai)
 		ai->ai_protocol = IPPROTO_TCP;
 		ai_new->ai_socktype = SOCK_DGRAM;
 		ai_new->ai_protocol = IPPROTO_UDP;
+		ai_new->ai_flags = EVUTIL_AI_LIBEVENT_ALLOCATED;
+		if (ai_new->ai_canonname != NULL) {
+			ai_new->ai_canonname = mm_strdup(ai_new->ai_canonname);
+			if (ai_new->ai_canonname == NULL) {
+				mm_free(ai_new);
+				return -1;
+			}
+		}
 
 		ai_new->ai_next = ai->ai_next;
 		ai->ai_next = ai_new;
@@ -1771,11 +1779,33 @@ void
 evutil_freeaddrinfo(struct evutil_addrinfo *ai)
 {
 #ifdef EVENT__HAVE_GETADDRINFO
-	if (!(ai->ai_flags & EVUTIL_AI_LIBEVENT_ALLOCATED)) {
-		freeaddrinfo(ai);
-		return;
+	struct evutil_addrinfo *ai_prev = NULL;
+	struct evutil_addrinfo *ai_temp = ai;
+	/* Linked list may be the result of a native getaddrinfo() call plus
+	 * locally allocated nodes, Before releasing it using freeaddrinfo(),
+	 * these custom structs need to be freed separately.
+	 */
+	while (ai_temp) {
+		struct evutil_addrinfo *next = ai_temp->ai_next;
+		if (ai_temp->ai_flags & EVUTIL_AI_LIBEVENT_ALLOCATED) {
+			/* Remove this node from the linked list */
+			if (ai_temp->ai_canonname)
+				mm_free(ai_temp->ai_canonname);
+			mm_free(ai_temp);
+			if (ai_prev == NULL) {
+				ai = next;
+			} else {
+				ai_prev->ai_next = next;
+			}
+
+		} else {
+			ai_prev = ai_temp;
+		}
+		ai_temp = next;
 	}
-#endif
+	if (ai != NULL)
+		freeaddrinfo(ai);
+#else
 	while (ai) {
 		struct evutil_addrinfo *next = ai->ai_next;
 		if (ai->ai_canonname)
@@ -1783,6 +1813,7 @@ evutil_freeaddrinfo(struct evutil_addrinfo *ai)
 		mm_free(ai);
 		ai = next;
 	}
+#endif
 }
 
 static evdns_getaddrinfo_fn evdns_getaddrinfo_impl = NULL;
