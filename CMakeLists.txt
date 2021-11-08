@@ -1628,18 +1628,9 @@ set(EVENT_INSTALL_CMAKE_DIR
 
 export(PACKAGE libevent)
 
-function(gen_package_config forinstall)
-    if(${forinstall})
-        set(CONFIG_FOR_INSTALL_TREE 1)
-        set(dir "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}")
-    else()
-        set(CONFIG_FOR_INSTALL_TREE 0)
-        set(dir "${PROJECT_BINARY_DIR}")
-    endif()
-    configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
-                "${dir}/LibeventConfig.cmake"
-                @ONLY)
-endfunction()
+configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
+    "${PROJECT_BINARY_DIR}/LibeventConfig.cmake"
+    @ONLY)
 
 # Generate the config file for the build-tree.
 set(EVENT__INCLUDE_DIRS
@@ -1649,11 +1640,6 @@ set(EVENT__INCLUDE_DIRS
 set(LIBEVENT_INCLUDE_DIRS
     ${EVENT__INCLUDE_DIRS}
     CACHE PATH "Libevent include directories")
-
-gen_package_config(0)
-
-# Generate the config file for the installation tree.
-gen_package_config(1)
 
 # Generate version info for both build-tree and install-tree.
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
@@ -1672,7 +1658,7 @@ install(FILES ${HDR_PUBLIC}
 
 # Install the configs.
 install(FILES
-        ${PROJECT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
+        ${PROJECT_BINARY_DIR}/LibeventConfig.cmake
         ${PROJECT_BINARY_DIR}/LibeventConfigVersion.cmake
         DESTINATION "${EVENT_INSTALL_CMAKE_DIR}"
         COMPONENT dev)

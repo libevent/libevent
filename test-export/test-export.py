@@ -109,18 +109,6 @@ def test_group():
         testcase("mbedtls", "pthreads", 1)
 
 
-def config_restore():
-    if os.path.isfile("tempconfig") and not os.path.isfile("LibeventConfig.cmake"):
-        os.rename("tempconfig", "LibeventConfig.cmake")
-
-
-def config_backup():
-    if os.path.isfile("tempconfig"):
-        os.remove("tempconfig")
-    if os.path.isfile("LibeventConfig.cmake"):
-        os.rename("LibeventConfig.cmake", "tempconfig")
-
-
 shutil.rmtree(os.path.join(script_dir, "build"), ignore_errors=True)
 
 
@@ -158,7 +146,6 @@ print("[test-export] use %s library" % link_type)
 # Test for build tree.
 print("[test-export] test for build tree")
 dllpath = os.path.join(working_dir, "bin", "Debug")
-config_restore()
 os.environ["CMAKE_PREFIX_PATH"] = working_dir
 export_dll(dllpath)
 run_test_group()
@@ -175,7 +162,6 @@ else:
     prefix = "/usr/local"
 exec_cmd('cmake -DCMAKE_SKIP_INSTALL_RPATH=OFF -DCMAKE_INSTALL_PREFIX="%s" ..' % prefix, True)
 exec_cmd('cmake --build . -v --target install', True)
-config_backup()
 os.environ["CMAKE_PREFIX_PATH"] = os.path.join(prefix, "lib/cmake/libevent")
 export_dll(dllpath)
 run_test_group()
@@ -191,13 +177,11 @@ tempdir = tempfile.TemporaryDirectory()
 cmd = 'cmake -DCMAKE_SKIP_INSTALL_RPATH=OFF -DCMAKE_INSTALL_PREFIX="%s" ..' % tempdir.name
 exec_cmd(cmd, True)
 exec_cmd("cmake --build . -v --target install", True)
-config_backup()
 os.environ["CMAKE_PREFIX_PATH"] = os.path.join(tempdir.name, "lib/cmake/libevent")
 dllpath = os.path.join(tempdir.name, "lib")
 export_dll(dllpath)
 run_test_group()
 unexport_dll(dllpath)
 del os.environ["CMAKE_PREFIX_PATH"]
-config_restore()
 
 print("[test-export] all testcases have run successfully")
