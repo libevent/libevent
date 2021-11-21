@@ -269,13 +269,13 @@ struct event_base;
   evdns_config_windows_nameservers() on Windows.
 
   @param event_base the event base to associate the dns client with
-  @param initialize_nameservers any of EVDNS_BASE_INITIALIZE_NAMESERVERS|
+  @param flags any of EVDNS_BASE_INITIALIZE_NAMESERVERS|
     EVDNS_BASE_DISABLE_WHEN_INACTIVE|EVDNS_BASE_NAMESERVERS_NO_DEFAULT
   @return evdns_base object if successful, or NULL if an error occurred.
   @see evdns_base_free()
  */
 EVENT2_EXPORT_SYMBOL
-struct evdns_base * evdns_base_new(struct event_base *event_base, int initialize_nameservers);
+struct evdns_base * evdns_base_new(struct event_base *event_base, int flags);
 
 
 /**
