@@ -5368,7 +5368,7 @@ evdns_ttl_expired(int result, short what, void *arg)
 	EVDNS_UNLOCK(base);
 }
 
-static void
+void
 evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_addrinfo *res, int ttl)
 {
 	struct timeval tv;
@@ -5395,7 +5395,7 @@ evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_add
 	EVDNS_UNLOCK(dns_base);
 }
 
-static int
+int
 evdns_cache_lookup(struct evdns_base *base,
     const char *nodename, struct evutil_addrinfo *hints, ev_uint16_t port,
     struct evutil_addrinfo **res)
