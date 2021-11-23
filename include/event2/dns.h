@@ -319,6 +319,29 @@ EVENT2_EXPORT_SYMBOL
 void evdns_base_clear_host_addresses(struct evdns_base *base);
 
 /**
+   Write an entry to the evdns cache
+
+   @param dns_base the evdns base to add the entry to
+   @param nodename the DNS name
+   @param res the address information associated with the DNS name
+   @param ttl the time to live associated with the address information
+ */
+EVENT2_EXPORT_SYMBOL
+void evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_addrinfo *res, int ttl);
+
+/**
+   Lookup an entry from the evdns cache
+
+   @param base the evdns base associated with the cache
+   @param nodename the DNS name for which information is being sought
+   @param hints see man getaddrinfo()
+   @param port used to fill in port numbers in the resulting address list
+   @param res pointer to an evutil_addrinfo struct for result
+ */
+EVENT2_EXPORT_SYMBOL
+int evdns_cache_lookup(struct evdns_base *base, const char *nodename, struct evutil_addrinfo *hints, ev_uint16_t port, struct evutil_addrinfo **res);
+
+/**
   Convert a DNS error code to a string.
 
   @param err the DNS error code
