@@ -687,16 +687,12 @@ AC_COMPILE_IFELSE(
 dnl check if we can compile with pthreads
 have_pthreads=no
 if test "$bwin32" != "true" && test "$enable_thread_support" != "no"; then
-  ACX_PTHREAD([
-	AC_DEFINE(HAVE_PTHREADS, 1,
-		[Define if we have pthreads on this system])
-	have_pthreads=yes])
+  AX_PTHREAD([
+    AC_DEFINE([HAVE_PTHREADS], [1], [Define if we have pthreads on this system])
+    have_pthreads=yes
+  ])
   CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
-  AC_CHECK_SIZEOF(pthread_t, ,
-     [AC_INCLUDES_DEFAULT()
-      #include <pthread.h> ]
-  )
-
+  AC_CHECK_SIZEOF([pthread_t], [], [AC_INCLUDES_DEFAULT() #include <pthread.h> ])
   AC_CHECK_FUNCS([pthread_mutexattr_setprotocol])
 fi
 AM_CONDITIONAL(THREADS, [test "$enable_thread_support" != "no"])
