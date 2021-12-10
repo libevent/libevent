@@ -3435,6 +3435,27 @@ done:
 	return result;
 }
 
+int
+evdns_base_get_nameserver_fd(struct evdns_base *base, int idx)
+{
+	int result = -1;
+	int i;
+	struct nameserver *server;
+	EVDNS_LOCK(base);
+	server = base->server_head;
+	for (i = 0; i < idx && server; ++i, server = server->next) {
+		if (server->next == base->server_head)
+			goto done;
+	}
+	if (! server)
+		goto done;
+	result = server->socket;
+done:
+	EVDNS_UNLOCK(base);
+	return result;
+}
+
+
 /* remove from the queue */
 static void
 evdns_request_remove(struct request *req, struct request **head)

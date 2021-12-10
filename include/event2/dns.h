@@ -800,6 +800,18 @@ EVENT2_EXPORT_SYMBOL
 int evdns_base_get_nameserver_addr(struct evdns_base *base, int idx,
     struct sockaddr *sa, ev_socklen_t len);
 
+/**
+   Retrieve the fd of the 'idx'th configured nameserver.
+
+   @param base The evdns_base to examine.
+   @param idx The index of the nameserver to get the address of.
+
+   @return the fd value.  On failure, returns
+     -1 if idx is greater than the number of configured nameservers
+ */
+EVENT2_EXPORT_SYMBOL
+int evdns_base_get_nameserver_fd(struct evdns_base *base, int idx);
+
 #ifdef __cplusplus
 }
 #endif

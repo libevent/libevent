@@ -1190,6 +1190,7 @@ dns_nameservers_no_default_test(void *arg)
 	dns = evdns_base_new(base, 0);
 	tt_assert(dns);
 	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, -1);
+	tt_int_op(evdns_base_get_nameserver_fd(dns, 0), ==, -1);
 
 	/* We cannot test
 	 * EVDNS_BASE_INITIALIZE_NAMESERVERS|EVDNS_BASE_NAMESERVERS_NO_DEFAULT
@@ -1198,9 +1199,11 @@ dns_nameservers_no_default_test(void *arg)
 	evdns_base_resolv_conf_parse(dns,
 		DNS_OPTIONS_ALL|DNS_OPTION_NAMESERVERS_NO_DEFAULT, RESOLV_FILE);
 	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, -1);
+	tt_int_op(evdns_base_get_nameserver_fd(dns, 0), ==, -1);
 
 	evdns_base_resolv_conf_parse(dns, DNS_OPTIONS_ALL, RESOLV_FILE);
 	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, sizeof(struct sockaddr));
+	tt_int_op(evdns_base_get_nameserver_fd(dns, 0), !=, -1);
 
 end:
 	if (dns)
