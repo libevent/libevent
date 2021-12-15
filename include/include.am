@@ -36,6 +36,9 @@ EVENT2_EXPORT = \
 if OPENSSL
 EVENT2_EXPORT += include/event2/bufferevent_ssl.h
 endif
+if MBEDTLS
+EVENT2_EXPORT += include/event2/bufferevent_ssl.h
+endif
 
 ## Without the nobase_ prefixing, Automake would strip "include/event2/" from
 ## the source header filename to derive the installed header filename.
