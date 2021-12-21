@@ -1675,24 +1675,25 @@ static struct evhttp_connection **
 http_fill_backlog(struct event_base *base, int port)
 {
 #define BACKLOG_SIZE 256
-		struct evhttp_connection **evcon = malloc(sizeof(*evcon) * (BACKLOG_SIZE + 1));
+		struct evhttp_connection **evcons = calloc(BACKLOG_SIZE + 1, sizeof(*evcons));
 		int i;
 
 		for (i = 0; i < BACKLOG_SIZE; ++i) {
 			struct evhttp_request *req;
 
-			evcon[i] = evhttp_connection_base_new(base, NULL, "127.0.0.1", port);
-			tt_assert(evcon[i]);
-			evhttp_connection_set_timeout(evcon[i], 5);
+			evcons[i] = evhttp_connection_base_new(base, NULL, "127.0.0.1", port);
+			tt_assert(evcons[i]);
+			evhttp_connection_set_timeout(evcons[i], 5);
 
 			req = evhttp_request_new(http_request_never_call, NULL);
 			tt_assert(req);
-			tt_int_op(evhttp_make_request(evcon[i], req, EVHTTP_REQ_GET, "/delay"), !=, -1);
+			tt_int_op(evhttp_make_request(evcons[i], req, EVHTTP_REQ_GET, "/delay"), !=, -1);
 		}
-		evcon[i] = NULL;
+		evcons[i] = NULL;
 
-		return evcon;
+		return evcons;
  end:
+		http_free_evcons(evcons);
 		fprintf(stderr, "Couldn't fill the backlog");
 		return NULL;
 }
@@ -1773,7 +1774,10 @@ http_cancel_test(void *arg)
 	}
 
 	if (type & SERVER_TIMEOUT)
+	{
 		evcons = http_fill_backlog(base_to_fill, port);
+		tt_assert(evcons);
+	}
 
 	evcon = evhttp_connection_base_new(
 		data->base, dns_base,
@@ -1822,7 +1826,10 @@ http_cancel_test(void *arg)
 
 	http_free_evcons(evcons);
 	if (type & SERVER_TIMEOUT)
+	{
 		evcons = http_fill_backlog(base_to_fill, port);
+		tt_assert(evcons);
+	}
 
 	req = http_cancel_test_bad_request_new(type, data->base);
 	if (!req)
@@ -1842,7 +1849,10 @@ http_cancel_test(void *arg)
 
 	http_free_evcons(evcons);
 	if (type & SERVER_TIMEOUT)
+	{
 		evcons = http_fill_backlog(base_to_fill, port);
+		tt_assert(evcons);
+	}
 
 	req = http_cancel_test_bad_request_new(type, data->base);
 	if (!req)
