@@ -295,9 +295,9 @@ open_ssl_bufevs(struct bufferevent **bev1_out, struct bufferevent **bev2_out,
 
 	}
 	bufferevent_setcb(*bev1_out, respond_to_number, done_writing_cb,
-	    eventcb, (void*)(REGRESS_OPENSSL_CLIENT | (long)type));
+	    eventcb, (void*)(REGRESS_OPENSSL_CLIENT | (intptr_t)type));
 	bufferevent_setcb(*bev2_out, respond_to_number, done_writing_cb,
-	    eventcb, (void*)(REGRESS_OPENSSL_SERVER | (long)type));
+	    eventcb, (void*)(REGRESS_OPENSSL_SERVER | (intptr_t)type));
 
 	bufferevent_ssl_set_allow_dirty_shutdown(*bev1_out, dirty_shutdown);
 	bufferevent_ssl_set_allow_dirty_shutdown(*bev2_out, dirty_shutdown);
