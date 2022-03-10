@@ -8,7 +8,7 @@ includedir=@includedir@
 Name: libevent_mbedtls
 Description: libevent_mbedtls adds mbedtls-based TLS support to libevent
 Version: @VERSION@
-Requires: libevent
+Requires: libevent_core
 Conflicts:
 Libs: -L${libdir} -levent_mbedtls
 Libs.private: @LIBS@ @MBEDTLS_LIBS@

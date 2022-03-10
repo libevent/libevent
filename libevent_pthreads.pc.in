@@ -8,7 +8,7 @@ includedir=@includedir@
 Name: libevent_pthreads
 Description: libevent_pthreads adds pthreads-based threading support to libevent
 Version: @VERSION@
-Requires: libevent
+Requires: libevent_core
 Conflicts:
 Libs: -L${libdir} -levent_pthreads
 Libs.private: @LIBS@ @PTHREAD_LIBS@
