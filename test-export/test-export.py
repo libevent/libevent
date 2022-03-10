@@ -176,7 +176,7 @@ if platform.system() == "Windows":
     dllpath = os.path.join(prefix, "lib")
 else:
     prefix = "/usr/local"
-exec_cmd('cmake -DCMAKE_INSTALL_PREFIX="%s" ..' % prefix, True)
+exec_cmd('cmake -DCMAKE_SKIP_INSTALL_RPATH=OFF -DCMAKE_INSTALL_PREFIX="%s" ..' % prefix, True)
 exec_cmd('cmake --build . --target install', True)
 config_backup()
 os.environ["CMAKE_PREFIX_PATH"] = os.path.join(prefix, "lib/cmake/libevent")
@@ -191,7 +191,7 @@ del os.environ["CMAKE_PREFIX_PATH"]
 print("[test-export] test for install tree(in non-system-wide path)")
 exec_cmd("cmake --build . --target uninstall", True)
 tempdir = tempfile.TemporaryDirectory()
-cmd = 'cmake -DCMAKE_INSTALL_PREFIX="%s" ..' % tempdir.name
+cmd = 'cmake -DCMAKE_SKIP_INSTALL_RPATH=OFF -DCMAKE_INSTALL_PREFIX="%s" ..' % tempdir.name
 exec_cmd(cmd, True)
 exec_cmd("cmake --build . --target install", True)
 config_backup()
