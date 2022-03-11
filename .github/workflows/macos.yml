@@ -51,7 +51,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          # NOTE: cmake does not support autodetection of OPENSSL_ROOT_DIR via brew
+          # FIXME: cmake does not support autodetection of OPENSSL_ROOT_DIR via brew
           export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
@@ -78,6 +78,7 @@ jobs:
           else
             EVENT_CMAKE_OPTIONS=""
           fi
+          # FIXME: cmake does not have autodetection of MBEDTLS_ROOT_DIR via brew
           EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
 
           mkdir -p build
@@ -139,9 +140,6 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          export CPPFLAGS="-I/usr/local/opt/mbedtls@2/include"
-          export  LDFLAGS="-L/usr/local/opt/mbedtls@2/lib"
-
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CONFIGURE_OPTIONS="--disable-openssl"
 

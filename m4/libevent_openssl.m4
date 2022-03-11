@@ -5,7 +5,6 @@ AC_DEFUN([LIBEVENT_OPENSSL], [
 m4_ifndef([PKG_PROG_PKG_CONFIG], [AC_MSG_ERROR([PKG_PROG_PKG_CONFIG not found. Please install pkg-config and re-run autogen.sh])])
 
 PKG_PROG_PKG_CONFIG([0.15.0])
-AC_PROG_GREP
 
 case "$host_os" in
     darwin*)
