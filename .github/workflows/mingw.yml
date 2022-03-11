@@ -72,7 +72,7 @@ jobs:
           [[ $? -ne 0 ]] && exit 1
           exit 0
           '
-          D:\a\_temp\msys\msys64\usr\bin\bash.exe -c $script
+          C:\msys64\usr\bin\bash.exe -c $script
 
       - name: Test
         shell: powershell
@@ -83,7 +83,7 @@ jobs:
           export PATH="/mingw64/bin:/usr/bin:/bin:/usr/local/bin:/opt/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:$PATH"
           cd build
           make verify -j $EVENT_TESTS_PARALLEL 2>&1 '
-          D:\a\_temp\msys\msys64\usr\bin\bash.exe -c $script
+          C:\msys64\usr\bin\bash.exe -c $script
 
       - uses: actions/upload-artifact@v1
         if: failure()
@@ -130,7 +130,7 @@ jobs:
           elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "NONE" ) {
             $EVENT_CONFIGURE_OPTIONS="-DEVENT__${{ matrix.EVENT_MATRIX }}=ON"
           }
-          $env:PATH="D:\a\_temp\msys\msys64\mingw64\bin;D:\a\_temp\msys\msys64\usr\bin;$env:PATH"
+          $env:PATH="C:\msys64\mingw64\bin;C:\msys64\usr\bin;$env:PATH"
           mkdir build -ea 0
           cd build
           function cmake_configure($retry)
