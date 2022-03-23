@@ -96,6 +96,9 @@ extern const struct eventop kqops;
 #ifdef EVENT__HAVE_DEVPOLL
 extern const struct eventop devpollops;
 #endif
+#ifdef EVENT__HAVE_PSN
+extern const struct eventop psnops;
+#endif
 #ifdef EVENT__HAVE_WEPOLL
 extern const struct eventop wepollops;
 #endif
@@ -128,6 +131,9 @@ static const struct eventop *eventops[] = {
 #endif
 #ifdef EVENT__HAVE_WEPOLL
 	&wepollops,
+#endif
+#ifdef EVENT__HAVE_PSN
+	&psnops,
 #endif
 	NULL
 };

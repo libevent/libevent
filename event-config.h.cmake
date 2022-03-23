@@ -105,6 +105,9 @@
 /* Define if your system supports the wepoll module */
 #cmakedefine EVENT__HAVE_WEPOLL 1
 
+/* Define if your system supports the ProcessSocketNotifications system call. */
+#cmakedefine EVENT__HAVE_PSN 1
+
 /* Define to 1 if you have the `eventfd' function. */
 #cmakedefine EVENT__HAVE_EVENTFD 1
 
