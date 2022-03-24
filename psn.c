@@ -28,7 +28,6 @@
  */
 #include "event2/event-config.h"
 #include "evconfig-private.h"
-#define EVENT__HAVE_PSN ""
 #ifdef EVENT__HAVE_PSN
 
 #include <winsock2.h>
@@ -188,7 +187,7 @@ psn_apply_one_change(struct event_base *base,
 	reg.socket = ch->fd;
 	reg.completionKey = (PVOID)ch->fd;
 	reg.eventFilter = events;
-	reg.operationFlags = operation;
+	reg.operation = operation;
 	reg.triggerFlags = SOCK_NOTIFY_TRIGGER_PERSISTENT | SOCK_NOTIFY_TRIGGER_LEVEL;
 
 	if ((res = ProcessSocketNotifications(op->cp, 1, &reg, 0, 0, NULL, NULL)) == 0) {

@@ -26,7 +26,7 @@
  */
 #ifndef PSNTABLE_INTERNAL_H_INCLUDED_
 #define PSNTABLE_INTERNAL_H_INCLUDED_
-
+#include <winsock2.h>
 /*
   Produced by make_psn_table.py.
 */
