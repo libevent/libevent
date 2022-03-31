@@ -5383,15 +5383,17 @@ evdns_cache_write(struct evdns_base *dns_base, char *nodename, struct evutil_add
 		log(EVDNS_LOG_DEBUG, "Ejecting old cache for %s", nodename);
 		evdns_cache_free(cache);
 	}
-	cache = mm_calloc(1, sizeof(struct evdns_cache));
-	cache->base = dns_base;
-	cache->name = mm_strdup(nodename);
-	cache->ai = evutil_dup_addrinfo_(res);
-	SPLAY_INSERT(evdns_tree, &cache->base->cache_root, cache);
-	evtimer_assign(&cache->ev_timeout, dns_base->event_base, evdns_ttl_expired, cache);
-	timerclear(&tv);
-	tv.tv_sec = ttl;
-	evtimer_add(&cache->ev_timeout, &tv);
+	if (res) {
+		cache = mm_calloc(1, sizeof(struct evdns_cache));
+		cache->base = dns_base;
+		cache->name = mm_strdup(nodename);
+		cache->ai = evutil_dup_addrinfo_(res);
+		SPLAY_INSERT(evdns_tree, &cache->base->cache_root, cache);
+		evtimer_assign(&cache->ev_timeout, dns_base->event_base, evdns_ttl_expired, cache);
+		timerclear(&tv);
+		tv.tv_sec = ttl;
+		evtimer_add(&cache->ev_timeout, &tv);
+	}
 	EVDNS_UNLOCK(dns_base);
 }
 
