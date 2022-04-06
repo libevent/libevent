@@ -66,7 +66,7 @@ const struct eventop psnops = {
 	psn_dispatch,
 	psn_dealloc,
 	1 /* need reinit */,
-    EV_FEATURE_O1,
+    EV_FEATURE_ET | EV_FEATURE_O1,
 	EVENT_CHANGELIST_FDINFO_SIZE
 };
 
@@ -257,26 +257,6 @@ psn_dispatch(struct event_base *base, struct timeval *tv)
 
 	event_debug(("%s: calling event_changelist_remove_all_", __func__));
 	event_changelist_remove_all_(&base->changelist, base);
-
-	/* Make sure that 'events' is at least as long as the list of changes:
-	 * otherwise errors in the changes can get reported as a -1 return
-	 * value from kevent() rather than as EV_ERROR events in the events
-	 * array.
-	 *
-	 * (We could instead handle -1 return values from kevent() by
-	 * retrying with a smaller changes array or a larger events array,
-	 * but this approach seems less risky for now.)
-	 */
-	// event_debug(("%s: overs_size=%d, n_changes=%d", __func__, op->overs_size, n_changes));
-	// if (op->overs_size < n_changes) {
-	// 	int new_size = op->overs_size;
-	// 	do {
-	// 		new_size *= 2;
-	// 	} while (new_size < n_changes);
-
-	// 	psn_grow_overs(op, new_size);
-	// 	overs = op->overs;
-	// }
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
