@@ -54,7 +54,7 @@ jobs:
           vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
           vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
           vcpkgTriplet: x64-windows
-          vcpkgGitCommitId: 7bc5b8cdfaf35329c1520b2af8d368e2b1cb78e6
+          vcpkgGitCommitId: af2287382b1991dbdcb7e5112d236f3323b9dd7a
 
       - name: Build
         shell: powershell
