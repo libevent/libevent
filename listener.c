@@ -275,8 +275,13 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 
 	return listener;
 err:
-	evutil_closesocket(fd);
-	return NULL;
+	{
+		int saved_errno = EVUTIL_SOCKET_ERROR();
+		evutil_closesocket(fd);
+		if (saved_errno)
+			EVUTIL_SET_SOCKET_ERROR(saved_errno);
+		return NULL;
+	}
 }
 
 void
