@@ -541,8 +541,18 @@ main(int argc, char **argv)
 
 	// For simplicity, we let DNS resolution block. Everything else should be
 	// asynchronous though.
-	evcon = evhttp_connection_base_bufferevent_new(base, NULL, bev,
-		host, port);
+	{
+		if (host[0] == '[' && strlen(host) > 2 && ipv6) {
+			// trim '[' and ']'
+			char *host_ipv6 = strndup(&host[1], strlen(&host[1]) - 1);
+			evcon = evhttp_connection_base_bufferevent_new(base, NULL, bev,
+				host_ipv6, port);
+			free(host_ipv6);
+		} else {
+			evcon = evhttp_connection_base_bufferevent_new(base, NULL, bev,
+				host, port);
+		}
+	}
 	if (evcon == NULL) {
 		fprintf(stderr, "evhttp_connection_base_bufferevent_new() failed\n");
 		goto error;
