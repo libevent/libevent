@@ -14,7 +14,7 @@
 *.exe
 *.lib
 
-# Patch leaves these lying arround
+# Patch leaves these lying around
 *.orig
 *.rej
 

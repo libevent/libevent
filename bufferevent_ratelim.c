@@ -76,7 +76,7 @@ ev_token_bucket_update_(struct ev_token_bucket *bucket,
     ev_uint32_t current_tick)
 {
 	/* It's okay if the tick number overflows, since we'll just
-	 * wrap around when we do the unsigned substraction. */
+	 * wrap around when we do the unsigned subtraction. */
 	unsigned n_ticks = current_tick - bucket->last_updated;
 
 	/* Make sure some ticks actually happened, and that time didn't

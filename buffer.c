@@ -1668,7 +1668,7 @@ evbuffer_search_eol(struct evbuffer *buffer,
 		if (evbuffer_strchr(&it, '\n') < 0)
 			goto done;
 		extra_drain = 1;
-		/* ... optionally preceeded by a CR. */
+		/* ... optionally preceded by a CR. */
 		if (it.pos == start_pos)
 			break; /* If the first character is \n, don't back up */
 		/* This potentially does an extra linear walk over the first
