@@ -129,7 +129,7 @@ struct {
 	int (*header_cb)(struct evhttp_request *, void *);
 
 	/*
-	 * Error callback - called when error is occured.
+	 * Error callback - called when error is occurred.
 	 * @see evhttp_request_error for error types.
 	 *
 	 * @see evhttp_request_set_error_cb()
