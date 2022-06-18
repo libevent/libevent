@@ -259,7 +259,9 @@ conn_closed(struct bufferevent_ssl *bev_ssl, int when, int errcode, int ret)
 		bufferevent_ssl_put_error(bev_ssl, errcode);
 		break;
 	case SSL_ERROR_SSL:
-		/* Protocol error. */
+		/* Protocol error; possibly a dirty shutdown. */
+		if (ret == 0 && SSL_is_init_finished(bev_ssl->ssl) == 0)
+			dirty_shutdown = 1;
 		bufferevent_ssl_put_error(bev_ssl, errcode);
 		break;
 	case SSL_ERROR_WANT_X509_LOOKUP:

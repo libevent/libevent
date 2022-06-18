@@ -48,6 +48,7 @@
 
 #define SSL_renegotiate mbedtls_ssl_renegotiate
 #define SSL_get_peer_certificate mbedtls_ssl_get_peer_cert
+#define SSL_get1_peer_certificate mbedtls_ssl_get_peer_cert
 #define SSL_new mbedtls_ssl_new
 #define SSL_use_certificate(a, b) \
 	do {                          \
