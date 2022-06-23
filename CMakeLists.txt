@@ -313,13 +313,13 @@ if (${GNUC})
          -Wlogical-op
 
          -Wwrite-strings
-
-         # we use this hack in tests
-         -Wno-void-pointer-to-enum-cast
     )
 
     if (${CLANG})
-        list(APPEND __FLAGS -Wno-unused-function)
+        list(APPEND __FLAGS
+            -Wno-unused-function
+            # we use this hack in tests
+            -Wno-void-pointer-to-enum-cast)
     endif()
 
     if (EVENT__DISABLE_GCC_WARNINGS)
