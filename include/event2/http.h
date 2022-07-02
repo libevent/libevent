@@ -1454,6 +1454,19 @@ void evhttp_uri_free(struct evhttp_uri *uri);
 EVENT2_EXPORT_SYMBOL
 char *evhttp_uri_join(struct evhttp_uri *uri, char *buf, size_t limit);
 
+/**
+   Set a callback used to notify connected connection
+
+   You can use this to override the default read write event callback 
+   -- for example, to make this evconn sharing by other protocol(http2) 
+
+   @param http the evhttp server object for which to set the callback
+   @param cb the callback to invoke for incoming connections
+   @param arg an context argument for the callback
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_set_conncb(struct evhttp *http, void(*cb)(struct evhttp_connection *));
+
 #ifdef __cplusplus
 }
 #endif

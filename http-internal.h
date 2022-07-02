@@ -184,6 +184,8 @@ struct evhttp {
 	int (*errorcb)(struct evhttp_request *, struct evbuffer *, int, const char *, void *);
 	void *errorcbarg;
 
+	void (*conncb)(struct evhttp_connection *);
+
 	struct event_base *base;
 
 	evhttp_ext_method_cb ext_method_cmp;
