@@ -1315,7 +1315,16 @@ test_event_calloc(void *arg)
 	/* mm_calloc() should set errno = ENOMEM and return NULL
 	 * in case of potential overflow. */
 	errno = 0;
-	p = mm_calloc(EV_SIZE_MAX/2, EV_SIZE_MAX/2 + 8);
+#if defined(__clang__)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Walloc-size-larger-than="
+#endif
+	p = mm_calloc(EV_SIZE_MAX, EV_SIZE_MAX);
+#if defined(__clang__)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 	tt_assert(p == NULL);
 	tt_int_op(errno, ==, ENOMEM);
 
