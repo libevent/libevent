@@ -280,13 +280,7 @@ AS_IF([test "$bwin32" = "true"],
 
 AM_CONDITIONAL(STRLCPY_IMPL, [test "$ac_cv_func_strlcpy" = "no"])
 
-m4_define([funcstochk],
-  [getnameinfo
-  getprotobynumber
-  getservbyname
-  inet_ntop
-  inet_pton]
-)
+m4_define([funcstochk], [getnameinfo getprotobynumber getservbyname inet_ntop inet_pton])
 
 AS_IF([test "$bwin32" = "true"],
   [AX_CHECK_DECLS_EX([funcstochk getaddrinfo],
