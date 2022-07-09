@@ -5,6 +5,7 @@ AC_DEFUN([LIBEVENT_OPENSSL], [
 m4_ifndef([PKG_PROG_PKG_CONFIG], [AC_MSG_ERROR([PKG_PROG_PKG_CONFIG not found. Please install pkg-config and re-run autogen.sh])])
 
 PKG_PROG_PKG_CONFIG([0.15.0])
+AC_PROG_GREP
 
 case "$host_os" in
     darwin*)
@@ -14,6 +15,12 @@ case "$host_os" in
     AC_CHECK_PROG([BREW],brew, brew)
     if test x$BREW = xbrew; then
         openssl_prefix=$($BREW --prefix openssl 2>/dev/null)
+        dnl CI workers has only openssl@1.1,
+        dnl while default is openssl@3, see
+        dnl https://github.com/Homebrew/brew/issues/12879
+        if ! test -d $openssl_prefix; then
+            openssl_prefix=$($BREW --prefix $($BREW list | $GREP -m1 openssl) 2>/dev/null)
+        fi
         if test x$openssl_prefix != x; then
             OPENSSL_LIBS=`$PKG_CONFIG --libs openssl 2>/dev/null`
             case "$OPENSSL_LIBS" in
