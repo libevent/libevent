@@ -762,7 +762,7 @@ if test "$enable_gcc_warnings" != "no" && test "$GCC" = "yes"; then
   AX_CHECK_COMPILE_FLAG([-Wwrite-strings],[CFLAGS="$CFLAGS -Wwrite-strings"],[],[-Werror])
 
   dnl Convert warnings into errors
-  if test x"$enable_gcc_warnings" = "yes"; then
+  if test "$enable_gcc_warnings" = "yes"; then
     AX_CHECK_COMPILE_FLAG([-Werror], [CFLAGS="$CFLAGS -Werror"])
   fi
 
