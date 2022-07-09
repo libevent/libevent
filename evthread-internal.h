@@ -316,8 +316,8 @@ EVLOCK_TRY_LOCK_(void *lock)
 
 #define EVBASE_IN_THREAD(base)	1
 #define EVBASE_NEED_NOTIFY(base) 0
-#define EVBASE_ACQUIRE_LOCK(base, lock) EVUTIL_NIL_STMT_
-#define EVBASE_RELEASE_LOCK(base, lock) EVUTIL_NIL_STMT_
+#define EVBASE_ACQUIRE_LOCK(base, lock) (void)(base)
+#define EVBASE_RELEASE_LOCK(base, lock) (void)(base)
 #define EVLOCK_ASSERT_LOCKED(lock) EVUTIL_NIL_STMT_
 
 #define EVLOCK_TRY_LOCK_(lock) 1
