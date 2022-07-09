@@ -35,7 +35,6 @@ jobs:
           - DISABLE_MM_REPLACEMENT
           - TEST_EXPORT_STATIC
           - TEST_EXPORT_SHARED
-          - OPENSSL_1_1
 
     steps:
       - uses: actions/checkout@v2.0.0
@@ -52,12 +51,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          if [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_1_1" ]; then
-            export OPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1
-          else
-            # NOTE: cmake does not support autodetection of OPENSSL_ROOT_DIR via brew
-            export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
-          fi
+          # NOTE: cmake does not support autodetection of OPENSSL_ROOT_DIR via brew
+          export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
@@ -128,7 +123,6 @@ jobs:
           - DISABLE_THREAD_SUPPORT
           - DISABLE_DEBUG_MODE
           - DISABLE_MM_REPLACEMENT
-          - OPENSSL_1_1
 
     steps:
       - uses: actions/checkout@v2.0.0
@@ -145,9 +139,6 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          if [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_1_1" ]; then
-            export PKG_CONFIG_PATH="/usr/local/opt/openssl@1.1/lib/pkgconfig:$PKG_CONFIG_PATH"
-          fi
           export CPPFLAGS="-I/usr/local/opt/mbedtls@2/include"
           export  LDFLAGS="-L/usr/local/opt/mbedtls@2/lib"
 
