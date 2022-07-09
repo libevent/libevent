@@ -500,7 +500,8 @@ evhttp_make_header_request(struct evhttp_connection *evcon,
     struct evhttp_request *req)
 {
 	const char *method;
-	ev_uint16_t flags;
+	/* NOTE: some version of GCC reports a warning that flags may be uninitialized, hence assignment */
+	ev_uint16_t flags = 0;
 
 	evhttp_remove_header(req->output_headers, "Proxy-Connection");
 
@@ -2351,7 +2352,8 @@ evhttp_get_body_length(struct evhttp_request *req)
 static int
 evhttp_method_may_have_body_(struct evhttp_connection *evcon, enum evhttp_cmd_type type)
 {
-	ev_uint16_t flags;
+	/* NOTE: some version of GCC reports a warning that flags may be uninitialized, hence assignment */
+	ev_uint16_t flags = 0;
 	evhttp_method_(evcon, type, &flags);
 	return (flags & EVHTTP_METHOD_HAS_BODY) ? 1 : 0;
 }

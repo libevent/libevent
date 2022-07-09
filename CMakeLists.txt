@@ -295,6 +295,7 @@ if (${GNUC})
 
     list(APPEND __FLAGS
          -Wall -Wextra -Wno-unused-parameter -Wstrict-aliasing -Wstrict-prototypes
+         -Wundef
 
          -fno-strict-aliasing # gcc 2.9.5+
          -Wmissing-prototypes
@@ -313,11 +314,13 @@ if (${GNUC})
          -Wlogical-op
 
          -Wwrite-strings
+
+        # Disable unused-function warnings. These trigger for minheap-internal.h.
+        -Wno-unused-function
     )
 
     if (${CLANG})
         list(APPEND __FLAGS
-            -Wno-unused-function
             # we use this hack in tests
             -Wno-void-pointer-to-enum-cast)
     endif()
@@ -1675,7 +1678,7 @@ message(STATUS "CMAKE_INSTALL_RPATH:      ${CMAKE_INSTALL_RPATH}")
 message(STATUS "CMAKE_VERBOSE_MAKEFILE:   ${CMAKE_VERBOSE_MAKEFILE}")
 message(STATUS "CMAKE_C_FLAGS:            ${CMAKE_C_FLAGS}")
 message(STATUS "CMAKE_BUILD_TYPE:         ${CMAKE_BUILD_TYPE}")
-message(STATUS "CMAKE_C_COMPILER:         ${CMAKE_C_COMPILER} (id ${CMAKE_C_COMPILER_ID}, clang ${CLANG}, GNUC ${GNUC})")
+message(STATUS "CMAKE_C_COMPILER:         ${CMAKE_C_COMPILER} (id ${CMAKE_C_COMPILER_ID}, clang ${CLANG}, GNUC ${GNUC}, version ${CMAKE_C_COMPILER_VERSION})")
 message(STATUS "CMAKE_AR:                 ${CMAKE_AR}")
 message(STATUS "CMAKE_RANLIB:             ${CMAKE_RANLIB}")
 message(STATUS "CMAKE_INSTALL_PREFIX:     ${CMAKE_INSTALL_PREFIX}")
