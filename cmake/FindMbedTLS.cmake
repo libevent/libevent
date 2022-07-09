@@ -98,21 +98,23 @@ else()
     set(_MBEDTLS_X509_LIB_NAME mbedx509)
 endif()
 
+# lib - standard path suffix
+# library - is the suffix that is used in build tree
 find_library(MBEDTLS_LIBRARY
              NAMES ${_MBEDTLS_LIB_NAME}
-             PATH_SUFFIXES lib
+             PATH_SUFFIXES lib library
              HINTS ${MBEDTLS_ROOT_DIR}
              ${_EXTRA_FIND_ARGS})
 
 find_library(MBEDTLS_CRYPTO_LIBRARY
              NAMES ${_MBEDTLS_CRYPTO_LIB_NAME}
-             PATH_SUFFIXES lib
+             PATH_SUFFIXES lib library
              HINTS ${MBEDTLS_ROOT_DIR}
              ${_EXTRA_FIND_ARGS})
 
 find_library(MBEDTLS_X509_LIBRARY
              NAMES ${_MBEDTLS_X509_LIB_NAME}
-             PATH_SUFFIXES lib
+             PATH_SUFFIXES lib library
              HINTS ${MBEDTLS_ROOT_DIR}
              ${_EXTRA_FIND_ARGS})
 
