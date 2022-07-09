@@ -224,7 +224,7 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 		++n_connected;
 		ssl = bufferevent_ssl_get_ssl(bev);
 		tt_assert(ssl);
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
 		/* SSL_get1_peer_certificate() means we want
 		 * to increase the reference count on the cert
 		 * and so we will need to free it ourselves later

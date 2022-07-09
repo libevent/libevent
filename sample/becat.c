@@ -188,7 +188,7 @@ static void ssl_ctx_free(struct ssl_context *ssl)
 static int ssl_load_key(struct ssl_context *ssl)
 {
 	int err = 1;
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
 	ssl->pkey = EVP_RSA_gen(4096);
 	err = ssl->pkey == NULL;
 #else
@@ -391,7 +391,7 @@ static void be_ssl_errors(struct bufferevent *bev)
 	while ((err = bufferevent_get_openssl_error(bev))) {
 		const char *msg = ERR_reason_error_string(err);
 		const char *lib = ERR_lib_error_string(err);
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
 		error("ssl/err=%d/%s in %s\n", err, msg, lib);
 #else
 		const char *func = ERR_func_error_string(err);

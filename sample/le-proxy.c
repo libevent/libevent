@@ -113,7 +113,7 @@ eventcb(struct bufferevent *bev, short what, void *ctx)
 				    ERR_reason_error_string(err);
 				const char *lib = (const char*)
 				    ERR_lib_error_string(err);
-#if OPENSSL_VERSION_MAJOR >= 3
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
 				fprintf(stderr,
 					"%s in %s\n", msg, lib);
 #else
