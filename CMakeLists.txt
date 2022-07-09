@@ -295,6 +295,7 @@ if (${GNUC})
 
     list(APPEND __FLAGS
          -Wall -Wextra -Wno-unused-parameter -Wstrict-aliasing -Wstrict-prototypes
+         -Wundef
 
          -fno-strict-aliasing # gcc 2.9.5+
          -Wmissing-prototypes
