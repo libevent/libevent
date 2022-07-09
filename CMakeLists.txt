@@ -314,11 +314,13 @@ if (${GNUC})
          -Wlogical-op
 
          -Wwrite-strings
+
+        # Disable unused-function warnings. These trigger for minheap-internal.h.
+        -Wno-unused-function
     )
 
     if (${CLANG})
         list(APPEND __FLAGS
-            -Wno-unused-function
             # we use this hack in tests
             -Wno-void-pointer-to-enum-cast)
     endif()

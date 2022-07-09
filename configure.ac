@@ -775,10 +775,10 @@ if test "$enable_gcc_warnings" != "no" && test "$GCC" = "yes"; then
   #error
   #endif])], have_clang=yes, have_clang=no)
 
-  if test "$have_clang" = "yes"; then
-    dnl Disable unused-function warnings. These trigger for minheap-internal.h.
-    AX_CHECK_COMPILE_FLAG([-Wno-unused-function], [CFLAGS="$CFLAGS -Wno-unused-function"],[],[-Werror])
+   dnl Disable unused-function warnings. These trigger for minheap-internal.h.
+   AX_CHECK_COMPILE_FLAG([-Wno-unused-function], [CFLAGS="$CFLAGS -Wno-unused-function"],[],[-Werror])
 
+  if test "$have_clang" = "yes"; then
     case "$host_os" in
       darwin*)
         dnl Clang on macOS emits warnings for each directory specified which
