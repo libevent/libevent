@@ -24,8 +24,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
+/* Mbed-TLS 3.x does not currently expose a function to retrieve
+   the bio parameters from the SSL object. When the above issue has been
+   fixed, remove the MBEDTLS_ALLOW_PRIVATE_ACCESS define and use the
+   appropriate getter function in bufferevent_mbedtls_socket_new rather than
+   accessing the struct fields directly. */
+#define MBEDTLS_ALLOW_PRIVATE_ACCESS
 #include "mbedtls-compat.h"
-#include <mbedtls/config.h>
+#include <mbedtls/version.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/error.h>
 

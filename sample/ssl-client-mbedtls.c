@@ -19,16 +19,21 @@
  *  This file is part of mbed TLS (https://tls.mbed.org)
  */
 
-#include "mbedtls/config.h"
-#include "mbedtls/platform.h"
+#include <mbedtls/version.h>
+#if MBEDTLS_VERSION_MAJOR >= 3
+#include <mbedtls/build_info.h>
+#else
+#include <mbedtls/config.h>
+#include <mbedtls/certs.h>
+#endif
+#include <mbedtls/platform.h>
 
-#include "mbedtls-compat.h"
-#include "mbedtls/debug.h"
-#include "mbedtls/ssl.h"
-#include "mbedtls/entropy.h"
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/error.h"
-#include "mbedtls/certs.h"
+#include <mbedtls-compat.h>
+#include <mbedtls/debug.h>
+#include <mbedtls/ssl.h>
+#include <mbedtls/entropy.h>
+#include <mbedtls/ctr_drbg.h>
+#include <mbedtls/error.h>
 
 #include <string.h>
 
@@ -37,6 +42,38 @@
 #include <event2/bufferevent.h>
 #include <event2/bufferevent_ssl.h>
 #include <event2/util.h>
+
+/*
+ * Note about these certificates:
+ * - IS NOT SUITABLE FOR PRODUCTION
+ * - copied from mbedtls/tests/src/certs.c
+ * - are not required, and just as an example
+ */
+#if MBEDTLS_VERSION_MAJOR >= 3
+#define TEST_CA_CRT_RSA_SHA256_PEM                                         \
+    "-----BEGIN CERTIFICATE-----\r\n"                                      \
+    "MIIDQTCCAimgAwIBAgIBAzANBgkqhkiG9w0BAQsFADA7MQswCQYDVQQGEwJOTDER\r\n" \
+    "MA8GA1UECgwIUG9sYXJTU0wxGTAXBgNVBAMMEFBvbGFyU1NMIFRlc3QgQ0EwHhcN\r\n" \
+    "MTkwMjEwMTQ0NDAwWhcNMjkwMjEwMTQ0NDAwWjA7MQswCQYDVQQGEwJOTDERMA8G\r\n" \
+    "A1UECgwIUG9sYXJTU0wxGTAXBgNVBAMMEFBvbGFyU1NMIFRlc3QgQ0EwggEiMA0G\r\n" \
+    "CSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDA3zf8F7vglp0/ht6WMn1EpRagzSHx\r\n" \
+    "mdTs6st8GFgIlKXsm8WL3xoemTiZhx57wI053zhdcHgH057Zk+i5clHFzqMwUqny\r\n" \
+    "50BwFMtEonILwuVA+T7lpg6z+exKY8C4KQB0nFc7qKUEkHHxvYPZP9al4jwqj+8n\r\n" \
+    "YMPGn8u67GB9t+aEMr5P+1gmIgNb1LTV+/Xjli5wwOQuvfwu7uJBVcA0Ln0kcmnL\r\n" \
+    "R7EUQIN9Z/SG9jGr8XmksrUuEvmEF/Bibyc+E1ixVA0hmnM3oTDPb5Lc9un8rNsu\r\n" \
+    "KNF+AksjoBXyOGVkCeoMbo4bF6BxyLObyavpw/LPh5aPgAIynplYb6LVAgMBAAGj\r\n" \
+    "UDBOMAwGA1UdEwQFMAMBAf8wHQYDVR0OBBYEFLRa5KWz3tJS9rnVppUP6z68x/3/\r\n" \
+    "MB8GA1UdIwQYMBaAFLRa5KWz3tJS9rnVppUP6z68x/3/MA0GCSqGSIb3DQEBCwUA\r\n" \
+    "A4IBAQA4qFSCth2q22uJIdE4KGHJsJjVEfw2/xn+MkTvCMfxVrvmRvqCtjE4tKDl\r\n" \
+    "oK4MxFOek07oDZwvtAT9ijn1hHftTNS7RH9zd/fxNpfcHnMZXVC4w4DNA1fSANtW\r\n" \
+    "5sY1JB5Je9jScrsLSS+mAjyv0Ow3Hb2Bix8wu7xNNrV5fIf7Ubm+wt6SqEBxu3Kb\r\n" \
+    "+EfObAT4huf3czznhH3C17ed6NSbXwoXfby7stWUDeRJv08RaFOykf/Aae7bY5PL\r\n" \
+    "yTVrkAnikMntJ9YI+hNNYt3inqq11A5cN0+rVTst8UKCxzQ4GpvroSwPKTFkbMw4\r\n" \
+    "/anT1dVxr/BtwJfiESoK3/4CeXR1\r\n"                                     \
+    "-----END CERTIFICATE-----\r\n"
+const char mbedtls_test_cas_pem[] = TEST_CA_CRT_RSA_SHA256_PEM;
+const size_t mbedtls_test_cas_pem_len = sizeof( mbedtls_test_cas_pem );
+#endif
 
 #define SERVER_PORT "443"
 #define SERVER_NAME "amazon.com"
@@ -70,8 +107,11 @@ readcb(struct bufferevent *bev, void *arg)
 		fprintf(stderr, "readcb %zu\n\n", r);
 		if (r > 1) {
 			fwrite(buf, 1, r, stdout);
-			fwrite("\n", 1, r, stdout);
+			fwrite("\n", 1, 1, stdout);
 			fflush(stdout);
+		} else {
+			event_base_loopbreak(bufferevent_get_base(bev));
+			break;
 		}
 	}
 }

@@ -75,16 +75,29 @@ find_path(MBEDTLS_INCLUDE_DIR
           ${_EXTRA_FIND_ARGS})
 
 # based on https://github.com/ARMmbed/mbedtls/issues/298
-if(MBEDTLS_INCLUDE_DIR AND EXISTS "${MBEDTLS_INCLUDE_DIR}/mbedtls/version.h")
-    file(STRINGS "${MBEDTLS_INCLUDE_DIR}/mbedtls/version.h" VERSION_STRING_LINE REGEX "^#define MBEDTLS_VERSION_STRING[ \\t\\n\\r]+\"[^\"]*\"$")
-    file(STRINGS "${MBEDTLS_INCLUDE_DIR}/mbedtls/version.h" VERSION_MAJOR_LINE REGEX "^#define MBEDTLS_VERSION_MAJOR[ \\t\\n\\r]+[0-9]+$")
-    file(STRINGS "${MBEDTLS_INCLUDE_DIR}/mbedtls/version.h" VERSION_MINOR_LINE REGEX "^#define MBEDTLS_VERSION_MINOR[ \\t\\n\\r]+[0-9]+$")
-    file(STRINGS "${MBEDTLS_INCLUDE_DIR}/mbedtls/version.h" VERSION_PATCH_LINE REGEX "^#define MBEDTLS_VERSION_PATCH[ \\t\\n\\r]+[0-9]+$")
+function(mbedtls_get_version_numbers FILE)
+    file(STRINGS "${MBEDTLS_INCLUDE_DIR}/${FILE}" VERSION_STRING_LINE REGEX "^#define MBEDTLS_VERSION_STRING[ \\t\\n\\r]+\"[^\"]*\"$")
+    file(STRINGS "${MBEDTLS_INCLUDE_DIR}/${FILE}" VERSION_MAJOR_LINE REGEX "^#define MBEDTLS_VERSION_MAJOR[ \\t\\n\\r]+[0-9]+$")
+    file(STRINGS "${MBEDTLS_INCLUDE_DIR}/${FILE}" VERSION_MINOR_LINE REGEX "^#define MBEDTLS_VERSION_MINOR[ \\t\\n\\r]+[0-9]+$")
+    file(STRINGS "${MBEDTLS_INCLUDE_DIR}/${FILE}" VERSION_PATCH_LINE REGEX "^#define MBEDTLS_VERSION_PATCH[ \\t\\n\\r]+[0-9]+$")
 
     string(REGEX REPLACE "^#define MBEDTLS_VERSION_STRING[ \\t\\n\\r]+\"([^\"]*)\"$" "\\1" MBEDTLS_VERSION "${VERSION_STRING_LINE}")
     string(REGEX REPLACE "^#define MBEDTLS_VERSION_MAJOR[ \\t\\n\\r]+([0-9]+)$" "\\1" MBEDTLS_VERSION_MAJOR "${VERSION_MAJOR_LINE}")
     string(REGEX REPLACE "^#define MBEDTLS_VERSION_MINOR[ \\t\\n\\r]+([0-9]+)$" "\\1" MBEDTLS_VERSION_MINOR "${VERSION_MINOR_LINE}")
     string(REGEX REPLACE "^#define MBEDTLS_VERSION_PATCH[ \\t\\n\\r]+([0-9]+)$" "\\1" MBEDTLS_VERSION_PATCH "${VERSION_PATCH_LINE}")
+
+    set(MBEDTLS_VERSION "${MBEDTLS_VERSION}" PARENT_SCOPE)
+    set(MBEDTLS_VERSION_MAJOR "${MBEDTLS_VERSION_MAJOR}" PARENT_SCOPE)
+    set(MBEDTLS_VERSION_MINOR "${MBEDTLS_VERSION_MINOR}" PARENT_SCOPE)
+    set(MBEDTLS_VERSION_PATCH "${MBEDTLS_VERSION_PATCH}" PARENT_SCOPE)
+endfunction()
+
+if(MBEDTLS_INCLUDE_DIR AND EXISTS "${MBEDTLS_INCLUDE_DIR}/mbedtls/version.h")
+    mbedtls_get_version_numbers("mbedtls/version.h")
+
+    if ("${MBEDTLS_VERSION}" STREQUAL "")
+        mbedtls_get_version_numbers("mbedtls/build_info.h")
+    endif()
 endif()
 
 
@@ -98,21 +111,23 @@ else()
     set(_MBEDTLS_X509_LIB_NAME mbedx509)
 endif()
 
+# lib - standard path suffix
+# library - is the suffix that is used in build tree
 find_library(MBEDTLS_LIBRARY
              NAMES ${_MBEDTLS_LIB_NAME}
-             PATH_SUFFIXES lib
+             PATH_SUFFIXES lib library
              HINTS ${MBEDTLS_ROOT_DIR}
              ${_EXTRA_FIND_ARGS})
 
 find_library(MBEDTLS_CRYPTO_LIBRARY
              NAMES ${_MBEDTLS_CRYPTO_LIB_NAME}
-             PATH_SUFFIXES lib
+             PATH_SUFFIXES lib library
              HINTS ${MBEDTLS_ROOT_DIR}
              ${_EXTRA_FIND_ARGS})
 
 find_library(MBEDTLS_X509_LIBRARY
              NAMES ${_MBEDTLS_X509_LIB_NAME}
-             PATH_SUFFIXES lib
+             PATH_SUFFIXES lib library
              HINTS ${MBEDTLS_ROOT_DIR}
              ${_EXTRA_FIND_ARGS})
 
