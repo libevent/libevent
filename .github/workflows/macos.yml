@@ -54,6 +54,9 @@ jobs:
         run: |
           if [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_1_1" ]; then
             export OPENSSL_ROOT_DIR=/usr/local/opt/openssl@1.1
+          else
+            # NOTE: cmake does not support autodetection of OPENSSL_ROOT_DIR via brew
+            export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
           fi
 
           if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
