@@ -70,7 +70,7 @@ readcb(struct bufferevent *bev, void *arg)
 		fprintf(stderr, "readcb %zu\n\n", r);
 		if (r > 1) {
 			fwrite(buf, 1, r, stdout);
-			fwrite("\n", 1, r, stdout);
+			fwrite("\n", 1, 1, stdout);
 			fflush(stdout);
 		}
 	}
