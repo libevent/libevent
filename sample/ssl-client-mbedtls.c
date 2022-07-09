@@ -72,6 +72,9 @@ readcb(struct bufferevent *bev, void *arg)
 			fwrite(buf, 1, r, stdout);
 			fwrite("\n", 1, 1, stdout);
 			fflush(stdout);
+		} else {
+			event_base_loopbreak(bufferevent_get_base(bev));
+			break;
 		}
 	}
 }
