@@ -164,7 +164,8 @@ jobs:
         shell: powershell
         run: |
           cd build
-          ctest --output-on-failure
+          cd bin
+          ./regress
 
       - uses: actions/upload-artifact@v1
         if: failure()
