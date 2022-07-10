@@ -172,20 +172,21 @@ if (NOT DEFINED CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 endif()
 
+include(GNUInstallDirs)
+
 # The RPATH to be used when installing, but only if it's not a system directory
 #
 # Refs: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
 macro(Configure_RPATH)
-    # NOTE: that CMAKE_INSTALL_PREFIX not always normalized correctly, i.e.:
+    # NOTE: that CMAKE_INSTALL_LIBDIR not always normalized correctly, i.e.:
     # - "///" -> "/"
     # - "/////usr///" -> "//usr"
     # So it should be normalized again.
-
-    get_filename_component(CMAKE_INSTALL_PREFIX_NORMALIZED "${CMAKE_INSTALL_PREFIX}" REALPATH)
-    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX_NORMALIZED}/lib" isSystemDir)
+    get_filename_component(CMAKE_INSTALL_LIBDIR_NORMALIZED "${CMAKE_INSTALL_PREFIX}" REALPATH)
+    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_LIBDIR_NORMALIZED}/lib" isSystemDir)
 
     if("${isSystemDir}" STREQUAL "-1")
-        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX_NORMALIZED}/lib")
+        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR_NORMALIZED}")
     endif()
 endmacro()
 Configure_RPATH()
@@ -1620,8 +1621,6 @@ endif()
 #
 # Installation preparation.
 #
-
-include(GNUInstallDirs)
 
 set(EVENT_INSTALL_CMAKE_DIR
     "${CMAKE_INSTALL_LIBDIR}/cmake/libevent")
