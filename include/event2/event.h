@@ -542,6 +542,8 @@ enum event_base_config_flag {
 	    If this flag is set then bufferevent_socket_new() and
 	    evconn_listener_new() will use IOCP-backed implementations
 	    instead of the usual select-based one on Windows.
+
+	    Note: it is experimental feature, and has some bugs.
 	 */
 	EVENT_BASE_FLAG_STARTUP_IOCP = 0x04,
 	/** Instead of checking the current time every time the event loop is
