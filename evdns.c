@@ -122,8 +122,8 @@
 #define EVDNS_LOG_WARN EVENT_LOG_WARN
 #define EVDNS_LOG_MSG EVENT_LOG_MSG
 
-#ifndef HOST_NAME_MAX
-#define HOST_NAME_MAX 255
+#ifndef EVDNS_NAME_MAX
+#define EVDNS_NAME_MAX 255
 #endif
 
 #include <stdio.h>
@@ -1350,7 +1350,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 	 * to parse the response. To simplify things let's just allocate
 	 * a little bit more to avoid complex evaluations.
 	 */
-	buf_size = MAX(length - j, HOST_NAME_MAX);
+	buf_size = MAX(length - j, EVDNS_NAME_MAX);
 	reply.data.raw = mm_malloc(buf_size);
 
 	/* now we have the answer section which looks like
@@ -1394,7 +1394,7 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 			reply.have_answer = 1;
 			break;
 		} else if (type == TYPE_CNAME) {
-			char cname[HOST_NAME_MAX];
+			char cname[EVDNS_NAME_MAX];
 			if (name_parse(packet, length, &j, cname,
 				sizeof(cname))<0)
 				goto err;
@@ -3982,7 +3982,7 @@ evdns_search_ndots_set(const int ndots) {
 
 static void
 search_set_from_hostname(struct evdns_base *base) {
-	char hostname[HOST_NAME_MAX + 1], *domainname;
+	char hostname[EVDNS_NAME_MAX + 1], *domainname;
 
 	ASSERT_LOCKED(base);
 	search_postfix_clear(base);

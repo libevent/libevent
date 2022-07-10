@@ -98,6 +98,13 @@
 #define REPEAT_256(address) \
 	REPEAT_128(address) "," REPEAT_128(address)
 
+#define HOST_NAME_MAX_NAME "1111111111111111111111111111111111111111111111111." /* 50  */ \
+                           "1111111111111111111111111111111111111111111111111." /* 100 */ \
+                           "1111111111111111111111111111111111111111111111111." /* 150 */ \
+                           "1111111111111111111111111111111111111111111111111." /* 200 */ \
+                           "1111111111111111111111111111.both-canonical.exampl" /* 250 */ \
+                           "e.co"                                               /* 254 */
+
 static int dns_ok = 0;
 static int dns_got_cancel = 0;
 static int dns_err = 0;
@@ -1266,6 +1273,16 @@ be_getaddrinfo_server_cb(struct evdns_server_request *req, void *data)
 			evdns_server_request_add_cname_reply(req, qname,
 			    "both-canonical.example.com", 1000);
 		} else if (!evutil_ascii_strcasecmp(qname,
+			"long.example.com")) {
+			if (qtype == EVDNS_TYPE_A) {
+				ans.s_addr = htonl(0x12345678);
+				evdns_server_request_add_a_reply(req, qname,
+				    1, &ans.s_addr, 2000);
+				added_any = 1;
+			}
+			evdns_server_request_add_cname_reply(req, qname,
+			    HOST_NAME_MAX_NAME, 1000);
+		} else if (!evutil_ascii_strcasecmp(qname,
 			"v4only.example.com") ||
 		    !evutil_ascii_strcasecmp(qname, "v4assert.example.com")) {
 			if (qtype == EVDNS_TYPE_A) {
@@ -1599,7 +1616,7 @@ test_getaddrinfo_async(void *arg)
 	struct basic_test_data *data = arg;
 	struct evutil_addrinfo hints, *a;
 	struct gai_outcome local_outcome;
-	struct gai_outcome a_out[12];
+	struct gai_outcome a_out[13];
 	unsigned i;
 	struct evdns_getaddrinfo_request *r;
 	char buf[128];
@@ -1862,6 +1879,14 @@ test_getaddrinfo_async(void *arg)
 		    r, &tv);
 	}
 
+	/* 12: Request for hostnames longer then 63 (#1280) -> HOST_NAME_MAX_NAME. */
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = EVUTIL_AI_CANONNAME;
+	r = evdns_getaddrinfo(dns_base, "long.example.com", "8000",
+	    &hints, gai_cb, &a_out[12]);
+	tt_assert(r);
+
 	/* XXXXX There are more tests we could do, including:
 
 	   - A test to elicit NODATA.
@@ -1954,6 +1979,14 @@ test_getaddrinfo_async(void *arg)
 	/* 11: cancelled request. */
 	tt_int_op(a_out[11].err, ==, EVUTIL_EAI_CANCEL);
 	tt_assert(a_out[11].ai == NULL);
+
+	/* 12: HOST_NAME_MAX_NAME */
+	tt_int_op(a_out[12].err, ==, 0);
+	tt_assert(a_out[12].ai);
+	tt_assert(! a_out[12].ai->ai_next);
+	test_ai_eq(a_out[12].ai, "18.52.86.120:8000", SOCK_STREAM, IPPROTO_TCP);
+	tt_str_op(a_out[12].ai->ai_canonname, ==, HOST_NAME_MAX_NAME);
+
 
 end:
 	if (local_outcome.ai)
