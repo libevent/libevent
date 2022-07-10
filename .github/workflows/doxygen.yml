@@ -9,7 +9,7 @@ on:
 jobs:
   Doxygen:
     runs-on: ubuntu-18.04
-    if: "!contains(github.event.head_commit.message, 'ci skip')"
+    if: "!contains(github.event.head_commit.message, 'ci skip') && !contains(github.event.head_commit.message, 'ci/doxygen skip')"
     strategy:
       fail-fast: false
 

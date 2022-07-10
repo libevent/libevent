@@ -21,7 +21,7 @@ on:
 jobs:
   cmake:
     runs-on: ${{ matrix.os }}
-    if: "!contains(github.event.head_commit.message, 'ci skip')"
+    if: "!contains(github.event.head_commit.message, 'ci skip') && !contains(github.event.head_commit.message, 'ci/macos skip') && !contains(github.event.head_commit.message, 'ci/macos/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
@@ -111,7 +111,7 @@ jobs:
 
   autotools:
     runs-on: ${{ matrix.os }}
-    if: "!contains(github.event.head_commit.message, 'ci skip')"
+    if: "!contains(github.event.head_commit.message, 'ci skip') && !contains(github.event.head_commit.message, 'ci/macos skip') && !contains(github.event.head_commit.message, 'ci/macos/autotools skip')"
     strategy:
       fail-fast: false
       matrix:

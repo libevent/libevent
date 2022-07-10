@@ -16,7 +16,7 @@ jobs:
     ## due to even public registry require some authentication:
     ## - https://github.community/t5/GitHub-Actions/docker-pull-from-public-GitHub-Package-Registry-fail-with-quot/td-p/32782/page/5
     #container: docker.pkg.github.com/azat/docker-images/lvc-debian
-    if: "!contains(github.event.head_commit.message, 'ci skip')"
+    if: "!contains(github.event.head_commit.message, 'ci skip') && !contains(github.event.head_commit.message, 'ci/abi skip')"
     strategy:
       fail-fast: false
 
