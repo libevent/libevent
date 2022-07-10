@@ -76,6 +76,8 @@ case "$enable_openssl" in
 	done
 	;;
     esac
+    AC_MSG_NOTICE([OPENSSL_LIBS is $OPENSSL_LIBS])
+    AC_MSG_NOTICE([OPENSSL_INCS is $OPENSSL_INCS])
     CPPFLAGS_SAVE=$CPPFLAGS
     CPPFLAGS="$CPPFLAGS $OPENSSL_INCS"
     AC_CHECK_HEADERS([openssl/ssl.h], [], [have_openssl=no])
