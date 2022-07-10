@@ -21,7 +21,7 @@ on:
 jobs:
   vs2019:
     runs-on: ${{ matrix.os }}
-    if: "!contains(github.event.head_commit.message, 'ci skip') && !contains(github.event.head_commit.message, 'ci/windows skip')"
+    if: "!contains(github.event.head_commit.message, 'ci/windows skip')"
     strategy:
       fail-fast: false
       matrix:
