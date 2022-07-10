@@ -137,7 +137,9 @@ jobs:
           {
             $errcode=0
             try {
-              cmake .. -G "MSYS Makefiles" $EVENT_CONFIGURE_OPTIONS -DCMAKE_C_FLAGS=-w
+              # NOTE: we use STATIC libraries to force regress use static libraries
+              # to avoid "Exit code 0xc0000135" error.
+              cmake .. -DEVENT__LIBRARY_TYPE=STATIC -G "MSYS Makefiles" $EVENT_CONFIGURE_OPTIONS -DCMAKE_C_FLAGS=-w
               $errcode=$LastExitCode
             }
             catch {
