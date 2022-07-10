@@ -2036,10 +2036,10 @@ end:
 }
 
 static void
-gaic_launch(struct event_base *base, struct evdns_base *dns_base)
+gaic_launch(struct event_base *base, struct evdns_base *dns_base, unsigned i)
 {
 	struct gaic_request_status *status = calloc(1,sizeof(*status));
-	struct timeval tv = { 0, 10000 };
+	struct timeval tv = { 0, i % 2 ? 100000 : 1 };
 	status->magic = GAIC_MAGIC;
 	status->base = base;
 	status->dns_base = dns_base;
@@ -2267,13 +2267,14 @@ test_getaddrinfo_async_cancel_stress(void *ptr)
 	    (struct sockaddr*)&ss, slen, 0);
 
 	for (i = 0; i < 1000; ++i) {
-		gaic_launch(base, dns_base);
+		gaic_launch(base, dns_base, i);
 	}
 
 	event_base_dispatch(base);
 
 	// at least some was canceled via external event
 	tt_int_op(gaic_freed, !=, 1000);
+	tt_int_op(gaic_freed, !=, 0);
 
 end:
 	if (dns_base)
