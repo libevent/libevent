@@ -40,6 +40,9 @@ jobs:
           - ASAN
           - TSAN
           - UBSAN
+        include:
+          - os: ubuntu-22.04
+            EVENT_MATRIX: OPENSSL_3
 
     steps:
       - uses: actions/checkout@v2.0.0
@@ -159,6 +162,9 @@ jobs:
           - DISABLE_DEBUG_MODE
           - DISABLE_MM_REPLACEMENT
           - COMPILER_CLANG
+        include:
+          - os: ubuntu-22.04
+            EVENT_MATRIX: OPENSSL_3
 
     steps:
       - uses: actions/checkout@v2.0.0
