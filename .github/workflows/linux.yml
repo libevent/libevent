@@ -289,7 +289,10 @@ jobs:
             cd dist
             archive=$(echo *.tar.gz)
             cd $(basename $archive .tar.gz)
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_3" ]; then
+            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/tmp/openssl-3/install/lib
           fi
+
           cd build
           make -j $JOBS verify
 
