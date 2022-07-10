@@ -31,7 +31,6 @@ jobs:
           - NONE
           - NO_SSL
           - DISABLE_OPENSSL
-          - OPENSSL_3
           - DISABLE_THREAD_SUPPORT
           - DISABLE_DEBUG_MODE
           - DISABLE_MM_REPLACEMENT
@@ -41,6 +40,9 @@ jobs:
           - ASAN
           - TSAN
           - UBSAN
+        include:
+          - os: ubuntu-22.04
+            EVENT_MATRIX: OPENSSL_3
 
     steps:
       - uses: actions/checkout@v2.0.0
@@ -59,32 +61,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libmbedtls-dev
-
-          if [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_3" ]; then
-            OPENSSL_VERSION=3.0.3
-            JOBS=20
-
-            echo [openssl-${OPENSSL_VERSION}]: Downloading
-            wget "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
-
-            echo [openssl-${OPENSSL_VERSION}]: Extracting
-            tar xzf "openssl-${OPENSSL_VERSION}.tar.gz"
-            rm "openssl-${OPENSSL_VERSION}.tar.gz"
-            mv "openssl-${OPENSSL_VERSION}" /tmp/openssl-3
-
-            echo [openssl-${OPENSSL_VERSION}]: Building
-            pushd /tmp/openssl-3
-            ./Configure --prefix=$PWD/install
-            make -j ${JOBS}
-            make install
-            cd install
-            if [ ! -d lib ]; then
-              ln -s lib64 lib
-            fi
-
-            echo [openssl-${OPENSSL_VERSION}]: Installed to $PWD
-            popd
-          fi
 
       - name: Build
         shell: bash
@@ -105,8 +81,6 @@ jobs:
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_3" ]; then
-            EVENT_CMAKE_OPTIONS="-DOPENSSL_ROOT_DIR=/tmp/openssl-3/install -DOPENSSL_USE_STATIC_LIBS=TRUE"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_THREAD_SUPPORT=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_DEBUG_MODE" ]; then
@@ -184,11 +158,13 @@ jobs:
           - NONE
           - NO_SSL
           - DISABLE_OPENSSL
-          - OPENSSL_3
           - DISABLE_THREAD_SUPPORT
           - DISABLE_DEBUG_MODE
           - DISABLE_MM_REPLACEMENT
           - COMPILER_CLANG
+        include:
+          - os: ubuntu-22.04
+            EVENT_MATRIX: OPENSSL_3
 
     steps:
       - uses: actions/checkout@v2.0.0
@@ -208,32 +184,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libmbedtls-dev
 
-          if [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_3" ]; then
-            OPENSSL_VERSION=3.0.3
-            JOBS=20
-
-            echo [openssl-${OPENSSL_VERSION}]: Downloading
-            wget "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
-
-            echo [openssl-${OPENSSL_VERSION}]: Extracting
-            tar xzf "openssl-${OPENSSL_VERSION}.tar.gz"
-            rm "openssl-${OPENSSL_VERSION}.tar.gz"
-            mv "openssl-${OPENSSL_VERSION}" /tmp/openssl-3
-
-            echo [openssl-${OPENSSL_VERSION}]: Building
-            pushd /tmp/openssl-3
-            ./Configure --prefix=$PWD/install
-            make -j ${JOBS}
-            make install
-            cd install
-            if [ ! -d lib ]; then
-              ln -s lib64 lib
-            fi
-
-            echo [openssl-${OPENSSL_VERSION}]: Installed to $PWD
-            popd
-          fi
-
       - name: Build
         shell: bash
         run: |
@@ -242,9 +192,6 @@ jobs:
 
           elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
             EVENT_CONFIGURE_OPTIONS="--disable-openssl --disable-mbedtls"
-
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_3" ]; then
-            export PKG_CONFIG_PATH=/tmp/openssl-3/install/lib/pkgconfig
 
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
             EVENT_CONFIGURE_OPTIONS="--disable-thread-support"
@@ -289,10 +236,7 @@ jobs:
             cd dist
             archive=$(echo *.tar.gz)
             cd $(basename $archive .tar.gz)
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "OPENSSL_3" ]; then
-            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/tmp/openssl-3/install/lib
           fi
-
           cd build
           make -j $JOBS verify
 
