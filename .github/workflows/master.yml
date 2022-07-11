@@ -109,6 +109,7 @@ jobs:
       - uses: actions/upload-artifact@v1
         with:
           name: build
+          path: /tmp/le-abi-root/work/abi-check
 
   doxygen-job:
     runs-on: ubuntu-18.04
@@ -156,4 +157,4 @@ jobs:
         if: failure()
         with:
           name: doxygen-build
-          path: build     path: /tmp/le-abi-root/work/abi-check
+          path: build
