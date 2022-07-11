@@ -4,10 +4,7 @@
 
 
 
-[![CI linux](https://github.com/libevent/libevent/workflows/linux/badge.svg)](https://github.com/libevent/libevent/actions?query=workflow%3Alinux)
-[![CI windows](https://github.com/libevent/libevent/workflows/windows/badge.svg)](https://github.com/libevent/libevent/actions?query=workflow%3Awindows)
-[![CI mingw](https://github.com/libevent/libevent/workflows/mingw/badge.svg)](https://github.com/libevent/libevent/actions?query=workflow%3Amingw)
-[![CI macos](https://github.com/libevent/libevent/workflows/macos/badge.svg)](https://github.com/libevent/libevent/actions?query=workflow%3Amacos)
+[![CI](https://github.com/libevent/libevent/actions/workflows/build.yml/badge.svg)](https://github.com/libevent/libevent/actions/workflows/build.yml)
 
 [![Coverage Status](https://coveralls.io/repos/github/libevent/libevent/badge.svg)](https://coveralls.io/github/libevent/libevent)
 [![Join the chat at https://gitter.im/libevent/libevent](https://badges.gitter.im/libevent/libevent.svg)](https://gitter.im/libevent/libevent?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
