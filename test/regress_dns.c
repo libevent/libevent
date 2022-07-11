@@ -2072,7 +2072,15 @@ static void
 gaic_launch(struct event_base *base, struct evdns_base *dns_base, unsigned i)
 {
 	struct gaic_request_status *status = calloc(1,sizeof(*status));
-	struct timeval tv = { 0, i % 2 ? 100000 : 1 };
+	struct timeval tv = { 0, 0 };
+
+	/// cancel via timer half of requests
+	if (i % 2) {
+		tv.tv_usec = 1;
+	} else {
+		tv.tv_sec = 10;
+	}
+
 	status->magic = GAIC_MAGIC;
 	status->base = base;
 	status->dns_base = dns_base;
