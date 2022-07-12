@@ -935,7 +935,7 @@ test_evutil_rand(void *arg)
 	char buf1[32];
 	char buf2[32];
 	int counts[256];
-	int i, j, k, n=0;
+	int i, j, k;
 	struct evutil_weakrand_state seed = { 12346789U };
 
 	memset(buf2, 0, sizeof(buf2));
@@ -956,7 +956,6 @@ test_evutil_rand(void *arg)
 			memset(buf1, 0, sizeof(buf1));
 			evutil_secure_rng_get_bytes(buf1 + startpoint,
 			    endpoint-startpoint);
-			n += endpoint - startpoint;
 			for (j=0; j<32; ++j) {
 				if (j >= startpoint && j < endpoint) {
 					buf2[j] |= buf1[j];
@@ -982,8 +981,6 @@ test_evutil_rand(void *arg)
 		tt_int_op(0, <=, r);
 		tt_int_op(r, <, 9999);
 	}
-
-	/* for (i=0;i<256;++i) { printf("%3d %2d\n", i, counts[i]); } */
 end:
 	;
 }
