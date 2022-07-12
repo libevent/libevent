@@ -46,12 +46,16 @@ jobs:
           - COMPILER_CLANG
           - TEST_EXPORT_STATIC
           - TEST_EXPORT_SHARED
-          - ASAN
-          - TSAN
-          - UBSAN
         include:
           - os: ubuntu-22.04
             EVENT_MATRIX: OPENSSL_3
+          # use recent ubuntu with recent clang for recent sanitizers
+          - os: ubuntu-22.04
+            EVENT_MATRIX: TSAN
+          - os: ubuntu-22.04
+            EVENT_MATRIX: ASAN
+          - os: ubuntu-22.04
+            EVENT_MATRIX: UBSAN
 
     steps:
       - uses: actions/checkout@v2.0.0
