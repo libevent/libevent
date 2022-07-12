@@ -124,29 +124,33 @@ jobs:
           cmake --build .
 
       - name: Test
-        shell: bash
-        run: |
-          JOBS=20
-          export CTEST_PARALLEL_LEVEL=$JOBS
-          export CTEST_OUTPUT_ON_FAILURE=1
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          shell: bash
+          command: |
+            JOBS=20
+            export CTEST_PARALLEL_LEVEL=$JOBS
+            export CTEST_OUTPUT_ON_FAILURE=1
 
-          export TSAN_OPTIONS=suppressions=$PWD/extra/tsan.supp
-          export LSAN_OPTIONS=suppressions=$PWD/extra/lsan.supp
+            export TSAN_OPTIONS=suppressions=$PWD/extra/tsan.supp
+            export LSAN_OPTIONS=suppressions=$PWD/extra/lsan.supp
 
-          if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
-            cd dist
-            archive=$(echo *.tar.gz)
-            cd $(basename $archive .tar.gz)
-          fi
-          cd build
+            if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
+              cd dist
+              archive=$(echo *.tar.gz)
+              cd $(basename $archive .tar.gz)
+            fi
+            cd build
 
-          if [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
-            sudo python3 ../test-export/test-export.py static
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
-            sudo python3 ../test-export/test-export.py shared
-          else
-            cmake --build . --target verify
-          fi
+            if [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
+              sudo python3 ../test-export/test-export.py static
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
+              sudo python3 ../test-export/test-export.py shared
+            else
+              cmake --build . --target verify
+            fi
 
       - uses: actions/upload-artifact@v1
         if: failure() && matrix.EVENT_MATRIX != 'DIST'
@@ -242,16 +246,20 @@ jobs:
           ../configure --enable-gcc-warnings $EVENT_CONFIGURE_OPTIONS
           make
       - name: Test
-        shell: bash
-        run: |
-          JOBS=20
-          if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
-            cd dist
-            archive=$(echo *.tar.gz)
-            cd $(basename $archive .tar.gz)
-          fi
-          cd build
-          make -j $JOBS verify
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          shell: bash
+          command: |
+            JOBS=20
+            if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
+              cd dist
+              archive=$(echo *.tar.gz)
+              cd $(basename $archive .tar.gz)
+            fi
+            cd build
+            make -j $JOBS verify
 
       - uses: actions/upload-artifact@v1
         if: failure() && matrix.EVENT_MATRIX != 'DIST'
@@ -372,24 +380,28 @@ jobs:
           cmake --build . -j $EVENT_BUILD_PARALLEL -- /nologo /verbosity:minimal
 
       - name: Test
-        shell: powershell
-        run: |
-          $EVENT_TESTS_PARALLEL=1
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          shell: powershell
+          command: |
+            $EVENT_TESTS_PARALLEL=1
 
-          cd build
+            cd build
 
-          try {
-            if ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_STATIC") {
-              python ../test-export/test-export.py static
-            } elseif ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_SHARED") {
-              python ../test-export/test-export.py shared
-            } else {
-              ctest --output-on-failure -j $EVENT_TESTS_PARALLEL
-              if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode) }
+            try {
+              if ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_STATIC") {
+                python ../test-export/test-export.py static
+              } elseif ("${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_SHARED") {
+                python ../test-export/test-export.py shared
+              } else {
+                ctest --output-on-failure -j $EVENT_TESTS_PARALLEL
+                if ($LastExitCode -ne 0) { $host.SetShouldExit($LastExitCode) }
+              }
+            } catch {
+              $host.SetShouldExit($LastExitCode)
             }
-          } catch {
-            $host.SetShouldExit($LastExitCode)
-          }
 
       - uses: actions/upload-artifact@v1
         if: failure()
@@ -453,15 +465,19 @@ jobs:
           D:\a\_temp\msys64\usr\bin\bash.exe -c $script
 
       - name: Test
-        shell: powershell
-        run: |
-          $env:EVENT_TESTS_PARALLEL=1
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          shell: powershell
+          command: |
+            $env:EVENT_TESTS_PARALLEL=1
 
-          $script='
-          export PATH="/mingw64/bin:/usr/bin:/bin:/usr/local/bin:/opt/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:$PATH"
-          cd build
-          make verify -j $EVENT_TESTS_PARALLEL 2>&1 '
-          D:\a\_temp\msys64\usr\bin\bash.exe -c $script
+            $script='
+            export PATH="/mingw64/bin:/usr/bin:/bin:/usr/local/bin:/opt/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl:$PATH"
+            cd build
+            make verify -j $EVENT_TESTS_PARALLEL 2>&1 '
+            D:\a\_temp\msys64\usr\bin\bash.exe -c $script
 
       - uses: actions/upload-artifact@v1
         if: failure()
@@ -539,10 +555,14 @@ jobs:
           cmake --build .
 
       - name: Test
-        shell: powershell
-        run: |
-          cd build
-          ctest --output-on-failure
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          shell: powershell
+          command: |
+            cd build
+            ctest --output-on-failure
 
       - uses: actions/upload-artifact@v1
         if: failure()
@@ -618,21 +638,25 @@ jobs:
           cmake --build .
 
       - name: Test
-        shell: bash
-        run: |
-          JOBS=1
-          export CTEST_PARALLEL_LEVEL=$JOBS
-          export CTEST_OUTPUT_ON_FAILURE=1
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          shell: bash
+          command: |
+            JOBS=1
+            export CTEST_PARALLEL_LEVEL=$JOBS
+            export CTEST_OUTPUT_ON_FAILURE=1
 
-          cd build
+            cd build
 
-          if [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
-            sudo python3 ../test-export/test-export.py static
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
-            sudo python3 ../test-export/test-export.py shared
-          else
-            cmake --build . --target verify
-          fi
+            if [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
+              sudo python3 ../test-export/test-export.py static
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
+              sudo python3 ../test-export/test-export.py shared
+            else
+              cmake --build . --target verify
+            fi
 
       - uses: actions/upload-artifact@v1
         if: failure()
@@ -700,11 +724,15 @@ jobs:
           make
 
       - name: Test
-        shell: bash
-        run: |
-          JOBS=1
-          cd build
-          make -j $JOBS verify
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 3
+          timeout_minutes: 20
+          shell: bash
+          command: |
+            JOBS=1
+            cd build
+            make -j $JOBS verify
 
       - uses: actions/upload-artifact@v1
         if: failure()
