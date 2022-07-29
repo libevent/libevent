@@ -127,15 +127,25 @@ if(CONFIG_FOR_INSTALL_TREE)
 
     # Find libraries
     macro(find_event_lib _comp)
-        unset(_event_lib CACHE)
-        find_library(_event_lib
+        unset(_event_lib_dbg CACHE)
+        unset(_event_lib_rel CACHE)
+        find_library(_event_lib_dbg
+                    NAMES "event_${_comp}d"
+                    PATHS "${_INSTALL_PREFIX}/lib"
+                    NO_DEFAULT_PATH)
+        find_library(_event_lib_rel
                     NAMES "event_${_comp}"
                     PATHS "${_INSTALL_PREFIX}/lib"
                     NO_DEFAULT_PATH)
-        if(_event_lib)
+        if(_event_lib_rel OR _event_lib_dbg)
             list(APPEND LIBEVENT_LIBRARIES "libevent::${_comp}")
             set_case_insensitive_found(${_comp})
-            message_if_needed(STATUS "Found libevent component: ${_event_lib}")
+            if(_event_lib_dbg)
+                message_if_needed(STATUS "Found libevent component: ${_event_lib_dbg}")
+            endif()
+            if(_event_lib_rel)
+                message_if_needed(STATUS "Found libevent component: ${_event_lib_rel}")
+            endif()
         else()
             no_component_msg(${_comp})
         endif()
