@@ -1,0 +1,46 @@
+name: NetBSD
+on:
+  push:
+    branches:
+      - '*'
+    paths:
+      - '**.c'
+      - '**.h'
+      - '**.am'
+      - '**.m4'
+      - 'cmake/*'
+      - 'extra/*'
+      - '.github/workflows/NetBSD.yml'
+  pull_request:
+    branches:
+      - '*'
+    paths:
+      - '**.c'
+      - '**.h'
+      - '**.am'
+      - '**.m4'
+      - 'cmake/*'
+      - 'extra/*'
+      - '.github/workflows/NetBSD.yml'
+
+
+
+jobs:
+  NetBSD:
+    runs-on: macos-12
+    steps:
+    - uses: actions/checkout@v2
+    - uses: vmactions/netbsd-vm@v0
+      with:
+        prepare: |
+          pkg_add  mbedtls cmake
+        usesh: true
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make && make verify
+
+
+
+
