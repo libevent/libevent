@@ -1,0 +1,45 @@
+name: DragonflyBSD
+on:
+  push:
+    branches:
+      - '*'
+    paths:
+      - '**.c'
+      - '**.h'
+      - '**.am'
+      - '**.m4'
+      - 'cmake/*'
+      - 'extra/*'
+      - '.github/workflows/DragonflyBSD.yml'
+  pull_request:
+    branches:
+      - '*'
+    paths:
+      - '**.c'
+      - '**.h'
+      - '**.am'
+      - '**.m4'
+      - 'cmake/*'
+      - 'extra/*'
+      - '.github/workflows/DragonflyBSD.yml'
+
+
+
+jobs:
+  DragonflyBSD:
+    runs-on: macos-12
+    steps:
+    - uses: actions/checkout@v2
+    - uses: vmactions/dragonflybsd-vm@v0
+      with:
+        prepare: |
+          pkg install -y   mbedtls cmake
+        usesh: true
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make && make verify
+
+
+
