@@ -545,6 +545,7 @@ else()
         unsetenv
         setrlimit
         gethostbyname_r
+        mmap64
     )
     if (APPLE)
         list(APPEND SYMBOLS_TO_CHECK mach_absolute_time)
