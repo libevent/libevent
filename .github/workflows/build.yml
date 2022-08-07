@@ -904,7 +904,7 @@ jobs:
             cd $GITHUB_WORKSPACE
             JOBS=1
             cd build
-            make -j $JOBS verify
+            make verify
             EOF
 
       - uses: actions/upload-artifact@v1
