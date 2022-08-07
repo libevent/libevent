@@ -901,6 +901,7 @@ jobs:
           shell: bash
           command: |
             ssh freebsd sh <<EOF
+            cd $GITHUB_WORKSPACE
             JOBS=1
             cd build
             make -j $JOBS verify
