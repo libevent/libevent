@@ -853,6 +853,7 @@ set(HDR_PUBLIC
     include/event2/tag_compat.h
     include/event2/thread.h
     include/event2/util.h
+    include/event2/ws.h
     include/event2/visibility.h
     ${PROJECT_BINARY_DIR}/include/event2/event-config.h)
 
@@ -965,6 +966,9 @@ set(SRC_EXTRA
     event_tagging.c
     http.c
     evdns.c
+    ws.c
+    sha1.c
+    sha1.h
     evrpc.c)
 
 add_definitions(-DHAVE_CONFIG_H)

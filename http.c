@@ -107,6 +107,7 @@
 #include "event2/http_struct.h"
 #include "event2/http_compat.h"
 #include "event2/util.h"
+#include "event2/ws.h"
 #include "event2/listener.h"
 #include "log-internal.h"
 #include "util-internal.h"
@@ -3191,6 +3192,31 @@ evhttp_send_reply_chunk_with_cb(struct evhttp_request *req, struct evbuffer *dat
 	evhttp_write_buffer(evcon, cb, arg);
 }
 
+struct bufferevent *
+evhttp_start_ws_(struct evhttp_request *req)
+{
+	struct evhttp_connection *evcon = req->evcon;
+	struct bufferevent *bufev;
+
+	evhttp_response_code_(req, HTTP_SWITCH_PROTOCOLS, "Switching Protocols");
+
+	if (req->evcon == NULL)
+		return NULL;
+
+	evhttp_make_header(req->evcon, req);
+	evhttp_write_buffer(req->evcon, NULL, NULL);
+
+	TAILQ_REMOVE(&evcon->requests, req, next);
+
+	bufev = evcon->bufev;
+	evcon->bufev = NULL;
+	evcon->closecb = NULL;
+
+	evhttp_request_free(req);
+	evhttp_connection_free(evcon);
+	return bufev;
+}
+
 void
 evhttp_send_reply_chunk(struct evhttp_request *req, struct evbuffer *databuf)
 {
@@ -3945,6 +3971,7 @@ evhttp_new_object(void)
 	TAILQ_INIT(&http->sockets);
 	TAILQ_INIT(&http->callbacks);
 	TAILQ_INIT(&http->connections);
+	TAILQ_INIT(&http->ws_sessions);
 	TAILQ_INIT(&http->virtualhosts);
 	TAILQ_INIT(&http->aliases);
 
@@ -3989,6 +4016,7 @@ evhttp_free(struct evhttp* http)
 {
 	struct evhttp_cb *http_cb;
 	struct evhttp_connection *evcon;
+	struct evws_connection *evws;
 	struct evhttp_bound_socket *bound;
 	struct evhttp* vhost;
 	struct evhttp_server_alias *alias;
@@ -4005,6 +4033,10 @@ evhttp_free(struct evhttp* http)
 	while ((evcon = TAILQ_FIRST(&http->connections)) != NULL) {
 		/* evhttp_connection_free removes the connection */
 		evhttp_connection_free(evcon);
+	}
+
+	while ((evws = TAILQ_FIRST(&http->ws_sessions)) != NULL) {
+		evws_connection_free(evws);
 	}
 
 	while ((http_cb = TAILQ_FIRST(&http->callbacks)) != NULL) {
