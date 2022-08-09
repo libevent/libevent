@@ -40,7 +40,6 @@ on_msg_cb(struct evws_connection *evws, char *data, size_t len, void *arg)
 	struct client *self = arg;
 	char buf[4096];
 
-
 	if (strcmp(data, "/quit") == 0) {
 		evws_close(evws, WS_CR_NORMAL);
 		snprintf(buf, sizeof(buf), "'%s' left the chat", self->name);
@@ -77,17 +76,15 @@ nice_addr(const char *addr)
 static void
 addr2str(struct sockaddr *sa, char *addr, size_t len)
 {
-	unsigned short port;
+	const char *nice;
 
 	if (sa->sa_family == AF_INET) {
 		struct sockaddr_in *s = (struct sockaddr_in *)sa;
-		port = ntohs(s->sin_port);
 		inet_ntop(AF_INET, &s->sin_addr, addr, len);
 	} else { // AF_INET6
 		struct sockaddr_in6 *s = (struct sockaddr_in6 *)sa;
-		port = ntohs(s->sin6_port);
 		inet_ntop(AF_INET6, &s->sin6_addr, addr, len);
-		const char *nice = nice_addr(addr);
+		nice = nice_addr(addr);
 		if (nice != addr) {
 			int len = strlen(addr) - (nice - addr);
 			memmove(addr, nice, len);
@@ -101,12 +98,14 @@ static void
 on_ws(struct evhttp_request *req, void *arg)
 {
 	(void)arg;
-
-	struct client *client = calloc(sizeof(*client), 1);
-	client->evws = evws_new_session(req, on_msg_cb, client);
-	int fd = bufferevent_getfd(evws_connection_get_bufferevent(client->evws));
-
+	struct client *client;
+	int fd;
 	struct sockaddr_storage addr;
+
+	client = calloc(sizeof(*client), 1);
+	client->evws = evws_new_session(req, on_msg_cb, client);
+	fd = bufferevent_getfd(evws_connection_get_bufferevent(client->evws));
+
 	socklen_t len = sizeof(addr);
 	getpeername(fd, (struct sockaddr *)&addr, &len);
 
@@ -121,11 +120,13 @@ static void
 on_html(struct evhttp_request *req, void *arg)
 {
 	(void)arg;
+	int fd;
+	struct evbuffer *evb;
 
 	evhttp_add_header(
 		evhttp_request_get_output_headers(req), "Content-Type", "text/html");
-	int fd = open("ws-chat.html", O_RDONLY);
-	struct evbuffer *evb = evbuffer_new();
+	fd = open("ws-chat.html", O_RDONLY);
+	evb = evbuffer_new();
 	evbuffer_add_file(evb, fd, 0, -1);
 	close(fd);
 	evhttp_send_reply(req, HTTP_OK, NULL, evb);
@@ -140,16 +141,20 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 int
-main()
+main(int argc, char** argv)
 {
+	struct event_base *base;
+	struct event *sig_int;
+	struct evhttp *http_server;
+
 	TAILQ_INIT(&clients);
 
-	struct event_base *base = event_base_new();
+	base = event_base_new();
 
-	struct event *sig_int = evsignal_new(base, SIGINT, signal_cb, base);
+	sig_int = evsignal_new(base, SIGINT, signal_cb, base);
 	event_add(sig_int, NULL);
 
-	struct evhttp *http_server = evhttp_new(base);
+	http_server = evhttp_new(base);
 	evhttp_bind_socket_with_handle(http_server, "0.0.0.0", 8080);
 
 	evhttp_set_cb(http_server, "/", on_html, NULL);
