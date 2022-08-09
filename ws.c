@@ -312,11 +312,11 @@ evws_new_session(struct evhttp_request *req,
 
 	headers = evhttp_request_get_input_headers(req);
 	upgrade = evhttp_find_header(headers, "Upgrade");
-	if (upgrade == NULL && strcmp(upgrade, "websocket"))
+	if (upgrade == NULL || strcmp(upgrade, "websocket"))
 		goto error;
 
 	connection = evhttp_find_header(headers, "Connection");
-	if (connection == NULL && strcmp(connection, "Upgrade"))
+	if (connection == NULL || strcmp(connection, "Upgrade"))
 		goto error;
 
 	ws_key = evhttp_find_header(headers, "Sec-WebSocket-Key");
