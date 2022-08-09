@@ -150,8 +150,7 @@ main()
 	event_add(sig_int, NULL);
 
 	struct evhttp *http_server = evhttp_new(base);
-	struct evhttp_bound_socket *handle =
-		evhttp_bind_socket_with_handle(http_server, "0.0.0.0", 8080);
+	evhttp_bind_socket_with_handle(http_server, "0.0.0.0", 8080);
 
 	evhttp_set_cb(http_server, "/", on_html, NULL);
 	evhttp_set_cb(http_server, "/ws", on_ws, NULL);
