@@ -47,7 +47,7 @@ on_msg_cb(struct evws_connection *evws, char *data, size_t len, void *arg)
 		char *new_name = data + 6;
 		snprintf(buf, sizeof(buf), "'%s' renamed itself to '%s'", self->name,
 			new_name);
-		strncpy(self->name, new_name, sizeof(self->name));
+		strncpy(self->name, new_name, sizeof(self->name) - 1);
 	} else {
 		snprintf(buf, sizeof(buf), "[%s] %s", self->name, data);
 	}
@@ -97,16 +97,16 @@ addr2str(struct sockaddr *sa, char *addr, size_t len)
 static void
 on_ws(struct evhttp_request *req, void *arg)
 {
-	(void)arg;
 	struct client *client;
 	int fd;
 	struct sockaddr_storage addr;
+	socklen_t len;
 
 	client = calloc(sizeof(*client), 1);
 	client->evws = evws_new_session(req, on_msg_cb, client);
 	fd = bufferevent_getfd(evws_connection_get_bufferevent(client->evws));
 
-	socklen_t len = sizeof(addr);
+	len = sizeof(addr);
 	getpeername(fd, (struct sockaddr *)&addr, &len);
 
 	addr2str((struct sockaddr *)&addr, client->name, sizeof(client->name));
@@ -119,7 +119,6 @@ on_ws(struct evhttp_request *req, void *arg)
 static void
 on_html(struct evhttp_request *req, void *arg)
 {
-	(void)arg;
 	int fd;
 	struct evbuffer *evb;
 
@@ -141,7 +140,7 @@ signal_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 int
-main(int argc, char** argv)
+main(int argc, char **argv)
 {
 	struct event_base *base;
 	struct event *sig_int;
