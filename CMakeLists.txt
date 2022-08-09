@@ -971,6 +971,8 @@ set(SRC_EXTRA
     sha1.c
     evrpc.c)
 
+set_source_files_properties(sha1.c PROPERTIES COMPILE_FLAGS
+    -D${CMAKE_C_BYTE_ORDER}=1)
 add_definitions(-DHAVE_CONFIG_H)
 
 # We use BEFORE here so we don't accidentally look in system directories

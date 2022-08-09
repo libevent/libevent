@@ -29,7 +29,7 @@ A million repetitions of "a"
 
 /* blk0() and blk() perform the initial expand. */
 /* I got the idea of expanding during the round function from SSLeay */
-#if BYTE_ORDER == LITTLE_ENDIAN
+#ifdef LITTLE_ENDIAN
 #define blk0(i)                                                                \
     (block->l[i] = (rol(block->l[i], 24) & 0xFF00FF00) |                       \
                    (rol(block->l[i], 8) & 0x00FF00FF))
@@ -269,7 +269,7 @@ void SHA1Final(unsigned char digest[20], SHA1_CTX *context) {
 
 void SHA1(char *hash_out, const char *str, int len) {
     SHA1_CTX ctx;
-    unsigned int ii;
+    int ii;
 
     SHA1Init(&ctx);
     for (ii = 0; ii < len; ii += 1)
