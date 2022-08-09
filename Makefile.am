@@ -259,6 +259,8 @@ EXTRAS_SRC =					\
 	evdns.c					\
 	event_tagging.c				\
 	evrpc.c					\
+	sha1.c					\
+	ws.c					\
 	http.c
 
 if BUILD_WITH_NO_UNDEFINED
@@ -338,6 +340,7 @@ noinst_HEADERS +=				\
 	util-internal.h				\
 	openssl-compat.h			\
 	mbedtls-compat.h			\
+	sha1.h						\
 	ssl-compat.h			    \
 	wepoll.h
 
