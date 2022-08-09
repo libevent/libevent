@@ -819,6 +819,7 @@ set(HDR_PRIVATE
     strlcpy-internal.h
     util-internal.h
     evconfig-private.h
+    sha1.h
     compat/sys/queue.h)
 
 set(HDR_COMPAT
@@ -968,7 +969,6 @@ set(SRC_EXTRA
     evdns.c
     ws.c
     sha1.c
-    sha1.h
     evrpc.c)
 
 add_definitions(-DHAVE_CONFIG_H)
