@@ -1139,6 +1139,7 @@ if (NOT EVENT__DISABLE_SAMPLES)
 
     set(SAMPLES_WOPT
         dns-example
+        ws-chat-server
         http-server
     )
     foreach (SAMPLE ${SAMPLES_WOPT})
