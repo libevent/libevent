@@ -131,6 +131,10 @@ on_html(struct evhttp_request *req, void *arg)
 	evbuffer_free(evb);
 }
 
+#ifndef EVENT__HAVE_STRSIGNAL
+static inline const char* strsignal(evutil_socket_t sig) { return "Signal"; }
+#endif
+
 static void
 signal_cb(evutil_socket_t fd, short event, void *arg)
 {
