@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <sys/queue.h>
 #include <unistd.h>
-#include <arpa/inet.h>
 
 #define log_d(...) fprintf(stderr, __VA_ARGS__)
 
@@ -80,10 +79,10 @@ addr2str(struct sockaddr *sa, char *addr, size_t len)
 
 	if (sa->sa_family == AF_INET) {
 		struct sockaddr_in *s = (struct sockaddr_in *)sa;
-		inet_ntop(AF_INET, &s->sin_addr, addr, len);
+		evutil_inet_ntop(AF_INET, &s->sin_addr, addr, len);
 	} else { // AF_INET6
 		struct sockaddr_in6 *s = (struct sockaddr_in6 *)sa;
-		inet_ntop(AF_INET6, &s->sin6_addr, addr, len);
+		evutil_inet_ntop(AF_INET6, &s->sin6_addr, addr, len);
 		nice = nice_addr(addr);
 		if (nice != addr) {
 			int len = strlen(addr) - (nice - addr);
