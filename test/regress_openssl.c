@@ -153,6 +153,7 @@ init_ssl(void)
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
 	(defined(LIBRESSL_VERSION_NUMBER) &&      \
 		LIBRESSL_VERSION_NUMBER < 0x20700000L)
+	/* NOTE: you should destroy every global objects to avoid leaks, see lsan.supp */
 	SSL_library_init();
 	ERR_load_crypto_strings();
 	SSL_load_error_strings();
