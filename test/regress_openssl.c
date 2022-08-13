@@ -150,6 +150,11 @@ get_ssl_ctx(void)
 void
 init_ssl(void)
 {
+	static int initialized;
+	if (initialized)
+		return;
+	initialized = 1;
+
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
 	(defined(LIBRESSL_VERSION_NUMBER) &&      \
 		LIBRESSL_VERSION_NUMBER < 0x20700000L)
