@@ -467,9 +467,6 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 		bufferevent_decref_and_unlock_(bev);
 		return;
 	}
-	if (!ai) {
-		result = EAI_ADDRFAMILY;
-	}
 	if (result != 0) {
 		bev_p->dns_error = result;
 		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
