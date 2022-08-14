@@ -5564,8 +5564,9 @@ evdns_getaddrinfo_fromhosts(struct evdns_base *base,
 	EVDNS_UNLOCK(base);
 out:
 	if (n_found) {
-		/* Note that we return an empty answer if we found entries for
-		 * this hostname but none were of the right address type. */
+		if (!ai) {
+			return EVUTIL_EAI_ADDRFAMILY;
+		}
 		*res = ai;
 		return 0;
 	} else {
