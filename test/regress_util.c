@@ -1110,8 +1110,7 @@ test_evutil_getaddrinfo(void *arg)
 	hints.ai_family = PF_UNSPEC;
 	hints.ai_flags = EVUTIL_AI_NUMERICHOST;
 	r = evutil_getaddrinfo("www.google.com", "80", &hints, &ai);
-	if (r != EVUTIL_EAI_SERVICE && r != EVUTIL_EAI_NONAME)
-		tt_fail_msg("error is neither EAI_SERVICE nor EAI_NONAME\n");
+	tt_int_op(r,==,EVUTIL_EAI_NONAME);
 	tt_ptr_op(ai, ==, NULL);
 
 	/* Try symbolic service names wit AI_NUMERICSERV */
@@ -1120,7 +1119,8 @@ test_evutil_getaddrinfo(void *arg)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = EVUTIL_AI_NUMERICSERV;
 	r = evutil_getaddrinfo("1.2.3.4", "http", &hints, &ai);
-	tt_int_op(r,==,EVUTIL_EAI_NONAME);
+	if (r != EVUTIL_EAI_SERVICE && r != EVUTIL_EAI_NONAME)
+		tt_fail_msg("error is neither EAI_SERVICE nor EAI_NONAME\n");
 
 	/* Try symbolic service names */
 	memset(&hints, 0, sizeof(hints));
