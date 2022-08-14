@@ -1077,7 +1077,7 @@ jobs:
             cd build
             echo [configure]: ../configure $EVENT_CONFIGURE_OPTIONS
             ../configure $EVENT_CONFIGURE_OPTIONS
-            make
+            make V=1
 
       - name: Test
         uses: nick-fields/retry@v2
