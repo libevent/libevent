@@ -20,6 +20,12 @@
 #ifdef EVENT__HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
+#ifdef EVENT__HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef EVENT__HAVE_NETINET_IN6_H
+#include <netinet/in6.h>
+#endif
 
 struct evws_connection {
 	TAILQ_ENTRY(evws_connection) next;
