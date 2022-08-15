@@ -17,6 +17,10 @@
 #include <string.h>
 #include <stdbool.h>
 
+#ifdef EVENT__HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
 struct evws_connection {
 	TAILQ_ENTRY(evws_connection) next;
 
