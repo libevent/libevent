@@ -10,7 +10,34 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/queue.h>
+#include <sys/stat.h>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <getopt.h>
+#include <io.h>
+
+#ifndef stat
+#define stat _stat
+#endif
+#ifndef fstat
+#define fstat _fstat
+#endif
+#ifndef open
+#define open _open
+#endif
+#ifndef close
+#define close _close
+#endif
+#ifndef O_RDONLY
+#define O_RDONLY _O_RDONLY
+#endif
+
+#else /* !_WIN32 */
 #include <unistd.h>
+#endif /* _WIN32 */
 
 #define log_d(...) fprintf(stderr, __VA_ARGS__)
 
@@ -85,7 +112,7 @@ addr2str(struct sockaddr *sa, char *addr, size_t len)
 		evutil_inet_ntop(AF_INET6, &s->sin6_addr, addr, len);
 		nice = nice_addr(addr);
 		if (nice != addr) {
-			int len = strlen(addr) - (nice - addr);
+			size_t len = strlen(addr) - (nice - addr);
 			memmove(addr, nice, len);
 			addr[len] = 0;
 		}
@@ -97,7 +124,7 @@ static void
 on_ws(struct evhttp_request *req, void *arg)
 {
 	struct client *client;
-	int fd;
+	evutil_socket_t fd;
 	struct sockaddr_storage addr;
 	socklen_t len;
 
@@ -118,17 +145,36 @@ on_ws(struct evhttp_request *req, void *arg)
 static void
 on_html(struct evhttp_request *req, void *arg)
 {
-	int fd;
+	int fd = -1;
 	struct evbuffer *evb;
+	struct stat st;
 
 	evhttp_add_header(
 		evhttp_request_get_output_headers(req), "Content-Type", "text/html");
-	fd = open("ws-chat.html", O_RDONLY);
+	if ((fd = open("ws-chat.html", O_RDONLY)) < 0) {
+		perror("open");
+		goto err;
+	}
+
+	if (fstat(fd, &st)<0) {
+		/* Make sure the length still matches, now that we
+		 * opened the file :/ */
+		perror("fstat");
+		goto err;
+	}
+
+
 	evb = evbuffer_new();
-	evbuffer_add_file(evb, fd, 0, -1);
+	evbuffer_add_file(evb, fd, 0, st.st_size);
 	close(fd);
 	evhttp_send_reply(req, HTTP_OK, NULL, evb);
 	evbuffer_free(evb);
+	return;
+
+err:
+	evhttp_send_error(req, HTTP_NOTFOUND, NULL);
+	if (fd>=0)
+		close(fd);
 }
 
 #ifndef EVENT__HAVE_STRSIGNAL
