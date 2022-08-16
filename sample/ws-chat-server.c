@@ -36,7 +36,18 @@
 #endif
 
 #else /* !_WIN32 */
+
+#ifdef EVENT__HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef EVENT__HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef EVENT__HAVE_NETINET_IN6_H
+#include <netinet/in6.h>
+#endif
 #include <unistd.h>
+
 #endif /* _WIN32 */
 
 #define log_d(...) fprintf(stderr, __VA_ARGS__)
