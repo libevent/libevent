@@ -134,9 +134,11 @@ ws_gen_accept_key(const char *ws_key, char out[32])
 }
 
 static void
-close_write_cb(struct bufferevent *bev, void *ctx)
+close_after_write_cb(struct bufferevent *bev, void *ctx)
 {
-	evws_connection_free(ctx);
+	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
+		evws_connection_free(ctx);
+	}
 }
 
 static void
@@ -162,7 +164,7 @@ evws_close(struct evws_connection *evws, uint16_t reason)
 	evbuffer_add(output, fr, 4);
 
 	/* wait for close frame writing complete and close connection */
-	bufferevent_setcb(evws->bufev, NULL, close_write_cb, close_event_cb, evws);
+	bufferevent_setcb(evws->bufev, NULL, close_after_write_cb, close_event_cb, evws);
 }
 
 static void
@@ -296,7 +298,7 @@ ws_evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 {
 	/* when client just disappears after connection (wscat closed by Cmd+Q) */
 	if (what & BEV_EVENT_EOF) {
-		close_write_cb(bufev, arg);
+		close_after_write_cb(bufev, arg);
 	}
 }
 
@@ -384,7 +386,7 @@ ws_make_frame(enum WebSocketFrameType frame_type, unsigned char *msg,
 
 
 void
-evws_send(struct evws_connection *evws, char *packet_str, size_t str_len)
+evws_send(struct evws_connection *evws, const char *packet_str, size_t str_len)
 {
 	unsigned char frame[WS_RECV_BUFFER_SIZE] = {0};
 	struct evbuffer *output;
