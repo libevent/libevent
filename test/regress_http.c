@@ -6055,6 +6055,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(terminate_chunked),
 	HTTP(terminate_chunked_oneshot),
 	HTTP(on_complete),
+	HTTP(ws),
 
 	HTTP(highport),
 	HTTP(dispatcher),
