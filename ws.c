@@ -17,6 +17,24 @@
 #include <string.h>
 #include <stdbool.h>
 
+#ifndef _WIN32
+#include <sys/socket.h>
+#include <sys/stat.h>
+#else /* _WIN32 */
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#endif /* _WIN32 */
+
+#ifdef EVENT__HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+#ifdef EVENT__HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+#ifdef EVENT__HAVE_NETINET_IN6_H
+#include <netinet/in6.h>
+#endif
+
 struct evws_connection {
 	TAILQ_ENTRY(evws_connection) next;
 
