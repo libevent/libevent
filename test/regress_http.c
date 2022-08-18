@@ -60,11 +60,12 @@
 #include "event2/bufferevent.h"
 #include "event2/bufferevent_ssl.h"
 #include "event2/util.h"
-#include "event2/ws.h"
 #include "event2/listener.h"
 #include "log-internal.h"
 #include "http-internal.h"
 #include "regress.h"
+#include "regress_http.h"
+#include "regress_ws.h"
 #include "regress_testutils.h"
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
@@ -117,7 +118,6 @@ static void http_large_delay_cb(struct evhttp_request *req, void *arg);
 static void http_badreq_cb(struct evhttp_request *req, void *arg);
 static void http_dispatcher_cb(struct evhttp_request *req, void *arg);
 static void http_on_complete_cb(struct evhttp_request *req, void *arg);
-static void http_on_ws_cb(struct evhttp_request *req, void *arg);
 
 #define HTTP_BIND_IPV6 1
 #define HTTP_OPENSSL 2
@@ -229,7 +229,7 @@ http_setup_gencb(ev_uint16_t *pport, struct event_base *base, int mask,
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, base);
 	return (myhttp);
 }
-static struct evhttp *
+struct evhttp *
 http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 { return http_setup_gencb(pport, base, mask, NULL, NULL); }
 
@@ -237,7 +237,7 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 #define NI_MAXSERV 1024
 #endif
 
-static evutil_socket_t
+evutil_socket_t
 http_connect(const char *address, ev_uint16_t port)
 {
 	/* Stupid code for connecting */
@@ -352,7 +352,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 	}
 }
 
-static void
+void
 http_writecb(struct bufferevent *bev, void *arg)
 {
 	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
@@ -534,7 +534,7 @@ http_chunked_input_cb(struct evhttp_request *req, void *arg)
 	evbuffer_free(buf);
 }
 
-static struct bufferevent *
+struct bufferevent *
 create_bev(struct event_base *base, evutil_socket_t fd, int ssl_mask, int flags_)
 {
 	int flags = BEV_OPT_DEFER_CALLBACKS | flags_;
@@ -1305,206 +1305,6 @@ http_allowed_methods_test(void *arg)
 		evutil_closesocket(fd3);
 	if (fd4 >= 0)
 		evutil_closesocket(fd4);
-}
-
-static void
-on_ws_msg_cb(struct evws_connection *evws, char *data, size_t len, void *arg)
-{
-	ev_uintptr_t val = (ev_uintptr_t)arg;
-
-	if (val != 0xDEADBEEF) {
-		fprintf(stdout, "FAILED on_complete_cb argument\n");
-		exit(1);
-	}
-
-	if (!strcmp(data, "Send echo")) {
-		evws_send(evws, "Reply echo", strlen("Reply echo"));
-		test_ok++;
-	} else if (!strcmp(data, "Close")) {
-		evws_close(evws, 0);
-		test_ok++;
-	}
-}
-
-static void
-on_ws_close_cb(struct evws_connection *evws, void *arg)
-{
-	ev_uintptr_t val = (ev_uintptr_t)arg;
-
-	if (val != 0xDEADBEEF) {
-		fprintf(stdout, "FAILED on_complete_cb argument\n");
-		exit(1);
-	}
-	test_ok++;
-}
-
-static void
-http_on_ws_cb(struct evhttp_request *req, void *arg)
-{
-	struct evws_connection *evws;
-
-	evws = evws_new_session(req, on_ws_msg_cb, (void *)0xDEADBEEF);
-	if (!evws)
-		return;
-	test_ok++;
-
-	evws_connection_set_closecb(evws, on_ws_close_cb, (void *)0xDEADBEEF);
-	evws_send(evws, "Hello", strlen("Hello"));
-}
-
-static void
-http_ws_errorcb(struct bufferevent *bev, short what, void *arg)
-{
-	/** For ssl */
-	if (what & BEV_EVENT_CONNECTED)
-		return;
-	test_ok++;
-	event_base_loopexit(arg, NULL);
-}
-
-static void
-http_ws_readcb_phase2(struct bufferevent *bev, void *arg)
-{
-	event_base_loopexit(arg, NULL);
-}
-
-#define htonll(x) ((1==htonl(1)) ? (x) : \
-	((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
-#define ntohll(x) htonll(x)
-
-static void
-send_ws_msg(struct evbuffer* buf, const char* msg){
-	size_t len = strlen(msg);
-	uint8_t a = 0, b = 0, c = 0, d = 0;
-	uint8_t mask_key[4] = {1, 2, 3, 4}; /* should be random */
-	uint8_t m;
-
-	a |= 1 << 7;  /* fin */
-	a |= 1; /* text frame */
-
-	b |= 1 << 7; /* mask */
-
-	/* payload len */
-	if (len < 126) {
-		b |= len;
-	} else if (len < (1 << 16)) {
-		b |= 126;
-		c = htons(len);
-	} else {
-		b |= 127;
-		d = htonll(len);
-	}
-
-	evbuffer_add(buf, &a, 1);
-	evbuffer_add(buf, &b, 1);
-
-	if (c) evbuffer_add(buf, &c, sizeof(c));
-	else if (d) evbuffer_add(buf, &d, sizeof(d));
-
-	evbuffer_add(buf, &mask_key, 4);
-
-	for (size_t i = 0; i < len; i++) {
-		m = msg[i] ^ mask_key[i%4];
-		evbuffer_add(buf, &m, 1);
-	}
-}
-
-static void
-http_ws_readcb_hdr(struct bufferevent *bev, void *arg)
-{
-	struct evbuffer *input = bufferevent_get_input(bev);
-	struct evbuffer *output = bufferevent_get_input(bev);
-	size_t nread = 0, n = 0;
-	char* line;
-
-	while ((line = evbuffer_readln(input, &nread, EVBUFFER_EOL_CRLF))) {
-		if (n == 0 && !strncmp(line, "HTTP/1.1 101 ", strlen("HTTP/1.1 101 "))) {
-			test_ok++;
-		} else if (!strcmp(line, "Sec-WebSocket-Accept: HSmrc0sMlYUkAGmm5OPpG2HaGWk=")) {
-			test_ok++;
-		} else if (strlen(line) == 0) {
-			free(line);
-			bufferevent_setcb(bev, http_ws_readcb_phase2, http_writecb,
-					http_ws_errorcb, arg);
-			send_ws_msg(output, "Send echo");
-			test_ok++;
-			return;
-		}
-		free(line);
-		n++;
-	};
-}
-
-static void
-http_ws_readcb_bad(struct bufferevent *bev, void *arg)
-{
-	struct evbuffer *input = bufferevent_get_input(bev);
-	size_t nread;
-	char* line;
-
-	line = evbuffer_readln(input, &nread, EVBUFFER_EOL_CRLF);
-	if (!strncmp(line, "HTTP/1.1 401 ", strlen("HTTP/1.1 401 "))) {
-		test_ok++;
-	}
-	if (line)
-		free(line);
-}
-
-static void
-http_ws_test(void *arg)
-{
-	struct basic_test_data *data = arg;
-	struct bufferevent *bev = NULL;
-	evutil_socket_t fd;
-	ev_uint16_t port = 0;
-	int ssl = 0;
-	struct evhttp *http = http_setup(&port, data->base, ssl);
-	struct evbuffer *out;
-
-	exit_base = data->base;
-
-	/* Send HTTP-only request to WS endpoint */
-	fd = http_connect("127.0.0.1", port);
-	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
-	bufferevent_setcb(bev, http_ws_readcb_bad, http_writecb,
-	     http_ws_errorcb, data->base);
-	out = bufferevent_get_output(bev);
-
-	evbuffer_add_printf(out,
-	    "GET /ws HTTP/1.1\r\n"
-	    "Host: somehost\r\n"
-	    "Connection: close\r\n"
-	    "\r\n");
-
-	test_ok = 0;
-	event_base_dispatch(data->base);
-	tt_int_op(test_ok, ==, 2);
-
-	bufferevent_free(bev);
-
-	/* Check for WS handshake and Sec-WebSocket-Accept correctness */
-	fd = http_connect("127.0.0.1", port);
-	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
-	bufferevent_setcb(bev, http_ws_readcb_hdr, http_writecb,
-	     http_ws_errorcb, data->base);
-	out = bufferevent_get_output(bev);
-
-	evbuffer_add_printf(out,
-	    "GET /ws HTTP/1.1\r\n"
-	    "Host: somehost\r\n"
-	    "Connection: Upgrade\r\n"
-	    "Upgrade: websocket\r\n"
-	    "Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n"
-	    "\r\n");
-
-	test_ok = 0;
-	event_base_dispatch(data->base);
-	tt_int_op(test_ok, ==, 5);
-
-	evhttp_free(http);
- end:
-	if (bev)
-		bufferevent_free(bev);
 }
 
 static void http_request_no_action_done(struct evhttp_request *, void *);

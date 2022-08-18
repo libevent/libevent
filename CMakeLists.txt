@@ -1223,6 +1223,7 @@ if (NOT EVENT__DISABLE_TESTS)
                  test/regress_et.c
                  test/regress_finalize.c
                  test/regress_http.c
+                 test/regress_http.h
                  test/regress_listener.c
                  test/regress_main.c
                  test/regress_minheap.c
@@ -1231,6 +1232,8 @@ if (NOT EVENT__DISABLE_TESTS)
                  test/regress_testutils.h
                  test/regress_util.c
                  test/regress_watch.c
+                 test/regress_ws.c
+                 test/regress_ws.h
                  test/tinytest.c)
 
             if (WIN32)
