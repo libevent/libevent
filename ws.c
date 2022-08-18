@@ -46,17 +46,11 @@ struct evws_connection {
 	void (*closecb)(struct evws_connection *, void *);
 	void *cbclose_arg;
 
-	unsigned char *recv_data;
-	size_t recv_len;
-	size_t recv_cap;
-
 	/* for server connections, the http server they are connected with */
 	struct evhttp *http_server;
 
 	bool closed;
 };
-
-#define WS_RECV_BUFFER_SIZE 4096
 
 enum WebSocketFrameType {
 	ERROR_FRAME = 0xFF00,
@@ -95,9 +89,6 @@ evws_connection_free(struct evws_connection *evws)
 	if (evws->bufev != NULL) {
 		bufferevent_free(evws->bufev);
 	}
-
-	if (evws->recv_data)
-		free(evws->recv_data);
 
 	mm_free(evws);
 }
@@ -182,7 +173,8 @@ evws_close(struct evws_connection *evws, uint16_t reason)
 	evbuffer_add(output, fr, 4);
 
 	/* wait for close frame writing complete and close connection */
-	bufferevent_setcb(evws->bufev, NULL, close_after_write_cb, close_event_cb, evws);
+	bufferevent_setcb(
+		evws->bufev, NULL, close_after_write_cb, close_event_cb, evws);
 }
 
 static void
@@ -192,44 +184,44 @@ evws_force_disconnect_(struct evws_connection *evws)
 }
 
 static enum WebSocketFrameType
-ws_get_frame(unsigned char *in_buffer, int in_length, unsigned char *out_buffer,
-	int out_size, int *out_length)
+get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
+	int *out_len)
 {
-	unsigned char msg_opcode;
-	unsigned char msg_fin;
-	unsigned char msg_masked;
-	int payload_length;
+	unsigned char opcode;
+	unsigned char fin;
+	unsigned char masked;
+	int payload_len;
 	int pos;
 	int length_field;
 	unsigned int mask;
 
-	if (in_length < 3) {
+	if (buf_len < 3) {
 		return INCOMPLETE_FRAME;
 	}
 
-	msg_opcode = in_buffer[0] & 0x0F;
-	msg_fin = (in_buffer[0] >> 7) & 0x01;
-	msg_masked = (in_buffer[1] >> 7) & 0x01;
+	opcode = in_buffer[0] & 0x0F;
+	fin = (in_buffer[0] >> 7) & 0x01;
+	masked = (in_buffer[1] >> 7) & 0x01;
 
-	payload_length = 0;
+	payload_len = 0;
 	pos = 2;
 	length_field = in_buffer[1] & (~0x80);
 	mask = 0;
 
 	if (length_field <= 125) {
-		payload_length = length_field;
+		payload_len = length_field;
 	} else if (length_field == 126) { /* msglen is 16bit */
-		payload_length = ntohs(*(uint16_t *)(in_buffer + 2));
+		payload_len = ntohs(*(uint16_t *)(in_buffer + 2));
 		pos += 2;
 	} else if (length_field == 127) { /* msglen is 64bit */
-		payload_length = ntohs(*(uint64_t *)(in_buffer + 2));
+		payload_len = ntohs(*(uint64_t *)(in_buffer + 2));
 		pos += 8;
 	}
-	if (in_length < payload_length + pos) {
+	if (buf_len < payload_len + pos) {
 		return INCOMPLETE_FRAME;
 	}
 
-	if (msg_masked) {
+	if (masked) {
 		unsigned char *c;
 
 		mask = *((unsigned int *)(in_buffer + pos));
@@ -237,24 +229,21 @@ ws_get_frame(unsigned char *in_buffer, int in_length, unsigned char *out_buffer,
 
 		/* unmask data */
 		c = in_buffer + pos;
-		for (int i = 0; i < payload_length; i++) {
+		for (int i = 0; i < payload_len; i++) {
 			c[i] = c[i] ^ ((unsigned char *)(&mask))[i % 4];
 		}
 	}
 
-	assert(payload_length <= out_size);
+	*payload_ptr = in_buffer + pos;
+	*out_len = payload_len;
 
-	memcpy((void *)out_buffer, (void *)(in_buffer + pos), payload_length);
-	out_buffer[payload_length] = 0;
-	*out_length = payload_length;
-
-	switch (msg_opcode) {
+	switch (opcode) {
 	case 0x0:
-		return msg_fin ? TEXT_FRAME : INCOMPLETE_TEXT_FRAME;
+		return fin ? TEXT_FRAME : INCOMPLETE_TEXT_FRAME;
 	case 0x1:
-		return msg_fin ? TEXT_FRAME : INCOMPLETE_TEXT_FRAME;
+		return fin ? TEXT_FRAME : INCOMPLETE_TEXT_FRAME;
 	case 0x2:
-		return msg_fin ? BINARY_FRAME : INCOMPLETE_BINARY_FRAME;
+		return fin ? BINARY_FRAME : INCOMPLETE_BINARY_FRAME;
 	case 0x9:
 		return PING_FRAME;
 	case 0xA:
@@ -269,45 +258,39 @@ static void
 ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 {
 	struct evws_connection *evws = arg;
-	unsigned char msg_buf[WS_RECV_BUFFER_SIZE] = {0};
+	unsigned char *payload;
 	enum WebSocketFrameType type;
-
+	int msg_len, in_len;
 	struct evbuffer *input = bufferevent_get_input(evws->bufev);
-	int len = evbuffer_get_length(input);
 
-	if (evws->recv_cap < evws->recv_len + len) {
-		evws->recv_cap = evws->recv_len + len;
-		evws->recv_data = realloc(evws->recv_data, evws->recv_cap);
-	}
-	evbuffer_remove(input, evws->recv_data + evws->recv_len, len);
-	evws->recv_len += len;
+	while ((in_len = evbuffer_get_length(input))) {
+		unsigned char *data = evbuffer_pullup(input, in_len);
 
-	if (evws->recv_len > WS_RECV_BUFFER_SIZE) {
-		event_warn("%s: exceed the max recv buffer size %ld\n", __func__,
-			evws->recv_len);
-		evws_force_disconnect_(evws);
-		return;
-	}
+		type = get_ws_frame(data, in_len, &payload, &msg_len);
 
-	type = ws_get_frame(
-		evws->recv_data, evws->recv_len, msg_buf, sizeof(msg_buf), &len);
+		if (type == TEXT_FRAME) {
+			if (evws->cb) {
+				char *text = alloca(msg_len + 1);
 
-	if (type == TEXT_FRAME) {
-		if (evws->cb)
-			evws->cb(evws, (char *)msg_buf, len, evws->cb_arg);
-		evws->recv_len = 0;
-	} else if (type == INCOMPLETE_TEXT_FRAME || type == INCOMPLETE_FRAME) {
-		/* incomplete frame received, wait for next chunk */
-	} else if (type == INCOMPLETE_BINARY_FRAME || type == BINARY_FRAME ||
-			   type == CLOSING_FRAME || type == ERROR_FRAME) {
-		evws_force_disconnect_(evws);
-	} else if (type == PING_FRAME) {
-		/* ping frame */
-	} else if (type == PONG_FRAME) {
-		/* pong frame */
-	} else {
-		event_warn("%s: unexpected frame type %d\n", __func__, type);
-		evws_force_disconnect_(evws);
+				memcpy(text, payload, msg_len);
+				text[msg_len] = 0;
+				evws->cb(evws, text, msg_len, evws->cb_arg);
+			}
+		} else if (type == INCOMPLETE_TEXT_FRAME || type == INCOMPLETE_FRAME) {
+			/* incomplete frame received, wait for next chunk */
+			return;
+		} else if (type == INCOMPLETE_BINARY_FRAME || type == BINARY_FRAME ||
+				   type == CLOSING_FRAME || type == ERROR_FRAME) {
+			evws_force_disconnect_(evws);
+		} else if (type == PING_FRAME) {
+			/* ping frame */
+		} else if (type == PONG_FRAME) {
+			/* pong frame */
+		} else {
+			event_warn("%s: unexpected frame type %d\n", __func__, type);
+			evws_force_disconnect_(evws);
+		}
+		evbuffer_drain(input, payload - data + msg_len);
 	}
 }
 
@@ -379,45 +362,35 @@ error:
 	return NULL;
 }
 
-static int
-ws_make_frame(enum WebSocketFrameType frame_type, unsigned char *msg,
-	int msg_length, unsigned char *buffer, int buffer_size)
+static void
+make_ws_frame(struct evbuffer *output, enum WebSocketFrameType frame_type,
+	unsigned char *msg, int len)
 {
 	int pos = 0;
-	int size = msg_length;
-	buffer[pos++] = (unsigned char)frame_type; /* text frame */
+	unsigned char header[16] = {0};
 
-	if (size <= 125) {
-		buffer[pos++] = size;
-	} else if (size <= 65535) {
-		buffer[pos++] = 126;				/* 16 bit length */
-		buffer[pos++] = (size >> 8) & 0xFF; /* rightmost first */
-		buffer[pos++] = size & 0xFF;
+	header[pos++] = (unsigned char)frame_type;
+	if (len <= 125) {
+		header[pos++] = len;
+	} else if (len <= 65535) {
+		header[pos++] = 126;				/* 16 bit length */
+		header[pos++] = (len >> 8) & 0xFF; /* rightmost first */
+		header[pos++] = len & 0xFF;
 	} else {				 /* >2^16-1 */
-		buffer[pos++] = 127; /* 64 bit length */
+		header[pos++] = 127; /* 64 bit length */
 
 		pos += 8;
 	}
-	memcpy((void *)(buffer + pos), msg, size);
-	return (size + pos);
+	evbuffer_add(output, header, pos);
+	evbuffer_add(output, msg, len);
 }
-
 
 void
 evws_send(struct evws_connection *evws, const char *packet_str, size_t str_len)
 {
-	unsigned char frame[WS_RECV_BUFFER_SIZE] = {0};
-	struct evbuffer *output;
-	int len;
+	struct evbuffer *output = bufferevent_get_output(evws->bufev);
 
-	len = ws_make_frame(
-		TEXT_FRAME, (unsigned char *)packet_str, str_len, frame, sizeof(frame));
-	if (len <= 0) {
-		event_warn("%s: make websocket frame failed", __func__);
-		return;
-	}
-	output = bufferevent_get_output(evws->bufev);
-	evbuffer_add(output, frame, len);
+	make_ws_frame(output, TEXT_FRAME, (unsigned char *)packet_str, str_len);
 }
 
 void

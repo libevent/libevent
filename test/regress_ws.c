@@ -46,36 +46,16 @@
 #include <unistd.h>
 #include <netdb.h>
 #endif
-#include <fcntl.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
-#include <errno.h>
-
-#include "event2/dns.h"
 
 #include "event2/event.h"
 #include "event2/http.h"
 #include "event2/buffer.h"
-#include "event2/bufferevent.h"
 #include "event2/bufferevent_ssl.h"
-#include "event2/util.h"
 #include "event2/ws.h"
-#include "event2/listener.h"
-#include "log-internal.h"
-#include "http-internal.h"
 #include "regress.h"
 #include "regress_http.h"
 #include "regress_ws.h"
-#include "regress_testutils.h"
-
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-
-#if EV_WINDOWS
-#define SKIP_UNDER_WINDOWS TT_SKIP
-#else
-#define SKIP_UNDER_WINDOWS 0
-#endif
 
 #define htonll(x)    \
 	((1 == htonl(1)) \
@@ -97,13 +77,18 @@ on_ws_msg_cb(struct evws_connection *evws, char *data, size_t len, void *arg)
 	}
 
 	if (!strcmp(data, "Send echo")) {
-		evws_send(evws, "Reply echo", strlen("Reply echo"));
+		const char *reply = "Reply echo";
+
+		evws_send(evws, reply, strlen(reply));
+		test_ok++;
+	} else if (!strcmp(data, "Client: hello")) {
 		test_ok++;
 	} else if (!strcmp(data, "Close")) {
 		evws_close(evws, 0);
 		test_ok++;
 	} else {
-		test_ok--;
+		/* unexpected test message */
+		event_base_loopexit(arg, NULL);
 	}
 }
 
@@ -209,29 +194,6 @@ receive_ws_msg(struct evbuffer *buf, size_t *out_len, unsigned *options)
 }
 
 static void
-http_ws_readcb_phase2(struct bufferevent *bev, void *arg)
-{
-	struct evbuffer *input = bufferevent_get_input(bev);
-
-	while (evbuffer_get_length(input) >= 2) {
-		size_t len = 0;
-		unsigned options = 0;
-		char *msg;
-
-		msg = receive_ws_msg(input, &len, &options);
-		if (msg) {
-			if (!strcmp(msg, "Server: hello"))
-				test_ok++;
-			else
-				test_ok--;
-			free(msg);
-		}
-	}
-
-	event_base_loopexit(arg, NULL);
-}
-
-static void
 send_ws_msg(struct evbuffer *buf, const char *msg)
 {
 	size_t len = strlen(msg);
@@ -272,10 +234,37 @@ send_ws_msg(struct evbuffer *buf, const char *msg)
 }
 
 static void
+http_ws_readcb_phase2(struct bufferevent *bev, void *arg)
+{
+	struct evbuffer *input = bufferevent_get_input(bev);
+	struct evbuffer *output = bufferevent_get_output(bev);
+
+	while (evbuffer_get_length(input) >= 2) {
+		size_t len = 0;
+		unsigned options = 0;
+		char *msg;
+
+		msg = receive_ws_msg(input, &len, &options);
+		if (msg) {
+			if (!strcmp(msg, "Server: hello")) {
+				send_ws_msg(output, "Send echo");
+				test_ok++;
+			} else if (!strcmp(msg, "Reply echo")) {
+				send_ws_msg(output, "Close");
+				test_ok++;
+			} else {
+				test_ok--;
+			}
+			free(msg);
+		}
+	}
+}
+
+static void
 http_ws_readcb_hdr(struct bufferevent *bev, void *arg)
 {
 	struct evbuffer *input = bufferevent_get_input(bev);
-	struct evbuffer *output = bufferevent_get_input(bev);
+	struct evbuffer *output = bufferevent_get_output(bev);
 	size_t nread = 0, n = 0;
 	char *line;
 
@@ -364,7 +353,7 @@ http_ws_test(void *arg)
 
 	test_ok = 0;
 	event_base_dispatch(data->base);
-	tt_int_op(test_ok, ==, 6);
+	tt_int_op(test_ok, ==, 13);
 
 	evhttp_free(http);
 end:
