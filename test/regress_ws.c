@@ -77,6 +77,13 @@
 #define SKIP_UNDER_WINDOWS 0
 #endif
 
+#define htonll(x)    \
+	((1 == htonl(1)) \
+			? (x)    \
+			: ((uint64_t)htonl((x)&0xFFFFFFFF) << 32) | htonl((x) >> 32))
+#define ntohll(x) htonll(x)
+
+
 static struct event_base *exit_base;
 
 static void
@@ -95,6 +102,8 @@ on_ws_msg_cb(struct evws_connection *evws, char *data, size_t len, void *arg)
 	} else if (!strcmp(data, "Close")) {
 		evws_close(evws, 0);
 		test_ok++;
+	} else {
+		test_ok--;
 	}
 }
 
@@ -114,6 +123,7 @@ void
 http_on_ws_cb(struct evhttp_request *req, void *arg)
 {
 	struct evws_connection *evws;
+	const char *hello = "Server: hello";
 
 	evws = evws_new_session(req, on_ws_msg_cb, (void *)0xDEADBEEF);
 	if (!evws)
@@ -121,7 +131,7 @@ http_on_ws_cb(struct evhttp_request *req, void *arg)
 	test_ok++;
 
 	evws_connection_set_closecb(evws, on_ws_close_cb, (void *)0xDEADBEEF);
-	evws_send(evws, "Hello", strlen("Hello"));
+	evws_send(evws, hello, strlen(hello));
 }
 
 static void
@@ -134,17 +144,92 @@ http_ws_errorcb(struct bufferevent *bev, short what, void *arg)
 	event_base_loopexit(arg, NULL);
 }
 
+static char *
+receive_ws_msg(struct evbuffer *buf, size_t *out_len, unsigned *options)
+{
+	unsigned char *data;
+	int fin, opcode, mask;
+	uint64_t payload_len;
+	size_t header_len;
+	const unsigned char *mask_key;
+	char *out_buf = NULL;
+	size_t data_len = evbuffer_get_length(buf);
+
+	data = evbuffer_pullup(buf, data_len);
+
+	fin = !!(*data & 0x80);
+	opcode = *data & 0x0F;
+	mask = !!(*(data + 1) & 0x80);
+	payload_len = *(data + 1) & 0x7F;
+
+	header_len = 2 + (mask ? 4 : 0);
+
+	if (payload_len < 126) {
+		if (header_len > data_len)
+			return NULL;
+
+	} else if (payload_len == 126) {
+		header_len += 2;
+		if (header_len > data_len)
+			return NULL;
+
+		payload_len = ntohs(*(uint16_t *)(data + 2));
+
+	} else if (payload_len == 127) {
+		header_len += 8;
+		if (header_len > data_len)
+			return NULL;
+
+		payload_len = ntohll(*(uint64_t *)(data + 2));
+	}
+
+	if (header_len + payload_len > data_len)
+		return NULL;
+
+	mask_key = data + header_len - 4;
+	for (size_t i = 0; mask && i < payload_len; i++)
+		data[header_len + i] ^= mask_key[i % 4];
+
+	*out_len = payload_len;
+
+	/* text */
+	if (opcode == 0x01) {
+		out_buf = calloc(payload_len + 1, 1);
+	} else { /* binary */
+		out_buf = malloc(payload_len);
+	}
+	memcpy(out_buf, (const char *)data + header_len, payload_len);
+
+	if (!fin) {
+		*options = 1;
+	}
+
+	evbuffer_drain(buf, header_len + payload_len);
+	return out_buf;
+}
+
 static void
 http_ws_readcb_phase2(struct bufferevent *bev, void *arg)
 {
+	struct evbuffer *input = bufferevent_get_input(bev);
+
+	while (evbuffer_get_length(input) >= 2) {
+		size_t len = 0;
+		unsigned options = 0;
+		char *msg;
+
+		msg = receive_ws_msg(input, &len, &options);
+		if (msg) {
+			if (!strcmp(msg, "Server: hello"))
+				test_ok++;
+			else
+				test_ok--;
+			free(msg);
+		}
+	}
+
 	event_base_loopexit(arg, NULL);
 }
-
-#define htonll(x)    \
-	((1 == htonl(1)) \
-			? (x)    \
-			: ((uint64_t)htonl((x)&0xFFFFFFFF) << 32) | htonl((x) >> 32))
-#define ntohll(x) htonll(x)
 
 static void
 send_ws_msg(struct evbuffer *buf, const char *msg)
@@ -205,8 +290,11 @@ http_ws_readcb_hdr(struct bufferevent *bev, void *arg)
 			free(line);
 			bufferevent_setcb(
 				bev, http_ws_readcb_phase2, http_writecb, http_ws_errorcb, arg);
-			send_ws_msg(output, "Send echo");
+			send_ws_msg(output, "Client: hello");
 			test_ok++;
+			if (evbuffer_get_length(input) > 0) {
+				http_ws_readcb_phase2(bev, arg);
+			}
 			return;
 		}
 		free(line);
@@ -276,7 +364,7 @@ http_ws_test(void *arg)
 
 	test_ok = 0;
 	event_base_dispatch(data->base);
-	tt_int_op(test_ok, ==, 5);
+	tt_int_op(test_ok, ==, 6);
 
 	evhttp_free(http);
 end:

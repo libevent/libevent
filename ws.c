@@ -325,34 +325,34 @@ evws_new_session(struct evhttp_request *req,
 	void (*cb)(struct evws_connection *, char *, size_t, void *), void *arg)
 {
 	struct evws_connection *evws = NULL;
-	struct evkeyvalq *headers;
+	struct evkeyvalq *in_hdrs;
 	const char *upgrade, *connection, *ws_key, *ws_protocol;
-	struct evkeyvalq *output;
+	struct evkeyvalq *out_hdrs;
 	struct evhttp_connection *evcon;
 
-	headers = evhttp_request_get_input_headers(req);
-	upgrade = evhttp_find_header(headers, "Upgrade");
+	in_hdrs = evhttp_request_get_input_headers(req);
+	upgrade = evhttp_find_header(in_hdrs, "Upgrade");
 	if (upgrade == NULL || strcmp(upgrade, "websocket"))
 		goto error;
 
-	connection = evhttp_find_header(headers, "Connection");
+	connection = evhttp_find_header(in_hdrs, "Connection");
 	if (connection == NULL || strcmp(connection, "Upgrade"))
 		goto error;
 
-	ws_key = evhttp_find_header(headers, "Sec-WebSocket-Key");
+	ws_key = evhttp_find_header(in_hdrs, "Sec-WebSocket-Key");
 	if (ws_key == NULL)
 		goto error;
 
-	output = evhttp_request_get_output_headers(req);
-	evhttp_add_header(output, "Upgrade", "websocket");
-	evhttp_add_header(output, "Connection", "Upgrade");
+	out_hdrs = evhttp_request_get_output_headers(req);
+	evhttp_add_header(out_hdrs, "Upgrade", "websocket");
+	evhttp_add_header(out_hdrs, "Connection", "Upgrade");
 
-	evhttp_add_header(output, "Sec-WebSocket-Accept",
+	evhttp_add_header(out_hdrs, "Sec-WebSocket-Accept",
 		ws_gen_accept_key(ws_key, (char[32]){0}));
 
-	ws_protocol = evhttp_find_header(headers, "Sec-WebSocket-Protocol");
+	ws_protocol = evhttp_find_header(in_hdrs, "Sec-WebSocket-Protocol");
 	if (ws_protocol != NULL)
-		evhttp_add_header(output, "Sec-WebSocket-Protocol", ws_protocol);
+		evhttp_add_header(out_hdrs, "Sec-WebSocket-Protocol", ws_protocol);
 
 	if ((evws = mm_calloc(1, sizeof(struct evws_connection))) == NULL) {
 		event_warn("%s: calloc failed", __func__);
