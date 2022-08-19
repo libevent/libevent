@@ -270,11 +270,12 @@ ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 
 		if (type == TEXT_FRAME) {
 			if (evws->cb) {
-				char *text = alloca(msg_len + 1);
+				char *text = mm_malloc(msg_len + 1);
 
 				memcpy(text, payload, msg_len);
 				text[msg_len] = 0;
 				evws->cb(evws, text, msg_len, evws->cb_arg);
+				free(text);
 			}
 		} else if (type == INCOMPLETE_TEXT_FRAME || type == INCOMPLETE_FRAME) {
 			/* incomplete frame received, wait for next chunk */
