@@ -3267,7 +3267,7 @@ event_queue_remove_inserted(struct event_base *base, struct event *ev)
 	EVENT_BASE_ASSERT_LOCKED(base);
 	if (EVUTIL_FAILURE_CHECK(!(ev->ev_flags & EVLIST_INSERTED))) {
 		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") not on queue %x", __func__,
-		    ev, EV_SOCK_ARG(ev->ev_fd), EVLIST_INSERTED);
+                   (void *)ev, EV_SOCK_ARG(ev->ev_fd), EVLIST_INSERTED);
 		return;
 	}
 	DECR_EVENT_COUNT(base, ev->ev_flags);
@@ -3279,7 +3279,7 @@ event_queue_remove_active(struct event_base *base, struct event_callback *evcb)
 	EVENT_BASE_ASSERT_LOCKED(base);
 	if (EVUTIL_FAILURE_CHECK(!(evcb->evcb_flags & EVLIST_ACTIVE))) {
 		event_errx(1, "%s: %p not on queue %x", __func__,
-			   evcb, EVLIST_ACTIVE);
+                          (void *)evcb, EVLIST_ACTIVE);
 		return;
 	}
 	DECR_EVENT_COUNT(base, evcb->evcb_flags);
@@ -3295,7 +3295,7 @@ event_queue_remove_active_later(struct event_base *base, struct event_callback *
 	EVENT_BASE_ASSERT_LOCKED(base);
 	if (EVUTIL_FAILURE_CHECK(!(evcb->evcb_flags & EVLIST_ACTIVE_LATER))) {
 		event_errx(1, "%s: %p not on queue %x", __func__,
-			   evcb, EVLIST_ACTIVE_LATER);
+                          (void *)evcb, EVLIST_ACTIVE_LATER);
 		return;
 	}
 	DECR_EVENT_COUNT(base, evcb->evcb_flags);
@@ -3310,7 +3310,7 @@ event_queue_remove_timeout(struct event_base *base, struct event *ev)
 	EVENT_BASE_ASSERT_LOCKED(base);
 	if (EVUTIL_FAILURE_CHECK(!(ev->ev_flags & EVLIST_TIMEOUT))) {
 		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") not on queue %x", __func__,
-		    ev, EV_SOCK_ARG(ev->ev_fd), EVLIST_TIMEOUT);
+                   (void *)ev, EV_SOCK_ARG(ev->ev_fd), EVLIST_TIMEOUT);
 		return;
 	}
 	DECR_EVENT_COUNT(base, ev->ev_flags);
@@ -3405,7 +3405,7 @@ event_queue_insert_inserted(struct event_base *base, struct event *ev)
 
 	if (EVUTIL_FAILURE_CHECK(ev->ev_flags & EVLIST_INSERTED)) {
 		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") already inserted", __func__,
-		    ev, EV_SOCK_ARG(ev->ev_fd));
+                   (void *)ev, EV_SOCK_ARG(ev->ev_fd));
 		return;
 	}
 
@@ -3459,7 +3459,7 @@ event_queue_insert_timeout(struct event_base *base, struct event *ev)
 
 	if (EVUTIL_FAILURE_CHECK(ev->ev_flags & EVLIST_TIMEOUT)) {
 		event_errx(1, "%s: %p(fd "EV_SOCK_FMT") already on timeout", __func__,
-		    ev, EV_SOCK_ARG(ev->ev_fd));
+                   (void *)ev, EV_SOCK_ARG(ev->ev_fd));
 		return;
 	}
 
