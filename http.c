@@ -1742,7 +1742,7 @@ evhttp_parse_http_version(const char *version, struct evhttp_request *req)
 	int n = sscanf(version, "HTTP/%d.%d%c", &major, &minor, &ch);
 	if (n != 2 || major > 1) {
 		event_debug(("%s: bad version %s on message %p from %s",
-			__func__, version, req, req->remote_host));
+			__func__, version, (void *)req, req->remote_host));
 		return (-1);
 	}
 	req->major = major;
@@ -2014,7 +2014,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 
 	if (!type) {
 		event_debug(("%s: bad method %s on request %p from %s",
-		            __func__, method, req, req->remote_host));
+		            __func__, method, (void *)req, req->remote_host));
 		/* No error yet; we'll give a better error later when
 		 * we see that req->type is unsupported. */
 	}
@@ -4433,7 +4433,7 @@ evhttp_request_set_on_complete_cb(struct evhttp_request *req,
 const char *
 evhttp_request_get_uri(const struct evhttp_request *req) {
 	if (req->uri == NULL)
-		event_debug(("%s: request %p has no uri\n", __func__, req));
+		event_debug(("%s: request %p has no uri\n", __func__, (void *)req));
 	return (req->uri);
 }
 
@@ -4441,7 +4441,7 @@ const struct evhttp_uri *
 evhttp_request_get_evhttp_uri(const struct evhttp_request *req) {
 	if (req->uri_elems == NULL)
 		event_debug(("%s: request %p has no uri elems\n",
-			    __func__, req));
+			    __func__, (void *)req));
 	return (req->uri_elems);
 }
 
