@@ -854,7 +854,7 @@ request_finished(struct request *const req, struct request **head, int free_hand
 	if (head)
 		evdns_request_remove(req, head);
 
-	log(EVDNS_LOG_DEBUG, "Removing timeout for request %p", req);
+	log(EVDNS_LOG_DEBUG, "Removing timeout for request %p", (void *)req);
 	if (was_inflight) {
 		evtimer_del(&req->timeout_event);
 		base->global_requests_inflight--;
@@ -1755,7 +1755,7 @@ server_send_response(struct evdns_server_port *port, struct server_request *req)
 	}
 
 beferevent_error:
-	log(EVDNS_LOG_WARN, "Failed to send reply to request %p for client %p", req, req->client);
+	log(EVDNS_LOG_WARN, "Failed to send reply to request %p for client %p", (void *)req, (void *)req->client);
 	/* disconnect if we got bufferevent error */
 	evdns_remove_tcp_client(port, req->client);
 	return -1;
@@ -2196,7 +2196,7 @@ server_tcp_read_packet_cb(struct bufferevent *bev, void *ctx)
 
 	while (1) {
 		if (tcp_read_message(conn, &msg, &msg_len)) {
-			log(EVDNS_LOG_MSG, "Closing client connection %p due to error", bev);
+			log(EVDNS_LOG_MSG, "Closing client connection %p due to error", (void *)bev);
 			evdns_remove_tcp_client(port, client);
 			rc = port->refcnt;
 			EVDNS_UNLOCK(port);
@@ -2230,7 +2230,7 @@ server_tcp_event_cb(struct bufferevent *bev, short events, void *ctx)
 	EVUTIL_ASSERT(port && bev);
 	EVDNS_LOCK(port);
 	if (events & (BEV_EVENT_EOF | BEV_EVENT_ERROR | BEV_EVENT_TIMEOUT)) {
-		log(EVDNS_LOG_DEBUG, "Closing connection %p", bev);
+		log(EVDNS_LOG_DEBUG, "Closing connection %p", (void *)bev);
 		evdns_remove_tcp_client(port, client);
 	}
 	rc = port->refcnt;
@@ -2250,7 +2250,7 @@ incoming_conn_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
 	if (!bev)
 		goto error;
-	log(EVDNS_LOG_DEBUG, "New incoming client connection %p", bev);
+	log(EVDNS_LOG_DEBUG, "New incoming client connection %p", (void *)bev);
 
 	bufferevent_set_timeouts(bev, &port->tcp_idle_timeout, &port->tcp_idle_timeout);
 
@@ -2721,7 +2721,7 @@ retransmit_all_tcp_requests_for(struct nameserver *server)
 			if (req->ns == server && (req->handle->tcp_flags & DNS_QUERY_USEVC)) {
 				if (req->tx_count >= req->base->global_max_retransmits) {
 					log(EVDNS_LOG_DEBUG, "Giving up on request %p; tx_count==%d",
-						req, req->tx_count);
+						(void *)req, req->tx_count);
 					reply_schedule_callback(req, 0, DNS_ERR_TIMEOUT, NULL);
 					request_finished(req, &REQ_HEAD(req->base, req->trans_id), 1);
 				} else {
@@ -2843,7 +2843,7 @@ evdns_tcp_connect_if_disconnected(struct nameserver *server)
 		return 1;
 
 	conn->state = TS_CONNECTING;
-	log(EVDNS_LOG_DEBUG, "New tcp connection %p created", conn);
+	log(EVDNS_LOG_DEBUG, "New tcp connection %p created", (void *)conn);
 	return 0;
 }
 
@@ -2893,7 +2893,7 @@ client_tcp_event_cb(struct bufferevent *bev, short events, void *ctx) {
 	EVDNS_LOCK(server->base);
 	EVUTIL_ASSERT(conn && conn->bev == bev && bev);
 
-	log(EVDNS_LOG_DEBUG, "Event %d on connection %p", events, conn);
+	log(EVDNS_LOG_DEBUG, "Event %d on connection %p", events, (void *)conn);
 
 	if (events & (BEV_EVENT_TIMEOUT)) {
 		disconnect_and_free_connection(server->connection);
@@ -2931,7 +2931,7 @@ evdns_request_transmit_through_tcp(struct request *req, struct nameserver *serve
 	conn = server->connection;
 	bufferevent_setcb(conn->bev, client_tcp_read_packet_cb, NULL, client_tcp_event_cb, server);
 
-	log(EVDNS_LOG_DEBUG, "Sending request %p via tcp connection %p", req, conn);
+	log(EVDNS_LOG_DEBUG, "Sending request %p via tcp connection %p", (void *)req, (void *)conn);
 	packet_size = htons(req->request_len);
 	if (bufferevent_write(conn->bev, &packet_size, sizeof(packet_size)) )
 		goto fail;
@@ -2944,7 +2944,7 @@ evdns_request_transmit_through_tcp(struct request *req, struct nameserver *serve
 
 	return 0;
 fail:
-	log(EVDNS_LOG_WARN, "Failed to send request %p via tcp connection %p", req, conn);
+	log(EVDNS_LOG_WARN, "Failed to send request %p via tcp connection %p", (void *)req, (void *)conn);
 	disconnect_and_free_connection(server->connection);
 	server->connection = NULL;
 	return 2;
@@ -3006,11 +3006,11 @@ evdns_request_transmit(struct request *req) {
 	default:
 		/* all ok */
 		log(EVDNS_LOG_DEBUG,
-		    "Setting timeout for request %p, sent to nameserver %p", req, req->ns);
+		    "Setting timeout for request %p, sent to nameserver %p", (void *)req, (void *)req->ns);
 		if (evtimer_add(&req->timeout_event, &req->base->global_timeout) < 0) {
 			log(EVDNS_LOG_WARN,
 		      "Error from libevent when adding timer for request %p",
-			    req);
+			    (void *)req);
 			/* ???? Do more? */
 		}
 		req->tx_count++;
@@ -3290,7 +3290,7 @@ evdns_nameserver_add_impl_(struct evdns_base *base, const struct sockaddr *addre
 	}
 
 	log(EVDNS_LOG_DEBUG, "Added nameserver %s as %p",
-	    evutil_format_sockaddr_port_(address, addrbuf, sizeof(addrbuf)), ns);
+	    evutil_format_sockaddr_port_(address, addrbuf, sizeof(addrbuf)), (void *)ns);
 
 	/* insert this nameserver into the list of them */
 	if (!base->server_head) {
@@ -5670,7 +5670,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 
 	if (hints.ai_family != PF_INET6) {
 		log(EVDNS_LOG_DEBUG, "Sending request for %s on ipv4 as %p",
-		    nodename, &data->ipv4_request);
+		    nodename, (void *)&data->ipv4_request);
 
 		data->ipv4_request.r = evdns_base_resolve_ipv4(dns_base,
 		    nodename, 0, evdns_getaddrinfo_gotresolve,
@@ -5681,7 +5681,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 	}
 	if (hints.ai_family != PF_INET) {
 		log(EVDNS_LOG_DEBUG, "Sending request for %s on ipv6 as %p",
-		    nodename, &data->ipv6_request);
+		    nodename, (void *)&data->ipv6_request);
 
 		data->ipv6_request.r = evdns_base_resolve_ipv6(dns_base,
 		    nodename, 0, evdns_getaddrinfo_gotresolve,
