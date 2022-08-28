@@ -26,10 +26,7 @@ else:
 
 
 def exec_cmd(cmd, silent):
-    if silent:
-        p = subprocess.Popen(cmd, stdout=FNULL, stderr=FNULL, shell=True)
-    else:
-        p = subprocess.Popen(cmd, shell=True)
+    p = subprocess.Popen(cmd, shell=True)
     p.communicate()
     return p.poll()
 
