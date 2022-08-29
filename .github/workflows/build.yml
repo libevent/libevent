@@ -773,6 +773,7 @@ jobs:
           prepare: |
             pkg install -y  mbedtls cmake python3
           usesh: true
+          sync: sshfs
           run: |
             if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
               EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
@@ -866,6 +867,7 @@ jobs:
           prepare: |
             pkg install -y  mbedtls  python3 autoconf automake libtool pkgconf
           usesh: true
+          sync: sshfs
           run: |
             if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
               EVENT_CONFIGURE_OPTIONS="--disable-openssl"
