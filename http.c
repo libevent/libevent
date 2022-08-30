@@ -198,7 +198,7 @@ static void evhttp_read_header(struct evhttp_connection *evcon,
 static int evhttp_add_header_internal(struct evkeyvalq *headers,
     const char *key, const char *value);
 static const char *evhttp_response_phrase_internal(int code);
-static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, ev_socklen_t);
+static void evhttp_get_request(struct evhttp *, evutil_socket_t, struct sockaddr *, ev_socklen_t, struct bufferevent *bev);
 static void evhttp_write_buffer(struct evhttp_connection *,
     void (*)(struct evhttp_connection *, void *), void *);
 static void evhttp_make_header(struct evhttp_connection *, struct evhttp_request *);
@@ -1743,7 +1743,7 @@ evhttp_parse_http_version(const char *version, struct evhttp_request *req)
 	int n = sscanf(version, "HTTP/%d.%d%c", &major, &minor, &ch);
 	if (n != 2 || major > 1) {
 		event_debug(("%s: bad version %s on message %p from %s",
-			__func__, version, req, req->remote_host));
+			__func__, version, (void *)req, req->remote_host));
 		return (-1);
 	}
 	req->major = major;
@@ -2015,7 +2015,7 @@ evhttp_parse_request_line(struct evhttp_request *req, char *line, size_t len)
 
 	if (!type) {
 		event_debug(("%s: bad method %s on request %p from %s",
-		            __func__, method, req, req->remote_host));
+		            __func__, method, (void *)req, req->remote_host));
 		/* No error yet; we'll give a better error later when
 		 * we see that req->type is unsupported. */
 	}
@@ -3821,9 +3821,15 @@ evhttp_handle_request(struct evhttp_request *req, void *arg)
 static void
 accept_socket_cb(struct evconnlistener *listener, evutil_socket_t nfd, struct sockaddr *peer_sa, int peer_socklen, void *arg)
 {
-	struct evhttp *http = arg;
+	struct evhttp_bound_socket *bound = arg;
 
-	evhttp_get_request(http, nfd, peer_sa, peer_socklen);
+	struct evhttp *http = bound->http;
+
+	struct bufferevent *bev = NULL;
+	if (bound->bevcb)
+		bev = bound->bevcb(http->base, bound->bevcbarg);
+
+	evhttp_get_request(http, nfd, peer_sa, peer_socklen, bev);
 }
 
 int
@@ -3919,9 +3925,11 @@ evhttp_bind_listener(struct evhttp *http, struct evconnlistener *listener)
 		return (NULL);
 
 	bound->listener = listener;
+	bound->bevcb = NULL;
+	bound->http = http;
 	TAILQ_INSERT_TAIL(&http->sockets, bound, next);
 
-	evconnlistener_set_cb(listener, accept_socket_cb, http);
+	evconnlistener_set_cb(listener, accept_socket_cb, bound);
 	return bound;
 }
 
@@ -3935,6 +3943,14 @@ struct evconnlistener *
 evhttp_bound_socket_get_listener(struct evhttp_bound_socket *bound)
 {
 	return bound->listener;
+}
+
+void
+evhttp_bound_set_bevcb(struct evhttp_bound_socket *bound,
+    struct bufferevent* (*cb)(struct event_base *, void *), void *cbarg)
+{
+	bound->bevcb = cb;
+	bound->bevcbarg = cbarg;
 }
 
 void
@@ -4449,7 +4465,7 @@ evhttp_request_set_on_complete_cb(struct evhttp_request *req,
 const char *
 evhttp_request_get_uri(const struct evhttp_request *req) {
 	if (req->uri == NULL)
-		event_debug(("%s: request %p has no uri\n", __func__, req));
+		event_debug(("%s: request %p has no uri\n", __func__, (void *)req));
 	return (req->uri);
 }
 
@@ -4457,7 +4473,7 @@ const struct evhttp_uri *
 evhttp_request_get_evhttp_uri(const struct evhttp_request *req) {
 	if (req->uri_elems == NULL)
 		event_debug(("%s: request %p has no uri elems\n",
-			    __func__, req));
+			    __func__, (void *)req));
 	return (req->uri_elems);
 }
 
@@ -4549,10 +4565,10 @@ struct evbuffer *evhttp_request_get_output_buffer(struct evhttp_request *req)
 static struct evhttp_connection*
 evhttp_get_request_connection(
 	struct evhttp* http,
-	evutil_socket_t fd, struct sockaddr *sa, ev_socklen_t salen)
+	evutil_socket_t fd, struct sockaddr *sa, ev_socklen_t salen,
+	struct bufferevent* bev)
 {
 	struct evhttp_connection *evcon;
-	struct bufferevent* bev = NULL;
 
 #ifdef EVENT__HAVE_STRUCT_SOCKADDR_UN
 	if (sa->sa_family == AF_UNIX) {
@@ -4569,7 +4585,7 @@ evhttp_get_request_connection(
 			EV_SOCK_FMT"\n", __func__, EV_SOCK_ARG(fd)));
 
 		/* we need a connection object to put the http request on */
-		if (http->bevcb != NULL) {
+		if (!bev && http->bevcb != NULL) {
 			bev = (*http->bevcb)(http->base, http->bevcbarg);
 		}
 
@@ -4592,7 +4608,7 @@ evhttp_get_request_connection(
 			__func__, hostname, portname, EV_SOCK_ARG(fd)));
 
 		/* we need a connection object to put the http request on */
-		if (http->bevcb != NULL) {
+		if (!bev && http->bevcb != NULL) {
 			bev = (*http->bevcb)(http->base, http->bevcbarg);
 		}
 		evcon = evhttp_connection_base_bufferevent_new(
@@ -4668,11 +4684,12 @@ evhttp_associate_new_request_with_connection(struct evhttp_connection *evcon)
 
 static void
 evhttp_get_request(struct evhttp *http, evutil_socket_t fd,
-    struct sockaddr *sa, ev_socklen_t salen)
+    struct sockaddr *sa, ev_socklen_t salen,
+    struct bufferevent *bev)
 {
 	struct evhttp_connection *evcon;
 
-	evcon = evhttp_get_request_connection(http, fd, sa, salen);
+	evcon = evhttp_get_request_connection(http, fd, sa, salen, bev);
 	if (evcon == NULL) {
 		event_sock_warn(fd, "%s: cannot get connection on "EV_SOCK_FMT,
 		    __func__, EV_SOCK_ARG(fd));

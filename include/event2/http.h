@@ -172,6 +172,14 @@ struct evhttp_bound_socket *evhttp_bind_listener(struct evhttp *http, struct evc
 EVENT2_EXPORT_SYMBOL
 struct evconnlistener *evhttp_bound_socket_get_listener(struct evhttp_bound_socket *bound);
 
+/*
+ * Like evhttp_set_bevcb.
+ * If cb returns a non-NULL bufferevent, * the callback supplied through
+ * evhttp_set_bevcb isn't used.
+ */
+EVENT2_EXPORT_SYMBOL
+void evhttp_bound_set_bevcb(struct evhttp_bound_socket *bound, struct bufferevent* (*cb)(struct event_base *, void *), void *cbarg);
+
 typedef void evhttp_bound_socket_foreach_fn(struct evhttp_bound_socket *, void *);
 /**
  * Applies the function specified in the first argument to all
@@ -333,6 +341,8 @@ void evhttp_set_gencb(struct evhttp *http,
 /**
    Set a callback used to create new bufferevents for connections
    to a given evhttp object.
+   cb is not called if a non-NULL bufferevent was supplied by
+   evhttp_bound_set_bevcb.
 
    You can use this to override the default bufferevent type -- for example,
    to make this evhttp object use SSL bufferevents rather than unencrypted

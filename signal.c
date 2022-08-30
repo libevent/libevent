@@ -295,7 +295,7 @@ evsig_add(struct event_base *base, evutil_socket_t evsignal, short old, short ev
 		    "the most recently added signal or the most recent "
 		    "event_base_loop() call gets preference; do "
 		    "not rely on this behavior in future Libevent versions.",
-		    base, evsig_base, base->evsel->name);
+                   (void *)base, (void *)evsig_base, base->evsel->name);
 	}
 	evsig_base = base;
 	evsig_base_n_signals_added = ++sig->ev_n_signals_added;

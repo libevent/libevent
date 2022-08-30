@@ -178,8 +178,8 @@ macro(Configure_RPATH)
     # - "///" -> "/"
     # - "/////usr///" -> "//usr"
     # So it should be normalized again.
-    file(REAL_PATH "${CMAKE_INSTALL_PREFIX}" CMAKE_INSTALL_PREFIX_NORMALIZED)
 
+    get_filename_component(CMAKE_INSTALL_PREFIX_NORMALIZED "${CMAKE_INSTALL_PREFIX}" REALPATH)
     list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX_NORMALIZED}/lib" isSystemDir)
 
     if("${isSystemDir}" STREQUAL "-1")
