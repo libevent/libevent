@@ -114,12 +114,16 @@ static void
 addr2str(struct sockaddr *sa, char *addr, size_t len)
 {
 	const char *nice;
+	unsigned short port;
+	size_t adlen;
 
 	if (sa->sa_family == AF_INET) {
 		struct sockaddr_in *s = (struct sockaddr_in *)sa;
+		port = ntohs(s->sin_port);
 		evutil_inet_ntop(AF_INET, &s->sin_addr, addr, len);
 	} else { // AF_INET6
 		struct sockaddr_in6 *s = (struct sockaddr_in6 *)sa;
+		port = ntohs(s->sin6_port);
 		evutil_inet_ntop(AF_INET6, &s->sin6_addr, addr, len);
 		nice = nice_addr(addr);
 		if (nice != addr) {
@@ -128,6 +132,8 @@ addr2str(struct sockaddr *sa, char *addr, size_t len)
 			addr[len] = 0;
 		}
 	}
+	adlen = strlen(addr);
+	snprintf(addr + adlen, len - adlen, ":%d", port);
 }
 
 
@@ -177,15 +183,12 @@ on_html(struct evhttp_request *req, void *arg)
 
 	evb = evbuffer_new();
 	evbuffer_add_file(evb, fd, 0, st.st_size);
-	close(fd);
 	evhttp_send_reply(req, HTTP_OK, NULL, evb);
 	evbuffer_free(evb);
 	return;
 
 err:
 	evhttp_send_error(req, HTTP_NOTFOUND, NULL);
-	if (fd >= 0)
-		close(fd);
 }
 
 #ifndef EVENT__HAVE_STRSIGNAL
