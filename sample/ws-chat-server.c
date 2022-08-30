@@ -167,7 +167,7 @@ on_html(struct evhttp_request *req, void *arg)
 		goto err;
 	}
 
-	if (fstat(fd, &st)<0) {
+	if (fstat(fd, &st) < 0) {
 		/* Make sure the length still matches, now that we
 		 * opened the file :/ */
 		perror("fstat");
@@ -184,12 +184,16 @@ on_html(struct evhttp_request *req, void *arg)
 
 err:
 	evhttp_send_error(req, HTTP_NOTFOUND, NULL);
-	if (fd>=0)
+	if (fd >= 0)
 		close(fd);
 }
 
 #ifndef EVENT__HAVE_STRSIGNAL
-static inline const char* strsignal(evutil_socket_t sig) { return "Signal"; }
+static inline const char *
+strsignal(evutil_socket_t sig)
+{
+	return "Signal";
+}
 #endif
 
 static void
