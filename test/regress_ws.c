@@ -34,6 +34,7 @@
 
 #include "event2/event-config.h"
 
+#include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef EVENT__HAVE_SYS_TIME_H
@@ -67,23 +68,28 @@
 static struct event_base *exit_base;
 
 static void
-on_ws_msg_cb(struct evws_connection *evws, char *data, size_t len, void *arg)
+on_ws_msg_cb(struct evws_connection *evws, int type, struct evbuffer *evbuf,
+	size_t len, void *arg)
 {
 	ev_uintptr_t val = (ev_uintptr_t)arg;
+	const char *data = (const char *)evbuffer_pullup(evbuf, -1);
+	char msg[4096];
 
 	if (val != 0xDEADBEEF) {
 		fprintf(stdout, "FAILED on_complete_cb argument\n");
 		exit(1);
 	}
 
-	if (!strcmp(data, "Send echo")) {
+
+	snprintf(msg, sizeof(msg), "%.*s", (int)len, data);
+	if (!strcmp(msg, "Send echo")) {
 		const char *reply = "Reply echo";
 
 		evws_send(evws, reply, strlen(reply));
 		test_ok++;
-	} else if (!strcmp(data, "Client: hello")) {
+	} else if (!strcmp(msg, "Client: hello")) {
 		test_ok++;
-	} else if (!strcmp(data, "Close")) {
+	} else if (!strcmp(msg, "Close")) {
 		evws_close(evws, 0);
 		test_ok++;
 	} else {
@@ -194,15 +200,16 @@ receive_ws_msg(struct evbuffer *buf, size_t *out_len, unsigned *options)
 }
 
 static void
-send_ws_msg(struct evbuffer *buf, const char *msg)
+send_ws_msg(struct evbuffer *buf, const char *msg, bool final)
 {
 	size_t len = strlen(msg);
 	uint8_t a = 0, b = 0, c = 0, d = 0;
 	uint8_t mask_key[4] = {1, 2, 3, 4}; /* should be random */
 	uint8_t m;
 
-	a |= 1 << 7; /* fin */
-	a |= 1;		 /* text frame */
+	if (final)
+		a |= 1 << 7; /* fin */
+	a |= 1;			 /* text frame */
 
 	b |= 1 << 7; /* mask */
 
@@ -247,10 +254,11 @@ http_ws_readcb_phase2(struct bufferevent *bev, void *arg)
 		msg = receive_ws_msg(input, &len, &options);
 		if (msg) {
 			if (!strcmp(msg, "Server: hello")) {
-				send_ws_msg(output, "Send echo");
+				send_ws_msg(output, "Send ", false);
+				send_ws_msg(output, "echo", true);
 				test_ok++;
 			} else if (!strcmp(msg, "Reply echo")) {
-				send_ws_msg(output, "Close");
+				send_ws_msg(output, "Close", true);
 				test_ok++;
 			} else {
 				test_ok--;
@@ -279,7 +287,9 @@ http_ws_readcb_hdr(struct bufferevent *bev, void *arg)
 			free(line);
 			bufferevent_setcb(
 				bev, http_ws_readcb_phase2, http_writecb, http_ws_errorcb, arg);
-			send_ws_msg(output, "Client: hello");
+			send_ws_msg(output, "Client:", false);
+			send_ws_msg(output, " ", false);
+			send_ws_msg(output, "hello", true);
 			test_ok++;
 			if (evbuffer_get_length(input) > 0) {
 				http_ws_readcb_phase2(bev, arg);

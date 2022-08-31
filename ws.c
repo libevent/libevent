@@ -51,19 +51,17 @@ struct evws_connection {
 	/* for server connections, the http server they are connected with */
 	struct evhttp *http_server;
 
+	struct evbuffer *incomplete_frames;
 	bool closed;
 };
 
 enum WebSocketFrameType {
-	CONTINUATION_FRAME = 0,
-
 	ERROR_FRAME = 0xFF,
-	INCOMPLETE_FRAME = 0xFE,
+	INCOMPLETE_DATA = 0xFE,
 
 	CLOSING_FRAME = 0x8,
 
-	INCOMPLETE_TEXT_FRAME = 0x81,
-	INCOMPLETE_BINARY_FRAME = 0x82,
+	INCOMPLETE_FRAME = 0x81,
 
 	TEXT_FRAME = 0x1,
 	BINARY_FRAME = 0x2,
@@ -91,6 +89,9 @@ evws_connection_free(struct evws_connection *evws)
 
 	if (evws->bufev != NULL) {
 		bufferevent_free(evws->bufev);
+	}
+	if (evws->incomplete_frames != NULL) {
+		evbuffer_free(evws->incomplete_frames);
 	}
 
 	mm_free(evws);
@@ -201,7 +202,7 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 	unsigned int mask;
 
 	if (buf_len < 2) {
-		return INCOMPLETE_FRAME;
+		return INCOMPLETE_DATA;
 	}
 
 	opcode = in_buffer[0] & 0x0F;
@@ -216,17 +217,17 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 		payload_len = length_field;
 	} else if (length_field == 126) { /* msglen is 16bit */
 		if (buf_len < 4)
-			return INCOMPLETE_FRAME;
+			return INCOMPLETE_DATA;
 		payload_len = ntohs(*(uint16_t *)(in_buffer + 2));
 		pos += 2;
 	} else if (length_field == 127) { /* msglen is 64bit */
 		if (buf_len < 10)
-			return INCOMPLETE_FRAME;
+			return INCOMPLETE_DATA;
 		payload_len = ntohs(*(uint64_t *)(in_buffer + 2));
 		pos += 8;
 	}
 	if (buf_len < payload_len + pos + (masked ? 4 : 0)) {
-		return INCOMPLETE_FRAME;
+		return INCOMPLETE_DATA;
 	}
 
 	/* According to RFC it seems that unmasked data should be prohibited
@@ -253,14 +254,7 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 		return ERROR_FRAME;
 
 	if (opcode <= 0x3 && !fin) {
-		switch (opcode) {
-		case CONTINUATION_FRAME:
-			return INCOMPLETE_TEXT_FRAME;
-		case TEXT_FRAME:
-			return INCOMPLETE_TEXT_FRAME;
-		case BINARY_FRAME:
-			return INCOMPLETE_BINARY_FRAME;
-		}
+		return INCOMPLETE_FRAME;
 	}
 	return opcode;
 }
@@ -272,36 +266,57 @@ ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 	struct evws_connection *evws = arg;
 	unsigned char *payload;
 	enum WebSocketFrameType type;
-	int msg_len, in_len;
+	int msg_len, in_len, header_sz;
 	struct evbuffer *input = bufferevent_get_input(evws->bufev);
 
 	while ((in_len = evbuffer_get_length(input))) {
 		unsigned char *data = evbuffer_pullup(input, in_len);
 
 		type = get_ws_frame(data, in_len, &payload, &msg_len);
-
-		if (type == TEXT_FRAME) {
-			char *text = mm_malloc(msg_len + 1);
-
-			memcpy(text, payload, msg_len);
-			text[msg_len] = 0;
-			evws->cb(evws, text, msg_len, evws->cb_arg);
-			free(text);
-		} else if (type == INCOMPLETE_TEXT_FRAME || type == INCOMPLETE_FRAME) {
-			/* incomplete frame received, wait for next chunk */
+		if (type == INCOMPLETE_DATA) {
+			/* incomplete data received, wait for next chunk */
 			return;
-		} else if (type == INCOMPLETE_BINARY_FRAME || type == BINARY_FRAME ||
-				   type == CLOSING_FRAME || type == ERROR_FRAME) {
+		}
+		header_sz = payload - data;
+		evbuffer_drain(input, header_sz);
+		data = evbuffer_pullup(input, -1);
+
+		switch (type) {
+		case TEXT_FRAME:
+		case BINARY_FRAME:
+			if (evws->incomplete_frames != NULL) {
+				/* we already have incomplete frames in internal buffer
+				 * and need to concatenate them with final */
+				evbuffer_add(evws->incomplete_frames, data, msg_len);
+				evws->cb(evws, type, evws->incomplete_frames,
+					evbuffer_get_length(evws->incomplete_frames), evws->cb_arg);
+				evbuffer_free(evws->incomplete_frames);
+				evws->incomplete_frames = NULL;
+			} else {
+				evws->cb(evws, type, input, msg_len, evws->cb_arg);
+			}
+			break;
+		case INCOMPLETE_FRAME:
+			/* we received full frame until get fin and need to
+			 * postpone callback until all data arrives */
+			if (evws->incomplete_frames == NULL) {
+				evws->incomplete_frames = evbuffer_new();
+			}
+			evbuffer_remove_buffer(input, evws->incomplete_frames, msg_len);
+			continue;
+		case CLOSING_FRAME:
+		case ERROR_FRAME:
 			evws_force_disconnect_(evws);
-		} else if (type == PING_FRAME) {
-			/* ping frame */
-		} else if (type == PONG_FRAME) {
-			/* pong frame */
-		} else {
+			break;
+		case PING_FRAME:
+		case PONG_FRAME:
+			/* ping or pong frame */
+			break;
+		default:
 			event_warn("%s: unexpected frame type %d\n", __func__, type);
 			evws_force_disconnect_(evws);
 		}
-		evbuffer_drain(input, payload - data + msg_len);
+		evbuffer_drain(input, msg_len);
 	}
 }
 
