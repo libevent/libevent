@@ -381,7 +381,7 @@ make_ws_frame(struct evbuffer *output, enum WebSocketFrameType frame_type,
 	int pos = 0;
 	unsigned char header[16] = {0};
 
-	header[pos++] = (unsigned char)frame_type;
+	header[pos++] = (unsigned char)frame_type | 0x80; /* fin */
 	if (len <= 125) {
 		header[pos++] = len;
 	} else if (len <= 65535) {
