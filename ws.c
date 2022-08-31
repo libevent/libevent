@@ -259,7 +259,7 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 		case TEXT_FRAME:
 			return INCOMPLETE_TEXT_FRAME;
 		case BINARY_FRAME:
-			return fin ? BINARY_FRAME : INCOMPLETE_BINARY_FRAME;
+			return INCOMPLETE_BINARY_FRAME;
 		}
 	}
 	return opcode;
