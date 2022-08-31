@@ -137,8 +137,7 @@ ws_gen_accept_key(const char *ws_key, char out[32])
 	char buf[1024];
 	char digest[20];
 
-	snprintf(
-		buf, sizeof(buf), "%s" WS_UUID, ws_key);
+	snprintf(buf, sizeof(buf), "%s" WS_UUID, ws_key);
 
 	SHA1(digest, buf, strlen(buf));
 	Base64encode(out, digest, sizeof(digest));
@@ -318,8 +317,7 @@ ws_evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 }
 
 struct evws_connection *
-evws_new_session(struct evhttp_request *req,
-	void (*cb)(struct evws_connection *, char *, size_t, void *), void *arg)
+evws_new_session(struct evhttp_request *req, ws_on_msg_cb cb, void *arg)
 {
 	struct evws_connection *evws = NULL;
 	struct evkeyvalq *in_hdrs;

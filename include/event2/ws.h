@@ -8,6 +8,8 @@ struct evws_connection;
 #define WS_CR_PROTO_ERR 1002
 #define WS_CR_DATA_TOO_BIG 1009
 
+typedef void (*ws_on_msg_cb)(struct evws_connection *, char *, size_t, void *);
+
 /** Opens new WebSocket session from HTTP request.
  *
  * @param req a request object
@@ -18,12 +20,13 @@ struct evws_connection;
  * @see evws_close()
  * */
 EVENT2_EXPORT_SYMBOL
-struct evws_connection *evws_new_session(struct evhttp_request *req,
-	void (*cb)(struct evws_connection *, char *, size_t, void *), void* arg);
+struct evws_connection *evws_new_session(
+	struct evhttp_request *req, ws_on_msg_cb, void *arg);
 
 /** Sends data over WebSocket connection */
 EVENT2_EXPORT_SYMBOL
-void evws_send(struct evws_connection *evws, const char *packet_str, size_t str_len);
+void evws_send(
+	struct evws_connection *evws, const char *packet_str, size_t str_len);
 
 /** Closes a WebSocket connection with reason code */
 EVENT2_EXPORT_SYMBOL
@@ -32,7 +35,7 @@ void evws_close(struct evws_connection *evws, uint16_t reason);
 /** Sets a callback for connection close. */
 EVENT2_EXPORT_SYMBOL
 void evws_connection_set_closecb(struct evws_connection *evws,
-    void (*)(struct evws_connection *, void *), void *);
+	void (*)(struct evws_connection *, void *), void *);
 
 /** Frees a WebSocket connection */
 EVENT2_EXPORT_SYMBOL
@@ -42,6 +45,7 @@ void evws_connection_free(struct evws_connection *evws);
  * Return the bufferevent that an evws_connection is using.
  */
 EVENT2_EXPORT_SYMBOL
-struct bufferevent* evws_connection_get_bufferevent(struct evws_connection *evws);
+struct bufferevent *evws_connection_get_bufferevent(
+	struct evws_connection *evws);
 
 #endif
