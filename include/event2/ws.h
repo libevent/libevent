@@ -9,6 +9,7 @@ struct evws_connection;
 #define WS_CR_DATA_TOO_BIG 1009
 
 typedef void (*ws_on_msg_cb)(struct evws_connection *, char *, size_t, void *);
+typedef void (*ws_on_close_cb)(struct evws_connection *, void *);
 
 /** Opens new WebSocket session from HTTP request.
  *
@@ -34,8 +35,8 @@ void evws_close(struct evws_connection *evws, uint16_t reason);
 
 /** Sets a callback for connection close. */
 EVENT2_EXPORT_SYMBOL
-void evws_connection_set_closecb(struct evws_connection *evws,
-	void (*)(struct evws_connection *, void *), void *);
+void evws_connection_set_closecb(
+	struct evws_connection *evws, ws_on_close_cb, void *);
 
 /** Frees a WebSocket connection */
 EVENT2_EXPORT_SYMBOL

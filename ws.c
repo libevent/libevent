@@ -42,10 +42,10 @@ struct evws_connection {
 
 	struct bufferevent *bufev;
 
-	void (*cb)(struct evws_connection *, char *, size_t, void *);
+	ws_on_msg_cb cb;
 	void *cb_arg;
 
-	void (*closecb)(struct evws_connection *, void *);
+	ws_on_close_cb cbclose;
 	void *cbclose_arg;
 
 	/* for server connections, the http server they are connected with */
@@ -80,8 +80,8 @@ void
 evws_connection_free(struct evws_connection *evws)
 {
 	/* notify interested parties that this connection is going down */
-	if (evws->closecb != NULL)
-		(*evws->closecb)(evws, evws->cbclose_arg);
+	if (evws->cbclose != NULL)
+		(*evws->cbclose)(evws, evws->cbclose_arg);
 
 	if (evws->http_server != NULL) {
 		struct evhttp *http = evws->http_server;
@@ -406,10 +406,10 @@ evws_send(struct evws_connection *evws, const char *packet_str, size_t str_len)
 }
 
 void
-evws_connection_set_closecb(struct evws_connection *evws,
-	void (*cb)(struct evws_connection *, void *), void *cbarg)
+evws_connection_set_closecb(
+	struct evws_connection *evws, ws_on_close_cb cb, void *cbarg)
 {
-	evws->closecb = cb;
+	evws->cbclose = cb;
 	evws->cbclose_arg = cbarg;
 }
 
