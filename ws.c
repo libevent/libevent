@@ -53,20 +53,21 @@ struct evws_connection {
 };
 
 enum WebSocketFrameType {
-	ERROR_FRAME = 0xFF00,
-	INCOMPLETE_FRAME = 0xFE00,
+	CONTINUATION_FRAME = 0,
 
-	OPENING_FRAME = 0x3300,
-	CLOSING_FRAME = 0x3400,
+	ERROR_FRAME = 0xFF,
+	INCOMPLETE_FRAME = 0xFE,
 
-	INCOMPLETE_TEXT_FRAME = 0x01,
-	INCOMPLETE_BINARY_FRAME = 0x02,
+	CLOSING_FRAME = 0x8,
 
-	TEXT_FRAME = 0x81,
-	BINARY_FRAME = 0x82,
+	INCOMPLETE_TEXT_FRAME = 0x81,
+	INCOMPLETE_BINARY_FRAME = 0x82,
 
-	PING_FRAME = 0x19,
-	PONG_FRAME = 0x1A
+	TEXT_FRAME = 0x1,
+	BINARY_FRAME = 0x2,
+
+	PING_FRAME = 0x9,
+	PONG_FRAME = 0xA
 };
 
 /*
@@ -246,20 +247,21 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 	*payload_ptr = in_buffer + pos;
 	*out_len = payload_len;
 
-	switch (opcode) {
-	case 0x0:
-		return fin ? TEXT_FRAME : INCOMPLETE_TEXT_FRAME;
-	case 0x1:
-		return fin ? TEXT_FRAME : INCOMPLETE_TEXT_FRAME;
-	case 0x2:
-		return fin ? BINARY_FRAME : INCOMPLETE_BINARY_FRAME;
-	case 0x9:
-		return PING_FRAME;
-	case 0xA:
-		return PONG_FRAME;
-	default:
+	/* are reserved for further frames */
+	if ((opcode >= 3 && opcode <= 7) || (opcode >= 0xb))
 		return ERROR_FRAME;
+
+	if (opcode <= 0x3 && !fin) {
+		switch (opcode) {
+		case CONTINUATION_FRAME:
+			return INCOMPLETE_TEXT_FRAME;
+		case TEXT_FRAME:
+			return INCOMPLETE_TEXT_FRAME;
+		case BINARY_FRAME:
+			return fin ? BINARY_FRAME : INCOMPLETE_BINARY_FRAME;
+		}
 	}
+	return opcode;
 }
 
 
@@ -383,7 +385,7 @@ make_ws_frame(struct evbuffer *output, enum WebSocketFrameType frame_type,
 	if (len <= 125) {
 		header[pos++] = len;
 	} else if (len <= 65535) {
-		header[pos++] = 126;				/* 16 bit length */
+		header[pos++] = 126;			   /* 16 bit length */
 		header[pos++] = (len >> 8) & 0xFF; /* rightmost first */
 		header[pos++] = len & 0xFF;
 	} else {				 /* >2^16-1 */
