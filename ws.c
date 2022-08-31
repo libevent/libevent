@@ -183,6 +183,9 @@ evws_force_disconnect_(struct evws_connection *evws)
 	evws_close(evws, WS_CR_NONE);
 }
 
+/* parse base frame according to
+ * https://www.rfc-editor.org/rfc/rfc6455#section-5.2
+ */
 static enum WebSocketFrameType
 get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 	int *out_len)
@@ -195,7 +198,7 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 	int length_field;
 	unsigned int mask;
 
-	if (buf_len < 3) {
+	if (buf_len < 2) {
 		return INCOMPLETE_FRAME;
 	}
 
@@ -211,13 +214,17 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 	if (length_field <= 125) {
 		payload_len = length_field;
 	} else if (length_field == 126) { /* msglen is 16bit */
+		if (buf_len < 4)
+			return INCOMPLETE_FRAME;
 		payload_len = ntohs(*(uint16_t *)(in_buffer + 2));
 		pos += 2;
 	} else if (length_field == 127) { /* msglen is 64bit */
+		if (buf_len < 10)
+			return INCOMPLETE_FRAME;
 		payload_len = ntohs(*(uint64_t *)(in_buffer + 2));
 		pos += 8;
 	}
-	if (buf_len < payload_len + pos) {
+	if (buf_len < payload_len + pos + masked ? 4 : 0) {
 		return INCOMPLETE_FRAME;
 	}
 
