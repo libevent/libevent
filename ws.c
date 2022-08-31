@@ -35,6 +35,8 @@
 #include <netinet/in6.h>
 #endif
 
+#define WS_UUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
 struct evws_connection {
 	TAILQ_ENTRY(evws_connection) next;
 
@@ -136,7 +138,7 @@ ws_gen_accept_key(const char *ws_key, char out[32])
 	char digest[20];
 
 	snprintf(
-		buf, sizeof(buf), "%s258EAFA5-E914-47DA-95CA-C5AB0DC85B11", ws_key);
+		buf, sizeof(buf), "%s" WS_UUID, ws_key);
 
 	SHA1(digest, buf, strlen(buf));
 	Base64encode(out, digest, sizeof(digest));
