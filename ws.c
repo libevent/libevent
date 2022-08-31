@@ -209,7 +209,6 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 	payload_len = 0;
 	pos = 2;
 	length_field = in_buffer[1] & (~0x80);
-	mask = 0;
 
 	if (length_field <= 125) {
 		payload_len = length_field;
@@ -224,10 +223,13 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 		payload_len = ntohs(*(uint64_t *)(in_buffer + 2));
 		pos += 8;
 	}
-	if (buf_len < payload_len + pos + masked ? 4 : 0) {
+	if (buf_len < payload_len + pos + (masked ? 4 : 0)) {
 		return INCOMPLETE_FRAME;
 	}
 
+	/* According to RFC it seems that unmasked data should be prohibited
+	 * but we support it for nonconformant clients
+	 */
 	if (masked) {
 		unsigned char *c;
 
