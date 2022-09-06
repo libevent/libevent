@@ -78,6 +78,8 @@
 /* Re-seed from the platform RNG after generating this many bytes. */
 #define BYTES_BEFORE_RESEED 1600000
 
+#define REKEY_BASE (1024*1024) /* NB. should be a power of 2 */
+
 struct arc4_stream {
 	unsigned char i;
 	unsigned char j;
@@ -343,10 +345,13 @@ arc4_seed(void)
 	return ok ? 0 : -1;
 }
 
+ARC4RANDOM_EXPORT void
+arc4random_buf(void *buf_, size_t n);
 static int
 arc4_stir(void)
 {
 	int     i;
+	ARC4RANDOM_UINT32 rekey_fuzz = 0;
 
 	if (!rs_initialized) {
 		arc4_init();
@@ -377,7 +382,9 @@ arc4_stir(void)
 	for (i = 0; i < 12*256; i++)
 		(void)arc4_getbyte();
 
-	arc4_count = BYTES_BEFORE_RESEED;
+	arc4random_buf((void *) &rekey_fuzz, sizeof(rekey_fuzz));
+	/* rekey interval should not be predictable */
+	arc4_count = REKEY_BASE + (rekey_fuzz % REKEY_BASE);
 
 	return 0;
 }
