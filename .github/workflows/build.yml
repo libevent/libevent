@@ -929,7 +929,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["6.9", "7.1"]
+        release: [
+          # 6.9 has some issues with autoconf/autotools [1].
+          #   [1]: https://github.com/libevent/libevent/pull/1326#issuecomment-1229531718
+          #"6.9",
+          "7.1",
+        ]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
@@ -1023,7 +1028,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["6.9", "7.1"]
+        release: [
+          # 6.9 has some issues with autoconf/autotools [1].
+          #   [1]: https://github.com/libevent/libevent/pull/1326#issuecomment-1229531718
+          #"6.9",
+          "7.1",
+        ]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
