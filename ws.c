@@ -271,6 +271,9 @@ ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 
 	while ((in_len = evbuffer_get_length(input))) {
 		unsigned char *data = evbuffer_pullup(input, in_len);
+		if (data == NULL) {
+			return;
+		}
 
 		type = get_ws_frame(data, in_len, &payload, &msg_len);
 		if (type == INCOMPLETE_DATA) {
