@@ -348,7 +348,7 @@ static int
 arc4_stir(void)
 {
 	int     i;
-	ARC4RANDOM_UINT32 rekey_fuzz = arc4_getword();
+	ARC4RANDOM_UINT32 rekey_fuzz; 
 
 	if (!rs_initialized) {
 		arc4_init();
@@ -379,6 +379,7 @@ arc4_stir(void)
 	for (i = 0; i < 12*256; i++)
 		(void)arc4_getbyte();
 
+	rekey_fuzz = arc4_getword();
 	/* rekey interval should not be predictable */
 	arc4_count = REKEY_BASE + (rekey_fuzz % REKEY_BASE);
 
