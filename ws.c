@@ -289,14 +289,17 @@ ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 		case BINARY_FRAME:
 			if (evws->incomplete_frames != NULL) {
 				/* we already have incomplete frames in internal buffer
-				 * and need to concatenate them with final */
+				 * and need to concatenate them with final one */
 				evbuffer_add(evws->incomplete_frames, data, msg_len);
-				evws->cb(evws, type, evws->incomplete_frames,
+
+				data = evbuffer_pullup(evws->incomplete_frames, -1);
+
+				evws->cb(evws, type, data,
 					evbuffer_get_length(evws->incomplete_frames), evws->cb_arg);
 				evbuffer_free(evws->incomplete_frames);
 				evws->incomplete_frames = NULL;
 			} else {
-				evws->cb(evws, type, input, msg_len, evws->cb_arg);
+				evws->cb(evws, type, data, msg_len, evws->cb_arg);
 			}
 			break;
 		case INCOMPLETE_FRAME:

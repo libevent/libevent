@@ -72,19 +72,19 @@ broadcast_msg(char *msg)
 }
 
 static void
-on_msg_cb(struct evws_connection *evws, int type, struct evbuffer *evbuf,
+on_msg_cb(struct evws_connection *evws, int type, const unsigned char *data,
 	size_t len, void *arg)
 {
 	struct client *self = arg;
-	const char *data = (const char *)evbuffer_pullup(evbuf, -1);
 	char buf[4096];
+	const char *msg = (const char *)data;
 
-	snprintf(buf, sizeof(buf), "%.*s", (int)len, data);
+	snprintf(buf, sizeof(buf), "%.*s", (int)len, msg);
 	if (len == 5 && memcmp(buf, "/quit", 5) == 0) {
 		evws_close(evws, WS_CR_NORMAL);
 		snprintf(buf, sizeof(buf), "'%s' left the chat", self->name);
-	} else if (len > 6 && strncmp(data, "/name ", 6) == 0) {
-		const char *new_name = data + 6;
+	} else if (len > 6 && strncmp(msg, "/name ", 6) == 0) {
+		const char *new_name = (const char *)msg + 6;
 		int name_len = len - 6;
 
 		snprintf(buf, sizeof(buf), "'%s' renamed itself to '%.*s'", self->name,
@@ -92,7 +92,7 @@ on_msg_cb(struct evws_connection *evws, int type, struct evbuffer *evbuf,
 		snprintf(
 			self->name, sizeof(self->name) - 1, "%.*s", name_len, new_name);
 	} else {
-		snprintf(buf, sizeof(buf), "[%s] %.*s", self->name, (int)len, data);
+		snprintf(buf, sizeof(buf), "[%s] %.*s", self->name, (int)len, msg);
 	}
 
 	broadcast_msg(buf);

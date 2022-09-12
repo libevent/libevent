@@ -12,17 +12,15 @@ struct evws_connection;
 #define WS_BINARY_FRAME 0x2
 
 typedef void (*ws_on_msg_cb)(
-	struct evws_connection *, int type, struct evbuffer *, size_t, void *);
+	struct evws_connection *, int type, const unsigned char *, size_t, void *);
 typedef void (*ws_on_close_cb)(struct evws_connection *, void *);
 
 /** Opens new WebSocket session from HTTP request.
   @param req a request object
   @param cb the callback function that gets invoked on receiving message
-  with evbuffer with len bytes of the incoming data available in
-  it. User may use `evbuffer_pullup` to get a pointer to the data, but shouldn't
-  modify it, and libevent will remove processed bytes by itself. In case of
-  text messages user is also responsible to add terminating \0 to the text data
-  or use text data other way in which \0 is not required
+  with len bytes length. In case of receiving text messages user is responsible
+  to make a string with terminating \0 (with copying-out data) or use text data
+  other way in which \0 is not required
   @param arg an additional context argument for the callback
   @return a pointer to a newly initialized WebSocket connection or NULL
 	on error

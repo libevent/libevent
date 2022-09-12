@@ -68,11 +68,10 @@
 static struct event_base *exit_base;
 
 static void
-on_ws_msg_cb(struct evws_connection *evws, int type, struct evbuffer *evbuf,
+on_ws_msg_cb(struct evws_connection *evws, int type, const unsigned char *data,
 	size_t len, void *arg)
 {
 	ev_uintptr_t val = (ev_uintptr_t)arg;
-	const char *data = (const char *)evbuffer_pullup(evbuf, -1);
 	char msg[4096];
 
 	if (val != 0xDEADBEEF) {
