@@ -16,14 +16,18 @@ typedef void (*ws_on_msg_cb)(
 typedef void (*ws_on_close_cb)(struct evws_connection *, void *);
 
 /** Opens new WebSocket session from HTTP request.
- *
- * @param req a request object
- * @param cb the callback function that gets invoked on receiving message
- * @param arg an additional context argument for the callback
- * @return a pointer to a newly initialized WebSocket connection or NULL
- *   on error
- * @see evws_close()
- * */
+  @param req a request object
+  @param cb the callback function that gets invoked on receiving message
+  with evbuffer with len bytes of the incoming data available in
+  it. User may use `evbuffer_pullup` to get a pointer to the data, but shouldn't
+  modify it, and libevent will remove processed bytes by itself. In case of
+  text messages user is also responsible to add terminating \0 to the text data
+  or use text data other way in which \0 is not required
+  @param arg an additional context argument for the callback
+  @return a pointer to a newly initialized WebSocket connection or NULL
+	on error
+  @see evws_close()
+ */
 EVENT2_EXPORT_SYMBOL
 struct evws_connection *evws_new_session(
 	struct evhttp_request *req, ws_on_msg_cb, void *arg);
