@@ -75,9 +75,6 @@
 /* Add platform entropy 32 bytes (256 bits) at a time. */
 #define ADD_ENTROPY 32
 
-/* Re-seed from the platform RNG after generating this many bytes. */
-#define BYTES_BEFORE_RESEED 1600000
-
 #define REKEY_BASE (1024*1024) /* NB. should be a power of 2 */
 
 struct arc4_stream {
