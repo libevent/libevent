@@ -771,6 +771,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
+            export IGNORE_OSVERSION=yes
             pkg install -y  mbedtls cmake python3
           usesh: true
           run: |
@@ -864,6 +865,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
+            export IGNORE_OSVERSION=yes
             pkg install -y  mbedtls  python3 autoconf automake libtool pkgconf
           usesh: true
           run: |
