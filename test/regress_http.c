@@ -64,6 +64,8 @@
 #include "log-internal.h"
 #include "http-internal.h"
 #include "regress.h"
+#include "regress_http.h"
+#include "regress_ws.h"
 #include "regress_testutils.h"
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof((x)[0]))
@@ -223,10 +225,11 @@ http_setup_gencb(ev_uint16_t *pport, struct event_base *base, int mask,
 	evhttp_set_cb(myhttp, "/largedelay", http_large_delay_cb, base);
 	evhttp_set_cb(myhttp, "/badrequest", http_badreq_cb, base);
 	evhttp_set_cb(myhttp, "/oncomplete", http_on_complete_cb, base);
+	evhttp_set_cb(myhttp, "/ws", http_on_ws_cb, base);
 	evhttp_set_cb(myhttp, "/", http_dispatcher_cb, base);
 	return (myhttp);
 }
-static struct evhttp *
+struct evhttp *
 http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 { return http_setup_gencb(pport, base, mask, NULL, NULL); }
 
@@ -234,7 +237,7 @@ http_setup(ev_uint16_t *pport, struct event_base *base, int mask)
 #define NI_MAXSERV 1024
 #endif
 
-static evutil_socket_t
+evutil_socket_t
 http_connect(const char *address, ev_uint16_t port)
 {
 	/* Stupid code for connecting */
@@ -349,7 +352,7 @@ http_readcb(struct bufferevent *bev, void *arg)
 	}
 }
 
-static void
+void
 http_writecb(struct bufferevent *bev, void *arg)
 {
 	if (evbuffer_get_length(bufferevent_get_output(bev)) == 0) {
@@ -531,7 +534,7 @@ http_chunked_input_cb(struct evhttp_request *req, void *arg)
 	evbuffer_free(buf);
 }
 
-static struct bufferevent *
+struct bufferevent *
 create_bev(struct event_base *base, evutil_socket_t fd, int ssl_mask, int flags_)
 {
 	int flags = BEV_OPT_DEFER_CALLBACKS | flags_;
@@ -5943,6 +5946,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(terminate_chunked),
 	HTTP(terminate_chunked_oneshot),
 	HTTP(on_complete),
+	HTTP(ws),
 
 	HTTP(highport),
 	HTTP(dispatcher),

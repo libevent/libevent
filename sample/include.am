@@ -12,6 +12,7 @@ SAMPLES = \
 	sample/http-connect				\
 	sample/signal-test				\
 	sample/time-test				\
+	sample/ws-chat-server				\
 	sample/watch-timing
 
 if OPENSSL
@@ -74,3 +75,6 @@ sample_http_connect_SOURCES = sample/http-connect.c
 sample_http_connect_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la
 sample_watch_timing_SOURCES = sample/watch-timing.c
 sample_watch_timing_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la -lm
+sample_ws_chat_server_SOURCES = sample/ws-chat-server.c
+sample_ws_chat_server_LDADD = $(LIBEVENT_GC_SECTIONS) libevent.la -lm
+EXTRA_DIST+=sample/ws-chat.html

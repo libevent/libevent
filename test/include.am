@@ -116,6 +116,7 @@ test_regress_SOURCES = 				\
 	test/regress_et.c				\
 	test/regress_finalize.c				\
 	test/regress_http.c				\
+	test/regress_http.h				\
 	test/regress_listener.c			\
 	test/regress_main.c				\
 	test/regress_minheap.c			\
@@ -124,6 +125,8 @@ test_regress_SOURCES = 				\
 	test/regress_testutils.h			\
 	test/regress_util.c				\
 	test/regress_watch.c				\
+	test/regress_ws.c				\
+	test/regress_ws.h				\
 	test/tinytest.c				\
 	$(regress_thread_SOURCES)		\
 	$(regress_zlib_SOURCES)
