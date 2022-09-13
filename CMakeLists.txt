@@ -30,6 +30,7 @@ endif()
 if (POLICY CMP0075)
     cmake_policy(SET CMP0075 NEW)
 endif()
+set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_OPENBSD_VERSIONING 0)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release
