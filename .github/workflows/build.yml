@@ -746,7 +746,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["12.3", "13.0", "13.1"]
+        # NOTE: 13.0 has some issues:
+        #   ld-elf.so.1: /lib/libc.so.7: version FBSD_1.7 required by /usr/local/lib/libpython3.9.so.1.0 not found
+        release: ["12.3", "13.1"]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
@@ -840,7 +842,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["12.3", "13.0", "13.1"]
+        # NOTE: 13.0 has some issues:
+        #   ld-elf.so.1: /lib/libc.so.7: version FBSD_1.7 required by /usr/local/lib/libpython3.9.so.1.0 not found
+        release: ["12.3", "13.1"]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
