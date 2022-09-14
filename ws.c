@@ -140,7 +140,7 @@ ws_gen_accept_key(const char *ws_key, char out[32])
 
 	snprintf(buf, sizeof(buf), "%s" WS_UUID, ws_key);
 
-	SHA1(digest, buf, strlen(buf));
+	builtin_SHA1(digest, buf, strlen(buf));
 	Base64encode(out, digest, sizeof(digest));
 	return out;
 }
