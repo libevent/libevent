@@ -60,9 +60,18 @@ A million repetitions of "a"
     z += (w ^ x ^ y) + blk(i) + 0xCA62C1D6 + rol(v, 5);                        \
     w = rol(w, 30);
 
+static void SHA1Transform(uint32_t state[5], const unsigned char buffer[64]);
+
+static void SHA1Init(SHA1_CTX *context);
+
+static void SHA1Update(SHA1_CTX *context, const unsigned char *data, uint32_t len);
+
+static void SHA1Final(unsigned char digest[20], SHA1_CTX *context);
+
+
 /* Hash a single 512-bit block. This is the core of the algorithm. */
 
-void SHA1Transform(uint32_t state[5], const unsigned char buffer[64]) {
+static void SHA1Transform(uint32_t state[5], const unsigned char buffer[64]) {
     uint32_t a, b, c, d, e;
 
     typedef union {
@@ -184,7 +193,7 @@ void SHA1Transform(uint32_t state[5], const unsigned char buffer[64]) {
 
 /* SHA1Init - Initialize new context */
 
-void SHA1Init(SHA1_CTX *context) {
+static void SHA1Init(SHA1_CTX *context) {
     /* SHA1 initialization constants */
     context->state[0] = 0x67452301;
     context->state[1] = 0xEFCDAB89;
@@ -196,7 +205,7 @@ void SHA1Init(SHA1_CTX *context) {
 
 /* Run your data through this. */
 
-void SHA1Update(SHA1_CTX *context, const unsigned char *data, uint32_t len) {
+static void SHA1Update(SHA1_CTX *context, const unsigned char *data, uint32_t len) {
     uint32_t i;
 
     uint32_t j;
@@ -220,7 +229,7 @@ void SHA1Update(SHA1_CTX *context, const unsigned char *data, uint32_t len) {
 
 /* Add padding and return the message digest. */
 
-void SHA1Final(unsigned char digest[20], SHA1_CTX *context) {
+static void SHA1Final(unsigned char digest[20], SHA1_CTX *context) {
     unsigned i;
 
     unsigned char finalcount[8];
@@ -267,7 +276,7 @@ void SHA1Final(unsigned char digest[20], SHA1_CTX *context) {
     memset(&finalcount, '\0', sizeof(finalcount));
 }
 
-void SHA1(char *hash_out, const char *str, int len) {
+void builtin_SHA1(char *hash_out, const char *str, int len) {
     SHA1_CTX ctx;
     int ii;
 
