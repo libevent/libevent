@@ -99,6 +99,9 @@
 /* Define to 1 if you have the `epoll_create1' function. */
 #cmakedefine EVENT__HAVE_EPOLL_CREATE1 1
 
+/* Define to 1 if you have the `epoll_pwait2' function. */
+#cmakedefine EVENT__HAVE_EPOLL_PWAIT2 1
+
 /* Define to 1 if you have the `epoll_ctl' function. */
 #cmakedefine EVENT__HAVE_EPOLL_CTL 1
 

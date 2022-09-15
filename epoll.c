@@ -81,11 +81,13 @@
 #if defined(EVENT__HAVE_SYS_TIMERFD_H) &&			  \
 	defined(EVENT__HAVE_TIMERFD_CREATE) &&			  \
 	defined(HAVE_POSIX_MONOTONIC) && defined(TFD_NONBLOCK) && \
-	defined(TFD_CLOEXEC)
+	defined(TFD_CLOEXEC) && !defined(EVENT__HAVE_EPOLL_PWAIT2)
 /* Note that we only use timerfd if TFD_NONBLOCK and TFD_CLOEXEC are available
    and working.  This means that we can't support it on 2.6.25 (where timerfd
-   was introduced) or 2.6.26, since 2.6.27 introduced those flags.
- */
+   was introduced) or 2.6.26, since 2.6.27 introduced those flags. On recent
+   enough systems (with 5.11 and never) and so epoll_pwait2() with nanosecond
+   precision for timeouts, timerfd is not needed at all.
+*/
 #define USING_TIMERFD
 #endif
 
@@ -459,7 +461,11 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	struct epollop *epollop = base->evbase;
 	struct epoll_event *events = epollop->events;
 	int i, res;
+#if defined(EVENT__HAVE_EPOLL_PWAIT2)
+	struct timespec ts = { 0, 0 };
+#else /* no epoll_pwait2() */
 	long timeout = -1;
+#endif /* EVENT__HAVE_EPOLL_PWAIT2 */
 
 #ifdef USING_TIMERFD
 	if (epollop->timerfd >= 0) {
@@ -489,12 +495,16 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 	} else
 #endif
 	if (tv != NULL) {
+#if defined(EVENT__HAVE_EPOLL_PWAIT2)
+		TIMEVAL_TO_TIMESPEC(tv, &ts);
+#else /* no epoll_pwait2() */
 		timeout = evutil_tv_to_msec_(tv);
 		if (timeout < 0 || timeout > MAX_EPOLL_TIMEOUT_MSEC) {
 			/* Linux kernels can wait forever if the timeout is
 			 * too big; see comment on MAX_EPOLL_TIMEOUT_MSEC. */
 			timeout = MAX_EPOLL_TIMEOUT_MSEC;
 		}
+#endif /* EVENT__HAVE_EPOLL_PWAIT2 */
 	}
 
 	epoll_apply_changes(base);
@@ -502,7 +512,11 @@ epoll_dispatch(struct event_base *base, struct timeval *tv)
 
 	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
+#if defined(EVENT__HAVE_EPOLL_PWAIT2)
+	res = epoll_pwait2(epollop->epfd, events, epollop->nevents, tv ? &ts : NULL, NULL);
+#else /* no epoll_pwait2() */
 	res = epoll_wait(epollop->epfd, events, epollop->nevents, timeout);
+#endif /* EVENT__HAVE_EPOLL_PWAIT2 */
 
 	EVBASE_ACQUIRE_LOCK(base, th_base_lock);
 
