@@ -518,6 +518,7 @@ else()
         select
         epoll_create
         epoll_create1
+        epoll_pwait2
         epoll_ctl
         eventfd
         poll
