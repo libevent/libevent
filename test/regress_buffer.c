@@ -1199,6 +1199,10 @@ test_evbuffer_add_file(void *ptr)
 	}
 
 	fd = regress_make_tmpfile(data, datalen, &tmpfilename);
+	/* On Windows, if TMP environment variable is corrupted, we may not be
+	 * able create temporary file, just skip it */
+	if (fd < 0)
+		tt_skip();
 
 	if (map_from_offset) {
 		starting_offset = datalen/4 + 1;
@@ -1332,7 +1336,10 @@ test_evbuffer_file_segment_add_cleanup_cb(void* ptr)
 	char const* arg = "token";
 
 	fd = regress_make_tmpfile("file_segment_test_file", 22, &tmpfilename);
-	tt_int_op(fd, >=, 0);
+	/* On Windows, if TMP environment variable is corrupted, we may not be
+	 * able create temporary file, just skip it */
+	if (fd < 0)
+		tt_skip();
 
 	evb = evbuffer_new();
 	tt_assert(evb);
@@ -2587,6 +2594,11 @@ test_evbuffer_freeze(void *ptr)
 	FREEZE_EQ(r, 0, -1);
 	len = strlen(tmpfilecontent);
 	fd = regress_make_tmpfile(tmpfilecontent, len, &tmpfilename);
+	/* On Windows, if TMP environment variable is corrupted, we may not be 
+	 * able create temporary file, just skip it */
+	if (fd < 0)
+		tt_skip();
+
 	r = evbuffer_add_file(buf, fd, 0, len);
 	FREEZE_EQ(r, 0, -1);
 
