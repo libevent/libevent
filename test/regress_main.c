@@ -152,19 +152,26 @@ regress_make_tmpfile(const void *data, size_t datalen, char **filename_out)
 	return (fd);
 #else
 	/* XXXX actually delete the file later */
-	char tmpfilepath[MAX_PATH];
+	WCHAR tmpfilepath[MAX_PATH];
+	WCHAR tmpfilelongpath[MAX_PATH];
+	WCHAR tmpfilewideame[MAX_PATH];
 	char tmpfilename[MAX_PATH];
 	DWORD r, written;
 	int tries = 16;
 	HANDLE h;
-	r = GetTempPathA(MAX_PATH, tmpfilepath);
+	r = GetTempPathW(MAX_PATH, tmpfilepath);
+	if (r > MAX_PATH || r == 0)
+		return (-1);
+	r = GetLongPathNameW(tmpfilepath, tmpfilelongpath, MAX_PATH);
 	if (r > MAX_PATH || r == 0)
 		return (-1);
 	for (; tries > 0; --tries) {
-		r = GetTempFileNameA(tmpfilepath, "LIBEVENT", 0, tmpfilename);
-		if (r == 0)
+		r = GetTempFileNameW(tmpfilelongpath, L"LIBEVENT", 0, tmpfilewideame);
+		if (r == 0) {
+			int err = GetLastError();
 			return (-1);
-		h = CreateFileA(tmpfilename, GENERIC_READ|GENERIC_WRITE,
+		}
+		h = CreateFileW(tmpfilewideame, GENERIC_READ | GENERIC_WRITE,
 		    0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (h != INVALID_HANDLE_VALUE)
 			break;
@@ -172,6 +179,9 @@ regress_make_tmpfile(const void *data, size_t datalen, char **filename_out)
 	if (tries == 0)
 		return (-1);
 	written = 0;
+	WideCharToMultiByte(
+		CP_ACP, 0, tmpfilewideame, MAX_PATH, tmpfilename,
+		MAX_PATH, NULL, NULL);
 	*filename_out = strdup(tmpfilename);
 	WriteFile(h, data, (DWORD)datalen, &written, NULL);
 	/* Closing the fd returned by this function will indeed close h. */
