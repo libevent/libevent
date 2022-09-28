@@ -418,7 +418,7 @@ arc4_getword(void)
 {
 	unsigned int val;
 
-	val = arc4_getbyte() << 24;
+	val = (unsigned)arc4_getbyte() << 24;
 	val |= arc4_getbyte() << 16;
 	val |= arc4_getbyte() << 8;
 	val |= arc4_getbyte();
