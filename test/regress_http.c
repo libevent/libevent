@@ -3615,7 +3615,7 @@ http_incomplete_test_(struct basic_test_data *data, int use_timeout, int ssl)
 	tt_assert(fd != EVUTIL_INVALID_SOCKET);
 
 	/* Stupid thing to send a request */
-	bev = create_bev(data->base, fd, ssl, 0);
+	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
 	bufferevent_setcb(bev,
 	    http_incomplete_readcb, http_incomplete_writecb,
 	    http_incomplete_errorcb, use_timeout ? NULL : &fd);
@@ -4007,7 +4007,7 @@ http_stream_out_test_impl(void *arg, int ssl)
 	test_ok = 0;
 	exit_base = data->base;
 
-	bev = create_bev(data->base, -1, ssl, 0);
+	bev = create_bev(data->base, -1, ssl, BEV_OPT_CLOSE_ON_FREE);
 	evcon = evhttp_connection_base_bufferevent_new(
 		data->base, NULL, bev, "127.0.0.1", port);
 	tt_assert(evcon);
@@ -4207,7 +4207,7 @@ http_connection_fail_test_impl(void *arg, int ssl)
 	/* auto detect a port */
 	evhttp_free(http);
 
-	bev = create_bev(data->base, -1, ssl, 0);
+	bev = create_bev(data->base, -1, ssl, BEV_OPT_CLOSE_ON_FREE);
 	/* Pick an unroutable address. This administratively scoped multicast
 	 * address should do when working with TCP. */
 	evcon = evhttp_connection_base_bufferevent_new(
@@ -4279,7 +4279,7 @@ http_simple_test_impl(void *arg, int ssl, int dirty, const char *uri)
 	exit_base = data->base;
 	test_ok = 0;
 
-	bev = create_bev(data->base, -1, ssl, 0);
+	bev = create_bev(data->base, -1, ssl, BEV_OPT_CLOSE_ON_FREE);
 #ifdef EVENT__HAVE_OPENSSL
 	bufferevent_openssl_set_allow_dirty_shutdown(bev, dirty);
 #endif
@@ -4359,7 +4359,7 @@ https_per_socket_bevcb_impl(void *arg, ev_uint16_t http_port, ev_uint16_t https_
 
 	evhttp_set_gencb(http, http_basic_cb, http);
 
-	bev = create_bev(data->base, -1, mask, 0);
+	bev = create_bev(data->base, -1, mask, BEV_OPT_CLOSE_ON_FREE);
 
 #ifdef EVENT__HAVE_OPENSSL
 	bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
@@ -5204,7 +5204,7 @@ http_write_during_read_test_impl(void *arg, int ssl)
 
 	fd = http_connect("127.0.0.1", port);
 	tt_assert(fd != EVUTIL_INVALID_SOCKET);
-	bev = create_bev(data->base, fd, ssl, 0);
+	bev = create_bev(data->base, fd, ssl, BEV_OPT_CLOSE_ON_FREE);
 	bufferevent_setcb(bev, NULL, NULL, NULL, data->base);
 	bufferevent_disable(bev, EV_READ);
 
