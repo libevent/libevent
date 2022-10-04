@@ -274,7 +274,7 @@ main(int argc, char **argv)
 	int timeout = -1;
 
 #ifdef USE_MBEDTLS
-	mbedtls_ssl_context ssl;
+	mbedtls_dyncontext* ssl = NULL;
 	mbedtls_ssl_config config;
 	mbedtls_ctr_drbg_context ctr_drbg;
 	mbedtls_entropy_context entropy;
@@ -297,7 +297,6 @@ main(int argc, char **argv)
 	mbedtls_ctr_drbg_init(&ctr_drbg);
 	mbedtls_entropy_init(&entropy);
 	mbedtls_ssl_config_init(&config);
-	mbedtls_ssl_init(&ssl);
 #else
 	enum { HTTP, HTTPS } type = HTTP;
 #endif
@@ -428,7 +427,7 @@ main(int argc, char **argv)
 		mbedtls_ssl_conf_ca_chain(&config, &cacert, NULL);
 	}
 
-	mbedtls_ssl_setup(&ssl, &config);
+	ssl = bufferevent_mbedtls_dyncontext_new(&config);
 #else
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L) || \
 	(defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
@@ -510,7 +509,7 @@ main(int argc, char **argv)
 	}
 
 #ifdef USE_MBEDTLS
-	mbedtls_ssl_set_hostname(&ssl, host);
+	mbedtls_ssl_set_hostname(ssl, host);
 #else
 	// Create OpenSSL bufferevent and stack evhttp on top of it
 	ssl = SSL_new(ssl_ctx);
@@ -528,16 +527,15 @@ main(int argc, char **argv)
 	if (strcasecmp(scheme, "http") == 0) {
 		bev = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
 	} else {
-#ifdef USE_MBEDTLS
-		bev = bufferevent_mbedtls_socket_new(base, -1, &ssl,
-											 BUFFEREVENT_SSL_CONNECTING,
-											 BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
-#else
+#ifndef USE_MBEDTLS
 		type = HTTPS;
-		bev = bufferevent_openssl_socket_new(base, -1, ssl,
+		bev = bufferevent_openssl_socket_new(
+#else
+		bev = bufferevent_mbedtls_socket_new(
+#endif
+			base, -1, ssl,
 			BUFFEREVENT_SSL_CONNECTING,
 			BEV_OPT_CLOSE_ON_FREE|BEV_OPT_DEFER_CALLBACKS);
-#endif
 	}
 
 	if (bev == NULL) {
@@ -639,7 +637,6 @@ cleanup:
 		event_base_free(base);
 
 #ifdef USE_MBEDTLS
-	mbedtls_ssl_free(&ssl);
 	mbedtls_ssl_config_free(&config);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 	mbedtls_x509_crt_free(&cacert);

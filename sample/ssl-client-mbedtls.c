@@ -146,7 +146,7 @@ main(void)
 
 	mbedtls_entropy_context entropy;
 	mbedtls_ctr_drbg_context ctr_drbg;
-	mbedtls_ssl_context ssl;
+	mbedtls_dyncontext* ssl;
 	mbedtls_ssl_config conf;
 	mbedtls_x509_crt cacert;
 
@@ -175,7 +175,6 @@ main(void)
 	 * 0. Initialize the RNG and the session data
 	 */
 	mbedtls_net_init(&server_fd);
-	mbedtls_ssl_init(&ssl);
 	mbedtls_ssl_config_init(&conf);
 	mbedtls_x509_crt_init(&cacert);
 	mbedtls_ctr_drbg_init(&ctr_drbg);
@@ -244,12 +243,9 @@ main(void)
 	mbedtls_ssl_conf_rng(&conf, mbedtls_ctr_drbg_random, &ctr_drbg);
 	mbedtls_ssl_conf_dbg(&conf, my_debug, stdout);
 
-	if ((ret = mbedtls_ssl_setup(&ssl, &conf)) != 0) {
-		mbedtls_printf(" failed\n  ! mbedtls_ssl_setup returned %d\n\n", ret);
-		goto exit;
-	}
+	ssl = bufferevent_mbedtls_dyncontext_new(&conf);
 
-	if ((ret = mbedtls_ssl_set_hostname(&ssl, SERVER_NAME)) != 0) {
+	if ((ret = mbedtls_ssl_set_hostname(ssl, SERVER_NAME)) != 0) {
 		mbedtls_printf(
 			" failed\n  ! mbedtls_ssl_set_hostname returned %d\n\n", ret);
 		goto exit;
@@ -265,7 +261,7 @@ main(void)
 
 	bev = bufferevent_socket_new(evbase, server_fd.fd, BEV_OPT_CLOSE_ON_FREE);
 	bevf = bufferevent_mbedtls_filter_new(
-		evbase, bev, &ssl, BUFFEREVENT_SSL_CONNECTING, BEV_OPT_CLOSE_ON_FREE);
+		evbase, bev, ssl, BUFFEREVENT_SSL_CONNECTING, BEV_OPT_CLOSE_ON_FREE);
 	bev = bevf;
 	bufferevent_setcb(bev, readcb, writecb, eventcb, NULL);
 
@@ -289,7 +285,6 @@ exit:
 	mbedtls_net_free(&server_fd);
 
 	mbedtls_x509_crt_free(&cacert);
-	mbedtls_ssl_free(&ssl);
 	mbedtls_ssl_config_free(&conf);
 	mbedtls_ctr_drbg_free(&ctr_drbg);
 	mbedtls_entropy_free(&entropy);

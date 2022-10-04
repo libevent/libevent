@@ -99,7 +99,7 @@ test()
 {
 	struct event_base *base = NULL;
 	mbedtls_ssl_config *conf = NULL;
-	mbedtls_ssl_context *ssl = NULL;
+	mbedtls_dyncontext *ssl = NULL;
 	struct bufferevent *bev;
 	int r = 1;
 
@@ -114,12 +114,7 @@ test()
 	}
 	mbedtls_ssl_config_init(conf);
 
-	ssl = malloc(sizeof(*ssl));
-	if (!ssl) {
-		goto error;
-	}
-	mbedtls_ssl_init(ssl);
-	mbedtls_ssl_setup(ssl, conf);
+	ssl = bufferevent_mbedtls_dyncontext_new(conf);
 
 	bev = bufferevent_mbedtls_socket_new(base, -1, ssl,
 		BUFFEREVENT_SSL_CONNECTING,
@@ -132,8 +127,7 @@ error:
 	if (base)
 		event_base_free(base);
 	if (ssl) {
-		mbedtls_ssl_free(ssl);
-		free(ssl);
+		bufferevent_mbedtls_dyncontext_free(ssl);
 	}
 	if (conf) {
 		mbedtls_ssl_config_free(conf);
