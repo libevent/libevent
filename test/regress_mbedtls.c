@@ -51,7 +51,7 @@
 #undef SSL_get_peer_certificate
 #define SSL_get_peer_certificate mbedtls_ssl_get_peer_cert
 #define SSL_get1_peer_certificate mbedtls_ssl_get_peer_cert
-#define SSL_new mbedtls_ssl_new
+#define SSL_new bufferevent_mbedtls_dyncontext_new
 #define SSL_use_certificate(a, b) \
 	do {                          \
 	} while (0);
@@ -80,8 +80,6 @@ const struct testcase_setup_t mbedtls_setup = {
 #define ssl_setup mbedtls_setup
 #include "regress_ssl.c"
 static mbedtls_ssl_config *the_mbedtls_conf[2] = {NULL, NULL};
-static mbedtls_ssl_context *the_mbedtls_ctx[1024] = {NULL};
-static int the_mbedtls_ctx_count = 0;
 static mbedtls_entropy_context entropy;
 static mbedtls_ctr_drbg_context ctr_drbg;
 static mbedtls_x509_crt *the_cert;
@@ -282,7 +280,6 @@ mbedtls_test_setup(const struct testcase_t *testcase)
 static int
 mbedtls_test_cleanup(const struct testcase_t *testcase, void *ptr)
 {
-	int i;
 	int ret = basic_test_cleanup(testcase, ptr);
 	if (!ret) {
 		return ret;
@@ -303,9 +300,6 @@ mbedtls_test_cleanup(const struct testcase_t *testcase, void *ptr)
 	mbedtls_pk_free(the_key);
 	free(the_key);
 
-	for (i = 0; i < the_mbedtls_ctx_count; i++) {
-		mbedtls_ssl_free(the_mbedtls_ctx[i]);
-	}
 	if (the_mbedtls_conf[0]) {
 		mbedtls_ssl_config_free(the_mbedtls_conf[0]);
 		free(the_mbedtls_conf[0]);
@@ -318,16 +312,6 @@ mbedtls_test_cleanup(const struct testcase_t *testcase, void *ptr)
 	}
 
 	return 1;
-}
-
-mbedtls_ssl_context *
-mbedtls_ssl_new(mbedtls_ssl_config *config)
-{
-	mbedtls_ssl_context *ssl = malloc(sizeof(*ssl));
-	mbedtls_ssl_init(ssl);
-	mbedtls_ssl_setup(ssl, config);
-	the_mbedtls_ctx[the_mbedtls_ctx_count++] = ssl;
-	return ssl;
 }
 
 static int

@@ -47,7 +47,7 @@
 #include "mm-internal.h"
 
 struct mbedtls_context {
-	mbedtls_ssl_context *ssl;
+	mbedtls_dyncontext *ssl;
 	mbedtls_net_context net;
 };
 static void *
@@ -65,7 +65,7 @@ mbedtls_context_free(void *ssl, int flags)
 {
 	struct mbedtls_context *ctx = ssl;
 	if (flags & BEV_OPT_CLOSE_ON_FREE)
-		mbedtls_ssl_free(ctx->ssl);
+		bufferevent_mbedtls_dyncontext_free(ctx->ssl);
 	mm_free(ctx);
 }
 static int
@@ -309,7 +309,7 @@ bufferevent_get_mbedtls_error(struct bufferevent *bufev)
 static struct le_ssl_ops le_mbedtls_ops = {
 	mbedtls_context_init,
 	mbedtls_context_free,
-	(void (*)(void *))mbedtls_ssl_free,
+	(void (*)(void *))bufferevent_mbedtls_dyncontext_free,
 	mbedtls_context_renegotiate,
 	mbedtls_context_write,
 	mbedtls_context_read,
@@ -352,7 +352,7 @@ bufferevent_mbedtls_filter_new(struct event_base *base,
 
 err:
 	if (options & BEV_OPT_CLOSE_ON_FREE)
-		mbedtls_ssl_free(ssl);
+		bufferevent_mbedtls_dyncontext_free(ssl);
 	return NULL;
 }
 
@@ -406,4 +406,20 @@ bufferevent_mbedtls_socket_new(struct event_base *base, evutil_socket_t fd,
 	return bev;
 err:
 	return NULL;
+}
+
+mbedtls_dyncontext *
+bufferevent_mbedtls_dyncontext_new(struct mbedtls_ssl_config *conf)
+{
+	mbedtls_dyncontext *ctx = mm_calloc(1, sizeof(*ctx));
+	mbedtls_ssl_init(ctx);
+	mbedtls_ssl_setup(ctx, conf);
+	return ctx;
+}
+
+void
+bufferevent_mbedtls_dyncontext_free(mbedtls_dyncontext *ctx)
+{
+	mbedtls_ssl_free(ctx);
+	mm_free(ctx);
 }

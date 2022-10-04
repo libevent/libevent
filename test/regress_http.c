@@ -168,7 +168,7 @@ https_bev(struct event_base *base, void *arg)
 static struct bufferevent *
 https_mbedtls_bev(struct event_base *base, void *arg)
 {
-	mbedtls_ssl_context *ssl = mbedtls_ssl_new(get_mbedtls_config(MBEDTLS_SSL_IS_SERVER));
+	mbedtls_dyncontext *ssl = bufferevent_mbedtls_dyncontext_new(get_mbedtls_config(MBEDTLS_SSL_IS_SERVER));
 	return bufferevent_mbedtls_socket_new(
 		base, -1, ssl, BUFFEREVENT_SSL_ACCEPTING,
 		BEV_OPT_CLOSE_ON_FREE);
@@ -558,7 +558,7 @@ create_bev(struct event_base *base, evutil_socket_t fd, int ssl_mask, int flags_
 #endif
 	} else if (ssl_mask & HTTP_MBEDTLS) {
 #ifdef EVENT__HAVE_MBEDTLS
-		mbedtls_ssl_context *ssl = mbedtls_ssl_new(get_mbedtls_config(MBEDTLS_SSL_IS_CLIENT));
+		mbedtls_dyncontext *ssl = bufferevent_mbedtls_dyncontext_new(get_mbedtls_config(MBEDTLS_SSL_IS_CLIENT));
 		if (ssl_mask & HTTP_SSL_FILTER) {
 			struct bufferevent *underlying =
 			bufferevent_socket_new(base, fd, flags);

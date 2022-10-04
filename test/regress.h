@@ -146,7 +146,6 @@ void init_ssl(void);
 #ifdef EVENT__HAVE_MBEDTLS
 #include <mbedtls/ssl.h>
 mbedtls_ssl_config *get_mbedtls_config(int endpoint);
-mbedtls_ssl_context *mbedtls_ssl_new(mbedtls_ssl_config *config);
 #endif
 
 void * basic_test_setup(const struct testcase_t *testcase);
