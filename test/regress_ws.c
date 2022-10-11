@@ -144,6 +144,7 @@ receive_ws_msg(struct evbuffer *buf, size_t *out_len, unsigned *options)
 	const unsigned char *mask_key;
 	char *out_buf = NULL;
 	size_t data_len = evbuffer_get_length(buf);
+	size_t i;
 
 	data = evbuffer_pullup(buf, data_len);
 
@@ -177,7 +178,7 @@ receive_ws_msg(struct evbuffer *buf, size_t *out_len, unsigned *options)
 		return NULL;
 
 	mask_key = data + header_len - 4;
-	for (size_t i = 0; mask && i < payload_len; i++)
+	for (i = 0; mask && i < payload_len; i++)
 		data[header_len + i] ^= mask_key[i % 4];
 
 	*out_len = payload_len;
@@ -205,6 +206,7 @@ send_ws_msg(struct evbuffer *buf, const char *msg, bool final)
 	uint8_t a = 0, b = 0, c = 0, d = 0;
 	uint8_t mask_key[4] = {1, 2, 3, 4}; /* should be random */
 	uint8_t m;
+	size_t i;
 
 	if (final)
 		a |= 1 << 7; /* fin */
@@ -233,7 +235,7 @@ send_ws_msg(struct evbuffer *buf, const char *msg, bool final)
 
 	evbuffer_add(buf, &mask_key, 4);
 
-	for (size_t i = 0; i < len; i++) {
+	for (i = 0; i < len; i++) {
 		m = msg[i] ^ mask_key[i % 4];
 		evbuffer_add(buf, &m, 1);
 	}

@@ -236,13 +236,14 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 	 */
 	if (masked) {
 		unsigned char *c;
+		int i;
 
 		mask = *((unsigned int *)(in_buffer + pos));
 		pos += 4;
 
 		/* unmask data */
 		c = in_buffer + pos;
-		for (int i = 0; i < payload_len; i++) {
+		for (i = 0; i < payload_len; i++) {
 			c[i] = c[i] ^ ((unsigned char *)(&mask))[i % 4];
 		}
 	}
