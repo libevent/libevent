@@ -741,7 +741,7 @@ evhttp_connection_incoming_fail(struct evhttp_request *req,
 		 * case may happen when a browser keeps a persistent
 		 * connection open and we timeout on the read.  when
 		 * the request is still being used for sending, we
-		 * need to disassociated it from the connection here.
+		 * need to disassociate it from the connection here.
 		 */
 		if (!req->userdone) {
 			/* remove it so that it will not be freed */
