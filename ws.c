@@ -271,7 +271,6 @@ ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 	struct evbuffer *input = bufferevent_get_input(evws->bufev);
 
 	bufferevent_incref_and_lock_(evws->bufev);
-	bufferevent_disable(evws->bufev, EV_WRITE);
 	while ((in_len = evbuffer_get_length(input))) {
 		unsigned char *data = evbuffer_pullup(input, in_len);
 		if (data == NULL) {
