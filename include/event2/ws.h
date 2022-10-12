@@ -28,7 +28,7 @@ typedef void (*ws_on_close_cb)(struct evws_connection *, void *);
  */
 EVENT2_EXPORT_SYMBOL
 struct evws_connection *evws_new_session(
-	struct evhttp_request *req, ws_on_msg_cb, void *arg);
+	struct evhttp_request *req, ws_on_msg_cb, void *arg, int options);
 
 /** Sends data over WebSocket connection */
 EVENT2_EXPORT_SYMBOL

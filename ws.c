@@ -12,6 +12,7 @@
 #include "event2/bufferevent.h"
 #include "sys/queue.h"
 #include "http-internal.h"
+#include "bufferevent-internal.h"
 
 #include <assert.h>
 #include <string.h>
@@ -269,16 +270,18 @@ ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 	int msg_len, in_len, header_sz;
 	struct evbuffer *input = bufferevent_get_input(evws->bufev);
 
+	bufferevent_incref_and_lock_(evws->bufev);
+	bufferevent_disable(evws->bufev, EV_WRITE);
 	while ((in_len = evbuffer_get_length(input))) {
 		unsigned char *data = evbuffer_pullup(input, in_len);
 		if (data == NULL) {
-			return;
+			goto bailout;
 		}
 
 		type = get_ws_frame(data, in_len, &payload, &msg_len);
 		if (type == INCOMPLETE_DATA) {
 			/* incomplete data received, wait for next chunk */
-			return;
+			goto bailout;
 		}
 		header_sz = payload - data;
 		evbuffer_drain(input, header_sz);
@@ -324,6 +327,9 @@ ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 		}
 		evbuffer_drain(input, msg_len);
 	}
+
+bailout:
+	bufferevent_decref_and_unlock_(evws->bufev);
 }
 
 static void
@@ -336,7 +342,8 @@ ws_evhttp_error_cb(struct bufferevent *bufev, short what, void *arg)
 }
 
 struct evws_connection *
-evws_new_session(struct evhttp_request *req, ws_on_msg_cb cb, void *arg)
+evws_new_session(
+	struct evhttp_request *req, ws_on_msg_cb cb, void *arg, int options)
 {
 	struct evws_connection *evws = NULL;
 	struct evkeyvalq *in_hdrs;
@@ -380,6 +387,12 @@ evws_new_session(struct evhttp_request *req, ws_on_msg_cb cb, void *arg)
 	evws->http_server = evcon->http_server;
 
 	evws->bufev = evhttp_start_ws_(req);
+
+	if (options & BEV_OPT_THREADSAFE) {
+		if (bufferevent_enable_locking_(evws->bufev, NULL) < 0)
+			goto error;
+	}
+
 	bufferevent_setcb(
 		evws->bufev, ws_evhttp_read_cb, NULL, ws_evhttp_error_cb, evws);
 
@@ -389,6 +402,9 @@ evws_new_session(struct evhttp_request *req, ws_on_msg_cb cb, void *arg)
 	return evws;
 
 error:
+	if (evws)
+		evws_connection_free(evws);
+
 	evhttp_send_reply(req, HTTP_BADREQUEST, NULL, NULL);
 	return NULL;
 }
@@ -419,9 +435,12 @@ make_ws_frame(struct evbuffer *output, enum WebSocketFrameType frame_type,
 void
 evws_send(struct evws_connection *evws, const char *packet_str, size_t str_len)
 {
-	struct evbuffer *output = bufferevent_get_output(evws->bufev);
+	struct evbuffer *output;
 
+	bufferevent_lock(evws->bufev);
+	output = bufferevent_get_output(evws->bufev);
 	make_ws_frame(output, TEXT_FRAME, (unsigned char *)packet_str, str_len);
+	bufferevent_unlock(evws->bufev);
 }
 
 void
