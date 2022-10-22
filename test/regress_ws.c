@@ -115,7 +115,7 @@ http_on_ws_cb(struct evhttp_request *req, void *arg)
 	struct evws_connection *evws;
 	const char *hello = "Server: hello";
 
-	evws = evws_new_session(req, on_ws_msg_cb, (void *)0xDEADBEEF);
+	evws = evws_new_session(req, on_ws_msg_cb, (void *)0xDEADBEEF, 0);
 	if (!evws)
 		return;
 	test_ok++;

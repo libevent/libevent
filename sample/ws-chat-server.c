@@ -152,7 +152,7 @@ on_ws(struct evhttp_request *req, void *arg)
 	socklen_t len;
 
 	client = calloc(sizeof(*client), 1);
-	client->evws = evws_new_session(req, on_msg_cb, client);
+	client->evws = evws_new_session(req, on_msg_cb, client, 0);
 	fd = bufferevent_getfd(evws_connection_get_bufferevent(client->evws));
 
 	len = sizeof(addr);
