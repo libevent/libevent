@@ -943,7 +943,10 @@ jobs:
           - DISABLE_DEBUG_MODE
           - DISABLE_MM_REPLACEMENT
           - TEST_EXPORT_STATIC
-          - TEST_EXPORT_SHARED
+          # For now this test is disabled due to incorrect library paths [1].
+          #   [1]: https://github.com/libevent/libevent/pull/1326#issuecomment-1245159690
+          #
+          # - TEST_EXPORT_SHARED
 
     steps:
       - uses: actions/checkout@v2.0.0
