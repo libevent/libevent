@@ -1260,6 +1260,9 @@ test_signal_pipeloss(void)
  * make two bases to catch signals, use both of them.  this only works
  * for event mechanisms that use our signal pipe trick.	 kqueue handles
  * signals internally, and all interested kqueues get all the signals.
+ * This is not expected to work with signalfd - having more than one
+ * descriptor in attempt to accept the same signal (or intersecting sets
+ * of signals) is not the thing signalfd() was designed for.
  */
 static void
 test_signal_switchbase(void)
@@ -1267,9 +1270,16 @@ test_signal_switchbase(void)
 	struct event ev1, ev2;
 	struct event_base *base1, *base2;
 	int is_kqueue;
-	test_ok = 0;
 	base1 = event_init();
 	base2 = event_init();
+
+	test_ok = 1;
+	if (!strcmp(event_base_get_signal_method(base1), "signalfd_signal") ||
+	    !strcmp(event_base_get_signal_method(base2), "signalfd_signal")) {
+		tt_skip();
+	}
+	test_ok = 0;
+
 	is_kqueue = !strcmp(event_get_method(),"kqueue");
 	evsignal_set(&ev1, SIGUSR1, signal_cb, &ev1);
 	evsignal_set(&ev2, SIGUSR1, signal_cb, &ev2);

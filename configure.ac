@@ -181,7 +181,7 @@ LIBEVENT_OPENSSL
 LIBEVENT_MBEDTLS
 
 dnl Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h ifaddrs.h mach/mach_time.h mach/mach.h netdb.h netinet/in.h netinet/in6.h netinet/tcp.h sys/un.h poll.h port.h stdarg.h stddef.h sys/devpoll.h sys/epoll.h sys/event.h sys/eventfd.h sys/ioctl.h sys/mman.h sys/param.h sys/queue.h sys/resource.h sys/select.h sys/sendfile.h sys/socket.h sys/stat.h sys/time.h sys/timerfd.h sys/uio.h sys/wait.h sys/random.h errno.h afunix.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h ifaddrs.h mach/mach_time.h mach/mach.h netdb.h netinet/in.h netinet/in6.h netinet/tcp.h sys/un.h poll.h port.h stdarg.h stddef.h sys/devpoll.h sys/epoll.h sys/event.h sys/eventfd.h sys/ioctl.h sys/mman.h sys/param.h sys/queue.h sys/resource.h sys/select.h sys/sendfile.h sys/socket.h sys/stat.h sys/time.h sys/timerfd.h sys/signalfd.h sys/uio.h sys/wait.h sys/random.h errno.h afunix.h])
 
 case "${host_os}" in
     linux*) ;;
@@ -543,6 +543,7 @@ if test "$bwin32" = "true"; then
 fi
 AM_CONDITIONAL(WEPOLL_BACKEND, [test "$havewepoll" = "yes"])
 AM_CONDITIONAL(SIGNAL_SUPPORT, [test "$needsignal" = "yes"])
+AM_CONDITIONAL(SIGNALFD_SUPPORT, [test "$ac_cv_header_sys_signalfd_h" = "yes"])
 
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T

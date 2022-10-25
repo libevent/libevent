@@ -1860,6 +1860,13 @@ event_base_get_method(const struct event_base *base)
 	return (base->evsel->name);
 }
 
+const char *
+event_base_get_signal_method(const struct event_base *base)
+{
+	EVUTIL_ASSERT(base);
+	return (base->evsigsel->name);
+}
+
 /** Callback: used to implement event_base_loopexit by telling the event_base
  * that it's time to exit its loop. */
 static void

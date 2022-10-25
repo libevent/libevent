@@ -45,6 +45,10 @@ struct evsig_info {
 	int ev_signal_added;
 	/* Count of the number of signals we're currently watching. */
 	int ev_n_signals_added;
+#ifdef EVENT__HAVE_SYS_SIGNALFD_H
+	/* EV_READ events used to wakeup corresponding EV_SIGNAL ones. */
+	struct event *ev_sigevent[NSIG];
+#endif /* EVENT__HAVE_SYS_SIGNALFD_H */
 
 	/* Array of previous signal handler objects before Libevent started
 	 * messing with them.  Used to restore old signal handlers. */
@@ -56,8 +60,17 @@ struct evsig_info {
 	/* Size of sh_old. */
 	int sh_old_max;
 };
+
+#ifdef EVENT__HAVE_SYS_SIGNALFD_H
+int sigfd_init_(struct event_base *);
+#else /* no signalfd() */
+static inline int
+sigfd_init_(struct event_base *base) { return -1; }
+#endif /* have signalfd() */
+
 int evsig_init_(struct event_base *);
 void evsig_dealloc_(struct event_base *);
+int evsig_ensure_saved_(struct evsig_info *, int);
 
 void evsig_set_base_(struct event_base *base);
 void evsig_free_globals_(void);

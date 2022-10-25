@@ -229,6 +229,9 @@ endif
 if SIGNAL_SUPPORT
 SYS_SRC += signal.c
 endif
+if SIGNALFD_SUPPORT
+SYS_SRC += signalfd.c
+endif
 
 BUILT_SOURCES += include/event2/event-config.h
 

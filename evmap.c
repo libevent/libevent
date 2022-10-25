@@ -465,7 +465,7 @@ evmap_signal_add_(struct event_base *base, int sig, struct event *ev)
 	    base->evsigsel->fdinfo_len);
 
 	if (LIST_EMPTY(&ctx->events)) {
-		if (evsel->add(base, ev->ev_fd, 0, EV_SIGNAL, NULL)
+		if (evsel->add(base, ev->ev_fd, 0, EV_SIGNAL, ev)
 		    == -1)
 			return (-1);
 	}
@@ -643,7 +643,8 @@ evmap_signal_reinit_iter_fn(struct event_base *base,
 	int *result = arg;
 
 	if (!LIST_EMPTY(&ctx->events)) {
-		if (evsel->add(base, signum, 0, EV_SIGNAL, NULL) == -1)
+		if (evsel->add(base, signum, 1, EV_SIGNAL,
+			       LIST_FIRST(&ctx->events)) == -1)
 			*result = -1;
 	}
 	return 0;

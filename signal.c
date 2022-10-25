@@ -208,25 +208,13 @@ evsig_init_(struct event_base *base)
 	return 0;
 }
 
-/* Helper: set the signal handler for evsignal to handler in base, so that
- * we can restore the original handler when we clear the current one. */
+/* Helper: resize saved signal handler array up to the highest signal
+   number. A dynamic array is used to keep footprint on the low side. */
 int
-evsig_set_handler_(struct event_base *base,
-    int evsignal, void (__cdecl *handler)(int))
+evsig_ensure_saved_(struct evsig_info *sig, int evsignal)
 {
-#ifdef EVENT__HAVE_SIGACTION
-	struct sigaction sa;
-#else
-	ev_sighandler_t sh;
-#endif
-	struct evsig_info *sig = &base->sig;
-	void *p;
-
-	/*
-	 * resize saved signal handler array up to the highest signal number.
-	 * a dynamic array is used to keep footprint on the low side.
-	 */
 	if (evsignal >= sig->sh_old_max) {
+		void *p;
 		int new_max = evsignal + 1;
 		event_debug(("%s: evsignal (%d) >= sh_old_max (%d), resizing",
 			    __func__, evsignal, sig->sh_old_max));
@@ -242,6 +230,25 @@ evsig_set_handler_(struct event_base *base,
 		sig->sh_old_max = new_max;
 		sig->sh_old = p;
 	}
+	return 0;
+}
+
+/* Helper: set the signal handler for evsignal to handler in base, so that
+ * we can restore the original handler when we clear the current one. */
+int
+evsig_set_handler_(struct event_base *base,
+    int evsignal, void (__cdecl *handler)(int))
+{
+#ifdef EVENT__HAVE_SIGACTION
+	struct sigaction sa;
+#else
+	ev_sighandler_t sh;
+#endif
+	struct evsig_info *sig = &base->sig;
+
+	/* ensure saved array is large enough */
+	if (evsig_ensure_saved_(sig, evsignal) < 0)
+		return (-1);
 
 	/* allocate space for previous handler out of dynamic array */
 	sig->sh_old[evsignal] = mm_malloc(sizeof *sig->sh_old[evsignal]);

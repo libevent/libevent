@@ -255,7 +255,8 @@ epoll_init(struct event_base *base)
 	}
 #endif
 
-	evsig_init_(base);
+	if (sigfd_init_(base) < 0)
+		evsig_init_(base);
 
 	return (epollop);
 }

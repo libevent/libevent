@@ -382,6 +382,18 @@ EVENT2_EXPORT_SYMBOL
 const char *event_base_get_method(const struct event_base *eb);
 
 /**
+ Get the kernel signal handling mechanism used by Libevent.
+
+ @param eb the event_base structure returned by event_base_new()
+ @return a string identifying the kernel signal handling mechanism,
+   which is "signal" for traditional UNIX signal handlers,
+   "kqueue_signal" for kqueue(2)-based method on *BSD and macOS,
+   and "signalfd_signal" for Linux-only signalfd(2)-based method.
+ */
+EVENT2_EXPORT_SYMBOL
+const char *event_base_get_signal_method(const struct event_base *eb);
+
+/**
    Gets all event notification mechanisms supported by Libevent.
 
    This functions returns the event mechanism in order preferred by
@@ -586,6 +598,10 @@ enum event_base_config_flag {
 	    epoll and if you do not have EVENT_BASE_FLAG_PRECISE_TIMER enabled.
 	 */
 	EVENT_BASE_FLAG_EPOLL_DISALLOW_TIMERFD = 0x40,
+
+	/** Do not use signalfd(2) to handle signals even if supported.
+	 */
+	EVENT_BASE_FLAG_DISALLOW_SIGNALFD = 0x80,
 };
 
 /**

@@ -450,6 +450,7 @@ else()
         sys/wait.h
         sys/resource.h
         sys/timerfd.h
+        sys/signalfd.h
         netinet/in.h
         netinet/in6.h
         netinet/tcp.h
@@ -583,6 +584,7 @@ list(APPEND CMAKE_EXTRA_INCLUDE_FILES ${EVENT_INCLUDES} stdio.h)
 CHECK_SYMBOLS_EXIST("${SYMBOLS_TO_CHECK}" "${CMAKE_EXTRA_INCLUDE_FILES}" "EVENT")
 unset(SYMBOLS_TO_CHECK)
 set(EVENT__HAVE_EPOLL ${EVENT__HAVE_EPOLL_CREATE})
+set(EVENT__HAVE_SIGNALFD ${EVENT__HAVE_SYS_SIGNALFD_H})
 if(WIN32 AND NOT CYGWIN)
     set(EVENT__HAVE_WEPOLL 1)
 endif()
@@ -902,6 +904,10 @@ endif()
 
 if(EVENT__HAVE_EPOLL)
     list(APPEND SRC_CORE epoll.c)
+endif()
+
+if(EVENT__HAVE_SIGNALFD)
+    list(APPEND SRC_CORE signalfd.c)
 endif()
 
 if(EVENT__HAVE_WEPOLL)
