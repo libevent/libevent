@@ -2248,7 +2248,9 @@ evutil_inet_pton_scope(int af, const char *src, void *dst, unsigned *indexp)
 			return 0;
 	}
 	*indexp = if_index;
-	tmp_src = mm_strdup(src);
+	if (!(tmp_src = mm_strdup(src)) {
+		return -1;
+	}
 	cp = strchr(tmp_src, '%');
 	*cp = '\0';
 	r = evutil_inet_pton(af, tmp_src, dst);
