@@ -170,6 +170,20 @@
 /* Default maximum number of simultaneous TCP client connections that DNS server can hold. */
 #define MAX_CLIENT_CONNECTIONS 10
 
+struct reply {
+	unsigned int type;
+	unsigned int have_answer : 1;
+	u32 rr_count;
+	union {
+		u32 *a;
+		struct in6_addr *aaaa;
+		char *ptr_name;
+		void *raw;
+	} data;
+	char *cname;
+};
+
+
 /* Persistent handle.  We keep this separate from 'struct request' since we
  * need some object to last for as long as an evdns_request is outstanding so
  * that it can be canceled, whereas a search request can lead to multiple
@@ -180,6 +194,16 @@ struct evdns_request {
 
 	int pending_cb; /* Waiting for its callback to be invoked; not
 			 * owned by event base any more. */
+
+	/* data used when fulfilling the callback */
+	struct event_callback deferred;
+	evdns_callback_type user_callback;
+	void *user_pointer;
+	u8 request_type;
+	u8 have_reply;
+	u32 ttl;
+	u32 err;
+	struct reply reply;
 
 	/* elements used by the searching code */
 	int search_index;
@@ -196,8 +220,6 @@ struct request {
 	unsigned int request_len;
 	int reissue_count;
 	int tx_count;  /* the number of times that this packet has been sent */
-	void *user_pointer;  /* the pointer given to us for this request */
-	evdns_callback_type user_callback;
 	struct nameserver *ns;	/* the server which we last sent it */
 
 	/* these objects are kept in a circular list */
@@ -217,19 +239,6 @@ struct request {
 	struct evdns_base *base;
 
 	struct evdns_request *handle;
-};
-
-struct reply {
-	unsigned int type;
-	unsigned int have_answer : 1;
-	u32 rr_count;
-	union {
-		u32 *a;
-		struct in6_addr *aaaa;
-		char *ptr_name;
-		void *raw;
-	} data;
-	char *cname;
 };
 
 enum tcp_state {
@@ -463,10 +472,10 @@ static int evdns_request_transmit(struct request *req);
 static void nameserver_send_probe(struct nameserver *const ns);
 static void search_request_finished(struct evdns_request *const);
 static int search_try_next(struct evdns_request *const req);
-static struct request *search_request_new(struct evdns_base *base, struct evdns_request *handle, int type, const char *const name, int flags, evdns_callback_type user_callback, void *user_arg);
+static struct request *search_request_new(struct evdns_base *base, struct evdns_request *handle, int type, const char *const name, int flags);
 static void evdns_requests_pump_waiting_queue(struct evdns_base *base);
 static u16 transaction_id_pick(struct evdns_base *base);
-static struct request *request_new(struct evdns_base *base, struct evdns_request *handle, int type, const char *name, int flags, evdns_callback_type callback, void *ptr);
+static struct request *request_new(struct evdns_base *base, struct evdns_request *handle, int type, const char *name, int flags);
 static struct request *request_clone(struct evdns_base *base, struct request* current);
 static void request_submit(struct request *const req);
 
@@ -968,114 +977,88 @@ evdns_requests_pump_waiting_queue(struct evdns_base *base) {
 	}
 }
 
-/* TODO(nickm) document */
-struct deferred_reply_callback {
-	struct event_callback deferred;
-	struct evdns_request *handle;
-	u8 request_type;
-	u8 have_reply;
-	u32 ttl;
-	u32 err;
-	evdns_callback_type user_callback;
-	struct reply reply;
-};
-
 static void
 reply_run_callback(struct event_callback *d, void *user_pointer)
 {
-	struct deferred_reply_callback *cb =
-	    EVUTIL_UPCAST(d, struct deferred_reply_callback, deferred);
+	struct evdns_request *handle =
+	    EVUTIL_UPCAST(d, struct evdns_request, deferred);
 
-	switch (cb->request_type) {
+	switch (handle->request_type) {
 	case TYPE_A:
-		if (cb->have_reply) {
-			cb->user_callback(DNS_ERR_NONE, DNS_IPv4_A,
-			    cb->reply.rr_count, cb->ttl,
-			    cb->reply.data.a,
+		if (handle->have_reply) {
+			handle->user_callback(DNS_ERR_NONE, DNS_IPv4_A,
+			    handle->reply.rr_count, handle->ttl,
+			    handle->reply.data.a,
 			    user_pointer);
-			if (cb->reply.cname)
-				cb->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
-				    cb->ttl, cb->reply.cname, user_pointer);
+			if (handle->reply.cname)
+				handle->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
+				    handle->ttl, handle->reply.cname, user_pointer);
 		} else
-			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
+			handle->user_callback(handle->err, 0, 0, handle->ttl, NULL, user_pointer);
 		break;
 	case TYPE_PTR:
-		if (cb->have_reply) {
-			char *name = cb->reply.data.ptr_name;
-			cb->user_callback(DNS_ERR_NONE, DNS_PTR, 1, cb->ttl,
+		if (handle->have_reply) {
+			char *name = handle->reply.data.ptr_name;
+			handle->user_callback(DNS_ERR_NONE, DNS_PTR, 1, handle->ttl,
 			    &name, user_pointer);
 		} else {
-			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
+			handle->user_callback(handle->err, 0, 0, handle->ttl, NULL, user_pointer);
 		}
 		break;
 	case TYPE_AAAA:
-		if (cb->have_reply) {
-			cb->user_callback(DNS_ERR_NONE, DNS_IPv6_AAAA,
-			    cb->reply.rr_count, cb->ttl,
-			    cb->reply.data.aaaa,
+		if (handle->have_reply) {
+			handle->user_callback(DNS_ERR_NONE, DNS_IPv6_AAAA,
+			    handle->reply.rr_count, handle->ttl,
+			    handle->reply.data.aaaa,
 			    user_pointer);
-			if (cb->reply.cname)
-				cb->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
-				    cb->ttl, cb->reply.cname, user_pointer);
+			if (handle->reply.cname)
+				handle->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
+				    handle->ttl, handle->reply.cname, user_pointer);
 		} else
-			cb->user_callback(cb->err, 0, 0, cb->ttl, NULL, user_pointer);
+			handle->user_callback(handle->err, 0, 0, handle->ttl, NULL, user_pointer);
 		break;
 	default:
 		EVUTIL_ASSERT(0);
 	}
 
-	if (cb->handle && cb->handle->pending_cb) {
-		mm_free(cb->handle);
+	if (handle->reply.data.raw) {
+		mm_free(handle->reply.data.raw);
 	}
 
-	if (cb->reply.data.raw) {
-		mm_free(cb->reply.data.raw);
+	if (handle->reply.cname) {
+		mm_free(handle->reply.cname);
 	}
 
-	if (cb->reply.cname) {
-		mm_free(cb->reply.cname);
-	}
-
-	mm_free(cb);
+	mm_free(handle);
 }
 
 static void
 reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct reply *reply)
 {
-	struct deferred_reply_callback *d = mm_calloc(1, sizeof(*d));
-
-	if (!d) {
-		event_warn("%s: Couldn't allocate space for deferred callback.",
-		    __func__);
-		return;
-	}
+	struct evdns_request* handle = req->handle;
 
 	ASSERT_LOCKED(req->base);
 
-	d->request_type = req->request_type;
-	d->user_callback = req->user_callback;
-	d->ttl = ttl;
-	d->err = err;
+	handle->request_type = req->request_type;
+	handle->ttl = ttl;
+	handle->err = err;
 	if (reply) {
-		d->have_reply = 1;
-		memcpy(&d->reply, reply, sizeof(struct reply));
+		handle->have_reply = 1;
+		memcpy(&handle->reply, reply, sizeof(struct reply));
 		/* We've taken ownership of the data. */
 		reply->data.raw = NULL;
 	}
 
-	if (req->handle) {
-		req->handle->pending_cb = 1;
-		d->handle = req->handle;
-	}
+	handle->pending_cb = 1;
 
 	event_deferred_cb_init_(
-	    &d->deferred,
+	    &handle->deferred,
 	    event_get_priority(&req->timeout_event),
 	    reply_run_callback,
-	    req->user_pointer);
+	    handle->user_pointer);
 	event_deferred_cb_schedule_(
 		req->base->event_base,
-		&d->deferred);
+		&handle->deferred);
 }
 
 static int
@@ -3060,7 +3043,9 @@ nameserver_send_probe(struct nameserver *const ns) {
 		    addrbuf, sizeof(addrbuf)));
 	handle = mm_calloc(1, sizeof(*handle));
 	if (!handle) return;
-	req = request_new(ns->base, handle, TYPE_A, "google.com", DNS_QUERY_NO_SEARCH, nameserver_probe_callback, ns);
+	handle->user_callback = nameserver_probe_callback;
+	handle->user_pointer = ns;
+	req = request_new(ns->base, handle, TYPE_A, "google.com", DNS_QUERY_NO_SEARCH);
 	if (!req) {
 		mm_free(handle);
 		return;
@@ -3523,8 +3508,7 @@ string_num_dots(const char *s) {
 
 static struct request *
 request_new(struct evdns_base *base, struct evdns_request *handle, int type,
-	    const char *name, int flags, evdns_callback_type callback,
-	    void *user_ptr) {
+	    const char *name, int flags) {
 
 	const char issuing_now =
 	    (base->global_requests_inflight < base->global_max_requests_inflight) ? 1 : 0;
@@ -3583,8 +3567,6 @@ request_new(struct evdns_base *base, struct evdns_request *handle, int type,
 	req->trans_id = trans_id;
 	req->tx_count = 0;
 	req->request_type = type;
-	req->user_pointer = user_ptr;
-	req->user_callback = callback;
 	req->ns = issuing_now ? nameserver_pick(base) : NULL;
 	req->next = req->prev = NULL;
 	req->handle = handle;
@@ -3699,18 +3681,18 @@ evdns_base_resolve_ipv4(struct evdns_base *base, const char *name, int flags,
 	handle = mm_calloc(1, sizeof(*handle));
 	if (handle == NULL)
 		return NULL;
+	handle->user_callback = callback;
+	handle->user_pointer = ptr;
 	EVDNS_LOCK(base);
 	handle->tcp_flags = base->global_tcp_flags;
 	handle->tcp_flags |= flags & (DNS_QUERY_USEVC | DNS_QUERY_IGNTC);
 	if (flags & DNS_QUERY_NO_SEARCH) {
 		req =
-			request_new(base, handle, TYPE_A, name, flags,
-				    callback, ptr);
+			request_new(base, handle, TYPE_A, name, flags);
 		if (req)
 			request_submit(req);
 	} else {
-		search_request_new(base, handle, TYPE_A, name, flags,
-		    callback, ptr);
+		search_request_new(base, handle, TYPE_A, name, flags);
 	}
 	if (handle->current_req == NULL) {
 		mm_free(handle);
@@ -3740,17 +3722,17 @@ evdns_base_resolve_ipv6(struct evdns_base *base,
 	handle = mm_calloc(1, sizeof(*handle));
 	if (handle == NULL)
 		return NULL;
+	handle->user_callback = callback;
+	handle->user_pointer = ptr;
 	EVDNS_LOCK(base);
 	handle->tcp_flags = base->global_tcp_flags;
 	handle->tcp_flags |= flags & (DNS_QUERY_USEVC | DNS_QUERY_IGNTC);
 	if (flags & DNS_QUERY_NO_SEARCH) {
-		req = request_new(base, handle, TYPE_AAAA, name, flags,
-				  callback, ptr);
+		req = request_new(base, handle, TYPE_AAAA, name, flags);
 		if (req)
 			request_submit(req);
 	} else {
-		search_request_new(base, handle, TYPE_AAAA, name, flags,
-		    callback, ptr);
+		search_request_new(base, handle, TYPE_AAAA, name, flags);
 	}
 	if (handle->current_req == NULL) {
 		mm_free(handle);
@@ -3782,11 +3764,13 @@ evdns_base_resolve_reverse(struct evdns_base *base, const struct in_addr *in, in
 	handle = mm_calloc(1, sizeof(*handle));
 	if (handle == NULL)
 		return NULL;
+	handle->user_callback = callback;
+	handle->user_pointer = ptr;
 	log(EVDNS_LOG_DEBUG, "Resolve requested for %s (reverse)", buf);
 	EVDNS_LOCK(base);
 	handle->tcp_flags = base->global_tcp_flags;
 	handle->tcp_flags |= flags & (DNS_QUERY_USEVC | DNS_QUERY_IGNTC);
-	req = request_new(base, handle, TYPE_PTR, buf, flags, callback, ptr);
+	req = request_new(base, handle, TYPE_PTR, buf, flags);
 	if (req)
 		request_submit(req);
 	if (handle->current_req == NULL) {
@@ -3824,11 +3808,13 @@ evdns_base_resolve_reverse_ipv6(struct evdns_base *base, const struct in6_addr *
 	handle = mm_calloc(1, sizeof(*handle));
 	if (handle == NULL)
 		return NULL;
+	handle->user_callback = callback;
+	handle->user_pointer = ptr;
 	log(EVDNS_LOG_DEBUG, "Resolve requested for %s (reverse)", buf);
 	EVDNS_LOCK(base);
 	handle->tcp_flags = base->global_tcp_flags;
 	handle->tcp_flags |= flags & (DNS_QUERY_USEVC | DNS_QUERY_IGNTC);
-	req = request_new(base, handle, TYPE_PTR, buf, flags, callback, ptr);
+	req = request_new(base, handle, TYPE_PTR, buf, flags);
 	if (req)
 		request_submit(req);
 	if (handle->current_req == NULL) {
@@ -4025,8 +4011,7 @@ search_make_new(const struct search_state *const state, int n, const char *const
 
 static struct request *
 search_request_new(struct evdns_base *base, struct evdns_request *handle,
-		   int type, const char *const name, int flags,
-		   evdns_callback_type user_callback, void *user_arg) {
+		   int type, const char *const name, int flags) {
 	ASSERT_LOCKED(base);
 	EVUTIL_ASSERT(type == TYPE_A || type == TYPE_AAAA);
 	EVUTIL_ASSERT(handle->current_req == NULL);
@@ -4036,13 +4021,13 @@ search_request_new(struct evdns_base *base, struct evdns_request *handle,
 		/* we have some domains to search */
 		struct request *req;
 		if (string_num_dots(name) >= base->global_search_state->ndots) {
-			req = request_new(base, handle, type, name, flags, user_callback, user_arg);
+			req = request_new(base, handle, type, name, flags);
 			if (!req) return NULL;
 			handle->search_index = -1;
 		} else {
 			char *const new_name = search_make_new(base->global_search_state, 0, name);
 			if (!new_name) return NULL;
-			req = request_new(base, handle, type, new_name, flags, user_callback, user_arg);
+			req = request_new(base, handle, type, new_name, flags);
 			mm_free(new_name);
 			if (!req) return NULL;
 			handle->search_index = 0;
@@ -4061,7 +4046,7 @@ search_request_new(struct evdns_base *base, struct evdns_request *handle,
 		request_submit(req);
 		return req;
 	} else {
-		struct request *const req = request_new(base, handle, type, name, flags, user_callback, user_arg);
+		struct request *const req = request_new(base, handle, type, name, flags);
 		if (!req) return NULL;
 		request_submit(req);
 		return req;
@@ -4088,7 +4073,7 @@ search_try_next(struct evdns_request *const handle) {
 			/* this name without a postfix */
 			if (string_num_dots(handle->search_origname) < handle->search_state->ndots) {
 				/* yep, we need to try it raw */
-				newreq = request_new(base, NULL, req->request_type, handle->search_origname, handle->search_flags, req->user_callback, req->user_pointer);
+				newreq = request_new(base, NULL, req->request_type, handle->search_origname, handle->search_flags);
 				log(EVDNS_LOG_DEBUG, "Search: trying raw query %s", handle->search_origname);
 				if (newreq) {
 					search_request_finished(handle);
@@ -4101,7 +4086,7 @@ search_try_next(struct evdns_request *const handle) {
 		new_name = search_make_new(handle->search_state, handle->search_index, handle->search_origname);
 		if (!new_name) return 1;
 		log(EVDNS_LOG_DEBUG, "Search: now trying %s (%d)", new_name, handle->search_index);
-		newreq = request_new(base, NULL, req->request_type, new_name, handle->search_flags, req->user_callback, req->user_pointer);
+		newreq = request_new(base, NULL, req->request_type, new_name, handle->search_flags);
 		mm_free(new_name);
 		if (!newreq) return 1;
 		goto submit_next;
