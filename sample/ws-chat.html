@@ -29,7 +29,11 @@ window.onload = function () {
     };
 
     if (window["WebSocket"]) {
-        conn = new WebSocket("ws://" + document.location.host + ":8080/ws");
+        var host = document.location.host;
+        if (!host) { /// file:///
+            host = "localhost";
+        }
+        conn = new WebSocket("ws://" + host + ":8080/ws");
         conn.onclose = function (evt) {
             var item = document.createElement("div");
             item.innerHTML = "<b>Connection closed.</b>";
