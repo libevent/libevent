@@ -353,11 +353,11 @@ evws_new_session(
 
 	in_hdrs = evhttp_request_get_input_headers(req);
 	upgrade = evhttp_find_header(in_hdrs, "Upgrade");
-	if (upgrade == NULL || strcmp(upgrade, "websocket"))
+	if (upgrade == NULL || evutil_ascii_strcasecmp(upgrade, "websocket"))
 		goto error;
 
 	connection = evhttp_find_header(in_hdrs, "Connection");
-	if (connection == NULL || strcmp(connection, "Upgrade"))
+	if (connection == NULL || evutil_ascii_strcasecmp(connection, "Upgrade"))
 		goto error;
 
 	ws_key = evhttp_find_header(in_hdrs, "Sec-WebSocket-Key");
