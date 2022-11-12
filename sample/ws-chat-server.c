@@ -152,11 +152,11 @@ on_ws(struct evhttp_request *req, void *arg)
 	socklen_t len;
 
 	client = calloc(sizeof(*client), 1);
-	addr2str((struct sockaddr *)&addr, client->name, sizeof(client->name));
+
 	client->evws = evws_new_session(req, on_msg_cb, client, 0);
 	if (!client->evws) {
 		free(client);
-		log_d("Failed to create session (for %s)\n", client->name);
+		log_d("Failed to create session\n");
 		return;
 	}
 
@@ -164,6 +164,7 @@ on_ws(struct evhttp_request *req, void *arg)
 
 	len = sizeof(addr);
 	getpeername(fd, (struct sockaddr *)&addr, &len);
+	addr2str((struct sockaddr *)&addr, client->name, sizeof(client->name));
 
 	log_d("New client joined from %s\n", client->name);
 
