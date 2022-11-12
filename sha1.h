@@ -9,12 +9,6 @@
 
 #include "stdint.h"
 
-typedef struct {
-    uint32_t state[5];
-    uint32_t count[2];
-    unsigned char buffer[64];
-} SHA1_CTX;
-
 void builtin_SHA1(char *hash_out, const char *str, int len);
 
 #endif /* SHA1_H */

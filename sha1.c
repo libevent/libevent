@@ -60,6 +60,12 @@ A million repetitions of "a"
     z += (w ^ x ^ y) + blk(i) + 0xCA62C1D6 + rol(v, 5);                        \
     w = rol(w, 30);
 
+typedef struct {
+    uint32_t state[5];
+    uint32_t count[2];
+    unsigned char buffer[64];
+} SHA1_CTX;
+
 static void SHA1Transform(uint32_t state[5], const unsigned char buffer[64]);
 
 static void SHA1Init(SHA1_CTX *context);
