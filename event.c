@@ -1375,6 +1375,15 @@ event_haveevents(struct event_base *base)
 static inline void
 event_signal_closure(struct event_base *base, struct event *ev)
 {
+#if defined(__clang__)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+/* NOTE: it is better to avoid such code all together, by using separate
+ * variable to break the loop in the event structure, but now this code is safe
+ * */
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
+
 	short ncalls;
 	int should_break;
 
@@ -1400,6 +1409,11 @@ event_signal_closure(struct event_base *base, struct event *ev)
 			return;
 		}
 	}
+
+#if defined(__clang__)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 }
 
 /* Common timeouts are special timeouts that are handled as queues rather than
