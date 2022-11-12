@@ -317,6 +317,8 @@ if (${GNUC})
 
          # Disable unused-function warnings. These trigger for minheap-internal.h.
          -Wno-unused-function
+
+         -Wno-pragmas
     )
 
     if (${CLANG})

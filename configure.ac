@@ -772,6 +772,9 @@ if test "$enable_gcc_warnings" != "no" && test "$GCC" = "yes"; then
    dnl Disable unused-function warnings. These trigger for minheap-internal.h.
    AX_CHECK_COMPILE_FLAG([-Wno-unused-function], [CFLAGS="$CFLAGS -Wno-unused-function"],[],[-Werror])
 
+   dnl Disable unknown pragmas warnings.
+   AX_CHECK_COMPILE_FLAG([-Wno-pragmas], [CFLAGS="$CFLAGS -Wno-pragmas"],[],[-Werror])
+
   if test "$have_clang" = "yes"; then
     case "$host_os" in
       darwin*)
