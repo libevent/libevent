@@ -293,8 +293,6 @@ if (${GNUC})
     option(EVENT__ENABLE_GCC_FUNCTION_SECTIONS "Enable gcc function sections" OFF)
     option(EVENT__ENABLE_GCC_WARNINGS "Make all GCC warnings into errors" OFF)
 
-    set(GCC_V ${CMAKE_C_COMPILER_VERSION})
-
     list(APPEND __FLAGS
          -Wall -Wextra -Wno-unused-parameter -Wstrict-aliasing -Wstrict-prototypes
          -Wundef
@@ -317,14 +315,14 @@ if (${GNUC})
 
          -Wwrite-strings
 
-        # Disable unused-function warnings. These trigger for minheap-internal.h.
-        -Wno-unused-function
+         # Disable unused-function warnings. These trigger for minheap-internal.h.
+         -Wno-unused-function
     )
 
     if (${CLANG})
         list(APPEND __FLAGS
-            # we use this hack in tests
-            -Wno-void-pointer-to-enum-cast)
+             # we use this hack in tests
+             -Wno-void-pointer-to-enum-cast)
     endif()
 
     if (EVENT__DISABLE_GCC_WARNINGS)
