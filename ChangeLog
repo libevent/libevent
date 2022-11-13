@@ -1,0 +1,8 @@
+Changes in version 2.2.1-alpha (Nov 2022)
+
+ Libevent 2.2.1-alpha includes a number of new features and performance
+ improvements. The log below tries to organize them by rough area of
+ effect. It omits some commits which were pure bugfixes on other commits
+ listed below. For more detail, see the git changelogs. For more
+ insight, see the "whatsnew-2.2.txt" document included in the Libevent
+ 2.2.1-alpha distribution.
