@@ -26,10 +26,7 @@ else:
 
 
 def exec_cmd(cmd, silent):
-    if silent:
-        p = subprocess.Popen(cmd, stdout=FNULL, stderr=FNULL, shell=True)
-    else:
-        p = subprocess.Popen(cmd, shell=True)
+    p = subprocess.Popen(cmd, shell=True)
     p.communicate()
     return p.poll()
 
@@ -47,7 +44,7 @@ def link_and_run(link, code):
     Returns:
         Returns 0 if links and runs successfully, otherwise 1.
     """
-    exec_cmd("cmake --build . --target clean", True)
+    exec_cmd("cmake --build . -v --target clean", True)
     arch = ''
     if platform.system() == "Windows":
         arch = '-A x64'
@@ -57,7 +54,7 @@ def link_and_run(link, code):
         cmd = "".join([cmd, " -DLIBEVENT_STATIC_LINK=1"])
     r = exec_cmd(cmd, True)
     if r == 0:
-        r = exec_cmd('cmake --build .', True)
+        r = exec_cmd('cmake --build . -v', True)
         if r == 0:
             r = exec_cmd('ctest', True)
     if r != 0:
@@ -177,7 +174,7 @@ if platform.system() == "Windows":
 else:
     prefix = "/usr/local"
 exec_cmd('cmake -DCMAKE_SKIP_INSTALL_RPATH=OFF -DCMAKE_INSTALL_PREFIX="%s" ..' % prefix, True)
-exec_cmd('cmake --build . --target install', True)
+exec_cmd('cmake --build . -v --target install', True)
 config_backup()
 os.environ["CMAKE_PREFIX_PATH"] = os.path.join(prefix, "lib/cmake/libevent")
 export_dll(dllpath)
@@ -189,11 +186,11 @@ del os.environ["CMAKE_PREFIX_PATH"]
 # into a temporary directory. Same as above, remove LibeventConfig.cmake from
 # build directory to avoid confusion when using find_package().
 print("[test-export] test for install tree(in non-system-wide path)")
-exec_cmd("cmake --build . --target uninstall", True)
+exec_cmd("cmake --build . -v --target uninstall", True)
 tempdir = tempfile.TemporaryDirectory()
 cmd = 'cmake -DCMAKE_SKIP_INSTALL_RPATH=OFF -DCMAKE_INSTALL_PREFIX="%s" ..' % tempdir.name
 exec_cmd(cmd, True)
-exec_cmd("cmake --build . --target install", True)
+exec_cmd("cmake --build . -v --target install", True)
 config_backup()
 os.environ["CMAKE_PREFIX_PATH"] = os.path.join(tempdir.name, "lib/cmake/libevent")
 dllpath = os.path.join(tempdir.name, "lib")
