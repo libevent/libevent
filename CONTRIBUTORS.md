@@ -1,3 +1,5 @@
+_If we have forgotten your name, please contact us_
+
 ## Libevent Contributors
  * Samy Al Bahra
  * Antony Antony
@@ -201,5 +203,3 @@
  * Philip Prindeville
  * Vis Virial
  * Sayan Nandan
-
-If we have forgotten your name, please contact us
