@@ -923,3 +923,191 @@ jobs:
           name: freebsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
           path: build
 
+  openbsd-cmake-job:
+    runs-on: macos-12
+    if: "!contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/cmake skip')"
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [
+          # 6.9 has some issues with autoconf/autotools [1].
+          #   [1]: https://github.com/libevent/libevent/pull/1326#issuecomment-1229531718
+          #"6.9",
+          "7.1",
+        ]
+        EVENT_MATRIX:
+          - NONE
+          - NO_SSL
+          - DISABLE_OPENSSL
+          - DISABLE_THREAD_SUPPORT
+          - DISABLE_DEBUG_MODE
+          - DISABLE_MM_REPLACEMENT
+          - TEST_EXPORT_STATIC
+          # For now this test is disabled due to incorrect library paths [1].
+          #   [1]: https://github.com/libevent/libevent/pull/1326#issuecomment-1245159690
+          #
+          # - TEST_EXPORT_SHARED
+
+    steps:
+      - uses: actions/checkout@v2.0.0
+
+      - name: Cache Build
+        uses: actions/cache@v2
+        with:
+          path: build
+          key: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
+
+      - name: Build
+        uses: vmactions/openbsd-vm@v0
+        with:
+          release: ${{ matrix.release }}
+          prepare: |
+            pkg_add  mbedtls cmake python3
+          usesh: true
+          run: |
+            if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
+              EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
+            
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
+              EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
+            
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
+              EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_THREAD_SUPPORT=ON"
+            
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_DEBUG_MODE" ]; then
+              EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_DEBUG_MODE=ON"
+            
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_MM_REPLACEMENT" ]; then
+              EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_MM_REPLACEMENT=ON"
+            
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
+              EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=STATIC -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
+            
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
+              EVENT_CMAKE_OPTIONS="-DEVENT__LIBRARY_TYPE=SHARED -DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
+            
+            else
+              EVENT_CMAKE_OPTIONS=""
+            fi
+            EVENT_CMAKE_OPTIONS="$EVENT_CMAKE_OPTIONS -DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2"
+            
+            mkdir -p build
+            cd build
+            echo [cmake]: cmake .. $EVENT_CMAKE_OPTIONS
+            cmake .. $EVENT_CMAKE_OPTIONS || (rm -rf * && cmake .. $EVENT_CMAKE_OPTIONS)
+            cmake --build .
+
+      - name: Test
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 5
+          timeout_minutes: 20
+          shell: bash
+          command: |
+            ssh openbsd sh <<EOF
+            cd $GITHUB_WORKSPACE
+            JOBS=1
+            export CTEST_PARALLEL_LEVEL=$JOBS
+            export CTEST_OUTPUT_ON_FAILURE=1
+            cd build
+            if [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_STATIC" ]; then
+              python3 ../test-export/test-export.py static
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "TEST_EXPORT_SHARED" ]; then
+              python3 ../test-export/test-export.py shared
+            else
+              cmake --build . --target verify
+            fi
+            EOF
+
+      - uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-build
+          path: .
+
+  openbsd-autotools-job:
+    runs-on: macos-12
+    if: "!contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/autotools skip')"
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [
+          # 6.9 has some issues with autoconf/autotools [1].
+          #   [1]: https://github.com/libevent/libevent/pull/1326#issuecomment-1229531718
+          #"6.9",
+          "7.1",
+        ]
+        EVENT_MATRIX:
+          - NONE
+          - NO_SSL
+          - DISABLE_OPENSSL
+          - DISABLE_THREAD_SUPPORT
+          - DISABLE_DEBUG_MODE
+          - DISABLE_MM_REPLACEMENT
+
+    steps:
+      - uses: actions/checkout@v2.0.0
+
+      - name: Cache Build
+        uses: actions/cache@v2
+        with:
+          path: build
+          key: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-v1
+
+
+      - name: Build
+        uses: vmactions/openbsd-vm@v0
+        with:
+          release: ${{ matrix.release }}
+          prepare: |
+            pkg_add  mbedtls  python3 automake-1.16.3  autoconf-2.71  libtool pkgconf
+          usesh: true
+          run: |
+            export AUTOMAKE_VERSION=1.16
+            export AUTOCONF_VERSION=2.71
+            
+            if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
+              EVENT_CONFIGURE_OPTIONS="--disable-openssl"
+            
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
+              EVENT_CONFIGURE_OPTIONS="--disable-openssl --disable-mbedtls"
+            
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
+              EVENT_CONFIGURE_OPTIONS="--disable-thread-support"
+            
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_DEBUG_MODE" ]; then
+              EVENT_CONFIGURE_OPTIONS="--disable-debug-mode"
+            
+            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_MM_REPLACEMENT" ]; then
+              EVENT_CONFIGURE_OPTIONS="--disable-malloc-replacement"
+            
+            else
+              EVENT_CONFIGURE_OPTIONS=""
+            fi
+            
+            ./autogen.sh
+            mkdir -p build
+            cd build
+            echo [configure]: ../configure $EVENT_CONFIGURE_OPTIONS
+            ../configure $EVENT_CONFIGURE_OPTIONS
+            make V=1
+
+      - name: Test
+        uses: nick-fields/retry@v2
+        with:
+          max_attempts: 5
+          timeout_minutes: 20
+          shell: bash
+          command: |
+            ssh openbsd sh <<EOF
+            cd $GITHUB_WORKSPACE
+            JOBS=1
+            cd build
+            make verify
+            EOF
+
+      - uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
+          path: .
