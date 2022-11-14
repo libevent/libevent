@@ -471,7 +471,7 @@ arc4random(void)
 }
 #endif
 
-#ifndef EVENT__HAVE_ARC4_RANDOM_BUF
+#ifndef EVENT__HAVE_ARC4RANDOM_BUF
 ARC4RANDOM_EXPORT void
 arc4random_buf(void *buf_, size_t n)
 {
