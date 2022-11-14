@@ -485,7 +485,7 @@ arc4random_buf(void *buf_, size_t n)
 	}
 	ARC4_UNLOCK_();
 }
-#endif  // #ifndef EVENT__HAVE_ARC4_RANDOM_BUF
+#endif  /* #ifndef EVENT__HAVE_ARC4RANDOM_BUF */
 
 #ifndef ARC4RANDOM_NOUNIFORM
 /*
