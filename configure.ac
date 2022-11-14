@@ -575,6 +575,7 @@ AC_CHECK_SIZEOF(size_t)
 AC_CHECK_SIZEOF(void *)
 AC_CHECK_SIZEOF(off_t)
 AC_CHECK_SIZEOF(time_t)
+AC_CHECK_SIZEOF(uintptr_t)
 
 AC_CHECK_TYPES([struct in6_addr, struct sockaddr_in6, struct sockaddr_un, sa_family_t, struct addrinfo, struct sockaddr_storage], , ,
 [#define _GNU_SOURCE 1

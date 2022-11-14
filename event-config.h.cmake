@@ -443,8 +443,8 @@
 /* Define to 1 if the system has the type `uint64_t'. */
 #cmakedefine EVENT__HAVE_UINT64_T 1
 
-/* Define to 1 if the system has the type `uintptr_t'. */
-#cmakedefine EVENT__HAVE_UINTPTR_T 1
+/* The size of `uintptr_t', as computed by sizeof. */
+#cmakedefine EVENT__SIZEOF_UINTPTR_T @EVENT__SIZEOF_UINTPTR_T@
 
 /* Define to 1 if you have the `umask' function. */
 #cmakedefine EVENT__HAVE_UMASK 1

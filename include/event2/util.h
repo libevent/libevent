@@ -178,7 +178,7 @@ extern "C" {
 #define ev_int8_t signed char
 #endif
 
-#ifdef EVENT__HAVE_UINTPTR_T
+#ifdef EVENT__SIZEOF_UINTPTR_T
 #define ev_uintptr_t uintptr_t
 #define ev_intptr_t intptr_t
 #elif EVENT__SIZEOF_VOID_P <= 4
