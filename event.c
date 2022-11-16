@@ -56,6 +56,7 @@
 #include <fcntl.h>
 #endif
 
+#include "atomic-internal.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/event_compat.h"
@@ -209,7 +210,39 @@ eq_debug_entry(const struct event_debug_entry *a,
 	return a->ptr == b->ptr;
 }
 
-int event_debug_mode_on_ = 0;
+#ifndef EVENT__DISABLE_DEBUG_MODE
+/*
+ * to avoid having to use an lock, encode the initialization status using
+ * an atomic variable.
+ */
+enum {
+	EVT_DBG_MODE_UNINITIALIZED = 0,
+	EVT_DBG_MODE_INITIALIZING,
+	EVT_DBG_MODE_INITIALIZED,
+	EVT_DBG_MODE_CLEANUP,
+};
+
+static atomic_init_ptr(void, event_debug_mode_state, NULL);
+
+int event_debug_mode_on(void)
+{
+	/*
+	 * event_debug_mode_too_late can be set from other threads while event_enable_debug_mode is running.
+	 * If the write gets in before the check, it will trigger - as expected.
+	 * If the write gets in late, these threads might slip through without learning about debug mode being enabled.
+	 * Luckily, state must be _INITIALIZING during and after the check so return true after waiting to make sure the resources are ready.
+	 *
+	 * This only affects impatient callers and after that the condition should never be met and play nice with branch prediction.
+	 */
+	intptr_t state;
+
+	do {
+		state = (intptr_t) atomic_load(&event_debug_mode_state);
+	} while (state == EVT_DBG_MODE_INITIALIZING);
+
+	return state == EVT_DBG_MODE_INITIALIZED;
+}
+#endif
 
 
 #if !defined(EVENT__DISABLE_THREAD_SUPPORT) && !defined(EVENT__DISABLE_DEBUG_MODE)
@@ -244,8 +277,9 @@ static void event_debug_note_setup_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	if (!event_debug_mode_on_)
-		goto out;
+	event_debug_mode_too_late = 1;
+	if (!EVENT_DEBUG_MODE_IS_ON())
+		return;
 
 	find.ptr = ev;
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
@@ -262,17 +296,15 @@ static void event_debug_note_setup_(const struct event *ev)
 		HT_INSERT(event_debug_map, &global_debug_map, dent);
 	}
 	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
-
-out:
-	event_debug_mode_too_late = 1;
 }
 /* record that ev is no longer setup */
 static void event_debug_note_teardown_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	if (!event_debug_mode_on_)
-		goto out;
+	event_debug_mode_too_late = 1;
+	if (!EVENT_DEBUG_MODE_IS_ON())
+		return;
 
 	find.ptr = ev;
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
@@ -280,17 +312,15 @@ static void event_debug_note_teardown_(const struct event *ev)
 	if (dent)
 		mm_free(dent);
 	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
-
-out:
-	event_debug_mode_too_late = 1;
 }
 /* Macro: record that ev is now added */
 static void event_debug_note_add_(const struct event *ev)
 {
 	struct event_debug_entry *dent,find;
 
-	if (!event_debug_mode_on_)
-		goto out;
+	event_debug_mode_too_late = 1;
+	if (!EVENT_DEBUG_MODE_IS_ON())
+		return;
 
 	find.ptr = ev;
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
@@ -306,17 +336,15 @@ static void event_debug_note_add_(const struct event *ev)
 		    EV_SOCK_ARG(ev->ev_fd), ev->ev_flags);
 	}
 	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
-
-out:
-	event_debug_mode_too_late = 1;
 }
 /* record that ev is no longer added */
 static void event_debug_note_del_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	if (!event_debug_mode_on_)
-		goto out;
+	event_debug_mode_too_late = 1;
+	if (!EVENT_DEBUG_MODE_IS_ON())
+		return;
 
 	find.ptr = ev;
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
@@ -332,16 +360,13 @@ static void event_debug_note_del_(const struct event *ev)
 		    EV_SOCK_ARG(ev->ev_fd), ev->ev_flags);
 	}
 	EVLOCK_UNLOCK(event_debug_map_lock_, 0);
-
-out:
-	event_debug_mode_too_late = 1;
 }
 /* assert that ev is setup (i.e., okay to add or inspect) */
 static void event_debug_assert_is_setup_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	if (!event_debug_mode_on_)
+	if (!EVENT_DEBUG_MODE_IS_ON())
 		return;
 
 	find.ptr = ev;
@@ -362,7 +387,7 @@ static void event_debug_assert_not_added_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	if (!event_debug_mode_on_)
+	if (!EVENT_DEBUG_MODE_IS_ON())
 		return;
 
 	find.ptr = ev;
@@ -380,7 +405,7 @@ static void event_debug_assert_not_added_(const struct event *ev)
 }
 static void event_debug_assert_socket_nonblocking_(evutil_socket_t fd)
 {
-	if (!event_debug_mode_on_)
+	if (!EVENT_DEBUG_MODE_IS_ON())
 		return;
 	if (fd < 0)
 		return;
@@ -577,17 +602,29 @@ void
 event_enable_debug_mode(void)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	if (event_debug_mode_on_)
-		event_errx(1, "%s was called twice!", __func__);
-	if (event_debug_mode_too_late)
-		event_errx(1, "%s must be called *before* creating any events "
-		    "or event_bases",__func__);
+	intptr_t previous = EVT_DBG_MODE_UNINITIALIZED;
+	if (!atomic_compare_exchange_strong(&event_debug_mode_state, (void **) &previous, (void *) EVT_DBG_MODE_INITIALIZING)) {
+		switch (previous) {
+		case EVT_DBG_MODE_INITIALIZED:
+			// TODO could now return false/true if the desired state was reached
+			// event_disable_debug_mode is already idempotent
+			event_errx(1, "%s was called twice!", __func__);
+			return;
+		default:
+			event_errx(1, "%s invalid state: %d", __func__, (int) previous);
+			return;
+		}
+	}
 
-	event_debug_mode_on_ = 1;
+	if (event_debug_mode_too_late)
+		event_errx(1, "%s must finish *before* any events or event_bases "
+		"are created", __func__);
 
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
 	HT_INIT(event_debug_map, &global_debug_map);
 	EVLOCK_UNLOCK(event_debug_map_lock_ , 0);
+
+	atomic_store(&event_debug_mode_state, (void *) EVT_DBG_MODE_INITIALIZED);
 #endif
 }
 
@@ -596,6 +633,15 @@ event_disable_debug_mode(void)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
 	struct event_debug_entry **ent, *victim;
+
+	intptr_t previous = EVT_DBG_MODE_INITIALIZED;
+	if (!atomic_compare_exchange_strong(&event_debug_mode_state, (void **) &previous, (void *) EVT_DBG_MODE_CLEANUP)) {
+		if (previous == EVT_DBG_MODE_UNINITIALIZED)
+			return;
+
+		event_errx(1, "%s invalid state: %d", __func__, (int) previous);
+		return;
+	}
 
 	EVLOCK_LOCK(event_debug_map_lock_, 0);
 	for (ent = HT_START(event_debug_map, &global_debug_map); ent; ) {
@@ -606,7 +652,7 @@ event_disable_debug_mode(void)
 	HT_CLEAR(event_debug_map, &global_debug_map);
 	EVLOCK_UNLOCK(event_debug_map_lock_ , 0);
 
-	event_debug_mode_on_  = 0;
+	atomic_store(&event_debug_mode_state, (void *) EVT_DBG_MODE_UNINITIALIZED);
 #endif
 }
 
