@@ -104,6 +104,7 @@ time-test
 event-test
 watch-timing
 becat
+ws-chat-server
 
 # test binaries
 test-driver
