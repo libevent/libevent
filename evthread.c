@@ -37,6 +37,7 @@
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "util-internal.h"
+#include "event-internal.h"
 #include "evthread-internal.h"
 
 #ifdef EVTHREAD_EXPOSE_STRUCTS
@@ -47,7 +48,6 @@
 
 #ifndef EVENT__DISABLE_DEBUG_MODE
 extern int event_debug_created_threadable_ctx_;
-extern int event_debug_mode_on_;
 #endif
 
 /* globals */
@@ -95,9 +95,9 @@ evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 	struct evthread_lock_callbacks *target = evthread_get_lock_callbacks();
 
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	if (event_debug_mode_on_) {
+	if (EVENT_DEBUG_MODE_IS_ON()) {
 		if (event_debug_created_threadable_ctx_) {
-		    event_errx(1, "evthread initialization must be called BEFORE anything else!");
+			event_errx(1, "evthread initialization must be called BEFORE anything else!");
 		}
 	}
 #endif
@@ -138,9 +138,9 @@ evthread_set_condition_callbacks(const struct evthread_condition_callbacks *cbs)
 	struct evthread_condition_callbacks *target = evthread_get_condition_callbacks();
 
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	if (event_debug_mode_on_) {
+	if (EVENT_DEBUG_MODE_IS_ON()) {
 		if (event_debug_created_threadable_ctx_) {
-		    event_errx(1, "evthread initialization must be called BEFORE anything else!");
+			event_errx(1, "evthread initialization must be called BEFORE anything else!");
 		}
 	}
 #endif
@@ -429,7 +429,7 @@ void *
 evthreadimpl_lock_alloc_(unsigned locktype)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	if (event_debug_mode_on_) {
+	if (EVENT_DEBUG_MODE_IS_ON()) {
 		event_debug_created_threadable_ctx_ = 1;
 	}
 #endif
@@ -463,7 +463,7 @@ void *
 evthreadimpl_cond_alloc_(unsigned condtype)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	if (event_debug_mode_on_) {
+	if (EVENT_DEBUG_MODE_IS_ON()) {
 		event_debug_created_threadable_ctx_ = 1;
 	}
 #endif
