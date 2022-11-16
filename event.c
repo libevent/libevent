@@ -585,7 +585,9 @@ event_enable_debug_mode(void)
 
 	event_debug_mode_on_ = 1;
 
+	EVLOCK_LOCK(event_debug_map_lock_, 0);
 	HT_INIT(event_debug_map, &global_debug_map);
+	EVLOCK_UNLOCK(event_debug_map_lock_ , 0);
 #endif
 }
 
