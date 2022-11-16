@@ -811,6 +811,7 @@ CHECK_TYPE_SIZE("struct linger" EVENT__HAVE_STRUCT_LINGER)
 
 # Group the source files.
 set(HDR_PRIVATE
+    atomic-internal.h
     bufferevent-internal.h
     changelist-internal.h
     defer-internal.h
