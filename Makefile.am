@@ -317,6 +317,7 @@ noinst_HEADERS +=				\
 	WIN32-Code/getopt.c			\
 	WIN32-Code/getopt_long.c	\
 	WIN32-Code/tree.h			\
+	atomic-internal.h		\
 	bufferevent-internal.h		\
 	changelist-internal.h		\
 	compat/sys/queue.h			\

@@ -44,11 +44,6 @@
 #include <sys/socket.h>
 #endif
 #include <signal.h>
-#if defined(_MSC_VER)
-#include <intrin.h>
-#else
-#include <stdatomic.h>
-#endif
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -61,6 +56,7 @@
 #include <fcntl.h>
 #endif
 
+#include "atomic-internal.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event-internal.h"
@@ -114,43 +110,8 @@ static const struct eventop evsigops = {
 static void *evsig_base_lock = NULL;
 #endif
 
-#if defined(_MSC_VER)
-// Microsoft explicitly excludes stdatomic.h from the list of supported
-// C11 features on Windows.
-
-static inline void *atomic_load(intptr_t volatile *p)
-{
-	// atomic_load uses memory_order_seq_cst, so synchronize here as well
-	intptr_t x;
-	intptr_t comparand = *p;
-	do {
-		x = comparand;
-#if EVENT__SIZEOF_UINTPTR_T == 8
-		comparand = _InterlockedCompareExchange64(p, x, comparand);
-#elif EVENT__SIZEOF_UINTPTR_T == 4
-		comparand = _InterlockedCompareExchange(p, x, comparand);
-#else
-#error "invalid value for EVENT__SIZEOF_UINTPTR_T"
-#endif
-	} while (comparand != x);
-	return (void *) x;
-}
-static inline void atomic_store(intptr_t volatile *p, intptr_t v)
-{
-#if EVENT__SIZEOF_UINTPTR_T == 8
-	_InterlockedExchange64(p, v);
-#elif EVENT__SIZEOF_UINTPTR_T == 4
-	_InterlockedExchange(p, v);
-#else
-#error "invalid value for EVENT__SIZEOF_UINTPTR_T"
-#endif
-}
-
-static struct event_base volatile *evsig_base = NULL;
-#else
 /* The event base that's currently getting informed about signals. */
-static _Atomic(struct event_base *) evsig_base = NULL;
-#endif
+static atomic_init_ptr(struct event_base, evsig_base, NULL);
 
 /* A copy of evsig_base->sigev_n_signals_added. */
 static int evsig_base_n_signals_added = 0;
