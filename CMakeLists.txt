@@ -397,7 +397,6 @@ if (NOT DEFINED _GNU_SOURCE)
 endif()
 
 if (_GNU_SOURCE)
-    add_definitions(-D_GNU_SOURCE=1)
     set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
 endif()
 
