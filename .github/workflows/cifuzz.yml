@@ -1,7 +1,16 @@
 name: CIFuzz
 on:
   pull_request:
-    - master
+    types:
+      - synchronize
+      - reopened
+      - opened
+    branches:
+      - master
+    push:
+  push:
+    branches:
+      - master
 jobs:
   Fuzzing:
     runs-on: ubuntu-latest
