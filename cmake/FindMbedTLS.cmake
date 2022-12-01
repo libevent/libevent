@@ -151,24 +151,26 @@ find_package_handle_standard_args(MbedTLS
                                   VERSION_VAR MBEDTLS_VERSION)
 
 
-if(NOT TARGET mbedtls)
-    add_library(mbedtls UNKNOWN IMPORTED)
-    set_target_properties(mbedtls PROPERTIES
+if(NOT TARGET MbedTLS::mbedtls)
+    add_library(MbedTLS::mbedtls UNKNOWN IMPORTED)
+    set_target_properties(MbedTLS::mbedtls PROPERTIES
                           INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_INCLUDE_DIR}"
                           IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+                          INTERFACE_LINK_LIBRARIES MbedTLS::mbedx509
                           IMPORTED_LOCATION "${MBEDTLS_LIBRARY}")
 endif()
 
-if(NOT TARGET mbedcrypto)
-    add_library(mbedcrypto UNKNOWN IMPORTED)
-    set_target_properties(mbedcrypto PROPERTIES
+if(NOT TARGET MbedTLS::mbedcrypto)
+    add_library(MbedTLS::mbedcrypto UNKNOWN IMPORTED)
+    set_target_properties(MbedTLS::mbedcrypto PROPERTIES
                           IMPORTED_LINK_INTERFACE_LANGUAGES "C"
                           IMPORTED_LOCATION "${MBEDTLS_CRYPTO_LIBRARY}")
 endif()
 
-if(NOT TARGET mbedx509)
-    add_library(mbedx509 UNKNOWN IMPORTED)
-    set_target_properties(mbedx509 PROPERTIES
+if(NOT TARGET MbedTLS::mbedx509)
+    add_library(MbedTLS::mbedx509 UNKNOWN IMPORTED)
+    set_target_properties(MbedTLS::mbedx509 PROPERTIES
                           IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+                          INTERFACE_LINK_LIBRARIES MbedTLS::mbedcrypto
                           IMPORTED_LOCATION "${MBEDTLS_X509_LIBRARY}")
 endif()

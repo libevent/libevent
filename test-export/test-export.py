@@ -46,10 +46,24 @@ def link_and_run(link, code):
     """
     exec_cmd("cmake --build . -v --target clean", True)
     arch = ''
+    vcpkg = ''
+    openssldir = ''
+    mbedtlsdir = ''
     if platform.system() == "Windows":
         arch = '-A x64'
-    cmd = 'cmake .. %s -DEVENT__LINK_COMPONENT=%s -DEVENT__CODE_COMPONENT=%s' % (
-        arch, link, code)
+        vcpkg_root = os.environ.get('VCPKG_ROOT')
+        if vcpkg_root is not None:
+            vcpkg = f"-DCMAKE_TOOLCHAIN_FILE={vcpkg_root}/scripts/buildsystems/vcpkg.cmake"
+    elif platform.system() == "Darwin":
+        openssldir = '-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl'
+        mbedtlsdir = '-DMBEDTLS_ROOT_DIR=/usr/local/opt/mbedtls@2'
+    cmd = f"cmake .." \
+          f" {arch}" \
+          f" {vcpkg}" \
+          f" -DEVENT__LINK_COMPONENT={link}" \
+          f" -DEVENT__CODE_COMPONENT={code}" \
+          f" {openssldir}" \
+          f" {mbedtlsdir}"
     if link_type == "static":
         cmd = "".join([cmd, " -DLIBEVENT_STATIC_LINK=1"])
     r = exec_cmd(cmd, True)

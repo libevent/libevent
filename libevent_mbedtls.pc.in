@@ -9,8 +9,6 @@ Name: libevent_mbedtls
 Description: libevent_mbedtls adds mbedtls-based TLS support to libevent
 Version: @VERSION@
 Requires: libevent_core
-Conflicts:
-Libs: -L${libdir} -levent_mbedtls
-Libs.private: @LIBS@ @MBEDTLS_LIBS@
-Cflags: -I${includedir} @MBEDTLS_INCS@
-
+Libs: -L${libdir} -levent_mbedtls@CMAKE_DEBUG_POSTFIX@
+Libs.private: -lmbedtls -lmbedx509 @LIBS@
+Cflags: -I${includedir}

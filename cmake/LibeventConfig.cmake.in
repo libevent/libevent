@@ -16,8 +16,9 @@
 # The following table lists all available components. If none is given, all imported targets will used.
 #  core        - the core functons of libevent
 #  extra       - extra functions, contains http, dns and rpc
-#  pthreads    - multiple threads for libevent, not exists on Windows
-#  openssl     - openssl support for libevent
+#  pthreads    - multiple threads for libevent, does not exist on Windows
+#  openssl     - OpenSSL support for libevent
+#  mbedtls     - MbedTLS support for libevent
 #
 # By default, the shared libraries of libevent will be found. To find the static ones instead,
 # you must set the LIBEVENT_STATIC_LINK variable to TRUE before calling find_package(Libevent ...).
@@ -34,6 +35,14 @@
 
 set(LIBEVENT_VERSION @EVENT_PACKAGE_VERSION@)
 
+# Load the dependencies of all components. As find_dependency propagates the original
+# find_package attributes (i.e. required or not), there's no need to repeat this or filter
+# by component.
+include(CMakeFindDependencyMacro)
+find_dependency(Threads)
+find_dependency(MbedTLS)
+find_dependency(OpenSSL)
+
 # IMPORTED targets from LibeventTargets.cmake
 set(LIBEVENT_STATIC_LIBRARIES "@LIBEVENT_STATIC_LIBRARIES@")
 set(LIBEVENT_SHARED_LIBRARIES "@LIBEVENT_SHARED_LIBRARIES@")
@@ -46,6 +55,12 @@ endif()
 if(${LIBEVENT_STATIC_LINK})
     set(_LIB_TYPE static)
     set(_AVAILABLE_LIBS "${LIBEVENT_STATIC_LIBRARIES}")
+
+    # CMake before 3.15 doesn't link OpenSSL to pthread/dl, do it ourselves instead
+    if (${CMAKE_VERSION} VERSION_LESS "3.15.0" AND ${LIBEVENT_STATIC_LINK} AND ${OPENSSL_FOUND} AND ${Threads_FOUND})
+        set_property(TARGET OpenSSL::Crypto APPEND PROPERTY INTERFACE_LINK_LIBRARIES Threads::Threads)
+        set_property(TARGET OpenSSL::Crypto APPEND PROPERTY INTERFACE_LINK_LIBRARIES ${CMAKE_DL_LIBS})
+    endif ()
 else()
     set(_LIB_TYPE shared)
     set(_AVAILABLE_LIBS "${LIBEVENT_SHARED_LIBRARIES}")
@@ -64,7 +79,7 @@ macro(no_component_msg _comp)
             set(pthreadlib ", pthreads")
         endif()
         message(FATAL_ERROR "Your libevent library does not contain a ${_comp} component!\n"
-                "The valid components are core, extra${pthreadlib} and openssl.")
+                "The valid components are core, extra${pthreadlib}, openssl and mbedtls.")
     else()
         message_if_needed(WARNING "Your libevent library does not contain a ${_comp} component!")
     endif()
