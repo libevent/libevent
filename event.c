@@ -2172,6 +2172,10 @@ event_base_once(struct event_base *base, evutil_socket_t fd, short events,
 }
 
 int
+/* workaround for -Werror=maybe-uninitialized bug in gcc 11/12 */
+#if defined(__GNUC__) && (__GNUC__ == 11 || __GNUC__ == 12)
+__attribute__((noinline))
+#endif
 event_assign(struct event *ev, struct event_base *base, evutil_socket_t fd, short events, void (*callback)(evutil_socket_t, short, void *), void *arg)
 {
 	if (!base)
