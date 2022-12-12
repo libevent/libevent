@@ -4561,11 +4561,18 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 	}
 
 	if (!base->server_head && add_default) {
-		/* no nameservers were configured. */
+		/* no nameservers were configured, the default is to use the nameserver
+		 * on the localhost.  Report `no nameservers listed in the file` only
+		 * when nameservers option is explicitly requested.
+		 */
 		evdns_base_nameserver_ip_add(base, "127.0.0.1");
-		err = 6;
+		if (flags & DNS_OPTION_NAMESERVERS) {
+			err = 6;
+		}
 	}
-	if (flags & DNS_OPTION_SEARCH && (!base->global_search_state || base->global_search_state->num_domains == 0)) {
+	if (flags & DNS_OPTION_SEARCH &&
+		(!base->global_search_state ||
+			base->global_search_state->num_domains == 0)) {
 		search_set_from_hostname(base);
 	}
 
