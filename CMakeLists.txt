@@ -530,6 +530,7 @@ else()
         mmap
         pipe
         pipe2
+        pread
         sendfile
         sigaction
         strsignal

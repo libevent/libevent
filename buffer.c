@@ -3125,13 +3125,29 @@ evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
 	}
 #endif
 	{
-		ev_off_t start_pos = lseek(fd, 0, SEEK_CUR), pos;
 		ev_off_t read_so_far = 0;
-		char *mem;
-		int e;
 		ev_ssize_t n = 0;
+		char *mem;
+#ifndef EVENT__HAVE_PREAD
+		ev_off_t start_pos = lseek(fd, 0, SEEK_CUR);
+		ev_off_t pos;
+		int e;
+#endif /* no pread() */
 		if (!(mem = mm_malloc(length)))
 			goto err;
+#ifdef EVENT__HAVE_PREAD
+		while (read_so_far < length) {
+			n = pread(fd, mem + read_so_far, length - read_so_far,
+				  offset + read_so_far);
+			if (n <= 0)
+				break;
+			read_so_far += n;
+		}
+		if (n < 0 || (n == 0 && length > read_so_far)) {
+			mm_free(mem);
+			goto err;
+		}
+#else /* fallback to seek() and read() */
 		if (start_pos < 0) {
 			mm_free(mem);
 			goto err;
@@ -3157,6 +3173,7 @@ evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
 			mm_free(mem);
 			goto err;
 		}
+#endif /* pread */
 
 		seg->contents = mem;
 	}
