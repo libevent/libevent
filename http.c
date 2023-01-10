@@ -599,6 +599,8 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
     struct evhttp_request *req)
 {
 	int is_keepalive = evhttp_is_connection_keepalive(req->input_headers);
+	int need_body = evhttp_response_needs_body(req);
+
 	evbuffer_add_printf(bufferevent_get_output(evcon->bufev),
 	    "HTTP/%d.%d %d %s\r\n",
 	    req->major, req->minor, req->response_code,
@@ -616,8 +618,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 			evhttp_add_header(req->output_headers,
 			    "Connection", "keep-alive");
 
-		if ((req->minor >= 1 || is_keepalive) &&
-		    evhttp_response_needs_body(req)) {
+		if ((req->minor >= 1 || is_keepalive) && need_body) {
 			/*
 			 * we need to add the content length if the
 			 * user did not give it, this is required for
@@ -630,7 +631,7 @@ evhttp_make_header_response(struct evhttp_connection *evcon,
 	}
 
 	/* Potentially add headers for unidentified content. */
-	if (evhttp_response_needs_body(req)) {
+	if (need_body) {
 		if (evhttp_find_header(req->output_headers,
 			"Content-Type") == NULL
 		    && evcon->http_server->default_content_type) {
