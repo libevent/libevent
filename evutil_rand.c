@@ -53,7 +53,7 @@ int
 evutil_secure_rng_init(void)
 {
 	/* call arc4random() now to force it to self-initialize */
-	(void) arc4random();
+	(void)! arc4random();
 	return 0;
 }
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
