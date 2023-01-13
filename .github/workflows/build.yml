@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04]
+        os: [ubuntu-22.04]
         EVENT_MATRIX:
           - DIST
           - NONE
@@ -73,7 +73,7 @@ jobs:
       - name: Install Depends
         run: |
           sudo apt-get update
-          sudo apt-get install -y libmbedtls-dev
+          sudo apt-get install -y libmbedtls-dev liburing-dev
 
       - name: Build
         shell: bash
@@ -169,7 +169,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04]
+        os: [ubuntu-22.04]
         EVENT_MATRIX:
           - DIST
           - NONE
@@ -199,7 +199,7 @@ jobs:
       - name: Install Depends
         run: |
           sudo apt-get update
-          sudo apt-get install -y libmbedtls-dev
+          sudo apt-get install -y libmbedtls-dev liburing-dev
 
       - name: Build
         shell: bash

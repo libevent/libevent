@@ -59,6 +59,9 @@ AC_ARG_ENABLE([openssl],
 AC_ARG_ENABLE([mbedtls],
      AS_HELP_STRING([--disable-mbedtls, disable support for mbedtls encryption]),
     [], [enable_mbedtls=yes])
+AC_ARG_ENABLE([liburing],
+     AS_HELP_STRING([--disable-liburing, disable support for io_uring]),
+    [], [enable_liburing=yes])
 AC_ARG_ENABLE([debug-mode],
      AS_HELP_STRING([--disable-debug-mode, disable support for running in debug mode]),
     [], [enable_debug_mode=yes])
@@ -181,7 +184,7 @@ LIBEVENT_OPENSSL
 LIBEVENT_MBEDTLS
 
 dnl Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h ifaddrs.h mach/mach_time.h mach/mach.h netdb.h netinet/in.h netinet/in6.h netinet/tcp.h sys/un.h poll.h port.h stdarg.h stddef.h sys/devpoll.h sys/epoll.h sys/event.h sys/eventfd.h sys/ioctl.h sys/mman.h sys/param.h sys/queue.h sys/resource.h sys/select.h sys/sendfile.h sys/socket.h sys/stat.h sys/time.h sys/timerfd.h sys/signalfd.h sys/uio.h sys/wait.h sys/random.h errno.h afunix.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h ifaddrs.h mach/mach_time.h mach/mach.h netdb.h netinet/in.h netinet/in6.h netinet/tcp.h sys/un.h poll.h port.h stdarg.h stddef.h sys/devpoll.h sys/epoll.h sys/event.h sys/eventfd.h sys/ioctl.h sys/mman.h sys/param.h sys/queue.h sys/resource.h sys/select.h sys/sendfile.h sys/socket.h sys/stat.h sys/time.h sys/timerfd.h sys/signalfd.h sys/uio.h sys/wait.h sys/random.h errno.h error.h afunix.h])
 
 case "${host_os}" in
     linux*) ;;
@@ -721,6 +724,16 @@ AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" 
 
 # check if we have and should use mbedtls
 AM_CONDITIONAL(MBEDTLS, [test "$enable_mbedtls" != "no" && test "$have_mbedtls" = "yes"])
+
+# check if we have and should use liburing
+if test "$enable_liburing" = "yes"; then
+  PKG_CHECK_MODULES([LIBURING], [liburing >= 2.2], [with_liburing=yes], [with_liburing=no])
+fi
+if test "$with_liburing" = "yes"; then
+  AC_DEFINE([HAVE_LIBURING], 1, [Define if libevent should use liburing])
+fi
+AC_SUBST([LIBURING_CFLAGS])
+AC_SUBST([LIBURING_LIBS])
 
 dnl enable some warnings by default
 AX_CHECK_COMPILE_FLAG([-Wall], [CFLAGS="$CFLAGS -Wall"],[],[-Werror])

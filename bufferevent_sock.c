@@ -64,12 +64,14 @@
 #include "event2/util.h"
 #include "event2/bufferevent.h"
 #include "event2/buffer.h"
+#include "event2/buffer_compat.h"
 #include "event2/bufferevent_struct.h"
 #include "event2/bufferevent_compat.h"
 #include "event2/event.h"
 #include "log-internal.h"
 #include "mm-internal.h"
 #include "bufferevent-internal.h"
+#include "evbuffer-internal.h"
 #include "util-internal.h"
 #ifdef _WIN32
 #include "iocp-internal.h"
@@ -190,6 +192,10 @@ bufferevent_readcb(evutil_socket_t fd, short event, void *arg)
 	res = evbuffer_read(input, fd, (int)howmuch); /* XXXX evbuffer_read would do better to take and return ev_ssize_t */
 	evbuffer_freeze(input, 0);
 
+#ifdef EVENT__HAVE_LIBURING
+	if (res == IO_URING_IN_PROGRESS)
+		goto reschedule;
+#endif /* liburing */
 	if (res == -1) {
 		int err = evutil_socket_geterror(fd);
 		if (EVUTIL_ERR_RW_RETRIABLE(err))
@@ -294,6 +300,10 @@ bufferevent_writecb(evutil_socket_t fd, short event, void *arg)
 		evbuffer_unfreeze(bufev->output, 1);
 		res = evbuffer_write_atmost(bufev->output, fd, atmost);
 		evbuffer_freeze(bufev->output, 1);
+#ifdef EVENT__HAVE_LIBURING
+		if (res == IO_URING_IN_PROGRESS)
+			goto reschedule;
+#endif /* liburing */
 		if (res == -1) {
 			int err = evutil_socket_geterror(fd);
 			if (EVUTIL_ERR_RW_RETRIABLE(err))

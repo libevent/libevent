@@ -90,6 +90,7 @@
 #include "evbuffer-internal.h"
 #include "bufferevent-internal.h"
 #include "event-internal.h"
+#include "evmap-internal.h"
 
 /* some systems do not have MAP_FAILED */
 #ifndef MAP_FAILED
@@ -367,6 +368,24 @@ evbuffer_chain_incref(struct evbuffer_chain *chain)
     ++chain->refcnt;
 }
 
+#ifdef EVENT__HAVE_LIBURING
+static void
+io_uring_evbuffer_handler(struct event_base *base,
+    struct io_uring_cqe *cqe, void *data)
+{
+	struct evbuffer *buf;
+
+	EVUTIL_ASSERT(cqe);
+	EVUTIL_ASSERT(data);
+	buf = data;
+
+	EVUTIL_ASSERT(buf->io_uring_status == IO_URING_RUNNING);
+	buf->io_uring_result = cqe->res;
+	buf->io_uring_status = IO_URING_DONE;
+	io_uring_cqe_seen(&base->io_uring, cqe);
+}
+#endif /* liburing */
+
 struct evbuffer *
 evbuffer_new(void)
 {
@@ -380,6 +399,11 @@ evbuffer_new(void)
 	buffer->refcnt = 1;
 	buffer->last_with_datap = &buffer->first;
 	buffer->max_read = EVBUFFER_MAX_READ_DEFAULT;
+#ifdef EVENT__HAVE_LIBURING
+	buffer->cqe_data.handler = io_uring_evbuffer_handler;
+	buffer->cqe_data.data = buffer;
+	buffer->io_uring_status = IO_URING_NONE;
+#endif /* liburing */
 
 	return (buffer);
 }
@@ -2195,10 +2219,6 @@ evbuffer_expand(struct evbuffer *buf, size_t datlen)
  * Reads data from a file descriptor into a buffer.
  */
 
-#if defined(EVENT__HAVE_SYS_UIO_H) || defined(_WIN32)
-#define USE_IOVEC_IMPL
-#endif
-
 #ifdef USE_IOVEC_IMPL
 
 #ifdef EVENT__HAVE_SYS_UIO_H
@@ -2299,17 +2319,113 @@ get_n_bytes_readable_on_socket(evutil_socket_t fd)
 #endif
 }
 
+#ifdef EVENT__HAVE_LIBURING
+
+int
+evbuffer_io_uring_enable(struct evbuffer *buf, struct event_base *base)
+{
+	EVUTIL_ASSERT(buf != NULL);
+	EVUTIL_ASSERT(base != NULL);
+
+	if (buf->io_uring_base)
+		return -1;
+	if (base->flags & EVENT_BASE_FLAG_IO_URING) {
+		LIST_INSERT_HEAD(&base->io_uring_buffers, buf, io_uring_entry);
+		buf->io_uring_base = base;
+		return 0;
+	}
+	return -1;
+}
+
+int
+evbuffer_io_uring_disable(struct evbuffer *buf)
+{
+	EVUTIL_ASSERT(buf != NULL);
+
+	if (buf->io_uring_base) {
+		if (buf->io_uring_status == IO_URING_RUNNING)
+			return -1;
+		LIST_REMOVE(buf, io_uring_entry);
+		buf->io_uring_base = NULL;
+	}
+	return 0;
+}
+
+static inline int
+evbuffer_io_uring_capable(struct evbuffer *buf)
+{
+	return (buf->io_uring_base &&
+	    (buf->io_uring_base->flags & EVENT_BASE_FLAG_IO_URING));
+}
+
+static inline void
+evbuffer_io_uring_submit_rwv(struct evbuffer *buffer,
+    int op, int fd, IOV_TYPE *iov, int iovcnt)
+{
+	struct io_uring *ring = &buffer->io_uring_base->io_uring;
+	struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+	int ret;
+
+	EVUTIL_ASSERT(sqe != NULL);
+	EVUTIL_ASSERT(op == EV_READ || op == EV_WRITE);
+	EVUTIL_ASSERT(buffer->io_uring_status == IO_URING_NONE);
+
+	/* Liburing manual says that non-vectored I/O is more
+	   efficient if you need to pass the only I/O vector. */
+	if (op == EV_READ) {
+		if (iovcnt == 1)
+			io_uring_prep_read(sqe, fd, iov->iov_base, iov->iov_len, 0);
+		else
+			io_uring_prep_readv(sqe, fd, iov, iovcnt, 0);
+	} else {
+		if (iovcnt == 1)
+			io_uring_prep_write(sqe, fd, iov->iov_base, iov->iov_len, 0);
+		else
+			io_uring_prep_writev(sqe, fd, iov, iovcnt, 0);
+	}
+	io_uring_sqe_set_data(sqe, &buffer->cqe_data);
+
+	ret = io_uring_submit(ring);
+	if (ret < 0) {
+		event_warnx("%s: error submitting SQE (%s)\n",
+			    __func__, strerror(-ret));
+		buffer->io_uring_status = IO_URING_ERROR;
+		buffer->io_uring_result = ret;
+	} else {
+		EVUTIL_ASSERT(ret == 1);
+		buffer->io_uring_status = IO_URING_RUNNING;
+		buffer->io_uring_base->io_uring_sqe_count++;
+	}
+
+	event_base_active_by_fd(buffer->io_uring_base, fd, op);
+}
+
+#else /* no liburing */
+
+int
+evbuffer_io_uring_enable(struct evbuffer *buf, struct event_base *base)
+{
+	return -1;
+}
+
+int
+evbuffer_io_uring_disable(struct evbuffer *buf)
+{
+	return -1;
+}
+
+#endif /* liburing */
+
 /* TODO(niels): should this function return ev_ssize_t and take ev_ssize_t
  * as howmuch? */
 int
 evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 {
-	struct evbuffer_chain **chainp;
 	int n;
 	int result;
 
 #ifdef USE_IOVEC_IMPL
-	int nvecs, i, remaining;
+	int i, remaining;
 #else
 	struct evbuffer_chain *chain;
 	unsigned char *p;
@@ -2317,6 +2433,25 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 
 	EVBUFFER_LOCK(buf);
 
+#ifdef EVENT__HAVE_LIBURING
+	if (buf->io_uring_status == IO_URING_DONE ||
+	    buf->io_uring_status == IO_URING_ERROR) {
+		if (buf->io_uring_result >= 0)
+			n = buf->io_uring_result;
+		else {
+			/* Caller might want to check errno, which
+			   is never used by liburing itself. */
+			n = -1;
+			errno = -buf->io_uring_result;
+		}
+		buf->io_uring_status = IO_URING_NONE;
+		goto complete;
+	} else if (buf->io_uring_status == IO_URING_RUNNING) {
+		result = -1;
+		errno = EINPROGRESS;
+		goto done;
+	}
+#endif /* liburing */
 	if (buf->freeze_end) {
 		result = -1;
 		goto done;
@@ -2337,16 +2472,16 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 	} else {
 		IOV_TYPE vecs[NUM_READ_IOVEC];
 #ifdef EVBUFFER_IOVEC_IS_NATIVE_
-		nvecs = evbuffer_read_setup_vecs_(buf, howmuch, vecs,
-		    NUM_READ_IOVEC, &chainp, 1);
+		buf->read_nvecs = evbuffer_read_setup_vecs_(buf, howmuch, vecs,
+		    NUM_READ_IOVEC, &(buf->read_chainp), 1);
 #else
 		/* We aren't using the native struct iovec.  Therefore,
 		   we are on win32. */
 		struct evbuffer_iovec ev_vecs[NUM_READ_IOVEC];
-		nvecs = evbuffer_read_setup_vecs_(buf, howmuch, ev_vecs, 2,
-		    &chainp, 1);
+		buf->read_nvecs = evbuffer_read_setup_vecs_(buf, howmuch, ev_vecs, 2,
+		    &(buf->read_chainp), 1);
 
-		for (i=0; i < nvecs; ++i)
+		for (i = 0; i < buf->read_nvecs; ++i)
 			WSABUF_FROM_EVBUFFER_IOV(&vecs[i], &ev_vecs[i]);
 #endif
 
@@ -2354,7 +2489,7 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 		{
 			DWORD bytesRead;
 			DWORD flags=0;
-			if (WSARecv(fd, vecs, nvecs, &bytesRead, &flags, NULL, NULL)) {
+			if (WSARecv(fd, vecs, buf->read_nvecs, &bytesRead, &flags, NULL, NULL)) {
 				/* The read failed. It might be a close,
 				 * or it might be an error. */
 				if (WSAGetLastError() == WSAECONNABORTED)
@@ -2365,7 +2500,14 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 				n = bytesRead;
 		}
 #else
-		n = readv(fd, vecs, nvecs);
+#ifdef EVENT__HAVE_LIBURING
+		if (evbuffer_io_uring_capable(buf)) {
+			evbuffer_io_uring_submit_rwv(buf, EV_READ, fd, vecs, buf->read_nvecs);
+			result = IO_URING_IN_PROGRESS;
+			goto done;
+		} else
+#endif /* liburing */
+		n = readv(fd, vecs, buf->read_nvecs);
 #endif
 	}
 
@@ -2388,6 +2530,9 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 #endif
 #endif /* USE_IOVEC_IMPL */
 
+#ifdef EVENT__HAVE_LIBURING
+complete:
+#endif /* liburing */
 	if (n == -1) {
 		result = -1;
 		goto done;
@@ -2399,23 +2544,23 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 
 #ifdef USE_IOVEC_IMPL
 	remaining = n;
-	for (i=0; i < nvecs; ++i) {
+	for (i = 0; i < buf->read_nvecs; ++i) {
 		/* can't overflow, since only mutable chains have
 		 * huge misaligns. */
-		size_t space = (size_t) CHAIN_SPACE_LEN(*chainp);
+		size_t space = (size_t) CHAIN_SPACE_LEN(*(buf->read_chainp));
 		/* XXXX This is a kludge that can waste space in perverse
 		 * situations. */
 		if (space > EVBUFFER_CHAIN_MAX)
 			space = EVBUFFER_CHAIN_MAX;
 		if ((ev_ssize_t)space < remaining) {
-			(*chainp)->off += space;
+			(*(buf->read_chainp))->off += space;
 			remaining -= (int)space;
 		} else {
-			(*chainp)->off += remaining;
-			buf->last_with_datap = chainp;
+			(*(buf->read_chainp))->off += remaining;
+			buf->last_with_datap = (buf->read_chainp);
 			break;
 		}
-		chainp = &(*chainp)->next;
+		(buf->read_chainp) = &(*(buf->read_chainp))->next;
 	}
 #else
 	chain->off += n;
@@ -2478,6 +2623,12 @@ evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
 			n = bytesSent;
 	}
 #else
+#ifdef EVENT__HAVE_LIBURING
+	if (evbuffer_io_uring_capable(buffer)) {
+		evbuffer_io_uring_submit_rwv(buffer, EV_WRITE, fd, iov, i);
+		return IO_URING_IN_PROGRESS;
+	} else
+#endif /* liburing */
 	n = writev(fd, iov, i);
 #endif
 	return (n);
@@ -2548,6 +2699,25 @@ evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
 
 	EVBUFFER_LOCK(buffer);
 
+#ifdef EVENT__HAVE_LIBURING
+	if (buffer->io_uring_status == IO_URING_DONE ||
+	    buffer->io_uring_status == IO_URING_ERROR) {
+		if (buffer->io_uring_result >= 0)
+			n = buffer->io_uring_result;
+		else {
+			/* Caller might want to check errno, which
+			   is never used by liburing itself. */
+			n = -1;
+			errno = -buffer->io_uring_result;
+		}
+		buffer->io_uring_status = IO_URING_NONE;
+		goto complete;
+	} else if (buffer->io_uring_status == IO_URING_RUNNING) {
+		n = -1;
+		errno = EINPROGRESS;
+		goto done;
+	}
+#endif /* liburing */
 	if (buffer->freeze_start) {
 		goto done;
 	}
@@ -2580,6 +2750,9 @@ evbuffer_write_atmost(struct evbuffer *buffer, evutil_socket_t fd,
 #endif
 	}
 
+#ifdef EVENT__HAVE_LIBURING
+complete:
+#endif /* liburing */
 	if (n > 0)
 		evbuffer_drain(buffer, n);
 

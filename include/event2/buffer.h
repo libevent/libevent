@@ -1091,6 +1091,12 @@ int evbuffer_defer_callbacks(struct evbuffer *buffer, struct event_base *base);
 EVENT2_EXPORT_SYMBOL
 size_t evbuffer_add_iovec(struct evbuffer * buffer, struct evbuffer_iovec * vec, int n_vec);
 
+EVENT2_EXPORT_SYMBOL
+int evbuffer_io_uring_enable(struct evbuffer *buf, struct event_base *base);
+
+EVENT2_EXPORT_SYMBOL
+int evbuffer_io_uring_disable(struct evbuffer *buf);
+
 #ifdef __cplusplus
 }
 #endif

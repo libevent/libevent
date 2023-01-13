@@ -56,6 +56,11 @@
 #include <fcntl.h>
 #endif
 
+#ifdef EVENT__HAVE_LIBURING
+#include "event2/buffer.h"
+#include "event2/buffer_compat.h"
+#include "evbuffer-internal.h"
+#endif /* liburing */
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/event_compat.h"
@@ -744,6 +749,31 @@ event_base_new_with_config(const struct event_config *cfg)
 		event_base_start_iocp_(base, cfg->n_cpus_hint);
 #endif
 
+#ifdef EVENT__HAVE_LIBURING
+	if (cfg && (cfg->flags & EVENT_BASE_FLAG_IO_URING)) {
+		int r;
+		unsigned queue_size;
+		if (cfg->io_uring_queue_size > 0)
+			queue_size = cfg->io_uring_queue_size;
+		else
+			queue_size = IO_URING_QUEUE_SIZE;
+		if (cfg->io_uring_timeout.tv_sec != 0 ||
+		    cfg->io_uring_timeout.tv_usec != 0) {
+			TIMEVAL_TO_TIMESPEC(&cfg->io_uring_timeout,
+					    &base->io_uring_cqe_timeout);
+		} else {
+			base->io_uring_cqe_timeout.tv_sec = 1;
+			base->io_uring_cqe_timeout.tv_nsec = 0;
+		}
+		r = io_uring_queue_init(queue_size, &base->io_uring, 0);
+		if (r == 0)
+			base->flags |= EVENT_BASE_FLAG_IO_URING;
+		else
+			event_warnx("%s: unable to setup io_uring (%s)",
+				    __func__, strerror(-r));
+	}
+#endif /* liburing */
+
 	/* initialize watcher lists */
 	for (i = 0; i < EVWATCH_MAX; ++i)
 		TAILQ_INIT(&base->watchers[i]);
@@ -869,6 +899,15 @@ event_base_free_(struct event_base *base, int run_finalizers)
 #ifdef _WIN32
 	event_base_stop_iocp_(base);
 #endif
+
+#ifdef EVENT__HAVE_LIBURING
+	if (base->flags & EVENT_BASE_FLAG_IO_URING) {
+		struct evbuffer *buffer;
+		LIST_FOREACH(buffer, &base->io_uring_buffers, io_uring_entry)
+			buffer->io_uring_base = NULL;
+		io_uring_queue_exit(&base->io_uring);
+	}
+#endif /* liburing */
 
 	/* threading fds if we have them */
 	if (base->th_notify_fd[0] != -1) {
@@ -1250,6 +1289,21 @@ event_config_set_max_dispatch_interval(struct event_config *cfg,
 		min_priority = 0;
 	cfg->limit_callbacks_after_prio = min_priority;
 	return (0);
+}
+
+int event_config_set_io_uring_parameters(struct event_config *cfg,
+    unsigned queue_size, struct timeval *timeout)
+{
+#ifdef EVENT__HAVE_LIBURING
+	if (queue_size)
+		cfg->io_uring_queue_size = queue_size;
+	if (timeout)
+		memcpy(&cfg->io_uring_timeout, timeout,
+		       sizeof(struct timeval));
+	return 0;
+#else /* noop */
+	return -1;
+#endif /* liburing */
 }
 
 int
@@ -1659,6 +1713,19 @@ event_persist_closure(struct event_base *base, struct event *ev)
         (evcb_callback)(evcb_fd, evcb_res, evcb_arg);
 }
 
+#ifdef EVENT__HAVE_LIBURING
+static inline void
+event_process_cqe(struct event_base *base, struct io_uring_cqe *cqe)
+{
+	struct cqe_data *data;
+
+	EVUTIL_ASSERT(cqe);
+	data = io_uring_cqe_get_data(cqe);
+	EVUTIL_ASSERT(data);
+	data->handler(base, cqe, data->data);
+}
+#endif /* liburing */
+
 /*
   Helper for event_process_active to process all the events in a single queue,
   releasing the lock as we go.  This function requires that the lock be held
@@ -1768,7 +1835,16 @@ event_process_active_single_queue(struct event_base *base,
 			EVTHREAD_COND_BROADCAST(base->current_event_cond);
 		}
 #endif
-
+#ifdef EVENT__HAVE_LIBURING
+		if (base->io_uring_sqe_count) {
+			struct io_uring_cqe *cqe;
+			if (io_uring_wait_cqe_timeout(&base->io_uring,
+			    &cqe, &base->io_uring_cqe_timeout) == 0) {
+				event_process_cqe(base, cqe);
+				base->io_uring_sqe_count--;
+			}
+		}
+#endif /* liburing */
 		if (base->event_break)
 			return -1;
 		if (count >= max_to_process)
