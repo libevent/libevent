@@ -134,6 +134,7 @@ evconfig-private.h
 CMakeCache.txt
 CMakeFiles/
 CTestTestfile.cmake
+CTestCostData.txt
 DartConfiguration.tcl
 LibeventConfig.cmake
 LibeventConfigVersion.cmake
