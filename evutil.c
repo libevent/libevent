@@ -31,7 +31,6 @@
 #include <winsock2.h>
 #include <winerror.h>
 #include <ws2tcpip.h>
-#include <stringapiset.h>
 #ifdef EVENT__HAVE_AFUNIX_H
 #include <afunix.h>
 #endif
