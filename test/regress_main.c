@@ -144,11 +144,11 @@ regress_make_tmpfile(const void *data, size_t datalen, char **filename_out)
 		return (-1);
 	if (write(fd, data, datalen) != (int)datalen) {
 		close(fd);
+		unlink(tmpfilename);
 		return (-1);
 	}
 	lseek(fd, 0, SEEK_SET);
-	/* remove it from the file system */
-	unlink(tmpfilename);
+	*filename_out = strdup(tmpfilename);
 	return (fd);
 #else
 	/* XXXX actually delete the file later */

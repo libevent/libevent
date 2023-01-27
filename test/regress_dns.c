@@ -42,6 +42,9 @@
 #include <sys/queue.h>
 #ifndef _WIN32
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -1203,18 +1206,53 @@ dns_nameservers_no_default_test(void *arg)
 	 * EVDNS_BASE_INITIALIZE_NAMESERVERS|EVDNS_BASE_NAMESERVERS_NO_DEFAULT
 	 * because we cannot mock "/etc/resolv.conf" (yet). */
 
-	evdns_base_resolv_conf_parse(dns,
+	ok = evdns_base_resolv_conf_parse(dns,
 		DNS_OPTIONS_ALL|DNS_OPTION_NAMESERVERS_NO_DEFAULT, RESOLV_FILE);
+	tt_int_op(ok, ==, EVDNS_ERROR_FAILED_TO_OPEN_FILE);
 	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, -1);
 	tt_int_op(evdns_base_get_nameserver_fd(dns, 0), ==, -1);
 
-	evdns_base_resolv_conf_parse(dns, DNS_OPTIONS_ALL, RESOLV_FILE);
+	ok = evdns_base_resolv_conf_parse(dns, DNS_OPTIONS_ALL, RESOLV_FILE);
+	tt_int_op(ok, ==, EVDNS_ERROR_FAILED_TO_OPEN_FILE);
 	tt_int_op(evdns_base_get_nameserver_addr(dns, 0, NULL, 0), ==, sizeof(struct sockaddr));
 	tt_int_op(evdns_base_get_nameserver_fd(dns, 0), !=, -1);
 
 end:
 	if (dns)
 		evdns_base_free(dns, 0);
+}
+
+static void
+dns_nameservers_no_nameservers_configured_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+	int fd = -1;
+	char *tmpfilename = NULL;
+	const char filecontents[] = "# tmp empty resolv.conf\n";
+	const size_t filecontentssize = sizeof(filecontents);
+	int ok;
+	
+	fd = regress_make_tmpfile(filecontents, filecontentssize, &tmpfilename);
+	if (fd < 0)
+		tt_skip();
+
+	dns = evdns_base_new(base, 0);
+	tt_assert(dns);
+
+	ok = evdns_base_resolv_conf_parse(dns, DNS_OPTIONS_ALL, tmpfilename);
+	tt_int_op(ok, ==, EVDNS_ERROR_NO_NAMESERVERS_CONFIGURED);
+
+end:
+	if (fd != -1)
+		close(fd);
+	if (dns)
+		evdns_base_free(dns, 0);
+	if (tmpfilename) {
+		unlink(tmpfilename);
+		free(tmpfilename);
+	}
 }
 #endif
 
@@ -3004,6 +3042,8 @@ struct testcase_t dns_testcases[] = {
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 #ifndef _WIN32
 	{ "nameservers_no_default", dns_nameservers_no_default_test,
+	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	{ "no_nameservers_configured", dns_nameservers_no_nameservers_configured_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 #endif
 

@@ -4471,12 +4471,13 @@ resolv_conf_parse_line(struct evdns_base *base, char *const start, int flags) {
 
 /* exported function */
 /* returns: */
-/*   0 no errors */
-/*   1 failed to open file */
-/*   2 failed to stat file */
-/*   3 file too large */
-/*   4 out of memory */
-/*   5 short read from file */
+/*   EVDNS_ERROR_NONE (0) no errors */
+/*   EVDNS_ERROR_FAILED_TO_OPEN_FILE (1) failed to open file */
+/*   EVDNS_ERROR_FAILED_TO_STAT_FILE (2) failed to stat file */
+/*   EVDNS_ERROR_FILE_TOO_LARGE (3) file too large */
+/*   EVDNS_ERROR_OUT_OF_MEMORY (4) out of memory */
+/*   EVDNS_ERROR_SHORT_READ_FROM_FILE (5) short read from file */
+/*   EVDNS_ERROR_NO_NAMESERVERS_CONFIGURED (6) no nameservers configured */
 int
 evdns_base_resolv_conf_parse(struct evdns_base *base, int flags, const char *const filename) {
 	int res;
@@ -4516,7 +4517,7 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 	size_t n;
 	char *resolv;
 	char *start;
-	int err = 0;
+	int err = EVDNS_ERROR_NONE;
 	int add_default;
 
 	log(EVDNS_LOG_DEBUG, "Parsing resolv.conf file %s", filename);
@@ -4534,16 +4535,16 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 
 	if (!filename) {
 		evdns_resolv_set_defaults(base, flags);
-		return 1;
+		return EVDNS_ERROR_FAILED_TO_OPEN_FILE;
 	}
 
 	if ((err = evutil_read_file_(filename, &resolv, &n, 0)) < 0) {
 		if (err == -1) {
 			/* No file. */
 			evdns_resolv_set_defaults(base, flags);
-			return 1;
+			return EVDNS_ERROR_FAILED_TO_OPEN_FILE;
 		} else {
-			return 2;
+			return EVDNS_ERROR_FAILED_TO_STAT_FILE;
 		}
 	}
 
@@ -4563,7 +4564,7 @@ evdns_base_resolv_conf_parse_impl(struct evdns_base *base, int flags, const char
 	if (!base->server_head && add_default) {
 		/* no nameservers were configured. */
 		evdns_base_nameserver_ip_add(base, "127.0.0.1");
-		err = 6;
+		err = EVDNS_ERROR_NO_NAMESERVERS_CONFIGURED;
 	}
 	if (flags & DNS_OPTION_SEARCH && (!base->global_search_state || base->global_search_state->num_domains == 0)) {
 		search_set_from_hostname(base);
@@ -4891,7 +4892,7 @@ evdns_base_new(struct event_base *event_base, int flags)
 #else
 		r = evdns_base_resolv_conf_parse(base, opts, "/etc/resolv.conf");
 #endif
-		if (r) {
+		if (r && (EVDNS_ERROR_NO_NAMESERVERS_CONFIGURED != r)) {
 			evdns_base_free_and_unlock(base, 0);
 			return NULL;
 		}
