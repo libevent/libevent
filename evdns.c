@@ -4892,7 +4892,7 @@ evdns_base_new(struct event_base *event_base, int flags)
 #else
 		r = evdns_base_resolv_conf_parse(base, opts, "/etc/resolv.conf");
 #endif
-		if (r) {
+		if (r && (EVDNS_ERROR_NO_NAMESERVERS_CONFIGURED != r)) {
 			evdns_base_free_and_unlock(base, 0);
 			return NULL;
 		}
