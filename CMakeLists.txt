@@ -1622,8 +1622,7 @@ endif()
 # Installation preparation.
 #
 
-set(EVENT_INSTALL_CMAKE_DIR
-    "${CMAKE_INSTALL_LIBDIR}/cmake/libevent")
+set(EVENT_INSTALL_CMAKE_DIR "lib/cmake/libevent")
 
 export(PACKAGE libevent)
 
