@@ -44,11 +44,7 @@ static char *rcsid = "$OpenBSD: strlcpy.c,v 1.5 2001/05/13 15:40:16 deraadt Exp 
  * will be copied.  Always NUL terminates (unless siz == 0).
  * Returns strlen(src); if retval >= siz, truncation occurred.
  */
-size_t
-event_strlcpy_(dst, src, siz)
-	char *dst;
-	const char *src;
-	size_t siz;
+size_t event_strlcpy_(char *dst, const char *src, size_t siz)
 {
 	register char *d = dst;
 	register const char *s = src;
