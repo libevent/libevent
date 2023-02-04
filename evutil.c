@@ -604,6 +604,17 @@ evutil_make_listen_socket_ipv6only(evutil_socket_t sock)
 }
 
 int
+evutil_make_listen_socket_not_ipv6only(evutil_socket_t sock)
+{
+#if defined(IPV6_V6ONLY)
+	int zero = 0;
+	return setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&zero,
+		(ev_socklen_t)sizeof(zero));
+#endif
+	return 0;
+}
+
+int
 evutil_make_tcp_listen_socket_deferred(evutil_socket_t sock)
 {
 #if defined(EVENT__HAVE_NETINET_TCP_H) && defined(TCP_DEFER_ACCEPT)

@@ -429,11 +429,27 @@ int evutil_make_listen_socket_reuseable_port(evutil_socket_t sock);
     sockets is to work in IPv4-mapped mode. In IPv4-mapped mode, it is not possible
     to bind same port from different IPv4 and IPv6 handlers.
 
+    On Windows the default value is instead to only work in IPv6 mode.
+
     @param sock The socket to make in ipv6only working mode
     @return 0 on success, -1 on failure
  */
 EVENT2_EXPORT_SYMBOL
 int evutil_make_listen_socket_ipv6only(evutil_socket_t sock);
+
+/** Set ipv6 only bind socket option to make listener work in both ipv4 and ipv6 sockets.
+
+    According to RFC3493 and most Linux distributions, default value for the
+    sockets is to work in IPv4-mapped mode. In IPv4-mapped mode, it is not possible
+    to bind same port from different IPv4 and IPv6 handlers.
+
+    On Windows the default value is instead to only work in IPv6 mode.
+
+    @param sock The socket to make in ipv6only working mode
+    @return 0 on success, -1 on failure
+ */
+EVENT2_EXPORT_SYMBOL
+int evutil_make_listen_socket_not_ipv6only(evutil_socket_t sock);
 
 /** Do platform-specific operations as needed to close a socket upon a
     successful execution of one of the exec*() functions.
