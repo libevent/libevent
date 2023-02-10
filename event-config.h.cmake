@@ -223,6 +223,9 @@
 /* Define if the system has mbedtls */
 #cmakedefine EVENT__HAVE_MBEDTLS 1
 
+/* Define if the system has io_uring support */
+#cmakedefine EVENT__HAVE_LIBURING 1
+
 /* Define to 1 if you have the `pipe' function. */
 #cmakedefine EVENT__HAVE_PIPE 1
 
@@ -411,6 +414,9 @@
 
 /* Define to 1 if you have the <errno.h> header file. */
 #cmakedefine EVENT__HAVE_ERRNO_H 1
+
+/* Define to 1 if you have the <error.h> header file. */
+#cmakedefine EVENT__HAVE_ERROR_H 1
 
 /* Define if TAILQ_FOREACH is defined in <sys/queue.h> */
 #cmakedefine EVENT__HAVE_TAILQFOREACH 1

@@ -37,6 +37,7 @@ extern "C" {
 #include "event2/event_struct.h"
 #include "util-internal.h"
 #include "defer-internal.h"
+#include "event-internal.h"
 
 /* Experimental cb flag: "never deferred."  Implementation note:
  * these callbacks may get an inaccurate view of n_del/n_added in their
@@ -55,6 +56,14 @@ extern "C" {
 #define MIN_BUFFER_SIZE	512
 #else
 #define MIN_BUFFER_SIZE	1024
+#endif
+
+#if defined(EVENT__HAVE_SYS_UIO_H) || defined(_WIN32)
+#define USE_IOVEC_IMPL
+#endif
+
+#if defined(EVENT__HAVE_LIBURING)
+#define IO_URING_IN_PROGRESS (-2)
 #endif
 
 /** A single evbuffer callback for an evbuffer. This function will be invoked
@@ -98,6 +107,11 @@ struct evbuffer {
 	 */
 	struct evbuffer_chain **last_with_datap;
 
+#ifdef USE_IOVEC_IMPL
+	struct evbuffer_chain **read_chainp;
+	int read_nvecs;
+#endif /* iovec */
+
 	/** Total amount of bytes stored in all chains.*/
 	size_t total_len;
 	/** Maximum bytes per one read */
@@ -133,6 +147,20 @@ struct evbuffer {
 	/** True iff this buffer is set up for overlapped IO. */
 	unsigned is_overlapped : 1;
 #endif
+
+#ifdef EVENT__HAVE_LIBURING
+	enum {
+		IO_URING_NONE,
+		IO_URING_RUNNING,
+		IO_URING_DONE,
+		IO_URING_ERROR
+	} io_uring_status;
+	LIST_ENTRY(evbuffer) io_uring_entry;
+	struct event_base *io_uring_base;
+	struct cqe_data cqe_data;
+	int io_uring_result;
+#endif /* liburing */
+
 	/** Zero or more EVBUFFER_FLAG_* bits */
 	ev_uint32_t flags;
 

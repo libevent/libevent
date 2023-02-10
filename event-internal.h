@@ -37,6 +37,13 @@ extern "C" {
 
 #include <time.h>
 #include <sys/queue.h>
+#ifdef EVENT__HAVE_LIBURING
+#include <liburing.h>
+/* Rather arbitrary at this moment. */
+#define IO_URING_QUEUE_SIZE 256
+#include "event2/buffer.h"
+#include "event2/buffer_compat.h"
+#endif /* liburing */
 #include "event2/event_struct.h"
 #include "minheap-internal.h"
 #include "evsignal-internal.h"
@@ -366,6 +373,13 @@ struct event_base {
 	struct event_iocp_port *iocp;
 #endif
 
+#ifdef EVENT__HAVE_LIBURING
+	struct io_uring io_uring;
+	unsigned io_uring_sqe_count;
+	struct __kernel_timespec io_uring_cqe_timeout;
+	LIST_HEAD(io_uring_buffer, evbuffer) io_uring_buffers;
+#endif /* liburing */
+
 	/** Flags that this base was configured with */
 	enum event_base_config_flag flags;
 
@@ -412,9 +426,20 @@ struct event_config {
 	struct timeval max_dispatch_interval;
 	int max_dispatch_callbacks;
 	int limit_callbacks_after_prio;
+#ifdef EVENT__HAVE_LIBURING
+	unsigned io_uring_queue_size;
+	struct timeval io_uring_timeout;
+#endif /* liburing */
 	enum event_method_feature require_features;
 	enum event_base_config_flag flags;
 };
+
+#ifdef EVENT__HAVE_LIBURING
+struct cqe_data {
+	void (*handler)(struct event_base *, struct io_uring_cqe *, void *);
+	void *data;
+};
+#endif /* liburing */
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
 #ifndef LIST_END

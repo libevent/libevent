@@ -602,6 +602,10 @@ enum event_base_config_flag {
 	/** Do not use signalfd(2) to handle signals even if supported.
 	 */
 	EVENT_BASE_FLAG_DISALLOW_SIGNALFD = 0x80,
+
+	/** This base is capable to use io_uring(7) for evbuffers.
+	 */
+	EVENT_BASE_FLAG_IO_URING = 0x100,
 };
 
 /**
@@ -692,6 +696,10 @@ EVENT2_EXPORT_SYMBOL
 int event_config_set_max_dispatch_interval(struct event_config *cfg,
     const struct timeval *max_interval, int max_callbacks,
     int min_priority);
+
+EVENT2_EXPORT_SYMBOL
+int event_config_set_io_uring_parameters(struct event_config *cfg,
+    unsigned queue_size, struct timeval *timeout);
 
 /**
   Initialize the event API.

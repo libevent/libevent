@@ -171,7 +171,11 @@ enum bufferevent_options {
 	* bufferevent.  This option currently requires that
 	* BEV_OPT_DEFER_CALLBACKS also be set; a future version of Libevent
 	* might remove the requirement.*/
-	BEV_OPT_UNLOCK_CALLBACKS = (1<<3)
+	BEV_OPT_UNLOCK_CALLBACKS = (1<<3),
+
+	/** If set, and io_uring is enabled for the base, I/O
+	 * on this bufferevent will use io_uring as well. */
+	BEV_OPT_IO_URING = (1<<4)
 };
 
 /**

@@ -371,6 +371,12 @@ bufferevent_init_common_(struct bufferevent_private *bufev_private,
 	evbuffer_set_parent_(bufev->input, bufev);
 	evbuffer_set_parent_(bufev->output, bufev);
 
+#ifdef EVENT__HAVE_LIBURING
+	if (base && (options & BEV_OPT_IO_URING)) {
+		evbuffer_io_uring_enable(bufev->input, base);
+		evbuffer_io_uring_enable(bufev->output, base);
+	}
+#endif /* liburing */
 	return 0;
 
 err:
@@ -761,6 +767,12 @@ bufferevent_finalize_cb_(struct event_callback *evcb, void *arg_)
 	/* Clean up the shared info */
 	if (bufev->be_ops->destruct)
 		bufev->be_ops->destruct(bufev);
+
+#ifdef EVENT__HAVE_LIBURING
+	/* FIXME: error handling? */
+	evbuffer_io_uring_disable(bufev->input);
+	evbuffer_io_uring_disable(bufev->output);
+#endif /* liburing */
 
 	/* XXX what happens if refcnt for these buffers is > 1?
 	 * The buffers can share a lock with this bufferevent object,

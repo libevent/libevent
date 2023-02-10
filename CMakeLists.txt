@@ -135,6 +135,9 @@ option(EVENT__DISABLE_OPENSSL
 option(EVENT__DISABLE_MBEDTLS
     "Define if libevent should build without support for mbed TLS encryption" OFF)
 
+option(EVENT__DISABLE_LIBURING
+    "Define if libevent should build without support for io_uring" OFF)
+
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark executables" OFF)
 
@@ -414,6 +417,7 @@ list(APPEND FILES_TO_CHECK
     stdlib.h
     string.h
     errno.h
+    error.h
     unistd.h
     time.h
     sys/types.h
@@ -969,6 +973,16 @@ if (NOT EVENT__DISABLE_MBEDTLS)
     list(APPEND LIB_APPS ${MBEDTLS_LIBRARIES})
 endif()
 
+if (NOT EVENT__DISABLE_LIBURING)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBURING liburing>=2.2)
+    if (${LIBURING_FOUND})
+        set(EVENT__HAVE_LIBURING 1)
+        include_directories(${LIBURING_INCLUDE_DIR})
+        list(APPEND LIB_APPS ${LIBURING_LIBRARIES})
+    endif()
+endif()
+
 if (NOT EVENT__DISABLE_TESTS)
     # Zlib is only used for testing.
     find_package(ZLIB)
@@ -1132,6 +1146,7 @@ macro(add_sample_prog ssl name)
 endmacro()
 if (NOT EVENT__DISABLE_SAMPLES)
     set(SAMPLES
+        bufferevent-benchmark
         event-read-fifo
         hello-world
         signal-test
