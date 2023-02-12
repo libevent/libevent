@@ -254,10 +254,18 @@ static lock_wrapper *lu_find(void *lock_)
 static void *trace_lock_alloc(unsigned locktype)
 {
 	void *lock;
+	lock_wrapper *existing_lock;
+
+	lock = lu_base.cbs.alloc(locktype);
+	existing_lock = lu_find(lock);
+	if (existing_lock) {
+		existing_lock->status = ALLOC;
+		return lock;
+	}
+
 	++lu_base.nr_locks;
 	lu_base.locks = realloc(lu_base.locks,
 		sizeof(lock_wrapper) * lu_base.nr_locks);
-	lock = lu_base.cbs.alloc(locktype);
 	lu_base.locks[lu_base.nr_locks - 1] = (lock_wrapper){ lock, ALLOC, 0 };
 	return lock;
 }
