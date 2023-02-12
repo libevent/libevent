@@ -29,19 +29,6 @@
 /* The old tests here need assertions to work. */
 #undef NDEBUG
 
-/**
- * - clang supports __has_feature
- * - gcc supports __SANITIZE_ADDRESS__
- *
- * Let's set __SANITIZE_ADDRESS__ if __has_feature(address_sanitizer)
- */
-#ifndef __has_feature
-#define __has_feature(x) 0
-#endif
-#if !defined(__SANITIZE_ADDRESS__) && __has_feature(address_sanitizer)
-#define __SANITIZE_ADDRESS__
-#endif
-
 #ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -216,7 +203,7 @@ static void test_bufferevent_pair_flush_normal(void) { test_bufferevent_impl(1, 
 static void test_bufferevent_pair_flush_flush(void) { test_bufferevent_impl(1, BEV_FLUSH); }
 static void test_bufferevent_pair_flush_finished(void) { test_bufferevent_impl(1, BEV_FINISHED); }
 
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && !defined(__SANITIZE_ADDRESS__)
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 /**
  * Trace lock/unlock/alloc/free for locks.
  * (More heavier then evthread_debug*)
@@ -304,15 +291,7 @@ static int trace_lock_unlock(unsigned mode, void *lock_)
 static void lock_unlock_free_thread_cbs(void)
 {
 	event_base_free(NULL);
-
-	if (libevent_tests_running_in_debug_mode)
-		libevent_global_shutdown();
-
-	/** drop immutable flag */
-	evthread_set_lock_callbacks(NULL);
-	/** avoid calling of event_global_setup_locks_() for new cbs */
 	libevent_global_shutdown();
-	/** drop immutable flag for non-debug ops (since called after shutdown) */
 	evthread_set_lock_callbacks(NULL);
 }
 
@@ -341,9 +320,6 @@ static int use_lock_unlock_profiler(void)
 }
 static void free_lock_unlock_profiler(struct basic_test_data *data)
 {
-	/** fix "held_by" for kqueue */
-	evthread_set_lock_callbacks(NULL);
-
 	lock_unlock_free_thread_cbs();
 	free(lu_base.locks);
 	data->base = NULL;
@@ -1418,7 +1394,7 @@ struct testcase_t bufferevent_testcases[] = {
 	LEGACY(bufferevent_pair_flush_normal, TT_ISOLATED),
 	LEGACY(bufferevent_pair_flush_flush, TT_ISOLATED),
 	LEGACY(bufferevent_pair_flush_finished, TT_ISOLATED),
-#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED) && !defined(__SANITIZE_ADDRESS__)
+#if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 	{ "bufferevent_pair_release_lock", test_bufferevent_pair_release_lock,
 	  TT_FORK|TT_ISOLATED|TT_NEED_THREADS|TT_NEED_BASE|TT_LEGACY|TT_NO_LOGS,
 	  &basic_setup, NULL },
