@@ -811,7 +811,6 @@ CHECK_TYPE_SIZE("struct linger" EVENT__HAVE_STRUCT_LINGER)
 
 # Group the source files.
 set(HDR_PRIVATE
-    atomic-internal.h
     bufferevent-internal.h
     changelist-internal.h
     defer-internal.h
@@ -1016,7 +1015,10 @@ if(WIN32)
         event_iocp.c
         win32select.c)
 
-    list(APPEND HDR_PRIVATE WIN32-Code/getopt.h)
+    list(APPEND HDR_PRIVATE
+        WIN32-Code/getopt.h
+        WIN32-Code/stdatomic.h
+    )
 
     set(EVENT__DNS_USE_FTIME_FOR_ID 1)
     set(LIB_PLATFORM ws2_32 shell32 advapi32 bcrypt)

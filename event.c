@@ -55,8 +55,8 @@
 #ifdef EVENT__HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
+#include <stdatomic.h>
 
-#include "atomic-internal.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/event_compat.h"
@@ -222,7 +222,7 @@ enum {
 	EVT_DBG_MODE_CLEANUP,
 };
 
-static atomic_init_ptr(void, event_debug_mode_state, NULL);
+atomic_int event_debug_mode_state;
 
 int event_debug_mode_on(void)
 {
@@ -244,7 +244,7 @@ int event_debug_mode_on(void)
 	intptr_t state;
 
 	do {
-		state = (intptr_t) atomic_load(&event_debug_mode_state);
+		state = atomic_load(&event_debug_mode_state);
 	} while (state == EVT_DBG_MODE_INITIALIZING || state == EVT_DBG_MODE_CLEANUP);
 
 	return state == EVT_DBG_MODE_INITIALIZED;
@@ -263,11 +263,11 @@ int event_debug_mode_on(void)
  *
  *        See: "Locks and threading" in the documentation.
  */
-int event_debug_created_threadable_ctx_ = 0;
+atomic_int event_debug_created_threadable_ctx_ = 0;
 #endif
 
 /* Set if it's too late to enable event_debug_mode. */
-static int event_debug_mode_too_late = 0;
+static atomic_int event_debug_mode_too_late = 0;
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
 static void *event_debug_map_lock_ = NULL;
 #endif
@@ -284,7 +284,7 @@ static void event_debug_note_setup_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	event_debug_mode_too_late = 1;
+	atomic_store_explicit(&event_debug_mode_too_late, 1, memory_order_relaxed);
 	if (!EVENT_DEBUG_MODE_IS_ON())
 		return;
 
@@ -309,7 +309,7 @@ static void event_debug_note_teardown_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	event_debug_mode_too_late = 1;
+	atomic_store_explicit(&event_debug_mode_too_late, 1, memory_order_relaxed);
 	if (!EVENT_DEBUG_MODE_IS_ON())
 		return;
 
@@ -325,7 +325,7 @@ static void event_debug_note_add_(const struct event *ev)
 {
 	struct event_debug_entry *dent,find;
 
-	event_debug_mode_too_late = 1;
+	atomic_store_explicit(&event_debug_mode_too_late, 1, memory_order_relaxed);
 	if (!EVENT_DEBUG_MODE_IS_ON())
 		return;
 
@@ -349,7 +349,7 @@ static void event_debug_note_del_(const struct event *ev)
 {
 	struct event_debug_entry *dent, find;
 
-	event_debug_mode_too_late = 1;
+	atomic_store_explicit(&event_debug_mode_too_late, 1, memory_order_relaxed);
 	if (!EVENT_DEBUG_MODE_IS_ON())
 		return;
 
@@ -609,15 +609,14 @@ void
 event_enable_debug_mode(void)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	intptr_t previous = EVT_DBG_MODE_UNINITIALIZED;
-	if (!atomic_compare_exchange_strong(&event_debug_mode_state, (void **) &previous, (void *) EVT_DBG_MODE_INITIALIZING)) {
-		switch (previous) {
-		case EVT_DBG_MODE_INITIALIZED:
+	atomic_int previous = EVT_DBG_MODE_UNINITIALIZED;
+	if (!atomic_compare_exchange_strong(&event_debug_mode_state, (int *)&previous, EVT_DBG_MODE_INITIALIZING)) {
+		if (previous == EVT_DBG_MODE_INITIALIZED) {
 			// TODO could now return false/true if the desired state was reached
 			// event_disable_debug_mode is already idempotent
 			event_errx(1, "%s was called twice!", __func__);
 			return;
-		default:
+		} else {
 			event_errx(1, "%s invalid state: %d", __func__, (int) previous);
 			return;
 		}
@@ -631,7 +630,7 @@ event_enable_debug_mode(void)
 	HT_INIT(event_debug_map, &global_debug_map);
 	EVLOCK_UNLOCK(event_debug_map_lock_ , 0);
 
-	atomic_store(&event_debug_mode_state, (void *) EVT_DBG_MODE_INITIALIZED);
+	atomic_store(&event_debug_mode_state, EVT_DBG_MODE_INITIALIZED);
 #endif
 }
 
@@ -642,11 +641,11 @@ event_disable_debug_mode(void)
 	struct event_debug_entry **ent, *victim;
 
 	intptr_t previous = EVT_DBG_MODE_INITIALIZED;
-	if (!atomic_compare_exchange_strong(&event_debug_mode_state, (void **) &previous, (void *) EVT_DBG_MODE_CLEANUP)) {
+	if (!atomic_compare_exchange_strong(&event_debug_mode_state, (int *)&previous, EVT_DBG_MODE_CLEANUP)) {
 		if (previous == EVT_DBG_MODE_UNINITIALIZED)
 			return;
 
-		event_errx(1, "%s invalid state: %d", __func__, (int) previous);
+		event_errx(1, "%s invalid state: %d", __func__, (int)previous);
 		return;
 	}
 
@@ -659,7 +658,7 @@ event_disable_debug_mode(void)
 	HT_CLEAR(event_debug_map, &global_debug_map);
 	EVLOCK_UNLOCK(event_debug_map_lock_ , 0);
 
-	atomic_store(&event_debug_mode_state, (void *) EVT_DBG_MODE_UNINITIALIZED);
+	atomic_store(&event_debug_mode_state, EVT_DBG_MODE_UNINITIALIZED);
 #endif
 }
 
@@ -671,7 +670,7 @@ event_base_new_with_config(const struct event_config *cfg)
 	int should_check_environment;
 
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	event_debug_mode_too_late = 1;
+	atomic_store_explicit(&event_debug_mode_too_late, 1, memory_order_relaxed);
 #endif
 
 	if ((base = mm_calloc(1, sizeof(struct event_base))) == NULL) {
@@ -776,7 +775,7 @@ event_base_new_with_config(const struct event_config *cfg)
 	/* prepare for threading */
 
 #if !defined(EVENT__DISABLE_THREAD_SUPPORT) && !defined(EVENT__DISABLE_DEBUG_MODE)
-	event_debug_created_threadable_ctx_ = 1;
+	atomic_store_explicit(&event_debug_created_threadable_ctx_, 1, memory_order_relaxed);
 #endif
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
