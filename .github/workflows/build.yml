@@ -9,23 +9,21 @@ on:
       - opened
     branches:
       - master
-    push:
-      paths-ignore:
-        - '**.md'
-        - '.mailmap'
-        - 'ChangeLog*'
-        - 'whatsnew*'
-        - 'LICENSE'
+    paths-ignore:
+      - '**.md'
+      - '.mailmap'
+      - 'ChangeLog*'
+      - 'whatsnew*'
+      - 'LICENSE'
   push:
     branches:
       - master
-    push:
-      paths-ignore:
-        - '**.md'
-        - '.mailmap'
-        - 'ChangeLog*'
-        - 'whatsnew*'
-        - 'LICENSE'
+    paths-ignore:
+      - '**.md'
+      - '.mailmap'
+      - 'ChangeLog*'
+      - 'whatsnew*'
+      - 'LICENSE'
 
 jobs:
   linux-cmake-job:
