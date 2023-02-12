@@ -168,31 +168,17 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-18.04]
-        EVENT_MATRIX:
-          - DIST
-          - NONE
-          - NO_SSL
-          - DISABLE_OPENSSL
-          - DISABLE_THREAD_SUPPORT
-          - DISABLE_DEBUG_MODE
-          - DISABLE_MM_REPLACEMENT
-          - COMPILER_CLANG
         include:
+          # openssl 3.0
           - os: ubuntu-22.04
-            EVENT_MATRIX: OPENSSL_3
 
     steps:
       - uses: actions/checkout@v3
       - name: Cache Build
         uses: actions/cache@v3
         with:
-          path: build
-          key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v3
-      - name: Cache Dist Build
-        uses: actions/cache@v2
-        with:
           path: dist
-          key: ${{ matrix.os }}-autotools-dist-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v3
 
       - name: Install Depends
         run: |
@@ -202,46 +188,23 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
-            EVENT_CONFIGURE_OPTIONS="--disable-openssl"
-
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
-            EVENT_CONFIGURE_OPTIONS="--disable-openssl --disable-mbedtls"
-
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
-            EVENT_CONFIGURE_OPTIONS="--disable-thread-support"
-
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_DEBUG_MODE" ]; then
-            EVENT_CONFIGURE_OPTIONS="--disable-debug-mode"
-
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_MM_REPLACEMENT" ]; then
-            EVENT_CONFIGURE_OPTIONS="--disable-malloc-replacement"
-
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "COMPILER_CLANG" ]; then
-            EVENT_CONFIGURE_OPTIONS=""
-            export CC=clang
-
-          else
-            EVENT_CONFIGURE_OPTIONS=""
-          fi
-
           ./autogen.sh
 
-          if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
-            mkdir -p dist
-            cd dist
-            rm -fr *.tar.gz
-            ../configure $EVENT_CONFIGURE_OPTIONS
-            make dist
-            archive=$(echo *.tar.gz)
-            tar -vxf $archive
-            cd $(basename $archive .tar.gz)
-          fi
+          # dist archive
+          mkdir -p dist
+          cd dist
+          rm -fr *.tar.gz
+          ../configure
+          make dist
+          archive=$(echo *.tar.gz)
+          tar -vxf $archive
+          cd $(basename $archive .tar.gz)
+          # \dist archive
 
           mkdir -p build
           cd build
-          echo [configure]: ../configure --enable-gcc-warnings $EVENT_CONFIGURE_OPTIONS
-          ../configure --enable-gcc-warnings $EVENT_CONFIGURE_OPTIONS
+          echo [configure]: ../configure --enable-gcc-warnings
+          ../configure --enable-gcc-warnings
           make
       - name: Test
         uses: nick-fields/retry@v2
@@ -251,21 +214,16 @@ jobs:
           shell: bash
           command: |
             JOBS=20
-            if [ "${{ matrix.EVENT_MATRIX }}" == "DIST" ]; then
-              cd dist
-              archive=$(echo *.tar.gz)
-              cd $(basename $archive .tar.gz)
-            fi
+
+            cd dist
+            archive=$(echo *.tar.gz)
+            cd $(basename $archive .tar.gz)
+
             cd build
             make -j $JOBS verify
 
       - uses: actions/upload-artifact@v1
-        if: failure() && matrix.EVENT_MATRIX != 'DIST'
-        with:
-          name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-build
-          path: build
-      - uses: actions/upload-artifact@v1
-        if: failure() && matrix.EVENT_MATRIX == 'DIST'
+        if: failure()
         with:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-dist
           path: dist
@@ -418,14 +376,6 @@ jobs:
     if: "!contains(github.event.head_commit.message, 'ci/mingw skip') && !contains(github.event.head_commit.message, 'ci/mingw/autotools skip')"
     strategy:
       fail-fast: false
-      matrix:
-        EVENT_MATRIX:
-          - none
-          - no-ssl
-          - disable-openssl
-          - disable-thread-support
-          - disable-debug-mode
-          - disable-malloc-replacement
 
     steps:
       - uses: actions/checkout@v3
@@ -433,7 +383,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: build
-          key: mingw-autotools-${{ matrix.EVENT_MATRIX }}-v5
+          key: mingw-autotools-v5
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
@@ -444,13 +394,6 @@ jobs:
       - name: Build
         shell: powershell
         run: |
-          $env:EVENT_CONFIGURE_OPTIONS=""
-          if ( "${{ matrix.EVENT_MATRIX }}" -eq "no-ssl" ) {
-            $env:EVENT_CONFIGURE_OPTIONS="--disable-openssl --disable-mbedtls"
-          }
-          elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "none" ) {
-            $env:EVENT_CONFIGURE_OPTIONS="--${{ matrix.EVENT_MATRIX }}"
-          }
           $env:EVENT_BUILD_PARALLEL=10
 
           $script='
@@ -460,7 +403,7 @@ jobs:
           mkdir -p build
           cd build
           [[ $? -ne 0 ]] && exit 1
-          LDFLAGS="-L/mingw64/lib" CFLAGS="-I/mingw64/include" ../configure $EVENT_CONFIGURE_OPTIONS 2>&1
+          LDFLAGS="-L/mingw64/lib" CFLAGS="-I/mingw64/include" ../configure 2>&1
           [[ $? -ne 0 ]] && exit 1
           make -j $EVENT_BUILD_PARALLEL 2>&1
           [[ $? -ne 0 ]] && exit 1
@@ -523,12 +466,12 @@ jobs:
       - name: Build
         shell: powershell
         run: |
-          $EVENT_CONFIGURE_OPTIONS=""
+          $EVENT_CMAKE_OPTIONS=""
           if ( "${{ matrix.EVENT_MATRIX }}" -ne "NO_SSL" ) {
-            $EVENT_CONFIGURE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
+            $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
           }
           elseif ( "${{ matrix.EVENT_MATRIX }}" -ne "NONE" ) {
-            $EVENT_CONFIGURE_OPTIONS="-DEVENT__${{ matrix.EVENT_MATRIX }}=ON"
+            $EVENT_CMAKE_OPTIONS="-DEVENT__${{ matrix.EVENT_MATRIX }}=ON"
           }
           $env:PATH="D:\a\_temp\msys64\mingw64\bin;D:\a\_temp\msys64\usr\bin;$env:PATH"
           mkdir build -ea 0
@@ -537,7 +480,7 @@ jobs:
           {
             $errcode=0
             try {
-              cmake .. -G "MSYS Makefiles" $EVENT_CONFIGURE_OPTIONS -DCMAKE_C_FLAGS=-w
+              cmake .. -G "MSYS Makefiles" $EVENT_CMAKE_OPTIONS -DCMAKE_C_FLAGS=-w
               $errcode=$LastExitCode
             }
             catch {
@@ -598,7 +541,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: build
-          key: macos-10.15-cmake-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v3
 
       - name: Install Depends
         run: brew install mbedtls@2
@@ -675,13 +618,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest]
-        EVENT_MATRIX:
-          - NONE
-          - NO_SSL
-          - DISABLE_OPENSSL
-          - DISABLE_THREAD_SUPPORT
-          - DISABLE_DEBUG_MODE
-          - DISABLE_MM_REPLACEMENT
 
     steps:
       - uses: actions/checkout@v3
@@ -690,7 +626,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: build
-          key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v3
+          key: ${{ matrix.os }}-autotools-v3
 
       - name: Install Depends
         run: brew install autoconf automake libtool pkg-config mbedtls@2
@@ -701,30 +637,11 @@ jobs:
           export CPPFLAGS="-I/usr/local/opt/mbedtls@2/include"
           export  LDFLAGS="-L/usr/local/opt/mbedtls@2/lib"
 
-          if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
-            EVENT_CONFIGURE_OPTIONS="--disable-openssl"
-
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
-            EVENT_CONFIGURE_OPTIONS="--disable-openssl --disable-mbedtls"
-
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
-            EVENT_CONFIGURE_OPTIONS="--disable-thread-support"
-
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_DEBUG_MODE" ]; then
-            EVENT_CONFIGURE_OPTIONS="--disable-debug-mode"
-
-          elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_MM_REPLACEMENT" ]; then
-            EVENT_CONFIGURE_OPTIONS="--disable-malloc-replacement"
-
-          else
-            EVENT_CONFIGURE_OPTIONS=""
-          fi
-
           ./autogen.sh
           mkdir -p build
           cd build
-          echo [configure]: ../configure $EVENT_CONFIGURE_OPTIONS
-          ../configure $EVENT_CONFIGURE_OPTIONS
+          echo [configure]: ../configure
+          ../configure
           make
 
       - name: Test
@@ -846,16 +763,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # NOTE: 13.0 has some issues:
-        #   ld-elf.so.1: /lib/libc.so.7: version FBSD_1.7 required by /usr/local/lib/libpython3.9.so.1.0 not found
-        release: ["12.3", "13.1"]
-        EVENT_MATRIX:
-          - NONE
-          - NO_SSL
-          - DISABLE_OPENSSL
-          - DISABLE_THREAD_SUPPORT
-          - DISABLE_DEBUG_MODE
-          - DISABLE_MM_REPLACEMENT
+        release: ["13.1"]
 
     steps:
       - uses: actions/checkout@v3
@@ -864,7 +772,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: build
-          key: freebsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-v1
+          key: freebsd-${{ matrix.release }}-autotools-v1
 
 
       - name: Build
@@ -875,30 +783,11 @@ jobs:
             pkg install -y  mbedtls  python3 autoconf automake libtool pkgconf
           usesh: true
           run: |
-            if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
-              EVENT_CONFIGURE_OPTIONS="--disable-openssl"
-
-            elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
-              EVENT_CONFIGURE_OPTIONS="--disable-openssl --disable-mbedtls"
-
-            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
-              EVENT_CONFIGURE_OPTIONS="--disable-thread-support"
-
-            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_DEBUG_MODE" ]; then
-              EVENT_CONFIGURE_OPTIONS="--disable-debug-mode"
-
-            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_MM_REPLACEMENT" ]; then
-              EVENT_CONFIGURE_OPTIONS="--disable-malloc-replacement"
-
-            else
-              EVENT_CONFIGURE_OPTIONS=""
-            fi
-
             ./autogen.sh
             mkdir -p build
             cd build
-            echo [configure]: ../configure $EVENT_CONFIGURE_OPTIONS
-            ../configure $EVENT_CONFIGURE_OPTIONS
+            echo [configure]: ../configure
+            ../configure
             make
 
       - name: Test
@@ -1029,19 +918,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: [
-          # 6.9 has some issues with autoconf/autotools [1].
-          #   [1]: https://github.com/libevent/libevent/pull/1326#issuecomment-1229531718
-          #"6.9",
-          "7.1",
-        ]
-        EVENT_MATRIX:
-          - NONE
-          - NO_SSL
-          - DISABLE_OPENSSL
-          - DISABLE_THREAD_SUPPORT
-          - DISABLE_DEBUG_MODE
-          - DISABLE_MM_REPLACEMENT
+        release: ["7.1"]
 
     steps:
       - uses: actions/checkout@v3
@@ -1050,7 +927,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: build
-          key: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-v1
+          key: openbsd-${{ matrix.release }}-autotools-v1
 
 
       - name: Build
@@ -1064,30 +941,11 @@ jobs:
             export AUTOMAKE_VERSION=1.16
             export AUTOCONF_VERSION=2.71
 
-            if [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_OPENSSL" ]; then
-              EVENT_CONFIGURE_OPTIONS="--disable-openssl"
-
-            elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
-              EVENT_CONFIGURE_OPTIONS="--disable-openssl --disable-mbedtls"
-
-            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
-              EVENT_CONFIGURE_OPTIONS="--disable-thread-support"
-
-            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_DEBUG_MODE" ]; then
-              EVENT_CONFIGURE_OPTIONS="--disable-debug-mode"
-
-            elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_MM_REPLACEMENT" ]; then
-              EVENT_CONFIGURE_OPTIONS="--disable-malloc-replacement"
-
-            else
-              EVENT_CONFIGURE_OPTIONS=""
-            fi
-
             ./autogen.sh
             mkdir -p build
             cd build
-            echo [configure]: ../configure $EVENT_CONFIGURE_OPTIONS
-            ../configure $EVENT_CONFIGURE_OPTIONS
+            echo [configure]: ../configure
+            ../configure
             make V=1
 
       - name: Test
