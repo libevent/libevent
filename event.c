@@ -227,18 +227,25 @@ static atomic_init_ptr(void, event_debug_mode_state, NULL);
 int event_debug_mode_on(void)
 {
 	/*
-	 * event_debug_mode_too_late can be set from other threads while event_enable_debug_mode is running.
-	 * If the write gets in before the check, it will trigger - as expected.
-	 * If the write gets in late, these threads might slip through without learning about debug mode being enabled.
-	 * Luckily, state must be _INITIALIZING during and after the check so return true after waiting to make sure the resources are ready.
+	 * event_debug_mode_too_late can be set from other threads while
+	 * event_enable_debug_mode()/event_disable_debug_mode() is running.
 	 *
-	 * This only affects impatient callers and after that the condition should never be met and play nice with branch prediction.
+	 * If the write gets in before the check, it will trigger - as
+	 * expected.
+	 * If the write gets in late, these threads might slip through without
+	 * learning about debug mode being enabled.
+	 *
+	 * Luckily, state must be _INITIALIZING during and after the check so
+	 * return true after waiting to make sure the resources are ready.
+	 *
+	 * This only affects impatient callers and after that the condition
+	 * should never be met and play nice with branch prediction.
 	 */
 	intptr_t state;
 
 	do {
 		state = (intptr_t) atomic_load(&event_debug_mode_state);
-	} while (state == EVT_DBG_MODE_INITIALIZING);
+	} while (state == EVT_DBG_MODE_INITIALIZING || state == EVT_DBG_MODE_CLEANUP);
 
 	return state == EVT_DBG_MODE_INITIALIZED;
 }
