@@ -402,7 +402,7 @@ static void
 usage(struct testgroup_t *groups, int list_groups)
 {
 	puts("Options are:");
-	puts("  --verbose");
+	puts("  -v, --verbose");
 	puts("  --quiet");
 	puts("  --terse");
 	puts("  --no-fork");
@@ -496,7 +496,7 @@ tinytest_main(int c, const char **v, struct testgroup_t *groups)
 			} else if (!strcmp(v[i], "--quiet")) {
 				opt_verbosity = -1;
 				verbosity_flag = "--quiet";
-			} else if (!strcmp(v[i], "--verbose")) {
+			} else if (!strcmp(v[i], "-v") || !strcmp(v[i], "--verbose")) {
 				opt_verbosity = 2;
 				verbosity_flag = "--verbose";
 			} else if (!strcmp(v[i], "--terse")) {
