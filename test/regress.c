@@ -56,6 +56,7 @@
 #include <assert.h>
 #include <ctype.h>
 
+#include "event2/thread.h"
 #include "event2/event.h"
 #include "event2/event_struct.h"
 #include "event2/event_compat.h"
@@ -3486,6 +3487,53 @@ end:
 #endif
 }
 
+#ifndef EVENT__DISABLE_THREAD_SUPPORT
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
+static void *
+test_debug_mode_race_thread(void * arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base;
+
+	TT_BLATHER(("In thread"));
+
+	base = event_base_new();
+	/* To trigger more possible races: */
+	evthread_make_base_notifiable(base);
+	for (size_t i = 0; i < 100; ++i)
+		tt_int_op(event_base_once(base, -1, EV_TIMEOUT, NULL, NULL, NULL), ==, 0);
+	event_base_free(base);
+
+	tt_int_op(write(data->pair[0], "1", 1), ==, 1);
+end:
+	return NULL;
+}
+static void
+test_debug_mode_race(void *arg)
+{
+	struct basic_test_data *data = arg;
+	THREAD_T threads[100];
+	char buffer[ARRAY_SIZE(threads)];
+
+	test_ok = 0;
+
+	TT_BLATHER(("In child"));
+
+	for (size_t i = 0; i < ARRAY_SIZE(threads); ++i) {
+		THREAD_START(threads[i], test_debug_mode_race_thread, data);
+	}
+	for (size_t i = 0; i < ARRAY_SIZE(threads); ++i) {
+		THREAD_JOIN(threads[i]);
+	}
+
+	TT_BLATHER(("test_ok = %i", test_ok));
+	tt_int_op(read(data->pair[1], buffer, ARRAY_SIZE(threads)), ==, ARRAY_SIZE(threads));
+
+end:
+	;
+}
+#endif
+
 struct testcase_t main_testcases[] = {
 	/* Some converted-over tests */
 	{ "methods", test_methods, TT_FORK, NULL, NULL },
@@ -3592,6 +3640,7 @@ struct testcase_t main_testcases[] = {
 #endif
 
 #ifndef EVENT__DISABLE_THREAD_SUPPORT
+	BASIC(debug_mode_race, TT_FORK|TT_NEED_THREADS|TT_NEED_SOCKETPAIR),
 	LEGACY(del_wait, TT_ISOLATED|TT_NEED_THREADS|TT_RETRIABLE),
 	LEGACY(del_notify, TT_ISOLATED|TT_NEED_THREADS),
 #endif
