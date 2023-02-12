@@ -1310,6 +1310,17 @@ test_event_calloc(void *arg)
 	mm_free(p);
 	p = NULL;
 
+ end:
+	errno = 0;
+	if (p)
+		mm_free(p);
+}
+
+static void
+test_event_calloc_enomem(void *arg)
+{
+	void *p = NULL;
+
 	/* mm_calloc() should set errno = ENOMEM and return NULL
 	 * in case of potential overflow. */
 	errno = 0;
@@ -1318,6 +1329,7 @@ test_event_calloc(void *arg)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Walloc-size-larger-than="
 #endif
+	/* Requires allocator_may_return_null=1 for sanitizers */
 	p = mm_calloc(EV_SIZE_MAX, EV_SIZE_MAX);
 #if defined(__clang__)
 #elif defined(__GNUC__)
@@ -1327,11 +1339,7 @@ test_event_calloc(void *arg)
 	tt_int_op(errno, ==, ENOMEM);
 
  end:
-	errno = 0;
-	if (p)
-		mm_free(p);
-
-	return;
+	;
 }
 
 static void
@@ -1857,6 +1865,7 @@ struct testcase_t util_testcases[] = {
 #endif
 	{ "mm_malloc", test_event_malloc, 0, NULL, NULL },
 	{ "mm_calloc", test_event_calloc, 0, NULL, NULL },
+	{ "mm_calloc_enomem", test_event_calloc_enomem, 0, NULL, NULL },
 	{ "mm_strdup", test_event_strdup, 0, NULL, NULL },
 	{ "usleep", test_evutil_usleep, TT_RETRIABLE, NULL, NULL },
 	{ "monotonic_res", test_evutil_monotonic_res, 0, &basic_setup, (void*)"" },
