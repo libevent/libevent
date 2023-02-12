@@ -142,6 +142,7 @@ LibeventTargets*.cmake
 bin/
 cmake_install.cmake
 Uninstall.cmake
+compile_commands.json
 lib/
 tmp/
 verify_tests.sh
@@ -167,3 +168,6 @@ rules.ninja
 /*.tar.gz
 
 /.vagrant
+
+# clangd
+.cache
