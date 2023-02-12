@@ -3084,14 +3084,14 @@ struct testcase_t dns_testcases[] = {
 	{ "tcp_resolve_many_clients", test_tcp_resolve_many_clients,
 	  TT_FORK | TT_NEED_BASE | TT_RETRIABLE, &basic_setup, NULL },
 	{ "tcp_timeout", test_tcp_timeout,
-	  TT_FORK | TT_NEED_BASE | TT_RETRIABLE, &basic_setup, NULL },
+	  TT_FORK | TT_NEED_BASE | TT_RETRIABLE | TT_NO_LOGS, &basic_setup, NULL },
 
 	{ "set_SO_RCVBUF_SO_SNDBUF", test_set_so_rcvbuf_so_sndbuf,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "set_options", test_set_option,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "set_server_options", test_set_server_option,
-	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
+	  TT_FORK|TT_NEED_BASE|TT_NO_LOGS, &basic_setup, NULL },
 	{ "edns", test_edns,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 
