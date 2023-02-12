@@ -56,14 +56,14 @@ jobs:
             EVENT_MATRIX: UBSAN
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: ${{ matrix.os }}-cmake-${{ matrix.EVENT_MATRIX }}-v3
       - name: Cache Dist Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: dist
           key: ${{ matrix.os }}-cmake-dist-${{ matrix.EVENT_MATRIX }}-v3
@@ -182,9 +182,9 @@ jobs:
             EVENT_MATRIX: OPENSSL_3
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v3
@@ -291,10 +291,10 @@ jobs:
           - TEST_EXPORT_STATIC
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
@@ -428,9 +428,9 @@ jobs:
           - disable-malloc-replacement
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: mingw-autotools-${{ matrix.EVENT_MATRIX }}-v5
@@ -506,9 +506,9 @@ jobs:
           - DISABLE_MM_REPLACEMENT
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: mingw-cmake-${{ matrix.EVENT_MATRIX }}-v4
@@ -592,10 +592,10 @@ jobs:
           - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: macos-10.15-cmake-${{ matrix.EVENT_MATRIX }}-v3
@@ -684,10 +684,10 @@ jobs:
           - DISABLE_MM_REPLACEMENT
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-v3
@@ -764,10 +764,10 @@ jobs:
           - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
@@ -858,10 +858,10 @@ jobs:
           - DISABLE_MM_REPLACEMENT
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: freebsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-v1
@@ -947,10 +947,10 @@ jobs:
           # - TEST_EXPORT_SHARED
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
@@ -1044,10 +1044,10 @@ jobs:
           - DISABLE_MM_REPLACEMENT
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
 
       - name: Cache Build
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: build
           key: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-v1
