@@ -42,7 +42,7 @@ AC_ARG_ENABLE([gcc-warnings],
 AC_ARG_ENABLE([gcc-hardening],
      AS_HELP_STRING([--enable-gcc-hardening, enable compiler security checks]),
 [if test "$enableval" = "yes"; then
-    CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=2 -fstack-protector-all"
+    CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=3 -fstack-protector-all"
     CFLAGS="$CFLAGS -fwrapv -fPIE -Wstack-protector"
     CFLAGS="$CFLAGS --param ssp-buffer-size=1"
 fi])
