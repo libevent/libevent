@@ -13,16 +13,18 @@
 
 # 1. BUILDING AND INSTALLATION
 
-## Autoconf
-
-```
-$ ./configure
-$ make
-$ make verify   # (optional)
-$ sudo make install
-```
-
 See [Documentation/Building#Autoconf](/Documentation/Building.md#autoconf) for more information
+
+## CMake (Unix)
+
+```
+$ mkdir build && cd build
+$ cmake ..     # Default to Unix Makefiles.
+$ make
+$ make verify  # (optional)
+```
+
+See [Documentation/Building#Building on Unix (With CMake)](/Documentation/Building.md#building-on-unix-cmake) for more information
 
 ## CMake (Windows)
 
@@ -36,17 +38,6 @@ $ cmake --build . --config Release # Or "start libevent.sln" and build with menu
 
 See [Documentation/Building#Building on Windows](/Documentation/Building.md#building-on-windows) for more information
 
-## CMake (Unix)
-
-```
-$ mkdir build && cd build
-$ cmake ..     # Default to Unix Makefiles.
-$ make
-$ make verify  # (optional)
-```
-
-See [Documentation/Building#Building on Unix (With CMake)](/Documentation/Building.md#building-on-unix-cmake) for more information
-
 ## Package Managers
 
 You can download and install libevent using the [vcpkg](https://github.com/Microsoft/vcpkg) dependency manager:
@@ -58,6 +49,17 @@ You can download and install libevent using the [vcpkg](https://github.com/Micro
     ./vcpkg install libevent
 
 The libevent port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
+
+## Autoconf
+
+*Note, since 2.2 it is deprecated*
+
+```
+$ ./configure
+$ make
+$ make verify   # (optional)
+$ sudo make install
+```
 
 # 2. USEFUL LINKS:
 
