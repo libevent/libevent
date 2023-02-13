@@ -341,7 +341,7 @@ if (${GNUC})
              -Wstack-protector
              "--param ssp-buffer-size=1")
 
-        add_definitions(-D_FORTIFY_SOURCE=2)
+        add_definitions(-D_FORTIFY_SOURCE=3)
     endif()
 
     if (EVENT__ENABLE_GCC_FUNCTION_SECTIONS)
