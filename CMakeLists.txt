@@ -955,6 +955,20 @@ if (NOT EVENT__DISABLE_OPENSSL)
 endif()
 
 if (NOT EVENT__DISABLE_MBEDTLS)
+    # only if MBEDTLS_ROOT_DIR is not set yet
+    if (BREW AND NOT MBEDTLS_ROOT_DIR AND NOT "$ENV{MBEDTLS_ROOT_DIR}")
+        execute_process(COMMAND ${BREW} --prefix mbedtls
+            OUTPUT_VARIABLE BREW_MBEDTLS_PREFIX
+            RESULT_VARIABLE BREW_MBEDTLS_RESULT
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        if (BREW_MBEDTLS_RESULT EQUAL 0)
+            message(STATUS "Set MBEDTLS_ROOT_DIR=${BREW_MBEDTLS_PREFIX} (from brew)")
+            set(MBEDTLS_ROOT_DIR "${BREW_MBEDTLS_PREFIX}" CACHE PATH "")
+        endif()
+    endif()
+
     find_package(MbedTLS REQUIRED)
 
     set(EVENT__HAVE_MBEDTLS 1)
