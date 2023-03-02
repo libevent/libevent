@@ -3555,7 +3555,6 @@ evhttp_parse_query_impl(const char *str, struct evkeyvalq *headers,
     int is_whole_uri, unsigned flags)
 {
 	char *line=NULL;
-	char *argument;
 	char *p;
 	const char *query_part;
 	int result = -1;
@@ -3583,13 +3582,12 @@ evhttp_parse_query_impl(const char *str, struct evkeyvalq *headers,
 		goto error;
 	}
 
-	p = argument = line;
+	p = line;
 	while (p != NULL && *p != '\0') {
 		char *key, *value, *decoded_value;
 		int err;
-		argument = strsep(&p, "&");
 
-		value = argument;
+		value = strsep(&p, "&");
 		key = strsep(&value, "=");
 		if (flags & EVHTTP_URI_QUERY_NONCONFORMANT) {
 			if (value == NULL)
