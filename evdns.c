@@ -1265,6 +1265,8 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 	struct request *req = NULL;
 	unsigned int i, buf_size;
 
+	memset(&reply, 0, sizeof(reply));
+
 	ASSERT_LOCKED(base);
 
 	GET16(trans_id);
@@ -1279,8 +1281,6 @@ reply_parse(struct evdns_base *base, u8 *packet, int length)
 	req = request_find_from_trans_id(base, trans_id);
 	if (!req) return -1;
 	EVUTIL_ASSERT(req->base == base);
-
-	memset(&reply, 0, sizeof(reply));
 
 	/* If it's not an answer, it doesn't correspond to any request. */
 	if (!(flags & _QR_MASK)) return -1;  /* must be an answer */
