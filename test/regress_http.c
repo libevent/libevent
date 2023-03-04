@@ -4318,6 +4318,10 @@ https_bind_ssl_bevcb(struct evhttp *http, ev_uint16_t port, ev_uint16_t *pport, 
 	int _port;
 	struct evhttp_bound_socket *sock = NULL;
 	sock = evhttp_bind_socket_with_handle(http, "127.0.0.1", port);
+	if (!sock) {
+		event_errx(1, "Couldn't open web port");
+		return -1;
+	}
 
 #ifdef EVENT__HAVE_OPENSSL
 	if (mask & HTTP_OPENSSL) {
