@@ -202,6 +202,8 @@ on_html(struct evhttp_request *req, void *arg)
 
 err:
 	evhttp_send_error(req, HTTP_NOTFOUND, NULL);
+	if (fd >= 0)
+		close(fd);
 }
 
 #ifndef EVENT__HAVE_STRSIGNAL
