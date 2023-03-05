@@ -878,7 +878,6 @@ int evutil_secure_rng_init(void);
 EVENT2_EXPORT_SYMBOL
 int evutil_secure_rng_set_urandom_device_file(char *fname);
 
-#if !defined(EVENT__HAVE_ARC4RANDOM) || defined(EVENT__HAVE_ARC4RANDOM_ADDRANDOM)
 /** Seed the random number generator with extra random bytes.
 
     You should almost never need to call this function; it should be
@@ -890,12 +889,14 @@ int evutil_secure_rng_set_urandom_device_file(char *fname);
     contains a fairly large amount of strong entropy.  Doing so is
     notoriously hard: most people who try get it wrong.  Watch out!
 
+    This function does nothing when the system provides arc4random()
+    function because it will provide proper entropy.
+
     @param dat a buffer full of a strong source of random numbers
     @param datlen the number of bytes to read from datlen
  */
 EVENT2_EXPORT_SYMBOL
 void evutil_secure_rng_add_bytes(const char *dat, size_t datlen);
-#endif
 
 #ifdef __cplusplus
 }
