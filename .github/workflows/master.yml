@@ -6,8 +6,13 @@ on:
     branches:
       - master
 
+permissions: read-all
+
 jobs:
   coverage-job:
+    permissions:
+      checks: write  # for coverallsapp/github-action to create new checks
+      contents: read  # for actions/checkout to fetch code
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2.0.0
@@ -49,6 +54,8 @@ jobs:
           name: coverage-build
           path: build
   abi-job:
+    permissions:
+      contents: write # for Git to git push
     runs-on: ubuntu-18.04
     ## TODO: use docker image, but for now this is not possible without hacks
     ## due to even public registry require some authentication:
@@ -112,6 +119,8 @@ jobs:
           path: /tmp/le-abi-root/work/abi-check
 
   doxygen-job:
+    permissions:
+      contents: write  # for Git to git push
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
