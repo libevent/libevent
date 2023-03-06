@@ -11,6 +11,7 @@ on:
   push:
     branches:
       - master
+permisisons: read-all
 jobs:
   Fuzzing:
     runs-on: ubuntu-latest

@@ -25,6 +25,8 @@ on:
       - 'whatsnew*'
       - 'LICENSE'
 
+permissions: read-all
+
 jobs:
   linux-cmake-job:
     runs-on: ${{ matrix.os }}
