@@ -339,15 +339,17 @@ do_write(struct bufferevent_ssl *bev_ssl, int atmost)
 
 	if (n > 8)
 		n = 8;
-	for (i=0; i < n; ++i) {
+	for (i=0; i < n;) {
 		if (bev_ssl->bev.write_suspended)
 			break;
 
 		/* SSL_write will (reasonably) return 0 if we tell it to
 		   send 0 data.  Skip this case so we don't interpret the
 		   result as an error */
-		if (space[i].iov_len == 0)
+		if (space[i].iov_len == 0) {
+			++i;
 			continue;
+		}
 
 		bev_ssl->ssl_ops->clear_error();
 		r = bev_ssl->ssl_ops->write(bev_ssl->ssl, space[i].iov_base,
@@ -360,6 +362,10 @@ do_write(struct bufferevent_ssl *bev_ssl, int atmost)
 			n_written += r;
 			bev_ssl->last_write = -1;
 			bev_ssl->ssl_ops->decrement_buckets(bev_ssl);
+			space[i].iov_base = (unsigned char *)space[i].iov_base + r;
+			space[i].iov_len -= r;
+			if (space[i].iov_len == 0)
+				++i;
 		} else {
 			int err = bev_ssl->ssl_ops->get_error(bev_ssl->ssl, r);
 			bev_ssl->ssl_ops->print_err(err);
