@@ -582,7 +582,7 @@ evhttp_maybe_add_content_length_header(struct evkeyvalq *headers,
     size_t content_length)
 {
 	if (evhttp_find_header(headers, "Transfer-Encoding") == NULL &&
-	    evhttp_find_header(headers,	"Content-Length") == NULL) {
+	    evhttp_find_header(headers, "Content-Length") == NULL) {
 		char len[22];
 		evutil_snprintf(len, sizeof(len), EV_SIZE_FMT,
 		    EV_SIZE_ARG(content_length));
