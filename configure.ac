@@ -776,6 +776,9 @@ if test "$enable_gcc_warnings" != "no" && test "$GCC" = "yes"; then
    dnl Disable unknown pragmas warnings.
    AX_CHECK_COMPILE_FLAG([-Wno-pragmas], [CFLAGS="$CFLAGS -Wno-pragmas"],[],[-Werror])
 
+   dnl Disable Variable Lenght Array
+   AX_CHECK_COMPILE_FLAG([-Wvla], [CFLAGS="$CFLAGS -Wvla"],[],[-Werror])
+
   if test "$have_clang" = "yes"; then
     case "$host_os" in
       darwin*)
