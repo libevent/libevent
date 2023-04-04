@@ -321,6 +321,8 @@ if (${GNUC})
          -Wno-unused-function
 
          -Wno-pragmas
+
+         -Wvla
     )
 
     if (${CLANG})

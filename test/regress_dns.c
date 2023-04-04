@@ -2509,16 +2509,11 @@ getaddrinfo_race_gotresolve_test(void *arg)
 	struct evdns_server_port *dns_port = NULL;
 	ev_uint16_t portnum = 0;
 	char buf[64];
-	int i;
+	size_t i;
 
 	// Some stress is needed to yield inside getaddrinfo between resolve_ipv4 and resolve_ipv6
-	int n_reqs = 16384;
-#ifdef _SC_NPROCESSORS_ONLN
-	int n_threads = sysconf(_SC_NPROCESSORS_ONLN) + 1;
-#else
-	int n_threads = 17;
-#endif
-	THREAD_T thread[n_threads];
+	size_t n_reqs = 16384;
+	THREAD_T threads[32];
 	struct timeval tv;
 
 	(void)arg;
@@ -2551,11 +2546,11 @@ getaddrinfo_race_gotresolve_test(void *arg)
 	rp.stopping = 0;
 
 	// Run resolver thread
-	THREAD_START(thread[0], race_base_run, &rp);
+	THREAD_START(threads[0], race_base_run, &rp);
 	// Run busy-wait threads used to force yield this thread
-	for (i = 1; i < n_threads; i++) {
+	for (i = 1; i < ARRAY_SIZE(threads); i++) {
 		rp.bw_threads++;
-		THREAD_START(thread[i], race_busywait_run, &rp);
+		THREAD_START(threads[i], race_busywait_run, &rp);
 	}
 
 	EVLOCK_LOCK(rp.lock, 0);
