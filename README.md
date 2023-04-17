@@ -15,23 +15,23 @@
 
 ## CMake (Unix)
 
-```
-$ mkdir build && cd build
-$ cmake ..     # Default to Unix Makefiles.
-$ make
-$ make verify  # (optional)
+```sh
+mkdir build && cd build
+cmake ..     # Default to Unix Makefiles.
+make
+make verify  # (optional)
 ```
 
-See [Documentation/Building#Building on Unix (With CMake)](/Documentation/Building.md#building-on-unix-cmake) for more information.
+See [Documentation/Building#Building on Unix using CMake](/Documentation/Building.md#building-on-unix-cmake) for more information.
 
 ## CMake (Windows)
 
 Install CMake: <https://www.cmake.org>
 
-```
-$ md build && cd build
-$ cmake -G "Visual Studio 10" ..   # Or use any generator you want to use. Run cmake --help for a list
-$ cmake --build . --config Release # Or "start libevent.sln" and build with menu in Visual Studio.
+```sh
+md build && cd build
+cmake -G "Visual Studio 10" ..   # Or use any generator you want to use. Run cmake --help for a list
+cmake --build . --config Release # Or "start libevent.sln" and build with menu in Visual Studio.
 ```
 
 See [Documentation/Building#Building on Windows](/Documentation/Building.md#building-on-windows) for more information.
@@ -39,12 +39,13 @@ See [Documentation/Building#Building on Windows](/Documentation/Building.md#buil
 ## Package Managers
 
 You can download and install libevent using the [vcpkg](https://github.com/Microsoft/vcpkg) dependency manager:
-
-    git clone https://github.com/Microsoft/vcpkg.git
-    cd vcpkg
-    ./bootstrap-vcpkg.sh
-    ./vcpkg integrate install
-    ./vcpkg install libevent
+```sh
+git clone https://github.com/Microsoft/vcpkg.git
+cd vcpkg
+./bootstrap-vcpkg.sh
+./vcpkg integrate install
+./vcpkg install libevent
+```
 
 The libevent port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
 
@@ -52,11 +53,11 @@ The libevent port in vcpkg is kept up to date by Microsoft team members and comm
 
 *Note, since 2.2 it is deprecated*
 
-```
-$ ./configure
-$ make
-$ make verify   # (optional)
-$ sudo make install
+```sh
+./configure
+make
+make verify   # (optional)
+sudo make install
 ```
 
 See [Documentation/Building#Autoconf](/Documentation/Building.md#autoconf) for more information.
@@ -72,7 +73,7 @@ There's a pretty good work-in-progress manual up at
 For the latest development versions of Libevent, access our Git repository
 via
 
-```
+```sh
 $ git clone https://github.com/libevent/libevent.git
 ```
 
@@ -92,7 +93,7 @@ __Bugs, Features [RFC], and Issues__: https://github.com/libevent/libevent/issue
 There's also a libevent-users mailing list for talking about Libevent
 use and development: 
 
-<http://archives.seul.org/libevent/users/>
+<https://archives.seul.org/libevent/users/>
 
 # 3. ACKNOWLEDGMENTS
 

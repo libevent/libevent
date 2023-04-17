@@ -3,36 +3,37 @@
 ### Jump to:
 
 - [Prerequisites](#Prerequisites)
-- [Autoconf](#autoconf)
-  - [Flags](#autoconf-flags)
+- [Building on Unix using CMake](#building-on-unix-cmake)
+- [Autotools (deprecated)](#autotools-deprecated)
+  - [Flags](#autotools-flags)
 - [Building on Windows](#building-on-windows)
-- [Building on Unix (With CMake)](#building-on-unix-cmake)
 - [CMake Variables](#cmake-variables)
 
 ## Prerequisites
 
 ### Linux deb-like (ubuntu/debian/...)
 
-Just install tools using your preferred package manager if you build using autotools:
-
-```sh
-sudo apt-get install automake autoconf libtool pkg-config
-```
-
-or build using cmake:
+Install build tools using your preferred package manager. For CMake:
 
 ```sh
 sudo apt-get install cmake
 ```
 
-Doxygen is a tool for generating documentation. Git is used to fetch the package version.
+or using Autotools (deprecated):
+
+```sh
+sudo apt-get install automake autoconf libtool pkg-config
+```
+
+Doxygen is used for generating documentation.
+Git is used to fetch the package version.
 Install them if needed:
 
-```
+```sh
 sudo apt-get install doxygen git
 ```
 
-libevent has encryption layer, you need openssl or mbedTLS for it, you can
+libevent has encryption layer, you need OpenSSL or MbedTLS for it, you can
 install one of this using:
 
 ```sh
@@ -47,7 +48,10 @@ To run the tests, you should install zlib:
 sudo apt-get install zlib1g-dev
 ```
 
-Finally, python interpreter should be installed if you want to run regression tests.
+Finally, a python interpreter should be installed if you want to run regression tests:
+```sh
+sudo apt-get install python3
+```
 
 ### MacOS
 
@@ -82,11 +86,19 @@ or add `OPENSSL_ROOT_DIR` definition to the cmake command:
 cmake -DOPENSSL_ROOT_DIR=C:/path/to/OpenSSL ...
 ```
 
-## Autoconf
-
+## Building on Unix (CMake)
+```sh
+mkdir build && cd build
+cmake .. # Default to Unix Makefiles
+make
+make verify # Optional
 ```
-$ ./configure
-$ make
+
+## Autotools (deprecated)
+
+```sh
+./configure
+make
 ```
 
 **Note: If you had downloaded libevent from the Git repository, then you have to run `./autogen.sh` first!**
@@ -107,7 +119,7 @@ To enable low-level tracing, build the library as:
 $ CFLAGS=-DUSE_DEBUG ./configure [...]
 ```
 
-### Autoconf flags
+### Autotools flags
 
 Standard configure flags should work. In particular, see:
 ```
@@ -140,15 +152,6 @@ It is highly recommended to build "out of source" when using CMake instead of "i
 The "NMake Makefiles" CMake generator can be used to build entirely via the command line:
 ```
 > cmake -LH ..
-```
-
-## Building on Unix (CMake)
-__Install Cmake with your distribution's package manager `apt-get`/`dnf`/etc__
-```
-$ mkdir build && cd build
-$ cmake .. # Default to Unix Makefiles
-$ make
-$ make verify # Optional
 ```
 
 ## CMake Variables
