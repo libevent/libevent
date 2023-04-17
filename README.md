@@ -13,8 +13,6 @@
 
 # 1. BUILDING AND INSTALLATION
 
-See [Documentation/Building#Autoconf](/Documentation/Building.md#autoconf) for more information
-
 ## CMake (Unix)
 
 ```
@@ -24,7 +22,7 @@ $ make
 $ make verify  # (optional)
 ```
 
-See [Documentation/Building#Building on Unix (With CMake)](/Documentation/Building.md#building-on-unix-cmake) for more information
+See [Documentation/Building#Building on Unix (With CMake)](/Documentation/Building.md#building-on-unix-cmake) for more information.
 
 ## CMake (Windows)
 
@@ -36,7 +34,7 @@ $ cmake -G "Visual Studio 10" ..   # Or use any generator you want to use. Run c
 $ cmake --build . --config Release # Or "start libevent.sln" and build with menu in Visual Studio.
 ```
 
-See [Documentation/Building#Building on Windows](/Documentation/Building.md#building-on-windows) for more information
+See [Documentation/Building#Building on Windows](/Documentation/Building.md#building-on-windows) for more information.
 
 ## Package Managers
 
@@ -60,6 +58,8 @@ $ make
 $ make verify   # (optional)
 $ sudo make install
 ```
+
+See [Documentation/Building#Autoconf](/Documentation/Building.md#autoconf) for more information.
 
 # 2. USEFUL LINKS:
 
