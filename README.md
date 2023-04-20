@@ -26,7 +26,7 @@ See [Documentation/Building#Building on Unix using CMake](/Documentation/Buildin
 
 ## CMake (Windows)
 
-Install CMake: <https://www.cmake.org>
+Install CMake: <https://cmake.org/>
 
 ```sh
 md build && cd build
@@ -60,12 +60,12 @@ make verify   # (optional)
 sudo make install
 ```
 
-See [Documentation/Building#Autoconf](/Documentation/Building.md#autoconf) for more information.
+See [Documentation/Building#Autoconf](/Documentation/Building.md#autotools-deprecated) for more information.
 
 # 2. USEFUL LINKS:
 
 For the latest released version of Libevent, see the official website at
-<http://libevent.org/> .
+<https://libevent.org/> .
 
 There's a pretty good work-in-progress manual up at
    <http://www.wangafu.net/~nickm/libevent-book/> .
