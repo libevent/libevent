@@ -13,7 +13,7 @@ jobs:
     permissions:
       checks: write  # for coverallsapp/github-action to create new checks
       contents: read  # for actions/checkout to fetch code
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2.0.0
       - name: Cache
@@ -56,7 +56,7 @@ jobs:
   abi-job:
     permissions:
       contents: write # for Git to git push
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     ## TODO: use docker image, but for now this is not possible without hacks
     ## due to even public registry require some authentication:
     ## - https://github.community/t5/GitHub-Actions/docker-pull-from-public-GitHub-Package-Registry-fail-with-quot/td-p/32782/page/5
@@ -121,7 +121,7 @@ jobs:
   doxygen-job:
     permissions:
       contents: write  # for Git to git push
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
 
