@@ -824,7 +824,7 @@ jobs:
           # 6.9 has some issues with autoconf/autotools [1].
           #   [1]: https://github.com/libevent/libevent/pull/1326#issuecomment-1229531718
           #"6.9",
-          "7.1",
+          "7.2",
         ]
         EVENT_MATRIX:
           - NONE
@@ -922,7 +922,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        release: ["7.1"]
+        release: ["7.2"]
 
     steps:
       - uses: actions/checkout@v3
@@ -939,7 +939,7 @@ jobs:
         with:
           release: ${{ matrix.release }}
           prepare: |
-            pkg_add  mbedtls  python3 automake-1.16.3  autoconf-2.71  libtool pkgconf
+            pkg_add  mbedtls  python3 automake-1.16.5  autoconf-2.71  libtool pkgconf
           usesh: true
           run: |
             export AUTOMAKE_VERSION=1.16
