@@ -15,9 +15,9 @@ jobs:
       contents: read  # for actions/checkout to fetch code
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
       - name: Cache
-        uses: actions/cache@v1.0.3
+        uses: actions/cache@v3
         with:
           path: build
           key: ${{ matrix.os }}-coverage-v2
@@ -43,7 +43,7 @@ jobs:
             make verify_coverage
 
       - name: Coveralls GitHub Action
-        uses: coverallsapp/github-action@v1.0.1
+        uses: coverallsapp/github-action@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: ./build/coverage.info.cleaned
@@ -65,7 +65,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
 
       - name: Install Dependencies
         run:
@@ -126,7 +126,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v2.0.0
+      - uses: actions/checkout@v3
       - name: Install Depends
         run: |
           sudo apt install doxygen libmbedtls-dev
