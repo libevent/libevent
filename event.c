@@ -475,7 +475,7 @@ update_time_cache(struct event_base *base)
 {
 	base->tv_cache.tv_sec = 0;
 	if (!(base->flags & EVENT_BASE_FLAG_NO_CACHE_TIME))
-	    gettime(base, &base->tv_cache);
+		gettime(base, &base->tv_cache);
 }
 
 int
@@ -1111,15 +1111,15 @@ done:
 int
 event_gettime_monotonic(struct event_base *base, struct timeval *tv)
 {
-  int rv = -1;
+	int rv = -1;
 
-  if (base && tv) {
-    EVBASE_ACQUIRE_LOCK(base, th_base_lock);
-    rv = evutil_gettime_monotonic_(&(base->monotonic_timer), tv);
-    EVBASE_RELEASE_LOCK(base, th_base_lock);
-  }
+	if (base && tv) {
+		EVBASE_ACQUIRE_LOCK(base, th_base_lock);
+		rv = evutil_gettime_monotonic_(&(base->monotonic_timer), tv);
+		EVBASE_RELEASE_LOCK(base, th_base_lock);
+	}
 
-  return rv;
+	return rv;
 }
 
 const char **
@@ -1599,10 +1599,10 @@ event_persist_closure(struct event_base *base, struct event *ev)
 {
 	void (*evcb_callback)(evutil_socket_t, short, void *);
 
-        // Other fields of *ev that must be stored before executing
-        evutil_socket_t evcb_fd;
-        short evcb_res;
-        void *evcb_arg;
+	// Other fields of *ev that must be stored before executing
+	evutil_socket_t evcb_fd;
+	short evcb_res;
+	void *evcb_arg;
 
 	/* reschedule the persistent event if we have a timeout. */
 	if (ev->ev_io_timeout.tv_sec || ev->ev_io_timeout.tv_usec) {
@@ -1648,15 +1648,15 @@ event_persist_closure(struct event_base *base, struct event *ev)
 
 	// Save our callback before we release the lock
 	evcb_callback = ev->ev_callback;
-        evcb_fd = ev->ev_fd;
-        evcb_res = ev->ev_res;
-        evcb_arg = ev->ev_arg;
+	evcb_fd = ev->ev_fd;
+	evcb_res = ev->ev_res;
+	evcb_arg = ev->ev_arg;
 
 	// Release the lock
  	EVBASE_RELEASE_LOCK(base, th_base_lock);
 
 	// Execute the callback
-        (evcb_callback)(evcb_fd, evcb_res, evcb_arg);
+	(evcb_callback)(evcb_fd, evcb_res, evcb_arg);
 }
 
 /*
