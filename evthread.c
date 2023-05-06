@@ -95,7 +95,7 @@ evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 	struct evthread_lock_callbacks *target = evthread_get_lock_callbacks();
 
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	if (event_debug_mode_on_) {
+	if (ATOMIC_LOAD(event_debug_mode_on_)) {
 		if (event_debug_created_threadable_ctx_) {
 		    event_errx(1, "evthread initialization must be called BEFORE anything else!");
 		}
@@ -138,7 +138,7 @@ evthread_set_condition_callbacks(const struct evthread_condition_callbacks *cbs)
 	struct evthread_condition_callbacks *target = evthread_get_condition_callbacks();
 
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	if (event_debug_mode_on_) {
+	if (ATOMIC_LOAD(event_debug_mode_on_)) {
 		if (event_debug_created_threadable_ctx_) {
 		    event_errx(1, "evthread initialization must be called BEFORE anything else!");
 		}
@@ -429,7 +429,7 @@ void *
 evthreadimpl_lock_alloc_(unsigned locktype)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	if (event_debug_mode_on_) {
+	if (ATOMIC_LOAD(event_debug_mode_on_)) {
 		event_debug_created_threadable_ctx_ = 1;
 	}
 #endif
@@ -463,7 +463,7 @@ void *
 evthreadimpl_cond_alloc_(unsigned condtype)
 {
 #ifndef EVENT__DISABLE_DEBUG_MODE
-	if (event_debug_mode_on_) {
+	if (ATOMIC_LOAD(event_debug_mode_on_)) {
 		event_debug_created_threadable_ctx_ = 1;
 	}
 #endif
