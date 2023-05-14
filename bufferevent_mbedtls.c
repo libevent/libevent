@@ -121,8 +121,9 @@ mbedtls_set_ssl_noops(void *ssl)
 {
 }
 static int
-mbedtls_is_ok(int err)
+mbedtls_handshake_is_ok(int err)
 {
+	/* What mbedtls_ssl_handshake() return on success */
 	return err == 0;
 }
 static int
@@ -320,7 +321,7 @@ static struct le_ssl_ops le_mbedtls_ops = {
 	mbedtls_clear,
 	mbedtls_set_ssl_noops,
 	mbedtls_set_ssl_noops,
-	mbedtls_is_ok,
+	mbedtls_handshake_is_ok,
 	mbedtls_is_want_read,
 	mbedtls_is_want_write,
 	be_mbedtls_get_fd,

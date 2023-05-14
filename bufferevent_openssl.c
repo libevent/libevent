@@ -339,8 +339,9 @@ SSL_context_free(void *ssl, int flags)
 }
 
 static int
-SSL_is_ok(int err)
+SSL_handshake_is_ok(int err)
 {
+	/* What SSL_do_handshake() return on success */
 	return err == 1;
 }
 
@@ -413,7 +414,7 @@ static struct le_ssl_ops le_openssl_ops = {
 	(int (*)(void *))SSL_clear,
 	(void (*)(void *))SSL_set_connect_state,
 	(void (*)(void *))SSL_set_accept_state,
-	SSL_is_ok,
+	SSL_handshake_is_ok,
 	SSL_is_want_read,
 	SSL_is_want_write,
 	(int (*)(void *))be_openssl_get_fd,

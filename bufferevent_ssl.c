@@ -706,7 +706,7 @@ do_handshake(struct bufferevent_ssl *bev_ssl)
 	}
 	bev_ssl->ssl_ops->decrement_buckets(bev_ssl);
 
-	if (bev_ssl->ssl_ops->err_is_ok(r)) {
+	if (bev_ssl->ssl_ops->handshake_is_ok(r)) {
 		evutil_socket_t fd = event_get_fd(&bev_ssl->bev.bev.ev_read);
 		/* We're done! */
 		bev_ssl->state = BUFFEREVENT_SSL_OPEN;
