@@ -965,7 +965,8 @@ http_custom_cb(struct evhttp_request *req, void *arg)
 	int empty = evhttp_find_header(evhttp_request_get_input_headers(req), "Empty") != NULL;
 
 	/* Expecting a CUSTOM request */
-	if (evhttp_request_get_command(req) != EVHTTP_REQ_CUSTOM) {
+	uint32_t command = evhttp_request_get_command(req);
+	if (command != EVHTTP_REQ_CUSTOM) {
 		fprintf(stdout, "FAILED (custom type)\n");
 		exit(1);
 	}
