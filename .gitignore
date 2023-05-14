@@ -165,7 +165,7 @@ rules.ninja
 # make dist
 /COPYING
 /INSTALL
-/*.tar.gz
+*.tar.gz
 
 /.vagrant
 
