@@ -121,8 +121,9 @@ mbedtls_set_ssl_noops(void *ssl)
 {
 }
 static int
-mbedtls_is_ok(int err)
+mbedtls_handshake_is_ok(int err)
 {
+	/* What mbedtls_ssl_handshake() return on success */
 	return err == 0;
 }
 static int
@@ -134,6 +135,11 @@ static int
 mbedtls_is_want_write(int err)
 {
 	return err == MBEDTLS_ERR_SSL_WANT_WRITE;
+}
+static int mbedtls_err_is_ok(int err)
+{
+	/* What mbedtls_ssl_read() returns when the we can proceed existing data */
+	return err == 0;
 }
 
 static evutil_socket_t
@@ -320,9 +326,10 @@ static struct le_ssl_ops le_mbedtls_ops = {
 	mbedtls_clear,
 	mbedtls_set_ssl_noops,
 	mbedtls_set_ssl_noops,
-	mbedtls_is_ok,
+	mbedtls_handshake_is_ok,
 	mbedtls_is_want_read,
 	mbedtls_is_want_write,
+	mbedtls_err_is_ok,
 	be_mbedtls_get_fd,
 	be_mbedtls_bio_set_fd,
 	(void (*)(struct bufferevent_ssl *))mbedtls_set_ssl_noops,

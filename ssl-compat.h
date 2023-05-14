@@ -20,9 +20,10 @@ struct le_ssl_ops {
 	int (*clear)(void *ssl);
 	void (*set_connect_state)(void *ssl);
 	void (*set_accept_state)(void *ssl);
-	int (*err_is_ok)(int err);
+	int (*handshake_is_ok)(int err);
 	int (*err_is_want_read)(int err);
 	int (*err_is_want_write)(int err);
+	int (*err_is_ok)(int err);
 	evutil_socket_t (*get_fd)(void *ssl);
 	int (*bio_set_fd)(struct bufferevent_ssl *ssl, evutil_socket_t fd);
 	void (*init_bio_counts)(struct bufferevent_ssl *bev);
