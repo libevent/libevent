@@ -48,6 +48,9 @@
 #include <netdb.h>
 #endif
 #include <string.h>
+#ifdef EVENT__HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
 
 #include "event2/event.h"
 #include "event2/http.h"
