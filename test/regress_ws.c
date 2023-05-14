@@ -58,10 +58,12 @@
 #include "regress_http.h"
 #include "regress_ws.h"
 
+#undef htonll
 #define htonll(x)    \
 	((1 == htonl(1)) \
 			? (x)    \
 			: ((uint64_t)htonl((x)&0xFFFFFFFF) << 32) | htonl((x) >> 32))
+#undef ntohll
 #define ntohll(x) htonll(x)
 
 
