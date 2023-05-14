@@ -172,20 +172,21 @@ if (NOT DEFINED CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 endif()
 
+include(GNUInstallDirs)
+
 # The RPATH to be used when installing, but only if it's not a system directory
 #
 # Refs: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
 macro(Configure_RPATH)
-    # NOTE: that CMAKE_INSTALL_PREFIX not always normalized correctly, i.e.:
+    # NOTE: that CMAKE_INSTALL_LIBDIR not always normalized correctly, i.e.:
     # - "///" -> "/"
     # - "/////usr///" -> "//usr"
     # So it should be normalized again.
-
-    get_filename_component(CMAKE_INSTALL_PREFIX_NORMALIZED "${CMAKE_INSTALL_PREFIX}" REALPATH)
-    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX_NORMALIZED}/lib" isSystemDir)
+    get_filename_component(CMAKE_INSTALL_LIBDIR_NORMALIZED "${CMAKE_INSTALL_PREFIX}" REALPATH)
+    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_LIBDIR_NORMALIZED}/lib" isSystemDir)
 
     if("${isSystemDir}" STREQUAL "-1")
-        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX_NORMALIZED}/lib")
+        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR_NORMALIZED}")
     endif()
 endmacro()
 Configure_RPATH()
@@ -1622,22 +1623,13 @@ endif()
 #
 
 set(EVENT_INSTALL_CMAKE_DIR
-    "${CMAKE_INSTALL_PREFIX}/lib/cmake/libevent")
+    "${CMAKE_INSTALL_LIBDIR}/cmake/libevent")
 
 export(PACKAGE libevent)
 
-function(gen_package_config forinstall)
-    if(${forinstall})
-        set(CONFIG_FOR_INSTALL_TREE 1)
-        set(dir "${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}")
-    else()
-        set(CONFIG_FOR_INSTALL_TREE 0)
-        set(dir "${PROJECT_BINARY_DIR}")
-    endif()
-    configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
-                "${dir}/LibeventConfig.cmake"
-                @ONLY)
-endfunction()
+configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfig.cmake.in
+    "${PROJECT_BINARY_DIR}/LibeventConfig.cmake"
+    @ONLY)
 
 # Generate the config file for the build-tree.
 set(EVENT__INCLUDE_DIRS
@@ -1647,11 +1639,6 @@ set(EVENT__INCLUDE_DIRS
 set(LIBEVENT_INCLUDE_DIRS
     ${EVENT__INCLUDE_DIRS}
     CACHE PATH "Libevent include directories")
-
-gen_package_config(0)
-
-# Generate the config file for the installation tree.
-gen_package_config(1)
 
 # Generate version info for both build-tree and install-tree.
 configure_file(${PROJECT_SOURCE_DIR}/cmake/LibeventConfigVersion.cmake.in
@@ -1670,7 +1657,7 @@ install(FILES ${HDR_PUBLIC}
 
 # Install the configs.
 install(FILES
-        ${PROJECT_BINARY_DIR}/${CMAKE_FILES_DIRECTORY}/LibeventConfig.cmake
+        ${PROJECT_BINARY_DIR}/LibeventConfig.cmake
         ${PROJECT_BINARY_DIR}/LibeventConfigVersion.cmake
         DESTINATION "${EVENT_INSTALL_CMAKE_DIR}"
         COMPONENT dev)
