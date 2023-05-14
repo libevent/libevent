@@ -284,7 +284,10 @@ do_read(struct bufferevent_ssl *bev_ssl, int n_to_read) {
 		} else {
 			int err = bev_ssl->ssl_ops->get_error(bev_ssl->ssl, r);
 			bev_ssl->ssl_ops->print_err(err);
-			if (bev_ssl->ssl_ops->err_is_want_read(err)) {
+			if (bev_ssl->ssl_ops->err_is_ok(err) && result & OP_MADE_PROGRESS) {
+				/* Process existing data */
+				break;
+			} else if (bev_ssl->ssl_ops->err_is_want_read(err)) {
 				/* Can't read until underlying has more data. */
 				if (bev_ssl->read_blocked_on_write)
 					if (clear_rbow(bev_ssl) < 0)
