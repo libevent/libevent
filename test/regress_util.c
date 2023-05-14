@@ -1335,7 +1335,7 @@ test_event_calloc_enomem(void *arg)
 #elif defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
-	tt_assert(p == NULL);
+	tt_ptr_op(p, ==, NULL);
 	tt_int_op(errno, ==, ENOMEM);
 
  end:
