@@ -253,9 +253,10 @@ do_read(struct bufferevent_ssl *bev_ssl, int n_to_read) {
 	/* Requires lock */
 	struct bufferevent *bev = &bev_ssl->bev.bev;
 	struct evbuffer *input = bev->input;
-	int r, n, i, n_used = 0, atmost;
+	int r, n, i = 0, atmost;
 	struct evbuffer_iovec space[2];
 	int result = 0;
+	size_t len = 0;
 
 	if (bev_ssl->bev.read_suspended)
 		return 0;
@@ -268,23 +269,30 @@ do_read(struct bufferevent_ssl *bev_ssl, int n_to_read) {
 	if (n < 0)
 		return OP_ERR;
 
-	for (i=0; i<n; ++i) {
+	for (i = 0; i < n;) {
 		if (bev_ssl->bev.read_suspended)
 			break;
 		bev_ssl->ssl_ops->clear_error();
-		r = bev_ssl->ssl_ops->read(bev_ssl->ssl, space[i].iov_base, space[i].iov_len);
-		if (r>0) {
+		r = bev_ssl->ssl_ops->read(
+			bev_ssl->ssl, (unsigned char *)space[i].iov_base + len, space[i].iov_len - len);
+		if (r > 0) {
 			result |= OP_MADE_PROGRESS;
 			if (bev_ssl->read_blocked_on_write)
 				if (clear_rbow(bev_ssl) < 0)
 					return OP_ERR | result;
-			++n_used;
-			space[i].iov_len = r;
 			bev_ssl->ssl_ops->decrement_buckets(bev_ssl);
+			len += r;
+			if (space[i].iov_len - len > 0) {
+				continue;
+			} else {
+				space[i].iov_len = len;
+				len = 0;
+				++i;
+			}
 		} else {
 			int err = bev_ssl->ssl_ops->get_error(bev_ssl->ssl, r);
 			bev_ssl->ssl_ops->print_err(err);
-			if (bev_ssl->ssl_ops->err_is_ok(err) && result & OP_MADE_PROGRESS) {
+			if (result & OP_MADE_PROGRESS) {
 				/* Process existing data */
 				break;
 			} else if (bev_ssl->ssl_ops->err_is_want_read(err)) {
@@ -292,7 +300,7 @@ do_read(struct bufferevent_ssl *bev_ssl, int n_to_read) {
 				if (bev_ssl->read_blocked_on_write)
 					if (clear_rbow(bev_ssl) < 0)
 						return OP_ERR | result;
-			} else if(bev_ssl->ssl_ops->err_is_want_write(err)) {
+			} else if (bev_ssl->ssl_ops->err_is_want_write(err)) {
 				/* This read operation requires a write, and the
 				 * underlying is full */
 				if (!bev_ssl->read_blocked_on_write)
@@ -306,8 +314,13 @@ do_read(struct bufferevent_ssl *bev_ssl, int n_to_read) {
 		}
 	}
 
-	if (n_used) {
-		evbuffer_commit_space(input, space, n_used);
+	if (len > 0) {
+		space[i].iov_len = len;
+		++i;
+	}
+
+	if (i) {
+		evbuffer_commit_space(input, space, i);
 		if (bev_ssl->underlying)
 			BEV_RESET_GENERIC_READ_TIMEOUT(bev);
 	}
