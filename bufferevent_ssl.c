@@ -407,8 +407,6 @@ do_write(struct bufferevent_ssl *bev_ssl, int atmost)
 
 #define WRITE_FRAME 15000
 
-#define READ_DEFAULT 4096
-
 /* Try to figure out how many bytes to read; return 0 if we shouldn't be
  * reading. */
 static int
@@ -416,7 +414,7 @@ bytes_to_read(struct bufferevent_ssl *bev)
 {
 	struct evbuffer *input = bev->bev.bev.input;
 	struct event_watermark *wm = &bev->bev.bev.wm_read;
-	int result = READ_DEFAULT;
+	int result = 0;
 	ev_ssize_t limit;
 	/* XXX 99% of this is generic code that nearly all bufferevents will
 	 * want. */
@@ -439,13 +437,11 @@ bytes_to_read(struct bufferevent_ssl *bev)
 		}
 
 		result = wm->high - evbuffer_get_length(input);
-	} else {
-		result = READ_DEFAULT;
 	}
 
 	/* Respect the rate limit */
 	limit = bufferevent_get_read_max_(&bev->bev);
-	if (result > limit) {
+	if (result == 0 || result > limit) {
 		result = limit;
 	}
 
