@@ -292,6 +292,13 @@ do_read(struct bufferevent_ssl *bev_ssl, int n_to_read) {
 		} else {
 			int err = bev_ssl->ssl_ops->get_error(bev_ssl->ssl, r);
 			bev_ssl->ssl_ops->print_err(err);
+			/* NOTE: we ignore the error in case of some progress was done,
+			 * because currently we do not send close_notify, and this will
+			 * lead to error from SSL_read() (it will return 0, and
+			 * SSL_get_error() will return SSL_ERROR_SSL), and this is because
+			 * of lack of close_notify
+			 *
+			 * But AFAICS some code uses it the same way (i.e. nginx) */
 			if (result & OP_MADE_PROGRESS) {
 				/* Process existing data */
 				break;
@@ -922,6 +929,10 @@ be_ssl_destruct(struct bufferevent *bev)
 	if (bev_ssl->bev.options & BEV_OPT_CLOSE_ON_FREE) {
 		if (! bev_ssl->underlying) {
 			evutil_socket_t fd = bev_ssl->ssl_ops->get_fd(bev_ssl);
+			/* NOTE: This is dirty shutdown, to send close_notify one of the
+			 * following should be used:
+			 * - SSL_shutdown()
+			 * - mbedtls_ssl_close_notify() */
 			if (fd >= 0)
 				evutil_closesocket(fd);
 		}
