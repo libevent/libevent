@@ -346,13 +346,6 @@ SSL_handshake_is_ok(int err)
 }
 
 static int
-SSL_err_is_ok(int err)
-{
-	/* What SSL_read() returns when the we can proceed existing data */
-	return err == SSL_ERROR_ZERO_RETURN;
-}
-
-static int
 SSL_is_want_read(int err)
 {
 	return err == SSL_ERROR_WANT_READ;
@@ -424,7 +417,6 @@ static struct le_ssl_ops le_openssl_ops = {
 	SSL_handshake_is_ok,
 	SSL_is_want_read,
 	SSL_is_want_write,
-	SSL_err_is_ok,
 	(int (*)(void *))be_openssl_get_fd,
 	be_openssl_bio_set_fd,
 	init_bio_counts,
