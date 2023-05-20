@@ -31,6 +31,7 @@ def main():
     repo = git.Repo(opts.git_root)
     squash = not opts.no_squash_merge_childs
 
+    changelog = []
     ignore = []
 
     revision_range = opts.revision_range
@@ -63,13 +64,18 @@ def main():
             pr = f'#{pr}'
             if pr not in summary:
                 summary += f' ({pr})'
-        print(opts.format % {
+        changelog.append(opts.format % {
             's': summary,
             'h': commit.hexsha[:opts.abbrev],
             # TODO: use GitHub API to extract github user names
             'aN': ', '.join(map(str, authors)),
         })
 
+    # NOTE: You cannot use repo.iter_commits(reverse=True) because this will
+    # break squashing
+    changelog.reverse()
+    for entry in changelog:
+        print(entry)
 
 if __name__ == "__main__":
     main()
