@@ -1,100 +1,420 @@
-...
+                         What's new in Libevent 2.2
+                             Azat Khuzhin
 
-* Building libevent as a sub-project using GNU Auto* tools
+0. Before we start
 
-Some projects will choose to include libevent in their source distribution,
-and build libevent as a sub-project.  This may be effected by putting the
-line:
+0.1. About this document
 
- AC_CONFIG_SUBDIRS([path/to/libevent])
+  This document describes the key differences between Libevent 2.1 and
+  Libevent 2.2. It's a work in progress.
 
-in the master configure.ac file for the master project.
+  For better documentation about libevent, see the links at
+  http://libevent.org/
 
-There are cases where the master project will want to pass in additional
-flags for CFLAGS, CPPFLAGS, or LDFLAGS.  Since these variables are reserved
-for the user, and AM_CFLAGS, AM_CPPFLAGS, and AM_LDFLAGS are reserved for
-each package, libevent offers the following variables for a master package
-to tell libevent that there are additional compile/link values:
+  Libevent 2.2 would not be possible without the generous help of numerous
+  contributors.  For a list of who did what in Libevent 2.2, please see the
+  CONTRIBUTORS.md!
 
- LIBEVENT_CFLAGS
- LIBEVENT_CPPFLAGS
- LIBEVENT_LDFLAGS
+0.2. Where to get help
 
-A master package can set these variables in its configure.ac file.
+  Try looking at the other documentation too.  All of the header files have
+  documentation in the doxygen format; this gets turned into nice HTML and
+  linked to from the libevent.org website.
 
-Here's an example:
+  You can ask the questions by creating an issue on github.
 
-configure.ac:
-...
-EXTRA_CFLAGS=...
-EXTRA_CPPFLAGS=...
-EXTRA_LDFLAGS=...
-...
-dnl ac_configure_args is undocumented but widely abused, as here,
-dnl to modify the defaults of the libevent subpackage, by prefixing
-dnl our changes to the child configure arguments already assembled.
-dnl User-supplied contradictory choices should prevail thanks to
-dnl "last wins".
-ac_configure_args=" --disable-openssl${ac_configure_args}"
-ac_configure_args=" --disable-shared${ac_configure_args}"
-ac_configure_args=" --disable-libevent-regress${ac_configure_args}"
-ac_configure_args=" --disable-libevent-install${ac_configure_args}"
-ac_configure_args=" --enable-silent-rules${ac_configure_args}"
-ac_configure_args=" --enable-function-sections${ac_configure_args}"
-ac_configure_args=" LIBEVENT_CFLAGS='${EXTRA_CFLAGS}'${ac_configure_args}"
-ac_configure_args=" LIBEVENT_CPPFLAGS='${EXTRA_CPPFLAGS}'${ac_configure_args}"
-ac_configure_args=" LIBEVENT_LDFLAGS='${EXTRA_LDFLAGS}'${ac_configure_args}"
-AC_CONFIG_SUBDIRS([libevent])
-...
+  Note, that the following communication channels had been deprecated:
+  - #libevent IRC channel at irc.oftc.net
+  - libevent-users@freehaven.net mailing list
 
-The space after the initial '"' is significant.
+0.3. Compatibility
 
-* "Prepare" and "check" watchers
+  Our source-compatibility policy is that correct code (that is to say, code
+  that uses public interfaces of Libevent and relies only on their documented
+  behavior) should have forward source compatibility: any such code that worked
+  with a previous version of Libevent should work with this version too.
 
-Libevent now has a new mechanism for hooking into the event loop: "prepare" and
-"check" watchers.  A "prepare" watcher is a callback that fires immediately
-before polling for I/O. A "check" watcher is a callback that fires immediately
-after polling and before processing any active events. This may be useful for
-embedding other libraries' event loops (e.g. UI toolkits) into libevent's. It's
-also useful for monitoring server performance. For example, if you measure the
-time between "prepare" and "check," that is the polling duration; the difference
-between the expected and actual polling duration provides an indication of
-kernel scheduling delay. And if you measure the time between "check" and the
-next "prepare" (in the next iteration of the event loop), that is a good
-approximation of the amount of time handling events; this provides a convenient
-way to monitor whether any event handlers are blocking or otherwise performing
-heavy computation.
+  We don't try to do binary compatibility except within stable release series,
+  so binaries linked against any version of Libevent 2.1 will probably need to
+  be recompiled against Libevent 2.2 if you want to use it. It is probable that
+  we'll break binary compatibility again before Libevent 2.2 is stable.
 
-The watcher API is defined in <event2/watch.h>. A concrete example of how
-watchers can help monitor server performance is available in
-"sample/watch-timing.c".
+1. Core New APIs and features
 
-* Support for custom HTTP methods
+1.1. "Prepare" and "check" watchers
 
-Libevent HTTP code now supports defining custom HTTP methods. It is done
-through a callback:
+  Libevent now has a new mechanism for hooking into the event loop: "prepare" and
+  "check" watchers.  A "prepare" watcher is a callback that fires immediately
+  before polling for I/O. A "check" watcher is a callback that fires immediately
+  after polling and before processing any active events. This may be useful for
+  embedding other libraries' event loops (e.g. UI toolkits) into libevent's. It's
+  also useful for monitoring server performance. For example, if you measure the
+  time between "prepare" and "check," that is the polling duration; the difference
+  between the expected and actual polling duration provides an indication of
+  kernel scheduling delay. And if you measure the time between "check" and the
+  next "prepare" (in the next iteration of the event loop), that is a good
+  approximation of the amount of time handling events; this provides a convenient
+  way to monitor whether any event handlers are blocking or otherwise performing
+  heavy computation.
 
-  #define EVHTTP_REQ_CUSTOM      ((EVHTTP_REQ_MAX) << 1)
-  static int ext_method_cb(struct evhttp_ext_method *p)
-  {
-    if (p == NULL)
-      return -1;
-    if (p->method) {
-      if (strcmp(p->method, "CUSTOM") == 0) {
-        p->type = EVHTTP_REQ_CUSTOM;
-        p->flags = 0;   /*EVHTTP_METHOD_HAS_BODY*/
-        return 0;
-      }
-    } else {
-      if (p->type == EVHTTP_REQ_CUSTOM) {
-        p->method = "CUSTOM";
-        return 0;
+  The watcher API is defined in <event2/watch.h>. A concrete example of how
+  watchers can help monitor server performance is available in
+  "sample/watch-timing.c".
+
+1.2. Ability to configure read/write buffer sizes for evbuffer/bufferevents
+
+  This allows to increase the IO throughtput.
+
+  Here is some numbers for the single max read in evbuffer impact:
+    function client() { becat "$@" | pv > /dev/null; }
+    function server() { cat /dev/zero | becat -l "$@"; }
+
+  Plain bufferevent:
+
+  - 40K
+    $ server -R $((40<<10)) & client -R $((40<<10))
+    700MiB/s
+
+  - 16K *default now*
+    $ server & client
+    1.81GiB/s
+
+  - 4K
+    $ server -R $((4<<10)) & client -R $((4<<10))
+    1.05GiB/s
+
+  With OpenSSL (-S):
+
+  - 40K *default now*
+    $ server -S -R $((40<<10)) & client -S -R $((40<<10))
+    900MiB/s
+
+  - 16K *default now*
+    $ server -S & client -S
+    745MiB/s
+
+  - 4K
+    $ server -S -R $((4<<10)) & client -S -R $((4<<10))
+    593MiB/s
+
+  So as you can see without openssl 16K is faster then 40K/4K, while for
+  openssl 40K is still faster then 16K (I guess that this is due to with
+  openssl SSL_read() more at at time, while with plain we have some
+  allocations splits in evbuffer and maybe due to some buffer in openssl)
+
+1.3. New backend for windows - wepoll
+
+  wepoll is a epoll replacement on windows.
+
+  wepoll features, from the official project page [1]:
+  - Can poll 100000s of sockets efficiently.
+  - Fully thread-safe.
+  - Multiple threads can poll the same epoll port.
+  - Sockets can be added to multiple epoll sets.
+  - All epoll events (EPOLLIN, EPOLLOUT, EPOLLPRI, EPOLLRDHUP) are supported.
+  - Level-triggered and one-shot (EPOLLONESTHOT) modes are supported
+  - Trivial to embed: you need only two files.
+
+    [1]: https://github.com/piscisaureus/wepoll
+
+  The default backend on Windows is still select, just because it is well
+  tested, and there is no other reasons. That said, that there is no know
+  issues with wepoll, so please, use it and report any issues!
+
+1.4. Unix sockets under Windows
+
+  Since Windows 10 there is support for unix domain sockets, and Libevent also
+  supports this, via evutil_socketpair().
+
+1.5. Priority inheritance for pthreads
+
+  Now you can use
+  evthread_use_pthreads_with_flags(EVTHREAD_PTHREAD_PRIO_INHERIT) to use
+  priority inheritance.
+
+1.6. signalfd support
+
+  Linux-specific signal handling backend based on signalfd(2) system call, and
+  public function event_base_get_signal_method() to obtain an underlying kernel
+  signal handling mechanism.
+
+2. HTTP New APIs and features
+
+2.1. Support for custom HTTP methods
+
+  Libevent HTTP code now supports defining custom HTTP methods. It is done
+  through a callback:
+
+    #define EVHTTP_REQ_CUSTOM      ((EVHTTP_REQ_MAX) << 1)
+    static int ext_method_cb(struct evhttp_ext_method *p)
+    {
+      if (p == NULL)
+        return -1;
+      if (p->method) {
+        if (strcmp(p->method, "CUSTOM") == 0) {
+          p->type = EVHTTP_REQ_CUSTOM;
+          p->flags = 0;   /*EVHTTP_METHOD_HAS_BODY*/
+          return 0;
+        }
+      } else {
+        if (p->type == EVHTTP_REQ_CUSTOM) {
+          p->method = "CUSTOM";
+          return 0;
+        }
       }
     }
-  }
 
-And to register this callback with http server you can use:
-  evhttp_set_ext_method_cmp(http, ext_method_cb);
+  And to register this callback with http server you can use:
+    evhttp_set_ext_method_cmp(http, ext_method_cb);
 
-Or registering callback with one client only:
-  evhttp_connection_set_ext_method_cmp(evcon, ext_method_cb);
+  Or registering callback with one client only:
+    evhttp_connection_set_ext_method_cmp(evcon, ext_method_cb);
+
+2.2. Separate timeouts for read/write/connect phase in HTTP
+
+  New API:
+
+  - client:
+    evhttp_connection_set_connect_timeout_tv() -- for connect
+    evhttp_connection_set_read_timeout_tv()    -- for read
+    evhttp_connection_set_write_timeout_tv()   -- for write
+
+  - server:
+    evhttp_set_read_timeout_tv()  -- for read
+    evhttp_set_write_timeout_tv() -- for write
+
+  It also changes a logic a little, before there was next fallbacks which
+  does not handled in new API:
+  - HTTP_CONNECT_TIMEOUT
+  - HTTP_WRITE_TIMEOUT
+  - HTTP_READ_TIMEOUT
+
+  And introduce another internal flag (EVHTTP_CON_TIMEOUT_ADJUSTED) that
+  will be used in evrpc, which adjust evhttp_connection timeout only if it
+  is not default.
+
+2.3. Add callback support for error pages
+
+  Now there is evhttp_set_errorcb(), that could be used to change error pages
+  of your http server.
+
+  This can be used for multi lingual support, or to overcome some browser
+  limitations (for example Microsoft Internet Explorer may display its own
+  error pages if ones sent by an HTTP server are smaller than certain sizes)
+
+2.4. Minimal WebSocket server implementation for evhttp
+
+  Adds few functions (for more details see event2/ws.h) to use evhttp-based
+  webserver to handle incoming WebSockets connections. We've tried to use both
+  libevent and libwebsockets in our application, but found that we need to have
+  different ports at the same time to handle standard HTTP and WebSockets
+  traffic. This change can help to stick only with libevent library.
+
+  Implementation was inspired by modified Libevent source code in ipush project
+  [1].
+
+    [1]: https://github.com/sqfasd/ipush/tree/master/deps/libevent-2.0.21-stable
+
+  Also, WebSocket-based chat server was added as a sample.
+
+2.5. evhttp_bound_set_bevcb()
+
+  Like evhttp_set_bevcb(), but for evhttp_bound_socket, and callback of
+  evhttp_set_bevcb() will not be called if evhttp_bound_set_bevcb() returns
+  bufferevent.
+
+2.6. evhttp max simultaneous connection limiting
+
+  When the max connection limit is enabled and the limit is reached, the server
+  will respond immediately with 503 Service Unavailable. This can be used to
+  prevent servers from running out of file descriptors. This is better than
+  request limiting because clients may make more than one request over a single
+  connection. Blocking a request does not necessarily close the connection and
+  free up a socket.
+
+  There are two new API:
+
+  - evhttp_set_max_connections()
+  - evhttp_get_connection_count()
+
+2.7. Support for Unix Domain Sockets in evhttp
+
+  This can be done using evhttp_connection_base_bufferevent_unix_new()
+
+  There are no standard for encoding a unix socket in an url. nginx uses:
+
+      http://unix:/path/to/unix/socket:/httppath
+
+  The second colon is needed to delimit where the unix path ends and where
+  the rest of the url continues.
+
+3. Bufferevents
+
+3.1. SSL layer
+
+  SSL layer has gained Mbed-TLS support, it is implemented in a different
+  library - event_mbedtls (remember that for OpenSSL, event_openssl should be
+  used).
+
+  LibreSSL is also supported, but you don't need separate library for this,
+  since LibreSSL is compatible with OpenSSL.
+
+  The library known to work with OpenSSL 3.0 as well, though the performance
+  with 3.0 is worser.
+
+  Some changes in API, the following had been deprecated:
+  - bufferevent_openssl_get_allow_dirty_shutdown()
+  - bufferevent_openssl_set_allow_dirty_shutdown()
+  - bufferevent_mbedtls_get_allow_dirty_shutdown()
+  - bufferevent_mbedtls_set_allow_dirty_shutdown()
+
+  And instead, the following should be used:
+  - bufferevent_ssl_set_flags()
+  - bufferevent_ssl_clear_flags()
+  - bufferevent_ssl_get_flags()
+
+  Also there is new flag BUFFEREVENT_SSL_BATCH_WRITE, that allows to avoid
+  Nagle effect in SSL.
+
+4. DNS layer
+
+4.1. TCP support
+
+  Libevent now has support for DNS requests via TCP.
+
+  By default, requests are done via UDP. In case truncated response is received
+  new attempt is done via TCP connection.
+
+  2 new macros DNS_QUERY_USEVC and DNS_QUERY_IGNTC had been added to force all
+  requests to be done via TCP and to disable switch to TCP in case of truncated
+  responses.
+
+  Possibility for DNS server to listen and receive requests on TCP port also
+  had been added.
+
+  Fallback to TCP in case of truncated DNS requests is done automatically.
+  To imitate the old behaviour macros DNS_QUERY_IGNTC should be used. To
+  force all DNS requests to be done via TCP one should use the flag
+  DNS_QUERY_USEVC. Names DNS_QUERY_IGNTC, DNS_QUERY_USEVC were chosen to
+  imitate similar flags in c-ares and glibc.
+
+4.2. New evdns options
+
+  - evdns-udp-size - allows to configure maximum allowed size of UDP DNS
+    messages
+
+  - probe-backoff-factor - backoff factor of probe timeout
+
+  - max-probe-timeout - maximum timeout between two probe packets will change
+    initial-probe-timeout when this value is smaller
+
+  And also evdns now can handle CNAME.
+
+4.3. evdns now has ability to not add default nameservers
+
+  By default evdns adds "127.0.0.1" if there is no other nameservers.
+
+  Two new options had been added:
+
+  - DNS_OPTION_NAMESERVERS_NO_DEFAULT
+
+    Do not "default" nameserver (i.e. "127.0.0.1:53") if there is no nameservers
+    in resolv.conf, (iff DNS_OPTION_NAMESERVERS is set)
+
+  - EVDNS_BASE_NAMESERVERS_NO_DEFAULT
+
+    If EVDNS_BASE_INITIALIZE_NAMESERVERS isset, do not add default
+    nameserver if there are no nameservers in resolv.conf (just set
+    DNS_OPTION_NAMESERVERS_NO_DEFAULT internally)
+
+5. Listeners new flags
+
+  - LEV_OPT_BIND_IPV6ONLY - bind only to IPv6
+
+  - LEV_OPT_BIND_IPV4_AND_IPV6 -- bind to both to IPv4 and IPv6
+
+10. Building
+
+10.1. autotools is deprecated, use cmake
+
+  Building with autotools/automake is considiered as deprecated, instead, cmake
+  is recommended.
+
+  CMake is crossplatform so you don't need to support multiple files for
+  various operation systems, like before.
+
+  Libevent has find_package() support, and this is very flexible way of using
+  the library in your project, since it is very easy to use even local builds
+  (for more information read more about CMake User Registry).
+
+10.2. Building libevent as a sub-project using GNU Auto* tools
+
+  Some projects will choose to include libevent in their source distribution,
+  and build libevent as a sub-project.  This may be effected by putting the
+  line:
+
+   AC_CONFIG_SUBDIRS([path/to/libevent])
+
+  in the master configure.ac file for the master project.
+
+  There are cases where the master project will want to pass in additional
+  flags for CFLAGS, CPPFLAGS, or LDFLAGS.  Since these variables are reserved
+  for the user, and AM_CFLAGS, AM_CPPFLAGS, and AM_LDFLAGS are reserved for
+  each package, libevent offers the following variables for a master package
+  to tell libevent that there are additional compile/link values:
+
+   LIBEVENT_CFLAGS
+   LIBEVENT_CPPFLAGS
+   LIBEVENT_LDFLAGS
+
+  A master package can set these variables in its configure.ac file.
+
+  Here's an example:
+
+  configure.ac:
+  ...
+  EXTRA_CFLAGS=...
+  EXTRA_CPPFLAGS=...
+  EXTRA_LDFLAGS=...
+  ...
+  dnl ac_configure_args is undocumented but widely abused, as here,
+  dnl to modify the defaults of the libevent subpackage, by prefixing
+  dnl our changes to the child configure arguments already assembled.
+  dnl User-supplied contradictory choices should prevail thanks to
+  dnl "last wins".
+  ac_configure_args=" --disable-openssl${ac_configure_args}"
+  ac_configure_args=" --disable-shared${ac_configure_args}"
+  ac_configure_args=" --disable-libevent-regress${ac_configure_args}"
+  ac_configure_args=" --disable-libevent-install${ac_configure_args}"
+  ac_configure_args=" --enable-silent-rules${ac_configure_args}"
+  ac_configure_args=" --enable-function-sections${ac_configure_args}"
+  ac_configure_args=" LIBEVENT_CFLAGS='${EXTRA_CFLAGS}'${ac_configure_args}"
+  ac_configure_args=" LIBEVENT_CPPFLAGS='${EXTRA_CPPFLAGS}'${ac_configure_args}"
+  ac_configure_args=" LIBEVENT_LDFLAGS='${EXTRA_LDFLAGS}'${ac_configure_args}"
+  AC_CONFIG_SUBDIRS([libevent])
+  ...
+
+  The space after the initial '"' is significant.
+
+11. Continious Integration
+
+  Now Libevent uses github actions for CI, previously we had travis-ci for
+  linux/macos and appveyor for win32 (removed in #951), and also I used testing
+  vagrant for some time, but it had been moved into a separate repository
+  (8c1838be). But actually this is not required anymore since github actions
+  supports:
+  - linux
+  - freebsd
+  - windows
+  - osx
+  - openbsd
+  - and also tests under Thread/Address/Undefind sanitizers
+
+  So no need to test something locally before releases.
+
+  One thing that worth to mention, now, CI depends on public workers, and they
+  are pretty limited, so it take some time to run the whole CI.
+
+12. Documentation
+
+  Now documentation is automatically deployed to https://libevent.org/doc/
