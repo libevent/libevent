@@ -27,7 +27,7 @@ macro(generate_pkgconfig LIB_NAME)
     configure_file("lib${LIB_NAME}.pc.in" "lib${LIB_NAME}.pc" @ONLY)
     install(
         FILES "${CMAKE_CURRENT_BINARY_DIR}/lib${LIB_NAME}.pc"
-        DESTINATION "lib/pkgconfig"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
     )
 endmacro()
 
@@ -140,7 +140,7 @@ macro(add_event_library LIB_NAME)
             set_target_properties(
                 "${LIB_NAME}_shared" PROPERTIES
                 OUTPUT_NAME "${LIB_NAME}-${EVENT_PACKAGE_RELEASE}.${CURRENT_MINUS_AGE}"
-                INSTALL_NAME_DIR "lib"
+                INSTALL_NAME_DIR "${CMAKE_INSTALL_LIBDIR}"
                 LINK_FLAGS "-compatibility_version ${COMPATIBILITY_VERSION} -current_version ${COMPATIBILITY_VERSION}.${EVENT_ABI_LIBVERSION_REVISION}")
         else()
             math(EXPR CURRENT_MINUS_AGE "${EVENT_ABI_LIBVERSION_CURRENT}-${EVENT_ABI_LIBVERSION_AGE}")
