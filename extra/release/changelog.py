@@ -25,17 +25,22 @@ def main():
         revision_range = repo.git.describe('--abbrev=0') + '..'
 
     for commit in repo.iter_commits(revision_range):
+        authors = set({commit.author})
         if squash:
             if commit.hexsha in ignore:
                 continue
             if len(commit.parents) > 1:
+                # reset authors, since we do not want to take any credits to
+                # the merger
+                authors.clear()
                 for c in repo.iter_commits('{}..{}'.format(*commit.parents)):
                     ignore.append(c.hexsha)
+                    authors.add(c.author)
         print(opts.format % {
             's': commit.summary,
             'h': commit.hexsha[:opts.abbrev],
             # TODO: use GitHub API to extract github user names
-            'aN': str(commit.author),
+            'aN': ', '.join(map(str, authors)),
         })
 
 
