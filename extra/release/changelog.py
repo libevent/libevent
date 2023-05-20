@@ -10,6 +10,19 @@ def parse_opts():
     p.add_argument('--abbrev', default=8, type=int)
     # git config pretty.le
     p.add_argument('--format', default='  o %(s)s (%(h)s %(aN)s)')
+    # I did not find a way to search PRs by commits (even though web can do
+    # this), so instead, you should configure your repository to fetch all PRs,
+    # like this:
+    #
+    #   [remote "upstream"]
+    #     url = git@github.com:libevent/libevent
+    #     fetch = +refs/heads/*:refs/remotes/upstream/*
+    #     fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*
+    #
+    # So that the script could obtain the PR number.
+    #
+    # I hope that it will work with rebase & squashes.
+    p.add_argument('--pull-request-refs', default='upstream/pr/')
     p.add_argument('revision_range')
     return p.parse_args()
 
@@ -24,8 +37,16 @@ def main():
     if not revision_range:
         revision_range = repo.git.describe('--abbrev=0') + '..'
 
+    refs = repo.references
+    prs = dict()
+    for ref in refs:
+        if not ref.name.startswith(opts.pull_request_refs):
+            continue
+        prs[ref.commit] = ref.name[len(opts.pull_request_refs):]
+
     for commit in repo.iter_commits(revision_range):
         authors = set({commit.author})
+        pr = prs.get(commit, None)
         if squash:
             if commit.hexsha in ignore:
                 continue
@@ -36,8 +57,14 @@ def main():
                 for c in repo.iter_commits('{}..{}'.format(*commit.parents)):
                     ignore.append(c.hexsha)
                     authors.add(c.author)
+                    pr = prs.get(c, pr)
+        summary = commit.summary
+        if pr is not None:
+            pr = f'#{pr}'
+            if pr not in summary:
+                summary += f' ({pr})'
         print(opts.format % {
-            's': commit.summary,
+            's': summary,
             'h': commit.hexsha[:opts.abbrev],
             # TODO: use GitHub API to extract github user names
             'aN': ', '.join(map(str, authors)),
