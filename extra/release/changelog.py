@@ -2,7 +2,6 @@
 
 import git
 import argparse
-import re
 
 def parse_opts():
     p = argparse.ArgumentParser()
@@ -11,7 +10,7 @@ def parse_opts():
     p.add_argument('--abbrev', default=8, type=int)
     # git config pretty.le
     p.add_argument('--format', default='  o %(s)s (%(h)s %(aN)s)')
-    p.add_argument('--revision-range')
+    p.add_argument('revision_range')
     return p.parse_args()
 
 def main():
@@ -35,6 +34,7 @@ def main():
         print(opts.format % {
             's': commit.summary,
             'h': commit.hexsha[:opts.abbrev],
+            # TODO: use GitHub API to extract github user names
             'aN': str(commit.author),
         })
 
