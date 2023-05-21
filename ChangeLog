@@ -1,3 +1,320 @@
-Changes in version 2.2.1-alpha (FIXME)
+Changes in version 2.2.1-alpha (21 May 2023)
 
- Libevent 2.2.1-alpha.
+ Libevent 2.2.1-alpha includes a number of new features and performance
+ improvements.
+
+ The log below tries to organize them by rough area of effect.
+
+ This release contains around 1000 patches (without merges) with 151 new
+ contributors!
+
+ This changelog omits some commits which were pure bugfixes on other commits
+ listed below. typos, some minor CI changes and similar things.
+
+ Some keywords highlights of this major release:
+ - wepoll backend (by Nick Grifka)
+ - signalfd backend (by Dmitry Antipov)
+ - DNS over TCP for evdns (by ayuseleznev)
+ - websockets layer (by Dmitry Ilyin)
+ - "prepare" and "check" watchers (by Dan Rosen)
+ - MbedTLS support (okhowang)
+ - unix domain sockets for HTTP
+ - cmake over autotools/automake
+ - extensive CI
+
+ For more detail, see the git changelogs. For more insight, see the
+ "whatsnew-2.2.txt" document included in the Libevent 2.2.1-alpha
+ distribution.
+
+ SSL layer gains MbedTLS support, and had been tested with LibreSSL too. And
+ of course with OpenSSL 1.1/3.0.
+
+ From now on, the autotools is considered as deprecated, and you should use
+ cmake instead.
+
+ And now we are using github actions for CI, previously we had travis-ci for
+ linux/macos and appveyor for win32 (removed in #951), and also I used testing
+ vagrant for some time, but it had been moved into a separate repository
+ (8c1838be). But actually this is not required anymore since github actions
+ supports:
+ - linux
+ - freebsd
+ - windows
+ - osx
+ - openbsd
+ - and also tests under Thread/Address/Undefind sanitizers
+
+ Now documentation is automatically deployed to https://libevent.org/doc/
+
+ CI:
+  o Merge branch 'github-actions-v2' (#951) (0b6f29ac yuangongji, Azat Khuzhin)
+  o ci: add CIFuzz Github action (#1382) (d8ecb88f DavidKorczynski)
+  o Add CI checks for OpenBSD (#1326) (45c66e48 neil)
+  o ci/linux: add dist check (512c88ce Azat Khuzhin)
+  o Add API/ABI checker (using LVC) (735c891e, 448a478a, 889ad6d6, 15917b42, 1cea01d6 yuangongji, Azat Khuzhin)
+  o Merge branch 'tests-under-sanitizers' (d5aa783b Azat Khuzhin)
+  o Rework CI to keep everything in one workflow (by using reusable workflow) (587f26fb Azat Khuzhin)
+
+ Samples:
+  o sample/https-client: use host SSL certificate store by default (e139cbac David Disseldorp)
+  o Improvements for internal http-server (9a4b8ec1 Azat Khuzhin)
+  o sample: add https-client-mbedtls (#1098) (b45a02ef okhowang(王沛文))
+  o http-server: add cli argument for max body size (852af060 Azat Khuzhin)
+  o New utility becat (analog of ncat but uses bufferevents, useful for testing) (d5b24cc0 Azat Khuzhin)
+  o https-client: add -4/-6 switches (67180f8c Azat Khuzhin)
+
+ SSL:
+  o Mbed-TLS support (#1028) (0e339b04 Jesse Fang, okhowang(王沛文), Azat Khuzhin)
+  o Introduce new BUFFEREVENT_SSL_BATCH_WRITE flag to avoid Nagle effect in SSL (a490172d Azat Khuzhin)
+  o Do not try to do SSL handshake if the connect() fails (59e31c96 Azat Khuzhin)
+  o Support disabled renegotiation in mbedTLS (f02fa339 Azat Khuzhin)
+  o Merge branch 'mbedtls-3' (#1299) (20977eae William Marlow, Azat Khuzhin)
+  o Initial OpenSSL 3.0 support (#1288) (69e9f7ee William Marlow, Azat Khuzhin)
+  o More SSL_read() to fill big buffer (ef51444f Thuan Tran)
+  o Make bufferevent_set_max_single_read() effect (4ab3242d Thuan Tran)
+
+ SSL bugfixes:
+  o Explicitly call SSL_clear when reseting the fd. (#498) (c6c74ce2 David Benjamin)
+  o fix handling of close_notify (ssl) in http with openssl bufferevents (da3f2ba2 Azat Khuzhin)
+  o be_openssl: avoid leaking of SSL structure (acf09c00 Azat Khuzhin)
+  o Fix ssl/bufferevent_wm_filter when bev does not reach watermark on break (9d93fbe7 Azat Khuzhin)
+  o Don't loose top error in SSL (a30d6d85 Yury Korzhetsky)
+  o Use heap-bases contexts for MbedTLS handles (#1355) (285fc7cc Dmitry Ilyin)
+  o Deal with partial writes on SSL write (fc568ff0 zhenhaonong)
+  o Avoid EOF in rare (or not that rare) cases - #1451 (e8cbe7b6 Azat Khuzhin)
+
+ HTTP (evhttp):
+  o http: add callback to allow server to decline (and thereby close) incoming connections. (727bcea1 John Fremlin)
+  o Add evhttp_parse_query_str_flags() (26ef859a Azat Khuzhin)
+  o http: implement separate timeouts for read/write/connect phase (5ee507c8 Azat Khuzhin)
+  o http: add WebDAV methods support (#789) (68eb526d Alexander Drozdov)
+  o Added http method extending (c80f6be1 Thomas Bernard)
+  o Make http-connect workth with pproxy (462f2e97 Azat Khuzhin)
+  o Add callback support for error pages (02905413 nntrab)
+  o Added evhttp max simultaneous connection limiting (#592) (7426a568 Joseph Coffland, Azat Khuzhin)
+  o http: add EVHTTP_URI_HOST_STRIP_BRACKETS (67180f8c Azat Khuzhin)
+  o http: eliminate redundant bev fd manipulating and caching (afa66ea4 Azat Khuzhin)
+  o http: support unix domain sockets (f446229b Sean Young)
+  o Add more HTTP_ response codes (05a03d4a Dmitry Ilyin)
+  o evhttp_bound_set_bevcb() (77a9b60e Leon M. George, Azat Khuzhin)
+  o Add minimal WebSocket server implementation for evhttp (#1322) (e8313084 Dmitry Ilyin)
+
+ HTTP bugfixes (evhttp):
+  o Fix crashing http server when callback do not reply in place (5ff8eb26 Azat Khuzhin)
+  o Do not crash when evhttp_send_reply_start() is called after a timeout. (99d0a952 Andreas Gustafsson)
+  o Allow bodies for GET/DELETE/OPTIONS/CONNECT (db483e3b Azat Khuzhin)
+  o Fix crashing http server when callback do not reply in place from *gencb* (306747e5 Azat Khuzhin)
+  o CONNECT method only takes an authority (65eb529a Greg Hazel)
+  o http: fix leaks in evhttp_uriencode() (61c21492 Azat Khuzhin)
+  o Fix evhttp_connection_get_addr() fox incomming http connections (367cd9e5 Greg Hazel, e4edc7fc Azat Khuzhin)
+  o Improve request line parsing (0ec12bc8 Azat Khuzhin)
+  o Fix conceivable UAF of the bufferevent in evhttp_connection_free() (5dc88b38 Azat Khuzhin)
+  o http: fix connection retries when there more then one request for connection (f3f7aa5a Azat Khuzhin)
+  o http: Preserve socket error from listen across closesocket cleanup (28d7221b Luke Dashjr)
+  o http: try to read existing data in buffer under EVHTTP_CON_READ_ON_WRITE_ERROR (7bfe9388 Azat Khuzhin)
+  o http: avoid use of uninitialized value for AF_UNIX/AF_LOCAL sockaddr (76eded24 Azat Khuzhin)
+  o http: make sure the other fields in ext_method are not changed by the callback (1c78451f yuangongji)
+  o http: fix EVHTTP_CON_AUTOFREE in case of connection error (083c6d54 Azat Khuzhin)
+  o http: fix EVHTTP_CON_AUTOFREE in case of timeout (and some else) (eee26dee Azat Khuzhin)
+  o Check error code of evhttp_add_header_internal() in evhttp_parse_query_impl() (4528d8e9 Azat Khuzhin)
+  o http: fix undefined-shift in EVUTIL_IS*_ helpers (37dbb350 Azat Khuzhin)
+  o http: fix invalid unsigned arithmetic (#1134) (d13b7bbf ihsinme)
+  o Fix the value is never actually read from 'argument' in evhttp_parse_query_impl() (#1424) (3bcc92cf Cœur)
+
+ DNS (evdns):
+  o evdns: handle NULL filename explicitly (3e6553a1 Bogdan Harjoc)
+  o Added DNS header mask definitions. (fb134939 Nathan French)
+  o evdns: add DNS_OPTION_NAMESERVERS_NO_DEFAULT/EVDNS_BASE_NAMESERVERS_NO_DEFAULT (e5b8f4c1 Azat Khuzhin)
+  o evdns: add new options -- so-rcvbuf/so-sndbuf (538141eb Azat Khuzhin)
+  o evdns: Add additional validation for values of dns options (#1018) (8fe35c76 ayuseleznev)
+  o DNS over TCP (#1004) (028842aa ayuseleznev, Azat Khuzhin)
+  o evdns: Add support for setting maximum UDP DNS message size. (#1032) (83c58d49 seleznevae)
+  o evdns: add max-probe-timeout/probe-backoff-factor settings (#1128) (617ba838 chux0519)
+  o evdns: add ability to get CNAME (#1154) (19b3fd0b Sergey Matveychuk)
+  o feat: add `evdns_base_get_nameserver_fd` method (#1238) (cd6a41ec Yongsheng Xu)
+  o evdns: integrate deferred_response_callback into evdns_request (#1367) (8800b17a mkm)
+  o Allow evdns_base_new to succeed with no nameservers configured (#1389) (3d138bda Daniel Kempenich)
+
+ DNS bugfixes (evdns):
+  o evdns: fix race condition in evdns_getaddrinfo() (ee12c516 Sergey Fionov, Sergey Fionov)
+  o evdns: fix lock/unlock mismatch in evdns_close_server_port() (8701d0d3 zhuizhuhaomeng)
+  o Fix checking return value of the evdns_base_resolv_conf_parse() (c3f35345 Azat Khuzhin)
+  o evdns: fix a crash when evdns_base with waiting requests is freed (#962) (4da9f87c ayuseleznev)
+  o recreate socket when udp failed (#1031) (efbe563b okhowang(王沛文))
+  o evdns: do not pass NULL to memcpy() in evdns_server_request_format_response() (c424594b Azat Khuzhin)
+  o evdns: fix "Branch condition evaluates to a garbage value" in reply_parse (#1423) (e96e98ae Cœur)
+
+ RPC (evrpc):
+  o evrpc: avoid NULL dereference on request is not EVHTTP_REQ_POST (8483c535 Azat Khuzhin)
+
+ Core (events, buffers, utils, threads):
+  o Return from event_del() after the last event callback termination (0b4b0efd José Luis Millán, 5ff83989 Azat Khuzhin)
+  o Add convenience macros for user-triggered events (d2acf67e Philip Prindeville)
+  o Filter link-local IPv4 addresses in evutil_found_ifaddr() (b2667b76 Azat Khuzhin)
+  o assert that fds are nonblocking in debug mode (9d3a415a, 6f988ee1 Greg Hazel, Azat Khuzhin)
+  o buffer: make evbuffer_prepend() of zero-length array no-op (c4fbae3a Azat Khuzhin)
+  o Add support for EV_TIMEOUT to event_base_active_by_fd (62df1301 John Ohl)
+  o Maximum evbuffer read configuration (8c2001e9 Azat Khuzhin)
+  o evwatch: Add "prepare" and "check" watchers. (#793) (2f184f8b, 1cd8830d Dan Rosen)
+  o evutil: implement socketpair with unix domain socket on Win10 (#913) (dda8968c, 1ba94bdf yuangongji)
+  o Add support for priority inheritance (#934) (f76456b0 Andre Pereira Azevedo Pinto, 972289f3 Azat Khuzhin)
+  o evutil_time: Implements usleep() using wait funtion on Windows (#939) (6412f34f yuangongji)
+  o Add EVENT_BASE_FLAG_EPOLL_DISALLOW_TIMERFD flag (fixes: #958) (9a9b92ed Azat Khuzhin)
+  o evutil_time: improve evutil_gettimeofday on Windows (#1003) (f0b3160f Nick Grifka)
+  o Support EV_CLOSED on linux for poll(2) (4c13afae Azat Khuzhin)
+  o Add wepoll support to light up the epoll backend on Windows (#1006) (83ef3216 Nick Grifka, 45c3fc29 fanquake)
+  o Convert from WinCrypt to Windows BCrypt (eb7bed03 Gerry Garvey)
+  o Merge #1176 - make evthread_use_pthreads() a MT-Safe function (3d48c756 moonlightsh)
+  o buffer: do not round up allocation for reference-type chain objects (#1203) (b926af26 Pierce Lopez)
+  o Add check of mmap64 function and use it when available rather that mmap (#1320) (99fd68ab Dmitry Ilyin)
+  o Make rekey interval less predictable (#1331) (bb41229f Keelan Cannoo)
+  o epoll: use epoll_pwait2() if available (117ee9a0 Dmitry Antipov)
+  o signal: new signal handling backend based on signalfd (#1342) (1af745d0 Dmitry Antipov)
+  o Exclude arc4random_buf implementation if it's already present in the platform (#1375) (7a18af8c Srivatsan Iyer)
+  o buffer: use pread() for evbuffer_file_segment_materialize() (#1392) (0b79a002 Dmitry Antipov)
+
+ Core bugfixes (events, buffers, utils):
+  o Fix wrong assert in evbuffer_drain() (b26996a0 Azat Khuzhin)
+  o Fix race in access to ev_res from event loop with event_active() (27934f0b James Synge)
+  o If precise_time is false, we should not set EVENT_BASE_FLAG_PRECISE_TIMER (6cce7458 yongqing.jiao)
+  o buffer: fix incorrect unlock of the buffer mutex (for deferred callbacks) (93913da1 Azat Khuzhin)
+  o Fix base unlocking in event_del() if event_base_set() runned in another thread (08a0d366 Azat Khuzhin)
+  o Fix assert() condition in evbuffer_drain() for IOCP (ab3224c3 SuckShit)
+  o Notify event base if there are no more events, so it can exit without delay (23c2914f Azat Khuzhin)
+  o Do not loose ET flag in case of multiple events for the same fd added (33053cdd Isidor Kouvelas, Azat Khuzhin)
+  o IOCP fixes (to make it possible to work with HTTP layer) (3d815cf2 Azat Khuzhin)
+  o Add error-handling routine for arc4_seed() #769 (8d5b14d4 Seong-Joong Kim)
+  o buffer: fix evbuffer_remove_buffer() with empty chain in front (fdfabbec Azat Khuzhin)
+  o buffer: do not rely on ->off in advance_last_with_data() (5b19c9f6 Azat Khuzhin)
+  o Protect min_heap_push_ against integer overflow. (176fd566 Tobias Stoeckmann)
+  o Prevent endless loop in evmap_make_space (#804) (c6becb26 Tobias Stoeckmann)
+  o Prevent integer overflow in kq_build_changes_list. (#811) (cf8acae3 Tobias Stoeckmann)
+  o kqueue: Avoid undefined behaviour. (2707a4ff Tobias Stoeckmann)
+  o evbuffer: fix last_with_datap after prepend with empty chain (401bd1c0 Azat Khuzhin)
+  o evutil: set the have_checked_interfaces in evutil_check_interfaces() (0de2b145 jeremyerb)
+  o buffer: fix possible NULL dereference in evbuffer_setcb() on ENOMEM (#856) (bdcade47 Azat Khuzhin)
+  o Fix memory corruption in EV_CLOSURE_EVENT_FINALIZE with debug enabled (#885) (445027a5 Jan Kasiak)
+  o arc4random: replace sysctl() with getrandom (on linux) (86f55b04, 194a5d82 Azat Khuzhin)
+  o evutil_time: detect and use _gmtime64_s()/_gmtime64() (#898) (148d12ad yuangongji)
+  o evbuffer_add_file: fix freeing of segment in the error path (4727150a Azat Khuzhin)
+  o Parse IPv6 scope IDs. (#923) (9fecb59a Philip Homburg)
+  o event_base_once: fix potential null pointer threat (#956) (968bbd5c chenguolong)
+  o increase segment refcnt only if evbuffer_add_file_segment() succeeds (#964) (114b3836 yuangongji)
+  o Avoid triggering wrong events with EV_ET set (9543f31a Azat Khuzhin)
+  o epoll: handle EV_ET for EV_CLOSED too (e703c034 Azat Khuzhin)
+  o Fix EV_CLOSED detection/reporting (epoll only) (972b456b Azat Khuzhin)
+  o There is typo in GetAdaptersAddresses windows library. It should be iphlpapi.dll (#1012) (61fc2bf2 Aleksandr-Melnikov)
+  o buffer: do not pass NULL to memcpy() from evbuffer_pullup() (a0c642ac Azat Khuzhin)
+  o Fix leaks of signal handlers for select/poll backends (f6bfa8b3 Azat Khuzhin)
+  o Handle return value from getrandom() (#1070) (efa57159 Gerry Garvey)
+  o Retry write on EINTR in signal handler (#1158) (4f8a6144 Mike Sharov)
+  o Properly initialize sockaddr length on systems with sin_len. (#1177) (5c0e75c3 Tobias Heider)
+  o buffer: fix CreateFileMapping() leak from evbuffer_add_file() (6f139b87 Azat Khuzhin)
+  o evutil: Fix evutil_freeaddrinfo (#1223) (9a38bc5f Tomas Gonzalez)
+  o Fix socketpair failure when temporary directory has non-latin character (f8bb9d84 zhenhaonong)
+  o fix: arc4_getword integer overflow, detected by -fsanitize=undefined (b5b4c7fe jackerli(李剑))
+  o fixed missing check for null after strdup in evutil_inet_pton_scope (#1366) (ff99f67a Michael Madsen)
+  o Optimize arc4random_uniform() (by syncing with OpenBSD implementation) (#1422) (557990ca Cœur)
+  o Always have evutil_secure_rng_add_bytes available (#1427) (4e6375e8 Kurt Roeckx)
+
+ Bufferevent:
+  o Adjust evbuffer max read for bufferevents (5357c3d6 Azat Khuzhin)
+  o Implement bufferevent_socket_connect_hostname_hints() (5e137f37 Joseph Spadavecchia)
+  o bufferevent: allow setting priority on socket and openssl type (#1011) (bdc5200a Nicolas J. Bouliane)
+
+ Bufferevent bugfixes:
+  o Remove check against passed bufferevent in bufferevent_socket_connect() (a10a6f4e Ivan Maidanski, Azat Khuzhin)
+  o Call underlying bev ctrl GET_FD on filtered bufferevents (40550814 Greg Hazel)
+  o Fix timeout resets for filters (4ba48739 Greg Hazel)
+  o bufferevent_socket_connect{,_hostname}() missing event callback and use ret code (f7bc1337 Jesse Fang)
+  o Fix hangs due to watermarks overruns in bufferevents implementations (878bb2d3 Azat Khuzhin)
+  o Simplify bufferevent timeout tests to reduce CPU usage in between start/compare (6ac8e775 Azat Khuzhin)
+  o Fix leaks in error path of the bufferevent_init_common_() (6995b9a8 Azat Khuzhin)
+  o Check return value of evbuffer_remove() in bufferevent_read() (#1133) (bc25889f lilei)
+
+ Listeners:
+  o Immediately stop trying to accept more connections if listener disabled (416b48ba John Fremlin, Azat Khuzhin)
+  o listener: ipv6only socket bind support (387d91f9 Murat Demirten)
+  o listener: Preserve last error in evconnlistener_new_bind() before close (#1269) (d96457e1 kenping)
+  o Add LEV_OPT_BIND_IPV4_AND_IPV6 flag (#1400) (f9134df7 Edoardo Lolletti)
+
+ Listeners bugfixes:
+  o Fix evconnlistener_free() closes already established connections (bc65ffc1 Azat Khuzhin)
+  o Fix deadlock in case of evconnlistener_disable() in parallel with callback (#1226) (12cedc8a moonlightsh)
+
+ Docs:
+  o Move list of contributors into separate file (56c9551e Sayan Nandan)
+  o doc: cmake command on Windows (b002f04f yuangongji (A))
+  o Deploy documentation to https://libevent.org/doc/ (05467445 Azat Khuzhin)
+  o Doxygen documentation improvements (620a3fa1, 1d1c1909, f9c6a14e yuangongji)
+  o Add vcpkg installation instructions (#953) (ec775a96 JackBoosY)
+  o Remove man pages from repo (they can be generated via doxygen) (31a5cfd3 Azat Khuzhin)
+  o Various documentation improvements (#842) (cdeb3242 yuangongji)
+  o Merge pull request #1441 from fanquake/autoconf_doc_updates (612a74c7 fanquake)
+
+ Tests:
+  o test: fix 32bit linux regress (#554) (63c4bf78 Carlo Marcelo Arenas Belón)
+  o test: avoid regress hanging in macOS (#757) (a86f89d3 Carlo Marcelo Arenas Belón)
+  o Avoid possible SEGVs in select() (in unit tests) (33baa4e5 Philip Prindeville)
+  o Intorduce TT_RETRIABLE (4d2f013b Azat Khuzhin)
+  o test-ratelim: calculate timers bias (for slow CPUs) to avoid false-positive (8a348699 Azat Khuzhin)
+  o Merge branch 'osx-clock' (a6f81aa4 Azat Khuzhin)
+  o Fix some OpenSSL 3 test issues (#1291) (29032da6 Peter Edwards)
+
+ Fixes for various OS:
+  o Enable kqueue for APPLE targets (#849) (0d7d85c2 Keith Smiley)
+  o Enable _GNU_SOURCE for Android (#850) (41c95abb Keith Smiley)
+  o Fix compat with NetBSD >= 10 (#909) (72e6eff0 Kamil Rytarowski)
+  o RTEMS has no SA_RESTART (#1172) (73ca1801 Michael Davidsaver)
+
+ Build fixes:
+  o Include openssl-compat.h into dist archive (7bc822ca Azat Khuzhin)
+  o Unbreak build with LibreSSL after openssl 1.1 support added (d057c45e Jan Beich)
+  o Fix RPATH for APPLE (cc0e04d7 Trond Norbye)
+  o Fixes for ERR_remove_*state() (98faf198 Pierce Lopez)
+  o Various cmake fixes (65870949 Shuo Chen)
+  o cmake: autotools compatibility (5aade2d3, 489991a2, 882f537c, 8348b413 Marek Sebera, Azat Khuzhin)
+  o Fixes win32 builds after some previous patches (d84f0205 Azat Khuzhin)
+  o Fix arc4random_addrandom() detecting and fallback (regression) (266f43af Azat Khuzhin)
+  o Add missing print-winsock-errors.c into dist archive (8d89c212 Azat Khuzhin)
+  o Fix visibility issues (mostly on win32) (fb866645, ce3af533, cd285e42 Azat Khuzhin)
+  o Add configure check for midipix (94e5cc84 Redfoxmoon)
+  o autotools: pass $(OPENSSL_INCS) for samples (FTBFS macOS) (0ec5edde Carlo Marcelo Arenas Belón)
+  o autotools: confirm openssl is working before using (506df426 Carlo Marcelo Arenas Belón)
+  o Port `event_rpcgen.py` and `test/check-dumpevents.py` to Python 3. (8b0aa7b3 Kiyoshi Aman)
+  o Fix generation of LibeventConfig.cmake for the installation tree (#576) (6ee73ea9 Andrey Okoshkin)
+  o Provide Makefile variables LIBEVENT_{CFLAGS,CPPFLAGS,LDFLAGS} (1a448088 stenn)
+  o Fix build with LibreSSL 2.7 (28b80754 Bernard Spil)
+  o cmake: ensure windows dll's are installed as well as lib files (0fa43c99 Philip Herron)
+  o Fix out-of-tree builds (a5f19422 Cristian Morales Vega)
+  o config.h can't be prefixed unconditionally (587e9f58 Philip Prindeville)
+  o Define __EXT_POSIX2 for QNX (99a3887d Maya Rashish)
+  o libevent.pc: link against core/extra (731469b3 Mike Frysinger)
+  o Merge branch 'win32-visibility-event_debug_logging_mask_' (fb866645, cd285e42 Azat Khuzhin)
+  o cmake: introduce EVENT__LIBRARY_TYPE option (c9a073ea Azat Khuzhin)
+  o cmake: do not build both (SHARED and STATIC) for MSVC/win32 (90d80ef4 Azat Khuzhin)
+  o cmake: support static runtime (MSVC) (246f4404 Azat Khuzhin)
+  o Eliminate fd conversion warnings and introduce EVUTIL_INVALID_SOCKET (windows) (b29207dc Azat Khuzhin)
+  o Define `_GNU_SOURCE` properly/consistently per autoconf (5f87be42 Enji Cooper)
+  o Fixes for uchex static analyzer (da33f768 Azat Khuzhin)
+  o cmake: add missing autotools targets (doxygen, uninstall, event_rpcgen.py) (7201062f yuangongji)
+  o cmake: set library names to be the same as with autotools (669a53f3 yuangongji)
+  o cmake: install shared library only if it was requested (55d1e20e Azat Khuzhin)
+  o Added uninstall target check to cmakelists (#948) (f0e79baf Dimo Markov)
+  o Build doxygen documentation via cmake (to fill variables) (095c8ae1 Azat Khuzhin)
+  o Merge #929 -- cmake package improvements (8be8ac46 yuangongji)
+  o cmake: do not link libevent with libevent_core (#1123) (657e1806 Loïc Yhuel)
+  o cmake: Fix generted pkgconfig files. (#1165) (1fe8b3d6 Biswapriyo Nath)
+  o cmake: don't override CMAKE_CONFIGURATION_TYPES. (#1166) (087bbc57 Paweł Wegner)
+  o CheckWorkingKqueue.cmake: fix missing headers (#1225) (89505f85 Christopher Chavez)
+  o cmake: Fix Android build. (8f47d8de Ryan Pavlik)
+  o cmake: do influence CMAKE_DEBUG_POSTFIX of the outer project (if any) (650d8619 Azat Khuzhin)
+  o cmake: remove redundant _GNU_SOURCE definition (82af0ea4 Azat Khuzhin)
+  o Various autotools build improvements (#1171) (6d800fd6 fanquake)
+  o Require libevent_core not libevent for pkg-config (#1257) (66861f88 moonlightsh)
+  o -Werror fixes andCI (#1297) (7aeecb60 Azat Khuzhin)
+  o Add postfix for Debug configuration. (dd610b77 Haowei Hsu)
+  o Fix ignoring return value of arc4random() warning (with _FORTIFY_SOURCE defined) (#1394) (c01cb1d6 liaotonglang)
+  o Merge pull request #1418 from fanquake/use_fortify_source_3 (bcefdbc6 fanquake)
+  o Use GNUInstallDirs - #1397 (4dee61c0 Tobias Mayer, Jonathan Ringer, Azat Khuzhin)
+  o Make dependency paths relocatable (#1385) (acfac7ae Ingo Bauersachs)

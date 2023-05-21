@@ -70,7 +70,7 @@ VERSION_INFO = 1:0:0
 #  2.1.8-stable--     2.1        6:2:0 (ABI changed slightly)
 #
 # For Libevent 2.2:
-#  2.2.0-alpha --     2.2        1:0:0
+#  2.2.1-alpha --     2.2        1:0:0
 
 # ABI version history for this package effectively restarts every time
 # we change RELEASE.  Version 1.4.x had RELEASE of 1.4.

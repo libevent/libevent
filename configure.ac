@@ -6,7 +6,7 @@ dnl
 dnl Original version Dug Song <dugsong@monkey.org>
 
 AC_PREREQ([2.67])
-AC_INIT(libevent,2.2.0-alpha-dev)
+AC_INIT(libevent,2.2.1-alpha-dev)
 AC_CONFIG_SRCDIR(event.c)
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -20,7 +20,7 @@ dnl make compilation quiet unless V=1 is used
 AM_SILENT_RULES([yes])
 
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
-AC_DEFINE(NUMERIC_VERSION, 0x02020001, [Numeric representation of the version])
+AC_DEFINE(NUMERIC_VERSION, 0x02020100, [Numeric representation of the version])
 
 dnl Try and get a full POSIX environment on obscure systems
 AC_USE_SYSTEM_EXTENSIONS
