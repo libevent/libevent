@@ -20,6 +20,7 @@ dnl make compilation quiet unless V=1 is used
 AM_SILENT_RULES([yes])
 
 AC_CONFIG_HEADERS(config.h  evconfig-private.h:evconfig-private.h.in)
+dnl The last number is development version or not.
 AC_DEFINE(NUMERIC_VERSION, 0x02020100, [Numeric representation of the version])
 
 dnl Try and get a full POSIX environment on obscure systems
