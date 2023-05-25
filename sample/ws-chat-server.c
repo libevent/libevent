@@ -250,4 +250,6 @@ main(int argc, char **argv)
 	event_free(sig_int);
 	event_base_free(base);
 	libevent_global_shutdown();
+
+	return 0;
 }
