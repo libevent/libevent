@@ -56,10 +56,10 @@ AC_ARG_ENABLE([malloc-replacement],
     [], [enable_malloc_replacement=yes])
 AC_ARG_ENABLE([openssl],
      AS_HELP_STRING([--disable-openssl, disable support for openssl encryption]),
-    [], [enable_openssl=yes])
+    [], [enable_openssl=auto])
 AC_ARG_ENABLE([mbedtls],
      AS_HELP_STRING([--disable-mbedtls, disable support for mbedtls encryption]),
-    [], [enable_mbedtls=yes])
+    [], [enable_mbedtls=auto])
 AC_ARG_ENABLE([debug-mode],
      AS_HELP_STRING([--disable-debug-mode, disable support for running in debug mode]),
     [], [enable_debug_mode=yes])
@@ -716,12 +716,6 @@ dnl check if we should enable verbose debugging
 if test "$enable_verbose_debug" = "yes"; then
 	CFLAGS="$CFLAGS -DUSE_DEBUG"
 fi
-
-dnl check if we have and should use OpenSSL
-AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
-
-# check if we have and should use mbedtls
-AM_CONDITIONAL(MBEDTLS, [test "$enable_mbedtls" != "no" && test "$have_mbedtls" = "yes"])
 
 dnl enable some warnings by default
 AX_CHECK_COMPILE_FLAG([-Wall], [CFLAGS="$CFLAGS -Wall"],[],[-Werror])

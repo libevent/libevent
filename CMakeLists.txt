@@ -135,11 +135,13 @@ option(EVENT__DISABLE_MM_REPLACEMENT
 option(EVENT__DISABLE_THREAD_SUPPORT
     "Define if libevent should not be compiled with thread support" OFF)
 
-option(EVENT__DISABLE_OPENSSL
-    "Define if libevent should build without support for OpenSSL encryption" OFF)
+set(EVENT__DISABLE_OPENSSL AUTO CACHE STRING
+    "OpenSSL library support: AUTO (use if present), ON (ignore), OFF (require presence)")
+set_property(CACHE EVENT__DISABLE_OPENSSL PROPERTY STRINGS AUTO ON OFF)
 
-option(EVENT__DISABLE_MBEDTLS
-    "Define if libevent should build without support for mbed TLS encryption" OFF)
+set(EVENT__DISABLE_MBEDTLS AUTO CACHE STRING
+    "Mbed TLS library support: AUTO (use if present), ON (ignore), OFF (require presence)")
+set_property(CACHE EVENT__DISABLE_MBEDTLS PROPERTY STRINGS AUTO ON OFF)
 
 option(EVENT__DISABLE_BENCHMARK
     "Defines if libevent should build without the benchmark executables" OFF)
@@ -938,7 +940,7 @@ if(EVENT__HAVE_EVENT_PORTS)
     list(APPEND SRC_CORE evport.c)
 endif()
 
-if (NOT EVENT__DISABLE_OPENSSL)
+if (EVENT__DISABLE_OPENSSL STREQUAL "OFF" OR EVENT__DISABLE_OPENSSL STREQUAL "AUTO")
     # only if OPENSSL_ROOT_DIR is not set yet
     if (BREW AND NOT OPENSSL_ROOT_DIR AND NOT "$ENV{OPENSSL_ROOT_DIR}")
         execute_process(COMMAND ${BREW} --prefix openssl
@@ -953,20 +955,28 @@ if (NOT EVENT__DISABLE_OPENSSL)
         endif()
     endif()
 
-    find_package(OpenSSL REQUIRED)
+    find_package(OpenSSL)
 
-    set(EVENT__HAVE_OPENSSL 1)
-    set(OPENSSL_TARGETS OpenSSL::SSL)
+    if (OPENSSL_FOUND)
+        set(EVENT__HAVE_OPENSSL 1)
+        set(OPENSSL_TARGETS OpenSSL::SSL)
 
-    message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
-    message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
+        message(STATUS "OpenSSL include: ${OPENSSL_INCLUDE_DIR}")
+        message(STATUS "OpenSSL lib: ${OPENSSL_LIBRARIES}")
 
-    list(APPEND SRC_OPENSSL bufferevent_openssl.c bufferevent_ssl.c)
-    list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
-    list(APPEND LIB_APPS ${OPENSSL_TARGETS})
+        list(APPEND SRC_OPENSSL bufferevent_openssl.c bufferevent_ssl.c)
+        list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+        list(APPEND LIB_APPS ${OPENSSL_TARGETS})
+    elseif (EVENT__DISABLE_OPENSSL STREQUAL "OFF")
+        message(FATAL_ERROR "OpenSSL required, but not found.")
+    endif()
+elseif (EVENT__DISABLE_OPENSSL STREQUAL "ON")
+    message(STATUS "Disable OpenSSL support")
+else()
+    message(FATAL_ERROR "EVENT__DISABLE_OPENSSL must be set to one of: AUTO, ON or OFF")
 endif()
 
-if (NOT EVENT__DISABLE_MBEDTLS)
+if (EVENT__DISABLE_MBEDTLS STREQUAL "OFF" OR EVENT__DISABLE_MBEDTLS STREQUAL "AUTO")
     # only if MBEDTLS_ROOT_DIR is not set yet
     if (BREW AND NOT MBEDTLS_ROOT_DIR AND NOT "$ENV{MBEDTLS_ROOT_DIR}")
         execute_process(COMMAND ${BREW} --prefix mbedtls
@@ -981,17 +991,25 @@ if (NOT EVENT__DISABLE_MBEDTLS)
         endif()
     endif()
 
-    find_package(MbedTLS REQUIRED)
+    find_package(MbedTLS)
 
-    set(EVENT__HAVE_MBEDTLS 1)
-    set(MBEDTLS_TARGETS MbedTLS::mbedtls MbedTLS::mbedcrypto MbedTLS::mbedx509)
+    if (MBEDTLS_FOUND)
+        set(EVENT__HAVE_MBEDTLS 1)
+        set(MBEDTLS_TARGETS MbedTLS::mbedtls MbedTLS::mbedcrypto MbedTLS::mbedx509)
 
-    message(STATUS "mbed TLS include: ${MBEDTLS_INCLUDE_DIR}")
-    message(STATUS "mbed TLS lib: ${MBEDTLS_LIBRARIES}")
+        message(STATUS "mbed TLS include: ${MBEDTLS_INCLUDE_DIR}")
+        message(STATUS "mbed TLS lib: ${MBEDTLS_LIBRARIES}")
 
-    list(APPEND SRC_MBEDTLS bufferevent_mbedtls.c bufferevent_ssl.c)
-    list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
-    list(APPEND LIB_APPS ${MBEDTLS_TARGETS})
+        list(APPEND SRC_MBEDTLS bufferevent_mbedtls.c bufferevent_ssl.c)
+        list(APPEND HDR_PUBLIC include/event2/bufferevent_ssl.h)
+        list(APPEND LIB_APPS ${MBEDTLS_TARGETS})
+    elseif (EVENT__DISABLE_MBEDTLS STREQUAL "OFF")
+        message(FATAL_ERROR "MbedTLS required, but not found.")
+    endif()
+elseif (EVENT__DISABLE_MBEDTLS STREQUAL "ON")
+    message(STATUS "Disable MbedTLS support")
+else()
+    message(FATAL_ERROR "EVENT__DISABLE_MBEDTLS must be set to one of: AUTO, ON or OFF")
 endif()
 
 if (NOT EVENT__DISABLE_TESTS)
@@ -1087,14 +1105,14 @@ add_event_library(event_extra
     INNER_LIBRARIES event_core
     SOURCES ${SRC_EXTRA})
 
-if (NOT EVENT__DISABLE_OPENSSL)
+if (EVENT__HAVE_OPENSSL)
     add_event_library(event_openssl
         INNER_LIBRARIES event_core
         LIBRARIES ${OPENSSL_TARGETS}
         SOURCES ${SRC_OPENSSL})
 endif()
 
-if (NOT EVENT__DISABLE_MBEDTLS)
+if (EVENT__HAVE_MBEDTLS)
     add_event_library(event_mbedtls
         INNER_LIBRARIES event_core
         LIBRARIES ${MBEDTLS_TARGETS}
@@ -1168,7 +1186,7 @@ if (NOT EVENT__DISABLE_SAMPLES)
         target_link_libraries(watch-timing m)
     endif()
 
-    if (NOT EVENT__DISABLE_OPENSSL)
+    if (EVENT__HAVE_OPENSSL)
         add_sample_prog(event_openssl https-client
                         sample/https-client.c
                         sample/openssl_hostname_validation.c
@@ -1178,7 +1196,7 @@ if (NOT EVENT__DISABLE_SAMPLES)
         add_sample_prog(event_openssl becat sample/becat.c ${WIN32_GETOPT})
     endif()
 
-    if (NOT EVENT__DISABLE_MBEDTLS)
+    if (EVENT__HAVE_MBEDTLS)
         add_sample_prog(event_mbedtls https-client-mbedtls
                 sample/https-client.c)
         target_compile_definitions(https-client-mbedtls PRIVATE USE_MBEDTLS)
@@ -1298,11 +1316,11 @@ if (NOT EVENT__DISABLE_TESTS)
                 list(APPEND SRC_REGRESS test/regress_zlib.c)
             endif()
 
-            if (NOT EVENT__DISABLE_OPENSSL)
+            if (EVENT__HAVE_OPENSSL)
                 list(APPEND SRC_REGRESS test/regress_openssl.c)
             endif()
 
-            if (NOT EVENT__DISABLE_MBEDTLS)
+            if (EVENT__HAVE_MBEDTLS)
                 list(APPEND SRC_REGRESS test/regress_mbedtls.c)
             endif()
 
@@ -1313,10 +1331,10 @@ if (NOT EVENT__DISABLE_TESTS)
                                   ${LIB_PLATFORM}
                                   event_core
                                   event_extra)
-            if (NOT EVENT__DISABLE_OPENSSL)
+            if (EVENT__HAVE_OPENSSL)
                 target_link_libraries(regress event_openssl)
             endif()
-            if (NOT EVENT__DISABLE_MBEDTLS)
+            if (EVENT__HAVE_MBEDTLS)
                 target_link_libraries(regress event_mbedtls)
             endif()
             if (PTHREADS_AVAILABLE)
