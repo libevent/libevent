@@ -18,7 +18,6 @@ case "$enable_mbedtls" in
                    [have_mbedtls=no],
                    [-lmbedtls -lmbedcrypto -lmbedx509 $EV_LIB_GDI $EV_LIB_WS32])
     LIBS="$save_LIBS"
-    test "$have_mbedtls" = "yes" && break
     esac
     CPPFLAGS_SAVE=$CPPFLAGS
     CPPFLAGS="$CPPFLAGS $MBEDTLS_INCS"
