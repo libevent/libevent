@@ -31,7 +31,7 @@ jobs:
             export JOBS=20
             mkdir -p build
             cd build
-            cmake .. -DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
+            cmake .. -DEVENT__COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug -DEVENT__DISABLE_OPENSSL=OFF
             make -j $JOBS
 
       - name: Test
@@ -136,7 +136,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -DEVENT__DOXYGEN=ON ..
+          cmake -DEVENT__DOXYGEN=ON -DEVENT__DISABLE_OPENSSL=OFF ..
           make doxygen
 
       - name: Deploy Documentation
