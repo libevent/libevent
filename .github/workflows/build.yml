@@ -39,6 +39,7 @@ jobs:
           - DIST
           - NONE
           - NO_SSL
+          - REQUIRE_SSL
           - DISABLE_OPENSSL
           - DISABLE_THREAD_SUPPORT
           - DISABLE_DEBUG_MODE
@@ -94,6 +95,8 @@ jobs:
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "NO_SSL" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=ON -DEVENT__DISABLE_MBEDTLS=ON"
+          elif [ "${{ matrix.EVENT_MATRIX }}" == "REQUIRE_SSL" ]; then
+            EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_OPENSSL=OFF -DEVENT__DISABLE_MBEDTLS=OFF"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_THREAD_SUPPORT" ]; then
             EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_THREAD_SUPPORT=ON"
           elif [ "${{ matrix.EVENT_MATRIX }}" == "DISABLE_DEBUG_MODE" ]; then

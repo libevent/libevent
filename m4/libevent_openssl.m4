@@ -41,7 +41,7 @@ case "$host_os" in
 esac
 
 case "$enable_openssl" in
- yes)
+ auto|yes)
     have_openssl=no
     case "$PKG_CONFIG" in
      '')
@@ -84,17 +84,17 @@ case "$enable_openssl" in
     CPPFLAGS=$CPPFLAGS_SAVE
     AC_SUBST(OPENSSL_INCS)
     AC_SUBST(OPENSSL_LIBS)
-    case "$have_openssl" in
-     yes)  AC_DEFINE(HAVE_OPENSSL, 1, [Define if the system has openssl]) ;;
-     *) AC_MSG_ERROR([OpenSSL could not be found. You should add the directory \
-     containing 'openssl.pc' to the 'PKG_CONFIG_PATH' environment variable, set \
-     'CFLAGS' and 'LDFLAGS' directly, or use '--disable-openssl' to disable \
-     support for OpenSSL encryption])
-	;;
-    esac
+    if test "$have_openssl" = "yes" ; then
+        AC_DEFINE(HAVE_OPENSSL, 1, [Define if the system has openssl])
+    elif test "$enable_openssl" = "yes" ; then
+        AC_MSG_ERROR([OpenSSL could not be found. You should add the directory \
+            containing 'openssl.pc' to the 'PKG_CONFIG_PATH' environment variable, set \
+            'CFLAGS' and 'LDFLAGS' directly, or use '--disable-openssl' to disable \
+            support for OpenSSL encryption])
+    fi
     ;;
 esac
 
 dnl check if we have and should use OpenSSL
-AM_CONDITIONAL(OPENSSL, [test "$enable_openssl" != "no" && test "$have_openssl" = "yes"])
+AM_CONDITIONAL(OPENSSL, [test "$have_openssl" = "yes"])
 ])
