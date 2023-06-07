@@ -32,7 +32,7 @@
 #define WEPOLL_EXPORT
 
 #include <stdint.h>
-#include "mm-internal.h"
+#include "event-internal.h"
 
 enum EPOLL_EVENTS {
   EPOLLIN      = (int) (1U <<  0),
