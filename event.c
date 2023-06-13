@@ -2770,6 +2770,7 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 			event_queue_remove_active(base, event_to_event_callback(ev));
 		}
 
+		base->last_updated_clock_diff = 0; // force diff recalc for correct ev->ev_timeout calculation
 		gettime(base, &now);
 
 		common_timeout = is_common_timeout(tv, base);
