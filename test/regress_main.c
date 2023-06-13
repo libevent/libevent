@@ -454,6 +454,7 @@ struct testgroup_t testgroups[] = {
 	{ "thread/", thread_testcases },
 	{ "listener/", listener_testcases },
 	{ "watch/", watch_testcases },
+	{ "event_timer/", event_timer_testcases },
 #ifdef _WIN32
 	{ "iocp/", iocp_testcases },
 	{ "iocp/bufferevent/", bufferevent_iocp_testcases },
