@@ -859,6 +859,11 @@ AC_SUBST([LIBEVENT_GC_SECTIONS])
 
 AM_CONDITIONAL([INSTALL_LIBEVENT], [test "$enable_libevent_install" = "yes"])
 
+dnl Allow additional flags from a containing package such as NTP
+AC_SUBST([LIBEVENT_CFLAGS])
+AC_SUBST([LIBEVENT_CPPFLAGS])
+AC_SUBST([LIBEVENT_LDFLAGS])
+
 AC_C_BIGENDIAN([CFLAGS="$CFLAGS -DBIG_ENDIAN"], [CFLAGS="$CFLAGS -DLITTLE_ENDIAN"])
 
 dnl Doxygen support
