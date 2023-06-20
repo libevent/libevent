@@ -1,6 +1,10 @@
 #ifndef EVENT2_WS_H_INCLUDED_
 #define EVENT2_WS_H_INCLUDED_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct evws_connection;
 
 #define WS_CR_NONE 0
@@ -54,5 +58,9 @@ void evws_connection_free(struct evws_connection *evws);
 EVENT2_EXPORT_SYMBOL
 struct bufferevent *evws_connection_get_bufferevent(
 	struct evws_connection *evws);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
