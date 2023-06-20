@@ -2264,7 +2264,7 @@ evutil_inet_pton_scope(int af, const char *src, void *dst, unsigned *indexp)
 	cp = strchr(tmp_src, '%');
 	*cp = '\0';
 	r = evutil_inet_pton(af, tmp_src, dst);
-	free(tmp_src);
+	mm_free(tmp_src);
 	return r;
 }
 
