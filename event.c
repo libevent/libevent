@@ -409,7 +409,7 @@ static void event_debug_assert_socket_nonblocking_(evutil_socket_t fd) { (void)f
 
 /* How often (in seconds) do we check for changes in wall clock time relative
  * to monotonic time?  Set this to -1 for 'never.' */
-#define CLOCK_SYNC_INTERVAL 5
+#define CLOCK_SYNC_INTERVAL -1
 
 /** Set 'tp' to the current time according to 'base'.  We must hold the lock
  * on 'base'.  If there is a cached time, return it.  Otherwise, use
@@ -2770,7 +2770,6 @@ event_add_nolock_(struct event *ev, const struct timeval *tv,
 			event_queue_remove_active(base, event_to_event_callback(ev));
 		}
 
-		base->last_updated_clock_diff = 0; // force diff recalc for correct ev->ev_timeout calculation
 		gettime(base, &now);
 
 		common_timeout = is_common_timeout(tv, base);
