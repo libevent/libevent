@@ -127,6 +127,7 @@ test_regress_SOURCES = 				\
 	test/regress_watch.c				\
 	test/regress_ws.c				\
 	test/regress_ws.h				\
+	test/regress_timer_timeout.c		\
 	test/tinytest.c				\
 	$(regress_thread_SOURCES)		\
 	$(regress_zlib_SOURCES)

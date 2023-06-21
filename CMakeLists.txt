@@ -1299,6 +1299,7 @@ if (NOT EVENT__DISABLE_TESTS)
                  test/regress_testutils.h
                  test/regress_util.c
                  test/regress_watch.c
+                 test/regress_timer_timeout.c
                  test/regress_ws.c
                  test/regress_ws.h
                  test/tinytest.c)

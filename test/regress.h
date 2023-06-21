@@ -55,6 +55,7 @@ extern struct testcase_t listener_testcases[];
 extern struct testcase_t listener_iocp_testcases[];
 extern struct testcase_t thread_testcases[];
 extern struct testcase_t watch_testcases[];
+extern struct testcase_t event_timer_testcases[];
 
 extern struct evutil_weakrand_state test_weakrand_state;
 
