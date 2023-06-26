@@ -356,7 +356,7 @@ ev_int32_t evutil_weakrand_range_(struct evutil_weakrand_state *seed, ev_int32_t
 #endif
 
 #if EVUTIL_HAS_ATTRIBUTE(fallthrough)
-#define EVUTIL_FALLTHROUGH __attribute__((fallthrough))
+#define EVUTIL_FALLTHROUGH ; __attribute__((fallthrough))
 #else
 #define EVUTIL_FALLTHROUGH /* fallthrough */
 #endif
