@@ -322,15 +322,15 @@ static struct options parse_opts(int argc, char **argv)
 		}
 	}
 
-	if ((argc-optind) > 1) {
+	if ((argc-optind) > 0) {
 		o.dst.address = strdup(argv[optind]);
 		++optind;
 	}
-	if ((argc-optind) > 1) {
-		o.dst.port = atoi(optarg);
+	if ((argc-optind) > 0) {
+		o.dst.port = atoi(argv[optind]);
 		++optind;
 	}
-	if ((argc-optind) > 1) {
+	if ((argc-optind) > 0) {
 		print_usage(stderr, argv[0]);
 		exit(1);
 	}
