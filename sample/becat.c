@@ -291,7 +291,7 @@ static struct options parse_opts(int argc, char **argv)
 	o.src.port = o.dst.port = 10024;
 	o.max_read = -1;
 
-	while ((opt = getopt(argc, argv, "p:s:R:t:" "lkSvh")) != -1) {
+	while ((opt = getopt(argc, argv, "p:s:R:t:T:" "lkSvh")) != -1) {
 		switch (opt) {
 			case 'p': o.src.port    = atoi(optarg); break;
 			case 's': o.src.address = strdup("127.1"); break;
@@ -322,15 +322,15 @@ static struct options parse_opts(int argc, char **argv)
 		}
 	}
 
-	if ((argc-optind) > 1) {
+	if ((argc-optind) > 0) {
 		o.dst.address = strdup(argv[optind]);
 		++optind;
 	}
-	if ((argc-optind) > 1) {
-		o.dst.port = atoi(optarg);
+	if ((argc-optind) > 0) {
+		o.dst.port = atoi(argv[optind]);
 		++optind;
 	}
-	if ((argc-optind) > 1) {
+	if ((argc-optind) > 0) {
 		print_usage(stderr, argv[0]);
 		exit(1);
 	}
