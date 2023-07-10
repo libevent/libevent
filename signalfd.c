@@ -205,8 +205,8 @@ sigfd_del(struct event_base *base, int signo, short old, short events, void *p)
 int sigfd_init_(struct event_base *base)
 {
 	EVUTIL_ASSERT(base != NULL);
-	if ((base->flags & EVENT_BASE_FLAG_DISALLOW_SIGNALFD) ||
-	    getenv("EVENT_DISALLOW_SIGNALFD"))
+	if (!(base->flags & EVENT_BASE_FLAG_USE_SIGNALFD) &&
+	    !getenv("EVENT_USE_SIGNALFD"))
 		return -1;
 	base->evsigsel = &sigfdops;
 	return 0;

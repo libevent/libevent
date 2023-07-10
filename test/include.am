@@ -80,6 +80,8 @@ test_runner_changelist: $(top_srcdir)/test/test.sh
 	$(top_srcdir)/test/test.sh -b "" -c
 test_runner_timerfd_changelist: $(top_srcdir)/test/test.sh
 	$(top_srcdir)/test/test.sh -b "" -T
+test_runner_timerfd_changelist: $(top_srcdir)/test/test.sh
+	$(top_srcdir)/test/test.sh -b "" -S
 
 DISTCLEANFILES += test/regress.gen.c test/regress.gen.h
 
