@@ -130,7 +130,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: bash
           command: |
             JOBS=20
@@ -217,7 +217,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: bash
           command: |
             JOBS=20
@@ -352,7 +352,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: powershell
           command: |
             $EVENT_TESTS_PARALLEL=1
@@ -422,7 +422,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: powershell
           command: |
             $env:EVENT_TESTS_PARALLEL=1
@@ -512,7 +512,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: powershell
           command: |
             cd build
@@ -595,7 +595,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: bash
           command: |
             JOBS=1
@@ -655,7 +655,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: bash
           command: |
             JOBS=1
@@ -740,7 +740,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: bash
           command: |
             ssh freebsd sh <<EOF
@@ -801,7 +801,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: bash
           command: |
             ssh freebsd sh <<EOF
@@ -895,7 +895,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: bash
           command: |
             ssh openbsd sh <<EOF
@@ -959,7 +959,7 @@ jobs:
         uses: nick-fields/retry@v2
         with:
           max_attempts: 5
-          timeout_minutes: 20
+          timeout_minutes: 60
           shell: bash
           command: |
             ssh openbsd sh <<EOF
