@@ -1185,6 +1185,80 @@ end:
 	if (dns)
 		evdns_base_free(dns, 0);
 }
+
+static const char *dns_resolvconf_with_one_nameserver =
+	"nameserver 127.0.0.53\n";
+
+static void
+dns_initialize_inactive_one_nameserver_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+
+	char *filename = NULL;
+
+	tt_int_op(regress_make_tmpfile(dns_resolvconf_with_one_nameserver,
+				  strlen(dns_resolvconf_with_one_nameserver), &filename),
+		!=, -1);
+
+	tt_assert(filename);
+
+	evutil_set_resolvconf_filename_(filename);
+
+	dns = evdns_base_new(base,
+		EVDNS_BASE_INITIALIZE_NAMESERVERS | EVDNS_BASE_DISABLE_WHEN_INACTIVE);
+	tt_assert(dns);
+
+	tt_int_op(event_base_loop(base, EVLOOP_NONBLOCK), ==, 1);
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+	if (filename) {
+		unlink(filename);
+		free(filename);
+	}
+	evutil_set_resolvconf_filename_(NULL);
+}
+
+static const char *dns_resolvconf_with_two_nameservers =
+	"nameserver 127.0.0.53\n"
+	"nameserver 127.0.0.53\n";
+
+static void
+dns_initialize_inactive_two_nameservers_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct event_base *base = data->base;
+	struct evdns_base *dns = NULL;
+
+	char *filename = NULL;
+
+	tt_int_op(regress_make_tmpfile(dns_resolvconf_with_two_nameservers,
+				  strlen(dns_resolvconf_with_two_nameservers), &filename),
+		!=, -1);
+
+	tt_assert(filename);
+
+	evutil_set_resolvconf_filename_(filename);
+
+	dns = evdns_base_new(base,
+		EVDNS_BASE_INITIALIZE_NAMESERVERS | EVDNS_BASE_DISABLE_WHEN_INACTIVE);
+	tt_assert(dns);
+
+	tt_int_op(event_base_loop(base, EVLOOP_NONBLOCK), ==, 1);
+
+end:
+	if (dns)
+		evdns_base_free(dns, 0);
+	if (filename) {
+		unlink(filename);
+		free(filename);
+	}
+	evutil_set_resolvconf_filename_(NULL);
+}
+
 #ifndef _WIN32
 #define RESOLV_FILE "empty-resolv.conf"
 static void
@@ -3036,6 +3110,10 @@ struct testcase_t dns_testcases[] = {
 	{ "initialize_nameservers", dns_initialize_nameservers_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 #ifndef _WIN32
+	{"initialize_with_one_inactive_nameserver", dns_initialize_inactive_one_nameserver_test,
+	  TT_FORK | TT_NEED_BASE, &basic_setup, NULL},
+	{"initialize_with_two_inactive_nameservers", dns_initialize_inactive_two_nameservers_test,
+ 	  TT_FORK | TT_NEED_BASE, &basic_setup, NULL},
 	{ "nameservers_no_default", dns_nameservers_no_default_test,
 	  TT_FORK|TT_NEED_BASE, &basic_setup, NULL },
 	{ "no_nameservers_configured", dns_nameservers_no_nameservers_configured_test,
