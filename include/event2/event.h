@@ -599,9 +599,11 @@ enum event_base_config_flag {
 	 */
 	EVENT_BASE_FLAG_EPOLL_DISALLOW_TIMERFD = 0x40,
 
-	/** Do not use signalfd(2) to handle signals even if supported.
+	/** Use signalfd(2) to handle signals over sigaction/signal.
+	 *
+	 * But note, that in some edge cases signalfd() may works differently.
 	 */
-	EVENT_BASE_FLAG_DISALLOW_SIGNALFD = 0x80,
+	EVENT_BASE_FLAG_USE_SIGNALFD = 0x80,
 };
 
 /**

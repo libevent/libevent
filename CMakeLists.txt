@@ -1509,6 +1509,7 @@ if (NOT EVENT__DISABLE_TESTS)
         else()
             add_backend_test(${BACKEND} "${BACKEND_ENV_VARS}")
         endif()
+        add_backend_test(signalfd_${BACKEND} "${BACKEND_ENV_VARS};EVENT_USE_SIGNALFD=1")
     endforeach()
 
     #

@@ -50,6 +50,7 @@ setup () {
 	done
 	unset EVENT_EPOLL_USE_CHANGELIST
 	unset EVENT_PRECISE_TIMER
+	unset EVENT_USE_SIGNALFD
 }
 
 announce () {
@@ -138,10 +139,12 @@ do_test() {
 	    EVENT_EPOLL_USE_CHANGELIST=yes; export EVENT_EPOLL_USE_CHANGELIST
 	elif test "$2" = "(timerfd)" ; then
 	    EVENT_PRECISE_TIMER=1; export EVENT_PRECISE_TIMER
+	elif test "$2" = "(signalfd)" ; then
+	    EVENT_USE_SIGNALFD=1; export EVENT_USE_SIGNALFD
 	elif test "$2" = "(timerfd+changelist)" ; then
 	    EVENT_EPOLL_USE_CHANGELIST=yes; export EVENT_EPOLL_USE_CHANGELIST
 	    EVENT_PRECISE_TIMER=1; export EVENT_PRECISE_TIMER
-        fi
+	fi
 
 	run_tests
 }
@@ -153,6 +156,7 @@ usage()
   -t   - run timerfd test
   -c   - run changelist test
   -T   - run timerfd+changelist test
+  -S   - run signalfd test
 EOL
 }
 main()
@@ -161,13 +165,15 @@ main()
 	timerfd=0
 	changelist=0
 	timerfd_changelist=0
+	signalfd=0
 
-	while getopts "b:tcT" c; do
+	while getopts "b:tcTS" c; do
 		case "$c" in
 			b) backends="$OPTARG";;
 			t) timerfd=1;;
 			c) changelist=1;;
 			T) timerfd_changelist=1;;
+			S) signalfd=1;;
 			?*) usage && exit 1;;
 		esac
 	done
@@ -179,6 +185,7 @@ main()
 	[ $timerfd_changelist -eq 0 ] || do_test EPOLL "(timerfd+changelist)"
 	for i in $backends; do
 		do_test $i
+		[ $signalfd -eq 0 ] || do_test $i "(signalfd)"
 	done
 
 	if test "$FAILED" = "yes"; then
