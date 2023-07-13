@@ -417,6 +417,12 @@ typedef void (*evdns_getaddrinfo_cancel_fn)(
 EVENT2_EXPORT_SYMBOL
 void evutil_set_evdns_getaddrinfo_cancel_fn_(evdns_getaddrinfo_cancel_fn fn);
 
+/* Customization point to override "/etc/resolv.conf" */
+EVENT2_EXPORT_SYMBOL
+void evutil_set_resolvconf_filename_(const char *filename);
+EVENT2_EXPORT_SYMBOL
+const char *evutil_resolvconf_filename_(void);
+
 EVENT2_EXPORT_SYMBOL
 struct evutil_addrinfo *evutil_new_addrinfo_(struct sockaddr *sa,
     ev_socklen_t socklen, const struct evutil_addrinfo *hints);

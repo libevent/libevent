@@ -4880,6 +4880,10 @@ evdns_base_new(struct event_base *event_base, int flags)
 	}
 #undef EVDNS_BASE_ALL_FLAGS
 
+	if (flags & EVDNS_BASE_DISABLE_WHEN_INACTIVE) {
+		base->disable_when_inactive = 1;
+	}
+
 	if (flags & EVDNS_BASE_INITIALIZE_NAMESERVERS) {
 		int r;
 		int opts = DNS_OPTIONS_ALL;
@@ -4890,15 +4894,12 @@ evdns_base_new(struct event_base *event_base, int flags)
 #ifdef _WIN32
 		r = evdns_base_config_windows_nameservers(base);
 #else
-		r = evdns_base_resolv_conf_parse(base, opts, "/etc/resolv.conf");
+		r = evdns_base_resolv_conf_parse(base, opts, evutil_resolvconf_filename_());
 #endif
 		if (r && (EVDNS_ERROR_NO_NAMESERVERS_CONFIGURED != r)) {
 			evdns_base_free_and_unlock(base, 0);
 			return NULL;
 		}
-	}
-	if (flags & EVDNS_BASE_DISABLE_WHEN_INACTIVE) {
-		base->disable_when_inactive = 1;
 	}
 
 	EVDNS_UNLOCK(base);

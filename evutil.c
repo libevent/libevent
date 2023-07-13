@@ -1849,6 +1849,23 @@ evutil_set_evdns_getaddrinfo_cancel_fn_(evdns_getaddrinfo_cancel_fn fn)
 		evdns_getaddrinfo_cancel_impl = fn;
 }
 
+static const char *evutil_custom_resolvconf_filename = NULL;
+
+void
+evutil_set_resolvconf_filename_(const char *filename)
+{
+	evutil_custom_resolvconf_filename = filename;
+}
+
+const char *
+evutil_resolvconf_filename_(void)
+{
+	if (evutil_custom_resolvconf_filename)
+		return evutil_custom_resolvconf_filename;
+
+	return "/etc/resolv.conf";
+}
+
 /* Internal helper function: act like evdns_getaddrinfo if dns_base is set;
  * otherwise do a blocking resolve and pass the result to the callback in the
  * way that evdns_getaddrinfo would.
