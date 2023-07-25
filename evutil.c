@@ -24,6 +24,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef _WIN32
+#ifndef _WIN32_WINNT
+/* For structs needed by GetAdaptersAddresses */
+#define _WIN32_WINNT 0x0501
+#endif
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
@@ -34,15 +42,10 @@
 #ifdef EVENT__HAVE_AFUNIX_H
 #include <afunix.h>
 #endif
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#undef WIN32_LEAN_AND_MEAN
 #include <io.h>
 #include <tchar.h>
 #include <process.h>
-#undef _WIN32_WINNT
-/* For structs needed by GetAdaptersAddresses */
-#define _WIN32_WINNT 0x0501
 #include <iphlpapi.h>
 #include <netioapi.h>
 #endif

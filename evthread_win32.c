@@ -23,18 +23,21 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "event2/event-config.h"
-#include "evconfig-private.h"
 
 #ifdef _WIN32
 #ifndef _WIN32_WINNT
 /* Minimum required for InitializeCriticalSectionAndSpinCount */
 #define _WIN32_WINNT 0x0403
 #endif
-#include <winsock2.h>
 #define WIN32_LEAN_AND_MEAN
+#endif
+
+#include "event2/event-config.h"
+#include "evconfig-private.h"
+
+#ifdef _WIN32
+#include <winsock2.h>
 #include <windows.h>
-#undef WIN32_LEAN_AND_MEAN
 #include <sys/locking.h>
 #endif
 
