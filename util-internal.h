@@ -305,7 +305,7 @@ int evutil_socket_finished_connecting_(evutil_socket_t fd);
 
 #ifdef EVENT__HAVE_AFUNIX_H
 EVENT2_EXPORT_SYMBOL
-int evutil_check_working_afunix_();
+int evutil_check_working_afunix_(void);
 #endif
 
 EVENT2_EXPORT_SYMBOL
