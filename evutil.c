@@ -26,8 +26,8 @@
 
 #ifdef _WIN32
 #ifndef _WIN32_WINNT
-/* For structs needed by GetAdaptersAddresses */
-#define _WIN32_WINNT 0x0501
+/* For structs needed by GetAdaptersAddresses and AI_NUMERICSERV */
+#define _WIN32_WINNT 0x0600
 #endif
 #define WIN32_LEAN_AND_MEAN
 #endif
