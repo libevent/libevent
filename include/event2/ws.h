@@ -36,8 +36,8 @@ struct evws_connection *evws_new_session(
 
 /** Sends data over WebSocket connection */
 EVENT2_EXPORT_SYMBOL
-void evws_send(
-	struct evws_connection *evws, const char *packet_str, size_t str_len);
+void evws_send(struct evws_connection *evws, int frame_type, const char *packet_str,
+	size_t str_len);
 
 /** Closes a WebSocket connection with reason code */
 EVENT2_EXPORT_SYMBOL
