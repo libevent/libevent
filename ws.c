@@ -433,13 +433,14 @@ make_ws_frame(struct evbuffer *output, enum WebSocketFrameType frame_type,
 }
 
 void
-evws_send(struct evws_connection *evws, const char *packet_str, size_t str_len)
+evws_send(struct evws_connection *evws, int frame_type, const char *packet_str,
+	size_t str_len)
 {
 	struct evbuffer *output;
 
 	bufferevent_lock(evws->bufev);
 	output = bufferevent_get_output(evws->bufev);
-	make_ws_frame(output, TEXT_FRAME, (unsigned char *)packet_str, str_len);
+	make_ws_frame(output, frame_type, (unsigned char *)packet_str, str_len);
 	bufferevent_unlock(evws->bufev);
 }
 
