@@ -24,16 +24,19 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef _WIN32
+#ifndef _WIN32_WINNT
+/* Minimum required for InitializeCriticalSectionAndSpinCount */
+#define _WIN32_WINNT 0x0403
+#endif
+#endif
+
 #include "event2/event-config.h"
 #include "evconfig-private.h"
 
 #include <sys/types.h>
 
 #ifdef _WIN32
-#ifndef _WIN32_WINNT
-/* Minimum required for InitializeCriticalSectionAndSpinCount */
-#define _WIN32_WINNT 0x0403
-#endif
 #include <winsock2.h>
 #include <winerror.h>
 #include <ws2tcpip.h>

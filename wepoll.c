@@ -31,6 +31,12 @@
 
 #define WEPOLL_EXPORT
 
+#ifndef _WIN32_WINNT
+/* Minimum required for SetFileCompletionNotificationModes() */
+#define _WIN32_WINNT 0x0600
+#endif
+#define WIN32_LEAN_AND_MEAN
+
 #include <stdint.h>
 #include "event-internal.h"
 
@@ -113,20 +119,10 @@ WEPOLL_EXPORT int epoll_wait(HANDLE ephnd,
 #define WEPOLL_INTERNAL static
 #define WEPOLL_INTERNAL_VAR static
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wreserved-id-macro"
 #endif
-
-#ifdef _WIN32_WINNT
-#undef _WIN32_WINNT
-#endif
-
-#define _WIN32_WINNT 0x0600
 
 #ifdef __clang__
 #pragma clang diagnostic pop
