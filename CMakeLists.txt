@@ -186,15 +186,19 @@ include(GNUInstallDirs)
 #
 # Refs: https://gitlab.kitware.com/cmake/community/-/wikis/doc/cmake/RPATH-handling
 macro(Configure_RPATH)
-    # NOTE: that CMAKE_INSTALL_LIBDIR not always normalized correctly, i.e.:
+    # NOTE: that CMAKE_INSTALL_FULL_LIBDIR not always normalized correctly, i.e.:
     # - "///" -> "/"
     # - "/////usr///" -> "//usr"
     # So it should be normalized again.
-    get_filename_component(CMAKE_INSTALL_LIBDIR_NORMALIZED "${CMAKE_INSTALL_PREFIX}" REALPATH)
-    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_LIBDIR_NORMALIZED}/lib" isSystemDir)
+    get_filename_component(CMAKE_INSTALL_LIBDIR_NORMALIZED "${CMAKE_INSTALL_FULL_LIBDIR}" REALPATH)
+    list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_LIBDIR_NORMALIZED}" isSystemDir)
 
-    if("${isSystemDir}" STREQUAL "-1")
+    if(DEFINED CMAKE_INSTALL_RPATH)
+        message(STATUS "CMAKE_INSTALL_RPATH already set")
+    elseif("${isSystemDir}" STREQUAL "-1")
         set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_LIBDIR_NORMALIZED}")
+    else()
+        message(STATUS "Detected install to system directory")
     endif()
 endmacro()
 Configure_RPATH()
