@@ -21,8 +21,14 @@
 
 cmake_minimum_required(VERSION 3.4 FATAL_ERROR)
 
+if (POLICY CMP0042)
+    cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH is enabled by default.
+endif()
 if (POLICY CMP0054)
     cmake_policy(SET CMP0054 NEW)
+endif()
+if (POLICY CMP0068)
+    cmake_policy(SET CMP0068 NEW) # RPATH settings on macOS do not affect install_name.
 endif()
 if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
