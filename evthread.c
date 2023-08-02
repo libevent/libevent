@@ -105,7 +105,7 @@ evthread_set_lock_callbacks(const struct evthread_lock_callbacks *cbs)
 	if (!cbs) {
 		if (target->alloc)
 			event_warnx("Trying to disable lock functions after "
-			    "they have been set up will probaby not work.");
+			    "they have been set up will probably not work.");
 		memset(target, 0, sizeof(evthread_lock_fns_));
 		return 0;
 	}
@@ -148,7 +148,7 @@ evthread_set_condition_callbacks(const struct evthread_condition_callbacks *cbs)
 	if (!cbs) {
 		if (target->alloc_condition)
 			event_warnx("Trying to disable condition functions "
-			    "after they have been set up will probaby not "
+			    "after they have been set up will probably not "
 			    "work.");
 		memset(target, 0, sizeof(evthread_cond_fns_));
 		return 0;
