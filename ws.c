@@ -238,7 +238,7 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 		unsigned char *c;
 		int i;
 
-		mask = *((unsigned int *)(in_buffer + pos));
+		memcpy(&mask, in_buffer + pos, sizeof(mask));
 		pos += 4;
 
 		/* unmask data */
