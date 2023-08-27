@@ -71,6 +71,10 @@ enum WebSocketFrameType {
 	PONG_FRAME = 0xA
 };
 
+
+static void evws_send(struct evws_connection *evws,
+	enum WebSocketFrameType frame_type, const char *packet_str, size_t str_len);
+
 /*
  * Clean up a WebSockets connection object
  */
@@ -432,9 +436,9 @@ make_ws_frame(struct evbuffer *output, enum WebSocketFrameType frame_type,
 	evbuffer_add(output, msg, len);
 }
 
-void
-evws_send(struct evws_connection *evws, int frame_type, const char *packet_str,
-	size_t str_len)
+static void
+evws_send(struct evws_connection *evws, enum WebSocketFrameType frame_type,
+	const char *packet_str, size_t str_len)
 {
 	struct evbuffer *output;
 
@@ -442,6 +446,19 @@ evws_send(struct evws_connection *evws, int frame_type, const char *packet_str,
 	output = bufferevent_get_output(evws->bufev);
 	make_ws_frame(output, frame_type, (unsigned char *)packet_str, str_len);
 	bufferevent_unlock(evws->bufev);
+}
+
+void
+evws_send_text(struct evws_connection *evws, const char *packet_str)
+{
+	evws_send(evws, TEXT_FRAME, packet_str, strlen(packet_str));
+}
+
+void
+evws_send_binary(
+	struct evws_connection *evws, const char *packet_data, size_t packet_len)
+{
+	evws_send(evws, BINARY_FRAME, packet_data, packet_len);
 }
 
 void

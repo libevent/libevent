@@ -89,7 +89,7 @@ on_ws_msg_cb(struct evws_connection *evws, int type, const unsigned char *data,
 	if (!strcmp(msg, "Send echo")) {
 		const char *reply = "Reply echo";
 
-		evws_send(evws, WS_TEXT_FRAME, reply, strlen(reply));
+		evws_send_text(evws, reply);
 		test_ok++;
 	} else if (!strcmp(msg, "Client: hello")) {
 		test_ok++;
@@ -126,7 +126,7 @@ http_on_ws_cb(struct evhttp_request *req, void *arg)
 	test_ok++;
 
 	evws_connection_set_closecb(evws, on_ws_close_cb, (void *)0xDEADBEEF);
-	evws_send(evws, WS_TEXT_FRAME, hello, strlen(hello));
+	evws_send_text(evws, hello);
 }
 
 static void

@@ -12,9 +12,6 @@ struct evws_connection;
 #define WS_CR_PROTO_ERR 1002
 #define WS_CR_DATA_TOO_BIG 1009
 
-#define WS_TEXT_FRAME 0x1
-#define WS_BINARY_FRAME 0x2
-
 typedef void (*ws_on_msg_cb)(
 	struct evws_connection *, int type, const unsigned char *, size_t, void *);
 typedef void (*ws_on_close_cb)(struct evws_connection *, void *);
@@ -34,10 +31,14 @@ EVENT2_EXPORT_SYMBOL
 struct evws_connection *evws_new_session(
 	struct evhttp_request *req, ws_on_msg_cb, void *arg, int options);
 
-/** Sends data over WebSocket connection */
+/** Sends text data over WebSocket connection */
 EVENT2_EXPORT_SYMBOL
-void evws_send(struct evws_connection *evws, int frame_type, const char *packet_str,
-	size_t str_len);
+void evws_send_text(struct evws_connection *evws, const char *packet_str);
+
+/** Sends binary data over WebSocket connection */
+EVENT2_EXPORT_SYMBOL
+void evws_send_binary(
+	struct evws_connection *evws, const char *packet_data, size_t packet_len);
 
 /** Closes a WebSocket connection with reason code */
 EVENT2_EXPORT_SYMBOL
