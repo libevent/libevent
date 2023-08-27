@@ -12,6 +12,9 @@ struct evws_connection;
 #define WS_CR_PROTO_ERR 1002
 #define WS_CR_DATA_TOO_BIG 1009
 
+#define WS_TEXT_FRAME 0x1
+#define WS_BINARY_FRAME 0x2
+
 typedef void (*ws_on_msg_cb)(
 	struct evws_connection *, int type, const unsigned char *, size_t, void *);
 typedef void (*ws_on_close_cb)(struct evws_connection *, void *);
