@@ -89,9 +89,12 @@ on_ws_msg_cb(struct evws_connection *evws, int type, const unsigned char *data,
 	if (!strcmp(msg, "Send echo")) {
 		const char *reply = "Reply echo";
 
-		evws_send(evws, reply, strlen(reply));
+		evws_send_text(evws, reply);
 		test_ok++;
 	} else if (!strcmp(msg, "Client: hello")) {
+		test_ok++;
+	} else if (!strcmp(msg, "Bye")) {
+		evws_send_binary(evws, "\xde\xad\xbe\xef\x55", 5);
 		test_ok++;
 	} else if (!strcmp(msg, "Close")) {
 		evws_close(evws, 0);
@@ -126,7 +129,7 @@ http_on_ws_cb(struct evhttp_request *req, void *arg)
 	test_ok++;
 
 	evws_connection_set_closecb(evws, on_ws_close_cb, (void *)0xDEADBEEF);
-	evws_send(evws, hello, strlen(hello));
+	evws_send_text(evws, hello);
 }
 
 static void
@@ -140,10 +143,10 @@ http_ws_errorcb(struct bufferevent *bev, short what, void *arg)
 }
 
 static char *
-receive_ws_msg(struct evbuffer *buf, size_t *out_len, unsigned *options)
+receive_ws_msg(struct evbuffer *buf, size_t *out_len, bool *is_text_type)
 {
 	unsigned char *data;
-	int fin, opcode, mask;
+	int opcode, mask;
 	uint64_t payload_len;
 	size_t header_len;
 	const unsigned char *mask_key;
@@ -153,7 +156,6 @@ receive_ws_msg(struct evbuffer *buf, size_t *out_len, unsigned *options)
 
 	data = evbuffer_pullup(buf, data_len);
 
-	fin = !!(*data & 0x80);
 	opcode = *data & 0x0F;
 	mask = !!(*(data + 1) & 0x80);
 	payload_len = *(data + 1) & 0x7F;
@@ -191,32 +193,32 @@ receive_ws_msg(struct evbuffer *buf, size_t *out_len, unsigned *options)
 	/* text */
 	if (opcode == 0x01) {
 		out_buf = calloc(payload_len + 1, 1);
+		*is_text_type = true;
 	} else { /* binary */
 		out_buf = malloc(payload_len);
 	}
 	memcpy(out_buf, (const char *)data + header_len, payload_len);
 
-	if (!fin) {
-		*options = 1;
-	}
-
 	evbuffer_drain(buf, header_len + payload_len);
 	return out_buf;
 }
 
+enum WSOptions {
+	WS_FIN = 1 << 7,
+	WS_TEXT = 1 << 1,
+	WS_BINARY = 0 << 1,
+};
+
 static void
-send_ws_msg(struct evbuffer *buf, const char *msg, bool final)
+send_ws_msg(
+	struct evbuffer *buf, const char *msg, size_t len, enum WSOptions options)
 {
-	size_t len = strlen(msg);
 	uint8_t a = 0, b = 0, c = 0, d = 0;
 	uint8_t mask_key[4] = {1, 2, 3, 4}; /* should be random */
 	uint8_t m;
 	size_t i;
 
-	if (final)
-		a |= 1 << 7; /* fin */
-	a |= 1;			 /* text frame */
-
+	a = options;
 	b |= 1 << 7; /* mask */
 
 	/* payload len */
@@ -254,20 +256,31 @@ http_ws_readcb_phase2(struct bufferevent *bev, void *arg)
 
 	while (evbuffer_get_length(input) >= 2) {
 		size_t len = 0;
-		unsigned options = 0;
+		bool is_text_type = false;
 		char *msg;
 
-		msg = receive_ws_msg(input, &len, &options);
+		msg = receive_ws_msg(input, &len, &is_text_type);
 		if (msg) {
-			if (!strcmp(msg, "Server: hello")) {
-				send_ws_msg(output, "Send ", false);
-				send_ws_msg(output, "echo", true);
-				test_ok++;
-			} else if (!strcmp(msg, "Reply echo")) {
-				send_ws_msg(output, "Close", true);
-				test_ok++;
+			if (is_text_type) {
+				if (!strcmp(msg, "Server: hello")) {
+					send_ws_msg(output, "Send ", strlen("Send "), WS_TEXT);
+					send_ws_msg(
+						output, "echo", strlen("echo"), WS_TEXT | WS_FIN);
+					test_ok++;
+				} else if (!strcmp(msg, "Reply echo")) {
+					send_ws_msg(output, "Bye", strlen("Bye"), WS_TEXT | WS_FIN);
+					test_ok++;
+				} else {
+					test_ok--;
+				}
 			} else {
-				test_ok--;
+				if (len == 5 && !memcmp(msg, "\xde\xad\xbe\xef\x55", 5)) {
+					send_ws_msg(
+						output, "Close", strlen("Close"), WS_TEXT | WS_FIN);
+					test_ok++;
+				} else {
+					test_ok--;
+				}
 			}
 			free(msg);
 		}
@@ -293,9 +306,9 @@ http_ws_readcb_hdr(struct bufferevent *bev, void *arg)
 			free(line);
 			bufferevent_setcb(
 				bev, http_ws_readcb_phase2, http_writecb, http_ws_errorcb, arg);
-			send_ws_msg(output, "Client:", false);
-			send_ws_msg(output, " ", false);
-			send_ws_msg(output, "hello", true);
+			send_ws_msg(output, "Client:", strlen("Client:"), WS_TEXT);
+			send_ws_msg(output, " ", strlen(" "), WS_TEXT);
+			send_ws_msg(output, "hello", strlen("hello"), WS_TEXT | WS_FIN);
 			test_ok++;
 			if (evbuffer_get_length(input) > 0) {
 				http_ws_readcb_phase2(bev, arg);
@@ -369,7 +382,7 @@ http_ws_test(void *arg)
 
 	test_ok = 0;
 	event_base_dispatch(data->base);
-	tt_int_op(test_ok, ==, 13);
+	tt_int_op(test_ok, ==, 16);
 
 	evhttp_free(http);
 end:

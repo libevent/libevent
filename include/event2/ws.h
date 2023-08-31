@@ -34,10 +34,14 @@ EVENT2_EXPORT_SYMBOL
 struct evws_connection *evws_new_session(
 	struct evhttp_request *req, ws_on_msg_cb, void *arg, int options);
 
-/** Sends data over WebSocket connection */
+/** Sends text data over WebSocket connection */
 EVENT2_EXPORT_SYMBOL
-void evws_send(
-	struct evws_connection *evws, const char *packet_str, size_t str_len);
+void evws_send_text(struct evws_connection *evws, const char *packet_str);
+
+/** Sends binary data over WebSocket connection */
+EVENT2_EXPORT_SYMBOL
+void evws_send_binary(
+	struct evws_connection *evws, const char *packet_data, size_t packet_len);
 
 /** Closes a WebSocket connection with reason code */
 EVENT2_EXPORT_SYMBOL

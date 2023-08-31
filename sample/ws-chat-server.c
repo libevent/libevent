@@ -66,7 +66,7 @@ broadcast_msg(char *msg)
 	struct client *client;
 
 	TAILQ_FOREACH (client, &clients, next) {
-		evws_send(client->evws, msg, strlen(msg));
+		evws_send_text(client->evws, msg);
 	}
 	log_d("%s\n", msg);
 }
