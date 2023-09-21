@@ -24,6 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "tinytest_macros.h"
 #include "util-internal.h"
 
 #ifdef _WIN32
@@ -2123,86 +2124,51 @@ end:
 		evbuffer_free(buf2);
 }
 
-struct t_MyData {
-	int nMyType;
-	char szMyContent[1];
-};
-
 static void
-ref_done_cb_with_offset(const void *data, size_t len, void *info)
+ref_done_cb_with_offset(const void *data, size_t len, void *arg)
 {
-	struct t_MyData *pstMyData = (struct t_MyData *)data;
-
-	if (pstMyData->nMyType == 1)
-	{
-		size_t nLen = (size_t)info;
-		if (len != nLen)
-		{
-			printf("evbuffer_add_reference_with_offset Test Failed");
-		}
-		free((void *)data);
-	}
-	else if (pstMyData->nMyType == 2)
-	{
-		size_t nLen = (size_t)info;
-		if (len != nLen)
-		{
-			printf("evbuffer_add_reference_with_offset Test Failed");
-		}
-		free((void *)data);
-	}
-	else
-	{
-		printf("evbuffer_add_reference_with_offset Test Failed");
-	}
+	size_t expected_len = (size_t)arg;
+	if (len != expected_len)
+		TT_FAIL(("%zu != %zu, data: '%s'", len, expected_len, (const char *)data));
 }
 static void
 test_evbuffer_add_reference_with_offset(void* ptr)
 {
-	const char* pContent1 = "If you have found the answer to such a problem";
-	const char *pContent2 = "you ought to write it up for publication";
+	const char* prefix = "|prefix| ";
+	const char* content1 = "|prefix| If you have found the answer to such a problem";
+	const char *content2 = "|prefix| you ought to write it up for publication";
 
 	struct evbuffer *buf1 = NULL, *buf2 = NULL;
 	/* -- Knuth's "Notes on the Exercises" from TAOCP */
 	char tmp[16];
 
-	char* pData1 = malloc(sizeof(struct t_MyData) + strlen(pContent1) - 1);
-	struct t_MyData* pstMyData1 = (struct t_MyData*)pData1;
-
-	struct t_MyData* pData2 = malloc(sizeof(struct t_MyData) + strlen(pContent2) - 1);
-	struct t_MyData* pstMyData2 = (struct t_MyData *)pData2;
-
-	size_t len1 = strlen(pContent1), len2 = strlen(pContent2);
-
-	pstMyData1->nMyType = 1;
-	memcpy(&pstMyData1->szMyContent, pContent1, strlen(pContent1));
-
-	pstMyData2->nMyType = 2;
-	memcpy(&pstMyData2->szMyContent, pContent2, strlen(pContent2));
+	size_t prefix_len = strlen(prefix);
+	size_t len1 = strlen(content1) - prefix_len;
+	size_t len2 = strlen(content2) - prefix_len;
 
 	buf1 = evbuffer_new();
 	tt_assert(buf1);
 
-	evbuffer_add_reference_with_offset(buf1, (const void *)pstMyData1, sizeof(int),
-		len1, ref_done_cb_with_offset, (void *)(sizeof(int) + len1));
+	evbuffer_add_reference_with_offset(buf1, (const void *)content1, prefix_len,
+		len1, ref_done_cb_with_offset, (void *)(len1 + prefix_len));
 	evbuffer_add(buf1, ", ", 2);
-	evbuffer_add_reference_with_offset(buf1, (const void *)pstMyData2, sizeof(int),
-		len2, ref_done_cb_with_offset, (void *)(sizeof(int) + len2));
-	tt_int_op(evbuffer_get_length(buf1), ==, len1 + len2 + 2);
+	evbuffer_add_reference_with_offset(buf1, (const void *)content2, prefix_len,
+		len2, ref_done_cb_with_offset, (void *)(len2 + prefix_len));
+	tt_int_op(evbuffer_get_length(buf1), ==, len1 + len2 + 2 /* ", " */);
 
 	/* Make sure we can drain a little from a reference. */
 	tt_int_op(evbuffer_remove(buf1, tmp, 6), ==, 6);
-	tt_int_op(memcmp(tmp, "If you", 6), ==, 0);
+	tt_mem_op(tmp, ==, "If you", 6);
 	tt_int_op(evbuffer_remove(buf1, tmp, 5), ==, 5);
-	tt_int_op(memcmp(tmp, " have", 5), ==, 0);
+	tt_mem_op(tmp, ==, " have", 5);
 
 	/* Make sure that prepending does not meddle with immutable data */
 	tt_int_op(evbuffer_prepend(buf1, "I have ", 7), ==, 0);
-	tt_int_op(memcmp(pContent1, "If you", 6), ==, 0);
+	tt_mem_op(content1, ==, prefix, prefix_len);
 	evbuffer_validate(buf1);
 
 	/* Make sure that when the chunk is over, the callback is invoked. */
-	evbuffer_drain(buf1, 7);			 /* Remove prepended stuff. */
+	evbuffer_drain(buf1, 7); /* Remove prepended stuff. */
 	evbuffer_drain(buf1, len1 - 11 - 1); /* remove all but one byte of chunk1 */
 	evbuffer_remove(buf1, tmp, 1);
 	tt_int_op(tmp[0], ==, 'm');
@@ -2216,18 +2182,15 @@ test_evbuffer_add_reference_with_offset(void* ptr)
 
 	evbuffer_add_buffer(buf2, buf1);
 	evbuffer_remove(buf2, tmp, 16);
-	tt_int_op(memcmp("I ought to write", tmp, 16), ==, 0);
+	tt_mem_op("I ought to write", ==, tmp, 16);
 	evbuffer_drain(buf2, evbuffer_get_length(buf2));
 	evbuffer_validate(buf2);
 
-	/* Now add more stuff to buf1 and make sure that it gets removed on
-	 * free. */
+	/* Now add more stuff to buf1 and make sure that it gets removed on free. */
 	evbuffer_add(buf1, "You shake and shake the ", 24);
 	evbuffer_add_reference(
 		buf1, "ketchup bottle", 14, ref_done_cb, (void *)3333);
 	evbuffer_add(buf1, ". Nothing comes and then a lot'll.", 35);
-	evbuffer_free(buf1);
-	buf1 = NULL;
 
 end:
 	if (buf1)
