@@ -521,6 +521,28 @@ int evbuffer_add_reference(struct evbuffer *outbuf,
     const void *data, size_t datlen,
     evbuffer_ref_cleanup_cb cleanupfn, void *cleanupfn_arg);
 
+
+/**
+  Reference memory into an evbuffer without copying.
+
+  The memory needs to remain valid until all the added data has been
+  read.  This function keeps just a reference to the memory without
+  actually incurring the overhead of a copy.
+
+  @param outbuf the output buffer
+  @param data the memory to reference
+  @param offset offset inside @data
+  @param datlen how memory to reference (excluding @offset)
+  @param cleanupfn callback to be invoked when the memory is no longer
+	referenced by this evbuffer.
+  @param cleanupfn_arg optional argument to the cleanup callback
+  @return 0 if successful, or -1 if an error occurred
+ */
+EVENT2_EXPORT_SYMBOL
+int evbuffer_add_reference_with_offset(struct evbuffer *outbuf, const void *data,
+	size_t offset, size_t datlen, evbuffer_ref_cleanup_cb cleanupfn,
+	void *cleanupfn_arg);
+
 /**
   Copy data from a file into the evbuffer for writing to a socket.
 
