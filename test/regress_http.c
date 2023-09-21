@@ -4954,7 +4954,7 @@ static void
 terminate_chunked_close_cb(struct evhttp_connection *evcon, void *arg)
 {
 	struct terminate_state *state = arg;
-	state->gotclosecb = 1;
+	state->gotclosecb |= 1;
 
 	/** TODO: though we can do this unconditionally */
 	if (state->oneshot) {

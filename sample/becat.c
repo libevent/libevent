@@ -300,9 +300,9 @@ static struct options parse_opts(int argc, char **argv)
 			case 't': o.timeout.read  = atoi(optarg); break;
 			case 'T': o.timeout.write = atoi(optarg); break;
 
-			case 'l': o.extra.listen = 1; break;
-			case 'k': o.extra.keep   = 1; break;
-			case 'S': o.extra.ssl    = 1; break;
+			case 'l': o.extra.listen |= 1; break;
+			case 'k': o.extra.keep   |= 1; break;
+			case 'S': o.extra.ssl    |= 1; break;
 
 			/**
 			 * TODO: implement other bits:
