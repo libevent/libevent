@@ -496,7 +496,11 @@ int evbuffer_add_buffer_reference(struct evbuffer *outbuf,
    A cleanup function for a piece of memory added to an evbuffer by
    reference.
 
+   @param data buffer
+   @param datalen - total buffer len (including @offset if any, @see evbuffer_add_reference_with_offset())
+
    @see evbuffer_add_reference()
+   @see evbuffer_add_reference_with_offset()
  */
 typedef void (*evbuffer_ref_cleanup_cb)(const void *data,
     size_t datalen, void *extra);
