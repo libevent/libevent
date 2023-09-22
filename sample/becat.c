@@ -30,6 +30,7 @@
 #else /* _WIN32 */
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <fcntl.h>
 #include <unistd.h>
 #endif /* !_WIN32 */
@@ -67,6 +68,7 @@ struct options
 		int read; /* seconds */
 		int write; /* seconds */
 	} timeout;
+	int tcp_keepalive_timeout; /* seconds */
 
 	struct {
 		int listen:1;
@@ -109,6 +111,47 @@ static void error(const char *fmt, ...)
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
+}
+
+/**
+ * Defaults:
+ * - TCP_KEEPIDLE  - 2 hours
+ * - TCP_KEEPINTVL - 75 seconds
+ * - TCP_KEEPCNT   - 9
+ */
+static int fd_set_keepalive_timeout(int fd, int timeout)
+{
+	int err = 0;
+	int option =
+#if defined(TCP_KEEPALIVE)
+		TCP_KEEPALIVE // apple
+#elif defined(TCP_KEEPIDLE)
+		TCP_KEEPIDLE
+#else
+		0
+#endif
+		;
+
+	if (timeout) {
+		int so_keepalive = 1;
+		info("Enabling SO_KEEP_ALIVE for fd=%i\n", fd);
+		err = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&so_keepalive, sizeof(so_keepalive));
+
+		info("Set TCP keepalive initial timeout to %i for fd=%i\n", timeout, fd);
+		err = setsockopt(fd, IPPROTO_TCP, option, (void *)&timeout, sizeof(timeout));
+		if (err) {
+			error("Cannot set TCP KEEPALIVE (using %i option)\n", option);
+		}
+
+#ifdef TCP_KEEPINTVL
+		info("Set TCP_KEEPINTVL to %i for fd=%i\n", timeout, fd);
+		err = setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&timeout, sizeof(timeout));
+		if (err) {
+			error("Cannot set TCP_KEEPINTVL (using %i option)\n", option);
+		}
+#endif
+	}
+	return err;
 }
 
 static void be_free(struct bufferevent **bevp)
@@ -274,9 +317,11 @@ static void print_usage(FILE *out, const char *name)
 		"  -s   Specify source address to use (*does* affect -l, unlike ncat)\n"
 		"  -l   Bind and listen for incoming connections\n"
 		"  -k   Accept multiple connections in listen mode\n"
+		"  -K   TCP_KEEPALIVE timeout\n"
 		"  -S   Connect or listen with SSL\n"
 		"  -t   read timeout\n"
 		"  -T   write timeout\n"
+		"  -b   read buffer size\n"
 		"\n"
 		"  -v   Increase verbosity\n"
 		"  -h   Print usage\n"
@@ -291,14 +336,15 @@ static struct options parse_opts(int argc, char **argv)
 	o.src.port = o.dst.port = 10024;
 	o.max_read = -1;
 
-	while ((opt = getopt(argc, argv, "p:s:R:t:T:" "lkSvh")) != -1) {
+	while ((opt = getopt(argc, argv, "p:s:b:t:T:K:" "lkSvh")) != -1) {
 		switch (opt) {
 			case 'p': o.src.port    = atoi(optarg); break;
 			case 's': o.src.address = strdup("127.1"); break;
-			case 'R': o.max_read    = atoi(optarg); break;
+			case 'b': o.max_read    = atoi(optarg); break;
 
 			case 't': o.timeout.read  = atoi(optarg); break;
 			case 'T': o.timeout.write = atoi(optarg); break;
+			case 'K': o.tcp_keepalive_timeout = atoi(optarg); break;
 
 			case 'l': o.extra.listen |= 1; break;
 			case 'k': o.extra.keep   |= 1; break;
@@ -454,6 +500,8 @@ accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
 	info("Accepting %s (fd=%d)\n",
 		evutil_format_sockaddr_port_(sa, buffer, sizeof(buffer)-1), fd);
+	if (fd_set_keepalive_timeout(fd, ctx->opts->tcp_keepalive_timeout))
+		goto err;
 
 	bev = be_new(ctx, base, fd);
 	if (!bev) {
@@ -572,10 +620,18 @@ int main(int argc, char **argv)
 		}
 		info("Listening on %s\n",
 			evutil_format_sockaddr_port_(sa, buffer, sizeof(buffer)-1));
+
 		listener = evconnlistener_new_bind(base, accept_cb, &ctx, flags, -1, sa, ss_len);
 		if (!listener) {
 			error("Cannot listen\n");
 			goto err;
+		}
+
+		if (o.tcp_keepalive_timeout) {
+			int fd = evconnlistener_get_fd(listener);
+			if (fd_set_keepalive_timeout(fd, o.tcp_keepalive_timeout)) {
+				goto err;
+			}
 		}
 	} else {
 		ss_len = make_address(&ss, o.dst.address, o.dst.port);
@@ -606,6 +662,11 @@ int main(int argc, char **argv)
 		if (bufferevent_socket_connect(bev, sa, ss_len)) {
 			info("Connection failed\n");
 			goto err;
+		}
+		{
+			int fd = bufferevent_getfd(bev);
+			if (fd_set_keepalive_timeout(fd, o.tcp_keepalive_timeout))
+				goto err;
 		}
 	}
 
