@@ -321,6 +321,7 @@ static void print_usage(FILE *out, const char *name)
 		"  -S   Connect or listen with SSL\n"
 		"  -t   read timeout\n"
 		"  -T   write timeout\n"
+		"  -b   read buffer size\n"
 		"\n"
 		"  -v   Increase verbosity\n"
 		"  -h   Print usage\n"
@@ -335,11 +336,11 @@ static struct options parse_opts(int argc, char **argv)
 	o.src.port = o.dst.port = 10024;
 	o.max_read = -1;
 
-	while ((opt = getopt(argc, argv, "p:s:R:t:T:K:" "lkSvh")) != -1) {
+	while ((opt = getopt(argc, argv, "p:s:b:t:T:K:" "lkSvh")) != -1) {
 		switch (opt) {
 			case 'p': o.src.port    = atoi(optarg); break;
 			case 's': o.src.address = strdup("127.1"); break;
-			case 'R': o.max_read    = atoi(optarg); break;
+			case 'b': o.max_read    = atoi(optarg); break;
 
 			case 't': o.timeout.read  = atoi(optarg); break;
 			case 'T': o.timeout.write = atoi(optarg); break;
