@@ -24,6 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include "tinytest_macros.h"
 #include "util-internal.h"
 
 #ifdef _WIN32
@@ -2124,6 +2125,81 @@ end:
 }
 
 static void
+ref_done_cb_with_offset(const void *data, size_t len, void *arg)
+{
+	size_t expected_len = (size_t)arg;
+	if (len != expected_len)
+		TT_FAIL(("%zu != %zu, data: '%s'", len, expected_len, (const char *)data));
+}
+static void
+test_evbuffer_add_reference_with_offset(void* ptr)
+{
+	const char* prefix = "|prefix| ";
+	const char* content1 = "|prefix| If you have found the answer to such a problem";
+	const char *content2 = "|prefix| you ought to write it up for publication";
+
+	struct evbuffer *buf1 = NULL, *buf2 = NULL;
+	/* -- Knuth's "Notes on the Exercises" from TAOCP */
+	char tmp[16];
+
+	size_t prefix_len = strlen(prefix);
+	size_t len1 = strlen(content1) - prefix_len;
+	size_t len2 = strlen(content2) - prefix_len;
+
+	buf1 = evbuffer_new();
+	tt_assert(buf1);
+
+	evbuffer_add_reference_with_offset(buf1, (const void *)content1, prefix_len,
+		len1, ref_done_cb_with_offset, (void *)(len1 + prefix_len));
+	evbuffer_add(buf1, ", ", 2);
+	evbuffer_add_reference_with_offset(buf1, (const void *)content2, prefix_len,
+		len2, ref_done_cb_with_offset, (void *)(len2 + prefix_len));
+	tt_int_op(evbuffer_get_length(buf1), ==, len1 + len2 + 2 /* ", " */);
+
+	/* Make sure we can drain a little from a reference. */
+	tt_int_op(evbuffer_remove(buf1, tmp, 6), ==, 6);
+	tt_mem_op(tmp, ==, "If you", 6);
+	tt_int_op(evbuffer_remove(buf1, tmp, 5), ==, 5);
+	tt_mem_op(tmp, ==, " have", 5);
+
+	/* Make sure that prepending does not meddle with immutable data */
+	tt_int_op(evbuffer_prepend(buf1, "I have ", 7), ==, 0);
+	tt_mem_op(content1, ==, prefix, prefix_len);
+	evbuffer_validate(buf1);
+
+	/* Make sure that when the chunk is over, the callback is invoked. */
+	evbuffer_drain(buf1, 7); /* Remove prepended stuff. */
+	evbuffer_drain(buf1, len1 - 11 - 1); /* remove all but one byte of chunk1 */
+	evbuffer_remove(buf1, tmp, 1);
+	tt_int_op(tmp[0], ==, 'm');
+	evbuffer_validate(buf1);
+
+	/* Drain some of the remaining chunk, then add it to another buffer */
+	evbuffer_drain(buf1, 6); /* Remove the ", you ". */
+	buf2 = evbuffer_new();
+	tt_assert(buf2);
+	evbuffer_add(buf2, "I ", 2);
+
+	evbuffer_add_buffer(buf2, buf1);
+	evbuffer_remove(buf2, tmp, 16);
+	tt_mem_op("I ought to write", ==, tmp, 16);
+	evbuffer_drain(buf2, evbuffer_get_length(buf2));
+	evbuffer_validate(buf2);
+
+	/* Now add more stuff to buf1 and make sure that it gets removed on free. */
+	evbuffer_add(buf1, "You shake and shake the ", 24);
+	evbuffer_add_reference(
+		buf1, "ketchup bottle", 14, ref_done_cb, (void *)3333);
+	evbuffer_add(buf1, ". Nothing comes and then a lot'll.", 35);
+
+end:
+	if (buf1)
+		evbuffer_free(buf1);
+	if (buf2)
+		evbuffer_free(buf2);
+}
+
+static void
 test_evbuffer_multicast(void *ptr)
 {
 	const char chunk1[] = "If you have found the answer to such a problem";
@@ -2834,6 +2910,7 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "search", test_evbuffer_search, 0, NULL, NULL },
 	{ "callbacks", test_evbuffer_callbacks, 0, NULL, NULL },
 	{ "add_reference", test_evbuffer_add_reference, 0, NULL, NULL },
+	{ "add_reference_with_offset", test_evbuffer_add_reference_with_offset, 0, NULL, NULL},
 	{ "multicast", test_evbuffer_multicast, 0, NULL, NULL },
 	{ "multicast_drain", test_evbuffer_multicast_drain, 0, NULL, NULL },
 	{ "prepend", test_evbuffer_prepend, TT_FORK, NULL, NULL },

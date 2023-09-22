@@ -2942,6 +2942,14 @@ evbuffer_add_reference(struct evbuffer *outbuf,
     const void *data, size_t datlen,
     evbuffer_ref_cleanup_cb cleanupfn, void *extra)
 {
+	return evbuffer_add_reference_with_offset(outbuf, data, /* offset= */ 0, datlen, cleanupfn, extra);
+}
+
+int
+evbuffer_add_reference_with_offset(struct evbuffer *outbuf, const void *data,
+	size_t offset, size_t datlen, evbuffer_ref_cleanup_cb cleanupfn,
+	void *extra)
+{
 	struct evbuffer_chain *chain;
 	struct evbuffer_chain_reference *info;
 	int result = -1;
@@ -2951,7 +2959,8 @@ evbuffer_add_reference(struct evbuffer *outbuf,
 		return (-1);
 	chain->flags |= EVBUFFER_REFERENCE | EVBUFFER_IMMUTABLE;
 	chain->buffer = (unsigned char *)data;
-	chain->buffer_len = datlen;
+	chain->misalign = offset;
+	chain->buffer_len = offset + datlen;
 	chain->off = datlen;
 
 	info = EVBUFFER_CHAIN_EXTRA(struct evbuffer_chain_reference, chain);
