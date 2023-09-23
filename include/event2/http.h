@@ -996,6 +996,11 @@ EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
     void (*)(struct evhttp_connection *, void *), void *);
 
+/** Set a callback for connection when the it's TCP connection is successfully established. */
+EVENT2_EXPORT_SYMBOL
+void evhttp_connection_set_connectcb(struct evhttp_connection *evcon,
+    int (*)(struct evhttp_connection *, void *), void *);
+
 /** Get the remote address and port associated with this connection. */
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_get_peer(struct evhttp_connection *evcon,

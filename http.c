@@ -2775,6 +2775,14 @@ evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 	evcon->closecb_arg = cbarg;
 }
 
+void 
+evhttp_connection_set_connectcb(struct evhttp_connection *evcon, 
+    int (*cb)(struct evhttp_connection *, void *), void *cbarg)
+{
+	evcon->connectcb = cb;
+	evcon->connectcb_arg = cbarg;
+}
+
 void
 evhttp_connection_get_peer(struct evhttp_connection *evcon,
     const char **address, ev_uint16_t *port)
@@ -2873,7 +2881,15 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 		 */
 		evhttp_connection_cb_cleanup(evcon);
 		return (0);
-	}
+	}else {
+        if (evcon->connectcb != NULL){
+            if ((*evcon->connectcb)(evcon, evcon->connectcb_arg) < 0){
+                evcon->state = old_state;
+                evhttp_connection_reset_(evcon, 1);
+                return (-1);
+            }
+        }
+    }
 
 	return (0);
 }
