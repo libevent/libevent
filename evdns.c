@@ -5606,7 +5606,7 @@ evdns_getaddrinfo(struct evdns_base *dns_base,
 
 	/* Now try to see if we _can_ answer immediately. */
 	/* (It would be nice to do this by calling getaddrinfo directly, with
-	 * AI_NUMERICHOST, on plaforms that have it, but we can't: there isn't
+	 * AI_NUMERICHOST, on platforms that have it, but we can't: there isn't
 	 * a reliable way to distinguish the "that wasn't a numeric host!" case
 	 * from any other EAI_NONAME cases.) */
 	err = evutil_getaddrinfo_common_(nodename, servname, &hints, &res, &port);
