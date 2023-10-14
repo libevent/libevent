@@ -15,6 +15,7 @@
 #include "bufferevent-internal.h"
 
 #include <assert.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>
 
@@ -195,14 +196,14 @@ evws_force_disconnect_(struct evws_connection *evws)
  * https://www.rfc-editor.org/rfc/rfc6455#section-5.2
  */
 static enum WebSocketFrameType
-get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
-	int *out_len)
+get_ws_frame(unsigned char *in_buffer, size_t buf_len,
+	unsigned char **payload_ptr, size_t *out_len)
 {
 	unsigned char opcode;
 	unsigned char fin;
 	unsigned char masked;
-	int payload_len;
-	int pos;
+	size_t payload_len;
+	size_t pos;
 	int length_field;
 	unsigned int mask;
 
@@ -221,17 +222,35 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 	if (length_field <= 125) {
 		payload_len = length_field;
 	} else if (length_field == 126) { /* msglen is 16bit */
+		uint16_t tmp16;
 		if (buf_len < 4)
 			return INCOMPLETE_DATA;
-		payload_len = ntohs(*(uint16_t *)(in_buffer + 2));
+		memcpy(&tmp16, in_buffer + pos, 2);
+		payload_len = ntohs(tmp16);
 		pos += 2;
 	} else if (length_field == 127) { /* msglen is 64bit */
+		int i;
+		uint64_t tmp64 = 0;
 		if (buf_len < 10)
 			return INCOMPLETE_DATA;
-		payload_len = ntohs(*(uint64_t *)(in_buffer + 2));
-		pos += 8;
+		/* swab bytes from big endian to host byte order */
+		for (i = 56; i >= 0; i -= 8) {
+			tmp64 |= (uint64_t)in_buffer[pos++] << i;
+		}
+		if (tmp64 > (uint64_t)SIZE_MAX) {
+			/* Implementation limitation, we support up to size_t length.
+			 * This branch can only be taken on <64-bit platforms.
+			 */
+			event_warn("%s: frame length %" PRIu64 " exceeds %" PRIu64 "\n",
+				__func__, tmp64, (uint64_t)SIZE_MAX);
+			/* calling code needs these values, do the best we can here */
+			*payload_ptr = in_buffer + pos;
+			*out_len = 0;
+			return ERROR_FRAME;
+		}
+		payload_len = (size_t)tmp64;
 	}
-	if (buf_len < payload_len + pos + (masked ? 4 : 0)) {
+	if (buf_len < payload_len + pos + (masked ? 4u : 0u)) {
 		return INCOMPLETE_DATA;
 	}
 
@@ -240,7 +259,7 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 	 */
 	if (masked) {
 		unsigned char *c;
-		int i;
+		size_t i;
 
 		memcpy(&mask, in_buffer + pos, sizeof(mask));
 		pos += 4;
@@ -248,7 +267,7 @@ get_ws_frame(unsigned char *in_buffer, int buf_len, unsigned char **payload_ptr,
 		/* unmask data */
 		c = in_buffer + pos;
 		for (i = 0; i < payload_len; i++) {
-			c[i] = c[i] ^ ((unsigned char *)(&mask))[i % 4];
+			c[i] = c[i] ^ ((unsigned char *)(&mask))[i % 4u];
 		}
 	}
 
@@ -272,7 +291,7 @@ ws_evhttp_read_cb(struct bufferevent *bufev, void *arg)
 	struct evws_connection *evws = arg;
 	unsigned char *payload;
 	enum WebSocketFrameType type;
-	int msg_len, in_len, header_sz;
+	size_t msg_len, in_len, header_sz;
 	struct evbuffer *input = bufferevent_get_input(evws->bufev);
 
 	bufferevent_incref_and_lock_(evws->bufev);
@@ -415,9 +434,9 @@ error:
 
 static void
 make_ws_frame(struct evbuffer *output, enum WebSocketFrameType frame_type,
-	unsigned char *msg, int len)
+	unsigned char *msg, size_t len)
 {
-	int pos = 0;
+	size_t pos = 0;
 	unsigned char header[16] = {0};
 
 	header[pos++] = (unsigned char)frame_type | 0x80; /* fin */
@@ -428,9 +447,13 @@ make_ws_frame(struct evbuffer *output, enum WebSocketFrameType frame_type,
 		header[pos++] = (len >> 8) & 0xFF; /* rightmost first */
 		header[pos++] = len & 0xFF;
 	} else {				 /* >2^16-1 */
-		header[pos++] = 127; /* 64 bit length */
-
-		pos += 8;
+		int i;
+		const uint64_t tmp64 = len;
+		header[pos++] = 127;            /* 64 bit length */
+		/* swab bytes from host byte order to big endian */
+		for (i = 56; i >= 0; i -= 8) {
+			header[pos++] = tmp64 >> i & 0xFFu;
+		}
 	}
 	evbuffer_add(output, header, pos);
 	evbuffer_add(output, msg, len);
