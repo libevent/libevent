@@ -38,6 +38,11 @@
 #endif
 
 #define WS_UUID "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+/*
+ * We limit the size of received WS frames to 10 MiB,
+ * as a DoS prevention measure.
+ */
+static const size_t WS_MAX_RECV_FRAME_SZ = 10485760;
 
 struct evws_connection {
 	TAILQ_ENTRY(evws_connection) next;
@@ -205,7 +210,6 @@ get_ws_frame(unsigned char *in_buffer, size_t buf_len,
 	size_t payload_len;
 	size_t pos;
 	int length_field;
-	unsigned int mask;
 
 	if (buf_len < 2) {
 		return INCOMPLETE_DATA;
@@ -237,13 +241,15 @@ get_ws_frame(unsigned char *in_buffer, size_t buf_len,
 		for (i = 56; i >= 0; i -= 8) {
 			tmp64 |= (uint64_t)in_buffer[pos++] << i;
 		}
-		if (tmp64 > (uint64_t)SIZE_MAX) {
-			/* Implementation limitation, we support up to size_t length.
-			 * This branch can only be taken on <64-bit platforms.
+		if (tmp64 > WS_MAX_RECV_FRAME_SZ) {
+			/* Implementation limitation, we support up to 10 MiB
+			 * length, as a DoS prevention measure.
 			 */
 			event_warn("%s: frame length %" PRIu64 " exceeds %" PRIu64 "\n",
-				__func__, tmp64, (uint64_t)SIZE_MAX);
-			/* calling code needs these values, do the best we can here */
+				__func__, tmp64, (uint64_t)WS_MAX_RECV_FRAME_SZ);
+			/* Calling code needs these values; do the best we can here.
+			 * Caller will close the connection anyway.
+			 */
 			*payload_ptr = in_buffer + pos;
 			*out_len = 0;
 			return ERROR_FRAME;
@@ -258,16 +264,16 @@ get_ws_frame(unsigned char *in_buffer, size_t buf_len,
 	 * but we support it for nonconformant clients
 	 */
 	if (masked) {
-		unsigned char *c;
+		unsigned char *c, *mask;
 		size_t i;
 
-		memcpy(&mask, in_buffer + pos, sizeof(mask));
+		mask = in_buffer + pos; /* first 4 bytes are mask bytes */
 		pos += 4;
 
 		/* unmask data */
 		c = in_buffer + pos;
 		for (i = 0; i < payload_len; i++) {
-			c[i] = c[i] ^ ((unsigned char *)(&mask))[i % 4u];
+			c[i] = c[i] ^ mask[i % 4u];
 		}
 	}
 
