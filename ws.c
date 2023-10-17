@@ -237,7 +237,7 @@ get_ws_frame(unsigned char *in_buffer, size_t buf_len,
 		uint64_t tmp64 = 0;
 		if (buf_len < 10)
 			return INCOMPLETE_DATA;
-		/* swab bytes from big endian to host byte order */
+		/* swap bytes from big endian to host byte order */
 		for (i = 56; i >= 0; i -= 8) {
 			tmp64 |= (uint64_t)in_buffer[pos++] << i;
 		}
@@ -456,7 +456,7 @@ make_ws_frame(struct evbuffer *output, enum WebSocketFrameType frame_type,
 		int i;
 		const uint64_t tmp64 = len;
 		header[pos++] = 127;            /* 64 bit length */
-		/* swab bytes from host byte order to big endian */
+		/* swap bytes from host byte order to big endian */
 		for (i = 56; i >= 0; i -= 8) {
 			header[pos++] = tmp64 >> i & 0xFFu;
 		}
