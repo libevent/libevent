@@ -2304,11 +2304,11 @@ get_n_bytes_readable_on_socket(evutil_socket_t fd)
 int
 evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 {
-	struct evbuffer_chain **chainp;
 	int n;
 	int result;
 
 #ifdef USE_IOVEC_IMPL
+	struct evbuffer_chain **chainp;
 	int nvecs, i, remaining;
 #else
 	struct evbuffer_chain *chain;
