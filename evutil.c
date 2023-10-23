@@ -267,6 +267,7 @@ static int
 evutil_win_socketpair_afunix(int family, int type, int protocol,
     evutil_socket_t fd[2])
 {
+#undef ERR
 #define ERR(e) WSA##e
 	evutil_socket_t listener = -1;
 	evutil_socket_t connector = -1;
@@ -423,6 +424,7 @@ evutil_ersatz_socketpair_(int family, int type, int protocol,
 	 * for now, and really, when localhost is down sometimes, we
 	 * have other problems too.
 	 */
+#undef ERR
 #ifdef _WIN32
 #define ERR(e) WSA##e
 #else
