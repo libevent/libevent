@@ -1701,7 +1701,7 @@ test_evutil_socketpair_create(void *arg)
 	tt_int_op(evutil_socketpair(AF_INET, SOCK_RAW, 0, fd), == , -1);
 	tt_int_op(evutil_socketpair(AF_INET, SOCK_STREAM, 1, fd), == , -1);
 
-#ifndef _WIN32
+#if !defined(_WIN32) && defined(EVENT__HAVE_SOCKETPAIR)
 	tt_int_op(evutil_socketpair(AF_INET, SOCK_STREAM, 0, fd), == , -1);
 	tt_int_op(evutil_socketpair(AF_INET, SOCK_DGRAM, 0, fd), == , -1);
 	socketpair_init(fd);
