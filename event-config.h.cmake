@@ -274,6 +274,9 @@
 /* Define to 1 if you have the `signal' function. */
 #cmakedefine EVENT__HAVE_SIGNAL 1
 
+/* Define to 1 if you have the `socketpair` function. */
+#cmakedefine EVENT__HAVE_SOCKETPAIR 1
+
 /* Define to 1 if you have the `strsignal' function. */
 #cmakedefine EVENT__HAVE_STRSIGNAL 1
 

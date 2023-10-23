@@ -273,7 +273,7 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS([accept4 arc4random arc4random_buf arc4random_addrandom eventfd epoll_create1 epoll_pwait2 fcntl getegid geteuid getifaddrs gettimeofday issetugid mach_absolute_time mmap nanosleep pipe pipe2 pread putenv sendfile setenv setrlimit sigaction signal strsignal strlcpy strsep strtok_r strtoll sysctl timerfd_create umask unsetenv usleep getrandom mmap64])
+AC_CHECK_FUNCS([accept4 arc4random arc4random_buf arc4random_addrandom eventfd epoll_create1 epoll_pwait2 fcntl getegid geteuid getifaddrs gettimeofday issetugid mach_absolute_time mmap nanosleep pipe pipe2 pread putenv sendfile setenv setrlimit sigaction signal strsignal strlcpy strsep strtok_r strtoll sysctl timerfd_create umask unsetenv usleep getrandom mmap64 socketpair])
 
 AS_IF([test "$bwin32" = "true"],
   AC_CHECK_FUNCS(_gmtime64_s, , [AC_CHECK_FUNCS(_gmtime64)])

@@ -514,6 +514,7 @@ list(APPEND SYMBOLS_TO_CHECK
     inet_pton
     gettimeofday
     signal
+    socketpair
     strtoll
     strlcpy
     strsep

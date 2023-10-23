@@ -3076,7 +3076,9 @@ get_page_size(void)
 static int
 evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
 {
+#if defined(EVENT__HAVE_MMAP) || defined(_WIN32)
 	const unsigned flags = seg->flags;
+#endif
 	const int fd = seg->fd;
 	const ev_off_t length = seg->length;
 	const ev_off_t offset = seg->file_offset;
@@ -3194,8 +3196,9 @@ evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
 
 		seg->contents = mem;
 	}
-
+#if defined(EVENT__HAVE_MMAP) || defined(_WIN32)
 done:
+#endif
 	return 0;
 err:
 	return -1;
