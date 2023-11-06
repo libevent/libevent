@@ -4884,7 +4884,7 @@ struct evhttp_uri {
 struct evhttp_uri *
 evhttp_uri_new(void)
 {
-	struct evhttp_uri *uri = mm_calloc(sizeof(struct evhttp_uri), 1);
+	struct evhttp_uri *uri = mm_calloc(1, sizeof(struct evhttp_uri));
 	if (uri)
 		uri->port = -1;
 	return uri;

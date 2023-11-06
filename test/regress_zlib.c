@@ -296,10 +296,10 @@ test_bufferevent_zlib(void *arg)
 	bev1 = bufferevent_socket_new(NULL, pair[0], 0);
 	bev2 = bufferevent_socket_new(NULL, pair[1], 0);
 
-	z_output = mm_calloc(sizeof(*z_output), 1);
+	z_output = mm_calloc(1, sizeof(*z_output));
 	r = deflateInit(z_output, Z_DEFAULT_COMPRESSION);
 	tt_int_op(r, ==, Z_OK);
-	z_input = mm_calloc(sizeof(*z_input), 1);
+	z_input = mm_calloc(1, sizeof(*z_input));
 	r = inflateInit(z_input);
 	tt_int_op(r, ==, Z_OK);
 
