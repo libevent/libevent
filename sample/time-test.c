@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-
+#include <signal.h>
 #include <event2/event.h>
 #include <event2/event_struct.h>
 #include <event2/util.h>
@@ -63,10 +63,20 @@ timeout_cb(evutil_socket_t fd, short event, void *arg)
 	}
 }
 
+static void
+signal_cb(evutil_socket_t sig, short events, void *user_data)
+{
+	struct event_base *base = user_data;
+
+	printf("Caught an interrupt signal; exiting cleanly.\n");
+
+	event_base_loopexit(base, NULL);
+}
+
 int
 main(int argc, char **argv)
 {
-	struct event timeout;
+	struct event *timeout,*signal_event;
 	struct timeval tv;
 	struct event_base *base;
 	int flags;
@@ -92,11 +102,12 @@ main(int argc, char **argv)
 	base = event_base_new();
 
 	/* Initialize one event */
-	event_assign(&timeout, base, -1, flags, timeout_cb, (void*) &timeout);
-
+	timeout = event_new(base, -1, flags, timeout_cb, event_self_cbarg());
+	signal_event = evsignal_new(base, SIGINT, signal_cb, (void*)base );
 	evutil_timerclear(&tv);
 	tv.tv_sec = 2;
-	event_add(&timeout, &tv);
+	event_add(timeout, &tv);
+	event_add(signal_event, NULL);
 
 	evutil_gettimeofday(&lasttime, NULL);
 
@@ -104,6 +115,10 @@ main(int argc, char **argv)
 	setbuf(stderr, NULL);
 
 	event_base_dispatch(base);
+
+	event_free(signal_event);
+	event_free(timeout);
+	event_base_free(base);
 
 	return (0);
 }
