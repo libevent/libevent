@@ -151,7 +151,7 @@ on_ws(struct evhttp_request *req, void *arg)
 	struct sockaddr_storage addr;
 	socklen_t len;
 
-	client = calloc(sizeof(*client), 1);
+	client = calloc(1, sizeof(*client));
 
 	client->evws = evws_new_session(req, on_msg_cb, client, 0);
 	if (!client->evws) {
