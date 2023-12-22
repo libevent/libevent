@@ -2304,11 +2304,11 @@ get_n_bytes_readable_on_socket(evutil_socket_t fd)
 int
 evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 {
-	struct evbuffer_chain **chainp;
 	int n;
 	int result;
 
 #ifdef USE_IOVEC_IMPL
+	struct evbuffer_chain **chainp;
 	int nvecs, i, remaining;
 #else
 	struct evbuffer_chain *chain;
@@ -2994,7 +2994,7 @@ evbuffer_file_segment_new(
 	int fd, ev_off_t offset, ev_off_t length, unsigned flags)
 {
 	struct evbuffer_file_segment *seg =
-	    mm_calloc(sizeof(struct evbuffer_file_segment), 1);
+	    mm_calloc(1, sizeof(struct evbuffer_file_segment));
 	if (!seg)
 		return NULL;
 	seg->refcnt = 1;

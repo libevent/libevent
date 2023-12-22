@@ -332,7 +332,7 @@ int evhttp_del_cb(struct evhttp *, const char *);
 
     @param http the evhttp server object for which to set the callback
     @param cb the callback to invoke for any unmatched requests
-    @param arg an context argument for the callback
+    @param arg an additional context argument for the callback
 */
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_gencb(struct evhttp *http,
@@ -352,7 +352,7 @@ void evhttp_set_gencb(struct evhttp *http,
 
    @param http the evhttp server object for which to set the callback
    @param cb the callback to invoke for incoming connections
-   @param arg an context argument for the callback
+   @param arg an additional context argument for the callback
  */
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_bevcb(struct evhttp *http,
@@ -370,7 +370,7 @@ void evhttp_set_bevcb(struct evhttp *http,
 
    @param http the evhttp server object for which to set the callback
    @param cb the callback to invoke for incoming connections
-   @param arg an context argument for the callback
+   @param arg an additional context argument for the callback
  */
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_newreqcb(struct evhttp *http,
@@ -396,7 +396,7 @@ void evhttp_set_newreqcb(struct evhttp *http,
 
    @param http the evhttp server object for which to set the callback
    @param cb the callback to invoke to format error pages
-   @param arg an context argument for the callback
+   @param arg an additional context argument for the callback
  */
 EVENT2_EXPORT_SYMBOL
 void evhttp_set_errorcb(struct evhttp *http,
