@@ -995,11 +995,14 @@ void evhttp_connection_set_retries(struct evhttp_connection *evcon,
 EVENT2_EXPORT_SYMBOL
 void evhttp_connection_set_closecb(struct evhttp_connection *evcon,
     void (*)(struct evhttp_connection *, void *), void *);
-
-/** Set a callback for connection when the it's TCP connection is successfully established. */
+    
+/** Set proxy string. 
+ * https://192.168.1.1:8888
+ * socks5://192.168.1.1:1088
+*/
 EVENT2_EXPORT_SYMBOL
-void evhttp_connection_set_connectcb(struct evhttp_connection *evcon,
-    int (*)(struct evhttp_connection *, void *), void *);
+int 
+evhttp_connection_set_proxy(struct evhttp_connection *evcon, const char* proxystr);
 
 /** Get the remote address and port associated with this connection. */
 EVENT2_EXPORT_SYMBOL

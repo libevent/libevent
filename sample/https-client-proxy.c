@@ -50,202 +50,6 @@
 #include "openssl_hostname_validation.h"
 #endif
 
-int g_nSocks5OrHttps = 1;
-char g_szProxyHost[] = "192.168.88.1";
-unsigned short g_usPorxyPort = 1913;
-const char g_szTargetHost[] = "www.bing.com"; // https://www.bing.com
-
-struct CtxSocks5 {
-	char domainName[256];
-	int fd;
-	struct sockaddr_in addr4;
-	char ipv4[32];
-	unsigned short port;
-};
-
-static void
-SetSocketOption(int s, int nTimeoutSec)
-{
-	struct timeval timeo = {nTimeoutSec, 0};
-	socklen_t len = sizeof(timeo);
-	setsockopt(s, SOL_SOCKET, SO_SNDTIMEO, &timeo, len);
-	setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &timeo, len);
-}
-
-static int
-ReadSocks5Rep(unsigned char method)
-{
-	if (method == 0x00)
-		return 0;
-	else if (method == 0x01)
-		return -1;
-	else if (method == 0x02) {
-		// not support auth with name-password
-		return -1;
-	} else if (method >= 0x03 && method <= 0x7F)
-		return -1;
-	else if (method >= 0x80 && method <= 0xFE)
-		return -1;
-	else
-		return -1;
-}
-
-static int
-RequestSocks5Target(struct CtxSocks5 *socks5)
-{
-	uint32_t lenght = 0;
-	uint32_t itr = 0;
-	unsigned char msg[512] = {0};
-	int nDNLength = strlen(socks5->domainName);
-	msg[0] = 0x05;
-	msg[1] = 0x01;
-	msg[2] = 0x00;
-	if (strlen(socks5->ipv4)) {
-		msg[3] = 0x01;
-		memcpy((unsigned char *)msg + 4,
-			(unsigned char *)&socks5->addr4.sin_addr,
-			sizeof(socks5->addr4.sin_addr));
-		*(unsigned short *)(msg + 8) = htons(socks5->port);
-		lenght = 10;
-	} else if (nDNLength) {
-		msg[3] = 0x03;
-		msg[4] = (unsigned char)nDNLength;
-		for (itr = 0; itr != msg[4]; ++itr)
-			msg[itr + 5] = socks5->domainName[itr];
-		*(unsigned short *)(msg + 5 + nDNLength) = htons(socks5->port);
-		lenght = 5 + nDNLength + 2;
-	} else
-		return -1;
-	if (send(socks5->fd, msg, lenght, 0) <= 0)
-		return -2;
-
-	return 0;
-}
-
-static int
-SetAddress(struct CtxSocks5 *socks5, const char *address, unsigned short port)
-{
-	socks5->port = port;
-	if (!evutil_inet_pton(AF_INET, address, &socks5->addr4.sin_addr))
-		strcpy(socks5->domainName, address);
-	else
-		strcpy(socks5->ipv4, address);
-	return 0;
-}
-
-static int
-ConnectSocks5(struct CtxSocks5 *socks5)
-{
-	unsigned char tmp[512];
-	if (3 != send(socks5->fd, "\x05\x01\x00", 3, 0))
-		return -1;
-	if (recv(socks5->fd, tmp, 512, 0) != 2)
-		return -2;
-	if (ReadSocks5Rep(tmp[1]))
-		return -3;
-	return 0;
-}
-
-static int
-ConnectTargetViaSocks5(struct CtxSocks5 *socks5)
-{
-	int ret;
-	unsigned char tmp[512];
-	if (RequestSocks5Target(socks5))
-		return -1;
-	ret = recv(socks5->fd, tmp, 512, 0);
-	if (ret < 0 || tmp[1] != 0)
-		return -2;
-	return 0;
-}
-
-// just support no auth socks5 proxy. Such as 'ssh -D'.
-static int
-Socks5Handshake(int fd, const char *szTargetHost, unsigned short port)
-{
-	int bOK = 0;
-	struct CtxSocks5 s5;
-	memset(&s5, 0, sizeof(struct CtxSocks5));
-	do {
-		// init
-		s5.fd = fd;
-		// do
-		if (SetAddress(&s5, szTargetHost, port)) {
-			fprintf(stderr, "Socks5Handshake SetAddress failed");
-			break;
-		}
-		if (ConnectSocks5(&s5)) {
-			fprintf(stderr, "Socks5Handshake ConnectSocks5 failed");
-			break;
-		}
-		if (ConnectTargetViaSocks5(&s5)) {
-			fprintf(stderr, "Socks5Handshake ConnectTargetViaSocks5 failed");
-			break;
-		}
-
-		bOK = 1;
-	} while (0);
-	return bOK;
-}
-
-// http or https proxy
-static int
-RequestHttpProxyConnect(int fd)
-{
-	char szBuf[512];
-	int nRet = -1, nChildRet = 0;
-	do {
-		sprintf(szBuf,
-			"CONNECT %s:%d HTTP/1.0\r\nHost: "
-			"%s:%d\r\nProxy-Connection: Keep-Alive\r\nPragma: no-cache\r\n\r\n",
-			g_szTargetHost, 443, g_szProxyHost, g_usPorxyPort);
-		if ((nChildRet = send(fd, szBuf, strlen(szBuf), 0)) <= 0)
-			break;
-		memset(szBuf, 0, sizeof(szBuf));
-		if ((nChildRet = recv(fd, szBuf, sizeof(szBuf), 0)) < 32)
-			break;
-		if (!strstr(szBuf, "HTTP/1.1 200 ") && !strstr(szBuf, "HTTP/1.0 200 "))
-			break;
-		nRet = 0;
-	} while (0);
-	return nRet;
-}
-
-static int
-EvhttpConnectSuccessCallback(struct evhttp_connection *evConn, void *arg)
-{
-	struct bufferevent *bev = evhttp_connection_get_bufferevent(evConn);
-	int nRet = -1, fd = bufferevent_getfd(bev), nOrigFlags,
-		flags = fcntl(fd, F_GETFL, 0);
-	nOrigFlags = flags;
-	do {
-		// write timeout check
-		fd_set w;
-		struct timeval timeout = {};
-		timeout.tv_sec = 3;
-		FD_ZERO(&w);
-		FD_SET(fd, &w);
-		if (select(fd + 1, NULL, &w, NULL, &timeout) <= 0)
-			break;
-		FD_CLR(fd, &w);
-		// must
-		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK); // set block
-		SetSocketOption(fd, 8);
-		// choice
-		if (g_nSocks5OrHttps) {
-			if (!Socks5Handshake(fd, g_szTargetHost, 443))
-				break;
-		} else {
-			if (RequestHttpProxyConnect(fd))
-				break;
-		}
-		nRet = 0;
-	} while (0);
-	SetSocketOption(fd, 30);
-	fcntl(fd, F_SETFL, nOrigFlags); // restore
-	return nRet;
-}
-
 static void
 http_request_done(struct evhttp_request *req, void *arg)
 {
@@ -285,6 +89,7 @@ main(int argc, char **argv)
 		base = event_base_new();
 		if (!base)
 			break;
+			
 		ssl = SSL_new(ssl_ctx);
 		if (ssl == NULL)
 			break;
@@ -293,18 +98,20 @@ main(int argc, char **argv)
 		if (bev == NULL)
 			break;
 		bufferevent_openssl_set_allow_dirty_shutdown(bev, 1);
-		evcon = evhttp_connection_base_bufferevent_new(
-			base, NULL, bev, g_szProxyHost, g_usPorxyPort);
+		evcon = evhttp_connection_base_bufferevent_new(base, NULL, bev, "www.bing.com", 443);
 		if (evcon == NULL)
 			break;
+		if (evhttp_connection_set_proxy(evcon,"https://192.168.88.209:8888") < 0)
+		    break;
+		// if (evhttp_connection_set_proxy(evcon,"socks5://192.168.88.1:1920") < 0)
+		//     break;
 		req = evhttp_request_new(http_request_done, bev);
 		if (req == NULL)
 			break;
 		headerOutput = evhttp_request_get_output_headers(req);
-		evhttp_add_header(headerOutput, "Host", g_szTargetHost);
-		evhttp_add_header(headerOutput, "Connection", "close");
-		evhttp_connection_set_connectcb(
-			evcon, EvhttpConnectSuccessCallback, NULL);
+		evhttp_add_header(headerOutput, "Host", "www.bing.com");
+		evhttp_add_header(headerOutput, "Connection", "Keep-Alive");
+	
 		r = evhttp_make_request(evcon, req, EVHTTP_REQ_GET, "/");
 		if (r != 0) {
 			fprintf(stderr, "evhttp_make_request() failed\n");

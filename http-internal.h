@@ -112,6 +112,13 @@ struct evhttp_connection {
 	int ai_family;
 
 	evhttp_ext_method_cb ext_method_cmp;
+
+	/*proxy setting*/
+	ev_uint8_t proxy_type; //0 none;1 https;2 socks5
+	char *proxy_address;
+	int proxy_port;
+	char *proxy_target_address;
+	int proxy_target_port;
 };
 
 /* A callback for an http server */
