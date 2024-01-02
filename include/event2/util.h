@@ -485,6 +485,15 @@ int evutil_closesocket(evutil_socket_t sock);
 EVENT2_EXPORT_SYMBOL
 int evutil_make_tcp_listen_socket_deferred(evutil_socket_t sock);
 
+/** Do platform-specific operations to set/unset TCP keep-alive options
+ * TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT on a socket.
+ *  
+ *  @param sock The socket to be set TCP keep-alive 
+ *  @return 0 on success, -1 on failure
+*/ 
+EVENT2_EXPORT_SYMBOL
+int evutil_set_tcp_keepalive(evutil_socket_t sock, int on, int timeout);
+
 #ifdef _WIN32
 /** Return the most recent socket error.  Not idempotent on all platforms. */
 #define EVUTIL_SOCKET_ERROR() WSAGetLastError()

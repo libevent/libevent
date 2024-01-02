@@ -4783,7 +4783,7 @@ create_bind_socket_nonblock(struct evutil_addrinfo *ai, int reuse)
 {
 	evutil_socket_t fd;
 
-	int on = 1, r;
+	int r;
 	int serrno;
 
 	/* Create listen socket */
@@ -4794,7 +4794,7 @@ create_bind_socket_nonblock(struct evutil_addrinfo *ai, int reuse)
 			return (-1);
 	}
 
-	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on))<0)
+	if (evutil_set_tcp_keepalive(fd, 1, 300) < 0)
 		goto out;
 	if (reuse) {
 		if (evutil_make_listen_socket_reuseable(fd) < 0)
