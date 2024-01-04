@@ -3052,16 +3052,16 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	if (!on) 
 		return 0;
 
-/* Unlike Unix-like OS's, TCP keep-alive mechanism on Windows is kind of a mess, 
- * setting TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT on Windows could be a bit tricky.
- * Check out https://learn.microsoft.com/en-us/windows/win32/winsock/sio-keepalive-vals,
- * https://learn.microsoft.com/en-us/windows/win32/winsock/ipproto-tcp-socket-options.
- * These three options are not available until Windows 10, version 1709 where we set them
- * by `setsockopt` (slightly different from Unix-like OS's pattern), while on older Windows, 
- * we have to use `WSAIoctl` instead.
- * Therefore, we skip setting those three options on Windows for now.
- * TODO(panjf2000): enable the full TCP keep-alive mechanism on Windows when we find a feasible way to do it.
- */
+	/* Unlike Unix-like OS's, TCP keep-alive mechanism on Windows is kind of a mess, 
+	 * setting TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT on Windows could be a bit tricky.
+	 * Check out https://learn.microsoft.com/en-us/windows/win32/winsock/sio-keepalive-vals,
+	 * https://learn.microsoft.com/en-us/windows/win32/winsock/ipproto-tcp-socket-options.
+	 * These three options are not available until Windows 10, version 1709 where we set them
+	 * by `setsockopt` (slightly different from Unix-like OS's pattern), while on older Windows, 
+	 * we have to use `WSAIoctl` instead.
+	 * Therefore, we skip setting those three options on Windows for now.
+	 * TODO(panjf2000): enable the full TCP keep-alive mechanism on Windows when we find a feasible way to do it.
+	 */
 #ifndef _WIN32
 
 	/* The implementation of TCP keep-alive on Solaris/SmartOS is a bit unusual 
