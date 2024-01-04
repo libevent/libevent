@@ -489,6 +489,9 @@ int evutil_make_tcp_listen_socket_deferred(evutil_socket_t sock);
  * TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT on a socket.
  *  
  *  @param sock The socket to be set TCP keep-alive 
+ *  @param on 1 to enable TCP keep-alive, 0 to disable
+ *  @param timeout The timeout in seconds with no activity until 
+ * 	   the first keepalive probe is sent
  *  @return 0 on success, -1 on failure
 */ 
 EVENT2_EXPORT_SYMBOL
