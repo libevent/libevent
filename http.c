@@ -4794,6 +4794,7 @@ create_bind_socket_nonblock(struct evutil_addrinfo *ai, int reuse)
 			return (-1);
 	}
 
+	/* TODO(panjf2000): make this TCP keep-alive value configurable */
 	if (evutil_set_tcp_keepalive(fd, 1, 300) < 0)
 		goto out;
 	if (reuse) {

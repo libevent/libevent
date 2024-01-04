@@ -242,6 +242,7 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	}
 #endif
 	if (support_keepalive) {
+		/* TODO(panjf2000): make this TCP keep-alive value configurable */
 		if (evutil_set_tcp_keepalive(fd, 1, 300) < 0)
 			goto err;
 	}
