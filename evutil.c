@@ -3031,7 +3031,7 @@ evutil_free_globals_(void)
 	evutil_free_sock_err_globals();
 }
 
-int 
+int
 evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 {
 	int idle;
@@ -3067,7 +3067,7 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	 * compared to other Unix-like systems. 
 	 * Thus, we need to specialize it on Solaris. 
 	 */
-#ifdef __sun 
+#ifdef __sun
 	/* There are two keep-alive mechanisms on Solaris:
 	 * - By default, the first keep-alive probe is sent out after a TCP connection is idle for two hours. 
 	 * If the peer does not respond to the probe within eight minutes, the TCP connection is aborted. 
@@ -3079,7 +3079,7 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	 * The option value is an unsigned integer in milliseconds. The value zero indicates that TCP should never time out and 
 	 * abort the connection when probing. The system default is controlled by the TCP ndd parameter tcp_keepalive_abort_interval. 
 	 * The default is eight minutes.
-
+	 *
 	 * - The second implementation is activated if socket option TCP_KEEPINTVL and/or TCP_KEEPCNT are set. 
 	 * The time between each consequent probes is set by TCP_KEEPINTVL in seconds. 
 	 * The minimum value is ten seconds. The maximum is ten days, while the default is two hours. 
@@ -3087,69 +3087,68 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	 */
 
 	idle = timeout;
-	if (idle < 10) idle = 10; // kernel expects at least 10 seconds
-	if (idle > 10*24*60*60) idle = 10*24*60*60; // kernel expects at most 10 days
+	/* Kernel expects at least 10 seconds. */
+	if (idle < 10) 
+		idle = 10;
+	/* Kernel expects at most 10 days. */
+	if (idle > 10*24*60*60) 
+		idle = 10*24*60*60; 
 	
 	/* `TCP_KEEPIDLE`, `TCP_KEEPINTVL`, and `TCP_KEEPCNT` were not available on Solaris 
-	 * until version 11.4, but let's take a chance here. */
-	#if defined(TCP_KEEPIDLE) && defined(TCP_KEEPINTVL) && defined(TCP_KEEPCNT)
-		if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle))) {
-			return -1;
-		}           
-		intvl = idle/3;
-		if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl))) {
-			return -1;
-		}
-		cnt = 3;
-		if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt))) {
-			return -1;
-		}
-		return 0;
-	#endif
+	 * until version 11.4, but let's gamble here.
+	 */
+#if defined(TCP_KEEPIDLE) && defined(TCP_KEEPINTVL) && defined(TCP_KEEPCNT)
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
+		return -1;
+	intvl = idle/3;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
+		return -1;
+	cnt = 3;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
+		return -1;
+	return 0;
+#endif
 
 	/* Fall back to the first implementation of tcp-alive mechanism for older Solaris, 
 	 * simulate the tcp-alive mechanism on other platforms via `TCP_KEEPALIVE_THRESHOLD` + `TCP_KEEPALIVE_ABORT_THRESHOLD`.
 	 */
-	idle *= 1000; // kernel expects milliseconds
-	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_THRESHOLD, &idle, sizeof(idle))) {
+	idle *= 1000; /* kernel expects milliseconds */
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_THRESHOLD, &idle, sizeof(idle)))
 		return -1;
-	}
 
 	/* Note that the consequent probes will not be sent at equal intervals on Solaris, 
-	 * but will be sent using the exponential backoff algorithm. */
+	 * but will be sent using the exponential backoff algorithm.
+	 */
 	intvl = idle/3;
 	cnt = 3;
 	int time_to_abort = intvl * cnt;
-	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_ABORT_THRESHOLD, &time_to_abort, sizeof(time_to_abort))) {
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_ABORT_THRESHOLD, &time_to_abort, sizeof(time_to_abort)))
 		return -1;
-	}
 
 	return 0;
 #endif
 
 #ifdef TCP_KEEPIDLE
 	idle = timeout;
-	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle))) {
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
 		return -1;
-	}
 #elif defined(TCP_KEEPALIVE)
 	/* Darwin/macOS uses TCP_KEEPALIVE in place of TCP_KEEPIDLE. */
 	idle = timeout;
-	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &idle, sizeof(idle))) {
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &idle, sizeof(idle)))
 		return -1;
-	}
 #endif
 
 #ifdef TCP_KEEPINTVL
-	/* Set the interval between individual keepalive probes as timeout / 3 
+	/* Set the interval between individual keep-alive probes as timeout / 3 
 	 * and the maximum number of keepalive probes as 3 to make it double timeout 
 	 * before aborting a dead connection. 
 	 */
 	intvl = timeout/3;
-	if (intvl == 0) intvl = 1;
-	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl))) {
+	if (intvl == 0) 
+		intvl = 1;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
 		return -1;
-	}
 #endif
 
 #ifdef TCP_KEEPCNT
@@ -3157,12 +3156,11 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	 * TCP_KEEPINTVL, see the previous comment.
 	 */
 	cnt = 3;
-	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt))) {
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
 		return -1;
-	}
 #endif
 
-#endif
+#endif /* !_WIN32 */
 
 	return 0;
 }
