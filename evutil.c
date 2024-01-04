@@ -3096,9 +3096,9 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 		return 0;
 	#endif
 
-   /* Fall back to the first implementation of tcp-alive mechanism for older Solaris, 
-	* simulate the tcp-alive mechanism on other platforms via `TCP_KEEPALIVE_THRESHOLD` + `TCP_KEEPALIVE_ABORT_THRESHOLD`.
-	*/
+	/* Fall back to the first implementation of tcp-alive mechanism for older Solaris, 
+	 * simulate the tcp-alive mechanism on other platforms via `TCP_KEEPALIVE_THRESHOLD` + `TCP_KEEPALIVE_ABORT_THRESHOLD`.
+	 */
 	idle *= 1000; // kernel expects milliseconds
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_THRESHOLD, &idle, sizeof(idle))) {
 		return -1;
@@ -3122,7 +3122,7 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 		return -1;
 	}
 #elif defined(TCP_KEEPALIVE)
-	/** Darwin/macOS uses TCP_KEEPALIVE in place of TCP_KEEPIDLE. */
+	/* Darwin/macOS uses TCP_KEEPALIVE in place of TCP_KEEPIDLE. */
 	idle = timeout;
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &idle, sizeof(idle))) {
 		return -1;
@@ -3130,7 +3130,7 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 #endif
 
 #ifdef TCP_KEEPINTVL
-	/** Set the interval between individual keepalive probes as timeout / 3 
+	/* Set the interval between individual keepalive probes as timeout / 3 
 	 * and the maximum number of keepalive probes as 3 to make it double timeout 
 	 * before aborting a dead connection. 
 	 */
@@ -3142,7 +3142,7 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 #endif
 
 #ifdef TCP_KEEPCNT
-	/** Set the maximum number of keepalive probes as 3 to collaborate with
+	/* Set the maximum number of keepalive probes as 3 to collaborate with
 	 * TCP_KEEPINTVL, see the previous comment.
 	 */
 	cnt = 3;
