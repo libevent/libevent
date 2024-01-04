@@ -3046,9 +3046,8 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	if (timeout <= 0) 
 		return 0;
 
-	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on))) {
+	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
 		return -1;
-	}
 	if (!on) 
 		return 0;
 
