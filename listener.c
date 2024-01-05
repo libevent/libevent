@@ -220,7 +220,6 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 {
 	struct evconnlistener *listener;
 	evutil_socket_t fd;
-	int on = 1;
 	int family = sa ? sa->sa_family : AF_UNSPEC;
 	int socktype = SOCK_STREAM | EVUTIL_SOCK_NONBLOCK;
 	int support_keepalive = 1;
@@ -243,7 +242,8 @@ evconnlistener_new_bind(struct event_base *base, evconnlistener_cb cb,
 	}
 #endif
 	if (support_keepalive) {
-		if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void*)&on, sizeof(on))<0)
+		/* TODO(panjf2000): make this TCP keep-alive value configurable */
+		if (evutil_set_tcp_keepalive(fd, 1, 300) < 0)
 			goto err;
 	}
 
