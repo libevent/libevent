@@ -235,13 +235,13 @@ jobs:
           name: ${{ matrix.os }}-autotools-${{ matrix.EVENT_MATRIX }}-dist
           path: dist
 
-  windows-vs2019-job:
+  windows-vs-job:
     runs-on: ${{ matrix.os }}
     if: "!contains(github.event.head_commit.message, 'ci/windows skip')"
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2019]
+        os: [windows-latest]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
@@ -265,13 +265,13 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
 
       - name: Prepare vcpkg
-        uses: lukka/run-vcpkg@v7
+        uses: lukka/run-vcpkg@v11
         id: runvcpkg
         with:
           vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
           vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
           vcpkgTriplet: x64-windows
-          vcpkgGitCommitId: af2287382b1991dbdcb7e5112d236f3323b9dd7a
+          vcpkgGitCommitId: c8696863d371ab7f46e213d8f5ca923c4aef2a00  # 2023.12.12
 
       - name: Build
         shell: powershell
@@ -317,7 +317,7 @@ jobs:
           mkdir build -ea 0
           cd build
 
-          $CMAKE_CMD="cmake -G 'Visual Studio 16 2019' -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake .. $EVENT_CMAKE_OPTIONS"
+          $CMAKE_CMD="cmake -G 'Visual Studio 17 2022' -A x64 -DCMAKE_TOOLCHAIN_FILE=${{ runner.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake .. $EVENT_CMAKE_OPTIONS"
           function cmake_configure($retry)
           {
             $errcode=0
@@ -379,7 +379,7 @@ jobs:
           path: build
 
   mingw-autotools-job:
-    runs-on: windows-2019
+    runs-on: windows-latest
     if: "!contains(github.event.head_commit.message, 'ci/mingw skip') && !contains(github.event.head_commit.message, 'ci/mingw/autotools skip')"
     strategy:
       fail-fast: false
@@ -440,7 +440,7 @@ jobs:
           path: build
 
   mingw-cmake-job:
-    runs-on: windows-2019
+    runs-on: windows-latest
     # FIXME: disabled for now, see [1].
     #   [1]: https://github.com/libevent/libevent/issues/1207
     if: "false && !contains(github.event.head_commit.message, 'ci/mingw skip') && !contains(github.event.head_commit.message, 'ci/mingw/cmake skip')"
