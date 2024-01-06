@@ -265,13 +265,13 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.EVENT_MATRIX }}-v4
 
       - name: Prepare vcpkg
-        uses: lukka/run-vcpkg@v7
+        uses: lukka/run-vcpkg@v11
         id: runvcpkg
         with:
           vcpkgArguments: zlib:x64-windows openssl:x64-windows mbedtls:x64-windows
           vcpkgDirectory: ${{ runner.workspace }}/vcpkg/
           vcpkgTriplet: x64-windows
-          vcpkgGitCommitId: af2287382b1991dbdcb7e5112d236f3323b9dd7a
+          vcpkgGitCommitId: c8696863d371ab7f46e213d8f5ca923c4aef2a00  # 2023.12.12
 
       - name: Build
         shell: powershell
