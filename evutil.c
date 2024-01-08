@@ -3063,12 +3063,12 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	 */
 #ifndef _WIN32
 
+#ifdef __sun
 	/* The implementation of TCP keep-alive on Solaris/SmartOS is a bit unusual
 	 * compared to other Unix-like systems.
 	 * Thus, we need to specialize it on Solaris.
-	 */
-#ifdef __sun
-	/* There are two keep-alive mechanisms on Solaris:
+	 *
+	 * There are two keep-alive mechanisms on Solaris:
 	 * - By default, the first keep-alive probe is sent out after a TCP connection is idle for two hours.
 	 * If the peer does not respond to the probe within eight minutes, the TCP connection is aborted.
 	 * You can alter the interval for sending out the first probe using the socket option TCP_KEEPALIVE_THRESHOLD
@@ -3125,6 +3125,7 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_ABORT_THRESHOLD, &time_to_abort, sizeof(time_to_abort)))
 		return -1;
 #endif
+
 	return 0;
 #endif
 
