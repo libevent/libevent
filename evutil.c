@@ -3126,8 +3126,7 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 		return -1;
 #endif
 
-	return 0;
-#endif
+#else /* !__sun */
 
 #ifdef TCP_KEEPIDLE
 	idle = timeout;
@@ -3160,6 +3159,8 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
 		return -1;
 #endif
+
+#endif /* !__sun */
 
 #endif /* !_WIN32 */
 
