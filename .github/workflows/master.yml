@@ -56,6 +56,9 @@ jobs:
   abi-job:
     permissions:
       contents: write # for Git to git push
+    # ABI check is broken [1].
+    #   [1]: https://github.com/libevent/libevent/issues/1463
+    if: "false"
     runs-on: ubuntu-20.04
     ## TODO: use docker image, but for now this is not possible without hacks
     ## due to even public registry require some authentication:
