@@ -2365,7 +2365,11 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 				n = bytesRead;
 		}
 #else
-		n = readv(fd, vecs, nvecs);
+		/* TODO(panjf2000): wrap it with `unlikely` as compiler hint? */
+		if (nvecs == 1)
+			n = read(fd, vecs[0].IOV_PTR_FIELD, vecs[0].IOV_LEN_FIELD);
+		else
+			n = readv(fd, vecs, nvecs);
 #endif
 	}
 
@@ -2478,7 +2482,11 @@ evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
 			n = bytesSent;
 	}
 #else
-	n = writev(fd, iov, i);
+	/* TODO(panjf2000): wrap it with `unlikely` as compiler hint? */
+	if (i == 1)
+		n = write(fd, iov[0].IOV_PTR_FIELD, iov[0].IOV_LEN_FIELD);
+	else
+		n = writev(fd, iov, i);
 #endif
 	return (n);
 }
@@ -3228,9 +3236,9 @@ evbuffer_file_segment_free(struct evbuffer_file_segment *seg)
 	if ((seg->flags & EVBUF_FS_CLOSE_ON_FREE) && seg->fd >= 0) {
 		close(seg->fd);
 	}
-	
+
 	if (seg->cleanup_cb) {
-		(*seg->cleanup_cb)((struct evbuffer_file_segment const*)seg, 
+		(*seg->cleanup_cb)((struct evbuffer_file_segment const*)seg,
 		    seg->flags, seg->cleanup_cb_arg);
 		seg->cleanup_cb = NULL;
 		seg->cleanup_cb_arg = NULL;
