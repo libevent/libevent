@@ -1739,16 +1739,16 @@ evhttp_valid_response_code(int code)
 static int
 evhttp_parse_http_version(const char *version, struct evhttp_request *req)
 {
-	int major, minor;
+	char major, minor;
 	char ch;
-	int n = sscanf(version, "HTTP/%d.%d%c", &major, &minor, &ch);
-	if (n != 2 || major > 1) {
+	int n = sscanf(version, "HTTP/%c.%c%c", &major, &minor, &ch);
+	if (n != 2 || major > '1' || major < '0' || minor > '9' || minor < '0') {
 		event_debug(("%s: bad version %s on message %p from %s",
 			__func__, version, (void *)req, req->remote_host));
 		return (-1);
 	}
-	req->major = major;
-	req->minor = minor;
+	req->major = major - '0';
+	req->minor = minor - '0';
 	return (0);
 }
 
