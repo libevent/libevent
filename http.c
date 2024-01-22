@@ -1038,12 +1038,12 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 				mm_free(p);
 				continue;
 			}
+			/* strtoll(,,16) lets through whitespace, 0x, +, and - prefixes, but HTTP doesn't. */
 			error = isspace(p[0]) ||
 				p[0] == '-' ||
 				p[0] == '+' ||
 				(len_p >= 2 && p[1] == 'x');
 			if (error) {
-				/* chunk size might get through strtoll(,,16), but is still invalid */
 				mm_free(p);
 				return (DATA_CORRUPTED);
 			}
