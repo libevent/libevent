@@ -36,9 +36,9 @@ endmacro()
 macro(export_install_target TYPE LIB_NAME)
     if("${LIB_NAME}" STREQUAL "event")
         install(TARGETS "${LIB_NAME}_${TYPE}"
-            LIBRARY DESTINATION "lib" COMPONENT lib
-            ARCHIVE DESTINATION "lib" COMPONENT lib
-            RUNTIME DESTINATION "lib" COMPONENT lib
+            LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
+            ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
+            RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
             COMPONENT dev
         )
     else()
@@ -62,9 +62,9 @@ macro(export_install_target TYPE LIB_NAME)
         )
         install(TARGETS "${LIB_NAME}_${TYPE}"
             EXPORT LibeventTargets-${TYPE}
-            LIBRARY DESTINATION "lib" COMPONENT lib
-            ARCHIVE DESTINATION "lib" COMPONENT lib
-            RUNTIME DESTINATION "lib" COMPONENT lib
+            LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
+            ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
+            RUNTIME DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
             COMPONENT dev
         )
     endif()
@@ -169,7 +169,7 @@ macro(add_event_library LIB_NAME)
         if (NOT WIN32)
             install(FILES
                 "$<TARGET_FILE_DIR:${LIB_NAME}_shared>/${LIB_LINK_NAME}"
-                DESTINATION "lib"
+                DESTINATION "${CMAKE_INSTALL_LIBDIR}"
                 COMPONENT lib)
         endif()
     endif()
