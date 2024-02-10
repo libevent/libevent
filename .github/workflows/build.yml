@@ -974,3 +974,29 @@ jobs:
         with:
           name: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
           path: .
+
+  abi-job:
+    runs-on: ubuntu-20.04
+    container: docker.pkg.github.com/azat/docker-images/lvc-debian
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Generate
+        shell: bash
+        run: |
+          ./extra/abi-check/abi_check.sh
+        env:
+          ABI_CHECK_ROOT: /tmp/le-abi-root
+      # XXX: requires container-id for docker
+      - uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: build
+          path: /tmp/le-abi-root
+      - uses: actions/upload-artifact@v1
+        with:
+          name: build
+          path: /tmp/le-abi-root/work/abi-check
