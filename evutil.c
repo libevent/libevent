@@ -2284,6 +2284,7 @@ evutil_inet_pton_scope(int af, const char *src, void *dst, unsigned *indexp)
 		return -1;
 	}
 	cp = strchr(tmp_src, '%');
+	// The check had been already done above against original src
 	*cp = '\0';
 	r = evutil_inet_pton(af, tmp_src, dst);
 	mm_free(tmp_src);
