@@ -1129,6 +1129,23 @@ test_immediatesignal(void)
 }
 
 static void
+test_signal_timeout(void)
+{
+	struct event ev;
+	struct timeval tv = { 0, 10 };
+
+	test_ok = 0;
+	evsignal_set(&ev, SIGUSR1, signal_cb, &ev);
+	tt_int_op(evsignal_add(&ev, &tv), ==, 0);
+	event_loop(EVLOOP_ONCE);
+	evsignal_del(&ev);
+	tt_int_op(test_ok, ==, 1);
+
+end:
+	cleanup_test();
+}
+
+static void
 test_signal_dealloc(void)
 {
 	/* make sure that evsignal_event is event_del'ed and pipe closed */
@@ -3621,6 +3638,7 @@ struct testcase_t signal_testcases[] = {
 	LEGACY(multiplesignal, TT_ISOLATED|RETRY_ON_DARWIN),
 	LEGACY(immediatesignal, TT_ISOLATED),
 	LEGACY(signal_dealloc, TT_ISOLATED),
+	LEGACY(signal_timeout, TT_ISOLATED),
 	LEGACY(signal_pipeloss, TT_ISOLATED),
 	LEGACY(signal_switchbase, TT_ISOLATED|TT_NO_LOGS),
 	LEGACY(signal_restore, TT_ISOLATED),
