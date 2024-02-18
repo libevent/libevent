@@ -1088,8 +1088,8 @@ err:
 		bev_ssl->ssl = NULL;
 		bufferevent_free(&bev_ssl->bev.bev);
 	} else {
-		if (ssl && (options & BEV_OPT_CLOSE_ON_FREE))
-			bev_ssl->ssl_ops->free_raw(bev_ssl->ssl);
+		if (ssl && options & BEV_OPT_CLOSE_ON_FREE)
+			ssl_ops->free_raw(ssl);
 	}
 	return NULL;
 }
