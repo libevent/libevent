@@ -911,8 +911,11 @@ evconnlistener_new_async(struct event_base *base,
 	return &lev->base;
 
 err_free_accepting:
+	for (i = 0; i < lev->n_accepting; ++i) {
+		if (lev->accepting[i])
+			free_and_unlock_accepting_socket(lev->accepting[i]);
+	}
 	mm_free(lev->accepting);
-	/* XXXX free the other elements. */
 err_delete_lock:
 	EVTHREAD_FREE_LOCK(lev->base.lock, EVTHREAD_LOCKTYPE_RECURSIVE);
 err_free_lev:
