@@ -118,7 +118,7 @@ struct evrpc_hook_meta {
 };
 
 /* allows association of meta data with a request */
-static void evrpc_hook_associate_meta_(struct evrpc_hook_meta **pctx,
+static int evrpc_hook_associate_meta_(struct evrpc_hook_meta **pctx,
     struct evhttp_connection *evcon);
 
 /* creates a new meta data store */
