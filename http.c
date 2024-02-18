@@ -1042,7 +1042,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			error = isspace(p[0]) ||
 				p[0] == '-' ||
 				p[0] == '+' ||
-				(len_p >= 2 && p[1] == 'x');
+				(len_p >= 2 && p[0] == '0' && (p[1] == 'x' || p[1] == 'X'));
 			if (error) {
 				mm_free(p);
 				return (DATA_CORRUPTED);
@@ -1168,8 +1168,11 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 			evhttp_read_trailer(evcon, req);
 			return;
 		case DATA_CORRUPTED:
-		case DATA_TOO_LONG:
 			/* corrupted data */
+			evhttp_connection_fail_(evcon,
+			    EVREQ_HTTP_INVALID_HEADER);
+			return;
+		case DATA_TOO_LONG:
 			evhttp_connection_fail_(evcon,
 			    EVREQ_HTTP_DATA_TOO_LONG);
 			return;

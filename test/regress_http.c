@@ -3914,6 +3914,84 @@ http_send_chunk_test(void *arg)
 	if (http)
 		evhttp_free(http);
 }
+
+static void
+http_send_chunk_malformed_test_write_cb(struct bufferevent *bev, void *arg)
+{
+	struct evbuffer *output = bufferevent_get_output(bev);
+	size_t len = strlen(BASIC_REQUEST_BODY) + 1;
+
+	TT_BLATHER(("%s: called, test_ok=%i\n", __func__, test_ok));
+
+	evbuffer_add_printf(output, "0x%x\r\n", (unsigned)len);
+	evbuffer_add(output, BASIC_REQUEST_BODY, strlen(BASIC_REQUEST_BODY));
+	evbuffer_add(output, "\n", 1);
+	evbuffer_add(output, "\r\n", 2);
+	/* last chunk */
+	evbuffer_add(output, "0\r\n\r\n", 5);
+
+	if (test_ok == 1)
+	{
+		bufferevent_disable(bev, EV_WRITE);
+		bufferevent_enable(bev, EV_READ);
+	}
+
+	test_ok++;
+}
+static void
+http_send_chunk_malformed_test_error_cb(struct bufferevent *bev, short what, void *arg)
+{
+	struct evbuffer *input = bufferevent_get_input(bev);
+	char *line = NULL;
+
+	TT_BLATHER(("%s: called\n", __func__));
+	line = evbuffer_readln(input, NULL, EVBUFFER_EOL_CRLF);
+	tt_str_op(line, ==, "HTTP/1.1 400 Bad Request");
+
+end:
+	free(line);
+	event_base_loopexit(exit_base, NULL);
+}
+static void
+http_send_chunk_malformed_test(void *arg)
+{
+	struct basic_test_data *data = arg;
+	struct bufferevent *bev = NULL;
+	evutil_socket_t fd;
+	const char *http_request;
+	ev_uint16_t port = 0;
+	struct evhttp *http = http_setup(&port, data->base, 0 /* ssl */);
+
+	exit_base = data->base;
+	test_ok = 0;
+
+	fd = http_connect("127.0.0.1", port);
+	tt_assert(fd != EVUTIL_INVALID_SOCKET);
+
+	bev = create_bev(data->base, fd, 0 /* ssl */, BEV_OPT_CLOSE_ON_FREE);
+	bufferevent_setcb(bev,
+	    http_send_chunk_test_read_cb,
+	    http_send_chunk_malformed_test_write_cb,
+	    http_send_chunk_malformed_test_error_cb,
+	    data->base);
+
+	http_request =
+	    "POST /chunked_input HTTP/1.1\r\n"
+	    "Host: somehost\r\n"
+	    "Transfer-Encoding: chunked\r\n"
+	    "Connection: close\r\n"
+	    "\r\n";
+
+	bufferevent_write(bev, http_request, strlen(http_request));
+	event_base_dispatch(data->base);
+
+ end:
+	if (bev)
+		bufferevent_free(bev);
+	if (http)
+		evhttp_free(http);
+}
+
 static void
 http_chunk_out_test_impl(void *arg, int ssl)
 {
@@ -5958,6 +6036,7 @@ struct testcase_t http_testcases[] = {
 	HTTP(multi_line_header),
 	HTTP(negative_content_length),
 	HTTP(send_chunk),
+	HTTP(send_chunk_malformed),
 	HTTP(chunk_out),
 	HTTP(stream_out),
 
