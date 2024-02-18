@@ -118,8 +118,7 @@ static inline struct bufferevent_filtered *
 upcast(struct bufferevent *bev)
 {
 	struct bufferevent_filtered *bev_f;
-	if (!BEV_IS_FILTER(bev))
-		return NULL;
+	EVUTIL_ASSERT(BEV_IS_FILTER(bev));
 	bev_f = (void*)( ((char*)bev) -
 			 evutil_offsetof(struct bufferevent_filtered, bev.bev));
 	EVUTIL_ASSERT(BEV_IS_FILTER(&bev_f->bev.bev));
@@ -229,8 +228,6 @@ static void
 be_filter_unlink(struct bufferevent *bev)
 {
 	struct bufferevent_filtered *bevf = upcast(bev);
-	EVUTIL_ASSERT(bevf);
-
 	if (bevf->bev.options & BEV_OPT_CLOSE_ON_FREE) {
 		/* Yes, there is also a decref in bufferevent_decref_.
 		 * That decref corresponds to the incref when we set
@@ -258,7 +255,6 @@ static void
 be_filter_destruct(struct bufferevent *bev)
 {
 	struct bufferevent_filtered *bevf = upcast(bev);
-	EVUTIL_ASSERT(bevf);
 	if (bevf->free_context)
 		bevf->free_context(bevf->context);
 
@@ -575,7 +571,6 @@ be_filter_flush(struct bufferevent *bufev,
 {
 	struct bufferevent_filtered *bevf = upcast(bufev);
 	int processed_any = 0;
-	EVUTIL_ASSERT(bevf);
 
 	bufferevent_incref_and_lock_(bufev);
 
