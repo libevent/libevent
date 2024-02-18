@@ -17,6 +17,7 @@
 # verify backward compatibility of API/ABI changes
 
 set -e
+set -x
 
 LIMIT=${1:-2}
 EVENT_SOURCE_DIR=${EVENT_SOURCE_DIR:-"$(cd "$(dirname "$0")"/../.. && pwd)"}
