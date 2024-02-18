@@ -81,6 +81,7 @@
 #include <winsock2.h>
 #endif
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1028,12 +1029,23 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			char *p = evbuffer_readln(buf, NULL, EVBUFFER_EOL_CRLF);
 			char *endp;
 			int error;
+			size_t len_p;
 			if (p == NULL)
 				break;
+			len_p = strlen(p);
 			/* the last chunk is on a new line? */
-			if (strlen(p) == 0) {
+			if (len_p == 0) {
 				mm_free(p);
 				continue;
+			}
+			/* strtoll(,,16) lets through whitespace, 0x, +, and - prefixes, but HTTP doesn't. */
+			error = isspace(p[0]) ||
+				p[0] == '-' ||
+				p[0] == '+' ||
+				(len_p >= 2 && p[1] == 'x');
+			if (error) {
+				mm_free(p);
+				return (DATA_CORRUPTED);
 			}
 			ntoread = evutil_strtoll(p, &endp, 16);
 			error = (*p == '\0' ||
