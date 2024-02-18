@@ -1042,7 +1042,7 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			error = isspace(p[0]) ||
 				p[0] == '-' ||
 				p[0] == '+' ||
-				(len_p >= 2 && p[1] == 'x');
+				(len_p >= 2 && p[0] == '0' && p[1] == 'x');
 			if (error) {
 				mm_free(p);
 				return (DATA_CORRUPTED);
