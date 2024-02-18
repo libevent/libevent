@@ -1083,7 +1083,7 @@ bufferevent_ssl_new_impl(struct event_base *base,
 	return &bev_ssl->bev.bev;
 err:
 	if (bev_ssl) {
-		if (bev_ssl->ssl && (options & BEV_OPT_CLOSE_ON_FREE))
+		if (bev_ssl->ssl && bev_ssl->ssl_ops && options & BEV_OPT_CLOSE_ON_FREE)
 			bev_ssl->ssl_ops->free(bev_ssl->ssl, options);
 		bev_ssl->ssl = NULL;
 		bufferevent_free(&bev_ssl->bev.bev);
