@@ -3946,7 +3946,7 @@ http_send_chunk_malformed_test_error_cb(struct bufferevent *bev, short what, voi
 
 	TT_BLATHER(("%s: called\n", __func__));
 	line = evbuffer_readln(input, NULL, EVBUFFER_EOL_CRLF);
-	tt_str_op(line, ==, "HTTP/1.1 413 Request Entity Too Large");
+	tt_str_op(line, ==, "HTTP/1.1 400 Bad Request");
 
 end:
 	free(line);

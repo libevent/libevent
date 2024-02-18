@@ -1168,8 +1168,11 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 			evhttp_read_trailer(evcon, req);
 			return;
 		case DATA_CORRUPTED:
-		case DATA_TOO_LONG:
 			/* corrupted data */
+			evhttp_connection_fail_(evcon,
+			    EVREQ_HTTP_INVALID_HEADER);
+			return;
+		case DATA_TOO_LONG:
 			evhttp_connection_fail_(evcon,
 			    EVREQ_HTTP_DATA_TOO_LONG);
 			return;
