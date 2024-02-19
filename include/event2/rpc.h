@@ -546,9 +546,10 @@ int evrpc_resume_request(void *vbase, void *ctx, enum EVRPC_HOOK_RESULT res);
  * @param key a NUL-terminated c-string
  * @param data the data to be associated with the key
  * @param data_size the size of the data
+ * @return 0 on success or -1 on failure (in case of memory allocation failures)
  */
 EVENT2_EXPORT_SYMBOL
-void evrpc_hook_add_meta(void *ctx, const char *key,
+int evrpc_hook_add_meta(void *ctx, const char *key,
     const void *data, size_t data_size);
 
 /** retrieves meta data previously associated
