@@ -80,6 +80,10 @@ jobs:
             pkgdiff
             vtable-dumper
 
+      # FIXME: clone git repo or report to debian
+      - name: Patch abi-compliance-checker to avoid endless loop
+        run: sudo patch /usr/bin/abi-compliance-checker < extra/abi-check/debian.patch
+
       - name: Generate
         shell: bash
         run: |
