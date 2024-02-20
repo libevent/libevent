@@ -57,6 +57,7 @@
 #include <string.h>
 #include <errno.h>
 #include <assert.h>
+#include <limits.h>
 
 #ifdef EVENT__HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -203,11 +204,50 @@ static void test_bufferevent_pair_flush_normal(void) { test_bufferevent_impl(1, 
 static void test_bufferevent_pair_flush_flush(void) { test_bufferevent_impl(1, BEV_FLUSH); }
 static void test_bufferevent_pair_flush_finished(void) { test_bufferevent_impl(1, BEV_FINISHED); }
 
-static void test_bufferevent_ratelimit_fuzz(void)
+static void test_bufferevent_ratelimit_div_by_zero(void)
 {
 	struct timeval cfg_tick = {0, 0};
 	struct ev_token_bucket_cfg *cfg = ev_token_bucket_cfg_new(1, 1, 1, 1, &cfg_tick);
 	tt_ptr_op(cfg, ==, NULL);
+	test_ok = 1;
+
+end:
+	;
+}
+static void test_bufferevent_ratelimit_overflow(void)
+{
+	{
+		struct timeval cfg_tick = {LONG_MAX, 0};
+		struct ev_token_bucket_cfg *cfg = ev_token_bucket_cfg_new(1, 1, 1, 1, &cfg_tick);
+		tt_ptr_op(cfg, ==, NULL);
+	}
+	{
+		struct timeval cfg_tick = {UINT_MAX-1, 0};
+		struct ev_token_bucket_cfg *cfg = ev_token_bucket_cfg_new(1, 1, 1, 1, &cfg_tick);
+		tt_ptr_op(cfg, ==, NULL);
+	}
+	{
+		struct timeval cfg_tick = {INT_MAX, 0};
+		struct ev_token_bucket_cfg *cfg = ev_token_bucket_cfg_new(1, 1, 1, 1, &cfg_tick);
+		tt_ptr_op(cfg, ==, NULL);
+	}
+	{
+		struct timeval cfg_tick = {INT_MAX/1000+1, 0};
+		struct ev_token_bucket_cfg *cfg = ev_token_bucket_cfg_new(1, 1, 1, 1, &cfg_tick);
+		tt_ptr_op(cfg, ==, NULL);
+	}
+	{
+		struct timeval cfg_tick = {INT_MAX/1000, 0};
+		struct ev_token_bucket_cfg *cfg = ev_token_bucket_cfg_new(1, 1, 1, 1, &cfg_tick);
+		tt_ptr_op(cfg, !=, NULL);
+		ev_token_bucket_cfg_free(cfg);
+	}
+	{
+		struct timeval cfg_tick = {INT_MAX/1000-1, 0};
+		struct ev_token_bucket_cfg *cfg = ev_token_bucket_cfg_new(1, 1, 1, 1, &cfg_tick);
+		tt_ptr_op(cfg, !=, NULL);
+		ev_token_bucket_cfg_free(cfg);
+	}
 	test_ok = 1;
 
 end:
@@ -1474,7 +1514,8 @@ struct testcase_t bufferevent_testcases[] = {
 	  test_bufferevent_read_failed,
 	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE, &basic_setup, NULL },
 
-	LEGACY(bufferevent_ratelimit_fuzz, TT_ISOLATED),
+	LEGACY(bufferevent_ratelimit_div_by_zero, TT_ISOLATED),
+	LEGACY(bufferevent_ratelimit_overflow, TT_ISOLATED),
 
 	END_OF_TESTCASES,
 };

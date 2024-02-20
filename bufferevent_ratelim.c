@@ -154,7 +154,17 @@ ev_token_bucket_cfg_new(size_t read_rate, size_t read_burst,
 		tick_len = &g;
 	}
 
-	msec_per_tick = (tick_len->tv_sec * 1000) +
+	/* Avoid possible overflow.
+	 * - there is no point in accepting values larger then INT_MAX/1000 anyway
+	 * - on windows tv_sec (tv_usec) is long, which is int, which has upper value limit INT_MAX
+	 * - and also negative values does not make any sense
+	 */
+	if (tick_len->tv_sec < 0 || tick_len->tv_sec > INT_MAX/1000)
+		return NULL;
+
+	/* Note, overflow with tv_usec is not possible since tv_sec is limited to
+	 * INT_MAX/1000 anyway */
+	msec_per_tick = (unsigned)(tick_len->tv_sec * 1000) +
 	    (tick_len->tv_usec & COMMON_TIMEOUT_MICROSECONDS_MASK)/1000;
 	if (!msec_per_tick)
 		return NULL;
