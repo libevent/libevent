@@ -3266,8 +3266,7 @@ evbuffer_add_file_segment(struct evbuffer *buf,
 	} else {
 		if (evbuffer_file_segment_materialize(seg)<0) {
 			EVLOCK_UNLOCK(seg->lock, 0);
-			EVBUFFER_UNLOCK(buf);
-			return -1;
+			goto err;
 		}
 	}
 	EVLOCK_UNLOCK(seg->lock, 0);
