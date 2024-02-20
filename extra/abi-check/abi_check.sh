@@ -17,11 +17,14 @@
 # verify backward compatibility of API/ABI changes
 
 set -e
+set -x
 
 LIMIT=${1:-2}
 EVENT_SOURCE_DIR=${EVENT_SOURCE_DIR:-"$(cd "$(dirname "$0")"/../.. && pwd)"}
 ABI_CHECK_ROOT=${ABI_CHECK_ROOT:-$EVENT_SOURCE_DIR/.abi-check}
 ABI_CHECK_WORKSPACE=${ABI_CHECK_WORKSPACE:-"work/abi-check"}
+
+ABI_CHECK_ROOT="$(readlink -f "$ABI_CHECK_ROOT")"
 
 mkdir -p "$ABI_CHECK_ROOT/$ABI_CHECK_WORKSPACE"
 cd "$ABI_CHECK_ROOT/$ABI_CHECK_WORKSPACE"
@@ -35,7 +38,7 @@ mkdir -p installed/libevent/current
   # and maybe some issues on CI (since it does not contain full clone)
   find . -maxdepth 1 -mindepth 1 | {
     git check-ignore --no-index --verbose --non-matching --stdin
-  } | fgrep :: | cut -f2 | grep -v /.git/ | tee /dev/stderr | {
+  } | grep -F :: | cut -f2 | grep -F -v /.git/ | xargs readlink -f | grep -F -v "$ABI_CHECK_ROOT" | tee /dev/stderr | {
     xargs cp -r -t "$ABI_CHECK_ROOT/$ABI_CHECK_WORKSPACE/src/libevent/current/"
   }
   cp extra/abi-check/libevent.json "$ABI_CHECK_ROOT/$ABI_CHECK_WORKSPACE/"

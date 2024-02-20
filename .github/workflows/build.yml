@@ -974,3 +974,38 @@ jobs:
         with:
           name: openbsd-${{ matrix.release }}-autotools-${{ matrix.EVENT_MATRIX }}-build
           path: .
+
+  # ABI job without deploy
+  abi-job:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Dependencies
+        run:
+          sudo apt install
+            abi-tracker
+            abi-monitor
+            abi-dumper
+            abi-compliance-checker
+            pkgdiff
+            vtable-dumper
+      # FIXME: clone git repo or report to debian
+      - name: Patch abi-compliance-checker to avoid endless loop
+        run: sudo patch /usr/bin/abi-compliance-checker < extra/abi-check/debian.patch
+      - name: Generate
+        shell: bash
+        run: |
+          ./extra/abi-check/abi_check.sh
+        env:
+          ABI_CHECK_ROOT: /tmp/le-abi-root
+      - uses: actions/upload-artifact@v1
+        if: failure()
+        with:
+          name: build
+          path: /tmp/le-abi-root
+      - uses: actions/upload-artifact@v1
+        with:
+          name: build
+          path: /tmp/le-abi-root/work/abi-check

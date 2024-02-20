@@ -59,7 +59,7 @@ jobs:
     # ABI check is broken [1].
     #   [1]: https://github.com/libevent/libevent/issues/1463
     if: "false"
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     ## TODO: use docker image, but for now this is not possible without hacks
     ## due to even public registry require some authentication:
     ## - https://github.com/orgs/community/discussions/25689
@@ -79,6 +79,10 @@ jobs:
             abi-compliance-checker
             pkgdiff
             vtable-dumper
+
+      # FIXME: clone git repo or report to debian
+      - name: Patch abi-compliance-checker to avoid endless loop
+        run: sudo patch /usr/bin/abi-compliance-checker < extra/abi-check/debian.patch
 
       - name: Generate
         shell: bash
