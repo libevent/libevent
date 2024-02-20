@@ -203,6 +203,17 @@ static void test_bufferevent_pair_flush_normal(void) { test_bufferevent_impl(1, 
 static void test_bufferevent_pair_flush_flush(void) { test_bufferevent_impl(1, BEV_FLUSH); }
 static void test_bufferevent_pair_flush_finished(void) { test_bufferevent_impl(1, BEV_FINISHED); }
 
+static void test_bufferevent_ratelimit_fuzz(void)
+{
+	struct timeval cfg_tick = {0, 0};
+	struct ev_token_bucket_cfg *cfg = ev_token_bucket_cfg_new(1, 1, 1, 1, &cfg_tick);
+	tt_ptr_op(cfg, ==, NULL);
+	test_ok = 1;
+
+end:
+	;
+}
+
 #if defined(EVTHREAD_USE_PTHREADS_IMPLEMENTED)
 /**
  * Trace lock/unlock/alloc/free for locks.
@@ -1462,6 +1473,8 @@ struct testcase_t bufferevent_testcases[] = {
 	{ "bufferevent_read_failed",
 	  test_bufferevent_read_failed,
 	  TT_FORK|TT_NEED_SOCKETPAIR|TT_NEED_BASE, &basic_setup, NULL },
+
+	LEGACY(bufferevent_ratelimit_fuzz, TT_ISOLATED),
 
 	END_OF_TESTCASES,
 };

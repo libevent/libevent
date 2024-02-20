@@ -146,11 +146,19 @@ ev_token_bucket_cfg_new(size_t read_rate, size_t read_burst,
 {
 	struct ev_token_bucket_cfg *r;
 	struct timeval g;
+	unsigned msec_per_tick;
+
 	if (! tick_len) {
 		g.tv_sec = 1;
 		g.tv_usec = 0;
 		tick_len = &g;
 	}
+
+	msec_per_tick = (tick_len->tv_sec * 1000) +
+	    (tick_len->tv_usec & COMMON_TIMEOUT_MICROSECONDS_MASK)/1000;
+	if (!msec_per_tick)
+		return NULL;
+
 	if (read_rate > read_burst || write_rate > write_burst ||
 	    read_rate < 1 || write_rate < 1)
 		return NULL;
@@ -167,8 +175,7 @@ ev_token_bucket_cfg_new(size_t read_rate, size_t read_burst,
 	r->read_maximum = read_burst;
 	r->write_maximum = write_burst;
 	memcpy(&r->tick_timeout, tick_len, sizeof(struct timeval));
-	r->msec_per_tick = (tick_len->tv_sec * 1000) +
-	    (tick_len->tv_usec & COMMON_TIMEOUT_MICROSECONDS_MASK)/1000;
+	r->msec_per_tick = msec_per_tick;
 	return r;
 }
 
