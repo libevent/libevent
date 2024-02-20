@@ -1107,6 +1107,49 @@ addfile_test_readcb(evutil_socket_t fd, short what, void *arg)
 	}
 }
 
+/* Without mm replacement malloc(0) will not fail, like it should to make the
+ * evbuffer_file_segment_materialize() fails after mmap() failed */
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
+static void
+test_evbuffer_add_file_leak1(void *ptr)
+{
+	struct basic_test_data *testdata = ptr;
+	struct evbuffer *buf = NULL;
+	char *tmpfilename = NULL;
+	int fd;
+
+	(void)testdata;
+
+	fd = regress_make_tmpfile("", 0, &tmpfilename);
+	/* On Windows, if TMP environment variable is corrupted, we may not be
+	 * able create temporary file, just skip it */
+	if (fd < 0)
+		tt_skip();
+	TT_BLATHER(("Temporary path: %s, fd: %i", tmpfilename, fd));
+
+	/* On windows _get_osfhandle(closed fd) leads to crash */
+#ifndef _WIN32
+	/* close fd before usage, so that the fallback with pread() will fail (in
+	 * evbuffer_file_segment_materialize()) */
+	close(fd);
+#endif
+
+	/* mmap(offset=0, length=0) will fail, this is enough */
+	buf = evbuffer_new();
+	tt_assert(evbuffer_add_file(buf, fd, 0, 0) == -1);
+	evbuffer_validate(buf);
+
+end:
+	if (tmpfilename) {
+		unlink(tmpfilename);
+		free(tmpfilename);
+	}
+	if (buf)
+		evbuffer_free(buf);
+	/* NOTE: file will be closed in evbuffer_add_file() */
+}
+#endif
+
 static void
 test_evbuffer_add_file(void *ptr)
 {
@@ -2922,6 +2965,9 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "copyout", test_evbuffer_copyout, 0, NULL, NULL},
 	{ "file_segment_add_cleanup_cb", test_evbuffer_file_segment_add_cleanup_cb, 0, NULL, NULL },
 	{ "pullup_with_empty", test_evbuffer_pullup_with_empty, 0, NULL, NULL },
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
+	{ "add_file_leak1", test_evbuffer_add_file_leak1, 0, NULL, NULL },
+#endif
 
 #define ADDFILE_TEST(name, parameters)					\
 	{ name, test_evbuffer_add_file, TT_FORK|TT_NEED_BASE,		\
