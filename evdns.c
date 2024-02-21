@@ -982,6 +982,9 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 {
 	struct evdns_request *handle =
 	    EVUTIL_UPCAST(d, struct evdns_request, deferred);
+	(void)user_pointer;
+
+	EVDNS_LOCK(handle->base);
 
 	switch (handle->request_type) {
 	case TYPE_A:
@@ -989,20 +992,20 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 			handle->user_callback(DNS_ERR_NONE, DNS_IPv4_A,
 			    handle->reply.rr_count, handle->ttl,
 			    handle->reply.data.a,
-			    user_pointer);
+			    handle->user_pointer);
 			if (handle->reply.cname)
 				handle->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
-				    handle->ttl, handle->reply.cname, user_pointer);
+				    handle->ttl, handle->reply.cname, handle->user_pointer);
 		} else
-			handle->user_callback(handle->err, 0, 0, handle->ttl, NULL, user_pointer);
+			handle->user_callback(handle->err, 0, 0, handle->ttl, NULL, handle->user_pointer);
 		break;
 	case TYPE_PTR:
 		if (handle->have_reply) {
 			char *name = handle->reply.data.ptr_name;
 			handle->user_callback(DNS_ERR_NONE, DNS_PTR, 1, handle->ttl,
-			    &name, user_pointer);
+			    &name, handle->user_pointer);
 		} else {
-			handle->user_callback(handle->err, 0, 0, handle->ttl, NULL, user_pointer);
+			handle->user_callback(handle->err, 0, 0, handle->ttl, NULL, handle->user_pointer);
 		}
 		break;
 	case TYPE_AAAA:
@@ -1010,16 +1013,17 @@ reply_run_callback(struct event_callback *d, void *user_pointer)
 			handle->user_callback(DNS_ERR_NONE, DNS_IPv6_AAAA,
 			    handle->reply.rr_count, handle->ttl,
 			    handle->reply.data.aaaa,
-			    user_pointer);
+			    handle->user_pointer);
 			if (handle->reply.cname)
 				handle->user_callback(DNS_ERR_NONE, DNS_CNAME, 1,
-				    handle->ttl, handle->reply.cname, user_pointer);
+				    handle->ttl, handle->reply.cname, handle->user_pointer);
 		} else
-			handle->user_callback(handle->err, 0, 0, handle->ttl, NULL, user_pointer);
+			handle->user_callback(handle->err, 0, 0, handle->ttl, NULL, handle->user_pointer);
 		break;
 	default:
 		EVUTIL_ASSERT(0);
 	}
+	EVDNS_UNLOCK(handle->base);
 
 	if (handle->reply.data.raw) {
 		mm_free(handle->reply.data.raw);
@@ -1055,7 +1059,7 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 	    &handle->deferred,
 	    event_get_priority(&req->timeout_event),
 	    reply_run_callback,
-	    handle->user_pointer);
+		NULL);
 	event_deferred_cb_schedule_(
 		req->base->event_base,
 		&handle->deferred);
@@ -3017,7 +3021,8 @@ nameserver_probe_callback(int result, char type, int count, int ttl, void *addre
 		return;
 	}
 
-	EVDNS_LOCK(ns->base);
+	if (!ns) return;
+
 	ns->probe_request = NULL;
 	if (result == DNS_ERR_NONE || result == DNS_ERR_NOTEXIST) {
 		/* this is a good reply */
@@ -3025,7 +3030,6 @@ nameserver_probe_callback(int result, char type, int count, int ttl, void *addre
 	} else {
 		nameserver_probe_failed(ns);
 	}
-	EVDNS_UNLOCK(ns->base);
 }
 
 static void
@@ -3653,6 +3657,10 @@ evdns_cancel_request(struct evdns_base *base, struct evdns_request *handle)
 
 	EVDNS_LOCK(base);
 	if (handle->pending_cb) {
+		handle->err = DNS_ERR_CANCEL;
+		handle->have_reply = 0;
+		handle->user_pointer = NULL;
+
 		EVDNS_UNLOCK(base);
 		return;
 	}
