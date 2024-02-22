@@ -4590,6 +4590,8 @@ evdns_nameserver_ip_add_line(struct evdns_base *base, const char *ips) {
 	char *buf;
 	int r;
 	ASSERT_LOCKED(base);
+	if (!*ips)
+		return -1;
 	while (*ips) {
 		while (isspace(*ips) || *ips == ',' || *ips == '\t')
 			++ips;
@@ -4664,7 +4666,7 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 	while (ns) {
 		r = evdns_nameserver_ip_add_line(base, ns->IpAddress.String);
 		if (r) {
-			log(EVDNS_LOG_DEBUG,"Could not add nameserver %s to list,error: %d",
+			log(EVDNS_LOG_DEBUG,"Could not add nameserver '%s' to list,error: %d",
 				(ns->IpAddress.String),(int)GetLastError());
 			status = r;
 		} else {
@@ -4692,20 +4694,22 @@ load_nameservers_with_getnetworkparams(struct evdns_base *base)
 }
 
 static int
-config_nameserver_from_reg_key(struct evdns_base *base, HKEY key, const TCHAR *subkey)
+config_nameserver_from_reg_key(struct evdns_base *base, HKEY key,
+    const char *subkey, const char *name)
 {
 	char *buf;
 	DWORD bufsz = 0, type = 0;
-	int status = 0;
+	int status = -1;
 
 	ASSERT_LOCKED(base);
-	if (RegQueryValueEx(key, subkey, 0, &type, NULL, &bufsz)
-	    != ERROR_MORE_DATA)
+	if (RegGetValueA(key, subkey, name, RRF_RT_REG_SZ, NULL, NULL, &bufsz)
+	    != ERROR_SUCCESS)
 		return -1;
-	if (!(buf = mm_malloc(bufsz)))
+	if (!(buf = mm_malloc(bufsz+1)))
 		return -1;
+	memset(buf, 0, bufsz+1);
 
-	if (RegQueryValueEx(key, subkey, 0, &type, (LPBYTE)buf, &bufsz)
+	if (RegGetValueA(key, subkey, name, RRF_RT_REG_SZ, NULL, (LPBYTE)buf, &bufsz)
 	    == ERROR_SUCCESS && bufsz > 1) {
 		status = evdns_nameserver_ip_add_line(base,buf);
 	}
@@ -4723,13 +4727,13 @@ load_nameservers_from_registry(struct evdns_base *base)
 {
 	int found = 0;
 	int r;
-#define TRY(k, name) \
-	if (!found && config_nameserver_from_reg_key(base,k,TEXT(name)) == 0) { \
-		log(EVDNS_LOG_DEBUG,"Found nameservers in %s/%s",#k,name); \
+#define TRY(k, subkey, name) \
+	if (config_nameserver_from_reg_key(base,k,subkey,name) == 0) { \
+		log(EVDNS_LOG_DEBUG,"Found nameservers in %s/%s",subkey?subkey:#k,name); \
 		found = 1;						\
 	} else if (!found) {						\
 		log(EVDNS_LOG_DEBUG,"Didn't find nameservers in %s/%s", \
-		    #k,#name);						\
+		    subkey?subkey:#k,name);				\
 	}
 
 	ASSERT_LOCKED(base);
@@ -4747,12 +4751,35 @@ load_nameservers_from_registry(struct evdns_base *base)
 			     &interfaces_key);
 		if (r != ERROR_SUCCESS) {
 			log(EVDNS_LOG_DEBUG,"Couldn't open interfaces key, %d",(int)GetLastError());
+			RegCloseKey(nt_key);
 			return -1;
 		}
-		TRY(nt_key, "NameServer");
-		TRY(nt_key, "DhcpNameServer");
-		TRY(interfaces_key, "NameServer");
-		TRY(interfaces_key, "DhcpNameServer");
+		TRY(nt_key, NULL, "NameServer");
+		TRY(nt_key, NULL, "DhcpNameServer");
+		if (!found) {
+			DWORD ninterfaces, i;
+			r = RegQueryInfoKey(interfaces_key, NULL, NULL, NULL,
+					    &ninterfaces, NULL, NULL, NULL, NULL,
+					    NULL, NULL, NULL);
+			if (r != ERROR_SUCCESS) {
+				log(EVDNS_LOG_DEBUG,"Couldn't enumerate interfaces, %d",(int)GetLastError());
+				RegCloseKey(nt_key);
+				RegCloseKey(interfaces_key);
+				return -1;
+			}
+			for (i = 0; i < ninterfaces; i++) {
+				char subkey[1024];
+				DWORD len = 1024;
+				r = RegEnumKeyExA(interfaces_key, i, subkey, &len,
+					          NULL, NULL, NULL, NULL);
+				if (r != ERROR_SUCCESS) {
+					log(EVDNS_LOG_DEBUG,"Couldn't get interface #%d, %d",i,(int)GetLastError());
+					continue;
+				}
+				TRY(interfaces_key, subkey, "NameServer");
+				TRY(interfaces_key, subkey, "DhcpNameServer");
+			}
+		}
 		RegCloseKey(interfaces_key);
 		RegCloseKey(nt_key);
 	} else {
@@ -4762,7 +4789,7 @@ load_nameservers_from_registry(struct evdns_base *base)
 			log(EVDNS_LOG_DEBUG, "Couldn't open registry key, %d", (int)GetLastError());
 			return -1;
 		}
-		TRY(win_key, "NameServer");
+		TRY(win_key, NULL, "NameServer");
 		RegCloseKey(win_key);
 	}
 
