@@ -3105,6 +3105,9 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 		return -1;
 
 	intvl = idle/3;
+	/* Kernel expects at least 10 seconds. */
+	if (intvl < 10)
+		intvl = 10;
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
 		return -1;
 
@@ -3122,9 +3125,7 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	/* Note that the consequent probes will not be sent at equal intervals on Solaris,
 	 * but will be sent using the exponential backoff algorithm.
 	 */
-	intvl = idle/3;
-	cnt = 3;
-	int time_to_abort = intvl * cnt;
+	int time_to_abort = idle;
 	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_ABORT_THRESHOLD, &time_to_abort, sizeof(time_to_abort)))
 		return -1;
 #endif
