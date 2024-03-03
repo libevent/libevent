@@ -268,6 +268,9 @@
 /* Define to 1 if you have the `sendfile' function. */
 #cmakedefine EVENT__HAVE_SENDFILE 1
 
+/* Define to 1 if you have the `pread' function. */
+#cmakedefine EVENT__HAVE_PREAD 1
+
 /* Define to 1 if you have the `sigaction' function. */
 #cmakedefine EVENT__HAVE_SIGACTION 1
 
