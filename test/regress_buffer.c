@@ -1237,14 +1237,12 @@ test_evbuffer_add_file(void *ptr)
 #if defined(EVENT__HAVE_SENDFILE) && defined(__sun__) && defined(__svr4__)
 	/* We need to use a pair of AF_INET sockets, since Solaris
 	   doesn't support sendfile() over AF_UNIX. */
-	if (evutil_ersatz_socketpair_(AF_INET, SOCK_STREAM, 0, pair) == -1)
+	if (evutil_ersatz_socketpair_(AF_INET, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, pair) == -1)
 		tt_abort_msg("ersatz_socketpair failed");
 #else
-	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, pair) == -1)
 		tt_abort_msg("socketpair failed");
 #endif
-	evutil_make_socket_nonblocking(pair[0]);
-	evutil_make_socket_nonblocking(pair[1]);
 
 	tt_assert(fd != -1);
 
@@ -2665,7 +2663,7 @@ test_evbuffer_freeze(void *ptr)
 	FREEZE_EQ(r, 0, -1);
 	len = strlen(tmpfilecontent);
 	fd = regress_make_tmpfile(tmpfilecontent, len, &tmpfilename);
-	/* On Windows, if TMP environment variable is corrupted, we may not be 
+	/* On Windows, if TMP environment variable is corrupted, we may not be
 	 * able create temporary file, just skip it */
 	if (fd < 0)
 		tt_skip();

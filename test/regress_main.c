@@ -286,18 +286,8 @@ basic_test_setup(const struct testcase_t *testcase)
 	}
 
 	if (testcase->flags & TT_NEED_SOCKETPAIR) {
-		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, spair) == -1) {
+		if (evutil_socketpair(AF_UNIX, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, spair) == -1) {
 			fprintf(stderr, "%s: socketpair\n", __func__);
-			exit(1);
-		}
-
-		if (evutil_make_socket_nonblocking(spair[0]) == -1) {
-			fprintf(stderr, "fcntl(O_NONBLOCK)");
-			exit(1);
-		}
-
-		if (evutil_make_socket_nonblocking(spair[1]) == -1) {
-			fprintf(stderr, "fcntl(O_NONBLOCK)");
 			exit(1);
 		}
 	}

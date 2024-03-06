@@ -377,9 +377,12 @@ int evutil_gettime_monotonic(struct evutil_monotonic_timer *timer,
 
 /** Create two new sockets that are connected to each other.
 
-    On Unix, this simply calls socketpair().  On Windows, it uses the
-    loopback network interface on 127.0.0.1, and only
+    On Unix, this simply calls socketpair().
+    On Windows, it uses the loopback network interface on 127.0.0.1, and only
     AF_INET,SOCK_STREAM are supported.
+
+    Including the bitwise OR of the EVUTIL_SOCK_NONBLOCK and/or EVUTIL_SOCK_CLOEXEC
+    in the type argument will apply to both file descriptors.
 
     (This may fail on some Windows hosts where firewall software has cleverly
     decided to keep 127.0.0.1 from talking to itself.)

@@ -404,125 +404,6 @@ evutil_win_socketpair(int family, int type, int protocol,
 #endif
 
 int
-evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
-{
-#if defined(_WIN32)
-	return evutil_win_socketpair(family, type, protocol, fd);
-#elif defined(EVENT__HAVE_SOCKETPAIR)
-	return socketpair(family, type, protocol, fd);
-#else
-	return evutil_ersatz_socketpair_(family, type, protocol, fd);
-#endif
-}
-
-int
-evutil_ersatz_socketpair_(int family, int type, int protocol,
-    evutil_socket_t fd[2])
-{
-	/* This code is originally from Tor.  Used with permission. */
-
-	/* This socketpair does not work when localhost is down. So
-	 * it's really not the same thing at all. But it's close enough
-	 * for now, and really, when localhost is down sometimes, we
-	 * have other problems too.
-	 */
-#undef ERR
-#ifdef _WIN32
-#define ERR(e) WSA##e
-#else
-#define ERR(e) e
-#endif
-	evutil_socket_t listener = -1;
-	evutil_socket_t connector = -1;
-	evutil_socket_t acceptor = -1;
-	struct sockaddr_in listen_addr;
-	struct sockaddr_in connect_addr;
-	ev_socklen_t size;
-	int saved_errno = -1;
-	int family_test;
-
-	family_test = family != AF_INET;
-#ifdef AF_UNIX
-	family_test = family_test && (family != AF_UNIX);
-#endif
-	if (protocol || family_test) {
-		EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
-		return -1;
-	}
-
-	if (!fd) {
-		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
-		return -1;
-	}
-
-	listener = socket(AF_INET, type, 0);
-	if (listener < 0)
-		return -1;
-	memset(&listen_addr, 0, sizeof(listen_addr));
-	listen_addr.sin_family = AF_INET;
-	listen_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	listen_addr.sin_port = 0;	/* kernel chooses port.	 */
-	if (bind(listener, (struct sockaddr *) &listen_addr, sizeof (listen_addr))
-		== -1)
-		goto tidy_up_and_fail;
-	if (listen(listener, 1) == -1)
-		goto tidy_up_and_fail;
-
-	connector = socket(AF_INET, type, 0);
-	if (connector < 0)
-		goto tidy_up_and_fail;
-
-	memset(&connect_addr, 0, sizeof(connect_addr));
-
-	/* We want to find out the port number to connect to.  */
-	size = sizeof(connect_addr);
-	if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
-		goto tidy_up_and_fail;
-	if (size != sizeof (connect_addr))
-		goto abort_tidy_up_and_fail;
-	if (connect(connector, (struct sockaddr *) &connect_addr,
-				sizeof(connect_addr)) == -1)
-		goto tidy_up_and_fail;
-
-	size = sizeof(listen_addr);
-	acceptor = accept(listener, (struct sockaddr *) &listen_addr, &size);
-	if (acceptor < 0)
-		goto tidy_up_and_fail;
-	if (size != sizeof(listen_addr))
-		goto abort_tidy_up_and_fail;
-	/* Now check we are talking to ourself by matching port and host on the
-	   two sockets.	 */
-	if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
-		goto tidy_up_and_fail;
-	if (size != sizeof (connect_addr)
-		|| listen_addr.sin_family != connect_addr.sin_family
-		|| listen_addr.sin_addr.s_addr != connect_addr.sin_addr.s_addr
-		|| listen_addr.sin_port != connect_addr.sin_port)
-		goto abort_tidy_up_and_fail;
-	evutil_closesocket(listener);
-	fd[0] = connector;
-	fd[1] = acceptor;
-
-	return 0;
-
- abort_tidy_up_and_fail:
-	saved_errno = ERR(ECONNABORTED);
- tidy_up_and_fail:
-	if (saved_errno < 0)
-		saved_errno = EVUTIL_SOCKET_ERROR();
-	if (listener != -1)
-		evutil_closesocket(listener);
-	if (connector != -1)
-		evutil_closesocket(connector);
-	if (acceptor != -1)
-		evutil_closesocket(acceptor);
-
-	EVUTIL_SET_SOCKET_ERROR(saved_errno);
-	return -1;
-#undef ERR
-}
-
-int
 evutil_make_socket_nonblocking(evutil_socket_t fd)
 {
 #ifdef _WIN32
@@ -2891,6 +2772,164 @@ evutil_socket_(int domain, int type, int protocol)
 	return r;
 }
 
+int
+evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
+{
+	int ret = 0;
+#if defined(_WIN32)
+	type &= ~(EVUTIL_SOCK_NONBLOCK|EVUTIL_SOCK_CLOEXEC);
+	ret = evutil_win_socketpair(family, type, protocol, fd);
+#elif defined(EVENT__HAVE_SOCKETPAIR)
+	ret = socketpair(family, type, protocol, fd);
+#else
+	ret = evutil_ersatz_socketpair_(family, type, protocol, fd);
+#endif
+	if (ret)
+		return ret;
+#ifndef SOCK_NONBLOCK
+	if (type & EVUTIL_SOCK_NONBLOCK) {
+		if ((ret = evutil_fast_socket_nonblocking(fd[0]))) {
+			evutil_closesocket(fd[0]);
+			evutil_closesocket(fd[1]);
+			return ret;
+		}
+		if ((ret = evutil_fast_socket_nonblocking(fd[1]))) {
+			evutil_closesocket(fd[0]);
+			evutil_closesocket(fd[1]);
+			return ret;
+		}
+	}
+#endif
+#ifndef SOCK_CLOEXEC
+	if (type & EVUTIL_SOCK_CLOEXEC) {
+		if ((ret = evutil_fast_socket_closeonexec(fd[0]))) {
+			evutil_closesocket(fd[0]);
+			evutil_closesocket(fd[1]);
+			return ret;
+		}
+		if ((ret = evutil_fast_socket_closeonexec(fd[1]))) {
+			evutil_closesocket(fd[0]);
+			evutil_closesocket(fd[1]);
+			return ret;
+		}
+	}
+#endif
+	return ret;
+}
+
+int
+evutil_ersatz_socketpair_(int family, int type, int protocol,
+    evutil_socket_t fd[2])
+{
+	/* This code is originally from Tor.  Used with permission. */
+
+	/* This socketpair does not work when localhost is down. So
+	 * it's really not the same thing at all. But it's close enough
+	 * for now, and really, when localhost is down sometimes, we
+	 * have other problems too.
+	 */
+#undef ERR
+#ifdef _WIN32
+#define ERR(e) WSA##e
+#else
+#define ERR(e) e
+#endif
+	evutil_socket_t listener = -1;
+	evutil_socket_t connector = -1;
+	evutil_socket_t acceptor = -1;
+	struct sockaddr_in listen_addr;
+	struct sockaddr_in connect_addr;
+	ev_socklen_t size;
+	int saved_errno = -1;
+	int family_test;
+
+	family_test = family != AF_INET;
+#ifdef AF_UNIX
+	family_test = family_test && (family != AF_UNIX);
+#endif
+	if (protocol || family_test) {
+		EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
+		return -1;
+	}
+
+	if (!fd) {
+		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
+		return -1;
+	}
+
+	listener = socket(AF_INET, type, 0);
+	if (listener < 0)
+		return -1;
+	memset(&listen_addr, 0, sizeof(listen_addr));
+	listen_addr.sin_family = AF_INET;
+	listen_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	listen_addr.sin_port = 0;	/* kernel chooses port.	 */
+	if (bind(listener, (struct sockaddr *) &listen_addr, sizeof (listen_addr))
+		== -1)
+		goto tidy_up_and_fail;
+	if (listen(listener, 1) == -1)
+		goto tidy_up_and_fail;
+
+	connector = socket(AF_INET, type, 0);
+	if (connector < 0)
+		goto tidy_up_and_fail;
+
+	memset(&connect_addr, 0, sizeof(connect_addr));
+
+	/* We want to find out the port number to connect to.  */
+	size = sizeof(connect_addr);
+	if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
+		goto tidy_up_and_fail;
+	if (size != sizeof(connect_addr))
+		goto abort_tidy_up_and_fail;
+	if (connect(connector, (struct sockaddr *) &connect_addr,
+				sizeof(connect_addr)) == -1) {
+		/* It's OK for a non-blocking socket to get an EINPROGRESS from connect(). */
+		int err = evutil_socket_geterror(connector);
+		if (!(EVUTIL_ERR_CONNECT_RETRIABLE(err) && type & EVUTIL_SOCK_NONBLOCK))
+			goto tidy_up_and_fail;
+	}
+
+	size = sizeof(listen_addr);
+	do {
+		acceptor = accept(listener, (struct sockaddr *) &listen_addr, &size);
+	} while(acceptor < 0 && EVUTIL_ERR_ACCEPT_RETRIABLE(errno) && type & EVUTIL_SOCK_NONBLOCK);
+	if (acceptor < 0)
+		goto tidy_up_and_fail;
+	if (size != sizeof(listen_addr))
+		goto abort_tidy_up_and_fail;
+	/* Now check we are talking to ourself by matching port and host on the
+	   two sockets.	 */
+	if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
+		goto tidy_up_and_fail;
+	if (size != sizeof (connect_addr)
+		|| listen_addr.sin_family != connect_addr.sin_family
+		|| listen_addr.sin_addr.s_addr != connect_addr.sin_addr.s_addr
+		|| listen_addr.sin_port != connect_addr.sin_port)
+		goto abort_tidy_up_and_fail;
+	evutil_closesocket(listener);
+	fd[0] = connector;
+	fd[1] = acceptor;
+
+	return 0;
+
+ abort_tidy_up_and_fail:
+	saved_errno = ERR(ECONNABORTED);
+ tidy_up_and_fail:
+	if (saved_errno < 0)
+		saved_errno = EVUTIL_SOCKET_ERROR();
+	if (listener != -1)
+		evutil_closesocket(listener);
+	if (connector != -1)
+		evutil_closesocket(connector);
+	if (acceptor != -1)
+		evutil_closesocket(acceptor);
+
+	EVUTIL_SET_SOCKET_ERROR(saved_errno);
+	return -1;
+#undef ERR
+}
+
 /* Internal wrapper around 'accept' or 'accept4' to provide Linux-style
  * support for syscall-saving methods where available.
  *
@@ -2976,20 +3015,11 @@ evutil_make_internal_pipe_(evutil_socket_t fd[2])
 #else
 #define LOCAL_SOCKETPAIR_AF AF_UNIX
 #endif
-	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0, fd) == 0) {
-		if (evutil_fast_socket_nonblocking(fd[0]) < 0 ||
-		    evutil_fast_socket_nonblocking(fd[1]) < 0 ||
-		    evutil_fast_socket_closeonexec(fd[0]) < 0 ||
-		    evutil_fast_socket_closeonexec(fd[1]) < 0) {
-			evutil_closesocket(fd[0]);
-			evutil_closesocket(fd[1]);
-			fd[0] = fd[1] = -1;
-			return -1;
-		}
-		return 0;
+	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM|EVUTIL_SOCK_CLOEXEC|EVUTIL_SOCK_NONBLOCK, 0, fd)) {
+		fd[0] = fd[1] = -1;
+		return -1;
 	}
-	fd[0] = fd[1] = -1;
-	return -1;
+	return 0;
 }
 
 /* Wrapper around eventfd on systems that provide it.  Unlike the system

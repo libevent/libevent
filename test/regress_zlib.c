@@ -49,6 +49,8 @@
 #include <assert.h>
 #include <errno.h>
 
+#include "util-internal.h"
+
 #include "event2/util.h"
 #include "event2/event.h"
 #include "event2/event_compat.h"
@@ -286,12 +288,9 @@ test_bufferevent_zlib(void *arg)
 	infilter_calls = outfilter_calls = readcb_finished = writecb_finished
 	    = errorcb_invoked = 0;
 
-	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, pair) == -1) {
 		tt_abort_perror("socketpair");
 	}
-
-	evutil_make_socket_nonblocking(pair[0]);
-	evutil_make_socket_nonblocking(pair[1]);
 
 	bev1 = bufferevent_socket_new(NULL, pair[0], 0);
 	bev2 = bufferevent_socket_new(NULL, pair[1], 0);
