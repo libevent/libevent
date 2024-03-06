@@ -2776,8 +2776,14 @@ int
 evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 {
 	int ret = 0;
+	int sock_type = type;
+#ifndef SOCK_NONBLOCK
+	type &= ~EVUTIL_SOCK_NONBLOCK;
+#endif
+#ifndef SOCK_CLOEXEC
+	type &= ~EVUTIL_SOCK_CLOEXEC;
+#endif
 #if defined(_WIN32)
-	type &= ~(EVUTIL_SOCK_NONBLOCK|EVUTIL_SOCK_CLOEXEC);
 	ret = evutil_win_socketpair(family, type, protocol, fd);
 #elif defined(EVENT__HAVE_SOCKETPAIR)
 	ret = socketpair(family, type, protocol, fd);
@@ -2787,7 +2793,7 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 	if (ret)
 		return ret;
 #ifndef SOCK_NONBLOCK
-	if (type & EVUTIL_SOCK_NONBLOCK) {
+	if (sock_type & EVUTIL_SOCK_NONBLOCK) {
 		if ((ret = evutil_fast_socket_nonblocking(fd[0]))) {
 			evutil_closesocket(fd[0]);
 			evutil_closesocket(fd[1]);
@@ -2801,7 +2807,7 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 	}
 #endif
 #ifndef SOCK_CLOEXEC
-	if (type & EVUTIL_SOCK_CLOEXEC) {
+	if (sock_type & EVUTIL_SOCK_CLOEXEC) {
 		if ((ret = evutil_fast_socket_closeonexec(fd[0]))) {
 			evutil_closesocket(fd[0]);
 			evutil_closesocket(fd[1]);
