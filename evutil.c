@@ -2777,6 +2777,7 @@ evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
 {
 	int ret = 0;
 	int sock_type = type;
+	(void) sock_type;
 #ifndef SOCK_NONBLOCK
 	type &= ~EVUTIL_SOCK_NONBLOCK;
 #endif
