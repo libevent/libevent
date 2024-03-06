@@ -3023,6 +3023,8 @@ nameserver_probe_callback(int result, char type, int count, int ttl, void *addre
 
 	if (!ns) return;
 
+	ASSERT_LOCKED(ns->base);
+
 	ns->probe_request = NULL;
 	if (result == DNS_ERR_NONE || result == DNS_ERR_NOTEXIST) {
 		/* this is a good reply */
@@ -3657,6 +3659,10 @@ evdns_cancel_request(struct evdns_base *base, struct evdns_request *handle)
 
 	EVDNS_LOCK(base);
 	if (handle->pending_cb) {
+		/* The callback is already scheduled to run. Callers of evdns_cancel_request(),
+		 * notably evdns_base_clear_nameservers_and_suspend(), can delete an object referenced
+		 * by handle->user_pointer. Therefore, we modify handle's attributes to simulate that
+		 * the request has been canceled. */
 		handle->err = DNS_ERR_CANCEL;
 		handle->have_reply = 0;
 		handle->user_pointer = NULL;
