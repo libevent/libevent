@@ -1059,7 +1059,7 @@ reply_schedule_callback(struct request *const req, u32 ttl, u32 err, struct repl
 	    &handle->deferred,
 	    event_get_priority(&req->timeout_event),
 	    reply_run_callback,
-		NULL);
+	    NULL);
 	event_deferred_cb_schedule_(
 		req->base->event_base,
 		&handle->deferred);
