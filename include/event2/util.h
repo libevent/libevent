@@ -377,9 +377,11 @@ int evutil_gettime_monotonic(struct evutil_monotonic_timer *timer,
 
 /** Create two new sockets that are connected to each other.
 
-    On Unix, this simply calls socketpair().
-    On Windows, it uses the loopback network interface on 127.0.0.1, and only
-    AF_INET,SOCK_STREAM are supported.
+    On Unix, this simply calls socketpair() and creates an unnamed pair of connected sockets
+    in the specified domain, of the specified type, and using the optionally specified protocol.
+
+    On Windows, it will try to use the AF_UNIX to create unix socket pair if available, otherwise
+    it instead uses AF_INET to create socket pair, binding the loopback network interface 127.0.0.1.
 
     Including the bitwise OR of the EVUTIL_SOCK_NONBLOCK and/or EVUTIL_SOCK_CLOEXEC
     in the type argument will apply to both file descriptors.
@@ -390,7 +392,7 @@ int evutil_gettime_monotonic(struct evutil_monotonic_timer *timer,
     Parameters and return values are as for socketpair()
 */
 EVENT2_EXPORT_SYMBOL
-int evutil_socketpair(int d, int type, int protocol, evutil_socket_t sv[2]);
+int evutil_socketpair(int domain, int type, int protocol, evutil_socket_t sv[2]);
 /** Do platform-specific operations as needed to make a socket nonblocking.
 
     @param sock The socket to make nonblocking
