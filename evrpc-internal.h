@@ -39,7 +39,7 @@ struct evrpc_hook {
 	TAILQ_ENTRY(evrpc_hook) next;
 
 	/* returns EVRPC_TERMINATE; if the rpc should be aborted.
-	 * a hook is is allowed to rewrite the evbuffer
+	 * a hook is allowed to rewrite the evbuffer
 	 */
 	int (*process)(void *, struct evhttp_request *,
 	    struct evbuffer *, void *);

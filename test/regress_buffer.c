@@ -703,7 +703,7 @@ test_evbuffer_reserve_many(void *ptr)
 	int fill_first = ptr && !strcmp(ptr, "fill");
 	char *cp1, *cp2;
 
-	/* When reserving the the first chunk, we just allocate it */
+	/* When reserving the first chunk, we just allocate it */
 	n = evbuffer_reserve_space(buf, 128, v, 2);
 	evbuffer_validate(buf);
 	tt_int_op(n, ==, 1);
