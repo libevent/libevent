@@ -298,8 +298,8 @@ jobs:
           }
           elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "UNOCODE_TEMPORARY_DIRECTORY" ) {
             $EVENT_CMAKE_OPTIONS=""
-            mkdir "${{ runner.workspace }}\??????????????"
-            echo "TMP=${{ runner.workspace }}\??????????????" >> $env:GITHUB_ENV
+            mkdir "${{ runner.workspace }}\𝑼𝑵𝑰𝑪𝑶𝑫𝑬"
+            echo "TMP=${{ runner.workspace }}\𝑼𝑵𝑰𝑪𝑶𝑫𝑬" >> $env:GITHUB_ENV
           }
           elseif ( "${{ matrix.EVENT_MATRIX }}" -eq "TEST_EXPORT_SHARED" ) {
             $EVENT_CMAKE_OPTIONS="-DEVENT__DISABLE_TESTS=ON -DEVENT__DISABLE_SAMPLES=ON"
