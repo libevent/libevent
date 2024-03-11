@@ -39,6 +39,9 @@
 #include <winsock2.h>
 #include <winerror.h>
 #include <ws2tcpip.h>
+#ifdef _MSC_VER /* mstcpip.h is missing on MinGW */
+#include <mstcpip.h> /* for SIO_KEEPALIVE_VALS and tcp_keepalive struct */
+#endif
 #ifdef EVENT__HAVE_AFUNIX_H
 #include <afunix.h>
 #endif
@@ -110,6 +113,15 @@
 #define stat _stati64
 #endif
 #define mode_t int
+#endif
+
+#if defined(_WIN32) && !defined(SIO_KEEPALIVE_VALS)
+#define SIO_KEEPALIVE_VALS    _WSAIOW(IOC_VENDOR,4)
+struct tcp_keepalive {
+  u_long onoff;
+  u_long keepalivetime;
+  u_long keepaliveinterval;
+};
 #endif
 
 #ifndef O_RDONLY
@@ -3096,17 +3108,43 @@ evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
 	if (!on)
 		return 0;
 
-	/* Unlike Unix-like OS's, TCP keep-alive mechanism on Windows is kind of a mess,
-	 * setting TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT on Windows could be a bit tricky.
-	 * Check out https://learn.microsoft.com/en-us/windows/win32/winsock/sio-keepalive-vals,
-	 * https://learn.microsoft.com/en-us/windows/win32/winsock/ipproto-tcp-socket-options.
-	 * These three options are not available until Windows 10, version 1709 where we set them
-	 * by `setsockopt` (slightly different from Unix-like OS's pattern), while on older Windows,
-	 * we have to use `WSAIoctl` instead.
-	 * Therefore, we skip setting those three options on Windows for now.
-	 * TODO(panjf2000): enable the full TCP keep-alive mechanism on Windows when we find a feasible way to do it.
+#ifdef _WIN32
+	idle = timeout;
+	intvl = idle/3;
+	if (intvl == 0)
+		intvl = 1;
+	/* The three options TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT are not available until
+	 * Windows 10 version 1709, but let's gamble here.
 	 */
-#ifndef _WIN32
+#if defined(TCP_KEEPIDLE) && defined(TCP_KEEPINTVL) && defined(TCP_KEEPCNT)
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
+		return -1;
+
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
+		return -1;
+
+	cnt = 3;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
+		return -1;
+
+	/* For those versions prior to Windows 10 version 1709, we fall back to SIO_KEEPALIVE_VALS.
+	 * The SIO_KEEPALIVE_VALS IOCTL is supported on Windows 2000 and later versions of the operating system. */
+#elif defined(SIO_KEEPALIVE_VALS)
+	struct tcp_keepalive keepalive;
+	keepalive.onoff = on;
+	keepalive.keepalivetime = idle * 1000; /* the kernel expects milliseconds */
+	keepalive.keepaliveinterval = intvl * 1000; /* ditto */
+	/* On Windows Vista and later, the number of keep-alive probes (data retransmissions)
+	 * is set to 10 and cannot be changed.
+	 * On Windows Server 2003, Windows XP, and Windows 2000, the default setting for
+	 * number of keep-alive probes is 5 and cannot be changed programmatically.
+	 */
+	DWORD dummy;
+	if (WSAIoctl(fd, SIO_KEEPALIVE_VALS, (LPVOID) &keepalive, sizeof(keepalive), NULL, 0, &dummy, NULL, NULL))
+		return -1;
+#endif
+
+#else /* !_WIN32 */
 
 #ifdef __sun
 	/* The implementation of TCP keep-alive on Solaris/SmartOS is a bit unusual
