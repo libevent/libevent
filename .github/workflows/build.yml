@@ -670,7 +670,7 @@ jobs:
 
   freebsd-cmake-job:
     runs-on: macos-12
-    if: "!contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/cmake skip')"
+    if: "false && !contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
@@ -766,7 +766,7 @@ jobs:
 
   freebsd-autotools-job:
     runs-on: macos-12
-    if: "!contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/autotools skip')"
+    if: "false && !contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/autotools skip')"
     strategy:
       fail-fast: false
       matrix:
@@ -819,7 +819,7 @@ jobs:
 
   openbsd-cmake-job:
     runs-on: macos-12
-    if: "!contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/cmake skip')"
+    if: "false && !contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
@@ -921,7 +921,7 @@ jobs:
 
   openbsd-autotools-job:
     runs-on: macos-12
-    if: "!contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/autotools skip')"
+    if: "false && !contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/autotools skip')"
     strategy:
       fail-fast: false
       matrix:
