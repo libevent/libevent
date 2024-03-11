@@ -483,7 +483,7 @@ int evutil_closesocket(evutil_socket_t sock);
  *  listener socket: only the ones that implement a protocol where the
  *  client transmits before the server needs to respond.
  *
- *  @param sock The listening socket to to make deferred
+ *  @param sock The listening socket to make deferred
  *  @return 0 on success (whether the operation is supported or not),
  *       -1 on failure
 */
