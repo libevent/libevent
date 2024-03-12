@@ -670,11 +670,11 @@ jobs:
 
   freebsd-cmake-job:
     runs-on: ubuntu-latest
-    if: "false && !contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/cmake skip')"
+    if: "!contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
-        release: ["12.4", "13.2", "14.0"]
+        release: ["13.2", "14.0"]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
@@ -764,7 +764,7 @@ jobs:
 
   freebsd-autotools-job:
     runs-on: ubuntu-latest
-    if: "false && !contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/autotools skip')"
+    if: "!contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/autotools skip')"
     strategy:
       fail-fast: false
       matrix:
@@ -817,7 +817,7 @@ jobs:
 
   openbsd-cmake-job:
     runs-on: ubuntu-latest
-    if: "false && !contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/cmake skip')"
+    if: "!contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
@@ -919,7 +919,7 @@ jobs:
 
   openbsd-autotools-job:
     runs-on: ubuntu-latest
-    if: "false && !contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/autotools skip')"
+    if: "!contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/autotools skip')"
     strategy:
       fail-fast: false
       matrix:
