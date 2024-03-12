@@ -669,14 +669,12 @@ jobs:
           path: build
 
   freebsd-cmake-job:
-    runs-on: macos-12
-    if: "false && !contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/cmake skip')"
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
-        # NOTE: 13.0 has some issues:
-        #   ld-elf.so.1: /lib/libc.so.7: version FBSD_1.7 required by /usr/local/lib/libpython3.9.so.1.0 not found
-        release: ["12.3", "13.1"]
+        release: ["13.2", "14.0"]
         EVENT_MATRIX:
           - NONE
           - NO_SSL
@@ -697,7 +695,7 @@ jobs:
           key: freebsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
 
       - name: Build
-        uses: vmactions/freebsd-vm@v0
+        uses: vmactions/freebsd-vm@v1
         with:
           release: ${{ matrix.release }}
           prepare: |
@@ -765,12 +763,12 @@ jobs:
           path: build
 
   freebsd-autotools-job:
-    runs-on: macos-12
-    if: "false && !contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/autotools skip')"
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'ci/freebsd skip') && !contains(github.event.head_commit.message, 'ci/freebsd/autotools skip')"
     strategy:
       fail-fast: false
       matrix:
-        release: ["13.1"]
+        release: ["13.2"]
 
     steps:
       - uses: actions/checkout@v3
@@ -783,7 +781,7 @@ jobs:
 
 
       - name: Build
-        uses: vmactions/freebsd-vm@v0
+        uses: vmactions/freebsd-vm@v1
         with:
           release: ${{ matrix.release }}
           prepare: |
@@ -818,8 +816,8 @@ jobs:
           path: build
 
   openbsd-cmake-job:
-    runs-on: macos-12
-    if: "false && !contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/cmake skip')"
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/cmake skip')"
     strategy:
       fail-fast: false
       matrix:
@@ -827,7 +825,7 @@ jobs:
           # 6.9 has some issues with autoconf/autotools [1].
           #   [1]: https://github.com/libevent/libevent/pull/1326#issuecomment-1229531718
           #"6.9",
-          "7.2",
+          "",
         ]
         EVENT_MATRIX:
           - NONE
@@ -852,7 +850,7 @@ jobs:
           key: openbsd-${{ matrix.release }}-cmake-${{ matrix.EVENT_MATRIX }}-v1
 
       - name: Build
-        uses: vmactions/openbsd-vm@v0
+        uses: vmactions/openbsd-vm@v1
         with:
           release: ${{ matrix.release }}
           prepare: |
@@ -920,12 +918,12 @@ jobs:
           path: .
 
   openbsd-autotools-job:
-    runs-on: macos-12
-    if: "false && !contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/autotools skip')"
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'ci/openbsd skip') && !contains(github.event.head_commit.message, 'ci/openbsd/autotools skip')"
     strategy:
       fail-fast: false
       matrix:
-        release: ["7.2"]
+        release: [""]
 
     steps:
       - uses: actions/checkout@v3
@@ -938,7 +936,7 @@ jobs:
 
 
       - name: Build
-        uses: vmactions/openbsd-vm@v0
+        uses: vmactions/openbsd-vm@v1
         with:
           release: ${{ matrix.release }}
           prepare: |
