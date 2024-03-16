@@ -395,8 +395,12 @@ static void
 do_term(evutil_socket_t sig, short events, void *arg)
 {
 	struct event_base *base = arg;
-	event_base_loopbreak(base);
+	event_be_loopbreak(base);
+#ifdef _WIN64
+    fprintf(stderr, "Got %lld, Terminating\n", sig);
+#else
 	fprintf(stderr, "Got %i, Terminating\n", sig);
+#endif
 }
 
 static int
