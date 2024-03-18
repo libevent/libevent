@@ -91,6 +91,7 @@ struct {
 	enum evhttp_request_kind kind;
 	enum evhttp_cmd_type type;
 
+	size_t headers_number;
 	size_t headers_size;
 	size_t body_size;
 

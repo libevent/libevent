@@ -64,6 +64,7 @@ struct evhttp_connection {
 #ifndef _WIN32
 	char *unixsocket;
 #endif
+	size_t max_headers_number;
 	size_t max_headers_size;
 	ev_uint64_t max_body_size;
 
@@ -171,6 +172,7 @@ struct evhttp {
 	struct timeval timeout_read;		/* timeout for read */
 	struct timeval timeout_write;		/* timeout for write */
 
+	size_t default_max_headers_number;
 	size_t default_max_headers_size;
 	ev_uint64_t default_max_body_size;
 	int flags;
