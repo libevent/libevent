@@ -2301,6 +2301,11 @@ evutil_inet_pton(int af, const char *src, void *dst)
 int
 evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *outlen)
 {
+	if (!(*outlen == sizeof(struct sockaddr)
+			|| *outlen == sizeof(struct sockaddr_storage)
+			|| *outlen == sizeof(struct sockaddr_in6)
+			|| *outlen == sizeof(struct sockaddr_in)))
+		return -1;
 	int port;
 	unsigned int if_index;
 	char buf[128];
