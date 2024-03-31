@@ -105,8 +105,7 @@ struct bufferevent_ssl *
 bufferevent_ssl_upcast(struct bufferevent *bev)
 {
 	struct bufferevent_ssl *bev_o;
-	if (!BEV_IS_SSL(bev))
-		return NULL;
+	EVUTIL_ASSERT(BEV_IS_SSL(bev));
 	bev_o = (void*)( ((char*)bev) -
 			 evutil_offsetof(struct bufferevent_ssl, bev.bev));
 	EVUTIL_ASSERT(BEV_IS_SSL(&bev_o->bev.bev));
@@ -815,9 +814,11 @@ set_handshake_callbacks(struct bufferevent_ssl *bev_ssl, evutil_socket_t fd)
 int
 bufferevent_ssl_renegotiate_impl(struct bufferevent *bev)
 {
-	struct bufferevent_ssl *bev_ssl = bufferevent_ssl_upcast(bev);
-	if (!bev_ssl)
+	struct bufferevent_ssl *bev_ssl;
+	if (!BEV_IS_SSL(bev))
 		return -1;
+
+	bev_ssl = bufferevent_ssl_upcast(bev);
 	if (bev_ssl->ssl_ops->renegotiate(bev_ssl->ssl) < 0)
 		return -1;
 	bev_ssl->state = BUFFEREVENT_SSL_CONNECTING;
@@ -1082,13 +1083,13 @@ bufferevent_ssl_new_impl(struct event_base *base,
 	return &bev_ssl->bev.bev;
 err:
 	if (bev_ssl) {
-		if (bev_ssl->ssl && (options & BEV_OPT_CLOSE_ON_FREE))
+		if (bev_ssl->ssl && bev_ssl->ssl_ops && options & BEV_OPT_CLOSE_ON_FREE)
 			bev_ssl->ssl_ops->free(bev_ssl->ssl, options);
 		bev_ssl->ssl = NULL;
 		bufferevent_free(&bev_ssl->bev.bev);
 	} else {
-		if (ssl && (options & BEV_OPT_CLOSE_ON_FREE))
-			bev_ssl->ssl_ops->free_raw(bev_ssl->ssl);
+		if (ssl && options & BEV_OPT_CLOSE_ON_FREE)
+			ssl_ops->free_raw(ssl);
 	}
 	return NULL;
 }
@@ -1098,9 +1099,13 @@ bufferevent_get_ssl_error(struct bufferevent *bev)
 {
 	unsigned long err = 0;
 	struct bufferevent_ssl *bev_ssl;
+
+	if (BEV_IS_SSL(bev))
+		return err;
+
 	BEV_LOCK(bev);
 	bev_ssl = bufferevent_ssl_upcast(bev);
-	if (bev_ssl && bev_ssl->n_errors) {
+	if (bev_ssl->n_errors) {
 		err = bev_ssl->errors[--bev_ssl->n_errors];
 	}
 	BEV_UNLOCK(bev);
@@ -1112,10 +1117,12 @@ ev_uint64_t bufferevent_ssl_get_flags(struct bufferevent *bev)
 	ev_uint64_t flags = EV_UINT64_MAX;
 	struct bufferevent_ssl *bev_ssl;
 
+	if (!BEV_IS_SSL(bev))
+		return flags;
+
 	BEV_LOCK(bev);
 	bev_ssl = bufferevent_ssl_upcast(bev);
-	if (bev_ssl)
-		flags = bev_ssl->flags;
+	flags = bev_ssl->flags;
 	BEV_UNLOCK(bev);
 
 	return flags;
@@ -1126,15 +1133,13 @@ ev_uint64_t bufferevent_ssl_set_flags(struct bufferevent *bev, ev_uint64_t flags
 	struct bufferevent_ssl *bev_ssl;
 
 	flags &= (BUFFEREVENT_SSL_DIRTY_SHUTDOWN|BUFFEREVENT_SSL_BATCH_WRITE);
-	if (!flags)
+	if (!flags || !BEV_IS_SSL(bev))
 		return old_flags;
 
 	BEV_LOCK(bev);
 	bev_ssl = bufferevent_ssl_upcast(bev);
-	if (bev_ssl) {
-		old_flags = bev_ssl->flags;
-		bev_ssl->flags |= flags;
-	}
+	old_flags = bev_ssl->flags;
+	bev_ssl->flags |= flags;
 	BEV_UNLOCK(bev);
 
 	return old_flags;
@@ -1145,15 +1150,13 @@ ev_uint64_t bufferevent_ssl_clear_flags(struct bufferevent *bev, ev_uint64_t fla
 	struct bufferevent_ssl *bev_ssl;
 
 	flags &= (BUFFEREVENT_SSL_DIRTY_SHUTDOWN|BUFFEREVENT_SSL_BATCH_WRITE);
-	if (!flags)
+	if (!flags || !BEV_IS_SSL(bev))
 		return old_flags;
 
 	BEV_LOCK(bev);
 	bev_ssl = bufferevent_ssl_upcast(bev);
-	if (bev_ssl) {
-		old_flags = bev_ssl->flags;
-		bev_ssl->flags &= ~flags;
-	}
+	old_flags = bev_ssl->flags;
+	bev_ssl->flags &= ~flags;
 	BEV_UNLOCK(bev);
 
 	return old_flags;

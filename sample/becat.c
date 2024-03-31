@@ -113,47 +113,6 @@ static void error(const char *fmt, ...)
 	va_end(ap);
 }
 
-/**
- * Defaults:
- * - TCP_KEEPIDLE  - 2 hours
- * - TCP_KEEPINTVL - 75 seconds
- * - TCP_KEEPCNT   - 9
- */
-static int fd_set_keepalive_timeout(int fd, int timeout)
-{
-	int err = 0;
-	int option =
-#if defined(TCP_KEEPALIVE)
-		TCP_KEEPALIVE // apple
-#elif defined(TCP_KEEPIDLE)
-		TCP_KEEPIDLE
-#else
-		0
-#endif
-		;
-
-	if (timeout) {
-		int so_keepalive = 1;
-		info("Enabling SO_KEEP_ALIVE for fd=%i\n", fd);
-		err = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&so_keepalive, sizeof(so_keepalive));
-
-		info("Set TCP keepalive initial timeout to %i for fd=%i\n", timeout, fd);
-		err = setsockopt(fd, IPPROTO_TCP, option, (void *)&timeout, sizeof(timeout));
-		if (err) {
-			error("Cannot set TCP KEEPALIVE (using %i option)\n", option);
-		}
-
-#ifdef TCP_KEEPINTVL
-		info("Set TCP_KEEPINTVL to %i for fd=%i\n", timeout, fd);
-		err = setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, (void *)&timeout, sizeof(timeout));
-		if (err) {
-			error("Cannot set TCP_KEEPINTVL (using %i option)\n", option);
-		}
-#endif
-	}
-	return err;
-}
-
 static void be_free(struct bufferevent **bevp)
 {
 	evutil_socket_t fd;
@@ -500,7 +459,7 @@ accept_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
 	info("Accepting %s (fd=%d)\n",
 		evutil_format_sockaddr_port_(sa, buffer, sizeof(buffer)-1), fd);
-	if (fd_set_keepalive_timeout(fd, ctx->opts->tcp_keepalive_timeout))
+	if (evutil_set_tcp_keepalive(fd, 1, ctx->opts->tcp_keepalive_timeout))
 		goto err;
 
 	bev = be_new(ctx, base, fd);
@@ -628,8 +587,8 @@ int main(int argc, char **argv)
 		}
 
 		if (o.tcp_keepalive_timeout) {
-			int fd = evconnlistener_get_fd(listener);
-			if (fd_set_keepalive_timeout(fd, o.tcp_keepalive_timeout)) {
+			evutil_socket_t fd = evconnlistener_get_fd(listener);
+			if (evutil_set_tcp_keepalive(fd, 1, o.tcp_keepalive_timeout)) {
 				goto err;
 			}
 		}
@@ -664,8 +623,8 @@ int main(int argc, char **argv)
 			goto err;
 		}
 		{
-			int fd = bufferevent_getfd(bev);
-			if (fd_set_keepalive_timeout(fd, o.tcp_keepalive_timeout))
+			evutil_socket_t fd = bufferevent_getfd(bev);
+			if (evutil_set_tcp_keepalive(fd, 1, o.tcp_keepalive_timeout))
 				goto err;
 		}
 	}

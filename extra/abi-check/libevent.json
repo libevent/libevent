@@ -6,6 +6,7 @@
   "Maintainer":     "Nick Mathewson, Azat Khuzhin and Niels Provos",
   "MaintainerUrl":  "https://libevent.org",
   "BuildSystem":    "Autotools",
+  "Configure":      "CFLAGS='-g -Og -gdwarf-3'",
   "HeadersDiff":    "On",
   "Package":        "release-",
   "ReleasePattern": "\A([\d\-\.\_]+)(|\-beta|\-rc|\-stable)\Z",

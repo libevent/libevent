@@ -2365,7 +2365,11 @@ evbuffer_read(struct evbuffer *buf, evutil_socket_t fd, int howmuch)
 				n = bytesRead;
 		}
 #else
-		n = readv(fd, vecs, nvecs);
+		/* TODO(panjf2000): wrap it with `unlikely` as compiler hint? */
+		if (nvecs == 1)
+			n = read(fd, vecs[0].IOV_PTR_FIELD, vecs[0].IOV_LEN_FIELD);
+		else
+			n = readv(fd, vecs, nvecs);
 #endif
 	}
 
@@ -2478,7 +2482,11 @@ evbuffer_write_iovec(struct evbuffer *buffer, evutil_socket_t fd,
 			n = bytesSent;
 	}
 #else
-	n = writev(fd, iov, i);
+	/* TODO(panjf2000): wrap it with `unlikely` as compiler hint? */
+	if (i == 1)
+		n = write(fd, iov[0].IOV_PTR_FIELD, iov[0].IOV_LEN_FIELD);
+	else
+		n = writev(fd, iov, i);
 #endif
 	return (n);
 }
@@ -3068,7 +3076,9 @@ get_page_size(void)
 static int
 evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
 {
+#if defined(EVENT__HAVE_MMAP) || defined(_WIN32)
 	const unsigned flags = seg->flags;
+#endif
 	const int fd = seg->fd;
 	const ev_off_t length = seg->length;
 	const ev_off_t offset = seg->file_offset;
@@ -3186,8 +3196,9 @@ evbuffer_file_segment_materialize(struct evbuffer_file_segment *seg)
 
 		seg->contents = mem;
 	}
-
+#if defined(EVENT__HAVE_MMAP) || defined(_WIN32)
 done:
+#endif
 	return 0;
 err:
 	return -1;
@@ -3228,9 +3239,9 @@ evbuffer_file_segment_free(struct evbuffer_file_segment *seg)
 	if ((seg->flags & EVBUF_FS_CLOSE_ON_FREE) && seg->fd >= 0) {
 		close(seg->fd);
 	}
-	
+
 	if (seg->cleanup_cb) {
-		(*seg->cleanup_cb)((struct evbuffer_file_segment const*)seg, 
+		(*seg->cleanup_cb)((struct evbuffer_file_segment const*)seg,
 		    seg->flags, seg->cleanup_cb_arg);
 		seg->cleanup_cb = NULL;
 		seg->cleanup_cb_arg = NULL;
@@ -3255,8 +3266,7 @@ evbuffer_add_file_segment(struct evbuffer *buf,
 	} else {
 		if (evbuffer_file_segment_materialize(seg)<0) {
 			EVLOCK_UNLOCK(seg->lock, 0);
-			EVBUFFER_UNLOCK(buf);
-			return -1;
+			goto err;
 		}
 	}
 	EVLOCK_UNLOCK(seg->lock, 0);

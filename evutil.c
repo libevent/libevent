@@ -39,6 +39,9 @@
 #include <winsock2.h>
 #include <winerror.h>
 #include <ws2tcpip.h>
+#ifdef _MSC_VER /* mstcpip.h is missing on MinGW */
+#include <mstcpip.h> /* for SIO_KEEPALIVE_VALS and tcp_keepalive struct */
+#endif
 #ifdef EVENT__HAVE_AFUNIX_H
 #include <afunix.h>
 #endif
@@ -110,6 +113,15 @@
 #define stat _stati64
 #endif
 #define mode_t int
+#endif
+
+#if defined(_WIN32) && !defined(SIO_KEEPALIVE_VALS)
+#define SIO_KEEPALIVE_VALS    _WSAIOW(IOC_VENDOR,4)
+struct tcp_keepalive {
+  u_long onoff;
+  u_long keepalivetime;
+  u_long keepaliveinterval;
+};
 #endif
 
 #ifndef O_RDONLY
@@ -404,123 +416,6 @@ evutil_win_socketpair(int family, int type, int protocol,
 #endif
 
 int
-evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
-{
-#ifndef _WIN32
-	return socketpair(family, type, protocol, fd);
-#else
-	return evutil_win_socketpair(family, type, protocol, fd);
-#endif
-}
-
-int
-evutil_ersatz_socketpair_(int family, int type, int protocol,
-    evutil_socket_t fd[2])
-{
-	/* This code is originally from Tor.  Used with permission. */
-
-	/* This socketpair does not work when localhost is down. So
-	 * it's really not the same thing at all. But it's close enough
-	 * for now, and really, when localhost is down sometimes, we
-	 * have other problems too.
-	 */
-#undef ERR
-#ifdef _WIN32
-#define ERR(e) WSA##e
-#else
-#define ERR(e) e
-#endif
-	evutil_socket_t listener = -1;
-	evutil_socket_t connector = -1;
-	evutil_socket_t acceptor = -1;
-	struct sockaddr_in listen_addr;
-	struct sockaddr_in connect_addr;
-	ev_socklen_t size;
-	int saved_errno = -1;
-	int family_test;
-	
-	family_test = family != AF_INET;
-#ifdef AF_UNIX
-	family_test = family_test && (family != AF_UNIX);
-#endif
-	if (protocol || family_test) {
-		EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
-		return -1;
-	}
-	
-	if (!fd) {
-		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
-		return -1;
-	}
-
-	listener = socket(AF_INET, type, 0);
-	if (listener < 0)
-		return -1;
-	memset(&listen_addr, 0, sizeof(listen_addr));
-	listen_addr.sin_family = AF_INET;
-	listen_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	listen_addr.sin_port = 0;	/* kernel chooses port.	 */
-	if (bind(listener, (struct sockaddr *) &listen_addr, sizeof (listen_addr))
-		== -1)
-		goto tidy_up_and_fail;
-	if (listen(listener, 1) == -1)
-		goto tidy_up_and_fail;
-
-	connector = socket(AF_INET, type, 0);
-	if (connector < 0)
-		goto tidy_up_and_fail;
-
-	memset(&connect_addr, 0, sizeof(connect_addr));
-
-	/* We want to find out the port number to connect to.  */
-	size = sizeof(connect_addr);
-	if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
-		goto tidy_up_and_fail;
-	if (size != sizeof (connect_addr))
-		goto abort_tidy_up_and_fail;
-	if (connect(connector, (struct sockaddr *) &connect_addr,
-				sizeof(connect_addr)) == -1)
-		goto tidy_up_and_fail;
-
-	size = sizeof(listen_addr);
-	acceptor = accept(listener, (struct sockaddr *) &listen_addr, &size);
-	if (acceptor < 0)
-		goto tidy_up_and_fail;
-	if (size != sizeof(listen_addr))
-		goto abort_tidy_up_and_fail;
-	/* Now check we are talking to ourself by matching port and host on the
-	   two sockets.	 */
-	if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
-		goto tidy_up_and_fail;
-	if (size != sizeof (connect_addr)
-		|| listen_addr.sin_family != connect_addr.sin_family
-		|| listen_addr.sin_addr.s_addr != connect_addr.sin_addr.s_addr
-		|| listen_addr.sin_port != connect_addr.sin_port)
-		goto abort_tidy_up_and_fail;
-	evutil_closesocket(listener);
-	fd[0] = connector;
-	fd[1] = acceptor;
-
-	return 0;
-
- abort_tidy_up_and_fail:
-	saved_errno = ERR(ECONNABORTED);
- tidy_up_and_fail:
-	if (saved_errno < 0)
-		saved_errno = EVUTIL_SOCKET_ERROR();
-	if (listener != -1)
-		evutil_closesocket(listener);
-	if (connector != -1)
-		evutil_closesocket(connector);
-	if (acceptor != -1)
-		evutil_closesocket(acceptor);
-
-	EVUTIL_SET_SOCKET_ERROR(saved_errno);
-	return -1;
-#undef ERR
-}
-
-int
 evutil_make_socket_nonblocking(evutil_socket_t fd)
 {
 #ifdef _WIN32
@@ -625,9 +520,9 @@ evutil_make_tcp_listen_socket_deferred(evutil_socket_t sock)
 	int one = 1;
 
 	/* TCP_DEFER_ACCEPT tells the kernel to call defer accept() only after data
-	 * has arrived and ready to read */ 
+	 * has arrived and ready to read */
 	return setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, &one,
-		(ev_socklen_t)sizeof(one)); 
+		(ev_socklen_t)sizeof(one));
 #endif
 	return 0;
 }
@@ -2284,6 +2179,7 @@ evutil_inet_pton_scope(int af, const char *src, void *dst, unsigned *indexp)
 		return -1;
 	}
 	cp = strchr(tmp_src, '%');
+	// The check had been already done above against original src
 	*cp = '\0';
 	r = evutil_inet_pton(af, tmp_src, dst);
 	mm_free(tmp_src);
@@ -2483,7 +2379,6 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 		if ((int)sizeof(sin6) > *outlen)
 			return -1;
 		sin6.sin6_scope_id = if_index;
-		memset(out, 0, *outlen);
 		memcpy(out, &sin6, sizeof(sin6));
 		*outlen = sizeof(sin6);
 		return 0;
@@ -2502,7 +2397,6 @@ evutil_parse_sockaddr_port(const char *ip_as_string, struct sockaddr *out, int *
 			return -1;
 		if ((int)sizeof(sin) > *outlen)
 			return -1;
-		memset(out, 0, *outlen);
 		memcpy(out, &sin, sizeof(sin));
 		*outlen = sizeof(sin);
 		return 0;
@@ -2888,6 +2782,176 @@ evutil_socket_(int domain, int type, int protocol)
 	return r;
 }
 
+int
+evutil_socketpair(int family, int type, int protocol, evutil_socket_t fd[2])
+{
+	int ret = 0;
+	int sock_type = type;
+	(void) sock_type;
+	/* SOCK_NONBLOCK and SOCK_CLOEXEC are UNIX-specific. Therefore, the predefined and
+	 * platform-independent macros EVUTIL_SOCK_NONBLOCK and EVUTIL_SOCK_CLOEXEC are used
+	 * in type argument as combination while SOCK_NONBLOCK and SOCK_CLOEXEC are used for
+	 * distinguishing platforms.
+	 */
+#ifndef SOCK_NONBLOCK
+	type &= ~EVUTIL_SOCK_NONBLOCK;
+#endif
+#ifndef SOCK_CLOEXEC
+	type &= ~EVUTIL_SOCK_CLOEXEC;
+#endif
+#if defined(_WIN32)
+	ret = evutil_win_socketpair(family, type, protocol, fd);
+#elif defined(EVENT__HAVE_SOCKETPAIR)
+	ret = socketpair(family, type, protocol, fd);
+#else
+	ret = evutil_ersatz_socketpair_(family, type, protocol, fd);
+#endif
+	if (ret)
+		return ret;
+#ifndef SOCK_NONBLOCK
+	if (sock_type & EVUTIL_SOCK_NONBLOCK) {
+		if ((ret = evutil_fast_socket_nonblocking(fd[0]))) {
+			evutil_closesocket(fd[0]);
+			evutil_closesocket(fd[1]);
+			return ret;
+		}
+		if ((ret = evutil_fast_socket_nonblocking(fd[1]))) {
+			evutil_closesocket(fd[0]);
+			evutil_closesocket(fd[1]);
+			return ret;
+		}
+	}
+#endif
+#ifndef SOCK_CLOEXEC
+	if (sock_type & EVUTIL_SOCK_CLOEXEC) {
+		if ((ret = evutil_fast_socket_closeonexec(fd[0]))) {
+			evutil_closesocket(fd[0]);
+			evutil_closesocket(fd[1]);
+			return ret;
+		}
+		if ((ret = evutil_fast_socket_closeonexec(fd[1]))) {
+			evutil_closesocket(fd[0]);
+			evutil_closesocket(fd[1]);
+			return ret;
+		}
+	}
+#endif
+	return ret;
+}
+
+int
+evutil_ersatz_socketpair_(int family, int type, int protocol,
+    evutil_socket_t fd[2])
+{
+	/* This code is originally from Tor.  Used with permission. */
+
+	/* This socketpair does not work when localhost is down. So
+	 * it's really not the same thing at all. But it's close enough
+	 * for now, and really, when localhost is down sometimes, we
+	 * have other problems too.
+	 */
+#undef ERR
+#ifdef _WIN32
+#define ERR(e) WSA##e
+#else
+#define ERR(e) e
+#endif
+	evutil_socket_t listener = -1;
+	evutil_socket_t connector = -1;
+	evutil_socket_t acceptor = -1;
+	struct sockaddr_in listen_addr;
+	struct sockaddr_in connect_addr;
+	ev_socklen_t size;
+	int saved_errno = -1;
+	int family_test;
+
+	family_test = family != AF_INET;
+#ifdef AF_UNIX
+	family_test = family_test && (family != AF_UNIX);
+#endif
+	if (protocol || family_test) {
+		EVUTIL_SET_SOCKET_ERROR(ERR(EAFNOSUPPORT));
+		return -1;
+	}
+
+	if (!fd) {
+		EVUTIL_SET_SOCKET_ERROR(ERR(EINVAL));
+		return -1;
+	}
+
+	listener = socket(AF_INET, type, 0);
+	if (listener < 0)
+		return -1;
+	memset(&listen_addr, 0, sizeof(listen_addr));
+	listen_addr.sin_family = AF_INET;
+	listen_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	listen_addr.sin_port = 0;	/* kernel chooses port.	 */
+	if (bind(listener, (struct sockaddr *) &listen_addr, sizeof (listen_addr))
+		== -1)
+		goto tidy_up_and_fail;
+	if (listen(listener, 1) == -1)
+		goto tidy_up_and_fail;
+
+	connector = socket(AF_INET, type, 0);
+	if (connector < 0)
+		goto tidy_up_and_fail;
+
+	memset(&connect_addr, 0, sizeof(connect_addr));
+
+	/* We want to find out the port number to connect to.  */
+	size = sizeof(connect_addr);
+	if (getsockname(listener, (struct sockaddr *) &connect_addr, &size) == -1)
+		goto tidy_up_and_fail;
+	if (size != sizeof(connect_addr))
+		goto abort_tidy_up_and_fail;
+	if (connect(connector, (struct sockaddr *) &connect_addr,
+				sizeof(connect_addr)) == -1) {
+		/* It's OK for a non-blocking socket to get an EINPROGRESS from connect(). */
+		int err = evutil_socket_geterror(connector);
+		if (!(EVUTIL_ERR_CONNECT_RETRIABLE(err) && type & EVUTIL_SOCK_NONBLOCK))
+			goto tidy_up_and_fail;
+	}
+
+	size = sizeof(listen_addr);
+	do {
+		acceptor = accept(listener, (struct sockaddr *) &listen_addr, &size);
+	} while(acceptor < 0 && EVUTIL_ERR_ACCEPT_RETRIABLE(errno) && type & EVUTIL_SOCK_NONBLOCK);
+	if (acceptor < 0)
+		goto tidy_up_and_fail;
+	if (size != sizeof(listen_addr))
+		goto abort_tidy_up_and_fail;
+	/* Now check we are talking to ourself by matching port and host on the
+	   two sockets.	 */
+	if (getsockname(connector, (struct sockaddr *) &connect_addr, &size) == -1)
+		goto tidy_up_and_fail;
+	if (size != sizeof (connect_addr)
+		|| listen_addr.sin_family != connect_addr.sin_family
+		|| listen_addr.sin_addr.s_addr != connect_addr.sin_addr.s_addr
+		|| listen_addr.sin_port != connect_addr.sin_port)
+		goto abort_tidy_up_and_fail;
+	evutil_closesocket(listener);
+	fd[0] = connector;
+	fd[1] = acceptor;
+
+	return 0;
+
+ abort_tidy_up_and_fail:
+	saved_errno = ERR(ECONNABORTED);
+ tidy_up_and_fail:
+	if (saved_errno < 0)
+		saved_errno = EVUTIL_SOCKET_ERROR();
+	if (listener != -1)
+		evutil_closesocket(listener);
+	if (connector != -1)
+		evutil_closesocket(connector);
+	if (acceptor != -1)
+		evutil_closesocket(acceptor);
+
+	EVUTIL_SET_SOCKET_ERROR(saved_errno);
+	return -1;
+#undef ERR
+}
+
 /* Internal wrapper around 'accept' or 'accept4' to provide Linux-style
  * support for syscall-saving methods where available.
  *
@@ -2973,20 +3037,11 @@ evutil_make_internal_pipe_(evutil_socket_t fd[2])
 #else
 #define LOCAL_SOCKETPAIR_AF AF_UNIX
 #endif
-	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM, 0, fd) == 0) {
-		if (evutil_fast_socket_nonblocking(fd[0]) < 0 ||
-		    evutil_fast_socket_nonblocking(fd[1]) < 0 ||
-		    evutil_fast_socket_closeonexec(fd[0]) < 0 ||
-		    evutil_fast_socket_closeonexec(fd[1]) < 0) {
-			evutil_closesocket(fd[0]);
-			evutil_closesocket(fd[1]);
-			fd[0] = fd[1] = -1;
-			return -1;
-		}
-		return 0;
+	if (evutil_socketpair(LOCAL_SOCKETPAIR_AF, SOCK_STREAM|EVUTIL_SOCK_CLOEXEC|EVUTIL_SOCK_NONBLOCK, 0, fd)) {
+		fd[0] = fd[1] = -1;
+		return -1;
 	}
-	fd[0] = fd[1] = -1;
-	return -1;
+	return 0;
 }
 
 /* Wrapper around eventfd on systems that provide it.  Unlike the system
@@ -3029,4 +3084,167 @@ evutil_free_globals_(void)
 {
 	evutil_free_secure_rng_globals_();
 	evutil_free_sock_err_globals();
+}
+
+int
+evutil_set_tcp_keepalive(evutil_socket_t fd, int on, int timeout)
+{
+	int idle;
+	int intvl;
+	int cnt;
+
+	/* Prevent compiler from complaining unused variables warnings. */
+	(void) idle;
+	(void) intvl;
+	(void) cnt;
+
+	if (timeout <= 0)
+		return 0;
+
+	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
+		return -1;
+	if (!on)
+		return 0;
+
+#ifdef _WIN32
+	idle = timeout;
+	intvl = idle/3;
+	if (intvl == 0)
+		intvl = 1;
+	/* The three options TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT are not available until
+	 * Windows 10 version 1709, but let's gamble here.
+	 */
+#if defined(TCP_KEEPIDLE) && defined(TCP_KEEPINTVL) && defined(TCP_KEEPCNT)
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
+		return -1;
+
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
+		return -1;
+
+	cnt = 3;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
+		return -1;
+
+	/* For those versions prior to Windows 10 version 1709, we fall back to SIO_KEEPALIVE_VALS.
+	 * The SIO_KEEPALIVE_VALS IOCTL is supported on Windows 2000 and later versions of the operating system. */
+#elif defined(SIO_KEEPALIVE_VALS)
+	struct tcp_keepalive keepalive;
+	keepalive.onoff = on;
+	keepalive.keepalivetime = idle * 1000; /* the kernel expects milliseconds */
+	keepalive.keepaliveinterval = intvl * 1000; /* ditto */
+	/* On Windows Vista and later, the number of keep-alive probes (data retransmissions)
+	 * is set to 10 and cannot be changed.
+	 * On Windows Server 2003, Windows XP, and Windows 2000, the default setting for
+	 * number of keep-alive probes is 5 and cannot be changed programmatically.
+	 */
+	DWORD dummy;
+	if (WSAIoctl(fd, SIO_KEEPALIVE_VALS, (LPVOID) &keepalive, sizeof(keepalive), NULL, 0, &dummy, NULL, NULL))
+		return -1;
+#endif
+
+#else /* !_WIN32 */
+
+#ifdef __sun
+	/* The implementation of TCP keep-alive on Solaris/SmartOS is a bit unusual
+	 * compared to other Unix-like systems.
+	 * Thus, we need to specialize it on Solaris.
+	 *
+	 * There are two keep-alive mechanisms on Solaris:
+	 * - By default, the first keep-alive probe is sent out after a TCP connection is idle for two hours.
+	 * If the peer does not respond to the probe within eight minutes, the TCP connection is aborted.
+	 * You can alter the interval for sending out the first probe using the socket option TCP_KEEPALIVE_THRESHOLD
+	 * in milliseconds or TCP_KEEPIDLE in seconds.
+	 * The system default is controlled by the TCP ndd parameter tcp_keepalive_interval. The minimum value is ten seconds.
+	 * The maximum is ten days, while the default is two hours. If you receive no response to the probe,
+	 * you can use the TCP_KEEPALIVE_ABORT_THRESHOLD socket option to change the time threshold for aborting a TCP connection.
+	 * The option value is an unsigned integer in milliseconds. The value zero indicates that TCP should never time out and
+	 * abort the connection when probing. The system default is controlled by the TCP ndd parameter tcp_keepalive_abort_interval.
+	 * The default is eight minutes.
+	 *
+	 * - The second implementation is activated if socket option TCP_KEEPINTVL and/or TCP_KEEPCNT are set.
+	 * The time between each consequent probes is set by TCP_KEEPINTVL in seconds.
+	 * The minimum value is ten seconds. The maximum is ten days, while the default is two hours.
+	 * The TCP connection will be aborted after certain amount of probes, which is set by TCP_KEEPCNT, without receiving response.
+	 */
+
+	idle = timeout;
+	/* Kernel expects at least 10 seconds. */
+	if (idle < 10)
+		idle = 10;
+	/* Kernel expects at most 10 days. */
+	if (idle > 10*24*60*60)
+		idle = 10*24*60*60;
+
+	/* `TCP_KEEPIDLE`, `TCP_KEEPINTVL`, and `TCP_KEEPCNT` were not available on Solaris
+	 * until version 11.4, but let's gamble here.
+	 */
+#if defined(TCP_KEEPIDLE) && defined(TCP_KEEPINTVL) && defined(TCP_KEEPCNT)
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
+		return -1;
+
+	intvl = idle/3;
+	/* Kernel expects at least 10 seconds. */
+	if (intvl < 10)
+		intvl = 10;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
+		return -1;
+
+	cnt = 3;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
+		return -1;
+#else
+	/* Fall back to the first implementation of tcp-alive mechanism for older Solaris,
+	 * simulate the tcp-alive mechanism on other platforms via `TCP_KEEPALIVE_THRESHOLD` + `TCP_KEEPALIVE_ABORT_THRESHOLD`.
+	 */
+	idle *= 1000; /* kernel expects milliseconds */
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_THRESHOLD, &idle, sizeof(idle)))
+		return -1;
+
+	/* Note that the consequent probes will not be sent at equal intervals on Solaris,
+	 * but will be sent using the exponential backoff algorithm.
+	 */
+	int time_to_abort = idle;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_ABORT_THRESHOLD, &time_to_abort, sizeof(time_to_abort)))
+		return -1;
+#endif
+
+#else /* !__sun */
+
+#ifdef TCP_KEEPIDLE
+	idle = timeout;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
+		return -1;
+#elif defined(TCP_KEEPALIVE)
+	/* Darwin/macOS uses TCP_KEEPALIVE in place of TCP_KEEPIDLE. */
+	idle = timeout;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &idle, sizeof(idle)))
+		return -1;
+#endif
+
+#ifdef TCP_KEEPINTVL
+	/* Set the interval between individual keep-alive probes as timeout / 3
+	 * and the maximum number of keepalive probes as 3 to make it double timeout
+	 * before aborting a dead connection.
+	 */
+	intvl = timeout/3;
+	if (intvl == 0)
+		intvl = 1;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
+		return -1;
+#endif
+
+#ifdef TCP_KEEPCNT
+	/* Set the maximum number of keepalive probes as 3 to collaborate with
+	 * TCP_KEEPINTVL, see the previous comment.
+	 */
+	cnt = 3;
+	if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
+		return -1;
+#endif
+
+#endif /* !__sun */
+
+#endif /* !_WIN32 */
+
+	return 0;
 }

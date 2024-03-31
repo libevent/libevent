@@ -703,7 +703,7 @@ test_evbuffer_reserve_many(void *ptr)
 	int fill_first = ptr && !strcmp(ptr, "fill");
 	char *cp1, *cp2;
 
-	/* When reserving the the first chunk, we just allocate it */
+	/* When reserving the first chunk, we just allocate it */
 	n = evbuffer_reserve_space(buf, 128, v, 2);
 	evbuffer_validate(buf);
 	tt_int_op(n, ==, 1);
@@ -1107,6 +1107,49 @@ addfile_test_readcb(evutil_socket_t fd, short what, void *arg)
 	}
 }
 
+/* Without mm replacement malloc(0) will not fail, like it should to make the
+ * evbuffer_file_segment_materialize() fails after mmap() failed */
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
+static void
+test_evbuffer_add_file_leak1(void *ptr)
+{
+	struct basic_test_data *testdata = ptr;
+	struct evbuffer *buf = NULL;
+	char *tmpfilename = NULL;
+	int fd;
+
+	(void)testdata;
+
+	fd = regress_make_tmpfile("", 0, &tmpfilename);
+	/* On Windows, if TMP environment variable is corrupted, we may not be
+	 * able create temporary file, just skip it */
+	if (fd < 0)
+		tt_skip();
+	TT_BLATHER(("Temporary path: %s, fd: %i", tmpfilename, fd));
+
+	/* On windows _get_osfhandle(closed fd) leads to crash */
+#ifndef _WIN32
+	/* close fd before usage, so that the fallback with pread() will fail (in
+	 * evbuffer_file_segment_materialize()) */
+	close(fd);
+#endif
+
+	/* mmap(offset=0, length=0) will fail, this is enough */
+	buf = evbuffer_new();
+	tt_assert(evbuffer_add_file(buf, fd, 0, 0) == -1);
+	evbuffer_validate(buf);
+
+end:
+	if (tmpfilename) {
+		unlink(tmpfilename);
+		free(tmpfilename);
+	}
+	if (buf)
+		evbuffer_free(buf);
+	/* NOTE: file will be closed in evbuffer_add_file() */
+}
+#endif
+
 static void
 test_evbuffer_add_file(void *ptr)
 {
@@ -1237,14 +1280,12 @@ test_evbuffer_add_file(void *ptr)
 #if defined(EVENT__HAVE_SENDFILE) && defined(__sun__) && defined(__svr4__)
 	/* We need to use a pair of AF_INET sockets, since Solaris
 	   doesn't support sendfile() over AF_UNIX. */
-	if (evutil_ersatz_socketpair_(AF_INET, SOCK_STREAM, 0, pair) == -1)
+	if (evutil_ersatz_socketpair_(AF_INET, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, pair) == -1)
 		tt_abort_msg("ersatz_socketpair failed");
 #else
-	if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1)
+	if (evutil_socketpair(AF_UNIX, SOCK_STREAM|EVUTIL_SOCK_NONBLOCK, 0, pair) == -1)
 		tt_abort_msg("socketpair failed");
 #endif
-	evutil_make_socket_nonblocking(pair[0]);
-	evutil_make_socket_nonblocking(pair[1]);
 
 	tt_assert(fd != -1);
 
@@ -2665,7 +2706,7 @@ test_evbuffer_freeze(void *ptr)
 	FREEZE_EQ(r, 0, -1);
 	len = strlen(tmpfilecontent);
 	fd = regress_make_tmpfile(tmpfilecontent, len, &tmpfilename);
-	/* On Windows, if TMP environment variable is corrupted, we may not be 
+	/* On Windows, if TMP environment variable is corrupted, we may not be
 	 * able create temporary file, just skip it */
 	if (fd < 0)
 		tt_skip();
@@ -2924,6 +2965,9 @@ struct testcase_t evbuffer_testcases[] = {
 	{ "copyout", test_evbuffer_copyout, 0, NULL, NULL},
 	{ "file_segment_add_cleanup_cb", test_evbuffer_file_segment_add_cleanup_cb, 0, NULL, NULL },
 	{ "pullup_with_empty", test_evbuffer_pullup_with_empty, 0, NULL, NULL },
+#ifndef EVENT__DISABLE_MM_REPLACEMENT
+	{ "add_file_leak1", test_evbuffer_add_file_leak1, 0, NULL, NULL },
+#endif
 
 #define ADDFILE_TEST(name, parameters)					\
 	{ name, test_evbuffer_add_file, TT_FORK|TT_NEED_BASE,		\

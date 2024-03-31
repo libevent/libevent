@@ -81,6 +81,7 @@
 #include <winsock2.h>
 #endif
 
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1028,12 +1029,23 @@ evhttp_handle_chunked_read(struct evhttp_request *req, struct evbuffer *buf)
 			char *p = evbuffer_readln(buf, NULL, EVBUFFER_EOL_CRLF);
 			char *endp;
 			int error;
+			size_t len_p;
 			if (p == NULL)
 				break;
+			len_p = strlen(p);
 			/* the last chunk is on a new line? */
-			if (strlen(p) == 0) {
+			if (len_p == 0) {
 				mm_free(p);
 				continue;
+			}
+			/* strtoll(,,16) lets through whitespace, 0x, +, and - prefixes, but HTTP doesn't. */
+			error = isspace(p[0]) ||
+				p[0] == '-' ||
+				p[0] == '+' ||
+				(len_p >= 2 && p[0] == '0' && (p[1] == 'x' || p[1] == 'X'));
+			if (error) {
+				mm_free(p);
+				return (DATA_CORRUPTED);
 			}
 			ntoread = evutil_strtoll(p, &endp, 16);
 			error = (*p == '\0' ||
@@ -1156,8 +1168,11 @@ evhttp_read_body(struct evhttp_connection *evcon, struct evhttp_request *req)
 			evhttp_read_trailer(evcon, req);
 			return;
 		case DATA_CORRUPTED:
-		case DATA_TOO_LONG:
 			/* corrupted data */
+			evhttp_connection_fail_(evcon,
+			    EVREQ_HTTP_INVALID_HEADER);
+			return;
+		case DATA_TOO_LONG:
 			evhttp_connection_fail_(evcon,
 			    EVREQ_HTTP_DATA_TOO_LONG);
 			return;
@@ -1745,16 +1760,16 @@ evhttp_valid_response_code(int code)
 static int
 evhttp_parse_http_version(const char *version, struct evhttp_request *req)
 {
-	int major, minor;
+	char major, minor;
 	char ch;
-	int n = sscanf(version, "HTTP/%d.%d%c", &major, &minor, &ch);
-	if (n != 2 || major > 1) {
+	int n = sscanf(version, "HTTP/%c.%c%c", &major, &minor, &ch);
+	if (n != 2 || major > '1' || major < '0' || minor > '9' || minor < '0') {
 		event_debug(("%s: bad version %s on message %p from %s",
 			__func__, version, (void *)req, req->remote_host));
 		return (-1);
 	}
-	req->major = major;
-	req->minor = minor;
+	req->major = major - '0';
+	req->minor = minor - '0';
 	return (0);
 }
 
@@ -5037,7 +5052,7 @@ create_bind_socket_nonblock(struct evutil_addrinfo *ai, int reuse)
 {
 	evutil_socket_t fd;
 
-	int on = 1, r;
+	int r;
 	int serrno;
 
 	/* Create listen socket */
@@ -5048,7 +5063,8 @@ create_bind_socket_nonblock(struct evutil_addrinfo *ai, int reuse)
 			return (-1);
 	}
 
-	if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, (void *)&on, sizeof(on))<0)
+	/* TODO(panjf2000): make this TCP keep-alive value configurable */
+	if (evutil_set_tcp_keepalive(fd, 1, 300) < 0)
 		goto out;
 	if (reuse) {
 		if (evutil_make_listen_socket_reuseable(fd) < 0)

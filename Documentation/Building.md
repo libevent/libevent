@@ -197,7 +197,7 @@ EVENT__ENABLE_VERBOSE_DEBUG:BOOL=OFF
 
 # When cross compiling, forces running a test program that verifies that Kqueue
 # works with pipes. Note that this requires you to manually run the test program
-# on the the cross compilation target to verify that it works. See CMake
+# on the cross compilation target to verify that it works. See CMake
 # documentation for try_run for more details
 EVENT__FORCE_KQUEUE_CHECK:BOOL=OFF
 

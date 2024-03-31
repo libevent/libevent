@@ -555,8 +555,8 @@ int evbuffer_add_reference_with_offset(struct evbuffer *outbuf, const void *data
   flag is set, it uses those functions.  Otherwise, it tries to use
   mmap (or CreateFileMapping on Windows).
 
-  The function owns the resulting file descriptor and will close it
-  when finished transferring data.
+  The function owns the resulting file descriptor and will close (even in case
+  of error) it when finished transferring data.
 
   The results of using evbuffer_remove() or evbuffer_pullup() on
   evbuffers whose data was added using this function are undefined.
