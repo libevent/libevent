@@ -126,6 +126,7 @@ test-time
 test-weof
 test-changelist
 test-fdleak
+test-kq-collision
 
 event-config.h
 evconfig-private.h

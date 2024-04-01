@@ -1384,6 +1384,7 @@ if (NOT EVENT__DISABLE_TESTS)
                   test-eof
                   test-closed
                   test-fdleak
+                  test-kq-collision
                   test-init
                   test-time
                   test-weof)
