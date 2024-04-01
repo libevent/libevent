@@ -1374,12 +1374,6 @@ evhttp_connection_free(struct evhttp_connection *evcon)
 	if (evcon->address != NULL)
 		mm_free(evcon->address);
 
-	if (evcon->proxy_address != NULL)
-		mm_free(evcon->proxy_address);
-
-	if (evcon->proxy_target_address != NULL)
-		mm_free(evcon->proxy_target_address);
-
 #ifndef _WIN32
 	if (evcon->unixsocket != NULL)
 		mm_free(evcon->unixsocket);
@@ -2796,246 +2790,6 @@ evhttp_connection_set_closecb(struct evhttp_connection *evcon,
 	evcon->closecb_arg = cbarg;
 }
 
-static void 
-evhttp_connection_set_connectcb(struct evhttp_connection *evcon, 
-    int (*cb)(struct evhttp_connection *, void *), void *cbarg)
-{
-	evcon->connectcb = cb;
-	evcon->connectcb_arg = cbarg;
-}
-
-struct context_socks5 {
-	char domain_name[256];
-	int fd;
-	struct sockaddr_in addr4;
-	char ipv4[32];
-	unsigned short port;
-};
-
-static int
-read_socks5_reponse(unsigned char method)
-{
-	if (method == 0x00)
-		return 0;
-	else if (method == 0x01)
-		return -1;
-	else if (method == 0x02) {
-		// not support auth with name-password
-		return -1;
-	} else if (method >= 0x03 && method <= 0x7F)
-		return -1;
-	else if (method >= 0x80 && method <= 0xFE)
-		return -1;
-	else
-		return -1;
-}
-
-static int
-request_socks5_target(struct context_socks5 *socks5)
-{
-	uint32_t lenght = 0;
-	uint32_t itr = 0;
-	unsigned char msg[512] = {0};
-	int dn_size = strlen(socks5->domain_name);
-	msg[0] = 0x05;
-	msg[1] = 0x01;
-	msg[2] = 0x00;
-	if (strlen(socks5->ipv4)) {
-		msg[3] = 0x01;
-		memcpy((unsigned char *)msg + 4,
-			(unsigned char *)&socks5->addr4.sin_addr,
-			sizeof(socks5->addr4.sin_addr));
-		*(unsigned short *)(msg + 8) = htons(socks5->port);
-		lenght = 10;
-	} else if (dn_size) {
-		msg[3] = 0x03;
-		msg[4] = (unsigned char)dn_size;
-		for (itr = 0; itr != msg[4]; ++itr)
-			msg[itr + 5] = socks5->domain_name[itr];
-		*(unsigned short *)(msg + 5 + dn_size) = htons(socks5->port);
-		lenght = 5 + dn_size + 2;
-	} else
-		return -1;
-	if (send(socks5->fd, msg, lenght, 0) <= 0)
-		return -2;
-
-	return 0;
-}
-
-static int
-set_socks5_address(struct context_socks5 *socks5, const char *address, unsigned short port)
-{
-	socks5->port = port;
-	if (!evutil_inet_pton(AF_INET, address, &socks5->addr4.sin_addr))
-		strcpy(socks5->domain_name, address);
-	else
-		strcpy(socks5->ipv4, address);
-	return 0;
-}
-
-static int
-connect_socks5(struct context_socks5 *socks5)
-{
-	unsigned char tmp[512];
-	if (3 != send(socks5->fd, "\x05\x01\x00", 3, 0))
-		return -1;
-	if (recv(socks5->fd, tmp, 512, 0) != 2)
-		return -2;
-	if (read_socks5_reponse(tmp[1]))
-		return -3;
-	return 0;
-}
-
-static int
-connnect_target_over_socks5(struct context_socks5 *socks5)
-{
-	int ret;
-	unsigned char tmp[512];
-	if (request_socks5_target(socks5))
-		return -1;
-	ret = recv(socks5->fd, tmp, 512, 0);
-	if (ret < 0 || tmp[1] != 0)
-		return -2;
-	return 0;
-}
-
-// just support no auth socks5 proxy. Such as 'ssh -D'.
-static int
-socks5_handshake(int fd, const char *szTargetHost, unsigned short port)
-{
-	int bOK = -1;
-	struct context_socks5 s5;
-	memset(&s5, 0, sizeof(struct context_socks5));
-	do {
-		// init
-		s5.fd = fd;
-		// do
-		if (set_socks5_address(&s5, szTargetHost, port)) 
-			break;
-		if (connect_socks5(&s5)) 
-			break;
-		if (connnect_target_over_socks5(&s5)) 
-			break;
-		bOK = 0;
-	} while (0);
-	return bOK;
-}
-
-static int
-evhttp_proxy_request_httpconnect(int fd, struct evhttp_connection *evcon)
-{
-	char buf_conn[512];
-	int ret = -1, ret_child = 0;
-	do {
-		snprintf(buf_conn,sizeof(buf_conn),
-			"CONNECT %s:%d HTTP/1.0\r\nHost: "
-			"%s:%d\r\nProxy-Connection: Keep-Alive\r\nPragma: no-cache\r\n\r\n",
-			evcon->proxy_target_address, evcon->proxy_target_port, evcon->proxy_address, evcon->proxy_port);
-		if ((ret_child = send(fd, buf_conn, strlen(buf_conn), 0)) <= 0)
-			break;
-		memset(buf_conn, 0, sizeof(buf_conn));
-		if ((ret_child = recv(fd, buf_conn, sizeof(buf_conn), 0)) < 32)
-			break;
-		if (!strstr(buf_conn, "HTTP/1.1 200 ") && !strstr(buf_conn, "HTTP/1.0 200 "))
-			break;
-		ret = 0;
-	} while (0);
-	return ret;
-}
-
-static int
-evhttp_proxy_connect_callback_internal(struct evhttp_connection *evcon, void *arg)
-{
-	struct bufferevent *bev = evhttp_connection_get_bufferevent(evcon);
-	int nRet = -1, fd = bufferevent_getfd(bev), orig_flag,
-		flags = fcntl(fd, F_GETFL, 0);
-	orig_flag = flags;
-	do {
-		// write timeout check
-		fd_set w;
-		struct timeval timeout = {};
-		timeout.tv_sec = 3;
-		FD_ZERO(&w);
-		FD_SET(fd, &w);
-		if (select(fd + 1, NULL, &w, NULL, &timeout) <= 0)
-			break;
-		FD_CLR(fd, &w);
-		// must
-		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK); // set block
-		// choice
-		if (1 == evcon->proxy_type){
-			if (evhttp_proxy_request_httpconnect(fd,evcon))
-				break;
-		}else if (2 == evcon->proxy_type){
-			if (socks5_handshake(fd, evcon->proxy_target_address,evcon->proxy_target_port))
-				break;
-		}else
-			break;
-		nRet = 0;
-	} while (0);
-	fcntl(fd, F_SETFL, orig_flag); // restore
-	return nRet;
-}
-
-int 
-evhttp_connection_set_proxy(struct evhttp_connection *evcon, const char* proxystr)
-{
-	struct evhttp_uri *uri = NULL;
-	int ret = -1;
-	const char *scheme = NULL, *str_value = NULL;
-
-    if (!(uri = evhttp_uri_parse(proxystr)))
-        return ret;
-    do
-    {
-		if (NULL == evcon)
-			break;
-        if (!(scheme = evhttp_uri_get_scheme(uri)))
-            break;
-        // host
-        if (!(str_value = evhttp_uri_get_host(uri)))
-            break;
-		if (evcon->proxy_address)
-			mm_free(evcon->proxy_address);
-		if (!(evcon->proxy_address = mm_strdup(str_value)))
-			break;
-        // username and password, not support now
-        if ((str_value = evhttp_uri_get_userinfo(uri))){
-        }
-        // port
-        evcon->proxy_port = evhttp_uri_get_port(uri);
-        if (evcon->proxy_port == -1)
-            evcon->proxy_port = (strcasecmp(scheme, "https") == 0) ? 443 : 1080;       
-        // return type
-        if (!strcasecmp(scheme, "https"))
-            evcon->proxy_type = 1;
-        else if (!strcasecmp(scheme, "socks5"))
-            evcon->proxy_type = 2;
-        else{
-            evcon->proxy_type = 0;
-			break;
-		}
-		//check
-		if (NULL == evcon->address || 0 == evcon->port) {
-			event_warn("%s: address or port not init", __func__);
-			break;
-		}
-		if (evcon->proxy_target_address)
-			mm_free(evcon->proxy_target_address);
-		evcon->proxy_target_address = evcon->address;
-		evcon->proxy_target_port = evcon->port;
-		//set new connect target
-		if (!(evcon->address = mm_strdup(evcon->proxy_address)))
-			break;
-		evcon->port = evcon->proxy_port;
-		evhttp_connection_set_connectcb(evcon, evhttp_proxy_connect_callback_internal, NULL);
-		ret = 0;
-	} while (0);
-    if (uri)
-        evhttp_uri_free(uri);
-    return ret;
-}
-
 void
 evhttp_connection_get_peer(struct evhttp_connection *evcon,
     const char **address, ev_uint16_t *port)
@@ -3090,10 +2844,10 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 
 	/* Set up a callback for successful connection setup */
 	bufferevent_setcb(evcon->bufev,
-	    NULL /* evhttp_read_cb */,
-	    NULL /* evhttp_write_cb */,
-	    evhttp_connection_cb,
-	    evcon);
+			NULL /* evhttp_read_cb */,
+			NULL /* evhttp_write_cb */,
+			evhttp_connection_cb,
+			evcon);
 	bufferevent_set_timeouts(evcon->bufev,
 	    &evcon->timeout_connect, &evcon->timeout_connect);
 	/* make sure that we get a write callback */
@@ -3127,22 +2881,14 @@ evhttp_connection_connect_(struct evhttp_connection *evcon)
 	if (ret < 0) {
 		evcon->state = old_state;
 		event_sock_warn(bufferevent_getfd(evcon->bufev), "%s: connection to \"%s\" failed",
-		    __func__, evcon->address);
+			__func__, evcon->address);
 		/* some operating systems return ECONNREFUSED immediately
 		 * when connecting to a local address.  the cleanup is going
 		 * to reschedule this function call.
 		 */
 		evhttp_connection_cb_cleanup(evcon);
 		return (0);
-	}else {
-        if (evcon->connectcb != NULL){
-            if ((*evcon->connectcb)(evcon, evcon->connectcb_arg) < 0){
-                evcon->state = old_state;
-                evhttp_connection_reset_(evcon, 1);
-                return (-1);
-            }
-        }
-    }
+	}
 
 	return (0);
 }

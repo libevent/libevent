@@ -102,9 +102,6 @@ struct evhttp_connection {
 	void (*closecb)(struct evhttp_connection *, void *);
 	void *closecb_arg;
 
-	int (*connectcb)(struct evhttp_connection *, void *);
-	void *connectcb_arg;
-
 	struct event_callback read_more_deferred_cb;
 
 	struct event_base *base;
@@ -112,13 +109,6 @@ struct evhttp_connection {
 	int ai_family;
 
 	evhttp_ext_method_cb ext_method_cmp;
-
-	/*proxy setting*/
-	ev_uint8_t proxy_type; //0 none;1 https;2 socks5
-	char *proxy_address;
-	int proxy_port;
-	char *proxy_target_address;
-	int proxy_target_port;
 };
 
 /* A callback for an http server */

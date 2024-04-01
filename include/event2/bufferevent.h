@@ -1054,6 +1054,10 @@ void
 bufferevent_rate_limit_group_reset_totals(
 	struct bufferevent_rate_limit_group *grp);
 
+EVENT2_EXPORT_SYMBOL
+int
+bufferevent_set_proxy(struct bufferevent *bev, ev_uint8_t proxy_type, const char *proxy_host, ev_uint16_t proxy_port, 
+                     const char *auth_user, const char *auth_pwd);
 #ifdef __cplusplus
 }
 #endif

@@ -481,6 +481,8 @@ bufferevent_connect_getaddrinfo_cb(int result, struct evutil_addrinfo *ai,
 	r = bufferevent_socket_connect(bev, ai->ai_addr, (int)ai->ai_addrlen);
 	if (r < 0)
 		bufferevent_run_eventcb_(bev, BEV_EVENT_ERROR, 0);
+	if (bev->proxycb)
+		bev->proxycb(bev, NULL);
 	bufferevent_decref_and_unlock_(bev);
 	evutil_freeaddrinfo(ai);
 }
@@ -503,26 +505,36 @@ bufferevent_socket_connect_hostname_hints(struct bufferevent *bev,
     struct evdns_base *evdns_base, const struct evutil_addrinfo *hints_in,
     const char *hostname, int port)
 {
-	char portbuf[10];
+	int conn_port = 0;
+	char portbuf[10], *conn_host = NULL;
 	struct bufferevent_private *bev_p =
 	    EVUTIL_UPCAST(bev, struct bufferevent_private, bev);
-
+	if (0 != bev->proxy_type){
+		conn_port = bev->proxy_port;
+		conn_host = (char*)bev->proxy_address;
+		if (!(bev->proxy_target_address = mm_strdup(hostname)))
+			return -1;
+		bev->proxy_target_port = port;
+	}else{
+		conn_port = port;
+		conn_host = (char*)hostname;
+	}
 	if (hints_in->ai_family != AF_INET && hints_in->ai_family != AF_INET6 &&
 	    hints_in->ai_family != AF_UNSPEC)
 		return -1;
-	if (port < 1 || port > 65535)
+	if (conn_port < 1 || conn_port > 65535)
 		return -1;
 
 	BEV_LOCK(bev);
 	bev_p->dns_error = 0;
-
-	evutil_snprintf(portbuf, sizeof(portbuf), "%d", port);
+	
+	evutil_snprintf(portbuf, sizeof(portbuf), "%d", conn_port);
 
 	bufferevent_suspend_write_(bev, BEV_SUSPEND_LOOKUP);
 	bufferevent_suspend_read_(bev, BEV_SUSPEND_LOOKUP);
 
 	bufferevent_incref_(bev);
-	bev_p->dns_request = evutil_getaddrinfo_async_(evdns_base, hostname,
+	bev_p->dns_request = evutil_getaddrinfo_async_(evdns_base, conn_host,
 	    portbuf, hints_in, bufferevent_connect_getaddrinfo_cb, bev);
 
 	BEV_UNLOCK(bev);

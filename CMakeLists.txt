@@ -903,6 +903,7 @@ list(APPEND SRC_CORE
     bufferevent.c
     bufferevent_filter.c
     bufferevent_pair.c
+    bufferevent_proxy.c
     bufferevent_ratelim.c
     bufferevent_sock.c
     event.c
