@@ -205,15 +205,17 @@ receive_ws_msg(struct evbuffer *buf, size_t *out_len, bool *is_text_type)
 
 enum WSOptions {
 	WS_FIN = 1 << 7,
-	WS_TEXT = 1 << 1,
-	WS_BINARY = 0 << 1,
+	WS_TEXT = 1 << 0,
+	WS_BINARY = 1 << 1,
 };
 
 static void
 send_ws_msg(
 	struct evbuffer *buf, const char *msg, size_t len, enum WSOptions options)
 {
-	uint8_t a = 0, b = 0, c = 0, d = 0;
+	uint8_t a = 0, b = 0;
+	uint16_t c = 0;
+       	uint64_t d = 0;
 	uint8_t mask_key[4] = {1, 2, 3, 4}; /* should be random */
 	uint8_t m;
 	size_t i;
