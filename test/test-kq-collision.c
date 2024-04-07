@@ -79,7 +79,8 @@ read_cb(evutil_socket_t fd, short event, void *arg)
 }
 
 static void*
-trigger_kq(void *arg) {
+trigger_kq(void *arg)
+{
 	struct event_base *base = arg;
 	event_base_loopcontinue(base);
 }
