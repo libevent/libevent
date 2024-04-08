@@ -25,11 +25,11 @@
  */
 #include "../util-internal.h"
 #include "event2/event-config.h"
-#include "event2/event_compat.h"
 #include "event2/thread.h"
 
 #if defined(EVENT__HAVE_WORKING_KQUEUE)
 
+#include <assert.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -48,6 +48,7 @@
 
 struct timeval timeout = {3, 0};
 char data[] = "Hello, World!";
+int read_called = 0;
 
 #define MAGIC_FD 42 // The old magic number used by kqueue EVFILT_USER
 
@@ -59,7 +60,7 @@ read_cb(evutil_socket_t fd, short event, void *arg)
 		exit(1);
 	}
 
-	if (EV_READ & event == 0) {
+	if ((EV_READ & event) == 0) {
 		printf("%s: expected EV_READ for pipe but got nothing\n", __func__);
 		exit(1);
 	}
@@ -76,12 +77,18 @@ read_cb(evutil_socket_t fd, short event, void *arg)
 		exit(1);
 	}
 	printf("%s: read the expected data from pipe successfully\n", __func__);
+	assert(read_called == 0);
+	read_called++;
 }
 
 static void*
 trigger_kq(void *arg)
 {
 	struct event_base *base = arg;
+	/* This function is called to notify the main thread
+	 * to scan for new events immediately by issuing a EVFILT_USER event.
+	 * We need to do it in a separate thread, otherwise it won't be issued.
+	 */
 	event_base_loopcontinue(base);
 }
 
@@ -108,12 +115,19 @@ write_cb(evutil_socket_t fd, short events, void *arg)
 	printf("%s: write data to pipe successfully\n", __func__);
 }
 
+static void
+exit_cb(int sock, short what, void *arg)
+{
+    struct event_base *base = arg;
+    event_base_loopbreak(base);
+}
+
 int
 main(int argc, char **argv)
 {
 	struct event_base *base;
-	struct event *ev_notify, *ev_read, *ev_write;
-	struct timeval tv_notify, tv_write;
+	struct event *ev_notify, *ev_read, *ev_write, *ev_exit;
+	struct timeval tv_notify, tv_write, tv_exit;
 	int pipefd[2];
 
 	/* Create a pair of pipe */
@@ -122,7 +136,7 @@ main(int argc, char **argv)
 		r = pipe(pipefd);
 		if (r == -1) {
 			printf("pipe error\n");
-			return (1);
+			return EXIT_FAILURE;
 		}
 		if (pipefd[0] != MAGIC_FD && pipefd[1] != MAGIC_FD)
 			break;
@@ -131,13 +145,19 @@ main(int argc, char **argv)
 		r = -1;
 	} while (r != 0);
 
+	/* Redirect the read end of the pipe to the magic number of EVFILT_USER,
+	 * verifying that the EVFILT_READ event is not tampered by the EVFILT_USER event.
+	 */
 	if (dup2(pipefd[0], MAGIC_FD) == -1) {
 		printf("dup2 failed\n");
-		return (1);
+		return EXIT_FAILURE;
 	}
 	close(pipefd[0]);
 	pipefd[0] = MAGIC_FD;
 
+	/* Sets up Libevent for use with Pthreads locking and thread ID functions.
+	 * This is required for event_base_loopcontinue() to work properly.
+	 */
 	evthread_use_pthreads();
 
 	base = event_base_new();
@@ -151,20 +171,28 @@ main(int argc, char **argv)
 	tv_write.tv_sec = 1;
 	tv_write.tv_usec = 0;
 	evtimer_add(ev_write, &tv_write);
+	ev_exit = evtimer_new(base, exit_cb, base);
+	tv_exit.tv_sec = 5; // exit after 5 seconds, after the timeout.
+	tv_exit.tv_usec = 0;
+	evtimer_add(ev_exit, &tv_exit);
 
 	/* Start dispatching events */
 	ev_read = event_new(base, MAGIC_FD, EV_READ | EV_TIMEOUT, read_cb, event_self_cbarg());
 	event_add(ev_read, &timeout);
 	event_base_dispatch(base);
 
+	// The read_cb is expected to be called once.
+	assert(read_called == 1);
+
 	/* Clean up the resources */
 	event_free(ev_read);
 	event_free(ev_notify);
 	event_free(ev_write);
+	event_free(ev_exit);
 	close(pipefd[0]);
 	close(pipefd[1]);
 	event_base_free(base);
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 #endif /* EVENT__HAVE_WORKING_KQUEUE */
